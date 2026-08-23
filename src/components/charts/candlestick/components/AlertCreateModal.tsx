@@ -20,7 +20,7 @@ import {
   PlayIcon,
 } from "../../../icons";
 import type { Indicator } from "../interfaces/Indicator.interface";
-import type { ChartAlertCrossing, ChartAlertDraft } from "../interfaces/ChartAlertDraft.interface";
+import type { ChartAlertCrossing, ChartAlertDraft, ChartAlert } from "../interfaces/ChartAlertDraft.interface";
 import { FIBONACCI_LEVELS, FIBONACCI_EXTENSION_LEVELS } from "../drawingCatalog";
 
 const DEFAULT_SOUND_OPTIONS = [
@@ -143,6 +143,11 @@ export interface AlertCreateModalProps {
   /** A human label for the current target ("Ligne de tendance", "Retracement de Fibonacci", …) —
    *  used only to seed the default message text, not shown anywhere in the modal's own chrome. */
   targetLabel: string;
+  /** Pre-selects the "Condition" field when opened directly from an indicator's own legend row
+   *  (no drawing involved) — same id `conditionIndicatorId` itself ends up carrying, just the
+   *  entry point setting it up front instead of leaving it at "Prix". Ignored while
+   *  `editingAlert` is set (that alert's own value wins instead). */
+  initialConditionIndicatorId?: string;
   /** Indicators currently shown as an overlay on the price chart (pane: "price") — see
    *  indicatorCatalogEntry's own doc — alongside a synthetic "Prix" entry, always first. */
   overlayIndicators: Indicator[];
@@ -154,12 +159,20 @@ export interface AlertCreateModalProps {
    *  (see CandlestickChartProps.onPlaySound's own doc for why: no callback, nothing to play). */
   onPlaySound?: (value: string) => void;
   onCreate: ((alert: ChartAlertDraft) => void) | undefined;
+  /** Editing an existing alert instead of creating a new one — pre-fills every field from it, and
+   *  switches the footer to "Enregistrer"/"Supprimer" instead of "Créer" (see `onSave`/
+   *  `onDeleteAlert`). `null`/omitted for the normal create flow. */
+  editingAlert?: ChartAlert | null;
+  onSave?: (id: string, alert: ChartAlertDraft) => void;
+  onDeleteAlert?: (id: string) => void;
 }
 
-/** "Create alert" modal opened from the floating drawing toolbar's own bell button — modeled on
- *  TradingView's own alert dialog. Purely a form: "Create" hands the assembled `ChartAlertDraft`
- *  to `onCreate` and closes; this library never stores, evaluates, or fires alerts itself (same
- *  "caller owns the data" shape as `drawings`/`indicators`/the `alerts` tab). */
+/** "Create alert" modal opened from the floating drawing toolbar's own bell button, an
+ *  indicator's own legend row, or `AlertListModal`'s own "Nouvelle alerte"/edit-pencil — modeled
+ *  on TradingView's own alert dialog. Purely a form: "Créer"/"Enregistrer" hands the assembled
+ *  `ChartAlertDraft` to `onCreate`/`onSave` and closes; this library never stores, evaluates, or
+ *  fires alerts itself (same "caller owns the data" shape as `drawings`/`indicators`/the `alerts`
+ *  tab). */
 export function AlertCreateModal({
   open,
   onClose,
@@ -169,16 +182,20 @@ export function AlertCreateModal({
   isFibonacciTarget,
   fibonacciExtension,
   targetLabel,
+  initialConditionIndicatorId,
   overlayIndicators,
   indicatorLabel,
   soundOptions = DEFAULT_SOUND_OPTIONS,
   onPlaySound,
   onCreate,
+  editingAlert,
+  onSave,
+  onDeleteAlert,
 }: AlertCreateModalProps) {
   const fibLevels = fibonacciExtension ? FIBONACCI_EXTENSION_LEVELS : FIBONACCI_LEVELS;
   const defaultCrossing: ChartAlertCrossing = isFibonacciTarget ? { kind: "fibLevel", level: fibLevels[0] } : { kind: "crossing" };
 
-  const [conditionIndicatorId, setConditionIndicatorId] = useState("price");
+  const [conditionIndicatorId, setConditionIndicatorId] = useState(initialConditionIndicatorId ?? "price");
   const [crossing, setCrossing] = useState<ChartAlertCrossing>(defaultCrossing);
   const [trigger, setTrigger] = useState<ChartAlertDraft["trigger"]>("onlyOnce");
   const [sound, setSound] = useState(soundOptions[0]?.value ?? "none");
@@ -191,18 +208,30 @@ export function AlertCreateModal({
   const messageCustomizedRef = useRef(false);
 
   // Fresh form every time the modal opens — same "stale state from a previous visit" concern
-  // LinkGroupsModal/SymbolTargetModal's own reset-on-open effects already guard against.
+  // LinkGroupsModal/SymbolTargetModal's own reset-on-open effects already guard against. Editing
+  // an existing alert pre-fills every field from it instead of the usual defaults.
   useEffect(() => {
     if (!open) return;
-    setConditionIndicatorId("price");
-    setCrossing(defaultCrossing);
-    setTrigger("onlyOnce");
-    setSound(soundOptions[0]?.value ?? "none");
-    setHasExpiration(false);
-    setExpiresAt(null);
-    messageCustomizedRef.current = false;
+    if (editingAlert) {
+      setConditionIndicatorId(editingAlert.conditionIndicatorId);
+      setCrossing(editingAlert.crossing);
+      setTrigger(editingAlert.trigger);
+      setSound(editingAlert.sound);
+      setMessage(editingAlert.message);
+      setHasExpiration(editingAlert.expiresAt !== null);
+      setExpiresAt(editingAlert.expiresAt);
+      messageCustomizedRef.current = true;
+    } else {
+      setConditionIndicatorId(initialConditionIndicatorId ?? "price");
+      setCrossing(defaultCrossing);
+      setTrigger("onlyOnce");
+      setSound(soundOptions[0]?.value ?? "none");
+      setHasExpiration(false);
+      setExpiresAt(null);
+      messageCustomizedRef.current = false;
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open, editingAlert]);
 
   useEffect(() => {
     if (messageCustomizedRef.current) return;
@@ -216,8 +245,8 @@ export function AlertCreateModal({
     ...overlayIndicators.map((ind) => ({ value: ind.id, label: indicatorLabel(ind) })),
   ];
 
-  function handleCreate() {
-    onCreate?.({
+  function buildDraft(): ChartAlertDraft {
+    return {
       drawingId,
       conditionIndicatorId,
       crossing,
@@ -225,7 +254,15 @@ export function AlertCreateModal({
       sound,
       message,
       expiresAt: hasExpiration ? expiresAt : null,
-    });
+    };
+  }
+
+  function handleCreate() {
+    if (editingAlert) {
+      onSave?.(editingAlert.id, buildDraft());
+    } else {
+      onCreate?.(buildDraft());
+    }
     onClose();
   }
 
@@ -235,16 +272,28 @@ export function AlertCreateModal({
       onClose={onClose}
       title={
         <span className="lq-alert-modal__title">
-          Créer une alerte sur {symbol ?? "—"} {timeframe ?? ""}
+          {editingAlert ? "Modifier l'alerte sur" : "Créer une alerte sur"} {symbol ?? "—"} {timeframe ?? ""}
         </span>
       }
       footer={
         <div className="lq-chart__edit-drawing-footer">
+          {editingAlert && onDeleteAlert && (
+            <button
+              type="button"
+              className="lq-chart__reset-button"
+              onClick={() => {
+                onDeleteAlert(editingAlert.id);
+                onClose();
+              }}
+            >
+              Supprimer
+            </button>
+          )}
           <button type="button" className="lq-chart__reset-button" onClick={onClose}>
             Annuler
           </button>
           <button type="button" className="lq-chart__confirm-button" onClick={handleCreate}>
-            Créer
+            {editingAlert ? "Enregistrer" : "Créer"}
           </button>
         </div>
       }

@@ -21,6 +21,7 @@ import { useDrawingState } from "./candlestick/hooks/useDrawingState";
 import { useDrawingInteractions } from "./candlestick/hooks/useDrawingInteractions";
 import { useDrawingToolMenuAnchors } from "./candlestick/hooks/useDrawingToolMenuAnchors";
 import { useFloatingToolbarState } from "./candlestick/hooks/useFloatingToolbarState";
+import { useAlertFlow } from "./candlestick/hooks/useAlertFlow";
 import { useCorrelationSetup } from "./candlestick/hooks/useCorrelationSetup";
 import { useRenderCandlestickChart } from "./candlestick/hooks/useRenderCandlestickChart";
 import { useSidePanel } from "./candlestick/hooks/useSidePanel";
@@ -54,6 +55,7 @@ import type { TimeframeOption } from "./candlestick/interfaces/TimeframeOption.i
 import type { TimeframeGroup } from "./candlestick/interfaces/TimeframeGroup.interface";
 import type { TimeframeEntry } from "./candlestick/interfaces/TimeframeEntry.interface";
 import type { CandlestickChartProps } from "./candlestick/interfaces/CandlestickChartProps.interface";
+import type { ChartAlert, ChartAlertDraft, ChartAlertCrossing } from "./candlestick/interfaces/ChartAlertDraft.interface";
 
 export type {
   Candle,
@@ -73,7 +75,7 @@ export type {
   TimeframeOption,
   TimeframeGroup,
   TimeframeEntry,
-  CandlestickChartProps,
+  CandlestickChartProps, ChartAlert, ChartAlertDraft, ChartAlertCrossing,
 };
 
 import { drawingLabel } from "./candlestick/drawingCatalog";
@@ -102,8 +104,7 @@ export function CandlestickChart({
   drawingTools = false,
   defaultDrawings,
   onDrawingsChange,
-  onCreateAlert,
-  alertSoundOptions, onPlaySound,
+  alerts, onCreateAlert, onUpdateAlert, onDeleteAlert, alertSoundOptions, onPlaySound,
   showIndicators = false,
   defaultIndicators,
   onIndicatorsChange, customIndicators,
@@ -265,10 +266,8 @@ export function CandlestickChart({
 
   const {
     showFloatingToolbar, showToolbarStyleControls,
-    toolbarColor, toolbarTextColor, toolbarStrokeWidth,
-    updateDrawingOrDefaultStyle,
-    floatingToolbarPosition, floatingToolbarRef, startFloatingToolbarDrag,
-    alertModalOpen, openAlertModal, closeAlertModal, alertTarget,
+    toolbarColor, toolbarTextColor, toolbarStrokeWidth, updateDrawingOrDefaultStyle,
+    floatingToolbarPosition, floatingToolbarRef, startFloatingToolbarDrag, alertTarget,
   } = useFloatingToolbarState({
     activeTool,
     selectedDrawingId,
@@ -279,6 +278,7 @@ export function CandlestickChart({
     defaultDrawingColor,
     plotWidth: dims.boundedWidth,
   });
+  const alertFlow = useAlertFlow(alerts ?? [], selectedDrawingId);
 
   const {
     indicators,
@@ -746,6 +746,7 @@ export function CandlestickChart({
           indicatorLabel={indicatorLabel}
           toggleIndicatorHidden={toggleIndicatorHidden}
           removeIndicator={removeIndicator}
+          alertedIndicatorIds={alertFlow.alertedIndicatorIds} onOpenIndicatorAlert={(ind) => alertFlow.openForIndicator(ind.id, indicatorLabel(ind))}
           symbolOverlays={symbolOverlays}
           drawings={drawings}
           commitDrawings={commitDrawings}
@@ -890,7 +891,7 @@ export function CandlestickChart({
             onColorChange={(color) => updateDrawingOrDefaultStyle({ color })}
             onTextColorChange={(textColor) => updateDrawingOrDefaultStyle({ textColor })}
             onStrokeWidthChange={(strokeWidth) => updateDrawingOrDefaultStyle({ strokeWidth })}
-            onOpenAlert={openAlertModal}
+            onOpenAlert={() => alertFlow.openFor(alertTarget)} hasAlert={alertFlow.selectedDrawingHasAlert}
           />
         )}
       </div>
@@ -982,11 +983,10 @@ export function CandlestickChart({
         addingOverlaySymbols={addingOverlaySymbols}
         handleAddSymbolOverlay={handleAddSymbolOverlay}
         removeSymbolOverlay={removeSymbolOverlay}
-        open={alertModalOpen} onClose={closeAlertModal}
         symbol={symbol} timeframe={timeframe}
-        {...alertTarget}
+        {...alertFlow.modalProps}
         overlayIndicators={overlayIndicators} indicatorLabel={indicatorLabel}
-        soundOptions={alertSoundOptions} onCreate={onCreateAlert} onPlaySound={onPlaySound}
+        soundOptions={alertSoundOptions} onCreate={onCreateAlert} onPlaySound={onPlaySound} onSave={onUpdateAlert} onDeleteAlert={onDeleteAlert}
       />
       </div>
 

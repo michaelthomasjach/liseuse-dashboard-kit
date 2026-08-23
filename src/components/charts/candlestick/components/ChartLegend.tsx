@@ -1,5 +1,5 @@
 import type { Dispatch, SetStateAction } from "react";
-import { EyeIcon, EyeOffIcon, TrashIcon, SettingsIcon } from "../../../icons";
+import { EyeIcon, EyeOffIcon, TrashIcon, SettingsIcon, BellIcon } from "../../../icons";
 import type { Candle } from "../interfaces/Candle.interface";
 import type { Indicator } from "../interfaces/Indicator.interface";
 import type { TrendLineDrawing } from "../interfaces/TrendLineDrawing.interface";
@@ -26,6 +26,11 @@ export interface ChartLegendProps {
   indicatorLabel: (indicator: Indicator) => string;
   toggleIndicatorHidden: (id: string) => void;
   removeIndicator: (id: string) => void;
+  /** Indicator ids that currently have at least one alert (see `useAlertFlow`) — drives the
+   *  bell's active state so it stays visible even while the row isn't hovered, same
+   *  "icon next to it once an alert exists" treatment the drawing toolbar's own bell gets. */
+  alertedIndicatorIds: Set<string>;
+  onOpenIndicatorAlert: (indicator: Indicator) => void;
   symbolOverlays: TrendLineDrawing[];
   drawings: TrendLineDrawing[];
   commitDrawings: (drawings: TrendLineDrawing[]) => void;
@@ -62,6 +67,8 @@ export function ChartLegend({
   indicatorLabel,
   toggleIndicatorHidden,
   removeIndicator,
+  alertedIndicatorIds,
+  onOpenIndicatorAlert,
   symbolOverlays,
   drawings,
   commitDrawings,
@@ -146,8 +153,25 @@ export function ChartLegend({
             </span>
             {/* Invisible until this item is hovered (see charts-shared.css) — double-click
                 the label itself opens the settings modal too, so the gear is a discoverable
-                shortcut, not the only way in. */}
+                shortcut, not the only way in. The bell is the one exception: it stays visible
+                even unhovered once this indicator actually has an alert (see
+                .lq-chart__indicator-legend-action--alert-active), the same "icon next to it"
+                treatment the drawing toolbar's own bell gets. */}
             <div className="lq-chart__indicator-legend-actions">
+              <button
+                type="button"
+                className={[
+                  "lq-chart__indicator-legend-action",
+                  alertedIndicatorIds.has(indicator.id) && "lq-chart__indicator-legend-action--alert-active",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+                onClick={() => onOpenIndicatorAlert(indicator)}
+                aria-pressed={alertedIndicatorIds.has(indicator.id)}
+                aria-label={alertedIndicatorIds.has(indicator.id) ? `Alertes sur ${indicatorLabel(indicator)}` : `Créer une alerte sur ${indicatorLabel(indicator)}`}
+              >
+                <BellIcon size={11} />
+              </button>
               <button
                 type="button"
                 className="lq-chart__indicator-legend-action"

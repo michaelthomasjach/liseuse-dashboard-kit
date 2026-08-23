@@ -11,7 +11,7 @@ import type { ChartEvent } from "./ChartEvent.interface";
 import type { FundamentalDataPoint } from "./FundamentalDataPoint.interface";
 import type { SymbolSearchResult } from "./SymbolSearchResult.interface";
 import type { SymbolSearchCategory } from "./SymbolSearchCategory.interface";
-import type { ChartAlertDraft } from "./ChartAlertDraft.interface";
+import type { ChartAlertDraft, ChartAlert } from "./ChartAlertDraft.interface";
 
 export interface CandlestickChartProps {
   data: Candle[];
@@ -56,12 +56,26 @@ export interface CandlestickChartProps {
   defaultDrawings?: TrendLineDrawing[];
   /** Fires whenever a drawing is added, moved, or edited. */
   onDrawingsChange?: (drawings: TrendLineDrawing[]) => void;
+  /** Every alert attached to a drawing (via `drawingId`) or an indicator directly (`drawingId`
+   *  null, `conditionIndicatorId` set — see `ChartAlertDraft`'s own doc) — entirely caller-owned,
+   *  same stance as `drawings`/`indicators`, this library never stores, evaluates, or fires one
+   *  itself. Drives the bell icon's active state on the floating drawing toolbar and each
+   *  indicator's own legend row, and which alerts `AlertListModal` shows for a given target.
+   *  Omit (or pass an empty array) to show every bell in its plain, no-alert state. */
+  alerts?: ChartAlert[];
   /** Fires when "Créer" is clicked in the alert-creation modal (opened from the floating drawing
    *  toolbar's own bell button, itself shown while a drawing tool is active or an existing
-   *  drawing is selected). The library only ever collects the form into a `ChartAlertDraft` and
-   *  hands it here — same "caller owns the data" stance as `drawings`/`indicators` — it never
-   *  stores, evaluates, or fires an alert itself. */
+   *  drawing is selected, or an indicator's own legend-row bell). The library only ever collects
+   *  the form into a `ChartAlertDraft` and hands it here — same "caller owns the data" stance as
+   *  `drawings`/`indicators` — it never stores, evaluates, or fires an alert itself. */
   onCreateAlert?: (alert: ChartAlertDraft) => void;
+  /** Fires when "Enregistrer" is clicked while editing an existing alert (see `alerts`) — same
+   *  "caller owns the data" stance as `onCreateAlert`, this only reports the intent; applying the
+   *  patch to the caller's own `alerts` array is up to whatever this does. */
+  onUpdateAlert?: (id: string, alert: ChartAlertDraft) => void;
+  /** Fires when an alert is deleted, from either `AlertListModal`'s own trash button or the
+   *  edit-alert form's own "Supprimer" — same "caller owns the data" stance as `onCreateAlert`. */
+  onDeleteAlert?: (id: string) => void;
   /** Options for the alert modal's own "Son" (sound) picker — this library ships no audio assets,
    *  so it's purely a label picker, never actually played. Defaults to a small built-in list. */
   alertSoundOptions?: { value: string; label: string }[];

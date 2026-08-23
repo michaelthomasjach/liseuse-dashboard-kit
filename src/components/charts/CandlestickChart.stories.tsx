@@ -10,7 +10,10 @@ import {
   type ChartDisplayMode,
   type OverlayDataPoint,
   type CustomIndicatorDef,
+  type ChartAlert,
+  type ChartAlertDraft,
 } from "./CandlestickChart";
+import { AlertsPanel } from "./AlertsPanel";
 import {
   ChartWorkspace,
   type ChartWorkspaceWatchlist,
@@ -326,10 +329,48 @@ const DEMO_NEWS: WatchlistNewsItem[] = [
   { id: "n-5", time: "il y a 5 h", ticker: "MSFT", headline: "Microsoft Q1 earnings beat estimates on strong Azure growth", provider: "Reuters", isFinancialReport: true },
 ];
 
-// No alert spec exists yet (see ChartWorkspaceProps.alerts' own doc) — just enough content to
-// show the tab isn't empty/broken, not a real empty state design.
-function AlertsPlaceholder() {
-  return <p style={{ fontSize: 12.5, opacity: 0.7, padding: "0 4px" }}>Aucune alerte configurée pour le moment.</p>;
+// A short tone at `freq` for `duration` seconds, `delay` seconds from now — the one shared
+// building block every sound below is made of, so each option's own distinct sound is really just
+// a different arrangement of these (single tone vs. a short ascending/alternating sequence).
+function playTone(ctx: AudioContext, freq: number, duration: number, delay = 0) {
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.frequency.value = freq;
+  gain.gain.setValueAtTime(0.15, ctx.currentTime + delay);
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + duration);
+  osc.connect(gain).connect(ctx.destination);
+  osc.start(ctx.currentTime + delay);
+  osc.stop(ctx.currentTime + delay + duration);
+}
+
+// This library ships no audio assets of its own (see CandlestickChartProps.onPlaySound's own
+// doc) — a real app would likely play actual sound files instead, this is just enough to
+// demonstrate every option in AlertCreateModal's own "Son" picker actually sounding distinct from
+// the others, rather than all four collapsing to the exact same tone.
+function playAlertSound(value: string) {
+  if (value === "none") return;
+  const ctx = new AudioContext();
+  switch (value) {
+    case "bell":
+      playTone(ctx, 660, 0.6);
+      break;
+    case "chime":
+      playTone(ctx, 523, 0.18);
+      playTone(ctx, 659, 0.18, 0.15);
+      playTone(ctx, 784, 0.3, 0.3);
+      break;
+    case "ding":
+      playTone(ctx, 1200, 0.12);
+      break;
+    case "alert":
+      playTone(ctx, 880, 0.12);
+      playTone(ctx, 660, 0.12, 0.15);
+      playTone(ctx, 880, 0.12, 0.3);
+      playTone(ctx, 660, 0.12, 0.45);
+      break;
+    default:
+      playTone(ctx, 880, 0.25);
+  }
 }
 
 export const AllFeatures: Story = {
@@ -340,6 +381,19 @@ export const AllFeatures: Story = {
     const [results, setResults] = useState<SymbolSearchResult[]>(MOCK_SYMBOL_DB);
     const [currentSymbol, setCurrentSymbol] = useState("MSFT");
     const [displayMode, setDisplayMode] = useState<ChartDisplayMode>("candle");
+    // Same "caller owns the data" stance as `watchlists`/`drawings`/`indicators` — the library
+    // only ever hands back a `ChartAlertDraft` (via onCreateAlert/onUpdateAlert), assigning an id
+    // and appending/patching/removing it in this array is entirely on this story's own side.
+    const [alerts, setAlerts] = useState<ChartAlert[]>([]);
+    function handleCreateAlert(draft: ChartAlertDraft) {
+      setAlerts((prev) => [...prev, { ...draft, id: `alert-${Date.now()}` }]);
+    }
+    function handleUpdateAlert(id: string, draft: ChartAlertDraft) {
+      setAlerts((prev) => prev.map((a) => (a.id === id ? { ...draft, id } : a)));
+    }
+    function handleDeleteAlert(id: string) {
+      setAlerts((prev) => prev.filter((a) => a.id !== id));
+    }
     // The caller owns watchlist *data* (see ChartWorkspaceWatchlist's own doc) — this story's own
     // stand-in for whatever real positions/watchlist store an app would have, updated here purely
     // by `onAddWatchlistSymbol` below (the library itself never mutates it).
@@ -465,7 +519,7 @@ export const AllFeatures: Story = {
           watchlistEarnings={DEMO_EARNINGS}
           watchlistDividends={DEMO_DIVIDENDS}
           watchlistNews={DEMO_NEWS}
-          alerts={<AlertsPlaceholder />}
+          alerts={<AlertsPanel alerts={alerts} onDeleteAlert={handleDeleteAlert} />}
         >
           <CandlestickChart
             data={ALL_FEATURES_TIMEFRAME_DATA[timeframe as MockTimeframeKey] ?? ALL_FEATURES_DATASET}
@@ -493,18 +547,11 @@ export const AllFeatures: Story = {
               await new Promise((resolve) => setTimeout(resolve, 600));
               return generateOverlaySeries(result.ticker);
             }}
-            onPlaySound={(value) => {
-              if (value === "none") return;
-              const ctx = new AudioContext();
-              const osc = ctx.createOscillator();
-              const gain = ctx.createGain();
-              osc.frequency.value = 880;
-              gain.gain.setValueAtTime(0.15, ctx.currentTime);
-              gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
-              osc.connect(gain).connect(ctx.destination);
-              osc.start();
-              osc.stop(ctx.currentTime + 0.25);
-            }}
+            alerts={alerts}
+            onCreateAlert={handleCreateAlert}
+            onUpdateAlert={handleUpdateAlert}
+            onDeleteAlert={handleDeleteAlert}
+            onPlaySound={playAlertSound}
             seasonality
             showTemplates
           />

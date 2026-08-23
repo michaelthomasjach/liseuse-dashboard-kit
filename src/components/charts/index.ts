@@ -19,6 +19,9 @@ export type {
   TimeframeOption,
   TimeframeGroup,
   TimeframeEntry,
+  ChartAlert,
+  ChartAlertDraft,
+  ChartAlertCrossing,
 } from "./CandlestickChart";
 
 export { ChartEventTooltip } from "./EventTooltip";
@@ -53,6 +56,9 @@ export type { Continent } from "./worldGeo";
 
 export { Heatmap } from "./Heatmap";
 export type { HeatmapProps, HeatmapGroup, HeatmapTile } from "./Heatmap";
+
+export { AlertsPanel } from "./AlertsPanel";
+export type { AlertsPanelProps } from "./AlertsPanel";
 
 export { Sparkline } from "./Sparkline";
 export type { SparklineProps } from "./Sparkline";

@@ -660,6 +660,67 @@
   cursor: default;
 }
 
+/* AlertListModal — shown instead of AlertCreateModal once a bell's own target already has at
+   least one alert (see useAlertFlow's own doc). */
+.lq-alert-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lq-space-2);
+}
+
+.lq-alert-list__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lq-space-2);
+  padding: var(--lq-space-2) var(--lq-space-3);
+  background-color: var(--lq-color-panel);
+  border: 1px solid var(--lq-color-border-subtle);
+  border-radius: var(--lq-radius-sm);
+}
+
+.lq-alert-list__message {
+  font-size: 0.85rem;
+  color: var(--lq-color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lq-alert-list__actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.lq-alert-list__add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: var(--lq-space-2);
+  font-family: inherit;
+  font-size: 0.85rem;
+  color: var(--lq-color-text);
+  background: none;
+  border: 1px dashed var(--lq-color-border);
+  border-radius: var(--lq-radius-sm);
+  cursor: pointer;
+}
+
+.lq-alert-list__add:hover {
+  background-color: var(--lq-color-hover);
+}
+
+/* AlertsPanel's own empty state. */
+.lq-alerts-panel__empty {
+  margin: 0;
+  padding: 0 4px;
+  font-size: 0.8rem;
+  color: var(--lq-color-text-muted);
+}
+
 .lq-chart__icon-button--active:hover {
   color: var(--lq-color-accent-contrast);
   border-color: var(--lq-color-accent);
@@ -1400,6 +1461,15 @@
 .lq-chart__indicator-legend-action:hover {
   color: var(--lq-color-text);
   opacity: 1;
+}
+
+/* The alert bell stays visible even while its own row isn't hovered once the indicator actually
+   has an alert — overrides the opacity:0 reveal rule above (higher specificity via the second
+   class, not !important) so it reads as a persistent "this has an alert" badge, same as the
+   floating drawing toolbar's own active bell state. */
+.lq-chart__indicator-legend-action.lq-chart__indicator-legend-action--alert-active {
+  opacity: 1;
+  color: var(--lq-color-accent);
 }
 
 /* Header strip pinned to the top of a sub-pane (currently just volume — the same "name +

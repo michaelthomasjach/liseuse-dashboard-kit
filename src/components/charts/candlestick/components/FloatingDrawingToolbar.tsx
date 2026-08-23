@@ -19,6 +19,10 @@ export interface FloatingDrawingToolbarProps {
   onTextColorChange: (color: string) => void;
   onStrokeWidthChange: (width: number) => void;
   onOpenAlert: () => void;
+  /** Whether the current target (the selected drawing) already has at least one alert — shows
+   *  the bell in its active state (see `.lq-chart__icon-button--active`) so it's clear at a
+   *  glance the moment a drawing carrying one is selected, not just while hovering the bell. */
+  hasAlert: boolean;
 }
 
 /** The small floating, draggable toolbar that appears the moment a drawing tool becomes active or
@@ -39,6 +43,7 @@ export function FloatingDrawingToolbar({
   onTextColorChange,
   onStrokeWidthChange,
   onOpenAlert,
+  hasAlert,
 }: FloatingDrawingToolbarProps) {
   const [strokeMenuOpen, setStrokeMenuOpen] = useState(false);
   const strokeButtonRef = useRef<HTMLButtonElement>(null);
@@ -110,7 +115,14 @@ export function FloatingDrawingToolbar({
           <div className="lq-chart__floating-toolbar-divider" aria-hidden="true" />
         </>
       )}
-      <button type="button" className="lq-chart__icon-button" onClick={onOpenAlert} aria-label="Créer une alerte" title="Créer une alerte">
+      <button
+        type="button"
+        className={["lq-chart__icon-button", hasAlert && "lq-chart__icon-button--active"].filter(Boolean).join(" ")}
+        onClick={onOpenAlert}
+        aria-pressed={hasAlert}
+        aria-label={hasAlert ? "Alertes sur ce dessin" : "Créer une alerte"}
+        title={hasAlert ? "Alertes sur ce dessin" : "Créer une alerte"}
+      >
         <BellIcon size={14} />
       </button>
     </div>

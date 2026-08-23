@@ -39,24 +39,43 @@ export function pitchforkMedianEndpoints(p0: ScreenPoint, p1: ScreenPoint, p2: S
   }
 }
 
+// A one-directional ray: starts exactly at `anchor` (never moved) and extends *only* through and
+// past `through`, out to whichever plot edge lies in that direction — never extended backward
+// past the anchor the way `extendSegmentToEdges`'s own default "both" mode would (that was this
+// tool's actual bug: every line reached both plot edges instead of stopping dead at its own point
+// A/B/C). `extendSegmentToEdges`'s "left"/"right" modes each keep one specific *argument
+// position* fixed rather than "whichever point is geometrically further left/right" — so when
+// `through` sits to the left of `anchor` the two points need swapping before calling it,
+// otherwise asking for "right" would push the far end toward xMax, the opposite side from where
+// `through` (and so the ray) actually needs to go.
+function rayFromAnchor(anchor: ScreenPoint, through: ScreenPoint, xMin: number, xMax: number): { x1: number; y1: number; x2: number; y2: number } {
+  if (anchor.x === through.x) return { x1: anchor.x, y1: anchor.y, x2: through.x, y2: through.y };
+  return through.x >= anchor.x
+    ? extendSegmentToEdges(anchor.x, anchor.y, through.x, through.y, xMin, xMax, "right")
+    : extendSegmentToEdges(through.x, through.y, anchor.x, anchor.y, xMin, xMax, "left");
+}
+
 export interface PitchforkLines {
+  /** The plain B–C segment ("V") — never extended, just the two points as clicked. */
+  spine: { x1: number; y1: number; x2: number; y2: number };
   median: { x1: number; y1: number; x2: number; y2: number };
   tine1: { x1: number; y1: number; x2: number; y2: number };
   tine2: { x1: number; y1: number; x2: number; y2: number };
 }
 
-/** The 3 actual on-screen lines for a pitchfork drawing — median (via pitchforkMedianEndpoints)
- *  plus the two tines through P1/P2, all extended to the plot's own left/right edges (xMin/xMax).
- *  The single source of truth both the renderer and hover/hit-testing build from, so hovering
- *  always matches exactly what's drawn instead of drifting out of sync with a second, hand-copied
- *  formula (same reasoning drawingGeometry.ts's own forecastCurvePoints already follows for the
- *  "forecast" tool's curve). */
+/** The 4 actual on-screen lines for a pitchfork drawing — the B–C spine, the median (via
+ *  pitchforkMedianEndpoints) as a ray from its own variant-specific anchor, and the two tines as
+ *  rays from P1/P2 respectively, each parallel to the median and extended one-directionally (past
+ *  its own anchor, never behind it) to the plot's own edge. The single source of truth both the
+ *  renderer and hover/hit-testing build from, so hovering always matches exactly what's drawn
+ *  instead of drifting out of sync with a second, hand-copied formula (same reasoning
+ *  drawingGeometry.ts's own forecastCurvePoints already follows for the "forecast" tool's curve). */
 export function pitchforkLines(p0: ScreenPoint, p1: ScreenPoint, p2: ScreenPoint, variant: PitchforkVariant, xMin: number, xMax: number): PitchforkLines {
   const { start, target } = pitchforkMedianEndpoints(p0, p1, p2, variant);
-  const median = extendSegmentToEdges(start.x, start.y, target.x, target.y, xMin, xMax);
+  const median = rayFromAnchor(start, target, xMin, xMax);
   const dx = target.x - start.x;
   const dy = target.y - start.y;
-  const tine1 = extendSegmentToEdges(p1.x, p1.y, p1.x + dx, p1.y + dy, xMin, xMax);
-  const tine2 = extendSegmentToEdges(p2.x, p2.y, p2.x + dx, p2.y + dy, xMin, xMax);
-  return { median, tine1, tine2 };
+  const tine1 = rayFromAnchor(p1, { x: p1.x + dx, y: p1.y + dy }, xMin, xMax);
+  const tine2 = rayFromAnchor(p2, { x: p2.x + dx, y: p2.y + dy }, xMin, xMax);
+  return { spine: { x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y }, median, tine1, tine2 };
 }

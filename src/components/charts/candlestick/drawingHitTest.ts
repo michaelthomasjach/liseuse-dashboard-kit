@@ -160,8 +160,9 @@ export function distanceToDrawing(dr: TrendLineDrawing, mouseX: number, mouseY: 
     const p1 = { x: zoomedXScale(indexForDate(dr.x2) + 0.5), y: zoomedPriceScale(dr.y2) };
     const p2Point = dr.extraPoints[0];
     const p2 = { x: zoomedXScale(indexForDate(p2Point.x) + 0.5), y: zoomedPriceScale(p2Point.y) };
-    const { median, tine1, tine2 } = pitchforkLines(p0, p1, p2, dr.lineType as PitchforkVariant, 0, dims.boundedWidth);
+    const { spine, median, tine1, tine2 } = pitchforkLines(p0, p1, p2, dr.lineType as PitchforkVariant, 0, dims.boundedWidth);
     return Math.min(
+      distanceToSegment(mouseX, mouseY, spine.x1, spine.y1, spine.x2, spine.y2),
       distanceToSegment(mouseX, mouseY, median.x1, median.y1, median.x2, median.y2),
       distanceToSegment(mouseX, mouseY, tine1.x1, tine1.y1, tine1.x2, tine1.y2),
       distanceToSegment(mouseX, mouseY, tine2.x1, tine2.y1, tine2.x2, tine2.y2)

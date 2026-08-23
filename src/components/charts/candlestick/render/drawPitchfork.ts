@@ -7,11 +7,11 @@ import { lineDashArray, drawDrawingText } from "../drawingRender";
 const PITCHFORK_TYPES = new Set(["pitchfork", "schiffPitchfork", "modifiedSchiffPitchfork", "insidePitchfork"]);
 
 /** The 4 pitchfork variants (see pitchforkGeometry.ts) — 3 points (P0/P1/P2, x1/y1-x2/y2-
- *  extraPoints[0]) resolved into 3 on-screen lines via `pitchforkLines`, the median drawn dashed
- *  to stand out from its own two solid tines (matching the icons' own convention — see
- *  PitchforkIcon and its variants) regardless of the drawing's own `lineStyle`, which instead
- *  governs the two tines. Called from `drawPriceDrawings` while its own price-section clip is
- *  still open, same as every other price-space drawing type. */
+ *  extraPoints[0]) resolved into 4 on-screen lines via `pitchforkLines`: the B–C spine and the
+ *  two tines (solid, sharing the drawing's own `lineStyle`), plus the median drawn dashed to
+ *  stand out from them (matching the icons' own convention — see PitchforkIcon and its variants)
+ *  regardless of that same `lineStyle`. Called from `drawPriceDrawings` while its own price-
+ *  section clip is still open, same as every other price-space drawing type. */
 export function drawPitchforkDrawings(ctx: CanvasRenderingContext2D, params: RenderCandlestickChartParams, style: ChartCanvasStyle) {
   const { visibleDrawings, hoveredDrawingId, zoomedXScale, zoomedPriceScale, indexForDate, dims } = params;
   const { colorAccent, fontFamily } = style;
@@ -22,7 +22,7 @@ export function drawPitchforkDrawings(ctx: CanvasRenderingContext2D, params: Ren
     const p2Point = dr.extraPoints[0];
     const p2 = { x: zoomedXScale(indexForDate(p2Point.x) + 0.5), y: zoomedPriceScale(p2Point.y) };
     const lineColor = dr.color ?? colorAccent;
-    const { median, tine1, tine2 } = pitchforkLines(p0, p1, p2, dr.lineType as PitchforkVariant, 0, dims.boundedWidth);
+    const { spine, median, tine1, tine2 } = pitchforkLines(p0, p1, p2, dr.lineType as PitchforkVariant, 0, dims.boundedWidth);
 
     ctx.save();
     ctx.strokeStyle = lineColor;
@@ -35,10 +35,10 @@ export function drawPitchforkDrawings(ctx: CanvasRenderingContext2D, params: Ren
     ctx.stroke();
 
     ctx.setLineDash(lineDashArray(dr));
-    for (const tine of [tine1, tine2]) {
+    for (const line of [spine, tine1, tine2]) {
       ctx.beginPath();
-      ctx.moveTo(tine.x1, tine.y1);
-      ctx.lineTo(tine.x2, tine.y2);
+      ctx.moveTo(line.x1, line.y1);
+      ctx.lineTo(line.x2, line.y2);
       ctx.stroke();
     }
     ctx.restore();

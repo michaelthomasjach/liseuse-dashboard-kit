@@ -31,6 +31,9 @@ export type {
   ChartWorkspaceWatchlistColumn,
   ChartWorkspaceWatchlistRow,
   ChartWorkspaceSidePanelTab,
+  WatchlistEarningsRow,
+  WatchlistDividendRow,
+  WatchlistNewsItem,
 } from "./ChartWorkspace";
 
 export { SeasonalityView } from "./SeasonalityView";

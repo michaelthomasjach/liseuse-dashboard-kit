@@ -29,6 +29,8 @@ export type {
   ChartWorkspaceWatchlistRow,
 } from "./workspace/ChartWorkspaceWatchlist.interface";
 import type { ChartWorkspaceWatchlist, ChartWorkspaceWatchlistRow } from "./workspace/ChartWorkspaceWatchlist.interface";
+export type { WatchlistEarningsRow, WatchlistDividendRow, WatchlistNewsItem } from "./workspace/WatchlistExposureModal";
+import type { WatchlistEarningsRow, WatchlistDividendRow, WatchlistNewsItem } from "./workspace/WatchlistExposureModal";
 
 /** Which of the docked panel's (up to) two tabs is currently showing — see `watchlists`/`alerts`. */
 export type ChartWorkspaceSidePanelTab = "watchlist" | "alerts";
@@ -143,6 +145,13 @@ export interface ChartWorkspaceProps {
    *  order. Same "caller owns `watchlists`, this only reports the intent" shape as
    *  `onMoveWatchlistRow`; reordering `sections` itself is up to whatever this does. */
   onReorderWatchlistSections?: (watchlistId: string, orderedSectionIds: string[]) => void;
+  /** Rows/items for the "Répartition" modal's own "Résultats"/"Dividendes"/"Actualités" tabs
+   *  (opened from a watchlist's own pie-chart icon) — same "caller owns the data, this never
+   *  fetches or infers any of it" stance as `watchlists` itself. Omitting any of the three just
+   *  leaves that tab's own table empty. */
+  watchlistEarnings?: WatchlistEarningsRow[];
+  watchlistDividends?: WatchlistDividendRow[];
+  watchlistNews?: WatchlistNewsItem[];
   /** Content for the docked panel's own "Alertes" tab, alongside `watchlists` — same "structure
    *  only, caller owns the content" shape. Omit entirely to skip the tab — its own rail icon only
    *  appears once this is set. */
@@ -193,6 +202,9 @@ export function ChartWorkspace({
   onRemoveWatchlistSection,
   onMoveWatchlistRow,
   onReorderWatchlistSections,
+  watchlistEarnings,
+  watchlistDividends,
+  watchlistNews,
   alerts,
   defaultSidePanelOpen,
   onSidePanelOpenChange,
@@ -492,6 +504,9 @@ export function ChartWorkspace({
               onMoveRow={onMoveWatchlistRow}
               onRemoveSection={onRemoveWatchlistSection}
               onReorderSections={onReorderWatchlistSections}
+              earnings={watchlistEarnings}
+              dividends={watchlistDividends}
+              news={watchlistNews}
             />
           ) : (
             <>

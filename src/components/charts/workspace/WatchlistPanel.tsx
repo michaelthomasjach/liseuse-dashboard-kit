@@ -5,6 +5,7 @@ import { TextField } from "../../forms/TextField";
 import { Modal } from "../../primitives/Modal";
 import { SymbolSearchModal } from "../candlestick/components/SymbolSearchModal";
 import { WatchlistExposureModal } from "./WatchlistExposureModal";
+import type { WatchlistEarningsRow, WatchlistDividendRow, WatchlistNewsItem } from "./WatchlistExposureModal";
 import { useSymbolSearchState } from "../candlestick/hooks/useSymbolSearchState";
 import { defaultSymbolLogoColor } from "../candlestick/symbolSearchCatalog";
 import { useWatchlistRowDrag, watchlistDropZoneProps, watchlistRowProps } from "./useWatchlistRowDrag";
@@ -50,6 +51,12 @@ export interface WatchlistPanelProps {
   onMoveRow: ((watchlistId: string, rowId: string, fromSectionId: string | null, toSectionId: string | null, toIndex: number) => void) | undefined;
   onRemoveSection: ((watchlistId: string, sectionId: string) => void) | undefined;
   onReorderSections: ((watchlistId: string, orderedSectionIds: string[]) => void) | undefined;
+  /** Passed straight through to the "Répartition" modal's own "Résultats"/"Dividendes"/
+   *  "Actualités" tabs — see WatchlistExposureModal's own doc, this panel never reads them
+   *  itself. */
+  earnings?: WatchlistEarningsRow[];
+  dividends?: WatchlistDividendRow[];
+  news?: WatchlistNewsItem[];
 }
 
 /**
@@ -80,6 +87,9 @@ export function WatchlistPanel({
   onMoveRow,
   onRemoveSection,
   onReorderSections,
+  earnings,
+  dividends,
+  news,
 }: WatchlistPanelProps) {
   const activeWatchlist = watchlists.find((w) => w.id === activeWatchlistId) ?? watchlists[0];
   const [watchlistMenuOpen, setWatchlistMenuOpen] = useState(false);
@@ -535,7 +545,14 @@ export function WatchlistPanel({
         removeSymbolOverlay={() => {}}
       />
 
-      <WatchlistExposureModal open={exposureModalOpen} onClose={() => setExposureModalOpen(false)} watchlist={activeWatchlist} />
+      <WatchlistExposureModal
+        open={exposureModalOpen}
+        onClose={() => setExposureModalOpen(false)}
+        watchlist={activeWatchlist}
+        earnings={earnings}
+        dividends={dividends}
+        news={news}
+      />
 
       {nameModal && (
         <NameModal

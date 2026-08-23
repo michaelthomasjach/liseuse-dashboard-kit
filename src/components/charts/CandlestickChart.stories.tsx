@@ -11,7 +11,15 @@ import {
   type OverlayDataPoint,
   type CustomIndicatorDef,
 } from "./CandlestickChart";
-import { ChartWorkspace, type ChartWorkspaceWatchlist, type ChartWorkspaceWatchlistColumn, type ChartWorkspaceWatchlistRow } from "./ChartWorkspace";
+import {
+  ChartWorkspace,
+  type ChartWorkspaceWatchlist,
+  type ChartWorkspaceWatchlistColumn,
+  type ChartWorkspaceWatchlistRow,
+  type WatchlistEarningsRow,
+  type WatchlistDividendRow,
+  type WatchlistNewsItem,
+} from "./ChartWorkspace";
 import { generateCandles, generateCandlesByTimeframe, type MockTimeframeKey } from "../../test-data/financeSampleData";
 
 const meta: Meta<typeof CandlestickChart> = {
@@ -291,6 +299,33 @@ const DEMO_WATCHLISTS: ChartWorkspaceWatchlist[] = [
   },
 ];
 
+// Placeholder data for WatchlistExposureModal's own "Résultats"/"Dividendes"/"Actualités" tabs —
+// same "just enough to visually verify the tab isn't empty" stance DEMO_WATCHLISTS' own doc
+// describes, not a real market-data source of any kind.
+const DEMO_EARNINGS: WatchlistEarningsRow[] = [
+  { id: "e-adbe", ticker: "ADBE", companyName: "Adobe Inc.", date: "10 sept. 2026", time: "22:05", estimateEps: "6.07 USD", actualEps: "—", surprise: "—", marketCap: "109.43 Md USD" },
+  { id: "e-msft", ticker: "MSFT", companyName: "Microsoft Corp.", date: "22 oct. 2026", time: "après clôture", estimateEps: "3.12 USD", actualEps: "—", surprise: "—", marketCap: "3 100 Md USD" },
+  { id: "e-nvda", ticker: "NVDA", companyName: "NVIDIA Corp.", date: "18 nov. 2026", time: "après clôture", estimateEps: "0.85 USD", actualEps: "—", surprise: "—", marketCap: "5 200 Md USD" },
+];
+
+const DEMO_DIVIDENDS: WatchlistDividendRow[] = [
+  { id: "d-msft", ticker: "MSFT", companyName: "Microsoft Corp.", exDividendDate: "20 août 2026", paymentDate: "10 sept. 2026", amount: "0.83 USD", yield: "0.72 %" },
+  { id: "d-aapl", ticker: "AAPL", companyName: "Apple Inc.", exDividendDate: "12 août 2026", paymentDate: "15 sept. 2026", amount: "0.26 USD", yield: "0.44 %" },
+];
+
+const DEMO_NEWS: WatchlistNewsItem[] = [
+  { id: "n-1", time: "il y a 44 min", headline: "Bitcoin and ether ETFs draw $2.6 billion in strongest inflow week since October, tripling volume", provider: "The Block" },
+  { id: "n-2", time: "il y a 2 h", headline: "Bitcoin and Ethereum ETFs Score Biggest Week Since October with $2.3 Billion", provider: "Beincrypto" },
+  { id: "n-3", time: "il y a 3 h", ticker: "NFLX", headline: "Netflix Co-Founder Reed Hastings Got Thrown Out of Homes as a Door-to-Door Vacuum Salesperson", provider: "Benzinga" },
+  {
+    id: "n-4",
+    time: "il y a 3 h",
+    headline: "Michael Howell Says 2026 Won't Be A Big Year For Bitcoin, Sees 30-Year Yield Going Higher",
+    provider: "Stocktwits",
+  },
+  { id: "n-5", time: "il y a 5 h", ticker: "MSFT", headline: "Microsoft Q1 earnings beat estimates on strong Azure growth", provider: "Reuters", isFinancialReport: true },
+];
+
 // No alert spec exists yet (see ChartWorkspaceProps.alerts' own doc) — just enough content to
 // show the tab isn't empty/broken, not a real empty state design.
 function AlertsPlaceholder() {
@@ -427,6 +462,9 @@ export const AllFeatures: Story = {
           onRemoveWatchlistSection={handleRemoveWatchlistSection}
           onMoveWatchlistRow={handleMoveWatchlistRow}
           onReorderWatchlistSections={handleReorderWatchlistSections}
+          watchlistEarnings={DEMO_EARNINGS}
+          watchlistDividends={DEMO_DIVIDENDS}
+          watchlistNews={DEMO_NEWS}
           alerts={<AlertsPlaceholder />}
         >
           <CandlestickChart

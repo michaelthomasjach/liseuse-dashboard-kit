@@ -620,6 +620,21 @@
   gap: var(--lq-space-2);
 }
 
+.lq-watchlist-exposure__symbol-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.3;
+}
+
+.lq-watchlist-exposure__symbol-subtitle {
+  font-size: 0.75rem;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-watchlist-exposure__subfilter {
+  align-self: flex-start;
+}
+
 .lq-watchlist-exposure__section-title {
   margin: 0;
   font-size: 0.85rem;

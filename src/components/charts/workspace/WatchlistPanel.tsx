@@ -459,12 +459,7 @@ export function WatchlistPanel({
         <span className="lq-chart-workspace__watchlist-delete lq-chart-workspace__watchlist-delete--spacer" />
       </div>
 
-      <div
-        className={["lq-chart-workspace__watchlist-group", dropIndicator?.sectionId === null && "lq-chart-workspace__watchlist-group--drop-target"]
-          .filter(Boolean)
-          .join(" ")}
-        {...watchlistDropZoneProps(null)}
-      >
+      <div className="lq-chart-workspace__watchlist-group" {...watchlistDropZoneProps(null)}>
         {renderRowsWithIndicator(sortedRows(activeWatchlist.rows), null)}
       </div>
 
@@ -475,7 +470,6 @@ export function WatchlistPanel({
             <div
               className={[
                 "lq-chart-workspace__watchlist-section-header",
-                dropIndicator?.sectionId === section.id && "lq-chart-workspace__watchlist-group--drop-target",
                 draggingSectionId === section.id && "lq-chart-workspace__watchlist-row--dragging",
               ]
                 .filter(Boolean)
@@ -509,15 +503,7 @@ export function WatchlistPanel({
               )}
             </div>
             {!collapsed && (
-              <div
-                className={[
-                  "lq-chart-workspace__watchlist-group",
-                  dropIndicator?.sectionId === section.id && "lq-chart-workspace__watchlist-group--drop-target",
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
-                {...watchlistDropZoneProps(section.id)}
-              >
+              <div className="lq-chart-workspace__watchlist-group" {...watchlistDropZoneProps(section.id)}>
                 {renderRowsWithIndicator(sortedRows(section.rows), section.id)}
               </div>
             )}

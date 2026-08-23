@@ -42,8 +42,6 @@
 
 .lq-heatmap__group-header rect {
   fill: var(--lq-color-panel);
-  stroke: var(--lq-color-border);
-  stroke-width: 1;
 }
 
 .lq-heatmap__group-header:hover rect {
@@ -55,6 +53,16 @@
   font-size: 11px;
   font-weight: 600;
   dominant-baseline: middle;
+}
+
+/* Traces a hovered sector's *whole* extent (header strip + every one of its own tiles) — not
+   shown by default (see .lq-heatmap__group-header rect above, which carries no stroke of its own
+   any more), only while `hoveredGroupId` matches, whether the pointer is over the header itself
+   or any tile belonging to it. */
+.lq-heatmap__group-outline {
+  fill: none;
+  stroke: var(--lq-color-text);
+  stroke-width: 1.5;
 }
 
 .lq-heatmap__tile {

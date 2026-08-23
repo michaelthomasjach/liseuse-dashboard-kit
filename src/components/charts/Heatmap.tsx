@@ -74,6 +74,23 @@ interface PositionedNode {
   isGroup: boolean;
   group?: HeatmapGroup;
   tile?: HeatmapTile;
+  /** The owning group's id, for tiles in the "All" (non-focused) view only — lets hovering a
+   *  tile highlight its whole sector's own outline (see `groupBounds`/`hoveredGroupId`), not
+   *  just hovering the group's own header strip. */
+  groupId?: string;
+}
+
+/** A group's *full* bounding box — header strip plus every one of its own tiles below it —
+ *  as opposed to `PositionedNode`'s own `isGroup` entries, which are deliberately truncated to
+ *  just the header strip (that's the shape the header background/label themselves render at).
+ *  Kept separate so the hover-outline (see `hoveredGroupId`) can trace the *whole* sector, not
+ *  just its title bar. */
+interface GroupBounds {
+  id: string;
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
 }
 
 // A node's own color as a CSS color-mix() string against the *live* theme's up/down colors —
@@ -106,21 +123,25 @@ function tileColor(colorValue: number, domain: [number, number]): string {
 export function Heatmap({ groups, width = 900, height = 560, colorDomain = [-3, 3], onTileClick, className }: HeatmapProps) {
   const [focusedGroupId, setFocusedGroupId] = useState<string | null>(null);
   const [hovered, setHovered] = useState<{ node: PositionedNode; x: number; y: number } | null>(null);
+  const [hoveredGroupId, setHoveredGroupId] = useState<string | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [transform, setTransform] = useState(d3.zoomIdentity);
 
   const focusedGroup = groups.find((g) => g.id === focusedGroupId) ?? null;
 
-  const nodes = useMemo(() => {
+  const { nodes, groupBounds } = useMemo(() => {
     if (focusedGroup) {
       // A single flat level — no group header space reserved, every tile fills the whole plot
       // the same way a group's own tiles do within its own rect at the top level (see the
-      // `else` branch below), just without a second nesting level above it.
+      // `else` branch below), just without a second nesting level above it. No `groupBounds`
+      // either — there's only ever one sector on screen here, so a hover-outline around it would
+      // be redundant with the plot's own edge.
       const root = d3.hierarchy<HTreeNode>({ id: "root", children: focusedGroup.tiles.map(tileNode) }).sum((d) => d.tile?.value ?? 0);
       const laidOut = d3.treemap<HTreeNode>().tile(d3.treemapSquarify).size([width, height]).paddingOuter(OUTER_PADDING).paddingInner(1).round(true)(root);
-      return laidOut.leaves().map(
+      const leafNodes = laidOut.leaves().map(
         (leaf): PositionedNode => ({ id: leaf.data.id, x0: leaf.x0, y0: leaf.y0, x1: leaf.x1, y1: leaf.y1, isGroup: false, tile: leaf.data.tile })
       );
+      return { nodes: leafNodes, groupBounds: [] as GroupBounds[] };
     }
 
     // One hierarchy, one treemap call, covering *both* levels at once — d3.treemap lays out
@@ -142,19 +163,23 @@ export function Heatmap({ groups, width = 900, height = 560, colorDomain = [-3, 
       .round(true)(root);
 
     const result: PositionedNode[] = [];
+    const bounds: GroupBounds[] = [];
     for (const groupN of laidOut.children ?? []) {
       const group = groupN.data.group;
       if (!group) continue;
+      // groupN's own x0/y0/x1/y1 already spans the *whole* sector (header strip included) — the
+      // header/label rendered below only ever occupies its own top slice of that same rect.
+      bounds.push({ id: group.id, x0: groupN.x0, y0: groupN.y0, x1: groupN.x1, y1: groupN.y1 });
       result.push({ id: group.id, x0: groupN.x0, y0: groupN.y0, x1: groupN.x1, y1: groupN.y0 + GROUP_HEADER_HEIGHT, isGroup: true, group });
       for (const leaf of groupN.leaves()) {
         if (!leaf.data.tile) continue;
-        result.push({ id: leaf.data.id, x0: leaf.x0, y0: leaf.y0, x1: leaf.x1, y1: leaf.y1, isGroup: false, tile: leaf.data.tile });
+        result.push({ id: leaf.data.id, x0: leaf.x0, y0: leaf.y0, x1: leaf.x1, y1: leaf.y1, isGroup: false, tile: leaf.data.tile, groupId: group.id });
       }
     }
-    return result;
+    return { nodes: result, groupBounds: bounds };
   }, [groups, focusedGroup, width, height]);
 
-  const { ref: zoomRef, reset: resetZoom } = useD3Zoom<SVGRectElement>({
+  const { ref: zoomRef, reset: resetZoom } = useD3Zoom<SVGGElement>({
     width,
     height,
     scaleExtent: [1, 12],
@@ -165,18 +190,28 @@ export function Heatmap({ groups, width = 900, height = 560, colorDomain = [-3, 
     setFocusedGroupId(groupId);
     resetZoom();
     setHovered(null);
+    setHoveredGroupId(null);
   }
   function closeGroup() {
     setFocusedGroupId(null);
     resetZoom();
     setHovered(null);
+    setHoveredGroupId(null);
   }
 
   function showTooltip(node: PositionedNode, e: React.PointerEvent) {
     const rect = wrapperRef.current?.getBoundingClientRect();
     if (!rect) return;
     setHovered({ node, x: e.clientX - rect.left, y: e.clientY - rect.top });
+    setHoveredGroupId(node.isGroup ? node.id : (node.groupId ?? null));
   }
+
+  function clearHover() {
+    setHovered(null);
+    setHoveredGroupId(null);
+  }
+
+  const hoveredBounds = hoveredGroupId ? groupBounds.find((g) => g.id === hoveredGroupId) : undefined;
 
   const isZoomed = transform.k !== 1 || transform.x !== 0 || transform.y !== 0;
 
@@ -198,49 +233,63 @@ export function Heatmap({ groups, width = 900, height = 560, colorDomain = [-3, 
           </button>
         </div>
       )}
-      <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="img" onPointerLeave={() => setHovered(null)}>
-        {/* Rendered *before* the tiles/groups below (not after) so it sits behind them in
-            stacking order — matching every other zoomable SVG chart in this library (see
-            BarChart's own `.lq-chart__overlay` placement): individual tiles/groups need their
-            own hover/click handlers to actually receive pointer events, which a same-size
-            overlay drawn on *top* of them would otherwise swallow entirely. */}
-        <rect ref={zoomRef} className="lq-chart__overlay" width={width} height={height} onDoubleClick={resetZoom} />
-        <g transform={`translate(${transform.x}, ${transform.y}) scale(${transform.k})`}>
-          {nodes.map((node) =>
-            node.isGroup && node.group ? (
-              <g
-                key={node.id}
-                className="lq-heatmap__group-header"
-                onClick={() => openGroup(node.group!.id)}
-                onPointerEnter={(e) => showTooltip(node, e)}
-                onPointerMove={(e) => showTooltip(node, e)}
-              >
-                <rect x={node.x0} y={node.y0} width={node.x1 - node.x0} height={node.y1 - node.y0} />
-                <text x={node.x0 + 6} y={node.y0 + (node.y1 - node.y0) / 2}>
-                  {node.group.label}
-                </text>
-              </g>
-            ) : (
-              node.tile && (
+      <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="img" onPointerLeave={clearHover}>
+        {/* The zoom behavior attaches to this wrapping <g>, not a same-size overlay rect drawn
+            *behind* the tiles — wheel/drag events fire on whatever's actually under the cursor
+            (almost always a tile, since a treemap leaves little empty gap), and events bubble up
+            through DOM *ancestors*, never sideways to a same-level sibling. A background overlay
+            would silently never see most wheel events; wrapping every tile in the zoom target
+            itself means they always bubble up into it. The overlay rect below still exists, but
+            now purely for the grab/grabbing cursor and as a catch-all in genuinely empty area. */}
+        <g ref={zoomRef}>
+          <rect className="lq-chart__overlay" width={width} height={height} onDoubleClick={resetZoom} />
+          <g transform={`translate(${transform.x}, ${transform.y}) scale(${transform.k})`}>
+            {nodes.map((node) =>
+              node.isGroup && node.group ? (
                 <g
                   key={node.id}
-                  className="lq-heatmap__tile"
-                  onClick={() => onTileClick?.(node.tile!)}
+                  className="lq-heatmap__group-header"
+                  onClick={() => openGroup(node.group!.id)}
                   onPointerEnter={(e) => showTooltip(node, e)}
                   onPointerMove={(e) => showTooltip(node, e)}
                 >
-                  <rect
-                    x={node.x0}
-                    y={node.y0}
-                    width={Math.max(0, node.x1 - node.x0)}
-                    height={Math.max(0, node.y1 - node.y0)}
-                    fill={tileColor(node.tile.colorValue, colorDomain)}
-                  />
-                  <HeatmapTileContent node={node} />
+                  <rect x={node.x0} y={node.y0} width={node.x1 - node.x0} height={node.y1 - node.y0} />
+                  <text x={node.x0 + 6} y={node.y0 + (node.y1 - node.y0) / 2}>
+                    {node.group.label}
+                  </text>
                 </g>
+              ) : (
+                node.tile && (
+                  <g
+                    key={node.id}
+                    className="lq-heatmap__tile"
+                    onClick={() => onTileClick?.(node.tile!)}
+                    onPointerEnter={(e) => showTooltip(node, e)}
+                    onPointerMove={(e) => showTooltip(node, e)}
+                  >
+                    <rect
+                      x={node.x0}
+                      y={node.y0}
+                      width={Math.max(0, node.x1 - node.x0)}
+                      height={Math.max(0, node.y1 - node.y0)}
+                      fill={tileColor(node.tile.colorValue, colorDomain)}
+                    />
+                    <HeatmapTileContent node={node} />
+                  </g>
+                )
               )
-            )
-          )}
+            )}
+            {hoveredBounds && (
+              <rect
+                className="lq-heatmap__group-outline"
+                x={hoveredBounds.x0}
+                y={hoveredBounds.y0}
+                width={hoveredBounds.x1 - hoveredBounds.x0}
+                height={hoveredBounds.y1 - hoveredBounds.y0}
+                pointerEvents="none"
+              />
+            )}
+          </g>
         </g>
       </svg>
 

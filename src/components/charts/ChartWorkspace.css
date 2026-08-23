@@ -434,20 +434,13 @@
   touch-action: none;
 }
 
-/* A section's own drop zone (see useWatchlistRowDrag) — the outline sits inset (negative offset)
-   so it never nudges any row's own layout by even a pixel while a drag happens to be over it,
-   same reasoning `.lq-chart-workspace__panel--selected`'s own inset ring already uses. Also
-   wraps the root (no-section) row list, so dragging a row out of every section back to the
-   ungrouped area is just as valid a drop as dragging it into one. */
+/* A section's own drop zone (see useWatchlistRowDrag) — no highlight of its own; the drop-line
+   indicator rendered inside it (`.lq-chart-workspace__watchlist-drop-line`) already marks exactly
+   where a dragged row will land, so an outline/background around the *whole* zone on top of that
+   would be redundant. Also wraps the root (no-section) row list, so dragging a row out of every
+   section back to the ungrouped area is just as valid a drop as dragging it into one. */
 .lq-chart-workspace__watchlist-group {
-  outline: 2px solid transparent;
-  outline-offset: -2px;
   border-radius: var(--lq-radius-sm);
-}
-
-.lq-chart-workspace__watchlist-group--drop-target {
-  outline-color: var(--lq-color-accent);
-  background-color: var(--lq-color-hover);
 }
 
 /* A section's own name row — a plain wrapper `<div>` around two pieces (see WatchlistPanel.tsx),
@@ -638,5 +631,5 @@
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: var(--lq-space-6);
+  gap: calc(var(--lq-space-6) * 2);
 }

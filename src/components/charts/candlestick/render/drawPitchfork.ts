@@ -1,17 +1,20 @@
 import type { RenderCandlestickChartParams } from "../interfaces/RenderCandlestickChartParams.interface";
 import type { ChartCanvasStyle } from "../interfaces/ChartCanvasStyle.interface";
-import { pitchforkLines } from "../pitchforkGeometry";
+import { pitchforkLines, pitchforkExtraPoints } from "../pitchforkGeometry";
 import type { PitchforkVariant } from "../pitchforkGeometry";
 import { lineDashArray, drawDrawingText } from "../drawingRender";
 
 const PITCHFORK_TYPES = new Set(["pitchfork", "schiffPitchfork", "modifiedSchiffPitchfork", "insidePitchfork"]);
 
 /** The 4 pitchfork variants (see pitchforkGeometry.ts) — 3 points (P0/P1/P2, x1/y1-x2/y2-
- *  extraPoints[0]) resolved into 4 on-screen lines via `pitchforkLines`: the B–C spine and the
- *  two tines (solid, sharing the drawing's own `lineStyle`), plus the median drawn dashed to
- *  stand out from them (matching the icons' own convention — see PitchforkIcon and its variants)
- *  regardless of that same `lineStyle`. Called from `drawPriceDrawings` while its own price-
- *  section clip is still open, same as every other price-space drawing type. */
+ *  extraPoints[0]) resolved into 5 on-screen lines via `pitchforkLines`: the A–B handle and B–C
+ *  spine, the two tines (solid, all three sharing the drawing's own `lineStyle`), plus the median
+ *  drawn dashed to stand out from them (matching the icons' own convention — see PitchforkIcon
+ *  and its variants) regardless of that same `lineStyle`. A/B/C get solid dots + labels; a
+ *  variant's own *derived* D/E points (see pitchforkExtraPoints) get hollow ones instead — same
+ *  color and label treatment, just visually marked as computed rather than clicked. Called from
+ *  `drawPriceDrawings` while its own price-section clip is still open, same as every other
+ *  price-space drawing type. */
 export function drawPitchforkDrawings(ctx: CanvasRenderingContext2D, params: RenderCandlestickChartParams, style: ChartCanvasStyle) {
   const { visibleDrawings, hoveredDrawingId, zoomedXScale, zoomedPriceScale, indexForDate, dims } = params;
   const { colorAccent, fontFamily } = style;
@@ -22,7 +25,8 @@ export function drawPitchforkDrawings(ctx: CanvasRenderingContext2D, params: Ren
     const p2Point = dr.extraPoints[0];
     const p2 = { x: zoomedXScale(indexForDate(p2Point.x) + 0.5), y: zoomedPriceScale(p2Point.y) };
     const lineColor = dr.color ?? colorAccent;
-    const { spine, median, tine1, tine2 } = pitchforkLines(p0, p1, p2, dr.lineType as PitchforkVariant, 0, dims.boundedWidth);
+    const variant = dr.lineType as PitchforkVariant;
+    const { handle, spine, median, tine1, tine2 } = pitchforkLines(p0, p1, p2, variant, 0, dims.boundedWidth);
 
     ctx.save();
     ctx.strokeStyle = lineColor;
@@ -35,7 +39,7 @@ export function drawPitchforkDrawings(ctx: CanvasRenderingContext2D, params: Ren
     ctx.stroke();
 
     ctx.setLineDash(lineDashArray(dr));
-    for (const line of [spine, tine1, tine2]) {
+    for (const line of [handle, spine, tine1, tine2]) {
       ctx.beginPath();
       ctx.moveTo(line.x1, line.y1);
       ctx.lineTo(line.x2, line.y2);
@@ -51,11 +55,21 @@ export function drawPitchforkDrawings(ctx: CanvasRenderingContext2D, params: Ren
     }
     ctx.fill();
 
+    const extraPoints = pitchforkExtraPoints(p0, p1, p2, variant);
+    ctx.strokeStyle = lineColor;
+    ctx.lineWidth = 1;
+    for (const { point } of extraPoints) {
+      ctx.beginPath();
+      ctx.arc(point.x, point.y, 2.5, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
     // "A"/"B"/"C" next to each of the 3 points (P0/P1/P2, the same click order every variant
     // shares — see pitchforkGeometry.ts) — matches the standard Andrews' Pitchfork reference
     // diagrams this tool is modeled on, where the handle/width-pair points are always labeled
     // that way. Offset up-right of each dot so the label reads clear of both the marker itself
-    // and whichever line passes closest through it.
+    // and whichever line passes closest through it. D/E (see pitchforkExtraPoints) share the
+    // same offset convention right alongside them.
     ctx.save();
     ctx.font = `700 11px ${fontFamily}`;
     ctx.fillStyle = lineColor;
@@ -67,6 +81,9 @@ export function drawPitchforkDrawings(ctx: CanvasRenderingContext2D, params: Ren
       ["C", p2],
     ] as const) {
       ctx.fillText(label, p.x + 6, p.y - 6);
+    }
+    for (const { point, label } of extraPoints) {
+      ctx.fillText(label, point.x + 6, point.y - 6);
     }
     ctx.restore();
 

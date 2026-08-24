@@ -437,9 +437,8 @@
 }
 
 /* Extra breathing room between rail items on a coarse (touch) pointer — every button already
-   grows under this same media query (see .lq-chart__icon-button), and the chevron badge moves
-   below its own button instead of overlapping its corner (see .lq-chart__tool-chevron) — both
-   need somewhere to grow into that a plain 4px gap doesn't have. */
+   grows under this same media query (see .lq-chart__icon-button), which a plain 4px gap doesn't
+   leave room for. */
 @media (pointer: coarse) {
   .lq-chart__tools-rail-items {
     gap: 22px;
@@ -518,23 +517,6 @@
 .lq-chart__tool-chevron:hover {
   color: var(--lq-color-text);
   border-color: var(--lq-color-border);
-}
-
-/* A bigger, non-overlapping tap target on a coarse (touch) pointer. Growing it in place at the
-   same corner-badge spot (just bumping width/height) was tried and rejected — at any size worth
-   the trouble it started covering the button's own center, stealing taps meant for the button
-   itself (confirmed via Playwright: a center-tap on the button hit the chevron instead). Dropped
-   below the button instead — zero overlap with the button by construction, using the extra
-   .lq-chart__tools-rail-items gap this same media query opens up above. */
-@media (pointer: coarse) {
-  .lq-chart__tool-chevron {
-    width: 18px;
-    height: 18px;
-    right: auto;
-    bottom: -20px;
-    left: 50%;
-    transform: translateX(-50%);
-  }
 }
 
 .lq-chart__tool-menu {

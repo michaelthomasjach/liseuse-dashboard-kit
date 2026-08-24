@@ -1195,6 +1195,25 @@
   cursor: not-allowed;
 }
 
+/* "text"/"comment"'s own live entry (see ChartCanvasOverlay.tsx) — absolutely positioned against
+   `.lq-chart__plot`, same context `.lq-chart__canvas` itself uses. Sized to content (min-width
+   only, no fixed width) so a short word doesn't sit inside a needlessly wide box, and grows with
+   longer text instead of scrolling within a fixed one. */
+.lq-chart__text-entry-input {
+  position: absolute;
+  z-index: 5;
+  min-width: 120px;
+  padding: 4px 8px;
+  font-family: inherit;
+  font-size: 0.85rem;
+  color: var(--lq-color-text);
+  background-color: var(--lq-color-bg);
+  border: 1px solid var(--lq-color-accent);
+  border-radius: var(--lq-radius-sm);
+  outline: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
 .lq-chart__date-input {
   width: 100%;
   height: 38px;

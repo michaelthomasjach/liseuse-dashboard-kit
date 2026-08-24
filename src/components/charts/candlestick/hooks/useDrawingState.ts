@@ -85,6 +85,12 @@ export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAdd
   // be hovered at a time, hence a single pair rather than one per indicator.
   const [hoverIndicatorPaneId, setHoverIndicatorPaneId] = useState<string | null>(null);
   const [hoverIndicatorPaneY, setHoverIndicatorPaneY] = useState<number | null>(null);
+  // "text"/"comment" only: a live on-canvas entry in progress, not yet a `drawings` entry — set
+  // by their own single-click branch in useDrawingInteractions, rendered as an actual HTML
+  // textarea (ChartCanvasOverlay can't put an editable text cursor inside a <canvas>) positioned
+  // at `point`. commitTextEntry (blur) turns it into a real drawing if non-empty, cancelTextEntry
+  // (Escape) discards it — see each one's own doc below.
+  const [textEntry, setTextEntry] = useState<{ tool: "text" | "comment"; point: DataPoint; value: string } | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<TrendLineDrawing | null>(null);
   const [editModalTab, setEditModalTab] = useState<"coords" | "text" | "style">("coords");
@@ -229,6 +235,10 @@ export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAdd
   }
 
   function handleToolClick(tool: DrawingToolType) {
+    // Picking any tool (including re-picking "text"/"comment" itself) while a previous live
+    // entry is still open flushes it first — same "clicking away" commit as blur, just reached
+    // through the rail instead of the plot, so a still-open box never gets silently orphaned.
+    commitTextEntry();
     if (activeTool === tool) {
       // A no-op for every tool except an in-progress elbowArrow with ≥2 points — re-tapping its
       // own rail button is the touch-friendly equivalent of pressing Escape to finish it (see
@@ -252,6 +262,7 @@ export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAdd
   // button itself to toggle the already-represented tool on/off, there's no extra confirmation
   // click needed here since picking a specific tool from the menu is already a deliberate choice.
   function handleSelectToolType(type: DrawingToolType) {
+    commitTextEntry();
     setSelectedToolByCategory((prev) => ({ ...prev, [categoryOfTool(type).id]: type }));
     setOpenToolMenu(null);
     setActiveTool(type);
@@ -352,6 +363,40 @@ export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAdd
     return candidates.reduce((closest, v) => (Math.abs(v - rawY) < Math.abs(closest - rawY) ? v : closest), candidates[0]);
   }
 
+  // Blurring the live textarea (see textEntry above) — a blank/whitespace-only entry is
+  // discarded rather than committed as an empty drawing, same "clicking away with nothing typed
+  // just cancels" behavior as leaving the edit modal's own Texte field blank already has, just
+  // reachable without ever opening that modal at all.
+  function commitTextEntry() {
+    if (textEntry && textEntry.value.trim()) {
+      commitDrawings([
+        ...drawings,
+        {
+          id: `drawing-${drawingIdRef.current++}`,
+          ...defaultDrawingStyle,
+          x1: textEntry.point.x,
+          y1: textEntry.point.y,
+          x2: textEntry.point.x,
+          y2: textEntry.point.y,
+          lineType: textEntry.tool,
+          text: textEntry.value,
+          // Left/bottom-aligned ("text" only — "comment" ignores both, its bubble always sits
+          // above its own anchor with the tail pointing down at it, see drawTextAndComment.ts) so
+          // the committed render starts exactly where the live input itself sat (see
+          // ChartCanvasOverlay's own textEntry input, top-left pinned to the same point) instead
+          // of jumping to center-above once the input unmounts.
+          textHorizontalAlign: "left",
+          textVerticalAlign: "bottom",
+        },
+      ]);
+    }
+    setTextEntry(null);
+  }
+
+  function cancelTextEntry() {
+    setTextEntry(null);
+  }
+
   function closeEditModal() {
     setEditingId(null);
     setDraft(null);
@@ -420,6 +465,10 @@ export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAdd
     setHoverIndicatorPaneId,
     hoverIndicatorPaneY,
     setHoverIndicatorPaneY,
+    textEntry,
+    setTextEntry,
+    commitTextEntry,
+    cancelTextEntry,
     editingId,
     setEditingId,
     draft,

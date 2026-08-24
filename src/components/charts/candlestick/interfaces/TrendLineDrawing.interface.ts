@@ -152,7 +152,16 @@ export interface TrendLineDrawing {
    *  which tool this is or which price is actually numerically higher, since the *role* (reward
    *  vs. risk) never changes even if a point gets dragged past entry by hand. Each band is labeled
    *  with its own price and % change from entry, plus the entry itself labeled with the computed
-   *  reward:risk ratio. */
+   *  reward:risk ratio. "text"/"comment" are single-point markers like arrowUp/arrowDown (x2/y2
+   *  mirrors x1/y1) placed via a live on-canvas text entry instead of the edit modal (see
+   *  useDrawingState's own `textEntry`) — `text` itself, plus every textSize/textBold/textItalic/
+   *  textColor/textBackgroundColor field above, is the exact same styling every other tool's own
+   *  label already uses, just with nothing else drawn alongside it. "text" renders through the
+   *  same plain `drawDrawingText` every other tool's label already does (a rect background when
+   *  textBackgroundColor is set); "comment" always renders inside a rounded speech-bubble instead,
+   *  its own tail pointing at x1/y1 — textBackgroundColor still styles the bubble itself (falling
+   *  back to the theme's accent color rather than "no background" when unset, since a comment
+   *  reads as empty air without one), textColor the text inside it. */
   lineType?:
     | "horizontal"
     | "vertical"
@@ -179,6 +188,8 @@ export interface TrendLineDrawing {
     | "schiffPitchfork"
     | "modifiedSchiffPitchfork"
     | "insidePitchfork"
+    | "text"
+    | "comment"
     | "symbolOverlay";
   /** Which pane's own value scale y is expressed in — "price" (default), "volume", or the id of
    *  an "own"-pane indicator (RSI/CHOP/MACD) to anchor a "horizontal"/"ray" line to that pane

@@ -104,6 +104,7 @@ export {
   InsidePitchforkIcon,
   PencilIcon,
   TextIcon,
+  CommentIcon,
   CrossingIcon,
   GreaterThanIcon,
   LessThanIcon,

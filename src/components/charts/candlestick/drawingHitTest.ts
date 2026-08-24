@@ -106,6 +106,31 @@ export function distanceToDrawing(dr: TrendLineDrawing, mouseX: number, mouseY: 
   if (dr.lineType === "arrowUp" || dr.lineType === "arrowDown") {
     return Math.hypot(mouseX - zoomedXScale(indexForDate(dr.x1) + 0.5), mouseY - zoomedPriceScale(dr.y1));
   }
+  if (dr.lineType === "text" || dr.lineType === "comment") {
+    // No canvas context here to measure the *actual* rendered width (see drawTextAndComment.ts),
+    // so this estimates it from character count — close enough for "is the pointer roughly over
+    // the label," the only thing this feeds into. Clamping the pointer into the box and measuring
+    // from there gives 0 (a direct hit) anywhere inside it and the distance to the nearest edge
+    // outside it, in one formula, same idea "zones"' own hit-test above already uses.
+    const x = zoomedXScale(indexForDate(dr.x1) + 0.5);
+    const y = zoomedPriceScale(dr.y1);
+    if (!dr.text) return Math.hypot(mouseX - x, mouseY - y);
+    const size = dr.textSize ?? 11;
+    const estWidth = dr.text.length * size * 0.55;
+    const boxWidth = estWidth + 20;
+    // Both start exactly at the anchor and grow right — "comment"'s bubble always does (its own
+    // fillText is always left-aligned); "text" does too since it's created with
+    // textHorizontalAlign: "left" (see useDrawingState's own commitTextEntry) so the live input
+    // and the committed render line up instead of the render re-centering out from under it.
+    const left = x;
+    // "comment"'s bubble sits above its anchor (tail pointing down at it); "text" (created with
+    // textVerticalAlign: "bottom", see commitTextEntry) grows downward from its own instead.
+    const top = dr.lineType === "comment" ? y - 8 - size - 14 : y + 6;
+    const bottom = dr.lineType === "comment" ? y - 8 : top + size + 4;
+    const clampedX = Math.min(Math.max(mouseX, left), left + boxWidth);
+    const clampedY = Math.min(Math.max(mouseY, top), bottom);
+    return Math.hypot(mouseX - clampedX, mouseY - clampedY);
+  }
   if (dr.lineType === "symbolOverlay") {
     // Same "polyline through every point" distance as a freehand stroke — over its own projected
     // (rebased-to-price-space) points, not x1/y1/x2/y2, which aren't meaningful for this lineType

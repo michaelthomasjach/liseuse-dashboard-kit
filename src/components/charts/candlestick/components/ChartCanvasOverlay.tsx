@@ -75,6 +75,15 @@ export interface ChartCanvasOverlayProps {
   dFmt: (date: Date) => string;
   setEventModalOpen: Dispatch<SetStateAction<boolean>>;
   setActiveEventStack: Dispatch<SetStateAction<{ i: number; events: ChartEvent[] } | null>>;
+  /** "text"/"comment" only — see useDrawingState's own `textEntry` doc. Bundled into one object
+   *  (rather than 4 separate props) purely to keep CandlestickChart.tsx's own call site to a
+   *  single new line — it's already at its 1000-line cap. */
+  textEntry: {
+    entry: { tool: "text" | "comment"; point: DataPoint; value: string } | null;
+    setEntry: (v: { tool: "text" | "comment"; point: DataPoint; value: string } | null) => void;
+    onCommit: () => void;
+    onCancel: () => void;
+  };
 }
 
 /** A drawing's own draggable point — the small always-visible accent-ring dot every handle site
@@ -186,6 +195,7 @@ export function ChartCanvasOverlay({
   dFmt,
   setEventModalOpen,
   setActiveEventStack,
+  textEntry,
 }: ChartCanvasOverlayProps) {
   return (
     <>
@@ -422,7 +432,11 @@ export function ChartCanvasOverlay({
               }
               // An arrow marker's one handle sits at its own point, same as a ray's anchor
               // above — x2/y2 mirrors x1/y1 automatically (see handleAxisHandlePointerMove).
-              if (dr.lineType === "arrowUp" || dr.lineType === "arrowDown") {
+              // "text"/"comment" share the exact same single-point shape (see the lineType's own
+              // doc), so they share this same handle instead of falling through to the generic
+              // per-point loop below, which would otherwise draw two overlapping handles at the
+              // same pixel (x1/y1 and x2/y2 both resolve to the same point).
+              if (dr.lineType === "arrowUp" || dr.lineType === "arrowDown" || dr.lineType === "text" || dr.lineType === "comment") {
                 return (
                   <DrawingHandle
                     key={dr.id}
@@ -542,6 +556,40 @@ export function ChartCanvasOverlay({
           )}
         </g>
       </svg>
+      {/* "text"/"comment" only — a real HTML input, not anything canvas/SVG can offer an editable
+          text cursor inside of, positioned at the click that opened it (see useDrawingState's own
+          textEntry) and unmounted the moment it commits or cancels; the drawing itself only
+          starts existing once that happens (see drawTextAndComment.ts for the *committed* look).
+          Absolutely positioned against `.lq-chart__plot` (`.lq-chart__canvas`'s own positioning
+          context, see charts-shared.css), so it needs the same margin offset the canvas already
+          adds via its own inline `left`/`top` above. */}
+      {textEntry.entry && (
+        <input
+          type="text"
+          autoFocus
+          className="lq-chart__text-entry-input"
+          style={{
+            left: dims.margin.left + zoomedXScale(indexForDate(textEntry.entry.point.x) + 0.5),
+            top: dims.margin.top + zoomedPriceScale(textEntry.entry.point.y),
+            // "comment" grows upward from its own anchor (its bubble tail points down at it, see
+            // drawTextAndComment.ts) — "text" grows downward (see commitTextEntry's own
+            // textVerticalAlign: "bottom") — so only "comment" needs pulling up by its own height.
+            transform: textEntry.entry.tool === "comment" ? "translateY(-100%)" : undefined,
+          }}
+          value={textEntry.entry.value}
+          placeholder={textEntry.entry.tool === "comment" ? "Ajouter un commentaire" : "Ajouter du texte"}
+          onChange={(e) => textEntry.entry && textEntry.setEntry({ ...textEntry.entry, value: e.target.value })}
+          onBlur={textEntry.onCommit}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") {
+              e.stopPropagation();
+              textEntry.onCancel();
+            } else if (e.key === "Enter") {
+              e.currentTarget.blur();
+            }
+          }}
+        />
+      )}
     </>
   );
 }

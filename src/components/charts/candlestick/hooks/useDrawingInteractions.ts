@@ -96,6 +96,7 @@ export interface UseDrawingInteractionsArgs {
   xScale: ScaleLinear<number, number>;
   maxXZoom: number;
   setXTransformAnimated: (t: d3.ZoomTransform, duration?: number) => void;
+  setTextEntry: (v: { tool: "text" | "comment"; point: DataPoint; value: string } | null) => void;
 }
 
 /** Every pointer-driven interaction with drawings: placing a new one (click-to-place tools,
@@ -176,6 +177,7 @@ export function useDrawingInteractions({
   xScale,
   maxXZoom,
   setXTransformAnimated,
+  setTextEntry,
 }: UseDrawingInteractionsArgs) {
   function toDataPoint(e: { clientX: number; clientY: number }): DataPoint {
     const rect = zoomRef.current!.getBoundingClientRect();
@@ -447,6 +449,16 @@ export function useDrawingInteractions({
           extraPoints: [{ x: exitDate, y: stopPrice }],
         },
       ]);
+      cancelDrawingTool();
+      return;
+    }
+
+    // "text"/"comment" don't commit a `drawings` entry on their own click at all — they open a
+    // live textarea instead (see useDrawingState's own textEntry/commitTextEntry), which is what
+    // actually creates the drawing once the user clicks away. Exits the tool immediately so a
+    // further click elsewhere doesn't start a 2nd entry on top of the still-open one.
+    if (activeTool === "text" || activeTool === "comment") {
+      setTextEntry({ tool: activeTool, point, value: "" });
       cancelDrawingTool();
       return;
     }

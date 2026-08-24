@@ -183,6 +183,7 @@ export function CandlestickChart({
     setHoverIndicatorPaneId,
     hoverIndicatorPaneY,
     setHoverIndicatorPaneY,
+    textEntry, setTextEntry, commitTextEntry, cancelTextEntry,
     setEditingId,
     draft,
     setDraft,
@@ -217,20 +218,13 @@ export function CandlestickChart({
 
   const [tfOpen, setTfOpen] = useState(false);
   const {
-    settingsOpen,
-    setSettingsOpen,
-    upColorOverride,
-    setUpColorOverride,
-    downColorOverride,
-    setDownColorOverride,
-    volumeUpColorOverride,
-    setVolumeUpColorOverride,
-    volumeDownColorOverride,
-    setVolumeDownColorOverride,
-    volumeSettingsOpen,
-    setVolumeSettingsOpen,
-    yAutoScalingState,
-    setYAutoScalingState,
+    settingsOpen, setSettingsOpen,
+    upColorOverride, setUpColorOverride,
+    downColorOverride, setDownColorOverride,
+    volumeUpColorOverride, setVolumeUpColorOverride,
+    volumeDownColorOverride, setVolumeDownColorOverride,
+    volumeSettingsOpen, setVolumeSettingsOpen,
+    yAutoScalingState, setYAutoScalingState,
     futureZoneVisible, setFutureZoneVisible,
     now,
   } = useChartAppearance({ YAutoScaling, livePrice });
@@ -534,7 +528,7 @@ export function CandlestickChart({
     overlayProjections,
     xScale,
     maxXZoom,
-    setXTransformAnimated,
+    setXTransformAnimated, setTextEntry,
   });
 
   useRenderCandlestickChart({
@@ -839,6 +833,7 @@ export function CandlestickChart({
           dFmt={dFmt}
           setEventModalOpen={setEventModalOpen}
           setActiveEventStack={setActiveEventStack}
+          textEntry={{ entry: textEntry, setEntry: setTextEntry, onCommit: commitTextEntry, onCancel: cancelTextEntry }}
         />
         <ChartHoverBadges
           hoverY={effectiveHoverY}

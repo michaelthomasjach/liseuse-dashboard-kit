@@ -28,6 +28,8 @@ import {
   SchiffPitchforkIcon,
   ModifiedSchiffPitchforkIcon,
   InsidePitchforkIcon,
+  TextIcon,
+  CommentIcon,
 } from "../../icons";
 import type { DrawingToolType } from "./interfaces/DrawingToolType.interface";
 import type { TrendLineDrawing } from "./interfaces/TrendLineDrawing.interface";
@@ -182,6 +184,18 @@ export const DRAWING_TOOL_CATEGORIES: DrawingToolCategory[] = [
       { type: "rangeForecast", label: "Range forecast", icon: RangeForecastIcon },
       { type: "longPosition", label: "Position longue", icon: LongPositionIcon },
       { type: "shortPosition", label: "Position courte", icon: ShortPositionIcon },
+    ],
+  },
+  {
+    // More tools land here over time (Note, Note de prix, Pin, Tableau, Étiquette de prix,
+    // Signpost, Marque drapeau) — each placed via its own live on-canvas entry/marker flow
+    // instead of a click-collection sequence, so this category grows independently of the
+    // click-based ones above.
+    id: "textNotes",
+    label: "Texte et notes",
+    tools: [
+      { type: "text", label: "Texte", icon: TextIcon },
+      { type: "comment", label: "Commentaire", icon: CommentIcon },
     ],
   },
   {

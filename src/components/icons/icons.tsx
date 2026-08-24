@@ -883,6 +883,15 @@ export const TextIcon = (props: IconProps) => (
   </IconBase>
 );
 
+/** A rounded speech bubble with a small tail at its bottom-left — the "Commentaire" drawing
+ *  tool's own icon, matching the tail-pointing-at-the-anchor bubble it actually draws on the
+ *  chart (see drawTextAndComment.ts). */
+export const CommentIcon = (props: IconProps) => (
+  <IconBase {...props}>
+    <path d="M3.5 5.5h17v11h-11l-4 3.5v-3.5h-2z" />
+  </IconBase>
+);
+
 /** The alert modal's own "crossing" condition — two lines crossing, generic direction. */
 export const CrossingIcon = (props: IconProps) => (
   <IconBase {...props}>

@@ -15,6 +15,7 @@ import { drawPitchforkDrawings } from "./drawPitchfork";
 import { drawRangeForecastDrawings } from "./drawRangeForecast";
 import { drawHeadShouldersDrawings } from "./drawHeadShoulders";
 import { drawLongShortPositionDrawings } from "./drawLongShortPosition";
+import { drawTextAndCommentDrawings } from "./drawTextAndComment";
 
 const PITCHFORK_LINE_TYPES = new Set(["pitchfork", "schiffPitchfork", "modifiedSchiffPitchfork", "insidePitchfork"]);
 
@@ -76,6 +77,8 @@ export function drawPriceDrawings(ctx: CanvasRenderingContext2D, params: RenderC
         dr.lineType === "rangeForecast" ||
         dr.lineType === "longPosition" ||
         dr.lineType === "shortPosition" ||
+        dr.lineType === "text" ||
+        dr.lineType === "comment" ||
         dr.lineType === "headShoulders" ||
         PITCHFORK_LINE_TYPES.has(dr.lineType ?? "") ||
         // Its x1/y1/x2/y2 aren't real coordinates (see the lineType's own doc comment) — just
@@ -488,6 +491,7 @@ export function drawPriceDrawings(ctx: CanvasRenderingContext2D, params: RenderC
     drawPitchforkDrawings(ctx, params, style);
     drawRangeForecastDrawings(ctx, params, style);
     drawLongShortPositionDrawings(ctx, params, style);
+    drawTextAndCommentDrawings(ctx, params, style);
     drawHeadShouldersDrawings(ctx, params, style);
 
     if (activeTool && pendingPoint && previewPoint) {

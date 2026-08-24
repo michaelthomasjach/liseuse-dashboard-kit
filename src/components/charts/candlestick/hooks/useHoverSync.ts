@@ -38,7 +38,13 @@ export function useHoverSync({
   syncedHoverPrice,
   onHoverPriceChange,
 }: UseHoverSyncArgs) {
-  const effectiveHoverIndex = hoverIndex !== null ? hoverIndex : syncedHoverDate ? indexForDate(syncedHoverDate) : null;
+  // indexForDate itself now extrapolates past data's own edges rather than clamping (see its own
+  // doc) — needed so a stored *drawing* point still positions correctly once dragged into the
+  // empty future/past space, but this call needs an actual `data[]` index, so it clamps the
+  // synced-in fallback right back to a valid one itself (a synced date from a *different* panel
+  // can easily fall outside this chart's own range entirely — different symbol, different history).
+  const effectiveHoverIndex =
+    hoverIndex !== null ? hoverIndex : syncedHoverDate ? Math.min(data.length - 1, Math.max(0, Math.round(indexForDate(syncedHoverDate)))) : null;
   const effectiveHovered = effectiveHoverIndex !== null ? data[effectiveHoverIndex] : null;
 
   // Mirrors effectiveHoverIndex/effectiveHovered above, but for the horizontal price line: a

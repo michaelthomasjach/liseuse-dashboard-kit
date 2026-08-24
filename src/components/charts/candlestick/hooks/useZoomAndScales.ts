@@ -87,19 +87,62 @@ export function useZoomAndScales({
   // used at render time (a stored date -> where it sits among today's candles); dateForIndex at
   // interaction time (a pixel position, inverted to a fractional index -> the nearest candle's
   // actual date, to store).
+  //
+  // Extrapolates linearly past data[0]/data[last]'s own date instead of clamping to their index —
+  // a drawing dragged into the empty future/past space (see MAX_EMPTY_FRACTION) still needs a
+  // pixel position proportional to how far out it actually is. Clamping both ends of a 2-point
+  // drawing to the *same* boundary index the moment they're both out of range collapses its own
+  // on-screen width to zero regardless of how far apart their real dates still are — confirmed bug
+  // report: the "table" tool's own grid shrinking away entirely once dragged past the data's edge,
+  // in either direction. Callers that index `data[]` directly with this result (there's only ever
+  // been the one, see useHoverSync's own effectiveHoverIndex) still need to clamp it themselves —
+  // this only fixes *positioning* math (zoomedXScale(indexForDate(x) + 0.5) and friends), not
+  // array access.
   const indexForDate = useCallback(
     (date: Date): number => {
       if (data.length === 0) return 0;
+      const first = data[0].date;
+      const last = data[data.length - 1].date;
+      if (data.length > 1 && (date.getTime() < first.getTime() || date.getTime() > last.getTime())) {
+        // Average spacing across the *whole* dataset, not just the two edge candles — an
+        // irregular gap right at one edge (e.g. a holiday) shouldn't skew the extrapolated rate.
+        const avgSpacingMs = (last.getTime() - first.getTime()) / (data.length - 1);
+        if (avgSpacingMs > 0) {
+          return date.getTime() < first.getTime()
+            ? (date.getTime() - first.getTime()) / avgSpacingMs
+            : data.length - 1 + (date.getTime() - last.getTime()) / avgSpacingMs;
+        }
+      }
       const idx = d3.bisector<Candle, Date>((d) => d.date).left(data, date);
       return Math.min(data.length - 1, Math.max(0, idx));
     },
     [data]
   );
 
+  // The exact inverse of indexForDate's own extrapolation above — same reasoning, same
+  // avgSpacingMs, needed for the same reason: every whole-body/handle drag of a stored drawing
+  // point round-trips a pixel through `zoomedXScale.invert` then this to get the date to store,
+  // and clamping it back to data's own first/last date the moment it crosses into the empty
+  // future/past space (see MAX_EMPTY_FRACTION) is what actually collapsed a 2-point drawing's own
+  // width once *both* its points were dragged out there — not indexForDate alone, which only
+  // fixed the read side of the same round-trip. Kept as the exact algebraic inverse (verified: a
+  // date this function's own extrapolated branch produces, fed back through indexForDate's,
+  // returns the identical continuous index) so dragging a point already out there and dragging it
+  // right back lands on the same date, not a slightly different extrapolated one each time.
   const dateForIndex = useCallback(
     (rawIndex: number): Date => {
       if (data.length === 0) return new Date();
-      const clamped = Math.min(data.length - 1, Math.max(0, Math.round(rawIndex - 0.5)));
+      const rawEdgeIndex = rawIndex - 0.5;
+      if (data.length > 1 && (rawEdgeIndex < 0 || rawEdgeIndex > data.length - 1)) {
+        const first = data[0].date;
+        const last = data[data.length - 1].date;
+        const avgSpacingMs = (last.getTime() - first.getTime()) / (data.length - 1);
+        if (avgSpacingMs > 0) {
+          const ms = rawEdgeIndex < 0 ? first.getTime() + rawEdgeIndex * avgSpacingMs : last.getTime() + (rawEdgeIndex - (data.length - 1)) * avgSpacingMs;
+          return new Date(ms);
+        }
+      }
+      const clamped = Math.min(data.length - 1, Math.max(0, Math.round(rawEdgeIndex)));
       return data[clamped].date;
     },
     [data]

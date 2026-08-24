@@ -441,11 +441,12 @@ export function useDrawingInteractions({
       return;
     }
 
-    // "text"/"comment" don't commit a `drawings` entry on their own click at all — they open a
-    // live textarea instead (see useDrawingState's own textEntry/commitTextEntry), which is what
-    // actually creates the drawing once the user clicks away. Exits the tool immediately so a
-    // further click elsewhere doesn't start a 2nd entry on top of the still-open one.
-    if (activeTool === "text" || activeTool === "comment") {
+    // "text"/"comment"/"signpost" don't commit a `drawings` entry on their own click at all —
+    // they open a live textarea instead (see useDrawingState's own textEntry/commitTextEntry),
+    // which is what actually creates the drawing once the user clicks away. Exits the tool
+    // immediately so a further click elsewhere doesn't start a 2nd entry on top of the still-open
+    // one.
+    if (activeTool === "text" || activeTool === "comment" || activeTool === "signpost") {
       setTextEntry({ tool: activeTool, point, value: "" });
       cancelDrawingTool();
       return;
@@ -654,7 +655,7 @@ export function useDrawingInteractions({
       commitDrawings(drawings.map((d) => (d.id === drag.id ? { ...d, x1: dateValue, x2: dateValue } : d)));
     } else if (
       dr.lineType === "ray" ||
-      ["arrowUp", "arrowDown", "pin", "flagMark", "text", "comment"].includes(dr.lineType ?? "")
+      ["arrowUp", "arrowDown", "pin", "flagMark", "text", "comment", "signpost"].includes(dr.lineType ?? "")
     ) {
       // Both a ray's anchor and every single-point marker above have both degrees of freedom,
       // unlike horizontal/vertical's single axis — none of them are ever one of the pane-aware
@@ -728,7 +729,7 @@ export function useDrawingInteractions({
     } else if (!activeTool && visibleDrawings.length > 0) {
       let closestId: string | null = null;
       let closestDist = hitDistance;
-      const hitTestCtx: HitTestContext = { dims, plotBoundedHeight, priceHeight, zoomedXScale, zoomedPriceScale, indexForDate, pixelYForDrawing, overlayProjections };
+      const hitTestCtx: HitTestContext = { dims, plotBoundedHeight, priceHeight, zoomedXScale, zoomedPriceScale, indexForDate, pixelYForDrawing, overlayProjections, data };
       for (const dr of visibleDrawings) {
         const d = distanceToDrawing(dr, mouseX, mouseY, hitTestCtx);
         if (d < closestDist) {

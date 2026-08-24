@@ -13,6 +13,15 @@ import { AXIS_HANDLE_FRACTION_X, AXIS_HANDLE_FRACTION_Y } from "../constants";
 import { EVENT_MARKER_OFFSET, EVENT_MARKER_RADIUS } from "../eventsCatalog";
 import type { TextEntryState } from "../interfaces/TextEntryState.interface";
 
+// One per TextEntryState.tool — module-scope since it depends on nothing render-specific.
+const TEXT_ENTRY_PLACEHOLDERS: Record<TextEntryState["tool"], string> = {
+  text: "Ajouter du texte",
+  comment: "Ajouter un commentaire",
+  note: "Ajouter une note",
+  priceNote: "Ajouter une note",
+  signpost: "Ajouter un signpost",
+};
+
 interface AxisDragHandlers {
   onPointerDown: (e: React.PointerEvent) => void;
   onPointerMove: (e: React.PointerEvent) => void;
@@ -433,18 +442,12 @@ export function ChartCanvasOverlay({
               }
               // An arrow marker's one handle sits at its own point, same as a ray's anchor
               // above — x2/y2 mirrors x1/y1 automatically (see handleAxisHandlePointerMove).
-              // "text"/"comment"/"pin"/"flagMark" share the exact same single-point shape (see the
-              // lineType's own doc), so they share this same handle instead of falling through to
-              // the generic per-point loop below, which would otherwise draw two overlapping
-              // handles at the same pixel (x1/y1 and x2/y2 both resolve to the same point).
-              if (
-                dr.lineType === "arrowUp" ||
-                dr.lineType === "arrowDown" ||
-                dr.lineType === "text" ||
-                dr.lineType === "comment" ||
-                dr.lineType === "pin" ||
-                dr.lineType === "flagMark"
-              ) {
+              // "text"/"comment"/"pin"/"flagMark"/"signpost" share the exact same single-point
+              // shape (see the lineType's own doc), so they share this same handle instead of
+              // falling through to the generic per-point loop below, which would otherwise draw
+              // two overlapping handles at the same pixel (x1/y1 and x2/y2 both resolve to the
+              // same point).
+              if (["arrowUp", "arrowDown", "text", "comment", "pin", "flagMark", "signpost"].includes(dr.lineType ?? "")) {
                 return (
                   <DrawingHandle
                     key={dr.id}
@@ -602,13 +605,7 @@ export function ChartCanvasOverlay({
             transform: textEntry.entry.tool === "text" ? undefined : "translateY(-100%)",
           }}
           value={textEntry.entry.value}
-          placeholder={
-            textEntry.entry.tool === "comment"
-              ? "Ajouter un commentaire"
-              : textEntry.entry.tool === "note" || textEntry.entry.tool === "priceNote"
-                ? "Ajouter une note"
-                : "Ajouter du texte"
-          }
+          placeholder={TEXT_ENTRY_PLACEHOLDERS[textEntry.entry.tool]}
           onChange={(e) => textEntry.entry && textEntry.setEntry({ ...textEntry.entry, value: e.target.value })}
           onBlur={textEntry.onCommit}
           onKeyDown={(e) => {

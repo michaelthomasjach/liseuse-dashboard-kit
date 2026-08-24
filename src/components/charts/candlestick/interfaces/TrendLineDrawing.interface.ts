@@ -172,7 +172,11 @@ export interface TrendLineDrawing {
    *  single-point markers exactly like arrowUp/arrowDown (x2/y2 mirrors x1/y1, single click,
    *  single handle) — no text of their own, just a small icon (a map-pin teardrop, tip planted
    *  exactly at the point; a flag on a pole, its own base planted there) drawn a fixed size in
-   *  `color`, unrelated to strokeWidth. */
+   *  `color`, unrelated to strokeWidth. "signpost" is a single-point label like "text" (same live
+   *  entry, x1/y1 the label's own point), but with a vertical connector down to whatever candle's
+   *  own close sits at x1's date — never a stored point of its own, always looked up fresh at
+   *  render/hit-test time (see drawSignpost.ts), so dragging the label along the date axis keeps
+   *  the connector attached to the candle actually under it instead of a stale one. */
   lineType?:
     | "horizontal"
     | "vertical"
@@ -205,6 +209,7 @@ export interface TrendLineDrawing {
     | "priceNote"
     | "pin"
     | "flagMark"
+    | "signpost"
     | "symbolOverlay";
   /** Which pane's own value scale y is expressed in — "price" (default), "volume", or the id of
    *  an "own"-pane indicator (RSI/CHOP/MACD) to anchor a "horizontal"/"ray" line to that pane

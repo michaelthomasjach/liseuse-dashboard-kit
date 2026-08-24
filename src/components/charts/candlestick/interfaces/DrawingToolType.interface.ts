@@ -33,4 +33,5 @@ export type DrawingToolType =
   | "note"
   | "priceNote"
   | "pin"
-  | "flagMark";
+  | "flagMark"
+  | "signpost";

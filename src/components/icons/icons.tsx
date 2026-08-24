@@ -929,6 +929,16 @@ export const FlagMarkIcon = (props: IconProps) => (
   </IconBase>
 );
 
+/** A small rounded plate over a dashed vertical drop — "Signpost"'s own icon, matching the label-
+ *  over-a-connector-to-the-close shape it actually draws (see drawSignpost.ts). */
+export const SignpostIcon = (props: IconProps) => (
+  <IconBase {...props}>
+    <rect x="7" y="3" width="10" height="6" rx="1.5" />
+    <path d="M12 9v11" strokeDasharray="2 2" />
+    <circle cx="12" cy="20" r="1.4" fill="currentColor" stroke="none" />
+  </IconBase>
+);
+
 /** The alert modal's own "crossing" condition — two lines crossing, generic direction. */
 export const CrossingIcon = (props: IconProps) => (
   <IconBase {...props}>

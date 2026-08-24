@@ -1,5 +1,6 @@
 import type { ScaleLinear } from "d3";
 import type { TrendLineDrawing } from "./interfaces/TrendLineDrawing.interface";
+import type { Candle } from "./interfaces/Candle.interface";
 import { FIBONACCI_LEVELS, FIBONACCI_EXTENSION_LEVELS } from "./drawingCatalog";
 import { allPointsOf, distanceToSegment, effectiveExtendOf, extendSegmentToEdges, forecastCurvePoints } from "./drawingGeometry";
 import { pitchforkLines } from "./pitchforkGeometry";
@@ -16,6 +17,9 @@ export interface HitTestContext {
   indexForDate: (d: Date) => number;
   pixelYForDrawing: (dr: TrendLineDrawing) => number;
   overlayProjections: { drawing: TrendLineDrawing; mainReference: number; points: { i: number; price: number }[] }[];
+  /** "signpost" only — its own vertical connector needs the actual candle at its own date to know
+   *  where the *other* end (the close) lands, same lookup drawSignpost.ts does at render time. */
+  data: Candle[];
 }
 
 /** Pixel distance from (mouseX, mouseY) to a drawing, one dedicated per-lineType formula each
@@ -24,7 +28,7 @@ export interface HitTestContext {
  *  pointer-move handler purely to keep that file under its 1000-line budget; behavior unchanged,
  *  this is the same per-lineType if/else-if chain it always was. */
 export function distanceToDrawing(dr: TrendLineDrawing, mouseX: number, mouseY: number, ctx: HitTestContext): number {
-  const { dims, plotBoundedHeight, priceHeight, zoomedXScale, zoomedPriceScale, indexForDate, pixelYForDrawing, overlayProjections } = ctx;
+  const { dims, plotBoundedHeight, priceHeight, zoomedXScale, zoomedPriceScale, indexForDate, pixelYForDrawing, overlayProjections, data } = ctx;
   // Axis-constrained lines render full-span (see the canvas draw effect) rather than between
   // their stored x1/x2 pixel positions, so hit-testing has to match that.
   if (dr.lineType === "horizontal") {
@@ -118,6 +122,24 @@ export function distanceToDrawing(dr: TrendLineDrawing, mouseX: number, mouseY: 
     const clampedX = Math.min(Math.max(mouseX, x - halfWidth), x + halfWidth);
     const clampedY = Math.min(Math.max(mouseY, y - height), y);
     return Math.hypot(mouseX - clampedX, mouseY - clampedY);
+  }
+  if (dr.lineType === "signpost" && dr.text && data.length > 0) {
+    // Min of the vertical connector (distanceToSegment, down/up to whatever candle's own close
+    // sits at x1's date — same lookup drawSignpost.ts uses at render time) and the label's own
+    // box, same clamp-into-the-box technique as text/comment below (grows upward from x1/y1,
+    // "top"-aligned like "comment", see commitTextEntry).
+    const x = zoomedXScale(indexForDate(dr.x1) + 0.5);
+    const labelY = zoomedPriceScale(dr.y1);
+    const idx = Math.min(data.length - 1, Math.max(0, Math.round(indexForDate(dr.x1) - 0.5)));
+    const closeY = zoomedPriceScale(data[idx].close);
+    const lineDist = distanceToSegment(mouseX, mouseY, x, labelY, x, closeY);
+    const size = dr.textSize ?? 11;
+    const boxWidth = dr.text.length * size * 0.55 + 20;
+    const bottom = labelY - 6;
+    const top = bottom - size - 4;
+    const clampedX = Math.min(Math.max(mouseX, x), x + boxWidth);
+    const clampedY = Math.min(Math.max(mouseY, top), bottom);
+    return Math.min(lineDist, Math.hypot(mouseX - clampedX, mouseY - clampedY));
   }
   if (dr.lineType === "text" || dr.lineType === "comment") {
     // No canvas context here to measure the *actual* rendered width (see drawTextAndComment.ts),

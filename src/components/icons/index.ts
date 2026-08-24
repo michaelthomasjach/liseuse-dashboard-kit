@@ -109,6 +109,7 @@ export {
   PriceNoteIcon,
   PinIcon,
   FlagMarkIcon,
+  SignpostIcon,
   CrossingIcon,
   GreaterThanIcon,
   LessThanIcon,

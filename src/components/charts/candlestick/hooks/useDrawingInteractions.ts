@@ -6,10 +6,10 @@ import type { TrendLineDrawing } from "../interfaces/TrendLineDrawing.interface"
 import type { DataPoint } from "../interfaces/DataPoint.interface";
 import type { DrawingToolType } from "../interfaces/DrawingToolType.interface";
 import { MULTI_POINT_TOOLS } from "../drawingCatalog";
-import { round4, channelOffsetFromClick, rangeForecastMaxMin } from "../drawingGeometry";
+import { round4, channelOffsetFromClick, rangeForecastMaxMin, longShortPositionDefaults } from "../drawingGeometry";
 import { distanceToDrawing } from "../drawingHitTest";
 import type { HitTestContext } from "../drawingHitTest";
-import { DRAWING_HIT_DISTANCE, CLICK_DRAG_THRESHOLD } from "../constants";
+import { DRAWING_HIT_DISTANCE, CLICK_DRAG_THRESHOLD, POSITION_TOOL_DEFAULT_BARS } from "../constants";
 
 /** Plain mutable ref shape (matches what `useRef` in another hook already returns) — used instead
  *  of React's own `RefObject<T>` because that type's `current` is only ever mutable when the ref
@@ -420,6 +420,31 @@ export function useDrawingInteractions({
           y2: max.y,
           lineType: "rangeForecast",
           extraPoints: [min],
+        },
+      ]);
+      cancelDrawingTool();
+      return;
+    }
+
+    // "longPosition"/"shortPosition" are single-click tools — entry is the click itself, target/
+    // stop both derived immediately from it (see longShortPositionDefaults for the price side;
+    // the date side is just a fixed bar offset, computed here since the pure geometry helper has
+    // no access to indexForDate/dateForIndex) — then ordinary, independently draggable points like
+    // any other tool's.
+    if (activeTool === "longPosition" || activeTool === "shortPosition") {
+      const { targetPrice, stopPrice } = longShortPositionDefaults(point.y, activeTool);
+      const exitDate = dateForIndex(indexForDate(point.x) + POSITION_TOOL_DEFAULT_BARS);
+      commitDrawings([
+        ...drawings,
+        {
+          id: `drawing-${drawingIdRef.current++}`,
+          ...defaultDrawingStyle,
+          x1: point.x,
+          y1: point.y,
+          x2: exitDate,
+          y2: targetPrice,
+          lineType: activeTool,
+          extraPoints: [{ x: exitDate, y: stopPrice }],
         },
       ]);
       cancelDrawingTool();

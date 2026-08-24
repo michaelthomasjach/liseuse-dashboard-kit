@@ -22,6 +22,8 @@ import {
   HeadShouldersIcon,
   ForecastIcon,
   RangeForecastIcon,
+  LongPositionIcon,
+  ShortPositionIcon,
   PitchforkIcon,
   SchiffPitchforkIcon,
   ModifiedSchiffPitchforkIcon,
@@ -78,6 +80,12 @@ export const MULTI_POINT_TOOLS: Partial<Record<DrawingToolType, { extraPoints: n
   // always the midpoint of Max/Min, recomputed wherever it's needed (rendering, hit-testing) so
   // it never drifts out of sync after Max/Min are redragged.
   rangeForecast: { extraPoints: 1, labels: ["Point de départ", "Max", "Min"] },
+  // Listed here *only* for these labels too — "longPosition"/"shortPosition" are single-click
+  // tools (see TrendLineDrawing.lineType's own doc): entry is the click itself, target/stop are
+  // both derived immediately from it (see longShortPositionDefaults), then freely draggable by
+  // hand afterward like any other point.
+  longPosition: { extraPoints: 1, labels: ["Entrée", "Objectif", "Stop"] },
+  shortPosition: { extraPoints: 1, labels: ["Entrée", "Objectif", "Stop"] },
 };
 
 // Short vertex labels drawn directly on the chart next to each point — distinct from
@@ -172,6 +180,8 @@ export const DRAWING_TOOL_CATEGORIES: DrawingToolCategory[] = [
     tools: [
       { type: "forecast", label: "Projection de prix", icon: ForecastIcon },
       { type: "rangeForecast", label: "Range forecast", icon: RangeForecastIcon },
+      { type: "longPosition", label: "Position longue", icon: LongPositionIcon },
+      { type: "shortPosition", label: "Position courte", icon: ShortPositionIcon },
     ],
   },
   {

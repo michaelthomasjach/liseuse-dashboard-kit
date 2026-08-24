@@ -139,6 +139,27 @@ export function rangeForecastMaxMin(direction: DataPoint): { max: DataPoint; min
   };
 }
 
+// "longPosition"/"shortPosition"'s own default reward/risk — 10% toward profit, 5% toward loss,
+// a 2:1 reward:risk ratio being the most common rule-of-thumb default for this kind of tool. Only
+// ever applied once, at creation — target/stop are freely, independently draggable by hand
+// afterward, same as rangeForecast's own Max/Min.
+const POSITION_TARGET_RATIO = 0.1;
+const POSITION_STOP_RATIO = 0.05;
+
+// "longPosition"/"shortPosition" are single-click tools — entry is the click itself, target/stop
+// are derived from it immediately, no 2nd "direction" click needed (unlike rangeForecast). A long
+// profits as price rises, so its target sits above entry and its stop below; a short profits as
+// price falls, so it's the mirror image. Prices only — the caller supplies target/stop's own date
+// (a fixed default bar offset from entry, needing indexForDate/dateForIndex this file doesn't
+// have access to) and assembles the full DataPoint itself.
+export function longShortPositionDefaults(entryPrice: number, kind: "longPosition" | "shortPosition"): { targetPrice: number; stopPrice: number } {
+  const targetDelta = entryPrice * POSITION_TARGET_RATIO;
+  const stopDelta = entryPrice * POSITION_STOP_RATIO;
+  return kind === "longPosition"
+    ? { targetPrice: round4(entryPrice + targetDelta), stopPrice: round4(entryPrice - stopDelta) }
+    : { targetPrice: round4(entryPrice - targetDelta), stopPrice: round4(entryPrice + stopDelta) };
+}
+
 // "forecast"'s curve, sampled into a polyline for hit-testing (see useDrawingInteractions' own
 // hover-detection, which walks this the same "min distance over consecutive segments" way brush/
 // elliott/symbolOverlay already do for their own multi-point shapes) — a curved line has no single

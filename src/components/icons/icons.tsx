@@ -785,6 +785,28 @@ export const RangeForecastIcon = (props: IconProps) => (
   </IconBase>
 );
 
+/** A box split by its own entry line, the half above emphasized — "Long position"'s own target
+ *  (profit) zone sits above entry, its stop below, so the darker fill goes on top. */
+export const LongPositionIcon = (props: IconProps) => (
+  <IconBase {...props}>
+    <path d="M4 4h15v8h-15z" fill="currentColor" fillOpacity="0.22" stroke="none" />
+    <path d="M4 12h15v8h-15z" fill="currentColor" fillOpacity="0.08" stroke="none" />
+    <rect x="4" y="4" width="15" height="16" />
+    <path d="M4 12h15" />
+  </IconBase>
+);
+
+/** Same split box as LongPositionIcon, mirrored — "Short position"'s own target (profit) zone
+ *  sits below entry, its stop above, so the darker fill goes on the bottom instead. */
+export const ShortPositionIcon = (props: IconProps) => (
+  <IconBase {...props}>
+    <path d="M4 4h15v8h-15z" fill="currentColor" fillOpacity="0.08" stroke="none" />
+    <path d="M4 12h15v8h-15z" fill="currentColor" fillOpacity="0.22" stroke="none" />
+    <rect x="4" y="4" width="15" height="16" />
+    <path d="M4 12h15" />
+  </IconBase>
+);
+
 /** Three lines fanning from one handle point — the median (dashed, the middle one) plus two
  *  parallel "tine" lines — the standard/Andrews' Pitchfork's own silhouette. */
 export const PitchforkIcon = (props: IconProps) => (

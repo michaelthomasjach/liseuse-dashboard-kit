@@ -185,6 +185,27 @@ export function distanceToDrawing(dr: TrendLineDrawing, mouseX: number, mouseY: 
       distanceToSegment(mouseX, mouseY, sx, sy, minX, minY)
     );
   }
+  if ((dr.lineType === "longPosition" || dr.lineType === "shortPosition") && dr.extraPoints?.length) {
+    // Two bounded rectangles (target zone, stop zone), same "inside either one counts as a
+    // direct hit" convention "zones" above uses for its own (unbounded) bands — falling back to
+    // distance from the 3 boundary lines (entry/target/stop) drawLongShortPositionDrawings.ts
+    // actually draws only once the pointer's outside both rects entirely.
+    const stopPoint = dr.extraPoints[0];
+    const ex = zoomedXScale(indexForDate(dr.x1) + 0.5);
+    const ey = zoomedPriceScale(dr.y1);
+    const tx = zoomedXScale(indexForDate(dr.x2) + 0.5);
+    const ty = zoomedPriceScale(dr.y2);
+    const spx = zoomedXScale(indexForDate(stopPoint.x) + 0.5);
+    const spy = zoomedPriceScale(stopPoint.y);
+    const insideRect = (ax: number, ay: number, bx: number, by: number) =>
+      mouseX >= Math.min(ax, bx) && mouseX <= Math.max(ax, bx) && mouseY >= Math.min(ay, by) && mouseY <= Math.max(ay, by);
+    if (insideRect(ex, ey, tx, ty) || insideRect(ex, ey, spx, spy)) return 0;
+    return Math.min(
+      distanceToSegment(mouseX, mouseY, ex, ey, Math.max(tx, spx), ey),
+      distanceToSegment(mouseX, mouseY, Math.min(ex, tx), ty, Math.max(ex, tx), ty),
+      distanceToSegment(mouseX, mouseY, Math.min(ex, spx), spy, Math.max(ex, spx), spy)
+    );
+  }
   if (dr.lineType === "forecast") {
     // Same "polyline through sampled points" distance as brush/elliott/symbolOverlay above —
     // "forecast" bows away from its own straight x1/y1→x2/y2 chord by up to 28% of that chord's

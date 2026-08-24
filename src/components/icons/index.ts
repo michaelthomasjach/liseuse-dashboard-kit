@@ -96,6 +96,8 @@ export {
   HeadShouldersIcon,
   ForecastIcon,
   RangeForecastIcon,
+  LongPositionIcon,
+  ShortPositionIcon,
   PitchforkIcon,
   SchiffPitchforkIcon,
   ModifiedSchiffPitchforkIcon,

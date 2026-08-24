@@ -22,6 +22,8 @@ export type DrawingToolType =
   | "headShoulders"
   | "forecast"
   | "rangeForecast"
+  | "longPosition"
+  | "shortPosition"
   | "pitchfork"
   | "schiffPitchfork"
   | "modifiedSchiffPitchfork"

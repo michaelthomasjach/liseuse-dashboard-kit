@@ -69,3 +69,8 @@ export const SIDE_PANEL_DEFAULT_WIDTH_FRACTION = "20%";
  *  the point the drag starts — see useSidePanel's own startResize. */
 export const SIDE_PANEL_MIN_WIDTH = 200;
 export const SIDE_PANEL_MAX_WIDTH = 560;
+/** How many candles wide a freshly-placed "longPosition"/"shortPosition" box defaults to — a bar
+ *  count rather than a pixel width so it reads the same regardless of the current zoom level,
+ *  same reasoning MAX_EMPTY_FRACTION above uses a fraction over a fixed count for the opposite
+ *  reason. Target/stop are freely draggable afterward, same as every other tool's default sizing. */
+export const POSITION_TOOL_DEFAULT_BARS = 20;

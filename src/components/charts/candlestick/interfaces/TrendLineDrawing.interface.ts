@@ -141,7 +141,18 @@ export interface TrendLineDrawing {
    *  dotted) — Avg is never a stored point of its own, always recomputed from Max/Min at render/
    *  hit-test time, so dragging Max or Min alone keeps it correct with no extra bookkeeping. The
    *  triangular area between the Max and Min lines is filled, and every end is labeled with its
-   *  own price and % change from the start. */
+   *  own price and % change from the start. "longPosition"/"shortPosition" are a single-click
+   *  risk/reward box: x1/y1 is the entry (the click itself), x2/y2 the profit target, extraPoints[0]
+   *  the stop — target/stop each independently draggable in both date and price like any other
+   *  tool's points, defaulting on placement to a fixed reward/risk ratio (see
+   *  `longShortPositionDefaults`) with target above entry and stop below for "longPosition" (a long
+   *  profits as price rises), the mirror image for "shortPosition". Drawn as two filled horizontal
+   *  bands from entry to each point (spanning that point's own date range, independently of the
+   *  other) — target's band always the theme's "up" color, stop's always "down", regardless of
+   *  which tool this is or which price is actually numerically higher, since the *role* (reward
+   *  vs. risk) never changes even if a point gets dragged past entry by hand. Each band is labeled
+   *  with its own price and % change from entry, plus the entry itself labeled with the computed
+   *  reward:risk ratio. */
   lineType?:
     | "horizontal"
     | "vertical"
@@ -162,6 +173,8 @@ export interface TrendLineDrawing {
     | "headShoulders"
     | "forecast"
     | "rangeForecast"
+    | "longPosition"
+    | "shortPosition"
     | "pitchfork"
     | "schiffPitchfork"
     | "modifiedSchiffPitchfork"

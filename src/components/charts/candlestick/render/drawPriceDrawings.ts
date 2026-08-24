@@ -14,6 +14,7 @@ import { defaultIndicatorColor } from "../indicatorCatalog";
 import { drawPitchforkDrawings } from "./drawPitchfork";
 import { drawRangeForecastDrawings } from "./drawRangeForecast";
 import { drawHeadShouldersDrawings } from "./drawHeadShoulders";
+import { drawLongShortPositionDrawings } from "./drawLongShortPosition";
 
 const PITCHFORK_LINE_TYPES = new Set(["pitchfork", "schiffPitchfork", "modifiedSchiffPitchfork", "insidePitchfork"]);
 
@@ -53,15 +54,16 @@ export function drawPriceDrawings(ctx: CanvasRenderingContext2D, params: RenderC
     // ones are drawn full-height further down, outside any clip).
     for (const dr of visibleDrawings) {
       // "rectangle"/"zones"/"elbowArrow"/"brush"/"arrowUp"/"arrowDown"/"forecast"/every pitchfork
-      // variant/"rangeForecast"/"headShoulders" have their own geometry entirely unlike the
-      // "diagonal x1/y1–x2/y2, optionally extended, plus per-lineType extras" shape every other
-      // type below shares — drawn in their own dedicated loops (or, for the pitchfork family,
-      // "rangeForecast", and "headShoulders", dedicated files — see drawPitchfork.ts/
-      // drawRangeForecast.ts/drawHeadShoulders.ts) further down instead, same reasoning "vertical"
-      // (full-height, outside this clip) already skips this one for. "forecast" specifically draws
-      // a *curved* line between the same two points instead of a straight one, so it can't share
-      // this loop's own straight moveTo/lineTo call the way even every other excluded type here
-      // still visually builds on in its own loop.
+      // variant/"rangeForecast"/"longPosition"/"shortPosition"/"headShoulders" have their own
+      // geometry entirely unlike the "diagonal x1/y1–x2/y2, optionally extended, plus per-lineType
+      // extras" shape every other type below shares — drawn in their own dedicated loops (or, for
+      // the pitchfork family, "rangeForecast", "longPosition"/"shortPosition", and "headShoulders",
+      // dedicated files — see drawPitchfork.ts/drawRangeForecast.ts/drawLongShortPosition.ts/
+      // drawHeadShoulders.ts) further down instead, same reasoning "vertical" (full-height, outside
+      // this clip) already skips this one for. "forecast" specifically draws a *curved* line
+      // between the same two points instead of a straight one, so it can't share this loop's own
+      // straight moveTo/lineTo call the way even every other excluded type here still visually
+      // builds on in its own loop.
       if (
         dr.lineType === "vertical" ||
         dr.lineType === "rectangle" ||
@@ -72,6 +74,8 @@ export function drawPriceDrawings(ctx: CanvasRenderingContext2D, params: RenderC
         dr.lineType === "arrowDown" ||
         dr.lineType === "forecast" ||
         dr.lineType === "rangeForecast" ||
+        dr.lineType === "longPosition" ||
+        dr.lineType === "shortPosition" ||
         dr.lineType === "headShoulders" ||
         PITCHFORK_LINE_TYPES.has(dr.lineType ?? "") ||
         // Its x1/y1/x2/y2 aren't real coordinates (see the lineType's own doc comment) — just
@@ -483,6 +487,7 @@ export function drawPriceDrawings(ctx: CanvasRenderingContext2D, params: RenderC
 
     drawPitchforkDrawings(ctx, params, style);
     drawRangeForecastDrawings(ctx, params, style);
+    drawLongShortPositionDrawings(ctx, params, style);
     drawHeadShouldersDrawings(ctx, params, style);
 
     if (activeTool && pendingPoint && previewPoint) {

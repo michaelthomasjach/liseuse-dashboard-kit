@@ -14,56 +14,44 @@ function midpoint(a: ScreenPoint, b: ScreenPoint): ScreenPoint {
   return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
 }
 
-/** Where each pitchfork variant's own median line starts from and heads toward — P0 is the
- *  "handle" (the tool's 1st click), P1/P2 the two points defining the fork's own width for every
- *  *non*-inside variant (see `pitchforkTineAnchors`). Only the median's own start/target move:
- *  "pitchfork" (standard/Andrews') starts at P0 itself; "schiffPitchfork" moves the start 50% of
- *  the way from P0 toward P1 in *price only* (its own time/x stays at P0's — Schiff's own
- *  original modification); "modifiedSchiffPitchfork" moves that same 50% in *both* price and time
- *  (a plain 2D midpoint of P0-P1) — Dr. Andrews' own response to Schiff's variation, going one
- *  step further by moving the origin equally on both axes instead of price alone;
- *  "insidePitchfork" keeps the *same* P0-P1-midpoint start Modified Schiff uses, but joins it
- *  directly to P2 itself instead of the midpoint of P1-P2 — "ends its own handle at C rather than
- *  the midpoint of B-C" (Andrews' own Inside variants, every one of them, regardless of which
- *  non-inside start formula they otherwise share). */
+/** Where each pitchfork variant's own *dashed* median line starts from and heads toward — P0 is
+ *  the "handle" (the tool's 1st click), P1/P2 the two points defining the fork's own width.
+ *  "pitchfork" (standard/Andrews') starts at P0 itself, toward the midpoint of P1-P2;
+ *  "schiffPitchfork" moves the start 50% of the way from P0 toward P1 in *price only* (its own
+ *  time/x stays at P0's — Schiff's own original modification), same target;
+ *  "modifiedSchiffPitchfork" moves that same 50% in *both* price and time (a plain 2D midpoint of
+ *  P0-P1) — Dr. Andrews' own response to Schiff's variation, going one step further by moving the
+ *  origin equally on both axes instead of price alone, same target. "insidePitchfork" is a
+ *  genuinely different shape, not just another start/target pair on the same 2 outer tines: its
+ *  own 2 *outer* tines pass through D (=mid(P0,P1), the very point every other variant's own
+ *  median would start from) and P1 directly — see `pitchforkTineAnchors` — so its median sits
+ *  exactly *between* them instead, anchored at mid(P1,P2) and sharing the same D→P2 direction
+ *  those two outer tines already travel in. */
 export function pitchforkMedianEndpoints(p0: ScreenPoint, p1: ScreenPoint, p2: ScreenPoint, variant: PitchforkVariant): { start: ScreenPoint; target: ScreenPoint } {
   switch (variant) {
     case "schiffPitchfork":
       return { start: { x: p0.x, y: midpoint(p0, p1).y }, target: midpoint(p1, p2) };
     case "modifiedSchiffPitchfork":
       return { start: midpoint(p0, p1), target: midpoint(p1, p2) };
-    case "insidePitchfork":
-      return { start: midpoint(p0, p1), target: p2 };
+    case "insidePitchfork": {
+      const d = midpoint(p0, p1);
+      const start = midpoint(p1, p2);
+      return { start, target: { x: start.x + (p2.x - d.x), y: start.y + (p2.y - d.y) } };
+    }
     case "pitchfork":
     default:
       return { start: p0, target: midpoint(p1, p2) };
   }
 }
 
-/** Which two of the 3 clicked points the pair of parallel "tine" lines are *anchored at* before
- *  any clipping (see `pitchforkLines`' own use of this) — P1/P2 for every non-inside variant,
- *  same as the "base of the channel" every one of their own medians targets (or a midpoint of).
- *  "insidePitchfork" anchors at P0/P1 instead, since it targets P2 *directly* (see
- *  pitchforkMedianEndpoints), which makes P2 part of the median's own line — a tine through P2
- *  with the median's own slope would be mathematically identical to the median itself (2 lines
- *  through the same point with the same slope are the same line). */
+/** Which two points the pair of *solid* outer "tine" lines are anchored at — P1/P2 for every
+ *  non-inside variant (the median's own target, or a midpoint of it, always lands on this same
+ *  pair, so the tines and the median share their "base"). "insidePitchfork" anchors its own tines
+ *  at D (=mid(P0,P1)) and P1 instead — its median (see pitchforkMedianEndpoints) sits at mid(P1,P2)
+ *  precisely because that's the midpoint *between* these two tines, not because it shares their
+ *  own anchor pair the way every other variant's median does. */
 function pitchforkTineAnchors(p0: ScreenPoint, p1: ScreenPoint, p2: ScreenPoint, variant: PitchforkVariant): [ScreenPoint, ScreenPoint] {
-  return variant === "insidePitchfork" ? [p0, p1] : [p1, p2];
-}
-
-// Where the infinite line through (anchor, anchor+direction) crosses the infinite line through
-// (lineP1, lineP2) — standard 2D line-line intersection via Cramer's rule. `null` when the two
-// are parallel (the two lines never cross, or are the same line) — geometrically shouldn't happen
-// for this tool's own callers (the tine direction is never parallel to the B-C leg it's being
-// clipped against, short of a degenerate 3-point placement), so callers just fall back to the
-// unclipped anchor rather than crash on a division by zero.
-function lineIntersection(anchor: ScreenPoint, direction: ScreenPoint, lineP1: ScreenPoint, lineP2: ScreenPoint): ScreenPoint | null {
-  const ex = lineP2.x - lineP1.x;
-  const ey = lineP2.y - lineP1.y;
-  const denom = direction.x * ey - direction.y * ex;
-  if (Math.abs(denom) < 1e-9) return null;
-  const t = ((lineP1.x - anchor.x) * ey - (lineP1.y - anchor.y) * ex) / denom;
-  return { x: anchor.x + t * direction.x, y: anchor.y + t * direction.y };
+  return variant === "insidePitchfork" ? [midpoint(p0, p1), p1] : [p1, p2];
 }
 
 // 0.5px tolerance for "is this derived point actually just A/B/C itself" — screen-space
@@ -74,25 +62,27 @@ function approxEqual(a: ScreenPoint, b: ScreenPoint): boolean {
   return Math.abs(a.x - b.x) < EPSILON && Math.abs(a.y - b.y) < EPSILON;
 }
 
-/** The median's own `start`/`target` (see pitchforkMedianEndpoints), labeled and filtered down to
- *  only the ones actually *derived* — worth marking on the chart the same way the reference
- *  diagrams this was modeled on do, rather than silently leaving them as bare line endpoints with
- *  no dot/label of their own the way A/B/C already get. A role landing exactly on one of A/B/C
- *  itself (the plain "pitchfork" variant's own `start`, literally P0; "insidePitchfork"'s own
- *  `target`, literally P2) is skipped — already marked there. Labeled by what the point actually
- *  *is*, not which role (start/target) it happens to be playing this variant: whichever equals
- *  the plain midpoint of the tine-anchor pair (see pitchforkTineAnchors — B-C normally, A-B for
- *  "insidePitchfork") is "D"; any other derived point (Schiff's own price-shifted anchor,
- *  Modified Schiff's full A-B midpoint) is "E". */
+/** The chart's own hollow, unlabeled-on-the-line-but-lettered-here markers for whichever points a
+ *  variant actually *derives* rather than lets the user click directly — worth marking the same
+ *  way the reference diagrams this was modeled on do, rather than silently leaving them as bare
+ *  line endpoints. Every non-inside variant derives at most 2: the median's own `start` (skipped
+ *  when it's literally P0 — the plain "pitchfork" variant's own case) labeled "E", and its own
+ *  `target` (always mid(P1,P2)) labeled "D". "insidePitchfork" derives a different pair — D itself
+ *  (one of its own *tine* anchors here, not the median's) and the median's own start (mid(P1,P2))
+ *  — labeled the same way for consistency: "D" for the mid(P1,P2) point, "E" for D. */
 export function pitchforkExtraPoints(p0: ScreenPoint, p1: ScreenPoint, p2: ScreenPoint, variant: PitchforkVariant): { point: ScreenPoint; label: "D" | "E" }[] {
+  if (variant === "insidePitchfork") {
+    return [
+      { point: midpoint(p0, p1), label: "E" },
+      { point: midpoint(p1, p2), label: "D" },
+    ];
+  }
   const { start, target } = pitchforkMedianEndpoints(p0, p1, p2, variant);
-  const [tineAnchor1, tineAnchor2] = pitchforkTineAnchors(p0, p1, p2, variant);
-  const pairMid = midpoint(tineAnchor1, tineAnchor2);
-  const rawPoints = [p0, p1, p2];
+  const pairMid = midpoint(p1, p2);
   const points: { point: ScreenPoint; label: "D" | "E" }[] = [];
   for (const point of [start, target]) {
     if (approxEqual(point, pairMid)) points.push({ point, label: "D" });
-    else if (!rawPoints.some((raw) => approxEqual(point, raw))) points.push({ point, label: "E" });
+    else if (!approxEqual(point, p0)) points.push({ point, label: "E" });
   }
   return points;
 }
@@ -125,27 +115,22 @@ export interface PitchforkLines {
 }
 
 /** The 5 actual on-screen lines for a pitchfork drawing — the plain A–B/B–C segments (never
- *  extended), the median (via pitchforkMedianEndpoints) as a ray from its own variant-specific
- *  anchor, and the two tines as rays from the tine-anchor pair (see pitchforkTineAnchors), each
- *  parallel to the median and extended one-directionally (past its own anchor, never behind it)
- *  to the plot's own edge. For every non-inside variant the tine anchors already sit exactly on
- *  the B-C line (they *are* B and C), so nothing more happens; "insidePitchfork" anchors its own
- *  tines at A/B instead (see pitchforkTineAnchors' own doc for why), which usually sit well clear
- *  of the B-C leg — drawing the *whole* ray from A/B itself would run the tine straight across the
- *  A-B-C triangle's own interior, so it's clipped to only the portion past where it actually
- *  crosses the B-C line, same as how B's own tine already starts exactly on that line (the
- *  clip there is a no-op — B already satisfies it). The single source of truth both the renderer
- *  and hover/hit-testing build from, so hovering always matches exactly what's drawn instead of
- *  drifting out of sync with a second, hand-copied formula (same reasoning drawingGeometry.ts's
- *  own forecastCurvePoints already follows for the "forecast" tool's curve). */
+ *  extended), the *dashed* median (via pitchforkMedianEndpoints) as a ray from its own
+ *  variant-specific anchor, and the two *solid* tines as rays from the tine-anchor pair (see
+ *  pitchforkTineAnchors), each parallel to the median and extended one-directionally (past its
+ *  own anchor, never behind it) to the plot's own edge. For "insidePitchfork" this puts the
+ *  median (still dashed) *between* its own two tines rather than alongside them the way every
+ *  other variant's median sits flush with one of its own tines — see both functions' own doc for
+ *  why. The single source of truth both the renderer and hover/hit-testing build from, so
+ *  hovering always matches exactly what's drawn instead of drifting out of sync with a second,
+ *  hand-copied formula (same reasoning drawingGeometry.ts's own forecastCurvePoints already
+ *  follows for the "forecast" tool's curve). */
 export function pitchforkLines(p0: ScreenPoint, p1: ScreenPoint, p2: ScreenPoint, variant: PitchforkVariant, xMin: number, xMax: number): PitchforkLines {
   const { start, target } = pitchforkMedianEndpoints(p0, p1, p2, variant);
   const median = rayFromAnchor(start, target, xMin, xMax);
   const dx = target.x - start.x;
   const dy = target.y - start.y;
-  const [rawAnchor1, rawAnchor2] = pitchforkTineAnchors(p0, p1, p2, variant);
-  const tineAnchor1 = variant === "insidePitchfork" ? (lineIntersection(rawAnchor1, { x: dx, y: dy }, p1, p2) ?? rawAnchor1) : rawAnchor1;
-  const tineAnchor2 = variant === "insidePitchfork" ? (lineIntersection(rawAnchor2, { x: dx, y: dy }, p1, p2) ?? rawAnchor2) : rawAnchor2;
+  const [tineAnchor1, tineAnchor2] = pitchforkTineAnchors(p0, p1, p2, variant);
   const tine1 = rayFromAnchor(tineAnchor1, { x: tineAnchor1.x + dx, y: tineAnchor1.y + dy }, xMin, xMax);
   const tine2 = rayFromAnchor(tineAnchor2, { x: tineAnchor2.x + dx, y: tineAnchor2.y + dy }, xMin, xMax);
   return {

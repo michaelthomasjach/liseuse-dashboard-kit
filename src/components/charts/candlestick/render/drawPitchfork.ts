@@ -11,8 +11,9 @@ const PITCHFORK_TYPES = new Set(["pitchfork", "schiffPitchfork", "modifiedSchiff
  *  spine, the two tines (solid, all three sharing the drawing's own `lineStyle`), plus the median
  *  drawn dashed to stand out from them (matching the icons' own convention — see PitchforkIcon
  *  and its variants) regardless of that same `lineStyle`. A/B/C get solid dots + labels; a
- *  variant's own *derived* D/E points (see pitchforkExtraPoints) get hollow ones instead — same
- *  color and label treatment, just visually marked as computed rather than clicked. Called from
+ *  variant's own *derived* D/E points (see pitchforkExtraPoints) get hollow dots too, but no
+ *  label — just enough to show where the median's own start/target actually sits without
+ *  cluttering the drawing with letters for points the user never clicked. Called from
  *  `drawPriceDrawings` while its own price-section clip is still open, same as every other
  *  price-space drawing type. */
 export function drawPitchforkDrawings(ctx: CanvasRenderingContext2D, params: RenderCandlestickChartParams, style: ChartCanvasStyle) {
@@ -68,8 +69,9 @@ export function drawPitchforkDrawings(ctx: CanvasRenderingContext2D, params: Ren
     // shares — see pitchforkGeometry.ts) — matches the standard Andrews' Pitchfork reference
     // diagrams this tool is modeled on, where the handle/width-pair points are always labeled
     // that way. Offset up-right of each dot so the label reads clear of both the marker itself
-    // and whichever line passes closest through it. D/E (see pitchforkExtraPoints) share the
-    // same offset convention right alongside them.
+    // and whichever line passes closest through it. The derived D/E points (see
+    // pitchforkExtraPoints, still drawn as hollow dots above) stay unlabeled — only the 3 points
+    // the user actually clicked get a letter.
     ctx.save();
     ctx.font = `700 11px ${fontFamily}`;
     ctx.fillStyle = lineColor;
@@ -81,9 +83,6 @@ export function drawPitchforkDrawings(ctx: CanvasRenderingContext2D, params: Ren
       ["C", p2],
     ] as const) {
       ctx.fillText(label, p.x + 6, p.y - 6);
-    }
-    for (const { point, label } of extraPoints) {
-      ctx.fillText(label, point.x + 6, point.y - 6);
     }
     ctx.restore();
 

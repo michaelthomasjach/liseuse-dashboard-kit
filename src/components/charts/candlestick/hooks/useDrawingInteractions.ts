@@ -5,6 +5,7 @@ import type { Indicator } from "../interfaces/Indicator.interface";
 import type { TrendLineDrawing } from "../interfaces/TrendLineDrawing.interface";
 import type { DataPoint } from "../interfaces/DataPoint.interface";
 import type { DrawingToolType } from "../interfaces/DrawingToolType.interface";
+import type { TextEntryState } from "../interfaces/TextEntryState.interface";
 import { MULTI_POINT_TOOLS } from "../drawingCatalog";
 import { round4, channelOffsetFromClick, rangeForecastMaxMin, longShortPositionDefaults } from "../drawingGeometry";
 import { distanceToDrawing } from "../drawingHitTest";
@@ -96,7 +97,7 @@ export interface UseDrawingInteractionsArgs {
   xScale: ScaleLinear<number, number>;
   maxXZoom: number;
   setXTransformAnimated: (t: d3.ZoomTransform, duration?: number) => void;
-  setTextEntry: (v: { tool: "text" | "comment"; point: DataPoint; value: string } | null) => void;
+  setTextEntry: (v: TextEntryState | null) => void;
 }
 
 /** Every pointer-driven interaction with drawings: placing a new one (click-to-place tools,
@@ -348,10 +349,7 @@ export function useDrawingInteractions({
         {
           id: `drawing-${drawingIdRef.current++}`,
           ...defaultDrawingStyle,
-          x1: pendingPoint.x,
-          y1: pendingPoint.y,
-          x2: pendingSecondPoint.x,
-          y2: pendingSecondPoint.y,
+          x1: pendingPoint.x, y1: pendingPoint.y, x2: pendingSecondPoint.x, y2: pendingSecondPoint.y,
           lineType: "channel",
           channelOffset: round4(channelOffsetFromClick(pendingPoint, pendingSecondPoint, point, indexForDate)),
         },
@@ -386,10 +384,7 @@ export function useDrawingInteractions({
         {
           id: `drawing-${drawingIdRef.current++}`,
           ...defaultDrawingStyle,
-          x1: pendingPoint.x,
-          y1: pendingPoint.y,
-          x2: pendingSecondPoint.x,
-          y2: pendingSecondPoint.y,
+          x1: pendingPoint.x, y1: pendingPoint.y, x2: pendingSecondPoint.x, y2: pendingSecondPoint.y,
           lineType: "disjointChannel",
           extraPoints: [
             { x: pendingSecondPoint.x, y: round4(pendingSecondPoint.y + offset) },
@@ -438,16 +433,7 @@ export function useDrawingInteractions({
       const exitDate = dateForIndex(indexForDate(point.x) + POSITION_TOOL_DEFAULT_BARS);
       commitDrawings([
         ...drawings,
-        {
-          id: `drawing-${drawingIdRef.current++}`,
-          ...defaultDrawingStyle,
-          x1: point.x,
-          y1: point.y,
-          x2: exitDate,
-          y2: targetPrice,
-          lineType: activeTool,
-          extraPoints: [{ x: exitDate, y: stopPrice }],
-        },
+        { id: `drawing-${drawingIdRef.current++}`, ...defaultDrawingStyle, x1: point.x, y1: point.y, x2: exitDate, y2: targetPrice, lineType: activeTool, extraPoints: [{ x: exitDate, y: stopPrice }] },
       ]);
       cancelDrawingTool();
       return;
@@ -459,6 +445,22 @@ export function useDrawingInteractions({
     // further click elsewhere doesn't start a 2nd entry on top of the still-open one.
     if (activeTool === "text" || activeTool === "comment") {
       setTextEntry({ tool: activeTool, point, value: "" });
+      cancelDrawingTool();
+      return;
+    }
+
+    // "note"/"priceNote": same live-textarea entry as "text"/"comment" above, just reached after
+    // a 2nd click (the anchor comes first, same pendingPoint/previewPoint staging every other
+    // 2-click tool already uses for its own live preview line to the cursor — see
+    // drawPriceDrawings.ts's fallback preview branch, which already draws a plain straight line
+    // and so needs no dedicated case of its own for these two).
+    if (activeTool === "note" || activeTool === "priceNote") {
+      if (!pendingPoint) {
+        setPendingPoint(point);
+        setPreviewPoint(point);
+        return;
+      }
+      setTextEntry({ tool: activeTool, point, anchorPoint: pendingPoint, value: "" });
       cancelDrawingTool();
       return;
     }

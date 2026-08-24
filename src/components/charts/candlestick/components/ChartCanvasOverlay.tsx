@@ -11,6 +11,7 @@ import { allPointsOf, snapPixel } from "../drawingGeometry";
 import { isFundamentalKind, formatFundamentalValue } from "../indicatorCatalog";
 import { AXIS_HANDLE_FRACTION_X, AXIS_HANDLE_FRACTION_Y } from "../constants";
 import { EVENT_MARKER_OFFSET, EVENT_MARKER_RADIUS } from "../eventsCatalog";
+import type { TextEntryState } from "../interfaces/TextEntryState.interface";
 
 interface AxisDragHandlers {
   onPointerDown: (e: React.PointerEvent) => void;
@@ -79,8 +80,8 @@ export interface ChartCanvasOverlayProps {
    *  (rather than 4 separate props) purely to keep CandlestickChart.tsx's own call site to a
    *  single new line — it's already at its 1000-line cap. */
   textEntry: {
-    entry: { tool: "text" | "comment"; point: DataPoint; value: string } | null;
-    setEntry: (v: { tool: "text" | "comment"; point: DataPoint; value: string } | null) => void;
+    entry: TextEntryState | null;
+    setEntry: (v: TextEntryState | null) => void;
     onCommit: () => void;
     onCancel: () => void;
   };
@@ -506,6 +507,21 @@ export function ChartCanvasOverlay({
             )}
           </g>
 
+          {/* "note"/"priceNote" only, while their own live text input is open (see textEntry
+              below) — the anchor-to-label line the committed drawing will have, previewed live
+              since the tool itself already exits (see useDrawingInteractions' own note/priceNote
+              branch) the moment this opens, so the regular activeTool-driven preview line further
+              up (drawn on canvas, not here) is already gone by then. */}
+          {textEntry.entry?.anchorPoint && (
+            <line
+              className="lq-chart__text-entry-preview-line"
+              x1={zoomedXScale(indexForDate(textEntry.entry.anchorPoint.x) + 0.5)}
+              y1={zoomedPriceScale(textEntry.entry.anchorPoint.y)}
+              x2={zoomedXScale(indexForDate(textEntry.entry.point.x) + 0.5)}
+              y2={zoomedPriceScale(textEntry.entry.point.y)}
+            />
+          )}
+
           {/* Rendered last, same reasoning as the drawing handles above — needs to sit on top
               of the pan/zoom overlay to receive the pointer events its own <title> tooltip
               (and, now, its click) depends on. Anchored to the price/volume divider (not the
@@ -556,13 +572,14 @@ export function ChartCanvasOverlay({
           )}
         </g>
       </svg>
-      {/* "text"/"comment" only — a real HTML input, not anything canvas/SVG can offer an editable
-          text cursor inside of, positioned at the click that opened it (see useDrawingState's own
-          textEntry) and unmounted the moment it commits or cancels; the drawing itself only
-          starts existing once that happens (see drawTextAndComment.ts for the *committed* look).
-          Absolutely positioned against `.lq-chart__plot` (`.lq-chart__canvas`'s own positioning
-          context, see charts-shared.css), so it needs the same margin offset the canvas already
-          adds via its own inline `left`/`top` above. */}
+      {/* "text"/"comment"/"note"/"priceNote" — a real HTML input, not anything canvas/SVG can
+          offer an editable text cursor inside of, positioned at the click that opened it (see
+          useDrawingState's own textEntry) and unmounted the moment it commits or cancels; the
+          drawing itself only starts existing once that happens (see drawTextAndComment.ts/
+          drawNote.ts for each one's own *committed* look). Absolutely positioned against
+          `.lq-chart__plot` (`.lq-chart__canvas`'s own positioning context, see charts-shared.css),
+          so it needs the same margin offset the canvas already adds via its own inline
+          `left`/`top` above. */}
       {textEntry.entry && (
         <input
           type="text"
@@ -571,13 +588,20 @@ export function ChartCanvasOverlay({
           style={{
             left: dims.margin.left + zoomedXScale(indexForDate(textEntry.entry.point.x) + 0.5),
             top: dims.margin.top + zoomedPriceScale(textEntry.entry.point.y),
-            // "comment" grows upward from its own anchor (its bubble tail points down at it, see
-            // drawTextAndComment.ts) — "text" grows downward (see commitTextEntry's own
-            // textVerticalAlign: "bottom") — so only "comment" needs pulling up by its own height.
-            transform: textEntry.entry.tool === "comment" ? "translateY(-100%)" : undefined,
+            // "comment"/"note"/"priceNote" all grow upward from their own anchor (a comment's
+            // bubble tail points down at it; a note's own label sits above the line it's attached
+            // to, see drawNote.ts) — "text" grows downward instead (see commitTextEntry's own
+            // textVerticalAlign: "bottom") — so only "text" is left un-pulled.
+            transform: textEntry.entry.tool === "text" ? undefined : "translateY(-100%)",
           }}
           value={textEntry.entry.value}
-          placeholder={textEntry.entry.tool === "comment" ? "Ajouter un commentaire" : "Ajouter du texte"}
+          placeholder={
+            textEntry.entry.tool === "comment"
+              ? "Ajouter un commentaire"
+              : textEntry.entry.tool === "note" || textEntry.entry.tool === "priceNote"
+                ? "Ajouter une note"
+                : "Ajouter du texte"
+          }
           onChange={(e) => textEntry.entry && textEntry.setEntry({ ...textEntry.entry, value: e.target.value })}
           onBlur={textEntry.onCommit}
           onKeyDown={(e) => {

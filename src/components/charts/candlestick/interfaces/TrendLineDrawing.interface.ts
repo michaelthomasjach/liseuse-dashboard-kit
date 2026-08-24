@@ -161,7 +161,14 @@ export interface TrendLineDrawing {
    *  textBackgroundColor is set); "comment" always renders inside a rounded speech-bubble instead,
    *  its own tail pointing at x1/y1 — textBackgroundColor still styles the bubble itself (falling
    *  back to the theme's accent color rather than "no background" when unset, since a comment
-   *  reads as empty air without one), textColor the text inside it. */
+   *  reads as empty air without one), textColor the text inside it. "note"/"priceNote" take 2
+   *  clicks like a plain trend line — x1/y1 the anchor (a small hollow marker, never itself
+   *  labeled), x2/y2 where the live text entry opens (see useDrawingState's own `textEntry`,
+   *  whose `anchorPoint` this is what threads x1/y1 through as) — connected by a plain straight
+   *  line, same shape a regular trend line already is, just with a label at one end instead of
+   *  along it. "priceNote" is identical except its own label always leads with the anchor's own
+   *  current price (recomputed from `dr.y1` at render time, so dragging the anchor keeps it
+   *  correct) ahead of whatever text was typed, rather than the text alone. */
   lineType?:
     | "horizontal"
     | "vertical"
@@ -190,6 +197,8 @@ export interface TrendLineDrawing {
     | "insidePitchfork"
     | "text"
     | "comment"
+    | "note"
+    | "priceNote"
     | "symbolOverlay";
   /** Which pane's own value scale y is expressed in — "price" (default), "volume", or the id of
    *  an "own"-pane indicator (RSI/CHOP/MACD) to anchor a "horizontal"/"ray" line to that pane

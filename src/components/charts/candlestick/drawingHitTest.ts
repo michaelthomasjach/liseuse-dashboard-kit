@@ -131,6 +131,28 @@ export function distanceToDrawing(dr: TrendLineDrawing, mouseX: number, mouseY: 
     const clampedY = Math.min(Math.max(mouseY, top), bottom);
     return Math.hypot(mouseX - clampedX, mouseY - clampedY);
   }
+  if (dr.lineType === "note" || dr.lineType === "priceNote") {
+    // Min of the plain anchor-to-label line (distanceToSegment, same as a regular trend line)
+    // and the label's own box at the far end (same clamp-into-the-box technique as text/comment
+    // above) — "priceNote" pads its own estimate for the price prefix drawNote.ts always adds
+    // ahead of `dr.text` (not itself part of the stored string), close enough at a fixed guess
+    // since the actual price string's length barely varies test to test.
+    const x1 = zoomedXScale(indexForDate(dr.x1) + 0.5);
+    const y1 = zoomedPriceScale(dr.y1);
+    const x2 = zoomedXScale(indexForDate(dr.x2) + 0.5);
+    const y2 = zoomedPriceScale(dr.y2);
+    const lineDist = distanceToSegment(mouseX, mouseY, x1, y1, x2, y2);
+    if (!dr.text) return lineDist;
+    const size = dr.textSize ?? 11;
+    const pricePadding = dr.lineType === "priceNote" ? 9 * size * 0.55 : 0;
+    const boxWidth = dr.text.length * size * 0.55 + pricePadding + 20;
+    // Grows upward from y2 (textVerticalAlign: "top", set at creation — see commitTextEntry).
+    const bottom = y2 - 6;
+    const top = bottom - size - 4;
+    const clampedX = Math.min(Math.max(mouseX, x2), x2 + boxWidth);
+    const clampedY = Math.min(Math.max(mouseY, top), bottom);
+    return Math.min(lineDist, Math.hypot(mouseX - clampedX, mouseY - clampedY));
+  }
   if (dr.lineType === "symbolOverlay") {
     // Same "polyline through every point" distance as a freehand stroke — over its own projected
     // (rebased-to-price-space) points, not x1/y1/x2/y2, which aren't meaningful for this lineType

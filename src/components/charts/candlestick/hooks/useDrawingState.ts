@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { Candle } from "../interfaces/Candle.interface";
 import type { TrendLineDrawing, OverlayDataPoint } from "../interfaces/TrendLineDrawing.interface";
 import type { DataPoint } from "../interfaces/DataPoint.interface";
+import type { TextEntryState } from "../interfaces/TextEntryState.interface";
 import type { DrawingToolType } from "../interfaces/DrawingToolType.interface";
 import type { SymbolSearchResult } from "../interfaces/SymbolSearchResult.interface";
 import { DRAWING_TOOL_CATEGORIES, categoryOfTool } from "../drawingCatalog";
@@ -85,12 +86,13 @@ export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAdd
   // be hovered at a time, hence a single pair rather than one per indicator.
   const [hoverIndicatorPaneId, setHoverIndicatorPaneId] = useState<string | null>(null);
   const [hoverIndicatorPaneY, setHoverIndicatorPaneY] = useState<number | null>(null);
-  // "text"/"comment" only: a live on-canvas entry in progress, not yet a `drawings` entry — set
-  // by their own single-click branch in useDrawingInteractions, rendered as an actual HTML
-  // textarea (ChartCanvasOverlay can't put an editable text cursor inside a <canvas>) positioned
-  // at `point`. commitTextEntry (blur) turns it into a real drawing if non-empty, cancelTextEntry
-  // (Escape) discards it — see each one's own doc below.
-  const [textEntry, setTextEntry] = useState<{ tool: "text" | "comment"; point: DataPoint; value: string } | null>(null);
+  // "text"/"comment"/"note"/"priceNote" only: a live on-canvas entry in progress, not yet a
+  // `drawings` entry — set by their own click branch(es) in useDrawingInteractions, rendered as an
+  // actual HTML input (ChartCanvasOverlay can't put an editable text cursor inside a <canvas>)
+  // positioned at `point`. commitTextEntry (blur) turns it into a real drawing if non-empty,
+  // cancelTextEntry (Escape) discards it — see each one's own doc below, and TextEntryState's own
+  // for what `point`/`anchorPoint` each become.
+  const [textEntry, setTextEntry] = useState<TextEntryState | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<TrendLineDrawing | null>(null);
   const [editModalTab, setEditModalTab] = useState<"coords" | "text" | "style">("coords");
@@ -369,24 +371,27 @@ export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAdd
   // reachable without ever opening that modal at all.
   function commitTextEntry() {
     if (textEntry && textEntry.value.trim()) {
+      const anchor = textEntry.anchorPoint ?? textEntry.point;
       commitDrawings([
         ...drawings,
         {
           id: `drawing-${drawingIdRef.current++}`,
           ...defaultDrawingStyle,
-          x1: textEntry.point.x,
-          y1: textEntry.point.y,
+          x1: anchor.x,
+          y1: anchor.y,
           x2: textEntry.point.x,
           y2: textEntry.point.y,
           lineType: textEntry.tool,
           text: textEntry.value,
-          // Left/bottom-aligned ("text" only — "comment" ignores both, its bubble always sits
-          // above its own anchor with the tail pointing down at it, see drawTextAndComment.ts) so
-          // the committed render starts exactly where the live input itself sat (see
-          // ChartCanvasOverlay's own textEntry input, top-left pinned to the same point) instead
-          // of jumping to center-above once the input unmounts.
+          // Left-aligned always; vertically, "text" grows downward from its own point ("bottom")
+          // while "note"/"priceNote" grow upward ("top", drawDrawingText's own default — "comment"
+          // ignores both, its bubble always sitting above its anchor a fixed way regardless, see
+          // drawTextAndComment.ts) — matching each one's own live input, which grows the same
+          // direction (see ChartCanvasOverlay's own textEntry transform), so the committed render
+          // starts exactly where the input sat instead of jumping to the opposite side once it
+          // unmounts.
           textHorizontalAlign: "left",
-          textVerticalAlign: "bottom",
+          textVerticalAlign: textEntry.tool === "text" ? "bottom" : "top",
         },
       ]);
     }

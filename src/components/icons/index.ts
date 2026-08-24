@@ -105,6 +105,8 @@ export {
   PencilIcon,
   TextIcon,
   CommentIcon,
+  NoteIcon,
+  PriceNoteIcon,
   CrossingIcon,
   GreaterThanIcon,
   LessThanIcon,

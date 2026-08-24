@@ -29,4 +29,6 @@ export type DrawingToolType =
   | "modifiedSchiffPitchfork"
   | "insidePitchfork"
   | "text"
-  | "comment";
+  | "comment"
+  | "note"
+  | "priceNote";

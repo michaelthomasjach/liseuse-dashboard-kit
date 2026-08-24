@@ -892,6 +892,25 @@ export const CommentIcon = (props: IconProps) => (
   </IconBase>
 );
 
+/** A plain line leading to a small rounded plate — "Note"'s own icon, matching the line-then-label
+ *  shape it actually draws (an anchor connected by a straight line to its own text). */
+export const NoteIcon = (props: IconProps) => (
+  <IconBase {...props}>
+    <path d="M4 20 11 13" />
+    <rect x="11" y="4" width="9" height="6" rx="1.5" />
+  </IconBase>
+);
+
+/** Same line-to-label shape as NoteIcon, its own plate replaced with a price tag (pointed end,
+ *  small hole) — "Note de prix"'s own icon, whose label always leads with a price. */
+export const PriceNoteIcon = (props: IconProps) => (
+  <IconBase {...props}>
+    <path d="M4 20 11 13" />
+    <path d="M11 5h9v6h-9l-4-3Z" />
+    <circle cx="12.3" cy="7.3" r="0.9" fill="currentColor" stroke="none" />
+  </IconBase>
+);
+
 /** The alert modal's own "crossing" condition — two lines crossing, generic direction. */
 export const CrossingIcon = (props: IconProps) => (
   <IconBase {...props}>

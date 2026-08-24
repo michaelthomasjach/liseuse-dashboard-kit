@@ -30,6 +30,8 @@ import {
   InsidePitchforkIcon,
   TextIcon,
   CommentIcon,
+  NoteIcon,
+  PriceNoteIcon,
 } from "../../icons";
 import type { DrawingToolType } from "./interfaces/DrawingToolType.interface";
 import type { TrendLineDrawing } from "./interfaces/TrendLineDrawing.interface";
@@ -88,6 +90,11 @@ export const MULTI_POINT_TOOLS: Partial<Record<DrawingToolType, { extraPoints: n
   // hand afterward like any other point.
   longPosition: { extraPoints: 1, labels: ["Entrée", "Objectif", "Stop"] },
   shortPosition: { extraPoints: 1, labels: ["Entrée", "Objectif", "Stop"] },
+  // "note"/"priceNote": a plain 2-point line like a regular trend line, just with custom labels
+  // here (0 extraPoints — x1/y1 and x2/y2 alone) so the edit modal reads "Ancre"/"Note" instead
+  // of the generic "Point 1"/"Point 2" a bare 2-point line with no catalog entry falls back to.
+  note: { extraPoints: 0, labels: ["Ancre", "Note"] },
+  priceNote: { extraPoints: 0, labels: ["Ancre", "Note"] },
 };
 
 // Short vertex labels drawn directly on the chart next to each point — distinct from
@@ -196,6 +203,8 @@ export const DRAWING_TOOL_CATEGORIES: DrawingToolCategory[] = [
     tools: [
       { type: "text", label: "Texte", icon: TextIcon },
       { type: "comment", label: "Commentaire", icon: CommentIcon },
+      { type: "note", label: "Note", icon: NoteIcon },
+      { type: "priceNote", label: "Note de prix", icon: PriceNoteIcon },
     ],
   },
   {

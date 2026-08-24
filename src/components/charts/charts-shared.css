@@ -1195,6 +1195,18 @@
   cursor: not-allowed;
 }
 
+/* "note"/"priceNote" only, while their own live text entry is open — mirrors the dashed preview
+   every other 2-click tool already draws on canvas while placing its 2nd point, just as a plain
+   SVG line since by this point the tool itself has already exited (see ChartCanvasOverlay.tsx's
+   own textEntry preview line). */
+.lq-chart__text-entry-preview-line {
+  stroke: var(--lq-color-accent);
+  stroke-width: 1.5px;
+  stroke-dasharray: 4 4;
+  opacity: 0.75;
+  pointer-events: none;
+}
+
 /* "text"/"comment"'s own live entry (see ChartCanvasOverlay.tsx) — absolutely positioned against
    `.lq-chart__plot`, same context `.lq-chart__canvas` itself uses. Sized to content (min-width
    only, no fixed width) so a short word doesn't sit inside a needlessly wide box, and grows with

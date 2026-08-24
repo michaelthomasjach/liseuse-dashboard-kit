@@ -40,15 +40,30 @@ export function pitchforkMedianEndpoints(p0: ScreenPoint, p1: ScreenPoint, p2: S
   }
 }
 
-/** Which two of the 3 clicked points the pair of parallel "tine" lines pass through — P1/P2 for
- *  every non-inside variant, same as the "base of the channel" every one of their own medians
- *  targets (or a midpoint of). "insidePitchfork" targets P2 *directly* instead (see
+/** Which two of the 3 clicked points the pair of parallel "tine" lines are *anchored at* before
+ *  any clipping (see `pitchforkLines`' own use of this) — P1/P2 for every non-inside variant,
+ *  same as the "base of the channel" every one of their own medians targets (or a midpoint of).
+ *  "insidePitchfork" anchors at P0/P1 instead, since it targets P2 *directly* (see
  *  pitchforkMedianEndpoints), which makes P2 part of the median's own line — a tine through P2
  *  with the median's own slope would be mathematically identical to the median itself (2 lines
- *  through the same point with the same slope are the same line), so it swaps to P0/P1 instead,
- *  the only pair left that isn't already sitting on the median's own line. */
+ *  through the same point with the same slope are the same line). */
 function pitchforkTineAnchors(p0: ScreenPoint, p1: ScreenPoint, p2: ScreenPoint, variant: PitchforkVariant): [ScreenPoint, ScreenPoint] {
   return variant === "insidePitchfork" ? [p0, p1] : [p1, p2];
+}
+
+// Where the infinite line through (anchor, anchor+direction) crosses the infinite line through
+// (lineP1, lineP2) — standard 2D line-line intersection via Cramer's rule. `null` when the two
+// are parallel (the two lines never cross, or are the same line) — geometrically shouldn't happen
+// for this tool's own callers (the tine direction is never parallel to the B-C leg it's being
+// clipped against, short of a degenerate 3-point placement), so callers just fall back to the
+// unclipped anchor rather than crash on a division by zero.
+function lineIntersection(anchor: ScreenPoint, direction: ScreenPoint, lineP1: ScreenPoint, lineP2: ScreenPoint): ScreenPoint | null {
+  const ex = lineP2.x - lineP1.x;
+  const ey = lineP2.y - lineP1.y;
+  const denom = direction.x * ey - direction.y * ex;
+  if (Math.abs(denom) < 1e-9) return null;
+  const t = ((lineP1.x - anchor.x) * ey - (lineP1.y - anchor.y) * ex) / denom;
+  return { x: anchor.x + t * direction.x, y: anchor.y + t * direction.y };
 }
 
 // 0.5px tolerance for "is this derived point actually just A/B/C itself" — screen-space
@@ -100,36 +115,42 @@ function rayFromAnchor(anchor: ScreenPoint, through: ScreenPoint, xMin: number, 
 
 export interface PitchforkLines {
   /** The plain A–B segment — never extended, just the two points as clicked. Visualizes the leg
-   *  E (or, for "insidePitchfork", D itself) is derived from. */
+   *  D (and, for Schiff/Modified Schiff, E) is derived from. */
   handle: { x1: number; y1: number; x2: number; y2: number };
-  /** The plain segment between the tine-anchor pair (see pitchforkTineAnchors) — B–C normally,
-   *  A–B for "insidePitchfork" (identical to `handle` there, drawn twice but never visibly
-   *  different — simpler than special-casing it away). Never extended, just the two points. */
+  /** The plain B–C segment — never extended, just the two points as clicked. */
   spine: { x1: number; y1: number; x2: number; y2: number };
   median: { x1: number; y1: number; x2: number; y2: number };
   tine1: { x1: number; y1: number; x2: number; y2: number };
   tine2: { x1: number; y1: number; x2: number; y2: number };
 }
 
-/** The 5 actual on-screen lines for a pitchfork drawing — the A–B handle and tine-anchor-pair
- *  spine (plain segments, never extended), the median (via pitchforkMedianEndpoints) as a ray
- *  from its own variant-specific anchor, and the two tines as rays from the tine-anchor pair (see
- *  pitchforkTineAnchors), each parallel to the median and extended one-directionally (past its
- *  own anchor, never behind it) to the plot's own edge. The single source of truth both the
- *  renderer and hover/hit-testing build from, so hovering always matches exactly what's drawn
- *  instead of drifting out of sync with a second, hand-copied formula (same reasoning
- *  drawingGeometry.ts's own forecastCurvePoints already follows for the "forecast" tool's curve). */
+/** The 5 actual on-screen lines for a pitchfork drawing — the plain A–B/B–C segments (never
+ *  extended), the median (via pitchforkMedianEndpoints) as a ray from its own variant-specific
+ *  anchor, and the two tines as rays from the tine-anchor pair (see pitchforkTineAnchors), each
+ *  parallel to the median and extended one-directionally (past its own anchor, never behind it)
+ *  to the plot's own edge. For every non-inside variant the tine anchors already sit exactly on
+ *  the B-C line (they *are* B and C), so nothing more happens; "insidePitchfork" anchors its own
+ *  tines at A/B instead (see pitchforkTineAnchors' own doc for why), which usually sit well clear
+ *  of the B-C leg — drawing the *whole* ray from A/B itself would run the tine straight across the
+ *  A-B-C triangle's own interior, so it's clipped to only the portion past where it actually
+ *  crosses the B-C line, same as how B's own tine already starts exactly on that line (the
+ *  clip there is a no-op — B already satisfies it). The single source of truth both the renderer
+ *  and hover/hit-testing build from, so hovering always matches exactly what's drawn instead of
+ *  drifting out of sync with a second, hand-copied formula (same reasoning drawingGeometry.ts's
+ *  own forecastCurvePoints already follows for the "forecast" tool's curve). */
 export function pitchforkLines(p0: ScreenPoint, p1: ScreenPoint, p2: ScreenPoint, variant: PitchforkVariant, xMin: number, xMax: number): PitchforkLines {
   const { start, target } = pitchforkMedianEndpoints(p0, p1, p2, variant);
   const median = rayFromAnchor(start, target, xMin, xMax);
   const dx = target.x - start.x;
   const dy = target.y - start.y;
-  const [tineAnchor1, tineAnchor2] = pitchforkTineAnchors(p0, p1, p2, variant);
+  const [rawAnchor1, rawAnchor2] = pitchforkTineAnchors(p0, p1, p2, variant);
+  const tineAnchor1 = variant === "insidePitchfork" ? (lineIntersection(rawAnchor1, { x: dx, y: dy }, p1, p2) ?? rawAnchor1) : rawAnchor1;
+  const tineAnchor2 = variant === "insidePitchfork" ? (lineIntersection(rawAnchor2, { x: dx, y: dy }, p1, p2) ?? rawAnchor2) : rawAnchor2;
   const tine1 = rayFromAnchor(tineAnchor1, { x: tineAnchor1.x + dx, y: tineAnchor1.y + dy }, xMin, xMax);
   const tine2 = rayFromAnchor(tineAnchor2, { x: tineAnchor2.x + dx, y: tineAnchor2.y + dy }, xMin, xMax);
   return {
     handle: { x1: p0.x, y1: p0.y, x2: p1.x, y2: p1.y },
-    spine: { x1: tineAnchor1.x, y1: tineAnchor1.y, x2: tineAnchor2.x, y2: tineAnchor2.y },
+    spine: { x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y },
     median,
     tine1,
     tine2,

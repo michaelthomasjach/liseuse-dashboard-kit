@@ -176,7 +176,11 @@ export interface TrendLineDrawing {
    *  entry, x1/y1 the label's own point), but with a vertical connector down to whatever candle's
    *  own close sits at x1's date — never a stored point of its own, always looked up fresh at
    *  render/hit-test time (see drawSignpost.ts), so dragging the label along the date axis keeps
-   *  the connector attached to the candle actually under it instead of a stale one. */
+   *  the connector attached to the candle actually under it instead of a stale one. "priceLabel"
+   *  is a single-click, single-point marker like "pin"/"flagMark" (no live text entry — there's
+   *  nothing to type, see drawPriceLabel.ts) whose own speech bubble (drawSpeechBubble, same shape
+   *  "comment" uses) always shows its own current price, recomputed from `dr.y1` every render so
+   *  dragging it keeps the shown value correct with no extra bookkeeping. */
   lineType?:
     | "horizontal"
     | "vertical"
@@ -210,6 +214,7 @@ export interface TrendLineDrawing {
     | "pin"
     | "flagMark"
     | "signpost"
+    | "priceLabel"
     | "symbolOverlay";
   /** Which pane's own value scale y is expressed in — "price" (default), "volume", or the id of
    *  an "own"-pane indicator (RSI/CHOP/MACD) to anchor a "horizontal"/"ray" line to that pane

@@ -110,6 +110,7 @@ export {
   PinIcon,
   FlagMarkIcon,
   SignpostIcon,
+  PriceLabelIcon,
   CrossingIcon,
   GreaterThanIcon,
   LessThanIcon,

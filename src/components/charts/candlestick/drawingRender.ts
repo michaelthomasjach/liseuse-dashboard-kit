@@ -97,6 +97,59 @@ export function drawArrowhead(ctx: CanvasRenderingContext2D, fromX: number, from
   ctx.restore();
 }
 
+// A speech bubble's own padding/radius/tail size — not configurable (the reference "iPhone
+// message" look this is modeled on doesn't vary these either).
+const BUBBLE_PAD_X = 10;
+const BUBBLE_PAD_Y = 7;
+const BUBBLE_RADIUS = 10;
+const BUBBLE_TAIL_WIDTH = 10;
+const BUBBLE_TAIL_HEIGHT = 8;
+
+/** A rounded speech bubble, its own tail pointing at (x, y), body sitting up-and-right of it —
+ *  "comment"'s own look (see drawTextAndComment.ts), shared with "priceLabel" (see
+ *  drawPriceLabel.ts), whose bubble reads a live-computed price string instead of `dr.text`. Takes
+ *  raw text/font values instead of a `TrendLineDrawing` directly since the caller's own text isn't
+ *  always `dr.text` verbatim. */
+export function drawSpeechBubble(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  text: string,
+  bg: string,
+  fg: string,
+  fontFamily: string,
+  size: number,
+  bold: boolean,
+  italic: boolean
+) {
+  const weight = bold ? 600 : 400;
+  const fontStyle = italic ? "italic" : "normal";
+  ctx.save();
+  ctx.font = `${fontStyle} ${weight} ${size}px ${fontFamily}`;
+  const textWidth = ctx.measureText(text).width;
+  const boxWidth = textWidth + BUBBLE_PAD_X * 2;
+  const boxHeight = size + BUBBLE_PAD_Y * 2;
+  const bottom = y - BUBBLE_TAIL_HEIGHT;
+  const top = bottom - boxHeight;
+
+  ctx.fillStyle = bg;
+  ctx.beginPath();
+  ctx.roundRect(x, top, boxWidth, boxHeight, BUBBLE_RADIUS);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(x + BUBBLE_RADIUS + 2, bottom);
+  ctx.lineTo(x, y);
+  ctx.lineTo(x + BUBBLE_RADIUS + 2 + BUBBLE_TAIL_WIDTH, bottom);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = fg;
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+  ctx.fillText(text, x + BUBBLE_PAD_X, top + boxHeight / 2);
+  ctx.restore();
+}
+
 /** A small rounded, filled "badge" label — unlike every other drawing type's plain `fillText`
  *  (see drawDrawingText above), used where a annotation needs to read as a standalone marker
  *  rather than plain text floating next to the line: "rangeForecast"'s own Current/Max/Avg/Min

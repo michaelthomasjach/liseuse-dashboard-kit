@@ -19,6 +19,7 @@ import { drawTextAndCommentDrawings } from "./drawTextAndComment";
 import { drawNoteDrawings } from "./drawNote";
 import { drawMarkerDrawings } from "./drawMarkers";
 import { drawSignpostDrawings } from "./drawSignpost";
+import { drawPriceLabelDrawings } from "./drawPriceLabel";
 
 const PITCHFORK_LINE_TYPES = new Set(["pitchfork", "schiffPitchfork", "modifiedSchiffPitchfork", "insidePitchfork"]);
 
@@ -87,6 +88,7 @@ export function drawPriceDrawings(ctx: CanvasRenderingContext2D, params: RenderC
         dr.lineType === "pin" ||
         dr.lineType === "flagMark" ||
         dr.lineType === "signpost" ||
+        dr.lineType === "priceLabel" ||
         dr.lineType === "headShoulders" ||
         PITCHFORK_LINE_TYPES.has(dr.lineType ?? "") ||
         // Its x1/y1/x2/y2 aren't real coordinates (see the lineType's own doc comment) — just
@@ -503,6 +505,7 @@ export function drawPriceDrawings(ctx: CanvasRenderingContext2D, params: RenderC
     drawNoteDrawings(ctx, params, style);
     drawMarkerDrawings(ctx, params, style);
     drawSignpostDrawings(ctx, params, style);
+    drawPriceLabelDrawings(ctx, params, style);
     drawHeadShouldersDrawings(ctx, params, style);
 
     if (activeTool && pendingPoint && previewPoint) {

@@ -447,7 +447,7 @@ export function ChartCanvasOverlay({
               // falling through to the generic per-point loop below, which would otherwise draw
               // two overlapping handles at the same pixel (x1/y1 and x2/y2 both resolve to the
               // same point).
-              if (["arrowUp", "arrowDown", "text", "comment", "pin", "flagMark", "signpost"].includes(dr.lineType ?? "")) {
+              if (["arrowUp", "arrowDown", "text", "comment", "pin", "flagMark", "signpost", "priceLabel"].includes(dr.lineType ?? "")) {
                 return (
                   <DrawingHandle
                     key={dr.id}

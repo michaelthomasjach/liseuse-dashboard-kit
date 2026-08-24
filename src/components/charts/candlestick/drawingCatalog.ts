@@ -35,6 +35,7 @@ import {
   PinIcon,
   FlagMarkIcon,
   SignpostIcon,
+  PriceLabelIcon,
 } from "../../icons";
 import type { DrawingToolType } from "./interfaces/DrawingToolType.interface";
 import type { TrendLineDrawing } from "./interfaces/TrendLineDrawing.interface";
@@ -211,6 +212,7 @@ export const DRAWING_TOOL_CATEGORIES: DrawingToolCategory[] = [
       { type: "pin", label: "Pin", icon: PinIcon },
       { type: "flagMark", label: "Marque drapeau", icon: FlagMarkIcon },
       { type: "signpost", label: "Signpost", icon: SignpostIcon },
+      { type: "priceLabel", label: "Étiquette de prix", icon: PriceLabelIcon },
     ],
   },
   {

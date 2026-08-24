@@ -939,6 +939,15 @@ export const SignpostIcon = (props: IconProps) => (
   </IconBase>
 );
 
+/** A speech bubble with 3 short lines standing in for digits — "Price label"'s own icon, matching
+ *  the always-shows-its-own-price bubble it actually draws (see drawPriceLabel.ts). */
+export const PriceLabelIcon = (props: IconProps) => (
+  <IconBase {...props}>
+    <path d="M3.5 5.5h17v11h-11l-4 3.5v-3.5h-2z" />
+    <path d="M7 9h10M7 12.5h6" />
+  </IconBase>
+);
+
 /** The alert modal's own "crossing" condition — two lines crossing, generic direction. */
 export const CrossingIcon = (props: IconProps) => (
   <IconBase {...props}>

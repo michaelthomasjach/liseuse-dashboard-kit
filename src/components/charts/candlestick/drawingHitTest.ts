@@ -141,6 +141,20 @@ export function distanceToDrawing(dr: TrendLineDrawing, mouseX: number, mouseY: 
     const clampedY = Math.min(Math.max(mouseY, top), bottom);
     return Math.min(lineDist, Math.hypot(mouseX - clampedX, mouseY - clampedY));
   }
+  if (dr.lineType === "priceLabel") {
+    // Same bubble shape as "comment" below (both go through drawSpeechBubble) — estimated from a
+    // fixed length instead of dr.text.length, since this tool never sets dr.text at all (its own
+    // bubble always shows a live-computed price string, see drawPriceLabel.ts).
+    const x = zoomedXScale(indexForDate(dr.x1) + 0.5);
+    const y = zoomedPriceScale(dr.y1);
+    const size = dr.textSize ?? 11;
+    const boxWidth = dr.y1.toFixed(2).length * size * 0.55 + 20;
+    const top = y - 8 - size - 14;
+    const bottom = y - 8;
+    const clampedX = Math.min(Math.max(mouseX, x), x + boxWidth);
+    const clampedY = Math.min(Math.max(mouseY, top), bottom);
+    return Math.hypot(mouseX - clampedX, mouseY - clampedY);
+  }
   if (dr.lineType === "text" || dr.lineType === "comment") {
     // No canvas context here to measure the *actual* rendered width (see drawTextAndComment.ts),
     // so this estimates it from character count — close enough for "is the pointer roughly over

@@ -1,8 +1,9 @@
 import type { Dispatch, SetStateAction } from "react";
 import type * as React from "react";
-import { ChevronDownIcon, ChevronUpIcon, SettingsIcon, TrashIcon, GripIcon } from "../../../icons";
+import { ChevronDownIcon, ChevronUpIcon, SettingsIcon, TrashIcon, GripIcon, InfoIcon } from "../../../icons";
 import type { Candle } from "../interfaces/Candle.interface";
 import type { Indicator } from "../interfaces/Indicator.interface";
+import type { IndicatorKind } from "../interfaces/IndicatorKind.interface";
 import type { IndicatorValue } from "../interfaces/IndicatorValue.interface";
 import { isFundamentalKind, formatFundamentalValue } from "../indicatorCatalog";
 
@@ -30,6 +31,10 @@ export interface PaneHeadersProps {
   openIndicatorSettings: (id: string) => void;
   removeIndicator: (id: string) => void;
   indicatorValues: { indicator: Indicator; values: (IndicatorValue | null)[] }[];
+  /** Same "how it works" info modal the indicator picker's own info icon opens (see
+   *  IndicatorModals) — "volume" for the volume pane's own header, an indicator's own `kind`
+   *  for every other pane here. */
+  onOpenIndicatorInfo: (kind: IndicatorKind | "volume") => void;
 }
 
 /** Header strip for the volume pane, then one more per "own"-pane indicator (RSI/CHOP/MACD) —
@@ -61,6 +66,7 @@ export function PaneHeaders({
   openIndicatorSettings,
   removeIndicator,
   indicatorValues,
+  onOpenIndicatorInfo,
 }: PaneHeadersProps) {
   return (
     <>
@@ -168,6 +174,14 @@ export function PaneHeaders({
                   .filter(Boolean)
                   .join(" ")}
               >
+                <button
+                  type="button"
+                  className="lq-chart__pane-header-action"
+                  onClick={() => onOpenIndicatorInfo("volume")}
+                  aria-label="À propos de Volume"
+                >
+                  <InfoIcon size={11} />
+                </button>
                 <button
                   type="button"
                   className="lq-chart__pane-header-action"
@@ -302,6 +316,14 @@ export function PaneHeaders({
               })()}
             {!ind.paneCollapsed && (
               <div className="lq-chart__pane-header-actions lq-chart__pane-header-actions--visible">
+                <button
+                  type="button"
+                  className="lq-chart__pane-header-action"
+                  onClick={() => onOpenIndicatorInfo(ind.kind)}
+                  aria-label={`À propos de ${indicatorLabel(ind)}`}
+                >
+                  <InfoIcon size={11} />
+                </button>
                 <button
                   type="button"
                   className="lq-chart__pane-header-action"

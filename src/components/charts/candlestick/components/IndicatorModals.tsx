@@ -17,6 +17,12 @@ import { drawingToolMeta, drawingLabel } from "../drawingCatalog";
 export interface IndicatorModalsProps {
   indicatorPickerOpen: boolean;
   setIndicatorPickerOpen: (open: boolean) => void;
+  /** Which indicator's "how it works" info modal is open, if any — "volume" since it isn't a
+   *  real IndicatorKind (see VOLUME_DESCRIPTION's own doc). Lifted up to CandlestickChart itself
+   *  (not local state here) since the info icon that opens it now lives in three places: the
+   *  picker below, ChartLegend's own indicator rows, and PaneHeaders' own own-pane rows. */
+  infoKind: IndicatorKind | "volume" | null;
+  setInfoKind: (kind: IndicatorKind | "volume" | null) => void;
   indicatorSearchQuery: string;
   setIndicatorSearchQuery: (query: string) => void;
   showVolume: boolean;
@@ -62,6 +68,8 @@ export interface IndicatorModalsProps {
 export function IndicatorModals({
   indicatorPickerOpen,
   setIndicatorPickerOpen,
+  infoKind,
+  setInfoKind,
   indicatorSearchQuery,
   setIndicatorSearchQuery,
   showVolume,
@@ -106,13 +114,6 @@ export function IndicatorModals({
   useEffect(() => {
     setSettingsTab("inputs");
   }, [editingIndicatorId]);
-  // Which indicator's "how it works" info modal is open, if any — "volume" since it isn't a real
-  // IndicatorKind (see VOLUME_DESCRIPTION's own doc). A separate modal stacked on top of the
-  // picker's own (both use the same fixed z-index — see Modal.css — so later-in-DOM wins; this
-  // one's JSX sits after the picker's own), not a replacement for it: closing this one only
-  // clears this state, leaving indicatorPickerOpen (and everything else about the picker, see
-  // pickerScrollTopRef below) completely untouched.
-  const [infoKind, setInfoKind] = useState<IndicatorKind | "volume" | null>(null);
   // The picker's own scroll position, restored across a close/reopen cycle instead of resetting
   // to the top every time — a plain ref (not state) since nothing about it should ever trigger a
   // re-render, and it needs to survive the picker's own unmount (Modal returns null while closed,

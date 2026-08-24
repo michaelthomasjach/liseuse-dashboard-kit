@@ -1,7 +1,8 @@
 import type { Dispatch, SetStateAction } from "react";
-import { EyeIcon, EyeOffIcon, TrashIcon, SettingsIcon, BellIcon } from "../../../icons";
+import { EyeIcon, EyeOffIcon, TrashIcon, SettingsIcon, BellIcon, InfoIcon } from "../../../icons";
 import type { Candle } from "../interfaces/Candle.interface";
 import type { Indicator } from "../interfaces/Indicator.interface";
+import type { IndicatorKind } from "../interfaces/IndicatorKind.interface";
 import type { TrendLineDrawing } from "../interfaces/TrendLineDrawing.interface";
 import type { ChartDisplayModeDef } from "../chartModes";
 
@@ -31,6 +32,10 @@ export interface ChartLegendProps {
    *  "icon next to it once an alert exists" treatment the drawing toolbar's own bell gets. */
   alertedIndicatorIds: Set<string>;
   onOpenIndicatorAlert: (indicator: Indicator) => void;
+  /** Opens the same "how it works" info modal the indicator picker's own info icon already
+   *  does (see IndicatorModals) — this row's own equivalent for an indicator that's already
+   *  active, so its explanation stays one click away without going back through the picker. */
+  onOpenIndicatorInfo: (kind: IndicatorKind) => void;
   symbolOverlays: TrendLineDrawing[];
   drawings: TrendLineDrawing[];
   commitDrawings: (drawings: TrendLineDrawing[]) => void;
@@ -69,6 +74,7 @@ export function ChartLegend({
   removeIndicator,
   alertedIndicatorIds,
   onOpenIndicatorAlert,
+  onOpenIndicatorInfo,
   symbolOverlays,
   drawings,
   commitDrawings,
@@ -171,6 +177,14 @@ export function ChartLegend({
                 aria-label={alertedIndicatorIds.has(indicator.id) ? `Alertes sur ${indicatorLabel(indicator)}` : `Créer une alerte sur ${indicatorLabel(indicator)}`}
               >
                 <BellIcon size={11} />
+              </button>
+              <button
+                type="button"
+                className="lq-chart__indicator-legend-action"
+                onClick={() => onOpenIndicatorInfo(indicator.kind)}
+                aria-label={`À propos de ${indicatorLabel(indicator)}`}
+              >
+                <InfoIcon size={11} />
               </button>
               <button
                 type="button"

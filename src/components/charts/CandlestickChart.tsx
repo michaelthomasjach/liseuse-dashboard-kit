@@ -279,7 +279,7 @@ export function CandlestickChart({
     plotWidth: dims.boundedWidth,
   });
   const alertFlow = useAlertFlow(alerts ?? [], selectedDrawingId);
-
+  const [infoKind, setInfoKind] = useState<IndicatorKind | "volume" | null>(null);
   const {
     indicators,
     indicatorPickerOpen,
@@ -755,7 +755,7 @@ export function CandlestickChart({
           setEditingId={setEditingId}
           setDraft={setDraft}
           setEditModalTab={setEditModalTab}
-          removeSymbolOverlay={removeSymbolOverlay}
+          removeSymbolOverlay={removeSymbolOverlay} onOpenIndicatorInfo={setInfoKind}
         />
         <PaneHeaders
           volumeVisible={volumeVisible}
@@ -780,7 +780,7 @@ export function CandlestickChart({
           indicatorLabel={indicatorLabel}
           openIndicatorSettings={openIndicatorSettings}
           removeIndicator={removeIndicator}
-          indicatorValues={indicatorValues}
+          indicatorValues={indicatorValues} onOpenIndicatorInfo={setInfoKind}
         />
         <ChartCanvasOverlay
           canvasRef={canvasRef}
@@ -926,10 +926,9 @@ export function CandlestickChart({
         duplicateEditingDrawing={duplicateEditingDrawing}
         valueAxisLabel={valueAxisLabel}
         defaultColor={defaultDrawingColor}
-        indicatorPickerOpen={indicatorPickerOpen}
-        setIndicatorPickerOpen={setIndicatorPickerOpen}
-        indicatorSearchQuery={indicatorSearchQuery}
-        setIndicatorSearchQuery={setIndicatorSearchQuery}
+        indicatorPickerOpen={indicatorPickerOpen} setIndicatorPickerOpen={setIndicatorPickerOpen}
+        infoKind={infoKind} setInfoKind={setInfoKind}
+        indicatorSearchQuery={indicatorSearchQuery} setIndicatorSearchQuery={setIndicatorSearchQuery}
         showVolume={showVolume}
         setVolumePaneState={setVolumePaneState}
         addIndicator={addIndicator}

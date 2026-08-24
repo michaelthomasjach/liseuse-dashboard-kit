@@ -32,6 +32,8 @@ import {
   CommentIcon,
   NoteIcon,
   PriceNoteIcon,
+  PinIcon,
+  FlagMarkIcon,
 } from "../../icons";
 import type { DrawingToolType } from "./interfaces/DrawingToolType.interface";
 import type { TrendLineDrawing } from "./interfaces/TrendLineDrawing.interface";
@@ -205,6 +207,8 @@ export const DRAWING_TOOL_CATEGORIES: DrawingToolCategory[] = [
       { type: "comment", label: "Commentaire", icon: CommentIcon },
       { type: "note", label: "Note", icon: NoteIcon },
       { type: "priceNote", label: "Note de prix", icon: PriceNoteIcon },
+      { type: "pin", label: "Pin", icon: PinIcon },
+      { type: "flagMark", label: "Marque drapeau", icon: FlagMarkIcon },
     ],
   },
   {

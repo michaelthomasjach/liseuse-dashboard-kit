@@ -236,8 +236,10 @@ export function useDrawingInteractions({
     }
     // Arrow markers are single-point, like horizontal/vertical — x2/y2 just mirrors x1/y1 (kept
     // in sync by both the generic whole-body drag and a dedicated single-handle case, see
-    // handleEndpointPointerMove) so there's nothing meaningful a second point could add.
-    if (activeTool === "arrowUp" || activeTool === "arrowDown") {
+    // handleEndpointPointerMove) so there's nothing meaningful a second point could add. "pin"/
+    // "flagMark" share this exact same shape (see TrendLineDrawing.lineType's own doc), so they
+    // share this branch too instead of duplicating it.
+    if (activeTool === "arrowUp" || activeTool === "arrowDown" || activeTool === "pin" || activeTool === "flagMark") {
       commitDrawings([
         ...drawings,
         { id: `drawing-${drawingIdRef.current++}`, ...defaultDrawingStyle, x1: point.x, y1: point.y, x2: point.x, y2: point.y, lineType: activeTool },
@@ -650,11 +652,13 @@ export function useDrawingInteractions({
       const mouseX = e.clientX - rect.left;
       const dateValue = dateForIndex(zoomedXScale.invert(mouseX));
       commitDrawings(drawings.map((d) => (d.id === drag.id ? { ...d, x1: dateValue, x2: dateValue } : d)));
-    } else if (dr.lineType === "ray" || dr.lineType === "arrowUp" || dr.lineType === "arrowDown") {
-      // Both a ray's anchor and an arrow marker's single point have both degrees of freedom,
-      // unlike horizontal/vertical's single axis — an arrow marker's own valueAxis is always
-      // undefined (never set at creation, arrows aren't one of the pane-aware lineTypes), so
-      // paneScaleAndOffset always resolves it to price same as before.
+    } else if (
+      dr.lineType === "ray" ||
+      ["arrowUp", "arrowDown", "pin", "flagMark", "text", "comment"].includes(dr.lineType ?? "")
+    ) {
+      // Both a ray's anchor and every single-point marker above have both degrees of freedom,
+      // unlike horizontal/vertical's single axis — none of them are ever one of the pane-aware
+      // lineTypes, so paneScaleAndOffset always resolves to price same as before.
       const mouseX = e.clientX - rect.left;
       const mouseY = e.clientY - rect.top;
       const dateValue = dateForIndex(zoomedXScale.invert(mouseX));

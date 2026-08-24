@@ -911,6 +911,24 @@ export const PriceNoteIcon = (props: IconProps) => (
   </IconBase>
 );
 
+/** A classic map-pin teardrop with a hollow center — "Pin"'s own icon, matching the shape
+ *  drawMarkers.ts actually plants at the click, tip-down, at the anchor. */
+export const PinIcon = (props: IconProps) => (
+  <IconBase {...props}>
+    <path d="M12 21s7-7.5 7-12.5A7 7 0 0 0 5 8.5C5 13.5 12 21 12 21Z" />
+    <circle cx="12" cy="8.5" r="2.2" fill="currentColor" stroke="none" />
+  </IconBase>
+);
+
+/** A flag on a pole — "Marque drapeau"'s own icon, matching the shape drawMarkers.ts plants at
+ *  the click, its own pole base at the anchor. */
+export const FlagMarkIcon = (props: IconProps) => (
+  <IconBase {...props}>
+    <path d="M6 21V4" />
+    <path d="M6 4h12l-4 4 4 4H6" />
+  </IconBase>
+);
+
 /** The alert modal's own "crossing" condition — two lines crossing, generic direction. */
 export const CrossingIcon = (props: IconProps) => (
   <IconBase {...props}>

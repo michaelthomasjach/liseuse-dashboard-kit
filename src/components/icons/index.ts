@@ -107,6 +107,8 @@ export {
   CommentIcon,
   NoteIcon,
   PriceNoteIcon,
+  PinIcon,
+  FlagMarkIcon,
   CrossingIcon,
   GreaterThanIcon,
   LessThanIcon,

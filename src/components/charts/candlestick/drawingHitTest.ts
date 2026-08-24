@@ -106,6 +106,19 @@ export function distanceToDrawing(dr: TrendLineDrawing, mouseX: number, mouseY: 
   if (dr.lineType === "arrowUp" || dr.lineType === "arrowDown") {
     return Math.hypot(mouseX - zoomedXScale(indexForDate(dr.x1) + 0.5), mouseY - zoomedPriceScale(dr.y1));
   }
+  if (dr.lineType === "pin" || dr.lineType === "flagMark") {
+    // Both markers draw entirely *above* their own anchor (see drawMarkers.ts) — a plain distance
+    // to the anchor pixel itself would need the pointer right at its very tip/base, missing most
+    // of what's actually visible. Same clamp-into-a-box technique as text/comment above, just a
+    // fixed size instead of one estimated from text content, since these have no text at all.
+    const x = zoomedXScale(indexForDate(dr.x1) + 0.5);
+    const y = zoomedPriceScale(dr.y1);
+    const halfWidth = dr.lineType === "pin" ? 8 : 15;
+    const height = dr.lineType === "pin" ? 26 : 20;
+    const clampedX = Math.min(Math.max(mouseX, x - halfWidth), x + halfWidth);
+    const clampedY = Math.min(Math.max(mouseY, y - height), y);
+    return Math.hypot(mouseX - clampedX, mouseY - clampedY);
+  }
   if (dr.lineType === "text" || dr.lineType === "comment") {
     // No canvas context here to measure the *actual* rendered width (see drawTextAndComment.ts),
     // so this estimates it from character count — close enough for "is the pointer roughly over

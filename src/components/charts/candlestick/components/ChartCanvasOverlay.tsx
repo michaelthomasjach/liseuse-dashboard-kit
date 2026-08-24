@@ -433,11 +433,18 @@ export function ChartCanvasOverlay({
               }
               // An arrow marker's one handle sits at its own point, same as a ray's anchor
               // above — x2/y2 mirrors x1/y1 automatically (see handleAxisHandlePointerMove).
-              // "text"/"comment" share the exact same single-point shape (see the lineType's own
-              // doc), so they share this same handle instead of falling through to the generic
-              // per-point loop below, which would otherwise draw two overlapping handles at the
-              // same pixel (x1/y1 and x2/y2 both resolve to the same point).
-              if (dr.lineType === "arrowUp" || dr.lineType === "arrowDown" || dr.lineType === "text" || dr.lineType === "comment") {
+              // "text"/"comment"/"pin"/"flagMark" share the exact same single-point shape (see the
+              // lineType's own doc), so they share this same handle instead of falling through to
+              // the generic per-point loop below, which would otherwise draw two overlapping
+              // handles at the same pixel (x1/y1 and x2/y2 both resolve to the same point).
+              if (
+                dr.lineType === "arrowUp" ||
+                dr.lineType === "arrowDown" ||
+                dr.lineType === "text" ||
+                dr.lineType === "comment" ||
+                dr.lineType === "pin" ||
+                dr.lineType === "flagMark"
+              ) {
                 return (
                   <DrawingHandle
                     key={dr.id}

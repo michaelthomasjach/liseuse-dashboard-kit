@@ -168,7 +168,11 @@ export interface TrendLineDrawing {
    *  line, same shape a regular trend line already is, just with a label at one end instead of
    *  along it. "priceNote" is identical except its own label always leads with the anchor's own
    *  current price (recomputed from `dr.y1` at render time, so dragging the anchor keeps it
-   *  correct) ahead of whatever text was typed, rather than the text alone. */
+   *  correct) ahead of whatever text was typed, rather than the text alone. "pin"/"flagMark" are
+   *  single-point markers exactly like arrowUp/arrowDown (x2/y2 mirrors x1/y1, single click,
+   *  single handle) — no text of their own, just a small icon (a map-pin teardrop, tip planted
+   *  exactly at the point; a flag on a pole, its own base planted there) drawn a fixed size in
+   *  `color`, unrelated to strokeWidth. */
   lineType?:
     | "horizontal"
     | "vertical"
@@ -199,6 +203,8 @@ export interface TrendLineDrawing {
     | "comment"
     | "note"
     | "priceNote"
+    | "pin"
+    | "flagMark"
     | "symbolOverlay";
   /** Which pane's own value scale y is expressed in — "price" (default), "volume", or the id of
    *  an "own"-pane indicator (RSI/CHOP/MACD) to anchor a "horizontal"/"ray" line to that pane

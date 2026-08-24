@@ -161,13 +161,11 @@ export function distanceToDrawing(dr: TrendLineDrawing, mouseX: number, mouseY: 
     const p2Point = dr.extraPoints[0];
     const p2 = { x: zoomedXScale(indexForDate(p2Point.x) + 0.5), y: zoomedPriceScale(p2Point.y) };
     const { handle, spine, median, tine1, tine2 } = pitchforkLines(p0, p1, p2, dr.lineType as PitchforkVariant, 0, dims.boundedWidth);
-    return Math.min(
-      distanceToSegment(mouseX, mouseY, handle.x1, handle.y1, handle.x2, handle.y2),
-      distanceToSegment(mouseX, mouseY, spine.x1, spine.y1, spine.x2, spine.y2),
-      distanceToSegment(mouseX, mouseY, median.x1, median.y1, median.x2, median.y2),
-      distanceToSegment(mouseX, mouseY, tine1.x1, tine1.y1, tine1.x2, tine1.y2),
-      distanceToSegment(mouseX, mouseY, tine2.x1, tine2.y1, tine2.x2, tine2.y2)
-    );
+    const segments = [handle, spine];
+    if (dr.pitchforkShowMedian ?? true) segments.push(median);
+    if (dr.pitchforkShowTine1 ?? true) segments.push(tine1);
+    if (dr.pitchforkShowTine2 ?? true) segments.push(tine2);
+    return Math.min(...segments.map((s) => distanceToSegment(mouseX, mouseY, s.x1, s.y1, s.x2, s.y2)));
   }
   if (dr.lineType === "rangeForecast" && dr.extraPoints?.length) {
     // Three independent segments fanning from the same start point (Current) to Max/Avg/Min —

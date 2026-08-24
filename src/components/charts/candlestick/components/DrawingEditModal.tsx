@@ -463,6 +463,32 @@ export function DrawingEditModal({
               </div>
             </>
           )}
+          {/* Every pitchfork variant: independent show/hide for each of the 3 parallel lines
+              (the dashed median plus its own two tines — see pitchforkGeometry.ts's own
+              PitchforkLines), not the A-B/tine-anchor-pair construction segments alongside them,
+              which always draw. */}
+          {(draft.lineType === "pitchfork" ||
+            draft.lineType === "schiffPitchfork" ||
+            draft.lineType === "modifiedSchiffPitchfork" ||
+            draft.lineType === "insidePitchfork") && (
+            <div className="lq-chart__edit-drawing-row">
+              <Checkbox
+                checked={draft.pitchforkShowMedian ?? true}
+                onChange={(pitchforkShowMedian) => setDraft({ ...draft, pitchforkShowMedian })}
+                label="Médiane"
+              />
+              <Checkbox
+                checked={draft.pitchforkShowTine1 ?? true}
+                onChange={(pitchforkShowTine1) => setDraft({ ...draft, pitchforkShowTine1 })}
+                label="Ligne 1"
+              />
+              <Checkbox
+                checked={draft.pitchforkShowTine2 ?? true}
+                onChange={(pitchforkShowTine2) => setDraft({ ...draft, pitchforkShowTine2 })}
+                label="Ligne 2"
+              />
+            </div>
+          )}
           {draft.lineType === "symbolOverlay" && (
             <>
               {hasOverlayOHLC && (

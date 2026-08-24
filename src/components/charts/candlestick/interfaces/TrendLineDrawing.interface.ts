@@ -201,6 +201,14 @@ export interface TrendLineDrawing {
   positiveColor?: string;
   negativeColor?: string;
   neutralColor?: string;
+  /** Every pitchfork variant only: independent show/hide for each of the 3 parallel lines (the
+   *  dashed median plus its two solid tines — see pitchforkGeometry.ts's own `PitchforkLines`),
+   *  not the A-B/tine-anchor-pair construction segments alongside them. Each defaults to visible
+   *  (true) when unset, so an existing drawing saved before these fields existed renders exactly
+   *  as before. */
+  pitchforkShowMedian?: boolean;
+  pitchforkShowTine1?: boolean;
+  pitchforkShowTine2?: boolean;
   /** "symbolOverlay" only: a second instrument's own price series, plotted for comparison against
    *  `data` — added via the "+" button next to a result in the symbol-search modal (see
    *  `CandlestickChartProps.onAddSymbolOverlay`), never by clicking the chart, so it has no

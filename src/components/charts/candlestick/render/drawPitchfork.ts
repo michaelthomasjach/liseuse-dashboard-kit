@@ -7,12 +7,15 @@ import { lineDashArray, drawDrawingText } from "../drawingRender";
 const PITCHFORK_TYPES = new Set(["pitchfork", "schiffPitchfork", "modifiedSchiffPitchfork", "insidePitchfork"]);
 
 /** The 4 pitchfork variants (see pitchforkGeometry.ts) — 3 points (P0/P1/P2, x1/y1-x2/y2-
- *  extraPoints[0]) resolved into 5 on-screen lines via `pitchforkLines`: the A–B handle and B–C
- *  spine, the two tines (solid, all three sharing the drawing's own `lineStyle`), plus the median
+ *  extraPoints[0]) resolved into 5 on-screen lines via `pitchforkLines`: the A–B handle and
+ *  tine-anchor-pair spine (always drawn — plain construction segments, not covered by the 3
+ *  toggles below), the two tines (solid, sharing the drawing's own `lineStyle`), plus the median
  *  drawn dashed to stand out from them (matching the icons' own convention — see PitchforkIcon
- *  and its variants) regardless of that same `lineStyle`. A/B/C get solid dots + labels; a
- *  variant's own *derived* D/E points (see pitchforkExtraPoints) get hollow dots too, but no
- *  label — just enough to show where the median's own start/target actually sits without
+ *  and its variants) regardless of that same `lineStyle`. Each of the median/tine1/tine2 — the 3
+ *  *parallel* lines — draws only while its own `pitchforkShowMedian`/`pitchforkShowTine1`/
+ *  `pitchforkShowTine2` isn't explicitly `false` (default visible). A/B/C get solid dots +
+ *  labels; a variant's own *derived* D/E points (see pitchforkExtraPoints) get hollow dots too,
+ *  but no label — just enough to show where the median's own start/target actually sits without
  *  cluttering the drawing with letters for points the user never clicked. Called from
  *  `drawPriceDrawings` while its own price-section clip is still open, same as every other
  *  price-space drawing type. */
@@ -33,14 +36,19 @@ export function drawPitchforkDrawings(ctx: CanvasRenderingContext2D, params: Ren
     ctx.strokeStyle = lineColor;
     ctx.lineWidth = (dr.strokeWidth ?? 1.5) + (hoveredDrawingId === dr.id ? 1 : 0);
 
-    ctx.setLineDash([5, 4]);
-    ctx.beginPath();
-    ctx.moveTo(median.x1, median.y1);
-    ctx.lineTo(median.x2, median.y2);
-    ctx.stroke();
+    if (dr.pitchforkShowMedian ?? true) {
+      ctx.setLineDash([5, 4]);
+      ctx.beginPath();
+      ctx.moveTo(median.x1, median.y1);
+      ctx.lineTo(median.x2, median.y2);
+      ctx.stroke();
+    }
 
     ctx.setLineDash(lineDashArray(dr));
-    for (const line of [handle, spine, tine1, tine2]) {
+    const tines = [handle, spine];
+    if (dr.pitchforkShowTine1 ?? true) tines.push(tine1);
+    if (dr.pitchforkShowTine2 ?? true) tines.push(tine2);
+    for (const line of tines) {
       ctx.beginPath();
       ctx.moveTo(line.x1, line.y1);
       ctx.lineTo(line.x2, line.y2);

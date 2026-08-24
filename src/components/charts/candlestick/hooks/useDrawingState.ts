@@ -3,6 +3,7 @@ import type { Candle } from "../interfaces/Candle.interface";
 import type { TrendLineDrawing, OverlayDataPoint } from "../interfaces/TrendLineDrawing.interface";
 import type { DataPoint } from "../interfaces/DataPoint.interface";
 import type { TextEntryState } from "../interfaces/TextEntryState.interface";
+import type { EditingCellState } from "../interfaces/EditingCellState.interface";
 import type { DrawingToolType } from "../interfaces/DrawingToolType.interface";
 import type { SymbolSearchResult } from "../interfaces/SymbolSearchResult.interface";
 import { DRAWING_TOOL_CATEGORIES, categoryOfTool } from "../drawingCatalog";
@@ -93,6 +94,8 @@ export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAdd
   // cancelTextEntry (Escape) discards it — see each one's own doc below, and TextEntryState's own
   // for what `point`/`anchorPoint` each become.
   const [textEntry, setTextEntry] = useState<TextEntryState | null>(null);
+  // "table" only: a live inline edit for one existing cell — see EditingCellState's own doc.
+  const [editingCell, setEditingCell] = useState<EditingCellState | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<TrendLineDrawing | null>(null);
   const [editModalTab, setEditModalTab] = useState<"coords" | "text" | "style">("coords");
@@ -241,6 +244,7 @@ export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAdd
     // entry is still open flushes it first — same "clicking away" commit as blur, just reached
     // through the rail instead of the plot, so a still-open box never gets silently orphaned.
     commitTextEntry();
+    commitCellEntry();
     if (activeTool === tool) {
       // A no-op for every tool except an in-progress elbowArrow with ≥2 points — re-tapping its
       // own rail button is the touch-friendly equivalent of pressing Escape to finish it (see
@@ -265,6 +269,7 @@ export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAdd
   // click needed here since picking a specific tool from the menu is already a deliberate choice.
   function handleSelectToolType(type: DrawingToolType) {
     commitTextEntry();
+    commitCellEntry();
     setSelectedToolByCategory((prev) => ({ ...prev, [categoryOfTool(type).id]: type }));
     setOpenToolMenu(null);
     setActiveTool(type);
@@ -402,6 +407,26 @@ export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAdd
     setTextEntry(null);
   }
 
+  // Blurring a table's own live cell input (see editingCell above) — unlike commitTextEntry, an
+  // empty value still commits (clearing the cell) since there's no whole drawing here to discard,
+  // just one cell of an already-existing "table".
+  function commitCellEntry() {
+    if (editingCell) {
+      const dr = drawings.find((d) => d.id === editingCell.drawingId);
+      if (dr) {
+        const cells = [...(dr.tableCells ?? [])];
+        while (cells.length <= editingCell.cellIndex) cells.push("");
+        cells[editingCell.cellIndex] = editingCell.value;
+        commitDrawings(drawings.map((d) => (d.id === editingCell.drawingId ? { ...d, tableCells: cells } : d)));
+      }
+    }
+    setEditingCell(null);
+  }
+
+  function cancelCellEntry() {
+    setEditingCell(null);
+  }
+
   function closeEditModal() {
     setEditingId(null);
     setDraft(null);
@@ -474,6 +499,10 @@ export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAdd
     setTextEntry,
     commitTextEntry,
     cancelTextEntry,
+    editingCell,
+    setEditingCell,
+    commitCellEntry,
+    cancelCellEntry,
     editingId,
     setEditingId,
     draft,

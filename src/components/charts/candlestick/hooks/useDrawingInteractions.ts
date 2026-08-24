@@ -6,11 +6,13 @@ import type { TrendLineDrawing } from "../interfaces/TrendLineDrawing.interface"
 import type { DataPoint } from "../interfaces/DataPoint.interface";
 import type { DrawingToolType } from "../interfaces/DrawingToolType.interface";
 import type { TextEntryState } from "../interfaces/TextEntryState.interface";
+import type { EditingCellState } from "../interfaces/EditingCellState.interface";
 import { MULTI_POINT_TOOLS } from "../drawingCatalog";
-import { round4, channelOffsetFromClick, rangeForecastMaxMin, longShortPositionDefaults } from "../drawingGeometry";
+import { round4, channelOffsetFromClick, rangeForecastMaxMin, longShortPositionDefaults, tableCellIndexAt } from "../drawingGeometry";
 import { distanceToDrawing } from "../drawingHitTest";
 import type { HitTestContext } from "../drawingHitTest";
-import { DRAWING_HIT_DISTANCE, CLICK_DRAG_THRESHOLD, POSITION_TOOL_DEFAULT_BARS } from "../constants";
+import { useAxisHandleDrag } from "./useAxisHandleDrag";
+import { DRAWING_HIT_DISTANCE, CLICK_DRAG_THRESHOLD, POSITION_TOOL_DEFAULT_BARS, TABLE_DEFAULT_ROWS, TABLE_DEFAULT_COLS, TABLE_BORDER_HIT_MARGIN } from "../constants";
 
 /** Plain mutable ref shape (matches what `useRef` in another hook already returns) — used instead
  *  of React's own `RefObject<T>` because that type's `current` is only ever mutable when the ref
@@ -98,6 +100,7 @@ export interface UseDrawingInteractionsArgs {
   maxXZoom: number;
   setXTransformAnimated: (t: d3.ZoomTransform, duration?: number) => void;
   setTextEntry: (v: TextEntryState | null) => void;
+  setEditingCell: (v: EditingCellState | null) => void;
 }
 
 /** Every pointer-driven interaction with drawings: placing a new one (click-to-place tools,
@@ -179,6 +182,7 @@ export function useDrawingInteractions({
   maxXZoom,
   setXTransformAnimated,
   setTextEntry,
+  setEditingCell,
 }: UseDrawingInteractionsArgs) {
   function toDataPoint(e: { clientX: number; clientY: number }): DataPoint {
     const rect = zoomRef.current!.getBoundingClientRect();
@@ -236,10 +240,9 @@ export function useDrawingInteractions({
     }
     // Arrow markers are single-point, like horizontal/vertical — x2/y2 just mirrors x1/y1 (kept
     // in sync by both the generic whole-body drag and a dedicated single-handle case, see
-    // handleEndpointPointerMove) so there's nothing meaningful a second point could add. "pin"/
-    // "flagMark"/"priceLabel" share this exact same shape (see TrendLineDrawing.lineType's own
-    // doc), so they share this branch too instead of duplicating it. (Explicit `||` chain, not
-    // array.includes — `lineType: activeTool` just below needs activeTool actually narrowed.)
+    // handleEndpointPointerMove). "pin"/"flagMark"/"priceLabel" share this same shape, so they
+    // share this branch too. (Explicit `||`, not array.includes — `lineType: activeTool` below
+    // needs it actually narrowed.)
     if (activeTool === "arrowUp" || activeTool === "arrowDown" || activeTool === "pin" || activeTool === "flagMark" || activeTool === "priceLabel") {
       commitDrawings([
         ...drawings,
@@ -414,10 +417,7 @@ export function useDrawingInteractions({
         {
           id: `drawing-${drawingIdRef.current++}`,
           ...defaultDrawingStyle,
-          x1: pendingPoint.x,
-          y1: pendingPoint.y,
-          x2: max.x,
-          y2: max.y,
+          x1: pendingPoint.x, y1: pendingPoint.y, x2: max.x, y2: max.y,
           lineType: "rangeForecast",
           extraPoints: [min],
         },
@@ -427,10 +427,9 @@ export function useDrawingInteractions({
     }
 
     // "longPosition"/"shortPosition" are single-click tools — entry is the click itself, target/
-    // stop both derived immediately from it (see longShortPositionDefaults for the price side;
-    // the date side is just a fixed bar offset, computed here since the pure geometry helper has
-    // no access to indexForDate/dateForIndex) — then ordinary, independently draggable points like
-    // any other tool's.
+    // stop derived immediately from it (see longShortPositionDefaults for the price side; the
+    // date side is a fixed bar offset, computed here since the geometry helper lacks
+    // indexForDate/dateForIndex) — then ordinary, independently draggable points.
     if (activeTool === "longPosition" || activeTool === "shortPosition") {
       const { targetPrice, stopPrice } = longShortPositionDefaults(point.y, activeTool);
       const exitDate = dateForIndex(indexForDate(point.x) + POSITION_TOOL_DEFAULT_BARS);
@@ -442,22 +441,18 @@ export function useDrawingInteractions({
       return;
     }
 
-    // "text"/"comment"/"signpost" don't commit a `drawings` entry on their own click at all —
-    // they open a live textarea instead (see useDrawingState's own textEntry/commitTextEntry),
-    // which is what actually creates the drawing once the user clicks away. Exits the tool
-    // immediately so a further click elsewhere doesn't start a 2nd entry on top of the still-open
-    // one.
+    // "text"/"comment"/"signpost" open a live textarea instead of committing on click (see
+    // useDrawingState's own textEntry/commitTextEntry, which is what actually creates the
+    // drawing) — exits the tool immediately so a further click doesn't start a 2nd entry.
     if (activeTool === "text" || activeTool === "comment" || activeTool === "signpost") {
       setTextEntry({ tool: activeTool, point, value: "" });
       cancelDrawingTool();
       return;
     }
 
-    // "note"/"priceNote": same live-textarea entry as "text"/"comment" above, just reached after
-    // a 2nd click (the anchor comes first, same pendingPoint/previewPoint staging every other
-    // 2-click tool already uses for its own live preview line to the cursor — see
-    // drawPriceDrawings.ts's fallback preview branch, which already draws a plain straight line
-    // and so needs no dedicated case of its own for these two).
+    // "note"/"priceNote": same live entry as above, reached after a 2nd click — the anchor comes
+    // first, same pendingPoint/previewPoint staging every 2-click tool uses for its own preview
+    // line (drawn by drawPriceDrawings.ts's plain fallback branch, no dedicated case needed).
     if (activeTool === "note" || activeTool === "priceNote") {
       if (!pendingPoint) {
         setPendingPoint(point);
@@ -465,6 +460,30 @@ export function useDrawingInteractions({
         return;
       }
       setTextEntry({ tool: activeTool, point, anchorPoint: pendingPoint, value: "" });
+      cancelDrawingTool();
+      return;
+    }
+
+    // "table" is a plain 2-click box like "rectangle" — its own branch (not the shared
+    // trendline/extended/fibonacci/rectangle/zones/forecast one further down) since its
+    // MULTI_POINT_TOOLS entry (edit-modal corner labels only, see drawingCatalog.ts) would
+    // otherwise let the generic multiPoint branch below intercept it, waiting on a 3rd click.
+    if (activeTool === "table") {
+      if (!pendingPoint) {
+        setPendingPoint(point);
+        setPreviewPoint(point);
+        return;
+      }
+      commitDrawings([
+        ...drawings,
+        {
+          id: `drawing-${drawingIdRef.current++}`,
+          ...defaultDrawingStyle,
+          x1: pendingPoint.x, y1: pendingPoint.y, x2: point.x, y2: point.y,
+          lineType: "table",
+          tableRows: TABLE_DEFAULT_ROWS, tableCols: TABLE_DEFAULT_COLS, tableCells: [],
+        },
+      ]);
       cancelDrawingTool();
       return;
     }
@@ -496,24 +515,14 @@ export function useDrawingInteractions({
         {
           id: `drawing-${drawingIdRef.current++}`,
           ...defaultDrawingStyle,
-          x1: pendingPoint.x,
-          y1: pendingPoint.y,
-          x2: pendingSecondPoint.x,
-          y2: pendingSecondPoint.y,
+          x1: pendingPoint.x, y1: pendingPoint.y, x2: pendingSecondPoint.x, y2: pendingSecondPoint.y,
           // MULTI_POINT_TOOLS only has entries for these (disjointChannel's own 4th point is
           // computed, not clicked, so it never reaches this generic branch — see MULTI_POINT_TOOLS'
           // own doc), guaranteed by `multiPoint` above — narrower than what TS can infer just from
           // the (wider-keyed) lookup being truthy.
           lineType: activeTool as
-            | "fibonacciExtension"
-            | "elliottCorrection"
-            | "elliottImpulse"
-            | "headShoulders"
-            | "pitchfork"
-            | "schiffPitchfork"
-            | "modifiedSchiffPitchfork"
-            | "insidePitchfork"
-            | "rangeForecast",
+            | "fibonacciExtension" | "elliottCorrection" | "elliottImpulse" | "headShoulders"
+            | "pitchfork" | "schiffPitchfork" | "modifiedSchiffPitchfork" | "insidePitchfork" | "rangeForecast",
           extraPoints: nextExtra,
         },
       ]);
@@ -521,10 +530,11 @@ export function useDrawingInteractions({
       return;
     }
 
-    // "trendline", "extended", "fibonacci", "rectangle", "zones" and "forecast" all share the
-    // same 2-click flow — they only differ in how they're drawn (see the canvas draw effect) and,
-    // for "rectangle"/"zones", hit-tested, not in how they're placed. "arrowLine" is the same flow
-    // again but stays lineType-less like a plain trend line, just with arrowRight preset.
+    // "trendline", "extended", "fibonacci", "rectangle", "zones", "forecast" and "table" all
+    // share the same 2-click flow — they only differ in how they're drawn (see the canvas draw
+    // effect) and, for "rectangle"/"zones", hit-tested, not in how they're placed. "arrowLine" is
+    // the same flow again but stays lineType-less like a plain trend line, just with arrowRight
+    // preset.
     if (!pendingPoint) {
       setPendingPoint(point);
       setPreviewPoint(point);
@@ -546,7 +556,7 @@ export function useDrawingInteractions({
     cancelDrawingTool();
   }
 
-  function handleOverlayDoubleClick() {
+  function handleOverlayDoubleClick(e: React.MouseEvent<SVGRectElement>) {
     // A double-click/double-tap while drawing an in-progress elbowArrow finishes it — the same
     // touch-reachable finalize path re-tapping its own rail button now offers (see
     // finalizeElbowArrow's own doc); this one doesn't require switching tools first.
@@ -564,6 +574,32 @@ export function useDrawingInteractions({
     }
     const dr = drawings.find((d) => d.id === hoveredDrawingId);
     if (!dr) return;
+    // "table" opens a live inline edit for whichever cell was double-clicked instead of the full
+    // modal (a grid of strings has no single Texte-tab field for) — except within
+    // TABLE_BORDER_HIT_MARGIN of its own outer edge, which reaches the full modal below instead
+    // (its own Style tab is otherwise unreachable: cells tile the box edge to edge, so without
+    // this margin no point inside it would ever miss every cell).
+    if (dr.lineType === "table") {
+      const rect = zoomRef.current!.getBoundingClientRect();
+      const tx1 = zoomedXScale(indexForDate(dr.x1) + 0.5);
+      const ty1 = zoomedPriceScale(dr.y1);
+      const tx2 = zoomedXScale(indexForDate(dr.x2) + 0.5);
+      const ty2 = zoomedPriceScale(dr.y2);
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+      const nearBorder =
+        Math.abs(mouseX - Math.min(tx1, tx2)) < TABLE_BORDER_HIT_MARGIN ||
+        Math.abs(mouseX - Math.max(tx1, tx2)) < TABLE_BORDER_HIT_MARGIN ||
+        Math.abs(mouseY - Math.min(ty1, ty2)) < TABLE_BORDER_HIT_MARGIN ||
+        Math.abs(mouseY - Math.max(ty1, ty2)) < TABLE_BORDER_HIT_MARGIN;
+      if (!nearBorder) {
+        const cellIndex = tableCellIndexAt(tx1, ty1, tx2, ty2, dr.tableRows ?? TABLE_DEFAULT_ROWS, dr.tableCols ?? TABLE_DEFAULT_COLS, mouseX, mouseY);
+        if (cellIndex !== null) {
+          setEditingCell({ drawingId: dr.id, cellIndex, value: dr.tableCells?.[cellIndex] ?? "" });
+          return;
+        }
+      }
+    }
     setEditingId(dr.id);
     setDraft(dr);
     // Coordonnées/Texte don't apply to a symbolOverlay (see the modal's own tab filtering) — Style
@@ -625,65 +661,17 @@ export function useDrawingInteractions({
     if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
   }
 
-  // Single-handle drag for an axis-constrained line: sets its value directly from the pointer's
-  // absolute position (like the two-endpoint drag above), but along one axis only — a
-  // "horizontal" line's handle only ever changes y1/y2 (kept equal), a "vertical" line's handle
-  // only ever changes x1/x2 (kept equal).
-  function handleAxisHandlePointerDown(drawingId: string) {
-    return (e: React.PointerEvent<SVGCircleElement>) => {
-      // Still stops propagation while locked — same reasoning as handleEndpointPointerDown above.
-      e.stopPropagation();
-      if (drawingsLocked) return;
-      e.currentTarget.setPointerCapture(e.pointerId);
-      dragAxisRef.current = { id: drawingId };
-    };
-  }
-
-  function handleAxisHandlePointerMove(e: React.PointerEvent<SVGCircleElement>) {
-    const drag = dragAxisRef.current;
-    if (!drag) return;
-    const dr = drawings.find((d) => d.id === drag.id);
-    if (!dr) return;
-    const rect = zoomRef.current!.getBoundingClientRect();
-    if (dr.lineType === "horizontal") {
-      const mouseY = e.clientY - rect.top;
-      const pane = paneScaleAndOffset(dr.valueAxis);
-      const value = round4(pane.scale.invert(mouseY - pane.offset));
-      commitDrawings(drawings.map((d) => (d.id === drag.id ? { ...d, y1: value, y2: value } : d)));
-    } else if (dr.lineType === "vertical") {
-      const mouseX = e.clientX - rect.left;
-      const dateValue = dateForIndex(zoomedXScale.invert(mouseX));
-      commitDrawings(drawings.map((d) => (d.id === drag.id ? { ...d, x1: dateValue, x2: dateValue } : d)));
-    } else if (
-      dr.lineType === "ray" ||
-      ["arrowUp", "arrowDown", "pin", "flagMark", "text", "comment", "signpost", "priceLabel"].includes(dr.lineType ?? "")
-    ) {
-      // Both a ray's anchor and every single-point marker above have both degrees of freedom,
-      // unlike horizontal/vertical's single axis — none of them are ever one of the pane-aware
-      // lineTypes, so paneScaleAndOffset always resolves to price same as before.
-      const mouseX = e.clientX - rect.left;
-      const mouseY = e.clientY - rect.top;
-      const dateValue = dateForIndex(zoomedXScale.invert(mouseX));
-      const pane = paneScaleAndOffset(dr.valueAxis);
-      const value = round4(pane.scale.invert(mouseY - pane.offset));
-      commitDrawings(drawings.map((d) => (d.id === drag.id ? { ...d, x1: dateValue, x2: dateValue, y1: value, y2: value } : d)));
-    } else if (dr.lineType === "channel") {
-      // A channel's 3rd handle only adjusts channelOffset (single axis, vertical) — line 1's own
-      // two endpoints already have their own draggable handles, same as a regular trend line.
-      // Recomputes the offset so line 2 passes through the new mouseY at the handle's own X (its
-      // line 2 midpoint) — the midpoint's line-1 price simplifies to a plain average of y1/y2.
-      const mouseY = e.clientY - rect.top;
-      const midPrice = (dr.y1 + dr.y2) / 2;
-      commitDrawings(
-        drawings.map((d) => (d.id === drag.id ? { ...d, channelOffset: round4(zoomedPriceScale.invert(mouseY) - midPrice) } : d))
-      );
-    }
-  }
-
-  function handleAxisHandlePointerUp(e: React.PointerEvent<SVGCircleElement>) {
-    dragAxisRef.current = null;
-    if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
-  }
+  const { handleAxisHandlePointerDown, handleAxisHandlePointerMove, handleAxisHandlePointerUp } = useAxisHandleDrag({
+    drawings,
+    commitDrawings,
+    drawingsLocked,
+    dragAxisRef,
+    zoomRef,
+    zoomedXScale,
+    zoomedPriceScale,
+    dateForIndex,
+    paneScaleAndOffset,
+  });
 
   // The crosshair/quick-add-badge/nearest-drawing computation shared between plain hover
   // (handlePointerMove, continuously fired on mouse) and a touch tap's own pointerdown

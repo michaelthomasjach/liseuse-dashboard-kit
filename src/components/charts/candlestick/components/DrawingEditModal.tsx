@@ -11,6 +11,7 @@ import { drawingLabel, MULTI_POINT_TOOLS } from "../drawingCatalog";
 import { allPointsOf, round4, effectiveExtendOf } from "../drawingGeometry";
 import { contrastingTextColor, toDateInputValue, fromDateInputValue } from "../formatting";
 import { CHART_DISPLAY_MODES } from "../chartModes";
+import { TABLE_DEFAULT_ROWS, TABLE_DEFAULT_COLS } from "../constants";
 
 // Same catalog the main chart's own display-mode menu offers (see ChartHeader).
 const OVERLAY_DISPLAY_MODE_OPTIONS = CHART_DISPLAY_MODES.map((m) => ({ value: m.mode, label: m.label }));
@@ -486,6 +487,26 @@ export function DrawingEditModal({
                 checked={draft.pitchforkShowTine2 ?? true}
                 onChange={(pitchforkShowTine2) => setDraft({ ...draft, pitchforkShowTine2 })}
                 label="Ligne 2"
+              />
+            </div>
+          )}
+          {draft.lineType === "table" && (
+            <div className="lq-chart__edit-drawing-row">
+              <NumberField
+                label="Lignes"
+                min={1}
+                max={20}
+                step={1}
+                value={draft.tableRows ?? TABLE_DEFAULT_ROWS}
+                onChange={(v) => setDraft({ ...draft, tableRows: v === "" ? TABLE_DEFAULT_ROWS : v })}
+              />
+              <NumberField
+                label="Colonnes"
+                min={1}
+                max={20}
+                step={1}
+                value={draft.tableCols ?? TABLE_DEFAULT_COLS}
+                onChange={(v) => setDraft({ ...draft, tableCols: v === "" ? TABLE_DEFAULT_COLS : v })}
               />
             </div>
           )}

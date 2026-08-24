@@ -12,6 +12,9 @@ import { isFundamentalKind, formatFundamentalValue } from "../indicatorCatalog";
 import { AXIS_HANDLE_FRACTION_X, AXIS_HANDLE_FRACTION_Y } from "../constants";
 import { EVENT_MARKER_OFFSET, EVENT_MARKER_RADIUS } from "../eventsCatalog";
 import type { TextEntryState } from "../interfaces/TextEntryState.interface";
+import type { EditingCellState } from "../interfaces/EditingCellState.interface";
+import { TABLE_DEFAULT_ROWS, TABLE_DEFAULT_COLS } from "../constants";
+import { tableCellRect } from "../drawingGeometry";
 
 // One per TextEntryState.tool — module-scope since it depends on nothing render-specific.
 const TEXT_ENTRY_PLACEHOLDERS: Record<TextEntryState["tool"], string> = {
@@ -60,7 +63,7 @@ export interface ChartCanvasOverlayProps {
   handlePointerMove: (e: React.PointerEvent<SVGRectElement>) => void;
   handleOverlayPointerUp: (e: React.PointerEvent<SVGRectElement>) => void;
   handleOverlayClick: (e: React.MouseEvent<SVGRectElement>) => void;
-  handleOverlayDoubleClick: () => void;
+  handleOverlayDoubleClick: (e: React.MouseEvent<SVGRectElement>) => void;
   yAxisWheelRef: RefObject<SVGRectElement>;
   yAxisDrag: AxisDragHandlers;
   resetYAxis: () => void;
@@ -91,6 +94,14 @@ export interface ChartCanvasOverlayProps {
   textEntry: {
     entry: TextEntryState | null;
     setEntry: (v: TextEntryState | null) => void;
+    onCommit: () => void;
+    onCancel: () => void;
+  };
+  /** "table" only — see useDrawingState's own `editingCell` doc. Same one-object bundling as
+   *  `textEntry` above, same reasoning. */
+  editingCell: {
+    entry: EditingCellState | null;
+    setEntry: (v: EditingCellState | null) => void;
     onCommit: () => void;
     onCancel: () => void;
   };
@@ -206,7 +217,21 @@ export function ChartCanvasOverlay({
   setEventModalOpen,
   setActiveEventStack,
   textEntry,
+  editingCell,
 }: ChartCanvasOverlayProps) {
+  const editingCellDrawing = editingCell.entry ? visibleDrawings.find((d) => d.id === editingCell.entry!.drawingId) : undefined;
+  const editingCellRect =
+    editingCellDrawing && editingCell.entry
+      ? tableCellRect(
+          zoomedXScale(indexForDate(editingCellDrawing.x1) + 0.5),
+          zoomedPriceScale(editingCellDrawing.y1),
+          zoomedXScale(indexForDate(editingCellDrawing.x2) + 0.5),
+          zoomedPriceScale(editingCellDrawing.y2),
+          editingCellDrawing.tableRows ?? TABLE_DEFAULT_ROWS,
+          editingCellDrawing.tableCols ?? TABLE_DEFAULT_COLS,
+          editingCell.entry.cellIndex
+        )
+      : null;
   return (
     <>
       <canvas
@@ -612,6 +637,33 @@ export function ChartCanvasOverlay({
             if (e.key === "Escape") {
               e.stopPropagation();
               textEntry.onCancel();
+            } else if (e.key === "Enter") {
+              e.currentTarget.blur();
+            }
+          }}
+        />
+      )}
+      {/* "table" only — sized/positioned to exactly fill the one cell being edited (see
+          editingCellRect above), unlike textEntry's own input which only ever anchors to a point
+          and grows with its content. */}
+      {editingCell.entry && editingCellRect && (
+        <input
+          type="text"
+          autoFocus
+          className="lq-chart__table-cell-input"
+          style={{
+            left: dims.margin.left + editingCellRect.x,
+            top: dims.margin.top + editingCellRect.y,
+            width: editingCellRect.w,
+            height: editingCellRect.h,
+          }}
+          value={editingCell.entry.value}
+          onChange={(e) => editingCell.entry && editingCell.setEntry({ ...editingCell.entry, value: e.target.value })}
+          onBlur={editingCell.onCommit}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") {
+              e.stopPropagation();
+              editingCell.onCancel();
             } else if (e.key === "Enter") {
               e.currentTarget.blur();
             }

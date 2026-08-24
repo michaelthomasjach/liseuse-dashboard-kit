@@ -948,6 +948,15 @@ export const PriceLabelIcon = (props: IconProps) => (
   </IconBase>
 );
 
+/** A 2×2 grid — "Tableau"'s own icon, matching the row/column-subdivided box it actually draws
+ *  (see drawTable.ts), though the placed default is 3×3. */
+export const TableIcon = (props: IconProps) => (
+  <IconBase {...props}>
+    <rect x="3.5" y="4" width="17" height="16" rx="1.5" />
+    <path d="M3.5 12h17M12 4v16" />
+  </IconBase>
+);
+
 /** The alert modal's own "crossing" condition — two lines crossing, generic direction. */
 export const CrossingIcon = (props: IconProps) => (
   <IconBase {...props}>

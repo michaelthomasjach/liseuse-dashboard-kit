@@ -184,6 +184,7 @@ export function CandlestickChart({
     hoverIndicatorPaneY,
     setHoverIndicatorPaneY,
     textEntry, setTextEntry, commitTextEntry, cancelTextEntry,
+    editingCell, setEditingCell, commitCellEntry, cancelCellEntry,
     setEditingId,
     draft,
     setDraft,
@@ -528,7 +529,7 @@ export function CandlestickChart({
     overlayProjections,
     xScale,
     maxXZoom,
-    setXTransformAnimated, setTextEntry,
+    setXTransformAnimated, setTextEntry, setEditingCell,
   });
 
   useRenderCandlestickChart({
@@ -834,6 +835,7 @@ export function CandlestickChart({
           setEventModalOpen={setEventModalOpen}
           setActiveEventStack={setActiveEventStack}
           textEntry={{ entry: textEntry, setEntry: setTextEntry, onCommit: commitTextEntry, onCancel: cancelTextEntry }}
+          editingCell={{ entry: editingCell, setEntry: setEditingCell, onCommit: commitCellEntry, onCancel: cancelCellEntry }}
         />
         <ChartHoverBadges
           hoverY={effectiveHoverY}

@@ -1226,6 +1226,25 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
+/* "table"'s own live cell edit (see ChartCanvasOverlay.tsx) — unlike .lq-chart__text-entry-input
+   above, sized to exactly fill the one cell being edited rather than growing with its content, so
+   no rounded corners/shadow that would look odd flush against the table's own straight grid
+   lines; a 2px accent inset outline reads as "this cell is active" without shifting the box's own
+   size (a border would, since it's additive to width/height by default). */
+.lq-chart__table-cell-input {
+  position: absolute;
+  z-index: 5;
+  box-sizing: border-box;
+  padding: 0 6px;
+  font-family: inherit;
+  font-size: 0.7rem;
+  color: var(--lq-color-text);
+  background-color: var(--lq-color-bg);
+  border: none;
+  outline: 2px solid var(--lq-color-accent);
+  outline-offset: -2px;
+}
+
 .lq-chart__date-input {
   width: 100%;
   height: 38px;

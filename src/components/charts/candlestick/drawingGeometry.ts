@@ -179,3 +179,32 @@ export function forecastCurvePoints(ax: number, ay: number, bx: number, by: numb
   }
   return points;
 }
+
+/** "table"'s own even row/column subdivision of its x1/y1–x2/y2 box (already in screen-space
+ *  pixels here, unlike every point elsewhere in this file which is DataPoint/date-based — a
+ *  table's rows/cols are pixel-even, not candle-even, so the caller converts x1/x2 through the
+ *  scale before calling this). The single source of truth both drawTable.ts and
+ *  tableCellIndexAt/useDrawingInteractions' own double-click handler build from, so a cell's own
+ *  drawn rect and its own click target never drift apart. */
+export function tableCellRect(x1: number, y1: number, x2: number, y2: number, rows: number, cols: number, cellIndex: number): { x: number; y: number; w: number; h: number } {
+  const left = Math.min(x1, x2);
+  const top = Math.min(y1, y2);
+  const w = Math.abs(x2 - x1) / cols;
+  const h = Math.abs(y2 - y1) / rows;
+  const row = Math.floor(cellIndex / cols);
+  const col = cellIndex % cols;
+  return { x: left + col * w, y: top + row * h, w, h };
+}
+
+/** Which cell (row * cols + col) a screen-space point falls into, or null outside the table's own
+ *  box entirely — see tableCellRect's own doc for the shared-geometry reasoning. */
+export function tableCellIndexAt(x1: number, y1: number, x2: number, y2: number, rows: number, cols: number, mouseX: number, mouseY: number): number | null {
+  const left = Math.min(x1, x2);
+  const top = Math.min(y1, y2);
+  const w = Math.abs(x2 - x1);
+  const h = Math.abs(y2 - y1);
+  if (mouseX < left || mouseX > left + w || mouseY < top || mouseY > top + h || w === 0 || h === 0) return null;
+  const col = Math.min(cols - 1, Math.floor(((mouseX - left) / w) * cols));
+  const row = Math.min(rows - 1, Math.floor(((mouseY - top) / h) * rows));
+  return row * cols + col;
+}

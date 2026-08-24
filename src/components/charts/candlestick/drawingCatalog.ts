@@ -36,6 +36,7 @@ import {
   FlagMarkIcon,
   SignpostIcon,
   PriceLabelIcon,
+  TableIcon,
 } from "../../icons";
 import type { DrawingToolType } from "./interfaces/DrawingToolType.interface";
 import type { TrendLineDrawing } from "./interfaces/TrendLineDrawing.interface";
@@ -99,6 +100,10 @@ export const MULTI_POINT_TOOLS: Partial<Record<DrawingToolType, { extraPoints: n
   // of the generic "Point 1"/"Point 2" a bare 2-point line with no catalog entry falls back to.
   note: { extraPoints: 0, labels: ["Ancre", "Note"] },
   priceNote: { extraPoints: 0, labels: ["Ancre", "Note"] },
+  // Same "labels only" reasoning as "note"/"priceNote" above — "table" is a plain 2-point box
+  // like "rectangle", just with these nicer corner names in the edit modal instead of the
+  // generic "Point 1"/"Point 2" a bare 2-point line with no catalog entry falls back to.
+  table: { extraPoints: 0, labels: ["Coin supérieur gauche", "Coin inférieur droit"] },
 };
 
 // Short vertex labels drawn directly on the chart next to each point — distinct from
@@ -213,6 +218,7 @@ export const DRAWING_TOOL_CATEGORIES: DrawingToolCategory[] = [
       { type: "flagMark", label: "Marque drapeau", icon: FlagMarkIcon },
       { type: "signpost", label: "Signpost", icon: SignpostIcon },
       { type: "priceLabel", label: "Étiquette de prix", icon: PriceLabelIcon },
+      { type: "table", label: "Tableau", icon: TableIcon },
     ],
   },
   {

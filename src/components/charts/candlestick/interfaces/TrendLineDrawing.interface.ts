@@ -180,7 +180,13 @@ export interface TrendLineDrawing {
    *  is a single-click, single-point marker like "pin"/"flagMark" (no live text entry — there's
    *  nothing to type, see drawPriceLabel.ts) whose own speech bubble (drawSpeechBubble, same shape
    *  "comment" uses) always shows its own current price, recomputed from `dr.y1` every render so
-   *  dragging it keeps the shown value correct with no extra bookkeeping. */
+   *  dragging it keeps the shown value correct with no extra bookkeeping. "table" is a free
+   *  two-point shape like "rectangle" (x1/y1 and x2/y2 as opposite corners), subdivided into
+   *  `tableRows` × `tableCols` even cells (see `tableCells`) — its own grid lines and per-cell text
+   *  drawn by drawTable.ts. Each cell is edited in place (double-click a cell, same live-input
+   *  mechanism "text" uses, just sized to fill that one cell instead of anchored to a point — see
+   *  useDrawingState's own `editingCell`) rather than through the edit modal's Texte tab, which a
+   *  whole grid of independent strings has no single field for. */
   lineType?:
     | "horizontal"
     | "vertical"
@@ -215,6 +221,7 @@ export interface TrendLineDrawing {
     | "flagMark"
     | "signpost"
     | "priceLabel"
+    | "table"
     | "symbolOverlay";
   /** Which pane's own value scale y is expressed in — "price" (default), "volume", or the id of
    *  an "own"-pane indicator (RSI/CHOP/MACD) to anchor a "horizontal"/"ray" line to that pane
@@ -258,6 +265,19 @@ export interface TrendLineDrawing {
   pitchforkShowMedian?: boolean;
   pitchforkShowTine1?: boolean;
   pitchforkShowTine2?: boolean;
+  /** "table" only: how many even rows/columns its own x1/y1–x2/y2 box is subdivided into.
+   *  Defaults to 3/3 (see the tool's own placement in useDrawingInteractions) when unset. Changing
+   *  either from the edit modal never reflows `tableCells` — a cell's own index (row * tableCols +
+   *  col) simply lands on a different string than before whenever tableCols changes, same
+   *  trade-off resizing a spreadsheet's own columns makes. */
+  tableRows?: number;
+  tableCols?: number;
+  /** "table" only: row-major (index = row * tableCols + col), one entry per cell — a missing or
+   *  short array (a freshly-placed table, or one whose row/col count just grew) reads as "every
+   *  cell past the end is blank" rather than needing every slot pre-filled. Written one cell at a
+   *  time by double-clicking it (see useDrawingState's own `editingCell`/`commitCellEntry`), never
+   *  through the edit modal. */
+  tableCells?: string[];
   /** "symbolOverlay" only: a second instrument's own price series, plotted for comparison against
    *  `data` — added via the "+" button next to a result in the symbol-search modal (see
    *  `CandlestickChartProps.onAddSymbolOverlay`), never by clicking the chart, so it has no

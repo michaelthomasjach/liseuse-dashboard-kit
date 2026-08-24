@@ -20,6 +20,7 @@ import { drawNoteDrawings } from "./drawNote";
 import { drawMarkerDrawings } from "./drawMarkers";
 import { drawSignpostDrawings } from "./drawSignpost";
 import { drawPriceLabelDrawings } from "./drawPriceLabel";
+import { drawTableDrawings } from "./drawTable";
 
 const PITCHFORK_LINE_TYPES = new Set(["pitchfork", "schiffPitchfork", "modifiedSchiffPitchfork", "insidePitchfork"]);
 
@@ -89,6 +90,7 @@ export function drawPriceDrawings(ctx: CanvasRenderingContext2D, params: RenderC
         dr.lineType === "flagMark" ||
         dr.lineType === "signpost" ||
         dr.lineType === "priceLabel" ||
+        dr.lineType === "table" ||
         dr.lineType === "headShoulders" ||
         PITCHFORK_LINE_TYPES.has(dr.lineType ?? "") ||
         // Its x1/y1/x2/y2 aren't real coordinates (see the lineType's own doc comment) — just
@@ -506,6 +508,7 @@ export function drawPriceDrawings(ctx: CanvasRenderingContext2D, params: RenderC
     drawMarkerDrawings(ctx, params, style);
     drawSignpostDrawings(ctx, params, style);
     drawPriceLabelDrawings(ctx, params, style);
+    drawTableDrawings(ctx, params, style);
     drawHeadShouldersDrawings(ctx, params, style);
 
     if (activeTool && pendingPoint && previewPoint) {
@@ -558,7 +561,7 @@ export function drawPriceDrawings(ctx: CanvasRenderingContext2D, params: RenderC
         ctx.moveTo(zoomedXScale(indexForDate(p3.x) + 0.5), zoomedPriceScale(p3.y));
         ctx.lineTo(zoomedXScale(indexForDate(p4.x) + 0.5), zoomedPriceScale(p4.y));
         ctx.stroke();
-      } else if (activeTool === "rectangle" || activeTool === "zones" || activeTool === "zoomIn") {
+      } else if (activeTool === "rectangle" || activeTool === "zones" || activeTool === "zoomIn" || activeTool === "table") {
         // "zoomIn" never commits a `drawings` entry (its 2nd click zooms instead — see
         // useDrawingInteractions' own handling) but previews identically to rectangle/zones while
         // placing its own two corners, so it's just folded into this same branch.

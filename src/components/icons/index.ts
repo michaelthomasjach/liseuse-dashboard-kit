@@ -111,6 +111,7 @@ export {
   FlagMarkIcon,
   SignpostIcon,
   PriceLabelIcon,
+  TableIcon,
   CrossingIcon,
   GreaterThanIcon,
   LessThanIcon,

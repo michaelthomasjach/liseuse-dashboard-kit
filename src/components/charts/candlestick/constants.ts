@@ -74,3 +74,12 @@ export const SIDE_PANEL_MAX_WIDTH = 560;
  *  same reasoning MAX_EMPTY_FRACTION above uses a fraction over a fixed count for the opposite
  *  reason. Target/stop are freely draggable afterward, same as every other tool's default sizing. */
 export const POSITION_TOOL_DEFAULT_BARS = 20;
+/** "table"'s own default grid size at creation — freely reconfigurable afterward from the edit
+ *  modal's Style tab (see TrendLineDrawing.tableRows/tableCols's own doc). */
+export const TABLE_DEFAULT_ROWS = 3;
+export const TABLE_DEFAULT_COLS = 3;
+/** How close (px) to a "table"'s own outer edge a double-click needs to land to open its full
+ *  edit modal (rows/cols/color/stroke) instead of a cell — see useDrawingInteractions' own
+ *  handleOverlayDoubleClick. Without this margin the modal would be unreachable: its cells tile
+ *  the box edge to edge, so every interior point already resolves to one. */
+export const TABLE_BORDER_HIT_MARGIN = 6;

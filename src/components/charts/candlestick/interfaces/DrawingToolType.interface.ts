@@ -35,4 +35,5 @@ export type DrawingToolType =
   | "pin"
   | "flagMark"
   | "signpost"
-  | "priceLabel";
+  | "priceLabel"
+  | "table";

@@ -90,6 +90,27 @@ export function distanceToDrawing(dr: TrendLineDrawing, mouseX: number, mouseY: 
       distanceToSegment(mouseX, mouseY, rx1, ry2, rx1, ry1)
     );
   }
+  if (dr.lineType === "table") {
+    // Unlike "rectangle" above (outline-only), the grid reads as one filled shape — anywhere
+    // inside counts as a direct hit (d = 0), matching "zones"' own reasoning below, since a cell
+    // needs to be clickable/double-clickable everywhere within its own bounds, not just its border.
+    const rx1 = zoomedXScale(indexForDate(dr.x1) + 0.5);
+    const ry1 = zoomedPriceScale(dr.y1);
+    const rx2 = zoomedXScale(indexForDate(dr.x2) + 0.5);
+    const ry2 = zoomedPriceScale(dr.y2);
+    const left = Math.min(rx1, rx2);
+    const right = Math.max(rx1, rx2);
+    const top = Math.min(ry1, ry2);
+    const bottom = Math.max(ry1, ry2);
+    return mouseX >= left && mouseX <= right && mouseY >= top && mouseY <= bottom
+      ? 0
+      : Math.min(
+          distanceToSegment(mouseX, mouseY, left, top, right, top),
+          distanceToSegment(mouseX, mouseY, right, top, right, bottom),
+          distanceToSegment(mouseX, mouseY, right, bottom, left, bottom),
+          distanceToSegment(mouseX, mouseY, left, bottom, left, top)
+        );
+  }
   if (dr.lineType === "zones") {
     // Unlike "rectangle" above (outline-only hit-testing), the three bands together fill the
     // whole pane height for this x-range — so anywhere inside that column counts as a direct hit

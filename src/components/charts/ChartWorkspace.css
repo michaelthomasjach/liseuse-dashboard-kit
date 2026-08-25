@@ -597,6 +597,36 @@
   border-top: 1px solid var(--lq-color-border);
 }
 
+/* Item 20: a locked workspace (triple-click to unlock, quadruple-click-or-more to lock — see
+   ChartWorkspace.tsx's own handleGridClick) fades every panel out somewhat rather than hiding or
+   disabling them outright, so it still reads as "here, just protected" instead of "broken" or
+   "loading". The actual protection is .lq-chart-workspace__lock-overlay below, a sibling — opacity
+   alone doesn't stop pointer input, and this rule has no reason to know that; it only owns the
+   look. */
+.lq-chart-workspace__grid--locked {
+  opacity: 0.55;
+}
+
+/* The actual lock: a plain, otherwise-invisible div painted above every panel (z-index comfortably
+   past a focused panel's own 10, see .lq-chart-workspace__panel--focused above, but still well
+   below Modal/Popover/Notification — see charts-shared.css's own .lq-chart--fullscreen doc for
+   that ordering) that intercepts every pointer interaction meant for the charts underneath. The
+   triple-click that lifts it still works: this only stops a panel's own canvas/handlers from ever
+   becoming the click's *target*, it doesn't stop the click from bubbling past this element to
+   handleGridClick's listener on the grid itself. The cursor is a two-tone (white halo behind a
+   black stroke) copy of LockIcon's own path — legible on both light and dark surfaces the same
+   way a native OS cursor is, which a single `currentColor`-based icon can't be inside a static
+   `cursor: url(...)`. */
+.lq-chart-workspace__lock-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  cursor:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='white' stroke-width='3.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='5' y='10.5' width='14' height='9.5' rx='1.5'/%3E%3Cpath d='M7.5 10.5V7.5a4.5 4.5 0 0 1 9 0v3'/%3E%3C/g%3E%3Cg fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='5' y='10.5' width='14' height='9.5' rx='1.5'/%3E%3Cpath d='M7.5 10.5V7.5a4.5 4.5 0 0 1 9 0v3'/%3E%3C/g%3E%3C/svg%3E")
+      12 12,
+    not-allowed;
+}
+
 /* Item 3: the whole workspace (grid + docked side panel + rail), not just one panel — same
    viewport-covering shape as CandlestickChart's own `.lq-chart--fullscreen` (see its own doc for
    why `inset` rather than `inset: 0` + padding, and reusing its `lq-chart-fullscreen-in`

@@ -230,6 +230,21 @@ export function ChartWorkspace({
   // Clamped against the current `panels` count at read time (just below) rather than reset via an
   // effect — simpler, and a panel count change can never leave it referencing a since-removed panel.
   const [focusedPanelIndex, setFocusedPanelIndex] = useState<number | null>(null);
+  // Item 20: a plain click-count gesture (native `MouseEvent.detail`, the same counter a real
+  // double-click already relies on elsewhere in this library — see ChartLegend's own
+  // onDoubleClick) rather than any custom timing/debounce logic of its own. This also makes a
+  // *real* quadruple-click self-correct on its own: the browser fires one `click` per tap in the
+  // burst (detail 1, 2, 3, then 4), so the intermediate detail-3 tap fires "unlock" a moment
+  // before detail-4 fires "lock" — starting locked, that's unlock-then-relock (ends locked, same
+  // as a plain quadruple-click from unlocked); starting unlocked, the detail-3 "unlock" is already
+  // a no-op (see below), so only the detail-4 "lock" actually does anything. Either way the final
+  // state always matches the spec (triple locks nothing it doesn't already touch; quadruple+
+  // always ends locked) without tracking anything across events.
+  const [workspaceLocked, setWorkspaceLocked] = useState(false);
+  function handleGridClick(e: React.MouseEvent) {
+    if (e.detail === 3) setWorkspaceLocked((locked) => (locked ? false : locked));
+    else if (e.detail >= 4) setWorkspaceLocked((locked) => (locked ? locked : true));
+  }
   const [splitScreenMenuOpen, setSplitScreenMenuOpen] = useState(false);
   const splitScreenTriggerRef = useRef<HTMLButtonElement>(null);
   const hasWatchlists = !!watchlists && watchlists.length > 0;
@@ -434,7 +449,8 @@ export function ChartWorkspace({
       style={workspaceFullscreen ? undefined : fillHeight ? { height: "100vh" } : undefined}
     >
       <div
-        className="lq-chart-workspace__grid"
+        className={["lq-chart-workspace__grid", workspaceLocked && "lq-chart-workspace__grid--locked"].filter(Boolean).join(" ")}
+        onClick={handleGridClick}
         style={{
           // Custom properties, not gridTemplateColumns/gridTemplateRows directly — an inline style
           // always wins the cascade over a stylesheet rule, which would leave .lq-chart-workspace's
@@ -520,6 +536,13 @@ export function ChartWorkspace({
             onSidePanelOpenChange: undefined,
           })
         )}
+        {/* Blocks every panel underneath from receiving pointer input at all while locked (the
+            actual point of "locking") — the triple-click that lifts it still reaches
+            handleGridClick above regardless, since blocking a *descendant* from being the click's
+            own target doesn't stop the click from bubbling up through this element to its
+            ancestor's listener. Last child so it paints above every panel, including a focused
+            one (see .lq-chart-workspace__panel--focused's own z-index). */}
+        {workspaceLocked && <div className="lq-chart-workspace__lock-overlay" aria-hidden="true" />}
       </div>
 
       {(hasWatchlists || hasAlerts) && sidePanelState.open && (

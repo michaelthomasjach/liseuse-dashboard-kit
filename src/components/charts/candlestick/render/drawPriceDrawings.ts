@@ -732,6 +732,10 @@ export function drawPriceDrawings(ctx: CanvasRenderingContext2D, params: RenderC
       ctx.lineTo(mx2, my2);
       ctx.stroke();
 
+      // indexForDate returns a fractional (extrapolated) index for a point dragged past the
+      // data's own edges (see its own doc) rather than always a clean integer, so this always
+      // fixes it to 3 decimals — same "fixed precision regardless of whether it happens to land
+      // on a round number" convention pct/priceDelta below already use.
       const bars = Math.abs(indexForDate(p2.x) - indexForDate(p1.x));
       const days = Math.round(Math.abs(p2.x.getTime() - p1.x.getTime()) / 86_400_000);
       const priceDelta = p2.y - p1.y;
@@ -739,7 +743,7 @@ export function drawPriceDrawings(ctx: CanvasRenderingContext2D, params: RenderC
       const sign = priceDelta >= 0 ? "+" : "";
       const lines = [
         `${sign}${pct.toFixed(2)}%`,
-        `${bars} barre${bars > 1 ? "s" : ""}`,
+        `${bars.toFixed(3)} barre${bars > 1 ? "s" : ""}`,
         `${days} jour${days > 1 ? "s" : ""}`,
         `${sign}${priceDelta.toFixed(2)} points`,
       ];

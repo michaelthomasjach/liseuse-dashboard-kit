@@ -90,6 +90,10 @@ import {
 } from "./candlestick/constants";
 import { formatPercentFromReference, computeOhlcReadout } from "./candlestick/formatting";
 
+/** A single interactive candlestick chart — drawing tools, indicators, pickers, alerts, symbol
+ *  search, and everything else documented on its own props below. Usable standalone, but a few
+ *  features (multi-panel layouts, workspace-wide fullscreen, linked panes, the shared watchlist/
+ *  alerts side panel) only exist at the `ChartWorkspace` level — use it alongside this component. */
 export function CandlestickChart({
   data,
   width,

@@ -956,6 +956,7 @@ export function CandlestickChart({
         deleteEditingIndicator={deleteEditingIndicator}
         saveIndicatorSettings={saveIndicatorSettings}
         settingsOpen={settingsOpen} setSettingsOpen={setSettingsOpen}
+        chartDisplayMode={chartDisplayMode} setChartDisplayMode={setChartDisplayMode} onChartDisplayModeChange={onChartDisplayModeChange}
         upColorOverride={upColorOverride} setUpColorOverride={setUpColorOverride}
         downColorOverride={downColorOverride}
         setDownColorOverride={setDownColorOverride}

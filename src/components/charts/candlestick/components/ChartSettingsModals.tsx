@@ -2,10 +2,15 @@ import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 
 import { Modal } from "../../../primitives/Modal";
 import { Checkbox } from "../../../forms/Checkbox";
 import { capitalize } from "../formatting";
+import { CHART_DISPLAY_MODES } from "../chartModes";
+import type { ChartDisplayMode } from "../interfaces/ChartDisplayMode.interface";
 
 export interface ChartSettingsModalsProps {
   settingsOpen: boolean;
   setSettingsOpen: (open: boolean) => void;
+  chartDisplayMode: ChartDisplayMode;
+  setChartDisplayMode: (mode: ChartDisplayMode) => void;
+  onChartDisplayModeChange: ((mode: ChartDisplayMode) => void) | undefined;
   upColorOverride: string | undefined;
   setUpColorOverride: (color: string | undefined) => void;
   downColorOverride: string | undefined;
@@ -33,6 +38,9 @@ export interface ChartSettingsModalsProps {
 export function ChartSettingsModals({
   settingsOpen,
   setSettingsOpen,
+  chartDisplayMode,
+  setChartDisplayMode,
+  onChartDisplayModeChange,
   upColorOverride,
   setUpColorOverride,
   downColorOverride,
@@ -77,6 +85,31 @@ export function ChartSettingsModals({
     <div ref={wrapperRef} style={{ display: "contents" }}>
       {settingsOpen && (
         <Modal open onClose={() => setSettingsOpen(false)} title="Paramètres du graphique">
+          {/* Same options/labels/icons as the header's own "Mode d'affichage" popover (see
+              ChartHeader.tsx) — this is a second, always-reachable entry point to the exact same
+              state rather than a separate concept, so it stays in lockstep with whatever the
+              header shows without needing its own local state. */}
+          <div className="lq-field">
+            <label className="lq-field__label">Style de bougie</label>
+            <div className="lq-chart__display-mode-menu">
+              {CHART_DISPLAY_MODES.map((entry) => (
+                <button
+                  key={entry.mode}
+                  type="button"
+                  className={["lq-chart__display-mode-option", entry.mode === chartDisplayMode && "lq-chart__display-mode-option--selected"]
+                    .filter(Boolean)
+                    .join(" ")}
+                  onClick={() => {
+                    setChartDisplayMode(entry.mode);
+                    onChartDisplayModeChange?.(entry.mode);
+                  }}
+                >
+                  <entry.icon size={15} />
+                  {entry.label}
+                </button>
+              ))}
+            </div>
+          </div>
           {theme.isEink && (
             <p className="lq-chart__settings-eink-note">
               La palette E-ink affiche les bougies en creux ou plein plutôt qu'en couleur — les couleurs ci-dessous ne changent rien à leur apparence tant que cette palette est active.

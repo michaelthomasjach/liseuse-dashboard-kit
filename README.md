@@ -4,7 +4,7 @@ Bibliothèque de composants React pour construire des tableaux de bord — domot
 
 - **Palette** — `eink` (monochrome, hairlines, sans ombre ni dégradé) ou `color` (tablette couleur, accents pastel).
 - **Surface** — `light` (Clair) ou `dark` (Sombre).
-- **Typo** — `space-grotesk`, `manrope`, ou `sora`.
+- **Typo** — `space-grotesk`, `manrope` (défaut), `sora`, `inter`, ou `ibm-plex-sans`.
 
 Les quatre combinaisons palette × surface sont pilotées par variables CSS ; aucune classe conditionnelle à gérer côté consommateur. Les deux palettes partagent la **même géométrie** — coins carrés partout (`--lq-radius-*` vaut `0px` dans les deux cas), `color` n'est qu'une variante *colorée* du même langage visuel qu'`eink`, pas un style différent. Les couleurs de `color` sont volontairement **pastel/dusty** (désaturées) plutôt que des teintes UI-kit brutes, pour rester cohérentes avec la sobriété d'`eink`.
 
@@ -44,7 +44,7 @@ import "@michaelthomasjach/liseuse-dashboard-kit/style.css";
 
 function App() {
   return (
-    <LqThemeProvider palette="eink" surface="dark" font="sora">
+    <LqThemeProvider palette="eink" surface="dark" font="manrope">
       <DashboardGrid columns="1.1fr 1fr 1fr">
         <DashboardGridItem>
           <ClockWidget time="20:14" date="samedi 7 juin" />
@@ -79,11 +79,11 @@ function ThemeSettings() {
 
 ### Polices
 
-La lib ne bundle pas les fonts (pour rester légère et éviter les conflits de licence) : elle expose seulement les piles de police. Charge Space Grotesk / Manrope / Sora depuis Google Fonts (ou en self-hosted) dans l'app consommatrice :
+La lib ne bundle pas les fonts (pour rester légère et éviter les conflits de licence) : elle expose seulement les piles de police. Charge Space Grotesk / Manrope / Sora / Inter / IBM Plex Sans depuis Google Fonts (ou en self-hosted) dans l'app consommatrice :
 
 ```html
 <link
-  href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&family=Sora:wght@400;500;600;700&display=swap"
+  href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&family=Sora:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
   rel="stylesheet"
 />
 ```

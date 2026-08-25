@@ -14,6 +14,8 @@ const FONT_VARS: Record<LqFont, string> = {
   "space-grotesk": "var(--lq-font-space-grotesk)",
   manrope: "var(--lq-font-manrope)",
   sora: "var(--lq-font-sora)",
+  inter: "var(--lq-font-inter)",
+  "ibm-plex-sans": "var(--lq-font-ibm-plex-sans)",
 };
 
 const LqThemeContext = createContext<LqThemeContextValue | null>(null);
@@ -23,7 +25,7 @@ export interface LqThemeProviderProps {
   palette?: LqPalette;
   /** Light or dark surface. Default "light". */
   surface?: LqSurface;
-  /** Display typeface. The consumer app must load the actual webfont; this only selects the stack. Default "sora". */
+  /** Display typeface. The consumer app must load the actual webfont; this only selects the stack. Default "manrope". */
   font?: LqFont;
   /** Called whenever a component inside calls the theme setters (e.g. from a settings panel you build). */
   onPaletteChange?: (palette: LqPalette) => void;
@@ -51,7 +53,7 @@ export function LqThemeProvider({
 }: LqThemeProviderProps) {
   const [paletteState, setPaletteState] = useState<LqPalette>(paletteProp ?? "eink");
   const [surfaceState, setSurfaceState] = useState<LqSurface>(surfaceProp ?? "light");
-  const [fontState, setFontState] = useState<LqFont>(fontProp ?? "sora");
+  const [fontState, setFontState] = useState<LqFont>(fontProp ?? "manrope");
 
   const palette = paletteProp ?? paletteState;
   const surface = surfaceProp ?? surfaceState;

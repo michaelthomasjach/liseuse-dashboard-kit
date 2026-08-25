@@ -28,7 +28,7 @@ export const Palette: Story = {
 
 export const Typo: Story = {
   render: () => {
-    const [value, setValue] = useState("sora");
+    const [value, setValue] = useState("manrope");
     return (
       <SegmentedControl
         label="Typo"
@@ -38,6 +38,8 @@ export const Typo: Story = {
           { value: "space-grotesk", label: "Space Grotesk" },
           { value: "manrope", label: "Manrope" },
           { value: "sora", label: "Sora" },
+          { value: "inter", label: "Inter" },
+          { value: "ibm-plex-sans", label: "IBM Plex Sans" },
         ]}
       />
     );

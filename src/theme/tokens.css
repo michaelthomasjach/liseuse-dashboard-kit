@@ -25,7 +25,9 @@
   --lq-font-space-grotesk: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
   --lq-font-manrope: "Manrope", ui-sans-serif, system-ui, sans-serif;
   --lq-font-sora: "Sora", ui-sans-serif, system-ui, sans-serif;
-  --lq-font-family: var(--lq-font-sora);
+  --lq-font-inter: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --lq-font-ibm-plex-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --lq-font-family: var(--lq-font-manrope);
 
   /* Square corners everywhere, in both palettes — the "color" palette is a
      backlit-screen *color* variant of the same design language as e-ink, not

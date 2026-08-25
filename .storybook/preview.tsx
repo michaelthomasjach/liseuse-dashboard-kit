@@ -32,13 +32,15 @@ export const globalTypes = {
   lqFont: {
     name: "Typo",
     description: "Display typeface",
-    defaultValue: "sora" as LqFont,
+    defaultValue: "manrope" as LqFont,
     toolbar: {
       icon: "font",
       items: [
         { value: "space-grotesk", title: "Space Grotesk" },
         { value: "manrope", title: "Manrope" },
         { value: "sora", title: "Sora" },
+        { value: "inter", title: "Inter" },
+        { value: "ibm-plex-sans", title: "IBM Plex Sans" },
       ],
       dynamicTitle: true,
     },

@@ -181,16 +181,20 @@ export const INDICATOR_CATALOG: IndicatorCatalogEntry[] = [
     category: "Tendance",
   },
   // Own value shape (IndicatorGapPoint — a set of rectangles, not a line) and own setting
-  // (gapsMinPercent, not period/stdDev).
+  // (gapsMinPercent, not period/stdDev). "Structure Recognition" (kept in its own English name,
+  // same precedent "Range forecast" already set for a tool named this deliberately rather than
+  // translated) groups this with the other two auto-detection indicators (pattern/candle) rather
+  // than the plain "Structure" category above, which covers manually-configured structure tools
+  // (pivots, S/R, TPO) instead of automatic recognition.
   {
     kind: "gaps",
-    label: "Gaps",
+    label: "Gaps Recognition",
     shortLabel: "Gaps",
     defaultPeriod: 0,
     hasPeriod: false,
     hasStdDev: false,
     pane: "price",
-    category: "Structure",
+    category: "Structure Recognition",
   },
   // Own value shape (IndicatorIchimokuPoint — five components, one of them a filled cloud) and
   // its own four settings (ichimokuConversionPeriod/ichimokuBasePeriod/ichimokuSpanPeriod/

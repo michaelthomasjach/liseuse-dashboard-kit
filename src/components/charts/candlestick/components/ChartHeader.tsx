@@ -249,7 +249,7 @@ export function ChartHeader({
           type="button"
           className="lq-chart__icon-button"
           onClick={toggleFullscreen}
-          aria-label={isFullscreen ? "Quitter le plein écran" : "Plein écran"}
+          aria-label={isFullscreen ? "Quitter le focus fenêtre active" : "Focus fenêtre active"}
         >
           {isFullscreen ? <MinimizeIcon size={14} /> : <MaximizeIcon size={14} />}
         </button>

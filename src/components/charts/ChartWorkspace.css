@@ -14,6 +14,12 @@
   gap: 0;
   flex: 1 1 auto;
   min-width: 0;
+  /* Positioning context for a focused panel's own absolute overlay (see
+     .lq-chart-workspace__panel--focused below) — without this, an absolutely-positioned grid item
+     resolves against the nearest *actually* positioned ancestor instead, which could be much
+     further up the tree (or the viewport itself) depending on what the caller's own page happens
+     to have. */
+  position: relative;
   /* Restores the left/top edge stripped from every panel below — each interior divider is now
      drawn by exactly one border (a panel's own right/bottom edge) instead of two stacking into a
      visibly thicker line, same reasoning as the side panel's own border-left override further
@@ -62,10 +68,21 @@
    the workspace (1px). Left/top only: the grid container's own border-top/border-left just above
    covers the *outer* edge those would otherwise have drawn; each panel's own right/bottom edge is
    untouched; and stays the sole line at every interior boundary regardless of column/row count,
-   with nothing here needing to know how many panels there are. */
+   with nothing here needing to know how many panels there are.
+
+   `isolation: isolate` gives every panel its own stacking context regardless of focused state —
+   without it, a *sibling* panel's own internal z-index (its header alone is 1000, see
+   charts-shared.css) has no ancestor between it and this grid that creates a stacking context, so
+   it escapes all the way up and gets compared directly against a focused panel's own z-index
+   (.lq-chart-workspace__panel--focused below), beating its much lower value and poking through the
+   focused panel it's supposed to be covered by. Isolating each panel means only its own top-level
+   z-index (auto, i.e. 0, same as any other unfocused panel) is ever compared against a sibling's —
+   nothing inside a panel can escape its own box to out-stack a sibling regardless of how high that
+   inner value is. */
 .lq-chart-workspace__grid > .lq-chart {
   border-left: none;
   border-top: none;
+  isolation: isolate;
 }
 
 /* Overrides the docked side panel's own base `border-left` (see charts-shared.css) specifically
@@ -558,6 +575,45 @@
    border so it doesn't nudge the panel's own layout by even a pixel while toggling on/off. */
 .lq-chart-workspace__panel--selected {
   box-shadow: inset 0 0 0 2px var(--lq-color-accent);
+}
+
+/* Item 2: a "focused" panel (see ChartWorkspace.tsx's own focusedPanelIndex) takes over the whole
+   grid's own area instead of the viewport CandlestickChart's plain `.lq-chart--fullscreen` covers
+   standalone — chained onto that same class (not a replacement for it) so the focused panel still
+   gets its background/border-color/entrance-animation, just repositioned: `position: absolute`
+   against `.lq-chart-workspace__grid` (see its own `position: relative` above) rather than `fixed`
+   against the viewport, and `inset: 0` rather than `var(--lq-space-6)` — there's no page around it
+   to leave breathing room against here, the grid's own edge already is the boundary. The other
+   panels are untouched (still plain, unpositioned grid items, so they stay exactly where they
+   were, just visually covered — see z-index below); border-left/border-top are restored since,
+   unlike a plain grid cell, this panel isn't touching another panel's own edge on those sides
+   anymore (see .lq-chart-workspace__grid > .lq-chart above, which strips them for exactly that
+   adjacency). */
+.lq-chart-workspace__panel--focused.lq-chart--fullscreen {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  border-left: 1px solid var(--lq-color-border);
+  border-top: 1px solid var(--lq-color-border);
+}
+
+/* Item 3: the whole workspace (grid + docked side panel + rail), not just one panel — same
+   viewport-covering shape as CandlestickChart's own `.lq-chart--fullscreen` (see its own doc for
+   why `inset` rather than `inset: 0` + padding, and reusing its `lq-chart-fullscreen-in`
+   animation), just applied one level up. */
+.lq-chart-workspace--fullscreen {
+  position: fixed;
+  inset: var(--lq-space-6);
+  /* The base rule above sets an explicit `width: 100%`, not `auto` — for a `position: fixed`
+     element that resolves against the *viewport*, not this box's own inset edges, so combining it
+     with `inset` (both `left` and `right` set) left the box exactly `--lq-space-6` too wide,
+     pushing its right edge (and the rail docked at it) that far past the actual viewport edge.
+     `auto` here instead lets `inset` alone determine the box's size, same as it already does for
+     top/bottom (no `height` ever set to fight it). */
+  width: auto;
+  z-index: 500;
+  background-color: var(--lq-color-bg);
+  animation: lq-chart-fullscreen-in 150ms ease;
 }
 
 /* "Graphiques liés" modal tree (see LinkGroupsModal) — groups first, each with its own header row

@@ -9,7 +9,8 @@ import { WatchlistPanel } from "./workspace/WatchlistPanel";
 import { useSidePanel } from "./candlestick/hooks/useSidePanel";
 import { ChartSidePanel } from "./candlestick/components/ChartSidePanel";
 import { Popover } from "../forms/Popover";
-import { WatchlistIcon, BellIcon, GridIcon } from "../icons";
+import { WatchlistIcon, BellIcon, GridIcon, MaximizeIcon, MinimizeIcon } from "../icons";
+import { useFullscreen } from "./internal/useFullscreen";
 import "./ChartWorkspace.css";
 
 // Moved here from CandlestickChart's own ChartHeader (see this file's own git history) — laying
@@ -215,6 +216,20 @@ export function ChartWorkspace({
   const [panels, setPanels] = useState(defaultPanels);
   const { groups, linkPanels, unlinkGroup, groupIndexOfPanel } = useLinkGroups({ defaultLinkGroups, onLinkGroupsChange });
   const sidePanelState = useSidePanel({ defaultSidePanelOpen, onSidePanelOpenChange });
+  // Whole-workspace fullscreen (the rail's own "Plein écran de l'espace de travail" button below,
+  // item 3) — a plain, uncontrolled `useFullscreen()` like a standalone CandlestickChart's own,
+  // just applied to the outer `.lq-chart-workspace` row instead of one panel. Distinct from
+  // focusedPanelIndex right below: this one covers the whole viewport (grid + side panel + rail);
+  // that one only takes over the grid's own area, and only one panel at a time.
+  const { isFullscreen: workspaceFullscreen, toggle: toggleWorkspaceFullscreen } = useFullscreen();
+  // Which panel (if any) is "focused" — occupying the whole grid's area, other panels still
+  // mounted underneath but visually covered (see the cloneElement below and
+  // .lq-chart-workspace__panel--focused in ChartWorkspace.css). A single index rather than one
+  // piece of state per panel: every panel's own CandlestickChart.isFullscreen reads off this same
+  // value, so focusing a new panel automatically defocuses whichever one had it before, for free.
+  // Clamped against the current `panels` count at read time (just below) rather than reset via an
+  // effect — simpler, and a panel count change can never leave it referencing a since-removed panel.
+  const [focusedPanelIndex, setFocusedPanelIndex] = useState<number | null>(null);
   const [splitScreenMenuOpen, setSplitScreenMenuOpen] = useState(false);
   const splitScreenTriggerRef = useRef<HTMLButtonElement>(null);
   const hasWatchlists = !!watchlists && watchlists.length > 0;
@@ -391,6 +406,7 @@ export function ChartWorkspace({
   // "one config per panel" behavior unchanged.
   const rawChildren = Children.toArray(children) as ReactElement<CandlestickChartProps>[];
   const panelElements = rawChildren.length === 1 ? Array.from({ length: panels }, () => rawChildren[0]) : rawChildren.slice(0, panels);
+  const effectiveFocusedPanelIndex = focusedPanelIndex !== null && focusedPanelIndex < panels ? focusedPanelIndex : null;
   const columns = GRID_COLUMNS[panels];
   const rows = GRID_ROWS[panels];
   // Fills 100% of the viewport height whenever the caller hasn't opted into a fixed `panelHeight`
@@ -410,7 +426,13 @@ export function ChartWorkspace({
     // narrower box for free, no per-panel math needed here. `height: 100vh` (fillHeight) moves to
     // *this* outer row rather than the grid itself so the side panel stretches to the exact same
     // height via the row's own default `align-items: stretch`, not just the grid.
-    <div className={["lq-chart-workspace", className].filter(Boolean).join(" ")} style={fillHeight ? { height: "100vh" } : undefined}>
+    <div
+      className={["lq-chart-workspace", workspaceFullscreen && "lq-chart-workspace--fullscreen", className].filter(Boolean).join(" ")}
+      // Same `height: 100vh` vs. `undefined` fork CandlestickChart's own fullscreen style uses
+      // (see its own doc) — `.lq-chart-workspace--fullscreen`'s `inset` already pins all four
+      // edges, so an explicit height here would just fight it instead of matching it.
+      style={workspaceFullscreen ? undefined : fillHeight ? { height: "100vh" } : undefined}
+    >
       <div
         className="lq-chart-workspace__grid"
         style={{
@@ -448,7 +470,22 @@ export function ChartWorkspace({
             // for exactly this (see its own doc) that doesn't have that collision.
             height: panelHeight,
             fillHeight,
-            className: [child.props.className, selectedPanels.includes(i) && "lq-chart-workspace__panel--selected"].filter(Boolean).join(" ") || undefined,
+            className:
+              [
+                child.props.className,
+                selectedPanels.includes(i) && "lq-chart-workspace__panel--selected",
+                effectiveFocusedPanelIndex === i && "lq-chart-workspace__panel--focused",
+              ]
+                .filter(Boolean)
+                .join(" ") || undefined,
+            // Workspace-level knowledge a template child can't have on its own — stripped/overridden
+            // regardless of what it set, same as sidePanel below. Only shown once there's another
+            // panel to focus *away* from (panels >= 2); isFullscreen/onFullscreenChange route every
+            // panel's own toggle through the single focusedPanelIndex above instead of each panel
+            // managing its own independent viewport-covering state (see useFullscreen's own doc).
+            fullscreenToggle: panels >= 2,
+            isFullscreen: effectiveFocusedPanelIndex === i,
+            onFullscreenChange: (value: boolean) => setFocusedPanelIndex(value ? i : null),
             timeframe: i in timeframeByPanel ? timeframeByPanel[i] : child.props.timeframe,
             onTimeframeChange: (value: string) => {
               setTimeframeByPanel((prev) => ({ ...prev, [i]: value }));
@@ -587,6 +624,17 @@ export function ChartWorkspace({
             ))}
           </div>
         </Popover>
+        {/* Item 3: the whole workspace, not just one panel (see workspaceFullscreen above) — always
+            visible, same as split-screen right above it, with no panel-count precondition. */}
+        <button
+          type="button"
+          className="lq-chart__icon-button"
+          onClick={toggleWorkspaceFullscreen}
+          aria-label={workspaceFullscreen ? "Quitter le plein écran de l'espace de travail" : "Plein écran de l'espace de travail"}
+          title={workspaceFullscreen ? "Quitter le plein écran de l'espace de travail" : "Plein écran de l'espace de travail"}
+        >
+          {workspaceFullscreen ? <MinimizeIcon size={16} /> : <MaximizeIcon size={16} />}
+        </button>
       </div>
 
       <LinkGroupsModal

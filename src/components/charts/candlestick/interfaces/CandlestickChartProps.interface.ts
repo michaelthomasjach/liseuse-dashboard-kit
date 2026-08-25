@@ -40,8 +40,15 @@ export interface CandlestickChartProps {
   formatDate?: (d: Date) => string;
   formatPrice?: (v: number) => string;
   formatVolume?: (v: number) => string;
-  /** Shows a fullscreen toggle button in the header. Default true. */
+  /** Shows a fullscreen toggle button in the header ("Focus fenêtre active"). Default true. */
   fullscreenToggle?: boolean;
+  /** Controls the fullscreen toggle from outside instead of it managing its own state — pairs with
+   *  `onFullscreenChange` below. `ChartWorkspace` sets both so only one panel can be "focused" at a
+   *  time (all its panels share one piece of state, so focusing a new one supersedes whichever had
+   *  it before); a standalone chart has no reason to and keeps its self-contained internal state
+   *  instead (see `useFullscreen`). */
+  isFullscreen?: boolean;
+  onFullscreenChange?: (value: boolean) => void;
   /** Shows a header button that swaps the whole chart body for `SeasonalityView` — the average
    *  cumulative return through a reference year, aggregated across `data`'s own historical years
    *  (see `computeSeasonality` in `internal/seasonality.ts`, kept independent of this component on

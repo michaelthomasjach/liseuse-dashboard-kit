@@ -104,6 +104,8 @@ export function CandlestickChart({
   formatPrice,
   formatVolume,
   fullscreenToggle = true,
+  isFullscreen: isFullscreenProp,
+  onFullscreenChange,
   seasonality = false,
   drawingTools = false,
   defaultDrawings,
@@ -244,7 +246,9 @@ export function CandlestickChart({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const tfAnchorRef = useRef<HTMLButtonElement>(null);
   const { menuAnchorRefFor } = useDrawingToolMenuAnchors();
-  const { isFullscreen, toggle: toggleFullscreen } = useFullscreen();
+  const { isFullscreen, toggle: toggleFullscreen } = useFullscreen(
+    onFullscreenChange ? { isFullscreen: isFullscreenProp ?? false, onChange: onFullscreenChange } : undefined
+  );
   const sidePanelState = useSidePanel({ defaultSidePanelOpen, onSidePanelOpenChange });
   const baseMargin = margin ?? DEFAULT_MARGIN;
   const resolvedMargin = drawingTools

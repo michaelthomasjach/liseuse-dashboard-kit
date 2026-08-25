@@ -103,7 +103,18 @@ export function WorldExposureMap({ data, width = 480, height = 260, formatValue,
             <path
               key={String(f.id)}
               d={pathGen(f) ?? undefined}
-              className={["lq-world-map__country", hovered?.continent === continent && "lq-world-map__country--highlighted"].filter(Boolean).join(" ")}
+              // `continent !== undefined` guards the comparison below on its own, not just as an
+              // optimization — without it, a country absent from COUNTRY_CONTINENT (Kosovo, N.
+              // Cyprus, Somaliland; see its own doc) has `continent === undefined`, which then
+              // matched `hovered?.continent` (also `undefined` whenever nothing is hovered at
+              // all), permanently marking every such country "highlighted" instead of only while
+              // an actual continent is hovered.
+              className={[
+                "lq-world-map__country",
+                continent !== undefined && hovered?.continent === continent && "lq-world-map__country--highlighted",
+              ]
+                .filter(Boolean)
+                .join(" ")}
               fill={fillFor(continent)}
               onPointerEnter={(e) => continent && showTooltip(continent, e)}
               onPointerMove={(e) => continent && showTooltip(continent, e)}

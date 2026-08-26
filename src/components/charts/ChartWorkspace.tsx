@@ -9,9 +9,28 @@ import { WatchlistPanel } from "./workspace/WatchlistPanel";
 import { useSidePanel } from "./candlestick/hooks/useSidePanel";
 import { ChartSidePanel } from "./candlestick/components/ChartSidePanel";
 import { Popover } from "../forms/Popover";
-import { WatchlistIcon, BellIcon, GridIcon, MaximizeIcon, MinimizeIcon } from "../icons";
+import { Modal } from "../primitives/Modal";
+import { WatchlistIcon, BellIcon, GridIcon, MaximizeIcon, MinimizeIcon, HelpIcon } from "../icons";
 import { useFullscreen } from "./internal/useFullscreen";
 import "./ChartWorkspace.css";
+
+// Item 21 — one entry per global feature the rail's own "?" button explains, in the order they
+// read most naturally (layout, then focus, then protection) rather than the order their own
+// buttons sit in the rail.
+const HELP_ITEMS: { title: string; description: string }[] = [
+  { title: "Écran divisé", description: "Affiche 1, 2, 4, 6 ou 8 graphiques à la fois, répartis en grille." },
+  {
+    title: "Focus fenêtre active",
+    description: "Une fois plusieurs graphiques affichés, agrandit celui survolé pour qu'il occupe toute la grille — les autres restent ouverts en dessous, juste masqués. Recliquer restaure la disposition.",
+  },
+  { title: "Plein écran de l'espace de travail", description: "Fait passer l'ensemble de l'espace de travail (grille, liste de surveillance et alertes comprises) en plein écran." },
+  { title: "Graphiques liés", description: "Synchronise le curseur (survol) entre plusieurs graphiques d'un même groupe." },
+  {
+    title: "Verrouillage",
+    description:
+      "Un quadruple clic (ou plus) sur la grille la verrouille : elle s'estompe et devient protégée contre toute interaction, un curseur en forme de cadenas apparaît au survol. Un triple clic la déverrouille.",
+  },
+];
 
 // Moved here from CandlestickChart's own ChartHeader (see this file's own git history) — laying
 // out multiple panels is a workspace-wide concern, not a per-chart one, so the control for it
@@ -241,6 +260,7 @@ export function ChartWorkspace({
   // state always matches the spec (triple locks nothing it doesn't already touch; quadruple+
   // always ends locked) without tracking anything across events.
   const [workspaceLocked, setWorkspaceLocked] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   function handleGridClick(e: React.MouseEvent) {
     if (e.detail === 3) setWorkspaceLocked((locked) => (locked ? false : locked));
     else if (e.detail >= 4) setWorkspaceLocked((locked) => (locked ? locked : true));
@@ -658,7 +678,33 @@ export function ChartWorkspace({
         >
           {workspaceFullscreen ? <MinimizeIcon size={16} /> : <MaximizeIcon size={16} />}
         </button>
+        {/* Item 21 — pinned to the rail's own bottom edge (`margin-top: auto` inside a column flex
+            that already stretches to the workspace's full height, see .lq-chart-workspace__side-
+            rail) rather than just sitting last after whichever of the buttons above happened to
+            render, so it stays in the same spot regardless of how many of them are showing. */}
+        <button
+          type="button"
+          className="lq-chart__icon-button lq-chart-workspace__help-button"
+          onClick={() => setHelpOpen(true)}
+          aria-label="Aide"
+          title="Aide"
+        >
+          <HelpIcon size={16} />
+        </button>
       </div>
+
+      {helpOpen && (
+        <Modal open onClose={() => setHelpOpen(false)} title="Fonctionnalités de l'espace de travail">
+          <div className="lq-chart-workspace__help-list">
+            {HELP_ITEMS.map((item) => (
+              <div className="lq-chart-workspace__help-item" key={item.title}>
+                <p className="lq-chart-workspace__help-item-title">{item.title}</p>
+                <p className="lq-chart__indicator-info-text">{item.description}</p>
+              </div>
+            ))}
+          </div>
+        </Modal>
+      )}
 
       <LinkGroupsModal
         open={linkModalOpen}

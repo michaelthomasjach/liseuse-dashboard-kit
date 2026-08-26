@@ -577,6 +577,27 @@
   box-shadow: inset 0 0 0 2px var(--lq-color-accent);
 }
 
+/* Item 21 — pins the "?" button to the rail's own bottom edge regardless of how many of the
+   buttons above it are actually showing (watchlist/alerts are each conditional on
+   hasWatchlists/hasAlerts) — the rail itself already stretches to the workspace's full height via
+   the outer row's default `align-items: stretch`, so `margin-top: auto` on this one button alone
+   is enough to push it all the way down without needing to touch the rail's own layout. */
+.lq-chart-workspace__help-button {
+  margin-top: auto;
+}
+
+.lq-chart-workspace__help-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lq-space-4);
+}
+
+.lq-chart-workspace__help-item-title {
+  margin: 0 0 var(--lq-space-1);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
 /* Item 2: a "focused" panel (see ChartWorkspace.tsx's own focusedPanelIndex) takes over the whole
    grid's own area instead of the viewport CandlestickChart's plain `.lq-chart--fullscreen` covers
    standalone — chained onto that same class (not a replacement for it) so the focused panel still

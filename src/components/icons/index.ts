@@ -39,6 +39,7 @@ export {
   CalendarIcon,
   ErrorIcon,
   InfoIcon,
+  HelpIcon,
   ArrowUpIcon,
   ArrowDownIcon,
   MenuIcon,

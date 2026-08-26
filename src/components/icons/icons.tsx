@@ -299,6 +299,16 @@ export const InfoIcon = (props: IconProps) => (
   </IconBase>
 );
 
+/** Same circle + stem + dot shape as InfoIcon above, a curved question-mark stem instead of a
+ *  straight one — "how do I use this" rather than "here's a fact about what you're looking at". */
+export const HelpIcon = (props: IconProps) => (
+  <IconBase {...props}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M9.5 9.2a2.6 2.6 0 0 1 5 1c0 1.7-2.5 2.2-2.5 3.6" />
+    <circle cx="12" cy="16.7" r="0.15" fill="currentColor" stroke="none" />
+  </IconBase>
+);
+
 export const ArrowUpIcon = (props: IconProps) => (
   <IconBase {...props}>
     <path d="M12 19V5M6 10.5 12 5l6 5.5" />

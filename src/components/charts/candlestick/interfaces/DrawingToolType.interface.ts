@@ -20,6 +20,7 @@ export type DrawingToolType =
   | "arrowLine"
   | "zones"
   | "headShoulders"
+  | "cupHandle"
   | "forecast"
   | "rangeForecast"
   | "longPosition"

@@ -95,6 +95,7 @@ export {
   ArrowLineIcon,
   ZonesIcon,
   HeadShouldersIcon,
+  CupHandleIcon,
   ForecastIcon,
   RangeForecastIcon,
   LongPositionIcon,

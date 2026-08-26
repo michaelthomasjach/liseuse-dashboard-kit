@@ -14,6 +14,7 @@ import { defaultIndicatorColor } from "../indicatorCatalog";
 import { drawPitchforkDrawings } from "./drawPitchfork";
 import { drawRangeForecastDrawings } from "./drawRangeForecast";
 import { drawHeadShouldersDrawings } from "./drawHeadShoulders";
+import { drawCupHandleDrawings } from "./drawCupHandle";
 import { drawLongShortPositionDrawings } from "./drawLongShortPosition";
 import { drawTextAndCommentDrawings } from "./drawTextAndComment";
 import { drawNoteDrawings } from "./drawNote";
@@ -92,6 +93,7 @@ export function drawPriceDrawings(ctx: CanvasRenderingContext2D, params: RenderC
         dr.lineType === "priceLabel" ||
         dr.lineType === "table" ||
         dr.lineType === "headShoulders" ||
+        dr.lineType === "cupHandle" ||
         PITCHFORK_LINE_TYPES.has(dr.lineType ?? "") ||
         // Its x1/y1/x2/y2 aren't real coordinates (see the lineType's own doc comment) — just
         // the overlay's own first/last raw points, unrelated to the main series' price space.
@@ -510,6 +512,7 @@ export function drawPriceDrawings(ctx: CanvasRenderingContext2D, params: RenderC
     drawPriceLabelDrawings(ctx, params, style);
     drawTableDrawings(ctx, params, style);
     drawHeadShouldersDrawings(ctx, params, style);
+    drawCupHandleDrawings(ctx, params, style);
 
     if (activeTool && pendingPoint && previewPoint) {
       ctx.save();

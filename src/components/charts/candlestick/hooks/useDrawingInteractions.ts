@@ -521,7 +521,7 @@ export function useDrawingInteractions({
           // own doc), guaranteed by `multiPoint` above — narrower than what TS can infer just from
           // the (wider-keyed) lookup being truthy.
           lineType: activeTool as
-            | "fibonacciExtension" | "elliottCorrection" | "elliottImpulse" | "headShoulders"
+            | "fibonacciExtension" | "elliottCorrection" | "elliottImpulse" | "headShoulders" | "cupHandle"
             | "pitchfork" | "schiffPitchfork" | "modifiedSchiffPitchfork" | "insidePitchfork" | "rangeForecast",
           extraPoints: nextExtra,
         },

@@ -20,6 +20,7 @@ import {
   MeasureIcon,
   OverlayBadgeIcon,
   HeadShouldersIcon,
+  CupHandleIcon,
   ForecastIcon,
   RangeForecastIcon,
   LongPositionIcon,
@@ -72,6 +73,14 @@ export const MULTI_POINT_TOOLS: Partial<Record<DrawingToolType, { extraPoints: n
   // paired with point 1 to derive the neckline — see drawHeadShoulders.ts), 6 (Épaule droite), 7
   // (the pattern's own confirmation point — below the neckline there confirms the breakout).
   headShoulders: { extraPoints: 5, labels: ["Point 1", "Épaule gauche", "Creux 1", "Tête", "Creux 2", "Épaule droite", "Point 7"] },
+  // The pattern's own 5 points, per the user's own definitions: A début de la tasse, B fond de la
+  // tasse, C fin de la tasse / début de l'anse, D fond de l'anse, E fin de l'anse. Reaches the
+  // generic multiPoint click-collection branch in useDrawingInteractions.ts same as every other
+  // entry here except headShoulders/disjointChannel/rangeForecast/longPosition/shortPosition
+  // (each excluded from it for its own reason — see their own doc above); cupHandle has no such
+  // reason (no computed point, no special preview beyond the generic polyline-to-cursor one) so
+  // it needs nothing beyond this entry.
+  cupHandle: { extraPoints: 3, labels: ["A — Début de la tasse", "B — Fond de la tasse", "C — Fin de la tasse / début de l'anse", "D — Fond de l'anse", "E — Fin de l'anse"] },
   // The 3 pitchfork points — labeled A/B/C to match the standard Andrews' Pitchfork reference
   // diagrams (and the same lettering drawPitchfork.ts itself now draws next to each point on the
   // chart). A (x1/y1) is the handle every variant's own median starts from or targets; B/C (x2/y2,
@@ -115,6 +124,9 @@ export const ELLIOTT_CORRECTION_VERTEX_LABELS = ["0", "A", "B", "C"];
 // from the green pill badges drawHeadShoulders.ts also draws over the 3 peaks specifically
 // (indices 1/3/5: Épaule gauche/Tête/Épaule droite), which name those three, not every vertex.
 export const HEAD_SHOULDERS_VERTEX_LABELS = ["1", "2", "3", "4", "5", "6", "7"];
+// Cup & Handle's own 5 vertices, drawn directly on the chart next to each point — the letters the
+// user's own definitions use (A/B/C/D/E), not plain numbers like Head & Shoulders' above.
+export const CUP_HANDLE_VERTEX_LABELS = ["A", "B", "C", "D", "E"];
 
 export interface DrawingToolDef {
   type: DrawingToolType;
@@ -190,6 +202,7 @@ export const DRAWING_TOOL_CATEGORIES: DrawingToolCategory[] = [
       { type: "elliottImpulse", label: "Vague d'Elliott (impulsive)", icon: ElliottImpulseIcon },
       { type: "elliottCorrection", label: "Vague d'Elliott (correctrice)", icon: ElliottCorrectionIcon },
       { type: "headShoulders", label: "ETE (Épaule-Tête-Épaule)", icon: HeadShouldersIcon },
+      { type: "cupHandle", label: "Tasse avec anse", icon: CupHandleIcon },
     ],
   },
   {

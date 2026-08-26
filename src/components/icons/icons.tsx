@@ -772,6 +772,17 @@ export const HeadShouldersIcon = (props: IconProps) => (
   </IconBase>
 );
 
+/** Same "dashed reference line + solid vertex-to-vertex polyline" shape as HeadShouldersIcon
+ *  above — the dashed line marks the cup's own rim level (A/C), the polyline traces its 5 points
+ *  (A start of cup, B bottom of cup, C end of cup / start of handle, D bottom of handle, E end of
+ *  handle) in order. */
+export const CupHandleIcon = (props: IconProps) => (
+  <IconBase {...props}>
+    <path d="M2 6h19" strokeDasharray="2.5 2.5" />
+    <path d="M2 6 7 16 12 6 16 10 21 7" />
+  </IconBase>
+);
+
 /** A curved (not straight) arrow from a dot to an arrowhead — distinguishing this from
  *  TrendLineIcon's own straight diagonal, matching the tool's actual curved-projection line. */
 export const ForecastIcon = (props: IconProps) => (

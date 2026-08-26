@@ -68,9 +68,17 @@ export function distanceToDrawing(dr: TrendLineDrawing, mouseX: number, mouseY: 
       })
     );
   }
-  if (dr.lineType === "elliottImpulse" || dr.lineType === "elliottCorrection" || dr.lineType === "brush" || dr.lineType === "elbowArrow" || dr.lineType === "headShoulders") {
+  if (
+    dr.lineType === "elliottImpulse" ||
+    dr.lineType === "elliottCorrection" ||
+    dr.lineType === "brush" ||
+    dr.lineType === "elbowArrow" ||
+    dr.lineType === "headShoulders" ||
+    dr.lineType === "cupHandle"
+  ) {
     // Same "polyline through every point" distance for a freehand stroke, an open-ended
-    // elbow-arrow polyline, or an Elliott wave's/Head & Shoulders' own fixed vertices.
+    // elbow-arrow polyline, or an Elliott wave's/Head & Shoulders'/Cup & Handle's own fixed
+    // vertices.
     const screenPoints = allPointsOf(dr).map((p) => ({ x: zoomedXScale(indexForDate(p.x) + 0.5), y: zoomedPriceScale(p.y) }));
     let minSegmentDist = Infinity;
     for (let i = 1; i < screenPoints.length; i++) {

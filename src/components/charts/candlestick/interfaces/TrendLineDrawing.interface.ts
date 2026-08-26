@@ -205,6 +205,7 @@ export interface TrendLineDrawing {
     | "arrowDown"
     | "zones"
     | "headShoulders"
+    | "cupHandle"
     | "forecast"
     | "rangeForecast"
     | "longPosition"
@@ -238,7 +239,8 @@ export interface TrendLineDrawing {
    *  needs 1 (its 3rd point), "elliottCorrection" 2, "elliottImpulse" 4, "disjointChannel" 2
    *  (line 2's own two points — see `lineType` above for how they're derived), "headShoulders" 5
    *  (points 3 through 7 — see `lineType` above for the pattern's own full 7-point shape and how
-   *  its neckline is derived from points 1/5), every pitchfork variant 1 (P2), "rangeForecast" 1
+   *  its neckline is derived from points 1/5), "cupHandle" 3 (points C through E — see `lineType`
+   *  above for the pattern's own full 5-point shape), every pitchfork variant 1 (P2), "rangeForecast" 1
    *  (its own Min — see `lineType` above for how it and x2/y2's own Max are first derived).
    *  Unused otherwise. */
   extraPoints?: { x: Date; y: number }[];

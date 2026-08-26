@@ -536,10 +536,22 @@
   color: var(--lq-color-text-muted);
 }
 
+/* Wraps a tool-menu-option button and its own info-icon button (see ToolsRail.tsx) — the same
+   "row holding a select-button plus a separate info button as siblings" shape
+   .lq-chart__indicator-picker-option already uses for the indicator picker, mirrored here now
+   that drawing tools get the same info affordance (item 9). */
+.lq-chart__tool-menu-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .lq-chart__tool-menu-option {
   display: flex;
   align-items: center;
   gap: var(--lq-space-2);
+  flex: 1;
+  min-width: 0;
   padding: 6px 8px;
   font-family: inherit;
   font-size: 0.8rem;
@@ -1786,6 +1798,19 @@
   font-size: 0.85rem;
   line-height: 1.5;
   color: var(--lq-color-text);
+}
+
+/* The small explanatory diagram above an indicator's/drawing tool's own description text (see
+   DiagramPrimitives.tsx's own InfoDiagram) — a background/border so it reads as its own distinct
+   panel rather than floating directly on the modal's own background. */
+.lq-chart__info-diagram {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 150px;
+  padding: var(--lq-space-2) 0;
+  background-color: var(--lq-color-hover);
+  border-radius: var(--lq-radius-sm);
 }
 
 /* The "Gérer les indicateurs" modal — reuses .lq-chart__indicator-picker-group/-group-label

@@ -12,6 +12,8 @@ import { AlertListModal } from "./AlertListModal";
 import type { AlertListModalProps } from "./AlertListModal";
 import { CorrelationSetupModal } from "./CorrelationSetupModal";
 import type { CorrelationSetupModalProps } from "./CorrelationSetupModal";
+import { DrawingToolInfoModal } from "./DrawingToolInfoModal";
+import type { DrawingToolInfoModalProps } from "./DrawingToolInfoModal";
 
 export type ChartModalsProps = DrawingEditModalProps &
   IndicatorModalsProps &
@@ -19,7 +21,8 @@ export type ChartModalsProps = DrawingEditModalProps &
   SymbolSearchModalProps &
   AlertCreateModalProps &
   AlertListModalProps &
-  CorrelationSetupModalProps;
+  CorrelationSetupModalProps &
+  DrawingToolInfoModalProps;
 
 /** Every modal `CandlestickChart` itself owns (drawing edit, indicator picker/manager/settings,
  *  chart/volume settings, symbol search, alert creation), grouped into one component purely to
@@ -36,6 +39,7 @@ export function ChartModals(props: ChartModalsProps) {
       <AlertCreateModal {...props} />
       <AlertListModal {...props} />
       <CorrelationSetupModal {...props} />
+      <DrawingToolInfoModal {...props} />
     </>
   );
 }

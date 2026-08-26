@@ -38,24 +38,7 @@ import { ChartEventTooltip } from "./EventTooltip";
 import { SeasonalityView } from "./SeasonalityView";
 import "./charts-shared.css";
 
-import type { Candle } from "./candlestick/interfaces/Candle.interface";
-import type { ChartEvent } from "./candlestick/interfaces/ChartEvent.interface";
-import type { FundamentalDataPoint } from "./candlestick/interfaces/FundamentalDataPoint.interface";
-import type { SymbolSearchCategory } from "./candlestick/interfaces/SymbolSearchCategory.interface";
-import type { SymbolSearchResult } from "./candlestick/interfaces/SymbolSearchResult.interface";
-import type { TrendLineDrawing, OverlayDataPoint } from "./candlestick/interfaces/TrendLineDrawing.interface";
-import type { IndicatorKind } from "./candlestick/interfaces/IndicatorKind.interface";
-import type { IndicatorBand } from "./candlestick/interfaces/IndicatorBand.interface";
-import type { IndicatorMACD } from "./candlestick/interfaces/IndicatorMACD.interface";
-import type { Indicator } from "./candlestick/interfaces/Indicator.interface";
-import type { CustomIndicatorDef } from "./candlestick/interfaces/CustomIndicatorDef.interface";
-import type { ChartTemplate } from "./candlestick/interfaces/ChartTemplate.interface";
-import type { ChartDisplayMode } from "./candlestick/interfaces/ChartDisplayMode.interface";
-import type { TimeframeOption } from "./candlestick/interfaces/TimeframeOption.interface";
-import type { TimeframeGroup } from "./candlestick/interfaces/TimeframeGroup.interface";
-import type { TimeframeEntry } from "./candlestick/interfaces/TimeframeEntry.interface";
-import type { CandlestickChartProps } from "./candlestick/interfaces/CandlestickChartProps.interface";
-import type { ChartAlert, ChartAlertDraft, ChartAlertCrossing } from "./candlestick/interfaces/ChartAlertDraft.interface";
+import type { CandlestickChartProps } from "./CandlestickChart.types";
 
 export type {
   Candle,
@@ -76,7 +59,7 @@ export type {
   TimeframeGroup,
   TimeframeEntry,
   CandlestickChartProps, ChartAlert, ChartAlertDraft, ChartAlertCrossing,
-};
+} from "./CandlestickChart.types";
 
 import { drawingLabel } from "./candlestick/drawingCatalog";
 import { indicatorCatalogEntry, indicatorLabel, defaultIndicatorColor } from "./candlestick/indicatorCatalog";
@@ -158,6 +141,8 @@ export function CandlestickChart({
     selectedToolByCategory,
     openToolMenu,
     setOpenToolMenu,
+    infoTool,
+    setInfoTool,
     pendingPoint,
     setPendingPoint,
     previewPoint,
@@ -282,13 +267,14 @@ export function CandlestickChart({
     plotWidth: dims.boundedWidth,
   });
   const alertFlow = useAlertFlow(alerts ?? [], selectedDrawingId);
-  const [infoKind, setInfoKind] = useState<IndicatorKind | "volume" | null>(null);
   const {
     indicators,
     indicatorPickerOpen,
     setIndicatorPickerOpen,
     indicatorSearchQuery,
     setIndicatorSearchQuery,
+    infoKind,
+    setInfoKind,
     editingIndicatorId,
     indicatorDraft,
     setIndicatorDraft,
@@ -727,6 +713,7 @@ export function CandlestickChart({
           setHiddenEventKinds={setHiddenEventKinds}
           indicatorsManagerOpen={indicatorsManagerOpen}
           setIndicatorsManagerOpen={setIndicatorsManagerOpen}
+          onOpenToolInfo={setInfoTool}
         />
         <ChartLegend
           dims={dims}
@@ -933,6 +920,7 @@ export function CandlestickChart({
         defaultColor={defaultDrawingColor}
         indicatorPickerOpen={indicatorPickerOpen} setIndicatorPickerOpen={setIndicatorPickerOpen}
         infoKind={infoKind} setInfoKind={setInfoKind}
+        infoTool={infoTool} setInfoTool={setInfoTool}
         indicatorSearchQuery={indicatorSearchQuery} setIndicatorSearchQuery={setIndicatorSearchQuery}
         showVolume={showVolume}
         setVolumePaneState={setVolumePaneState}

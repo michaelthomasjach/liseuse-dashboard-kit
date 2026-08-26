@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as d3 from "d3";
 import type { Indicator } from "../interfaces/Indicator.interface";
+import type { IndicatorKind } from "../interfaces/IndicatorKind.interface";
 import type { CustomIndicatorDef } from "../interfaces/CustomIndicatorDef.interface";
 import type { IndicatorCatalogEntry } from "../indicatorCatalog";
 import { indicatorCatalogEntry } from "../indicatorCatalog";
@@ -28,6 +29,12 @@ export function usePaneLayout({ defaultIndicators, onIndicatorsChange, showVolum
   const [indicators, setIndicators] = useState<Indicator[]>(defaultIndicators ?? []);
   const [indicatorPickerOpen, setIndicatorPickerOpen] = useState(false);
   const [indicatorSearchQuery, setIndicatorSearchQuery] = useState("");
+  // Which indicator's own "how this works" info modal is open (see INDICATOR_DESCRIPTIONS) — "volume"
+  // included since it gets the same info affordance despite not being an Indicator entry itself
+  // (see IndicatorModals.tsx's own onOpenIndicatorInfo doc). Lives here (not a local useState in
+  // CandlestickChart.tsx, which is why it moved) since it's squarely part of this hook's own
+  // indicator-related state cluster, not a reason of its own.
+  const [infoKind, setInfoKind] = useState<IndicatorKind | "volume" | null>(null);
   const [editingIndicatorId, setEditingIndicatorId] = useState<string | null>(null);
   const [indicatorDraft, setIndicatorDraft] = useState<Indicator | null>(null);
   const [hoveredIndicatorId, setHoveredIndicatorId] = useState<string | null>(null);
@@ -354,6 +361,8 @@ export function usePaneLayout({ defaultIndicators, onIndicatorsChange, showVolum
     setIndicatorPickerOpen,
     indicatorSearchQuery,
     setIndicatorSearchQuery,
+    infoKind,
+    setInfoKind,
     editingIndicatorId,
     setEditingIndicatorId,
     indicatorDraft,

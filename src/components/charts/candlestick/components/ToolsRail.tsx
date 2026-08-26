@@ -2,7 +2,7 @@ import { Fragment, useRef, useState } from "react";
 import type { RefObject, Dispatch, SetStateAction } from "react";
 import { Popover } from "../../../forms/Popover";
 import { Checkbox } from "../../../forms/Checkbox";
-import { ChevronDownIcon, MagnetIcon, EyeIcon, EyeOffIcon, LockIcon, BellIcon, LayersIcon, ZoomInIcon, ZoomOutIcon } from "../../../icons";
+import { ChevronDownIcon, MagnetIcon, EyeIcon, EyeOffIcon, LockIcon, BellIcon, LayersIcon, ZoomInIcon, ZoomOutIcon, InfoIcon } from "../../../icons";
 import type { DrawingToolType } from "../interfaces/DrawingToolType.interface";
 import { DRAWING_TOOL_CATEGORIES } from "../drawingCatalog";
 import { capitalize } from "../formatting";
@@ -32,6 +32,7 @@ export interface ToolsRailProps {
   setHiddenEventKinds: Dispatch<SetStateAction<Set<string>>>;
   indicatorsManagerOpen: boolean;
   setIndicatorsManagerOpen: Dispatch<SetStateAction<boolean>>;
+  onOpenToolInfo: (tool: DrawingToolType) => void;
 }
 
 /** The left-docked drawing-tools rail (`drawingTools` prop): one button + chevron + flyout menu
@@ -67,6 +68,7 @@ export function ToolsRail({
   setHiddenEventKinds,
   indicatorsManagerOpen,
   setIndicatorsManagerOpen,
+  onOpenToolInfo,
 }: ToolsRailProps) {
   const [eventsMenuOpen, setEventsMenuOpen] = useState(false);
   const eventsMenuAnchorRef = useRef<HTMLButtonElement>(null);
@@ -141,16 +143,26 @@ export function ToolsRail({
                         return (
                           <Fragment key={opt.type}>
                             {showDivider && <div className="lq-chart__tool-menu-divider" aria-hidden="true" />}
-                            <button
-                              type="button"
-                              className={["lq-chart__tool-menu-option", opt.type === selectedType && "lq-chart__tool-menu-option--selected"]
-                                .filter(Boolean)
-                                .join(" ")}
-                              onClick={() => handleSelectToolType(opt.type)}
-                            >
-                              <OptionIcon size={14} />
-                              {opt.label}
-                            </button>
+                            <div className="lq-chart__tool-menu-row">
+                              <button
+                                type="button"
+                                className={["lq-chart__tool-menu-option", opt.type === selectedType && "lq-chart__tool-menu-option--selected"]
+                                  .filter(Boolean)
+                                  .join(" ")}
+                                onClick={() => handleSelectToolType(opt.type)}
+                              >
+                                <OptionIcon size={14} />
+                                {opt.label}
+                              </button>
+                              <button
+                                type="button"
+                                className="lq-chart__pane-header-action"
+                                onClick={() => onOpenToolInfo(opt.type)}
+                                aria-label={`À propos de ${opt.label}`}
+                              >
+                                <InfoIcon size={13} />
+                              </button>
+                            </div>
                           </Fragment>
                         );
                       })}
@@ -177,15 +189,30 @@ export function ToolsRail({
           const measureTool = DRAWING_TOOL_CATEGORIES.find((c) => c.id === "measure")!.tools[0];
           const MeasureToolIcon = measureTool.icon;
           return (
-            <button
-              type="button"
-              className={["lq-chart__icon-button", activeTool === "measure" && "lq-chart__icon-button--active"].filter(Boolean).join(" ")}
-              onClick={() => handleToolClick("measure")}
-              aria-label={measureTool.label}
-              aria-pressed={activeTool === "measure"}
-            >
-              <MeasureToolIcon size={14} />
-            </button>
+            <div className="lq-chart__tool-group">
+              <button
+                type="button"
+                className={["lq-chart__icon-button", activeTool === "measure" && "lq-chart__icon-button--active"].filter(Boolean).join(" ")}
+                onClick={() => handleToolClick("measure")}
+                aria-label={measureTool.label}
+                aria-pressed={activeTool === "measure"}
+              >
+                <MeasureToolIcon size={14} />
+              </button>
+              {/* No chevron/popover for this one (guaranteed single-tool, see this block's own
+                  doc above) — reuses the chevron's own corner-badge positioning/hover-reveal
+                  (see .lq-chart__tool-chevron) rather than a plain adjacent button, which would
+                  just flow as its own extra icon in the rail's narrow single-column layout
+                  instead of overlaying the button it belongs to. */}
+              <button
+                type="button"
+                className="lq-chart__tool-chevron"
+                onClick={() => onOpenToolInfo("measure")}
+                aria-label={`À propos de ${measureTool.label}`}
+              >
+                <InfoIcon size={8} />
+              </button>
+            </div>
           );
         })()}
         {/* A persistent modifier, not a tool of its own — stays on across tool switches

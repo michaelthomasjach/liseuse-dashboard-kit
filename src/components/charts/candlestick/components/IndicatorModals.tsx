@@ -12,6 +12,7 @@ import type { IndicatorKind } from "../interfaces/IndicatorKind.interface";
 import type { CustomIndicatorDef } from "../interfaces/CustomIndicatorDef.interface";
 import { INDICATOR_CATALOG, type IndicatorCatalogEntry, indicatorCatalogEntry, indicatorLabel, defaultIndicatorColor } from "../indicatorCatalog";
 import { INDICATOR_DESCRIPTIONS, VOLUME_DESCRIPTION } from "../indicatorDescriptions";
+import { INDICATOR_DIAGRAMS } from "../diagrams/indicatorDiagramRegistry";
 import { toDateInputValue, fromDateInputValue } from "../formatting";
 import { drawingToolMeta, drawingLabel } from "../drawingCatalog";
 
@@ -324,8 +325,12 @@ export function IndicatorModals({
         (() => {
           const title = infoKind === "volume" ? "Volume" : (INDICATOR_CATALOG.find((entry) => entry.kind === infoKind)?.label ?? infoKind);
           const description = infoKind === "volume" ? VOLUME_DESCRIPTION : INDICATOR_DESCRIPTIONS[infoKind];
+          // "volume" has no diagram of its own — same reasoning it has no INDICATOR_DIAGRAMS
+          // entry as a plain number/IndicatorKind lookup: it isn't one.
+          const Diagram = infoKind === "volume" ? undefined : INDICATOR_DIAGRAMS[infoKind];
           return (
             <Modal open onClose={() => setInfoKind(null)} title={title}>
+              {Diagram && <Diagram />}
               <p className="lq-chart__indicator-info-text">{description}</p>
             </Modal>
           );

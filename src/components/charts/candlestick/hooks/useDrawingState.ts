@@ -37,6 +37,11 @@ export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAdd
   );
   // Which category's dropdown is open, if any — at most one at a time.
   const [openToolMenu, setOpenToolMenu] = useState<string | null>(null);
+  // Which drawing tool's own "how this works" info modal is open (see DRAWING_TOOL_DESCRIPTIONS
+  // and DrawingToolInfoModal) — the tool-picker equivalent of usePaneLayout's own `infoKind` for
+  // indicators, living here instead for the same reason: squarely part of this hook's own
+  // tool-related state cluster.
+  const [infoTool, setInfoTool] = useState<DrawingToolType | null>(null);
   const [pendingPoint, setPendingPoint] = useState<DataPoint | null>(null);
   const [previewPoint, setPreviewPoint] = useState<DataPoint | null>(null);
   // "channel"'s second point (fixing line 1), set between the tool's 2nd and 3rd clicks — plain
@@ -464,6 +469,8 @@ export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAdd
     setSelectedToolByCategory,
     openToolMenu,
     setOpenToolMenu,
+    infoTool,
+    setInfoTool,
     pendingPoint,
     setPendingPoint,
     previewPoint,

@@ -1,11 +1,12 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 
 export interface UseWatchlistSectionDragArgs {
-  /** The active list's own current section order (ids) — read fresh on every reorder step (not
-   *  captured once at drag start) so a single continuous drag can hop across more than one
-   *  neighbor correctly, same reasoning `usePaneDragReorder`'s own `allPanesOrder` re-subscribes
-   *  on every change instead of freezing the layout from before the drag began. */
+  /** The active list's own current section order (ids). Only ever read at drag start/drop time
+   *  (see `startDrag` below) — unlike the row-drag/pane-reorder gestures this now otherwise
+   *  mirrors, nothing here needs to keep re-reading a *changing* order mid-drag, since (also like
+   *  `useWatchlistRowDrag`) nothing about the order actually changes until the pointer is
+   *  released. */
   sectionOrder: string[];
   onReorder: ((newOrder: string[]) => void) | undefined;
 }
@@ -14,35 +15,67 @@ export interface UseWatchlistSectionDragArgs {
 // nothing else already couples these two modules.
 const DRAG_THRESHOLD = 4;
 
-/** Drag a watchlist section (from anywhere on its header, not just its own grip handle — a plain
- *  click still toggles collapse as usual, only actually starting a visible drag once the pointer
- *  travels past `DRAG_THRESHOLD`) to reorder it among the list's other sections — live, splicing
- *  on every neighbor crossed rather than only committing on drop (same feel as
- *  `usePaneDragReorder`'s pane reordering, which this mirrors: closest section by its own
- *  header's vertical *midpoint*, not "pointer inside its full range," so a drag past a much
- *  taller neighbor still swaps as soon as it crosses halfway). A different shape than
- *  `useWatchlistRowDrag` on purpose — that one moves a row *between* containers (coarse "which
- *  zone did you drop it on" is enough), this reorders entries *within* one already-flat list
- *  (needs a precise position, not just a zone). Each section header carries
- *  `data-watchlist-section-id` for this to query directly (see WatchlistPanel.tsx). Split into a
- *  small "arming" listener (below, promotes to `draggingSectionId` past the threshold) plus the
- *  main effect (unchanged from before) rather than one continuous handler, since the main effect
- *  needs to keep re-subscribing to the *current* `sectionOrder` as it changes mid-drag — a plain
- *  closure captured once at pointerdown, like the arming listener uses, would go stale the moment
- *  the first live reorder happened. */
+/**
+ * Drag a watchlist section (from anywhere on its header, not just its own grip handle — a plain
+ * click still toggles collapse as usual, only actually starting a visible drag once the pointer
+ * travels past `DRAG_THRESHOLD`) onto a precise position among the list's other sections — same
+ * gesture shape as `useWatchlistRowDrag`'s own (a live drop-indicator line previews where it will
+ * land; nothing reorders until the pointer is actually released), rather than the live-splicing
+ * "swap as soon as you cross a neighbor's midpoint" this used to do — deliberately matched to
+ * row-drag's own feel since a section is still just one more thing being dragged in the exact same
+ * list, and every symbol/row it contains already moves with it for free (it owns its own `rows`
+ * array — see `ChartWorkspaceWatchlistSection`'s own doc — so reordering the *section* is already
+ * reordering everything inside it, no extra plumbing needed here for that part). `pressedSectionId`
+ * is set the instant `startDrag` fires (pointerdown), before any movement at all — purely a
+ * "you're now holding this section" visual cue, same distinction row-drag's own `pressedRowId`
+ * draws from `draggingRowId`.
+ */
 export function useWatchlistSectionDrag({ sectionOrder, onReorder }: UseWatchlistSectionDragArgs) {
+  const [pressedSectionId, setPressedSectionId] = useState<string | null>(null);
   const [draggingSectionId, setDraggingSectionId] = useState<string | null>(null);
+  const [dropIndex, setDropIndex] = useState<number | null>(null);
 
   function startDrag(sectionId: string, e: ReactPointerEvent) {
     const startX = e.clientX;
     const startY = e.clientY;
+    let dragging = false;
+    let indicatorIndex: number | null = null;
+    setPressedSectionId(sectionId);
+
+    // Where `sectionId` would land if dropped right now — the first other section whose own
+    // header midpoint is still below the pointer, or the end of the list past every one of them.
+    // The dragged section's own header is excluded (same reasoning `useWatchlistRowDrag`'s own
+    // `computeIndicator` excludes the dragged row) so the index is always relative to "the list
+    // without it".
+    function computeDropIndex(ev: PointerEvent): number {
+      const headers = Array.from(document.querySelectorAll<HTMLElement>("[data-watchlist-section-id]")).filter(
+        (el) => el.dataset.watchlistSectionId !== sectionId
+      );
+      for (let i = 0; i < headers.length; i++) {
+        const rect = headers[i].getBoundingClientRect();
+        if (ev.clientY < rect.top + rect.height / 2) return i;
+      }
+      return headers.length;
+    }
+
     function onPointerMove(ev: PointerEvent) {
-      if (Math.hypot(ev.clientX - startX, ev.clientY - startY) < DRAG_THRESHOLD) return;
-      window.removeEventListener("pointermove", onPointerMove);
-      window.removeEventListener("pointerup", onPointerUp);
-      setDraggingSectionId(sectionId);
+      if (!dragging) {
+        if (Math.hypot(ev.clientX - startX, ev.clientY - startY) < DRAG_THRESHOLD) return;
+        dragging = true;
+        setDraggingSectionId(sectionId);
+      }
+      indicatorIndex = computeDropIndex(ev);
+      setDropIndex(indicatorIndex);
     }
     function onPointerUp() {
+      if (dragging && indicatorIndex !== null) {
+        const next = sectionOrder.filter((id) => id !== sectionId);
+        next.splice(indicatorIndex, 0, sectionId);
+        onReorder?.(next);
+      }
+      setPressedSectionId(null);
+      setDraggingSectionId(null);
+      setDropIndex(null);
       window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("pointerup", onPointerUp);
     }
@@ -50,40 +83,5 @@ export function useWatchlistSectionDrag({ sectionOrder, onReorder }: UseWatchlis
     window.addEventListener("pointerup", onPointerUp);
   }
 
-  useEffect(() => {
-    if (!draggingSectionId) return;
-    const draggedId = draggingSectionId;
-    function onMove(ev: PointerEvent) {
-      const headers = document.querySelectorAll<HTMLElement>("[data-watchlist-section-id]");
-      let targetId: string | null = null;
-      let bestDist = Infinity;
-      headers.forEach((el) => {
-        const rect = el.getBoundingClientRect();
-        const dist = Math.abs(ev.clientY - (rect.top + rect.height / 2));
-        if (dist < bestDist) {
-          bestDist = dist;
-          targetId = el.dataset.watchlistSectionId ?? null;
-        }
-      });
-      if (!targetId) return;
-      const fromIdx = sectionOrder.indexOf(draggedId);
-      const targetIdx = sectionOrder.indexOf(targetId);
-      if (fromIdx === -1 || targetIdx === -1 || fromIdx === targetIdx) return;
-      const next = [...sectionOrder];
-      next.splice(fromIdx, 1);
-      next.splice(targetIdx, 0, draggedId);
-      onReorder?.(next);
-    }
-    function onUp() {
-      setDraggingSectionId(null);
-    }
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
-    return () => {
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
-    };
-  }, [draggingSectionId, sectionOrder, onReorder]);
-
-  return { draggingSectionId, startDrag };
+  return { pressedSectionId, draggingSectionId, dropIndex, startDrag };
 }

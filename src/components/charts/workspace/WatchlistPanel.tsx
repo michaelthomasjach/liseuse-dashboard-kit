@@ -137,7 +137,7 @@ export function WatchlistPanel({
         }
       : undefined,
   });
-  const { draggingSectionId, startDrag: startSectionDrag } = useWatchlistSectionDrag({
+  const { pressedSectionId, draggingSectionId, dropIndex: sectionDropIndex, startDrag: startSectionDrag } = useWatchlistSectionDrag({
     sectionOrder: activeWatchlist.sections?.map((s) => s.id) ?? [],
     onReorder: onReorderSections ? (order) => onReorderSections(activeWatchlist.id, order) : undefined,
   });
@@ -328,6 +328,70 @@ export function WatchlistPanel({
     return nodes;
   }
 
+  function renderSection(section: ChartWorkspaceWatchlistSection) {
+    const collapsed = collapsedSectionIds.has(section.id);
+    return (
+      <div key={section.id}>
+        <div
+          className={[
+            "lq-chart-workspace__watchlist-section-header",
+            pressedSectionId === section.id && "lq-chart-workspace__watchlist-row--pressed",
+            draggingSectionId === section.id && "lq-chart-workspace__watchlist-row--dragging",
+          ]
+            .filter(Boolean)
+            .join(" ")}
+          data-watchlist-section-id={section.id}
+          onPointerDown={onReorderSections ? (e) => startSectionDrag(section.id, e) : undefined}
+          {...watchlistDropZoneProps(section.id)}
+        >
+          {/* No onPointerDown of its own — sitting inside the header div above, its
+              press already bubbles up to that div's own handler, which is exactly the
+              same startSectionDrag call this would otherwise duplicate. */}
+          {onReorderSections && (
+            <span className="lq-chart-workspace__watchlist-grip" aria-hidden="true">
+              <GripIcon size={12} />
+            </span>
+          )}
+          <button type="button" className="lq-chart-workspace__watchlist-section-toggle" onClick={() => toggleSectionCollapsed(section.id)}>
+            {collapsed ? <ChevronRightIcon size={12} /> : <ChevronDownIcon size={12} />}
+            {section.name}
+          </button>
+          {onRemoveSection && (
+            <button
+              type="button"
+              className="lq-chart-workspace__watchlist-delete"
+              onClick={() => requestRemoveSection(section)}
+              aria-label={`Supprimer la section ${section.name}`}
+              title="Supprimer la section"
+            >
+              <TrashIcon size={12} />
+            </button>
+          )}
+        </div>
+        {!collapsed && (
+          <div className="lq-chart-workspace__watchlist-group" {...watchlistDropZoneProps(section.id)}>
+            {renderRowsWithIndicator(sortedRows(section.rows), section.id)}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Same "interleave a drop-line sibling at the live target position" shape as
+  // renderRowsWithIndicator above, just for the section list itself instead of one zone's rows —
+  // see useWatchlistSectionDrag's own doc for why this now mirrors row-drag's gesture instead of
+  // the live-splice-on-cross reordering it used to do.
+  function renderSectionsWithIndicator() {
+    const sections = activeWatchlist.sections ?? [];
+    const nodes: React.ReactNode[] = [];
+    sections.forEach((section, i) => {
+      if (sectionDropIndex === i) nodes.push(<div key={`section-drop-${i}`} className="lq-chart-workspace__watchlist-drop-line" />);
+      nodes.push(renderSection(section));
+    });
+    if (sectionDropIndex === sections.length) nodes.push(<div key="section-drop-end" className="lq-chart-workspace__watchlist-drop-line" />);
+    return nodes;
+  }
+
   return (
     <>
       <div className="lq-chart-workspace__side-panel-header">
@@ -473,53 +537,7 @@ export function WatchlistPanel({
         {renderRowsWithIndicator(sortedRows(activeWatchlist.rows), null)}
       </div>
 
-      {activeWatchlist.sections?.map((section) => {
-        const collapsed = collapsedSectionIds.has(section.id);
-        return (
-          <div key={section.id}>
-            <div
-              className={[
-                "lq-chart-workspace__watchlist-section-header",
-                draggingSectionId === section.id && "lq-chart-workspace__watchlist-row--dragging",
-              ]
-                .filter(Boolean)
-                .join(" ")}
-              data-watchlist-section-id={section.id}
-              onPointerDown={onReorderSections ? (e) => startSectionDrag(section.id, e) : undefined}
-              {...watchlistDropZoneProps(section.id)}
-            >
-              {/* No onPointerDown of its own — sitting inside the header div above, its
-                  press already bubbles up to that div's own handler, which is exactly the
-                  same startSectionDrag call this would otherwise duplicate. */}
-              {onReorderSections && (
-                <span className="lq-chart-workspace__watchlist-grip" aria-hidden="true">
-                  <GripIcon size={12} />
-                </span>
-              )}
-              <button type="button" className="lq-chart-workspace__watchlist-section-toggle" onClick={() => toggleSectionCollapsed(section.id)}>
-                {collapsed ? <ChevronRightIcon size={12} /> : <ChevronDownIcon size={12} />}
-                {section.name}
-              </button>
-              {onRemoveSection && (
-                <button
-                  type="button"
-                  className="lq-chart-workspace__watchlist-delete"
-                  onClick={() => requestRemoveSection(section)}
-                  aria-label={`Supprimer la section ${section.name}`}
-                  title="Supprimer la section"
-                >
-                  <TrashIcon size={12} />
-                </button>
-              )}
-            </div>
-            {!collapsed && (
-              <div className="lq-chart-workspace__watchlist-group" {...watchlistDropZoneProps(section.id)}>
-                {renderRowsWithIndicator(sortedRows(section.rows), section.id)}
-              </div>
-            )}
-          </div>
-        );
-      })}
+      {renderSectionsWithIndicator()}
 
       {onCreateSection && (
         <button type="button" className="lq-chart-workspace__watchlist-add-section" onClick={() => setNameModal("section")}>

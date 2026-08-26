@@ -12,6 +12,14 @@ export type IndicatorKind =
   | "supertrend"
   | "parabolicSar"
   | "gaps"
+  /** Auto-detects classic chart patterns (double top/bottom, head & shoulders, triangles, flag,
+   *  cup & handle, diamond, wolfe wave) within a recent window — see
+   *  `Indicator.recognitionDateLimit` and `computePatternRecognitionValues`'s own doc. */
+  | "patternRecognition"
+  /** Auto-detects classic candlestick patterns (hammer, engulfing, morning/evening star, three
+   *  inside up/down, doji…) at/just before `Indicator.recognitionDateLimit` — see
+   *  `computeCandleRecognitionValues`'s own doc. */
+  | "candleRecognition"
   | "ichimoku"
   | "pivotPoints"
   /** Auto-detected horizontal support/resistance levels — see `Indicator.srMaxLevels` and

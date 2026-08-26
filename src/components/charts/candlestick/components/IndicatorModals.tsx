@@ -12,6 +12,7 @@ import type { IndicatorKind } from "../interfaces/IndicatorKind.interface";
 import type { CustomIndicatorDef } from "../interfaces/CustomIndicatorDef.interface";
 import { INDICATOR_CATALOG, type IndicatorCatalogEntry, indicatorCatalogEntry, indicatorLabel, defaultIndicatorColor } from "../indicatorCatalog";
 import { INDICATOR_DESCRIPTIONS, VOLUME_DESCRIPTION } from "../indicatorDescriptions";
+import { toDateInputValue, fromDateInputValue } from "../formatting";
 import { drawingToolMeta, drawingLabel } from "../drawingCatalog";
 
 export interface IndicatorModalsProps {
@@ -630,6 +631,31 @@ export function IndicatorModals({
                   value={indicatorDraft.srMaxLevels ?? 6}
                   onChange={(v) => setIndicatorDraft({ ...indicatorDraft, srMaxLevels: v === "" ? indicatorDraft.srMaxLevels : v })}
                 />
+              )}
+              {(indicatorDraft.kind === "patternRecognition" || indicatorDraft.kind === "candleRecognition") && (
+                <div className="lq-field">
+                  <label className="lq-field__label">Date limite (par défaut : dernière bougie, actualisée chaque jour)</label>
+                  <input
+                    type="date"
+                    className="lq-chart__date-input"
+                    value={indicatorDraft.recognitionDateLimit ? toDateInputValue(indicatorDraft.recognitionDateLimit) : ""}
+                    onChange={(e) =>
+                      setIndicatorDraft({
+                        ...indicatorDraft,
+                        recognitionDateLimit: e.target.value ? fromDateInputValue(e.target.value, new Date()) : undefined,
+                      })
+                    }
+                  />
+                  {indicatorDraft.recognitionDateLimit && (
+                    <button
+                      type="button"
+                      className="lq-chart__inline-reset"
+                      onClick={() => setIndicatorDraft({ ...indicatorDraft, recognitionDateLimit: undefined })}
+                    >
+                      Revenir à la dernière bougie
+                    </button>
+                  )}
+                </div>
               )}
               {indicatorDraft.kind === "ichimoku" && (
                 <div className="lq-chart__edit-drawing-row">

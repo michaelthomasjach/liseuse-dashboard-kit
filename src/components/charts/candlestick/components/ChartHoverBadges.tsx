@@ -14,7 +14,16 @@ import { formatCountdown, formatCompactNumber } from "../formatting";
 
 // Kinds whose value shape this file's own "latest overlay value" badge doesn't understand (a
 // plain number, or a band's own middle line) — see where this is used, below.
-const OVERLAY_BADGE_EXCLUDED_KINDS: string[] = ["zigzag", "supertrend", "ichimoku", "gaps", "pivotPoints", "supportResistance"];
+const OVERLAY_BADGE_EXCLUDED_KINDS: string[] = [
+  "zigzag",
+  "supertrend",
+  "ichimoku",
+  "gaps",
+  "pivotPoints",
+  "supportResistance",
+  "patternRecognition",
+  "candleRecognition",
+];
 
 export interface ChartHoverBadgesProps {
   hoverY: number | null;

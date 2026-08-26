@@ -17,6 +17,8 @@ import type { Indicator } from "./interfaces/Indicator.interface";
 import type { CustomIndicatorDef } from "./interfaces/CustomIndicatorDef.interface";
 import type { OverlayDataPoint } from "./interfaces/TrendLineDrawing.interface";
 import { isFundamentalKind } from "./indicatorCatalog";
+import { computePatternRecognitionValues } from "./patternRecognition";
+import { computeCandleRecognitionValues } from "./candleRecognition";
 
 /** Forward-fills a sparse, date-keyed series (quarterly reports, any other "one number per
  *  period" data) onto every candle — the most recent point on or before that candle's own date, a
@@ -747,6 +749,10 @@ export function computeIndicatorValues(
       return computeParabolicSARValues(data, indicator.sarStep ?? 0.02, indicator.sarMax ?? 0.2);
     case "gaps":
       return computeGapValues(data, indicator.gapsMinPercent ?? 0.1);
+    case "patternRecognition":
+      return computePatternRecognitionValues(data, indicator.recognitionDateLimit);
+    case "candleRecognition":
+      return computeCandleRecognitionValues(data, indicator.recognitionDateLimit);
     case "pivotPoints":
       return computePivotPointsValues(data, indicator.pivotType ?? "classic", indicator.pivotPeriod ?? "weekly");
     case "supportResistance":

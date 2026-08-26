@@ -8,6 +8,8 @@ import type { IndicatorPivotPointsPoint } from "./IndicatorPivotPointsPoint.inte
 import type { IndicatorADXPoint } from "./IndicatorADXPoint.interface";
 import type { IndicatorChandelierPoint } from "./IndicatorChandelierPoint.interface";
 import type { IndicatorSRLevel } from "./IndicatorSRLevel.interface";
+import type { IndicatorPatternMatch } from "./IndicatorPatternMatch.interface";
+import type { IndicatorCandleMatch } from "./IndicatorCandleMatch.interface";
 
 /** Every shape a single indicator value can take, in one place — every file that used to spell
  *  out this union inline (indicators.ts, useIndicatorPaneScales.ts,
@@ -28,4 +30,6 @@ export type IndicatorValue =
   | IndicatorPivotPointsPoint
   | IndicatorADXPoint
   | IndicatorChandelierPoint
-  | IndicatorSRLevel[];
+  | IndicatorSRLevel[]
+  | IndicatorPatternMatch
+  | IndicatorCandleMatch;

@@ -47,6 +47,15 @@ export interface Indicator {
   /** "gaps" only — the minimum jump between one candle's high/low and the next's, as a percentage
    *  of the earlier candle's own price, before it counts as a gap at all. Default 0.1. */
   gapsMinPercent?: number;
+  /** "patternRecognition"/"candleRecognition" only — recognition only ever looks at a recent
+   *  window ending on this date, not the whole dataset (so the chart doesn't fill up with every
+   *  historical occurrence) — undefined means the dataset's own last candle, which tracks forward
+   *  automatically as new candles arrive rather than freezing at whatever date the indicator
+   *  happened to be added on (the "refreshed daily" default). A single-candle pattern
+   *  (candleRecognition) only ever evaluates the candles its own shape needs, ending here; a
+   *  multi-candle one (patternRecognition) widens that to up to 20 preceding candles — see
+   *  `computePatternRecognitionValues`'s own doc for exactly how. */
+  recognitionDateLimit?: Date;
   /** "ichimoku" only — defaults 9/26/52/26, the conventional parameters (see
    *  `computeIchimokuValues`'s own doc for what `ichimokuDisplacement` does and its one
    *  limitation). */

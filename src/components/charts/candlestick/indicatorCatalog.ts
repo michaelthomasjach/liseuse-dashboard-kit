@@ -196,6 +196,30 @@ export const INDICATOR_CATALOG: IndicatorCatalogEntry[] = [
     pane: "price",
     category: "Structure Recognition",
   },
+  // Own value shape (IndicatorPatternMatch, one per detected occurrence — see
+  // computePatternRecognitionValues) and own setting (recognitionDateLimit, not period/stdDev —
+  // this indicator's own "how far back" is a fixed 20-candle cap, not a user-tunable count).
+  {
+    kind: "patternRecognition",
+    label: "Pattern Recognition",
+    shortLabel: "Patterns",
+    defaultPeriod: 0,
+    hasPeriod: false,
+    hasStdDev: false,
+    pane: "price",
+    category: "Structure Recognition",
+  },
+  // Same reasoning as patternRecognition just above, own value shape IndicatorCandleMatch instead.
+  {
+    kind: "candleRecognition",
+    label: "Candle Recognition",
+    shortLabel: "Bougies",
+    defaultPeriod: 0,
+    hasPeriod: false,
+    hasStdDev: false,
+    pane: "price",
+    category: "Structure Recognition",
+  },
   // Own value shape (IndicatorIchimokuPoint — five components, one of them a filled cloud) and
   // its own four settings (ichimokuConversionPeriod/ichimokuBasePeriod/ichimokuSpanPeriod/
   // ichimokuDisplacement, not period/stdDev).

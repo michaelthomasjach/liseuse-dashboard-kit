@@ -8,14 +8,20 @@ import type { IndicatorGapPoint } from "../interfaces/IndicatorGapPoint.interfac
 import type { IndicatorPivotPointsPoint } from "../interfaces/IndicatorPivotPointsPoint.interface";
 import type { IndicatorSRLevel } from "../interfaces/IndicatorSRLevel.interface";
 import type { IndicatorChandelierPoint } from "../interfaces/IndicatorChandelierPoint.interface";
+import type { IndicatorPatternMatch } from "../interfaces/IndicatorPatternMatch.interface";
+import type { IndicatorCandleMatch } from "../interfaces/IndicatorCandleMatch.interface";
 import { snapPixel } from "../drawingGeometry";
 import { drawPillLabel } from "../drawingRender";
 import { indicatorCatalogEntry, defaultIndicatorColor } from "../indicatorCatalog";
+import { drawPatternRecognitionMatches } from "./drawPatternRecognition";
+import { drawCandleRecognitionMatches } from "./drawCandleRecognition";
 
 // "gaps"/"parabolicSar"/"pivotPoints" are point-based (a rectangle, a dot, or a single flat
 // segment all render fine on their own) rather than line-shaped like every other indicator here,
 // so they're exempt from the "needs at least 2 points to draw anything" gate below.
-const POINT_BASED_KINDS = new Set(["gaps", "parabolicSar", "pivotPoints", "supportResistance"]);
+// "patternRecognition"/"candleRecognition" join them for the same reason — a match found (or not)
+// within their own recent window has nothing to do with how many points happen to be visible.
+const POINT_BASED_KINDS = new Set(["gaps", "parabolicSar", "pivotPoints", "supportResistance", "patternRecognition", "candleRecognition"]);
 
 // TPO's own 4-stop gradient (red → green → cyan → purple, roughly matching every real TPO tool's
 // own default palette) — `t` (0 = a session's first block, 1 = its last) picked over the theme's
@@ -597,6 +603,10 @@ export function drawPriceCandles(ctx: CanvasRenderingContext2D, params: RenderCa
           ctx.fillText(`${level.price.toFixed(2)} ×${level.touchCount}`, x0 + 2, y - 2);
         }
         ctx.restore();
+      } else if (indicator.kind === "patternRecognition") {
+        drawPatternRecognitionMatches(ctx, points as { i: number; value: IndicatorPatternMatch }[], params, style, color);
+      } else if (indicator.kind === "candleRecognition") {
+        drawCandleRecognitionMatches(ctx, points as { i: number; value: IndicatorCandleMatch }[], params, style);
       } else if (indicator.customData?.draw === "histogram") {
         // A custom overlay indicator drawn as bars — the price pane has no meaningful "zero"
         // baseline to bar-chart against the way an own-pane one does (see the own-pane branch's

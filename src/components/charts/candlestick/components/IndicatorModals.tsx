@@ -145,171 +145,177 @@ export function IndicatorModals({
   return (
     <>
       {indicatorPickerOpen && (
-        <Modal open onClose={() => setIndicatorPickerOpen(false)} title="Ajouter un indicateur">
-          <TextField
-            placeholder="Rechercher un indicateur…"
-            value={indicatorSearchQuery}
-            onChange={(e) => setIndicatorSearchQuery(e.target.value)}
-            leadingIcon={<SearchIcon size={14} />}
-            autoFocus
-          />
-          {/* Predefined, stable filters — every built-in category (in catalog order) plus
-              whichever custom sections the caller's own `customIndicators` bring in, computed
-              from the full catalog regardless of the current search text so the row itself
-              doesn't reshuffle as the user types, only the results below it do. A second click on
-              the already-selected one clears back to "Toutes", same toggle convention the
-              category filter buttons elsewhere in this library already use. */}
-          <div className="lq-chart__indicator-category-filters">
-            <button
-              type="button"
-              className={["lq-chart__indicator-category-filter", categoryFilter === null && "lq-chart__indicator-category-filter--selected"]
-                .filter(Boolean)
-                .join(" ")}
-              onClick={() => setCategoryFilter(null)}
-            >
-              Toutes
-            </button>
-            {Array.from(new Set([...INDICATOR_CATALOG.map((entry) => entry.category), ...(customIndicators ?? []).map((def) => def.section)])).map(
-              (category) => (
+        <Modal open onClose={() => setIndicatorPickerOpen(false)} title="Ajouter un indicateur" size="wide">
+          {/* Left/right split (see .lq-chart__modal-split's own doc) — search + category filters
+              on the left, the catalog itself on the right, each scrolling on its own. */}
+          <div className="lq-chart__modal-split">
+            <div className="lq-chart__modal-split-sidebar">
+              <TextField
+                placeholder="Rechercher un indicateur…"
+                value={indicatorSearchQuery}
+                onChange={(e) => setIndicatorSearchQuery(e.target.value)}
+                leadingIcon={<SearchIcon size={14} />}
+                autoFocus
+              />
+              {/* Predefined, stable filters — every built-in category (in catalog order) plus
+                  whichever custom sections the caller's own `customIndicators` bring in, computed
+                  from the full catalog regardless of the current search text so the row itself
+                  doesn't reshuffle as the user types, only the results below it do. A second click
+                  on the already-selected one clears back to "Toutes", same toggle convention the
+                  category filter buttons elsewhere in this library already use. */}
+              <div className="lq-chart__indicator-category-filters lq-chart__modal-filter-list--vertical">
                 <button
-                  key={category}
                   type="button"
-                  className={[
-                    "lq-chart__indicator-category-filter",
-                    categoryFilter === category && "lq-chart__indicator-category-filter--selected",
-                  ]
+                  className={["lq-chart__indicator-category-filter", categoryFilter === null && "lq-chart__indicator-category-filter--selected"]
                     .filter(Boolean)
                     .join(" ")}
-                  onClick={() => setCategoryFilter((c) => (c === category ? null : category))}
+                  onClick={() => setCategoryFilter(null)}
                 >
-                  {category}
+                  Toutes
                 </button>
-              )
-            )}
-          </div>
-          <div
-            className="lq-chart__indicator-picker"
-            ref={pickerScrollRef}
-            onScroll={(e) => {
-              pickerScrollTopRef.current = e.currentTarget.scrollTop;
-            }}
-          >
-            {(() => {
-              const query = indicatorSearchQuery.trim().toLowerCase();
-              // Volume has no category of its own (see its own doc below), so it only ever shows
-              // up under "Toutes", not under any specific category filter.
-              const showVolumeOption = showVolume && categoryFilter === null && "volume".includes(query);
-              // Built-in and custom entries merged into one tagged list before grouping, so a
-              // custom indicator's own `section` slots it in alongside the built-in categories
-              // exactly like any other — each entry keeps a reference to whichever of
-              // IndicatorCatalogEntry/CustomIndicatorDef it actually came from, since only that
-              // original shape knows what `onClick` needs to add it (addIndicator vs.
-              // addCustomIndicator take different argument types).
-              // `descriptionKind` is undefined for a custom indicator (no canned description this
-              // library could show for one — see INDICATOR_DESCRIPTIONS' own doc) — its row gets
-              // no info icon rather than one that opens to nothing.
-              type PickerOption = {
-                key: string;
-                label: string;
-                category: string;
-                pane: "price" | "own";
-                onSelect: () => void;
-                descriptionKind?: IndicatorKind;
-              };
-              const builtinOptions: PickerOption[] = INDICATOR_CATALOG.filter(
-                (entry) => entry.label.toLowerCase().includes(query) || entry.shortLabel.toLowerCase().includes(query)
-              ).map((entry) => ({
-                key: entry.kind,
-                label: entry.label,
-                category: entry.category,
-                pane: entry.pane,
-                onSelect: () => (entry.kind === "correlation" ? openCorrelationSetup() : addIndicator(entry)),
-                descriptionKind: entry.kind,
-              }));
-              const customOptions: PickerOption[] = (customIndicators ?? [])
-                .filter((def) => def.label.toLowerCase().includes(query) || (def.shortLabel ?? "").toLowerCase().includes(query))
-                .map((def) => ({
-                  key: def.id,
-                  label: def.label,
-                  category: def.section,
-                  pane: def.type === "overlay" ? "price" : "own",
-                  onSelect: () => addCustomIndicator(def),
+                {Array.from(new Set([...INDICATOR_CATALOG.map((entry) => entry.category), ...(customIndicators ?? []).map((def) => def.section)])).map(
+                  (category) => (
+                    <button
+                      key={category}
+                      type="button"
+                      className={[
+                        "lq-chart__indicator-category-filter",
+                        categoryFilter === category && "lq-chart__indicator-category-filter--selected",
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
+                      onClick={() => setCategoryFilter((c) => (c === category ? null : category))}
+                    >
+                      {category}
+                    </button>
+                  )
+                )}
+              </div>
+            </div>
+            <div
+              className="lq-chart__modal-split-content lq-chart__indicator-picker"
+              ref={pickerScrollRef}
+              onScroll={(e) => {
+                pickerScrollTopRef.current = e.currentTarget.scrollTop;
+              }}
+            >
+              {(() => {
+                const query = indicatorSearchQuery.trim().toLowerCase();
+                // Volume has no category of its own (see its own doc below), so it only ever shows
+                // up under "Toutes", not under any specific category filter.
+                const showVolumeOption = showVolume && categoryFilter === null && "volume".includes(query);
+                // Built-in and custom entries merged into one tagged list before grouping, so a
+                // custom indicator's own `section` slots it in alongside the built-in categories
+                // exactly like any other — each entry keeps a reference to whichever of
+                // IndicatorCatalogEntry/CustomIndicatorDef it actually came from, since only that
+                // original shape knows what `onClick` needs to add it (addIndicator vs.
+                // addCustomIndicator take different argument types).
+                // `descriptionKind` is undefined for a custom indicator (no canned description this
+                // library could show for one — see INDICATOR_DESCRIPTIONS' own doc) — its row gets
+                // no info icon rather than one that opens to nothing.
+                type PickerOption = {
+                  key: string;
+                  label: string;
+                  category: string;
+                  pane: "price" | "own";
+                  onSelect: () => void;
+                  descriptionKind?: IndicatorKind;
+                };
+                const builtinOptions: PickerOption[] = INDICATOR_CATALOG.filter(
+                  (entry) => entry.label.toLowerCase().includes(query) || entry.shortLabel.toLowerCase().includes(query)
+                ).map((entry) => ({
+                  key: entry.kind,
+                  label: entry.label,
+                  category: entry.category,
+                  pane: entry.pane,
+                  onSelect: () => (entry.kind === "correlation" ? openCorrelationSetup() : addIndicator(entry)),
+                  descriptionKind: entry.kind,
                 }));
-              const allOptions = [...builtinOptions, ...customOptions].filter(
-                (option) => categoryFilter === null || option.category === categoryFilter
-              );
-              const groups: { category: string; options: PickerOption[] }[] = [];
-              for (const option of allOptions) {
-                const group = groups.find((g) => g.category === option.category);
-                if (group) group.options.push(option);
-                else groups.push({ category: option.category, options: [option] });
-              }
-              if (!showVolumeOption && groups.length === 0) {
-                return <p className="lq-chart__indicator-picker-empty">Aucun indicateur ne correspond à « {indicatorSearchQuery} ».</p>;
-              }
-              return (
-                <>
-                  {/* Volume isn't part of INDICATOR_CATALOG — it's the caller's own data (not
-                      something computed), driven by `showVolume`/the volume pane's own header
-                      rather than an `Indicator` entry — but it's still just as valid an "add a
-                      pane" choice as RSI/CHOP/MACD, so it gets a slot here too, re-showing the
-                      pane if it was previously collapsed or removed. */}
-                  {showVolumeOption && (
-                    <div className="lq-chart__indicator-picker-group">
-                      <div className="lq-chart__indicator-picker-group-label">Volume</div>
-                      <div className="lq-chart__indicator-picker-option">
-                        <button
-                          type="button"
-                          className="lq-chart__indicator-picker-select"
-                          onClick={() => setVolumePaneState("expanded")}
-                        >
-                          <span className="lq-chart__indicator-picker-name">Volume</span>
-                          <span className="lq-chart__indicators-manager-badge" title="Panneau séparé">
-                            <PaneBadgeIcon size={13} />
-                          </span>
-                        </button>
-                        <button
-                          type="button"
-                          className="lq-chart__pane-header-action"
-                          onClick={() => setInfoKind("volume")}
-                          aria-label="À propos de Volume"
-                        >
-                          <InfoIcon size={13} />
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                  {groups.map((group) => (
-                    <div className="lq-chart__indicator-picker-group" key={group.category}>
-                      <div className="lq-chart__indicator-picker-group-label">{group.category}</div>
-                      {group.options.map((option) => (
-                        <div key={option.key} className="lq-chart__indicator-picker-option">
-                          <button type="button" className="lq-chart__indicator-picker-select" onClick={option.onSelect}>
-                            <span className="lq-chart__indicator-picker-name">{option.label}</span>
-                            <span
-                              className="lq-chart__indicators-manager-badge"
-                              title={option.pane === "price" ? "Superposé au prix" : "Panneau séparé"}
-                            >
-                              {option.pane === "price" ? <OverlayBadgeIcon size={13} /> : <PaneBadgeIcon size={13} />}
+                const customOptions: PickerOption[] = (customIndicators ?? [])
+                  .filter((def) => def.label.toLowerCase().includes(query) || (def.shortLabel ?? "").toLowerCase().includes(query))
+                  .map((def) => ({
+                    key: def.id,
+                    label: def.label,
+                    category: def.section,
+                    pane: def.type === "overlay" ? "price" : "own",
+                    onSelect: () => addCustomIndicator(def),
+                  }));
+                const allOptions = [...builtinOptions, ...customOptions].filter(
+                  (option) => categoryFilter === null || option.category === categoryFilter
+                );
+                const groups: { category: string; options: PickerOption[] }[] = [];
+                for (const option of allOptions) {
+                  const group = groups.find((g) => g.category === option.category);
+                  if (group) group.options.push(option);
+                  else groups.push({ category: option.category, options: [option] });
+                }
+                if (!showVolumeOption && groups.length === 0) {
+                  return <p className="lq-chart__indicator-picker-empty">Aucun indicateur ne correspond à « {indicatorSearchQuery} ».</p>;
+                }
+                return (
+                  <>
+                    {/* Volume isn't part of INDICATOR_CATALOG — it's the caller's own data (not
+                        something computed), driven by `showVolume`/the volume pane's own header
+                        rather than an `Indicator` entry — but it's still just as valid an "add a
+                        pane" choice as RSI/CHOP/MACD, so it gets a slot here too, re-showing the
+                        pane if it was previously collapsed or removed. */}
+                    {showVolumeOption && (
+                      <div className="lq-chart__indicator-picker-group">
+                        <div className="lq-chart__indicator-picker-group-label">Volume</div>
+                        <div className="lq-chart__indicator-picker-option">
+                          <button
+                            type="button"
+                            className="lq-chart__indicator-picker-select"
+                            onClick={() => setVolumePaneState("expanded")}
+                          >
+                            <span className="lq-chart__indicator-picker-name">Volume</span>
+                            <span className="lq-chart__indicators-manager-badge" title="Panneau séparé">
+                              <PaneBadgeIcon size={13} />
                             </span>
                           </button>
-                          {option.descriptionKind && (
-                            <button
-                              type="button"
-                              className="lq-chart__pane-header-action"
-                              onClick={() => setInfoKind(option.descriptionKind!)}
-                              aria-label={`À propos de ${option.label}`}
-                            >
-                              <InfoIcon size={13} />
-                            </button>
-                          )}
+                          <button
+                            type="button"
+                            className="lq-chart__pane-header-action"
+                            onClick={() => setInfoKind("volume")}
+                            aria-label="À propos de Volume"
+                          >
+                            <InfoIcon size={13} />
+                          </button>
                         </div>
-                      ))}
-                    </div>
-                  ))}
-                </>
-              );
-            })()}
+                      </div>
+                    )}
+                    {groups.map((group) => (
+                      <div className="lq-chart__indicator-picker-group" key={group.category}>
+                        <div className="lq-chart__indicator-picker-group-label">{group.category}</div>
+                        {group.options.map((option) => (
+                          <div key={option.key} className="lq-chart__indicator-picker-option">
+                            <button type="button" className="lq-chart__indicator-picker-select" onClick={option.onSelect}>
+                              <span className="lq-chart__indicator-picker-name">{option.label}</span>
+                              <span
+                                className="lq-chart__indicators-manager-badge"
+                                title={option.pane === "price" ? "Superposé au prix" : "Panneau séparé"}
+                              >
+                                {option.pane === "price" ? <OverlayBadgeIcon size={13} /> : <PaneBadgeIcon size={13} />}
+                              </span>
+                            </button>
+                            {option.descriptionKind && (
+                              <button
+                                type="button"
+                                className="lq-chart__pane-header-action"
+                                onClick={() => setInfoKind(option.descriptionKind!)}
+                                aria-label={`À propos de ${option.label}`}
+                              >
+                                <InfoIcon size={13} />
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </>
+                );
+              })()}
+            </div>
           </div>
         </Modal>
       )}

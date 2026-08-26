@@ -32,6 +32,13 @@
   min-height: 100%;
 }
 
+.lq-modal--wide {
+  width: min(820px, 92vw);
+  height: min(640px, 85vh);
+  max-width: none;
+  max-height: none;
+}
+
 .lq-modal--fullscreen {
   width: 96vw;
   height: 92vh;
@@ -39,10 +46,17 @@
   max-height: none;
 }
 
+/* Both a fixed, roomier height instead of growing with content (unlike the default size) — their
+   own body needs to fill it and scroll internally rather than the whole modal doing so, so a
+   layout inside it (e.g. a sidebar next to a list — see .lq-chart__modal-split in
+   charts-shared.css) can give its own parts independent scroll areas instead of the sidebar
+   scrolling away with the list. */
+.lq-modal--wide .lq-modal__inner,
 .lq-modal--fullscreen .lq-modal__inner {
   height: 100%;
 }
 
+.lq-modal--wide .lq-modal__body,
 .lq-modal--fullscreen .lq-modal__body {
   flex: 1;
   min-height: 0;

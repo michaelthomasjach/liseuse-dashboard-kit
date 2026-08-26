@@ -1718,8 +1718,6 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  max-height: 50vh;
-  overflow-y: auto;
 }
 
 .lq-chart__indicator-picker-group {
@@ -1841,6 +1839,52 @@
   line-height: 1.5;
 }
 
+/* Generic left-sidebar/right-content split for a "wide" Modal (see Modal.css's own doc) whose
+   content is a filterable list — search field + category filters on the left, the list itself on
+   the right, each scrolling independently instead of the whole modal scrolling as one block.
+   Used by SymbolSearchModal and the indicator picker (see IndicatorModals.tsx) today; reusable by
+   any future modal with the same "search + filter + list" shape rather than each one rebuilding
+   its own version of it. */
+.lq-chart__modal-split {
+  display: flex;
+  gap: var(--lq-space-4);
+  flex: 1;
+  min-height: 0;
+}
+
+.lq-chart__modal-split-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lq-space-3);
+  flex: 0 0 200px;
+  padding-right: var(--lq-space-4);
+  border-right: 1px solid var(--lq-color-border-subtle);
+  overflow-y: auto;
+}
+
+.lq-chart__modal-split-content {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* A filter-pill row (symbol search's own category pills, the indicator picker's own category
+   filters) turned into a vertical list for the sidebar above — stacked, left-aligned, and each
+   filling the sidebar's own width, rather than the horizontal wrapping row they use standalone. */
+.lq-chart__modal-filter-list--vertical {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  margin: 0;
+}
+
+.lq-chart__modal-filter-list--vertical .lq-chart__symbol-search-category,
+.lq-chart__modal-filter-list--vertical .lq-chart__indicator-category-filter {
+  border-radius: var(--lq-radius-sm);
+  text-align: left;
+}
+
 .lq-chart__symbol-search-clear {
   display: flex;
   padding: 0;
@@ -1885,8 +1929,6 @@
 .lq-chart__symbol-search-results {
   display: flex;
   flex-direction: column;
-  max-height: 50vh;
-  overflow-y: auto;
 }
 
 .lq-chart__symbol-search-empty {

@@ -10,10 +10,12 @@ export interface ModalProps {
   /** Defaults to a full-width "Fermer" button; pass null to omit, or your own footer. */
   footer?: ReactNode | null;
   closeLabel?: string;
-  /** `"default"` is the small centered dialog; `"fullscreen"` takes up nearly the whole
-   *  viewport (a thin margin all round) — for a detail view or editor that needs real room
-   *  instead of a small popup. Default "default". */
-  size?: "default" | "fullscreen";
+  /** `"default"` is the small centered dialog; `"wide"` is a fixed, roomier size (not viewport-
+   *  relative like fullscreen) for content with its own internal layout that needs stable side-by-
+   *  side space — a filter sidebar next to a list, say — rather than reflowing at every viewport
+   *  size; `"fullscreen"` takes up nearly the whole viewport (a thin margin all round) — for a
+   *  detail view or editor that needs real room instead of a small popup. Default "default". */
+  size?: "default" | "wide" | "fullscreen";
 }
 
 /** Centered dialog used for a row's detail view (e.g. the light color/temperature picker).
@@ -71,7 +73,7 @@ export function Modal({ open, onClose, title, children, footer, closeLabel = "Fe
   return (
     <div className="lq-modal__overlay" onClick={onClose}>
       <div
-        className={["lq-modal", size === "fullscreen" && "lq-modal--fullscreen"].filter(Boolean).join(" ")}
+        className={["lq-modal", size === "wide" && "lq-modal--wide", size === "fullscreen" && "lq-modal--fullscreen"].filter(Boolean).join(" ")}
         style={offset.x || offset.y ? { transform: `translate(${offset.x}px, ${offset.y}px)` } : undefined}
         role="dialog"
         aria-modal="true"

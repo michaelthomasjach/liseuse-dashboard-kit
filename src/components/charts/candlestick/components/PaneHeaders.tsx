@@ -302,7 +302,7 @@ export function PaneHeaders({
                   <span className="lq-chart__symbol-info-ohlc">
                     {typeof value === "number"
                       ? isFundamentalKind(ind.kind)
-                        ? formatFundamentalValue(ind.kind, value)
+                        ? formatFundamentalValue(ind.kind, value, ind.fundamentalDisplayMode)
                         : value.toFixed(2)
                       : "macd" in value
                         ? `MACD ${value.macd.toFixed(2)} · Signal ${value.signal !== null ? value.signal.toFixed(2) : "–"} · Hist ${

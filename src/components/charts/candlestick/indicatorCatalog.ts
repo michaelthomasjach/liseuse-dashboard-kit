@@ -26,8 +26,12 @@ export function isFundamentalKind(kind: IndicatorKind): boolean {
 /** How a fundamental indicator's own value reads — money (compact, e.g. "$1.20B", see
  *  `formatCompactNumber`), a percentage (one decimal, e.g. "21.5%"), or a plain ratio (two
  *  decimals, e.g. "24.30" for a P/E). RSI/CHOP/MACD keep their own existing plain `.toFixed(2)`
- *  wherever they're formatted — this is only reached for the eight kinds above. */
-export function formatFundamentalValue(kind: IndicatorKind, value: number): string {
+ *  wherever they're formatted — this is only reached for the eight kinds above. `displayMode`
+ *  "yoyChange" (see `Indicator.fundamentalDisplayMode`'s own doc) overrides every kind's own
+ *  normal unit with a plain percentage instead — the value at that point is already a % change,
+ *  not money/a ratio, regardless of what the underlying metric itself is normally read in. */
+export function formatFundamentalValue(kind: IndicatorKind, value: number, displayMode: "value" | "yoyChange" = "value"): string {
+  if (displayMode === "yoyChange") return `${value >= 0 ? "+" : ""}${value.toFixed(1)}%`;
   switch (kind) {
     case "freeCashFlow":
     case "netIncome":

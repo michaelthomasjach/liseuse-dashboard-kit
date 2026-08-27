@@ -320,7 +320,9 @@ export function ChartCanvasOverlay({
                       orientation="right"
                       transform={`translate(${dims.boundedWidth}, 0)`}
                       ticks={3}
-                      tickFormat={isFundamentalKind(ind.kind) ? (v) => formatFundamentalValue(ind.kind, Number(v)) : undefined}
+                      tickFormat={
+                        isFundamentalKind(ind.kind) ? (v) => formatFundamentalValue(ind.kind, Number(v), ind.fundamentalDisplayMode) : undefined
+                      }
                     />
                     <rect
                       className="lq-chart__axis-drag lq-chart__axis-drag--y"

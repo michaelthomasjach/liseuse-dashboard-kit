@@ -4,7 +4,7 @@ import type { IndicatorMACD } from "../interfaces/IndicatorMACD.interface";
 import type { IndicatorADXPoint } from "../interfaces/IndicatorADXPoint.interface";
 import { snapPixel } from "../drawingGeometry";
 import { lineDashArray, drawDrawingText } from "../drawingRender";
-import { defaultIndicatorColor } from "../indicatorCatalog";
+import { defaultIndicatorColor, isFundamentalKind } from "../indicatorCatalog";
 
 /** Phase 3 of `renderCandlestickChart`, painted outside the price section's own clip: the volume
  *  pane's bars and any "horizontal"/"ray" drawing anchored to it, each "own"-pane indicator's
@@ -159,11 +159,45 @@ export function drawVolumeAndPanes(ctx: CanvasRenderingContext2D, params: Render
       }
 
       if (ind.kind === "rsi" || ind.kind === "chop") {
+        // Reference levels are user-adjustable (rsiOverbought/rsiOversold, chopUpperThreshold/
+        // chopLowerThreshold — see their own docs on Indicator) but default to exactly the
+        // levels this block always drew before those settings existed.
+        const levels =
+          ind.kind === "rsi" ? [ind.rsiOversold ?? 30, ind.rsiOverbought ?? 70] : [ind.chopLowerThreshold ?? 38.2, ind.chopUpperThreshold ?? 61.8];
         ctx.save();
         ctx.strokeStyle = colorGrid;
         ctx.setLineDash([2, 3]);
         ctx.lineWidth = 1;
-        for (const level of ind.kind === "rsi" ? [30, 70] : [38.2, 61.8]) {
+        for (const level of levels) {
+          const y = scale(level);
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(dims.boundedWidth, y);
+          ctx.stroke();
+        }
+        ctx.restore();
+
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([]);
+        ctx.beginPath();
+        points.forEach((p, k) => {
+          const x = zoomedXScale(p.i + 0.5);
+          const y = scale(p.value as number);
+          if (k === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+      } else if (ind.kind === "correlation") {
+        // Zero line unconditionally (same role MACD's own zero line plays just below), plus the
+        // user-adjustable "strongly correlated" reference pair (correlationStrongThreshold — see
+        // its own doc on Indicator) at +/- that value.
+        ctx.save();
+        ctx.strokeStyle = colorGrid;
+        ctx.setLineDash([2, 3]);
+        ctx.lineWidth = 1;
+        const threshold = ind.correlationStrongThreshold ?? 0.7;
+        for (const level of [0, threshold, -threshold]) {
           const y = scale(level);
           ctx.beginPath();
           ctx.moveTo(0, y);
@@ -243,9 +277,22 @@ export function drawVolumeAndPanes(ctx: CanvasRenderingContext2D, params: Render
       } else if (ind.kind === "adx") {
         // Three independent lines sharing this pane's own fixed 0-100 scale (see
         // useIndicatorPaneScales) — the ADX line itself in this indicator's own configurable
-        // color (the "how strong" reading), +DI/-DI in the chart's own up/down colors (the "which
-        // direction" reading, same fixed-by-meaning convention Supertrend/Parabolic SAR already
-        // use for their own directional coloring rather than a single user-picked color).
+        // color (the "how strong" reading), +DI/-DI in their own configurable colors (the "which
+        // direction" reading), defaulting to the chart's own up/down colors, same "leaving both
+        // unset reproduces the exact prior behavior" convention as Supertrend/Parabolic SAR/
+        // Chandelier Exit's own directional-color pairs — plus the user-adjustable "strong trend"
+        // reference level (adxThreshold — see its own doc on Indicator).
+        ctx.save();
+        ctx.strokeStyle = colorGrid;
+        ctx.setLineDash([2, 3]);
+        ctx.lineWidth = 1;
+        const thresholdY = scale(ind.adxThreshold ?? 25);
+        ctx.beginPath();
+        ctx.moveTo(0, thresholdY);
+        ctx.lineTo(dims.boundedWidth, thresholdY);
+        ctx.stroke();
+        ctx.restore();
+
         const adxPoints = points as { i: number; value: IndicatorADXPoint }[];
         const strokeField = (get: (v: IndicatorADXPoint) => number, lineColor: string, lineWidth: number) => {
           ctx.save();
@@ -262,8 +309,8 @@ export function drawVolumeAndPanes(ctx: CanvasRenderingContext2D, params: Render
           ctx.stroke();
           ctx.restore();
         };
-        strokeField((v) => v.plusDI, colorUp, 1);
-        strokeField((v) => v.minusDI, colorDown, 1);
+        strokeField((v) => v.plusDI, ind.adxPlusColor ?? colorUp, 1);
+        strokeField((v) => v.minusDI, ind.adxMinusColor ?? colorDown, 1);
         strokeField((v) => v.adx, color, 1.5);
       } else if (ind.customData?.draw === "histogram") {
         // Same zero-baseline bar shape as MACD's own histogram above, just against this pane's
@@ -310,10 +357,30 @@ export function drawVolumeAndPanes(ctx: CanvasRenderingContext2D, params: Render
         ctx.stroke();
       } else {
         // Fundamental indicators (Free Cash Flow, Net Income, P/E…) and a custom "line"-draw one:
-        // a plain line, no fixed reference levels — unlike RSI/CHOP there's no universal
+        // no fixed reference levels either way — unlike RSI/CHOP there's no universal
         // "overbought/oversold"-style threshold that would mean anything across arbitrary
-        // metrics/companies.
+        // metrics/companies. A fundamental's own `fundamentalChartStyle` (see its doc on
+        // Indicator) picks "step"/"area" instead of the default plain diagonal line — a custom
+        // indicator has no such setting and always gets the plain line.
         const numericPoints = points as { i: number; value: number }[];
+        const style = isFundamentalKind(ind.kind) ? (ind.fundamentalChartStyle ?? "line") : "line";
+
+        if (style === "area") {
+          const zeroY = scale(0);
+          ctx.globalAlpha = 0.12;
+          ctx.fillStyle = color;
+          ctx.beginPath();
+          numericPoints.forEach((p, k) => {
+            const x = zoomedXScale(p.i + 0.5);
+            if (k === 0) ctx.moveTo(x, zeroY);
+            ctx.lineTo(x, scale(p.value));
+          });
+          ctx.lineTo(zoomedXScale(numericPoints[numericPoints.length - 1].i + 0.5), zeroY);
+          ctx.closePath();
+          ctx.fill();
+          ctx.globalAlpha = 1;
+        }
+
         ctx.strokeStyle = color;
         ctx.lineWidth = 1.5;
         ctx.setLineDash([]);
@@ -322,7 +389,17 @@ export function drawVolumeAndPanes(ctx: CanvasRenderingContext2D, params: Render
           const x = zoomedXScale(p.i + 0.5);
           const y = scale(p.value);
           if (k === 0) ctx.moveTo(x, y);
-          else ctx.lineTo(x, y);
+          else if (style === "step") {
+            // A flat hold at the previous value's own height, then a vertical jump to this one —
+            // the step function the underlying data (forward-filled between report dates) already
+            // literally is, rather than "line"'s diagonal interpolation implying a gradual change
+            // that didn't really happen.
+            const prevY = scale(numericPoints[k - 1].value);
+            ctx.lineTo(x, prevY);
+            ctx.lineTo(x, y);
+          } else {
+            ctx.lineTo(x, y);
+          }
         });
         ctx.stroke();
       }

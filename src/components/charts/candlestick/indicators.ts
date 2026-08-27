@@ -37,13 +37,60 @@ function forwardFillSeries(data: Candle[], points: { date: Date; value: number }
   });
 }
 
-/** A fundamental's own value at each candle — see `forwardFillSeries`. */
-export function computeFundamentalValues(data: Candle[], fundamentals: FundamentalDataPoint[] | undefined, kind: IndicatorKind): (number | null)[] {
+// One year back, in milliseconds — used to find each reported point's own year-ago counterpart
+// for `computeFundamentalValues`'s "yoyChange" mode. A plain calendar-day approximation (365 days,
+// not a true "same calendar date a year ago" which would need real date arithmetic across
+// month/leap-year boundaries) — close enough for matching against quarterly/annual report dates,
+// which are never exactly 365 days apart anyway.
+const ONE_YEAR_MS = 365 * 24 * 60 * 60 * 1000;
+
+// The latest of `points` (already date-sorted) at or before `targetTime`, or null if every point
+// is later than that — used once per reported point below to find its own "roughly a year ago"
+// counterpart, same "walk forward, never re-scan from the start" shape `forwardFillSeries`'s own
+// cursor already uses, just a plain binary-search here since lookups aren't sequential this time.
+function latestAtOrBefore(points: { date: Date; value: number }[], targetTime: number): { date: Date; value: number } | null {
+  let lo = 0;
+  let hi = points.length - 1;
+  let result: { date: Date; value: number } | null = null;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    if (points[mid].date.getTime() <= targetTime) {
+      result = points[mid];
+      lo = mid + 1;
+    } else {
+      hi = mid - 1;
+    }
+  }
+  return result;
+}
+
+/** A fundamental's own value at each candle — see `forwardFillSeries`. `mode` "yoyChange" (see
+ *  `Indicator.fundamentalDisplayMode`'s own doc) replaces each reported point with its own
+ *  percentage change against the closest earlier report at least ~1 year prior, before the same
+ *  forward-fill; a point with nothing far enough back yet (the series' own first ~year) has no
+ *  defined change, same "null until there's enough history" reasoning a moving average's own
+ *  warm-up period already follows. A zero-or-opposite-signed prior value has no meaningful percent
+ *  change (division by zero, or a sign flip that reads as a nonsensical magnitude) and is skipped
+ *  the same way. */
+export function computeFundamentalValues(
+  data: Candle[],
+  fundamentals: FundamentalDataPoint[] | undefined,
+  kind: IndicatorKind,
+  mode: "value" | "yoyChange" = "value"
+): (number | null)[] {
   if (!fundamentals || fundamentals.length === 0) return data.map(() => null);
   const points = fundamentals
     .map((f) => ({ date: f.date, value: f[kind as keyof Omit<FundamentalDataPoint, "date">] }))
-    .filter((p): p is { date: Date; value: number } => typeof p.value === "number");
-  return forwardFillSeries(data, points);
+    .filter((p): p is { date: Date; value: number } => typeof p.value === "number")
+    .sort((a, b) => a.date.getTime() - b.date.getTime());
+  if (mode !== "yoyChange") return forwardFillSeries(data, points);
+  const yoyPoints: { date: Date; value: number }[] = [];
+  for (const point of points) {
+    const prior = latestAtOrBefore(points, point.date.getTime() - ONE_YEAR_MS);
+    if (!prior || prior.value <= 0) continue;
+    yoyPoints.push({ date: point.date, value: ((point.value - prior.value) / prior.value) * 100 });
+  }
+  return forwardFillSeries(data, yoyPoints);
 }
 
 /** A `CustomIndicatorDef`'s own series, forward-filled the same way — see `forwardFillSeries`. */
@@ -717,7 +764,8 @@ export function computeIndicatorValues(
 ): (IndicatorValue | null)[] {
   if (indicator.customData) return computeCustomIndicatorValues(data, indicator.customData);
   const period = Math.max(1, Math.round(indicator.period));
-  if (isFundamentalKind(indicator.kind)) return computeFundamentalValues(data, fundamentals, indicator.kind);
+  if (isFundamentalKind(indicator.kind))
+    return computeFundamentalValues(data, fundamentals, indicator.kind, indicator.fundamentalDisplayMode ?? "value");
   switch (indicator.kind) {
     case "ema":
       return computeEMAValues(data, period);
@@ -735,8 +783,16 @@ export function computeIndicatorValues(
       return computeMACDValues(data, indicator.fastPeriod ?? 12, indicator.slowPeriod ?? 26, indicator.signalPeriod ?? 9);
     case "zigzag":
       return computeZigZagValues(data, indicator.zigzagDeviation ?? 5);
-    case "atr":
-      return computeATRValues(data, period);
+    case "atr": {
+      const atrValues = computeATRValues(data, period);
+      // "atrAsPercent" (see its own doc on Indicator) rescales each value by that same candle's
+      // own close — done here, once, rather than inside computeATRValues itself, since that
+      // function is also called internally by Supertrend/Chandelier Exit for their own ATR band
+      // math, which must always stay in raw price units regardless of what this indicator's own
+      // display setting is set to.
+      if (!indicator.atrAsPercent) return atrValues;
+      return atrValues.map((v, i) => (v === null || data[i].close === 0 ? v : (v / data[i].close) * 100));
+    }
     case "supertrend":
       return computeSupertrendValues(data, period, indicator.supertrendMultiplier ?? 3);
     case "chandelierExit":

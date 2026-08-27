@@ -120,6 +120,56 @@ export interface Indicator {
    *  already give the value area) — this scales *both* rather than replacing that relationship
    *  with a single flat alpha. Default 100 (fully opaque). */
   tpoOpacity?: number;
+  /** "rsi" only — the two dashed reference levels drawn across its pane (see
+   *  `drawVolumeAndPanes`'s own RSI/CHOP block). Defaults 70/30, the conventional overbought/
+   *  oversold thresholds — some traders widen these to 80/20 for a stronger/less noisy signal, or
+   *  narrow them for a more sensitive one. */
+  rsiOverbought?: number;
+  rsiOversold?: number;
+  /** "chop" only — same reference-level mechanism as `rsiOverbought`/`rsiOversold` above, against
+   *  CHOP's own 0-100 scale. Defaults 61.8/38.2, the conventional Fibonacci-derived thresholds
+   *  (above the upper one: choppy/ranging; below the lower one: trending). */
+  chopUpperThreshold?: number;
+  chopLowerThreshold?: number;
+  /** "atr" only — divides each value by that candle's own close (×100) before plotting, so the
+   *  pane reads "volatility as a % of price" instead of a raw price-unit amount. Makes ATR
+   *  comparable across symbols/timeframes at very different price levels, at the cost of no longer
+   *  being directly usable as a stop-distance in the instrument's own price units. Default false
+   *  (raw ATR, the original behavior). */
+  atrAsPercent?: boolean;
+  /** "adx" only — the dashed reference level drawn across its pane (same mechanism as
+   *  `rsiOverbought`/`chopUpperThreshold` above), against ADX's own 0-100 scale. Default 25, the
+   *  conventional "trend is strong enough to matter" threshold — below it, +DI/-DI crossovers are
+   *  generally considered too unreliable to act on. */
+  adxThreshold?: number;
+  /** "adx" only — +DI/-DI's own line color (see `drawVolumeAndPanes`'s own ADX block for why they
+   *  don't read the shared `color` field the way most indicators do). Defaults to the chart's own
+   *  up/down colors, same "leaving both unset reproduces the exact prior behavior" convention as
+   *  Supertrend/Parabolic SAR/Chandelier Exit's own directional-color pairs. */
+  adxPlusColor?: string;
+  adxMinusColor?: string;
+  /** "correlation" only — the dashed reference levels drawn at +/- this value (see
+   *  `drawVolumeAndPanes`'s own correlation block), against its fixed -1..1 scale. Default 0.7, a
+   *  common "meaningfully correlated" cutoff — a coefficient beyond either line is generally read
+   *  as a strong (positive or negative) relationship, inside them as weak/noise. */
+  correlationStrongThreshold?: number;
+  /** The eight fundamental kinds only (see `isFundamentalKind`) — plots the year-over-year percent
+   *  change between each reported point and the point from ~12 months earlier instead of the raw
+   *  reported value itself (see `computeFundamentalValues`'s own doc for exactly how "12 months
+   *  earlier" is resolved against irregular reporting dates). Useful for comparing growth *rate*
+   *  across companies/metrics whose absolute scale differs wildly (revenue in the billions vs. a
+   *  P/E ratio in the tens) — something the raw "value" mode can't do at a glance. Default
+   *  "value" (the original behavior, unchanged). */
+  fundamentalDisplayMode?: "value" | "yoyChange";
+  /** The eight fundamental kinds only — how the pane connects each reported point (see
+   *  `drawVolumeAndPanes`'s own fundamentals block). "line" (default, prior behavior) draws a
+   *  straight diagonal between consecutive reports, which reads smoothly but visually implies a
+   *  gradual change that didn't really happen (the underlying value is actually a step function —
+   *  flat between report dates, then a jump). "step" draws that step function literally, more
+   *  truthful to how the data actually arrives; "area" fills beneath the line down to zero, useful
+   *  for a metric where "how much" reads more naturally as a filled magnitude than a bare line
+   *  (Free Cash Flow, Net Income, Total Revenue). */
+  fundamentalChartStyle?: "line" | "step" | "area";
   /** Set once this indicator represents a `CustomIndicatorDef` the caller supplied via
    *  `CandlestickChartProps.customIndicators`, rather than one of the library's own built-in
    *  kinds — `kind` itself is meaningless in that case ("custom" exists in `IndicatorKind` purely

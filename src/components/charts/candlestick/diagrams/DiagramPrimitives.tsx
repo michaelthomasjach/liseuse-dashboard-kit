@@ -91,3 +91,15 @@ export function DiagramLabel({ x, y, text, color = "var(--lq-color-text)", ancho
     </text>
   );
 }
+
+/** The real-screenshot counterpart to `InfoDiagram` above — every built-in `IndicatorKind`'s own
+ *  diagram is a real Playwright capture of that indicator actually plotted on the "all features"
+ *  demo chart (a cropped JPEG under `./images/`), not a hand-drawn SVG: an indicator like Ichimoku
+ *  or TPO has a genuinely intricate shape a stylized SVG could only gesture at, so showing the
+ *  real render is both more accurate and less work to keep in sync as the indicator itself evolves.
+ *  The 38 drawing-tool diagrams keep using `InfoDiagram` and friends — a drawing tool has no
+ *  "default" shape to screenshot until a user has already drawn one, unlike an indicator, which
+ *  renders unprompted the moment it's added. */
+export function DiagramImage({ src, alt }: { src: string; alt: string }) {
+  return <img src={src} alt={alt} className="lq-chart__info-diagram-image" loading="lazy" />;
+}

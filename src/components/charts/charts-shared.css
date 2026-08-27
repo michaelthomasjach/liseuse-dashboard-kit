@@ -1813,6 +1813,19 @@
   border-radius: var(--lq-radius-sm);
 }
 
+/* The real-screenshot counterpart to `.lq-chart__info-diagram` above (see DiagramImage's own
+   doc) — a plain bordered JPEG instead of a padded/backgrounded SVG, since a screenshot of the
+   actual chart already reads as its own distinct panel without needing a background tint to
+   separate it from the modal behind it. */
+.lq-chart__info-diagram-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 280px;
+  border-radius: var(--lq-radius-sm);
+  border: 1px solid var(--lq-color-border-subtle);
+}
+
 /* The "Gérer les indicateurs" modal — reuses .lq-chart__indicator-picker-group/-group-label
    for its two sections (grouping is the one part identical to the "Ajouter un indicateur"
    modal), just with its own row layout (badge + name + actions) instead of a plain button. */

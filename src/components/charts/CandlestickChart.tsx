@@ -30,8 +30,7 @@ import { ChartSidePanel } from "./candlestick/components/ChartSidePanel";
 import { ToolsRail } from "./candlestick/components/ToolsRail";
 import { ChartLegend } from "./candlestick/components/ChartLegend";
 import { PaneHeaders } from "./candlestick/components/PaneHeaders";
-import { ChartCanvasOverlay } from "./candlestick/components/ChartCanvasOverlay";
-import { ChartHoverBadges } from "./candlestick/components/ChartHoverBadges";
+import { ChartPlotOverlays } from "./candlestick/components/ChartPlotOverlays";
 import { FloatingDrawingToolbar } from "./candlestick/components/FloatingDrawingToolbar";
 import { ChartModals } from "./candlestick/components/ChartModals";
 import { ChartEventTooltip } from "./EventTooltip";
@@ -779,7 +778,7 @@ export function CandlestickChart({
           fullscreenPaneId={fullscreenPaneId}
           onTogglePaneFullscreen={togglePaneFullscreen}
         />
-        <ChartCanvasOverlay
+        <ChartPlotOverlays
           canvasRef={canvasRef}
           dims={dims}
           plotBoundedHeight={plotBoundedHeight}
@@ -838,28 +837,16 @@ export function CandlestickChart({
           setActiveEventStack={setActiveEventStack}
           textEntry={{ entry: textEntry, setEntry: setTextEntry, onCommit: commitTextEntry, onCancel: cancelTextEntry }}
           editingCell={{ entry: editingCell, setEntry: setEditingCell, onCommit: commitCellEntry, onCancel: cancelCellEntry }}
-        />
-        <ChartHoverBadges
           hoverY={effectiveHoverY}
-          dims={dims}
           addPriceLine={addPriceLine}
-          zoomedPriceScale={zoomedPriceScale}
-          priceAxisFmt={priceAxisFmt}
           hoverVolumeY={hoverVolumeY}
-          priceHeight={priceHeight}
-          volumeTop={volumeTop}
           addVolumeLine={addVolumeLine}
-          zoomedVolumeScale={zoomedVolumeScale}
-          vFmt={vFmt}
           hoverIndicatorPaneId={hoverIndicatorPaneId}
           hoverIndicatorPaneY={hoverIndicatorPaneY}
           addIndicatorPaneLine={addIndicatorPaneLine}
           paneScaleAndOffset={paneScaleAndOffset}
           hovered={effectiveHovered}
-          zoomedXScale={zoomedXScale}
           hoverIndex={effectiveHoverIndex}
-          plotBoundedHeight={plotBoundedHeight}
-          dFmt={dFmt}
           addDateLine={addDateLine}
           livePrice={livePrice}
           data={data}
@@ -867,16 +854,8 @@ export function CandlestickChart({
           now={now}
           showIndicators={showIndicators}
           indicatorValues={indicatorValues}
-          visibleDrawings={visibleDrawings}
-          volumeVisible={volumeVisible}
-          pixelYForDrawing={pixelYForDrawing}
-          hoveredDrawingId={hoveredDrawingId}
-          indexForDate={indexForDate}
           activeEventStack={activeEventStack}
           eventModalOpen={eventModalOpen}
-          plotHeight={plotHeight}
-          setEventModalOpen={setEventModalOpen}
-          setActiveEventStack={setActiveEventStack}
         />
         {showFloatingToolbar && (
           <FloatingDrawingToolbar

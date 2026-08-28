@@ -4,6 +4,23 @@ import react from "@vitejs/plugin-react";
 import dts from "vite-plugin-dts";
 
 export default defineConfig({
+  // Without this, Vite emits any reference to a *separately-chunked* built asset (a `new
+  // Worker(new URL("./x.ts", import.meta.url))` call, or the same pattern via a `?worker`
+  // import) as a bare root-relative string like "/assets/x-hash.js" — same root-relative
+  // problem assetsInlineLimit's own doc below already explains for images, just via a
+  // different code path (Rollup's worker-chunk emission, not vite:asset). That path assumes
+  // the built output is served from a site's own root the way an application build is; a
+  // published library has no such root. `base: "./"` makes Vite instead emit
+  // `new URL("assets/x-hash.js", import.meta.url)` — a genuinely relative reference resolved
+  // against wherever *this module itself* is actually being loaded from, which is what makes
+  // a Worker constructed this way keep working regardless of where a consumer's own bundler
+  // or node_modules layout ends up placing this package. Confirmed by building with a throwaway
+  // worker, copying the output several directories deep, and loading it from there directly —
+  // the worker still resolved and ran correctly. Doesn't affect the still-necessary base64
+  // inlining for images (a separate, forced code path — see assetsInlineLimit's own doc) or
+  // dynamic `import()` code-splitting, which already emitted correctly-relative chunk
+  // references even before this was set.
+  base: "./",
   plugins: [
     react(),
     dts({

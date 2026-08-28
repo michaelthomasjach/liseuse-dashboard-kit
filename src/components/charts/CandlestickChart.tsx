@@ -305,6 +305,7 @@ export function CandlestickChart({
     indicatorPaneHeights, indicatorPaneTops,
     volumeTop, allPanesOrder,
     volumeHeight, priceHeight,
+    fullscreenPaneId, togglePaneFullscreen,
   } = usePaneLayout({ defaultIndicators, onIndicatorsChange, showVolume, plotBoundedHeight });
   const correlationSetup = useCorrelationSetup({ appendIndicator, onAddSymbolOverlay, onSymbolSearchChange });
 
@@ -715,38 +716,42 @@ export function CandlestickChart({
           setIndicatorsManagerOpen={setIndicatorsManagerOpen}
           onOpenToolInfo={setInfoTool}
         />
-        <ChartLegend
-          dims={dims}
-          symbol={symbol}
-          symbolSearch={symbolSearch}
-          setSymbolSearchOpen={setSymbolSearchOpen}
-          setSettingsOpen={setSettingsOpen}
-          currentModeEntry={currentModeEntry}
-          ohlcCandle={ohlcCandle}
-          ohlcDelta={ohlcDelta}
-          ohlcDeltaPct={ohlcDeltaPct}
-          ohlcSign={ohlcSign}
-          pFmt={pFmt}
-          showIndicators={showIndicators}
-          overlayIndicators={overlayIndicators}
-          indicators={indicators}
-          defaultIndicatorColor={defaultIndicatorColor}
-          openIndicatorSettings={openIndicatorSettings}
-          setHoveredIndicatorId={setHoveredIndicatorId}
-          indicatorLabel={indicatorLabel}
-          toggleIndicatorHidden={toggleIndicatorHidden}
-          removeIndicator={removeIndicator}
-          alertedIndicatorIds={alertFlow.alertedIndicatorIds} onOpenIndicatorAlert={(ind) => alertFlow.openForIndicator(ind.id, indicatorLabel(ind))}
-          symbolOverlays={symbolOverlays}
-          drawings={drawings}
-          commitDrawings={commitDrawings}
-          drawingLabel={drawingLabel}
-          setHoveredDrawingId={setHoveredDrawingId}
-          setEditingId={setEditingId}
-          setDraft={setDraft}
-          setEditModalTab={setEditModalTab}
-          removeSymbolOverlay={removeSymbolOverlay} onOpenIndicatorInfo={setInfoKind}
-        />
+        {/* Fixed to the plot's own top-left corner regardless of priceHeight — without this gate
+            it would still render, and overlap, once a pane's own maximize button zeroes it out. */}
+        {priceHeight > 0 && (
+          <ChartLegend
+            dims={dims}
+            symbol={symbol}
+            symbolSearch={symbolSearch}
+            setSymbolSearchOpen={setSymbolSearchOpen}
+            setSettingsOpen={setSettingsOpen}
+            currentModeEntry={currentModeEntry}
+            ohlcCandle={ohlcCandle}
+            ohlcDelta={ohlcDelta}
+            ohlcDeltaPct={ohlcDeltaPct}
+            ohlcSign={ohlcSign}
+            pFmt={pFmt}
+            showIndicators={showIndicators}
+            overlayIndicators={overlayIndicators}
+            indicators={indicators}
+            defaultIndicatorColor={defaultIndicatorColor}
+            openIndicatorSettings={openIndicatorSettings}
+            setHoveredIndicatorId={setHoveredIndicatorId}
+            indicatorLabel={indicatorLabel}
+            toggleIndicatorHidden={toggleIndicatorHidden}
+            removeIndicator={removeIndicator}
+            alertedIndicatorIds={alertFlow.alertedIndicatorIds} onOpenIndicatorAlert={(ind) => alertFlow.openForIndicator(ind.id, indicatorLabel(ind))}
+            symbolOverlays={symbolOverlays}
+            drawings={drawings}
+            commitDrawings={commitDrawings}
+            drawingLabel={drawingLabel}
+            setHoveredDrawingId={setHoveredDrawingId}
+            setEditingId={setEditingId}
+            setDraft={setDraft}
+            setEditModalTab={setEditModalTab}
+            removeSymbolOverlay={removeSymbolOverlay} onOpenIndicatorInfo={setInfoKind}
+          />
+        )}
         <PaneHeaders
           volumeVisible={volumeVisible}
           dims={dims}
@@ -771,6 +776,8 @@ export function CandlestickChart({
           openIndicatorSettings={openIndicatorSettings}
           removeIndicator={removeIndicator}
           indicatorValues={indicatorValues} onOpenIndicatorInfo={setInfoKind}
+          fullscreenPaneId={fullscreenPaneId}
+          onTogglePaneFullscreen={togglePaneFullscreen}
         />
         <ChartCanvasOverlay
           canvasRef={canvasRef}

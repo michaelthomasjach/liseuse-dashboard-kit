@@ -145,6 +145,10 @@ export function usePaneLayout({ defaultIndicators, onIndicatorsChange, showVolum
     setVolumePaneOrder(snapshot.volumePaneOrder);
     setVolumePaneState(snapshot.volumePaneState);
     setPaneHeightFractions(snapshot.paneHeightFractions);
+    // A template snapshot carries no fullscreen state of its own — clearing it here (rather than
+    // leaving the stale-pane effect above to catch it a tick later) avoids a one-frame flash of
+    // the old fullscreened pane rendered against the *new* layout's indicators.
+    setFullscreenPaneId(null);
   }
 
   function addIndicator(entry: IndicatorCatalogEntry) {
@@ -240,6 +244,35 @@ export function usePaneLayout({ defaultIndicators, onIndicatorsChange, showVolum
   const volumeVisible = showVolume && volumePaneState !== "hidden";
   const volumeCollapsed = volumeVisible && volumePaneState === "collapsed";
 
+  // Which sub-pane (volume, or an "own"-pane indicator's own id) currently owns the *entire*
+  // plot — price included, not just the other sub-panes — via its own header's maximize button
+  // (see togglePaneFullscreen below). null the rest of the time, the ordinary shared-layout
+  // behavior every height/top computation below already had before this existed.
+  const [fullscreenPaneId, setFullscreenPaneId] = useState<string | null>(null);
+
+  // Guards every way `fullscreenPaneId` could otherwise end up pointing at a pane that no
+  // longer exists — the indicator itself got removed (one at a time, "tout supprimer", or a
+  // freshly-loaded template wholesale-replacing `indicators`), or volume got hidden — rather
+  // than scattering the same check across every one of those call sites individually. Left
+  // stale, the chart would be stuck with price/volume/every other indicator forced to zero
+  // height (see the height computations below) and no visible header left to un-stick it from,
+  // since the one button that could exit fullscreen no longer renders either.
+  useEffect(() => {
+    if (fullscreenPaneId === null) return;
+    if (fullscreenPaneId === "volume") {
+      if (!volumeVisible) setFullscreenPaneId(null);
+      return;
+    }
+    if (!indicators.some((ind) => ind.id === fullscreenPaneId)) setFullscreenPaneId(null);
+  }, [fullscreenPaneId, indicators, volumeVisible]);
+
+  // The button that calls this only ever renders on an already-expanded pane's header (collapsed,
+  // a pane shows just its own re-expand chevron — see PaneHeaders), so there's no "entering
+  // fullscreen on a collapsed pane" case to handle here.
+  function togglePaneFullscreen(paneId: string) {
+    setFullscreenPaneId((current) => (current === paneId ? null : paneId));
+  }
+
   function paneHeightFraction(key: string): number {
     return paneHeightFractions[key] ?? DEFAULT_PANE_HEIGHT_FRACTION;
   }
@@ -309,8 +342,18 @@ export function usePaneLayout({ defaultIndicators, onIndicatorsChange, showVolum
   // No breathing room between the price section and the volume section below it: the divider
   // line itself is the only separation, flush against both (same "the border delimits the
   // content" rule applied to the tools rail and the header above). Collapsed reduces the pane to
-  // its own fixed-height header strip instead of the usual proportional split.
-  const volumeHeight = !volumeVisible ? 0 : volumeCollapsed ? SUB_PANE_COLLAPSED_HEIGHT : Math.round(plotBoundedHeight * paneHeightFraction("volume"));
+  // its own fixed-height header strip instead of the usual proportional split. Fullscreened onto
+  // some *other* pane, volume drops to zero regardless of its own collapsed/expanded state —
+  // fullscreened onto itself, it claims the entire plot instead.
+  const volumeHeight = !volumeVisible
+    ? 0
+    : fullscreenPaneId !== null
+      ? fullscreenPaneId === "volume"
+        ? plotBoundedHeight
+        : 0
+      : volumeCollapsed
+        ? SUB_PANE_COLLAPSED_HEIGHT
+        : Math.round(plotBoundedHeight * paneHeightFraction("volume"));
 
   // "own"-pane indicators (RSI/CHOP/MACD) stack below price, in the order they were added,
   // interleaved with volume wherever `volumePaneOrder` currently places it — each sized/collapsed
@@ -326,6 +369,25 @@ export function usePaneLayout({ defaultIndicators, onIndicatorsChange, showVolum
   // deps" dependency array pointless (always "changed").
   const { ownPaneIndicators, indicatorPaneHeights, indicatorPaneTops, volumeTop, allPanesOrder } = useMemo(() => {
     const owned = indicators.filter((ind) => indicatorCatalogEntry(ind).pane === "own");
+    // A fullscreened *indicator* pane (volume's own case is handled entirely by volumeHeight
+    // above — it never needs to touch this array) is filtered down to just itself rather than
+    // merely zeroed in place: every one of PaneHeaders/drawVolumeAndPanes/useIndicatorPaneScales
+    // renders exactly one row per entry in `ownPaneIndicators`, so anything else left in here
+    // would still get its own header/scale rendered at zero height instead of disappearing
+    // outright, which is what "this pane owns the whole plot now" actually means.
+    if (fullscreenPaneId !== null && fullscreenPaneId !== "volume") {
+      const target = owned.filter((ind) => ind.id === fullscreenPaneId);
+      return {
+        ownPaneIndicators: target,
+        indicatorPaneHeights: target.map(() => plotBoundedHeight),
+        indicatorPaneTops: target.map(() => 0),
+        volumeTop: 0,
+        allPanesOrder: target.map((ind) => ind.id),
+      };
+    }
+    if (fullscreenPaneId === "volume") {
+      return { ownPaneIndicators: [], indicatorPaneHeights: [], indicatorPaneTops: [], volumeTop: 0, allPanesOrder: ["volume"] };
+    }
     const heights = owned.map((ind) =>
       ind.paneCollapsed ? SUB_PANE_COLLAPSED_HEIGHT : Math.round(plotBoundedHeight * (paneHeightFractions[ind.id] ?? DEFAULT_PANE_HEIGHT_FRACTION))
     );
@@ -349,7 +411,7 @@ export function usePaneLayout({ defaultIndicators, onIndicatorsChange, showVolum
       order.push("volume");
     }
     return { ownPaneIndicators: owned, indicatorPaneHeights: heights, indicatorPaneTops: tops, volumeTop: vTop, allPanesOrder: order };
-  }, [indicators, paneHeightFractions, plotBoundedHeight, volumeVisible, volumeHeight, volumePaneOrder]);
+  }, [indicators, paneHeightFractions, plotBoundedHeight, volumeVisible, volumeHeight, volumePaneOrder, fullscreenPaneId]);
   const indicatorPanesTotalHeight = indicatorPaneHeights.reduce((sum, h) => sum + h, 0);
 
   const priceHeight = Math.max(0, plotBoundedHeight - volumeHeight - indicatorPanesTotalHeight);
@@ -409,5 +471,7 @@ export function usePaneLayout({ defaultIndicators, onIndicatorsChange, showVolum
     allPanesOrder,
     volumeHeight,
     priceHeight,
+    fullscreenPaneId,
+    togglePaneFullscreen,
   };
 }

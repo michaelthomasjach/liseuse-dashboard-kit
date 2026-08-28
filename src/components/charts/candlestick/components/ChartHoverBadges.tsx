@@ -201,6 +201,7 @@ export function ChartHoverBadges({
           the countdown needs to re-render every second independent of the canvas. The interval
           is inferred from the last two candles' own dates, not a separate prop. */}
       {livePrice &&
+        priceHeight > 0 &&
         data.length > 0 &&
         (() => {
           const lastCandle = data[data.length - 1];
@@ -241,6 +242,7 @@ export function ChartHoverBadges({
           Bollinger, whose "value" is a plain number; Bollinger's own band uses its middle
           line). */}
       {showIndicators &&
+        priceHeight > 0 &&
         indicatorValues.map(({ indicator, values }, idx) => {
           // ZigZag/Supertrend/Ichimoku/Gaps excluded here — none of them have a value shape this
           // generic "plain number, or a band's own middle line" badge understands (see the next

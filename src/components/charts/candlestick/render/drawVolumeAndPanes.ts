@@ -44,7 +44,11 @@ export function drawVolumeAndPanes(ctx: CanvasRenderingContext2D, params: Render
   const { colorUp, colorDown, colorText, colorMuted, colorAccent, colorGrid, fontFamily, isEink } = style;
 
 
-    if (volumeVisible) {
+    // volumeHeight is 0 whenever some *other* pane is fullscreened (see usePaneLayout's own
+    // volumeHeight branch) — volumeVisible alone doesn't capture that (it only tracks whether
+    // the caller has volume turned on at all), so without this the divider line below would
+    // still draw a stray 1px rule at the very top of that other pane's now full-height plot.
+    if (volumeVisible && volumeHeight > 0) {
       // Divider right above wherever volume currently sits (priceHeight + volumeTop — its own
       // top, not necessarily right after price anymore now that it can be dragged among the
       // indicator panes) — flush against both, no padding on either side (the line itself is the

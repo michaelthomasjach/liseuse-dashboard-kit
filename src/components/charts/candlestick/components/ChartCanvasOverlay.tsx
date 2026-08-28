@@ -251,14 +251,23 @@ export function ChartCanvasOverlay({
           </clipPath>
         </defs>
         <g transform={`translate(${dims.margin.left}, ${dims.margin.top})`}>
-          <ChartAxis
-            scale={zoomedPriceScale}
-            orientation="right"
-            transform={`translate(${dims.boundedWidth}, 0)`}
-            tickFormat={(v) => priceAxisFmt(Number(v))}
-          />
+          {/* priceHeight is 0 whenever a sub-pane is fullscreened (see usePaneLayout's own
+              priceHeight formula) — without this, the axis would render its ticks against a
+              degenerate zero-height scale, bunching every price label at the very top. */}
+          {priceHeight > 0 && (
+            <ChartAxis
+              scale={zoomedPriceScale}
+              orientation="right"
+              transform={`translate(${dims.boundedWidth}, 0)`}
+              tickFormat={(v) => priceAxisFmt(Number(v))}
+            />
+          )}
 
-          {volumeVisible && (
+          {/* volumeHeight is 0 whenever some *other* pane is fullscreened (see usePaneLayout's
+              own volumeHeight branch) — volumeVisible alone doesn't capture that, so without this
+              the axis ticks/drag-rect/divider below would still render against a degenerate
+              zero-height scale. */}
+          {volumeVisible && volumeHeight > 0 && (
             <>
               {!volumeCollapsed && (
                 <g transform={`translate(0, ${priceHeight + volumeTop})`}>

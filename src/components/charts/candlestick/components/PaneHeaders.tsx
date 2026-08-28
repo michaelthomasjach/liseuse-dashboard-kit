@@ -1,6 +1,6 @@
 import type { Dispatch, SetStateAction } from "react";
 import type * as React from "react";
-import { ChevronDownIcon, ChevronUpIcon, SettingsIcon, TrashIcon, GripIcon, InfoIcon } from "../../../icons";
+import { ChevronDownIcon, ChevronUpIcon, SettingsIcon, TrashIcon, GripIcon, InfoIcon, MaximizeIcon, MinimizeIcon } from "../../../icons";
 import type { Candle } from "../interfaces/Candle.interface";
 import type { Indicator } from "../interfaces/Indicator.interface";
 import type { IndicatorKind } from "../interfaces/IndicatorKind.interface";
@@ -35,6 +35,11 @@ export interface PaneHeadersProps {
    *  IndicatorModals) — "volume" for the volume pane's own header, an indicator's own `kind`
    *  for every other pane here. */
   onOpenIndicatorInfo: (kind: IndicatorKind | "volume") => void;
+  /** Which pane (an indicator's own id, or "volume") currently owns the entire plot — see
+   *  usePaneLayout's own togglePaneFullscreen doc. null the rest of the time, in which case
+   *  every pane here still renders normally, just with an extra button to claim it. */
+  fullscreenPaneId: string | null;
+  onTogglePaneFullscreen: (paneId: string) => void;
 }
 
 /** Header strip for the volume pane, then one more per "own"-pane indicator (RSI/CHOP/MACD) —
@@ -67,6 +72,8 @@ export function PaneHeaders({
   removeIndicator,
   indicatorValues,
   onOpenIndicatorInfo,
+  fullscreenPaneId,
+  onTogglePaneFullscreen,
 }: PaneHeadersProps) {
   return (
     <>
@@ -74,8 +81,12 @@ export function PaneHeaders({
           (hoverVolumeY, already tracked by handlePointerMove — reused here instead of a CSS
           :hover, since the hoverable zone is the whole pane, much bigger than this row).
           pointer-events: none on the row itself so it never blocks the zoom/pan overlay or
-          drawing-tool clicks underneath — same pattern as .lq-chart__indicator-legend. */}
-      {volumeVisible && (
+          drawing-tool clicks underneath — same pattern as .lq-chart__indicator-legend. Also
+          hidden outright whenever some *other* pane is fullscreened — unlike an indicator's own
+          header (filtered out upstream by ownPaneIndicators itself, see usePaneLayout), volume's
+          header renders straight off `volumeVisible` alone, which fullscreening something else
+          doesn't change, so it needs this same check spelled out here explicitly. */}
+      {volumeVisible && (fullscreenPaneId === null || fullscreenPaneId === "volume") && (
         <div
           className={[
             "lq-chart__pane-header",
@@ -87,8 +98,10 @@ export function PaneHeaders({
           style={{ top: dims.margin.top + priceHeight + volumeTop, left: dims.margin.left, width: dims.boundedWidth, height: SUB_PANE_COLLAPSED_HEIGHT }}
         >
           {/* Drag-to-resize: a thin strip straddling the divider above this pane, only while
-              expanded (collapsed panes are a fixed height, nothing to resize). */}
-          {!volumeCollapsed && (
+              expanded (collapsed panes are a fixed height, nothing to resize) and not
+              fullscreened (a fullscreened pane's height is forced to the entire plot regardless
+              of paneHeightFractions, so dragging this would silently do nothing). */}
+          {!volumeCollapsed && fullscreenPaneId !== "volume" && (
             <div
               className="lq-chart__pane-resize-handle"
               onPointerDown={(e) => startPaneResize("volume", e)}
@@ -170,7 +183,10 @@ export function PaneHeaders({
               })()}
             {!volumeCollapsed && (
               <div
-                className={["lq-chart__pane-header-actions", hoverVolumeY !== null && "lq-chart__pane-header-actions--visible"]
+                className={[
+                  "lq-chart__pane-header-actions",
+                  (hoverVolumeY !== null || fullscreenPaneId === "volume") && "lq-chart__pane-header-actions--visible",
+                ]
                   .filter(Boolean)
                   .join(" ")}
               >
@@ -197,6 +213,14 @@ export function PaneHeaders({
                   aria-label="Supprimer le panneau Volume"
                 >
                   <TrashIcon size={12} />
+                </button>
+                <button
+                  type="button"
+                  className="lq-chart__pane-header-action"
+                  onClick={() => onTogglePaneFullscreen("volume")}
+                  aria-label={fullscreenPaneId === "volume" ? "Quitter le plein écran du panneau Volume" : "Plein écran du panneau Volume"}
+                >
+                  {fullscreenPaneId === "volume" ? <MinimizeIcon size={11} /> : <MaximizeIcon size={11} />}
                 </button>
               </div>
             )}
@@ -339,6 +363,16 @@ export function PaneHeaders({
                   aria-label={`Supprimer ${indicatorLabel(ind)}`}
                 >
                   <TrashIcon size={12} />
+                </button>
+                <button
+                  type="button"
+                  className="lq-chart__pane-header-action"
+                  onClick={() => onTogglePaneFullscreen(ind.id)}
+                  aria-label={
+                    fullscreenPaneId === ind.id ? `Quitter le plein écran de ${indicatorLabel(ind)}` : `Plein écran de ${indicatorLabel(ind)}`
+                  }
+                >
+                  {fullscreenPaneId === ind.id ? <MinimizeIcon size={11} /> : <MaximizeIcon size={11} />}
                 </button>
               </div>
             )}

@@ -1798,6 +1798,11 @@
   font-size: 0.85rem;
   line-height: 1.5;
   color: var(--lq-color-text);
+  /* The description strings themselves now carry real `\n` breaks — a blank line between
+     paragraphs, a single one before each `- ` list item (see INDICATOR_DESCRIPTIONS/
+     DRAWING_TOOL_DESCRIPTIONS's own doc) — pre-line renders those while still collapsing any
+     other run of whitespace and wrapping normally, unlike `pre` which would also stop wrapping. */
+  white-space: pre-line;
 }
 
 /* The small explanatory diagram above an indicator's/drawing tool's own description text (see

@@ -4,16 +4,73 @@
   gap: 6px;
 }
 
+.lq-progress-bar__row {
+  display: flex;
+  align-items: center;
+  gap: var(--lq-space-3);
+}
+
+.lq-progress-bar__slot {
+  display: flex;
+  align-items: baseline;
+  gap: var(--lq-space-2);
+  flex-shrink: 0;
+}
+
+.lq-progress-bar__slot--top,
+.lq-progress-bar__slot--bottom {
+  justify-content: space-between;
+  width: 100%;
+}
+
 .lq-progress-bar__label {
   font-size: 0.78rem;
   color: var(--lq-color-text-muted);
+  white-space: nowrap;
+}
+
+.lq-progress-bar__value {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--lq-color-text);
+  min-width: 2.5ch;
+  text-align: right;
+  white-space: nowrap;
 }
 
 .lq-progress-bar__track {
+  position: relative;
+  flex: 1;
+  min-width: 0;
   height: 6px;
   border-radius: var(--lq-radius-pill);
   background-color: var(--lq-color-fill-track);
   overflow: hidden;
+}
+
+/* Overlaid on the *whole* track (not just the fill), centered, so it never slides along with a
+   growing/shrinking bar the way text placed inside the fill itself would. A halo (multi-direction
+   text-shadow in the surrounding panel's own color) keeps the theme's own normal text color
+   readable over both the filled and unfilled portions regardless of their actual contrast with
+   each other — tried mix-blend-mode: difference first, but it washes out badly on this app's own
+   light palette (difference between white text and an already-light, unfilled track portion stays
+   light-on-light) where a halo doesn't depend on that relationship at all. */
+.lq-progress-bar__inside {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--lq-space-2);
+  color: var(--lq-color-text);
+  text-shadow:
+    -1px -1px 1px var(--lq-color-panel),
+    1px -1px 1px var(--lq-color-panel),
+    -1px 1px 1px var(--lq-color-panel),
+    1px 1px 1px var(--lq-color-panel),
+    0 0 3px var(--lq-color-panel);
+  font-size: 0.7rem;
+  pointer-events: none;
 }
 
 .lq-root[data-lq-palette="eink"] .lq-progress-bar__track {

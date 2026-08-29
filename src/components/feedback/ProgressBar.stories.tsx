@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { ProgressBar } from "./ProgressBar";
+import { Card } from "../primitives/Card";
 
 const meta: Meta<typeof ProgressBar> = {
   title: "Feedback/ProgressBar",
@@ -43,6 +44,26 @@ export const Inside: Story = {
   render: () => (
     <div style={{ maxWidth: 420 }}>
       <ProgressBar label="Téléchargement" value={73} labelPosition="inside" valuePosition="inside" showValue />
+    </div>
+  ),
+};
+
+export const Segmented: Story = {
+  name: "Segmentée (répartition sectorielle)",
+  render: () => (
+    <div style={{ maxWidth: 600 }}>
+      <Card title="Sector allocation" meta="SHARE OF MARKET VALUE">
+        <ProgressBar
+          segments={[
+            { id: "tech", value: 38, color: "#e8391c", label: "Technologie" },
+            { id: "health", value: 22, color: "#1a1a1a", label: "Santé" },
+            { id: "finance", value: 16, color: "#6b6b6b", label: "Finance" },
+            { id: "industry", value: 12, color: "#9c9c9c", label: "Industrie" },
+            { id: "energy", value: 7, color: "#c4c4c4", label: "Énergie" },
+            { id: "other", value: 5, color: "#dcdcdc", label: "Autres" },
+          ]}
+        />
+      </Card>
     </div>
   ),
 };

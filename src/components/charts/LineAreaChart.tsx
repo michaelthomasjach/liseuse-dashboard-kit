@@ -429,8 +429,12 @@ export const LineAreaChart = forwardRef<LineAreaChartHandle, LineAreaChartProps>
     );
   }
 
+  // `series.indexOf(s)` (this series' own stable position in the *full*, unfiltered list), not
+  // its position within `visibleSeries` — hiding an earlier series shifts every later one's own
+  // index within the filtered array, silently reassigning it a different color than the one still
+  // shown for it in the legend below (which colors off the same stable full-array index).
   const hoverPoint = hover
-    ? visibleSeries.map((s, i) => ({ series: s, color: colorFor(s, i), point: closestPointInSeries(s.data, hover.anchorX) }))
+    ? visibleSeries.map((s) => ({ series: s, color: colorFor(s, series.indexOf(s)), point: closestPointInSeries(s.data, hover.anchorX) }))
     : null;
 
   return (
@@ -557,8 +561,9 @@ export const LineAreaChart = forwardRef<LineAreaChartHandle, LineAreaChartProps>
                 ));
               })()}
 
-            {visibleSeries.map((s, i) => {
-              const color = colorFor(s, i);
+            {visibleSeries.map((s) => {
+              // Same stable-full-array-index reasoning as hoverPoint's own doc above.
+              const color = colorFor(s, series.indexOf(s));
               const fillArea = s.area ?? area;
               return (
                 <g key={s.id}>

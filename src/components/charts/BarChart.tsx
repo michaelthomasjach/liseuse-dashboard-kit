@@ -122,8 +122,13 @@ export function BarChart({
     if (series) {
       if (!d.values) return [];
       const values = d.values;
+      // `series.indexOf(s)` (this series' own stable position in the *full*, unfiltered list),
+      // not its position within `visibleSeries` — hiding an earlier series shifts every later
+      // one's own index within the filtered array, which would otherwise silently reassign it a
+      // different color than the one still shown for it in the legend (which colors off the same
+      // stable full-array index — see its own render below).
       return visibleSeries
-        .map((s, si) => (values[s.id] !== undefined ? { key: `${d.id}:${s.id}`, seriesId: s.id, value: values[s.id], color: seriesColor(s, si) } : null))
+        .map((s) => (values[s.id] !== undefined ? { key: `${d.id}:${s.id}`, seriesId: s.id, value: values[s.id], color: seriesColor(s, series.indexOf(s)) } : null))
         .filter((b): b is { key: string; seriesId: string; value: number; color: string } => b !== null);
     }
     return d.value !== undefined ? [{ key: d.id, value: d.value, color: colorFor(d) }] : [];
@@ -257,11 +262,12 @@ export function BarChart({
     if (categoryIndex === -1) return null;
     const d = data[categoryIndex];
     if (series && hover.seriesId !== undefined) {
-      const seriesIndex = visibleSeries.findIndex((s) => s.id === hover.seriesId);
-      const s = visibleSeries[seriesIndex];
+      const s = visibleSeries.find((s) => s.id === hover.seriesId);
       const value = s ? d.values?.[s.id] : undefined;
       if (!s || value === undefined) return null;
-      return { categoryIndex, categoryLabel: d.label, seriesLabel: s.label, value, color: seriesColor(s, seriesIndex) };
+      // Same stable-full-array-index reasoning as barsFor's own doc above — the hovered series'
+      // own position within the currently-visible subset isn't its color identity.
+      return { categoryIndex, categoryLabel: d.label, seriesLabel: s.label, value, color: seriesColor(s, series.indexOf(s)) };
     }
     if (d.value === undefined) return null;
     return { categoryIndex, categoryLabel: d.label, seriesLabel: undefined as string | undefined, value: d.value, color: colorFor(d) };
@@ -370,7 +376,10 @@ export function BarChart({
       {hoveredInfo &&
         (() => {
           const center = zoomedIndexScale(hoveredInfo.categoryIndex + 0.5);
-          const x = orientation === "vertical" ? dims.margin.left + center : dims.margin.left + zoomedValueScale(Math.max(0, hoveredInfo.value));
+          // No Math.max(0, ...) clamp here — unlike the old version of this line, which anchored
+          // a negative bar's own tooltip at the zero line instead of its actual (further-left)
+          // tip, inconsistent with the vertical case just below, which has never clamped.
+          const x = orientation === "vertical" ? dims.margin.left + center : dims.margin.left + zoomedValueScale(hoveredInfo.value);
           const y = orientation === "vertical" ? dims.margin.top + zoomedValueScale(hoveredInfo.value) : dims.margin.top + center;
           return (
             <ChartTooltip x={x} y={y} visible align={x > dims.width * 0.65 ? "left" : "right"}>

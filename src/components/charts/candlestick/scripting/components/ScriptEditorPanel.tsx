@@ -77,14 +77,29 @@ export function ScriptEditorPanel({
   const runButtonRef = useRef<HTMLButtonElement>(null);
   const needsTargetChoice = (panelChoices?.length ?? 0) > 1;
 
-  // "Exécuter" runs immediately once a target is known (a standalone chart's own implicit single
-  // target, or a workspace script that's already been assigned one) — only a workspace script
-  // that's *never* been run before pauses for the picker first (exigence: "si plusieurs charts
-  // sont ouvertes, on me demande sur laquelle exécuter").
+  // "Exécuter" runs immediately once a target is known (a workspace script that's already been
+  // assigned one) — a workspace script that's *never* been run before either pauses for the picker
+  // first, when there's an actual choice to make (exigence: "si plusieurs charts sont ouvertes, on
+  // me demande sur laquelle exécuter"), or — a single-panel workspace, where `panelChoices` never
+  // grows past one entry and the picker's own popover would never even open — is assigned that
+  // one implicit target automatically instead, via the same single `updateScript` call `chooseTarget`
+  // above uses (not a separate updateScript-then-runScript pair — same stale-closure hazard noted
+  // on that function's own doc). Without this, a single-panel workspace's own script would stay
+  // permanently unrouted: `targetPanelIndex` never gets set by anything else, so it can never reach
+  // any panel's own `scripts` prop — "Exécuter" would look like it does nothing, and the script
+  // would never appear in that panel's own "Mes scripts" either.
   function handleRunClick() {
     if (!activeScript) return;
-    if (needsTargetChoice && activeScript.targetPanelIndex === undefined) {
-      setTargetPickerOpen(true);
+    if (activeScript.targetPanelIndex === undefined) {
+      if (needsTargetChoice) {
+        setTargetPickerOpen(true);
+        return;
+      }
+      updateScript(activeScript.id, {
+        targetPanelIndex: panelChoices?.[0]?.index ?? 0,
+        runRequestId: (activeScript.runRequestId ?? 0) + 1,
+        runDraftCode: draft,
+      });
       return;
     }
     runScript(activeScript.id, draft);

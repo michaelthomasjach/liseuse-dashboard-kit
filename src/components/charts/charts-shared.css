@@ -1764,6 +1764,19 @@
   opacity: 0.5;
 }
 
+/* A built-in/custom indicator already on the chart (see IndicatorModals.tsx's own
+   PickerOption.alreadyPresent doc) — a persistent tint (not just a hover state) so it reads as
+   "already there" at a glance, before the checkmark badge inside its own button is even parsed. */
+.lq-chart__indicator-picker-option--active {
+  background-color: var(--lq-color-hover);
+  border-radius: var(--lq-radius-sm);
+}
+
+.lq-chart__indicator-picker-check {
+  display: inline-flex;
+  color: var(--lq-color-accent);
+}
+
 .lq-chart__indicator-picker-select {
   display: flex;
   align-items: center;

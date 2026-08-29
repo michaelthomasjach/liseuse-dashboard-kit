@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Modal } from "../../../primitives/Modal";
 import { Tabs } from "../../../primitives/Tabs";
 import { TextField } from "../../../forms/TextField";
-import { SearchIcon, SettingsIcon, TrashIcon, InfoIcon, OverlayBadgeIcon, PaneBadgeIcon } from "../../../icons";
+import { SearchIcon, SettingsIcon, TrashIcon, InfoIcon, OverlayBadgeIcon, PaneBadgeIcon, CheckIcon } from "../../../icons";
 import type { TrendLineDrawing } from "../interfaces/TrendLineDrawing.interface";
 import type { Indicator } from "../interfaces/Indicator.interface";
 import type { IndicatorKind } from "../interfaces/IndicatorKind.interface";
@@ -110,6 +110,13 @@ export function IndicatorModals({
   saveIndicatorSettings,
 }: IndicatorModalsProps) {
   const [confirmDeleteAllOpen, setConfirmDeleteAllOpen] = useState(false);
+  // Set when the user clicks a picker row for an indicator that's already on the chart — instead
+  // of silently adding a second instance, this opens a small "which did you mean" modal on top of
+  // the picker (see its own render below) offering the two things that click could plausibly have
+  // meant: add another instance anyway, or take the existing one(s) off the chart instead. `onAdd`/
+  // `onRemove` close over whichever option was clicked, so this modal itself never needs to know
+  // built-in vs. custom indicator distinctions — that's all resolved once, at click time, below.
+  const [duplicatePrompt, setDuplicatePrompt] = useState<{ label: string; onAdd: () => void; onRemove: () => void } | null>(null);
   // A second, independent filter alongside the search box — `null` ("Toutes") shows every
   // category. Local state (unlike `indicatorSearchQuery`, lifted to the caller): nothing outside
   // this modal ever needs to read or reset it.
@@ -153,7 +160,10 @@ export function IndicatorModals({
   return (
     <>
       {indicatorPickerOpen && (
-        <Modal open onClose={() => setIndicatorPickerOpen(false)} title="Ajouter un indicateur" size="wide">
+        // footer={null}: without it, Modal's own default footer would add a redundant full-width
+        // "Fermer" button below a catalog that's mostly single-click rows already — the header's
+        // own close icon (always present alongside `title`) stays the one way out.
+        <Modal open onClose={() => setIndicatorPickerOpen(false)} title="Ajouter un indicateur" size="wide" footer={null}>
           {/* Left/right split (see .lq-chart__modal-split's own doc) — search + category filters
               on the left, the catalog itself on the right, each scrolling on its own. */}
           <div className="lq-chart__modal-split">
@@ -238,6 +248,16 @@ export function IndicatorModals({
                    *  as a dimmed row when it isn't. `undefined` for every other option kind, which
                    *  never dims (they're always "add a new one", not an on/off toggle). */
                   enabled?: boolean;
+                  /** Built-in/custom rows only — at least one instance of this indicator is already
+                   *  on the chart. Drives both the row's own "already there" visual (a checkmark
+                   *  badge) and, on click, a confirm prompt instead of silently stacking a second
+                   *  instance (see `duplicatePrompt` state above). `undefined` for a script or
+                   *  Volume row, neither of which can be duplicated this way — a script click is
+                   *  always an enable/disable toggle, and Volume is a single unique pane. */
+                  alreadyPresent?: boolean;
+                  /** Built-in/custom rows only, paired with `alreadyPresent` — what "add anyway"
+                   *  vs. "remove from chart" each mean for this specific row. */
+                  onRemoveExisting?: () => void;
                 };
                 const builtinOptions: PickerOption[] = INDICATOR_CATALOG.filter(
                   (entry) => entry.label.toLowerCase().includes(query) || entry.shortLabel.toLowerCase().includes(query)
@@ -248,6 +268,8 @@ export function IndicatorModals({
                   pane: entry.pane,
                   onSelect: () => (entry.kind === "correlation" ? openCorrelationSetup() : addIndicator(entry)),
                   descriptionKind: entry.kind,
+                  alreadyPresent: indicators.some((ind) => ind.kind === entry.kind),
+                  onRemoveExisting: () => commitIndicators(indicators.filter((ind) => ind.kind !== entry.kind)),
                 }));
                 const customOptions: PickerOption[] = (customIndicators ?? [])
                   .filter((def) => def.label.toLowerCase().includes(query) || (def.shortLabel ?? "").toLowerCase().includes(query))
@@ -257,6 +279,8 @@ export function IndicatorModals({
                     category: def.section,
                     pane: def.type === "overlay" ? "price" : "own",
                     onSelect: () => addCustomIndicator(def),
+                    alreadyPresent: indicators.some((ind) => ind.customData?.id === def.id),
+                    onRemoveExisting: () => commitIndicators(indicators.filter((ind) => ind.customData?.id !== def.id)),
                   }));
                 const scriptOptions: PickerOption[] = scripts
                   .filter((s) => s.name.toLowerCase().includes(query))
@@ -318,17 +342,30 @@ export function IndicatorModals({
                         {group.options.map((option) => (
                           <div
                             key={option.key}
-                            className={["lq-chart__indicator-picker-option", option.enabled === false && "lq-chart__indicator-picker-option--disabled"]
+                            className={[
+                              "lq-chart__indicator-picker-option",
+                              option.enabled === false && "lq-chart__indicator-picker-option--disabled",
+                              option.alreadyPresent && "lq-chart__indicator-picker-option--active",
+                            ]
                               .filter(Boolean)
                               .join(" ")}
                           >
                             <button
                               type="button"
                               className="lq-chart__indicator-picker-select"
-                              onClick={option.onSelect}
+                              onClick={() =>
+                                option.alreadyPresent
+                                  ? setDuplicatePrompt({ label: option.label, onAdd: option.onSelect, onRemove: option.onRemoveExisting! })
+                                  : option.onSelect()
+                              }
                               title={option.enabled === undefined ? undefined : option.enabled ? "Désactiver ce script" : "Activer ce script"}
                             >
                               <span className="lq-chart__indicator-picker-name">{option.label}</span>
+                              {option.alreadyPresent && (
+                                <span className="lq-chart__indicator-picker-check" title="Déjà affiché sur ce graphique">
+                                  <CheckIcon size={13} />
+                                </span>
+                              )}
                               <span
                                 className="lq-chart__indicators-manager-badge"
                                 title={option.pane === "price" ? "Superposé au prix" : "Panneau séparé"}
@@ -355,6 +392,43 @@ export function IndicatorModals({
               })()}
             </div>
           </div>
+        </Modal>
+      )}
+
+      {duplicatePrompt && (
+        <Modal
+          open
+          onClose={() => setDuplicatePrompt(null)}
+          title="Indicateur déjà affiché"
+          footer={
+            <div className="lq-chart__edit-drawing-footer">
+              <button
+                type="button"
+                className="lq-chart__reset-button"
+                onClick={() => {
+                  duplicatePrompt.onRemove();
+                  setDuplicatePrompt(null);
+                }}
+              >
+                Supprimer de la chart
+              </button>
+              <button
+                type="button"
+                className="lq-chart__confirm-button"
+                onClick={() => {
+                  duplicatePrompt.onAdd();
+                  setDuplicatePrompt(null);
+                }}
+              >
+                Ajouter quand même
+              </button>
+            </div>
+          }
+        >
+          <p className="lq-chart__indicator-info-text">
+            « {duplicatePrompt.label} » est déjà affiché sur ce graphique. Voulez-vous en ajouter une deuxième instance, ou
+            retirer celle déjà présente ?
+          </p>
         </Modal>
       )}
 

@@ -67,7 +67,11 @@ export function LinkGroupsModal({ open, onClose, panelCount, groups, onLink, onU
 
   if (!open) return null;
 
-  const groupedIndices = new Set(groups.flat());
+  // Only a group with at least 2 real members still counts as "grouped" — the caller (see its own
+  // `effectiveGroups` doc) may pass a group already filtered down to 0-1 members (its other
+  // member(s) no longer exist at the current panel count); such a panel belongs back in the plain
+  // `ungrouped` list below, not stranded in neither list.
+  const groupedIndices = new Set(groups.filter((g) => g.length >= 2).flat());
   const ungrouped = Array.from({ length: panelCount }, (_, i) => i).filter((i) => !groupedIndices.has(i));
 
   return (
@@ -87,7 +91,12 @@ export function LinkGroupsModal({ open, onClose, panelCount, groups, onLink, onU
       }
     >
       <div className="lq-link-groups__tree">
-        {groups.map((group, groupIndex) => (
+        {groups.map((group, groupIndex) =>
+          // A group already filtered down to fewer than 2 real members (see the caller's own
+          // `effectiveGroups` doc) isn't a group worth showing a card for — its own true index
+          // into the real array is preserved either way, so `onUnlink`/`Groupe N` numbering for
+          // every *other* card stays correct regardless of which ones get skipped here.
+          group.length < 2 ? null : (
           <div key={groupIndex} className="lq-link-groups__group">
             <div className="lq-link-groups__group-header">
               <span>Groupe {groupIndex + 1}</span>
@@ -111,7 +120,8 @@ export function LinkGroupsModal({ open, onClose, panelCount, groups, onLink, onU
               />
             ))}
           </div>
-        ))}
+          )
+        )}
         {ungrouped.map((panelIndex) => (
           <Checkbox key={panelIndex} checked={selected.has(panelIndex)} onChange={() => toggle(panelIndex)} label={panelLabel(panelIndex)} />
         ))}

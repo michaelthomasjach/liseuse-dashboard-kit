@@ -255,7 +255,25 @@ export function ChartWorkspace({
   className,
 }: ChartWorkspaceProps) {
   const [panels, setPanels] = useState(defaultPanels);
-  const { groups, linkPanels, unlinkGroup, groupIndexOfPanel } = useLinkGroups({ defaultLinkGroups, onLinkGroupsChange });
+  const { groups, linkPanels, unlinkGroup } = useLinkGroups({ defaultLinkGroups, onLinkGroupsChange });
+  // `groups` clamped to the current panel count, without touching the underlying committed state
+  // — same "recompute from source rather than mutate" pattern `effectiveFocusedPanelIndex` below
+  // already uses: a group involving a panel index the workspace no longer has recovers
+  // automatically if it grows back to include that index again, instead of permanently losing
+  // that membership the moment it briefly shrinks (reducing the panel count is always reachable
+  // via the rail's own "Écran divisé" menu, no gate on it). Each group's own *membership* is
+  // filtered here, not the groups array itself sliced down — a group's position in this array
+  // still matches unlinkGroup's own index into the *real* array below, so LinkGroupsModal can
+  // still dissolve the right one; it just skips rendering any group left with fewer than 2 real
+  // members instead of dropping it from the array outright. Left unclamped before this fix, a
+  // panel still grouped with one that's now gone could keep reading that removed panel's own
+  // last-known (now permanently frozen — it can never update again) hover position forever, via
+  // syncedDateForPanel/syncedPriceForPanel below.
+  const effectiveGroups = groups.map((g) => g.filter((idx) => idx < panels));
+  function effectiveGroupIndexOfPanel(panelIndex: number): number | null {
+    const i = effectiveGroups.findIndex((g) => g.length >= 2 && g.includes(panelIndex));
+    return i === -1 ? null : i;
+  }
   const sidePanelState = useSidePanel({ defaultSidePanelOpen, onSidePanelOpenChange });
   // Whole-workspace fullscreen (the rail's own "Plein écran de l'espace de travail" button below,
   // item 3) — a plain, uncontrolled `useFullscreen()` like a standalone CandlestickChart's own,
@@ -380,8 +398,15 @@ export function ChartWorkspace({
   // (a prior watchlist target pick or native symbol search), else whatever the template child
   // itself was given. Shared by the grid's own cloneElement below and both modals' own
   // `panelSymbols` labels, so neither can drift out of sync with what's actually on screen.
-  function resolvedSymbol(panelIndex: number, child: ReactElement<CandlestickChartProps>): string | undefined {
-    return panelIndex in symbolByPanel ? symbolByPanel[panelIndex] : child.props.symbol;
+  // `child` is `undefined` whenever `panelIndex` is beyond `panelElements`'s own actual length —
+  // reachable from `scriptPanelChoices` below, which (unlike the grid's own render loop, which
+  // only ever maps over `panelElements`'s real entries) always builds one candidate per `panels`
+  // regardless of how many explicit `<CandlestickChart>` children were actually supplied. Multiple
+  // fewer-than-`panels` children is documented as valid (the remaining grid cells just render
+  // empty) — bumping the split-screen panel count past the number of explicit children (always
+  // reachable, no gate on it) used to crash the whole workspace here instead.
+  function resolvedSymbol(panelIndex: number, child: ReactElement<CandlestickChartProps> | undefined): string | undefined {
+    return panelIndex in symbolByPanel ? symbolByPanel[panelIndex] : child?.props.symbol;
   }
 
   // Routes a watchlist row click: with only one panel there's no ambiguity, so it's applied right
@@ -434,9 +459,9 @@ export function ChartWorkspace({
   // its own group most recently reported a real hover, or null if none currently has one (nobody
   // in the group is hovering right now, or this panel isn't in a group at all).
   function syncedDateForPanel(panelIndex: number): Date | null {
-    const groupIndex = groupIndexOfPanel(panelIndex);
+    const groupIndex = effectiveGroupIndexOfPanel(panelIndex);
     if (groupIndex === null) return null;
-    for (const otherIndex of groups[groupIndex]) {
+    for (const otherIndex of effectiveGroups[groupIndex]) {
       if (otherIndex === panelIndex) continue;
       const date = hoverByPanel[otherIndex];
       if (date) return date;
@@ -450,9 +475,9 @@ export function ChartWorkspace({
 
   // Horizontal-axis counterpart to syncedDateForPanel above.
   function syncedPriceForPanel(panelIndex: number): number | null {
-    const groupIndex = groupIndexOfPanel(panelIndex);
+    const groupIndex = effectiveGroupIndexOfPanel(panelIndex);
     if (groupIndex === null) return null;
-    for (const otherIndex of groups[groupIndex]) {
+    for (const otherIndex of effectiveGroups[groupIndex]) {
       if (otherIndex === panelIndex) continue;
       const price = priceByPanel[otherIndex];
       if (price !== null && price !== undefined) return price;
@@ -603,7 +628,7 @@ export function ChartWorkspace({
             // Linking only means anything once there's at least one *other* panel to link with —
             // shown regardless in a single-chart workspace, the button had nothing to actually do.
             linkable: panels >= 2,
-            isLinked: groupIndexOfPanel(i) !== null,
+            isLinked: effectiveGroupIndexOfPanel(i) !== null,
             onLinkClick: () => setLinkModalOpen(true),
             // `ChartWorkspace`'s own `watchlists`/`alerts` (above) are the single source of truth
             // once a chart is composed into a workspace — a docked panel is a "whole view" concept,
@@ -784,7 +809,7 @@ export function ChartWorkspace({
         open={linkModalOpen}
         onClose={closeLinkModal}
         panelCount={panelElements.length}
-        groups={groups}
+        groups={effectiveGroups}
         onLink={linkPanels}
         onUnlink={unlinkGroup}
         panelSymbols={panelElements.map((child, i) => resolvedSymbol(i, child))}

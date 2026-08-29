@@ -35,10 +35,5 @@ export function useLinkGroups({ defaultLinkGroups, onLinkGroupsChange }: UseLink
     commitGroups(groups.filter((_, i) => i !== groupIndex));
   }
 
-  function groupIndexOfPanel(panelIndex: number): number | null {
-    const i = groups.findIndex((g) => g.includes(panelIndex));
-    return i === -1 ? null : i;
-  }
-
-  return { groups, linkPanels, unlinkGroup, groupIndexOfPanel };
+  return { groups, linkPanels, unlinkGroup };
 }

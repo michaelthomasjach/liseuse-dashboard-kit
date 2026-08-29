@@ -25,9 +25,9 @@ function markerShape(d: ScriptDrawingOutput): TrendLineDrawing["lineType"] {
 export function scriptDrawingToTrendLineDrawing(id: string, d: ScriptDrawingOutput): TrendLineDrawing {
   const date = new Date(d.date);
   const price = d.price ?? 0;
-  if (d.kind === "horizontal") return { id, lineType: "horizontal", x1: date, y1: price, x2: date, y2: price, color: d.color };
-  if (d.kind === "vertical") return { id, lineType: "vertical", x1: date, y1: 0, x2: date, y2: 0, color: d.color };
-  return { id, lineType: markerShape(d), x1: date, y1: price, x2: date, y2: price, color: d.color };
+  if (d.kind === "horizontal") return { id, lineType: "horizontal", x1: date, y1: price, x2: date, y2: price, color: d.color, text: d.text };
+  if (d.kind === "vertical") return { id, lineType: "vertical", x1: date, y1: 0, x2: date, y2: 0, color: d.color, text: d.text };
+  return { id, lineType: markerShape(d), x1: date, y1: price, x2: date, y2: price, color: d.color, text: d.text };
 }
 
 /** Every drawing a run of `scriptId` produced, replacing whatever that same script produced last

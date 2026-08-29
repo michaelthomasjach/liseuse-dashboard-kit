@@ -45,6 +45,10 @@ export interface ScriptDrawingOutput {
    *  own drawing-tool names directly (`"arrowUp"`, `"pin"`, etc.) for a script author who wants
    *  more control than the BUY/SELL default gives. */
   shape?: string;
+  /** "signal"/"point" only — a short label rendered next to the marker (same `TrendLineDrawing.text`
+   *  every hand-drawn arrow/pin already supports) — `plot.signal("BUY")`'s own arrow shape implies
+   *  a *direction*, not a caption; this is how a script puts an actual word like "BUY" next to it. */
+  text?: string;
 }
 
 /** One `alert(message)` call, timestamped with whichever bar was current when the script made it

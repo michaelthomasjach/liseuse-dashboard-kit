@@ -8,6 +8,9 @@ export interface PlotSignalArg {
   price?: number;
   color?: string;
   shape?: string;
+  /** A short label rendered next to the marker — `type: "BUY"` alone only picks the arrow's own
+   *  direction, this is what actually puts the word "BUY" on the chart next to it. */
+  text?: string;
 }
 
 export interface PlotApi {
@@ -27,7 +30,7 @@ export interface PlotApi {
    *  first example in its spec) or the full options object; `price` defaults to the current
    *  bar's own close when omitted, via `getCurrentClose`. */
   signal(arg: string | PlotSignalArg): void;
-  point(value: number, options?: { color?: string; shape?: string }): void;
+  point(value: number, options?: { color?: string; shape?: string; text?: string }): void;
   horizontal(price: number, options?: { color?: string }): void;
   vertical(options?: { color?: string }): void;
 }
@@ -67,10 +70,11 @@ export function buildPlotApi(getCurrentDate: () => number, getCurrentClose: () =
         type: normalized.type,
         color: normalized.color,
         shape: normalized.shape,
+        text: normalized.text,
       });
     },
     point: (value, options) => {
-      drawings.push({ kind: "point", date: getCurrentDate(), price: value, color: options?.color, shape: options?.shape });
+      drawings.push({ kind: "point", date: getCurrentDate(), price: value, color: options?.color, shape: options?.shape, text: options?.text });
     },
     horizontal: (price, options) => {
       drawings.push({ kind: "horizontal", date: getCurrentDate(), price, color: options?.color });

@@ -1,0 +1,21 @@
+.lq-highlight-stat-card__value {
+  margin-top: 2px;
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--lq-color-text);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+}
+
+.lq-highlight-stat-card__subtext {
+  margin-top: 4px;
+  font-size: 0.8rem;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-highlight-stat-card__sparkline {
+  display: block;
+  width: 100%;
+  height: 36px;
+  margin-top: var(--lq-space-3);
+}

@@ -15,6 +15,13 @@ export interface CardProps {
   /** Removes the outer border/background/shadow so the card blends into a parent grid cell —
    *  same convention as `Panel`'s own `bare` prop. */
   bare?: boolean;
+  /** Quiet KPI-tile look instead of the normal boxed card: no border/background/shadow, a thick
+   *  rule along the top edge instead, `title` shrunk down to a small muted uppercase label (a
+   *  "52-WEEK HIGH" rather than a section heading), and no side padding — `children` sits flush
+   *  against the card's own edges, meant for a big value + short subtext + trailing sparkline.
+   *  `Highlight` is just this option pre-set to `true`, kept as its own named export for
+   *  convenience — see its own doc, same relationship `ExpandableCard` has to `expandable`. */
+  highlight?: boolean;
   /** Makes the body collapsible behind a click-to-toggle header with a chevron indicator, instead
    *  of always visible — the header itself becomes the toggle target, so give it a `title` when
    *  this is on (an expandable card with no header has no way to expand). Uncontrolled by default
@@ -28,12 +35,25 @@ export interface CardProps {
   onOpenChange?: (open: boolean) => void;
 }
 
-/** The bordered card primitive — a plain always-visible card by default, or a collapsible
- *  "show more" card when `expandable` is on (`ExpandableCard` is just this option, pre-set to
- *  `true`, kept as its own named export for convenience — see its own doc). Distinct from `Panel`:
- *  same outer shell (border/radius/shadow), but a bolder, larger title and roomier header padding
- *  better suited to a single prominent card than `Panel`'s small-caps section-grouping style. */
-export function Card({ title, meta, summary, footer, children, className, bare, expandable = false, defaultOpen = false, open, onOpenChange }: CardProps) {
+/** The bordered card primitive — a plain always-visible card by default, a collapsible "show
+ *  more" card when `expandable` is on (`ExpandableCard`'s own doc), or a quiet KPI-tile card when
+ *  `highlight` is on (`Highlight`'s own doc). Distinct from `Panel`: same outer shell (border/
+ *  radius/shadow), but a bolder, larger title and roomier header padding better suited to a single
+ *  prominent card than `Panel`'s small-caps section-grouping style. */
+export function Card({
+  title,
+  meta,
+  summary,
+  footer,
+  children,
+  className,
+  bare,
+  highlight = false,
+  expandable = false,
+  defaultOpen = false,
+  open,
+  onOpenChange,
+}: CardProps) {
   const [internalOpen, setInternalOpen] = useState(defaultOpen);
   const isOpen = expandable ? (open ?? internalOpen) : true;
   const hasHeader = Boolean(title || meta);
@@ -53,7 +73,7 @@ export function Card({ title, meta, summary, footer, children, className, bare, 
   );
 
   return (
-    <section className={["lq-card", bare && "lq-card--bare", className].filter(Boolean).join(" ")}>
+    <section className={["lq-card", bare && "lq-card--bare", highlight && "lq-card--highlight", className].filter(Boolean).join(" ")}>
       {hasHeader &&
         (expandable ? (
           <button type="button" className="lq-card__header lq-card__header--interactive" onClick={toggle} aria-expanded={isOpen}>

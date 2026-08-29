@@ -18,6 +18,51 @@
   overflow: visible;
 }
 
+/* The quiet KPI-tile look (see CardProps.highlight's own doc) — no box at all, replaced by a
+   thick rule along the top edge only; every other side stays open so the tile blends into
+   whatever grid/dashboard cell hosts it, same as `--bare`, just with that one rule kept as the
+   tile's only visual anchor. */
+.lq-card--highlight {
+  background: transparent;
+  border: none;
+  border-top: 3px solid var(--lq-color-text);
+  border-radius: 0;
+  box-shadow: none;
+  overflow: visible;
+}
+
+.lq-card--highlight .lq-card__header,
+.lq-card--highlight .lq-card__body,
+.lq-card--highlight .lq-card__summary,
+.lq-card--highlight .lq-card__footer {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.lq-card--highlight .lq-card__header {
+  padding-top: var(--lq-space-3);
+  padding-bottom: 0;
+}
+
+.lq-card--highlight .lq-card__title {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--lq-color-text-muted);
+}
+
+/* The thick top rule above already separates header from body — Card's own `--divided` border
+   (a second, thinner line) would be a redundant second rule directly underneath it. */
+.lq-card--highlight .lq-card__body--divided {
+  border-top: none;
+  padding-top: var(--lq-space-2);
+}
+
+.lq-card--highlight .lq-card__body:not(.lq-card__body--divided) {
+  padding-top: var(--lq-space-3);
+}
+
 .lq-card__header {
   display: flex;
   align-items: center;

@@ -7,6 +7,9 @@ export type { PriceChangeTagProps } from "./PriceChangeTag";
 export { StatCard } from "./StatCard";
 export type { StatCardProps } from "./StatCard";
 
+export { HighlightStatCard } from "./HighlightStatCard";
+export type { HighlightStatCardProps } from "./HighlightStatCard";
+
 export { HoldingCard } from "./HoldingCard";
 export type { HoldingCardProps } from "./HoldingCard";
 

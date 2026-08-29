@@ -15,6 +15,7 @@ export function useDrawingToolMenuAnchors() {
   const fibonacciMenuAnchorRef = useRef<HTMLButtonElement>(null);
   const chartPatternsMenuAnchorRef = useRef<HTMLButtonElement>(null);
   const forecastingMenuAnchorRef = useRef<HTMLButtonElement>(null);
+  const textNotesMenuAnchorRef = useRef<HTMLButtonElement>(null);
 
   // "measure" has no entry — it no longer renders via DRAWING_TOOL_CATEGORIES' own map in
   // ToolsRail (moved below the separator as a plain button instead, see its own comment there),
@@ -23,6 +24,7 @@ export function useDrawingToolMenuAnchors() {
     if (categoryId === "fibonacci") return fibonacciMenuAnchorRef;
     if (categoryId === "chartPatterns") return chartPatternsMenuAnchorRef;
     if (categoryId === "forecasting") return forecastingMenuAnchorRef;
+    if (categoryId === "textNotes") return textNotesMenuAnchorRef;
     return linesMenuAnchorRef;
   }
 

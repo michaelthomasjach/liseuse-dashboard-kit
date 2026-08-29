@@ -27,6 +27,12 @@ export interface UseDrawingStateArgs {
  *  this hook's full return value as its own input. */
 export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAddSymbolOverlay }: UseDrawingStateArgs) {
   const [drawings, setDrawings] = useState<TrendLineDrawing[]>(defaultDrawings ?? []);
+  // Kept in sync every render — handleAddSymbolOverlay's own async resolution below reads this
+  // instead of the plain `drawings` closure variable specifically so two concurrent adds (see its
+  // own doc) each commit against whatever's *actually* latest at the moment they resolve, not a
+  // stale pre-fetch snapshot shared by every in-flight call that started around the same time.
+  const drawingsRef = useRef(drawings);
+  drawingsRef.current = drawings;
   const [activeTool, setActiveTool] = useState<DrawingToolType | null>(null);
   // Which tool each category's own rail button currently represents — stays selected across
   // draws, independent of whether drawing is actually active right now, and independent of the
@@ -174,6 +180,13 @@ export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAdd
   // so an async fetch has no way to land its result other than the chart committing it once the
   // promise settles. `addingOverlaySymbols` exists purely for each row's own spinner — never read
   // for anything that affects rendering the overlay itself.
+  //
+  // Reads `drawingsRef.current` (not the plain `drawings` closure variable) once the await below
+  // resolves — two concurrent adds (the doc on `addingOverlaySymbols` explicitly says this is
+  // supported: AAPL's own in-flight fetch shouldn't block also adding GOOGL) otherwise both close
+  // over the *same* pre-fetch `drawings` snapshot, so whichever resolves second would commit
+  // `[...thatStaleSnapshot, its own overlay]` and silently wipe out whatever the first one already
+  // added.
   async function handleAddSymbolOverlay(result: SymbolSearchResult) {
     if (!onAddSymbolOverlay || addingOverlaySymbols.has(result.ticker)) return;
     setAddingOverlaySymbols((prev) => new Set(prev).add(result.ticker));
@@ -183,8 +196,9 @@ export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAdd
       const sorted = [...overlayData].sort((a, b) => a.date.getTime() - b.date.getTime());
       const first = sorted[0];
       const last = sorted[sorted.length - 1];
+      const latest = drawingsRef.current;
       commitDrawings([
-        ...drawings,
+        ...latest,
         {
           id: `drawing-${drawingIdRef.current++}`,
           // Unused for this lineType (see its own doc comment) — just needs *some* value.
@@ -196,7 +210,7 @@ export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAdd
           overlaySymbol: result.ticker,
           overlaySymbolName: result.name,
           overlayData: sorted,
-          color: defaultIndicatorColor(drawings.filter((d) => d.lineType === "symbolOverlay").length),
+          color: defaultIndicatorColor(latest.filter((d) => d.lineType === "symbolOverlay").length),
         },
       ]);
     } finally {

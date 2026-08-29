@@ -997,3 +997,10 @@ export const LessThanIcon = (props: IconProps) => (
     <path d="M18 5 6 12 18 19" />
   </IconBase>
 );
+
+/** The script editor's own header button (`</>`) — opens `ScriptEditorPanel`. */
+export const CodeIcon = (props: IconProps) => (
+  <IconBase {...props}>
+    <path d="M9 8 4 12 9 16M15 8l5 4-5 4" />
+  </IconBase>
+);

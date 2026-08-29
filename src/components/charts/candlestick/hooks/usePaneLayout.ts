@@ -17,6 +17,12 @@ export interface UsePaneLayoutArgs {
   onIndicatorsChange: ((indicators: Indicator[]) => void) | undefined;
   showVolume: boolean;
   plotBoundedHeight: number;
+  /** Script-produced indicators (see `scripting/scriptIndicatorToChartIndicator.ts`) that need
+   *  pane space but aren't part of the CRUD-managed `indicators` state below — never passed to
+   *  `onIndicatorsChange`, never touched by add/remove/settings, never included in a saved
+   *  template. Folded into `owned` (and therefore `ownPaneIndicators`/the height/top arrays) only,
+   *  exactly the "additive, not merged" split the approved scripting-engine plan calls for. */
+  extraIndicators?: Indicator[];
 }
 
 /** Technical indicators (state + CRUD) and the sub-pane layout system they (and volume) share:
@@ -25,7 +31,7 @@ export interface UsePaneLayoutArgs {
  *  `indicators` (an "own"-pane indicator's id doubles as its pane key) — splitting the two apart
  *  would just mean threading `indicators` back and forth between two hooks that both need it on
  *  nearly every line. */
-export function usePaneLayout({ defaultIndicators, onIndicatorsChange, showVolume, plotBoundedHeight }: UsePaneLayoutArgs) {
+export function usePaneLayout({ defaultIndicators, onIndicatorsChange, showVolume, plotBoundedHeight, extraIndicators = [] }: UsePaneLayoutArgs) {
   const [indicators, setIndicators] = useState<Indicator[]>(defaultIndicators ?? []);
   const [indicatorPickerOpen, setIndicatorPickerOpen] = useState(false);
   const [indicatorSearchQuery, setIndicatorSearchQuery] = useState("");
@@ -263,8 +269,10 @@ export function usePaneLayout({ defaultIndicators, onIndicatorsChange, showVolum
       if (!volumeVisible) setFullscreenPaneId(null);
       return;
     }
-    if (!indicators.some((ind) => ind.id === fullscreenPaneId)) setFullscreenPaneId(null);
-  }, [fullscreenPaneId, indicators, volumeVisible]);
+    if (!indicators.some((ind) => ind.id === fullscreenPaneId) && !extraIndicators.some((ind) => ind.id === fullscreenPaneId)) {
+      setFullscreenPaneId(null);
+    }
+  }, [fullscreenPaneId, indicators, extraIndicators, volumeVisible]);
 
   // The button that calls this only ever renders on an already-expanded pane's header (collapsed,
   // a pane shows just its own re-expand chevron — see PaneHeaders), so there's no "entering
@@ -368,7 +376,7 @@ export function usePaneLayout({ defaultIndicators, onIndicatorsChange, showVolum
   // without this they'd be a fresh array/reference every render, which would make an "only these
   // deps" dependency array pointless (always "changed").
   const { ownPaneIndicators, indicatorPaneHeights, indicatorPaneTops, volumeTop, allPanesOrder } = useMemo(() => {
-    const owned = indicators.filter((ind) => indicatorCatalogEntry(ind).pane === "own");
+    const owned = [...indicators, ...extraIndicators].filter((ind) => indicatorCatalogEntry(ind).pane === "own");
     // A fullscreened *indicator* pane (volume's own case is handled entirely by volumeHeight
     // above — it never needs to touch this array) is filtered down to just itself rather than
     // merely zeroed in place: every one of PaneHeaders/drawVolumeAndPanes/useIndicatorPaneScales
@@ -411,7 +419,7 @@ export function usePaneLayout({ defaultIndicators, onIndicatorsChange, showVolum
       order.push("volume");
     }
     return { ownPaneIndicators: owned, indicatorPaneHeights: heights, indicatorPaneTops: tops, volumeTop: vTop, allPanesOrder: order };
-  }, [indicators, paneHeightFractions, plotBoundedHeight, volumeVisible, volumeHeight, volumePaneOrder, fullscreenPaneId]);
+  }, [indicators, extraIndicators, paneHeightFractions, plotBoundedHeight, volumeVisible, volumeHeight, volumePaneOrder, fullscreenPaneId]);
   const indicatorPanesTotalHeight = indicatorPaneHeights.reduce((sum, h) => sum + h, 0);
 
   const priceHeight = Math.max(0, plotBoundedHeight - volumeHeight - indicatorPanesTotalHeight);

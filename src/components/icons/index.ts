@@ -117,4 +117,5 @@ export {
   CrossingIcon,
   GreaterThanIcon,
   LessThanIcon,
+  CodeIcon,
 } from "./icons";

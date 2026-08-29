@@ -21,10 +21,23 @@
   font-size: var(--lq-text-sm);
   color: var(--lq-color-text-muted);
   text-decoration: none;
+  border-radius: var(--lq-radius-sm);
+  border-left: 2px solid transparent;
 }
 
 .lq-script-docs__nav-item:hover {
   color: var(--lq-color-text);
+  background-color: var(--lq-color-hover);
+}
+
+/* Which section is currently under the reader's eye (see the scroll-spy effect in
+   ScriptDocumentationModal.tsx) — a left rule plus bolder, non-muted text, rather than just a
+   background tint, so it stays legible at a glance even while :hover is also tinting a
+   neighboring item. */
+.lq-script-docs__nav-item--active {
+  color: var(--lq-color-text);
+  font-weight: 600;
+  border-left-color: var(--lq-color-accent);
   background-color: var(--lq-color-hover);
 }
 
@@ -34,8 +47,23 @@
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: var(--lq-space-6);
   padding-right: var(--lq-space-2);
+}
+
+/* Explicit per-section spacing (not the content pane's own flex `gap`) so the divider below can
+   sit exactly at the midpoint between two sections rather than needing a separate full-width rule
+   element of its own — same `:last-child` pattern PanelRow/LegendRow already use to drop the one
+   after the very last section. */
+.lq-script-docs__section {
+  padding-bottom: var(--lq-space-6);
+  margin-bottom: var(--lq-space-6);
+  border-bottom: 1px solid var(--lq-color-border-subtle);
+}
+
+.lq-script-docs__section:last-child {
+  padding-bottom: 0;
+  margin-bottom: 0;
+  border-bottom: none;
 }
 
 .lq-script-docs__section-title {
@@ -63,4 +91,24 @@
 
 .lq-script-docs__code {
   margin-bottom: var(--lq-space-3);
+}
+
+/* A sub-heading within a section (see ScriptReferenceBlock's own "heading" kind doc) — the
+   "Exemples" section's own way of separating several distinct worked scripts under one roof,
+   without each one needing to be its own top-level nav section. A rule above (not below) reads as
+   "a new example starts here" the same way this file's own between-section divider does, just at
+   a smaller, in-section scale. */
+.lq-script-docs__example-heading {
+  margin: var(--lq-space-5) 0 var(--lq-space-2);
+  padding-top: var(--lq-space-4);
+  border-top: 1px solid var(--lq-color-border-subtle);
+  font-size: var(--lq-text-md);
+  font-weight: 600;
+  color: var(--lq-color-text);
+}
+
+.lq-script-docs__example-heading:first-of-type {
+  margin-top: var(--lq-space-3);
+  padding-top: 0;
+  border-top: none;
 }

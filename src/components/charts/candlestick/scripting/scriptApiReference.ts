@@ -6,7 +6,7 @@
  *  `buildPlotApi.ts`/`buildStateApi.ts`/`buildAlertApi.ts`/`buildBarApi.ts`/`mathLib.ts`/
  *  `taLib.ts`) exactly — if one of those changes, this should too. */
 export interface ScriptReferenceBlock {
-  kind: "text" | "code" | "list";
+  kind: "text" | "code" | "list" | "heading";
   text?: string;
   items?: string[];
   code?: string;
@@ -26,6 +26,14 @@ function c(code: string): ScriptReferenceBlock {
 function l(items: string[]): ScriptReferenceBlock {
   return { kind: "list", items };
 }
+// A sub-heading *within* a section — the "Exemples" section is the one place this reference has
+// several distinct, self-contained worked scripts under one roof, and a plain run of paragraphs
+// would make it hard to tell where one ends and the next begins. Doesn't create a new scroll-spy
+// nav entry of its own (ScriptDocumentationModal.tsx tracks sections, not blocks) — purely visual
+// structure inside a section that's already long enough to need it.
+function h(text: string): ScriptReferenceBlock {
+  return { kind: "heading", text };
+}
 
 export const SCRIPT_API_REFERENCE: ScriptReferenceSection[] = [
   {
@@ -43,6 +51,9 @@ export const SCRIPT_API_REFERENCE: ScriptReferenceSection[] = [
       ]),
       t(
         "Une fois enregistré, un script se ré-exécute automatiquement à chaque nouvelle bougie (rejeu complet, avec un court délai anti-rafale) — pas besoin de cliquer sur « Exécuter » à chaque tick d'un marché en direct."
+      ),
+      t(
+        "Chaque script activé tourne dans son propre Web Worker, indépendamment des autres : un script en erreur ou lent n'affecte ni les autres scripts actifs, ni le rendu de la chart elle-même. Sur un espace de travail à plusieurs graphiques, un script choisit une seule chart cible (voir « Cible » dans la barre d'outils) — il ne lit et n'affecte jamais que celle-là, jamais les autres panneaux ouverts en même temps."
       ),
     ],
   },
@@ -152,6 +163,7 @@ plot.horizontal(price, { color? })             // ligne horizontale ponctuelle
 plot.vertical({ color? })                      // ligne verticale sur la bougie courante`
       ),
       t("shape accepte l'un de : \"arrowUp\", \"arrowDown\", \"pin\", \"flagMark\", \"priceLabel\"."),
+      t("color accepte n'importe quelle couleur CSS valide — un code hexadécimal (\"#e8391c\"), un nom (\"red\"), ou rgb(...)/rgba(...). Omis, chaque série reçoit une couleur par défaut choisie automatiquement."),
       t("Une fois enregistré, le script apparaît automatiquement dans les indicateurs actifs de la chart (section « Mes scripts ») — pas besoin de le rajouter manuellement via le sélecteur d'indicateurs."),
     ],
   },
@@ -273,9 +285,14 @@ ta.adx(high, low, close, period?)
     ],
   },
   {
-    id: "example",
-    title: "Exemple complet — un « Quant Score »",
+    id: "examples",
+    title: "Exemples — indicateurs prêts à l'emploi",
     blocks: [
+      t(
+        "Six scripts complets, copiables tels quels, chacun illustrant une combinaison différente de l'API ci-dessus — d'un simple croisement de moyennes mobiles à un score composite multi-indicateurs."
+      ),
+
+      h("Quant Score — RSI + MACD + moyenne mobile"),
       t("Combine RSI, MACD et une moyenne mobile en un score de 0 à 3, tracé dans son propre panneau, avec un signal d'achat quand les trois conditions sont réunies :"),
       c(
         `const rsi = chart.indicator("rsi_14").value(0);
@@ -294,6 +311,114 @@ plot.overlay("SMA 20", sma20 ?? price);
 if (bar.isNew() && score === 3) {
   plot.signal("BUY");
   alert("Quant Score au maximum (3/3)");
+}`
+      ),
+
+      h("Croisement de moyennes mobiles (Golden / Death Cross)"),
+      t(
+        "SMA 50 et SMA 200 tracées en superposition, avec un signal et une alerte au moment exact où la courte croise la longue — la valeur précédente de chaque moyenne est mémorisée via state.* pour détecter le croisement, pas recalculée à côté."
+      ),
+      c(
+        `const shortMA = math.sma(market.series("close", 50), 50);
+const longMA = math.sma(market.series("close", 200), 200);
+const prevShort = state.get("prevShort", null);
+const prevLong = state.get("prevLong", null);
+
+plot.overlay("SMA 50", shortMA ?? market.close(0));
+plot.overlay("SMA 200", longMA ?? market.close(0));
+
+if (bar.isNew() && prevShort !== null && prevLong !== null && shortMA !== null && longMA !== null) {
+  if (prevShort <= prevLong && shortMA > longMA) {
+    plot.signal("BUY");
+    alert("Golden Cross : SMA 50 croise SMA 200 à la hausse");
+  }
+  if (prevShort >= prevLong && shortMA < longMA) {
+    plot.signal("SELL");
+    alert("Death Cross : SMA 50 croise SMA 200 à la baisse");
+  }
+}
+
+state.set("prevShort", shortMA);
+state.set("prevLong", longMA);`
+      ),
+
+      h("Rupture des bandes de Bollinger"),
+      t("Bandes tracées en superposition ; signal quand le prix clôture au-delà de l'une des deux bandes :"),
+      c(
+        `const bb = ta.bollinger(market.series("close", 60), 20, 2);
+const price = market.close(0);
+
+if (bb) {
+  plot.overlay("BB Haute", bb.upper);
+  plot.overlay("BB Basse", bb.lower);
+
+  if (bar.isNew() && price > bb.upper) {
+    plot.signal("SELL");
+    alert("Prix au-dessus de la bande de Bollinger supérieure");
+  }
+  if (bar.isNew() && price < bb.lower) {
+    plot.signal("BUY");
+    alert("Prix en dessous de la bande de Bollinger inférieure");
+  }
+}`
+      ),
+
+      h("Détecteur de pic de volume"),
+      t("Marque la bougie courante quand son volume dépasse la moyenne + 2 écarts-types des 20 dernières bougies :"),
+      c(
+        `const volumes = market.series("volume", 20);
+const avgVolume = math.mean(volumes);
+const stdVolume = math.std(volumes);
+const currentVolume = market.volume(0);
+
+if (bar.isNew() && avgVolume !== null && stdVolume !== null && currentVolume !== null) {
+  if (currentVolume > avgVolume + 2 * stdVolume) {
+    plot.point(market.close(0), { color: "#e8391c", shape: "pin" });
+    alert("Pic de volume détecté (> moyenne + 2 écarts-types)");
+  }
+}`
+      ),
+
+      h("Score de momentum (RSI + Stochastique)"),
+      t("Une deuxième variante de score composite, indépendante du Quant Score ci-dessus — combine RSI et l'oscillateur stochastique plutôt que MACD :"),
+      c(
+        `const closes = market.series("close", 60);
+const highs = market.series("high", 60);
+const lows = market.series("low", 60);
+
+const rsi = ta.rsi(closes, 14);
+const stoch = ta.stochastic(highs, lows, closes, 14, 3);
+
+let score = 0;
+if (rsi !== null && rsi > 55) score += 1;
+if (stoch !== null && stoch.k > stoch.d) score += 1;
+if (stoch !== null && stoch.k < 80) score += 1; // évite la zone de surachat extrême
+
+plot.line("Momentum Score", score);
+
+if (bar.isNew() && score === 3) {
+  alert("Score de momentum au maximum (3/3)");
+}`
+      ),
+
+      h("Canal de rupture (plus haut / plus bas sur 20 bougies)"),
+      t("Un canal de type Donchian — plus haut et plus bas glissants — avec un signal quand le prix clôture hors du canal :"),
+      c(
+        `const period = 20;
+const upperChannel = math.max(market.series("high", period));
+const lowerChannel = math.min(market.series("low", period));
+const price = market.close(0);
+
+plot.overlay("Canal haut", upperChannel ?? price);
+plot.overlay("Canal bas", lowerChannel ?? price);
+
+if (bar.isNew() && upperChannel !== null && price >= upperChannel) {
+  plot.signal("BUY");
+  alert("Rupture du canal des " + period + " dernières bougies (plus haut)");
+}
+if (bar.isNew() && lowerChannel !== null && price <= lowerChannel) {
+  plot.signal("SELL");
+  alert("Rupture du canal des " + period + " dernières bougies (plus bas)");
 }`
       ),
     ],

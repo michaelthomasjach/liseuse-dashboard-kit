@@ -8,6 +8,12 @@ export interface ScriptDef {
   /** Shown in the script list/editor tab, not read by the engine itself. */
   name: string;
   code: string;
+  /** Whether this script has ever gone through the "give it a name" flow (see
+   *  `ScriptEditorPanel`'s own Ctrl+S/"Enregistrer sous" doc) — a fresh script keeps its
+   *  auto-generated `name` ("Script 1"…) until its very first save, at which point saving prompts
+   *  for a real one first, same "Untitled document" convention a text editor's first Ctrl+S
+   *  follows. Once true, further saves just commit `code` in place, no prompt. */
+  named?: boolean;
   /** A disabled script is kept (editable, savable) but never run — no Worker spun up for it, no
    *  contribution to `scriptIndicators`/`scriptDrawings`. Default true. */
   enabled?: boolean;

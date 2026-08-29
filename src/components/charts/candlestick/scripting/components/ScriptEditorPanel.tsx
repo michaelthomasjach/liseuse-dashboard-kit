@@ -1,7 +1,21 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { ScriptEditorWindow } from "./ScriptEditorWindow";
 import { Popover } from "../../../../forms/Popover";
-import { PlayIcon, PauseIcon, SaveIcon, RefreshIcon, PlusIcon, TrashIcon, EyeIcon, EyeOffIcon, HelpIcon, ChevronDownIcon } from "../../../../icons";
+import { Modal } from "../../../../primitives/Modal";
+import { TextField } from "../../../../forms/TextField";
+import {
+  PlayIcon,
+  PauseIcon,
+  SaveIcon,
+  RefreshIcon,
+  PlusIcon,
+  TrashIcon,
+  EyeIcon,
+  EyeOffIcon,
+  HelpIcon,
+  ChevronDownIcon,
+  CheckIcon,
+} from "../../../../icons";
 import type { Indicator } from "../../interfaces/Indicator.interface";
 import type { ScriptDef } from "../../interfaces/ScriptDef.interface";
 import type { ScriptRunOutput } from "../interfaces/ScriptRunOutput.interface";
@@ -76,6 +90,82 @@ export function ScriptEditorPanel({
   const [targetPickerOpen, setTargetPickerOpen] = useState(false);
   const runButtonRef = useRef<HTMLButtonElement>(null);
   const needsTargetChoice = (panelChoices?.length ?? 0) > 1;
+  // "name": the toolbar Save button's own first-ever-save prompt. "nameSaveAs": the dedicated
+  // "Enregistrer sous" button's own prompt. Both render the exact same modal shell (just a
+  // different title) and both funnel into the same handleNameSubmit below — unlike templates'
+  // own save/save-as (a fresh template vs. overwriting the active one are genuinely different
+  // outcomes), a script only ever has one identity to rename/save, so there's nothing for the two
+  // triggers to actually do differently once the modal is open.
+  const [modal, setModal] = useState<"name" | "nameSaveAs" | null>(null);
+  const [nameValue, setNameValue] = useState("");
+  // Briefly swaps the Save button's own icon to a checkmark — same silent-action feedback
+  // TemplateControls' own Save button gives (see its own `justSaved` doc).
+  const [justSaved, setJustSaved] = useState(false);
+
+  function flashSaved() {
+    setJustSaved(true);
+    window.setTimeout(() => setJustSaved(false), 1200);
+  }
+
+  // Case-sensitive on purpose — a script is really just a key in this list, matching every other
+  // exact-string-equality id/name check already used throughout this session's own work rather
+  // than inventing a normalization rule nothing else here follows.
+  const nameCollision = activeScript !== null && scripts.some((s) => s.id !== activeScript.id && s.name === nameValue.trim());
+
+  function handleSaveAsClick() {
+    if (!activeScript) return;
+    setNameValue(activeScript.name);
+    setModal("nameSaveAs");
+  }
+
+  function handleNameSubmit() {
+    if (!activeScript) return;
+    const trimmed = nameValue.trim();
+    if (!trimmed || nameCollision) return;
+    updateScript(activeScript.id, { name: trimmed, code: draft, named: true });
+    setModal(null);
+    flashSaved();
+  }
+
+  // Ctrl/Cmd+S goes through this same function — see the effect below. A script that's never been
+  // through the naming flow prompts for a name first (same "Untitled document" convention a text
+  // editor's first save follows, see ScriptDef.named's own doc) instead of silently committing
+  // under its auto-generated "Script N" name; every save after that just commits `code` in place.
+  function handleSaveClick() {
+    if (!activeScript) return;
+    if (!activeScript.named) {
+      setNameValue(activeScript.name);
+      setModal("name");
+      return;
+    }
+    updateScript(activeScript.id, { code: draft });
+    flashSaved();
+  }
+
+  // Same ref-indirection reasoning as TemplateControls' own identical shortcut (see its own doc) —
+  // handleSaveClick/handleNameSubmit are fresh closures every render, so reading the latest one
+  // through a ref lets this listener itself mount exactly once instead of re-attaching constantly.
+  const saveShortcutRef = useRef(() => {});
+  saveShortcutRef.current = () => {
+    if (modal === "name" || modal === "nameSaveAs") handleNameSubmit();
+    else handleSaveClick();
+  };
+  useEffect(() => {
+    if (!open) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== "s") return;
+      // Scoped to focus actually being inside this floating window — unlike TemplateControls' own
+      // identical shortcut (always global, no gating needed there since only one thing in this
+      // library ever claims Ctrl+S at a time), this window can be open *alongside* a chart header
+      // that also owns Ctrl+S for its own templates (`showTemplates`); without this check, one
+      // keypress would pop both "Enregistrer le script" and "Enregistrer le modèle" at once.
+      if (!(document.activeElement instanceof Element) || !document.activeElement.closest(".lq-script-window")) return;
+      e.preventDefault();
+      saveShortcutRef.current();
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open]);
 
   // "Exécuter" runs immediately once a target is known (a workspace script that's already been
   // assigned one) — a workspace script that's *never* been run before either pauses for the picker
@@ -236,10 +326,22 @@ export function ScriptEditorPanel({
               <button
                 type="button"
                 className="lq-script-editor-panel__toolbar-button"
-                onClick={() => updateScript(activeScript.id, { code: draft })}
-                disabled={!isDirty}
+                onClick={handleSaveClick}
+                disabled={activeScript.named && !isDirty}
+                title="Enregistrer (Ctrl+S)"
               >
-                <SaveIcon size={13} /> Enregistrer
+                {justSaved ? <CheckIcon size={13} /> : <SaveIcon size={13} />} Enregistrer
+              </button>
+              {/* Always available, regardless of `named` — renames the script and saves the
+                  current draft under that new name, distinct from the toolbar Save button above
+                  (which only ever prompts once, on a script's very first save). */}
+              <button
+                type="button"
+                className="lq-script-editor-panel__toolbar-button"
+                onClick={handleSaveAsClick}
+                title="Enregistrer sous"
+              >
+                Enregistrer sous
               </button>
               <button
                 type="button"
@@ -286,6 +388,36 @@ export function ScriptEditorPanel({
         <div className="lq-script-editor-panel__empty">Aucun script — cliquez sur « + » pour en créer un.</div>
       )}
       <ScriptDocumentationModal open={docsOpen} onClose={() => setDocsOpen(false)} />
+
+      {(modal === "name" || modal === "nameSaveAs") && (
+        <Modal
+          open
+          onClose={() => setModal(null)}
+          title={modal === "nameSaveAs" ? "Enregistrer sous" : "Enregistrer le script"}
+          footer={
+            <div className="lq-chart__edit-drawing-footer">
+              <button type="button" className="lq-chart__reset-button" onClick={() => setModal(null)}>
+                Annuler
+              </button>
+              <button type="button" className="lq-chart__confirm-button" onClick={handleNameSubmit} disabled={!nameValue.trim() || nameCollision}>
+                Enregistrer
+              </button>
+            </div>
+          }
+        >
+          <TextField
+            label="Nom du script"
+            value={nameValue}
+            onChange={(e) => setNameValue(e.target.value)}
+            placeholder="Ex. Momentum Score"
+            autoFocus
+            error={nameCollision ? "Un script porte déjà ce nom." : undefined}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !nameCollision) handleNameSubmit();
+            }}
+          />
+        </Modal>
+      )}
     </ScriptEditorWindow>
   );
 }

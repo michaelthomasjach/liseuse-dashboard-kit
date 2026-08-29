@@ -108,6 +108,12 @@ export function TemplateControls({ templates, activeTemplateId, isDirty, onSave,
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== "s") return;
+      // Defers to the script editor's own Ctrl+S (see ScriptEditorPanel.tsx's own identical
+      // check) when that's the window focus is actually in — both this header and a workspace's
+      // shared script editor can be open/mounted at the same time, each with its own unscoped
+      // global Ctrl+S listener; without this, one keypress would pop this modal *and* the
+      // script editor's own "Enregistrer le script" at once.
+      if (document.activeElement instanceof Element && document.activeElement.closest(".lq-script-window")) return;
       e.preventDefault();
       saveShortcutRef.current();
     }

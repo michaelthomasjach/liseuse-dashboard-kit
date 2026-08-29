@@ -108,8 +108,11 @@ export function usePaneLayout({ defaultIndicators, onIndicatorsChange, showVolum
     const k0 = drag.startTransform.k;
     // No natural ceiling for a sub-pane's own Y axis either — same reasoning as the price axis's
     // own DEFAULT_Y_SCALE_EXTENT in useAxisDragRescale.ts, a generous finite stand-in for
-    // "unbounded" rather than a deliberate limit.
-    const k1 = Math.min(10000, Math.max(1, k0 * factor));
+    // "unbounded" rather than a deliberate limit. The floor mirrors the ceiling (0.0001 = 1/10000)
+    // rather than 1 — flooring at 1 (the base/identity scale) made dragging to zoom *out* from a
+    // fresh, never-adjusted pane a no-op: k0 starts at 1, so any factor < 1 was immediately clamped
+    // straight back up to 1 by Math.max, and there was no way to ever get below it from there.
+    const k1 = Math.min(10000, Math.max(0.0001, k0 * factor));
     const center = drag.size / 2;
     const t0 = drag.startTransform.y;
     const t1 = center - (center - t0) * (k1 / k0);

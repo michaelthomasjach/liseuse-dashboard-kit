@@ -2,6 +2,9 @@ import type { ScriptEngineSnapshot } from "../interfaces/ScriptEngineSnapshot.in
 import type { ScriptError, ScriptRunResult } from "../interfaces/ScriptRunResult.interface";
 import { buildMarketApi, buildChartApi } from "./buildScriptApi";
 import { buildPlotApi } from "./buildPlotApi";
+import { buildStateApi } from "./buildStateApi";
+import { buildAlertApi } from "./buildAlertApi";
+import { buildBarApi } from "./buildBarApi";
 import { mathApi } from "./mathLib";
 import { taApi } from "./taLib";
 
@@ -58,32 +61,54 @@ export function runScript(snapshot: ScriptEngineSnapshot): ScriptRunResult {
 
   let currentIndex = 0;
   const getCurrentIndex = () => currentIndex;
+  const getCurrentDate = () => snapshot.ohlcv[currentIndex].t;
   const market = buildMarketApi(snapshot, getCurrentIndex);
   const chart = buildChartApi(snapshot, getCurrentIndex);
-  const { api: plot, getResult: getPlotResult } = buildPlotApi(
-    () => snapshot.ohlcv[currentIndex].t,
-    () => snapshot.ohlcv[currentIndex].c
-  );
+  const { api: plot, getResult: getPlotResult } = buildPlotApi(getCurrentDate, () => snapshot.ohlcv[currentIndex].c);
+  const state = buildStateApi();
+  const { api: alert, getAlerts } = buildAlertApi(getCurrentIndex, getCurrentDate);
+  const bar = buildBarApi(snapshot, getCurrentIndex);
 
-  type CompiledScript = (market: unknown, chart: unknown, plot: unknown, math: unknown, ta: unknown, console: unknown) => void;
+  type CompiledScript = (
+    market: unknown,
+    chart: unknown,
+    plot: unknown,
+    state: unknown,
+    alert: unknown,
+    bar: unknown,
+    math: unknown,
+    ta: unknown,
+    console: unknown
+  ) => void;
   let compiled: CompiledScript;
   try {
-    compiled = new Function("market", "chart", "plot", "math", "ta", "console", snapshot.scriptCode) as CompiledScript;
+    compiled = new Function(
+      "market",
+      "chart",
+      "plot",
+      "state",
+      "alert",
+      "bar",
+      "math",
+      "ta",
+      "console",
+      snapshot.scriptCode
+    ) as CompiledScript;
   } catch (err) {
     // A SyntaxError here carries no usable line/column at all (confirmed empirically — V8 reports
     // only "at new Function (<anonymous>)", no position) — message-only is the honest result.
-    return { error: { message: err instanceof Error ? err.message : String(err) }, logs, plots: [], drawings: [] };
+    return { error: { message: err instanceof Error ? err.message : String(err) }, logs, plots: [], drawings: [], alerts: [] };
   }
 
   for (let i = 0; i <= snapshot.runUpToIndex; i++) {
     currentIndex = i;
     try {
-      compiled(market, chart, plot, mathApi, taApi, scriptConsole);
+      compiled(market, chart, plot, state, alert, bar, mathApi, taApi, scriptConsole);
     } catch (err) {
       const { plots, drawings } = getPlotResult();
-      return { error: toScriptError(err), logs, plots, drawings };
+      return { error: toScriptError(err), logs, plots, drawings, alerts: getAlerts() };
     }
   }
   const { plots, drawings } = getPlotResult();
-  return { error: null, logs, plots, drawings };
+  return { error: null, logs, plots, drawings, alerts: getAlerts() };
 }

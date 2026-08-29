@@ -10,7 +10,12 @@ import { computeIndicatorValues } from "../../indicators";
 import { buildStableIndicatorIds } from "../stableIndicatorId";
 import { upsertScriptCustomIndicators } from "../scriptOutputToCustomIndicatorDef";
 import { upsertScriptDrawings } from "../scriptOutputToDrawings";
-import { HISTORICAL_REPLAY_TIMEOUT_MS, MAX_SERIES_LENGTH, REALTIME_TICK_TIMEOUT_MS } from "../constants";
+import {
+  HISTORICAL_REPLAY_TIMEOUT_MS,
+  MAX_SERIES_LENGTH,
+  REALTIME_TICK_DEBOUNCE_MS,
+  REALTIME_TICK_TIMEOUT_MS,
+} from "../constants";
 // Vite's own `?worker` import suffix (typed via src/vite-env.d.ts's vite/client reference) —
 // resolves to a Worker *constructor*, not the module's own exports.
 import ScriptWorkerFactory from "../worker/scriptWorkerEntry?worker";
@@ -20,7 +25,9 @@ function buildSnapshot(
   indicators: Indicator[],
   fundamentals: FundamentalDataPoint[] | undefined,
   scriptCode: string,
-  timeoutMs: number
+  timeoutMs: number,
+  lastCandleOpen: boolean,
+  isRealtimeTick: boolean
 ): ScriptEngineSnapshot {
   // Reuses `computeIndicatorValues` verbatim — the exact same function `useIndicatorPaneScales`
   // calls to produce what's actually drawn on the chart — rather than recomputing indicator
@@ -43,26 +50,44 @@ function buildSnapshot(
     runUpToIndex: data.length - 1,
     scriptCode,
     limits: { timeoutMs, maxSeriesLength: MAX_SERIES_LENGTH },
+    lastCandleOpen,
+    isRealtimeTick,
   };
 }
 
 /** Runs one user script against `data`/`indicators` in its own sandboxed Worker — see the
  *  approved scripting-engine plan (`C:\Users\micha\.claude\plans\cheeky-purring-charm.md`) for
- *  the full architecture. Through M3: `market.*`/`chart.*` (read-only) plus `plot.*` output,
- *  converted into `scriptIndicators`/`scriptDrawings` (see scriptOutputToCustomIndicatorDef.ts/
- *  scriptOutputToDrawings.ts) every time a run completes — no `state`/`alert`/real-time
- *  re-trigger yet (M4), and this hook itself still only ever drives *one* script; the plan's own
- *  "one Worker per enabled script" orchestration across several scripts at once is M5's own
- *  concern, layered on top of this rather than rebuilding it. `run()` is a manual trigger only,
- *  matching the platform's own "Run" button (see the plan's M5); M4 adds the `useEffect` that
- *  calls it automatically on `data` change for a real-time tick. */
-export function useScriptEngine(scriptId: string, data: Candle[], indicators: Indicator[], fundamentals: FundamentalDataPoint[] | undefined) {
+ *  the full architecture. Through M4: `market.*`/`chart.*` (read-only), `state.get/set`,
+ *  `alert()`, `bar.isNew/isClosed/isRealtime`, and `plot.*` output converted into
+ *  `scriptIndicators`/`scriptDrawings` (see scriptOutputToCustomIndicatorDef.ts/
+ *  scriptOutputToDrawings.ts) every time a run completes, plus an automatic real-time re-trigger
+ *  on `data` change. `alerts` aren't surfaced as their own hook state the way plots/drawings are
+ *  — they're point-in-time events, not chart elements to keep displaying, so `result.alerts` is
+ *  enough until M5 wires a real `onScriptAlert` prop up to them. This hook itself still only ever
+ *  drives *one* script; the plan's own "one Worker per enabled script" orchestration across
+ *  several scripts at once is M5's own concern, layered on top of this rather than rebuilding it.
+ *  `lastCandleOpen` (default `false`, the conservative "every bar is closed" reading) is the only
+ *  piece of "is the market live right now" knowledge this hook can't infer on its own — the host
+ *  is the one source of truth for it, same reasoning `ScriptEngineSnapshot.lastCandleOpen`'s own
+ *  doc gives. */
+export function useScriptEngine(
+  scriptId: string,
+  data: Candle[],
+  indicators: Indicator[],
+  fundamentals: FundamentalDataPoint[] | undefined,
+  lastCandleOpen = false
+) {
   const [result, setResult] = useState<ScriptRunResult | null>(null);
   const [running, setRunning] = useState(false);
   const [scriptIndicators, setScriptIndicators] = useState<CustomIndicatorDef[]>([]);
   const [scriptDrawings, setScriptDrawings] = useState<TrendLineDrawing[]>([]);
   const workerRef = useRef<Worker | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // The most recently *run* script code — `null` until `run()` has been called at least once.
+  // Drives the real-time re-trigger effect below: a script the caller hasn't run yet has nothing
+  // to auto-re-evaluate on the next `data` change.
+  const lastScriptCodeRef = useRef<string | null>(null);
 
   function applyRunOutput(runResult: ScriptRunResult) {
     setResult(runResult);
@@ -74,6 +99,13 @@ export function useScriptEngine(scriptId: string, data: Candle[], indicators: In
     if (timeoutRef.current !== null) {
       clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
+    }
+  }
+
+  function clearPendingDebounce() {
+    if (debounceRef.current !== null) {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = null;
     }
   }
 
@@ -92,6 +124,7 @@ export function useScriptEngine(scriptId: string, data: Candle[], indicators: In
     workerRef.current = new ScriptWorkerFactory();
     return () => {
       clearPendingTimeout();
+      clearPendingDebounce();
       workerRef.current?.terminate();
       workerRef.current = null;
     };
@@ -101,13 +134,11 @@ export function useScriptEngine(scriptId: string, data: Candle[], indicators: In
 
   /** `isRealtimeTick` picks which of the two timeout constants applies — a full replay is
    *  expected to sometimes genuinely take a while, a single new bar's worth of re-evaluation
-   *  isn't (see HISTORICAL_REPLAY_TIMEOUT_MS/REALTIME_TICK_TIMEOUT_MS's own docs). Both this and
-   *  the timeout/respawn plumbing exist even though M1 has no real-time re-trigger driving this
-   *  parameter yet (that's M4) — a run triggered by hand still deserves the same safety net a
-   *  live one will. */
+   *  isn't (see HISTORICAL_REPLAY_TIMEOUT_MS/REALTIME_TICK_TIMEOUT_MS's own docs). */
   function run(scriptCode: string, isRealtimeTick = false) {
     const worker = workerRef.current ?? replaceWorker();
     clearPendingTimeout();
+    lastScriptCodeRef.current = scriptCode;
     setRunning(true);
     const timeoutMs = isRealtimeTick ? REALTIME_TICK_TIMEOUT_MS : HISTORICAL_REPLAY_TIMEOUT_MS;
 
@@ -127,17 +158,23 @@ export function useScriptEngine(scriptId: string, data: Candle[], indicators: In
     worker.onerror = (e: ErrorEvent) => {
       clearPendingTimeout();
       replaceWorker();
-      setResult({ error: { message: e.message || "Erreur inattendue du script." }, logs: [], plots: [], drawings: [] });
+      setResult({ error: { message: e.message || "Erreur inattendue du script." }, logs: [], plots: [], drawings: [], alerts: [] });
       setRunning(false);
     };
 
     timeoutRef.current = setTimeout(() => {
       replaceWorker();
-      setResult({ error: { message: "Le script a dépassé le délai d'exécution autorisé et a été arrêté." }, logs: [], plots: [], drawings: [] });
+      setResult({
+        error: { message: "Le script a dépassé le délai d'exécution autorisé et a été arrêté." },
+        logs: [],
+        plots: [],
+        drawings: [],
+        alerts: [],
+      });
       setRunning(false);
     }, timeoutMs);
 
-    worker.postMessage(buildSnapshot(data, indicators, fundamentals, scriptCode, timeoutMs));
+    worker.postMessage(buildSnapshot(data, indicators, fundamentals, scriptCode, timeoutMs, lastCandleOpen, isRealtimeTick));
   }
 
   /** Interrupts whatever's currently running (or about to) — same terminate-and-respawn
@@ -145,9 +182,28 @@ export function useScriptEngine(scriptId: string, data: Candle[], indicators: In
    *  plan's M5). */
   function stop() {
     clearPendingTimeout();
+    clearPendingDebounce();
     replaceWorker();
     setRunning(false);
   }
+
+  // Real-time re-trigger: once a script has been run at least once (`lastScriptCodeRef` set), a
+  // later `data` change (a new/updated candle arriving from the host) re-evaluates it
+  // automatically as a live tick, debounced so a burst of several changes arriving close together
+  // collapses into one run rather than one per change (see REALTIME_TICK_DEBOUNCE_MS's own doc).
+  // No-op before the first manual `run()` — nothing to re-trigger yet. Deliberately keyed on
+  // `data` alone: re-running because `run`/`indicators`/`fundamentals` changed identity would
+  // defeat the "only the data actually moved" intent and risk a re-trigger loop.
+  useEffect(() => {
+    if (lastScriptCodeRef.current === null) return;
+    clearPendingDebounce();
+    debounceRef.current = setTimeout(() => {
+      debounceRef.current = null;
+      if (lastScriptCodeRef.current !== null) run(lastScriptCodeRef.current, true);
+    }, REALTIME_TICK_DEBOUNCE_MS);
+    return clearPendingDebounce;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data]);
 
   return { result, running, scriptIndicators, scriptDrawings, run, stop };
 }

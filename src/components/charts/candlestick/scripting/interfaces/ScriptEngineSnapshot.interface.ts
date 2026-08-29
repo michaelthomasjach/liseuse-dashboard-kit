@@ -58,4 +58,14 @@ export interface ScriptEngineSnapshot {
      *  memory from a single call. */
     maxSeriesLength: number;
   };
+  /** Whether `ohlcv`'s own last candle is still actively forming (host-controlled — this library
+   *  never decides on its own whether the market is open) — read by `bar.isClosed()`. Defaults to
+   *  `false` (every bar reported closed) when the host doesn't say otherwise, the conservative
+   *  choice: a script gating on `bar.isClosed()` should not fire early just because the caller
+   *  forgot to set this. */
+  lastCandleOpen?: boolean;
+  /** Whether *this run* is a live re-trigger (one more bar appended to an already-replayed
+   *  script) rather than a full historical replay or a manual Run — read by `bar.isRealtime()`.
+   *  Set by `useScriptEngine`'s own `run(code, isRealtimeTick)`, never by the script itself. */
+  isRealtimeTick?: boolean;
 }

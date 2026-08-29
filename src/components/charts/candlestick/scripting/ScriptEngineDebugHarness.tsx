@@ -88,15 +88,40 @@ plot.overlay("Fast SMA20", ema ?? price);
 if (score === 3) plot.signal({ type: "BUY", price });
 if (rsi !== null && rsi > 70) plot.signal("SELL");
 `,
+  "state + alert + bar": `
+const seenBars = state.get("seenBars", 0) + 1;
+state.set("seenBars", seenBars);
+
+const prevClose = state.get("prevClose", null);
+const close = market.close(0);
+state.set("prevClose", close);
+
+if (bar.isNew()) {
+  console.log("bar #" + seenBars + " isNew=" + bar.isNew() + " isClosed=" + bar.isClosed() + " isRealtime=" + bar.isRealtime());
+}
+
+if (prevClose !== null && close > prevClose * 1.01) {
+  alert("Bond de plus de 1% : " + prevClose.toFixed(2) + " -> " + close.toFixed(2));
+}
+
+if (bar.isNew() && !bar.isClosed()) {
+  alert("Dernière bougie encore en formation");
+}
+`,
 };
 
-export function ScriptEngineDebugHarness({ data, indicators }: ScriptEngineDebugHarnessProps) {
-  const engine = useScriptEngine("debug-script", data, indicators, undefined);
+export function ScriptEngineDebugHarness({ data: initialData, indicators }: ScriptEngineDebugHarnessProps) {
+  // Local copy so "Simulate new candle" below can append to it — exercising useScriptEngine's own
+  // real-time re-trigger effect (M4), which fires on `data` identity change, requires an actual
+  // prop-level data change here, not just re-running the same script by hand.
+  const [data, setData] = useState(initialData);
+  const [lastCandleOpen, setLastCandleOpen] = useState(false);
+  const engine = useScriptEngine("debug-script", data, indicators, undefined, lastCandleOpen);
   const [lastScript, setLastScript] = useState<string | null>(null);
 
   return (
     <div style={{ fontFamily: "monospace", fontSize: 12, padding: 16 }}>
-      <h3>Script Engine Debug Harness (M1)</h3>
+      <h3>Script Engine Debug Harness (M1-M4)</h3>
       <p>{engine.running ? "RUNNING..." : "idle"}</p>
       {Object.entries(TEST_SCRIPTS).map(([name, code]) => (
         <div key={name} style={{ marginBottom: 8 }}>
@@ -114,6 +139,28 @@ export function ScriptEngineDebugHarness({ data, indicators }: ScriptEngineDebug
       <button type="button" onClick={() => engine.stop()}>
         Stop
       </button>
+      <hr />
+      <label>
+        <input type="checkbox" checked={lastCandleOpen} onChange={(e) => setLastCandleOpen(e.target.checked)} />
+        lastCandleOpen
+      </label>
+      <button
+        type="button"
+        data-testid="simulate-new-candle"
+        onClick={() => {
+          setData((prev) => {
+            const last = prev[prev.length - 1];
+            const nextClose = last.close * (1 + (Math.random() - 0.3) * 0.03);
+            return [
+              ...prev,
+              { date: new Date(last.date.getTime() + 24 * 60 * 60 * 1000), open: last.close, high: Math.max(last.close, nextClose), low: Math.min(last.close, nextClose), close: nextClose, volume: last.volume },
+            ];
+          });
+        }}
+      >
+        Simulate new candle
+      </button>
+      <div data-testid="engine-data-length">data.length={data.length}</div>
       <hr />
       <div>Last script: {lastScript}</div>
       <pre data-testid="engine-result">{JSON.stringify(engine.result, null, 2)}</pre>

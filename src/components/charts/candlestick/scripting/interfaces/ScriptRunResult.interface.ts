@@ -47,6 +47,18 @@ export interface ScriptDrawingOutput {
   shape?: string;
 }
 
+/** One `alert(message)` call, timestamped with whichever bar was current when the script made it
+ *  — `date`/`barIndex` mirror `ScriptDrawingOutput`'s own conventions (epoch milliseconds, index
+ *  into the same `ohlcv` the rest of this run's output is aligned to). Worker-side only; the host
+ *  adds its own `scriptId` when this reaches `onScriptAlert` (M5), the same "engine output is
+ *  script-agnostic, the host attaches identity" split `scriptOutputToCustomIndicatorDef.ts`
+ *  already follows. */
+export interface ScriptRunAlert {
+  message: string;
+  barIndex: number;
+  date: number;
+}
+
 /** What one script run hands back to the main thread, whether it ran to completion or failed
  *  partway through. `error` set means the run stopped at whichever bar triggered it — everything
  *  the script produced *before* that bar is still returned alongside it, same "show what you
@@ -59,4 +71,5 @@ export interface ScriptRunResult {
   logs: string[];
   plots: ScriptPlotSeries[];
   drawings: ScriptDrawingOutput[];
+  alerts: ScriptRunAlert[];
 }

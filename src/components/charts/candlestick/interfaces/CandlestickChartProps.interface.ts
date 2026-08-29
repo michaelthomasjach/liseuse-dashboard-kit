@@ -12,6 +12,8 @@ import type { FundamentalDataPoint } from "./FundamentalDataPoint.interface";
 import type { SymbolSearchResult } from "./SymbolSearchResult.interface";
 import type { SymbolSearchCategory } from "./SymbolSearchCategory.interface";
 import type { ChartAlertDraft, ChartAlert } from "./ChartAlertDraft.interface";
+import type { ScriptDef } from "./ScriptDef.interface";
+import type { ScriptAlertEvent } from "./ScriptAlertEvent.interface";
 
 export interface CandlestickChartProps {
   data: Candle[];
@@ -265,6 +267,25 @@ export interface CandlestickChartProps {
    *  Default true (open). */
   defaultSidePanelOpen?: boolean;
   onSidePanelOpenChange?: (open: boolean) => void;
+  /** Shows a header button ("</>") that opens the script editor — a Pine-Script-like in-app
+   *  JavaScript engine for custom indicators/signals/alerts (see `ScriptEditorPanel`). Default
+   *  false, same convention as `showIndicators`/`drawingTools`. */
+  scripting?: boolean;
+  /** Uncontrolled initial set of scripts, same pattern as `defaultIndicators`/`defaultDrawings`. */
+  defaultScripts?: ScriptDef[];
+  /** Fires whenever a script is added, edited, removed, or its enabled state toggled. */
+  onScriptsChange?: (scripts: ScriptDef[]) => void;
+  /** Fires for every `alert(message)` call a running script makes — this library only ever
+   *  produces the event (see `ScriptAlertEvent`'s own doc); how it actually reaches the user
+   *  (toast, sound, the app's own notification system) is entirely up to this callback. */
+  onScriptAlert?: (event: ScriptAlertEvent) => void;
+  /** Whether `data`'s own last candle is still actively forming rather than closed — read by a
+   *  running script's own `bar.isClosed()`/`bar.isRealtime()` (see the scripting engine's own
+   *  `ScriptEngineSnapshot.lastCandleOpen` doc for the full reasoning). This library has no way to
+   *  know the market's own session state on its own, so it defaults to `false` (every bar reported
+   *  closed) — the conservative choice, so a script gating on "closed" never fires early just
+   *  because this wasn't set. */
+  lastCandleOpen?: boolean;
   margin?: Partial<ChartMargin>;
   className?: string;
 }

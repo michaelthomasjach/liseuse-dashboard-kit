@@ -1,0 +1,32 @@
+.lq-script-error-panel {
+  display: flex;
+  gap: var(--lq-space-2);
+  align-items: flex-start;
+  padding: var(--lq-space-2) var(--lq-space-3);
+  border: 1px solid var(--lq-color-danger);
+  background: color-mix(in srgb, var(--lq-color-danger) 10%, transparent);
+  color: var(--lq-color-danger);
+  font-size: var(--lq-text-sm);
+}
+
+.lq-script-error-panel__body {
+  min-width: 0;
+}
+
+.lq-script-error-panel__title {
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.lq-script-error-panel__message {
+  font-family: var(--lq-font-mono);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.lq-script-error-panel__location {
+  margin-top: var(--lq-space-1);
+  color: var(--lq-color-text-muted);
+  font-family: var(--lq-font-mono);
+  font-size: var(--lq-text-xs);
+}

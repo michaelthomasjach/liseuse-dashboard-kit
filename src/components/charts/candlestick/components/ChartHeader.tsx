@@ -9,6 +9,7 @@ import {
   MaximizeIcon,
   MinimizeIcon,
   LinkIcon,
+  CodeIcon,
 } from "../../../icons";
 import type { ChartDisplayMode } from "../interfaces/ChartDisplayMode.interface";
 import type { TimeframeEntry } from "../interfaces/TimeframeEntry.interface";
@@ -62,6 +63,12 @@ export interface ChartHeaderProps {
   linkable: boolean;
   isLinked: boolean;
   onLinkClick: (() => void) | undefined;
+  /** Shows the script editor's own header button ("</>") — same "gate controls the affordance"
+   *  convention as `showIndicators`/`seasonality` above. See `ScriptingLayer.tsx`'s own doc for
+   *  why a running script still works with this off; it only ever hides the way to *open* the
+   *  editor. */
+  scripting: boolean;
+  onOpenScriptEditor: () => void;
 }
 
 /** The chart's main (non-seasonality) header: timeframe picker, display-mode picker, "add
@@ -114,6 +121,8 @@ export function ChartHeader({
   linkable,
   isLinked,
   onLinkClick,
+  scripting,
+  onOpenScriptEditor,
 }: ChartHeaderProps) {
   return (
     <div className="lq-chart__header" style={{ width: dims.width }}>
@@ -231,6 +240,17 @@ export function ChartHeader({
           aria-label="Ajouter un indicateur"
         >
           <ActivityIcon size={14} />
+        </button>
+      )}
+      {scripting && (
+        <button
+          type="button"
+          className="lq-chart__icon-button"
+          onClick={onOpenScriptEditor}
+          aria-label="Éditeur de script"
+          title="Éditeur de script"
+        >
+          <CodeIcon size={14} />
         </button>
       )}
       {seasonality && (

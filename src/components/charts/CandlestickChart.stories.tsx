@@ -656,3 +656,42 @@ export const LiveMarket: Story = {
     );
   },
 };
+
+const SCRIPTING_DATASET = generateCandles(200, 150, 77);
+
+export const Scripting: Story = {
+  name: "Éditeur de script",
+  render: () => {
+    const [alerts, setAlerts] = useState<{ scriptId: string; message: string; date: Date }[]>([]);
+    return (
+      <div style={{ padding: 24 }}>
+        <p style={{ fontSize: 13, opacity: 0.7, marginBottom: 8 }}>
+          Bouton {"</>"} dans l'en-tête : éditeur de script JavaScript intégré (CodeMirror, chargé
+          uniquement à l'ouverture — voir ScriptEditorCodeMirror.tsx) pour créer des indicateurs/
+          signaux/alertes personnalisés, exécutés bougie par bougie dans un Worker sandboxé.
+        </p>
+        {alerts.length > 0 && (
+          <ul data-testid="script-alerts" style={{ fontSize: 12, fontFamily: "monospace", marginBottom: 8 }}>
+            {alerts.map((a, i) => (
+              <li key={i}>
+                [{a.scriptId}] {a.message}
+              </li>
+            ))}
+          </ul>
+        )}
+        <CandlestickChart
+          data={SCRIPTING_DATASET}
+          symbol="QNTM"
+          showIndicators
+          defaultIndicators={[
+            { id: "indicator-0", kind: "rsi", period: 14 },
+            { id: "indicator-1", kind: "macd", period: 0, fastPeriod: 12, slowPeriod: 26, signalPeriod: 9 },
+          ]}
+          scripting
+          onScriptAlert={(event) => setAlerts((prev) => [...prev, { scriptId: event.scriptId, message: event.message, date: event.date }])}
+          height={STORY_HEIGHT}
+        />
+      </div>
+    );
+  },
+};

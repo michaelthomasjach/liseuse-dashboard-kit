@@ -1,0 +1,15 @@
+.lq-script-editor-codemirror {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--lq-color-border-subtle);
+}
+
+.lq-script-editor-codemirror .cm-editor {
+  height: 100%;
+  outline: none;
+}
+
+.lq-script-editor-codemirror .cm-scroller {
+  overflow: auto;
+}

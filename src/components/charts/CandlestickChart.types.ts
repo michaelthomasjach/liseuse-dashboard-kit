@@ -20,3 +20,5 @@ export type { TimeframeGroup } from "./candlestick/interfaces/TimeframeGroup.int
 export type { TimeframeEntry } from "./candlestick/interfaces/TimeframeEntry.interface";
 export type { CandlestickChartProps } from "./candlestick/interfaces/CandlestickChartProps.interface";
 export type { ChartAlert, ChartAlertDraft, ChartAlertCrossing } from "./candlestick/interfaces/ChartAlertDraft.interface";
+export type { ScriptDef } from "./candlestick/interfaces/ScriptDef.interface";
+export type { ScriptAlertEvent } from "./candlestick/interfaces/ScriptAlertEvent.interface";

@@ -22,6 +22,8 @@ export type {
   ChartAlert,
   ChartAlertDraft,
   ChartAlertCrossing,
+  ScriptDef,
+  ScriptAlertEvent,
 } from "./CandlestickChart";
 
 export { ChartEventTooltip } from "./EventTooltip";

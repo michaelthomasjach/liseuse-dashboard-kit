@@ -29,6 +29,11 @@ export function useScriptingState({ defaultScripts, onScriptsChange }: UseScript
   const [activeScriptId, setActiveScriptId] = useState<string | null>(null);
   const [runOutputs, setRunOutputs] = useState<Record<string, ScriptRunOutput>>({});
   const [runRequests, setRunRequests] = useState<Record<string, ScriptRunRequest>>({});
+  // A pending "stop whatever's running now" request, same requestId-bump trigger as runRequests
+  // above (not a boolean — two Stop clicks in a row while the engine is still winding down from
+  // the first must both still register as *a* stop request each). Only the count, not a payload,
+  // is meaningful here.
+  const [stopRequests, setStopRequests] = useState<Record<string, number>>({});
   const scriptIdRef = useRef(0);
 
   function commitScripts(next: ScriptDef[]) {
@@ -75,6 +80,14 @@ export function useScriptingState({ defaultScripts, onScriptsChange }: UseScript
     setRunRequests((prev) => ({ ...prev, [id]: { code, requestId: (prev[id]?.requestId ?? 0) + 1 } }));
   }, []);
 
+  // The editor's own Stop button — terminates that script's own in-flight Worker (via
+  // useScriptEngine's own stop(), see ScriptRunner.tsx) rather than trying to "run" it into
+  // stopping, which wouldn't preempt an actual infinite loop: a Worker only starts processing a
+  // *new* postMessage once whatever it's currently running finishes on its own.
+  const stopScript = useCallback((id: string) => {
+    setStopRequests((prev) => ({ ...prev, [id]: (prev[id] ?? 0) + 1 }));
+  }, []);
+
   const reportRunOutput = useCallback((id: string, output: ScriptRunOutput) => {
     setRunOutputs((prev) => ({ ...prev, [id]: output }));
   }, []);
@@ -99,6 +112,8 @@ export function useScriptingState({ defaultScripts, onScriptsChange }: UseScript
     runOutputs,
     runRequests,
     runScript,
+    stopRequests,
+    stopScript,
     reportRunOutput,
     scriptIndicators,
     scriptDrawings,

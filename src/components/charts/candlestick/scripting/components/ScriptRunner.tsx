@@ -15,6 +15,9 @@ export interface ScriptRunnerProps {
   fundamentals: FundamentalDataPoint[] | undefined;
   lastCandleOpen: boolean;
   runRequest: ScriptRunRequest | undefined;
+  /** A pending "Stop" click for this script — see useScriptingState's own stopScript doc; only
+   *  the count matters, not any payload. */
+  stopRequest: number | undefined;
   onOutput: (id: string, output: ScriptRunOutput) => void;
   onAlert: ((event: ScriptAlertEvent) => void) | undefined;
 }
@@ -25,10 +28,11 @@ export interface ScriptRunnerProps {
  *  the rules of hooks forbid calling one a variable number of times in a loop. Mounting/unmounting
  *  a component per script sidesteps that entirely — each gets its own independent Worker, matching
  *  the approved plan's own "one Worker per enabled script" design. Renders nothing. */
-export function ScriptRunner({ scriptId, code, data, indicators, fundamentals, lastCandleOpen, runRequest, onOutput, onAlert }: ScriptRunnerProps) {
+export function ScriptRunner({ scriptId, code, data, indicators, fundamentals, lastCandleOpen, runRequest, stopRequest, onOutput, onAlert }: ScriptRunnerProps) {
   const engine = useScriptEngine(scriptId, data, indicators, fundamentals, lastCandleOpen);
   const hasRunOnceRef = useRef(false);
   const lastRequestIdRef = useRef<number | null>(null);
+  const lastStopRequestRef = useRef<number | null>(null);
   // How many of `engine.result.alerts` (a *cumulative* list rebuilt from bar 0 on every run, per
   // M4's design) have already been forwarded via `onAlert` — reset to 0 right before either
   // explicit run() call below, so a genuinely fresh run (edited code, or the very first run) never
@@ -59,6 +63,13 @@ export function ScriptRunner({ scriptId, code, data, indicators, fundamentals, l
     engine.run(runRequest.code);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [runRequest]);
+
+  useEffect(() => {
+    if (stopRequest === undefined || stopRequest === lastStopRequestRef.current) return;
+    lastStopRequestRef.current = stopRequest;
+    engine.stop();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stopRequest]);
 
   useEffect(() => {
     onOutput(scriptId, { result: engine.result, running: engine.running, indicators: engine.scriptIndicators, drawings: engine.scriptDrawings });

@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from "react";
+import { useId, useMemo, useRef, useState } from "react";
 import * as d3 from "d3";
 import { useChartDimensions } from "./internal/useChartDimensions";
 import { useFullscreen } from "./internal/useFullscreen";
@@ -25,6 +25,9 @@ import { useAlertFlow } from "./candlestick/hooks/useAlertFlow";
 import { useCorrelationSetup } from "./candlestick/hooks/useCorrelationSetup";
 import { useRenderCandlestickChart } from "./candlestick/hooks/useRenderCandlestickChart";
 import { useSidePanel } from "./candlestick/hooks/useSidePanel";
+import { useScriptingState } from "./candlestick/hooks/useScriptingState";
+import { scriptIndicatorToChartIndicator } from "./candlestick/scripting/scriptIndicatorToChartIndicator";
+import { ScriptingLayer } from "./candlestick/scripting/components/ScriptingLayer";
 import { ChartHeader } from "./candlestick/components/ChartHeader";
 import { ChartSidePanel } from "./candlestick/components/ChartSidePanel";
 import { ToolsRail } from "./candlestick/components/ToolsRail";
@@ -58,6 +61,7 @@ export type {
   TimeframeGroup,
   TimeframeEntry,
   CandlestickChartProps, ChartAlert, ChartAlertDraft, ChartAlertCrossing,
+  ScriptDef, ScriptAlertEvent,
 } from "./CandlestickChart.types";
 
 import { drawingLabel } from "./candlestick/drawingCatalog";
@@ -126,6 +130,7 @@ export function CandlestickChart({
   onLinkClick,
   fillHeight = false,
   sidePanel, defaultSidePanelOpen, onSidePanelOpenChange,
+  scripting = false, defaultScripts, onScriptsChange, onScriptAlert, lastCandleOpen = false,
   margin,
   className,
 }: CandlestickChartProps) {
@@ -243,7 +248,7 @@ export function CandlestickChart({
     height: isFullscreen || fillHeight ? undefined : height,
   });
 
-  const showHeader = fullscreenToggle || zoomable || !!timeframes?.length || showIndicators;
+  const showHeader = fullscreenToggle || zoomable || !!timeframes?.length || showIndicators || scripting;
   const headerSpace = showHeader ? HEADER_HEIGHT : 0;
   const plotHeight = Math.max(0, dims.height - headerSpace);
   const plotBoundedHeight = Math.max(0, plotHeight - dims.margin.top - dims.margin.bottom);
@@ -266,6 +271,8 @@ export function CandlestickChart({
     plotWidth: dims.boundedWidth,
   });
   const alertFlow = useAlertFlow(alerts ?? [], selectedDrawingId);
+  const scriptingState = useScriptingState({ defaultScripts, onScriptsChange });
+  const scriptChartIndicators = useMemo(() => scriptingState.scriptIndicators.map(scriptIndicatorToChartIndicator), [scriptingState.scriptIndicators]);
   const {
     indicators,
     indicatorPickerOpen,
@@ -305,8 +312,13 @@ export function CandlestickChart({
     volumeTop, allPanesOrder,
     volumeHeight, priceHeight,
     fullscreenPaneId, togglePaneFullscreen,
-  } = usePaneLayout({ defaultIndicators, onIndicatorsChange, showVolume, plotBoundedHeight });
+  } = usePaneLayout({ defaultIndicators, onIndicatorsChange, showVolume, plotBoundedHeight, extraIndicators: scriptChartIndicators });
   const correlationSetup = useCorrelationSetup({ appendIndicator, onAddSymbolOverlay, onSymbolSearchChange });
+  const combinedIndicators = useMemo(() => [...indicators, ...scriptChartIndicators], [indicators, scriptChartIndicators]);
+  // Render-only concat — script signals stay out of the *interactive* `visibleDrawings` every
+  // pointer-handler in useDrawingInteractions below still reads (they're read-only in v1, no
+  // select/drag/double-click-edit), only the canvas draw pass (ChartPlotOverlays) sees this one.
+  const combinedVisibleDrawings = useMemo(() => [...visibleDrawings, ...scriptingState.scriptDrawings], [visibleDrawings, scriptingState.scriptDrawings]);
 
   const {
     templates,
@@ -412,7 +424,7 @@ export function CandlestickChart({
   } = useIndicatorPaneScales({
     data,
     fundamentals,
-    indicators,
+    indicators: combinedIndicators,
     ownPaneIndicators,
     indicatorPaneHeights,
     indicatorPaneTops,
@@ -556,7 +568,7 @@ export function CandlestickChart({
     indicatorPaneHeights,
     indicatorPaneTops,
     zoomedOwnPaneScales,
-    indicators,
+    indicators: combinedIndicators,
     overlayProjections,
     symbolOverlays,
     hovered: effectiveHovered,
@@ -565,7 +577,7 @@ export function CandlestickChart({
     hoverIndicatorPaneId,
     hoverIndicatorPaneY,
     hoverIndex: effectiveHoverIndex,
-    visibleDrawings,
+    visibleDrawings: combinedVisibleDrawings,
     hoveredDrawingId,
     activeTool,
     pendingPoint,
@@ -609,7 +621,7 @@ export function CandlestickChart({
   const currentModeEntry = CHART_DISPLAY_MODES.find((m) => m.mode === chartDisplayMode) ?? CHART_DISPLAY_MODES[0];
   // The top-left legend's own indicators — price overlays only, `ownPaneIndicators` (RSI/CHOP/
   // MACD) already have their own pane header and don't belong here too.
-  const overlayIndicators = indicators.filter((ind) => indicatorCatalogEntry(ind).pane === "price");
+  const overlayIndicators = combinedIndicators.filter((ind) => indicatorCatalogEntry(ind).pane === "price");
 
   const { candle: ohlcCandle, delta: ohlcDelta, deltaPct: ohlcDeltaPct, sign: ohlcSign } = computeOhlcReadout(data, effectiveHoverIndex);
 
@@ -660,6 +672,8 @@ export function CandlestickChart({
           linkable={linkable}
           isLinked={isLinked}
           onLinkClick={onLinkClick}
+          scripting={scripting}
+          onOpenScriptEditor={() => scriptingState.setEditorOpen(true)}
         />
       )}
 
@@ -732,7 +746,7 @@ export function CandlestickChart({
             pFmt={pFmt}
             showIndicators={showIndicators}
             overlayIndicators={overlayIndicators}
-            indicators={indicators}
+            indicators={combinedIndicators}
             defaultIndicatorColor={defaultIndicatorColor}
             openIndicatorSettings={openIndicatorSettings}
             setHoveredIndicatorId={setHoveredIndicatorId}
@@ -891,6 +905,8 @@ export function CandlestickChart({
           }}
         />
       )}
+
+      <ScriptingLayer scripting={scriptingState} data={data} indicators={indicators} fundamentals={fundamentals} lastCandleOpen={lastCandleOpen} onScriptAlert={onScriptAlert} />
 
       <ChartModals
         {...correlationSetup}

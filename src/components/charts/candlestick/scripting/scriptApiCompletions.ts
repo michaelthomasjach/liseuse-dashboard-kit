@@ -28,6 +28,7 @@ export const SCRIPT_API_COMPLETIONS: ScriptApiCompletion[] = [
     detail: '("open"|"high"|"low"|"close"|"volume", count?) => number[]',
     apply: 'market.series("close", 20)',
   },
+  { label: "market.availableTimeframes", type: "function", detail: "() => string[]", apply: "market.availableTimeframes()" },
   { label: "chart.indicator", type: "function", detail: '(id) => handle — see chart.listIndicators()', apply: 'chart.indicator("rsi_14")' },
   { label: "chart.listIndicators", type: "function", detail: "() => string[]", apply: "chart.listIndicators()" },
   { label: ".value", type: "function", detail: "(offset?) => number | null — plain/band indicators" },

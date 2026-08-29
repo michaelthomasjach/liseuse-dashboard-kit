@@ -1,0 +1,140 @@
+.lq-script-window {
+  position: fixed;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--lq-color-panel);
+  border: 1px solid var(--lq-color-border);
+  box-shadow: var(--lq-shadow-modal);
+  min-width: 520px;
+  min-height: 400px;
+}
+
+.lq-script-window--maximized {
+  inset: 8px;
+}
+
+.lq-script-window__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lq-space-3);
+  padding: var(--lq-space-2) var(--lq-space-3);
+  border-bottom: 1px solid var(--lq-color-border-subtle);
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+  flex-shrink: 0;
+}
+
+.lq-script-window__header:active {
+  cursor: grabbing;
+}
+
+.lq-script-window__title {
+  font-size: var(--lq-text-md);
+  font-weight: 700;
+  color: var(--lq-color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lq-script-window__header-actions {
+  display: flex;
+  gap: var(--lq-space-1);
+  flex-shrink: 0;
+}
+
+.lq-script-window__header-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  color: var(--lq-color-text-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.lq-script-window__header-button:hover {
+  color: var(--lq-color-text);
+  background-color: var(--lq-color-hover);
+}
+
+.lq-script-window__body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.lq-script-window__resize {
+  position: absolute;
+  touch-action: none;
+}
+
+.lq-script-window__resize--n {
+  top: -3px;
+  left: 8px;
+  right: 8px;
+  height: 6px;
+  cursor: ns-resize;
+}
+
+.lq-script-window__resize--s {
+  bottom: -3px;
+  left: 8px;
+  right: 8px;
+  height: 6px;
+  cursor: ns-resize;
+}
+
+.lq-script-window__resize--e {
+  right: -3px;
+  top: 8px;
+  bottom: 8px;
+  width: 6px;
+  cursor: ew-resize;
+}
+
+.lq-script-window__resize--w {
+  left: -3px;
+  top: 8px;
+  bottom: 8px;
+  width: 6px;
+  cursor: ew-resize;
+}
+
+.lq-script-window__resize--ne {
+  top: -4px;
+  right: -4px;
+  width: 12px;
+  height: 12px;
+  cursor: nesw-resize;
+}
+
+.lq-script-window__resize--nw {
+  top: -4px;
+  left: -4px;
+  width: 12px;
+  height: 12px;
+  cursor: nwse-resize;
+}
+
+.lq-script-window__resize--se {
+  bottom: -4px;
+  right: -4px;
+  width: 12px;
+  height: 12px;
+  cursor: nwse-resize;
+}
+
+.lq-script-window__resize--sw {
+  bottom: -4px;
+  left: -4px;
+  width: 12px;
+  height: 12px;
+  cursor: nesw-resize;
+}

@@ -1,18 +1,9 @@
-.lq-script-editor-panel {
-  display: flex;
-  flex-direction: column;
-  gap: var(--lq-space-2);
-  height: 100%;
-  min-height: 0;
-}
-
 .lq-script-editor-panel__tabs {
   display: flex;
   align-items: center;
   gap: var(--lq-space-1);
   flex-wrap: wrap;
-  border-bottom: 1px solid var(--lq-color-border-subtle);
-  padding-bottom: var(--lq-space-2);
+  padding: var(--lq-space-2) var(--lq-space-3) 0;
 }
 
 .lq-script-editor-panel__tab {
@@ -71,6 +62,8 @@
   display: flex;
   align-items: center;
   gap: var(--lq-space-2);
+  padding: var(--lq-space-2) var(--lq-space-3);
+  border-bottom: 1px solid var(--lq-color-border-subtle);
 }
 
 .lq-script-editor-panel__toolbar-button {
@@ -104,6 +97,7 @@
   gap: var(--lq-space-3);
   flex: 1;
   min-height: 0;
+  padding: var(--lq-space-3);
 }
 
 .lq-script-editor-panel__main {
@@ -153,6 +147,7 @@
   align-items: center;
   justify-content: center;
   flex: 1;
+  padding: var(--lq-space-3);
   color: var(--lq-color-text-muted);
   font-size: var(--lq-text-sm);
 }

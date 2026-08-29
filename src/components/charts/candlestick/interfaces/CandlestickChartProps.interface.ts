@@ -275,6 +275,14 @@ export interface CandlestickChartProps {
   defaultScripts?: ScriptDef[];
   /** Fires whenever a script is added, edited, removed, or its enabled state toggled. */
   onScriptsChange?: (scripts: ScriptDef[]) => void;
+  /** Controls the script editor's own open/closed state from outside instead of it managing its
+   *  own internal state — pairs with `onScriptEditorOpenChange` below, same
+   *  controlled/uncontrolled split `isFullscreen`/`onFullscreenChange` already use. `ChartWorkspace`
+   *  sets both so its own workspace-level "</>" rail button can open one specific panel's editor
+   *  from outside that panel; a standalone chart has no reason to and keeps its own internal state
+   *  instead. */
+  scriptEditorOpen?: boolean;
+  onScriptEditorOpenChange?: (open: boolean) => void;
   /** Fires for every `alert(message)` call a running script makes — this library only ever
    *  produces the event (see `ScriptAlertEvent`'s own doc); how it actually reaches the user
    *  (toast, sound, the app's own notification system) is entirely up to this callback. */

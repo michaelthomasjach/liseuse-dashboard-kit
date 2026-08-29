@@ -10,7 +10,7 @@ import { useSidePanel } from "./candlestick/hooks/useSidePanel";
 import { ChartSidePanel } from "./candlestick/components/ChartSidePanel";
 import { Popover } from "../forms/Popover";
 import { Modal } from "../primitives/Modal";
-import { WatchlistIcon, BellIcon, GridIcon, MaximizeIcon, MinimizeIcon, HelpIcon } from "../icons";
+import { WatchlistIcon, BellIcon, GridIcon, MaximizeIcon, MinimizeIcon, HelpIcon, CodeIcon } from "../icons";
 import { useFullscreen } from "./internal/useFullscreen";
 import "./ChartWorkspace.css";
 
@@ -25,6 +25,11 @@ const HELP_ITEMS: { title: string; description: string }[] = [
   },
   { title: "Plein écran de l'espace de travail", description: "Fait passer l'ensemble de l'espace de travail (grille, liste de surveillance et alertes comprises) en plein écran." },
   { title: "Graphiques liés", description: "Synchronise le curseur (survol) entre plusieurs graphiques d'un même groupe." },
+  {
+    title: "Éditeur de script",
+    description:
+      "Ouvre l'éditeur de script du panneau actif (ou du premier panneau si aucun n'est en focus) — visible uniquement si ce panneau a activé la prop `scripting`.",
+  },
   {
     title: "Verrouillage",
     description:
@@ -249,6 +254,13 @@ export function ChartWorkspace({
   // Clamped against the current `panels` count at read time (just below) rather than reset via an
   // effect — simpler, and a panel count change can never leave it referencing a since-removed panel.
   const [focusedPanelIndex, setFocusedPanelIndex] = useState<number | null>(null);
+  // Which panel's own script editor the rail's own "</>" button below has open — same single-
+  // index-of-truth shape as focusedPanelIndex above, and deliberately a *separate* piece of state
+  // rather than reusing that one: fullscreen-focus and "which panel's editor is open" are
+  // orthogonal (a script editor should stay reachable without first fullscreen-focusing its own
+  // panel), even though the button below defaults its target to whichever panel *is* currently
+  // focused, when one is.
+  const [scriptEditorPanelIndex, setScriptEditorPanelIndex] = useState<number | null>(null);
   // Item 20: a plain click-count gesture (native `MouseEvent.detail`, the same counter a real
   // double-click already relies on elsewhere in this library — see ChartLegend's own
   // onDoubleClick) rather than any custom timing/debounce logic of its own. This also makes a
@@ -522,6 +534,11 @@ export function ChartWorkspace({
             fullscreenToggle: panels >= 2,
             isFullscreen: effectiveFocusedPanelIndex === i,
             onFullscreenChange: (value: boolean) => setFocusedPanelIndex(value ? i : null),
+            // Same controlled-prop split as isFullscreen/onFullscreenChange just above, for the
+            // same reason — lets the rail's own "</>" button (below) open *this* panel's own
+            // script editor from outside it, regardless of which panel that turns out to be.
+            scriptEditorOpen: scriptEditorPanelIndex === i,
+            onScriptEditorOpenChange: (open: boolean) => setScriptEditorPanelIndex(open ? i : null),
             timeframe: i in timeframeByPanel ? timeframeByPanel[i] : child.props.timeframe,
             onTimeframeChange: (value: string) => {
               setTimeframeByPanel((prev) => ({ ...prev, [i]: value }));
@@ -635,6 +652,23 @@ export function ChartWorkspace({
             title="Alertes"
           >
             <BellIcon size={16} />
+          </button>
+        )}
+        {/* Gated on the *template* panel's own `scripting` prop — same "the button only shows up
+            if the feature is actually on" rule `hasWatchlists`/`hasAlerts` follow above, just read
+            from the child template instead of a ChartWorkspace-level prop, since scripting is a
+            per-`CandlestickChart` concern. Opens whichever panel is currently fullscreen-focused,
+            or the first one otherwise — see `scriptEditorPanelIndex`'s own doc for why this is a
+            separate piece of state from focus rather than reusing it outright. */}
+        {rawChildren[0]?.props.scripting && (
+          <button
+            type="button"
+            className={["lq-chart__icon-button", scriptEditorPanelIndex !== null && "lq-chart__icon-button--active"].filter(Boolean).join(" ")}
+            onClick={() => setScriptEditorPanelIndex((cur) => (cur !== null ? null : (effectiveFocusedPanelIndex ?? 0)))}
+            aria-label="Éditeur de script"
+            title="Éditeur de script"
+          >
+            <CodeIcon size={16} />
           </button>
         )}
         <button

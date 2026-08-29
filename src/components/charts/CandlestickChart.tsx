@@ -130,7 +130,7 @@ export function CandlestickChart({
   onLinkClick,
   fillHeight = false,
   sidePanel, defaultSidePanelOpen, onSidePanelOpenChange,
-  scripting = false, defaultScripts, onScriptsChange, onScriptAlert, lastCandleOpen = false,
+  scripting = false, defaultScripts, onScriptsChange, scriptEditorOpen, onScriptEditorOpenChange, onScriptAlert, lastCandleOpen = false,
   margin,
   className,
 }: CandlestickChartProps) {
@@ -271,7 +271,8 @@ export function CandlestickChart({
     plotWidth: dims.boundedWidth,
   });
   const alertFlow = useAlertFlow(alerts ?? [], selectedDrawingId);
-  const scriptingState = useScriptingState({ defaultScripts, onScriptsChange });
+  const controlledEditorOpen = onScriptEditorOpenChange ? { editorOpen: scriptEditorOpen ?? false, onChange: onScriptEditorOpenChange } : undefined;
+  const scriptingState = useScriptingState({ defaultScripts, onScriptsChange, controlledEditorOpen });
   const scriptChartIndicators = useMemo(() => scriptingState.scriptIndicators.map(scriptIndicatorToChartIndicator), [scriptingState.scriptIndicators]);
   const {
     indicators,

@@ -2,9 +2,22 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import type { ScriptDef } from "../interfaces/ScriptDef.interface";
 import type { ScriptRunOutput } from "../scripting/interfaces/ScriptRunOutput.interface";
 
+export interface UseScriptingStateControlledEditorOpen {
+  editorOpen: boolean;
+  onChange: (open: boolean) => void;
+}
+
 export interface UseScriptingStateArgs {
   defaultScripts: ScriptDef[] | undefined;
   onScriptsChange: ((scripts: ScriptDef[]) => void) | undefined;
+  /** Lets an owner outside this hook decide the editor's own open/closed state instead of it
+   *  managing its own — same `controlled?: {...} | undefined` shape and reasoning
+   *  `useFullscreen`'s own `controlled` param already uses, for the same reason: `ChartWorkspace`
+   *  needs a *workspace*-level "</>" button (its own side-rail, not any one panel's header) to be
+   *  able to open a specific panel's own editor from outside that panel entirely. Omitted (the
+   *  common standalone-`CandlestickChart` case): this hook manages the state itself, exactly as
+   *  before. */
+  controlledEditorOpen?: UseScriptingStateControlledEditorOpen;
 }
 
 /** A pending "run this code now" request for one script — `requestId` (not just `code`) is the
@@ -22,10 +35,14 @@ export interface ScriptRunRequest {
  *  script (see `ScriptRunnerHost.tsx`) reports its own output here via `reportRunOutput`, keyed by
  *  script id, and this hook just flattens all of them together for the render pipeline. Doesn't
  *  itself touch a Worker or `useScriptEngine` at all — that's each `ScriptRunner`'s own concern;
- *  this hook only ever manages the *list* of scripts and their already-computed output. */
-export function useScriptingState({ defaultScripts, onScriptsChange }: UseScriptingStateArgs) {
+ *  this hook only ever manages the *list* of scripts and their already-computed output.
+ *  `editorOpen` is controllable (see `controlledEditorOpen`'s own doc) the same way
+ *  `useFullscreen`'s own `isFullscreen` is — everything else here stays internal. */
+export function useScriptingState({ defaultScripts, onScriptsChange, controlledEditorOpen }: UseScriptingStateArgs) {
   const [scripts, setScripts] = useState<ScriptDef[]>(defaultScripts ?? []);
-  const [editorOpen, setEditorOpen] = useState(false);
+  const [internalEditorOpen, setInternalEditorOpen] = useState(false);
+  const editorOpen = controlledEditorOpen?.editorOpen ?? internalEditorOpen;
+  const setEditorOpen = controlledEditorOpen?.onChange ?? setInternalEditorOpen;
   const [activeScriptId, setActiveScriptId] = useState<string | null>(null);
   const [runOutputs, setRunOutputs] = useState<Record<string, ScriptRunOutput>>({});
   const [runRequests, setRunRequests] = useState<Record<string, ScriptRunRequest>>({});

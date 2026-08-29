@@ -211,6 +211,11 @@ export function usePaneLayout({ defaultIndicators, onIndicatorsChange, showVolum
   function deleteEditingIndicator() {
     if (!editingIndicatorId) return;
     commitIndicators(indicators.filter((i) => i.id !== editingIndicatorId));
+    // Same "clear it synchronously, don't wait for the guard effect a render later" reasoning as
+    // loadIndicatorLayout's own doc — deleting the very pane that's currently fullscreened is
+    // reachable from its own header while fullscreened, and without this the guard effect below
+    // only catches up one render late, briefly forcing every other pane to zero height first.
+    if (fullscreenPaneId === editingIndicatorId) setFullscreenPaneId(null);
     closeIndicatorSettings();
   }
 
@@ -220,6 +225,7 @@ export function usePaneLayout({ defaultIndicators, onIndicatorsChange, showVolum
 
   function removeIndicator(id: string) {
     commitIndicators(indicators.filter((i) => i.id !== id));
+    if (fullscreenPaneId === id) setFullscreenPaneId(null);
   }
 
   // Ctrl/Cmd+C over a hovered legend item copies that indicator (copiedIndicatorRef); Ctrl/Cmd+V

@@ -24,8 +24,14 @@ export interface UseAxisDragRescaleOptions {
 // very small instrument can legitimately need to be seen down to a tiny fraction of its own
 // range. 10000 isn't a real limit the user should ever bump into in practice — a finite (if very
 // generous) default rather than Infinity purely so d3's own scale/tick math never has to handle
-// an unbounded domain, not because 10000x is a deliberately "enough" ceiling.
-const DEFAULT_Y_SCALE_EXTENT: [number, number] = [1, 10000];
+// an unbounded domain, not because 10000x is a deliberately "enough" ceiling. The floor mirrors
+// the ceiling (0.0001 = 1/10000) rather than 1 — flooring at 1 (the base/identity scale) made
+// dragging/scrolling to zoom *out* from a fresh or just-reset axis a permanent no-op: k0 starts
+// at 1, so any factor < 1 was immediately clamped straight back up to 1, with no way to ever get
+// below it from there (same bug already fixed for a sub-pane's own Y axis in usePaneLayout.ts —
+// this shared hook, used by the *main* price/value axis on every cartesian chart, had the same
+// floor and was never given the same fix).
+const DEFAULT_Y_SCALE_EXTENT: [number, number] = [0.0001, 10000];
 
 export function useAxisDragRescale({ axis, size, transform, onChange, scaleExtent = DEFAULT_Y_SCALE_EXTENT }: UseAxisDragRescaleOptions) {
   const dragRef = useRef<{ startPos: number; startTransform: d3.ZoomTransform } | null>(null);

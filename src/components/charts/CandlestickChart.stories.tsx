@@ -682,6 +682,8 @@ export const Scripting: Story = {
         <CandlestickChart
           data={SCRIPTING_DATASET}
           symbol="QNTM"
+          timeframes={TIMEFRAMES}
+          timeframe="1d"
           showIndicators
           defaultIndicators={[
             { id: "indicator-0", kind: "rsi", period: 14 },

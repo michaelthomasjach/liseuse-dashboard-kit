@@ -27,7 +27,8 @@ function buildSnapshot(
   scriptCode: string,
   timeoutMs: number,
   lastCandleOpen: boolean,
-  isRealtimeTick: boolean
+  isRealtimeTick: boolean,
+  availableTimeframes: string[]
 ): ScriptEngineSnapshot {
   // Reuses `computeIndicatorValues` verbatim — the exact same function `useIndicatorPaneScales`
   // calls to produce what's actually drawn on the chart — rather than recomputing indicator
@@ -52,6 +53,7 @@ function buildSnapshot(
     limits: { timeoutMs, maxSeriesLength: MAX_SERIES_LENGTH },
     lastCandleOpen,
     isRealtimeTick,
+    availableTimeframes,
   };
 }
 
@@ -69,13 +71,15 @@ function buildSnapshot(
  *  `lastCandleOpen` (default `false`, the conservative "every bar is closed" reading) is the only
  *  piece of "is the market live right now" knowledge this hook can't infer on its own — the host
  *  is the one source of truth for it, same reasoning `ScriptEngineSnapshot.lastCandleOpen`'s own
- *  doc gives. */
+ *  doc gives. `availableTimeframes` (default `[]`) feeds `market.availableTimeframes()` — see that
+ *  snapshot field's own doc for why this is inspection-only, not multi-timeframe data access. */
 export function useScriptEngine(
   scriptId: string,
   data: Candle[],
   indicators: Indicator[],
   fundamentals: FundamentalDataPoint[] | undefined,
-  lastCandleOpen = false
+  lastCandleOpen = false,
+  availableTimeframes: string[] = []
 ) {
   const [result, setResult] = useState<ScriptRunResult | null>(null);
   const [running, setRunning] = useState(false);
@@ -174,7 +178,7 @@ export function useScriptEngine(
       setRunning(false);
     }, timeoutMs);
 
-    worker.postMessage(buildSnapshot(data, indicators, fundamentals, scriptCode, timeoutMs, lastCandleOpen, isRealtimeTick));
+    worker.postMessage(buildSnapshot(data, indicators, fundamentals, scriptCode, timeoutMs, lastCandleOpen, isRealtimeTick, availableTimeframes));
   }
 
   /** Interrupts whatever's currently running (or about to) — same terminate-and-respawn

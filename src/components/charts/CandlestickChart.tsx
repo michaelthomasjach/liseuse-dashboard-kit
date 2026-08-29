@@ -67,7 +67,7 @@ export type {
 import { drawingLabel } from "./candlestick/drawingCatalog";
 import { indicatorCatalogEntry, indicatorLabel, defaultIndicatorColor } from "./candlestick/indicatorCatalog";
 import { CHART_DISPLAY_MODES } from "./candlestick/chartModes";
-import { findTimeframeLabel } from "./candlestick/timeframes";
+import { findTimeframeLabel, flattenTimeframeValues } from "./candlestick/timeframes";
 import {
   DEFAULT_MARGIN,
   TOOLS_RAIL_WIDTH,
@@ -906,7 +906,10 @@ export function CandlestickChart({
         />
       )}
 
-      <ScriptingLayer scripting={scriptingState} data={data} indicators={indicators} fundamentals={fundamentals} lastCandleOpen={lastCandleOpen} onScriptAlert={onScriptAlert} />
+      <ScriptingLayer
+        scripting={scriptingState} data={data} indicators={indicators} fundamentals={fundamentals}
+        lastCandleOpen={lastCandleOpen} availableTimeframes={flattenTimeframeValues(timeframes)} onScriptAlert={onScriptAlert}
+      />
 
       <ChartModals
         {...correlationSetup}

@@ -17,3 +17,12 @@ export function findTimeframeLabel(entries: TimeframeEntry[] | undefined, value:
   }
   return null;
 }
+
+/** Every selectable timeframe's own `value` (never `label` — a script reads this back into
+ *  `onTimeframeChange`-style code, not a display string), groups flattened away — a script asking
+ *  "what timeframes exist" (the scripting engine's own `market.availableTimeframes()`, exigence
+ *  #25) has no use for the picker's own visual grouping, only the flat list of valid values. */
+export function flattenTimeframeValues(entries: TimeframeEntry[] | undefined): string[] {
+  if (!entries) return [];
+  return entries.flatMap((entry) => (isTimeframeGroup(entry) ? entry.options.map((o) => o.value) : [entry.value]));
+}

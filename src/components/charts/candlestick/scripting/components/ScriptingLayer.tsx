@@ -21,6 +21,10 @@ export interface ScriptingLayerProps {
   indicators: Indicator[];
   fundamentals: FundamentalDataPoint[] | undefined;
   lastCandleOpen: boolean;
+  /** Every timeframe value the host chart's own picker offers — feeds `market.availableTimeframes()`
+   *  (exigence #25). Already flattened (see `flattenTimeframeValues`), not the raw
+   *  `CandlestickChartProps.timeframes` (which may nest groups). */
+  availableTimeframes: string[];
   onScriptAlert: ((event: ScriptAlertEvent) => void) | undefined;
 }
 
@@ -29,7 +33,7 @@ export interface ScriptingLayerProps {
  *  affordance, not whether already-configured content renders" convention `showIndicators` already
  *  follows for indicator panes. A script added via `defaultScripts` still runs and still renders
  *  its own output even with the editor button hidden. */
-export function ScriptingLayer({ scripting, data, indicators, fundamentals, lastCandleOpen, onScriptAlert }: ScriptingLayerProps) {
+export function ScriptingLayer({ scripting, data, indicators, fundamentals, lastCandleOpen, availableTimeframes, onScriptAlert }: ScriptingLayerProps) {
   return (
     <>
       <ScriptRunnerHost
@@ -38,6 +42,7 @@ export function ScriptingLayer({ scripting, data, indicators, fundamentals, last
         indicators={indicators}
         fundamentals={fundamentals}
         lastCandleOpen={lastCandleOpen}
+        availableTimeframes={availableTimeframes}
         runRequests={scripting.runRequests}
         stopRequests={scripting.stopRequests}
         onOutput={scripting.reportRunOutput}

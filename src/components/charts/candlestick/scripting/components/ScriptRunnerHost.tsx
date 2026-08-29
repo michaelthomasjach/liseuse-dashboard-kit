@@ -13,6 +13,7 @@ export interface ScriptRunnerHostProps {
   indicators: Indicator[];
   fundamentals: FundamentalDataPoint[] | undefined;
   lastCandleOpen: boolean;
+  availableTimeframes: string[];
   runRequests: Record<string, ScriptRunRequest>;
   stopRequests: Record<string, number>;
   onOutput: (id: string, output: ScriptRunOutput) => void;
@@ -23,7 +24,18 @@ export interface ScriptRunnerHostProps {
  *  disabled or removed simply drops out of the filter below, unmounting its own `ScriptRunner`
  *  and, via that component's own cleanup effect, clearing its contribution to the aggregated
  *  `scriptIndicators`/`scriptDrawings`. Purely a mount/unmount driver; renders nothing itself. */
-export function ScriptRunnerHost({ scripts, data, indicators, fundamentals, lastCandleOpen, runRequests, stopRequests, onOutput, onAlert }: ScriptRunnerHostProps) {
+export function ScriptRunnerHost({
+  scripts,
+  data,
+  indicators,
+  fundamentals,
+  lastCandleOpen,
+  availableTimeframes,
+  runRequests,
+  stopRequests,
+  onOutput,
+  onAlert,
+}: ScriptRunnerHostProps) {
   return (
     <>
       {scripts
@@ -37,6 +49,7 @@ export function ScriptRunnerHost({ scripts, data, indicators, fundamentals, last
             indicators={indicators}
             fundamentals={fundamentals}
             lastCandleOpen={lastCandleOpen}
+            availableTimeframes={availableTimeframes}
             runRequest={runRequests[s.id]}
             stopRequest={stopRequests[s.id]}
             onOutput={onOutput}

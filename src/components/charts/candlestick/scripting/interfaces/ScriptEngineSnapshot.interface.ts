@@ -68,4 +68,11 @@ export interface ScriptEngineSnapshot {
    *  script) rather than a full historical replay or a manual Run — read by `bar.isRealtime()`.
    *  Set by `useScriptEngine`'s own `run(code, isRealtimeTick)`, never by the script itself. */
   isRealtimeTick?: boolean;
+  /** Every timeframe value the host chart's own `CandlestickChartProps.timeframes` picker offers
+   *  (flattened via `flattenTimeframeValues` — see that function's own doc), read by
+   *  `market.availableTimeframes()` (exigence #25). Inspection only — a script reading *another*
+   *  timeframe's own data is the deferred multi-timeframe requirement (#20), explicitly out of v1
+   *  scope per the approved plan; this just answers "what timeframes exist" the same way
+   *  `chart.listIndicators()` answers "what indicators exist" without granting access to either. */
+  availableTimeframes: string[];
 }

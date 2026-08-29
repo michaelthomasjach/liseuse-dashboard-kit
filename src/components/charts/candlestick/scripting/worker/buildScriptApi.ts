@@ -20,6 +20,10 @@ export interface MarketApi {
   volume(offset?: number): number | null;
   time(offset?: number): Date | null;
   series(field: SeriesField, count?: number): number[];
+  /** Every timeframe value the host chart's own picker offers (exigence #25) — inspection only,
+   *  see `ScriptEngineSnapshot.availableTimeframes`'s own doc for why this doesn't grant access to
+   *  any *other* timeframe's own data. */
+  availableTimeframes(): string[];
 }
 
 /** `market.*`, closed over the snapshot and a `getCurrentIndex` callback rather than a fixed
@@ -70,6 +74,7 @@ export function buildMarketApi(snapshot: ScriptEngineSnapshot, getCurrentIndex: 
       }
       return result;
     },
+    availableTimeframes: () => snapshot.availableTimeframes,
   };
 }
 

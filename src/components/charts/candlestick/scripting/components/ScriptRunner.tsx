@@ -14,6 +14,7 @@ export interface ScriptRunnerProps {
   indicators: Indicator[];
   fundamentals: FundamentalDataPoint[] | undefined;
   lastCandleOpen: boolean;
+  availableTimeframes: string[];
   runRequest: ScriptRunRequest | undefined;
   /** A pending "Stop" click for this script — see useScriptingState's own stopScript doc; only
    *  the count matters, not any payload. */
@@ -28,8 +29,20 @@ export interface ScriptRunnerProps {
  *  the rules of hooks forbid calling one a variable number of times in a loop. Mounting/unmounting
  *  a component per script sidesteps that entirely — each gets its own independent Worker, matching
  *  the approved plan's own "one Worker per enabled script" design. Renders nothing. */
-export function ScriptRunner({ scriptId, code, data, indicators, fundamentals, lastCandleOpen, runRequest, stopRequest, onOutput, onAlert }: ScriptRunnerProps) {
-  const engine = useScriptEngine(scriptId, data, indicators, fundamentals, lastCandleOpen);
+export function ScriptRunner({
+  scriptId,
+  code,
+  data,
+  indicators,
+  fundamentals,
+  lastCandleOpen,
+  availableTimeframes,
+  runRequest,
+  stopRequest,
+  onOutput,
+  onAlert,
+}: ScriptRunnerProps) {
+  const engine = useScriptEngine(scriptId, data, indicators, fundamentals, lastCandleOpen, availableTimeframes);
   const hasRunOnceRef = useRef(false);
   const lastRequestIdRef = useRef<number | null>(null);
   const lastStopRequestRef = useRef<number | null>(null);

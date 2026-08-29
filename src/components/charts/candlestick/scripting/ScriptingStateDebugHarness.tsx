@@ -78,6 +78,7 @@ export function ScriptingStateDebugHarness({ data: initialData, indicators }: Sc
         indicators={indicators}
         fundamentals={undefined}
         lastCandleOpen={false}
+        availableTimeframes={[]}
         runRequests={scripting.runRequests}
         stopRequests={scripting.stopRequests}
         onOutput={scripting.reportRunOutput}

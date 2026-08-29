@@ -491,6 +491,7 @@ export const AllFeatures: Story = {
             workspace. */}
         <ChartWorkspace
           defaultPanels={1}
+          scripting
           watchlists={watchlists}
           watchlistSymbolSearchResults={watchlistSearchResults}
           onWatchlistSymbolSearchChange={(query, category) => setWatchlistSearchResults(filterMockSymbols(query, category, []))}

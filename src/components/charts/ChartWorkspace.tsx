@@ -32,7 +32,7 @@ const HELP_ITEMS: { title: string; description: string }[] = [
   {
     title: "Éditeur de script",
     description:
-      "Ouvre l'éditeur de script du panneau actif (ou du premier panneau si aucun n'est en focus) — visible uniquement si ce panneau a activé la prop `scripting`.",
+      "Ouvre l'éditeur de script partagé de l'espace de travail — un script y choisit sur quel panneau s'exécuter. Visible uniquement si ce ChartWorkspace a activé la prop `scripting`.",
   },
   {
     title: "Verrouillage",

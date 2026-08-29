@@ -14,24 +14,42 @@ import { taApi } from "./taLib";
 // again after the opening brace, never inlining `) {` onto the params' own line) — so a runtime
 // error's own reported line number is always exactly 2 more than where it actually sits in the
 // user's own script text; the column is untouched, since the offset is purely a matter of extra
-// *lines*, not characters within them. Calibrated against Node (V8) specifically — Worker/Chrome
-// share the same engine, but this has NOT been re-verified against Firefox/SpiderMonkey or
-// Safari/JavaScriptCore, which don't necessarily share V8's exact wrapper format (flagged in the
-// approved plan as a real M6 task, not silently assumed universal).
+// *lines*, not characters within them. Empirically confirmed to be the *same* 2-line offset on
+// Firefox/SpiderMonkey too (dumped the real `err.stack` from inside an actual Worker, cross-engine,
+// via Playwright — see the M6 commit for the methodology): despite a completely different stack
+// *text* format from V8's, SpiderMonkey's own `> Function:LINE:COL` suffix reports the identical
+// wrapperLine for the identical script, i.e. both engines converge on the same synthetic-wrapper
+// shape even though ECMAScript doesn't mandate one. Safari/JavaScriptCore is the one real
+// exception — see SPIDERMONKEY_LOCATION_RE's own doc below.
 const WRAPPER_HEADER_LINES = 2;
-const STACK_LOCATION_RE = /<anonymous>:(\d+):(\d+)/;
+// V8 (Chrome, Node, Edge, and this library's own Worker under Chromium): the offending frame reads
+// `<anonymous>:LINE:COL` inside the stack's first `eval (...)` entry.
+const V8_LOCATION_RE = /<anonymous>:(\d+):(\d+)/;
+// SpiderMonkey (Firefox): no `<anonymous>` token at all — instead
+// `anonymous@<url of the new Function() call site> line N > Function:LINE:COL`. `> Function:` is
+// the literal, specific delimiter SpiderMonkey always uses for a stack frame originating inside a
+// `new Function`-compiled body (confirmed via the same cross-engine Worker dump as above), chosen
+// over a bare `Function:\d+:\d+` to avoid ever matching some unrelated frame that merely happens to
+// mention a symbol named "Function".
+const SPIDERMONKEY_LOCATION_RE = /> Function:(\d+):(\d+)/;
+// JavaScriptCore (Safari/WebKit) is deliberately not handled here at all — dumped empirically as
+// `anonymous@` with a genuinely empty url/line/col on every frame originating inside a
+// `new Function`-compiled body. This isn't a parsing gap this file could close with a better
+// pattern: the engine itself never records a source position for that case, so message-only is
+// the correct, honest result on WebKit, not a limitation of this function.
 
 /** Best-effort line/column for a runtime error thrown while executing the compiled script —
- *  `undefined` line/column (message-only) is a legitimate, honest result, not a bug: a
- *  `SyntaxError` from the `new Function` call itself never reaches here at all (V8 gives no
- *  usable position for those, see runScript's own catch block below), and an error thrown from
+ *  `undefined` line/column (message-only) is a legitimate, honest result on every engine, not a
+ *  bug: a `SyntaxError` from the `new Function` call itself never reaches here at all (no engine
+ *  gives a usable position for those, see runScript's own catch block below), an error thrown from
  *  *inside* one of the injected API functions (rather than from the user's own script text) will
- *  have its `<anonymous>` frame missing entirely from the stack, in which case reporting no
- *  location is more honest than reporting a wrong one. */
+ *  have its own location-bearing frame missing from the stack, and Safari/WebKit never reports one
+ *  at all (see SPIDERMONKEY_LOCATION_RE's own doc) — reporting no location is more honest than a
+ *  wrong one in every one of these cases. */
 function toScriptError(err: unknown): ScriptError {
   const message = err instanceof Error ? err.message : String(err);
   if (!(err instanceof Error) || !err.stack) return { message };
-  const match = STACK_LOCATION_RE.exec(err.stack);
+  const match = V8_LOCATION_RE.exec(err.stack) ?? SPIDERMONKEY_LOCATION_RE.exec(err.stack);
   if (!match) return { message };
   const wrapperLine = Number(match[1]);
   const column = Number(match[2]);

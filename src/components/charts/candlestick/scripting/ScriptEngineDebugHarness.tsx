@@ -46,6 +46,34 @@ if (true) {
   "infinite loop (timeout test)": `
 while (true) {}
 `,
+  "security: every blocked global (M6)": `
+const targets = [
+  ["fetch", () => fetch("https://example.com")],
+  ["XMLHttpRequest", () => new XMLHttpRequest()],
+  ["WebSocket", () => new WebSocket("wss://example.com")],
+  ["importScripts", () => importScripts("https://example.com/x.js")],
+  ["Worker", () => new Worker("https://example.com/x.js")],
+  ["indexedDB", () => indexedDB.open("x")],
+  ["caches", () => caches.open("x")],
+  ["Notification", () => new Notification("x")],
+  ["navigator.sendBeacon", () => navigator.sendBeacon("https://example.com", "x")],
+];
+for (const [name, attempt] of targets) {
+  try {
+    attempt();
+    console.log(name + ": NOT BLOCKED — SECURITY FAILURE");
+  } catch (e) {
+    console.log(name + ": blocked (" + e.message + ")");
+  }
+}
+console.log("--- legitimate globals still usable ---");
+console.log("Math.max(1,2)=" + Math.max(1, 2));
+console.log("Date.now() type=" + typeof Date.now());
+console.log("JSON.stringify({a:1})=" + JSON.stringify({ a: 1 }));
+console.log("Array.isArray([1,2])=" + Array.isArray([1, 2]));
+console.log("new Map().size=" + new Map().size);
+console.log("new Set().size=" + new Set().size);
+`,
   "chart.indicator + math + ta": `
 console.log("listIndicators=" + JSON.stringify(chart.listIndicators()));
 

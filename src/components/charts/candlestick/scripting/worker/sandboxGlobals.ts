@@ -17,33 +17,42 @@ const BLOCKED_GLOBALS = [
   "Notification",
 ] as const;
 
-/** Reassignment-to-throw, not `delete`: a global's own data-property `delete` can silently no-op
- *  if the engine happens to mark it non-configurable, leaving the caller with no signal that
- *  anything went wrong; reassigning a plain writable property always takes effect. The `try/catch`
- *  is defense-in-depth's own admission of its limits — if a given engine *does* expose one of
- *  these as non-writable/non-configurable, this can't force it closed, which is exactly why the
- *  approved plan calls this "eventual forced termination" (the timeout backstop in
- *  useScriptEngine.ts), not airtight sandboxing (that's what a future stricter interpreter
- *  backend would buy instead — see the plan's own sandbox-swap note). */
+/** Overrides `name` on `target` with a function that always throws, via `Object.defineProperty`
+ *  rather than a plain `target[name] = ...` assignment — confirmed empirically (M6, cross-engine,
+ *  via a real Worker under Chromium/Firefox/WebKit) to matter for real: `indexedDB` and `caches`
+ *  are *accessor* properties (a getter, no setter) inherited from the Worker global scope's own
+ *  prototype, not plain own data properties. A plain assignment to a setter-less accessor throws in
+ *  strict mode (every module Worker always is) — silently caught by the `try/catch` below, leaving
+ *  the original, fully-functional getter completely intact, a genuine sandbox bypass this had
+ *  before this fix (a script could reach the host page's own IndexedDB/Cache Storage). `defineProperty`
+ *  sidesteps the accessor's own get/set semantics entirely by redefining the property descriptor
+ *  outright, which succeeds against a getter-only accessor exactly as well as a plain data
+ *  property, as long as the property itself is `configurable` (every target here is, confirmed the
+ *  same way). The `try/catch` stays as defense-in-depth's own admission of its limits — if some
+ *  environment ever exposes one of these as non-configurable, this can't force it closed either,
+ *  which is exactly why the approved plan calls this "eventual forced termination" (the timeout
+ *  backstop in useScriptEngine.ts), not airtight sandboxing. */
+function blockGlobal(target: object, name: string) {
+  try {
+    Object.defineProperty(target, name, {
+      value: () => {
+        throw new Error(`"${name}" n'est pas accessible depuis un script.`);
+      },
+      writable: true,
+      configurable: true,
+    });
+  } catch {
+    // Non-configurable in this engine — nothing more this mechanism can do.
+  }
+}
+
 export function lockDownGlobals() {
   const globalScope = self as unknown as Record<string, unknown>;
   for (const name of BLOCKED_GLOBALS) {
-    try {
-      globalScope[name] = () => {
-        throw new Error(`"${name}" n'est pas accessible depuis un script.`);
-      };
-    } catch {
-      // Non-writable in this engine — nothing more this mechanism can do.
-    }
+    blockGlobal(globalScope, name);
   }
-  // navigator.sendBeacon sits one level down, not a top-level global — same reassignment
-  // mechanism, scoped to just this one method rather than freezing all of `navigator` (a script
-  // reading e.g. navigator.userAgent is harmless and not worth blocking).
-  try {
-    (navigator as unknown as Record<string, unknown>).sendBeacon = () => {
-      throw new Error('"navigator.sendBeacon" n\'est pas accessible depuis un script.');
-    };
-  } catch {
-    // Same reasoning as above.
-  }
+  // navigator.sendBeacon sits one level down, not a top-level global — same override, scoped to
+  // just this one method rather than freezing all of `navigator` (a script reading e.g.
+  // navigator.userAgent is harmless and not worth blocking).
+  blockGlobal(navigator, "sendBeacon");
 }

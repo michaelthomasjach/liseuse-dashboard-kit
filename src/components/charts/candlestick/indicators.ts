@@ -304,12 +304,22 @@ export function computeZigZagValues(data: Candle[], deviationPercent: number): (
       runningMinPrice = price;
       runningMinIndex = i;
     }
-    if ((runningMaxPrice - price) / runningMaxPrice >= threshold && runningMaxIndex > runningMinIndex) {
+    const maxReversed = (runningMaxPrice - price) / runningMaxPrice >= threshold;
+    const minReversed = (price - runningMinPrice) / runningMinPrice >= threshold;
+    // The index-recency comparison only makes sense as a *tie-break* for the rare case where both
+    // thresholds cross on the very same bar — applying it unconditionally to each branch (as this
+    // used to) requires the confirming extreme's own index to already be the more recent of the
+    // two, which the *other* (still-advancing) tracker's index structurally never is: in a
+    // consistent early trend, one tracker keeps re-indexing to the current bar on every new
+    // extreme while the opposite one stays pinned at bar 0, so its own "confirm me" condition
+    // could never win the index race — silently blocking the first pivot in the single most common
+    // case (a clean early trend) rather than only the rare simultaneous one the comment describes.
+    if (maxReversed && (!minReversed || runningMaxIndex > runningMinIndex)) {
       confirm(runningMaxIndex, runningMaxPrice, "high");
       firstPivotKind = "high";
       break;
     }
-    if ((price - runningMinPrice) / runningMinPrice >= threshold && runningMinIndex > runningMaxIndex) {
+    if (minReversed) {
       confirm(runningMinIndex, runningMinPrice, "low");
       firstPivotKind = "low";
       break;

@@ -44,3 +44,35 @@ export const Horizontal: Story = {
     </div>
   ),
 };
+
+const REVENUE_VS_PROFIT_SERIES = [
+  { id: "revenue", label: "Chiffre d'affaires" },
+  { id: "profit", label: "Bénéfice" },
+];
+
+const REVENUE_VS_PROFIT_DATA = [
+  { id: "q1", label: "T1 2025", values: { revenue: 120, profit: 18 } },
+  { id: "q2", label: "T2 2025", values: { revenue: 145, profit: 22 } },
+  { id: "q3", label: "T3 2025", values: { revenue: 132, profit: 14 } },
+  // Missing "profit" here on purpose — proves a category can omit one series' own bar entirely
+  // (still-unreported quarter) instead of drawing a misleading zero-height one.
+  { id: "q4", label: "T4 2025", values: { revenue: 158 } },
+];
+
+export const MultiSeries: Story = {
+  name: "Plusieurs séries (barres groupées)",
+  render: () => (
+    <div style={{ padding: 24 }}>
+      <BarChart data={REVENUE_VS_PROFIT_DATA} series={REVENUE_VS_PROFIT_SERIES} formatValue={(v) => `${v} M€`} />
+    </div>
+  ),
+};
+
+export const MultiSeriesHorizontal: Story = {
+  name: "Plusieurs séries — horizontal",
+  render: () => (
+    <div style={{ padding: 24 }}>
+      <BarChart orientation="horizontal" data={REVENUE_VS_PROFIT_DATA} series={REVENUE_VS_PROFIT_SERIES} formatValue={(v) => `${v} M€`} />
+    </div>
+  ),
+};

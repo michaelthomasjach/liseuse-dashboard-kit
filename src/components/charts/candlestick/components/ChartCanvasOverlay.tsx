@@ -10,7 +10,7 @@ import type { ChartEvent } from "../interfaces/ChartEvent.interface";
 import { allPointsOf, snapPixel } from "../drawingGeometry";
 import { isFundamentalKind, formatFundamentalValue } from "../indicatorCatalog";
 import { AXIS_HANDLE_FRACTION_X, AXIS_HANDLE_FRACTION_Y } from "../constants";
-import { EVENT_MARKER_OFFSET, EVENT_MARKER_RADIUS } from "../eventsCatalog";
+import { EVENT_MARKER_OFFSET, EVENT_MARKER_RADIUS, EVENT_STACK_OFFSET, MAX_STACKED_EVENT_MARKERS } from "../eventsCatalog";
 import type { TextEntryState } from "../interfaces/TextEntryState.interface";
 import type { EditingCellState } from "../interfaces/EditingCellState.interface";
 import { TABLE_DEFAULT_ROWS, TABLE_DEFAULT_COLS } from "../constants";
@@ -572,18 +572,22 @@ export function ChartCanvasOverlay({
               of the pan/zoom overlay to receive the pointer events its own <title> tooltip
               (and, now, its click) depends on. Anchored to the price/volume divider (not the
               tallest/shortest visible candle) so the row stays put while panning/zooming. One
-              marker per `eventStacks` entry, not per raw event — several events sharing a
-              candle index render as a single "stack" marker (count as its glyph, neutral
-              accent color instead of any one event's own) rather than fully overlapping,
-              indistinguishable circles. */}
+              group per `eventStacks` entry, not per raw event — several events sharing a candle
+              index render as a small cascade of individually-colored/lettered circles, each
+              nudged slightly up-and-right of the previous one (a fanned-out stack, like a hand
+              of cards) rather than either fully overlapping into one indistinguishable blob or
+              collapsing into a single generic "N" badge that hides which events are actually
+              there. Capped at MAX_STACKED_EVENT_MARKERS individually-drawn circles — the
+              topmost one becomes a "+N" overflow badge past that, so an unusually eventful bar
+              can't make the cluster grow without bound. */}
           {eventStacks.length > 0 && (
             <g className="lq-chart__events">
               {eventStacks.map((stack) => {
                 const cx = zoomedXScale(stack.i + 0.5);
                 const cy = priceHeight - EVENT_MARKER_OFFSET;
                 const stacked = stack.events.length > 1;
-                const color = stacked ? "var(--lq-color-accent)" : stack.events[0].color;
-                const glyph = stacked ? String(stack.events.length) : (stack.events[0].symbol ?? stack.events[0].kind.charAt(0)).slice(0, 2).toUpperCase();
+                const shown = stack.events.slice(0, MAX_STACKED_EVENT_MARKERS);
+                const overflow = stack.events.length - shown.length;
                 const title = stacked
                   ? `${stack.events.length} évènements — cliquer pour les afficher`
                   : `${dFmt(stack.events[0].date)} — ${stack.events[0].label}`;
@@ -599,18 +603,36 @@ export function ChartCanvasOverlay({
                     }}
                   >
                     <title>{title}</title>
-                    <line x1={0} x2={0} y1={EVENT_MARKER_RADIUS} y2={priceHeight - cy} stroke={color} strokeDasharray="2,2" />
-                    {/* Invisible, same-position sibling that alone widens the tap target on a
+                    <line x1={0} x2={0} y1={EVENT_MARKER_RADIUS} y2={priceHeight - cy} stroke={shown[0].color} strokeDasharray="2,2" />
+                    {/* Invisible, cluster-wide sibling that alone widens the tap target on a
                         coarse (touch) pointer — same "grow only the hit area, not the visible
-                        dot" reasoning as DrawingHandle's own hitarea circle. The marker's onClick
-                        lives on the parent <g>; a click landing on this still-painted-but-
-                        transparent circle bubbles up to it exactly like one landing on the
-                        visible circle below already does. */}
-                    <circle className="lq-chart__event-marker-hitarea" r={EVENT_MARKER_RADIUS} />
-                    <circle r={EVENT_MARKER_RADIUS} fill={color} />
-                    <text textAnchor="middle" dominantBaseline="central">
-                      {glyph}
-                    </text>
+                        dot" reasoning as DrawingHandle's own hitarea circle, just sized (and
+                        re-centered) to cover the whole fanned-out cluster rather than a single
+                        circle. The marker's onClick lives on the parent <g>; a click landing on
+                        this still-painted-but-transparent circle bubbles up to it exactly like
+                        one landing on any visible circle below already does. */}
+                    <circle
+                      className="lq-chart__event-marker-hitarea"
+                      r={EVENT_MARKER_RADIUS + (shown.length - 1) * (EVENT_STACK_OFFSET / 2)}
+                      cx={(shown.length - 1) * (EVENT_STACK_OFFSET / 2)}
+                      cy={-(shown.length - 1) * (EVENT_STACK_OFFSET / 2)}
+                    />
+                    {shown.map((event, i) => {
+                      const isTop = i === shown.length - 1;
+                      const glyph = isTop && overflow > 0 ? `+${overflow}` : (event.symbol ?? event.kind.charAt(0)).slice(0, 2).toUpperCase();
+                      return (
+                        <g key={i} transform={`translate(${i * EVENT_STACK_OFFSET}, ${-i * EVENT_STACK_OFFSET})`}>
+                          <circle r={EVENT_MARKER_RADIUS} fill={isTop && overflow > 0 ? "var(--lq-color-accent)" : event.color} />
+                          {/* dominantBaseline="central" alone renders visibly high in Chromium
+                              for this glyph's own small font-size (see charts-shared.css) — a
+                              manual dy nudge is the standard cross-browser fix for that
+                              well-known SVG baseline quirk. */}
+                          <text textAnchor="middle" dominantBaseline="central" dy="0.5">
+                            {glyph}
+                          </text>
+                        </g>
+                      );
+                    })}
                   </g>
                 );
               })}

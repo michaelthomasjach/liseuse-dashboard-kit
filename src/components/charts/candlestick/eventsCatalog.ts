@@ -16,6 +16,15 @@ export function defaultEventColor(index: number): string {
 // bug report asked to fix.
 export const EVENT_MARKER_OFFSET = 26;
 export const EVENT_MARKER_RADIUS = 8;
+/** Several events sharing a candle index render as a small fanned-out cascade of individually
+ *  colored/lettered circles (each nudged this many px up-and-right of the previous one) rather
+ *  than one generic "N" badge that hides which events are actually there — see
+ *  `ChartCanvasOverlay.tsx`'s own render of `eventStacks`. */
+export const EVENT_STACK_OFFSET = 5;
+/** Past this many events on the same bar, the cluster stops growing — the topmost circle becomes
+ *  a "+N" overflow badge (neutral accent color) instead of drawing every single one, so an
+ *  unusually eventful bar can't make the fanned-out cluster sprawl without bound. */
+export const MAX_STACKED_EVENT_MARKERS = 4;
 /** Fixed width (px) of the event-stack popover — fixed, not measured, so its horizontal
  *  clamp-to-bounds position can be computed synchronously in the same render as the click that
  *  opens it, no post-mount measurement pass (and the flash-of-unpositioned-content that would

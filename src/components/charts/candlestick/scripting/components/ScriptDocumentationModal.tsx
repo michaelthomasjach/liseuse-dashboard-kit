@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Modal } from "../../../../primitives/Modal";
 import { CodeBlock } from "../../../../primitives/CodeBlock";
 import { SCRIPT_API_REFERENCE } from "../scriptApiReference";
+import { SCRIPT_DIAGRAM_REGISTRY } from "../scriptDiagramRegistry";
 import "./ScriptDocumentationModal.css";
 
 export interface ScriptDocumentationModalProps {
@@ -84,6 +85,10 @@ export function ScriptDocumentationModal({ open, onClose }: ScriptDocumentationM
               <h3 className="lq-script-docs__section-title">{section.title}</h3>
               {section.blocks.map((block, i) => {
                 if (block.kind === "heading") return <h4 key={i} className="lq-script-docs__example-heading">{block.text}</h4>;
+                if (block.kind === "diagram") {
+                  const Diagram = block.diagramKey ? SCRIPT_DIAGRAM_REGISTRY[block.diagramKey] : undefined;
+                  return Diagram ? <Diagram key={i} /> : null;
+                }
                 if (block.kind === "text") return <p key={i}>{block.text}</p>;
                 if (block.kind === "list")
                   return (

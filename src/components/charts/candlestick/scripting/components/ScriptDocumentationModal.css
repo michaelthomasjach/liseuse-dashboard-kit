@@ -95,6 +95,15 @@
   padding-left: var(--lq-space-4);
 }
 
+/* The small illustrative SVG diagrams (see scriptingDiagrams.tsx) — .lq-chart__info-diagram
+   itself only pads top/bottom, no margin of its own (the indicator-info modal it was built for
+   usually has it as the very first element); breathing room from whatever text follows it here
+   matters more, since a diagram in this modal always sits *between* explanatory paragraphs. */
+.lq-script-docs__section .lq-chart__info-diagram {
+  margin-bottom: var(--lq-space-3);
+  max-height: 180px;
+}
+
 .lq-script-docs__section li {
   margin-bottom: var(--lq-space-1);
 }

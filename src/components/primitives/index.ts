@@ -1,6 +1,9 @@
 export { Panel, PanelRow } from "./Panel";
 export type { PanelProps, PanelRowProps } from "./Panel";
 
+export { Card } from "./Card";
+export type { CardProps } from "./Card";
+
 export { Toggle } from "./Toggle";
 export type { ToggleProps } from "./Toggle";
 

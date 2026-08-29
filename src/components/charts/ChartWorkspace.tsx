@@ -573,6 +573,13 @@ export function ChartWorkspace({
                     ]);
                   },
                   onScriptAlert,
+                  // The pane header's own "</>" shortcut (see PaneHeaders.tsx) on a script-produced
+                  // indicator — jumps straight to that script's own tab in the shared editor instead
+                  // of leaving the user to hunt for it by name in the tab strip.
+                  onEditScript: (scriptId: string) => {
+                    workspaceScripting.setActiveScriptId(scriptId);
+                    workspaceScripting.setEditorOpen(true);
+                  },
                 }
               : {}),
             timeframe: i in timeframeByPanel ? timeframeByPanel[i] : child.props.timeframe,

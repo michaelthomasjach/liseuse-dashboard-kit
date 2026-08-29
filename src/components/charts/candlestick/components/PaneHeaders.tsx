@@ -1,6 +1,6 @@
 import type { Dispatch, SetStateAction } from "react";
 import type * as React from "react";
-import { ChevronDownIcon, ChevronUpIcon, SettingsIcon, TrashIcon, GripIcon, InfoIcon, MaximizeIcon, MinimizeIcon } from "../../../icons";
+import { ChevronDownIcon, ChevronUpIcon, SettingsIcon, TrashIcon, GripIcon, InfoIcon, MaximizeIcon, MinimizeIcon, CodeIcon } from "../../../icons";
 import type { Candle } from "../interfaces/Candle.interface";
 import type { Indicator } from "../interfaces/Indicator.interface";
 import type { IndicatorKind } from "../interfaces/IndicatorKind.interface";
@@ -40,6 +40,20 @@ export interface PaneHeadersProps {
    *  every pane here still renders normally, just with an extra button to claim it. */
   fullscreenPaneId: string | null;
   onTogglePaneFullscreen: (paneId: string) => void;
+  /** Opens the script editor to whichever script produced a given indicator (see the "</>" button
+   *  below) — `undefined` on a standalone chart (no editor to open), see
+   *  `CandlestickChartProps.onEditScript`'s own doc. */
+  onEditScript?: (scriptId: string) => void;
+}
+
+// A script-produced indicator's own id/customData.id is always the deterministic
+// `script:<scriptId>:<slug>` scriptOutputToCustomIndicatorDef.ts assigns (see
+// scriptIndicatorToChartIndicator.ts's own doc) — parsed back apart here rather than carrying a
+// separate `scriptId` field on `Indicator` itself purely for this one button.
+function scriptIdFromIndicator(indicator: Indicator): string | null {
+  const id = indicator.customData?.id;
+  if (!id?.startsWith("script:")) return null;
+  return id.split(":")[1] ?? null;
 }
 
 /** Header strip for the volume pane, then one more per "own"-pane indicator (RSI/CHOP/MACD) —
@@ -74,6 +88,7 @@ export function PaneHeaders({
   onOpenIndicatorInfo,
   fullscreenPaneId,
   onTogglePaneFullscreen,
+  onEditScript,
 }: PaneHeadersProps) {
   return (
     <>
@@ -348,6 +363,26 @@ export function PaneHeaders({
                 >
                   <InfoIcon size={11} />
                 </button>
+                {/* Script-produced indicator only (see scriptIdFromIndicator's own doc) — a
+                    shortcut straight to the script that produced it, just left of its own
+                    settings gear so the two "go somewhere else to configure this" actions sit
+                    next to each other. */}
+                {onEditScript &&
+                  (() => {
+                    const scriptId = scriptIdFromIndicator(ind);
+                    if (!scriptId) return null;
+                    return (
+                      <button
+                        type="button"
+                        className="lq-chart__pane-header-action"
+                        onClick={() => onEditScript(scriptId)}
+                        aria-label={`Modifier le script de ${indicatorLabel(ind)}`}
+                        title="Modifier le script"
+                      >
+                        <CodeIcon size={11} />
+                      </button>
+                    );
+                  })()}
                 <button
                   type="button"
                   className="lq-chart__pane-header-action"

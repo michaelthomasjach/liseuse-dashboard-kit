@@ -284,6 +284,12 @@ export interface CandlestickChartProps {
    *  produces the event (see `ScriptAlertEvent`'s own doc); how it actually reaches the user
    *  (toast, sound, the app's own notification system) is entirely up to this callback. */
   onScriptAlert?: (event: ScriptAlertEvent) => void;
+  /** Fires when the user clicks the "</>" shortcut on a script-produced indicator's own pane
+   *  header (see `PaneHeaders.tsx`) — this chart has no editor of its own to open (see `scripts`'s
+   *  own doc), so jumping to that script's own tab is entirely up to whichever caller does own the
+   *  editor; `ChartWorkspace` wires this to focus the right tab in its shared one. Omitted, the
+   *  button itself never renders — there'd be nothing for a click on it to do. */
+  onEditScript?: (scriptId: string) => void;
   /** Whether `data`'s own last candle is still actively forming rather than closed — read by a
    *  running script's own `bar.isClosed()`/`bar.isRealtime()` (see the scripting engine's own
    *  `ScriptEngineSnapshot.lastCandleOpen` doc for the full reasoning). This library has no way to

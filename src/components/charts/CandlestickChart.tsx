@@ -129,7 +129,7 @@ export function CandlestickChart({
   onLinkClick,
   fillHeight = false,
   sidePanel, defaultSidePanelOpen, onSidePanelOpenChange,
-  scripts, onScriptsChange, onScriptAlert, lastCandleOpen = false,
+  scripts, onScriptsChange, onScriptAlert, onEditScript, lastCandleOpen = false,
   margin,
   className,
 }: CandlestickChartProps) {
@@ -787,6 +787,7 @@ export function CandlestickChart({
           indicatorValues={indicatorValues} onOpenIndicatorInfo={setInfoKind}
           fullscreenPaneId={fullscreenPaneId}
           onTogglePaneFullscreen={togglePaneFullscreen}
+          onEditScript={onEditScript}
         />
         <ChartPlotOverlays
           canvasRef={canvasRef}

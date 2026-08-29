@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { Candle } from "../interfaces/Candle.interface";
+import type { Indicator } from "../interfaces/Indicator.interface";
 import { useScriptEngine } from "./hooks/useScriptEngine";
 
 /** Development-only harness for exercising `useScriptEngine` before the real editor UI (M5)
@@ -9,6 +10,7 @@ import { useScriptEngine } from "./hooks/useScriptEngine";
  *  as the way to exercise this engine end to end. */
 export interface ScriptEngineDebugHarnessProps {
   data: Candle[];
+  indicators: Indicator[];
 }
 
 const TEST_SCRIPTS: Record<string, string> = {
@@ -44,10 +46,35 @@ if (true) {
   "infinite loop (timeout test)": `
 while (true) {}
 `,
+  "chart.indicator + math + ta": `
+console.log("listIndicators=" + JSON.stringify(chart.listIndicators()));
+
+const rsi = chart.indicator("rsi_14");
+console.log("rsi.value(0)=" + rsi.value(0));
+console.log("rsi.line(0) [wrong accessor, expect null]=" + rsi.line(0));
+
+const macd = chart.indicator("macd_12_26_9");
+console.log("macd.line(0)=" + macd.line(0));
+console.log("macd.signal(0)=" + macd.signal(0));
+console.log("macd.histogram(0)=" + macd.histogram(0));
+
+const missing = chart.indicator("nonexistent_id");
+console.log("missing.value(0) [expect null]=" + missing.value(0));
+
+const closes = market.series("close", 20);
+console.log("math.mean=" + math.mean(closes));
+console.log("math.std=" + math.std(closes));
+console.log("math.sma(closes,5)=" + math.sma(closes, 5));
+
+console.log("ta.rsi(closes,14)=" + ta.rsi(closes, 14));
+const wideCloses = market.series("close", 60);
+const taMacd = ta.macd(wideCloses);
+console.log("wideCloses.length=" + wideCloses.length + " ta.macd=" + JSON.stringify(taMacd));
+`,
 };
 
-export function ScriptEngineDebugHarness({ data }: ScriptEngineDebugHarnessProps) {
-  const engine = useScriptEngine(data);
+export function ScriptEngineDebugHarness({ data, indicators }: ScriptEngineDebugHarnessProps) {
+  const engine = useScriptEngine(data, indicators, undefined);
   const [lastScript, setLastScript] = useState<string | null>(null);
 
   return (

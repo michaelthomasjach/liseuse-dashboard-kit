@@ -1,6 +1,8 @@
 import type { ScriptEngineSnapshot } from "../interfaces/ScriptEngineSnapshot.interface";
 import type { ScriptError, ScriptRunResult } from "../interfaces/ScriptRunResult.interface";
-import { buildMarketApi } from "./buildScriptApi";
+import { buildMarketApi, buildChartApi } from "./buildScriptApi";
+import { mathApi } from "./mathLib";
+import { taApi } from "./taLib";
 
 // `new Function(...paramNames, body)` wraps `body` in a synthetic `function anonymous(<params>
 // ) {` header, always exactly 2 lines regardless of how many params there are (confirmed by
@@ -54,11 +56,14 @@ export function runScript(snapshot: ScriptEngineSnapshot): ScriptRunResult {
   };
 
   let currentIndex = 0;
-  const market = buildMarketApi(snapshot, () => currentIndex);
+  const getCurrentIndex = () => currentIndex;
+  const market = buildMarketApi(snapshot, getCurrentIndex);
+  const chart = buildChartApi(snapshot, getCurrentIndex);
 
-  let compiled: (market: unknown, console: unknown) => void;
+  type CompiledScript = (market: unknown, chart: unknown, math: unknown, ta: unknown, console: unknown) => void;
+  let compiled: CompiledScript;
   try {
-    compiled = new Function("market", "console", snapshot.scriptCode) as (market: unknown, console: unknown) => void;
+    compiled = new Function("market", "chart", "math", "ta", "console", snapshot.scriptCode) as CompiledScript;
   } catch (err) {
     // A SyntaxError here carries no usable line/column at all (confirmed empirically — V8 reports
     // only "at new Function (<anonymous>)", no position) — message-only is the honest result.
@@ -68,7 +73,7 @@ export function runScript(snapshot: ScriptEngineSnapshot): ScriptRunResult {
   for (let i = 0; i <= snapshot.runUpToIndex; i++) {
     currentIndex = i;
     try {
-      compiled(market, scriptConsole);
+      compiled(market, chart, mathApi, taApi, scriptConsole);
     } catch (err) {
       return { error: toScriptError(err), logs };
     }

@@ -1,3 +1,5 @@
+import type { IndicatorValue } from "../../interfaces/IndicatorValue.interface";
+
 /** One candle, flattened to a plain JSON-safe shape for `structuredClone`-based `postMessage` —
  *  `Candle`'s own `date: Date` survives structured clone fine on its own, but keeping the
  *  snapshot itself fully plain (no `Date` instances, no class prototypes) means it round-trips
@@ -21,7 +23,7 @@ export interface ScriptEngineSnapshotCandle {
  *  `ScriptRunResult`. This is what makes "same bar, every series" (the platform's own
  *  synchronization requirement) true by construction rather than by runtime coordination: every
  *  field below is derived from the *same* `data`/`indicatorValues` pass on the main thread, so
- *  `ohlcv[i]` and (once M2 adds it) `indicatorSeries[slug][i]` can never drift apart mid-run.
+ *  `ohlcv[i]` and `indicatorSeries[slug][i]` can never drift apart mid-run.
  *
  *  Deliberately plain data, no functions/closures — this is exactly what gets structured-cloned
  *  across the `postMessage` boundary, so anything that can't survive that (a class instance, a
@@ -31,6 +33,12 @@ export interface ScriptEngineSnapshot {
    *  same index space every `market.*`/`chart.indicator()` accessor reads from inside the
    *  Worker. */
   ohlcv: ScriptEngineSnapshotCandle[];
+  /** Every currently-active *built-in* indicator's own computed series, keyed by its stable
+   *  script-facing slug (see `stableIndicatorId.ts` — `"rsi_14"`, not the ephemeral
+   *  `Indicator.id`). A script-authored indicator (one script's own `plot.*` output feeding
+   *  another script, per the deferred requirement #21) deliberately never appears here — see
+   *  the plan's own doc on why that's excluded, not just out of scope yet. */
+  indicatorSeries: Record<string, (IndicatorValue | null)[]>;
   /** The last index to replay this run — always `ohlcv.length - 1` for both a full historical
    *  replay and a single real-time tick (a tick is just "replay ending one bar later," not a
    *  separate code path — see runScript's own doc). */

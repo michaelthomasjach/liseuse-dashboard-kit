@@ -7,6 +7,7 @@ import type { TrendLineDrawing } from "../interfaces/TrendLineDrawing.interface"
 import type { Indicator } from "../interfaces/Indicator.interface";
 import type { IndicatorKind } from "../interfaces/IndicatorKind.interface";
 import type { CustomIndicatorDef } from "../interfaces/CustomIndicatorDef.interface";
+import type { ScriptDef } from "../interfaces/ScriptDef.interface";
 import { INDICATOR_CATALOG, type IndicatorCatalogEntry, indicatorCatalogEntry, indicatorLabel } from "../indicatorCatalog";
 import { INDICATOR_DESCRIPTIONS, VOLUME_DESCRIPTION } from "../indicatorDescriptions";
 import { INDICATOR_DIAGRAMS } from "../diagrams/indicatorDiagramRegistry";
@@ -35,6 +36,13 @@ export interface IndicatorModalsProps {
    *  picker alongside the built-in catalog, grouped by their own `section`. */
   customIndicators: CustomIndicatorDef[] | undefined;
   addCustomIndicator: (def: CustomIndicatorDef) => void;
+  /** The chart's own saved scripts (see useScriptingState) — shown in the picker under "Mes
+   *  scripts" alongside the built-in catalog and any custom indicators, so a script doesn't only
+   *  exist inside the script editor's own tab strip. Unlike a built-in/custom row, a script is
+   *  already a unique, persistent thing (never "added" more than once) — clicking its row toggles
+   *  it enabled/disabled instead of creating a new indicator instance. */
+  scripts: ScriptDef[];
+  toggleScriptEnabled: (id: string) => void;
   indicatorsManagerOpen: boolean;
   setIndicatorsManagerOpen: (open: boolean) => void;
   indicators: Indicator[];
@@ -77,6 +85,8 @@ export function IndicatorModals({
   openCorrelationSetup,
   customIndicators,
   addCustomIndicator,
+  scripts,
+  toggleScriptEnabled,
   indicatorsManagerOpen,
   setIndicatorsManagerOpen,
   indicators,
@@ -171,7 +181,13 @@ export function IndicatorModals({
                 >
                   Toutes
                 </button>
-                {Array.from(new Set([...INDICATOR_CATALOG.map((entry) => entry.category), ...(customIndicators ?? []).map((def) => def.section)])).map(
+                {Array.from(
+                  new Set([
+                    ...INDICATOR_CATALOG.map((entry) => entry.category),
+                    ...(customIndicators ?? []).map((def) => def.section),
+                    ...(scripts.length > 0 ? ["Mes scripts"] : []),
+                  ])
+                ).map(
                   (category) => (
                     <button
                       key={category}
@@ -218,6 +234,10 @@ export function IndicatorModals({
                   pane: "price" | "own";
                   onSelect: () => void;
                   descriptionKind?: IndicatorKind;
+                  /** Script rows only — whether this script is currently enabled (running), shown
+                   *  as a dimmed row when it isn't. `undefined` for every other option kind, which
+                   *  never dims (they're always "add a new one", not an on/off toggle). */
+                  enabled?: boolean;
                 };
                 const builtinOptions: PickerOption[] = INDICATOR_CATALOG.filter(
                   (entry) => entry.label.toLowerCase().includes(query) || entry.shortLabel.toLowerCase().includes(query)
@@ -238,7 +258,17 @@ export function IndicatorModals({
                     pane: def.type === "overlay" ? "price" : "own",
                     onSelect: () => addCustomIndicator(def),
                   }));
-                const allOptions = [...builtinOptions, ...customOptions].filter(
+                const scriptOptions: PickerOption[] = scripts
+                  .filter((s) => s.name.toLowerCase().includes(query))
+                  .map((s) => ({
+                    key: s.id,
+                    label: s.name,
+                    category: "Mes scripts",
+                    pane: "own",
+                    onSelect: () => toggleScriptEnabled(s.id),
+                    enabled: s.enabled !== false,
+                  }));
+                const allOptions = [...builtinOptions, ...customOptions, ...scriptOptions].filter(
                   (option) => categoryFilter === null || option.category === categoryFilter
                 );
                 const groups: { category: string; options: PickerOption[] }[] = [];
@@ -286,8 +316,18 @@ export function IndicatorModals({
                       <div className="lq-chart__indicator-picker-group" key={group.category}>
                         <div className="lq-chart__indicator-picker-group-label">{group.category}</div>
                         {group.options.map((option) => (
-                          <div key={option.key} className="lq-chart__indicator-picker-option">
-                            <button type="button" className="lq-chart__indicator-picker-select" onClick={option.onSelect}>
+                          <div
+                            key={option.key}
+                            className={["lq-chart__indicator-picker-option", option.enabled === false && "lq-chart__indicator-picker-option--disabled"]
+                              .filter(Boolean)
+                              .join(" ")}
+                          >
+                            <button
+                              type="button"
+                              className="lq-chart__indicator-picker-select"
+                              onClick={option.onSelect}
+                              title={option.enabled === undefined ? undefined : option.enabled ? "Désactiver ce script" : "Activer ce script"}
+                            >
                               <span className="lq-chart__indicator-picker-name">{option.label}</span>
                               <span
                                 className="lq-chart__indicators-manager-badge"

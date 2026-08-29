@@ -932,6 +932,7 @@ export function CandlestickChart({
         setVolumePaneState={setVolumePaneState}
         addIndicator={addIndicator}
         customIndicators={customIndicators} addCustomIndicator={addCustomIndicator}
+        scripts={scriptingState.scripts} toggleScriptEnabled={scriptingState.toggleScriptEnabled}
         indicatorsManagerOpen={indicatorsManagerOpen}
         setIndicatorsManagerOpen={setIndicatorsManagerOpen}
         indicators={indicators} commitIndicators={commitIndicators}

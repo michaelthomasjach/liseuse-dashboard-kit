@@ -1758,6 +1758,12 @@
   gap: 4px;
 }
 
+/* A disabled script row (see IndicatorModals.tsx's own PickerOption.enabled doc) — dimmed rather
+   than hidden, so it stays discoverable/re-enableable from the same picker it was added from. */
+.lq-chart__indicator-picker-option--disabled {
+  opacity: 0.5;
+}
+
 .lq-chart__indicator-picker-select {
   display: flex;
   align-items: center;

@@ -71,10 +71,27 @@ const wideCloses = market.series("close", 60);
 const taMacd = ta.macd(wideCloses);
 console.log("wideCloses.length=" + wideCloses.length + " ta.macd=" + JSON.stringify(taMacd));
 `,
+  "plot.* (score, signals, overlay)": `
+const rsi = chart.indicator("rsi_14").value(0);
+const macd = chart.indicator("macd_12_26_9").histogram(0);
+const price = market.close(0);
+const ema = math.sma(market.series("close", 20), 20);
+
+let score = 0;
+if (rsi !== null && rsi > 50) score += 1;
+if (macd !== null && macd > 0) score += 1;
+if (ema !== null && price > ema) score += 1;
+
+plot.line("Quant Score", score);
+plot.overlay("Fast SMA20", ema ?? price);
+
+if (score === 3) plot.signal({ type: "BUY", price });
+if (rsi !== null && rsi > 70) plot.signal("SELL");
+`,
 };
 
 export function ScriptEngineDebugHarness({ data, indicators }: ScriptEngineDebugHarnessProps) {
-  const engine = useScriptEngine(data, indicators, undefined);
+  const engine = useScriptEngine("debug-script", data, indicators, undefined);
   const [lastScript, setLastScript] = useState<string | null>(null);
 
   return (
@@ -100,6 +117,10 @@ export function ScriptEngineDebugHarness({ data, indicators }: ScriptEngineDebug
       <hr />
       <div>Last script: {lastScript}</div>
       <pre data-testid="engine-result">{JSON.stringify(engine.result, null, 2)}</pre>
+      <h4>scriptIndicators (→ CustomIndicatorDef)</h4>
+      <pre data-testid="engine-script-indicators">{JSON.stringify(engine.scriptIndicators, null, 2)}</pre>
+      <h4>scriptDrawings (→ TrendLineDrawing)</h4>
+      <pre data-testid="engine-script-drawings">{JSON.stringify(engine.scriptDrawings, null, 2)}</pre>
     </div>
   );
 }

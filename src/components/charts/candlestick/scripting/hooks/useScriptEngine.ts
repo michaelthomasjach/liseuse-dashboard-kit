@@ -2,10 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import type { Candle } from "../../interfaces/Candle.interface";
 import type { Indicator } from "../../interfaces/Indicator.interface";
 import type { FundamentalDataPoint } from "../../interfaces/FundamentalDataPoint.interface";
+import type { CustomIndicatorDef } from "../../interfaces/CustomIndicatorDef.interface";
+import type { TrendLineDrawing } from "../../interfaces/TrendLineDrawing.interface";
 import type { ScriptEngineSnapshot } from "../interfaces/ScriptEngineSnapshot.interface";
 import type { ScriptRunResult } from "../interfaces/ScriptRunResult.interface";
 import { computeIndicatorValues } from "../../indicators";
 import { buildStableIndicatorIds } from "../stableIndicatorId";
+import { upsertScriptCustomIndicators } from "../scriptOutputToCustomIndicatorDef";
+import { upsertScriptDrawings } from "../scriptOutputToDrawings";
 import { HISTORICAL_REPLAY_TIMEOUT_MS, MAX_SERIES_LENGTH, REALTIME_TICK_TIMEOUT_MS } from "../constants";
 // Vite's own `?worker` import suffix (typed via src/vite-env.d.ts's vite/client reference) —
 // resolves to a Worker *constructor*, not the module's own exports.
@@ -44,15 +48,27 @@ function buildSnapshot(
 
 /** Runs one user script against `data`/`indicators` in its own sandboxed Worker — see the
  *  approved scripting-engine plan (`C:\Users\micha\.claude\plans\cheeky-purring-charm.md`) for
- *  the full architecture. Through M2: `market.*` and `chart.*` (built-in indicators only, read-
- *  only) — no `plot.*` output, `state`, or real-time re-trigger yet (M3-M4). `run()` is a manual
- *  trigger only, matching the platform's own "Run" button (see the plan's M5); M4 adds the
- *  `useEffect` that calls it automatically on `data` change for a real-time tick. */
-export function useScriptEngine(data: Candle[], indicators: Indicator[], fundamentals: FundamentalDataPoint[] | undefined) {
+ *  the full architecture. Through M3: `market.*`/`chart.*` (read-only) plus `plot.*` output,
+ *  converted into `scriptIndicators`/`scriptDrawings` (see scriptOutputToCustomIndicatorDef.ts/
+ *  scriptOutputToDrawings.ts) every time a run completes — no `state`/`alert`/real-time
+ *  re-trigger yet (M4), and this hook itself still only ever drives *one* script; the plan's own
+ *  "one Worker per enabled script" orchestration across several scripts at once is M5's own
+ *  concern, layered on top of this rather than rebuilding it. `run()` is a manual trigger only,
+ *  matching the platform's own "Run" button (see the plan's M5); M4 adds the `useEffect` that
+ *  calls it automatically on `data` change for a real-time tick. */
+export function useScriptEngine(scriptId: string, data: Candle[], indicators: Indicator[], fundamentals: FundamentalDataPoint[] | undefined) {
   const [result, setResult] = useState<ScriptRunResult | null>(null);
   const [running, setRunning] = useState(false);
+  const [scriptIndicators, setScriptIndicators] = useState<CustomIndicatorDef[]>([]);
+  const [scriptDrawings, setScriptDrawings] = useState<TrendLineDrawing[]>([]);
   const workerRef = useRef<Worker | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function applyRunOutput(runResult: ScriptRunResult) {
+    setResult(runResult);
+    setScriptIndicators((prev) => upsertScriptCustomIndicators(prev, scriptId, runResult.plots));
+    setScriptDrawings((prev) => upsertScriptDrawings(prev, scriptId, runResult.drawings));
+  }
 
   function clearPendingTimeout() {
     if (timeoutRef.current !== null) {
@@ -97,23 +113,27 @@ export function useScriptEngine(data: Candle[], indicators: Indicator[], fundame
 
     worker.onmessage = (e: MessageEvent<ScriptRunResult>) => {
       clearPendingTimeout();
-      setResult(e.data);
+      applyRunOutput(e.data);
       setRunning(false);
     };
     // A script bug the try/catch inside runScript.ts didn't anticipate (an engine-level failure,
     // not an ordinary thrown error — those already come back as a normal ScriptRunResult) —
     // treated the same as a timeout: terminate, respawn, report as an error rather than letting
-    // it reach the host's own onerror/crash the tab.
+    // it reach the host's own onerror/crash the tab. Deliberately *not* routed through
+    // applyRunOutput — an error/timeout run produced no real plots/drawings of its own, and
+    // wiping scriptIndicators/scriptDrawings to empty on every transient failure would erase a
+    // script's last *good* output just because its most recent edit happens to be broken, which
+    // is worse than leaving the chart showing slightly stale content until the script is fixed.
     worker.onerror = (e: ErrorEvent) => {
       clearPendingTimeout();
       replaceWorker();
-      setResult({ error: { message: e.message || "Erreur inattendue du script." }, logs: [] });
+      setResult({ error: { message: e.message || "Erreur inattendue du script." }, logs: [], plots: [], drawings: [] });
       setRunning(false);
     };
 
     timeoutRef.current = setTimeout(() => {
       replaceWorker();
-      setResult({ error: { message: "Le script a dépassé le délai d'exécution autorisé et a été arrêté." }, logs: [] });
+      setResult({ error: { message: "Le script a dépassé le délai d'exécution autorisé et a été arrêté." }, logs: [], plots: [], drawings: [] });
       setRunning(false);
     }, timeoutMs);
 
@@ -129,5 +149,5 @@ export function useScriptEngine(data: Candle[], indicators: Indicator[], fundame
     setRunning(false);
   }
 
-  return { result, running, run, stop };
+  return { result, running, scriptIndicators, scriptDrawings, run, stop };
 }

@@ -1,6 +1,7 @@
 import type { ScriptEngineSnapshot } from "../interfaces/ScriptEngineSnapshot.interface";
 import type { ScriptError, ScriptRunResult } from "../interfaces/ScriptRunResult.interface";
 import { buildMarketApi, buildChartApi } from "./buildScriptApi";
+import { buildPlotApi } from "./buildPlotApi";
 import { mathApi } from "./mathLib";
 import { taApi } from "./taLib";
 
@@ -59,24 +60,30 @@ export function runScript(snapshot: ScriptEngineSnapshot): ScriptRunResult {
   const getCurrentIndex = () => currentIndex;
   const market = buildMarketApi(snapshot, getCurrentIndex);
   const chart = buildChartApi(snapshot, getCurrentIndex);
+  const { api: plot, getResult: getPlotResult } = buildPlotApi(
+    () => snapshot.ohlcv[currentIndex].t,
+    () => snapshot.ohlcv[currentIndex].c
+  );
 
-  type CompiledScript = (market: unknown, chart: unknown, math: unknown, ta: unknown, console: unknown) => void;
+  type CompiledScript = (market: unknown, chart: unknown, plot: unknown, math: unknown, ta: unknown, console: unknown) => void;
   let compiled: CompiledScript;
   try {
-    compiled = new Function("market", "chart", "math", "ta", "console", snapshot.scriptCode) as CompiledScript;
+    compiled = new Function("market", "chart", "plot", "math", "ta", "console", snapshot.scriptCode) as CompiledScript;
   } catch (err) {
     // A SyntaxError here carries no usable line/column at all (confirmed empirically — V8 reports
     // only "at new Function (<anonymous>)", no position) — message-only is the honest result.
-    return { error: { message: err instanceof Error ? err.message : String(err) }, logs };
+    return { error: { message: err instanceof Error ? err.message : String(err) }, logs, plots: [], drawings: [] };
   }
 
   for (let i = 0; i <= snapshot.runUpToIndex; i++) {
     currentIndex = i;
     try {
-      compiled(market, chart, mathApi, taApi, scriptConsole);
+      compiled(market, chart, plot, mathApi, taApi, scriptConsole);
     } catch (err) {
-      return { error: toScriptError(err), logs };
+      const { plots, drawings } = getPlotResult();
+      return { error: toScriptError(err), logs, plots, drawings };
     }
   }
-  return { error: null, logs };
+  const { plots, drawings } = getPlotResult();
+  return { error: null, logs, plots, drawings };
 }

@@ -7,9 +7,14 @@ export function defaultEventColor(index: number): string {
 }
 
 // Event badges (see `ChartEvent`) sit in a fixed row this many px above the price/volume
-// divider — always tied to the divider, never to whatever's currently the tallest/shortest
-// visible candle, so the row doesn't jump around while panning/zooming.
-export const EVENT_MARKER_OFFSET = 14;
+// divider (or, with volume hidden, the X axis itself) — always tied to that boundary, never to
+// whatever's currently the tallest/shortest visible candle, so the row doesn't jump around while
+// panning/zooming. Comfortably larger than EVENT_MARKER_RADIUS on purpose (was 14, barely more
+// than the radius itself, leaving only ~6px of clearance below the marker's own hit target) — too
+// close to the boundary put the marker's own clickable circle right on top of the X axis's own
+// date-tick labels/buttons directly beneath it, which this offset increase is what a real user
+// bug report asked to fix.
+export const EVENT_MARKER_OFFSET = 26;
 export const EVENT_MARKER_RADIUS = 8;
 /** Fixed width (px) of the event-stack popover — fixed, not measured, so its horizontal
  *  clamp-to-bounds position can be computed synchronously in the same render as the click that

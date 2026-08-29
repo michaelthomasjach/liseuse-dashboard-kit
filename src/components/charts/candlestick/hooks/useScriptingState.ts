@@ -7,26 +7,28 @@ export interface UseScriptingStateControlledEditorOpen {
   onChange: (open: boolean) => void;
 }
 
+export interface UseScriptingStateControlledScripts {
+  scripts: ScriptDef[];
+  onChange: (scripts: ScriptDef[]) => void;
+}
+
 export interface UseScriptingStateArgs {
   defaultScripts: ScriptDef[] | undefined;
   onScriptsChange: ((scripts: ScriptDef[]) => void) | undefined;
   /** Lets an owner outside this hook decide the editor's own open/closed state instead of it
    *  managing its own — same `controlled?: {...} | undefined` shape and reasoning
-   *  `useFullscreen`'s own `controlled` param already uses, for the same reason: `ChartWorkspace`
-   *  needs a *workspace*-level "</>" button (its own side-rail, not any one panel's header) to be
-   *  able to open a specific panel's own editor from outside that panel entirely. Omitted (the
-   *  common standalone-`CandlestickChart` case): this hook manages the state itself, exactly as
-   *  before. */
+   *  `useFullscreen`'s own `controlled` param already uses. Omitted (the common standalone-
+   *  `CandlestickChart` case): this hook manages the state itself, exactly as before. */
   controlledEditorOpen?: UseScriptingStateControlledEditorOpen;
-}
-
-/** A pending "run this code now" request for one script — `requestId` (not just `code`) is the
- *  effect trigger over in `ScriptRunner`, so clicking "Run" again on *unmodified* code still
- *  re-runs it instead of the request looking identical to the previous one and silently doing
- *  nothing. */
-export interface ScriptRunRequest {
-  code: string;
-  requestId: number;
+  /** Lets an owner outside this hook decide the *script list itself* instead of it managing its
+   *  own — same shape/reasoning as `controlledEditorOpen` above. `ChartWorkspace` uses this to
+   *  share one script list (and one editor) across every panel: it owns the real list and hands
+   *  each panel only the subset targeting it (see `ChartWorkspace.tsx`'s own doc), so a panel's own
+   *  `toggleScriptEnabled`/`removeScript`/`runScript`/etc. still work exactly as written here, but
+   *  report back up to the workspace instead of mutating a panel-local list nothing else can see —
+   *  crucially, this includes run/stop *triggering* too (see `ScriptDef.runRequestId`'s own doc for
+   *  why that has to live on the script itself rather than a separate side channel). */
+  controlledScripts?: UseScriptingStateControlledScripts;
 }
 
 /** Script CRUD (uncontrolled state, `defaultScripts`/`onScriptsChange` — same convention as
@@ -36,25 +38,35 @@ export interface ScriptRunRequest {
  *  script id, and this hook just flattens all of them together for the render pipeline. Doesn't
  *  itself touch a Worker or `useScriptEngine` at all — that's each `ScriptRunner`'s own concern;
  *  this hook only ever manages the *list* of scripts and their already-computed output.
- *  `editorOpen` is controllable (see `controlledEditorOpen`'s own doc) the same way
- *  `useFullscreen`'s own `isFullscreen` is — everything else here stays internal. */
-export function useScriptingState({ defaultScripts, onScriptsChange, controlledEditorOpen }: UseScriptingStateArgs) {
-  const [scripts, setScripts] = useState<ScriptDef[]>(defaultScripts ?? []);
+ *  `editorOpen` and `scripts` itself are each independently controllable (see
+ *  `controlledEditorOpen`/`controlledScripts`'s own docs) the same way `useFullscreen`'s own
+ *  `isFullscreen` is — everything else here stays internal.
+ *
+ *  `runScript`/`stopScript` write their own trigger directly onto the target `ScriptDef` (see
+ *  `ScriptDef.runRequestId`/`stopRequestId`'s own doc) rather than into a separate
+ *  `Record<scriptId, ...>` channel the way an earlier version of this engine did — that separate
+ *  channel never actually reached a `ChartWorkspace`-routed script's own real `ScriptRunner` (it
+ *  lived entirely inside whichever `useScriptingState` instance called `runScript`, not the panel
+ *  that ends up owning the script), so a shared script's own "Exécuter" silently re-ran its last
+ *  *saved* code instead of the fresh draft. Since every trigger now rides along with `scripts`
+ *  itself, and `scripts` already correctly routes through `controlledScripts` end to end, this
+ *  works correctly in both the standalone and workspace-shared cases with no separate plumbing. */
+export function useScriptingState({ defaultScripts, onScriptsChange, controlledEditorOpen, controlledScripts }: UseScriptingStateArgs) {
+  const [internalScripts, setInternalScripts] = useState<ScriptDef[]>(defaultScripts ?? []);
+  const scripts = controlledScripts?.scripts ?? internalScripts;
   const [internalEditorOpen, setInternalEditorOpen] = useState(false);
   const editorOpen = controlledEditorOpen?.editorOpen ?? internalEditorOpen;
   const setEditorOpen = controlledEditorOpen?.onChange ?? setInternalEditorOpen;
   const [activeScriptId, setActiveScriptId] = useState<string | null>(null);
   const [runOutputs, setRunOutputs] = useState<Record<string, ScriptRunOutput>>({});
-  const [runRequests, setRunRequests] = useState<Record<string, ScriptRunRequest>>({});
-  // A pending "stop whatever's running now" request, same requestId-bump trigger as runRequests
-  // above (not a boolean — two Stop clicks in a row while the engine is still winding down from
-  // the first must both still register as *a* stop request each). Only the count, not a payload,
-  // is meaningful here.
-  const [stopRequests, setStopRequests] = useState<Record<string, number>>({});
   const scriptIdRef = useRef(0);
 
   function commitScripts(next: ScriptDef[]) {
-    setScripts(next);
+    if (controlledScripts) {
+      controlledScripts.onChange(next);
+      return;
+    }
+    setInternalScripts(next);
     onScriptsChange?.(next);
   }
 
@@ -91,19 +103,18 @@ export function useScriptingState({ defaultScripts, onScriptsChange, controlledE
 
   // The editor's own Run button — executes `code` (the editor's current draft buffer, which may
   // not be saved into the ScriptDef yet) rather than only ever being able to re-run whatever's
-  // already committed. Stable identity (useCallback) since it's an effect dependency inside every
-  // ScriptRunner.
-  const runScript = useCallback((id: string, code: string) => {
-    setRunRequests((prev) => ({ ...prev, [id]: { code, requestId: (prev[id]?.requestId ?? 0) + 1 } }));
-  }, []);
+  // already committed. See this hook's own doc for why the trigger lives on the ScriptDef itself.
+  function runScript(id: string, code: string) {
+    commitScripts(scripts.map((s) => (s.id === id ? { ...s, runRequestId: (s.runRequestId ?? 0) + 1, runDraftCode: code } : s)));
+  }
 
   // The editor's own Stop button — terminates that script's own in-flight Worker (via
   // useScriptEngine's own stop(), see ScriptRunner.tsx) rather than trying to "run" it into
   // stopping, which wouldn't preempt an actual infinite loop: a Worker only starts processing a
   // *new* postMessage once whatever it's currently running finishes on its own.
-  const stopScript = useCallback((id: string) => {
-    setStopRequests((prev) => ({ ...prev, [id]: (prev[id] ?? 0) + 1 }));
-  }, []);
+  function stopScript(id: string) {
+    commitScripts(scripts.map((s) => (s.id === id ? { ...s, stopRequestId: (s.stopRequestId ?? 0) + 1 } : s)));
+  }
 
   const reportRunOutput = useCallback((id: string, output: ScriptRunOutput) => {
     setRunOutputs((prev) => ({ ...prev, [id]: output }));
@@ -127,9 +138,7 @@ export function useScriptingState({ defaultScripts, onScriptsChange, controlledE
     activeScriptId,
     setActiveScriptId,
     runOutputs,
-    runRequests,
     runScript,
-    stopRequests,
     stopScript,
     reportRunOutput,
     scriptIndicators,

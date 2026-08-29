@@ -69,3 +69,15 @@ export const TwoPanels: Story = {
     </div>
   ),
 };
+
+export const ScriptingWorkspace: Story = {
+  name: "Scripts partagés (2 panneaux)",
+  render: () => (
+    <div style={{ margin: -32 }}>
+      <ChartWorkspace defaultPanels={2} scripting>
+        <CandlestickChart data={DATASETS.AAPL} symbol="AAPL" zoomable showIndicators defaultIndicators={[{ id: "i-0", kind: "rsi", period: 14 }]} />
+        <CandlestickChart data={DATASETS.MSFT} symbol="MSFT" zoomable showIndicators defaultIndicators={[{ id: "i-0", kind: "rsi", period: 14 }]} />
+      </ChartWorkspace>
+    </div>
+  ),
+};

@@ -1,6 +1,7 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { ScriptEditorWindow } from "./ScriptEditorWindow";
-import { PlayIcon, PauseIcon, SaveIcon, RefreshIcon, PlusIcon, TrashIcon, EyeIcon, EyeOffIcon, HelpIcon } from "../../../../icons";
+import { Popover } from "../../../../forms/Popover";
+import { PlayIcon, PauseIcon, SaveIcon, RefreshIcon, PlusIcon, TrashIcon, EyeIcon, EyeOffIcon, HelpIcon, ChevronDownIcon } from "../../../../icons";
 import type { Indicator } from "../../interfaces/Indicator.interface";
 import type { ScriptDef } from "../../interfaces/ScriptDef.interface";
 import type { ScriptRunOutput } from "../interfaces/ScriptRunOutput.interface";
@@ -27,6 +28,12 @@ export interface ScriptEditorPanelProps {
   stopScript: (id: string) => void;
   runOutputs: Record<string, ScriptRunOutput>;
   indicators: Indicator[];
+  /** Present only when this editor is shared across more than one chart (`ChartWorkspace`) — one
+   *  entry per candidate target panel for "Exécuter". `undefined`/a single entry for a standalone
+   *  chart, where there's only ever one implicit target and no picker is ever shown — exigence
+   *  "si plusieurs charts sont ouvertes, on me demande sur laquelle exécuter" only applies once
+   *  there's an actual choice to make. */
+  panelChoices?: { index: number; label: string }[];
 }
 
 const DEFAULT_SCRIPT_CODE = `// Nouveau script — voir la liste "Indicateurs disponibles" pour les
@@ -60,11 +67,44 @@ export function ScriptEditorPanel({
   stopScript,
   runOutputs,
   indicators,
+  panelChoices,
 }: ScriptEditorPanelProps) {
   const activeScript = scripts.find((s) => s.id === activeScriptId) ?? null;
   const [draft, setDraft] = useState(activeScript?.code ?? "");
   const [formatRequestId, setFormatRequestId] = useState(0);
   const [docsOpen, setDocsOpen] = useState(false);
+  const [targetPickerOpen, setTargetPickerOpen] = useState(false);
+  const runButtonRef = useRef<HTMLButtonElement>(null);
+  const needsTargetChoice = (panelChoices?.length ?? 0) > 1;
+
+  // "Exécuter" runs immediately once a target is known (a standalone chart's own implicit single
+  // target, or a workspace script that's already been assigned one) — only a workspace script
+  // that's *never* been run before pauses for the picker first (exigence: "si plusieurs charts
+  // sont ouvertes, on me demande sur laquelle exécuter").
+  function handleRunClick() {
+    if (!activeScript) return;
+    if (needsTargetChoice && activeScript.targetPanelIndex === undefined) {
+      setTargetPickerOpen(true);
+      return;
+    }
+    runScript(activeScript.id, draft);
+  }
+
+  // One single updateScript call, not updateScript-then-runScript — each of those independently
+  // reads the *same* stale `scripts` closure captured at this render, so calling them back to back
+  // would have the second one's own `scripts.map(...)` silently discard the first one's own
+  // targetPanelIndex change (confirmed as a real bug via Playwright — the target picker kept
+  // reopening on every run because the choice never actually stuck). Setting the run trigger
+  // fields directly here, inline, sidesteps needing a second commit entirely.
+  function chooseTarget(index: number) {
+    if (!activeScript) return;
+    updateScript(activeScript.id, {
+      targetPanelIndex: index,
+      runRequestId: (activeScript.runRequestId ?? 0) + 1,
+      runDraftCode: draft,
+    });
+    setTargetPickerOpen(false);
+  }
 
   // Switching tabs (or the active script's own saved code changing from outside, e.g. Reset)
   // reseeds the draft — `activeScriptId` is the trigger, not `activeScript?.code` itself, so
@@ -136,9 +176,40 @@ export function ScriptEditorPanel({
 
           {activeScript && (
             <div className="lq-script-editor-panel__toolbar">
-              <button type="button" className="lq-script-editor-panel__toolbar-button" onClick={() => runScript(activeScript.id, draft)}>
+              <button ref={runButtonRef} type="button" className="lq-script-editor-panel__toolbar-button" onClick={handleRunClick}>
                 <PlayIcon size={13} /> Exécuter
               </button>
+              {needsTargetChoice && (
+                <button
+                  type="button"
+                  className="lq-script-editor-panel__target-indicator"
+                  onClick={() => setTargetPickerOpen(true)}
+                  title="Changer la chart cible de ce script"
+                >
+                  Cible : {panelChoices?.find((c) => c.index === activeScript.targetPanelIndex)?.label ?? "à choisir"}
+                  <ChevronDownIcon size={11} />
+                </button>
+              )}
+              <Popover open={targetPickerOpen} onClose={() => setTargetPickerOpen(false)} anchorRef={runButtonRef} placement="bottom">
+                <div className="lq-script-editor-panel__target-menu">
+                  <div className="lq-script-editor-panel__target-menu-title">Exécuter sur…</div>
+                  {panelChoices?.map((choice) => (
+                    <button
+                      key={choice.index}
+                      type="button"
+                      className={[
+                        "lq-script-editor-panel__target-option",
+                        choice.index === activeScript.targetPanelIndex && "lq-script-editor-panel__target-option--selected",
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
+                      onClick={() => chooseTarget(choice.index)}
+                    >
+                      {choice.label}
+                    </button>
+                  ))}
+                </div>
+              </Popover>
               <button
                 type="button"
                 className="lq-script-editor-panel__toolbar-button"

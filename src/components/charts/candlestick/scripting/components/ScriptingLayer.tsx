@@ -26,6 +26,14 @@ export interface ScriptingLayerProps {
    *  `CandlestickChartProps.timeframes` (which may nest groups). */
   availableTimeframes: string[];
   onScriptAlert: ((event: ScriptAlertEvent) => void) | undefined;
+  /** Whether this chart should render its own `ScriptEditorPanel` at all — `false` when its script
+   *  list is workspace-controlled (see `CandlestickChartProps.scripts`'s own doc): editing then
+   *  happens wherever the true owner of the shared list puts its own editor UI instead (e.g.
+   *  `ChartWorkspace`'s own rail button + its own `ScriptEditorPanel`), so rendering a second,
+   *  redundant one here would just be two editors racing to open/close the same `editorOpen` state.
+   *  `ScriptRunnerHost` always renders regardless — a workspace-assigned script still has to
+   *  actually run somewhere, and that's still this chart's own concern either way. Default `true`. */
+  showEditor?: boolean;
 }
 
 /** Always mounted, regardless of `CandlestickChartProps.scripting` — that prop only gates the
@@ -33,7 +41,16 @@ export interface ScriptingLayerProps {
  *  affordance, not whether already-configured content renders" convention `showIndicators` already
  *  follows for indicator panes. A script added via `defaultScripts` still runs and still renders
  *  its own output even with the editor button hidden. */
-export function ScriptingLayer({ scripting, data, indicators, fundamentals, lastCandleOpen, availableTimeframes, onScriptAlert }: ScriptingLayerProps) {
+export function ScriptingLayer({
+  scripting,
+  data,
+  indicators,
+  fundamentals,
+  lastCandleOpen,
+  availableTimeframes,
+  onScriptAlert,
+  showEditor = true,
+}: ScriptingLayerProps) {
   return (
     <>
       <ScriptRunnerHost
@@ -43,26 +60,26 @@ export function ScriptingLayer({ scripting, data, indicators, fundamentals, last
         fundamentals={fundamentals}
         lastCandleOpen={lastCandleOpen}
         availableTimeframes={availableTimeframes}
-        runRequests={scripting.runRequests}
-        stopRequests={scripting.stopRequests}
         onOutput={scripting.reportRunOutput}
         onAlert={onScriptAlert}
       />
-      <ScriptEditorPanel
-        open={scripting.editorOpen}
-        onClose={() => scripting.setEditorOpen(false)}
-        scripts={scripting.scripts}
-        activeScriptId={scripting.activeScriptId}
-        setActiveScriptId={scripting.setActiveScriptId}
-        addScript={scripting.addScript}
-        updateScript={scripting.updateScript}
-        removeScript={scripting.removeScript}
-        toggleScriptEnabled={scripting.toggleScriptEnabled}
-        runScript={scripting.runScript}
-        stopScript={scripting.stopScript}
-        runOutputs={scripting.runOutputs}
-        indicators={indicators}
-      />
+      {showEditor && (
+        <ScriptEditorPanel
+          open={scripting.editorOpen}
+          onClose={() => scripting.setEditorOpen(false)}
+          scripts={scripting.scripts}
+          activeScriptId={scripting.activeScriptId}
+          setActiveScriptId={scripting.setActiveScriptId}
+          addScript={scripting.addScript}
+          updateScript={scripting.updateScript}
+          removeScript={scripting.removeScript}
+          toggleScriptEnabled={scripting.toggleScriptEnabled}
+          runScript={scripting.runScript}
+          stopScript={scripting.stopScript}
+          runOutputs={scripting.runOutputs}
+          indicators={indicators}
+        />
+      )}
     </>
   );
 }

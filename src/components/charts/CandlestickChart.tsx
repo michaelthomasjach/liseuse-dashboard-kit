@@ -25,8 +25,7 @@ import { useAlertFlow } from "./candlestick/hooks/useAlertFlow";
 import { useCorrelationSetup } from "./candlestick/hooks/useCorrelationSetup";
 import { useRenderCandlestickChart } from "./candlestick/hooks/useRenderCandlestickChart";
 import { useSidePanel } from "./candlestick/hooks/useSidePanel";
-import { useScriptingState } from "./candlestick/hooks/useScriptingState";
-import { scriptIndicatorToChartIndicator } from "./candlestick/scripting/scriptIndicatorToChartIndicator";
+import { useChartScripting } from "./candlestick/hooks/useChartScripting";
 import { ScriptingLayer } from "./candlestick/scripting/components/ScriptingLayer";
 import { ChartHeader } from "./candlestick/components/ChartHeader";
 import { ChartSidePanel } from "./candlestick/components/ChartSidePanel";
@@ -130,7 +129,7 @@ export function CandlestickChart({
   onLinkClick,
   fillHeight = false,
   sidePanel, defaultSidePanelOpen, onSidePanelOpenChange,
-  scripting = false, defaultScripts, onScriptsChange, scriptEditorOpen, onScriptEditorOpenChange, onScriptAlert, lastCandleOpen = false,
+  scripting = false, defaultScripts, scripts, onScriptsChange, scriptEditorOpen, onScriptEditorOpenChange, onScriptAlert, lastCandleOpen = false,
   margin,
   className,
 }: CandlestickChartProps) {
@@ -248,7 +247,10 @@ export function CandlestickChart({
     height: isFullscreen || fillHeight ? undefined : height,
   });
 
-  const showHeader = fullscreenToggle || zoomable || !!timeframes?.length || showIndicators || scripting;
+  const { scriptingState, scriptChartIndicators, isScriptsControlled } = useChartScripting({
+    defaultScripts, onScriptsChange, scripts, scriptEditorOpen, onScriptEditorOpenChange,
+  });
+  const showHeader = fullscreenToggle || zoomable || !!timeframes?.length || showIndicators || (scripting && !isScriptsControlled);
   const headerSpace = showHeader ? HEADER_HEIGHT : 0;
   const plotHeight = Math.max(0, dims.height - headerSpace);
   const plotBoundedHeight = Math.max(0, plotHeight - dims.margin.top - dims.margin.bottom);
@@ -271,9 +273,6 @@ export function CandlestickChart({
     plotWidth: dims.boundedWidth,
   });
   const alertFlow = useAlertFlow(alerts ?? [], selectedDrawingId);
-  const controlledEditorOpen = onScriptEditorOpenChange ? { editorOpen: scriptEditorOpen ?? false, onChange: onScriptEditorOpenChange } : undefined;
-  const scriptingState = useScriptingState({ defaultScripts, onScriptsChange, controlledEditorOpen });
-  const scriptChartIndicators = useMemo(() => scriptingState.scriptIndicators.map(scriptIndicatorToChartIndicator), [scriptingState.scriptIndicators]);
   const {
     indicators,
     indicatorPickerOpen,
@@ -673,7 +672,7 @@ export function CandlestickChart({
           linkable={linkable}
           isLinked={isLinked}
           onLinkClick={onLinkClick}
-          scripting={scripting}
+          scripting={scripting && !isScriptsControlled}
           onOpenScriptEditor={() => scriptingState.setEditorOpen(true)}
         />
       )}
@@ -908,7 +907,7 @@ export function CandlestickChart({
       )}
 
       <ScriptingLayer
-        scripting={scriptingState} data={data} indicators={indicators} fundamentals={fundamentals}
+        scripting={scriptingState} data={data} indicators={indicators} fundamentals={fundamentals} showEditor={!isScriptsControlled}
         lastCandleOpen={lastCandleOpen} availableTimeframes={flattenTimeframeValues(timeframes)} onScriptAlert={onScriptAlert}
       />
 

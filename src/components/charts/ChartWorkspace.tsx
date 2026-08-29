@@ -2,12 +2,16 @@ import { Children, cloneElement, useRef, useState, type ReactElement, type React
 import type { CandlestickChartProps } from "./candlestick/interfaces/CandlestickChartProps.interface";
 import type { SymbolSearchCategory } from "./candlestick/interfaces/SymbolSearchCategory.interface";
 import type { SymbolSearchResult } from "./candlestick/interfaces/SymbolSearchResult.interface";
+import type { ScriptDef } from "./candlestick/interfaces/ScriptDef.interface";
+import type { ScriptAlertEvent } from "./candlestick/interfaces/ScriptAlertEvent.interface";
 import { useLinkGroups } from "./workspace/useLinkGroups";
 import { LinkGroupsModal } from "./workspace/LinkGroupsModal";
 import { SymbolTargetModal } from "./workspace/SymbolTargetModal";
 import { WatchlistPanel } from "./workspace/WatchlistPanel";
 import { useSidePanel } from "./candlestick/hooks/useSidePanel";
+import { useScriptingState } from "./candlestick/hooks/useScriptingState";
 import { ChartSidePanel } from "./candlestick/components/ChartSidePanel";
+import { ScriptEditorPanel } from "./candlestick/scripting/components/ScriptEditorPanel";
 import { Popover } from "../forms/Popover";
 import { Modal } from "../primitives/Modal";
 import { WatchlistIcon, BellIcon, GridIcon, MaximizeIcon, MinimizeIcon, HelpIcon, CodeIcon } from "../icons";
@@ -192,6 +196,15 @@ export interface ChartWorkspaceProps {
    *  defaults to "watchlist" if set, else "alerts". */
   defaultSidePanelTab?: ChartWorkspaceSidePanelTab;
   onSidePanelTabChange?: (tab: ChartWorkspaceSidePanelTab) => void;
+  /** Shows the rail's own "</>" button and shares *one* script list (and one editor) across every
+   *  panel — unlike every other `CandlestickChartProps` scripting prop, which stays per-panel for
+   *  a standalone chart, a workspace script explicitly targets one chosen panel (see
+   *  `ScriptDef.targetPanelIndex`'s own doc) rather than living inside any one panel's own state.
+   *  Default false. */
+  scripting?: boolean;
+  defaultScripts?: ScriptDef[];
+  onScriptsChange?: (scripts: ScriptDef[]) => void;
+  onScriptAlert?: (event: ScriptAlertEvent) => void;
   className?: string;
 }
 
@@ -235,6 +248,10 @@ export function ChartWorkspace({
   onSidePanelOpenChange,
   defaultSidePanelTab,
   onSidePanelTabChange,
+  scripting = false,
+  defaultScripts,
+  onScriptsChange,
+  onScriptAlert,
   className,
 }: ChartWorkspaceProps) {
   const [panels, setPanels] = useState(defaultPanels);
@@ -254,13 +271,10 @@ export function ChartWorkspace({
   // Clamped against the current `panels` count at read time (just below) rather than reset via an
   // effect — simpler, and a panel count change can never leave it referencing a since-removed panel.
   const [focusedPanelIndex, setFocusedPanelIndex] = useState<number | null>(null);
-  // Which panel's own script editor the rail's own "</>" button below has open — same single-
-  // index-of-truth shape as focusedPanelIndex above, and deliberately a *separate* piece of state
-  // rather than reusing that one: fullscreen-focus and "which panel's editor is open" are
-  // orthogonal (a script editor should stay reachable without first fullscreen-focusing its own
-  // panel), even though the button below defaults its target to whichever panel *is* currently
-  // focused, when one is.
-  const [scriptEditorPanelIndex, setScriptEditorPanelIndex] = useState<number | null>(null);
+  // One shared script list (and one shared editor) for the whole workspace — see
+  // ChartWorkspaceProps.scripting's own doc for why this lives here rather than inside any one
+  // panel. Uncontrolled at this level (nothing above ChartWorkspace itself needs to drive it).
+  const workspaceScripting = useScriptingState({ defaultScripts, onScriptsChange });
   // Item 20: a plain click-count gesture (native `MouseEvent.detail`, the same counter a real
   // double-click already relies on elsewhere in this library — see ChartLegend's own
   // onDoubleClick) rather than any custom timing/debounce logic of its own. This also makes a
@@ -454,6 +468,14 @@ export function ChartWorkspace({
   const rawChildren = Children.toArray(children) as ReactElement<CandlestickChartProps>[];
   const panelElements = rawChildren.length === 1 ? Array.from({ length: panels }, () => rawChildren[0]) : rawChildren.slice(0, panels);
   const effectiveFocusedPanelIndex = focusedPanelIndex !== null && focusedPanelIndex < panels ? focusedPanelIndex : null;
+  // One candidate target per panel for the shared editor's own "Exécuter" picker (exigence: "si
+  // plusieurs charts sont ouvertes, on me demande sur laquelle exécuter") — a single-panel
+  // workspace never shows this at all (ScriptEditorPanel's own needsTargetChoice only engages past
+  // one choice), so this array existing unconditionally costs nothing in the common case.
+  const scriptPanelChoices = Array.from({ length: panels }, (_, i) => {
+    const symbol = resolvedSymbol(i, panelElements[i]);
+    return { index: i, label: symbol ? `Panneau ${i + 1} (${symbol})` : `Panneau ${i + 1}` };
+  });
   const columns = GRID_COLUMNS[panels];
   const rows = GRID_ROWS[panels];
   // Fills 100% of the viewport height whenever the caller hasn't opted into a fixed `panelHeight`
@@ -534,11 +556,25 @@ export function ChartWorkspace({
             fullscreenToggle: panels >= 2,
             isFullscreen: effectiveFocusedPanelIndex === i,
             onFullscreenChange: (value: boolean) => setFocusedPanelIndex(value ? i : null),
-            // Same controlled-prop split as isFullscreen/onFullscreenChange just above, for the
-            // same reason — lets the rail's own "</>" button (below) open *this* panel's own
-            // script editor from outside it, regardless of which panel that turns out to be.
-            scriptEditorOpen: scriptEditorPanelIndex === i,
-            onScriptEditorOpenChange: (open: boolean) => setScriptEditorPanelIndex(open ? i : null),
+            // The workspace's own shared script list, filtered down to whichever scripts target
+            // *this* panel (see ScriptDef.targetPanelIndex's own doc) — same controlled-prop split
+            // as isFullscreen/onFullscreenChange just above, but for the list itself rather than a
+            // single open/closed flag. A panel-local change (e.g. toggling a script's own enabled
+            // state from this panel's "Mes scripts" picker row) reports back as just its own
+            // subset, so it has to be spliced back into the *full* shared list here rather than
+            // replacing it outright — every other panel's own scripts must survive untouched.
+            ...(scripting
+              ? {
+                  scripts: workspaceScripting.scripts.filter((s) => s.targetPanelIndex === i),
+                  onScriptsChange: (updatedSubset: ScriptDef[]) => {
+                    workspaceScripting.commitScripts([
+                      ...workspaceScripting.scripts.filter((s) => s.targetPanelIndex !== i),
+                      ...updatedSubset,
+                    ]);
+                  },
+                  onScriptAlert,
+                }
+              : {}),
             timeframe: i in timeframeByPanel ? timeframeByPanel[i] : child.props.timeframe,
             onTimeframeChange: (value: string) => {
               setTimeframeByPanel((prev) => ({ ...prev, [i]: value }));
@@ -654,17 +690,14 @@ export function ChartWorkspace({
             <BellIcon size={16} />
           </button>
         )}
-        {/* Gated on the *template* panel's own `scripting` prop — same "the button only shows up
-            if the feature is actually on" rule `hasWatchlists`/`hasAlerts` follow above, just read
-            from the child template instead of a ChartWorkspace-level prop, since scripting is a
-            per-`CandlestickChart` concern. Opens whichever panel is currently fullscreen-focused,
-            or the first one otherwise — see `scriptEditorPanelIndex`'s own doc for why this is a
-            separate piece of state from focus rather than reusing it outright. */}
-        {rawChildren[0]?.props.scripting && (
+        {/* Gated on ChartWorkspace's own `scripting` prop (same "the button only shows up if the
+            feature is actually on" rule hasWatchlists/hasAlerts follow above) — opens the one
+            shared editor (rendered below, outside the rail) rather than any one panel's own. */}
+        {scripting && (
           <button
             type="button"
-            className={["lq-chart__icon-button", scriptEditorPanelIndex !== null && "lq-chart__icon-button--active"].filter(Boolean).join(" ")}
-            onClick={() => setScriptEditorPanelIndex((cur) => (cur !== null ? null : (effectiveFocusedPanelIndex ?? 0)))}
+            className={["lq-chart__icon-button", workspaceScripting.editorOpen && "lq-chart__icon-button--active"].filter(Boolean).join(" ")}
+            onClick={() => workspaceScripting.setEditorOpen(!workspaceScripting.editorOpen)}
             aria-label="Éditeur de script"
             title="Éditeur de script"
           >
@@ -759,6 +792,29 @@ export function ChartWorkspace({
         onConfirm={confirmSymbolTarget}
         onSelectedPanelsChange={setSelectedPanels}
       />
+
+      {scripting && (
+        <ScriptEditorPanel
+          open={workspaceScripting.editorOpen}
+          onClose={() => workspaceScripting.setEditorOpen(false)}
+          scripts={workspaceScripting.scripts}
+          activeScriptId={workspaceScripting.activeScriptId}
+          setActiveScriptId={workspaceScripting.setActiveScriptId}
+          addScript={workspaceScripting.addScript}
+          updateScript={workspaceScripting.updateScript}
+          removeScript={workspaceScripting.removeScript}
+          toggleScriptEnabled={workspaceScripting.toggleScriptEnabled}
+          runScript={workspaceScripting.runScript}
+          stopScript={workspaceScripting.stopScript}
+          runOutputs={workspaceScripting.runOutputs}
+          // ChartWorkspace has no visibility into any one panel's own indicator state (each
+          // CandlestickChart owns that internally, never reported upward — the same reason
+          // resolvedSymbol/data itself can't be read from here either) — "Indicateurs disponibles"
+          // is honestly empty at this level rather than showing a wrong/stale list.
+          indicators={[]}
+          panelChoices={scriptPanelChoices}
+        />
+      )}
     </div>
   );
 }

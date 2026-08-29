@@ -271,9 +271,22 @@ export interface CandlestickChartProps {
    *  JavaScript engine for custom indicators/signals/alerts (see `ScriptEditorPanel`). Default
    *  false, same convention as `showIndicators`/`drawingTools`. */
   scripting?: boolean;
-  /** Uncontrolled initial set of scripts, same pattern as `defaultIndicators`/`defaultDrawings`. */
+  /** Uncontrolled initial set of scripts, same pattern as `defaultIndicators`/`defaultDrawings`.
+   *  Ignored when `scripts` below is set. */
   defaultScripts?: ScriptDef[];
-  /** Fires whenever a script is added, edited, removed, or its enabled state toggled. */
+  /** Controls the script list itself from outside instead of this chart managing its own — pairs
+   *  with `onScriptsChange`, same controlled/uncontrolled split `scriptEditorOpen` below uses.
+   *  `ChartWorkspace` sets this so one shared script list (and one shared editor) can span every
+   *  panel, each panel only ever running the subset of it that targets that panel (see
+   *  `ScriptDef.targetPanelIndex`'s own doc); a standalone chart has no reason to and keeps its own
+   *  internal list via `defaultScripts` instead. When set, this chart's own script-editor header
+   *  button is hidden too — editing happens wherever the *true* owner of the list puts its own
+   *  editor UI (e.g. `ChartWorkspace`'s own rail button). */
+  scripts?: ScriptDef[];
+  /** Fires whenever a script is added, edited, removed, or its enabled state toggled — the
+   *  uncontrolled case's own "here's the new state" report, or the controlled case's own "here's
+   *  what the caller should set `scripts` to next" request (same contract `onFullscreenChange`
+   *  already has for `isFullscreen`). */
   onScriptsChange?: (scripts: ScriptDef[]) => void;
   /** Controls the script editor's own open/closed state from outside instead of it managing its
    *  own internal state — pairs with `onScriptEditorOpenChange` below, same

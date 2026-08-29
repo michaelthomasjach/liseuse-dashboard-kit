@@ -8,6 +8,15 @@ import { buildBarApi } from "./buildBarApi";
 import { mathApi } from "./mathLib";
 import { taApi } from "./taLib";
 
+// Captured at module-evaluation time — which, per ES module ordering, happens while
+// scriptWorkerEntry.ts is still resolving its own imports, strictly before that file's own
+// `lockDownGlobals()` call blocks the ambient `Function` global (see BLOCKED_GLOBALS' own doc).
+// This module's one legitimate compile step below needs the *real* constructor even once a user
+// script's own attempt to reach the (now-blocked) global one throws instead — without this, this
+// file's own `new Function(...)` call would itself start throwing the moment the sandbox lockdown
+// that's supposed to stop user code from doing exactly that also caught its own compiler.
+const RealFunction = Function;
+
 // `new Function(...paramNames, body)` wraps `body` in a synthetic `function anonymous(<params>
 // ) {` header, always exactly 2 lines regardless of how many params there are (confirmed by
 // dumping `fn.toString()` for both 0 and 6 params — V8 always breaks after the param list and
@@ -100,7 +109,7 @@ export function runScript(snapshot: ScriptEngineSnapshot): ScriptRunResult {
   ) => void;
   let compiled: CompiledScript;
   try {
-    compiled = new Function(
+    compiled = new RealFunction(
       "market",
       "chart",
       "plot",

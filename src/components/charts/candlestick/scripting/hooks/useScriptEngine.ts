@@ -140,7 +140,15 @@ export function useScriptEngine(
    *  expected to sometimes genuinely take a while, a single new bar's worth of re-evaluation
    *  isn't (see HISTORICAL_REPLAY_TIMEOUT_MS/REALTIME_TICK_TIMEOUT_MS's own docs). */
   function run(scriptCode: string, isRealtimeTick = false) {
-    const worker = workerRef.current ?? replaceWorker();
+    // Reusing a worker that's still mid-run would let its own stale result land in *this* call's
+    // freshly-assigned onmessage/onerror below once it eventually finishes — a Worker processes
+    // queued postMessage calls sequentially, it doesn't just drop the superseded one — silently
+    // clearing this run's own timeout early, applying stale output as if it were current, and
+    // (via ScriptRunner's own alert-count dedup) dropping or duplicating alerts on the *next*
+    // real result. Terminating and replacing it first — same mechanism stop()/a timeout/onerror
+    // already use — guarantees a fresh run always starts against a clean worker with nothing
+    // stale still in flight to land later.
+    const worker = running ? replaceWorker() : workerRef.current ?? replaceWorker();
     clearPendingTimeout();
     lastScriptCodeRef.current = scriptCode;
     setRunning(true);

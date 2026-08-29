@@ -3,6 +3,8 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { ChartWorkspace } from "./ChartWorkspace";
 import { CandlestickChart } from "./CandlestickChart";
 import { generateCandles } from "../../test-data/financeSampleData";
+import type { ChartWorkspaceWatchlist } from "./workspace/ChartWorkspaceWatchlist.interface";
+import type { SymbolProfile } from "./workspace/SymbolProfile.interface";
 
 const meta: Meta<typeof ChartWorkspace> = {
   title: "Charts/ChartWorkspace",
@@ -65,6 +67,53 @@ export const TwoPanels: Story = {
       <ChartWorkspace defaultPanels={2}>
         <CandlestickChart data={DATASETS.AAPL} symbol="AAPL" zoomable />
         <CandlestickChart data={DATASETS.MSFT} symbol="MSFT" zoomable />
+      </ChartWorkspace>
+    </div>
+  ),
+};
+
+const SYMBOL_PROFILE_WATCHLISTS: ChartWorkspaceWatchlist[] = [
+  {
+    id: "wl-1",
+    name: "Liste de surveillance",
+    columns: [{ id: "price", label: "Prix" }],
+    rows: [
+      { id: "r-msft", ticker: "MSFT", values: { price: "412,88" } },
+      { id: "r-nvda", ticker: "NVDA", values: { price: "128,47" } },
+      { id: "r-aapl", ticker: "AAPL", values: { price: "231,05" } },
+    ],
+  },
+];
+
+// A gently rising/falling seasonal path (cumulative % through a reference year) — just enough
+// points for Sparkline to read as a real trend, not meant to represent any real seasonality math.
+const SEASONALITY_PATH = generateCandles(52, 100, 5).map((c) => ({ date: c.date, value: c.close - 100 }));
+
+const SYMBOL_PROFILES: SymbolProfile[] = [
+  {
+    ticker: "AAPL",
+    name: "Apple Inc.",
+    exchange: "NASDAQ",
+    instrumentType: "Action",
+    marketStatus: "Marché fermé",
+    performance: [
+      { label: "1S", changePercent: 0.8 },
+      { label: "1M", changePercent: -2.3 },
+      { label: "3M", changePercent: 5.1 },
+      { label: "6M", changePercent: 12.4 },
+      { label: "YTD", changePercent: 18.6 },
+      { label: "1A", changePercent: 24.7 },
+    ],
+    seasonality: SEASONALITY_PATH,
+  },
+];
+
+export const SymbolProfileWorkspace: Story = {
+  name: "Panneau latéral — infos sur l'entreprise (sous la liste de surveillance)",
+  render: () => (
+    <div style={{ margin: -32 }}>
+      <ChartWorkspace defaultPanels={1} watchlists={SYMBOL_PROFILE_WATCHLISTS} symbolProfiles={SYMBOL_PROFILES}>
+        <CandlestickChart data={DATASETS.AAPL} symbol="AAPL" zoomable />
       </ChartWorkspace>
     </div>
   ),

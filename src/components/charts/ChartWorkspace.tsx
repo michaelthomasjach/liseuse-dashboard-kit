@@ -8,6 +8,9 @@ import { useLinkGroups } from "./workspace/useLinkGroups";
 import { LinkGroupsModal } from "./workspace/LinkGroupsModal";
 import { SymbolTargetModal } from "./workspace/SymbolTargetModal";
 import { WatchlistPanel } from "./workspace/WatchlistPanel";
+import { SymbolProfilePanel } from "./workspace/SymbolProfilePanel";
+import type { SymbolProfile } from "./workspace/SymbolProfile.interface";
+import { useSymbolProfileSplit } from "./workspace/useSymbolProfileSplit";
 import { useSidePanel } from "./candlestick/hooks/useSidePanel";
 import { useScriptingState } from "./candlestick/hooks/useScriptingState";
 import { ChartSidePanel } from "./candlestick/components/ChartSidePanel";
@@ -181,6 +184,15 @@ export interface ChartWorkspaceProps {
   watchlistEarnings?: WatchlistEarningsRow[];
   watchlistDividends?: WatchlistDividendRow[];
   watchlistNews?: WatchlistNewsItem[];
+  /** Name/exchange/performance/seasonality for whichever symbols the caller wants covered — same
+   *  "caller owns the data, this never fetches or infers any of it" stance as `watchlistEarnings`
+   *  etc. above. The side panel's own "company info" section (below the watchlist/alerts, see
+   *  `SymbolProfilePanel`) looks up whichever entry's `ticker` matches the currently-focused
+   *  panel's own symbol; the section itself only appears once `hasWatchlists || hasAlerts` is
+   *  already true (it rides on that same docked panel, not a separate one of its own) and the
+   *  focused panel actually resolves to a symbol. Missing a `SymbolProfile` for the current symbol
+   *  entirely still shows a bare price/change readout — see that component's own doc. */
+  symbolProfiles?: SymbolProfile[];
   /** Content for the docked panel's own "Alertes" tab, alongside `watchlists` — same "structure
    *  only, caller owns the content" shape. Omit entirely to skip the tab — its own rail icon only
    *  appears once this is set. */
@@ -243,6 +255,7 @@ export function ChartWorkspace({
   watchlistEarnings,
   watchlistDividends,
   watchlistNews,
+  symbolProfiles,
   alerts,
   defaultSidePanelOpen,
   onSidePanelOpenChange,
@@ -275,6 +288,7 @@ export function ChartWorkspace({
     return i === -1 ? null : i;
   }
   const sidePanelState = useSidePanel({ defaultSidePanelOpen, onSidePanelOpenChange });
+  const symbolProfileSplit = useSymbolProfileSplit();
   // Whole-workspace fullscreen (the rail's own "Plein écran de l'espace de travail" button below,
   // item 3) — a plain, uncontrolled `useFullscreen()` like a standalone CandlestickChart's own,
   // just applied to the outer `.lq-chart-workspace` row instead of one panel. Distinct from
@@ -501,6 +515,26 @@ export function ChartWorkspace({
     const symbol = resolvedSymbol(i, panelElements[i]);
     return { index: i, label: symbol ? `Panneau ${i + 1} (${symbol})` : `Panneau ${i + 1}` };
   });
+  // "Which symbol is currently being studied" for the side panel's own company-info section below
+  // (see SymbolProfilePanel) — the focused panel if one is, else the first ("primary") one,
+  // matching how a single-chart TradingView-style workspace already treats "the" chart when
+  // nothing's explicitly focused.
+  const symbolProfilePanelIndex = effectiveFocusedPanelIndex ?? 0;
+  const symbolProfileChild = panelElements[symbolProfilePanelIndex] as ReactElement<CandlestickChartProps> | undefined;
+  const currentProfileSymbol = symbolProfileChild ? resolvedSymbol(symbolProfilePanelIndex, symbolProfileChild) : undefined;
+  // Price/change derived directly from that panel's own OHLCV data (the last two candles) rather
+  // than carried on SymbolProfile itself — the same single source of truth the chart's own header
+  // already reads, so the two can never show a different number for the same symbol.
+  const profileData = symbolProfileChild?.props.data;
+  const profileLastCandle = profileData && profileData.length > 0 ? profileData[profileData.length - 1] : undefined;
+  const profilePrevCandle = profileData && profileData.length > 1 ? profileData[profileData.length - 2] : undefined;
+  const currentProfilePrice = profileLastCandle?.close ?? null;
+  const currentProfileChange = profileLastCandle && profilePrevCandle ? profileLastCandle.close - profilePrevCandle.close : null;
+  const currentProfileChangePercent =
+    profileLastCandle && profilePrevCandle && profilePrevCandle.close !== 0
+      ? ((profileLastCandle.close - profilePrevCandle.close) / profilePrevCandle.close) * 100
+      : null;
+  const currentSymbolProfile = symbolProfiles?.find((p) => p.ticker === currentProfileSymbol);
   const columns = GRID_COLUMNS[panels];
   const rows = GRID_ROWS[panels];
   // Fills 100% of the viewport height whenever the caller hasn't opted into a fixed `panelHeight`
@@ -652,41 +686,74 @@ export function ChartWorkspace({
 
       {(hasWatchlists || hasAlerts) && sidePanelState.open && (
         <ChartSidePanel panelRef={sidePanelState.panelRef} widthPx={sidePanelState.widthPx} startResize={sidePanelState.startResize}>
-          {activeTab === "watchlist" && hasWatchlists ? (
-            <WatchlistPanel
-              watchlists={watchlists!}
-              activeWatchlistId={activeWatchlistId}
-              onSelectWatchlist={selectWatchlist}
-              visibleColumnIds={visibleColumnIds}
-              onVisibleColumnIdsChange={changeVisibleColumns}
-              onRowClick={handleWatchlistRowClick}
-              symbolSearchResults={watchlistSymbolSearchResults}
-              onSymbolSearchChange={onWatchlistSymbolSearchChange}
-              onAddSymbol={onAddWatchlistSymbol}
-              onCreateWatchlist={onCreateWatchlist}
-              onCreateSection={onCreateWatchlistSection}
-              onRemoveRow={onRemoveWatchlistSymbol}
-              onMoveRow={onMoveWatchlistRow}
-              onRemoveSection={onRemoveWatchlistSection}
-              onReorderSections={onReorderWatchlistSections}
-              earnings={watchlistEarnings}
-              dividends={watchlistDividends}
-              news={watchlistNews}
-            />
-          ) : (
-            <>
-              {/* A minimal header of its own just for the tab's own title — unlike a single
-                  CandlestickChart, the workspace has no shared header of its own to host this in
-                  (each panel has its own independent one instead), so the panel carries it
-                  directly. Open/close/switch itself lives in the rail below instead of a button
-                  here. WatchlistPanel above renders this same header slot itself (it needs its
-                  own name+caret dropdown plus the +/… actions there, not just a plain title). */}
-              <div className="lq-chart-workspace__side-panel-header">
-                <span className="lq-chart-workspace__side-panel-title">Alertes</span>
+          {(() => {
+            const topContent =
+              activeTab === "watchlist" && hasWatchlists ? (
+                <WatchlistPanel
+                  watchlists={watchlists!}
+                  activeWatchlistId={activeWatchlistId}
+                  onSelectWatchlist={selectWatchlist}
+                  visibleColumnIds={visibleColumnIds}
+                  onVisibleColumnIdsChange={changeVisibleColumns}
+                  onRowClick={handleWatchlistRowClick}
+                  symbolSearchResults={watchlistSymbolSearchResults}
+                  onSymbolSearchChange={onWatchlistSymbolSearchChange}
+                  onAddSymbol={onAddWatchlistSymbol}
+                  onCreateWatchlist={onCreateWatchlist}
+                  onCreateSection={onCreateWatchlistSection}
+                  onRemoveRow={onRemoveWatchlistSymbol}
+                  onMoveRow={onMoveWatchlistRow}
+                  onRemoveSection={onRemoveWatchlistSection}
+                  onReorderSections={onReorderWatchlistSections}
+                  earnings={watchlistEarnings}
+                  dividends={watchlistDividends}
+                  news={watchlistNews}
+                />
+              ) : (
+                <>
+                  {/* A minimal header of its own just for the tab's own title — unlike a single
+                      CandlestickChart, the workspace has no shared header of its own to host this
+                      in (each panel has its own independent one instead), so the panel carries it
+                      directly. Open/close/switch itself lives in the rail below instead of a
+                      button here. WatchlistPanel above renders this same header slot itself (it
+                      needs its own name+caret dropdown plus the +/… actions there, not just a
+                      plain title). */}
+                  <div className="lq-chart-workspace__side-panel-header">
+                    <span className="lq-chart-workspace__side-panel-title">Alertes</span>
+                  </div>
+                  {alerts}
+                </>
+              );
+            // Split vertically whenever there's an actual symbol to show company info for — the
+            // content above, unchanged, on top; SymbolProfilePanel below; a drag handle between
+            // the two (see useSymbolProfileSplit's own doc). Falls back to the plain unsplit
+            // layout when there's no resolvable symbol at all (e.g. every panel's own `symbol` is
+            // unset) — a bottom half with nothing to show isn't worth the divider.
+            if (!currentProfileSymbol) return topContent;
+            return (
+              <div className="lq-chart-workspace__side-split">
+                <div className="lq-chart-workspace__side-split-top">{topContent}</div>
+                <div className="lq-chart-workspace__side-split-handle" onPointerDown={symbolProfileSplit.startResize} aria-hidden="true">
+                  <span className="lq-chart__pane-resize-grip" aria-hidden="true" />
+                </div>
+                <div
+                  ref={symbolProfileSplit.panelRef}
+                  className="lq-chart-workspace__side-split-bottom"
+                  style={{
+                    flexBasis: symbolProfileSplit.heightPx !== null ? `${symbolProfileSplit.heightPx}px` : symbolProfileSplit.defaultHeightFraction,
+                  }}
+                >
+                  <SymbolProfilePanel
+                    symbol={currentProfileSymbol}
+                    price={currentProfilePrice}
+                    change={currentProfileChange}
+                    changePercent={currentProfileChangePercent}
+                    profile={currentSymbolProfile}
+                  />
+                </div>
               </div>
-              {alerts}
-            </>
-          )}
+            );
+          })()}
         </ChartSidePanel>
       )}
 

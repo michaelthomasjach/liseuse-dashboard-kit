@@ -125,6 +125,49 @@
    hardcoded height — see that rule's own doc for why it's a plain magic number rather than a
    shared token) rather than sized from its own vertical padding, so this row lines up exactly
    with a panel's own topbar alongside it instead of reading a few px lower. */
+/* The side panel's own top/bottom split — watchlist/alerts above, SymbolProfilePanel ("company
+   info" for whichever symbol is currently focused) below, a drag handle between the two (see
+   useSymbolProfileSplit's own doc). `min-height: 0` is load-bearing, not decorative: without it a
+   flex column's own children default to their *content's* height as a floor, which would let the
+   top half's own (potentially long) watchlist push the bottom pane down off-screen instead of the
+   two sharing this container's fixed height and each scrolling internally. */
+.lq-chart-workspace__side-split {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.lq-chart-workspace__side-split-top {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* Same "you can drag this" two-bar affordance as .lq-chart__pane-resize-grip (reused verbatim,
+   see its own doc) — a plain flex item here rather than that rule's own absolutely-positioned
+   host, since this divider already sits exactly where it needs to in normal flex flow, with
+   nothing underneath it to straddle. */
+.lq-chart-workspace__side-split-handle {
+  flex: 0 0 auto;
+  position: relative;
+  height: 8px;
+  margin: 0 calc(-1 * var(--lq-space-3));
+  cursor: ns-resize;
+  touch-action: none;
+}
+
+.lq-chart-workspace__side-split-handle:hover .lq-chart__pane-resize-grip {
+  opacity: 1;
+}
+
+.lq-chart-workspace__side-split-bottom {
+  flex: 0 0 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding-top: var(--lq-space-2);
+}
+
 .lq-chart-workspace__side-panel-header {
   display: flex;
   align-items: center;
@@ -754,4 +797,115 @@
   flex-wrap: wrap;
   justify-content: center;
   gap: calc(var(--lq-space-6) * 2);
+}
+
+/* SymbolProfilePanel — the side panel's own "company info" section (see
+   .lq-chart-workspace__side-split-bottom's own doc for where this sits). */
+.lq-chart-workspace__symbol-profile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lq-space-3);
+}
+
+.lq-chart-workspace__symbol-profile-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--lq-space-2);
+}
+
+.lq-chart-workspace__symbol-profile-name {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.lq-chart-workspace__symbol-profile-ticker {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--lq-color-text);
+}
+
+.lq-chart-workspace__symbol-profile-subtitle {
+  overflow: hidden;
+  font-size: 0.72rem;
+  color: var(--lq-color-text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lq-chart-workspace__symbol-profile-status {
+  flex-shrink: 0;
+  padding: 2px 6px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--lq-color-text-muted);
+  white-space: nowrap;
+  background-color: var(--lq-color-hover);
+  border-radius: var(--lq-radius-sm);
+}
+
+.lq-chart-workspace__symbol-profile-price-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--lq-space-2);
+}
+
+.lq-chart-workspace__symbol-profile-price {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--lq-color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.lq-chart-workspace__symbol-profile-change {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-chart-workspace__symbol-profile-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lq-space-2);
+}
+
+.lq-chart-workspace__symbol-profile-section-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-chart-workspace__symbol-profile-performance-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--lq-space-2);
+}
+
+.lq-chart-workspace__symbol-profile-performance-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--lq-space-2);
+  background-color: var(--lq-color-hover);
+  border-radius: var(--lq-radius-sm);
+}
+
+.lq-chart-workspace__symbol-profile-performance-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-chart-workspace__symbol-profile-seasonality {
+  width: 100%;
+  height: 48px;
 }

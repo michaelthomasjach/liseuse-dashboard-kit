@@ -43,6 +43,9 @@ export type { TreeViewProps, TreeNode, TreeDropPosition } from "./TreeView";
 export { ExpandableCard } from "./ExpandableCard";
 export type { ExpandableCardProps } from "./ExpandableCard";
 
+export { Highlight } from "./Highlight";
+export type { HighlightProps } from "./Highlight";
+
 export { TabbedCard } from "./TabbedCard";
 export type { TabbedCardProps, TabbedCardTab } from "./TabbedCard";
 
@@ -57,3 +60,6 @@ export type { HeadingProps } from "./Heading";
 
 export { Text } from "./Text";
 export type { TextProps } from "./Text";
+
+export { LegendRow } from "./LegendRow";
+export type { LegendRowProps } from "./LegendRow";

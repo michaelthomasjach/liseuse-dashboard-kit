@@ -28,6 +28,17 @@ export const TypeScale: Story = {
       </section>
 
       <section>
+        <span style={{ fontSize: 12, fontWeight: 700, opacity: 0.5, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+          En-tête de section — Heading (meta + divider)
+        </span>
+        <div style={{ marginTop: 12 }}>
+          <Heading level={3} meta="Settled · 29.08.2026" divider>
+            Positions
+          </Heading>
+        </div>
+      </section>
+
+      <section>
         <Text size="xs" muted weight="bold">
           Texte — Text (tailles)
         </Text>

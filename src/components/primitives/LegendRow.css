@@ -1,0 +1,33 @@
+.lq-legend-row {
+  display: flex;
+  align-items: center;
+  gap: var(--lq-space-3);
+  padding: var(--lq-space-3) 0;
+  border-bottom: 1px solid var(--lq-color-border-subtle);
+}
+
+.lq-legend-row:last-child {
+  border-bottom: none;
+}
+
+.lq-legend-row__swatch {
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+.lq-legend-row__label {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--lq-color-text);
+}
+
+.lq-legend-row__value {
+  flex-shrink: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--lq-color-text);
+}

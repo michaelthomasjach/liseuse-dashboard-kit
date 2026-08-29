@@ -33,3 +33,24 @@
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
+
+.lq-heading-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--lq-space-3);
+}
+
+.lq-heading-row--divider {
+  padding-bottom: var(--lq-space-3);
+  border-bottom: 2px solid var(--lq-color-border);
+}
+
+.lq-heading-row__meta {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--lq-color-text-muted);
+}

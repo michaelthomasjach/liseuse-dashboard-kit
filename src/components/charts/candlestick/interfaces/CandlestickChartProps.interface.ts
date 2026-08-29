@@ -267,35 +267,19 @@ export interface CandlestickChartProps {
    *  Default true (open). */
   defaultSidePanelOpen?: boolean;
   onSidePanelOpenChange?: (open: boolean) => void;
-  /** Shows a header button ("</>") that opens the script editor — a Pine-Script-like in-app
-   *  JavaScript engine for custom indicators/signals/alerts (see `ScriptEditorPanel`). Default
-   *  false, same convention as `showIndicators`/`drawingTools`. */
-  scripting?: boolean;
-  /** Uncontrolled initial set of scripts, same pattern as `defaultIndicators`/`defaultDrawings`.
-   *  Ignored when `scripts` below is set. */
-  defaultScripts?: ScriptDef[];
-  /** Controls the script list itself from outside instead of this chart managing its own — pairs
-   *  with `onScriptsChange`, same controlled/uncontrolled split `scriptEditorOpen` below uses.
-   *  `ChartWorkspace` sets this so one shared script list (and one shared editor) can span every
-   *  panel, each panel only ever running the subset of it that targets that panel (see
-   *  `ScriptDef.targetPanelIndex`'s own doc); a standalone chart has no reason to and keeps its own
-   *  internal list via `defaultScripts` instead. When set, this chart's own script-editor header
-   *  button is hidden too — editing happens wherever the *true* owner of the list puts its own
-   *  editor UI (e.g. `ChartWorkspace`'s own rail button). */
+  /** Scripts this chart runs — always supplied from outside (this chart never owns its own script
+   *  list, never shows a script editor, and has no header button for one). `ChartWorkspace` is the
+   *  only real source of these: it owns one shared script list and one shared editor for the whole
+   *  workspace, and routes each panel only the subset of it that targets that panel (see
+   *  `ScriptDef.targetPanelIndex`'s own doc) — see its own `scripting`/`defaultScripts` props.
+   *  Scripting is deliberately not a standalone-`CandlestickChart` feature at all: omit this
+   *  (the common case outside a workspace) for a chart that simply never runs any script. */
   scripts?: ScriptDef[];
-  /** Fires whenever a script is added, edited, removed, or its enabled state toggled — the
-   *  uncontrolled case's own "here's the new state" report, or the controlled case's own "here's
-   *  what the caller should set `scripts` to next" request (same contract `onFullscreenChange`
-   *  already has for `isFullscreen`). */
+  /** Reports a script's own `enabled`/other field changes back (e.g. toggling one off from this
+   *  chart's own "Mes scripts" indicator-picker row) — required alongside `scripts` for those
+   *  changes to actually take effect, since this chart never manages the list itself; `ChartWorkspace`
+   *  splices the change back into its own shared list. */
   onScriptsChange?: (scripts: ScriptDef[]) => void;
-  /** Controls the script editor's own open/closed state from outside instead of it managing its
-   *  own internal state — pairs with `onScriptEditorOpenChange` below, same
-   *  controlled/uncontrolled split `isFullscreen`/`onFullscreenChange` already use. `ChartWorkspace`
-   *  sets both so its own workspace-level "</>" rail button can open one specific panel's editor
-   *  from outside that panel; a standalone chart has no reason to and keeps its own internal state
-   *  instead. */
-  scriptEditorOpen?: boolean;
-  onScriptEditorOpenChange?: (open: boolean) => void;
   /** Fires for every `alert(message)` call a running script makes — this library only ever
    *  produces the event (see `ScriptAlertEvent`'s own doc); how it actually reaches the user
    *  (toast, sound, the app's own notification system) is entirely up to this callback. */

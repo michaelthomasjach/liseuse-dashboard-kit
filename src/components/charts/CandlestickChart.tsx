@@ -26,7 +26,7 @@ import { useCorrelationSetup } from "./candlestick/hooks/useCorrelationSetup";
 import { useRenderCandlestickChart } from "./candlestick/hooks/useRenderCandlestickChart";
 import { useSidePanel } from "./candlestick/hooks/useSidePanel";
 import { useChartScripting } from "./candlestick/hooks/useChartScripting";
-import { ScriptingLayer } from "./candlestick/scripting/components/ScriptingLayer";
+import { ScriptRunnerHost } from "./candlestick/scripting/components/ScriptRunnerHost";
 import { ChartHeader } from "./candlestick/components/ChartHeader";
 import { ChartSidePanel } from "./candlestick/components/ChartSidePanel";
 import { ToolsRail } from "./candlestick/components/ToolsRail";
@@ -129,7 +129,7 @@ export function CandlestickChart({
   onLinkClick,
   fillHeight = false,
   sidePanel, defaultSidePanelOpen, onSidePanelOpenChange,
-  scripting = false, defaultScripts, scripts, onScriptsChange, scriptEditorOpen, onScriptEditorOpenChange, onScriptAlert, lastCandleOpen = false,
+  scripts, onScriptsChange, onScriptAlert, lastCandleOpen = false,
   margin,
   className,
 }: CandlestickChartProps) {
@@ -247,10 +247,8 @@ export function CandlestickChart({
     height: isFullscreen || fillHeight ? undefined : height,
   });
 
-  const { scriptingState, scriptChartIndicators, isScriptsControlled } = useChartScripting({
-    defaultScripts, onScriptsChange, scripts, scriptEditorOpen, onScriptEditorOpenChange,
-  });
-  const showHeader = fullscreenToggle || zoomable || !!timeframes?.length || showIndicators || (scripting && !isScriptsControlled);
+  const { scriptingState, scriptChartIndicators } = useChartScripting({ scripts, onScriptsChange });
+  const showHeader = fullscreenToggle || zoomable || !!timeframes?.length || showIndicators;
   const headerSpace = showHeader ? HEADER_HEIGHT : 0;
   const plotHeight = Math.max(0, dims.height - headerSpace);
   const plotBoundedHeight = Math.max(0, plotHeight - dims.margin.top - dims.margin.bottom);
@@ -672,8 +670,6 @@ export function CandlestickChart({
           linkable={linkable}
           isLinked={isLinked}
           onLinkClick={onLinkClick}
-          scripting={scripting && !isScriptsControlled}
-          onOpenScriptEditor={() => scriptingState.setEditorOpen(true)}
         />
       )}
 
@@ -906,9 +902,10 @@ export function CandlestickChart({
         />
       )}
 
-      <ScriptingLayer
-        scripting={scriptingState} data={data} indicators={indicators} fundamentals={fundamentals} showEditor={!isScriptsControlled}
-        lastCandleOpen={lastCandleOpen} availableTimeframes={flattenTimeframeValues(timeframes)} onScriptAlert={onScriptAlert}
+      <ScriptRunnerHost
+        scripts={scriptingState.scripts} data={data} indicators={indicators} fundamentals={fundamentals}
+        lastCandleOpen={lastCandleOpen} availableTimeframes={flattenTimeframeValues(timeframes)}
+        onOutput={scriptingState.reportRunOutput} onAlert={onScriptAlert}
       />
 
       <ChartModals

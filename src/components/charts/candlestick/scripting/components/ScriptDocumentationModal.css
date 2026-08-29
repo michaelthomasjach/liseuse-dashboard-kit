@@ -16,13 +16,23 @@
   padding-right: var(--lq-space-3);
 }
 
+/* A <button>, not an <a> (see ScriptDocumentationModal.tsx's own doc on why) — the reset
+   properties below undo the browser's own default button chrome rather than being purely
+   cosmetic. */
 .lq-script-docs__nav-item {
   padding: var(--lq-space-1) var(--lq-space-2);
+  font: inherit;
   font-size: var(--lq-text-sm);
   color: var(--lq-color-text-muted);
   text-decoration: none;
+  text-align: left;
+  background: none;
   border-radius: var(--lq-radius-sm);
   border-left: 2px solid transparent;
+  border-top: none;
+  border-right: none;
+  border-bottom: none;
+  cursor: pointer;
 }
 
 .lq-script-docs__nav-item:hover {

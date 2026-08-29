@@ -50,20 +50,32 @@ export function ScriptDocumentationModal({ open, onClose }: ScriptDocumentationM
     return () => content.removeEventListener("scroll", onScroll);
   }, [open]);
 
+  // A plain `<a href="#...">` here would trigger the browser's own real hash-navigation on the
+  // *whole document* — inside Storybook's own iframe (or any host app with its own router), that
+  // reads as this modal randomly redirecting instead of just scrolling to the section, and even
+  // without that it'd scroll the whole page rather than just this modal's own content pane.
+  // Scrolling the target into view directly, scoped to whichever scrollable ancestor actually
+  // contains it (`.lq-script-docs__content` here), avoids touching the URL at all.
+  function scrollToSection(id: string) {
+    setActiveId(id);
+    document.getElementById(`lq-script-docs-${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   return (
     <Modal open={open} onClose={onClose} title="Documentation de l'éditeur de script" size="fullscreen" footer={null}>
       <div className="lq-script-docs">
         <nav className="lq-script-docs__nav">
           {SCRIPT_API_REFERENCE.map((section) => (
-            <a
+            <button
               key={section.id}
-              href={`#lq-script-docs-${section.id}`}
+              type="button"
+              onClick={() => scrollToSection(section.id)}
               className={["lq-script-docs__nav-item", section.id === activeId && "lq-script-docs__nav-item--active"]
                 .filter(Boolean)
                 .join(" ")}
             >
               {section.title}
-            </a>
+            </button>
           ))}
         </nav>
         <div className="lq-script-docs__content" ref={contentRef}>

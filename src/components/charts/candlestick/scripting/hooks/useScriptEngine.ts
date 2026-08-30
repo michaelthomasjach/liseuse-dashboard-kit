@@ -4,6 +4,7 @@ import type { Indicator } from "../../interfaces/Indicator.interface";
 import type { FundamentalDataPoint } from "../../interfaces/FundamentalDataPoint.interface";
 import type { CustomIndicatorDef } from "../../interfaces/CustomIndicatorDef.interface";
 import type { TrendLineDrawing } from "../../interfaces/TrendLineDrawing.interface";
+import type { ScriptTableOutput } from "../interfaces/ScriptRunResult.interface";
 import type { ScriptEngineSnapshot } from "../interfaces/ScriptEngineSnapshot.interface";
 import type { ScriptRunResult } from "../interfaces/ScriptRunResult.interface";
 import { computeIndicatorValues } from "../../indicators";
@@ -85,6 +86,7 @@ export function useScriptEngine(
   const [running, setRunning] = useState(false);
   const [scriptIndicators, setScriptIndicators] = useState<CustomIndicatorDef[]>([]);
   const [scriptDrawings, setScriptDrawings] = useState<TrendLineDrawing[]>([]);
+  const [scriptTable, setScriptTable] = useState<ScriptTableOutput | null>(null);
   const workerRef = useRef<Worker | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -97,6 +99,7 @@ export function useScriptEngine(
     setResult(runResult);
     setScriptIndicators((prev) => upsertScriptCustomIndicators(prev, scriptId, runResult.plots));
     setScriptDrawings((prev) => upsertScriptDrawings(prev, scriptId, runResult.drawings));
+    setScriptTable(runResult.table);
   }
 
   function clearPendingTimeout() {
@@ -170,7 +173,7 @@ export function useScriptEngine(
     worker.onerror = (e: ErrorEvent) => {
       clearPendingTimeout();
       replaceWorker();
-      setResult({ error: { message: e.message || "Erreur inattendue du script." }, logs: [], plots: [], drawings: [], alerts: [] });
+      setResult({ error: { message: e.message || "Erreur inattendue du script." }, logs: [], plots: [], drawings: [], table: null, alerts: [] });
       setRunning(false);
     };
 
@@ -181,6 +184,7 @@ export function useScriptEngine(
         logs: [],
         plots: [],
         drawings: [],
+        table: null,
         alerts: [],
       });
       setRunning(false);
@@ -217,5 +221,5 @@ export function useScriptEngine(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data]);
 
-  return { result, running, scriptIndicators, scriptDrawings, run, stop };
+  return { result, running, scriptIndicators, scriptDrawings, scriptTable, run, stop };
 }

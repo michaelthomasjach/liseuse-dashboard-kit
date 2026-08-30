@@ -182,7 +182,11 @@
   word-break: break-word;
 }
 
+/* position: relative so ScriptTableOverlay (a plain sibling of the CandlestickChart mounted here,
+   see ScriptInteractiveTutorial.tsx's own doc) anchors its own absolutely-positioned corners to
+   this box instead of the nearest other positioned ancestor up the tree. */
 .lq-script-tutorial__preview {
+  position: relative;
   border: 1px solid var(--lq-color-border-subtle);
 }
 

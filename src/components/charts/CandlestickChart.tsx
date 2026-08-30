@@ -33,6 +33,7 @@ import { ToolsRail } from "./candlestick/components/ToolsRail";
 import { ChartLegend } from "./candlestick/components/ChartLegend";
 import { PaneHeaders } from "./candlestick/components/PaneHeaders";
 import { ChartPlotOverlays } from "./candlestick/components/ChartPlotOverlays";
+import { ScriptTableOverlay } from "./candlestick/components/ScriptTableOverlay";
 import { FloatingDrawingToolbar } from "./candlestick/components/FloatingDrawingToolbar";
 import { ChartModals } from "./candlestick/components/ChartModals";
 import { ChartEventTooltip } from "./EventTooltip";
@@ -761,6 +762,7 @@ export function CandlestickChart({
             removeSymbolOverlay={removeSymbolOverlay} onOpenIndicatorInfo={setInfoKind}
           />
         )}
+        {priceHeight > 0 && scriptingState.scriptTables.length > 0 && <ScriptTableOverlay tables={scriptingState.scriptTables} />}
         <PaneHeaders
           volumeVisible={volumeVisible}
           dims={dims}

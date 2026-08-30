@@ -72,7 +72,11 @@ export function ScriptDocumentationModal({ open, onClose }: ScriptDocumentationM
               key={section.id}
               type="button"
               onClick={() => scrollToSection(section.id)}
-              className={["lq-script-docs__nav-item", section.id === activeId && "lq-script-docs__nav-item--active"]
+              className={[
+                "lq-script-docs__nav-item",
+                section.id === "tutorial" && "lq-script-docs__nav-item--tutorial",
+                section.id === activeId && "lq-script-docs__nav-item--active",
+              ]
                 .filter(Boolean)
                 .join(" ")}
             >

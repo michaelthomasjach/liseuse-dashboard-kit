@@ -1,4 +1,16 @@
-import type { ScriptDrawingOutput, ScriptPlotSeries } from "../interfaces/ScriptRunResult.interface";
+import type { ScriptDrawingOutput, ScriptPlotSeries, ScriptTableOutput, ScriptTableRow } from "../interfaces/ScriptRunResult.interface";
+
+/** Hard caps on `plot.table()`'s own output — the one `plot.*` call whose size a script directly
+ *  controls (an accidental `rows` from an unbounded loop, or a giant string in a cell) rather than
+ *  it being naturally bounded by the replay length the way `plots`/`drawings` already are. Silent
+ *  truncation (not a thrown error) matches every other size limit this engine already has
+ *  (`market.series()`'s own `maxSeriesLength`) — a script that exceeds one still runs. */
+const MAX_TABLE_ROWS = 50;
+const MAX_TABLE_CELL_LENGTH = 200;
+
+function truncateCell(value: string): string {
+  return value.length > MAX_TABLE_CELL_LENGTH ? `${value.slice(0, MAX_TABLE_CELL_LENGTH - 1)}…` : value;
+}
 
 export interface PlotSeriesOptions {
   color?: string;
@@ -33,6 +45,12 @@ export interface PlotApi {
   point(value: number, options?: { color?: string; shape?: string; text?: string }): void;
   horizontal(price: number, options?: { color?: string }): void;
   vertical(options?: { color?: string }): void;
+  /** A table overlay anchored to a corner of the price pane — neither a continuous series nor a
+   *  per-bar marker, see `ScriptTableOutput`'s own doc: only the *most recent* call's own table is
+   *  ever kept, so call this unconditionally every bar (like `plot.overlay`) rather than gating it
+   *  behind `bar.isNew()`. `rows`/each cell string are silently truncated past this engine's own
+   *  size limits rather than rejected. */
+  table(rows: ScriptTableRow[], options?: { title?: string; columns?: string[]; position?: ScriptTableOutput["position"] }): void;
 }
 
 /** `plot.*`, closed over the current bar's own date/close (via the same kind of callback
@@ -42,9 +60,13 @@ export interface PlotApi {
  *  into `plotsByName` so repeated calls with the same `name` extend one continuous series rather
  *  than starting a new one each time; a discrete marker (`signal`/`point`/`horizontal`/
  *  `vertical`) just appends to `drawings`, one entry per call. */
-export function buildPlotApi(getCurrentDate: () => number, getCurrentClose: () => number | null): { api: PlotApi; getResult: () => { plots: ScriptPlotSeries[]; drawings: ScriptDrawingOutput[] } } {
+export function buildPlotApi(
+  getCurrentDate: () => number,
+  getCurrentClose: () => number | null
+): { api: PlotApi; getResult: () => { plots: ScriptPlotSeries[]; drawings: ScriptDrawingOutput[]; table: ScriptTableOutput | null } } {
   const plotsByName = new Map<string, ScriptPlotSeries>();
   const drawings: ScriptDrawingOutput[] = [];
+  let table: ScriptTableOutput | null = null;
 
   function upsertSeries(name: string, value: number, draw: ScriptPlotSeries["draw"], pane: ScriptPlotSeries["pane"], color: string | undefined) {
     let series = plotsByName.get(name);
@@ -82,7 +104,15 @@ export function buildPlotApi(getCurrentDate: () => number, getCurrentClose: () =
     vertical: (options) => {
       drawings.push({ kind: "vertical", date: getCurrentDate(), color: options?.color });
     },
+    table: (rows, options) => {
+      table = {
+        title: options?.title,
+        columns: options?.columns,
+        position: options?.position,
+        rows: rows.slice(0, MAX_TABLE_ROWS).map((row) => ({ cells: row.cells.map(truncateCell), color: row.color })),
+      };
+    },
   };
 
-  return { api, getResult: () => ({ plots: [...plotsByName.values()], drawings }) };
+  return { api, getResult: () => ({ plots: [...plotsByName.values()], drawings, table }) };
 }

@@ -1,6 +1,6 @@
 import type { CustomIndicatorDef } from "../../interfaces/CustomIndicatorDef.interface";
 import type { TrendLineDrawing } from "../../interfaces/TrendLineDrawing.interface";
-import type { ScriptRunResult } from "./ScriptRunResult.interface";
+import type { ScriptRunResult, ScriptTableOutput } from "./ScriptRunResult.interface";
 
 /** One active script's own latest contribution, as tracked by `useScriptingState` (keyed by
  *  script id) and reported by each `ScriptRunner` — already converted into the shapes the render
@@ -12,6 +12,7 @@ export interface ScriptRunOutput {
   running: boolean;
   indicators: CustomIndicatorDef[];
   drawings: TrendLineDrawing[];
+  table: ScriptTableOutput | null;
 }
 
-export const EMPTY_SCRIPT_RUN_OUTPUT: ScriptRunOutput = { result: null, running: false, indicators: [], drawings: [] };
+export const EMPTY_SCRIPT_RUN_OUTPUT: ScriptRunOutput = { result: null, running: false, indicators: [], drawings: [], table: null };

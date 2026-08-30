@@ -152,6 +152,52 @@ export function StateMemoryDiagram() {
   );
 }
 
+export function ResampleDiagram() {
+  const fineBars = [
+    { x: 14, top: 30, bottom: 55 },
+    { x: 34, top: 20, bottom: 50 },
+    { x: 54, top: 35, bottom: 65 },
+    { x: 74, top: 25, bottom: 60 },
+  ];
+  const groupTop = Math.min(...fineBars.map((b) => b.top));
+  const groupBottom = Math.max(...fineBars.map((b) => b.bottom));
+  return (
+    <InfoDiagram>
+      {fineBars.map((b, i) => (
+        <rect key={i} x={b.x - 5} y={b.top} width={10} height={b.bottom - b.top} rx={1} fill="var(--lq-color-text-muted)" opacity={0.7} />
+      ))}
+      <line x1={10} y1={78} x2={84} y2={78} stroke="var(--lq-color-text-muted)" strokeWidth={1} />
+      <DiagramLabel x={47} y={94} text="4 bougies de 15 min" color="var(--lq-color-text-muted)" anchor="middle" />
+      <line x1={92} y1={55} x2={128} y2={55} stroke="var(--lq-color-accent)" strokeWidth={1.5} markerEnd="url(#lq-resample-arrow)" />
+      <rect x={157} y={groupTop} width={16} height={groupBottom - groupTop} rx={2} fill="var(--lq-color-accent)" />
+      <DiagramLabel x={165} y={groupTop - 6} text="1 bougie de 1H" color="var(--lq-color-accent)" anchor="middle" />
+      <DiagramLabel x={165} y={94} text='market.resample("1h")' color="var(--lq-color-accent)" anchor="middle" />
+      <defs>
+        <marker id="lq-resample-arrow" markerWidth={6} markerHeight={6} refX={5} refY={3} orient="auto">
+          <path d="M0,0 L6,3 L0,6 Z" fill="var(--lq-color-accent)" />
+        </marker>
+      </defs>
+    </InfoDiagram>
+  );
+}
+
+export function PlotTableDiagram() {
+  return (
+    <InfoDiagram>
+      <g opacity={0.5}>
+        <SampleCandles dim />
+      </g>
+      <rect x={128} y={4} width={84} height={54} rx={3} fill="var(--lq-color-panel)" stroke="var(--lq-color-accent)" strokeWidth={1.2} />
+      <DiagramLabel x={134} y={16} text="RSI multi-TF" color="var(--lq-color-accent)" />
+      <line x1={128} y1={22} x2={212} y2={22} stroke="var(--lq-color-border)" strokeWidth={1} />
+      <DiagramLabel x={134} y={32} text="4H   61   BUY" color="var(--lq-color-up)" />
+      <DiagramLabel x={134} y={42} text="1H   48  WAIT" color="var(--lq-color-text-muted)" />
+      <DiagramLabel x={134} y={52} text="15m  33  SELL" color="var(--lq-color-down)" />
+      <DiagramLabel x={6} y={104} text="plot.table(rows, { title, columns })" color="var(--lq-color-accent)" />
+    </InfoDiagram>
+  );
+}
+
 export function BarIsNewDiagram() {
   return (
     <InfoDiagram>

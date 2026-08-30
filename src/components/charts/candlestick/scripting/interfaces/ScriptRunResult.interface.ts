@@ -51,6 +51,33 @@ export interface ScriptDrawingOutput {
   text?: string;
 }
 
+/** One row of a `plot.table(...)` output — `color`, when set, tints every cell's own text in that
+ *  row (a whole-row accent, e.g. green/red for a per-timeframe BUY/SELL read), not just one cell,
+ *  since there's no single "special" column position this engine can assume every script means to
+ *  highlight. */
+export interface ScriptTableRow {
+  cells: string[];
+  color?: string;
+}
+
+/** One `plot.table(...)` output — unlike `ScriptPlotSeries` (accumulates one point per bar) or
+ *  `ScriptDrawingOutput` (one entry per call, every call kept), a table is neither a continuous
+ *  series nor a growing list of markers: it represents "the current state as of the bar that
+ *  produced it" only, so `buildPlotApi.ts` keeps just the *most recent* call's own table rather
+ *  than accumulating one per bar (same "latest wins" semantics `state.*` already has, not
+ *  `plot.line`'s). A script that wants an always-current table simply calls `plot.table(...)`
+ *  unconditionally every bar, same as any other continuous `plot.*` call — there's no need to gate
+ *  it behind `bar.isNew()` the way a one-shot marker/alert would be. */
+export interface ScriptTableOutput {
+  title?: string;
+  /** Header row labels — shown as-is above `rows`, purely cosmetic (this engine never validates
+   *  that `columns.length` matches each row's own `cells.length`). */
+  columns?: string[];
+  rows: ScriptTableRow[];
+  /** Which corner of the price pane this table anchors to. Default `"topRight"`. */
+  position?: "topRight" | "topLeft" | "bottomRight" | "bottomLeft";
+}
+
 /** One `alert(message)` call, timestamped with whichever bar was current when the script made it
  *  — `date`/`barIndex` mirror `ScriptDrawingOutput`'s own conventions (epoch milliseconds, index
  *  into the same `ohlcv` the rest of this run's output is aligned to). Worker-side only; the host
@@ -75,5 +102,6 @@ export interface ScriptRunResult {
   logs: string[];
   plots: ScriptPlotSeries[];
   drawings: ScriptDrawingOutput[];
+  table: ScriptTableOutput | null;
   alerts: ScriptRunAlert[];
 }

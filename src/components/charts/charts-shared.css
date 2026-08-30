@@ -1300,6 +1300,99 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
+/* ScriptTableOverlay — a script's own `plot.table(...)` output (see that component's own doc for
+   why this is plain CSS corner positioning, not dims.margin-derived like .lq-chart__plot-topleft).
+   Absolute within whichever position:relative ancestor mounts it (CandlestickChart's own plot
+   wrapper for real usage, ScriptInteractiveTutorial's own preview wrapper for the tutorial) — a
+   fixed 8px inset from that ancestor's own edge, not the chart's internal margins. */
+.lq-chart__script-table-corner {
+  position: absolute;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  gap: var(--lq-space-2);
+  pointer-events: none;
+}
+
+/* top: 48px, not 8px — .lq-chart__header (the chart's own symbol/timeframe toolbar) is a fixed
+   40px tall and, at z-index: 1000, paints over anything positioned underneath it regardless of
+   this element's own z-index; 8px more clears it with the same breathing room the bottom corners
+   already get. */
+.lq-chart__script-table-corner--topLeft {
+  top: 48px;
+  left: 8px;
+}
+
+.lq-chart__script-table-corner--topRight {
+  top: 48px;
+  right: 8px;
+  align-items: flex-end;
+}
+
+.lq-chart__script-table-corner--bottomLeft {
+  bottom: 8px;
+  left: 8px;
+}
+
+.lq-chart__script-table-corner--bottomRight {
+  bottom: 8px;
+  right: 8px;
+  align-items: flex-end;
+}
+
+.lq-chart__script-table {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--lq-color-panel);
+  border: 1px solid var(--lq-color-border-subtle);
+  border-radius: var(--lq-radius-md);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  font-size: var(--lq-text-xs);
+  overflow: hidden;
+}
+
+.lq-chart__script-table-title {
+  padding: var(--lq-space-1) var(--lq-space-2);
+  font-weight: 700;
+  color: var(--lq-color-text);
+  border-bottom: 1px solid var(--lq-color-border-subtle);
+  white-space: nowrap;
+}
+
+/* display: table/table-row/table-cell rather than CSS grid — a script's own `columns`/`rows` can
+   have any number of cells, and a real table's own column-width-from-content behavior is exactly
+   what's needed here without computing a `grid-template-columns` per table. A plain sibling of
+   `.lq-chart__script-table-title` above (not that title as a `table-caption` child of this) — a
+   `table-caption` rendered outside a real `<table>`/`<caption>` element turned out unreliable
+   (confirmed empirically: reported the correct box via getComputedStyle, but painted nothing). */
+.lq-chart__script-table-grid {
+  display: table;
+  border-collapse: collapse;
+}
+
+.lq-chart__script-table-row {
+  display: table-row;
+  color: var(--lq-color-text);
+}
+
+.lq-chart__script-table-row--header {
+  color: var(--lq-color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.62rem;
+}
+
+.lq-chart__script-table-cell {
+  display: table-cell;
+  padding: 3px var(--lq-space-2);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.lq-chart__script-table-row:not(:last-child) .lq-chart__script-table-cell {
+  border-bottom: 1px solid var(--lq-color-border-subtle);
+}
+
 /* 6 dots (GripIcon) at reduced opacity until hovered/actively dragged — press-and-hold drags the
    whole toolbar (see startDrag), same "barely-there until you need it" affordance
    .lq-chart__pane-resize-grip already uses for pane dividers. */

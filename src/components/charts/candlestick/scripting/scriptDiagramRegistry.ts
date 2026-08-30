@@ -8,6 +8,8 @@ import {
   PlotSignalDiagram,
   StateMemoryDiagram,
   BarIsNewDiagram,
+  ResampleDiagram,
+  PlotTableDiagram,
 } from "./scriptingDiagrams";
 
 /** One explanatory diagram per `diagramKey` a `scriptApiReference.ts` block can reference — same
@@ -22,4 +24,6 @@ export const SCRIPT_DIAGRAM_REGISTRY: Record<string, ComponentType> = {
   plotSignal: PlotSignalDiagram,
   stateMemory: StateMemoryDiagram,
   barIsNew: BarIsNewDiagram,
+  resample: ResampleDiagram,
+  plotTable: PlotTableDiagram,
 };

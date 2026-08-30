@@ -51,6 +51,24 @@
   background-color: var(--lq-color-hover);
 }
 
+/* The tutorial's own nav entry — highlighted *permanently*, not only on hover/active like every
+   other item above, so it doesn't read as just one more line in a long reference list (exigence :
+   "je ne le veux pas perdu au milieu de la doc"). Combined with SCRIPT_API_REFERENCE listing
+   "tutorial" first (see scriptApiReference.ts), this is also what a reader sees the instant the
+   modal opens. --active still layers its own background/border-color on top while the tutorial
+   section is the one actually in view — the two aren't mutually exclusive. */
+.lq-script-docs__nav-item--tutorial {
+  color: var(--lq-color-accent);
+  font-weight: 700;
+  border-left-color: var(--lq-color-accent);
+  background-color: color-mix(in srgb, var(--lq-color-accent) 10%, transparent);
+}
+
+.lq-script-docs__nav-item--tutorial:hover {
+  color: var(--lq-color-accent);
+  background-color: color-mix(in srgb, var(--lq-color-accent) 16%, transparent);
+}
+
 .lq-script-docs__content {
   flex: 1;
   min-width: 0;

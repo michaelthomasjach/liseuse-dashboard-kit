@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import type { ScriptDef } from "../interfaces/ScriptDef.interface";
 import type { ScriptRunOutput } from "../scripting/interfaces/ScriptRunOutput.interface";
+import type { ScriptTableOutput } from "../scripting/interfaces/ScriptRunResult.interface";
 
 export interface UseScriptingStateControlledEditorOpen {
   editorOpen: boolean;
@@ -125,6 +126,12 @@ export function useScriptingState({ defaultScripts, onScriptsChange, controlledE
   // concat here can never collide or duplicate across scripts.
   const scriptIndicators = useMemo(() => Object.values(runOutputs).flatMap((o) => o.indicators), [runOutputs]);
   const scriptDrawings = useMemo(() => Object.values(runOutputs).flatMap((o) => o.drawings), [runOutputs]);
+  // At most one table per active script (not a flatMap like the two above — plot.table's own
+  // "latest call wins" semantics mean each script contributes zero or one, never several).
+  const scriptTables = useMemo(
+    () => Object.values(runOutputs).reduce<ScriptTableOutput[]>((acc, o) => (o.table ? [...acc, o.table] : acc), []),
+    [runOutputs]
+  );
 
   return {
     scripts,
@@ -143,5 +150,6 @@ export function useScriptingState({ defaultScripts, onScriptsChange, controlledE
     reportRunOutput,
     scriptIndicators,
     scriptDrawings,
+    scriptTables,
   };
 }

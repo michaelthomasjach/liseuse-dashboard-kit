@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { CandlestickChart } from "../../../CandlestickChart";
+import { ScriptTableOverlay } from "../../components/ScriptTableOverlay";
 import { PlayIcon, PauseIcon, RefreshIcon, ChevronLeftIcon, ChevronRightIcon } from "../../../../icons";
 import { useScriptEngine } from "../hooks/useScriptEngine";
 import { scriptIndicatorToChartIndicator } from "../scriptIndicatorToChartIndicator";
@@ -26,16 +27,24 @@ const LazyScriptEditorCodeMirror = lazy(() =>
  *  cost of having to `key`-remount `<CandlestickChart>` on every successful run to push its own fresh
  *  `defaultIndicators`/`defaultDrawings` in (the only way to update an intentionally-uncontrolled prop
  *  from outside) — skipped on an *error* run so a typo never wipes the last good preview, mirroring
- *  `useScriptEngine`'s own "don't erase good output over a transient failure" stance. */
+ *  `useScriptEngine`'s own "don't erase good output over a transient failure" stance. `plot.table`
+ *  output (`engine.scriptTable`) doesn't have this problem at all — it was never a
+ *  `CandlestickChart` prop to begin with (only ever reachable via the real `scripts` pathway this
+ *  component already avoids), so `ScriptTableOverlay` is mounted directly here instead, a plain
+ *  sibling of the preview chart fed straight from the same engine instance. */
 export function ScriptInteractiveTutorial() {
   const [stepIndex, setStepIndex] = useState(0);
   const [draft, setDraft] = useState(SCRIPT_TUTORIAL_STEPS[0].code ?? "");
   const [runVersion, setRunVersion] = useState(0);
-  const engine = useScriptEngine("tutorial-preview", SCRIPT_TUTORIAL_DATA, [], undefined);
 
   const step = SCRIPT_TUTORIAL_STEPS[stepIndex];
   const isLastStep = stepIndex === SCRIPT_TUTORIAL_STEPS.length - 1;
   const Diagram = step.diagramKey ? SCRIPT_DIAGRAM_REGISTRY[step.diagramKey] : undefined;
+  // Most steps share the default daily-spaced dataset; the multi-timeframe steps override it with
+  // real intraday bars (see ScriptTutorialStep.data's own doc) so market.resample(...) has
+  // something meaningful to aggregate.
+  const stepData = step.data ?? SCRIPT_TUTORIAL_DATA;
+  const engine = useScriptEngine("tutorial-preview", stepData, [], undefined);
 
   // Loads the new step's own canonical code and runs it immediately — the reader sees the "expected"
   // result the instant they arrive on a step, before touching anything, exactly like clicking
@@ -158,13 +167,14 @@ export function ScriptInteractiveTutorial() {
           <div className="lq-script-tutorial__preview">
             <CandlestickChart
               key={runVersion}
-              data={SCRIPT_TUTORIAL_DATA}
+              data={stepData}
               defaultIndicators={chartIndicators}
               defaultDrawings={engine.scriptDrawings}
               height={320}
               zoomable
               symbol="Démo"
             />
+            {engine.scriptTable && <ScriptTableOverlay tables={[engine.scriptTable]} />}
           </div>
         </div>
       )}

@@ -44,6 +44,15 @@ function h(text: string): ScriptReferenceBlock {
 
 export const SCRIPT_API_REFERENCE: ScriptReferenceSection[] = [
   {
+    id: "tutorial",
+    title: "Tutoriel — créer un indicateur de A à Z",
+    blocks: [
+      t(
+        "Ce tutoriel construit deux indicateurs complets, de zéro — pas à pas, comme si quelqu'un l'expliquait à côté de vous. Chaque étape ci-dessous est directement éditable et exécutable : le code s'exécute automatiquement dès que vous arrivez sur une étape, contre un petit jeu de données de démonstration, et la chart juste à côté se met à jour en direct — modifiez-le, cliquez sur « Exécuter », observez le résultat, puis passez à l'étape suivante. Chaque fonction utilisée ici est réexpliquée en détail, avec son propre schéma, dans sa section dédiée plus bas — ce tutoriel est le fil conducteur, pas la référence exhaustive. Commencez ici : c'est la manière la plus rapide de comprendre comment tout s'articule."
+      ),
+    ],
+  },
+  {
     id: "overview",
     title: "Vue d'ensemble",
     blocks: [
@@ -89,15 +98,6 @@ export const SCRIPT_API_REFERENCE: ScriptReferenceSection[] = [
     ],
   },
   {
-    id: "tutorial",
-    title: "Tutoriel — créer un indicateur de A à Z",
-    blocks: [
-      t(
-        "Ce tutoriel construit un indicateur complet, de zéro, en une dizaine de lignes — pas à pas, comme si quelqu'un l'expliquait à côté de vous. Chaque étape ci-dessous est directement éditable et exécutable : le code s'exécute automatiquement dès que vous arrivez sur une étape, contre un petit jeu de données de démonstration, et la chart juste à côté se met à jour en direct — modifiez-le, cliquez sur « Exécuter », observez le résultat, puis passez à l'étape suivante. Chaque fonction utilisée ici est réexpliquée en détail, avec son propre schéma, dans sa section dédiée plus bas — ce tutoriel est le fil conducteur, pas la référence exhaustive."
-      ),
-    ],
-  },
-  {
     id: "market",
     title: "market.* — données de marché (OHLCV)",
     blocks: [
@@ -118,7 +118,25 @@ market.time(offset?)    // Date | null — horodatage de la bougie`
         `const closes = market.series("close", 20); // les 20 dernières clôtures
 const sma20 = math.sma(closes, 20);`
       ),
-      t("market.availableTimeframes() retourne la liste des intervalles proposés par la chart hôte (ex. [\"1m\",\"5m\",\"1h\",\"1d\"]) — à titre indicatif uniquement, un script ne peut pas lire les données d'un autre intervalle que celui actuellement affiché."),
+      t("market.availableTimeframes() retourne la liste des intervalles proposés par la chart hôte (ex. [\"1m\",\"5m\",\"1h\",\"1d\"]) — à titre indicatif uniquement, ne donne accès aux données d'aucun autre intervalle (voir market.resample ci-dessous pour ça)."),
+      h("market.resample(interval) — lire un autre timeframe"),
+      t(
+        "market.resample(interval) regroupe les bougies déjà affichées sur la chart (celles-là mêmes que market.* lit) en bougies plus larges — 15 minutes en 1 heure, 1 heure en 4 heures, etc. — et retourne un objet avec exactement les mêmes fonctions que market.* (open/high/low/close/volume/time/series), mais lues sur ce timeframe agrégé. Ce n'est pas une nouvelle source de données : cette bibliothèque n'en fournit jamais elle-même (voir availableTimeframes ci-dessus) — resample recalcule simplement des bougies plus larges à partir de celles déjà là, exactement comme changerait le sélecteur d'intervalle de la chart elle-même."
+      ),
+      d("resample"),
+      c(
+        `market.resample(interval) // "5m" | "15m" | "1h" | "4h" | "1d" | ... → objet market-like
+
+const h4 = market.resample("4h");
+h4.close(0);              // number | null — clôture de la bougie 4H courante
+h4.series("close", 60);   // number[] — 60 dernières clôtures 4H
+
+// Composable avec ta.*/math.* exactement comme market.* lui-même :
+const rsiH4 = ta.rsi(h4.series("close", 60), 14);`
+      ),
+      t(
+        "interval doit être plus large que le timeframe déjà affiché sur la chart (on ne peut pas fabriquer du 5 minutes à partir de bougies journalières) — un intervalle invalide ou trop fin retourne un objet dont toutes les méthodes renvoient null/[] plutôt que de lever une erreur, même convention que chart.indicator() sur un identifiant introuvable. Aucune fuite de données futures n'est possible ici non plus : les bougies agrégées ne sont jamais construites au-delà de la bougie courante."
+      ),
     ],
   },
   {
@@ -214,6 +232,29 @@ plot.vertical({ color? })                             // ligne verticale sur la 
       t(
         "Le texte hérite du même style que celui d'une ligne dessinée à la main (taille, position, couleur de fond…) — rien à configurer côté script, il utilise simplement les réglages par défaut de la bibliothèque."
       ),
+      h("plot.table — un tableau en overlay sur la chart"),
+      t(
+        "plot.table(rows, options?) affiche un petit tableau ancré dans un coin de la chart (« RSI sur cinq timeframes », un score détaillé…) — ni série continue ni marqueur ponctuel : contrairement à plot.line, seul le dernier appel compte (pas d'historique accumulé), donc appelez-le sans condition à chaque bougie plutôt que de le protéger avec bar.isNew() — la chart affichera toujours la version la plus récente."
+      ),
+      d("plotTable"),
+      c(
+        `plot.table(rows, options?)
+// rows: { cells: string[]; color?: string }[] — color teinte tout le texte de la ligne
+// options?: {
+//   title?: string;
+//   columns?: string[];                                       // en-tête, une entrée par colonne
+//   position?: "topRight"|"topLeft"|"bottomRight"|"bottomLeft"; // défaut "topRight"
+// }
+
+plot.table(
+  [
+    { cells: ["4H", "61.2", "BUY"], color: "#3ea377" },
+    { cells: ["1H", "48.4", "WAIT"] },
+  ],
+  { title: "RSI multi-timeframe", columns: ["Timeframe", "RSI", "Signal"] }
+);`
+      ),
+      t("Voir le tutoriel plus haut pour un exemple complet et commenté (corrélation du RSI sur cinq timeframes, avec une colonne de suggestion BUY/WAIT/SELL par ligne)."),
       t("Une fois enregistré, le script apparaît automatiquement dans les indicateurs actifs de la chart (section « Mes scripts ») — pas besoin de le rajouter manuellement via le sélecteur d'indicateurs."),
     ],
   },
@@ -332,6 +373,7 @@ ta.adx(high, low, close, period?)
         "Aucun accès aux variables ou au code de l'application hôte — le script ne reçoit que les API documentées ici, rien d'autre.",
         "Délai d'exécution — 8 secondes pour un rejeu complet, 1,5 seconde pour un tick temps réel ; au-delà, l'exécution est interrompue de force.",
         "market.series() est plafonné à 5000 points, quelle que soit la longueur demandée.",
+        "plot.table() est plafonné à 50 lignes et 200 caractères par cellule — au-delà, tronqué silencieusement plutôt que rejeté.",
       ]),
       t("Math, Date, JSON, Array, Map et Set restent pleinement utilisables — ce sont des briques de calcul pures, sans risque."),
     ],
@@ -347,19 +389,24 @@ ta.adx(high, low, close, period?)
       h("Quant Score — RSI + MACD + moyenne mobile"),
       t("Combine RSI, MACD et une moyenne mobile en un score de 0 à 3, tracé dans son propre panneau, avec un signal d'achat quand les trois conditions sont réunies :"),
       c(
-        `const rsi = chart.indicator("rsi_14").value(0);
+        `// Lit un RSI et un MACD déjà présents sur la chart plutôt que de les recalculer ici —
+// voir "Indicateurs disponibles" dans l'éditeur pour les identifiants réels de votre chart.
+const rsi = chart.indicator("rsi_14").value(0);
 const macdHist = chart.indicator("macd_12_26_9").histogram(0);
 const price = market.close(0);
 const sma20 = math.sma(market.series("close", 20), 20);
 
+// Un point par condition remplie : 0 à 3, jamais négatif.
 let score = 0;
-if (rsi !== null && rsi > 50) score += 1;
-if (macdHist !== null && macdHist > 0) score += 1;
-if (sma20 !== null && price > sma20) score += 1;
+if (rsi !== null && rsi > 50) score += 1;          // momentum haussier
+if (macdHist !== null && macdHist > 0) score += 1; // MACD au-dessus de son signal
+if (sma20 !== null && price > sma20) score += 1;   // prix au-dessus de sa moyenne 20
 
+// Le score dans son propre panneau, la moyenne mobile superposée au prix.
 plot.line("Quant Score", score);
 plot.overlay("SMA 20", sma20 ?? price);
 
+// Un seul signal par bougie (bar.isNew()), uniquement quand les trois conditions sont réunies.
 if (bar.isNew() && score === 3) {
   plot.signal("BUY");
   alert("Quant Score au maximum (3/3)");
@@ -373,12 +420,15 @@ if (bar.isNew() && score === 3) {
       c(
         `const shortMA = math.sma(market.series("close", 50), 50);
 const longMA = math.sma(market.series("close", 200), 200);
+// La valeur des deux moyennes à la bougie PRÉCÉDENTE — nécessaire pour détecter le moment exact
+// du croisement (avant/après), pas juste "laquelle est au-dessus en ce moment".
 const prevShort = state.get("prevShort", null);
 const prevLong = state.get("prevLong", null);
 
 plot.overlay("SMA 50", shortMA ?? market.close(0));
 plot.overlay("SMA 200", longMA ?? market.close(0));
 
+// Croisement = la courte était en dessous (ou égale) avant, et est au-dessus maintenant (ou l'inverse).
 if (bar.isNew() && prevShort !== null && prevLong !== null && shortMA !== null && longMA !== null) {
   if (prevShort <= prevLong && shortMA > longMA) {
     plot.signal("BUY");
@@ -390,6 +440,7 @@ if (bar.isNew() && prevShort !== null && prevLong !== null && shortMA !== null &
   }
 }
 
+// Mémorise la valeur de cette bougie pour que la PROCHAINE puisse à son tour la lire comme "prev*".
 state.set("prevShort", shortMA);
 state.set("prevLong", longMA);`
       ),
@@ -397,13 +448,17 @@ state.set("prevLong", longMA);`
       h("Rupture des bandes de Bollinger"),
       t("Bandes tracées en superposition ; signal quand le prix clôture au-delà de l'une des deux bandes :"),
       c(
-        `const bb = ta.bollinger(market.series("close", 60), 20, 2);
+        `// Calculé "à la volée" via ta.* — pas besoin d'avoir ajouté de Bollinger à la chart.
+const bb = ta.bollinger(market.series("close", 60), 20, 2);
 const price = market.close(0);
 
+// null tant qu'il n'y a pas encore 20 clôtures d'historique (période de chauffe) — on ne trace
+// et ne signale rien avant que le calcul ait un sens.
 if (bb) {
   plot.overlay("BB Haute", bb.upper);
   plot.overlay("BB Basse", bb.lower);
 
+  // Rupture = clôture strictement au-delà d'une des deux bandes.
   if (bar.isNew() && price > bb.upper) {
     plot.signal("SELL");
     alert("Prix au-dessus de la bande de Bollinger supérieure");
@@ -423,6 +478,8 @@ const avgVolume = math.mean(volumes);
 const stdVolume = math.std(volumes);
 const currentVolume = market.volume(0);
 
+// Seuil statistique plutôt qu'un chiffre fixe : "anormalement haut" dépend de l'instrument
+// (un volume de 1M peut être énorme pour l'un, minuscule pour un autre).
 if (bar.isNew() && avgVolume !== null && stdVolume !== null && currentVolume !== null) {
   if (currentVolume > avgVolume + 2 * stdVolume) {
     plot.point(market.close(0), { color: "#e8391c", shape: "pin" });
@@ -441,10 +498,12 @@ const lows = market.series("low", 60);
 const rsi = ta.rsi(closes, 14);
 const stoch = ta.stochastic(highs, lows, closes, 14, 3);
 
+// Même principe de score que le Quant Score plus haut, mais avec deux indicateurs différents —
+// preuve que le score composite n'est pas lié à une combinaison précise d'indicateurs.
 let score = 0;
-if (rsi !== null && rsi > 55) score += 1;
-if (stoch !== null && stoch.k > stoch.d) score += 1;
-if (stoch !== null && stoch.k < 80) score += 1; // évite la zone de surachat extrême
+if (rsi !== null && rsi > 55) score += 1;                  // RSI franchement au-dessus du milieu
+if (stoch !== null && stoch.k > stoch.d) score += 1;        // %K au-dessus de sa ligne de signal
+if (stoch !== null && stoch.k < 80) score += 1;             // évite la zone de surachat extrême
 
 plot.line("Momentum Score", score);
 
@@ -457,6 +516,7 @@ if (bar.isNew() && score === 3) {
       t("Un canal de type Donchian — plus haut et plus bas glissants — avec un signal quand le prix clôture hors du canal :"),
       c(
         `const period = 20;
+// Le plus haut plus haut et le plus bas plus bas des 20 dernières bougies — le canal lui-même.
 const upperChannel = math.max(market.series("high", period));
 const lowerChannel = math.min(market.series("low", period));
 const price = market.close(0);
@@ -464,6 +524,8 @@ const price = market.close(0);
 plot.overlay("Canal haut", upperChannel ?? price);
 plot.overlay("Canal bas", lowerChannel ?? price);
 
+// Rupture = clôture qui égale ou dépasse une borne du canal (>= / <=, pas > / < : toucher la
+// borne compte déjà comme une rupture, pas seulement la dépasser).
 if (bar.isNew() && upperChannel !== null && price >= upperChannel) {
   plot.signal("BUY");
   alert("Rupture du canal des " + period + " dernières bougies (plus haut)");

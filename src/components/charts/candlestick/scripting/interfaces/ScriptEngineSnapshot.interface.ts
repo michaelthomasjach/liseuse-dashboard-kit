@@ -34,7 +34,7 @@ export interface ScriptEngineSnapshot {
    *  Worker. */
   ohlcv: ScriptEngineSnapshotCandle[];
   /** Every currently-active *built-in* indicator's own computed series, keyed by its stable
-   *  script-facing slug (see `stableIndicatorId.ts` — `"rsi_14"`, not the ephemeral
+   *  script-facing slug (see `stableIndicatorId.ts` — `"rsi"`, not the ephemeral
    *  `Indicator.id`). A script-authored indicator (one script's own `plot.*` output feeding
    *  another script, per the deferred requirement #21) deliberately never appears here — see
    *  the plan's own doc on why that's excluded, not just out of scope yet. */

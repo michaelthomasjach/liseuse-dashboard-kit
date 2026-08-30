@@ -77,11 +77,11 @@ console.log("new Set().size=" + new Set().size);
   "chart.indicator + math + ta": `
 console.log("listIndicators=" + JSON.stringify(chart.listIndicators()));
 
-const rsi = chart.indicator("rsi_14");
+const rsi = chart.indicator("rsi");
 console.log("rsi.value(0)=" + rsi.value(0));
 console.log("rsi.line(0) [wrong accessor, expect null]=" + rsi.line(0));
 
-const macd = chart.indicator("macd_12_26_9");
+const macd = chart.indicator("macd");
 console.log("macd.line(0)=" + macd.line(0));
 console.log("macd.signal(0)=" + macd.signal(0));
 console.log("macd.histogram(0)=" + macd.histogram(0));
@@ -100,8 +100,8 @@ const taMacd = ta.macd(wideCloses);
 console.log("wideCloses.length=" + wideCloses.length + " ta.macd=" + JSON.stringify(taMacd));
 `,
   "plot.* (score, signals, overlay)": `
-const rsi = chart.indicator("rsi_14").value(0);
-const macd = chart.indicator("macd_12_26_9").histogram(0);
+const rsi = chart.indicator("rsi").value(0);
+const macd = chart.indicator("macd").histogram(0);
 const price = market.close(0);
 const ema = math.sma(market.series("close", 20), 20);
 

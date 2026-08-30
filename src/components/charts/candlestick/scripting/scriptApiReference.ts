@@ -27,6 +27,10 @@ export interface ScriptReferenceBlock {
 export interface ScriptReferenceSection {
   id: string;
   title: string;
+  /** Which nav group this section's entry renders under (`ScriptDocumentationModal.tsx` inserts a
+   *  label whenever this changes from the previous section) — purely a left-nav readability
+   *  grouping, no effect on reading order or section content. */
+  group: string;
   blocks: ScriptReferenceBlock[];
 }
 
@@ -58,11 +62,13 @@ export const SCRIPT_API_REFERENCE: ScriptReferenceSection[] = [
   {
     id: "keywords",
     title: "Mots-clés disponibles",
+    group: "Démarrage",
     blocks: [],
   },
   {
     id: "tutorial",
     title: "Tutoriel — créer un indicateur de A à Z",
+    group: "Démarrage",
     blocks: [
       t(
         "Ce tutoriel construit deux indicateurs complets, de zéro — pas à pas, comme si quelqu'un l'expliquait à côté de vous. Chaque étape ci-dessous est directement éditable et exécutable : le code s'exécute automatiquement dès que vous arrivez sur une étape, contre un petit jeu de données de démonstration, et la chart juste à côté se met à jour en direct — modifiez-le, cliquez sur « Exécuter », observez le résultat, puis passez à l'étape suivante. Chaque fonction utilisée ici est réexpliquée en détail, avec son propre schéma, dans sa section dédiée plus bas — ce tutoriel est le fil conducteur, pas la référence exhaustive. Commencez ici : c'est la manière la plus rapide de comprendre comment tout s'articule."
@@ -72,6 +78,7 @@ export const SCRIPT_API_REFERENCE: ScriptReferenceSection[] = [
   {
     id: "overview",
     title: "Vue d'ensemble",
+    group: "Démarrage",
     blocks: [
       t(
         "Un script est un programme JavaScript qui s'exécute une fois par bougie, du début à la fin de l'historique visible, exactement comme un indicateur intégré (RSI, MACD…) — sauf que vous en écrivez la logique vous-même. Il peut lire le prix et les indicateurs déjà présents sur la chart, dessiner ses propres courbes/signaux, mémoriser un état d'une bougie à l'autre, et déclencher des alertes."
@@ -83,7 +90,7 @@ export const SCRIPT_API_REFERENCE: ScriptReferenceSection[] = [
       t("Trois garanties structurelles, valables quel que soit le script écrit :"),
       l([
         "Aucune fuite de données futures — à la bougie i, aucune fonction de l'API ne peut jamais retourner une valeur d'une bougie postérieure à i. Ce n'est pas une vérification a posteriori : c'est structurellement impossible, les fonctions n'ont tout simplement pas accès aux données futures.",
-        "Synchronisation garantie — market.close(0), chart.indicator(\"rsi_14\").value(0) et n'importe quel autre accès à \"la bougie courante\" pointent toujours exactement sur la même bougie, quel que soit l'ordre des appels.",
+        "Synchronisation garantie — market.close(0), chart.indicator(\"rsi\").value(0) et n'importe quel autre accès à \"la bougie courante\" pointent toujours exactement sur la même bougie, quel que soit l'ordre des appels.",
         "Bac à sable isolé — le script s'exécute dans un Web Worker séparé, sans accès réseau (fetch, XMLHttpRequest, WebSocket…), sans accès au stockage du navigateur (indexedDB, caches), et sans aucun moyen d'atteindre le code ou les données internes de l'application hôte.",
       ]),
       t(
@@ -97,6 +104,7 @@ export const SCRIPT_API_REFERENCE: ScriptReferenceSection[] = [
   {
     id: "editor",
     title: "L'éditeur : Exécuter / Exécuter la cellule / Arrêter / Enregistrer / Réinitialiser / Format",
+    group: "Démarrage",
     blocks: [
       t(
         "Le code affiché dans l'éditeur est un brouillon, distinct du code réellement enregistré sur le script tant que vous n'avez pas cliqué sur « Enregistrer »."
@@ -136,6 +144,7 @@ plot.overlay("SMA 20").line("SMA 20", sma ?? market.close(0));`
   {
     id: "market",
     title: "market.* — données de marché (OHLCV)",
+    group: "API du script",
     blocks: [
       t(
         "Chaque fonction accepte un décalage optionnel « offset », en nombre de bougies en arrière depuis la bougie courante : 0 (par défaut) = la bougie courante, 1 = la précédente, 2 = l'avant-précédente, etc. Un décalage négatif, ou qui pointerait vers le futur, retourne toujours null plutôt que de lever une erreur."
@@ -178,36 +187,69 @@ const rsiH4 = ta.rsi(h4.series("close", 60), 14);`
   {
     id: "chart",
     title: "chart.* — indicateurs déjà présents sur la chart",
+    group: "API du script",
     blocks: [
       t(
-        "chart.indicator(id) retourne un objet permettant de lire les valeurs d'un indicateur déjà ajouté à la chart (RSI, MACD, Bollinger…), à n'importe quelle bougie passée. L'identifiant n'est pas l'id interne de l'indicateur (qui change à chaque session) mais un identifiant stable dérivé de son type et de ses réglages, par exemple \"rsi_14\" ou \"macd_12_26_9\". Le panneau « Indicateurs disponibles » de l'éditeur liste les identifiants réels de la chart en cours — cliquer dessus copie chart.indicator(\"...\") dans le presse-papiers."
+        "chart.indicator(id) retourne un objet (un « handle ») permettant de lire les valeurs d'un indicateur déjà ajouté à la chart (RSI, MACD, Bollinger…), à n'importe quelle bougie passée. L'identifiant n'est pas l'id interne de l'indicateur (qui change à chaque session) mais un identifiant stable dérivé uniquement de son type — \"rsi\", \"macd\", \"bollinger\"… — jamais de ses réglages (période, écart-type…) : un RSI(14) et un RSI(21) partagent le même id de base. Le panneau « Indicateurs disponibles » de l'éditeur liste les identifiants réels de la chart en cours — cliquer dessus copie chart.indicator(\"...\") dans le presse-papiers."
       ),
       d("chartIndicator"),
       t("chart.listIndicators() retourne la liste de tous les identifiants disponibles (string[])."),
       t("Un identifiant introuvable ne fait jamais planter le script — il retourne un objet dont toutes les méthodes renvoient null."),
-      t("L'objet retourné expose toutes les méthodes suivantes ; seules celles correspondant à la forme réelle de l'indicateur renvoient une valeur, les autres renvoient null :"),
-      c(
-        `const rsi = chart.indicator("rsi_14");
-rsi.value(0);       // number | null — lecture "simple" (RSI, CHOP, une bande à son point milieu…)
+      t(
+        "Le handle retourné expose toujours les 10 mêmes méthodes, quel que soit l'indicateur visé — seules celles qui correspondent à sa forme réelle renvoient une valeur, les autres renvoient systématiquement null, jamais d'exception. Chacune est détaillée individuellement ci-dessous."
+      ),
+      h(".value — lecture simple", [".value"]),
+      t(
+        ".value(offset?) lit une valeur \"simple\" : un indicateur à une seule ligne (\"sma\", \"ema\", \"wma\", \"vwap\", \"rsi\", \"chop\", \"atr\", \"parabolicSar\", \"correlation\", et les 8 indicateurs fondamentaux — Free Cash Flow, Résultat net, Chiffre d'affaires, Marge nette, Marge brute, PER, BPA, Dette/Capitaux propres), ou le point milieu d'une bande de Bollinger (strictement identique à .middle()). offset (0 par défaut) compte en bougies en arrière : 0 = bougie courante, 1 = bougie précédente. Sur un MACD ou un ADX, .value() renvoie toujours null — ces formes n'exposent pas de valeur \"simple\" unique, voir plus bas."
+      ),
+      c(`const rsi = chart.indicator("rsi");
+rsi.value(0);   // valeur à la bougie courante
+rsi.value(1);   // valeur à la bougie précédente
 
-const macd = chart.indicator("macd_12_26_9");
-macd.line(0);        // number | null — ligne MACD
-macd.signal(0);       // number | null — ligne de signal
-macd.histogram(0);    // number | null — histogramme
-
-const bb = chart.indicator("bollinger_20");
-bb.upper(0);   // number | null
-bb.middle(0);  // number | null
-bb.lower(0);   // number | null
-
-const adx = chart.indicator("adx_14");
-adx.adx(0);      // number | null
-adx.plusDI(0);   // number | null
-adx.minusDI(0);  // number | null`
+const sma = chart.indicator("sma");
+sma.value(0);   // number | null`),
+      h(".upper / .middle / .lower — bandes", [".upper", ".middle", ".lower"]),
+      t(
+        ".upper(offset?), .middle(offset?) et .lower(offset?) lisent respectivement la bande haute, la bande médiane et la bande basse d'un indicateur en forme de bande — aujourd'hui uniquement \"bollinger\". .middle() renvoie exactement la même valeur que .value() sur ce même indicateur, ce sont deux façons équivalentes de la lire. Sur tout autre indicateur, les trois renvoient null."
+      ),
+      c(`const bb = chart.indicator("bollinger");
+bb.upper(0);   // bande haute
+bb.middle(0);  // bande médiane — identique à bb.value(0)
+bb.lower(0);   // bande basse`),
+      h(".line / .signal / .histogram — MACD", [".line", ".signal", ".histogram"]),
+      t(
+        ".line(offset?), .signal(offset?) et .histogram(offset?) lisent respectivement la ligne MACD, la ligne de signal et l'histogramme d'un indicateur \"macd\" — les trois seules valeurs qu'il expose. .value() renvoie toujours null sur un MACD (il n'y a pas de valeur \"simple\" unique à choisir entre les trois). .line et .histogram sont aussi les noms des méthodes de dessin pane.line/overlay.line et pane.histogram/overlay.histogram (voir plus bas, plot.*) — deux usages différents du même mot selon l'objet sur lequel on l'appelle, sans rapport entre les deux."
+      ),
+      c(`const macd = chart.indicator("macd");
+macd.line(0);        // ligne MACD
+macd.signal(0);       // ligne de signal
+macd.histogram(0);    // histogramme (ligne - signal)`),
+      h(".adx / .plusDI / .minusDI — ADX", [".adx", ".plusDI", ".minusDI"]),
+      t(
+        ".adx(offset?), .plusDI(offset?) et .minusDI(offset?) lisent respectivement la valeur ADX, +DI et -DI d'un indicateur \"adx\" — les trois seules valeurs qu'il expose. .value() renvoie toujours null sur un ADX."
+      ),
+      c(`const adx = chart.indicator("adx");
+adx.adx(0);      // force de la tendance (indépendamment de son sens)
+adx.plusDI(0);   // pression acheteuse
+adx.minusDI(0);  // pression vendeuse`),
+      h("Indicateurs illisibles via chart.indicator()"),
+      t(
+        "Certains indicateurs intégrés n'ont aucune valeur exploitable par les 10 méthodes ci-dessus : soit leur forme est un objet composite trop spécifique pour l'une des lectures génériques (même .value() y renvoie null — y compris sur \"supertrend\", dont la forme {value, trend} ressemble pourtant à une simple valeur, piège à connaître), soit ils ne sont tout simplement jamais indexés bougie par bougie en interne. Ils restent visibles sur la chart mais ne peuvent pas être lus depuis un script via chart.indicator() :"
+      ),
+      l([
+        "\"supertrend\" — objet {value, trend}, pas un nombre malgré les apparences",
+        "\"chandelierExit\" — objet {longStop, shortStop, dir, buySignal, sellSignal}",
+        "\"zigzag\", \"ichimoku\", \"gaps\", \"pivotPoints\", \"supportResistance\", \"patternRecognition\", \"candleRecognition\" — chacun a sa propre forme composite",
+        "\"tpo\" — un profil de session, jamais indexé bougie par bougie",
+        "un indicateur \"custom\" (le résultat plot.pane/plot.overlay d'un autre script) — n'apparaît jamais dans chart.indicator(), volontairement exclu",
+      ]),
+      h("Réglages par indicateur — la période n'est plus dans l'id"),
+      t(
+        "Les réglages d'un indicateur (période, écart-type, déviation…) influencent uniquement son calcul, jamais son identifiant : un RSI(14) et un RSI(21) partagent le même id de base \"rsi\" (distingués par \"rsi\"/\"rsi_2\" s'ils coexistent tous les deux sur la chart). Utilisez chart.listIndicators() ou le panneau « Indicateurs disponibles » pour retrouver lequel est lequel plutôt que de deviner d'après le nom. Deux exceptions, où le réglage change la nature même de la donnée plutôt que d'affiner un calcul : \"correlation\" garde le symbole comparé dans son id (ex. \"correlation_AAPL\", une corrélation avec un autre symbole est une autre série, pas le même calcul en plus précis), et \"pivotPoints\" garde son type et sa période (ex. \"pivot_points_classic_weekly\") — dans les deux cas, deux réglages différents produisent deux données différentes, pas la même donnée en plus fin."
       ),
       t("Exemple — détecter un croisement RSI au-dessus de 50, à la bougie courante uniquement :"),
       c(
-        `const rsi = chart.indicator("rsi_14");
+        `const rsi = chart.indicator("rsi");
 const now = rsi.value(0);
 const prev = rsi.value(1);
 if (now !== null && prev !== null && prev <= 50 && now > 50) {
@@ -219,6 +261,7 @@ if (now !== null && prev !== null && prev <= 50 && now > 50) {
   {
     id: "plot",
     title: "plot.* — dessiner sur la chart",
+    group: "API du script",
     blocks: [
       t(
         "C'est la fonction que vous utiliserez le plus souvent : plot.* est ce qui fait réellement apparaître quelque chose sur la chart — sans un appel à plot.* quelque part, un script peut calculer tout ce qu'il veut en coulisses, rien ne s'affichera jamais. Il existe deux familles bien distinctes : les panneaux dessinés (un ou plusieurs traits qui grandissent bougie après bougie) et les marqueurs ponctuels (un seul symbole posé sur une bougie précise)."
@@ -355,6 +398,7 @@ plot.xy("Parabole", x, y, { xLabel: "x", yLabel: "y", title: "y = x²" });`
   {
     id: "state",
     title: "state.* — mémoire entre les bougies",
+    group: "API du script",
     blocks: [
       t(
         "Un script s'exécute une bougie à la fois, dans l'ordre — state.get/state.set permettent de faire persister une valeur d'une bougie à la suivante à l'intérieur d'une même exécution (un compteur, un accumulateur, un dernier prix remarquable…)."
@@ -372,6 +416,7 @@ state.set("count", count + 1);`
   {
     id: "alert",
     title: "alert(message)",
+    group: "API du script",
     blocks: [
       t("Déclenche une alerte horodatée sur la bougie courante — l'application hôte décide ensuite comment la présenter (notification, son, liste…), le script se contente de la signaler."),
       c(
@@ -385,6 +430,7 @@ state.set("count", count + 1);`
   {
     id: "bar",
     title: "bar.* — état de la bougie courante",
+    group: "API du script",
     blocks: [
       c(
         `bar.isNew()       // true uniquement pour la toute dernière bougie de cette exécution
@@ -400,6 +446,7 @@ bar.isRealtime()  // true uniquement si cette exécution est un tick temps réel
   {
     id: "math",
     title: "math.* — statistiques génériques",
+    group: "Fonctions utilitaires",
     blocks: [
       t("Chaque fonction prend un tableau de nombres (typiquement issu de market.series) et retourne un résumé statistique. Retourne toujours null (jamais NaN, jamais d'exception) quand le calcul n'a pas de sens (tableau vide, période trop grande…)."),
       c(
@@ -426,6 +473,7 @@ math.log(x)                  // number`
   {
     id: "ta",
     title: "ta.* — indicateurs techniques à la demande",
+    group: "Fonctions utilitaires",
     blocks: [
       t(
         "Calcule un indicateur technique « à la volée », sans avoir besoin de l'ajouter visuellement à la chart — utile pour composer plusieurs indicateurs dans un score sans encombrer la chart de panneaux supplémentaires. Retourne toujours la dernière valeur calculable (\"la lecture actuelle\"), jamais un tableau."
@@ -452,6 +500,7 @@ ta.adx(high, low, close, period?)
   {
     id: "console",
     title: "console.log",
+    group: "Fonctions utilitaires",
     blocks: [
       t("console.log(...) fonctionne normalement et s'affiche dans la console de l'éditeur, sous le graphique — pratique pour déboguer un script pendant son écriture. Les autres méthodes de console ne sont pas capturées."),
     ],
@@ -459,6 +508,7 @@ ta.adx(high, low, close, period?)
   {
     id: "security",
     title: "Sécurité et limites",
+    group: "Référence",
     blocks: [
       l([
         "Aucun accès réseau — fetch, XMLHttpRequest, WebSocket, importScripts et navigator.sendBeacon sont bloqués et lèvent une erreur explicite si un script tente de les appeler.",
@@ -475,6 +525,7 @@ ta.adx(high, low, close, period?)
   {
     id: "examples",
     title: "Exemples — indicateurs prêts à l'emploi",
+    group: "Référence",
     blocks: [
       t(
         "Six scripts complets, copiables tels quels, chacun illustrant une combinaison différente de l'API ci-dessus — d'un simple croisement de moyennes mobiles à un score composite multi-indicateurs."
@@ -485,8 +536,8 @@ ta.adx(high, low, close, period?)
       c(
         `// Lit un RSI et un MACD déjà présents sur la chart plutôt que de les recalculer ici —
 // voir "Indicateurs disponibles" dans l'éditeur pour les identifiants réels de votre chart.
-const rsi = chart.indicator("rsi_14").value(0);
-const macdHist = chart.indicator("macd_12_26_9").histogram(0);
+const rsi = chart.indicator("rsi").value(0);
+const macdHist = chart.indicator("macd").histogram(0);
 const price = market.close(0);
 const sma20 = math.sma(market.series("close", 20), 20);
 

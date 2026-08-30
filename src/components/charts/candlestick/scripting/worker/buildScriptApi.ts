@@ -263,7 +263,7 @@ const MISSING_INDICATOR_HANDLE: ScriptIndicatorHandle = {
 };
 
 /** `chart.*`, closed over the snapshot and the same `getCurrentIndex` callback `market.*` shares
- *  — `chart.indicator("rsi_14").value(1)` and `market.close(1)` reading the same bar for the same
+ *  — `chart.indicator("rsi").value(1)` and `market.close(1)` reading the same bar for the same
  *  reason `market.*`'s own offsets do (see buildMarketApi's own doc): both are ultimately just
  *  array lookups at `getCurrentIndex() - offset` against arrays built from the *same* main-thread
  *  pass. Asking for an id that doesn't exist on this chart returns an all-`null` handle (see

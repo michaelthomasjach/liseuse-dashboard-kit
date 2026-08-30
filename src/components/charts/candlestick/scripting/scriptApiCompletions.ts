@@ -30,7 +30,7 @@ export const SCRIPT_API_COMPLETIONS: ScriptApiCompletion[] = [
   },
   { label: "market.availableTimeframes", type: "function", detail: "() => string[]", apply: "market.availableTimeframes()" },
   { label: "market.resample", type: "function", detail: '("5m"|"15m"|"1h"|"4h"|"1d"|...) => handle for another timeframe', apply: 'market.resample("1h")' },
-  { label: "chart.indicator", type: "function", detail: '(id) => handle — see chart.listIndicators()', apply: 'chart.indicator("rsi_14")' },
+  { label: "chart.indicator", type: "function", detail: '(id) => handle — see chart.listIndicators()', apply: 'chart.indicator("rsi")' },
   { label: "chart.listIndicators", type: "function", detail: "() => string[]", apply: "chart.listIndicators()" },
   { label: ".value", type: "function", detail: "(offset?) => number | null — plain/band indicators" },
   { label: ".line", type: "function", detail: "(offset?) => number | null — MACD  ·  (name, value, options?) — pane.line/overlay.line" },

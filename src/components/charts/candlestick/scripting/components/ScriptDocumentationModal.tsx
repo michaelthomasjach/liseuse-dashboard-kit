@@ -140,15 +140,21 @@ export function ScriptDocumentationModal({ open, onClose }: ScriptDocumentationM
               aria-label="Rechercher dans la documentation"
             />
           </div>
-          {filteredNav.map((section) => {
+          {filteredNav.map((section, index) => {
             // Only the active section's own sub-titles show (while not searching) — the previous
             // design showed all ~13 sections' worth stacked permanently, which is exactly what made
             // the menu hard to get your bearings in. Search overrides this: every section kept by
             // the filter above already only carries its own *matching* headings, so showing all of
             // those is the point, not clutter.
             const showHeadings = section.headings.length > 0 && (section.id === activeId || normalizedQuery !== "");
+            // A label whenever the group changes from the previous *visible* section (not the
+            // previous entry in the unfiltered SCRIPT_DOCS_NAV) — exigence : « organise mieux le
+            // menu, avec des groupes ». Recomputed off `filteredNav` itself so a search that hides
+            // every section of a group also hides that group's own now-orphaned label.
+            const showGroupLabel = index === 0 || filteredNav[index - 1].group !== section.group;
             return (
               <div key={section.id} className="lq-script-docs__nav-section">
+                {showGroupLabel && <div className="lq-script-docs__nav-group-label">{section.group}</div>}
                 <button
                   type="button"
                   onClick={() => scrollToSection(section.id)}

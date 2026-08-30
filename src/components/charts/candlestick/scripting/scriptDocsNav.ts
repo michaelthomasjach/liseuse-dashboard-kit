@@ -20,6 +20,8 @@ export interface DocsNavHeading {
 export interface DocsNavSection {
   id: string;
   title: string;
+  /** Which nav group this section renders under — see `ScriptReferenceSection.group`'s own doc. */
+  group: string;
   headings: DocsNavHeading[];
 }
 
@@ -30,6 +32,7 @@ export interface DocsNavSection {
 export const SCRIPT_DOCS_NAV: DocsNavSection[] = SCRIPT_API_REFERENCE.map((section) => ({
   id: section.id,
   title: section.title,
+  group: section.group,
   headings: section.blocks
     .filter((block) => block.kind === "heading" && block.text)
     .map((block) => ({ id: headingAnchorId(section.id, block.text ?? ""), text: block.text ?? "" })),
@@ -54,9 +57,11 @@ for (const section of SCRIPT_API_REFERENCE) {
 }
 
 /** Fallback when a keyword has no heading of its own — its own namespace's *section*. Covers every
- *  entry in `SCRIPT_API_COMPLETIONS` that isn't already in `KEYWORD_HEADING_ANCHOR` above: a bare
- *  `.value`/`.line`/etc. (an indicator handle's own method, documented as part of `chart.*`) has no
- *  dot-prefix of its own to key on, so it's listed by exact label instead of by prefix. */
+ *  entry in `SCRIPT_API_COMPLETIONS` that isn't already in `KEYWORD_HEADING_ANCHOR` above (most of
+ *  `market.*`/`state.*`/`bar.*`/`math.*`/`ta.*`'s own plain functions — sections short/focused
+ *  enough that the section itself already *is* the explanation). A bare `.value`/`.line`/etc. (an
+ *  indicator handle's own method) is never a fallback case: each has its own dedicated heading in
+ *  `chart.*`, so it's always resolved by `KEYWORD_HEADING_ANCHOR` above instead. */
 const KEYWORD_NAMESPACE_SECTION: Record<string, string> = {
   market: "market",
   chart: "chart",
@@ -68,7 +73,6 @@ const KEYWORD_NAMESPACE_SECTION: Record<string, string> = {
   console: "console",
   alert: "alert",
 };
-const INDICATOR_HANDLE_METHODS = new Set([".value", ".line", ".signal", ".histogram", ".upper", ".middle", ".lower", ".adx", ".plusDI", ".minusDI"]);
 
 /** Where clicking a keyword in the documentation's own keyword index (`ScriptKeywordsIndex.tsx`)
  *  should scroll to — a specific heading when one claims that keyword (see
@@ -79,7 +83,6 @@ const INDICATOR_HANDLE_METHODS = new Set([".value", ".line", ".signal", ".histog
 export function keywordAnchorId(label: string): string {
   const specific = KEYWORD_HEADING_ANCHOR.get(label);
   if (specific) return specific;
-  if (INDICATOR_HANDLE_METHODS.has(label)) return `lq-script-docs-chart`;
   const namespace = label.split(".")[0];
   const sectionId = KEYWORD_NAMESPACE_SECTION[namespace] ?? "keywords";
   return `lq-script-docs-${sectionId}`;

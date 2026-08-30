@@ -55,6 +55,29 @@
   flex-direction: column;
 }
 
+/* One per group (Démarrage/API du script/Fonctions utilitaires/Référence — see
+   ScriptReferenceSection.group's own doc), rendered once at the start of the first section that
+   belongs to it (ScriptDocumentationModal.tsx's own showGroupLabel) — exigence : « organise mieux
+   le menu... avec des petits espaces verticaux entre les sections ». The extra `margin-top` is
+   what actually creates that spacing: a flex item (`.lq-script-docs__nav-section`, its own parent)
+   never collapses margins with its children, so this pushes the *whole* section — and everything
+   after it — down, on top of the nav's own uniform `gap`, without touching the spacing between
+   sections *within* the same group. `margin-top: 0` on the very first label (index === 0 in the
+   nav) would otherwise double up with the nav's own top padding/search box margin below it. */
+.lq-script-docs__nav-group-label {
+  margin-top: var(--lq-space-3);
+  padding: 0 var(--lq-space-2);
+  font-size: var(--lq-text-xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-script-docs__nav-section:first-child .lq-script-docs__nav-group-label {
+  margin-top: 0;
+}
+
 /* Separates the keywords index (a *tool*, always first — see ScriptDocumentationModal.tsx's own
    doc) from the actual section-by-section reading order starting right below it. */
 .lq-script-docs__nav-divider {

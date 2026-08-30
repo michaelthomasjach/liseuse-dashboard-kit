@@ -54,7 +54,7 @@ export function ChartIndicatorDiagram() {
       />
       <line x1={192} y1={30} x2={192} y2={88} stroke="var(--lq-color-text-muted)" strokeWidth={1} strokeDasharray="2 2" />
       <DiagramPoint x={192} y={88} color="var(--lq-color-accent)" />
-      <DiagramLabel x={216} y={78} text='chart.indicator("rsi_14")' color="var(--lq-color-accent)" anchor="end" />
+      <DiagramLabel x={216} y={78} text='chart.indicator("rsi")' color="var(--lq-color-accent)" anchor="end" />
       <DiagramLabel x={6} y={40} text="même bougie" color="var(--lq-color-text-muted)" />
     </InfoDiagram>
   );

@@ -1,4 +1,4 @@
-import type { ScriptBandSeries, ScriptDrawingOutput, ScriptPlotSeries, ScriptTableOutput, ScriptTableRow } from "../interfaces/ScriptRunResult.interface";
+import type { ScriptDrawingOutput, ScriptPaneSeries, ScriptPaneSubSeries, ScriptTableOutput, ScriptTableRow } from "../interfaces/ScriptRunResult.interface";
 
 /** Hard caps on `plot.table()`'s own output — the one `plot.*` call whose size a script directly
  *  controls (an accidental `rows` from an unbounded loop, or a giant string in a cell) rather than
@@ -37,26 +37,30 @@ export interface PlotSignalArg {
   text?: string;
 }
 
-export interface PlotApi {
-  /** Continuous series, one point appended per bar — placed in its own sub-pane by default (the
-   *  common case for a script-computed score/oscillator, which is rarely on the price scale). */
+/** The handle `plot.pane(name)`/`plot.overlay(name)` returns — draw one or more of this pane's own
+ *  named series on it. Calling the same series `name` again (same bar or a later one) extends that
+ *  one series rather than starting a new one, same upsert rule the old flat `plot.line`/etc. always
+ *  had; a pane with just one series behaves identically to that old API, a pane with 2+ becomes one
+ *  multi-series indicator sharing this one pane/scale (see `scriptPaneToCustomIndicatorDef.ts`). */
+export interface PaneSeriesHandle {
   line(name: string, value: number, options?: PlotSeriesOptions): void;
   area(name: string, value: number, options?: PlotSeriesOptions): void;
   histogram(name: string, value: number, options?: PlotSeriesOptions): void;
-  /** Forces price-pane placement regardless of `line`/`area`/`histogram`'s own default — always
-   *  drawn as a line (an overlay's own draw style isn't configurable the same way a sub-pane
-   *  series' is, matching every built-in price-overlay indicator in this library). */
-  overlay(name: string, value: number, options?: PlotSeriesOptions): void;
-  /** Forces sub-pane placement — identical to `line`'s own default, kept as an explicit alias
-   *  purely because the platform's own spec names both `plot.line`/`plot.panel` separately. */
-  panel(name: string, value: number, options?: PlotSeriesOptions): void;
   /** A translucent fill between two curves, plus thin upper/lower lines and a computed middle
-   *  line — own sub-pane by default (same `line`/`panel` pairing `overlay` already breaks out of).
-   *  Same "same name across bars extends one continuous band" upsert rule as `line`/`overlay`. */
+   *  line — same rendering Bollinger Bands already uses. */
   band(name: string, upper: number, lower: number, options?: PlotBandOptions): void;
-  /** Forces price-pane placement — the `band` counterpart to `overlay` (a volatility envelope
-   *  around price, a high/low channel, anything that *is* a price rather than an oscillator). */
-  bandOverlay(name: string, upper: number, lower: number, options?: PlotBandOptions): void;
+}
+
+export interface PlotApi {
+  /** Creates (or, called again with the same name — including on a later bar, since the whole
+   *  script re-runs from the top every bar — re-opens) a sub-pane of its own to draw on. Draw one
+   *  series on it for a plain single-line/area/histogram pane; draw several for a pane where they
+   *  all share one Y-scale, each keeping its own name for its own legend entry. */
+  pane(name: string): PaneSeriesHandle;
+  /** Same handle, drawn on the price section instead of a sub-pane of its own — the `pane`
+   *  counterpart for an overlay (a moving average, a volatility envelope around price, a
+   *  high/low channel: anything that *is* a price rather than an oscillator). */
+  overlay(name: string): PaneSeriesHandle;
   /** `arg` may be a bare `"BUY"`/`"SELL"`-style string (the platform's own shorthand — see the
    *  first example in its spec) or the full options object; `price` defaults to the current
    *  bar's own close when omitted, via `getCurrentClose`. */
@@ -72,57 +76,79 @@ export interface PlotApi {
   table(rows: ScriptTableRow[], options?: { title?: string; columns?: string[]; position?: ScriptTableOutput["position"] }): void;
 }
 
+// Same slug shape `scriptPaneToCustomIndicatorDef.ts` uses for a pane's own id — duplicated here
+// (rather than imported) since this file runs inside the worker, that one on the main thread; a
+// one-line pure function isn't worth a cross-thread-boundary import for.
+function slugify(name: string): string {
+  return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "series";
+}
+
 /** `plot.*`, closed over the current bar's own date/close (via the same kind of callback
  *  `market.*`/`chart.*` use for "which bar is this") and a pair of accumulators mutated across
  *  the whole replay loop — `getResult()` reads them once, after the loop in runScript.ts has
- *  finished, not per bar. A named series (`line`/`area`/`histogram`/`overlay`/`panel`) upserts
- *  into `plotsByName` so repeated calls with the same `name` extend one continuous series rather
- *  than starting a new one each time; a discrete marker (`signal`/`point`/`horizontal`/
+ *  finished, not per bar. `plot.pane`/`plot.overlay` upsert into `panesByName` by their own name
+ *  (recreated every bar since the whole script re-runs from the top each time, same idempotent-
+ *  by-name rule the old flat API already had), each returning a handle that itself upserts into
+ *  that one pane's own `subSeriesByName`; a discrete marker (`signal`/`point`/`horizontal`/
  *  `vertical`) just appends to `drawings`, one entry per call. */
 export function buildPlotApi(
   getCurrentDate: () => number,
   getCurrentClose: () => number | null
 ): {
   api: PlotApi;
-  getResult: () => { plots: ScriptPlotSeries[]; bands: ScriptBandSeries[]; drawings: ScriptDrawingOutput[]; table: ScriptTableOutput | null };
+  getResult: () => { panes: ScriptPaneSeries[]; drawings: ScriptDrawingOutput[]; table: ScriptTableOutput | null };
 } {
-  const plotsByName = new Map<string, ScriptPlotSeries>();
-  const bandsByName = new Map<string, ScriptBandSeries>();
+  interface PaneEntry {
+    name: string;
+    pane: ScriptPaneSeries["pane"];
+    subSeriesByName: Map<string, ScriptPaneSubSeries>;
+  }
+  const panesByName = new Map<string, PaneEntry>();
   const drawings: ScriptDrawingOutput[] = [];
   let table: ScriptTableOutput | null = null;
 
-  function upsertSeries(
-    name: string,
-    value: number,
-    draw: ScriptPlotSeries["draw"],
-    pane: ScriptPlotSeries["pane"],
-    options: PlotSeriesOptions | undefined
-  ) {
-    let series = plotsByName.get(name);
-    if (!series) {
-      series = { name, draw, pane, color: options?.color, lineWidth: options?.lineWidth, lineStyle: options?.lineStyle, points: [] };
-      plotsByName.set(name, series);
+  function makeHandle(paneEntry: PaneEntry): PaneSeriesHandle {
+    function upsert(
+      name: string,
+      draw: ScriptPaneSubSeries["draw"],
+      point: { date: number; value: number } | { date: number; upper: number; lower: number },
+      options: PlotSeriesOptions | PlotBandOptions | undefined
+    ) {
+      let sub = paneEntry.subSeriesByName.get(name);
+      if (!sub) {
+        sub = {
+          key: slugify(name),
+          name,
+          draw,
+          color: options?.color,
+          lineWidth: options?.lineWidth,
+          lineStyle: (options as PlotSeriesOptions | undefined)?.lineStyle,
+          points: [],
+        };
+        paneEntry.subSeriesByName.set(name, sub);
+      }
+      (sub.points as { date: number; value: number }[] | { date: number; upper: number; lower: number }[]).push(point as never);
     }
-    series.points.push({ date: getCurrentDate(), value });
+    return {
+      line: (name, value, options) => upsert(name, "line", { date: getCurrentDate(), value }, options),
+      area: (name, value, options) => upsert(name, "area", { date: getCurrentDate(), value }, options),
+      histogram: (name, value, options) => upsert(name, "histogram", { date: getCurrentDate(), value }, options),
+      band: (name, upper, lower, options) => upsert(name, "band", { date: getCurrentDate(), upper, lower }, options),
+    };
   }
 
-  function upsertBand(name: string, upper: number, lower: number, pane: ScriptBandSeries["pane"], options: PlotBandOptions | undefined) {
-    let series = bandsByName.get(name);
-    if (!series) {
-      series = { name, pane, color: options?.color, lineWidth: options?.lineWidth, points: [] };
-      bandsByName.set(name, series);
+  function getOrCreatePane(name: string, pane: ScriptPaneSeries["pane"]): PaneSeriesHandle {
+    let entry = panesByName.get(name);
+    if (!entry) {
+      entry = { name, pane, subSeriesByName: new Map() };
+      panesByName.set(name, entry);
     }
-    series.points.push({ date: getCurrentDate(), upper, lower });
+    return makeHandle(entry);
   }
 
   const api: PlotApi = {
-    line: (name, value, options) => upsertSeries(name, value, "line", "own", options),
-    area: (name, value, options) => upsertSeries(name, value, "area", "own", options),
-    histogram: (name, value, options) => upsertSeries(name, value, "histogram", "own", options),
-    overlay: (name, value, options) => upsertSeries(name, value, "line", "overlay", options),
-    panel: (name, value, options) => upsertSeries(name, value, "line", "own", options),
-    band: (name, upper, lower, options) => upsertBand(name, upper, lower, "own", options),
-    bandOverlay: (name, upper, lower, options) => upsertBand(name, upper, lower, "overlay", options),
+    pane: (name) => getOrCreatePane(name, "own"),
+    overlay: (name) => getOrCreatePane(name, "overlay"),
     signal: (arg) => {
       const normalized: PlotSignalArg = typeof arg === "string" ? { type: arg } : arg;
       drawings.push({
@@ -154,5 +180,12 @@ export function buildPlotApi(
     },
   };
 
-  return { api, getResult: () => ({ plots: [...plotsByName.values()], bands: [...bandsByName.values()], drawings, table }) };
+  return {
+    api,
+    getResult: () => ({
+      panes: [...panesByName.values()].map((entry) => ({ name: entry.name, pane: entry.pane, series: [...entry.subSeriesByName.values()] })),
+      drawings,
+      table,
+    }),
+  };
 }

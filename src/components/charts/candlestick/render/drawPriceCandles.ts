@@ -27,7 +27,8 @@ const POINT_BASED_KINDS = new Set(["gaps", "parabolicSar", "pivotPoints", "suppo
 // built-in indicator with a fixed dash style (Ichimoku's chikou span, pivot levels,
 // support/resistance) already calls setLineDash directly with its own hardcoded array; this is
 // the same mechanism, just exposed as a per-series choice instead of baked into one indicator kind.
-function applyLineStyle(ctx: CanvasRenderingContext2D, style: "solid" | "dashed" | "dotted" | undefined) {
+// Exported so `drawVolumeAndPanes.ts`'s own "multi" branch can reuse it rather than duplicate it.
+export function applyLineStyle(ctx: CanvasRenderingContext2D, style: "solid" | "dashed" | "dotted" | undefined) {
   if (style === "dashed") ctx.setLineDash([6, 4]);
   else if (style === "dotted") ctx.setLineDash([1.5, 3]);
   else ctx.setLineDash([]);
@@ -667,6 +668,84 @@ export function drawPriceCandles(ctx: CanvasRenderingContext2D, params: RenderCa
           else ctx.lineTo(x, y);
         });
         ctx.stroke();
+      } else if (indicator.customData?.draw === "multi") {
+        // A `plot.overlay("Nom").line/.area/.histogram/.band(...)` pane with 2+ of its own series
+        // — same per-series loop as `drawVolumeAndPanes.ts`'s own "multi" branch, just against
+        // `zoomedPriceScale` directly (the price pane has one shared scale, no per-pane one to
+        // pick like an own-pane indicator needs). Each series reads its own value out of this
+        // point's `value.multi[key]` rather than `value` itself.
+        const multiPoints = points as { i: number; value: { multi: Record<string, number | IndicatorBand | null> } }[];
+        (indicator.customData.multiSeries ?? []).forEach((entry, subIdx) => {
+          const seriesColor = entry.color ?? defaultIndicatorColor(index + subIdx);
+          const seriesPoints = multiPoints.filter((p) => p.value.multi[entry.key] !== null);
+          if (seriesPoints.length === 0) return;
+          if (entry.draw === "band") {
+            const bandSeriesPoints = seriesPoints as { i: number; value: { multi: Record<string, IndicatorBand> } }[];
+            ctx.globalAlpha = 0.08;
+            ctx.fillStyle = seriesColor;
+            ctx.beginPath();
+            bandSeriesPoints.forEach((p, k) => {
+              const x = zoomedXScale(p.i + 0.5);
+              const y = zoomedPriceScale(p.value.multi[entry.key].upper);
+              if (k === 0) ctx.moveTo(x, y);
+              else ctx.lineTo(x, y);
+            });
+            for (let k = bandSeriesPoints.length - 1; k >= 0; k--) {
+              ctx.lineTo(zoomedXScale(bandSeriesPoints[k].i + 0.5), zoomedPriceScale(bandSeriesPoints[k].value.multi[entry.key].lower));
+            }
+            ctx.closePath();
+            ctx.fill();
+            ctx.globalAlpha = 1;
+            ctx.strokeStyle = seriesColor;
+            ctx.lineWidth = entry.lineWidth ?? 1;
+            applyLineStyle(ctx, entry.lineStyle);
+            (["upper", "lower"] as const).forEach((key) => {
+              ctx.beginPath();
+              bandSeriesPoints.forEach((p, k) => {
+                const x = zoomedXScale(p.i + 0.5);
+                const y = zoomedPriceScale(p.value.multi[entry.key][key]);
+                if (k === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+              });
+              ctx.stroke();
+            });
+          } else if (entry.draw === "histogram") {
+            ctx.globalAlpha = isEink ? 0.35 : 0.6;
+            ctx.fillStyle = isEink ? colorText : seriesColor;
+            for (const p of seriesPoints) {
+              const x = zoomedXScale(p.i + 0.5);
+              const y = zoomedPriceScale(p.value.multi[entry.key] as number);
+              ctx.fillRect(x - candleWidth / 2, y, Math.max(candleWidth, 1), priceHeight - y);
+            }
+            ctx.globalAlpha = 1;
+          } else {
+            if (entry.draw === "area") {
+              ctx.globalAlpha = 0.12;
+              ctx.fillStyle = seriesColor;
+              ctx.beginPath();
+              seriesPoints.forEach((p, k) => {
+                const x = zoomedXScale(p.i + 0.5);
+                if (k === 0) ctx.moveTo(x, priceHeight);
+                ctx.lineTo(x, zoomedPriceScale(p.value.multi[entry.key] as number));
+              });
+              ctx.lineTo(zoomedXScale(seriesPoints[seriesPoints.length - 1].i + 0.5), priceHeight);
+              ctx.closePath();
+              ctx.fill();
+              ctx.globalAlpha = 1;
+            }
+            ctx.strokeStyle = seriesColor;
+            ctx.lineWidth = entry.lineWidth ?? 1.5;
+            applyLineStyle(ctx, entry.lineStyle);
+            ctx.beginPath();
+            seriesPoints.forEach((p, k) => {
+              const x = zoomedXScale(p.i + 0.5);
+              const y = zoomedPriceScale(p.value.multi[entry.key] as number);
+              if (k === 0) ctx.moveTo(x, y);
+              else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+          }
+        });
       } else {
         // Band indicator (Bollinger, or a script/caller's own `CustomIndicatorDef` with
         // `draw: "band"` — both reach here identically, see that field's own doc): translucent

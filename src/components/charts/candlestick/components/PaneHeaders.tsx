@@ -349,7 +349,21 @@ export function PaneHeaders({
                           }`
                         : "adx" in value
                           ? `ADX ${value.adx.toFixed(2)} · +DI ${value.plusDI.toFixed(2)} · -DI ${value.minusDI.toFixed(2)}`
-                          : null}
+                          : "multi" in value
+                            ? // A `plot.pane` with 2+ of its own series — one compact "label value"
+                              // per series, in the same declared order as `multiSeries`, same spirit
+                              // as MACD's own fixed "MACD x.xx · Signal x.xx" readout just above but
+                              // generalized to the script's own series names instead of fixed ones.
+                              (ind.customData?.multiSeries ?? [])
+                                .map((entry) => {
+                                  const sub = value.multi[entry.key];
+                                  if (sub === null) return null;
+                                  const text = typeof sub === "number" ? sub.toFixed(2) : `${sub.upper.toFixed(2)}/${sub.lower.toFixed(2)}`;
+                                  return `${entry.label} ${text}`;
+                                })
+                                .filter((s): s is string => s !== null)
+                                .join(" · ")
+                            : null}
                   </span>
                 );
               })()}

@@ -44,11 +44,11 @@ const INDICATOR_TRACK_STEPS: ScriptTutorialStep[] = [
     id: "first-plot",
     title: "Étape 1 — Le tout premier tracé",
     paragraphs: [
-      "Avant même de parler de prix ou d'indicateur, vérifions que le circuit complet fonctionne : écrire du code, l'exécuter, voir un résultat. plot.line trace une courbe — ici une droite plate à la valeur 1, juste pour voir apparaître quelque chose.",
-      "Le code ci-contre s'est déjà exécuté automatiquement — regardez la chart : un nouveau panneau est apparu sous les bougies, avec une ligne plate nommée « Test ». C'est exactement ce que fait plot.line : ouvrir (ou mettre à jour) un panneau dédié, une valeur par bougie.",
+      "Avant même de parler de prix ou d'indicateur, vérifions que le circuit complet fonctionne : écrire du code, l'exécuter, voir un résultat. plot.pane(nom) crée un panneau dédié et renvoie un objet sur lequel dessiner ; .line(nom, valeur) y trace une courbe — ici une droite plate à la valeur 1, juste pour voir apparaître quelque chose.",
+      "Le code ci-contre s'est déjà exécuté automatiquement — regardez la chart : un nouveau panneau est apparu sous les bougies, avec une ligne plate nommée « Test ». C'est exactement ce que fait plot.pane(...).line(...) : ouvrir (ou mettre à jour) un panneau dédié, une valeur par bougie.",
     ],
     diagramKey: "plotOwnPane",
-    code: `plot.line("Test", 1);\n`,
+    code: `plot.pane("Test").line("Test", 1);\n`,
   },
   {
     id: "real-price",
@@ -57,17 +57,17 @@ const INDICATOR_TRACK_STEPS: ScriptTutorialStep[] = [
       "1, c'était pour tester — un indicateur digne de ce nom lit le prix réel. market.close(0) retourne le cours de clôture de la bougie courante (le 0 entre parenthèses veut dire « la bougie en cours »).",
       "La ligne plate est remplacée par une courbe qui suit fidèlement le prix de clôture, bougie après bougie — le script vient de rejouer tout l'historique visible, une bougie à la fois.",
     ],
-    code: `plot.line("Clôture", market.close(0));\n`,
+    code: `plot.pane("Clôture").line("Clôture", market.close(0));\n`,
   },
   {
     id: "moving-average",
     title: "Étape 3 — Calculer une moyenne mobile",
     paragraphs: [
-      "market.series(\"close\", 20) retourne un tableau des 20 dernières clôtures ; math.sma en fait la moyenne mobile simple. On passe aussi en plot.overlay plutôt que plot.line : une moyenne mobile est un prix, elle a donc du sens directement superposée aux bougies plutôt que dans son propre panneau.",
+      "market.series(\"close\", 20) retourne un tableau des 20 dernières clôtures ; math.sma en fait la moyenne mobile simple. On passe aussi en plot.overlay plutôt que plot.pane : une moyenne mobile est un prix, elle a donc du sens directement superposée aux bougies plutôt que dans son propre panneau.",
       "sma20 ?? market.close(0) : les 19 toutes premières bougies de l'historique n'ont pas encore 20 clôtures disponibles derrière elles, math.sma renvoie alors null plutôt qu'une valeur fausse — le ?? affiche le prix courant à la place le temps que la moyenne ait assez de recul, plutôt que de laisser un trou dans la courbe.",
     ],
     diagramKey: "plotOverlay",
-    code: `const closes = market.series("close", 20);\nconst sma20 = math.sma(closes, 20);\nplot.overlay("SMA 20", sma20 ?? market.close(0));\n`,
+    code: `const closes = market.series("close", 20);\nconst sma20 = math.sma(closes, 20);\nplot.overlay("SMA 20").line("SMA 20", sma20 ?? market.close(0));\n`,
   },
   {
     id: "second-average",
@@ -76,7 +76,7 @@ const INDICATOR_TRACK_STEPS: ScriptTutorialStep[] = [
       "Un indicateur à une seule moyenne ne dit pas grand-chose ; ajoutons-en une seconde, plus courte, donc plus réactive — le principe même d'un croisement de moyennes mobiles.",
       "Deux courbes se superposent maintenant au prix. Le signal qui nous intéresse : le moment précis où la courte (SMA 5) croise la longue (SMA 20).",
     ],
-    code: `const closes = market.series("close", 20);\nconst sma20 = math.sma(closes, 20);\nconst sma5 = math.sma(market.series("close", 5), 5);\n\nplot.overlay("SMA 20", sma20 ?? market.close(0));\nplot.overlay("SMA 5", sma5 ?? market.close(0));\n`,
+    code: `const closes = market.series("close", 20);\nconst sma20 = math.sma(closes, 20);\nconst sma5 = math.sma(market.series("close", 5), 5);\n\nplot.overlay("SMA 20").line("SMA 20", sma20 ?? market.close(0));\nplot.overlay("SMA 5").line("SMA 5", sma5 ?? market.close(0));\n`,
   },
   {
     id: "state-memory",
@@ -86,7 +86,7 @@ const INDICATOR_TRACK_STEPS: ScriptTutorialStep[] = [
       "state.get(\"prevSma20\", null) lit la valeur mémorisée à la bougie précédente (null si elle n'a encore jamais été définie — la toute première bougie du rejeu). state.set écrit la valeur actuelle pour que la bougie suivante puisse à son tour la lire comme « prevSma20 ».",
     ],
     diagramKey: "stateMemory",
-    code: `const sma20 = math.sma(market.series("close", 20), 20);\nconst sma5 = math.sma(market.series("close", 5), 5);\nconst prevSma20 = state.get("prevSma20", null);\nconst prevSma5 = state.get("prevSma5", null);\n\nplot.overlay("SMA 20", sma20 ?? market.close(0));\nplot.overlay("SMA 5", sma5 ?? market.close(0));\n\nstate.set("prevSma20", sma20);\nstate.set("prevSma5", sma5);\n`,
+    code: `const sma20 = math.sma(market.series("close", 20), 20);\nconst sma5 = math.sma(market.series("close", 5), 5);\nconst prevSma20 = state.get("prevSma20", null);\nconst prevSma5 = state.get("prevSma5", null);\n\nplot.overlay("SMA 20").line("SMA 20", sma20 ?? market.close(0));\nplot.overlay("SMA 5").line("SMA 5", sma5 ?? market.close(0));\n\nstate.set("prevSma20", sma20);\nstate.set("prevSma5", sma5);\n`,
   },
   {
     id: "cross-signal",
@@ -96,7 +96,7 @@ const INDICATOR_TRACK_STEPS: ScriptTutorialStep[] = [
       "Une flèche verte apparaît à chaque croisement haussier, une flèche rouge à chaque croisement baissier, chacune avec son propre mot affiché juste à côté (text: \"BUY\"/\"SELL\"), et une alerte est enregistrée à chaque fois — c'est un indicateur complet, fonctionnel, écrit en une dizaine de lignes.",
     ],
     diagramKey: "plotSignal",
-    code: `const sma20 = math.sma(market.series("close", 20), 20);\nconst sma5 = math.sma(market.series("close", 5), 5);\nconst prevSma20 = state.get("prevSma20", null);\nconst prevSma5 = state.get("prevSma5", null);\n\nplot.overlay("SMA 20", sma20 ?? market.close(0));\nplot.overlay("SMA 5", sma5 ?? market.close(0));\n\nif (bar.isNew() && prevSma5 !== null && prevSma20 !== null && sma5 !== null && sma20 !== null) {\n  if (prevSma5 <= prevSma20 && sma5 > sma20) {\n    plot.signal({ type: "BUY", text: "BUY" });\n    alert("Croisement haussier : SMA 5 dépasse SMA 20");\n  }\n  if (prevSma5 >= prevSma20 && sma5 < sma20) {\n    plot.signal({ type: "SELL", text: "SELL" });\n    alert("Croisement baissier : SMA 5 repasse sous SMA 20");\n  }\n}\n\nstate.set("prevSma20", sma20);\nstate.set("prevSma5", sma5);\n`,
+    code: `const sma20 = math.sma(market.series("close", 20), 20);\nconst sma5 = math.sma(market.series("close", 5), 5);\nconst prevSma20 = state.get("prevSma20", null);\nconst prevSma5 = state.get("prevSma5", null);\n\nplot.overlay("SMA 20").line("SMA 20", sma20 ?? market.close(0));\nplot.overlay("SMA 5").line("SMA 5", sma5 ?? market.close(0));\n\nif (bar.isNew() && prevSma5 !== null && prevSma20 !== null && sma5 !== null && sma20 !== null) {\n  if (prevSma5 <= prevSma20 && sma5 > sma20) {\n    plot.signal({ type: "BUY", text: "BUY" });\n    alert("Croisement haussier : SMA 5 dépasse SMA 20");\n  }\n  if (prevSma5 >= prevSma20 && sma5 < sma20) {\n    plot.signal({ type: "SELL", text: "SELL" });\n    alert("Croisement baissier : SMA 5 repasse sous SMA 20");\n  }\n}\n\nstate.set("prevSma20", sma20);\nstate.set("prevSma5", sma5);\n`,
   },
   {
     id: "cell-mode",
@@ -108,8 +108,8 @@ const INDICATOR_TRACK_STEPS: ScriptTutorialStep[] = [
     code: `// %% Cellule 1 — les deux moyennes mobiles
 const sma20 = math.sma(market.series("close", 20), 20);
 const sma5 = math.sma(market.series("close", 5), 5);
-plot.overlay("SMA 20", sma20 ?? market.close(0));
-plot.overlay("SMA 5", sma5 ?? market.close(0));
+plot.overlay("SMA 20").line("SMA 20", sma20 ?? market.close(0));
+plot.overlay("SMA 5").line("SMA 5", sma5 ?? market.close(0));
 
 // %% Cellule 2 — mémoriser la bougie précédente
 const prevSma20 = state.get("prevSma20", null);
@@ -140,7 +140,7 @@ if (bar.isNew() && prevSma5 !== null && prevSma20 !== null && sma5 !== null && s
       "Ce n'est pas une nouvelle source de données : cette bibliothèque ne va rien chercher ailleurs, elle recalcule simplement des bougies plus larges à partir de celles déjà là — exactement ce qui se passerait si vous changiez l'intervalle de la chart elle-même.",
     ],
     diagramKey: "resample",
-    code: `const h4 = market.resample("4h");\nplot.line("Clôture 4H", h4.close(0));\n`,
+    code: `const h4 = market.resample("4h");\nplot.pane("Clôture 4H").line("Clôture 4H", h4.close(0));\n`,
     data: SCRIPT_TUTORIAL_INTRADAY_DATA,
   },
   {
@@ -166,7 +166,7 @@ const rows = timeframes.map((tf) => {
 });
 
 // Juste pour vérifier au passage : le RSI du plus grand timeframe (1J), dans son propre panneau.
-plot.line("RSI 1J (contrôle)", rows[0].rsi ?? 50);
+plot.pane("RSI 1J (contrôle)").line("RSI 1J (contrôle)", rows[0].rsi ?? 50);
 `,
     data: SCRIPT_TUTORIAL_INTRADAY_DATA,
   },
@@ -279,7 +279,7 @@ const square = (x) => x * x;
 const t = state.get("t", 0);
 state.set("t", (t + 1) % 40);
 
-plot.line("x²", square(t));
+plot.pane("x²").line("x²", square(t));
 `,
   },
   {
@@ -293,7 +293,7 @@ plot.line("x²", square(t));
 const t = state.get("t", 0);
 state.set("t", (t + 1) % 40);
 
-plot.line("Affine", affine(t));
+plot.pane("Affine").line("Affine", affine(t));
 `,
   },
   {
@@ -307,7 +307,7 @@ plot.line("Affine", affine(t));
 const t = state.get("t", 0);
 state.set("t", (t + 1) % 60);
 
-plot.line("Log", logFn(t));
+plot.pane("Log").line("Log", logFn(t));
 `,
   },
   {
@@ -322,7 +322,7 @@ plot.line("Log", logFn(t));
 const t = state.get("t", 0);
 state.set("t", (t + 1) % 40);
 
-plot.line("Cloche de Gauss", gaussian(t) * 100);
+plot.pane("Cloche de Gauss").line("Cloche de Gauss", gaussian(t) * 100);
 `,
   },
   {
@@ -336,15 +336,15 @@ plot.line("Cloche de Gauss", gaussian(t) * 100);
 const prevPrice = market.close(1);
 const derivative = prevPrice !== null ? price - prevPrice : 0;
 
-plot.line("Dérivée du prix", derivative);
+plot.pane("Dérivée du prix").line("Dérivée du prix", derivative);
 `,
   },
   {
     id: "band",
     title: "Étape 6 — Remplir entre deux courbes : une enveloppe maison",
     paragraphs: [
-      "Les briques déjà vues (lambdas, écart-type) suffisent à construire une vraie enveloppe de volatilité : moyenne mobile ± 2 écarts-types. plot.bandOverlay colore directement la surface entre les deux courbes — voir plot.* plus bas pour le détail complet de cette fonction.",
-      "lineWidth: 3 épaissit aussi la moyenne mobile elle-même, pour bien la distinguer des bords de l'enveloppe.",
+      "Les briques déjà vues (lambdas, écart-type) suffisent à construire une vraie enveloppe de volatilité : moyenne mobile ± 2 écarts-types. .band colore directement la surface entre deux courbes — voir plot.* plus bas pour le détail complet de cette méthode.",
+      "L'enveloppe et sa moyenne partagent ici un seul et même plot.overlay(\"Enveloppe\") : deux séries (.band puis .line) dans un seul panneau/une seule entrée de légende, plutôt que deux appels indépendants — le même principe que plot.pane pour les panneaux dédiés. lineWidth: 3 épaissit la moyenne mobile elle-même, pour bien la distinguer des bords de l'enveloppe.",
     ],
     code: `const closes = market.series("close", 20);
 const sma = math.sma(closes, 20);
@@ -353,8 +353,9 @@ const std = math.std(closes);
 const upper = sma !== null && std !== null ? sma + 2 * std : market.close(0);
 const lower = sma !== null && std !== null ? sma - 2 * std : market.close(0);
 
-plot.bandOverlay("Enveloppe", upper, lower, { color: "#3ea377" });
-plot.overlay("Moyenne", sma ?? market.close(0), { lineWidth: 3 });
+const overlay = plot.overlay("Enveloppe");
+overlay.band("Enveloppe", upper, lower, { color: "#3ea377" });
+overlay.line("Moyenne", sma ?? market.close(0), { lineWidth: 3 });
 `,
   },
   {

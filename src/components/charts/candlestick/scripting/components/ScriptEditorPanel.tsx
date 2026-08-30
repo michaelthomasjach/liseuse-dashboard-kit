@@ -53,7 +53,7 @@ export interface ScriptEditorPanelProps {
 
 const DEFAULT_SCRIPT_CODE = `// Nouveau script — voir la liste "Indicateurs disponibles" pour les
 // identifiants chart.indicator(...) utilisables sur cette chart.
-plot.line("Ma série", market.close(0));
+plot.pane("Ma série").line("Ma série", market.close(0));
 `;
 
 /** The script editor's own host — a `ScriptEditorWindow` (a real floating/draggable/resizable/

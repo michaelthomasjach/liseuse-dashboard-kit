@@ -17,13 +17,13 @@ export interface ScriptingStateDebugHarnessProps {
 }
 
 const SCRIPT_A_CODE = `
-plot.line("Score A", market.close(0) > market.open(0) ? 1 : 0);
+plot.pane("Score A").line("Score A", market.close(0) > market.open(0) ? 1 : 0);
 `;
 const SCRIPT_B_CODE = `
 const seenBars = state.get("seenBars", 0) + 1;
 state.set("seenBars", seenBars);
 if (bar.isNew() && seenBars % 10 === 0) alert("Bar #" + seenBars);
-plot.overlay("SMA20 (B)", math.sma(market.series("close", 20), 20) ?? market.close(0));
+plot.overlay("SMA20 (B)").line("SMA20 (B)", math.sma(market.series("close", 20), 20) ?? market.close(0));
 `;
 
 export function ScriptingStateDebugHarness({ data: initialData, indicators }: ScriptingStateDebugHarnessProps) {

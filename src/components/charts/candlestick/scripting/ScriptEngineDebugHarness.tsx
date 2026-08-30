@@ -110,8 +110,8 @@ if (rsi !== null && rsi > 50) score += 1;
 if (macd !== null && macd > 0) score += 1;
 if (ema !== null && price > ema) score += 1;
 
-plot.line("Quant Score", score);
-plot.overlay("Fast SMA20", ema ?? price);
+plot.pane("Quant Score").line("Quant Score", score);
+plot.overlay("Fast SMA20").line("Fast SMA20", ema ?? price);
 
 if (score === 3) plot.signal({ type: "BUY", price });
 if (rsi !== null && rsi > 70) plot.signal("SELL");

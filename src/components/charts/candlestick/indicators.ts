@@ -14,7 +14,12 @@ import type { IndicatorChandelierPoint } from "./interfaces/IndicatorChandelierP
 import type { IndicatorSRLevel } from "./interfaces/IndicatorSRLevel.interface";
 import type { IndicatorValue } from "./interfaces/IndicatorValue.interface";
 import type { Indicator } from "./interfaces/Indicator.interface";
-import type { CustomIndicatorDef, CustomIndicatorDataPoint, CustomIndicatorBandDataPoint } from "./interfaces/CustomIndicatorDef.interface";
+import type {
+  CustomIndicatorDef,
+  CustomIndicatorDataPoint,
+  CustomIndicatorBandDataPoint,
+  CustomIndicatorMultiDataPoint,
+} from "./interfaces/CustomIndicatorDef.interface";
 import type { OverlayDataPoint } from "./interfaces/TrendLineDrawing.interface";
 import { isFundamentalKind } from "./indicatorCatalog";
 import { computePatternRecognitionValues } from "./patternRecognition";
@@ -107,6 +112,38 @@ export function computeCustomIndicatorValues(data: Candle[], def: CustomIndicato
       const lower = lowerFilled[i];
       if (upper === null || lower === null) return null;
       return { upper, middle: (upper + lower) / 2, lower };
+    });
+  }
+  if (def.draw === "multi") {
+    const multiData = def.data as CustomIndicatorMultiDataPoint[];
+    // One forward-filled array per own series (a plain number series gets one, a band-drawn one
+    // gets two — upper/lower, same two-pass idea as the "band" branch above) — each only sees the
+    // dates where its own key was actually present, so a series that started later than another
+    // still fills forward independently from its own first point, same as `forwardFillSeries`
+    // already does for a single-value indicator.
+    const filled = (def.multiSeries ?? []).map((entry) => {
+      if (entry.draw === "band") {
+        const points = multiData.filter((p) => entry.key in p.values).map((p) => p.values[entry.key] as { upper: number; lower: number });
+        const dates = multiData.filter((p) => entry.key in p.values).map((p) => p.date);
+        const upperFilled = forwardFillSeries(data, dates.map((date, i) => ({ date, value: points[i].upper })));
+        const lowerFilled = forwardFillSeries(data, dates.map((date, i) => ({ date, value: points[i].lower })));
+        return upperFilled.map((upper, i): IndicatorBand | null => {
+          const lower = lowerFilled[i];
+          return upper === null || lower === null ? null : { upper, middle: (upper + lower) / 2, lower };
+        });
+      }
+      const points = multiData.filter((p) => entry.key in p.values).map((p) => ({ date: p.date, value: p.values[entry.key] as number }));
+      return forwardFillSeries(data, points);
+    });
+    return data.map((_, i) => {
+      const values: Record<string, number | IndicatorBand | null> = {};
+      let anyPresent = false;
+      (def.multiSeries ?? []).forEach((entry, idx) => {
+        const value = filled[idx][i];
+        values[entry.key] = value;
+        if (value !== null) anyPresent = true;
+      });
+      return anyPresent ? { multi: values } : null;
     });
   }
   return forwardFillSeries(data, def.data as CustomIndicatorDataPoint[]);

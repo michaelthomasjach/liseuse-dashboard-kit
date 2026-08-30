@@ -14,6 +14,16 @@ export interface CustomIndicatorBandDataPoint {
   lower: number;
 }
 
+/** A multi-series-pane-shaped data point — only used when `draw: "multi"` (2+ series accumulated
+ *  in one `plot.pane`/`plot.overlay` call, see `CustomIndicatorDef.multiSeries`'s own doc), in
+ *  place of the single-`value`/band shapes above. `values` is keyed by each series' own
+ *  `multiSeries[].key`; a band-drawn series contributes `{upper, lower}` here instead of a plain
+ *  number, mirroring `CustomIndicatorBandDataPoint` one level down. */
+export interface CustomIndicatorMultiDataPoint {
+  date: Date;
+  values: Record<string, number | { upper: number; lower: number }>;
+}
+
 /** A caller-supplied series the library knows nothing about ahead of time — the open-ended
  *  escape hatch for whatever data an app has (a fundamentals metric beyond the built-in eight,
  *  a proprietary score, anything else that's one number per reporting date) without needing a
@@ -38,17 +48,20 @@ export interface CustomIndicatorDef {
    *  like RSI/CHOP/MACD/the built-in fundamentals. */
   type: "overlay" | "own";
   /** How to draw it: a continuous line (moving-average style), the area under that line filled
-   *  down to the pane's own floor, a bar per reporting date (volume-style), or a translucent band
-   *  filled between two curves (Bollinger-style — see `CustomIndicatorBandDataPoint`). */
-  draw: "line" | "area" | "histogram" | "band";
+   *  down to the pane's own floor, a bar per reporting date (volume-style), a translucent band
+   *  filled between two curves (Bollinger-style — see `CustomIndicatorBandDataPoint`), or several
+   *  independently-styled series sharing this one pane/legend entry (a `plot.pane`/`plot.overlay`
+   *  call with 2+ of its own series — see `CustomIndicatorMultiDataPoint`/`multiSeries`). */
+  draw: "line" | "area" | "histogram" | "band" | "multi";
   /** The series itself — one point per reporting date, not required to be sorted. Forward-filled
    *  onto every candle the same step-function way the built-in fundamentals already are (sparse,
    *  quarterly-style reporting is the expected shape, not one point per candle) — see
    *  `computeCustomIndicatorValues`. `CustomIndicatorBandDataPoint[]` only when `draw === "band"`,
-   *  `CustomIndicatorDataPoint[]` for every other `draw` value — not a real discriminated union
-   *  TypeScript can narrow on its own (the discriminant lives on a sibling field), so
-   *  `computeCustomIndicatorValues` checks `draw` at runtime before reading either shape. */
-  data: CustomIndicatorDataPoint[] | CustomIndicatorBandDataPoint[];
+   *  `CustomIndicatorMultiDataPoint[]` only when `draw === "multi"`, `CustomIndicatorDataPoint[]`
+   *  for every other `draw` value — not a real discriminated union TypeScript can narrow on its
+   *  own (the discriminant lives on a sibling field), so `computeCustomIndicatorValues` checks
+   *  `draw` at runtime before reading any of the three shapes. */
+  data: CustomIndicatorDataPoint[] | CustomIndicatorBandDataPoint[] | CustomIndicatorMultiDataPoint[];
   /** Formats the value in badges/legend/pane-axis ticks. Default: 2 decimals. Meaningless for
    *  `draw: "band"` (a band has no single value to format). */
   formatValue?: (value: number) => string;
@@ -61,4 +74,16 @@ export interface CustomIndicatorDef {
    *  built-in indicators already use for their own fixed-style lines (Ichimoku's chikou span, pivot
    *  levels, support/resistance) — here exposed as a caller choice instead of hardcoded per kind. */
   lineStyle?: "solid" | "dashed" | "dotted";
+  /** Only meaningful for `draw: "multi"` — one entry per key of `CustomIndicatorMultiDataPoint.values`,
+   *  in call order, describing how to draw and style that one series on its own (this def's own
+   *  top-level `color`/`lineWidth`/`lineStyle`/`formatValue` are meaningless here, since a "multi"
+   *  pane has no single value/style of its own — every one of those lives per-entry instead). */
+  multiSeries?: {
+    key: string;
+    label: string;
+    draw: "line" | "area" | "histogram" | "band";
+    color?: string;
+    lineWidth?: number;
+    lineStyle?: "solid" | "dashed" | "dotted";
+  }[];
 }

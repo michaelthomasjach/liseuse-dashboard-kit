@@ -15,8 +15,8 @@ export interface ScriptReferenceBlock {
    *  reference) so this file stays plain data — see its own top-of-file doc on why. */
   diagramKey?: string;
   /** Only for `kind: "heading"` — which `SCRIPT_API_COMPLETIONS` labels (`scriptApiCompletions.ts`)
-   *  this specific heading is the primary explanation for, e.g. `["plot.band", "plot.bandOverlay"]`
-   *  on the "Remplir entre deux courbes" heading. Read by `scriptDocsNav.ts` to send a click on that
+   *  this specific heading is the primary explanation for, e.g. `[".band"]` on the "Remplir entre
+   *  deux courbes" heading. Read by `scriptDocsNav.ts` to send a click on that
    *  keyword in the documentation's own keyword index straight to this heading rather than just its
    *  parent section — omitted where no heading is specific enough (most of `market.*`'s own plain
    *  functions, for instance), in which case the keyword index falls back to that keyword's own
@@ -123,7 +123,7 @@ const closes = market.series("close", 20);
 const sma = math.sma(closes, 20);
 
 // %% Étape 2 — le tracé
-plot.overlay("SMA 20", sma ?? market.close(0));`
+plot.overlay("SMA 20").line("SMA 20", sma ?? market.close(0));`
       ),
       t(
         "Maj+Entrée (ou le bouton « Exécuter la cellule ») exécute le code depuis le tout début du fichier jusqu'à la fin de la cellule où se trouve le curseur — pas cette seule cellule isolée. C'est une différence volontaire avec un vrai notebook Jupyter : ce moteur n'a pas de mémoire de variables entre deux exécutions (state.* lui-même repart de zéro à chaque exécution complète, voir state.* plus bas), donc une cellule isolée qui lirait une variable définie plus haut échouerait aussitôt. « Depuis le début jusqu'ici » reproduit exactement l'usage réel d'un notebook (on exécute ses cellules dans l'ordre, du haut vers le bas) sans dépendre d'un mécanisme que ce moteur n'a pas — écrivez votre script cellule par cellule, en appuyant sur Maj+Entrée à chaque étape pour voir immédiatement son effet sur la chart, exactement comme dans Jupyter."
@@ -218,52 +218,59 @@ if (now !== null && prev !== null && prev <= 50 && now > 50) {
     title: "plot.* — dessiner sur la chart",
     blocks: [
       t(
-        "C'est la fonction que vous utiliserez le plus souvent : plot.* est ce qui fait réellement apparaître quelque chose sur la chart — sans un appel à plot.* quelque part, un script peut calculer tout ce qu'il veut en coulisses, rien ne s'affichera jamais. Il existe deux familles bien distinctes : les séries continues (une courbe qui grandit bougie après bougie) et les marqueurs ponctuels (un seul symbole posé sur une bougie précise)."
+        "C'est la fonction que vous utiliserez le plus souvent : plot.* est ce qui fait réellement apparaître quelque chose sur la chart — sans un appel à plot.* quelque part, un script peut calculer tout ce qu'il veut en coulisses, rien ne s'affichera jamais. Il existe deux familles bien distinctes : les panneaux dessinés (un ou plusieurs traits qui grandissent bougie après bougie) et les marqueurs ponctuels (un seul symbole posé sur une bougie précise)."
       ),
-      h("Les séries continues — line / area / histogram / overlay / panel", [
-        "plot.line",
-        "plot.area",
-        "plot.histogram",
-        "plot.overlay",
-        "plot.panel",
-      ]),
-      t("Les cinq premières fonctions tracent une série continue (un point ajouté à chaque bougie traitée) ; appeler plusieurs fois la même série avec le même nom sur des bougies différentes prolonge la même courbe, pas une nouvelle à chaque fois."),
+      h("Les panneaux dessinés — plot.pane / plot.overlay", ["plot.pane", "plot.overlay"]),
+      t(
+        "plot.pane(nom) et plot.overlay(nom) créent chacun un panneau nommé et renvoient un objet sur lequel dessiner — appeler plusieurs fois la même méthode de dessin, avec le même nom de série, sur des bougies différentes prolonge la même courbe, pas une nouvelle à chaque fois. Le nom passé à plot.pane/plot.overlay peut être rappelé sans souci à chaque bougie (le script entier rejoue en entier à chaque fois) : ça rouvre le même panneau plutôt que d'en créer un nouveau."
+      ),
       c(
-        `plot.line(name, value, options?)       // courbe, panneau dédié
-plot.area(name, value, options?)       // aire remplie, panneau dédié
-plot.histogram(name, value, options?)  // histogramme, panneau dédié
-plot.overlay(name, value, options?)    // courbe superposée au prix (panneau principal)
-plot.panel(name, value, options?)      // identique à line — alias
+        `const pane = plot.pane("Mon score");     // nouveau panneau à part, sous le prix
+pane.line(name, value, options?)         // courbe
+pane.area(name, value, options?)         // aire remplie
+pane.histogram(name, value, options?)    // histogramme
+pane.band(name, upper, lower, options?)  // remplissage entre deux courbes — voir plus bas
 
-// options: { color?, lineWidth?, lineStyle? }`
+// options (line/area/histogram): { color?, lineWidth?, lineStyle? }`
       ),
       t(
-        "line/area/histogram/panel ouvrent tous les quatre un nouveau panneau à part, sous le prix (exactement comme RSI ou MACD) — le bon choix pour une valeur qui n'est pas sur la même échelle que le prix (un score de 0 à 3, un pourcentage, un oscillateur…)."
+        "plot.pane ouvre un nouveau panneau à part, sous le prix (exactement comme RSI ou MACD) — le bon choix pour une valeur qui n'est pas sur la même échelle que le prix (un score de 0 à 3, un pourcentage, un oscillateur…)."
       ),
       d("plotOwnPane"),
-      t("overlay, à l'inverse, dessine directement par-dessus les bougies, dans le panneau principal — réservé à une valeur qui *est* un prix (une moyenne mobile, une bande, un niveau) et qui a donc du sens sur la même échelle."),
-      d("plotOverlay"),
       t(
-        "lineWidth (nombre, défaut 1,5) épaissit le trait ; lineStyle (\"solid\" par défaut, ou \"dashed\"/\"dotted\") change son style. Les deux s'appliquent à line/area/overlay/panel (sans effet sur histogram, qui trace des barres, pas un trait) :"
+        "plot.overlay dessine directement par-dessus les bougies, dans le panneau principal — réservé à une valeur qui *est* un prix (une moyenne mobile, une bande, un niveau) et qui a donc du sens sur la même échelle. Même objet, mêmes méthodes que plot.pane :"
       ),
-      c(`plot.overlay("SMA 20 (épaisse)", sma20, { lineWidth: 3, lineStyle: "dashed" });`),
-      h("Remplir entre deux courbes — band / bandOverlay", ["plot.band", "plot.bandOverlay"]),
+      c(`const overlay = plot.overlay("SMA 20");
+overlay.line("SMA 20", sma20 ?? market.close(0));`),
+      d("plotOverlay"),
+      h("Plusieurs courbes dans un même panneau"),
       t(
-        "plot.band(name, upper, lower, options?) trace deux courbes et colore la surface entre elles — le rendu exact des bandes de Bollinger intégrées (remplissage translucide, ligne haute/basse fine, ligne médiane calculée automatiquement). own pane par défaut ; bandOverlay force le panneau principal, même paire que overlay/line :"
+        "Un même panneau accepte plusieurs séries — chacune garde son propre nom (sa propre entrée dans l'en-tête du panneau), mais toutes partagent le même panneau et la même échelle verticale. Pratique pour un indicateur composite (une ligne rapide et une ligne lente, une ligne et son histogramme…) sans multiplier les panneaux :"
       ),
       c(
-        `plot.band(name, upper, lower, options?)        // panneau dédié
-plot.bandOverlay(name, upper, lower, options?) // superposé au prix
-
-// options: { color?, lineWidth? } — lineWidth s'applique aux lignes haute/basse (la ligne
+        `const pane = plot.pane("Momentum");
+pane.line("Rapide", fast);
+pane.line("Lente", slow);
+pane.histogram("Écart", fast - slow);`
+      ),
+      t(
+        "lineWidth (nombre, défaut 1,5) épaissit le trait ; lineStyle (\"solid\" par défaut, ou \"dashed\"/\"dotted\") change son style. Les deux s'appliquent à line/area/band (sans effet sur histogram, qui trace des barres, pas un trait) :"
+      ),
+      c(`overlay.line("SMA 20 (épaisse)", sma20, { lineWidth: 3, lineStyle: "dashed" });`),
+      h("Remplir entre deux courbes — .band", [".band"]),
+      t(
+        "pane.band(name, upper, lower, options?) / overlay.band(name, upper, lower, options?) tracent deux courbes et colorent la surface entre elles — le rendu exact des bandes de Bollinger intégrées (remplissage translucide, ligne haute/basse fine, ligne médiane calculée automatiquement) :"
+      ),
+      c(
+        `// options: { color?, lineWidth? } — lineWidth s'applique aux lignes haute/basse (la ligne
 // médiane est légèrement plus épaisse, même rapport que les bandes de Bollinger intégrées)
 
-// Exemple : une enveloppe de volatilité maison (moyenne ± 2 écarts-types)
+// Exemple : une enveloppe de volatilité maison (moyenne ± 2 écarts-types), sur le prix
 const closes = market.series("close", 20);
 const sma = math.sma(closes, 20);
 const std = math.std(closes);
 if (sma !== null && std !== null) {
-  plot.bandOverlay("Enveloppe maison", sma + 2 * std, sma - 2 * std, { color: "#3ea377" });
+  plot.overlay("Enveloppe maison").band("Enveloppe", sma + 2 * std, sma - 2 * std, { color: "#3ea377" });
 }`
       ),
       h("Les marqueurs ponctuels — signal / point / horizontal / vertical", [
@@ -301,7 +308,7 @@ plot.vertical({ color? })                             // ligne verticale sur la 
       ),
       h("plot.table — un tableau en overlay sur la chart", ["plot.table"]),
       t(
-        "plot.table(rows, options?) affiche un petit tableau ancré dans un coin de la chart (« RSI sur cinq timeframes », un score détaillé…) — ni série continue ni marqueur ponctuel : contrairement à plot.line, seul le dernier appel compte (pas d'historique accumulé), donc appelez-le sans condition à chaque bougie plutôt que de le protéger avec bar.isNew() — la chart affichera toujours la version la plus récente."
+        "plot.table(rows, options?) affiche un petit tableau ancré dans un coin de la chart (« RSI sur cinq timeframes », un score détaillé…) — ni série continue ni marqueur ponctuel : contrairement à pane.line, seul le dernier appel compte (pas d'historique accumulé), donc appelez-le sans condition à chaque bougie plutôt que de le protéger avec bar.isNew() — la chart affichera toujours la version la plus récente."
       ),
       d("plotTable"),
       c(
@@ -470,8 +477,8 @@ if (macdHist !== null && macdHist > 0) score += 1; // MACD au-dessus de son sign
 if (sma20 !== null && price > sma20) score += 1;   // prix au-dessus de sa moyenne 20
 
 // Le score dans son propre panneau, la moyenne mobile superposée au prix.
-plot.line("Quant Score", score);
-plot.overlay("SMA 20", sma20 ?? price);
+plot.pane("Quant Score").line("Quant Score", score);
+plot.overlay("SMA 20").line("SMA 20", sma20 ?? price);
 
 // Un seul signal par bougie (bar.isNew()), uniquement quand les trois conditions sont réunies.
 if (bar.isNew() && score === 3) {
@@ -492,8 +499,8 @@ const longMA = math.sma(market.series("close", 200), 200);
 const prevShort = state.get("prevShort", null);
 const prevLong = state.get("prevLong", null);
 
-plot.overlay("SMA 50", shortMA ?? market.close(0));
-plot.overlay("SMA 200", longMA ?? market.close(0));
+plot.overlay("SMA 50").line("SMA 50", shortMA ?? market.close(0));
+plot.overlay("SMA 200").line("SMA 200", longMA ?? market.close(0));
 
 // Croisement = la courte était en dessous (ou égale) avant, et est au-dessus maintenant (ou l'inverse).
 if (bar.isNew() && prevShort !== null && prevLong !== null && shortMA !== null && longMA !== null) {
@@ -522,8 +529,7 @@ const price = market.close(0);
 // null tant qu'il n'y a pas encore 20 clôtures d'historique (période de chauffe) — on ne trace
 // et ne signale rien avant que le calcul ait un sens.
 if (bb) {
-  plot.overlay("BB Haute", bb.upper);
-  plot.overlay("BB Basse", bb.lower);
+  plot.overlay("Bollinger").band("Bollinger", bb.upper, bb.lower);
 
   // Rupture = clôture strictement au-delà d'une des deux bandes.
   if (bar.isNew() && price > bb.upper) {
@@ -572,7 +578,7 @@ if (rsi !== null && rsi > 55) score += 1;                  // RSI franchement au
 if (stoch !== null && stoch.k > stoch.d) score += 1;        // %K au-dessus de sa ligne de signal
 if (stoch !== null && stoch.k < 80) score += 1;             // évite la zone de surachat extrême
 
-plot.line("Momentum Score", score);
+plot.pane("Momentum Score").line("Momentum Score", score);
 
 if (bar.isNew() && score === 3) {
   alert("Score de momentum au maximum (3/3)");
@@ -588,8 +594,7 @@ const upperChannel = math.max(market.series("high", period));
 const lowerChannel = math.min(market.series("low", period));
 const price = market.close(0);
 
-plot.overlay("Canal haut", upperChannel ?? price);
-plot.overlay("Canal bas", lowerChannel ?? price);
+plot.overlay("Canal").band("Canal", upperChannel ?? price, lowerChannel ?? price);
 
 // Rupture = clôture qui égale ou dépasse une borne du canal (>= / <=, pas > / < : toucher la
 // borne compte déjà comme une rupture, pas seulement la dépasser).

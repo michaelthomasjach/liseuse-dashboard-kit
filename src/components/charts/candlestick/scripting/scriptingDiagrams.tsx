@@ -76,7 +76,7 @@ export function PlotOwnPaneDiagram() {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      <DiagramLabel x={6} y={68} text='plot.line("Score", …)' color="var(--lq-color-accent)" />
+      <DiagramLabel x={6} y={68} text='plot.pane("Score").line(…)' color="var(--lq-color-accent)" />
       <DiagramLabel x={6} y={104} text="nouveau panneau, dédié" color="var(--lq-color-text-muted)" />
     </InfoDiagram>
   );
@@ -94,7 +94,7 @@ export function PlotOverlayDiagram() {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      <DiagramLabel x={6} y={16} text="plot.overlay(…)" color="var(--lq-color-accent)" />
+      <DiagramLabel x={6} y={16} text="plot.overlay(…).line(…)" color="var(--lq-color-accent)" />
       <DiagramLabel x={6} y={100} text="superposé directement au prix" color="var(--lq-color-text-muted)" />
     </InfoDiagram>
   );

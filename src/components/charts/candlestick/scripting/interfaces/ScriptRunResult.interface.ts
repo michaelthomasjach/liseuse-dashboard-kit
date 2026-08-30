@@ -10,36 +10,33 @@ export interface ScriptError {
   column?: number;
 }
 
-/** One `plot.line/area/histogram/overlay/panel` output, built up one point per bar as the script
- *  runs — every call to the same `name` during a run contributes one more point rather than
- *  creating a new series, so `plot.line("Quant Score", score)` called on every bar of a replay
- *  produces one continuous series by the time the run finishes, not one series per call.
- *  Deliberately shaped close to `CustomIndicatorDef` (`interfaces/CustomIndicatorDef.interface.ts`)
- *  — `scriptOutputToCustomIndicatorDef.ts` converts this directly into one, which is what lets a
- *  script's own output ride the *existing* indicator pane/legend/settings machinery with no
- *  changes to it at all. */
-export interface ScriptPlotSeries {
+/** One `pane.line/area/histogram/band` call's own series within a `plot.pane`/`plot.overlay`
+ *  group, built up one point per bar as the script runs — every call to the same `name` (within
+ *  the same pane) during a run contributes one more point rather than creating a new series, so
+ *  `pane.line("Quant Score", score)` called on every bar of a replay produces one continuous
+ *  series by the time the run finishes, not one series per call. `key` is a slug of `name`, used
+ *  to key into `IndicatorMultiSeriesValue.multi` once this pane has 2+ of its own series (see
+ *  `scriptPaneToCustomIndicatorDef.ts`'s own doc for the 1-vs-2+ series split). */
+export interface ScriptPaneSubSeries {
+  key: string;
   name: string;
-  draw: "line" | "area" | "histogram";
-  pane: "overlay" | "own";
+  draw: "line" | "area" | "histogram" | "band";
   color?: string;
   lineWidth?: number;
   lineStyle?: "solid" | "dashed" | "dotted";
-  points: { date: number; value: number }[];
+  points: { date: number; value: number }[] | { date: number; upper: number; lower: number }[];
 }
 
-/** One `plot.band/bandOverlay` output — built up one `{upper,lower}` point per bar, same "same name
- *  across bars extends one continuous series" upsert rule `ScriptPlotSeries` already follows, just
- *  two curves instead of one. Converts into a `CustomIndicatorDef` with `draw: "band"`
- *  (`scriptBandToCustomIndicatorDef`), which is what rides the *exact* rendering already built for
- *  Bollinger Bands (translucent fill + upper/lower/middle lines) with no new canvas code at all —
- *  see `CustomIndicatorBandDataPoint`'s own doc. */
-export interface ScriptBandSeries {
+/** One `plot.pane(name)`/`plot.overlay(name)` output — a named group of 1+ of its own series (see
+ *  `ScriptPaneSubSeries`), all sharing this one pane's own Y-scale (own-pane) or the price scale
+ *  (overlay). `name` becomes the pane header's/legend entry's own label once converted to a
+ *  `CustomIndicatorDef` (`scriptPaneToCustomIndicatorDef.ts`) — deliberately shaped close to that
+ *  interface, which is what lets a script's own output ride the *existing* indicator
+ *  pane/legend/settings machinery with no changes to it at all. */
+export interface ScriptPaneSeries {
   name: string;
   pane: "overlay" | "own";
-  color?: string;
-  lineWidth?: number;
-  points: { date: number; upper: number; lower: number }[];
+  series: ScriptPaneSubSeries[];
 }
 
 /** One `plot.signal/point/horizontal/vertical` output — a single discrete marker at the bar it
@@ -116,8 +113,7 @@ export interface ScriptRunAlert {
 export interface ScriptRunResult {
   error: ScriptError | null;
   logs: string[];
-  plots: ScriptPlotSeries[];
-  bands: ScriptBandSeries[];
+  panes: ScriptPaneSeries[];
   drawings: ScriptDrawingOutput[];
   table: ScriptTableOutput | null;
   alerts: ScriptRunAlert[];

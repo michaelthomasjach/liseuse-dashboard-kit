@@ -2,9 +2,11 @@ import type { RenderCandlestickChartParams } from "../interfaces/RenderCandlesti
 import type { ChartCanvasStyle } from "../interfaces/ChartCanvasStyle.interface";
 import type { IndicatorMACD } from "../interfaces/IndicatorMACD.interface";
 import type { IndicatorADXPoint } from "../interfaces/IndicatorADXPoint.interface";
+import type { IndicatorBand } from "../interfaces/IndicatorBand.interface";
 import { snapPixel } from "../drawingGeometry";
 import { lineDashArray, drawDrawingText } from "../drawingRender";
 import { defaultIndicatorColor, isFundamentalKind } from "../indicatorCatalog";
+import { applyLineStyle } from "./drawPriceCandles";
 
 /** Phase 3 of `renderCandlestickChart`, painted outside the price section's own clip: the volume
  *  pane's bars and any "horizontal"/"ray" drawing anchored to it, each "own"-pane indicator's
@@ -359,6 +361,84 @@ export function drawVolumeAndPanes(ctx: CanvasRenderingContext2D, params: Render
           else ctx.lineTo(x, y);
         });
         ctx.stroke();
+      } else if (ind.customData?.draw === "multi") {
+        // A `plot.pane("Nom").line/.area/.histogram/.band(...)` pane with 2+ of its own series —
+        // same shape as the ADX branch above (several independent fields sharing this one pane's
+        // own scale), generalized to an arbitrary, script-declared list instead of 3 fixed ones.
+        const multiPoints = points as { i: number; value: { multi: Record<string, number | IndicatorBand | null> } }[];
+        (ind.customData.multiSeries ?? []).forEach((subEntry, subIdx) => {
+          const seriesColor = subEntry.color ?? defaultIndicatorColor(indicators.indexOf(ind) + subIdx);
+          const seriesPoints = multiPoints.filter((p) => p.value.multi[subEntry.key] !== null);
+          if (seriesPoints.length === 0) return;
+          if (subEntry.draw === "band") {
+            const bandSeriesPoints = seriesPoints as { i: number; value: { multi: Record<string, IndicatorBand> } }[];
+            ctx.globalAlpha = 0.08;
+            ctx.fillStyle = seriesColor;
+            ctx.beginPath();
+            bandSeriesPoints.forEach((p, k) => {
+              const x = zoomedXScale(p.i + 0.5);
+              const y = scale(p.value.multi[subEntry.key].upper);
+              if (k === 0) ctx.moveTo(x, y);
+              else ctx.lineTo(x, y);
+            });
+            for (let k = bandSeriesPoints.length - 1; k >= 0; k--) {
+              ctx.lineTo(zoomedXScale(bandSeriesPoints[k].i + 0.5), scale(bandSeriesPoints[k].value.multi[subEntry.key].lower));
+            }
+            ctx.closePath();
+            ctx.fill();
+            ctx.globalAlpha = 1;
+            ctx.strokeStyle = seriesColor;
+            ctx.lineWidth = subEntry.lineWidth ?? 1;
+            applyLineStyle(ctx, subEntry.lineStyle);
+            (["upper", "lower"] as const).forEach((key) => {
+              ctx.beginPath();
+              bandSeriesPoints.forEach((p, k) => {
+                const x = zoomedXScale(p.i + 0.5);
+                const y = scale(p.value.multi[subEntry.key][key]);
+                if (k === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+              });
+              ctx.stroke();
+            });
+          } else if (subEntry.draw === "histogram") {
+            const zeroY = scale(0);
+            ctx.globalAlpha = isEink ? 0.35 : 0.6;
+            ctx.fillStyle = isEink ? colorText : seriesColor;
+            for (const p of seriesPoints) {
+              const x = zoomedXScale(p.i + 0.5);
+              const y = scale(p.value.multi[subEntry.key] as number);
+              ctx.fillRect(x - candleWidth / 2, Math.min(y, zeroY), Math.max(candleWidth, 1), Math.abs(y - zeroY));
+            }
+            ctx.globalAlpha = 1;
+          } else {
+            if (subEntry.draw === "area") {
+              const zeroY = scale(0);
+              ctx.globalAlpha = 0.12;
+              ctx.fillStyle = seriesColor;
+              ctx.beginPath();
+              seriesPoints.forEach((p, k) => {
+                const x = zoomedXScale(p.i + 0.5);
+                if (k === 0) ctx.moveTo(x, zeroY);
+                ctx.lineTo(x, scale(p.value.multi[subEntry.key] as number));
+              });
+              ctx.lineTo(zoomedXScale(seriesPoints[seriesPoints.length - 1].i + 0.5), zeroY);
+              ctx.closePath();
+              ctx.fill();
+              ctx.globalAlpha = 1;
+            }
+            ctx.strokeStyle = seriesColor;
+            ctx.lineWidth = subEntry.lineWidth ?? 1.5;
+            applyLineStyle(ctx, subEntry.lineStyle);
+            ctx.beginPath();
+            seriesPoints.forEach((p, k) => {
+              const x = zoomedXScale(p.i + 0.5);
+              const y = scale(p.value.multi[subEntry.key] as number);
+              if (k === 0) ctx.moveTo(x, y);
+              else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+          }
+        });
       } else {
         // Fundamental indicators (Free Cash Flow, Net Income, P/E…) and a custom "line"-draw one:
         // no fixed reference levels either way — unlike RSI/CHOP there's no universal

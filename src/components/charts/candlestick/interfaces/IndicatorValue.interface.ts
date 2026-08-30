@@ -11,6 +11,18 @@ import type { IndicatorSRLevel } from "./IndicatorSRLevel.interface";
 import type { IndicatorPatternMatch } from "./IndicatorPatternMatch.interface";
 import type { IndicatorCandleMatch } from "./IndicatorCandleMatch.interface";
 
+/** A `plot.pane`/`plot.overlay` script pane with 2+ of its own named series (see
+ *  `CustomIndicatorDef.multiSeries`'s own doc) — one bar's worth of every sub-series' own value,
+ *  keyed by that sub-series' own `key`. Wrapped under a `multi` key rather than a bare `Record`
+ *  specifically so a script naming one of its own series "middle"/"macd"/"adx" can never collide
+ *  with the type-guards below that already check for those exact keys on a band/MACD-shaped
+ *  value. Each entry is independently nullable — a sub-series that started later than another
+ *  (its own first `pane.line(...)` call came on a later bar) is `null` until then, same as every
+ *  other forward-filled series in this library. */
+export interface IndicatorMultiSeriesValue {
+  multi: Record<string, number | IndicatorBand | null>;
+}
+
 /** Every shape a single indicator value can take, in one place — every file that used to spell
  *  out this union inline (indicators.ts, useIndicatorPaneScales.ts,
  *  RenderCandlestickChartParams.interface.ts, ChartHoverBadges.tsx, PaneHeaders.tsx) now reads
@@ -32,4 +44,5 @@ export type IndicatorValue =
   | IndicatorChandelierPoint
   | IndicatorSRLevel[]
   | IndicatorPatternMatch
-  | IndicatorCandleMatch;
+  | IndicatorCandleMatch
+  | IndicatorMultiSeriesValue;

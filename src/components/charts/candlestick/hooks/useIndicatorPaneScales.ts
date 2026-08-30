@@ -5,6 +5,7 @@ import type { FundamentalDataPoint } from "../interfaces/FundamentalDataPoint.in
 import type { Indicator } from "../interfaces/Indicator.interface";
 import type { IndicatorValue } from "../interfaces/IndicatorValue.interface";
 import type { IndicatorMACD } from "../interfaces/IndicatorMACD.interface";
+import type { IndicatorBand } from "../interfaces/IndicatorBand.interface";
 import type { TrendLineDrawing } from "../interfaces/TrendLineDrawing.interface";
 import { computeIndicatorValues } from "../indicators";
 import { indicatorLabel } from "../indicatorCatalog";
@@ -90,6 +91,31 @@ export function useIndicatorPaneScales({
         for (const p of points) {
           lo = Math.min(lo, p.value.macd, p.value.signal ?? p.value.macd, p.value.histogram ?? 0);
           hi = Math.max(hi, p.value.macd, p.value.signal ?? p.value.macd, p.value.histogram ?? 0);
+        }
+        const pad = (hi - lo) * 0.1 || 1;
+        scales[ind.id] = d3.scaleLinear().domain([lo - pad, hi + pad]).range([height, 0]);
+      } else if (ind.customData?.draw === "multi") {
+        // A `plot.pane` with 2+ of its own series sharing this one pane's own scale — same
+        // domain-scan idea as MACD's own branch above, generalized: every sub-value across every
+        // one of the pane's own series (a plain number directly, or a band's own upper/lower)
+        // contributes to one combined lo/hi, since they all share this one axis.
+        const points = (visibleIndicators.find((v) => v.indicator.id === ind.id)?.points ?? []) as {
+          i: number;
+          value: { multi: Record<string, number | IndicatorBand | null> };
+        }[];
+        let lo = 0;
+        let hi = 0;
+        for (const p of points) {
+          for (const sub of Object.values(p.value.multi)) {
+            if (sub === null) continue;
+            if (typeof sub === "number") {
+              lo = Math.min(lo, sub);
+              hi = Math.max(hi, sub);
+            } else {
+              lo = Math.min(lo, sub.upper, sub.lower);
+              hi = Math.max(hi, sub.upper, sub.lower);
+            }
+          }
         }
         const pad = (hi - lo) * 0.1 || 1;
         scales[ind.id] = d3.scaleLinear().domain([lo - pad, hi + pad]).range([height, 0]);

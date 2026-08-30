@@ -96,6 +96,9 @@ const SYMBOL_PROFILES: SymbolProfile[] = [
     exchange: "NASDAQ",
     instrumentType: "Action",
     marketStatus: "Marché fermé",
+    description:
+      "Apple Inc. conçoit, fabrique et commercialise des smartphones, ordinateurs personnels, tablettes, montres connectées et accessoires, et propose une large gamme de services associés (App Store, iCloud, Apple Music, Apple Pay). L'entreprise vend ses produits dans le monde entier via ses propres magasins, son site en ligne et des revendeurs tiers.",
+    sectors: ["Technologie", "Matériel informatique", "Électronique grand public"],
     performance: [
       { label: "1S", changePercent: 0.8 },
       { label: "1M", changePercent: -2.3 },

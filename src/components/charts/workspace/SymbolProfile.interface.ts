@@ -25,6 +25,14 @@ export interface SymbolProfile {
   /** e.g. "Marché fermé" / "Marché ouvert" — this library has no notion of exchange trading hours
    *  of its own, so this is read and shown completely as-is, whatever string the caller passes. */
   marketStatus?: string;
+  /** A short company description — shown clamped to 3 lines (`text-overflow: ellipsis` via
+   *  `-webkit-line-clamp`, not truncated by character count), so a caller can pass its full
+   *  description as-is without pre-trimming it. */
+  description?: string;
+  /** Business sectors/industries this company operates in (e.g. ["Technologie", "Matériel
+   *  informatique", "Électronique grand public"]) — shown as a row of small tags right under the
+   *  description. Plain strings, in whatever taxonomy/language the caller's own data uses. */
+  sectors?: string[];
   performance?: SymbolProfilePerformancePoint[];
   /** A pre-computed seasonality path (cumulative % return through a reference year, or whatever
    *  else the caller wants to show) — plotted as-is via a plain trend line, same "the caller

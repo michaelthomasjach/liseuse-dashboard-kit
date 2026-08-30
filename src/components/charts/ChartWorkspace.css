@@ -147,7 +147,11 @@
 /* Same "you can drag this" two-bar affordance as .lq-chart__pane-resize-grip (reused verbatim,
    see its own doc) — a plain flex item here rather than that rule's own absolutely-positioned
    host, since this divider already sits exactly where it needs to in normal flex flow, with
-   nothing underneath it to straddle. */
+   nothing underneath it to straddle. Unlike a chart's own internal pane dividers (where the line
+   itself is drawn on the canvas — see .lq-chart__pane-header--collapsed's own doc — leaving the
+   CSS grip free to stay hover-only), there is no canvas here: this handle needs its own always-
+   visible `border-top` so the two halves read as separate regions even before the pointer ever
+   gets near it, with the two-bar grip layered on top purely as the "you can drag this" affordance. */
 .lq-chart-workspace__side-split-handle {
   flex: 0 0 auto;
   position: relative;
@@ -155,6 +159,15 @@
   margin: 0 calc(-1 * var(--lq-space-3));
   cursor: ns-resize;
   touch-action: none;
+}
+
+.lq-chart-workspace__side-split-handle::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: var(--lq-space-3);
+  right: var(--lq-space-3);
+  border-top: 1px solid var(--lq-color-border-subtle);
 }
 
 .lq-chart-workspace__side-split-handle:hover .lq-chart__pane-resize-grip {
@@ -866,6 +879,34 @@
   font-size: 0.78rem;
   font-variant-numeric: tabular-nums;
   color: var(--lq-color-text-muted);
+}
+
+/* Clamped to 3 lines by row count, not character count, so a caller's full description can be
+   passed as-is — `-webkit-line-clamp` is supported in every browser this library otherwise
+   targets (Chromium/Safari/Firefox 68+), including the ones without a WebKit-prefix-free
+   standard equivalent yet. */
+.lq-chart-workspace__symbol-profile-description {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 0.78rem;
+  line-height: var(--lq-line-height-body);
+  color: var(--lq-color-text-muted);
+}
+
+.lq-chart-workspace__symbol-profile-sectors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--lq-space-1);
+}
+
+.lq-chart-workspace__symbol-profile-sector-tag {
+  padding: 2px 6px;
+  font-size: 0.68rem;
+  color: var(--lq-color-text-muted);
+  background-color: var(--lq-color-hover);
+  border-radius: var(--lq-radius-sm);
 }
 
 .lq-chart-workspace__symbol-profile-section {

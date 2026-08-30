@@ -50,6 +50,18 @@ export function SymbolProfilePanel({ symbol, price, change, changePercent, profi
         </div>
       )}
 
+      {profile?.description && <p className="lq-chart-workspace__symbol-profile-description">{profile.description}</p>}
+
+      {profile?.sectors && profile.sectors.length > 0 && (
+        <div className="lq-chart-workspace__symbol-profile-sectors">
+          {profile.sectors.map((sector) => (
+            <span key={sector} className="lq-chart-workspace__symbol-profile-sector-tag">
+              {sector}
+            </span>
+          ))}
+        </div>
+      )}
+
       {profile?.performance && profile.performance.length > 0 && (
         <div className="lq-chart-workspace__symbol-profile-section">
           <span className="lq-chart-workspace__symbol-profile-section-title">Performance</span>

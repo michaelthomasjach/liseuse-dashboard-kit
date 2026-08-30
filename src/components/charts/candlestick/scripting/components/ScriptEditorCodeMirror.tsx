@@ -19,9 +19,15 @@ import { bracketMatching, indentOnInput, syntaxHighlighting, syntaxTree, Highlig
 import { autocompletion, closeBrackets, closeBracketsKeymap, completionKeymap, type CompletionContext, type CompletionResult } from "@codemirror/autocomplete";
 import { lintGutter, setDiagnostics, type Diagnostic } from "@codemirror/lint";
 import { tags } from "@lezer/highlight";
+import type { Candle } from "../../interfaces/Candle.interface";
+import type { CustomIndicatorDef } from "../../interfaces/CustomIndicatorDef.interface";
 import type { ScriptError, ScriptRunResult } from "../interfaces/ScriptRunResult.interface";
 import { SCRIPT_API_COMPLETIONS } from "../scriptApiCompletions";
 import { CELL_OUTPUT_SENTINEL, CELL_VALUE_SENTINEL, isCellInstrumentationLog } from "../scriptCellSentinels";
+import { scriptPaneToCustomIndicatorDef } from "../scriptOutputToCustomIndicatorDef";
+import { scriptIndicatorToChartIndicator } from "../scriptIndicatorToChartIndicator";
+import { CandlestickChart } from "../../../CandlestickChart";
+import { LqThemeProvider, useLqTheme, type LqThemeContextValue } from "../../../../../theme";
 import { ScriptXYChart } from "./ScriptXYChart";
 import "./ScriptEditorCodeMirror.css";
 
@@ -48,6 +54,14 @@ export interface ScriptEditorCodeMirrorProps {
    *  separately, via the imperative handle's own `applyRunResult` (see its own doc for why a
    *  callback return value isn't enough here). */
   onRunCell?: (code: string) => void;
+  /** The candles a cell's own `plot.pane`/`plot.overlay` preview (see the notebook cell-output doc
+   *  block below) draws its own mini `CandlestickChart` against — the same data the caller's own
+   *  "real" chart(s) already use, so the preview and the real chart never disagree about what price
+   *  history looks like. `undefined`/empty simply means no pane/overlay preview ever renders (the
+   *  rest of a cell's own output — logs, the auto-displayed value, an xyChart — still does), rather
+   *  than an error: not every host necessarily has a natural single "the" dataset to offer here
+   *  (`ScriptEditorPanel.tsx`'s own script can target any one of several open chart panels). */
+  previewData?: Candle[];
 }
 
 /** Imperative handle — `runCurrentCell()` for `ScriptEditorPanel.tsx`'s own "Exécuter la cellule"
@@ -206,6 +220,10 @@ function codeThroughCellInstrumented(state: EditorState, startLine: number, endL
 }
 
 const XY_CALL_RE = /plot\.xy\(\s*["'`]([^"'`]+)["'`]/;
+// Matches both `plot.pane("Name")` and `plot.overlay("Name")` — same literal-string-name
+// assumption as XY_CALL_RE above. Global/all-matches: unlike plot.xy (one chart, one name), a cell
+// can create several panes/overlays at once, each worth its own place on the preview chart below.
+const PANE_CALL_RE = /plot\.(?:pane|overlay)\(\s*["'`]([^"'`]+)["'`]/g;
 
 export interface CellOutput {
   logs: string[];
@@ -214,15 +232,24 @@ export interface CellOutput {
    *  Python REPL never echoes `None`). */
   value?: string;
   xyChart?: ScriptRunResult["xyCharts"][number];
+  /** Every `plot.pane`/`plot.overlay` this cell's own code named, already converted to the exact
+   *  shape `CandlestickChart.defaultIndicators` accepts — see `buildCellOutput`'s own doc. Rendered
+   *  as a small preview `CandlestickChart` (real price candles, not the free-standing shape
+   *  `xyChart` gets) when present. */
+  panePreview?: CustomIndicatorDef[];
 }
 
-/** Splits a cell run's own `result.logs`/`result.xyCharts` into what belongs to *this* cell
- *  specifically — see `codeThroughCellInstrumented`'s own doc for why a single trailing segment of
- *  the flat `logs` array is enough (the target cell is always the last thing that ran). The xy-
- *  chart association is purely static/textual (does `cellSourceText` contain a `plot.xy("Name", …)`
- *  call with a literal string name?) rather than anything the worker has to report back — matches
- *  how every existing tutorial example already writes a chart's own name as a literal, and avoids
- *  needing any new worker-side "which cell produced this" bookkeeping at all. */
+/** Splits a cell run's own `result.logs`/`result.xyCharts`/`result.panes` into what belongs to
+ *  *this* cell specifically — see `codeThroughCellInstrumented`'s own doc for why a single trailing
+ *  segment of the flat `logs` array is enough (the target cell is always the last thing that ran).
+ *  The xy-chart/pane-preview association is purely static/textual (does `cellSourceText` contain a
+ *  `plot.xy("Name", …)`/`plot.pane("Name")`/`plot.overlay("Name")` call with a literal string name?)
+ *  rather than anything the worker has to report back — matches how every existing tutorial example
+ *  already writes a name as a literal, and avoids needing any new worker-side "which cell produced
+ *  this" bookkeeping at all. The scriptId fed to `scriptPaneToCustomIndicatorDef` is a fixed
+ *  placeholder, not this script's own real id — the resulting `CustomIndicatorDef` only ever feeds
+ *  a throwaway preview chart, never `usePaneLayout`'s own real indicator list, so it has no need to
+ *  be globally unique/stable across runs the way a real script-produced indicator's id does. */
 function buildCellOutput(result: ScriptRunResult, cellSourceText: string): CellOutput {
   const boundaryIndex = result.logs.lastIndexOf(CELL_OUTPUT_SENTINEL);
   const tail = boundaryIndex === -1 ? result.logs : result.logs.slice(boundaryIndex + 1);
@@ -238,7 +265,15 @@ function buildCellOutput(result: ScriptRunResult, cellSourceText: string): CellO
   }
   const xyMatch = XY_CALL_RE.exec(cellSourceText);
   const xyChart = xyMatch ? result.xyCharts.find((c) => c.name === xyMatch[1]) : undefined;
-  return { logs, value, xyChart };
+  const paneNames = [...cellSourceText.matchAll(PANE_CALL_RE)].map((m) => m[1]);
+  const panePreview =
+    paneNames.length > 0
+      ? paneNames
+          .map((name) => result.panes.find((p) => p.name === name))
+          .filter((p): p is ScriptRunResult["panes"][number] => p !== undefined)
+          .map((pane) => scriptPaneToCustomIndicatorDef("preview", pane))
+      : undefined;
+  return { logs, value, xyChart, panePreview };
 }
 
 const setCellOutputEffect = StateEffect.define<{ endLine: number; output: CellOutput }>();
@@ -294,17 +329,25 @@ class CellRunButtonWidget extends WidgetType {
 
 class CellOutputWidget extends WidgetType {
   private root: Root | null = null;
-  constructor(private readonly output: CellOutput) {
+  constructor(
+    private readonly output: CellOutput,
+    private readonly previewData: Candle[] | undefined,
+    private readonly theme: LqThemeContextValue
+  ) {
     super();
   }
   eq(other: CellOutputWidget) {
-    return JSON.stringify(this.output) === JSON.stringify(other.output);
+    return (
+      this.previewData === other.previewData &&
+      this.theme === other.theme &&
+      JSON.stringify(this.output) === JSON.stringify(other.output)
+    );
   }
   toDOM() {
     const container = document.createElement("div");
     container.className = "cm-cell-output";
     this.root = createRoot(container);
-    this.root.render(<CellOutputContent output={this.output} />);
+    this.root.render(<CellOutputContent output={this.output} previewData={this.previewData} theme={this.theme} />);
     return container;
   }
   destroy() {
@@ -317,8 +360,16 @@ class CellOutputWidget extends WidgetType {
   }
 }
 
-function CellOutputContent({ output }: { output: CellOutput }) {
-  if (output.logs.length === 0 && output.value === undefined && !output.xyChart) return null;
+function CellOutputContent({
+  output,
+  previewData,
+  theme,
+}: {
+  output: CellOutput;
+  previewData: Candle[] | undefined;
+  theme: LqThemeContextValue;
+}) {
+  if (output.logs.length === 0 && output.value === undefined && !output.xyChart && !output.panePreview?.length) return null;
   return (
     <div className="lq-script-editor-codemirror__cell-output">
       {output.logs.map((line, i) => (
@@ -328,6 +379,18 @@ function CellOutputContent({ output }: { output: CellOutput }) {
       ))}
       {output.value !== undefined && <div className="lq-script-editor-codemirror__cell-output-value">{output.value}</div>}
       {output.xyChart && <ScriptXYChart chart={output.xyChart} />}
+      {output.panePreview && output.panePreview.length > 0 && previewData && previewData.length > 0 && (
+        <div className="lq-script-editor-codemirror__cell-chart-preview">
+          <LqThemeProvider palette={theme.palette} surface={theme.surface} font={theme.font} style={{ display: "contents" }}>
+            <CandlestickChart
+              data={previewData}
+              defaultIndicators={output.panePreview.map(scriptIndicatorToChartIndicator)}
+              height={220}
+              symbol="Aperçu"
+            />
+          </LqThemeProvider>
+        </div>
+      )}
     </div>
   );
 }
@@ -338,7 +401,12 @@ function CellOutputContent({ output }: { output: CellOutput }) {
 // the active cell's own marker text (or after line 1 when it has none preceding it — content
 // before the very first `// %%` is its own implicit leading cell), and, for every cell that has an
 // entry in `cellOutputsField`, its own output block right after its last line.
-function buildCellDecorations(state: EditorState, runCellAt: (startLine: number, endLine: number) => void): DecorationSet {
+function buildCellDecorations(
+  state: EditorState,
+  runCellAt: (startLine: number, endLine: number) => void,
+  previewData: Candle[] | undefined,
+  theme: LqThemeContextValue
+): DecorationSet {
   const doc = state.doc;
   const markerLines = findCellMarkerLines(doc);
   if (markerLines.length === 0 && state.field(cellOutputsField).size === 0) return Decoration.none;
@@ -357,7 +425,9 @@ function buildCellDecorations(state: EditorState, runCellAt: (startLine: number,
   );
   for (const [endLine, output] of state.field(cellOutputsField)) {
     if (endLine < 1 || endLine > doc.lines) continue;
-    decorations.push(Decoration.widget({ widget: new CellOutputWidget(output), side: 1, block: true }).range(doc.line(endLine).to));
+    decorations.push(
+      Decoration.widget({ widget: new CellOutputWidget(output, previewData, theme), side: 1, block: true }).range(doc.line(endLine).to)
+    );
   }
   return Decoration.set(decorations, true);
 }
@@ -373,13 +443,35 @@ function buildCellDecorations(state: EditorState, runCellAt: (startLine: number,
  *  script editor never pays for CodeMirror's own bundle weight (verified in M5's own dist/ build
  *  check — see that commit). */
 export const ScriptEditorCodeMirror = forwardRef<ScriptEditorCodeMirrorHandle, ScriptEditorCodeMirrorProps>(function ScriptEditorCodeMirror(
-  { value, onChange, error, formatRequestId, onRunCell },
+  { value, onChange, error, formatRequestId, onRunCell, previewData },
   ref
 ) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
+  // Read by buildCellDecorations (via the two call sites below) so a `previewData` change (new
+  // candles arriving, the active script's own target panel changing) reaches an already-rendered
+  // pane/overlay preview without needing to tear down and rebuild the whole EditorView the way
+  // changing `value` externally does — same ref-indirection reasoning as onChangeRef/onRunCellRef.
+  const previewDataRef = useRef(previewData);
+  previewDataRef.current = previewData;
+  // A pane/overlay preview's own `<CandlestickChart>` (see CellOutputContent) mounts into a fully
+  // separate React root (createRoot on the CodeMirror widget's own detached DOM node — necessary
+  // since a CodeMirror widget is vanilla DOM, not something this component's own JSX can render
+  // into directly), which has no ancestor `<LqThemeProvider>` of its own to read from — every
+  // `useLqTheme()` call inside that chart's own sub-components would throw. This component itself
+  // *is* part of the normal tree, so it reads the real, current theme here and threads it down
+  // through the same ref mechanism as previewData, for a fresh `<LqThemeProvider>` wrapping just
+  // that preview to use — same "read here, re-provide down there" shape `Popover.tsx` already uses
+  // for its own portaled content.
+  // Named appTheme, not theme, to avoid shadowing this file's own module-level `theme` (the
+  // CodeMirror EditorView.theme(...) extension defined near the top) — both are in scope inside
+  // this component, and JS's own lexical scoping would otherwise silently make the extensions
+  // array below resolve to this one instead of that one.
+  const appTheme = useLqTheme();
+  const appThemeRef = useRef(appTheme);
+  appThemeRef.current = appTheme;
   // Same ref-indirection as onChangeRef above — the keymap binding below is registered once (see
   // this effect's own doc on why), so it has to read the *current* onRunCell through a ref rather
   // than closing over whichever one happened to be passed in on the render that built it.
@@ -430,10 +522,12 @@ export const ScriptEditorCodeMirror = forwardRef<ScriptEditorCodeMirrorHandle, S
   useEffect(() => {
     if (!containerRef.current) return;
     const cellDecorationsField = StateField.define<DecorationSet>({
-      create: (state) => buildCellDecorations(state, (s, e) => runCellAtRef.current(s, e)),
+      create: (state) => buildCellDecorations(state, (s, e) => runCellAtRef.current(s, e), previewDataRef.current, appThemeRef.current),
       update: (deco, tr) => {
         const cellOutputsChanged = tr.effects.some((e) => e.is(setCellOutputEffect));
-        return tr.docChanged || tr.selection || cellOutputsChanged ? buildCellDecorations(tr.state, (s, e) => runCellAtRef.current(s, e)) : deco;
+        return tr.docChanged || tr.selection || cellOutputsChanged
+          ? buildCellDecorations(tr.state, (s, e) => runCellAtRef.current(s, e), previewDataRef.current, appThemeRef.current)
+          : deco;
       },
       provide: (field) => EditorView.decorations.from(field),
     });

@@ -72,3 +72,15 @@
   color: var(--lq-color-accent);
   white-space: pre-wrap;
 }
+
+/* A `plot.pane`/`plot.overlay` cell's own mini preview chart (real price candles, not the
+   free-standing ScriptXYChart shape) — its own bordered box so it reads as a distinct "here's what
+   this cell drew" panel rather than blending into the console-style text lines above it; not
+   monospace/muted like those, so it resets the cell-output's own font. */
+.lq-script-editor-codemirror__cell-chart-preview {
+  margin-top: var(--lq-space-2);
+  overflow: hidden;
+  font-family: var(--lq-font-family);
+  border: 1px solid var(--lq-color-border-subtle);
+  border-radius: var(--lq-radius-sm);
+}

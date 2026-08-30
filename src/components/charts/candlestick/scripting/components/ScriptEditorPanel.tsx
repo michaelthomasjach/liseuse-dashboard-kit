@@ -16,6 +16,7 @@ import {
   ChevronDownIcon,
   CheckIcon,
 } from "../../../../icons";
+import type { Candle } from "../../interfaces/Candle.interface";
 import type { Indicator } from "../../interfaces/Indicator.interface";
 import type { ScriptDef } from "../../interfaces/ScriptDef.interface";
 import type { ScriptRunOutput } from "../interfaces/ScriptRunOutput.interface";
@@ -50,6 +51,12 @@ export interface ScriptEditorPanelProps {
    *  "si plusieurs charts sont ouvertes, on me demande sur laquelle exécuter" only applies once
    *  there's an actual choice to make. */
   panelChoices?: { index: number; label: string }[];
+  /** The candles a `plot.pane`/`plot.overlay` cell's own inline preview chart draws against (see
+   *  `ScriptEditorCodeMirrorProps.previewData`'s own doc) — the *active* script's own target
+   *  panel's data specifically, so the preview always matches whichever chart "Exécuter" would
+   *  actually run against. `undefined` before a target is chosen (no panel to draw from yet); the
+   *  rest of a cell's own output still renders normally either way. */
+  previewData?: Candle[];
 }
 
 const DEFAULT_SCRIPT_CODE = `// Nouveau script — voir la liste "Indicateurs disponibles" pour les
@@ -84,6 +91,7 @@ export function ScriptEditorPanel({
   runOutputs,
   indicators,
   panelChoices,
+  previewData,
 }: ScriptEditorPanelProps) {
   const activeScript = scripts.find((s) => s.id === activeScriptId) ?? null;
   const [draft, setDraft] = useState(activeScript?.code ?? "");
@@ -408,6 +416,7 @@ export function ScriptEditorPanel({
                 error={output?.result?.error ?? null}
                 formatRequestId={formatRequestId}
                 onRunCell={(code) => handleRunClick(code)}
+                previewData={previewData}
               />
             </Suspense>
             {output?.result?.error && <ScriptErrorPanel error={output.result.error} />}

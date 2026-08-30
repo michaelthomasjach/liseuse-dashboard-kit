@@ -901,6 +901,18 @@ export function ChartWorkspace({
 
       {scripting && (
         <ScriptEditorPanel
+          // The active script's own target panel's own candles — `.props.data` reads it straight
+          // off that panel's original JSX element the same way `resolvedSymbol` already reads
+          // `.props.symbol` above, since (unlike a panel's own *indicator* state, genuinely
+          // internal and never reported upward) a panel's own `data` is just the plain prop this
+          // workspace itself was given for it in the first place. `undefined` before a target is
+          // chosen — the notebook cell-output preview simply has nothing to draw against yet.
+          previewData={
+            (() => {
+              const targetIndex = workspaceScripting.scripts.find((s) => s.id === workspaceScripting.activeScriptId)?.targetPanelIndex;
+              return targetIndex !== undefined ? panelElements[targetIndex]?.props.data : undefined;
+            })()
+          }
           open={workspaceScripting.editorOpen}
           onClose={() => workspaceScripting.setEditorOpen(false)}
           scripts={workspaceScripting.scripts}

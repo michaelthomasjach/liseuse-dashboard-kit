@@ -204,6 +204,7 @@ export function ScriptInteractiveTutorial() {
                 onChange={setDraft}
                 error={engine.result?.error ?? null}
                 onRunCell={(code) => engine.run(code)}
+                previewData={stepData}
               />
             </Suspense>
             {engine.result?.error && <ScriptErrorPanel error={engine.result.error} />}

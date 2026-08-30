@@ -2,6 +2,12 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+  width: 100%;
+}
+
+.lq-script-xy-chart svg {
+  display: block;
+  width: 100%;
 }
 
 .lq-script-xy-chart__title {

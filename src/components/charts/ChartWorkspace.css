@@ -1,11 +1,69 @@
-/* A flex row of up to three children — `.lq-chart-workspace__grid` (below), the docked panel
-   itself while open (`watchlists`/`alerts`), and its own always-visible rail — same split
-   `.lq-chart`/`.lq-chart__main` uses in CandlestickChart's own CSS, and for the same reason:
-   ordinary flexbox hands the grid whatever width the panel doesn't take, with zero extra math
-   needed here (see ChartWorkspace.tsx's own doc). */
+/* A column of up to two children on the mobile layout (isMobileWorkspace, see ChartWorkspace.tsx)
+   — the scrollable topbar (below) then `.lq-chart-workspace__row` — or, by default, that same row
+   directly (this element's own `display: flex` is otherwise a plain passthrough: the row wrapper
+   below carries the real "flex row of grid/panel/rail" layout so desktop's own DOM shape and
+   layout stay exactly what they were before the mobile topbar existed). */
 .lq-chart-workspace {
   display: flex;
   width: 100%;
+}
+
+.lq-chart-workspace--mobile {
+  flex-direction: column;
+}
+
+/* The row wrapper's own layout only actually reads as a *row* while `.lq-chart-workspace` above
+   is left in its default row direction (desktop) — under `--mobile` (column), `flex: 1 1 auto` is
+   what makes it fill whatever height the topbar above it doesn't take, `min-height: 0` is what
+   lets it actually shrink to that instead of overflowing off the bottom of a 100vh workspace. */
+.lq-chart-workspace__row {
+  display: flex;
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* Second topbar, mobile layout only — every watchlist's own full name (`.lq-chart__timeframe-
+   trigger`, the same text-pill class the *first* topbar's own "1 jour" timeframe trigger uses,
+   for a consistent look between the two bars) plus the alert bell, replacing the rail's icons
+   below MOBILE_RAIL_BREAKPOINT. Same overflow-x recipe as `.lq-chart__header` (CandlestickChart's
+   own first topbar) and ToolsRail's own `--horizontal` variant: native scroll, so dragging a
+   finger across whatever doesn't fit comes for free from the browser instead of a custom handler,
+   scrollbar hidden (both engines) so it can't eat into the fixed 40px height. */
+.lq-chart-workspace__mobile-topbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 40px;
+  padding: 0 8px;
+  box-sizing: border-box;
+  background-color: var(--lq-color-bg);
+  border-bottom: 1px solid var(--lq-color-border-subtle);
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.lq-chart-workspace__mobile-topbar::-webkit-scrollbar {
+  display: none;
+}
+
+.lq-chart-workspace__mobile-topbar > * {
+  flex-shrink: 0;
+}
+
+/* `.lq-chart__timeframe-trigger` has no "active" state of its own elsewhere (it's normally a
+   dropdown trigger, not a toggle) — reuses `.lq-chart__icon-button--active`'s own accent
+   treatment so the currently-open list reads the same "on" way every other toggle in this chart
+   does, layered on top of the trigger's own text-pill shape rather than replacing it. Compound
+   selector (not just `--active` alone) so it wins over `.lq-chart__timeframe-trigger`'s own base
+   rule (charts-shared.css) regardless of which stylesheet's import happens to land first in the
+   bundle — same specificity otherwise, source order would decide instead of intent. */
+.lq-chart__timeframe-trigger.lq-chart-workspace__mobile-topbar-item--active {
+  color: var(--lq-color-accent-contrast);
+  background-color: var(--lq-color-accent);
+  border-color: var(--lq-color-accent);
 }
 
 .lq-chart-workspace__grid {

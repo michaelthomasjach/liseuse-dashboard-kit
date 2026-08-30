@@ -26,6 +26,8 @@ import { Popover } from "../forms/Popover";
 import { Modal } from "../primitives/Modal";
 import { WatchlistIcon, BellIcon, GridIcon, MaximizeIcon, MinimizeIcon, HelpIcon, CodeIcon } from "../icons";
 import { useFullscreen } from "./internal/useFullscreen";
+import { useChartDimensions } from "./internal/useChartDimensions";
+import { MOBILE_RAIL_BREAKPOINT } from "./candlestick/constants";
 import "./ChartWorkspace.css";
 
 // Item 21 — one entry per global feature the rail's own "?" button explains, in the order they
@@ -332,6 +334,14 @@ export function ChartWorkspace({
   }
   const [splitScreenMenuOpen, setSplitScreenMenuOpen] = useState(false);
   const splitScreenTriggerRef = useRef<HTMLButtonElement>(null);
+  // Reuses CandlestickChart's own generic wrapper-measuring hook (see its own doc — margin/options
+  // both optional, and nothing about it assumes a canvas/candles) purely for `dims.width`, to
+  // decide the same "too narrow to fit" question ToolsRail/MOBILE_RAIL_BREAKPOINT already answer
+  // for a single chart's own drawing-tools rail, just at the whole-workspace level instead: below
+  // this width, the side rail (watchlist/alerts/scripting/split-screen/fullscreen icons) is
+  // replaced by a second, scrollable topbar — see isMobileWorkspace's own usages below.
+  const [workspaceRef, workspaceDims] = useChartDimensions();
+  const isMobileWorkspace = workspaceDims.width > 0 && workspaceDims.width < MOBILE_RAIL_BREAKPOINT;
   const hasWatchlists = !!watchlists && watchlists.length > 0;
   const hasAlerts = alerts !== undefined;
   const [activeTab, setActiveTab] = useState<ChartWorkspaceSidePanelTab>(defaultSidePanelTab ?? (hasWatchlists ? "watchlist" : "alerts"));
@@ -362,6 +372,21 @@ export function ChartWorkspace({
   function selectWatchlist(id: string) {
     setActiveWatchlistId(id);
     onActiveWatchlistChange?.(id);
+  }
+
+  // Mobile topbar's own per-list buttons (see isMobileWorkspace) — same "click the active one
+  // again to close" convention as toggleTab above, just keyed on *which list* is both open and
+  // active instead of only the tab, since every list gets its own button here rather than one
+  // shared icon plus an in-panel dropdown to pick among them (WatchlistPanel's own trigger).
+  function selectWatchlistTab(id: string) {
+    if (sidePanelState.open && activeTab === "watchlist" && activeWatchlistId === id) {
+      sidePanelState.commitOpen(false);
+      return;
+    }
+    selectWatchlist(id);
+    setActiveTab("watchlist");
+    onSidePanelTabChange?.("watchlist");
+    if (!sidePanelState.open) sidePanelState.commitOpen(true);
   }
 
   function changeVisibleColumns(ids: Set<string>) {
@@ -562,12 +587,61 @@ export function ChartWorkspace({
     // *this* outer row rather than the grid itself so the side panel stretches to the exact same
     // height via the row's own default `align-items: stretch`, not just the grid.
     <div
-      className={["lq-chart-workspace", workspaceFullscreen && "lq-chart-workspace--fullscreen", className].filter(Boolean).join(" ")}
+      ref={workspaceRef}
+      className={[
+        "lq-chart-workspace",
+        workspaceFullscreen && "lq-chart-workspace--fullscreen",
+        isMobileWorkspace && "lq-chart-workspace--mobile",
+        className,
+      ]
+        .filter(Boolean)
+        .join(" ")}
       // Same `height: 100vh` vs. `undefined` fork CandlestickChart's own fullscreen style uses
       // (see its own doc) — `.lq-chart-workspace--fullscreen`'s `inset` already pins all four
       // edges, so an explicit height here would just fight it instead of matching it.
       style={workspaceFullscreen ? undefined : fillHeight ? { height: "100vh" } : undefined}
     >
+      {/* Replaces the side rail's watchlist/alerts icons below a certain width (isMobileWorkspace)
+          — every list's own full name instead of one icon + an in-panel dropdown to pick among
+          them (not enough room to justify the extra step on a phone), plus the alert bell moved
+          in from the rail. scripting/split-screen/fullscreen simply have no mobile equivalent —
+          they just don't render anywhere on this layout. Native horizontal scroll (not a custom
+          drag handler) for when the list names don't all fit — same finger-drag-for-free pattern
+          `.lq-chart__header` and ToolsRail's own `--horizontal` variant already use. */}
+      {isMobileWorkspace && (hasWatchlists || hasAlerts) && (
+        <div className="lq-chart-workspace__mobile-topbar">
+          {watchlists?.map((w) => (
+            <button
+              key={w.id}
+              type="button"
+              className={[
+                "lq-chart__timeframe-trigger",
+                "lq-chart-workspace__mobile-topbar-item",
+                sidePanelState.open && activeTab === "watchlist" && activeWatchlistId === w.id && "lq-chart-workspace__mobile-topbar-item--active",
+              ]
+                .filter(Boolean)
+                .join(" ")}
+              onClick={() => selectWatchlistTab(w.id)}
+            >
+              <span className="lq-chart__timeframe-trigger-label">{w.name}</span>
+            </button>
+          ))}
+          {hasAlerts && (
+            <button
+              type="button"
+              className={["lq-chart__icon-button", sidePanelState.open && activeTab === "alerts" && "lq-chart__icon-button--active"]
+                .filter(Boolean)
+                .join(" ")}
+              onClick={() => toggleTab("alerts")}
+              aria-label="Alertes"
+              title="Alertes"
+            >
+              <BellIcon size={16} />
+            </button>
+          )}
+        </div>
+      )}
+      <div className="lq-chart-workspace__row">
       <div
         className={["lq-chart-workspace__grid", workspaceLocked && "lq-chart-workspace__grid--locked"].filter(Boolean).join(" ")}
         onClick={handleGridClick}
@@ -775,7 +849,11 @@ export function ChartWorkspace({
           actually being something to show), split-screen has no such prerequisite: laying out
           the grid works with any panel count, one included, so it's unconditional. Also why this
           whole rail no longer only renders when watchlists/alerts is set the way it used to
-          (before split-screen moved here) — it needs to exist regardless, for this alone. */}
+          (before split-screen moved here) — it needs to exist regardless, for this alone.
+          Hidden entirely on the mobile layout (isMobileWorkspace) — watchlist/alerts move into
+          the topbar above instead (see its own doc), and scripting/split-screen/fullscreen simply
+          have no mobile equivalent. */}
+      {!isMobileWorkspace && (
       <div className="lq-chart-workspace__side-rail">
         {hasWatchlists && (
           <button
@@ -871,6 +949,8 @@ export function ChartWorkspace({
         >
           <HelpIcon size={16} />
         </button>
+      </div>
+      )}
       </div>
 
       {helpOpen && (

@@ -1,6 +1,7 @@
 import { useId, useMemo, useRef, useState } from "react";
 import * as d3 from "d3";
 import { useChartDimensions } from "./internal/useChartDimensions";
+import type { ChartMargin, ChartDimensions } from "./internal/useChartDimensions";
 import { useFullscreen } from "./internal/useFullscreen";
 import { useSymbolSearchState } from "./candlestick/hooks/useSymbolSearchState";
 import { useChartEvents } from "./candlestick/hooks/useChartEvents";
@@ -71,6 +72,8 @@ import { findTimeframeLabel, flattenTimeframeValues } from "./candlestick/timefr
 import {
   DEFAULT_MARGIN,
   TOOLS_RAIL_WIDTH,
+  TOOLS_RAIL_HEIGHT_MOBILE,
+  MOBILE_RAIL_BREAKPOINT,
   HEADER_HEIGHT,
   SUB_PANE_COLLAPSED_HEIGHT,
 } from "./candlestick/constants";
@@ -240,13 +243,33 @@ export function CandlestickChart({
   );
   const sidePanelState = useSidePanel({ defaultSidePanelOpen, onSidePanelOpenChange });
   const baseMargin = margin ?? DEFAULT_MARGIN;
-  const resolvedMargin = drawingTools
+  const verticalRailMargin = drawingTools
     ? { ...baseMargin, left: (baseMargin.left ?? DEFAULT_MARGIN.left ?? 0) + TOOLS_RAIL_WIDTH }
     : baseMargin;
-  const [ref, dims] = useChartDimensions(resolvedMargin, {
+  const [ref, rawDims] = useChartDimensions(verticalRailMargin, {
     width: isFullscreen ? undefined : width,
     height: isFullscreen || fillHeight ? undefined : height,
   });
+  // The rail docks to the bottom instead of the left once the wrapper is too narrow to stack every
+  // tool button vertically (see MOBILE_RAIL_BREAKPOINT's own doc) — decided off `rawDims.width`,
+  // which useChartDimensions measures straight from the wrapper element regardless of which margin
+  // was passed in (margin only affects the *derived* boundedWidth/boundedHeight/margin fields, see
+  // that hook's own doc), so it's accurate here even though `verticalRailMargin` above assumed the
+  // desktop layout. `rawDims.margin` already has TOOLS_RAIL_WIDTH folded into `left` from that
+  // assumption — on mobile, undo that and fold TOOLS_RAIL_HEIGHT_MOBILE into `bottom` instead, then
+  // recompute the two bounded dimensions the same way the hook itself does.
+  const isMobileRail = drawingTools && rawDims.width > 0 && rawDims.width < MOBILE_RAIL_BREAKPOINT;
+  const resolvedMargin: ChartMargin = isMobileRail
+    ? { ...rawDims.margin, left: rawDims.margin.left - TOOLS_RAIL_WIDTH, bottom: rawDims.margin.bottom + TOOLS_RAIL_HEIGHT_MOBILE }
+    : rawDims.margin;
+  const dims: ChartDimensions = isMobileRail
+    ? {
+        ...rawDims,
+        boundedWidth: Math.max(0, rawDims.width - resolvedMargin.left - resolvedMargin.right),
+        boundedHeight: Math.max(0, rawDims.height - resolvedMargin.top - resolvedMargin.bottom),
+        margin: resolvedMargin,
+      }
+    : rawDims;
 
   const { scriptingState, scriptChartIndicators } = useChartScripting({ scripts, onScriptsChange });
   const showHeader = fullscreenToggle || zoomable || !!timeframes?.length || showIndicators;
@@ -698,11 +721,14 @@ export function CandlestickChart({
             from `dims` regardless of how the fullscreen flex container's own centering behaves. */}
         {/* Width is the *entire* reserved left margin (not just TOOLS_RAIL_WIDTH) so its right
             border lands exactly where the plot content starts, not a bare-constant-sized gap
-            short of it. Height spans the full plot down to the chart's own bottom border. */}
+            short of it. Height spans the full plot down to the chart's own bottom border. (In
+            horizontal/mobile mode ToolsRail sizes itself off dims.width/TOOLS_RAIL_HEIGHT_MOBILE
+            instead — see isMobileRail above.) */}
         <ToolsRail
           drawingTools={drawingTools}
           dims={dims}
           plotHeight={plotHeight}
+          horizontal={isMobileRail}
           selectedToolByCategory={selectedToolByCategory}
           openToolMenu={openToolMenu}
           setOpenToolMenu={setOpenToolMenu}

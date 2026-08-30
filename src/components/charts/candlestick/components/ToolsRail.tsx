@@ -6,11 +6,16 @@ import { ChevronDownIcon, MagnetIcon, EyeIcon, EyeOffIcon, LockIcon, BellIcon, L
 import type { DrawingToolType } from "../interfaces/DrawingToolType.interface";
 import { DRAWING_TOOL_CATEGORIES } from "../drawingCatalog";
 import { capitalize } from "../formatting";
+import { TOOLS_RAIL_HEIGHT_MOBILE } from "../constants";
 
 export interface ToolsRailProps {
   drawingTools: boolean;
-  dims: { margin: { left: number } };
+  dims: { width: number; margin: { left: number } };
   plotHeight: number;
+  /** Bottom-docked horizontal row (narrow/mobile layout — see MOBILE_RAIL_BREAKPOINT) instead of
+   *  the default left-docked vertical column. Purely a layout switch: every button/toggle/menu
+   *  below is identical either way, only the rail's own container flips axis. */
+  horizontal: boolean;
   selectedToolByCategory: Record<string, DrawingToolType>;
   openToolMenu: string | null;
   setOpenToolMenu: Dispatch<SetStateAction<string | null>>;
@@ -35,18 +40,25 @@ export interface ToolsRailProps {
   onOpenToolInfo: (tool: DrawingToolType) => void;
 }
 
-/** The left-docked drawing-tools rail (`drawingTools` prop): one button + chevron + flyout menu
- *  per tool category (see DRAWING_TOOL_CATEGORIES — Lines/Fibonacci/Chart patterns/Forecasting/
- *  Measure, each menu headed by its own category name and, for the tall "Lines" one, further
- *  broken into smaller visual clusters by a thin divider wherever DrawingToolDef.subgroup
- *  changes), then a separator and the persistent aimant/hide-drawings/lock-drawings/
- *  event-visibility toggles, then the "Dessins et indicateurs" manager button pinned to the
- *  rail's own bottom edge. Purely presentational — every interaction is a callback prop from
+/** The drawing-tools rail (`drawingTools` prop), left-docked and vertical by default or
+ *  bottom-docked and horizontal when `horizontal` is set (see CandlestickChart's own
+ *  isMobileRail/MOBILE_RAIL_BREAKPOINT — too narrow to stack every button in a left column): one
+ *  button + chevron + flyout menu per tool category (see DRAWING_TOOL_CATEGORIES — Lines/
+ *  Fibonacci/Chart patterns/Forecasting/Measure, each menu headed by its own category name and,
+ *  for the tall "Lines" one, further broken into smaller visual clusters by a thin divider
+ *  wherever DrawingToolDef.subgroup changes), then a separator and the persistent aimant/
+ *  hide-drawings/lock-drawings/event-visibility toggles, then the "Dessins et indicateurs"
+ *  manager button pinned to the rail's own trailing edge. In horizontal mode the row doesn't try
+ *  to fit every button — it scrolls, native touch drag included (`.lq-chart__tools-rail--
+ *  horizontal`'s own doc in charts-shared.css), the same overflow-x pattern `.lq-chart__header`
+ *  already uses for its own narrow-viewport row. Purely presentational — every interaction is a
+ *  callback prop from
  *  `useDrawingState`/`useChartEvents`. */
 export function ToolsRail({
   drawingTools,
   dims,
   plotHeight,
+  horizontal,
   selectedToolByCategory,
   openToolMenu,
   setOpenToolMenu,
@@ -74,8 +86,12 @@ export function ToolsRail({
   const eventsMenuAnchorRef = useRef<HTMLButtonElement>(null);
 
   if (!drawingTools) return null;
+  const railStyle = horizontal ? { width: dims.width, height: TOOLS_RAIL_HEIGHT_MOBILE } : { width: dims.margin.left, height: plotHeight };
   return (
-    <div className="lq-chart__tools-rail" style={{ width: dims.margin.left, height: plotHeight }}>
+    <div
+      className={["lq-chart__tools-rail", horizontal && "lq-chart__tools-rail--horizontal"].filter(Boolean).join(" ")}
+      style={railStyle}
+    >
       <div className="lq-chart__tools-rail-items">
         {/* One group per category (Lignes/Fibonacci/Vagues d'Elliott) — each button
             represents whichever of its own tools was picked last (defaulting to the

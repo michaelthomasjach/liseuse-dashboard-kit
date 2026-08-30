@@ -12,6 +12,17 @@ export const CLICK_DRAG_THRESHOLD = 4;
 /** Width of the drawing-tools rail. Added to the left margin so the plot/axes never draw
  *  under it — the rail gets its own reserved strip instead of overlaying the chart. */
 export const TOOLS_RAIL_WIDTH = 40;
+/** Height of the drawing-tools rail once it docks to the bottom instead of the left edge (see
+ *  MOBILE_RAIL_BREAKPOINT) — added to the bottom margin the same way TOOLS_RAIL_WIDTH is added to
+ *  the left one in the desktop layout, so the plot/axes never draw under it either. 44px matches
+ *  the icon buttons' own coarse-pointer tap target (see .lq-chart__icon-button's own doc). */
+export const TOOLS_RAIL_HEIGHT_MOBILE = 44;
+/** Wrapper width (px) below which the drawing-tools rail switches from a left-docked vertical
+ *  column to a bottom-docked horizontal, scrollable row — narrower than this and the tool buttons
+ *  plus toggles don't fit stacked in the remaining plot width. Measured off the chart's own
+ *  wrapper (see useChartDimensions), not the window, so a narrow embedding (a split-screen panel,
+ *  a side panel) gets the same treatment as an actual phone. */
+export const MOBILE_RAIL_BREAKPOINT = 640;
 /** Height of the (non-floating) header row holding the timeframe picker and reset/fullscreen
  *  buttons — subtracted from the available height before laying out the plot itself. */
 export const HEADER_HEIGHT = 40;

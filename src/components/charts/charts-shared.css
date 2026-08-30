@@ -408,12 +408,13 @@
   cursor: crosshair;
 }
 
-/* A real vertical zone next to the plot (its width is reserved via the chart's own left
-   margin, so the plot/axes never draw under it) — not a floating overlay stacked on top of
-   the candles. Spans the plot's full height, so it stays visible in fullscreen too, since
-   it lives inside the same element that becomes the fixed fullscreen overlay. Opaque
-   background + high z-index so nothing drawn on the canvas (candles, drawings…) can ever
-   show through or visually spill past its border, whatever the current pan/zoom. */
+/* A real zone next to the plot (its thickness is reserved via the chart's own left or bottom
+   margin — see CandlestickChart's own isMobileRail — so the plot/axes never draw under it) — not
+   a floating overlay stacked on top of the candles. Spans the plot's full cross-axis (height when
+   left-docked, width when bottom-docked via `--horizontal` below), so it stays visible in
+   fullscreen too, since it lives inside the same element that becomes the fixed fullscreen
+   overlay. Opaque background + high z-index so nothing drawn on the canvas (candles, drawings…)
+   can ever show through or visually spill past its border, whatever the current pan/zoom. */
 .lq-chart__tools-rail {
   position: absolute;
   top: 0;
@@ -451,6 +452,61 @@
    with the tool buttons where it'd read as one more drawing tool. */
 .lq-chart__tools-rail-bottom-button {
   margin-top: auto;
+}
+
+/* Bottom-docked horizontal variant (ToolsRail's own `horizontal` prop — too narrow a wrapper to
+   stack every button in a left column, see MOBILE_RAIL_BREAKPOINT). Same rail, same buttons, just
+   rotated: docked to the bottom instead of the left, its dividing border moves from the right
+   edge to the top edge to keep marking the same "boundary with the plot" role. */
+.lq-chart__tools-rail--horizontal {
+  top: auto;
+  bottom: 0;
+  border-right: none;
+  border-top: 1px solid var(--lq-color-border-subtle);
+}
+
+.lq-chart__tools-rail--horizontal .lq-chart__tools-rail-items {
+  flex-direction: row;
+  height: auto;
+  width: 100%;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+  /* Not every tool fits in one screen width on a phone — native horizontal scroll rather than a
+     custom drag handler, the same lower-risk mobile pattern (and the same finger-drag-for-free
+     via the browser's own touch scrolling) `.lq-chart__header` already uses above for its own
+     row that doesn't fit either. Scrollbar hidden (both engines) so it can't eat into the fixed
+     TOOLS_RAIL_HEIGHT_MOBILE height. */
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.lq-chart__tools-rail--horizontal .lq-chart__tools-rail-items::-webkit-scrollbar {
+  display: none;
+}
+
+.lq-chart__tools-rail--horizontal .lq-chart__tools-rail-items > * {
+  flex-shrink: 0;
+}
+
+/* The separator between the drawing-tool buttons and the persistent toggles is a horizontal rule
+   in the vertical rail — turned on its side here so it still reads as a divider *between* two
+   horizontally-flowing clusters instead of a stray flattened line. */
+.lq-chart__tools-rail--horizontal .lq-chart__tool-separator {
+  width: 1px;
+  height: 20px;
+  margin: 0 6px;
+}
+
+/* No trailing edge to push a button down to in a single scrolling row (margin-top: auto above has
+   nothing to push against) — margin-left: auto instead keeps the same "pinned apart from the
+   tools before it" intent, just along the row's own axis. */
+.lq-chart__tools-rail--horizontal .lq-chart__tools-rail-bottom-button {
+  margin-top: 0;
+  margin-left: auto;
 }
 
 .lq-chart__tool-group {

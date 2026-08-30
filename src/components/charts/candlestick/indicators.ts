@@ -14,7 +14,7 @@ import type { IndicatorChandelierPoint } from "./interfaces/IndicatorChandelierP
 import type { IndicatorSRLevel } from "./interfaces/IndicatorSRLevel.interface";
 import type { IndicatorValue } from "./interfaces/IndicatorValue.interface";
 import type { Indicator } from "./interfaces/Indicator.interface";
-import type { CustomIndicatorDef } from "./interfaces/CustomIndicatorDef.interface";
+import type { CustomIndicatorDef, CustomIndicatorDataPoint, CustomIndicatorBandDataPoint } from "./interfaces/CustomIndicatorDef.interface";
 import type { OverlayDataPoint } from "./interfaces/TrendLineDrawing.interface";
 import { isFundamentalKind } from "./indicatorCatalog";
 import { computePatternRecognitionValues } from "./patternRecognition";
@@ -93,9 +93,23 @@ export function computeFundamentalValues(
   return forwardFillSeries(data, yoyPoints);
 }
 
-/** A `CustomIndicatorDef`'s own series, forward-filled the same way — see `forwardFillSeries`. */
-export function computeCustomIndicatorValues(data: Candle[], def: CustomIndicatorDef): (number | null)[] {
-  return forwardFillSeries(data, def.data);
+/** A `CustomIndicatorDef`'s own series, forward-filled the same way — see `forwardFillSeries`.
+ *  `draw: "band"` forward-fills `upper`/`lower` independently (two passes over the same helper)
+ *  and computes `middle` as their average — a script/caller only ever supplies the two curves it
+ *  wants filled between, never a middle line of its own (see `CustomIndicatorBandDataPoint`'s own
+ *  doc). Every other `draw` value keeps the original single-`value` behavior unchanged. */
+export function computeCustomIndicatorValues(data: Candle[], def: CustomIndicatorDef): (IndicatorValue | null)[] {
+  if (def.draw === "band") {
+    const bandData = def.data as CustomIndicatorBandDataPoint[];
+    const upperFilled = forwardFillSeries(data, bandData.map((p) => ({ date: p.date, value: p.upper })));
+    const lowerFilled = forwardFillSeries(data, bandData.map((p) => ({ date: p.date, value: p.lower })));
+    return upperFilled.map((upper, i) => {
+      const lower = lowerFilled[i];
+      if (upper === null || lower === null) return null;
+      return { upper, middle: (upper + lower) / 2, lower };
+    });
+  }
+  return forwardFillSeries(data, def.data as CustomIndicatorDataPoint[]);
 }
 
 /** Rolling Pearson correlation coefficient between the main series' own close and a second

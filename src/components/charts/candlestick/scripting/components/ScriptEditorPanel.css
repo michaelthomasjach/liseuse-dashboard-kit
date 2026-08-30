@@ -61,6 +61,7 @@
 .lq-script-editor-panel__toolbar {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: var(--lq-space-2);
   padding: var(--lq-space-2) var(--lq-space-3);
   border-bottom: 1px solid var(--lq-color-border-subtle);

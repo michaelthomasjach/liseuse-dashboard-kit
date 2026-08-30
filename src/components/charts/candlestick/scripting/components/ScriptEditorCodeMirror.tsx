@@ -1,6 +1,16 @@
-import { useEffect, useRef } from "react";
-import { EditorState } from "@codemirror/state";
-import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter, drawSelection } from "@codemirror/view";
+import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
+import { EditorState, StateField, type Text } from "@codemirror/state";
+import {
+  EditorView,
+  keymap,
+  lineNumbers,
+  highlightActiveLine,
+  highlightActiveLineGutter,
+  drawSelection,
+  Decoration,
+  type DecorationSet,
+  type KeyBinding,
+} from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap, indentSelection, indentWithTab } from "@codemirror/commands";
 import { javascript } from "@codemirror/lang-javascript";
 import { bracketMatching, indentOnInput, syntaxHighlighting, HighlightStyle } from "@codemirror/language";
@@ -24,6 +34,20 @@ export interface ScriptEditorCodeMirrorProps {
    *  CodeMirror's own `indentSelection` command, not Prettier (too heavy a dependency for this).
    *  `undefined`/`0` (the toolbar's own starting value) never triggers a reformat on mount. */
   formatRequestId?: number;
+  /** Fires on Shift+Enter (and via the imperative `runCurrentCell()` handle, for the toolbar's own
+   *  "Exécuter la cellule" button) with the code from the start of the document through the end of
+   *  the `// %%`-delimited cell containing the cursor — see `codeThroughCellAtCursor`'s own doc for
+   *  why that's "from the top", not the cell in isolation. Omit to leave Shift+Enter as CodeMirror's
+   *  own default (insert a newline) — a consumer with no notion of "run" (none exist yet, but kept
+   *  optional for one) simply doesn't get the shortcut. */
+  onRunCell?: (code: string) => void;
+}
+
+/** Imperative handle for `ScriptEditorPanel.tsx`'s own "Exécuter la cellule" toolbar button — the
+ *  keyboard shortcut (Shift+Enter) reaches the same code path directly through a keymap binding,
+ *  this is only needed for triggering it from outside the CodeMirror instance itself. */
+export interface ScriptEditorCodeMirrorHandle {
+  runCurrentCell: () => void;
 }
 
 function apiCompletionSource(context: CompletionContext): CompletionResult | null {
@@ -59,6 +83,73 @@ const highlightStyle = HighlightStyle.define([
   { tag: tags.null, color: "var(--lq-color-text-muted)" },
 ]);
 
+// A "cell" (exigence : mode Jupyter — voir ScriptEditorPanel.tsx's own "Exécuter la cellule"
+// button) is delimited by a `// %%` comment at the start of a line, the same marker convention
+// several existing Python tools (VS Code, Spyder) already use for the same purpose in plain
+// source files — reused here rather than inventing a new one. 1-based line numbers throughout,
+// matching CodeMirror's own `Text.line()` convention.
+const CELL_MARKER_RE = /^\s*\/\/\s*%%/;
+
+function findCellMarkerLines(doc: Text): number[] {
+  const lines: number[] = [];
+  for (let i = 1; i <= doc.lines; i++) {
+    if (CELL_MARKER_RE.test(doc.line(i).text)) lines.push(i);
+  }
+  return lines;
+}
+
+// The last line of the cell containing `lineNumber` — everything from the previous marker
+// (exclusive) up to the next marker (exclusive), or the whole document's own start/end when
+// there's no marker on one side.
+function cellEndLine(doc: Text, lineNumber: number, markerLines: number[]): number {
+  const next = markerLines.find((m) => m > lineNumber);
+  return next ? next - 1 : doc.lines;
+}
+
+/** The code to run for "Exécuter la cellule" (Shift+Enter or the toolbar button) — from the very
+ *  start of the document through the end of whichever cell contains the cursor, *not* that cell
+ *  in isolation. This engine has no persistent variable scope between separate runs (`state.*`
+ *  itself resets to zero every full execution — see its own doc), so a truly isolated cell would
+ *  throw a ReferenceError the moment it read a `const` defined in an earlier cell — "from the top
+ *  through here" is what actually matches how Jupyter is used in practice (sequential, top to
+ *  bottom) despite the different mechanics underneath. */
+function codeThroughCellAtCursor(state: EditorState): string {
+  const doc = state.doc;
+  const markerLines = findCellMarkerLines(doc);
+  const cursorLine = doc.lineAt(state.selection.main.head).number;
+  const endLine = cellEndLine(doc, cursorLine, markerLines);
+  return doc.sliceString(0, doc.line(endLine).to);
+}
+
+const cellMarkerLineDeco = Decoration.line({ attributes: { class: "cm-cell-marker" } });
+const cellActiveLineDeco = Decoration.line({ attributes: { class: "cm-cell-active" } });
+
+// One decoration pass per doc/selection change: a border on every `// %%` line (always visible,
+// not just on the active cell — "here's where the cells are" at a glance), and a background tint
+// on every line of whichever cell currently contains the cursor (mutually exclusive with the
+// marker's own border — a marker line never also gets the tint).
+function buildCellDecorations(state: EditorState): DecorationSet {
+  const doc = state.doc;
+  const markerLines = findCellMarkerLines(doc);
+  if (markerLines.length === 0) return Decoration.none;
+  const markerLineSet = new Set(markerLines);
+  const cursorLine = doc.lineAt(state.selection.main.head).number;
+  const activeEnd = cellEndLine(doc, cursorLine, markerLines);
+  const activeStart = [...markerLines].reverse().find((m) => m <= cursorLine) ?? 1;
+  const decorations = [];
+  for (let i = 1; i <= doc.lines; i++) {
+    if (markerLineSet.has(i)) decorations.push(cellMarkerLineDeco.range(doc.line(i).from));
+    else if (i >= activeStart && i <= activeEnd) decorations.push(cellActiveLineDeco.range(doc.line(i).from));
+  }
+  return Decoration.set(decorations);
+}
+
+const cellDecorationsField = StateField.define<DecorationSet>({
+  create: (state) => buildCellDecorations(state),
+  update: (deco, tr) => (tr.docChanged || tr.selection ? buildCellDecorations(tr.state) : deco),
+  provide: (field) => EditorView.decorations.from(field),
+});
+
 /** Hand-assembled CodeMirror 6 extensions — line numbers, active-line highlight, undo history,
  *  auto-indent/bracket-matching, JS syntax highlighting, the static API completion list (see
  *  scriptApiCompletions.ts), and a lint gutter fed by the *last run's own* error rather than a
@@ -69,15 +160,43 @@ const highlightStyle = HighlightStyle.define([
  *  import reachable from this library's own top-level exports — a consumer that never opens the
  *  script editor never pays for CodeMirror's own bundle weight (verified in M5's own dist/ build
  *  check — see that commit). */
-export function ScriptEditorCodeMirror({ value, onChange, error, formatRequestId }: ScriptEditorCodeMirrorProps) {
+export const ScriptEditorCodeMirror = forwardRef<ScriptEditorCodeMirrorHandle, ScriptEditorCodeMirrorProps>(function ScriptEditorCodeMirror(
+  { value, onChange, error, formatRequestId, onRunCell },
+  ref
+) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
+  // Same ref-indirection as onChangeRef above — the keymap binding below is registered once (see
+  // this effect's own doc on why), so it has to read the *current* onRunCell through a ref rather
+  // than closing over whichever one happened to be passed in on the render that built it.
+  const onRunCellRef = useRef(onRunCell);
+  onRunCellRef.current = onRunCell;
   const lastFormatRequestIdRef = useRef(formatRequestId);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      runCurrentCell: () => {
+        const view = viewRef.current;
+        if (!view || !onRunCellRef.current) return;
+        onRunCellRef.current(codeThroughCellAtCursor(view.state));
+      },
+    }),
+    []
+  );
 
   useEffect(() => {
     if (!containerRef.current) return;
+    const runCellBinding: KeyBinding = {
+      key: "Shift-Enter",
+      run: (view) => {
+        if (!onRunCellRef.current) return false;
+        onRunCellRef.current(codeThroughCellAtCursor(view.state));
+        return true;
+      },
+    };
     const state = EditorState.create({
       doc: value,
       extensions: [
@@ -93,7 +212,8 @@ export function ScriptEditorCodeMirror({ value, onChange, error, formatRequestId
         syntaxHighlighting(highlightStyle),
         autocompletion({ override: [apiCompletionSource] }),
         lintGutter(),
-        keymap.of([...closeBracketsKeymap, ...defaultKeymap, ...historyKeymap, ...completionKeymap, indentWithTab]),
+        cellDecorationsField,
+        keymap.of([runCellBinding, ...closeBracketsKeymap, ...defaultKeymap, ...historyKeymap, ...completionKeymap, indentWithTab]),
         theme,
         EditorView.updateListener.of((update) => {
           if (update.docChanged) onChangeRef.current(update.state.doc.toString());
@@ -149,4 +269,4 @@ export function ScriptEditorCodeMirror({ value, onChange, error, formatRequestId
   }, [formatRequestId]);
 
   return <div ref={containerRef} className="lq-script-editor-codemirror" />;
-}
+});

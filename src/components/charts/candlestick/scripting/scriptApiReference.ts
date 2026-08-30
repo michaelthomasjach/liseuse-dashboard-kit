@@ -79,13 +79,14 @@ export const SCRIPT_API_REFERENCE: ScriptReferenceSection[] = [
   },
   {
     id: "editor",
-    title: "L'éditeur : Exécuter / Arrêter / Enregistrer / Réinitialiser / Format",
+    title: "L'éditeur : Exécuter / Exécuter la cellule / Arrêter / Enregistrer / Réinitialiser / Format",
     blocks: [
       t(
         "Le code affiché dans l'éditeur est un brouillon, distinct du code réellement enregistré sur le script tant que vous n'avez pas cliqué sur « Enregistrer »."
       ),
       l([
         "Exécuter — lance le brouillon actuel tel quel, même non enregistré. C'est ce qui permet de tester une modification avant de la valider.",
+        "Exécuter la cellule (Maj+Entrée) — n'exécute qu'une portion du script à la fois, voir « Mode cellules » ci-dessous.",
         "Arrêter — interrompt immédiatement une exécution en cours (utile en cas de boucle infinie) en terminant le Worker sous-jacent, plutôt que d'attendre qu'il se termine de lui-même.",
         "Enregistrer — valide le brouillon comme code officiel du script (répercuté vers l'application hôte).",
         "Réinitialiser — abandonne le brouillon et revient au dernier code enregistré.",
@@ -95,6 +96,21 @@ export const SCRIPT_API_REFERENCE: ScriptReferenceSection[] = [
         "Si l'exécution dépasse un certain délai (8 secondes pour un rejeu complet, 1,5 seconde pour une simple ré-évaluation en direct), elle est automatiquement interrompue et une erreur de délai dépassé s'affiche — c'est le filet de sécurité contre une boucle infinie qu'un script maladroit pourrait contenir."
       ),
       t("Toute erreur (de syntaxe ou d'exécution) s'affiche sous l'éditeur avec son message et, quand le moteur JavaScript le permet, le numéro de ligne exact."),
+      h("Mode cellules — exécuter un bloc à la fois (façon Jupyter)"),
+      t(
+        "Un commentaire // %% en début de ligne délimite une « cellule ». Une fine bordure marque chaque cellule, et celle où se trouve le curseur est légèrement teintée — repérage visuel immédiat, sans rien avoir à cliquer."
+      ),
+      c(
+        `// %% Étape 1 — les données de base
+const closes = market.series("close", 20);
+const sma = math.sma(closes, 20);
+
+// %% Étape 2 — le tracé
+plot.overlay("SMA 20", sma ?? market.close(0));`
+      ),
+      t(
+        "Maj+Entrée (ou le bouton « Exécuter la cellule ») exécute le code depuis le tout début du fichier jusqu'à la fin de la cellule où se trouve le curseur — pas cette seule cellule isolée. C'est une différence volontaire avec un vrai notebook Jupyter : ce moteur n'a pas de mémoire de variables entre deux exécutions (state.* lui-même repart de zéro à chaque exécution complète, voir state.* plus bas), donc une cellule isolée qui lirait une variable définie plus haut échouerait aussitôt. « Depuis le début jusqu'ici » reproduit exactement l'usage réel d'un notebook (on exécute ses cellules dans l'ordre, du haut vers le bas) sans dépendre d'un mécanisme que ce moteur n'a pas — écrivez votre script cellule par cellule, en appuyant sur Maj+Entrée à chaque étape pour voir immédiatement son effet sur la chart, exactement comme dans Jupyter."
+      ),
     ],
   },
   {
@@ -196,7 +212,7 @@ plot.histogram(name, value, options?)  // histogramme, panneau dédié
 plot.overlay(name, value, options?)    // courbe superposée au prix (panneau principal)
 plot.panel(name, value, options?)      // identique à line — alias
 
-// options: { color?: string }`
+// options: { color?, lineWidth?, lineStyle? }`
       ),
       t(
         "line/area/histogram/panel ouvrent tous les quatre un nouveau panneau à part, sous le prix (exactement comme RSI ou MACD) — le bon choix pour une valeur qui n'est pas sur la même échelle que le prix (un score de 0 à 3, un pourcentage, un oscillateur…)."
@@ -204,6 +220,29 @@ plot.panel(name, value, options?)      // identique à line — alias
       d("plotOwnPane"),
       t("overlay, à l'inverse, dessine directement par-dessus les bougies, dans le panneau principal — réservé à une valeur qui *est* un prix (une moyenne mobile, une bande, un niveau) et qui a donc du sens sur la même échelle."),
       d("plotOverlay"),
+      t(
+        "lineWidth (nombre, défaut 1,5) épaissit le trait ; lineStyle (\"solid\" par défaut, ou \"dashed\"/\"dotted\") change son style. Les deux s'appliquent à line/area/overlay/panel (sans effet sur histogram, qui trace des barres, pas un trait) :"
+      ),
+      c(`plot.overlay("SMA 20 (épaisse)", sma20, { lineWidth: 3, lineStyle: "dashed" });`),
+      h("Remplir entre deux courbes — band / bandOverlay"),
+      t(
+        "plot.band(name, upper, lower, options?) trace deux courbes et colore la surface entre elles — le rendu exact des bandes de Bollinger intégrées (remplissage translucide, ligne haute/basse fine, ligne médiane calculée automatiquement). own pane par défaut ; bandOverlay force le panneau principal, même paire que overlay/line :"
+      ),
+      c(
+        `plot.band(name, upper, lower, options?)        // panneau dédié
+plot.bandOverlay(name, upper, lower, options?) // superposé au prix
+
+// options: { color?, lineWidth? } — lineWidth s'applique aux lignes haute/basse (la ligne
+// médiane est légèrement plus épaisse, même rapport que les bandes de Bollinger intégrées)
+
+// Exemple : une enveloppe de volatilité maison (moyenne ± 2 écarts-types)
+const closes = market.series("close", 20);
+const sma = math.sma(closes, 20);
+const std = math.std(closes);
+if (sma !== null && std !== null) {
+  plot.bandOverlay("Enveloppe maison", sma + 2 * std, sma - 2 * std, { color: "#3ea377" });
+}`
+      ),
       h("Les marqueurs ponctuels — signal / point / horizontal / vertical"),
       t("Les quatre suivantes posent un marqueur ponctuel sur la bougie courante — un appel = un marqueur, jamais une série continue :"),
       c(

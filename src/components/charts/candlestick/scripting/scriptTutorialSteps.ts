@@ -29,7 +29,17 @@ export interface ScriptTutorialStep {
   data?: Candle[];
 }
 
-export const SCRIPT_TUTORIAL_STEPS: ScriptTutorialStep[] = [
+/** One selectable tutorial track — `ScriptInteractiveTutorial.tsx` shows a small tab strip above
+ *  the step pills to switch between tracks, resetting to that track's own step 1 on switch. Each
+ *  track is a fully independent narrative with its own step numbering (a track's own steps start
+ *  back at "Étape 1"), not a continuation of the other. */
+export interface ScriptTutorialTrack {
+  id: string;
+  title: string;
+  steps: ScriptTutorialStep[];
+}
+
+const INDICATOR_TRACK_STEPS: ScriptTutorialStep[] = [
   {
     id: "first-plot",
     title: "Étape 1 — Le tout premier tracé",
@@ -226,4 +236,142 @@ if (bar.isNew() && overall !== "WAIT") {
       "Chaque section qui suit détaille exhaustivement une famille de fonctions (market.*, chart.*, plot.*, state.*, bar.*, math.*, ta.*) — c'est la référence complète, à consulter au fur et à mesure des besoins plutôt qu'à lire d'un bloc.",
     ],
   },
+];
+
+const MATH_TRACK_STEPS: ScriptTutorialStep[] = [
+  {
+    id: "square",
+    title: "Étape 1 — Une fonction simple : le carré",
+    paragraphs: [
+      "Un script peut tracer n'importe quelle fonction mathématique, pas seulement des indicateurs de trading — pratique pour comprendre comment une formule se comporte réellement, sans quitter la chart. Ici, t est simplement un compteur qui avance d'une unité à chaque bougie (state.*, déjà vu dans le premier tutoriel), remis à zéro tous les 40 pas pour rester lisible à l'écran.",
+      "square est une lambda — une fonction fléchée (x) => expression, la façon la plus courte d'écrire une fonction en JavaScript. Le résultat tracé : une parabole, exactement la forme attendue de x².",
+    ],
+    code: `// Une lambda : une fonction fléchée, la façon la plus courte d'écrire une fonction en JS.
+const square = (x) => x * x;
+
+// t avance de 1 à chaque bougie, et repart de 0 tous les 40 pas pour rester lisible à l'écran.
+const t = state.get("t", 0);
+state.set("t", (t + 1) % 40);
+
+plot.line("x²", square(t));
+`,
+  },
+  {
+    id: "affine",
+    title: "Étape 2 — Fonction affine (y = ax + b)",
+    paragraphs: [
+      "Une fonction affine est une droite : a est la pente (à quelle vitesse ça monte), b l'ordonnée à l'origine (la valeur de départ, à x = 0). a et b sont ici des paramètres par défaut de la lambda — exactement comme n'importe quelle fonction JavaScript peut en avoir.",
+    ],
+    code: `const affine = (x, a = 0.5, b = 10) => a * x + b;
+
+const t = state.get("t", 0);
+state.set("t", (t + 1) % 40);
+
+plot.line("Affine", affine(t));
+`,
+  },
+  {
+    id: "logarithm",
+    title: "Étape 3 — Fonction logarithmique",
+    paragraphs: [
+      "math.log(x) est le logarithme népérien — croissance rapide au début, puis de plus en plus lente, jamais de valeur pour x ≤ 0 (d'où le +1, pour éviter log(0) au tout premier pas, quand t vaut encore 0).",
+    ],
+    code: `const logFn = (x) => math.log(x + 1) * 10;
+
+const t = state.get("t", 0);
+state.set("t", (t + 1) % 60);
+
+plot.line("Log", logFn(t));
+`,
+  },
+  {
+    id: "gaussian",
+    title: "Étape 4 — Courbe de Gauss (la cloche)",
+    paragraphs: [
+      "La formule de la loi normale : un pic centré sur mu, plus ou moins large selon sigma. Les deux sont eux-mêmes des paramètres par défaut de la lambda (x, mu = 20, sigma = 8) — même mécanique que a/b à l'étape affine.",
+      "×100 uniquement pour agrandir l'échelle à l'écran (Math.exp(...) seul reste toujours entre 0 et 1) — un choix purement visuel, pas mathématique.",
+    ],
+    code: `const gaussian = (x, mu = 20, sigma = 8) => Math.exp(-((x - mu) ** 2) / (2 * sigma ** 2));
+
+const t = state.get("t", 0);
+state.set("t", (t + 1) % 40);
+
+plot.line("Cloche de Gauss", gaussian(t) * 100);
+`,
+  },
+  {
+    id: "derivative",
+    title: "Étape 5 — La dérivée : la pente d'une courbe réelle",
+    paragraphs: [
+      "Assez de courbes abstraites — la dérivée numérique s'applique très concrètement au vrai prix : combien il a changé d'une bougie à l'autre, sa « vitesse ». Positive, le prix monte ; négative, il baisse ; proche de zéro, il stagne.",
+      "C'est littéralement market.close(0) - market.close(1) — pas besoin d'une formule savante, la dérivée numérique la plus simple est juste une différence entre deux valeurs consécutives.",
+    ],
+    code: `const price = market.close(0);
+const prevPrice = market.close(1);
+const derivative = prevPrice !== null ? price - prevPrice : 0;
+
+plot.line("Dérivée du prix", derivative);
+`,
+  },
+  {
+    id: "band",
+    title: "Étape 6 — Remplir entre deux courbes : une enveloppe maison",
+    paragraphs: [
+      "Les briques déjà vues (lambdas, écart-type) suffisent à construire une vraie enveloppe de volatilité : moyenne mobile ± 2 écarts-types. plot.bandOverlay colore directement la surface entre les deux courbes — voir plot.* plus bas pour le détail complet de cette fonction.",
+      "lineWidth: 3 épaissit aussi la moyenne mobile elle-même, pour bien la distinguer des bords de l'enveloppe.",
+    ],
+    code: `const closes = market.series("close", 20);
+const sma = math.sma(closes, 20);
+const std = math.std(closes);
+
+const upper = sma !== null && std !== null ? sma + 2 * std : market.close(0);
+const lower = sma !== null && std !== null ? sma - 2 * std : market.close(0);
+
+plot.bandOverlay("Enveloppe", upper, lower, { color: "#3ea377" });
+plot.overlay("Moyenne", sma ?? market.close(0), { lineWidth: 3 });
+`,
+  },
+  {
+    id: "matrix",
+    title: "Étape 7 — Une matrice : corrélation du RSI entre timeframes",
+    paragraphs: [
+      "Une matrice, en JavaScript, c'est juste un tableau de tableaux — rien de plus exotique que ça. Ici : cinq séries de clôtures (une par timeframe, via market.resample déjà vu dans le tutoriel précédent), puis une matrice 5×5 où la case [i][j] est la corrélation entre la série i et la série j (toujours 1 sur la diagonale : une série est parfaitement corrélée à elle-même).",
+      "math.correlation(a, b) fait tout le calcul ; deux .map() imbriqués (un pour les lignes, un pour les colonnes) suffisent à construire la matrice entière. plot.table affiche le résultat exactement comme un vrai tableau de nombres. 20 points par série (pas plus) : le timeframe le plus large (1J) n'en a pas beaucoup plus au total sur cette démo — math.correlation a besoin de deux séries de même longueur pour comparer les mêmes 20 points partout, sans quoi la comparaison n'aurait pas de sens.",
+    ],
+    code: `const timeframes = ["1d", "4h", "1h", "15m", "5m"];
+const labels = ["1J", "4H", "1H", "15min", "5min"];
+
+// Une série de clôtures par timeframe — market.resample déjà vu dans le tutoriel précédent.
+// Même longueur (20) pour les cinq, sans quoi math.correlation comparerait des séries de tailles
+// différentes et ne saurait pas quels points associer entre eux.
+const closesByTf = timeframes.map((tf) => market.resample(tf).series("close", 20));
+
+// La matrice : un tableau de tableaux — matrix[i][j] = corrélation entre la série i et la série j.
+const matrix = closesByTf.map((seriesA) => closesByTf.map((seriesB) => math.correlation(seriesA, seriesB)));
+
+const rows = matrix.map((row, i) => ({
+  cells: [labels[i], ...row.map((c) => (c !== null ? c.toFixed(2) : "—"))],
+}));
+
+plot.table(rows, { title: "Corrélation RSI (matrice)", columns: ["", ...labels] });
+`,
+    data: SCRIPT_TUTORIAL_INTRADAY_DATA,
+  },
+  {
+    id: "math-wrap-up",
+    title: "Étape 8 — Pour aller plus loin",
+    paragraphs: [
+      "Ces sept fonctions (carré, affine, logarithme, gaussienne, dérivée, remplissage entre deux courbes, matrice) couvrent l'essentiel de ce dont un script mathématique a besoin — le reste n'est que des combinaisons des mêmes briques.",
+    ],
+    list: [
+      "math.* (plus bas) couvre déjà l'écart-type, la variance, la covariance, le z-score, les percentiles — pas besoin de les réécrire à la main.",
+      "Toute fonction JavaScript standard (Math.sin, Math.cos, Math.tan, Math.pow, Math.abs…) est utilisable telle quelle dans un script — Math lui-même n'est jamais neutralisé par le bac à sable (voir « Sécurité et limites » plus bas).",
+      "Le premier parcours de ce tutoriel (« Construire un indicateur ») applique ces mêmes idées à des signaux de trading concrets, si ce n'est pas déjà fait.",
+    ],
+  },
+];
+
+export const SCRIPT_TUTORIAL_TRACKS: ScriptTutorialTrack[] = [
+  { id: "indicator", title: "Construire un indicateur", steps: INDICATOR_TRACK_STEPS },
+  { id: "math", title: "Fonctions mathématiques", steps: MATH_TRACK_STEPS },
 ];

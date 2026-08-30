@@ -4,7 +4,7 @@ import { ScriptTableOverlay } from "../../components/ScriptTableOverlay";
 import { PlayIcon, PauseIcon, RefreshIcon, ChevronLeftIcon, ChevronRightIcon } from "../../../../icons";
 import { useScriptEngine } from "../hooks/useScriptEngine";
 import { scriptIndicatorToChartIndicator } from "../scriptIndicatorToChartIndicator";
-import { SCRIPT_TUTORIAL_STEPS } from "../scriptTutorialSteps";
+import { SCRIPT_TUTORIAL_TRACKS } from "../scriptTutorialSteps";
 import { SCRIPT_TUTORIAL_DATA } from "../scriptTutorialSampleData";
 import { SCRIPT_DIAGRAM_REGISTRY } from "../scriptDiagramRegistry";
 import { ScriptErrorPanel } from "./ScriptErrorPanel";
@@ -33,12 +33,15 @@ const LazyScriptEditorCodeMirror = lazy(() =>
  *  component already avoids), so `ScriptTableOverlay` is mounted directly here instead, a plain
  *  sibling of the preview chart fed straight from the same engine instance. */
 export function ScriptInteractiveTutorial() {
+  const [trackIndex, setTrackIndex] = useState(0);
   const [stepIndex, setStepIndex] = useState(0);
-  const [draft, setDraft] = useState(SCRIPT_TUTORIAL_STEPS[0].code ?? "");
+  const [draft, setDraft] = useState(SCRIPT_TUTORIAL_TRACKS[0].steps[0].code ?? "");
   const [runVersion, setRunVersion] = useState(0);
 
-  const step = SCRIPT_TUTORIAL_STEPS[stepIndex];
-  const isLastStep = stepIndex === SCRIPT_TUTORIAL_STEPS.length - 1;
+  const track = SCRIPT_TUTORIAL_TRACKS[trackIndex];
+  const steps = track.steps;
+  const step = steps[stepIndex];
+  const isLastStep = stepIndex === steps.length - 1;
   const Diagram = step.diagramKey ? SCRIPT_DIAGRAM_REGISTRY[step.diagramKey] : undefined;
   // Most steps share the default daily-spaced dataset; the multi-timeframe steps override it with
   // real intraday bars (see ScriptTutorialStep.data's own doc) so market.resample(...) has
@@ -46,18 +49,26 @@ export function ScriptInteractiveTutorial() {
   const stepData = step.data ?? SCRIPT_TUTORIAL_DATA;
   const engine = useScriptEngine("tutorial-preview", stepData, [], undefined);
 
+  function switchTrack(index: number) {
+    setTrackIndex(index);
+    setStepIndex(0);
+  }
+
   // Loads the new step's own canonical code and runs it immediately — the reader sees the "expected"
   // result the instant they arrive on a step, before touching anything, exactly like clicking
-  // "Exécuter" themselves. Deliberately keyed on `stepIndex` alone (not `engine`/`step` — see
+  // "Exécuter" themselves. Keyed on `[trackIndex, stepIndex]` (not `engine`/`step` — see
   // `useScriptEngine.ts`'s own identical-shaped real-time effect for the same reasoning): a step's own
-  // code never changes at runtime, so there's nothing else this should ever re-fire on. Fires on
-  // mount too (an effect always runs once for its own dependency's initial value), which is exactly
-  // what seeds step 1's own first plot without a separate mount-only effect.
+  // code never changes at runtime, so there's nothing else this should ever re-fire on. Both indices
+  // are listed (not just `stepIndex`) because switching track can land back on step index 0 — the
+  // same index as whichever step the reader left the previous track on — which wouldn't otherwise
+  // register as a change. Fires on mount too (an effect always runs once for its own dependency's
+  // initial value), which is exactly what seeds step 1's own first plot without a separate
+  // mount-only effect.
   useEffect(() => {
     setDraft(step.code ?? "");
     if (step.code) engine.run(step.code);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stepIndex]);
+  }, [trackIndex, stepIndex]);
 
   // Remounts the preview chart only on a *successful* run — its own `defaultIndicators`/
   // `defaultDrawings` are uncontrolled (see this component's own top doc), so a fresh `key` is the
@@ -76,8 +87,22 @@ export function ScriptInteractiveTutorial() {
   return (
     <div className="lq-script-tutorial">
       <div className="lq-script-tutorial__instructions">
+        <div className="lq-script-tutorial__tracks-nav">
+          {SCRIPT_TUTORIAL_TRACKS.map((t, i) => (
+            <button
+              key={t.id}
+              type="button"
+              className={["lq-script-tutorial__track-tab", i === trackIndex && "lq-script-tutorial__track-tab--active"]
+                .filter(Boolean)
+                .join(" ")}
+              onClick={() => switchTrack(i)}
+            >
+              {t.title}
+            </button>
+          ))}
+        </div>
         <div className="lq-script-tutorial__steps-nav">
-          {SCRIPT_TUTORIAL_STEPS.map((s, i) => (
+          {steps.map((s, i) => (
             <button
               key={s.id}
               type="button"
@@ -113,11 +138,11 @@ export function ScriptInteractiveTutorial() {
             <ChevronLeftIcon size={13} /> Précédent
           </button>
           <span className="lq-script-tutorial__pager-count">
-            Étape {stepIndex + 1} / {SCRIPT_TUTORIAL_STEPS.length}
+            Étape {stepIndex + 1} / {steps.length}
           </span>
           <button
             type="button"
-            onClick={() => setStepIndex((i) => Math.min(SCRIPT_TUTORIAL_STEPS.length - 1, i + 1))}
+            onClick={() => setStepIndex((i) => Math.min(steps.length - 1, i + 1))}
             disabled={isLastStep}
           >
             Suivant <ChevronRightIcon size={13} />

@@ -13,3 +13,15 @@
 .lq-script-editor-codemirror .cm-scroller {
   overflow: auto;
 }
+
+/* Cell mode (exigence : « façon Jupyter » — see ScriptEditorCodeMirror.tsx's own doc on `// %%`) —
+   a `// %%` line always shows a separator above it, regardless of which cell is active; the
+   active cell (the one containing the cursor) gets a permanent tint the same "accent, not just on
+   hover" treatment already used for `.lq-script-docs__nav-item--tutorial`. */
+.lq-script-editor-codemirror .cm-line.cm-cell-marker {
+  border-top: 1px solid var(--lq-color-border-subtle);
+}
+
+.lq-script-editor-codemirror .cm-line.cm-cell-active {
+  background-color: color-mix(in srgb, var(--lq-color-accent) 8%, transparent);
+}

@@ -47,6 +47,8 @@ export const SCRIPT_API_COMPLETIONS: ScriptApiCompletion[] = [
   { label: "plot.histogram", type: "function", detail: "(name, value, options?) — own pane", apply: 'plot.histogram("", )' },
   { label: "plot.overlay", type: "function", detail: "(name, value, options?) — price pane", apply: 'plot.overlay("", )' },
   { label: "plot.panel", type: "function", detail: "(name, value, options?) — own pane", apply: 'plot.panel("", )' },
+  { label: "plot.band", type: "function", detail: "(name, upper, lower, options?) — fill between two curves, own pane", apply: 'plot.band("", , )' },
+  { label: "plot.bandOverlay", type: "function", detail: "(name, upper, lower, options?) — fill between two curves, price pane", apply: 'plot.bandOverlay("", , )' },
   { label: "plot.signal", type: "function", detail: '("BUY"|"SELL" | {type,price?,color?,shape?})', apply: 'plot.signal("BUY")' },
   { label: "plot.point", type: "function", detail: "(value, options?)", apply: "plot.point()" },
   { label: "plot.horizontal", type: "function", detail: "(price, options?)", apply: "plot.horizontal()" },

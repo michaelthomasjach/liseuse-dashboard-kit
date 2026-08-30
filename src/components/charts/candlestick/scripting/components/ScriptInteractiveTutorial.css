@@ -11,6 +11,37 @@
   flex-direction: column;
 }
 
+/* Track selector — which of the (currently two) independent tutorial narratives is showing, see
+   ScriptInteractiveTutorial.tsx's own doc on switchTrack. A plain two-state toggle, same look as
+   other tab strips in this library rather than a full pill-nav — there's no reason to expect more
+   than a handful of tracks ever, unlike the per-track step count. */
+.lq-script-tutorial__tracks-nav {
+  display: flex;
+  gap: var(--lq-space-1);
+  margin-bottom: var(--lq-space-3);
+  border-bottom: 1px solid var(--lq-color-border-subtle);
+}
+
+.lq-script-tutorial__track-tab {
+  padding: var(--lq-space-1) var(--lq-space-2);
+  font-size: var(--lq-text-sm);
+  color: var(--lq-color-text-muted);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+}
+
+.lq-script-tutorial__track-tab:hover {
+  color: var(--lq-color-text);
+}
+
+.lq-script-tutorial__track-tab--active {
+  color: var(--lq-color-accent);
+  font-weight: 600;
+  border-bottom-color: var(--lq-color-accent);
+}
+
 .lq-script-tutorial__steps-nav {
   display: flex;
   flex-wrap: wrap;

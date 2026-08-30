@@ -23,6 +23,16 @@ import { drawCandleRecognitionMatches } from "./drawCandleRecognition";
 // within their own recent window has nothing to do with how many points happen to be visible.
 const POINT_BASED_KINDS = new Set(["gaps", "parabolicSar", "pivotPoints", "supportResistance", "patternRecognition", "candleRecognition"]);
 
+// A `CustomIndicatorDef.lineStyle` (script/caller-chosen) mapped to `ctx.setLineDash` — every
+// built-in indicator with a fixed dash style (Ichimoku's chikou span, pivot levels,
+// support/resistance) already calls setLineDash directly with its own hardcoded array; this is
+// the same mechanism, just exposed as a per-series choice instead of baked into one indicator kind.
+function applyLineStyle(ctx: CanvasRenderingContext2D, style: "solid" | "dashed" | "dotted" | undefined) {
+  if (style === "dashed") ctx.setLineDash([6, 4]);
+  else if (style === "dotted") ctx.setLineDash([1.5, 3]);
+  else ctx.setLineDash([]);
+}
+
 // TPO's own 4-stop gradient (red → green → cyan → purple, roughly matching every real TPO tool's
 // own default palette) — `t` (0 = a session's first block, 1 = its last) picked over the theme's
 // own colors since it's meant to read the same "how early/late in the session" way regardless of
@@ -636,7 +646,8 @@ export function drawPriceCandles(ctx: CanvasRenderingContext2D, params: RenderCa
         ctx.fill();
         ctx.globalAlpha = 1;
 
-        ctx.lineWidth = 1.5;
+        ctx.lineWidth = indicator.customData?.lineWidth ?? 1.5;
+        applyLineStyle(ctx, indicator.customData?.lineStyle);
         ctx.beginPath();
         numericPoints.forEach((p, k) => {
           const x = zoomedXScale(p.i + 0.5);
@@ -646,7 +657,8 @@ export function drawPriceCandles(ctx: CanvasRenderingContext2D, params: RenderCa
         });
         ctx.stroke();
       } else if (typeof points[0].value === "number") {
-        ctx.lineWidth = 1.5;
+        ctx.lineWidth = indicator.customData?.lineWidth ?? 1.5;
+        applyLineStyle(ctx, indicator.customData?.lineStyle);
         ctx.beginPath();
         points.forEach((p, k) => {
           const x = zoomedXScale(p.i + 0.5);
@@ -656,8 +668,10 @@ export function drawPriceCandles(ctx: CanvasRenderingContext2D, params: RenderCa
         });
         ctx.stroke();
       } else {
-        // Band indicator (Bollinger): translucent fill between the bands, thin upper/lower
-        // lines, and a solid middle line — the conventional "channel" rendering.
+        // Band indicator (Bollinger, or a script/caller's own `CustomIndicatorDef` with
+        // `draw: "band"` — both reach here identically, see that field's own doc): translucent
+        // fill between the bands, thin upper/lower lines, and a solid middle line — the
+        // conventional "channel" rendering.
         const bandPoints = points as { i: number; value: IndicatorBand }[];
         ctx.globalAlpha = 0.08;
         ctx.fillStyle = color;
@@ -675,7 +689,9 @@ export function drawPriceCandles(ctx: CanvasRenderingContext2D, params: RenderCa
         ctx.fill();
         ctx.globalAlpha = 1;
 
-        ctx.lineWidth = 1;
+        const bandLineWidth = indicator.customData?.lineWidth ?? 1;
+        ctx.lineWidth = bandLineWidth;
+        applyLineStyle(ctx, indicator.customData?.lineStyle);
         (["upper", "lower"] as const).forEach((key) => {
           ctx.beginPath();
           bandPoints.forEach((p, k) => {
@@ -687,7 +703,7 @@ export function drawPriceCandles(ctx: CanvasRenderingContext2D, params: RenderCa
           ctx.stroke();
         });
 
-        ctx.lineWidth = 1.5;
+        ctx.lineWidth = bandLineWidth + 0.5;
         ctx.beginPath();
         bandPoints.forEach((p, k) => {
           const x = zoomedXScale(p.i + 0.5);

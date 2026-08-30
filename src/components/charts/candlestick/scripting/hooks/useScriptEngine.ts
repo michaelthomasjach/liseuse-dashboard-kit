@@ -97,7 +97,7 @@ export function useScriptEngine(
 
   function applyRunOutput(runResult: ScriptRunResult) {
     setResult(runResult);
-    setScriptIndicators((prev) => upsertScriptCustomIndicators(prev, scriptId, runResult.plots));
+    setScriptIndicators((prev) => upsertScriptCustomIndicators(prev, scriptId, runResult.plots, runResult.bands));
     setScriptDrawings((prev) => upsertScriptDrawings(prev, scriptId, runResult.drawings));
     setScriptTable(runResult.table);
   }
@@ -173,7 +173,7 @@ export function useScriptEngine(
     worker.onerror = (e: ErrorEvent) => {
       clearPendingTimeout();
       replaceWorker();
-      setResult({ error: { message: e.message || "Erreur inattendue du script." }, logs: [], plots: [], drawings: [], table: null, alerts: [] });
+      setResult({ error: { message: e.message || "Erreur inattendue du script." }, logs: [], plots: [], bands: [], drawings: [], table: null, alerts: [] });
       setRunning(false);
     };
 
@@ -183,6 +183,7 @@ export function useScriptEngine(
         error: { message: "Le script a dépassé le délai d'exécution autorisé et a été arrêté." },
         logs: [],
         plots: [],
+        bands: [],
         drawings: [],
         table: null,
         alerts: [],

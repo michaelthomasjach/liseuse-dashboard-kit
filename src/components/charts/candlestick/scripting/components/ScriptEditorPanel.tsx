@@ -22,6 +22,7 @@ import type { ScriptRunOutput } from "../interfaces/ScriptRunOutput.interface";
 import { AvailableIndicatorsList } from "./AvailableIndicatorsList";
 import { ScriptErrorPanel } from "./ScriptErrorPanel";
 import { ScriptDocumentationModal } from "./ScriptDocumentationModal";
+import type { ScriptEditorCodeMirrorHandle } from "./ScriptEditorCodeMirror";
 import "./ScriptEditorPanel.css";
 
 const LazyScriptEditorCodeMirror = lazy(() =>
@@ -89,6 +90,12 @@ export function ScriptEditorPanel({
   const [docsOpen, setDocsOpen] = useState(false);
   const [targetPickerOpen, setTargetPickerOpen] = useState(false);
   const runButtonRef = useRef<HTMLButtonElement>(null);
+  const codeMirrorRef = useRef<ScriptEditorCodeMirrorHandle>(null);
+  // Set only while the target picker is open because of a "Exécuter la cellule" click (Shift+Enter
+  // or the toolbar button) rather than a plain "Exécuter" — `chooseTarget` below needs to know
+  // which code to actually run once a target is picked, since by then `draft` alone would run the
+  // *whole* script instead of just the cell that was asked for.
+  const pendingRunCodeRef = useRef<string | null>(null);
   const needsTargetChoice = (panelChoices?.length ?? 0) > 1;
   // "name": the toolbar Save button's own first-ever-save prompt. "nameSaveAs": the dedicated
   // "Enregistrer sous" button's own prompt. Both render the exact same modal shell (just a
@@ -178,21 +185,26 @@ export function ScriptEditorPanel({
   // permanently unrouted: `targetPanelIndex` never gets set by anything else, so it can never reach
   // any panel's own `scripts` prop — "Exécuter" would look like it does nothing, and the script
   // would never appear in that panel's own "Mes scripts" either.
-  function handleRunClick() {
+  // `codeOverride` lets "Exécuter la cellule" (see ScriptEditorCodeMirror.tsx's own doc on `// %%`
+  // cells) reuse this exact function — same target-picker flow, just a different code string —
+  // instead of duplicating the targetPanelIndex/needsTargetChoice logic for a second trigger.
+  function handleRunClick(codeOverride?: string) {
     if (!activeScript) return;
+    const code = codeOverride ?? draft;
     if (activeScript.targetPanelIndex === undefined) {
       if (needsTargetChoice) {
+        pendingRunCodeRef.current = codeOverride ?? null;
         setTargetPickerOpen(true);
         return;
       }
       updateScript(activeScript.id, {
         targetPanelIndex: panelChoices?.[0]?.index ?? 0,
         runRequestId: (activeScript.runRequestId ?? 0) + 1,
-        runDraftCode: draft,
+        runDraftCode: code,
       });
       return;
     }
-    runScript(activeScript.id, draft);
+    runScript(activeScript.id, code);
   }
 
   // One single updateScript call, not updateScript-then-runScript — each of those independently
@@ -206,8 +218,9 @@ export function ScriptEditorPanel({
     updateScript(activeScript.id, {
       targetPanelIndex: index,
       runRequestId: (activeScript.runRequestId ?? 0) + 1,
-      runDraftCode: draft,
+      runDraftCode: pendingRunCodeRef.current ?? draft,
     });
+    pendingRunCodeRef.current = null;
     setTargetPickerOpen(false);
   }
 
@@ -281,8 +294,16 @@ export function ScriptEditorPanel({
 
           {activeScript && (
             <div className="lq-script-editor-panel__toolbar">
-              <button ref={runButtonRef} type="button" className="lq-script-editor-panel__toolbar-button" onClick={handleRunClick}>
+              <button ref={runButtonRef} type="button" className="lq-script-editor-panel__toolbar-button" onClick={() => handleRunClick()}>
                 <PlayIcon size={13} /> Exécuter
+              </button>
+              <button
+                type="button"
+                className="lq-script-editor-panel__toolbar-button"
+                onClick={() => codeMirrorRef.current?.runCurrentCell()}
+                title="Exécute le code depuis le début jusqu'à la fin de la cellule (// %%) où se trouve le curseur (Maj+Entrée)"
+              >
+                <PlayIcon size={13} /> Exécuter la cellule
               </button>
               {needsTargetChoice && (
                 <button
@@ -367,7 +388,14 @@ export function ScriptEditorPanel({
         <div className="lq-script-editor-panel__body">
           <div className="lq-script-editor-panel__main">
             <Suspense fallback={<div className="lq-script-editor-panel__loading">Chargement de l'éditeur…</div>}>
-              <LazyScriptEditorCodeMirror value={draft} onChange={setDraft} error={output?.result?.error ?? null} formatRequestId={formatRequestId} />
+              <LazyScriptEditorCodeMirror
+                ref={codeMirrorRef}
+                value={draft}
+                onChange={setDraft}
+                error={output?.result?.error ?? null}
+                formatRequestId={formatRequestId}
+                onRunCell={(code) => handleRunClick(code)}
+              />
             </Suspense>
             {output?.result?.error && <ScriptErrorPanel error={output.result.error} />}
             {output?.result?.logs && output.result.logs.length > 0 && (

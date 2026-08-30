@@ -23,7 +23,23 @@ export interface ScriptPlotSeries {
   draw: "line" | "area" | "histogram";
   pane: "overlay" | "own";
   color?: string;
+  lineWidth?: number;
+  lineStyle?: "solid" | "dashed" | "dotted";
   points: { date: number; value: number }[];
+}
+
+/** One `plot.band/bandOverlay` output — built up one `{upper,lower}` point per bar, same "same name
+ *  across bars extends one continuous series" upsert rule `ScriptPlotSeries` already follows, just
+ *  two curves instead of one. Converts into a `CustomIndicatorDef` with `draw: "band"`
+ *  (`scriptBandToCustomIndicatorDef`), which is what rides the *exact* rendering already built for
+ *  Bollinger Bands (translucent fill + upper/lower/middle lines) with no new canvas code at all —
+ *  see `CustomIndicatorBandDataPoint`'s own doc. */
+export interface ScriptBandSeries {
+  name: string;
+  pane: "overlay" | "own";
+  color?: string;
+  lineWidth?: number;
+  points: { date: number; upper: number; lower: number }[];
 }
 
 /** One `plot.signal/point/horizontal/vertical` output — a single discrete marker at the bar it
@@ -101,6 +117,7 @@ export interface ScriptRunResult {
   error: ScriptError | null;
   logs: string[];
   plots: ScriptPlotSeries[];
+  bands: ScriptBandSeries[];
   drawings: ScriptDrawingOutput[];
   table: ScriptTableOutput | null;
   alerts: ScriptRunAlert[];

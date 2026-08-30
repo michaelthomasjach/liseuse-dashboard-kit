@@ -14,6 +14,15 @@ export interface ScriptReferenceBlock {
    *  resolved to a real component only at render time. Kept as a plain string here (not a JSX
    *  reference) so this file stays plain data — see its own top-of-file doc on why. */
   diagramKey?: string;
+  /** Only for `kind: "heading"` — which `SCRIPT_API_COMPLETIONS` labels (`scriptApiCompletions.ts`)
+   *  this specific heading is the primary explanation for, e.g. `["plot.band", "plot.bandOverlay"]`
+   *  on the "Remplir entre deux courbes" heading. Read by `scriptDocsNav.ts` to send a click on that
+   *  keyword in the documentation's own keyword index straight to this heading rather than just its
+   *  parent section — omitted where no heading is specific enough (most of `market.*`'s own plain
+   *  functions, for instance), in which case the keyword index falls back to that keyword's own
+   *  section. Each keyword should appear in at most one heading's own list — see `scriptDocsNav.ts`'s
+   *  own doc for what happens on a genuine gap instead of a duplicate. */
+  keywords?: string[];
 }
 export interface ScriptReferenceSection {
   id: string;
@@ -30,19 +39,27 @@ function c(code: string): ScriptReferenceBlock {
 function l(items: string[]): ScriptReferenceBlock {
   return { kind: "list", items };
 }
-// A sub-heading *within* a section — the "Exemples" section is the one place this reference has
-// several distinct, self-contained worked scripts under one roof, and a plain run of paragraphs
-// would make it hard to tell where one ends and the next begins. Doesn't create a new scroll-spy
-// nav entry of its own (ScriptDocumentationModal.tsx tracks sections, not blocks) — purely visual
-// structure inside a section that's already long enough to need it.
+// A sub-heading *within* a section — originally just visual structure for the "Exemples" section's
+// several distinct worked scripts, now also a real nav sub-item (see scriptDocsNav.ts) and,
+// optionally, the keyword index's own scroll target for whichever `keywords` it names.
 function d(diagramKey: string): ScriptReferenceBlock {
   return { kind: "diagram", diagramKey };
 }
-function h(text: string): ScriptReferenceBlock {
-  return { kind: "heading", text };
+function h(text: string, keywords?: string[]): ScriptReferenceBlock {
+  return { kind: "heading", text, keywords };
 }
 
 export const SCRIPT_API_REFERENCE: ScriptReferenceSection[] = [
+  // No `blocks` of its own — ScriptDocumentationModal.tsx special-cases `id === "keywords"` to
+  // render <ScriptKeywordsIndex/> instead (a searchable, optionally-pinned index over
+  // SCRIPT_API_COMPLETIONS), the same "whole-section override" pattern already used for
+  // `id === "tutorial"`. Exists here mainly so it gets a real nav entry/section anchor for free,
+  // and so its position in the reading order (first) is declared in one obvious place.
+  {
+    id: "keywords",
+    title: "Mots-clés disponibles",
+    blocks: [],
+  },
   {
     id: "tutorial",
     title: "Tutoriel — créer un indicateur de A à Z",
@@ -135,7 +152,7 @@ market.time(offset?)    // Date | null — horodatage de la bougie`
 const sma20 = math.sma(closes, 20);`
       ),
       t("market.availableTimeframes() retourne la liste des intervalles proposés par la chart hôte (ex. [\"1m\",\"5m\",\"1h\",\"1d\"]) — à titre indicatif uniquement, ne donne accès aux données d'aucun autre intervalle (voir market.resample ci-dessous pour ça)."),
-      h("market.resample(interval) — lire un autre timeframe"),
+      h("market.resample(interval) — lire un autre timeframe", ["market.resample"]),
       t(
         "market.resample(interval) regroupe les bougies déjà affichées sur la chart (celles-là mêmes que market.* lit) en bougies plus larges — 15 minutes en 1 heure, 1 heure en 4 heures, etc. — et retourne un objet avec exactement les mêmes fonctions que market.* (open/high/low/close/volume/time/series), mais lues sur ce timeframe agrégé. Ce n'est pas une nouvelle source de données : cette bibliothèque n'en fournit jamais elle-même (voir availableTimeframes ci-dessus) — resample recalcule simplement des bougies plus larges à partir de celles déjà là, exactement comme changerait le sélecteur d'intervalle de la chart elle-même."
       ),
@@ -203,7 +220,13 @@ if (now !== null && prev !== null && prev <= 50 && now > 50) {
       t(
         "C'est la fonction que vous utiliserez le plus souvent : plot.* est ce qui fait réellement apparaître quelque chose sur la chart — sans un appel à plot.* quelque part, un script peut calculer tout ce qu'il veut en coulisses, rien ne s'affichera jamais. Il existe deux familles bien distinctes : les séries continues (une courbe qui grandit bougie après bougie) et les marqueurs ponctuels (un seul symbole posé sur une bougie précise)."
       ),
-      h("Les séries continues — line / area / histogram / overlay / panel"),
+      h("Les séries continues — line / area / histogram / overlay / panel", [
+        "plot.line",
+        "plot.area",
+        "plot.histogram",
+        "plot.overlay",
+        "plot.panel",
+      ]),
       t("Les cinq premières fonctions tracent une série continue (un point ajouté à chaque bougie traitée) ; appeler plusieurs fois la même série avec le même nom sur des bougies différentes prolonge la même courbe, pas une nouvelle à chaque fois."),
       c(
         `plot.line(name, value, options?)       // courbe, panneau dédié
@@ -224,7 +247,7 @@ plot.panel(name, value, options?)      // identique à line — alias
         "lineWidth (nombre, défaut 1,5) épaissit le trait ; lineStyle (\"solid\" par défaut, ou \"dashed\"/\"dotted\") change son style. Les deux s'appliquent à line/area/overlay/panel (sans effet sur histogram, qui trace des barres, pas un trait) :"
       ),
       c(`plot.overlay("SMA 20 (épaisse)", sma20, { lineWidth: 3, lineStyle: "dashed" });`),
-      h("Remplir entre deux courbes — band / bandOverlay"),
+      h("Remplir entre deux courbes — band / bandOverlay", ["plot.band", "plot.bandOverlay"]),
       t(
         "plot.band(name, upper, lower, options?) trace deux courbes et colore la surface entre elles — le rendu exact des bandes de Bollinger intégrées (remplissage translucide, ligne haute/basse fine, ligne médiane calculée automatiquement). own pane par défaut ; bandOverlay force le panneau principal, même paire que overlay/line :"
       ),
@@ -243,7 +266,12 @@ if (sma !== null && std !== null) {
   plot.bandOverlay("Enveloppe maison", sma + 2 * std, sma - 2 * std, { color: "#3ea377" });
 }`
       ),
-      h("Les marqueurs ponctuels — signal / point / horizontal / vertical"),
+      h("Les marqueurs ponctuels — signal / point / horizontal / vertical", [
+        "plot.signal",
+        "plot.point",
+        "plot.horizontal",
+        "plot.vertical",
+      ]),
       t("Les quatre suivantes posent un marqueur ponctuel sur la bougie courante — un appel = un marqueur, jamais une série continue :"),
       c(
         `plot.signal("BUY" | "SELL")                       // marqueur flèche haut/bas au prix de clôture
@@ -271,7 +299,7 @@ plot.vertical({ color? })                             // ligne verticale sur la 
       t(
         "Le texte hérite du même style que celui d'une ligne dessinée à la main (taille, position, couleur de fond…) — rien à configurer côté script, il utilise simplement les réglages par défaut de la bibliothèque."
       ),
-      h("plot.table — un tableau en overlay sur la chart"),
+      h("plot.table — un tableau en overlay sur la chart", ["plot.table"]),
       t(
         "plot.table(rows, options?) affiche un petit tableau ancré dans un coin de la chart (« RSI sur cinq timeframes », un score détaillé…) — ni série continue ni marqueur ponctuel : contrairement à plot.line, seul le dernier appel compte (pas d'historique accumulé), donc appelez-le sans condition à chaque bougie plutôt que de le protéger avec bar.isNew() — la chart affichera toujours la version la plus récente."
       ),

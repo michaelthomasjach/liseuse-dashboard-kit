@@ -57,6 +57,7 @@ export const SCRIPT_API_COMPLETIONS: ScriptApiCompletion[] = [
   { label: "state.get", type: "function", detail: "(key, defaultValue?) => any", apply: 'state.get("", )' },
   { label: "state.set", type: "function", detail: "(key, value) => void", apply: 'state.set("", )' },
   { label: "alert", type: "function", detail: "(message) => void", apply: "alert()" },
+  { label: "console.log", type: "function", detail: "(...) => void — capturé dans la console de l'éditeur", apply: "console.log()" },
   { label: "bar.isNew", type: "function", detail: "() => boolean", apply: "bar.isNew()" },
   { label: "bar.isClosed", type: "function", detail: "() => boolean", apply: "bar.isClosed()" },
   { label: "bar.isRealtime", type: "function", detail: "() => boolean", apply: "bar.isRealtime()" },

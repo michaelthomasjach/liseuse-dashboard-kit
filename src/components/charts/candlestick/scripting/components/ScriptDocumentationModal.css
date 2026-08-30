@@ -6,7 +6,7 @@
 }
 
 .lq-script-docs__nav {
-  width: 220px;
+  width: 240px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
@@ -14,6 +14,75 @@
   overflow-y: auto;
   border-right: 1px solid var(--lq-color-border-subtle);
   padding-right: var(--lq-space-3);
+}
+
+/* Sticky at the top of the nav's own scroll area — a long scroll through sub-titles shouldn't
+   scroll the search box itself out of reach. */
+.lq-script-docs__search {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--lq-space-1);
+  padding: var(--lq-space-1) var(--lq-space-2);
+  margin-bottom: var(--lq-space-2);
+  color: var(--lq-color-text-muted);
+  background-color: var(--lq-color-panel);
+  border: 1px solid var(--lq-color-border-subtle);
+  border-radius: var(--lq-radius-sm);
+}
+
+.lq-script-docs__search input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: var(--lq-text-sm);
+  color: var(--lq-color-text);
+  background: none;
+  border: none;
+  outline: none;
+}
+
+/* Browsers add their own "clear" (✕) button to type="search" inputs — WebKit's own version reads
+   as visually heavier than this compact sidebar wants; every other native chrome is left alone. */
+.lq-script-docs__search input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+}
+
+.lq-script-docs__nav-section {
+  display: flex;
+  flex-direction: column;
+}
+
+/* One `// %%`-style indent for a section's own sub-titles (see ScriptReferenceBlock's "heading"
+   kind, and scriptDocsNav.ts for how these are derived) — exigence : « je veux des sous-titre ».
+   No expand/collapse: the total heading count across the whole reference is modest enough to just
+   always show, and collapsing would hide the very thing a reader searched for. */
+.lq-script-docs__nav-subitems {
+  display: flex;
+  flex-direction: column;
+  margin-left: var(--lq-space-3);
+  border-left: 1px solid var(--lq-color-border-subtle);
+}
+
+.lq-script-docs__nav-subitem {
+  padding: 3px var(--lq-space-2);
+  font: inherit;
+  font-size: var(--lq-text-xs);
+  color: var(--lq-color-text-muted);
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.lq-script-docs__nav-subitem:hover {
+  color: var(--lq-color-text);
+  background-color: var(--lq-color-hover);
 }
 
 /* A <button>, not an <a> (see ScriptDocumentationModal.tsx's own doc on why) — the reset

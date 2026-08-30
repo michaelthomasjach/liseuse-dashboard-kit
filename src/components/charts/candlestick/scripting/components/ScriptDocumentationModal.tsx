@@ -1,9 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Modal } from "../../../../primitives/Modal";
 import { CodeBlock } from "../../../../primitives/CodeBlock";
+import { SearchIcon } from "../../../../icons";
 import { SCRIPT_API_REFERENCE } from "../scriptApiReference";
 import { SCRIPT_DIAGRAM_REGISTRY } from "../scriptDiagramRegistry";
+import { SCRIPT_DOCS_NAV, headingAnchorId } from "../scriptDocsNav";
 import { ScriptInteractiveTutorial } from "./ScriptInteractiveTutorial";
+import { ScriptKeywordsIndex } from "./ScriptKeywordsIndex";
 import "./ScriptDocumentationModal.css";
 
 export interface ScriptDocumentationModalProps {
@@ -20,6 +23,32 @@ export interface ScriptDocumentationModalProps {
 export function ScriptDocumentationModal({ open, onClose }: ScriptDocumentationModalProps) {
   const contentRef = useRef<HTMLDivElement>(null);
   const [activeId, setActiveId] = useState(SCRIPT_API_REFERENCE[0]?.id);
+  const [query, setQuery] = useState("");
+  // Shared by the nav's own section/heading filter and ScriptKeywordsIndex's own list — one search
+  // box, both surfaces narrow down together (exigence : « je veux un input de recherche »).
+  const normalizedQuery = query.trim().toLowerCase();
+  // Whether the "keywords" section (see scriptApiReference.ts's own doc on that synthetic first
+  // entry) stays stuck to the top of the content pane while the rest scrolls past underneath it —
+  // exigence : « je peux décider de PIN cette section en haut ». Off by default: pinning is
+  // something the reader opts into, not a permanent fixture.
+  const [keywordsPinned, setKeywordsPinned] = useState(false);
+
+  // The nav tree, filtered by `query` — a section stays visible if its own title matches, or at
+  // least one of its own sub-heading matches; a section kept only because of a heading match shows
+  // just the matching heading(s), not every one it has (a tighter, more useful search result than
+  // showing everything once any part of a section matches).
+  const filteredNav = useMemo(() => {
+    if (!normalizedQuery) return SCRIPT_DOCS_NAV;
+    return SCRIPT_DOCS_NAV.filter((section) => {
+      const titleMatches = section.title.toLowerCase().includes(normalizedQuery);
+      const matchingHeadings = section.headings.filter((h) => h.text.toLowerCase().includes(normalizedQuery));
+      return titleMatches || matchingHeadings.length > 0;
+    }).map((section) => {
+      const titleMatches = section.title.toLowerCase().includes(normalizedQuery);
+      if (titleMatches) return section;
+      return { ...section, headings: section.headings.filter((h) => h.text.toLowerCase().includes(normalizedQuery)) };
+    });
+  }, [normalizedQuery]);
 
   // Scroll-spy: highlights whichever section's own heading has scrolled past the content pane's
   // own top edge most recently — a plain scroll listener recomputing "which heading is now
@@ -63,50 +92,108 @@ export function ScriptDocumentationModal({ open, onClose }: ScriptDocumentationM
     document.getElementById(`lq-script-docs-${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
+  // Same mechanism as scrollToSection above, generalized to any anchor id — a heading's own id
+  // (nav sub-items, see SCRIPT_DOCS_NAV) or a keyword's own resolved target (ScriptKeywordsIndex,
+  // see keywordAnchorId — may itself just be a plain section id, which this handles identically).
+  function scrollToAnchor(anchorId: string) {
+    document.getElementById(anchorId)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   return (
     <Modal open={open} onClose={onClose} title="Documentation de l'éditeur de script" size="fullscreen" footer={null}>
       <div className="lq-script-docs">
         <nav className="lq-script-docs__nav">
-          {SCRIPT_API_REFERENCE.map((section) => (
-            <button
-              key={section.id}
-              type="button"
-              onClick={() => scrollToSection(section.id)}
-              className={[
-                "lq-script-docs__nav-item",
-                section.id === "tutorial" && "lq-script-docs__nav-item--tutorial",
-                section.id === activeId && "lq-script-docs__nav-item--active",
-              ]
-                .filter(Boolean)
-                .join(" ")}
-            >
-              {section.title}
-            </button>
+          <div className="lq-script-docs__search">
+            <SearchIcon size={13} />
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Rechercher…"
+              aria-label="Rechercher dans la documentation"
+            />
+          </div>
+          {filteredNav.map((section) => (
+            <div key={section.id} className="lq-script-docs__nav-section">
+              <button
+                type="button"
+                onClick={() => scrollToSection(section.id)}
+                className={[
+                  "lq-script-docs__nav-item",
+                  section.id === "tutorial" && "lq-script-docs__nav-item--tutorial",
+                  section.id === activeId && "lq-script-docs__nav-item--active",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+              >
+                {section.title}
+              </button>
+              {section.headings.length > 0 && (
+                <div className="lq-script-docs__nav-subitems">
+                  {section.headings.map((heading) => (
+                    <button
+                      key={heading.id}
+                      type="button"
+                      className="lq-script-docs__nav-subitem"
+                      onClick={() => scrollToAnchor(heading.id)}
+                      title={heading.text}
+                    >
+                      {heading.text}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           ))}
         </nav>
         <div className="lq-script-docs__content" ref={contentRef}>
           {SCRIPT_API_REFERENCE.map((section) => (
-            <section key={section.id} id={`lq-script-docs-${section.id}`} className="lq-script-docs__section">
+            <section
+              key={section.id}
+              id={`lq-script-docs-${section.id}`}
+              className={[
+                "lq-script-docs__section",
+                section.id === "keywords" && keywordsPinned && "lq-script-docs__section--pinned",
+              ]
+                .filter(Boolean)
+                .join(" ")}
+            >
               <h3 className="lq-script-docs__section-title">{section.title}</h3>
-              {section.blocks.map((block, i) => {
-                if (block.kind === "heading") return <h4 key={i} className="lq-script-docs__example-heading">{block.text}</h4>;
-                if (block.kind === "diagram") {
-                  const Diagram = block.diagramKey ? SCRIPT_DIAGRAM_REGISTRY[block.diagramKey] : undefined;
-                  return Diagram ? <Diagram key={i} /> : null;
-                }
-                if (block.kind === "text") return <p key={i}>{block.text}</p>;
-                if (block.kind === "list")
-                  return (
-                    <ul key={i}>
-                      {block.items?.map((item, j) => <li key={j}>{item}</li>)}
-                    </ul>
-                  );
-                return <CodeBlock key={i} code={block.code ?? ""} language="JavaScript" className="lq-script-docs__code" />;
-              })}
-              {/* The "tutorial" section's own live, editable walkthrough — a whole-section override
-                  rather than a block kind: unlike every other block, it owns its own running script
-                  engine and step state, which plain data (ScriptReferenceBlock) has no way to express. */}
+              {/* The "keywords" and "tutorial" sections are each a whole-section override — neither
+                  owns real `blocks` (see scriptApiReference.ts's own doc on the "keywords" entry):
+                  one is a searchable index with its own pin state, the other a live-editable
+                  walkthrough with its own running script engine — plain data has no way to express
+                  either. Every other section renders its blocks normally below. */}
+              {section.id === "keywords" && (
+                <ScriptKeywordsIndex
+                  query={query}
+                  pinned={keywordsPinned}
+                  onTogglePin={() => setKeywordsPinned((p) => !p)}
+                  onKeywordClick={scrollToAnchor}
+                />
+              )}
               {section.id === "tutorial" && <ScriptInteractiveTutorial />}
+              {section.id !== "keywords" &&
+                section.blocks.map((block, i) => {
+                  if (block.kind === "heading")
+                    return (
+                      <h4 key={i} id={headingAnchorId(section.id, block.text ?? "")} className="lq-script-docs__example-heading">
+                        {block.text}
+                      </h4>
+                    );
+                  if (block.kind === "diagram") {
+                    const Diagram = block.diagramKey ? SCRIPT_DIAGRAM_REGISTRY[block.diagramKey] : undefined;
+                    return Diagram ? <Diagram key={i} /> : null;
+                  }
+                  if (block.kind === "text") return <p key={i}>{block.text}</p>;
+                  if (block.kind === "list")
+                    return (
+                      <ul key={i}>
+                        {block.items?.map((item, j) => <li key={j}>{item}</li>)}
+                      </ul>
+                    );
+                  return <CodeBlock key={i} code={block.code ?? ""} language="JavaScript" className="lq-script-docs__code" />;
+                })}
             </section>
           ))}
         </div>

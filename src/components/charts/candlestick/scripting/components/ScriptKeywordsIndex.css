@@ -1,0 +1,127 @@
+.lq-script-keywords__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lq-space-2);
+  margin-bottom: var(--lq-space-3);
+}
+
+.lq-script-keywords__count {
+  font-size: var(--lq-text-xs);
+  color: var(--lq-color-text-muted);
+}
+
+.lq-script-keywords__pin {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lq-space-1);
+  padding: var(--lq-space-1) var(--lq-space-2);
+  font-size: var(--lq-text-xs);
+  color: var(--lq-color-text-muted);
+  background: transparent;
+  border: 1px solid var(--lq-color-border-subtle);
+  border-radius: var(--lq-radius-sm);
+  cursor: pointer;
+}
+
+.lq-script-keywords__pin:hover {
+  color: var(--lq-color-text);
+  border-color: var(--lq-color-text);
+}
+
+.lq-script-keywords__pin--active {
+  color: var(--lq-color-accent);
+  border-color: var(--lq-color-accent);
+  background-color: color-mix(in srgb, var(--lq-color-accent) 10%, transparent);
+}
+
+.lq-script-keywords__empty {
+  font-size: var(--lq-text-sm);
+  color: var(--lq-color-text-muted);
+}
+
+.lq-script-keywords__group {
+  margin-bottom: var(--lq-space-3);
+}
+
+.lq-script-keywords__group-title {
+  display: block;
+  margin-bottom: var(--lq-space-1);
+  font-size: var(--lq-text-xs);
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-script-keywords__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--lq-space-1);
+}
+
+/* Reset button chrome, same "it's a link that just doesn't navigate" reasoning
+   .lq-script-docs__nav-item's own doc already gives for its button-not-anchor choice. */
+.lq-script-keywords__item {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding: var(--lq-space-1) var(--lq-space-2);
+  font: inherit;
+  text-align: left;
+  background-color: var(--lq-color-hover);
+  border: 1px solid transparent;
+  border-radius: var(--lq-radius-sm);
+  cursor: pointer;
+}
+
+.lq-script-keywords__item:hover {
+  border-color: var(--lq-color-accent);
+}
+
+.lq-script-keywords__item-label {
+  font-family: var(--lq-font-mono);
+  font-size: var(--lq-text-xs);
+  font-weight: 600;
+  color: var(--lq-color-accent);
+}
+
+.lq-script-keywords__item-detail {
+  font-size: 0.68rem;
+  color: var(--lq-color-text-muted);
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Pinned (see the toggle button above) — sticks to the top of .lq-script-docs__content while the
+   rest of the reference scrolls past underneath it, rather than scrolling away with everything
+   else. position: sticky works here with no extra JS since this section is a direct-enough
+   descendant of that scroll container (see ScriptDocumentationModal.tsx). A background/shadow/
+   bottom border of its own is what keeps it legible once content is actually scrolling behind it —
+   .lq-script-docs__section normally has no background at all (transparent over the modal's own).
+   z-index: 1001 (not a token — matched empirically against .lq-chart__header's own hardcoded 1000,
+   the highest z-index anywhere inside a chart): the "tutorial" section further down embeds a real
+   `CandlestickChart`, and nothing between it and this scroll container establishes a stacking
+   context of its own, so that header's own z-index competes directly against this one once both
+   are visible at the same time — confirmed visually (its header/canvas content bled through the
+   pinned keywords grid at z-index: 1). */
+.lq-script-docs__section--pinned {
+  position: sticky;
+  top: 0;
+  z-index: 1001;
+  max-height: 45vh;
+  overflow-y: auto;
+  background-color: var(--lq-color-panel);
+  box-shadow: 0 4px 8px -4px rgba(0, 0, 0, 0.15);
+  /* .lq-script-docs__content is a column flexbox — a flex item with any `overflow` other than
+     `visible` gets an automatic *minimum* size of 0 for shrinking purposes (a real CSS flexbox
+     rule, not a bug in this rule), instead of its own content height like every sibling section
+     still has. Without this, the whole column's own shrink pressure lands on this one item
+     alone, collapsing it down to ~33px (just its own title) — confirmed empirically. flex-shrink:
+     0 opts this section out of that shrinking entirely, so it renders at its natural height up to
+     `max-height` regardless of how much the rest of the column needs. */
+  flex-shrink: 0;
+}

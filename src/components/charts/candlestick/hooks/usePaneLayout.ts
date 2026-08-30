@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as d3 from "d3";
 import type { Indicator } from "../interfaces/Indicator.interface";
 import type { IndicatorKind } from "../interfaces/IndicatorKind.interface";
@@ -133,10 +133,18 @@ export function usePaneLayout({ defaultIndicators, onIndicatorsChange, showVolum
     });
   }
 
-  function commitIndicators(next: Indicator[]) {
-    setIndicators(next);
-    onIndicatorsChange?.(next);
-  }
+  // useCallback (not a plain function like most of this file's own helpers) specifically because
+  // it's a dependency of the copy/paste keydown effect below — without a stable identity, that
+  // effect would tear down and re-add its own `window` listener on every render of this hook
+  // (crosshair hover, zoom/pan… none of which this function's own behavior actually depends on),
+  // not just when `onIndicatorsChange` itself changes.
+  const commitIndicators = useCallback(
+    (next: Indicator[]) => {
+      setIndicators(next);
+      onIndicatorsChange?.(next);
+    },
+    [onIndicatorsChange]
+  );
 
   // Replaces every piece of state a saved template snapshot covers, wholesale rather than
   // merging — loading a template means the pane layout ends up looking *exactly* like it did

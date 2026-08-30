@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Candle } from "../interfaces/Candle.interface";
 import type { TrendLineDrawing, OverlayDataPoint } from "../interfaces/TrendLineDrawing.interface";
 import type { DataPoint } from "../interfaces/DataPoint.interface";
@@ -165,10 +165,18 @@ export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAdd
   // handlePointerMove skip its hover-detection work while this drag is live.
   const isPanningYRef = useRef(false);
 
-  function commitDrawings(next: TrendLineDrawing[]) {
-    setDrawings(next);
-    onDrawingsChange?.(next);
-  }
+  // useCallback (not a plain function like most of this file's own helpers) specifically because
+  // it's a dependency of the copy/paste keydown effect below — without a stable identity, that
+  // effect would tear down and re-add its own `window` listener on every render of this hook
+  // (crosshair hover, zoom/pan… none of which this function's own behavior actually depends on),
+  // not just when `onDrawingsChange` itself changes.
+  const commitDrawings = useCallback(
+    (next: TrendLineDrawing[]) => {
+      setDrawings(next);
+      onDrawingsChange?.(next);
+    },
+    [onDrawingsChange]
+  );
 
   function removeSymbolOverlay(ticker: string) {
     commitDrawings(drawings.filter((d) => !(d.lineType === "symbolOverlay" && d.overlaySymbol === ticker)));
@@ -238,7 +246,11 @@ export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAdd
   // this only ever adds a *second* way to reach that same finalize-then-exit sequence (re-picking
   // the tool from the rail, or double-clicking/double-tapping the plot while it's active) beside
   // Escape, for the one tool with no fixed point count of its own to reach on its own.
-  function finalizeElbowArrow() {
+  // useCallback for the same reason commitDrawings above is one — it's a dependency of the
+  // Escape/Enter keydown effect below (and of useDrawingInteractions' own double-click handler,
+  // which receives it via this hook's return value), so a stable identity keeps that effect from
+  // re-subscribing its `window` listener on every unrelated render.
+  const finalizeElbowArrow = useCallback(() => {
     if (!(activeTool === "elbowArrow" && pendingPoint && pendingExtraPoints.length >= 1)) return;
     const points = [pendingPoint, ...pendingExtraPoints];
     const next: TrendLineDrawing[] = [
@@ -256,7 +268,7 @@ export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAdd
     ];
     setDrawings(next);
     onDrawingsChange?.(next);
-  }
+  }, [activeTool, pendingPoint, pendingExtraPoints, drawings, defaultDrawingStyle, onDrawingsChange]);
 
   function handleToolClick(tool: DrawingToolType) {
     // Picking any tool (including re-picking "text"/"comment" itself) while a previous live

@@ -108,6 +108,28 @@ const SYMBOL_PROFILES: SymbolProfile[] = [
       { label: "1A", changePercent: 24.7 },
     ],
     seasonality: SEASONALITY_PATH,
+    news: [
+      {
+        id: "n-1",
+        time: "Il y a 2 jours",
+        headline: "Wall Street mise sur le succès de GTA 6 — le titre Take-Two en profite.",
+        provider: "Barrons.com",
+      },
+      { id: "n-2", time: "Il y a 4 jours", headline: "Apple prépare un nouveau cycle de produits pour la rentrée." },
+    ],
+    keyStats: {
+      nextEarningsInDays: 67,
+      volume: "3,71 M",
+      averageVolume: "2,22 M",
+      marketCap: "44,01 Md",
+    },
+    earnings: [
+      { date: "T4 24", estimateEps: 1.4, actualEps: 1.55 },
+      { date: "T1 25", estimateEps: 1.1, actualEps: 1.2 },
+      { date: "T2 25", estimateEps: 0.75, actualEps: 0.68 },
+      { date: "T3 25", estimateEps: 0.95, actualEps: 1.35 },
+      { date: "T4 25", estimateEps: 1.2 },
+    ],
   },
 ];
 

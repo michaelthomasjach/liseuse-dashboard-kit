@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 
 const SYMBOL_PROFILE_MIN_HEIGHT = 160;
-const SYMBOL_PROFILE_MAX_HEIGHT = 640;
+const SYMBOL_PROFILE_MAX_HEIGHT = 2000;
 /** Flex-basis for the bottom "company info" pane before the user has ever dragged the divider —
  *  same "a plain CSS default costs nothing to compute" reasoning `SIDE_PANEL_DEFAULT_WIDTH_FRACTION`
  *  already uses for the side panel's own *width*, just vertical here. */

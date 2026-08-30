@@ -7,6 +7,46 @@ export interface SymbolProfilePerformancePoint {
   changePercent: number;
 }
 
+/** One headline in a `SymbolProfile`'s own `news` list — same shape/spirit as the watchlist's own
+ *  `WatchlistNewsItem` (`WatchlistExposureModal.tsx`), kept as a separate, deliberately smaller
+ *  interface here rather than reused directly: this panel only ever shows the single most recent
+ *  headline for the one currently-focused symbol, not a filterable multi-symbol table, so it has
+ *  no need for that one's `ticker`/`logoUrl`/`logoColor`/`isFinancialReport` fields. */
+export interface SymbolProfileNewsItem {
+  id: string;
+  /** Pre-formatted by the caller, e.g. "2 jours" — same "this library has no notion of relative
+   *  time of its own" stance every other timestamp-ish field here already takes. */
+  time: string;
+  headline: string;
+  provider?: string;
+  /** Opens in a new tab when the headline is clicked, if set — no in-app navigation of any kind
+   *  (this library doesn't know what "opening an article" means in the host app). */
+  url?: string;
+}
+
+/** The "Key stats" list — every value already formatted by the caller (a market cap of "44.01B",
+ *  a volume of "3.71M") except `nextEarningsInDays`, the one plain number here: it drives two
+ *  different renderings at once (the "Dans N jours" key-stats row, and the bare "N" badge on the
+ *  earnings chart above it), so formatting it once at the source would force picking one of the
+ *  two forms and re-deriving the other. */
+export interface SymbolProfileKeyStats {
+  nextEarningsInDays?: number;
+  volume?: string;
+  averageVolume?: string;
+  marketCap?: string;
+}
+
+/** One reported (or upcoming, `actualEps` unset) quarter in a `SymbolProfile`'s own `earnings`
+ *  chart — `date` is a pre-formatted x-axis label (a quarter end date, in whatever format the
+ *  caller's own data uses), not a real `Date`, matching `seasonality`'s neighboring convention of
+ *  leaving formatting entirely up to the caller wherever this panel doesn't itself compute a
+ *  derived value from it. */
+export interface SymbolProfileEarningsPoint {
+  date: string;
+  estimateEps?: number;
+  actualEps?: number;
+}
+
 /** Everything about a symbol this library has no way to know on its own — its full name, exchange/
  *  instrument type, whether that market is currently open, a set of trailing-return tiles, and a
  *  seasonality path — shown in the workspace's own side-panel "company info" section (see
@@ -40,4 +80,15 @@ export interface SymbolProfile {
    *  `CandlestickChart`'s own built-in seasonality mode takes for its *own* internal one (see
    *  `computeSeasonality`) — this is a *different*, caller-supplied one, not reused from that. */
   seasonality?: { date: Date; value: number }[];
+  /** A handful of at-a-glance numbers — next earnings countdown, volume, average volume,
+   *  market cap. Shown as a plain label/value list, same spirit as `performance`'s tiles but for
+   *  values that don't have a meaningful "up/down" color of their own. */
+  keyStats?: SymbolProfileKeyStats;
+  /** Most recent headline(s) for this symbol — only the first is ever shown (see
+   *  `SymbolProfileNewsItem`'s own doc); further items only change whether a "more" link renders
+   *  (see `SymbolProfilePanelProps.onMoreNews`), not how many headlines this panel itself lists. */
+  news?: SymbolProfileNewsItem[];
+  /** Recent (and, with `actualEps` left unset, upcoming) quarterly EPS — estimate vs. actual,
+   *  shown as a small dot chart. */
+  earnings?: SymbolProfileEarningsPoint[];
 }

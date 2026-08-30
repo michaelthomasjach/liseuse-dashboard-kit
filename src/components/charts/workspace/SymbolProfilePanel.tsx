@@ -1,5 +1,6 @@
 import { PriceChangeTag } from "../../finance/PriceChangeTag";
 import { Sparkline } from "../Sparkline";
+import { EarningsDotChart } from "../EarningsDotChart";
 import type { SymbolProfile } from "./SymbolProfile.interface";
 
 export interface SymbolProfilePanelProps {
@@ -15,6 +16,10 @@ export interface SymbolProfilePanelProps {
    *  nothing for the currently-focused symbol (a plain price/change readout still renders on its
    *  own in that case, see the component's own doc). */
   profile: SymbolProfile | undefined;
+  /** "Plus d'actualités" — only rendered when `profile.news` has more than one item (the single
+   *  most recent headline always shows on its own with no link needed). No default behavior of any
+   *  kind (open a modal, navigate…) is assumed; omit the prop to just not show the link. */
+  onMoreNews?: () => void;
 }
 
 /** The workspace side panel's own "company info" section (see `useSymbolProfileSplit`'s own doc
@@ -23,7 +28,7 @@ export interface SymbolProfilePanelProps {
  *  Degrades gracefully with no `profile` at all (a bare price/change readout, exactly what the
  *  chart's own header already shows, still has real value on its own) rather than rendering
  *  nothing or a wall of placeholders. */
-export function SymbolProfilePanel({ symbol, price, change, changePercent, profile }: SymbolProfilePanelProps) {
+export function SymbolProfilePanel({ symbol, price, change, changePercent, profile, onMoreNews }: SymbolProfilePanelProps) {
   return (
     <div className="lq-chart-workspace__symbol-profile">
       <div className="lq-chart-workspace__symbol-profile-header">
@@ -87,6 +92,80 @@ export function SymbolProfilePanel({ symbol, price, change, changePercent, profi
             colorByTrend
             className="lq-chart-workspace__symbol-profile-seasonality"
           />
+        </div>
+      )}
+
+      {profile?.news && profile.news.length > 0 && (
+        <div className="lq-chart-workspace__symbol-profile-section">
+          <span className="lq-chart-workspace__symbol-profile-section-title">Actualités</span>
+          <div className="lq-chart-workspace__symbol-profile-news">
+            <span className="lq-chart-workspace__symbol-profile-news-time">{profile.news[0].time}</span>
+            {profile.news[0].url ? (
+              <a
+                href={profile.news[0].url}
+                target="_blank"
+                rel="noreferrer"
+                className="lq-chart-workspace__symbol-profile-news-headline lq-chart-workspace__symbol-profile-news-headline--link"
+              >
+                {profile.news[0].headline}
+                {profile.news[0].provider && ` — ${profile.news[0].provider}`}
+              </a>
+            ) : (
+              <span className="lq-chart-workspace__symbol-profile-news-headline">
+                {profile.news[0].headline}
+                {profile.news[0].provider && ` — ${profile.news[0].provider}`}
+              </span>
+            )}
+          </div>
+          {profile.news.length > 1 && onMoreNews && (
+            <button type="button" className="lq-chart-workspace__symbol-profile-news-more" onClick={onMoreNews}>
+              Plus d'actualités ›
+            </button>
+          )}
+        </div>
+      )}
+
+      {profile?.keyStats && (
+        <div className="lq-chart-workspace__symbol-profile-section">
+          <span className="lq-chart-workspace__symbol-profile-section-title">Statistiques clés</span>
+          <div className="lq-chart-workspace__symbol-profile-stats">
+            {profile.keyStats.nextEarningsInDays !== undefined && (
+              <div className="lq-chart-workspace__symbol-profile-stat-row">
+                <span className="lq-chart-workspace__symbol-profile-stat-label">Prochain rapport de résultats</span>
+                <span className="lq-chart-workspace__symbol-profile-stat-value">Dans {profile.keyStats.nextEarningsInDays} jours</span>
+              </div>
+            )}
+            {profile.keyStats.volume && (
+              <div className="lq-chart-workspace__symbol-profile-stat-row">
+                <span className="lq-chart-workspace__symbol-profile-stat-label">Volume</span>
+                <span className="lq-chart-workspace__symbol-profile-stat-value">{profile.keyStats.volume}</span>
+              </div>
+            )}
+            {profile.keyStats.averageVolume && (
+              <div className="lq-chart-workspace__symbol-profile-stat-row">
+                <span className="lq-chart-workspace__symbol-profile-stat-label">Volume moyen (30 j)</span>
+                <span className="lq-chart-workspace__symbol-profile-stat-value">{profile.keyStats.averageVolume}</span>
+              </div>
+            )}
+            {profile.keyStats.marketCap && (
+              <div className="lq-chart-workspace__symbol-profile-stat-row">
+                <span className="lq-chart-workspace__symbol-profile-stat-label">Capitalisation boursière</span>
+                <span className="lq-chart-workspace__symbol-profile-stat-value">{profile.keyStats.marketCap}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {profile?.earnings && profile.earnings.length > 0 && (
+        <div className="lq-chart-workspace__symbol-profile-section">
+          <div className="lq-chart-workspace__symbol-profile-earnings-header">
+            <span className="lq-chart-workspace__symbol-profile-section-title">Résultats</span>
+            {profile.keyStats?.nextEarningsInDays !== undefined && (
+              <span className="lq-chart-workspace__symbol-profile-earnings-badge">{profile.keyStats.nextEarningsInDays}</span>
+            )}
+          </div>
+          <EarningsDotChart points={profile.earnings} />
         </div>
       )}
     </div>

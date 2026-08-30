@@ -79,6 +79,20 @@
   background-color: var(--lq-color-bg);
 }
 
+/* Explicit `bordered` override (see ProgressBarProps.bordered's own doc) — `--bordered` only
+   needs the plain rule below (every non-eink palette has no border of its own to fight); the
+   eink-scoped `--no-border` override has to match that same `[data-lq-palette="eink"]` selector
+   (not just win on specificity) to actually beat the rule right above it, since both selectors are
+   otherwise equally specific and CSS falls back to source order — placed after it here for exactly
+   that reason. */
+.lq-progress-bar__track--bordered {
+  border: 1px solid var(--lq-color-border);
+}
+
+.lq-root[data-lq-palette="eink"] .lq-progress-bar__track--no-border {
+  border: none;
+}
+
 .lq-progress-bar__fill {
   height: 100%;
   background-color: var(--lq-color-fill);

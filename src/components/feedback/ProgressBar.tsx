@@ -55,6 +55,14 @@ export interface ProgressBarProps {
   /** Same five positions as `labelPosition`, independent of it — the two can share a position
    *  (rendered side by side there) or sit on opposite edges. Default "right". */
   valuePosition?: ProgressBarSlot;
+  /** Track height in px. Default 6 (the original, only size this component ever had) — fill/
+   *  segments always stay `height: 100%` of the track, so they thicken along with it automatically. */
+  thickness?: number;
+  /** Whether the track shows a border — omit to keep the palette's own existing default (only
+   *  "eink" gets one automatically, every other palette relies on the fill/track color contrast
+   *  alone); set explicitly to force it on or off regardless of palette, including overriding
+   *  eink's own otherwise-automatic border. */
+  bordered?: boolean;
   className?: string;
 }
 
@@ -72,6 +80,8 @@ export function ProgressBar({
   showValue = false,
   formatValue,
   valuePosition = "right",
+  thickness,
+  bordered,
   className,
 }: ProgressBarProps) {
   const indeterminate = !segments && value === undefined;
@@ -99,7 +109,14 @@ export function ProgressBar({
       <div className="lq-progress-bar__row">
         {edgeSlot("left")}
         <div
-          className="lq-progress-bar__track"
+          className={[
+            "lq-progress-bar__track",
+            bordered === true && "lq-progress-bar__track--bordered",
+            bordered === false && "lq-progress-bar__track--no-border",
+          ]
+            .filter(Boolean)
+            .join(" ")}
+          style={thickness !== undefined ? { height: thickness } : undefined}
           role={segments ? undefined : "progressbar"}
           aria-valuenow={!segments && !indeterminate ? clamped : undefined}
           aria-valuemin={segments ? undefined : 0}

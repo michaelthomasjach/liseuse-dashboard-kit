@@ -48,6 +48,18 @@ export const Inside: Story = {
   ),
 };
 
+export const ThicknessAndBorder: Story = {
+  name: "Épaisseur et bordure",
+  render: () => (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16, maxWidth: 420 }}>
+      <ProgressBar label="Défaut (6px, sans bordure)" value={62} />
+      <ProgressBar label="Épaisse (16px)" value={62} thickness={16} />
+      <ProgressBar label="Avec bordure" value={62} bordered />
+      <ProgressBar label="Épaisse avec bordure" value={62} thickness={16} bordered />
+    </div>
+  ),
+};
+
 export const Segmented: Story = {
   name: "Segmentée (répartition sectorielle)",
   render: () => (

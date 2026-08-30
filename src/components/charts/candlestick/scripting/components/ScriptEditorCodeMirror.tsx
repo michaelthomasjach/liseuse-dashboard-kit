@@ -329,6 +329,7 @@ class CellRunButtonWidget extends WidgetType {
 
 class CellOutputWidget extends WidgetType {
   private root: Root | null = null;
+  private resizeObserver: ResizeObserver | null = null;
   constructor(
     private readonly output: CellOutput,
     private readonly previewData: Candle[] | undefined,
@@ -343,14 +344,32 @@ class CellOutputWidget extends WidgetType {
       JSON.stringify(this.output) === JSON.stringify(other.output)
     );
   }
-  toDOM() {
+  toDOM(view: EditorView) {
     const container = document.createElement("div");
     container.className = "cm-cell-output";
+    // This widget is a child of `.cm-content`, which — unlike `.cm-scroller`, its own non-
+    // overflowing viewport — grows to fit the *longest line in the document* when line-wrapping
+    // is off (as it is here): a single long line elsewhere in the script makes `.cm-content`, and
+    // this widget along with it, wider than what's actually visible, forcing a chart/table inside
+    // to render past the editor's own right edge rather than fitting the space genuinely on
+    // screen. Constraining this widget's own max-width to `.cm-scroller`'s own real client width
+    // (minus the line-number gutter, which sits beside `.cm-content` inside that same scroller) is
+    // what actually fixes that, kept in sync via ResizeObserver since the editor's own window is
+    // itself resizable (see ScriptEditorWindow.tsx).
+    const updateMaxWidth = () => {
+      const guttersWidth = view.dom.querySelector(".cm-gutters")?.getBoundingClientRect().width ?? 0;
+      container.style.maxWidth = `${Math.max(0, view.scrollDOM.clientWidth - guttersWidth)}px`;
+    };
+    updateMaxWidth();
+    this.resizeObserver = new ResizeObserver(updateMaxWidth);
+    this.resizeObserver.observe(view.scrollDOM);
     this.root = createRoot(container);
     this.root.render(<CellOutputContent output={this.output} previewData={this.previewData} theme={this.theme} />);
     return container;
   }
   destroy() {
+    this.resizeObserver?.disconnect();
+    this.resizeObserver = null;
     // Unmounting synchronously from inside CodeMirror's own update cycle (which this destroy()
     // call happens during) is exactly the kind of "unmount while another render is in flight"
     // React warns about — deferred a tick to be safe.
@@ -387,6 +406,8 @@ function CellOutputContent({
               defaultIndicators={output.panePreview.map(scriptIndicatorToChartIndicator)}
               height={220}
               symbol="Aperçu"
+              showVolume={false}
+              fullscreenToggle={false}
             />
           </LqThemeProvider>
         </div>

@@ -3,6 +3,7 @@ import { Modal } from "../../../../primitives/Modal";
 import { CodeBlock } from "../../../../primitives/CodeBlock";
 import { SCRIPT_API_REFERENCE } from "../scriptApiReference";
 import { SCRIPT_DIAGRAM_REGISTRY } from "../scriptDiagramRegistry";
+import { ScriptInteractiveTutorial } from "./ScriptInteractiveTutorial";
 import "./ScriptDocumentationModal.css";
 
 export interface ScriptDocumentationModalProps {
@@ -98,6 +99,10 @@ export function ScriptDocumentationModal({ open, onClose }: ScriptDocumentationM
                   );
                 return <CodeBlock key={i} code={block.code ?? ""} language="JavaScript" className="lq-script-docs__code" />;
               })}
+              {/* The "tutorial" section's own live, editable walkthrough — a whole-section override
+                  rather than a block kind: unlike every other block, it owns its own running script
+                  engine and step state, which plain data (ScriptReferenceBlock) has no way to express. */}
+              {section.id === "tutorial" && <ScriptInteractiveTutorial />}
             </section>
           ))}
         </div>

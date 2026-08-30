@@ -1,12 +1,20 @@
-import type { ScriptDrawingOutput, ScriptPaneSeries, ScriptPaneSubSeries, ScriptTableOutput, ScriptTableRow } from "../interfaces/ScriptRunResult.interface";
+import type {
+  ScriptDrawingOutput,
+  ScriptPaneSeries,
+  ScriptPaneSubSeries,
+  ScriptTableOutput,
+  ScriptTableRow,
+  ScriptXYChartOutput,
+} from "../interfaces/ScriptRunResult.interface";
 
-/** Hard caps on `plot.table()`'s own output — the one `plot.*` call whose size a script directly
- *  controls (an accidental `rows` from an unbounded loop, or a giant string in a cell) rather than
- *  it being naturally bounded by the replay length the way `plots`/`drawings` already are. Silent
- *  truncation (not a thrown error) matches every other size limit this engine already has
- *  (`market.series()`'s own `maxSeriesLength`) — a script that exceeds one still runs. */
+/** Hard caps on `plot.table()`/`plot.xy()`'s own output — the `plot.*` calls whose size a script
+ *  directly controls (an accidental `rows`/`x`/`y` from an unbounded loop or a huge literal array)
+ *  rather than it being naturally bounded by the replay length the way `plots`/`drawings` already
+ *  are. Silent truncation (not a thrown error) matches every other size limit this engine already
+ *  has (`market.series()`'s own `maxSeriesLength`) — a script that exceeds one still runs. */
 const MAX_TABLE_ROWS = 50;
 const MAX_TABLE_CELL_LENGTH = 200;
+const MAX_XY_POINTS = 2000;
 
 function truncateCell(value: string): string {
   return value.length > MAX_TABLE_CELL_LENGTH ? `${value.slice(0, MAX_TABLE_CELL_LENGTH - 1)}…` : value;
@@ -26,6 +34,15 @@ export interface PlotBandOptions {
   /** Width in px of the band's own upper/lower lines (the middle line is drawn slightly thicker,
    *  same relationship the built-in Bollinger Bands rendering already has). Default 1. */
   lineWidth?: number;
+}
+export interface PlotXYOptions {
+  color?: string;
+  /** Points joined by a line (a function's own curve), or drawn as unconnected dots (a scatter of
+   *  independent measurements). Default `"line"`. */
+  draw?: "line" | "scatter";
+  xLabel?: string;
+  yLabel?: string;
+  title?: string;
 }
 export interface PlotSignalArg {
   type?: string;
@@ -74,6 +91,14 @@ export interface PlotApi {
    *  behind `bar.isNew()`. `rows`/each cell string are silently truncated past this engine's own
    *  size limits rather than rejected. */
   table(rows: ScriptTableRow[], options?: { title?: string; columns?: string[]; position?: ScriptTableOutput["position"] }): void;
+  /** A free-standing X/Y chart, decoupled from the bar-by-bar replay entirely — pass whole arrays
+   *  at once (a function's own curve, a scatter of measurements), not one point per bar the way
+   *  `pane.line`/`overlay.line` accumulate. Same "the latest call for a given name wins" rule as
+   *  `table` (not an accumulating series) — call unconditionally, no need to gate behind
+   *  `bar.isNew()`. Never rendered on the real candlestick chart itself; only ever shown inline as
+   *  a cell's own output in the script editor's notebook mode. `x`/`y` must be the same length;
+   *  both are silently truncated to `MAX_XY_POINTS` past that size rather than rejected. */
+  xy(name: string, x: number[], y: number[], options?: PlotXYOptions): void;
 }
 
 // Same slug shape `scriptPaneToCustomIndicatorDef.ts` uses for a pane's own id — duplicated here
@@ -96,7 +121,7 @@ export function buildPlotApi(
   getCurrentClose: () => number | null
 ): {
   api: PlotApi;
-  getResult: () => { panes: ScriptPaneSeries[]; drawings: ScriptDrawingOutput[]; table: ScriptTableOutput | null };
+  getResult: () => { panes: ScriptPaneSeries[]; drawings: ScriptDrawingOutput[]; table: ScriptTableOutput | null; xyCharts: ScriptXYChartOutput[] };
 } {
   interface PaneEntry {
     name: string;
@@ -106,6 +131,7 @@ export function buildPlotApi(
   const panesByName = new Map<string, PaneEntry>();
   const drawings: ScriptDrawingOutput[] = [];
   let table: ScriptTableOutput | null = null;
+  const xyChartsByName = new Map<string, ScriptXYChartOutput>();
 
   function makeHandle(paneEntry: PaneEntry): PaneSeriesHandle {
     function upsert(
@@ -178,6 +204,18 @@ export function buildPlotApi(
         rows: rows.slice(0, MAX_TABLE_ROWS).map((row) => ({ cells: row.cells.map(truncateCell), color: row.color })),
       };
     },
+    xy: (name, x, y, options) => {
+      xyChartsByName.set(name, {
+        name,
+        x: x.slice(0, MAX_XY_POINTS),
+        y: y.slice(0, MAX_XY_POINTS),
+        color: options?.color,
+        draw: options?.draw,
+        xLabel: options?.xLabel,
+        yLabel: options?.yLabel,
+        title: options?.title,
+      });
+    },
   };
 
   return {
@@ -186,6 +224,7 @@ export function buildPlotApi(
       panes: [...panesByName.values()].map((entry) => ({ name: entry.name, pane: entry.pane, series: [...entry.subSeriesByName.values()] })),
       drawings,
       table,
+      xyCharts: [...xyChartsByName.values()],
     }),
   };
 }

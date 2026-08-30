@@ -7,6 +7,7 @@ import { scriptIndicatorToChartIndicator } from "../scriptIndicatorToChartIndica
 import { SCRIPT_TUTORIAL_TRACKS } from "../scriptTutorialSteps";
 import { SCRIPT_TUTORIAL_DATA } from "../scriptTutorialSampleData";
 import { SCRIPT_DIAGRAM_REGISTRY } from "../scriptDiagramRegistry";
+import { isCellInstrumentationLog } from "../scriptCellSentinels";
 import { ScriptErrorPanel } from "./ScriptErrorPanel";
 import type { ScriptEditorCodeMirrorHandle } from "./ScriptEditorCodeMirror";
 import "./ScriptInteractiveTutorial.css";
@@ -195,13 +196,15 @@ export function ScriptInteractiveTutorial() {
               />
             </Suspense>
             {engine.result?.error && <ScriptErrorPanel error={engine.result.error} />}
-            {engine.result?.logs && engine.result.logs.length > 0 && (
+            {engine.result?.logs && engine.result.logs.some((line) => !isCellInstrumentationLog(line)) && (
               <div className="lq-script-tutorial__console">
-                {engine.result.logs.map((line, i) => (
-                  <div key={i} className="lq-script-tutorial__console-line">
-                    {line}
-                  </div>
-                ))}
+                {engine.result.logs
+                  .filter((line) => !isCellInstrumentationLog(line))
+                  .map((line, i) => (
+                    <div key={i} className="lq-script-tutorial__console-line">
+                      {line}
+                    </div>
+                  ))}
               </div>
             )}
           </div>

@@ -64,6 +64,22 @@ export interface ScriptDrawingOutput {
   text?: string;
 }
 
+/** One `plot.xy(...)` output — a free-standing X/Y chart, decoupled from the bar-by-bar replay
+ *  (see `PlotApi.xy`'s own doc): whole `x`/`y` arrays passed in one call, "latest call for this
+ *  name wins" like `ScriptTableOutput`, not an accumulating per-bar series like `ScriptPaneSeries`.
+ *  Never becomes a `CustomIndicatorDef` (unlike `ScriptPaneSeries`) — only ever rendered inline as
+ *  a notebook cell's own output in the script editor, never on the real candlestick chart. */
+export interface ScriptXYChartOutput {
+  name: string;
+  x: number[];
+  y: number[];
+  color?: string;
+  draw?: "line" | "scatter";
+  xLabel?: string;
+  yLabel?: string;
+  title?: string;
+}
+
 /** One row of a `plot.table(...)` output — `color`, when set, tints every cell's own text in that
  *  row (a whole-row accent, e.g. green/red for a per-timeframe BUY/SELL read), not just one cell,
  *  since there's no single "special" column position this engine can assume every script means to
@@ -116,5 +132,6 @@ export interface ScriptRunResult {
   panes: ScriptPaneSeries[];
   drawings: ScriptDrawingOutput[];
   table: ScriptTableOutput | null;
+  xyCharts: ScriptXYChartOutput[];
   alerts: ScriptRunAlert[];
 }

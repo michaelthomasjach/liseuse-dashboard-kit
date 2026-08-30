@@ -19,6 +19,7 @@ import {
 import type { Indicator } from "../../interfaces/Indicator.interface";
 import type { ScriptDef } from "../../interfaces/ScriptDef.interface";
 import type { ScriptRunOutput } from "../interfaces/ScriptRunOutput.interface";
+import { isCellInstrumentationLog } from "../scriptCellSentinels";
 import { AvailableIndicatorsList } from "./AvailableIndicatorsList";
 import { ScriptErrorPanel } from "./ScriptErrorPanel";
 import { ScriptDocumentationModal } from "./ScriptDocumentationModal";
@@ -398,13 +399,15 @@ export function ScriptEditorPanel({
               />
             </Suspense>
             {output?.result?.error && <ScriptErrorPanel error={output.result.error} />}
-            {output?.result?.logs && output.result.logs.length > 0 && (
+            {output?.result?.logs && output.result.logs.some((line) => !isCellInstrumentationLog(line)) && (
               <div className="lq-script-editor-panel__console">
-                {output.result.logs.map((line, i) => (
-                  <div key={i} className="lq-script-editor-panel__console-line">
-                    {line}
-                  </div>
-                ))}
+                {output.result.logs
+                  .filter((line) => !isCellInstrumentationLog(line))
+                  .map((line, i) => (
+                    <div key={i} className="lq-script-editor-panel__console-line">
+                      {line}
+                    </div>
+                  ))}
               </div>
             )}
           </div>

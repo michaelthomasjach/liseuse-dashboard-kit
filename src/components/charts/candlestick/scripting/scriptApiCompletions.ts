@@ -51,6 +51,12 @@ export const SCRIPT_API_COMPLETIONS: ScriptApiCompletion[] = [
   { label: "plot.horizontal", type: "function", detail: "(price, options?)", apply: "plot.horizontal()" },
   { label: "plot.vertical", type: "function", detail: "(options?)", apply: "plot.vertical()" },
   { label: "plot.table", type: "function", detail: "(rows, options?) — table overlay anchored to a corner", apply: 'plot.table([], { title: "", columns: [] })' },
+  {
+    label: "plot.xy",
+    type: "function",
+    detail: '(name, x[], y[], options?) — graphique X/Y libre, mode notebook uniquement',
+    apply: 'plot.xy("", [], [])',
+  },
   { label: "state.get", type: "function", detail: "(key, defaultValue?) => any", apply: 'state.get("", )' },
   { label: "state.set", type: "function", detail: "(key, value) => void", apply: 'state.set("", )' },
   { label: "alert", type: "function", detail: "(message) => void", apply: "alert()" },

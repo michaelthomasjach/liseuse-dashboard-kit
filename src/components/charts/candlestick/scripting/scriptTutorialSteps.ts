@@ -398,7 +398,95 @@ plot.table(rows, { title: "Corrélation RSI (matrice)", columns: ["", ...labels]
   },
 ];
 
+const NOTEBOOK_TRACK_STEPS: ScriptTutorialStep[] = [
+  {
+    id: "notebook-button",
+    title: "Étape 1 — Le bouton ▶ sur la cellule active",
+    paragraphs: [
+      "Le mode cellules (// %%, déjà vu dans le premier tutoriel) va plus loin qu'un simple raccourci clavier : cliquez dans une cellule et un petit bouton ▶ apparaît dessus — cliquer dessus fait exactement ce que fait Maj+Entrée, sans avoir à viser le bouton de la barre d'outils. La vraie nouveauté est ce qui se passe ensuite : le résultat de la cellule s'affiche juste en dessous d'elle, directement dans l'éditeur — façon notebook, pas dans un panneau à part.",
+      "Essayez : cliquez dans la Cellule 1 ci-contre, puis sur le bouton ▶ qui apparaît sur sa ligne // %%. Un court texte apparaît juste sous la cellule. Faites de même avec la Cellule 2.",
+    ],
+    code: `// %% Cellule 1 — un prix
+const price = market.close(0);
+if (bar.isNew()) console.log("Dernier prix :", price);
+
+// %% Cellule 2 — une moyenne mobile, superposée au prix
+const sma = math.sma(market.series("close", 20), 20);
+plot.overlay("SMA 20").line("SMA 20", sma ?? price);
+`,
+  },
+  {
+    id: "notebook-value",
+    title: "Étape 2 — console.log et la valeur auto-affichée",
+    paragraphs: [
+      "Deux choses distinctes apparaissent sous une cellule : le texte de tout console.log qu'elle contient, et — nouveauté propre au mode notebook — la valeur de sa toute dernière ligne, si celle-ci est une expression seule (ni affectée à une variable avec =, ni déjà affichée par un console.log). Exactement le comportement d'un vrai notebook : une cellule qui se termine par une expression affiche automatiquement son résultat, sans avoir à l'entourer de console.log.",
+      "Essayez : exécutez la Cellule 1 (le texte de console.log apparaît), puis la Cellule 2 — carre(6) n'est entourée d'aucun console.log, et pourtant sa valeur (36) s'affiche quand même.",
+    ],
+    code: `// %% Cellule 1 — un calcul, avec console.log
+const a = 2;
+const b = 3;
+console.log("a + b =", a + b);
+
+// %% Cellule 2 — une expression seule, sans console.log
+function carre(x) {
+  return x * x;
+}
+carre(6);
+`,
+  },
+  {
+    id: "notebook-xy-line",
+    title: "Étape 3 — plot.xy : tracer une fonction mathématique",
+    paragraphs: [
+      "plot.xy(name, x, y, options?) est l'équivalent de matplotlib pour ce moteur : un graphique complètement libre, sans lien avec les bougies — on lui passe deux tableaux de nombres, un point par indice. C'est la fonction faite pour visualiser un calcul plutôt qu'un indicateur de trading, exactement l'usage que le tutoriel « Fonctions mathématiques » bricolait jusqu'ici bougie par bougie.",
+      "Exécutez la Cellule 2 pour voir apparaître la parabole y = x², construite d'un coup à partir d'un tableau de x allant de -10 à 10.",
+    ],
+    code: `// %% Cellule 1 — un domaine x, et y = x²
+const x = [];
+for (let i = -10; i <= 10; i++) x.push(i);
+const y = x.map((v) => v * v);
+
+// %% Cellule 2 — le graphique
+plot.xy("Parabole", x, y, { xLabel: "x", yLabel: "y", title: "y = x²" });
+`,
+  },
+  {
+    id: "notebook-xy-scatter",
+    title: "Étape 4 — un nuage de points, avec titres d'axes",
+    paragraphs: [
+      "draw: \"scatter\" trace des points indépendants plutôt qu'une courbe reliée — le bon choix pour repérer une éventuelle corrélation entre deux séries, plutôt qu'une fonction continue. xLabel/yLabel/title étiquettent les axes et le graphique, exactement comme ax.set_xlabel/ax.set_ylabel/ax.set_title en matplotlib.",
+      "Ici : le volume et la variation de prix (en %) des 30 dernières bougies, un point par bougie — un nuage assez dispersé traduit l'absence de lien simple entre les deux.",
+    ],
+    code: `// %% Cellule 1 — volume et variation de prix des 30 dernières bougies
+const closes = market.series("close", 31);
+const volumes = market.series("volume", 30);
+const changes = closes.slice(1).map((c, i) => ((c - closes[i]) / closes[i]) * 100);
+
+// %% Cellule 2 — nuage de points
+plot.xy("Volume vs variation", volumes, changes, {
+  draw: "scatter",
+  xLabel: "Volume",
+  yLabel: "Variation (%)",
+  title: "Volume vs variation de prix",
+});
+`,
+  },
+  {
+    id: "notebook-wrap-up",
+    title: "Étape 5 — Pour aller plus loin",
+    paragraphs: [
+      "Le bouton ▶ par cellule, la sortie en ligne (texte, valeur auto-affichée, graphique) et plot.xy forment ensemble un vrai petit notebook à l'intérieur de l'éditeur de script — pratique pour explorer un calcul ou une idée avant de l'intégrer à un indicateur complet.",
+    ],
+    list: [
+      "plot.* (plus bas) couvre le détail complet de plot.xy, à côté de plot.pane/plot.overlay pour les indicateurs qui restent sur la chart elle-même.",
+      "Le tutoriel « Fonctions mathématiques » applique les mêmes idées de calcul pur (lambdas, dérivée, matrice…) à des courbes tracées sur la chart plutôt qu'en sortie de cellule.",
+      "Le premier tutoriel (« Construire un indicateur ») explique // %% et Maj+Entrée depuis le début, si ce n'est pas déjà fait.",
+    ],
+  },
+];
+
 export const SCRIPT_TUTORIAL_TRACKS: ScriptTutorialTrack[] = [
   { id: "indicator", title: "Construire un indicateur", steps: INDICATOR_TRACK_STEPS },
   { id: "math", title: "Fonctions mathématiques", steps: MATH_TRACK_STEPS },
+  { id: "notebook", title: "Mode notebook", steps: NOTEBOOK_TRACK_STEPS },
 ];

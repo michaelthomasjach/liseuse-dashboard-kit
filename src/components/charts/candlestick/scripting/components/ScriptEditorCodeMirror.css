@@ -25,3 +25,50 @@
 .lq-script-editor-codemirror .cm-line.cm-cell-active {
   background-color: color-mix(in srgb, var(--lq-color-accent) 8%, transparent);
 }
+
+/* The per-cell "▶" run button (see ScriptEditorCodeMirror.tsx's own CellRunButtonWidget) — an
+   inline widget right after the active cell's own `// %%` text (or after line 1 when that cell has
+   no marker before it), not absolutely positioned: simpler, and reads fine right where a reader's
+   eye already is on that line. */
+.lq-script-editor-codemirror .cm-cell-run-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  margin-left: var(--lq-space-2);
+  padding: 0;
+  color: var(--lq-color-accent);
+  cursor: pointer;
+  vertical-align: middle;
+  background-color: var(--lq-color-hover);
+  border: none;
+  border-radius: var(--lq-radius-sm);
+}
+
+.lq-script-editor-codemirror .cm-cell-run-button:hover {
+  background-color: color-mix(in srgb, var(--lq-color-accent) 18%, var(--lq-color-hover));
+}
+
+/* A cell's own inline output (see CellOutputWidget) — console-style monospace lines, the
+   auto-displayed trailing value in the accent color (so it reads apart from a plain console.log
+   line, same "this is the REPL talking, not you" convention a real notebook's `Out[]` has), and
+   ScriptXYChart, when present, just under those. */
+.lq-script-editor-codemirror__cell-output {
+  padding: var(--lq-space-2) var(--lq-space-3);
+  font-family: var(--lq-font-mono);
+  font-size: var(--lq-text-xs);
+  background-color: var(--lq-color-hover);
+  border-top: 1px solid var(--lq-color-border-subtle);
+  border-bottom: 1px solid var(--lq-color-border-subtle);
+}
+
+.lq-script-editor-codemirror__cell-output-line {
+  color: var(--lq-color-text-muted);
+  white-space: pre-wrap;
+}
+
+.lq-script-editor-codemirror__cell-output-value {
+  color: var(--lq-color-accent);
+  white-space: pre-wrap;
+}

@@ -141,8 +141,13 @@ export function useScriptEngine(
 
   /** `isRealtimeTick` picks which of the two timeout constants applies — a full replay is
    *  expected to sometimes genuinely take a while, a single new bar's worth of re-evaluation
-   *  isn't (see HISTORICAL_REPLAY_TIMEOUT_MS/REALTIME_TICK_TIMEOUT_MS's own docs). */
-  function run(scriptCode: string, isRealtimeTick = false) {
+   *  isn't (see HISTORICAL_REPLAY_TIMEOUT_MS/REALTIME_TICK_TIMEOUT_MS's own docs). Returns a
+   *  promise of the same `ScriptRunResult` every path here already produces — every existing
+   *  caller ignores it (fire-and-forget, same as before this existed), it's only there for the
+   *  notebook cell-output flow (`ScriptEditorCodeMirror.tsx`'s own per-cell run button), which
+   *  needs to know exactly which result belongs to *its own* request rather than reading whatever
+   *  `result` state happens to hold whenever its own effect next runs. */
+  function run(scriptCode: string, isRealtimeTick = false): Promise<ScriptRunResult> {
     // Reusing a worker that's still mid-run would let its own stale result land in *this* call's
     // freshly-assigned onmessage/onerror below once it eventually finishes — a Worker processes
     // queued postMessage calls sequentially, it doesn't just drop the superseded one — silently
@@ -157,40 +162,56 @@ export function useScriptEngine(
     setRunning(true);
     const timeoutMs = isRealtimeTick ? REALTIME_TICK_TIMEOUT_MS : HISTORICAL_REPLAY_TIMEOUT_MS;
 
-    worker.onmessage = (e: MessageEvent<ScriptRunResult>) => {
-      clearPendingTimeout();
-      applyRunOutput(e.data);
-      setRunning(false);
-    };
-    // A script bug the try/catch inside runScript.ts didn't anticipate (an engine-level failure,
-    // not an ordinary thrown error — those already come back as a normal ScriptRunResult) —
-    // treated the same as a timeout: terminate, respawn, report as an error rather than letting
-    // it reach the host's own onerror/crash the tab. Deliberately *not* routed through
-    // applyRunOutput — an error/timeout run produced no real plots/drawings of its own, and
-    // wiping scriptIndicators/scriptDrawings to empty on every transient failure would erase a
-    // script's last *good* output just because its most recent edit happens to be broken, which
-    // is worse than leaving the chart showing slightly stale content until the script is fixed.
-    worker.onerror = (e: ErrorEvent) => {
-      clearPendingTimeout();
-      replaceWorker();
-      setResult({ error: { message: e.message || "Erreur inattendue du script." }, logs: [], panes: [], drawings: [], table: null, alerts: [] });
-      setRunning(false);
-    };
+    return new Promise<ScriptRunResult>((resolve) => {
+      worker.onmessage = (e: MessageEvent<ScriptRunResult>) => {
+        clearPendingTimeout();
+        applyRunOutput(e.data);
+        setRunning(false);
+        resolve(e.data);
+      };
+      // A script bug the try/catch inside runScript.ts didn't anticipate (an engine-level failure,
+      // not an ordinary thrown error — those already come back as a normal ScriptRunResult) —
+      // treated the same as a timeout: terminate, respawn, report as an error rather than letting
+      // it reach the host's own onerror/crash the tab. Deliberately *not* routed through
+      // applyRunOutput — an error/timeout run produced no real plots/drawings of its own, and
+      // wiping scriptIndicators/scriptDrawings to empty on every transient failure would erase a
+      // script's last *good* output just because its most recent edit happens to be broken, which
+      // is worse than leaving the chart showing slightly stale content until the script is fixed.
+      worker.onerror = (e: ErrorEvent) => {
+        clearPendingTimeout();
+        replaceWorker();
+        const errorResult: ScriptRunResult = {
+          error: { message: e.message || "Erreur inattendue du script." },
+          logs: [],
+          panes: [],
+          drawings: [],
+          table: null,
+          xyCharts: [],
+          alerts: [],
+        };
+        setResult(errorResult);
+        setRunning(false);
+        resolve(errorResult);
+      };
 
-    timeoutRef.current = setTimeout(() => {
-      replaceWorker();
-      setResult({
-        error: { message: "Le script a dépassé le délai d'exécution autorisé et a été arrêté." },
-        logs: [],
-        panes: [],
-        drawings: [],
-        table: null,
-        alerts: [],
-      });
-      setRunning(false);
-    }, timeoutMs);
+      timeoutRef.current = setTimeout(() => {
+        replaceWorker();
+        const timeoutResult: ScriptRunResult = {
+          error: { message: "Le script a dépassé le délai d'exécution autorisé et a été arrêté." },
+          logs: [],
+          panes: [],
+          drawings: [],
+          table: null,
+          xyCharts: [],
+          alerts: [],
+        };
+        setResult(timeoutResult);
+        setRunning(false);
+        resolve(timeoutResult);
+      }, timeoutMs);
 
-    worker.postMessage(buildSnapshot(data, indicators, fundamentals, scriptCode, timeoutMs, lastCandleOpen, isRealtimeTick, availableTimeframes));
+      worker.postMessage(buildSnapshot(data, indicators, fundamentals, scriptCode, timeoutMs, lastCandleOpen, isRealtimeTick, availableTimeframes));
+    });
   }
 
   /** Interrupts whatever's currently running (or about to) — same terminate-and-respawn

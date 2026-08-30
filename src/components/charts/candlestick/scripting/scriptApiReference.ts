@@ -128,6 +128,9 @@ plot.overlay("SMA 20").line("SMA 20", sma ?? market.close(0));`
       t(
         "Maj+Entrée (ou le bouton « Exécuter la cellule ») exécute le code depuis le tout début du fichier jusqu'à la fin de la cellule où se trouve le curseur — pas cette seule cellule isolée. C'est une différence volontaire avec un vrai notebook Jupyter : ce moteur n'a pas de mémoire de variables entre deux exécutions (state.* lui-même repart de zéro à chaque exécution complète, voir state.* plus bas), donc une cellule isolée qui lirait une variable définie plus haut échouerait aussitôt. « Depuis le début jusqu'ici » reproduit exactement l'usage réel d'un notebook (on exécute ses cellules dans l'ordre, du haut vers le bas) sans dépendre d'un mécanisme que ce moteur n'a pas — écrivez votre script cellule par cellule, en appuyant sur Maj+Entrée à chaque étape pour voir immédiatement son effet sur la chart, exactement comme dans Jupyter."
       ),
+      t(
+        "Un petit bouton ▶ apparaît directement sur la cellule active — cliquer dessus fait exactement la même chose que Maj+Entrée, sans avoir à viser le bouton « Exécuter la cellule » de la barre d'outils. Juste en dessous de la cellule, son propre résultat s'affiche : le texte de console.log, la valeur de la toute dernière expression de la cellule si elle n'est ni affectée à une variable ni déjà affichée autrement (exactement comme un vrai notebook auto-affiche le résultat d'une cellule qui se termine par une expression seule), et un graphique si la cellule contient un appel à plot.xy (voir plot.* plus bas). Voir le tutoriel « Mode notebook » plus haut pour un exemple pas à pas."
+      ),
     ],
   },
   {
@@ -330,6 +333,23 @@ plot.table(
       ),
       t("Voir le tutoriel plus haut pour un exemple complet et commenté (corrélation du RSI sur cinq timeframes, avec une colonne de suggestion BUY/WAIT/SELL par ligne)."),
       t("Une fois enregistré, le script apparaît automatiquement dans les indicateurs actifs de la chart (section « Mes scripts ») — pas besoin de le rajouter manuellement via le sélecteur d'indicateurs."),
+      h("plot.xy — un graphique X/Y libre, pour visualiser un calcul", ["plot.xy"]),
+      t(
+        "plot.xy(name, x, y, options?) trace un graphique complètement libre — deux tableaux de nombres, sans aucun lien avec les bougies ni les dates. C'est l'équivalent de matplotlib pour ce moteur : utile pour visualiser une fonction mathématique (une parabole, une gaussienne…) ou un nuage de points, pas pour un indicateur de trading. Contrairement à pane.line/overlay.line, on ne l'appelle pas bougie après bougie pour construire la courbe petit à petit : on passe le tableau complet en un seul appel, comme le ferait ax.scatter(x, y) ou ax.plot(x, y) en Python — seul le dernier appel pour un nom donné compte (même règle que plot.table)."
+      ),
+      c(
+        `plot.xy(name, x, y, options?)
+// x, y: number[] — même longueur, un point par indice
+// options?: { color?; draw?: "line" | "scatter"; xLabel?; yLabel?; title? }  // draw par défaut : "line"
+
+// Exemple : la parabole y = x²
+const x = [-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5];
+const y = x.map((v) => v * v);
+plot.xy("Parabole", x, y, { xLabel: "x", yLabel: "y", title: "y = x²" });`
+      ),
+      t(
+        "plot.xy n'est jamais affiché sur la vraie chart bougies/panneaux — il n'apparaît qu'en sortie d'une cellule (voir le mode notebook ci-dessous, et son propre tutoriel « Mode notebook » plus haut) : le nom passé sert uniquement à retrouver le graphique produit par une cellule donnée, pas à créer un panneau."
+      ),
     ],
   },
   {

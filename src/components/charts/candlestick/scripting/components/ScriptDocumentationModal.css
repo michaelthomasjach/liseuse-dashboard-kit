@@ -55,10 +55,21 @@
   flex-direction: column;
 }
 
+/* Separates the keywords index (a *tool*, always first — see ScriptDocumentationModal.tsx's own
+   doc) from the actual section-by-section reading order starting right below it. */
+.lq-script-docs__nav-divider {
+  height: 1px;
+  margin: var(--lq-space-2) 0;
+  background-color: var(--lq-color-border-subtle);
+}
+
 /* One `// %%`-style indent for a section's own sub-titles (see ScriptReferenceBlock's "heading"
    kind, and scriptDocsNav.ts for how these are derived) — exigence : « je veux des sous-titre ».
-   No expand/collapse: the total heading count across the whole reference is modest enough to just
-   always show, and collapsing would hide the very thing a reader searched for. */
+   Only the *active* section's own sub-titles ever render (see `showHeadings` in
+   ScriptDocumentationModal.tsx) — showing all ~13 sections' worth stacked permanently at once was
+   exactly what made the previous menu hard to get your bearings in (exigence : « difficile de se
+   retrouver dedans »); collapsing down to just the section you're actually reading keeps the list
+   scannable while still surfacing structure once you're somewhere. */
 .lq-script-docs__nav-subitems {
   display: flex;
   flex-direction: column;
@@ -85,10 +96,22 @@
   background-color: var(--lq-color-hover);
 }
 
+/* The specific sub-heading currently under the reader's eye (see activeHeadingId in
+   ScriptDocumentationModal.tsx) — same "always know exactly where you are" reasoning as
+   --nav-item--active below, one level deeper. */
+.lq-script-docs__nav-subitem--active {
+  color: var(--lq-color-accent);
+  font-weight: 600;
+}
+
 /* A <button>, not an <a> (see ScriptDocumentationModal.tsx's own doc on why) — the reset
    properties below undo the browser's own default button chrome rather than being purely
-   cosmetic. */
+   cosmetic. Flex row (chevron + label), not just text, now that a section with its own sub-titles
+   shows an open/closed indicator alongside its name. */
 .lq-script-docs__nav-item {
+  display: flex;
+  align-items: center;
+  gap: var(--lq-space-1);
   padding: var(--lq-space-1) var(--lq-space-2);
   font: inherit;
   font-size: var(--lq-text-sm);
@@ -107,6 +130,26 @@
 .lq-script-docs__nav-item:hover {
   color: var(--lq-color-text);
   background-color: var(--lq-color-hover);
+}
+
+.lq-script-docs__nav-item-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Points right at rest, rotates down once that section's own sub-titles are showing — same
+   "collapsed/expanded" affordance a plain disclosure triangle already gives everywhere else. A
+   section with no sub-titles of its own renders no chevron at all (see the JSX), so this only
+   ever appears where it actually means something. */
+.lq-script-docs__nav-chevron {
+  flex-shrink: 0;
+  color: var(--lq-color-text-muted);
+  transition: transform 0.1s ease-out;
+}
+
+.lq-script-docs__nav-chevron--open {
+  transform: rotate(90deg);
 }
 
 /* Which section is currently under the reader's eye (see the scroll-spy effect in
@@ -163,9 +206,15 @@
   border-bottom: none;
 }
 
+/* Bigger, with real breathing room above it (on top of the .lq-script-docs__section border/padding
+   already separating one section from the next) — exigence : « je veux que les titres des sections
+   soit plus gros, et qu'il y ait un espace plus important entre les textes du paragraphe précédent
+   et le titre de la section ». */
 .lq-script-docs__section-title {
-  margin: 0 0 var(--lq-space-2);
-  font-size: var(--lq-text-lg);
+  margin: 0 0 var(--lq-space-3);
+  padding-top: var(--lq-space-3);
+  font-size: var(--lq-text-h3);
+  font-weight: 700;
   color: var(--lq-color-text);
   scroll-margin-top: var(--lq-space-3);
 }

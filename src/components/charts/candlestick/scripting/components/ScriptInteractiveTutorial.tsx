@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { CandlestickChart } from "../../../CandlestickChart";
 import { ScriptTableOverlay } from "../../components/ScriptTableOverlay";
 import { PlayIcon, PauseIcon, RefreshIcon, ChevronLeftIcon, ChevronRightIcon } from "../../../../icons";
@@ -8,6 +8,7 @@ import { SCRIPT_TUTORIAL_TRACKS } from "../scriptTutorialSteps";
 import { SCRIPT_TUTORIAL_DATA } from "../scriptTutorialSampleData";
 import { SCRIPT_DIAGRAM_REGISTRY } from "../scriptDiagramRegistry";
 import { ScriptErrorPanel } from "./ScriptErrorPanel";
+import type { ScriptEditorCodeMirrorHandle } from "./ScriptEditorCodeMirror";
 import "./ScriptInteractiveTutorial.css";
 
 const LazyScriptEditorCodeMirror = lazy(() =>
@@ -37,6 +38,7 @@ export function ScriptInteractiveTutorial() {
   const [stepIndex, setStepIndex] = useState(0);
   const [draft, setDraft] = useState(SCRIPT_TUTORIAL_TRACKS[0].steps[0].code ?? "");
   const [runVersion, setRunVersion] = useState(0);
+  const codeMirrorRef = useRef<ScriptEditorCodeMirrorHandle>(null);
 
   const track = SCRIPT_TUTORIAL_TRACKS[trackIndex];
   const steps = track.steps;
@@ -160,6 +162,14 @@ export function ScriptInteractiveTutorial() {
               <button
                 type="button"
                 className="lq-script-tutorial__toolbar-button"
+                onClick={() => codeMirrorRef.current?.runCurrentCell()}
+                title="Exécute depuis le début jusqu'à la fin de la cellule (// %%) où se trouve le curseur (Maj+Entrée)"
+              >
+                <PlayIcon size={13} /> Exécuter la cellule
+              </button>
+              <button
+                type="button"
+                className="lq-script-tutorial__toolbar-button"
                 onClick={() => engine.stop()}
                 disabled={!engine.running}
               >
@@ -176,7 +186,13 @@ export function ScriptInteractiveTutorial() {
               {engine.running && <span className="lq-script-tutorial__status">Exécution…</span>}
             </div>
             <Suspense fallback={<div className="lq-script-tutorial__loading">Chargement de l'éditeur…</div>}>
-              <LazyScriptEditorCodeMirror value={draft} onChange={setDraft} error={engine.result?.error ?? null} />
+              <LazyScriptEditorCodeMirror
+                ref={codeMirrorRef}
+                value={draft}
+                onChange={setDraft}
+                error={engine.result?.error ?? null}
+                onRunCell={(code) => engine.run(code)}
+              />
             </Suspense>
             {engine.result?.error && <ScriptErrorPanel error={engine.result.error} />}
             {engine.result?.logs && engine.result.logs.length > 0 && (

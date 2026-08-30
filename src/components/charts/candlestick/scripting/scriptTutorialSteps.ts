@@ -99,8 +99,34 @@ const INDICATOR_TRACK_STEPS: ScriptTutorialStep[] = [
     code: `const sma20 = math.sma(market.series("close", 20), 20);\nconst sma5 = math.sma(market.series("close", 5), 5);\nconst prevSma20 = state.get("prevSma20", null);\nconst prevSma5 = state.get("prevSma5", null);\n\nplot.overlay("SMA 20", sma20 ?? market.close(0));\nplot.overlay("SMA 5", sma5 ?? market.close(0));\n\nif (bar.isNew() && prevSma5 !== null && prevSma20 !== null && sma5 !== null && sma20 !== null) {\n  if (prevSma5 <= prevSma20 && sma5 > sma20) {\n    plot.signal({ type: "BUY", text: "BUY" });\n    alert("Croisement haussier : SMA 5 dépasse SMA 20");\n  }\n  if (prevSma5 >= prevSma20 && sma5 < sma20) {\n    plot.signal({ type: "SELL", text: "SELL" });\n    alert("Croisement baissier : SMA 5 repasse sous SMA 20");\n  }\n}\n\nstate.set("prevSma20", sma20);\nstate.set("prevSma5", sma5);\n`,
   },
   {
+    id: "cell-mode",
+    title: "Étape 7 — Le mode cellules (façon Jupyter)",
+    paragraphs: [
+      "Vous venez de construire cet indicateur pas à pas, une étape du tutoriel à la fois. Le même principe existe à l'intérieur d'un seul script, via le mode cellules : un commentaire // %% en début de ligne délimite une « cellule », et Maj+Entrée (ou le bouton « Exécuter la cellule ») exécute le script depuis le tout début jusqu'à la fin de la cellule où se trouve le curseur — pas le script entier, et pas non plus cette seule cellule isolée (ce moteur n'a pas de mémoire de variables entre deux exécutions, donc une cellule isolée qui lirait une variable définie plus haut échouerait aussitôt).",
+      "Essayez : placez le curseur dans la Cellule 1 ci-contre et appuyez sur Maj+Entrée — seules les deux moyennes mobiles s'affichent. Curseur dans la Cellule 2, Maj+Entrée : rien de plus ne s'affiche (elle ne fait que mémoriser une valeur), mais le calcul a bien eu lieu. Curseur dans la Cellule 3, Maj+Entrée : le croisement est enfin détecté, les flèches BUY/SELL apparaissent — exactement le résultat de l'étape précédente, obtenu cette fois cellule par cellule à l'intérieur d'un seul script plutôt qu'étape par étape dans ce tutoriel.",
+    ],
+    code: `// %% Cellule 1 — les deux moyennes mobiles
+const sma20 = math.sma(market.series("close", 20), 20);
+const sma5 = math.sma(market.series("close", 5), 5);
+plot.overlay("SMA 20", sma20 ?? market.close(0));
+plot.overlay("SMA 5", sma5 ?? market.close(0));
+
+// %% Cellule 2 — mémoriser la bougie précédente
+const prevSma20 = state.get("prevSma20", null);
+const prevSma5 = state.get("prevSma5", null);
+state.set("prevSma20", sma20);
+state.set("prevSma5", sma5);
+
+// %% Cellule 3 — détecter le croisement
+if (bar.isNew() && prevSma5 !== null && prevSma20 !== null && sma5 !== null && sma20 !== null) {
+  if (prevSma5 <= prevSma20 && sma5 > sma20) plot.signal({ type: "BUY", text: "BUY" });
+  if (prevSma5 >= prevSma20 && sma5 < sma20) plot.signal({ type: "SELL", text: "SELL" });
+}
+`,
+  },
+  {
     id: "save-and-more",
-    title: "Étape 7 — Enregistrer votre script",
+    title: "Étape 8 — Enregistrer votre script",
     paragraphs: [
       "Dans le vrai éditeur (pas cette démo), Ctrl+S (ou le bouton « Enregistrer ») sauvegarde le code. La toute première fois, ça demande un nom (Script 1, ça manque un peu de panache — appelez-le « Croisement SMA » par exemple) ; les fois suivantes, Ctrl+S enregistre directement sans redemander. « Enregistrer sous » permet de renommer/dupliquer à tout moment. Une fois enregistré, le script apparaît automatiquement dans le sélecteur d'indicateurs, sous « Mes scripts » — comme n'importe quel RSI ou MACD intégré.",
       "Vous savez maintenant écrire un indicateur complet à partir d'une seule chart. Passons à un exemple nettement plus avancé, qui combine tout ce que vous venez d'apprendre avec une capacité que vous n'avez pas encore vue : lire plusieurs timeframes à la fois, pour construire un vrai tableau de corrélation RSI multi-timeframe.",
@@ -108,7 +134,7 @@ const INDICATOR_TRACK_STEPS: ScriptTutorialStep[] = [
   },
   {
     id: "resample",
-    title: "Étape 8 — Lire un autre timeframe : market.resample",
+    title: "Étape 9 — Lire un autre timeframe : market.resample",
     paragraphs: [
       "Jusqu'ici, market.* n'a jamais lu que les bougies affichées sur la chart (ici, des bougies de 5 minutes). market.resample(interval) regroupe ces mêmes bougies en bougies plus larges — 15 minutes, 1 heure, 4 heures, 1 jour — et retourne un objet avec exactement les mêmes fonctions que market.* lui-même (close, series, …), mais lues sur ce timeframe agrégé.",
       "Ce n'est pas une nouvelle source de données : cette bibliothèque ne va rien chercher ailleurs, elle recalcule simplement des bougies plus larges à partir de celles déjà là — exactement ce qui se passerait si vous changiez l'intervalle de la chart elle-même.",
@@ -119,7 +145,7 @@ const INDICATOR_TRACK_STEPS: ScriptTutorialStep[] = [
   },
   {
     id: "resample-loop",
-    title: "Étape 9 — Répéter pour les cinq timeframes",
+    title: "Étape 10 — Répéter pour les cinq timeframes",
     paragraphs: [
       "L'objectif : le RSI de 1J, 4H, 1H, 15min et 5min, tous à la fois. Plutôt que d'écrire cinq fois le même calcul, un tableau de timeframes et .map() : pour chacun, market.resample(tf.interval) donne les bougies de ce timeframe, ta.rsi(...) calcule son RSI.",
       "rows est maintenant un tableau de cinq { label, rsi } — un par timeframe, prêt à être affiché à l'étape suivante.",
@@ -146,7 +172,7 @@ plot.line("RSI 1J (contrôle)", rows[0].rsi ?? 50);
   },
   {
     id: "plot-table",
-    title: "Étape 10 — Construire le tableau avec plot.table",
+    title: "Étape 11 — Construire le tableau avec plot.table",
     paragraphs: [
       "Pour chaque ligne, un signal simple selon des seuils : RSI ≥ 60 → \"BUY\" (survendu... non, sur-acheté, momentum haussier), RSI ≤ 40 → \"SELL\", entre les deux → \"WAIT\". La couleur de la ligne suit le même signal, pour un coup d'œil immédiat.",
       "plot.table(rows, options) affiche ensuite tout ça ancré en haut à droite de la chart — appelé sans condition à chaque bougie (pas de bar.isNew() ici), puisque seul le dernier appel compte : la chart affiche toujours la version la plus récente, jamais un historique de tableaux empilés.",
@@ -181,7 +207,7 @@ plot.table(rows, { title: "RSI multi-timeframe", columns: ["Timeframe", "RSI", "
   },
   {
     id: "confluence",
-    title: "Étape 11 — Détecter la confluence et alerter",
+    title: "Étape 12 — Détecter la confluence et alerter",
     paragraphs: [
       "Dernière pièce : si les cinq timeframes suggèrent tous BUY (ou tous SELL), c'est une vraie confluence — bien plus fiable qu'un seul timeframe isolé. .every(...) vérifie que toutes les lignes sont d'accord ; le titre du tableau reflète ce verdict global, et un signal + une alerte se déclenchent une seule fois (bar.isNew()) au moment où la confluence apparaît.",
       "C'est un indicateur multi-timeframe complet : cinq RSI calculés sur cinq timeframes différents à partir d'une seule chart, affichés en tableau, avec une détection de confluence — le tout en une trentaine de lignes commentées.",
@@ -225,7 +251,7 @@ if (bar.isNew() && overall !== "WAIT") {
   },
   {
     id: "wrap-up",
-    title: "Étape 12 — Pour aller plus loin",
+    title: "Étape 13 — Pour aller plus loin",
     paragraphs: [
       "Vous venez de construire deux indicateurs complets : un croisement de moyennes mobiles, puis un tableau de confluence RSI multi-timeframe — les deux s'appuient sur exactement les mêmes briques (market.*, ta.*, state.*, plot.*, bar.isNew()), combinées différemment. C'est tout ce dont la plupart des indicateurs ont besoin.",
     ],

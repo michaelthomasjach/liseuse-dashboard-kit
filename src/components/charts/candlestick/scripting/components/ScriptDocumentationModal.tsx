@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Modal } from "../../../../primitives/Modal";
 import { CodeBlock } from "../../../../primitives/CodeBlock";
-import { SearchIcon } from "../../../../icons";
+import { SearchIcon, ChevronRightIcon } from "../../../../icons";
 import { SCRIPT_API_REFERENCE } from "../scriptApiReference";
 import { SCRIPT_DIAGRAM_REGISTRY } from "../scriptDiagramRegistry";
 import { SCRIPT_DOCS_NAV, headingAnchorId } from "../scriptDocsNav";
@@ -23,6 +23,12 @@ export interface ScriptDocumentationModalProps {
 export function ScriptDocumentationModal({ open, onClose }: ScriptDocumentationModalProps) {
   const contentRef = useRef<HTMLDivElement>(null);
   const [activeId, setActiveId] = useState(SCRIPT_API_REFERENCE[0]?.id);
+  // The specific sub-heading (if any) currently under the reader's eye, *within* the active
+  // section — exigence : le menu précédent était « difficile de se retrouver dedans ». Two things
+  // fix that: this (so the exact sub-topic you're reading is bolded, not just its whole section —
+  // see the scroll-spy effect below) and `showHeadingsFor` further down (only *one* section's own
+  // sub-titles are ever visible at a time, instead of all ~13 sections' worth stacked permanently).
+  const [activeHeadingId, setActiveHeadingId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   // Shared by the nav's own section/heading filter and ScriptKeywordsIndex's own list — one search
   // box, both surfaces narrow down together (exigence : « je veux un input de recherche »).
@@ -50,10 +56,10 @@ export function ScriptDocumentationModal({ open, onClose }: ScriptDocumentationM
     });
   }, [normalizedQuery]);
 
-  // Scroll-spy: highlights whichever section's own heading has scrolled past the content pane's
-  // own top edge most recently — a plain scroll listener recomputing "which heading is now
-  // topmost" rather than IntersectionObserver, since a section can be taller than the whole
-  // viewport (the "example"/"exemples" ones especially), where IntersectionObserver's own
+  // Scroll-spy: highlights whichever section (and, within it, whichever sub-heading) has scrolled
+  // past the content pane's own top edge most recently — a plain scroll listener recomputing
+  // "what's topmost now" rather than IntersectionObserver, since a section can be taller than the
+  // whole viewport (the "example"/"exemples" ones especially), where IntersectionObserver's own
   // "is this element intersecting" boolean stops distinguishing "just started" from "about to end"
   // long before the next section begins. Re-attached on every `open` (Modal unmounts this whole
   // tree while closed, so any previous listener is already gone with it) rather than depending on
@@ -65,16 +71,25 @@ export function ScriptDocumentationModal({ open, onClose }: ScriptDocumentationM
     function onScroll() {
       if (!content) return;
       const containerTop = content.getBoundingClientRect().top;
-      let current = SCRIPT_API_REFERENCE[0]?.id;
-      for (const section of SCRIPT_API_REFERENCE) {
+      let currentSection = SCRIPT_DOCS_NAV[0]?.id;
+      let currentHeading: string | null = null;
+      for (const section of SCRIPT_DOCS_NAV) {
         const el = document.getElementById(`lq-script-docs-${section.id}`);
         if (!el) continue;
         // 80px: a heading counts as "current" once it's crossed near the top of the pane, not
         // only once it's exactly flush with it — matches this heading's own `scroll-margin-top`
         // used for the anchor-link jump below, so the two stay visually consistent with each other.
-        if (el.getBoundingClientRect().top - containerTop <= 80) current = section.id;
+        if (el.getBoundingClientRect().top - containerTop <= 80) {
+          currentSection = section.id;
+          currentHeading = null; // re-derived just below — a new section starts with none of its own crossed yet
+          for (const heading of section.headings) {
+            const headingEl = document.getElementById(heading.id);
+            if (headingEl && headingEl.getBoundingClientRect().top - containerTop <= 80) currentHeading = heading.id;
+          }
+        }
       }
-      if (current) setActiveId(current);
+      if (currentSection) setActiveId(currentSection);
+      setActiveHeadingId(currentHeading);
     }
     content.addEventListener("scroll", onScroll);
     onScroll();
@@ -89,13 +104,25 @@ export function ScriptDocumentationModal({ open, onClose }: ScriptDocumentationM
   // contains it (`.lq-script-docs__content` here), avoids touching the URL at all.
   function scrollToSection(id: string) {
     setActiveId(id);
+    setActiveHeadingId(null);
     document.getElementById(`lq-script-docs-${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   // Same mechanism as scrollToSection above, generalized to any anchor id — a heading's own id
   // (nav sub-items, see SCRIPT_DOCS_NAV) or a keyword's own resolved target (ScriptKeywordsIndex,
   // see keywordAnchorId — may itself just be a plain section id, which this handles identically).
+  // Also updates activeId/activeHeadingId immediately, the same way scrollToSection already does —
+  // without this, clicking a sub-title or a keyword wouldn't expand its own section in the nav (see
+  // showHeadingsFor below) until the scroll-spy effect caught up on its own, a beat later.
   function scrollToAnchor(anchorId: string) {
+    const owningSection = SCRIPT_DOCS_NAV.find((section) => section.headings.some((h) => h.id === anchorId));
+    if (owningSection) {
+      setActiveId(owningSection.id);
+      setActiveHeadingId(anchorId);
+    } else {
+      setActiveId(anchorId.replace(/^lq-script-docs-/, ""));
+      setActiveHeadingId(null);
+    }
     document.getElementById(anchorId)?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
@@ -113,38 +140,61 @@ export function ScriptDocumentationModal({ open, onClose }: ScriptDocumentationM
               aria-label="Rechercher dans la documentation"
             />
           </div>
-          {filteredNav.map((section) => (
-            <div key={section.id} className="lq-script-docs__nav-section">
-              <button
-                type="button"
-                onClick={() => scrollToSection(section.id)}
-                className={[
-                  "lq-script-docs__nav-item",
-                  section.id === "tutorial" && "lq-script-docs__nav-item--tutorial",
-                  section.id === activeId && "lq-script-docs__nav-item--active",
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
-              >
-                {section.title}
-              </button>
-              {section.headings.length > 0 && (
-                <div className="lq-script-docs__nav-subitems">
-                  {section.headings.map((heading) => (
-                    <button
-                      key={heading.id}
-                      type="button"
-                      className="lq-script-docs__nav-subitem"
-                      onClick={() => scrollToAnchor(heading.id)}
-                      title={heading.text}
-                    >
-                      {heading.text}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
+          {filteredNav.map((section) => {
+            // Only the active section's own sub-titles show (while not searching) — the previous
+            // design showed all ~13 sections' worth stacked permanently, which is exactly what made
+            // the menu hard to get your bearings in. Search overrides this: every section kept by
+            // the filter above already only carries its own *matching* headings, so showing all of
+            // those is the point, not clutter.
+            const showHeadings = section.headings.length > 0 && (section.id === activeId || normalizedQuery !== "");
+            return (
+              <div key={section.id} className="lq-script-docs__nav-section">
+                <button
+                  type="button"
+                  onClick={() => scrollToSection(section.id)}
+                  className={[
+                    "lq-script-docs__nav-item",
+                    section.id === "tutorial" && "lq-script-docs__nav-item--tutorial",
+                    section.id === activeId && "lq-script-docs__nav-item--active",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                >
+                  {section.headings.length > 0 && (
+                    <ChevronRightIcon
+                      size={11}
+                      className={["lq-script-docs__nav-chevron", showHeadings && "lq-script-docs__nav-chevron--open"].filter(Boolean).join(" ")}
+                    />
+                  )}
+                  <span className="lq-script-docs__nav-item-label">{section.title}</span>
+                </button>
+                {showHeadings && (
+                  <div className="lq-script-docs__nav-subitems">
+                    {section.headings.map((heading) => (
+                      <button
+                        key={heading.id}
+                        type="button"
+                        className={[
+                          "lq-script-docs__nav-subitem",
+                          heading.id === activeHeadingId && "lq-script-docs__nav-subitem--active",
+                        ]
+                          .filter(Boolean)
+                          .join(" ")}
+                        onClick={() => scrollToAnchor(heading.id)}
+                        title={heading.text}
+                      >
+                        {heading.text}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {/* Separates the keywords index (a *tool* — search/browse everything) from the
+                    actual reading order starting right below it — by id, not position, so it
+                    still lands in the right place if search ever filters "keywords" itself out. */}
+                {section.id === "keywords" && <div className="lq-script-docs__nav-divider" />}
+              </div>
+            );
+          })}
         </nav>
         <div className="lq-script-docs__content" ref={contentRef}>
           {SCRIPT_API_REFERENCE.map((section) => (

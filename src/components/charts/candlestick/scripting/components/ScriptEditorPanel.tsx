@@ -59,8 +59,7 @@ export interface ScriptEditorPanelProps {
   previewData?: Candle[];
 }
 
-const DEFAULT_SCRIPT_CODE = `// Nouveau script — voir la liste "Indicateurs disponibles" pour les
-// identifiants chart.indicator(...) utilisables sur cette chart.
+const DEFAULT_SCRIPT_CODE = `// %% Cellule 1 — Affiche une série dans une panneau séparé
 plot.pane("Ma série").line("Ma série", market.close(0));
 `;
 

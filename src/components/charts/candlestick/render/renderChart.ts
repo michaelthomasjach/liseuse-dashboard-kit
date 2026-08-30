@@ -4,6 +4,7 @@ import { drawFutureZone } from "./drawFutureZone";
 import { drawPriceCandles } from "./drawPriceCandles";
 import { drawPriceDrawings } from "./drawPriceDrawings";
 import { drawVolumeAndPanes } from "./drawVolumeAndPanes";
+import { drawReplayMask } from "./drawReplayMask";
 
 export type { RenderCandlestickChartParams } from "../interfaces/RenderCandlestickChartParams.interface";
 
@@ -20,7 +21,9 @@ export type { RenderCandlestickChartParams } from "../interfaces/RenderCandlesti
  *  gridlines/price-overlay indicators, leaving the clip open; `drawPriceDrawings` continues inside
  *  that same clip (every drawing type, tool previews, the live-price line, symbol overlays) and
  *  closes it; `drawVolumeAndPanes` paints outside the clip (volume, each "own"-pane indicator's
- *  own clipped strip, "vertical" drawings, the crosshair's vertical line). Splitting this way
+ *  own clipped strip, "vertical" drawings, the crosshair's vertical line); `drawReplayMask` paints
+ *  last of all, over everything above, covering replay's own "future" from wherever it's currently
+ *  cut (see its own doc). Splitting this way
  *  (rather than each phase re-opening its own independent clip) mirrors the source exactly as it
  *  always flowed as one function — the three clip-sharing phases share one canvas
  *  `save()`/`clip()`/`restore()` stack across the (synchronous, always same-order) calls below,
@@ -54,4 +57,5 @@ export function renderCandlestickChart(canvas: HTMLCanvasElement, wrapper: HTMLE
   drawPriceCandles(ctx, params, style);
   drawPriceDrawings(ctx, params, style);
   drawVolumeAndPanes(ctx, params, style);
+  drawReplayMask(ctx, params, style);
 }

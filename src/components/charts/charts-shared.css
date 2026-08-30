@@ -646,6 +646,18 @@
   border-color: var(--lq-color-accent);
 }
 
+/* The "Replay" trigger while armed (choosing a cutoff, see useReplayState.ts) — same accent
+   treatment as .lq-chart__icon-button--active above, reused here because .lq-chart__timeframe-
+   trigger (an icon+text pill, not an icon-only button) has no "active" state of its own elsewhere.
+   Compound selector so it wins over .lq-chart__timeframe-trigger's own base rule regardless of
+   which stylesheet's import happens to land first in the bundle — same specificity otherwise,
+   source order would decide instead of intent. */
+.lq-chart__timeframe-trigger.lq-chart__replay-trigger--armed {
+  color: var(--lq-color-accent-contrast);
+  background-color: var(--lq-color-accent);
+  border-color: var(--lq-color-accent);
+}
+
 /* AlertCreateModal — opened from the floating drawing toolbar's own bell button. */
 .lq-alert-modal__title {
   display: flex;

@@ -60,6 +60,13 @@ export interface CandlestickChartProps {
    *  keep the regular header's own timeframe/display-mode/indicator controls both visible and
    *  meaningful over a view none of them actually apply to. Default false. */
   seasonality?: boolean;
+  /** Shows a header button that arms "bar replay": moving the pointer over the chart dims
+   *  everything to its right, a click freezes that point as a cutoff — hiding everything past it
+   *  (candles, volume, indicators) without moving anything still visible — and swaps the button
+   *  for Lecture/Pause/Vitesse/Quitter le replay controls to step through the hidden history one
+   *  candle at a time. See `useReplayState.ts`'s own doc for why this is a pure visual cover
+   *  rather than a `data` truncation. Default false. */
+  replay?: boolean;
   /** Shows a left-docked toolbar for drawing annotations directly on the chart (currently: trend line). Default false. */
   drawingTools?: boolean;
   /** Uncontrolled initial set of trend-line drawings. */

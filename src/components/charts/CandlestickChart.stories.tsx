@@ -629,6 +629,7 @@ export const AllFeatures: Story = {
             onDeleteAlert={handleDeleteAlert}
             onPlaySound={playAlertSound}
             seasonality
+            replay
             showTemplates
           />
         </ChartWorkspace>

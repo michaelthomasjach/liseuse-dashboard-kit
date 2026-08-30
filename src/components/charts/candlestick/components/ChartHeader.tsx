@@ -9,6 +9,10 @@ import {
   MaximizeIcon,
   MinimizeIcon,
   LinkIcon,
+  PlayIcon,
+  PauseIcon,
+  PrevTrackIcon,
+  CloseIcon,
 } from "../../../icons";
 import type { ChartDisplayMode } from "../interfaces/ChartDisplayMode.interface";
 import type { TimeframeEntry } from "../interfaces/TimeframeEntry.interface";
@@ -45,6 +49,18 @@ export interface ChartHeaderProps {
   setIndicatorPickerOpen: (open: boolean) => void;
   seasonality: boolean;
   setSeasonalityOpen: (open: boolean) => void;
+  replay: boolean;
+  replayArmed: boolean;
+  replayActive: boolean;
+  replayPlaying: boolean;
+  replaySpeed: number;
+  replaySpeedOpen: boolean;
+  setReplaySpeedOpen: Dispatch<SetStateAction<boolean>>;
+  replaySpeedAnchorRef: RefObject<HTMLButtonElement>;
+  onReplayTriggerClick: () => void;
+  onReplayTogglePlay: () => void;
+  onReplaySpeedChange: (speed: number) => void;
+  onReplayQuit: () => void;
   fullscreenToggle: boolean;
   toggleFullscreen: () => void;
   isFullscreen: boolean;
@@ -97,6 +113,18 @@ export function ChartHeader({
   setIndicatorPickerOpen,
   seasonality,
   setSeasonalityOpen,
+  replay,
+  replayArmed,
+  replayActive,
+  replayPlaying,
+  replaySpeed,
+  replaySpeedOpen,
+  setReplaySpeedOpen,
+  replaySpeedAnchorRef,
+  onReplayTriggerClick,
+  onReplayTogglePlay,
+  onReplaySpeedChange,
+  onReplayQuit,
   fullscreenToggle,
   toggleFullscreen,
   isFullscreen,
@@ -244,6 +272,68 @@ export function ChartHeader({
           <CalendarIcon size={14} />
         </button>
       )}
+      {/* "Replay" — arms bar-replay mode (see useReplayState.ts's own doc): moving the pointer
+          over the chart dims everything to its right, a click freezes that as the cutoff and
+          replaces this trigger with Lecture/Pause/Vitesse/Quitter le replay below. Clicking again
+          while still choosing (replayArmed) cancels back to idle instead of committing — same
+          "click the active one again to back out" convention as everywhere else in this header. */}
+      {replay &&
+        (replayActive ? (
+          <>
+            <button
+              type="button"
+              className="lq-chart__icon-button"
+              onClick={onReplayTogglePlay}
+              aria-label={replayPlaying ? "Pause" : "Lecture"}
+              title={replayPlaying ? "Pause" : "Lecture"}
+            >
+              {replayPlaying ? <PauseIcon size={14} /> : <PlayIcon size={14} />}
+            </button>
+            <button
+              ref={replaySpeedAnchorRef}
+              type="button"
+              className="lq-chart__timeframe-trigger"
+              onClick={() => setReplaySpeedOpen((o) => !o)}
+              aria-label="Vitesse de lecture"
+            >
+              <span className="lq-chart__timeframe-trigger-label">{replaySpeed}×</span>
+              <ChevronDownIcon size={12} />
+            </button>
+            <Popover open={replaySpeedOpen} onClose={() => setReplaySpeedOpen(false)} anchorRef={replaySpeedAnchorRef} placement="bottom">
+              <div className="lq-chart__timeframe-menu">
+                {[1, 2, 5, 10].map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    className={["lq-chart__timeframe-option", s === replaySpeed && "lq-chart__timeframe-option--selected"]
+                      .filter(Boolean)
+                      .join(" ")}
+                    onClick={() => {
+                      onReplaySpeedChange(s);
+                      setReplaySpeedOpen(false);
+                    }}
+                  >
+                    {s}×
+                  </button>
+                ))}
+              </div>
+            </Popover>
+            <button type="button" className="lq-chart__icon-button" onClick={onReplayQuit} aria-label="Quitter le replay" title="Quitter le replay">
+              <CloseIcon size={14} />
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            className={["lq-chart__timeframe-trigger", replayArmed && "lq-chart__replay-trigger--armed"].filter(Boolean).join(" ")}
+            onClick={onReplayTriggerClick}
+            aria-label="Replay"
+            title={replayArmed ? "Cliquez sur la chart pour choisir le point de départ" : "Rejouer l'historique bougie par bougie"}
+          >
+            <PrevTrackIcon size={14} />
+            <span className="lq-chart__timeframe-trigger-label">Replay</span>
+          </button>
+        ))}
       {fullscreenToggle && (
         <button
           type="button"

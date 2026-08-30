@@ -20,6 +20,11 @@ export interface UseZoomAndScalesArgs {
   paneYTransform: Record<string, d3.ZoomTransform>;
   drawings: TrendLineDrawing[];
   activeTool: DrawingToolType | null;
+  /** True while choosing where to cut for replay mode (see useReplayState.ts) — suspends pan/zoom
+   *  the same way an active drawing tool already does below, so a drag meant to place the cutoff
+   *  can't also pan the chart out from under it. Not set once replay is merely *active* (a cutoff
+   *  already chosen, playing or paused) — panning/zooming the visible history is normal then. */
+  replayArmed: boolean;
   hoveredDrawingIdRef: RefObject<string | null>;
   /** Whether the pointer is currently over the measure tool's own rectangle body — same reason
    *  hoveredDrawingIdRef is checked below: kept live by useDrawingInteractions' own
@@ -49,6 +54,7 @@ export function useZoomAndScales({
   paneYTransform,
   drawings,
   activeTool,
+  replayArmed,
   hoveredDrawingIdRef,
   measureBodyHoveredRef,
   yAutoScalingState,
@@ -381,7 +387,7 @@ export function useZoomAndScales({
   } = useD3Zoom<SVGRectElement>({
     width: dims.boundedWidth,
     height: plotBoundedHeight,
-    enabled: zoomable && activeTool === null,
+    enabled: zoomable && activeTool === null && !replayArmed,
     scaleExtent: [1, maxXZoom],
     onZoom: setTransform,
     filter: () => hoveredDrawingIdRef.current === null && !measureBodyHoveredRef.current,

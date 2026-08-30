@@ -23,6 +23,7 @@ import { useDrawingInteractions } from "./candlestick/hooks/useDrawingInteractio
 import { useDrawingToolMenuAnchors } from "./candlestick/hooks/useDrawingToolMenuAnchors";
 import { useFloatingToolbarState } from "./candlestick/hooks/useFloatingToolbarState";
 import { useAlertFlow } from "./candlestick/hooks/useAlertFlow";
+import { useReplayState } from "./candlestick/hooks/useReplayState";
 import { useCorrelationSetup } from "./candlestick/hooks/useCorrelationSetup";
 import { useRenderCandlestickChart } from "./candlestick/hooks/useRenderCandlestickChart";
 import { useSidePanel } from "./candlestick/hooks/useSidePanel";
@@ -96,6 +97,7 @@ export function CandlestickChart({
   isFullscreen: isFullscreenProp,
   onFullscreenChange,
   seasonality = false,
+  replay = false,
   drawingTools = false,
   defaultDrawings,
   onDrawingsChange,
@@ -360,6 +362,11 @@ export function CandlestickChart({
     loadIndicatorLayout,
   });
 
+  // Called before useZoomAndScales specifically so `replayState.armed` exists in time to suspend
+  // its own pan/zoom while a cutoff is being chosen — see useReplayState.ts's own doc on why
+  // `zoomedXScale` itself can't be a hook argument here (the reverse dependency).
+  const replayState = useReplayState({ dataLength: data.length });
+
   const {
     yTransform,
     setYTransform,
@@ -396,6 +403,7 @@ export function CandlestickChart({
     paneYTransform,
     drawings,
     activeTool,
+    replayArmed: replayState.armed,
     hoveredDrawingIdRef, measureBodyHoveredRef,
     yAutoScalingState,
     zoomable,
@@ -612,6 +620,10 @@ export function CandlestickChart({
     visibleIndicators,
     indexForDate,
     futureZoneVisible,
+    replayArmed: replayState.armed,
+    replayActive: replayState.active,
+    replayPreviewIndex: replayState.previewIndex,
+    replayCutoffIndex: replayState.cutoffIndex,
   });
 
   // `ref` always lands on .lq-chart__main (never the outer .lq-chart directly) in every return
@@ -677,6 +689,18 @@ export function CandlestickChart({
           setIndicatorPickerOpen={setIndicatorPickerOpen}
           seasonality={seasonality}
           setSeasonalityOpen={setSeasonalityOpen}
+          replay={replay}
+          replayArmed={replayState.armed}
+          replayActive={replayState.active}
+          replayPlaying={replayState.playing}
+          replaySpeed={replayState.speed}
+          replaySpeedOpen={replayState.speedOpen}
+          setReplaySpeedOpen={replayState.setSpeedOpen}
+          replaySpeedAnchorRef={replayState.speedAnchorRef}
+          onReplayTriggerClick={replayState.toggleArm}
+          onReplayTogglePlay={replayState.togglePlay}
+          onReplaySpeedChange={replayState.setSpeed}
+          onReplayQuit={replayState.quit}
           fullscreenToggle={fullscreenToggle}
           toggleFullscreen={toggleFullscreen}
           isFullscreen={isFullscreen}
@@ -846,9 +870,9 @@ export function CandlestickChart({
           zoomRef={zoomRef}
           activeTool={activeTool}
           handleOverlayPointerDown={handleOverlayPointerDown}
-          handlePointerMove={handlePointerMove}
+          handlePointerMove={replayState.armed ? replayState.handlePointerMove(zoomedXScale) : handlePointerMove}
           handleOverlayPointerUp={handleOverlayPointerUp}
-          handleOverlayClick={handleOverlayClick}
+          handleOverlayClick={replayState.armed ? replayState.handleClick(zoomedXScale) : handleOverlayClick}
           handleOverlayDoubleClick={handleOverlayDoubleClick}
           yAxisWheelRef={yAxisWheelRef}
           yAxisDrag={yAxisDrag}

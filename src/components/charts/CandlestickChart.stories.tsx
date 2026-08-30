@@ -22,6 +22,7 @@ import {
   type WatchlistEarningsRow,
   type WatchlistDividendRow,
   type WatchlistNewsItem,
+  type SymbolProfile,
 } from "./ChartWorkspace";
 import { generateCandles, generateCandlesByTimeframe, type MockTimeframeKey } from "../../test-data/financeSampleData";
 
@@ -329,6 +330,79 @@ const DEMO_NEWS: WatchlistNewsItem[] = [
   { id: "n-5", time: "il y a 5 h", ticker: "MSFT", headline: "Microsoft Q1 earnings beat estimates on strong Azure growth", provider: "Reuters", isFinancialReport: true },
 ];
 
+// The side panel's own "company info" section below the watchlist (see SymbolProfilePanel) —
+// entirely caller-supplied, keyed by ticker; a watchlist row with no matching entry here (BTCUSD,
+// SPX, WTI, XAUUSD below — none of them a company with sectors/earnings of its own) just shows its
+// plain price/change readout on its own, no error. Only covers the three real companies in
+// DEMO_WATCHLISTS above, reusing DEMO_EARNINGS'/DEMO_NEWS' own MSFT entries where they already fit
+// rather than inventing unrelated numbers.
+const SYMBOL_PROFILES: SymbolProfile[] = [
+  {
+    ticker: "MSFT",
+    name: "Microsoft Corporation",
+    exchange: "NASDAQ",
+    instrumentType: "Action",
+    marketStatus: "Marché fermé",
+    description:
+      "Microsoft développe, fabrique et commercialise des logiciels, services et appareils grand public et professionnels — Windows, Office 365, Azure, Xbox, Surface — et exploite l'un des plus grands clouds publics au monde.",
+    sectors: ["Technologie", "Services applicatifs", "Cloud"],
+    performance: [
+      { label: "1S", changePercent: 1.24 },
+      { label: "1M", changePercent: 3.8 },
+      { label: "3M", changePercent: -1.5 },
+      { label: "6M", changePercent: 9.2 },
+      { label: "YTD", changePercent: 14.1 },
+      { label: "1A", changePercent: 21.6 },
+    ],
+    news: [{ id: "n-msft", time: "il y a 5 h", headline: "Microsoft Q1 earnings beat estimates on strong Azure growth", provider: "Reuters" }],
+    keyStats: { nextEarningsInDays: 53, volume: "18,4 M", averageVolume: "21,7 M", marketCap: "3 100 Md" },
+    earnings: [
+      { date: "T1 25", estimateEps: 2.78, actualEps: 2.93 },
+      { date: "T2 25", estimateEps: 2.9, actualEps: 2.95 },
+      { date: "T3 25", estimateEps: 3.01, actualEps: 3.3 },
+      { date: "T4 25", estimateEps: 3.05, actualEps: 3.23 },
+      { date: "T1 26", estimateEps: 3.12 },
+    ],
+  },
+  {
+    ticker: "AAPL",
+    name: "Apple Inc.",
+    exchange: "NASDAQ",
+    instrumentType: "Action",
+    marketStatus: "Marché fermé",
+    description:
+      "Apple conçoit, fabrique et commercialise des smartphones, ordinateurs personnels, tablettes et montres connectées, et propose une large gamme de services associés (App Store, iCloud, Apple Music, Apple Pay).",
+    sectors: ["Technologie", "Matériel informatique", "Électronique grand public"],
+    performance: [
+      { label: "1S", changePercent: -0.38 },
+      { label: "1M", changePercent: 2.1 },
+      { label: "3M", changePercent: 6.4 },
+      { label: "6M", changePercent: 11.8 },
+      { label: "YTD", changePercent: 17.2 },
+      { label: "1A", changePercent: 23.9 },
+    ],
+    keyStats: { nextEarningsInDays: 61, volume: "42,3 M", averageVolume: "48,1 M", marketCap: "3 550 Md" },
+  },
+  {
+    ticker: "NVDA",
+    name: "NVIDIA Corporation",
+    exchange: "NASDAQ",
+    instrumentType: "Action",
+    marketStatus: "Marché fermé",
+    description: "NVIDIA conçoit des processeurs graphiques (GPU) et des plateformes pour le calcul accéléré, le jeu vidéo, les centres de données et l'intelligence artificielle.",
+    sectors: ["Technologie", "Semi-conducteurs"],
+    performance: [
+      { label: "1S", changePercent: 2.61 },
+      { label: "1M", changePercent: 8.4 },
+      { label: "3M", changePercent: 15.9 },
+      { label: "6M", changePercent: 22.3 },
+      { label: "YTD", changePercent: 38.7 },
+      { label: "1A", changePercent: 61.2 },
+    ],
+    keyStats: { nextEarningsInDays: 80, volume: "215,6 M", averageVolume: "198,2 M", marketCap: "5 200 Md" },
+  },
+];
+
 // A short tone at `freq` for `duration` seconds, `delay` seconds from now — the one shared
 // building block every sound below is made of, so each option's own distinct sound is really just
 // a different arrangement of these (single tone vs. a short ascending/alternating sequence).
@@ -520,6 +594,7 @@ export const AllFeatures: Story = {
           watchlistEarnings={DEMO_EARNINGS}
           watchlistDividends={DEMO_DIVIDENDS}
           watchlistNews={DEMO_NEWS}
+          symbolProfiles={SYMBOL_PROFILES}
           alerts={<AlertsPanel alerts={alerts} onDeleteAlert={handleDeleteAlert} />}
         >
           <CandlestickChart

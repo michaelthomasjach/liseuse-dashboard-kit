@@ -10,6 +10,13 @@ import { SymbolTargetModal } from "./workspace/SymbolTargetModal";
 import { WatchlistPanel } from "./workspace/WatchlistPanel";
 import { SymbolProfilePanel } from "./workspace/SymbolProfilePanel";
 import type { SymbolProfile } from "./workspace/SymbolProfile.interface";
+export type {
+  SymbolProfile,
+  SymbolProfilePerformancePoint,
+  SymbolProfileNewsItem,
+  SymbolProfileKeyStats,
+  SymbolProfileEarningsPoint,
+} from "./workspace/SymbolProfile.interface";
 import { useSymbolProfileSplit } from "./workspace/useSymbolProfileSplit";
 import { useSidePanel } from "./candlestick/hooks/useSidePanel";
 import { useScriptingState } from "./candlestick/hooks/useScriptingState";

@@ -40,7 +40,13 @@ export type {
   WatchlistDividendRow,
   WatchlistNewsItem,
 } from "./ChartWorkspace";
-export type { SymbolProfile, SymbolProfilePerformancePoint } from "./workspace/SymbolProfile.interface";
+export type {
+  SymbolProfile,
+  SymbolProfilePerformancePoint,
+  SymbolProfileNewsItem,
+  SymbolProfileKeyStats,
+  SymbolProfileEarningsPoint,
+} from "./workspace/SymbolProfile.interface";
 
 export { SeasonalityView } from "./SeasonalityView";
 export type { SeasonalityViewProps } from "./SeasonalityView";

@@ -43,18 +43,37 @@ export interface ScriptEditorCodeMirrorProps {
    *  cell (see the notebook cell-output doc block below). Always called with *instrumented* code
    *  (a couple of invisible sentinel `console.log` calls spliced in — see
    *  `codeThroughCellInstrumented`'s own doc), never the cell's own plain text, so the same prop
-   *  serves both the caller's normal run bookkeeping and this component's own inline output.
-   *  Returning the run's own `ScriptRunResult` (or a promise of one) is optional — a caller with no
-   *  notion of "run" simply gets nothing back and this component's own inline cell output stays
-   *  empty, same graceful degradation as when the prop is omitted entirely. */
-  onRunCell?: (code: string) => void | ScriptRunResult | Promise<ScriptRunResult>;
+   *  serves both the caller's normal run bookkeeping and this component's own inline output. Purely
+   *  fire-and-forget from this component's own point of view — the caller reports the *result* back
+   *  separately, via the imperative handle's own `applyRunResult` (see its own doc for why a
+   *  callback return value isn't enough here). */
+  onRunCell?: (code: string) => void;
 }
 
-/** Imperative handle for `ScriptEditorPanel.tsx`'s own "Exécuter la cellule" toolbar button — the
- *  keyboard shortcut (Shift+Enter) reaches the same code path directly through a keymap binding,
- *  this is only needed for triggering it from outside the CodeMirror instance itself. */
+/** Imperative handle — `runCurrentCell()` for `ScriptEditorPanel.tsx`'s own "Exécuter la cellule"
+ *  toolbar button (the keyboard shortcut, Shift+Enter, reaches the same code path directly through
+ *  a keymap binding; this is only needed for triggering it from outside the CodeMirror instance
+ *  itself), `applyRunResult(result)` for the notebook cell-output feature's *other* half.
+ *
+ *  Why a push, not a return value: `onRunCell`'s own result doesn't reach the caller the same way
+ *  in every host. `ScriptInteractiveTutorial.tsx` calls `engine.run(code)` directly, whose own
+ *  promise resolves with exactly this run's own result — trivial to await. `ScriptEditorPanel.tsx`
+ *  is a different shape entirely: its own `onRunCell` (`handleRunClick`) may need a target-panel
+ *  choice from the user first (a modal, see `needsTargetChoice`), and even once chosen, `runScript`
+ *  itself only ever *writes a trigger* (`ScriptDef.runRequestId`/`runDraftCode`) that some other,
+ *  entirely separate component (`ScriptRunner.tsx`) picks up and eventually reports back through
+ *  yet another channel (`runOutputs`) — there is no return value anywhere in that chain to await.
+ *  Pushing the result in from whichever reactive state the host *already* surfaces (`engine.result`,
+ *  `output?.result`) works identically in both shapes, synchronous or not: the host doesn't need to
+ *  know or care that a cell run happened, it just forwards its own "latest result" state through a
+ *  `useEffect` every time that changes, and this component decides for itself (via its own pending-
+ *  cell bookkeeping) whether that specific result belongs to a cell run it's still waiting on. */
 export interface ScriptEditorCodeMirrorHandle {
   runCurrentCell: () => void;
+  /** Call whenever the host's own "most recent run result" state changes — a no-op if this
+   *  component isn't currently waiting on one (e.g. the host's own full-script "Exécuter" produced
+   *  it, not a cell run), so it's always safe to forward every result unconditionally. */
+  applyRunResult: (result: ScriptRunResult) => void;
 }
 
 function apiCompletionSource(context: CompletionContext): CompletionResult | null {
@@ -372,22 +391,19 @@ export const ScriptEditorCodeMirror = forwardRef<ScriptEditorCodeMirrorHandle, S
   // onRunCell is current, so `buildCellDecorations`' own widget closures (rebuilt only when the
   // document/cursor/cell-output actually change) never go stale.
   const runCellAtRef = useRef<(startLine: number, endLine: number) => void>(() => {});
+  // The cell awaiting the *next* result the host pushes in via applyRunResult (see
+  // ScriptEditorCodeMirrorHandle's own doc on why this is a push rather than a return value) — set
+  // right when a cell run is kicked off, cleared the moment a result is actually applied to it.
+  // `null` means "nothing pending," so an unrelated result (the host's own full-script run, or one
+  // that arrives after this component's own doc has since changed) is safely ignored.
+  const pendingCellRef = useRef<{ endLine: number; cellSourceText: string } | null>(null);
   runCellAtRef.current = (startLine, endLine) => {
     const view = viewRef.current;
     if (!view || !onRunCellRef.current) return;
     const cellSourceText = view.state.doc.sliceString(view.state.doc.line(startLine).from, view.state.doc.line(endLine).to);
     const code = codeThroughCellInstrumented(view.state, startLine, endLine);
-    const outcome = onRunCellRef.current(code);
-    const resultPromise: Promise<ScriptRunResult> | null =
-      outcome && typeof (outcome as Promise<ScriptRunResult>).then === "function"
-        ? (outcome as Promise<ScriptRunResult>)
-        : outcome
-          ? Promise.resolve(outcome as ScriptRunResult)
-          : null;
-    resultPromise?.then((result) => {
-      const output = buildCellOutput(result, cellSourceText);
-      viewRef.current?.dispatch({ effects: setCellOutputEffect.of({ endLine, output }) });
-    });
+    pendingCellRef.current = { endLine, cellSourceText };
+    onRunCellRef.current(code);
   };
 
   useImperativeHandle(
@@ -399,6 +415,13 @@ export const ScriptEditorCodeMirror = forwardRef<ScriptEditorCodeMirrorHandle, S
         const markerLines = findCellMarkerLines(view.state.doc);
         const cursorLine = view.state.doc.lineAt(view.state.selection.main.head).number;
         runCellAtRef.current(cellStartLine(cursorLine, markerLines), cellEndLine(view.state.doc, cursorLine, markerLines));
+      },
+      applyRunResult: (result) => {
+        const pending = pendingCellRef.current;
+        if (!pending) return;
+        pendingCellRef.current = null;
+        const output = buildCellOutput(result, pending.cellSourceText);
+        viewRef.current?.dispatch({ effects: setCellOutputEffect.of({ endLine: pending.endLine, output }) });
       },
     }),
     []

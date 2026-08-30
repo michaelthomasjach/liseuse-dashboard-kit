@@ -14,6 +14,7 @@ import type { SymbolSearchCategory } from "./SymbolSearchCategory.interface";
 import type { ChartAlertDraft, ChartAlert } from "./ChartAlertDraft.interface";
 import type { ScriptDef } from "./ScriptDef.interface";
 import type { ScriptAlertEvent } from "./ScriptAlertEvent.interface";
+import type { ScriptRunOutput } from "../scripting/interfaces/ScriptRunOutput.interface";
 
 export interface CandlestickChartProps {
   data: Candle[];
@@ -280,6 +281,15 @@ export interface CandlestickChartProps {
    *  changes to actually take effect, since this chart never manages the list itself; `ChartWorkspace`
    *  splices the change back into its own shared list. */
   onScriptsChange?: (scripts: ScriptDef[]) => void;
+  /** Reports this chart's own scripts' run output (result/error/logs/produced indicators…) back to
+   *  the caller — this chart already consumes its own copy internally (to render the indicators a
+   *  script produces), this is purely a *second* recipient for a caller that also wants to read it,
+   *  same "controlled prop, not the only consumer" shape `onScriptsChange` has for the list itself.
+   *  `ChartWorkspace` wires this to its own shared `useScriptingState`'s `reportRunOutput` so its
+   *  one shared `ScriptEditorPanel` — which has no `ScriptRunner` of its own, every panel's own
+   *  scripts actually execute inside that panel, not the editor — can show a script's own
+   *  error/console output/notebook cell results despite never running it itself. */
+  onScriptRunOutput?: (id: string, output: ScriptRunOutput) => void;
   /** Fires for every `alert(message)` call a running script makes — this library only ever
    *  produces the event (see `ScriptAlertEvent`'s own doc); how it actually reaches the user
    *  (toast, sound, the app's own notification system) is entirely up to this callback. */

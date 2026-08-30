@@ -234,6 +234,18 @@ export function ScriptEditorPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeScriptId]);
 
+  // Forwards this script's own "latest run result" into the editor's own notebook cell-output
+  // feature — see ScriptEditorCodeMirrorHandle.applyRunResult's own doc for why this is a push from
+  // the host rather than something onRunCell's own return value could carry: runScript here only
+  // ever writes a trigger onto the ScriptDef itself (see this file's own handleRunClick), a
+  // completely separate ScriptRunner picks it up and reports back through runOutputs — there's no
+  // return value anywhere in that chain to await instead. A no-op whenever this component isn't
+  // actually waiting on a cell run (a plain "Exécuter" run, or another script's own output changing).
+  const activeOutputResult = activeScriptId ? runOutputs[activeScriptId]?.result : undefined;
+  useEffect(() => {
+    if (activeOutputResult) codeMirrorRef.current?.applyRunResult(activeOutputResult);
+  }, [activeOutputResult]);
+
   if (!open) return null;
 
   const output = activeScriptId ? runOutputs[activeScriptId] : undefined;

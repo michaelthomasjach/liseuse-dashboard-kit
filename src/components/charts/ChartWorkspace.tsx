@@ -639,6 +639,13 @@ export function ChartWorkspace({
                     workspaceScripting.setActiveScriptId(scriptId);
                     workspaceScripting.setEditorOpen(true);
                   },
+                  // Bridges each panel's own local script-run output back up into the *shared*
+                  // editor's own `runOutputs` — the editor itself has no `ScriptRunner` of its own
+                  // (every script actually executes inside whichever panel it's routed to, not
+                  // here), so without this its own error/console panel and notebook cell output
+                  // (see CandlestickChartProps.onScriptRunOutput's own doc) never see a single real
+                  // result despite the chart itself rendering that script's own indicators just fine.
+                  onScriptRunOutput: workspaceScripting.reportRunOutput,
                 }
               : {}),
             timeframe: i in timeframeByPanel ? timeframeByPanel[i] : child.props.timeframe,

@@ -82,6 +82,17 @@ export function ScriptInteractiveTutorial() {
     if (engine.result && !engine.result.error) setRunVersion((v) => v + 1);
   }, [engine.result]);
 
+  // Forwards this component's own "latest run result" into the editor's own notebook cell-output
+  // feature — see ScriptEditorCodeMirrorHandle.applyRunResult's own doc for why this is a push from
+  // the host rather than something onRunCell's own return value could carry (this host's own
+  // engine.run does resolve with it directly, but ScriptEditorPanel.tsx's own onRunCell can't, so
+  // both hosts push the same way rather than having two different wiring shapes). A no-op whenever
+  // this component isn't actually waiting on a cell run (the auto-run on step arrival above, or the
+  // toolbar's own full-script "Exécuter").
+  useEffect(() => {
+    if (engine.result) codeMirrorRef.current?.applyRunResult(engine.result);
+  }, [engine.result]);
+
   const chartIndicators = useMemo(
     () => engine.scriptIndicators.map(scriptIndicatorToChartIndicator),
     [engine.scriptIndicators]

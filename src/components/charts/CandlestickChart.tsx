@@ -130,7 +130,7 @@ export function CandlestickChart({
   onLinkClick,
   fillHeight = false,
   sidePanel, defaultSidePanelOpen, onSidePanelOpenChange,
-  scripts, onScriptsChange, onScriptAlert, onEditScript, lastCandleOpen = false,
+  scripts, onScriptsChange, onScriptAlert, onEditScript, onScriptRunOutput, lastCandleOpen = false,
   margin,
   className,
 }: CandlestickChartProps) {
@@ -908,7 +908,11 @@ export function CandlestickChart({
       <ScriptRunnerHost
         scripts={scriptingState.scripts} data={data} indicators={indicators} fundamentals={fundamentals}
         lastCandleOpen={lastCandleOpen} availableTimeframes={flattenTimeframeValues(timeframes)}
-        onOutput={scriptingState.reportRunOutput} onAlert={onScriptAlert}
+        onOutput={(id, output) => {
+          scriptingState.reportRunOutput(id, output);
+          onScriptRunOutput?.(id, output);
+        }}
+        onAlert={onScriptAlert}
       />
 
       <ChartModals

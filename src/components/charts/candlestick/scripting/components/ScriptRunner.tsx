@@ -85,9 +85,10 @@ export function ScriptRunner({ script, data, indicators, fundamentals, lastCandl
       indicators: engine.scriptIndicators,
       drawings: engine.scriptDrawings,
       table: engine.scriptTable,
+      labels: engine.scriptLabels,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [script.id, engine.result, engine.running, engine.scriptIndicators, engine.scriptDrawings, engine.scriptTable]);
+  }, [script.id, engine.result, engine.running, engine.scriptIndicators, engine.scriptDrawings, engine.scriptTable, engine.scriptLabels]);
 
   useEffect(() => {
     if (!onAlert || !engine.result) return;
@@ -101,7 +102,7 @@ export function ScriptRunner({ script, data, indicators, fundamentals, lastCandl
   // this its last output would linger forever in useScriptingState's aggregated
   // scriptIndicators/scriptDrawings after the very thing that produced it is gone.
   useEffect(() => {
-    return () => onOutput(script.id, { result: null, running: false, indicators: [], drawings: [], table: null });
+    return () => onOutput(script.id, { result: null, running: false, indicators: [], drawings: [], table: null, labels: [] });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

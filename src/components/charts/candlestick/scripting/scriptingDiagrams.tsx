@@ -198,6 +198,27 @@ export function PlotTableDiagram() {
   );
 }
 
+export function PlotLabelDiagram() {
+  return (
+    <InfoDiagram>
+      <g opacity={0.5}>
+        <SampleCandles dim />
+      </g>
+      {/* A dashed guide to an arbitrary x%/y% point — deliberately not a corner, to read as
+          "anywhere in the pane," unlike PlotTableDiagram's own fixed-corner box above. */}
+      <line x1={0} y1={70} x2={150} y2={70} stroke="var(--lq-color-border)" strokeWidth={1} strokeDasharray="3,3" />
+      <line x1={150} y1={0} x2={150} y2={70} stroke="var(--lq-color-border)" strokeWidth={1} strokeDasharray="3,3" />
+      <circle cx={150} cy={70} r={2.5} fill="var(--lq-color-accent)" />
+      <g transform="translate(150,70) rotate(-24)">
+        <text x={6} y={-6} fontSize={11} fontWeight={600} fill="var(--lq-color-accent)">
+          Zone haute
+        </text>
+      </g>
+      <DiagramLabel x={6} y={104} text='pane.label(name, "…", { x, y, rotation })' color="var(--lq-color-accent)" />
+    </InfoDiagram>
+  );
+}
+
 export function BarIsNewDiagram() {
   return (
     <InfoDiagram>

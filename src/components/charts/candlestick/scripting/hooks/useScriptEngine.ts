@@ -7,9 +7,10 @@ import type { TrendLineDrawing } from "../../interfaces/TrendLineDrawing.interfa
 import type { ScriptTableOutput } from "../interfaces/ScriptRunResult.interface";
 import type { ScriptEngineSnapshot } from "../interfaces/ScriptEngineSnapshot.interface";
 import type { ScriptRunResult } from "../interfaces/ScriptRunResult.interface";
+import type { ResolvedScriptLabel } from "../interfaces/ScriptRunOutput.interface";
 import { computeIndicatorValues } from "../../indicators";
 import { buildStableIndicatorIds } from "../stableIndicatorId";
-import { upsertScriptCustomIndicators } from "../scriptOutputToCustomIndicatorDef";
+import { upsertScriptCustomIndicators, scriptPaneIndicatorId } from "../scriptOutputToCustomIndicatorDef";
 import { upsertScriptDrawings } from "../scriptOutputToDrawings";
 import {
   HISTORICAL_REPLAY_TIMEOUT_MS,
@@ -87,6 +88,7 @@ export function useScriptEngine(
   const [scriptIndicators, setScriptIndicators] = useState<CustomIndicatorDef[]>([]);
   const [scriptDrawings, setScriptDrawings] = useState<TrendLineDrawing[]>([]);
   const [scriptTable, setScriptTable] = useState<ScriptTableOutput | null>(null);
+  const [scriptLabels, setScriptLabels] = useState<ResolvedScriptLabel[]>([]);
   const workerRef = useRef<Worker | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -100,6 +102,12 @@ export function useScriptEngine(
     setScriptIndicators((prev) => upsertScriptCustomIndicators(prev, scriptId, runResult.panes));
     setScriptDrawings((prev) => upsertScriptDrawings(prev, scriptId, runResult.drawings));
     setScriptTable(runResult.table);
+    setScriptLabels(
+      runResult.labels.map((label) => ({
+        ...label,
+        paneId: label.paneType === "own" ? scriptPaneIndicatorId(scriptId, label.paneName) : null,
+      }))
+    );
   }
 
   function clearPendingTimeout() {
@@ -188,6 +196,7 @@ export function useScriptEngine(
           table: null,
           xyCharts: [],
           alerts: [],
+          labels: [],
         };
         setResult(errorResult);
         setRunning(false);
@@ -204,6 +213,7 @@ export function useScriptEngine(
           table: null,
           xyCharts: [],
           alerts: [],
+          labels: [],
         };
         setResult(timeoutResult);
         setRunning(false);
@@ -242,5 +252,5 @@ export function useScriptEngine(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data]);
 
-  return { result, running, scriptIndicators, scriptDrawings, scriptTable, run, stop };
+  return { result, running, scriptIndicators, scriptDrawings, scriptTable, scriptLabels, run, stop };
 }

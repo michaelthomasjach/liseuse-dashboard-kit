@@ -124,7 +124,16 @@ export function runScript(snapshot: ScriptEngineSnapshot): ScriptRunResult {
   } catch (err) {
     // A SyntaxError here carries no usable line/column at all (confirmed empirically — V8 reports
     // only "at new Function (<anonymous>)", no position) — message-only is the honest result.
-    return { error: { message: err instanceof Error ? err.message : String(err) }, logs, panes: [], drawings: [], table: null, xyCharts: [], alerts: [] };
+    return {
+      error: { message: err instanceof Error ? err.message : String(err) },
+      logs,
+      panes: [],
+      drawings: [],
+      table: null,
+      xyCharts: [],
+      alerts: [],
+      labels: [],
+    };
   }
 
   for (let i = 0; i <= snapshot.runUpToIndex; i++) {
@@ -132,10 +141,10 @@ export function runScript(snapshot: ScriptEngineSnapshot): ScriptRunResult {
     try {
       compiled(market, chart, plot, state, alert, bar, mathApi, taApi, scriptConsole);
     } catch (err) {
-      const { panes, drawings, table, xyCharts } = getPlotResult();
-      return { error: toScriptError(err), logs, panes, drawings, table, xyCharts, alerts: getAlerts() };
+      const { panes, drawings, table, xyCharts, labels } = getPlotResult();
+      return { error: toScriptError(err), logs, panes, drawings, table, xyCharts, alerts: getAlerts(), labels };
     }
   }
-  const { panes, drawings, table, xyCharts } = getPlotResult();
-  return { error: null, logs, panes, drawings, table, xyCharts, alerts: getAlerts() };
+  const { panes, drawings, table, xyCharts, labels } = getPlotResult();
+  return { error: null, logs, panes, drawings, table, xyCharts, alerts: getAlerts(), labels };
 }

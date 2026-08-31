@@ -1461,6 +1461,22 @@
   border-bottom: 1px solid var(--lq-color-border-subtle);
 }
 
+/* A `pane.label`/`overlay.label` output (see ScriptLabelOverlay.tsx's own doc) — `left`/`top` are
+   set inline per label (already resolved to absolute pixels within the plot), this only carries
+   the shape every label shares: same corner-overlay layer as .lq-chart__script-table-corner above,
+   no box/background of its own (a label is meant to read as chart annotation text, not a floating
+   card) — the anchor-point translate + rotation are also inline (both depend on that specific
+   label's own align/rotation, see ScriptLabelOverlay.tsx). */
+.lq-chart__script-label {
+  position: absolute;
+  z-index: 6;
+  color: var(--lq-color-text);
+  font-size: var(--lq-text-xs);
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
 /* 6 dots (GripIcon) at reduced opacity until hovered/actively dragged — press-and-hold drags the
    whole toolbar (see startDrag), same "barely-there until you need it" affordance
    .lq-chart__pane-resize-grip already uses for pane dividers. */

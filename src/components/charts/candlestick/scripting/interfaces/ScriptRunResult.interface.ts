@@ -64,6 +64,28 @@ export interface ScriptDrawingOutput {
   text?: string;
 }
 
+/** One `pane.label(...)`/`overlay.label(...)` output — a single element positioned in pixels or
+ *  percent within its own pane (`paneName`/`paneType` identify which one — see
+ *  `scriptPaneIndicatorId` in `scriptOutputToCustomIndicatorDef.ts`, the same id derivation used
+ *  to resolve `paneType === "own"` to a real on-screen pane at render time), not tied to a bar
+ *  index/value the way `pane.line`/`pane.area` are. "Latest call for this name wins" within its
+ *  own pane, same as every other `PaneSeriesHandle` method (`buildPlotApi.ts`'s own
+ *  `subSeriesByName`-style upsert) — a script that wants an always-current label just calls
+ *  `.label(...)` unconditionally every bar, no `bar.isNew()` gating needed. */
+export interface ScriptLabelOutput {
+  paneName: string;
+  paneType: "overlay" | "own";
+  name: string;
+  text: string;
+  x: number;
+  y: number;
+  unit: "px" | "%";
+  rotation: number;
+  color?: string;
+  fontSize?: number;
+  align?: "left" | "center" | "right";
+}
+
 /** One `plot.xy(...)` output — a free-standing X/Y chart, decoupled from the bar-by-bar replay
  *  (see `PlotApi.xy`'s own doc): whole `x`/`y` arrays passed in one call, "latest call for this
  *  name wins" like `ScriptTableOutput`, not an accumulating per-bar series like `ScriptPaneSeries`.
@@ -134,4 +156,5 @@ export interface ScriptRunResult {
   table: ScriptTableOutput | null;
   xyCharts: ScriptXYChartOutput[];
   alerts: ScriptRunAlert[];
+  labels: ScriptLabelOutput[];
 }

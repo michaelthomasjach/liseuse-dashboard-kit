@@ -46,6 +46,12 @@ export const SCRIPT_API_COMPLETIONS: ScriptApiCompletion[] = [
   { label: "plot.overlay", type: "function", detail: "(name) => handle — pane prix, dessiner via .line/.area/.histogram/.band", apply: 'plot.overlay("")' },
   { label: ".area", type: "function", detail: "(name, value, options?) — pane.area/overlay.area" },
   { label: ".band", type: "function", detail: "(name, upper, lower, options?) — pane.band/overlay.band, remplit entre deux courbes" },
+  {
+    label: ".label",
+    type: "function",
+    detail: "(name, texte, { x, y, unit?, rotation?, ... }) — pane.label/overlay.label, élément positionné librement",
+    apply: '.label("", "", { x: 50, y: 50 })',
+  },
   { label: "plot.signal", type: "function", detail: '("BUY"|"SELL" | {type,price?,color?,shape?})', apply: 'plot.signal("BUY")' },
   { label: "plot.point", type: "function", detail: "(value, options?)", apply: "plot.point()" },
   { label: "plot.horizontal", type: "function", detail: "(price, options?)", apply: "plot.horizontal()" },

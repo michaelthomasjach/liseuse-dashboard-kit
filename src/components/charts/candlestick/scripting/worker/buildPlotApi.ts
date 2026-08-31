@@ -1,5 +1,6 @@
 import type {
   ScriptDrawingOutput,
+  ScriptLabelOutput,
   ScriptPaneSeries,
   ScriptPaneSubSeries,
   ScriptTableOutput,
@@ -35,6 +36,20 @@ export interface PlotBandOptions {
    *  same relationship the built-in Bollinger Bands rendering already has). Default 1. */
   lineWidth?: number;
 }
+export interface PlotLabelOptions {
+  /** Position within *this pane's own* box (not the whole chart — unlike `plot.table`'s corner
+   *  anchoring) — `overlay`'s box is the price pane, `pane`'s is that pane's own strip. `unit`
+   *  picks how `x`/`y` are read: `"%"` (default) is relative to the pane's own width/height (0-100
+   *  each way), `"px"` is an absolute pixel offset from the pane's own top-left corner. */
+  x: number;
+  y: number;
+  unit?: "px" | "%";
+  /** Degrees, clockwise, around the label's own center. Default 0. */
+  rotation?: number;
+  color?: string;
+  fontSize?: number;
+  align?: "left" | "center" | "right";
+}
 export interface PlotXYOptions {
   color?: string;
   /** Points joined by a line (a function's own curve), or drawn as unconnected dots (a scatter of
@@ -66,6 +81,11 @@ export interface PaneSeriesHandle {
   /** A translucent fill between two curves, plus thin upper/lower lines and a computed middle
    *  line — same rendering Bollinger Bands already uses. */
   band(name: string, upper: number, lower: number, options?: PlotBandOptions): void;
+  /** A single element positioned precisely within this pane's own box, in pixels or percent, with
+   *  an optional rotation — unlike `line`/`area`/`histogram`/`band`, not tied to a bar index or
+   *  value at all. See `PlotLabelOptions`'s own doc. "Latest call for this `name` wins," same
+   *  upsert-by-name rule as every other method here. */
+  label(name: string, text: string, options: PlotLabelOptions): void;
 }
 
 export interface PlotApi {
@@ -114,19 +134,27 @@ function slugify(name: string): string {
  *  finished, not per bar. `plot.pane`/`plot.overlay` upsert into `panesByName` by their own name
  *  (recreated every bar since the whole script re-runs from the top each time, same idempotent-
  *  by-name rule the old flat API already had), each returning a handle that itself upserts into
- *  that one pane's own `subSeriesByName`; a discrete marker (`signal`/`point`/`horizontal`/
- *  `vertical`) just appends to `drawings`, one entry per call. */
+ *  that one pane's own `subSeriesByName` (or `labelsByName` for `.label`, upserted the same way);
+ *  a discrete marker (`signal`/`point`/`horizontal`/`vertical`) just appends to `drawings`, one
+ *  entry per call. */
 export function buildPlotApi(
   getCurrentDate: () => number,
   getCurrentClose: () => number | null
 ): {
   api: PlotApi;
-  getResult: () => { panes: ScriptPaneSeries[]; drawings: ScriptDrawingOutput[]; table: ScriptTableOutput | null; xyCharts: ScriptXYChartOutput[] };
+  getResult: () => {
+    panes: ScriptPaneSeries[];
+    drawings: ScriptDrawingOutput[];
+    table: ScriptTableOutput | null;
+    xyCharts: ScriptXYChartOutput[];
+    labels: ScriptLabelOutput[];
+  };
 } {
   interface PaneEntry {
     name: string;
     pane: ScriptPaneSeries["pane"];
     subSeriesByName: Map<string, ScriptPaneSubSeries>;
+    labelsByName: Map<string, ScriptLabelOutput>;
   }
   const panesByName = new Map<string, PaneEntry>();
   const drawings: ScriptDrawingOutput[] = [];
@@ -160,13 +188,28 @@ export function buildPlotApi(
       area: (name, value, options) => upsert(name, "area", { date: getCurrentDate(), value }, options),
       histogram: (name, value, options) => upsert(name, "histogram", { date: getCurrentDate(), value }, options),
       band: (name, upper, lower, options) => upsert(name, "band", { date: getCurrentDate(), upper, lower }, options),
+      label: (name, text, options) => {
+        paneEntry.labelsByName.set(name, {
+          paneName: paneEntry.name,
+          paneType: paneEntry.pane,
+          name,
+          text,
+          x: options.x,
+          y: options.y,
+          unit: options.unit ?? "%",
+          rotation: options.rotation ?? 0,
+          color: options.color,
+          fontSize: options.fontSize,
+          align: options.align,
+        });
+      },
     };
   }
 
   function getOrCreatePane(name: string, pane: ScriptPaneSeries["pane"]): PaneSeriesHandle {
     let entry = panesByName.get(name);
     if (!entry) {
-      entry = { name, pane, subSeriesByName: new Map() };
+      entry = { name, pane, subSeriesByName: new Map(), labelsByName: new Map() };
       panesByName.set(name, entry);
     }
     return makeHandle(entry);
@@ -225,6 +268,7 @@ export function buildPlotApi(
       drawings,
       table,
       xyCharts: [...xyChartsByName.values()],
+      labels: [...panesByName.values()].flatMap((entry) => [...entry.labelsByName.values()]),
     }),
   };
 }

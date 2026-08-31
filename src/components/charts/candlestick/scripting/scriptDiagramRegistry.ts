@@ -10,6 +10,7 @@ import {
   BarIsNewDiagram,
   ResampleDiagram,
   PlotTableDiagram,
+  PlotLabelDiagram,
 } from "./scriptingDiagrams";
 
 /** One explanatory diagram per `diagramKey` a `scriptApiReference.ts` block can reference — same
@@ -26,4 +27,5 @@ export const SCRIPT_DIAGRAM_REGISTRY: Record<string, ComponentType> = {
   barIsNew: BarIsNewDiagram,
   resample: ResampleDiagram,
   plotTable: PlotTableDiagram,
+  plotLabel: PlotLabelDiagram,
 };

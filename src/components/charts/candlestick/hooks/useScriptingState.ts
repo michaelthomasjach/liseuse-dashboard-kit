@@ -132,6 +132,11 @@ export function useScriptingState({ defaultScripts, onScriptsChange, controlledE
     () => Object.values(runOutputs).reduce<ScriptTableOutput[]>((acc, o) => (o.table ? [...acc, o.table] : acc), []),
     [runOutputs]
   );
+  // Same "each script contributes its own, a plain concat can't collide" reasoning as
+  // scriptIndicators/scriptDrawings above — a label's own paneName is only unique *within* the
+  // script that created it, but ScriptLabelOverlay.tsx only ever needs it alongside that same
+  // label's already-resolved paneId, never across scripts.
+  const scriptLabels = useMemo(() => Object.values(runOutputs).flatMap((o) => o.labels), [runOutputs]);
 
   return {
     scripts,
@@ -151,5 +156,6 @@ export function useScriptingState({ defaultScripts, onScriptsChange, controlledE
     scriptIndicators,
     scriptDrawings,
     scriptTables,
+    scriptLabels,
   };
 }

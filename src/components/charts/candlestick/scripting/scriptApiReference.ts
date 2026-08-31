@@ -319,6 +319,32 @@ if (sma !== null && std !== null) {
   plot.overlay("Enveloppe maison").band("Enveloppe", sma + 2 * std, sma - 2 * std, { color: "#3ea377" });
 }`
       ),
+      h("Positionner un élément librement — .label", [".label"]),
+      t(
+        "pane.label(name, texte, options) / overlay.label(name, texte, options) placent un texte à une position précise, en pixels ou en %, avec une rotation possible — contrairement à .line/.area/.histogram/.band, aucun lien avec une bougie ou une valeur : c'est une annotation libre, pas une série de données."
+      ),
+      d("plotLabel"),
+      t(
+        "x/y sont relatifs à cette pane précise, pas à toute la chart : sur overlay, (0, 0) est le coin haut-gauche du panneau prix ; sur pane, celui du panneau qu'elle désigne. Rien à voir avec plot.table, qui s'ancre lui à l'un des 4 coins de toute la chart."
+      ),
+      c(
+        `pane.label(name, texte, options)
+// options: {
+//   x, y,                                      // obligatoires
+//   unit?: "%" | "px",                          // défaut "%" — position relative à cette pane
+//   rotation?: number,                          // degrés, sens horaire — défaut 0
+//   color?: string;
+//   fontSize?: number;
+//   align?: "left" | "center" | "right",        // défaut "left"
+// }
+
+// Un titre centré en haut d'un panneau
+plot.pane("Momentum").label("titre", "Momentum", { x: 50, y: 8, align: "center" });
+
+// Un texte tourné de 90°, collé au bord droit
+plot.overlay("Prix").label("cote", "Zone haute", { x: 98, y: 20, rotation: 90, align: "right" });`
+      ),
+      t("Même règle « le dernier appel gagne » que .line/.area/.histogram/.band pour ce même name — pas besoin de bar.isNew() pour garder un label toujours à jour."),
       h("Marqueurs ponctuels", ["plot.signal", "plot.point", "plot.horizontal", "plot.vertical"]),
       t("Les quatre suivantes posent un marqueur ponctuel sur la bougie courante — un appel = un marqueur, jamais une série continue :"),
       c(

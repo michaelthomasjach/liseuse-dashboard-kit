@@ -5,6 +5,15 @@ function slugify(name: string): string {
   return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "plot";
 }
 
+/** The deterministic id a `plot.pane`/`plot.overlay` output converts to as a `CustomIndicatorDef`
+ *  (see `scriptPaneToCustomIndicatorDef`'s own doc) — extracted so `useScriptEngine.ts` can derive
+ *  the exact same id for a `.label`'s own `paneName` when resolving which real on-screen "own"
+ *  pane it belongs to (see `ScriptLabelOutput`'s own doc), rather than risking the two id formulas
+ *  drifting apart if one were ever edited without the other. */
+export function scriptPaneIndicatorId(scriptId: string, paneName: string): string {
+  return `script:${scriptId}:${slugify(paneName)}`;
+}
+
 /** One `plot.pane`/`plot.overlay` output, converted into the exact shape
  *  `CandlestickChartProps.customIndicators` already accepts — this is the whole reason a script
  *  can produce a real chart pane/legend entry with zero changes to `indicators.ts`,
@@ -28,7 +37,7 @@ function slugify(name: string): string {
  *  so the caller can upsert-by-id into its own `customIndicators` array (replacing the previous
  *  run's version in place) instead of the array growing forever across runs. */
 export function scriptPaneToCustomIndicatorDef(scriptId: string, pane: ScriptPaneSeries): CustomIndicatorDef {
-  const id = `script:${scriptId}:${slugify(pane.name)}`;
+  const id = scriptPaneIndicatorId(scriptId, pane.name);
   const type = pane.pane === "overlay" ? "overlay" : "own";
 
   if (pane.series.length === 1) {

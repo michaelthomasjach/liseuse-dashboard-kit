@@ -36,6 +36,7 @@ import { ChartLegend } from "./candlestick/components/ChartLegend";
 import { PaneHeaders } from "./candlestick/components/PaneHeaders";
 import { ChartPlotOverlays } from "./candlestick/components/ChartPlotOverlays";
 import { ScriptTableOverlay } from "./candlestick/components/ScriptTableOverlay";
+import { ScriptLabelOverlay } from "./candlestick/components/ScriptLabelOverlay";
 import { FloatingDrawingToolbar } from "./candlestick/components/FloatingDrawingToolbar";
 import { ChartModals } from "./candlestick/components/ChartModals";
 import { ChartEventTooltip } from "./EventTooltip";
@@ -815,6 +816,16 @@ export function CandlestickChart({
           />
         )}
         {priceHeight > 0 && scriptingState.scriptTables.length > 0 && <ScriptTableOverlay tables={scriptingState.scriptTables} />}
+        {priceHeight > 0 && scriptingState.scriptLabels.length > 0 && (
+          <ScriptLabelOverlay
+            labels={scriptingState.scriptLabels}
+            dims={dims}
+            priceHeight={priceHeight}
+            ownPaneIndicators={ownPaneIndicators}
+            indicatorPaneTops={indicatorPaneTops}
+            indicatorPaneHeights={indicatorPaneHeights}
+          />
+        )}
         <PaneHeaders
           volumeVisible={volumeVisible}
           dims={dims}

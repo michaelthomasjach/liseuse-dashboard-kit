@@ -704,7 +704,6 @@ export function CandlestickChart({
       <div className="lq-chart__main">
       {showHeader && !seasonalityOpen && (
         <ChartHeader
-          dims={dims}
           timeframes={timeframes}
           timeframe={timeframe}
           onTimeframeChange={onTimeframeChange}

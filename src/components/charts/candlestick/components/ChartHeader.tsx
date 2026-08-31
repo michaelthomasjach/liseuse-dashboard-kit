@@ -23,7 +23,6 @@ import type { BarRangeOption, BarRangeValue } from "../hooks/useBarRangeSelectio
 import { TemplateControls } from "./TemplateControls";
 
 export interface ChartHeaderProps {
-  dims: { width: number | undefined };
   timeframes: TimeframeEntry[] | undefined;
   timeframe: string | undefined;
   onTimeframeChange: ((value: string) => void) | undefined;
@@ -87,7 +86,6 @@ export interface ChartHeaderProps {
  *  live here too — moved to ToolsRail's own rail and ChartWorkspace's own side-rail respectively,
  *  see each of those for why.) */
 export function ChartHeader({
-  dims,
   timeframes,
   timeframe,
   onTimeframeChange,
@@ -144,7 +142,7 @@ export function ChartHeader({
   onLinkClick,
 }: ChartHeaderProps) {
   return (
-    <div className="lq-chart__header" style={{ width: dims.width }}>
+    <div className="lq-chart__header">
       {timeframes && timeframes.length > 0 && (
         <>
           <button ref={tfAnchorRef} type="button" className="lq-chart__timeframe-trigger" onClick={() => setTfOpen((o) => !o)}>

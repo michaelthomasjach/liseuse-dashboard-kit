@@ -434,6 +434,37 @@ export function useZoomAndScales({
     setXTransformViaZoom(t);
   }, [dims.boundedWidth, data.length, initialVisibleCandles, transformForVisibleCount, setXTransformViaZoom]);
 
+  // Preserves whatever candle range was actually visible across a *width* change — e.g. dragging
+  // ChartWorkspace's own watchlist panel wider/narrower shrinks/grows this chart's own
+  // dims.boundedWidth as a flex sibling, same as the tools rail/side panel toggling does. Without
+  // this, `transform` (a fixed pixel scale/translate) stays byte-for-byte the same while the pixel
+  // space it's applied to changes size — the exact same k/x then silently maps to a *different*
+  // set of candles the instant boundedWidth is different, which read as the chart panning/zooming
+  // on its own while only the panel was being dragged (exigence : « le contenu de la chart qui se
+  // déplace quand je resize le panneau de droite »). Recomputes a fresh transform that keeps the
+  // *same* [i0, i1] domain on screen under the new width, via the identical derivation
+  // `transformForVisibleCount` already uses for its own "exactly N candles, flush right" case —
+  // just anchored to whatever the previous domain actually was instead of always the dataset's own
+  // last N. Gated on `initialViewAppliedRef` so it never fights that effect's own first-ever
+  // width measurement; the `prevWidth === dims.boundedWidth` guard makes every other dependency
+  // change (panning/zooming also touches `transform`) a harmless no-op run rather than something
+  // that needs excluding from the dependency list.
+  const prevBoundedWidthRef = useRef(dims.boundedWidth);
+  useEffect(() => {
+    const prevWidth = prevBoundedWidthRef.current;
+    prevBoundedWidthRef.current = dims.boundedWidth;
+    if (!initialViewAppliedRef.current) return;
+    if (prevWidth <= 0 || dims.boundedWidth <= 0 || prevWidth === dims.boundedWidth || data.length === 0) return;
+
+    const oldXScale = d3.scaleLinear().domain([0, Math.max(1, data.length)]).range([0, prevWidth]);
+    const [i0, i1] = transform.rescaleX(oldXScale).domain();
+    const x0 = xScale(i0);
+    const x1 = xScale(i1);
+    if (x1 - x0 <= 0) return;
+    const k = Math.min(maxXZoom, Math.max(1, dims.boundedWidth / (x1 - x0)));
+    setXTransformViaZoom(new d3.ZoomTransform(k, -k * x0, 0));
+  }, [dims.boundedWidth, data.length, xScale, maxXZoom, transform, setXTransformViaZoom]);
+
   const xAxisDrag = useAxisDragRescale({
     axis: "x",
     size: dims.boundedWidth,

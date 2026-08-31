@@ -1,4 +1,5 @@
 import { SCRIPT_API_REFERENCE } from "./scriptApiReference";
+import { SCRIPT_EXAMPLES } from "./scriptExamples";
 
 /** Same slugification as `scriptOutputToCustomIndicatorDef.ts`'s own local `slugify` — duplicated
  *  rather than imported (that one lives under `scripting/`'s worker-output-conversion concern,
@@ -28,14 +29,21 @@ export interface DocsNavSection {
 /** The left nav's own tree — one entry per `SCRIPT_API_REFERENCE` section, each carrying its own
  *  `heading`-kind blocks as sub-items (exigence : « je veux des sous-titre »). Computed once at
  *  module load (the reference data is static, never changes at runtime) rather than recomputed on
- *  every render. */
+ *  every render. "examples" is the one exception: its own `blocks` are deliberately empty (a
+ *  whole-section override, see `scriptApiReference.ts`'s own doc on that entry) — its sub-items
+ *  come from `SCRIPT_EXAMPLES` (`scriptExamples.ts`) instead, one per runnable script, using the
+ *  exact same `headingAnchorId("examples", ...)` scheme `ScriptExampleRunner.tsx` stamps on each
+ *  example's own container so a nav click still scrolls to the right place. */
 export const SCRIPT_DOCS_NAV: DocsNavSection[] = SCRIPT_API_REFERENCE.map((section) => ({
   id: section.id,
   title: section.title,
   group: section.group,
-  headings: section.blocks
-    .filter((block) => block.kind === "heading" && block.text)
-    .map((block) => ({ id: headingAnchorId(section.id, block.text ?? ""), text: block.text ?? "" })),
+  headings:
+    section.id === "examples"
+      ? SCRIPT_EXAMPLES.map((example) => ({ id: headingAnchorId("examples", example.title), text: example.title }))
+      : section.blocks
+          .filter((block) => block.kind === "heading" && block.text)
+          .map((block) => ({ id: headingAnchorId(section.id, block.text ?? ""), text: block.text ?? "" })),
 }));
 
 /** Every `SCRIPT_API_COMPLETIONS` label (`scriptApiCompletions.ts`) that a specific heading names

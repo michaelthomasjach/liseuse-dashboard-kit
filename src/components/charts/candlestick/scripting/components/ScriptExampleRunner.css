@@ -1,0 +1,42 @@
+.lq-script-example {
+  margin-bottom: var(--lq-space-6);
+}
+
+.lq-script-example__toolbar {
+  display: flex;
+  margin: var(--lq-space-2) 0;
+}
+
+.lq-script-example__run-button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lq-space-1);
+  padding: var(--lq-space-1) var(--lq-space-2);
+  border: 1px solid var(--lq-color-border-subtle);
+  background: transparent;
+  color: var(--lq-color-text);
+  cursor: pointer;
+  font-size: var(--lq-text-sm);
+}
+
+.lq-script-example__run-button:hover:not(:disabled) {
+  background: var(--lq-color-hover);
+}
+
+.lq-script-example__run-button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* position: relative so ScriptTableOverlay (a plain sibling of the CandlestickChart mounted here,
+   same anchoring reasoning as ScriptInteractiveTutorial.css's own .lq-script-tutorial__preview)
+   positions its own corner-anchored table against this box, not some other ancestor up the tree. */
+.lq-script-example__preview {
+  position: relative;
+  border: 1px solid var(--lq-color-border-subtle);
+}
+
+.lq-script-example__xy-chart {
+  border: 1px solid var(--lq-color-border-subtle);
+  border-top: none;
+}

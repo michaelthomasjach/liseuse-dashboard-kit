@@ -7,6 +7,7 @@ import { SCRIPT_DIAGRAM_REGISTRY } from "../scriptDiagramRegistry";
 import { SCRIPT_DOCS_NAV, headingAnchorId } from "../scriptDocsNav";
 import { ScriptInteractiveTutorial } from "./ScriptInteractiveTutorial";
 import { ScriptKeywordsIndex } from "./ScriptKeywordsIndex";
+import { ScriptExamplesSection } from "./ScriptExamplesSection";
 import "./ScriptDocumentationModal.css";
 
 export interface ScriptDocumentationModalProps {
@@ -215,11 +216,12 @@ export function ScriptDocumentationModal({ open, onClose }: ScriptDocumentationM
                 .join(" ")}
             >
               <h3 className="lq-script-docs__section-title">{section.title}</h3>
-              {/* The "keywords" and "tutorial" sections are each a whole-section override — neither
-                  owns real `blocks` (see scriptApiReference.ts's own doc on the "keywords" entry):
-                  one is a searchable index with its own pin state, the other a live-editable
-                  walkthrough with its own running script engine — plain data has no way to express
-                  either. Every other section renders its blocks normally below. */}
+              {/* "keywords"/"tutorial"/"examples" are each a whole-section override — none of the
+                  three owns real `blocks` (see scriptApiReference.ts's own doc on each entry): a
+                  searchable index with its own pin state, a live-editable walkthrough with its own
+                  running script engine, and six independently-runnable example scripts each with
+                  their own — plain data has no way to express any of the three. Every other
+                  section renders its blocks normally below. */}
               {section.id === "keywords" && (
                 <ScriptKeywordsIndex
                   query={query}
@@ -229,7 +231,9 @@ export function ScriptDocumentationModal({ open, onClose }: ScriptDocumentationM
                 />
               )}
               {section.id === "tutorial" && <ScriptInteractiveTutorial />}
+              {section.id === "examples" && <ScriptExamplesSection />}
               {section.id !== "keywords" &&
+                section.id !== "examples" &&
                 section.blocks.map((block, i) => {
                   if (block.kind === "heading")
                     return (

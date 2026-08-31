@@ -24,13 +24,14 @@ export interface UseDockedPaneColumnsStateArgs {
   candleWidth: number;
   boundedWidth: number;
   plotBoundedHeight: number;
-  /** Pixel offset from the top of the outer `.lq-chart` flex row down to where `.lq-chart__plot`
-   *  actually starts (`headerSpace`, i.e. `showHeader ? HEADER_HEIGHT : 0` — see
-   *  CandlestickChart.tsx's own `plotHeight` doc) — a `<ChartSidePaneColumn>` is a flex *sibling*
-   *  of `.lq-chart__main`, not a child of it, so it never automatically inherits the room
-   *  `.lq-chart__main` reserves above its own plot for `<ChartHeader>` (the timeframe/replay
-   *  toolbar); without pushing the column down by this same amount, its own top edge lines up
-   *  with the *toolbar's* own top instead of the candles' own top one row below it. */
+  /** Pixel offset from the top of the outer `.lq-chart` flex row down to where the candles
+   *  actually start — `headerSpace` (`showHeader ? HEADER_HEIGHT : 0`, see CandlestickChart.tsx's
+   *  own `plotHeight` doc) *plus* `dims.margin.top` (0 by DEFAULT_MARGIN, but a caller-supplied
+   *  `margin` prop can set it — see ChartCanvasOverlay.tsx's own canvas/svg, both offset by it). A
+   *  `<ChartSidePaneColumn>` is a flex *sibling* of `.lq-chart__main`, not a child of it, so it
+   *  never automatically inherits either of those — without pushing the column down by their sum,
+   *  its own top edge lines up with the toolbar's own top (or, with a non-zero margin.top, still
+   *  short of the candles by that remaining amount) instead of the candles' own top. */
   topOffset: number;
   /** `dims.margin.bottom` — how far *below* `plotBoundedHeight` the main plot's own date-axis
    *  labels extend (see DEFAULT_MARGIN's own doc; resolved, not the raw default, so a mobile-rail

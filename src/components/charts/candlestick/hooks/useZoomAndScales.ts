@@ -21,12 +21,21 @@ import { computeHeikinAshiCandles, computeRenkoBrickSize, computeRenkoBricks, co
  *  width instead of the main plot's `dims.boundedWidth` — same `zoomedXScale` domain either way
  *  (see that hook's own leftZoomedXScale/rightZoomedXScale doc for why the *domain* is shared but
  *  the *range* isn't). Spaced from the scale's own *unclamped* domain, not a pre-clamped
- *  [0, data.length] range — see the call site below for why. */
-export function computeDateTickValues(zoomedXScale: d3.ScaleLinear<number, number>, dataLength: number, width: number): number[] {
+ *  [0, data.length] range — see the call site below for why. `minSpacingPx` defaults to the
+ *  main/side-column *horizontal* axis's own spacing (MIN_DATE_TICK_SPACING_PX) — a docked
+ *  column's own *vertical* date axis (see ChartSidePaneColumn.tsx) passes
+ *  MIN_DATE_TICK_SPACING_PX_VERTICAL instead, since labels there stack one text line tall rather
+ *  than needing their own full width side by side. */
+export function computeDateTickValues(
+  zoomedXScale: d3.ScaleLinear<number, number>,
+  dataLength: number,
+  width: number,
+  minSpacingPx: number = MIN_DATE_TICK_SPACING_PX
+): number[] {
   const [i0, i1] = zoomedXScale.domain();
   const domainCount = i1 - i0;
   if (domainCount <= 0 || dataLength === 0) return [];
-  const maxTicksForWidth = Math.max(2, Math.floor(width / MIN_DATE_TICK_SPACING_PX));
+  const maxTicksForWidth = Math.max(2, Math.floor(width / minSpacingPx));
   const maxTicks = Math.min(MAX_DATE_TICKS, maxTicksForWidth);
   const step = Math.max(1, Math.ceil(domainCount / maxTicks));
   const values: number[] = [];

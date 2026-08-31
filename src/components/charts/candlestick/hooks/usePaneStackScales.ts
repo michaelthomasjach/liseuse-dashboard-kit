@@ -19,6 +19,11 @@ export interface UsePaneStackScalesArgs {
    *  for it (SUB_PANE_COLLAPSED_HEIGHT, passed by useDockedPaneColumnsState.ts) keeps the two
    *  visually separate instead of overlapping. Default 0 (existing bottom-stack behavior). */
   headerReserve?: number;
+  /** Mirror of `headerReserve`, at the pane's own *bottom* instead of its top — room for a docked
+   *  column's own horizontal price axis (SIDE_DOCK_AXIS_HEIGHT, see ChartSidePaneColumn.tsx),
+   *  carved *out of* the pane's own height rather than added beyond it (unlike headerReserve,
+   *  which the header row needs regardless of whether axes are shown at all). Default 0. */
+  footerReserve?: number;
 }
 
 /** One pane *stack*'s own Y-scale per "own"-pane indicator in it — extracted out of
@@ -38,11 +43,12 @@ export function usePaneStackScales({
   visibleIndicators,
   paneYTransform,
   headerReserve = 0,
+  footerReserve = 0,
 }: UsePaneStackScalesArgs) {
   const ownPaneScales = useMemo(() => {
     const scales: Record<string, d3.ScaleLinear<number, number>> = {};
     ownPaneIndicators.forEach((ind, idx) => {
-      const height = indicatorPaneHeights[idx];
+      const height = indicatorPaneHeights[idx] - footerReserve;
       if (ind.kind === "rsi" || ind.kind === "chop" || ind.kind === "adx") {
         scales[ind.id] = d3.scaleLinear().domain([0, 100]).range([height, headerReserve]);
       } else if (ind.kind === "correlation") {
@@ -95,7 +101,7 @@ export function usePaneStackScales({
       }
     });
     return scales;
-  }, [ownPaneIndicators, indicatorPaneHeights, visibleIndicators, headerReserve]);
+  }, [ownPaneIndicators, indicatorPaneHeights, visibleIndicators, headerReserve, footerReserve]);
 
   const zoomedOwnPaneScales = useMemo(() => {
     const scales: Record<string, d3.ScaleLinear<number, number>> = {};

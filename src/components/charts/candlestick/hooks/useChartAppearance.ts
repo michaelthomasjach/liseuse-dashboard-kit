@@ -27,10 +27,13 @@ export function useChartAppearance({ YAutoScaling, livePrice }: UseChartAppearan
   // change it — same uncontrolled pattern as `drawings`/`indicators`, not a live mirror of the
   // prop after mount.
   const [yAutoScalingState, setYAutoScalingState] = useState(YAutoScaling);
-  // Whether the hatched "future" zone (past the last candle, to the plot's own right edge) is
-  // drawn — a chart-settings toggle, not a prop, same reasoning as yAutoScalingState above: purely
-  // a viewer preference, with no data of its own for a caller to control.
-  const [futureZoneVisible, setFutureZoneVisible] = useState(false);
+  // Whether the hatched "future"/"past" zones (past the last candle to the plot's own right edge,
+  // and before the first candle to its left edge) are drawn — chart-settings toggles, not props,
+  // same reasoning as yAutoScalingState above: purely a viewer preference, with no data of its own
+  // for a caller to control. Both default on — exigence : « par défaut je veux que ces 2 options
+  // soit cochées » (a change from futureZoneVisible's own previous default-off, see git history).
+  const [futureZoneVisible, setFutureZoneVisible] = useState(true);
+  const [pastZoneVisible, setPastZoneVisible] = useState(true);
 
   // Ticks once a second, only while `livePrice` is on — its only job is giving the countdown
   // badge (a plain DOM element, not part of the canvas draw effect) a reason to re-render each
@@ -59,6 +62,8 @@ export function useChartAppearance({ YAutoScaling, livePrice }: UseChartAppearan
     setYAutoScalingState,
     futureZoneVisible,
     setFutureZoneVisible,
+    pastZoneVisible,
+    setPastZoneVisible,
     now,
   };
 }

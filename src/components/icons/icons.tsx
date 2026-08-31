@@ -615,8 +615,13 @@ export const CandleModeIcon = (props: IconProps) => (
 
 export const LineCloseModeIcon = (props: IconProps) => (
   <IconBase {...props}>
-    <path d="M3 16 8 10 12 13 21 5" />
-    <circle cx="21" cy="5" r="1.4" fill="currentColor" stroke="none" />
+    {/* Shifted 2 units down from its own original coordinates — its vertical content span (3.6 to
+        16) sat off-center within the 24-unit viewBox (centroid ~9.8, not 12 like every sibling
+        mode icon), which visibly threw off row alignment next to CandleModeIcon/HeikinAshiModeIcon/
+        RenkoModeIcon/LineBreakModeIcon (each independently confirmed centered on 12) in the "Style
+        de bougie" list. */}
+    <path d="M3 18 8 12 12 15 21 7" />
+    <circle cx="21" cy="7" r="1.4" fill="currentColor" stroke="none" />
   </IconBase>
 );
 

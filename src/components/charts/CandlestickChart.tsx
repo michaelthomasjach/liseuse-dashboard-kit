@@ -227,6 +227,7 @@ export function CandlestickChart({
     volumeSettingsOpen, setVolumeSettingsOpen,
     yAutoScalingState, setYAutoScalingState,
     futureZoneVisible, setFutureZoneVisible,
+    pastZoneVisible, setPastZoneVisible,
     now,
   } = useChartAppearance({ YAutoScaling, livePrice });
   // Swaps the whole chart body for SeasonalityView — its own flag, not folded into
@@ -620,6 +621,7 @@ export function CandlestickChart({
     visibleIndicators,
     indexForDate,
     futureZoneVisible,
+    pastZoneVisible,
     replayArmed: replayState.armed,
     replayActive: replayState.active,
     replayPreviewIndex: replayState.previewIndex,
@@ -1012,6 +1014,7 @@ export function CandlestickChart({
         setYAutoScalingState={setYAutoScalingState}
         onYAutoScalingChange={onYAutoScalingChange}
         futureZoneVisible={futureZoneVisible} setFutureZoneVisible={setFutureZoneVisible}
+        pastZoneVisible={pastZoneVisible} setPastZoneVisible={setPastZoneVisible}
         eventKinds={eventKinds}
         hiddenEventKinds={hiddenEventKinds}
         setHiddenEventKinds={setHiddenEventKinds}

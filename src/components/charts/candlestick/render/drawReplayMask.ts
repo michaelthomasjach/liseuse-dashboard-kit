@@ -1,6 +1,7 @@
 import type { RenderCandlestickChartParams } from "../interfaces/RenderCandlestickChartParams.interface";
 import type { ChartCanvasStyle } from "../interfaces/ChartCanvasStyle.interface";
 import { snapPixel } from "../drawingGeometry";
+import { drawHatchLines } from "./drawFutureZone";
 
 /** Replay mode's own "cover" — see CandlestickChartProps.replay and useReplayState's own doc.
  *  While armed (choosing where to cut), a translucent preview follows the pointer
@@ -35,10 +36,29 @@ import { snapPixel } from "../drawingGeometry";
  *  Drawn LAST in renderChart.ts (after candles/drawings/volume/panes), unlike drawFutureZone's own
  *  background layer, specifically so its cover paints *over* everything else instead of under it —
  *  and across the plot's full height (`plotBoundedHeight`, not just `priceHeight`), so volume and
- *  any own-pane indicator disappear past the cutoff too, not just the price candles. */
+ *  any own-pane indicator disappear past the cutoff too, not just the price candles.
+ *
+ *  When `futureZoneVisible` is also on, the opaque fill gets `drawFutureZone.ts`'s own hatch
+ *  pattern drawn back on top of it (full `plotBoundedHeight`, not just `priceHeight` — every pane
+ *  has a "hidden future" during replay, not only price) — otherwise the option would silently do
+ *  nothing while replay is active: `drawFutureZone` itself skips entirely then (its own zone,
+ *  measured from the *real* last candle, sits at/past this cover's own left edge and would just be
+ *  erased right back by the fill above), so this is the one place that actually has to draw it. */
 export function drawReplayMask(ctx: CanvasRenderingContext2D, params: RenderCandlestickChartParams, style: ChartCanvasStyle) {
-  const { replayArmed, replayActive, replayPreviewIndex, replayCutoffIndex, zoomedXScale, zoomedPriceScale, dims, plotBoundedHeight, hovered, hoverY, hoverIndex } =
-    params;
+  const {
+    replayArmed,
+    replayActive,
+    replayPreviewIndex,
+    replayCutoffIndex,
+    zoomedXScale,
+    zoomedPriceScale,
+    dims,
+    plotBoundedHeight,
+    hovered,
+    hoverY,
+    hoverIndex,
+    futureZoneVisible,
+  } = params;
   const { colorBg, colorGrid, colorMuted } = style;
 
   const index = replayActive ? replayCutoffIndex : replayArmed ? replayPreviewIndex : null;
@@ -55,6 +75,8 @@ export function drawReplayMask(ctx: CanvasRenderingContext2D, params: RenderCand
     ctx.globalAlpha = replayActive ? 1 : 0.55;
     ctx.fillRect(maskLeft, 0, dims.boundedWidth - maskLeft, plotBoundedHeight);
     ctx.globalAlpha = 1;
+
+    if (replayActive && futureZoneVisible) drawHatchLines(ctx, dims.boundedWidth, plotBoundedHeight, style);
 
     if (replayActive) {
       ctx.strokeStyle = colorGrid;

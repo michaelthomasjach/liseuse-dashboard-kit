@@ -20,6 +20,8 @@ export interface ChartSettingsModalsProps {
   onYAutoScalingChange: ((value: boolean) => void) | undefined;
   futureZoneVisible: boolean;
   setFutureZoneVisible: (checked: boolean) => void;
+  pastZoneVisible: boolean;
+  setPastZoneVisible: (checked: boolean) => void;
   eventKinds: string[];
   hiddenEventKinds: Set<string>;
   setHiddenEventKinds: Dispatch<SetStateAction<Set<string>>>;
@@ -50,6 +52,8 @@ export function ChartSettingsModals({
   onYAutoScalingChange,
   futureZoneVisible,
   setFutureZoneVisible,
+  pastZoneVisible,
+  setPastZoneVisible,
   eventKinds,
   hiddenEventKinds,
   setHiddenEventKinds,
@@ -156,6 +160,11 @@ export function ChartSettingsModals({
               onYAutoScalingChange?.(checked);
             }}
             label="Rescale automatique de l'axe des prix au zoom"
+          />
+          <Checkbox
+            checked={pastZoneVisible}
+            onChange={setPastZoneVisible}
+            label="Zone rayée avant la première bougie"
           />
           <Checkbox
             checked={futureZoneVisible}

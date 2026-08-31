@@ -81,6 +81,8 @@ export interface RenderCandlestickChartParams {
    *  candle to the plot's right edge — see drawFutureZone.ts. A chart-settings toggle, not a
    *  prop; default false. */
   futureZoneVisible: boolean;
+  /** Mirror of `futureZoneVisible` — see `drawPastZone.ts`'s own doc (in `drawFutureZone.ts`). */
+  pastZoneVisible: boolean;
   /** Replay mode — see CandlestickChartProps.replay, useReplayState.ts, and drawReplayMask.ts's
    *  own doc. `replayPreviewIndex` drives the translucent preview while `replayArmed` (choosing
    *  a cutoff); `replayCutoffIndex` drives the opaque cover once `replayActive` (committed). */

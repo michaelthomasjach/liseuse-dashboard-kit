@@ -870,18 +870,7 @@ export function CandlestickChart({
           zoomRef={zoomRef}
           activeTool={activeTool}
           handleOverlayPointerDown={handleOverlayPointerDown}
-          handlePointerMove={
-            replayState.armed
-              ? (e) => {
-                  // The normal hover tracking still runs while armed (not swapped out, unlike the
-                  // click below) — otherwise the crosshair itself would freeze the moment replay
-                  // is armed, instead of continuing to track the pointer alongside the new cutoff
-                  // preview line (see drawReplayMask.ts's own doc on why it redraws both).
-                  handlePointerMove(e);
-                  replayState.handlePointerMove(zoomedXScale)(e);
-                }
-              : handlePointerMove
-          }
+          handlePointerMove={replayState.armed ? replayState.handlePointerMove(zoomedXScale) : handlePointerMove}
           handleOverlayPointerUp={handleOverlayPointerUp}
           handleOverlayClick={replayState.armed ? replayState.handleClick(zoomedXScale) : handleOverlayClick}
           handleOverlayDoubleClick={handleOverlayDoubleClick}

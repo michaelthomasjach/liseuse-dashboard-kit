@@ -1,10 +1,8 @@
 import { useRef } from "react";
 import type { RefObject } from "react";
 import type * as React from "react";
-import * as d3 from "d3";
 import type { ScaleLinear } from "d3";
 import { useRenderSidePaneColumn } from "../hooks/useRenderSidePaneColumn";
-import { computeDateTickValues } from "../hooks/useZoomAndScales";
 import { SidePaneHeaders } from "./SidePaneHeaders";
 import { ChartAxis } from "../../ChartAxis";
 import type { DockSide } from "../hooks/useDockedPaneColumns";
@@ -12,13 +10,7 @@ import type { Candle } from "../interfaces/Candle.interface";
 import type { Indicator } from "../interfaces/Indicator.interface";
 import type { IndicatorKind } from "../interfaces/IndicatorKind.interface";
 import type { IndicatorValue } from "../interfaces/IndicatorValue.interface";
-import {
-  SUB_PANE_COLLAPSED_HEIGHT,
-  SIDE_DOCK_AXIS_WIDTH,
-  SIDE_DOCK_AXIS_HEIGHT,
-  SIDE_DOCK_HEADER_GAP,
-  MIN_DATE_TICK_SPACING_PX_VERTICAL,
-} from "../constants";
+import { SUB_PANE_COLLAPSED_HEIGHT, SIDE_DOCK_AXIS_WIDTH } from "../constants";
 
 export interface ChartSidePaneColumnProps {
   side: DockSide;
@@ -33,6 +25,11 @@ export interface ChartSidePaneColumnProps {
    *  needs this at all (it doesn't automatically inherit `.lq-chart__main`'s own `<ChartHeader>`
    *  space above its plot). */
   topOffset: number;
+  /** `dims.margin.bottom` — see useDockedPaneColumnsState's own `marginBottom` doc: added beyond
+   *  `plotBoundedHeight` for this column's own date axis, exactly like the main plot's own bottom
+   *  margin, so the two line up at the same absolute height instead of this column falling short
+   *  by however much room its axis needed. */
+  marginBottom: number;
   themeTick: number;
   zoomedXScale: ScaleLinear<number, number>;
   candleWidth: number;
@@ -62,6 +59,10 @@ export interface ChartSidePaneColumnProps {
   indicatorValues: { indicator: Indicator; values: (IndicatorValue | null)[] }[];
   onOpenIndicatorInfo: (kind: IndicatorKind | "volume") => void;
   onEditScript?: (scriptId: string) => void;
+  /** Which candle indices (see computeDateTickValues) the shared date axis at the bottom of this
+   *  column draws a tick at — computed against this column's own (narrower) width, not the main
+   *  plot's, see useDockedPaneColumnsState's own leftDateTickValues/rightDateTickValues doc. */
+  dateTickValues: number[];
   dateTickFormat: (value: number) => string;
 }
 
@@ -93,6 +94,7 @@ export function ChartSidePaneColumn({
   columnWidth,
   plotBoundedHeight,
   topOffset,
+  marginBottom,
   themeTick,
   zoomedXScale,
   candleWidth,
@@ -113,6 +115,7 @@ export function ChartSidePaneColumn({
   indicatorValues,
   onOpenIndicatorInfo,
   onEditScript,
+  dateTickValues,
   dateTickFormat,
 }: ChartSidePaneColumnProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -135,29 +138,33 @@ export function ChartSidePaneColumn({
 
   // Reserved strips — toggled off `Indicator.sideAxesVisible` (default true, see its own doc), a
   // plain field on the runtime Indicator like every other Style-tab setting, not a `dock`-adjacent
-  // one on customData. The *date* axis is vertical, on the column's own outer edge (facing away
-  // from the main chart), reserving extra column *width* (SIDE_DOCK_AXIS_WIDTH) beyond the plot's
-  // own resizable columnWidth. The *price* axis is horizontal, one per pane, at that pane's own
-  // *bottom* — reserved by shrinking usePaneStackScales' own value range (`footerReserve`, applied
-  // in useDockedPaneColumnsState.ts) rather than adding column height, so nothing here needs to
-  // grow the group beyond plotBoundedHeight.
+  // one on customData. Both strips are *added* beyond the plot's own resizable box, mirroring how
+  // the main plot's own dims.margin.right/bottom work — never carved out of it — so a caller that
+  // turns axes off simply gets that space back rather than redistributing it.
   const showAxes = paneIndicators.some((ind) => ind.sideAxesVisible !== false);
   const axisWidth = showAxes ? SIDE_DOCK_AXIS_WIDTH : 0;
-  const headerReserve = SUB_PANE_COLLAPSED_HEIGHT + SIDE_DOCK_HEADER_GAP;
+  const axisHeight = showAxes ? marginBottom : 0;
   const plotWidth = widthPx ?? defaultWidthPx;
   const plotLeft = side === "left" ? axisWidth : 0;
-  // Same outer-edge convention the price axis used before this swap — still the side facing away
-  // from the main chart, just carrying dates now instead of price (see this component's own doc
-  // on why: a plain per-tick "16 Sep 2025"-style label needs its own full width to stay readable,
-  // which only fits stacked *vertically* in a narrow column, not crammed side by side).
-  const verticalAxisX = side === "right" ? columnWidth : axisWidth;
+  // Outer edge — facing away from the main chart — same convention the main plot's own price axis
+  // uses on its far-right edge.
+  const priceAxisX = side === "right" ? columnWidth : axisWidth;
   const priceAxisFmt = (v: number) => Number(v).toFixed(2);
 
   return (
     <div
       className="lq-chart__side-dock-pane-group"
-      style={{ position: "relative", flex: `0 0 ${plotWidth + axisWidth}px`, height: plotBoundedHeight, marginTop: topOffset }}
+      style={{ position: "relative", flex: `0 0 ${plotWidth + axisWidth}px`, height: plotBoundedHeight + axisHeight, marginTop: topOffset }}
     >
+      {/* Backfills the gap `marginTop` opens above this column with the exact same background +
+          bottom border `.lq-chart__header` (the timeframe/replay toolbar) already paints above
+          `.lq-chart__main` — without this, that toolbar's own row visually stops at the main
+          plot's own right edge instead of reading as one continuous bar all the way across to the
+          watchlist panel. An empty div reusing that class rather than a new rule of its own, so it
+          can never silently drift from the real header's own look. */}
+      {topOffset > 0 && (
+        <div className="lq-chart__header" style={{ position: "absolute", top: -topOffset, left: 0, width: "100%", height: topOffset }} />
+      )}
       <div
         ref={panelRef}
         className={["lq-chart__side-dock-pane", `lq-chart__side-dock-pane--${side}`].join(" ")}
@@ -186,44 +193,27 @@ export function ChartSidePaneColumn({
         />
       </div>
       {showAxes && (
-        <svg className="lq-chart__side-dock-axes" width={plotWidth + axisWidth} height={plotBoundedHeight}>
+        <svg className="lq-chart__side-dock-axes" width={plotWidth + axisWidth} height={plotBoundedHeight + axisHeight}>
           {paneIndicators.map((ind, idx) => {
-            const valueScale = zoomedPaneScales[ind.id];
-            const paneHeight = paneHeights[idx];
-            if (ind.paneCollapsed || ind.sideAxesVisible === false || !valueScale || paneHeight <= 0) return null;
-            const footerReserve = SIDE_DOCK_AXIS_HEIGHT;
-            // Horizontal, at this pane's own bottom — its own value domain (already auto-fit by
-            // usePaneStackScales) re-ranged onto the plot's own width instead of its own height.
-            const horizontalPriceScale = d3.scaleLinear().domain(valueScale.domain()).range([0, columnWidth]);
-            // Vertical, spanning the *same* [headerReserve, paneHeight - footerReserve] band the
-            // value curve itself is drawn in (see usePaneStackScales' own header/footerReserve) —
-            // visually aligned with the actual content, not the header/footer strips around it.
-            const verticalDateScale = d3.scaleLinear().domain(zoomedXScale.domain()).range([paneHeight - footerReserve, headerReserve]);
-            const verticalTickValues = computeDateTickValues(
-              verticalDateScale,
-              data.length,
-              paneHeight - footerReserve - headerReserve,
-              MIN_DATE_TICK_SPACING_PX_VERTICAL
-            );
+            const scale = zoomedPaneScales[ind.id];
+            if (ind.paneCollapsed || ind.sideAxesVisible === false || !scale || paneHeights[idx] <= 0) return null;
             return (
               <g key={ind.id} transform={`translate(0, ${paneTops[idx]})`}>
-                <ChartAxis
-                  scale={horizontalPriceScale}
-                  orientation="bottom"
-                  transform={`translate(${plotLeft}, ${paneHeight - footerReserve})`}
-                  ticks={3}
-                  tickFormat={priceAxisFmt}
-                />
-                <ChartAxis
-                  scale={verticalDateScale}
-                  orientation={side === "right" ? "right" : "left"}
-                  transform={`translate(${verticalAxisX}, 0)`}
-                  tickValues={verticalTickValues}
-                  tickFormat={dateTickFormat}
-                />
+                <ChartAxis scale={scale} orientation={side === "right" ? "right" : "left"} transform={`translate(${priceAxisX}, 0)`} ticks={3} tickFormat={priceAxisFmt} />
               </g>
             );
           })}
+          {/* One shared date axis for the whole column, at its true bottom (plotBoundedHeight,
+              *before* the added axisHeight strip) — exactly where the main plot's own date axis
+              sits relative to its candles (see ChartCanvasOverlay.tsx's own `transform`), so the
+              two line up at the same absolute height. */}
+          <ChartAxis
+            scale={zoomedXScale}
+            orientation="bottom"
+            transform={`translate(${plotLeft}, ${plotBoundedHeight})`}
+            tickValues={dateTickValues}
+            tickFormat={dateTickFormat}
+          />
         </svg>
       )}
     </div>

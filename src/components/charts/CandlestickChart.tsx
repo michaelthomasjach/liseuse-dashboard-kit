@@ -491,6 +491,7 @@ export function CandlestickChart({
     boundedWidth: dims.boundedWidth,
     plotBoundedHeight,
     topOffset: headerSpace,
+    marginBottom: dims.margin.bottom,
     themeTick,
     data,
     indicators: combinedIndicators,

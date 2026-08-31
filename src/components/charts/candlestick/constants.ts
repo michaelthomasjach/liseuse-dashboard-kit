@@ -101,25 +101,13 @@ export const TABLE_BORDER_HIT_MARGIN = 6;
 export const SIDE_DOCK_PANE_DEFAULT_WIDTH = 220;
 export const SIDE_DOCK_PANE_MIN_WIDTH = 120;
 export const SIDE_DOCK_PANE_MAX_WIDTH = 480;
-/** Reserved strip (px) for a docked column's own *date* axis — vertical, one per pane, on the
+/** Reserved strip (px) for a docked column's own *price* axis — vertical, one per pane, on the
  *  column's own *outer* edge (facing away from the main chart) — see ChartSidePaneColumn.tsx.
- *  Wide enough for a full "16 Sep 2025"-style label stacked with its neighbors, not the main
- *  plot's own price-axis width (a date label is wider than a price one; ticks here are thinned
- *  by *height*, not width — see computeDateTickValues' own `minSpacingPx`). */
-export const SIDE_DOCK_AXIS_WIDTH = 96;
-/** Reserved strip (px) at the *bottom* of each pane's own slot in a docked column, for that
- *  pane's own *price* axis — horizontal, carved out of the pane's own height (see
- *  usePaneStackScales' own `footerReserve`), not added beyond it the way the vertical strip above
- *  adds to the column's own width — nothing else needs that reserved room back if a caller
- *  ever turns axes off (`Indicator.sideAxesVisible`), so there's nothing to redistribute. */
-export const SIDE_DOCK_AXIS_HEIGHT = 24;
+ *  Added *beyond* the column's own resizable width (like the main plot's own `DEFAULT_MARGIN.right`
+ *  is added beyond `dims.boundedWidth`), not carved out of it. */
+export const SIDE_DOCK_AXIS_WIDTH = 72;
 /** Extra breathing room (px), beyond the header row's own SUB_PANE_COLLAPSED_HEIGHT, before a
  *  docked pane's plotted content is allowed to start — the header's own row already stops
  *  visually overlapping the content without this, but flush against it with zero gap still read
  *  as touching/cluttered. */
 export const SIDE_DOCK_HEADER_GAP = 10;
-/** Minimum pixel *height* reserved per date label before another tick is allowed to share a
- *  docked column's own *vertical* date axis with it — same reasoning as MIN_DATE_TICK_SPACING_PX,
- *  just far smaller: labels here stack top-to-bottom (one text line each, ~15px tall) instead of
- *  needing room side-by-side for their own full width. */
-export const MIN_DATE_TICK_SPACING_PX_VERTICAL = 20;

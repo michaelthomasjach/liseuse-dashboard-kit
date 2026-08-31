@@ -3,7 +3,8 @@ import * as d3 from "d3";
 import type { ScaleLinear } from "d3";
 import { useDockedPaneColumns } from "./useDockedPaneColumns";
 import { usePaneStackScales } from "./usePaneStackScales";
-import { SIDE_DOCK_PANE_DEFAULT_WIDTH, SUB_PANE_COLLAPSED_HEIGHT, SIDE_DOCK_HEADER_GAP, SIDE_DOCK_AXIS_HEIGHT } from "../constants";
+import { computeDateTickValues } from "./useZoomAndScales";
+import { SIDE_DOCK_PANE_DEFAULT_WIDTH, SUB_PANE_COLLAPSED_HEIGHT, SIDE_DOCK_HEADER_GAP } from "../constants";
 import type { Candle } from "../interfaces/Candle.interface";
 import type { Indicator } from "../interfaces/Indicator.interface";
 import type { IndicatorKind } from "../interfaces/IndicatorKind.interface";
@@ -31,6 +32,13 @@ export interface UseDockedPaneColumnsStateArgs {
    *  toolbar); without pushing the column down by this same amount, its own top edge lines up
    *  with the *toolbar's* own top instead of the candles' own top one row below it. */
   topOffset: number;
+  /** `dims.margin.bottom` — how far *below* `plotBoundedHeight` the main plot's own date-axis
+   *  labels extend (see DEFAULT_MARGIN's own doc; resolved, not the raw default, so a mobile-rail
+   *  layout's own taller bottom margin — see CandlestickChart.tsx's own `resolvedMargin` — still
+   *  matches exactly). A docked column's own date axis reuses this same amount, *added* beyond its
+   *  `plotBoundedHeight` the same way (not carved out of it), so its own bottom edge lines up with
+   *  the main plot's — see ChartSidePaneColumn.tsx. */
+  marginBottom: number;
   themeTick: number;
   data: Candle[];
   indicators: Indicator[];
@@ -70,6 +78,7 @@ export function useDockedPaneColumnsState({
   boundedWidth,
   plotBoundedHeight,
   topOffset,
+  marginBottom,
   themeTick,
   data,
   indicators,
@@ -87,12 +96,6 @@ export function useDockedPaneColumnsState({
 }: UseDockedPaneColumnsStateArgs) {
   const dockedPaneColumns = useDockedPaneColumns();
 
-  // Whether *this* side's own column reserves room for its axes at all — same
-  // `sideAxesVisible !== false` check ChartSidePaneColumn.tsx uses to decide whether to render
-  // them, computed here too since it also gates footerReserve below (nothing to carve out of a
-  // pane's own height for an axis that isn't shown).
-  const leftShowAxes = leftPaneIndicators.some((ind) => ind.sideAxesVisible !== false);
-  const rightShowAxes = rightPaneIndicators.some((ind) => ind.sideAxesVisible !== false);
   const headerReserve = SUB_PANE_COLLAPSED_HEIGHT + SIDE_DOCK_HEADER_GAP;
 
   const { zoomedOwnPaneScales: zoomedLeftPaneScales } = usePaneStackScales({
@@ -101,7 +104,6 @@ export function useDockedPaneColumnsState({
     visibleIndicators,
     paneYTransform,
     headerReserve,
-    footerReserve: leftShowAxes ? SIDE_DOCK_AXIS_HEIGHT : 0,
   });
   const { zoomedOwnPaneScales: zoomedRightPaneScales } = usePaneStackScales({
     ownPaneIndicators: rightPaneIndicators,
@@ -109,7 +111,6 @@ export function useDockedPaneColumnsState({
     visibleIndicators,
     paneYTransform,
     headerReserve,
-    footerReserve: rightShowAxes ? SIDE_DOCK_AXIS_HEIGHT : 0,
   });
 
   const leftColumnWidth = dockedPaneColumns.widths.left ?? SIDE_DOCK_PANE_DEFAULT_WIDTH;
@@ -136,9 +137,22 @@ export function useDockedPaneColumnsState({
   const leftCandleWidth = boundedWidth > 0 ? candleWidth * (leftColumnWidth / boundedWidth) : 0;
   const rightCandleWidth = boundedWidth > 0 ? candleWidth * (rightColumnWidth / boundedWidth) : 0;
 
+  // Same thinning the main plot's own date axis uses (computeDateTickValues, see its own doc),
+  // just against this column's own — much narrower — width instead of dims.boundedWidth, so a
+  // handful of labels are shown rather than the main axis's own dozen crammed into 220px.
+  const leftDateTickValues = useMemo(
+    () => computeDateTickValues(leftZoomedXScale, data.length, leftColumnWidth),
+    [leftZoomedXScale, data.length, leftColumnWidth]
+  );
+  const rightDateTickValues = useMemo(
+    () => computeDateTickValues(rightZoomedXScale, data.length, rightColumnWidth),
+    [rightZoomedXScale, data.length, rightColumnWidth]
+  );
+
   const shared = {
     plotBoundedHeight,
     topOffset,
+    marginBottom,
     themeTick,
     indicators,
     data,
@@ -172,6 +186,7 @@ export function useDockedPaneColumnsState({
           paneTops: leftPaneTops,
           zoomedPaneScales: zoomedLeftPaneScales,
           visibleIndicators,
+          dateTickValues: leftDateTickValues,
         }
       : null;
 
@@ -192,6 +207,7 @@ export function useDockedPaneColumnsState({
           paneTops: rightPaneTops,
           zoomedPaneScales: zoomedRightPaneScales,
           visibleIndicators,
+          dateTickValues: rightDateTickValues,
         }
       : null;
 

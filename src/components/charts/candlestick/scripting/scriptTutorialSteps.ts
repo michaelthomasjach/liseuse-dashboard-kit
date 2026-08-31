@@ -643,8 +643,10 @@ plot.xy("Profil (KDE, bandwidth = ATR)", density, priceGrid, { xLabel: "Densité
     paragraphs: [
       "Le profil est prêt — reste à en extraire des niveaux concrets plutôt qu'une courbe à regarder. Un niveau, c'est un pic local du profil : un point plus haut que ses deux voisins immédiats. Mais un profil bruité a des dizaines de micro-pics sans intérêt ; la proéminence (prominence) les filtre : la hauteur d'un pic au-dessus du plus haut des deux « creux » qui l'encadrent avant de retomber jusqu'à un point aussi haut que lui. Un vrai sommet isolé a une forte proéminence ; une simple ondulation sur le flanc d'un pic plus large en a une faible.",
       "PROM_THRESH fixe le seuil, en fraction du pic le plus haut du profil entier — 0.12 ne garde que les pics faisant au moins 12% de la hauteur du plus haut (une fenêtre de 60 bougies, comme ici, donne un profil plus bruité qu'une vraie fenêtre de production à 365 — un seuil plus permissif compense). plot.table affiche les prix détectés en plus du profil lui-même.",
+      "Le code est maintenant assez long pour valoir la peine d'être découpé en cellules (// %%, déjà vu dans le tutoriel « Construire un indicateur ») — placez le curseur dans une cellule et Maj+Entrée exécute depuis le tout début jusqu'à la fin de celle-ci, pas seulement cette cellule isolée (ce moteur n'a pas de mémoire de variables entre deux exécutions). Pratique pour ne recalculer que la Cellule 3 (le tracé) sans tout relancer quand seul l'affichage change.",
     ],
-    code: `const WINDOW = 60;
+    code: `// %% Cellule 1 — constantes et détection de pics
+const WINDOW = 60;
 const GRID = 60;
 const FIRST_W = 0.2;
 const ATR_MULT = 3.0;
@@ -663,6 +665,7 @@ function findPeaks(values, minProminence) {
   return peaks;
 }
 
+// %% Cellule 2 — construire le profil et en extraire les niveaux
 const closes = market.series("close", WINDOW);
 const highs = market.series("high", WINDOW);
 const lows = market.series("low", WINDOW);
@@ -692,6 +695,7 @@ const density = priceGrid.map((p) => {
 const peakIdx = findPeaks(density, Math.max(...density) * PROM_THRESH);
 const levels = peakIdx.map((i) => priceGrid[i]);
 
+// %% Cellule 3 — afficher le profil et les niveaux détectés
 plot.xy("Profil (KDE)", density, priceGrid, { xLabel: "Densité", yLabel: "Prix", title: "Profil — niveaux détectés" });
 plot.table(
   levels.map((lv) => ({ cells: [lv.toFixed(2)] })),
@@ -701,12 +705,14 @@ plot.table(
   },
   {
     id: "levels-on-chart",
-    title: "Étape 6 — Afficher les niveaux sur la vraie chart",
+    title: "Étape 6 — Afficher les niveaux dans une pane ancrée à droite",
     paragraphs: [
-      "plot.xy était parfait pour comprendre le profil lui-même, mais un trader veut voir les niveaux directement sur les bougies, pas sur un graphique à part. plot.overlay(nom).line(nom, valeur) fait ça — une série par niveau, chacune avec son propre nom (donc sa propre couleur/entrée de légende), tracée bougie après bougie à la valeur du niveau qu'elle représente.",
-      "Comme le nombre de niveaux varie d'un calcul à l'autre, on nomme chacun par son rang (« Niveau 1 », « Niveau 2 »…) plutôt que par sa valeur — un script.pane/.overlay garde son identité par son nom, pas par sa position dans un tableau.",
+      "plot.xy était parfait pour comprendre le profil lui-même, mais un trader veut voir les niveaux à côté des bougies en permanence, pas sur un graphique à part qu'il faut rouvrir. plot.pane(nom, { dock: \"right\" }) fait ça : au lieu de s'empiler sous le prix comme un panneau RSI/MACD classique, la pane s'ancre sur le bord droit de la chart, qui partage alors l'espace horizontal avec elle — synchronisée avec les mêmes bougies (même zoom, même déplacement).",
+      "Une seule pane nommée « Niveaux », avec une série par niveau détecté à l'intérieur — le même principe que « plusieurs courbes dans un même panneau » vu plus haut, juste ancré sur le côté plutôt qu'en bas. Comme le nombre de niveaux varie d'un calcul à l'autre, chaque série est nommée par son rang (« Niveau 1 », « Niveau 2 »…) plutôt que par sa valeur.",
     ],
-    code: `const WINDOW = 60;
+    diagramKey: "plotOwnPane",
+    code: `// %% Cellule 1 — constantes et détection de pics
+const WINDOW = 60;
 const GRID = 60;
 const FIRST_W = 0.2;
 const ATR_MULT = 3.0;
@@ -725,6 +731,7 @@ function findPeaks(values, minProminence) {
   return peaks;
 }
 
+// %% Cellule 2 — construire le profil et en extraire les niveaux
 const closes = market.series("close", WINDOW);
 const highs = market.series("high", WINDOW);
 const lows = market.series("low", WINDOW);
@@ -754,8 +761,10 @@ const density = priceGrid.map((p) => {
 const peakIdx = findPeaks(density, Math.max(...density) * PROM_THRESH);
 const levels = peakIdx.map((i) => priceGrid[i]);
 
+// %% Cellule 3 — afficher les niveaux dans une pane ancrée à droite
+const levelsPane = plot.pane("Niveaux", { dock: "right" });
 for (let k = 0; k < levels.length; k++) {
-  plot.overlay("Niveau " + (k + 1)).line("Niveau " + (k + 1), levels[k]);
+  levelsPane.line("Niveau " + (k + 1), levels[k]);
 }
 `,
   },
@@ -767,7 +776,8 @@ for (let k = 0; k < levels.length; k++) {
       "state.get/set (déjà vu dans le tutoriel « Construire un indicateur ») résout ça : un compteur de bougies mémorisé d'une bougie à l'autre, et le calcul ne se refait que tous les RECALC_EVERY bougies — le reste du temps, on relit simplement le dernier résultat mémorisé. Les niveaux d'un support/résistance ne bougent de toute façon pas d'une bougie à l'autre, donc rien n'est perdu à les rafraîchir un peu moins souvent.",
     ],
     diagramKey: "stateMemory",
-    code: `const WINDOW = 60;
+    code: `// %% Cellule 1 — constantes et détection de pics
+const WINDOW = 60;
 const GRID = 60;
 const FIRST_W = 0.2;
 const ATR_MULT = 3.0;
@@ -787,6 +797,7 @@ function findPeaks(values, minProminence) {
   return peaks;
 }
 
+// %% Cellule 2 — ne recalculer que tous les RECALC_EVERY bougies
 const barIndex = state.get("barIndex", 0);
 state.set("barIndex", barIndex + 1);
 
@@ -819,9 +830,11 @@ if (barIndex >= WINDOW && barIndex % RECALC_EVERY === 0) {
   }
 }
 
+// %% Cellule 3 — relire le dernier résultat mémorisé et l'afficher
 const levels = state.get("levels", []);
+const levelsPane = plot.pane("Niveaux", { dock: "right" });
 for (let k = 0; k < levels.length; k++) {
-  plot.overlay("Niveau " + (k + 1)).line("Niveau " + (k + 1), levels[k]);
+  levelsPane.line("Niveau " + (k + 1), levels[k]);
 }
 `,
   },
@@ -833,7 +846,8 @@ for (let k = 0; k < levels.length; k++) {
       "plot.signal({ type, price }) pose une flèche BUY/SELL à la clôture courante — la même fonction que le tout premier tutoriel, ici armée par la détection de niveaux plutôt que par un croisement de moyennes mobiles.",
     ],
     diagramKey: "plotSignal",
-    code: `const WINDOW = 60;
+    code: `// %% Cellule 1 — constantes et détection de pics
+const WINDOW = 60;
 const GRID = 60;
 const FIRST_W = 0.2;
 const ATR_MULT = 3.0;
@@ -853,6 +867,7 @@ function findPeaks(values, minProminence) {
   return peaks;
 }
 
+// %% Cellule 2 — ne recalculer que tous les RECALC_EVERY bougies
 const barIndex = state.get("barIndex", 0);
 state.set("barIndex", barIndex + 1);
 
@@ -885,11 +900,14 @@ if (barIndex >= WINDOW && barIndex % RECALC_EVERY === 0) {
   }
 }
 
+// %% Cellule 3 — relire le dernier résultat mémorisé et l'afficher
 const levels = state.get("levels", []);
+const levelsPane = plot.pane("Niveaux", { dock: "right" });
 for (let k = 0; k < levels.length; k++) {
-  plot.overlay("Niveau " + (k + 1)).line("Niveau " + (k + 1), levels[k]);
+  levelsPane.line("Niveau " + (k + 1), levels[k]);
 }
 
+// %% Cellule 4 — détecter un franchissement et signaler
 const prevClose = market.close(1);
 const currClose = market.close(0);
 if (prevClose !== null && currClose !== null) {
@@ -916,8 +934,8 @@ if (prevClose !== null && currClose !== null) {
     list: [
       "state.* (plus bas) détaille state.get/set — le mécanisme qui a permis de faire persister barIndex, levels et sig d'une bougie à l'autre dans cette étape.",
       "ta.* (plus bas) couvre ta.atr et tous les autres indicateurs techniques prêts à l'emploi.",
-      "plot.* (plus bas) détaille plot.xy (profil libre), plot.overlay/.line (niveaux sur la chart) et plot.signal (marqueurs de franchissement) en profondeur.",
-      "Le tutoriel « Construire un indicateur » explique bar.isNew() et le mode cellules (// %%), utiles pour développer un script comme celui-ci morceau par morceau sans tout relancer à chaque fois.",
+      "plot.* (plus bas) détaille plot.xy (profil libre), plot.pane (dont l'option dock: \"left\"|\"right\") et plot.signal (marqueurs de franchissement) en profondeur.",
+      "Le tutoriel « Construire un indicateur » explique bar.isNew() et introduit le mode cellules (// %%) pour la première fois, si le fonctionnement de Maj+Entrée n'était pas déjà clair ici.",
     ],
   },
 ];

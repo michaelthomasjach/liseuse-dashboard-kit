@@ -42,7 +42,12 @@ export const SCRIPT_API_COMPLETIONS: ScriptApiCompletion[] = [
   { label: ".adx", type: "function", detail: "(offset?) => number | null — ADX" },
   { label: ".plusDI", type: "function", detail: "(offset?) => number | null — ADX" },
   { label: ".minusDI", type: "function", detail: "(offset?) => number | null — ADX" },
-  { label: "plot.pane", type: "function", detail: "(name) => handle — sub-pane dédié, dessiner via .line/.area/.histogram/.band", apply: 'plot.pane("")' },
+  {
+    label: "plot.pane",
+    type: "function",
+    detail: '(name, { dock? }) => handle — sub-pane dédié (bottom/left/right), dessiner via .line/.area/.histogram/.band/.label',
+    apply: 'plot.pane("")',
+  },
   { label: "plot.overlay", type: "function", detail: "(name) => handle — pane prix, dessiner via .line/.area/.histogram/.band", apply: 'plot.overlay("")' },
   { label: ".area", type: "function", detail: "(name, value, options?) — pane.area/overlay.area" },
   { label: ".band", type: "function", detail: "(name, upper, lower, options?) — pane.band/overlay.band, remplit entre deux courbes" },

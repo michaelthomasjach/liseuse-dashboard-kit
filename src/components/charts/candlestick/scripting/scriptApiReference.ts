@@ -284,7 +284,14 @@ pane.band(name, upper, lower, options?)  // remplissage entre deux courbes — v
       ),
       d("plotOwnPane"),
       t(
-        "plot.overlay dessine directement par-dessus les bougies, dans le panneau principal — réservé à une valeur qui *est* un prix (une moyenne mobile, une bande, un niveau) et qui a donc du sens sur la même échelle. Même objet, mêmes méthodes que plot.pane :"
+        'plot.pane(nom, options?) accepte un second paramètre optionnel : { dock?: "bottom"|"left"|"right" }. Par défaut ("bottom"), le panneau s\'empile sous le prix comme ci-dessus. "left"/"right" l\'ancre plutôt sur le côté de la chart, dans sa propre colonne — la chart principale se partage alors l\'espace horizontal avec elle, redimensionnable indépendamment, mais toujours synchronisée avec les mêmes bougies (même zoom, même déplacement). Une colonne ancrée ne se redimensionne que sur son propre axe : X pour left/right, Y pour bottom (comme n\'importe quel autre panneau) — impossible de la faire grandir dans l\'autre sens.'
+      ),
+      c(`plot.pane("Score latéral", { dock: "right" }).line("Score", value);`),
+      t(
+        "options.dock n'est lu qu'au tout premier appel pour un nom de panneau donné (comme le reste des options par panneau) — un appel plus tard sur le même nom ne peut pas déplacer un panneau déjà ouvert vers un autre bord."
+      ),
+      t(
+        "plot.overlay dessine directement par-dessus les bougies, dans le panneau principal — réservé à une valeur qui *est* un prix (une moyenne mobile, une bande, un niveau) et qui a donc du sens sur la même échelle. Même objet, mêmes méthodes que plot.pane, mais jamais ancrable sur le côté (dock n'existe que pour plot.pane) :"
       ),
       c(`const overlay = plot.overlay("SMA 20");
 overlay.line("SMA 20", sma20 ?? market.close(0));`),

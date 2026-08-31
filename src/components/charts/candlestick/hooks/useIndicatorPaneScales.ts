@@ -4,11 +4,10 @@ import type { Candle } from "../interfaces/Candle.interface";
 import type { FundamentalDataPoint } from "../interfaces/FundamentalDataPoint.interface";
 import type { Indicator } from "../interfaces/Indicator.interface";
 import type { IndicatorValue } from "../interfaces/IndicatorValue.interface";
-import type { IndicatorMACD } from "../interfaces/IndicatorMACD.interface";
-import type { IndicatorBand } from "../interfaces/IndicatorBand.interface";
 import type { TrendLineDrawing } from "../interfaces/TrendLineDrawing.interface";
 import { computeIndicatorValues } from "../indicators";
 import { indicatorLabel } from "../indicatorCatalog";
+import { usePaneStackScales } from "./usePaneStackScales";
 
 export interface UseIndicatorPaneScalesArgs {
   data: Candle[];
@@ -75,80 +74,11 @@ export function useIndicatorPaneScales({
   // the two drifting out of sync). RSI/CHOP are always 0-100 by definition; MACD and every
   // fundamental indicator auto-fit to whatever's currently visible, same spirit as YAutoScaling
   // for price — a fundamental's own unit varies wildly by metric (revenue in the billions, a P/E
-  // ratio in the tens) and by company, so no fixed domain could ever make sense for it.
-  const ownPaneScales = useMemo(() => {
-    const scales: Record<string, d3.ScaleLinear<number, number>> = {};
-    ownPaneIndicators.forEach((ind, idx) => {
-      const height = indicatorPaneHeights[idx];
-      if (ind.kind === "rsi" || ind.kind === "chop" || ind.kind === "adx") {
-        scales[ind.id] = d3.scaleLinear().domain([0, 100]).range([height, 0]);
-      } else if (ind.kind === "correlation") {
-        scales[ind.id] = d3.scaleLinear().domain([-1, 1]).range([height, 0]);
-      } else if (ind.kind === "macd") {
-        const points = (visibleIndicators.find((v) => v.indicator.id === ind.id)?.points ?? []) as { i: number; value: IndicatorMACD }[];
-        let lo = 0;
-        let hi = 0;
-        for (const p of points) {
-          lo = Math.min(lo, p.value.macd, p.value.signal ?? p.value.macd, p.value.histogram ?? 0);
-          hi = Math.max(hi, p.value.macd, p.value.signal ?? p.value.macd, p.value.histogram ?? 0);
-        }
-        const pad = (hi - lo) * 0.1 || 1;
-        scales[ind.id] = d3.scaleLinear().domain([lo - pad, hi + pad]).range([height, 0]);
-      } else if (ind.customData?.draw === "multi") {
-        // A `plot.pane` with 2+ of its own series sharing this one pane's own scale — same
-        // domain-scan idea as MACD's own branch above, generalized: every sub-value across every
-        // one of the pane's own series (a plain number directly, or a band's own upper/lower)
-        // contributes to one combined lo/hi, since they all share this one axis.
-        const points = (visibleIndicators.find((v) => v.indicator.id === ind.id)?.points ?? []) as {
-          i: number;
-          value: { multi: Record<string, number | IndicatorBand | null> };
-        }[];
-        let lo = 0;
-        let hi = 0;
-        for (const p of points) {
-          for (const sub of Object.values(p.value.multi)) {
-            if (sub === null) continue;
-            if (typeof sub === "number") {
-              lo = Math.min(lo, sub);
-              hi = Math.max(hi, sub);
-            } else {
-              lo = Math.min(lo, sub.upper, sub.lower);
-              hi = Math.max(hi, sub.upper, sub.lower);
-            }
-          }
-        }
-        const pad = (hi - lo) * 0.1 || 1;
-        scales[ind.id] = d3.scaleLinear().domain([lo - pad, hi + pad]).range([height, 0]);
-      } else {
-        const points = (visibleIndicators.find((v) => v.indicator.id === ind.id)?.points ?? []) as { i: number; value: number }[];
-        let lo = Infinity;
-        let hi = -Infinity;
-        for (const p of points) {
-          lo = Math.min(lo, p.value);
-          hi = Math.max(hi, p.value);
-        }
-        if (!isFinite(lo) || !isFinite(hi)) {
-          lo = 0;
-          hi = 1;
-        }
-        const pad = (hi - lo) * 0.1 || 1;
-        scales[ind.id] = d3.scaleLinear().domain([lo - pad, hi + pad]).range([height, 0]);
-      }
-    });
-    return scales;
-  }, [ownPaneIndicators, indicatorPaneHeights, visibleIndicators]);
-  // Manually rescaled view of each own-pane indicator's own scale, same idea as
-  // zoomedVolumeScale — RSI/CHOP's 0-100 domain or MACD's auto-fit one, whichever ownPaneScales
-  // built for that pane, rescaled by whatever that one pane's own axis has been dragged to
-  // (independent of every other pane's).
-  const zoomedOwnPaneScales = useMemo(() => {
-    const scales: Record<string, d3.ScaleLinear<number, number>> = {};
-    ownPaneIndicators.forEach((ind) => {
-      const base = ownPaneScales[ind.id];
-      if (base) scales[ind.id] = (paneYTransform[ind.id] ?? d3.zoomIdentity).rescaleY(base);
-    });
-    return scales;
-  }, [ownPaneIndicators, ownPaneScales, paneYTransform]);
+  // ratio in the tens) and by company, so no fixed domain could ever make sense for it. See
+  // usePaneStackScales.ts's own doc for why this one stack's own scale computation is a call into
+  // a shared hook instead of being inlined here — a `plot.pane(..., {dock})` script pane's own
+  // left/right column needs the exact same logic for its own (separate) stack of indicators.
+  const { ownPaneScales, zoomedOwnPaneScales } = usePaneStackScales({ ownPaneIndicators, indicatorPaneHeights, visibleIndicators, paneYTransform });
 
   // Resolves a drawing's own `valueAxis` (undefined/"price", "volume", or an own-pane
   // indicator's id) to that pane's current zoomed scale plus its vertical offset within the

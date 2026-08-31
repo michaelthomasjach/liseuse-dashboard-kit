@@ -115,6 +115,62 @@
   padding: var(--lq-space-3);
 }
 
+/* A `plot.pane(name, { dock: "left"|"right" })` script pane's own column — a flex sibling of
+   `.lq-chart__main` in the outer `.lq-chart` row, same "genuinely shrinks the chart via ordinary
+   flexbox" shape as `.lq-chart__side-panel` above, just on either side instead of only the right
+   (see ChartSidePaneColumn.tsx's own doc). `overflow: hidden` (unlike the side panel's own
+   `auto`): this column's own canvas is sized exactly to it, nothing inside it should ever need to
+   scroll. */
+.lq-chart__side-dock-pane {
+  position: relative;
+  min-width: 120px;
+  max-width: 480px;
+  overflow: hidden;
+}
+
+.lq-chart__side-dock-pane--left {
+  border-right: 1px solid var(--lq-color-border-subtle);
+}
+
+.lq-chart__side-dock-pane--right {
+  border-left: 1px solid var(--lq-color-border-subtle);
+}
+
+/* Same straddling-strip idea as `.lq-chart__side-panel-resize-handle` above — always on whichever
+   edge faces the main chart (a left-docked column's own right edge, a right-docked one's left),
+   so it never has to be located on the far outer edge only whichever side leaves the divider
+   right against `.lq-chart__main`. */
+.lq-chart__side-dock-pane-resize-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  cursor: ew-resize;
+  pointer-events: auto;
+  touch-action: none;
+  z-index: 7;
+}
+
+.lq-chart__side-dock-pane-resize-handle--left {
+  right: -4px;
+}
+
+.lq-chart__side-dock-pane-resize-handle--right {
+  left: -4px;
+}
+
+@media (pointer: coarse) {
+  .lq-chart__side-dock-pane-resize-handle {
+    width: 16px;
+  }
+  .lq-chart__side-dock-pane-resize-handle--left {
+    right: -8px;
+  }
+  .lq-chart__side-dock-pane-resize-handle--right {
+    left: -8px;
+  }
+}
+
 .lq-chart__canvas {
   position: absolute;
   pointer-events: none;

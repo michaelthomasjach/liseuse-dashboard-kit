@@ -88,12 +88,24 @@ export interface PaneSeriesHandle {
   label(name: string, text: string, options: PlotLabelOptions): void;
 }
 
+export interface PlotPaneOptions {
+  /** Which edge of the chart this pane docks to. `"bottom"` (default) stacks below price/volume,
+   *  same as every pane before this option existed. `"left"`/`"right"` instead docks it beside the
+   *  chart in its own column, sharing horizontal space with it (the main chart shrinks to make
+   *  room) — synchronized with the same candles/zoom/pan, just projected onto that column's own
+   *  (independently resizable) width. Only read on this pane's *first* call (like every other
+   *  per-pane option here — see `label`'s own "latest call wins" doc for the series-level
+   *  counterpart of that same rule); a later call naming an already-open pane can't move it to a
+   *  different edge. */
+  dock?: "bottom" | "left" | "right";
+}
+
 export interface PlotApi {
   /** Creates (or, called again with the same name — including on a later bar, since the whole
    *  script re-runs from the top every bar — re-opens) a sub-pane of its own to draw on. Draw one
    *  series on it for a plain single-line/area/histogram pane; draw several for a pane where they
    *  all share one Y-scale, each keeping its own name for its own legend entry. */
-  pane(name: string): PaneSeriesHandle;
+  pane(name: string, options?: PlotPaneOptions): PaneSeriesHandle;
   /** Same handle, drawn on the price section instead of a sub-pane of its own — the `pane`
    *  counterpart for an overlay (a moving average, a volatility envelope around price, a
    *  high/low channel: anything that *is* a price rather than an oscillator). */
@@ -153,6 +165,7 @@ export function buildPlotApi(
   interface PaneEntry {
     name: string;
     pane: ScriptPaneSeries["pane"];
+    dock?: "bottom" | "left" | "right";
     subSeriesByName: Map<string, ScriptPaneSubSeries>;
     labelsByName: Map<string, ScriptLabelOutput>;
   }
@@ -206,17 +219,17 @@ export function buildPlotApi(
     };
   }
 
-  function getOrCreatePane(name: string, pane: ScriptPaneSeries["pane"]): PaneSeriesHandle {
+  function getOrCreatePane(name: string, pane: ScriptPaneSeries["pane"], dock?: "bottom" | "left" | "right"): PaneSeriesHandle {
     let entry = panesByName.get(name);
     if (!entry) {
-      entry = { name, pane, subSeriesByName: new Map(), labelsByName: new Map() };
+      entry = { name, pane, dock, subSeriesByName: new Map(), labelsByName: new Map() };
       panesByName.set(name, entry);
     }
     return makeHandle(entry);
   }
 
   const api: PlotApi = {
-    pane: (name) => getOrCreatePane(name, "own"),
+    pane: (name, options) => getOrCreatePane(name, "own", options?.dock),
     overlay: (name) => getOrCreatePane(name, "overlay"),
     signal: (arg) => {
       const normalized: PlotSignalArg = typeof arg === "string" ? { type: arg } : arg;
@@ -264,7 +277,7 @@ export function buildPlotApi(
   return {
     api,
     getResult: () => ({
-      panes: [...panesByName.values()].map((entry) => ({ name: entry.name, pane: entry.pane, series: [...entry.subSeriesByName.values()] })),
+      panes: [...panesByName.values()].map((entry) => ({ name: entry.name, pane: entry.pane, dock: entry.dock, series: [...entry.subSeriesByName.values()] })),
       drawings,
       table,
       xyCharts: [...xyChartsByName.values()],

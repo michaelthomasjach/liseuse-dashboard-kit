@@ -12,6 +12,33 @@ import {
   SUB_PANE_COLLAPSED_HEIGHT,
 } from "../constants";
 
+// A script-produced "own"-pane indicator's own `plot.pane(name, { dock })` choice, carried on its
+// `customData` (see CustomIndicatorDef.dock's own doc) — a built-in indicator (never has
+// `customData`) is always "bottom", the original stacking-below-price behavior.
+function indicatorDock(ind: Indicator): "bottom" | "left" | "right" {
+  return ind.customData?.dock ?? "bottom";
+}
+
+// Shared by the bottom/left/right stacks below (see ownPaneIndicators/leftPaneIndicators/
+// rightPaneIndicators) — each stacks its own subset of "own"-pane indicators vertically over
+// its own bounded height the exact same way, just over a different height/subset.
+function stackPanes(
+  owned: Indicator[],
+  heightFractions: Record<string, number>,
+  boundedHeight: number
+): { heights: number[]; tops: number[] } {
+  const heights = owned.map((ind) =>
+    ind.paneCollapsed ? SUB_PANE_COLLAPSED_HEIGHT : Math.round(boundedHeight * (heightFractions[ind.id] ?? DEFAULT_PANE_HEIGHT_FRACTION))
+  );
+  const tops: number[] = [];
+  let cursor = 0;
+  for (const h of heights) {
+    tops.push(cursor);
+    cursor += h;
+  }
+  return { heights, tops };
+}
+
 export interface UsePaneLayoutArgs {
   defaultIndicators: Indicator[] | undefined;
   onIndicatorsChange: ((indicators: Indicator[]) => void) | undefined;
@@ -393,7 +420,7 @@ export function usePaneLayout({ defaultIndicators, onIndicatorsChange, showVolum
   // without this they'd be a fresh array/reference every render, which would make an "only these
   // deps" dependency array pointless (always "changed").
   const { ownPaneIndicators, indicatorPaneHeights, indicatorPaneTops, volumeTop, allPanesOrder } = useMemo(() => {
-    const owned = [...indicators, ...extraIndicators].filter((ind) => indicatorCatalogEntry(ind).pane === "own");
+    const owned = [...indicators, ...extraIndicators].filter((ind) => indicatorCatalogEntry(ind).pane === "own" && indicatorDock(ind) === "bottom");
     // A fullscreened *indicator* pane (volume's own case is handled entirely by volumeHeight
     // above — it never needs to touch this array) is filtered down to just itself rather than
     // merely zeroed in place: every one of PaneHeaders/drawVolumeAndPanes/useIndicatorPaneScales
@@ -440,6 +467,27 @@ export function usePaneLayout({ defaultIndicators, onIndicatorsChange, showVolum
   const indicatorPanesTotalHeight = indicatorPaneHeights.reduce((sum, h) => sum + h, 0);
 
   const priceHeight = Math.max(0, plotBoundedHeight - volumeHeight - indicatorPanesTotalHeight);
+
+  // A `plot.pane(name, { dock: "left"|"right" })` script pane's own column — stacked vertically
+  // over the *whole* plot height (price+volume+bottom panes together), not just the price
+  // section, since it's a sibling region beside the entire chart, not just beside price (see
+  // ChartSidePaneColumn's own doc). Empty (and therefore invisible — CandlestickChart only
+  // mounts the column at all once it has something to show) the moment some *other* pane is
+  // fullscreened: "this pane claims the entire plot" should mean entire, not "entire minus the
+  // side columns" — there's no fullscreen button on a docked pane's own header to reach the
+  // opposite case (a docked pane claiming the whole plot itself), so that direction never arises.
+  const { leftPaneIndicators, leftPaneHeights, leftPaneTops } = useMemo(() => {
+    if (fullscreenPaneId !== null) return { leftPaneIndicators: [] as Indicator[], leftPaneHeights: [] as number[], leftPaneTops: [] as number[] };
+    const owned = [...indicators, ...extraIndicators].filter((ind) => indicatorCatalogEntry(ind).pane === "own" && indicatorDock(ind) === "left");
+    const { heights, tops } = stackPanes(owned, paneHeightFractions, plotBoundedHeight);
+    return { leftPaneIndicators: owned, leftPaneHeights: heights, leftPaneTops: tops };
+  }, [indicators, extraIndicators, paneHeightFractions, plotBoundedHeight, fullscreenPaneId]);
+  const { rightPaneIndicators, rightPaneHeights, rightPaneTops } = useMemo(() => {
+    if (fullscreenPaneId !== null) return { rightPaneIndicators: [] as Indicator[], rightPaneHeights: [] as number[], rightPaneTops: [] as number[] };
+    const owned = [...indicators, ...extraIndicators].filter((ind) => indicatorCatalogEntry(ind).pane === "own" && indicatorDock(ind) === "right");
+    const { heights, tops } = stackPanes(owned, paneHeightFractions, plotBoundedHeight);
+    return { rightPaneIndicators: owned, rightPaneHeights: heights, rightPaneTops: tops };
+  }, [indicators, extraIndicators, paneHeightFractions, plotBoundedHeight, fullscreenPaneId]);
 
   return {
     indicators,
@@ -498,5 +546,11 @@ export function usePaneLayout({ defaultIndicators, onIndicatorsChange, showVolum
     priceHeight,
     fullscreenPaneId,
     togglePaneFullscreen,
+    leftPaneIndicators,
+    leftPaneHeights,
+    leftPaneTops,
+    rightPaneIndicators,
+    rightPaneHeights,
+    rightPaneTops,
   };
 }

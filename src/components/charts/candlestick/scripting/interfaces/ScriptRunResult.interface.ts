@@ -36,6 +36,11 @@ export interface ScriptPaneSubSeries {
 export interface ScriptPaneSeries {
   name: string;
   pane: "overlay" | "own";
+  /** `"own"` panes only — which edge of the chart this pane docks to (see `PlotPaneOptions`'s own
+   *  doc). `undefined`/`"bottom"` stacks below price/volume, the original behavior; `"left"`/
+   *  `"right"` docks it beside the chart instead, in its own resizable column. Never set on an
+   *  `"overlay"` pane (the price section can't dock anywhere else). */
+  dock?: "bottom" | "left" | "right";
   series: ScriptPaneSubSeries[];
 }
 

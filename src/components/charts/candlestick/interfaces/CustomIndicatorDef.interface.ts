@@ -47,6 +47,12 @@ export interface CustomIndicatorDef {
    *  SMA/EMA/Bollinger use. "own": its own sub-pane below price/volume, with a pane header,
    *  like RSI/CHOP/MACD/the built-in fundamentals. */
   type: "overlay" | "own";
+  /** `type: "own"` only — which edge of the chart this pane docks to. `undefined`/`"bottom"`
+   *  (default) stacks below price/volume with every other "own" pane, the original behavior.
+   *  `"left"`/`"right"` docks it beside the chart instead, in its own column sharing horizontal
+   *  space with it (see `plot.pane`'s own `PlotPaneOptions.dock` doc — this is where that option
+   *  ends up once converted). Meaningless for `type: "overlay"`. */
+  dock?: "bottom" | "left" | "right";
   /** How to draw it: a continuous line (moving-average style), the area under that line filled
    *  down to the pane's own floor, a bar per reporting date (volume-style), a translucent band
    *  filled between two curves (Bollinger-style — see `CustomIndicatorBandDataPoint`), or several

@@ -94,3 +94,10 @@ export const TABLE_DEFAULT_COLS = 3;
  *  handleOverlayDoubleClick. Without this margin the modal would be unreachable: its cells tile
  *  the box edge to edge, so every interior point already resolves to one. */
 export const TABLE_BORDER_HIT_MARGIN = 6;
+/** A `plot.pane(name, { dock: "left"|"right" })` script pane's own column — a flex sibling of
+ *  `.lq-chart__main` (same shape as `ChartSidePanel`'s own width, see SIDE_PANEL_*_WIDTH), plain
+ *  pixels since there's no single "bounded" dimension already in scope to take a fraction of at
+ *  the point the drag starts, same reasoning as the side panel's own bounds. */
+export const SIDE_DOCK_PANE_DEFAULT_WIDTH = 220;
+export const SIDE_DOCK_PANE_MIN_WIDTH = 120;
+export const SIDE_DOCK_PANE_MAX_WIDTH = 480;

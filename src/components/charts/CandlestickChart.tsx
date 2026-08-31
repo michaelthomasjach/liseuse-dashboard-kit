@@ -18,6 +18,7 @@ import { useAddLineHandlers } from "./candlestick/hooks/useAddLineHandlers";
 import { useZoomAndScales } from "./candlestick/hooks/useZoomAndScales";
 import { useBarRangeSelection } from "./candlestick/hooks/useBarRangeSelection";
 import { useIndicatorPaneScales } from "./candlestick/hooks/useIndicatorPaneScales";
+import { useDockedPaneColumnsState } from "./candlestick/hooks/useDockedPaneColumnsState";
 import { useDrawingState } from "./candlestick/hooks/useDrawingState";
 import { useDrawingInteractions } from "./candlestick/hooks/useDrawingInteractions";
 import { useDrawingToolMenuAnchors } from "./candlestick/hooks/useDrawingToolMenuAnchors";
@@ -31,6 +32,7 @@ import { useChartScripting } from "./candlestick/hooks/useChartScripting";
 import { ScriptRunnerHost } from "./candlestick/scripting/components/ScriptRunnerHost";
 import { ChartHeader } from "./candlestick/components/ChartHeader";
 import { ChartSidePanel } from "./candlestick/components/ChartSidePanel";
+import { ChartSidePaneColumn } from "./candlestick/components/ChartSidePaneColumn";
 import { ToolsRail } from "./candlestick/components/ToolsRail";
 import { ChartLegend } from "./candlestick/components/ChartLegend";
 import { PaneHeaders } from "./candlestick/components/PaneHeaders";
@@ -338,6 +340,8 @@ export function CandlestickChart({
     volumeTop, allPanesOrder,
     volumeHeight, priceHeight,
     fullscreenPaneId, togglePaneFullscreen,
+    leftPaneIndicators, leftPaneHeights, leftPaneTops,
+    rightPaneIndicators, rightPaneHeights, rightPaneTops,
   } = usePaneLayout({ defaultIndicators, onIndicatorsChange, showVolume, plotBoundedHeight, extraIndicators: scriptChartIndicators });
   const correlationSetup = useCorrelationSetup({ appendIndicator, onAddSymbolOverlay, onSymbolSearchChange });
   const combinedIndicators = useMemo(() => [...indicators, ...scriptChartIndicators], [indicators, scriptChartIndicators]);
@@ -468,6 +472,37 @@ export function CandlestickChart({
     volumeTop,
     volumeHeight,
     priceHeight,
+  });
+
+  // Everything for the two `<ChartSidePaneColumn>` siblings mounted further down — see that
+  // hook's own doc for why this is one call instead of being inlined here (keeping this file
+  // under its own line budget chief among the reasons).
+  const { leftColumnProps, rightColumnProps } = useDockedPaneColumnsState({
+    leftPaneIndicators,
+    leftPaneHeights,
+    leftPaneTops,
+    rightPaneIndicators,
+    rightPaneHeights,
+    rightPaneTops,
+    visibleIndicators,
+    paneYTransform,
+    zoomedXScale,
+    candleWidth,
+    boundedWidth: dims.boundedWidth,
+    plotBoundedHeight,
+    themeTick,
+    data,
+    indicators: combinedIndicators,
+    hoverIndex: effectiveHoverIndex,
+    startPaneResize,
+    commitTargetIndicators: indicators,
+    commitIndicators,
+    indicatorLabel,
+    openIndicatorSettings,
+    removeIndicator,
+    indicatorValues,
+    onOpenIndicatorInfo: setInfoKind,
+    onEditScript,
   });
 
   const { addPriceLine, addVolumeLine, addDateLine, addIndicatorPaneLine } = useAddLineHandlers({
@@ -630,9 +665,8 @@ export function CandlestickChart({
   });
 
   // `ref` always lands on .lq-chart__main (never the outer .lq-chart directly) in every return
-  // path here — useChartDimensions' own ResizeObserver effect doesn't re-run on a ref retarget
-  // (its deps are just options.width/height/aspectRatio), so it'd silently keep watching whatever
-  // stale element it first attached to if this ever moved between branches on the same mount.
+  // path here — useChartDimensions' own callback ref re-attaches its ResizeObserver correctly
+  // either way, so which branch is active doesn't matter for that (see its own doc).
   if (dims.width === 0 || data.length === 0) {
     return (
       <div className={["lq-chart", isFullscreen && "lq-chart--fullscreen", className].filter(Boolean).join(" ")} style={{ width: isFullscreen ? undefined : width, height: isFullscreen ? undefined : height }}>
@@ -664,6 +698,11 @@ export function CandlestickChart({
 
   return (
     <div className={["lq-chart", isFullscreen && "lq-chart--fullscreen", className].filter(Boolean).join(" ")} style={{ width: isFullscreen ? undefined : width }}>
+      {/* A `plot.pane(name, { dock: "left" })` script pane's own column — mounted only once
+          there's actually something docked there, same "collapsed gives its sibling back the
+          full width" rule ChartSidePanel's own doc already follows (see leftColumnProps' own
+          doc, in useDockedPaneColumnsState.ts, for why it's a single ready-to-spread bundle). */}
+      {leftColumnProps && <ChartSidePaneColumn {...leftColumnProps} />}
       {/* `ref` (useChartDimensions) lives here, not on the outer .lq-chart — flexbox (outer div
           is a row, this + ChartSidePanel its children) hands this whatever width the panel
           doesn't take, so the plot genuinely shrinks with zero changes to any downstream
@@ -1056,6 +1095,8 @@ export function CandlestickChart({
         soundOptions={alertSoundOptions} onCreate={onCreateAlert} onPlaySound={onPlaySound} onSave={onUpdateAlert} onDeleteAlert={onDeleteAlert}
       />
       </div>
+
+      {rightColumnProps && <ChartSidePaneColumn {...rightColumnProps} />}
 
       {sidePanel && sidePanelState.open && (
         <ChartSidePanel panelRef={sidePanelState.panelRef} widthPx={sidePanelState.widthPx} startResize={sidePanelState.startResize}>

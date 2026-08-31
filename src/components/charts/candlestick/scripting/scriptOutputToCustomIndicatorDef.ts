@@ -49,6 +49,7 @@ export function scriptPaneToCustomIndicatorDef(scriptId: string, pane: ScriptPan
         label: pane.name,
         section: "Scripts",
         type,
+        dock: pane.dock,
         draw: "band",
         data: points.map((p) => ({ date: new Date(p.date), upper: p.upper, lower: p.lower })),
         color: series.color,
@@ -61,6 +62,7 @@ export function scriptPaneToCustomIndicatorDef(scriptId: string, pane: ScriptPan
       label: pane.name,
       section: "Scripts",
       type,
+      dock: pane.dock,
       draw: series.draw,
       data: points.map((p) => ({ date: new Date(p.date), value: p.value })),
       color: series.color,
@@ -95,6 +97,7 @@ export function scriptPaneToCustomIndicatorDef(scriptId: string, pane: ScriptPan
     label: pane.name,
     section: "Scripts",
     type,
+    dock: pane.dock,
     draw: "multi",
     data,
     multiSeries: pane.series.map((series) => ({

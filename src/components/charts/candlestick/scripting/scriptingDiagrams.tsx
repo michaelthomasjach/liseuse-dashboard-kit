@@ -219,6 +219,34 @@ export function PlotLabelDiagram() {
   );
 }
 
+export function MarketProfileDiagram() {
+  return (
+    <InfoDiagram>
+      <g opacity={0.5}>
+        <SampleCandles dim />
+      </g>
+      {/* Le "profil de marché" : un histogramme lissé (KDE) de où le prix a le plus souvent
+          stationné récemment, tracé sur le côté — le prix en vertical (même axe que les
+          bougies), la densité en horizontal. Les deux bosses sont les niveaux détectés : les
+          zones de prix où le marché s'est le plus attardé. */}
+      <polyline
+        points="150,8 156,20 178,30 194,36 172,48 158,54 148,62 168,78 188,86 200,92 154,102"
+        fill="none"
+        stroke="var(--lq-color-accent)"
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <DiagramPoint x={194} y={36} />
+      <DiagramPoint x={200} y={92} />
+      <line x1={0} y1={36} x2={194} y2={36} stroke="var(--lq-color-text-muted)" strokeWidth={1} strokeDasharray="2 2" />
+      <line x1={0} y1={92} x2={200} y2={92} stroke="var(--lq-color-text-muted)" strokeWidth={1} strokeDasharray="2 2" />
+      <DiagramLabel x={6} y={32} text="niveau détecté" color="var(--lq-color-accent)" />
+      <DiagramLabel x={6} y={106} text="profil de prix (KDE) →" color="var(--lq-color-text-muted)" />
+    </InfoDiagram>
+  );
+}
+
 export function BarIsNewDiagram() {
   return (
     <InfoDiagram>

@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { CandlestickChart } from "../../../CandlestickChart";
 import { ScriptTableOverlay } from "../../components/ScriptTableOverlay";
+import { ScriptXYChart } from "./ScriptXYChart";
 import { PlayIcon, PauseIcon, RefreshIcon, ChevronLeftIcon, ChevronRightIcon } from "../../../../icons";
 import { useScriptEngine } from "../hooks/useScriptEngine";
 import { scriptIndicatorToChartIndicator } from "../scriptIndicatorToChartIndicator";
@@ -33,7 +34,12 @@ const LazyScriptEditorCodeMirror = lazy(() =>
  *  output (`engine.scriptTable`) doesn't have this problem at all — it was never a
  *  `CandlestickChart` prop to begin with (only ever reachable via the real `scripts` pathway this
  *  component already avoids), so `ScriptTableOverlay` is mounted directly here instead, a plain
- *  sibling of the preview chart fed straight from the same engine instance. */
+ *  sibling of the preview chart fed straight from the same engine instance. `plot.xy(...)` output
+ *  (`engine.result?.xyCharts`) is the same story one level further: it was never a `CandlestickChart`
+ *  concept at all (see `ScriptXYChart.tsx`'s own doc — normally only ever shown inline as a
+ *  notebook cell's own output), so it's rendered directly off the raw run result here too, stacked
+ *  below the preview chart rather than overlaid on it (unlike the table, an X/Y chart has its own
+ *  axes and doesn't read as "on top of price" the way a corner-anchored table does). */
 export function ScriptInteractiveTutorial() {
   const [trackIndex, setTrackIndex] = useState(0);
   const [stepIndex, setStepIndex] = useState(0);
@@ -232,6 +238,11 @@ export function ScriptInteractiveTutorial() {
             />
             {engine.scriptTable && <ScriptTableOverlay tables={[engine.scriptTable]} />}
           </div>
+          {engine.result?.xyCharts.map((chart) => (
+            <div key={chart.name} className="lq-script-tutorial__xy-chart">
+              <ScriptXYChart chart={chart} height={200} />
+            </div>
+          ))}
         </div>
       )}
     </div>

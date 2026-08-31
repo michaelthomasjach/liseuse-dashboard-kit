@@ -221,6 +221,14 @@
   border: 1px solid var(--lq-color-border-subtle);
 }
 
+/* plot.xy(...) output — stacked below the preview chart, not overlaid on it (see
+   ScriptInteractiveTutorial.tsx's own doc on why this differs from ScriptTableOverlay's own
+   corner-anchored placement). */
+.lq-script-tutorial__xy-chart {
+  border: 1px solid var(--lq-color-border-subtle);
+  border-top: none;
+}
+
 @media (max-width: 900px) {
   .lq-script-tutorial {
     flex-direction: column;

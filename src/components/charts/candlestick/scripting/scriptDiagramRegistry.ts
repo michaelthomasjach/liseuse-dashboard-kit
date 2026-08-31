@@ -11,6 +11,7 @@ import {
   ResampleDiagram,
   PlotTableDiagram,
   PlotLabelDiagram,
+  MarketProfileDiagram,
 } from "./scriptingDiagrams";
 
 /** One explanatory diagram per `diagramKey` a `scriptApiReference.ts` block can reference — same
@@ -28,4 +29,5 @@ export const SCRIPT_DIAGRAM_REGISTRY: Record<string, ComponentType> = {
   resample: ResampleDiagram,
   plotTable: PlotTableDiagram,
   plotLabel: PlotLabelDiagram,
+  marketProfile: MarketProfileDiagram,
 };

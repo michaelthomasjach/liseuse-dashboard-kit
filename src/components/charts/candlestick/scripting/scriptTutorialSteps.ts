@@ -485,8 +485,446 @@ plot.xy("Volume vs variation", volumes, changes, {
   },
 ];
 
+// Fenêtre/résolution volontairement petites (pas les 365/200 d'un script de production réel) pour
+// tenir dans les 140 bougies de SCRIPT_TUTORIAL_DATA et rester instantané à chaque étape — l'étape
+// de clôture donne les constantes d'un vrai déploiement, avec les temps mesurés qui vont avec.
+const KDE_LEVELS_TRACK_STEPS: ScriptTutorialStep[] = [
+  {
+    id: "histogram",
+    title: "Étape 1 — Le principe : un histogramme du prix",
+    paragraphs: [
+      "Un niveau de support/résistance, c'est une zone de prix où le marché s'est le plus souvent attardé récemment — l'idée la plus simple pour la repérer : découper les clôtures récentes en tranches de prix (des « bins ») et compter combien de clôtures tombent dans chacune. Une tranche avec beaucoup de clôtures est une zone où le prix a « stationné ».",
+      "plot.xy(nom, x[], y[], options?) trace un graphique libre, indépendant des bougies — x et y sont deux tableaux de même longueur, un point par indice. Ici, le nombre de clôtures par tranche en x, le prix de chaque tranche en y : le résultat se lit comme un histogramme couché sur le côté, prix en vertical, densité en horizontal — exactement l'orientation d'un vrai « market profile ».",
+      "La courbe obtenue est dentelée, presque bruitée — normal, un histogramme brut est très sensible au hasard de quelles clôtures tombent exactement dans quelle tranche. C'est précisément ce que l'étape suivante corrige.",
+    ],
+    diagramKey: "marketProfile",
+    code: `const WINDOW = 60; // nombre de bougies utilisées pour construire le profil
+const BIN_COUNT = 12; // nombre de tranches de prix
+
+const closes = market.series("close", WINDOW);
+if (closes.length < 10) return; // pas encore assez d'historique en tout début de rejeu
+
+const minP = Math.min(...closes);
+const maxP = Math.max(...closes);
+if (maxP <= minP) return; // toutes les clôtures identiques — rien à découper en tranches
+
+const binSize = (maxP - minP) / BIN_COUNT;
+const counts = new Array(BIN_COUNT).fill(0);
+for (const c of closes) {
+  const bin = Math.min(BIN_COUNT - 1, Math.floor((c - minP) / binSize));
+  counts[bin]++;
+}
+const prices = counts.map((_, i) => minP + (i + 0.5) * binSize);
+
+plot.xy("Profil (histogramme)", counts, prices, {
+  xLabel: "Nombre de clôtures",
+  yLabel: "Prix",
+  title: "Où le prix a-t-il le plus stationné ?",
+});
+`,
+  },
+  {
+    id: "kde-smooth",
+    title: "Étape 2 — Lisser l'histogramme avec un noyau gaussien (KDE)",
+    paragraphs: [
+      "Un histogramme dépend violemment de l'endroit exact où tombent les frontières des tranches — décaler BIN_COUNT change la forme du résultat. Une KDE (kernel density estimation) résout ça : au lieu qu'une clôture ne « vote » que pour sa seule tranche, elle vote pour tout son voisinage, avec un poids qui décroît en cloche de Gauss (Math.exp(-0.5 * z²)) à mesure qu'on s'en éloigne.",
+      "BANDWIDTH contrôle la largeur de cette cloche — plus grand, plus lisse (mais moins précis) ; plus petit, plus fidèle aux données (mais plus bruité). Fixe pour l'instant, prochaine étape : l'adapter automatiquement à la volatilité du marché.",
+    ],
+    code: `const WINDOW = 60;
+const GRID = 60; // résolution du profil (nombre de points où la densité est évaluée)
+const BANDWIDTH = 2; // largeur du noyau, en unités de prix — fixe pour l'instant
+
+const closes = market.series("close", WINDOW);
+if (closes.length < 10) return;
+
+const minP = Math.min(...closes);
+const maxP = Math.max(...closes);
+if (maxP <= minP) return;
+
+const step = (maxP - minP) / GRID;
+const priceGrid = [];
+for (let p = minP; p < maxP; p += step) priceGrid.push(p);
+
+// Densité gaussienne : chaque clôture "vote" pour tout son voisinage, pas juste sa propre tranche.
+const density = priceGrid.map((p) => {
+  let sum = 0;
+  for (const c of closes) {
+    const z = (p - c) / BANDWIDTH;
+    sum += Math.exp(-0.5 * z * z);
+  }
+  return sum;
+});
+
+plot.xy("Profil (KDE)", density, priceGrid, { xLabel: "Densité", yLabel: "Prix", title: "Profil lissé (noyau gaussien)" });
+`,
+  },
+  {
+    id: "kde-weighted",
+    title: "Étape 3 — Pondérer les clôtures récentes plus fortement",
+    paragraphs: [
+      "Toutes les clôtures de la fenêtre comptent pour l'instant à égalité — une clôture vieille de 60 bougies pèse autant qu'une d'hier. FIRST_W change ça : la plus ancienne clôture de la fenêtre pèse FIRST_W (proche de 0 = presque ignorée), la plus récente pèse toujours 1 — une simple rampe linéaire entre les deux.",
+      "Chaque terme de la somme est maintenant multiplié par son propre poids (weights[i]) avant d'être additionné — le reste du calcul (la cloche de Gauss elle-même) ne change pas.",
+    ],
+    code: `const WINDOW = 60;
+const GRID = 60;
+const BANDWIDTH = 2;
+const FIRST_W = 0.2; // poids de la clôture la plus ancienne de la fenêtre (1.0 = poids uniforme)
+
+const closes = market.series("close", WINDOW);
+if (closes.length < 10) return;
+
+const minP = Math.min(...closes);
+const maxP = Math.max(...closes);
+if (maxP <= minP) return;
+
+const weights = closes.map((_, i) => FIRST_W + (i / closes.length) * (1 - FIRST_W));
+
+const step = (maxP - minP) / GRID;
+const priceGrid = [];
+for (let p = minP; p < maxP; p += step) priceGrid.push(p);
+
+const density = priceGrid.map((p) => {
+  let sum = 0;
+  for (let i = 0; i < closes.length; i++) {
+    const z = (p - closes[i]) / BANDWIDTH;
+    sum += weights[i] * Math.exp(-0.5 * z * z);
+  }
+  return sum;
+});
+
+plot.xy("Profil (KDE pondéré)", density, priceGrid, { xLabel: "Densité", yLabel: "Prix", title: "Profil lissé — clôtures récentes pondérées" });
+`,
+  },
+  {
+    id: "kde-atr-bandwidth",
+    title: "Étape 4 — Adapter la largeur du noyau à la volatilité (ATR)",
+    paragraphs: [
+      "Un BANDWIDTH fixe est trop étroit sur un marché calme et trop large sur un marché agité — la même largeur ne veut pas dire la même chose selon la volatilité. ta.atr(...) donne l'amplitude moyenne récente des bougies ; l'utiliser comme base du bandwidth (multipliée par un facteur, ici 3) fait respirer le noyau avec le marché, automatiquement.",
+      "ta.atr peut renvoyer null tant qu'il n'a pas assez d'historique (voir ta.* plus bas) — d'où le ?? 1 juste après, une valeur de repli pour ne pas casser le calcul pendant les toutes premières bougies du rejeu.",
+    ],
+    code: `const WINDOW = 60;
+const GRID = 60;
+const FIRST_W = 0.2;
+const ATR_MULT = 3.0; // multiplicateur d'ATR utilisé comme largeur de bande
+
+const closes = market.series("close", WINDOW);
+const highs = market.series("high", WINDOW);
+const lows = market.series("low", WINDOW);
+if (closes.length < 15) return;
+
+const minP = Math.min(...closes);
+const maxP = Math.max(...closes);
+if (maxP <= minP) return;
+
+const atr = ta.atr(highs, lows, closes, 14);
+const bandwidth = (atr ?? 1) * ATR_MULT;
+
+const weights = closes.map((_, i) => FIRST_W + (i / closes.length) * (1 - FIRST_W));
+
+const step = (maxP - minP) / GRID;
+const priceGrid = [];
+for (let p = minP; p < maxP; p += step) priceGrid.push(p);
+
+const density = priceGrid.map((p) => {
+  let sum = 0;
+  for (let i = 0; i < closes.length; i++) {
+    const z = (p - closes[i]) / bandwidth;
+    sum += weights[i] * Math.exp(-0.5 * z * z);
+  }
+  return sum;
+});
+
+plot.xy("Profil (KDE, bandwidth = ATR)", density, priceGrid, { xLabel: "Densité", yLabel: "Prix", title: "Bandwidth adapté à la volatilité" });
+`,
+  },
+  {
+    id: "find-peaks",
+    title: "Étape 5 — Détecter les pics du profil : les niveaux",
+    paragraphs: [
+      "Le profil est prêt — reste à en extraire des niveaux concrets plutôt qu'une courbe à regarder. Un niveau, c'est un pic local du profil : un point plus haut que ses deux voisins immédiats. Mais un profil bruité a des dizaines de micro-pics sans intérêt ; la proéminence (prominence) les filtre : la hauteur d'un pic au-dessus du plus haut des deux « creux » qui l'encadrent avant de retomber jusqu'à un point aussi haut que lui. Un vrai sommet isolé a une forte proéminence ; une simple ondulation sur le flanc d'un pic plus large en a une faible.",
+      "PROM_THRESH fixe le seuil, en fraction du pic le plus haut du profil entier — 0.12 ne garde que les pics faisant au moins 12% de la hauteur du plus haut (une fenêtre de 60 bougies, comme ici, donne un profil plus bruité qu'une vraie fenêtre de production à 365 — un seuil plus permissif compense). plot.table affiche les prix détectés en plus du profil lui-même.",
+    ],
+    code: `const WINDOW = 60;
+const GRID = 60;
+const FIRST_W = 0.2;
+const ATR_MULT = 3.0;
+const PROM_THRESH = 0.12; // proéminence minimale d'un pic, en fraction du pic le plus haut
+
+function findPeaks(values, minProminence) {
+  const peaks = [];
+  for (let i = 1; i < values.length - 1; i++) {
+    if (values[i] <= values[i - 1] || values[i] < values[i + 1]) continue;
+    let leftMin = values[i];
+    for (let j = i - 1; j >= 0 && values[j] <= values[i]; j--) leftMin = Math.min(leftMin, values[j]);
+    let rightMin = values[i];
+    for (let j = i + 1; j < values.length && values[j] <= values[i]; j++) rightMin = Math.min(rightMin, values[j]);
+    if (values[i] - Math.max(leftMin, rightMin) >= minProminence) peaks.push(i);
+  }
+  return peaks;
+}
+
+const closes = market.series("close", WINDOW);
+const highs = market.series("high", WINDOW);
+const lows = market.series("low", WINDOW);
+if (closes.length < 15) return;
+
+const minP = Math.min(...closes);
+const maxP = Math.max(...closes);
+if (maxP <= minP) return;
+
+const atr = ta.atr(highs, lows, closes, 14);
+const bandwidth = (atr ?? 1) * ATR_MULT;
+const weights = closes.map((_, i) => FIRST_W + (i / closes.length) * (1 - FIRST_W));
+
+const step = (maxP - minP) / GRID;
+const priceGrid = [];
+for (let p = minP; p < maxP; p += step) priceGrid.push(p);
+
+const density = priceGrid.map((p) => {
+  let sum = 0;
+  for (let i = 0; i < closes.length; i++) {
+    const z = (p - closes[i]) / bandwidth;
+    sum += weights[i] * Math.exp(-0.5 * z * z);
+  }
+  return sum;
+});
+
+const peakIdx = findPeaks(density, Math.max(...density) * PROM_THRESH);
+const levels = peakIdx.map((i) => priceGrid[i]);
+
+plot.xy("Profil (KDE)", density, priceGrid, { xLabel: "Densité", yLabel: "Prix", title: "Profil — niveaux détectés" });
+plot.table(
+  levels.map((lv) => ({ cells: [lv.toFixed(2)] })),
+  { title: "Niveaux détectés", columns: ["Prix"] }
+);
+`,
+  },
+  {
+    id: "levels-on-chart",
+    title: "Étape 6 — Afficher les niveaux sur la vraie chart",
+    paragraphs: [
+      "plot.xy était parfait pour comprendre le profil lui-même, mais un trader veut voir les niveaux directement sur les bougies, pas sur un graphique à part. plot.overlay(nom).line(nom, valeur) fait ça — une série par niveau, chacune avec son propre nom (donc sa propre couleur/entrée de légende), tracée bougie après bougie à la valeur du niveau qu'elle représente.",
+      "Comme le nombre de niveaux varie d'un calcul à l'autre, on nomme chacun par son rang (« Niveau 1 », « Niveau 2 »…) plutôt que par sa valeur — un script.pane/.overlay garde son identité par son nom, pas par sa position dans un tableau.",
+    ],
+    code: `const WINDOW = 60;
+const GRID = 60;
+const FIRST_W = 0.2;
+const ATR_MULT = 3.0;
+const PROM_THRESH = 0.12;
+
+function findPeaks(values, minProminence) {
+  const peaks = [];
+  for (let i = 1; i < values.length - 1; i++) {
+    if (values[i] <= values[i - 1] || values[i] < values[i + 1]) continue;
+    let leftMin = values[i];
+    for (let j = i - 1; j >= 0 && values[j] <= values[i]; j--) leftMin = Math.min(leftMin, values[j]);
+    let rightMin = values[i];
+    for (let j = i + 1; j < values.length && values[j] <= values[i]; j++) rightMin = Math.min(rightMin, values[j]);
+    if (values[i] - Math.max(leftMin, rightMin) >= minProminence) peaks.push(i);
+  }
+  return peaks;
+}
+
+const closes = market.series("close", WINDOW);
+const highs = market.series("high", WINDOW);
+const lows = market.series("low", WINDOW);
+if (closes.length < 15) return;
+
+const minP = Math.min(...closes);
+const maxP = Math.max(...closes);
+if (maxP <= minP) return;
+
+const atr = ta.atr(highs, lows, closes, 14);
+const bandwidth = (atr ?? 1) * ATR_MULT;
+const weights = closes.map((_, i) => FIRST_W + (i / closes.length) * (1 - FIRST_W));
+
+const step = (maxP - minP) / GRID;
+const priceGrid = [];
+for (let p = minP; p < maxP; p += step) priceGrid.push(p);
+
+const density = priceGrid.map((p) => {
+  let sum = 0;
+  for (let i = 0; i < closes.length; i++) {
+    const z = (p - closes[i]) / bandwidth;
+    sum += weights[i] * Math.exp(-0.5 * z * z);
+  }
+  return sum;
+});
+
+const peakIdx = findPeaks(density, Math.max(...density) * PROM_THRESH);
+const levels = peakIdx.map((i) => priceGrid[i]);
+
+for (let k = 0; k < levels.length; k++) {
+  plot.overlay("Niveau " + (k + 1)).line("Niveau " + (k + 1), levels[k]);
+}
+`,
+  },
+  {
+    id: "recalc-throttle",
+    title: "Étape 7 — Ne recalculer que de temps en temps",
+    paragraphs: [
+      "Ce script tourne déjà correctement, mais recalcule le profil ENTIER à CHAQUE bougie du rejeu — sur un vrai historique de plusieurs milliers de bougies (pas les 140 de cette démo), ça devient lent. Un replay complet a un budget de 8 secondes ; une nouvelle bougie en direct, 1.5 seconde seulement. Mesuré sur un script de production équivalent : recalculer à chaque bougie prend ~2.6s sur ~2500 bougies — largement sous les 8s du replay initial, mais déjà au-dessus des 1.5s d'une bougie live.",
+      "state.get/set (déjà vu dans le tutoriel « Construire un indicateur ») résout ça : un compteur de bougies mémorisé d'une bougie à l'autre, et le calcul ne se refait que tous les RECALC_EVERY bougies — le reste du temps, on relit simplement le dernier résultat mémorisé. Les niveaux d'un support/résistance ne bougent de toute façon pas d'une bougie à l'autre, donc rien n'est perdu à les rafraîchir un peu moins souvent.",
+    ],
+    diagramKey: "stateMemory",
+    code: `const WINDOW = 60;
+const GRID = 60;
+const FIRST_W = 0.2;
+const ATR_MULT = 3.0;
+const PROM_THRESH = 0.12;
+const RECALC_EVERY = 10; // ne recalculer les niveaux que tous les N bougies
+
+function findPeaks(values, minProminence) {
+  const peaks = [];
+  for (let i = 1; i < values.length - 1; i++) {
+    if (values[i] <= values[i - 1] || values[i] < values[i + 1]) continue;
+    let leftMin = values[i];
+    for (let j = i - 1; j >= 0 && values[j] <= values[i]; j--) leftMin = Math.min(leftMin, values[j]);
+    let rightMin = values[i];
+    for (let j = i + 1; j < values.length && values[j] <= values[i]; j++) rightMin = Math.min(rightMin, values[j]);
+    if (values[i] - Math.max(leftMin, rightMin) >= minProminence) peaks.push(i);
+  }
+  return peaks;
+}
+
+const barIndex = state.get("barIndex", 0);
+state.set("barIndex", barIndex + 1);
+
+if (barIndex >= WINDOW && barIndex % RECALC_EVERY === 0) {
+  const closes = market.series("close", WINDOW);
+  const highs = market.series("high", WINDOW);
+  const lows = market.series("low", WINDOW);
+  const minP = Math.min(...closes);
+  const maxP = Math.max(...closes);
+  if (maxP > minP) {
+    const atr = ta.atr(highs, lows, closes, 14);
+    const bandwidth = (atr ?? 1) * ATR_MULT;
+    const weights = closes.map((_, i) => FIRST_W + (i / closes.length) * (1 - FIRST_W));
+
+    const step = (maxP - minP) / GRID;
+    const priceGrid = [];
+    for (let p = minP; p < maxP; p += step) priceGrid.push(p);
+
+    const density = priceGrid.map((p) => {
+      let sum = 0;
+      for (let i = 0; i < closes.length; i++) {
+        const z = (p - closes[i]) / bandwidth;
+        sum += weights[i] * Math.exp(-0.5 * z * z);
+      }
+      return sum;
+    });
+
+    const peakIdx = findPeaks(density, Math.max(...density) * PROM_THRESH);
+    state.set("levels", peakIdx.map((i) => priceGrid[i]));
+  }
+}
+
+const levels = state.get("levels", []);
+for (let k = 0; k < levels.length; k++) {
+  plot.overlay("Niveau " + (k + 1)).line("Niveau " + (k + 1), levels[k]);
+}
+`,
+  },
+  {
+    id: "crossing-signal",
+    title: "Étape 8 — Détecter les franchissements",
+    paragraphs: [
+      "Dernière pièce : signaler quand le prix franchit un niveau, pas juste l'afficher. sig mémorise (encore via state) le sens du dernier franchissement connu — 1 pour un franchissement vers le haut, -1 vers le bas. À chaque bougie, on compare la clôture précédente et la clôture actuelle à chaque niveau ; un signal ne se déclenche que si sig a réellement changé de valeur depuis la bougie précédente, pas à chaque bougie où il reste vrai.",
+      "plot.signal({ type, price }) pose une flèche BUY/SELL à la clôture courante — la même fonction que le tout premier tutoriel, ici armée par la détection de niveaux plutôt que par un croisement de moyennes mobiles.",
+    ],
+    diagramKey: "plotSignal",
+    code: `const WINDOW = 60;
+const GRID = 60;
+const FIRST_W = 0.2;
+const ATR_MULT = 3.0;
+const PROM_THRESH = 0.12;
+const RECALC_EVERY = 10;
+
+function findPeaks(values, minProminence) {
+  const peaks = [];
+  for (let i = 1; i < values.length - 1; i++) {
+    if (values[i] <= values[i - 1] || values[i] < values[i + 1]) continue;
+    let leftMin = values[i];
+    for (let j = i - 1; j >= 0 && values[j] <= values[i]; j--) leftMin = Math.min(leftMin, values[j]);
+    let rightMin = values[i];
+    for (let j = i + 1; j < values.length && values[j] <= values[i]; j++) rightMin = Math.min(rightMin, values[j]);
+    if (values[i] - Math.max(leftMin, rightMin) >= minProminence) peaks.push(i);
+  }
+  return peaks;
+}
+
+const barIndex = state.get("barIndex", 0);
+state.set("barIndex", barIndex + 1);
+
+if (barIndex >= WINDOW && barIndex % RECALC_EVERY === 0) {
+  const closes = market.series("close", WINDOW);
+  const highs = market.series("high", WINDOW);
+  const lows = market.series("low", WINDOW);
+  const minP = Math.min(...closes);
+  const maxP = Math.max(...closes);
+  if (maxP > minP) {
+    const atr = ta.atr(highs, lows, closes, 14);
+    const bandwidth = (atr ?? 1) * ATR_MULT;
+    const weights = closes.map((_, i) => FIRST_W + (i / closes.length) * (1 - FIRST_W));
+
+    const step = (maxP - minP) / GRID;
+    const priceGrid = [];
+    for (let p = minP; p < maxP; p += step) priceGrid.push(p);
+
+    const density = priceGrid.map((p) => {
+      let sum = 0;
+      for (let i = 0; i < closes.length; i++) {
+        const z = (p - closes[i]) / bandwidth;
+        sum += weights[i] * Math.exp(-0.5 * z * z);
+      }
+      return sum;
+    });
+
+    const peakIdx = findPeaks(density, Math.max(...density) * PROM_THRESH);
+    state.set("levels", peakIdx.map((i) => priceGrid[i]));
+  }
+}
+
+const levels = state.get("levels", []);
+for (let k = 0; k < levels.length; k++) {
+  plot.overlay("Niveau " + (k + 1)).line("Niveau " + (k + 1), levels[k]);
+}
+
+const prevClose = market.close(1);
+const currClose = market.close(0);
+if (prevClose !== null && currClose !== null) {
+  let sig = state.get("sig", 0);
+  const prevSig = sig;
+  for (const level of levels) {
+    if (currClose > level && prevClose <= level) sig = 1;
+    else if (currClose < level && prevClose >= level) sig = -1;
+  }
+  if (sig !== prevSig) {
+    plot.signal({ type: sig > 0 ? "BUY" : "SELL", price: currClose });
+  }
+  state.set("sig", sig);
+}
+`,
+  },
+  {
+    id: "kde-wrap-up",
+    title: "Étape 9 — Pour aller plus loin",
+    paragraphs: [
+      "Un indicateur de support/résistance complet, de la simple idée d'un histogramme jusqu'à un vrai signal de franchissement — huit étapes, chacune une brique de plus sur la précédente, sans jamais tout réécrire. C'est le meilleur réflexe face à un script complexe (que ce soit ici ou porté d'ailleurs, comme un algorithme Python existant) : décomposer en petites étapes qui affichent chacune quelque chose, plutôt que d'essayer d'écrire la version finale d'un coup.",
+      "Pour un vrai déploiement (pas cette démo à 140 bougies) : WINDOW=365, GRID=200, RECALC_EVERY réglé autour de 15-20 — mesuré sur un historique de ~2500 bougies, RECALC_EVERY=20 prend ~278ms (large marge sous les deux timeouts), RECALC_EVERY=1 prend ~2.6s (dépasse le budget d'1.5s d'une bougie live, même si le replay initial passe de justesse).",
+    ],
+    list: [
+      "state.* (plus bas) détaille state.get/set — le mécanisme qui a permis de faire persister barIndex, levels et sig d'une bougie à l'autre dans cette étape.",
+      "ta.* (plus bas) couvre ta.atr et tous les autres indicateurs techniques prêts à l'emploi.",
+      "plot.* (plus bas) détaille plot.xy (profil libre), plot.overlay/.line (niveaux sur la chart) et plot.signal (marqueurs de franchissement) en profondeur.",
+      "Le tutoriel « Construire un indicateur » explique bar.isNew() et le mode cellules (// %%), utiles pour développer un script comme celui-ci morceau par morceau sans tout relancer à chaque fois.",
+    ],
+  },
+];
+
 export const SCRIPT_TUTORIAL_TRACKS: ScriptTutorialTrack[] = [
   { id: "indicator", title: "Construire un indicateur", steps: INDICATOR_TRACK_STEPS },
   { id: "math", title: "Fonctions mathématiques", steps: MATH_TRACK_STEPS },
   { id: "notebook", title: "Mode notebook", steps: NOTEBOOK_TRACK_STEPS },
+  { id: "kde-levels", title: "Niveaux de support/résistance (KDE)", steps: KDE_LEVELS_TRACK_STEPS },
 ];

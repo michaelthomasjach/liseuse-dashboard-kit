@@ -3,7 +3,8 @@ import * as d3 from "d3";
 import type { ScaleLinear } from "d3";
 import { useDockedPaneColumns } from "./useDockedPaneColumns";
 import { usePaneStackScales } from "./usePaneStackScales";
-import { SIDE_DOCK_PANE_DEFAULT_WIDTH } from "../constants";
+import { computeDateTickValues } from "./useZoomAndScales";
+import { SIDE_DOCK_PANE_DEFAULT_WIDTH, SUB_PANE_COLLAPSED_HEIGHT } from "../constants";
 import type { Candle } from "../interfaces/Candle.interface";
 import type { Indicator } from "../interfaces/Indicator.interface";
 import type { IndicatorKind } from "../interfaces/IndicatorKind.interface";
@@ -27,6 +28,7 @@ export interface UseDockedPaneColumnsStateArgs {
   data: Candle[];
   indicators: Indicator[];
   hoverIndex: number | null;
+  dateTickFormat: (value: number) => string;
   startPaneResize: (paneKey: string, e: React.PointerEvent) => void;
   commitTargetIndicators: Indicator[];
   commitIndicators: (indicators: Indicator[]) => void;
@@ -64,6 +66,7 @@ export function useDockedPaneColumnsState({
   data,
   indicators,
   hoverIndex,
+  dateTickFormat,
   startPaneResize,
   commitTargetIndicators,
   commitIndicators,
@@ -81,12 +84,14 @@ export function useDockedPaneColumnsState({
     indicatorPaneHeights: leftPaneHeights,
     visibleIndicators,
     paneYTransform,
+    headerReserve: SUB_PANE_COLLAPSED_HEIGHT,
   });
   const { zoomedOwnPaneScales: zoomedRightPaneScales } = usePaneStackScales({
     ownPaneIndicators: rightPaneIndicators,
     indicatorPaneHeights: rightPaneHeights,
     visibleIndicators,
     paneYTransform,
+    headerReserve: SUB_PANE_COLLAPSED_HEIGHT,
   });
 
   const leftColumnWidth = dockedPaneColumns.widths.left ?? SIDE_DOCK_PANE_DEFAULT_WIDTH;
@@ -113,6 +118,18 @@ export function useDockedPaneColumnsState({
   const leftCandleWidth = boundedWidth > 0 ? candleWidth * (leftColumnWidth / boundedWidth) : 0;
   const rightCandleWidth = boundedWidth > 0 ? candleWidth * (rightColumnWidth / boundedWidth) : 0;
 
+  // Same thinning the main plot's own date axis uses (computeDateTickValues, see its own doc),
+  // just against this column's own — much narrower — width instead of dims.boundedWidth, so a
+  // handful of labels are shown rather than the main axis's own dozen crammed into 220px.
+  const leftDateTickValues = useMemo(
+    () => computeDateTickValues(leftZoomedXScale, data.length, leftColumnWidth),
+    [leftZoomedXScale, data.length, leftColumnWidth]
+  );
+  const rightDateTickValues = useMemo(
+    () => computeDateTickValues(rightZoomedXScale, data.length, rightColumnWidth),
+    [rightZoomedXScale, data.length, rightColumnWidth]
+  );
+
   const shared = {
     plotBoundedHeight,
     themeTick,
@@ -128,6 +145,7 @@ export function useDockedPaneColumnsState({
     indicatorValues,
     onOpenIndicatorInfo,
     onEditScript,
+    dateTickFormat,
   };
 
   const leftColumnProps: ChartSidePaneColumnProps | null =
@@ -147,6 +165,7 @@ export function useDockedPaneColumnsState({
           paneTops: leftPaneTops,
           zoomedPaneScales: zoomedLeftPaneScales,
           visibleIndicators,
+          dateTickValues: leftDateTickValues,
         }
       : null;
 
@@ -167,6 +186,7 @@ export function useDockedPaneColumnsState({
           paneTops: rightPaneTops,
           zoomedPaneScales: zoomedRightPaneScales,
           visibleIndicators,
+          dateTickValues: rightDateTickValues,
         }
       : null;
 

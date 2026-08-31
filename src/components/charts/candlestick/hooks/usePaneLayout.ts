@@ -19,17 +19,29 @@ function indicatorDock(ind: Indicator): "bottom" | "left" | "right" {
   return ind.customData?.dock ?? "bottom";
 }
 
-// Shared by the bottom/left/right stacks below (see ownPaneIndicators/leftPaneIndicators/
-// rightPaneIndicators) — each stacks its own subset of "own"-pane indicators vertically over
-// its own bounded height the exact same way, just over a different height/subset.
-function stackPanes(
+// A `plot.pane(name, { dock: "left"|"right" })` script pane's own column has nothing else to
+// absorb whatever height its panes *don't* claim — unlike the bottom stack, where price quietly
+// eats whatever indicatorPanesTotalHeight leaves over (see priceHeight below), a side column is
+// made *entirely* of these panes, so DEFAULT_PANE_HEIGHT_FRACTION's flat 22% (right for a bottom
+// stack, where several panes sharing space alongside price is the common case) left a solo docked
+// pane using barely a fifth of its own column, the rest just blank canvas. Normalizes every
+// *expanded* pane's own fraction (still whatever startPaneResize's own drag wrote, or an even
+// split by default — 1 / expandedCount, not the bottom stack's flat default) against their own
+// sum, so together they always fill exactly `boundedHeight` — a lone pane always gets the whole
+// column (dragging its own resize handle is then correctly a no-op, nothing to redistribute *to*),
+// two even ones split it 50/50 by default, and so on. Collapsed panes stay their own fixed
+// SUB_PANE_COLLAPSED_HEIGHT either way, same as the bottom stack.
+function stackSidePanes(
   owned: Indicator[],
   heightFractions: Record<string, number>,
   boundedHeight: number
 ): { heights: number[]; tops: number[] } {
-  const heights = owned.map((ind) =>
-    ind.paneCollapsed ? SUB_PANE_COLLAPSED_HEIGHT : Math.round(boundedHeight * (heightFractions[ind.id] ?? DEFAULT_PANE_HEIGHT_FRACTION))
-  );
+  const expandedCount = owned.filter((ind) => !ind.paneCollapsed).length;
+  const collapsedHeight = owned.filter((ind) => ind.paneCollapsed).length * SUB_PANE_COLLAPSED_HEIGHT;
+  const available = Math.max(0, boundedHeight - collapsedHeight);
+  const rawFractions = owned.map((ind) => (ind.paneCollapsed ? 0 : (heightFractions[ind.id] ?? 1 / expandedCount)));
+  const fractionSum = rawFractions.reduce((sum, f) => sum + f, 0) || 1;
+  const heights = owned.map((ind, i) => (ind.paneCollapsed ? SUB_PANE_COLLAPSED_HEIGHT : Math.round(available * (rawFractions[i] / fractionSum))));
   const tops: number[] = [];
   let cursor = 0;
   for (const h of heights) {
@@ -479,13 +491,13 @@ export function usePaneLayout({ defaultIndicators, onIndicatorsChange, showVolum
   const { leftPaneIndicators, leftPaneHeights, leftPaneTops } = useMemo(() => {
     if (fullscreenPaneId !== null) return { leftPaneIndicators: [] as Indicator[], leftPaneHeights: [] as number[], leftPaneTops: [] as number[] };
     const owned = [...indicators, ...extraIndicators].filter((ind) => indicatorCatalogEntry(ind).pane === "own" && indicatorDock(ind) === "left");
-    const { heights, tops } = stackPanes(owned, paneHeightFractions, plotBoundedHeight);
+    const { heights, tops } = stackSidePanes(owned, paneHeightFractions, plotBoundedHeight);
     return { leftPaneIndicators: owned, leftPaneHeights: heights, leftPaneTops: tops };
   }, [indicators, extraIndicators, paneHeightFractions, plotBoundedHeight, fullscreenPaneId]);
   const { rightPaneIndicators, rightPaneHeights, rightPaneTops } = useMemo(() => {
     if (fullscreenPaneId !== null) return { rightPaneIndicators: [] as Indicator[], rightPaneHeights: [] as number[], rightPaneTops: [] as number[] };
     const owned = [...indicators, ...extraIndicators].filter((ind) => indicatorCatalogEntry(ind).pane === "own" && indicatorDock(ind) === "right");
-    const { heights, tops } = stackPanes(owned, paneHeightFractions, plotBoundedHeight);
+    const { heights, tops } = stackSidePanes(owned, paneHeightFractions, plotBoundedHeight);
     return { rightPaneIndicators: owned, rightPaneHeights: heights, rightPaneTops: tops };
   }, [indicators, extraIndicators, paneHeightFractions, plotBoundedHeight, fullscreenPaneId]);
 

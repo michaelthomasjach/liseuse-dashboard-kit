@@ -4,12 +4,13 @@ import type * as React from "react";
 import type { ScaleLinear } from "d3";
 import { useRenderSidePaneColumn } from "../hooks/useRenderSidePaneColumn";
 import { SidePaneHeaders } from "./SidePaneHeaders";
+import { ChartAxis } from "../../ChartAxis";
 import type { DockSide } from "../hooks/useDockedPaneColumns";
 import type { Candle } from "../interfaces/Candle.interface";
 import type { Indicator } from "../interfaces/Indicator.interface";
 import type { IndicatorKind } from "../interfaces/IndicatorKind.interface";
 import type { IndicatorValue } from "../interfaces/IndicatorValue.interface";
-import { SUB_PANE_COLLAPSED_HEIGHT } from "../constants";
+import { SUB_PANE_COLLAPSED_HEIGHT, SIDE_DOCK_AXIS_WIDTH, SIDE_DOCK_DATE_AXIS_HEIGHT } from "../constants";
 
 export interface ChartSidePaneColumnProps {
   side: DockSide;
@@ -48,6 +49,11 @@ export interface ChartSidePaneColumnProps {
   indicatorValues: { indicator: Indicator; values: (IndicatorValue | null)[] }[];
   onOpenIndicatorInfo: (kind: IndicatorKind | "volume") => void;
   onEditScript?: (scriptId: string) => void;
+  /** Which candle indices (see computeDateTickValues) the shared date axis at the bottom of this
+   *  column draws a tick at — computed against this column's own (narrower) width, not the main
+   *  plot's, see useDockedPaneColumnsState's own leftDateTickValues/rightDateTickValues doc. */
+  dateTickValues: number[];
+  dateTickFormat: (value: number) => string;
 }
 
 /** A `plot.pane(name, { dock: "left"|"right" })` script pane's own column — a flex sibling of
@@ -97,6 +103,8 @@ export function ChartSidePaneColumn({
   indicatorValues,
   onOpenIndicatorInfo,
   onEditScript,
+  dateTickValues,
+  dateTickFormat,
 }: ChartSidePaneColumnProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -116,33 +124,75 @@ export function ChartSidePaneColumn({
     indicators,
   });
 
+  // Reserved strips are per-column (see SIDE_DOCK_AXIS_WIDTH/SIDE_DOCK_DATE_AXIS_HEIGHT's own
+  // doc), only added at all once at least one pane here actually wants them — toggled off
+  // `Indicator.sideAxesVisible` (default true, see its own doc), a plain field on the runtime
+  // Indicator like every other Style-tab setting, not a `dock`-adjacent one on customData.
+  const showAxes = paneIndicators.some((ind) => ind.sideAxesVisible !== false);
+  const axisWidth = showAxes ? SIDE_DOCK_AXIS_WIDTH : 0;
+  const dateAxisHeight = showAxes ? SIDE_DOCK_DATE_AXIS_HEIGHT : 0;
+  const plotWidth = widthPx ?? defaultWidthPx;
+  const plotLeft = side === "left" ? axisWidth : 0;
+  const priceAxisX = side === "right" ? columnWidth : axisWidth;
+  const dateAxisLeft = side === "left" ? axisWidth : 0;
+  const priceAxisFmt = (v: number) => Number(v).toFixed(2);
+
   return (
     <div
-      ref={panelRef}
-      className={["lq-chart__side-dock-pane", `lq-chart__side-dock-pane--${side}`].join(" ")}
-      style={{ flex: `0 0 ${widthPx ?? defaultWidthPx}px`, height: plotBoundedHeight }}
+      className="lq-chart__side-dock-pane-group"
+      style={{ position: "relative", flex: `0 0 ${plotWidth + axisWidth}px`, height: plotBoundedHeight + dateAxisHeight }}
     >
       <div
-        className={["lq-chart__side-dock-pane-resize-handle", `lq-chart__side-dock-pane-resize-handle--${side}`].join(" ")}
-        onPointerDown={startResize}
-      />
-      <canvas ref={canvasRef} className="lq-chart__canvas" style={{ top: 0, left: 0, width: columnWidth, height: plotBoundedHeight }} />
-      <SidePaneHeaders
-        paneIndicators={paneIndicators}
-        paneTops={paneTops}
-        startPaneResize={startPaneResize}
-        SUB_PANE_COLLAPSED_HEIGHT={SUB_PANE_COLLAPSED_HEIGHT}
-        data={data}
-        hoverIndex={hoverIndex}
-        commitIndicators={commitIndicators}
-        indicators={commitTargetIndicators}
-        indicatorLabel={indicatorLabel}
-        openIndicatorSettings={openIndicatorSettings}
-        removeIndicator={removeIndicator}
-        indicatorValues={indicatorValues}
-        onOpenIndicatorInfo={onOpenIndicatorInfo}
-        onEditScript={onEditScript}
-      />
+        ref={panelRef}
+        className={["lq-chart__side-dock-pane", `lq-chart__side-dock-pane--${side}`].join(" ")}
+        style={{ position: "absolute", top: 0, left: plotLeft, width: plotWidth, height: plotBoundedHeight }}
+      >
+        <div
+          className={["lq-chart__side-dock-pane-resize-handle", `lq-chart__side-dock-pane-resize-handle--${side}`].join(" ")}
+          onPointerDown={startResize}
+        />
+        <canvas ref={canvasRef} className="lq-chart__canvas" style={{ top: 0, left: 0, width: columnWidth, height: plotBoundedHeight }} />
+        <SidePaneHeaders
+          paneIndicators={paneIndicators}
+          paneTops={paneTops}
+          startPaneResize={startPaneResize}
+          SUB_PANE_COLLAPSED_HEIGHT={SUB_PANE_COLLAPSED_HEIGHT}
+          data={data}
+          hoverIndex={hoverIndex}
+          commitIndicators={commitIndicators}
+          indicators={commitTargetIndicators}
+          indicatorLabel={indicatorLabel}
+          openIndicatorSettings={openIndicatorSettings}
+          removeIndicator={removeIndicator}
+          indicatorValues={indicatorValues}
+          onOpenIndicatorInfo={onOpenIndicatorInfo}
+          onEditScript={onEditScript}
+        />
+      </div>
+      {showAxes && (
+        <svg
+          className="lq-chart__side-dock-axes"
+          width={plotWidth + axisWidth}
+          height={plotBoundedHeight + dateAxisHeight}
+        >
+          {paneIndicators.map((ind, idx) => {
+            const scale = zoomedPaneScales[ind.id];
+            if (ind.paneCollapsed || ind.sideAxesVisible === false || !scale || paneHeights[idx] <= 0) return null;
+            return (
+              <g key={ind.id} transform={`translate(0, ${paneTops[idx]})`}>
+                <ChartAxis scale={scale} orientation={side === "right" ? "right" : "left"} transform={`translate(${priceAxisX}, 0)`} ticks={3} tickFormat={priceAxisFmt} />
+              </g>
+            );
+          })}
+          <ChartAxis
+            scale={zoomedXScale}
+            orientation="bottom"
+            transform={`translate(${dateAxisLeft}, ${plotBoundedHeight})`}
+            tickValues={dateTickValues}
+            tickFormat={dateTickFormat}
+          />
+        </svg>
+      )}
     </div>
   );
 }

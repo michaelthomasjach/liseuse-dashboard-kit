@@ -136,6 +136,19 @@
   border-left: 1px solid var(--lq-color-border-subtle);
 }
 
+/* The docked column's own price/date axes (see ChartSidePaneColumn.tsx) — a second, sibling SVG
+   spanning the *whole* group (plot + reserved axis strips), not scoped inside `.lq-chart__side-
+   dock-pane` (which stays exactly the resizable plot width — see that component's own doc on why
+   growing it would throw off the resize-drag math in useDockedPaneColumns.ts). Purely decorative,
+   same reasoning `.lq-chart__pane-header` is pointer-events: none. */
+.lq-chart__side-dock-axes {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+
 /* Same straddling-strip idea as `.lq-chart__side-panel-resize-handle` above — always on whichever
    edge faces the main chart (a left-docked column's own right edge, a right-docked one's left),
    so it never has to be located on the far outer edge only whichever side leaves the divider

@@ -101,3 +101,12 @@ export const TABLE_BORDER_HIT_MARGIN = 6;
 export const SIDE_DOCK_PANE_DEFAULT_WIDTH = 220;
 export const SIDE_DOCK_PANE_MIN_WIDTH = 120;
 export const SIDE_DOCK_PANE_MAX_WIDTH = 480;
+/** Reserved strip (px) for a docked column's own price axis — same width as the main plot's own
+ *  `DEFAULT_MARGIN.right`, for the same "room to fit two decimals plus a leading digit" reason.
+ *  Always on the column's own *outer* edge (facing away from the main chart, same convention as
+ *  the main plot's own price axis sitting on its far-right edge) — see ChartSidePaneColumn.tsx. */
+export const SIDE_DOCK_AXIS_WIDTH = 72;
+/** Reserved strip (px) for a docked column's own date axis, at the very bottom — same height as
+ *  the main plot's own `DEFAULT_MARGIN.bottom`. One shared strip per column (not one per pane
+ *  stacked in it — every pane in the same column reads the same dates). */
+export const SIDE_DOCK_DATE_AXIS_HEIGHT = 24;

@@ -199,4 +199,9 @@ export interface Indicator {
   /** A `pane: "own"` indicator's pane, collapsed to a header-only strip — same mechanism/UI as
    *  the volume pane's own collapse. Default false (expanded). */
   paneCollapsed?: boolean;
+  /** A `plot.pane(name, { dock: "left"|"right" })` script pane only (see `customData.dock`) —
+   *  whether its own price/date axes are drawn in the docked column. Default true; toggled from
+   *  the Style tab. Meaningless (ignored) for a `dock: "bottom"`/undocked pane, which already
+   *  shares the main plot's own axes. */
+  sideAxesVisible?: boolean;
 }

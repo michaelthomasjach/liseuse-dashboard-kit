@@ -540,6 +540,15 @@ export function IndicatorSettingsStyle({ indicatorDraft, setIndicatorDraft, indi
           ]}
         />
       )}
+      {/* Only ever set on a script-produced pane (see CustomIndicatorDef.dock's own doc) — a
+          built-in indicator has no UI to dock it beside the chart, so this never shows for one. */}
+      {(indicatorDraft.customData?.dock === "left" || indicatorDraft.customData?.dock === "right") && (
+        <Checkbox
+          label="Afficher les axes (prix et dates)"
+          checked={indicatorDraft.sideAxesVisible ?? true}
+          onChange={(checked) => setIndicatorDraft({ ...indicatorDraft, sideAxesVisible: checked })}
+        />
+      )}
       {/* Support/Résistance colors each level by whether the last close currently sits
           above or below it, and (besides its own "Séparer les blocs" toggle just above)
           TPO colors its own blocks with a fixed multi-stop gradient — neither reads

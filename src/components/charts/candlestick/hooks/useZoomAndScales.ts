@@ -11,6 +11,32 @@ import type { DrawingToolType } from "../interfaces/DrawingToolType.interface";
 import { MAX_EMPTY_FRACTION, AXIS_BADGE_HALF_HEIGHT, MAX_DATE_TICKS, MIN_DATE_TICK_SPACING_PX } from "../constants";
 import { computeHeikinAshiCandles, computeRenkoBrickSize, computeRenkoBricks, computeLineBreakBricks, type PriceBrick } from "../chartModes";
 
+/** Candle indices (offset .5 to land mid-slot, matching every candle's own cx) a date axis
+ *  should actually draw a tick at — thinned to at most MAX_DATE_TICKS regardless of how many
+ *  candles are currently visible, and further thinned to whatever actually fits `width` at
+ *  MIN_DATE_TICK_SPACING_PX per label (a narrower axis — a split-screen panel, a docked side
+ *  column — needs fewer ticks long before it needs zero). Extracted out of the `dateTickValues`
+ *  memo below so a `plot.pane(name, { dock: "left"|"right" })` script pane's own column
+ *  (useDockedPaneColumnsState.ts) can get the exact same thinning against its own, much narrower
+ *  width instead of the main plot's `dims.boundedWidth` — same `zoomedXScale` domain either way
+ *  (see that hook's own leftZoomedXScale/rightZoomedXScale doc for why the *domain* is shared but
+ *  the *range* isn't). Spaced from the scale's own *unclamped* domain, not a pre-clamped
+ *  [0, data.length] range — see the call site below for why. */
+export function computeDateTickValues(zoomedXScale: d3.ScaleLinear<number, number>, dataLength: number, width: number): number[] {
+  const [i0, i1] = zoomedXScale.domain();
+  const domainCount = i1 - i0;
+  if (domainCount <= 0 || dataLength === 0) return [];
+  const maxTicksForWidth = Math.max(2, Math.floor(width / MIN_DATE_TICK_SPACING_PX));
+  const maxTicks = Math.min(MAX_DATE_TICKS, maxTicksForWidth);
+  const step = Math.max(1, Math.ceil(domainCount / maxTicks));
+  const values: number[] = [];
+  for (let i = Math.floor(i0); i < i1; i += step) {
+    const value = i + 0.5;
+    if (value >= 0 && value < dataLength) values.push(value);
+  }
+  return values;
+}
+
 export interface UseZoomAndScalesArgs {
   data: Candle[];
   dims: ChartDimensions;
@@ -564,20 +590,10 @@ export function useZoomAndScales({
   // step through the real (unclamped) domain — keeping every tick's spacing correct relative to
   // the pixels it actually maps to via zoomedXScale — and only *then* drop whichever land outside
   // real data, rather than narrowing the range first and evenly spacing what's left of it.
-  const dateTickValues = useMemo(() => {
-    const [i0, i1] = zoomedXScale.domain();
-    const domainCount = i1 - i0;
-    if (domainCount <= 0 || data.length === 0) return [];
-    const maxTicksForWidth = Math.max(2, Math.floor(dims.boundedWidth / MIN_DATE_TICK_SPACING_PX));
-    const maxTicks = Math.min(MAX_DATE_TICKS, maxTicksForWidth);
-    const step = Math.max(1, Math.ceil(domainCount / maxTicks));
-    const values: number[] = [];
-    for (let i = Math.floor(i0); i < i1; i += step) {
-      const value = i + 0.5;
-      if (value >= 0 && value < data.length) values.push(value);
-    }
-    return values;
-  }, [zoomedXScale, data.length, dims.boundedWidth]);
+  const dateTickValues = useMemo(
+    () => computeDateTickValues(zoomedXScale, data.length, dims.boundedWidth),
+    [zoomedXScale, data.length, dims.boundedWidth]
+  );
 
   return {
     transform,

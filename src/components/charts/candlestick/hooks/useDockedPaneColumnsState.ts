@@ -23,6 +23,14 @@ export interface UseDockedPaneColumnsStateArgs {
   candleWidth: number;
   boundedWidth: number;
   plotBoundedHeight: number;
+  /** Pixel offset from the top of the outer `.lq-chart` flex row down to where `.lq-chart__plot`
+   *  actually starts (`headerSpace`, i.e. `showHeader ? HEADER_HEIGHT : 0` — see
+   *  CandlestickChart.tsx's own `plotHeight` doc) — a `<ChartSidePaneColumn>` is a flex *sibling*
+   *  of `.lq-chart__main`, not a child of it, so it never automatically inherits the room
+   *  `.lq-chart__main` reserves above its own plot for `<ChartHeader>` (the timeframe/replay
+   *  toolbar); without pushing the column down by this same amount, its own top edge lines up
+   *  with the *toolbar's* own top instead of the candles' own top one row below it. */
+  topOffset: number;
   themeTick: number;
   data: Candle[];
   indicators: Indicator[];
@@ -61,6 +69,7 @@ export function useDockedPaneColumnsState({
   candleWidth,
   boundedWidth,
   plotBoundedHeight,
+  topOffset,
   themeTick,
   data,
   indicators,
@@ -129,6 +138,7 @@ export function useDockedPaneColumnsState({
 
   const shared = {
     plotBoundedHeight,
+    topOffset,
     themeTick,
     indicators,
     data,

@@ -28,6 +28,11 @@ export interface ChartSidePaneColumnProps {
   startResize: (e: React.PointerEvent) => void;
   columnWidth: number;
   plotBoundedHeight: number;
+  /** Pushes this whole column down from the outer `.lq-chart` row's own top — see
+   *  useDockedPaneColumnsState's own `topOffset` doc for why a flex *sibling* of `.lq-chart__main`
+   *  needs this at all (it doesn't automatically inherit `.lq-chart__main`'s own `<ChartHeader>`
+   *  space above its plot). */
+  topOffset: number;
   themeTick: number;
   zoomedXScale: ScaleLinear<number, number>;
   candleWidth: number;
@@ -87,6 +92,7 @@ export function ChartSidePaneColumn({
   startResize,
   columnWidth,
   plotBoundedHeight,
+  topOffset,
   themeTick,
   zoomedXScale,
   candleWidth,
@@ -148,7 +154,10 @@ export function ChartSidePaneColumn({
   const priceAxisFmt = (v: number) => Number(v).toFixed(2);
 
   return (
-    <div className="lq-chart__side-dock-pane-group" style={{ position: "relative", flex: `0 0 ${plotWidth + axisWidth}px`, height: plotBoundedHeight }}>
+    <div
+      className="lq-chart__side-dock-pane-group"
+      style={{ position: "relative", flex: `0 0 ${plotWidth + axisWidth}px`, height: plotBoundedHeight, marginTop: topOffset }}
+    >
       <div
         ref={panelRef}
         className={["lq-chart__side-dock-pane", `lq-chart__side-dock-pane--${side}`].join(" ")}

@@ -23,9 +23,6 @@ export const TOOLS_RAIL_HEIGHT_MOBILE = 44;
  *  wrapper (see useChartDimensions), not the window, so a narrow embedding (a split-screen panel,
  *  a side panel) gets the same treatment as an actual phone. */
 export const MOBILE_RAIL_BREAKPOINT = 640;
-/** Height of the (non-floating) header row holding the timeframe picker and reset/fullscreen
- *  buttons — subtracted from the available height before laying out the plot itself. */
-export const HEADER_HEIGHT = 40;
 /** Distance (px) the date "+" button sits inset from the plot's own bottom edge — close to the
  *  date axis it mirrors (but clear of the date label's own badge just below the plot), and
  *  still inside the interactive rect so hovering it never counts as leaving the plot (see

@@ -28,28 +28,51 @@
 }
 
 /* Everything the chart itself renders (header, plot, modals) — a flex sibling of the optional
-   side panel inside the outer row (.lq-chart, above); `useChartDimensions`' own `ref` attaches
-   here, not to `.lq-chart` directly, so its ResizeObserver measures whatever width is left after
-   the panel's own share instead of the whole widget's — see CandlestickChart.tsx's own doc on
-   why (in short: this is what lets the panel genuinely shrink the plot via plain flexbox, with
-   zero changes needed to any of the axis/margin math everything downstream of `dims` reads
-   from). `min-width: 0` overrides a flex item's own default (content's intrinsic width, which a
-   wide canvas can make very large) — without it this could refuse to shrink below that. */
+   side panel inside the outer row (.lq-chart, above). A flex *column* of its own two visible
+   children — `<ChartHeader>` (natural/fixed height) and `.lq-chart__main-row` below it (grows to
+   fill whatever's left, see that rule's own doc) — so the *browser* computes "how tall is the
+   plot's own available space" via ordinary flex layout instead of a `dims.height - HEADER_HEIGHT`
+   JS subtraction (the shape this used to have, back when `useChartDimensions`' own `ref` sat
+   directly on this element and already measured the post-header space by construction). */
 .lq-chart__main {
   position: relative;
+  display: flex;
+  flex-direction: column;
   flex: 1 1 auto;
   min-width: 0;
 }
 
-/* Only while fullscreen — outside it, .lq-chart__main is a plain block box (header/plot already
-   stack top-to-bottom on their own) and centering would be a no-op anyway (there's no extra
-   height to distribute unless a caller's own `height` prop exceeds the content's natural size).
-   Moved here from `.lq-chart` itself (which now needs to stay a plain row, side panel included,
-   even while fullscreen) — same vertical-centering behavior as before, just retargeted. */
-.lq-chart--fullscreen .lq-chart__main {
+/* A `plot.pane(name, { dock: "left"|"right" })` script pane's own column, plus the plot itself —
+   nested *inside* `.lq-chart__main`, below its own header, rather than a sibling of it in the
+   outer `.lq-chart` row (see CandlestickChart.tsx's own doc on why: so `.lq-chart__header` above
+   spans this row's own full width, docked column included, instead of stopping short at the
+   plot's own edge). `flex: 1 1 auto` + `min-height: 0` grows to fill whatever height
+   `.lq-chart__main` has left after its own header — the same role `.lq-chart__main` itself used
+   to play one level up, now needed here since `useChartDimensions`' own `ref` moved down to
+   `.lq-chart__plot-column` (see that rule's own doc) and no longer measures that post-header
+   space directly. */
+.lq-chart__main-row {
   display: flex;
-  flex-direction: column;
-  justify-content: center;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* `useChartDimensions`' own `ref` attaches here, not to `.lq-chart__main-row` itself — its
+   ResizeObserver measures whatever width is left after the docked column(s)' own share instead
+   of the whole row's, the same "flex sibling shrinks, zero changes to axis/margin math
+   downstream" reasoning `.lq-chart__main` used to provide one level up before this element
+   existed. `min-width: 0` overrides a flex item's own default (content's intrinsic width, which a
+   wide canvas can make very large) — without it this could refuse to shrink below that; `height:
+   100%` (not flex-stretch, which only governs the *row's* own cross-axis — width, not height)
+   fills `.lq-chart__main-row`'s own height, itself already just "whatever `.lq-chart__main` has
+   left after its own header" (see that rule's own doc) — so `dims.height`, measured off *this*
+   element, already excludes the header with zero JS subtraction needed for it (see
+   CandlestickChart.tsx's own `plotHeight`). */
+.lq-chart__plot-column {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
 }
 
 .lq-chart__svg {
@@ -59,15 +82,14 @@
 }
 
 /* Positioning context for the canvas + svg pair — deliberately its own element rather than
-   `.lq-chart__main` itself, which carries fullscreen's own centering (see above): an
+   `.lq-chart__plot-column` itself (which carries the actual flex-shrinking, see above): an
    absolutely-positioned canvas is placed relative to its nearest positioned ancestor's padding
-   box, so if `.lq-chart__main` ever gained padding the canvas (absolute) and the svg (normal
-   flow, starts after any padding) would drift apart by that amount. Neither element has padding
-   today, but keeping the canvas/svg pair's own positioning context separate keeps it that way
-   regardless of what `.lq-chart__main` itself does. */
+   box, so if `.lq-chart__plot-column` ever gained padding the canvas (absolute) and the svg
+   (normal flow, starts after any padding) would drift apart by that amount. Neither element has
+   padding today, but keeping the canvas/svg pair's own positioning context separate keeps it that
+   way regardless of what `.lq-chart__plot-column` itself does. */
 .lq-chart__plot {
   position: relative;
-  flex-shrink: 0;
 }
 
 /* The optional right-docked panel (CandlestickChartProps.sidePanel) — a flex sibling of
@@ -1077,9 +1099,11 @@
   padding: 0 4px;
   background-color: var(--lq-color-bg);
   border-bottom: 1px solid var(--lq-color-border-subtle);
-  /* Its rendered height must match CandlestickChart's HEADER_HEIGHT constant exactly (used to
-     size the plot below it) — without border-box the 1px border pushes the real height to 41px,
-     a mismatch that let .lq-chart__plot overflow the bottom of .lq-chart by that much. */
+  /* .lq-chart__main-row (below, in the flex column .lq-chart__main now forms) grows to fill
+     whatever height this header *doesn't* take — border-box (not the browser default content-box)
+     so its 1px border stays inside the 40px instead of pushing the real rendered height to 41px,
+     which used to overflow the row below by that much before `.lq-chart__main` measured the
+     post-header space directly (see .lq-chart__main's own doc in this file). */
   box-sizing: border-box;
   /* No responsive breakpoint reflows this row's own buttons (back/symbol/timeframe/indicators/
      save/templates/link/split-screen…) onto a second line — a narrow phone viewport just runs

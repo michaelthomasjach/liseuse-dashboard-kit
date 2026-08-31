@@ -78,7 +78,6 @@ import {
   TOOLS_RAIL_WIDTH,
   TOOLS_RAIL_HEIGHT_MOBILE,
   MOBILE_RAIL_BREAKPOINT,
-  HEADER_HEIGHT,
   SUB_PANE_COLLAPSED_HEIGHT,
 } from "./candlestick/constants";
 import { formatPercentFromReference, computeOhlcReadout } from "./candlestick/formatting";
@@ -279,8 +278,10 @@ export function CandlestickChart({
 
   const { scriptingState, scriptChartIndicators } = useChartScripting({ scripts, onScriptsChange });
   const showHeader = fullscreenToggle || zoomable || !!timeframes?.length || showIndicators;
-  const headerSpace = showHeader ? HEADER_HEIGHT : 0;
-  const plotHeight = Math.max(0, dims.height - headerSpace);
+  // `dims.height` is measured off `.lq-chart__plot-column`, already below `.lq-chart__main`'s own
+  // header in the flex-column layout (see charts-shared.css's own doc on that element) — no more
+  // `- HEADER_HEIGHT` subtraction needed here, the browser already did it via ordinary flex.
+  const plotHeight = dims.height;
   const plotBoundedHeight = Math.max(0, plotHeight - dims.margin.top - dims.margin.bottom);
 
   const themeTick = useThemePaletteTick(ref);
@@ -490,7 +491,6 @@ export function CandlestickChart({
     candleWidth,
     boundedWidth: dims.boundedWidth,
     plotBoundedHeight,
-    topOffset: headerSpace + dims.margin.top,
     marginBottom: dims.margin.bottom,
     themeTick,
     data,
@@ -701,16 +701,7 @@ export function CandlestickChart({
 
   return (
     <div className={["lq-chart", isFullscreen && "lq-chart--fullscreen", className].filter(Boolean).join(" ")} style={{ width: isFullscreen ? undefined : width }}>
-      {/* A `plot.pane(name, { dock: "left" })` script pane's own column — mounted only once
-          there's actually something docked there, same "collapsed gives its sibling back the
-          full width" rule ChartSidePanel's own doc already follows (see leftColumnProps' own
-          doc, in useDockedPaneColumnsState.ts, for why it's a single ready-to-spread bundle). */}
-      {leftColumnProps && <ChartSidePaneColumn {...leftColumnProps} />}
-      {/* `ref` (useChartDimensions) lives here, not on the outer .lq-chart — flexbox (outer div
-          is a row, this + ChartSidePanel its children) hands this whatever width the panel
-          doesn't take, so the plot genuinely shrinks with zero changes to any downstream
-          axis/margin math (see ChartSidePanel.tsx's own doc). */}
-      <div ref={ref} className="lq-chart__main">
+      <div className="lq-chart__main">
       {showHeader && !seasonalityOpen && (
         <ChartHeader
           dims={dims}
@@ -766,6 +757,19 @@ export function CandlestickChart({
         />
       )}
 
+      {/* A `plot.pane(name, { dock: "left"|"right" })` script pane's own column, alongside the
+          plot itself — a flex row nested *inside* `.lq-chart__main` (below its own header) rather
+          than a sibling of `.lq-chart__main` in the outer `.lq-chart` row, so `.lq-chart__header`
+          (above) naturally spans this row's own full width instead of stopping short at the
+          plot's own edge — a docked column used to sit *outside* that header entirely, needing a
+          separate decorative strip to visually fill the gap; nesting it here needs none. `ref`
+          (useChartDimensions) now lives on `.lq-chart__plot-column`, not this row itself —
+          flexbox hands that inner wrapper whatever width the docked column(s) don't take, so the
+          plot genuinely shrinks with zero changes to any downstream axis/margin math (see
+          ChartSidePaneColumn's own doc). */}
+      <div className="lq-chart__main-row">
+      {leftColumnProps && <ChartSidePaneColumn {...leftColumnProps} />}
+      <div ref={ref} className="lq-chart__plot-column">
       {seasonalityOpen ? (
         <SeasonalityView data={data} symbol={symbol} onBack={() => setSeasonalityOpen(false)} showHeader={showHeader} height={plotHeight} />
       ) : (
@@ -992,6 +996,9 @@ export function CandlestickChart({
         )}
       </div>
       )}
+      </div>
+      {rightColumnProps && <ChartSidePaneColumn {...rightColumnProps} />}
+      </div>
 
       {/* Own positioned ancestor is .lq-chart__main (sits outside .lq-chart__plot, which would
           otherwise confine it to the plot area alone) — "fills the whole chart" means
@@ -1098,8 +1105,6 @@ export function CandlestickChart({
         soundOptions={alertSoundOptions} onCreate={onCreateAlert} onPlaySound={onPlaySound} onSave={onUpdateAlert} onDeleteAlert={onDeleteAlert}
       />
       </div>
-
-      {rightColumnProps && <ChartSidePaneColumn {...rightColumnProps} />}
 
       {sidePanel && sidePanelState.open && (
         <ChartSidePanel panelRef={sidePanelState.panelRef} widthPx={sidePanelState.widthPx} startResize={sidePanelState.startResize}>

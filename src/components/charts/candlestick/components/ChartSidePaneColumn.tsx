@@ -20,11 +20,6 @@ export interface ChartSidePaneColumnProps {
   startResize: (e: React.PointerEvent) => void;
   columnWidth: number;
   plotBoundedHeight: number;
-  /** Pushes this whole column down from the outer `.lq-chart` row's own top — see
-   *  useDockedPaneColumnsState's own `topOffset` doc for why a flex *sibling* of `.lq-chart__main`
-   *  needs this at all (it doesn't automatically inherit `.lq-chart__main`'s own `<ChartHeader>`
-   *  space above its plot). */
-  topOffset: number;
   /** `dims.margin.bottom` — see useDockedPaneColumnsState's own `marginBottom` doc: added beyond
    *  `plotBoundedHeight` for this column's own date axis, exactly like the main plot's own bottom
    *  margin, so the two line up at the same absolute height instead of this column falling short
@@ -67,10 +62,10 @@ export interface ChartSidePaneColumnProps {
 }
 
 /** A `plot.pane(name, { dock: "left"|"right" })` script pane's own column — a flex sibling of
- *  `.lq-chart__main` in the outer `.lq-chart` row (same shape as `ChartSidePanel`'s own watchlist
- *  panel, see its own doc: this is what lets `.lq-chart__main` genuinely shrink to make room via
- *  ordinary flexbox, with zero changes needed to any of the axis/margin math the *main* plot's own
- *  16-odd files already read `dims` from). Its own small `<canvas>` (not part of the main plot's
+ *  `.lq-chart__plot-column` inside `.lq-chart__main-row` (nested there, below `.lq-chart__main`'s
+ *  own header, rather than a sibling of `.lq-chart__main` itself in the outer `.lq-chart` row, so
+ *  that header's own background/border naturally spans this column's own width too — see
+ *  CandlestickChart.tsx's own doc). Its own small `<canvas>` (not part of the main plot's
  *  own canvas/DOM box) painted by `useRenderSidePaneColumn`/`renderSidePaneColumn.ts` — synced to
  *  the *same* candles as the main chart via `zoomedXScale` (the same pan/zoom `transform`,
  *  rescaling a scale ranged to this column's own width instead — computed by the caller, see
@@ -93,7 +88,6 @@ export function ChartSidePaneColumn({
   startResize,
   columnWidth,
   plotBoundedHeight,
-  topOffset,
   marginBottom,
   themeTick,
   zoomedXScale,
@@ -154,17 +148,8 @@ export function ChartSidePaneColumn({
   return (
     <div
       className="lq-chart__side-dock-pane-group"
-      style={{ position: "relative", flex: `0 0 ${plotWidth + axisWidth}px`, height: plotBoundedHeight + axisHeight, marginTop: topOffset }}
+      style={{ position: "relative", flex: `0 0 ${plotWidth + axisWidth}px`, height: plotBoundedHeight + axisHeight }}
     >
-      {/* Backfills the gap `marginTop` opens above this column with the exact same background +
-          bottom border `.lq-chart__header` (the timeframe/replay toolbar) already paints above
-          `.lq-chart__main` — without this, that toolbar's own row visually stops at the main
-          plot's own right edge instead of reading as one continuous bar all the way across to the
-          watchlist panel. An empty div reusing that class rather than a new rule of its own, so it
-          can never silently drift from the real header's own look. */}
-      {topOffset > 0 && (
-        <div className="lq-chart__header" style={{ position: "absolute", top: -topOffset, left: 0, width: "100%", height: topOffset }} />
-      )}
       <div
         ref={panelRef}
         className={["lq-chart__side-dock-pane", `lq-chart__side-dock-pane--${side}`].join(" ")}

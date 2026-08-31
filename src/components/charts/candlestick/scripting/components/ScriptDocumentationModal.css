@@ -216,10 +216,13 @@
 /* Explicit per-section spacing (not the content pane's own flex `gap`) so the divider below can
    sit exactly at the midpoint between two sections rather than needing a separate full-width rule
    element of its own — same `:last-child` pattern PanelRow/LegendRow already use to drop the one
-   after the very last section. */
+   after the very last section. `--lq-space-6` (32px) is the design system's own largest spacing
+   token — exigence : « je veux que ce soit plus aéré, plus d'espace entre les sections » asks for
+   more than that, so this scales past it locally (1.5x) rather than adding a new global token just
+   for this one modal. */
 .lq-script-docs__section {
-  padding-bottom: var(--lq-space-6);
-  margin-bottom: var(--lq-space-6);
+  padding-bottom: calc(var(--lq-space-6) * 1.5);
+  margin-bottom: calc(var(--lq-space-6) * 1.5);
   border-bottom: 1px solid var(--lq-color-border-subtle);
 }
 
@@ -248,6 +251,17 @@
   font-size: var(--lq-text-sm);
   line-height: var(--lq-line-height-body);
   color: var(--lq-color-text);
+}
+
+/* The paragraph immediately under a title — every section/sub-heading's own opening line, almost
+   always the "what this is/why it exists" framing rather than the precise spec (that comes after,
+   in plain body text or a code block) — exigence : « texte en italique ». Scoped to just this one
+   paragraph (not every `<p>`) so italics stays a deliberate accent marking "read this first," not
+   a full-page style that would fight its own purpose. */
+.lq-script-docs__section-title + p,
+.lq-script-docs__example-heading + p {
+  font-style: italic;
+  color: var(--lq-color-text-muted);
 }
 
 .lq-script-docs__section ul {

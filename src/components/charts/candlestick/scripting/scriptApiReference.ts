@@ -67,7 +67,7 @@ export const SCRIPT_API_REFERENCE: ScriptReferenceSection[] = [
   },
   {
     id: "tutorial",
-    title: "Tutoriel — créer un indicateur de A à Z",
+    title: "Tutoriel",
     group: "Démarrage",
     blocks: [
       t(
@@ -103,7 +103,7 @@ export const SCRIPT_API_REFERENCE: ScriptReferenceSection[] = [
   },
   {
     id: "editor",
-    title: "L'éditeur : Exécuter / Exécuter la cellule / Arrêter / Enregistrer / Réinitialiser / Format",
+    title: "L'éditeur",
     group: "Démarrage",
     blocks: [
       t(
@@ -143,7 +143,7 @@ plot.overlay("SMA 20").line("SMA 20", sma ?? market.close(0));`
   },
   {
     id: "market",
-    title: "market.* — données de marché (OHLCV)",
+    title: "market.*",
     group: "API du script",
     blocks: [
       t(
@@ -186,7 +186,7 @@ const rsiH4 = ta.rsi(h4.series("close", 60), 14);`
   },
   {
     id: "chart",
-    title: "chart.* — indicateurs déjà présents sur la chart",
+    title: "chart.*",
     group: "API du script",
     blocks: [
       t(
@@ -208,7 +208,7 @@ rsi.value(1);   // valeur à la bougie précédente
 
 const sma = chart.indicator("sma");
 sma.value(0);   // number | null`),
-      h(".upper / .middle / .lower — bandes", [".upper", ".middle", ".lower"]),
+      h(".upper/.middle/.lower", [".upper", ".middle", ".lower"]),
       t(
         ".upper(offset?), .middle(offset?) et .lower(offset?) lisent respectivement la bande haute, la bande médiane et la bande basse d'un indicateur en forme de bande — aujourd'hui uniquement \"bollinger\". .middle() renvoie exactement la même valeur que .value() sur ce même indicateur, ce sont deux façons équivalentes de la lire. Sur tout autre indicateur, les trois renvoient null."
       ),
@@ -216,7 +216,7 @@ sma.value(0);   // number | null`),
 bb.upper(0);   // bande haute
 bb.middle(0);  // bande médiane — identique à bb.value(0)
 bb.lower(0);   // bande basse`),
-      h(".line / .signal / .histogram — MACD", [".line", ".signal", ".histogram"]),
+      h(".line/.signal/.histogram", [".line", ".signal", ".histogram"]),
       t(
         ".line(offset?), .signal(offset?) et .histogram(offset?) lisent respectivement la ligne MACD, la ligne de signal et l'histogramme d'un indicateur \"macd\" — les trois seules valeurs qu'il expose. .value() renvoie toujours null sur un MACD (il n'y a pas de valeur \"simple\" unique à choisir entre les trois). .line et .histogram sont aussi les noms des méthodes de dessin pane.line/overlay.line et pane.histogram/overlay.histogram (voir plus bas, plot.*) — deux usages différents du même mot selon l'objet sur lequel on l'appelle, sans rapport entre les deux."
       ),
@@ -224,7 +224,7 @@ bb.lower(0);   // bande basse`),
 macd.line(0);        // ligne MACD
 macd.signal(0);       // ligne de signal
 macd.histogram(0);    // histogramme (ligne - signal)`),
-      h(".adx / .plusDI / .minusDI — ADX", [".adx", ".plusDI", ".minusDI"]),
+      h(".adx/.plusDI/.minusDI", [".adx", ".plusDI", ".minusDI"]),
       t(
         ".adx(offset?), .plusDI(offset?) et .minusDI(offset?) lisent respectivement la valeur ADX, +DI et -DI d'un indicateur \"adx\" — les trois seules valeurs qu'il expose. .value() renvoie toujours null sur un ADX."
       ),
@@ -232,7 +232,7 @@ macd.histogram(0);    // histogramme (ligne - signal)`),
 adx.adx(0);      // force de la tendance (indépendamment de son sens)
 adx.plusDI(0);   // pression acheteuse
 adx.minusDI(0);  // pression vendeuse`),
-      h("Indicateurs illisibles via chart.indicator()"),
+      h("Indicateurs illisibles"),
       t(
         "Certains indicateurs intégrés n'ont aucune valeur exploitable par les 10 méthodes ci-dessus : soit leur forme est un objet composite trop spécifique pour l'une des lectures génériques (même .value() y renvoie null — y compris sur \"supertrend\", dont la forme {value, trend} ressemble pourtant à une simple valeur, piège à connaître), soit ils ne sont tout simplement jamais indexés bougie par bougie en interne. Ils restent visibles sur la chart mais ne peuvent pas être lus depuis un script via chart.indicator() :"
       ),
@@ -243,7 +243,7 @@ adx.minusDI(0);  // pression vendeuse`),
         "\"tpo\" — un profil de session, jamais indexé bougie par bougie",
         "un indicateur \"custom\" (le résultat plot.pane/plot.overlay d'un autre script) — n'apparaît jamais dans chart.indicator(), volontairement exclu",
       ]),
-      h("Réglages par indicateur — la période n'est plus dans l'id"),
+      h("Réglages par indicateur"),
       t(
         "Les réglages d'un indicateur (période, écart-type, déviation…) influencent uniquement son calcul, jamais son identifiant : un RSI(14) et un RSI(21) partagent le même id de base \"rsi\" (distingués par \"rsi\"/\"rsi_2\" s'ils coexistent tous les deux sur la chart). Utilisez chart.listIndicators() ou le panneau « Indicateurs disponibles » pour retrouver lequel est lequel plutôt que de deviner d'après le nom. Deux exceptions, où le réglage change la nature même de la donnée plutôt que d'affiner un calcul : \"correlation\" garde le symbole comparé dans son id (ex. \"correlation_AAPL\", une corrélation avec un autre symbole est une autre série, pas le même calcul en plus précis), et \"pivotPoints\" garde son type et sa période (ex. \"pivot_points_classic_weekly\") — dans les deux cas, deux réglages différents produisent deux données différentes, pas la même donnée en plus fin."
       ),
@@ -260,13 +260,13 @@ if (now !== null && prev !== null && prev <= 50 && now > 50) {
   },
   {
     id: "plot",
-    title: "plot.* — dessiner sur la chart",
+    title: "plot.*",
     group: "API du script",
     blocks: [
       t(
         "C'est la fonction que vous utiliserez le plus souvent : plot.* est ce qui fait réellement apparaître quelque chose sur la chart — sans un appel à plot.* quelque part, un script peut calculer tout ce qu'il veut en coulisses, rien ne s'affichera jamais. Il existe deux familles bien distinctes : les panneaux dessinés (un ou plusieurs traits qui grandissent bougie après bougie) et les marqueurs ponctuels (un seul symbole posé sur une bougie précise)."
       ),
-      h("Les panneaux dessinés — plot.pane / plot.overlay", ["plot.pane", "plot.overlay"]),
+      h("plot.pane / plot.overlay", ["plot.pane", "plot.overlay"]),
       t(
         "plot.pane(nom) et plot.overlay(nom) créent chacun un panneau nommé et renvoient un objet sur lequel dessiner — appeler plusieurs fois la même méthode de dessin, avec le même nom de série, sur des bougies différentes prolonge la même courbe, pas une nouvelle à chaque fois. Le nom passé à plot.pane/plot.overlay peut être rappelé sans souci à chaque bougie (le script entier rejoue en entier à chaque fois) : ça rouvre le même panneau plutôt que d'en créer un nouveau."
       ),
@@ -319,12 +319,7 @@ if (sma !== null && std !== null) {
   plot.overlay("Enveloppe maison").band("Enveloppe", sma + 2 * std, sma - 2 * std, { color: "#3ea377" });
 }`
       ),
-      h("Les marqueurs ponctuels — signal / point / horizontal / vertical", [
-        "plot.signal",
-        "plot.point",
-        "plot.horizontal",
-        "plot.vertical",
-      ]),
+      h("Marqueurs ponctuels", ["plot.signal", "plot.point", "plot.horizontal", "plot.vertical"]),
       t("Les quatre suivantes posent un marqueur ponctuel sur la bougie courante — un appel = un marqueur, jamais une série continue :"),
       c(
         `plot.signal("BUY" | "SELL")                       // marqueur flèche haut/bas au prix de clôture
@@ -336,7 +331,7 @@ plot.vertical({ color? })                             // ligne verticale sur la 
       d("plotSignal"),
       t("shape accepte l'un de : \"arrowUp\", \"arrowDown\", \"pin\", \"flagMark\", \"priceLabel\"."),
       t("color accepte n'importe quelle couleur CSS valide — un code hexadécimal (\"#e8391c\"), un nom (\"red\"), ou rgb(...)/rgba(...). Omis, chaque série reçoit une couleur par défaut choisie automatiquement."),
-      h('Ajouter du texte à côté d\'un marqueur (« BUY », « SELL »…)'),
+      h("Texte à côté d'un marqueur"),
       t(
         "plot.signal(\"BUY\") tout seul choisit uniquement la *forme* du marqueur (une flèche vers le haut) — ça ne fait apparaître aucun mot sur la chart. Pour afficher un vrai texte (« BUY », « SELL », ou n'importe quelle légende) à côté du marqueur, passez la forme complète avec le champ text :"
       ),
@@ -352,7 +347,7 @@ plot.vertical({ color? })                             // ligne verticale sur la 
       t(
         "Le texte hérite du même style que celui d'une ligne dessinée à la main (taille, position, couleur de fond…) — rien à configurer côté script, il utilise simplement les réglages par défaut de la bibliothèque."
       ),
-      h("plot.table — un tableau en overlay sur la chart", ["plot.table"]),
+      h("plot.table", ["plot.table"]),
       t(
         "plot.table(rows, options?) affiche un petit tableau ancré dans un coin de la chart (« RSI sur cinq timeframes », un score détaillé…) — ni série continue ni marqueur ponctuel : contrairement à pane.line, seul le dernier appel compte (pas d'historique accumulé), donc appelez-le sans condition à chaque bougie plutôt que de le protéger avec bar.isNew() — la chart affichera toujours la version la plus récente."
       ),
@@ -376,7 +371,7 @@ plot.table(
       ),
       t("Voir le tutoriel plus haut pour un exemple complet et commenté (corrélation du RSI sur cinq timeframes, avec une colonne de suggestion BUY/WAIT/SELL par ligne)."),
       t("Une fois enregistré, le script apparaît automatiquement dans les indicateurs actifs de la chart (section « Mes scripts ») — pas besoin de le rajouter manuellement via le sélecteur d'indicateurs."),
-      h("plot.xy — un graphique X/Y libre, pour visualiser un calcul", ["plot.xy"]),
+      h("plot.xy", ["plot.xy"]),
       t(
         "plot.xy(name, x, y, options?) trace un graphique complètement libre — deux tableaux de nombres, sans aucun lien avec les bougies ni les dates. C'est l'équivalent de matplotlib pour ce moteur : utile pour visualiser une fonction mathématique (une parabole, une gaussienne…) ou un nuage de points, pas pour un indicateur de trading. Contrairement à pane.line/overlay.line, on ne l'appelle pas bougie après bougie pour construire la courbe petit à petit : on passe le tableau complet en un seul appel, comme le ferait ax.scatter(x, y) ou ax.plot(x, y) en Python — seul le dernier appel pour un nom donné compte (même règle que plot.table)."
       ),
@@ -397,7 +392,7 @@ plot.xy("Parabole", x, y, { xLabel: "x", yLabel: "y", title: "y = x²" });`
   },
   {
     id: "state",
-    title: "state.* — mémoire entre les bougies",
+    title: "state.*",
     group: "API du script",
     blocks: [
       t(
@@ -429,7 +424,7 @@ state.set("count", count + 1);`
   },
   {
     id: "bar",
-    title: "bar.* — état de la bougie courante",
+    title: "bar.*",
     group: "API du script",
     blocks: [
       c(
@@ -445,7 +440,7 @@ bar.isRealtime()  // true uniquement si cette exécution est un tick temps réel
   },
   {
     id: "math",
-    title: "math.* — statistiques génériques",
+    title: "math.*",
     group: "Fonctions utilitaires",
     blocks: [
       t("Chaque fonction prend un tableau de nombres (typiquement issu de market.series) et retourne un résumé statistique. Retourne toujours null (jamais NaN, jamais d'exception) quand le calcul n'a pas de sens (tableau vide, période trop grande…)."),
@@ -472,7 +467,7 @@ math.log(x)                  // number`
   },
   {
     id: "ta",
-    title: "ta.* — indicateurs techniques à la demande",
+    title: "ta.*",
     group: "Fonctions utilitaires",
     blocks: [
       t(
@@ -524,7 +519,7 @@ ta.adx(high, low, close, period?)
   },
   {
     id: "examples",
-    title: "Exemples — indicateurs prêts à l'emploi",
+    title: "Exemples",
     group: "Référence",
     blocks: [
       t(
@@ -656,7 +651,7 @@ if (bar.isNew() && score === 3) {
 }`
       ),
 
-      h("Canal de rupture (plus haut / plus bas sur 20 bougies)"),
+      h("Canal de rupture"),
       t("Un canal de type Donchian — plus haut et plus bas glissants — avec un signal quand le prix clôture hors du canal :"),
       c(
         `const period = 20;

@@ -9,6 +9,12 @@ export interface ScriptEditorWindowProps {
   onClose: () => void;
   title: ReactNode;
   toolbar?: ReactNode;
+  /** Extra buttons in the title bar's own actions cluster, to the left of the built-in
+   *  maximize/close pair — same `.lq-script-window__header-button` styling, same
+   *  `onPointerDown={(e) => e.stopPropagation()}` requirement to keep a click from also starting
+   *  the header's own drag-to-move (exigence : « je veux que le bouton de documentation soit dans
+   *  la topbar de la modale », not the toolbar row below it). */
+  headerActions?: ReactNode;
   children: ReactNode;
 }
 
@@ -45,7 +51,7 @@ type DragMode = "move" | ResizeEdges;
  *  result on the live chart right away, not after closing the editor first). Portaled straight to
  *  `document.body`, same stacking-context escape `Modal.tsx`/`Popover.tsx` already use and for the
  *  same reason (see either of their own docs). */
-export function ScriptEditorWindow({ open, onClose, title, toolbar, children }: ScriptEditorWindowProps) {
+export function ScriptEditorWindow({ open, onClose, title, toolbar, headerActions, children }: ScriptEditorWindowProps) {
   const theme = useLqTheme();
   const [rect, setRect] = useState<Rect>(initialRect);
   const [maximized, setMaximized] = useState(false);
@@ -125,6 +131,7 @@ export function ScriptEditorWindow({ open, onClose, title, toolbar, children }: 
         <div className="lq-script-window__header" onPointerDown={(e) => startDrag(e, "move")} onDoubleClick={toggleMaximize}>
           <span className="lq-script-window__title">{title}</span>
           <div className="lq-script-window__header-actions">
+            {headerActions}
             <button
               type="button"
               className="lq-script-window__header-button"

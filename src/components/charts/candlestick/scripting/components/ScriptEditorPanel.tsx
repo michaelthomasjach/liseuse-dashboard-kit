@@ -263,6 +263,18 @@ export function ScriptEditorPanel({
       open={open}
       onClose={onClose}
       title="Éditeur de script"
+      headerActions={
+        <button
+          type="button"
+          className="lq-script-window__header-button"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={() => setDocsOpen(true)}
+          aria-label="Documentation"
+          title="Documentation"
+        >
+          <HelpIcon size={14} />
+        </button>
+      }
       toolbar={
         <>
           <div className="lq-script-editor-panel__tabs">
@@ -394,9 +406,6 @@ export function ScriptEditorPanel({
               </button>
               <button type="button" className="lq-script-editor-panel__toolbar-button" onClick={() => setFormatRequestId((n) => n + 1)}>
                 Format
-              </button>
-              <button type="button" className="lq-script-editor-panel__toolbar-button" onClick={() => setDocsOpen(true)}>
-                <HelpIcon size={13} /> Documentation
               </button>
               {output?.running && <span className="lq-script-editor-panel__status">Exécution…</span>}
             </div>

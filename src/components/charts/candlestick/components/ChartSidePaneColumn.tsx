@@ -148,7 +148,13 @@ export function ChartSidePaneColumn({
   return (
     <div
       className="lq-chart__side-dock-pane-group"
-      style={{ position: "relative", flex: `0 0 ${plotWidth + axisWidth}px`, height: plotBoundedHeight + axisHeight }}
+      // height: 100% (not the plotBoundedHeight + axisHeight pixel value below, still used for
+      // this group's own children) — same reasoning `.lq-chart__plot-column` already stretches to
+      // 100% of `.lq-chart__main-row` instead of a JS-computed pixel height: this group is that
+      // row's other flex item, and the two must land on the *exact* same real height (any drift
+      // between a CSS-stretched sibling and a separately-computed pixel value here would show up
+      // as the two columns' own axis lines/canvases ending at very slightly different heights).
+      style={{ position: "relative", flex: `0 0 ${plotWidth + axisWidth}px`, height: "100%" }}
     >
       <div
         ref={panelRef}

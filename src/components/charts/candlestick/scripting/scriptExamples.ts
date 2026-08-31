@@ -172,4 +172,86 @@ if (bar.isNew() && lowerChannel !== null && price <= lowerChannel) {
   alert("Rupture du canal des " + period + " dernières bougies (plus bas)");
 }`,
   },
+  {
+    id: "kde-support-resistance",
+    title: "Niveaux de support/résistance (KDE gaussienne)",
+    description:
+      "Un profil de marché lissé par noyau gaussien (bandwidth adapté à l'ATR), dont les pics deviennent des niveaux de support/résistance affichés dans une pane ancrée à droite (plot.pane(..., { dock: \"right\" })) — recalculé tous les RECALC_EVERY bougies pour rester sous le budget d'exécution, avec un signal au moment exact où le prix franchit un niveau. Le détail pas-à-pas de cette construction est dans le tutoriel « Niveaux de support/résistance (KDE) » plus haut :",
+    code: `// %% Cellule 1 — constantes et détection de pics
+const WINDOW = 60;
+const GRID = 60;
+const FIRST_W = 0.2;
+const ATR_MULT = 3.0;
+const PROM_THRESH = 0.12;
+const RECALC_EVERY = 10;
+
+function findPeaks(values, minProminence) {
+  const peaks = [];
+  for (let i = 1; i < values.length - 1; i++) {
+    if (values[i] <= values[i - 1] || values[i] < values[i + 1]) continue;
+    let leftMin = values[i];
+    for (let j = i - 1; j >= 0 && values[j] <= values[i]; j--) leftMin = Math.min(leftMin, values[j]);
+    let rightMin = values[i];
+    for (let j = i + 1; j < values.length && values[j] <= values[i]; j++) rightMin = Math.min(rightMin, values[j]);
+    if (values[i] - Math.max(leftMin, rightMin) >= minProminence) peaks.push(i);
+  }
+  return peaks;
+}
+
+// %% Cellule 2 — ne recalculer que tous les RECALC_EVERY bougies
+const barIndex = state.get("barIndex", 0);
+state.set("barIndex", barIndex + 1);
+
+if (barIndex >= WINDOW && barIndex % RECALC_EVERY === 0) {
+  const closes = market.series("close", WINDOW);
+  const highs = market.series("high", WINDOW);
+  const lows = market.series("low", WINDOW);
+  const minP = Math.min(...closes);
+  const maxP = Math.max(...closes);
+  if (maxP > minP) {
+    const atr = ta.atr(highs, lows, closes, 14);
+    const bandwidth = (atr ?? 1) * ATR_MULT;
+    const weights = closes.map((_, i) => FIRST_W + (i / closes.length) * (1 - FIRST_W));
+
+    const step = (maxP - minP) / GRID;
+    const priceGrid = [];
+    for (let p = minP; p < maxP; p += step) priceGrid.push(p);
+
+    const density = priceGrid.map((p) => {
+      let sum = 0;
+      for (let i = 0; i < closes.length; i++) {
+        const z = (p - closes[i]) / bandwidth;
+        sum += weights[i] * Math.exp(-0.5 * z * z);
+      }
+      return sum;
+    });
+
+    const peakIdx = findPeaks(density, Math.max(...density) * PROM_THRESH);
+    state.set("levels", peakIdx.map((i) => priceGrid[i]));
+  }
+}
+
+// %% Cellule 3 — afficher les niveaux dans une pane ancrée à droite
+const levels = state.get("levels", []);
+const levelsPane = plot.pane("Niveaux", { dock: "right" });
+for (let k = 0; k < levels.length; k++) {
+  levelsPane.line("Niveau " + (k + 1), levels[k]);
+}
+
+// %% Cellule 4 — détecter un franchissement et signaler
+const prevClose = market.close(1);
+const currClose = market.close(0);
+if (prevClose !== null && currClose !== null) {
+  let sig = state.get("sig", 0);
+  const prevSig = sig;
+  for (const level of levels) {
+    if (currClose > level && prevClose <= level) sig = 1;
+    else if (currClose < level && prevClose >= level) sig = -1;
+  }
+  if (sig !== prevSig) {
+    plot.signal({ type: sig > 0 ? "BUY" : "SELL", price: currClose });
+  }
+  state.set("sig", sig);
+}`,
+  },
 ];

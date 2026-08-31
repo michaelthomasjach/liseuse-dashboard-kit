@@ -9,7 +9,7 @@ export function ScriptExamplesSection() {
   return (
     <>
       <p>
-        Six scripts complets, copiables tels quels, chacun illustrant une combinaison différente de l'API ci-dessus — d'un simple croisement de
+        Sept scripts complets, copiables tels quels, chacun illustrant une combinaison différente de l'API ci-dessus — d'un simple croisement de
         moyennes mobiles à un score composite multi-indicateurs. Chacun s'exécute automatiquement ci-dessous contre un petit jeu de données de
         démonstration ; le bouton « Exécuter » relance la même exécution à tout moment.
       </p>

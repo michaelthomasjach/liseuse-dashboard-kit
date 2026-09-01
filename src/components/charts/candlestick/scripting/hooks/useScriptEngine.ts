@@ -89,7 +89,15 @@ export function useScriptEngine(
    *  script actually *replay*: it re-runs against history-up-to-there, so its own output is
    *  recomputed from only the bars visible at that point rather than staying pinned to what the
    *  full dataset produced. See CandlestickChart's own `scriptRunUpToIndex`. */
-  runUpToIndex: number | null = null
+  runUpToIndex: number | null = null,
+  /** Overrides REALTIME_TICK_DEBOUNCE_MS for this one script instance — resolved by ScriptRunner.tsx
+   *  from a `const DEBOUNCE_MS = new Variable("number", …)` declaration, the one reserved parameter
+   *  name this engine itself reads rather than leaving entirely to the script's own code (every
+   *  other declared name only ever gets substituted into the compiled source, see
+   *  applyScriptParams). Lets a script that wants to feel every replay tick immediately opt into
+   *  `DEBOUNCE_MS = 0` — confirmed request: "je ne veux pas ton comportement anti-rafale... mets-le
+   *  en paramètre du script". `undefined` (no such declaration) keeps the existing default. */
+  debounceMs: number = REALTIME_TICK_DEBOUNCE_MS
 ) {
   // Clamped: a cutoff from a previous, longer dataset would otherwise run past the end of this one.
   const effectiveRunUpToIndex = runUpToIndex === null ? data.length - 1 : Math.max(0, Math.min(runUpToIndex, data.length - 1));
@@ -345,10 +353,10 @@ export function useScriptEngine(
       debounceRef.current = setTimeout(() => {
         debounceRef.current = null;
         if (lastScriptCodeRef.current !== null) runRef.current(lastScriptCodeRef.current, !historical);
-      }, REALTIME_TICK_DEBOUNCE_MS);
+      }, debounceMs);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, effectiveRunUpToIndex, running]);
+  }, [data, effectiveRunUpToIndex, running, debounceMs]);
 
   return { result, running, scriptIndicators, scriptDrawings, scriptTable, scriptLabels, run, stop };
 }

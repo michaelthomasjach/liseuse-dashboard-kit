@@ -1,6 +1,6 @@
 import { analyzeScriptVariables, applyScriptParams } from "../scriptVariables";
 import { stripScriptDescription } from "../scriptDescription";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import type { Candle } from "../../interfaces/Candle.interface";
 import type { Indicator } from "../../interfaces/Indicator.interface";
 import type { FundamentalDataPoint } from "../../interfaces/FundamentalDataPoint.interface";
@@ -48,8 +48,23 @@ function withParams(source: string, paramValues: ScriptDef["paramValues"]): stri
   return applyScriptParams(code, params, paramValues);
 }
 
+/** `DEBOUNCE_MS`'s own resolved value, if this script declares one — see useScriptEngine's own
+ *  `debounceMs` doc for why this one specific name is read here instead of only ever being
+ *  substituted into the compiled source like every other declared parameter. `undefined` (no such
+ *  declaration, or declared as something other than "number") lets useScriptEngine fall back to
+ *  its own default unchanged. */
+function resolveDebounceMs(code: string, paramValues: ScriptDef["paramValues"]): number | undefined {
+  const { params } = analyzeScriptVariables(stripScriptDescription(code));
+  const param = params.find((p) => p.name === "DEBOUNCE_MS" && p.type === "number");
+  if (!param) return undefined;
+  const raw = paramValues?.[param.name];
+  const value = raw === undefined ? param.defaultValue : raw;
+  return typeof value === "number" ? value : undefined;
+}
+
 export function ScriptRunner({ script, data, indicators, fundamentals, lastCandleOpen, availableTimeframes, runUpToIndex, onOutput, onAlert }: ScriptRunnerProps) {
-  const engine = useScriptEngine(script.id, data, indicators, fundamentals, lastCandleOpen, availableTimeframes, runUpToIndex);
+  const debounceMs = useMemo(() => resolveDebounceMs(script.code, script.paramValues), [script.code, script.paramValues]);
+  const engine = useScriptEngine(script.id, data, indicators, fundamentals, lastCandleOpen, availableTimeframes, runUpToIndex, debounceMs);
   const hasRunOnceRef = useRef(false);
   const lastRunRequestIdRef = useRef<number | null>(null);
   const lastStopRequestIdRef = useRef<number | null>(null);

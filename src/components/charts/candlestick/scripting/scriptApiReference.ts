@@ -209,6 +209,9 @@ const bandwidth = (ta.atr(14) ?? 1) * ATR_MULT;`
       t(
         "À l'exécution, chaque new Variable(...) est remplacé par la valeur effective — celle des réglages, ou celle écrite dans le code si elle n'a jamais été modifiée. La variable est donc une vraie constante JavaScript ordinaire : elle s'utilise directement dans un calcul, sans .value ni rien à déballer."
       ),
+      t(
+        "DEBOUNCE_MS est le seul nom que le moteur lit lui-même, plutôt que de se contenter de le substituer dans le code comme les autres : const DEBOUNCE_MS = new Variable(\"number\", 300) règle le délai d'anti-rafale avant un recalcul déclenché par un tick de marché en direct sur la bougie encore en formation (le comportement par défaut de tout script qui ne le déclare pas). 0 supprime cet anti-rafale, le script se relance à chaque tick. Sans effet sur le replay ou l'arrivée d'une nouvelle bougie, qui relancent toujours le script immédiatement quelle que soit cette valeur — seul un vrai tick sans nouvelle bougie ni déplacement de replay passe par ce délai."
+      ),
     ],
   },
   {

@@ -176,7 +176,7 @@ if (bar.isNew() && lowerChannel !== null && price <= lowerChannel) {
     id: "kde-support-resistance",
     title: "Niveaux de support/résistance (KDE gaussienne)",
     description:
-      "Un profil de marché lissé par noyau gaussien (bandwidth adapté à l'ATR), dont les pics deviennent des niveaux de support/résistance affichés dans une pane ancrée à droite (plot.pane(..., { dock: \"right\" })) — recalculé tous les RECALC_EVERY bougies pour rester sous le budget d'exécution, avec un signal au moment exact où le prix franchit un niveau. Les neuf constantes de la cellule 1 sont déclarées avec new Variable(type, défaut) : elles apparaissent dans la fenêtre de réglages (celle de l'éditeur comme celle de la pane), se règlent sans toucher au code, et toute tentative de les réaffecter ailleurs dans le script est signalée comme une erreur. Le détail pas-à-pas de cette construction est dans le tutoriel « Niveaux de support/résistance (KDE) » plus haut :",
+      "Un profil de marché lissé par noyau gaussien (bandwidth adapté à l'ATR), dont les pics deviennent des niveaux de support/résistance affichés dans une pane ancrée à droite (plot.pane(..., { dock: \"right\" })) — recalculé tous les RECALC_EVERY bougies pour rester sous le budget d'exécution, avec un signal au moment exact où le prix franchit un niveau. Les dix constantes de la cellule 1 sont déclarées avec new Variable(type, défaut) : elles apparaissent dans la fenêtre de réglages (celle de l'éditeur comme celle de la pane), se règlent sans toucher au code, et toute tentative de les réaffecter ailleurs dans le script est signalée comme une erreur. Le détail pas-à-pas de cette construction est dans le tutoriel « Niveaux de support/résistance (KDE) » plus haut :",
     code: `@description "///Niveaux de support/résistance///
 Un **profil de marché** lissé par un noyau gaussien. Plutôt que de compter combien de fois le prix
 a visité chaque palier, chaque clôture est étalée en une petite cloche, et toutes les cloches sont
@@ -239,6 +239,16 @@ const RECALC_EVERY = new Variable("number", 1, {
 });
 const PROFIL_COULEUR = new Variable("color", "#c47f2a", { description: "Couleur de la courbe du profil affichée dans la pane de droite." });
 const AFFICHER_FLECHES = new Variable("boolean", true, { description: "Affiche les flèches BUY/SELL sur le graphique quand un niveau est franchi." });
+// DEBOUNCE_MS est le seul nom que le moteur lit lui-même plutôt que de se contenter de le
+// substituer dans le code compilé (voir la doc de useScriptEngine) : il règle le délai d'anti-
+// rafale avant un recalcul déclenché par un tick de marché en direct qui ne fait que mettre à jour
+// la bougie encore en formation. Sans effet sur le replay ou l'arrivée d'une nouvelle bougie, qui
+// relancent toujours le script immédiatement, quelle que soit cette valeur.
+const DEBOUNCE_MS = new Variable("number", 0, {
+  description:
+    "Délai (ms) avant de relancer le script suite à un tick de marché en direct sur la bougie déjà en formation. 0 = aucun anti-rafale, le script se relance à chaque tick.",
+  min: 0,
+});
 
 function findPeaks(values, minProminence) {
   const peaks = [];

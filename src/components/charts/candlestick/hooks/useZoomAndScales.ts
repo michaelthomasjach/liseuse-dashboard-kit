@@ -60,6 +60,17 @@ export interface UseZoomAndScalesArgs {
   yAutoScalingState: boolean;
   zoomable: boolean;
   initialVisibleCandles: number | undefined;
+  /** Whether replay is currently active (a cutoff has been chosen — see useReplayState.ts's own
+   *  `active`) and, if so, its `cutoffIndex` — the last candle actually revealed, everything past
+   *  it still sitting in `data` but painted over by drawReplayMask.ts. `YAutoScaling`'s own auto-fit
+   *  effect below caps the visible range it fits to at this cutoff so it never stretches to
+   *  accommodate a masked future candle's high/low — without this, revealed history wouldn't
+   *  necessarily fill the pane's full vertical space the way "hover dims, click cuts" implies it
+   *  should, since a wide, still-hidden swing later in `data` (but within the current X zoom
+   *  window) would otherwise still count toward the fit. Default `false`/`null` (no replay) leaves
+   *  the fit exactly as before. */
+  replayActive: boolean;
+  replayCutoffIndex: number | null;
 }
 
 /** The chart's whole coordinate system: X/Y transforms (pan/zoom), the index-based X scale and
@@ -86,6 +97,8 @@ export function useZoomAndScales({
   yAutoScalingState,
   zoomable,
   initialVisibleCandles,
+  replayActive,
+  replayCutoffIndex,
 }: UseZoomAndScalesArgs) {
   const [transform, setTransform] = useState<d3.ZoomTransform>(d3.zoomIdentity);
   const [yTransform, setYTransform] = useState<d3.ZoomTransform>(d3.zoomIdentity);
@@ -322,7 +335,11 @@ export function useZoomAndScales({
   useEffect(() => {
     if (data.length === 0) return;
     if (!compareMode && (!yAutoScalingState || yManuallyAdjusted)) return;
-    const slice = data.slice(Math.max(0, visibleRange.start), Math.min(data.length, visibleRange.end));
+    // Replay reveals candles [0, cutoffIndex] — everything past that is still in `data` (see
+    // useReplayState.ts's own doc on why it never slices `data`) but painted over by
+    // drawReplayMask.ts, so it shouldn't count toward what the visible price window fits to.
+    const fitEnd = replayActive && replayCutoffIndex !== null ? Math.min(visibleRange.end, replayCutoffIndex + 1) : visibleRange.end;
+    const slice = data.slice(Math.max(0, visibleRange.start), Math.min(data.length, fitEnd));
     const source = slice.length > 0 ? slice : data;
     const highs = source.map((d) => d.high);
     const lows = source.map((d) => d.low);
@@ -330,7 +347,7 @@ export function useZoomAndScales({
       for (const { drawing: dr, points, haPoints, bricks } of overlayProjections) {
         if (dr.overlayDisplayMode === "heikinAshi" && haPoints) {
           for (const p of haPoints) {
-            if (p.i >= visibleRange.start && p.i <= visibleRange.end) {
+            if (p.i >= visibleRange.start && p.i <= fitEnd) {
               highs.push(p.high);
               lows.push(p.low);
             }
@@ -340,14 +357,14 @@ export function useZoomAndScales({
           // counts as visible whenever that range overlaps the visible one at all, not just when
           // its own single index would.
           for (const b of bricks) {
-            if (b.endIndex >= visibleRange.start && b.startIndex <= visibleRange.end) {
+            if (b.endIndex >= visibleRange.start && b.startIndex <= fitEnd) {
               highs.push(Math.max(b.open, b.close));
               lows.push(Math.min(b.open, b.close));
             }
           }
         } else {
           for (const p of points) {
-            if (p.i >= visibleRange.start && p.i <= visibleRange.end) {
+            if (p.i >= visibleRange.start && p.i <= fitEnd) {
               // A candle-mode overlay's own high/low, when present, fit the axis to its whole bar
               // rather than just its close — otherwise a tall wick could render clipped against a
               // range that only ever accounted for `price` (the close).
@@ -368,7 +385,19 @@ export function useZoomAndScales({
     const k = priceHeight / denom;
     const y = -k * priceScale(targetMax);
     setYTransform(new d3.ZoomTransform(k, 0, y));
-  }, [yAutoScalingState, yManuallyAdjusted, data, visibleRange.start, visibleRange.end, priceScale, priceHeight, compareMode, overlayProjections]);
+  }, [
+    yAutoScalingState,
+    yManuallyAdjusted,
+    data,
+    visibleRange.start,
+    visibleRange.end,
+    priceScale,
+    priceHeight,
+    compareMode,
+    overlayProjections,
+    replayActive,
+    replayCutoffIndex,
+  ]);
 
   // 10% headroom on top of the tallest bar, so it doesn't reach all the way up to the
   // price/volume divider — leaves a small visual gap between the bars and the line.

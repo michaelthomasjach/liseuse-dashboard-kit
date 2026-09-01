@@ -421,6 +421,8 @@ export function CandlestickChart({
     yAutoScalingState,
     zoomable,
     initialVisibleCandles,
+    replayActive: replayState.active,
+    replayCutoffIndex: replayState.cutoffIndex,
   });
 
   const { effectiveHoverIndex, effectiveHovered, effectiveHoverY } = useHoverSync({ data, hoverIndex, indexForDate, dateForIndex, syncedHoverDate, onHoverDateChange, hoverY, zoomedPriceScale, clampToPriceAxis, syncedHoverPrice, onHoverPriceChange });

@@ -27,6 +27,7 @@ import {
   type SymbolProfile,
 } from "./ChartWorkspace";
 import { generateCandles, generateCandlesByTimeframe, type MockTimeframeKey } from "../../test-data/financeSampleData";
+import { BTC_REAL_SAMPLE } from "../../test-data/btcRealSample";
 
 const meta: Meta<typeof CandlestickChart> = {
   title: "Charts/CandlestickChart",
@@ -759,4 +760,20 @@ export const LiveMarket: Story = {
       </div>
     );
   },
+};
+
+// Real BTC/USDT 15-minute candles (Binance historical klines, May 2026 — see btcRealSample.ts's
+// own doc), not a generated series — for checking a script's own output (originally "Niveaux de
+// support/résistance (KDE gaussienne)") against real market structure. Reuses KDE_DEBUG_SCRIPT
+// (the exact same SCRIPT_EXAMPLES source "Toutes les options" already pre-loads) so both stories
+// stay in sync with the example itself rather than drifting apart.
+export const BtcRealSample: Story = {
+  name: "Données BTC réelles (test KDE)",
+  render: () => (
+    <div style={{ margin: -32 }}>
+      <ChartWorkspace defaultPanels={1} scripting defaultScripts={KDE_DEBUG_SCRIPT}>
+        <CandlestickChart data={BTC_REAL_SAMPLE} symbol="BTCUSDT" zoomable showVolume replay />
+      </ChartWorkspace>
+    </div>
+  ),
 };

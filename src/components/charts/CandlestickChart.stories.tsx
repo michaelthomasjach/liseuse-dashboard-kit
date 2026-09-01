@@ -606,12 +606,17 @@ export const AllFeatures: Story = {
             )
           }
           // `ChartWorkspace` already applies the click to whichever panel(s) the user picked (or
-          // the sole panel, with just one open) internally — see its own `symbolByPanel` fork.
-          // This fires purely as an FYI afterward; setting `currentSymbol` (the *shared* template
-          // default every not-yet-individually-targeted panel still falls back to) here would
-          // re-apply the click to every one of *those* panels too, on top of whichever one(s) were
-          // actually picked.
-          onWatchlistRowClick={() => {}}
+          // the sole panel, with just one open) internally — see its own `symbolByPanel` fork —
+          // which is enough to update the *label*, but this story's own `data` is keyed off
+          // `currentSymbol` (see the BTCUSD swap below), not off ChartWorkspace's internal
+          // tracking, so a watchlist click alone left the label reading "BTCUSD" with the
+          // previous symbol's own candles still showing (confirmed bug report: "les valeurs de
+          // BTC_REAL_SAMPLE ne sont pas chargées même quand je sélectionne BTCUSD"). Setting it
+          // here too keeps both in sync — this story only ever has 1 panel by default
+          // (defaultPanels={1}), so the "would re-apply to every untargeted panel" concern a
+          // multi-panel workspace has doesn't apply; a story exercising several panels at once
+          // would need to track this per panel index instead.
+          onWatchlistRowClick={(row) => setCurrentSymbol(row.ticker)}
           onCreateWatchlist={handleCreateWatchlist}
           onCreateWatchlistSection={handleCreateWatchlistSection}
           onRemoveWatchlistSymbol={handleRemoveWatchlistSymbol}

@@ -447,10 +447,15 @@ export function useZoomAndScales({
   } = useD3Zoom<SVGRectElement>({
     width: dims.boundedWidth,
     height: plotBoundedHeight,
-    enabled: zoomable && activeTool === null && !replayArmed,
+    enabled: zoomable && activeTool === null,
     scaleExtent: [1, maxXZoom],
     onZoom: setTransform,
-    filter: () => hoveredDrawingIdRef.current === null && !measureBodyHoveredRef.current,
+    // Wheel-zoom stays allowed even while `replayArmed` (confirmed bug report: "le scroll out/in
+    // ne fonctionne pas" — zooming in to precisely target a candle before clicking its own cutoff
+    // is exactly when it's most useful) — only a *drag* is rejected then, which is the actual
+    // gesture that would shift the view out from under the hover-preview line while choosing.
+    filter: (event: Event) =>
+      (!replayArmed || event.type === "wheel") && hoveredDrawingIdRef.current === null && !measureBodyHoveredRef.current,
     constrain: constrainXPan,
   });
 

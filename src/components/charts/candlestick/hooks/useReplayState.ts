@@ -94,6 +94,21 @@ export function useReplayState({ dataLength }: UseReplayStateArgs) {
     setPlaying(false);
   }
 
+  // Escape exits replay entirely — while still choosing a cutoff (armed) or once one is already
+  // active (playing or paused) — same "Escape backs out of this mode" convention useDrawingState's
+  // own Escape handler already uses for an active drawing tool. Only listens while there's actually
+  // something to exit, same reasoning that effect only listens while its own tool/selection state
+  // is non-empty.
+  useEffect(() => {
+    if (!armed && !active) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key !== "Escape") return;
+      quit();
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [armed, active]);
+
   // Same setInterval/clearInterval-in-cleanup shape useChartAppearance.ts's own live-price tick
   // uses — the only other self-ticking state in this whole chart library. Reveals one more candle
   // per tick, exiting replay entirely (not just pausing on the last bar, which left the mask

@@ -203,9 +203,10 @@ complet coûte cher, et les niveaux ne bougent --pratiquement jamais-- d'une bou
 const WINDOW = new Variable("number", 60, { description: "Nombre de bougies analysées pour construire le profil." });
 const GRID = new Variable("number", 60, { description: "Finesse du profil : nombre de paliers de prix entre le plus bas et le plus haut." });
 const FIRST_W = new Variable("number", 0.2, { description: "Poids de la bougie la plus ancienne (1 = autant que la plus récente)." });
-const ATR_MULT = new Variable("number", 3.0, { description: "Largeur du noyau gaussien, en multiples d'ATR. Plus haut = profil plus lissé, moins de niveaux." });
+const ATR_MULT = new Variable("number", 0.3, { description: "Largeur du noyau gaussien, en multiples d'ATR. Plus haut = profil plus lissé, moins de niveaux." });
+const GRID_PAD = new Variable("number", 2, { description: "De combien de largeurs de noyau la grille déborde de part et d'autre des prix observés." });
 const PROM_THRESH = new Variable("number", 0.12, { description: "Proéminence minimale d'un pic pour devenir un niveau, en fraction du pic le plus haut." });
-const RECALC_EVERY = new Variable("number", 10, { description: "Recalculer les niveaux toutes les N bougies. Plus haut = moins de calcul." });
+const RECALC_EVERY = new Variable("number", 1, { description: "Recalculer le profil toutes les N bougies. 1 = à chaque bougie ; plus haut = moins de calcul, mais le profil se fige entre deux recalculs." });
 const PROFIL_COULEUR = new Variable("color", "#c47f2a", { description: "Couleur de la courbe du profil affiché à droite." });
 
 function findPeaks(values, minProminence) {
@@ -236,9 +237,15 @@ if (barIndex >= WINDOW && barIndex % RECALC_EVERY === 0) {
     const bandwidth = (atr ?? 1) * ATR_MULT;
     const weights = closes.map((_, i) => FIRST_W + (i / closes.length) * (1 - FIRST_W));
 
-    const step = (maxP - minP) / GRID;
+    // La grille déborde de GRID_PAD largeurs de noyau de chaque côté des prix observés. Sans cette
+    // marge elle s'arrête pile sur le dernier prix, là où la densité est encore élevée : le profil
+    // ne redescend jamais vers zéro et la courbe reste décollée de l'axe.
+    const pad = bandwidth * GRID_PAD;
+    const gridLow = minP - pad;
+    const gridHigh = maxP + pad;
+    const step = (gridHigh - gridLow) / GRID;
     const priceGrid = [];
-    for (let p = minP; p < maxP; p += step) priceGrid.push(p);
+    for (let p = gridLow; p < gridHigh; p += step) priceGrid.push(p);
 
     const density = priceGrid.map((p) => {
       let sum = 0;

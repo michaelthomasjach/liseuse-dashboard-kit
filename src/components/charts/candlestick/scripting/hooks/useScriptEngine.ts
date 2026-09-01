@@ -293,6 +293,11 @@ export function useScriptEngine(
     }
 
     const historical = boundMoved || deferredBoundMovedRef.current;
+    // A deferred re-run has already waited out a whole run of its own — debouncing it a second time
+    // would just add latency to every frame of a replay, which is what makes the curve lag a bar or
+    // two behind the cursor. Only a move arriving while idle gets the debounce, whose job is to
+    // collapse a burst into one run rather than to slow the steady state down.
+    const wasDeferred = deferredRerunRef.current;
     deferredRerunRef.current = false;
     deferredBoundMovedRef.current = false;
     // No cleanup returned on purpose: React runs the previous effect's cleanup before every
@@ -300,6 +305,10 @@ export function useScriptEngine(
     // re-run whenever this effect woke for an unrelated reason (a `running` flip, say). It is
     // cleared explicitly here instead, and on unmount by the worker effect above.
     clearPendingDebounce();
+    if (wasDeferred) {
+      run(lastScriptCodeRef.current, !historical);
+      return;
+    }
     debounceRef.current = setTimeout(() => {
       debounceRef.current = null;
       if (lastScriptCodeRef.current !== null) run(lastScriptCodeRef.current, !historical);

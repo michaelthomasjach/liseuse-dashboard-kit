@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { TextField } from "../../../../forms/TextField";
 import { NumberField } from "../../../../forms/NumberField";
 import { TagInput } from "../../../../forms/TagInput";
+import { Checkbox } from "../../../../forms/Checkbox";
 import type { ScriptParam, ScriptParamValue } from "../../interfaces/ScriptParam.interface";
 import "./ScriptParamsFields.css";
 
@@ -99,6 +100,15 @@ export function ScriptParamsFields({ params, values, onChange }: ScriptParamsFie
               />
               {/* The color input is hand-rolled rather than a `lq-field` component, so its helper
                   text has to be written out here to match what the other field types render. */}
+              {param.description && <span className="lq-field__helper">{param.description}</span>}
+            </div>
+          );
+        }
+
+        if (param.type === "boolean") {
+          return (
+            <div className="lq-field" key={param.name}>
+              <Checkbox checked={typeof value === "boolean" ? value : false} onChange={(checked) => setDraft(param.name, checked)} label={param.name} />
               {param.description && <span className="lq-field__helper">{param.description}</span>}
             </div>
           );

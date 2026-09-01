@@ -626,7 +626,11 @@ export const AllFeatures: Story = {
           defaultScripts={KDE_DEBUG_SCRIPT}
         >
           <CandlestickChart
-            data={ALL_FEATURES_TIMEFRAME_DATA[timeframe as MockTimeframeKey] ?? ALL_FEATURES_DATASET}
+            // BTCUSD swaps in the real 15-minute BTC/USDT klines (see btcRealSample.ts's own doc)
+            // instead of a generated series — picking it from the symbol search is the quickest way
+            // to check a script's own output (e.g. the KDE support/resistance example) against real
+            // market structure without leaving this story for the dedicated BtcRealSample one.
+            data={currentSymbol === "BTCUSD" ? BTC_REAL_SAMPLE : ALL_FEATURES_TIMEFRAME_DATA[timeframe as MockTimeframeKey] ?? ALL_FEATURES_DATASET}
             symbol={currentSymbol}
             events={ALL_FEATURES_EVENTS}
             drawingTools

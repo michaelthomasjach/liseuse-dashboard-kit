@@ -41,7 +41,15 @@ function literalValue(node: SyntaxNode, code: string): unknown {
 }
 
 function typeLabel(type: ScriptParamType): string {
-  return type === "color" ? 'une couleur ("#rrggbb")' : type === "number" ? "un nombre" : type === "string" ? "une chaîne" : `un tableau (${type})`;
+  return type === "color"
+    ? 'une couleur ("#rrggbb")'
+    : type === "number"
+      ? "un nombre"
+      : type === "string"
+        ? "une chaîne"
+        : type === "boolean"
+          ? "true ou false"
+          : `un tableau (${type})`;
 }
 
 /** Checks one default-value node against its declared type, returning the evaluated value or a
@@ -54,6 +62,12 @@ function checkDefault(type: ScriptParamType, node: SyntaxNode, code: string): { 
     if (!isNumberLiteral(node, code)) return { message: expected };
     const value = literalValue(node, code);
     return typeof value === "number" && Number.isFinite(value) ? { value } : { message: expected };
+  }
+
+  if (type === "boolean") {
+    if (node.name !== "BooleanLiteral") return { message: expected };
+    const value = literalValue(node, code);
+    return typeof value === "boolean" ? { value } : { message: expected };
   }
 
   if (type === "string" || type === "color") {

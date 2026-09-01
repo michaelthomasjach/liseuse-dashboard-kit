@@ -299,7 +299,7 @@ export function ChartHeader({
             </button>
             <Popover open={replaySpeedOpen} onClose={() => setReplaySpeedOpen(false)} anchorRef={replaySpeedAnchorRef} placement="bottom">
               <div className="lq-chart__timeframe-menu">
-                {[1, 2, 5, 10].map((s) => (
+                {[1, 2, 5, 10, 15, 20, 30, 40, 50, 75, 100].map((s) => (
                   <button
                     key={s}
                     type="button"

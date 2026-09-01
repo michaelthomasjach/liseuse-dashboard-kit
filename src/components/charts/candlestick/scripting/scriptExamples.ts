@@ -176,7 +176,7 @@ if (bar.isNew() && lowerChannel !== null && price <= lowerChannel) {
     id: "kde-support-resistance",
     title: "Niveaux de support/résistance (KDE gaussienne)",
     description:
-      "Un profil de marché lissé par noyau gaussien (bandwidth adapté à l'ATR), dont les pics deviennent des niveaux de support/résistance affichés dans une pane ancrée à droite (plot.pane(..., { dock: \"right\" })) — recalculé tous les RECALC_EVERY bougies pour rester sous le budget d'exécution, avec un signal au moment exact où le prix franchit un niveau. Les six constantes de la cellule 1 sont déclarées avec new Variable(type, défaut) : elles apparaissent dans la fenêtre de réglages (celle de l'éditeur comme celle de la pane), se règlent sans toucher au code, et toute tentative de les réaffecter ailleurs dans le script est signalée comme une erreur. Le détail pas-à-pas de cette construction est dans le tutoriel « Niveaux de support/résistance (KDE) » plus haut :",
+      "Un profil de marché lissé par noyau gaussien (bandwidth adapté à l'ATR), dont les pics deviennent des niveaux de support/résistance affichés dans une pane ancrée à droite (plot.pane(..., { dock: \"right\" })) — recalculé tous les RECALC_EVERY bougies pour rester sous le budget d'exécution, avec un signal au moment exact où le prix franchit un niveau. Les neuf constantes de la cellule 1 sont déclarées avec new Variable(type, défaut) : elles apparaissent dans la fenêtre de réglages (celle de l'éditeur comme celle de la pane), se règlent sans toucher au code, et toute tentative de les réaffecter ailleurs dans le script est signalée comme une erreur. Le détail pas-à-pas de cette construction est dans le tutoriel « Niveaux de support/résistance (KDE) » plus haut :",
     code: `@description "///Niveaux de support/résistance///
 Un **profil de marché** lissé par un noyau gaussien. Plutôt que de compter combien de fois le prix
 a visité chaque palier, chaque clôture est étalée en une petite cloche, et toutes les cloches sont
@@ -192,8 +192,11 @@ pose dès qu'une clôture en franchit un.
 
 //Les réglages qui comptent//
 **ATR_MULT** élargit ou resserre les cloches : plus haut, moins de niveaux, mais plus robustes.
-**PROM_THRESH** écarte les pics trop plats. **RECALC_EVERY** espace les recalculs — le profil
-complet coûte cher, et les niveaux ne bougent --pratiquement jamais-- d'une bougie à l'autre.
+
+**PROM_THRESH** écarte les pics trop plats.
+
+**RECALC_EVERY** espace les recalculs — le profil complet coûte cher, et les niveaux ne bougent
+--pratiquement jamais-- d'une bougie à l'autre.
 "
 
 // %% Cellule 1 — paramètres réglables et détection de pics
@@ -208,6 +211,7 @@ const GRID_PAD = new Variable("number", 2, { description: "De combien de largeur
 const PROM_THRESH = new Variable("number", 0.12, { description: "Proéminence minimale d'un pic pour devenir un niveau, en fraction du pic le plus haut." });
 const RECALC_EVERY = new Variable("number", 1, { description: "Recalculer le profil toutes les N bougies. 1 = à chaque bougie ; plus haut = moins de calcul, mais le profil se fige entre deux recalculs." });
 const PROFIL_COULEUR = new Variable("color", "#c47f2a", { description: "Couleur de la courbe du profil affiché à droite." });
+const AFFICHER_FLECHES = new Variable("boolean", true, { description: "Affiche les flèches BUY/SELL sur le graphique quand un niveau est franchi." });
 
 function findPeaks(values, minProminence) {
   const peaks = [];
@@ -286,7 +290,7 @@ if (prevClose !== null && currClose !== null) {
     if (currClose > level && prevClose <= level) sig = 1;
     else if (currClose < level && prevClose >= level) sig = -1;
   }
-  if (sig !== prevSig) {
+  if (sig !== prevSig && AFFICHER_FLECHES) {
     plot.signal({ type: sig > 0 ? "BUY" : "SELL", price: currClose });
   }
   state.set("sig", sig);

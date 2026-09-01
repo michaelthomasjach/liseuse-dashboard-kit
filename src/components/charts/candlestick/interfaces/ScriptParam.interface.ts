@@ -1,13 +1,13 @@
-/** The five types a `new Variable(type, default)` declaration may name — the exact set the settings
+/** The six types a `new Variable(type, default)` declaration may name — the exact set the settings
  *  UI knows how to render an input for, which is why it's a closed union rather than open-ended. */
-export const SCRIPT_PARAM_TYPES = ["string", "number", "Array[string]", "Array[number]", "color"] as const;
+export const SCRIPT_PARAM_TYPES = ["string", "number", "boolean", "Array[string]", "Array[number]", "color"] as const;
 
 export type ScriptParamType = (typeof SCRIPT_PARAM_TYPES)[number];
 
 /** A parameter's own value, in whichever shape its type implies. `color` is a `string` at runtime
  *  (a `#rrggbb` literal) — it's a distinct *type* only so the settings UI can offer a color picker
  *  instead of a free-text field. */
-export type ScriptParamValue = string | number | string[] | number[];
+export type ScriptParamValue = string | number | boolean | string[] | number[];
 
 /** One `const NAME = new Variable(type, default)` declaration found in a script's source — the
  *  bridge between the script text and the settings UI. Discovered by parsing rather than by running

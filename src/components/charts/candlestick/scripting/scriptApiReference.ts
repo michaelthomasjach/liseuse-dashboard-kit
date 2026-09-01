@@ -182,14 +182,16 @@ une ligne vide ouvre un nouveau paragraphe.
         `const ATR_MULT = new Variable("number", 3.0, { description: "Largeur du noyau, en multiples d'ATR." });
 const PALIERS = new Variable("Array[number]", [0.5, 1, 2]);
 const COULEUR = new Variable("color", "#3b82f6");
+const AFFICHER_SIGNAUX = new Variable("boolean", true);
 
 // La variable s'utilise comme la constante qu'elle est :
 const bandwidth = (ta.atr(14) ?? 1) * ATR_MULT;`
       ),
-      t("Les cinq types disponibles, et ce que la valeur par défaut doit être :"),
+      t("Les six types disponibles, et ce que la valeur par défaut doit être :"),
       l([
         '"number" — un nombre, négatif accepté. Champ numérique.',
         '"string" — un texte entre guillemets. Champ texte.',
+        '"boolean" — true ou false, sans guillemets. Case à cocher.',
         '"color" — une couleur hexadécimale, #rrggbb ou #rgb. Sélecteur de couleur.',
         '"Array[number]" — un tableau de nombres, par exemple [1, 2, 3].',
         '"Array[string]" — un tableau de textes, par exemple ["a", "b"].',

@@ -343,9 +343,15 @@ export function CandlestickChart({
     fullscreenPaneId, togglePaneFullscreen,
     leftPaneIndicators, leftPaneHeights, leftPaneTops,
     rightPaneIndicators, rightPaneHeights, rightPaneTops,
+    toggleSidePaneCollapsed,
+    extraIndicators: activeScriptIndicators,
   } = usePaneLayout({ defaultIndicators, onIndicatorsChange, showVolume, plotBoundedHeight, extraIndicators: scriptChartIndicators });
   const correlationSetup = useCorrelationSetup({ appendIndicator, onAddSymbolOverlay, onSymbolSearchChange });
-  const combinedIndicators = useMemo(() => [...indicators, ...scriptChartIndicators], [indicators, scriptChartIndicators]);
+  // `activeScriptIndicators`, not the raw `scriptChartIndicators` — script outputs the user has
+  // deleted from the chart are already filtered out of it (see usePaneLayout's own
+  // `dismissedScriptIndicators` doc), so the legend and the overlay list drop them too rather than
+  // still listing a pane that is no longer drawn anywhere.
+  const combinedIndicators = useMemo(() => [...indicators, ...activeScriptIndicators], [indicators, activeScriptIndicators]);
   // Render-only concat — script signals stay out of the *interactive* `visibleDrawings` every
   // pointer-handler in useDrawingInteractions below still reads (they're read-only in v1, no
   // select/drag/double-click-edit), only the canvas draw pass (ChartPlotOverlays) sees this one.
@@ -488,6 +494,7 @@ export function CandlestickChart({
     visibleIndicators,
     paneYTransform,
     zoomedXScale,
+    zoomedPriceScale,
     candleWidth,
     boundedWidth: dims.boundedWidth,
     plotBoundedHeight,
@@ -498,14 +505,13 @@ export function CandlestickChart({
     hoverIndex: effectiveHoverIndex,
     dateTickFormat,
     startPaneResize,
-    commitTargetIndicators: indicators,
-    commitIndicators,
     indicatorLabel,
     openIndicatorSettings,
     removeIndicator,
     indicatorValues,
     onOpenIndicatorInfo: setInfoKind,
     onEditScript,
+    toggleSidePaneCollapsed,
   });
 
   const { addPriceLine, addVolumeLine, addDateLine, addIndicatorPaneLine } = useAddLineHandlers({
@@ -1018,6 +1024,12 @@ export function CandlestickChart({
 
       <ScriptRunnerHost
         scripts={scriptingState.scripts} data={data} indicators={indicators} fundamentals={fundamentals}
+        // Replay's own cutoff, so a script replays with the chart instead of always computing over
+        // the whole history. The replay mask (drawReplayMask.ts) only *hides* what sits past the
+        // cutoff on the main plot's canvas — enough for a series laid out along time, but not for
+        // output whose shape is derived from the bars themselves (a profile), nor for a docked
+        // column, which paints on a canvas of its own that the mask never covers.
+        runUpToIndex={replayState.active ? replayState.cutoffIndex : null}
         lastCandleOpen={lastCandleOpen} availableTimeframes={flattenTimeframeValues(timeframes)}
         onOutput={(id, output) => {
           scriptingState.reportRunOutput(id, output);
@@ -1047,6 +1059,7 @@ export function CandlestickChart({
         addIndicator={addIndicator}
         customIndicators={customIndicators} addCustomIndicator={addCustomIndicator}
         scripts={scriptingState.scripts} toggleScriptEnabled={scriptingState.toggleScriptEnabled}
+        setScriptParamValue={scriptingState.setScriptParamValue}
         indicatorsManagerOpen={indicatorsManagerOpen}
         setIndicatorsManagerOpen={setIndicatorsManagerOpen}
         indicators={indicators} commitIndicators={commitIndicators}

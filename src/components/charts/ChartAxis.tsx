@@ -12,6 +12,13 @@ export interface ChartAxisProps<Domain extends d3.AxisDomain = d3.AxisDomain> {
    *  Overrides the automatic `ticks` count when provided. */
   tickValues?: Domain[];
   tickSizeOuter?: number;
+  /** Overrides where the domain *line* itself starts and ends, in the axis group's own local
+   *  coordinates (the same space as `scale.range()`, which is what it defaults to). For an axis
+   *  whose scale is deliberately ranged to less than the box it belongs to — a docked column's own
+   *  price axis reserves room at the top of its range so plotted values clear the pane header, see
+   *  `usePaneStackScales`'s own `headerReserve` — this keeps the drawn line spanning the full box
+   *  while ticks and data still land on the (shorter) scale. */
+  domainExtent?: [number, number];
   grid?: boolean;
   /** Length of grid lines (usually the plot's bounded width/height). Required when `grid` is true. */
   gridLength?: number;
@@ -31,6 +38,7 @@ export function ChartAxis<Domain extends d3.AxisDomain = d3.AxisDomain>({
   tickFormat,
   tickValues,
   tickSizeOuter = 0,
+  domainExtent,
   grid = false,
   gridLength = 0,
 }: ChartAxisProps<Domain>) {
@@ -59,6 +67,15 @@ export function ChartAxis<Domain extends d3.AxisDomain = d3.AxisDomain>({
     // it in place, silently piling up duplicate overlapping domain paths for as long as the axis
     // stayed mounted.
     selection.select(".domain").classed("lq-chart-axis__domain", true);
+    // Rewrite the line d3 just drew between `scale.range()[0]` and `[1]` (see `domainExtent`'s own
+    // doc). Same shape d3-axis itself emits at `tickSizeOuter: 0` — including its half-pixel
+    // `offset`, which is what keeps a 1px stroke landing on a whole device pixel rather than
+    // straddling two and rendering as a blurry 2px line.
+    if (domainExtent) {
+      const [from, to] = domainExtent;
+      const offset = typeof window !== "undefined" && window.devicePixelRatio > 1 ? 0 : 0.5;
+      selection.select(".domain").attr("d", orientation === "bottom" ? `M${from},${offset}H${to}` : `M${offset},${from}V${to}`);
+    }
     selection.selectAll(".tick line").attr("class", grid ? "lq-chart-axis__grid-line" : "lq-chart-axis__tick-line");
     selection.selectAll(".tick text").attr("class", "lq-chart-axis__label");
 

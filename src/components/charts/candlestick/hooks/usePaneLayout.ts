@@ -1,7 +1,7 @@
+import type { IndicatorInfoTarget } from "../interfaces/IndicatorInfoTarget.interface";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as d3 from "d3";
 import type { Indicator } from "../interfaces/Indicator.interface";
-import type { IndicatorKind } from "../interfaces/IndicatorKind.interface";
 import type { CustomIndicatorDef } from "../interfaces/CustomIndicatorDef.interface";
 import type { IndicatorCatalogEntry } from "../indicatorCatalog";
 import { indicatorCatalogEntry } from "../indicatorCatalog";
@@ -29,19 +29,41 @@ function indicatorDock(ind: Indicator): "bottom" | "left" | "right" {
 // split by default — 1 / expandedCount, not the bottom stack's flat default) against their own
 // sum, so together they always fill exactly `boundedHeight` — a lone pane always gets the whole
 // column (dragging its own resize handle is then correctly a no-op, nothing to redistribute *to*),
-// two even ones split it 50/50 by default, and so on. Collapsed panes stay their own fixed
-// SUB_PANE_COLLAPSED_HEIGHT either way, same as the bottom stack.
+// two even ones split it 50/50 by default, and so on. Collapsed panes take *no* vertical room here
+// (height 0) — unlike the bottom stack, where collapsing shrinks a pane along the stack's own axis
+// down to a SUB_PANE_COLLAPSED_HEIGHT band that stays in the stack. A docked pane instead folds
+// sideways, out of the vertical stack entirely and into its own SIDE_DOCK_COLLAPSED_WIDTH band at
+// the column's outer edge (see ChartSidePaneColumn.tsx), so the panes still expanded here share the
+// column's *whole* height between them rather than the leftovers.
+// Resolves `sidePaneCollapsed` (UI state, see its own doc) onto the indicator itself, so every
+// consumer downstream — stackSidePanes here, the column's canvas draw, its axes, its headers —
+// keeps reading the plain `ind.paneCollapsed` it already read, with no predicate threaded through
+// four layers. Returns the indicator untouched while no override exists for it.
+function withSideCollapsed(ind: Indicator, collapsed: Record<string, boolean>): Indicator {
+  const override = collapsed[ind.id];
+  return override === undefined || override === ind.paneCollapsed ? ind : { ...ind, paneCollapsed: override };
+}
+
+// Re-applies a settings-modal edit onto a freshly regenerated script indicator (see
+// `scriptIndicatorOverrides`' own doc). `id`/`kind`/`customData` are deliberately restored from the
+// script's own output afterwards: those describe what the indicator *is* — which series it draws,
+// which side it docks to — and belong to the code, not to the settings modal, so a stale override
+// can never pin them to what the script used to say.
+function withScriptOverride(ind: Indicator, overrides: Record<string, Partial<Indicator>>): Indicator {
+  const override = overrides[ind.id];
+  if (!override) return ind;
+  return { ...ind, ...override, id: ind.id, kind: ind.kind, customData: ind.customData };
+}
+
 function stackSidePanes(
   owned: Indicator[],
   heightFractions: Record<string, number>,
   boundedHeight: number
 ): { heights: number[]; tops: number[] } {
   const expandedCount = owned.filter((ind) => !ind.paneCollapsed).length;
-  const collapsedHeight = owned.filter((ind) => ind.paneCollapsed).length * SUB_PANE_COLLAPSED_HEIGHT;
-  const available = Math.max(0, boundedHeight - collapsedHeight);
   const rawFractions = owned.map((ind) => (ind.paneCollapsed ? 0 : (heightFractions[ind.id] ?? 1 / expandedCount)));
   const fractionSum = rawFractions.reduce((sum, f) => sum + f, 0) || 1;
-  const heights = owned.map((ind, i) => (ind.paneCollapsed ? SUB_PANE_COLLAPSED_HEIGHT : Math.round(available * (rawFractions[i] / fractionSum))));
+  const heights = owned.map((ind, i) => (ind.paneCollapsed ? 0 : Math.round(boundedHeight * (rawFractions[i] / fractionSum))));
   const tops: number[] = [];
   let cursor = 0;
   for (const h of heights) {
@@ -70,7 +92,7 @@ export interface UsePaneLayoutArgs {
  *  `indicators` (an "own"-pane indicator's id doubles as its pane key) — splitting the two apart
  *  would just mean threading `indicators` back and forth between two hooks that both need it on
  *  nearly every line. */
-export function usePaneLayout({ defaultIndicators, onIndicatorsChange, showVolume, plotBoundedHeight, extraIndicators = [] }: UsePaneLayoutArgs) {
+export function usePaneLayout({ defaultIndicators, onIndicatorsChange, showVolume, plotBoundedHeight, extraIndicators: rawExtraIndicators = [] }: UsePaneLayoutArgs) {
   const [indicators, setIndicators] = useState<Indicator[]>(defaultIndicators ?? []);
   const [indicatorPickerOpen, setIndicatorPickerOpen] = useState(false);
   const [indicatorSearchQuery, setIndicatorSearchQuery] = useState("");
@@ -79,7 +101,7 @@ export function usePaneLayout({ defaultIndicators, onIndicatorsChange, showVolum
   // (see IndicatorModals.tsx's own onOpenIndicatorInfo doc). Lives here (not a local useState in
   // CandlestickChart.tsx, which is why it moved) since it's squarely part of this hook's own
   // indicator-related state cluster, not a reason of its own.
-  const [infoKind, setInfoKind] = useState<IndicatorKind | "volume" | null>(null);
+  const [infoKind, setInfoKind] = useState<IndicatorInfoTarget | null>(null);
   const [editingIndicatorId, setEditingIndicatorId] = useState<string | null>(null);
   const [indicatorDraft, setIndicatorDraft] = useState<Indicator | null>(null);
   const [hoveredIndicatorId, setHoveredIndicatorId] = useState<string | null>(null);
@@ -116,6 +138,37 @@ export function usePaneLayout({ defaultIndicators, onIndicatorsChange, showVolum
   // pane's own top divider (see startPaneResize). Missing entries fall back to
   // DEFAULT_PANE_HEIGHT_FRACTION, same as before per-pane resize existed at all.
   const [paneHeightFractions, setPaneHeightFractions] = useState<Record<string, number>>({});
+  // Whether each *docked* pane is folded, keyed by pane id — deliberately its own UI state rather
+  // than the `Indicator.paneCollapsed` field the bottom stack toggles through `commitIndicators`.
+  // A docked pane is very often script-produced (`plot.pane(name, { dock })`), and those live in
+  // `extraIndicators`, never in the CRUD `indicators` list — so `commitIndicators` has nothing to
+  // write the flag onto and folding one was silently a no-op. Same per-pane-id, UI-only shape as
+  // `paneHeightFractions` right above, which already covers script panes for the same reason.
+  // Falls back to the indicator's own `paneCollapsed` while unset, so a saved template that starts
+  // a pane folded still opens folded.
+  const [sidePaneCollapsed, setSidePaneCollapsed] = useState<Record<string, boolean>>({});
+  // Script-produced indicators the user has deleted from the chart, by id. Same reason
+  // `sidePaneCollapsed` above exists: these live in `extraIndicators`, never in the CRUD
+  // `indicators` list, so `removeIndicator`'s own filter had nothing to remove and its trash button
+  // was silently inert. Deleting one hides that single output — the script itself keeps running and
+  // stays in the saved-scripts list (its other outputs, signals and drawings included, are
+  // untouched); removing the *script* is the editor panel's own job, see ScriptEditorPanel.
+  const [dismissedScriptIndicators, setDismissedScriptIndicators] = useState<Record<string, boolean>>({});
+  // Settings-modal edits made to a script-produced indicator, by id. A script indicator is rebuilt
+  // from scratch on every run (see `scriptIndicatorToChartIndicator` — `{id, kind, period,
+  // customData}`, nothing carried over), so an edit written onto the indicator itself would be
+  // discarded by the very next run; and since committing a parameter value *is* a re-run, that
+  // would be almost immediately. Held beside the indicator and re-applied after each run instead.
+  // Only presentation fields (color, sideAxesVisible, hidden…) ever land here — `id`/`kind`/
+  // `customData` stay the script's own, see `withScriptOverride`.
+  const [scriptIndicatorOverrides, setScriptIndicatorOverrides] = useState<Record<string, Partial<Indicator>>>({});
+  // What every consumer below (and the caller, which rebuilds its own combined list from this) uses
+  // in place of the raw prop, so a deleted script output disappears from the pane stacks, the
+  // docked columns and the legend in one move rather than each filtering separately.
+  const extraIndicators = useMemo(
+    () => rawExtraIndicators.filter((ind) => !dismissedScriptIndicators[ind.id]).map((ind) => withScriptOverride(ind, scriptIndicatorOverrides)),
+    [rawExtraIndicators, dismissedScriptIndicators, scriptIndicatorOverrides]
+  );
   // Manual vertical rescale for a sub-pane's own value axis (volume, or an "own"-pane
   // indicator's, keyed the same way as paneHeightFractions above) — dragging that pane's own Y
   // axis strip (see handlePaneYAxisPointerDown) sets a d3.ZoomTransform here, the same
@@ -185,6 +238,24 @@ export function usePaneLayout({ defaultIndicators, onIndicatorsChange, showVolum
     [onIndicatorsChange]
   );
 
+  // Writes both channels. The `sidePaneCollapsed` record is the one every docked pane actually
+  // reads (see its own doc — it's the only channel a script-produced pane has at all), but a pane
+  // that *is* in the CRUD list also gets the flag written onto the indicator itself, so folding a
+  // docked pane still survives being saved into a template exactly as it did before that record
+  // existed. Defined here rather than beside its own useState so it can reach `commitIndicators`.
+  const toggleSidePaneCollapsed = useCallback(
+    (paneId: string, collapsed: boolean) => {
+      setSidePaneCollapsed((prev) => ({ ...prev, [paneId]: collapsed }));
+      setIndicators((prev) => {
+        if (!prev.some((ind) => ind.id === paneId)) return prev;
+        const next = prev.map((ind) => (ind.id === paneId ? { ...ind, paneCollapsed: collapsed } : ind));
+        onIndicatorsChange?.(next);
+        return next;
+      });
+    },
+    [onIndicatorsChange]
+  );
+
   // Replaces every piece of state a saved template snapshot covers, wholesale rather than
   // merging — loading a template means the pane layout ends up looking *exactly* like it did
   // when saved, including dropping any manual pane-height resize the current (not the template's
@@ -238,7 +309,10 @@ export function usePaneLayout({ defaultIndicators, onIndicatorsChange, showVolum
   }
 
   function openIndicatorSettings(id: string) {
-    const indicator = indicators.find((i) => i.id === id);
+    // Script-produced indicators are not in the CRUD list — looking only there is why the gear on a
+    // docked pane's own header used to do nothing at all. `extraIndicators` (not the raw prop) so
+    // the modal opens on the values actually on screen, overrides and all.
+    const indicator = indicators.find((i) => i.id === id) ?? extraIndicators.find((i) => i.id === id);
     if (!indicator) return;
     setEditingIndicatorId(id);
     setIndicatorDraft(indicator);
@@ -251,27 +325,52 @@ export function usePaneLayout({ defaultIndicators, onIndicatorsChange, showVolum
 
   function saveIndicatorSettings() {
     if (!editingIndicatorId || !indicatorDraft) return;
-    commitIndicators(indicators.map((i) => (i.id === editingIndicatorId ? indicatorDraft : i)));
+    if (indicators.some((i) => i.id === editingIndicatorId)) {
+      commitIndicators(indicators.map((i) => (i.id === editingIndicatorId ? indicatorDraft : i)));
+    } else {
+      // Script-produced: park the edit beside the indicator rather than on it (see
+      // `scriptIndicatorOverrides`' own doc). Everything the script itself owns is stripped, so the
+      // override survives the script changing its own output.
+      const presentation: Partial<Indicator> = { ...indicatorDraft };
+      delete presentation.id;
+      delete presentation.kind;
+      delete presentation.customData;
+      setScriptIndicatorOverrides((prev) => ({ ...prev, [editingIndicatorId]: presentation }));
+    }
     closeIndicatorSettings();
   }
 
   function deleteEditingIndicator() {
     if (!editingIndicatorId) return;
-    commitIndicators(indicators.filter((i) => i.id !== editingIndicatorId));
-    // Same "clear it synchronously, don't wait for the guard effect a render later" reasoning as
-    // loadIndicatorLayout's own doc — deleting the very pane that's currently fullscreened is
-    // reachable from its own header while fullscreened, and without this the guard effect below
-    // only catches up one render late, briefly forcing every other pane to zero height first.
-    if (fullscreenPaneId === editingIndicatorId) setFullscreenPaneId(null);
+    // Through removeIndicator rather than filtering `indicators` here: that one already knows a
+    // script-produced indicator isn't in the CRUD list and dismisses it instead (see its own doc).
+    // It also clears `fullscreenPaneId` synchronously — same "don't wait for the guard effect a
+    // render later" reasoning as loadIndicatorLayout's own doc: deleting the very pane that's
+    // currently fullscreened is reachable from its own header, and a render's delay would briefly
+    // force every other pane to zero height first.
+    removeIndicator(editingIndicatorId);
     closeIndicatorSettings();
   }
 
   function toggleIndicatorHidden(id: string) {
-    commitIndicators(indicators.map((i) => (i.id === id ? { ...i, hidden: !i.hidden } : i)));
+    if (indicators.some((i) => i.id === id)) {
+      commitIndicators(indicators.map((i) => (i.id === id ? { ...i, hidden: !i.hidden } : i)));
+      return;
+    }
+    // Script-produced: `hidden` is a presentation field like any other the settings modal writes,
+    // so it goes in the same override channel and survives the next run (see
+    // `scriptIndicatorOverrides`' own doc).
+    const current = extraIndicators.find((i) => i.id === id);
+    if (!current) return;
+    setScriptIndicatorOverrides((prev) => ({ ...prev, [id]: { ...prev[id], hidden: !current.hidden } }));
   }
 
   function removeIndicator(id: string) {
-    commitIndicators(indicators.filter((i) => i.id !== id));
+    // A script-produced indicator isn't in the CRUD list at all, so filtering that list would be a
+    // no-op (which is exactly what the trash button used to be for those). Record it as dismissed
+    // instead — see `dismissedScriptIndicators`' own doc: the pane goes, the script stays.
+    if (indicators.some((i) => i.id === id)) commitIndicators(indicators.filter((i) => i.id !== id));
+    else setDismissedScriptIndicators((prev) => ({ ...prev, [id]: true }));
     if (fullscreenPaneId === id) setFullscreenPaneId(null);
   }
 
@@ -490,16 +589,20 @@ export function usePaneLayout({ defaultIndicators, onIndicatorsChange, showVolum
   // opposite case (a docked pane claiming the whole plot itself), so that direction never arises.
   const { leftPaneIndicators, leftPaneHeights, leftPaneTops } = useMemo(() => {
     if (fullscreenPaneId !== null) return { leftPaneIndicators: [] as Indicator[], leftPaneHeights: [] as number[], leftPaneTops: [] as number[] };
-    const owned = [...indicators, ...extraIndicators].filter((ind) => indicatorCatalogEntry(ind).pane === "own" && indicatorDock(ind) === "left");
+    const owned = [...indicators, ...extraIndicators]
+      .filter((ind) => indicatorCatalogEntry(ind).pane === "own" && indicatorDock(ind) === "left")
+      .map((ind) => withSideCollapsed(ind, sidePaneCollapsed));
     const { heights, tops } = stackSidePanes(owned, paneHeightFractions, plotBoundedHeight);
     return { leftPaneIndicators: owned, leftPaneHeights: heights, leftPaneTops: tops };
-  }, [indicators, extraIndicators, paneHeightFractions, plotBoundedHeight, fullscreenPaneId]);
+  }, [indicators, extraIndicators, paneHeightFractions, plotBoundedHeight, fullscreenPaneId, sidePaneCollapsed]);
   const { rightPaneIndicators, rightPaneHeights, rightPaneTops } = useMemo(() => {
     if (fullscreenPaneId !== null) return { rightPaneIndicators: [] as Indicator[], rightPaneHeights: [] as number[], rightPaneTops: [] as number[] };
-    const owned = [...indicators, ...extraIndicators].filter((ind) => indicatorCatalogEntry(ind).pane === "own" && indicatorDock(ind) === "right");
+    const owned = [...indicators, ...extraIndicators]
+      .filter((ind) => indicatorCatalogEntry(ind).pane === "own" && indicatorDock(ind) === "right")
+      .map((ind) => withSideCollapsed(ind, sidePaneCollapsed));
     const { heights, tops } = stackSidePanes(owned, paneHeightFractions, plotBoundedHeight);
     return { rightPaneIndicators: owned, rightPaneHeights: heights, rightPaneTops: tops };
-  }, [indicators, extraIndicators, paneHeightFractions, plotBoundedHeight, fullscreenPaneId]);
+  }, [indicators, extraIndicators, paneHeightFractions, plotBoundedHeight, fullscreenPaneId, sidePaneCollapsed]);
 
   return {
     indicators,
@@ -564,5 +667,7 @@ export function usePaneLayout({ defaultIndicators, onIndicatorsChange, showVolum
     rightPaneIndicators,
     rightPaneHeights,
     rightPaneTops,
+    toggleSidePaneCollapsed,
+    extraIndicators,
   };
 }

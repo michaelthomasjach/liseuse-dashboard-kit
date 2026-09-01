@@ -1,0 +1,34 @@
+.lq-script-description {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lq-space-2);
+}
+
+.lq-script-description__paragraph {
+  margin: 0;
+  color: var(--lq-color-text);
+  font-size: var(--lq-text-sm);
+  line-height: 1.6;
+}
+
+/* `///gros titre///`. A heading *inside* a modal that already has its own title, so it steps down
+   rather than competing with it. */
+.lq-script-description__title {
+  margin: var(--lq-space-2) 0 0;
+  color: var(--lq-color-text);
+  font-size: var(--lq-text-base);
+  font-weight: 600;
+}
+
+/* `//sous titre//` */
+.lq-script-description__subtitle {
+  margin: var(--lq-space-1) 0 0;
+  color: var(--lq-color-text-muted);
+  font-size: var(--lq-text-sm);
+  font-weight: 600;
+}
+
+.lq-script-description__title:first-child,
+.lq-script-description__subtitle:first-child {
+  margin-top: 0;
+}

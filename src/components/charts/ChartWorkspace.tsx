@@ -1008,6 +1008,8 @@ export function ChartWorkspace({
           addScript={workspaceScripting.addScript}
           updateScript={workspaceScripting.updateScript}
           removeScript={workspaceScripting.removeScript}
+          setScriptParamValue={workspaceScripting.setScriptParamValue}
+          resetScriptParamValues={workspaceScripting.resetScriptParamValues}
           toggleScriptEnabled={workspaceScripting.toggleScriptEnabled}
           runScript={workspaceScripting.runScript}
           stopScript={workspaceScripting.stopScript}

@@ -108,3 +108,9 @@ export const SIDE_DOCK_AXIS_WIDTH = 72;
  *  visually overlapping the content without this, but flush against it with zero gap still read
  *  as touching/cluttered. */
 export const SIDE_DOCK_HEADER_GAP = 10;
+/** Width (px) of the vertical band a *collapsed* docked pane folds down to — the exact mirror of
+ *  SUB_PANE_COLLAPSED_HEIGHT, which is the height a collapsed pane in the *bottom* stack keeps.
+ *  A docked pane collapses along its column's own short axis (it folds sideways, toward the
+ *  column's outer edge) rather than along the stack's vertical one, so the band it leaves behind
+ *  is vertical — its label rendered rotated inside it, see SideDockCollapsedStrip.tsx. */
+export const SIDE_DOCK_COLLAPSED_WIDTH = 40;

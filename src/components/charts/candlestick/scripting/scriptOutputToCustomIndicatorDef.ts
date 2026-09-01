@@ -1,3 +1,5 @@
+import type { Indicator } from "../interfaces/Indicator.interface";
+import type { IndicatorInfoTarget } from "../interfaces/IndicatorInfoTarget.interface";
 import type { CustomIndicatorDef, CustomIndicatorMultiDataPoint } from "../interfaces/CustomIndicatorDef.interface";
 import type { ScriptPaneSeries } from "./interfaces/ScriptRunResult.interface";
 
@@ -12,6 +14,24 @@ function slugify(name: string): string {
  *  drifting apart if one were ever edited without the other. */
 export function scriptPaneIndicatorId(scriptId: string, paneName: string): string {
   return `script:${scriptId}:${slugify(paneName)}`;
+}
+
+/** The inverse of `scriptPaneIndicatorId` — which script produced this indicator, or `null` for
+ *  one that isn't script-produced at all. Shared rather than re-derived at each call site (the two
+ *  pane-header components and the settings modal all need it) precisely because it has to keep
+ *  agreeing with the formula right above it. */
+export function scriptIdFromIndicatorId(indicatorId: string | undefined): string | null {
+  if (!indicatorId?.startsWith("script:")) return null;
+  return indicatorId.split(":")[1] ?? null;
+}
+
+/** What the "?" button should open the info modal about, for one indicator: the script that
+ *  produced it when there is one (so the modal can show that script's own `@description`), and
+ *  otherwise the plain kind, whose description is the built-in catalog's. Lives here, beside the id
+ *  format it depends on, so the three headers/legends that draw that button all agree. */
+export function infoTargetFor(indicator: Indicator): IndicatorInfoTarget {
+  const scriptId = scriptIdFromIndicatorId(indicator.customData?.id);
+  return scriptId === null ? indicator.kind : { scriptId };
 }
 
 /** One `plot.pane`/`plot.overlay` output, converted into the exact shape
@@ -39,6 +59,26 @@ export function scriptPaneIndicatorId(scriptId: string, paneName: string): strin
 export function scriptPaneToCustomIndicatorDef(scriptId: string, pane: ScriptPaneSeries): CustomIndicatorDef {
   const id = scriptPaneIndicatorId(scriptId, pane.name);
   const type = pane.pane === "overlay" ? "overlay" : "own";
+
+  // A profile short-circuits both branches below: its data is (price, value) pairs, not points on
+  // dates, so neither the single-series `data` shape nor the date-keyed `multi` accumulation can
+  // carry it. One profile makes the whole pane a profile pane — see PaneSeriesHandle.profile's own
+  // doc on why anything else drawn alongside it is dropped rather than merged.
+  const profileSeries = pane.series.find((series) => series.draw === "profile");
+  if (profileSeries) {
+    return {
+      id,
+      label: pane.name,
+      section: "Scripts",
+      type,
+      dock: pane.dock,
+      draw: "profile",
+      data: [],
+      profile: profileSeries.profile ?? [],
+      color: profileSeries.color,
+      lineWidth: profileSeries.lineWidth,
+    };
+  }
 
   if (pane.series.length === 1) {
     const series = pane.series[0];
@@ -100,10 +140,13 @@ export function scriptPaneToCustomIndicatorDef(scriptId: string, pane: ScriptPan
     dock: pane.dock,
     draw: "multi",
     data,
+    // `draw` is narrowed here, not cast: the profile short-circuit above already returned for any
+    // pane holding one, so nothing reaching this point can be a profile — but the compiler can't
+    // see that through `find`, and a cast would hide it if that ever stopped being true.
     multiSeries: pane.series.map((series) => ({
       key: series.key,
       label: series.name,
-      draw: series.draw,
+      draw: series.draw === "profile" ? "line" : series.draw,
       color: series.color,
       lineWidth: series.lineWidth,
       lineStyle: series.lineStyle,

@@ -2,9 +2,10 @@ import type { SidePaneColumnRenderParams } from "../interfaces/SidePaneColumnRen
 import type { ChartCanvasStyle } from "../interfaces/ChartCanvasStyle.interface";
 import { snapPixel } from "../drawingGeometry";
 import { drawOwnPaneIndicatorSeries } from "./drawOwnPaneIndicatorSeries";
+import { drawPaneProfile } from "./drawPaneProfile";
 
-/** Paints one `plot.pane(name, { dock: "left"|"right" })` script pane column — a divider plus
- *  `drawOwnPaneIndicatorSeries` per pane stacked in it, the exact same per-kind rendering the
+/** Paints one `plot.pane(name, { dock: "left"|"right" })` script pane column — an inter-pane
+ *  divider (see the `idx > 0` guard below) plus `drawOwnPaneIndicatorSeries` per pane stacked in it, the exact same per-kind rendering the
  *  bottom stack's own `drawVolumeAndPanes.ts` uses (see that shared function's own doc), just
  *  against this column's own narrower `zoomedXScale`/`columnWidth` instead of the main plot's.
  *  Deliberately excludes what the bottom stack still has and this first version doesn't: a hover
@@ -13,7 +14,7 @@ import { drawOwnPaneIndicatorSeries } from "./drawOwnPaneIndicatorSeries";
  *  surface yet. Same canvas-setup shape as `renderCandlestickChart` (DPR scaling, colors read
  *  once off the DOM), just for a much smaller frame. */
 export function renderSidePaneColumn(canvas: HTMLCanvasElement, wrapper: HTMLElement, params: SidePaneColumnRenderParams) {
-  const { columnWidth, plotBoundedHeight, zoomedXScale, candleWidth, paneIndicators, paneHeights, paneTops, zoomedPaneScales, visibleIndicators, indicators } =
+  const { side, columnWidth, plotBoundedHeight, zoomedXScale, candleWidth, paneIndicators, paneHeights, paneTops, zoomedPaneScales, zoomedPriceScale, visibleIndicators, indicators } =
     params;
   if (columnWidth <= 0 || plotBoundedHeight <= 0) return;
 
@@ -38,21 +39,49 @@ export function renderSidePaneColumn(canvas: HTMLCanvasElement, wrapper: HTMLEle
     isEink: wrapper.closest('[data-lq-palette="eink"]') !== null,
   };
 
+  // Counts panes actually painted, which is what "is this the first one?" has to mean for the
+  // divider below — a plain index would be wrong the moment the pane above is folded away.
+  let painted = 0;
+
   paneIndicators.forEach((ind, idx) => {
+    // A folded pane is not in this column's own vertical stack at all: it renders as its own
+    // vertical band beside this canvas (see SideDockCollapsedStrip) and stackSidePanes gives it
+    // height 0 here, so there is nothing to paint and no divider to draw for it.
+    if (ind.paneCollapsed) return;
+
     const paneTop = paneTops[idx];
     const paneHeight = paneHeights[idx];
 
-    ctx.save();
-    ctx.strokeStyle = style.colorGrid;
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    const dividerY = snapPixel(paneTop);
-    ctx.moveTo(0, dividerY);
-    ctx.lineTo(columnWidth, dividerY);
-    ctx.stroke();
-    ctx.restore();
+    // Divider *between* two stacked panes only — never above the topmost one. In the bottom stack
+    // that same top-of-pane line is load-bearing (drawVolumeAndPanes.ts draws it for every pane,
+    // first included: it's what separates that stack from the price chart above it). Here the
+    // topmost pane's own top is always 0 — a side column is made entirely of these panes, with
+    // nothing above them — so drawing it lands a line flush against the column's own top edge,
+    // immediately under `.lq-chart__header`'s own `border-bottom` and in that very same
+    // `--lq-color-border-subtle`, reading as one doubled 2px rule. That header border already
+    // delimits the top of the column (it spans this column's own width too, see
+    // ChartSidePaneColumn.tsx's own doc), so the canvas has nothing left to draw there.
+    if (painted > 0) {
+      ctx.save();
+      ctx.strokeStyle = style.colorGrid;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      const dividerY = snapPixel(paneTop);
+      ctx.moveTo(0, dividerY);
+      ctx.lineTo(columnWidth, dividerY);
+      ctx.stroke();
+      ctx.restore();
+    }
+    painted += 1;
 
-    if (ind.paneCollapsed) return;
+    // A profile is not a time series and does not go through visibleIndicators/zoomedPaneScales at
+    // all — it carries its own (price, value) pairs and is drawn against the main chart's own price
+    // scale. Deliberately *not* clipped to the pane's own box below: it spans whatever vertical
+    // range the price section spans, which is the whole point of aligning it with the candles.
+    if (ind.customData?.draw === "profile") {
+      drawPaneProfile(ctx, ind, side, columnWidth, (price) => zoomedPriceScale(price), style);
+      return;
+    }
 
     const entry = visibleIndicators.find((v) => v.indicator.id === ind.id);
     const points = entry?.points ?? [];

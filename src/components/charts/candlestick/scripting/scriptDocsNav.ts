@@ -1,4 +1,5 @@
 import { SCRIPT_API_REFERENCE } from "./scriptApiReference";
+import type { ScriptReferenceBlock, ScriptReferenceSection } from "./scriptApiReference";
 import { SCRIPT_EXAMPLES } from "./scriptExamples";
 
 /** Same slugification as `scriptOutputToCustomIndicatorDef.ts`'s own local `slugify` — duplicated
@@ -94,4 +95,79 @@ export function keywordAnchorId(label: string): string {
   const namespace = label.split(".")[0];
   const sectionId = KEYWORD_NAMESPACE_SECTION[namespace] ?? "keywords";
   return `lq-script-docs-${sectionId}`;
+}
+
+/** All the searchable text one reference block carries — its prose, its list items, its code. A
+ *  block's own `diagramKey` is deliberately excluded: it is an internal registry key, never
+ *  anything the reader sees. */
+function blockText(block: ScriptReferenceBlock): string {
+  return [block.text, block.code, ...(block.items ?? [])].filter(Boolean).join("\n");
+}
+
+/** A section's own blocks, split into the groups its `heading` blocks delimit: the text before the
+ *  first heading belongs to the section itself (key `null`), everything after a heading belongs to
+ *  that heading until the next one. This is what lets a content match narrow down to the *heading*
+ *  that actually discusses the term rather than just naming its whole section. */
+function blocksByHeading(section: ScriptReferenceSection): { heading: string | null; text: string }[] {
+  const groups: { heading: string | null; text: string }[] = [{ heading: null, text: "" }];
+  for (const block of section.blocks) {
+    if (block.kind === "heading" && block.text) {
+      groups.push({ heading: block.text, text: block.text });
+      continue;
+    }
+    groups[groups.length - 1].text += "\n" + blockText(block);
+  }
+  return groups;
+}
+
+/** Everything the "examples" section holds, keyed the same way — its own blocks are empty by
+ *  design (a whole-section override, see SCRIPT_API_REFERENCE's own doc), so its searchable text
+ *  is each runnable example's own title, description and code instead. */
+function exampleGroups(): { heading: string | null; text: string }[] {
+  return SCRIPT_EXAMPLES.map((example) => ({
+    heading: example.title,
+    text: [example.title, example.description, example.code].filter(Boolean).join("\n"),
+  }));
+}
+
+/** The nav tree narrowed to whatever matches `query` — section titles, sub-heading titles, *and*
+ *  the body text under each of them (prose, lists, code samples).
+ *
+ *  Searching only the titles is what made a term like `close` return nothing at all: no heading is
+ *  named after it, it only ever appears inside `market.close(0)` in the prose and the examples —
+ *  precisely where a reader looking it up expects it to be found. A section is kept when its own
+ *  title matches, or when any of its headings match by title or by the text underneath them; a
+ *  section kept for a title match keeps all its headings, one kept for a content match shows only
+ *  the headings that actually matched, so the result stays a set of places to go rather than the
+ *  whole tree again. */
+export function searchDocsNav(query: string): DocsNavSection[] {
+  const needle = query.trim().toLowerCase();
+  if (!needle) return SCRIPT_DOCS_NAV;
+
+  const groupsBySectionId = new Map<string, { heading: string | null; text: string }[]>();
+  for (const section of SCRIPT_API_REFERENCE) {
+    groupsBySectionId.set(section.id, section.id === "examples" ? exampleGroups() : blocksByHeading(section));
+  }
+
+  const result: DocsNavSection[] = [];
+  for (const section of SCRIPT_DOCS_NAV) {
+    if (section.title.toLowerCase().includes(needle)) {
+      result.push(section);
+      continue;
+    }
+    const groups = groupsBySectionId.get(section.id) ?? [];
+    // A match in the section's own lead-in text (before any heading) is about the section as a
+    // whole — keep every heading, since none of them is more relevant than the others.
+    const leadMatches = groups.some((group) => group.heading === null && group.text.toLowerCase().includes(needle));
+    if (leadMatches) {
+      result.push(section);
+      continue;
+    }
+    const matchedHeadings = new Set(
+      groups.filter((group) => group.heading !== null && group.text.toLowerCase().includes(needle)).map((group) => group.heading as string)
+    );
+    const headings = section.headings.filter((heading) => matchedHeadings.has(heading.text));
+    if (headings.length > 0) result.push({ ...section, headings });
+  }
+  return result;
 }

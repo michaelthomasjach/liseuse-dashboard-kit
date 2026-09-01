@@ -16,6 +16,9 @@ import type {
 const MAX_TABLE_ROWS = 50;
 const MAX_TABLE_CELL_LENGTH = 200;
 const MAX_XY_POINTS = 2000;
+// Same order of magnitude as MAX_XY_POINTS — a price grid finer than this is well past what a
+// column a couple of hundred pixels wide can show anyway (see PaneSeriesHandle.profile).
+const MAX_PROFILE_POINTS = 2000;
 
 function truncateCell(value: string): string {
   return value.length > MAX_TABLE_CELL_LENGTH ? `${value.slice(0, MAX_TABLE_CELL_LENGTH - 1)}…` : value;
@@ -86,6 +89,24 @@ export interface PaneSeriesHandle {
    *  value at all. See `PlotLabelOptions`'s own doc. "Latest call for this `name` wins," same
    *  upsert-by-name rule as every other method here. */
   label(name: string, text: string, options: PlotLabelOptions): void;
+  /** A horizontal *profile* — the market-profile / volume-profile shape: `values[i]` is how much
+   *  mass sits at price `prices[i]`. Pass whole arrays at once, like `plot.xy`, not one point per
+   *  bar: a profile is computed once over a price range and has no bar to attach each point to.
+   *
+   *  Drawn transposed, as a single continuous curve — price on the vertical axis, the value
+   *  measured horizontally from the column's *outer* edge back toward the chart, so the curve's
+   *  baseline sits outside and its bulges reach toward the price action (the orientation every
+   *  market-profile tool uses). The vertical scale is the *main chart's own price scale*, so a
+   *  bulge sits at exactly the height of the price it describes. That alignment only means
+   *  anything on a pane docked to the
+   *  left or right (`plot.pane(name, { dock: "right" })`); on a bottom pane it has nothing to line
+   *  up with and is not drawn.
+   *
+   *  "Latest call wins", like `table`/`xy` and unlike the accumulating series above — call it
+   *  unconditionally every bar and the last bar's own profile is the one kept. A pane holding a
+   *  profile is a profile pane: any other series drawn on it is ignored. `values`/`prices` must be
+   *  the same length; both are truncated past MAX_PROFILE_POINTS rather than rejected. */
+  profile(name: string, values: number[], prices: number[], options?: PlotSeriesOptions): void;
 }
 
 export interface PlotPaneOptions {
@@ -201,6 +222,27 @@ export function buildPlotApi(
       area: (name, value, options) => upsert(name, "area", { date: getCurrentDate(), value }, options),
       histogram: (name, value, options) => upsert(name, "histogram", { date: getCurrentDate(), value }, options),
       band: (name, upper, lower, options) => upsert(name, "band", { date: getCurrentDate(), upper, lower }, options),
+      profile: (name, values, prices, options) => {
+        const count = Math.min(values.length, prices.length, MAX_PROFILE_POINTS);
+        const profile: { price: number; value: number }[] = [];
+        for (let i = 0; i < count; i++) {
+          // A price grid with a hole in it would otherwise draw a bar at y=NaN, which silently
+          // swallows the rest of the canvas path — drop the pair instead.
+          if (!Number.isFinite(values[i]) || !Number.isFinite(prices[i])) continue;
+          profile.push({ price: prices[i], value: values[i] });
+        }
+        // Replaces rather than appends: unlike line/area/histogram/band this is the whole series,
+        // recomputed from scratch on whichever bar the script last called it.
+        paneEntry.subSeriesByName.set(name, {
+          key: slugify(name),
+          name,
+          draw: "profile",
+          color: options?.color,
+          lineWidth: options?.lineWidth,
+          points: [],
+          profile,
+        });
+      },
       label: (name, text, options) => {
         paneEntry.labelsByName.set(name, {
           paneName: paneEntry.name,

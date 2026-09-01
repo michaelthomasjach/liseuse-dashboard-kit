@@ -20,11 +20,16 @@ export interface ScriptError {
 export interface ScriptPaneSubSeries {
   key: string;
   name: string;
-  draw: "line" | "area" | "histogram" | "band";
+  draw: "line" | "area" | "histogram" | "band" | "profile";
   color?: string;
   lineWidth?: number;
   lineStyle?: "solid" | "dashed" | "dotted";
   points: { date: number; value: number }[] | { date: number; upper: number; lower: number }[];
+  /** `draw: "profile"` only — the whole series at once, as (price, value) pairs, in place of the
+   *  per-bar `points` above (which stays empty for it). A profile is not a time series: it is
+   *  computed once over a price range, so it has no bar to attach each point to. `points` and this
+   *  are mutually exclusive; see `PaneSeriesHandle.profile`'s own doc. */
+  profile?: { price: number; value: number }[];
 }
 
 /** One `plot.pane(name)`/`plot.overlay(name)` output — a named group of 1+ of its own series (see

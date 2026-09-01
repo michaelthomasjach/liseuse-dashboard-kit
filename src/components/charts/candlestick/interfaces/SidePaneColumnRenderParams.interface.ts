@@ -8,6 +8,9 @@ import type { IndicatorValue } from "./IndicatorValue.interface";
  *  plot's own price/volume/drawings/hover-crosshair concerns (see ChartSidePaneColumn's own doc
  *  for what's deliberately left out of this first version). */
 export interface SidePaneColumnRenderParams {
+  /** Which edge this column is docked to — a profile's own bars grow from the edge facing the
+   *  chart, so they need to know which one that is (see `drawPaneProfile`). */
+  side: "left" | "right";
   columnWidth: number;
   plotBoundedHeight: number;
   /** This column's own zoomed X scale — the *same* pan/zoom `transform` as the main chart,
@@ -21,6 +24,10 @@ export interface SidePaneColumnRenderParams {
   paneHeights: number[];
   paneTops: number[];
   zoomedPaneScales: Record<string, ScaleLinear<number, number>>;
+  /** The *main chart's* own zoomed price scale (price -> y within the price section). Used only by
+   *  a `draw: "profile"` pane, which is drawn against it rather than a scale fitted to its own
+   *  data — that shared scale is what lines a profile's peaks up with the candles beside it. */
+  zoomedPriceScale: ScaleLinear<number, number>;
   visibleIndicators: { indicator: Indicator; points: { i: number; value: IndicatorValue }[] }[];
   /** The *full* indicator list (every dock side combined), not just this column's own — color
    *  cycling (`defaultIndicatorColor(indicators.indexOf(ind))`) stays consistent with the same

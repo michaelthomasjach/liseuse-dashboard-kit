@@ -58,7 +58,14 @@ export interface CustomIndicatorDef {
    *  filled between two curves (Bollinger-style — see `CustomIndicatorBandDataPoint`), or several
    *  independently-styled series sharing this one pane/legend entry (a `plot.pane`/`plot.overlay`
    *  call with 2+ of its own series — see `CustomIndicatorMultiDataPoint`/`multiSeries`). */
-  draw: "line" | "area" | "histogram" | "band" | "multi";
+  draw: "line" | "area" | "histogram" | "band" | "multi" | "profile";
+  /** `draw: "profile"` only — a horizontal profile (market-profile shaped): each entry is one
+   *  price level and how much mass sits at it, drawn as one continuous curve. Transposed against
+   *  the *main chart's own price scale* rather than this pane's own auto-fit one, so a bulge lands
+   *  at exactly the height of the price it describes; `data` stays empty and `computeCustomIndicatorValues`
+   *  returns nothing for it, since there is no per-bar value to compute. Only meaningful on a
+   *  left/right-docked pane — that alignment is the entire point of the shape. */
+  profile?: { price: number; value: number }[];
   /** The series itself — one point per reporting date, not required to be sorted. Forward-filled
    *  onto every candle the same step-function way the built-in fundamentals already are (sparse,
    *  quarterly-style reporting is the expected shape, not one point per candle) — see

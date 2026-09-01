@@ -1,3 +1,4 @@
+import type { IndicatorInfoTarget } from "../interfaces/IndicatorInfoTarget.interface";
 import { useMemo } from "react";
 import * as d3 from "d3";
 import type { ScaleLinear } from "d3";
@@ -7,7 +8,6 @@ import { computeDateTickValues } from "./useZoomAndScales";
 import { SIDE_DOCK_PANE_DEFAULT_WIDTH, SUB_PANE_COLLAPSED_HEIGHT, SIDE_DOCK_HEADER_GAP } from "../constants";
 import type { Candle } from "../interfaces/Candle.interface";
 import type { Indicator } from "../interfaces/Indicator.interface";
-import type { IndicatorKind } from "../interfaces/IndicatorKind.interface";
 import type { IndicatorValue } from "../interfaces/IndicatorValue.interface";
 import type { ChartSidePaneColumnProps } from "../components/ChartSidePaneColumn";
 
@@ -21,6 +21,9 @@ export interface UseDockedPaneColumnsStateArgs {
   visibleIndicators: { indicator: Indicator; points: { i: number; value: IndicatorValue }[] }[];
   paneYTransform: Record<string, d3.ZoomTransform>;
   zoomedXScale: ScaleLinear<number, number>;
+  /** Forwarded untouched to each column — a profile pane is drawn against the main chart's own
+   *  price scale, see SidePaneColumnRenderParams' own doc. */
+  zoomedPriceScale: ScaleLinear<number, number>;
   candleWidth: number;
   boundedWidth: number;
   plotBoundedHeight: number;
@@ -37,13 +40,14 @@ export interface UseDockedPaneColumnsStateArgs {
   hoverIndex: number | null;
   dateTickFormat: (value: number) => string;
   startPaneResize: (paneKey: string, e: React.PointerEvent) => void;
-  commitTargetIndicators: Indicator[];
-  commitIndicators: (indicators: Indicator[]) => void;
+  /** Folds/unfolds one docked pane — its own UI state, not `Indicator.paneCollapsed`, see
+   *  usePaneLayout's own `sidePaneCollapsed` doc. */
+  toggleSidePaneCollapsed: (paneId: string, collapsed: boolean) => void;
   indicatorLabel: (indicator: Indicator) => string;
   openIndicatorSettings: (id: string) => void;
   removeIndicator: (id: string) => void;
   indicatorValues: { indicator: Indicator; values: (IndicatorValue | null)[] }[];
-  onOpenIndicatorInfo: (kind: IndicatorKind | "volume") => void;
+  onOpenIndicatorInfo: (target: IndicatorInfoTarget) => void;
   onEditScript?: (scriptId: string) => void;
 }
 
@@ -66,6 +70,7 @@ export function useDockedPaneColumnsState({
   visibleIndicators,
   paneYTransform,
   zoomedXScale,
+  zoomedPriceScale,
   candleWidth,
   boundedWidth,
   plotBoundedHeight,
@@ -76,8 +81,7 @@ export function useDockedPaneColumnsState({
   hoverIndex,
   dateTickFormat,
   startPaneResize,
-  commitTargetIndicators,
-  commitIndicators,
+  toggleSidePaneCollapsed,
   indicatorLabel,
   openIndicatorSettings,
   removeIndicator,
@@ -141,6 +145,7 @@ export function useDockedPaneColumnsState({
   );
 
   const shared = {
+    zoomedPriceScale,
     plotBoundedHeight,
     marginBottom,
     themeTick,
@@ -148,8 +153,7 @@ export function useDockedPaneColumnsState({
     data,
     hoverIndex,
     startPaneResize,
-    commitTargetIndicators,
-    commitIndicators,
+    toggleSidePaneCollapsed,
     indicatorLabel,
     openIndicatorSettings,
     removeIndicator,

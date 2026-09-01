@@ -4,13 +4,14 @@ import type * as React from "react";
 import type { ScaleLinear } from "d3";
 import { useRenderSidePaneColumn } from "../hooks/useRenderSidePaneColumn";
 import { SidePaneHeaders } from "./SidePaneHeaders";
+import { SideDockCollapsedStrip } from "./SideDockCollapsedStrip";
 import { ChartAxis } from "../../ChartAxis";
 import type { DockSide } from "../hooks/useDockedPaneColumns";
 import type { Candle } from "../interfaces/Candle.interface";
 import type { Indicator } from "../interfaces/Indicator.interface";
-import type { IndicatorKind } from "../interfaces/IndicatorKind.interface";
+import type { IndicatorInfoTarget } from "../interfaces/IndicatorInfoTarget.interface";
 import type { IndicatorValue } from "../interfaces/IndicatorValue.interface";
-import { SUB_PANE_COLLAPSED_HEIGHT, SIDE_DOCK_AXIS_WIDTH } from "../constants";
+import { SUB_PANE_COLLAPSED_HEIGHT, SIDE_DOCK_AXIS_WIDTH, SIDE_DOCK_COLLAPSED_WIDTH } from "../constants";
 
 export interface ChartSidePaneColumnProps {
   side: DockSide;
@@ -32,6 +33,9 @@ export interface ChartSidePaneColumnProps {
   paneHeights: number[];
   paneTops: number[];
   zoomedPaneScales: Record<string, ScaleLinear<number, number>>;
+  /** The main chart's own zoomed price scale — see SidePaneColumnRenderParams' own doc. Used by a
+   *  `draw: "profile"` pane, both for its canvas and for its own price axis. */
+  zoomedPriceScale: ScaleLinear<number, number>;
   visibleIndicators: { indicator: Indicator; points: { i: number; value: IndicatorValue }[] }[];
   /** Every indicator, every dock side combined — read-only, only for the canvas draw's own
    *  color-cycling (`defaultIndicatorColor(indicators.indexOf(ind))`, see
@@ -42,17 +46,14 @@ export interface ChartSidePaneColumnProps {
   data: Candle[];
   hoverIndex: number | null;
   startPaneResize: (paneKey: string, e: React.PointerEvent) => void;
-  /** The CRUD-managed indicator list `commitIndicators`/`removeIndicator` actually operate on
-   *  (never includes script-produced ones — see `usePaneLayout`'s own `extraIndicators` doc) —
-   *  passed straight through to `SidePaneHeaders`, same split `PaneHeaders` already has between
-   *  this and the combined list above. */
-  commitTargetIndicators: Indicator[];
-  commitIndicators: (indicators: Indicator[]) => void;
+  /** Folds/unfolds one pane of this column — its own UI state rather than `Indicator.paneCollapsed`
+   *  written through `commitIndicators`, see usePaneLayout's own `sidePaneCollapsed` doc. */
+  toggleSidePaneCollapsed: (paneId: string, collapsed: boolean) => void;
   indicatorLabel: (indicator: Indicator) => string;
   openIndicatorSettings: (id: string) => void;
   removeIndicator: (id: string) => void;
   indicatorValues: { indicator: Indicator; values: (IndicatorValue | null)[] }[];
-  onOpenIndicatorInfo: (kind: IndicatorKind | "volume") => void;
+  onOpenIndicatorInfo: (target: IndicatorInfoTarget) => void;
   onEditScript?: (scriptId: string) => void;
   /** Which candle indices (see computeDateTickValues) the shared date axis at the bottom of this
    *  column draws a tick at — computed against this column's own (narrower) width, not the main
@@ -96,13 +97,13 @@ export function ChartSidePaneColumn({
   paneHeights,
   paneTops,
   zoomedPaneScales,
+  zoomedPriceScale,
   visibleIndicators,
   indicators,
   data,
   hoverIndex,
   startPaneResize,
-  commitTargetIndicators,
-  commitIndicators,
+  toggleSidePaneCollapsed,
   indicatorLabel,
   openIndicatorSettings,
   removeIndicator,
@@ -118,6 +119,8 @@ export function ChartSidePaneColumn({
     canvasRef,
     wrapperRef: panelRef,
     themeTick,
+    side,
+    zoomedPriceScale,
     columnWidth,
     plotBoundedHeight,
     zoomedXScale,
@@ -135,10 +138,22 @@ export function ChartSidePaneColumn({
   // one on customData. Both strips are *added* beyond the plot's own resizable box, mirroring how
   // the main plot's own dims.margin.right/bottom work — never carved out of it — so a caller that
   // turns axes off simply gets that space back rather than redistributing it.
-  const showAxes = paneIndicators.some((ind) => ind.sideAxesVisible !== false);
+  // A folded pane leaves the vertical stack entirely (see stackSidePanes' own doc) and becomes its
+  // own vertical band instead, so the two groups are laid out independently from here down.
+  const expandedPanes = paneIndicators.filter((ind) => !ind.paneCollapsed);
+  const collapsedPanes = paneIndicators.filter((ind) => ind.paneCollapsed);
+  const hasExpanded = expandedPanes.length > 0;
+
+  const showAxes = hasExpanded && expandedPanes.some((ind) => ind.sideAxesVisible !== false);
   const axisWidth = showAxes ? SIDE_DOCK_AXIS_WIDTH : 0;
   const axisHeight = showAxes ? marginBottom : 0;
-  const plotWidth = widthPx ?? defaultWidthPx;
+  // Fold every pane in the column and the plot box disappears altogether — the column is then just
+  // its bands, and the main chart reclaims the rest of the row through ordinary flexbox.
+  const plotWidth = hasExpanded ? (widthPx ?? defaultWidthPx) : 0;
+  const foldedWidth = collapsedPanes.length * SIDE_DOCK_COLLAPSED_WIDTH;
+  // Bands sit on the column's own *outer* edge — the direction a pane folds toward — so on a
+  // left-docked column the [axis][plot] block starts after them rather than at the group's origin.
+  const contentLeft = side === "left" ? foldedWidth : 0;
   const plotLeft = side === "left" ? axisWidth : 0;
   // Outer edge — facing away from the main chart — same convention the main plot's own price axis
   // uses on its far-right edge.
@@ -154,12 +169,23 @@ export function ChartSidePaneColumn({
       // row's other flex item, and the two must land on the *exact* same real height (any drift
       // between a CSS-stretched sibling and a separately-computed pixel value here would show up
       // as the two columns' own axis lines/canvases ending at very slightly different heights).
-      style={{ position: "relative", flex: `0 0 ${plotWidth + axisWidth}px`, height: "100%" }}
+      style={{ position: "relative", flex: `0 0 ${plotWidth + axisWidth + foldedWidth}px`, height: "100%" }}
     >
+      {collapsedPanes.length > 0 && (
+        <div
+          className="lq-chart__side-dock-collapsed-rail"
+          style={{ position: "absolute", top: 0, left: side === "left" ? 0 : plotWidth + axisWidth, width: foldedWidth, height: plotBoundedHeight }}
+        >
+          {collapsedPanes.map((ind) => (
+            <SideDockCollapsedStrip key={ind.id} side={side} label={indicatorLabel(ind)} onExpand={() => toggleSidePaneCollapsed(ind.id, false)} />
+          ))}
+        </div>
+      )}
+      {hasExpanded && (
       <div
         ref={panelRef}
         className={["lq-chart__side-dock-pane", `lq-chart__side-dock-pane--${side}`].join(" ")}
-        style={{ position: "absolute", top: 0, left: plotLeft, width: plotWidth, height: plotBoundedHeight }}
+        style={{ position: "absolute", top: 0, left: contentLeft + plotLeft, width: plotWidth, height: plotBoundedHeight }}
       >
         <div
           className={["lq-chart__side-dock-pane-resize-handle", `lq-chart__side-dock-pane-resize-handle--${side}`].join(" ")}
@@ -167,14 +193,14 @@ export function ChartSidePaneColumn({
         />
         <canvas ref={canvasRef} className="lq-chart__canvas" style={{ top: 0, left: 0, width: columnWidth, height: plotBoundedHeight }} />
         <SidePaneHeaders
+          side={side}
+          toggleSidePaneCollapsed={toggleSidePaneCollapsed}
           paneIndicators={paneIndicators}
           paneTops={paneTops}
           startPaneResize={startPaneResize}
           SUB_PANE_COLLAPSED_HEIGHT={SUB_PANE_COLLAPSED_HEIGHT}
           data={data}
           hoverIndex={hoverIndex}
-          commitIndicators={commitIndicators}
-          indicators={commitTargetIndicators}
           indicatorLabel={indicatorLabel}
           openIndicatorSettings={openIndicatorSettings}
           removeIndicator={removeIndicator}
@@ -183,14 +209,39 @@ export function ChartSidePaneColumn({
           onEditScript={onEditScript}
         />
       </div>
+      )}
       {showAxes && (
-        <svg className="lq-chart__side-dock-axes" width={plotWidth + axisWidth} height={plotBoundedHeight + axisHeight}>
+        <svg
+          className="lq-chart__side-dock-axes"
+          style={{ left: contentLeft }}
+          width={plotWidth + axisWidth}
+          height={plotBoundedHeight + axisHeight}
+        >
           {paneIndicators.map((ind, idx) => {
-            const scale = zoomedPaneScales[ind.id];
+            // A profile pane's axis *is* the main chart's price axis (see drawPaneProfile) — same
+            // scale, so the ticks it prints are the same prices at the same heights as the ones
+            // beside the candles. It is not offset by the pane's own top either: that scale is
+            // already expressed in the column's own coordinates.
+            const isProfile = ind.customData?.draw === "profile";
+            const scale = isProfile ? zoomedPriceScale : zoomedPaneScales[ind.id];
             if (ind.paneCollapsed || ind.sideAxesVisible === false || !scale || paneHeights[idx] <= 0) return null;
             return (
-              <g key={ind.id} transform={`translate(0, ${paneTops[idx]})`}>
-                <ChartAxis scale={scale} orientation={side === "right" ? "right" : "left"} transform={`translate(${priceAxisX}, 0)`} ticks={3} tickFormat={priceAxisFmt} />
+              <g key={ind.id} transform={isProfile ? undefined : `translate(0, ${paneTops[idx]})`}>
+                {/* `domainExtent` spans the pane's *whole* height, not the scale's own (shorter)
+                    range: `usePaneStackScales`'s own `headerReserve` deliberately pulls the top of
+                    that range down by a header's worth of pixels so plotted values clear the pane
+                    header above them, and without this the axis *line* stopped at that same inset
+                    — visibly short of the pane's own top edge, with the gap wider the taller the
+                    header. Ticks and series still use the reserved range; only the line is drawn
+                    edge to edge, so it meets the pane divider above it and the date axis below. */}
+                <ChartAxis
+                  scale={scale}
+                  orientation={side === "right" ? "right" : "left"}
+                  transform={`translate(${priceAxisX}, 0)`}
+                  ticks={3}
+                  tickFormat={priceAxisFmt}
+                  domainExtent={isProfile ? undefined : [paneHeights[idx], 0]}
+                />
               </g>
             );
           })}
@@ -198,13 +249,19 @@ export function ChartSidePaneColumn({
               *before* the added axisHeight strip) — exactly where the main plot's own date axis
               sits relative to its candles (see ChartCanvasOverlay.tsx's own `transform`), so the
               two line up at the same absolute height. */}
-          <ChartAxis
-            scale={zoomedXScale}
-            orientation="bottom"
-            transform={`translate(${plotLeft}, ${plotBoundedHeight})`}
-            tickValues={dateTickValues}
-            tickFormat={dateTickFormat}
-          />
+          {/* The column's shared date axis, suppressed when every pane in it is a profile: a
+              profile's horizontal axis is the value, not time, so dates below it would label an
+              axis that means nothing. A column mixing a profile with an ordinary time series still
+              gets it, for the series that does run over time. */}
+          {!expandedPanes.every((ind) => ind.customData?.draw === "profile") && (
+            <ChartAxis
+              scale={zoomedXScale}
+              orientation="bottom"
+              transform={`translate(${plotLeft}, ${plotBoundedHeight})`}
+              tickValues={dateTickValues}
+              tickFormat={dateTickFormat}
+            />
+          )}
         </svg>
       )}
     </div>

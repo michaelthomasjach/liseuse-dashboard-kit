@@ -1,3 +1,5 @@
+import { analyzeScriptVariables, applyScriptParams } from "../scriptVariables";
+import { stripScriptDescription } from "../scriptDescription";
 import { useEffect, useRef } from "react";
 import type { Candle } from "../../interfaces/Candle.interface";
 import type { Indicator } from "../../interfaces/Indicator.interface";
@@ -18,6 +20,10 @@ export interface ScriptRunnerProps {
   fundamentals: FundamentalDataPoint[] | undefined;
   lastCandleOpen: boolean;
   availableTimeframes: string[];
+  /** The last bar every script here may see, or `null` for the whole history. Replay's own cutoff,
+   *  so a script actually replays with the chart rather than staying pinned to what the full
+   *  dataset produced — see useScriptEngine's own `runUpToIndex` doc. */
+  runUpToIndex: number | null;
   onOutput: (id: string, output: ScriptRunOutput) => void;
   onAlert: ((event: ScriptAlertEvent) => void) | undefined;
 }
@@ -28,8 +34,22 @@ export interface ScriptRunnerProps {
  *  the rules of hooks forbid calling one a variable number of times in a loop. Mounting/unmounting
  *  a component per script sidesteps that entirely — each gets its own independent Worker, matching
  *  the approved plan's own "one Worker per enabled script" design. Renders nothing. */
-export function ScriptRunner({ script, data, indicators, fundamentals, lastCandleOpen, availableTimeframes, onOutput, onAlert }: ScriptRunnerProps) {
-  const engine = useScriptEngine(script.id, data, indicators, fundamentals, lastCandleOpen, availableTimeframes);
+/** The code actually handed to the engine: every `const NAME = new Variable(type, default)` in the
+ *  source swapped for the value the settings currently hold (see `applyScriptParams`). Resolved at
+ *  each run rather than once when the script is saved, so a parameter change — which re-runs
+ *  without touching the code — picks up the new value, and so does an edit that moves a default.
+ *  `Variable` itself is never injected into the sandbox: by the time anything compiles, no call to
+ *  it is left. */
+function withParams(source: string, paramValues: ScriptDef["paramValues"]): string {
+  // `@description "…"` isn't JavaScript, so it has to go before anything compiles — same reasoning
+  // as the parameters below it, and the same line-count-preserving removal.
+  const code = stripScriptDescription(source);
+  const { params } = analyzeScriptVariables(code);
+  return applyScriptParams(code, params, paramValues);
+}
+
+export function ScriptRunner({ script, data, indicators, fundamentals, lastCandleOpen, availableTimeframes, runUpToIndex, onOutput, onAlert }: ScriptRunnerProps) {
+  const engine = useScriptEngine(script.id, data, indicators, fundamentals, lastCandleOpen, availableTimeframes, runUpToIndex);
   const hasRunOnceRef = useRef(false);
   const lastRunRequestIdRef = useRef<number | null>(null);
   const lastStopRequestIdRef = useRef<number | null>(null);
@@ -57,7 +77,7 @@ export function ScriptRunner({ script, data, indicators, fundamentals, lastCandl
     hasRunOnceRef.current = true;
     if (script.runRequestId !== undefined) return;
     reportedAlertCountRef.current = 0;
-    engine.run(script.code);
+    engine.run(withParams(script.code, script.paramValues));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -67,7 +87,7 @@ export function ScriptRunner({ script, data, indicators, fundamentals, lastCandl
     if (script.runRequestId === undefined || script.runRequestId === lastRunRequestIdRef.current) return;
     lastRunRequestIdRef.current = script.runRequestId;
     reportedAlertCountRef.current = 0;
-    engine.run(script.runDraftCode ?? script.code);
+    engine.run(withParams(script.runDraftCode ?? script.code, script.paramValues));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [script.runRequestId]);
 

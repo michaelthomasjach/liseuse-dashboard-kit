@@ -1,0 +1,15 @@
+/* Shared by both places the parameter form appears — the editor's own side column and a
+   script-produced pane's own settings modal (see ScriptParamsFields.tsx) — so the fields look
+   identical in each rather than inheriting whichever container they happen to land in. */
+.lq-script-params {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lq-space-3);
+}
+
+.lq-script-params__empty {
+  margin: 0;
+  color: var(--lq-color-text-muted);
+  font-size: var(--lq-text-xs);
+  line-height: 1.5;
+}

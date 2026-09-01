@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import type { ScriptDef } from "./candlestick/interfaces/ScriptDef.interface";
+import { SCRIPT_EXAMPLES } from "./candlestick/scripting/scriptExamples";
 import type { Meta, StoryObj } from "@storybook/react";
 import {
   CandlestickChart,
@@ -447,6 +449,30 @@ function playAlertSound(value: string) {
   }
 }
 
+// ---------------------------------------------------------------------------------------------
+// TEMPORAIRE — aide au débogage du profil KDE ancré à droite. À retirer une fois la mise au point
+// terminée : c'est un raccourci de confort, pas une capacité du produit à documenter.
+// ---------------------------------------------------------------------------------------------
+
+/** Le script de l'exemple « Niveaux de support/résistance (KDE gaussienne) », pris tel quel dans
+ *  SCRIPT_EXAMPLES — la même source que la documentation et l'éditeur, jamais une copie : corriger
+ *  l'exemple corrige aussi ce montage, et l'indicateur reste écrit dans le langage de scripting.
+ *
+ *  Pas de `runRequestId` : un script enregistré sans requête d'exécution en attente est lancé au
+ *  montage par ScriptRunner (voir son premier effet), donc la colonne ancrée à droite s'ouvre
+ *  d'elle-même sans avoir à cliquer sur « Exécuter ». `named: true` lui évite la demande de nom au
+ *  premier enregistrement. Il apparaît sous « Mes scripts » dans le sélecteur d'indicateurs du seul
+ *  fait d'exister dans la liste des scripts. */
+const KDE_DEBUG_SCRIPT: ScriptDef[] = [
+  {
+    id: "debug-kde",
+    name: "Niveaux de support/résistance (KDE)",
+    code: SCRIPT_EXAMPLES.find((example) => example.id === "kde-support-resistance")?.code ?? "",
+    named: true,
+    enabled: true,
+  },
+];
+
 export const AllFeatures: Story = {
   name: "Toutes les options",
   render: () => {
@@ -596,6 +622,7 @@ export const AllFeatures: Story = {
           watchlistNews={DEMO_NEWS}
           symbolProfiles={SYMBOL_PROFILES}
           alerts={<AlertsPanel alerts={alerts} onDeleteAlert={handleDeleteAlert} />}
+          defaultScripts={KDE_DEBUG_SCRIPT}
         >
           <CandlestickChart
             data={ALL_FEATURES_TIMEFRAME_DATA[timeframe as MockTimeframeKey] ?? ALL_FEATURES_DATASET}

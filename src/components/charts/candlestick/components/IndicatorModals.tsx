@@ -1,3 +1,11 @@
+import type { IndicatorInfoTarget } from "../interfaces/IndicatorInfoTarget.interface";
+import { isScriptInfoTarget } from "../interfaces/IndicatorInfoTarget.interface";
+import { analyzeScriptDescription } from "../scripting/scriptDescription";
+import { ScriptDescriptionText } from "../scripting/components/ScriptDescriptionText";
+import { analyzeScriptVariables } from "../scripting/scriptVariables";
+import { scriptIdFromIndicatorId } from "../scripting/scriptOutputToCustomIndicatorDef";
+import { ScriptParamsFields } from "../scripting/components/ScriptParamsFields";
+import type { ScriptParamValue } from "../interfaces/ScriptParam.interface";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Modal } from "../../../primitives/Modal";
 import { Tabs } from "../../../primitives/Tabs";
@@ -21,8 +29,8 @@ export interface IndicatorModalsProps {
    *  real IndicatorKind (see VOLUME_DESCRIPTION's own doc). Lifted up to CandlestickChart itself
    *  (not local state here) since the info icon that opens it now lives in three places: the
    *  picker below, ChartLegend's own indicator rows, and PaneHeaders' own own-pane rows. */
-  infoKind: IndicatorKind | "volume" | null;
-  setInfoKind: (kind: IndicatorKind | "volume" | null) => void;
+  infoKind: IndicatorInfoTarget | null;
+  setInfoKind: (target: IndicatorInfoTarget | null) => void;
   indicatorSearchQuery: string;
   setIndicatorSearchQuery: (query: string) => void;
   showVolume: boolean;
@@ -42,6 +50,11 @@ export interface IndicatorModalsProps {
    *  already a unique, persistent thing (never "added" more than once) — clicking its row toggles
    *  it enabled/disabled instead of creating a new indicator instance. */
   scripts: ScriptDef[];
+  /** Commits one `new Variable(...)` parameter of a script-produced indicator's own script. Unlike
+   *  every other field in this modal it applies immediately (and re-runs the script) rather than on
+   *  "Enregistrer" — a parameter belongs to the script, not to the indicator draft this modal
+   *  edits, so there is no draft for it to sit in. See useScriptingState's own doc. */
+  setScriptParamValue: (id: string, name: string, value: ScriptParamValue) => void;
   toggleScriptEnabled: (id: string) => void;
   indicatorsManagerOpen: boolean;
   setIndicatorsManagerOpen: (open: boolean) => void;
@@ -86,6 +99,7 @@ export function IndicatorModals({
   customIndicators,
   addCustomIndicator,
   scripts,
+  setScriptParamValue,
   toggleScriptEnabled,
   indicatorsManagerOpen,
   setIndicatorsManagerOpen,
@@ -434,6 +448,26 @@ export function IndicatorModals({
 
       {infoKind &&
         (() => {
+          // A script-produced indicator documents itself: whatever its own script declared with
+          // `@description`, rendered in this library's own small markup (see ScriptDescriptionText).
+          // Nothing in the built-in catalog applies to it — its kind is always the catch-all
+          // "custom", whose description would say nothing about what this particular script does.
+          if (isScriptInfoTarget(infoKind)) {
+            const script = scripts.find((entry) => entry.id === infoKind.scriptId);
+            const source = script?.runDraftCode ?? script?.code ?? "";
+            const { description } = analyzeScriptDescription(source);
+            return (
+              <Modal open onClose={() => setInfoKind(null)} title={script?.name ?? "Script"}>
+                {description ? (
+                  <ScriptDescriptionText text={description} />
+                ) : (
+                  <p className="lq-chart__indicator-info-text">
+                    Ce script ne déclare pas de description. Ajoutez @description &quot;…&quot; en haut du script pour en écrire une.
+                  </p>
+                )}
+              </Modal>
+            );
+          }
           const title = infoKind === "volume" ? "Volume" : (INDICATOR_CATALOG.find((entry) => entry.kind === infoKind)?.label ?? infoKind);
           const description = infoKind === "volume" ? VOLUME_DESCRIPTION : INDICATOR_DESCRIPTIONS[infoKind];
           // "volume" has no diagram of its own — same reasoning it has no INDICATOR_DIAGRAMS
@@ -603,7 +637,29 @@ export function IndicatorModals({
           />
 
           {settingsTab === "inputs" && (
-            <IndicatorSettingsInputs indicatorDraft={indicatorDraft} setIndicatorDraft={setIndicatorDraft} indicators={indicators} />
+            <>
+              {(() => {
+                // A script-produced pane's own parameters, read straight off the script that owns
+                // it — the same list the editor's own panel shows, backed by the same
+                // `ScriptDef.paramValues`, so editing here or there is the same edit.
+                const scriptId = scriptIdFromIndicatorId(indicatorDraft.customData?.id);
+                const script = scriptId === null ? undefined : scripts.find((s) => s.id === scriptId);
+                if (!script) return null;
+                const { params } = analyzeScriptVariables(script.runDraftCode ?? script.code);
+                if (params.length === 0) return null;
+                return (
+                  <section className="lq-chart__script-params">
+                    <h4 className="lq-chart__script-params-title">Paramètres du script</h4>
+                    <ScriptParamsFields
+                      params={params}
+                      values={script.paramValues}
+                      onChange={(name, value) => setScriptParamValue(script.id, name, value)}
+                    />
+                  </section>
+                );
+              })()}
+              <IndicatorSettingsInputs indicatorDraft={indicatorDraft} setIndicatorDraft={setIndicatorDraft} indicators={indicators} />
+            </>
           )}
 
           {settingsTab === "style" && (

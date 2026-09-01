@@ -1,3 +1,5 @@
+import { analyzeScriptVariables } from "../scriptVariables";
+import { analyzeScriptDescription } from "../scriptDescription";
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { EditorState, StateEffect, StateField, type Text } from "@codemirror/state";
@@ -609,18 +611,42 @@ export const ScriptEditorCodeMirror = forwardRef<ScriptEditorCodeMirrorHandle, S
     view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: value } });
   }, [value]);
 
+  // Both diagnostic sources go through this one dispatch rather than a `linter()` extension
+  // alongside it: `setDiagnostics` replaces the whole lint state, so a second source writing to it
+  // independently would erase whichever set was dispatched first. Keyed on `value` as well as
+  // `error` so the static `Variable` checks re-run as the user types — the parse is a whole-document
+  // Lezer parse of a script-sized document, cheap enough to redo per keystroke — while the run
+  // error, which only changes when something actually runs, rides along unchanged.
   useEffect(() => {
     const view = viewRef.current;
     if (!view) return;
     const diagnostics: Diagnostic[] = [];
+
+    // Parameter declaration rules (const-only, known type, matching default, never reassigned) —
+    // reported against the live document, so they show up before anything is ever run.
+    const docLength = view.state.doc.length;
+    const source = view.state.doc.toString();
+    for (const issue of [...analyzeScriptDescription(source).diagnostics, ...analyzeScriptVariables(source).diagnostics]) {
+      diagnostics.push({
+        from: Math.min(issue.from, docLength),
+        to: Math.min(issue.to, docLength),
+        severity: "error",
+        message: issue.message,
+      });
+    }
+
     if (error && error.line !== undefined) {
       const lineNumber = Math.min(Math.max(1, error.line), view.state.doc.lines);
       const line = view.state.doc.line(lineNumber);
       const column = error.column !== undefined ? Math.min(Math.max(0, error.column - 1), line.length) : 0;
       diagnostics.push({ from: line.from + column, to: line.to, severity: "error", message: error.message });
     }
+
+    // setDiagnostics requires them in document order, and the run error's own line can easily sit
+    // before a later `Variable` declaration.
+    diagnostics.sort((a, b) => a.from - b.from);
     view.dispatch(setDiagnostics(view.state, diagnostics));
-  }, [error]);
+  }, [error, value]);
 
   useEffect(() => {
     if (formatRequestId === undefined || formatRequestId === lastFormatRequestIdRef.current) return;

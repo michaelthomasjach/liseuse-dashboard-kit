@@ -142,6 +142,73 @@ plot.overlay("SMA 20").line("SMA 20", sma ?? market.close(0));`
     ],
   },
   {
+    id: "script-meta",
+    title: "Décrire et paramétrer un script",
+    group: "Démarrage",
+    blocks: [
+      t(
+        "Deux mots-clés ne font pas partie de l'API exécutée : ils se lisent dans le texte du script lui-même, avant que quoi que ce soit ne tourne. @description documente le script, new Variable(...) en expose les réglages. Tous deux sont retirés du code avant compilation — ils n'existent pas à l'exécution."
+      ),
+      h("@description — documenter le script", ["@description"]),
+      t(
+        "Écrit tout en haut du script, @description \"…\" donne le texte qui s'affiche quand on clique sur le petit cercle « ? » de l'en-tête d'une pane produite par ce script. Un script n'en déclare qu'une seule."
+      ),
+      c(
+        `@description "///Mon indicateur///
+Un paragraphe d'explication. Une ligne seule passe à la ligne,
+une ligne vide ouvre un nouveau paragraphe.
+
+//Un sous-titre//
+**gras**, *italique*, __souligné__, --rayé--.
+"`
+      ),
+      t("Le balisage accepté, volontairement réduit à six marques :"),
+      l([
+        "///titre/// — un gros titre.",
+        "//sous-titre// — un sous-titre.",
+        "**texte** — gras.",
+        "*texte* — italique.",
+        "__texte__ — souligné.",
+        "--texte-- — rayé.",
+      ]),
+      t(
+        "Une ligne vide sépare deux paragraphes ; un simple retour à la ligne reste dans le même paragraphe. Ce n'est pas du Markdown et le texte n'est jamais interprété comme du HTML : seules ces six marques produisent quelque chose, tout le reste s'affiche tel quel."
+      ),
+      h("new Variable — exposer un réglage", ["Variable"]),
+      t(
+        "Une constante déclarée avec new Variable(type, valeur par défaut) apparaît comme un champ réglable dans deux endroits : le panneau « Paramètres » de l'éditeur, et l'onglet « Entrées » de la fenêtre de réglages de chaque pane produite par le script. Changer une valeur relance le script tout seul — pas besoin de recliquer sur « Exécuter »."
+      ),
+      c(
+        `const ATR_MULT = new Variable("number", 3.0, { description: "Largeur du noyau, en multiples d'ATR." });
+const PALIERS = new Variable("Array[number]", [0.5, 1, 2]);
+const COULEUR = new Variable("color", "#3b82f6");
+
+// La variable s'utilise comme la constante qu'elle est :
+const bandwidth = (ta.atr(14) ?? 1) * ATR_MULT;`
+      ),
+      t("Les cinq types disponibles, et ce que la valeur par défaut doit être :"),
+      l([
+        '"number" — un nombre, négatif accepté. Champ numérique.',
+        '"string" — un texte entre guillemets. Champ texte.',
+        '"color" — une couleur hexadécimale, #rrggbb ou #rgb. Sélecteur de couleur.',
+        '"Array[number]" — un tableau de nombres, par exemple [1, 2, 3].',
+        '"Array[string]" — un tableau de textes, par exemple ["a", "b"].',
+      ]),
+      t(
+        "Le troisième argument est facultatif et n'accepte aujourd'hui qu'une seule option, { description: \"…\" }, dont le texte s'affiche sous le champ correspondant."
+      ),
+      t("Trois règles, signalées comme des erreurs directement dans l'éditeur, avant même d'exécuter :"),
+      l([
+        "La déclaration doit être un const. let et var sont refusés — un réglage ne change pas en cours de route.",
+        'La valeur par défaut doit correspondre au type déclaré : new Variable("string", 5) est une erreur, new Variable("string", "5") non.',
+        "Une variable déclarée ne peut plus être réaffectée ailleurs dans le script — ni par =, ni par +=, ni par ++ ou --. Sa valeur se change dans les réglages, pas dans le code.",
+      ]),
+      t(
+        "À l'exécution, chaque new Variable(...) est remplacé par la valeur effective — celle des réglages, ou celle écrite dans le code si elle n'a jamais été modifiée. La variable est donc une vraie constante JavaScript ordinaire : elle s'utilise directement dans un calcul, sans .value ni rien à déballer."
+      ),
+    ],
+  },
+  {
     id: "market",
     title: "market.*",
     group: "API du script",
@@ -326,6 +393,26 @@ if (sma !== null && std !== null) {
   plot.overlay("Enveloppe maison").band("Enveloppe", sma + 2 * std, sma - 2 * std, { color: "#3ea377" });
 }`
       ),
+      h("Un profil tourné à 90° — .profile", [".profile"]),
+      t(
+        "pane.profile(nom, valeurs, prix) dessine un profil de marché : valeurs[i] est la masse présente au prix prix[i]. Comme plot.xy, il prend les tableaux entiers d'un coup au lieu d'une valeur par bougie — un profil n'est pas une série temporelle, il est calculé une fois sur une plage de prix et n'a aucune bougie à laquelle rattacher ses points."
+      ),
+      t(
+        "Il est dessiné transposé, sous forme d'une courbe continue : les prix descendent le long de l'axe vertical, et la valeur se mesure horizontalement depuis le bord extérieur de la colonne en revenant vers le graphe — la ligne de base est donc à l'extérieur, et les bosses pointent vers les bougies. L'échelle verticale est celle du graphe principal, pas une échelle ajustée aux données du panneau : c'est ce qui met chaque bosse exactement à la hauteur du prix qu'elle désigne."
+      ),
+      c(
+        `// densité et grille de prix calculées ailleurs, puis mémorisées avec state.set
+const densite = state.get("density", []);
+const prix = state.get("priceGrid", []);
+plot.pane("Profil", { dock: "right" }).profile("Densité", densite, prix, { color: "#c47f2a" });`
+      ),
+      l([
+        "Cet alignement n'a de sens que sur un panneau ancré à gauche ou à droite — sur un panneau du bas, un profil n'a rien à aligner et n'est pas dessiné.",
+        "Le panneau n'occupe verticalement que la section des prix, pas toute la hauteur de la colonne : il n'y a pas de prix en dessous avec quoi s'aligner.",
+        "« Le dernier appel gagne », comme plot.table et plot.xy — appelez-le sans condition à chaque bougie, c'est le profil de la dernière bougie qui est conservé.",
+        "Un panneau qui contient un profil est un panneau profil : toute autre série dessinée dessus est ignorée.",
+        "valeurs et prix doivent avoir la même longueur ; les paires non numériques sont écartées.",
+      ]),
       h("Positionner un élément librement — .label", [".label"]),
       t(
         "pane.label(name, texte, options) / overlay.label(name, texte, options) placent un texte à une position précise, en pixels ou en %, avec une rotation possible — contrairement à .line/.area/.histogram/.band, aucun lien avec une bougie ou une valeur : c'est une annotation libre, pas une série de données."

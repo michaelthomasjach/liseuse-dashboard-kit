@@ -307,3 +307,24 @@
   padding-top: 0;
   border-top: none;
 }
+
+/* Clears the search box — see ScriptDocumentationModal.tsx on why it isn't left to the native
+   `type="search"` control. Sized and coloured like the SearchIcon on the other end of the box, so
+   the two read as a matched pair framing the field rather than a button bolted on. */
+.lq-script-docs__search-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 2px;
+  color: var(--lq-color-text-muted);
+  background: none;
+  border: none;
+  border-radius: var(--lq-radius-sm);
+  cursor: pointer;
+}
+
+.lq-script-docs__search-clear:hover {
+  color: var(--lq-color-text);
+  background-color: var(--lq-color-hover);
+}

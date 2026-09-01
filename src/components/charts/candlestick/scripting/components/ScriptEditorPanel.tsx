@@ -1,4 +1,7 @@
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { analyzeScriptVariables } from "../scriptVariables";
+import type { ScriptParamValue } from "../../interfaces/ScriptParam.interface";
+import { ScriptParamsFields } from "./ScriptParamsFields";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { ScriptEditorWindow } from "./ScriptEditorWindow";
 import { Popover } from "../../../../forms/Popover";
 import { Modal } from "../../../../primitives/Modal";
@@ -43,6 +46,10 @@ export interface ScriptEditorPanelProps {
   toggleScriptEnabled: (id: string) => void;
   runScript: (id: string, code: string) => void;
   stopScript: (id: string) => void;
+  /** Commits one `new Variable(...)` parameter's own value — which also re-runs the script, see
+   *  useScriptingState's own doc. */
+  setScriptParamValue: (id: string, name: string, value: ScriptParamValue) => void;
+  resetScriptParamValues: (id: string) => void;
   runOutputs: Record<string, ScriptRunOutput>;
   indicators: Indicator[];
   /** Present only when this editor is shared across more than one chart (`ChartWorkspace`) — one
@@ -87,6 +94,8 @@ export function ScriptEditorPanel({
   toggleScriptEnabled,
   runScript,
   stopScript,
+  setScriptParamValue,
+  resetScriptParamValues,
   runOutputs,
   indicators,
   panelChoices,
@@ -94,6 +103,10 @@ export function ScriptEditorPanel({
 }: ScriptEditorPanelProps) {
   const activeScript = scripts.find((s) => s.id === activeScriptId) ?? null;
   const [draft, setDraft] = useState(activeScript?.code ?? "");
+  // Only the declarations are needed here; the editor draws the diagnostics itself off the same
+  // analysis (see ScriptEditorCodeMirror), so a parameter with a bad default still gets a field —
+  // the error sits on the offending line rather than the panel silently going empty.
+  const { params: scriptParams } = useMemo(() => analyzeScriptVariables(draft), [draft]);
   const [formatRequestId, setFormatRequestId] = useState(0);
   const [docsOpen, setDocsOpen] = useState(false);
   const [targetPickerOpen, setTargetPickerOpen] = useState(false);
@@ -441,6 +454,28 @@ export function ScriptEditorPanel({
             )}
           </div>
           <div className="lq-script-editor-panel__side">
+            {/* Read off the *draft*, not the saved `code` — a parameter appears in this list as
+                soon as its declaration is typed, without needing a save or a run first. */}
+            <section className="lq-script-editor-panel__params">
+              <div className="lq-script-editor-panel__params-header">
+                <h3 className="lq-script-editor-panel__params-title">Paramètres</h3>
+                {scriptParams.length > 0 && (
+                  <button
+                    type="button"
+                    className="lq-script-editor-panel__params-reset"
+                    onClick={() => resetScriptParamValues(activeScript.id)}
+                    title="Revenir aux valeurs par défaut écrites dans le code"
+                  >
+                    Réinitialiser
+                  </button>
+                )}
+              </div>
+              <ScriptParamsFields
+                params={scriptParams}
+                values={activeScript.paramValues}
+                onChange={(name, value) => setScriptParamValue(activeScript.id, name, value)}
+              />
+            </section>
             <AvailableIndicatorsList indicators={indicators} />
           </div>
         </div>

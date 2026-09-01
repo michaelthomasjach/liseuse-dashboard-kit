@@ -1,3 +1,5 @@
+import type { ScriptParamValue } from "./ScriptParam.interface";
+
 /** One user-authored script, as seen from outside this library — see
  *  `CandlestickChartProps.defaultScripts`/`onScriptsChange`, the same uncontrolled-state
  *  convention `defaultIndicators`/`onIndicatorsChange` and `defaultDrawings`/`onDrawingsChange`
@@ -24,6 +26,14 @@ export interface ScriptDef {
    *  `CandlestickChart` (only ever one candidate panel: itself) — that usage ignores this field
    *  entirely. */
   targetPanelIndex?: number;
+  /** Values the user has set for this script's own `const NAME = new Variable(type, default)`
+   *  parameters, by parameter name. Absent (or missing an entry) means "use the default written in
+   *  the code", so a script whose declarations change — a renamed parameter, a new one — keeps
+   *  working rather than reading a stale value: nothing here is authoritative on its own, the
+   *  declarations in the source are (see `analyzeScriptVariables`). Stored on the ScriptDef for the
+   *  same reason the run/stop triggers below are: only fields carried on the script itself survive
+   *  ChartWorkspace's own routing of a shared script to whichever panel targets it. */
+  paramValues?: Record<string, ScriptParamValue>;
   /** Engine-internal trigger fields, not meant to be set by hand — bumped by the editor's own
    *  "Exécuter"/"Arrêter" buttons (see `useScriptingState.ts`'s own `runScript`/`stopScript`) and
    *  read by whichever `ScriptRunner` actually owns this script's own Worker. Living *on the

@@ -1,9 +1,10 @@
+import type { IndicatorInfoTarget } from "../interfaces/IndicatorInfoTarget.interface";
+import { scriptIdFromIndicatorId, infoTargetFor } from "../scripting/scriptOutputToCustomIndicatorDef";
 import type { Dispatch, SetStateAction } from "react";
 import type * as React from "react";
 import { ChevronDownIcon, ChevronUpIcon, SettingsIcon, TrashIcon, GripIcon, InfoIcon, MaximizeIcon, MinimizeIcon, CodeIcon } from "../../../icons";
 import type { Candle } from "../interfaces/Candle.interface";
 import type { Indicator } from "../interfaces/Indicator.interface";
-import type { IndicatorKind } from "../interfaces/IndicatorKind.interface";
 import type { IndicatorValue } from "../interfaces/IndicatorValue.interface";
 import { isFundamentalKind, formatFundamentalValue } from "../indicatorCatalog";
 
@@ -34,7 +35,7 @@ export interface PaneHeadersProps {
   /** Same "how it works" info modal the indicator picker's own info icon opens (see
    *  IndicatorModals) — "volume" for the volume pane's own header, an indicator's own `kind`
    *  for every other pane here. */
-  onOpenIndicatorInfo: (kind: IndicatorKind | "volume") => void;
+  onOpenIndicatorInfo: (target: IndicatorInfoTarget) => void;
   /** Which pane (an indicator's own id, or "volume") currently owns the entire plot — see
    *  usePaneLayout's own togglePaneFullscreen doc. null the rest of the time, in which case
    *  every pane here still renders normally, just with an extra button to claim it. */
@@ -44,16 +45,6 @@ export interface PaneHeadersProps {
    *  below) — `undefined` on a standalone chart (no editor to open), see
    *  `CandlestickChartProps.onEditScript`'s own doc. */
   onEditScript?: (scriptId: string) => void;
-}
-
-// A script-produced indicator's own id/customData.id is always the deterministic
-// `script:<scriptId>:<slug>` scriptOutputToCustomIndicatorDef.ts assigns (see
-// scriptIndicatorToChartIndicator.ts's own doc) — parsed back apart here rather than carrying a
-// separate `scriptId` field on `Indicator` itself purely for this one button.
-function scriptIdFromIndicator(indicator: Indicator): string | null {
-  const id = indicator.customData?.id;
-  if (!id?.startsWith("script:")) return null;
-  return id.split(":")[1] ?? null;
 }
 
 /** Header strip for the volume pane, then one more per "own"-pane indicator (RSI/CHOP/MACD) —
@@ -372,7 +363,7 @@ export function PaneHeaders({
                 <button
                   type="button"
                   className="lq-chart__pane-header-action"
-                  onClick={() => onOpenIndicatorInfo(ind.kind)}
+                  onClick={() => onOpenIndicatorInfo(infoTargetFor(ind))}
                   aria-label={`À propos de ${indicatorLabel(ind)}`}
                 >
                   <InfoIcon size={11} />
@@ -383,7 +374,7 @@ export function PaneHeaders({
                     next to each other. */}
                 {onEditScript &&
                   (() => {
-                    const scriptId = scriptIdFromIndicator(ind);
+                    const scriptId = scriptIdFromIndicatorId(ind.customData?.id);
                     if (!scriptId) return null;
                     return (
                       <button

@@ -104,6 +104,11 @@ export function computeFundamentalValues(
  *  wants filled between, never a middle line of its own (see `CustomIndicatorBandDataPoint`'s own
  *  doc). Every other `draw` value keeps the original single-`value` behavior unchanged. */
 export function computeCustomIndicatorValues(data: Candle[], def: CustomIndicatorDef): (IndicatorValue | null)[] {
+  // A profile has no per-bar value to compute — it's (price, value) pairs over a price range, not
+  // a series over time (see `CustomIndicatorDef.profile`'s own doc). One null per bar rather than
+  // an empty array: every consumer indexes this by bar, so a short array would read as a series
+  // that stops partway rather than one that was never per-bar to begin with.
+  if (def.draw === "profile") return data.map(() => null);
   if (def.draw === "band") {
     const bandData = def.data as CustomIndicatorBandDataPoint[];
     const upperFilled = forwardFillSeries(data, bandData.map((p) => ({ date: p.date, value: p.upper })));

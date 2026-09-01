@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Modal } from "../../../../primitives/Modal";
 import { CodeBlock } from "../../../../primitives/CodeBlock";
-import { SearchIcon, ChevronRightIcon } from "../../../../icons";
+import { SearchIcon, ChevronRightIcon, CloseIcon } from "../../../../icons";
 import { SCRIPT_API_REFERENCE } from "../scriptApiReference";
 import { SCRIPT_DIAGRAM_REGISTRY } from "../scriptDiagramRegistry";
-import { SCRIPT_DOCS_NAV, headingAnchorId } from "../scriptDocsNav";
+import { SCRIPT_DOCS_NAV, headingAnchorId, searchDocsNav } from "../scriptDocsNav";
 import { ScriptInteractiveTutorial } from "./ScriptInteractiveTutorial";
 import { ScriptKeywordsIndex } from "./ScriptKeywordsIndex";
 import { ScriptExamplesSection } from "./ScriptExamplesSection";
@@ -31,6 +31,7 @@ export function ScriptDocumentationModal({ open, onClose }: ScriptDocumentationM
   // sub-titles are ever visible at a time, instead of all ~13 sections' worth stacked permanently).
   const [activeHeadingId, setActiveHeadingId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
   // Shared by the nav's own section/heading filter and ScriptKeywordsIndex's own list — one search
   // box, both surfaces narrow down together (exigence : « je veux un input de recherche »).
   const normalizedQuery = query.trim().toLowerCase();
@@ -40,22 +41,11 @@ export function ScriptDocumentationModal({ open, onClose }: ScriptDocumentationM
   // something the reader opts into, not a permanent fixture.
   const [keywordsPinned, setKeywordsPinned] = useState(false);
 
-  // The nav tree, filtered by `query` — a section stays visible if its own title matches, or at
-  // least one of its own sub-heading matches; a section kept only because of a heading match shows
-  // just the matching heading(s), not every one it has (a tighter, more useful search result than
-  // showing everything once any part of a section matches).
-  const filteredNav = useMemo(() => {
-    if (!normalizedQuery) return SCRIPT_DOCS_NAV;
-    return SCRIPT_DOCS_NAV.filter((section) => {
-      const titleMatches = section.title.toLowerCase().includes(normalizedQuery);
-      const matchingHeadings = section.headings.filter((h) => h.text.toLowerCase().includes(normalizedQuery));
-      return titleMatches || matchingHeadings.length > 0;
-    }).map((section) => {
-      const titleMatches = section.title.toLowerCase().includes(normalizedQuery);
-      if (titleMatches) return section;
-      return { ...section, headings: section.headings.filter((h) => h.text.toLowerCase().includes(normalizedQuery)) };
-    });
-  }, [normalizedQuery]);
+  // The nav tree narrowed to whatever matches `query` — titles *and* the documentation text under
+  // them, see searchDocsNav's own doc. Matching titles alone used to mean a term like `close`
+  // returned nothing at all: no heading is named after it, it only ever appears in the prose and
+  // the code samples, which is exactly where a reader looking it up expects it to be found.
+  const filteredNav = useMemo(() => searchDocsNav(query), [query]);
 
   // Scroll-spy: highlights whichever section (and, within it, whichever sub-heading) has scrolled
   // past the content pane's own top edge most recently — a plain scroll listener recomputing
@@ -134,12 +124,31 @@ export function ScriptDocumentationModal({ open, onClose }: ScriptDocumentationM
           <div className="lq-script-docs__search">
             <SearchIcon size={13} />
             <input
+              ref={searchInputRef}
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Rechercher…"
               aria-label="Rechercher dans la documentation"
             />
+            {/* Rendered only when there is something to clear, so the box doesn't carry a dead
+                control at rest. `type="search"` draws a native clear button of its own in some
+                engines and none at all in others — this one is there in every engine, and it also
+                gives the focus back to the field so a new search can be typed straight away. */}
+            {query !== "" && (
+              <button
+                type="button"
+                className="lq-script-docs__search-clear"
+                onClick={() => {
+                  setQuery("");
+                  searchInputRef.current?.focus();
+                }}
+                aria-label="Effacer la recherche"
+                title="Effacer la recherche"
+              >
+                <CloseIcon size={12} />
+              </button>
+            )}
           </div>
           {filteredNav.map((section, index) => {
             // Only the active section's own sub-titles show (while not searching) — the previous

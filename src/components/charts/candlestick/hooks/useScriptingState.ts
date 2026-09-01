@@ -1,3 +1,4 @@
+import type { ScriptParamValue } from "../interfaces/ScriptParam.interface";
 import { useCallback, useMemo, useRef, useState } from "react";
 import type { ScriptDef } from "../interfaces/ScriptDef.interface";
 import type { ScriptRunOutput } from "../scripting/interfaces/ScriptRunOutput.interface";
@@ -109,6 +110,26 @@ export function useScriptingState({ defaultScripts, onScriptsChange, controlledE
     commitScripts(scripts.map((s) => (s.id === id ? { ...s, runRequestId: (s.runRequestId ?? 0) + 1, runDraftCode: code } : s)));
   }
 
+  // Committing a parameter value re-runs the script, deliberately: a settings panel whose changes
+  // only show up after a separate "Exécuter" click reads as broken. Bumps `runRequestId` without
+  // touching `runDraftCode`, so the re-run uses whatever code was last run rather than resetting to
+  // the saved `code` — changing a parameter while a draft is open keeps testing that draft.
+  // Debouncing lives in the field UI (see ScriptParamsFields' own RERUN_DEBOUNCE_MS), so by the time
+  // a call reaches here the edit has already settled.
+  function setScriptParamValue(id: string, name: string, value: ScriptParamValue) {
+    commitScripts(
+      scripts.map((s) =>
+        s.id === id ? { ...s, paramValues: { ...(s.paramValues ?? {}), [name]: value }, runRequestId: (s.runRequestId ?? 0) + 1 } : s
+      )
+    );
+  }
+
+  // Drops every stored value for one script, so each parameter falls back to the default written in
+  // its own declaration (see ScriptDef.paramValues' own doc) — same re-run on the way out.
+  function resetScriptParamValues(id: string) {
+    commitScripts(scripts.map((s) => (s.id === id ? { ...s, paramValues: {}, runRequestId: (s.runRequestId ?? 0) + 1 } : s)));
+  }
+
   // The editor's own Stop button — terminates that script's own in-flight Worker (via
   // useScriptEngine's own stop(), see ScriptRunner.tsx) rather than trying to "run" it into
   // stopping, which wouldn't preempt an actual infinite loop: a Worker only starts processing a
@@ -151,6 +172,8 @@ export function useScriptingState({ defaultScripts, onScriptsChange, controlledE
     setActiveScriptId,
     runOutputs,
     runScript,
+    setScriptParamValue,
+    resetScriptParamValues,
     stopScript,
     reportRunOutput,
     scriptIndicators,

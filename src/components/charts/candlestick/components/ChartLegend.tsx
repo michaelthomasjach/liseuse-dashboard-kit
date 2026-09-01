@@ -1,8 +1,9 @@
+import type { IndicatorInfoTarget } from "../interfaces/IndicatorInfoTarget.interface";
+import { infoTargetFor } from "../scripting/scriptOutputToCustomIndicatorDef";
 import type { Dispatch, SetStateAction } from "react";
 import { EyeIcon, EyeOffIcon, TrashIcon, SettingsIcon, BellIcon, InfoIcon } from "../../../icons";
 import type { Candle } from "../interfaces/Candle.interface";
 import type { Indicator } from "../interfaces/Indicator.interface";
-import type { IndicatorKind } from "../interfaces/IndicatorKind.interface";
 import type { TrendLineDrawing } from "../interfaces/TrendLineDrawing.interface";
 import type { ChartDisplayModeDef } from "../chartModes";
 
@@ -35,7 +36,7 @@ export interface ChartLegendProps {
   /** Opens the same "how it works" info modal the indicator picker's own info icon already
    *  does (see IndicatorModals) — this row's own equivalent for an indicator that's already
    *  active, so its explanation stays one click away without going back through the picker. */
-  onOpenIndicatorInfo: (kind: IndicatorKind) => void;
+  onOpenIndicatorInfo: (target: IndicatorInfoTarget) => void;
   symbolOverlays: TrendLineDrawing[];
   drawings: TrendLineDrawing[];
   commitDrawings: (drawings: TrendLineDrawing[]) => void;
@@ -181,7 +182,7 @@ export function ChartLegend({
               <button
                 type="button"
                 className="lq-chart__indicator-legend-action"
-                onClick={() => onOpenIndicatorInfo(indicator.kind)}
+                onClick={() => onOpenIndicatorInfo(infoTargetFor(indicator))}
                 aria-label={`À propos de ${indicatorLabel(indicator)}`}
               >
                 <InfoIcon size={11} />

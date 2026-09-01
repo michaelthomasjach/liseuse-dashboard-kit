@@ -31,6 +31,8 @@ function buildSnapshot(
   lastCandleOpen: boolean,
   isRealtimeTick: boolean,
   availableTimeframes: string[]
+,
+  runUpToIndex: number
 ): ScriptEngineSnapshot {
   // Reuses `computeIndicatorValues` verbatim — the exact same function `useIndicatorPaneScales`
   // calls to produce what's actually drawn on the chart — rather than recomputing indicator
@@ -50,7 +52,7 @@ function buildSnapshot(
   return {
     ohlcv: data.map((d) => ({ t: d.date.getTime(), o: d.open, h: d.high, l: d.low, c: d.close, v: d.volume })),
     indicatorSeries,
-    runUpToIndex: data.length - 1,
+    runUpToIndex,
     scriptCode,
     limits: { timeoutMs, maxSeriesLength: MAX_SERIES_LENGTH },
     lastCandleOpen,
@@ -81,8 +83,17 @@ export function useScriptEngine(
   indicators: Indicator[],
   fundamentals: FundamentalDataPoint[] | undefined,
   lastCandleOpen = false,
-  availableTimeframes: string[] = []
+  availableTimeframes: string[] = [],
+  /** How far into `data` a run goes — the last bar the script is allowed to see. `null` means "the
+   *  whole history", the normal case. Replay passes its own cutoff instead, which is what makes a
+   *  script actually *replay*: it re-runs against history-up-to-there, so its own output is
+   *  recomputed from only the bars visible at that point rather than staying pinned to what the
+   *  full dataset produced. See CandlestickChart's own `scriptRunUpToIndex`. */
+  runUpToIndex: number | null = null
 ) {
+  // Clamped: a cutoff from a previous, longer dataset would otherwise run past the end of this one.
+  const effectiveRunUpToIndex = runUpToIndex === null ? data.length - 1 : Math.max(0, Math.min(runUpToIndex, data.length - 1));
+
   const [result, setResult] = useState<ScriptRunResult | null>(null);
   const [running, setRunning] = useState(false);
   const [scriptIndicators, setScriptIndicators] = useState<CustomIndicatorDef[]>([]);
@@ -220,7 +231,9 @@ export function useScriptEngine(
         resolve(timeoutResult);
       }, timeoutMs);
 
-      worker.postMessage(buildSnapshot(data, indicators, fundamentals, scriptCode, timeoutMs, lastCandleOpen, isRealtimeTick, availableTimeframes));
+      worker.postMessage(
+        buildSnapshot(data, indicators, fundamentals, scriptCode, timeoutMs, lastCandleOpen, isRealtimeTick, availableTimeframes, effectiveRunUpToIndex)
+      );
     });
   }
 
@@ -241,16 +254,58 @@ export function useScriptEngine(
   // No-op before the first manual `run()` — nothing to re-trigger yet. Deliberately keyed on
   // `data` alone: re-running because `run`/`indicators`/`fundamentals` changed identity would
   // defeat the "only the data actually moved" intent and risk a re-trigger loop.
+  // Also keyed on the run bound: moving the replay cutoff is exactly as much a reason to re-run as
+  // a new candle arriving. A cutoff move is a *full* re-run from bar 0, not a single new bar's
+  // worth of work, so it takes the historical timeout rather than the much shorter real-time one —
+  // see run()'s own doc on which constant `isRealtimeTick` picks.
+  //
+  // Paced by whether a run is already in flight, not by the debounce alone. A plain trailing
+  // debounce starves under a replay playing at speed: every cutoff move rearms it, so it only ever
+  // elapses once playback *stops* — which is exactly the "it only updates when I pause" symptom.
+  // Restarting regardless would be worse: run() terminates a worker that is still mid-run (see its
+  // own doc on why it must), so a script slower than the cutoff moves would have every run killed
+  // before finishing and never produce anything at all. Instead a move arriving mid-run is
+  // remembered and replayed the moment that run lands — `running` is in the dependency list purely
+  // so its fall back to false wakes this effect up to do that. The result paces itself to whatever
+  // the script can actually sustain.
+  const previousRunUpToIndexRef = useRef(effectiveRunUpToIndex);
+  const previousDataRef = useRef(data);
+  const deferredRerunRef = useRef(false);
+  const deferredBoundMovedRef = useRef(false);
   useEffect(() => {
-    if (lastScriptCodeRef.current === null) return;
+    if (lastScriptCodeRef.current === null) {
+      previousRunUpToIndexRef.current = effectiveRunUpToIndex;
+      previousDataRef.current = data;
+      return;
+    }
+    const boundMoved = previousRunUpToIndexRef.current !== effectiveRunUpToIndex;
+    const dataMoved = previousDataRef.current !== data;
+    previousRunUpToIndexRef.current = effectiveRunUpToIndex;
+    previousDataRef.current = data;
+
+    // Woken by `running` alone, with nothing waiting on it — nothing to do.
+    if (!boundMoved && !dataMoved && !deferredRerunRef.current) return;
+
+    if (running) {
+      deferredRerunRef.current = true;
+      deferredBoundMovedRef.current = deferredBoundMovedRef.current || boundMoved;
+      return;
+    }
+
+    const historical = boundMoved || deferredBoundMovedRef.current;
+    deferredRerunRef.current = false;
+    deferredBoundMovedRef.current = false;
+    // No cleanup returned on purpose: React runs the previous effect's cleanup before every
+    // re-entry, so clearing the pending debounce there would silently drop an already-scheduled
+    // re-run whenever this effect woke for an unrelated reason (a `running` flip, say). It is
+    // cleared explicitly here instead, and on unmount by the worker effect above.
     clearPendingDebounce();
     debounceRef.current = setTimeout(() => {
       debounceRef.current = null;
-      if (lastScriptCodeRef.current !== null) run(lastScriptCodeRef.current, true);
+      if (lastScriptCodeRef.current !== null) run(lastScriptCodeRef.current, !historical);
     }, REALTIME_TICK_DEBOUNCE_MS);
-    return clearPendingDebounce;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data]);
+  }, [data, effectiveRunUpToIndex, running]);
 
   return { result, running, scriptIndicators, scriptDrawings, scriptTable, scriptLabels, run, stop };
 }

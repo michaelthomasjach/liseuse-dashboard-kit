@@ -16,6 +16,21 @@ export interface ScriptApiCompletion {
 }
 
 export const SCRIPT_API_COMPLETIONS: ScriptApiCompletion[] = [
+  // Not part of the injected sandbox API like everything below it: `Variable` is resolved away
+  // before the script ever compiles (see scriptVariables.ts). It's listed here because from the
+  // author's point of view it's just another name they type.
+  {
+    label: "@description",
+    type: "keyword",
+    detail: "\"…\" — texte d'aide du script, affiché derrière le « ? » de l'en-tête de pane",
+    apply: '@description ""',
+  },
+  {
+    label: "Variable",
+    type: "keyword",
+    detail: '(type, défaut, { description? }) — paramètre réglable : "string" | "number" | "Array[string]" | "Array[number]" | "color"',
+    apply: 'new Variable("number", 1, { description: "" })',
+  },
   { label: "market.open", type: "function", detail: "(offset?) => number | null", apply: "market.open()" },
   { label: "market.high", type: "function", detail: "(offset?) => number | null", apply: "market.high()" },
   { label: "market.low", type: "function", detail: "(offset?) => number | null", apply: "market.low()" },
@@ -36,6 +51,12 @@ export const SCRIPT_API_COMPLETIONS: ScriptApiCompletion[] = [
   { label: ".line", type: "function", detail: "(offset?) => number | null — MACD  ·  (name, value, options?) — pane.line/overlay.line" },
   { label: ".signal", type: "function", detail: "(offset?) => number | null — MACD" },
   { label: ".histogram", type: "function", detail: "(offset?) => number | null — MACD  ·  (name, value, options?) — pane.histogram/overlay.histogram" },
+  {
+    label: ".profile",
+    type: "function",
+    detail: "(nom, valeurs, prix, options?) — profil tourné à 90°, sur un panneau ancré à gauche/droite",
+    apply: 'profile("Densité", valeurs, prix)',
+  },
   { label: ".upper", type: "function", detail: "(offset?) => number | null — band" },
   { label: ".middle", type: "function", detail: "(offset?) => number | null — band" },
   { label: ".lower", type: "function", detail: "(offset?) => number | null — band" },

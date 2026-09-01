@@ -43,6 +43,10 @@ export function usePaneStackScales({
     const scales: Record<string, d3.ScaleLinear<number, number>> = {};
     ownPaneIndicators.forEach((ind, idx) => {
       const height = indicatorPaneHeights[idx];
+      // A profile pane is drawn against the *main chart's* own price scale, not one fitted to its
+      // own data (see CustomIndicatorDef.profile's own doc) — that shared scale is what makes a
+      // peak land at the height of the price it describes. Nothing to build here for it.
+      if (ind.customData?.draw === "profile") return;
       if (ind.kind === "rsi" || ind.kind === "chop" || ind.kind === "adx") {
         scales[ind.id] = d3.scaleLinear().domain([0, 100]).range([height, headerReserve]);
       } else if (ind.kind === "correlation") {

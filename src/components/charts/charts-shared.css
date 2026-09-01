@@ -158,6 +158,59 @@
   border-left: 1px solid var(--lq-color-border-subtle);
 }
 
+/* The rail of folded panes on a docked column's own *outer* edge — the side its panes fold
+   toward. One SIDE_DOCK_COLLAPSED_WIDTH band per folded pane, laid out along the column's short
+   axis, so folding a second pane widens the rail rather than stacking bands on top of each other. */
+.lq-chart__side-dock-collapsed-rail {
+  display: flex;
+  overflow: hidden;
+}
+
+/* One folded pane's own band — the 90° mirror of `.lq-chart__pane-header--collapsed` (the strip a
+   collapsed pane in the *bottom* stack leaves behind): same panel background, same single border
+   on the edge facing the content it folded away from, same "chevron + name still reachable". */
+.lq-chart__side-dock-collapsed {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--lq-space-2);
+  box-sizing: border-box;
+  /* Each band takes an equal share of the rail, whose own width is already
+     `foldedPaneCount * SIDE_DOCK_COLLAPSED_WIDTH` — so that constant lives in exactly one place
+     (constants.ts) instead of being restated as a magic number here, where the two could drift. */
+  flex: 1 1 0;
+  min-width: 0;
+  height: 100%;
+  padding: 6px 0;
+  overflow: hidden;
+  background-color: var(--lq-color-panel);
+}
+
+.lq-chart__side-dock-collapsed--right {
+  border-left: 1px solid var(--lq-color-border-subtle);
+}
+
+.lq-chart__side-dock-collapsed--left {
+  border-right: 1px solid var(--lq-color-border-subtle);
+}
+
+/* `writing-mode`, not a `transform: rotate()` — a transform leaves the element's own layout box
+   horizontal, so the label would still be measured as a wide box inside a 40px band and get
+   clipped; vertical writing makes the box itself tall and narrow, which is what lets `text-
+   overflow: ellipsis` truncate a long pane name down the band the way it would across a header. */
+.lq-chart__side-dock-collapsed-label {
+  writing-mode: vertical-rl;
+  min-height: 0;
+  overflow: hidden;
+  color: var(--lq-color-text);
+  font-size: 0.7rem;
+  font-family: var(--lq-font-family);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  cursor: default;
+  user-select: none;
+}
+
 /* The docked column's own price/date axes (see ChartSidePaneColumn.tsx) — a second, sibling SVG
    spanning the *whole* group (plot + reserved axis strips), not scoped inside `.lq-chart__side-
    dock-pane` (which stays exactly the resizable plot width — see that component's own doc on why
@@ -2550,4 +2603,23 @@
   .lq-chart__symbol-search-overlay-spinner {
     animation: none;
   }
+}
+
+/* A script-produced pane's own `new Variable(...)` parameters, at the top of the settings modal's
+   "Entrées" tab (see IndicatorModals.tsx). Separated from the indicator's own inputs below it
+   because the two commit differently: these apply (and re-run the script) as soon as they settle,
+   the ones below wait for "Enregistrer". */
+.lq-chart__script-params {
+  margin-bottom: var(--lq-space-4);
+  padding-bottom: var(--lq-space-4);
+  border-bottom: 1px solid var(--lq-color-border-subtle);
+}
+
+.lq-chart__script-params-title {
+  margin: 0 0 var(--lq-space-2);
+  color: var(--lq-color-text-muted);
+  font-size: var(--lq-text-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }

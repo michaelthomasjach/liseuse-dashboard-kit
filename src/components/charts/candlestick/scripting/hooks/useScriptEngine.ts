@@ -312,7 +312,18 @@ export function useScriptEngine(
     const wasDeferred = deferredRerunRef.current;
     deferredRerunRef.current = false;
     deferredBoundMovedRef.current = false;
-    if (wasDeferred) {
+    // A bound move (effectiveRunUpToIndex itself changed — a replay tick, or a brand new candle
+    // opening) also skips the debounce, same reasoning as a deferred re-run: it isn't the kind of
+    // unpaced burst the debounce exists to collapse. Replay's own tick interval
+    // (SPEED_INTERVAL_MS/speed, see useReplayState.ts) already paces these — layering a fixed
+    // REALTIME_TICK_DEBOUNCE_MS on top of an already-paced signal was capping every re-run to
+    // roughly one per debounce window regardless of how much faster replay (or the script itself)
+    // could actually go, which is what read as choppy at higher speeds (confirmed bug report: "en
+    // x15 la courbe évolue de manière non fluide"). The debounce still applies to a *plain* data
+    // change with no bound movement — a live tick updating the still-forming last candle in place,
+    // several of which really can arrive in a genuine unpaced burst — which is the case it was
+    // actually built for.
+    if (wasDeferred || boundMoved) {
       // Cancels a still-pending debounce from an *older* move now superseded by this one — no
       // cleanup returned from the effect itself for this (React would run it before every
       // re-entry, silently dropping an already-scheduled re-run whenever this effect wakes for an

@@ -505,6 +505,8 @@ export function CandlestickChart({
     data,
     indicators: combinedIndicators,
     hoverIndex: effectiveHoverIndex,
+    hovered: effectiveHovered,
+    hoverY: effectiveHoverY,
     dateTickFormat,
     startPaneResize,
     indicatorLabel,

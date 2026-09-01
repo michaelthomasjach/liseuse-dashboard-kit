@@ -14,8 +14,22 @@ import { drawPaneProfile } from "./drawPaneProfile";
  *  surface yet. Same canvas-setup shape as `renderCandlestickChart` (DPR scaling, colors read
  *  once off the DOM), just for a much smaller frame. */
 export function renderSidePaneColumn(canvas: HTMLCanvasElement, wrapper: HTMLElement, params: SidePaneColumnRenderParams) {
-  const { side, columnWidth, plotBoundedHeight, zoomedXScale, candleWidth, paneIndicators, paneHeights, paneTops, zoomedPaneScales, zoomedPriceScale, visibleIndicators, indicators } =
-    params;
+  const {
+    side,
+    columnWidth,
+    plotBoundedHeight,
+    zoomedXScale,
+    candleWidth,
+    paneIndicators,
+    paneHeights,
+    paneTops,
+    zoomedPaneScales,
+    zoomedPriceScale,
+    visibleIndicators,
+    indicators,
+    hovered,
+    hoverY,
+  } = params;
   if (columnWidth <= 0 || plotBoundedHeight <= 0) return;
 
   const dpr = window.devicePixelRatio || 1;
@@ -100,4 +114,19 @@ export function renderSidePaneColumn(canvas: HTMLCanvasElement, wrapper: HTMLEle
 
     ctx.restore();
   });
+
+  // The main chart's own horizontal hover line, continued across this column at the same pixel
+  // Y — see this file's own `hoverY` doc. Drawn last (on top of every pane painted above), same as
+  // drawPriceCandles.ts's own copy draws after its candles.
+  if (hovered && hoverY !== null) {
+    ctx.save();
+    ctx.strokeStyle = style.colorMuted;
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.moveTo(0, hoverY);
+    ctx.lineTo(columnWidth, hoverY);
+    ctx.stroke();
+    ctx.restore();
+  }
 }

@@ -1,11 +1,13 @@
 import { useRef } from "react";
 import type { RefObject } from "react";
 import type * as React from "react";
+import * as d3 from "d3";
 import type { ScaleLinear } from "d3";
 import { useRenderSidePaneColumn } from "../hooks/useRenderSidePaneColumn";
 import { SidePaneHeaders } from "./SidePaneHeaders";
 import { SideDockCollapsedStrip } from "./SideDockCollapsedStrip";
 import { ChartAxis } from "../../ChartAxis";
+import { computeProfileValueScale } from "../render/drawPaneProfile";
 import type { DockSide } from "../hooks/useDockedPaneColumns";
 import type { Candle } from "../interfaces/Candle.interface";
 import type { Indicator } from "../interfaces/Indicator.interface";
@@ -45,6 +47,11 @@ export interface ChartSidePaneColumnProps {
   indicators: Indicator[];
   data: Candle[];
   hoverIndex: number | null;
+  /** See SidePaneColumnRenderParams' own `hovered`/`hoverY` doc — also used here, beyond the canvas
+   *  draw, to position a price badge on this column's own axis, mirroring `ChartHoverBadges`' main
+   *  chart one. */
+  hovered: Candle | null;
+  hoverY: number | null;
   startPaneResize: (paneKey: string, e: React.PointerEvent) => void;
   /** Folds/unfolds one pane of this column — its own UI state rather than `Indicator.paneCollapsed`
    *  written through `commitIndicators`, see usePaneLayout's own `sidePaneCollapsed` doc. */
@@ -102,6 +109,8 @@ export function ChartSidePaneColumn({
   indicators,
   data,
   hoverIndex,
+  hovered,
+  hoverY,
   startPaneResize,
   toggleSidePaneCollapsed,
   indicatorLabel,
@@ -131,6 +140,8 @@ export function ChartSidePaneColumn({
     zoomedPaneScales,
     visibleIndicators,
     indicators,
+    hovered,
+    hoverY,
   });
 
   // Reserved strips — toggled off `Indicator.sideAxesVisible` (default true, see its own doc), a
@@ -159,6 +170,11 @@ export function ChartSidePaneColumn({
   // uses on its far-right edge.
   const priceAxisX = side === "right" ? columnWidth : axisWidth;
   const priceAxisFmt = (v: number) => Number(v).toFixed(2);
+  // Same compact SI-prefix format the main volume pane's own axis falls back to (CandlestickChart's
+  // `vFmt`) — a profile's own value has no inherent unit (whatever a script's kernel/weighting
+  // produces), so a generic magnitude format reads reasonably whether that's a raw density near 0
+  // or a summed weight in the thousands.
+  const profileValueFmt = (v: number) => d3.format(".2s")(v);
 
   return (
     <div
@@ -245,6 +261,25 @@ export function ChartSidePaneColumn({
               </g>
             );
           })}
+          {/* A profile pane's own value/magnitude axis — its "X axis" — at the same bottom slot the
+              date axis below would otherwise occupy (see computeProfileValueScale's own doc for the
+              shared scale). Rendered per profile indicator, same guard the price axis loop above
+              uses, so a folded or axis-hidden profile draws neither. */}
+          {paneIndicators.map((ind, idx) => {
+            if (ind.customData?.draw !== "profile" || ind.paneCollapsed || ind.sideAxesVisible === false || paneHeights[idx] <= 0) return null;
+            const valueScale = computeProfileValueScale(ind.customData?.profile ?? [], side, columnWidth);
+            if (!valueScale) return null;
+            return (
+              <ChartAxis
+                key={`${ind.id}-value-axis`}
+                scale={valueScale}
+                orientation="bottom"
+                transform={`translate(${plotLeft}, ${plotBoundedHeight})`}
+                ticks={3}
+                tickFormat={profileValueFmt}
+              />
+            );
+          })}
           {/* One shared date axis for the whole column, at its true bottom (plotBoundedHeight,
               *before* the added axisHeight strip) — exactly where the main plot's own date axis
               sits relative to its candles (see ChartCanvasOverlay.tsx's own `transform`), so the
@@ -263,6 +298,28 @@ export function ChartSidePaneColumn({
             />
           )}
         </svg>
+      )}
+      {/* The main chart's own hover-price badge, continued onto this column's own axis at the exact
+          same pixel Y (see SidePaneColumnRenderParams' own `hoverY` doc for why no reprojection is
+          needed) — same classes as ChartHoverBadges' main-chart one, so it looks identical, minus
+          its "+ add price line" button (this column isn't a drawing surface, same reasoning
+          renderSidePaneColumn's own doc gives for excluding drawings entirely). Anchored to the
+          gutter `showAxes` already reserves (`axisWidth`), on whichever edge is this column's own
+          outer one — text hugs the axis line itself (`flex-start` beside it on a right-docked
+          column, `flex-end` on a left-docked one, where the line sits at the gutter's own *right*
+          edge instead). */}
+      {showAxes && hovered && hoverY !== null && (
+        <div
+          className="lq-chart__axis-value lq-chart__axis-value--y"
+          style={{
+            top: hoverY,
+            left: side === "right" ? contentLeft + priceAxisX : contentLeft,
+            width: axisWidth,
+            justifyContent: side === "right" ? "flex-start" : "flex-end",
+          }}
+        >
+          <span className="lq-chart__axis-value-text">{priceAxisFmt(zoomedPriceScale.invert(hoverY))}</span>
+        </div>
       )}
     </div>
   );

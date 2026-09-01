@@ -38,6 +38,11 @@ export interface UseDockedPaneColumnsStateArgs {
   data: Candle[];
   indicators: Indicator[];
   hoverIndex: number | null;
+  /** See SidePaneColumnRenderParams' own `hovered`/`hoverY` doc — forwarded untouched into `shared`
+   *  below, same as `zoomedPriceScale`, so both docked columns can continue the main chart's own
+   *  hover line/badge across their own canvas and axis. */
+  hovered: Candle | null;
+  hoverY: number | null;
   dateTickFormat: (value: number) => string;
   startPaneResize: (paneKey: string, e: React.PointerEvent) => void;
   /** Folds/unfolds one docked pane — its own UI state, not `Indicator.paneCollapsed`, see
@@ -79,6 +84,8 @@ export function useDockedPaneColumnsState({
   data,
   indicators,
   hoverIndex,
+  hovered,
+  hoverY,
   dateTickFormat,
   startPaneResize,
   toggleSidePaneCollapsed,
@@ -152,6 +159,8 @@ export function useDockedPaneColumnsState({
     indicators,
     data,
     hoverIndex,
+    hovered,
+    hoverY,
     startPaneResize,
     toggleSidePaneCollapsed,
     indicatorLabel,

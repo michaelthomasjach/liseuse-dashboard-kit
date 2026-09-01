@@ -1,4 +1,5 @@
 import type { ScaleLinear } from "d3";
+import type { Candle } from "./Candle.interface";
 import type { Indicator } from "./Indicator.interface";
 import type { IndicatorValue } from "./IndicatorValue.interface";
 
@@ -33,4 +34,13 @@ export interface SidePaneColumnRenderParams {
    *  cycling (`defaultIndicatorColor(indicators.indexOf(ind))`) stays consistent with the same
    *  indicator's own color wherever else it's referenced, same as the bottom stack's own. */
   indicators: Indicator[];
+  /** Whether the main chart is currently hovered and, if so, the hovered price's own pixel Y —
+   *  `effectiveHoverY`, the exact same clamped value `drawPriceCandles.ts` draws its own
+   *  horizontal hover line from. Valid unchanged on this column's own canvas since both share the
+   *  identical `zoomedPriceScale` (see that field's own doc) — no re-projection needed, just a
+   *  different horizontal extent (`columnWidth` instead of `dims.boundedWidth`). Lets the hover
+   *  line (and, in `ChartSidePaneColumn.tsx`, its own price badge) visually continue across this
+   *  column so a profile's own bulge can be read against the exact hovered price. */
+  hovered: Candle | null;
+  hoverY: number | null;
 }

@@ -1,5 +1,27 @@
+import * as d3 from "d3";
 import type { Indicator } from "../interfaces/Indicator.interface";
 import type { ChartCanvasStyle } from "../interfaces/ChartCanvasStyle.interface";
+
+/** The profile's own value/magnitude scale — `[0, maxValue]` mapped onto the column's width,
+ *  measured from the edge facing *away* from the chart inward (see this file's own doc on why):
+ *  a right-docked column ranges `[columnWidth, 0]` so value 0 sits at its own right edge and
+ *  `maxValue` reaches toward the chart, a left-docked one the mirror `[0, columnWidth]`. Shared by
+ *  the canvas draw below and `ChartSidePaneColumn.tsx`'s own bottom axis for this pane, so both
+ *  agree on exactly the same mapping — built fresh from `profile` each call rather than memoized
+ *  here since it's cheap (one reduce over however many grid points the script produced) and the
+ *  caller already re-renders on every relevant change anyway. Returns null for an empty/degenerate
+ *  profile (nothing to scale against) or a collapsed column, same guard `drawPaneProfile` itself
+ *  uses. */
+export function computeProfileValueScale(
+  profile: { price: number; value: number }[],
+  side: "left" | "right",
+  columnWidth: number
+): d3.ScaleLinear<number, number> | null {
+  if (columnWidth <= 0) return null;
+  const maxValue = profile.reduce((max, entry) => Math.max(max, entry.value), 0);
+  if (maxValue <= 0) return null;
+  return d3.scaleLinear().domain([0, maxValue]).range(side === "right" ? [columnWidth, 0] : [0, columnWidth]);
+}
 
 /** Paints one `pane.profile(name, values, prices)` series — the market-profile shape, drawn
  *  transposed as a single continuous curve. Two things make it different from every other pane
@@ -30,8 +52,8 @@ export function drawPaneProfile(
   const profile = indicator.customData?.profile ?? [];
   if (profile.length < 2 || columnWidth <= 0) return;
 
-  const maxValue = profile.reduce((max, entry) => Math.max(max, entry.value), 0);
-  if (maxValue <= 0) return;
+  const valueScale = computeProfileValueScale(profile, side, columnWidth);
+  if (!valueScale) return;
 
   // Sorted by price so the polyline walks the grid from one end to the other rather than jumping
   // around in whatever order the script pushed its own points.
@@ -47,10 +69,7 @@ export function drawPaneProfile(
   for (const entry of sorted) {
     const y = priceScale(entry.price);
     if (!Number.isFinite(y)) continue;
-    const depth = (entry.value / maxValue) * columnWidth;
-    // Anchored to the edge facing *away* from the chart, growing back toward it: a right-docked
-    // column measures leftward from its own right edge, a left-docked one rightward from its left.
-    const x = side === "right" ? columnWidth - depth : depth;
+    const x = valueScale(entry.value);
     if (started) ctx.lineTo(x, y);
     else {
       ctx.moveTo(x, y);

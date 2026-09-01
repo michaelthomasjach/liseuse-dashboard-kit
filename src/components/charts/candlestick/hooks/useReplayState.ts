@@ -96,8 +96,10 @@ export function useReplayState({ dataLength }: UseReplayStateArgs) {
 
   // Same setInterval/clearInterval-in-cleanup shape useChartAppearance.ts's own live-price tick
   // uses — the only other self-ticking state in this whole chart library. Reveals one more candle
-  // per tick, auto-pausing once there's nothing left to reveal instead of running past the data's
-  // own end.
+  // per tick, exiting replay entirely (not just pausing on the last bar, which left the mask
+  // sitting at the data's own edge — visually a no-op cover, but still "in" replay: the reset-zoom
+  // button kept targeting the revealed range and the header kept showing the replay toolbar) once
+  // there's nothing left to reveal.
   useEffect(() => {
     if (!playing) return;
     const id = setInterval(() => {
@@ -105,7 +107,7 @@ export function useReplayState({ dataLength }: UseReplayStateArgs) {
         if (i === null) return i;
         if (i + 1 >= dataLength - 1) {
           setPlaying(false);
-          return dataLength - 1;
+          return null;
         }
         return i + 1;
       });

@@ -101,6 +101,11 @@ export function useZoomAndScales({
   replayCutoffIndex,
 }: UseZoomAndScalesArgs) {
   const [transform, setTransform] = useState<d3.ZoomTransform>(d3.zoomIdentity);
+  // Mirrors `transform` for the replay auto-follow effect below, which deliberately does NOT list
+  // `transform` itself as a dependency (see that effect's own doc) — read via this ref instead so
+  // it always sees the *current* transform without re-running on every manual pan/zoom too.
+  const transformRef = useRef(transform);
+  transformRef.current = transform;
   const [yTransform, setYTransform] = useState<d3.ZoomTransform>(d3.zoomIdentity);
   // Set the moment the user manually zooms/pans the Y axis themselves (wheel/drag on the axis,
   // or the Y component of the 2D plot-drag) — while true, `YAutoScaling` stops overwriting their
@@ -449,6 +454,34 @@ export function useZoomAndScales({
     constrain: constrainXPan,
   });
 
+  // Replay's own auto-follow: each newly-revealed candle (`replayCutoffIndex`, advanced by
+  // useReplayState.ts's own play interval) that would land at or past the currently visible
+  // window's own right edge pans the chart forward just enough to bring it back into view —
+  // without this, playback keeps revealing candles behind a mask edge that's already scrolled
+  // past what's on screen, invisible until the user manually pans (confirmed bug report). Only
+  // `x` shifts, at the same zoom level; `setXTransformViaZoom` (not raw `setTransform`) keeps
+  // d3-zoom's own internally-tracked transform in sync, same reason resetZoom below uses it too.
+  //
+  // Deliberately keyed only on `replayCutoffIndex`/`replayActive` — reading the *current*
+  // transform via transformRef rather than depending on `transform`/`zoomedXScale` themselves, so
+  // a manual pan while replay is merely paused (reviewing already-revealed history) never gets
+  // silently snapped back forward on its own; only an actual new reveal does.
+  useEffect(() => {
+    if (!replayActive || replayCutoffIndex === null) return;
+    const current = transformRef.current;
+    const [, i1] = current.rescaleX(xScale).domain();
+    const revealedEdge = replayCutoffIndex + 1;
+    if (revealedEdge <= i1) return;
+    const dxIndex = revealedEdge - i1;
+    const dxPixels = current.k * (xScale(dxIndex) - xScale(0));
+    const next = constrainXPan(new d3.ZoomTransform(current.k, current.x - dxPixels, current.y), [
+      [0, 0],
+      [dims.boundedWidth, plotBoundedHeight],
+    ]);
+    setXTransformViaZoom(next);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [replayActive, replayCutoffIndex]);
+
   // The transform that shows exactly the last `count` candles, flush against the right edge —
   // shared by the initial-view effect below, `resetZoom` (reset targets this chart's own
   // initial scope, not a full dezoom), and `setVisibleCandleCount` (the header's bar-count
@@ -569,11 +602,46 @@ export function useZoomAndScales({
   // Deliberately targets this chart's own INITIAL scope (`initialTransformRef`), not `resetX()`
   // (which would always dezoom all the way out to the full dataset) — the "loupe -" button is
   // meant to undo the user's own zooming/panning, not discard the scope the chart opened with.
+  //
+  // While replay is active, that initial scope means nothing — it was computed against the whole
+  // dataset, most of which is still masked — so this targets the *revealed* candles instead
+  // ([0, cutoffIndex], flush left, filling the width) exactly like the confirmed bug report asked:
+  // "le zoom rescale la chart en fonction des bougies qu'affiche le mode replay". Same
+  // fit-to-width math `transformForVisibleCount` below uses, just anchored to the dataset's own
+  // start instead of a fixed candle count counted back from its end.
   function resetZoom() {
-    setXTransformAnimated(initialTransformRef.current);
+    let target = initialTransformRef.current;
+    if (replayActive && replayCutoffIndex !== null && dims.boundedWidth > 0) {
+      const x0 = xScale(0);
+      const x1 = xScale(replayCutoffIndex + 1);
+      if (x1 - x0 > 0) {
+        const k = Math.min(maxXZoom, Math.max(1, dims.boundedWidth / (x1 - x0)));
+        target = new d3.ZoomTransform(k, -k * x0, 0);
+      }
+    }
+    setXTransformAnimated(target);
     setYTransform(d3.zoomIdentity);
     setYManuallyAdjusted(false);
   }
+
+  // Space bar — same effect as clicking the "loupe -" toolbar button, the way a video player's own
+  // spacebar shortcut stands in for a visible button rather than introducing a separate concept.
+  // Skipped while a text input has focus (typing a space in the script editor or a symbol-search
+  // box shouldn't also reset the zoom), same guard/reasoning usePaneLayout's own Ctrl/Cmd+C/V
+  // shortcut already uses. `e.preventDefault()` both to stop the page's own default space-scrolls-
+  // down behavior and (a focused button/checkbox) space-activates-it behavior from also firing.
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.code !== "Space") return;
+      const active = document.activeElement;
+      const isEditableFocused = active instanceof HTMLElement && (active.tagName === "INPUT" || active.tagName === "TEXTAREA" || active.isContentEditable);
+      if (isEditableFocused) return;
+      e.preventDefault();
+      resetZoom();
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  });
 
   function setVisibleCandleCount(count: number) {
     const t = transformForVisibleCount(count);

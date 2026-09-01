@@ -772,7 +772,7 @@ export const BtcRealSample: Story = {
   render: () => (
     <div style={{ margin: -32 }}>
       <ChartWorkspace defaultPanels={1} scripting defaultScripts={KDE_DEBUG_SCRIPT}>
-        <CandlestickChart data={BTC_REAL_SAMPLE} symbol="BTCUSDT" zoomable showVolume replay />
+        <CandlestickChart data={BTC_REAL_SAMPLE} symbol="BTCUSDT" zoomable drawingTools showVolume showIndicators replay />
       </ChartWorkspace>
     </div>
   ),

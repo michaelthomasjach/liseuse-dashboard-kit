@@ -237,6 +237,14 @@ export function useScriptEngine(
     });
   }
 
+  // `run` closes over this render's own `data`/`effectiveRunUpToIndex` (plain function, not
+  // `useCallback`'d) — reassigned every render so the pending-debounce path below, which can fire
+  // several renders after the `setTimeout` that scheduled it, calls whatever `run` is *current* by
+  // then instead of replaying the stale cutoff/data the debounce happened to close over when it
+  // was first armed.
+  const runRef = useRef(run);
+  runRef.current = run;
+
   /** Interrupts whatever's currently running (or about to) — same terminate-and-respawn
    *  mechanism as a timeout, just user-initiated (the platform's own "Stop" button, see the
    *  plan's M5). */
@@ -259,15 +267,19 @@ export function useScriptEngine(
   // worth of work, so it takes the historical timeout rather than the much shorter real-time one —
   // see run()'s own doc on which constant `isRealtimeTick` picks.
   //
-  // Paced by whether a run is already in flight, not by the debounce alone. A plain trailing
-  // debounce starves under a replay playing at speed: every cutoff move rearms it, so it only ever
-  // elapses once playback *stops* — which is exactly the "it only updates when I pause" symptom.
-  // Restarting regardless would be worse: run() terminates a worker that is still mid-run (see its
-  // own doc on why it must), so a script slower than the cutoff moves would have every run killed
-  // before finishing and never produce anything at all. Instead a move arriving mid-run is
-  // remembered and replayed the moment that run lands — `running` is in the dependency list purely
-  // so its fall back to false wakes this effect up to do that. The result paces itself to whatever
-  // the script can actually sustain.
+  // Paced by whether a run is already in flight, not by the debounce alone — two starvation modes,
+  // both guarded against below. *Mid-run*: restarting the debounce regardless would kill a worker
+  // that's still mid-run (see run()'s own doc on why it must), so a script slower than the cutoff
+  // moves would have every run killed before finishing and never produce anything at all — a move
+  // arriving mid-run is instead remembered (deferredRerunRef) and replayed the moment that run
+  // lands (`running` is in the dependency list purely so its fall back to false wakes this effect
+  // up to do that). *Still idle, nothing running yet*: a plain trailing debounce that gets reset on
+  // every tick starves just as badly the moment ticks arrive faster than it — replaying at any
+  // speed above 1× at this hook's own default constants (SPEED_INTERVAL_MS / REALTIME_TICK_DEBOUNCE_MS)
+  // rearms it before it ever elapses, so it only ever fires once playback *stops* (the "changes
+  // speed, stops updating" symptom this once shipped as). Below, a debounce already pending is left
+  // alone instead of restarted — together the two mechanisms mean the script's own re-run cadence
+  // paces itself to whatever it can actually sustain, never fully starving either way.
   const previousRunUpToIndexRef = useRef(effectiveRunUpToIndex);
   const previousDataRef = useRef(data);
   const deferredRerunRef = useRef(false);
@@ -300,19 +312,30 @@ export function useScriptEngine(
     const wasDeferred = deferredRerunRef.current;
     deferredRerunRef.current = false;
     deferredBoundMovedRef.current = false;
-    // No cleanup returned on purpose: React runs the previous effect's cleanup before every
-    // re-entry, so clearing the pending debounce there would silently drop an already-scheduled
-    // re-run whenever this effect woke for an unrelated reason (a `running` flip, say). It is
-    // cleared explicitly here instead, and on unmount by the worker effect above.
-    clearPendingDebounce();
     if (wasDeferred) {
+      // Cancels a still-pending debounce from an *older* move now superseded by this one — no
+      // cleanup returned from the effect itself for this (React would run it before every
+      // re-entry, silently dropping an already-scheduled re-run whenever this effect wakes for an
+      // unrelated reason, a `running` flip say); cleared explicitly here instead, and on unmount
+      // by the worker effect above.
+      clearPendingDebounce();
       run(lastScriptCodeRef.current, !historical);
       return;
     }
-    debounceRef.current = setTimeout(() => {
-      debounceRef.current = null;
-      if (lastScriptCodeRef.current !== null) run(lastScriptCodeRef.current, !historical);
-    }, REALTIME_TICK_DEBOUNCE_MS);
+    // Only arm a *fresh* debounce — an already-pending one is left to fire on its own schedule
+    // rather than restarted. Replay ticking faster than REALTIME_TICK_DEBOUNCE_MS (any speed above
+    // 1× at this hook's own default constants) used to re-arm it on every single tick, so it never
+    // actually elapsed for as long as playback kept moving faster than that — the "changes speed,
+    // the indicator stops updating" symptom. Left alone, the pending timeout still bounds
+    // staleness to one debounce window and calls `runRef.current` (not this render's own `run`,
+    // which by fire time could be several renders stale) so it always replays against whatever
+    // cutoff/data is current *then*, not whatever this particular tick saw.
+    if (debounceRef.current === null) {
+      debounceRef.current = setTimeout(() => {
+        debounceRef.current = null;
+        if (lastScriptCodeRef.current !== null) runRef.current(lastScriptCodeRef.current, !historical);
+      }, REALTIME_TICK_DEBOUNCE_MS);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, effectiveRunUpToIndex, running]);
 

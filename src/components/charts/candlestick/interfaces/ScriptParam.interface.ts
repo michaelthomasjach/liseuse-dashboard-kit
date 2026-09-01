@@ -22,6 +22,13 @@ export interface ScriptParam {
    *  settings form. Absent when the declaration omitted it — the field then stands on its own name,
    *  which for something like `ATR_MULT` is often enough. */
   description?: string;
+  /** `type: "number"` only — the declaration's own `{ min, max }` option, both optional and
+   *  independent (either, both, or neither may be set). Threaded straight into the settings form's
+   *  `NumberField` (its own stepper buttons and typed/pasted values all clamp to this range) —
+   *  see `checkDefault`'s own doc for why the *default* is validated against these too, not just
+   *  values entered afterward. */
+  min?: number;
+  max?: number;
   /** Source span of the whole `new Variable(...)` initializer — what `applyScriptParams` swaps out
    *  for the effective value before the code is compiled. */
   from: number;

@@ -28,7 +28,8 @@ export const SCRIPT_API_COMPLETIONS: ScriptApiCompletion[] = [
   {
     label: "Variable",
     type: "keyword",
-    detail: '(type, défaut, { description? }) — paramètre réglable : "string" | "number" | "boolean" | "Array[string]" | "Array[number]" | "color"',
+    detail:
+      '(type, défaut, { description?, min?, max? }) — paramètre réglable : "string" | "number" | "boolean" | "Array[string]" | "Array[number]" | "color". min/max uniquement pour "number".',
     apply: 'new Variable("number", 1, { description: "" })',
   },
   { label: "market.open", type: "function", detail: "(offset?) => number | null", apply: "market.open()" },

@@ -1,4 +1,4 @@
-import { forwardRef } from "react";
+import { forwardRef, useEffect, useRef, useState } from "react";
 import { TextField, type TextFieldProps } from "./TextField";
 import "./NumberField.css";
 
@@ -27,12 +27,39 @@ function round4(n: number): number {
   return Math.round(n * 10000) / 10000;
 }
 
+/** Turns whatever the field displays into a value `Number()` can parse — accepting a comma as a
+ *  decimal separator alongside a period, since it's the actual character a French AZERTY numpad's
+ *  own decimal key types (not a locale quirk to work around, a second valid spelling to accept).
+ *  Only the *first* comma/period becomes the decimal point; any further one is dropped rather than
+ *  rejecting the whole string, so a stray double-tap doesn't wipe out an otherwise-valid edit. */
+function normalizeDecimal(raw: string): string {
+  let seenSeparator = false;
+  let out = "";
+  for (const ch of raw) {
+    if (ch === "." || ch === ",") {
+      if (seenSeparator) continue;
+      seenSeparator = true;
+      out += ".";
+    } else {
+      out += ch;
+    }
+  }
+  return out;
+}
+
 /** Numeric input with optional +/- steppers and a prefix/suffix (currency, percent…). Every value
  *  this can ever actually produce — typed, pasted, or via the steppers — is rounded to 4 decimal
  *  places (see round4's own doc) before reaching `onChange`, so a caller never has to guard
- *  against float noise on its own end. */
+ *  against float noise on its own end.
+ *
+ *  A plain text input under the hood, not `type="number"`: a native number input's own displayed
+ *  text is locale-formatted by the browser itself — under French, typing "." is silently redrawn
+ *  as "," (confirmed bug report), and there is no way for this component to opt out of that from
+ *  the outside. Rendering as text and parsing by hand (see normalizeDecimal) sidesteps it
+ *  entirely — what's typed is what's shown, "." and "," both parse, and the displayed value is
+ *  never at the mercy of whatever locale the browser happens to be running under. */
 export const NumberField = forwardRef<HTMLInputElement, NumberFieldProps>(function NumberField(
-  { value, onChange, min, max, step = 1, prefix, suffix, leadingIcon, trailingIcon, ...rest },
+  { value, onChange, min, max, step = 1, prefix, suffix, leadingIcon, trailingIcon, onFocus, onBlur, ...rest },
   ref
 ) {
   const clamp = (n: number) => {
@@ -42,22 +69,57 @@ export const NumberField = forwardRef<HTMLInputElement, NumberFieldProps>(functi
     return v;
   };
 
+  const formatted = value === "" ? "" : String(round4(value));
+  // The field's own text while the user is actively editing it — `null` means "not being edited
+  // right now, just mirror `value`". Diverges from `formatted` mid-edit on purpose: a fully
+  // controlled `value={formatted}` would collapse "3." back down to "3" (its own trailing decimal
+  // point stripped) on every keystroke, the exact reason a native number input is normally used
+  // for this in the first place — this recreates that same forgiving behavior by hand instead,
+  // since `type="number"` itself is what introduces the locale bug above.
+  const [draft, setDraft] = useState<string | null>(null);
+  const focusedRef = useRef(false);
+
+  // A `value` change that didn't come from this field's own typing (a reset button, another
+  // control driving the same setting, the caller's own `value` prop changing) has to win over
+  // a stale draft — but only while not focused, so it doesn't fight the user's own edit in
+  // progress by re-syncing out from under them mid-keystroke.
+  useEffect(() => {
+    if (focusedRef.current) return;
+    setDraft(null);
+  }, [formatted]);
+
+  const displayValue = draft ?? formatted;
+
   return (
     <TextField
       ref={ref}
-      type="number"
+      type="text"
       inputMode="decimal"
-      // round4 here too — a value can arrive already drifted (data saved before this rounding
-      // existed, or set through some other path entirely) rather than only ever drifting via this
-      // component's own steppers, and displaying it as-is would show that same float noise
-      // regardless of how clean everything is from here on out.
-      value={value === "" ? "" : round4(value)}
-      min={min}
-      max={max}
-      step={step}
+      value={displayValue}
+      onFocus={(e) => {
+        focusedRef.current = true;
+        onFocus?.(e);
+      }}
+      onBlur={(e) => {
+        focusedRef.current = false;
+        setDraft(null);
+        onBlur?.(e);
+      }}
       onChange={(e) => {
         const raw = e.target.value;
-        onChange(raw === "" ? "" : round4(Number(raw)));
+        setDraft(raw);
+        if (raw === "" || raw === "-") {
+          onChange("");
+          return;
+        }
+        const n = Number(normalizeDecimal(raw));
+        // Genuinely unparseable input (a bare "-" partway through "-5", a stray letter) leaves
+        // `onChange` uncalled — the draft set above still shows exactly what was typed, `onChange`
+        // just doesn't fire again until it resolves back to a real number. A parseable-but-out-of-
+        // range one (typing "5" into a max=1 field) still commits, clamped — the *reported* value
+        // never exceeds min/max even mid-edit, only the draft text keeps showing what was actually
+        // typed until blur resyncs it to the clamped value.
+        if (Number.isFinite(n)) onChange(clamp(n));
       }}
       leadingIcon={prefix ? <span className="lq-number-field__affix">{prefix}</span> : leadingIcon}
       trailingIcon={

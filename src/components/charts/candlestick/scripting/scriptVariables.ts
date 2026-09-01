@@ -95,30 +95,43 @@ function checkDefault(type: ScriptParamType, node: SyntaxNode, code: string): { 
   return Array.isArray(value) ? { value: value as ScriptParamValue } : { message: expected };
 }
 
-/** Reads the optional third argument, `{ description: "…" }`. Deliberately an options object
- *  rather than a third positional string: it matches `plot.pane(name, { dock: "right" })`, the
- *  convention already used elsewhere in this API, and leaves room for further options without
- *  another positional slot. */
-function readOptions(node: SyntaxNode, code: string): { description?: string } | { message: string } {
+/** Reads the optional third argument, `{ description: "…", min?, max? }`. Deliberately an options
+ *  object rather than a third positional string: it matches `plot.pane(name, { dock: "right" })`,
+ *  the convention already used elsewhere in this API, and leaves room for further options without
+ *  another positional slot. `min`/`max` are only meaningful for `type: "number"` — checked by the
+ *  caller, once it knows the declaration's own type, not here (this function has no idea what type
+ *  it was called for). */
+function readOptions(node: SyntaxNode, code: string): { description?: string; min?: number; max?: number } | { message: string } {
   if (node.name !== "ObjectExpression") return { message: 'Le troisième argument doit être un objet, par exemple { description: "…" }.' };
 
   let description: string | undefined;
+  let min: number | undefined;
+  let max: number | undefined;
   for (let child = node.firstChild; child; child = child.nextSibling) {
     if (child.name !== "Property") continue;
     const key = child.firstChild;
     if (!key) continue;
     const keyName = key.name === "PropertyDefinition" || key.name === "PropertyName" ? code.slice(key.from, key.to) : null;
-    if (keyName !== "description") {
-      return { message: `Option inconnue${keyName ? ` : ${keyName}` : ""}. Seule { description } est acceptée.` };
+    if (keyName !== "description" && keyName !== "min" && keyName !== "max") {
+      return { message: `Option inconnue${keyName ? ` : ${keyName}` : ""}. Seules { description, min, max } sont acceptées.` };
     }
-    // The value is the last child of the property — `description: "…"` is key, ":", value.
+    // The value is the last child of the property — `key: value` is key, ":", value.
     const value = child.lastChild;
-    if (!value || value.name !== "String") return { message: "La description doit être une chaîne de caractères." };
-    const text = literalValue(value, code);
-    if (typeof text !== "string") return { message: "La description doit être une chaîne de caractères." };
-    description = text;
+    if (keyName === "description") {
+      if (!value || value.name !== "String") return { message: "La description doit être une chaîne de caractères." };
+      const text = literalValue(value, code);
+      if (typeof text !== "string") return { message: "La description doit être une chaîne de caractères." };
+      description = text;
+      continue;
+    }
+    if (!value || !isNumberLiteral(value, code)) return { message: `${keyName} doit être un nombre.` };
+    const num = literalValue(value, code);
+    if (typeof num !== "number" || !Number.isFinite(num)) return { message: `${keyName} doit être un nombre.` };
+    if (keyName === "min") min = num;
+    else max = num;
   }
-  return { description };
+  if (min !== undefined && max !== undefined && min > max) return { message: "min ne peut pas être supérieur à max." };
+  return { description, min, max };
 }
 
 /** Every `VariableDefinition` in the tree, so a name that is merely *shadowed* later (a function
@@ -148,7 +161,8 @@ function collectShadowedNames(tree: ReturnType<typeof javascriptParser.parse>, c
  *    expression that isn't assigned to anything;
  *  - the type must be one of SCRIPT_PARAM_TYPES;
  *  - the default value must actually match that type;
- *  - the optional third argument is `{ description }` and nothing else;
+ *  - the optional third argument is `{ description, min, max }` and nothing else — `min`/`max`
+ *    only on a "number" declaration, and the default itself must already fall within them;
  *  - a declared name may not be reassigned anywhere later in the script.
  *
  *  Both a linter (`diagnostics`) and the source of the settings form (`params`) — one parse feeding
@@ -204,7 +218,7 @@ export function analyzeScriptVariables(code: string): { params: ScriptParam[]; d
       diagnostics.push({
         from: node.from,
         to: node.to,
-        message: "new Variable attend le type, la valeur par défaut, puis éventuellement { description }.",
+        message: "new Variable attend le type, la valeur par défaut, puis éventuellement { description, min, max }.",
       });
       continue;
     }
@@ -227,10 +241,13 @@ export function analyzeScriptVariables(code: string): { params: ScriptParam[]; d
       continue;
     }
 
-    // Third argument — the options object. Only `description` is understood; an unknown key is
-    // reported rather than ignored, so a typo ("descrition") surfaces instead of silently doing
+    // Third argument — the options object. `description` on any type, `min`/`max` on "number"
+    // only; an unknown key (or min/max on a non-number type) is reported rather than ignored, so
+    // a typo ("descrition") or a stray `min` on a string surfaces instead of silently doing
     // nothing.
     let description: string | undefined;
+    let min: number | undefined;
+    let max: number | undefined;
     if (optionsNode) {
       const options = readOptions(optionsNode, code);
       if ("message" in options) {
@@ -238,6 +255,22 @@ export function analyzeScriptVariables(code: string): { params: ScriptParam[]; d
         continue;
       }
       description = options.description;
+      min = options.min;
+      max = options.max;
+      if ((min !== undefined || max !== undefined) && type !== "number") {
+        diagnostics.push({ from: optionsNode.from, to: optionsNode.to, message: "min/max ne s'appliquent qu'à new Variable(\"number\", …)." });
+        continue;
+      }
+      if (type === "number" && typeof checked.value === "number") {
+        if (min !== undefined && checked.value < min) {
+          diagnostics.push({ from: defaultNode.from, to: defaultNode.to, message: `La valeur par défaut doit être ≥ ${min}.` });
+          continue;
+        }
+        if (max !== undefined && checked.value > max) {
+          diagnostics.push({ from: defaultNode.from, to: defaultNode.to, message: `La valeur par défaut doit être ≤ ${max}.` });
+          continue;
+        }
+      }
     }
 
     const previous = declaredAt.get(name);
@@ -246,7 +279,7 @@ export function analyzeScriptVariables(code: string): { params: ScriptParam[]; d
       continue;
     }
     declaredAt.set(name, node.from);
-    params.push({ name, type, defaultValue: checked.value, description, from: node.from, to: node.to });
+    params.push({ name, type, defaultValue: checked.value, description, min, max, from: node.from, to: node.to });
   } while (cursor.next());
 
   // Pass 2 — reassignment of a declared parameter, anywhere later in the script.

@@ -81,6 +81,8 @@ export function ScriptParamsFields({ params, values, onChange }: ScriptParamsFie
               label={param.name}
               helperText={param.description}
               value={typeof value === "number" ? value : ""}
+              min={param.min}
+              max={param.max}
               // An empty field is a transient editing state, not a value — keeping the last real
               // number means clearing the box never commits a NaN into a running script.
               onChange={(v) => setDraft(param.name, v === "" ? (typeof value === "number" ? value : param.defaultValue) : v)}

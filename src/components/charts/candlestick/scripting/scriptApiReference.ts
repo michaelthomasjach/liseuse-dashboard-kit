@@ -179,7 +179,7 @@ une ligne vide ouvre un nouveau paragraphe.
         "Une constante déclarée avec new Variable(type, valeur par défaut) apparaît comme un champ réglable dans deux endroits : le panneau « Paramètres » de l'éditeur, et l'onglet « Entrées » de la fenêtre de réglages de chaque pane produite par le script. Changer une valeur relance le script tout seul — pas besoin de recliquer sur « Exécuter »."
       ),
       c(
-        `const ATR_MULT = new Variable("number", 3.0, { description: "Largeur du noyau, en multiples d'ATR." });
+        `const ATR_MULT = new Variable("number", 3.0, { description: "Largeur du noyau, en multiples d'ATR.", min: 0.1, max: 10 });
 const PALIERS = new Variable("Array[number]", [0.5, 1, 2]);
 const COULEUR = new Variable("color", "#3b82f6");
 const AFFICHER_SIGNAUX = new Variable("boolean", true);
@@ -197,12 +197,13 @@ const bandwidth = (ta.atr(14) ?? 1) * ATR_MULT;`
         '"Array[string]" — un tableau de textes, par exemple ["a", "b"].',
       ]),
       t(
-        "Le troisième argument est facultatif et n'accepte aujourd'hui qu'une seule option, { description: \"…\" }, dont le texte s'affiche sous le champ correspondant."
+        "Le troisième argument est facultatif : { description: \"…\" }, dont le texte s'affiche sous le champ correspondant, et — uniquement pour \"number\" — { min, max }, qui bornent à la fois le champ (ses boutons +/- s'arrêtent à la limite, une valeur tapée hors bornes est ramenée dedans) et la valeur par défaut elle-même. Les trois se combinent librement : { description: \"…\", min: 0, max: 100 }."
       ),
-      t("Trois règles, signalées comme des erreurs directement dans l'éditeur, avant même d'exécuter :"),
+      t("Règles, signalées comme des erreurs directement dans l'éditeur, avant même d'exécuter :"),
       l([
         "La déclaration doit être un const. let et var sont refusés — un réglage ne change pas en cours de route.",
         'La valeur par défaut doit correspondre au type déclaré : new Variable("string", 5) est une erreur, new Variable("string", "5") non.',
+        "min/max ne s'appliquent qu'à un \"number\" — les poser sur un autre type est une erreur, tout comme min supérieur à max ou une valeur par défaut hors de cet intervalle.",
         "Une variable déclarée ne peut plus être réaffectée ailleurs dans le script — ni par =, ni par +=, ni par ++ ou --. Sa valeur se change dans les réglages, pas dans le code.",
       ]),
       t(

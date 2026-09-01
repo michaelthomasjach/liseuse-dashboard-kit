@@ -203,14 +203,41 @@ pose dès qu'une clôture en franchit un.
 // new Variable(type, défaut, { description }) expose la constante dans la fenêtre de réglages :
 // on peut la régler sans rouvrir le code, et le script se relance tout seul à chaque changement.
 // La description s'affiche sous le champ correspondant.
-const WINDOW = new Variable("number", 60, { description: "Nombre de bougies analysées pour construire le profil." });
-const GRID = new Variable("number", 60, { description: "Finesse du profil : nombre de paliers de prix entre le plus bas et le plus haut." });
-const FIRST_W = new Variable("number", 0.2, { description: "Poids de la bougie la plus ancienne (1 = autant que la plus récente)." });
-const ATR_MULT = new Variable("number", 0.3, { description: "Largeur du noyau gaussien, en multiples d'ATR. Plus haut = profil plus lissé, moins de niveaux." });
-const GRID_PAD = new Variable("number", 2, { description: "De combien de largeurs de noyau la grille déborde de part et d'autre des prix observés." });
-const PROM_THRESH = new Variable("number", 0.12, { description: "Proéminence minimale d'un pic pour devenir un niveau, en fraction du pic le plus haut." });
-const RECALC_EVERY = new Variable("number", 1, { description: "Recalculer le profil toutes les N bougies. 1 = à chaque bougie ; plus haut = moins de calcul, mais le profil se fige entre deux recalculs." });
-const PROFIL_COULEUR = new Variable("color", "#c47f2a", { description: "Couleur de la courbe du profil affiché à droite." });
+const WINDOW = new Variable("number", 60, {
+  description: "Nombre de bougies (les plus récentes) utilisées pour construire le profil — la fenêtre glissante sur laquelle tout le reste du calcul travaille.",
+  min: 10,
+});
+const GRID = new Variable("number", 60, {
+  description:
+    "Nombre de niveaux de prix échantillonnés entre le plus bas et le plus haut de la fenêtre. C'est le réglage qui pèse le plus sur la forme du profil : bas (quelques dizaines) donne un profil grossier à peu de pics larges, haut (une centaine ou plus) un profil fin capable de distinguer des pics rapprochés — deux profils avec les mêmes ATR_MULT/PROM_THRESH mais des GRID très différents n'auront pas du tout la même allure.",
+  min: 5,
+});
+const FIRST_W = new Variable("number", 0.2, {
+  description: "Poids de la bougie la plus ancienne de la fenêtre par rapport à la plus récente. Plus bas = le profil privilégie les prix récents.",
+  min: 0,
+  max: 1,
+});
+const ATR_MULT = new Variable("number", 0.3, {
+  description:
+    "Largeur du noyau gaussien posé sur chaque clôture, en multiples de l'ATR. Bas = noyaux étroits, profil détaillé à beaucoup de pics ; haut = noyaux larges, profil lissé à peu de pics mais plus robustes.",
+  min: 0.05,
+});
+const GRID_PAD = new Variable("number", 2, {
+  description:
+    "Marge ajoutée de part et d'autre de la grille de prix, en multiples de la largeur du noyau — sans elle la densité resterait élevée jusqu'au bord et le profil ne redescendrait jamais vers zéro.",
+  min: 0,
+});
+const PROM_THRESH = new Variable("number", 0.12, {
+  description:
+    "Hauteur minimale qu'un pic doit dépasser au-dessus de ses vallées voisines pour devenir un niveau, en fraction du pic le plus haut du profil. Bas = plus de niveaux détectés, y compris des pics mineurs ; haut = seuls les pics les plus marqués sont gardés.",
+  min: 0,
+  max: 1,
+});
+const RECALC_EVERY = new Variable("number", 1, {
+  description: "Recalculer le profil toutes les N bougies plutôt qu'à chaque bougie. 1 = à chaque bougie ; plus haut = moins de calcul, mais le profil reste figé entre deux recalculs.",
+  min: 1,
+});
+const PROFIL_COULEUR = new Variable("color", "#c47f2a", { description: "Couleur de la courbe du profil affichée dans la pane de droite." });
 const AFFICHER_FLECHES = new Variable("boolean", true, { description: "Affiche les flèches BUY/SELL sur le graphique quand un niveau est franchi." });
 
 function findPeaks(values, minProminence) {

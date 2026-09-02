@@ -72,3 +72,29 @@
 .lq-code-block__line-content {
   white-space: pre;
 }
+
+/* Syntax colours for an opt-in highlighted CodeBlock (see highlightJavaScript.ts). Reads the
+   `--lq-code-*` tokens, which deliberately survive the e-ink palette — code is a tool surface, and
+   every token collapsing to one near-black makes a snippet as unreadable as an uncoloured editor. */
+.lq-code--keyword {
+  color: var(--lq-code-keyword);
+}
+.lq-code--string {
+  color: var(--lq-code-string);
+}
+.lq-code--number {
+  color: var(--lq-code-number);
+}
+.lq-code--comment {
+  color: var(--lq-code-comment);
+  font-style: italic;
+}
+.lq-code--function {
+  color: var(--lq-code-function);
+}
+.lq-code--property {
+  color: var(--lq-code-property);
+}
+.lq-code--operator {
+  color: var(--lq-code-operator);
+}

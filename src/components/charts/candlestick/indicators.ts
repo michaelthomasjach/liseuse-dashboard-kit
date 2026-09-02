@@ -31,7 +31,7 @@ import { computeCandleRecognitionValues } from "./candleRecognition";
  *  (the built-in eight) and `computeCustomIndicatorValues` (a caller-supplied `CustomIndicatorDef`
  *  — see its own doc) so both read exactly the same way despite one being baked into the library
  *  and the other entirely external to it. `points` doesn't need to be pre-sorted. */
-function forwardFillSeries(data: Candle[], points: { date: Date; value: number }[]): (number | null)[] {
+export function forwardFillSeries(data: Candle[], points: { date: Date; value: number }[]): (number | null)[] {
   if (points.length === 0) return data.map(() => null);
   const sorted = [...points].sort((a, b) => a.date.getTime() - b.date.getTime());
   let cursor = 0;

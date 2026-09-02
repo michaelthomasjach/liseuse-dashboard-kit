@@ -517,6 +517,42 @@ plot.xy("Parabole", x, y, { xLabel: "x", yLabel: "y", title: "y = x²" });`
     ],
   },
   {
+    id: "company",
+    title: "company.*",
+    group: "API du script",
+    blocks: [
+      t(
+        "company.* donne accès aux fondamentaux publiés par la société — le pendant de market.* pour les chiffres d'entreprise plutôt que pour le prix."
+      ),
+      h("company.value(champ, offset?)", ["company.value"]),
+      c(
+        `const per = company.value("peRatio");
+const bpaPrecedent = company.value("eps", 20); // 20 bougies plus tôt
+if (per !== null && per < 15) plot.signal("BUY");`
+      ),
+      t(
+        "Un chiffre publié ne change qu'aux dates de publication : entre deux rapports, company.value renvoie la dernière valeur connue, exactement comme un panneau fondamental l'affiche en escalier. Avant le tout premier rapport, ou pour une métrique que l'hôte n'a pas fournie, la réponse est null — jamais une valeur inventée."
+      ),
+      t("Les champs disponibles, quand l'hôte les fournit :"),
+      l([
+        "eps — bénéfice par action.",
+        "peRatio — ratio cours/bénéfice.",
+        "netIncome — résultat net.",
+        "totalRevenue — chiffre d'affaires.",
+        "netMargin / grossMargin — marges, en pourcentage.",
+        "freeCashFlow — flux de trésorerie disponible.",
+        "debtToEquity — dette rapportée aux fonds propres.",
+      ]),
+      h("company.fields()", ["company.fields"]),
+      t(
+        "La liste des métriques réellement disponibles sur ce graphe. Tous les graphes n'ont pas les mêmes : une action peut avoir un P/E sans marge brute, un indice n'en a aucune. Lire cette liste évite d'écrire un script qui suppose une donnée absente."
+      ),
+      t(
+        "Comme market.*, ces lectures sont bornées à la bougie en cours : un offset négatif, ou qui dépasserait la bougie courante, renvoie null. Aucun script ne peut lire un rapport qui n'était pas encore publié."
+      ),
+    ],
+  },
+  {
     id: "state",
     title: "state.*",
     group: "API du script",

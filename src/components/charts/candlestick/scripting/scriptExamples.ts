@@ -238,7 +238,7 @@ const RECALC_EVERY = new Variable("number", 1, {
   min: 1,
 });
 const PROFIL_COULEUR = new Variable("color", "#c47f2a", { description: "Couleur de la courbe du profil affichée dans la pane de droite." });
-const AFFICHER_FLECHES = new Variable("boolean", true, { description: "Affiche les flèches BUY/SELL sur le graphique quand un niveau est franchi." });
+const AFFICHER_FLECHES = new Variable("boolean", false, { description: "Affiche les flèches BUY/SELL sur le graphique quand un niveau est franchi." });
 // DEBOUNCE_MS est le seul nom que le moteur lit lui-même plutôt que de se contenter de le
 // substituer dans le code compilé (voir la doc de useScriptEngine) : il règle le délai d'anti-
 // rafale avant un recalcul déclenché par un tick de marché en direct qui ne fait que mettre à jour

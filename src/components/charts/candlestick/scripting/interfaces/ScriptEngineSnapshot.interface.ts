@@ -42,6 +42,13 @@ export interface ScriptEngineSnapshot {
   /** The last index to replay this run — always `ohlcv.length - 1` for both a full historical
    *  replay and a single real-time tick (a tick is just "replay ending one bar later," not a
    *  separate code path — see runScript's own doc). */
+  /** One entry per fundamental metric the host supplied (`eps`, `peRatio`, `netIncome`…), each
+   *  already projected onto `ohlcv` bar by bar — the *same* forward fill the built-in fundamental
+   *  panes render (flat from one report to the next, `null` before the first), so a script and a
+   *  pane can never disagree about what a company reported on a given bar. Empty when the host
+   *  passed no fundamentals. Read through `company.*`, which bounds it to the current bar the same
+   *  way `market.*` does. */
+  fundamentalSeries: Record<string, (number | null)[]>;
   runUpToIndex: number;
   /** The user's own script source, compiled fresh inside the Worker via `new Function` on every
    *  run (see runScript.ts) — never persisted or cached Worker-side across runs, so a script edit

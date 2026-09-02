@@ -213,6 +213,33 @@
   --lq-color-violet: #b7a8de;
 }
 
+/* Syntax-highlighting palette, deliberately kept *outside* the e-ink collapse below.
+   The e-ink palette exists so chart data reads on greyscale hardware; source code has the opposite
+   requirement — the whole point of highlighting is telling a keyword from a string from a number,
+   and every one of those rendering as the same near-black makes an editor unusable. These are the
+   only colours in the library that survive the monochrome palette, and they do so because a code
+   editor and a reference manual are tool surfaces, not chart data. Used by both the CodeMirror
+   editor (ScriptEditorCodeMirror.tsx) and the static CodeBlock, so the two never drift apart. */
+.lq-root {
+  --lq-code-keyword: #7c3aed;
+  --lq-code-string: #0f766e;
+  --lq-code-number: #b45309;
+  --lq-code-comment: #6b7280;
+  --lq-code-function: #1d4ed8;
+  --lq-code-property: #334155;
+  --lq-code-operator: #6b7280;
+}
+
+.lq-root[data-lq-surface="dark"] {
+  --lq-code-keyword: #c4b5fd;
+  --lq-code-string: #5eead4;
+  --lq-code-number: #fcd34d;
+  --lq-code-comment: #9ca3af;
+  --lq-code-function: #93c5fd;
+  --lq-code-property: #e2e8f0;
+  --lq-code-operator: #9ca3af;
+}
+
 /* Fallback accent tokens for the e-ink palette so shared components
    (e.g. color swatches) still render meaningfully in monochrome. */
 .lq-root[data-lq-palette="eink"] {

@@ -5,6 +5,7 @@ import { buildPlotApi } from "./buildPlotApi";
 import { buildStateApi } from "./buildStateApi";
 import { buildAlertApi } from "./buildAlertApi";
 import { buildBarApi } from "./buildBarApi";
+import { buildCompanyApi } from "./buildCompanyApi";
 import { mathApi } from "./mathLib";
 import { taApi } from "./taLib";
 
@@ -95,6 +96,7 @@ export function runScript(snapshot: ScriptEngineSnapshot): ScriptRunResult {
   const state = buildStateApi();
   const { api: alert, getAlerts } = buildAlertApi(getCurrentIndex, getCurrentDate);
   const bar = buildBarApi(snapshot, getCurrentIndex);
+  const company = buildCompanyApi(snapshot, getCurrentIndex);
 
   type CompiledScript = (
     market: unknown,
@@ -103,6 +105,7 @@ export function runScript(snapshot: ScriptEngineSnapshot): ScriptRunResult {
     state: unknown,
     alert: unknown,
     bar: unknown,
+    company: unknown,
     math: unknown,
     ta: unknown,
     console: unknown
@@ -116,6 +119,7 @@ export function runScript(snapshot: ScriptEngineSnapshot): ScriptRunResult {
       "state",
       "alert",
       "bar",
+      "company",
       "math",
       "ta",
       "console",
@@ -139,7 +143,7 @@ export function runScript(snapshot: ScriptEngineSnapshot): ScriptRunResult {
   for (let i = 0; i <= snapshot.runUpToIndex; i++) {
     currentIndex = i;
     try {
-      compiled(market, chart, plot, state, alert, bar, mathApi, taApi, scriptConsole);
+      compiled(market, chart, plot, state, alert, bar, company, mathApi, taApi, scriptConsole);
     } catch (err) {
       const { panes, drawings, table, xyCharts, labels } = getPlotResult();
       return { error: toScriptError(err), logs, panes, drawings, table, xyCharts, alerts: getAlerts(), labels };

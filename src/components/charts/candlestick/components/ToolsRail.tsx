@@ -43,9 +43,9 @@ export interface ToolsRailProps {
 /** The drawing-tools rail (`drawingTools` prop), left-docked and vertical by default or
  *  bottom-docked and horizontal when `horizontal` is set (see CandlestickChart's own
  *  isMobileRail/MOBILE_RAIL_BREAKPOINT — too narrow to stack every button in a left column): one
- *  button + chevron + flyout menu per tool category (see DRAWING_TOOL_CATEGORIES — Lines/
- *  Fibonacci/Chart patterns/Forecasting/Measure, each menu headed by its own category name and,
- *  for the tall "Lines" one, further broken into smaller visual clusters by a thin divider
+ *  button + chevron + flyout menu per tool category (see DRAWING_TOOL_CATEGORIES — Lignes/
+ *  Fibonacci/Figures chartistes/Projections/Mesure, each menu headed by its own category name and,
+ *  for the tall "Lignes" one, further broken into smaller visual clusters by a thin divider
  *  wherever DrawingToolDef.subgroup changes), then a separator and the persistent aimant/
  *  hide-drawings/lock-drawings/event-visibility toggles, then the "Dessins et indicateurs"
  *  manager button pinned to the rail's own trailing edge. In horizontal mode the row doesn't try
@@ -190,8 +190,8 @@ export function ToolsRail({
             </Fragment>
           );
         })}
-        {/* Marks the boundary between the drawing-tool category buttons above (Lines/Fibonacci/
-            Chart patterns/Forecasting/Measure) and the persistent modifier toggles below —
+        {/* Marks the boundary between the drawing-tool category buttons above (Lignes/Fibonacci/
+            Figures chartistes/Projections/Mesure) and the persistent modifier toggles below —
             unconditional (always sits right here) rather than tied to whichever category happens
             to render last, so it can't silently disappear if the category list itself changes. */}
         <div className="lq-chart__tool-separator" aria-hidden="true" />

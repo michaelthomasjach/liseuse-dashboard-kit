@@ -152,16 +152,18 @@ export interface DrawingToolCategory {
 
 // Each category gets its own button + chevron + dropdown in the rail (see the JSX below) —
 // the button represents whichever of its own tools was picked last (defaulting to the first),
-// same as the single button used to for the whole flat list before categories existed. 5
-// categories by design: "shapes" (folded into "lines" as its generalist catch-all) and "elliott"
-// (renamed/repurposed into "chartPatterns", gaining headShoulders, since Elliott waves are
-// themselves one kind of chart pattern) both lost their own top-level slot; "measure" kept its
-// own instead of joining "lines" like "shapes" did, since unlike a shape it doesn't add a drawing
-// to the chart at all — a different enough kind of tool to stay a category of its own.
+// same as the single button used to for the whole flat list before categories existed. 6
+// categories today: "shapes" (folded into "lines" as its generalist catch-all) and "elliott"
+// (renamed/repurposed into "chartPatterns", gaining headShoulders and cupHandle, since Elliott
+// waves are themselves one kind of chart pattern) both lost their own top-level slot; "measure"
+// kept its own instead of joining "lines" like "shapes" did, since unlike a shape it doesn't add
+// a drawing to the chart at all — a different enough kind of tool to stay a category of its own;
+// "forecasting" and "textNotes" were added later as genuinely new tool families, not reshuffles
+// of the original set.
 export const DRAWING_TOOL_CATEGORIES: DrawingToolCategory[] = [
   {
     id: "lines",
-    label: "Lines",
+    label: "Lignes",
     tools: [
       // subgroup "trend": the original free/constrained trend-line family.
       { type: "trendline", label: "Ligne de tendance", icon: TrendLineIcon, subgroup: "trend" },
@@ -197,7 +199,7 @@ export const DRAWING_TOOL_CATEGORIES: DrawingToolCategory[] = [
   },
   {
     id: "chartPatterns",
-    label: "Chart patterns",
+    label: "Figures chartistes",
     tools: [
       { type: "elliottImpulse", label: "Vague d'Elliott (impulsive)", icon: ElliottImpulseIcon },
       { type: "elliottCorrection", label: "Vague d'Elliott (correctrice)", icon: ElliottCorrectionIcon },
@@ -207,10 +209,10 @@ export const DRAWING_TOOL_CATEGORIES: DrawingToolCategory[] = [
   },
   {
     id: "forecasting",
-    label: "Forecasting",
+    label: "Projections",
     tools: [
       { type: "forecast", label: "Projection de prix", icon: ForecastIcon },
-      { type: "rangeForecast", label: "Range forecast", icon: RangeForecastIcon },
+      { type: "rangeForecast", label: "Projection de plage", icon: RangeForecastIcon },
       { type: "longPosition", label: "Position longue", icon: LongPositionIcon },
       { type: "shortPosition", label: "Position courte", icon: ShortPositionIcon },
     ],
@@ -229,14 +231,14 @@ export const DRAWING_TOOL_CATEGORIES: DrawingToolCategory[] = [
       { type: "priceNote", label: "Note de prix", icon: PriceNoteIcon },
       { type: "pin", label: "Pin", icon: PinIcon },
       { type: "flagMark", label: "Marque drapeau", icon: FlagMarkIcon },
-      { type: "signpost", label: "Signpost", icon: SignpostIcon },
+      { type: "signpost", label: "Panneau indicateur", icon: SignpostIcon },
       { type: "priceLabel", label: "Étiquette de prix", icon: PriceLabelIcon },
       { type: "table", label: "Tableau", icon: TableIcon },
     ],
   },
   {
     id: "measure",
-    label: "Measure",
+    label: "Mesure",
     tools: [{ type: "measure", label: "Mesure", icon: MeasureIcon }],
   },
 ];

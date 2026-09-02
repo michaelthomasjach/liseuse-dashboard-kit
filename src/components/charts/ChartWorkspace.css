@@ -21,6 +21,11 @@
   width: 100%;
   flex: 1 1 auto;
   min-height: 0;
+  /* Containing block for the mobile side panel, which covers this row instead of docking inside it
+     (see .lq-chart__side-panel--fullscreen in charts-shared.css). Anchoring it here rather than to
+     the workspace itself is what keeps the topbar above uncovered — without that there would be no
+     visible control left to close the panel with. */
+  position: relative;
 }
 
 /* Second topbar, mobile layout only — every watchlist's own full name (`.lq-chart__timeframe-
@@ -513,9 +518,13 @@
      ticker column — and therefore every numeric column sharing the leftover space with it — come
      out a few pixels different on "SPX" than on "BTCUSD" than on the header's own "Symbole". A
      fixed basis makes the split identical everywhere, which is what actually lines the numbers up
-     under their titles. */
+     under their titles. The floor is what a basis of 0 costs: with three value columns the ticker's
+     equal share of the leftovers alone truncates "BTCUSD" to "BT…" even on a full-width mobile
+     list. Below this the value columns give way instead — a symbol you can't read makes the whole
+     row pointless — and the header's own "Symbole" hits the same floor, so the columns stay
+     aligned either way. */
   flex: 1 1 0;
-  min-width: 0;
+  min-width: 62px;
   font-weight: 700;
   overflow: hidden;
   text-overflow: ellipsis;

@@ -116,6 +116,24 @@
   overflow: auto;
 }
 
+/* The mobile form of the same panel (see ChartSidePanel's own `fullscreen`): out of the flex row
+   entirely, covering the content area rather than taking a slice of it. Docking it at that width
+   would leave both halves unusable — a list too narrow to read next to charts too narrow to
+   trade. Its min/max widths and its left border go with the docking; the opaque background is what
+   makes it a page of its own rather than something layered over live charts. Positioned against
+   whichever ancestor establishes the containing block (`.lq-chart-workspace__row`), which is why
+   that one is `position: relative` — deliberately *not* the whole viewport, so the topbar that
+   opened it stays visible and is still the way back out. */
+.lq-chart__side-panel--fullscreen {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  min-width: 0;
+  max-width: none;
+  border-left: none;
+  background-color: var(--lq-color-bg);
+}
+
 /* Thin strip on the panel's own left edge — drag to resize (see useSidePanel's startResize).
    Absolutely positioned against `.lq-chart__side-panel` itself (not a sibling of the content),
    straddling the border so the hit area isn't limited to whichever side of the 1px line the

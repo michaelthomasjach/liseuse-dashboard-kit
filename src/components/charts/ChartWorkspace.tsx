@@ -1,4 +1,4 @@
-import { Children, cloneElement, useRef, useState, type ReactElement, type ReactNode } from "react";
+import { Children, cloneElement, useEffect, useRef, useState, type ReactElement, type ReactNode } from "react";
 import type { CandlestickChartProps } from "./candlestick/interfaces/CandlestickChartProps.interface";
 import type { SymbolSearchCategory } from "./candlestick/interfaces/SymbolSearchCategory.interface";
 import type { SymbolSearchResult } from "./candlestick/interfaces/SymbolSearchResult.interface";
@@ -342,6 +342,21 @@ export function ChartWorkspace({
   // replaced by a second, scrollable topbar — see isMobileWorkspace's own usages below.
   const [workspaceRef, workspaceDims] = useChartDimensions();
   const isMobileWorkspace = workspaceDims.width > 0 && workspaceDims.width < MOBILE_RAIL_BREAKPOINT;
+  // The panel starts closed on mobile, where it covers the whole content area (see ChartSidePanel's
+  // own `fullscreen`) — opening onto a symbol list with the charts hidden behind it is the wrong
+  // first impression of a charting workspace. Deliberately once, on the first real measurement,
+  // rather than on every crossing of the breakpoint: this sets the *default*, and past that the
+  // panel is the user's to open and close (someone who opens it and then narrows their window
+  // shouldn't have it yanked shut under them).
+  // In an effect, not inline during render: `commitOpen` also fires the caller's own
+  // `onSidePanelOpenChange`, and reaching outside the component is not something render may do.
+  const mobileDefaultAppliedRef = useRef(false);
+  useEffect(() => {
+    if (mobileDefaultAppliedRef.current || workspaceDims.width <= 0) return;
+    mobileDefaultAppliedRef.current = true;
+    if (workspaceDims.width < MOBILE_RAIL_BREAKPOINT) sidePanelState.commitOpen(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workspaceDims.width]);
   const hasWatchlists = !!watchlists && watchlists.length > 0;
   const hasAlerts = alerts !== undefined;
   const [activeTab, setActiveTab] = useState<ChartWorkspaceSidePanelTab>(defaultSidePanelTab ?? (hasWatchlists ? "watchlist" : "alerts"));
@@ -789,7 +804,12 @@ export function ChartWorkspace({
       </div>
 
       {(hasWatchlists || hasAlerts) && sidePanelState.open && (
-        <ChartSidePanel panelRef={sidePanelState.panelRef} widthPx={sidePanelState.widthPx} startResize={sidePanelState.startResize}>
+        <ChartSidePanel
+          panelRef={sidePanelState.panelRef}
+          widthPx={sidePanelState.widthPx}
+          startResize={sidePanelState.startResize}
+          fullscreen={isMobileWorkspace}
+        >
           {(() => {
             const topContent =
               activeTab === "watchlist" && hasWatchlists ? (

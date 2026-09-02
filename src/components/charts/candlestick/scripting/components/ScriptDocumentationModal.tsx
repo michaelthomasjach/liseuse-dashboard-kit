@@ -261,7 +261,7 @@ export function ScriptDocumentationModal({ open, onClose }: ScriptDocumentationM
                         {block.items?.map((item, j) => <li key={j}>{item}</li>)}
                       </ul>
                     );
-                  return <CodeBlock key={i} code={block.code ?? ""} language="JavaScript" className="lq-script-docs__code" />;
+                  return <CodeBlock key={i} code={block.code ?? ""} language="JavaScript" highlight="javascript" className="lq-script-docs__code" />;
                 })}
             </section>
           ))}

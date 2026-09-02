@@ -8,7 +8,8 @@ import type { ScriptTableOutput } from "../interfaces/ScriptRunResult.interface"
 import type { ScriptEngineSnapshot } from "../interfaces/ScriptEngineSnapshot.interface";
 import type { ScriptRunResult } from "../interfaces/ScriptRunResult.interface";
 import type { ResolvedScriptLabel } from "../interfaces/ScriptRunOutput.interface";
-import { computeIndicatorValues } from "../../indicators";
+import { computeIndicatorValues, forwardFillSeries } from "../../indicators";
+import { FUNDAMENTAL_INDICATOR_KINDS } from "../../indicatorCatalog";
 import { buildStableIndicatorIds } from "../stableIndicatorId";
 import { upsertScriptCustomIndicators, scriptPaneIndicatorId } from "../scriptOutputToCustomIndicatorDef";
 import { upsertScriptDrawings } from "../scriptOutputToDrawings";
@@ -49,9 +50,21 @@ function buildSnapshot(
     if (!slug) continue;
     indicatorSeries[slug] = computeIndicatorValues(data, indicator, fundamentals);
   }
+  // One forward-filled array per metric the host actually reported something for — the same
+  // projection the built-in fundamental panes use (see `fundamentalSeries`' own doc), computed here
+  // rather than in the worker so both sides read one implementation.
+  const fundamentalSeries: ScriptEngineSnapshot["fundamentalSeries"] = {};
+  for (const field of FUNDAMENTAL_INDICATOR_KINDS) {
+    const points = (fundamentals ?? [])
+      .map((entry) => ({ date: entry.date, value: entry[field as keyof FundamentalDataPoint] }))
+      .filter((entry): entry is { date: Date; value: number } => typeof entry.value === "number");
+    if (points.length > 0) fundamentalSeries[field] = forwardFillSeries(data, points);
+  }
+
   return {
     ohlcv: data.map((d) => ({ t: d.date.getTime(), o: d.open, h: d.high, l: d.low, c: d.close, v: d.volume })),
     indicatorSeries,
+    fundamentalSeries,
     runUpToIndex,
     scriptCode,
     limits: { timeoutMs, maxSeriesLength: MAX_SERIES_LENGTH },

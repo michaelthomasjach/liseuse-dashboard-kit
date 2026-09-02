@@ -358,9 +358,10 @@ if (now !== null && prev !== null && prev <= 50 && now > 50) {
 pane.line(name, value, options?)         // courbe
 pane.area(name, value, options?)         // aire remplie
 pane.histogram(name, value, options?)    // histogramme
+pane.dots(name, value, options?)         // points non reliés — voir plus bas
 pane.band(name, upper, lower, options?)  // remplissage entre deux courbes — voir plus bas
 
-// options (line/area/histogram): { color?, lineWidth?, lineStyle? }`
+// options (line/area/histogram/dots): { color?, lineWidth?, lineStyle? }`
       ),
       t(
         "plot.pane ouvre un nouveau panneau à part, sous le prix (exactement comme RSI ou MACD) — le bon choix pour une valeur qui n'est pas sur la même échelle que le prix (un score de 0 à 3, un pourcentage, un oscillateur…)."
@@ -393,6 +394,22 @@ pane.histogram("Écart", fast - slow);`
         "lineWidth (nombre, défaut 1,5) épaissit le trait ; lineStyle (\"solid\" par défaut, ou \"dashed\"/\"dotted\") change son style. Les deux s'appliquent à line/area/band (sans effet sur histogram, qui trace des barres, pas un trait) :"
       ),
       c(`overlay.line("SMA 20 (épaisse)", sma20, { lineWidth: 3, lineStyle: "dashed" });`),
+      h("Des points plutôt qu'une courbe — .dots", [".dots"]),
+      t(
+        "pane.dots(nom, valeur, options?) / overlay.dots(...) posent un point par bougie au lieu de relier les valeurs entre elles. À utiliser dès qu'une valeur peut sauter d'un niveau à un autre sans rapport d'une bougie à la suivante — un niveau de support détecté automatiquement, un pivot, un prix cible recalculé : une courbe inventerait entre deux points une continuité que la donnée n'a pas, alors que des points ne relient rien."
+      ),
+      t(
+        "C'est aussi le seul tracé qui laisse de vrais trous. Toutes les autres méthodes prolongent leur dernière valeur connue jusqu'au bord droit du graphe (une série qui s'arrête d'émettre reste tracée à l'horizontale) ; .dots ne dessine rien tant que le script n'émet pas. Une série de points s'arrête donc exactement là où le script cesse de l'alimenter — c'est ce qui permet à un niveau de disparaître quand il n'est plus détecté."
+      ),
+      c(
+        `// Les niveaux détectés, un point par bougie et par niveau — ils s'interrompent d'eux-mêmes
+// dès qu'un niveau cesse d'être trouvé.
+const niveaux = plot.overlay("Niveaux");
+levels.forEach((prix, i) => {
+  niveaux.dots("Niveau " + (i + 1), prix, { color: "#c47f2a", lineWidth: 1.6 });
+});`
+      ),
+      t("lineWidth règle ici le rayon du point (1 donne un pointillé fin, 3 de gros points) ; lineStyle n'a pas de sens et est ignoré."),
       h("Remplir entre deux courbes — .band", [".band"]),
       t(
         "pane.band(name, upper, lower, options?) / overlay.band(name, upper, lower, options?) tracent deux courbes et colorent la surface entre elles — le rendu exact des bandes de Bollinger intégrées (remplissage translucide, ligne haute/basse fine, ligne médiane calculée automatiquement) :"
@@ -421,7 +438,12 @@ if (sma !== null && std !== null) {
         `// densité et grille de prix calculées ailleurs, puis mémorisées avec state.set
 const densite = state.get("density", []);
 const prix = state.get("priceGrid", []);
-plot.pane("Profil", { dock: "right" }).profile("Densité", densite, prix, { color: "#c47f2a" });`
+plot.pane("Profil", { dock: "right" }).profile("Densité", densite, prix, { color: "#c47f2a", headroom: 0.08 });
+
+// options: { color?, lineWidth?, headroom? }`
+      ),
+      t(
+        "headroom laisse un espace entre le pic le plus haut et la barre de séparation de la colonne, en fraction de la largeur du profil — 0.08 arrête la courbe à 8 % du bord, 0 (par défaut) la laisse le toucher. C'est une option, et pas quelque chose à faire soi-même sur les valeurs avant de les passer : l'échelle de la colonne va toujours de 0 au maximum du tableau reçu, donc diviser toutes les densités par deux ne déplace pas leur maximum, qui retombe exactement au même endroit. Seule l'échelle peut être élargie, et l'axe du bas suit la même, donc ses graduations restent justes."
       ),
       l([
         "Cet alignement n'a de sens que sur un panneau ancré à gauche ou à droite — sur un panneau du bas, un profil n'a rien à aligner et n'est pas dessiné.",
@@ -435,6 +457,13 @@ plot.pane("Profil", { dock: "right" }).profile("Densité", densite, prix, { colo
       h("Positionner un élément librement — .label", [".label"]),
       t(
         "pane.label(name, texte, options) / overlay.label(name, texte, options) placent un texte à une position précise, en pixels ou en %, avec une rotation possible — contrairement à .line/.area/.histogram/.band, aucun lien avec une bougie ou une valeur : c'est une annotation libre, pas une série de données."
+      ),
+      t(
+        "Une étiquette peut aussi être ancrée à la donnée plutôt qu'à la boîte du panneau : passez { bar, price } au lieu de { x, y }. bar est un indice de bougie, price une valeur lue sur l'échelle verticale du panneau — celle des prix pour un overlay, celle du sous-panneau pour une pane. L'étiquette suit alors le zoom et le défilement avec la bougie qu'elle désigne, au lieu de rester à un point fixe pendant que les données glissent dessous. C'est ce qu'il faut pour marquer un événement précis : un pivot HH/HL/LH/LL, un franchissement. Une étiquette sortie des bougies visibles n'est simplement pas dessinée."
+      ),
+      c(
+        `// un pivot haut repéré à la bougie 120, au prix 431.2
+plot.overlay("Pivots").label("hh-120", "HH", { bar: 120, price: 431.2, align: "center" });`
       ),
       d("plotLabel"),
       t(
@@ -528,6 +557,42 @@ plot.xy("Parabole", x, y, { xLabel: "x", yLabel: "y", title: "y = x²" });`
         "plot.xy n'est jamais affiché sur la vraie chart bougies/panneaux — il n'apparaît qu'en sortie d'une cellule (voir le mode notebook ci-dessous, et son propre tutoriel « Mode notebook » plus haut) : le nom passé sert uniquement à retrouver le graphique produit par une cellule donnée, pas à créer un panneau."
       ),
       t("x et y sont plafonnés à 2000 points chacun — au-delà, tronqués silencieusement plutôt que rejetés."),
+    ],
+  },
+  {
+    id: "company",
+    title: "company.*",
+    group: "API du script",
+    blocks: [
+      t(
+        "company.* donne accès aux fondamentaux publiés par la société — le pendant de market.* pour les chiffres d'entreprise plutôt que pour le prix."
+      ),
+      h("company.value(champ, offset?)", ["company.value"]),
+      c(
+        `const per = company.value("peRatio");
+const bpaPrecedent = company.value("eps", 20); // 20 bougies plus tôt
+if (per !== null && per < 15) plot.signal("BUY");`
+      ),
+      t(
+        "Un chiffre publié ne change qu'aux dates de publication : entre deux rapports, company.value renvoie la dernière valeur connue, exactement comme un panneau fondamental l'affiche en escalier. Avant le tout premier rapport, ou pour une métrique que l'hôte n'a pas fournie, la réponse est null — jamais une valeur inventée."
+      ),
+      t("Les champs disponibles, quand l'hôte les fournit :"),
+      l([
+        "eps — bénéfice par action.",
+        "peRatio — ratio cours/bénéfice.",
+        "netIncome — résultat net.",
+        "totalRevenue — chiffre d'affaires.",
+        "netMargin / grossMargin — marges, en pourcentage.",
+        "freeCashFlow — flux de trésorerie disponible.",
+        "debtToEquity — dette rapportée aux fonds propres.",
+      ]),
+      h("company.fields()", ["company.fields"]),
+      t(
+        "La liste des métriques réellement disponibles sur ce graphe. Tous les graphes n'ont pas les mêmes : une action peut avoir un P/E sans marge brute, un indice n'en a aucune. Lire cette liste évite d'écrire un script qui suppose une donnée absente."
+      ),
+      t(
+        "Comme market.*, ces lectures sont bornées à la bougie en cours : un offset négatif, ou qui dépasserait la bougie courante, renvoie null. Aucun script ne peut lire un rapport qui n'était pas encore publié."
+      ),
     ],
   },
   {

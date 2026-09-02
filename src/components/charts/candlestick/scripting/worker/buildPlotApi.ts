@@ -33,6 +33,18 @@ export interface PlotSeriesOptions {
   /** Default `"solid"`. */
   lineStyle?: "solid" | "dashed" | "dotted";
 }
+/** `pane.profile`'s own options — `PlotSeriesOptions` minus `lineStyle` (a profile is always a
+ *  solid stroke) plus the one thing only a profile has. */
+export interface PlotProfileOptions {
+  color?: string;
+  lineWidth?: number;
+  /** Room left between the curve's tallest peak and the column's inner edge, as a fraction of the
+   *  profile's own range — 0.08 keeps the peak 8% short of the separator, 0 (the default) lets it
+   *  touch. It has to be an option rather than something the script does to its own `values`: the
+   *  scale's top is `max(values)` by construction, so scaling the array can never move its own
+   *  maximum off that edge. See `computeProfileValueScale`'s own doc. */
+  headroom?: number;
+}
 export interface PlotBandOptions {
   color?: string;
   /** Width in px of the band's own upper/lower lines (the middle line is drawn slightly thicker,
@@ -44,9 +56,19 @@ export interface PlotLabelOptions {
    *  anchoring) — `overlay`'s box is the price pane, `pane`'s is that pane's own strip. `unit`
    *  picks how `x`/`y` are read: `"%"` (default) is relative to the pane's own width/height (0-100
    *  each way), `"px"` is an absolute pixel offset from the pane's own top-left corner. */
-  x: number;
-  y: number;
+  x?: number;
+  y?: number;
   unit?: "px" | "%";
+  /** Anchors the label to the *data* instead of the pane's own box: `bar` is a bar index (the same
+   *  index `bar.index()`-style logic works in), `price` a value read on the pane's own vertical
+   *  scale — the price scale for an `overlay`, that sub-pane's own scale for a `pane`.
+   *
+   *  This is what a label marking a specific event needs — a ZigZag pivot's HH/HL/LH/LL, a
+   *  breakout's price — because it then pans and zooms with the candle it describes instead of
+   *  staying at a fixed spot in the pane while the data slides underneath it. Supply both; supplying
+   *  only one falls back to the `x`/`y` box positioning above. */
+  bar?: number;
+  price?: number;
   /** Degrees, clockwise, around the label's own center. Default 0. */
   rotation?: number;
   color?: string;
@@ -81,6 +103,16 @@ export interface PaneSeriesHandle {
   line(name: string, value: number, options?: PlotSeriesOptions): void;
   area(name: string, value: number, options?: PlotSeriesOptions): void;
   histogram(name: string, value: number, options?: PlotSeriesOptions): void;
+  /** One unconnected dot per bar, instead of a line through them — a scatter. For a value that can
+   *  legitimately jump between unrelated levels from one bar to the next (a detected support level
+   *  that appears, drifts and vanishes, a pivot, any "here is a reading, it has nothing to do with
+   *  the previous one" series), where a line would invent a relationship the data doesn't have.
+   *
+   *  Unlike every other method here, a bar the script skips leaves a real *hole*: the other draw
+   *  modes carry their last value forward to the right edge of the chart, this one draws nothing
+   *  until the script emits again. That is what lets a series stop — call it only on the bars where
+   *  the value exists, and the dots stop there too. */
+  dots(name: string, value: number, options?: PlotSeriesOptions): void;
   /** A translucent fill between two curves, plus thin upper/lower lines and a computed middle
    *  line — same rendering Bollinger Bands already uses. */
   band(name: string, upper: number, lower: number, options?: PlotBandOptions): void;
@@ -106,7 +138,7 @@ export interface PaneSeriesHandle {
    *  unconditionally every bar and the last bar's own profile is the one kept. A pane holding a
    *  profile is a profile pane: any other series drawn on it is ignored. `values`/`prices` must be
    *  the same length; both are truncated past MAX_PROFILE_POINTS rather than rejected. */
-  profile(name: string, values: number[], prices: number[], options?: PlotSeriesOptions): void;
+  profile(name: string, values: number[], prices: number[], options?: PlotProfileOptions): void;
 }
 
 export interface PlotPaneOptions {
@@ -221,6 +253,7 @@ export function buildPlotApi(
       line: (name, value, options) => upsert(name, "line", { date: getCurrentDate(), value }, options),
       area: (name, value, options) => upsert(name, "area", { date: getCurrentDate(), value }, options),
       histogram: (name, value, options) => upsert(name, "histogram", { date: getCurrentDate(), value }, options),
+      dots: (name, value, options) => upsert(name, "dots", { date: getCurrentDate(), value }, options),
       band: (name, upper, lower, options) => upsert(name, "band", { date: getCurrentDate(), upper, lower }, options),
       profile: (name, values, prices, options) => {
         const count = Math.min(values.length, prices.length, MAX_PROFILE_POINTS);
@@ -241,17 +274,21 @@ export function buildPlotApi(
           lineWidth: options?.lineWidth,
           points: [],
           profile,
+          profileHeadroom: options?.headroom,
         });
       },
       label: (name, text, options) => {
+        // Data anchoring wins when both coordinates are given; anything else keeps the original
+        // box positioning, so an existing label call behaves exactly as before.
+        const anchored = Number.isFinite(options.bar) && Number.isFinite(options.price);
         paneEntry.labelsByName.set(name, {
           paneName: paneEntry.name,
           paneType: paneEntry.pane,
           name,
           text,
-          x: options.x,
-          y: options.y,
-          unit: options.unit ?? "%",
+          x: anchored ? (options.bar as number) : (options.x ?? 0),
+          y: anchored ? (options.price as number) : (options.y ?? 0),
+          unit: anchored ? "bar" : (options.unit ?? "%"),
           rotation: options.rotation ?? 0,
           color: options.color,
           fontSize: options.fontSize,

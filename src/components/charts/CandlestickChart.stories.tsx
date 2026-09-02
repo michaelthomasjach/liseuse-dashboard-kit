@@ -228,10 +228,11 @@ function generateOverlaySeries(ticker: string): OverlayDataPoint[] {
 // ChartWorkspaceWatchlistColumn.sortValue's own doc describes needing an explicit accessor for.
 const WATCHLIST_COLUMNS: ChartWorkspaceWatchlistColumn[] = [
   { id: "price", label: "Prix", sortValue: (row) => (row as DemoWatchlistRow).raw.price },
+  { id: "priceChange", label: "Change", sortValue: (row) => (row as DemoWatchlistRow).raw.priceChange },
   { id: "change", label: "Variation", sortValue: (row) => (row as DemoWatchlistRow).raw.change },
 ];
 
-type DemoWatchlistRow = ChartWorkspaceWatchlistRow & { raw: { price: number; change: number } };
+type DemoWatchlistRow = ChartWorkspaceWatchlistRow & { raw: { price: number; change: number; priceChange: number } };
 
 function watchlistRow(
   id: string,
@@ -249,14 +250,30 @@ function watchlistRow(
   // inconsistent against it).
   const priceLabel = price.toFixed(2).replace(/\B(?=(\d{3})+(?!\d)(?=\.))/g, " ");
   const changeLabel = `${up ? "+" : ""}${change.toFixed(2)}%`;
+  // `change` is the move in percent, so the previous close is the price divided by it, and the
+  // absolute move is the difference — the same figure the symbol panel shows next to the price
+  // ("105.25 -0.08"), in the instrument's own currency rather than in percent.
+  const priceChange = price - price / (1 + change / 100);
+  // Two decimals like the price above it, except where that would round the whole move away to
+  // "0.00" — an FX major moves in ten-thousandths, and a Change column that reads zero on a real
+  // move is worse than one extra pair of decimals on two rows.
+  const changeDecimals = Math.abs(priceChange) >= 0.01 ? 2 : 4;
+  const priceChangeLabel = `${priceChange >= 0 ? "+" : "−"}${Math.abs(priceChange)
+    .toFixed(changeDecimals)
+    .replace(/\B(?=(\d{3})+(?!\d)(?=\.))/g, " ")}`;
+  const moveColor = up ? "var(--lq-color-up)" : "var(--lq-color-down)";
   return {
     id,
     ticker,
-    values: { price: priceLabel, change: <span style={{ color: up ? "var(--lq-color-up)" : "var(--lq-color-down)" }}>{changeLabel}</span> },
+    values: {
+      price: priceLabel,
+      priceChange: <span style={{ color: moveColor }}>{priceChangeLabel}</span>,
+      change: <span style={{ color: moveColor }}>{changeLabel}</span>,
+    },
     assetType,
     sector,
     region,
-    raw: { price, change },
+    raw: { price, change, priceChange },
   };
 }
 
@@ -462,8 +479,12 @@ function playAlertSound(value: string) {
  *  Pas de `runRequestId` : un script enregistré sans requête d'exécution en attente est lancé au
  *  montage par ScriptRunner (voir son premier effet), donc la colonne ancrée à droite s'ouvre
  *  d'elle-même sans avoir à cliquer sur « Exécuter ». `named: true` lui évite la demande de nom au
- *  premier enregistrement. Il apparaît sous « Mes scripts » dans le sélecteur d'indicateurs du seul
- *  fait d'exister dans la liste des scripts. */
+ *  premier enregistrement.
+ *
+ *  `targetPanelIndex: 0` est ce qui le fait réellement arriver jusqu'au panneau : `ChartWorkspace`
+ *  ne route vers chaque panneau que les scripts qui le désignent (`s.targetPanelIndex === i`, voir
+ *  son propre doc), donc un script sans cible n'est routé nulle part — il n'apparaît sous « Mes
+ *  scripts » dans le sélecteur d'indicateurs d'aucun panneau, et ne s'exécute pas non plus. */
 const KDE_DEBUG_SCRIPT: ScriptDef[] = [
   {
     id: "debug-kde",
@@ -471,6 +492,7 @@ const KDE_DEBUG_SCRIPT: ScriptDef[] = [
     code: SCRIPT_EXAMPLES.find((example) => example.id === "kde-support-resistance")?.code ?? "",
     named: true,
     enabled: true,
+    targetPanelIndex: 0,
   },
 ];
 

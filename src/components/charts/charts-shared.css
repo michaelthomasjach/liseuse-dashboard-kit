@@ -71,7 +71,15 @@
 .lq-chart__plot-column {
   position: relative;
   flex: 1 1 auto;
-  min-width: 0;
+  /* A real floor, not `min-width: 0`. This element is the one `useChartDimensions` measures, and
+     `CandlestickChart` takes a *different* render branch when that measurement comes back 0 — one
+     that moves the very same ref onto `.lq-chart__main`, the full-width parent. Let this column
+     actually reach 0 (a docked pane column wide enough to eat the whole row, i.e. any profile pane
+     on a phone-width chart) and the two branches trade places forever: 0 → early return → measures
+     the parent → non-zero → normal return → measures this → 0. React gives up on that with
+     "Maximum update depth exceeded". A floor keeps the measurement honest and the branch stable;
+     below it the row simply overflows, which `.lq-chart`'s own `overflow: hidden` already clips. */
+  min-width: 64px;
   height: 100%;
 }
 
@@ -106,6 +114,24 @@
   max-width: 560px;
   border-left: 1px solid var(--lq-color-border-subtle);
   overflow: auto;
+}
+
+/* The mobile form of the same panel (see ChartSidePanel's own `fullscreen`): out of the flex row
+   entirely, covering the content area rather than taking a slice of it. Docking it at that width
+   would leave both halves unusable — a list too narrow to read next to charts too narrow to
+   trade. Its min/max widths and its left border go with the docking; the opaque background is what
+   makes it a page of its own rather than something layered over live charts. Positioned against
+   whichever ancestor establishes the containing block (`.lq-chart-workspace__row`), which is why
+   that one is `position: relative` — deliberately *not* the whole viewport, so the topbar that
+   opened it stays visible and is still the way back out. */
+.lq-chart__side-panel--fullscreen {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  min-width: 0;
+  max-width: none;
+  border-left: none;
+  background-color: var(--lq-color-bg);
 }
 
 /* Thin strip on the panel's own left edge — drag to resize (see useSidePanel's startResize).
@@ -1005,7 +1031,10 @@
 
 .lq-chart__event-marker text {
   font-family: inherit;
-  font-size: 8px;
+  /* Scaled with EVENT_MARKER_RADIUS (eventsCatalog.ts), same 8 → 10 ratio, so the glyph keeps the
+     proportion inside its circle it had before. The `dy="0.35em"` that centres it is in `em`, so it
+     follows this on its own — nothing else to adjust. */
+  font-size: 10px;
   font-weight: 700;
   fill: #fff;
   pointer-events: none;

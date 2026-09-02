@@ -185,11 +185,12 @@ export const INDICATOR_CATALOG: IndicatorCatalogEntry[] = [
     category: "Tendance",
   },
   // Own value shape (IndicatorGapPoint — a set of rectangles, not a line) and own setting
-  // (gapsMinPercent, not period/stdDev). "Structure Recognition" (kept in its own English name,
-  // same precedent "Range forecast" already set for a tool named this deliberately rather than
-  // translated) groups this with the other two auto-detection indicators (pattern/candle) rather
-  // than the plain "Structure" category above, which covers manually-configured structure tools
-  // (pivots, S/R, TPO) instead of automatic recognition.
+  // (gapsMinPercent, not period/stdDev). Filed under "Structure" alongside the manually-configured
+  // structure tools (pivots, S/R, TPO) rather than under a "Structure Recognition" category of its
+  // own with the other two auto-detection indicators (pattern/candle): the split was real but too
+  // fine to be worth two adjacent picker tabs a user has to check both of to find one indicator —
+  // whether a level was configured by hand or detected automatically isn't what someone is
+  // filtering by when they're looking for it.
   {
     kind: "gaps",
     label: "Gaps Recognition",
@@ -198,7 +199,7 @@ export const INDICATOR_CATALOG: IndicatorCatalogEntry[] = [
     hasPeriod: false,
     hasStdDev: false,
     pane: "price",
-    category: "Structure Recognition",
+    category: "Structure",
   },
   // Own value shape (IndicatorPatternMatch, one per detected occurrence — see
   // computePatternRecognitionValues) and own setting (recognitionDateLimit, not period/stdDev —
@@ -211,7 +212,7 @@ export const INDICATOR_CATALOG: IndicatorCatalogEntry[] = [
     hasPeriod: false,
     hasStdDev: false,
     pane: "price",
-    category: "Structure Recognition",
+    category: "Structure",
   },
   // Same reasoning as patternRecognition just above, own value shape IndicatorCandleMatch instead.
   {
@@ -222,7 +223,7 @@ export const INDICATOR_CATALOG: IndicatorCatalogEntry[] = [
     hasPeriod: false,
     hasStdDev: false,
     pane: "price",
-    category: "Structure Recognition",
+    category: "Structure",
   },
   // Own value shape (IndicatorIchimokuPoint — five components, one of them a filled cloud) and
   // its own four settings (ichimokuConversionPeriod/ichimokuBasePeriod/ichimokuSpanPeriod/

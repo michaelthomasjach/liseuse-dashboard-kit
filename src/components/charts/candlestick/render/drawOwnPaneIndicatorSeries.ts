@@ -188,6 +188,17 @@ export function drawOwnPaneIndicatorSeries(
     strokeField((v) => v.plusDI, ind.adxPlusColor ?? colorUp, 1);
     strokeField((v) => v.minusDI, ind.adxMinusColor ?? colorDown, 1);
     strokeField((v) => v.adx, color, 1.5);
+  } else if (ind.customData?.draw === "dots") {
+    // One unconnected dot per bar that has a value — see drawPriceCandles.ts's own identical
+    // branch for why a scatter is a shape of its own rather than a line with gaps.
+    const numericPoints = points as { i: number; value: number }[];
+    const radius = Math.max(0.75, (ind.customData?.lineWidth ?? 1.5) * 0.9);
+    ctx.fillStyle = color;
+    for (const p of numericPoints) {
+      ctx.beginPath();
+      ctx.arc(zoomedXScale(p.i + 0.5), scale(p.value), radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
   } else if (ind.customData?.draw === "histogram") {
     // Same zero-baseline bar shape as MACD's own histogram above, just against this pane's
     // own auto-fit scale instead of MACD's fixed one — `scale(0)` still works as a baseline
@@ -270,6 +281,14 @@ export function drawOwnPaneIndicatorSeries(
           });
           ctx.stroke();
         });
+      } else if (subEntry.draw === "dots") {
+        const radius = Math.max(0.75, (subEntry.lineWidth ?? 1.5) * 0.9);
+        ctx.fillStyle = seriesColor;
+        for (const p of seriesPoints) {
+          ctx.beginPath();
+          ctx.arc(zoomedXScale(p.i + 0.5), scale(p.value.multi[subEntry.key] as number), radius, 0, Math.PI * 2);
+          ctx.fill();
+        }
       } else if (subEntry.draw === "histogram") {
         const zeroY = scale(0);
         ctx.globalAlpha = isEink ? 0.35 : 0.6;

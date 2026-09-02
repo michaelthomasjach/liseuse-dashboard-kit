@@ -113,16 +113,20 @@ const theme = EditorView.theme({
   ".cm-tooltip-autocomplete ul li[aria-selected]": { backgroundColor: "var(--lq-color-accent)", color: "var(--lq-color-accent-contrast)" },
 });
 
+// Reads the dedicated `--lq-code-*` palette rather than the chart's own semantic colours. Those
+// (accent/up/down/text-muted) all collapse to the same near-black under the e-ink palette, which is
+// correct for chart data and disastrous for code: every token rendered identically. See the
+// syntax-highlighting block in tokens.css.
 const highlightStyle = HighlightStyle.define([
-  { tag: tags.keyword, color: "var(--lq-color-accent)" },
-  { tag: [tags.string, tags.special(tags.string)], color: "var(--lq-color-up)" },
-  { tag: tags.number, color: "var(--lq-color-down)" },
-  { tag: tags.comment, color: "var(--lq-color-text-muted)", fontStyle: "italic" },
-  { tag: [tags.function(tags.variableName), tags.function(tags.propertyName)], color: "var(--lq-color-accent)" },
-  { tag: tags.propertyName, color: "var(--lq-color-text)" },
-  { tag: tags.operator, color: "var(--lq-color-text-muted)" },
-  { tag: tags.bool, color: "var(--lq-color-down)" },
-  { tag: tags.null, color: "var(--lq-color-text-muted)" },
+  { tag: tags.keyword, color: "var(--lq-code-keyword)" },
+  { tag: [tags.string, tags.special(tags.string)], color: "var(--lq-code-string)" },
+  { tag: tags.number, color: "var(--lq-code-number)" },
+  { tag: tags.comment, color: "var(--lq-code-comment)", fontStyle: "italic" },
+  { tag: [tags.function(tags.variableName), tags.function(tags.propertyName)], color: "var(--lq-code-function)" },
+  { tag: tags.propertyName, color: "var(--lq-code-property)" },
+  { tag: tags.operator, color: "var(--lq-code-operator)" },
+  { tag: tags.bool, color: "var(--lq-code-number)" },
+  { tag: tags.null, color: "var(--lq-code-comment)" },
 ]);
 
 // A "cell" (exigence : mode Jupyter — voir ScriptEditorPanel.tsx's own "Exécuter la cellule"

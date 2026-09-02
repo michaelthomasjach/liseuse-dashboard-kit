@@ -21,6 +21,11 @@
   width: 100%;
   flex: 1 1 auto;
   min-height: 0;
+  /* Containing block for the mobile side panel, which covers this row instead of docking inside it
+     (see .lq-chart__side-panel--fullscreen in charts-shared.css). Anchoring it here rather than to
+     the workspace itself is what keeps the topbar above uncovered — without that there would be no
+     visible control left to close the panel with. */
+  position: relative;
 }
 
 /* Second topbar, mobile layout only — every watchlist's own full name (`.lq-chart__timeframe-
@@ -360,6 +365,12 @@
   color: inherit;
   background: none;
   border: none;
+  /* A header is a <button>, a data cell is a <span>. Without this the button keeps the user
+     agent's own default horizontal padding (~6px in Chrome/Safari) that the span never had, so
+     every right-aligned header label sits those few pixels short of the column it labels — the
+     numbers line up with each other, the title above them doesn't. `background`/`border` were
+     already reset here; padding was the one UA default left standing. */
+  padding: 0;
   cursor: pointer;
 }
 
@@ -465,14 +476,20 @@
   }
 }
 
-/* The header row's own inert stand-in for the delete button a real row has — same width,
-   `visibility: hidden` (not `display: none`, which would collapse its own reserved space and
-   break the alignment it exists for) rather than a real button, since there's nothing for it to
-   do on a row of column labels. No grip spacer anymore (a real row's own grip no longer reserves
-   layout space, see .lq-chart-workspace__watchlist-row-grip above) and no logo spacer either —
-   "Symbole" deliberately starts flush with where a real row's own logo does, not indented past it
-   (see the header row's own JSX doc in WatchlistPanel.tsx). */
-.lq-chart-workspace__watchlist-delete--spacer {
+/* The header row's own inert stand-ins for the two things a real row has and it doesn't: the
+   delete button at the end, and the logo at the start. Both `visibility: hidden` rather than
+   `display: none`, which would collapse the space they exist to reserve.
+
+   The logo spacer replaces an earlier deliberate choice to leave it out so "Symbole" would start
+   flush with where a row's own logo does. That looked tidier and quietly broke the table: a header
+   row and a data row are separate flex containers handed the same width, so 26px (logo + gap)
+   present in one and absent from the other means the columns they each compute are different
+   widths — measured at ~17px of drift on the first numeric column, growing to ~26px by the last.
+   "Symbole" now starts above the tickers it labels instead of above their logos, which is the
+   better of the two readings anyway. No grip spacer, though: a row's own grip is absolutely
+   positioned and reserves no space at all (see .lq-chart-workspace__watchlist-row-grip above). */
+.lq-chart-workspace__watchlist-delete--spacer,
+.lq-chart-workspace__watchlist-logo--spacer {
   visibility: hidden;
 }
 
@@ -497,8 +514,17 @@
 }
 
 .lq-chart-workspace__watchlist-ticker {
-  flex: 1 1 auto;
-  min-width: 0;
+  /* Basis 0, not `auto`: every row is its own flex container, so a content-sized basis makes the
+     ticker column — and therefore every numeric column sharing the leftover space with it — come
+     out a few pixels different on "SPX" than on "BTCUSD" than on the header's own "Symbole". A
+     fixed basis makes the split identical everywhere, which is what actually lines the numbers up
+     under their titles. The floor is what a basis of 0 costs: with three value columns the ticker's
+     equal share of the leftovers alone truncates "BTCUSD" to "BT…" even on a full-width mobile
+     list. Below this the value columns give way instead — a symbol you can't read makes the whole
+     row pointless — and the header's own "Symbole" hits the same floor, so the columns stay
+     aligned either way. */
+  flex: 1 1 0;
+  min-width: 62px;
   font-weight: 700;
   overflow: hidden;
   text-overflow: ellipsis;

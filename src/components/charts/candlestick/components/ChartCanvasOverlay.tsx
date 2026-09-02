@@ -627,7 +627,16 @@ export function ChartCanvasOverlay({
                               for this glyph's own small font-size (see charts-shared.css) — a
                               manual dy nudge is the standard cross-browser fix for that
                               well-known SVG baseline quirk. */}
-                          <text textAnchor="middle" dominantBaseline="central" dy="0.5">
+                          {/* `dy="0.35em"` on the default alphabetic baseline, not `dominant-baseline: central`.
+                              `central` centres the *font* box — midway between ascent and descent —
+                              which for an all-caps glyph sits slightly low, since the descender
+                              space below the baseline is empty here. Half a cap-height above the
+                              baseline is where a capital's own visual centre actually is, so this
+                              centres the letter itself, and being in `em` it stays centred at any
+                              font-size. The `dy="0.5"` user-unit nudge this replaces pushed the
+                              glyph further down still, compounding the offset instead of fixing
+                              it — and being absolute, it drifted as the font-size changed. */}
+                          <text textAnchor="middle" dy="0.35em">
                             {glyph}
                           </text>
                         </g>

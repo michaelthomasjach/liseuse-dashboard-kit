@@ -57,8 +57,12 @@ export interface CustomIndicatorDef {
    *  down to the pane's own floor, a bar per reporting date (volume-style), a translucent band
    *  filled between two curves (Bollinger-style — see `CustomIndicatorBandDataPoint`), or several
    *  independently-styled series sharing this one pane/legend entry (a `plot.pane`/`plot.overlay`
-   *  call with 2+ of its own series — see `CustomIndicatorMultiDataPoint`/`multiSeries`). */
-  draw: "line" | "area" | "histogram" | "band" | "multi" | "profile";
+   *  call with 2+ of its own series — see `CustomIndicatorMultiDataPoint`/`multiSeries`), or one
+   *  unconnected dot per bar (`"dots"` — a scatter, for a value that can jump between unrelated
+   *  levels from one bar to the next and would read as nonsense joined up by a line). `"dots"` is
+   *  alone among these in *not* being forward-filled: a gap in a scatter means "nothing here",
+   *  where a gap in every other mode means "still the last value" — see `alignSeriesByDate`. */
+  draw: "line" | "area" | "histogram" | "band" | "multi" | "profile" | "dots";
   /** `draw: "profile"` only — a horizontal profile (market-profile shaped): each entry is one
    *  price level and how much mass sits at it, drawn as one continuous curve. Transposed against
    *  the *main chart's own price scale* rather than this pane's own auto-fit one, so a bulge lands
@@ -66,6 +70,12 @@ export interface CustomIndicatorDef {
    *  returns nothing for it, since there is no per-bar value to compute. Only meaningful on a
    *  left/right-docked pane — that alignment is the entire point of the shape. */
   profile?: { price: number; value: number }[];
+  /** `draw: "profile"` only — how much room to leave between the curve's own tallest peak and the
+   *  column's inner edge, as a fraction of the profile's own value range (0.08 = the peak stops 8%
+   *  short). Defaults to 0, the original edge-to-edge behaviour. Set from a script via
+   *  `pane.profile(..., { headroom })`; see `computeProfileValueScale`'s own doc for why the gap has
+   *  to be applied to the scale here rather than to the values a script passes in. */
+  profileHeadroom?: number;
   /** The series itself — one point per reporting date, not required to be sorted. Forward-filled
    *  onto every candle the same step-function way the built-in fundamentals already are (sparse,
    *  quarterly-style reporting is the expected shape, not one point per candle) — see
@@ -94,7 +104,7 @@ export interface CustomIndicatorDef {
   multiSeries?: {
     key: string;
     label: string;
-    draw: "line" | "area" | "histogram" | "band";
+    draw: "line" | "area" | "histogram" | "band" | "dots";
     color?: string;
     lineWidth?: number;
     lineStyle?: "solid" | "dashed" | "dotted";

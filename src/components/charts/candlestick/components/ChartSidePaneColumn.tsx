@@ -176,6 +176,12 @@ export function ChartSidePaneColumn({
   // or a summed weight in the thousands.
   const profileValueFmt = (v: number) => d3.format(".2s")(v);
 
+  // Whether the column's foot needs a rule drawn across it — see its own <line> below.
+  const hasBottomAxis = paneIndicators.some(
+    (ind, i) => !ind.paneCollapsed && ind.sideAxesVisible !== false && paneHeights[i] > 0
+  );
+
+
   return (
     <div
       className="lq-chart__side-dock-pane-group"
@@ -201,7 +207,14 @@ export function ChartSidePaneColumn({
       <div
         ref={panelRef}
         className={["lq-chart__side-dock-pane", `lq-chart__side-dock-pane--${side}`].join(" ")}
-        style={{ position: "absolute", top: 0, left: contentLeft + plotLeft, width: plotWidth, height: plotBoundedHeight }}
+        // `+ axisHeight`: this element's own border (see .lq-chart__side-dock-pane--left/--right)
+        // is the rule separating the column from the chart, and it should run the column's whole
+        // height — including the strip the value/date axis labels sit in, which `plotBoundedHeight`
+        // stops just short of. Sized to the plot alone it ended level with the axis line and left
+        // the last ~20px of the column open on both sides. The canvas below keeps its own
+        // `plotBoundedHeight` (there is nothing to paint down there) and the headers are positioned
+        // from the top, so only the border and the edge's own drag zone actually grow.
+        style={{ position: "absolute", top: 0, left: contentLeft + plotLeft, width: plotWidth, height: plotBoundedHeight + axisHeight }}
       >
         <div
           className={["lq-chart__side-dock-pane-resize-handle", `lq-chart__side-dock-pane-resize-handle--${side}`].join(" ")}
@@ -233,6 +246,20 @@ export function ChartSidePaneColumn({
           width={plotWidth + axisWidth}
           height={plotBoundedHeight + axisHeight}
         >
+          {/* The rule closing the column at its foot, drawn edge to edge across the whole width —
+              price gutter included, which is where the vertical axis and its labels sit and where
+              the bottom axis's own line stops. A plain <line> rather than stretching that axis's
+              own domain path through `domainExtent`: the path belongs to d3-axis, which rewrites it
+              from an effect on every render, so anything set there is a value fighting its owner. */}
+          {hasBottomAxis && (
+            <line
+              className="lq-chart-axis__domain"
+              x1={0}
+              x2={plotWidth + axisWidth}
+              y1={plotBoundedHeight + 0.5}
+              y2={plotBoundedHeight + 0.5}
+            />
+          )}
           {paneIndicators.map((ind, idx) => {
             // A profile pane's axis *is* the main chart's price axis (see drawPaneProfile) — same
             // scale, so the ticks it prints are the same prices at the same heights as the ones
@@ -249,14 +276,23 @@ export function ChartSidePaneColumn({
                     header above them, and without this the axis *line* stopped at that same inset
                     — visibly short of the pane's own top edge, with the gap wider the taller the
                     header. Ticks and series still use the reserved range; only the line is drawn
-                    edge to edge, so it meets the pane divider above it and the date axis below. */}
+                    edge to edge, so it meets the pane divider above it and the date axis below.
+
+                    A profile's own line runs the height of the whole *column*, not of a pane: its
+                    scale is the main chart's price scale, whose range only covers the price section
+                    (see `isProfile` above), so left to itself the line stopped wherever the candles
+                    stop — flush against the bottom of the chart when nothing else is stacked below
+                    it, but leaving the column visibly open-ended the moment a sub-pane pushes the
+                    price section up. Drawn to `plotBoundedHeight` it always meets the value axis at
+                    the column's own foot. Ticks stay on the price scale either way, so they keep
+                    labelling the same prices at the same heights as the candles beside them. */}
                 <ChartAxis
                   scale={scale}
                   orientation={side === "right" ? "right" : "left"}
                   transform={`translate(${priceAxisX}, 0)`}
                   ticks={3}
                   tickFormat={priceAxisFmt}
-                  domainExtent={isProfile ? undefined : [paneHeights[idx], 0]}
+                  domainExtent={isProfile ? [plotBoundedHeight, 0] : [paneHeights[idx], 0]}
                 />
               </g>
             );
@@ -267,7 +303,12 @@ export function ChartSidePaneColumn({
               uses, so a folded or axis-hidden profile draws neither. */}
           {paneIndicators.map((ind, idx) => {
             if (ind.customData?.draw !== "profile" || ind.paneCollapsed || ind.sideAxesVisible === false || paneHeights[idx] <= 0) return null;
-            const valueScale = computeProfileValueScale(ind.customData?.profile ?? [], side, columnWidth);
+            const valueScale = computeProfileValueScale(
+              ind.customData?.profile ?? [],
+              side,
+              columnWidth,
+              ind.customData?.profileHeadroom
+            );
             if (!valueScale) return null;
             return (
               <ChartAxis

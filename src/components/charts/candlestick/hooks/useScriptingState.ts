@@ -75,10 +75,13 @@ export function useScriptingState({ defaultScripts, onScriptsChange, controlledE
   // `code` is a plain parameter (not a separate follow-up updateScript call) deliberately — a
   // caller adding a script and setting its initial content in the same synchronous handler would
   // otherwise read `scripts` from a still-stale closure (React batches the state update from this
-  // call, so a same-tick `updateScript` wouldn't see the just-added entry yet).
-  function addScript(name = "Nouveau script", code = ""): string {
+  // call, so a same-tick `updateScript` wouldn't see the just-added entry yet). `rest` exists for
+  // exactly the same reason, for every *other* field a caller needs set at creation time — notably
+  // `targetPanelIndex`, without which a `ChartWorkspace`-owned script is routed to no panel at all
+  // (see that file's own per-panel `scripts` filter) and so never runs.
+  function addScript(name = "Nouveau script", code = "", rest?: Partial<Omit<ScriptDef, "id" | "name" | "code">>): string {
     const id = `script-${scriptIdRef.current++}`;
-    commitScripts([...scripts, { id, name, code, enabled: true }]);
+    commitScripts([...scripts, { id, name, code, enabled: true, ...rest }]);
     setActiveScriptId(id);
     setEditorOpen(true);
     return id;

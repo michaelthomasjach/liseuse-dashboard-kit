@@ -84,6 +84,12 @@ export interface UsePaneLayoutArgs {
    *  template. Folded into `owned` (and therefore `ownPaneIndicators`/the height/top arrays) only,
    *  exactly the "additive, not merged" split the approved scripting-engine plan calls for. */
   extraIndicators?: Indicator[];
+  /** Whether a `plot.pane(name, { dock: "left"|"right" })` pane should open folded — `true` on the
+   *  narrow/phone layout, `false` otherwise, and `null` while the wrapper hasn't been measured yet
+   *  so nothing is decided off a width of 0. Only ever consulted the first time a given pane id
+   *  appears (see the effect below), never as an ongoing constraint: this sets how a docked pane
+   *  *opens*, and past that its fold state is the user's. */
+  dockedPanesStartFolded?: boolean | null;
 }
 
 /** Technical indicators (state + CRUD) and the sub-pane layout system they (and volume) share:
@@ -92,7 +98,14 @@ export interface UsePaneLayoutArgs {
  *  `indicators` (an "own"-pane indicator's id doubles as its pane key) — splitting the two apart
  *  would just mean threading `indicators` back and forth between two hooks that both need it on
  *  nearly every line. */
-export function usePaneLayout({ defaultIndicators, onIndicatorsChange, showVolume, plotBoundedHeight, extraIndicators: rawExtraIndicators = [] }: UsePaneLayoutArgs) {
+export function usePaneLayout({
+  defaultIndicators,
+  onIndicatorsChange,
+  showVolume,
+  plotBoundedHeight,
+  extraIndicators: rawExtraIndicators = [],
+  dockedPanesStartFolded = null,
+}: UsePaneLayoutArgs) {
   const [indicators, setIndicators] = useState<Indicator[]>(defaultIndicators ?? []);
   const [indicatorPickerOpen, setIndicatorPickerOpen] = useState(false);
   const [indicatorSearchQuery, setIndicatorSearchQuery] = useState("");
@@ -169,6 +182,34 @@ export function usePaneLayout({ defaultIndicators, onIndicatorsChange, showVolum
     () => rawExtraIndicators.filter((ind) => !dismissedScriptIndicators[ind.id]).map((ind) => withScriptOverride(ind, scriptIndicatorOverrides)),
     [rawExtraIndicators, dismissedScriptIndicators, scriptIndicatorOverrides]
   );
+  // Every docked pane id this chart has ever laid eyes on, so the fold-on-open rule below fires
+  // exactly once per pane and never re-folds one the user has since opened by hand.
+  const seenDockedPaneIdsRef = useRef<Set<string>>(new Set());
+  // A left/right docked pane opens folded on a phone: expanded, its column claims
+  // SIDE_DOCK_PANE_DEFAULT_WIDTH (220px) of a ~360px viewport and the candles it exists to
+  // annotate are left with almost nothing. Folded, it's a SIDE_DOCK_COLLAPSED_WIDTH strip at the
+  // edge that one tap opens — the pane is still there, just not in the way on first sight.
+  // Keyed off each pane's own first appearance rather than the chart's own mount: a docked pane is
+  // script-produced, and the worker's first run lands well after mount, so a one-shot mount effect
+  // would always run before there was anything to fold. Marking a pane seen even when the layout
+  // *isn't* narrow is the other half of that: it means later dragging a desktop window down to
+  // phone width can't retroactively fold panes the user has been working with, which is the same
+  // "this sets a default, it doesn't police the user" line ChartWorkspace draws for its own mobile
+  // side-panel default.
+  useEffect(() => {
+    if (dockedPanesStartFolded === null) return;
+    const unseen = [...indicators, ...extraIndicators].filter(
+      (ind) => indicatorCatalogEntry(ind).pane === "own" && indicatorDock(ind) !== "bottom" && !seenDockedPaneIdsRef.current.has(ind.id)
+    );
+    if (unseen.length === 0) return;
+    for (const ind of unseen) seenDockedPaneIdsRef.current.add(ind.id);
+    if (!dockedPanesStartFolded) return;
+    setSidePaneCollapsed((prev) => {
+      const next = { ...prev };
+      for (const ind of unseen) next[ind.id] = true;
+      return next;
+    });
+  }, [dockedPanesStartFolded, indicators, extraIndicators]);
   // Manual vertical rescale for a sub-pane's own value axis (volume, or an "own"-pane
   // indicator's, keyed the same way as paneHeightFractions above) — dragging that pane's own Y
   // axis strip (see handlePaneYAxisPointerDown) sets a d3.ZoomTransform here, the same

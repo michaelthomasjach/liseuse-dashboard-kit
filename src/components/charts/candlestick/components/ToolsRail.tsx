@@ -3,6 +3,7 @@ import type { RefObject, Dispatch, SetStateAction } from "react";
 import { Popover } from "../../../forms/Popover";
 import { Checkbox } from "../../../forms/Checkbox";
 import { ChevronDownIcon, MagnetIcon, EyeIcon, EyeOffIcon, LockIcon, BellIcon, LayersIcon, ZoomInIcon, ZoomOutIcon, InfoIcon } from "../../../icons";
+import { ToolCategorySheet } from "./ToolCategorySheet";
 import type { DrawingToolType } from "../interfaces/DrawingToolType.interface";
 import { DRAWING_TOOL_CATEGORIES } from "../drawingCatalog";
 import { capitalize } from "../formatting";
@@ -10,11 +11,17 @@ import { TOOLS_RAIL_HEIGHT_MOBILE } from "../constants";
 
 export interface ToolsRailProps {
   drawingTools: boolean;
-  dims: { width: number; margin: { left: number } };
+  /** `margin.bottom` is read only by the horizontal rail, to place the continuation of the plot's
+   *  own date-axis line beside it — see `railStyle` below. */
+  dims: { width: number; margin: { left: number; bottom: number } };
   plotHeight: number;
   /** Bottom-docked horizontal row (narrow/mobile layout — see MOBILE_RAIL_BREAKPOINT) instead of
-   *  the default left-docked vertical column. Purely a layout switch: every button/toggle/menu
-   *  below is identical either way, only the rail's own container flips axis. */
+   *  the default left-docked vertical column. Mostly a layout switch — same buttons, same
+   *  toggles, same state — with one real behavioural difference: a category's tools are picked
+   *  from a bottom sheet (ToolCategorySheet) opened by the category button itself, instead of a
+   *  Popover opened by a corner chevron that a thumb can't hit. The chevrons are hidden, the
+   *  buttons lose their borders and gaps, and `openToolMenu` drives the sheet rather than the
+   *  Popover — see .lq-chart__tools-rail--horizontal in charts-shared.css for the styling half. */
   horizontal: boolean;
   selectedToolByCategory: Record<string, DrawingToolType>;
   openToolMenu: string | null;
@@ -86,7 +93,24 @@ export function ToolsRail({
   const eventsMenuAnchorRef = useRef<HTMLButtonElement>(null);
 
   if (!drawingTools) return null;
-  const railStyle = horizontal ? { width: dims.width, height: TOOLS_RAIL_HEIGHT_MOBILE } : { width: dims.margin.left, height: plotHeight };
+  const railStyle = horizontal
+    ? {
+        width: dims.width,
+        height: TOOLS_RAIL_HEIGHT_MOBILE,
+        // How far above this rail's own top edge the plot's date-axis line sits: everything of the
+        // bottom margin that isn't the rail itself (CandlestickChart's own resolvedMargin folds
+        // TOOLS_RAIL_HEIGHT_MOBILE into that margin). Handed to CSS as a custom property because
+        // the rule that continues both of those lines past the plot — see
+        // `.lq-chart__tools-rail--horizontal::before/::after` — has no other way to know it: the
+        // caller can override `margin` freely, so there's no constant to hardcode.
+        ["--lq-rail-axis-gap" as string]: `${Math.max(0, dims.margin.bottom - TOOLS_RAIL_HEIGHT_MOBILE)}px`,
+      }
+    : { width: dims.margin.left, height: plotHeight };
+  // The bottom sheet and the vertical rail's flyout menus are the same `openToolMenu` state read
+  // two ways — only one of the two ever renders, so a category id in there can't mean both at
+  // once. Null on the vertical rail regardless of what's open there, which is what keeps the
+  // sheet from mounting on top of a Popover showing the very same list.
+  const sheetCategory = horizontal ? (DRAWING_TOOL_CATEGORIES.find((c) => c.id === openToolMenu) ?? null) : null;
   return (
     <div
       className={["lq-chart__tools-rail", horizontal && "lq-chart__tools-rail--horizontal"].filter(Boolean).join(" ")}
@@ -112,12 +136,22 @@ export function ToolsRail({
           return (
             <Fragment key={category.id}>
               <div className="lq-chart__tool-group">
+              {/* Two different jobs behind one button, by layout. Vertical rail: it *is* the tool
+                  — click activates whatever the category currently represents, and the chevron
+                  beside it is what leads to the rest. Horizontal (mobile) rail: there is no
+                  chevron to lead anywhere (hidden, see .lq-chart__tools-rail--horizontal's own
+                  rules), so the button opens the category's own sheet instead and picking from
+                  that list is what activates a tool. A category that only ever holds one tool
+                  keeps the direct behaviour on both — a one-row sheet asks for a second tap to
+                  reach the only answer it has. */}
               <button
                 type="button"
                 className={["lq-chart__icon-button", activeTool === selectedInCategory.type && "lq-chart__icon-button--active"]
                   .filter(Boolean)
                   .join(" ")}
-                onClick={() => handleToolClick(selectedInCategory.type)}
+                onClick={() =>
+                  horizontal && category.tools.length > 1 ? setOpenToolMenu(category.id) : handleToolClick(selectedInCategory.type)
+                }
                 aria-label={selectedInCategory.label}
                 aria-pressed={activeTool === selectedInCategory.type}
               >
@@ -127,8 +161,12 @@ export function ToolsRail({
                   a single-tool category (e.g. "Mesure" today) has nowhere else for the
                   chevron to lead, so it stays off entirely instead of opening an empty-ish
                   one-item menu. Adding a 2nd tool to that category later makes this
-                  reappear on its own, no extra wiring needed. */}
-              {category.tools.length > 1 && (
+                  reappear on its own, no extra wiring needed.
+                  Off entirely on the horizontal rail: a 12px corner badge is not a tap target,
+                  and the same `openToolMenu` state drives ToolCategorySheet down below instead
+                  — one menu per category either way, just anchored to the screen's bottom edge
+                  rather than to this button. */}
+              {!horizontal && category.tools.length > 1 && (
                 <>
                   <button
                     ref={menuAnchorRefFor(category.id)}
@@ -368,6 +406,22 @@ export function ToolsRail({
           <LayersIcon size={14} />
         </button>
       </div>
+      {/* One sheet for the whole rail, not one per category — it renders whichever category
+          `openToolMenu` names (see sheetCategory above), so there's never more than one on screen
+          and the exit animation of the one leaving isn't racing a sibling's entrance. */}
+      <ToolCategorySheet
+        category={sheetCategory}
+        selectedType={sheetCategory ? (selectedToolByCategory[sheetCategory.id] ?? sheetCategory.tools[0].type) : undefined}
+        onSelect={handleSelectToolType}
+        onClose={() => setOpenToolMenu(null)}
+        // Closes the sheet on its way out, unlike the desktop menu which stays put behind the
+        // info modal: this sheet's own overlay sits at z-index 2050, above Modal's 2000, so
+        // leaving it up would bury the very modal the tap just asked for.
+        onOpenToolInfo={(type) => {
+          setOpenToolMenu(null);
+          onOpenToolInfo(type);
+        }}
+      />
     </div>
   );
 }

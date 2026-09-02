@@ -18,6 +18,11 @@ export interface ChartLegendProps {
   ohlcDelta: number;
   ohlcDeltaPct: number;
   ohlcSign: string;
+  /** Narrow/phone layout (see CandlestickChart's own `isNarrowLayout`). Splits this header in two:
+   *  `SYMBOLE · <type>` on the first line, the quote on a second one below it — and that quote
+   *  drops to close + change + percent, since O/H/L/C plus all three of those never fitted on a
+   *  phone's width and simply ran off the edge of the plot. */
+  mobile: boolean;
   pFmt: (value: number) => string;
   showIndicators: boolean;
   overlayIndicators: Indicator[];
@@ -50,8 +55,9 @@ export interface ChartLegendProps {
 
 /** Symbol/chart-type label + live OHLC readout, then the indicator legend right below it — one
  *  shared top-left column instead of two independently-positioned corners, so neither has to
- *  guess the other's height to avoid overlapping it. Purely presentational; every interaction is
- *  a callback prop. */
+ *  guess the other's height to avoid overlapping it. Under `mobile` the first of those two is
+ *  itself two lines, and its readout shrinks to a close/change/percent quote — see that prop's
+ *  own doc. Purely presentational; every interaction is a callback prop. */
 export function ChartLegend({
   dims,
   symbol,
@@ -63,6 +69,7 @@ export function ChartLegend({
   ohlcDelta,
   ohlcDeltaPct,
   ohlcSign,
+  mobile,
   pFmt,
   showIndicators,
   overlayIndicators,
@@ -88,7 +95,7 @@ export function ChartLegend({
 }: ChartLegendProps) {
   return (
     <div className="lq-chart__plot-topleft" style={{ top: dims.margin.top + 6, left: dims.margin.left + 6 }}>
-      <div className="lq-chart__symbol-info">
+      <div className={["lq-chart__symbol-info", mobile && "lq-chart__symbol-info--stacked"].filter(Boolean).join(" ")}>
         {/* Its own hoverable zone (background on hover) only once `symbolSearch` opts in —
             otherwise `symbol` still renders, just as inert text, same as before this
             existed. Double-click only (not single), matching the chart-type label right
@@ -119,10 +126,25 @@ export function ChartLegend({
         >
           {currentModeEntry.label}
         </button>
+        {/* Same element, same up/down colour and same tabular figures either way — only how much
+            of the candle it spells out changes. The `--stacked` modifier on the row above is what
+            actually breaks the line (a full-width flex basis, see charts-shared.css); this span
+            stays a plain sibling of the symbol and the mode label rather than moving into a
+            wrapper of its own, so nothing about the desktop row's own baseline alignment shifts. */}
         <span className={["lq-chart__symbol-info-ohlc", ohlcDelta >= 0 ? "lq-chart__symbol-info-ohlc--up" : "lq-chart__symbol-info-ohlc--down"].join(" ")}>
-          O {pFmt(ohlcCandle.open)} H {pFmt(ohlcCandle.high)} L {pFmt(ohlcCandle.low)} C {pFmt(ohlcCandle.close)} {ohlcSign}
-          {pFmt(ohlcDelta)} ({ohlcSign}
-          {ohlcDeltaPct.toFixed(2)}%)
+          {mobile ? (
+            <>
+              {pFmt(ohlcCandle.close)} {ohlcSign}
+              {pFmt(ohlcDelta)} ({ohlcSign}
+              {ohlcDeltaPct.toFixed(2)}%)
+            </>
+          ) : (
+            <>
+              O {pFmt(ohlcCandle.open)} H {pFmt(ohlcCandle.high)} L {pFmt(ohlcCandle.low)} C {pFmt(ohlcCandle.close)} {ohlcSign}
+              {pFmt(ohlcDelta)} ({ohlcSign}
+              {ohlcDeltaPct.toFixed(2)}%)
+            </>
+          )}
         </span>
       </div>
       {/* Price-overlay indicators (SMA/EMA/WMA/VWAP/Bollinger) only — "own"-pane ones

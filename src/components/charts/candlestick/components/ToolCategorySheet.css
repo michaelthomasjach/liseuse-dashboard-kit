@@ -1,0 +1,192 @@
+/* The mobile rail's replacement for a category's flyout menu (see ToolCategorySheet.tsx, and
+   .lq-chart__tools-rail--horizontal in charts-shared.css for the rail itself) — a bottom sheet
+   rather than a Popover anchored to a 26px button: on a phone the anchored menu opened over the
+   plot it was about, close to the thumb that had just covered it, and had nowhere to grow.
+   z-index matches Popover's own 2050 (it stands in for one) so it clears Modal's 2000 the same
+   way — a sheet opened from inside a modal would otherwise render behind that modal's overlay. */
+.lq-chart__tool-sheet-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2050;
+  display: flex;
+  align-items: flex-end;
+  background-color: var(--lq-color-overlay);
+  animation: lq-tool-sheet-overlay-in 220ms ease-out;
+}
+
+.lq-chart__tool-sheet-overlay--closing {
+  /* `forwards` on both closing rules: without it the element snaps back to its own pre-animation
+     state on the last frame — fully opaque overlay, sheet at rest — for however long it takes the
+     animationend handler to unmount it, which reads as a visible flash of the thing that was
+     supposed to have just left. */
+  animation: lq-tool-sheet-overlay-out 200ms ease-in forwards;
+}
+
+.lq-chart__tool-sheet {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  /* Never taller than most of the screen, and scrolls inside itself past that — "Lignes" carries
+     a dozen-plus tools and a sheet that grew to fit them all would cover the chart it's about. */
+  max-height: 70vh;
+  overflow-y: auto;
+  background-color: var(--lq-color-panel);
+  border-top: 1px solid var(--lq-color-border);
+  border-top-left-radius: var(--lq-radius-lg);
+  border-top-right-radius: var(--lq-radius-lg);
+  box-shadow: var(--lq-shadow-modal);
+  /* Clears the home indicator on a phone with no hardware button — `env()` resolves to 0px
+     everywhere else, so the max() falls through to the plain padding on every other device. */
+  padding-bottom: max(var(--lq-space-2), env(safe-area-inset-bottom));
+  animation: lq-tool-sheet-in 260ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.lq-chart__tool-sheet--closing {
+  animation: lq-tool-sheet-out 200ms ease-in forwards;
+}
+
+/* The usual "drag me" affordance of a bottom sheet — decorative only here (the sheet closes by
+   picking a tool, tapping outside, or Escape; there's no drag-to-dismiss), but it's what tells a
+   phone user at a glance that this panel belongs to the bottom edge rather than being a dialog
+   that happens to be badly centred. */
+.lq-chart__tool-sheet-grabber {
+  flex-shrink: 0;
+  width: 36px;
+  height: 4px;
+  margin: var(--lq-space-2) auto;
+  background-color: var(--lq-color-border);
+  border-radius: var(--lq-radius-pill);
+}
+
+.lq-chart__tool-sheet-header {
+  flex-shrink: 0;
+  padding: var(--lq-space-1) var(--lq-space-4) var(--lq-space-2);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-chart__tool-sheet-list {
+  display: flex;
+  flex-direction: column;
+  padding: 0 var(--lq-space-2);
+}
+
+.lq-chart__tool-sheet-row {
+  display: flex;
+  align-items: center;
+  gap: var(--lq-space-1);
+}
+
+/* Deliberately not .lq-chart__tool-menu-option (the flyout's own row): that one is sized for a
+   mouse in a 200px-wide menu. A sheet row is a touch target first — full width, tall enough to
+   hit without aiming, and its icon given real room to read at arm's length. */
+.lq-chart__tool-sheet-option {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: var(--lq-space-3);
+  min-width: 0;
+  padding: var(--lq-space-3) var(--lq-space-2);
+  font-family: inherit;
+  font-size: 0.85rem;
+  text-align: left;
+  color: var(--lq-color-text);
+  background: none;
+  border: none;
+  border-radius: var(--lq-radius-md);
+  cursor: pointer;
+}
+
+.lq-chart__tool-sheet-option:hover {
+  background-color: var(--lq-color-hover);
+}
+
+.lq-chart__tool-sheet-option--selected {
+  color: var(--lq-color-accent);
+  font-weight: 600;
+}
+
+.lq-chart__tool-sheet-info {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  padding: var(--lq-space-2);
+  color: var(--lq-color-text-muted);
+  background: none;
+  border: none;
+  border-radius: var(--lq-radius-md);
+  cursor: pointer;
+}
+
+.lq-chart__tool-sheet-divider {
+  height: 1px;
+  margin: var(--lq-space-1) var(--lq-space-2);
+  background-color: var(--lq-color-border-subtle);
+}
+
+@keyframes lq-tool-sheet-in {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes lq-tool-sheet-out {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(100%);
+  }
+}
+
+@keyframes lq-tool-sheet-overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes lq-tool-sheet-overlay-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* An e-ink panel can't render a slide at all — it would tear into a smear of partial refreshes.
+   Same call Popover already makes for its own scale-in: drop to a plain opacity step. Kept as a
+   real animation rather than none at all, here and under reduced-motion below, because the sheet
+   unmounts on its own `animationend` (see ToolCategorySheet.tsx) — remove the animation and that
+   event never fires, leaving the sheet stuck on screen. */
+.lq-root[data-lq-palette="eink"] .lq-chart__tool-sheet {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  animation: lq-tool-sheet-overlay-in 80ms linear;
+}
+
+.lq-root[data-lq-palette="eink"] .lq-chart__tool-sheet--closing {
+  animation: lq-tool-sheet-overlay-out 80ms linear forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lq-chart__tool-sheet-overlay,
+  .lq-chart__tool-sheet {
+    animation: lq-tool-sheet-overlay-in 80ms linear;
+  }
+
+  .lq-chart__tool-sheet-overlay--closing,
+  .lq-chart__tool-sheet--closing {
+    animation: lq-tool-sheet-overlay-out 80ms linear forwards;
+  }
+}

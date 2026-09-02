@@ -77,6 +77,7 @@ import {
   DEFAULT_MARGIN,
   TOOLS_RAIL_WIDTH,
   TOOLS_RAIL_HEIGHT_MOBILE,
+  PRICE_AXIS_WIDTH_MOBILE,
   MOBILE_RAIL_BREAKPOINT,
   SUB_PANE_COLLAPSED_HEIGHT,
 } from "./candlestick/constants";
@@ -263,11 +264,31 @@ export function CandlestickChart({
   // desktop layout. `rawDims.margin` already has TOOLS_RAIL_WIDTH folded into `left` from that
   // assumption — on mobile, undo that and fold TOOLS_RAIL_HEIGHT_MOBILE into `bottom` instead, then
   // recompute the two bounded dimensions the same way the hook itself does.
-  const isMobileRail = drawingTools && rawDims.width > 0 && rawDims.width < MOBILE_RAIL_BREAKPOINT;
+  // The phone layout, as a plain width question. `isMobileRail` below is this *and* there being a
+  // rail to flip in the first place — a gate that matters only to the rail itself, not to the
+  // other things this width decides: a narrower price axis, a script's docked pane opening folded,
+  // the legend stacking its quote onto a second line.
+  const isNarrowLayout = rawDims.width > 0 && rawDims.width < MOBILE_RAIL_BREAKPOINT;
+  const isMobileRail = drawingTools && isNarrowLayout;
+  // Clamped, never widened — a caller that already asked for a narrower gutter than this keeps it.
+  const narrowAxisRight = Math.min(rawDims.margin.right, PRICE_AXIS_WIDTH_MOBILE);
+  // `null` (not `false`) until the wrapper has actually been measured — see usePaneLayout's own
+  // `dockedPanesStartFolded` doc, which reads that as "decide nothing yet" rather than "this is a
+  // desktop", so a pane present at width 0 isn't permanently written off as already handled.
+  const dockedPanesStartFolded = rawDims.width > 0 ? isNarrowLayout : null;
   const resolvedMargin: ChartMargin = isMobileRail
-    ? { ...rawDims.margin, left: rawDims.margin.left - TOOLS_RAIL_WIDTH, bottom: rawDims.margin.bottom + TOOLS_RAIL_HEIGHT_MOBILE }
-    : rawDims.margin;
-  const dims: ChartDimensions = isMobileRail
+    ? {
+        ...rawDims.margin,
+        left: rawDims.margin.left - TOOLS_RAIL_WIDTH,
+        bottom: rawDims.margin.bottom + TOOLS_RAIL_HEIGHT_MOBILE,
+        right: narrowAxisRight,
+      }
+    : isNarrowLayout
+      ? { ...rawDims.margin, right: narrowAxisRight }
+      : rawDims.margin;
+  // Gated on `isNarrowLayout`, not `isMobileRail`: the price axis narrows on this layout whether or
+  // not there are drawing tools, so a drawing-tools-less phone chart needs the recomputation too.
+  const dims: ChartDimensions = isNarrowLayout
     ? {
         ...rawDims,
         boundedWidth: Math.max(0, rawDims.width - resolvedMargin.left - resolvedMargin.right),
@@ -345,7 +366,14 @@ export function CandlestickChart({
     rightPaneIndicators, rightPaneHeights, rightPaneTops,
     toggleSidePaneCollapsed,
     extraIndicators: activeScriptIndicators,
-  } = usePaneLayout({ defaultIndicators, onIndicatorsChange, showVolume, plotBoundedHeight, extraIndicators: scriptChartIndicators });
+  } = usePaneLayout({
+    defaultIndicators,
+    onIndicatorsChange,
+    showVolume,
+    plotBoundedHeight,
+    extraIndicators: scriptChartIndicators,
+    dockedPanesStartFolded,
+  });
   const correlationSetup = useCorrelationSetup({ appendIndicator, onAddSymbolOverlay, onSymbolSearchChange });
   // `activeScriptIndicators`, not the raw `scriptChartIndicators` — script outputs the user has
   // deleted from the chart are already filtered out of it (see usePaneLayout's own
@@ -852,6 +880,7 @@ export function CandlestickChart({
             ohlcDelta={ohlcDelta}
             ohlcDeltaPct={ohlcDeltaPct}
             ohlcSign={ohlcSign}
+            mobile={isNarrowLayout}
             pFmt={pFmt}
             showIndicators={showIndicators}
             overlayIndicators={overlayIndicators}

@@ -637,7 +637,12 @@
 
 .lq-chart__tools-rail--horizontal .lq-chart__tools-rail-items {
   flex-direction: row;
-  height: auto;
+  /* Fills the rail's own TOOLS_RAIL_HEIGHT_MOBILE rather than shrinking to the buttons (`auto`,
+     what this used to say). At `auto` the row sat at the top of the rail and left every leftover
+     pixel as one dead strip along the bottom edge, which read as a gap between the tools and
+     whatever came next — the mobile page switcher, directly below. Filling instead lets the base
+     rule's own `align-items: center` share that slack evenly above and below the icons. */
+  height: 100%;
   width: 100%;
   padding-top: 0;
   padding-bottom: 0;
@@ -656,6 +661,38 @@
 
 .lq-chart__tools-rail--horizontal .lq-chart__tools-rail-items::-webkit-scrollbar {
   display: none;
+}
+
+/* Both of the chart's own bottom rules stop at the plot column's right edge, because that column
+   is all this rail (and the SVG above it) is sized to — see ToolsRail's own `railStyle`. Anything
+   docked to the right of it (a `plot.pane(..., { dock: "right" })` column, collapsed to a strip on
+   this layout) then sits beside two lines that visibly give up short of it. These two continue
+   them across it: `::after` carries this rail's own border-top, `::before` carries the date axis'
+   own domain line (already extended once across the price-axis gutter in SVG — see
+   ChartCanvasOverlay's own `.lq-chart__axis-line-extension`, which can't reach past the SVG
+   itself). Both bleed a full viewport to the right and are trimmed at the chart's own edge by
+   `.lq-chart`'s `overflow: hidden` — no docked-column width has to be threaded down here for
+   that, and nothing about the rail's own box or the margin math changes. `top: -1px` lands on the
+   border box's own top edge: an absolutely-positioned child resolves against the *padding* box,
+   which starts after this rail's 1px border-top. */
+.lq-chart__tools-rail--horizontal::before,
+.lq-chart__tools-rail--horizontal::after {
+  content: "";
+  position: absolute;
+  left: 100%;
+  width: 100vw;
+  border-top: 1px solid var(--lq-color-border-subtle);
+  pointer-events: none;
+}
+
+.lq-chart__tools-rail--horizontal::after {
+  top: -1px;
+}
+
+.lq-chart__tools-rail--horizontal::before {
+  /* Fallback matches DEFAULT_MARGIN.bottom, for the (impossible in practice) case of the custom
+     property not being set — a wrong-by-a-few-pixels line beats none at all. */
+  top: calc(-1px - var(--lq-rail-axis-gap, 24px));
 }
 
 .lq-chart__tools-rail--horizontal .lq-chart__tools-rail-items > * {
@@ -677,6 +714,39 @@
 .lq-chart__tools-rail--horizontal .lq-chart__tools-rail-bottom-button {
   margin-top: 0;
   margin-left: auto;
+}
+
+/* One continuous strip of icons rather than a row of separate little pills — no gap between the
+   buttons, none at the row's own ends either, and the borders below dropped so nothing draws a
+   box around each one. Overrides the 22px coarse-pointer gap above on specificity alone (two
+   classes beat one), which is what that gap is for: a vertical rail has a whole column's height
+   to spend on breathing room, this row has a phone's width and a dozen tools wanting it. */
+.lq-chart__tools-rail--horizontal .lq-chart__tools-rail-items {
+  gap: 0;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+/* Borders off, and with them the rounded corners that only ever existed to soften those borders.
+   The active state stays perfectly readable without one — it's a filled accent background (see
+   .lq-chart__icon-button--active), not an outline. */
+.lq-chart__tools-rail--horizontal .lq-chart__icon-button {
+  border-color: transparent;
+  border-radius: 0;
+}
+
+/* Hover borrows the same treatment the base button reserves for its border — nothing to hint
+   with once that's transparent, so the text colour carries it alone. */
+.lq-chart__tools-rail--horizontal .lq-chart__icon-button:hover {
+  border-color: transparent;
+}
+
+/* The corner chevron (and the same badge "Mesure" reuses for its own info button) is a 12px
+   target sitting half-outside a button — fine under a cursor, unusable under a thumb, and it has
+   nothing left to open here anyway: tapping the button itself opens ToolCategorySheet with the
+   whole category in it (see ToolsRail's own `horizontal` branch). */
+.lq-chart__tools-rail--horizontal .lq-chart__tool-chevron {
+  display: none;
 }
 
 .lq-chart__tool-group {
@@ -1734,6 +1804,22 @@
   padding: 2px 6px;
   pointer-events: auto;
   cursor: default;
+}
+
+/* Narrow layout (ChartLegend's own `mobile` prop) — "SYMBOLE · <type>" on the first line, the
+   quote on a second one below it. Done by letting the row wrap and giving the quote a full-width
+   basis rather than by nesting it in a block of its own: the first line then stays the very same
+   baseline-aligned flex row it is on desktop, with nothing about the symbol/separator/mode-label
+   spacing re-derived for this case. `row-gap` is deliberately much tighter than the 8px `gap`
+   between items *along* a line — at 8px the two lines read as separate blocks rather than as one
+   header split in two. */
+.lq-chart__symbol-info--stacked {
+  flex-wrap: wrap;
+  row-gap: 1px;
+}
+
+.lq-chart__symbol-info--stacked .lq-chart__symbol-info-ohlc {
+  flex-basis: 100%;
 }
 
 .lq-chart__symbol-info-name {

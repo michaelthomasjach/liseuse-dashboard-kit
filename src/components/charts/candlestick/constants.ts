@@ -17,6 +17,12 @@ export const TOOLS_RAIL_WIDTH = 40;
  *  the left one in the desktop layout, so the plot/axes never draw under it either. 44px matches
  *  the icon buttons' own coarse-pointer tap target (see .lq-chart__icon-button's own doc). */
 export const TOOLS_RAIL_HEIGHT_MOBILE = 44;
+/** Price-axis width once the chart is narrow enough to count as a phone layout (see
+ *  MOBILE_RAIL_BREAKPOINT) — a ceiling on `DEFAULT_MARGIN.right`, never a widening of it. That
+ *  72px gutter is sized for six-figure prices beside a desktop-width plot; on a ~360px screen it
+ *  was a fifth of the whole width spent on four or five digits, taken straight out of the candles.
+ *  Still comfortably wider than a "1 234.56" label at the axis' own font size. */
+export const PRICE_AXIS_WIDTH_MOBILE = 44;
 /** Wrapper width (px) below which the drawing-tools rail switches from a left-docked vertical
  *  column to a bottom-docked horizontal, scrollable row — narrower than this and the tool buttons
  *  plus toggles don't fit stacked in the remaining plot width. Measured off the chart's own

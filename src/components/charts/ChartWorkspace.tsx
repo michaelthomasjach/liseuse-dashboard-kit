@@ -18,13 +18,14 @@ export type {
   SymbolProfileEarningsPoint,
 } from "./workspace/SymbolProfile.interface";
 import { useSymbolProfileSplit } from "./workspace/useSymbolProfileSplit";
+import { useDragToDismiss } from "./workspace/useDragToDismiss";
 import { useSidePanel } from "./candlestick/hooks/useSidePanel";
 import { useScriptingState } from "./candlestick/hooks/useScriptingState";
 import { ChartSidePanel } from "./candlestick/components/ChartSidePanel";
 import { ScriptEditorPanel } from "./candlestick/scripting/components/ScriptEditorPanel";
 import { Popover } from "../forms/Popover";
 import { Modal } from "../primitives/Modal";
-import { WatchlistIcon, BellIcon, GridIcon, MaximizeIcon, MinimizeIcon, HelpIcon, CodeIcon } from "../icons";
+import { WatchlistIcon, BellIcon, PlusIcon, CandleModeIcon, GridIcon, MaximizeIcon, MinimizeIcon, HelpIcon, CodeIcon } from "../icons";
 import { useFullscreen } from "./internal/useFullscreen";
 import { useChartDimensions } from "./internal/useChartDimensions";
 import { MOBILE_RAIL_BREAKPOINT } from "./candlestick/constants";
@@ -298,6 +299,11 @@ export function ChartWorkspace({
   }
   const sidePanelState = useSidePanel({ defaultSidePanelOpen, onSidePanelOpenChange });
   const symbolProfileSplit = useSymbolProfileSplit();
+  // The mobile details page's own grab bar (see where it renders below) — declared here rather
+  // than beside it because that page is built inside an IIFE in the JSX, which is no place for a
+  // hook: it renders conditionally, and a hook that comes and goes with a condition is exactly
+  // what the rules of hooks forbid.
+  const profileDrag = useDragToDismiss(() => setMobileProfileTicker(null));
   // Whole-workspace fullscreen (the rail's own "Plein écran de l'espace de travail" button below,
   // item 3) — a plain, uncontrolled `useFullscreen()` like a standalone CandlestickChart's own,
   // just applied to the outer `.lq-chart-workspace` row instead of one panel. Distinct from
@@ -361,6 +367,17 @@ export function ChartWorkspace({
   const hasAlerts = alerts !== undefined;
   const [activeTab, setActiveTab] = useState<ChartWorkspaceSidePanelTab>(defaultSidePanelTab ?? (hasWatchlists ? "watchlist" : "alerts"));
   const [activeWatchlistId, setActiveWatchlistId] = useState(defaultActiveWatchlistId ?? watchlists?.[0]?.id);
+  // Bumped by the mobile topbar's own "+" to open WatchlistPanel's add-symbol modal — that panel
+  // drops its whole header row (and with it its own "+") on this layout, see its `mobile` prop.
+  // A counter, not a boolean: the modal's open state stays down in the panel, which closes it
+  // itself without needing to write anything back up here (see `addSymbolRequestId`'s own doc).
+  const [addSymbolRequestId, setAddSymbolRequestId] = useState(0);
+  // Mobile only: which symbol's own details page is covering the list, or null for the list
+  // itself. The ticker rather than a boolean, because the page has to name the row that was
+  // actually tapped even before the panel behind it has caught up to that symbol — see where
+  // it's read below. Deliberately not derived from `symbolByPanel`: that says which symbol a
+  // *chart* is showing, which stays true long after the user has come back to the list.
+  const [mobileProfileTicker, setMobileProfileTicker] = useState<string | null>(null);
   // Every column, across every list, visible by default — same "start showing everything, let the
   // user narrow it down" reasoning `excludedYears` avoids for SeasonalityView's own years filter,
   // just inverted (a whitelist here reads as the more natural default for "which columns" than an
@@ -375,10 +392,18 @@ export function ChartWorkspace({
   // style activity-bar rail already gives, one docked panel with several switchable tabs rather
   // than each tab being its own independently-open panel.
   function toggleTab(tab: ChartWorkspaceSidePanelTab) {
-    if (sidePanelState.open && activeTab === tab) {
+    // Not on the mobile layout: there the bottom nav is what opens and closes the panel, and these
+    // buttons only ever live *inside* it (see the topbar's own render condition). Collapsing from
+    // here would drop the user onto the chart page as a side effect of tapping the tab they were
+    // already on, which is not what a tab does.
+    if (!isMobileWorkspace && sidePanelState.open && activeTab === tab) {
       sidePanelState.commitOpen(false);
       return;
     }
+    // Any move that changes what the panel is showing drops the mobile details page with it —
+    // it belongs to one row of one list, and leaving it up over a different tab would be a page
+    // about a symbol nothing on screen is still about.
+    setMobileProfileTicker(null);
     setActiveTab(tab);
     onSidePanelTabChange?.(tab);
     if (!sidePanelState.open) sidePanelState.commitOpen(true);
@@ -394,10 +419,15 @@ export function ChartWorkspace({
   // active instead of only the tab, since every list gets its own button here rather than one
   // shared icon plus an in-panel dropdown to pick among them (WatchlistPanel's own trigger).
   function selectWatchlistTab(id: string) {
-    if (sidePanelState.open && activeTab === "watchlist" && activeWatchlistId === id) {
+    // Same carve-out as toggleTab above, for the same reason — and it bites harder here, since
+    // these buttons only exist on the mobile layout at all.
+    if (!isMobileWorkspace && sidePanelState.open && activeTab === "watchlist" && activeWatchlistId === id) {
       sidePanelState.commitOpen(false);
       return;
     }
+    // Same as toggleTab — switching lists takes you back to the list itself, not to a details page
+    // opened from the one you just left.
+    setMobileProfileTicker(null);
     selectWatchlist(id);
     setActiveTab("watchlist");
     onSidePanelTabChange?.("watchlist");
@@ -475,6 +505,17 @@ export function ChartWorkspace({
   // several, "which window" isn't decidable here, so SymbolTargetModal asks instead and
   // confirmSymbolTarget below does the actual applying once the user answers.
   function handleWatchlistRowClick(row: ChartWorkspaceWatchlistRow, watchlistId: string) {
+    // Mobile: the tap opens that symbol's own details page over the list (see the side panel's own
+    // render below). SymbolTargetModal is skipped on the way, whatever `panels` says — "which of
+    // the windows" is a desktop question, and a modal landing on top of the page that just opened
+    // would be two answers to one tap. The ticker still goes to the primary panel, so switching to
+    // the Graphique page afterwards shows what was tapped rather than the previous symbol.
+    if (isMobileWorkspace) {
+      setMobileProfileTicker(row.ticker);
+      setSymbolByPanel((prev) => ({ ...prev, 0: row.ticker }));
+      onWatchlistRowClick?.(row, watchlistId);
+      return;
+    }
     if (panels >= 2) {
       setPendingSymbolRow({ row, watchlistId });
     } else {
@@ -622,8 +663,14 @@ export function ChartWorkspace({
           in from the rail. scripting/split-screen/fullscreen simply have no mobile equivalent —
           they just don't render anywhere on this layout. Native horizontal scroll (not a custom
           drag handler) for when the list names don't all fit — same finger-drag-for-free pattern
-          `.lq-chart__header` and ToolsRail's own `--horizontal` variant already use. */}
-      {isMobileWorkspace && (hasWatchlists || hasAlerts) && (
+          `.lq-chart__header` and ToolsRail's own `--horizontal` variant already use.
+          Only while the list itself is the page being shown — not on the chart page (the bottom
+          nav further down is what opens and closes the panel on this layout), and not over a
+          symbol's details page either: these buttons pick *which* list, a question that only
+          exists while you're looking at one. Anywhere else they're 40px of permanent overhead
+          answering nothing, and the details page in particular already has a header of its own
+          naming where you are and how to get back. */}
+      {isMobileWorkspace && sidePanelState.open && mobileProfileTicker === null && (hasWatchlists || hasAlerts) && (
         <div className="lq-chart-workspace__mobile-topbar">
           {watchlists?.map((w) => (
             <button
@@ -641,6 +688,23 @@ export function ChartWorkspace({
               <span className="lq-chart__timeframe-trigger-label">{w.name}</span>
             </button>
           ))}
+          {/* WatchlistPanel's own "+", relocated: on this layout that panel renders no header of
+              its own at all (see its `mobile` prop), so the one action worth keeping from it lands
+              here instead. Only while that panel is actually the open tab — it owns the modal this
+              opens, so with the panel unmounted (or showing alerts) there'd be nothing listening,
+              and "add a symbol" has no meaning without a visible list to add it to. Sits with the
+              bell rather than among the list-name buttons: those pick *which* list, these two act. */}
+          {sidePanelState.open && activeTab === "watchlist" && hasWatchlists && (
+            <button
+              type="button"
+              className="lq-chart__icon-button"
+              onClick={() => setAddSymbolRequestId((n) => n + 1)}
+              aria-label="Ajouter un symbole"
+              title="Ajouter un symbole"
+            >
+              <PlusIcon size={16} />
+            </button>
+          )}
           {hasAlerts && (
             <button
               type="button"
@@ -832,6 +896,8 @@ export function ChartWorkspace({
                   earnings={watchlistEarnings}
                   dividends={watchlistDividends}
                   news={watchlistNews}
+                  mobile={isMobileWorkspace}
+                  addSymbolRequestId={addSymbolRequestId}
                 />
               ) : (
                 <>
@@ -848,6 +914,76 @@ export function ChartWorkspace({
                   {alerts}
                 </>
               );
+            // Mobile: one page at a time, never the split. The list is the whole panel, and a
+            // tapped row pushes that symbol's own details over it with a back button to return —
+            // the desktop split would leave the table roughly a third of a phone's screen, which
+            // is the one thing this page exists to show. Each page carries its own scroll
+            // container, the job the split's own two halves used to do.
+            if (isMobileWorkspace) {
+              // Price/change come from a *panel's* own candles (see currentProfilePrice above), so
+              // they're only meaningful while that panel is actually on this ticker. It normally
+              // is — the tap put it there — but a focused second panel, or a host that hasn't
+              // supplied data for the new symbol yet, both break that; showing the previous
+              // symbol's price under this one's name would be worse than showing none.
+              const profileIsForTicker = currentProfileSymbol === mobileProfileTicker;
+              return (
+                <div className="lq-chart-workspace__side-pages">
+                  {/* The list stays mounted underneath the details page rather than being swapped
+                      out for it — that's what makes dragging the page down reveal the list itself
+                      instead of an empty panel, and it keeps the list's own scroll position (and
+                      any half-finished drag/collapse state in it) exactly where it was. */}
+                  <div className="lq-chart-workspace__side-page">
+                    <div className="lq-chart-workspace__side-page-body">{topContent}</div>
+                  </div>
+                  {mobileProfileTicker !== null && (
+                    <div
+                      className={[
+                        "lq-chart-workspace__side-page",
+                        "lq-chart-workspace__side-page--overlay",
+                        profileDrag.dragging && "lq-chart-workspace__side-page--dragging",
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
+                      style={profileDrag.offsetY > 0 ? { transform: `translateY(${profileDrag.offsetY}px)` } : undefined}
+                    >
+                      {/* Replaces the back-button header this page used to carry: one bar, drag it
+                          down to close. `touch-action: none` on it (see the CSS) is what stops the
+                          browser claiming the same vertical gesture for scrolling the page body
+                          underneath before the handler ever sees it. Still a real <button>, so the
+                          page keeps a keyboard/screen-reader way out — a drag gesture is not one. */}
+                      <button
+                        type="button"
+                        className="lq-chart-workspace__side-page-grabber"
+                        onPointerDown={profileDrag.startDrag}
+                        onClick={() => setMobileProfileTicker(null)}
+                        aria-label="Fermer les détails du symbole"
+                        title="Glisser vers le bas pour fermer"
+                      >
+                        <span className="lq-chart-workspace__side-page-grabber-bar" aria-hidden="true" />
+                      </button>
+                      <div className="lq-chart-workspace__side-page-body">
+                        <SymbolProfilePanel
+                          symbol={mobileProfileTicker}
+                          price={profileIsForTicker ? currentProfilePrice : null}
+                          change={profileIsForTicker ? currentProfileChange : null}
+                          changePercent={profileIsForTicker ? currentProfileChangePercent : null}
+                          profile={symbolProfiles?.find((p) => p.ticker === mobileProfileTicker)}
+                          // Same guard as the price above, and for the same reason: these are one
+                          // panel's own candles, worth drawing only while that panel is on this
+                          // ticker. The desktop split gets neither prop — the real chart is already
+                          // on screen beside it there.
+                          priceHistory={profileIsForTicker ? profileData : undefined}
+                          onOpenInChart={() => {
+                            setMobileProfileTicker(null);
+                            sidePanelState.commitOpen(false);
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            }
             // Split vertically whenever there's an actual symbol to show company info for — the
             // content above, unchanged, on top; SymbolProfilePanel below; a drag handle between
             // the two (see useSymbolProfileSplit's own doc). Falls back to the plain unsplit
@@ -988,6 +1124,53 @@ export function ChartWorkspace({
       </div>
       )}
       </div>
+
+      {/* The mobile layout's own two pages, and the only way between them: the charts, or the
+          docked panel (whichever of watchlist/alerts `activeTab` last named). Both stay mounted
+          throughout — the panel covers the row rather than replacing it (see
+          `.lq-chart__side-panel--fullscreen`), so switching pages never unmounts a chart and loses
+          its zoom, its drawings or a running script.
+          Reads and writes `sidePanelState.open` rather than owning a page enum of its own: on this
+          layout "the panel is open" and "the panel is the page you're on" are already the same
+          fact, and a second piece of state saying so could only ever disagree with the first.
+          Last child of the workspace column, so it sits under the row and stays put while the row
+          above it scrolls — no `position: fixed`, which would escape a workspace embedded in a
+          taller page and pin itself to the viewport instead. */}
+      {isMobileWorkspace && (hasWatchlists || hasAlerts) && (
+        <div className="lq-chart-workspace__mobile-bottomnav">
+          <button
+            type="button"
+            className={["lq-chart-workspace__mobile-bottomnav-item", !sidePanelState.open && "lq-chart-workspace__mobile-bottomnav-item--active"]
+              .filter(Boolean)
+              .join(" ")}
+            onClick={() => {
+              // Leaving for the chart also drops any open details page, so coming back lands on
+              // the list — the predictable place to return to, rather than wherever the last tap
+              // happened to leave things.
+              setMobileProfileTicker(null);
+              sidePanelState.commitOpen(false);
+            }}
+            aria-current={sidePanelState.open ? undefined : "page"}
+          >
+            <CandleModeIcon size={18} />
+            Graphique
+          </button>
+          <button
+            type="button"
+            className={["lq-chart-workspace__mobile-bottomnav-item", sidePanelState.open && "lq-chart-workspace__mobile-bottomnav-item--active"]
+              .filter(Boolean)
+              .join(" ")}
+            onClick={() => sidePanelState.commitOpen(true)}
+            aria-current={sidePanelState.open ? "page" : undefined}
+          >
+            {/* The panel is whatever `activeTab` last named, and a workspace given alerts but no
+                watchlists has only one thing it can ever be — naming it "Listes" there would
+                promise a page that doesn't exist. */}
+            {hasWatchlists ? <WatchlistIcon size={18} /> : <BellIcon size={18} />}
+            {hasWatchlists ? "Listes" : "Alertes"}
+          </button>
+        </div>
+      )}
 
       {helpOpen && (
         <Modal open onClose={() => setHelpOpen(false)} title="Fonctionnalités de l'espace de travail">

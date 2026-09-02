@@ -1,7 +1,38 @@
+import { useMemo, useState } from "react";
 import { PriceChangeTag } from "../../finance/PriceChangeTag";
 import { Sparkline } from "../Sparkline";
 import { EarningsDotChart } from "../EarningsDotChart";
+import { LineAreaChart } from "../LineAreaChart";
+import type { ChartPoint } from "../LineAreaChart";
+import { MaximizeIcon } from "../../icons";
+import type { Candle } from "../candlestick/interfaces/Candle.interface";
 import type { SymbolProfile } from "./SymbolProfile.interface";
+
+/** The price chart's own range buttons, in the order they render. `days` is a lookback in calendar
+ *  days; `"ytd"` and `"all"` are the two that can't be expressed that way. */
+const PRICE_RANGES: { key: string; days: number | "ytd" | "all" }[] = [
+  { key: "1D", days: 1 },
+  { key: "5D", days: 5 },
+  { key: "1M", days: 30 },
+  { key: "3M", days: 90 },
+  { key: "YTD", days: "ytd" },
+  { key: "1Y", days: 365 },
+  { key: "Toute", days: "all" },
+];
+
+const DEFAULT_PRICE_RANGE = "3M";
+
+/** Measured back from the *last candle's* own date, never from `Date.now()`: a caller's history can
+ *  legitimately end days ago — a market closed since Friday, a fixed dataset in a story — and
+ *  counting back from today would then return an empty "1D" on data that is perfectly fine.
+ *  `null` means "no cutoff", i.e. keep everything. */
+function rangeCutoff(days: number | "ytd" | "all", last: Date): Date | null {
+  if (days === "all") return null;
+  if (days === "ytd") return new Date(last.getFullYear(), 0, 1);
+  const cutoff = new Date(last);
+  cutoff.setDate(cutoff.getDate() - days);
+  return cutoff;
+}
 
 export interface SymbolProfilePanelProps {
   symbol: string;
@@ -20,6 +51,16 @@ export interface SymbolProfilePanelProps {
    *  most recent headline always shows on its own with no link needed). No default behavior of any
    *  kind (open a modal, navigate…) is assumed; omit the prop to just not show the link. */
   onMoreNews?: () => void;
+  /** OHLCV history for this symbol, oldest first — the same array the chart itself is drawn from,
+   *  of which only `date`/`close` are read here. Passing it adds a plain close-price curve with its
+   *  own range buttons right under the price. Omitted (the desktop split's own case, see
+   *  ChartWorkspace) it simply isn't rendered: that layout already has the real chart on screen
+   *  beside this panel, so a second, smaller one of the same prices would be redundant. */
+  priceHistory?: Candle[];
+  /** Trailing button in the range toolbar — the same "go bigger" affordance the fullscreen toggle
+   *  uses elsewhere. On the mobile layout it switches to the chart page; omit it and the button
+   *  isn't rendered at all. */
+  onOpenInChart?: () => void;
 }
 
 /** The workspace side panel's own "company info" section (see `useSymbolProfileSplit`'s own doc
@@ -28,7 +69,26 @@ export interface SymbolProfilePanelProps {
  *  Degrades gracefully with no `profile` at all (a bare price/change readout, exactly what the
  *  chart's own header already shows, still has real value on its own) rather than rendering
  *  nothing or a wall of placeholders. */
-export function SymbolProfilePanel({ symbol, price, change, changePercent, profile, onMoreNews }: SymbolProfilePanelProps) {
+export function SymbolProfilePanel({ symbol, price, change, changePercent, profile, onMoreNews, priceHistory, onOpenInChart }: SymbolProfilePanelProps) {
+  const [priceRange, setPriceRange] = useState(DEFAULT_PRICE_RANGE);
+  // Every range resolved at once rather than just the selected one — the buttons need to know
+  // which of them have anything to show (a daily-candle history has exactly one point in "1D",
+  // which is a flat nothing, not a curve), and there are seven cheap filters over one array here,
+  // not seven charts.
+  const pointsByRange = useMemo(() => {
+    const byRange: Record<string, ChartPoint[]> = {};
+    const last = priceHistory && priceHistory.length > 0 ? priceHistory[priceHistory.length - 1].date : null;
+    if (!priceHistory || last === null) return byRange;
+    for (const range of PRICE_RANGES) {
+      const cutoff = rangeCutoff(range.days, last);
+      byRange[range.key] = priceHistory
+        .filter((candle) => cutoff === null || candle.date.getTime() >= cutoff.getTime())
+        .map((candle) => ({ x: candle.date, y: candle.close }));
+    }
+    return byRange;
+  }, [priceHistory]);
+  const rangePoints = pointsByRange[priceRange] ?? [];
+
   return (
     <div className="lq-chart-workspace__symbol-profile">
       <div className="lq-chart-workspace__symbol-profile-header">
@@ -52,6 +112,69 @@ export function SymbolProfilePanel({ symbol, price, change, changePercent, profi
               {change.toFixed(2)} <PriceChangeTag value={changePercent} />
             </span>
           )}
+        </div>
+      )}
+
+      {/* A plain close-price curve — no volume, no grid, no legend, no tooltip chrome: this sits
+          directly under the price it plots, on a phone, and everything the full chart offers is one
+          tap away through the button at the end of the toolbar. Price axis on the right, matching
+          CandlestickChart's own convention, so switching between the two doesn't move the numbers
+          from one side to the other. `curveType="linear"` rather than the default spline: at daily
+          resolution a smoothed curve invents peaks between real closes. */}
+      {priceHistory && priceHistory.length > 1 && (
+        <div className="lq-chart-workspace__symbol-profile-chart">
+          {rangePoints.length > 1 ? (
+            <LineAreaChart
+              series={[{ id: symbol, label: symbol, data: rangePoints }]}
+              height={140}
+              xType="time"
+              curveType="linear"
+              yAxisOrientation="right"
+              showGrid={false}
+              showLegend={false}
+              fullscreenToggle={false}
+              showZoomReset={false}
+              zoomable={false}
+              xTicks={4}
+              yTicks={4}
+              embedded
+            />
+          ) : (
+            <p className="lq-chart-workspace__symbol-profile-chart-empty">Pas assez de données sur cette plage.</p>
+          )}
+          <div className="lq-chart-workspace__symbol-profile-chart-toolbar">
+            {PRICE_RANGES.map((range) => (
+              <button
+                key={range.key}
+                type="button"
+                className={[
+                  "lq-chart-workspace__symbol-profile-range",
+                  range.key === priceRange && "lq-chart-workspace__symbol-profile-range--active",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+                // A range holding one point or none draws no line — disabled rather than left
+                // tappable so the toolbar says up front what this history actually covers,
+                // instead of answering with an empty chart after the fact.
+                disabled={(pointsByRange[range.key]?.length ?? 0) < 2}
+                onClick={() => setPriceRange(range.key)}
+                aria-pressed={range.key === priceRange}
+              >
+                {range.key}
+              </button>
+            ))}
+            {onOpenInChart && (
+              <button
+                type="button"
+                className="lq-chart-workspace__symbol-profile-chart-expand"
+                onClick={onOpenInChart}
+                aria-label="Ouvrir dans le graphique"
+                title="Ouvrir dans le graphique"
+              >
+                <MaximizeIcon size={14} />
+              </button>
+            )}
+          </div>
         </div>
       )}
 

@@ -1,8 +1,9 @@
-/* A column of up to two children on the mobile layout (isMobileWorkspace, see ChartWorkspace.tsx)
-   — the scrollable topbar (below) then `.lq-chart-workspace__row` — or, by default, that same row
-   directly (this element's own `display: flex` is otherwise a plain passthrough: the row wrapper
-   below carries the real "flex row of grid/panel/rail" layout so desktop's own DOM shape and
-   layout stay exactly what they were before the mobile topbar existed). */
+/* A column of up to three children on the mobile layout (isMobileWorkspace, see ChartWorkspace.tsx)
+   — the scrollable topbar (below, only on the panel page), `.lq-chart-workspace__row`, then the
+   bottom page switcher — or, by default, that same row directly (this element's own `display:
+   flex` is otherwise a plain passthrough: the row wrapper below carries the real "flex row of
+   grid/panel/rail" layout so desktop's own DOM shape and layout stay exactly what they were
+   before the mobile topbar existed). */
 .lq-chart-workspace {
   display: flex;
   width: 100%;
@@ -69,6 +70,47 @@
   color: var(--lq-color-accent-contrast);
   background-color: var(--lq-color-accent);
   border-color: var(--lq-color-accent);
+}
+
+/* The mobile layout's own page switcher, charts ⇄ lists (see ChartWorkspace.tsx). Last child of
+   the workspace column and `flex-shrink: 0`, so it holds the bottom edge and the row above it
+   takes whatever height is left — deliberately not `position: fixed`, which would pin it to the
+   viewport rather than to the workspace and leave it floating over the middle of a page that
+   embeds this component among other content. */
+.lq-chart-workspace__mobile-bottomnav {
+  display: flex;
+  flex-shrink: 0;
+  align-items: stretch;
+  background-color: var(--lq-color-bg);
+  border-top: 1px solid var(--lq-color-border-subtle);
+  /* Clears the home indicator on a phone with no hardware button; resolves to 0px everywhere
+     else, so this costs nothing on any other device. */
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Icon over label, each half the width — the shape every phone's own tab bar uses, so it reads as
+   "these are the pages" rather than as two more toolbar buttons. */
+.lq-chart-workspace__mobile-bottomnav-item {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 6px 4px;
+  font-family: inherit;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--lq-color-text-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+/* Colour alone, no filled pill: this marks *where you are*, which is a weaker statement than the
+   accent-filled `--active` every toggle in the chart uses for "this is switched on". */
+.lq-chart-workspace__mobile-bottomnav-item--active {
+  color: var(--lq-color-accent);
 }
 
 .lq-chart-workspace__grid {
@@ -194,6 +236,77 @@
    flex column's own children default to their *content's* height as a floor, which would let the
    top half's own (potentially long) watchlist push the bottom pane down off-screen instead of the
    two sharing this container's fixed height and each scrolling internally. */
+/* The mobile side panel shows one page at a time — the list, or a symbol's details — rather than
+   the desktop split of both at once (see ChartWorkspace.tsx). This pair replaces what the split's
+   own halves used to provide there: a full-height column, and one scroll container inside it, so
+   a long list scrolls under a details header that stays put instead of the whole panel scrolling
+   as one block. */
+.lq-chart-workspace__side-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.lq-chart-workspace__side-page-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* Stacking context for the two mobile pages: the list, and the symbol details laid over it. The
+   list stays mounted underneath so dragging the details page down reveals it (see ChartWorkspace's
+   own `profileDrag`) rather than an empty panel, and so its scroll position survives the trip. */
+.lq-chart-workspace__side-pages {
+  position: relative;
+  height: 100%;
+  min-height: 0;
+}
+
+.lq-chart-workspace__side-page--overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background-color: var(--lq-color-bg);
+  transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* No transition while the finger is down — otherwise the page eases toward each pointermove
+   instead of tracking it, which reads as lag rather than as something being dragged. The
+   transition is exactly what's wanted on release, for the snap back to rest. */
+.lq-chart-workspace__side-page--dragging {
+  transition: none;
+}
+
+/* `touch-action: none` is load-bearing, not a polish detail: without it the browser claims the
+   vertical gesture for scrolling the body underneath and the pointermove handler never sees it. */
+.lq-chart-workspace__side-page-grabber {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  padding: 6px var(--lq-space-2);
+  background: none;
+  border: none;
+  cursor: grab;
+  touch-action: none;
+}
+
+.lq-chart-workspace__side-page-grabber:active {
+  cursor: grabbing;
+}
+
+/* Explicit 10px rather than `--lq-radius-pill`: every radius token is 0 by default in this
+   library (see tokens.css — square corners are the house style, e-ink first), and "rounded" is
+   the one thing actually asked for here. Half the height, so the ends are true semicircles. */
+.lq-chart-workspace__side-page-grabber-bar {
+  display: block;
+  width: 100%;
+  height: 20px;
+  background-color: var(--lq-color-hover);
+  border-radius: 10px;
+}
+
 .lq-chart-workspace__side-split {
   display: flex;
   flex-direction: column;
@@ -947,6 +1060,86 @@
   display: flex;
   align-items: baseline;
   gap: var(--lq-space-2);
+}
+
+/* The mobile details page's own close-price curve plus its range toolbar (see
+   SymbolProfilePanel). Negative side margins pull the plot out to the panel's own edges — a small
+   chart reads better using the full width than indented to match body text, and the toolbar below
+   it is padded back in so its buttons still line up with everything else. */
+.lq-chart-workspace__symbol-profile-chart {
+  margin: 0 calc(-1 * var(--lq-space-2));
+}
+
+.lq-chart-workspace__symbol-profile-chart-empty {
+  margin: 0;
+  padding: var(--lq-space-5) var(--lq-space-2);
+  text-align: center;
+  font-size: 0.7rem;
+  color: var(--lq-color-text-muted);
+}
+
+/* Wraps rather than scrolls: seven short labels plus one icon fit on one line at most phone
+   widths and drop to two at the narrowest, which is better than hiding the last ranges behind a
+   horizontal scroll the way the topbars do — those hold list names of unbounded length, this holds
+   eight fixed, tiny items. */
+.lq-chart-workspace__symbol-profile-chart-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  padding: var(--lq-space-1) var(--lq-space-2) 0;
+  border-top: 1px solid var(--lq-color-border-subtle);
+}
+
+.lq-chart-workspace__symbol-profile-range {
+  padding: 4px 7px;
+  font-family: inherit;
+  font-size: 0.68rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--lq-color-text-muted);
+  background: none;
+  border: none;
+  border-radius: var(--lq-radius-sm);
+  cursor: pointer;
+}
+
+.lq-chart-workspace__symbol-profile-range:hover:not(:disabled) {
+  color: var(--lq-color-text);
+  background-color: var(--lq-color-hover);
+}
+
+/* Filled, unlike the bottom nav's colour-only "you are here" — this one *is* a switch (which range
+   the curve is drawn over), which is the same statement every other toggle in the chart fills its
+   background for. */
+.lq-chart-workspace__symbol-profile-range--active {
+  color: var(--lq-color-accent-contrast);
+  background-color: var(--lq-color-accent);
+}
+
+.lq-chart-workspace__symbol-profile-range:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+/* Pushed to the trailing edge, away from the ranges: those change what this chart shows, this one
+   leaves for another page entirely. */
+.lq-chart-workspace__symbol-profile-chart-expand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  padding: 4px 6px;
+  color: var(--lq-color-text-muted);
+  background: none;
+  border: none;
+  border-radius: var(--lq-radius-sm);
+  cursor: pointer;
+}
+
+.lq-chart-workspace__symbol-profile-chart-expand:hover {
+  color: var(--lq-color-text);
+  background-color: var(--lq-color-hover);
 }
 
 .lq-chart-workspace__symbol-profile-price {

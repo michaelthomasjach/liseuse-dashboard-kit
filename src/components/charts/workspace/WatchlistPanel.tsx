@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Popover } from "../../forms/Popover";
 import { Checkbox } from "../../forms/Checkbox";
 import { TextField } from "../../forms/TextField";
@@ -57,6 +57,22 @@ export interface WatchlistPanelProps {
   earnings?: WatchlistEarningsRow[];
   dividends?: WatchlistDividendRow[];
   news?: WatchlistNewsItem[];
+  /** Drops this panel's own header row — the name+caret dropdown, the "Répartition" button and
+   *  the "+"/"…" pair. Set by `ChartWorkspace` on its narrow layout (see its own
+   *  `isMobileWorkspace`), where the topbar already lists every watchlist by name as its own
+   *  button: the dropdown would be a second way to do what those buttons already do, and a
+   *  header of four controls costs more of a phone's width than it earns. The "+" doesn't
+   *  disappear with it — it moves up into that topbar, and reaches back in through
+   *  `addSymbolRequestId` below. */
+  mobile?: boolean;
+  /** Opens the add-symbol modal whenever this number changes — how the topbar's own "+" reaches
+   *  the modal on the `mobile` layout, where this panel no longer renders a "+" of its own.
+   *  A counter rather than a boolean deliberately: the modal's real open state stays inside
+   *  `useSymbolSearchState` (which drives the `onSymbolSearchChange` reporting effect off it),
+   *  and a second copy up in the parent would drift the moment the modal is closed from the
+   *  inside — closing it can't write back to a value the parent owns. Ignored while the initial
+   *  value stays untouched, so mounting with any starting number never pops the modal open. */
+  addSymbolRequestId?: number;
 }
 
 /**
@@ -70,6 +86,9 @@ export interface WatchlistPanelProps {
  * search state, column widths, section collapse) to read as a distinct unit, same "extract when
  * there's real internal complexity" call this library already makes for `ChartHeader`/
  * `ChartSidePanel`/etc.
+ * Under `mobile` that whole header row is dropped and the table stands alone — see `mobile`'s
+ * own doc; the only one of those controls that survives, the "+", moves up into the workspace
+ * topbar and drives this panel's add-symbol modal through `addSymbolRequestId`.
  */
 export function WatchlistPanel({
   watchlists,
@@ -89,6 +108,8 @@ export function WatchlistPanel({
   onReorderSections,
   earnings,
   dividends,
+  mobile,
+  addSymbolRequestId,
   news,
 }: WatchlistPanelProps) {
   const activeWatchlist = watchlists.find((w) => w.id === activeWatchlistId) ?? watchlists[0];
@@ -148,6 +169,18 @@ export function WatchlistPanel({
     onFavoriteSymbolIdsChange: undefined,
     onSymbolSearchChange,
   });
+
+  // See `addSymbolRequestId`'s own doc for why the topbar signals through a counter rather than
+  // owning the open flag itself. Seeded with the incoming value (not 0/undefined) so only a
+  // *change* ever counts: a panel mounted while the counter already sits at 3 opens to the table,
+  // not to the modal.
+  const lastAddSymbolRequestId = useRef(addSymbolRequestId);
+  const { setSymbolSearchOpen: openAddSymbolModal } = addSymbolState;
+  useEffect(() => {
+    if (addSymbolRequestId === undefined || addSymbolRequestId === lastAddSymbolRequestId.current) return;
+    lastAddSymbolRequestId.current = addSymbolRequestId;
+    openAddSymbolModal(true);
+  }, [addSymbolRequestId, openAddSymbolModal]);
 
   function toggleColumn(id: string) {
     const next = new Set(visibleColumnIds);
@@ -394,95 +427,97 @@ export function WatchlistPanel({
 
   return (
     <>
-      <div className="lq-chart-workspace__side-panel-header">
-        <button
-          ref={watchlistTriggerRef}
-          type="button"
-          className="lq-chart__timeframe-trigger"
-          onClick={() => setWatchlistMenuOpen((o) => !o)}
-          aria-label={`Liste : ${activeWatchlist.name}`}
-        >
-          <span className="lq-chart__timeframe-trigger-label">{activeWatchlist.name}</span>
-          <ChevronDownIcon size={12} />
-        </button>
-        <Popover open={watchlistMenuOpen} onClose={() => setWatchlistMenuOpen(false)} anchorRef={watchlistTriggerRef} placement="bottom">
-          <div className="lq-chart__tool-menu">
-            {watchlists.map((w) => (
-              <button
-                key={w.id}
-                type="button"
-                className={["lq-chart__tool-menu-option", w.id === activeWatchlist.id && "lq-chart__tool-menu-option--selected"]
-                  .filter(Boolean)
-                  .join(" ")}
-                onClick={() => {
-                  onSelectWatchlist(w.id);
-                  setWatchlistMenuOpen(false);
-                }}
-              >
-                {w.name}
-              </button>
-            ))}
-            {onCreateWatchlist && (
-              <>
-                <div className="lq-chart__tool-menu-divider" />
+      {!mobile && (
+        <div className="lq-chart-workspace__side-panel-header">
+          <button
+            ref={watchlistTriggerRef}
+            type="button"
+            className="lq-chart__timeframe-trigger"
+            onClick={() => setWatchlistMenuOpen((o) => !o)}
+            aria-label={`Liste : ${activeWatchlist.name}`}
+          >
+            <span className="lq-chart__timeframe-trigger-label">{activeWatchlist.name}</span>
+            <ChevronDownIcon size={12} />
+          </button>
+          <Popover open={watchlistMenuOpen} onClose={() => setWatchlistMenuOpen(false)} anchorRef={watchlistTriggerRef} placement="bottom">
+            <div className="lq-chart__tool-menu">
+              {watchlists.map((w) => (
                 <button
+                  key={w.id}
                   type="button"
-                  className="lq-chart__tool-menu-option"
+                  className={["lq-chart__tool-menu-option", w.id === activeWatchlist.id && "lq-chart__tool-menu-option--selected"]
+                    .filter(Boolean)
+                    .join(" ")}
                   onClick={() => {
+                    onSelectWatchlist(w.id);
                     setWatchlistMenuOpen(false);
-                    setNameModal("list");
                   }}
                 >
-                  <PlusIcon size={12} />
-                  Nouvelle liste
+                  {w.name}
                 </button>
-              </>
-            )}
-          </div>
-        </Popover>
-
-        {/* Right next to the name, not grouped with the +/… actions further right (see that
-            div's own `margin-left: auto`) — a concentration/exposure view is about *this list*
-            itself, closer in spirit to the name than to those per-row/per-column actions. */}
-        <button
-          type="button"
-          className="lq-chart__icon-button lq-chart-workspace__exposure-button"
-          onClick={() => setExposureModalOpen(true)}
-          aria-label="Répartition de la liste"
-          title="Répartition de la liste"
-        >
-          <PieChartIcon size={14} />
-        </button>
-
-        <div className="lq-chart-workspace__watchlist-actions">
-          <button
-            type="button"
-            className="lq-chart__icon-button"
-            onClick={() => addSymbolState.setSymbolSearchOpen(true)}
-            aria-label="Ajouter un symbole"
-            title="Ajouter un symbole"
-          >
-            <PlusIcon size={14} />
-          </button>
-          <button
-            ref={columnsTriggerRef}
-            type="button"
-            className="lq-chart__icon-button"
-            onClick={() => setColumnsMenuOpen((o) => !o)}
-            aria-label="Colonnes affichées"
-            title="Colonnes affichées"
-          >
-            <MoreHorizontalIcon size={14} />
-          </button>
-          <Popover open={columnsMenuOpen} onClose={() => setColumnsMenuOpen(false)} anchorRef={columnsTriggerRef} placement="bottom">
-            <div className="lq-chart__tool-menu">
-              {activeWatchlist.columns.map((c) => (
-                <Checkbox key={c.id} checked={visibleColumnIds.has(c.id)} onChange={() => toggleColumn(c.id)} label={c.label} />
               ))}
+              {onCreateWatchlist && (
+                <>
+                  <div className="lq-chart__tool-menu-divider" />
+                  <button
+                    type="button"
+                    className="lq-chart__tool-menu-option"
+                    onClick={() => {
+                      setWatchlistMenuOpen(false);
+                      setNameModal("list");
+                    }}
+                  >
+                    <PlusIcon size={12} />
+                    Nouvelle liste
+                  </button>
+                </>
+              )}
             </div>
           </Popover>
+  
+          {/* Right next to the name, not grouped with the +/… actions further right (see that
+              div's own `margin-left: auto`) — a concentration/exposure view is about *this list*
+              itself, closer in spirit to the name than to those per-row/per-column actions. */}
+          <button
+            type="button"
+            className="lq-chart__icon-button lq-chart-workspace__exposure-button"
+            onClick={() => setExposureModalOpen(true)}
+            aria-label="Répartition de la liste"
+            title="Répartition de la liste"
+          >
+            <PieChartIcon size={14} />
+          </button>
+  
+          <div className="lq-chart-workspace__watchlist-actions">
+            <button
+              type="button"
+              className="lq-chart__icon-button"
+              onClick={() => addSymbolState.setSymbolSearchOpen(true)}
+              aria-label="Ajouter un symbole"
+              title="Ajouter un symbole"
+            >
+              <PlusIcon size={14} />
+            </button>
+            <button
+              ref={columnsTriggerRef}
+              type="button"
+              className="lq-chart__icon-button"
+              onClick={() => setColumnsMenuOpen((o) => !o)}
+              aria-label="Colonnes affichées"
+              title="Colonnes affichées"
+            >
+              <MoreHorizontalIcon size={14} />
+            </button>
+            <Popover open={columnsMenuOpen} onClose={() => setColumnsMenuOpen(false)} anchorRef={columnsTriggerRef} placement="bottom">
+              <div className="lq-chart__tool-menu">
+                {activeWatchlist.columns.map((c) => (
+                  <Checkbox key={c.id} checked={visibleColumnIds.has(c.id)} onChange={() => toggleColumn(c.id)} label={c.label} />
+                ))}
+              </div>
+            </Popover>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* No grip spacer anymore — a real row's own grip no longer reserves any layout space of
           its own (see .lq-chart-workspace__watchlist-grip's own CSS doc), so there's nothing left

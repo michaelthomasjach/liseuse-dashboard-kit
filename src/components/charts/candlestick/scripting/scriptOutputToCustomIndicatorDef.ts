@@ -75,6 +75,7 @@ export function scriptPaneToCustomIndicatorDef(scriptId: string, pane: ScriptPan
       draw: "profile",
       data: [],
       profile: profileSeries.profile ?? [],
+      profileHeadroom: profileSeries.profileHeadroom,
       color: profileSeries.color,
       lineWidth: profileSeries.lineWidth,
     };

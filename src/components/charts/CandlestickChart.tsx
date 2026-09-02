@@ -137,7 +137,7 @@ export function CandlestickChart({
   onLinkClick,
   fillHeight = false,
   sidePanel, defaultSidePanelOpen, onSidePanelOpenChange,
-  scripts, onScriptsChange, onScriptAlert, onEditScript, onScriptRunOutput, lastCandleOpen = false,
+  scripts, onScriptsChange, onScriptAlert, onEditScript, onCreateScript, onDeleteScript, onScriptRunOutput, lastCandleOpen = false,
   margin,
   className,
 }: CandlestickChartProps) {
@@ -677,9 +677,13 @@ export function CandlestickChart({
     replayCutoffIndex: replayState.cutoffIndex,
   });
 
-  // `ref` always lands on .lq-chart__main (never the outer .lq-chart directly) in every return
-  // path here — useChartDimensions' own callback ref re-attaches its ResizeObserver correctly
-  // either way, so which branch is active doesn't matter for that (see its own doc).
+  // NOT the same element in both return paths, and that matters: this early one measures
+  // `.lq-chart__main` (the full width), the normal one below measures `.lq-chart__plot-column`
+  // (whatever the docked pane columns leave over). useChartDimensions' own callback ref re-attaches
+  // its ResizeObserver to whichever is mounted, so each branch measures correctly on its own — but
+  // the *branch condition* is that measurement, so the two can hand off to each other indefinitely
+  // if the plot column is ever allowed to reach zero width while the parent has some. It can't:
+  // `.lq-chart__plot-column` carries a min-width for exactly this reason (see charts-shared.css).
   if (dims.width === 0 || data.length === 0) {
     return (
       <div className={["lq-chart", isFullscreen && "lq-chart--fullscreen", className].filter(Boolean).join(" ")} style={{ width: isFullscreen ? undefined : width, height: isFullscreen ? undefined : height }}>
@@ -1066,6 +1070,7 @@ export function CandlestickChart({
         addIndicator={addIndicator}
         customIndicators={customIndicators} addCustomIndicator={addCustomIndicator}
         scripts={scriptingState.scripts} toggleScriptEnabled={scriptingState.toggleScriptEnabled}
+        onEditScript={onEditScript} onCreateScript={onCreateScript} onDeleteScript={onDeleteScript}
         setScriptParamValue={scriptingState.setScriptParamValue}
         indicatorsManagerOpen={indicatorsManagerOpen}
         setIndicatorsManagerOpen={setIndicatorsManagerOpen}

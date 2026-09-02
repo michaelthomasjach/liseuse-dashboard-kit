@@ -65,6 +65,12 @@ export const SCRIPT_API_COMPLETIONS: ScriptApiCompletion[] = [
     detail: "(nom, valeurs, prix, options?) — profil tourné à 90°, sur un panneau ancré à gauche/droite",
     apply: 'profile("Densité", valeurs, prix)',
   },
+  {
+    label: ".dots",
+    type: "function",
+    detail: "(name, value, options?) — points non reliés (scatter), avec de vrais trous quand le script n'émet pas",
+    apply: 'dots("Niveaux", valeur)',
+  },
   { label: ".upper", type: "function", detail: "(offset?) => number | null — band" },
   { label: ".middle", type: "function", detail: "(offset?) => number | null — band" },
   { label: ".lower", type: "function", detail: "(offset?) => number | null — band" },

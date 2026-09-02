@@ -20,7 +20,7 @@ export interface ScriptError {
 export interface ScriptPaneSubSeries {
   key: string;
   name: string;
-  draw: "line" | "area" | "histogram" | "band" | "profile";
+  draw: "line" | "area" | "histogram" | "band" | "profile" | "dots";
   color?: string;
   lineWidth?: number;
   lineStyle?: "solid" | "dashed" | "dotted";
@@ -30,6 +30,9 @@ export interface ScriptPaneSubSeries {
    *  computed once over a price range, so it has no bar to attach each point to. `points` and this
    *  are mutually exclusive; see `PaneSeriesHandle.profile`'s own doc. */
   profile?: { price: number; value: number }[];
+  /** `draw: "profile"` only — `PlotProfileOptions.headroom` as the script passed it, forwarded to
+   *  `CustomIndicatorDef.profileHeadroom` (which documents what it does). */
+  profileHeadroom?: number;
 }
 
 /** One `plot.pane(name)`/`plot.overlay(name)` output — a named group of 1+ of its own series (see

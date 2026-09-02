@@ -348,9 +348,10 @@ if (now !== null && prev !== null && prev <= 50 && now > 50) {
 pane.line(name, value, options?)         // courbe
 pane.area(name, value, options?)         // aire remplie
 pane.histogram(name, value, options?)    // histogramme
+pane.dots(name, value, options?)         // points non reliés — voir plus bas
 pane.band(name, upper, lower, options?)  // remplissage entre deux courbes — voir plus bas
 
-// options (line/area/histogram): { color?, lineWidth?, lineStyle? }`
+// options (line/area/histogram/dots): { color?, lineWidth?, lineStyle? }`
       ),
       t(
         "plot.pane ouvre un nouveau panneau à part, sous le prix (exactement comme RSI ou MACD) — le bon choix pour une valeur qui n'est pas sur la même échelle que le prix (un score de 0 à 3, un pourcentage, un oscillateur…)."
@@ -383,6 +384,22 @@ pane.histogram("Écart", fast - slow);`
         "lineWidth (nombre, défaut 1,5) épaissit le trait ; lineStyle (\"solid\" par défaut, ou \"dashed\"/\"dotted\") change son style. Les deux s'appliquent à line/area/band (sans effet sur histogram, qui trace des barres, pas un trait) :"
       ),
       c(`overlay.line("SMA 20 (épaisse)", sma20, { lineWidth: 3, lineStyle: "dashed" });`),
+      h("Des points plutôt qu'une courbe — .dots", [".dots"]),
+      t(
+        "pane.dots(nom, valeur, options?) / overlay.dots(...) posent un point par bougie au lieu de relier les valeurs entre elles. À utiliser dès qu'une valeur peut sauter d'un niveau à un autre sans rapport d'une bougie à la suivante — un niveau de support détecté automatiquement, un pivot, un prix cible recalculé : une courbe inventerait entre deux points une continuité que la donnée n'a pas, alors que des points ne relient rien."
+      ),
+      t(
+        "C'est aussi le seul tracé qui laisse de vrais trous. Toutes les autres méthodes prolongent leur dernière valeur connue jusqu'au bord droit du graphe (une série qui s'arrête d'émettre reste tracée à l'horizontale) ; .dots ne dessine rien tant que le script n'émet pas. Une série de points s'arrête donc exactement là où le script cesse de l'alimenter — c'est ce qui permet à un niveau de disparaître quand il n'est plus détecté."
+      ),
+      c(
+        `// Les niveaux détectés, un point par bougie et par niveau — ils s'interrompent d'eux-mêmes
+// dès qu'un niveau cesse d'être trouvé.
+const niveaux = plot.overlay("Niveaux");
+levels.forEach((prix, i) => {
+  niveaux.dots("Niveau " + (i + 1), prix, { color: "#c47f2a", lineWidth: 1.6 });
+});`
+      ),
+      t("lineWidth règle ici le rayon du point (1 donne un pointillé fin, 3 de gros points) ; lineStyle n'a pas de sens et est ignoré."),
       h("Remplir entre deux courbes — .band", [".band"]),
       t(
         "pane.band(name, upper, lower, options?) / overlay.band(name, upper, lower, options?) tracent deux courbes et colorent la surface entre elles — le rendu exact des bandes de Bollinger intégrées (remplissage translucide, ligne haute/basse fine, ligne médiane calculée automatiquement) :"
@@ -410,7 +427,12 @@ if (sma !== null && std !== null) {
         `// densité et grille de prix calculées ailleurs, puis mémorisées avec state.set
 const densite = state.get("density", []);
 const prix = state.get("priceGrid", []);
-plot.pane("Profil", { dock: "right" }).profile("Densité", densite, prix, { color: "#c47f2a" });`
+plot.pane("Profil", { dock: "right" }).profile("Densité", densite, prix, { color: "#c47f2a", headroom: 0.08 });
+
+// options: { color?, lineWidth?, headroom? }`
+      ),
+      t(
+        "headroom laisse un espace entre le pic le plus haut et la barre de séparation de la colonne, en fraction de la largeur du profil — 0.08 arrête la courbe à 8 % du bord, 0 (par défaut) la laisse le toucher. C'est une option, et pas quelque chose à faire soi-même sur les valeurs avant de les passer : l'échelle de la colonne va toujours de 0 au maximum du tableau reçu, donc diviser toutes les densités par deux ne déplace pas leur maximum, qui retombe exactement au même endroit. Seule l'échelle peut être élargie, et l'axe du bas suit la même, donc ses graduations restent justes."
       ),
       l([
         "Cet alignement n'a de sens que sur un panneau ancré à gauche ou à droite — sur un panneau du bas, un profil n'a rien à aligner et n'est pas dessiné.",

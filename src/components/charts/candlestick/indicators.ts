@@ -42,6 +42,20 @@ export function forwardFillSeries(data: Candle[], points: { date: Date; value: n
   });
 }
 
+/** Aligns a sparse, date-keyed series onto every candle *without* filling forward — a candle with
+ *  no point of its own stays `null` instead of inheriting the previous one. The counterpart to
+ *  `forwardFillSeries` above, for `draw: "dots"` (see `CustomIndicatorDef.draw`): a scatter is a
+ *  set of independent samples, not a step function, so a value that stops being emitted has to stop
+ *  being drawn rather than trailing flat to the right edge of the chart forever. Matches a point to
+ *  a candle by exact timestamp, which is what a script's own per-bar `plot.*` call always produces
+ *  (it stamps the bar it ran on). */
+export function alignSeriesByDate(data: Candle[], points: { date: Date; value: number }[]): (number | null)[] {
+  if (points.length === 0) return data.map(() => null);
+  const byTime = new Map<number, number>();
+  for (const point of points) byTime.set(point.date.getTime(), point.value);
+  return data.map((d) => byTime.get(d.date.getTime()) ?? null);
+}
+
 // One year back, in milliseconds — used to find each reported point's own year-ago counterpart
 // for `computeFundamentalValues`'s "yoyChange" mode. A plain calendar-day approximation (365 days,
 // not a true "same calendar date a year ago" which would need real date arithmetic across
@@ -138,7 +152,7 @@ export function computeCustomIndicatorValues(data: Candle[], def: CustomIndicato
         });
       }
       const points = multiData.filter((p) => entry.key in p.values).map((p) => ({ date: p.date, value: p.values[entry.key] as number }));
-      return forwardFillSeries(data, points);
+      return entry.draw === "dots" ? alignSeriesByDate(data, points) : forwardFillSeries(data, points);
     });
     return data.map((_, i) => {
       const values: Record<string, number | IndicatorBand | null> = {};
@@ -151,6 +165,9 @@ export function computeCustomIndicatorValues(data: Candle[], def: CustomIndicato
       return anyPresent ? { multi: values } : null;
     });
   }
+  // See alignSeriesByDate's own doc — a scatter's own gaps are meaningful, a step function's
+  // aren't, so this is the one draw mode that must not fill forward.
+  if (def.draw === "dots") return alignSeriesByDate(data, def.data as CustomIndicatorDataPoint[]);
   return forwardFillSeries(data, def.data as CustomIndicatorDataPoint[]);
 }
 

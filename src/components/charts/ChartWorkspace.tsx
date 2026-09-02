@@ -720,6 +720,22 @@ export function ChartWorkspace({
                     workspaceScripting.setActiveScriptId(scriptId);
                     workspaceScripting.setEditorOpen(true);
                   },
+                  // "Ouvrir dans l'éditeur" on a built-in indicator's own code view (see
+                  // IndicatorModals.tsx) — forks that indicator's script equivalent into a real new
+                  // script. `targetPanelIndex: i` at creation time (not a follow-up updateScript,
+                  // see addScript's own doc on the stale closure that would be) points it at the
+                  // panel the user was actually looking at, so it runs there immediately instead of
+                  // sitting untargeted until they pick a chart in the editor's own "Cible".
+                  onCreateScript: (name: string, code: string) => {
+                    workspaceScripting.addScript(name, code, { targetPanelIndex: i });
+                  },
+                  // The picker's own trash button on a "Mes scripts" row, after its confirmation
+                  // modal. Deliberately the *workspace's* own removeScript, not the panel's own
+                  // (which would work on the list all the same, routing back up through
+                  // onScriptsChange): only this one also clears the shared editor's own
+                  // activeScriptId/runOutputs, so the deleted script leaves the tab strip instead
+                  // of leaving it pointed at something that no longer exists.
+                  onDeleteScript: workspaceScripting.removeScript,
                   // Bridges each panel's own local script-run output back up into the *shared*
                   // editor's own `runOutputs` — the editor itself has no `ScriptRunner` of its own
                   // (every script actually executes inside whichever panel it's routed to, not

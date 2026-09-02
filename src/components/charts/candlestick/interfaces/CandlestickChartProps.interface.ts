@@ -307,6 +307,19 @@ export interface CandlestickChartProps {
    *  editor; `ChartWorkspace` wires this to focus the right tab in its shared one. Omitted, the
    *  button itself never renders — there'd be nothing for a click on it to do. */
   onEditScript?: (scriptId: string) => void;
+  /** Fires when the user clicks "Ouvrir dans l'éditeur" in the code view of a *built-in* indicator
+   *  (the "</>" button next to a row in "Ajouter un indicateur"), which shows that indicator's own
+   *  script equivalent — "fork this built-in as a script of my own". Same reasoning as
+   *  `onEditScript` above: this chart owns no editor, so creating the script and focusing it is the
+   *  caller's job, and omitting this hides the button rather than offering a dead one. `code` is
+   *  the snippet as displayed; `name` is the indicator's own catalog label. */
+  onCreateScript?: (name: string, code: string) => void;
+  /** Fires when the user confirms deleting a script from the "Mes scripts" section of "Ajouter un
+   *  indicateur". Same reasoning as `onEditScript`/`onCreateScript` above — the script list belongs
+   *  to whoever owns the editor, not to this chart, so deleting one is that caller's job and
+   *  omitting this hides the button. `ChartWorkspace` wires it to the same `removeScript` its own
+   *  editor uses, so a script deleted here also leaves the editor's tab strip. */
+  onDeleteScript?: (scriptId: string) => void;
   /** Whether `data`'s own last candle is still actively forming rather than closed — read by a
    *  running script's own `bar.isClosed()`/`bar.isRealtime()` (see the scripting engine's own
    *  `ScriptEngineSnapshot.lastCandleOpen` doc for the full reasoning). This library has no way to

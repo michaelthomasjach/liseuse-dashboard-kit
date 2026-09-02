@@ -71,7 +71,15 @@
 .lq-chart__plot-column {
   position: relative;
   flex: 1 1 auto;
-  min-width: 0;
+  /* A real floor, not `min-width: 0`. This element is the one `useChartDimensions` measures, and
+     `CandlestickChart` takes a *different* render branch when that measurement comes back 0 — one
+     that moves the very same ref onto `.lq-chart__main`, the full-width parent. Let this column
+     actually reach 0 (a docked pane column wide enough to eat the whole row, i.e. any profile pane
+     on a phone-width chart) and the two branches trade places forever: 0 → early return → measures
+     the parent → non-zero → normal return → measures this → 0. React gives up on that with
+     "Maximum update depth exceeded". A floor keeps the measurement honest and the branch stable;
+     below it the row simply overflows, which `.lq-chart`'s own `overflow: hidden` already clips. */
+  min-width: 64px;
   height: 100%;
 }
 
@@ -1005,7 +1013,10 @@
 
 .lq-chart__event-marker text {
   font-family: inherit;
-  font-size: 8px;
+  /* Scaled with EVENT_MARKER_RADIUS (eventsCatalog.ts), same 8 → 10 ratio, so the glyph keeps the
+     proportion inside its circle it had before. The `dy="0.35em"` that centres it is in `em`, so it
+     follows this on its own — nothing else to adjust. */
+  font-size: 10px;
   font-weight: 700;
   fill: #fff;
   pointer-events: none;

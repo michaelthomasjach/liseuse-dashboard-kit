@@ -11,16 +11,27 @@ import type { ChartCanvasStyle } from "../interfaces/ChartCanvasStyle.interface"
  *  here since it's cheap (one reduce over however many grid points the script produced) and the
  *  caller already re-renders on every relevant change anyway. Returns null for an empty/degenerate
  *  profile (nothing to scale against) or a collapsed column, same guard `drawPaneProfile` itself
- *  uses. */
+ *  uses.
+ *
+ *  `headroom` stretches the domain past the profile's own maximum by that fraction (0.08 = 8%
+ *  wider), which is the only way to stop the tallest peak from landing exactly on the column's
+ *  inner edge: the domain's top is the data's own max by construction, so no rescaling a script
+ *  applies to its values can move its own argmax off that edge — the max is always the max. A
+ *  script asks for the gap via `pane.profile(..., { headroom })` (see `PlotProfileOptions`); 0, the
+ *  default, is the original edge-to-edge behaviour. Deliberately a fraction of the data range
+ *  rather than a pixel inset so the bottom axis's own ticks stay honest — the axis reads the very
+ *  same scale, and a domain that stops short of a tick would put that tick outside the column. */
 export function computeProfileValueScale(
   profile: { price: number; value: number }[],
   side: "left" | "right",
-  columnWidth: number
+  columnWidth: number,
+  headroom = 0
 ): d3.ScaleLinear<number, number> | null {
   if (columnWidth <= 0) return null;
   const maxValue = profile.reduce((max, entry) => Math.max(max, entry.value), 0);
   if (maxValue <= 0) return null;
-  return d3.scaleLinear().domain([0, maxValue]).range(side === "right" ? [columnWidth, 0] : [0, columnWidth]);
+  const domainMax = maxValue * (1 + Math.max(0, headroom));
+  return d3.scaleLinear().domain([0, domainMax]).range(side === "right" ? [columnWidth, 0] : [0, columnWidth]);
 }
 
 /** Paints one `pane.profile(name, values, prices)` series — the market-profile shape, drawn
@@ -52,7 +63,7 @@ export function drawPaneProfile(
   const profile = indicator.customData?.profile ?? [];
   if (profile.length < 2 || columnWidth <= 0) return;
 
-  const valueScale = computeProfileValueScale(profile, side, columnWidth);
+  const valueScale = computeProfileValueScale(profile, side, columnWidth, indicator.customData?.profileHeadroom);
   if (!valueScale) return;
 
   // Sorted by price so the polyline walks the grid from one end to the other rather than jumping

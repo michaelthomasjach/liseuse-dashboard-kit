@@ -495,6 +495,13 @@ export function WatchlistPanel({
           the ticker text specifically. */}
       <div className="lq-chart-workspace__watchlist-row lq-chart-workspace__watchlist-row--header">
         <span className="lq-chart-workspace__watchlist-row-main">
+          {/* Inert stand-in for the logo every real row carries, same reasoning (and same
+              `visibility: hidden`) as the delete spacer at the end of this row. Not cosmetic: the
+              header and the rows are separate flex containers sharing one width, so a row's logo
+              reserving 18px + a gap that the header doesn't means the two hand out *different*
+              widths to the very same columns — every numeric header then sits a growing few pixels
+              off from the numbers it labels. */}
+          <span className="lq-chart-workspace__watchlist-logo lq-chart-workspace__watchlist-logo--spacer" />
           <button
             type="button"
             className="lq-chart-workspace__watchlist-sort-header lq-chart-workspace__watchlist-ticker"

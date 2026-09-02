@@ -3,6 +3,36 @@
   border-radius: var(--lq-radius-lg);
   overflow: hidden;
   background-color: var(--lq-color-panel);
+  /* Dropped into a column flex container (a modal body, say), a block would otherwise take the
+     default `flex-shrink: 1` and be squashed to whatever height was left — and since it clips
+     (`overflow: hidden` above, which the rounded corners need), the squashed part of the snippet
+     would simply vanish with no scrollbar anywhere to reach it. Never shrink: either the block
+     keeps its full height and its container scrolls, or that container opts into the fill-and-
+     scroll-internally treatment below. */
+  flex-shrink: 0;
+}
+
+/* Opt-in: the block fills the height its container gives it and scrolls *inside*, keeping its own
+   header (filename, "Copier") pinned in view instead of scrolling away above a long snippet. For a
+   container that hands out a real height — a fixed-height modal — where letting a 200-line script
+   push everything else out of the way would be worse. */
+.lq-code-block--fill {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.lq-code-block--fill .lq-code-block__header {
+  /* The pinned part: without this it would be squashed along with everything else once the snippet
+     is taller than the space available, taking the "Copier" button with it. */
+  flex-shrink: 0;
+}
+
+.lq-code-block--fill .lq-code-block__pre {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
 }
 
 .lq-code-block__header {

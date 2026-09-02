@@ -104,6 +104,13 @@
 .lq-field__helper {
   font-size: 0.75rem;
   color: var(--lq-color-text-muted);
+  /* Helper text is usually one short line, but a script parameter's own `new Variable(..., {
+     description })` can be several paragraphs (see scriptExamples.ts's own RECALC_EVERY, which has
+     to explain a real cost trade-off) — pre-line renders the `\n\n` between them while still
+     collapsing every other run of whitespace and wrapping normally, exactly as
+     `.lq-chart__indicator-info-text` already does for indicator descriptions. A no-op for every
+     helper string without a newline in it, which is all the others. */
+  white-space: pre-line;
 }
 
 .lq-field__error {

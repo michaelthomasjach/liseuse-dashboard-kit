@@ -506,10 +506,19 @@ export function useZoomAndScales({
     [dims.boundedWidth, data.length, xScale, maxXZoom]
   );
 
-  // Whatever transform the chart actually opened with — `d3.zoomIdentity` (full dezoom) unless
-  // `initialVisibleCandles` narrows it below, captured once so `resetZoom` can return to *this*
-  // instead of always dezooming all the way out.
-  const initialTransformRef = useRef<d3.ZoomTransform>(d3.zoomIdentity);
+  // The scope the chart opened at, kept as the *intent* (how many candles) rather than the pixel
+  // transform that expressed it — `null` for "no initial narrowing", i.e. reset dezooms fully.
+  //
+  // A `d3.ZoomTransform` only means anything against the exact `xScale`/`dims.boundedWidth` it was
+  // derived from: `k` and `x` are pixel quantities. Store one at mount and it silently rots the
+  // moment either changes — the plot getting wider or narrower (opening the script editor, dragging
+  // a workspace panel, resizing the window — the same class of change the width-preservation effect
+  // below exists for), or `data.length` changing under a symbol/timeframe switch. Reset would then
+  // still animate somewhere confidently, just to a set of candles nobody asked for: replaying a
+  // 500-candle-wide transform captured at 600px onto a 1000px plot of 2976 candles lands on
+  // 1486→1986 instead of 2476→2976. Recomputing from the current scale at reset time is
+  // width- and length-independent by construction.
+  const initialVisibleCountRef = useRef<number | null>(null);
 
   // Applied once, the first time the plot has a real measured width (and the zoom behavior
   // above is attached) — not on every resize, which would otherwise keep yanking the user back
@@ -523,7 +532,7 @@ export function useZoomAndScales({
 
     const t = transformForVisibleCount(initialVisibleCandles);
     if (!t) return;
-    initialTransformRef.current = t;
+    initialVisibleCountRef.current = initialVisibleCandles;
     setXTransformViaZoom(t);
   }, [dims.boundedWidth, data.length, initialVisibleCandles, transformForVisibleCount, setXTransformViaZoom]);
 
@@ -604,7 +613,7 @@ export function useZoomAndScales({
   const yIsZoomed = yAutoScalingState ? yManuallyAdjusted : yTransform.k !== 1 || yTransform.y !== 0;
   const isZoomed = transform.k !== 1 || transform.x !== 0 || yIsZoomed;
 
-  // Deliberately targets this chart's own INITIAL scope (`initialTransformRef`), not `resetX()`
+  // Deliberately targets this chart's own INITIAL scope (`initialVisibleCountRef`), not `resetX()`
   // (which would always dezoom all the way out to the full dataset) — the "loupe -" button is
   // meant to undo the user's own zooming/panning, not discard the scope the chart opened with.
   //
@@ -615,7 +624,9 @@ export function useZoomAndScales({
   // fit-to-width math `transformForVisibleCount` below uses, just anchored to the dataset's own
   // start instead of a fixed candle count counted back from its end.
   function resetZoom() {
-    let target = initialTransformRef.current;
+    // Recomputed here, never replayed from mount — see initialVisibleCountRef's own doc.
+    const count = initialVisibleCountRef.current;
+    let target = (count === null ? null : transformForVisibleCount(count)) ?? d3.zoomIdentity;
     if (replayActive && replayCutoffIndex !== null && dims.boundedWidth > 0) {
       const x0 = xScale(0);
       const x1 = xScale(replayCutoffIndex + 1);

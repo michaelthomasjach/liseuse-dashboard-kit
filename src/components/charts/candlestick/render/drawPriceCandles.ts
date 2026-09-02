@@ -632,6 +632,20 @@ export function drawPriceCandles(ctx: CanvasRenderingContext2D, params: RenderCa
           ctx.fillRect(x - candleWidth / 2, y, Math.max(candleWidth, 1), priceHeight - y);
         }
         ctx.globalAlpha = 1;
+      } else if (indicator.customData?.draw === "dots") {
+        // One unconnected dot per bar that actually has a value — never a path, so a series whose
+        // value jumps between unrelated levels (a support/resistance level that appears, moves and
+        // vanishes) reads as the set of samples it is instead of a zigzag joining points that have
+        // nothing to do with each other. Radius follows lineWidth so the one knob a script already
+        // has for "how heavy is this series" keeps working here.
+        const numericPoints = points as { i: number; value: number }[];
+        const radius = Math.max(0.75, (indicator.customData?.lineWidth ?? 1.5) * 0.9);
+        ctx.fillStyle = color;
+        for (const p of numericPoints) {
+          ctx.beginPath();
+          ctx.arc(zoomedXScale(p.i + 0.5), zoomedPriceScale(p.value), radius, 0, Math.PI * 2);
+          ctx.fill();
+        }
       } else if (indicator.customData?.draw === "area") {
         const numericPoints = points as { i: number; value: number }[];
         ctx.globalAlpha = 0.12;
@@ -718,6 +732,15 @@ export function drawPriceCandles(ctx: CanvasRenderingContext2D, params: RenderCa
               ctx.fillRect(x - candleWidth / 2, y, Math.max(candleWidth, 1), priceHeight - y);
             }
             ctx.globalAlpha = 1;
+          } else if (entry.draw === "dots") {
+            // Same scatter as the single-series branch above — see its own doc.
+            const radius = Math.max(0.75, (entry.lineWidth ?? 1.5) * 0.9);
+            ctx.fillStyle = seriesColor;
+            for (const p of seriesPoints) {
+              ctx.beginPath();
+              ctx.arc(zoomedXScale(p.i + 0.5), zoomedPriceScale(p.value.multi[entry.key] as number), radius, 0, Math.PI * 2);
+              ctx.fill();
+            }
           } else {
             if (entry.draw === "area") {
               ctx.globalAlpha = 0.12;

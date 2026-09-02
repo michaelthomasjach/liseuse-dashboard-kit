@@ -10,7 +10,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Modal } from "../../../primitives/Modal";
 import { Tabs } from "../../../primitives/Tabs";
 import { TextField } from "../../../forms/TextField";
-import { SearchIcon, SettingsIcon, TrashIcon, InfoIcon, OverlayBadgeIcon, PaneBadgeIcon, CheckIcon } from "../../../icons";
+import { SearchIcon, SettingsIcon, TrashIcon, InfoIcon, OverlayBadgeIcon, PaneBadgeIcon, CheckIcon, CodeIcon } from "../../../icons";
 import type { TrendLineDrawing } from "../interfaces/TrendLineDrawing.interface";
 import type { Indicator } from "../interfaces/Indicator.interface";
 import type { IndicatorKind } from "../interfaces/IndicatorKind.interface";
@@ -18,6 +18,8 @@ import type { CustomIndicatorDef } from "../interfaces/CustomIndicatorDef.interf
 import type { ScriptDef } from "../interfaces/ScriptDef.interface";
 import { INDICATOR_CATALOG, type IndicatorCatalogEntry, indicatorCatalogEntry, indicatorLabel } from "../indicatorCatalog";
 import { INDICATOR_DESCRIPTIONS, VOLUME_DESCRIPTION } from "../indicatorDescriptions";
+import { INDICATOR_SCRIPT_SOURCES } from "../indicatorScriptSources";
+import { CodeBlock } from "../../../primitives/CodeBlock";
 import { INDICATOR_DIAGRAMS } from "../diagrams/indicatorDiagramRegistry";
 import { drawingToolMeta, drawingLabel } from "../drawingCatalog";
 import { IndicatorSettingsInputs, IndicatorSettingsStyle } from "./IndicatorSettingsFields";
@@ -56,6 +58,23 @@ export interface IndicatorModalsProps {
    *  edits, so there is no draft for it to sit in. See useScriptingState's own doc. */
   setScriptParamValue: (id: string, name: string, value: ScriptParamValue) => void;
   toggleScriptEnabled: (id: string) => void;
+  /** Opens an existing script in the editor — the picker's own "</>" button on a "Mes scripts" row,
+   *  same shortcut a script-produced pane header already offers (see PaneHeaders.tsx). Undefined
+   *  outside a `ChartWorkspace`, which is the only thing that ever renders a `ScriptEditorPanel`
+   *  (see `useChartScripting`'s own doc) — the code modal then shows the script read-only, with no
+   *  editor to send it to. */
+  onEditScript?: (scriptId: string) => void;
+  /** Creates a brand-new script from a built-in indicator's own script equivalent (see
+   *  INDICATOR_SCRIPT_SOURCES) and opens it in the editor — the "Ouvrir dans l'éditeur" button of
+   *  the picker's own code modal, i.e. "fork this built-in indicator". Same `undefined` outside a
+   *  `ChartWorkspace` reasoning as `onEditScript` above. */
+  onCreateScript?: (name: string, code: string) => void;
+  /** Deletes a script for good — the picker's own trash button on a "Mes scripts" row, once its
+   *  confirmation modal is accepted. Same `undefined` outside a `ChartWorkspace` reasoning as the
+   *  two above: the script list isn't this chart's to shorten, so the button simply doesn't render.
+   *  Distinct from `toggleScriptEnabled` (the row's own click), which only stops a script running
+   *  and leaves it in the list. */
+  onDeleteScript?: (scriptId: string) => void;
   indicatorsManagerOpen: boolean;
   setIndicatorsManagerOpen: (open: boolean) => void;
   indicators: Indicator[];
@@ -79,6 +98,11 @@ export interface IndicatorModalsProps {
   saveIndicatorSettings: () => void;
 }
 
+/** The picker's own grouping/filter label for `scripts` — the one category that isn't a
+ *  `IndicatorCatalogEntry.category` or a `CustomIndicatorDef.section` but a fixed name this file
+ *  itself owns, and the only one that stays listed while empty (see its own filter button below). */
+const SCRIPTS_CATEGORY = "Mes scripts";
+
 /** The three indicator-related modals: "Ajouter un indicateur" (search + catalog, plus a Volume
  *  entry since it's just as valid an "add a pane" choice), "Dessins et indicateurs" (a flat
  *  manage-everything list — drawings, price-overlay indicators, own-pane indicators/volume, each
@@ -101,6 +125,9 @@ export function IndicatorModals({
   scripts,
   setScriptParamValue,
   toggleScriptEnabled,
+  onEditScript,
+  onCreateScript,
+  onDeleteScript,
   indicatorsManagerOpen,
   setIndicatorsManagerOpen,
   indicators,
@@ -135,6 +162,16 @@ export function IndicatorModals({
   // category. Local state (unlike `indicatorSearchQuery`, lifted to the caller): nothing outside
   // this modal ever needs to read or reset it.
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  // Which row's "</>" is open, if any — the picker's own code view (an indicator's script
+  // equivalent, or a script's own code). Local state, unlike `infoKind` lifted all the way up to
+  // CandlestickChart: that one's icon appears in three separate places (picker, legend, pane
+  // headers) and has to survive the picker closing under it, this one exists only here.
+  const [codeTarget, setCodeTarget] = useState<IndicatorKind | { scriptId: string } | null>(null);
+  // Which script the trash button is asking to delete, if any — deleting one is irreversible (its
+  // code is gone with it), so unlike every other action in this picker it goes through a confirm
+  // step rather than happening on the click itself. Holds the name too, so the modal can say what
+  // it's about to delete without looking it up again.
+  const [scriptToDelete, setScriptToDelete] = useState<{ id: string; name: string } | null>(null);
   // Which tab the settings modal shows — same "nothing outside this modal needs it" reasoning as
   // categoryFilter above. Reset to "inputs" whenever a *different* indicator's settings open (not
   // on every render — editingIndicatorId only actually changes when the user picks a new one),
@@ -209,7 +246,12 @@ export function IndicatorModals({
                   new Set([
                     ...INDICATOR_CATALOG.map((entry) => entry.category),
                     ...(customIndicators ?? []).map((def) => def.section),
-                    ...(scripts.length > 0 ? ["Mes scripts"] : []),
+                    // Always present, even with no scripts at all — the tab is how someone finds
+                    // out scripts *exist* as a thing this chart does. Hiding it until the first
+                    // one is written means it can only ever be discovered by someone who already
+                    // knew; selecting it with an empty list shows an explanatory empty state
+                    // instead of the generic "aucun indicateur ne correspond" (see below).
+                    SCRIPTS_CATEGORY,
                   ])
                 ).map(
                   (category) => (
@@ -272,6 +314,18 @@ export function IndicatorModals({
                   /** Built-in/custom rows only, paired with `alreadyPresent` — what "add anyway"
                    *  vs. "remove from chart" each mean for this specific row. */
                   onRemoveExisting?: () => void;
+                  /** What this row's own "</>" button opens, if it has one: a built-in kind (whose
+                   *  script equivalent INDICATOR_SCRIPT_SOURCES carries) or a script (whose own
+                   *  code is the thing to show). `undefined` — no button at all, same convention
+                   *  `descriptionKind` already follows — for a custom indicator (a caller's own,
+                   *  this library never had its source) and for the built-in kinds with no faithful
+                   *  script version (see INDICATOR_SCRIPT_SOURCES' own doc for which, and why). */
+                  codeTarget?: IndicatorKind | { scriptId: string };
+                  /** Script rows only — the script this row stands for, which its own trash button
+                   *  deletes. `undefined` everywhere else: a built-in or custom indicator is removed
+                   *  from the chart by clicking its already-present row (see `alreadyPresent`), and
+                   *  there is nothing to permanently delete. */
+                  scriptId?: string;
                 };
                 const builtinOptions: PickerOption[] = INDICATOR_CATALOG.filter(
                   (entry) => entry.label.toLowerCase().includes(query) || entry.shortLabel.toLowerCase().includes(query)
@@ -282,6 +336,7 @@ export function IndicatorModals({
                   pane: entry.pane,
                   onSelect: () => (entry.kind === "correlation" ? openCorrelationSetup() : addIndicator(entry)),
                   descriptionKind: entry.kind,
+                  codeTarget: INDICATOR_SCRIPT_SOURCES[entry.kind] ? entry.kind : undefined,
                   alreadyPresent: indicators.some((ind) => ind.kind === entry.kind),
                   onRemoveExisting: () => commitIndicators(indicators.filter((ind) => ind.kind !== entry.kind)),
                 }));
@@ -301,10 +356,12 @@ export function IndicatorModals({
                   .map((s) => ({
                     key: s.id,
                     label: s.name,
-                    category: "Mes scripts",
+                    category: SCRIPTS_CATEGORY,
                     pane: "own",
                     onSelect: () => toggleScriptEnabled(s.id),
                     enabled: s.enabled !== false,
+                    codeTarget: { scriptId: s.id },
+                    scriptId: s.id,
                   }));
                 const allOptions = [...builtinOptions, ...customOptions, ...scriptOptions].filter(
                   (option) => categoryFilter === null || option.category === categoryFilter
@@ -316,6 +373,19 @@ export function IndicatorModals({
                   else groups.push({ category: option.category, options: [option] });
                 }
                 if (!showVolumeOption && groups.length === 0) {
+                  // Two different "nothing here" cases, which want two different messages: an
+                  // empty "Mes scripts" is the normal state of a chart nobody has written a script
+                  // for yet (nothing is wrong, and the message should say what a script *is* for),
+                  // whereas an empty result anywhere else really is a search that matched nothing.
+                  if (categoryFilter === SCRIPTS_CATEGORY && scripts.length === 0) {
+                    return (
+                      <p className="lq-chart__indicator-picker-empty">
+                        Aucun script pour l&apos;instant. Un script est un indicateur que vous écrivez vous-même : ouvrez l&apos;éditeur
+                        («&nbsp;&lt;/&gt;&nbsp;» dans la barre d&apos;outils) pour en créer un, ou partez du code d&apos;un indicateur intégré via
+                        son propre bouton «&nbsp;&lt;/&gt;&nbsp;» dans cette liste.
+                      </p>
+                    );
+                  }
                   return <p className="lq-chart__indicator-picker-empty">Aucun indicateur ne correspond à « {indicatorSearchQuery} ».</p>;
                 }
                 return (
@@ -387,6 +457,28 @@ export function IndicatorModals({
                                 {option.pane === "price" ? <OverlayBadgeIcon size={13} /> : <PaneBadgeIcon size={13} />}
                               </span>
                             </button>
+                            {option.codeTarget !== undefined && (
+                              <button
+                                type="button"
+                                className="lq-chart__pane-header-action"
+                                onClick={() => setCodeTarget(option.codeTarget!)}
+                                aria-label={`Code de ${option.label}`}
+                                title="Voir le code"
+                              >
+                                <CodeIcon size={13} />
+                              </button>
+                            )}
+                            {option.scriptId !== undefined && onDeleteScript && (
+                              <button
+                                type="button"
+                                className="lq-chart__pane-header-action"
+                                onClick={() => setScriptToDelete({ id: option.scriptId!, name: option.label })}
+                                aria-label={`Supprimer ${option.label}`}
+                                title="Supprimer ce script"
+                              >
+                                <TrashIcon size={13} />
+                              </button>
+                            )}
                             {option.descriptionKind && (
                               <button
                                 type="button"
@@ -480,6 +572,98 @@ export function IndicatorModals({
             </Modal>
           );
         })()}
+
+      {codeTarget !== null &&
+        (() => {
+          // A script row shows its own real code (the editor's unsaved draft when there is one, so
+          // this never contradicts what the editor is showing) and offers to jump to it; a built-in
+          // row shows the script *equivalent* of its computation (see INDICATOR_SCRIPT_SOURCES) and
+          // offers to fork it into a brand-new script. Only the second is a copy — a built-in
+          // indicator keeps computing in TypeScript over the whole series either way, so nothing
+          // here is the code the chart is actually running for it.
+          const isScript = typeof codeTarget === "object";
+          const script = isScript ? scripts.find((entry) => entry.id === codeTarget.scriptId) : undefined;
+          const label = isScript
+            ? (script?.name ?? "Script")
+            : (INDICATOR_CATALOG.find((entry) => entry.kind === codeTarget)?.label ?? codeTarget);
+          const code = isScript ? (script?.runDraftCode ?? script?.code ?? "") : (INDICATOR_SCRIPT_SOURCES[codeTarget] ?? "");
+          const openInEditor = isScript
+            ? onEditScript && (() => onEditScript(codeTarget.scriptId))
+            : onCreateScript && (() => onCreateScript(label, code));
+          return (
+            <Modal
+              open
+              onClose={() => setCodeTarget(null)}
+              title={label}
+              size="wide"
+              footer={
+                openInEditor ? (
+                  <div className="lq-chart__edit-drawing-footer">
+                    <button
+                      type="button"
+                      className="lq-chart__confirm-button"
+                      onClick={() => {
+                        openInEditor();
+                        setCodeTarget(null);
+                        setIndicatorPickerOpen(false);
+                      }}
+                    >
+                      {isScript ? "Modifier ce script" : "Ouvrir dans l'éditeur"}
+                    </button>
+                  </div>
+                ) : undefined
+              }
+            >
+              <p className="lq-chart__indicator-info-text">
+                {isScript
+                  ? "Le code de ce script, tel qu'il s'exécute en ce moment."
+                  : "Le calcul de cet indicateur, réécrit avec l'API de scripting de cette chart — de quoi le reprendre tel quel et le modifier. Ce n'est pas le code qu'exécute l'indicateur intégré, qui reste calculé en interne sur toute la série d'un coup ; c'est la manière de l'écrire soi-même, bougie par bougie."}
+              </p>
+              {code ? (
+                <CodeBlock code={code} filename={label} highlight="javascript" showLineNumbers className="lq-code-block--fill" />
+              ) : (
+                <p className="lq-chart__indicator-info-text">Ce script est vide.</p>
+              )}
+            </Modal>
+          );
+        })()}
+
+      {scriptToDelete && (
+        <Modal
+          open
+          onClose={() => setScriptToDelete(null)}
+          title="Supprimer ce script ?"
+          footer={
+            <div className="lq-chart__edit-drawing-footer">
+              <button type="button" className="lq-chart__reset-button" onClick={() => setScriptToDelete(null)}>
+                Annuler
+              </button>
+              <button
+                type="button"
+                className="lq-chart__confirm-button"
+                onClick={() => {
+                  onDeleteScript?.(scriptToDelete.id);
+                  // The code modal may well be open on this very script behind this one (its "</>"
+                  // sits right next to the trash that opened this) — closing it here keeps it from
+                  // being left showing a script that no longer exists.
+                  setCodeTarget(null);
+                  setScriptToDelete(null);
+                }}
+              >
+                Supprimer définitivement
+              </button>
+            </div>
+          }
+        >
+          <p className="lq-chart__indicator-info-text">
+            «&nbsp;{scriptToDelete.name}&nbsp;» sera supprimé de cette chart et de l&apos;éditeur de script, avec son code. Cette action est
+            irréversible.
+            {"\n\n"}
+            Pour seulement l&apos;arrêter sans le perdre, fermez cette fenêtre et cliquez sur la ligne du script : elle le désactive et le
+            laisse dans la liste.
+          </p>
+        </Modal>
+      )}
 
       {indicatorsManagerOpen &&
         (() => {

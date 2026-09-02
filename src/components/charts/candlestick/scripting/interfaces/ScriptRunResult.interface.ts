@@ -89,7 +89,10 @@ export interface ScriptLabelOutput {
   text: string;
   x: number;
   y: number;
-  unit: "px" | "%";
+  /** `"px"`/`"%"` position within the pane's own box; `"bar"` means `x` is a bar index and `y` a
+   *  price on that pane's own scale, so the label tracks the data through pan and zoom (see
+   *  `PlotLabelOptions.bar`). */
+  unit: "px" | "%" | "bar";
   rotation: number;
   color?: string;
   fontSize?: number;

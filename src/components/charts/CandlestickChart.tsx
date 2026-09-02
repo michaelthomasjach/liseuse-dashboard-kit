@@ -879,6 +879,9 @@ export function CandlestickChart({
             ownPaneIndicators={ownPaneIndicators}
             indicatorPaneTops={indicatorPaneTops}
             indicatorPaneHeights={indicatorPaneHeights}
+            zoomedXScale={zoomedXScale}
+            zoomedPriceScale={zoomedPriceScale}
+            zoomedOwnPaneScales={zoomedOwnPaneScales}
           />
         )}
         <PaneHeaders

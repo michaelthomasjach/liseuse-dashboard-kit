@@ -423,6 +423,13 @@ plot.pane("Profil", { dock: "right" }).profile("Densité", densite, prix, { colo
       t(
         "pane.label(name, texte, options) / overlay.label(name, texte, options) placent un texte à une position précise, en pixels ou en %, avec une rotation possible — contrairement à .line/.area/.histogram/.band, aucun lien avec une bougie ou une valeur : c'est une annotation libre, pas une série de données."
       ),
+      t(
+        "Une étiquette peut aussi être ancrée à la donnée plutôt qu'à la boîte du panneau : passez { bar, price } au lieu de { x, y }. bar est un indice de bougie, price une valeur lue sur l'échelle verticale du panneau — celle des prix pour un overlay, celle du sous-panneau pour une pane. L'étiquette suit alors le zoom et le défilement avec la bougie qu'elle désigne, au lieu de rester à un point fixe pendant que les données glissent dessous. C'est ce qu'il faut pour marquer un événement précis : un pivot HH/HL/LH/LL, un franchissement. Une étiquette sortie des bougies visibles n'est simplement pas dessinée."
+      ),
+      c(
+        `// un pivot haut repéré à la bougie 120, au prix 431.2
+plot.overlay("Pivots").label("hh-120", "HH", { bar: 120, price: 431.2, align: "center" });`
+      ),
       d("plotLabel"),
       t(
         "x/y sont relatifs à cette pane précise, pas à toute la chart : sur overlay, (0, 0) est le coin haut-gauche du panneau prix ; sur pane, celui du panneau qu'elle désigne. Rien à voir avec plot.table, qui s'ancre lui à l'un des 4 coins de toute la chart."

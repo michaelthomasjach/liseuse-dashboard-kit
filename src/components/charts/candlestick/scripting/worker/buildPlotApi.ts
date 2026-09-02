@@ -44,9 +44,19 @@ export interface PlotLabelOptions {
    *  anchoring) — `overlay`'s box is the price pane, `pane`'s is that pane's own strip. `unit`
    *  picks how `x`/`y` are read: `"%"` (default) is relative to the pane's own width/height (0-100
    *  each way), `"px"` is an absolute pixel offset from the pane's own top-left corner. */
-  x: number;
-  y: number;
+  x?: number;
+  y?: number;
   unit?: "px" | "%";
+  /** Anchors the label to the *data* instead of the pane's own box: `bar` is a bar index (the same
+   *  index `bar.index()`-style logic works in), `price` a value read on the pane's own vertical
+   *  scale — the price scale for an `overlay`, that sub-pane's own scale for a `pane`.
+   *
+   *  This is what a label marking a specific event needs — a ZigZag pivot's HH/HL/LH/LL, a
+   *  breakout's price — because it then pans and zooms with the candle it describes instead of
+   *  staying at a fixed spot in the pane while the data slides underneath it. Supply both; supplying
+   *  only one falls back to the `x`/`y` box positioning above. */
+  bar?: number;
+  price?: number;
   /** Degrees, clockwise, around the label's own center. Default 0. */
   rotation?: number;
   color?: string;
@@ -244,14 +254,17 @@ export function buildPlotApi(
         });
       },
       label: (name, text, options) => {
+        // Data anchoring wins when both coordinates are given; anything else keeps the original
+        // box positioning, so an existing label call behaves exactly as before.
+        const anchored = Number.isFinite(options.bar) && Number.isFinite(options.price);
         paneEntry.labelsByName.set(name, {
           paneName: paneEntry.name,
           paneType: paneEntry.pane,
           name,
           text,
-          x: options.x,
-          y: options.y,
-          unit: options.unit ?? "%",
+          x: anchored ? (options.bar as number) : (options.x ?? 0),
+          y: anchored ? (options.price as number) : (options.y ?? 0),
+          unit: anchored ? "bar" : (options.unit ?? "%"),
           rotation: options.rotation ?? 0,
           color: options.color,
           fontSize: options.fontSize,

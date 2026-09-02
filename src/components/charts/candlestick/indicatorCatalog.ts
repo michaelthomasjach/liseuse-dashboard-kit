@@ -264,9 +264,10 @@ export const INDICATOR_CATALOG: IndicatorCatalogEntry[] = [
     category: "Structure",
   },
   // Own value shape (a TpoSessionProfile per session, computed range-aware — see
-  // computeTPOSessionProfiles' own doc — rather than one value per candle) and its own five
-  // settings (tpoBlockMinutes/tpoRowCount/tpoValueAreaPercent/tpoLabelStyle/tpoSplitByBlocks, not
-  // period/stdDev) — hasPeriod/hasStdDev both false, same reasoning as pivotPoints/ichimoku.
+  // computeTPOSessionProfiles' own doc — rather than one value per candle) and its own six
+  // settings (tpoBlockMinutes/tpoRowCount/tpoValueAreaPercent/tpoLabelStyle/tpoSplitByBlocks/
+  // tpoOpacity, not period/stdDev) — hasPeriod/hasStdDev both false, same reasoning as
+  // pivotPoints/ichimoku.
   {
     kind: "tpo",
     label: "Time Price Opportunities (TPO)",

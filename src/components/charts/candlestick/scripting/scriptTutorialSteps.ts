@@ -258,7 +258,7 @@ if (bar.isNew() && overall !== "WAIT") {
     list: [
       "chart.indicator(id) permet de lire un indicateur déjà présent sur la chart (un RSI, un MACD…) plutôt que de tout recalculer soi-même — voir chart.* plus bas.",
       "ta.* calcule des indicateurs techniques usuels (RSI, MACD, Bollinger, stochastique…) à la demande, sans avoir à les ajouter visuellement à la chart — voir ta.* plus bas.",
-      "La section « Exemples » plus bas contient six scripts complets prêts à copier, chacun dans un style différent (score composite, rupture de bande, détecteur de volume…).",
+      "La section « Exemples » plus bas contient sept scripts complets prêts à copier, chacun dans un style différent (score composite, rupture de bande, détecteur de volume…).",
       "Chaque section qui suit détaille exhaustivement une famille de fonctions (market.*, chart.*, plot.*, state.*, bar.*, math.*, ta.*) — c'est la référence complète, à consulter au fur et à mesure des besoins plutôt qu'à lire d'un bloc.",
     ],
   },

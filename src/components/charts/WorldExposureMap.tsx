@@ -29,7 +29,7 @@ export interface WorldExposureMapProps {
   /** Arbitrary region labels, e.g. straight from the same `countBy(rows, r => r.region)` helper
    *  a caller's own donut chart already uses — this component owns turning a label like "US" or
    *  "Europe" into a continent (see `matchContinent`'s own doc), not the caller. A label that
-   *  doesn't resolve to any of the six continents (e.g. "Global", or "Autre") contributes to the
+   *  doesn't resolve to any of the eight regions (e.g. "Global", or "Autre") contributes to the
    *  small "Non localisable" note instead of coloring anything, rather than being silently
    *  dropped. */
   data: WorldExposureDatum[];
@@ -39,7 +39,7 @@ export interface WorldExposureMapProps {
   className?: string;
 }
 
-/** Interactive world choropleth — each of the six continents shaded by its own share of `data`
+/** Interactive world choropleth — each of the eight regions shaded by its own share of `data`
  *  (see `matchContinent`), darker for a bigger share. Hover (mouse) or press-and-hold/tap (touch,
  *  same unified Pointer Events every other chart in this library already uses for its own
  *  hover — see DonutChart) shows that continent's own value in a floating tooltip. */

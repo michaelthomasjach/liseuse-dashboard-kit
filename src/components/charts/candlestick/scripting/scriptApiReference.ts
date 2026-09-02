@@ -185,7 +185,11 @@ const COULEUR = new Variable("color", "#3b82f6");
 const AFFICHER_SIGNAUX = new Variable("boolean", true);
 
 // La variable s'utilise comme la constante qu'elle est :
-const bandwidth = (ta.atr(14) ?? 1) * ATR_MULT;`
+const highs = market.series("high", 14);
+const lows = market.series("low", 14);
+const closes = market.series("close", 14);
+const bandwidth = (ta.atr(highs, lows, closes, 14) ?? 1) * ATR_MULT;
+if (AFFICHER_SIGNAUX) plot.signal("BUY");`
       ),
       t("Les six types disponibles, et ce que la valeur par défaut doit être :"),
       l([
@@ -209,8 +213,14 @@ const bandwidth = (ta.atr(14) ?? 1) * ATR_MULT;`
       t(
         "À l'exécution, chaque new Variable(...) est remplacé par la valeur effective — celle des réglages, ou celle écrite dans le code si elle n'a jamais été modifiée. La variable est donc une vraie constante JavaScript ordinaire : elle s'utilise directement dans un calcul, sans .value ni rien à déballer."
       ),
+      h("DEBOUNCE_MS — pacer les ticks en direct", ["DEBOUNCE_MS"]),
       t(
-        "DEBOUNCE_MS est le seul nom que le moteur lit lui-même, plutôt que de se contenter de le substituer dans le code comme les autres : const DEBOUNCE_MS = new Variable(\"number\", 300) règle le délai d'anti-rafale avant un recalcul déclenché par un tick de marché en direct sur la bougie encore en formation (le comportement par défaut de tout script qui ne le déclare pas). 0 supprime cet anti-rafale, le script se relance à chaque tick. Sans effet sur le replay ou l'arrivée d'une nouvelle bougie, qui relancent toujours le script immédiatement quelle que soit cette valeur — seul un vrai tick sans nouvelle bougie ni déplacement de replay passe par ce délai."
+        "DEBOUNCE_MS est le seul nom que le moteur lit lui-même, plutôt que de se contenter de le substituer dans le code comme tout le reste : il règle le délai d'anti-rafale avant un recalcul déclenché par un tick de marché en direct sur la bougie encore en formation. Sans déclaration, ce délai est de 300 ms pour tout script."
+      ),
+      c(`const DEBOUNCE_MS = new Variable("number", 0, { min: 0 });
+// Avec 0, le script se relance à chaque tick en direct, sans anti-rafale.`),
+      t(
+        "Sans effet sur le replay ou l'arrivée d'une nouvelle bougie, qui relancent toujours le script immédiatement quelle que soit cette valeur — seul un vrai tick sans nouvelle bougie ni déplacement de replay passe par ce délai."
       ),
     ],
   },
@@ -369,7 +379,7 @@ pane.band(name, upper, lower, options?)  // remplissage entre deux courbes — v
       c(`const overlay = plot.overlay("SMA 20");
 overlay.line("SMA 20", sma20 ?? market.close(0));`),
       d("plotOverlay"),
-      h("Plusieurs courbes dans un même panneau"),
+      h("Plusieurs courbes dans un même panneau", [".area"]),
       t(
         "Un même panneau accepte plusieurs séries — chacune garde son propre nom (sa propre entrée dans l'en-tête du panneau), mais toutes partagent le même panneau et la même échelle verticale. Pratique pour un indicateur composite (une ligne rapide et une ligne lente, une ligne et son histogramme…) sans multiplier les panneaux :"
       ),
@@ -400,6 +410,7 @@ if (sma !== null && std !== null) {
 }`
       ),
       h("Un profil tourné à 90° — .profile", [".profile"]),
+      d("marketProfile"),
       t(
         "pane.profile(nom, valeurs, prix) dessine un profil de marché : valeurs[i] est la masse présente au prix prix[i]. Comme plot.xy, il prend les tableaux entiers d'un coup au lieu d'une valeur par bougie — un profil n'est pas une série temporelle, il est calculé une fois sur une plage de prix et n'a aucune bougie à laquelle rattacher ses points."
       ),
@@ -414,10 +425,12 @@ plot.pane("Profil", { dock: "right" }).profile("Densité", densite, prix, { colo
       ),
       l([
         "Cet alignement n'a de sens que sur un panneau ancré à gauche ou à droite — sur un panneau du bas, un profil n'a rien à aligner et n'est pas dessiné.",
+        "Appelé sur plot.overlay(...) plutôt que sur un plot.pane(..., { dock: \"left\"|\"right\" }), .profile ne s'affiche pas non plus — même sort qu'un panneau du bas : overlay n'a jamais de dock.",
         "Le panneau n'occupe verticalement que la section des prix, pas toute la hauteur de la colonne : il n'y a pas de prix en dessous avec quoi s'aligner.",
         "« Le dernier appel gagne », comme plot.table et plot.xy — appelez-le sans condition à chaque bougie, c'est le profil de la dernière bougie qui est conservé.",
         "Un panneau qui contient un profil est un panneau profil : toute autre série dessinée dessus est ignorée.",
         "valeurs et prix doivent avoir la même longueur ; les paires non numériques sont écartées.",
+        "Plafonné à 2000 points — au-delà, tronqué silencieusement plutôt que rejeté.",
       ]),
       h("Positionner un élément librement — .label", [".label"]),
       t(
@@ -514,6 +527,7 @@ plot.xy("Parabole", x, y, { xLabel: "x", yLabel: "y", title: "y = x²" });`
       t(
         "plot.xy n'est jamais affiché sur la vraie chart bougies/panneaux — il n'apparaît qu'en sortie d'une cellule (voir le mode notebook ci-dessous, et son propre tutoriel « Mode notebook » plus haut) : le nom passé sert uniquement à retrouver le graphique produit par une cellule donnée, pas à créer un panneau."
       ),
+      t("x et y sont plafonnés à 2000 points chacun — au-delà, tronqués silencieusement plutôt que rejetés."),
     ],
   },
   {
@@ -635,12 +649,23 @@ ta.adx(high, low, close, period?)
         "Aucun accès réseau — fetch, XMLHttpRequest, WebSocket, importScripts et navigator.sendBeacon sont bloqués et lèvent une erreur explicite si un script tente de les appeler.",
         "Aucun accès au stockage du navigateur — indexedDB et l'API Cache sont bloqués de la même façon.",
         "Aucun sous-Worker — un script ne peut pas créer son propre Worker (ce qui aurait été un moyen de contourner les restrictions ci-dessus).",
+        "Ni eval ni Function — les deux autres routes vers du code qui n'apparaît nulle part dans le texte du script sont bloquées elles aussi.",
         "Aucun accès aux variables ou au code de l'application hôte — le script ne reçoit que les API documentées ici, rien d'autre.",
         "Délai d'exécution — 8 secondes pour un rejeu complet, 1,5 seconde pour un tick temps réel ; au-delà, l'exécution est interrompue de force.",
         "market.series() est plafonné à 5000 points, quelle que soit la longueur demandée.",
+        "plot.xy() et pane.profile() sont plafonnés à 2000 points chacun — au-delà, tronqués silencieusement plutôt que rejetés.",
         "plot.table() est plafonné à 50 lignes et 200 caractères par cellule — au-delà, tronqué silencieusement plutôt que rejeté.",
+        "L'anti-rafale des ticks en direct (DEBOUNCE_MS, voir plus haut) est de 300 ms par défaut pour tout script qui ne le déclare pas.",
       ]),
       t("Math, Date, JSON, Array, Map et Set restent pleinement utilisables — ce sont des briques de calcul pures, sans risque."),
+      h("Erreurs courantes"),
+      t("Ce que l'éditeur affiche exactement quand quelque chose ne va pas, pour reconnaître chaque cas :"),
+      l([
+        "« Le script a dépassé le délai d'exécution autorisé et a été arrêté. » — le script est trop lent (une boucle qui tourne trop longtemps, un calcul lourd relancé à chaque bougie), pas une erreur de syntaxe. Voir les délais ci-dessus.",
+        '« "fetch" n\'est pas accessible depuis un script. » (ou XMLHttpRequest/WebSocket/importScripts/Worker/indexedDB/caches/Notification/postMessage/Function/eval selon ce qui a été appelé) — une des restrictions de sécurité ci-dessus, pas un bug du script.',
+        "Une erreur de syntaxe (avant même la première exécution) n'a jamais de numéro de ligne, sur aucun moteur — seul le message est disponible pour celle-là.",
+        "Sous Safari/WebKit, aucune erreur survenant *pendant* l'exécution n'indique de numéro de ligne non plus, quelle que soit l'erreur — seul le message l'est. Chrome et Firefox en fournissent un dans la plupart des cas.",
+      ]),
     ],
   },
   {
@@ -650,10 +675,10 @@ ta.adx(high, low, close, period?)
     // Whole-section override — see ScriptDocumentationModal.tsx's own doc on "tutorial"/
     // "keywords" for the same pattern: plain data (scriptExamples.ts's own SCRIPT_EXAMPLES) drives
     // a dedicated component (ScriptExamplesSection.tsx) instead of these `blocks`, so each of the
-    // six examples gets a real "Exécuter" button and a live chart underneath instead of just
+    // seven examples gets a real "Exécuter" button and a live chart underneath instead of just
     // syntax-highlighted text (exigence : « je veux pouvoir exécuter les scripts d'exemples »).
     // scriptDocsNav.ts derives this section's own sub-nav from SCRIPT_EXAMPLES directly (not from
-    // `blocks`, which is empty here) so the six example titles still work as nav sub-items.
+    // `blocks`, which is empty here) so the seven example titles still work as nav sub-items.
     blocks: [],
   },
 ];

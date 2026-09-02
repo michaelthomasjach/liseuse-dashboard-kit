@@ -89,7 +89,7 @@
 /* One `// %%`-style indent for a section's own sub-titles (see ScriptReferenceBlock's "heading"
    kind, and scriptDocsNav.ts for how these are derived) — exigence : « je veux des sous-titre ».
    Only the *active* section's own sub-titles ever render (see `showHeadings` in
-   ScriptDocumentationModal.tsx) — showing all ~13 sections' worth stacked permanently at once was
+   ScriptDocumentationModal.tsx) — showing all ~16 sections' worth stacked permanently at once was
    exactly what made the previous menu hard to get your bearings in (exigence : « difficile de se
    retrouver dedans »); collapsing down to just the section you're actually reading keeps the list
    scannable while still surfacing structure once you're somewhere. */

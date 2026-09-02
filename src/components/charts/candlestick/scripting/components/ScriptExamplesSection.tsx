@@ -3,7 +3,7 @@ import { ScriptExampleRunner } from "./ScriptExampleRunner";
 
 /** The documentation's own "Exemples" section — a whole-section override (same "plain data
  *  references a component" split `ScriptDocumentationModal.tsx` already uses for "tutorial"/
- *  "keywords") rendering `SCRIPT_EXAMPLES` as six real, runnable scripts instead of the static
+ *  "keywords") rendering `SCRIPT_EXAMPLES` as seven real, runnable scripts instead of the static
  *  text/code blocks this used to be. */
 export function ScriptExamplesSection() {
   return (

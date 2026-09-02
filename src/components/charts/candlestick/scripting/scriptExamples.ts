@@ -13,7 +13,7 @@ export interface ScriptExample {
   indicators?: Indicator[];
 }
 
-/** The "Exemples" section's own six complete, runnable scripts — migrated out of
+/** The "Exemples" section's own seven complete, runnable scripts — migrated out of
  *  `scriptApiReference.ts`'s former static `h()`/`t()`/`c()` blocks (same "plain data, no JSX"
  *  convention as `scriptTutorialSteps.ts`) so `ScriptExampleRunner.tsx` can give each one a real
  *  "Exécuter" button and a live chart underneath instead of just syntax-highlighted text — exigence

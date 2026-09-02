@@ -32,6 +32,17 @@ export const SCRIPT_API_COMPLETIONS: ScriptApiCompletion[] = [
       '(type, défaut, { description?, min?, max? }) — paramètre réglable : "string" | "number" | "boolean" | "Array[string]" | "Array[number]" | "color". min/max uniquement pour "number".',
     apply: 'new Variable("number", 1, { description: "" })',
   },
+  // Also resolved away before compilation, like Variable itself — but instead of only ever being
+  // substituted into the code, this one specific name is also read directly by useScriptEngine to
+  // pace its own live-tick re-trigger (see that hook's own `debounceMs` doc). Every other declared
+  // name has no meaning to the engine beyond its own substituted value.
+  {
+    label: "DEBOUNCE_MS",
+    type: "keyword",
+    detail:
+      'const DEBOUNCE_MS = new Variable("number", 300) — délai (ms) d\'anti-rafale avant un recalcul déclenché par un tick de marché en direct sur la bougie en formation. 0 = aucun anti-rafale. Sans effet sur le replay ou une nouvelle bougie. Défaut 300 si non déclaré.',
+    apply: 'const DEBOUNCE_MS = new Variable("number", 300, { min: 0 });',
+  },
   { label: "market.open", type: "function", detail: "(offset?) => number | null", apply: "market.open()" },
   { label: "market.high", type: "function", detail: "(offset?) => number | null", apply: "market.high()" },
   { label: "market.low", type: "function", detail: "(offset?) => number | null", apply: "market.low()" },
@@ -67,10 +78,15 @@ export const SCRIPT_API_COMPLETIONS: ScriptApiCompletion[] = [
   {
     label: "plot.pane",
     type: "function",
-    detail: '(name, { dock? }) => handle — sub-pane dédié (bottom/left/right), dessiner via .line/.area/.histogram/.band/.label',
+    detail: '(name, { dock? }) => handle — sub-pane dédié (bottom/left/right), dessiner via .line/.area/.histogram/.band/.label/.profile',
     apply: 'plot.pane("")',
   },
-  { label: "plot.overlay", type: "function", detail: "(name) => handle — pane prix, dessiner via .line/.area/.histogram/.band", apply: 'plot.overlay("")' },
+  {
+    label: "plot.overlay",
+    type: "function",
+    detail: "(name) => handle — pane prix, dessiner via .line/.area/.histogram/.band/.label",
+    apply: 'plot.overlay("")',
+  },
   { label: ".area", type: "function", detail: "(name, value, options?) — pane.area/overlay.area" },
   { label: ".band", type: "function", detail: "(name, upper, lower, options?) — pane.band/overlay.band, remplit entre deux courbes" },
   {

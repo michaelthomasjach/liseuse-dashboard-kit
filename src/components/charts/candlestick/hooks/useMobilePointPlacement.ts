@@ -128,6 +128,14 @@ export function useMobilePointPlacement({ enabled, plotRef, onCommit, onPreview 
       if (ev.cancelable) ev.preventDefault();
     };
     window.addEventListener("touchmove", swallowTouchMove, { passive: false });
+    // The nudge is a slow, deliberate press — a few pixels, well under Android's own touch slop
+    // (~8dp, ~24 CSS px on a 3x screen). Held that still for ~500ms, Chrome fires its long-press:
+    // a contextmenu, and with it a pointercancel that ends this gesture. That is the one cancel
+    // `touch-action` does not govern and that a fast drawing drag never meets (it clears the slop
+    // before the timer). `user-select`/touch-callout are off in CSS while placing; this swallows
+    // the contextmenu itself, which is what actually stops Chrome cancelling the pointer.
+    const swallowContextMenu = (ev: Event) => ev.preventDefault();
+    window.addEventListener("contextmenu", swallowContextMenu);
     // Every handler is gated on the pointer that started the gesture — a resting thumb on the
     // tools rail, a palm on the bezel, a stray second tap Chrome cancels, all dispatch their own
     // pointerup/pointercancel at window, and an ungated onUp would end the real finger's drag with
@@ -145,6 +153,7 @@ export function useMobilePointPlacement({ enabled, plotRef, onCommit, onPreview 
     const onUp = (ev: PointerEvent) => {
       if (ev.pointerId !== pointerId) return;
       window.removeEventListener("touchmove", swallowTouchMove);
+      window.removeEventListener("contextmenu", swallowContextMenu);
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onUp);

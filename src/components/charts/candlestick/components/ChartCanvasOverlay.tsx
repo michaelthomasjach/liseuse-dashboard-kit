@@ -58,6 +58,9 @@ export interface ChartCanvasOverlayProps {
   dateTickValues: number[];
   dateTickFormat: (value: number) => string;
   zoomRef: RefObject<SVGRectElement>;
+  /** Touch-placement marker in plot-local pixels, or null when nothing is being placed — see
+   *  useMobilePointPlacement. Purely something to draw; this component owns none of the gesture. */
+  placementMarker: { x: number; y: number } | null;
   activeTool: DrawingToolType | null;
   handleOverlayPointerDown: (e: React.PointerEvent<SVGRectElement>) => void;
   handlePointerMove: (e: React.PointerEvent<SVGRectElement>) => void;
@@ -186,6 +189,7 @@ export function ChartCanvasOverlay({
   dateTickValues,
   dateTickFormat,
   zoomRef,
+  placementMarker,
   activeTool,
   handleOverlayPointerDown,
   handlePointerMove,
@@ -377,6 +381,19 @@ export function ChartCanvasOverlay({
             y1={snapPixel(plotBoundedHeight)}
             y2={snapPixel(plotBoundedHeight)}
           />
+
+          {/* The touch placement marker (see useMobilePointPlacement) — a dot for the position
+              itself, plus a dashed cross spanning the whole plot so it can be lined up against a
+              candle and a price at a glance rather than by eye near the fingertip. Drawn before
+              the hit rect below so it can never intercept the very gestures that move it; it is
+              `pointer-events: none` in CSS as well, belt and braces. */}
+          {placementMarker && (
+            <g className="lq-chart__placement" aria-hidden="true">
+              <line x1={0} x2={dims.boundedWidth} y1={placementMarker.y} y2={placementMarker.y} className="lq-chart__placement-line" />
+              <line x1={placementMarker.x} x2={placementMarker.x} y1={0} y2={plotBoundedHeight} className="lq-chart__placement-line" />
+              <circle cx={placementMarker.x} cy={placementMarker.y} r={5} className="lq-chart__placement-dot" />
+            </g>
+          )}
 
           <rect
             ref={zoomRef}

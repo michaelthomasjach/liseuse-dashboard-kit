@@ -60,6 +60,14 @@ export interface ChartHeaderProps {
   onReplayTogglePlay: () => void;
   onReplaySpeedChange: (speed: number) => void;
   onReplayQuit: () => void;
+  /** The replay cutoff as an `<input type="date">` value, and the bounds of the data behind it —
+   *  see `toDayInputValue`. Empty while no cutoff is set. */
+  replayDateValue: string;
+  replayDateMin: string;
+  replayDateMax: string;
+  /** Fires with the raw `yyyy-mm-dd` the picker produced; resolving it to a candle is the caller's
+   *  job (see `candleIndexForDay`), which is also the only place `data` itself is in scope. */
+  onReplayDateChange: (value: string) => void;
   fullscreenToggle: boolean;
   toggleFullscreen: () => void;
   isFullscreen: boolean;
@@ -123,6 +131,10 @@ export function ChartHeader({
   onReplayTogglePlay,
   onReplaySpeedChange,
   onReplayQuit,
+  replayDateValue,
+  replayDateMin,
+  replayDateMax,
+  onReplayDateChange,
   fullscreenToggle,
   toggleFullscreen,
   isFullscreen,
@@ -316,6 +328,24 @@ export function ChartHeader({
                 ))}
               </div>
             </Popover>
+            {/* Jump straight to a day instead of clicking for it on the chart or waiting for
+                playback to reach it. Native `<input type="date">` rather than a hand-rolled
+                calendar: it brings the platform's own picker — which on a phone is the OS wheel,
+                by far the best date entry available there — plus keyboard entry and locale-correct
+                formatting, none of which would be worth rebuilding here. `min`/`max` bound it to
+                the data actually loaded, so the picker can't offer a day the chart has no candle
+                for. A day inside those bounds but without its own candle (a weekend, a holiday)
+                resolves backwards to the last session before it — see `candleIndexForDay`. */}
+            <input
+              type="date"
+              className="lq-chart__replay-date"
+              value={replayDateValue}
+              min={replayDateMin}
+              max={replayDateMax}
+              onChange={(e) => onReplayDateChange(e.target.value)}
+              aria-label="Date du replay"
+              title="Aller à une date précise"
+            />
             <button type="button" className="lq-chart__icon-button" onClick={onReplayQuit} aria-label="Quitter le replay" title="Quitter le replay">
               <CloseIcon size={14} />
             </button>

@@ -13,7 +13,7 @@ import type { Candle } from "../interfaces/Candle.interface";
 import type { Indicator } from "../interfaces/Indicator.interface";
 import type { IndicatorInfoTarget } from "../interfaces/IndicatorInfoTarget.interface";
 import type { IndicatorValue } from "../interfaces/IndicatorValue.interface";
-import { SUB_PANE_COLLAPSED_HEIGHT, SIDE_DOCK_AXIS_WIDTH, SIDE_DOCK_COLLAPSED_WIDTH } from "../constants";
+import { SUB_PANE_COLLAPSED_HEIGHT, SIDE_DOCK_COLLAPSED_WIDTH } from "../constants";
 
 export interface ChartSidePaneColumnProps {
   side: DockSide;
@@ -28,6 +28,10 @@ export interface ChartSidePaneColumnProps {
    *  margin, so the two line up at the same absolute height instead of this column falling short
    *  by however much room its axis needed. */
   marginBottom: number;
+  /** `dims.margin.right` — the main plot's own price-axis gutter, reused as this column's own so
+   *  the two axes are the same width by construction. See useDockedPaneColumnsState's own
+   *  `marginRight` doc for why that replaced a fixed constant. */
+  axisWidthPx: number;
   themeTick: number;
   zoomedXScale: ScaleLinear<number, number>;
   candleWidth: number;
@@ -97,6 +101,7 @@ export function ChartSidePaneColumn({
   columnWidth,
   plotBoundedHeight,
   marginBottom,
+  axisWidthPx,
   themeTick,
   zoomedXScale,
   candleWidth,
@@ -156,7 +161,7 @@ export function ChartSidePaneColumn({
   const hasExpanded = expandedPanes.length > 0;
 
   const showAxes = hasExpanded && expandedPanes.some((ind) => ind.sideAxesVisible !== false);
-  const axisWidth = showAxes ? SIDE_DOCK_AXIS_WIDTH : 0;
+  const axisWidth = showAxes ? axisWidthPx : 0;
   const axisHeight = showAxes ? marginBottom : 0;
   // Fold every pane in the column and the plot box disappears altogether — the column is then just
   // its bands, and the main chart reclaims the rest of the row through ordinary flexbox.

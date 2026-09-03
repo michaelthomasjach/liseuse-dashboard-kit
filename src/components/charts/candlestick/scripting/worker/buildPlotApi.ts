@@ -111,7 +111,12 @@ export interface PaneSeriesHandle {
    *  Unlike every other method here, a bar the script skips leaves a real *hole*: the other draw
    *  modes carry their last value forward to the right edge of the chart, this one draws nothing
    *  until the script emits again. That is what lets a series stop — call it only on the bars where
-   *  the value exists, and the dots stop there too. */
+   *  the value exists, and the dots stop there too.
+   *
+   *  Dot size comes from `options.lineWidth`, the same field the other draw modes use for stroke
+   *  thickness: the radius drawn is `max(0.75, lineWidth * 0.9)` px, so the default 1.5 gives a
+   *  1.35px dot, `lineWidth: 4` a 3.6px one, and anything under ~0.83 bottoms out at the 0.75px
+   *  floor that keeps a dot from vanishing entirely. */
   dots(name: string, value: number, options?: PlotSeriesOptions): void;
   /** A translucent fill between two curves, plus thin upper/lower lines and a computed middle
    *  line — same rendering Bollinger Bands already uses. */

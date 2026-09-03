@@ -134,6 +134,7 @@ export function useReplayState({ dataLength }: UseReplayStateArgs) {
     armed,
     active,
     cutoffIndex,
+    setCutoffIndex,
     previewIndex,
     playing,
     speed,

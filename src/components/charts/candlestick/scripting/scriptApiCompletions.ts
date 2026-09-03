@@ -79,7 +79,8 @@ export const SCRIPT_API_COMPLETIONS: ScriptApiCompletion[] = [
   {
     label: ".dots",
     type: "function",
-    detail: "(name, value, options?) — points non reliés (scatter), avec de vrais trous quand le script n'émet pas",
+    detail:
+      "(name, value, options?) — points non reliés (scatter), avec de vrais trous quand le script n'émet pas. Taille du point : options.lineWidth (rayon = lineWidth × 0,9, plancher 0,75 px ; défaut 1,5).",
     apply: 'dots("Niveaux", valeur)',
   },
   { label: ".upper", type: "function", detail: "(offset?) => number | null — band" },

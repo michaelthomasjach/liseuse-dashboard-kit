@@ -8,7 +8,7 @@ import { Checkbox } from "../forms/Checkbox";
 import { DropdownPanel } from "../primitives/DropdownPanel";
 import { Modal } from "../primitives/Modal";
 import { ChevronLeftIcon, ChevronDownIcon, CalendarIcon, EyeIcon, EyeOffIcon, SettingsIcon, TrashIcon, MeasureIcon, AverageLineIcon } from "../icons";
-import { DEFAULT_MARGIN, TOOLS_RAIL_WIDTH } from "./candlestick/constants";
+import { DEFAULT_MARGIN, TOOLS_RAIL_WIDTH, PRICE_AXIS_WIDTH_MOBILE, TOOLS_RAIL_HEIGHT_MOBILE } from "./candlestick/constants";
 import "./charts-shared.css";
 
 // The only granularity offered now (see this file's own git history for the Semaine/Trimestre/
@@ -122,6 +122,11 @@ export interface SeasonalityViewProps {
   symbol?: string;
   /** Returns to the regular (non-seasonality) chart body. */
   onBack: () => void;
+  /** Narrow/phone layout (see CandlestickChart's own `isNarrowLayout`). Only affects the price
+   *  axis' own width, which drops to the same PRICE_AXIS_WIDTH_MOBILE gutter the candle chart uses
+   *  there — so switching between the two views doesn't move the scale sideways under the reader.
+   *  Default false. */
+  mobile?: boolean;
   /** Same gate CandlestickChart's own header uses (`showHeader`) — without it there'd be no way
    *  back out of seasonality mode, so this only ever hides the header in the same edge case the
    *  main chart's own header would already be hidden in. Default true. */
@@ -148,7 +153,7 @@ export interface SeasonalityViewProps {
  * `margin` reserving the same rail width on its own left edge) and to drop its own border
  * (`embedded`) since it's nested inside CandlestickChart's own bordered root.
  */
-export function SeasonalityView({ data, symbol, onBack, showHeader = true, height = 380, className }: SeasonalityViewProps) {
+export function SeasonalityView({ data, symbol, onBack, showHeader = true, height = 380, mobile = false, className }: SeasonalityViewProps) {
   const availableYears = useMemo(() => Array.from(new Set(data.map((d) => d.date.getUTCFullYear()))).sort((a, b) => a - b), [data]);
   // Excluded, not included: unchecking a handful of years (an election year, a crash) out of a
   // long history is the common case — a whitelist would make every *other* year the odd one out.
@@ -368,7 +373,15 @@ export function SeasonalityView({ data, symbol, onBack, showHeader = true, heigh
       )}
 
       <div style={{ position: "relative" }}>
-        <div className="lq-chart__tools-rail" style={{ width: TOOLS_RAIL_WIDTH, height }}>
+        {/* Bottom-docked and horizontal on the phone layout, exactly like the candle chart's own
+            ToolsRail — a 40px column of icons down the left edge of an already narrow plot costs
+            more width than the tools are worth there, and the drawing rail this view sits beside
+            has made the bottom edge the place tools live on that layout. Same class pair, so the
+            flush-icons/no-borders/full-width rules written for that rail apply here untouched. */}
+        <div
+          className={["lq-chart__tools-rail", mobile && "lq-chart__tools-rail--horizontal"].filter(Boolean).join(" ")}
+          style={mobile ? { height: TOOLS_RAIL_HEIGHT_MOBILE } : { width: TOOLS_RAIL_WIDTH, height }}
+        >
           <div className="lq-chart__tools-rail-items">
             {/* Opens the two conditional-fill toggles below (aire sous la courbe / aire entre
                 les deux courbes) — occupies the rail slot the old granularity picker used to
@@ -613,7 +626,21 @@ export function SeasonalityView({ data, symbol, onBack, showHeader = true, heigh
             referenceLineY={0}
             showZoomReset={false}
             onZoomChange={setIsZoomed}
-            margin={{ ...DEFAULT_MARGIN, left: TOOLS_RAIL_WIDTH }}
+            // Same gutter the candle chart gives its own price axis on each layout — `Math.min` so a
+            // DEFAULT_MARGIN.right that were ever narrowed below it stays narrow rather than being
+            // widened back up by this.
+            margin={{
+              ...DEFAULT_MARGIN,
+              // The rail this reserves room for is the left column on desktop and the bottom strip on
+              // mobile (see it above) — so the reservation moves from one edge to the other with it,
+              // rather than leaving 40px walled off on the left for a rail that is no longer there.
+              left: mobile ? 0 : TOOLS_RAIL_WIDTH,
+              bottom: (DEFAULT_MARGIN.bottom ?? 0) + (mobile ? TOOLS_RAIL_HEIGHT_MOBILE : 0),
+              // Same gutter the candle chart gives its own price axis on each layout — `Math.min` so
+              // a DEFAULT_MARGIN.right that were ever narrowed below it stays narrow rather than
+              // being widened back up by this.
+              right: mobile ? Math.min(DEFAULT_MARGIN.right ?? PRICE_AXIS_WIDTH_MOBILE, PRICE_AXIS_WIDTH_MOBILE) : DEFAULT_MARGIN.right,
+            }}
             height={height}
             measureActive={measureActive}
             zoomable={!measureActive}

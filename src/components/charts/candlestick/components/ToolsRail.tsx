@@ -95,7 +95,12 @@ export function ToolsRail({
   if (!drawingTools) return null;
   const railStyle = horizontal
     ? {
-        width: dims.width,
+        // No `width` here on purpose — `.lq-chart__tools-rail--horizontal` takes `width: 100%` of
+        // `.lq-chart__plot-column`, its own parent, instead. `dims.width` is that column measured
+        // through a ResizeObserver, so it trails the real width by a frame and by whatever
+        // rounding the observer reports; a rail a few pixels short of its parent clips its own
+        // last button against the scroll container's right edge, which is exactly what it did.
+        // The layout engine resolves a percentage against the live box with no round-trip at all.
         height: TOOLS_RAIL_HEIGHT_MOBILE,
         // How far above this rail's own top edge the plot's date-axis line sits: everything of the
         // bottom margin that isn't the rail itself (CandlestickChart's own resolvedMargin folds

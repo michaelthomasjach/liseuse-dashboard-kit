@@ -88,3 +88,28 @@ export function fromDateInputValue(text: string, fallback: Date): Date {
   next.setFullYear(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
   return next;
 }
+
+/** A `Date` as an `<input type="date">` value — `yyyy-mm-dd` in *local* time, deliberately not
+ *  `toISOString().slice(0, 10)`, which converts to UTC first and so reports the previous day for
+ *  anyone east of Greenwich in the evening. */
+export function toDayInputValue(date: Date | undefined): string {
+  if (!date) return "";
+  return `${date.getFullYear()}-${`${date.getMonth() + 1}`.padStart(2, "0")}-${`${date.getDate()}`.padStart(2, "0")}`;
+}
+
+/** Which candle a day picked in an `<input type="date">` resolves to: the last one at or before the
+ *  end of that day. A day with no candle of its own — a weekend, a holiday, a gap in the data —
+ *  therefore lands on the session before it rather than being rejected, which is what someone
+ *  typing a date actually means. `null` when the value is unparseable or falls before the first
+ *  candle. Assumes `data` is ascending by date, as every candle array in this library is. */
+export function candleIndexForDay(data: Candle[], value: string): number | null {
+  const [year, month, day] = value.split("-").map(Number);
+  if (!year || !month || !day) return null;
+  const endOfDay = new Date(year, month - 1, day, 23, 59, 59, 999).getTime();
+  let index = -1;
+  for (let i = 0; i < data.length; i++) {
+    if (data[i].date.getTime() > endOfDay) break;
+    index = i;
+  }
+  return index >= 0 ? index : null;
+}

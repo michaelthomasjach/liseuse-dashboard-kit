@@ -104,11 +104,6 @@ export const TABLE_BORDER_HIT_MARGIN = 6;
 export const SIDE_DOCK_PANE_DEFAULT_WIDTH = 220;
 export const SIDE_DOCK_PANE_MIN_WIDTH = 120;
 export const SIDE_DOCK_PANE_MAX_WIDTH = 480;
-/** Reserved strip (px) for a docked column's own *price* axis — vertical, one per pane, on the
- *  column's own *outer* edge (facing away from the main chart) — see ChartSidePaneColumn.tsx.
- *  Added *beyond* the column's own resizable width (like the main plot's own `DEFAULT_MARGIN.right`
- *  is added beyond `dims.boundedWidth`), not carved out of it. */
-export const SIDE_DOCK_AXIS_WIDTH = 72;
 /** Extra breathing room (px), beyond the header row's own SUB_PANE_COLLAPSED_HEIGHT, before a
  *  docked pane's plotted content is allowed to start — the header's own row already stops
  *  visually overlapping the content without this, but flush against it with zero gap still read

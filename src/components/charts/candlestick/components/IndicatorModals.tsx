@@ -216,8 +216,13 @@ export function IndicatorModals({
         // own close icon (always present alongside `title`) stays the one way out.
         <Modal open onClose={() => setIndicatorPickerOpen(false)} title="Ajouter un indicateur" size="wide" footer={null}>
           {/* Left/right split (see .lq-chart__modal-split's own doc) — search + category filters
-              on the left, the catalog itself on the right, each scrolling on its own. */}
-          <div className="lq-chart__modal-split">
+              on the left, the catalog itself on the right, each scrolling on its own. The
+              `--stack-mobile` modifier turns that into three stacked bands on a narrow viewport:
+              search, then the filters as one sideways-scrolling row, then the catalog. Opt-in per
+              modal rather than a blanket rule on `.lq-chart__modal-split`, so SymbolSearchModal —
+              the only other user of this layout — keeps whatever its own narrow behaviour is until
+              someone asks otherwise. */}
+          <div className="lq-chart__modal-split lq-chart__modal-split--stack-mobile">
             <div className="lq-chart__modal-split-sidebar">
               <TextField
                 placeholder="Rechercher un indicateur…"

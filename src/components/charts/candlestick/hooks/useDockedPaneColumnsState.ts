@@ -34,6 +34,13 @@ export interface UseDockedPaneColumnsStateArgs {
    *  `plotBoundedHeight` the same way (not carved out of it), so its own bottom edge lines up with
    *  the main plot's — see ChartSidePaneColumn.tsx. */
   marginBottom: number;
+  /** `dims.margin.right` — the width the main plot gives its own price axis, reused verbatim as
+   *  each docked column's own axis width so the two are the same gutter by construction rather
+   *  than by two constants that happen to agree. That mattered the moment the main one started
+   *  narrowing on a phone layout (see PRICE_AXIS_WIDTH_MOBILE): a docked column left on the old
+   *  fixed 72px was then visibly wider than the chart's own beside it. Also follows a caller that
+   *  overrides `margin.right` for its own reasons, which the constant never could. */
+  marginRight: number;
   themeTick: number;
   data: Candle[];
   indicators: Indicator[];
@@ -80,6 +87,7 @@ export function useDockedPaneColumnsState({
   boundedWidth,
   plotBoundedHeight,
   marginBottom,
+  marginRight,
   themeTick,
   data,
   indicators,
@@ -155,6 +163,7 @@ export function useDockedPaneColumnsState({
     zoomedPriceScale,
     plotBoundedHeight,
     marginBottom,
+    axisWidthPx: marginRight,
     themeTick,
     indicators,
     data,

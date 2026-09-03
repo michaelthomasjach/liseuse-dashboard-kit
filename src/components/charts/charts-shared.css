@@ -633,6 +633,12 @@
   bottom: 0;
   border-right: none;
   border-top: 1px solid var(--lq-color-border-subtle);
+  /* Full width of `.lq-chart__main` — which on this layout is the rail's own parent, one level up
+     from `.lq-chart__plot-column` (see CandlestickChart's own `toolsRail`). So this is the whole
+     chart, docked script-pane columns included, not just the plot. A percentage rather than the
+     measured `dims.width` the vertical rail is sized from: a measurement trails the real box by a
+     frame and by the observer's own rounding, and the difference was a clipped last button. */
+  width: 100%;
 }
 
 .lq-chart__tools-rail--horizontal .lq-chart__tools-rail-items {
@@ -663,36 +669,26 @@
   display: none;
 }
 
-/* Both of the chart's own bottom rules stop at the plot column's right edge, because that column
-   is all this rail (and the SVG above it) is sized to — see ToolsRail's own `railStyle`. Anything
-   docked to the right of it (a `plot.pane(..., { dock: "right" })` column, collapsed to a strip on
-   this layout) then sits beside two lines that visibly give up short of it. These two continue
-   them across it: `::after` carries this rail's own border-top, `::before` carries the date axis'
-   own domain line (already extended once across the price-axis gutter in SVG — see
-   ChartCanvasOverlay's own `.lq-chart__axis-line-extension`, which can't reach past the SVG
-   itself). Both bleed a full viewport to the right and are trimmed at the chart's own edge by
-   `.lq-chart`'s `overflow: hidden` — no docked-column width has to be threaded down here for
-   that, and nothing about the rail's own box or the margin math changes. `top: -1px` lands on the
-   border box's own top edge: an absolutely-positioned child resolves against the *padding* box,
-   which starts after this rail's 1px border-top. */
-.lq-chart__tools-rail--horizontal::before,
-.lq-chart__tools-rail--horizontal::after {
+/* The date axis' own domain line is drawn in SVG, so it can only ever span the plot — it stops
+   dead at the edge of any docked script-pane column beside it. This carries it across the rest of
+   the chart's width. (The *other* bottom rule, this rail's own border-top, needs no help any more:
+   the rail spans the full chart itself now that it mounts on `.lq-chart__main`.)
+   Full width rather than starting where the plot ends, which would mean threading a docked
+   column's width down into CSS: over the plot it simply lands on the SVG line already there —
+   same 1px, same colour, same y (`--lq-rail-axis-gap` is `margin.bottom` minus this rail's own
+   height, which is exactly that line's distance above the rail's top edge).
+   `top` is offset by a further -1px because an absolutely-positioned child resolves against the
+   *padding* box, which starts after this rail's own 1px border-top. */
+.lq-chart__tools-rail--horizontal::before {
   content: "";
   position: absolute;
-  left: 100%;
-  width: 100vw;
+  left: 0;
+  right: 0;
+  /* Fallback matches DEFAULT_MARGIN.bottom, for the (impossible in practice) case of the custom
+     property not being set — a line a few pixels off beats no line at all. */
+  top: calc(-1px - var(--lq-rail-axis-gap, 24px));
   border-top: 1px solid var(--lq-color-border-subtle);
   pointer-events: none;
-}
-
-.lq-chart__tools-rail--horizontal::after {
-  top: -1px;
-}
-
-.lq-chart__tools-rail--horizontal::before {
-  /* Fallback matches DEFAULT_MARGIN.bottom, for the (impossible in practice) case of the custom
-     property not being set — a wrong-by-a-few-pixels line beats none at all. */
-  top: calc(-1px - var(--lq-rail-axis-gap, 24px));
 }
 
 .lq-chart__tools-rail--horizontal .lq-chart__tools-rail-items > * {
@@ -2737,4 +2733,100 @@
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+}
+
+/* Narrow-viewport form of `.lq-chart__modal-split`, opt-in per modal (see IndicatorModals). A
+   200px sidebar beside a catalog is two unusable columns on a phone, so the two bands stack: the
+   search box and its filters on top, the catalog filling the rest. A media query rather than the
+   `--mobile` class the workspace uses — a Modal portals to document.body, so no ancestor of this
+   subtree carries that class. Same 700px breakpoint as the workspace grid's own collapse. */
+@media (max-width: 700px) {
+  .lq-chart__modal-split--stack-mobile {
+    flex-direction: column;
+  }
+
+  .lq-chart__modal-split--stack-mobile .lq-chart__modal-split-sidebar {
+    /* Height from its own content, and no scrolling of its own: it is now a header band, and the
+       catalog below it is the one thing that should scroll vertically. The divider moves from its
+       right edge to its bottom one, keeping the same "these are two regions" role. */
+    flex: 0 0 auto;
+    overflow-y: visible;
+    padding-right: 0;
+    padding-bottom: var(--lq-space-3);
+    border-right: none;
+    border-bottom: 1px solid var(--lq-color-border-subtle);
+  }
+
+  /* Back to a single row — and deliberately one that does *not* wrap: the filters are a strip you
+     drag sideways, not a block that grows taller as categories are added (a caller's own custom
+     sections make that count open-ended). Native overflow scrolling, so the finger-drag comes from
+     the browser rather than a handler of ours, same recipe as `.lq-chart__header` and the tools
+     rail's own horizontal variant. Scrollbar hidden on both engines so it can't eat into the row. */
+  .lq-chart__modal-split--stack-mobile .lq-chart__modal-filter-list--vertical {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .lq-chart__modal-split--stack-mobile .lq-chart__modal-filter-list--vertical::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Without this a flex item in a scrolling row shrinks to fit instead of overflowing it, which is
+     exactly what there is to scroll. */
+  .lq-chart__modal-split--stack-mobile .lq-chart__modal-filter-list--vertical > * {
+    flex-shrink: 0;
+  }
+}
+
+/* The replay cutoff's own date picker (see ChartHeader). Shaped like `.lq-chart__timeframe-trigger`
+   next to it — same height, same pill, same muted text — so the replay cluster reads as one row of
+   controls rather than a native form field dropped into a toolbar. `color-scheme` is what makes
+   the browser's own calendar icon and popup follow the chart's light/dark surface instead of
+   always rendering light; `inherit` picks up whatever the theme root already declares. */
+.lq-chart__replay-date {
+  height: 26px;
+  box-sizing: border-box;
+  padding: 0 6px;
+  font-family: inherit;
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--lq-color-text-muted);
+  background-color: var(--lq-color-panel);
+  border: 1px solid var(--lq-color-border-subtle);
+  border-radius: var(--lq-radius-sm);
+  color-scheme: inherit;
+  cursor: pointer;
+}
+
+.lq-chart__replay-date:hover {
+  color: var(--lq-color-text);
+  border-color: var(--lq-color-border);
+}
+
+/* The touch-placement marker (see useMobilePointPlacement) — the dot is the position being placed,
+   the dashed cross is what lets it be lined up against a candle and a price across the whole plot
+   rather than judged by eye next to a fingertip. Accent-coloured so it reads as "in progress",
+   distinct from both the crosshair (a passive readout) and a committed drawing. Inert to pointers:
+   the gesture that moves it happens on the hit rect underneath, and an intercepted event here
+   would freeze the very drag it is following. */
+.lq-chart__placement {
+  pointer-events: none;
+}
+
+.lq-chart__placement-line {
+  stroke: var(--lq-color-accent);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  opacity: 0.8;
+}
+
+.lq-chart__placement-dot {
+  fill: var(--lq-color-accent);
+  stroke: var(--lq-color-bg);
+  stroke-width: 2;
 }

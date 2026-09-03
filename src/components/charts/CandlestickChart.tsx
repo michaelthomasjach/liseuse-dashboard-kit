@@ -1,4 +1,4 @@
-import { useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import * as d3 from "d3";
 import { useChartDimensions } from "./internal/useChartDimensions";
 import type { ChartMargin, ChartDimensions } from "./internal/useChartDimensions";
@@ -21,6 +21,7 @@ import { useIndicatorPaneScales } from "./candlestick/hooks/useIndicatorPaneScal
 import { useDockedPaneColumnsState } from "./candlestick/hooks/useDockedPaneColumnsState";
 import { useDrawingState } from "./candlestick/hooks/useDrawingState";
 import { useDrawingInteractions } from "./candlestick/hooks/useDrawingInteractions";
+import { useMobilePointPlacement } from "./candlestick/hooks/useMobilePointPlacement";
 import { useDrawingToolMenuAnchors } from "./candlestick/hooks/useDrawingToolMenuAnchors";
 import { useFloatingToolbarState } from "./candlestick/hooks/useFloatingToolbarState";
 import { useAlertFlow } from "./candlestick/hooks/useAlertFlow";
@@ -81,7 +82,12 @@ import {
   MOBILE_RAIL_BREAKPOINT,
   SUB_PANE_COLLAPSED_HEIGHT,
 } from "./candlestick/constants";
-import { formatPercentFromReference, computeOhlcReadout } from "./candlestick/formatting";
+import { formatPercentFromReference, computeOhlcReadout, toDayInputValue, candleIndexForDay } from "./candlestick/formatting";
+
+/** Stands in for the plot's own pointer-down/up handlers while replay is armed — see where it is
+ *  passed below. A module-level constant rather than an inline arrow so the overlay isn't handed a
+ *  fresh function identity on every render of an already-armed chart. */
+const noopPointerHandler = () => {};
 
 /** A single interactive candlestick chart — drawing tools, indicators, pickers, alerts, symbol
  *  search, and everything else documented on its own props below. Usable standalone, but a few
@@ -529,6 +535,7 @@ export function CandlestickChart({
     boundedWidth: dims.boundedWidth,
     plotBoundedHeight,
     marginBottom: dims.margin.bottom,
+    marginRight: dims.margin.right,
     themeTick,
     data,
     indicators: combinedIndicators,
@@ -712,6 +719,26 @@ export function CandlestickChart({
   // the *branch condition* is that measurement, so the two can hand off to each other indefinitely
   // if the plot column is ever allowed to reach zero width while the parent has some. It can't:
   // `.lq-chart__plot-column` carries a min-width for exactly this reason (see charts-shared.css).
+
+  const placementActive = isNarrowLayout && activeTool !== null && !replayState.armed;
+  const mobilePlacement = useMobilePointPlacement({
+    enabled: placementActive,
+    plotRef: zoomRef,
+    onCommit: (point) => handleOverlayClick(point as unknown as React.MouseEvent<SVGRectElement>),
+    onPreview: (point) => handlePointerMove(point as unknown as React.PointerEvent<SVGRectElement>),
+  });
+
+  // A staged marker belongs to the tool that was active when it was dropped — switching tools, or
+  // finishing/cancelling a drawing (both of which clear `activeTool`), must take it with them
+  // rather than leave a dot floating over the next thing.
+  useEffect(() => {
+    mobilePlacement.clear();
+    // Only the tool changing matters; `clear` is stable and the hook object is a fresh literal
+    // every render, so depending on either would fire this on every commit and wipe the marker
+    // the moment it was placed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTool]);
+
   if (dims.width === 0 || data.length === 0) {
     return (
       <div className={["lq-chart", isFullscreen && "lq-chart--fullscreen", className].filter(Boolean).join(" ")} style={{ width: isFullscreen ? undefined : width, height: isFullscreen ? undefined : height }}>
@@ -740,6 +767,52 @@ export function CandlestickChart({
   const overlayIndicators = combinedIndicators.filter((ind) => indicatorCatalogEntry(ind).pane === "price");
 
   const { candle: ohlcCandle, delta: ohlcDelta, deltaPct: ohlcDeltaPct, sign: ohlcSign } = computeOhlcReadout(data, effectiveHoverIndex);
+
+  // Touch placement for every drawing tool (see the hook's own doc). Only ever engaged on the
+  // narrow layout and only with a tool selected — a chart being read keeps its ordinary pan,
+  // zoom and hover. `handleOverlayClick`/`handlePointerMove` are handed the staged position as a
+  // synthetic `{clientX, clientY}`, which is all their placement path ever reads from an event,
+  // so no tool needs to know this exists.
+  // Mounted in one of two places depending on the layout, hence the variable — the JSX itself is
+  // identical either way. Vertical: inside `.lq-chart__plot-column`, whose box is exactly what its
+  // `left: 0 / top: 0 / height: plotHeight` are meant to resolve against. Horizontal: one level up,
+  // as a child of `.lq-chart__main`, so `width: 100%` covers the *whole* chart rather than only the
+  // plot column — a `plot.pane(..., { dock })` column is a flex sibling of that column, and the
+  // rail was stopping dead at its edge instead of running under it. It stays absolutely positioned
+  // and so takes no flow space either way, which is what lets the bottom-margin reservation
+  // (TOOLS_RAIL_HEIGHT_MOBILE, see resolvedMargin) keep working untouched — and that same
+  // reservation is already made by the docked column too, through its own `marginBottom`, so there
+  // is real empty space under it for the rail to run through.
+  const toolsRail = (
+    <ToolsRail
+      drawingTools={drawingTools}
+      dims={dims}
+      plotHeight={plotHeight}
+      horizontal={isMobileRail}
+      selectedToolByCategory={selectedToolByCategory}
+      openToolMenu={openToolMenu}
+      setOpenToolMenu={setOpenToolMenu}
+      activeTool={activeTool}
+      handleToolClick={handleToolClick}
+      handleSelectToolType={handleSelectToolType}
+      menuAnchorRefFor={menuAnchorRefFor}
+      magnetActive={magnetActive}
+      setMagnetActive={setMagnetActive}
+      drawingsHidden={drawingsHidden}
+      setDrawingsHidden={setDrawingsHidden}
+      drawingsLocked={drawingsLocked}
+      setDrawingsLocked={setDrawingsLocked}
+      zoomable={zoomable}
+      isZoomed={isZoomed}
+      resetZoom={resetZoom}
+      eventKinds={eventKinds}
+      hiddenEventKinds={hiddenEventKinds}
+      setHiddenEventKinds={setHiddenEventKinds}
+      indicatorsManagerOpen={indicatorsManagerOpen}
+      setIndicatorsManagerOpen={setIndicatorsManagerOpen}
+      onOpenToolInfo={setInfoTool}
+    />
+  );
 
   return (
     <div className={["lq-chart", isFullscreen && "lq-chart--fullscreen", className].filter(Boolean).join(" ")} style={{ width: isFullscreen ? undefined : width }}>
@@ -778,6 +851,16 @@ export function CandlestickChart({
           onReplayTogglePlay={replayState.togglePlay}
           onReplaySpeedChange={replayState.setSpeed}
           onReplayQuit={replayState.quit}
+          replayDateValue={toDayInputValue(replayState.cutoffIndex !== null ? data[replayState.cutoffIndex]?.date : undefined)}
+          replayDateMin={toDayInputValue(data[0]?.date)}
+          replayDateMax={toDayInputValue(data[data.length - 1]?.date)}
+          onReplayDateChange={(value) => {
+            // An empty value is the picker being cleared, not a date — leave the cutoff alone
+            // rather than jumping to one end of the history.
+            if (!value) return;
+            const index = candleIndexForDay(data, value);
+            if (index !== null) replayState.setCutoffIndex(index);
+          }}
           fullscreenToggle={fullscreenToggle}
           toggleFullscreen={toggleFullscreen}
           isFullscreen={isFullscreen}
@@ -812,7 +895,7 @@ export function CandlestickChart({
       {leftColumnProps && <ChartSidePaneColumn {...leftColumnProps} />}
       <div ref={ref} className="lq-chart__plot-column">
       {seasonalityOpen ? (
-        <SeasonalityView data={data} symbol={symbol} onBack={() => setSeasonalityOpen(false)} showHeader={showHeader} height={plotHeight} />
+        <SeasonalityView data={data} symbol={symbol} onBack={() => setSeasonalityOpen(false)} showHeader={showHeader} height={plotHeight} mobile={isNarrowLayout} />
       ) : (
       <div
         className="lq-chart__plot"
@@ -836,36 +919,10 @@ export function CandlestickChart({
         {/* Width is the *entire* reserved left margin (not just TOOLS_RAIL_WIDTH) so its right
             border lands exactly where the plot content starts, not a bare-constant-sized gap
             short of it. Height spans the full plot down to the chart's own bottom border. (In
-            horizontal/mobile mode ToolsRail sizes itself off dims.width/TOOLS_RAIL_HEIGHT_MOBILE
-            instead — see isMobileRail above.) */}
-        <ToolsRail
-          drawingTools={drawingTools}
-          dims={dims}
-          plotHeight={plotHeight}
-          horizontal={isMobileRail}
-          selectedToolByCategory={selectedToolByCategory}
-          openToolMenu={openToolMenu}
-          setOpenToolMenu={setOpenToolMenu}
-          activeTool={activeTool}
-          handleToolClick={handleToolClick}
-          handleSelectToolType={handleSelectToolType}
-          menuAnchorRefFor={menuAnchorRefFor}
-          magnetActive={magnetActive}
-          setMagnetActive={setMagnetActive}
-          drawingsHidden={drawingsHidden}
-          setDrawingsHidden={setDrawingsHidden}
-          drawingsLocked={drawingsLocked}
-          setDrawingsLocked={setDrawingsLocked}
-          zoomable={zoomable}
-          isZoomed={isZoomed}
-          resetZoom={resetZoom}
-          eventKinds={eventKinds}
-          hiddenEventKinds={hiddenEventKinds}
-          setHiddenEventKinds={setHiddenEventKinds}
-          indicatorsManagerOpen={indicatorsManagerOpen}
-          setIndicatorsManagerOpen={setIndicatorsManagerOpen}
-          onOpenToolInfo={setInfoTool}
-        />
+            horizontal/mobile mode the rail takes TOOLS_RAIL_HEIGHT_MOBILE and a plain CSS
+            `width: 100%` of this column instead of any measured figure — see isMobileRail above
+            and `.lq-chart__tools-rail--horizontal`'s own rule.) */}
+        {!isMobileRail && toolsRail}
         {/* Fixed to the plot's own top-left corner regardless of priceHeight — without this gate
             it would still render, and overlap, once a pane's own maximize button zeroes it out. */}
         {priceHeight > 0 && (
@@ -973,10 +1030,32 @@ export function CandlestickChart({
           dateTickFormat={dateTickFormat}
           zoomRef={zoomRef}
           activeTool={activeTool}
-          handleOverlayPointerDown={handleOverlayPointerDown}
-          handlePointerMove={replayState.armed ? replayState.handlePointerMove(zoomedXScale) : handlePointerMove}
-          handleOverlayPointerUp={handleOverlayPointerUp}
-          handleOverlayClick={replayState.armed ? replayState.handleClick(zoomedXScale) : handleOverlayClick}
+          /* Armed replay owns the plot's pointer gestures outright. Move and click below are
+              swapped for its own; these two are stubbed instead, because it has nothing to do on
+              them — but leaving the drawing-interaction pair in place is precisely what let a drag
+              still pan the price scale while choosing a cutoff (see useDrawingInteractions' own
+              isPanningYRef, gated on `zoomable` alone). The view then shifted out from under the
+              very preview line being aimed with — the same thing `replayArmed` already stops
+              d3-zoom's own X drag from doing (see useZoomAndScales' own filter). */
+          /* Three-way routing, most specific first. Armed replay owns the plot outright; then
+             touch placement, which turns the raw gestures into "stage a marker, nudge it, confirm
+             it" and only replays a click once the position is settled; then the ordinary desktop
+             handlers. Click is deliberately NOT routed to the placement layer — it replays through
+             `handleOverlayClick` itself, so a committed point takes exactly the path a mouse click
+             would. */
+          placementMarker={mobilePlacement.marker}
+          handleOverlayPointerDown={
+            replayState.armed ? noopPointerHandler : placementActive ? mobilePlacement.onPointerDown : handleOverlayPointerDown
+          }
+          handlePointerMove={
+            replayState.armed
+              ? replayState.handlePointerMove(zoomedXScale)
+              : placementActive
+                ? mobilePlacement.onPointerMove
+                : handlePointerMove
+          }
+          handleOverlayPointerUp={replayState.armed ? noopPointerHandler : placementActive ? mobilePlacement.onPointerUp : handleOverlayPointerUp}
+          handleOverlayClick={replayState.armed ? replayState.handleClick(zoomedXScale) : placementActive ? noopPointerHandler : handleOverlayClick}
           handleOverlayDoubleClick={handleOverlayDoubleClick}
           yAxisWheelRef={yAxisWheelRef}
           yAxisDrag={yAxisDrag}
@@ -1044,6 +1123,7 @@ export function CandlestickChart({
       </div>
       {rightColumnProps && <ChartSidePaneColumn {...rightColumnProps} />}
       </div>
+      {isMobileRail && !seasonalityOpen && toolsRail}
 
       {/* Own positioned ancestor is .lq-chart__main (sits outside .lq-chart__plot, which would
           otherwise confine it to the plot area alone) — "fills the whole chart" means

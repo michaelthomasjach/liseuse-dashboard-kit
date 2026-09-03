@@ -6,6 +6,18 @@ import type { PointerEvent as ReactPointerEvent, RefObject } from "react";
  *  still rolls a few pixels. */
 const TAP_SLOP = 8;
 
+/** What `toClient` below builds: enough of a pointer event for the plot's own handlers, and
+ *  nothing more. Structural on purpose — nothing here is a real DOM event. */
+export interface SyntheticPlotEvent {
+  clientX: number;
+  clientY: number;
+  pointerType: string;
+  pointerId: number;
+  currentTarget: { getBoundingClientRect: () => DOMRect; setPointerCapture: () => void; releasePointerCapture: () => void };
+  preventDefault: () => void;
+  stopPropagation: () => void;
+}
+
 export interface UseMobilePointPlacementArgs {
   /** Off entirely on the desktop layout, and off with no tool selected — a chart being read rather
    *  than drawn on must keep its ordinary pan/zoom/hover behaviour. */
@@ -16,11 +28,11 @@ export interface UseMobilePointPlacementArgs {
    *  `{ clientX, clientY }`, which is all `useDrawingInteractions`' own placement path ever reads
    *  from the event (`toDataPoint` is typed for exactly that shape). Every tool is therefore
    *  driven unchanged, with no per-tool work here. */
-  onCommit: (point: { clientX: number; clientY: number }) => void;
+  onCommit: (point: SyntheticPlotEvent) => void;
   /** Called with the same synthetic point whenever the marker moves, so a half-drawn tool's own
    *  rubber-band preview follows it — the second point of a trend line tracking the marker instead
    *  of a finger that isn't touching the screen. */
-  onPreview: (point: { clientX: number; clientY: number }) => void;
+  onPreview: (point: SyntheticPlotEvent) => void;
 }
 
 /**
@@ -46,10 +58,30 @@ export function useMobilePointPlacement({ enabled, plotRef, onCommit, onPreview 
   const gestureRef = useRef<{ startClientX: number; startClientY: number; originX: number; originY: number; createdNow: boolean } | null>(null);
   const movedRef = useRef(false);
 
+  /** The staged position dressed up as the event the plot's own handlers expect. `clientX`/`clientY`
+   *  are what the placement path reads (see `toDataPoint`), but `handlePointerMove` also measures
+   *  the plot off `currentTarget` and branches on `pointerType` — passing the bare coordinate pair
+   *  threw on its very first line, on every frame of a drag, which is what made the marker move in
+   *  fits. `currentTarget` is a stand-in rather than the element itself so that
+   *  `setPointerCapture` stays a no-op: there is no pointer to capture here, the finger driving
+   *  this is somewhere else on the screen entirely, and handing a real element a synthetic
+   *  `pointerId` would throw in its place. */
   const toClient = useCallback(
     (local: { x: number; y: number }) => {
       const rect = plotRef.current?.getBoundingClientRect();
-      return { clientX: (rect?.left ?? 0) + local.x, clientY: (rect?.top ?? 0) + local.y };
+      return {
+        clientX: (rect?.left ?? 0) + local.x,
+        clientY: (rect?.top ?? 0) + local.y,
+        pointerType: "touch",
+        pointerId: -1,
+        currentTarget: {
+          getBoundingClientRect: () => plotRef.current?.getBoundingClientRect() ?? new DOMRect(),
+          setPointerCapture: () => {},
+          releasePointerCapture: () => {},
+        },
+        preventDefault: () => {},
+        stopPropagation: () => {},
+      };
     },
     [plotRef]
   );

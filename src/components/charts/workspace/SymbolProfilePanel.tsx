@@ -5,6 +5,7 @@ import { EarningsDotChart } from "../EarningsDotChart";
 import { LineAreaChart } from "../LineAreaChart";
 import type { ChartPoint } from "../LineAreaChart";
 import { MaximizeIcon } from "../../icons";
+import { PRICE_AXIS_WIDTH_MOBILE } from "../candlestick/constants";
 import type { Candle } from "../candlestick/interfaces/Candle.interface";
 import type { SymbolProfile } from "./SymbolProfile.interface";
 
@@ -127,6 +128,14 @@ export function SymbolProfilePanel({ symbol, price, change, changePercent, profi
             <LineAreaChart
               series={[{ id: symbol, label: symbol, data: rangePoints }]}
               height={140}
+              // Explicit, because the defaults are wrong for this shape in both directions: they
+              // reserve a left gutter for a Y axis that lives on the *right* here (which is what
+              // held the curve and its date axis off the left edge), and the right gutter they do
+              // reserve is sized for a legend-less inline chart, too narrow for a price label —
+              // "105.00" was being cut off against the screen. The gutter that replaces it is
+              // PRICE_AXIS_WIDTH_MOBILE, the very width the candle chart's own price axis uses on
+              // this layout, so the two read as the same column.
+              margin={{ top: 4, right: PRICE_AXIS_WIDTH_MOBILE, bottom: 18, left: 0 }}
               xType="time"
               curveType="linear"
               yAxisOrientation="right"

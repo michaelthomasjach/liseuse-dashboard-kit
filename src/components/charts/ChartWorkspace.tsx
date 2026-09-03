@@ -299,11 +299,6 @@ export function ChartWorkspace({
   }
   const sidePanelState = useSidePanel({ defaultSidePanelOpen, onSidePanelOpenChange });
   const symbolProfileSplit = useSymbolProfileSplit();
-  // The mobile details page's own grab bar (see where it renders below) — declared here rather
-  // than beside it because that page is built inside an IIFE in the JSX, which is no place for a
-  // hook: it renders conditionally, and a hook that comes and goes with a condition is exactly
-  // what the rules of hooks forbid.
-  const profileDrag = useDragToDismiss(() => setMobileProfileTicker(null));
   // Whole-workspace fullscreen (the rail's own "Plein écran de l'espace de travail" button below,
   // item 3) — a plain, uncontrolled `useFullscreen()` like a standalone CandlestickChart's own,
   // just applied to the outer `.lq-chart-workspace` row instead of one panel. Distinct from
@@ -378,6 +373,11 @@ export function ChartWorkspace({
   // it's read below. Deliberately not derived from `symbolByPanel`: that says which symbol a
   // *chart* is showing, which stays true long after the user has come back to the list.
   const [mobileProfileTicker, setMobileProfileTicker] = useState<string | null>(null);
+  // The details page's own presentation — the slide up, the drag down, the slide out. Declared
+  // beside the state it reads rather than next to where it renders, because that page is built
+  // inside an IIFE in the JSX, which is no place for a hook: it renders conditionally, and a hook
+  // that comes and goes with a condition is exactly what the rules of hooks forbid.
+  const profileDrag = useDragToDismiss({ open: mobileProfileTicker !== null, onDismiss: () => setMobileProfileTicker(null) });
   // Every column, across every list, visible by default — same "start showing everything, let the
   // user narrow it down" reasoning `excludedYears` avoids for SeasonalityView's own years filter,
   // just inverted (a whitelist here reads as the more natural default for "which columns" than an
@@ -940,11 +940,17 @@ export function ChartWorkspace({
                       className={[
                         "lq-chart-workspace__side-page",
                         "lq-chart-workspace__side-page--overlay",
+                        // `--entered` is what the opening slide transitions *to*; dropping it (or
+                        // never having added it yet) leaves the base rule's own translateY(100%),
+                        // which is both the start of the entrance and the end of the exit. See
+                        // useDragToDismiss' own doc for why these are classes and not keyframes.
+                        profileDrag.entered && !profileDrag.closing && "lq-chart-workspace__side-page--entered",
                         profileDrag.dragging && "lq-chart-workspace__side-page--dragging",
                       ]
                         .filter(Boolean)
                         .join(" ")}
-                      style={profileDrag.offsetY > 0 ? { transform: `translateY(${profileDrag.offsetY}px)` } : undefined}
+                      style={profileDrag.dragging ? { transform: `translateY(${profileDrag.offsetY}px)` } : undefined}
+                      onTransitionEnd={profileDrag.onTransitionEnd}
                     >
                       {/* Replaces the back-button header this page used to carry: one bar, drag it
                           down to close. `touch-action: none` on it (see the CSS) is what stops the
@@ -955,7 +961,10 @@ export function ChartWorkspace({
                         type="button"
                         className="lq-chart-workspace__side-page-grabber"
                         onPointerDown={profileDrag.startDrag}
-                        onClick={() => setMobileProfileTicker(null)}
+                        // Not a straight `setMobileProfileTicker(null)` — that would cut the page
+                        // out mid-frame. `requestClose` plays the same downward slide a released
+                        // drag does, and nulls the ticker only once it has finished.
+                        onClick={profileDrag.onGrabberClick}
                         aria-label="Fermer les détails du symbole"
                         title="Glisser vers le bas pour fermer"
                       >
@@ -1160,7 +1169,14 @@ export function ChartWorkspace({
             className={["lq-chart-workspace__mobile-bottomnav-item", sidePanelState.open && "lq-chart-workspace__mobile-bottomnav-item--active"]
               .filter(Boolean)
               .join(" ")}
-            onClick={() => sidePanelState.commitOpen(true)}
+            onClick={() => {
+              // With a symbol's details covering the list, "Listes" was a dead button: the panel
+              // was already open, so `commitOpen(true)` changed nothing and the tap did nothing
+              // visible. It means "take me back to the list" here, which is the details page's own
+              // dismissal — same downward slide as the grab bar, not a cut.
+              if (mobileProfileTicker !== null) profileDrag.requestClose();
+              sidePanelState.commitOpen(true);
+            }}
             aria-current={sidePanelState.open ? "page" : undefined}
           >
             {/* The panel is whatever `activeTab` last named, and a workspace given alerts but no

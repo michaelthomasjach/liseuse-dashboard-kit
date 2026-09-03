@@ -248,10 +248,22 @@
   min-height: 0;
 }
 
+/* The scroll container reaches the panel's own edges — which on the mobile layout are the screen's
+   — by cancelling `.lq-chart__side-panel-content`'s horizontal padding with a negative margin and
+   re-applying it as padding of its own. The scrollbar then rides the right edge of the screen
+   instead of floating an inset in from it, while the content keeps exactly the same reading
+   margin it had.
+   `overflow-x: hidden` is not belt-and-braces: `overflow-y: auto` alone computes the other axis to
+   `auto` too, so any sub-pixel overspill — a chart rounded a hair wide, a long unbroken headline —
+   raises a horizontal scrollbar across the whole page. There is nothing here worth panning
+   sideways to see, so it's pinned shut. */
 .lq-chart-workspace__side-page-body {
   flex: 1 1 auto;
   min-height: 0;
+  margin: 0 calc(-1 * var(--lq-space-3));
+  padding: 0 var(--lq-space-3);
   overflow-y: auto;
+  overflow-x: hidden;
 }
 
 /* Stacking context for the two mobile pages: the list, and the symbol details laid over it. The
@@ -263,29 +275,51 @@
   min-height: 0;
 }
 
+/* Off the bottom edge by default — which is both where the entrance starts and where the exit
+   ends, so one rule covers the sheet's whole life and a drag released mid-flight simply carries on
+   to it instead of jumping. `--entered` below is the only thing that brings it on screen. */
 .lq-chart-workspace__side-page--overlay {
   position: absolute;
   inset: 0;
   z-index: 2;
   background-color: var(--lq-color-bg);
-  transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1);
+  transform: translateY(100%);
+  transition: transform 260ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.lq-chart-workspace__side-page--entered {
+  transform: translateY(0);
 }
 
 /* No transition while the finger is down — otherwise the page eases toward each pointermove
-   instead of tracking it, which reads as lag rather than as something being dragged. The
-   transition is exactly what's wanted on release, for the snap back to rest. */
+   instead of tracking it, which reads as lag rather than as something being dragged. It comes
+   straight back for the release, whether that settles the sheet or sends it down. */
 .lq-chart-workspace__side-page--dragging {
   transition: none;
 }
 
-/* `touch-action: none` is load-bearing, not a polish detail: without it the browser claims the
+/* Shortened rather than removed. The sheet unmounts on this transition's own `transitionend` (see
+   useDragToDismiss), so `transition: none` would mean the event never fires and the page would sit
+   there until the 500ms backstop swept it away — a worse experience than the motion itself. 60ms
+   is past the "did something move?" threshold while still firing reliably on every engine. */
+@media (prefers-reduced-motion: reduce) {
+  .lq-chart-workspace__side-page--overlay {
+    transition-duration: 60ms;
+  }
+}
+
+/* The grab target and the mark that advertises it are deliberately two different sizes: this
+   element is the whole hit area — full width, 28px tall, comfortably more than a thumb needs —
+   while the bar centred inside it stays a thin hint. Sizing the two together would mean choosing
+   between a control that's hard to hit and one that shouts.
+   `touch-action: none` is load-bearing, not a polish detail: without it the browser claims the
    vertical gesture for scrolling the body underneath and the pointermove handler never sees it. */
 .lq-chart-workspace__side-page-grabber {
   display: flex;
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  padding: 6px var(--lq-space-2);
+  padding: 12px 0;
   background: none;
   border: none;
   cursor: grab;
@@ -296,15 +330,15 @@
   cursor: grabbing;
 }
 
-/* Explicit 10px rather than `--lq-radius-pill`: every radius token is 0 by default in this
-   library (see tokens.css — square corners are the house style, e-ink first), and "rounded" is
-   the one thing actually asked for here. Half the height, so the ends are true semicircles. */
+/* Explicit 2px rather than `--lq-radius-pill`: every radius token is 0 by default in this library
+   (see tokens.css — square corners are the house style, e-ink first), and rounded ends are the
+   point of this shape. Half the height, so they're true semicircles. */
 .lq-chart-workspace__side-page-grabber-bar {
   display: block;
-  width: 100%;
-  height: 20px;
-  background-color: var(--lq-color-hover);
-  border-radius: 10px;
+  width: 40px;
+  height: 4px;
+  background-color: var(--lq-color-border);
+  border-radius: 2px;
 }
 
 .lq-chart-workspace__side-split {
@@ -1066,8 +1100,15 @@
    SymbolProfilePanel). Negative side margins pull the plot out to the panel's own edges — a small
    chart reads better using the full width than indented to match body text, and the toolbar below
    it is padded back in so its buttons still line up with everything else. */
+/* Flush with the content column — the same left and right edges as the ticker, the description,
+   the tags and the performance tiles. No negative margin at all: bleeding past the container (both
+   the earlier `--lq-space-2` pull and the full `--lq-space-3` one that replaced it) put the curve's
+   own left edge outside the column every other block lines up on, which read as the chart being
+   off-centre rather than as a deliberate full-bleed. The plot reaching its box's left edge and the
+   price axis ending at its right one is handled inside the chart instead, by the explicit margins
+   SymbolProfilePanel passes it. */
 .lq-chart-workspace__symbol-profile-chart {
-  margin: 0 calc(-1 * var(--lq-space-2));
+  margin: 0;
 }
 
 .lq-chart-workspace__symbol-profile-chart-empty {
@@ -1087,7 +1128,10 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 2px;
-  padding: var(--lq-space-1) var(--lq-space-2) 0;
+  /* No horizontal padding of its own: the block above is already flush with the content column, so
+     "1D" starts and the expand button ends on exactly the same two edges as everything else on the
+     page. */
+  padding: var(--lq-space-1) 0 0;
   border-top: 1px solid var(--lq-color-border-subtle);
 }
 
@@ -1306,4 +1350,86 @@
   color: var(--lq-color-text);
   background-color: var(--lq-color-hover);
   border-radius: 999px;
+}
+
+/* -15% on every piece of text the workspace owns, on the phone layout only. Written out rule by
+   rule rather than scaled from one knob because all of these are `rem` — root-relative by
+   definition, so no ancestor font-size, however scoped, can move them. Each value below is its
+   desktop counterpart above × 0.85, rounded to 2dp; `.lq-chart-workspace--mobile` supplies the
+   extra class that wins on specificity without an !important anywhere.
+   Scope note: this covers the side panel (both mobile pages), the topbar and the bottom nav — the
+   text you actually read. The chart's own legend, tool rail and axis labels live in
+   charts-shared.css and are shared with the desktop layout; they're untouched here. */
+.lq-chart-workspace--mobile .lq-chart-workspace__mobile-bottomnav-item,
+.lq-chart-workspace--mobile .lq-chart-workspace__watchlist-row--header {
+  font-size: 0.55rem;
+}
+
+.lq-chart-workspace--mobile .lq-chart-workspace__side-panel-title,
+.lq-chart-workspace--mobile .lq-chart-workspace__watchlist-row-main {
+  font-size: 0.64rem;
+}
+
+.lq-chart-workspace--mobile .lq-chart-workspace__watchlist-logo {
+  font-size: 0.43rem;
+}
+
+.lq-chart-workspace--mobile .lq-chart-workspace__watchlist-section-toggle,
+.lq-chart-workspace--mobile .lq-chart-workspace__symbol-profile-status,
+.lq-chart-workspace--mobile .lq-chart-workspace__symbol-profile-range,
+.lq-chart-workspace--mobile .lq-chart-workspace__symbol-profile-sector-tag,
+.lq-chart-workspace--mobile .lq-chart-workspace__symbol-profile-performance-label,
+.lq-chart-workspace--mobile .lq-chart-workspace__symbol-profile-news-time {
+  font-size: 0.58rem;
+}
+
+.lq-chart-workspace--mobile .lq-chart-workspace__watchlist-add-section,
+.lq-chart-workspace--mobile .lq-chart-workspace__symbol-profile-chart-empty {
+  font-size: 0.6rem;
+}
+
+.lq-chart-workspace--mobile .lq-chart-workspace__symbol-profile-subtitle,
+.lq-chart-workspace--mobile .lq-chart-workspace__symbol-profile-section-title,
+.lq-chart-workspace--mobile .lq-chart-workspace__symbol-profile-news-more,
+.lq-chart-workspace--mobile .lq-chart-workspace__symbol-profile-earnings-badge {
+  font-size: 0.61rem;
+}
+
+.lq-chart-workspace--mobile .lq-chart-workspace__symbol-profile-change,
+.lq-chart-workspace--mobile .lq-chart-workspace__symbol-profile-description,
+.lq-chart-workspace--mobile .lq-chart-workspace__symbol-profile-news-headline,
+.lq-chart-workspace--mobile .lq-chart-workspace__symbol-profile-stat-row {
+  font-size: 0.66rem;
+}
+
+.lq-chart-workspace--mobile .lq-chart-workspace__symbol-profile-ticker {
+  font-size: 0.77rem;
+}
+
+.lq-chart-workspace--mobile .lq-chart-workspace__symbol-profile-price {
+  font-size: 1.11rem;
+}
+
+/* Axis tick labels, a further -20% on top of the -15% above (0.7rem × 0.8 = 0.56rem). Kept apart
+   from that block because it isn't the same kind of text: those are read once, this is a scale
+   printed dozens of times down a 44px gutter, where every tenth of a rem is candle width given
+   back. Scoped on `.lq-chart-workspace--mobile` rather than a media query for the same reason the
+   rest of this layout is: the decision is about how wide the *workspace* is, not the window — a
+   chart in a narrow embed on a wide screen wants this too. Covers the main plot, both docked
+   columns and the price curve on the symbol page, all of which share ChartAxis. */
+.lq-chart-workspace--mobile .lq-chart-axis__label {
+  font-size: 0.56rem;
+}
+
+/* Both of the symbol page's small SVGs are drawn at a fixed 260px (EarningsDotChart's own `width`
+   default, and the Sparkline the seasonality section asks for) — a sensible size beside a desktop
+   panel, but on a phone it leaves them floating short of the content column every other block on
+   the page lines up on. Both carry a `viewBox`, so a plain `width: 100%` scales them to fill it
+   with the aspect ratio intact; `height: auto` is what lets the height follow instead of staying
+   pinned to the attribute. Scoped to the mobile workspace — the desktop split still wants the
+   fixed size, where the panel is narrow and the drawing would otherwise stretch oddly wide. */
+.lq-chart-workspace--mobile .lq-earnings-dot-chart,
+.lq-chart-workspace--mobile .lq-chart-workspace__symbol-profile-seasonality {
+  width: 100%;
+  height: auto;
 }

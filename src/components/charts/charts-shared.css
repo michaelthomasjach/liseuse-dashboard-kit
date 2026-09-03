@@ -2830,3 +2830,30 @@
   stroke: var(--lq-color-bg);
   stroke-width: 2;
 }
+
+/* While a point is being placed by touch (see useMobilePointPlacement), no part of the chart may
+   let the browser reinterpret a drag as a page scroll. `touch-action: none` on the plot's own hit
+   rect is not enough on its own: the decision is made against the whole ancestor chain, and a
+   scrollable ancestor claiming the gesture fires `pointercancel` a few pixels in — which ends the
+   drag, and reads exactly as the marker freezing until the finger is lifted and put down again.
+   Scoped to the placing state, so ordinary touch panning of the chart is untouched. */
+.lq-chart--placing,
+.lq-chart--placing * {
+  touch-action: none;
+  /* A slow press-and-nudge — the placement gesture exactly — that stays under Android's slop for
+     ~500ms lets its long-press fire a text selection or touch callout, which cancels the pointer
+     just as surely as a scroll would. Both are shut for the duration of placement only. */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* The one place in this subtree where `touch-action` is actually honoured. It is declared on the
+   plot's own <rect> too (`.lq-chart__overlay`), and that declaration is silently discarded: an SVG
+   content element is a non-replaced inline box, which the property excludes, so Blink inherits the
+   parent's value instead. The <svg> element itself is `display: block` and therefore counts. Not
+   gated on the placing state — d3-zoom already prevents native scrolling over the plot for every
+   ordinary touch drag, so nothing a finger could do on this box is a scroll to protect. */
+.lq-chart__svg {
+  touch-action: none;
+}

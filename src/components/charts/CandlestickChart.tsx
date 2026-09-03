@@ -824,7 +824,10 @@ export function CandlestickChart({
   );
 
   return (
-    <div className={["lq-chart", isFullscreen && "lq-chart--fullscreen", className].filter(Boolean).join(" ")} style={{ width: isFullscreen ? undefined : width }}>
+    <div
+      className={["lq-chart", isFullscreen && "lq-chart--fullscreen", placementActive && "lq-chart--placing", className].filter(Boolean).join(" ")}
+      style={{ width: isFullscreen ? undefined : width }}
+    >
       <div className="lq-chart__main">
       {showHeader && !seasonalityOpen && (
         <ChartHeader

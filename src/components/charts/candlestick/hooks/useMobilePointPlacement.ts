@@ -86,8 +86,16 @@ export function useMobilePointPlacement({ enabled, plotRef, onCommit, onPreview 
     if (!enabled) return;
     const rect = plotRef.current?.getBoundingClientRect();
     if (!rect) return;
-    e.preventDefault();
     e.stopPropagation();
+    // Deliberately no `e.preventDefault()` here: on a pointerdown it does nothing against touch
+    // scrolling (only touch-action and the underlying touch events' own preventDefault do), and
+    // leaving one in place made this hook look defended when it had no defence at all.
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // A pointer that has already ended (a very fast tap) throws here and needs no capture.
+    }
+    const pointerId = e.pointerId;
     const startClientX = e.clientX;
     const startClientY = e.clientY;
     // No marker yet: this press both creates one and starts dragging it, so a press-and-slide
@@ -106,7 +114,26 @@ export function useMobilePointPlacement({ enabled, plotRef, onCommit, onPreview 
     // lifted and put down again. `pointercancel` is handled alongside `pointerup` for the same
     // reason — a cancelled pointer must end the gesture, not strand it.
     let moved = false;
+    // THE guard that keeps Chrome/Android from taking the drag as a page scroll ~8px in and
+    // firing `pointercancel` at it — which ended the gesture and read, exactly, as "the marker
+    // moves a few pixels and freezes until the finger is lifted". Nothing else in this path
+    // provides it: `touch-action: none` on the plot's SVG <rect> is silently dropped by Blink (a
+    // non-replaced inline element, which the property excludes), a preventDefault on pointerdown
+    // does not block scrolling, and a React `onTouchMove` is registered passive by React DOM and so
+    // cannot cancel anything. d3-zoom is what does this for every *other* touch drag on the chart
+    // (its `touchmoved` calls preventDefault on the native touchmove) — and d3-zoom is detached the
+    // whole time a tool is active, i.e. the only time this hook runs. So this listener does the one
+    // thing d3-zoom would have done: a non-passive touchmove that cancels the default.
+    const swallowTouchMove = (ev: TouchEvent) => {
+      if (ev.cancelable) ev.preventDefault();
+    };
+    window.addEventListener("touchmove", swallowTouchMove, { passive: false });
+    // Every handler is gated on the pointer that started the gesture — a resting thumb on the
+    // tools rail, a palm on the bezel, a stray second tap Chrome cancels, all dispatch their own
+    // pointerup/pointercancel at window, and an ungated onUp would end the real finger's drag with
+    // them.
     const onMove = (ev: PointerEvent) => {
+      if (ev.pointerId !== pointerId) return;
       const dx = ev.clientX - startClientX;
       const dy = ev.clientY - startClientY;
       if (!moved && Math.hypot(dx, dy) <= TAP_SLOP) return;
@@ -115,7 +142,9 @@ export function useMobilePointPlacement({ enabled, plotRef, onCommit, onPreview 
       setMarker(next);
       onPreview(toClient(next));
     };
-    const onUp = () => {
+    const onUp = (ev: PointerEvent) => {
+      if (ev.pointerId !== pointerId) return;
+      window.removeEventListener("touchmove", swallowTouchMove);
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onUp);

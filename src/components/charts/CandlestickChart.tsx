@@ -414,6 +414,12 @@ export function CandlestickChart({
   // `zoomedXScale` itself can't be a hook argument here (the reverse dependency).
   const replayState = useReplayState({ dataLength: data.length });
 
+  // Whether the touch placement flow (see useMobilePointPlacement below) currently owns the plot's
+  // gestures. Computed up here, ahead of the two hooks that need to know: while a point is being
+  // positioned, a finger dragged across the chart must move the *marker* and nothing else — panning
+  // the view at the same time moves the very reference the point is being aimed against.
+  const placementActive = isNarrowLayout && activeTool !== null && !replayState.armed;
+
   const {
     yTransform,
     setYTransform,
@@ -451,6 +457,7 @@ export function CandlestickChart({
     drawings,
     activeTool,
     replayArmed: replayState.armed,
+    placementActive,
     hoveredDrawingIdRef, measureBodyHoveredRef,
     yAutoScalingState,
     zoomable,
@@ -643,7 +650,10 @@ export function CandlestickChart({
     yTransform,
     setYTransform,
     setYManuallyAdjusted,
-    zoomable,
+    // Not the raw prop: this hook's own pointerdown starts a price-scale pan, gated on `zoomable`
+    // alone, and that pan is the one that kept dragging the view out from under a point being
+    // placed. Denying it here means it cannot start even if the overlay routing below ever changes.
+    zoomable: zoomable && !placementActive,
     paneScaleAndOffset,
     pixelYForDrawing,
     resolveValueAxisAtY,
@@ -720,7 +730,6 @@ export function CandlestickChart({
   // if the plot column is ever allowed to reach zero width while the parent has some. It can't:
   // `.lq-chart__plot-column` carries a min-width for exactly this reason (see charts-shared.css).
 
-  const placementActive = isNarrowLayout && activeTool !== null && !replayState.armed;
   const mobilePlacement = useMobilePointPlacement({
     enabled: placementActive,
     plotRef: zoomRef,

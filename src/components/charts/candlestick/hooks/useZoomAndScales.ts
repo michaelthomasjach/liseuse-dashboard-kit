@@ -51,6 +51,10 @@ export interface UseZoomAndScalesArgs {
    *  can't also pan the chart out from under it. Not set once replay is merely *active* (a cutoff
    *  already chosen, playing or paused) — panning/zooming the visible history is normal then. */
   replayArmed: boolean;
+  /** Touch point placement owns the plot's gestures while a marker is staged (see
+   *  useMobilePointPlacement) — a drag then belongs to the marker, so every pan/zoom drag is
+   *  refused for the same reason `replayArmed` refuses one while a cutoff is being chosen. */
+  placementActive: boolean;
   hoveredDrawingIdRef: RefObject<string | null>;
   /** Whether the pointer is currently over the measure tool's own rectangle body — same reason
    *  hoveredDrawingIdRef is checked below: kept live by useDrawingInteractions' own
@@ -92,6 +96,7 @@ export function useZoomAndScales({
   drawings,
   activeTool,
   replayArmed,
+  placementActive,
   hoveredDrawingIdRef,
   measureBodyHoveredRef,
   yAutoScalingState,
@@ -455,7 +460,7 @@ export function useZoomAndScales({
     // is exactly when it's most useful) — only a *drag* is rejected then, which is the actual
     // gesture that would shift the view out from under the hover-preview line while choosing.
     filter: (event: Event) =>
-      (!replayArmed || event.type === "wheel") && hoveredDrawingIdRef.current === null && !measureBodyHoveredRef.current,
+      (!replayArmed || event.type === "wheel") && !placementActive && hoveredDrawingIdRef.current === null && !measureBodyHoveredRef.current,
     constrain: constrainXPan,
   });
 

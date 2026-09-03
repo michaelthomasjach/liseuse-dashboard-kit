@@ -8,3 +8,7 @@ debug-storybook.log
 
 # Never commit a real GitHub Packages token
 .npmrc.local
+
+# Regenerated on every Storybook run (see scripts/storybook-build-info.mjs) — describes one
+# machine's build, not the repo.
+.storybook/buildInfo.json

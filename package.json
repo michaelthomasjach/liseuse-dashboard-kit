@@ -37,7 +37,9 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build"
+    "build-storybook": "storybook build",
+    "prestorybook": "node scripts/storybook-build-info.mjs",
+    "prebuild-storybook": "node scripts/storybook-build-info.mjs"
   },
   "peerDependencies": {
     "d3": "^7.9.0",

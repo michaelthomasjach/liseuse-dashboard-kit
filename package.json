@@ -1,6 +1,6 @@
 {
   "name": "@michaelthomasjach/liseuse-dashboard-kit",
-  "version": "0.60.0",
+  "version": "0.60.1",
   "description": "React component library for e-ink / tablet home dashboards and finance apps — interactive D3 charts, forms, layouts and pages. Light & dark surface, e-ink and color palettes.",
   "type": "module",
   "license": "UNLICENSED",
@@ -37,9 +37,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build",
-    "prestorybook": "node scripts/storybook-build-info.mjs",
-    "prebuild-storybook": "node scripts/storybook-build-info.mjs"
+    "build-storybook": "storybook build"
   },
   "peerDependencies": {
     "d3": "^7.9.0",

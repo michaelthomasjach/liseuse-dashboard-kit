@@ -1060,10 +1060,10 @@ export function CandlestickChart({
             replayState.armed
               ? replayState.handlePointerMove(zoomedXScale)
               : placementActive
-                ? mobilePlacement.onPointerMove
+                ? noopPointerHandler
                 : handlePointerMove
           }
-          handleOverlayPointerUp={replayState.armed ? noopPointerHandler : placementActive ? mobilePlacement.onPointerUp : handleOverlayPointerUp}
+          handleOverlayPointerUp={replayState.armed || placementActive ? noopPointerHandler : handleOverlayPointerUp}
           handleOverlayClick={replayState.armed ? replayState.handleClick(zoomedXScale) : placementActive ? noopPointerHandler : handleOverlayClick}
           handleOverlayDoubleClick={handleOverlayDoubleClick}
           yAxisWheelRef={yAxisWheelRef}

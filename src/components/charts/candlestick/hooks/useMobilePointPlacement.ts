@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import type { PointerEvent as ReactPointerEvent, RefObject } from "react";
 
 /** How far a finger may travel between down and up and still count as a tap rather than a drag.
@@ -53,10 +53,6 @@ export function useMobilePointPlacement({ enabled, plotRef, onCommit, onPreview 
   // viewport coordinates because that is what the overlay draws it in; the conversion back to
   // client space happens once, at commit.
   const [marker, setMarker] = useState<{ x: number; y: number } | null>(null);
-  // Where the marker was when the current gesture started, plus the finger's own start, so a drag
-  // is applied as a delta rather than teleporting the marker under the finger.
-  const gestureRef = useRef<{ startClientX: number; startClientY: number; originX: number; originY: number; createdNow: boolean } | null>(null);
-  const movedRef = useRef(false);
 
   /** The staged position dressed up as the event the plot's own handlers expect. `clientX`/`clientY`
    *  are what the placement path reads (see `toDataPoint`), but `handlePointerMove` also measures
@@ -90,55 +86,54 @@ export function useMobilePointPlacement({ enabled, plotRef, onCommit, onPreview 
     if (!enabled) return;
     const rect = plotRef.current?.getBoundingClientRect();
     if (!rect) return;
-    movedRef.current = false;
+    e.preventDefault();
+    e.stopPropagation();
+    const startClientX = e.clientX;
+    const startClientY = e.clientY;
     // No marker yet: this press both creates one and starts dragging it, so a press-and-slide
     // places a point in a single gesture without giving up the tap-then-adjust rhythm.
     const origin = marker ?? { x: e.clientX - rect.left, y: e.clientY - rect.top };
-    gestureRef.current = {
-      startClientX: e.clientX,
-      startClientY: e.clientY,
-      originX: origin.x,
-      originY: origin.y,
-      createdNow: marker === null,
-    };
-    if (marker === null) {
+    const createdNow = marker === null;
+    if (createdNow) {
       setMarker(origin);
       onPreview(toClient(origin));
     }
-  }
-
-  function onPointerMove(e: ReactPointerEvent<SVGRectElement>) {
-    const gesture = gestureRef.current;
-    if (!enabled || !gesture) return;
-    const dx = e.clientX - gesture.startClientX;
-    const dy = e.clientY - gesture.startClientY;
-    if (!movedRef.current && Math.hypot(dx, dy) <= TAP_SLOP) return;
-    movedRef.current = true;
-    const next = { x: gesture.originX + dx, y: gesture.originY + dy };
-    setMarker(next);
-    onPreview(toClient(next));
-  }
-
-  function onPointerUp() {
-    const gesture = gestureRef.current;
-    if (!enabled || !gesture) return;
-    gestureRef.current = null;
-    // A tap on an *already staged* marker is the confirmation. A tap that created the marker is
-    // the first half of the gesture and leaves it staged; a drag of either kind likewise leaves it
-    // staged, so the position can still be adjusted, or re-adjusted, before being committed.
-    if (movedRef.current || gesture.createdNow) return;
-    const staged = marker;
-    setMarker(null);
-    if (staged) onCommit(toClient(staged));
+    // Window listeners for the rest of the gesture, not React props on the plot rect — the same
+    // shape every other drag in this library uses (useSymbolProfileSplit, the details sheet's own
+    // grab bar, the price-scale pan). A drag tracked through the element's own onPointerMove dies
+    // the moment the browser retargets or cancels the pointer, which is exactly what it did here:
+    // the marker crept a few pixels past the tap threshold and then stopped until the finger was
+    // lifted and put down again. `pointercancel` is handled alongside `pointerup` for the same
+    // reason — a cancelled pointer must end the gesture, not strand it.
+    let moved = false;
+    const onMove = (ev: PointerEvent) => {
+      const dx = ev.clientX - startClientX;
+      const dy = ev.clientY - startClientY;
+      if (!moved && Math.hypot(dx, dy) <= TAP_SLOP) return;
+      moved = true;
+      const next = { x: origin.x + dx, y: origin.y + dy };
+      setMarker(next);
+      onPreview(toClient(next));
+    };
+    const onUp = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+      // A tap on an *already staged* marker is the confirmation. A tap that created the marker is
+      // the first half of the gesture and leaves it staged; a drag of either kind likewise leaves
+      // it staged, so the position can be adjusted, and re-adjusted, before being committed.
+      if (moved || createdNow) return;
+      setMarker(null);
+      onCommit(toClient(origin));
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
   }
 
   /** Drops the staged marker without committing it — for whoever cancels the tool (Escape, picking
    *  another tool, finishing a drawing), so a stale marker can't outlive what it was placing. */
-  const clear = useCallback(() => {
-    gestureRef.current = null;
-    movedRef.current = false;
-    setMarker(null);
-  }, []);
+  const clear = useCallback(() => setMarker(null), []);
 
-  return { marker: enabled ? marker : null, onPointerDown, onPointerMove, onPointerUp, clear };
+  return { marker: enabled ? marker : null, onPointerDown, clear };
 }

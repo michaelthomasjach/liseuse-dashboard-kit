@@ -63,6 +63,10 @@ export interface SymbolProfilePanelProps {
    *  uses elsewhere. On the mobile layout it switches to the chart page; omit it and the button
    *  isn't rendered at all. */
   onOpenInChart?: () => void;
+  /** Shows the "open full screen" button in the header. Default true. The full-screen modal renders
+   *  this same component with it set to false — a panel already filling the screen has nowhere
+   *  bigger to go, and a second button there would only open a modal inside a modal. */
+  expandable?: boolean;
 }
 
 /** The workspace side panel's own "company info" section (see `useSymbolProfileSplit`'s own doc
@@ -71,8 +75,19 @@ export interface SymbolProfilePanelProps {
  *  Degrades gracefully with no `profile` at all (a bare price/change readout, exactly what the
  *  chart's own header already shows, still has real value on its own) rather than rendering
  *  nothing or a wall of placeholders. */
-export function SymbolProfilePanel({ symbol, price, change, changePercent, profile, onMoreNews, priceHistory, onOpenInChart }: SymbolProfilePanelProps) {
+export function SymbolProfilePanel({
+  symbol,
+  price,
+  change,
+  changePercent,
+  profile,
+  onMoreNews,
+  priceHistory,
+  onOpenInChart,
+  expandable = true,
+}: SymbolProfilePanelProps) {
   const [priceRange, setPriceRange] = useState(DEFAULT_PRICE_RANGE);
+  const [fullscreenOpen, setFullscreenOpen] = useState(false);
   const [earningsModalOpen, setEarningsModalOpen] = useState(false);
   // Every range resolved at once rather than just the selected one — the buttons need to know
   // which of them have anything to show (a daily-candle history has exactly one point in "1D",
@@ -103,7 +118,22 @@ export function SymbolProfilePanel({ symbol, price, change, changePercent, profi
             </span>
           )}
         </div>
-        {profile?.marketStatus && <span className="lq-chart-workspace__symbol-profile-status">{profile.marketStatus}</span>}
+        {/* One trailing group, so the header's own `space-between` keeps the badge and the button
+            together on the right rather than spreading three items across the row. */}
+        <span className="lq-chart-workspace__symbol-profile-header-actions">
+          {profile?.marketStatus && <span className="lq-chart-workspace__symbol-profile-status">{profile.marketStatus}</span>}
+          {expandable && (
+            <button
+              type="button"
+              className="lq-chart-workspace__symbol-profile-expand"
+              onClick={() => setFullscreenOpen(true)}
+              aria-label="Afficher les détails en plein écran"
+              title="Afficher les détails en plein écran"
+            >
+              <MaximizeIcon size={14} />
+            </button>
+          )}
+        </span>
       </div>
 
       {price !== null && (
@@ -314,6 +344,25 @@ export function SymbolProfilePanel({ symbol, price, change, changePercent, profi
           </div>
           <EarningsDotChart points={profile.earnings} />
         </div>
+      )}
+
+      {/* The whole panel again, at the size of the screen. The same component rather than a
+          bespoke big layout: everything it knows how to show is already here, and the modal's only
+          job is to give it width. `expandable={false}` on the inner one — see the prop's own doc. */}
+      {expandable && fullscreenOpen && (
+        <Modal open onClose={() => setFullscreenOpen(false)} title={`${symbol} — détails`} size="fullscreen" footer={null}>
+          <SymbolProfilePanel
+            symbol={symbol}
+            price={price}
+            change={change}
+            changePercent={changePercent}
+            profile={profile}
+            onMoreNews={onMoreNews}
+            priceHistory={priceHistory}
+            onOpenInChart={onOpenInChart}
+            expandable={false}
+          />
+        </Modal>
       )}
 
       {/* Rendered from this panel rather than from the section above so it survives the section's

@@ -1567,3 +1567,31 @@
   color: var(--lq-color-text);
   background-color: var(--lq-color-hover);
 }
+
+/* The header's trailing group: the market-status badge and the full-screen button, kept together
+   so the header's `space-between` splits the row in two (name | actions) rather than three. */
+.lq-chart-workspace__symbol-profile-header-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: var(--lq-space-1);
+}
+
+/* Same quiet icon as the Résultats section's own expand button — it sits beside a title, not in a
+   toolbar, and must not out-shout the ticker it follows. */
+.lq-chart-workspace__symbol-profile-expand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 4px;
+  color: var(--lq-color-text-muted);
+  background: none;
+  border: none;
+  border-radius: var(--lq-radius-sm);
+  cursor: pointer;
+}
+
+.lq-chart-workspace__symbol-profile-expand:hover {
+  color: var(--lq-color-text);
+  background-color: var(--lq-color-hover);
+}

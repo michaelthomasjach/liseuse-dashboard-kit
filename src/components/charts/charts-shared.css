@@ -2137,7 +2137,9 @@
   width: 18px;
   height: 2px;
   border-radius: 1px;
-  background-color: var(--lq-color-text-muted);
+  /* Deliberately weaker than the token itself — a hint you notice on approach, not a mark that
+     competes with the data. `--lq-color-text-muted` at full strength still read as too firm. */
+  background-color: color-mix(in srgb, var(--lq-color-text-muted) 45%, transparent);
 }
 
 /* The same grip turned through 90° for a vertical divider — bars along the line, not across it,
@@ -2150,6 +2152,23 @@
 .lq-chart__pane-resize-grip--vertical::after {
   width: 2px;
   height: 18px;
+}
+
+/* A vertical handle straddles the border it moves (`left: -6px` on a 12px strip), but the element
+   it sits in clips at that border — `overflow: hidden` on a docked pane column, `auto` on the side
+   panel. Centred, half the grip lands in the clipped half and only one of the two bars survives.
+   So each variant is anchored to whichever half is actually visible: the side of the handle that
+   points *into* the element. The hit strip still straddles, which is the point of it. */
+.lq-chart__side-panel-resize-handle .lq-chart__pane-resize-grip,
+.lq-chart__side-dock-pane-resize-handle--right .lq-chart__pane-resize-grip {
+  left: auto;
+  right: 0;
+  transform: translateY(-50%);
+}
+
+.lq-chart__side-dock-pane-resize-handle--left .lq-chart__pane-resize-grip {
+  left: 0;
+  transform: translateY(-50%);
 }
 
 .lq-chart__indicator-category-filters {

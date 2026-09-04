@@ -24,6 +24,9 @@ export interface SidePaneColumnRenderParams {
   paneIndicators: Indicator[];
   paneHeights: number[];
   paneTops: number[];
+  /** Each pane's rank among the expanded panes sharing its box — 0 marks a box's own first row,
+   *  which is the one that draws the divider above it. See `stackSidePanes`. */
+  paneStackOrder: number[];
   zoomedPaneScales: Record<string, ScaleLinear<number, number>>;
   /** The *main chart's* own zoomed price scale (price -> y within the price section). Used only by
    *  a `draw: "profile"` pane, which is drawn against it rather than a scale fitted to its own

@@ -34,6 +34,27 @@ export function computeProfileValueScale(
   return d3.scaleLinear().domain([0, domainMax]).range(side === "right" ? [columnWidth, 0] : [0, columnWidth]);
 }
 
+/** The one scale a *box* of superimposed profiles shares — the widest domain any of them needs, so
+ *  two profiles drawn on top of each other are drawn at the same magnitude and can actually be
+ *  compared. Scaling each to its own maximum instead would put both peaks on the same edge and
+ *  make a small profile look exactly like a large one. Returns null when nothing in the box has a
+ *  profile worth scaling, same guard as the single-profile case. */
+export function computeProfileBoxValueScale(
+  members: { profile: { price: number; value: number }[]; headroom?: number }[],
+  side: "left" | "right",
+  columnWidth: number
+): d3.ScaleLinear<number, number> | null {
+  if (columnWidth <= 0) return null;
+  let domainMax = 0;
+  for (const member of members) {
+    const maxValue = member.profile.reduce((max, entry) => Math.max(max, entry.value), 0);
+    if (maxValue <= 0) continue;
+    domainMax = Math.max(domainMax, maxValue * (1 + Math.max(0, member.headroom ?? 0)));
+  }
+  if (domainMax <= 0) return null;
+  return d3.scaleLinear().domain([0, domainMax]).range(side === "right" ? [columnWidth, 0] : [0, columnWidth]);
+}
+
 /** Paints one `pane.profile(name, values, prices)` series — the market-profile shape, drawn
  *  transposed as a single continuous curve. Two things make it different from every other pane
  *  series, and both come from the same fact — a profile is not a time series:
@@ -58,12 +79,15 @@ export function drawPaneProfile(
   side: "left" | "right",
   columnWidth: number,
   priceScale: (price: number) => number,
-  style: ChartCanvasStyle
+  style: ChartCanvasStyle,
+  /** The scale of the box this profile shares with others, when it shares one — see
+   *  `computeProfileBoxValueScale`. Alone in its box, a profile keeps scaling to itself. */
+  sharedValueScale?: d3.ScaleLinear<number, number> | null
 ) {
   const profile = indicator.customData?.profile ?? [];
   if (profile.length < 2 || columnWidth <= 0) return;
 
-  const valueScale = computeProfileValueScale(profile, side, columnWidth, indicator.customData?.profileHeadroom);
+  const valueScale = sharedValueScale ?? computeProfileValueScale(profile, side, columnWidth, indicator.customData?.profileHeadroom);
   if (!valueScale) return;
 
   // Sorted by price so the polyline walks the grid from one end to the other rather than jumping

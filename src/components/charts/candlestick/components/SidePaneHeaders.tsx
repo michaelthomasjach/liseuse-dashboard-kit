@@ -18,6 +18,10 @@ export interface SidePaneHeadersProps {
   toggleSidePaneCollapsed: (paneId: string, collapsed: boolean) => void;
   paneIndicators: Indicator[];
   paneTops: number[];
+  /** Each pane's rank among the expanded panes sharing its box — panes docked under the same name
+   *  share one box, so their headers stack inside it instead of landing on top of each other, and
+   *  only the first row carries the box's own resize handle. See `stackSidePanes`. */
+  paneStackOrder: number[];
   startPaneResize: (paneKey: string, e: React.PointerEvent) => void;
   SUB_PANE_COLLAPSED_HEIGHT: number;
   data: Candle[];
@@ -46,6 +50,7 @@ export function SidePaneHeaders({
   toggleSidePaneCollapsed,
   paneIndicators,
   paneTops,
+  paneStackOrder,
   startPaneResize,
   SUB_PANE_COLLAPSED_HEIGHT,
   data,
@@ -70,11 +75,23 @@ export function SidePaneHeaders({
         <div
           key={ind.id}
           className="lq-chart__pane-header lq-chart__pane-header--always-visible"
-          style={{ top: paneTops[idx], left: 0, width: "100%", height: SUB_PANE_COLLAPSED_HEIGHT }}
+          style={{
+            // Offset by its rank in the box, so a second pane superimposed on the first reads as a
+            // second legend line under it rather than as text printed over text.
+            top: paneTops[idx] + (paneStackOrder[idx] ?? 0) * SUB_PANE_COLLAPSED_HEIGHT,
+            left: 0,
+            width: "100%",
+            height: SUB_PANE_COLLAPSED_HEIGHT,
+          }}
         >
-          <div className="lq-chart__pane-resize-handle" onPointerDown={(e) => startPaneResize(ind.id, e)} aria-hidden="true">
-            <span className="lq-chart__pane-resize-grip" aria-hidden="true" />
-          </div>
+          {/* A box has one top edge, so one handle: the rows below the first inside a shared box
+              carry none, and the first one resizes the whole box (the fraction is stored under its
+              own id — see stackSidePanes). */}
+          {(paneStackOrder[idx] ?? 0) === 0 && (
+            <div className="lq-chart__pane-resize-handle" onPointerDown={(e) => startPaneResize(ind.id, e)} aria-hidden="true">
+              <span className="lq-chart__pane-resize-grip" aria-hidden="true" />
+            </div>
+          )}
           <div className="lq-chart__pane-header-primary">
             <button
               type="button"

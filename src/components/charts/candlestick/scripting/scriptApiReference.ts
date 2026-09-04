@@ -413,6 +413,12 @@ pane.band(name, upper, lower, options?)  // remplissage entre deux courbes — v
         "options.dock n'est lu qu'au tout premier appel pour un nom de panneau donné (comme le reste des options par panneau) — un appel plus tard sur le même nom ne peut pas déplacer un panneau déjà ouvert vers un autre bord."
       ),
       t(
+        "Deux panneaux ancrés du même côté sous le MÊME NOM partagent une seule boîte et se superposent : un profil tracé par un script et un autre tracé par un second script se retrouvent dans la même colonne, à la même hauteur, sur la même échelle de magnitude — c'est la seule façon de les comparer. Des noms différents continuent de s'empiler l'un sous l'autre. Superposer ou empiler est donc un choix de nom, pas une option de plus : nommez-les pareil pour superposer, différemment pour empiler."
+      ),
+      t(
+        "Dans une boîte partagée, chaque panneau garde son propre en-tête (avec ses réglages et sa suppression), placés l'un sous l'autre comme les lignes d'une légende ; la poignée de redimensionnement et l'axe des valeurs appartiennent à la boîte, pas à chacun de ses occupants. Les profils superposés se partagent une seule échelle de magnitude — celle du plus large d'entre eux — pour qu'un petit profil ne soit pas dessiné comme un grand."
+      ),
+      t(
         "plot.overlay dessine directement par-dessus les bougies, dans le panneau principal — réservé à une valeur qui *est* un prix (une moyenne mobile, une bande, un niveau) et qui a donc du sens sur la même échelle. Même objet, mêmes méthodes que plot.pane, mais jamais ancrable sur le côté (dock n'existe que pour plot.pane) :"
       ),
       c(`const overlay = plot.overlay("SMA 20");

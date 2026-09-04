@@ -15,9 +15,12 @@ export interface UseDockedPaneColumnsStateArgs {
   leftPaneIndicators: Indicator[];
   leftPaneHeights: number[];
   leftPaneTops: number[];
+  /** Each docked pane's rank among the expanded panes sharing its box — see `stackSidePanes`. */
+  leftPaneStackOrder: number[];
   rightPaneIndicators: Indicator[];
   rightPaneHeights: number[];
   rightPaneTops: number[];
+  rightPaneStackOrder: number[];
   visibleIndicators: { indicator: Indicator; points: { i: number; value: IndicatorValue }[] }[];
   paneYTransform: Record<string, d3.ZoomTransform>;
   zoomedXScale: ScaleLinear<number, number>;
@@ -76,9 +79,11 @@ export function useDockedPaneColumnsState({
   leftPaneIndicators,
   leftPaneHeights,
   leftPaneTops,
+  leftPaneStackOrder,
   rightPaneIndicators,
   rightPaneHeights,
   rightPaneTops,
+  rightPaneStackOrder,
   visibleIndicators,
   paneYTransform,
   zoomedXScale,
@@ -196,6 +201,7 @@ export function useDockedPaneColumnsState({
           paneIndicators: leftPaneIndicators,
           paneHeights: leftPaneHeights,
           paneTops: leftPaneTops,
+          paneStackOrder: leftPaneStackOrder,
           zoomedPaneScales: zoomedLeftPaneScales,
           visibleIndicators,
           dateTickValues: leftDateTickValues,
@@ -217,6 +223,7 @@ export function useDockedPaneColumnsState({
           paneIndicators: rightPaneIndicators,
           paneHeights: rightPaneHeights,
           paneTops: rightPaneTops,
+          paneStackOrder: rightPaneStackOrder,
           zoomedPaneScales: zoomedRightPaneScales,
           visibleIndicators,
           dateTickValues: rightDateTickValues,

@@ -55,22 +55,70 @@ function withScriptOverride(ind: Indicator, overrides: Record<string, Partial<In
   return { ...ind, ...override, id: ind.id, kind: ind.kind, customData: ind.customData };
 }
 
-function stackSidePanes(
+/** Which box a docked pane belongs to. Two panes docked to the same side under the *same name*
+ *  share one box and are drawn on top of each other — `plot.pane("Niveaux", { dock: "right" })` in
+ *  two different scripts puts both profiles in the same column box, which is the only way to
+ *  compare them against the same prices (exigence : « je n'arrive pas à superposer 2 panneaux
+ *  dock »). Different names keep stacking vertically as before, so the choice stays the author's
+ *  and needs no new option: name them alike to superimpose, differently to stack. Only a script
+ *  pane can be docked at all (see `indicatorDock`), so `customData.label` — the name the script
+ *  passed — is always there; the id fallback just gives anything else its own box. */
+export function sidePaneBoxKey(ind: Indicator): string {
+  return ind.customData?.label ?? ind.id;
+}
+
+/** Lays out one docked column: one row per *box* (see `sidePaneBoxKey`), not per indicator.
+ *  Returns the indicators reordered so a box's own members are adjacent — every consumer walks
+ *  these arrays in parallel and reads a box as a run of equal `tops`, which only holds if members
+ *  never straddle another box. `stackOrder` is a member's rank *among the expanded members of its
+ *  own box*, which is what lets the headers stack inside the box instead of landing on top of each
+ *  other, and what marks the one row that owns the box's resize handle and value axis. */
+export function stackSidePanes(
   owned: Indicator[],
   heightFractions: Record<string, number>,
   boundedHeight: number
-): { heights: number[]; tops: number[] } {
-  const expandedCount = owned.filter((ind) => !ind.paneCollapsed).length;
-  const rawFractions = owned.map((ind) => (ind.paneCollapsed ? 0 : (heightFractions[ind.id] ?? 1 / expandedCount)));
-  const fractionSum = rawFractions.reduce((sum, f) => sum + f, 0) || 1;
-  const heights = owned.map((ind, i) => (ind.paneCollapsed ? 0 : Math.round(boundedHeight * (rawFractions[i] / fractionSum))));
-  const tops: number[] = [];
-  let cursor = 0;
-  for (const h of heights) {
-    tops.push(cursor);
-    cursor += h;
+): { ordered: Indicator[]; heights: number[]; tops: number[]; stackOrder: number[] } {
+  const boxes: Indicator[][] = [];
+  const byKey = new Map<string, Indicator[]>();
+  for (const ind of owned) {
+    const key = sidePaneBoxKey(ind);
+    let box = byKey.get(key);
+    if (!box) {
+      box = [];
+      byKey.set(key, box);
+      boxes.push(box);
+    }
+    box.push(ind);
   }
-  return { heights, tops };
+
+  // A box is folded only when every pane in it is: one expanded member still needs its full box.
+  const isFolded = (box: Indicator[]) => box.every((ind) => ind.paneCollapsed);
+  const expandedCount = boxes.filter((box) => !isFolded(box)).length;
+  // Keyed on the box's own first pane — that same id is what its resize handle passes to
+  // `startPaneResize`, so a stored fraction keeps addressing the box it was dragged for.
+  const rawFractions = boxes.map((box) => (isFolded(box) ? 0 : (heightFractions[box[0].id] ?? 1 / expandedCount)));
+  const fractionSum = rawFractions.reduce((sum, f) => sum + f, 0) || 1;
+  const boxHeights = boxes.map((box, i) => (isFolded(box) ? 0 : Math.round(boundedHeight * (rawFractions[i] / fractionSum))));
+
+  const ordered: Indicator[] = [];
+  const heights: number[] = [];
+  const tops: number[] = [];
+  const stackOrder: number[] = [];
+  let cursor = 0;
+  boxes.forEach((box, boxIndex) => {
+    let expandedSoFar = 0;
+    for (const ind of box) {
+      ordered.push(ind);
+      // A folded pane leaves the stack entirely (it renders in the collapsed strip beside the
+      // column), so it takes no height of its own even when its box has some.
+      heights.push(ind.paneCollapsed ? 0 : boxHeights[boxIndex]);
+      tops.push(cursor);
+      stackOrder.push(expandedSoFar);
+      if (!ind.paneCollapsed) expandedSoFar += 1;
+    }
+    cursor += boxHeights[boxIndex];
+  });
+  return { ordered, heights, tops, stackOrder };
 }
 
 export interface UsePaneLayoutArgs {
@@ -628,21 +676,33 @@ export function usePaneLayout({
   // fullscreened: "this pane claims the entire plot" should mean entire, not "entire minus the
   // side columns" — there's no fullscreen button on a docked pane's own header to reach the
   // opposite case (a docked pane claiming the whole plot itself), so that direction never arises.
-  const { leftPaneIndicators, leftPaneHeights, leftPaneTops } = useMemo(() => {
-    if (fullscreenPaneId !== null) return { leftPaneIndicators: [] as Indicator[], leftPaneHeights: [] as number[], leftPaneTops: [] as number[] };
+  const { leftPaneIndicators, leftPaneHeights, leftPaneTops, leftPaneStackOrder } = useMemo(() => {
+    if (fullscreenPaneId !== null)
+      return {
+        leftPaneIndicators: [] as Indicator[],
+        leftPaneHeights: [] as number[],
+        leftPaneTops: [] as number[],
+        leftPaneStackOrder: [] as number[],
+      };
     const owned = [...indicators, ...extraIndicators]
       .filter((ind) => indicatorCatalogEntry(ind).pane === "own" && indicatorDock(ind) === "left")
       .map((ind) => withSideCollapsed(ind, sidePaneCollapsed));
-    const { heights, tops } = stackSidePanes(owned, paneHeightFractions, plotBoundedHeight);
-    return { leftPaneIndicators: owned, leftPaneHeights: heights, leftPaneTops: tops };
+    const { ordered, heights, tops, stackOrder } = stackSidePanes(owned, paneHeightFractions, plotBoundedHeight);
+    return { leftPaneIndicators: ordered, leftPaneHeights: heights, leftPaneTops: tops, leftPaneStackOrder: stackOrder };
   }, [indicators, extraIndicators, paneHeightFractions, plotBoundedHeight, fullscreenPaneId, sidePaneCollapsed]);
-  const { rightPaneIndicators, rightPaneHeights, rightPaneTops } = useMemo(() => {
-    if (fullscreenPaneId !== null) return { rightPaneIndicators: [] as Indicator[], rightPaneHeights: [] as number[], rightPaneTops: [] as number[] };
+  const { rightPaneIndicators, rightPaneHeights, rightPaneTops, rightPaneStackOrder } = useMemo(() => {
+    if (fullscreenPaneId !== null)
+      return {
+        rightPaneIndicators: [] as Indicator[],
+        rightPaneHeights: [] as number[],
+        rightPaneTops: [] as number[],
+        rightPaneStackOrder: [] as number[],
+      };
     const owned = [...indicators, ...extraIndicators]
       .filter((ind) => indicatorCatalogEntry(ind).pane === "own" && indicatorDock(ind) === "right")
       .map((ind) => withSideCollapsed(ind, sidePaneCollapsed));
-    const { heights, tops } = stackSidePanes(owned, paneHeightFractions, plotBoundedHeight);
-    return { rightPaneIndicators: owned, rightPaneHeights: heights, rightPaneTops: tops };
+    const { ordered, heights, tops, stackOrder } = stackSidePanes(owned, paneHeightFractions, plotBoundedHeight);
+    return { rightPaneIndicators: ordered, rightPaneHeights: heights, rightPaneTops: tops, rightPaneStackOrder: stackOrder };
   }, [indicators, extraIndicators, paneHeightFractions, plotBoundedHeight, fullscreenPaneId, sidePaneCollapsed]);
 
   return {
@@ -705,9 +765,11 @@ export function usePaneLayout({
     leftPaneIndicators,
     leftPaneHeights,
     leftPaneTops,
+    leftPaneStackOrder,
     rightPaneIndicators,
     rightPaneHeights,
     rightPaneTops,
+    rightPaneStackOrder,
     toggleSidePaneCollapsed,
     extraIndicators,
   };

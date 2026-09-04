@@ -2,7 +2,7 @@ import type { SidePaneColumnRenderParams } from "../interfaces/SidePaneColumnRen
 import type { ChartCanvasStyle } from "../interfaces/ChartCanvasStyle.interface";
 import { snapPixel } from "../drawingGeometry";
 import { drawOwnPaneIndicatorSeries } from "./drawOwnPaneIndicatorSeries";
-import { drawPaneProfile } from "./drawPaneProfile";
+import { computeProfileBoxValueScale, drawPaneProfile } from "./drawPaneProfile";
 
 /** Paints one `plot.pane(name, { dock: "left"|"right" })` script pane column — an inter-pane
  *  divider (see the `idx > 0` guard below) plus `drawOwnPaneIndicatorSeries` per pane stacked in it, the exact same per-kind rendering the
@@ -29,6 +29,7 @@ export function renderSidePaneColumn(canvas: HTMLCanvasElement, wrapper: HTMLEle
     indicators,
     hovered,
     hoverY,
+    paneStackOrder,
   } = params;
   if (columnWidth <= 0 || plotBoundedHeight <= 0) return;
 
@@ -57,6 +58,17 @@ export function renderSidePaneColumn(canvas: HTMLCanvasElement, wrapper: HTMLEle
   // divider below — a plain index would be wrong the moment the pane above is folded away.
   let painted = 0;
 
+  // Which panes share each box, as runs of consecutive indices — `stackSidePanes` guarantees a
+  // box's members are adjacent, and `paneStackOrder === 0` marks where each run starts. Used for
+  // the one value scale a box of superimposed profiles shares.
+  const boxOfPane = new Map<number, number[]>();
+  let currentRun: number[] = [];
+  paneIndicators.forEach((_, idx) => {
+    if ((paneStackOrder[idx] ?? 0) === 0) currentRun = [];
+    currentRun.push(idx);
+    for (const member of currentRun) boxOfPane.set(member, currentRun);
+  });
+
   paneIndicators.forEach((ind, idx) => {
     // A folded pane is not in this column's own vertical stack at all: it renders as its own
     // vertical band beside this canvas (see SideDockCollapsedStrip) and stackSidePanes gives it
@@ -75,7 +87,7 @@ export function renderSidePaneColumn(canvas: HTMLCanvasElement, wrapper: HTMLEle
     // `--lq-color-border-subtle`, reading as one doubled 2px rule. That header border already
     // delimits the top of the column (it spans this column's own width too, see
     // ChartSidePaneColumn.tsx's own doc), so the canvas has nothing left to draw there.
-    if (painted > 0) {
+    if (painted > 0 && (paneStackOrder[idx] ?? 0) === 0) {
       ctx.save();
       ctx.strokeStyle = style.colorGrid;
       ctx.lineWidth = 1;
@@ -93,7 +105,21 @@ export function renderSidePaneColumn(canvas: HTMLCanvasElement, wrapper: HTMLEle
     // scale. Deliberately *not* clipped to the pane's own box below: it spans whatever vertical
     // range the price section spans, which is the whole point of aligning it with the candles.
     if (ind.customData?.draw === "profile") {
-      drawPaneProfile(ctx, ind, side, columnWidth, (price) => zoomedPriceScale(price), style);
+      // Superimposed profiles are drawn against one shared magnitude scale, so the taller of two
+      // reads as taller instead of both filling the column edge to edge.
+      const box = (boxOfPane.get(idx) ?? [idx]).filter((i) => paneIndicators[i].customData?.draw === "profile");
+      const sharedScale =
+        box.length > 1
+          ? computeProfileBoxValueScale(
+              box.map((i) => ({
+                profile: paneIndicators[i].customData?.profile ?? [],
+                headroom: paneIndicators[i].customData?.profileHeadroom,
+              })),
+              side,
+              columnWidth
+            )
+          : null;
+      drawPaneProfile(ctx, ind, side, columnWidth, (price) => zoomedPriceScale(price), style, sharedScale);
       return;
     }
 

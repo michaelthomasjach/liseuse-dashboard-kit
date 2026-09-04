@@ -7,7 +7,7 @@ import { useRenderSidePaneColumn } from "../hooks/useRenderSidePaneColumn";
 import { SidePaneHeaders } from "./SidePaneHeaders";
 import { SideDockCollapsedStrip } from "./SideDockCollapsedStrip";
 import { ChartAxis } from "../../ChartAxis";
-import { computeProfileValueScale } from "../render/drawPaneProfile";
+import { computeProfileBoxValueScale } from "../render/drawPaneProfile";
 import type { DockSide } from "../hooks/useDockedPaneColumns";
 import type { Candle } from "../interfaces/Candle.interface";
 import type { Indicator } from "../interfaces/Indicator.interface";
@@ -38,6 +38,10 @@ export interface ChartSidePaneColumnProps {
   paneIndicators: Indicator[];
   paneHeights: number[];
   paneTops: number[];
+  /** Each pane's rank among the expanded panes sharing its box — two panes docked to the same side
+   *  under the same name share one box and are drawn on top of each other (see `stackSidePanes`).
+   *  0 marks the row that owns the box: its resize handle, its divider, its value axis. */
+  paneStackOrder: number[];
   zoomedPaneScales: Record<string, ScaleLinear<number, number>>;
   /** The main chart's own zoomed price scale — see SidePaneColumnRenderParams' own doc. Used by a
    *  `draw: "profile"` pane, both for its canvas and for its own price axis. */
@@ -108,6 +112,7 @@ export function ChartSidePaneColumn({
   paneIndicators,
   paneHeights,
   paneTops,
+  paneStackOrder,
   zoomedPaneScales,
   zoomedPriceScale,
   visibleIndicators,
@@ -137,6 +142,7 @@ export function ChartSidePaneColumn({
     zoomedPriceScale,
     columnWidth,
     plotBoundedHeight,
+    paneStackOrder,
     zoomedXScale,
     candleWidth,
     paneIndicators,
@@ -240,6 +246,7 @@ export function ChartSidePaneColumn({
           toggleSidePaneCollapsed={toggleSidePaneCollapsed}
           paneIndicators={paneIndicators}
           paneTops={paneTops}
+          paneStackOrder={paneStackOrder}
           startPaneResize={startPaneResize}
           SUB_PANE_COLLAPSED_HEIGHT={SUB_PANE_COLLAPSED_HEIGHT}
           data={data}
@@ -282,6 +289,9 @@ export function ChartSidePaneColumn({
             const isProfile = ind.customData?.draw === "profile";
             const scale = isProfile ? zoomedPriceScale : zoomedPaneScales[ind.id];
             if (ind.paneCollapsed || ind.sideAxesVisible === false || !scale || paneHeights[idx] <= 0) return null;
+            // One price axis per box, drawn by its first row: panes superimposed in one box occupy
+            // the same vertical span, so a second axis would print its ticks over the first's.
+            if ((paneStackOrder[idx] ?? 0) !== 0) return null;
             return (
               <g key={ind.id} transform={isProfile ? undefined : `translate(0, ${paneTops[idx]})`}>
                 {/* `domainExtent` spans the pane's *whole* height, not the scale's own (shorter)
@@ -317,11 +327,17 @@ export function ChartSidePaneColumn({
               uses, so a folded or axis-hidden profile draws neither. */}
           {paneIndicators.map((ind, idx) => {
             if (ind.customData?.draw !== "profile" || ind.paneCollapsed || ind.sideAxesVisible === false || paneHeights[idx] <= 0) return null;
-            const valueScale = computeProfileValueScale(
-              ind.customData?.profile ?? [],
+            // One axis per box, not per pane: superimposed profiles share a magnitude scale (see
+            // computeProfileBoxValueScale), so a second axis would print the same ticks in the
+            // same place. Drawn by the box's own first row.
+            if ((paneStackOrder[idx] ?? 0) !== 0) return null;
+            const box = paneIndicators.filter(
+              (member, i) => i >= idx && (i === idx || (paneStackOrder[i] ?? 0) > 0) && member.customData?.draw === "profile" && !member.paneCollapsed
+            );
+            const valueScale = computeProfileBoxValueScale(
+              box.map((member) => ({ profile: member.customData?.profile ?? [], headroom: member.customData?.profileHeadroom })),
               side,
-              columnWidth,
-              ind.customData?.profileHeadroom
+              columnWidth
             );
             if (!valueScale) return null;
             return (

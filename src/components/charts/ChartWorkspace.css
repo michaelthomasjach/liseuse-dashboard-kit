@@ -32,7 +32,7 @@
 /* Second topbar, mobile layout only — every watchlist's own full name (`.lq-chart__timeframe-
    trigger`, the same text-pill class the *first* topbar's own "1 jour" timeframe trigger uses,
    for a consistent look between the two bars) plus the alert bell, replacing the rail's icons
-   below MOBILE_RAIL_BREAKPOINT. Same overflow-x recipe as `.lq-chart__header` (CandlestickChart's
+   below MOBILE_LAYOUT_BREAKPOINT. Same overflow-x recipe as `.lq-chart__header` (CandlestickChart's
    own first topbar) and ToolsRail's own `--horizontal` variant: native scroll, so dragging a
    finger across whatever doesn't fit comes for free from the browser instead of a custom handler,
    scrollbar hidden (both engines) so it can't eat into the fixed 40px height. */
@@ -139,7 +139,7 @@
    collapse; gridTemplateRows (see ChartWorkspace.tsx, set inline whenever fillHeight) is
    untouched, so a 2-row layout (4/6/8 panels) still gets its own 100vh split, now stacked
    1-per-row-share top to bottom instead of 2-per-row-share side by side. */
-@media (max-width: 700px) {
+@media (max-width: 1200px) {
   .lq-chart-workspace__grid {
     grid-template-columns: 1fr;
     /* One explicit row per *panel* (not the original `rows`, always ≤2 — see

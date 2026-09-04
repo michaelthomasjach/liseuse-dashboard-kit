@@ -79,7 +79,7 @@ import {
   TOOLS_RAIL_WIDTH,
   TOOLS_RAIL_HEIGHT_MOBILE,
   PRICE_AXIS_WIDTH_MOBILE,
-  MOBILE_RAIL_BREAKPOINT,
+  MOBILE_LAYOUT_BREAKPOINT,
   SUB_PANE_COLLAPSED_HEIGHT,
 } from "./candlestick/constants";
 import { formatPercentFromReference, computeOhlcReadout, toDayInputValue, candleIndexForDay } from "./candlestick/formatting";
@@ -263,7 +263,7 @@ export function CandlestickChart({
     height: isFullscreen || fillHeight ? undefined : height,
   });
   // The rail docks to the bottom instead of the left once the wrapper is too narrow to stack every
-  // tool button vertically (see MOBILE_RAIL_BREAKPOINT's own doc) — decided off `rawDims.width`,
+  // tool button vertically (see MOBILE_LAYOUT_BREAKPOINT's own doc) — decided off `rawDims.width`,
   // which useChartDimensions measures straight from the wrapper element regardless of which margin
   // was passed in (margin only affects the *derived* boundedWidth/boundedHeight/margin fields, see
   // that hook's own doc), so it's accurate here even though `verticalRailMargin` above assumed the
@@ -274,7 +274,13 @@ export function CandlestickChart({
   // rail to flip in the first place — a gate that matters only to the rail itself, not to the
   // other things this width decides: a narrower price axis, a script's docked pane opening folded,
   // the legend stacking its quote onto a second line.
-  const isNarrowLayout = rawDims.width > 0 && rawDims.width < MOBILE_RAIL_BREAKPOINT;
+  // Pinned by the settings modal's own "Mise en page" toggle; `null` leaves the width in charge.
+  // Kept here, beside the measurement it overrides, rather than in useChartAppearance — nothing
+  // else in this component's state cluster is about layout, and this reads as one line with the
+  // rule it replaces.
+  const [layoutOverride, setLayoutOverride] = useState<"mobile" | "desktop" | null>(null);
+  const isNarrowLayout =
+    layoutOverride === null ? rawDims.width > 0 && rawDims.width < MOBILE_LAYOUT_BREAKPOINT : layoutOverride === "mobile";
   const isMobileRail = drawingTools && isNarrowLayout;
   // Clamped, never widened — a caller that already asked for a narrower gutter than this keeps it.
   const narrowAxisRight = Math.min(rawDims.margin.right, PRICE_AXIS_WIDTH_MOBILE);
@@ -1216,6 +1222,7 @@ export function CandlestickChart({
         deleteEditingIndicator={deleteEditingIndicator}
         saveIndicatorSettings={saveIndicatorSettings}
         settingsOpen={settingsOpen} setSettingsOpen={setSettingsOpen}
+        mobileLayout={isNarrowLayout} layoutOverride={layoutOverride} setLayoutOverride={setLayoutOverride}
         chartDisplayMode={chartDisplayMode} setChartDisplayMode={setChartDisplayMode} onChartDisplayModeChange={onChartDisplayModeChange}
         upColorOverride={upColorOverride} setUpColorOverride={setUpColorOverride}
         downColorOverride={downColorOverride}

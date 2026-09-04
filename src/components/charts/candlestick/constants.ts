@@ -13,22 +13,29 @@ export const CLICK_DRAG_THRESHOLD = 4;
  *  under it — the rail gets its own reserved strip instead of overlaying the chart. */
 export const TOOLS_RAIL_WIDTH = 40;
 /** Height of the drawing-tools rail once it docks to the bottom instead of the left edge (see
- *  MOBILE_RAIL_BREAKPOINT) — added to the bottom margin the same way TOOLS_RAIL_WIDTH is added to
+ *  MOBILE_LAYOUT_BREAKPOINT) — added to the bottom margin the same way TOOLS_RAIL_WIDTH is added to
  *  the left one in the desktop layout, so the plot/axes never draw under it either. 44px matches
  *  the icon buttons' own coarse-pointer tap target (see .lq-chart__icon-button's own doc). */
 export const TOOLS_RAIL_HEIGHT_MOBILE = 44;
 /** Price-axis width once the chart is narrow enough to count as a phone layout (see
- *  MOBILE_RAIL_BREAKPOINT) — a ceiling on `DEFAULT_MARGIN.right`, never a widening of it. That
+ *  MOBILE_LAYOUT_BREAKPOINT) — a ceiling on `DEFAULT_MARGIN.right`, never a widening of it. That
  *  72px gutter is sized for six-figure prices beside a desktop-width plot; on a ~360px screen it
  *  was a fifth of the whole width spent on four or five digits, taken straight out of the candles.
  *  Still comfortably wider than a "1 234.56" label at the axis' own font size. */
 export const PRICE_AXIS_WIDTH_MOBILE = 44;
-/** Wrapper width (px) below which the drawing-tools rail switches from a left-docked vertical
- *  column to a bottom-docked horizontal, scrollable row — narrower than this and the tool buttons
- *  plus toggles don't fit stacked in the remaining plot width. Measured off the chart's own
- *  wrapper (see useChartDimensions), not the window, so a narrow embedding (a split-screen panel,
- *  a side panel) gets the same treatment as an actual phone. */
-export const MOBILE_RAIL_BREAKPOINT = 640;
+/** Width (px) below which the whole touch layout engages: the drawing-tools rail flips from a
+ *  left-docked column to a bottom-docked scrollable row, the price axis narrows, a script's docked
+ *  panes open folded, the legend stacks its quote, drawing points are placed by tap-and-nudge, and
+ *  the workspace becomes two pages behind a bottom nav.
+ *
+ *  1200, not a phone's width, because the layout is wanted on tablets and on a folding phone with
+ *  the screen open — an unfolded fold reports around 840 CSS px, a tablet 768 in portrait and 1024
+ *  in landscape, and all three want the same finger-first treatment a phone gets. The cost is
+ *  accepted deliberately: a desktop chart in a narrow embedding (one panel of a split-screen
+ *  workspace, say) crosses it too and gets the same layout. That has always been the rule here —
+ *  the measurement is the chart's own wrapper (see useChartDimensions), never the window, so a
+ *  narrow embedding is treated as what it is, a narrow chart. */
+export const MOBILE_LAYOUT_BREAKPOINT = 1200;
 /** Distance (px) the date "+" button sits inset from the plot's own bottom edge — close to the
  *  date axis it mirrors (but clear of the date label's own badge just below the plot), and
  *  still inside the interactive rect so hovering it never counts as leaving the plot (see

@@ -15,7 +15,7 @@ export interface ToolsRailProps {
    *  own date-axis line beside it — see `railStyle` below. */
   dims: { width: number; margin: { left: number; bottom: number } };
   plotHeight: number;
-  /** Bottom-docked horizontal row (narrow/mobile layout — see MOBILE_RAIL_BREAKPOINT) instead of
+  /** Bottom-docked horizontal row (narrow/mobile layout — see MOBILE_LAYOUT_BREAKPOINT) instead of
    *  the default left-docked vertical column. Mostly a layout switch — same buttons, same
    *  toggles, same state — with one real behavioural difference: a category's tools are picked
    *  from a bottom sheet (ToolCategorySheet) opened by the category button itself, instead of a
@@ -49,7 +49,7 @@ export interface ToolsRailProps {
 
 /** The drawing-tools rail (`drawingTools` prop), left-docked and vertical by default or
  *  bottom-docked and horizontal when `horizontal` is set (see CandlestickChart's own
- *  isMobileRail/MOBILE_RAIL_BREAKPOINT — too narrow to stack every button in a left column): one
+ *  isMobileRail/MOBILE_LAYOUT_BREAKPOINT — too narrow to stack every button in a left column): one
  *  button + chevron + flyout menu per tool category (see DRAWING_TOOL_CATEGORIES — Lignes/
  *  Fibonacci/Figures chartistes/Projections/Mesure, each menu headed by its own category name and,
  *  for the tall "Lignes" one, further broken into smaller visual clusters by a thin divider

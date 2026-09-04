@@ -28,7 +28,7 @@ import { Modal } from "../primitives/Modal";
 import { WatchlistIcon, BellIcon, PlusIcon, CandleModeIcon, GridIcon, MaximizeIcon, MinimizeIcon, HelpIcon, CodeIcon } from "../icons";
 import { useFullscreen } from "./internal/useFullscreen";
 import { useChartDimensions } from "./internal/useChartDimensions";
-import { MOBILE_RAIL_BREAKPOINT } from "./candlestick/constants";
+import { MOBILE_LAYOUT_BREAKPOINT } from "./candlestick/constants";
 import "./ChartWorkspace.css";
 
 // Item 21 — one entry per global feature the rail's own "?" button explains, in the order they
@@ -337,12 +337,12 @@ export function ChartWorkspace({
   const splitScreenTriggerRef = useRef<HTMLButtonElement>(null);
   // Reuses CandlestickChart's own generic wrapper-measuring hook (see its own doc — margin/options
   // both optional, and nothing about it assumes a canvas/candles) purely for `dims.width`, to
-  // decide the same "too narrow to fit" question ToolsRail/MOBILE_RAIL_BREAKPOINT already answer
+  // decide the same "too narrow to fit" question ToolsRail/MOBILE_LAYOUT_BREAKPOINT already answer
   // for a single chart's own drawing-tools rail, just at the whole-workspace level instead: below
   // this width, the side rail (watchlist/alerts/scripting/split-screen/fullscreen icons) is
   // replaced by a second, scrollable topbar — see isMobileWorkspace's own usages below.
   const [workspaceRef, workspaceDims] = useChartDimensions();
-  const isMobileWorkspace = workspaceDims.width > 0 && workspaceDims.width < MOBILE_RAIL_BREAKPOINT;
+  const isMobileWorkspace = workspaceDims.width > 0 && workspaceDims.width < MOBILE_LAYOUT_BREAKPOINT;
   // The panel starts closed on mobile, where it covers the whole content area (see ChartSidePanel's
   // own `fullscreen`) — opening onto a symbol list with the charts hidden behind it is the wrong
   // first impression of a charting workspace. Deliberately once, on the first real measurement,
@@ -355,7 +355,7 @@ export function ChartWorkspace({
   useEffect(() => {
     if (mobileDefaultAppliedRef.current || workspaceDims.width <= 0) return;
     mobileDefaultAppliedRef.current = true;
-    if (workspaceDims.width < MOBILE_RAIL_BREAKPOINT) sidePanelState.commitOpen(false);
+    if (workspaceDims.width < MOBILE_LAYOUT_BREAKPOINT) sidePanelState.commitOpen(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workspaceDims.width]);
   const hasWatchlists = !!watchlists && watchlists.length > 0;

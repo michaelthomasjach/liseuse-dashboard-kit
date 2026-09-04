@@ -625,7 +625,7 @@
 }
 
 /* Bottom-docked horizontal variant (ToolsRail's own `horizontal` prop — too narrow a wrapper to
-   stack every button in a left column, see MOBILE_RAIL_BREAKPOINT). Same rail, same buttons, just
+   stack every button in a left column, see MOBILE_LAYOUT_BREAKPOINT). Same rail, same buttons, just
    rotated: docked to the bottom instead of the left, its dividing border moves from the right
    edge to the top edge to keep marking the same "boundary with the plot" role. */
 .lq-chart__tools-rail--horizontal {
@@ -2740,7 +2740,7 @@
    search box and its filters on top, the catalog filling the rest. A media query rather than the
    `--mobile` class the workspace uses — a Modal portals to document.body, so no ancestor of this
    subtree carries that class. Same 700px breakpoint as the workspace grid's own collapse. */
-@media (max-width: 700px) {
+@media (max-width: 1200px) {
   .lq-chart__modal-split--stack-mobile {
     flex-direction: column;
   }
@@ -2856,4 +2856,38 @@
    ordinary touch drag, so nothing a finger could do on this box is a scroll to protect. */
 .lq-chart__svg {
   touch-action: none;
+}
+
+/* "Revenir au choix automatique" under the layout toggle — a quiet text link rather than a button
+   with a box, because it undoes a setting rather than being one, and it only exists at all once
+   the toggle has been touched. */
+.lq-chart__settings-layout-reset {
+  margin-top: var(--lq-space-2);
+  padding: 0;
+  font-family: inherit;
+  font-size: 0.7rem;
+  color: var(--lq-color-text-muted);
+  text-align: left;
+  text-decoration: underline;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.lq-chart__settings-layout-reset:hover {
+  color: var(--lq-color-text);
+}
+
+/* The layout toggle and the word for the state it is in. `Toggle` renders only the switch — it
+   deliberately carries no visible text of its own — so the label lives beside it and says which
+   of the two layouts is active rather than what the switch would do. */
+.lq-chart__settings-layout-row {
+  display: flex;
+  align-items: center;
+  gap: var(--lq-space-2);
+}
+
+.lq-chart__settings-layout-label {
+  font-size: 0.75rem;
+  color: var(--lq-color-text);
 }

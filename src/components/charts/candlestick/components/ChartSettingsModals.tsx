@@ -1,12 +1,20 @@
 import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { Modal } from "../../../primitives/Modal";
 import { Checkbox } from "../../../forms/Checkbox";
+import { Toggle } from "../../../primitives/Toggle";
 import { capitalize } from "../formatting";
 import { CHART_DISPLAY_MODES } from "../chartModes";
 import type { ChartDisplayMode } from "../interfaces/ChartDisplayMode.interface";
 
 export interface ChartSettingsModalsProps {
   settingsOpen: boolean;
+  /** Whether the chart is currently laid out for touch, and how to pin that. `null` in
+   *  `layoutOverride` means the width decides (MOBILE_LAYOUT_BREAKPOINT); once the toggle is used
+   *  the choice stays where the user put it — a touch layout is worth being able to see on a
+   *  desktop screen, and a tablet-width window is worth being able to keep on desktop. */
+  mobileLayout: boolean;
+  layoutOverride: "mobile" | "desktop" | null;
+  setLayoutOverride: (mode: "mobile" | "desktop" | null) => void;
   setSettingsOpen: (open: boolean) => void;
   chartDisplayMode: ChartDisplayMode;
   setChartDisplayMode: (mode: ChartDisplayMode) => void;
@@ -39,6 +47,9 @@ export interface ChartSettingsModalsProps {
  *  overridden). */
 export function ChartSettingsModals({
   settingsOpen,
+  mobileLayout,
+  layoutOverride,
+  setLayoutOverride,
   setSettingsOpen,
   chartDisplayMode,
   setChartDisplayMode,
@@ -113,6 +124,27 @@ export function ChartSettingsModals({
                 </button>
               ))}
             </div>
+          </div>
+          {/* A manual override on the automatic width rule. Here rather than in the header because
+              it is a "how this chart is laid out" setting — the same family as the candle style
+              above it — and not something anyone flips often enough to earn a permanent button.
+              The reset appears only once the toggle has been used: before that, automatic IS the
+              state, and an always-visible "back to automatic" would be noise. */}
+          <div className="lq-field">
+            <label className="lq-field__label">Mise en page</label>
+            <div className="lq-chart__settings-layout-row">
+              <Toggle
+                checked={mobileLayout}
+                onChange={() => setLayoutOverride(mobileLayout ? "desktop" : "mobile")}
+                ariaLabel="Mise en page tactile (mobile)"
+              />
+              <span className="lq-chart__settings-layout-label">{mobileLayout ? "Tactile (mobile)" : "Bureau"}</span>
+            </div>
+            {layoutOverride !== null && (
+              <button type="button" className="lq-chart__settings-layout-reset" onClick={() => setLayoutOverride(null)}>
+                Revenir au choix automatique (selon la largeur)
+              </button>
+            )}
           </div>
           {theme.isEink && (
             <p className="lq-chart__settings-eink-note">

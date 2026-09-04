@@ -364,6 +364,13 @@
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
+  /* Same treatment as the bottom half below: the negative margin cancels
+     `.lq-chart__side-panel-content`'s horizontal padding and the padding puts it back inside, so
+     the scroll container reaches the panel's own right edge and the scrollbar rides it, while
+     the list keeps exactly the inset it had. Without this the two halves disagreed — the symbol
+     zone's bar flush against the edge, the watchlist's floating a padding in from it. */
+  margin: 0 calc(-1 * var(--lq-space-3));
+  padding: 0 var(--lq-space-3);
 }
 
 /* Same "you can drag this" two-bar affordance as .lq-chart__pane-resize-grip (reused verbatim,

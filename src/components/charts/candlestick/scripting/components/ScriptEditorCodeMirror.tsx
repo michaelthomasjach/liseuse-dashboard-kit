@@ -16,6 +16,7 @@ import {
   type KeyBinding,
 } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap, indentSelection, indentWithTab } from "@codemirror/commands";
+import { highlightSelectionMatches, openSearchPanel, search, searchKeymap } from "@codemirror/search";
 import { javascript } from "@codemirror/lang-javascript";
 import { bracketMatching, indentOnInput, syntaxHighlighting, syntaxTree, HighlightStyle } from "@codemirror/language";
 import { autocompletion, closeBrackets, closeBracketsKeymap, completionKeymap, type CompletionContext, type CompletionResult } from "@codemirror/autocomplete";
@@ -90,6 +91,10 @@ export interface ScriptEditorCodeMirrorHandle {
    *  component isn't currently waiting on one (e.g. the host's own full-script "Exécuter" produced
    *  it, not a cell run), so it's always safe to forward every result unconditionally. */
   applyRunResult: (result: ScriptRunResult) => void;
+  /** Opens the find/replace panel and puts the caret in its field — what the toolbar's own search
+   *  button calls. Ctrl+F does the same thing from the keyboard; this exists because a shortcut is
+   *  not discoverable, and is no use at all on a touch layout with no keyboard to press it on. */
+  openSearch: () => void;
 }
 
 function apiCompletionSource(context: CompletionContext): CompletionResult | null {
@@ -110,6 +115,26 @@ const theme = EditorView.theme({
   ".cm-activeLine": { backgroundColor: "var(--lq-color-hover)" },
   ".cm-activeLineGutter": { backgroundColor: "var(--lq-color-hover)" },
   ".cm-tooltip": { backgroundColor: "var(--lq-color-panel)", border: "1px solid var(--lq-color-border)", color: "var(--lq-color-text)" },
+  // The find/replace panel. CodeMirror ships it with its own light-grey chrome and bare browser
+  // inputs, which read as a foreign widget dropped into the editor; these carry it over to the
+  // chart's own tokens so it belongs to the same surface as everything around it.
+  ".cm-panels": { backgroundColor: "var(--lq-color-panel)", color: "var(--lq-color-text)", border: "none" },
+  ".cm-panels.cm-panels-top": { borderBottom: "1px solid var(--lq-color-border-subtle)" },
+  ".cm-panel.cm-search": { padding: "6px 8px", fontFamily: "inherit", fontSize: "var(--lq-text-sm)" },
+  ".cm-panel.cm-search input, .cm-panel.cm-search button, .cm-panel.cm-search label": { fontFamily: "inherit", fontSize: "0.72rem" },
+  ".cm-panel.cm-search input[type=text]": {
+    color: "var(--lq-color-text)",
+    backgroundColor: "var(--lq-color-bg)",
+    border: "1px solid var(--lq-color-border-subtle)",
+    borderRadius: "var(--lq-radius-sm)",
+    padding: "3px 6px",
+  },
+  ".cm-panel.cm-search button[name=close]": { color: "var(--lq-color-text-muted)", fontSize: "1rem" },
+  // The current match, distinguished from the others so "which one am I on" is answerable at a
+  // glance — the accent for the one, a wash for the rest.
+  ".cm-searchMatch": { backgroundColor: "color-mix(in srgb, var(--lq-color-accent) 25%, transparent)" },
+  ".cm-searchMatch.cm-searchMatch-selected": { backgroundColor: "var(--lq-color-accent)", color: "var(--lq-color-accent-contrast)" },
+  ".cm-selectionMatch": { backgroundColor: "color-mix(in srgb, var(--lq-color-accent) 14%, transparent)" },
   ".cm-tooltip-autocomplete ul li[aria-selected]": { backgroundColor: "var(--lq-color-accent)", color: "var(--lq-color-accent-contrast)" },
 });
 
@@ -535,6 +560,14 @@ export const ScriptEditorCodeMirror = forwardRef<ScriptEditorCodeMirrorHandle, S
         const cursorLine = view.state.doc.lineAt(view.state.selection.main.head).number;
         runCellAtRef.current(cellStartLine(cursorLine, markerLines), cellEndLine(view.state.doc, cursorLine, markerLines));
       },
+      openSearch: () => {
+        const view = viewRef.current;
+        if (!view) return;
+        // Focus first: `openSearchPanel` moves the caret into the field it opens, and it can only
+        // do that on a view that has focus to move.
+        view.focus();
+        openSearchPanel(view);
+      },
       applyRunResult: (result) => {
         const pending = pendingCellRef.current;
         if (!pending) return;
@@ -584,7 +617,25 @@ export const ScriptEditorCodeMirror = forwardRef<ScriptEditorCodeMirrorHandle, S
         lintGutter(),
         cellOutputsField,
         cellDecorationsField,
-        keymap.of([runCellBinding, ...closeBracketsKeymap, ...defaultKeymap, ...historyKeymap, ...completionKeymap, indentWithTab]),
+        // Find/replace over the script (Ctrl+F, Ctrl+H, F3). `top: true` puts the panel above the
+        // code rather than below it: the editor's own bottom edge already carries the cell output
+        // and the error strip, and a search box appearing under those pushed the thing being
+        // searched further from the field searching it.
+        search({ top: true }),
+        // Every other occurrence of whatever is selected, faintly marked — the cheapest form of
+        // "where else does this appear", with no panel to open at all.
+        highlightSelectionMatches(),
+        // `searchKeymap` before `defaultKeymap`: both bind Mod-d, and the first match wins. Search's
+        // "select next occurrence" is the one wanted in a code editor.
+        keymap.of([
+          runCellBinding,
+          ...closeBracketsKeymap,
+          ...searchKeymap,
+          ...defaultKeymap,
+          ...historyKeymap,
+          ...completionKeymap,
+          indentWithTab,
+        ]),
         theme,
         EditorView.updateListener.of((update) => {
           if (update.docChanged) onChangeRef.current(update.state.doc.toString());

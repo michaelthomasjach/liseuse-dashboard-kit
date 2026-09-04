@@ -10,6 +10,7 @@ import {
   PlayIcon,
   PauseIcon,
   SaveIcon,
+  SearchIcon,
   RefreshIcon,
   PlusIcon,
   TrashIcon,
@@ -345,6 +346,16 @@ export function ScriptEditorPanel({
                 title="Exécute le code depuis le début jusqu'à la fin de la cellule (// %%) où se trouve le curseur (Maj+Entrée)"
               >
                 <PlayIcon size={13} /> Exécuter la cellule
+              </button>
+              {/* Ctrl+F opens the same panel, but a shortcut is not discoverable — and on the touch
+                  layout there is no keyboard to press it on at all. */}
+              <button
+                type="button"
+                className="lq-script-editor-panel__toolbar-button"
+                onClick={() => codeMirrorRef.current?.openSearch()}
+                title="Rechercher et remplacer dans le script (Ctrl+F)"
+              >
+                <SearchIcon size={13} /> Rechercher
               </button>
               {needsTargetChoice && (
                 <button

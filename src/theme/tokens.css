@@ -86,36 +86,48 @@
 /* .lq-root, not just a specific component.                         */
 /* ---------------------------------------------------------------- */
 
-.lq-root {
-  scrollbar-width: thin;
-  scrollbar-color: color-mix(in srgb, var(--lq-color-text) 20%, transparent) transparent;
-}
+/* Custom scrollbars are a mouse affordance, so they are scoped to a mouse.
+   Touch platforms already do exactly what is wanted here — an overlay scrollbar that takes no
+   layout width and fades in only while the finger is moving — and styling `::-webkit-scrollbar`
+   at all is what opts *out* of it: the moment an author touches that pseudo-element, Blink swaps
+   the overlay scrollbar for a classic one that permanently occupies 10px of every scroll
+   container. On a phone that is a visible strip of wasted width down the side of the watchlist
+   and the symbol page, always drawn, for a control nobody drags with a finger.
+   Leaving these rules unmatched on a coarse pointer hands the behaviour back to the platform
+   rather than reimplementing it — no width to reclaim, no fade to time, and the `.lq-scrolling`
+   class below stays available for the fine-pointer case. */
+@media (hover: hover) and (pointer: fine) {
+  .lq-root {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--lq-color-text) 20%, transparent) transparent;
+  }
 
-.lq-root *:hover,
-.lq-root .lq-scrolling {
-  scrollbar-color: color-mix(in srgb, var(--lq-color-text) 45%, transparent) transparent;
-}
+  .lq-root *:hover,
+  .lq-root .lq-scrolling {
+    scrollbar-color: color-mix(in srgb, var(--lq-color-text) 45%, transparent) transparent;
+  }
 
-.lq-root ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
+  .lq-root ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
 
-.lq-root ::-webkit-scrollbar-track {
-  background: transparent;
-}
+  .lq-root ::-webkit-scrollbar-track {
+    background: transparent;
+  }
 
-.lq-root ::-webkit-scrollbar-thumb {
-  background-color: color-mix(in srgb, var(--lq-color-text) 20%, transparent);
-  background-clip: content-box;
-  border: 2px solid transparent;
-  border-radius: var(--lq-radius-pill);
-  transition: background-color var(--lq-transition-base);
-}
+  .lq-root ::-webkit-scrollbar-thumb {
+    background-color: color-mix(in srgb, var(--lq-color-text) 20%, transparent);
+    background-clip: content-box;
+    border: 2px solid transparent;
+    border-radius: var(--lq-radius-pill);
+    transition: background-color var(--lq-transition-base);
+  }
 
-.lq-root *:hover::-webkit-scrollbar-thumb,
-.lq-root .lq-scrolling::-webkit-scrollbar-thumb {
-  background-color: color-mix(in srgb, var(--lq-color-text) 45%, transparent);
+  .lq-root *:hover::-webkit-scrollbar-thumb,
+  .lq-root .lq-scrolling::-webkit-scrollbar-thumb {
+    background-color: color-mix(in srgb, var(--lq-color-text) 45%, transparent);
+  }
 }
 
 /* ---------------------------------------------------------------- */

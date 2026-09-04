@@ -26,6 +26,17 @@ export interface ChartSidePanelProps {
  *  so a collapsed panel gives its sibling back its *full* width, not a thin strip. */
 export function ChartSidePanel({ children, panelRef, widthPx, startResize, fullscreen = false }: ChartSidePanelProps) {
   return (
+    <>
+      {/* A sibling of the panel, not a child of it. The panel scrolls (`overflow: auto`), and
+          anything positioned inside it is clipped at its own edge — which cut the half of this
+          handle that straddles the border, and with it one of the grip's two bars. As a zero-width
+          flex item sitting exactly on the boundary (see `.lq-chart__side-panel-resize-handle`),
+          its hit strip and grip overhang both neighbours and nothing clips them. */}
+      {!fullscreen && (
+        <div className="lq-chart__side-panel-resize-handle" onPointerDown={startResize}>
+          <span className="lq-chart__pane-resize-grip lq-chart__pane-resize-grip--vertical" aria-hidden="true" />
+        </div>
+      )}
     <div
       ref={panelRef}
       className={["lq-chart__side-panel", fullscreen && "lq-chart__side-panel--fullscreen"].filter(Boolean).join(" ")}
@@ -37,14 +48,8 @@ export function ChartSidePanel({ children, panelRef, widthPx, startResize, fulls
       // dragged-to width from a previous desktop session must not leak into that.
       style={fullscreen ? undefined : widthPx !== null ? { flex: `0 0 ${widthPx}px` } : { flexBasis: SIDE_PANEL_DEFAULT_WIDTH_FRACTION }}
     >
-      {/* The grip inside it, not beside it: the handle is the hit strip, the grip is what says the
-          strip is there. Same span every pane divider uses, turned vertical for a vertical line. */}
-      {!fullscreen && (
-        <div className="lq-chart__side-panel-resize-handle" onPointerDown={startResize}>
-          <span className="lq-chart__pane-resize-grip lq-chart__pane-resize-grip--vertical" aria-hidden="true" />
-        </div>
-      )}
       <div className="lq-chart__side-panel-content">{children}</div>
     </div>
+    </>
   );
 }

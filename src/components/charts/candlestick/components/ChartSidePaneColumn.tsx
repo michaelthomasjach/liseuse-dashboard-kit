@@ -208,6 +208,19 @@ export function ChartSidePaneColumn({
           ))}
         </div>
       )}
+      {/* A sibling of the column, not a child: the column is `overflow: hidden` (its canvas is
+          sized to it exactly), and a handle inside it lost the half that straddles the divider —
+          and one of the grip's two bars with it. Here, in the group, nothing clips, and a
+          zero-width element pinned to the group's inner edge (see the CSS) is exactly on the line
+          the drag moves. */}
+      {hasExpanded && (
+        <div
+          className={["lq-chart__side-dock-pane-resize-handle", `lq-chart__side-dock-pane-resize-handle--${side}`].join(" ")}
+          onPointerDown={startResize}
+        >
+          <span className="lq-chart__pane-resize-grip lq-chart__pane-resize-grip--vertical" aria-hidden="true" />
+        </div>
+      )}
       {hasExpanded && (
       <div
         ref={panelRef}
@@ -221,14 +234,6 @@ export function ChartSidePaneColumn({
         // from the top, so only the border and the edge's own drag zone actually grow.
         style={{ position: "absolute", top: 0, left: contentLeft + plotLeft, width: plotWidth, height: plotBoundedHeight + axisHeight }}
       >
-        <div
-          className={["lq-chart__side-dock-pane-resize-handle", `lq-chart__side-dock-pane-resize-handle--${side}`].join(" ")}
-          onPointerDown={startResize}
-        >
-          {/* Same "you can drag this" span as every pane divider, vertical here — this column's own
-              width is what the drag changes. */}
-          <span className="lq-chart__pane-resize-grip lq-chart__pane-resize-grip--vertical" aria-hidden="true" />
-        </div>
         <canvas ref={canvasRef} className="lq-chart__canvas" style={{ top: 0, left: 0, width: columnWidth, height: plotBoundedHeight }} />
         <SidePaneHeaders
           side={side}

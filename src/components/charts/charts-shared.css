@@ -142,20 +142,35 @@
    once it is exactly on it — a 1px divider is a hard target to find with a mouse. Still centred on
    the border, so the visual line and the thing being grabbed stay the same place. */
 .lq-chart__side-panel-resize-handle {
+  /* A zero-width flex item sitting exactly on the boundary between `.lq-chart__main` and the
+     panel — see ChartSidePanel.tsx for why it is a sibling and not a child. It takes no room in
+     the row; the 12px hit strip below overhangs both neighbours from it, and because neither
+     neighbour contains it, neither one's overflow can clip it. `z-index` lifts it over both. */
+  position: relative;
+  z-index: 5;
+  flex: 0 0 0;
+  width: 0;
+  align-self: stretch;
+}
+
+/* The hit strip and the grip's anchor: 12px wide, centred on the zero-width element, full height.
+   A pseudo-element is part of its element for hit-testing, so a press on it reaches the handle's
+   own onPointerDown with nothing to forward. */
+.lq-chart__side-panel-resize-handle::before {
+  content: "";
   position: absolute;
   top: 0;
   bottom: 0;
   left: -6px;
   width: 12px;
   cursor: ew-resize;
-  pointer-events: auto;
   touch-action: none;
 }
 
 /* A wider hit strip on a coarse (touch) pointer — same centering trick as
    .lq-chart__pane-resize-handle's own @media block above. */
 @media (pointer: coarse) {
-  .lq-chart__side-panel-resize-handle {
+  .lq-chart__side-panel-resize-handle::before {
     left: -8px;
     width: 16px;
   }
@@ -259,33 +274,43 @@
    right against `.lq-chart__main`. */
 /* Same widening, and for the same reason, as .lq-chart__side-panel-resize-handle above. */
 .lq-chart__side-dock-pane-resize-handle {
+  /* Zero width, pinned to the group's edge that faces the main chart — the very line the drag
+     moves. A sibling of the column inside `.lq-chart__side-dock-pane-group`, which has no overflow
+     rule, so the strip and grip that overhang from here are never clipped the way they were as
+     the column's own child (see ChartSidePaneColumn.tsx). */
   position: absolute;
   top: 0;
   bottom: 0;
-  width: 12px;
-  cursor: ew-resize;
-  pointer-events: auto;
-  touch-action: none;
+  z-index: 8;
+  width: 0;
   z-index: 7;
 }
 
+/* A left-docked column's divider is its own right edge; a right-docked one's is its left. */
 .lq-chart__side-dock-pane-resize-handle--left {
-  right: -6px;
+  right: 0;
 }
 
 .lq-chart__side-dock-pane-resize-handle--right {
+  left: 0;
+}
+
+/* The hit strip, centred on the zero-width handle so it straddles the divider by 6px each way. */
+.lq-chart__side-dock-pane-resize-handle::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
   left: -6px;
+  width: 12px;
+  cursor: ew-resize;
+  touch-action: none;
 }
 
 @media (pointer: coarse) {
-  .lq-chart__side-dock-pane-resize-handle {
-    width: 16px;
-  }
-  .lq-chart__side-dock-pane-resize-handle--left {
-    right: -8px;
-  }
-  .lq-chart__side-dock-pane-resize-handle--right {
+  .lq-chart__side-dock-pane-resize-handle::before {
     left: -8px;
+    width: 16px;
   }
 }
 
@@ -2152,23 +2177,6 @@
 .lq-chart__pane-resize-grip--vertical::after {
   width: 2px;
   height: 18px;
-}
-
-/* A vertical handle straddles the border it moves (`left: -6px` on a 12px strip), but the element
-   it sits in clips at that border — `overflow: hidden` on a docked pane column, `auto` on the side
-   panel. Centred, half the grip lands in the clipped half and only one of the two bars survives.
-   So each variant is anchored to whichever half is actually visible: the side of the handle that
-   points *into* the element. The hit strip still straddles, which is the point of it. */
-.lq-chart__side-panel-resize-handle .lq-chart__pane-resize-grip,
-.lq-chart__side-dock-pane-resize-handle--right .lq-chart__pane-resize-grip {
-  left: auto;
-  right: 0;
-  transform: translateY(-50%);
-}
-
-.lq-chart__side-dock-pane-resize-handle--left .lq-chart__pane-resize-grip {
-  left: 0;
-  transform: translateY(-50%);
 }
 
 .lq-chart__indicator-category-filters {

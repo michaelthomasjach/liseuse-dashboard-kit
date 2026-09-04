@@ -912,7 +912,11 @@
    alone doesn't stop pointer input, and this rule has no reason to know that; it only owns the
    look. */
 .lq-chart-workspace__grid--locked {
-  opacity: 0.55;
+  /* The resting opacity, not `opacity` itself — the hold fade below computes from this so the two
+     compose instead of one overriding the other (same specificity, and it comes later in the
+     file). Holding to *unlock* therefore fades further from 0.55, which is the same feedback the
+     lock direction gives from 1. */
+  --lq-grid-rest-opacity: 0.55;
 }
 
 /* The actual lock: a plain, otherwise-invisible div painted above every panel (z-index comfortably
@@ -1432,4 +1436,52 @@
 .lq-chart-workspace__symbol-profile-seasonality {
   width: 100%;
   height: auto;
+}
+
+/* The grid fades as the lock hold progresses — `--lq-lock-hold` runs 0→1 over LOCK_HOLD_MS (see
+   ChartWorkspace.tsx) and is 0 whenever nothing is held, so this rule costs nothing at rest. It
+   multiplies with `--locked`'s own opacity below rather than replacing it, which is what makes the
+   *unlock* hold read as the workspace coming back rather than fading further. No transition: the
+   value is already updated per animation frame, and easing it would only lag the finger. */
+.lq-chart-workspace__grid {
+  opacity: calc(var(--lq-grid-rest-opacity, 1) - 0.45 * var(--lq-lock-hold, 0));
+}
+
+/* Centred on the grid, above the lock overlay, and inert — it reports a gesture already in
+   progress, so it must never become that gesture's own target. */
+.lq-chart-workspace__lock-hold {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: var(--lq-space-3);
+  padding: var(--lq-space-3) var(--lq-space-4);
+  transform: translate(-50%, -50%);
+  color: var(--lq-color-text);
+  background-color: var(--lq-color-panel);
+  border: 1px solid var(--lq-color-border);
+  border-radius: var(--lq-radius-md);
+  box-shadow: var(--lq-shadow-modal);
+  pointer-events: none;
+}
+
+.lq-chart-workspace__lock-hold-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.lq-chart-workspace__lock-hold-track {
+  width: 120px;
+  height: 4px;
+  overflow: hidden;
+  background-color: var(--lq-color-hover);
+  border-radius: var(--lq-radius-pill);
+}
+
+.lq-chart-workspace__lock-hold-fill {
+  height: 100%;
+  background-color: var(--lq-color-accent);
 }

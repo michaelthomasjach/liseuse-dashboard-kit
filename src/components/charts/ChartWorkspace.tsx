@@ -1,4 +1,4 @@
-import { Children, cloneElement, useEffect, useRef, useState, type ReactElement, type ReactNode } from "react";
+import { Children, cloneElement, useCallback, useEffect, useRef, useState, type ReactElement, type ReactNode } from "react";
 import type { CandlestickChartProps } from "./candlestick/interfaces/CandlestickChartProps.interface";
 import type { SymbolSearchCategory } from "./candlestick/interfaces/SymbolSearchCategory.interface";
 import type { SymbolSearchResult } from "./candlestick/interfaces/SymbolSearchResult.interface";
@@ -25,7 +25,7 @@ import { ChartSidePanel } from "./candlestick/components/ChartSidePanel";
 import { ScriptEditorPanel } from "./candlestick/scripting/components/ScriptEditorPanel";
 import { Popover } from "../forms/Popover";
 import { Modal } from "../primitives/Modal";
-import { WatchlistIcon, BellIcon, PlusIcon, CandleModeIcon, GridIcon, MaximizeIcon, MinimizeIcon, HelpIcon, CodeIcon } from "../icons";
+import { WatchlistIcon, BellIcon, PlusIcon, CandleModeIcon, GridIcon, MaximizeIcon, MinimizeIcon, HelpIcon, CodeIcon, LockIcon } from "../icons";
 import { useFullscreen } from "./internal/useFullscreen";
 import { useChartDimensions } from "./internal/useChartDimensions";
 import { MOBILE_LAYOUT_BREAKPOINT } from "./candlestick/constants";
@@ -34,6 +34,16 @@ import "./ChartWorkspace.css";
 // Item 21 — one entry per global feature the rail's own "?" button explains, in the order they
 // read most naturally (layout, then focus, then protection) rather than the order their own
 // buttons sit in the rail.
+/** How long the grid has to be held to toggle its lock. Three seconds is deliberately long: this
+ *  protects a laid-out workspace from stray clicks, so arming it by accident would defeat the
+ *  point. */
+const LOCK_HOLD_MS = 3000;
+/** When the hold starts showing itself — the fade and the gauge. Before this a press is just a
+ *  press, and a click, a drag or a tap costs nothing visually. */
+const LOCK_HOLD_REVEAL_MS = 1000;
+/** How far the pointer may travel and still count as held rather than dragged. */
+const LOCK_HOLD_SLOP = 10;
+
 const HELP_ITEMS: { title: string; description: string }[] = [
   { title: "Écran divisé", description: "Affiche 1, 2, 4, 6 ou 8 graphiques à la fois, répartis en grille." },
   {
@@ -50,7 +60,7 @@ const HELP_ITEMS: { title: string; description: string }[] = [
   {
     title: "Verrouillage",
     description:
-      "Un quadruple clic (ou plus) sur la grille la verrouille : elle s'estompe et devient protégée contre toute interaction, un curseur en forme de cadenas apparaît au survol. Un triple clic la déverrouille.",
+      "Un appui maintenu trois secondes sur la grille la verrouille : elle s'estompe et devient protégée contre toute interaction, un curseur en forme de cadenas apparaît au survol. Le même appui la déverrouille. Après une seconde, une jauge et un cadenas apparaissent au centre pour montrer la progression — relâcher ou faire glisser le doigt avant la fin annule. Le geste est sans effet tant qu'un outil de dessin est actif, pour ne pas se confondre avec la pose d'un point.",
   },
 ];
 
@@ -317,21 +327,56 @@ export function ChartWorkspace({
   // ChartWorkspaceProps.scripting's own doc for why this lives here rather than inside any one
   // panel. Uncontrolled at this level (nothing above ChartWorkspace itself needs to drive it).
   const workspaceScripting = useScriptingState({ defaultScripts, onScriptsChange });
-  // Item 20: a plain click-count gesture (native `MouseEvent.detail`, the same counter a real
-  // double-click already relies on elsewhere in this library — see ChartLegend's own
-  // onDoubleClick) rather than any custom timing/debounce logic of its own. This also makes a
-  // *real* quadruple-click self-correct on its own: the browser fires one `click` per tap in the
-  // burst (detail 1, 2, 3, then 4), so the intermediate detail-3 tap fires "unlock" a moment
-  // before detail-4 fires "lock" — starting locked, that's unlock-then-relock (ends locked, same
-  // as a plain quadruple-click from unlocked); starting unlocked, the detail-3 "unlock" is already
-  // a no-op (see below), so only the detail-4 "lock" actually does anything. Either way the final
-  // state always matches the spec (triple locks nothing it doesn't already touch; quadruple+
-  // always ends locked) without tracking anything across events.
+  // Item 20: hold anywhere on the grid for LOCK_HOLD_MS to toggle the lock, in either direction.
+  // A press rather than a click count (which this used to be) because a count has no way to show
+  // its own progress — you either guessed right or nothing happened. A hold can be watched, and
+  // abandoned.
   const [workspaceLocked, setWorkspaceLocked] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
-  function handleGridClick(e: React.MouseEvent) {
-    if (e.detail === 3) setWorkspaceLocked((locked) => (locked ? false : locked));
-    else if (e.detail >= 4) setWorkspaceLocked((locked) => (locked ? locked : true));
+  // 0 while nothing is held; otherwise how far through the hold we are, 0→1. Only surfaces past
+  // LOCK_HOLD_REVEAL_MS — see the overlay below — so a stray press costs nothing visually.
+  const [lockHoldProgress, setLockHoldProgress] = useState(0);
+  const lockHoldRef = useRef<{ frame: number; startedAt: number; startX: number; startY: number } | null>(null);
+
+  const endLockHold = useCallback(() => {
+    const hold = lockHoldRef.current;
+    if (!hold) return;
+    cancelAnimationFrame(hold.frame);
+    lockHoldRef.current = null;
+    setLockHoldProgress(0);
+  }, []);
+
+  function startLockHold(e: React.PointerEvent<HTMLDivElement>) {
+    if (lockHoldRef.current) return;
+    // A drawing tool being active anywhere in the workspace disables the gesture outright: with a
+    // tool armed, a press on the plot is the first point of a drawing, and it must not also arm a
+    // lock. Read off the DOM rather than through props — `.lq-chart__overlay--drawing` is the
+    // class CandlestickChart already puts on its hit rect for exactly this state, and every panel
+    // is a descendant of this grid, so one query answers it for all of them without threading a
+    // per-panel `activeTool` up through the tree.
+    if (!workspaceLocked && e.currentTarget.querySelector(".lq-chart__overlay--drawing")) return;
+    const startedAt = performance.now();
+    const step = () => {
+      const hold = lockHoldRef.current;
+      if (!hold) return;
+      const progress = Math.min(1, (performance.now() - hold.startedAt) / LOCK_HOLD_MS);
+      setLockHoldProgress(progress);
+      if (progress >= 1) {
+        setWorkspaceLocked((locked) => !locked);
+        endLockHold();
+        return;
+      }
+      hold.frame = requestAnimationFrame(step);
+    };
+    lockHoldRef.current = { frame: requestAnimationFrame(step), startedAt, startX: e.clientX, startY: e.clientY };
+  }
+
+  function trackLockHold(e: React.PointerEvent<HTMLDivElement>) {
+    const hold = lockHoldRef.current;
+    if (!hold) return;
+    // A press that travels is a pan, not a hold. Without this, panning the chart for three seconds
+    // would silently lock the workspace — the gesture would misfire far more often than it fired.
+    if (Math.hypot(e.clientX - hold.startX, e.clientY - hold.startY) > LOCK_HOLD_SLOP) endLockHold();
   }
   const [splitScreenMenuOpen, setSplitScreenMenuOpen] = useState(false);
   const splitScreenTriggerRef = useRef<HTMLButtonElement>(null);
@@ -723,8 +768,15 @@ export function ChartWorkspace({
       <div className="lq-chart-workspace__row">
       <div
         className={["lq-chart-workspace__grid", workspaceLocked && "lq-chart-workspace__grid--locked"].filter(Boolean).join(" ")}
-        onClick={handleGridClick}
+        onPointerDown={startLockHold}
+        onPointerMove={trackLockHold}
+        onPointerUp={endLockHold}
+        onPointerCancel={endLockHold}
+        onPointerLeave={endLockHold}
         style={{
+          // How far through the hold we are, for the fade below — see LOCK_HOLD_MS. Zero (and so
+          // no fade at all) whenever nothing is being held.
+          ["--lq-lock-hold" as string]: lockHoldProgress,
           // Custom properties, not gridTemplateColumns/gridTemplateRows directly — an inline style
           // always wins the cascade over a stylesheet rule, which would leave .lq-chart-workspace's
           // own narrow-viewport media query (see ChartWorkspace.css) unable to ever override it.
@@ -865,6 +917,23 @@ export function ChartWorkspace({
             ancestor's listener. Last child so it paints above every panel, including a focused
             one (see .lq-chart-workspace__panel--focused's own z-index). */}
         {workspaceLocked && <div className="lq-chart-workspace__lock-overlay" aria-hidden="true" />}
+        {/* Shown only once the hold has been sustained past LOCK_HOLD_REVEAL_MS, so a click or a
+            tap never flashes it. The gauge reads the *whole* hold rather than just the visible
+            part, so it appears already a third full — which is the truth: a third of the hold is
+            already done by the time it shows up. The padlock names what is about to happen, and
+            flips with the direction, since the same gesture does both. */}
+        {lockHoldProgress * LOCK_HOLD_MS >= LOCK_HOLD_REVEAL_MS && (
+          <div className="lq-chart-workspace__lock-hold" aria-hidden="true">
+            {/* One padlock either way — there is no open-padlock icon in this set, and inventing
+                one for a two-second overlay would be more inconsistency than it buys. The verb
+                below carries the direction instead. */}
+            <LockIcon size={20} />
+            <span className="lq-chart-workspace__lock-hold-label">{workspaceLocked ? "Déverrouiller" : "Verrouiller"}</span>
+            <div className="lq-chart-workspace__lock-hold-track">
+              <div className="lq-chart-workspace__lock-hold-fill" style={{ width: `${Math.round(lockHoldProgress * 100)}%` }} />
+            </div>
+          </div>
+        )}
       </div>
 
       {(hasWatchlists || hasAlerts) && sidePanelState.open && (

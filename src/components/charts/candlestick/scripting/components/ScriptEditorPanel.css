@@ -242,3 +242,93 @@
 .lq-script-editor-panel__params-reset:hover {
   color: var(--lq-color-text);
 }
+
+/* The script's own files, one row directly above the code — visually attached to the editor
+   (no gap, no bottom border on the active one) so a file reads as a face of the same buffer
+   rather than as a second, unrelated tab strip above the script tabs. */
+.lq-script-editor-panel__files {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-bottom: 1px solid var(--lq-color-border-subtle);
+  flex: 0 0 auto;
+}
+
+.lq-script-editor-panel__files::-webkit-scrollbar {
+  display: none;
+}
+
+.lq-script-editor-panel__file {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lq-space-1);
+  padding: 3px var(--lq-space-2);
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--lq-color-text-muted);
+  font-family: var(--lq-font-mono, ui-monospace, monospace);
+  font-size: var(--lq-text-xs);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.lq-script-editor-panel__file:hover {
+  color: var(--lq-color-text);
+  background: var(--lq-color-hover);
+}
+
+.lq-script-editor-panel__file--active {
+  color: var(--lq-color-text);
+  border-bottom-color: var(--lq-color-accent);
+}
+
+.lq-script-editor-panel__file-name {
+  max-width: 16ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lq-script-editor-panel__file-remove {
+  border: none;
+  background: transparent;
+  color: var(--lq-color-text-muted);
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
+  /* Hidden until the file is hovered or selected: a row of × next to every name reads as a list of
+     delete buttons rather than a list of files. */
+  opacity: 0;
+}
+
+.lq-script-editor-panel__file:hover .lq-script-editor-panel__file-remove,
+.lq-script-editor-panel__file--active .lq-script-editor-panel__file-remove {
+  opacity: 1;
+}
+
+.lq-script-editor-panel__file-remove:hover {
+  color: var(--lq-color-danger, #d64545);
+}
+
+.lq-script-editor-panel__file-add {
+  border: none;
+  background: transparent;
+  color: var(--lq-color-text-muted);
+  cursor: pointer;
+  padding: 0 var(--lq-space-2);
+  font-size: var(--lq-text-sm);
+  line-height: 1;
+}
+
+.lq-script-editor-panel__file-add:hover {
+  color: var(--lq-color-text);
+  background: var(--lq-color-hover);
+}
+
+.lq-script-editor-panel__file-hint {
+  margin: var(--lq-space-2) 0 0;
+  font-size: var(--lq-text-xs);
+  color: var(--lq-color-text-muted);
+}

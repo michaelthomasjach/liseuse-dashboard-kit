@@ -139,6 +139,44 @@ plot.overlay("SMA 20").line("SMA 20", sma ?? market.close(0));`
       t(
         "Un petit bouton ▶ apparaît directement sur la cellule active — cliquer dessus fait exactement la même chose que Maj+Entrée, sans avoir à viser le bouton « Exécuter la cellule » de la barre d'outils. Juste en dessous de la cellule, son propre résultat s'affiche : le texte de console.log, la valeur de la toute dernière expression de la cellule si elle n'est ni affectée à une variable ni déjà affichée autrement (exactement comme un vrai notebook auto-affiche le résultat d'une cellule qui se termine par une expression seule), et un graphique si la cellule contient un appel à plot.xy (voir plot.* plus bas). Voir le tutoriel « Mode notebook » plus haut pour un exemple pas à pas."
       ),
+      h("Plusieurs fichiers dans un même script"),
+      t(
+        "Un script n'est pas obligé de tenir dans un seul fichier. La barre juste au-dessus du code donne un onglet par fichier : « Principal » est celui qui s'exécute, le bouton + en crée un nouveau, un double-clic sur un onglet le renomme et la croix le supprime. Les fichiers sont enregistrés avec le script et voyagent avec lui."
+      ),
+      t(
+        "Un fichier s'utilise avec la syntaxe des modules JavaScript : export dans le fichier qui fournit, import dans celui qui consomme. Le nom d'un fichier est ce qui suit ./ dans l'import — ./outils, outils et outils.js désignent tous les trois le fichier nommé outils."
+      ),
+      c(
+        `import { Tracker } from "./outils";
+
+const suivi = state.get("suivi") ?? new Tracker(20);
+state.set("suivi", suivi);
+plot.overlay("Plus haut").line("max", suivi.pousser(market.close(0)));`
+      ),
+      c(
+        `// ./outils — un onglet à part dans l'éditeur
+export class Tracker {
+  constructor(taille) {
+    this.taille = taille;
+    this.max = -Infinity;
+  }
+
+  pousser(valeur) {
+    this.max = Math.max(this.max, valeur);
+    return this.max;
+  }
+}`
+      ),
+      t(
+        "La règle importante tient en une phrase : le fichier principal est réexécuté une fois par bougie, les fichiers importés ne sont évalués qu'une seule fois par exécution. Une instance créée dans un fichier importé traverse donc tout l'historique, là où un new écrit dans le fichier principal repartirait de zéro à chaque bougie — c'est pourquoi l'exemple ci-dessus range la sienne dans state."
+      ),
+      l([
+        "Formes acceptées — import x from \"./f\", import { a, b as c } from \"./f\", import * as ns from \"./f\", import \"./f\" (pour son seul effet), export const/let/var/function/class, export default, export { a, b as c }.",
+        "export * from \"./f\" est refusé : re-exporter tous les noms d’un fichier suppose de savoir ce qu’il exporte, ce qui n’est connu qu’une fois exécuté. Ré-exportez les noms un par un.",
+        "Deux fichiers qui s’importent mutuellement sont signalés comme import circulaire plutôt que de rendre des exports à moitié construits.",
+        "new Variable(...) fonctionne dans n’importe quel fichier : le réglage apparaît dans la même fenêtre de paramètres, quel que soit le fichier qui le déclare.",
+        "Les numéros de ligne d’une erreur restent ceux du fichier où elle s’est produite — la réécriture interne des import/export préserve le découpage en lignes.",
+      ]),
     ],
   },
   {

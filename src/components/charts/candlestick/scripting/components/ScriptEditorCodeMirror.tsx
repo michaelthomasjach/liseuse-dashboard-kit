@@ -21,6 +21,7 @@ import { javascript } from "@codemirror/lang-javascript";
 import { bracketMatching, indentOnInput, syntaxHighlighting, syntaxTree, HighlightStyle } from "@codemirror/language";
 import { autocompletion, closeBrackets, closeBracketsKeymap, completionKeymap, type CompletionContext, type CompletionResult } from "@codemirror/autocomplete";
 import { lintGutter, setDiagnostics, type Diagnostic } from "@codemirror/lint";
+import { transformScriptModule } from "../scriptModules";
 import { tags } from "@lezer/highlight";
 import type { Candle } from "../../interfaces/Candle.interface";
 import type { CustomIndicatorDef } from "../../interfaces/CustomIndicatorDef.interface";
@@ -688,6 +689,15 @@ export const ScriptEditorCodeMirror = forwardRef<ScriptEditorCodeMirrorHandle, S
         severity: "error",
         message: issue.message,
       });
+    }
+
+    // An `import`/`export` this engine cannot rewrite (see `transformScriptModule`) — reported here
+    // rather than only at run time, since the same parse the editor already does per keystroke
+    // answers it. Anchored to the whole offending line: the diagnostic carries a line number, and
+    // the statement it names is the whole line in every form the rewriter rejects.
+    for (const issue of transformScriptModule(source).diagnostics) {
+      const line = view.state.doc.line(Math.min(Math.max(1, issue.line), view.state.doc.lines));
+      diagnostics.push({ from: line.from, to: line.to, severity: "error", message: issue.message });
     }
 
     if (error && error.line !== undefined) {

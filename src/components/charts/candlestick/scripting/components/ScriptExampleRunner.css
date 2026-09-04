@@ -40,3 +40,16 @@
   border: 1px solid var(--lq-color-border-subtle);
   border-top: none;
 }
+
+/* A multi-file example: each imported file under its own name, so the name in the heading and the
+   name in the entry file's `import … from "./name"` are visibly the same string. */
+.lq-script-example__file {
+  margin-top: var(--lq-space-3);
+}
+
+.lq-script-example__file-name {
+  font-family: var(--lq-font-mono, ui-monospace, monospace);
+  font-size: var(--lq-text-xs);
+  color: var(--lq-color-text-muted);
+  margin-bottom: var(--lq-space-1);
+}

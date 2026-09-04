@@ -1,6 +1,6 @@
 import type { ScriptParamValue } from "../interfaces/ScriptParam.interface";
 import { useCallback, useMemo, useRef, useState } from "react";
-import type { ScriptDef } from "../interfaces/ScriptDef.interface";
+import type { ScriptDef, ScriptFile } from "../interfaces/ScriptDef.interface";
 import type { ScriptRunOutput } from "../scripting/interfaces/ScriptRunOutput.interface";
 import type { ScriptTableOutput } from "../scripting/interfaces/ScriptRunResult.interface";
 
@@ -109,8 +109,10 @@ export function useScriptingState({ defaultScripts, onScriptsChange, controlledE
   // The editor's own Run button — executes `code` (the editor's current draft buffer, which may
   // not be saved into the ScriptDef yet) rather than only ever being able to re-run whatever's
   // already committed. See this hook's own doc for why the trigger lives on the ScriptDef itself.
-  function runScript(id: string, code: string) {
-    commitScripts(scripts.map((s) => (s.id === id ? { ...s, runRequestId: (s.runRequestId ?? 0) + 1, runDraftCode: code } : s)));
+  function runScript(id: string, code: string, files?: ScriptFile[]) {
+    commitScripts(
+      scripts.map((s) => (s.id === id ? { ...s, runRequestId: (s.runRequestId ?? 0) + 1, runDraftCode: code, runDraftFiles: files } : s))
+    );
   }
 
   // Committing a parameter value re-runs the script, deliberately: a settings panel whose changes

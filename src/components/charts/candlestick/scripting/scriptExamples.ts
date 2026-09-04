@@ -5,6 +5,10 @@ export interface ScriptExample {
   title: string;
   description: string;
   code: string;
+  /** A multi-file example's own extra files (see `ScriptDef.files`) — the entry `code` above
+   *  imports them. Only the "plusieurs fichiers" example sets this; every other one is a single
+   *  file and leaves it undefined. */
+  files?: { name: string; code: string }[];
   /** Indicators the live preview chart carries so `chart.indicator(id)` inside `code` resolves to
    *  something real instead of the all-`null` "unknown id" handle — see `useScriptEngine`'s own
    *  `indicators` argument doc. Only the "Quant Score" example needs this (it reads an existing
@@ -454,5 +458,276 @@ if (AFFICHER_NIVEAUX && currClose !== null) {
     niveaux.dots("Niveau " + (i + 1), level, { color: COULEUR_NIVEAUX, lineWidth: TAILLE_POINTS });
   });
 }`,
+  },
+  {
+    id: "kde-modules",
+    title: "Le même, en plusieurs fichiers et avec des classes",
+    description:
+      "Le script précédent découpé en trois fichiers importés par le principal, et réécrit avec des classes. Le calcul est identique ; ce qui change, c'est l'organisation : noyau porte la KDE gaussienne, pics la détection de pics par proéminence (sur un tableau de nombres quelconque, sans rien savoir des prix), et niveaux importe les deux pour en faire un objet SuiviNiveaux qui garde sa mémoire d'une bougie à l'autre. Le fichier principal ne fait plus que déclarer les réglages et afficher. À retenir sur l'exécution : le fichier principal est rejoué une fois par bougie, les fichiers importés ne sont évalués qu'une seule fois par exécution — une instance créée dans un fichier importé traverse donc tout l'historique. Dans l'éditeur, la barre au-dessus du code donne un onglet par fichier et le bouton + en crée un nouveau :",
+    code: `@description "///Niveaux S/R en plusieurs fichiers///
+Exactement le même calcul que l'exemple précédent, mais **découpé en trois fichiers** et écrit avec
+des classes plutôt qu'avec des fonctions et un sac de --state.get/set--.
+
+//Ce que fait chaque fichier//
+--noyau-- porte la KDE gaussienne (les poids, la largeur de bande, la grille de densité). --pics--
+porte la détection de pics par proéminence, sur un tableau de nombres quelconque. --niveaux--
+importe les deux et les assemble en un objet **SuiviNiveaux** qui garde sa mémoire d'une bougie à
+l'autre. Le fichier principal ne fait plus que déclarer les réglages et afficher.
+
+//La règle à retenir//
+Le fichier principal est réexécuté **une fois par bougie** ; les autres fichiers sont évalués **une
+seule fois** par exécution. Une instance créée dans un fichier importé traverse donc tout
+l'historique, là où un --new-- écrit dans le fichier principal repartirait de zéro à chaque bougie —
+c'est pourquoi l'instance ci-dessous est rangée dans --state-- au premier passage.
+"
+
+// %% Cellule 1 — les réglages, et les trois fichiers qui font le travail
+import { SuiviNiveaux } from "./niveaux";
+
+const WINDOW = new Variable("number", 500, {
+  description: "Nombre de bougies passées prises en compte pour construire le profil.",
+  min: 20,
+});
+const GRID = new Variable("number", 200, {
+  description: "Nombre de paliers de prix sur lesquels la densité est évaluée. Plus haut = profil plus fin, mais plus lent.",
+  min: 20,
+});
+const FIRST_W = new Variable("number", 0.01, {
+  description: "Poids de la bougie la plus ancienne de la fenêtre par rapport à la plus récente (qui vaut 1).",
+  min: 0,
+  max: 1,
+});
+const ATR_MULT = new Variable("number", 3, {
+  description: "Largeur du noyau gaussien : ATR_MULT × ATR-log moyen × écart-type pondéré des log-clôtures.",
+  min: 0.05,
+});
+const PROM_THRESH = new Variable("number", 0.25, {
+  description: "Hauteur minimale qu'un pic doit dépasser au-dessus de ses vallées voisines, en fraction du pic le plus haut.",
+  min: 0,
+  max: 1,
+});
+const RECALC_EVERY = new Variable("number", 5, {
+  description: "Ne recalculer le profil qu'une bougie sur N. 1 = recalcul à chaque bougie.",
+  min: 1,
+});
+const PROFIL_COULEUR = new Variable("color", "#c47f2a", { description: "Couleur de la courbe du profil affichée dans la pane de droite." });
+const AFFICHER_FLECHES = new Variable("boolean", false, { description: "Affiche les flèches BUY/SELL quand un niveau est franchi." });
+const NIVEAUX_MAX = new Variable("number", 8, { description: "Nombre maximum de niveaux tracés sur les bougies.", min: 1, max: 30 });
+
+// L'instance vit dans state parce que CE fichier-ci est rejoué à chaque bougie : un \`new\` écrit
+// directement ici reconstruirait un objet vide à chaque passage, et le suivi n'aurait aucune
+// mémoire. Les fichiers importés, eux, ne sont évalués qu'une fois — une instance créée là-bas
+// n'aurait pas eu besoin de ce détour.
+let suivi = state.get("suivi");
+if (!suivi) {
+  suivi = new SuiviNiveaux({
+    fenetre: WINDOW,
+    grille: GRID,
+    premierPoids: FIRST_W,
+    multiplicateurATR: ATR_MULT,
+    seuilProeminence: PROM_THRESH,
+    recalculTous: RECALC_EVERY,
+  });
+  state.set("suivi", suivi);
+}
+
+// %% Cellule 2 — une bougie de plus
+suivi.observer(market);
+
+// %% Cellule 3 — le profil, tourné, dans une pane ancrée à droite
+plot.pane("Niveaux", { dock: "right" }).profile("Densité", suivi.profil.densite, suivi.profil.prix, {
+  color: PROFIL_COULEUR,
+  headroom: 0.08,
+});
+
+// %% Cellule 4 — franchissement et niveaux tracés sur les bougies
+const courante = market.close(0);
+const signal = suivi.franchissement(market.close(1), courante);
+if (signal && AFFICHER_FLECHES) plot.signal({ type: signal, price: courante });
+
+if (courante !== null) {
+  const niveaux = plot.overlay("Niveaux S/R");
+  suivi.plusProches(courante, NIVEAUX_MAX).forEach((niveau, i) => {
+    niveaux.dots("Niveau " + (i + 1), niveau, { color: PROFIL_COULEUR, lineWidth: 1.6 });
+  });
+}
+`,
+    files: [
+      { name: "noyau", code: `// Le calcul de densité, isolé du reste : ce fichier ne sait rien des paniques d'affichage, des
+// pics ni des franchissements — on lui donne des bougies, il rend un profil.
+//
+// Un fichier n'est évalué qu'UNE FOIS par exécution, pas une fois par bougie comme le fichier
+// principal. C'est ce qui rend une classe utile ici : l'instance construite au premier passage
+// traverse tout l'historique.
+
+/** True Range moyen en espace log — une simple moyenne, pas le lissage de Wilder de ta.atr : ici
+ *  l'ATR ne sert qu'à donner un ordre de grandeur à la largeur de bande, et une moyenne franche est
+ *  plus facile à raisonner qu'une exponentielle qui traîne son propre historique. */
+export function moyenneATRLog(highs, lows, closes) {
+  if (closes.length < 2) return 0.0005;
+  let somme = 0;
+  for (let i = 1; i < closes.length; i++) {
+    const lh = Math.log(highs[i]);
+    const ll = Math.log(lows[i]);
+    const lpc = Math.log(closes[i - 1]);
+    somme += Math.max(lh - ll, Math.abs(lh - lpc), Math.abs(ll - lpc));
+  }
+  return somme / (closes.length - 1);
+}
+
+/** Une KDE gaussienne en espace log-prix, à la manière de scipy.gaussian_kde(bw_method=scalaire).
+ *  Les réglages sont passés une fois au constructeur plutôt qu'à chaque appel : ils ne changent
+ *  pas d'une bougie à l'autre, et les garder sur l'instance évite de les faire circuler. */
+export class NoyauGaussien {
+  constructor({ premierPoids, multiplicateurATR, grille }) {
+    this.premierPoids = premierPoids;
+    this.multiplicateurATR = multiplicateurATR;
+    this.grille = grille;
+  }
+
+  /** Poids linéaires : la plus ancienne bougie pèse premierPoids, la plus récente 1. */
+  poids(n) {
+    const poids = [];
+    for (let i = 0; i < n; i++) poids.push(Math.max(0, this.premierPoids + (i * (1 - this.premierPoids)) / n));
+    return poids;
+  }
+
+  /** Le profil complet, ou null si la fenêtre ne permet pas de largeur de bande exploitable. */
+  profil(closes, highs, lows) {
+    const n = closes.length;
+    if (n === 0) return null;
+    const logClose = closes.map(Math.log);
+    const poids = this.poids(n);
+    const totalPoids = poids.reduce((a, b) => a + b, 0);
+    // Normalisés pour que la somme fasse 1 : la densité obtenue est alors une vraie densité de
+    // probabilité, comparable d'une fenêtre à l'autre quelle que soit la taille de la fenêtre.
+    const poidsNorm = poids.map((w) => w / totalPoids);
+
+    // Écart-type pondéré des log-clôtures : l'échelle naturelle des données. La largeur de bande en
+    // est un multiple, exactement comme scipy pose h = scalaire × std(données).
+    const moyennePond = logClose.reduce((s, x, i) => s + poids[i] * x, 0) / totalPoids;
+    const ecartPond = Math.sqrt(logClose.reduce((s, x, i) => s + poids[i] * (x - moyennePond) ** 2, 0) / totalPoids);
+    const h = moyenneATRLog(highs, lows, closes) * this.multiplicateurATR * ecartPond;
+    if (!(h > 0)) return null;
+
+    // La grille couvre exactement l'amplitude observée, sans marge : le profil se lit sur la même
+    // plage que le prix.
+    const minV = Math.min(...logClose);
+    const maxV = Math.max(...logClose);
+    const pas = (maxV - minV) / this.grille;
+    const logGrille = [];
+    for (let v = minV; v <= maxV; v += pas) logGrille.push(v);
+
+    // Somme des cloches, normalisée par 1 / (racine(2π) × h) — le facteur qui fait d'une somme de
+    // gaussiennes une densité dont l'intégrale vaut 1.
+    const norm = 1 / (Math.sqrt(2 * Math.PI) * h);
+    const densite = logGrille.map((x) => {
+      let somme = 0;
+      for (let i = 0; i < n; i++) {
+        const u = (x - logClose[i]) / h;
+        somme += poidsNorm[i] * Math.exp(-0.5 * u * u);
+      }
+      return somme * norm;
+    });
+
+    // Retour en prix (exp) au tout dernier moment : le calcul entier s'est fait en log.
+    return { prix: logGrille.map(Math.exp), densite };
+  }
+}
+` },
+      { name: "pics", code: `// La détection de pics, seule. Aucune notion de prix ici : ce fichier prend un tableau de nombres
+// et rend des indices — ce qui le rend testable et réutilisable pour n'importe quelle courbe.
+
+/** Pics par proéminence : on part du sommet et on descend de chaque côté jusqu'à rencontrer un
+ *  point PLUS HAUT que lui — là, ce n'est plus sa vallée mais celle d'un pic voisin plus grand. La
+ *  plus haute des deux vallées ainsi trouvées donne la hauteur réelle du pic, ce qui distingue un
+ *  vrai sommet d'une simple bosse posée sur le flanc d'un autre. */
+export class DetecteurPics {
+  /** @param seuil fraction du pic le plus haut qu'une bosse doit dépasser pour compter. */
+  constructor(seuil) {
+    this.seuil = seuil;
+  }
+
+  indices(valeurs) {
+    if (valeurs.length < 3) return [];
+    const minProeminence = Math.max(...valeurs) * this.seuil;
+    const pics = [];
+    for (let i = 1; i < valeurs.length - 1; i++) {
+      if (!(valeurs[i] > valeurs[i - 1] && valeurs[i] > valeurs[i + 1])) continue;
+      let creuxGauche = valeurs[i];
+      for (let j = i - 1; j >= 0; j--) {
+        if (valeurs[j] > valeurs[i]) break;
+        if (valeurs[j] < creuxGauche) creuxGauche = valeurs[j];
+      }
+      let creuxDroite = valeurs[i];
+      for (let j = i + 1; j < valeurs.length; j++) {
+        if (valeurs[j] > valeurs[i]) break;
+        if (valeurs[j] < creuxDroite) creuxDroite = valeurs[j];
+      }
+      if (valeurs[i] - Math.max(creuxGauche, creuxDroite) >= minProeminence) pics.push(i);
+    }
+    return pics;
+  }
+}
+` },
+      { name: "niveaux", code: `// Un fichier peut en importer un autre : celui-ci assemble le noyau et le détecteur de pics en un
+// seul objet qui garde sa mémoire d'une bougie à l'autre.
+import { NoyauGaussien } from "./noyau";
+import { DetecteurPics } from "./pics";
+
+export class SuiviNiveaux {
+  constructor(options) {
+    this.noyau = new NoyauGaussien(options);
+    this.detecteur = new DetecteurPics(options.seuilProeminence);
+    this.fenetre = options.fenetre;
+    this.recalculTous = options.recalculTous;
+    this.compteur = 0;
+    this.niveaux = [];
+    this.profil = { prix: [], densite: [] };
+    this.signal = 0;
+  }
+
+  /** Appelé à chaque bougie. Ne recalcule qu'une fois sur recalculTous — entre deux recalculs, le
+   *  dernier profil obtenu est réutilisé tel quel, ce qui garde l'exécution sous le budget du
+   *  moteur sans rien changer à ce qui est affiché (les niveaux ne bougent pratiquement pas d'une
+   *  bougie à l'autre). */
+  observer(marche) {
+    const index = this.compteur++;
+    if (index < this.fenetre || index % this.recalculTous !== 0) return;
+    const profil = this.noyau.profil(
+      marche.series("close", this.fenetre),
+      marche.series("high", this.fenetre),
+      marche.series("low", this.fenetre)
+    );
+    if (!profil) return;
+    this.profil = profil;
+    this.niveaux = this.detecteur.indices(profil.densite).map((i) => profil.prix[i]);
+  }
+
+  /** "BUY" / "SELL" au moment exact où le prix franchit un niveau, null le reste du temps. Le
+   *  signal précédent vit sur l'instance : c'est tout l'intérêt d'avoir un objet plutôt qu'une
+   *  fonction, il se souvient sans que l'appelant ait à lui repasser son propre état. */
+  franchissement(precedente, courante) {
+    if (precedente === null || courante === null) return null;
+    const avant = this.signal;
+    for (const niveau of this.niveaux) {
+      if (courante > niveau && precedente <= niveau) this.signal = 1;
+      else if (courante < niveau && precedente >= niveau) this.signal = -1;
+    }
+    if (this.signal === avant) return null;
+    return this.signal > 0 ? "BUY" : "SELL";
+  }
+
+  /** Les niveaux les plus proches du cours, remis dans l'ordre des prix — un profil bruité peut en
+   *  sortir trente, et les tracer tous couvrirait les bougies. */
+  plusProches(courante, maximum) {
+    return [...this.niveaux]
+      .sort((a, b) => Math.abs(a - courante) - Math.abs(b - courante))
+      .slice(0, maximum)
+      .sort((a, b) => a - b);
+  }
+}
+` },
+    ],
   },
 ];

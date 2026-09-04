@@ -520,6 +520,18 @@ const KDE_DEBUG_SCRIPT: ScriptDef[] = [
     enabled: true,
     targetPanelIndex: 0,
   },
+  // Le même calcul, découpé en trois fichiers importés — désactivé par défaut (deux profils
+  // identiques dans la même pane n'apprendraient rien), il est là pour qu'un aller-retour dans
+  // l'éditeur montre la barre de fichiers sur un script réel plutôt que sur un squelette.
+  {
+    id: "debug-kde-modules",
+    name: "Niveaux S/R (plusieurs fichiers)",
+    code: SCRIPT_EXAMPLES.find((example) => example.id === "kde-modules")?.code ?? "",
+    files: SCRIPT_EXAMPLES.find((example) => example.id === "kde-modules")?.files ?? [],
+    named: true,
+    enabled: false,
+    targetPanelIndex: 0,
+  },
 ];
 
 export const AllFeatures: Story = {

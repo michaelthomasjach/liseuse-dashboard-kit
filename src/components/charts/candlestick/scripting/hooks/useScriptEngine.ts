@@ -28,6 +28,7 @@ function buildSnapshot(
   indicators: Indicator[],
   fundamentals: FundamentalDataPoint[] | undefined,
   scriptCode: string,
+  scriptModules: ScriptEngineSnapshot["scriptModules"],
   timeoutMs: number,
   lastCandleOpen: boolean,
   isRealtimeTick: boolean,
@@ -67,6 +68,7 @@ function buildSnapshot(
     fundamentalSeries,
     runUpToIndex,
     scriptCode,
+    scriptModules,
     limits: { timeoutMs, maxSeriesLength: MAX_SERIES_LENGTH },
     lastCandleOpen,
     isRealtimeTick,
@@ -128,6 +130,9 @@ export function useScriptEngine(
   // Drives the real-time re-trigger effect below: a script the caller hasn't run yet has nothing
   // to auto-re-evaluate on the next `data` change.
   const lastScriptCodeRef = useRef<string | null>(null);
+  // Travels with `lastScriptCodeRef`: a real-time re-trigger has to replay the *same* set of files
+  // the last explicit run used, not just its entry file.
+  const lastScriptModulesRef = useRef<ScriptEngineSnapshot["scriptModules"]>(undefined);
 
   function applyRunOutput(runResult: ScriptRunResult) {
     setResult(runResult);
@@ -187,7 +192,7 @@ export function useScriptEngine(
    *  notebook cell-output flow (`ScriptEditorCodeMirror.tsx`'s own per-cell run button), which
    *  needs to know exactly which result belongs to *its own* request rather than reading whatever
    *  `result` state happens to hold whenever its own effect next runs. */
-  function run(scriptCode: string, isRealtimeTick = false): Promise<ScriptRunResult> {
+  function run(scriptCode: string, isRealtimeTick = false, scriptModules?: ScriptEngineSnapshot["scriptModules"]): Promise<ScriptRunResult> {
     // Reusing a worker that's still mid-run would let its own stale result land in *this* call's
     // freshly-assigned onmessage/onerror below once it eventually finishes — a Worker processes
     // queued postMessage calls sequentially, it doesn't just drop the superseded one — silently
@@ -199,6 +204,7 @@ export function useScriptEngine(
     const worker = running ? replaceWorker() : workerRef.current ?? replaceWorker();
     clearPendingTimeout();
     lastScriptCodeRef.current = scriptCode;
+    lastScriptModulesRef.current = scriptModules;
     setRunning(true);
     const timeoutMs = isRealtimeTick ? REALTIME_TICK_TIMEOUT_MS : HISTORICAL_REPLAY_TIMEOUT_MS;
 
@@ -253,7 +259,7 @@ export function useScriptEngine(
       }, timeoutMs);
 
       worker.postMessage(
-        buildSnapshot(data, indicators, fundamentals, scriptCode, timeoutMs, lastCandleOpen, isRealtimeTick, availableTimeframes, effectiveRunUpToIndex)
+        buildSnapshot(data, indicators, fundamentals, scriptCode, scriptModules, timeoutMs, lastCandleOpen, isRealtimeTick, availableTimeframes, effectiveRunUpToIndex)
       );
     });
   }
@@ -351,7 +357,7 @@ export function useScriptEngine(
       // unrelated reason, a `running` flip say); cleared explicitly here instead, and on unmount
       // by the worker effect above.
       clearPendingDebounce();
-      run(lastScriptCodeRef.current, !historical);
+      run(lastScriptCodeRef.current, !historical, lastScriptModulesRef.current);
       return;
     }
     // Only arm a *fresh* debounce — an already-pending one is left to fire on its own schedule
@@ -365,7 +371,7 @@ export function useScriptEngine(
     if (debounceRef.current === null) {
       debounceRef.current = setTimeout(() => {
         debounceRef.current = null;
-        if (lastScriptCodeRef.current !== null) runRef.current(lastScriptCodeRef.current, !historical);
+        if (lastScriptCodeRef.current !== null) runRef.current(lastScriptCodeRef.current, !historical, lastScriptModulesRef.current);
       }, debounceMs);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

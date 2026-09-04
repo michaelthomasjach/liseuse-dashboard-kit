@@ -48,6 +48,14 @@ function withParams(source: string, paramValues: ScriptDef["paramValues"]): stri
   return applyScriptParams(code, params, paramValues);
 }
 
+/** The same substitution applied to every extra file of a multi-file script. A file declares its
+ *  own parameters exactly like the entry does, and reads the same `paramValues` — so a value set
+ *  once in the settings reaches whichever file actually declares it. */
+function filesWithParams(files: ScriptDef["files"], paramValues: ScriptDef["paramValues"]): { name: string; code: string }[] | undefined {
+  if (!files || files.length === 0) return undefined;
+  return files.map((file) => ({ name: file.name, code: withParams(file.code, paramValues) }));
+}
+
 /** `DEBOUNCE_MS`'s own resolved value, if this script declares one — see useScriptEngine's own
  *  `debounceMs` doc for why this one specific name is read here instead of only ever being
  *  substituted into the compiled source like every other declared parameter. `undefined` (no such
@@ -92,7 +100,7 @@ export function ScriptRunner({ script, data, indicators, fundamentals, lastCandl
     hasRunOnceRef.current = true;
     if (script.runRequestId !== undefined) return;
     reportedAlertCountRef.current = 0;
-    engine.run(withParams(script.code, script.paramValues));
+    engine.run(withParams(script.code, script.paramValues), false, filesWithParams(script.files, script.paramValues));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -102,7 +110,11 @@ export function ScriptRunner({ script, data, indicators, fundamentals, lastCandl
     if (script.runRequestId === undefined || script.runRequestId === lastRunRequestIdRef.current) return;
     lastRunRequestIdRef.current = script.runRequestId;
     reportedAlertCountRef.current = 0;
-    engine.run(withParams(script.runDraftCode ?? script.code, script.paramValues));
+    engine.run(
+      withParams(script.runDraftCode ?? script.code, script.paramValues),
+      false,
+      filesWithParams(script.runDraftFiles ?? script.files, script.paramValues)
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [script.runRequestId]);
 

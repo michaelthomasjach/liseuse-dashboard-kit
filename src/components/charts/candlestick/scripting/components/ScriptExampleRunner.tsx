@@ -33,7 +33,7 @@ export function ScriptExampleRunner({ example }: ScriptExampleRunnerProps) {
   const engine = useScriptEngine(`example-${example.id}`, SCRIPT_EXAMPLE_DATA, example.indicators ?? [], undefined);
 
   useEffect(() => {
-    engine.run(example.code);
+    engine.run(example.code, false, example.files);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -51,8 +51,16 @@ export function ScriptExampleRunner({ example }: ScriptExampleRunnerProps) {
       <h4 className="lq-script-docs__example-heading">{example.title}</h4>
       <p>{example.description}</p>
       <CodeBlock code={example.code} language="JavaScript" className="lq-script-docs__code" />
+      {/* A multi-file example shows every file, in import order, each under its own name — the
+          same name the entry file's own `import … from "./name"` uses, so the two read together. */}
+      {example.files?.map((file) => (
+        <div key={file.name} className="lq-script-example__file">
+          <div className="lq-script-example__file-name">{`./${file.name}`}</div>
+          <CodeBlock code={file.code} language="JavaScript" className="lq-script-docs__code" />
+        </div>
+      ))}
       <div className="lq-script-example__toolbar">
-        <button type="button" className="lq-script-example__run-button" onClick={() => engine.run(example.code)} disabled={engine.running}>
+        <button type="button" className="lq-script-example__run-button" onClick={() => engine.run(example.code, false, example.files)} disabled={engine.running}>
           <PlayIcon size={13} /> {engine.running ? "Exécution…" : "Exécuter"}
         </button>
       </div>

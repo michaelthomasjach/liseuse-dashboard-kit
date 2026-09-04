@@ -5,11 +5,24 @@ import type { ScriptParamValue } from "./ScriptParam.interface";
  *  convention `defaultIndicators`/`onIndicatorsChange` and `defaultDrawings`/`onDrawingsChange`
  *  already follow (the library owns the array's own lifecycle — add/edit/remove/reorder — and
  *  just reports it back on every change, rather than the caller driving it turn by turn). */
+/** One file of a multi-file script — see `ScriptDef.files`. */
+export interface ScriptFile {
+  name: string;
+  code: string;
+}
+
 export interface ScriptDef {
   id: string;
   /** Shown in the script list/editor tab, not read by the engine itself. */
   name: string;
+  /** The entry file — the one that actually runs, once per bar. */
   code: string;
+  /** The script's own extra files, if it has been split into several. Each is a real module: it
+   *  runs once (not once per bar), and what it `export`s is what an `import` in another file of the
+   *  same script sees. Absent for a single-file script. Names are what an import resolves against —
+   *  `import { X } from "./levels"` finds the file named `levels` (a leading `./` and a trailing
+   *  `.js` are both optional, so all three spellings a JS author might reach for work). */
+  files?: ScriptFile[];
   /** Whether this script has ever gone through the "give it a name" flow (see
    *  `ScriptEditorPanel`'s own Ctrl+S/"Enregistrer sous" doc) — a fresh script keeps its
    *  auto-generated `name` ("Script 1"…) until its very first save, at which point saving prompts
@@ -49,5 +62,8 @@ export interface ScriptDef {
    *  not match `code` above if unsaved; falls back to `code` when unset. */
   runRequestId?: number;
   runDraftCode?: string;
+  /** The editor's current draft of `files`, same relationship `runDraftCode` has to `code` — so a
+   *  run started from the editor uses the unsaved state of *every* file, not just the entry. */
+  runDraftFiles?: ScriptFile[];
   stopRequestId?: number;
 }

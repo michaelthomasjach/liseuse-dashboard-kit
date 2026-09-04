@@ -54,6 +54,12 @@ export interface ScriptEngineSnapshot {
    *  run (see runScript.ts) — never persisted or cached Worker-side across runs, so a script edit
    *  always takes effect on its very next run with no stale-closure risk. */
   scriptCode: string;
+  /** The script's own extra files, verbatim as the author wrote them — the entry file above
+   *  reaches them through `import`. The ESM-to-registry rewrite happens in the worker, not here,
+   *  so the parser it needs stays out of the main bundle and a module is only ever transformed
+   *  when something actually imports it. Absent for a single-file script, which is still the
+   *  common case and pays nothing for this. */
+  scriptModules?: { name: string; code: string }[];
   limits: {
     /** Milliseconds the main thread waits before `.terminate()`-ing an in-flight run — see
      *  useScriptEngine's own timeout/respawn handling. Not enforced inside the Worker itself

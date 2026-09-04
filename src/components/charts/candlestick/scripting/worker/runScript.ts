@@ -8,6 +8,7 @@ import { buildBarApi } from "./buildBarApi";
 import { buildCompanyApi } from "./buildCompanyApi";
 import { mathApi } from "./mathLib";
 import { taApi } from "./taLib";
+import { SCRIPT_MODULE_EXPORTS, SCRIPT_MODULE_REQUIRE, transformScriptModule } from "../scriptModules";
 
 // Captured at module-evaluation time — which, per ES module ordering, happens while
 // scriptWorkerEntry.ts is still resolving its own imports, strictly before that file's own
@@ -98,7 +99,62 @@ export function runScript(snapshot: ScriptEngineSnapshot): ScriptRunResult {
   const bar = buildBarApi(snapshot, getCurrentIndex);
   const company = buildCompanyApi(snapshot, getCurrentIndex);
 
+  // The module registry. Each extra file is compiled on its own `new Function` the first time it is
+  // imported, then cached — so a file imported by three others runs once, exactly as a real module
+  // would, and its own line numbers stay its own (a single bundled string would have shifted every
+  // file after the first, and with it every error line the author sees).
+  const moduleSources = new Map((snapshot.scriptModules ?? []).map((m) => [m.name, m.code]));
+  const moduleCache = new Map<string, Record<string, unknown>>();
+  const loading = new Set<string>();
+  function requireModule(rawName: string): Record<string, unknown> {
+    // "./levels", "levels" and "levels.js" all mean the same file — a script author should not
+    // have to know which spelling the registry stores.
+    const name = rawName.replace(/^\.\//, "").replace(/\.js$/, "");
+    // Checked before the cache, not after: a module being imported while it is still evaluating is
+    // already in the cache (as a half-built object), so a cache-first order would hand back exports
+    // that are still empty and never fill in — real ESM resolves that with live bindings, which
+    // `new Function` has none of, so a destructuring import would silently capture `undefined`.
+    // Naming the cycle is the honest outcome.
+    if (loading.has(name)) {
+      throw new Error(`Import circulaire détecté sur "${name}" : ce fichier s'importe lui-même, directement ou via un autre fichier.`);
+    }
+    const cached = moduleCache.get(name);
+    if (cached) return cached;
+    const raw = moduleSources.get(name);
+    if (raw === undefined) {
+      throw new Error(`Fichier introuvable : "${rawName}". Fichiers de ce script : ${[...moduleSources.keys()].join(", ") || "(aucun)"}`);
+    }
+    const { code: source, diagnostics } = transformScriptModule(raw);
+    if (diagnostics.length > 0) throw new Error(`${name} ligne ${diagnostics[0].line} : ${diagnostics[0].message}`);
+    loading.add(name);
+    const exports: Record<string, unknown> = {};
+    moduleCache.set(name, exports);
+    try {
+      const factory = new RealFunction(
+        SCRIPT_MODULE_EXPORTS,
+        SCRIPT_MODULE_REQUIRE,
+        "market",
+        "chart",
+        "plot",
+        "state",
+        "alert",
+        "bar",
+        "company",
+        "math",
+        "ta",
+        "console",
+        source
+      ) as (...args: unknown[]) => void;
+      factory(exports, requireModule, market, chart, plot, state, alert, bar, company, mathApi, taApi, scriptConsole);
+    } finally {
+      loading.delete(name);
+    }
+    return exports;
+  }
+
   type CompiledScript = (
+    exports: unknown,
+    requireModule: unknown,
     market: unknown,
     chart: unknown,
     plot: unknown,
@@ -110,9 +166,30 @@ export function runScript(snapshot: ScriptEngineSnapshot): ScriptRunResult {
     ta: unknown,
     console: unknown
   ) => void;
+  // The entry file goes through the same rewrite as any other — a single-file script simply has
+  // nothing to rewrite, and comes back unchanged.
+  const entry = transformScriptModule(snapshot.scriptCode);
+  // Nothing imports the entry, so its exports go nowhere — the object exists only so that an
+  // `export` written there is a no-op rather than a crash.
+  const entryExports: Record<string, unknown> = {};
+  if (entry.diagnostics.length > 0) {
+    return {
+      error: { message: entry.diagnostics[0].message, line: entry.diagnostics[0].line },
+      logs,
+      panes: [],
+      drawings: [],
+      table: null,
+      xyCharts: [],
+      alerts: [],
+      labels: [],
+    };
+  }
+
   let compiled: CompiledScript;
   try {
     compiled = new RealFunction(
+      SCRIPT_MODULE_EXPORTS,
+      SCRIPT_MODULE_REQUIRE,
       "market",
       "chart",
       "plot",
@@ -123,7 +200,7 @@ export function runScript(snapshot: ScriptEngineSnapshot): ScriptRunResult {
       "math",
       "ta",
       "console",
-      snapshot.scriptCode
+      entry.code
     ) as CompiledScript;
   } catch (err) {
     // A SyntaxError here carries no usable line/column at all (confirmed empirically — V8 reports
@@ -143,7 +220,7 @@ export function runScript(snapshot: ScriptEngineSnapshot): ScriptRunResult {
   for (let i = 0; i <= snapshot.runUpToIndex; i++) {
     currentIndex = i;
     try {
-      compiled(market, chart, plot, state, alert, bar, company, mathApi, taApi, scriptConsole);
+      compiled(entryExports, requireModule, market, chart, plot, state, alert, bar, company, mathApi, taApi, scriptConsole);
     } catch (err) {
       const { panes, drawings, table, xyCharts, labels } = getPlotResult();
       return { error: toScriptError(err), logs, panes, drawings, table, xyCharts, alerts: getAlerts(), labels };

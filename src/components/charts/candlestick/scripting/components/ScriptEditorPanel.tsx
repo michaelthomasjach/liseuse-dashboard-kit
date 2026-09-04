@@ -1,5 +1,5 @@
 import { analyzeScriptVariables } from "../scriptVariables";
-import type { ScriptParamValue } from "../../interfaces/ScriptParam.interface";
+import type { ScriptParam, ScriptParamValue } from "../../interfaces/ScriptParam.interface";
 import { ScriptParamsFields } from "./ScriptParamsFields";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { ScriptEditorWindow } from "./ScriptEditorWindow";
@@ -21,7 +21,7 @@ import {
   CheckIcon,
 } from "../../../../icons";
 import type { Candle } from "../../interfaces/Candle.interface";
-import type { ScriptDef } from "../../interfaces/ScriptDef.interface";
+import type { ScriptDef, ScriptFile } from "../../interfaces/ScriptDef.interface";
 import type { ScriptRunOutput } from "../interfaces/ScriptRunOutput.interface";
 import { isCellInstrumentationLog } from "../scriptCellSentinels";
 import { ScriptErrorPanel } from "./ScriptErrorPanel";
@@ -43,7 +43,7 @@ export interface ScriptEditorPanelProps {
   updateScript: (id: string, patch: Partial<Omit<ScriptDef, "id">>) => void;
   removeScript: (id: string) => void;
   toggleScriptEnabled: (id: string) => void;
-  runScript: (id: string, code: string) => void;
+  runScript: (id: string, code: string, files?: ScriptFile[]) => void;
   stopScript: (id: string) => void;
   /** Commits one `new Variable(...)` parameter's own value — which also re-runs the script, see
    *  useScriptingState's own doc. */
@@ -100,10 +100,81 @@ export function ScriptEditorPanel({
 }: ScriptEditorPanelProps) {
   const activeScript = scripts.find((s) => s.id === activeScriptId) ?? null;
   const [draft, setDraft] = useState(activeScript?.code ?? "");
+  // A script's extra files, drafted the same way the entry is: edited here, committed to the
+  // ScriptDef only on save. `activeFile` is the *name* of the file being edited, or `null` for the
+  // entry — a name rather than an index so adding or removing a file can't silently move the
+  // selection onto a different one.
+  const [draftFiles, setDraftFiles] = useState<ScriptFile[]>(activeScript?.files ?? []);
+  const [activeFile, setActiveFile] = useState<string | null>(null);
+  const [fileModal, setFileModal] = useState<{ mode: "add" | "rename"; target: string | null } | null>(null);
+  const [fileNameValue, setFileNameValue] = useState("");
+  const editedFile = activeFile === null ? null : draftFiles.find((f) => f.name === activeFile) ?? null;
+  // What CodeMirror actually shows. Falls back to the entry whenever the selected file has gone
+  // (deleted, or the script was switched) rather than rendering an empty editor with no explanation.
+  const editorValue = editedFile ? editedFile.code : draft;
+
+  function setEditorValue(next: string) {
+    if (editedFile === null) setDraft(next);
+    else setDraftFiles((files) => files.map((f) => (f.name === editedFile.name ? { ...f, code: next } : f)));
+  }
+
+  /** A file name that can be typed after `import … from "./"` — no extension, no path, no spaces,
+   *  which is also exactly what keeps the worker's own resolution (`./x`, `x`, `x.js` all meaning
+   *  the same file) unambiguous. */
+  function normalizeFileName(raw: string): string {
+    return raw.trim().replace(/^\.\//, "").replace(/\.js$/i, "").replace(/[^A-Za-z0-9_-]/g, "-").replace(/^-+|-+$/g, "");
+  }
+
+  const normalizedFileName = normalizeFileName(fileNameValue);
+  const fileNameCollision =
+    normalizedFileName !== "" && draftFiles.some((f) => f.name === normalizedFileName && f.name !== fileModal?.target);
+
+  function submitFileName() {
+    if (!fileModal || normalizedFileName === "" || fileNameCollision) return;
+    if (fileModal.mode === "add") {
+      // Seeded with an export rather than an empty buffer — the one thing a new file always needs
+      // is something for the entry to import, and an empty file gives no hint that it should.
+      setDraftFiles((files) => [
+        ...files,
+        { name: normalizedFileName, code: `// ${normalizedFileName}.js
+
+export function hello() {
+  return "${normalizedFileName}";
+}
+` },
+      ]);
+      setActiveFile(normalizedFileName);
+    } else if (fileModal.target !== null) {
+      const previous = fileModal.target;
+      setDraftFiles((files) => files.map((f) => (f.name === previous ? { ...f, name: normalizedFileName } : f)));
+      setActiveFile((current) => (current === previous ? normalizedFileName : current));
+    }
+    setFileModal(null);
+  }
+
+  function removeFile(name: string) {
+    setDraftFiles((files) => files.filter((f) => f.name !== name));
+    setActiveFile((current) => (current === name ? null : current));
+  }
+
   // Only the declarations are needed here; the editor draws the diagnostics itself off the same
   // analysis (see ScriptEditorCodeMirror), so a parameter with a bad default still gets a field —
   // the error sits on the offending line rather than the panel silently going empty.
-  const { params: scriptParams } = useMemo(() => analyzeScriptVariables(draft), [draft]);
+  // Across every file, not just the entry: a parameter declared in a module still needs its own
+  // field, and `withParams` substitutes it there too (see ScriptRunner's own `filesWithParams`).
+  // First declaration wins on a duplicate name, matching how the substitution itself behaves.
+  const scriptParams = useMemo(() => {
+    const seen = new Set<string>();
+    const all: ScriptParam[] = [];
+    for (const source of [draft, ...draftFiles.map((f) => f.code)]) {
+      for (const param of analyzeScriptVariables(source).params) {
+        if (seen.has(param.name)) continue;
+        seen.add(param.name);
+        all.push(param);
+      }
+    }
+    return all;
+  }, [draft, draftFiles]);
   const [formatRequestId, setFormatRequestId] = useState(0);
   const [docsOpen, setDocsOpen] = useState(false);
   const [targetPickerOpen, setTargetPickerOpen] = useState(false);
@@ -147,7 +218,7 @@ export function ScriptEditorPanel({
     if (!activeScript) return;
     const trimmed = nameValue.trim();
     if (!trimmed || nameCollision) return;
-    updateScript(activeScript.id, { name: trimmed, code: draft, named: true });
+    updateScript(activeScript.id, { name: trimmed, code: draft, files: draftFiles, named: true });
     setModal(null);
     flashSaved();
   }
@@ -163,7 +234,7 @@ export function ScriptEditorPanel({
       setModal("name");
       return;
     }
-    updateScript(activeScript.id, { code: draft });
+    updateScript(activeScript.id, { code: draft, files: draftFiles });
     flashSaved();
   }
 
@@ -219,10 +290,11 @@ export function ScriptEditorPanel({
         targetPanelIndex: panelChoices?.[0]?.index ?? 0,
         runRequestId: (activeScript.runRequestId ?? 0) + 1,
         runDraftCode: code,
+        runDraftFiles: draftFiles,
       });
       return;
     }
-    runScript(activeScript.id, code);
+    runScript(activeScript.id, code, draftFiles);
   }
 
   // One single updateScript call, not updateScript-then-runScript — each of those independently
@@ -237,6 +309,7 @@ export function ScriptEditorPanel({
       targetPanelIndex: index,
       runRequestId: (activeScript.runRequestId ?? 0) + 1,
       runDraftCode: pendingRunCodeRef.current ?? draft,
+      runDraftFiles: draftFiles,
     });
     pendingRunCodeRef.current = null;
     setTargetPickerOpen(false);
@@ -248,6 +321,8 @@ export function ScriptEditorPanel({
   // never fights this effect.
   useEffect(() => {
     setDraft(activeScript?.code ?? "");
+    setDraftFiles(activeScript?.files ?? []);
+    setActiveFile(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeScriptId]);
 
@@ -266,7 +341,9 @@ export function ScriptEditorPanel({
   if (!open) return null;
 
   const output = activeScriptId ? runOutputs[activeScriptId] : undefined;
-  const isDirty = activeScript !== null && draft !== activeScript.code;
+  const isDirty =
+    activeScript !== null &&
+    (draft !== activeScript.code || JSON.stringify(draftFiles) !== JSON.stringify(activeScript.files ?? []));
 
   return (
     <ScriptEditorWindow
@@ -436,11 +513,70 @@ export function ScriptEditorPanel({
       {activeScript ? (
         <div className="lq-script-editor-panel__body">
           <div className="lq-script-editor-panel__main">
+            {/* One row per script file. The entry is always first and can't be removed or renamed —
+                it is the file that runs, the others only exist because it imports them. */}
+            <div className="lq-script-editor-panel__files" role="tablist" aria-label="Fichiers du script">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeFile === null}
+                className={["lq-script-editor-panel__file", activeFile === null && "lq-script-editor-panel__file--active"]
+                  .filter(Boolean)
+                  .join(" ")}
+                onClick={() => setActiveFile(null)}
+                title="Fichier principal — celui qui s'exécute"
+              >
+                Principal
+              </button>
+              {draftFiles.map((file) => (
+                <div
+                  key={file.name}
+                  role="tab"
+                  aria-selected={activeFile === file.name}
+                  tabIndex={-1}
+                  className={["lq-script-editor-panel__file", activeFile === file.name && "lq-script-editor-panel__file--active"]
+                    .filter(Boolean)
+                    .join(" ")}
+                  onClick={() => setActiveFile(file.name)}
+                  onDoubleClick={() => {
+                    setFileNameValue(file.name);
+                    setFileModal({ mode: "rename", target: file.name });
+                  }}
+                  title={`import { … } from "./${file.name}"  ·  double-clic pour renommer`}
+                >
+                  <span className="lq-script-editor-panel__file-name">{file.name}</span>
+                  <button
+                    type="button"
+                    className="lq-script-editor-panel__file-remove"
+                    aria-label={`Supprimer ${file.name}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeFile(file.name);
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                className="lq-script-editor-panel__file-add"
+                aria-label="Nouveau fichier"
+                title="Nouveau fichier"
+                onClick={() => {
+                  setFileNameValue("");
+                  setFileModal({ mode: "add", target: null });
+                }}
+              >
+                +
+              </button>
+            </div>
             <Suspense fallback={<div className="lq-script-editor-panel__loading">Chargement de l'éditeur…</div>}>
               <LazyScriptEditorCodeMirror
                 ref={codeMirrorRef}
-                value={draft}
-                onChange={setDraft}
+                key={activeFile ?? "__entry__"}
+                value={editorValue}
+                onChange={setEditorValue}
                 error={output?.result?.error ?? null}
                 formatRequestId={formatRequestId}
                 onRunCell={(code) => handleRunClick(code)}
@@ -489,6 +625,48 @@ export function ScriptEditorPanel({
         <div className="lq-script-editor-panel__empty">Aucun script — cliquez sur « + » pour en créer un.</div>
       )}
       <ScriptDocumentationModal open={docsOpen} onClose={() => setDocsOpen(false)} />
+
+      {fileModal && (
+        <Modal
+          open
+          onClose={() => setFileModal(null)}
+          title={fileModal.mode === "add" ? "Nouveau fichier" : "Renommer le fichier"}
+          footer={
+            <div className="lq-chart__edit-drawing-footer">
+              <button type="button" className="lq-chart__reset-button" onClick={() => setFileModal(null)}>
+                Annuler
+              </button>
+              <button
+                type="button"
+                className="lq-chart__confirm-button"
+                onClick={submitFileName}
+                disabled={normalizedFileName === "" || fileNameCollision}
+              >
+                {fileModal.mode === "add" ? "Créer" : "Renommer"}
+              </button>
+            </div>
+          }
+        >
+          <TextField
+            label="Nom du fichier"
+            value={fileNameValue}
+            onChange={(e) => setFileNameValue(e.target.value)}
+            placeholder="Ex. niveaux"
+            autoFocus
+            error={fileNameCollision ? "Un fichier porte déjà ce nom." : undefined}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") submitFileName();
+            }}
+          />
+          {/* The exact line to paste into the entry file — the name typed here is only useful
+              once it is the string in an import, so it is shown as one. */}
+          {normalizedFileName !== "" && !fileNameCollision && (
+            <p className="lq-script-editor-panel__file-hint">
+              <code>{`import { … } from "./${normalizedFileName}";`}</code>
+            </p>
+          )}
+        </Modal>
+      )}
 
       {(modal === "name" || modal === "nameSaveAs") && (
         <Modal

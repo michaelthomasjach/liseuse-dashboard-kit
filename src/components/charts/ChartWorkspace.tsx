@@ -693,6 +693,9 @@ export function ChartWorkspace({
         "lq-chart-workspace",
         workspaceFullscreen && "lq-chart-workspace--fullscreen",
         isMobileWorkspace && "lq-chart-workspace--mobile",
+        // Not while fullscreen: `.lq-chart-workspace--fullscreen`'s own `inset` already pins all
+        // four edges, and an explicit height would only fight it.
+        fillHeight && !workspaceFullscreen && "lq-chart-workspace--fill",
         className,
       ]
         .filter(Boolean)
@@ -700,7 +703,9 @@ export function ChartWorkspace({
       // Same `height: 100vh` vs. `undefined` fork CandlestickChart's own fullscreen style uses
       // (see its own doc) — `.lq-chart-workspace--fullscreen`'s `inset` already pins all four
       // edges, so an explicit height here would just fight it instead of matching it.
-      style={workspaceFullscreen ? undefined : fillHeight ? { height: "100vh" } : undefined}
+      // The fill height is a class rather than an inline `height: 100vh` so it can carry two
+      // declarations — see `.lq-chart-workspace--fill`: `100dvh`, with `100vh` as the fallback.
+      // An inline style can only say one.
     >
       {/* Replaces the side rail's watchlist/alerts icons below a certain width (isMobileWorkspace)
           — every list's own full name instead of one icon + an in-panel dropdown to pick among

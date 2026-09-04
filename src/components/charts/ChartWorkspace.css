@@ -13,6 +13,18 @@
   flex-direction: column;
 }
 
+/* `fillHeight`: the workspace takes the whole viewport. Two declarations on purpose — `100dvh`
+   where the browser knows it, `100vh` where it doesn't. They differ on a phone: `100vh` is the
+   *largest* the viewport can be, i.e. with the browser's URL bar scrolled away, so while that bar
+   is showing a `100vh` box runs past the bottom of the screen by the bar's height — and everything
+   that lives at the workspace's bottom edge (the mobile page switcher, a chart's own bottom tools
+   rail) sits below the fold, unreachable when the host has clipped overflow. `100dvh` tracks the
+   viewport as it actually is at the moment, bar or no bar. */
+.lq-chart-workspace--fill {
+  height: 100vh;
+  height: 100dvh;
+}
+
 /* The row wrapper's own layout only actually reads as a *row* while `.lq-chart-workspace` above
    is left in its default row direction (desktop) — under `--mobile` (column), `flex: 1 1 auto` is
    what makes it fill whatever height the topbar above it doesn't take, `min-height: 0` is what

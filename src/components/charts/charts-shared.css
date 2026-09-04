@@ -138,12 +138,15 @@
    Absolutely positioned against `.lq-chart__side-panel` itself (not a sibling of the content),
    straddling the border so the hit area isn't limited to whichever side of the 1px line the
    pointer happens to land on. */
+/* 12px rather than 8: the grip is meant to appear as the cursor approaches the line, not only
+   once it is exactly on it — a 1px divider is a hard target to find with a mouse. Still centred on
+   the border, so the visual line and the thing being grabbed stay the same place. */
 .lq-chart__side-panel-resize-handle {
   position: absolute;
   top: 0;
   bottom: 0;
-  left: -4px;
-  width: 8px;
+  left: -6px;
+  width: 12px;
   cursor: ew-resize;
   pointer-events: auto;
   touch-action: none;
@@ -254,11 +257,12 @@
    edge faces the main chart (a left-docked column's own right edge, a right-docked one's left),
    so it never has to be located on the far outer edge only whichever side leaves the divider
    right against `.lq-chart__main`. */
+/* Same widening, and for the same reason, as .lq-chart__side-panel-resize-handle above. */
 .lq-chart__side-dock-pane-resize-handle {
   position: absolute;
   top: 0;
   bottom: 0;
-  width: 8px;
+  width: 12px;
   cursor: ew-resize;
   pointer-events: auto;
   touch-action: none;
@@ -266,11 +270,11 @@
 }
 
 .lq-chart__side-dock-pane-resize-handle--left {
-  right: -4px;
+  right: -6px;
 }
 
 .lq-chart__side-dock-pane-resize-handle--right {
-  left: -4px;
+  left: -6px;
 }
 
 @media (pointer: coarse) {
@@ -2113,16 +2117,39 @@
   pointer-events: none;
 }
 
-.lq-chart__pane-resize-handle:hover .lq-chart__pane-resize-grip {
+/* Every draggable divider in the chart shows the same affordance — the pane dividers, the side
+   panel's own edge, and a docked script-pane column's edge. They are all "grab this line and move
+   it", so they all say so the same way. */
+.lq-chart__pane-resize-handle:hover .lq-chart__pane-resize-grip,
+.lq-chart__side-panel-resize-handle:hover .lq-chart__pane-resize-grip,
+.lq-chart__side-dock-pane-resize-handle:hover .lq-chart__pane-resize-grip {
   opacity: 1;
 }
 
+/* `--lq-color-border` before, which in the e-ink palette is near-black and read as a hard mark
+   rather than a hint. Matched instead to the grip on a watchlist row (see
+   .lq-chart-workspace__watchlist-grip), the other "drag me" dots in this library, so the two say
+   the same thing in the same voice. Two pixels rather than one, with a rounded cap: at 1px the
+   bars disappeared into the divider they straddle. */
 .lq-chart__pane-resize-grip::before,
 .lq-chart__pane-resize-grip::after {
   content: "";
-  width: 16px;
-  height: 1px;
-  background-color: var(--lq-color-border);
+  width: 18px;
+  height: 2px;
+  border-radius: 1px;
+  background-color: var(--lq-color-text-muted);
+}
+
+/* The same grip turned through 90° for a vertical divider — bars along the line, not across it,
+   so it reads as something to push sideways. */
+.lq-chart__pane-resize-grip--vertical {
+  flex-direction: row;
+}
+
+.lq-chart__pane-resize-grip--vertical::before,
+.lq-chart__pane-resize-grip--vertical::after {
+  width: 2px;
+  height: 18px;
 }
 
 .lq-chart__indicator-category-filters {

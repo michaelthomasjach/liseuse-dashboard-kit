@@ -224,7 +224,11 @@ export function ChartSidePaneColumn({
         <div
           className={["lq-chart__side-dock-pane-resize-handle", `lq-chart__side-dock-pane-resize-handle--${side}`].join(" ")}
           onPointerDown={startResize}
-        />
+        >
+          {/* Same "you can drag this" span as every pane divider, vertical here — this column's own
+              width is what the drag changes. */}
+          <span className="lq-chart__pane-resize-grip lq-chart__pane-resize-grip--vertical" aria-hidden="true" />
+        </div>
         <canvas ref={canvasRef} className="lq-chart__canvas" style={{ top: 0, left: 0, width: columnWidth, height: plotBoundedHeight }} />
         <SidePaneHeaders
           side={side}

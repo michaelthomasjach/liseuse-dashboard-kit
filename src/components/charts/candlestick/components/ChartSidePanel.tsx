@@ -37,7 +37,13 @@ export function ChartSidePanel({ children, panelRef, widthPx, startResize, fulls
       // dragged-to width from a previous desktop session must not leak into that.
       style={fullscreen ? undefined : widthPx !== null ? { flex: `0 0 ${widthPx}px` } : { flexBasis: SIDE_PANEL_DEFAULT_WIDTH_FRACTION }}
     >
-      {!fullscreen && <div className="lq-chart__side-panel-resize-handle" onPointerDown={startResize} />}
+      {/* The grip inside it, not beside it: the handle is the hit strip, the grip is what says the
+          strip is there. Same span every pane divider uses, turned vertical for a vertical line. */}
+      {!fullscreen && (
+        <div className="lq-chart__side-panel-resize-handle" onPointerDown={startResize}>
+          <span className="lq-chart__pane-resize-grip lq-chart__pane-resize-grip--vertical" aria-hidden="true" />
+        </div>
+      )}
       <div className="lq-chart__side-panel-content">{children}</div>
     </div>
   );

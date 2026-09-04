@@ -10,7 +10,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Modal } from "../../../primitives/Modal";
 import { Tabs } from "../../../primitives/Tabs";
 import { TextField } from "../../../forms/TextField";
-import { SearchIcon, SettingsIcon, TrashIcon, InfoIcon, OverlayBadgeIcon, PaneBadgeIcon, CheckIcon, CodeIcon } from "../../../icons";
+import { SearchIcon, SettingsIcon, TrashIcon, InfoIcon, OverlayBadgeIcon, PaneBadgeIcon, CheckIcon, CodeIcon, EyeOffIcon } from "../../../icons";
 import type { TrendLineDrawing } from "../interfaces/TrendLineDrawing.interface";
 import type { Indicator } from "../interfaces/Indicator.interface";
 import type { IndicatorKind } from "../interfaces/IndicatorKind.interface";
@@ -450,6 +450,18 @@ export function IndicatorModals({
                               title={option.enabled === undefined ? undefined : option.enabled ? "Désactiver ce script" : "Activer ce script"}
                             >
                               <span className="lq-chart__indicator-picker-name">{option.label}</span>
+                              {/* A dimmed row on its own says nothing about *why* it is dimmed —
+                                  the same eye-off the editor's own script tabs use for this exact
+                                  state names it, and the tooltip says what clicking will do. */}
+                              {option.enabled === false && (
+                                <span
+                                  className="lq-chart__indicators-manager-badge"
+                                  title="Script désactivé — cliquez pour l'activer"
+                                  aria-label="Script désactivé"
+                                >
+                                  <EyeOffIcon size={13} />
+                                </span>
+                              )}
                               {option.alreadyPresent && (
                                 <span className="lq-chart__indicator-picker-check" title="Déjà affiché sur ce graphique">
                                   <CheckIcon size={13} />

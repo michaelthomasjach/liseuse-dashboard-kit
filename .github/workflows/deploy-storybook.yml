@@ -1,4 +1,4 @@
-name: Deploy Storybook to Pages
+name: Deploy Storybook and app to Pages
 
 on:
   push:
@@ -31,6 +31,12 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - run: npm run build-storybook
+
+      # The standalone chart app, published under /app of the same Pages site. One artifact, one
+      # deploy, one URL to remember — and it is rebuilt on the same push, so the installed PWA and
+      # the Storybook can never drift apart.
+      - run: npm run build-app
+      - run: mv app-dist storybook-static/app
 
       - uses: actions/configure-pages@v5
 

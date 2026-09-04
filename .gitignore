@@ -8,3 +8,6 @@ debug-storybook.log
 
 # Never commit a real GitHub Packages token
 .npmrc.local
+
+# Standalone app build output (see vite.config.app.ts) — published by CI, never committed.
+app-dist

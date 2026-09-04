@@ -1,0 +1,44 @@
+/* The app is the chart and nothing else — no page chrome, no margins, no scroll of its own. The
+   workspace already fills 100vh (see its own `fillHeight`), and an installed PWA has no browser UI
+   to leave room for. */
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+.app-root {
+  height: 100%;
+  background-color: var(--lq-color-bg);
+}
+
+/* Storybook's palette/surface toolbar, reduced to two words in a corner. Deliberately tiny and
+   half-faded until touched: it is a testing convenience on top of the thing being tested, and it
+   sits over a chart that wants every pixel. */
+.app-theme-switch {
+  position: fixed;
+  right: 4px;
+  bottom: 4px;
+  z-index: 100;
+  display: flex;
+  gap: 4px;
+  opacity: 0.35;
+}
+
+.app-theme-switch:hover,
+.app-theme-switch:active {
+  opacity: 1;
+}
+
+.app-theme-switch button {
+  padding: 2px 6px;
+  font-family: inherit;
+  font-size: 0.6rem;
+  color: var(--lq-color-text-muted);
+  background-color: var(--lq-color-panel);
+  border: 1px solid var(--lq-color-border-subtle);
+  border-radius: var(--lq-radius-sm);
+  cursor: pointer;
+}

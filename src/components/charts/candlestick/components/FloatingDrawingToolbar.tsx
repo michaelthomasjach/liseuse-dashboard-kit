@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import type { RefObject } from "react";
 import { Popover } from "../../../forms/Popover";
-import { GripIcon, PencilIcon, TextIcon, HorizontalLineIcon, BellIcon } from "../../../icons";
+import { GripIcon, PencilIcon, TextIcon, HorizontalLineIcon, BellIcon, TrashIcon } from "../../../icons";
 
 const STROKE_WIDTH_OPTIONS = [1, 2, 3, 4];
 
@@ -23,6 +23,10 @@ export interface FloatingDrawingToolbarProps {
    *  the bell in its active state (see `.lq-chart__icon-button--active`) so it's clear at a
    *  glance the moment a drawing carrying one is selected, not just while hovering the bell. */
   hasAlert: boolean;
+  /** Removes the selected drawing. Absent while the toolbar is up for an *armed tool* rather than
+   *  a selected drawing — there is nothing to delete yet, and a trash button that did nothing
+   *  would be worse than none — so the button renders only when this is passed. */
+  onDelete?: () => void;
 }
 
 /** The small floating, draggable toolbar that appears the moment a drawing tool becomes active or
@@ -44,6 +48,7 @@ export function FloatingDrawingToolbar({
   onStrokeWidthChange,
   onOpenAlert,
   hasAlert,
+  onDelete,
 }: FloatingDrawingToolbarProps) {
   const [strokeMenuOpen, setStrokeMenuOpen] = useState(false);
   const strokeButtonRef = useRef<HTMLButtonElement>(null);
@@ -125,6 +130,18 @@ export function FloatingDrawingToolbar({
       >
         <BellIcon size={14} />
       </button>
+      {/* Last, and after its own divider: destructive, so kept apart from the styling controls it
+          would otherwise sit among, and at the far end where a thumb reaching for the bell won't
+          land on it by a few pixels. Same action the Delete key already performs on a hovered
+          drawing — this is that action for a finger, which has no Delete key. */}
+      {onDelete && (
+        <>
+          <span className="lq-chart__floating-toolbar-divider" aria-hidden="true" />
+          <button type="button" className="lq-chart__icon-button" onClick={onDelete} aria-label="Supprimer ce dessin" title="Supprimer ce dessin">
+            <TrashIcon size={14} />
+          </button>
+        </>
+      )}
     </div>
   );
 }

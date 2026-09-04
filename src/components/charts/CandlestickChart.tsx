@@ -1139,6 +1139,18 @@ export function CandlestickChart({
             onTextColorChange={(textColor) => updateDrawingOrDefaultStyle({ textColor })}
             onStrokeWidthChange={(strokeWidth) => updateDrawingOrDefaultStyle({ strokeWidth })}
             onOpenAlert={() => alertFlow.openFor(alertTarget)} hasAlert={alertFlow.selectedDrawingHasAlert}
+            // Only with a drawing actually selected — the toolbar also shows for an armed tool
+            // with nothing drawn yet, where there is nothing to delete. Same commit path the
+            // Delete key takes (see useDrawingState), and the selection is cleared with it so the
+            // toolbar doesn't linger over a drawing that no longer exists.
+            onDelete={
+              selectedDrawingId !== null
+                ? () => {
+                    commitDrawings(drawings.filter((d) => d.id !== selectedDrawingId));
+                    setSelectedDrawingId(null);
+                  }
+                : undefined
+            }
           />
         )}
       </div>

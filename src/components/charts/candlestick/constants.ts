@@ -23,19 +23,24 @@ export const TOOLS_RAIL_HEIGHT_MOBILE = 44;
  *  was a fifth of the whole width spent on four or five digits, taken straight out of the candles.
  *  Still comfortably wider than a "1 234.56" label at the axis' own font size. */
 export const PRICE_AXIS_WIDTH_MOBILE = 44;
-/** Width (px) below which the whole touch layout engages: the drawing-tools rail flips from a
- *  left-docked column to a bottom-docked scrollable row, the price axis narrows, a script's docked
- *  panes open folded, the legend stacks its quote, drawing points are placed by tap-and-nudge, and
- *  the workspace becomes two pages behind a bottom nav.
+/** Viewport width (px) below which the whole touch layout engages: the drawing-tools rail flips
+ *  from a left-docked column to a bottom-docked scrollable row, the price axis narrows, a script's
+ *  docked panes open folded, the legend stacks its quote, drawing points are placed by
+ *  tap-and-nudge, and the workspace becomes two pages behind a bottom nav.
  *
- *  1200, not a phone's width, because the layout is wanted on tablets and on a folding phone with
- *  the screen open — an unfolded fold reports around 840 CSS px, a tablet 768 in portrait and 1024
- *  in landscape, and all three want the same finger-first treatment a phone gets. The cost is
- *  accepted deliberately: a desktop chart in a narrow embedding (one panel of a split-screen
- *  workspace, say) crosses it too and gets the same layout. That has always been the rule here —
- *  the measurement is the chart's own wrapper (see useChartDimensions), never the window, so a
- *  narrow embedding is treated as what it is, a narrow chart. */
-export const MOBILE_LAYOUT_BREAKPOINT = 1200;
+ *  A *screen* width, read from the window (see useViewportWidth), not the chart's own box. The
+ *  layout is a property of the device in hand — the same phone wants the same layout whether the
+ *  chart fills it or shares it with a watchlist panel — and a box measurement could not say that:
+ *  on a desktop it flipped the rail at ~1900px of screen, because the box behind a panel and two
+ *  rails crossed the old 1200 there. 1500 is where the flip is wanted; it still takes in every
+ *  tablet and an unfolded fold with room to spare. A chart squeezed into a genuinely narrow box on
+ *  a wide screen is handled separately — see NARROW_EMBED_BREAKPOINT. */
+export const MOBILE_LAYOUT_BREAKPOINT = 1500;
+/** The one case where the chart's own box still decides: narrower than this, a left-docked tools
+ *  rail can't stack its buttons beside anything worth drawing on, whatever the screen is — one
+ *  panel of a four-way split on a large monitor, say. Below it the touch layout engages on that
+ *  chart alone. */
+export const NARROW_EMBED_BREAKPOINT = 640;
 /** Distance (px) the date "+" button sits inset from the plot's own bottom edge — close to the
  *  date axis it mirrors (but clear of the date label's own badge just below the plot), and
  *  still inside the interactive rect so hovering it never counts as leaving the plot (see

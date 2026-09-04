@@ -1,6 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import * as d3 from "d3";
 import { useChartDimensions } from "./internal/useChartDimensions";
+import { useViewportWidth } from "./internal/useViewportWidth";
 import type { ChartMargin, ChartDimensions } from "./internal/useChartDimensions";
 import { useFullscreen } from "./internal/useFullscreen";
 import { useSymbolSearchState } from "./candlestick/hooks/useSymbolSearchState";
@@ -80,6 +81,7 @@ import {
   TOOLS_RAIL_HEIGHT_MOBILE,
   PRICE_AXIS_WIDTH_MOBILE,
   MOBILE_LAYOUT_BREAKPOINT,
+  NARROW_EMBED_BREAKPOINT,
   SUB_PANE_COLLAPSED_HEIGHT,
 } from "./candlestick/constants";
 import { formatPercentFromReference, computeOhlcReadout, toDayInputValue, candleIndexForDay } from "./candlestick/formatting";
@@ -279,8 +281,15 @@ export function CandlestickChart({
   // else in this component's state cluster is about layout, and this reads as one line with the
   // rule it replaces.
   const [layoutOverride, setLayoutOverride] = useState<"mobile" | "desktop" | null>(null);
+  // Two separate questions, either of which engages the touch layout — see the two constants'
+  // own docs: is the *screen* a phone/tablet (the window's width), or is this particular chart's
+  // box too narrow for a left-docked rail regardless of the screen (one panel of a wide split).
+  // Both read as "not yet measured" at 0 rather than as "narrow".
+  const viewportWidth = useViewportWidth();
   const isNarrowLayout =
-    layoutOverride === null ? rawDims.width > 0 && rawDims.width < MOBILE_LAYOUT_BREAKPOINT : layoutOverride === "mobile";
+    layoutOverride === null
+      ? (viewportWidth > 0 && viewportWidth < MOBILE_LAYOUT_BREAKPOINT) || (rawDims.width > 0 && rawDims.width < NARROW_EMBED_BREAKPOINT)
+      : layoutOverride === "mobile";
   const isMobileRail = drawingTools && isNarrowLayout;
   // Clamped, never widened — a caller that already asked for a narrower gutter than this keeps it.
   const narrowAxisRight = Math.min(rawDims.margin.right, PRICE_AXIS_WIDTH_MOBILE);

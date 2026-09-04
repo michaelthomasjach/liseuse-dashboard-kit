@@ -29,6 +29,7 @@ import { WatchlistIcon, BellIcon, PlusIcon, CandleModeIcon, GridIcon, MaximizeIc
 import { useFullscreen } from "./internal/useFullscreen";
 import { useChartDimensions } from "./internal/useChartDimensions";
 import { MOBILE_LAYOUT_BREAKPOINT } from "./candlestick/constants";
+import { useViewportWidth } from "./internal/useViewportWidth";
 import "./ChartWorkspace.css";
 
 // Item 21 — one entry per global feature the rail's own "?" button explains, in the order they
@@ -386,8 +387,12 @@ export function ChartWorkspace({
   // for a single chart's own drawing-tools rail, just at the whole-workspace level instead: below
   // this width, the side rail (watchlist/alerts/scripting/split-screen/fullscreen icons) is
   // replaced by a second, scrollable topbar — see isMobileWorkspace's own usages below.
-  const [workspaceRef, workspaceDims] = useChartDimensions();
-  const isMobileWorkspace = workspaceDims.width > 0 && workspaceDims.width < MOBILE_LAYOUT_BREAKPOINT;
+  const [workspaceRef] = useChartDimensions();
+  // The window's width, not the workspace's own box — the touch layout is a property of the
+  // screen in hand (see MOBILE_LAYOUT_BREAKPOINT's own doc). The wrapper is still measured for its
+  // ref alone; nothing here reads its size any more.
+  const viewportWidth = useViewportWidth();
+  const isMobileWorkspace = viewportWidth > 0 && viewportWidth < MOBILE_LAYOUT_BREAKPOINT;
   // The panel starts closed on mobile, where it covers the whole content area (see ChartSidePanel's
   // own `fullscreen`) — opening onto a symbol list with the charts hidden behind it is the wrong
   // first impression of a charting workspace. Deliberately once, on the first real measurement,
@@ -398,11 +403,11 @@ export function ChartWorkspace({
   // `onSidePanelOpenChange`, and reaching outside the component is not something render may do.
   const mobileDefaultAppliedRef = useRef(false);
   useEffect(() => {
-    if (mobileDefaultAppliedRef.current || workspaceDims.width <= 0) return;
+    if (mobileDefaultAppliedRef.current || viewportWidth <= 0) return;
     mobileDefaultAppliedRef.current = true;
-    if (workspaceDims.width < MOBILE_LAYOUT_BREAKPOINT) sidePanelState.commitOpen(false);
+    if (viewportWidth < MOBILE_LAYOUT_BREAKPOINT) sidePanelState.commitOpen(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [workspaceDims.width]);
+  }, [viewportWidth]);
   const hasWatchlists = !!watchlists && watchlists.length > 0;
   const hasAlerts = alerts !== undefined;
   const [activeTab, setActiveTab] = useState<ChartWorkspaceSidePanelTab>(defaultSidePanelTab ?? (hasWatchlists ? "watchlist" : "alerts"));

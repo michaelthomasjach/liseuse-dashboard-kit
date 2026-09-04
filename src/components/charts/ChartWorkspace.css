@@ -151,7 +151,7 @@
    collapse; gridTemplateRows (see ChartWorkspace.tsx, set inline whenever fillHeight) is
    untouched, so a 2-row layout (4/6/8 panels) still gets its own 100vh split, now stacked
    1-per-row-share top to bottom instead of 2-per-row-share side by side. */
-@media (max-width: 1200px) {
+@media (max-width: 1500px) {
   .lq-chart-workspace__grid {
     grid-template-columns: 1fr;
     /* One explicit row per *panel* (not the original `rows`, always ≤2 — see
@@ -742,6 +742,32 @@
    plain :hover it's layered on top of. */
 .lq-chart-workspace__watchlist-row--pressed {
   background-color: color-mix(in srgb, var(--lq-color-accent) 18%, var(--lq-color-hover));
+}
+
+/* On touch, `--pressed` only arrives once the one-second hold has elapsed (see
+   useWatchlistRowDrag's own `holdMs`), so its appearance *is* the "you can move this now" moment.
+   A colour change alone is easy to miss on a screen a hand is covering, so the row also gives a
+   single short nudge — motion is the one cue a finger resting on the row cannot hide. One
+   iteration, not a loop: it announces a state change, it doesn't decorate the state. The lift is
+   left to `--dragging`, which is a different moment.
+   Desktop is deliberately excluded: there `--pressed` fires on pointerdown, before any hold, and
+   every ordinary click would twitch. */
+@media (prefers-reduced-motion: no-preference) {
+  .lq-chart-workspace--mobile .lq-chart-workspace__watchlist-row--pressed {
+    animation: lq-watchlist-row-armed 220ms ease-out;
+  }
+}
+
+@keyframes lq-watchlist-row-armed {
+  0% {
+    transform: translateX(0);
+  }
+  40% {
+    transform: translateX(4px);
+  }
+  100% {
+    transform: translateX(0);
+  }
 }
 
 /* Past the drag threshold (see useWatchlistRowDrag's own `draggingRowId`) — a "lifted card" look

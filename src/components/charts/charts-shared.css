@@ -2794,7 +2794,7 @@
    search box and its filters on top, the catalog filling the rest. A media query rather than the
    `--mobile` class the workspace uses — a Modal portals to document.body, so no ancestor of this
    subtree carries that class. Same 700px breakpoint as the workspace grid's own collapse. */
-@media (max-width: 1200px) {
+@media (max-width: 1500px) {
   .lq-chart__modal-split--stack-mobile {
     flex-direction: column;
   }

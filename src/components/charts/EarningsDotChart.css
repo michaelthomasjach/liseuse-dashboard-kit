@@ -25,3 +25,70 @@
   fill: var(--lq-color-accent);
   stroke: none;
 }
+
+/* The chart plus its readout, as one block. */
+.lq-earnings-dot-chart-wrapper {
+  display: flex;
+  flex-direction: column;
+}
+
+/* The per-quarter click target — the full column height, transparent, drawn under the marks it
+   selects. Two 4px dots are not a target on a phone; a column is. */
+.lq-earnings-dot-chart__hit {
+  fill: transparent;
+}
+
+.lq-earnings-dot-chart__quarter {
+  cursor: pointer;
+}
+
+/* The selected quarter's own column line — the same dashed, muted treatment the chart's crosshair
+   uses elsewhere, so "this is the one being read" says the same thing here as there. */
+.lq-earnings-dot-chart__marker {
+  stroke: var(--lq-color-text-muted);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+.lq-earnings-dot-chart__quarter--selected .lq-earnings-dot-chart__date-label {
+  fill: var(--lq-color-text);
+  font-weight: 700;
+}
+
+/* Height is reserved whether or not a quarter is selected, so picking one never shifts the
+   sections below it. */
+.lq-earnings-dot-chart__readout {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--lq-space-2);
+  min-height: 18px;
+  padding-top: var(--lq-space-1);
+  font-size: 0.68rem;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-earnings-dot-chart__readout-date {
+  font-weight: 700;
+  color: var(--lq-color-text);
+}
+
+.lq-earnings-dot-chart__readout strong {
+  color: var(--lq-color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.lq-earnings-dot-chart__readout-hint {
+  font-style: italic;
+  opacity: 0.75;
+}
+
+.lq-earnings-dot-chart__surprise--up {
+  color: var(--lq-color-up);
+  font-weight: 700;
+}
+
+.lq-earnings-dot-chart__surprise--down {
+  color: var(--lq-color-down);
+  font-weight: 700;
+}

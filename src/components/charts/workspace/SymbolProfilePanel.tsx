@@ -5,6 +5,7 @@ import { EarningsDotChart } from "../EarningsDotChart";
 import { LineAreaChart } from "../LineAreaChart";
 import type { ChartPoint } from "../LineAreaChart";
 import { MaximizeIcon } from "../../icons";
+import { Modal } from "../../primitives/Modal";
 import { PRICE_AXIS_WIDTH_MOBILE } from "../candlestick/constants";
 import type { Candle } from "../candlestick/interfaces/Candle.interface";
 import type { SymbolProfile } from "./SymbolProfile.interface";
@@ -72,6 +73,7 @@ export interface SymbolProfilePanelProps {
  *  nothing or a wall of placeholders. */
 export function SymbolProfilePanel({ symbol, price, change, changePercent, profile, onMoreNews, priceHistory, onOpenInChart }: SymbolProfilePanelProps) {
   const [priceRange, setPriceRange] = useState(DEFAULT_PRICE_RANGE);
+  const [earningsModalOpen, setEarningsModalOpen] = useState(false);
   // Every range resolved at once rather than just the selected one — the buttons need to know
   // which of them have anything to show (a daily-candle history has exactly one point in "1D",
   // which is a flat nothing, not a curve), and there are seven cheap filters over one array here,
@@ -296,9 +298,31 @@ export function SymbolProfilePanel({ symbol, price, change, changePercent, profi
             {profile.keyStats?.nextEarningsInDays !== undefined && (
               <span className="lq-chart-workspace__symbol-profile-earnings-badge">{profile.keyStats.nextEarningsInDays}</span>
             )}
+            {/* Pushed to the header's trailing edge by its own auto margin. Eight quarters in a
+                120px-tall drawing inside a narrow panel is readable but not comparable; the modal
+                is the same component with room to breathe, which is why it takes a `scale` rather
+                than just a bigger box — at three times the height, 4px dots would disappear. */}
+            <button
+              type="button"
+              className="lq-chart-workspace__symbol-profile-earnings-expand"
+              onClick={() => setEarningsModalOpen(true)}
+              aria-label="Agrandir les résultats"
+              title="Agrandir les résultats"
+            >
+              <MaximizeIcon size={13} />
+            </button>
           </div>
           <EarningsDotChart points={profile.earnings} />
         </div>
+      )}
+
+      {/* Rendered from this panel rather than from the section above so it survives the section's
+          own conditional — and `size="wide"` because the point is horizontal room: eight quarters
+          need width far more than height before they can be compared by eye. */}
+      {profile?.earnings && profile.earnings.length > 0 && (
+        <Modal open={earningsModalOpen} onClose={() => setEarningsModalOpen(false)} title={`Résultats — ${symbol}`} size="wide">
+          <EarningsDotChart points={profile.earnings} width={760} height={420} scale={2} />
+        </Modal>
       )}
     </div>
   );

@@ -388,7 +388,12 @@
   flex: 0 0 auto;
   min-height: 0;
   overflow-y: auto;
-  padding-top: var(--lq-space-2);
+  /* The scroll container reaches the panel's own right edge — the negative margin cancels
+     `.lq-chart__side-panel-content`'s horizontal padding, and the same amount comes back as
+     padding inside. The scrollbar then rides that edge instead of floating an inset in from it,
+     while the content keeps exactly the reading margin it had. */
+  margin: 0 calc(-1 * var(--lq-space-3));
+  padding: var(--lq-space-2) var(--lq-space-3) 0;
 }
 
 .lq-chart-workspace__side-panel-header {
@@ -1488,4 +1493,25 @@
 .lq-chart-workspace__lock-hold-fill {
   height: 100%;
   background-color: var(--lq-color-accent);
+}
+
+/* The "expand" button in the Résultats header — pushed to the trailing edge, and styled as the
+   quiet icon it is rather than as a toolbar button: it sits inside a section title, not a toolbar,
+   and should not out-shout the heading it follows. */
+.lq-chart-workspace__symbol-profile-earnings-expand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  padding: 2px 4px;
+  color: var(--lq-color-text-muted);
+  background: none;
+  border: none;
+  border-radius: var(--lq-radius-sm);
+  cursor: pointer;
+}
+
+.lq-chart-workspace__symbol-profile-earnings-expand:hover {
+  color: var(--lq-color-text);
+  background-color: var(--lq-color-hover);
 }

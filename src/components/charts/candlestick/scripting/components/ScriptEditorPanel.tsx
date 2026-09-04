@@ -288,6 +288,8 @@ export function hello() {
       }
       updateScript(activeScript.id, {
         targetPanelIndex: panelChoices?.[0]?.index ?? 0,
+        // Same reason as `runScript`'s own: a disabled script has no Worker to hear this.
+        enabled: true,
         runRequestId: (activeScript.runRequestId ?? 0) + 1,
         runDraftCode: code,
         runDraftFiles: draftFiles,
@@ -307,6 +309,7 @@ export function hello() {
     if (!activeScript) return;
     updateScript(activeScript.id, {
       targetPanelIndex: index,
+      enabled: true,
       runRequestId: (activeScript.runRequestId ?? 0) + 1,
       runDraftCode: pendingRunCodeRef.current ?? draft,
       runDraftFiles: draftFiles,

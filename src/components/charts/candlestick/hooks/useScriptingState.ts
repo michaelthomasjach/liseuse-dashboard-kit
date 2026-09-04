@@ -109,9 +109,16 @@ export function useScriptingState({ defaultScripts, onScriptsChange, controlledE
   // The editor's own Run button — executes `code` (the editor's current draft buffer, which may
   // not be saved into the ScriptDef yet) rather than only ever being able to re-run whatever's
   // already committed. See this hook's own doc for why the trigger lives on the ScriptDef itself.
+  // `enabled: true` alongside the trigger, not as a separate call: only *enabled* scripts get a
+  // ScriptRunner (and therefore a Worker) mounted at all — see ScriptRunnerHost's own filter — so a
+  // run request on a disabled script would be heard by nobody and the button would silently do
+  // nothing at all. "Exécuter" means run it; a script the user asks to run is by definition one
+  // they want running.
   function runScript(id: string, code: string, files?: ScriptFile[]) {
     commitScripts(
-      scripts.map((s) => (s.id === id ? { ...s, runRequestId: (s.runRequestId ?? 0) + 1, runDraftCode: code, runDraftFiles: files } : s))
+      scripts.map((s) =>
+        s.id === id ? { ...s, enabled: true, runRequestId: (s.runRequestId ?? 0) + 1, runDraftCode: code, runDraftFiles: files } : s
+      )
     );
   }
 

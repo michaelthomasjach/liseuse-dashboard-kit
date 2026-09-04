@@ -135,6 +135,10 @@ export function WatchlistPanel({
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const { pressedRowId, draggingRowId, dropIndicator, startDrag } = useWatchlistRowDrag({
+    // A finger has to hold the row for a second before it can be dragged — see the hook's own
+    // `holdMs` doc: on a touch layout the first pixel of movement is a scroll, and a drag that
+    // starts on it hijacks the list. A mouse keeps the immediate desktop behaviour.
+    holdMs: mobile ? 1000 : 0,
     onMove: activeWatchlist
       ? ({ rowId, fromSectionId, toSectionId, toIndex }) => {
           // `toIndex` was computed against whatever order was actually *rendered* (see

@@ -14,6 +14,12 @@ export interface MoveWatchlistRowArgs {
 
 export interface UseWatchlistRowDragArgs {
   onMove: ((args: MoveWatchlistRowArgs) => void) | undefined;
+  /** How long the row has to be held before a drag can begin. `0` (the default, and the desktop
+   *  case) starts it on the first pixel of movement. On a touch layout that is exactly wrong: a
+   *  finger's first pixel of movement on a list is almost always the start of a *scroll*, and a
+   *  row that starts dragging under it steals the scroll and rearranges the list by accident.
+   *  Holding still first is the gesture every phone already uses to mean "pick this up". */
+  holdMs?: number;
 }
 
 /** Where the drop-indicator line should render, live-updated as the pointer moves — not yet
@@ -64,7 +70,7 @@ export function watchlistRowProps(rowId: string) {
  * `usePaneDragReorder`'s own geometry inputs do, so each call just owns its own gesture via
  * closure instead).
  */
-export function useWatchlistRowDrag({ onMove }: UseWatchlistRowDragArgs) {
+export function useWatchlistRowDrag({ onMove, holdMs = 0 }: UseWatchlistRowDragArgs) {
   const [pressedRowId, setPressedRowId] = useState<string | null>(null);
   const [draggingRowId, setDraggingRowId] = useState<string | null>(null);
   const [dropIndicator, setDropIndicator] = useState<WatchlistDropIndicator | null>(null);
@@ -74,7 +80,26 @@ export function useWatchlistRowDrag({ onMove }: UseWatchlistRowDragArgs) {
     const startY = e.clientY;
     let dragging = false;
     let indicator: WatchlistDropIndicator | null = null;
-    setPressedRowId(rowId);
+    // Until the hold elapses nothing is armed: no pressed state, no drag. Movement past the
+    // threshold in that window is a scroll and cancels the hold outright; a lift is a tap and does
+    // the same. Only a finger that stays put for `holdMs` picks the row up — from then on the
+    // gesture is exactly the desktop one.
+    let armed = holdMs <= 0;
+    let holdTimer = 0;
+    if (armed) setPressedRowId(rowId);
+    else {
+      holdTimer = window.setTimeout(() => {
+        holdTimer = 0;
+        armed = true;
+        setPressedRowId(rowId);
+      }, holdMs);
+    }
+    const cancelHold = () => {
+      if (holdTimer) {
+        window.clearTimeout(holdTimer);
+        holdTimer = 0;
+      }
+    };
 
     // Finds the zone under the pointer and, within it, exactly where `rowId` would land — the
     // first other row whose own vertical midpoint is still below the pointer, or the end of the
@@ -105,6 +130,15 @@ export function useWatchlistRowDrag({ onMove }: UseWatchlistRowDragArgs) {
     function onPointerMove(ev: PointerEvent) {
       if (!dragging) {
         if (Math.hypot(ev.clientX - startX, ev.clientY - startY) < DRAG_THRESHOLD) return;
+        if (!armed) {
+          // Moved before the hold elapsed: this is a scroll, not a pick-up. Stand down entirely
+          // and let the list scroll — the listeners come off so a later stillness can't arm it.
+          cancelHold();
+          window.removeEventListener("pointermove", onPointerMove);
+          window.removeEventListener("pointerup", onPointerUp);
+          window.removeEventListener("pointercancel", onPointerUp);
+          return;
+        }
         dragging = true;
         setDraggingRowId(rowId);
       }
@@ -112,6 +146,7 @@ export function useWatchlistRowDrag({ onMove }: UseWatchlistRowDragArgs) {
       setDropIndicator(indicator);
     }
     function onPointerUp() {
+      cancelHold();
       if (dragging && indicator) {
         onMove?.({ rowId, fromSectionId, toSectionId: indicator.sectionId, toIndex: indicator.index });
       }
@@ -120,9 +155,13 @@ export function useWatchlistRowDrag({ onMove }: UseWatchlistRowDragArgs) {
       setDropIndicator(null);
       window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("pointerup", onPointerUp);
+      window.removeEventListener("pointercancel", onPointerUp);
     }
     window.addEventListener("pointermove", onPointerMove);
     window.addEventListener("pointerup", onPointerUp);
+    // A touch the browser reclaims (it decided the gesture was a scroll after all) must end this
+    // the same way a lift does, or the hold timer fires into a gesture that no longer exists.
+    window.addEventListener("pointercancel", onPointerUp);
   }
 
   return { pressedRowId, draggingRowId, dropIndicator, startDrag };

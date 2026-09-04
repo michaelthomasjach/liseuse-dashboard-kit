@@ -640,6 +640,25 @@
   }
 }
 
+/* The touch layout has no hover to reveal the grip with, so it used to sit on every row, always,
+   painted over the symbol's own logo — thirty identical grips and no logos. Reversed: the logo is
+   what a row shows, and the grip appears only on the row a finger has actually picked up (held
+   for `holdMs`, see useWatchlistRowDrag), taking the logo's place for as long as it is held or
+   dragged. One mark per row, and the one that means something right now. */
+.lq-chart-workspace--mobile .lq-chart-workspace__watchlist-row-grip {
+  opacity: 0;
+}
+
+.lq-chart-workspace--mobile .lq-chart-workspace__watchlist-row--pressed .lq-chart-workspace__watchlist-row-grip,
+.lq-chart-workspace--mobile .lq-chart-workspace__watchlist-row--dragging .lq-chart-workspace__watchlist-row-grip {
+  opacity: 1;
+}
+
+.lq-chart-workspace--mobile .lq-chart-workspace__watchlist-row--pressed .lq-chart-workspace__watchlist-logo,
+.lq-chart-workspace--mobile .lq-chart-workspace__watchlist-row--dragging .lq-chart-workspace__watchlist-logo {
+  visibility: hidden;
+}
+
 /* The header row's own inert stand-ins for the two things a real row has and it doesn't: the
    delete button at the end, and the logo at the start. Both `visibility: hidden` rather than
    `display: none`, which would collapse the space they exist to reserve.

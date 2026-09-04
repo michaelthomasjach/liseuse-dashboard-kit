@@ -20,11 +20,9 @@ import {
   CheckIcon,
 } from "../../../../icons";
 import type { Candle } from "../../interfaces/Candle.interface";
-import type { Indicator } from "../../interfaces/Indicator.interface";
 import type { ScriptDef } from "../../interfaces/ScriptDef.interface";
 import type { ScriptRunOutput } from "../interfaces/ScriptRunOutput.interface";
 import { isCellInstrumentationLog } from "../scriptCellSentinels";
-import { AvailableIndicatorsList } from "./AvailableIndicatorsList";
 import { ScriptErrorPanel } from "./ScriptErrorPanel";
 import { ScriptDocumentationModal } from "./ScriptDocumentationModal";
 import type { ScriptEditorCodeMirrorHandle } from "./ScriptEditorCodeMirror";
@@ -51,7 +49,6 @@ export interface ScriptEditorPanelProps {
   setScriptParamValue: (id: string, name: string, value: ScriptParamValue) => void;
   resetScriptParamValues: (id: string) => void;
   runOutputs: Record<string, ScriptRunOutput>;
-  indicators: Indicator[];
   /** Present only when this editor is shared across more than one chart (`ChartWorkspace`) — one
    *  entry per candidate target panel for "Exécuter". `undefined`/a single entry for a standalone
    *  chart, where there's only ever one implicit target and no picker is ever shown — exigence
@@ -97,7 +94,6 @@ export function ScriptEditorPanel({
   setScriptParamValue,
   resetScriptParamValues,
   runOutputs,
-  indicators,
   panelChoices,
   previewData,
 }: ScriptEditorPanelProps) {
@@ -476,7 +472,6 @@ export function ScriptEditorPanel({
                 onChange={(name, value) => setScriptParamValue(activeScript.id, name, value)}
               />
             </section>
-            <AvailableIndicatorsList indicators={indicators} />
           </div>
         </div>
       ) : (

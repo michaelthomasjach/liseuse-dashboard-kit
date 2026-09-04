@@ -917,6 +917,10 @@
      file). Holding to *unlock* therefore fades further from 0.55, which is the same feedback the
      lock direction gives from 1. */
   --lq-grid-rest-opacity: 0.55;
+  /* Holding here *un*locks, so the fade runs the other way: the grid brightens back toward full as
+     the hold completes. Each direction moves toward the state it is about to become, which is the
+     feedback — not "something is happening" but "this is what you are about to get". */
+  --lq-lock-hold-direction: 1;
 }
 
 /* The actual lock: a plain, otherwise-invisible div painted above every panel (z-index comfortably
@@ -1444,7 +1448,7 @@
    *unlock* hold read as the workspace coming back rather than fading further. No transition: the
    value is already updated per animation frame, and easing it would only lag the finger. */
 .lq-chart-workspace__grid {
-  opacity: calc(var(--lq-grid-rest-opacity, 1) - 0.45 * var(--lq-lock-hold, 0));
+  opacity: calc(var(--lq-grid-rest-opacity, 1) + var(--lq-lock-hold-direction, -1) * 0.45 * var(--lq-lock-hold, 0));
 }
 
 /* Centred on the grid, above the lock overlay, and inert — it reports a gesture already in

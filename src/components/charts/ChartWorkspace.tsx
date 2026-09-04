@@ -1318,11 +1318,6 @@ export function ChartWorkspace({
           runScript={workspaceScripting.runScript}
           stopScript={workspaceScripting.stopScript}
           runOutputs={workspaceScripting.runOutputs}
-          // ChartWorkspace has no visibility into any one panel's own indicator state (each
-          // CandlestickChart owns that internally, never reported upward — the same reason
-          // resolvedSymbol/data itself can't be read from here either) — "Indicateurs disponibles"
-          // is honestly empty at this level rather than showing a wrong/stale list.
-          indicators={[]}
           panelChoices={scriptPanelChoices}
         />
       )}

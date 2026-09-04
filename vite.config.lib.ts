@@ -46,6 +46,16 @@ export default defineConfig({
         },
         assetFileNames: (assetInfo) =>
           assetInfo.name?.endsWith(".css") ? "style.css" : (assetInfo.name ?? "asset"),
+        // Deterministic chunk names — no content hash. Hashed names are what a *site* wants (a new
+        // name per deploy is how a CDN cache is busted); a published package has no cache to bust,
+        // and every build minting fresh names meant `dist/` only ever grew. `emptyOutDir` was
+        // supposed to prevent that and silently does nothing here — this repo sits in a
+        // OneDrive-synced folder and the delete is refused, with Node's `rmSync` reporting success
+        // regardless. The result was 343 files and 618 MB in `dist/`, which `files: ["dist"]`
+        // packed whole into a 197 MB published tarball (v0.67.0). With fixed names each build
+        // overwrites the previous one and the problem cannot recur, whether or not any clean step
+        // works.
+        chunkFileNames: "[name].js",
       },
     },
     cssCodeSplit: false,

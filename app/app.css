@@ -14,31 +14,33 @@ body,
   background-color: var(--lq-color-bg);
 }
 
-/* Storybook's palette/surface toolbar, reduced to two words in a corner. Deliberately tiny and
-   half-faded until touched: it is a testing convenience on top of the thing being tested, and it
-   sits over a chart that wants every pixel. */
-.app-theme-switch {
+/* The story renders inside `<div style={{ margin: -32 }}>`, whose only job is to cancel the 32px
+   padding Storybook's own preview decorator adds around every story. There is no such padding
+   here, so that margin instead pulled the workspace 32px up and left — which put the chart's
+   header above the top of the window and the workspace's side rail past its right edge, both then
+   clipped by the `overflow: hidden` above. `!important` because the margin is an inline style and
+   nothing else can outrank one; reproducing the 32px padding instead would have worked too, but
+   the workspace sizes itself to the viewport and would then have overflowed by exactly that much. */
+.app-root > * {
+  margin: 0 !important;
+}
+
+/* Only ever on screen while the browser has an install to offer (see InstallButton) — and it must
+   sit outside the `margin: 0 !important` rule's reach, hence `position: fixed` rather than being a
+   flow child of the root. Bottom-left, away from the mobile page switcher on the right. */
+.app-install {
   position: fixed;
-  right: 4px;
-  bottom: 4px;
-  z-index: 100;
-  display: flex;
-  gap: 4px;
-  opacity: 0.35;
-}
-
-.app-theme-switch:hover,
-.app-theme-switch:active {
-  opacity: 1;
-}
-
-.app-theme-switch button {
-  padding: 2px 6px;
+  left: 8px;
+  bottom: 8px;
+  z-index: 200;
+  padding: 6px 12px;
   font-family: inherit;
-  font-size: 0.6rem;
-  color: var(--lq-color-text-muted);
-  background-color: var(--lq-color-panel);
-  border: 1px solid var(--lq-color-border-subtle);
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--lq-color-accent-contrast);
+  background-color: var(--lq-color-accent);
+  border: none;
   border-radius: var(--lq-radius-sm);
+  box-shadow: var(--lq-shadow-modal);
   cursor: pointer;
 }

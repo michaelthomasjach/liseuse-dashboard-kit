@@ -228,7 +228,7 @@ export function ScriptDocumentationModal({ open, onClose }: ScriptDocumentationM
               {/* "keywords"/"tutorial"/"examples" are each a whole-section override — none of the
                   three owns real `blocks` (see scriptApiReference.ts's own doc on each entry): a
                   searchable index with its own pin state, a live-editable walkthrough with its own
-                  running script engine, and seven independently-runnable example scripts each with
+                  running script engine, and eight independently-runnable example scripts each with
                   their own — plain data has no way to express any of the three. Every other
                   section renders its blocks normally below. */}
               {section.id === "keywords" && (

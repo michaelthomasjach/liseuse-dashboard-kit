@@ -740,10 +740,10 @@ ta.adx(high, low, close, period?)
     // Whole-section override — see ScriptDocumentationModal.tsx's own doc on "tutorial"/
     // "keywords" for the same pattern: plain data (scriptExamples.ts's own SCRIPT_EXAMPLES) drives
     // a dedicated component (ScriptExamplesSection.tsx) instead of these `blocks`, so each of the
-    // seven examples gets a real "Exécuter" button and a live chart underneath instead of just
+    // eight examples gets a real "Exécuter" button and a live chart underneath instead of just
     // syntax-highlighted text (exigence : « je veux pouvoir exécuter les scripts d'exemples »).
     // scriptDocsNav.ts derives this section's own sub-nav from SCRIPT_EXAMPLES directly (not from
-    // `blocks`, which is empty here) so the seven example titles still work as nav sub-items.
+    // `blocks`, which is empty here) so the eight example titles still work as nav sub-items.
     blocks: [],
   },
 ];

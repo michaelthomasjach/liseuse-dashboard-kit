@@ -173,6 +173,19 @@ if (bar.isNew() && lowerChannel !== null && price <= lowerChannel) {
 }`,
   },
   {
+    id: "docked-pane-skeleton",
+    title: "Pane ancrée à droite (squelette)",
+    description:
+      "Le plus petit script qui produise une pane ancrée sur le côté : une pane nommée, `dock: \"right\"`, et une série à tracer dedans. Aucune logique — c'est le point de départ à copier quand on veut sa propre colonne latérale, pas un indicateur. Une pane ancrée occupe sa propre colonne à droite du graphique, redimensionnable par son bord, et s'ouvre repliée sur la mise en page tactile (une colonne de 220 px sur un téléphone ne laisserait rien aux bougies). `dock: \"left\"` fait la même chose de l'autre côté ; sans `dock`, la pane s'empile sous le prix comme n'importe quel indicateur :",
+    code: `// La pane est créée par son nom au premier appel, puis retrouvée par ce même nom à chaque bougie
+// — "le dernier appel gagne" pour chaque série qu'elle contient.
+const droite = plot.pane("Ma pane", { dock: "right" });
+
+// Une pane vide ne s'affiche pas : il lui faut au moins une série. Le prix de clôture fait un
+// contenu de remplacement honnête, à remplacer par ce que vous voulez vraiment y voir.
+droite.line("Clôture", market.close(0) ?? 0);`,
+  },
+  {
     id: "kde-support-resistance",
     title: "Niveaux de support/résistance (KDE gaussienne)",
     description:

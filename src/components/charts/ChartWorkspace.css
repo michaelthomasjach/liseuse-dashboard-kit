@@ -1421,15 +1421,15 @@
   font-size: 0.56rem;
 }
 
-/* Both of the symbol page's small SVGs are drawn at a fixed 260px (EarningsDotChart's own `width`
-   default, and the Sparkline the seasonality section asks for) — a sensible size beside a desktop
-   panel, but on a phone it leaves them floating short of the content column every other block on
-   the page lines up on. Both carry a `viewBox`, so a plain `width: 100%` scales them to fill it
-   with the aspect ratio intact; `height: auto` is what lets the height follow instead of staying
-   pinned to the attribute. Scoped to the mobile workspace — the desktop split still wants the
-   fixed size, where the panel is narrow and the drawing would otherwise stretch oddly wide. */
-.lq-chart-workspace--mobile .lq-earnings-dot-chart,
-.lq-chart-workspace--mobile .lq-chart-workspace__symbol-profile-seasonality {
+/* Both of the symbol panel's small SVGs are drawn at a fixed 260px (EarningsDotChart's own `width`
+   default, and the Sparkline the seasonality section asks for), which left them floating short of
+   the content column every other block in the panel lines up on — on a phone and beside a desktop
+   panel alike. Both carry a `viewBox`, so a plain `width: 100%` scales them to fill it with the
+   aspect ratio intact; `height: auto` is what lets the height follow instead of staying pinned to
+   the attribute. Unscoped deliberately: the panel is a column of full-width blocks, and a drawing
+   that stops short of the others reads as broken rather than as restraint. */
+.lq-earnings-dot-chart,
+.lq-chart-workspace__symbol-profile-seasonality {
   width: 100%;
   height: auto;
 }

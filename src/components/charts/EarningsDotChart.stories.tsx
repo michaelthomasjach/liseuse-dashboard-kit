@@ -9,6 +9,11 @@ const meta: Meta<typeof EarningsDotChart> = {
 export default meta;
 type Story = StoryObj<typeof EarningsDotChart>;
 
+// Every story renders full width. The component's own CSS is `width: 100%` (it fills whatever
+// column it sits in), so `width`/`height` are really an aspect ratio rather than a size — hence a
+// wide, short viewBox here instead of the panel's near-square one, which at full width would draw
+// a chart as tall as the canvas.
+
 /** Eight quarters of a company that mostly beats its estimate — the ordinary case, and the one the
  *  symbol panel shows. The last point has an estimate but no actual: a quarter that hasn't reported
  *  yet, which is exactly why both fields are optional. */
@@ -35,10 +40,10 @@ const MISSES: SymbolProfileEarningsPoint[] = [
 ];
 
 export const Default: Story = {
-  name: "Par défaut (panneau symbole)",
+  name: "Par défaut",
   render: () => (
-    <div style={{ width: 300, padding: 16 }}>
-      <EarningsDotChart points={BEATS} />
+    <div style={{ padding: 16 }}>
+      <EarningsDotChart points={BEATS} width={1200} height={260} scale={1.6} />
     </div>
   ),
 };
@@ -46,12 +51,12 @@ export const Default: Story = {
 export const Interactive: Story = {
   name: "Sélection d'un trimestre",
   render: () => (
-    <div style={{ width: 340, padding: 16 }}>
+    <div style={{ padding: 16 }}>
       <p style={{ margin: "0 0 12px", fontSize: 13, opacity: 0.7 }}>
         Cliquez (ou touchez) une colonne pour lire l'estimé, le réalisé et l'écart entre les deux. Un second clic désélectionne. La cible est
         la colonne entière, pas le point : deux cercles de 4 px ne sont pas atteignables au doigt.
       </p>
-      <EarningsDotChart points={BEATS} />
+      <EarningsDotChart points={BEATS} width={1200} height={260} scale={1.6} />
     </div>
   ),
 };
@@ -64,7 +69,7 @@ export const Enlarged: Story = {
         Ce que le bouton d'agrandissement du panneau symbole ouvre. `scale` grossit les points et les libellés avec la boîte — sans lui, des
         cercles de 4 px disparaîtraient dans un dessin trois fois plus haut.
       </p>
-      <EarningsDotChart points={BEATS} width={760} height={420} scale={2} />
+      <EarningsDotChart points={BEATS} width={1200} height={480} scale={2.4} />
     </div>
   ),
 };
@@ -72,8 +77,8 @@ export const Enlarged: Story = {
 export const BelowZero: Story = {
   name: "Résultats manqués et trimestre en perte",
   render: () => (
-    <div style={{ width: 300, padding: 16 }}>
-      <EarningsDotChart points={MISSES} />
+    <div style={{ padding: 16 }}>
+      <EarningsDotChart points={MISSES} width={1200} height={260} scale={1.6} />
     </div>
   ),
 };
@@ -81,12 +86,12 @@ export const BelowZero: Story = {
 export const AwaitingResult: Story = {
   name: "Trimestre non publié",
   render: () => (
-    <div style={{ width: 300, padding: 16 }}>
+    <div style={{ padding: 16 }}>
       <p style={{ margin: "0 0 12px", fontSize: 13, opacity: 0.7 }}>
         Le dernier trimestre n'a qu'une estimation (cercle creux) : rien n'est encore publié. Sélectionnez-le — le réalisé s'affiche « — »
         plutôt que zéro, et aucun écart n'est calculé.
       </p>
-      <EarningsDotChart points={BEATS.slice(-3)} />
+      <EarningsDotChart points={BEATS.slice(-3)} width={1200} height={260} scale={1.6} />
     </div>
   ),
 };

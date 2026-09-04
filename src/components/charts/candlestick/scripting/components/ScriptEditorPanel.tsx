@@ -3,6 +3,7 @@ import type { ScriptParam, ScriptParamValue } from "../../interfaces/ScriptParam
 import { ScriptParamsFields } from "./ScriptParamsFields";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { ScriptEditorWindow } from "./ScriptEditorWindow";
+import { ScriptFileTabs } from "./ScriptFileTabs";
 import { Popover } from "../../../../forms/Popover";
 import { Modal } from "../../../../primitives/Modal";
 import { TextField } from "../../../../forms/TextField";
@@ -516,64 +517,20 @@ export function hello() {
       {activeScript ? (
         <div className="lq-script-editor-panel__body">
           <div className="lq-script-editor-panel__main">
-            {/* One row per script file. The entry is always first and can't be removed or renamed —
-                it is the file that runs, the others only exist because it imports them. */}
-            <div className="lq-script-editor-panel__files" role="tablist" aria-label="Fichiers du script">
-              <button
-                type="button"
-                role="tab"
-                aria-selected={activeFile === null}
-                className={["lq-script-editor-panel__file", activeFile === null && "lq-script-editor-panel__file--active"]
-                  .filter(Boolean)
-                  .join(" ")}
-                onClick={() => setActiveFile(null)}
-                title="Fichier principal — celui qui s'exécute"
-              >
-                Principal
-              </button>
-              {draftFiles.map((file) => (
-                <div
-                  key={file.name}
-                  role="tab"
-                  aria-selected={activeFile === file.name}
-                  tabIndex={-1}
-                  className={["lq-script-editor-panel__file", activeFile === file.name && "lq-script-editor-panel__file--active"]
-                    .filter(Boolean)
-                    .join(" ")}
-                  onClick={() => setActiveFile(file.name)}
-                  onDoubleClick={() => {
-                    setFileNameValue(file.name);
-                    setFileModal({ mode: "rename", target: file.name });
-                  }}
-                  title={`import { … } from "./${file.name}"  ·  double-clic pour renommer`}
-                >
-                  <span className="lq-script-editor-panel__file-name">{file.name}</span>
-                  <button
-                    type="button"
-                    className="lq-script-editor-panel__file-remove"
-                    aria-label={`Supprimer ${file.name}`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      removeFile(file.name);
-                    }}
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-              <button
-                type="button"
-                className="lq-script-editor-panel__file-add"
-                aria-label="Nouveau fichier"
-                title="Nouveau fichier"
-                onClick={() => {
-                  setFileNameValue("");
-                  setFileModal({ mode: "add", target: null });
-                }}
-              >
-                +
-              </button>
-            </div>
+            <ScriptFileTabs
+              files={draftFiles}
+              activeFile={activeFile}
+              onSelect={setActiveFile}
+              onRename={(name) => {
+                setFileNameValue(name);
+                setFileModal({ mode: "rename", target: name });
+              }}
+              onRemove={removeFile}
+              onAdd={() => {
+                setFileNameValue("");
+                setFileModal({ mode: "add", target: null });
+              }}
+            />
             <Suspense fallback={<div className="lq-script-editor-panel__loading">Chargement de l'éditeur…</div>}>
               <LazyScriptEditorCodeMirror
                 ref={codeMirrorRef}

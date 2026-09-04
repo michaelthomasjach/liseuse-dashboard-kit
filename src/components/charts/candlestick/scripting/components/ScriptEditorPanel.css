@@ -249,15 +249,66 @@
 .lq-script-editor-panel__files {
   display: flex;
   align-items: stretch;
-  gap: 2px;
-  overflow-x: auto;
-  scrollbar-width: none;
   border-bottom: 1px solid var(--lq-color-border-subtle);
   flex: 0 0 auto;
+  min-width: 0;
 }
 
-.lq-script-editor-panel__files::-webkit-scrollbar {
+/* Holds the strip and the two overflow chevrons, which are overlaid on it rather than laid out
+   beside it — a chevron appearing must not shove the tabs sideways under the pointer. */
+.lq-script-editor-panel__files-viewport {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.lq-script-editor-panel__files-scroller {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  overflow-x: auto;
+  /* No scrollbar of its own: under a 22px row it would cost more height than the row itself. The
+     chevrons and the drag are what replace it. */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  /* The strip is panned by hand, so the browser must not claim the horizontal gesture for its own
+     scroll/back-swipe first. */
+  touch-action: pan-y;
+  overscroll-behavior-x: contain;
+}
+
+.lq-script-editor-panel__files-scroller::-webkit-scrollbar {
   display: none;
+}
+
+/* Sits over the last tab on its side, on a fade to the panel's own background, so the tabs read as
+   passing underneath it. */
+.lq-script-editor-panel__files-more {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  display: inline-flex;
+  align-items: center;
+  border: none;
+  padding: 0 2px;
+  color: var(--lq-color-text-muted);
+  cursor: pointer;
+}
+
+.lq-script-editor-panel__files-more:hover {
+  color: var(--lq-color-text);
+}
+
+.lq-script-editor-panel__files-more--left {
+  left: 0;
+  background: linear-gradient(to right, var(--lq-color-panel) 55%, transparent);
+  padding-right: 10px;
+}
+
+.lq-script-editor-panel__files-more--right {
+  right: 0;
+  background: linear-gradient(to left, var(--lq-color-panel) 55%, transparent);
+  padding-left: 10px;
 }
 
 .lq-script-editor-panel__file {
@@ -273,6 +324,9 @@
   font-size: var(--lq-text-xs);
   white-space: nowrap;
   cursor: pointer;
+  /* A tab is a pan handle as much as a target: without this, dragging across one selects its label
+     instead of moving the strip. */
+  user-select: none;
 }
 
 .lq-script-editor-panel__file:hover {

@@ -4,3 +4,25 @@
   href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&family=Sora:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
   rel="stylesheet"
 />
+
+<!-- Makes the preview iframe installable as a standalone app. This file is injected into
+     `iframe.html`, which is exactly the page a phone should open: one story, full screen, none of
+     Storybook's own navigation. `?id=charts-candlestickchart--all-features` picks "Toutes les
+     options", and the manifest's own `start_url` re-opens it after installing.
+     Registered from a `load` listener rather than inline so a service worker can never delay the
+     first paint of the chart it is there to serve. Failure is swallowed on purpose: without HTTPS
+     (a plain `localhost:6006` over the network, say) registration throws, and that must not break
+     the dev server for the sake of an install prompt. -->
+<link rel="manifest" href="manifest.webmanifest" />
+<meta name="theme-color" content="#f2f0ea" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="Liseuse" />
+<link rel="apple-touch-icon" href="icon-192.png" />
+<script>
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("sw.js", { scope: "./" }).catch(() => {});
+    });
+  }
+</script>

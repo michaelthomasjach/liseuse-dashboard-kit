@@ -3,6 +3,11 @@ import type { StorybookConfig } from "@storybook/react-vite";
 const config: StorybookConfig = {
   stories: ["../src/**/*.stories.@(ts|tsx)"],
   addons: ["@storybook/addon-docs"],
+  // Copied verbatim to the root of the build: the PWA manifest, its icons and the service worker
+  // (see preview-head.html, which links them). They have to sit beside `iframe.html` because that
+  // is the page being installed — a story opened directly, with no Storybook chrome around it, is
+  // the whole point on a phone.
+  staticDirs: ["./public"],
   framework: {
     name: "@storybook/react-vite",
     options: {},

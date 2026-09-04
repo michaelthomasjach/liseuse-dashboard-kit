@@ -1,0 +1,16 @@
+{
+  "name": "Liseuse — CandlestickChart (toutes les options)",
+  "short_name": "Liseuse",
+  "description": "Le graphique en bougies avec toutes ses options activées, pour l'essayer au doigt sur un vrai téléphone.",
+  "start_url": "iframe.html?id=charts-candlestickchart--all-features&viewMode=story",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f2f0ea",
+  "theme_color": "#f2f0ea",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

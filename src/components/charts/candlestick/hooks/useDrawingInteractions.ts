@@ -916,9 +916,14 @@ export function useDrawingInteractions({
       isPanningYRef.current = false;
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
     };
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
+    // A cancelled pointer (a touch the browser reclaimed) must release the flag too — without
+    // this a single cancelled pan left `isPanningYRef` stuck true, and every later
+    // handlePointerMove bailed on it: the tool's rubber-band preview stopped tracking for good.
+    window.addEventListener("pointercancel", onUp);
   }
 
   function handleOverlayPointerUp(e: React.PointerEvent<SVGRectElement>) {

@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent, RefObject } from "react";
 
 /** How far a finger may travel between down and up and still count as a tap rather than a drag.
@@ -53,6 +53,8 @@ export function useMobilePointPlacement({ enabled, plotRef, onCommit, onPreview 
   // viewport coordinates because that is what the overlay draws it in; the conversion back to
   // client space happens once, at commit.
   const [marker, setMarker] = useState<{ x: number; y: number } | null>(null);
+  // Whether a press is currently being tracked — see the re-entry guard in onPointerDown.
+  const gestureInFlightRef = useRef(false);
 
   /** The staged position dressed up as the event the plot's own handlers expect. `clientX`/`clientY`
    *  are what the placement path reads (see `toDataPoint`), but `handlePointerMove` also measures
@@ -84,14 +86,20 @@ export function useMobilePointPlacement({ enabled, plotRef, onCommit, onPreview 
 
   function onPointerDown(e: ReactPointerEvent<SVGRectElement>) {
     if (!enabled) return;
+    // One gesture at a time. A second contact landing on the plot mid-drag (the other thumb, a
+    // palm) used to re-enter here and register a competing set of window listeners with its own
+    // origin — two handlers writing conflicting positions until one of them tore everything down.
+    if (gestureInFlightRef.current) return;
     const rect = plotRef.current?.getBoundingClientRect();
     if (!rect) return;
+    gestureInFlightRef.current = true;
     e.stopPropagation();
     // Deliberately no `e.preventDefault()` here: on a pointerdown it does nothing against touch
     // scrolling (only touch-action and the underlying touch events' own preventDefault do), and
     // leaving one in place made this hook look defended when it had no defence at all.
+    const captureTarget = e.currentTarget;
     try {
-      e.currentTarget.setPointerCapture(e.pointerId);
+      captureTarget.setPointerCapture(e.pointerId);
     } catch {
       // A pointer that has already ended (a very fast tap) throws here and needs no capture.
     }
@@ -140,23 +148,55 @@ export function useMobilePointPlacement({ enabled, plotRef, onCommit, onPreview 
     // tools rail, a palm on the bezel, a stray second tap Chrome cancels, all dispatch their own
     // pointerup/pointercancel at window, and an ungated onUp would end the real finger's drag with
     // them.
+    // One React commit per animation frame, not one per pointermove. This is the fix that the
+    // symptom actually called for: every commit here re-renders the whole chart — a full canvas
+    // redraw, every ChartAxis re-measuring each of its tick labels against a fresh getScreenCTM
+    // (that effect has no dependency array), and on the workspace a hover sync that re-renders
+    // every sibling panel. A phone can't clear that inside Chrome's touch-ack budget, and when the
+    // renderer doesn't answer in time the compositor takes the gesture and fires pointercancel —
+    // which is what ended the drag "a few pixels in", right after the first move that had worked.
+    // Coalescing to the frame caps the render rate at what the screen can show anyway; the finger's
+    // last known position is always the one committed, so nothing visible is lost.
+    let pending: { x: number; y: number } | null = null;
+    let frame = 0;
+    const flush = () => {
+      frame = 0;
+      if (!pending) return;
+      const next = pending;
+      pending = null;
+      setMarker(next);
+      onPreview(toClient(next));
+    };
     const onMove = (ev: PointerEvent) => {
       if (ev.pointerId !== pointerId) return;
       const dx = ev.clientX - startClientX;
       const dy = ev.clientY - startClientY;
       if (!moved && Math.hypot(dx, dy) <= TAP_SLOP) return;
       moved = true;
-      const next = { x: origin.x + dx, y: origin.y + dy };
-      setMarker(next);
-      onPreview(toClient(next));
+      pending = { x: origin.x + dx, y: origin.y + dy };
+      if (!frame) frame = requestAnimationFrame(flush);
     };
     const onUp = (ev: PointerEvent) => {
       if (ev.pointerId !== pointerId) return;
+      gestureInFlightRef.current = false;
       window.removeEventListener("touchmove", swallowTouchMove);
       window.removeEventListener("contextmenu", swallowContextMenu);
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onUp);
+      // Land whatever the last frame hadn't flushed yet, so the committed/staged position is the
+      // finger's final one and not a frame behind it.
+      if (frame) {
+        cancelAnimationFrame(frame);
+        flush();
+      }
+      // Every other capture site in this library pairs set with release; leaving it held on an
+      // SVG element across gestures is the flakiest corner of the pointer-events implementations.
+      try {
+        if (captureTarget.hasPointerCapture(pointerId)) captureTarget.releasePointerCapture(pointerId);
+      } catch {
+        // Already released by the browser on pointerup — nothing to undo.
+      }
       // A tap on an *already staged* marker is the confirmation. A tap that created the marker is
       // the first half of the gesture and leaves it staged; a drag of either kind likewise leaves
       // it staged, so the position can be adjusted, and re-adjusted, before being committed.
@@ -171,7 +211,10 @@ export function useMobilePointPlacement({ enabled, plotRef, onCommit, onPreview 
 
   /** Drops the staged marker without committing it — for whoever cancels the tool (Escape, picking
    *  another tool, finishing a drawing), so a stale marker can't outlive what it was placing. */
-  const clear = useCallback(() => setMarker(null), []);
+  const clear = useCallback(() => {
+    gestureInFlightRef.current = false;
+    setMarker(null);
+  }, []);
 
   return { marker: enabled ? marker : null, onPointerDown, clear };
 }

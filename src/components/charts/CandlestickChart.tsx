@@ -1068,7 +1068,12 @@ export function CandlestickChart({
           }
           handleOverlayPointerUp={replayState.armed || placementActive ? noopPointerHandler : handleOverlayPointerUp}
           handleOverlayClick={replayState.armed ? replayState.handleClick(zoomedXScale) : placementActive ? noopPointerHandler : handleOverlayClick}
-          handleOverlayDoubleClick={handleOverlayDoubleClick}
+          /* Routed away like the other three while placing. The tap-to-stage / tap-to-confirm
+              rhythm lands inside the browser's own double-tap window, so dblclick fires on every
+              placement. For every tool but one that is harmless (the handler returns early while a
+              tool is active) — but elbowArrow finalizes and clears the tool, which nulls activeTool
+              and wipes the staged marker mid-placement. */
+          handleOverlayDoubleClick={placementActive ? noopPointerHandler : handleOverlayDoubleClick}
           yAxisWheelRef={yAxisWheelRef}
           yAxisDrag={yAxisDrag}
           resetYAxis={resetYAxis}

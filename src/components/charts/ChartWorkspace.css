@@ -1465,6 +1465,20 @@
   font-size: 0.56rem;
 }
 
+/* The badges a hover or a touch pins to the axes — the price on the Y axis, the date on the X —
+   follow the tick labels down to the same 0.56rem (0.7 × 0.8), so a badge reads as one of the
+   axis' own figures highlighted rather than a larger label sitting on top of smaller ones. The
+   padding shrinks in step; left at 2px/6px the badge would keep its old footprint around text
+   that no longer fills it. `.lq-chart__live-countdown` is deliberately untouched — a secondary
+   readout beside the axis, not a value on it. */
+.lq-chart-workspace--mobile .lq-chart__axis-value {
+  font-size: 0.56rem;
+}
+
+.lq-chart-workspace--mobile .lq-chart__axis-value-text {
+  padding: 1px 4px;
+}
+
 /* Both of the symbol panel's small SVGs are drawn at a fixed 260px (EarningsDotChart's own `width`
    default, and the Sparkline the seasonality section asks for), which left them floating short of
    the content column every other block in the panel lines up on — on a phone and beside a desktop

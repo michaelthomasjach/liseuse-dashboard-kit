@@ -1518,11 +1518,30 @@
    panel alike. Both carry a `viewBox`, so a plain `width: 100%` scales them to fill it with the
    aspect ratio intact; `height: auto` is what lets the height follow instead of staying pinned to
    the attribute. Unscoped deliberately: the panel is a column of full-width blocks, and a drawing
-   that stops short of the others reads as broken rather than as restraint. */
+   that stops short of the others reads as broken rather than as restraint.
+
+   The cap is what that reasoning missed: a `viewBox` scales everything inside it, *text included*,
+   so stretching the drawing magnifies its labels by the same factor. At the side panel's own ~280px
+   that is a harmless 1.08x. In the fullscreen details modal the same column is ~1500px wide, which
+   turned 9px axis labels into 51px ones — four times the size of every other word around them, and
+   the reason this was reported. Twice the drawn width is as far as a 9px label survives being
+   blown up; past that the fullscreen panel gives the chart real dimensions instead of scaling it
+   (see SymbolProfilePanel's own `fullscreen` sizing). */
 .lq-earnings-dot-chart,
 .lq-chart-workspace__symbol-profile-seasonality {
   width: 100%;
   height: auto;
+  max-width: 520px;
+}
+
+/* The fullscreen copy draws its own chart at a real size chosen for that context (see
+   SymbolProfilePanel), so it is not stretched at all — `width: auto` rather than a raised cap.
+   Lifting the cap alone still left it magnified 1.65x, i.e. axis labels bigger than the section
+   titles above them, which is the same defect in a milder form. `max-width: 100%` keeps it shrinking
+   on a narrow screen, where scaling *down* costs nothing a reader notices. */
+.lq-modal .lq-earnings-dot-chart {
+  width: auto;
+  max-width: 100%;
 }
 
 /* The grid fades as the lock hold progresses — `--lq-lock-hold` runs 0→1 over LOCK_HOLD_MS (see

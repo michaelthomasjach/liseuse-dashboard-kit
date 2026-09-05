@@ -66,7 +66,7 @@ export const Enlarged: Story = {
   render: () => (
     <div style={{ padding: 16 }}>
       <p style={{ margin: "0 0 12px", fontSize: 13, opacity: 0.7 }}>
-        Ce que le bouton d'agrandissement du panneau symbole ouvre. `scale` grossit les points et les libellés avec la boîte — sans lui, des
+        Ce que le bouton d'agrandissement du panneau symbole ouvre. `scale` grossit les points avec la boîte, pas les libellés — sans lui, des
         cercles de 4 px disparaîtraient dans un dessin trois fois plus haut.
       </p>
       <EarningsDotChart points={BEATS} width={1200} height={480} scale={2.4} />

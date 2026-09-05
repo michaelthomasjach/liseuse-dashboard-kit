@@ -7,9 +7,10 @@ export interface EarningsDotChartProps {
   points: SymbolProfileEarningsPoint[];
   width?: number;
   height?: number;
-  /** Radius of each dot, and the font the labels are drawn at. Both scale with the chart so the
-   *  same component reads correctly at 120px in a side panel and at full height in a modal —
-   *  without this the dots stay 4px across and vanish once the drawing is three times as tall. */
+  /** Radius of each dot, and the padding around the plot. NOT the labels: their size is fixed in
+   *  CSS and deliberately so — axis text is sized by the reading distance and the interface around
+   *  it, never by how big the drawing it annotates happens to be. Without this the dots stay 4px
+   *  across and vanish once the drawing is three times as tall. */
   scale?: number;
 }
 

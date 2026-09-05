@@ -342,7 +342,13 @@ export function SymbolProfilePanel({
               <MaximizeIcon size={13} />
             </button>
           </div>
-          <EarningsDotChart points={profile.earnings} />
+          {/* Real dimensions in the fullscreen copy rather than letting CSS stretch the 260px one:
+              the drawing carries a viewBox, so stretching it magnifies its own 9px labels by the
+              same factor — 51px in a column that wide. Drawn larger, the labels stay 9px and the
+              dots grow with `scale`, which is exactly what that prop is for. `expandable === false`
+              identifies the fullscreen copy: it is the one instance that cannot be expanded further
+              (see the prop's own doc). */}
+          <EarningsDotChart points={profile.earnings} {...(expandable ? {} : { width: 1100, height: 340, scale: 2 })} />
         </div>
       )}
 

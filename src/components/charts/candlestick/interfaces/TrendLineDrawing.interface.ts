@@ -187,6 +187,10 @@ export interface TrendLineDrawing {
    *  mechanism "text" uses, just sized to fill that one cell instead of anchored to a point — see
    *  useDrawingState's own `editingCell`) rather than through the edit modal's Texte tab, which a
    *  whole grid of independent strings has no single field for. */
+  /** Strategy fill markers only (see `ScriptDrawingOutput.markerSide`) — what the marker means, so
+   *  `drawMarkers.ts` can colour it from the chart's own up/down palette instead of a hex the
+   *  worker that produced it had no theme to choose from. Ignored by every hand-drawn tool. */
+  markerSide?: "long" | "short" | "win" | "loss";
   lineType?:
     | "horizontal"
     | "vertical"

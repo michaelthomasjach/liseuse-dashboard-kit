@@ -1,3 +1,4 @@
+import type { StrategySettings } from "../interfaces/StrategySettings.interface";
 import type { ScriptParamValue } from "../interfaces/ScriptParam.interface";
 import { useCallback, useMemo, useRef, useState } from "react";
 import type { ScriptDef, ScriptFile } from "../interfaces/ScriptDef.interface";
@@ -102,6 +103,14 @@ export function useScriptingState({ defaultScripts, onScriptsChange, controlledE
     if (activeScriptId === id) setActiveScriptId(null);
   }
 
+  /** Commits one strategy setting change (see `ScriptDef.strategySettings`). Like a `Variable`
+   *  value, it applies immediately and the script re-runs on its own: the backtest is computed
+   *  *inside* the run (see buildStrategyApi), so there is no separate simulation to refresh — a
+   *  changed commission is a different run, not a different view of the same one. */
+  function setStrategySettings(id: string, settings: StrategySettings) {
+    commitScripts(scripts.map((s) => (s.id === id ? { ...s, strategySettings: settings } : s)));
+  }
+
   function toggleScriptEnabled(id: string) {
     commitScripts(scripts.map((s) => (s.id === id ? { ...s, enabled: s.enabled === false } : s)));
   }
@@ -178,6 +187,7 @@ export function useScriptingState({ defaultScripts, onScriptsChange, controlledE
     updateScript,
     removeScript,
     toggleScriptEnabled,
+    setStrategySettings,
     editorOpen,
     setEditorOpen,
     activeScriptId,

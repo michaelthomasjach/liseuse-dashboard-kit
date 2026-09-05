@@ -18,12 +18,17 @@ const FLAG_HEIGHT = 8;
  *  as every other price-space drawing type. */
 export function drawMarkerDrawings(ctx: CanvasRenderingContext2D, params: RenderCandlestickChartParams, style: ChartCanvasStyle) {
   const { visibleDrawings, zoomedXScale, zoomedPriceScale, indexForDate } = params;
-  const { colorAccent, colorBg } = style;
+  const { colorAccent, colorBg, colorUp, colorDown, fontFamily } = style;
   for (const dr of visibleDrawings) {
     if (dr.lineType !== "pin" && dr.lineType !== "flagMark") continue;
     const x = zoomedXScale(indexForDate(dr.x1) + 0.5);
     const y = zoomedPriceScale(dr.y1);
-    const color = dr.color ?? colorAccent;
+    // A strategy fill names its side rather than a colour (see TrendLineDrawing.markerSide): an
+    // entry takes the same green/red the candles use, and an exit takes the colour of its own
+    // result, so a losing exit reads as one without having to open the trade list.
+    const sideColor =
+      dr.markerSide === "long" || dr.markerSide === "win" ? colorUp : dr.markerSide === "short" || dr.markerSide === "loss" ? colorDown : null;
+    const color = dr.color ?? sideColor ?? colorAccent;
     ctx.save();
     ctx.fillStyle = color;
 
@@ -41,6 +46,17 @@ export function drawMarkerDrawings(ctx: CanvasRenderingContext2D, params: Render
       ctx.arc(x, cy, PIN_INNER_DOT_RADIUS, 0, Math.PI * 2);
       ctx.fillStyle = colorBg;
       ctx.fill();
+      // The label beside the badge — what turns a dot on the chart into "Achat 1 @ 412.88". Drawn
+      // only when there is one, so a hand-placed pin (which has no text) is untouched. Offset past
+      // the circle rather than centred in it: a fill's own description never fits inside a badge
+      // this size, and shrinking the badge to fit it would lose the shape entirely.
+      if (dr.text) {
+        ctx.fillStyle = color;
+        ctx.font = `600 ${dr.textSize ?? 10}px ${fontFamily}`;
+        ctx.textAlign = "left";
+        ctx.textBaseline = "middle";
+        ctx.fillText(dr.text, x + PIN_CIRCLE_RADIUS + 4, cy);
+      }
     } else {
       ctx.strokeStyle = color;
       ctx.lineWidth = 1.5;

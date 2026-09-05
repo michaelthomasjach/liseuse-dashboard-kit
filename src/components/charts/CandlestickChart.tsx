@@ -34,6 +34,9 @@ import { useChartScripting } from "./candlestick/hooks/useChartScripting";
 import { ScriptRunnerHost } from "./candlestick/scripting/components/ScriptRunnerHost";
 import { ChartHeader } from "./candlestick/components/ChartHeader";
 import { ChartSidePanel } from "./candlestick/components/ChartSidePanel";
+import { ChartStrategyPanel } from "./candlestick/strategy/ChartStrategyPanel";
+import { analyzeScriptKind } from "./candlestick/scripting/scriptKind";
+import { DEFAULT_STRATEGY_SETTINGS } from "./candlestick/interfaces/StrategySettings.interface";
 import { ChartSidePaneColumn } from "./candlestick/components/ChartSidePaneColumn";
 import { ToolsRail } from "./candlestick/components/ToolsRail";
 import { ChartLegend } from "./candlestick/components/ChartLegend";
@@ -319,6 +322,22 @@ export function CandlestickChart({
     : rawDims;
 
   const { scriptingState, scriptChartIndicators } = useChartScripting({ scripts, onScriptsChange });
+  // Every enabled script that declared `@strategy` (see scriptKind.ts). The decorator is read from
+  // the source text, so this costs a regex per script per render and needs no run to be known —
+  // which is what lets the panel exist before the first backtest has produced anything.
+  const strategyScripts = useMemo(
+    () => scriptingState.scripts.filter((s) => s.enabled !== false && analyzeScriptKind(s.code).kind === "strategy"),
+    [scriptingState.scripts]
+  );
+  // Which strategy's panel is open. `null` until the user opens one; the first strategy is opened
+  // on its own the first time one appears, since a strategy whose tester never shows up is a
+  // strategy nobody can read.
+  const [openStrategyId, setOpenStrategyId] = useState<string | null>(null);
+  const openStrategy = strategyScripts.find((s) => s.id === openStrategyId) ?? null;
+  useEffect(() => {
+    if (openStrategyId !== null && !strategyScripts.some((s) => s.id === openStrategyId)) setOpenStrategyId(null);
+    else if (openStrategyId === null && strategyScripts.length > 0) setOpenStrategyId(strategyScripts[0].id);
+  }, [strategyScripts, openStrategyId]);
   const showHeader = fullscreenToggle || zoomable || !!timeframes?.length || showIndicators;
   // `dims.height` is measured off `.lq-chart__plot-column`, already below `.lq-chart__main`'s own
   // header in the flex-column layout (see charts-shared.css's own doc on that element) — no more
@@ -1169,6 +1188,23 @@ export function CandlestickChart({
       </div>
       {rightColumnProps && <ChartSidePaneColumn {...rightColumnProps} />}
       </div>
+      {/* Docked under the plot row, in `.lq-chart__main`'s own column — the position the request
+          asked for ("comme l'indicateur MACD"), and the right one: a strategy is read against the
+          candles above it. A React panel rather than a canvas pane because its content is a form,
+          a table and a chart, none of which the indicator pane machinery is for. */}
+      {openStrategy && (
+        <ChartStrategyPanel
+          scriptName={openStrategy.name}
+          result={scriptingState.runOutputs[openStrategy.id]?.result?.strategy ?? null}
+          running={scriptingState.runOutputs[openStrategy.id]?.running ?? false}
+          settings={openStrategy.strategySettings ?? DEFAULT_STRATEGY_SETTINGS}
+          onSettingsChange={(next) => scriptingState.setStrategySettings(openStrategy.id, next)}
+          onClose={() => setOpenStrategyId(null)}
+          formatDate={dFmt}
+          width={dims.width}
+        />
+      )}
+
       {isMobileRail && !seasonalityOpen && toolsRail}
 
       {/* Own positioned ancestor is .lq-chart__main (sits outside .lq-chart__plot, which would

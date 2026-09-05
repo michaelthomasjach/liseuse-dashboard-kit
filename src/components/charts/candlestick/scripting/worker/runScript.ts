@@ -5,6 +5,7 @@ import { buildPlotApi } from "./buildPlotApi";
 import { buildStateApi } from "./buildStateApi";
 import { buildAlertApi } from "./buildAlertApi";
 import { buildBarApi } from "./buildBarApi";
+import { buildStrategyApi } from "./buildStrategyApi";
 import { buildCompanyApi } from "./buildCompanyApi";
 import { mathApi } from "./mathLib";
 import { taApi } from "./taLib";
@@ -97,6 +98,13 @@ export function runScript(snapshot: ScriptEngineSnapshot): ScriptRunResult {
   const state = buildStateApi();
   const { api: alert, getAlerts } = buildAlertApi(getCurrentIndex, getCurrentDate);
   const bar = buildBarApi(snapshot, getCurrentIndex);
+  // Built only when the host declared strategy settings — which it does only for a `@strategy`
+  // script (see ScriptEngineSnapshot.strategySettings). An indicator gets `undefined` for the
+  // `strategy` argument, so calling it is a plain TypeError naming the thing that's missing rather
+  // than a silent no-op that leaves the author wondering why no trade ever appeared.
+  const strategy = snapshot.strategySettings
+    ? buildStrategyApi(snapshot.strategySettings, () => snapshot.ohlcv[currentIndex] ?? null)
+    : null;
   const company = buildCompanyApi(snapshot, getCurrentIndex);
 
   // The module registry. Each extra file is compiled on its own `new Function` the first time it is
@@ -164,7 +172,8 @@ export function runScript(snapshot: ScriptEngineSnapshot): ScriptRunResult {
     company: unknown,
     math: unknown,
     ta: unknown,
-    console: unknown
+    console: unknown,
+    strategy: unknown
   ) => void;
   // The entry file goes through the same rewrite as any other — a single-file script simply has
   // nothing to rewrite, and comes back unchanged.
@@ -182,6 +191,7 @@ export function runScript(snapshot: ScriptEngineSnapshot): ScriptRunResult {
       xyCharts: [],
       alerts: [],
       labels: [],
+      strategy: null,
     };
   }
 
@@ -214,18 +224,46 @@ export function runScript(snapshot: ScriptEngineSnapshot): ScriptRunResult {
       xyCharts: [],
       alerts: [],
       labels: [],
+      strategy: null,
     };
   }
 
   for (let i = 0; i <= snapshot.runUpToIndex; i++) {
     currentIndex = i;
     try {
-      compiled(entryExports, requireModule, market, chart, plot, state, alert, bar, company, mathApi, taApi, scriptConsole);
+      compiled(entryExports, requireModule, market, chart, plot, state, alert, bar, company, mathApi, taApi, scriptConsole, strategy?.api);
+      // After the bar's own pass, never during it: an order placed mid-script fills once, at this
+      // bar's own price, no matter how many times the script changed its mind (see settleBar).
+      strategy?.settleBar(snapshot.ohlcv[i], i + 1 < snapshot.ohlcv.length ? snapshot.ohlcv[i + 1] : null);
     } catch (err) {
       const { panes, drawings, table, xyCharts, labels } = getPlotResult();
-      return { error: toScriptError(err), logs, panes, drawings, table, xyCharts, alerts: getAlerts(), labels };
+      // The partial backtest is kept, not discarded: a strategy that threw on bar 900 still traded
+      // 899 bars, and seeing where its equity was when it broke is most of the debugging.
+      return {
+        error: toScriptError(err),
+        logs,
+        panes,
+        drawings: [...drawings, ...(strategy?.getMarkers() ?? [])],
+        table,
+        xyCharts,
+        alerts: getAlerts(),
+        labels,
+        strategy: strategy?.getResult() ?? null,
+      };
     }
   }
   const { panes, drawings, table, xyCharts, labels } = getPlotResult();
-  return { error: null, logs, panes, drawings, table, xyCharts, alerts: getAlerts(), labels };
+  // Entry/exit markers ride the same drawing channel every `plot.signal` already uses — the chart
+  // needs no notion of a "strategy marker" to paint them.
+  return {
+    error: null,
+    logs,
+    panes,
+    drawings: [...drawings, ...(strategy?.getMarkers() ?? [])],
+    table,
+    xyCharts,
+    alerts: getAlerts(),
+    labels,
+    strategy: strategy?.getResult() ?? null,
+  };
 }

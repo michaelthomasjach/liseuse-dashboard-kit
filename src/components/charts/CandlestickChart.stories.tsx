@@ -511,6 +511,20 @@ function playAlertSound(value: string) {
  *  ne route vers chaque panneau que les scripts qui le désignent (`s.targetPanelIndex === i`, voir
  *  son propre doc), donc un script sans cible n'est routé nulle part — il n'apparaît sous « Mes
  *  scripts » dans le sélecteur d'indicateurs d'aucun panneau, et ne s'exécute pas non plus. */
+/** The strategy example, wired up the same way KDE_DEBUG_SCRIPT is, so the strategy tester has
+ *  something real to show without anyone having to paste a script in first. Same `targetPanelIndex`
+ *  requirement as any other workspace-routed script. */
+const STRATEGY_DEBUG_SCRIPT: ScriptDef[] = [
+  {
+    id: "debug-strategy",
+    name: "Stratégie MACD",
+    code: SCRIPT_EXAMPLES.find((example) => example.id === "macd-strategy")?.code ?? "",
+    named: true,
+    enabled: true,
+    targetPanelIndex: 0,
+  },
+];
+
 const KDE_DEBUG_SCRIPT: ScriptDef[] = [
   {
     id: "debug-kde",
@@ -843,6 +857,19 @@ export const BtcRealSample: Story = {
   render: () => (
     <div style={{ margin: -32 }}>
       <ChartWorkspace defaultPanels={1} scripting defaultScripts={KDE_DEBUG_SCRIPT}>
+        <CandlestickChart data={BTC_REAL_SAMPLE} symbol="BTCUSDT" zoomable drawingTools showVolume showIndicators replay />
+      </ChartWorkspace>
+    </div>
+  ),
+};
+
+/** The strategy tester, on real data — the fastest way to see a `@strategy` script produce an
+ *  equity curve, a trade list and its own docked panel without writing one first. */
+export const StrategyTester: Story = {
+  name: "Testeur de stratégie",
+  render: () => (
+    <div style={{ margin: -32 }}>
+      <ChartWorkspace defaultPanels={1} scripting defaultScripts={STRATEGY_DEBUG_SCRIPT}>
         <CandlestickChart data={BTC_REAL_SAMPLE} symbol="BTCUSDT" zoomable drawingTools showVolume showIndicators replay />
       </ChartWorkspace>
     </div>

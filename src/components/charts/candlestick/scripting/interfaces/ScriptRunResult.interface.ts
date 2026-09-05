@@ -1,3 +1,4 @@
+import type { StrategyResult } from "../../interfaces/StrategyResult.interface";
 /** A script error, with line/column when the engine can recover them — `new Function`-compiled
  *  code reports its own location relative to a synthetic wrapper the browser generates, not the
  *  user's script verbatim, so these are best-effort (calibrated empirically per engine — see
@@ -75,6 +76,11 @@ export interface ScriptDrawingOutput {
    *  every hand-drawn arrow/pin already supports) — `plot.signal("BUY")`'s own arrow shape implies
    *  a *direction*, not a caption; this is how a script puts an actual word like "BUY" next to it. */
   text?: string;
+  /** Strategy markers only — what this fill *means*, so the renderer can colour it from the chart's
+   *  own palette. A hex chosen in the worker would be theme-blind (it has no access to one), and an
+   *  entry marked in a green that fights the candles beside it is worse than no colour at all.
+   *  `"long"`/`"short"` are entries, `"win"`/`"loss"` exits. */
+  markerSide?: "long" | "short" | "win" | "loss";
 }
 
 /** One `pane.label(...)`/`overlay.label(...)` output — a single element positioned in pixels or
@@ -173,4 +179,8 @@ export interface ScriptRunResult {
   xyCharts: ScriptXYChartOutput[];
   alerts: ScriptRunAlert[];
   labels: ScriptLabelOutput[];
+  /** The backtest, for a `@strategy` script only (see `scriptKind.ts`). `null` for an indicator —
+   *  which is the whole point of the decorator: nothing downstream has to guess whether a strategy
+   *  pane belongs on screen, the presence of this answers it. */
+  strategy: StrategyResult | null;
 }

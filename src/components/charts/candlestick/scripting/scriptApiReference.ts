@@ -185,7 +185,22 @@ export class Tracker {
     group: "Démarrage",
     blocks: [
       t(
-        "Trois mots-clés ne font pas partie de l'API exécutée : ils se lisent dans le texte du script lui-même, avant que quoi que ce soit ne tourne. @description documente le script, new Variable(...) en expose les réglages, et @block le découpe en cellules (voir « L'éditeur » plus haut). Tous trois sont retirés du code avant compilation — ils n'existent pas à l'exécution."
+        "Cinq mots-clés ne font pas partie de l'API exécutée : ils se lisent dans le texte du script lui-même, avant que quoi que ce soit ne tourne. @indicator ou @strategy dit ce qu'est le script, @description le documente, new Variable(...) en expose les réglages, et @block le découpe en cellules (voir « L'éditeur » plus haut). Tous sont retirés du code avant compilation — aucun n'existe à l'exécution."
+      ),
+      h("@indicator / @strategy — ce qu'est le script", ["@indicator", "@strategy"]),
+      t(
+        "Un script est l'un des deux, déclaré sur sa propre ligne, en général tout en haut. @indicator dessine sur la chart : des courbes, des bandes, des marqueurs. @strategy fait la même chose et prend en plus des positions, qui sont rejouées sur un compte simulé et lues dans un panneau dédié ancré sous les bougies."
+      ),
+      c(
+        `@indicator
+plot.overlay("SMA").line("SMA", math.sma(market.series("close", 20), 20));`
+      ),
+      c(
+        `@strategy
+if (market.close(0) > market.close(1)) strategy.long("Deux hausses");`
+      ),
+      t(
+        "Ce n'est pas une étiquette : c'est ce décorateur qui donne — ou refuse — l'accès à strategy.*. Un script @indicator n'a tout simplement pas cet objet, et l'appeler échoue en nommant ce qui manque, plutôt que d'ouvrir silencieusement une position que personne n'a demandée. Un script qui ne déclare rien est un indicateur : c'est ce qu'était tout script écrit avant l'existence de ces décorateurs, et ce que reste l'immense majorité d'entre eux. Déclarer les deux est une contradiction, signalée comme telle dans l'éditeur."
       ),
       h("@description — documenter le script", ["@description"]),
       t(
@@ -601,6 +616,84 @@ plot.xy("Parabole", x, y, { xLabel: "x", yLabel: "y", title: "y = x²" });`
         "plot.xy n'est jamais affiché sur la vraie chart bougies/panneaux — il n'apparaît qu'en sortie d'une cellule (voir le mode notebook ci-dessous, et son propre tutoriel « Mode notebook » plus haut) : le nom passé sert uniquement à retrouver le graphique produit par une cellule donnée, pas à créer un panneau."
       ),
       t("x et y sont plafonnés à 2000 points chacun — au-delà, tronqués silencieusement plutôt que rejetés."),
+    ],
+  },
+  {
+    id: "strategy",
+    title: "strategy.*",
+    group: "API du script",
+    blocks: [
+      t(
+        "Disponible uniquement dans un script qui a déclaré @strategy (voir « Décrire et paramétrer un script »). C'est l'API qui prend des positions : le moteur les rejoue sur un compte simulé au fil des bougies, et le panneau ancré sous la chart en montre la courbe de P&L, les statistiques et la liste des trades."
+      ),
+      h("Passer un ordre", ["strategy.long", "strategy.short", "strategy.close"]),
+      c(
+        `strategy.long(commentaire?, options?)   // ouvre (ou renforce) une position longue
+strategy.short(commentaire?, options?)  // idem à la vente
+strategy.close(commentaire?)            // ferme tout ce qui est ouvert
+
+// options : { size?: number, unit?: "contracts" | "currency" | "equityPercent" }`
+      ),
+      t(
+        "Le commentaire nomme le trade : il apparaît sur le marqueur posé sur la bougie et reste attaché au trade dans la liste, ce qui est la seule façon de retrouver quelle règle a ouvert quoi dans une stratégie qui en a plusieurs."
+      ),
+      t(
+        "Un ordre dans le sens opposé à la position en cours la retourne : le moteur ferme d'abord, puis ouvre de l'autre côté. C'est ce que « passer long alors qu'on est short » veut dire, et l'écrire en deux appels ne changerait rien au résultat."
+      ),
+      t(
+        "Un ordre est exécuté une fois, à la fin de la bougie sur laquelle il a été passé, quel que soit le nombre de fois où le script a changé d'avis pendant cette bougie — il n'y a qu'un prix sur cette bougie auquel être exécuté. Aucune fuite de données futures n'est possible ici non plus : l'ordre ne connaît que les bougies déjà rejouées, exactement comme market.*."
+      ),
+      h("La taille d'un ordre", [".size", ".unit"]),
+      t(
+        "Sans options, l'ordre prend la taille par défaut définie dans les réglages du panneau. Avec, il la remplace pour ce seul ordre — dans l'unité de son choix :"
+      ),
+      l([
+        '"contracts" — un nombre d\'unités de l\'instrument. Absolu, indépendant du prix.',
+        '"currency" — un montant dans la devise du compte, converti en unités au prix d\'exécution. Dimensionne de la même façon des instruments cotés très différemment.',
+        '"equityPercent" — un pourcentage de l\'équité courante. La seule des trois qui compose : une stratégie gagnante grossit toute seule, une perdante réduit.',
+      ]),
+      c(
+        `strategy.long("Cassure");                                  // taille par défaut des réglages
+strategy.long("Cassure", { size: 3 });                     // 3, dans l'unité par défaut
+strategy.long("Cassure", { size: 500, unit: "currency" });  // 500 € de notionnel
+strategy.long("Cassure", { size: 25, unit: "equityPercent" }); // un quart du compte`
+      ),
+      t(
+        "La conversion se fait au moment de l'exécution, pas au moment de l'appel : deux des trois unités ont besoin d'un prix, et l'une d'elles de l'équité du compte à cet instant. Une taille qui ne donne rien d'exploitable (prix nul, compte à zéro) ne passe pas d'ordre plutôt que d'en passer un de taille infinie."
+      ),
+      h("Lire la position", ["strategy.position", "strategy.positionSize", "strategy.averagePrice", "strategy.unrealizedProfit"]),
+      c(
+        `strategy.position()          // "long" | "short" | "flat"
+strategy.positionSize()      // number — unités détenues, toujours positif
+strategy.averagePrice()      // number | null — prix moyen d'entrée, null à plat
+strategy.unrealizedProfit()  // number — P&L latent au cours de la bougie courante`
+      ),
+      t(
+        "Ces quatre lectures rendent conditionnelle une règle de sortie : « ne fermer que si on est en gain », « ne renforcer que sous le prix moyen ». Elles reflètent l'état *après* les bougies déjà rejouées et avant l'exécution des ordres de la bougie en cours — un ordre passé juste au-dessus n'est donc pas encore visible ici."
+      ),
+      h("Le panneau de stratégie"),
+      t(
+        "Il s'ouvre sous les bougies dès qu'un script @strategy est actif, à l'endroit où se placerait un MACD. Trois onglets : la performance (courbe de P&L cumulé, ruban des trades, statistiques), la liste des trades, et les réglages."
+      ),
+      t(
+        "Les réglages sont séparés en deux blocs, et la distinction vaut la peine d'être gardée en tête. « Général » décrit votre compte : capital initial, devise, taille d'ordre par défaut et son unité, pyramiding (combien d'entrées peuvent être ouvertes en même temps), et le moment d'exécution. « Émulateur de broker » décrit le courtier que vous simulez : commission, leviers long et short, slippage et taille du tick. Confondre les deux, c'est lire comme une propriété de la stratégie ce qui n'était que le modèle de frictions."
+      ),
+      t(
+        "Changer un réglage relance le script : la simulation vit à l'intérieur de l'exécution, il n'y a donc pas d'autre sens possible à donner à « recalculer avec une commission différente »."
+      ),
+      t(
+        "Les statistiques ne portent que sur les trades clôturés. Une position encore ouverte à la fin du rejeu est affichée à part, avec son P&L latent : la compter comme un trade flatterait discrètement toutes les autres statistiques."
+      ),
+      h("Marge et levier"),
+      t(
+        "Une entrée dont le notionnel dépasse ce que le compte peut porter — son équité multipliée par le levier du sens concerné — est refusée. Le compteur « Ordres refusés » du panneau les dénombre : une stratégie qui montre trois trades là où son auteur en attendait trois cents doit pouvoir dire que c'était faute de marge, et non parce que ses règles ne se sont jamais déclenchées."
+      ),
+      t(
+        "Le levier borne donc l'exposition ; il ne multiplie pas le résultat d'une position d'une taille donnée. La taille est déjà celle que le script a demandée, et la multiplier en plus afficherait des gains qu'aucun compte n'aurait pu réaliser."
+      ),
+      t(
+        "C'est aussi pourquoi la taille par défaut est un pourcentage de l'équité et non un nombre de contrats : « 1 contrat » vaut 40 € sur un instrument et 75 000 € sur un autre, donc sur un instrument cher tous les ordres seraient refusés et la stratégie afficherait zéro trade pour des raisons étrangères à ses règles."
+      ),
     ],
   },
   {

@@ -33,7 +33,8 @@ export const SCRIPT_EXAMPLES: ScriptExample[] = [
       { id: "example-rsi", kind: "rsi", period: 14 },
       { id: "example-macd", kind: "macd", period: 0, fastPeriod: 12, slowPeriod: 26, signalPeriod: 9 },
     ],
-    code: `// Lit un RSI et un MACD déjà présents sur la chart plutôt que de les recalculer ici —
+    code: `@indicator
+// Lit un RSI et un MACD déjà présents sur la chart plutôt que de les recalculer ici —
 // voir "Indicateurs disponibles" dans l'éditeur pour les identifiants réels de votre chart.
 const rsi = chart.indicator("rsi").value(0);
 const macdHist = chart.indicator("macd").histogram(0);
@@ -61,7 +62,8 @@ if (bar.isNew() && score === 3) {
     title: "Croisement de moyennes mobiles (Golden / Death Cross)",
     description:
       "SMA 50 et SMA 200 tracées en superposition, avec un signal et une alerte au moment exact où la courte croise la longue — la valeur précédente de chaque moyenne est mémorisée via state.* pour détecter le croisement, pas recalculée à côté.",
-    code: `const shortMA = math.sma(market.series("close", 50), 50);
+    code: `@indicator
+const shortMA = math.sma(market.series("close", 50), 50);
 const longMA = math.sma(market.series("close", 200), 200);
 // La valeur des deux moyennes à la bougie PRÉCÉDENTE — nécessaire pour détecter le moment exact
 // du croisement (avant/après), pas juste "laquelle est au-dessus en ce moment".
@@ -91,7 +93,8 @@ state.set("prevLong", longMA);`,
     id: "bollinger-breakout",
     title: "Rupture des bandes de Bollinger",
     description: "Bandes tracées en superposition ; signal quand le prix clôture au-delà de l'une des deux bandes :",
-    code: `// Calculé "à la volée" via ta.* — pas besoin d'avoir ajouté de Bollinger à la chart.
+    code: `@indicator
+// Calculé "à la volée" via ta.* — pas besoin d'avoir ajouté de Bollinger à la chart.
 const bb = ta.bollinger(market.series("close", 60), 20, 2);
 const price = market.close(0);
 
@@ -115,7 +118,8 @@ if (bb) {
     id: "volume-spike",
     title: "Détecteur de pic de volume",
     description: "Marque la bougie courante quand son volume dépasse la moyenne + 2 écarts-types des 20 dernières bougies :",
-    code: `const volumes = market.series("volume", 20);
+    code: `@indicator
+const volumes = market.series("volume", 20);
 const avgVolume = math.mean(volumes);
 const stdVolume = math.std(volumes);
 const currentVolume = market.volume(0);
@@ -133,7 +137,8 @@ if (bar.isNew() && avgVolume !== null && stdVolume !== null && currentVolume !==
     id: "momentum-score",
     title: "Score de momentum (RSI + Stochastique)",
     description: "Une deuxième variante de score composite, indépendante du Quant Score ci-dessus — combine RSI et l'oscillateur stochastique plutôt que MACD :",
-    code: `const closes = market.series("close", 60);
+    code: `@indicator
+const closes = market.series("close", 60);
 const highs = market.series("high", 60);
 const lows = market.series("low", 60);
 
@@ -157,7 +162,8 @@ if (bar.isNew() && score === 3) {
     id: "donchian-channel",
     title: "Canal de rupture",
     description: "Un canal de type Donchian — plus haut et plus bas glissants — avec un signal quand le prix clôture hors du canal :",
-    code: `const period = 20;
+    code: `@indicator
+const period = 20;
 // Le plus haut plus haut et le plus bas plus bas des 20 dernières bougies — le canal lui-même.
 const upperChannel = math.max(market.series("high", period));
 const lowerChannel = math.min(market.series("low", period));
@@ -181,7 +187,8 @@ if (bar.isNew() && lowerChannel !== null && price <= lowerChannel) {
     title: "Pane ancrée à droite (squelette)",
     description:
       "Le plus petit script qui produise une pane ancrée sur le côté : une pane nommée, `dock: \"right\"`, et une série à tracer dedans. Aucune logique — c'est le point de départ à copier quand on veut sa propre colonne latérale, pas un indicateur. Une pane ancrée occupe sa propre colonne à droite du graphique, redimensionnable par son bord, et s'ouvre repliée sur la mise en page tactile (une colonne de 220 px sur un téléphone ne laisserait rien aux bougies). `dock: \"left\"` fait la même chose de l'autre côté ; sans `dock`, la pane s'empile sous le prix comme n'importe quel indicateur :",
-    code: `// La pane est créée par son nom au premier appel, puis retrouvée par ce même nom à chaque bougie
+    code: `@indicator
+// La pane est créée par son nom au premier appel, puis retrouvée par ce même nom à chaque bougie
 // — "le dernier appel gagne" pour chaque série qu'elle contient.
 const droite = plot.pane("Ma pane", { dock: "right" });
 
@@ -194,7 +201,8 @@ droite.line("Clôture", market.close(0) ?? 0);`,
     title: "Niveaux de support/résistance (KDE gaussienne)",
     description:
       "Un portage fidèle de computeMarketProfile du projet market-profile-levels (lui-même un portage de find_levels() de son notebook Python) : KDE gaussienne en espace log-prix, largeur de noyau à la manière de scipy.gaussian_kde(bw_method=scalaire) — h = ATR-log moyen × ATR_MULT × écart-type pondéré des log-clôtures — grille de GRID points couvrant exactement l'amplitude observée, et détection de pics par proéminence. Le profil est affiché dans une pane ancrée à droite (plot.pane(..., { dock: \"right\" })), recalculé tous les RECALC_EVERY bougies pour rester sous le budget d'exécution, avec un signal au moment exact où le prix franchit un niveau. Les quatorze constantes de la cellule 1 sont déclarées avec new Variable(type, défaut) : elles apparaissent dans la fenêtre de réglages (celle de l'éditeur comme celle de la pane), se règlent sans toucher au code, et toute tentative de les réaffecter ailleurs dans le script est signalée comme une erreur. Le tutoriel « Niveaux de support/résistance (KDE) » plus haut construit la même idée pas à pas, en prix bruts plutôt qu'en log — c'est la version pédagogique, celle-ci est la version de production :",
-    code: `@description "///Niveaux de support/résistance///
+    code: `@indicator
+@description "///Niveaux de support/résistance///
 Un **profil de marché** lissé par un noyau gaussien. Plutôt que de compter combien de fois le prix
 a visité chaque palier, chaque clôture est étalée en une petite cloche, et toutes les cloches sont
 additionnées : le profil obtenu est *continu* au lieu d'être en escalier.
@@ -464,7 +472,8 @@ if (AFFICHER_NIVEAUX && currClose !== null) {
     title: "Le même, en plusieurs fichiers et avec des classes",
     description:
       "Le script précédent découpé en trois fichiers importés par le principal, et réécrit avec des classes. Le calcul est identique ; ce qui change, c'est l'organisation : noyau porte la KDE gaussienne, pics la détection de pics par proéminence (sur un tableau de nombres quelconque, sans rien savoir des prix), et niveaux importe les deux pour en faire un objet SuiviNiveaux qui garde sa mémoire d'une bougie à l'autre. Le fichier principal ne fait plus que déclarer les réglages et afficher. À retenir sur l'exécution : le fichier principal est rejoué une fois par bougie, les fichiers importés ne sont évalués qu'une seule fois par exécution — une instance créée dans un fichier importé traverse donc tout l'historique. Dans l'éditeur, la barre au-dessus du code donne un onglet par fichier et le bouton + en crée un nouveau :",
-    code: `@description "///Niveaux S/R en plusieurs fichiers///
+    code: `@indicator
+@description "///Niveaux S/R en plusieurs fichiers///
 Exactement le même calcul que l'exemple précédent, mais **découpé en trois fichiers** et écrit avec
 des classes plutôt qu'avec des fonctions et un sac de --state.get/set--.
 
@@ -729,5 +738,57 @@ export class SuiviNiveaux {
 }
 ` },
     ],
+  },
+  {
+    id: "macd-strategy",
+    title: "Stratégie — croisement MACD",
+    description:
+      "Une stratégie complète et volontairement simple : long quand l'histogramme MACD passe au-dessus de zéro, short quand il repasse en dessous, et rien d'autre. Elle sert d'abord à montrer la mécanique — @strategy, strategy.long/short/close, et le testeur qui s'ouvre en bas de la chart — sur une règle assez courte pour être lue d'un coup d'œil. Notez qu'un croisement se détecte en comparant à la valeur de la bougie précédente, mémorisée avec state.* : sans ça on entrerait à chaque bougie où l'histogramme est positif, pas au moment où il le devient.",
+    code: `@strategy
+@description "///Stratégie MACD///
+Long au passage de l'histogramme MACD au-dessus de zéro, short en dessous.
+
+//Ce que ça montre//
+La mécanique complète d'une stratégie : le décorateur **@strategy**, les ordres
+--strategy.long()-- / --strategy.short()--, et le panneau de test qui s'ouvre sous la chart.
+
+//Ce que ça n'est pas//
+Une stratégie à trader. Un croisement de MACD nu perd de l'argent sur la plupart des marchés une
+fois les frais payés — c'est précisément ce que le facteur de profit du panneau vous dira.
+"
+
+@block Réglages
+
+const RAPIDE = new Variable("number", 12, { description: "Période de l'EMA rapide du MACD.", min: 1, max: 200 });
+const LENTE = new Variable("number", 26, { description: "Période de l'EMA lente du MACD.", min: 1, max: 200 });
+const SIGNAL = new Variable("number", 9, { description: "Période de la ligne de signal.", min: 1, max: 200 });
+
+@block Le MACD, et son histogramme à la bougie précédente
+
+const macd = ta.macd(market.series("close", LENTE * 5), RAPIDE, LENTE, SIGNAL);
+const histo = macd ? macd.histogram : null;
+const histoAvant = state.get("histoAvant", null);
+state.set("histoAvant", histo);
+
+@block Les règles d'entrée
+
+// Un croisement, pas un état : on compare à la bougie précédente. Sans ce test, la condition
+// "histogramme positif" serait vraie sur toute une tendance et déclencherait une entrée par
+// bougie, que le pyramiding se contenterait ensuite d'ignorer en silence.
+if (histo !== null && histoAvant !== null) {
+  if (histoAvant <= 0 && histo > 0) strategy.long("MACD haussier");
+  if (histoAvant >= 0 && histo < 0) strategy.short("MACD baissier");
+}
+
+@block Le MACD lui-même, pour pouvoir lire la stratégie
+
+// Une stratégie reste un script : elle peut tracer ce qu'elle veut. Voir l'histogramme sous les
+// bougies est ce qui permet de comprendre *pourquoi* un trade s'est déclenché là.
+if (macd && macd.macd !== null && macd.signal !== null) {
+  const pane = plot.pane("MACD");
+  pane.line("MACD", macd.macd, { color: "#6c87c9" });
+  pane.line("Signal", macd.signal, { color: "#e0a95c" });
+  pane.histogram("Histogramme", macd.histogram ?? 0, { color: "#7fb37f" });
+}`,
   },
 ];

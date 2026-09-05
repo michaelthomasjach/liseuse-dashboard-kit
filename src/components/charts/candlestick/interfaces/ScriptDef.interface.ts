@@ -1,3 +1,4 @@
+import type { StrategySettings } from "./StrategySettings.interface";
 import type { ScriptParamValue } from "./ScriptParam.interface";
 
 /** One user-authored script, as seen from outside this library — see
@@ -39,6 +40,12 @@ export interface ScriptDef {
    *  `CandlestickChart` (only ever one candidate panel: itself) — that usage ignores this field
    *  entirely. */
   targetPanelIndex?: number;
+  /** A `@strategy` script's own account and frictions (see `StrategySettings`), as edited in its
+   *  strategy pane. Lives on the script rather than in some parallel map keyed by id because it
+   *  belongs to it: saved with it, routed with it to whichever panel runs it, and gone with it when
+   *  it is deleted. `undefined` until the pane is first opened, at which point the defaults apply —
+   *  so a strategy runs sensibly before anyone has configured anything. */
+  strategySettings?: StrategySettings;
   /** Values the user has set for this script's own `const NAME = new Variable(type, default)`
    *  parameters, by parameter name. Absent (or missing an entry) means "use the default written in
    *  the code", so a script whose declarations change — a renamed parameter, a new one — keeps

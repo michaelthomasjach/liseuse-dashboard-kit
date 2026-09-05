@@ -1,6 +1,8 @@
 import { analyzeScriptVariables, applyScriptParams } from "../scriptVariables";
 import { stripScriptDescription } from "../scriptDescription";
 import { stripScriptBlocks } from "../scriptBlocks";
+import { analyzeScriptKind, stripScriptKind } from "../scriptKind";
+import { DEFAULT_STRATEGY_SETTINGS } from "../../interfaces/StrategySettings.interface";
 import { useEffect, useMemo, useRef } from "react";
 import type { Candle } from "../../interfaces/Candle.interface";
 import type { Indicator } from "../../interfaces/Indicator.interface";
@@ -47,7 +49,7 @@ function withParams(source: string, paramValues: ScriptDef["paramValues"]): stri
   // Both keywords are read from the source text and then removed: neither is valid JavaScript, so
   // what actually gets compiled must contain neither. Blocks first or description first makes no
   // difference — each blanks its own lines in place and leaves every other line's number alone.
-  const code = stripScriptBlocks(stripScriptDescription(source));
+  const code = stripScriptKind(stripScriptBlocks(stripScriptDescription(source)));
   const { params } = analyzeScriptVariables(code);
   return applyScriptParams(code, params, paramValues);
 }
@@ -66,7 +68,7 @@ function filesWithParams(files: ScriptDef["files"], paramValues: ScriptDef["para
  *  declaration, or declared as something other than "number") lets useScriptEngine fall back to
  *  its own default unchanged. */
 function resolveDebounceMs(code: string, paramValues: ScriptDef["paramValues"]): number | undefined {
-  const { params } = analyzeScriptVariables(stripScriptBlocks(stripScriptDescription(code)));
+  const { params } = analyzeScriptVariables(stripScriptKind(stripScriptBlocks(stripScriptDescription(code))));
   const param = params.find((p) => p.name === "DEBOUNCE_MS" && p.type === "number");
   if (!param) return undefined;
   const raw = paramValues?.[param.name];
@@ -76,7 +78,22 @@ function resolveDebounceMs(code: string, paramValues: ScriptDef["paramValues"]):
 
 export function ScriptRunner({ script, data, indicators, fundamentals, lastCandleOpen, availableTimeframes, runUpToIndex, onOutput, onAlert }: ScriptRunnerProps) {
   const debounceMs = useMemo(() => resolveDebounceMs(script.code, script.paramValues), [script.code, script.paramValues]);
-  const engine = useScriptEngine(script.id, data, indicators, fundamentals, lastCandleOpen, availableTimeframes, runUpToIndex, debounceMs);
+  // Settings are handed over only when the script actually declared itself a strategy. That is what
+  // withholds the `strategy.*` API from an indicator (runScript builds it from these or not at
+  // all), so the decorator isn't merely descriptive — it gates the capability.
+  const strategySettings =
+    analyzeScriptKind(script.code).kind === "strategy" ? (script.strategySettings ?? DEFAULT_STRATEGY_SETTINGS) : undefined;
+  const engine = useScriptEngine(
+    script.id,
+    data,
+    indicators,
+    fundamentals,
+    lastCandleOpen,
+    availableTimeframes,
+    runUpToIndex,
+    debounceMs,
+    strategySettings
+  );
   const hasRunOnceRef = useRef(false);
   const lastRunRequestIdRef = useRef<number | null>(null);
   const lastStopRequestIdRef = useRef<number | null>(null);

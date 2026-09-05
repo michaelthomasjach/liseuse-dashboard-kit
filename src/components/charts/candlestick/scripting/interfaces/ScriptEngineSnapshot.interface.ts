@@ -1,4 +1,5 @@
 import type { IndicatorValue } from "../../interfaces/IndicatorValue.interface";
+import type { StrategySettings } from "../../interfaces/StrategySettings.interface";
 
 /** One candle, flattened to a plain JSON-safe shape for `structuredClone`-based `postMessage` —
  *  `Candle`'s own `date: Date` survives structured clone fine on its own, but keeping the
@@ -49,6 +50,12 @@ export interface ScriptEngineSnapshot {
    *  passed no fundamentals. Read through `company.*`, which bounds it to the current bar the same
    *  way `market.*` does. */
   fundamentalSeries: Record<string, (number | null)[]>;
+  /** Set only for a `@strategy` script (see `scriptKind.ts`) — the account and frictions its
+   *  backtest runs against, edited in the strategy pane rather than written in the script (see
+   *  `StrategySettings`). Absent for an indicator, which has no `strategy.*` API at all: the two
+   *  are separated here rather than by a runtime check inside the API, so a script that never
+   *  declared itself a strategy cannot accidentally open a position. */
+  strategySettings?: StrategySettings;
   runUpToIndex: number;
   /** The user's own script source, compiled fresh inside the Worker via `new Function` on every
    *  run (see runScript.ts) — never persisted or cached Worker-side across runs, so a script edit

@@ -8,6 +8,8 @@ import type { ScriptTableOutput } from "../interfaces/ScriptRunResult.interface"
 import type { ScriptEngineSnapshot } from "../interfaces/ScriptEngineSnapshot.interface";
 import { stripScriptDescription } from "../scriptDescription";
 import { stripScriptBlocks } from "../scriptBlocks";
+import { stripScriptKind } from "../scriptKind";
+import type { StrategySettings } from "../../interfaces/StrategySettings.interface";
 import type { ScriptRunResult } from "../interfaces/ScriptRunResult.interface";
 import type { ResolvedScriptLabel } from "../interfaces/ScriptRunOutput.interface";
 import { computeIndicatorValues, forwardFillSeries } from "../../indicators";
@@ -36,7 +38,8 @@ function buildSnapshot(
   isRealtimeTick: boolean,
   availableTimeframes: string[]
 ,
-  runUpToIndex: number
+  runUpToIndex: number,
+  strategySettings: StrategySettings | undefined
 ): ScriptEngineSnapshot {
   // Reuses `computeIndicatorValues` verbatim — the exact same function `useIndicatorPaneScales`
   // calls to produce what's actually drawn on the chart — rather than recomputing indicator
@@ -75,6 +78,7 @@ function buildSnapshot(
     lastCandleOpen,
     isRealtimeTick,
     availableTimeframes,
+    strategySettings,
   };
 }
 
@@ -114,7 +118,12 @@ export function useScriptEngine(
    *  applyScriptParams). Lets a script that wants to feel every replay tick immediately opt into
    *  `DEBOUNCE_MS = 0` — confirmed request: "je ne veux pas ton comportement anti-rafale... mets-le
    *  en paramètre du script". `undefined` (no such declaration) keeps the existing default. */
-  debounceMs: number = REALTIME_TICK_DEBOUNCE_MS
+  debounceMs: number = REALTIME_TICK_DEBOUNCE_MS,
+  /** The account and frictions a `@strategy` script backtests against (see `StrategySettings`).
+   *  `undefined` for an indicator, which is what actually withholds the `strategy.*` API from it —
+   *  see runScript.ts. Changing one of these re-runs the script, exactly as changing a `Variable`
+   *  does: the simulation lives inside the run, so there is nothing else it could mean. */
+  strategySettings: StrategySettings | undefined = undefined
 ) {
   // Clamped: a cutoff from a previous, longer dataset would otherwise run past the end of this one.
   const effectiveRunUpToIndex = runUpToIndex === null ? data.length - 1 : Math.max(0, Math.min(runUpToIndex, data.length - 1));
@@ -203,7 +212,7 @@ export function useScriptEngine(
     // `@description` failed with "Invalid or unexpected token" before this. Both strips blank
     // their lines in place, so a runtime error's reported line still points where the user is
     // looking.
-    const scriptCode = stripScriptBlocks(stripScriptDescription(rawScriptCode));
+    const scriptCode = stripScriptKind(stripScriptBlocks(stripScriptDescription(rawScriptCode)));
     // Reusing a worker that's still mid-run would let its own stale result land in *this* call's
     // freshly-assigned onmessage/onerror below once it eventually finishes — a Worker processes
     // queued postMessage calls sequentially, it doesn't just drop the superseded one — silently
@@ -245,7 +254,7 @@ export function useScriptEngine(
           table: null,
           xyCharts: [],
           alerts: [],
-          labels: [],
+          labels: [], strategy: null,
         };
         setResult(errorResult);
         setRunning(false);
@@ -262,7 +271,7 @@ export function useScriptEngine(
           table: null,
           xyCharts: [],
           alerts: [],
-          labels: [],
+          labels: [], strategy: null,
         };
         setResult(timeoutResult);
         setRunning(false);
@@ -270,7 +279,7 @@ export function useScriptEngine(
       }, timeoutMs);
 
       worker.postMessage(
-        buildSnapshot(data, indicators, fundamentals, scriptCode, scriptModules, timeoutMs, lastCandleOpen, isRealtimeTick, availableTimeframes, effectiveRunUpToIndex)
+        buildSnapshot(data, indicators, fundamentals, scriptCode, scriptModules, timeoutMs, lastCandleOpen, isRealtimeTick, availableTimeframes, effectiveRunUpToIndex, strategySettings)
       );
     });
   }

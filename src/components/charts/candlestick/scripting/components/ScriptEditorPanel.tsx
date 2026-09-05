@@ -65,7 +65,9 @@ export interface ScriptEditorPanelProps {
   previewData?: Candle[];
 }
 
-const DEFAULT_SCRIPT_CODE = `@block Cellule 1 — Affiche une série dans une panneau séparé
+const DEFAULT_SCRIPT_CODE = `@indicator
+
+@block Cellule 1 — Affiche une série dans une panneau séparé
 plot.pane("Ma série").line("Ma série", market.close(0));
 `;
 

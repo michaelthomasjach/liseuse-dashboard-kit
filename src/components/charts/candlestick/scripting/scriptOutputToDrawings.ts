@@ -27,7 +27,7 @@ export function scriptDrawingToTrendLineDrawing(id: string, d: ScriptDrawingOutp
   const price = d.price ?? 0;
   if (d.kind === "horizontal") return { id, lineType: "horizontal", x1: date, y1: price, x2: date, y2: price, color: d.color, text: d.text };
   if (d.kind === "vertical") return { id, lineType: "vertical", x1: date, y1: 0, x2: date, y2: 0, color: d.color, text: d.text };
-  return { id, lineType: markerShape(d), x1: date, y1: price, x2: date, y2: price, color: d.color, text: d.text };
+  return { id, lineType: markerShape(d), x1: date, y1: price, x2: date, y2: price, color: d.color, text: d.text, markerSide: d.markerSide };
 }
 
 /** Every drawing a run of `scriptId` produced, replacing whatever that same script produced last

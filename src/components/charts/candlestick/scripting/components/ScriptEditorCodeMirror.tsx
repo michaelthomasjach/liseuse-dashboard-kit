@@ -1,6 +1,7 @@
 import { analyzeScriptVariables } from "../scriptVariables";
 import { analyzeScriptDescription } from "../scriptDescription";
 import { isBlockMarkerLine } from "../scriptBlocks";
+import { analyzeScriptKind } from "../scriptKind";
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { EditorState, StateEffect, StateField, type Text } from "@codemirror/state";
@@ -681,7 +682,11 @@ export const ScriptEditorCodeMirror = forwardRef<ScriptEditorCodeMirrorHandle, S
     // reported against the live document, so they show up before anything is ever run.
     const docLength = view.state.doc.length;
     const source = view.state.doc.toString();
-    for (const issue of [...analyzeScriptDescription(source).diagnostics, ...analyzeScriptVariables(source).diagnostics]) {
+    for (const issue of [
+      ...analyzeScriptDescription(source).diagnostics,
+      ...analyzeScriptVariables(source).diagnostics,
+      ...analyzeScriptKind(source).diagnostics,
+    ]) {
       diagnostics.push({
         from: Math.min(issue.from, docLength),
         to: Math.min(issue.to, docLength),

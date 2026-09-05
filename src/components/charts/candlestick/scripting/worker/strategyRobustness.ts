@@ -131,11 +131,18 @@ export function computeStrategyRobustness(
   });
 
   // ── Stabilité des régimes ──────────────────────────────────────────────────────────────────
-  const closesBetween = (from: number, to: number) => bars.filter((b) => b.t >= from && b.t <= to).map((b) => b.c);
+  // Trades close in order and bars are already sorted, so one cursor walks both lists once instead
+  // of re-filtering every bar per trade — which on a real run is a few hundred trades against a few
+  // thousand bars, i.e. a million comparisons repeated on every re-run of the script.
   const trending: StrategyTrade[] = [];
   const ranging: StrategyTrade[] = [];
+  let cursor = 0;
   for (const trade of trades) {
-    (directionalEfficiency(closesBetween(trade.entryTime, trade.exitTime)) > 0.3 ? trending : ranging).push(trade);
+    while (cursor > 0 && bars[cursor - 1].t >= trade.entryTime) cursor--;
+    while (cursor < bars.length && bars[cursor].t < trade.entryTime) cursor++;
+    const closes: number[] = [];
+    for (let i = cursor; i < bars.length && bars[i].t <= trade.exitTime; i++) closes.push(bars[i].c);
+    (directionalEfficiency(closes) > 0.3 ? trending : ranging).push(trade);
   }
   const sum = (list: StrategyTrade[]) => list.reduce((s, t) => s + t.profit, 0);
   if (trending.length < MIN_TRADES_PER_GROUP || ranging.length < MIN_TRADES_PER_GROUP) {

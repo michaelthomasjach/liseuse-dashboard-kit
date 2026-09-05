@@ -384,7 +384,6 @@ export function buildStrategyApi(
       losingTrades: losses.length,
       winRate: trades.length > 0 ? wins.length / trades.length : null,
       profitFactor: grossLoss > 0 ? grossProfit / grossLoss : null,
-      averageProfit: trades.length > 0 ? totalPnl / trades.length : null,
       bestTrade: trades.length > 0 ? Math.max(...trades.map((t) => t.profit)) : null,
       worstTrade: trades.length > 0 ? Math.min(...trades.map((t) => t.profit)) : null,
       sharpeRatio: sharpe,

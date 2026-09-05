@@ -1,3 +1,6 @@
+import { useState } from "react";
+import { InfoIcon } from "../../../icons";
+import { Modal } from "../../../primitives/Modal";
 import type { StrategyMetrics } from "../interfaces/StrategyResult.interface";
 
 export interface StrategyMetricsGridProps {
@@ -19,8 +22,32 @@ function percent(value: number): string {
  *  Every "not enough data" case shows an em dash rather than 0. A profit factor of 0 and a profit
  *  factor that doesn't exist yet are completely different claims, and a grid that renders them
  *  identically is a grid that lies on the first run of every strategy. */
+/** The explanations behind the "i" buttons. Kept as data next to the cells rather than as tooltips:
+ *  a ratio nobody can define is a number people either ignore or over-trust, and the definition is
+ *  several sentences long — more than a `title` attribute can carry, and more than a reader should
+ *  have to hover to keep on screen while they compare two figures. */
+const EXPLANATIONS: Record<string, { title: string; body: string }> = {
+  sharpe: {
+    title: "Ratio de Sharpe",
+    body: "Le rendement annualisé divisé par sa volatilité : combien la stratégie rapporte par unité de risque pris.\n\nIl est calculé sur la courbe d'équité barre par barre, pas sur les trades — un compte est tout aussi exposé entre deux trades que pendant l'un d'eux. L'annualisation est mesurée sur vos propres données (combien de bougies tombent réellement dans une année), pas supposée à 252 ou 365, donc elle est juste aussi bien sur du quotidien que sur du 15 minutes. Un taux sans risque de 0 est supposé.\n\nÀ titre indicatif : au-dessus de 1 le rendement paie le risque, au-dessus de 2 c'est très bon, en dessous de 0 la stratégie perd de l'argent. Attention toutefois : Sharpe pénalise autant les bonnes surprises que les mauvaises, l'écart-type ne sachant pas les distinguer.",
+  },
+  sortino: {
+    title: "Ratio de Sortino",
+    body: "Le même rapport que Sharpe, mais divisé par la seule volatilité des pertes.\n\nC'est la correction du défaut de Sharpe : une stratégie qui monte par à-coups est punie par l'écart-type alors que ces à-coups-là ne coûtent rien. Sortino ne compte que la volatilité qui fait mal.\n\nConséquence à connaître : sur une stratégie rentable, Sortino est presque toujours SUPÉRIEUR à Sharpe — avec un rendement moyen positif, une barre perdante est plus loin de la moyenne qu'elle ne l'est de zéro. Ce qu'il faut lire, c'est l'écart entre les deux. Large, la volatilité était surtout haussière et n'a rien coûté. Étroit, les à-coups étaient des pertes, et le Sharpe est bas pour la raison qui compte.",
+  },
+  drawdown: {
+    title: "Drawdown maximum",
+    body: "La plus forte baisse du compte entre un sommet et le creux qui l'a suivi, avant qu'un nouveau sommet ne soit atteint.\n\nC'est le chiffre de risque le plus utile d'un backtest, et le plus souvent ignoré : deux stratégies au même profit ne sont pas la même stratégie si l'une a divisé le compte par deux en chemin. C'est aussi ce qu'il faut avoir été capable de traverser sans arrêter la stratégie — la plupart des abandons se font là.",
+  },
+  profitFactor: {
+    title: "Facteur de profit",
+    body: "Le profit brut divisé par la perte brute. Au-dessus de 1, la stratégie gagne plus qu'elle ne perd.\n\nLe ratio seul cache l'échelle : 1,2 sur une poignée de trades et 1,2 sur un millier ne sont pas la même preuve. C'est pourquoi le profit brut et la perte brute sont affichés à côté plutôt que résumés à leur seul rapport.",
+  },
+};
+
 export function StrategyMetricsGrid({ metrics, currency }: StrategyMetricsGridProps) {
-  const cells: { label: string; value: string; hint?: string; tone?: "up" | "down" }[] = [
+  const [explaining, setExplaining] = useState<string | null>(null);
+  const cells: { label: string; value: string; hint?: string; tone?: "up" | "down"; info?: string }[] = [
     {
       label: "P&L total",
       value: money(metrics.totalPnl, currency),
@@ -31,10 +58,12 @@ export function StrategyMetricsGrid({ metrics, currency }: StrategyMetricsGridPr
       label: "Drawdown max",
       value: money(-metrics.maxDrawdown, currency),
       hint: `${metrics.maxDrawdownPercent.toFixed(2)} % du pic`,
+      info: "drawdown",
       tone: metrics.maxDrawdown > 0 ? "down" : undefined,
     },
     {
       label: "Facteur de profit",
+      info: "profitFactor",
       value: metrics.profitFactor === null ? "—" : metrics.profitFactor.toFixed(3),
       hint: metrics.profitFactor === null ? "aucune perte à diviser" : "profit brut / perte brute",
       tone: metrics.profitFactor === null ? undefined : metrics.profitFactor >= 1 ? "up" : "down",
@@ -46,12 +75,14 @@ export function StrategyMetricsGrid({ metrics, currency }: StrategyMetricsGridPr
     },
     {
       label: "Ratio de Sharpe",
+      info: "sharpe",
       value: metrics.sharpeRatio === null ? "—" : metrics.sharpeRatio.toFixed(2),
       hint: "rendement annualisé / volatilité",
       tone: metrics.sharpeRatio === null ? undefined : metrics.sharpeRatio >= 1 ? "up" : metrics.sharpeRatio >= 0 ? undefined : "down",
     },
     {
       label: "Ratio de Sortino",
+      info: "sortino",
       value: metrics.sortinoRatio === null ? "—" : metrics.sortinoRatio.toFixed(2),
       hint: "idem, volatilité des pertes seules",
       tone: metrics.sortinoRatio === null ? undefined : metrics.sortinoRatio >= 1 ? "up" : metrics.sortinoRatio >= 0 ? undefined : "down",
@@ -108,13 +139,31 @@ export function StrategyMetricsGrid({ metrics, currency }: StrategyMetricsGridPr
     <div className="lq-strategy__metrics">
       {cells.map((cell) => (
         <div className="lq-strategy__metric" key={cell.label}>
-          <span className="lq-strategy__metric-label">{cell.label}</span>
+          <span className="lq-strategy__metric-label">
+            {cell.label}
+            {cell.info && (
+              <button
+                type="button"
+                className="lq-strategy__metric-info"
+                onClick={() => setExplaining(cell.info!)}
+                aria-label={`Que représente « ${cell.label} » ?`}
+                title={`Que représente « ${cell.label} » ?`}
+              >
+                <InfoIcon size={11} />
+              </button>
+            )}
+          </span>
           <span className={["lq-strategy__metric-value", cell.tone && `lq-strategy__metric-value--${cell.tone}`].filter(Boolean).join(" ")}>
             {cell.value}
           </span>
           {cell.hint && <span className="lq-strategy__metric-hint">{cell.hint}</span>}
         </div>
       ))}
+      {explaining && EXPLANATIONS[explaining] && (
+        <Modal open onClose={() => setExplaining(null)} title={EXPLANATIONS[explaining].title}>
+          <p className="lq-chart__indicator-info-text">{EXPLANATIONS[explaining].body}</p>
+        </Modal>
+      )}
     </div>
   );
 }

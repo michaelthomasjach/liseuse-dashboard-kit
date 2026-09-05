@@ -87,8 +87,10 @@ export interface StrategyMetrics {
   /** Gross profit over gross loss. `null` when there is no loss to divide by (an unbeaten strategy,
    *  or no trades at all) — infinity is not a number a reader can act on. */
   profitFactor: number | null;
-  /** Mean profit per closed trade, and the best/worst single one. */
-  averageProfit: number | null;
+  /** The best and worst single closed trade. The *mean* used to live here too, under `averageProfit`,
+   *  alongside an `expectedPayoff` below computing the very same thing from the other end — two
+   *  names for one number, only one of them ever displayed. Expected payoff kept the name, since it
+   *  is the one a reader recognises. */
   bestTrade: number | null;
   worstTrade: number | null;
   /** The two halves `profitFactor` is the ratio of, kept separately because the ratio alone hides
@@ -123,9 +125,10 @@ export interface StrategyMetrics {
    *  for free — and the same figure against gross profit, which is the honest way to read it. */
   totalCommission: number;
   commissionLoadPercent: number;
-  /** Mean profit per trade weighted by how often each side happens — win rate x average win minus
-   *  loss rate x average loss. What one more trade is worth in expectation, which is the number a
-   *  strategy actually lives or dies by. `null` with no closed trade. */
+  /** What one more trade is worth in expectation — the number a strategy actually lives or dies by.
+   *  Conventionally written as "win rate x average win minus loss rate x average loss", which
+   *  simplifies exactly to total P&L over trade count, and that is how it is computed: the same
+   *  answer, without the intermediate rounding. `null` with no closed trade. */
   expectedPayoff: number | null;
   /** Account value at the end — starting capital plus realised P&L plus any open position's own
    *  mark. What the pane's own headline figure shows. */

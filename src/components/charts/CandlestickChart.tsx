@@ -333,6 +333,11 @@ export function CandlestickChart({
   // on its own the first time one appears, since a strategy whose tester never shows up is a
   // strategy nobody can read.
   const [openStrategyId, setOpenStrategyId] = useState<string | null>(null);
+  // Starred picker rows (see IndicatorModals' own `favoriteIndicatorIds`). Chart-local for now,
+  // which is enough for it to survive the modal closing but not a reload — persisting it is the
+  // caller's to own, the same way `favoriteSymbolIds` already is for symbol search, and this can be
+  // lifted to a prop pair the day someone needs it to.
+  const [favoriteIndicatorIds, setFavoriteIndicatorIds] = useState<string[]>([]);
   const openStrategy = strategyScripts.find((s) => s.id === openStrategyId) ?? null;
   useEffect(() => {
     if (openStrategyId !== null && !strategyScripts.some((s) => s.id === openStrategyId)) setOpenStrategyId(null);
@@ -1196,6 +1201,7 @@ export function CandlestickChart({
         <ChartStrategyPanel
           scriptName={openStrategy.name}
           result={scriptingState.runOutputs[openStrategy.id]?.result?.strategy ?? null}
+          error={scriptingState.runOutputs[openStrategy.id]?.result?.error ?? null}
           running={scriptingState.runOutputs[openStrategy.id]?.running ?? false}
           settings={openStrategy.strategySettings ?? DEFAULT_STRATEGY_SETTINGS}
           onSettingsChange={(next) => scriptingState.setStrategySettings(openStrategy.id, next)}
@@ -1263,6 +1269,10 @@ export function CandlestickChart({
         scripts={scriptingState.scripts} toggleScriptEnabled={scriptingState.toggleScriptEnabled}
         onEditScript={onEditScript} onCreateScript={onCreateScript} onDeleteScript={onDeleteScript}
         onCreateStrategyFromIndicator={onCreateStrategyFromIndicator}
+        favoriteIndicatorIds={favoriteIndicatorIds}
+        toggleFavoriteIndicator={(key) =>
+          setFavoriteIndicatorIds((ids) => (ids.includes(key) ? ids.filter((id) => id !== key) : [...ids, key]))
+        }
         setScriptParamValue={scriptingState.setScriptParamValue}
         indicatorsManagerOpen={indicatorsManagerOpen}
         setIndicatorsManagerOpen={setIndicatorsManagerOpen}

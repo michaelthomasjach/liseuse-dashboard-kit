@@ -286,3 +286,15 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* A failed run says so here, at the top of the panel, before the numbers it produced. Without it a
+   crash and a strategy with no signals are the same flat line and the same grid of zeros. */
+.lq-strategy__error {
+  margin: 0 0 var(--lq-space-3);
+  padding: var(--lq-space-2) var(--lq-space-3);
+  font-size: 0.74rem;
+  color: var(--lq-color-down);
+  background-color: color-mix(in srgb, var(--lq-color-down) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--lq-color-down) 35%, transparent);
+  border-radius: var(--lq-radius-md);
+}

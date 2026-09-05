@@ -2945,3 +2945,63 @@
   font-size: 0.75rem;
   color: var(--lq-color-text);
 }
+
+/* A starred picker row's own star — filled, not just tinted, so "favourite" reads at a glance in a
+   column of outline icons rather than needing the two to be compared. */
+.lq-chart__indicator-picker-star--on {
+  color: var(--lq-color-accent);
+}
+
+.lq-chart__indicator-picker-star--on svg {
+  fill: currentColor;
+}
+
+/* A disabled script says so in words. It was already dimmed (see
+   .lq-chart__indicator-picker-option--disabled), but dimming alone reads as "unavailable" just as
+   easily as "switched off", and the only thing that disambiguated it was a hover tooltip — which a
+   real user asked about, having no way to guess. */
+.lq-chart__indicator-picker-off {
+  flex-shrink: 0;
+  padding: 1px 5px;
+  font-size: 0.62rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--lq-color-text-muted);
+  border: 1px solid var(--lq-color-border-subtle);
+  border-radius: var(--lq-radius-sm);
+}
+
+/* Wrapper for the category strip, so the chevrons below can be overlaid on its own edges rather
+   than laid out beside it — appearing and disappearing must not shift the categories sideways
+   under the pointer. Same arrangement `.lq-script-editor-panel__files-more` already uses. */
+.lq-chart__indicator-category-strip {
+  position: relative;
+}
+
+/* Shown only on the side that actually has more to reach, so it doubles as the "there is more this
+   way" signal the hidden scrollbar cannot give. */
+.lq-chart__indicator-category-more {
+  position: absolute;
+  top: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  transform: translateY(-50%);
+  color: var(--lq-color-text);
+  background-color: var(--lq-color-panel);
+  border: 1px solid var(--lq-color-border-subtle);
+  border-radius: var(--lq-radius-sm);
+  box-shadow: 0 0 6px 4px var(--lq-color-panel);
+  cursor: pointer;
+}
+
+.lq-chart__indicator-category-more--left {
+  left: 0;
+}
+
+.lq-chart__indicator-category-more--right {
+  right: 0;
+}

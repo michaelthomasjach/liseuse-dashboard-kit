@@ -79,6 +79,13 @@ export function buildStrategyApi(settings: StrategySettings, getBar: () => { t: 
   // fills at two different prices, because there is only one price on that bar to fill at.
   let pending: { kind: "long" | "short" | "close"; size: number; unit: StrategySizeUnit; label?: string }[] = [];
 
+  /** A size, readable. Percent-of-equity and currency sizing both divide by a price, so a quantity
+   *  is routinely something like 0.01309059793223702 — printing that verbatim on a chart marker
+   *  turns every label into a wall of digits that overlaps its neighbours. Four significant digits
+   *  is what a trader would say out loud, and trailing zeros go too. */
+  const formatQuantity = (quantity: number) =>
+    (quantity >= 1 ? quantity.toFixed(2) : quantity.toPrecision(4)).replace(/\.?0+$/, "");
+
   const commissionFor = (notional: number) =>
     settings.commissionKind === "percent" ? (Math.abs(notional) * settings.commissionValue) / 100 : Math.abs(settings.commissionValue);
 
@@ -125,7 +132,7 @@ export function buildStrategyApi(settings: StrategySettings, getBar: () => { t: 
       // chart is actually drawn in. `markerSide` names the *meaning* and drawMarkers.ts resolves it
       // against the same colorUp/colorDown the candles use.
       markerSide: direction === "long" ? "long" : "short",
-      text: `${direction === "long" ? "Achat" : "Vente"} ${quantity} @ ${price.toFixed(2)}${label ? ` · ${label}` : ""}`,
+      text: `${direction === "long" ? "Achat" : "Vente"} ${formatQuantity(quantity)} @ ${price.toFixed(2)}`,
     });
   }
 
@@ -160,7 +167,7 @@ export function buildStrategyApi(settings: StrategySettings, getBar: () => { t: 
         price,
         shape: "pin",
         markerSide: profit >= 0 ? "win" : "loss",
-        text: `Sortie ${lot.quantity} @ ${price.toFixed(2)} · ${profit >= 0 ? "+" : ""}${profit.toFixed(2)}`,
+        text: `Sortie ${formatQuantity(lot.quantity)} @ ${price.toFixed(2)} · ${profit >= 0 ? "+" : ""}${profit.toFixed(2)}`,
       });
     }
     lots.length = 0;

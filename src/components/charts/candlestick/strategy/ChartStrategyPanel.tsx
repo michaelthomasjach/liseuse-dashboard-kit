@@ -10,6 +10,11 @@ import "./ChartStrategyPanel.css";
 export interface ChartStrategyPanelProps {
   scriptName: string;
   result: StrategyResult | null;
+  /** The script's own error, if its last run threw. Shown here rather than left to the editor: a
+   *  strategy that crashed on bar 50 and one that simply never found a signal both render as a flat
+   *  line and a grid of zeros, and telling them apart is the difference between debugging the code
+   *  and debugging the rules. */
+  error: { message: string; line?: number } | null;
   running: boolean;
   settings: StrategySettings;
   onSettingsChange: (next: StrategySettings) => void;
@@ -32,6 +37,7 @@ type StrategyTab = "performance" | "trades" | "settings";
 export function ChartStrategyPanel({
   scriptName,
   result,
+  error,
   running,
   settings,
   onSettingsChange,
@@ -95,6 +101,12 @@ export function ChartStrategyPanel({
 
       {!collapsed && (
         <div className="lq-strategy__body">
+          {error && (
+            <p className="lq-strategy__error">
+              Le script a échoué{error.line !== undefined ? ` à la ligne ${error.line}` : ""} : {error.message}
+              {result && result.equity.length > 0 ? " — les chiffres ci-dessous ne portent donc que sur les barres rejouées avant l'erreur." : ""}
+            </p>
+          )}
           {tab === "settings" ? (
             <StrategySettingsForm settings={settings} onChange={onSettingsChange} />
           ) : !result ? (

@@ -207,7 +207,18 @@ export function ChartSidePaneColumn({
       {collapsedPanes.length > 0 && (
         <div
           className="lq-chart__side-dock-collapsed-rail"
-          style={{ position: "absolute", top: 0, left: side === "left" ? 0 : plotWidth + axisWidth, width: foldedWidth, height: plotBoundedHeight }}
+          // `+ axisHeight` for the same reason the expanded pane below carries it: each folded band
+          // draws the border that separates the column from the chart, and stopping at
+          // plotBoundedHeight leaves that rule ending level with the axis line instead of at the
+          // column's own foot — the last ~20px of the column open on the side that is supposed to
+          // close it.
+          style={{
+            position: "absolute",
+            top: 0,
+            left: side === "left" ? 0 : plotWidth + axisWidth,
+            width: foldedWidth,
+            height: plotBoundedHeight + axisHeight,
+          }}
         >
           {collapsedPanes.map((ind) => (
             <SideDockCollapsedStrip key={ind.id} side={side} label={indicatorLabel(ind)} onExpand={() => toggleSidePaneCollapsed(ind.id, false)} />

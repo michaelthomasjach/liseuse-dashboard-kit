@@ -210,6 +210,11 @@ export function runScript(snapshot: ScriptEngineSnapshot): ScriptRunResult {
       "math",
       "ta",
       "console",
+      // `undefined` for an indicator, so `strategy.long(...)` there is a TypeError naming what is
+      // missing. The name must be declared even then: omitted from this list it is not a parameter
+      // at all, and the call below silently passes an argument the function never declared — which
+      // is exactly how this shipped broken once, as a ReferenceError no type-check could catch.
+      "strategy",
       entry.code
     ) as CompiledScript;
   } catch (err) {

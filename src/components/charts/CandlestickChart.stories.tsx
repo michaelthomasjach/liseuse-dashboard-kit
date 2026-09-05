@@ -511,19 +511,23 @@ function playAlertSound(value: string) {
  *  ne route vers chaque panneau que les scripts qui le désignent (`s.targetPanelIndex === i`, voir
  *  son propre doc), donc un script sans cible n'est routé nulle part — il n'apparaît sous « Mes
  *  scripts » dans le sélecteur d'indicateurs d'aucun panneau, et ne s'exécute pas non plus. */
-/** The strategy example, wired up the same way KDE_DEBUG_SCRIPT is, so the strategy tester has
- *  something real to show without anyone having to paste a script in first. Same `targetPanelIndex`
- *  requirement as any other workspace-routed script. */
+/** A ready-to-run strategy, wired up the same way KDE_DEBUG_SCRIPT is, so "Mes stratégies" has a
+ *  row and the strategy tester has something real to show without anyone having to write a script
+ *  first. The crossover one rather than the MACD one: it is the simplest that stands up, takes few
+ *  enough trades to read the list by eye, and is the baseline the others are meant to be compared
+ *  against. Same `targetPanelIndex` requirement as any other workspace-routed script — without it
+ *  the script reaches no panel and never runs. */
 const STRATEGY_DEBUG_SCRIPT: ScriptDef[] = [
   {
     id: "debug-strategy",
-    name: "Stratégie MACD",
-    code: SCRIPT_EXAMPLES.find((example) => example.id === "macd-strategy")?.code ?? "",
+    name: "Croisement de moyennes",
+    code: SCRIPT_EXAMPLES.find((example) => example.id === "sma-cross-strategy")?.code ?? "",
     named: true,
     enabled: true,
     targetPanelIndex: 0,
   },
 ];
+
 
 const KDE_DEBUG_SCRIPT: ScriptDef[] = [
   {
@@ -549,6 +553,11 @@ const KDE_DEBUG_SCRIPT: ScriptDef[] = [
     targetPanelIndex: 0,
   },
 ];
+
+/** Both fixtures together — an indicator script *and* a strategy script, so the picker shows both
+ *  "Mes scripts" and "Mes stratégies" with real rows in each, and the conversion button on the
+ *  indicator has something to convert. */
+const DEBUG_SCRIPTS: ScriptDef[] = [...KDE_DEBUG_SCRIPT, ...STRATEGY_DEBUG_SCRIPT];
 
 export const AllFeatures: Story = {
   name: "Toutes les options",
@@ -704,7 +713,7 @@ export const AllFeatures: Story = {
           watchlistNews={DEMO_NEWS}
           symbolProfiles={SYMBOL_PROFILES}
           alerts={<AlertsPanel alerts={alerts} onDeleteAlert={handleDeleteAlert} />}
-          defaultScripts={KDE_DEBUG_SCRIPT}
+          defaultScripts={DEBUG_SCRIPTS}
         >
           <CandlestickChart
             // BTCUSD swaps in the real 15-minute BTC/USDT klines (see btcRealSample.ts's own doc)

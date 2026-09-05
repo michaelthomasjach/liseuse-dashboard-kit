@@ -44,6 +44,18 @@ export function StrategyMetricsGrid({ metrics, currency }: StrategyMetricsGridPr
       value: metrics.tradeCount === 0 ? "—" : `${metrics.winningTrades} / ${metrics.tradeCount}`,
       hint: metrics.winRate === null ? "aucun trade clôturé" : `${(metrics.winRate * 100).toFixed(1)} %`,
     },
+    {
+      label: "Ratio de Sharpe",
+      value: metrics.sharpeRatio === null ? "—" : metrics.sharpeRatio.toFixed(2),
+      hint: "rendement annualisé / volatilité",
+      tone: metrics.sharpeRatio === null ? undefined : metrics.sharpeRatio >= 1 ? "up" : metrics.sharpeRatio >= 0 ? undefined : "down",
+    },
+    {
+      label: "Ratio de Sortino",
+      value: metrics.sortinoRatio === null ? "—" : metrics.sortinoRatio.toFixed(2),
+      hint: "idem, volatilité des pertes seules",
+      tone: metrics.sortinoRatio === null ? undefined : metrics.sortinoRatio >= 1 ? "up" : metrics.sortinoRatio >= 0 ? undefined : "down",
+    },
     { label: "Profit brut", value: money(metrics.grossProfit, currency), tone: "up" },
     { label: "Perte brute", value: money(-metrics.grossLoss, currency), tone: "down" },
     {
@@ -66,6 +78,18 @@ export function StrategyMetricsGrid({ metrics, currency }: StrategyMetricsGridPr
       label: "Pire trade",
       value: metrics.worstTrade === null ? "—" : money(metrics.worstTrade, currency),
       tone: "down",
+    },
+    {
+      label: "MAE max",
+      value: metrics.worstAdverseExcursion === null ? "—" : money(-metrics.worstAdverseExcursion, currency),
+      hint: "pire excursion contre un trade",
+      tone: "down",
+    },
+    {
+      label: "MFE max",
+      value: metrics.bestFavorableExcursion === null ? "—" : money(metrics.bestFavorableExcursion, currency),
+      hint: "meilleure excursion en faveur",
+      tone: "up",
     },
     { label: "Équité finale", value: money(metrics.finalEquity, currency) },
     ...(metrics.rejectedOrders > 0

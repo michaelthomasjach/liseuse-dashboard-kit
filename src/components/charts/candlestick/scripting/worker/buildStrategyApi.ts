@@ -42,6 +42,16 @@ interface OpenLot {
   price: number;
   time: number;
   label?: string;
+  /** The worst and best *unrealised* result this lot has been through since it opened, in money —
+   *  its Maximum Adverse and Maximum Favourable Excursion. Tracked bar by bar while the position is
+   *  open, because neither can be recovered afterwards: the entry and exit prices alone say nothing
+   *  about the route between them, and the route is the whole question. Both are magnitudes, never
+   *  signed: a trade that only ever went up has an MAE of 0.
+   *
+   *  Measured against the bar's own high and low rather than its close — a position is at risk at
+   *  every price the bar actually traded through, not only the one it happened to end on. */
+  maxAdverse: number;
+  maxFavorable: number;
   /** The commission charged when this lot opened. Carried on the lot rather than recomputed at
    *  close: the *reported* profit of a round trip has to be net of both sides, and recomputing the
    *  entry fee from the entry price would silently diverge the moment the commission setting
@@ -119,7 +129,7 @@ export function buildStrategyApi(settings: StrategySettings, getBar: () => { t: 
     const fee = commissionFor(price * quantity);
     cash -= fee;
     totalCommission += fee;
-    lots.push({ direction, quantity, price, time, label, entryFee: fee });
+    lots.push({ direction, quantity, price, time, label, entryFee: fee, maxAdverse: 0, maxFavorable: 0 });
     markers.push({
       kind: "point",
       date: time,
@@ -158,6 +168,8 @@ export function buildStrategyApi(settings: StrategySettings, getBar: () => { t: 
         profitPercent: notional > 0 ? (profit / notional) * 100 : 0,
         entryLabel: lot.label,
         exitLabel: label,
+        maxAdverse: lot.maxAdverse,
+        maxFavorable: lot.maxFavorable,
         // The entry's own fee was charged when it opened; this is the round trip's total.
         commission: fee + lot.entryFee,
       });
@@ -222,10 +234,22 @@ export function buildStrategyApi(settings: StrategySettings, getBar: () => { t: 
   /** Applies this bar's own orders, then records the account's value. `nextOpen` is the following
    *  bar's open, needed only by `fillTiming: "barOpen"` — `null` on the last bar, where there is no
    *  next open and the close is the only honest price left. */
-  function settleBar(bar: { t: number; o: number; c: number }, nextBar: { t: number; o: number } | null) {
+  function settleBar(bar: { t: number; o: number; h: number; l: number; c: number }, nextBar: { t: number; o: number } | null) {
     // `barOpen` fills on the *next* bar, so the fill's own time is that bar's too — stamping it
     // with the signal bar's would drop the marker one candle left of the price it filled at, and
     // put the trade's entry in the list a bar before it happened.
+    // Before this bar's own orders: a lot closing here was still exposed to this bar's range, and a
+    // lot opening here was not — recording after would credit a new position with an excursion that
+    // happened before it existed.
+    for (const lot of lots) {
+      const best = lot.direction === "long" ? bar.h : bar.l;
+      const worst = lot.direction === "long" ? bar.l : bar.h;
+      const favourable = (lot.direction === "long" ? best - lot.price : lot.price - best) * lot.quantity;
+      const adverse = (lot.direction === "long" ? lot.price - worst : worst - lot.price) * lot.quantity;
+      lot.maxFavorable = Math.max(lot.maxFavorable, favourable);
+      lot.maxAdverse = Math.max(lot.maxAdverse, adverse);
+    }
+
     const fillOnNext = settings.fillTiming === "barOpen" && nextBar !== null;
     const fillPrice = fillOnNext ? nextBar.o : bar.c;
     const fillTime = fillOnNext ? nextBar.t : bar.t;
@@ -259,6 +283,57 @@ export function buildStrategyApi(settings: StrategySettings, getBar: () => { t: 
     equity.push({ time: bar.t, equity: value, peak });
   }
 
+  /** Sharpe and Sortino off the bar-by-bar equity curve.
+   *
+   *  Two choices worth stating, because both are places these numbers are routinely computed
+   *  differently and then compared as if they weren't:
+   *
+   *  - **The series is the equity curve, not the trade list.** Sharpe prices the volatility of the
+   *    account, and an account is just as exposed between two trades as during one. Computing it
+   *    per trade would answer a different question and give a different answer.
+   *  - **The annualisation factor is measured, not assumed.** The engine has no idea whether a bar
+   *    is a minute or a month, and "252" or "365" baked in would be wrong for most of what this
+   *    chart shows. Counting how many bars actually fall in a year of the data's own elapsed time
+   *    gets it right for every case at once — 252-ish for daily equities with their weekends,
+   *    ~35 000 for 15-minute crypto — because the gaps are already in the timestamps.
+   *
+   *  A risk-free rate of 0 is assumed, the convention every backtesting tool uses by default: the
+   *  alternative is a rate this library has no source for, and a wrong one silently shifts both
+   *  numbers.
+   *
+   *  Both are `null` rather than 0 or Infinity wherever the ratio has no meaning — see their own
+   *  docs on `StrategyMetrics`. */
+  function riskAdjustedRatios(): { sharpe: number | null; sortino: number | null } {
+    if (equity.length < 3) return { sharpe: null, sortino: null };
+    const returns: number[] = [];
+    for (let i = 1; i < equity.length; i++) {
+      const previous = equity[i - 1].equity;
+      // A wiped-out or negative account has no meaningful percentage return to take.
+      if (previous <= 0) continue;
+      returns.push((equity[i].equity - previous) / previous);
+    }
+    if (returns.length < 2) return { sharpe: null, sortino: null };
+
+    const elapsedMs = equity[equity.length - 1].time - equity[0].time;
+    const MS_PER_YEAR = 365.25 * 24 * 60 * 60 * 1000;
+    if (elapsedMs <= 0) return { sharpe: null, sortino: null };
+    const periodsPerYear = returns.length / (elapsedMs / MS_PER_YEAR);
+    const annualise = Math.sqrt(periodsPerYear);
+
+    const mean = returns.reduce((sum, r) => sum + r, 0) / returns.length;
+    const variance = returns.reduce((sum, r) => sum + (r - mean) ** 2, 0) / returns.length;
+    const deviation = Math.sqrt(variance);
+    // Downside deviation counts only the bars that lost, but divides by *all* of them — a strategy
+    // that rarely loses should score better than one that loses as hard but far more often, and
+    // averaging over the losses alone would hide exactly that difference.
+    const downside = Math.sqrt(returns.reduce((sum, r) => sum + (r < 0 ? r * r : 0), 0) / returns.length);
+
+    return {
+      sharpe: deviation > 0 ? (mean / deviation) * annualise : null,
+      sortino: downside > 0 ? (mean / downside) * annualise : null,
+    };
+  }
+
   function getResult(): StrategyResult {
     const bar = getBar();
     const lastClose = bar?.c ?? null;
@@ -268,6 +343,7 @@ export function buildStrategyApi(settings: StrategySettings, getBar: () => { t: 
     const grossLoss = Math.abs(losses.reduce((s, t) => s + t.profit, 0));
     const totalPnl = trades.reduce((s, t) => s + t.profit, 0);
     const size = lots.reduce((s, lot) => s + lot.quantity, 0);
+    const { sharpe, sortino } = riskAdjustedRatios();
     const metrics: StrategyMetrics = {
       totalPnl,
       totalPnlPercent: settings.initialCapital > 0 ? (totalPnl / settings.initialCapital) * 100 : 0,
@@ -281,12 +357,16 @@ export function buildStrategyApi(settings: StrategySettings, getBar: () => { t: 
       averageProfit: trades.length > 0 ? totalPnl / trades.length : null,
       bestTrade: trades.length > 0 ? Math.max(...trades.map((t) => t.profit)) : null,
       worstTrade: trades.length > 0 ? Math.min(...trades.map((t) => t.profit)) : null,
+      sharpeRatio: sharpe,
+      sortinoRatio: sortino,
       grossProfit,
       grossLoss,
       totalCommission,
       commissionLoadPercent: grossProfit > 0 ? (totalCommission / grossProfit) * 100 : 0,
       expectedPayoff: trades.length > 0 ? totalPnl / trades.length : null,
       finalEquity: equity.length > 0 ? equity[equity.length - 1].equity : settings.initialCapital,
+      worstAdverseExcursion: trades.length > 0 ? Math.max(...trades.map((t) => t.maxAdverse)) : null,
+      bestFavorableExcursion: trades.length > 0 ? Math.max(...trades.map((t) => t.maxFavorable)) : null,
       rejectedOrders,
     };
     return {

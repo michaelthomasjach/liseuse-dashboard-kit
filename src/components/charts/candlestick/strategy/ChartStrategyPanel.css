@@ -298,3 +298,56 @@
   border: 1px solid color-mix(in srgb, var(--lq-color-down) 35%, transparent);
   border-radius: var(--lq-radius-md);
 }
+
+.lq-strategy__hint {
+  margin: 0 0 var(--lq-space-3);
+  font-size: 0.72rem;
+  color: var(--lq-color-text-muted);
+}
+
+/* ── MAE / MFE ─────────────────────────────────────────────────────────────────────────────── */
+
+.lq-strategy__excursion {
+  display: block;
+  width: 100%;
+}
+
+.lq-strategy__excursion-grid {
+  stroke: var(--lq-color-border-subtle);
+  stroke-dasharray: 2 3;
+}
+
+.lq-strategy__excursion-zero {
+  stroke: var(--lq-color-border);
+  stroke-width: 1.5;
+}
+
+.lq-strategy__excursion-span {
+  stroke-width: 1.5;
+  opacity: 0.55;
+}
+
+.lq-strategy__excursion-span--adverse {
+  stroke: var(--lq-color-down);
+}
+
+.lq-strategy__excursion-span--favorable {
+  stroke: var(--lq-color-up);
+}
+
+/* The dot carries the outcome, so it is the one thing drawn at full strength — the two arms behind
+   it are context. */
+.lq-strategy__excursion-dot--up {
+  fill: var(--lq-color-up);
+}
+
+.lq-strategy__excursion-dot--down {
+  fill: var(--lq-color-down);
+}
+
+.lq-strategy__excursion-tick,
+.lq-strategy__excursion-axis-label {
+  font-size: 9px;
+  fill: var(--lq-color-text-muted);
+  font-variant-numeric: tabular-nums;
+}

@@ -702,6 +702,22 @@ plot.pane("RSI").line("RSI", signal());
 import { signal } from "./mon-rsi";
 if (signal() < 30) strategy.long("Survente");`
       ),
+      h("Sharpe et Sortino"),
+      t(
+        "Les deux ratios de rendement ajusté au risque du panneau sont calculés sur la courbe d'équité barre par barre, pas sur la liste des trades : ils mesurent la volatilité du compte, et un compte est tout aussi exposé entre deux trades que pendant l'un d'eux. Le calculer par trade répondrait à une autre question."
+      ),
+      t(
+        "L'annualisation est mesurée, pas supposée. Le moteur ignore si une bougie vaut une minute ou un mois, et un 252 ou un 365 codé en dur serait faux pour la plupart des graphes. Compter combien de bougies tombent réellement dans une année du temps écoulé des données donne le bon facteur dans tous les cas — environ 252 pour du quotidien actions avec ses week-ends, ~35 000 pour du 15 minutes en crypto — parce que les trous sont déjà dans les horodatages. Un taux sans risque de 0 est supposé, la convention par défaut de tous les outils de backtest."
+      ),
+      t(
+        "Sharpe divise par l'écart-type de tous les rendements ; Sortino par la seule déviation des pertes. Sharpe pénalise donc une stratégie pour ses bonnes surprises autant que pour ses mauvaises, l'écart-type ne sachant pas les distinguer."
+      ),
+      t(
+        "Conséquence : sur toute stratégie rentable, Sortino est presque toujours SUPÉRIEUR à Sharpe — avec un rendement moyen positif, une barre perdante est plus loin de la moyenne qu'elle ne l'est de zéro, donc la déviation à la baisse est la plus petite des deux. Ce qu'il faut lire, c'est l'ÉCART entre les deux : large, il dit que la volatilité était surtout haussière, ce qui ne coûte rien ; étroit, il dit que les à-coups étaient surtout des pertes — et que le Sharpe est bas pour la raison qui compte vraiment. Aucun des deux chiffres ne le dit seul, d'où leur présence conjointe."
+      ),
+      t(
+        "Un tiret à la place d'un chiffre veut dire que le ratio n'a pas de sens ici, pas qu'il vaut zéro : moins de deux barres, une courbe d'équité qui n'a jamais bougé, ou — pour Sortino — une stratégie qui n'a jamais eu de barre perdante, donc rien à mettre au dénominateur."
+      ),
       h("Marge et levier"),
       t(
         "Une entrée dont le notionnel dépasse ce que le compte peut porter — son équité multipliée par le levier du sens concerné — est refusée. Le compteur « Ordres refusés » du panneau les dénombre : une stratégie qui montre trois trades là où son auteur en attendait trois cents doit pouvoir dire que c'était faute de marge, et non parce que ses règles ne se sont jamais déclenchées."

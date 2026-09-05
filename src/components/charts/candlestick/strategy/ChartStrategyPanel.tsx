@@ -3,6 +3,7 @@ import { ChevronDownIcon, ChevronUpIcon, CloseIcon, SettingsIcon } from "../../.
 import type { StrategyResult } from "../interfaces/StrategyResult.interface";
 import type { StrategySettings } from "../interfaces/StrategySettings.interface";
 import { StrategyEquityChart } from "./StrategyEquityChart";
+import { StrategyExcursionChart } from "./StrategyExcursionChart";
 import { StrategyMetricsGrid } from "./StrategyMetricsGrid";
 import { StrategySettingsForm } from "./StrategySettingsForm";
 import "./ChartStrategyPanel.css";
@@ -25,7 +26,7 @@ export interface ChartStrategyPanelProps {
   width: number;
 }
 
-type StrategyTab = "performance" | "trades" | "settings";
+type StrategyTab = "performance" | "excursions" | "trades" | "settings";
 
 /** The strategy tester, docked under the chart where an oscillator pane would sit — which is where
  *  it belongs: it is read *against* the candles above it, not in a window of its own.
@@ -76,6 +77,7 @@ export function ChartStrategyPanel({
           {(
             [
               ["performance", "Performance"],
+              ["excursions", "MAE / MFE"],
               ["trades", `Trades${result ? ` (${result.trades.length})` : ""}`],
               ["settings", "Réglages"],
             ] as const
@@ -113,6 +115,15 @@ export function ChartStrategyPanel({
             <p className="lq-strategy__empty">
               {running ? "Exécution de la stratégie…" : "Aucun résultat : lancez le script pour exécuter la stratégie."}
             </p>
+          ) : tab === "excursions" ? (
+            <>
+              <p className="lq-strategy__hint">
+                Un trade par ligne : à gauche jusqu&apos;où il est allé contre vous (MAE), à droite jusqu&apos;où il est allé pour vous (MFE),
+                et le point où vous êtes réellement sorti. Un point loin à gauche de son propre segment est un gain rendu ; un long bras
+                gauche, un trade qui a été sous l&apos;eau avant de fonctionner.
+              </p>
+              <StrategyExcursionChart trades={result.trades} currency={settings.currency} width={Math.max(120, width - 24)} />
+            </>
           ) : tab === "trades" ? (
             <StrategyTradesTable result={result} currency={settings.currency} formatDate={formatDate} />
           ) : (

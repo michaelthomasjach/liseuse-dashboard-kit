@@ -123,14 +123,14 @@ export const SCRIPT_API_REFERENCE: ScriptReferenceSection[] = [
       t("Toute erreur (de syntaxe ou d'exécution) s'affiche sous l'éditeur avec son message et, quand le moteur JavaScript le permet, le numéro de ligne exact."),
       h("Mode cellules — exécuter un bloc à la fois (façon Jupyter)"),
       t(
-        "Un commentaire // %% en début de ligne délimite une « cellule ». Une fine bordure marque chaque cellule, et celle où se trouve le curseur est légèrement teintée — repérage visuel immédiat, sans rien avoir à cliquer."
+        "@block en début de ligne délimite une « cellule » ; ce qui suit sur la même ligne en est le titre, texte libre. Une fine bordure marque chaque cellule, et celle où se trouve le curseur est légèrement teintée — repérage visuel immédiat, sans rien avoir à cliquer. Comme @description, c'est un mot-clé lu dans le texte du script puis retiré avant compilation, pas du JavaScript."
       ),
       c(
-        `// %% Étape 1 — les données de base
+        `@block Étape 1 — les données de base
 const closes = market.series("close", 20);
 const sma = math.sma(closes, 20);
 
-// %% Étape 2 — le tracé
+@block Étape 2 — le tracé
 plot.overlay("SMA 20").line("SMA 20", sma ?? market.close(0));`
       ),
       t(
@@ -185,7 +185,7 @@ export class Tracker {
     group: "Démarrage",
     blocks: [
       t(
-        "Deux mots-clés ne font pas partie de l'API exécutée : ils se lisent dans le texte du script lui-même, avant que quoi que ce soit ne tourne. @description documente le script, new Variable(...) en expose les réglages. Tous deux sont retirés du code avant compilation — ils n'existent pas à l'exécution."
+        "Trois mots-clés ne font pas partie de l'API exécutée : ils se lisent dans le texte du script lui-même, avant que quoi que ce soit ne tourne. @description documente le script, new Variable(...) en expose les réglages, et @block le découpe en cellules (voir « L'éditeur » plus haut). Tous trois sont retirés du code avant compilation — ils n'existent pas à l'exécution."
       ),
       h("@description — documenter le script", ["@description"]),
       t(

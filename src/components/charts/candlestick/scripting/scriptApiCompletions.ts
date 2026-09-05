@@ -26,6 +26,12 @@ export const SCRIPT_API_COMPLETIONS: ScriptApiCompletion[] = [
     apply: '@description ""',
   },
   {
+    label: "@block",
+    type: "keyword",
+    detail: "titre — ouvre une cellule ; Maj+Entrée exécute du début du script jusqu'à la fin de celle du curseur",
+    apply: "@block ",
+  },
+  {
     label: "Variable",
     type: "keyword",
     detail:

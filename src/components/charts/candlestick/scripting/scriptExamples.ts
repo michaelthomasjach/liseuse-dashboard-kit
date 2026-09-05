@@ -226,7 +226,7 @@ pose en plus dès qu'une clôture en franchit un.
 **AFFICHER_NIVEAUX** masque les points si seul le profil de droite vous intéresse.
 "
 
-// %% Cellule 1 — paramètres réglables et outils de calcul
+@block Cellule 1 — paramètres réglables et outils de calcul
 // new Variable(type, défaut, { description }) expose la constante dans la fenêtre de réglages :
 // on peut la régler sans rouvrir le code, et le script se relance tout seul à chaque changement.
 // La description s'affiche sous le champ correspondant.
@@ -330,7 +330,7 @@ function findPeaks(values, minProminence) {
   return peaks;
 }
 
-// %% Cellule 2 — ne recalculer que tous les RECALC_EVERY bougies
+@block Cellule 2 — ne recalculer que tous les RECALC_EVERY bougies
 const barIndex = state.get("barIndex", 0);
 state.set("barIndex", barIndex + 1);
 
@@ -388,7 +388,7 @@ if (barIndex >= WINDOW && barIndex % RECALC_EVERY === 0) {
   }
 }
 
-// %% Cellule 3 — afficher le profil, tourné, dans une pane ancrée à droite
+@block Cellule 3 — afficher le profil, tourné, dans une pane ancrée à droite
 // pane.profile(nom, valeurs, prix) prend les deux tableaux d'un coup, comme plot.xy : un profil
 // n'est pas une série temporelle. Il est dessiné transposé — prix en vertical, densité en
 // horizontal — sur l'échelle de prix du graphe principal, donc chaque bosse est exactement à la
@@ -405,7 +405,7 @@ plot.pane("Niveaux", { dock: "right" }).profile("Densité", profilDensite, profi
   headroom: PROFIL_MARGE,
 });
 
-// %% Cellule 4 — détecter un franchissement et signaler
+@block Cellule 4 — détecter un franchissement et signaler
 // Les niveaux (les pics du profil) sont relus ici : la cellule 3 dessine le profil, celle-ci
 // surveille les franchissements.
 const levels = state.get("levels", []);
@@ -424,7 +424,7 @@ if (prevClose !== null && currClose !== null) {
   state.set("sig", sig);
 }
 
-// %% Cellule 5 — tracer les niveaux en points sur le graphique des prix
+@block Cellule 5 — tracer les niveaux en points sur le graphique des prix
 // Le profil de droite montre OÙ sont les niveaux ; ces points les ramènent sur les bougies, à la
 // même hauteur que la bosse qui les a produits.
 //
@@ -481,7 +481,7 @@ l'historique, là où un --new-- écrit dans le fichier principal repartirait de
 c'est pourquoi l'instance ci-dessous est rangée dans --state-- au premier passage.
 "
 
-// %% Cellule 1 — les réglages, et les trois fichiers qui font le travail
+@block Cellule 1 — les réglages, et les trois fichiers qui font le travail
 import { SuiviNiveaux } from "./niveaux";
 
 const WINDOW = new Variable("number", 500, {
@@ -531,16 +531,16 @@ if (!suivi) {
   state.set("suivi", suivi);
 }
 
-// %% Cellule 2 — une bougie de plus
+@block Cellule 2 — une bougie de plus
 suivi.observer(market);
 
-// %% Cellule 3 — le profil, tourné, dans une pane ancrée à droite
+@block Cellule 3 — le profil, tourné, dans une pane ancrée à droite
 plot.pane("Niveaux", { dock: "right" }).profile("Densité", suivi.profil.densite, suivi.profil.prix, {
   color: PROFIL_COULEUR,
   headroom: 0.08,
 });
 
-// %% Cellule 4 — franchissement et niveaux tracés sur les bougies
+@block Cellule 4 — franchissement et niveaux tracés sur les bougies
 const courante = market.close(0);
 const signal = suivi.franchissement(market.close(1), courante);
 if (signal && AFFICHER_FLECHES) plot.signal({ type: signal, price: courante });

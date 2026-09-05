@@ -1,5 +1,6 @@
 import { analyzeScriptVariables } from "../scriptVariables";
 import { analyzeScriptDescription } from "../scriptDescription";
+import { isBlockMarkerLine } from "../scriptBlocks";
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { EditorState, StateEffect, StateField, type Text } from "@codemirror/state";
@@ -48,7 +49,7 @@ export interface ScriptEditorCodeMirrorProps {
    *  CodeMirror's own `indentSelection` command, not Prettier (too heavy a dependency for this).
    *  `undefined`/`0` (the toolbar's own starting value) never triggers a reformat on mount. */
   formatRequestId?: number;
-  /** Runs the `// %%`-delimited cell containing the cursor — fires on Shift+Enter, the imperative
+  /** Runs the `@block`-delimited cell containing the cursor — fires on Shift+Enter, the imperative
    *  `runCurrentCell()` handle, and the per-cell "▶" button this component now draws on the active
    *  cell (see the notebook cell-output doc block below). Always called with *instrumented* code
    *  (a couple of invisible sentinel `console.log` calls spliced in — see
@@ -156,16 +157,14 @@ const highlightStyle = HighlightStyle.define([
 ]);
 
 // A "cell" (exigence : mode Jupyter — voir ScriptEditorPanel.tsx's own "Exécuter la cellule"
-// button) is delimited by a `// %%` comment at the start of a line, the same marker convention
-// several existing Python tools (VS Code, Spyder) already use for the same purpose in plain
-// source files — reused here rather than inventing a new one. 1-based line numbers throughout,
-// matching CodeMirror's own `Text.line()` convention.
-const CELL_MARKER_RE = /^\s*\/\/\s*%%/;
-
+// button) is delimited by an `@block` line — see scriptBlocks.ts for the marker itself and why it
+// replaced the `// %%` comment. Tested through that module rather than a regex of this file's own,
+// so where a cell begins can never be answered differently here than by the strip that runs before
+// compiling. 1-based line numbers throughout, matching CodeMirror's own `Text.line()` convention.
 function findCellMarkerLines(doc: Text): number[] {
   const lines: number[] = [];
   for (let i = 1; i <= doc.lines; i++) {
-    if (CELL_MARKER_RE.test(doc.line(i).text)) lines.push(i);
+    if (isBlockMarkerLine(doc.line(i).text)) lines.push(i);
   }
   return lines;
 }
@@ -179,7 +178,7 @@ function cellEndLine(doc: Text, lineNumber: number, markerLines: number[]): numb
 }
 
 // The first line of the cell containing `lineNumber` — the closest marker line at or before it, or
-// the very first line of the document when nothing precedes it (content before the first `// %%`
+// the very first line of the document when nothing precedes it (content before the first `@block`
 // is its own implicit leading cell).
 function cellStartLine(lineNumber: number, markerLines: number[]): number {
   return [...markerLines].reverse().find((m) => m <= lineNumber) ?? 1;
@@ -448,11 +447,11 @@ function CellOutputContent({
   );
 }
 
-// One decoration pass per doc/selection/cell-output change: a border on every `// %%` line (always
+// One decoration pass per doc/selection/cell-output change: a border on every `@block` line (always
 // visible, not just on the active cell — "here's where the cells are" at a glance), a background
 // tint on every line of whichever cell currently contains the cursor, a "▶" run button right after
 // the active cell's own marker text (or after line 1 when it has none preceding it — content
-// before the very first `// %%` is its own implicit leading cell), and, for every cell that has an
+// before the very first `@block` is its own implicit leading cell), and, for every cell that has an
 // entry in `cellOutputsField`, its own output block right after its last line.
 function buildCellDecorations(
   state: EditorState,

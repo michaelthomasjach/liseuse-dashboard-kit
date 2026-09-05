@@ -102,22 +102,22 @@ const INDICATOR_TRACK_STEPS: ScriptTutorialStep[] = [
     id: "cell-mode",
     title: "Étape 7 — Le mode cellules (façon Jupyter)",
     paragraphs: [
-      "Vous venez de construire cet indicateur pas à pas, une étape du tutoriel à la fois. Le même principe existe à l'intérieur d'un seul script, via le mode cellules : un commentaire // %% en début de ligne délimite une « cellule », et Maj+Entrée (ou le bouton « Exécuter la cellule ») exécute le script depuis le tout début jusqu'à la fin de la cellule où se trouve le curseur — pas le script entier, et pas non plus cette seule cellule isolée (ce moteur n'a pas de mémoire de variables entre deux exécutions, donc une cellule isolée qui lirait une variable définie plus haut échouerait aussitôt).",
+      "Vous venez de construire cet indicateur pas à pas, une étape du tutoriel à la fois. Le même principe existe à l'intérieur d'un seul script, via le mode cellules : un commentaire @block en début de ligne délimite une « cellule », et Maj+Entrée (ou le bouton « Exécuter la cellule ») exécute le script depuis le tout début jusqu'à la fin de la cellule où se trouve le curseur — pas le script entier, et pas non plus cette seule cellule isolée (ce moteur n'a pas de mémoire de variables entre deux exécutions, donc une cellule isolée qui lirait une variable définie plus haut échouerait aussitôt).",
       "Essayez : placez le curseur dans la Cellule 1 ci-contre et appuyez sur Maj+Entrée — seules les deux moyennes mobiles s'affichent. Curseur dans la Cellule 2, Maj+Entrée : rien de plus ne s'affiche (elle ne fait que mémoriser une valeur), mais le calcul a bien eu lieu. Curseur dans la Cellule 3, Maj+Entrée : le croisement est enfin détecté, les flèches BUY/SELL apparaissent — exactement le résultat de l'étape précédente, obtenu cette fois cellule par cellule à l'intérieur d'un seul script plutôt qu'étape par étape dans ce tutoriel.",
     ],
-    code: `// %% Cellule 1 — les deux moyennes mobiles
+    code: `@block Cellule 1 — les deux moyennes mobiles
 const sma20 = math.sma(market.series("close", 20), 20);
 const sma5 = math.sma(market.series("close", 5), 5);
 plot.overlay("SMA 20").line("SMA 20", sma20 ?? market.close(0));
 plot.overlay("SMA 5").line("SMA 5", sma5 ?? market.close(0));
 
-// %% Cellule 2 — mémoriser la bougie précédente
+@block Cellule 2 — mémoriser la bougie précédente
 const prevSma20 = state.get("prevSma20", null);
 const prevSma5 = state.get("prevSma5", null);
 state.set("prevSma20", sma20);
 state.set("prevSma5", sma5);
 
-// %% Cellule 3 — détecter le croisement
+@block Cellule 3 — détecter le croisement
 if (bar.isNew() && prevSma5 !== null && prevSma20 !== null && sma5 !== null && sma20 !== null) {
   if (prevSma5 <= prevSma20 && sma5 > sma20) plot.signal({ type: "BUY", text: "BUY" });
   if (prevSma5 >= prevSma20 && sma5 < sma20) plot.signal({ type: "SELL", text: "SELL" });
@@ -403,14 +403,14 @@ const NOTEBOOK_TRACK_STEPS: ScriptTutorialStep[] = [
     id: "notebook-button",
     title: "Étape 1 — Le bouton ▶ sur la cellule active",
     paragraphs: [
-      "Le mode cellules (// %%, déjà vu dans le premier tutoriel) va plus loin qu'un simple raccourci clavier : cliquez dans une cellule et un petit bouton ▶ apparaît dessus — cliquer dessus fait exactement ce que fait Maj+Entrée, sans avoir à viser le bouton de la barre d'outils. La vraie nouveauté est ce qui se passe ensuite : le résultat de la cellule s'affiche juste en dessous d'elle, directement dans l'éditeur — façon notebook, pas dans un panneau à part.",
-      "Essayez : cliquez dans la Cellule 1 ci-contre, puis sur le bouton ▶ qui apparaît sur sa ligne // %%. Un court texte apparaît juste sous la cellule. Faites de même avec la Cellule 2.",
+      "Le mode cellules (@block, déjà vu dans le premier tutoriel) va plus loin qu'un simple raccourci clavier : cliquez dans une cellule et un petit bouton ▶ apparaît dessus — cliquer dessus fait exactement ce que fait Maj+Entrée, sans avoir à viser le bouton de la barre d'outils. La vraie nouveauté est ce qui se passe ensuite : le résultat de la cellule s'affiche juste en dessous d'elle, directement dans l'éditeur — façon notebook, pas dans un panneau à part.",
+      "Essayez : cliquez dans la Cellule 1 ci-contre, puis sur le bouton ▶ qui apparaît sur sa ligne @block. Un court texte apparaît juste sous la cellule. Faites de même avec la Cellule 2.",
     ],
-    code: `// %% Cellule 1 — un prix
+    code: `@block Cellule 1 — un prix
 const price = market.close(0);
 if (bar.isNew()) console.log("Dernier prix :", price);
 
-// %% Cellule 2 — une moyenne mobile, superposée au prix
+@block Cellule 2 — une moyenne mobile, superposée au prix
 const sma = math.sma(market.series("close", 20), 20);
 plot.overlay("SMA 20").line("SMA 20", sma ?? price);
 `,
@@ -422,12 +422,12 @@ plot.overlay("SMA 20").line("SMA 20", sma ?? price);
       "Deux choses distinctes apparaissent sous une cellule : le texte de tout console.log qu'elle contient, et — nouveauté propre au mode notebook — la valeur de sa toute dernière ligne, si celle-ci est une expression seule (ni affectée à une variable avec =, ni déjà affichée par un console.log). Exactement le comportement d'un vrai notebook : une cellule qui se termine par une expression affiche automatiquement son résultat, sans avoir à l'entourer de console.log.",
       "Essayez : exécutez la Cellule 1 (le texte de console.log apparaît), puis la Cellule 2 — carre(6) n'est entourée d'aucun console.log, et pourtant sa valeur (36) s'affiche quand même.",
     ],
-    code: `// %% Cellule 1 — un calcul, avec console.log
+    code: `@block Cellule 1 — un calcul, avec console.log
 const a = 2;
 const b = 3;
 console.log("a + b =", a + b);
 
-// %% Cellule 2 — une expression seule, sans console.log
+@block Cellule 2 — une expression seule, sans console.log
 function carre(x) {
   return x * x;
 }
@@ -441,12 +441,12 @@ carre(6);
       "plot.xy(name, x, y, options?) est l'équivalent de matplotlib pour ce moteur : un graphique complètement libre, sans lien avec les bougies — on lui passe deux tableaux de nombres, un point par indice. C'est la fonction faite pour visualiser un calcul plutôt qu'un indicateur de trading, exactement l'usage que le tutoriel « Fonctions mathématiques » bricolait jusqu'ici bougie par bougie.",
       "Exécutez la Cellule 2 pour voir apparaître la parabole y = x², construite d'un coup à partir d'un tableau de x allant de -10 à 10.",
     ],
-    code: `// %% Cellule 1 — un domaine x, et y = x²
+    code: `@block Cellule 1 — un domaine x, et y = x²
 const x = [];
 for (let i = -10; i <= 10; i++) x.push(i);
 const y = x.map((v) => v * v);
 
-// %% Cellule 2 — le graphique
+@block Cellule 2 — le graphique
 plot.xy("Parabole", x, y, { xLabel: "x", yLabel: "y", title: "y = x²" });
 `,
   },
@@ -457,12 +457,12 @@ plot.xy("Parabole", x, y, { xLabel: "x", yLabel: "y", title: "y = x²" });
       "draw: \"scatter\" trace des points indépendants plutôt qu'une courbe reliée — le bon choix pour repérer une éventuelle corrélation entre deux séries, plutôt qu'une fonction continue. xLabel/yLabel/title étiquettent les axes et le graphique, exactement comme ax.set_xlabel/ax.set_ylabel/ax.set_title en matplotlib.",
       "Ici : le volume et la variation de prix (en %) des 30 dernières bougies, un point par bougie — un nuage assez dispersé traduit l'absence de lien simple entre les deux.",
     ],
-    code: `// %% Cellule 1 — volume et variation de prix des 30 dernières bougies
+    code: `@block Cellule 1 — volume et variation de prix des 30 dernières bougies
 const closes = market.series("close", 31);
 const volumes = market.series("volume", 30);
 const changes = closes.slice(1).map((c, i) => ((c - closes[i]) / closes[i]) * 100);
 
-// %% Cellule 2 — nuage de points
+@block Cellule 2 — nuage de points
 plot.xy("Volume vs variation", volumes, changes, {
   draw: "scatter",
   xLabel: "Volume",
@@ -480,7 +480,7 @@ plot.xy("Volume vs variation", volumes, changes, {
     list: [
       "plot.* (plus bas) couvre le détail complet de plot.xy, à côté de plot.pane/plot.overlay pour les indicateurs qui restent sur la chart elle-même.",
       "Le tutoriel « Fonctions mathématiques » applique les mêmes idées de calcul pur (lambdas, dérivée, matrice…) à des courbes tracées sur la chart plutôt qu'en sortie de cellule.",
-      "Le premier tutoriel (« Construire un indicateur ») explique // %% et Maj+Entrée depuis le début, si ce n'est pas déjà fait.",
+      "Le premier tutoriel (« Construire un indicateur ») explique @block et Maj+Entrée depuis le début, si ce n'est pas déjà fait.",
     ],
   },
 ];
@@ -643,9 +643,9 @@ plot.xy("Profil (KDE, bandwidth = ATR)", density, priceGrid, { xLabel: "Densité
     paragraphs: [
       "Le profil est prêt — reste à en extraire des niveaux concrets plutôt qu'une courbe à regarder. Un niveau, c'est un pic local du profil : un point plus haut que ses deux voisins immédiats. Mais un profil bruité a des dizaines de micro-pics sans intérêt ; la proéminence (prominence) les filtre : la hauteur d'un pic au-dessus du plus haut des deux « creux » qui l'encadrent avant de retomber jusqu'à un point aussi haut que lui. Un vrai sommet isolé a une forte proéminence ; une simple ondulation sur le flanc d'un pic plus large en a une faible.",
       "PROM_THRESH fixe le seuil, en fraction du pic le plus haut du profil entier — 0.12 ne garde que les pics faisant au moins 12% de la hauteur du plus haut (une fenêtre de 60 bougies, comme ici, donne un profil plus bruité qu'une vraie fenêtre de production à 365 — un seuil plus permissif compense). plot.table affiche les prix détectés en plus du profil lui-même.",
-      "Le code est maintenant assez long pour valoir la peine d'être découpé en cellules (// %%, déjà vu dans le tutoriel « Construire un indicateur ») — placez le curseur dans une cellule et Maj+Entrée exécute depuis le tout début jusqu'à la fin de celle-ci, pas seulement cette cellule isolée (ce moteur n'a pas de mémoire de variables entre deux exécutions). Pratique pour ne recalculer que la Cellule 3 (le tracé) sans tout relancer quand seul l'affichage change.",
+      "Le code est maintenant assez long pour valoir la peine d'être découpé en cellules (@block, déjà vu dans le tutoriel « Construire un indicateur ») — placez le curseur dans une cellule et Maj+Entrée exécute depuis le tout début jusqu'à la fin de celle-ci, pas seulement cette cellule isolée (ce moteur n'a pas de mémoire de variables entre deux exécutions). Pratique pour ne recalculer que la Cellule 3 (le tracé) sans tout relancer quand seul l'affichage change.",
     ],
-    code: `// %% Cellule 1 — constantes et détection de pics
+    code: `@block Cellule 1 — constantes et détection de pics
 const WINDOW = 60;
 const GRID = 60;
 const FIRST_W = 0.2;
@@ -665,7 +665,7 @@ function findPeaks(values, minProminence) {
   return peaks;
 }
 
-// %% Cellule 2 — construire le profil et en extraire les niveaux
+@block Cellule 2 — construire le profil et en extraire les niveaux
 const closes = market.series("close", WINDOW);
 const highs = market.series("high", WINDOW);
 const lows = market.series("low", WINDOW);
@@ -695,7 +695,7 @@ const density = priceGrid.map((p) => {
 const peakIdx = findPeaks(density, Math.max(...density) * PROM_THRESH);
 const levels = peakIdx.map((i) => priceGrid[i]);
 
-// %% Cellule 3 — afficher le profil et les niveaux détectés
+@block Cellule 3 — afficher le profil et les niveaux détectés
 plot.xy("Profil (KDE)", density, priceGrid, { xLabel: "Densité", yLabel: "Prix", title: "Profil — niveaux détectés" });
 plot.table(
   levels.map((lv) => ({ cells: [lv.toFixed(2)] })),
@@ -711,7 +711,7 @@ plot.table(
       "Une seule pane nommée « Niveaux », avec une série par niveau détecté à l'intérieur — le même principe que « plusieurs courbes dans un même panneau » vu plus haut, juste ancré sur le côté plutôt qu'en bas. Comme le nombre de niveaux varie d'un calcul à l'autre, chaque série est nommée par son rang (« Niveau 1 », « Niveau 2 »…) plutôt que par sa valeur.",
     ],
     diagramKey: "plotOwnPane",
-    code: `// %% Cellule 1 — constantes et détection de pics
+    code: `@block Cellule 1 — constantes et détection de pics
 const WINDOW = 60;
 const GRID = 60;
 const FIRST_W = 0.2;
@@ -731,7 +731,7 @@ function findPeaks(values, minProminence) {
   return peaks;
 }
 
-// %% Cellule 2 — construire le profil et en extraire les niveaux
+@block Cellule 2 — construire le profil et en extraire les niveaux
 const closes = market.series("close", WINDOW);
 const highs = market.series("high", WINDOW);
 const lows = market.series("low", WINDOW);
@@ -761,7 +761,7 @@ const density = priceGrid.map((p) => {
 const peakIdx = findPeaks(density, Math.max(...density) * PROM_THRESH);
 const levels = peakIdx.map((i) => priceGrid[i]);
 
-// %% Cellule 3 — afficher les niveaux dans une pane ancrée à droite
+@block Cellule 3 — afficher les niveaux dans une pane ancrée à droite
 const levelsPane = plot.pane("Niveaux", { dock: "right" });
 for (let k = 0; k < levels.length; k++) {
   levelsPane.line("Niveau " + (k + 1), levels[k]);
@@ -776,7 +776,7 @@ for (let k = 0; k < levels.length; k++) {
       "state.get/set (déjà vu dans le tutoriel « Construire un indicateur ») résout ça : un compteur de bougies mémorisé d'une bougie à l'autre, et le calcul ne se refait que tous les RECALC_EVERY bougies — le reste du temps, on relit simplement le dernier résultat mémorisé. Les niveaux d'un support/résistance ne bougent de toute façon pas d'une bougie à l'autre, donc rien n'est perdu à les rafraîchir un peu moins souvent.",
     ],
     diagramKey: "stateMemory",
-    code: `// %% Cellule 1 — constantes et détection de pics
+    code: `@block Cellule 1 — constantes et détection de pics
 const WINDOW = 60;
 const GRID = 60;
 const FIRST_W = 0.2;
@@ -797,7 +797,7 @@ function findPeaks(values, minProminence) {
   return peaks;
 }
 
-// %% Cellule 2 — ne recalculer que tous les RECALC_EVERY bougies
+@block Cellule 2 — ne recalculer que tous les RECALC_EVERY bougies
 const barIndex = state.get("barIndex", 0);
 state.set("barIndex", barIndex + 1);
 
@@ -830,7 +830,7 @@ if (barIndex >= WINDOW && barIndex % RECALC_EVERY === 0) {
   }
 }
 
-// %% Cellule 3 — relire le dernier résultat mémorisé et l'afficher
+@block Cellule 3 — relire le dernier résultat mémorisé et l'afficher
 const levels = state.get("levels", []);
 const levelsPane = plot.pane("Niveaux", { dock: "right" });
 for (let k = 0; k < levels.length; k++) {
@@ -846,7 +846,7 @@ for (let k = 0; k < levels.length; k++) {
       "plot.signal({ type, price }) pose une flèche BUY/SELL à la clôture courante — la même fonction que le tout premier tutoriel, ici armée par la détection de niveaux plutôt que par un croisement de moyennes mobiles.",
     ],
     diagramKey: "plotSignal",
-    code: `// %% Cellule 1 — constantes et détection de pics
+    code: `@block Cellule 1 — constantes et détection de pics
 const WINDOW = 60;
 const GRID = 60;
 const FIRST_W = 0.2;
@@ -867,7 +867,7 @@ function findPeaks(values, minProminence) {
   return peaks;
 }
 
-// %% Cellule 2 — ne recalculer que tous les RECALC_EVERY bougies
+@block Cellule 2 — ne recalculer que tous les RECALC_EVERY bougies
 const barIndex = state.get("barIndex", 0);
 state.set("barIndex", barIndex + 1);
 
@@ -900,14 +900,14 @@ if (barIndex >= WINDOW && barIndex % RECALC_EVERY === 0) {
   }
 }
 
-// %% Cellule 3 — relire le dernier résultat mémorisé et l'afficher
+@block Cellule 3 — relire le dernier résultat mémorisé et l'afficher
 const levels = state.get("levels", []);
 const levelsPane = plot.pane("Niveaux", { dock: "right" });
 for (let k = 0; k < levels.length; k++) {
   levelsPane.line("Niveau " + (k + 1), levels[k]);
 }
 
-// %% Cellule 4 — détecter un franchissement et signaler
+@block Cellule 4 — détecter un franchissement et signaler
 const prevClose = market.close(1);
 const currClose = market.close(0);
 if (prevClose !== null && currClose !== null) {
@@ -935,7 +935,7 @@ if (prevClose !== null && currClose !== null) {
       "state.* (plus bas) détaille state.get/set — le mécanisme qui a permis de faire persister barIndex, levels et sig d'une bougie à l'autre dans cette étape.",
       "ta.* (plus bas) couvre ta.atr et tous les autres indicateurs techniques prêts à l'emploi.",
       "plot.* (plus bas) détaille plot.xy (profil libre), plot.pane (dont l'option dock: \"left\"|\"right\") et plot.signal (marqueurs de franchissement) en profondeur.",
-      "Le tutoriel « Construire un indicateur » explique bar.isNew() et introduit le mode cellules (// %%) pour la première fois, si le fonctionnement de Maj+Entrée n'était pas déjà clair ici.",
+      "Le tutoriel « Construire un indicateur » explique bar.isNew() et introduit le mode cellules (@block) pour la première fois, si le fonctionnement de Maj+Entrée n'était pas déjà clair ici.",
     ],
   },
 ];

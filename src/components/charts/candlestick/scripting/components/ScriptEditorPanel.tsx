@@ -65,7 +65,7 @@ export interface ScriptEditorPanelProps {
   previewData?: Candle[];
 }
 
-const DEFAULT_SCRIPT_CODE = `// %% Cellule 1 — Affiche une série dans une panneau séparé
+const DEFAULT_SCRIPT_CODE = `@block Cellule 1 — Affiche une série dans une panneau séparé
 plot.pane("Ma série").line("Ma série", market.close(0));
 `;
 
@@ -275,7 +275,7 @@ export function hello() {
   // permanently unrouted: `targetPanelIndex` never gets set by anything else, so it can never reach
   // any panel's own `scripts` prop — "Exécuter" would look like it does nothing, and the script
   // would never appear in that panel's own "Mes scripts" either.
-  // `codeOverride` lets "Exécuter la cellule" (see ScriptEditorCodeMirror.tsx's own doc on `// %%`
+  // `codeOverride` lets "Exécuter la cellule" (see ScriptEditorCodeMirror.tsx's own doc on `@block`
   // cells) reuse this exact function — same target-picker flow, just a different code string —
   // instead of duplicating the targetPanelIndex/needsTargetChoice logic for a second trigger.
   function handleRunClick(codeOverride?: string) {
@@ -424,7 +424,7 @@ export function hello() {
                 type="button"
                 className="lq-script-editor-panel__toolbar-button"
                 onClick={() => codeMirrorRef.current?.runCurrentCell()}
-                title="Exécute le code depuis le début jusqu'à la fin de la cellule (// %%) où se trouve le curseur (Maj+Entrée)"
+                title="Exécute le code depuis le début jusqu'à la fin de la cellule (@block) où se trouve le curseur (Maj+Entrée)"
               >
                 <PlayIcon size={13} /> Exécuter la cellule
               </button>

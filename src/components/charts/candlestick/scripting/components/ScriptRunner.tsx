@@ -1,5 +1,6 @@
 import { analyzeScriptVariables, applyScriptParams } from "../scriptVariables";
 import { stripScriptDescription } from "../scriptDescription";
+import { stripScriptBlocks } from "../scriptBlocks";
 import { useEffect, useMemo, useRef } from "react";
 import type { Candle } from "../../interfaces/Candle.interface";
 import type { Indicator } from "../../interfaces/Indicator.interface";
@@ -43,7 +44,10 @@ export interface ScriptRunnerProps {
 function withParams(source: string, paramValues: ScriptDef["paramValues"]): string {
   // `@description "…"` isn't JavaScript, so it has to go before anything compiles — same reasoning
   // as the parameters below it, and the same line-count-preserving removal.
-  const code = stripScriptDescription(source);
+  // Both keywords are read from the source text and then removed: neither is valid JavaScript, so
+  // what actually gets compiled must contain neither. Blocks first or description first makes no
+  // difference — each blanks its own lines in place and leaves every other line's number alone.
+  const code = stripScriptBlocks(stripScriptDescription(source));
   const { params } = analyzeScriptVariables(code);
   return applyScriptParams(code, params, paramValues);
 }
@@ -62,7 +66,7 @@ function filesWithParams(files: ScriptDef["files"], paramValues: ScriptDef["para
  *  declaration, or declared as something other than "number") lets useScriptEngine fall back to
  *  its own default unchanged. */
 function resolveDebounceMs(code: string, paramValues: ScriptDef["paramValues"]): number | undefined {
-  const { params } = analyzeScriptVariables(stripScriptDescription(code));
+  const { params } = analyzeScriptVariables(stripScriptBlocks(stripScriptDescription(code)));
   const param = params.find((p) => p.name === "DEBOUNCE_MS" && p.type === "number");
   if (!param) return undefined;
   const raw = paramValues?.[param.name];

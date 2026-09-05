@@ -181,7 +181,7 @@ export function ScriptInteractiveTutorial() {
                 type="button"
                 className="lq-script-tutorial__toolbar-button"
                 onClick={() => codeMirrorRef.current?.runCurrentCell()}
-                title="Exécute depuis le début jusqu'à la fin de la cellule (// %%) où se trouve le curseur (Maj+Entrée)"
+                title="Exécute depuis le début jusqu'à la fin de la cellule (@block) où se trouve le curseur (Maj+Entrée)"
               >
                 <PlayIcon size={13} /> Exécuter la cellule
               </button>

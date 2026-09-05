@@ -6,6 +6,8 @@ import type { CustomIndicatorDef } from "../../interfaces/CustomIndicatorDef.int
 import type { TrendLineDrawing } from "../../interfaces/TrendLineDrawing.interface";
 import type { ScriptTableOutput } from "../interfaces/ScriptRunResult.interface";
 import type { ScriptEngineSnapshot } from "../interfaces/ScriptEngineSnapshot.interface";
+import { stripScriptDescription } from "../scriptDescription";
+import { stripScriptBlocks } from "../scriptBlocks";
 import type { ScriptRunResult } from "../interfaces/ScriptRunResult.interface";
 import type { ResolvedScriptLabel } from "../interfaces/ScriptRunOutput.interface";
 import { computeIndicatorValues, forwardFillSeries } from "../../indicators";
@@ -192,7 +194,16 @@ export function useScriptEngine(
    *  notebook cell-output flow (`ScriptEditorCodeMirror.tsx`'s own per-cell run button), which
    *  needs to know exactly which result belongs to *its own* request rather than reading whatever
    *  `result` state happens to hold whenever its own effect next runs. */
-  function run(scriptCode: string, isRealtimeTick = false, scriptModules?: ScriptEngineSnapshot["scriptModules"]): Promise<ScriptRunResult> {
+  function run(rawScriptCode: string, isRealtimeTick = false, scriptModules?: ScriptEngineSnapshot["scriptModules"]): Promise<ScriptRunResult> {
+    // `@description` and `@block` are read from the source text and are not valid JavaScript, so
+    // they have to go before anything compiles. Done here, at the one point every caller funnels
+    // through, rather than in each of them: `ScriptRunner` already stripped (harmless, both are
+    // idempotent), but the documentation's own "Exécuter" button and the interactive tutorial
+    // passed their code straight through — which is why running any example carrying a
+    // `@description` failed with "Invalid or unexpected token" before this. Both strips blank
+    // their lines in place, so a runtime error's reported line still points where the user is
+    // looking.
+    const scriptCode = stripScriptBlocks(stripScriptDescription(rawScriptCode));
     // Reusing a worker that's still mid-run would let its own stale result land in *this* call's
     // freshly-assigned onmessage/onerror below once it eventually finishes — a Worker processes
     // queued postMessage calls sequentially, it doesn't just drop the superseded one — silently

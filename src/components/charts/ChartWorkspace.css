@@ -666,6 +666,26 @@
   visibility: hidden;
 }
 
+/* Scrolling wins over reordering on a touch screen.
+ *
+ * `touch-action: none` on the row (see .lq-chart-workspace__watchlist-row-main) exists so a drag
+ * that starts anywhere on it is not also read as a scroll. On a mouse that is free — the wheel is a
+ * separate gesture. On a finger it is the *only* gesture, so a list longer than the screen could
+ * not be scrolled at all: every drag was a reorder, and the rows below the fold were unreachable.
+ * Reported as exactly that.
+ *
+ * `pan-y` hands vertical dragging back to the browser. The cost is that hold-to-drag reordering
+ * stops working by finger — once the browser owns the gesture it sends `pointercancel`, which
+ * useWatchlistRowDrag already handles cleanly, so the drag aborts rather than misbehaving. That is
+ * the right way round: a list you cannot scroll is broken, a list you cannot reorder by finger is
+ * merely less convenient, and rows can still be moved from a desktop. */
+@media (pointer: coarse) {
+  .lq-chart-workspace__watchlist-row-main,
+  .lq-chart-workspace__watchlist-section-header {
+    touch-action: pan-y;
+  }
+}
+
 /* The header row's own inert stand-ins for the two things a real row has and it doesn't: the
    delete button at the end, and the logo at the start. Both `visibility: hidden` rather than
    `display: none`, which would collapse the space they exist to reserve.

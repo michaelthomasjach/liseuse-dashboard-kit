@@ -1,7 +1,7 @@
 {
   "name": "Liseuse — CandlestickChart",
   "short_name": "Liseuse",
-  "description": "Le graphique en bougies avec toutes ses options, seul à l'écran, pour l'essayer au doigt sur un vrai téléphone.",
+  "description": "Le graphique en bougies avec toutes ses options — indicateurs, scripts, testeur de stratégie — seul à l'écran, pour l'essayer au doigt sur un vrai téléphone.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

@@ -524,3 +524,50 @@
   display: flex;
   align-items: center;
 }
+
+/* ── Étroit ────────────────────────────────────────────────────────────────────────────────── */
+
+/* Six tabs do not fit beside a title, a headline and two icon buttons on a phone: the last of them
+   was cut off at the edge with nothing to say so, which makes it unreachable rather than merely
+   cramped. The tab row scrolls sideways instead, and the two pieces of the header that repeat what
+   a tab already shows step aside first. */
+@media (max-width: 640px) {
+  .lq-strategy {
+    /* Shorter, since it opens folded here and the chart is what the screen is for. */
+    height: 260px;
+  }
+
+  /* Restated inside the query: the rule above comes later in the file than the unscoped
+     `--collapsed` one and would otherwise pin a folded panel to a full 260px of empty space —
+     which is the opposite of what folding it on a phone was for. */
+  .lq-strategy--collapsed {
+    height: auto;
+  }
+
+  .lq-strategy__header [data-optional] {
+    display: none;
+  }
+
+  .lq-strategy__title {
+    max-width: 8em;
+  }
+
+  .lq-strategy__tabs {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .lq-strategy__tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .lq-strategy__tab {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  /* A finger needs more than a 3px gap between six targets. */
+  .lq-strategy__tab {
+    padding: 5px 9px;
+  }
+}

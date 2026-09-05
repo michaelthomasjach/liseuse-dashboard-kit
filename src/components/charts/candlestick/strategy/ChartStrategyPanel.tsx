@@ -28,6 +28,10 @@ export interface ChartStrategyPanelProps {
   width: number;
 }
 
+/** Below this the panel starts folded. The same threshold the chart's own mobile rail uses, so a
+ *  layout does not change its mind about being narrow between one component and the next. */
+const NARROW_PANEL_WIDTH = 640;
+
 type StrategyTab = "performance" | "distribution" | "excursions" | "robustness" | "trades" | "settings";
 
 /** The strategy tester, docked under the chart where an oscillator pane would sit — which is where
@@ -49,7 +53,11 @@ export function ChartStrategyPanel({
   width,
 }: ChartStrategyPanelProps) {
   const [tab, setTab] = useState<StrategyTab>("performance");
-  const [collapsed, setCollapsed] = useState(false);
+  // Folded to its header on a narrow chart. At 390px the panel is 41% of the screen, and this app's
+  // whole point is trying the *chart* with a finger — opening onto a backtest that has pushed the
+  // candles into the top half is the wrong first screen. Seeded from the width rather than watched:
+  // it sets the default, and past that the panel is the reader's to open and close.
+  const [collapsed, setCollapsed] = useState(() => width > 0 && width < NARROW_PANEL_WIDTH);
 
   const metrics = result?.metrics;
   const headline = metrics ? metrics.totalPnl : 0;
@@ -69,12 +77,16 @@ export function ChartStrategyPanel({
         {/* The one number worth carrying in the header, so a collapsed panel still says how the
             strategy is doing. */}
         {metrics && (
-          <span className={`lq-strategy__headline lq-strategy__headline--${headline >= 0 ? "up" : "down"}`}>
+          <span className={`lq-strategy__headline lq-strategy__headline--${headline >= 0 ? "up" : "down"}`} data-optional="">
             {headline >= 0 ? "+" : "−"}
             {Math.abs(headline).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {settings.currency}
           </span>
         )}
-        {running && <span className="lq-strategy__status">Exécution…</span>}
+        {running && (
+          <span className="lq-strategy__status" data-optional="">
+            Exécution…
+          </span>
+        )}
         <nav className="lq-strategy__tabs">
           {(
             [

@@ -103,7 +103,7 @@ export function runScript(snapshot: ScriptEngineSnapshot): ScriptRunResult {
   // `strategy` argument, so calling it is a plain TypeError naming the thing that's missing rather
   // than a silent no-op that leaves the author wondering why no trade ever appeared.
   const strategy = snapshot.strategySettings
-    ? buildStrategyApi(snapshot.strategySettings, () => snapshot.ohlcv[currentIndex] ?? null)
+    ? buildStrategyApi(snapshot.strategySettings, snapshot.ohlcv, getCurrentIndex)
     : null;
   const company = buildCompanyApi(snapshot, getCurrentIndex);
 

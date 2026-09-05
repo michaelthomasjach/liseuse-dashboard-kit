@@ -3,7 +3,9 @@ import { ChevronDownIcon, ChevronUpIcon, CloseIcon, SettingsIcon } from "../../.
 import type { StrategyResult } from "../interfaces/StrategyResult.interface";
 import type { StrategySettings } from "../interfaces/StrategySettings.interface";
 import { StrategyEquityChart } from "./StrategyEquityChart";
+import { StrategyDistributionChart } from "./StrategyDistributionChart";
 import { StrategyExcursionChart } from "./StrategyExcursionChart";
+import { StrategyRobustnessPanel } from "./StrategyRobustnessPanel";
 import { StrategyMetricsGrid } from "./StrategyMetricsGrid";
 import { StrategySettingsForm } from "./StrategySettingsForm";
 import "./ChartStrategyPanel.css";
@@ -26,7 +28,7 @@ export interface ChartStrategyPanelProps {
   width: number;
 }
 
-type StrategyTab = "performance" | "excursions" | "trades" | "settings";
+type StrategyTab = "performance" | "distribution" | "excursions" | "robustness" | "trades" | "settings";
 
 /** The strategy tester, docked under the chart where an oscillator pane would sit — which is where
  *  it belongs: it is read *against* the candles above it, not in a window of its own.
@@ -77,7 +79,9 @@ export function ChartStrategyPanel({
           {(
             [
               ["performance", "Performance"],
+              ["distribution", "Distribution"],
               ["excursions", "MAE / MFE"],
+              ["robustness", "Robustesse"],
               ["trades", `Trades${result ? ` (${result.trades.length})` : ""}`],
               ["settings", "Réglages"],
             ] as const
@@ -115,6 +119,64 @@ export function ChartStrategyPanel({
             <p className="lq-strategy__empty">
               {running ? "Exécution de la stratégie…" : "Aucun résultat : lancez le script pour exécuter la stratégie."}
             </p>
+          ) : tab === "distribution" ? (
+            <>
+              <p className="lq-strategy__hint">
+                Combien de trades ont fini où. Les perdants à gauche du zéro, les gagnants à droite — la forme dit ce qu&apos;un taux de
+                réussite ne dit pas : 40 % de gagnants n&apos;est pas la même stratégie selon que les pertes sont petites ou énormes. Les deux
+                traits pointillés sont la moyenne et la médiane ; l&apos;écart entre eux mesure à quel point un seul trade tire la moyenne.
+              </p>
+              <StrategyDistributionChart trades={result.trades} width={Math.max(120, width - 24)} />
+              <div className="lq-strategy__streaks">
+                <div className="lq-strategy__metric">
+                  <span className="lq-strategy__metric-label">Répartition</span>
+                  <span className="lq-strategy__metric-value">
+                    {result.metrics.winningTrades} / {result.metrics.losingTrades}
+                    {result.metrics.breakevenTrades > 0 ? ` / ${result.metrics.breakevenTrades}` : ""}
+                  </span>
+                  <span className="lq-strategy__metric-hint">
+                    gagnants / perdants{result.metrics.breakevenTrades > 0 ? " / nuls" : ""}
+                  </span>
+                </div>
+                <div className="lq-strategy__metric">
+                  <span className="lq-strategy__metric-label">Rendement moyen</span>
+                  <span
+                    className={`lq-strategy__metric-value lq-strategy__metric-value--${(result.metrics.averageReturnPercent ?? 0) >= 0 ? "up" : "down"}`}
+                  >
+                    {result.metrics.averageReturnPercent === null ? "—" : `${result.metrics.averageReturnPercent.toFixed(2)} %`}
+                  </span>
+                  <span className="lq-strategy__metric-hint">par trade</span>
+                </div>
+                <div className="lq-strategy__metric">
+                  <span className="lq-strategy__metric-label">Rendement médian</span>
+                  <span
+                    className={`lq-strategy__metric-value lq-strategy__metric-value--${(result.metrics.medianReturnPercent ?? 0) >= 0 ? "up" : "down"}`}
+                  >
+                    {result.metrics.medianReturnPercent === null ? "—" : `${result.metrics.medianReturnPercent.toFixed(2)} %`}
+                  </span>
+                  <span className="lq-strategy__metric-hint">le trade typique</span>
+                </div>
+                <div className="lq-strategy__metric">
+                  <span className="lq-strategy__metric-label">Série de gains</span>
+                  <span className="lq-strategy__metric-value lq-strategy__metric-value--up">{result.metrics.maxConsecutiveWins}</span>
+                  <span className="lq-strategy__metric-hint">consécutifs, au mieux</span>
+                </div>
+                <div className="lq-strategy__metric">
+                  <span className="lq-strategy__metric-label">Série de pertes</span>
+                  <span className="lq-strategy__metric-value lq-strategy__metric-value--down">{result.metrics.maxConsecutiveLosses}</span>
+                  <span className="lq-strategy__metric-hint">consécutives, au pire — ce qu&apos;il faut tenir</span>
+                </div>
+                <div className="lq-strategy__metric">
+                  <span className="lq-strategy__metric-label">MAE / MFE moyens</span>
+                  <span className="lq-strategy__metric-value">
+                    {result.metrics.averageAdverseExcursion === null
+                      ? "—"
+                      : `${result.metrics.averageAdverseExcursion.toFixed(2)} / ${(result.metrics.averageFavorableExcursion ?? 0).toFixed(2)}`}
+                  </span>
+                  <span className="lq-strategy__metric-hint">par trade, en {settings.currency}</span>
+                </div>
+              </div>
+            </>
           ) : tab === "excursions" ? (
             <>
               <p className="lq-strategy__hint">
@@ -124,6 +186,8 @@ export function ChartStrategyPanel({
               </p>
               <StrategyExcursionChart trades={result.trades} currency={settings.currency} width={Math.max(120, width - 24)} />
             </>
+          ) : tab === "robustness" ? (
+            <StrategyRobustnessPanel robustness={result.robustness} />
           ) : tab === "trades" ? (
             <StrategyTradesTable result={result} currency={settings.currency} formatDate={formatDate} />
           ) : (

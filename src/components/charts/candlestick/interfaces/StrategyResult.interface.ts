@@ -1,3 +1,4 @@
+import type { StrategyRobustness } from "./StrategyRobustness.interface";
 /** One completed round trip — an entry and the exit that closed it. The unit every performance
  *  figure below is computed from, kept rather than only its total so the pane can list them and a
  *  future version can chart their distribution without re-running anything. */
@@ -59,6 +60,9 @@ export interface StrategyResult {
     unrealizedProfit: number;
   } | null;
   metrics: StrategyMetrics;
+  /** How much of the result survives being poked at — see `StrategyRobustness`, including what it
+   *  deliberately does not claim to measure. */
+  robustness: StrategyRobustness;
 }
 
 /** The summary line of a backtest. Every one of these is derived from `trades`/`equity` — kept
@@ -132,6 +136,28 @@ export interface StrategyMetrics {
    *  much of what it offered is being left behind. `null` with no closed trade. */
   worstAdverseExcursion: number | null;
   bestFavorableExcursion: number | null;
+  /** The same two excursions averaged over every closed trade. The maxima say what the strategy is
+   *  capable of putting you through; these say what it routinely does — and a stop has to survive
+   *  the second far more often than the first. */
+  averageAdverseExcursion: number | null;
+  averageFavorableExcursion: number | null;
+  /** Mean and median trade result, as a percentage of the entry's own notional so trades of
+   *  different sizes compare.
+   *
+   *  Both, not one: the mean is what compounds, but it is dragged around by a single outlier, and a
+   *  strategy whose mean is positive only because of one enormous winner is a different proposition
+   *  from one whose median is positive. When they disagree, the gap between them *is* the finding. */
+  averageReturnPercent: number | null;
+  medianReturnPercent: number | null;
+  /** Trades that closed at exactly zero. Counted separately from wins and losses rather than folded
+   *  into either — at a commission of zero a scratch is genuinely neither, and silently calling it a
+   *  loss would misstate the win rate. */
+  breakevenTrades: number;
+  /** The longest runs of consecutive winners and losers. What a percentage cannot say: a 40% win
+   *  rate spread evenly is a strategy you can hold through, and the same 40% arriving as eleven
+   *  losses in a row is one most people abandon before it works. */
+  maxConsecutiveWins: number;
+  maxConsecutiveLosses: number;
   /** Entries the account couldn't afford, at its equity and leverage. Reported rather than hidden:
    *  a strategy showing three trades where its author expected three hundred is otherwise
    *  indistinguishable from one whose rules simply never fired. */

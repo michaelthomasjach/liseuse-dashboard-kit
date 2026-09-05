@@ -1,6 +1,7 @@
 import type { StrategySettings, StrategySizeUnit } from "../../interfaces/StrategySettings.interface";
 import type { StrategyEquityPoint, StrategyMetrics, StrategyResult, StrategyTrade } from "../../interfaces/StrategyResult.interface";
 import type { ScriptDrawingOutput } from "../interfaces/ScriptRunResult.interface";
+import { computeStrategyRobustness } from "./strategyRobustness";
 
 export interface StrategyEntryOptions {
   /** How much to trade, read through `unit`. Omitted, the strategy pane's own default size is used
@@ -72,7 +73,14 @@ interface OpenLot {
  *  `settleBar` is what the runner calls after each bar's own script pass: it applies any fill the
  *  script asked for and records the account's value. Keeping those two in one place is what keeps
  *  the equity curve and the trade list from ever disagreeing. */
-export function buildStrategyApi(settings: StrategySettings, getBar: () => { t: number; o: number; c: number } | null) {
+export function buildStrategyApi(
+  settings: StrategySettings,
+  /** Every bar of the replay. Needed whole (not just the current one) by the robustness pass, which
+   *  classifies each trade by the market it actually traded through. */
+  bars: { t: number; o: number; h: number; l: number; c: number }[],
+  getCurrentIndex: () => number
+) {
+  const getBar = () => bars[getCurrentIndex()] ?? null;
   const lots: OpenLot[] = [];
   const trades: StrategyTrade[] = [];
   const equity: StrategyEquityPoint[] = [];
@@ -334,6 +342,28 @@ export function buildStrategyApi(settings: StrategySettings, getBar: () => { t: 
     };
   }
 
+  /** Middle value, averaging the two middles on an even count — the ordinary definition, spelled
+   *  out because "median of an even sample" is a place implementations quietly differ. */
+  function median(values: number[]): number | null {
+    if (values.length === 0) return null;
+    const sorted = [...values].sort((a, b) => a - b);
+    const middle = Math.floor(sorted.length / 2);
+    return sorted.length % 2 === 0 ? (sorted[middle - 1] + sorted[middle]) / 2 : sorted[middle];
+  }
+
+  /** The longest run of consecutive trades matching `test`, in the order they closed. A breakeven
+   *  trade matches neither "win" nor "loss", so it *interrupts* both runs rather than extending
+   *  either — which is the honest reading: the streak of losses did stop, even if nothing was made. */
+  function longestRun(test: (trade: StrategyTrade) => boolean): number {
+    let best = 0;
+    let current = 0;
+    for (const trade of trades) {
+      current = test(trade) ? current + 1 : 0;
+      if (current > best) best = current;
+    }
+    return best;
+  }
+
   function getResult(): StrategyResult {
     const bar = getBar();
     const lastClose = bar?.c ?? null;
@@ -367,6 +397,13 @@ export function buildStrategyApi(settings: StrategySettings, getBar: () => { t: 
       finalEquity: equity.length > 0 ? equity[equity.length - 1].equity : settings.initialCapital,
       worstAdverseExcursion: trades.length > 0 ? Math.max(...trades.map((t) => t.maxAdverse)) : null,
       bestFavorableExcursion: trades.length > 0 ? Math.max(...trades.map((t) => t.maxFavorable)) : null,
+      averageAdverseExcursion: trades.length > 0 ? trades.reduce((s, t) => s + t.maxAdverse, 0) / trades.length : null,
+      averageFavorableExcursion: trades.length > 0 ? trades.reduce((s, t) => s + t.maxFavorable, 0) / trades.length : null,
+      averageReturnPercent: trades.length > 0 ? trades.reduce((s, t) => s + t.profitPercent, 0) / trades.length : null,
+      medianReturnPercent: median(trades.map((t) => t.profitPercent)),
+      breakevenTrades: trades.filter((t) => t.profit === 0).length,
+      maxConsecutiveWins: longestRun((t) => t.profit > 0),
+      maxConsecutiveLosses: longestRun((t) => t.profit < 0),
       rejectedOrders,
     };
     return {
@@ -382,6 +419,7 @@ export function buildStrategyApi(settings: StrategySettings, getBar: () => { t: 
             }
           : null,
       metrics,
+      robustness: computeStrategyRobustness(trades, settings, bars),
     };
   }
 

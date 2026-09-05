@@ -149,7 +149,7 @@ export function CandlestickChart({
   onLinkClick,
   fillHeight = false,
   sidePanel, defaultSidePanelOpen, onSidePanelOpenChange,
-  scripts, onScriptsChange, onScriptAlert, onEditScript, onCreateScript, onDeleteScript, onScriptRunOutput, lastCandleOpen = false,
+  scripts, onScriptsChange, onScriptAlert, onEditScript, onCreateScript, onDeleteScript, onCreateStrategyFromIndicator, onScriptRunOutput, lastCandleOpen = false,
   margin,
   className,
 }: CandlestickChartProps) {
@@ -1262,6 +1262,7 @@ export function CandlestickChart({
         customIndicators={customIndicators} addCustomIndicator={addCustomIndicator}
         scripts={scriptingState.scripts} toggleScriptEnabled={scriptingState.toggleScriptEnabled}
         onEditScript={onEditScript} onCreateScript={onCreateScript} onDeleteScript={onDeleteScript}
+        onCreateStrategyFromIndicator={onCreateStrategyFromIndicator}
         setScriptParamValue={scriptingState.setScriptParamValue}
         indicatorsManagerOpen={indicatorsManagerOpen}
         setIndicatorsManagerOpen={setIndicatorsManagerOpen}

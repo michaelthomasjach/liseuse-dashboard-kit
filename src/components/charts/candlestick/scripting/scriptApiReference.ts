@@ -684,6 +684,24 @@ strategy.unrealizedProfit()  // number — P&L latent au cours de la bougie cour
       t(
         "Les statistiques ne portent que sur les trades clôturés. Une position encore ouverte à la fin du rejeu est affichée à part, avec son P&L latent : la compter comme un trade flatterait discrètement toutes les autres statistiques."
       ),
+      h("D'un indicateur à une stratégie"),
+      t(
+        "Le bouton « créer une stratégie » d'une ligne « Mes scripts » construit une stratégie à partir de l'indicateur sélectionné — en deux fichiers : l'indicateur devient un module, et le nouveau script l'importe. C'est délibérément un import et non une copie : corriger l'indicateur corrige alors toutes les stratégies bâties dessus, là où une copie diverge en silence jusqu'au jour où un trade se déclenche sur une règle qu'on croyait déjà corrigée."
+      ),
+      t(
+        "Ce que la stratégie générée peut lire dépend de ce que l'indicateur expose. S'il exporte quelque chose, ses exports sont importés et l'un d'eux est câblé dans un exemple. S'il n'exporte rien — le cas courant d'un indicateur qui ne fait que tracer — l'import est conservé pour son tracé, et le script généré explique à l'endroit exact où vous regardez comment rendre sa valeur réutilisable :"
+      ),
+      c(
+        `// dans l'indicateur : extraire le calcul, il continue de tracer exactement pareil
+export function signal() {
+  return ta.rsi(market.series("close", 70), 14);
+}
+plot.pane("RSI").line("RSI", signal());
+
+// dans la stratégie
+import { signal } from "./mon-rsi";
+if (signal() < 30) strategy.long("Survente");`
+      ),
       h("Marge et levier"),
       t(
         "Une entrée dont le notionnel dépasse ce que le compte peut porter — son équité multipliée par le levier du sens concerné — est refusée. Le compteur « Ordres refusés » du panneau les dénombre : une stratégie qui montre trois trades là où son auteur en attendait trois cents doit pouvoir dire que c'était faute de marge, et non parce que ses règles ne se sont jamais déclenchées."

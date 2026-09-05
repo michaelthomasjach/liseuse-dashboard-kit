@@ -1,6 +1,7 @@
 import type { IndicatorInfoTarget } from "../interfaces/IndicatorInfoTarget.interface";
 import { isScriptInfoTarget } from "../interfaces/IndicatorInfoTarget.interface";
 import { analyzeScriptDescription } from "../scripting/scriptDescription";
+import { analyzeScriptKind } from "../scripting/scriptKind";
 import { ScriptDescriptionText } from "../scripting/components/ScriptDescriptionText";
 import { analyzeScriptVariables } from "../scripting/scriptVariables";
 import { scriptIdFromIndicatorId } from "../scripting/scriptOutputToCustomIndicatorDef";
@@ -10,7 +11,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Modal } from "../../../primitives/Modal";
 import { Tabs } from "../../../primitives/Tabs";
 import { TextField } from "../../../forms/TextField";
-import { SearchIcon, SettingsIcon, TrashIcon, InfoIcon, OverlayBadgeIcon, PaneBadgeIcon, CheckIcon, CodeIcon, EyeOffIcon } from "../../../icons";
+import { SearchIcon, SettingsIcon, TrashIcon, InfoIcon, OverlayBadgeIcon, PaneBadgeIcon, CheckIcon, CodeIcon, EyeOffIcon, TrendLineIcon } from "../../../icons";
 import type { TrendLineDrawing } from "../interfaces/TrendLineDrawing.interface";
 import type { Indicator } from "../interfaces/Indicator.interface";
 import type { IndicatorKind } from "../interfaces/IndicatorKind.interface";
@@ -75,6 +76,12 @@ export interface IndicatorModalsProps {
    *  Distinct from `toggleScriptEnabled` (the row's own click), which only stops a script running
    *  and leaves it in the list. */
   onDeleteScript?: (scriptId: string) => void;
+  /** Builds a `@strategy` script from an indicator script and opens it — the picker's own
+   *  "créer une stratégie à partir de cet indicateur" action. The indicator is *imported* by the
+   *  result, not copied into it (see `strategyFromIndicator`), so it stays the single source of
+   *  truth for whatever both of them compute. Same `undefined` outside a `ChartWorkspace` reasoning
+   *  as the callbacks above. */
+  onCreateStrategyFromIndicator?: (scriptId: string) => void;
   indicatorsManagerOpen: boolean;
   setIndicatorsManagerOpen: (open: boolean) => void;
   indicators: Indicator[];
@@ -103,6 +110,13 @@ export interface IndicatorModalsProps {
  *  itself owns, and the only one that stays listed while empty (see its own filter button below). */
 const SCRIPTS_CATEGORY = "Mes scripts";
 
+/** Where a `@strategy` script is listed instead (see scriptKind.ts). Its own category rather than a
+ *  badge inside "Mes scripts": clicking a strategy is a different act — it opens a backtest with an
+ *  account and a panel of its own, not one more line on the price scale — and burying that
+ *  distinction in an icon is how someone ends up running a strategy thinking they added an
+ *  indicator. */
+const STRATEGIES_CATEGORY = "Mes stratégies";
+
 /** The three indicator-related modals: "Ajouter un indicateur" (search + catalog, plus a Volume
  *  entry since it's just as valid an "add a pane" choice), "Dessins et indicateurs" (a flat
  *  manage-everything list — drawings, price-overlay indicators, own-pane indicators/volume, each
@@ -128,6 +142,7 @@ export function IndicatorModals({
   onEditScript,
   onCreateScript,
   onDeleteScript,
+  onCreateStrategyFromIndicator,
   indicatorsManagerOpen,
   setIndicatorsManagerOpen,
   indicators,
@@ -257,6 +272,7 @@ export function IndicatorModals({
                     // knew; selecting it with an empty list shows an explanatory empty state
                     // instead of the generic "aucun indicateur ne correspond" (see below).
                     SCRIPTS_CATEGORY,
+                    STRATEGIES_CATEGORY,
                   ])
                 ).map(
                   (category) => (
@@ -331,6 +347,10 @@ export function IndicatorModals({
                    *  from the chart by clicking its already-present row (see `alreadyPresent`), and
                    *  there is nothing to permanently delete. */
                   scriptId?: string;
+                  /** Indicator-script rows only — offers "make a strategy out of this". Not shown on
+                   *  a row that is already a strategy (there is nothing to convert) nor on a
+                   *  built-in (this library has no source for one to import). */
+                  canBecomeStrategy?: boolean;
                 };
                 const builtinOptions: PickerOption[] = INDICATOR_CATALOG.filter(
                   (entry) => entry.label.toLowerCase().includes(query) || entry.shortLabel.toLowerCase().includes(query)
@@ -361,12 +381,13 @@ export function IndicatorModals({
                   .map((s) => ({
                     key: s.id,
                     label: s.name,
-                    category: SCRIPTS_CATEGORY,
+                    category: analyzeScriptKind(s.code).kind === "strategy" ? STRATEGIES_CATEGORY : SCRIPTS_CATEGORY,
                     pane: "own",
                     onSelect: () => toggleScriptEnabled(s.id),
                     enabled: s.enabled !== false,
                     codeTarget: { scriptId: s.id },
                     scriptId: s.id,
+                    canBecomeStrategy: analyzeScriptKind(s.code).kind !== "strategy",
                   }));
                 const allOptions = [...builtinOptions, ...customOptions, ...scriptOptions].filter(
                   (option) => categoryFilter === null || option.category === categoryFilter
@@ -382,7 +403,16 @@ export function IndicatorModals({
                   // empty "Mes scripts" is the normal state of a chart nobody has written a script
                   // for yet (nothing is wrong, and the message should say what a script *is* for),
                   // whereas an empty result anywhere else really is a search that matched nothing.
-                  if (categoryFilter === SCRIPTS_CATEGORY && scripts.length === 0) {
+                  if (categoryFilter === STRATEGIES_CATEGORY && !scripts.some((s) => analyzeScriptKind(s.code).kind === "strategy")) {
+                    return (
+                      <p className="lq-chart__indicator-picker-empty">
+                        Aucune stratégie pour l&apos;instant. Une stratégie est un script qui prend des positions : d&apos;abord testées sur un
+                        compte simulé dans le panneau qui s&apos;ouvre sous les bougies. Écrivez <code>@strategy</code> en haut d&apos;un script pour
+                        en faire une, ou partez d&apos;un indicateur existant via son bouton «&nbsp;&lt;/&gt;&nbsp;».
+                      </p>
+                    );
+                  }
+                  if (categoryFilter === SCRIPTS_CATEGORY && !scripts.some((s) => analyzeScriptKind(s.code).kind !== "strategy")) {
                     return (
                       <p className="lq-chart__indicator-picker-empty">
                         Aucun script pour l&apos;instant. Un script est un indicateur que vous écrivez vous-même : ouvrez l&apos;éditeur
@@ -483,6 +513,17 @@ export function IndicatorModals({
                                 title="Voir le code"
                               >
                                 <CodeIcon size={13} />
+                              </button>
+                            )}
+                            {option.canBecomeStrategy && onCreateStrategyFromIndicator && (
+                              <button
+                                type="button"
+                                className="lq-chart__pane-header-action"
+                                onClick={() => onCreateStrategyFromIndicator(option.scriptId!)}
+                                aria-label={`Créer une stratégie à partir de ${option.label}`}
+                                title="Créer une stratégie à partir de cet indicateur"
+                              >
+                                <TrendLineIcon size={13} />
                               </button>
                             )}
                             {option.scriptId !== undefined && onDeleteScript && (

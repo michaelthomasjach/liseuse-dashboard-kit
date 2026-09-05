@@ -22,6 +22,7 @@ import { useDragToDismiss } from "./workspace/useDragToDismiss";
 import { useSidePanel } from "./candlestick/hooks/useSidePanel";
 import { useScriptingState } from "./candlestick/hooks/useScriptingState";
 import { ChartSidePanel } from "./candlestick/components/ChartSidePanel";
+import { strategyFromIndicator } from "./candlestick/scripting/strategyFromIndicator";
 import { ScriptEditorPanel } from "./candlestick/scripting/components/ScriptEditorPanel";
 import { Popover } from "../forms/Popover";
 import { Modal } from "../primitives/Modal";
@@ -877,6 +878,20 @@ export function ChartWorkspace({
                   // activeScriptId/runOutputs, so the deleted script leaves the tab strip instead
                   // of leaving it pointed at something that no longer exists.
                   onDeleteScript: workspaceScripting.removeScript,
+                  // Two files, not a copy: the indicator becomes a module the new strategy imports,
+                  // so it stays the one place its calculation lives (see strategyFromIndicator).
+                  // `targetPanelIndex: i` for the same reason onCreateScript sets it — an untargeted
+                  // script is routed to no panel and never runs.
+                  onCreateStrategyFromIndicator: (scriptId: string) => {
+                    const source = workspaceScripting.scripts.find((s) => s.id === scriptId);
+                    if (!source) return;
+                    const generated = strategyFromIndicator(source.name, source.code);
+                    workspaceScripting.addScript(generated.name, generated.code, {
+                      files: generated.files,
+                      named: true,
+                      targetPanelIndex: i,
+                    });
+                  },
                   // Bridges each panel's own local script-run output back up into the *shared*
                   // editor's own `runOutputs` — the editor itself has no `ScriptRunner` of its own
                   // (every script actually executes inside whichever panel it's routed to, not

@@ -320,6 +320,11 @@ export interface CandlestickChartProps {
    *  omitting this hides the button. `ChartWorkspace` wires it to the same `removeScript` its own
    *  editor uses, so a script deleted here also leaves the editor's tab strip. */
   onDeleteScript?: (scriptId: string) => void;
+  /** Fires when the user asks to build a strategy out of one of their indicator scripts (the
+   *  picker's own action on a "Mes scripts" row). Same reasoning as the three callbacks above: the
+   *  script list and the editor belong to the caller, so creating the new script and focusing it is
+   *  its job, and omitting this hides the button. */
+  onCreateStrategyFromIndicator?: (scriptId: string) => void;
   /** Whether `data`'s own last candle is still actively forming rather than closed — read by a
    *  running script's own `bar.isClosed()`/`bar.isRealtime()` (see the scripting engine's own
    *  `ScriptEngineSnapshot.lastCandleOpen` doc for the full reasoning). This library has no way to

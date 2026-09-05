@@ -791,4 +791,54 @@ if (macd && macd.macd !== null && macd.signal !== null) {
   pane.histogram("Histogramme", macd.histogram ?? 0, { color: "#7fb37f" });
 }`,
   },
+  {
+    id: "sma-cross-strategy",
+    title: "Stratégie — croisement de moyennes",
+    description:
+      "La stratégie la plus simple qui tienne debout, et le bon point de départ pour comprendre le testeur : long quand la moyenne courte passe au-dessus de la longue, sortie quand elle repasse en dessous. Rien de plus. Tout l'intérêt est de voir ce que le panneau en dit — un croisement de moyennes gagne rarement en facteur de profit, mais il produit peu de trades, donc peu de frais, ce qui en fait une base honnête à laquelle comparer des règles plus élaborées.",
+    code: `@strategy
+@description "///Croisement de moyennes///
+Long quand la moyenne courte croise la longue à la hausse, sortie au croisement inverse.
+
+//À quoi ça sert//
+C'est la stratégie de référence : celle à laquelle comparer les autres. Si une règle compliquée ne
+bat pas celle-ci sur le même instrument, elle ne vaut pas sa complexité.
+
+//Ce qu'il faut regarder dans le panneau//
+Le **facteur de profit** (au-dessus de 1, elle gagne), le **drawdown max** (ce qu'il a fallu
+encaisser pour l'obtenir), et la part des **commissions** dans le profit brut.
+"
+
+@block Réglages
+
+const COURTE = new Variable("number", 20, { description: "Période de la moyenne courte.", min: 2, max: 200 });
+const LONGUE = new Variable("number", 50, { description: "Période de la moyenne longue.", min: 3, max: 400 });
+
+@block Les deux moyennes, et leur position à la bougie précédente
+
+const courte = math.sma(market.series("close", COURTE), COURTE);
+const longue = math.sma(market.series("close", LONGUE), LONGUE);
+
+// Un croisement se détecte par un CHANGEMENT de position relative, pas par la position elle-même.
+// Sans cette mémoire, "courte au-dessus de longue" resterait vrai pendant toute une tendance et on
+// tenterait une entrée à chaque bougie — que le pyramiding se contenterait d'ignorer en silence.
+const auDessusAvant = state.get("auDessus", null);
+const auDessus = courte !== null && longue !== null ? courte > longue : null;
+state.set("auDessus", auDessus);
+
+@block Les règles
+
+if (auDessus !== null && auDessusAvant !== null && auDessus !== auDessusAvant) {
+  if (auDessus) strategy.long("Croisement haussier");
+  else strategy.close("Croisement baissier");
+}
+
+@block Les moyennes sur la chart, pour pouvoir lire les trades
+
+// Une stratégie reste un script : voir les deux courbes est ce qui permet de comprendre pourquoi
+// un trade s'est déclenché à cet endroit-là plutôt qu'un autre.
+const overlay = plot.overlay("Croisement de moyennes");
+if (courte !== null) overlay.line("SMA " + COURTE, courte, { color: "#e0a95c" });
+if (longue !== null) overlay.line("SMA " + LONGUE, longue, { color: "#6c87c9" });`,
+  },
 ];

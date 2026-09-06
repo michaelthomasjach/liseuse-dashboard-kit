@@ -31,6 +31,19 @@ export interface ChartHoverBadgesProps {
   addPriceLine: () => void;
   zoomedPriceScale: d3.ScaleLinear<number, number>;
   priceAxisFmt: (value: number) => string;
+  /** The closing price to mark permanently on the price axis, and which way it moved — the badge
+   *  every trading chart carries so "where is it now" needs no hovering and no reading of the last
+   *  candle's own position. `null` when there is nothing to mark (no data).
+   *
+   *  Resolved by the caller rather than read from `data` here, for one reason that matters: under
+   *  replay the last *revealed* close is the honest one, and taking `data[data.length - 1]` would
+   *  print a price from candles the replay is deliberately hiding. */
+  lastClose: { price: number; direction: "up" | "down" } | null;
+  /** The candle colours in force, when the caller has overridden them (see
+   *  `CandlestickChartProps.upColor`). `undefined` falls back to the theme's own tokens in CSS —
+   *  the badge must match the candles it summarises, whichever of the two decided them. */
+  upColorOverride?: string;
+  downColorOverride?: string;
   hoverVolumeY: number | null;
   priceHeight: number;
   volumeTop: number;
@@ -78,6 +91,9 @@ export function ChartHoverBadges({
   addPriceLine,
   zoomedPriceScale,
   priceAxisFmt,
+  lastClose,
+  upColorOverride,
+  downColorOverride,
   hoverVolumeY,
   priceHeight,
   volumeTop,
@@ -111,8 +127,29 @@ export function ChartHoverBadges({
   setEventModalOpen,
   setActiveEventStack,
 }: ChartHoverBadgesProps) {
+  // Where the last close sits on the current scale — `null` once it is scrolled or zoomed out of
+  // the visible price range. Hidden rather than clamped to an edge: the number would stay right
+  // while its position became a lie, and a badge on a price axis is read as *a height* first.
+  const lastCloseY = lastClose === null ? null : zoomedPriceScale(lastClose.price);
+  const lastCloseVisible = lastCloseY !== null && lastCloseY >= 0 && lastCloseY <= priceHeight;
+
   return (
     <>
+      {/* Before the hover badges, so a hover at the same height paints over it rather than under:
+          the hovered price is what the user is asking about right now. */}
+      {lastClose !== null && lastCloseVisible && (
+        <div
+          className={`lq-chart__axis-value lq-chart__axis-value--y lq-chart__axis-value--last lq-chart__axis-value--last-${lastClose.direction}`}
+          style={{
+            top: dims.margin.top + lastCloseY,
+            left: dims.margin.left + dims.boundedWidth,
+            minWidth: dims.margin.right,
+            backgroundColor: lastClose.direction === "up" ? upColorOverride : downColorOverride,
+          }}
+        >
+          <span className="lq-chart__axis-value-text">{priceAxisFmt(lastClose.price)}</span>
+        </div>
+      )}
       {hoverY !== null && (
         // The badge itself is pinned flush to the axis boundary so it never bleeds into the
         // chart — only the standalone "+" button (own square, own background) is allowed to

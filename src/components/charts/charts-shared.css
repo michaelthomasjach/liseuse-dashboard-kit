@@ -3005,3 +3005,24 @@
 .lq-chart__indicator-category-more--right {
   right: 0;
 }
+
+/* The last close, marked permanently on the price axis. Same shape as the hover badge above — it is
+   the same idea, a value pinned at its own height — but coloured by direction rather than by the
+   accent, so it matches the candle it summarises and reads as *the price* rather than as a cursor
+   readout. Sits below the hover badge (`z-index: 6`) so a hover at the same height wins: what the
+   reader is pointing at now is what they asked for.
+
+   `--lq-color-up`/`--lq-color-down` here, and only here, because the caller's own upColor/downColor
+   overrides come in as an inline background (see ChartHoverBadges): a badge in the theme's green
+   beside candles the caller painted differently would read as a third, unrelated colour. */
+.lq-chart__axis-value--last {
+  z-index: 5;
+}
+
+.lq-chart__axis-value--last-up {
+  background-color: var(--lq-color-up);
+}
+
+.lq-chart__axis-value--last-down {
+  background-color: var(--lq-color-down);
+}

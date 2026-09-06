@@ -452,6 +452,19 @@ export function CandlestickChart({
   // its own pan/zoom while a cutoff is being chosen — see useReplayState.ts's own doc on why
   // `zoomedXScale` itself can't be a hook argument here (the reverse dependency).
   const replayState = useReplayState({ dataLength: data.length });
+  // The closing price marked permanently on the price axis (see ChartHoverBadges' own `lastClose`).
+  // Under replay it is the last *revealed* candle's close, not the dataset's: the replay hides the
+  // bars past its cutoff precisely so they cannot be read, and printing their price on the axis
+  // would hand back exactly what it withholds. Direction against the previous close, which is the
+  // same comparison the candles themselves are coloured by.
+  const lastCloseBadge = useMemo(() => {
+    const cutoff = replayState.active && replayState.cutoffIndex !== null ? replayState.cutoffIndex : data.length - 1;
+    const index = Math.min(cutoff, data.length - 1);
+    if (index < 0) return null;
+    const price = data[index].close;
+    const previous = index > 0 ? data[index - 1].close : data[index].open;
+    return { price, direction: price >= previous ? ("up" as const) : ("down" as const) };
+  }, [data, replayState.active, replayState.cutoffIndex]);
 
   // Whether the touch placement flow (see useMobilePointPlacement below) currently owns the plot's
   // gestures. Computed up here, ahead of the two hooks that need to know: while a point is being
@@ -1056,6 +1069,9 @@ export function CandlestickChart({
           onEditScript={onEditScript}
         />
         <ChartPlotOverlays
+          lastClose={lastCloseBadge}
+          upColorOverride={upColorOverride}
+          downColorOverride={downColorOverride}
           canvasRef={canvasRef}
           dims={dims}
           plotBoundedHeight={plotBoundedHeight}

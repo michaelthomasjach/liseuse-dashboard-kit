@@ -1,7 +1,8 @@
 import { ChartCanvasOverlay, type ChartCanvasOverlayProps } from "./ChartCanvasOverlay";
 import { ChartHoverBadges, type ChartHoverBadgesProps } from "./ChartHoverBadges";
+import { ChartAxisAnnotations, type ChartAxisAnnotationsProps } from "./ChartAxisAnnotations";
 
-export type ChartPlotOverlaysProps = ChartCanvasOverlayProps & ChartHoverBadgesProps;
+export type ChartPlotOverlaysProps = ChartCanvasOverlayProps & ChartHoverBadgesProps & ChartAxisAnnotationsProps;
 
 /** `ChartCanvasOverlay` (the SVG axes/handles/drawing-interaction layer sitting over the canvas)
  *  and `ChartHoverBadges` (the live hover/axis-value badges on top of that), grouped into one
@@ -15,6 +16,9 @@ export function ChartPlotOverlays(props: ChartPlotOverlaysProps) {
   return (
     <>
       <ChartCanvasOverlay {...props} />
+      {/* Before the hover badges for the same reason the last-close badge is: what the pointer
+          is on right now paints over what was selected earlier. */}
+      <ChartAxisAnnotations {...props} />
       <ChartHoverBadges {...props} />
     </>
   );

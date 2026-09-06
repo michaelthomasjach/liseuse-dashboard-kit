@@ -3,27 +3,11 @@ import type * as d3 from "d3";
 import { PlusIcon } from "../../../icons";
 import { ChartEventTooltip } from "../../EventTooltip";
 import type { Candle } from "../interfaces/Candle.interface";
-import type { Indicator } from "../interfaces/Indicator.interface";
-import type { IndicatorValue } from "../interfaces/IndicatorValue.interface";
 import type { TrendLineDrawing } from "../interfaces/TrendLineDrawing.interface";
 import type { ChartEvent } from "../interfaces/ChartEvent.interface";
-import { indicatorCatalogEntry, defaultIndicatorColor } from "../indicatorCatalog";
 import { CROSSHAIR_ADD_INSET, LIVE_COUNTDOWN_OFFSET } from "../constants";
 import { EVENT_MARKER_OFFSET, EVENT_MARKER_RADIUS, EVENT_TOOLTIP_WIDTH, EVENT_TOOLTIP_GAP } from "../eventsCatalog";
 import { formatCountdown, formatCompactNumber } from "../formatting";
-
-// Kinds whose value shape this file's own "latest overlay value" badge doesn't understand (a
-// plain number, or a band's own middle line) — see where this is used, below.
-const OVERLAY_BADGE_EXCLUDED_KINDS: string[] = [
-  "zigzag",
-  "supertrend",
-  "ichimoku",
-  "gaps",
-  "pivotPoints",
-  "supportResistance",
-  "patternRecognition",
-  "candleRecognition",
-];
 
 export interface ChartHoverBadgesProps {
   hoverY: number | null;
@@ -64,12 +48,14 @@ export interface ChartHoverBadgesProps {
   data: Candle[];
   clampToPriceAxis: (y: number) => number;
   now: number;
-  showIndicators: boolean;
-  indicatorValues: { indicator: Indicator; values: (IndicatorValue | null)[] }[];
   visibleDrawings: TrendLineDrawing[];
   volumeVisible: boolean;
   pixelYForDrawing: (dr: TrendLineDrawing) => number;
   hoveredDrawingId: string | null;
+  /** The selected drawing, whose own permanent badges are skipped here — ChartAxisAnnotations
+   *  draws them instead, in the selection's own colour and alongside its date labels. Without
+   *  this the two would stack at the same pixel, one under the other, for no visible reason. */
+  selectedDrawingId: string | null;
   indexForDate: (date: Date) => number;
   activeEventStack: { i: number; events: ChartEvent[] } | null;
   eventModalOpen: boolean;
@@ -114,12 +100,11 @@ export function ChartHoverBadges({
   data,
   clampToPriceAxis,
   now,
-  showIndicators,
-  indicatorValues,
   visibleDrawings,
   volumeVisible,
   pixelYForDrawing,
   hoveredDrawingId,
+  selectedDrawingId,
   indexForDate,
   activeEventStack,
   eventModalOpen,
@@ -272,48 +257,6 @@ export function ChartHoverBadges({
           );
         })()}
 
-      {/* Each active price-overlay indicator's own latest value, same axis-badge style,
-          colored to match that indicator's own line instead of the theme accent. "own"-pane
-          indicators (RSI/CHOP/MACD) already get axis ticks on their own separate scale below,
-          so they're excluded here — this is price-pane overlays only (SMA/EMA/WMA/VWAP/
-          Bollinger, whose "value" is a plain number; Bollinger's own band uses its middle
-          line). */}
-      {showIndicators &&
-        priceHeight > 0 &&
-        indicatorValues.map(({ indicator, values }, idx) => {
-          // ZigZag/Supertrend/Ichimoku/Gaps excluded here — none of them have a value shape this
-          // generic "plain number, or a band's own middle line" badge understands (see the next
-          // check below), and for ZigZag/Gaps specifically their "latest value" wouldn't be a
-          // meaningful "right now" reading anyway (a stale confirmed pivot, or a gap rectangle
-          // rather than a price at all) — each already gets its own on-chart labels instead
-          // (ZigZag's HH/HL/LH/LL, Gaps' shaded rectangle). Parabolic SAR and a custom "line"/
-          // "area"/"histogram" indicator are plain numbers, so they're deliberately *not* excluded
-          // here — they get this badge exactly like SMA/EMA does.
-          if (indicator.hidden || indicatorCatalogEntry(indicator).pane !== "price" || OVERLAY_BADGE_EXCLUDED_KINDS.includes(indicator.kind)) return null;
-          const last = values[values.length - 1];
-          if (last === null) return null;
-          // Only ever a plain number (SMA/EMA/WMA/VWAP) or a band (Bollinger, use its middle
-          // line) here — MACD's own shape only exists on the "own"-pane branch this filter
-          // above already excludes, but the values array's type covers all three.
-          const value = typeof last === "number" ? last : "middle" in last ? last.middle : null;
-          if (value === null) return null;
-          const color = indicator.color ?? defaultIndicatorColor(idx);
-          return (
-            <div
-              key={indicator.id}
-              className="lq-chart__axis-value lq-chart__axis-value--y"
-              style={{
-                top: dims.margin.top + clampToPriceAxis(zoomedPriceScale(value)),
-                left: dims.margin.left + dims.boundedWidth,
-                minWidth: dims.margin.right,
-                backgroundColor: color,
-              }}
-            >
-              <span className="lq-chart__axis-value-text">{priceAxisFmt(value)}</span>
-            </div>
-          );
-        })}
-
       {/* A horizontal/ray line's own value, permanently on its own pane's axis (not just on
           hover, unlike the badges above) — same visual as the hover badge, minus its "+"
           button since there's nothing left to add. Anchored to whichever pane the line's
@@ -322,7 +265,7 @@ export function ChartHoverBadges({
           when that pane is price — volume/indicator ones are left unclamped, same as volume's
           badge always has been (no report of that being an issue in practice). */}
       {visibleDrawings
-        .filter((dr) => (dr.lineType === "horizontal" || dr.lineType === "ray") && (dr.valueAxis !== "volume" || volumeVisible))
+        .filter((dr) => (dr.lineType === "horizontal" || dr.lineType === "ray") && (dr.valueAxis !== "volume" || volumeVisible) && dr.id !== selectedDrawingId)
         .map((dr) => {
           const isPrice = !dr.valueAxis || dr.valueAxis === "price";
           const y = isPrice ? clampToPriceAxis(pixelYForDrawing(dr)) : pixelYForDrawing(dr);
@@ -345,7 +288,7 @@ export function ChartHoverBadges({
           above, which stays up permanently) — same X-axis badge style as the hover date
           badge, anchored to the line's own x1 instead of the live cursor position. */}
       {visibleDrawings
-        .filter((dr) => dr.lineType === "ray" && dr.id === hoveredDrawingId)
+        .filter((dr) => dr.lineType === "ray" && dr.id === hoveredDrawingId && dr.id !== selectedDrawingId)
         .map((dr) => (
           <div
             key={dr.id}

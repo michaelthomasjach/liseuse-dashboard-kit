@@ -116,6 +116,12 @@ export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAdd
   // reachable via double-click, opens the full DrawingEditModal) — this is what
   // FloatingDrawingToolbar reads to know which drawing's own color/stroke it's currently showing.
   const [selectedDrawingId, setSelectedDrawingId] = useState<string | null>(null);
+  // The indicator counterpart of selectedDrawingId, set by a plain click on an indicator's own
+  // line (see useDrawingInteractions' own handleOverlayPointerUp). Kept separate rather than
+  // folded into one "selection" union because the two are read by entirely different consumers —
+  // the floating toolbar only ever edits a drawing — but they are mutually exclusive in practice,
+  // which the click handler enforces by clearing whichever one it did not just set.
+  const [selectedIndicatorId, setSelectedIndicatorId] = useState<string | null>(null);
   // The style newly-placed drawings are created with — FloatingDrawingToolbar edits this directly
   // whenever a tool is active but nothing's selected yet (there's no drawing of its own to attach
   // a style to before it exists); every commitDrawings([...drawings, {...}]) call site in
@@ -310,6 +316,7 @@ export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAdd
     setPendingExtraPoints([]);
     setMeasurePoints(null);
     setSelectedDrawingId(null);
+    setSelectedIndicatorId(null);
   }
 
   useEffect(() => {
@@ -318,7 +325,7 @@ export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAdd
     // selectedDrawingId above) so Escape can still dismiss either — every other tool only needs
     // this while still active, since none of them outlive their own deselection the way a
     // finished measurement or a selection does.
-    if (!activeTool && !measurePoints && !selectedDrawingId) return;
+    if (!activeTool && !measurePoints && !selectedDrawingId && !selectedIndicatorId) return;
     function onKeyDown(e: KeyboardEvent) {
       if (e.key !== "Escape" && e.key !== "Enter") return;
       // "elbowArrow" is the one tool Escape *finalizes* instead of discarding — it has no fixed
@@ -331,11 +338,14 @@ export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAdd
       // Enter press has no business triggering for anything other than elbowArrow.
       finalizeElbowArrow();
       if (e.key === "Escape" || activeTool === "elbowArrow") cancelDrawingTool();
-      if (e.key === "Escape") setSelectedDrawingId(null);
+      if (e.key === "Escape") {
+        setSelectedDrawingId(null);
+        setSelectedIndicatorId(null);
+      }
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [activeTool, pendingPoint, pendingExtraPoints, drawings, onDrawingsChange, measurePoints, finalizeElbowArrow, selectedDrawingId]);
+  }, [activeTool, pendingPoint, pendingExtraPoints, drawings, onDrawingsChange, measurePoints, finalizeElbowArrow, selectedDrawingId, selectedIndicatorId]);
 
   // Deletes whichever drawing is currently hovered (there's no separate "select" state — hover
   // already tracks the one line the user is pointing at, same thing a click-to-select would give
@@ -544,6 +554,8 @@ export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAdd
     setEditModalTab,
     selectedDrawingId,
     setSelectedDrawingId,
+    selectedIndicatorId,
+    setSelectedIndicatorId,
     defaultDrawingStyle,
     setDefaultDrawingStyle,
     addingOverlaySymbols,

@@ -76,6 +76,7 @@ export type {
 
 import { drawingLabel } from "./candlestick/drawingCatalog";
 import { indicatorCatalogEntry, indicatorLabel, defaultIndicatorColor } from "./candlestick/indicatorCatalog";
+import { drawingAxisAnnotations, indicatorAxisAnnotations } from "./candlestick/axisAnnotations";
 import { CHART_DISPLAY_MODES } from "./candlestick/chartModes";
 import { findTimeframeLabel, flattenTimeframeValues } from "./candlestick/timeframes";
 import {
@@ -206,6 +207,8 @@ export function CandlestickChart({
     setEditModalTab,
     selectedDrawingId,
     setSelectedDrawingId,
+    selectedIndicatorId,
+    setSelectedIndicatorId,
     defaultDrawingStyle,
     setDefaultDrawingStyle,
     addingOverlaySymbols,
@@ -457,14 +460,21 @@ export function CandlestickChart({
   // bars past its cutoff precisely so they cannot be read, and printing their price on the axis
   // would hand back exactly what it withholds. Direction against the previous close, which is the
   // same comparison the candles themselves are coloured by.
+  // The last bar the user can actually see. Under replay that is the cutoff, not the end of the
+  // data — every feature that reports "the current value" of anything reads this one definition,
+  // so none of them can quietly leak a number computed from candles the replay is hiding.
+  const lastRevealedIndex = useMemo(
+    () => Math.min(replayState.active && replayState.cutoffIndex !== null ? replayState.cutoffIndex : data.length - 1, data.length - 1),
+    [data.length, replayState.active, replayState.cutoffIndex],
+  );
+
   const lastCloseBadge = useMemo(() => {
-    const cutoff = replayState.active && replayState.cutoffIndex !== null ? replayState.cutoffIndex : data.length - 1;
-    const index = Math.min(cutoff, data.length - 1);
+    const index = lastRevealedIndex;
     if (index < 0) return null;
     const price = data[index].close;
     const previous = index > 0 ? data[index - 1].close : data[index].open;
     return { price, direction: price >= previous ? ("up" as const) : ("down" as const) };
-  }, [data, replayState.active, replayState.cutoffIndex]);
+  }, [data, lastRevealedIndex]);
 
   // Whether the touch placement flow (see useMobilePointPlacement below) currently owns the plot's
   // gestures. Computed up here, ahead of the two hooks that need to know: while a point is being
@@ -614,6 +624,29 @@ export function CandlestickChart({
     toggleSidePaneCollapsed,
   });
 
+  // What the current selection asks the two axes to show — its own prices and dates, plus the
+  // band each gutter shades between them (see ChartAxisAnnotations). Null whenever nothing is
+  // selected, which is the whole design: these are on-demand, so a chart carrying a dozen
+  // indicators is not permanently carrying a dozen numbers up its price axis.
+  //
+  // An indicator selection wins over a drawing one when both somehow survive, matching the click
+  // handler's own precedence — but in practice the two are kept mutually exclusive there.
+  const axisAnnotations = useMemo(() => {
+    if (selectedIndicatorId !== null) {
+      const i = indicatorValues.findIndex(({ indicator }) => indicator.id === selectedIndicatorId);
+      if (i === -1 || indicatorValues[i].indicator.hidden) return null;
+      const { indicator, values } = indicatorValues[i];
+      // Same colour resolution the legend and the indicator's own line use, so the labels read as
+      // belonging to the line they came from rather than to the theme.
+      return indicatorAxisAnnotations(indicator, values, lastRevealedIndex, indicator.color ?? defaultIndicatorColor(i));
+    }
+    if (selectedDrawingId !== null) {
+      const dr = combinedVisibleDrawings.find((d) => d.id === selectedDrawingId);
+      return dr ? drawingAxisAnnotations(dr, indexForDate) : null;
+    }
+    return null;
+  }, [selectedIndicatorId, selectedDrawingId, indicatorValues, combinedVisibleDrawings, lastRevealedIndex, indexForDate]);
+
   const { addPriceLine, addVolumeLine, addDateLine, addIndicatorPaneLine } = useAddLineHandlers({
     data,
     drawings,
@@ -647,6 +680,9 @@ export function CandlestickChart({
     handleOverlayPointerUp,
   } = useDrawingInteractions({
     data,
+    indicatorValues,
+    lastRevealedIndex,
+    setSelectedIndicatorId,
     dims,
     plotBoundedHeight,
     priceHeight,
@@ -1070,6 +1106,9 @@ export function CandlestickChart({
         />
         <ChartPlotOverlays
           lastClose={lastCloseBadge}
+          annotations={axisAnnotations}
+          selectedDrawingId={selectedDrawingId}
+          dateForIndex={dateForIndex}
           upColorOverride={upColorOverride}
           downColorOverride={downColorOverride}
           canvasRef={canvasRef}
@@ -1172,8 +1211,6 @@ export function CandlestickChart({
           data={data}
           clampToPriceAxis={clampToPriceAxis}
           now={now}
-          showIndicators={showIndicators}
-          indicatorValues={indicatorValues}
           activeEventStack={activeEventStack}
           eventModalOpen={eventModalOpen}
         />

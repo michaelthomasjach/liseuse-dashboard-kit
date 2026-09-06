@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import * as d3 from "d3";
 import type { ScaleLinear } from "d3";
 import type { Candle } from "../interfaces/Candle.interface";
@@ -10,7 +11,9 @@ import type { EditingCellState } from "../interfaces/EditingCellState.interface"
 import { MULTI_POINT_TOOLS } from "../drawingCatalog";
 import { round4, channelOffsetFromClick, rangeForecastMaxMin, longShortPositionDefaults, tableCellIndexAt } from "../drawingGeometry";
 import { distanceToDrawing } from "../drawingHitTest";
+import { distanceToIndicator } from "../indicatorHitTest";
 import type { HitTestContext } from "../drawingHitTest";
+import type { IndicatorValue } from "../interfaces/IndicatorValue.interface";
 import { useAxisHandleDrag } from "./useAxisHandleDrag";
 import { DRAWING_HIT_DISTANCE, CLICK_DRAG_THRESHOLD, POSITION_TOOL_DEFAULT_BARS, TABLE_DEFAULT_ROWS, TABLE_DEFAULT_COLS, TABLE_BORDER_HIT_MARGIN } from "../constants";
 
@@ -88,6 +91,13 @@ export interface UseDrawingInteractionsArgs {
   setYManuallyAdjusted: (v: boolean) => void;
   zoomable: boolean;
   paneScaleAndOffset: (valueAxis: string | undefined) => { scale: ScaleLinear<number, number>; offset: number };
+  /** Every enabled indicator with its own computed series, so the hover pass can ask whether the
+   *  pointer is on one of their lines. Same array the axis badges already receive. */
+  indicatorValues: { indicator: Indicator; values: (IndicatorValue | null)[] }[];
+  /** The last revealed bar — the replay cutoff when one is armed. An indicator is only
+   *  hit-testable over bars that are actually on screen. */
+  lastRevealedIndex: number;
+  setSelectedIndicatorId: (id: string | null) => void;
   pixelYForDrawing: (dr: TrendLineDrawing) => number;
   resolveValueAxisAtY: (mouseY: number) => string;
   overlayProjections: { drawing: TrendLineDrawing; mainReference: number; points: { i: number; price: number }[] }[];
@@ -175,6 +185,9 @@ export function useDrawingInteractions({
   setYManuallyAdjusted,
   zoomable,
   paneScaleAndOffset,
+  indicatorValues,
+  lastRevealedIndex,
+  setSelectedIndicatorId,
   pixelYForDrawing,
   resolveValueAxisAtY,
   overlayProjections,
@@ -184,6 +197,9 @@ export function useDrawingInteractions({
   setTextEntry,
   setEditingCell,
 }: UseDrawingInteractionsArgs) {
+  // See the hover pass in updateHoverState for why this is a ref and not state.
+  const hoveredIndicatorIdRef = useRef<string | null>(null);
+
   function toDataPoint(e: { clientX: number; clientY: number }): DataPoint {
     const rect = zoomRef.current!.getBoundingClientRect();
     const rawIndex = zoomedXScale.invert(e.clientX - rect.left);
@@ -196,7 +212,19 @@ export function useDrawingInteractions({
       // A plain click on empty plot space (nothing hovered — a click that landed on an existing
       // drawing instead is handled by the pointerdown/pointerup pair below, which is what tells a
       // click apart from a body-drag) clears whatever's currently selected, same as Escape.
-      if (!hoveredDrawingId) setSelectedDrawingId(null);
+      if (!hoveredDrawingId) {
+        // Nothing drawn is under the cursor, so this click is either on an indicator's own line
+        // or on genuinely empty space. Drawings win when both are under it — a hand-placed shape
+        // sitting on top of an indicator is the one the user is pointing at — which is why this
+        // only runs once `hoveredDrawingId` has come back empty.
+        // Clearing the drawing selection is unconditional here, exactly as it was before
+        // indicators became selectable: this click landed away from every drawing, so whatever
+        // was selected is no longer what the user is pointing at. Leaving it set while an
+        // indicator took the selection would strand the floating toolbar on a drawing that no
+        // longer reads as selected anywhere else.
+        setSelectedDrawingId(null);
+        setSelectedIndicatorId(hoveredIndicatorIdRef.current);
+      }
       return;
     }
     const point = toDataPoint(e);
@@ -728,6 +756,23 @@ export function useDrawingInteractions({
       }
       updateHoveredDrawingId(closestId);
     }
+
+    // Which indicator line the pointer is on, recorded for the click handler to read. Kept in a
+    // ref rather than state because nothing renders differently on indicator *hover* — only a
+    // click acts on it — and re-rendering the whole chart on every pointer move to store a value
+    // no one draws would be pure cost.
+    if (!activeTool) {
+      let closestId: string | null = null;
+      let closestDist = hitDistance;
+      for (const { indicator, values } of indicatorValues) {
+        const d = distanceToIndicator(indicator, values, mouseX, mouseY, { dims, zoomedXScale, paneScaleAndOffset, lastIndex: lastRevealedIndex, data });
+        if (d < closestDist) {
+          closestDist = d;
+          closestId = indicator.id;
+        }
+      }
+      hoveredIndicatorIdRef.current = closestId;
+    }
   }
 
   function handlePointerMove(e: React.PointerEvent<SVGRectElement>) {
@@ -967,7 +1012,10 @@ export function useDrawingInteractions({
     // dragLineRef.current branch in handlePointerMove above, so this only ever fires for a
     // gesture that never really moved.
     const moved = Math.hypot(e.clientX - drag.startClientX, e.clientY - drag.startClientY);
-    if (moved < CLICK_DRAG_THRESHOLD) setSelectedDrawingId(drag.id);
+    if (moved < CLICK_DRAG_THRESHOLD) {
+      setSelectedDrawingId(drag.id);
+      setSelectedIndicatorId(null);
+    }
   }
 
 

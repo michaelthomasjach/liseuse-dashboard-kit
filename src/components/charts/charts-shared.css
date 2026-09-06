@@ -3026,3 +3026,29 @@
 .lq-chart__axis-value--last-down {
   background-color: var(--lq-color-down);
 }
+
+/* ── Axis annotations for the current selection ───────────────────────────────────────────────
+   The labels a selected drawing or indicator puts on the two axes, plus the shaded band each
+   gutter gets between its own extreme labels. See ChartAxisAnnotations.tsx. */
+
+/* Sits in the axis gutter itself rather than over the plot: the band's job is to show how much
+   of the *axis* the selection spans, and shading the chart instead would put a translucent
+   rectangle across the candles the user selected the shape to look at. Below the labels it
+   brackets (which carry their own z-index) and above nothing else — it is pure background. */
+.lq-chart__axis-band {
+  position: absolute;
+  z-index: 4;
+  pointer-events: none;
+  background-color: var(--lq-color-accent);
+  /* Deliberately faint: it reads as "this range", not as a second element competing with the
+     labels at its two ends. */
+  opacity: 0.22;
+}
+
+/* A selection's own labels outrank the permanent last-close badge (z-index 5) — the user just
+   asked for these by clicking — but stay under the hover badge, which answers what they are
+   pointing at right now. --y already carries z-index 999 for the same layering reason, so only
+   the date axis needs saying here. */
+.lq-chart__axis-value--annotation.lq-chart__axis-value--x {
+  z-index: 7;
+}

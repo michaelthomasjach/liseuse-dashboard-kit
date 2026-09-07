@@ -634,3 +634,60 @@
   max-height: none;
   border-top: 0;
 }
+
+/* ── Tabs whose content fills the panel ────────────────────────────────────────────────────── */
+
+/* A column whose parts share the panel's height rather than stacking past its bottom edge. Applied
+   per tab rather than to every body: the Performance and Trades tabs are genuinely lists that
+   should keep scrolling. `overflow: hidden` because nothing in here overflows any more — each
+   part is sized to what it was given. */
+.lq-strategy__body--fill {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* The measured box handed to a chart that needs a pixel height (see ChartStrategyPanel's own
+   `fillDims`) — an SVG cannot be told to be `flex: 1`. */
+.lq-strategy__fill {
+  /* `flex-basis: 0`, not `auto`: the box's height must come from what the column has left over,
+     never from its own content. With an `auto` basis the box grows to fit the chart, the chart is
+     then measured against the bigger box and grows to match, and the two chase each other until
+     the panel overflows. */
+  flex: 1 1 0;
+  /* A floor, so a chart sharing the panel with a tall grid of cards never collapses to a sliver. */
+  min-height: 90px;
+  overflow: hidden;
+}
+
+/* The metric cards under the distribution take whatever the chart above them left. They keep their
+   own scroll for the case where a narrow panel wraps them into more rows than fit. */
+/* The cards and the chart above them split whatever the panel has left, rather than the cards
+   claiming their full natural height and pushing the chart out of the panel. At a docked pane's
+   usual height there is not room for both at full size, so both get half and the cards scroll;
+   dragging the pane taller grows both, which is what makes dragging it worth doing.
+
+   `flex-basis: 0` on both is what makes the split even — an `auto` basis would hand the cards
+   their content height first and only share what was left after that. */
+.lq-strategy__streaks--fill {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+  /* Rows stay their own height at the top of the box instead of stretching into tall empty cards. */
+  align-content: start;
+}
+
+/* The invisible per-row hover band in MAE/MFE. `fill: transparent` is not optional: an SVG rect
+   with no fill paints solid black, which would cover the very rows it exists to make hoverable. */
+.lq-strategy__excursion-hit {
+  fill: transparent;
+  cursor: pointer;
+}
+
+/* Decoration must never take the pointer from the hover bands above it. */
+.lq-strategy__excursion-span,
+.lq-strategy__excursion-zero,
+.lq-strategy__excursion-dot,
+.lq-strategy__excursion-marked {
+  pointer-events: none;
+}

@@ -38,6 +38,7 @@ import { ChartStrategyPanel } from "./candlestick/strategy/ChartStrategyPanel";
 import { analyzeScriptKind } from "./candlestick/scripting/scriptKind";
 import { DEFAULT_STRATEGY_SETTINGS } from "./candlestick/interfaces/StrategySettings.interface";
 import type { StrategySettings } from "./candlestick/interfaces/StrategySettings.interface";
+import type { StrategyTrade } from "./candlestick/interfaces/StrategyResult.interface";
 import { ChartSidePaneColumn } from "./candlestick/components/ChartSidePaneColumn";
 import { ToolsRail } from "./candlestick/components/ToolsRail";
 import { ChartLegend } from "./candlestick/components/ChartLegend";
@@ -740,6 +741,33 @@ export function CandlestickChart({
   // A pinned fill wins over the pointer, which is the whole point of clicking rather than hovering.
   const strategyMarkedTime = pinnedMarkerTime ?? hoveredMarkerTime;
 
+  // Trades the tester is pointing at, travelling the other way: hovering a row in MAE/MFE, a bar in
+  // the distribution or a fill on the equity curve raises a rule here at the bar it happened on.
+  const [panelHoveredTrades, setPanelHoveredTrades] = useState<StrategyTrade[] | null>(null);
+  const externalFills = useMemo(() => {
+    if (panelHoveredTrades === null || panelHoveredTrades.length === 0) return [];
+    // A single trade gets its two fills named; a whole histogram bin gets rules only, since a dozen
+    // overlapping badges would say less than the rules already do.
+    const named = panelHoveredTrades.length === 1;
+    return panelHoveredTrades.flatMap((t) => {
+      const entryUp = t.direction === "long";
+      return [
+        {
+          key: `${t.id}-entry`,
+          index: indexForDate(new Date(t.entryTime)),
+          direction: (entryUp ? "up" : "down") as "up" | "down",
+          label: named ? `${entryUp ? "Achat" : "Vente"} ${t.entryPrice.toFixed(2)}` : undefined,
+        },
+        {
+          key: `${t.id}-exit`,
+          index: indexForDate(new Date(t.exitTime)),
+          direction: (entryUp ? "down" : "up") as "up" | "down",
+          label: named ? `Sortie ${t.exitPrice.toFixed(2)}` : undefined,
+        },
+      ];
+    });
+  }, [panelHoveredTrades, indexForDate]);
+
   // What the current selection asks the two axes to show — its own prices and dates, plus the
   // band each gutter shades between them (see ChartAxisAnnotations). Null whenever nothing is
   // selected, which is the whole design: these are on-demand, so a chart carrying a dozen
@@ -994,6 +1022,7 @@ export function CandlestickChart({
         running: scriptingState.runOutputs[openStrategy.id]?.running ?? false,
         settings: openStrategy.strategySettings ?? DEFAULT_STRATEGY_SETTINGS,
         onSettingsChange: (next: StrategySettings) => scriptingState.setStrategySettings(openStrategy.id, next),
+        onHoverTrades: setPanelHoveredTrades,
         onClose: closeStrategyPanel,
         formatDate: dFmt,
         markedTime: strategyMarkedTime,
@@ -1315,6 +1344,7 @@ export function CandlestickChart({
         />
         <ChartPlotOverlays
           lastClose={lastCloseBadge}
+          externalFills={externalFills}
           annotations={axisAnnotations}
           selectedDrawingId={selectedDrawingId}
           dateForIndex={dateForIndex}

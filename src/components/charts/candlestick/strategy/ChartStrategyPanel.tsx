@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { useChartDimensions } from "../../internal/useChartDimensions";
 import { ChevronDownIcon, ChevronUpIcon, CloseIcon, DetachWindowIcon, MaximizeIcon, SettingsIcon } from "../../../icons";
-import type { StrategyResult } from "../interfaces/StrategyResult.interface";
+import type { StrategyResult, StrategyTrade } from "../interfaces/StrategyResult.interface";
 import type { StrategySettings } from "../interfaces/StrategySettings.interface";
 import { StrategyEquityChart } from "./StrategyEquityChart";
 import { StrategyDistributionChart } from "./StrategyDistributionChart";
@@ -37,6 +37,9 @@ export interface ChartStrategyPanelProps {
    *  timestamp. Every chart in here calls it out, so "this trade" is one place on screen rather
    *  than something to correlate by eye across three panels. */
   markedTime?: number | null;
+  /** Reports which trades the pointer is over in any of these charts, so the price chart above can
+   *  point at their own fills — the return trip of `markedTime`. */
+  onHoverTrades?: (trades: StrategyTrade[] | null) => void;
   /** How far from `markedTime` still counts as the same fill — half a bar, which only the chart
    *  above knows. */
   markedToleranceMs?: number;
@@ -86,6 +89,7 @@ export function ChartStrategyPanel({
   formatDate,
   markedTime = null,
   markedToleranceMs = 0,
+  onHoverTrades,
   onRequestFullscreen,
   onRequestDetach,
   chrome = "full",
@@ -109,6 +113,10 @@ export function ChartStrategyPanel({
   // from it cannot feed back into it.
   const [bodyRef, bodyDims] = useChartDimensions({ top: 0, right: 0, bottom: 0, left: 0 });
   const chartWidth = Math.max(120, bodyDims.width - 24);
+  // A second measurement, for the tabs whose content is meant to fill the panel rather than stack
+  // up and scroll. An SVG has no `flex: 1` — it needs a number — so the flexible box is measured
+  // and its height handed down.
+  const [fillRef, fillDims] = useChartDimensions({ top: 0, right: 0, bottom: 0, left: 0 });
 
   /** Drag the top edge to trade height with the candles above. The ceiling is computed at grab
    *  time from the row this panel shares with the plot, so the chart keeps MIN_PLOT_HEIGHT however
@@ -248,7 +256,17 @@ export function ChartStrategyPanel({
       </header>
 
       {!collapsed && (
-        <div ref={bodyRef} className="lq-strategy__body">
+        <div
+          ref={bodyRef}
+          className={[
+            "lq-strategy__body",
+            // These two tabs divide the panel between their parts instead of stacking and
+            // scrolling; every other one keeps the ordinary flow it has always had.
+            (tab === "distribution" || tab === "excursions") && "lq-strategy__body--fill",
+          ]
+            .filter(Boolean)
+            .join(" ")}
+        >
           {error && (
             <p className="lq-strategy__error">
               Le script a échoué{error.line !== undefined ? ` à la ligne ${error.line}` : ""} : {error.message}
@@ -268,14 +286,17 @@ export function ChartStrategyPanel({
                 réussite ne dit pas : 40 % de gagnants n&apos;est pas la même stratégie selon que les pertes sont petites ou énormes. Les deux
                 traits pointillés sont la moyenne et la médiane ; l&apos;écart entre eux mesure à quel point un seul trade tire la moyenne.
               </p>
-              <StrategyDistributionChart
-                trades={result.trades}
-                width={chartWidth}
-                height={equityChartHeight(bodyDims.height)}
-                markedTime={markedTime}
-                markedToleranceMs={markedToleranceMs}
-              />
-              <div className="lq-strategy__streaks">
+              <div className="lq-strategy__fill" ref={fillRef}>
+                <StrategyDistributionChart
+                  trades={result.trades}
+                  width={chartWidth}
+                  height={fillDims.height}
+                  markedTime={markedTime}
+                  markedToleranceMs={markedToleranceMs}
+                  onHoverTrades={onHoverTrades}
+                />
+              </div>
+              <div className="lq-strategy__streaks lq-strategy__streaks--fill">
                 <div className="lq-strategy__metric">
                   <span className="lq-strategy__metric-label">Répartition</span>
                   <span className="lq-strategy__metric-value">
@@ -332,13 +353,17 @@ export function ChartStrategyPanel({
                 et le point où vous êtes réellement sorti. Un point loin à gauche de son propre segment est un gain rendu ; un long bras
                 gauche, un trade qui a été sous l&apos;eau avant de fonctionner.
               </p>
-              <StrategyExcursionChart
-                trades={result.trades}
-                currency={settings.currency}
-                width={chartWidth}
-                markedTime={markedTime}
-                markedToleranceMs={markedToleranceMs}
-              />
+              <div className="lq-strategy__fill" ref={fillRef}>
+                <StrategyExcursionChart
+                  trades={result.trades}
+                  currency={settings.currency}
+                  width={chartWidth}
+                  height={fillDims.height}
+                  markedTime={markedTime}
+                  markedToleranceMs={markedToleranceMs}
+                  onHoverTrades={onHoverTrades}
+                />
+              </div>
             </>
           ) : tab === "robustness" ? (
             <StrategyRobustnessPanel robustness={result.robustness} />
@@ -355,6 +380,7 @@ export function ChartStrategyPanel({
                 height={equityChartHeight(bodyDims.height)}
                 formatDate={formatDate}
                 markedTime={markedTime}
+                onHoverTrades={onHoverTrades}
               />
               {/* One segment per closed trade, in order — the run's own shape at a glance: a wall of
                   red says "this loses steadily", a red patch says "this broke in one regime". */}

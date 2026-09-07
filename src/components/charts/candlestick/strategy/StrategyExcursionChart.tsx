@@ -7,11 +7,19 @@ export interface StrategyExcursionChartProps {
   trades: StrategyTrade[];
   currency: string;
   width: number;
+  /** The vertical room this chart has. Rows divide it between them rather than each taking a fixed
+   *  step, so the chart fills its panel instead of overflowing it — see MAX_ROW_HEIGHT for the one
+   *  case that is capped. */
+  height: number;
   /** A fill on the price chart to call out. This chart has one row per trade rather than a time
    *  axis, so the mark is that trade's own row rather than a vertical rule — a vertical line here
    *  would cross every trade and single out none. */
   markedTime?: number | null;
   markedToleranceMs?: number;
+  /** Reports which trades the pointer is over, so the price chart can point at their own fills.
+   *  `null` on leaving. The reverse of `markedTime`: that one brings the chart's pointer here,
+   *  this one takes this chart's pointer back. */
+  onHoverTrades?: (trades: StrategyTrade[] | null) => void;
 }
 
 /** MAE / MFE, one row per trade: a horizontal span from how far the trade went *against* you (left
@@ -28,10 +36,21 @@ export interface StrategyExcursionChartProps {
  *  Rows compress rather than scroll as trades pile up — at two hundred trades this stops being two
  *  hundred readable rows and becomes a shape, which is still the honest thing to show: the shape is
  *  what carries at that count. */
-export function StrategyExcursionChart({ trades, currency, width, markedTime = null, markedToleranceMs = 0 }: StrategyExcursionChartProps) {
+/** A ceiling on how far apart rows may sit. Without it, three trades in a tall panel become three
+ *  lines separated by an inch of nothing, which reads as a broken chart rather than a sparse one.
+ *  Above roughly a dozen trades the available height is the binding constraint anyway and this
+ *  never applies. */
+const MAX_ROW_HEIGHT = 22;
+
+export function StrategyExcursionChart({ trades, currency, width, height, markedTime = null, markedToleranceMs = 0, onHoverTrades }: StrategyExcursionChartProps) {
   const margin = { top: 18, right: 12, bottom: 18, left: 12 };
-  const rowHeight = trades.length > 60 ? 2 : trades.length > 25 ? 5 : 11;
   const innerWidth = Math.max(0, width - margin.left - margin.right);
+  // Rows share out whatever height there is, rather than each claiming a fixed step and the whole
+  // chart overflowing its panel. Compressing rather than scrolling is the same trade-off this
+  // chart already made at high trade counts (see the doc above): past a point it stops being N
+  // readable rows and becomes a shape, and the shape is what carries.
+  const available = Math.max(0, height - margin.top - margin.bottom);
+  const rowHeight = trades.length === 0 ? 0 : Math.min(MAX_ROW_HEIGHT, available / trades.length);
   const innerHeight = trades.length * rowHeight;
 
   const { xScale, ticks } = useMemo(() => {
@@ -47,12 +66,11 @@ export function StrategyExcursionChart({ trades, currency, width, markedTime = n
   }
 
   const zero = xScale(0);
-  const height = innerHeight + margin.top + margin.bottom;
 
   const markedTrade = tradeAtTime(trades, markedTime, markedToleranceMs);
 
   return (
-    <svg className="lq-strategy__excursion" width={width} height={height} role="img" aria-label="Excursions maximales par trade">
+    <svg className="lq-strategy__excursion" onMouseLeave={() => onHoverTrades?.(null)} width={width} height={Math.max(height, innerHeight + margin.top + margin.bottom)} role="img" aria-label="Excursions maximales par trade">
       <g transform={`translate(${margin.left}, ${margin.top})`}>
         {ticks.map((t) => (
           <g key={t}>
@@ -93,10 +111,8 @@ export function StrategyExcursionChart({ trades, currency, width, markedTime = n
                 className={`lq-strategy__excursion-dot lq-strategy__excursion-dot--${trade.profit >= 0 ? "up" : "down"}`}
                 cx={xScale(trade.profit)}
                 cy={y}
-                r={Math.max(1.5, rowHeight / 3)}
-              >
-                <title>{`Trade ${i + 1} · ${trade.direction === "long" ? "long" : "short"} — contre : ${trade.maxAdverse.toFixed(2)} · pour : ${trade.maxFavorable.toFixed(2)} · résultat : ${trade.profit >= 0 ? "+" : "−"}${Math.abs(trade.profit).toFixed(2)} ${currency}`}</title>
-              </circle>
+                r={Math.min(4, Math.max(1.5, rowHeight / 3))}
+              />
             </g>
           );
         })}
@@ -104,6 +120,27 @@ export function StrategyExcursionChart({ trades, currency, width, markedTime = n
         {/* Drawn last so it reads as the axis every row is measured from, not one more line among
             them. */}
         <line className="lq-strategy__excursion-zero" x1={zero} x2={zero} y1={0} y2={innerHeight} />
+
+        {/* Hover targets, above everything else on purpose. A full-width invisible band per row so
+            pointing anywhere along a trade counts, not only the few pixels its dot occupies — and
+            last in paint order because anything drawn after them (the zero axis above, each row's
+            own dot) would otherwise take the pointer for itself. */}
+        {onHoverTrades !== undefined &&
+          trades.map((trade, i) => (
+            <rect
+              key={`hit-${trade.id}`}
+              className="lq-strategy__excursion-hit"
+              x={0}
+              width={innerWidth}
+              y={i * rowHeight}
+              height={Math.max(1, rowHeight)}
+              onMouseEnter={() => onHoverTrades([trade])}
+            >
+              {/* The row's own tooltip lives here rather than on its dot: this band is on top, so
+                  it is what the pointer actually reaches. */}
+              <title>{`Trade ${i + 1} · ${trade.direction === "long" ? "long" : "short"} — contre : ${trade.maxAdverse.toFixed(2)} · pour : ${trade.maxFavorable.toFixed(2)} · résultat : ${trade.profit >= 0 ? "+" : "−"}${Math.abs(trade.profit).toFixed(2)} ${currency}`}</title>
+            </rect>
+          ))}
       </g>
     </svg>
   );

@@ -52,6 +52,11 @@ export interface ChartHoverBadgesProps {
   volumeVisible: boolean;
   pixelYForDrawing: (dr: TrendLineDrawing) => number;
   hoveredDrawingId: string | null;
+  /** Fills the strategy tester is currently pointing at, from the other direction: hovering a
+   *  trade down there raises a rule up here at the bar it happened on. `label` is set only when a
+   *  single trade is being pointed at — a whole histogram bin's worth of fills gets rules without
+   *  a pile of overlapping badges. */
+  externalFills: { key: string; index: number; label?: string; direction: "up" | "down" }[];
   /** The selected drawing, whose own permanent badges are skipped here — ChartAxisAnnotations
    *  draws them instead, in the selection's own colour and alongside its date labels. Without
    *  this the two would stack at the same pixel, one under the other, for no visible reason. */
@@ -104,6 +109,7 @@ export function ChartHoverBadges({
   volumeVisible,
   pixelYForDrawing,
   hoveredDrawingId,
+  externalFills,
   selectedDrawingId,
   indexForDate,
   activeEventStack,
@@ -256,6 +262,29 @@ export function ChartHoverBadges({
             </>
           );
         })()}
+
+      {/* Where the strategy tester is pointing. A rule down the plot rather than a marker of its
+          own: the fill is already drawn here, and the question this answers is *which* one. */}
+      {externalFills.map((fill) => {
+        const x = zoomedXScale(fill.index + 0.5);
+        if (!Number.isFinite(x) || x < 0 || x > dims.boundedWidth) return null;
+        return (
+          <div key={fill.key}>
+            <div
+              className={`lq-chart__external-fill-line lq-chart__external-fill-line--${fill.direction}`}
+              style={{ left: dims.margin.left + x, top: dims.margin.top, height: plotBoundedHeight }}
+            />
+            {fill.label !== undefined && (
+              <div
+                className={`lq-chart__external-fill-badge lq-chart__external-fill-badge--${fill.direction}`}
+                style={{ left: dims.margin.left + x, top: dims.margin.top + 4 }}
+              >
+                {fill.label}
+              </div>
+            )}
+          </div>
+        );
+      })}
 
       {/* A horizontal/ray line's own value, permanently on its own pane's axis (not just on
           hover, unlike the badges above) — same visual as the hover badge, minus its "+"

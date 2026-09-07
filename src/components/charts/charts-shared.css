@@ -3088,3 +3088,44 @@
   background-color: var(--lq-color-bg);
   color: var(--lq-color-text);
 }
+
+/* Where the strategy tester is pointing, raised on the price chart. Dashed so it never reads as a
+   drawn line the user placed, and coloured by side so a buy and a sell are told apart before the
+   badge is read. */
+.lq-chart__external-fill-line {
+  position: absolute;
+  z-index: 4;
+  width: 0;
+  border-left: 1px dashed var(--lq-color-accent);
+  pointer-events: none;
+}
+
+.lq-chart__external-fill-line--up {
+  border-left-color: var(--lq-color-up);
+}
+
+.lq-chart__external-fill-line--down {
+  border-left-color: var(--lq-color-down);
+}
+
+.lq-chart__external-fill-badge {
+  position: absolute;
+  z-index: 5;
+  transform: translateX(-50%);
+  padding: 1px 5px;
+  border-radius: 2px;
+  background-color: var(--lq-color-accent);
+  color: var(--lq-color-accent-contrast);
+  font-size: 0.65rem;
+  font-weight: 700;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.lq-chart__external-fill-badge--up {
+  background-color: var(--lq-color-up);
+}
+
+.lq-chart__external-fill-badge--down {
+  background-color: var(--lq-color-down);
+}

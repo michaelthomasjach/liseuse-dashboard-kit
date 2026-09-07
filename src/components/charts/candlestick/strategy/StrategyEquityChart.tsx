@@ -2,6 +2,11 @@ import * as d3 from "d3";
 import { useMemo } from "react";
 import type { StrategyEquityPoint, StrategyTrade } from "../interfaces/StrategyResult.interface";
 
+/** How near a fill the pointer has to be, in pixels along the curve, to be reading it. Beyond this
+ *  the pointer is on the curve generally rather than on any one trade, and reporting the nearest
+ *  fill anyway would light up the price chart for a gesture that meant nothing. */
+const FILL_HOVER_DISTANCE = 8;
+
 export interface StrategyEquityChartProps {
   equity: StrategyEquityPoint[];
   trades: StrategyTrade[];
@@ -15,6 +20,9 @@ export interface StrategyEquityChartProps {
    *  the same place on screen instead of two things to correlate by eye. `null` when nothing is
    *  being pointed at. */
   markedTime?: number | null;
+  /** Reports the fill the pointer is on, so the price chart can point at it. `null` whenever the
+   *  pointer is on the curve but not near any fill. */
+  onHoverTrades?: (trades: StrategyTrade[] | null) => void;
 }
 
 /** The strategy's own equity curve, drawn as cumulative P&L rather than raw account value: the
@@ -29,7 +37,7 @@ export interface StrategyEquityChartProps {
  *  Plain SVG rather than the canvas pipeline the chart itself uses: this is a few hundred points
  *  in a panel, not a zoomable series over the whole history, and SVG keeps it inspectable and
  *  crisp with no device-pixel-ratio handling of its own. */
-export function StrategyEquityChart({ equity, trades, initialCapital, currency, width, height, formatDate, markedTime = null }: StrategyEquityChartProps) {
+export function StrategyEquityChart({ equity, trades, initialCapital, currency, width, height, formatDate, markedTime = null, onHoverTrades }: StrategyEquityChartProps) {
   const margin = { top: 8, right: 64, bottom: 20, left: 8 };
   const innerWidth = Math.max(0, width - margin.left - margin.right);
   const innerHeight = Math.max(0, height - margin.top - margin.bottom);
@@ -98,13 +106,51 @@ export function StrategyEquityChart({ equity, trades, initialCapital, currency, 
     return best === -1 ? null : xScale(best);
   })();
 
+  /** Which trade's fill sits under the pointer, by x along the curve. The curve is indexed by bar
+   *  while a fill knows only its own timestamp, so both are converted to a pixel and compared
+   *  there — one mapping instead of two that could disagree. */
+  function handleMove(e: React.MouseEvent<SVGSVGElement>) {
+    if (onHoverTrades === undefined) return;
+    const x = e.clientX - e.currentTarget.getBoundingClientRect().left - margin.left;
+    let best: StrategyTrade | null = null;
+    let bestDistance = FILL_HOVER_DISTANCE;
+    for (const trade of trades) {
+      for (const at of [trade.entryTime, trade.exitTime]) {
+        // Nearest equity sample to that moment, then that sample's own x.
+        let index = 0;
+        let closest = Infinity;
+        for (let i = 0; i < equity.length; i++) {
+          const d = Math.abs(equity[i].time - at);
+          if (d < closest) {
+            closest = d;
+            index = i;
+          }
+        }
+        const d = Math.abs(xScale(index) - x);
+        if (d < bestDistance) {
+          bestDistance = d;
+          best = trade;
+        }
+      }
+    }
+    onHoverTrades(best === null ? null : [best]);
+  }
+
   const zeroY = yScale(0);
   const first = equity[0];
   const last = equity[equity.length - 1];
   const finalPnl = last.equity - initialCapital;
 
   return (
-    <svg className="lq-strategy__equity" width={width} height={height} role="img" aria-label="Courbe de P&L cumulé">
+    <svg
+      className="lq-strategy__equity"
+      width={width}
+      height={height}
+      role="img"
+      aria-label="Courbe de P&L cumulé"
+      onMouseMove={handleMove}
+      onMouseLeave={() => onHoverTrades?.(null)}
+    >
       <g transform={`translate(${margin.left}, ${margin.top})`}>
         {ticks.map((t) => (
           <g key={t}>

@@ -11,6 +11,10 @@ export interface StrategyDistributionChartProps {
    *  result* falls among all the others, which is the question this chart answers. */
   markedTime?: number | null;
   markedToleranceMs?: number;
+  /** Reports the trades in the bar under the pointer, so the price chart can point at their fills.
+   *  A bin is several trades, so this reports all of them rather than singling one out — which
+   *  would be a guess dressed up as an answer. */
+  onHoverTrades?: (trades: StrategyTrade[] | null) => void;
 }
 
 /** How the trade results are spread, as a histogram of returns with zero in the middle — losers to
@@ -24,7 +28,7 @@ export interface StrategyDistributionChartProps {
  *  Bin edges are aligned so that one of them falls exactly on zero. Without that a single bin
  *  straddles the axis and mixes small winners with small losers, which is precisely the boundary
  *  the whole chart exists to show. */
-export function StrategyDistributionChart({ trades, width, height = 150, markedTime = null, markedToleranceMs = 0 }: StrategyDistributionChartProps) {
+export function StrategyDistributionChart({ trades, width, height = 150, markedTime = null, markedToleranceMs = 0, onHoverTrades }: StrategyDistributionChartProps) {
   const margin = { top: 10, right: 12, bottom: 26, left: 12 };
   const innerWidth = Math.max(0, width - margin.left - margin.right);
   const innerHeight = Math.max(0, height - margin.top - margin.bottom);
@@ -61,7 +65,7 @@ export function StrategyDistributionChart({ trades, width, height = 150, markedT
   }
 
   return (
-    <svg className="lq-strategy__distribution" width={width} height={height} role="img" aria-label="Distribution des résultats par trade">
+    <svg className="lq-strategy__distribution" onMouseLeave={() => onHoverTrades?.(null)} width={width} height={height} role="img" aria-label="Distribution des résultats par trade">
       <g transform={`translate(${margin.left}, ${margin.top})`}>
         {bins.map((bin, i) => {
           const x0 = xScale(bin.x0 ?? 0);
@@ -77,6 +81,10 @@ export function StrategyDistributionChart({ trades, width, height = 150, markedT
               width={Math.max(0, x1 - x0 - 1)}
               y={yScale(bin.length)}
               height={innerHeight - yScale(bin.length)}
+              onMouseEnter={() =>
+                onHoverTrades?.(trades.filter((t) => t.profitPercent >= (bin.x0 ?? 0) && t.profitPercent < (bin.x1 ?? 0)))
+              }
+              onMouseLeave={() => onHoverTrades?.(null)}
             >
               <title>{`${bin.length} trade${bin.length > 1 ? "s" : ""} entre ${(bin.x0 ?? 0).toFixed(2)} % et ${(bin.x1 ?? 0).toFixed(2)} %`}</title>
             </rect>

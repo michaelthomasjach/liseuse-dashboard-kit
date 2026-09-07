@@ -37,6 +37,7 @@ import { ChartSidePanel } from "./candlestick/components/ChartSidePanel";
 import { ChartStrategyPanel } from "./candlestick/strategy/ChartStrategyPanel";
 import { analyzeScriptKind } from "./candlestick/scripting/scriptKind";
 import { DEFAULT_STRATEGY_SETTINGS } from "./candlestick/interfaces/StrategySettings.interface";
+import type { StrategySettings } from "./candlestick/interfaces/StrategySettings.interface";
 import { ChartSidePaneColumn } from "./candlestick/components/ChartSidePaneColumn";
 import { ToolsRail } from "./candlestick/components/ToolsRail";
 import { ChartLegend } from "./candlestick/components/ChartLegend";
@@ -78,17 +79,11 @@ import { drawingLabel } from "./candlestick/drawingCatalog";
 import { indicatorCatalogEntry, indicatorLabel, defaultIndicatorColor } from "./candlestick/indicatorCatalog";
 import { drawingAxisAnnotations, indicatorAxisAnnotations } from "./candlestick/axisAnnotations";
 import { ChartContextMenu, type ChartContextMenuItem } from "./candlestick/components/ChartContextMenu";
+import { DetachedWindow } from "./candlestick/components/DetachedWindow";
+import { Modal } from "../primitives/Modal";
 import { CHART_DISPLAY_MODES } from "./candlestick/chartModes";
 import { findTimeframeLabel, flattenTimeframeValues } from "./candlestick/timeframes";
-import {
-  DEFAULT_MARGIN,
-  TOOLS_RAIL_WIDTH,
-  TOOLS_RAIL_HEIGHT_MOBILE,
-  PRICE_AXIS_WIDTH_MOBILE,
-  MOBILE_LAYOUT_BREAKPOINT,
-  NARROW_EMBED_BREAKPOINT,
-  SUB_PANE_COLLAPSED_HEIGHT,
-} from "./candlestick/constants";
+import { DEFAULT_MARGIN, MOBILE_LAYOUT_BREAKPOINT, NARROW_EMBED_BREAKPOINT, PRICE_AXIS_WIDTH_MOBILE, SUB_PANE_COLLAPSED_HEIGHT, TOOLS_RAIL_HEIGHT_MOBILE, TOOLS_RAIL_WIDTH } from "./candlestick/constants";
 import { formatPercentFromReference, computeOhlcReadout, toDayInputValue, candleIndexForDay } from "./candlestick/formatting";
 
 /** Stands in for the plot's own pointer-down/up handlers while replay is armed — see where it is
@@ -375,12 +370,16 @@ export function CandlestickChart({
     e.preventDefault();
     const mainRect = main.getBoundingClientRect();
     const plotRect = plot.getBoundingClientRect();
-    const plotY = e.clientY - plotRect.top;
+    // Both scales map the *bounded* plot — the area inside the axis gutters — so the margins have
+    // to come off before inverting. Measured against `dims.margin` rather than the overlay rect
+    // because that is the same pair every badge and every renderer already offsets by.
+    const plotX = e.clientX - plotRect.left - dims.margin.left;
+    const plotY = e.clientY - plotRect.top - dims.margin.top;
     setContextMenu({
       menuX: e.clientX - mainRect.left,
       menuY: e.clientY - mainRect.top,
       price: zoomedPriceScale.invert(plotY),
-      index: Math.round(zoomedXScale.invert(e.clientX - plotRect.left) - 0.5),
+      index: Math.round(zoomedXScale.invert(plotX) - 0.5),
       // The box the menu has to stay inside is the element it is positioned against, measured
       // here rather than reconstructed from `dims` — `dims` describes the plot alone, and this
       // root also holds the header, the docked columns and the strategy tester.
@@ -389,7 +388,32 @@ export function CandlestickChart({
   }
 
   const strategyScriptIds = useMemo(() => strategyScripts.map((s) => s.id), [strategyScripts]);
-  const closeStrategyPanel = useCallback(() => setOpenStrategyId(null), []);
+
+  // Where the tester is being read: docked under the chart, filling a modal, or torn off into a
+  // window of its own. Exactly one at a time — the point of the last two is to get the pane out of
+  // the way, so leaving it behind as well would defeat them.
+  const [strategyView, setStrategyView] = useState<"docked" | "fullscreen" | "detached">("docked");
+  const [detachedStrategyWindow, setDetachedStrategyWindow] = useState<Window | null>(null);
+
+  /** Tears the tester off into a window of its own.
+   *
+   *  The window is opened right here, inside the click, rather than by the component that renders
+   *  into it: a `window.open` that runs later — from an effect, once React has re-rendered — is no
+   *  longer attributed to the gesture, and browsers block it as an unsolicited popup. When it *is*
+   *  blocked anyway (a blanket block on this site), nothing changes here and the pane stays put,
+   *  which leaves the browser's own blocked-popup indicator as the explanation rather than a
+   *  button that appears to do nothing at all. */
+  function detachStrategyPanel() {
+    const child = window.open("", "", "width=1100,height=720");
+    if (child === null) return;
+    setDetachedStrategyWindow(child);
+    setStrategyView("detached");
+  }
+  const closeStrategyPanel = useCallback(() => {
+    setOpenStrategyId(null);
+    // Back to docked, so reopening never lands in a mode left behind from last time.
+    setStrategyView("docked");
+  }, []);
   // Open it, or close it if this same strategy's panel is already the one showing.
   const toggleStrategyPanel = useCallback((scriptId: string) => setOpenStrategyId((c) => (c === scriptId ? null : scriptId)), []);
   const showHeader = fullscreenToggle || zoomable || !!timeframes?.length || showIndicators;
@@ -670,6 +694,52 @@ export function CandlestickChart({
     toggleSidePaneCollapsed,
   });
 
+  // The fill markers a running strategy has put on the chart. They are ordinary drawings (see
+  // scriptOutputToDrawings), which is what lets them be hovered and clicked here with no
+  // hit-testing of their own.
+  const strategyMarkers = useMemo(() => combinedVisibleDrawings.filter((d) => d.markerSide !== undefined), [combinedVisibleDrawings]);
+
+  // Half the average bar spacing: what still counts as "the same column on screen". Averaged over
+  // the whole series rather than taken from the last two bars, so one irregular gap (a holiday, a
+  // half-session) does not set the tolerance for everything.
+  const barToleranceMs = useMemo(() => {
+    if (data.length < 2) return 0;
+    return Math.abs(data[data.length - 1].date.getTime() - data[0].date.getTime()) / (data.length - 1) / 2;
+  }, [data]);
+
+  // A fill the user has clicked, which stays marked once the pointer moves away — the whole point
+  // of clicking rather than hovering.
+  //
+  // Its own click test rather than the drawing selection machinery: script-produced drawings are
+  // deliberately kept out of `visibleDrawings` (see combinedVisibleDrawings above) so a signal
+  // regenerated on every run can never be selected and dragged like a hand-drawn shape. That
+  // decision stands; this just gives the markers a way to be *pointed at* without becoming
+  // editable.
+  const [pinnedMarkerTime, setPinnedMarkerTime] = useState<number | null>(null);
+
+  // The fill under the pointer right now, by column rather than by hitting the pin icon: a 12px
+  // icon should not have to be hit exactly, and the ask is about crossing the same vertical axis
+  // as a fill.
+  const hoveredMarkerTime = useMemo(() => {
+    if (effectiveHoverIndex === null) return null;
+    const bar = data[effectiveHoverIndex];
+    if (bar === undefined) return null;
+    const hit = strategyMarkers.find((d) => Math.abs(d.x1.getTime() - bar.date.getTime()) <= barToleranceMs);
+    return hit === undefined ? null : hit.x1.getTime();
+  }, [strategyMarkers, effectiveHoverIndex, data, barToleranceMs]);
+
+  function handlePlotClick() {
+    // Deliberately reuses what the hover pass already resolved instead of re-deriving a bar from
+    // the click's own coordinates: the pointer is on that column by definition, and two
+    // independent derivations are two chances to disagree about which fill is being pointed at.
+    // Clicking the same fill again releases it, and clicking a column with no fill releases too,
+    // so there is always an obvious way to let go.
+    setPinnedMarkerTime((current) => (hoveredMarkerTime !== null && current === hoveredMarkerTime ? null : hoveredMarkerTime));
+  }
+
+  // A pinned fill wins over the pointer, which is the whole point of clicking rather than hovering.
+  const strategyMarkedTime = pinnedMarkerTime ?? hoveredMarkerTime;
+
   // What the current selection asks the two axes to show — its own prices and dates, plus the
   // band each gutter shades between them (see ChartAxisAnnotations). Null whenever nothing is
   // selected, which is the whole design: these are on-demand, so a chart carrying a dozen
@@ -914,6 +984,23 @@ export function CandlestickChart({
     const id = hoveredDrawingId ?? selectedDrawingId;
     return id === null ? null : drawings.find((d) => d.id === id) ?? null;
   })();
+  // Every mode renders the same panel with the same props; only its chrome and its host differ.
+  const strategyPanelProps = openStrategy === null
+    ? null
+    : {
+        scriptName: openStrategy.name,
+        result: scriptingState.runOutputs[openStrategy.id]?.result?.strategy ?? null,
+        error: scriptingState.runOutputs[openStrategy.id]?.result?.error ?? null,
+        running: scriptingState.runOutputs[openStrategy.id]?.running ?? false,
+        settings: openStrategy.strategySettings ?? DEFAULT_STRATEGY_SETTINGS,
+        onSettingsChange: (next: StrategySettings) => scriptingState.setStrategySettings(openStrategy.id, next),
+        onClose: closeStrategyPanel,
+        formatDate: dFmt,
+        markedTime: strategyMarkedTime,
+        markedToleranceMs: barToleranceMs,
+        initialWidth: dims.width,
+      };
+
   const contextMenuItems: ChartContextMenuItem[] = contextMenu === null ? [] : [
     // Object commands first, and only when the click actually landed on one — a menu whose top
     // item changes meaning depending on where you clicked is exactly what a context menu is for.
@@ -1114,7 +1201,7 @@ export function CandlestickChart({
           tester's own height comes off the candles the way a docked pane's does and every
           downstream axis/margin measurement keeps meaning what it did. */}
       <div className="lq-chart__plot-stack">
-      <div ref={ref} className="lq-chart__plot-column" onContextMenu={handlePlotContextMenu}>
+      <div ref={ref} className="lq-chart__plot-column" onContextMenu={handlePlotContextMenu} onClick={handlePlotClick}>
       {seasonalityOpen ? (
         <SeasonalityView data={data} symbol={symbol} onBack={() => setSeasonalityOpen(false)} showHeader={showHeader} height={plotHeight} mobile={isNarrowLayout} />
       ) : (
@@ -1370,17 +1457,11 @@ export function CandlestickChart({
           and the right one: a strategy is read against the candles above it. A React panel rather
           than a canvas pane because its content is a form, a table and a chart, none of which the
           indicator pane machinery is for. */}
-      {openStrategy && (
+      {strategyPanelProps !== null && strategyView === "docked" && (
         <ChartStrategyPanel
-          scriptName={openStrategy.name}
-          result={scriptingState.runOutputs[openStrategy.id]?.result?.strategy ?? null}
-          error={scriptingState.runOutputs[openStrategy.id]?.result?.error ?? null}
-          running={scriptingState.runOutputs[openStrategy.id]?.running ?? false}
-          settings={openStrategy.strategySettings ?? DEFAULT_STRATEGY_SETTINGS}
-          onSettingsChange={(next) => scriptingState.setStrategySettings(openStrategy.id, next)}
-          onClose={closeStrategyPanel}
-          formatDate={dFmt}
-          initialWidth={dims.width}
+          {...strategyPanelProps}
+          onRequestFullscreen={() => setStrategyView("fullscreen")}
+          onRequestDetach={detachStrategyPanel}
         />
       )}
       </div>
@@ -1394,6 +1475,33 @@ export function CandlestickChart({
           header+plot together, same footprint as the native fullscreen overlay; not the side
           panel too, which isn't part of what this event happened on. Closing it also clears
           activeEventStack so the popover doesn't reappear once the replacing modal is dismissed. */}
+      {/* Filling a modal instead of the pane: the same panel, the same live props, just given the
+          whole screen. The docked one is not rendered at the same time — that is what makes this a
+          different *view* of the tester rather than a second copy of it. */}
+      {strategyPanelProps !== null && strategyView === "fullscreen" && (
+        <Modal open onClose={() => setStrategyView("docked")} title={openStrategy?.name} size="fullscreen" footer={null}>
+          <div className="lq-chart__strategy-modal-body">
+            <ChartStrategyPanel {...strategyPanelProps} chrome="bare" />
+          </div>
+        </Modal>
+      )}
+
+      {/* Torn off into a real second window. A portal rather than a fresh mount, so it keeps
+          updating from this chart as the strategy re-runs — see DetachedWindow's own doc. */}
+      {strategyPanelProps !== null && strategyView === "detached" && detachedStrategyWindow !== null && (
+        <DetachedWindow
+          target={detachedStrategyWindow}
+          themeSource={mainRef.current?.closest(".lq-root") as HTMLElement | null}
+          title={`Testeur de stratégie — ${openStrategy?.name ?? ""}`}
+          onClose={() => {
+            setStrategyView("docked");
+            setDetachedStrategyWindow(null);
+          }}
+        >
+          <ChartStrategyPanel {...strategyPanelProps} chrome="bare" />
+        </DetachedWindow>
+      )}
+
       {contextMenu !== null && (
         <ChartContextMenu
           x={contextMenu.menuX}

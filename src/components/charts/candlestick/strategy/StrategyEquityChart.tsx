@@ -10,6 +10,11 @@ export interface StrategyEquityChartProps {
   width: number;
   height: number;
   formatDate: (date: Date) => string;
+  /** A moment on the chart above to call out here — the timestamp of a fill the user is pointing
+   *  at or has clicked. Drawn as a vertical rule so "this trade" and "this point on the curve" are
+   *  the same place on screen instead of two things to correlate by eye. `null` when nothing is
+   *  being pointed at. */
+  markedTime?: number | null;
 }
 
 /** The strategy's own equity curve, drawn as cumulative P&L rather than raw account value: the
@@ -24,12 +29,12 @@ export interface StrategyEquityChartProps {
  *  Plain SVG rather than the canvas pipeline the chart itself uses: this is a few hundred points
  *  in a panel, not a zoomable series over the whole history, and SVG keeps it inspectable and
  *  crisp with no device-pixel-ratio handling of its own. */
-export function StrategyEquityChart({ equity, trades, initialCapital, currency, width, height, formatDate }: StrategyEquityChartProps) {
+export function StrategyEquityChart({ equity, trades, initialCapital, currency, width, height, formatDate, markedTime = null }: StrategyEquityChartProps) {
   const margin = { top: 8, right: 64, bottom: 20, left: 8 };
   const innerWidth = Math.max(0, width - margin.left - margin.right);
   const innerHeight = Math.max(0, height - margin.top - margin.bottom);
 
-  const { yScale, areaAbove, areaBelow, peakLine, ticks } = useMemo(() => {
+  const { yScale, xScale, areaAbove, areaBelow, peakLine, ticks } = useMemo(() => {
     const points = equity.map((p) => ({ ...p, pnl: p.equity - initialCapital, peakPnl: p.peak - initialCapital }));
     const x = d3
       .scaleLinear()
@@ -60,6 +65,7 @@ export function StrategyEquityChart({ equity, trades, initialCapital, currency, 
       .y((p) => y(p.peakPnl));
     return {
       yScale: y,
+      xScale: x,
       areaAbove: above(points) ?? "",
       areaBelow: below(points) ?? "",
       peakLine: peak(points) ?? "",
@@ -70,6 +76,27 @@ export function StrategyEquityChart({ equity, trades, initialCapital, currency, 
   if (equity.length < 2 || innerWidth <= 0 || innerHeight <= 0) {
     return <p className="lq-strategy__empty">Pas encore assez de barres rejouées pour tracer une courbe.</p>;
   }
+
+  // Deliberately outside the memo above: this changes on every pointer move over the chart, and
+  // rebuilding the areas and the peak line for it would redo the whole curve sixty times a second
+  // to move one line.
+  //
+  // The curve is indexed by bar, not by time, so the mark lands on the equity point nearest the
+  // moment asked for — a fill always has one, since the equity series is sampled per bar and a
+  // fill happens on a bar.
+  const markedX = (() => {
+    if (markedTime === null || equity.length === 0) return null;
+    let best = -1;
+    let bestDistance = Infinity;
+    for (let i = 0; i < equity.length; i++) {
+      const d = Math.abs(equity[i].time - markedTime);
+      if (d < bestDistance) {
+        bestDistance = d;
+        best = i;
+      }
+    }
+    return best === -1 ? null : xScale(best);
+  })();
 
   const zeroY = yScale(0);
   const first = equity[0];
@@ -91,6 +118,9 @@ export function StrategyEquityChart({ equity, trades, initialCapital, currency, 
         <path className="lq-strategy__equity-area lq-strategy__equity-area--up" d={areaAbove} />
         <path className="lq-strategy__equity-area lq-strategy__equity-area--down" d={areaBelow} />
         <line className="lq-strategy__equity-zero" x1={0} x2={innerWidth} y1={zeroY} y2={zeroY} />
+        {/* Over the curve rather than under it: it answers "where am I pointing", which has to win
+            against the thing it is pointing at. */}
+        {markedX !== null && <line className="lq-strategy__equity-mark" x1={markedX} x2={markedX} y1={0} y2={innerHeight} />}
         {/* The last value, labelled on the axis where the eye already ends up. */}
         <g transform={`translate(${innerWidth}, ${yScale(finalPnl)})`}>
           <circle className={`lq-strategy__equity-last lq-strategy__equity-last--${finalPnl >= 0 ? "up" : "down"}`} r={3} />

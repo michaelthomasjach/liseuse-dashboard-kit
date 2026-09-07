@@ -609,3 +609,28 @@
 .lq-strategy--collapsed .lq-strategy__resize {
   pointer-events: none;
 }
+
+/* Where the fill the user is pointing at on the price chart falls on each of these charts. One
+   colour across all three so the same gesture reads as the same answer wherever the eye lands. */
+.lq-strategy__equity-mark,
+.lq-strategy__distribution-marked {
+  stroke: var(--lq-color-accent);
+  stroke-width: 1.5;
+  pointer-events: none;
+}
+
+/* The MAE/MFE chart has a row per trade rather than a time axis, so its mark is a band behind the
+   row — see StrategyExcursionChart's own doc. */
+.lq-strategy__excursion-marked {
+  fill: var(--lq-color-accent);
+  opacity: 0.16;
+  pointer-events: none;
+}
+
+/* The panel inside a modal or a detached window: no dragged height of its own, no border of its
+   own (its host draws one), just fill what it was given. */
+.lq-strategy--filled {
+  height: 100%;
+  max-height: none;
+  border-top: 0;
+}

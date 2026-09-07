@@ -439,6 +439,16 @@ export const MaximizeIcon = (props: IconProps) => (
   </IconBase>
 );
 
+/** A pane leaving for a window of its own: a frame with a corner lifted out and an arrow heading
+ *  away from it. Distinct from MaximizeIcon (which grows in place) and from LinkIcon (which joins
+ *  two things), the two it would otherwise be confused with. */
+export const DetachWindowIcon = (props: IconProps) => (
+  <IconBase {...props}>
+    <path d="M13 4.5H5.5A1.5 1.5 0 0 0 4 6v12a1.5 1.5 0 0 0 1.5 1.5h12A1.5 1.5 0 0 0 19 18v-7.5" />
+    <path d="M14.5 3.5H21v6.5M21 3.5l-8 8" />
+  </IconBase>
+);
+
 export const MinimizeIcon = (props: IconProps) => (
   <IconBase {...props}>
     <path d="M4.5 8.5H9V4M19.5 8.5H15V4M4.5 15.5H9V20M19.5 15.5H15V20" />

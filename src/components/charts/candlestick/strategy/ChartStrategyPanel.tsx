@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { useChartDimensions } from "../../internal/useChartDimensions";
-import { ChevronDownIcon, ChevronUpIcon, CloseIcon, SettingsIcon } from "../../../icons";
+import { ChevronDownIcon, ChevronUpIcon, CloseIcon, DetachWindowIcon, MaximizeIcon, SettingsIcon } from "../../../icons";
 import type { StrategyResult } from "../interfaces/StrategyResult.interface";
 import type { StrategySettings } from "../interfaces/StrategySettings.interface";
 import { StrategyEquityChart } from "./StrategyEquityChart";
@@ -24,6 +24,22 @@ export interface ChartStrategyPanelProps {
   onSettingsChange: (next: StrategySettings) => void;
   onClose: () => void;
   formatDate: (date: Date) => string;
+  /** Opens this same panel in a modal, and hides the docked one. Absent means the caller does not
+   *  offer it, and the button does not appear. */
+  onRequestFullscreen?: () => void;
+  /** Tears the panel off into a real second browser window, hiding the docked one. */
+  onRequestDetach?: () => void;
+  /** "bare" drops the collapse/fullscreen/detach/close buttons and lets the panel fill whatever it
+   *  is inside — for the modal and the detached window, which supply their own way out and their
+   *  own size. The docked pane is "full". */
+  chrome?: "full" | "bare";
+  /** The moment on the price chart the user is pointing at or has clicked — a fill marker's own
+   *  timestamp. Every chart in here calls it out, so "this trade" is one place on screen rather
+   *  than something to correlate by eye across three panels. */
+  markedTime?: number | null;
+  /** How far from `markedTime` still counts as the same fill — half a bar, which only the chart
+   *  above knows. */
+  markedToleranceMs?: number;
   /** Only seeds the folded-on-a-narrow-chart default below. Everything that actually sizes a chart
    *  in here is measured from this panel's own body instead (see `bodyDims`) — taking it from a
    *  sibling laid the contents out for a width this panel did not have, leaving a strip of empty
@@ -68,6 +84,11 @@ export function ChartStrategyPanel({
   onSettingsChange,
   onClose,
   formatDate,
+  markedTime = null,
+  markedToleranceMs = 0,
+  onRequestFullscreen,
+  onRequestDetach,
+  chrome = "full",
   initialWidth,
 }: ChartStrategyPanelProps) {
   const [tab, setTab] = useState<StrategyTab>("performance");
@@ -75,7 +96,10 @@ export function ChartStrategyPanel({
   // whole point is trying the *chart* with a finger — opening onto a backtest that has pushed the
   // candles into the top half is the wrong first screen. Seeded from the width rather than watched:
   // it sets the default, and past that the panel is the reader's to open and close.
-  const [collapsed, setCollapsed] = useState(() => initialWidth > 0 && initialWidth < NARROW_PANEL_WIDTH);
+  const [collapsedState, setCollapsed] = useState(() => initialWidth > 0 && initialWidth < NARROW_PANEL_WIDTH);
+  // Folding is a docked-pane affordance: a modal or a window of its own is already "not in the
+  // way", and a collapsed one would be an empty frame.
+  const collapsed = chrome === "bare" ? false : collapsedState;
   const [height, setHeight] = useState(DEFAULT_PANEL_HEIGHT);
   const sectionRef = useRef<HTMLElement | null>(null);
   // Measured on the body itself rather than passed in: it is the element the charts actually live
@@ -128,11 +152,12 @@ export function ChartStrategyPanel({
   return (
     <section
       ref={sectionRef}
-      className={["lq-strategy", collapsed && "lq-strategy--collapsed"].filter(Boolean).join(" ")}
+      className={["lq-strategy", collapsed && "lq-strategy--collapsed", chrome === "bare" && "lq-strategy--filled"].filter(Boolean).join(" ")}
       // Collapsed, the height is the header's own (see .lq-strategy--collapsed) — pinning the
       // dragged height there would leave a tall empty box under a folded title bar.
-      style={collapsed ? undefined : { height }}
+      style={collapsed || chrome === "bare" ? undefined : { height }}
     >
+      {chrome === "full" && (
       <div
         className="lq-strategy__resize"
         onPointerDown={startResize}
@@ -142,7 +167,9 @@ export function ChartStrategyPanel({
         aria-label="Redimensionner le testeur de stratégie"
         tabIndex={collapsed ? -1 : 0}
       />
+      )}
       <header className="lq-strategy__header">
+        {chrome === "full" && (
         <button
           type="button"
           className="lq-chart__pane-header-action"
@@ -151,6 +178,7 @@ export function ChartStrategyPanel({
         >
           {collapsed ? <ChevronUpIcon size={13} /> : <ChevronDownIcon size={13} />}
         </button>
+        )}
         <span className="lq-strategy__title">{scriptName}</span>
         {/* The one number worth carrying in the header, so a collapsed panel still says how the
             strategy is doing. */}
@@ -190,9 +218,33 @@ export function ChartStrategyPanel({
             </button>
           ))}
         </nav>
-        <button type="button" className="lq-chart__pane-header-action" onClick={onClose} aria-label="Fermer le testeur de stratégie">
-          <CloseIcon size={13} />
-        </button>
+        {chrome === "full" && onRequestFullscreen && (
+          <button
+            type="button"
+            className="lq-chart__pane-header-action"
+            onClick={onRequestFullscreen}
+            aria-label="Ouvrir le testeur de stratégie en plein écran"
+            title="Plein écran"
+          >
+            <MaximizeIcon size={13} />
+          </button>
+        )}
+        {chrome === "full" && onRequestDetach && (
+          <button
+            type="button"
+            className="lq-chart__pane-header-action"
+            onClick={onRequestDetach}
+            aria-label="Détacher le testeur de stratégie dans une fenêtre"
+            title="Détacher dans une fenêtre"
+          >
+            <DetachWindowIcon size={13} />
+          </button>
+        )}
+        {chrome === "full" && (
+          <button type="button" className="lq-chart__pane-header-action" onClick={onClose} aria-label="Fermer le testeur de stratégie">
+            <CloseIcon size={13} />
+          </button>
+        )}
       </header>
 
       {!collapsed && (
@@ -216,7 +268,13 @@ export function ChartStrategyPanel({
                 réussite ne dit pas : 40 % de gagnants n&apos;est pas la même stratégie selon que les pertes sont petites ou énormes. Les deux
                 traits pointillés sont la moyenne et la médiane ; l&apos;écart entre eux mesure à quel point un seul trade tire la moyenne.
               </p>
-              <StrategyDistributionChart trades={result.trades} width={chartWidth} height={equityChartHeight(bodyDims.height)} />
+              <StrategyDistributionChart
+                trades={result.trades}
+                width={chartWidth}
+                height={equityChartHeight(bodyDims.height)}
+                markedTime={markedTime}
+                markedToleranceMs={markedToleranceMs}
+              />
               <div className="lq-strategy__streaks">
                 <div className="lq-strategy__metric">
                   <span className="lq-strategy__metric-label">Répartition</span>
@@ -274,7 +332,13 @@ export function ChartStrategyPanel({
                 et le point où vous êtes réellement sorti. Un point loin à gauche de son propre segment est un gain rendu ; un long bras
                 gauche, un trade qui a été sous l&apos;eau avant de fonctionner.
               </p>
-              <StrategyExcursionChart trades={result.trades} currency={settings.currency} width={chartWidth} />
+              <StrategyExcursionChart
+                trades={result.trades}
+                currency={settings.currency}
+                width={chartWidth}
+                markedTime={markedTime}
+                markedToleranceMs={markedToleranceMs}
+              />
             </>
           ) : tab === "robustness" ? (
             <StrategyRobustnessPanel robustness={result.robustness} />
@@ -290,6 +354,7 @@ export function ChartStrategyPanel({
                 width={chartWidth}
                 height={equityChartHeight(bodyDims.height)}
                 formatDate={formatDate}
+                markedTime={markedTime}
               />
               {/* One segment per closed trade, in order — the run's own shape at a glance: a wall of
                   red says "this loses steadily", a red patch says "this broke in one regime". */}

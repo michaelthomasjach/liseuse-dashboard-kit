@@ -3069,3 +3069,22 @@
 .lq-chart__axis-value--annotation.lq-chart__axis-value--x {
   z-index: 7;
 }
+
+/* The strategy tester filling a fullscreen modal. The modal's own body scrolls by default; the
+   panel manages its own scrolling inside, so this just hands it the height and gets out of the
+   way. */
+.lq-chart__strategy-modal-body {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+/* The host element a detached window's content is portalled into. It also carries a copy of the
+   opener's own `.lq-root` classes and data attributes (see DetachedWindow), which is what makes
+   every `--lq-*` variable below resolve there. */
+.lq-detached-window {
+  height: 100vh;
+  background-color: var(--lq-color-bg);
+  color: var(--lq-color-text);
+}

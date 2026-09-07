@@ -1,11 +1,16 @@
 import * as d3 from "d3";
 import { useMemo } from "react";
 import type { StrategyTrade } from "../interfaces/StrategyResult.interface";
+import { tradeAtTime } from "./markedTrade";
 
 export interface StrategyDistributionChartProps {
   trades: StrategyTrade[];
   width: number;
   height?: number;
+  /** A fill on the price chart to call out — here that means marking where *that trade's own
+   *  result* falls among all the others, which is the question this chart answers. */
+  markedTime?: number | null;
+  markedToleranceMs?: number;
 }
 
 /** How the trade results are spread, as a histogram of returns with zero in the middle — losers to
@@ -19,7 +24,7 @@ export interface StrategyDistributionChartProps {
  *  Bin edges are aligned so that one of them falls exactly on zero. Without that a single bin
  *  straddles the axis and mixes small winners with small losers, which is precisely the boundary
  *  the whole chart exists to show. */
-export function StrategyDistributionChart({ trades, width, height = 150 }: StrategyDistributionChartProps) {
+export function StrategyDistributionChart({ trades, width, height = 150, markedTime = null, markedToleranceMs = 0 }: StrategyDistributionChartProps) {
   const margin = { top: 10, right: 12, bottom: 26, left: 12 };
   const innerWidth = Math.max(0, width - margin.left - margin.right);
   const innerHeight = Math.max(0, height - margin.top - margin.bottom);
@@ -78,6 +83,18 @@ export function StrategyDistributionChart({ trades, width, height = 150 }: Strat
           );
         })}
         <line className="lq-strategy__distribution-zero" x1={xScale(0)} x2={xScale(0)} y1={0} y2={innerHeight} />
+        {(() => {
+          const marked = tradeAtTime(trades, markedTime, markedToleranceMs);
+          return marked === null ? null : (
+            <line
+              className="lq-strategy__distribution-marked"
+              x1={xScale(marked.profitPercent)}
+              x2={xScale(marked.profitPercent)}
+              y1={0}
+              y2={innerHeight}
+            />
+          );
+        })()}
         {median !== null && (
           <line className="lq-strategy__distribution-mark lq-strategy__distribution-mark--median" x1={xScale(median)} x2={xScale(median)} y1={0} y2={innerHeight} />
         )}

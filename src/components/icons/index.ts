@@ -58,6 +58,7 @@ export {
   TrashIcon,
   FolderIcon,
   MaximizeIcon,
+  DetachWindowIcon,
   MinimizeIcon,
   StarIcon,
   ArrowRightIcon,

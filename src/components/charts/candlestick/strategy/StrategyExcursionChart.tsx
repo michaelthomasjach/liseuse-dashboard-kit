@@ -1,11 +1,17 @@
 import * as d3 from "d3";
 import { useMemo } from "react";
 import type { StrategyTrade } from "../interfaces/StrategyResult.interface";
+import { tradeAtTime } from "./markedTrade";
 
 export interface StrategyExcursionChartProps {
   trades: StrategyTrade[];
   currency: string;
   width: number;
+  /** A fill on the price chart to call out. This chart has one row per trade rather than a time
+   *  axis, so the mark is that trade's own row rather than a vertical rule — a vertical line here
+   *  would cross every trade and single out none. */
+  markedTime?: number | null;
+  markedToleranceMs?: number;
 }
 
 /** MAE / MFE, one row per trade: a horizontal span from how far the trade went *against* you (left
@@ -22,7 +28,7 @@ export interface StrategyExcursionChartProps {
  *  Rows compress rather than scroll as trades pile up — at two hundred trades this stops being two
  *  hundred readable rows and becomes a shape, which is still the honest thing to show: the shape is
  *  what carries at that count. */
-export function StrategyExcursionChart({ trades, currency, width }: StrategyExcursionChartProps) {
+export function StrategyExcursionChart({ trades, currency, width, markedTime = null, markedToleranceMs = 0 }: StrategyExcursionChartProps) {
   const margin = { top: 18, right: 12, bottom: 18, left: 12 };
   const rowHeight = trades.length > 60 ? 2 : trades.length > 25 ? 5 : 11;
   const innerWidth = Math.max(0, width - margin.left - margin.right);
@@ -42,6 +48,8 @@ export function StrategyExcursionChart({ trades, currency, width }: StrategyExcu
 
   const zero = xScale(0);
   const height = innerHeight + margin.top + margin.bottom;
+
+  const markedTrade = tradeAtTime(trades, markedTime, markedToleranceMs);
 
   return (
     <svg className="lq-strategy__excursion" width={width} height={height} role="img" aria-label="Excursions maximales par trade">
@@ -63,8 +71,10 @@ export function StrategyExcursionChart({ trades, currency, width }: StrategyExcu
 
         {trades.map((trade, i) => {
           const y = i * rowHeight + rowHeight / 2;
+          const marked = markedTrade !== null && markedTrade.id === trade.id;
           return (
-            <g key={trade.id}>
+            <g key={trade.id} className={marked ? "lq-strategy__excursion-row--marked" : undefined}>
+              {marked && <rect className="lq-strategy__excursion-marked" x={0} width={innerWidth} y={i * rowHeight} height={rowHeight} />}
               <line
                 className="lq-strategy__excursion-span lq-strategy__excursion-span--adverse"
                 x1={xScale(-trade.maxAdverse)}

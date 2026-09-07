@@ -174,7 +174,12 @@ export function ChartStrategyPanel({
         aria-orientation="horizontal"
         aria-label="Redimensionner le testeur de stratégie"
         tabIndex={collapsed ? -1 : 0}
-      />
+      >
+        {/* The same two-bar grip every other draggable divider in the chart shows on approach.
+            Without it this was a 7px band with no mark on it at all — the drag worked, but nothing
+            said it was there, which is indistinguishable from it not working. */}
+        <span className="lq-chart__pane-resize-grip" aria-hidden="true" />
+      </div>
       )}
       <header className="lq-strategy__header">
         {chrome === "full" && (

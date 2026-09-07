@@ -588,20 +588,19 @@
    did, and the 7px target straddles the 1px border instead of sitting under it. */
 .lq-strategy__resize {
   position: absolute;
-  top: -3px;
+  top: -4px;
   left: 0;
   right: 0;
-  height: 7px;
+  /* Tall enough to be found and grabbed — 7px was a hairline to aim at, and on a touch screen
+     effectively invisible. It straddles the border, so the extra height costs no layout. */
+  height: 9px;
   z-index: 2;
   cursor: ns-resize;
   /* Without this a vertical drag scrolls the page on a touch screen instead of resizing. */
   touch-action: none;
 }
 
-.lq-strategy__resize:hover,
 .lq-strategy__resize:focus-visible {
-  background-color: var(--lq-color-accent);
-  opacity: 0.35;
   outline: none;
 }
 

@@ -2164,7 +2164,9 @@
    it", so they all say so the same way. */
 .lq-chart__pane-resize-handle:hover .lq-chart__pane-resize-grip,
 .lq-chart__side-panel-resize-handle:hover .lq-chart__pane-resize-grip,
-.lq-chart__side-dock-pane-resize-handle:hover .lq-chart__pane-resize-grip {
+.lq-chart__side-dock-pane-resize-handle:hover .lq-chart__pane-resize-grip,
+.lq-strategy__resize:hover .lq-chart__pane-resize-grip,
+.lq-strategy__resize:focus-visible .lq-chart__pane-resize-grip {
   opacity: 1;
 }
 

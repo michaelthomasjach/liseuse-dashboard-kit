@@ -18,3 +18,9 @@ export const MAX_SERIES_LENGTH = 5000;
  *  for every script — overridable per script via `const DEBOUNCE_MS = new Variable("number", …)`,
  *  the one reserved parameter name useScriptEngine itself reads (see its own `debounceMs` doc). */
 export const REALTIME_TICK_DEBOUNCE_MS = 300;
+
+/** Extra bars computed before the ones `market.heikinAshi()` actually returns, to settle its own
+ *  recurrence. The HA open is the mean of the previous HA open and close, so a seed's influence
+ *  halves every bar: after a hundred it is under 2^-100, which is far below the precision of the
+ *  numbers being averaged. Anything more would only cost time. */
+export const HEIKIN_ASHI_WARMUP = 100;

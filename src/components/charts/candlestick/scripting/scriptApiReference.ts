@@ -321,6 +321,29 @@ const rsiH4 = ta.rsi(h4.series("close", 60), 14);`
     ],
   },
   {
+    id: "market-heikinashi",
+    title: "market.heikinAshi",
+    group: "Données de marché",
+    blocks: [
+      t(
+        "Renvoie les quatre séries Heikin-Ashi calculées sur les mêmes barres — l'OHLC lissé que le mode d'affichage « Heikin-Ashi » de la chart dessine, mis à disposition d'un script sous forme de nombres. Les quatre tableaux sont alignés entre eux et ordonnés de la plus ancienne barre à la plus récente, comme market.series."
+      ),
+      c(
+        `const ha = market.heikinAshi(200);
+// ha.open, ha.high, ha.low, ha.close — number[], même longueur
+
+// Clôture Heikin-Ashi de la barre courante :
+const haClose = ha.close[ha.close.length - 1];`
+      ),
+      t(
+        "Pourquoi un accesseur dédié plutôt qu'un calcul dans le script : la clôture Heikin-Ashi est une simple moyenne des quatre prix de la barre, mais son ouverture est la moyenne de l'ouverture et de la clôture Heikin-Ashi *précédentes*. Elle dépend donc de toutes les barres qui la précèdent, ce qu'un script lisant une fenêtre de taille fixe ne peut pas reproduire."
+      ),
+      t(
+        "En pratique la série est calculée sur la fenêtre demandée plus cent barres d'échauffement, jamais sur tout l'historique : l'influence de l'amorce est divisée par deux à chaque barre, si bien qu'après cent barres le résultat est à un bruit de virgule flottante près celui qu'on obtiendrait depuis la barre zéro — pour une fraction du coût, dans un script qui s'exécute à chaque barre."
+      ),
+    ],
+  },
+  {
     id: "chart",
     title: "chart.*",
     group: "API du script",
@@ -616,6 +639,18 @@ plot.xy("Parabole", x, y, { xLabel: "x", yLabel: "y", title: "y = x²" });`
         "plot.xy n'est jamais affiché sur la vraie chart bougies/panneaux — il n'apparaît qu'en sortie d'une cellule (voir le mode notebook ci-dessous, et son propre tutoriel « Mode notebook » plus haut) : le nom passé sert uniquement à retrouver le graphique produit par une cellule donnée, pas à créer un panneau."
       ),
       t("x et y sont plafonnés à 2000 points chacun — au-delà, tronqués silencieusement plutôt que rejetés."),
+      t(
+        "Une valeur null au lieu d'un nombre marque un trou : la série n'est pas tracée sur cette barre, et n'est pas non plus raccordée par-dessus. C'est ce qui permet de découper une même courbe en plusieurs séries de couleurs différentes — chacune est alimentée à chaque barre, avec null sur celles qui appartiennent à une autre, si bien qu'aucune ne relie ses propres trous par un segment droit."
+      ),
+      t(
+        "Ce découpage est nécessaire parce que la couleur d'une série est fixée par sa première barre : repasser une autre couleur à un appel suivant sur le même nom ne change rien. Pour une courbe qui change de couleur en cours de route — un nuage haussier/baissier, par exemple — il faut donc autant de séries que de couleurs."
+      ),
+      c(
+        `// Une courbe bicolore : deux séries, chacune trouée là où l'autre dessine.
+const hausse = cloture > ouverture;
+pane.line("Tendance (hausse)", hausse ? cloture : null, { color: "#26a69a" });
+pane.line("Tendance (baisse)", hausse ? null : cloture, { color: "#ef5350" });`
+      ),
     ],
   },
   {
@@ -866,6 +901,20 @@ ta.adx(high, low, close, period?)
       ),
       t("Exemple — RSI(14) calculé sur les 60 dernières clôtures, sans jamais avoir ajouté de RSI à la chart :"),
       c(`const rsi14 = ta.rsi(market.series("close", 60), 14);`),
+      t(
+        "Les moyennes mobiles ci-dessous complètent sma/ema. Toutes prennent un tableau ordonné de la plus ancienne valeur à la plus récente — l'ordre que market.series renvoie — et retournent la lecture de la barre courante :"
+      ),
+      c(
+        `ta.wma(values, period)                              // number | null
+ta.hma(values, period)                              // number | null
+ta.alma(values, period, offset?, sigma?)            // number | null — défauts 0.85 / 6
+ta.swma(values)                                     // number | null — fenêtre fixe de 4 barres
+ta.vwma(values, volumes, period)                    // number | null
+ta.zlema(values, period)                            // number | null`
+      ),
+      t(
+        "wma pondère linéairement : la valeur la plus récente compte « période » fois, la plus ancienne une seule. hma (Hull) vaut wma(2·wma(n/2) − wma(n), √n) : elle tourne bien plus vite qu'une wma de même longueur, au prix d'un dépassement sur un retournement brutal, et exige période + √période barres avant de renvoyer autre chose que null. alma applique une fenêtre gaussienne dont le sommet se place à « offset » du parcours — 1 sur la barre la plus récente (la plus réactive, la moins lisse), 0 sur la plus ancienne — « sigma » réglant la vitesse à laquelle le poids retombe de part et d'autre de ce sommet : plus sigma est grand, plus la fenêtre est étroite et plus la moyenne colle au prix. swma pondère les quatre dernières valeurs à 1/6, 2/6, 2/6, 1/6 : sa fenêtre est fixe par définition, elle ne prend donc pas de période. vwma pondère chaque prix par le volume échangé dessus, si bien qu'une barre calme la déplace moins qu'une barre active — passez-lui deux séries alignées barre par barre. zlema lisse 2·prix − prix[décalage] avec un décalage de la moitié de la période : la soustraction compense d'avance le retard qu'introduit une ema, elle tourne donc plus tôt, et dépasse quand le prix se retourne — c'est le marché qui est fait."
+      ),
     ],
   },
   {

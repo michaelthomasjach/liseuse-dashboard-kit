@@ -85,6 +85,12 @@ export const SCRIPT_API_COMPLETIONS: ScriptApiCompletion[] = [
     detail: '("open"|"high"|"low"|"close"|"volume", count?) => number[]',
     apply: 'market.series("close", 20)',
   },
+  {
+    label: "market.heikinAshi",
+    type: "function",
+    detail: "(count?) => {open,high,low,close} — séries Heikin-Ashi, plus ancienne d'abord",
+    apply: "market.heikinAshi(200)",
+  },
   { label: "market.availableTimeframes", type: "function", detail: "() => string[]", apply: "market.availableTimeframes()" },
   { label: "market.resample", type: "function", detail: '("5m"|"15m"|"1h"|"4h"|"1d"|...) => handle for another timeframe', apply: 'market.resample("1h")' },
   {
@@ -183,4 +189,10 @@ export const SCRIPT_API_COMPLETIONS: ScriptApiCompletion[] = [
   { label: "ta.bollinger", type: "function", detail: "(values, period?, stdDev?) => {upper,middle,lower} | null", apply: "ta.bollinger()" },
   { label: "ta.stochastic", type: "function", detail: "(high, low, close, period?, signalPeriod?) => {k,d} | null", apply: "ta.stochastic(, , )" },
   { label: "ta.adx", type: "function", detail: "(high, low, close, period?) => {adx,plusDI,minusDI} | null", apply: "ta.adx(, , )" },
+  { label: "ta.wma", type: "function", detail: "(values, period) => number | null", apply: "ta.wma(, )" },
+  { label: "ta.hma", type: "function", detail: "(values, period) => number | null", apply: "ta.hma(, )" },
+  { label: "ta.alma", type: "function", detail: "(values, period, offset?, sigma?) => number | null", apply: "ta.alma(, )" },
+  { label: "ta.swma", type: "function", detail: "(values) => number | null — fenêtre fixe de 4 barres", apply: "ta.swma()" },
+  { label: "ta.vwma", type: "function", detail: "(values, volumes, period) => number | null", apply: "ta.vwma(, , )" },
+  { label: "ta.zlema", type: "function", detail: "(values, period) => number | null", apply: "ta.zlema(, )" },
 ];

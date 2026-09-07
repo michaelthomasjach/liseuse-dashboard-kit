@@ -100,9 +100,14 @@ export interface PlotSignalArg {
  *  had; a pane with just one series behaves identically to that old API, a pane with 2+ becomes one
  *  multi-series indicator sharing this one pane/scale (see `scriptPaneToCustomIndicatorDef.ts`). */
 export interface PaneSeriesHandle {
-  line(name: string, value: number, options?: PlotSeriesOptions): void;
-  area(name: string, value: number, options?: PlotSeriesOptions): void;
-  histogram(name: string, value: number, options?: PlotSeriesOptions): void;
+  /** `null` records a hole rather than a value: the series is not drawn on that bar and is not
+   *  joined across it either. That is what lets one logical curve be split into several coloured
+   *  series — each is fed on every bar, `null` on the ones that belong to another, so none of them
+   *  bridges its own gaps with a straight line. A series' colour is fixed by its first bar (see
+   *  `upsert` below), so splitting is the only way to change colour partway. */
+  line(name: string, value: number | null, options?: PlotSeriesOptions): void;
+  area(name: string, value: number | null, options?: PlotSeriesOptions): void;
+  histogram(name: string, value: number | null, options?: PlotSeriesOptions): void;
   /** One unconnected dot per bar, instead of a line through them — a scatter. For a value that can
    *  legitimately jump between unrelated levels from one bar to the next (a detected support level
    *  that appears, drifts and vanishes, a pivot, any "here is a reading, it has nothing to do with
@@ -120,7 +125,8 @@ export interface PaneSeriesHandle {
   dots(name: string, value: number, options?: PlotSeriesOptions): void;
   /** A translucent fill between two curves, plus thin upper/lower lines and a computed middle
    *  line — same rendering Bollinger Bands already uses. */
-  band(name: string, upper: number, lower: number, options?: PlotBandOptions): void;
+  /** `null` for both edges leaves a hole, same as a line's own (see above). */
+  band(name: string, upper: number | null, lower: number | null, options?: PlotBandOptions): void;
   /** A single element positioned precisely within this pane's own box, in pixels or percent, with
    *  an optional rotation — unlike `line`/`area`/`histogram`/`band`, not tied to a bar index or
    *  value at all. See `PlotLabelOptions`'s own doc. "Latest call for this `name` wins," same
@@ -236,7 +242,7 @@ export function buildPlotApi(
     function upsert(
       name: string,
       draw: ScriptPaneSubSeries["draw"],
-      point: { date: number; value: number } | { date: number; upper: number; lower: number },
+      point: { date: number; value: number | null } | { date: number; upper: number | null; lower: number | null },
       options: PlotSeriesOptions | PlotBandOptions | undefined
     ) {
       let sub = paneEntry.subSeriesByName.get(name);
@@ -252,7 +258,7 @@ export function buildPlotApi(
         };
         paneEntry.subSeriesByName.set(name, sub);
       }
-      (sub.points as { date: number; value: number }[] | { date: number; upper: number; lower: number }[]).push(point as never);
+      (sub.points as { date: number; value: number | null }[] | { date: number; upper: number | null; lower: number | null }[]).push(point as never);
     }
     return {
       line: (name, value, options) => upsert(name, "line", { date: getCurrentDate(), value }, options),

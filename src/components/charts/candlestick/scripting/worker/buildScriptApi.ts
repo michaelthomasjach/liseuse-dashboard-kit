@@ -1,6 +1,6 @@
 import type { ScriptEngineSnapshot, ScriptEngineSnapshotCandle } from "../interfaces/ScriptEngineSnapshot.interface";
 import type { IndicatorValue } from "../../interfaces/IndicatorValue.interface";
-import { MAX_SERIES_LENGTH } from "../constants";
+import { HEIKIN_ASHI_WARMUP, MAX_SERIES_LENGTH } from "../constants";
 
 type SeriesField = "open" | "high" | "low" | "close" | "volume";
 
@@ -16,6 +16,15 @@ const FIELD_KEY: Record<SeriesField, keyof ScriptEngineSnapshotCandle> = {
  *  `availableTimeframes` (nesting either would suggest a resampled view can itself be resampled
  *  again or has its own separate timeframe list, neither of which is true — see `MarketApi.resample`'s
  *  own doc). */
+/** The four Heikin-Ashi series, oldest first and index-aligned with each other — the shape
+ *  `market.heikinAshi()` hands back. */
+export interface HeikinAshiSeries {
+  open: number[];
+  high: number[];
+  low: number[];
+  close: number[];
+}
+
 export interface MarketResampledApi {
   open(offset?: number): number | null;
   high(offset?: number): number | null;
@@ -24,6 +33,18 @@ export interface MarketResampledApi {
   volume(offset?: number): number | null;
   time(offset?: number): Date | null;
   series(field: SeriesField, count?: number): number[];
+  /** Heikin-Ashi candles derived from the same bars, oldest first — the smoothed OHLC the chart's
+   *  own "Heikin-Ashi" display mode draws, available to a script as plain numbers.
+   *
+   *  Its own recurrence is why this exists as an accessor rather than something a script derives
+   *  itself: the HA open is an average of the *previous* HA open and close, so it depends on every
+   *  bar before it, which a script reading a fixed window cannot reproduce.
+   *
+   *  Computed over `count` bars plus a warm-up (see HEIKIN_ASHI_WARMUP) rather than the whole
+   *  history: the seed's influence halves with every bar, so a hundred bars of run-up puts the
+   *  result within floating-point noise of one computed from bar zero, at a fraction of the cost
+   *  for a script that runs on every bar. */
+  heikinAshi(count?: number): HeikinAshiSeries;
 }
 
 export interface MarketApi {
@@ -34,6 +55,7 @@ export interface MarketApi {
   volume(offset?: number): number | null;
   time(offset?: number): Date | null;
   series(field: SeriesField, count?: number): number[];
+  heikinAshi(count?: number): HeikinAshiSeries;
   /** Every timeframe value the host chart's own picker offers (exigence #25) — inspection only,
    *  see `ScriptEngineSnapshot.availableTimeframes`'s own doc for why this doesn't grant access to
    *  any *other* timeframe's own data (that's `resample`'s own job, see below). */
@@ -68,6 +90,7 @@ const ALL_NULL_RESAMPLED_API: MarketResampledApi = {
   volume: () => null,
   time: () => null,
   series: () => [],
+  heikinAshi: () => ({ open: [], high: [], low: [], close: [] }),
 };
 
 /** Parses `market.resample()`'s own `"<n><unit>"` argument into milliseconds — `null` for
@@ -116,6 +139,35 @@ function buildCandleAccessor(
     time: (offset = 0) => {
       const index = resolveIndex(offset);
       return index === null ? null : new Date(getCandles()[index].t);
+    },
+      heikinAshi: (count = MAX_SERIES_LENGTH) => {
+      const candles = getCandles();
+      const currentIndex = getIndex();
+      const wanted = Math.max(0, Math.min(count, MAX_SERIES_LENGTH));
+      const start = Math.max(0, currentIndex - wanted - HEIKIN_ASHI_WARMUP + 1);
+      const open: number[] = [];
+      const high: number[] = [];
+      const low: number[] = [];
+      const close: number[] = [];
+      let previousOpen: number | null = null;
+      let previousClose: number | null = null;
+      for (let i = start; i <= currentIndex; i++) {
+        const bar = candles[i];
+        const haClose = (bar.o + bar.h + bar.l + bar.c) / 4;
+        // Seeded from the raw bar on the very first one, since there is no previous HA candle to
+        // average — the same seed every Heikin-Ashi implementation uses.
+        const haOpen: number = previousOpen === null || previousClose === null ? (bar.o + bar.c) / 2 : (previousOpen + previousClose) / 2;
+        open.push(haOpen);
+        close.push(haClose);
+        high.push(Math.max(bar.h, haOpen, haClose));
+        low.push(Math.min(bar.l, haOpen, haClose));
+        previousOpen = haOpen;
+        previousClose = haClose;
+      }
+      // The warm-up is dropped only now, so it did its job of settling the recurrence without
+      // ever being visible to the caller.
+      const drop = Math.max(0, open.length - wanted);
+      return { open: open.slice(drop), high: high.slice(drop), low: low.slice(drop), close: close.slice(drop) };
     },
     series: (fieldName, count = MAX_SERIES_LENGTH) => {
       const candles = getCandles();

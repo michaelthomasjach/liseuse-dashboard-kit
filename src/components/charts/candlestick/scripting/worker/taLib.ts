@@ -1,4 +1,4 @@
-import { SMA, EMA, RSI, MACD, ATR, BollingerBands, Stochastic, ADX, ROC } from "technicalindicators";
+import { SMA, EMA, RSI, MACD, ATR, BollingerBands, Stochastic, ADX, ROC, WMA } from "technicalindicators";
 
 /** `ta.*` — named technical-indicator readings, computed on demand from a plain array a script
  *  already has (typically `market.series(...)`), answering "what's the current XYZ reading"
@@ -22,7 +22,97 @@ function lastOrNull<T>(values: T[]): T | null {
   return values.length === 0 ? null : values[values.length - 1];
 }
 
+/** Rolling weighted moving average over a whole array, oldest first — the shape HMA needs, which
+ *  wants a *series* of WMAs to average again rather than just the latest one. `WMA.calculate`
+ *  trims its own warm-up off the front, so the result is shorter than the input by `period - 1`
+ *  and its last entry lines up with the input's last entry. */
+function wmaSeries(values: number[], period: number): number[] {
+  if (!Number.isFinite(period) || period < 1 || values.length < period) return [];
+  return WMA.calculate({ period: Math.floor(period), values });
+}
+
 export const taApi = {
+  /** Weighted moving average: the newest value counts `period` times, the oldest once. */
+  wma: (values: number[], period: number) => lastOrNull(wmaSeries(values, period)),
+
+  /** Hull moving average — `wma(2·wma(n/2) − wma(n), √n)`. Much faster to turn than a plain WMA of
+   *  the same length, at the cost of overshooting a sharp reversal. Needs `period + √period` bars
+   *  before it reads, since it averages a series that is itself already trimmed. */
+  hma: (values: number[], period: number) => {
+    const n = Math.floor(period);
+    if (!Number.isFinite(n) || n < 2) return null;
+    const half = wmaSeries(values, Math.max(1, Math.floor(n / 2)));
+    const full = wmaSeries(values, n);
+    if (half.length === 0 || full.length === 0) return null;
+    // Both series end on the same bar but start on different ones; line them up from the end.
+    const overlap = Math.min(half.length, full.length);
+    const raw: number[] = [];
+    for (let i = 0; i < overlap; i++) {
+      raw.push(2 * half[half.length - overlap + i] - full[full.length - overlap + i]);
+    }
+    return lastOrNull(wmaSeries(raw, Math.max(1, Math.round(Math.sqrt(n)))));
+  },
+
+  /** Arnaud Legoux moving average: a Gaussian window whose peak sits `offset` of the way along it.
+   *  `offset` 1 puts the peak on the newest bar (most responsive, least smooth), 0 on the oldest;
+   *  `sigma` is how sharply the weight falls away from that peak — bigger is narrower, so a bigger
+   *  sigma follows price more closely. */
+  alma: (values: number[], period: number, offset = 0.85, sigma = 6) => {
+    const n = Math.floor(period);
+    if (!Number.isFinite(n) || n < 1 || values.length < n || sigma <= 0) return null;
+    const window = values.slice(values.length - n);
+    const m = offset * (n - 1);
+    const s = n / sigma;
+    let weighted = 0;
+    let total = 0;
+    // `i` runs oldest to newest, matching `market.series`' own order — the same direction Pine's
+    // own implementation walks its window in, so the peak lands on the same end.
+    for (let i = 0; i < n; i++) {
+      const w = Math.exp(-((i - m) * (i - m)) / (2 * s * s));
+      weighted += window[i] * w;
+      total += w;
+    }
+    return total === 0 ? null : weighted / total;
+  },
+
+  /** Symmetrically weighted moving average: the last four values at 1/6, 2/6, 2/6, 1/6. A fixed
+   *  four-bar window by definition — it takes no period. */
+  swma: (values: number[]) => {
+    if (values.length < 4) return null;
+    const [a, b, c, d] = values.slice(values.length - 4);
+    return (a + 2 * b + 2 * c + d) / 6;
+  },
+
+  /** Volume-weighted moving average: each price counted in proportion to the volume traded at it,
+   *  so a quiet bar moves it less than a busy one. `values` and `volumes` must line up bar for
+   *  bar — pass `market.series("close", n)` and `market.series("volume", n)`. */
+  vwma: (values: number[], volumes: number[], period: number) => {
+    const n = Math.floor(period);
+    if (!Number.isFinite(n) || n < 1 || values.length < n || volumes.length < n) return null;
+    let weighted = 0;
+    let total = 0;
+    for (let i = 0; i < n; i++) {
+      const price = values[values.length - n + i];
+      const volume = volumes[volumes.length - n + i];
+      weighted += price * volume;
+      total += volume;
+    }
+    return total === 0 ? null : weighted / total;
+  },
+
+  /** Zero-lag EMA: an EMA of `2·price − price[lag]`, where `lag` is half the period. The
+   *  subtraction pre-compensates for the lag an EMA introduces, so it turns sooner — and
+   *  overshoots when price reverses, which is the trade being made. */
+  zlema: (values: number[], period: number) => {
+    const n = Math.floor(period);
+    if (!Number.isFinite(n) || n < 1) return null;
+    const lag = Math.floor((n - 1) / 2);
+    if (values.length < lag + 1) return null;
+    const compensated: number[] = [];
+    for (let i = lag; i < values.length; i++) compensated.push(2 * values[i] - values[i - lag]);
+    return lastOrNull(EMA.calculate({ period: n, values: compensated }));
+  },
+
   sma: (values: number[], period: number) => lastOrNull(SMA.calculate({ period, values })),
   ema: (values: number[], period: number) => lastOrNull(EMA.calculate({ period, values })),
   rsi: (values: number[], period: number) => lastOrNull(RSI.calculate({ period, values })),

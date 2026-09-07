@@ -5,7 +5,18 @@
   display: flex;
   flex-direction: column;
   flex: 0 0 auto;
+  /* Positioning context for the resize handle below. */
+  position: relative;
+  /* Only the value the panel starts at — it sets its own height inline from there (see
+     DEFAULT_PANEL_HEIGHT, kept equal to this), so a drag has somewhere to start from even before
+     the first measurement. */
   height: 320px;
+  /* The candles keep at least this much whatever the panel was dragged to — the drag enforces the
+     same floor at grab time, but only this survives the container itself getting shorter
+     afterwards (a window resize, a docked pane opening). Without it a panel dragged tall in a big
+     window squeezes the plot to nothing in a small one, and a plot measured at zero height is the
+     one state the chart cannot render from. Kept equal to MIN_PLOT_HEIGHT. */
+  max-height: calc(100% - 120px);
   min-height: 0;
   border-top: 1px solid var(--lq-color-border);
   background-color: var(--lq-color-panel);
@@ -570,4 +581,31 @@
   .lq-strategy__tab {
     padding: 5px 9px;
   }
+}
+
+/* Grab band over the panel's own top border, for trading height with the candles above. Absolutely
+   positioned rather than a flex row of its own so it costs no layout: the panel looks exactly as it
+   did, and the 7px target straddles the 1px border instead of sitting under it. */
+.lq-strategy__resize {
+  position: absolute;
+  top: -3px;
+  left: 0;
+  right: 0;
+  height: 7px;
+  z-index: 2;
+  cursor: ns-resize;
+  /* Without this a vertical drag scrolls the page on a touch screen instead of resizing. */
+  touch-action: none;
+}
+
+.lq-strategy__resize:hover,
+.lq-strategy__resize:focus-visible {
+  background-color: var(--lq-color-accent);
+  opacity: 0.35;
+  outline: none;
+}
+
+/* Nothing to resize when the panel is folded to its own header. */
+.lq-strategy--collapsed .lq-strategy__resize {
+  pointer-events: none;
 }

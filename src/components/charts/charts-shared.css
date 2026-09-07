@@ -80,7 +80,24 @@
      "Maximum update depth exceeded". A floor keeps the measurement honest and the branch stable;
      below it the row simply overflows, which `.lq-chart`'s own `overflow: hidden` already clips. */
   min-width: 64px;
-  height: 100%;
+  /* Height comes from being a flex child of `.lq-chart__plot-stack`, not `height: 100%` — the
+     stack also holds the strategy tester, and a plot claiming the stack's full height would push
+     that panel straight out of it. `min-height: 0` is what lets this actually give the panel its
+     room instead of overflowing (a flex item's own default floor is its content). */
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* The plot and whatever docks *under* it (the strategy tester today) in one column, so both are
+   the same width and both narrow together when a docked pane column opens beside them. The floor
+   below is the same one `.lq-chart__plot-column` documents above, kept here too because this — not
+   the plot — is now the flex item the row actually distributes width to. */
+.lq-chart__plot-stack {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 64px;
+  min-height: 0;
 }
 
 .lq-chart__svg {

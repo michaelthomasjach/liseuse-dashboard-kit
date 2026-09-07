@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { useChartDimensions } from "../../internal/useChartDimensions";
 import { ChevronDownIcon, ChevronUpIcon, CloseIcon, SettingsIcon } from "../../../icons";
 import type { StrategyResult } from "../interfaces/StrategyResult.interface";
 import type { StrategySettings } from "../interfaces/StrategySettings.interface";
@@ -23,14 +24,31 @@ export interface ChartStrategyPanelProps {
   onSettingsChange: (next: StrategySettings) => void;
   onClose: () => void;
   formatDate: (date: Date) => string;
-  /** Measured by the panel's own container so the SVG chart can be sized in pixels — an SVG has no
-   *  equivalent of `width: 100%` that also reports back what that resolved to. */
-  width: number;
+  /** Only seeds the folded-on-a-narrow-chart default below. Everything that actually sizes a chart
+   *  in here is measured from this panel's own body instead (see `bodyDims`) — taking it from a
+   *  sibling laid the contents out for a width this panel did not have, leaving a strip of empty
+   *  panel whenever a docked column narrowed the plot beside it. */
+  initialWidth: number;
 }
 
 /** Below this the panel starts folded. The same threshold the chart's own mobile rail uses, so a
  *  layout does not change its mind about being narrow between one component and the next. */
 const NARROW_PANEL_WIDTH = 640;
+
+/** Starting height, and the floor a drag cannot go below — under this the tab bar and a chart
+ *  cannot both be read, so there is nothing left to resize *to*. */
+const DEFAULT_PANEL_HEIGHT = 320;
+const MIN_PANEL_HEIGHT = 140;
+/** What the candles above keep, whatever the drag asks for. A backtest with no chart to read it
+ *  against is the one arrangement this panel must not be able to produce. */
+const MIN_PLOT_HEIGHT = 120;
+
+/** The equity curve's share of whatever height the body actually has. Derived rather than fixed so
+ *  dragging the panel taller makes the curve taller — the reason to drag it in the first place —
+ *  while the metrics grid below keeps its own size and scrolls, as it already did. */
+function equityChartHeight(bodyHeight: number): number {
+  return Math.max(110, Math.min(420, Math.round(bodyHeight * 0.52)));
+}
 
 type StrategyTab = "performance" | "distribution" | "excursions" | "robustness" | "trades" | "settings";
 
@@ -50,20 +68,80 @@ export function ChartStrategyPanel({
   onSettingsChange,
   onClose,
   formatDate,
-  width,
+  initialWidth,
 }: ChartStrategyPanelProps) {
   const [tab, setTab] = useState<StrategyTab>("performance");
   // Folded to its header on a narrow chart. At 390px the panel is 41% of the screen, and this app's
   // whole point is trying the *chart* with a finger — opening onto a backtest that has pushed the
   // candles into the top half is the wrong first screen. Seeded from the width rather than watched:
   // it sets the default, and past that the panel is the reader's to open and close.
-  const [collapsed, setCollapsed] = useState(() => width > 0 && width < NARROW_PANEL_WIDTH);
+  const [collapsed, setCollapsed] = useState(() => initialWidth > 0 && initialWidth < NARROW_PANEL_WIDTH);
+  const [height, setHeight] = useState(DEFAULT_PANEL_HEIGHT);
+  const sectionRef = useRef<HTMLElement | null>(null);
+  // Measured on the body itself rather than passed in: it is the element the charts actually live
+  // in, so it reports every reason its size changed — the drag below, a docked column opening or
+  // closing beside the plot, the window resizing — with no wiring per cause. Its own box is fixed
+  // by the panel's height and scrolls its content (see .lq-strategy__body), so sizing children
+  // from it cannot feed back into it.
+  const [bodyRef, bodyDims] = useChartDimensions({ top: 0, right: 0, bottom: 0, left: 0 });
+  const chartWidth = Math.max(120, bodyDims.width - 24);
+
+  /** Drag the top edge to trade height with the candles above. The ceiling is computed at grab
+   *  time from the row this panel shares with the plot, so the chart keeps MIN_PLOT_HEIGHT however
+   *  far the pointer travels. */
+  function startResize(e: React.PointerEvent<HTMLDivElement>) {
+    if (collapsed) return;
+    e.preventDefault();
+    const handle = e.currentTarget;
+    const startY = e.clientY;
+    const startHeight = sectionRef.current?.getBoundingClientRect().height ?? height;
+    const available = sectionRef.current?.parentElement?.getBoundingClientRect().height ?? 0;
+    const max = Math.max(MIN_PANEL_HEIGHT, available - MIN_PLOT_HEIGHT);
+    handle.setPointerCapture(e.pointerId);
+    const onMove = (ev: PointerEvent) => {
+      // Dragging up (a smaller clientY) makes the panel taller — it grows from its own top edge.
+      setHeight(Math.max(MIN_PANEL_HEIGHT, Math.min(max, startHeight - (ev.clientY - startY))));
+    };
+    const onUp = () => {
+      handle.removeEventListener("pointermove", onMove);
+      handle.removeEventListener("pointerup", onUp);
+      handle.removeEventListener("pointercancel", onUp);
+    };
+    handle.addEventListener("pointermove", onMove);
+    handle.addEventListener("pointerup", onUp);
+    handle.addEventListener("pointercancel", onUp);
+  }
+
+  /** The same resize from the keyboard, since a drag handle is unreachable without a pointer. */
+  function onHandleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+    if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
+    e.preventDefault();
+    const available = sectionRef.current?.parentElement?.getBoundingClientRect().height ?? 0;
+    const max = Math.max(MIN_PANEL_HEIGHT, available - MIN_PLOT_HEIGHT);
+    const step = e.shiftKey ? 48 : 16;
+    setHeight((h) => Math.max(MIN_PANEL_HEIGHT, Math.min(max, h + (e.key === "ArrowUp" ? step : -step))));
+  }
 
   const metrics = result?.metrics;
   const headline = metrics ? metrics.totalPnl : 0;
 
   return (
-    <section className={["lq-strategy", collapsed && "lq-strategy--collapsed"].filter(Boolean).join(" ")}>
+    <section
+      ref={sectionRef}
+      className={["lq-strategy", collapsed && "lq-strategy--collapsed"].filter(Boolean).join(" ")}
+      // Collapsed, the height is the header's own (see .lq-strategy--collapsed) — pinning the
+      // dragged height there would leave a tall empty box under a folded title bar.
+      style={collapsed ? undefined : { height }}
+    >
+      <div
+        className="lq-strategy__resize"
+        onPointerDown={startResize}
+        onKeyDown={onHandleKeyDown}
+        role="separator"
+        aria-orientation="horizontal"
+        aria-label="Redimensionner le testeur de stratégie"
+        tabIndex={collapsed ? -1 : 0}
+      />
       <header className="lq-strategy__header">
         <button
           type="button"
@@ -118,7 +196,7 @@ export function ChartStrategyPanel({
       </header>
 
       {!collapsed && (
-        <div className="lq-strategy__body">
+        <div ref={bodyRef} className="lq-strategy__body">
           {error && (
             <p className="lq-strategy__error">
               Le script a échoué{error.line !== undefined ? ` à la ligne ${error.line}` : ""} : {error.message}
@@ -138,7 +216,7 @@ export function ChartStrategyPanel({
                 réussite ne dit pas : 40 % de gagnants n&apos;est pas la même stratégie selon que les pertes sont petites ou énormes. Les deux
                 traits pointillés sont la moyenne et la médiane ; l&apos;écart entre eux mesure à quel point un seul trade tire la moyenne.
               </p>
-              <StrategyDistributionChart trades={result.trades} width={Math.max(120, width - 24)} />
+              <StrategyDistributionChart trades={result.trades} width={chartWidth} height={equityChartHeight(bodyDims.height)} />
               <div className="lq-strategy__streaks">
                 <div className="lq-strategy__metric">
                   <span className="lq-strategy__metric-label">Répartition</span>
@@ -196,7 +274,7 @@ export function ChartStrategyPanel({
                 et le point où vous êtes réellement sorti. Un point loin à gauche de son propre segment est un gain rendu ; un long bras
                 gauche, un trade qui a été sous l&apos;eau avant de fonctionner.
               </p>
-              <StrategyExcursionChart trades={result.trades} currency={settings.currency} width={Math.max(120, width - 24)} />
+              <StrategyExcursionChart trades={result.trades} currency={settings.currency} width={chartWidth} />
             </>
           ) : tab === "robustness" ? (
             <StrategyRobustnessPanel robustness={result.robustness} />
@@ -209,8 +287,8 @@ export function ChartStrategyPanel({
                 trades={result.trades}
                 initialCapital={settings.initialCapital}
                 currency={settings.currency}
-                width={Math.max(120, width - 24)}
-                height={150}
+                width={chartWidth}
+                height={equityChartHeight(bodyDims.height)}
                 formatDate={formatDate}
               />
               {/* One segment per closed trade, in order — the run's own shape at a glance: a wall of

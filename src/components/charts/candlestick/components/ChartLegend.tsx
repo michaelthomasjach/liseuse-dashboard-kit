@@ -1,7 +1,7 @@
 import type { IndicatorInfoTarget } from "../interfaces/IndicatorInfoTarget.interface";
-import { infoTargetFor } from "../scripting/scriptOutputToCustomIndicatorDef";
+import { infoTargetFor, scriptIdFromIndicatorId } from "../scripting/scriptOutputToCustomIndicatorDef";
 import type { Dispatch, SetStateAction } from "react";
-import { EyeIcon, EyeOffIcon, TrashIcon, SettingsIcon, BellIcon, InfoIcon } from "../../../icons";
+import { ActivityIcon, EyeIcon, EyeOffIcon, TrashIcon, SettingsIcon, BellIcon, InfoIcon } from "../../../icons";
 import type { Candle } from "../interfaces/Candle.interface";
 import type { Indicator } from "../interfaces/Indicator.interface";
 import type { TrendLineDrawing } from "../interfaces/TrendLineDrawing.interface";
@@ -42,6 +42,12 @@ export interface ChartLegendProps {
    *  does (see IndicatorModals) — this row's own equivalent for an indicator that's already
    *  active, so its explanation stays one click away without going back through the picker. */
   onOpenIndicatorInfo: (target: IndicatorInfoTarget) => void;
+  /** Scripts currently declaring `@strategy`. Their legend rows get a tester toggle — the only way
+   *  back once its panel has been closed, and the reason closing it is safe to do. */
+  strategyScriptIds: string[];
+  /** Which strategy's tester is showing, so its own row can read as pressed. */
+  openStrategyId: string | null;
+  onToggleStrategyPanel: (scriptId: string) => void;
   symbolOverlays: TrendLineDrawing[];
   drawings: TrendLineDrawing[];
   commitDrawings: (drawings: TrendLineDrawing[]) => void;
@@ -83,6 +89,9 @@ export function ChartLegend({
   alertedIndicatorIds,
   onOpenIndicatorAlert,
   onOpenIndicatorInfo,
+  strategyScriptIds,
+  openStrategyId,
+  onToggleStrategyPanel,
   symbolOverlays,
   drawings,
   commitDrawings,
@@ -209,6 +218,24 @@ export function ChartLegend({
               >
                 <InfoIcon size={11} />
               </button>
+              {/* Only on a row that came from a @strategy script — every other indicator has no
+                  tester to show. */}
+              {(() => {
+                const scriptId = scriptIdFromIndicatorId(indicator.customData?.id);
+                if (scriptId === null || !strategyScriptIds.includes(scriptId)) return null;
+                const open = openStrategyId === scriptId;
+                return (
+                  <button
+                    type="button"
+                    className="lq-chart__indicator-legend-action"
+                    onClick={() => onToggleStrategyPanel(scriptId)}
+                    aria-pressed={open}
+                    aria-label={`${open ? "Fermer" : "Ouvrir"} le testeur de stratégie de ${indicatorLabel(indicator)}`}
+                  >
+                    <ActivityIcon size={11} />
+                  </button>
+                );
+              })()}
               <button
                 type="button"
                 className="lq-chart__indicator-legend-action"

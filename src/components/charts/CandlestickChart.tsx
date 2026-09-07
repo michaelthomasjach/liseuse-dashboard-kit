@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import * as d3 from "d3";
 import { useChartDimensions } from "./internal/useChartDimensions";
 import { useViewportWidth } from "./internal/useViewportWidth";
@@ -332,9 +332,9 @@ export function CandlestickChart({
     () => scriptingState.scripts.filter((s) => s.enabled !== false && analyzeScriptKind(s.code).kind === "strategy"),
     [scriptingState.scripts]
   );
-  // Which strategy's panel is open. `null` until the user opens one; the first strategy is opened
-  // on its own the first time one appears, since a strategy whose tester never shows up is a
-  // strategy nobody can read.
+  // Which strategy's panel is open. A strategy whose tester never shows up is a strategy nobody
+  // can read, so one opens on its own the first time it *appears* — but only then. Reopened from
+  // its own legend row afterwards (see ChartLegend's own strategy-tester button).
   const [openStrategyId, setOpenStrategyId] = useState<string | null>(null);
   // Starred picker rows (see IndicatorModals' own `favoriteIndicatorIds`). Chart-local for now,
   // which is enough for it to survive the modal closing but not a reload — persisting it is the
@@ -342,10 +342,28 @@ export function CandlestickChart({
   // lifted to a prop pair the day someone needs it to.
   const [favoriteIndicatorIds, setFavoriteIndicatorIds] = useState<string[]>([]);
   const openStrategy = strategyScripts.find((s) => s.id === openStrategyId) ?? null;
+  // Auto-opens a strategy that has just *appeared*, and nothing else. The rule this replaces was
+  // "nothing is open and a strategy exists, so open one", which could not tell a chart that had
+  // never shown a tester from one whose tester the user had just closed: closing it set the id to
+  // null, this effect read that as an invitation, and the panel came back within the same frame.
+  // The close button worked perfectly and was undone before it could be seen.
+  const knownStrategyIdsRef = useRef<string[]>([]);
   useEffect(() => {
-    if (openStrategyId !== null && !strategyScripts.some((s) => s.id === openStrategyId)) setOpenStrategyId(null);
-    else if (openStrategyId === null && strategyScripts.length > 0) setOpenStrategyId(strategyScripts[0].id);
-  }, [strategyScripts, openStrategyId]);
+    const ids = strategyScripts.map((s) => s.id);
+    const appeared = ids.find((id) => !knownStrategyIdsRef.current.includes(id));
+    knownStrategyIdsRef.current = ids;
+    setOpenStrategyId((current) => {
+      // The open one was deleted, disabled, or stopped being a @strategy: show whatever just
+      // arrived instead, and otherwise close rather than silently switching to an unrelated one.
+      if (current !== null && !ids.includes(current)) return appeared ?? null;
+      if (current === null && appeared !== undefined) return appeared;
+      return current;
+    });
+  }, [strategyScripts]);
+  const strategyScriptIds = useMemo(() => strategyScripts.map((s) => s.id), [strategyScripts]);
+  const closeStrategyPanel = useCallback(() => setOpenStrategyId(null), []);
+  // Open it, or close it if this same strategy's panel is already the one showing.
+  const toggleStrategyPanel = useCallback((scriptId: string) => setOpenStrategyId((c) => (c === scriptId ? null : scriptId)), []);
   const showHeader = fullscreenToggle || zoomable || !!timeframes?.length || showIndicators;
   // `dims.height` is measured off `.lq-chart__plot-column`, already below `.lq-chart__main`'s own
   // header in the flex-column layout (see charts-shared.css's own doc on that element) — no more
@@ -995,6 +1013,13 @@ export function CandlestickChart({
           ChartSidePaneColumn's own doc). */}
       <div className="lq-chart__main-row">
       {leftColumnProps && <ChartSidePaneColumn {...leftColumnProps} />}
+      {/* The plot and the strategy tester share one column *inside* the row, so the tester is
+          exactly as wide as the candles it is read against — never running on under a docked
+          pane — and narrows and widens with them as those panes open and close. `ref`
+          (useChartDimensions) stays on .lq-chart__plot-column, which is now the plot alone, so the
+          tester's own height comes off the candles the way a docked pane's does and every
+          downstream axis/margin measurement keeps meaning what it did. */}
+      <div className="lq-chart__plot-stack">
       <div ref={ref} className="lq-chart__plot-column">
       {seasonalityOpen ? (
         <SeasonalityView data={data} symbol={symbol} onBack={() => setSeasonalityOpen(false)} showHeader={showHeader} height={plotHeight} mobile={isNarrowLayout} />
@@ -1029,6 +1054,9 @@ export function CandlestickChart({
             it would still render, and overlap, once a pane's own maximize button zeroes it out. */}
         {priceHeight > 0 && (
           <ChartLegend
+            strategyScriptIds={strategyScriptIds}
+            openStrategyId={openStrategyId}
+            onToggleStrategyPanel={toggleStrategyPanel}
             dims={dims}
             symbol={symbol}
             symbolSearch={symbolSearch}
@@ -1244,12 +1272,10 @@ export function CandlestickChart({
       </div>
       )}
       </div>
-      {rightColumnProps && <ChartSidePaneColumn {...rightColumnProps} />}
-      </div>
-      {/* Docked under the plot row, in `.lq-chart__main`'s own column — the position the request
-          asked for ("comme l'indicateur MACD"), and the right one: a strategy is read against the
-          candles above it. A React panel rather than a canvas pane because its content is a form,
-          a table and a chart, none of which the indicator pane machinery is for. */}
+      {/* Docked under the plot — the position the request asked for ("comme l'indicateur MACD"),
+          and the right one: a strategy is read against the candles above it. A React panel rather
+          than a canvas pane because its content is a form, a table and a chart, none of which the
+          indicator pane machinery is for. */}
       {openStrategy && (
         <ChartStrategyPanel
           scriptName={openStrategy.name}
@@ -1258,11 +1284,14 @@ export function CandlestickChart({
           running={scriptingState.runOutputs[openStrategy.id]?.running ?? false}
           settings={openStrategy.strategySettings ?? DEFAULT_STRATEGY_SETTINGS}
           onSettingsChange={(next) => scriptingState.setStrategySettings(openStrategy.id, next)}
-          onClose={() => setOpenStrategyId(null)}
+          onClose={closeStrategyPanel}
           formatDate={dFmt}
-          width={dims.width}
+          initialWidth={dims.width}
         />
       )}
+      </div>
+      {rightColumnProps && <ChartSidePaneColumn {...rightColumnProps} />}
+      </div>
 
       {isMobileRail && !seasonalityOpen && toolsRail}
 

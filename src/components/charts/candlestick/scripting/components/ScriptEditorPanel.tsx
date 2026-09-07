@@ -1,4 +1,5 @@
 import { analyzeScriptVariables } from "../scriptVariables";
+import { shortcutLabel } from "../../../internal/platformShortcut";
 import type { ScriptParam, ScriptParamValue } from "../../interfaces/ScriptParam.interface";
 import { ScriptParamsFields } from "./ScriptParamsFields";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
@@ -14,7 +15,7 @@ import {
   SearchIcon,
   RefreshIcon,
   PlusIcon,
-  TrashIcon,
+  CloseIcon,
   EyeIcon,
   EyeOffIcon,
   HelpIcon,
@@ -23,6 +24,7 @@ import {
 } from "../../../../icons";
 import type { Candle } from "../../interfaces/Candle.interface";
 import type { ScriptDef, ScriptFile } from "../../interfaces/ScriptDef.interface";
+import type { ScriptDraft } from "../../hooks/useScriptingState";
 import type { ScriptRunOutput } from "../interfaces/ScriptRunOutput.interface";
 import { isCellInstrumentationLog } from "../scriptCellSentinels";
 import { ScriptErrorPanel } from "./ScriptErrorPanel";
@@ -38,11 +40,18 @@ export interface ScriptEditorPanelProps {
   open: boolean;
   onClose: () => void;
   scripts: ScriptDef[];
+  /** Which scripts have a tab. Everything else lives behind the search field — see the tab strip. */
+  openScriptIds: string[];
+  openScript: (id: string) => void;
+  /** Closes a tab. Never deletes: that is `removeScript`, reached from the picker instead. */
+  closeScript: (id: string) => void;
+  /** Unsaved buffers by script id, absent once saved (see `ScriptDraft`). */
+  drafts: Record<string, ScriptDraft>;
+  setScriptDraft: (id: string, draft: ScriptDraft | null) => void;
   activeScriptId: string | null;
   setActiveScriptId: (id: string | null) => void;
   addScript: (name?: string, code?: string) => string;
   updateScript: (id: string, patch: Partial<Omit<ScriptDef, "id">>) => void;
-  removeScript: (id: string) => void;
   toggleScriptEnabled: (id: string) => void;
   runScript: (id: string, code: string, files?: ScriptFile[]) => void;
   stopScript: (id: string) => void;
@@ -87,11 +96,15 @@ export function ScriptEditorPanel({
   open,
   onClose,
   scripts,
+  openScriptIds,
+  openScript,
+  closeScript,
+  drafts,
+  setScriptDraft,
   activeScriptId,
   setActiveScriptId,
   addScript,
   updateScript,
-  removeScript,
   toggleScriptEnabled,
   runScript,
   stopScript,
@@ -102,12 +115,37 @@ export function ScriptEditorPanel({
   previewData,
 }: ScriptEditorPanelProps) {
   const activeScript = scripts.find((s) => s.id === activeScriptId) ?? null;
-  const [draft, setDraft] = useState(activeScript?.code ?? "");
+  // The edit buffer for whichever tab is active, read from the per-script drafts the scripting
+  // state holds and falling back to what is committed. Per-script rather than one buffer for the
+  // active tab, which is what this used to be: switching tabs reseeded that single buffer from the
+  // newly-active script, so edits on the tab being left were silently discarded — and no tab could
+  // report itself unsaved, because nothing remembered that it was.
+  const activeDraft = activeScriptId === null ? undefined : drafts[activeScriptId];
+  const draft = activeDraft?.code ?? activeScript?.code ?? "";
   // A script's extra files, drafted the same way the entry is: edited here, committed to the
   // ScriptDef only on save. `activeFile` is the *name* of the file being edited, or `null` for the
   // entry — a name rather than an index so adding or removing a file can't silently move the
   // selection onto a different one.
-  const [draftFiles, setDraftFiles] = useState<ScriptFile[]>(activeScript?.files ?? []);
+  // Memoized because the `?? []` fallback would otherwise be a fresh array every render, which is
+  // enough on its own to invalidate every useMemo downstream that reads it.
+  const draftFiles = useMemo(() => activeDraft?.files ?? activeScript?.files ?? [], [activeDraft?.files, activeScript?.files]);
+
+  function setDraft(next: string) {
+    if (activeScript) setScriptDraft(activeScript.id, { code: next, files: draftFiles });
+  }
+  // Same call shape the useState setter had, so every existing call site reads unchanged.
+  function setDraftFiles(update: ScriptFile[] | ((files: ScriptFile[]) => ScriptFile[])) {
+    if (activeScript) setScriptDraft(activeScript.id, { code: draft, files: typeof update === "function" ? update(draftFiles) : update });
+  }
+
+  /** Whether a script has edits that have not been committed. A draft entry exists only while
+   *  something has been typed, so this is normally just a lookup; the comparison covers the case
+   *  where an edit was typed and then undone back to the saved text, which should stop counting
+   *  as unsaved. */
+  function isScriptDirty(s: ScriptDef): boolean {
+    const d = drafts[s.id];
+    return d !== undefined && (d.code !== s.code || JSON.stringify(d.files) !== JSON.stringify(s.files ?? []));
+  }
   const [activeFile, setActiveFile] = useState<string | null>(null);
   const [fileModal, setFileModal] = useState<{ mode: "add" | "rename"; target: string | null } | null>(null);
   const [fileNameValue, setFileNameValue] = useState("");
@@ -196,6 +234,43 @@ export function hello() {
   // outcomes), a script only ever has one identity to rename/save, so there's nothing for the two
   // triggers to actually do differently once the modal is open.
   const [modal, setModal] = useState<"name" | "nameSaveAs" | null>(null);
+  // The tab whose close is waiting on an answer, when closing it would drop unsaved edits.
+  const [closingScriptId, setClosingScriptId] = useState<string | null>(null);
+  const closingScript = scripts.find((s) => s.id === closingScriptId) ?? null;
+  // Finds a script that is not currently open, so one written earlier can be brought back without
+  // scrolling a tab strip that only ever shows what is being worked on.
+  const [search, setSearch] = useState("");
+  const searchResults = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (q === "") return [];
+    return scripts.filter((s) => s.name.toLowerCase().includes(q)).slice(0, 12);
+  }, [search, scripts]);
+
+  // Opening the editor onto no tabs at all would be a blank window with a search field, which is
+  // the wrong first impression when scripts exist. Seeded once per opening — guarded by the ref so
+  // closing the last tab on purpose is not immediately undone, the same trap the strategy panel's
+  // own auto-open fell into.
+  const seededTabsRef = useRef(false);
+  useEffect(() => {
+    if (!open) {
+      seededTabsRef.current = false;
+      return;
+    }
+    if (seededTabsRef.current) return;
+    seededTabsRef.current = true;
+    if (openScriptIds.length > 0 || scripts.length === 0) return;
+    const preferred = activeScriptId !== null && scripts.some((s) => s.id === activeScriptId) ? activeScriptId : scripts[scripts.length - 1].id;
+    openScript(preferred);
+    // Runs on the open/close transition only; everything else it reads is deliberately a snapshot.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  /** Closing a tab discards its buffer, so a dirty one asks first. A clean one just closes —
+   *  there is nothing to lose and nothing to warn about. */
+  function requestCloseTab(s: ScriptDef) {
+    if (isScriptDirty(s)) setClosingScriptId(s.id);
+    else closeScript(s.id);
+  }
   const [nameValue, setNameValue] = useState("");
   // Briefly swaps the Save button's own icon to a checkmark — same silent-action feedback
   // TemplateControls' own Save button gives (see its own `justSaved` doc).
@@ -222,6 +297,7 @@ export function hello() {
     const trimmed = nameValue.trim();
     if (!trimmed || nameCollision) return;
     updateScript(activeScript.id, { name: trimmed, code: draft, files: draftFiles, named: true });
+    setScriptDraft(activeScript.id, null);
     setModal(null);
     flashSaved();
   }
@@ -238,6 +314,7 @@ export function hello() {
       return;
     }
     updateScript(activeScript.id, { code: draft, files: draftFiles });
+    setScriptDraft(activeScript.id, null);
     flashSaved();
   }
 
@@ -321,15 +398,11 @@ export function hello() {
     setTargetPickerOpen(false);
   }
 
-  // Switching tabs (or the active script's own saved code changing from outside, e.g. Reset)
-  // reseeds the draft — `activeScriptId` is the trigger, not `activeScript?.code` itself, so
-  // typing in the editor (which only ever changes `draft`, never `activeScript.code` directly)
-  // never fights this effect.
+  // Only the file selection resets when the tab changes; the buffer itself is per-script now and
+  // survives being switched away from. `activeFile` is a name within one script, so carrying it to
+  // the next tab would point at a file that script may not have.
   useEffect(() => {
-    setDraft(activeScript?.code ?? "");
-    setDraftFiles(activeScript?.files ?? []);
     setActiveFile(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeScriptId]);
 
   // Forwards this script's own "latest run result" into the editor's own notebook cell-output
@@ -347,9 +420,7 @@ export function hello() {
   if (!open) return null;
 
   const output = activeScriptId ? runOutputs[activeScriptId] : undefined;
-  const isDirty =
-    activeScript !== null &&
-    (draft !== activeScript.code || JSON.stringify(draftFiles) !== JSON.stringify(activeScript.files ?? []));
+  const isDirty = activeScript !== null && isScriptDirty(activeScript);
 
   return (
     <ScriptEditorWindow
@@ -371,15 +442,29 @@ export function hello() {
       toolbar={
         <>
           <div className="lq-script-editor-panel__tabs">
-            {scripts.map((s) => (
+            {/* Open tabs only — a chart with twenty saved scripts is not twenty tabs. The rest are
+                reached through the search field at the end of this strip. */}
+            {openScriptIds.map((id) => scripts.find((s) => s.id === id)).map((s) =>
+              s === undefined ? null : (
               <div
                 key={s.id}
-                className={["lq-script-editor-panel__tab", s.id === activeScriptId && "lq-script-editor-panel__tab--active"]
+                className={[
+                  "lq-script-editor-panel__tab",
+                  s.id === activeScriptId && "lq-script-editor-panel__tab--active",
+                  isScriptDirty(s) && "lq-script-editor-panel__tab--dirty",
+                ]
                   .filter(Boolean)
                   .join(" ")}
                 onClick={() => setActiveScriptId(s.id)}
               >
                 <span className="lq-script-editor-panel__tab-name">{s.name}</span>
+                {/* Unsaved edits, said twice over: a dot for the glance, and the accessible name
+                    for anyone the dot never reaches. */}
+                {isScriptDirty(s) && (
+                  <span className="lq-script-editor-panel__tab-dirty" title="Modifications non enregistrées">
+                    <span className="lq-visually-hidden">Modifications non enregistrées</span>
+                  </span>
+                )}
                 <button
                   type="button"
                   className="lq-script-editor-panel__tab-action"
@@ -392,20 +477,23 @@ export function hello() {
                 >
                   {s.enabled === false ? <EyeOffIcon size={12} /> : <EyeIcon size={12} />}
                 </button>
+                {/* Closes the tab, not the script. Deleting is a different, heavier action and
+                    lives in the indicator picker, where what is being deleted is visible. */}
                 <button
                   type="button"
                   className="lq-script-editor-panel__tab-action"
                   onClick={(e) => {
                     e.stopPropagation();
-                    removeScript(s.id);
+                    requestCloseTab(s);
                   }}
-                  aria-label="Supprimer ce script"
-                  title="Supprimer ce script"
+                  aria-label={`Fermer l'onglet ${s.name}`}
+                  title="Fermer l'onglet"
                 >
-                  <TrashIcon size={12} />
+                  <CloseIcon size={11} />
                 </button>
               </div>
-            ))}
+              ),
+            )}
             <button
               type="button"
               className="lq-script-editor-panel__add-tab"
@@ -415,6 +503,46 @@ export function hello() {
             >
               <PlusIcon size={14} />
             </button>
+            <div className="lq-script-editor-panel__tab-search">
+              <SearchIcon size={12} />
+              <input
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Rechercher un script…"
+                aria-label="Rechercher un indicateur ou une stratégie déjà écrit"
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") setSearch("");
+                  // Enter opens the first match, so a search can be finished without the mouse.
+                  if (e.key === "Enter" && searchResults[0]) {
+                    openScript(searchResults[0].id);
+                    setSearch("");
+                  }
+                }}
+              />
+              {searchResults.length > 0 && (
+                <ul className="lq-script-editor-panel__tab-search-results">
+                  {searchResults.map((s) => (
+                    <li key={s.id}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          openScript(s.id);
+                          setSearch("");
+                        }}
+                      >
+                        <span className="lq-script-editor-panel__tab-search-name">{s.name}</span>
+                        {/* Says what will happen: an already-open script is focused, not duplicated. */}
+                        {openScriptIds.includes(s.id) && <span className="lq-script-editor-panel__tab-search-hint">ouvert</span>}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {search.trim() !== "" && searchResults.length === 0 && (
+                <p className="lq-script-editor-panel__tab-search-empty">Aucun script à ce nom.</p>
+              )}
+            </div>
           </div>
 
           {activeScript && (
@@ -436,7 +564,7 @@ export function hello() {
                 type="button"
                 className="lq-script-editor-panel__toolbar-button"
                 onClick={() => codeMirrorRef.current?.openSearch()}
-                title="Rechercher et remplacer dans le script (Ctrl+F)"
+                title={`Rechercher et remplacer dans le script (${shortcutLabel("F")})`}
               >
                 <SearchIcon size={13} /> Rechercher
               </button>
@@ -484,7 +612,7 @@ export function hello() {
                 className="lq-script-editor-panel__toolbar-button"
                 onClick={handleSaveClick}
                 disabled={activeScript.named && !isDirty}
-                title="Enregistrer (Ctrl+S)"
+                title={`Enregistrer (${shortcutLabel("S")})`}
               >
                 {justSaved ? <CheckIcon size={13} /> : <SaveIcon size={13} />} Enregistrer
               </button>
@@ -502,7 +630,7 @@ export function hello() {
               <button
                 type="button"
                 className="lq-script-editor-panel__toolbar-button"
-                onClick={() => setDraft(activeScript.code)}
+                onClick={() => setScriptDraft(activeScript.id, null)}
                 disabled={!isDirty}
               >
                 <RefreshIcon size={13} /> Réinitialiser
@@ -627,6 +755,51 @@ export function hello() {
               <code>{`import { … } from "./${normalizedFileName}";`}</code>
             </p>
           )}
+        </Modal>
+      )}
+
+      {closingScript !== null && (
+        <Modal
+          open
+          onClose={() => setClosingScriptId(null)}
+          title="Script non enregistré"
+          footer={
+            <div className="lq-chart__edit-drawing-footer">
+              <button type="button" className="lq-chart__reset-button" onClick={() => setClosingScriptId(null)}>
+                Annuler
+              </button>
+              {/* Only for a script that already has a name: a first save has to ask for one, which
+                  is a prompt of its own and not something to run from inside this one. */}
+              {closingScript.named && (
+                <button
+                  type="button"
+                  className="lq-chart__reset-button"
+                  onClick={() => {
+                    const d = drafts[closingScript.id];
+                    if (d) updateScript(closingScript.id, { code: d.code, files: d.files });
+                    closeScript(closingScript.id);
+                    setClosingScriptId(null);
+                  }}
+                >
+                  Enregistrer et fermer
+                </button>
+              )}
+              <button
+                type="button"
+                className="lq-chart__confirm-button"
+                onClick={() => {
+                  closeScript(closingScript.id);
+                  setClosingScriptId(null);
+                }}
+              >
+                Fermer sans enregistrer
+              </button>
+            </div>
+          }
+        >
+          <p className="lq-script-editor-panel__confirm-text">
+            « {closingScript.name} » a des modifications qui n&apos;ont pas été enregistrées. Fermer l&apos;onglet les abandonne.
+          </p>
         </Modal>
       )}
 

@@ -1,0 +1,54 @@
+/* Positioned against `.lq-chart__main`, which is the chart's own positioned root — the same
+   ancestor the event-detail overlay uses, so the menu can cover the header and the axes the way a
+   native one covers whatever is under it. */
+.lq-chart__context-menu {
+  position: absolute;
+  z-index: 1200;
+  min-width: 210px;
+  padding: 4px;
+  border: 1px solid var(--lq-color-border);
+  border-radius: var(--lq-radius-sm, 4px);
+  background-color: var(--lq-color-panel);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 22%);
+  font-size: var(--lq-text-sm);
+  user-select: none;
+}
+
+.lq-chart__context-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lq-space-4);
+  width: 100%;
+  padding: 5px var(--lq-space-2);
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.lq-chart__context-menu-item:hover:not(:disabled),
+.lq-chart__context-menu-item:focus-visible {
+  background-color: var(--lq-color-hover);
+  outline: none;
+}
+
+.lq-chart__context-menu-item:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.lq-chart__context-menu-hint {
+  color: var(--lq-color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.lq-chart__context-menu-separator {
+  height: 1px;
+  margin: 4px 2px;
+  background-color: var(--lq-color-border-subtle);
+}

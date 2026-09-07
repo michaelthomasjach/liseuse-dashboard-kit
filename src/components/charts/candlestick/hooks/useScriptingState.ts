@@ -2,6 +2,13 @@ import type { StrategySettings } from "../interfaces/StrategySettings.interface"
 import type { ScriptParamValue } from "../interfaces/ScriptParam.interface";
 import { useCallback, useMemo, useRef, useState } from "react";
 import type { ScriptDef, ScriptFile } from "../interfaces/ScriptDef.interface";
+
+/** One script's unsaved editor buffer — its entry code plus its extra files, exactly the two
+ *  fields `updateScript` commits on save. */
+export interface ScriptDraft {
+  code: string;
+  files: ScriptFile[];
+}
 import type { ScriptRunOutput } from "../scripting/interfaces/ScriptRunOutput.interface";
 import type { ScriptTableOutput } from "../scripting/interfaces/ScriptRunResult.interface";
 
@@ -61,6 +68,17 @@ export function useScriptingState({ defaultScripts, onScriptsChange, controlledE
   const editorOpen = controlledEditorOpen?.editorOpen ?? internalEditorOpen;
   const setEditorOpen = controlledEditorOpen?.onChange ?? setInternalEditorOpen;
   const [activeScriptId, setActiveScriptId] = useState<string | null>(null);
+  // Which scripts have a tab in the editor. Deliberately *not* "every script": a chart that has
+  // accumulated twenty saved indicators should not open onto twenty tabs, any more than an IDE
+  // opens every file in a project. The rest are reached through the editor's own search field.
+  const [rawOpenScriptIds, setRawOpenScriptIds] = useState<string[]>([]);
+  // Unsaved buffers, one per script, keyed by id and absent once saved — so "is this script
+  // dirty" is exactly "does it have an entry here that differs from what is committed".
+  //
+  // Held here rather than inside the editor panel, which unmounts whenever the window closes:
+  // a draft that evaporates on closing the window would make the unsaved marker on its tab a
+  // promise the app does not keep.
+  const [drafts, setDrafts] = useState<Record<string, ScriptDraft>>({});
   const [runOutputs, setRunOutputs] = useState<Record<string, ScriptRunOutput>>({});
   const scriptIdRef = useRef(0);
 
@@ -83,6 +101,7 @@ export function useScriptingState({ defaultScripts, onScriptsChange, controlledE
   function addScript(name = "Nouveau script", code = "", rest?: Partial<Omit<ScriptDef, "id" | "name" | "code">>): string {
     const id = `script-${scriptIdRef.current++}`;
     commitScripts([...scripts, { id, name, code, enabled: true, ...rest }]);
+    setRawOpenScriptIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
     setActiveScriptId(id);
     setEditorOpen(true);
     return id;
@@ -92,8 +111,57 @@ export function useScriptingState({ defaultScripts, onScriptsChange, controlledE
     commitScripts(scripts.map((s) => (s.id === id ? { ...s, ...patch } : s)));
   }
 
+  /** Opens a script's tab (and focuses it), adding it if it was not already open. */
+  const openScript = useCallback((id: string) => {
+    setRawOpenScriptIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
+    setActiveScriptId(id);
+    setEditorOpen(true);
+    // `setEditorOpen` is either local state or the caller's own setter; neither changes identity in
+    // a way that should re-create this.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /** Closes a tab without touching the script itself — the editor's own close button, as distinct
+   *  from `removeScript`, which deletes. Focus moves to the neighbouring tab so closing the active
+   *  one does not leave the editor blank while other tabs are still open. */
+  const closeScript = useCallback((id: string) => {
+    setRawOpenScriptIds((prev) => {
+      const i = prev.indexOf(id);
+      if (i === -1) return prev;
+      const next = prev.filter((x) => x !== id);
+      setActiveScriptId((current) => (current === id ? next[Math.min(i, next.length - 1)] ?? null : current));
+      return next;
+    });
+    setDrafts((prev) => {
+      if (!(id in prev)) return prev;
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+  }, []);
+
+  /** Records (or, with `null`, discards) a script's unsaved buffer. */
+  const setScriptDraft = useCallback((id: string, draft: ScriptDraft | null) => {
+    setDrafts((prev) => {
+      if (draft === null) {
+        if (!(id in prev)) return prev;
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      }
+      return { ...prev, [id]: draft };
+    });
+  }, []);
+
   function removeScript(id: string) {
     commitScripts(scripts.filter((s) => s.id !== id));
+    setRawOpenScriptIds((prev) => prev.filter((x) => x !== id));
+    setDrafts((prev) => {
+      if (!(id in prev)) return prev;
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
     setRunOutputs((prev) => {
       if (!(id in prev)) return prev;
       const next = { ...prev };
@@ -180,8 +248,18 @@ export function useScriptingState({ defaultScripts, onScriptsChange, controlledE
   // label's already-resolved paneId, never across scripts.
   const scriptLabels = useMemo(() => Object.values(runOutputs).flatMap((o) => o.labels), [runOutputs]);
 
+  // Pruned rather than kept in sync by an effect: a script can disappear from under this hook at
+  // any time (deleted here, or dropped by a caller that owns `scripts`), and deriving the open set
+  // means a stale id can never outlive the script it points at, even for one render.
+  const openScriptIds = useMemo(() => rawOpenScriptIds.filter((id) => scripts.some((s) => s.id === id)), [rawOpenScriptIds, scripts]);
+
   return {
     scripts,
+    openScriptIds,
+    openScript,
+    closeScript,
+    drafts,
+    setScriptDraft,
     commitScripts,
     addScript,
     updateScript,

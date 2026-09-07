@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { shortcutLabel } from "../../internal/platformShortcut";
 import { Modal } from "../../../primitives/Modal";
 import { DropdownPanel } from "../../../primitives/DropdownPanel";
 import { TextField } from "../../../forms/TextField";
@@ -174,8 +175,8 @@ export function TemplateControls({ templates, activeTemplateId, isDirty, onSave,
           type="button"
           className="lq-chart__icon-button"
           onClick={handleSaveClick}
-          aria-label={activeTemplateId ? "Enregistrer le modèle (Ctrl+S)" : "Enregistrer comme nouveau modèle (Ctrl+S)"}
-          title={activeTemplateId ? "Enregistrer le modèle (Ctrl+S)" : "Enregistrer comme nouveau modèle (Ctrl+S)"}
+          aria-label={activeTemplateId ? `Enregistrer le modèle (${shortcutLabel("S")})` : `Enregistrer comme nouveau modèle (${shortcutLabel("S")})`}
+          title={activeTemplateId ? `Enregistrer le modèle (${shortcutLabel("S")})` : `Enregistrer comme nouveau modèle (${shortcutLabel("S")})`}
         >
           {justSaved ? <CheckIcon size={14} /> : <SaveIcon size={14} />}
         </button>

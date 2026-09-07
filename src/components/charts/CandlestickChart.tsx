@@ -77,6 +77,7 @@ export type {
 import { drawingLabel } from "./candlestick/drawingCatalog";
 import { indicatorCatalogEntry, indicatorLabel, defaultIndicatorColor } from "./candlestick/indicatorCatalog";
 import { drawingAxisAnnotations, indicatorAxisAnnotations } from "./candlestick/axisAnnotations";
+import { ChartContextMenu, type ChartContextMenuItem } from "./candlestick/components/ChartContextMenu";
 import { CHART_DISPLAY_MODES } from "./candlestick/chartModes";
 import { findTimeframeLabel, flattenTimeframeValues } from "./candlestick/timeframes";
 import {
@@ -360,6 +361,33 @@ export function CandlestickChart({
       return current;
     });
   }, [strategyScripts]);
+  // Where the right-click landed, in both coordinate spaces the menu needs: `menuX/menuY` against
+  // the chart's own positioned root (to place the menu), `price`/`index` against the plot's own
+  // scales (to say what the commands will act on). Captured at click time rather than read from
+  // hover state when a command runs — by then the pointer has moved onto the menu itself.
+  const [contextMenu, setContextMenu] = useState<{ menuX: number; menuY: number; price: number; index: number; bounds: { width: number; height: number } } | null>(null);
+  const mainRef = useRef<HTMLDivElement | null>(null);
+
+  function handlePlotContextMenu(e: React.MouseEvent<HTMLDivElement>) {
+    const main = mainRef.current;
+    const plot = ref.current;
+    if (!main || !plot) return;
+    e.preventDefault();
+    const mainRect = main.getBoundingClientRect();
+    const plotRect = plot.getBoundingClientRect();
+    const plotY = e.clientY - plotRect.top;
+    setContextMenu({
+      menuX: e.clientX - mainRect.left,
+      menuY: e.clientY - mainRect.top,
+      price: zoomedPriceScale.invert(plotY),
+      index: Math.round(zoomedXScale.invert(e.clientX - plotRect.left) - 0.5),
+      // The box the menu has to stay inside is the element it is positioned against, measured
+      // here rather than reconstructed from `dims` — `dims` describes the plot alone, and this
+      // root also holds the header, the docked columns and the strategy tester.
+      bounds: { width: mainRect.width, height: mainRect.height },
+    });
+  }
+
   const strategyScriptIds = useMemo(() => strategyScripts.map((s) => s.id), [strategyScripts]);
   const closeStrategyPanel = useCallback(() => setOpenStrategyId(null), []);
   // Open it, or close it if this same strategy's panel is already the one showing.
@@ -877,6 +905,72 @@ export function CandlestickChart({
   // Every price-axis-pinned badge reads through this instead of `pFmt` directly, so they always
   // agree with the axis right beside them (same compareMode check as its own tickFormat).
   const priceAxisFmt = (v: number) => (compareMode ? formatPercentFromReference(v, overlayProjections[0]?.mainReference ?? v) : pFmt(v));
+
+  // What the right-click menu offers. Rebuilt per render rather than memoized: it closes over a
+  // dozen handlers that are fresh every render anyway, and it is only ever read while a menu is
+  // actually open.
+  const contextMenuCandle = contextMenu === null ? null : data[Math.max(0, Math.min(data.length - 1, contextMenu.index))] ?? null;
+  const contextMenuDrawing = (() => {
+    const id = hoveredDrawingId ?? selectedDrawingId;
+    return id === null ? null : drawings.find((d) => d.id === id) ?? null;
+  })();
+  const contextMenuItems: ChartContextMenuItem[] = contextMenu === null ? [] : [
+    // Object commands first, and only when the click actually landed on one — a menu whose top
+    // item changes meaning depending on where you clicked is exactly what a context menu is for.
+    ...(contextMenuDrawing === null
+      ? []
+      : ([
+          { label: "Modifier le dessin…", onSelect: () => setEditingId(contextMenuDrawing.id) },
+          { label: "Supprimer le dessin", onSelect: () => commitDrawings(drawings.filter((d) => d.id !== contextMenuDrawing.id)) },
+          { separator: true },
+        ] as ChartContextMenuItem[])),
+    {
+      label: "Ligne horizontale ici",
+      hint: priceAxisFmt(contextMenu.price),
+      onSelect: () =>
+        commitDrawings([
+          ...drawings,
+          {
+            id: `drawing-${drawingIdRef.current++}`,
+            x1: data[0].date,
+            y1: contextMenu.price,
+            x2: data[data.length - 1].date,
+            y2: contextMenu.price,
+            lineType: "horizontal",
+          },
+        ]),
+    },
+    {
+      label: "Ligne verticale ici",
+      hint: contextMenuCandle ? dFmt(contextMenuCandle.date) : undefined,
+      disabled: contextMenuCandle === null,
+      onSelect: () => {
+        if (!contextMenuCandle) return;
+        const [p0, p1] = priceScale.domain() as [number, number];
+        commitDrawings([
+          ...drawings,
+          { id: `drawing-${drawingIdRef.current++}`, x1: contextMenuCandle.date, y1: p0, x2: contextMenuCandle.date, y2: p1, lineType: "vertical" },
+        ]);
+      },
+    },
+    { separator: true },
+    // Reading a number off a chart and retyping it is the small friction every trading tool has.
+    { label: "Copier le prix", onSelect: () => void navigator.clipboard?.writeText(priceAxisFmt(contextMenu.price)) },
+    {
+      label: "Copier la date",
+      disabled: contextMenuCandle === null,
+      onSelect: () => void (contextMenuCandle && navigator.clipboard?.writeText(dFmt(contextMenuCandle.date))),
+    },
+    { separator: true },
+    { label: "Ajouter un indicateur…", onSelect: () => setIndicatorPickerOpen(true) },
+    { separator: true },
+    { label: "Réinitialiser le zoom", hint: "Espace", onSelect: () => resetZoom() },
+    ...(fullscreenToggle
+      ? ([{ label: isFullscreen ? "Quitter le plein écran" : "Plein écran", onSelect: () => toggleFullscreen() }] as ChartContextMenuItem[])
+      : []),
+    { separator: true },
+    { label: "Paramètres du graphique…", onSelect: () => setSettingsOpen(true) },
+  ];
   const currentTimeframeLabel = findTimeframeLabel(timeframes, timeframe);
   const currentModeEntry = CHART_DISPLAY_MODES.find((m) => m.mode === chartDisplayMode) ?? CHART_DISPLAY_MODES[0];
   // The top-left legend's own indicators — price overlays only, `ownPaneIndicators` (RSI/CHOP/
@@ -936,7 +1030,7 @@ export function CandlestickChart({
       className={["lq-chart", isFullscreen && "lq-chart--fullscreen", placementActive && "lq-chart--placing", className].filter(Boolean).join(" ")}
       style={{ width: isFullscreen ? undefined : width }}
     >
-      <div className="lq-chart__main">
+      <div ref={mainRef} className="lq-chart__main">
       {showHeader && !seasonalityOpen && (
         <ChartHeader
           timeframes={timeframes}
@@ -1020,7 +1114,7 @@ export function CandlestickChart({
           tester's own height comes off the candles the way a docked pane's does and every
           downstream axis/margin measurement keeps meaning what it did. */}
       <div className="lq-chart__plot-stack">
-      <div ref={ref} className="lq-chart__plot-column">
+      <div ref={ref} className="lq-chart__plot-column" onContextMenu={handlePlotContextMenu}>
       {seasonalityOpen ? (
         <SeasonalityView data={data} symbol={symbol} onBack={() => setSeasonalityOpen(false)} showHeader={showHeader} height={plotHeight} mobile={isNarrowLayout} />
       ) : (
@@ -1300,6 +1394,16 @@ export function CandlestickChart({
           header+plot together, same footprint as the native fullscreen overlay; not the side
           panel too, which isn't part of what this event happened on. Closing it also clears
           activeEventStack so the popover doesn't reappear once the replacing modal is dismissed. */}
+      {contextMenu !== null && (
+        <ChartContextMenu
+          x={contextMenu.menuX}
+          y={contextMenu.menuY}
+          bounds={contextMenu.bounds}
+          onClose={() => setContextMenu(null)}
+          items={contextMenuItems}
+        />
+      )}
+
       {eventModalOpen && activeEventStack && (
         <ChartEventTooltip
           events={activeEventStack.events}

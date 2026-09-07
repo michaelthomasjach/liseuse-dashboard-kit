@@ -1336,7 +1336,11 @@ export function ChartWorkspace({
           setActiveScriptId={workspaceScripting.setActiveScriptId}
           addScript={workspaceScripting.addScript}
           updateScript={workspaceScripting.updateScript}
-          removeScript={workspaceScripting.removeScript}
+          openScriptIds={workspaceScripting.openScriptIds}
+          openScript={workspaceScripting.openScript}
+          closeScript={workspaceScripting.closeScript}
+          drafts={workspaceScripting.drafts}
+          setScriptDraft={workspaceScripting.setScriptDraft}
           setScriptParamValue={workspaceScripting.setScriptParamValue}
           resetScriptParamValues={workspaceScripting.resetScriptParamValues}
           toggleScriptEnabled={workspaceScripting.toggleScriptEnabled}

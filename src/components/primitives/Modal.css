@@ -65,7 +65,11 @@
 
 .lq-modal__header {
   display: flex;
-  align-items: flex-start;
+  /* Centred, so the close button sits on the title's own middle rather than sharing its top edge —
+     the two have different heights, so `flex-start` left the cross visibly high. A title that
+     wraps to two lines still centres against them as a block, which is what "aligned with the
+     title" means once there is more than one line of it. */
+  align-items: center;
   justify-content: space-between;
   gap: var(--lq-space-3);
   border-bottom: none;

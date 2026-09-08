@@ -3124,3 +3124,13 @@
 .lq-chart__external-fill-badge--down {
   background-color: var(--lq-color-down);
 }
+
+/* Inside a modal the display-mode list is body content, not a popover, so its rows line up with
+   the labels above them instead of sitting 8px inside everything else. The horizontal padding is
+   dropped rather than the whole rule: the vertical padding still separates the list from what is
+   above and below it, and the popover use of this class — where the inset is right, because it is
+   a floating panel with its own edges — is untouched. */
+.lq-modal .lq-chart__display-mode-menu {
+  padding-left: 0;
+  padding-right: 0;
+}

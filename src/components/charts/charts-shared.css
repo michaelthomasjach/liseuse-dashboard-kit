@@ -1507,6 +1507,16 @@
   flex: 1;
   min-width: 0;
   justify-content: center;
+  /* `.lq-chart__reset-button`'s own metrics are a toolbar chip's — 26px tall, 0.7rem text — which
+     is right beside a zoom control and wrong beside the confirm button it is paired with in a
+     modal footer, where it came out visibly shorter with smaller text. Matched to
+     `.lq-chart__confirm-button` here so the two read as one pair of choices; `height: auto` is what
+     lets the shared padding decide, instead of the base rule's fixed height winning. */
+  height: auto;
+  padding: var(--lq-space-2) var(--lq-space-3);
+  font-size: 0.85rem;
+  font-weight: 700;
+  border-radius: var(--lq-radius-md);
 }
 
 .lq-chart__edit-drawing-footer .lq-chart__confirm-button {

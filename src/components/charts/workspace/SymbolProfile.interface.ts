@@ -1,3 +1,4 @@
+import type { SymbolFinancials } from "./SymbolFinancials.interface";
 /** One "1S"/"1M"/"3M"/"6M"/"YTD"/"1A"-style tile in a `SymbolProfile`'s own `performance` grid —
  *  `label` is a plain string (not a fixed enum) so a caller can use whatever set of horizons makes
  *  sense for their own data, in whatever language, rather than being locked into six specific
@@ -91,4 +92,9 @@ export interface SymbolProfile {
   /** Recent (and, with `actualEps` left unset, upcoming) quarterly EPS — estimate vs. actual,
    *  shown as a small dot chart. */
   earnings?: SymbolProfileEarningsPoint[];
+  /** The financial detail behind this symbol — statements, statistics, dividends, earnings and
+   *  segments — rendered as tabs in the details modal. Supplied by the application like every
+   *  other data prop here; each section is optional and its tab only appears when its data does.
+   *  See `SymbolFinancials`. */
+  financials?: SymbolFinancials;
 }

@@ -1660,3 +1660,30 @@
   color: var(--lq-color-text);
   background-color: var(--lq-color-hover);
 }
+
+/* "Afficher plus de détails", under the earnings chart — a full-width row rather than a chip,
+   since it opens a whole page of detail rather than toggling something. */
+.lq-chart-workspace__symbol-profile-more {
+  width: 100%;
+  margin-top: var(--lq-space-2);
+  padding: 6px var(--lq-space-3);
+  border: 1px solid var(--lq-color-border-subtle);
+  border-radius: var(--lq-radius-sm);
+  background-color: transparent;
+  color: var(--lq-color-text);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.lq-chart-workspace__symbol-profile-more:hover {
+  background-color: var(--lq-color-hover);
+}
+
+/* Title and its detach button on one line in the details modal's own header. */
+.lq-chart-workspace__symbol-profile-modal-title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lq-space-2);
+}

@@ -4,7 +4,9 @@ import { Sparkline } from "../Sparkline";
 import { EarningsDotChart } from "../EarningsDotChart";
 import { LineAreaChart } from "../LineAreaChart";
 import type { ChartPoint } from "../LineAreaChart";
-import { MaximizeIcon } from "../../icons";
+import { MaximizeIcon, DetachWindowIcon } from "../../icons";
+import { SymbolFinancialsView } from "./SymbolFinancialsView";
+import { DetachedWindow } from "../candlestick/components/DetachedWindow";
 import { Modal } from "../../primitives/Modal";
 import { PRICE_AXIS_WIDTH_MOBILE } from "../candlestick/constants";
 import type { Candle } from "../candlestick/interfaces/Candle.interface";
@@ -89,6 +91,18 @@ export function SymbolProfilePanel({
   const [priceRange, setPriceRange] = useState(DEFAULT_PRICE_RANGE);
   const [fullscreenOpen, setFullscreenOpen] = useState(false);
   const [earningsModalOpen, setEarningsModalOpen] = useState(false);
+  // The details torn off into a browser window of its own, so they can sit beside the chart rather
+  // than over it.
+  const [detachedWindow, setDetachedWindow] = useState<Window | null>(null);
+
+  /** Opened inside the click, never from an effect: a `window.open` that runs after the gesture has
+   *  ended is treated as an unsolicited popup and blocked. */
+  function detachDetails() {
+    const child = window.open("", "", "width=1200,height=900");
+    if (child === null) return;
+    setFullscreenOpen(false);
+    setDetachedWindow(child);
+  }
   // Every range resolved at once rather than just the selected one — the buttons need to know
   // which of them have anything to show (a daily-candle history has exactly one point in "1D",
   // which is a flat nothing, not a curve), and there are seven cheap filters over one array here,
@@ -122,6 +136,17 @@ export function SymbolProfilePanel({
             together on the right rather than spreading three items across the row. */}
         <span className="lq-chart-workspace__symbol-profile-header-actions">
           {profile?.marketStatus && <span className="lq-chart-workspace__symbol-profile-status">{profile.marketStatus}</span>}
+          {expandable && (
+            <button
+              type="button"
+              className="lq-chart-workspace__symbol-profile-expand"
+              onClick={detachDetails}
+              aria-label="Ouvrir les détails dans une fenêtre"
+              title="Ouvrir dans une fenêtre"
+            >
+              <DetachWindowIcon size={14} />
+            </button>
+          )}
           {expandable && (
             <button
               type="button"
@@ -216,6 +241,14 @@ export function SymbolProfilePanel({
               </button>
             )}
           </div>
+        </div>
+      )}
+
+      {/* The financial tabs. Only in the expanded copy: they are a page's worth of tables, which a
+          260px column cannot show and the modal exists to give room to. */}
+      {!expandable && profile?.financials && (
+        <div className="lq-chart-workspace__symbol-profile-section">
+          <SymbolFinancialsView financials={profile.financials} />
         </div>
       )}
 
@@ -349,14 +382,46 @@ export function SymbolProfilePanel({
               identifies the fullscreen copy: it is the one instance that cannot be expanded further
               (see the prop's own doc). */}
           <EarningsDotChart points={profile.earnings} {...(expandable ? {} : { width: 1100, height: 340, scale: 2 })} />
+          {/* Under the chart rather than in the header: the header's own icons are for people who
+              already know what they do, and this is the one action a reader arrives at by reading
+              downward. Only on the docked copy — inside the modal there is nothing further to
+              open. */}
+          {expandable && (
+            <button type="button" className="lq-chart-workspace__symbol-profile-more" onClick={() => setFullscreenOpen(true)}>
+              Afficher plus de détails
+            </button>
+          )}
         </div>
       )}
+
 
       {/* The whole panel again, at the size of the screen. The same component rather than a
           bespoke big layout: everything it knows how to show is already here, and the modal's only
           job is to give it width. `expandable={false}` on the inner one — see the prop's own doc. */}
       {expandable && fullscreenOpen && (
-        <Modal open onClose={() => setFullscreenOpen(false)} title={`${symbol} — détails`} size="fullscreen" footer={null}>
+        <Modal
+          open
+          onClose={() => setFullscreenOpen(false)}
+          title={
+            <span className="lq-chart-workspace__symbol-profile-modal-title">
+              {`${symbol} — détails`}
+              <button
+                type="button"
+                className="lq-chart-workspace__symbol-profile-expand"
+                // The modal's own header is draggable; without this the press would start a drag
+                // as well as open the window.
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={detachDetails}
+                aria-label="Ouvrir les détails dans une fenêtre"
+                title="Ouvrir dans une fenêtre"
+              >
+                <DetachWindowIcon size={14} />
+              </button>
+            </span>
+          }
+          size="fullscreen"
+          footer={null}
+        >
           <SymbolProfilePanel
             symbol={symbol}
             price={price}
@@ -374,6 +439,29 @@ export function SymbolProfilePanel({
       {/* Rendered from this panel rather than from the section above so it survives the section's
           own conditional — and `size="wide"` because the point is horizontal room: eight quarters
           need width far more than height before they can be compared by eye. */}
+      {expandable && detachedWindow !== null && (
+        <DetachedWindow
+          target={detachedWindow}
+          title={`${symbol} — détails`}
+          themeSource={typeof document === "undefined" ? null : (document.querySelector(".lq-root") as HTMLElement | null)}
+          onClose={() => setDetachedWindow(null)}
+        >
+          {/* The same expanded copy the modal shows — `expandable={false}` marks it as the one
+              that cannot be opened further (see the prop's own doc). */}
+          <SymbolProfilePanel
+            symbol={symbol}
+            price={price}
+            change={change}
+            changePercent={changePercent}
+            profile={profile}
+            onMoreNews={onMoreNews}
+            priceHistory={priceHistory}
+            onOpenInChart={onOpenInChart}
+            expandable={false}
+          />
+        </DetachedWindow>
+      )}
+
       {profile?.earnings && profile.earnings.length > 0 && (
         <Modal open={earningsModalOpen} onClose={() => setEarningsModalOpen(false)} title={`Résultats — ${symbol}`} size="wide">
           <EarningsDotChart points={profile.earnings} width={760} height={420} scale={2} />

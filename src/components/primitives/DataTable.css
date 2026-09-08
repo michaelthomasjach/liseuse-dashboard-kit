@@ -9,6 +9,10 @@
   border-collapse: separate;
   border-spacing: 0;
   width: 100%;
+  /* Stated rather than inherited: this table is dropped into panels that uppercase their own
+     headings, and a row label reading "PUBLIÉ" is that styling leaking into data. */
+  text-transform: none;
+  letter-spacing: normal;
   font-size: 0.78rem;
   font-variant-numeric: tabular-nums;
 }
@@ -50,6 +54,12 @@
 
 .lq-data-table__head.lq-data-table__cell--sticky {
   z-index: 3;
+}
+
+.lq-data-table__cell,
+.lq-data-table__head {
+  text-transform: none;
+  letter-spacing: normal;
 }
 
 .lq-data-table__cell {

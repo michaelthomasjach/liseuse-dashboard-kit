@@ -1,0 +1,213 @@
+.lq-financials {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lq-space-3);
+  min-height: 0;
+}
+
+/* Scrolls on its own when there are more tabs than room, rather than wrapping to a second row and
+   moving the content under it every time one is added. */
+.lq-financials__tabs {
+  display: flex;
+  gap: var(--lq-space-1);
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+
+.lq-financials__tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.lq-financials__tab {
+  flex: 0 0 auto;
+  padding: 5px var(--lq-space-3);
+  border: 1px solid var(--lq-color-border-subtle);
+  border-radius: 999px;
+  background-color: transparent;
+  color: var(--lq-color-text-muted);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.lq-financials__tab:hover {
+  background-color: var(--lq-color-hover);
+}
+
+.lq-financials__tab--active {
+  background-color: var(--lq-color-fill);
+  border-color: var(--lq-color-fill);
+  color: var(--lq-color-accent-contrast);
+}
+
+.lq-financials__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lq-space-4);
+  min-height: 0;
+}
+
+.lq-financials__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lq-space-2);
+}
+
+.lq-financials__subtitle {
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--lq-color-text-muted);
+}
+
+/* Key facts wrap into as many columns as fit; each is a label over its own figure. */
+.lq-financials__facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: var(--lq-space-3);
+}
+
+.lq-financials__fact {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.lq-financials__fact-label {
+  font-size: 0.72rem;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-financials__fact-value {
+  font-size: 0.95rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.lq-financials__fact-unit {
+  margin-left: 4px;
+  font-size: 0.68rem;
+  font-weight: 400;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-financials__about p {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
+/* Clamped rather than cut in JS: a clamp reflows with the panel's own width, where a character
+   count would cut at a different place every time the modal is resized. */
+.lq-financials__about-text--clamped {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.lq-financials__more {
+  margin-top: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--lq-color-accent);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.lq-financials__columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--lq-space-4);
+}
+
+.lq-financials__shares {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lq-space-2);
+}
+
+.lq-financials__share-bar {
+  display: flex;
+  height: 12px;
+  overflow: hidden;
+  border-radius: 3px;
+  background-color: var(--lq-color-border-subtle);
+}
+
+.lq-financials__share-slice {
+  height: 100%;
+}
+
+.lq-financials__share-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lq-financials__share-legend li {
+  display: flex;
+  align-items: center;
+  gap: var(--lq-space-2);
+  font-size: 0.78rem;
+}
+
+.lq-financials__share-chip {
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  border-radius: 2px;
+}
+
+.lq-financials__share-label {
+  flex: 1;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-financials__share-value {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.lq-financials__switch {
+  display: flex;
+  gap: var(--lq-space-1);
+}
+
+.lq-financials__switch-option {
+  padding: 4px var(--lq-space-3);
+  border: 1px solid var(--lq-color-border-subtle);
+  border-radius: var(--lq-radius-sm);
+  background-color: transparent;
+  color: var(--lq-color-text-muted);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.lq-financials__switch-option--active {
+  background-color: var(--lq-color-hover);
+  border-color: var(--lq-color-border);
+  color: var(--lq-color-text);
+}
+
+/* "This company pays no dividend" is a fact, not a failure — stated plainly rather than dressed as
+   an error. */
+.lq-financials__empty {
+  margin: 0;
+  padding: var(--lq-space-4) 0;
+  font-size: 0.82rem;
+  color: var(--lq-color-text-muted);
+}

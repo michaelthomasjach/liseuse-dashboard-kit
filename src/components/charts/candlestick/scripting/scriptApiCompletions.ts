@@ -52,7 +52,8 @@ export const SCRIPT_API_COMPLETIONS: ScriptApiCompletion[] = [
   {
     label: "@block",
     type: "keyword",
-    detail: "titre — ouvre une cellule ; Maj+Entrée exécute du début du script jusqu'à la fin de celle du curseur",
+    detail:
+      "titre — ouvre une cellule ; Maj+Entrée exécute du début du script jusqu'à la fin de celle du curseur. @block(id at x y after autre) porte en plus la position et les dépendances du bloc en mode no-code.",
     apply: "@block ",
   },
   {

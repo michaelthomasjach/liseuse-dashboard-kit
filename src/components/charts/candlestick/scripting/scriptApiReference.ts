@@ -139,6 +139,31 @@ plot.overlay("SMA 20").line("SMA 20", sma ?? market.close(0));`
       t(
         "Un petit bouton ▶ apparaît directement sur la cellule active — cliquer dessus fait exactement la même chose que Maj+Entrée, sans avoir à viser le bouton « Exécuter la cellule » de la barre d'outils. Juste en dessous de la cellule, son propre résultat s'affiche : le texte de console.log, la valeur de la toute dernière expression de la cellule si elle n'est ni affectée à une variable ni déjà affichée autrement (exactement comme un vrai notebook auto-affiche le résultat d'une cellule qui se termine par une expression seule), et un graphique si la cellule contient un appel à plot.xy (voir plot.* plus bas). Voir le tutoriel « Mode notebook » plus haut pour un exemple pas à pas."
       ),
+      h("Mode no-code — le script en blocs reliés"),
+      t(
+        "Le sélecteur « Code / No-code » en haut de la barre d'outils montre le même script de deux façons. En no-code, chaque cellule @block devient une boîte sur un plan de travail : on tire un bloc depuis la palette de gauche, on relie les boîtes entre elles en glissant du point de sortie de l'une vers le point d'entrée de l'autre, on clique une boîte pour en modifier le code dans l'éditeur du bas, et le ▶ de chaque boîte l'exécute."
+      ),
+      t(
+        "Ce n'est pas un second format : les deux vues lisent et écrivent le même texte, et le basculement se fait à tout moment, y compris en pleine saisie. Ce qui rend cela possible, c'est que tout ce que le schéma sait est écrit sur la ligne @block elle-même — un identifiant, une position at x y, et les blocs dont il dépend avec after. Le mot-clé garde donc exactement sa forme d'origine : @block Titre reste valide, et un script écrit avant l'existence du mode no-code s'y ouvre tel quel, sous la forme d'une chaîne."
+      ),
+      c(
+        `@block(prix at 40 120) Charger les prix
+const prix = market.close(0);
+
+@block(moyenne at 340 120) Moyenne mobile
+const sma = ta.sma(market.series("close", 60), 20);
+
+// « after » n'est nécessaire que lorsque l'ordre voulu n'est pas celui de l'écriture :
+// sans lui, un bloc suit simplement celui écrit juste avant.
+@block(signal at 640 120 after moyenne prix) Signal
+if (bar.isNew() && prix > sma) plot.signal("BUY");`
+      ),
+      t(
+        "Une flèche veut dire « s'exécute après », pas « envoie ses données à ». Les blocs sont les cellules d'un même script et partagent une seule portée : une flèche de A vers B dit que B peut utiliser ce que A a déclaré, et fixe l'ordre en conséquence. Le ▶ d'un bloc exécute donc ce bloc et tout ce dont il dépend, dans l'ordre — la même règle que Maj+Entrée en mode code, généralisée au graphe."
+      ),
+      t(
+        "La boîte en pointillés « Préambule » regroupe tout ce qui précède le premier @block : @indicator, @description, les imports, les déclarations new Variable(...). Elle s'exécute avant tous les blocs, ne peut pas être supprimée et n'a pas besoin d'être reliée — c'est pourquoi elle reste à sa place au lieu de se déplacer. Supprimer un bloc au milieu d'une chaîne relie ses enfants à ses parents : la chaîne se referme au lieu de se couper."
+      ),
       h("Plusieurs fichiers dans un même script"),
       t(
         "Un script n'est pas obligé de tenir dans un seul fichier. La barre juste au-dessus du code donne un onglet par fichier : « Principal » est celui qui s'exécute, le bouton + en crée un nouveau, un double-clic sur un onglet le renomme et la croix le supprime. Les fichiers sont enregistrés avec le script et voyagent avec lui."

@@ -22,6 +22,8 @@ import {
   HelpIcon,
   ChevronDownIcon,
   CheckIcon,
+  CodeIcon,
+  GridIcon,
 } from "../../../../icons";
 import type { Candle } from "../../interfaces/Candle.interface";
 import type { ScriptDef, ScriptFile } from "../../interfaces/ScriptDef.interface";
@@ -31,6 +33,7 @@ import { isCellInstrumentationLog } from "../scriptCellSentinels";
 import { ScriptErrorPanel } from "./ScriptErrorPanel";
 import { ScriptDocumentationModal } from "./ScriptDocumentationModal";
 import type { ScriptEditorCodeMirrorHandle } from "./ScriptEditorCodeMirror";
+import { ScriptGraphEditor } from "./ScriptGraphEditor";
 import "./ScriptEditorPanel.css";
 
 const LazyScriptEditorCodeMirror = lazy(() =>
@@ -123,6 +126,10 @@ export function ScriptEditorPanel({
   previewData,
 }: ScriptEditorPanelProps) {
   const activeScript = scripts.find((s) => s.id === activeScriptId) ?? null;
+  // Which of the two views of the same script is showing. A *view*, not a mode the script is in:
+  // both edit the same text (see `scriptGraph.ts`), so this never needs saving, never travels with
+  // the script, and switching it can never lose anything.
+  const [graphMode, setGraphMode] = useState(false);
   // The edit buffer for whichever tab is active, read from the per-script drafts the scripting
   // state holds and falling back to what is committed. Per-script rather than one buffer for the
   // active tab, which is what this used to be: switching tabs reseeded that single buffer from the
@@ -600,27 +607,58 @@ export function hello() {
 
           {activeScript && (
             <div className="lq-script-editor-panel__toolbar">
+              {/* The same script, two ways of looking at it — never two documents. Both views read
+                  and write the one draft buffer, so this switch is safe to hit at any moment, mid
+                  edit included; see `scriptGraph.ts` for the syntax that makes that true. */}
+              <div className="lq-script-editor-panel__view-switch" role="group" aria-label="Mode d'édition">
+                <button
+                  type="button"
+                  className={["lq-script-editor-panel__view-option", !graphMode && "lq-script-editor-panel__view-option--active"]
+                    .filter(Boolean)
+                    .join(" ")}
+                  onClick={() => setGraphMode(false)}
+                  aria-pressed={!graphMode}
+                  title="Écrire le script en code"
+                >
+                  <CodeIcon size={12} /> Code
+                </button>
+                <button
+                  type="button"
+                  className={["lq-script-editor-panel__view-option", graphMode && "lq-script-editor-panel__view-option--active"]
+                    .filter(Boolean)
+                    .join(" ")}
+                  onClick={() => setGraphMode(true)}
+                  aria-pressed={graphMode}
+                  title="Composer le script en blocs reliés entre eux"
+                >
+                  <GridIcon size={12} /> No-code
+                </button>
+              </div>
               <button ref={runButtonRef} type="button" className="lq-script-editor-panel__toolbar-button" onClick={() => handleRunClick()}>
                 <PlayIcon size={13} /> Exécuter
               </button>
-              <button
-                type="button"
-                className="lq-script-editor-panel__toolbar-button"
-                onClick={() => codeMirrorRef.current?.runCurrentCell()}
-                title="Exécute le code depuis le début jusqu'à la fin de la cellule (@block) où se trouve le curseur (Maj+Entrée)"
-              >
-                <PlayIcon size={13} /> Exécuter la cellule
-              </button>
+              {!graphMode && (
+                <button
+                  type="button"
+                  className="lq-script-editor-panel__toolbar-button"
+                  onClick={() => codeMirrorRef.current?.runCurrentCell()}
+                  title="Exécute le code depuis le début jusqu'à la fin de la cellule (@block) où se trouve le curseur (Maj+Entrée)"
+                >
+                  <PlayIcon size={13} /> Exécuter la cellule
+                </button>
+              )}
               {/* Ctrl+F opens the same panel, but a shortcut is not discoverable — and on the touch
                   layout there is no keyboard to press it on at all. */}
-              <button
-                type="button"
-                className="lq-script-editor-panel__toolbar-button"
-                onClick={() => codeMirrorRef.current?.openSearch()}
-                title={`Rechercher et remplacer dans le script (${shortcutLabel("F")})`}
-              >
-                <SearchIcon size={13} /> Rechercher
-              </button>
+              {!graphMode && (
+                <button
+                  type="button"
+                  className="lq-script-editor-panel__toolbar-button"
+                  onClick={() => codeMirrorRef.current?.openSearch()}
+                  title={`Rechercher et remplacer dans le script (${shortcutLabel("F")})`}
+                >
+                  <SearchIcon size={13} /> Rechercher
+                </button>
+              )}
               {needsTargetChoice && (
                 <button
                   type="button"
@@ -715,16 +753,39 @@ export function hello() {
               }}
             />
             <Suspense fallback={<div className="lq-script-editor-panel__loading">Chargement de l'éditeur…</div>}>
-              <LazyScriptEditorCodeMirror
-                ref={codeMirrorRef}
-                key={activeFile ?? "__entry__"}
-                value={editorValue}
-                onChange={setEditorValue}
-                error={output?.result?.error ?? null}
-                formatRequestId={formatRequestId}
-                onRunCell={(code) => handleRunClick(code)}
-                previewData={previewData}
-              />
+              {graphMode ? (
+                <ScriptGraphEditor
+                  code={editorValue}
+                  onChange={setEditorValue}
+                  onRunBlock={(code) => handleRunClick(code)}
+                  running={output?.running}
+                  // The block editor is the very same component the code view uses — same
+                  // highlighting, same completions over the script API — just pointed at one
+                  // block's body instead of the whole file. Keyed by block so switching selection
+                  // doesn't carry one block's undo history into another's code.
+                  renderBodyEditor={(value, onChange, blockId) => (
+                    <LazyScriptEditorCodeMirror
+                      key={`${activeFile ?? "__entry__"}:${blockId}`}
+                      value={value}
+                      onChange={onChange}
+                      error={null}
+                      formatRequestId={formatRequestId}
+                      previewData={previewData}
+                    />
+                  )}
+                />
+              ) : (
+                <LazyScriptEditorCodeMirror
+                  ref={codeMirrorRef}
+                  key={activeFile ?? "__entry__"}
+                  value={editorValue}
+                  onChange={setEditorValue}
+                  error={output?.result?.error ?? null}
+                  formatRequestId={formatRequestId}
+                  onRunCell={(code) => handleRunClick(code)}
+                  previewData={previewData}
+                />
+              )}
             </Suspense>
             {output?.result?.error && <ScriptErrorPanel error={output.result.error} />}
             {output?.result?.logs && output.result.logs.some((line) => !isCellInstrumentationLog(line)) && (

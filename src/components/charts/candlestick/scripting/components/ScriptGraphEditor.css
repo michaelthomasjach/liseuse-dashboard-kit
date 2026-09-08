@@ -1,0 +1,451 @@
+/* The no-code view: palette, canvas, inspector. Three columns collapsing to a stack of two rows
+   plus a drawer on a narrow editor — see the media query at the bottom. */
+.lq-script-graph {
+  display: grid;
+  grid-template-columns: 210px minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) minmax(180px, 40%);
+  grid-template-areas:
+    "palette stage"
+    "palette inspector";
+  gap: var(--lq-space-2);
+  /* `flex: 1 1 0`, not `height: 100%`: the parent (.lq-script-editor-panel__main) is a flex column
+     whose height comes from *its* parent, so a percentage here would resolve against a height the
+     browser hasn't settled yet. The zero basis is what stops the canvas from growing the column it
+     is measuring itself against. */
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+/* ---- palette ---- */
+
+.lq-script-graph__palette {
+  grid-area: palette;
+  display: flex;
+  flex-direction: column;
+  gap: var(--lq-space-3);
+  overflow-y: auto;
+  padding-right: 2px;
+  min-height: 0;
+}
+
+.lq-script-graph__palette-intro {
+  margin: 0;
+  font-size: 0.68rem;
+  line-height: 1.5;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-script-graph__palette-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.lq-script-graph__palette-title {
+  margin: 0;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-script-graph__palette-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px;
+  border: 1px solid var(--lq-color-border-subtle);
+  border-radius: var(--lq-radius-sm);
+  background-color: transparent;
+  color: var(--lq-color-text);
+  font: inherit;
+  text-align: left;
+  cursor: grab;
+  /* Otherwise a drag out of the palette selects the label text instead of carrying the block. */
+  user-select: none;
+  touch-action: none;
+}
+
+.lq-script-graph__palette-item:hover {
+  border-color: var(--lq-color-border);
+  background-color: var(--lq-color-hover);
+}
+
+.lq-script-graph__palette-item-title {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.lq-script-graph__palette-item-hint {
+  font-size: 0.66rem;
+  line-height: 1.4;
+  color: var(--lq-color-text-muted);
+}
+
+/* ---- stage ---- */
+
+.lq-script-graph__stage {
+  grid-area: stage;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+
+.lq-script-graph__toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--lq-space-2);
+  padding-bottom: 4px;
+}
+
+.lq-script-graph__toolbar button {
+  padding: 2px 8px;
+  border: 1px solid var(--lq-color-border-subtle);
+  border-radius: var(--lq-radius-sm);
+  background-color: transparent;
+  color: var(--lq-color-text);
+  font: inherit;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+.lq-script-graph__toolbar button:hover {
+  background-color: var(--lq-color-hover);
+}
+
+.lq-script-graph__zoom,
+.lq-script-graph__count {
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-script-graph__count {
+  margin-left: auto;
+}
+
+.lq-script-graph__warnings {
+  margin-bottom: 4px;
+  padding: 6px 8px;
+  border: 1px solid var(--lq-color-down);
+  border-radius: var(--lq-radius-sm);
+  font-size: 0.7rem;
+  color: var(--lq-color-down);
+}
+
+.lq-script-graph__warnings p {
+  margin: 0;
+}
+
+/* The scrolling/panning window onto the canvas. `touch-action: none` because every gesture here is
+   handled in JS — without it a touch drag scrolls the page out from under the block being moved. */
+.lq-script-graph__surface {
+  position: relative;
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--lq-color-border-subtle);
+  border-radius: var(--lq-radius-sm);
+  background-color: var(--lq-color-bg);
+  /* A dot grid, so dragging a block reads as movement across a surface rather than as a box
+     floating in a void — and so the eye has something to judge alignment against. */
+  background-image: radial-gradient(circle, var(--lq-color-border-subtle) 1px, transparent 1px);
+  background-size: 22px 22px;
+  cursor: grab;
+  touch-action: none;
+}
+
+.lq-script-graph__surface--panning {
+  cursor: grabbing;
+}
+
+.lq-script-graph__canvas {
+  position: absolute;
+  inset: 0;
+  transform-origin: 0 0;
+}
+
+.lq-script-graph__edges {
+  position: absolute;
+  /* Far larger than the surface: the canvas is translated and scaled under a clipping parent, so
+     this only has to be big enough to cover wherever the nodes have been dragged to. */
+  width: 6000px;
+  height: 4000px;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.lq-script-graph__edge path {
+  fill: none;
+  stroke: var(--lq-color-border);
+  stroke-width: 1.5;
+}
+
+.lq-script-graph__edge-hit {
+  stroke: transparent;
+  stroke-width: 14;
+  pointer-events: stroke;
+  cursor: pointer;
+}
+
+.lq-script-graph__edge:hover path {
+  stroke: var(--lq-color-down);
+}
+
+.lq-script-graph__edge-pending {
+  fill: none;
+  stroke: var(--lq-color-accent);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+}
+
+/* ---- nodes ---- */
+
+.lq-script-graph__node {
+  position: absolute;
+  /* Fixed, and matching NODE_HEIGHT in ScriptGraphEditor.tsx — arrows anchor to a node's middle
+     without measuring it. */
+  height: 92px;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--lq-color-border);
+  border-radius: var(--lq-radius-sm);
+  background-color: var(--lq-color-panel);
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+  /* Deliberately NOT `overflow: hidden`: the two connection ports sit 7px outside this box on
+     either side, and clipping the node clipped them in half — which made them both look wrong and,
+     worse, impossible to drop a link onto, since the clipped half is the half the pointer lands on.
+     The only child that needs clipping is the code preview, which clips itself. */
+}
+
+.lq-script-graph__node--selected {
+  border-color: var(--lq-color-accent);
+  box-shadow: 0 0 0 1px var(--lq-color-accent);
+}
+
+/* The preamble is the script's head, not a step: dashed, and pinned where it is. */
+.lq-script-graph__node--preamble {
+  border-style: dashed;
+  cursor: default;
+}
+
+.lq-script-graph__node--ghost {
+  opacity: 0.75;
+  pointer-events: none;
+}
+
+.lq-script-graph__node-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 7px;
+  border-bottom: 1px solid var(--lq-color-border-subtle);
+}
+
+.lq-script-graph__node-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+
+.lq-script-graph__node-actions {
+  display: flex;
+  gap: 2px;
+}
+
+.lq-script-graph__node-actions button {
+  display: inline-flex;
+  padding: 2px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--lq-color-text-muted);
+  cursor: pointer;
+}
+
+.lq-script-graph__node-actions button:hover:not(:disabled) {
+  background-color: var(--lq-color-hover);
+  color: var(--lq-color-text);
+}
+
+.lq-script-graph__node-actions button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.lq-script-graph__node-body {
+  flex: 1;
+  margin: 0;
+  padding: 5px 7px;
+  overflow: hidden;
+  font-family: var(--lq-font-mono, ui-monospace, monospace);
+  font-size: 0.62rem;
+  line-height: 1.4;
+  color: var(--lq-color-text-muted);
+  white-space: pre;
+}
+
+/* The two connection points. Bigger hit area than they look, via padding on a transparent box —
+   a 9px dot is not a pointer target, on a mouse or otherwise. */
+.lq-script-graph__port {
+  position: absolute;
+  top: calc(50% - 7px);
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--lq-color-panel);
+  border-radius: 50%;
+  background-color: var(--lq-color-border);
+  z-index: 1;
+}
+
+.lq-script-graph__port--in {
+  left: -7px;
+}
+
+.lq-script-graph__port--out {
+  right: -7px;
+  cursor: crosshair;
+}
+
+.lq-script-graph__port--out:hover,
+.lq-script-graph__port--in:hover {
+  background-color: var(--lq-color-accent);
+}
+
+/* ---- inspector ---- */
+
+.lq-script-graph__inspector {
+  grid-area: inspector;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-top: 1px solid var(--lq-color-border-subtle);
+  padding-top: var(--lq-space-2);
+}
+
+.lq-script-graph__inspector-head {
+  display: flex;
+  align-items: center;
+  gap: var(--lq-space-2);
+  padding-bottom: var(--lq-space-2);
+}
+
+.lq-script-graph__inspector-name {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 8px;
+  border: 1px solid var(--lq-color-border-subtle);
+  border-radius: var(--lq-radius-sm);
+  background-color: transparent;
+  color: var(--lq-color-text);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.lq-script-graph__inspector-name:focus {
+  outline: none;
+  border-color: var(--lq-color-accent);
+}
+
+.lq-script-graph__inspector-title {
+  flex: 1;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-script-graph__inspector-run {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border: 1px solid var(--lq-color-border-subtle);
+  border-radius: var(--lq-radius-sm);
+  background-color: transparent;
+  color: var(--lq-color-text);
+  font: inherit;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+.lq-script-graph__inspector-run:hover:not(:disabled) {
+  background-color: var(--lq-color-hover);
+}
+
+.lq-script-graph__inspector-run:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.lq-script-graph__inspector-editor {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.lq-script-graph__inspector-empty {
+  margin: 0;
+  padding: var(--lq-space-4) 0;
+  font-size: 0.78rem;
+  color: var(--lq-color-text-muted);
+  text-align: center;
+}
+
+/* Narrow editor (a docked pane, a phone): the palette becomes a scrolling strip above the canvas
+   rather than a column stealing 210px of the width the diagram needs. */
+@media (max-width: 720px) {
+  .lq-script-graph {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) minmax(150px, 38%);
+    grid-template-areas:
+      "palette"
+      "stage"
+      "inspector";
+  }
+
+  .lq-script-graph__palette {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: var(--lq-space-2);
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .lq-script-graph__palette-intro {
+    display: none;
+  }
+
+  .lq-script-graph__palette-group {
+    flex: 0 0 auto;
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .lq-script-graph__palette-title {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+  }
+
+  .lq-script-graph__palette-item {
+    flex: 0 0 auto;
+    max-width: 150px;
+  }
+
+  .lq-script-graph__palette-item-hint {
+    display: none;
+  }
+}

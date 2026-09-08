@@ -468,7 +468,16 @@ export function CandlestickChart({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [scriptingState.withholdScriptDrawings, scriptingState.restoreScriptDrawings]
   );
-  const showHeader = fullscreenToggle || zoomable || !!timeframes?.length || showIndicators;
+  // Every control that lives in `ChartHeader` has to be listed here, or enabling that control
+  // alone renders nothing at all — the button exists in the header's JSX, but the header itself
+  // is never mounted. `zoomable`/`fullscreenToggle` default to true, which masked the gap: a
+  // caller had to opt out of both before `replay`/`seasonality`/`showTemplates`/`linkable`/
+  // `sidePanel` silently stopped working. Found while capturing one illustration per prop for
+  // the props reference (see `propShots/`), each of which turns the defaults off so the shot
+  // shows only the prop it documents.
+  const showHeader =
+    fullscreenToggle || zoomable || !!timeframes?.length || showIndicators ||
+    seasonality || replay || showTemplates || linkable || !!sidePanel;
   // `dims.height` is measured off `.lq-chart__plot-column`, already below `.lq-chart__main`'s own
   // header in the flex-column layout (see charts-shared.css's own doc on that element) — no more
   // `- HEADER_HEIGHT` subtraction needed here, the browser already did it via ordinary flex.

@@ -140,3 +140,38 @@
   color: var(--lq-color-text-muted);
   text-align: center;
 }
+
+/* The illustration under a prop's description. Captured at up to 900px wide (see
+   `scripts/captureChartPropShots.cjs`) and scaled down to whatever the card gives it, so it stays
+   sharp on a high-density screen. The border matters: several shots are of a pale toolbar on a
+   pale background, and without it the image has no edge at all against the card. */
+.lq-chart-props__shot {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 4px 0 0;
+}
+
+.lq-chart-props__shot img {
+  display: block;
+  width: 100%;
+  border: 1px solid var(--lq-color-border-subtle);
+  border-radius: var(--lq-radius-sm);
+  background-color: var(--lq-color-bg);
+}
+
+.lq-chart-props__shot figcaption {
+  font-size: 0.7rem;
+  line-height: 1.45;
+  color: var(--lq-color-text-muted);
+}
+
+/* An illustrated card gets two columns of the grid. A 340px column is the right width for a name,
+   a type and three lines of prose, and much too narrow for a screenshot of a whole chart — the
+   picture is the point of those cards, so they get the room. Gated on a width where the grid is
+   guaranteed at least two columns, since spanning two of one would overflow the modal. */
+@media (min-width: 900px) {
+  .lq-chart-props__item:has(.lq-chart-props__shot) {
+    grid-column: span 2;
+  }
+}

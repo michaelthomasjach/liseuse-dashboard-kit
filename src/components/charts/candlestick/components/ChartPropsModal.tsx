@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Modal } from "../../../primitives/Modal";
 import { SearchIcon, CloseIcon } from "../../../icons";
 import { CHART_PROPS_REFERENCE } from "../chartPropsReference";
+import type { PropShotImage } from "../propShots/propShotImages";
 import "./ChartPropsModal.css";
 
 export interface ChartPropsModalProps {
@@ -19,9 +20,25 @@ export interface ChartPropsModalProps {
  *
  *  Grouped rather than alphabetical because the question this answers is almost never "what does
  *  `onScriptAlert` do" — it is "what can I hand this chart about alerts", which an alphabetical
- *  list scatters across the page. */
+ *  list scatters across the page.
+ *
+ *  Props whose effect can actually be seen also carry a screenshot of the real component rendering
+ *  with that prop on and nothing else changed — see `propShots/`. */
 export function ChartPropsModal({ open, onClose }: ChartPropsModalProps) {
   const [query, setQuery] = useState("");
+  const [shots, setShots] = useState<Record<string, PropShotImage>>({});
+
+  // ~850KB of inlined JPEG, fetched the first time this modal is opened and never on a bundle
+  // most consumers load without ever opening it. Cards render fine without them and gain the
+  // image once it lands, so nothing here blocks on the download.
+  useEffect(() => {
+    if (!open || Object.keys(shots).length > 0) return;
+    let cancelled = false;
+    import("../propShots/propShotImages").then((m) => {
+      if (!cancelled) setShots(m.PROP_SHOT_IMAGES);
+    });
+    return () => { cancelled = true; };
+  }, [open, shots]);
 
   const sections = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -80,6 +97,12 @@ export function ChartPropsModal({ open, onClose }: ChartPropsModalProps) {
                   </div>
                   <code className="lq-chart-props__type">{prop.type}</code>
                   <p className="lq-chart-props__doc">{prop.doc}</p>
+                  {shots[prop.name] && (
+                    <figure className="lq-chart-props__shot">
+                      <img src={shots[prop.name].src} alt="" loading="lazy" />
+                      <figcaption>{shots[prop.name].caption}</figcaption>
+                    </figure>
+                  )}
                 </article>
               ))}
             </div>

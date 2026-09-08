@@ -65,6 +65,13 @@ export interface IndicatorModalsProps {
    *  (see `useChartScripting`'s own doc) — the code modal then shows the script read-only, with no
    *  editor to send it to. */
   onEditScript?: (scriptId: string) => void;
+  /** Which indicator's source the code viewer is showing, and how to change it. Lifted out of this
+   *  component so the chart legend can open the same viewer — see ChartLegend's own
+   *  `onOpenIndicatorCode`. */
+  codeViewer: {
+    codeTarget: IndicatorKind | { scriptId: string } | null;
+    setCodeTarget: (target: IndicatorKind | { scriptId: string } | null) => void;
+  };
   /** Creates a brand-new script from a built-in indicator's own script equivalent (see
    *  INDICATOR_SCRIPT_SOURCES) and opens it in the editor — the "Ouvrir dans l'éditeur" button of
    *  the picker's own code modal, i.e. "fork this built-in indicator". Same `undefined` outside a
@@ -151,6 +158,7 @@ export function IndicatorModals({
   setScriptParamValue,
   toggleScriptEnabled,
   onEditScript,
+  codeViewer,
   onCreateScript,
   onDeleteScript,
   onCreateStrategyFromIndicator,
@@ -194,7 +202,10 @@ export function IndicatorModals({
   // equivalent, or a script's own code). Local state, unlike `infoKind` lifted all the way up to
   // CandlestickChart: that one's icon appears in three separate places (picker, legend, pane
   // headers) and has to survive the picker closing under it, this one exists only here.
-  const [codeTarget, setCodeTarget] = useState<IndicatorKind | { scriptId: string } | null>(null);
+  // Controlled from CandlestickChart rather than local state: the picker is no longer the only way
+  // in — an indicator's own legend row opens the same viewer — and two components cannot share one
+  // component's local state.
+  const { codeTarget, setCodeTarget } = codeViewer;
   // Which script the trash button is asking to delete, if any — deleting one is irreversible (its
   // code is gone with it), so unlike every other action in this picker it goes through a confirm
   // step rather than happening on the click itself. Holds the name too, so the modal can say what

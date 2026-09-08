@@ -1,4 +1,7 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import type { IndicatorKind } from "./candlestick/interfaces/IndicatorKind.interface";
+import type { Indicator } from "./candlestick/interfaces/Indicator.interface";
+import { INDICATOR_SCRIPT_SOURCES } from "./candlestick/indicatorScriptSources";
 import { scriptIdFromIndicatorId } from "./candlestick/scripting/scriptOutputToCustomIndicatorDef";
 import * as d3 from "d3";
 import { useChartDimensions } from "./internal/useChartDimensions";
@@ -395,6 +398,29 @@ export function CandlestickChart({
   }
 
   const strategyScriptIds = useMemo(() => strategyScripts.map((s) => s.id), [strategyScripts]);
+
+  // Which indicator's source the code viewer is showing. Owned here rather than inside the picker
+  // because two places open it: the picker's own rows, and each indicator's legend row.
+  const [codeTarget, setCodeTarget] = useState<IndicatorKind | { scriptId: string } | null>(null);
+  const codeViewer = useMemo(() => ({ codeTarget, setCodeTarget }), [codeTarget]);
+
+  /** Opens the source behind an indicator that is already on the chart.
+   *
+   *  A script-produced one shows the script itself; a built-in one shows the script that would
+   *  reproduce it (see INDICATOR_SCRIPT_SOURCES). A kind with neither — one that detects its own
+   *  structure by looking at bars on both sides of a pivot, say — has nothing honest to show, and
+   *  its row simply has no button. */
+  const openIndicatorCode = useCallback((indicator: Indicator) => {
+    const scriptId = scriptIdFromIndicatorId(indicator.customData?.id);
+    setCodeTarget(scriptId !== null ? { scriptId } : indicator.kind);
+  }, []);
+
+  /** Whether that button should exist at all for a given indicator. */
+  const hasIndicatorCode = useCallback(
+    (indicator: Indicator) =>
+      scriptIdFromIndicatorId(indicator.customData?.id) !== null || INDICATOR_SCRIPT_SOURCES[indicator.kind] !== undefined,
+    []
+  );
 
 
   // Where the tester is being read: docked under the chart, filling a modal, or torn off into a
@@ -1303,6 +1329,8 @@ export function CandlestickChart({
         {priceHeight > 0 && (
           <ChartLegend
             strategyScriptIds={strategyScriptIds}
+          onOpenIndicatorCode={openIndicatorCode}
+          hasIndicatorCode={hasIndicatorCode}
             openStrategyId={openStrategyId}
             onToggleStrategyPanel={toggleStrategyPanel}
             dims={dims}
@@ -1619,6 +1647,7 @@ export function CandlestickChart({
         duplicateEditingDrawing={duplicateEditingDrawing}
         valueAxisLabel={valueAxisLabel}
         defaultColor={defaultDrawingColor}
+        codeViewer={codeViewer}
         indicatorPickerOpen={indicatorPickerOpen} setIndicatorPickerOpen={setIndicatorPickerOpen}
         infoKind={infoKind} setInfoKind={setInfoKind}
         infoTool={infoTool} setInfoTool={setInfoTool}

@@ -1,4 +1,5 @@
 import type { TrendLineDrawing } from "./interfaces/TrendLineDrawing.interface";
+import { contrastingTextColor } from "./formatting";
 
 // `lineStyle` supersedes the older `dashed` boolean (kept for drawings saved before it existed —
 // see its own doc on TrendLineDrawing).
@@ -33,6 +34,31 @@ export function drawDrawingText(
   fontFamily: string
 ) {
   if (!dr.text) return;
+
+  // The bubble is a whole shape rather than a background behind glyphs, so it takes over the
+  // drawing entirely instead of being another branch inside the text path below — no alignment,
+  // no rotation, no background rect, all of which it defines for itself. Anchored at the label's
+  // own point, which is where the plain text would have gone.
+  if (dr.textBubble) {
+    const bubbleAnchorX = x1 + (x2 - x1) * (dr.textHorizontalAlign === "left" ? 0 : dr.textHorizontalAlign === "right" ? 1 : 0.5);
+    const bubbleAnchorY = y1 + (y2 - y1) * (dr.textHorizontalAlign === "left" ? 0 : dr.textHorizontalAlign === "right" ? 1 : 0.5);
+    drawSpeechBubble(
+      ctx,
+      bubbleAnchorX,
+      bubbleAnchorY,
+      dr.text,
+      // Falls back to the drawing's own colour rather than "no background": a bubble with no fill
+      // is not a bubble, it is text with a tail pointing at nothing.
+      dr.textBackgroundColor ?? dr.color ?? fallbackColor,
+      dr.textColor ?? contrastingTextColor(dr.textBackgroundColor ?? dr.color ?? fallbackColor),
+      fontFamily,
+      dr.textSize ?? 11,
+      dr.textBold !== false,
+      dr.textItalic === true
+    );
+    return;
+  }
+
   const hAlign = dr.textHorizontalAlign ?? "center";
   const vAlign = dr.textVerticalAlign ?? "top";
   const t = hAlign === "left" ? 0 : hAlign === "right" ? 1 : 0.5;

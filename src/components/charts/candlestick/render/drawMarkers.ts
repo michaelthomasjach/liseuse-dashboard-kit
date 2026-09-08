@@ -1,4 +1,6 @@
 import type { RenderCandlestickChartParams } from "../interfaces/RenderCandlestickChartParams.interface";
+import { drawSpeechBubble } from "../drawingRender";
+import { contrastingTextColor } from "../formatting";
 import type { ChartCanvasStyle } from "../interfaces/ChartCanvasStyle.interface";
 
 // Fixed pixel sizes — unrelated to strokeWidth (see TrendLineDrawing.lineType's own doc), same
@@ -51,11 +53,31 @@ export function drawMarkerDrawings(ctx: CanvasRenderingContext2D, params: Render
       // the circle rather than centred in it: a fill's own description never fits inside a badge
       // this size, and shrinking the badge to fit it would lose the shape entirely.
       if (dr.text) {
-        ctx.fillStyle = color;
-        ctx.font = `600 ${dr.textSize ?? 10}px ${fontFamily}`;
-        ctx.textAlign = "left";
-        ctx.textBaseline = "middle";
-        ctx.fillText(dr.text, x + PIN_CIRCLE_RADIUS + 4, cy);
+        if (dr.textBubble) {
+          // The "Étiquette de prix" look (see TrendLineDrawing.textBubble): the label sits in a
+          // rounded bubble whose tail points at the pin, instead of running off to its right. That
+          // keeps a fill's own description attached to the bar it belongs to rather than trailing
+          // across the next few candles — which is what made a run of closely-spaced fills
+          // unreadable.
+          drawSpeechBubble(
+            ctx,
+            x,
+            cy - PIN_CIRCLE_RADIUS,
+            dr.text,
+            color,
+            contrastingTextColor(color),
+            fontFamily,
+            dr.textSize ?? 10,
+            true,
+            false
+          );
+        } else {
+          ctx.fillStyle = color;
+          ctx.font = `600 ${dr.textSize ?? 10}px ${fontFamily}`;
+          ctx.textAlign = "left";
+          ctx.textBaseline = "middle";
+          ctx.fillText(dr.text, x + PIN_CIRCLE_RADIUS + 4, cy);
+        }
       }
     } else {
       ctx.strokeStyle = color;

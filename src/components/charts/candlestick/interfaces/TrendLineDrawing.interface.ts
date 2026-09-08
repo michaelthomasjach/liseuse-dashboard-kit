@@ -62,8 +62,21 @@ export interface TrendLineDrawing {
   /** Position relative to the line itself — "top"/"bottom" sit just clear of it, "center" sits
    *  right on it. Default "top". */
   textVerticalAlign?: "top" | "center" | "bottom";
-  /** Painted behind the text as a small padded rect. Unset (default): no background. */
+  /** Painted behind the text as a small padded rect. Unset (default): no background. Also fills
+   *  the bubble when `textBubble` is on — see there. */
   textBackgroundColor?: string;
+  /** Draws the label inside a rounded speech bubble — the same shape "priceLabel" and "comment"
+   *  already use — instead of plain text on an optional rect. Available to every tool that has a
+   *  label at all, from the edit modal's Texte tab, so a trend line or an arrow can carry a
+   *  callout as readable as a price tag.
+   *
+   *  A bubble defines its own padding, corner radius and tail, so it ignores
+   *  `textHorizontalAlign`/`textVerticalAlign`'s offsets and `textAlignWithLine`'s rotation: those
+   *  place a run of glyphs, which is a different problem from placing a shape. `textBackgroundColor`
+   *  fills it, falling back to the drawing's own `color` rather than to "no background" — a bubble
+   *  with no fill is not a bubble — and `textColor` falls back to whichever of black/white reads
+   *  against that fill. Default false. */
+  textBubble?: boolean;
   /** The text's own color. Unset (default): falls back to `color` (the line's own color), same
    *  as before this field existed. The edit modal's background-color picker overwrites this with
    *  whichever of black/white contrasts better (see contrastingTextColor) every time the

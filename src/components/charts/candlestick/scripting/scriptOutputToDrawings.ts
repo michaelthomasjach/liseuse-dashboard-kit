@@ -27,7 +27,21 @@ export function scriptDrawingToTrendLineDrawing(id: string, d: ScriptDrawingOutp
   const price = d.price ?? 0;
   if (d.kind === "horizontal") return { id, lineType: "horizontal", x1: date, y1: price, x2: date, y2: price, color: d.color, text: d.text };
   if (d.kind === "vertical") return { id, lineType: "vertical", x1: date, y1: 0, x2: date, y2: 0, color: d.color, text: d.text };
-  return { id, lineType: markerShape(d), x1: date, y1: price, x2: date, y2: price, color: d.color, text: d.text, markerSide: d.markerSide };
+  return {
+    id,
+    lineType: markerShape(d),
+    x1: date,
+    y1: price,
+    x2: date,
+    y2: price,
+    color: d.color,
+    text: d.text,
+    markerSide: d.markerSide,
+    // A strategy fill's own label goes in a bubble tied to its bar (see TrendLineDrawing.textBubble),
+    // not in a run of text drifting right across the candles that follow it. Only for fills:
+    // `markerSide` is what a strategy sets and a hand-placed pin never has.
+    textBubble: d.markerSide !== undefined,
+  };
 }
 
 /** Every drawing a run of `scriptId` produced, replacing whatever that same script produced last

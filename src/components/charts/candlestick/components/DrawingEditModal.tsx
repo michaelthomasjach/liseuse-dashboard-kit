@@ -338,6 +338,14 @@ export function DrawingEditModal({
               Retirer la couleur de fond
             </button>
           )}
+          {/* The bubble is the "Étiquette de prix" look, offered to every tool that has a label —
+              see TrendLineDrawing.textBubble. Placed right after the background colour because
+              that colour is what fills it. */}
+          <Checkbox
+            checked={draft.textBubble ?? false}
+            onChange={(textBubble) => setDraft({ ...draft, textBubble })}
+            label="Encadrer le texte dans une bulle"
+          />
           <div className="lq-chart__edit-drawing-row">
             <Checkbox checked={draft.textBold ?? true} onChange={(textBold) => setDraft({ ...draft, textBold })} label="Gras" />
             <Checkbox checked={draft.textItalic ?? false} onChange={(textItalic) => setDraft({ ...draft, textItalic })} label="Italique" />

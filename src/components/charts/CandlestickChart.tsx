@@ -37,6 +37,7 @@ import { useSidePanel } from "./candlestick/hooks/useSidePanel";
 import { useChartScripting } from "./candlestick/hooks/useChartScripting";
 import { ScriptRunnerHost } from "./candlestick/scripting/components/ScriptRunnerHost";
 import { ChartHeader } from "./candlestick/components/ChartHeader";
+import { MarketStatePanel } from "./candlestick/components/MarketStatePanel";
 import { ChartSidePanel } from "./candlestick/components/ChartSidePanel";
 import { ChartStrategyPanel } from "./candlestick/strategy/ChartStrategyPanel";
 import { analyzeScriptKind } from "./candlestick/scripting/scriptKind";
@@ -483,6 +484,10 @@ export function CandlestickChart({
   // `sidePanel` silently stopped working. Found while capturing one illustration per prop for
   // the props reference (see `propShots/`), each of which turns the defaults off so the shot
   // shows only the prop it documents.
+  // The Market State readout (see `MarketStatePanel`), toggled from the tools rail. Closed by
+  // default: it is a summary of the indicators on the chart, and a chart with none has nothing
+  // for it to summarise beyond its own price and volume baselines.
+  const [marketStateOpen, setMarketStateOpen] = useState(false);
   const showHeader =
     fullscreenToggle || zoomable || !!timeframes?.length || showIndicators ||
     seasonality || replay || showTemplates || linkable || !!sidePanel;
@@ -724,6 +729,17 @@ export function CandlestickChart({
     volumeHeight,
     priceHeight,
   });
+
+  // What the Market State readout scores (see `MarketStatePanel`): the indicators actually on
+  // screen, hidden ones excluded — a score fed partly by something the reader cannot see would be
+  // unexplainable by looking at the chart, which is the one thing that panel promises. Memoized
+  // because it recomputes every score when this identity changes, and a fresh array per render
+  // would mean recomputing on every mouse move; declared here, next to its source, and well above
+  // this file's own early returns, since a hook after one is a hook that isn't always called.
+  const marketStateIndicators = useMemo(
+    () => indicatorValues.filter(({ indicator }) => !indicator.hidden),
+    [indicatorValues],
+  );
 
   // Everything for the two `<ChartSidePaneColumn>` siblings mounted further down — see that
   // hook's own doc for why this is one call instead of being inlined here (keeping this file
@@ -1173,6 +1189,12 @@ export function CandlestickChart({
       ? ([{ label: isFullscreen ? "Quitter le plein écran" : "Plein écran", onSelect: () => toggleFullscreen() }] as ChartContextMenuItem[])
       : []),
     { separator: true },
+    // Also reachable from the tools rail — but that rail only exists when `drawingTools` is on,
+    // and the readout has nothing to do with drawing. This is the way in that always works.
+    {
+      label: marketStateOpen ? "Masquer l'état du marché" : "État du marché",
+      onSelect: () => setMarketStateOpen((open) => !open),
+    },
     { label: "Paramètres du graphique…", onSelect: () => setSettingsOpen(true) },
   ];
   const currentTimeframeLabel = findTimeframeLabel(timeframes, timeframe);
@@ -1225,6 +1247,8 @@ export function CandlestickChart({
       setHiddenEventKinds={setHiddenEventKinds}
       indicatorsManagerOpen={indicatorsManagerOpen}
       setIndicatorsManagerOpen={setIndicatorsManagerOpen}
+      marketStateOpen={marketStateOpen}
+      setMarketStateOpen={setMarketStateOpen}
       onOpenToolInfo={setInfoTool}
     />
   );
@@ -1395,6 +1419,19 @@ export function CandlestickChart({
             zoomedXScale={zoomedXScale}
             zoomedPriceScale={zoomedPriceScale}
             zoomedOwnPaneScales={zoomedOwnPaneScales}
+          />
+        )}
+        {/* Positioned against the plot, over the price area — it reads the chart, so it belongs on
+            it. Fed the *visible* indicators only: a score built partly from something the reader
+            has hidden would be unexplainable by looking at the chart, which is the one thing this
+            panel promises. */}
+        {marketStateOpen && (
+          <MarketStatePanel
+            candles={data}
+            index={effectiveHoverIndex ?? lastRevealedIndex}
+            indicators={marketStateIndicators}
+            onClose={() => setMarketStateOpen(false)}
+            formatDate={dFmt}
           />
         )}
         <PaneHeaders

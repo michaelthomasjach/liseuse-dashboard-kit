@@ -1,0 +1,239 @@
+/* The Market State readout. Floats over the plot's top-right corner rather than taking a pane of
+   its own: it is a summary *of* the chart and belongs on it, and it replaces indicators the reader
+   would otherwise have stacked below the price anyway. */
+.lq-market-state {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 4;
+  width: 250px;
+  max-height: calc(100% - 16px);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid var(--lq-color-border);
+  border-radius: var(--lq-radius-sm);
+  background-color: var(--lq-color-panel);
+  /* Monospace throughout: five figures in a column are only comparable at a glance if the digits
+     line up, which a proportional face will not do. */
+  font-family: var(--lq-font-mono, ui-monospace, monospace);
+  font-variant-numeric: tabular-nums;
+}
+
+.lq-market-state__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lq-space-2);
+}
+
+.lq-market-state__title {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-market-state__head button {
+  display: inline-flex;
+  padding: 2px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--lq-color-text-muted);
+  cursor: pointer;
+}
+
+.lq-market-state__head button:hover {
+  background-color: var(--lq-color-hover);
+  color: var(--lq-color-text);
+}
+
+/* The dashed frame from the sketch this is built after — it reads as a terminal readout, which is
+   exactly what it is. */
+.lq-market-state__box {
+  display: flex;
+  flex-direction: column;
+  border: 1px dashed var(--lq-color-border);
+  border-radius: 3px;
+  padding: 4px;
+}
+
+.lq-market-state__row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 3.6em 1fr auto;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 4px 5px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--lq-color-text);
+  font: inherit;
+  font-size: 0.72rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.lq-market-state__row:hover:not(:disabled),
+.lq-market-state__row--open {
+  background-color: var(--lq-color-hover);
+}
+
+.lq-market-state__row:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.lq-market-state__label {
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-market-state__value {
+  font-weight: 700;
+}
+
+/* Sits under the text, spanning the two content columns — a background, not a fourth column, so
+   it can never push the figure around. */
+.lq-market-state__gauge {
+  position: absolute;
+  left: 5px;
+  right: 22px;
+  bottom: 2px;
+  height: 2px;
+  background-color: var(--lq-color-border-subtle);
+  border-radius: 1px;
+  overflow: hidden;
+}
+
+.lq-market-state__gauge span {
+  display: block;
+  height: 100%;
+  background-color: var(--lq-color-fill);
+}
+
+.lq-market-state__detail {
+  padding: 4px 6px 8px;
+  border-bottom: 1px solid var(--lq-color-border-subtle);
+}
+
+.lq-market-state__detail--signal {
+  border-bottom: 0;
+}
+
+.lq-market-state__hint,
+.lq-market-state__empty {
+  margin: 0 0 6px;
+  font-family: var(--lq-font-sans, system-ui, sans-serif);
+  font-size: 0.66rem;
+  line-height: 1.5;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-market-state__parts {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.lq-market-state__parts li {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.lq-market-state__part-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.lq-market-state__part-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.lq-market-state__part-score {
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.lq-market-state__part-weight {
+  margin-left: 3px;
+  font-weight: 400;
+  font-size: 0.6rem;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-market-state__part-reading {
+  font-size: 0.64rem;
+  color: var(--lq-color-text);
+}
+
+.lq-market-state__part-why {
+  font-family: var(--lq-font-sans, system-ui, sans-serif);
+  font-size: 0.62rem;
+  line-height: 1.45;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-market-state__signal {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 7px;
+  border: 1px solid var(--lq-color-border-subtle);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--lq-color-text);
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-align: left;
+  cursor: pointer;
+}
+
+.lq-market-state__signal:hover:not(:disabled),
+.lq-market-state__signal--open {
+  background-color: var(--lq-color-hover);
+}
+
+.lq-market-state__signal:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.lq-market-state__signal-value {
+  font-size: 0.8rem;
+}
+
+.lq-market-state__at {
+  margin: 0;
+  font-family: var(--lq-font-sans, system-ui, sans-serif);
+  font-size: 0.62rem;
+  color: var(--lq-color-text-muted);
+  text-align: right;
+}
+
+/* On a phone the plot is barely wider than this panel: pin it across the top instead of into a
+   corner it would otherwise cover entirely. */
+@media (max-width: 720px) {
+  .lq-market-state {
+    left: 8px;
+    right: 8px;
+    width: auto;
+  }
+}

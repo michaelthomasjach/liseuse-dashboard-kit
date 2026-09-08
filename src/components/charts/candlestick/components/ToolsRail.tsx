@@ -2,7 +2,7 @@ import { Fragment, useRef, useState } from "react";
 import type { RefObject, Dispatch, SetStateAction } from "react";
 import { Popover } from "../../../forms/Popover";
 import { Checkbox } from "../../../forms/Checkbox";
-import { ChevronDownIcon, MagnetIcon, EyeIcon, EyeOffIcon, LockIcon, BellIcon, LayersIcon, ZoomInIcon, ZoomOutIcon, InfoIcon } from "../../../icons";
+import { ChevronDownIcon, MagnetIcon, EyeIcon, EyeOffIcon, LockIcon, BellIcon, LayersIcon, ZoomInIcon, ZoomOutIcon, InfoIcon, GaugeIcon } from "../../../icons";
 import { ToolCategorySheet } from "./ToolCategorySheet";
 import type { DrawingToolType } from "../interfaces/DrawingToolType.interface";
 import { DRAWING_TOOL_CATEGORIES } from "../drawingCatalog";
@@ -44,6 +44,12 @@ export interface ToolsRailProps {
   setHiddenEventKinds: Dispatch<SetStateAction<Set<string>>>;
   indicatorsManagerOpen: boolean;
   setIndicatorsManagerOpen: Dispatch<SetStateAction<boolean>>;
+  /** The Market State readout's own toggle (see `MarketStatePanel`) — the panel that reduces every
+   *  indicator currently on the chart to five 0-100 scores plus a long-side signal. Lives on this
+   *  rail rather than in the header because it is read *against* the chart, like the drawing
+   *  toggles beside it, not chosen once like a timeframe. */
+  marketStateOpen: boolean;
+  setMarketStateOpen: Dispatch<SetStateAction<boolean>>;
   onOpenToolInfo: (tool: DrawingToolType) => void;
 }
 
@@ -87,6 +93,8 @@ export function ToolsRail({
   setHiddenEventKinds,
   indicatorsManagerOpen,
   setIndicatorsManagerOpen,
+  marketStateOpen,
+  setMarketStateOpen,
   onOpenToolInfo,
 }: ToolsRailProps) {
   const [eventsMenuOpen, setEventsMenuOpen] = useState(false);
@@ -409,6 +417,18 @@ export function ToolsRail({
           title="Voir et gérer tous les dessins et indicateurs actifs"
         >
           <LayersIcon size={14} />
+        </button>
+        {/* Directly under "Dessins et indicateurs", which is the button it is the counterpart of:
+            that one lists everything on the chart, this one reads it. */}
+        <button
+          type="button"
+          className={["lq-chart__icon-button", marketStateOpen && "lq-chart__icon-button--active"].filter(Boolean).join(" ")}
+          onClick={() => setMarketStateOpen((o) => !o)}
+          aria-label="État du marché"
+          aria-pressed={marketStateOpen}
+          title="Résumer les indicateurs affichés en cinq scores et un signal"
+        >
+          <GaugeIcon size={14} />
         </button>
       </div>
       {/* One sheet for the whole rail, not one per category — it renders whichever category

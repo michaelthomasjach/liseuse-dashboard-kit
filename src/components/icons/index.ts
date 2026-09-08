@@ -79,6 +79,7 @@ export {
   ElliottImpulseIcon,
   ElliottCorrectionIcon,
   ActivityIcon,
+  GaugeIcon,
   CandleModeIcon,
   LineCloseModeIcon,
   HeikinAshiModeIcon,

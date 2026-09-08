@@ -612,6 +612,17 @@ export const ActivityIcon = (props: IconProps) => (
   </IconBase>
 );
 
+/** A gauge: a half-dial with a needle. For the Market State readout (`MarketStatePanel`), which
+ *  reduces every indicator on the chart to a handful of 0-100 dials — deliberately not
+ *  `ActivityIcon` above, which already means "add an indicator" in the same chart. */
+export const GaugeIcon = (props: IconProps) => (
+  <IconBase {...props}>
+    <path d="M3.5 17a9 9 0 1 1 17 0" />
+    <path d="M12 17 16 10.5" />
+    <circle cx="12" cy="17" r="1.4" fill="currentColor" stroke="none" />
+  </IconBase>
+);
+
 /** Two hollow candles with visible gaps between their bodies — the baseline "raw" candlestick
  *  look, distinct from HeikinAshiModeIcon's touching/near-continuous bodies below. */
 export const CandleModeIcon = (props: IconProps) => (

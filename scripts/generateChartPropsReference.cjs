@@ -26,7 +26,10 @@ const GROUPS = [
   ["Formatage", ["formatDate", "formatPrice", "formatVolume"]],
   [
     "Navigation",
-    ["zoomable", "fullscreenToggle", "isFullscreen", "onFullscreenChange", "timeframes", "timeframe", "onTimeframeChange", "seasonality", "replay"],
+    [
+      "zoomable", "fullscreenToggle", "isFullscreen", "onFullscreenChange", "settingsOpen", "onSettingsOpenChange",
+      "timeframes", "timeframe", "onTimeframeChange", "seasonality", "replay",
+    ],
   ],
   ["Dessins", ["drawingTools", "defaultDrawings", "onDrawingsChange"]],
   ["Indicateurs", ["showIndicators", "defaultIndicators", "onIndicatorsChange", "customIndicators"]],

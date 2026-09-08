@@ -1,8 +1,20 @@
 import { useEffect, useState } from "react";
 
+export interface UseChartAppearanceControlledSettings {
+  open: boolean;
+  onChange: (open: boolean) => void;
+}
+
 export interface UseChartAppearanceArgs {
   YAutoScaling: boolean;
   livePrice: boolean;
+  /** Hands ownership of the settings modal's open/closed flag to a caller outside this hook, same
+   *  idiom as `useFullscreen`'s own `controlled` argument. `ChartWorkspace` passes it so the
+   *  workspace holds a single "which panel's settings are open" index — which both keeps two
+   *  panels from opening the modal at once, and lets the mobile layout's own toolbar open the
+   *  focused panel's settings from outside the chart entirely. Left undefined, the hook owns the
+   *  flag itself, exactly as before. */
+  controlledSettings?: UseChartAppearanceControlledSettings;
 }
 
 /** Chart-settings-modal state: up/down bar color overrides (candles and, independently, volume),
@@ -11,8 +23,10 @@ export interface UseChartAppearanceArgs {
  *  countdown badge (a plain DOM element, not part of the canvas draw effect) a reason to
  *  re-render. None of this reads or writes `drawings`/`indicators`/zoom state, so it's cheap to
  *  keep fully separate from every other concern in this file. */
-export function useChartAppearance({ YAutoScaling, livePrice }: UseChartAppearanceArgs) {
-  const [settingsOpen, setSettingsOpen] = useState(false);
+export function useChartAppearance({ YAutoScaling, livePrice, controlledSettings }: UseChartAppearanceArgs) {
+  const [internalSettingsOpen, setInternalSettingsOpen] = useState(false);
+  const settingsOpen = controlledSettings?.open ?? internalSettingsOpen;
+  const setSettingsOpen: (open: boolean) => void = controlledSettings?.onChange ?? setInternalSettingsOpen;
   // Per-chart color overrides for up/down bars — `undefined` (the default) means "use the
   // theme's own --lq-color-up/--lq-color-down", same as before this modal existed.
   const [upColorOverride, setUpColorOverride] = useState<string | undefined>(undefined);

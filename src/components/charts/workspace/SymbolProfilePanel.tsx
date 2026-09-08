@@ -65,10 +65,19 @@ export interface SymbolProfilePanelProps {
    *  uses elsewhere. On the mobile layout it switches to the chart page; omit it and the button
    *  isn't rendered at all. */
   onOpenInChart?: () => void;
-  /** Shows the "open full screen" button in the header. Default true. The full-screen modal renders
-   *  this same component with it set to false — a panel already filling the screen has nowhere
-   *  bigger to go, and a second button there would only open a modal inside a modal. */
-  expandable?: boolean;
+  /** Which surface this copy is rendered on. It decides two things that used to be one: whether
+   *  there is anywhere bigger for the reader to go (the full-screen and detach buttons, the
+   *  "Afficher plus de détails" link, and the modal/window those open), and whether the panel has
+   *  the width to show the financial tabs at all.
+   *
+   *  - `"docked"` (default) — the 260px column beside the chart. Expandable; no financial tables,
+   *    which that width simply cannot show.
+   *  - `"expanded"` — the full-screen modal and the detached window. Already as big as it gets, so
+   *    nothing to expand; financial tables, and an earnings chart drawn at real size.
+   *  - `"mobile"` — the sheet that slides up over the phone layout. It is a full page in its own
+   *    right, so it carries the tables too, but a phone is not the place for a 1100px earnings
+   *    chart, a second full-screen modal on top of a full-screen sheet, or a detached window. */
+  layout?: "docked" | "expanded" | "mobile";
 }
 
 /** The workspace side panel's own "company info" section (see `useSymbolProfileSplit`'s own doc
@@ -86,8 +95,11 @@ export function SymbolProfilePanel({
   onMoreNews,
   priceHistory,
   onOpenInChart,
-  expandable = true,
+  layout = "docked",
 }: SymbolProfilePanelProps) {
+  // The docked column is the only copy with somewhere bigger to go — see `layout`'s own doc.
+  const canExpand = layout === "docked";
+  const showFinancials = layout !== "docked";
   const [priceRange, setPriceRange] = useState(DEFAULT_PRICE_RANGE);
   const [fullscreenOpen, setFullscreenOpen] = useState(false);
   const [earningsModalOpen, setEarningsModalOpen] = useState(false);
@@ -136,7 +148,7 @@ export function SymbolProfilePanel({
             together on the right rather than spreading three items across the row. */}
         <span className="lq-chart-workspace__symbol-profile-header-actions">
           {profile?.marketStatus && <span className="lq-chart-workspace__symbol-profile-status">{profile.marketStatus}</span>}
-          {expandable && (
+          {canExpand && (
             <button
               type="button"
               className="lq-chart-workspace__symbol-profile-expand"
@@ -147,7 +159,7 @@ export function SymbolProfilePanel({
               <DetachWindowIcon size={14} />
             </button>
           )}
-          {expandable && (
+          {canExpand && (
             <button
               type="button"
               className="lq-chart-workspace__symbol-profile-expand"
@@ -244,9 +256,11 @@ export function SymbolProfilePanel({
         </div>
       )}
 
-      {/* The financial tabs. Only in the expanded copy: they are a page's worth of tables, which a
-          260px column cannot show and the modal exists to give room to. */}
-      {!expandable && profile?.financials && (
+      {/* The financial tabs. Never in the docked copy: they are a page's worth of tables, which a
+          260px column cannot show and the modal exists to give room to. The mobile sheet is a full
+          page, so it gets them where the column does not — the tab strip and every table scroll
+          horizontally on their own, so a phone's width costs nothing here. */}
+      {showFinancials && profile?.financials && (
         <div className="lq-chart-workspace__symbol-profile-section">
           <SymbolFinancialsView financials={profile.financials} />
         </div>
@@ -378,15 +392,15 @@ export function SymbolProfilePanel({
           {/* Real dimensions in the fullscreen copy rather than letting CSS stretch the 260px one:
               the drawing carries a viewBox, so stretching it magnifies its own 9px labels by the
               same factor — 51px in a column that wide. Drawn larger, the labels stay 9px and the
-              dots grow with `scale`, which is exactly what that prop is for. `expandable === false`
-              identifies the fullscreen copy: it is the one instance that cannot be expanded further
-              (see the prop's own doc). */}
-          <EarningsDotChart points={profile.earnings} {...(expandable ? {} : { width: 1100, height: 340, scale: 2 })} />
+              dots grow with `scale`, which is exactly what that prop is for. Only the `"expanded"`
+              layout: the mobile sheet cannot show 1100px of chart either, and is not the copy this
+              is sized for. */}
+          <EarningsDotChart points={profile.earnings} {...(layout === "expanded" ? { width: 1100, height: 340, scale: 2 } : {})} />
           {/* Under the chart rather than in the header: the header's own icons are for people who
               already know what they do, and this is the one action a reader arrives at by reading
               downward. Only on the docked copy — inside the modal there is nothing further to
               open. */}
-          {expandable && (
+          {canExpand && (
             <button type="button" className="lq-chart-workspace__symbol-profile-more" onClick={() => setFullscreenOpen(true)}>
               Afficher plus de détails
             </button>
@@ -397,8 +411,8 @@ export function SymbolProfilePanel({
 
       {/* The whole panel again, at the size of the screen. The same component rather than a
           bespoke big layout: everything it knows how to show is already here, and the modal's only
-          job is to give it width. `expandable={false}` on the inner one — see the prop's own doc. */}
-      {expandable && fullscreenOpen && (
+          job is to give it width. `layout="expanded"` on the inner one — see the prop's own doc. */}
+      {canExpand && fullscreenOpen && (
         <Modal
           open
           onClose={() => setFullscreenOpen(false)}
@@ -431,7 +445,7 @@ export function SymbolProfilePanel({
             onMoreNews={onMoreNews}
             priceHistory={priceHistory}
             onOpenInChart={onOpenInChart}
-            expandable={false}
+            layout="expanded"
           />
         </Modal>
       )}
@@ -439,14 +453,14 @@ export function SymbolProfilePanel({
       {/* Rendered from this panel rather than from the section above so it survives the section's
           own conditional — and `size="wide"` because the point is horizontal room: eight quarters
           need width far more than height before they can be compared by eye. */}
-      {expandable && detachedWindow !== null && (
+      {canExpand && detachedWindow !== null && (
         <DetachedWindow
           target={detachedWindow}
           title={`${symbol} — détails`}
           themeSource={typeof document === "undefined" ? null : (document.querySelector(".lq-root") as HTMLElement | null)}
           onClose={() => setDetachedWindow(null)}
         >
-          {/* The same expanded copy the modal shows — `expandable={false}` marks it as the one
+          {/* The same expanded copy the modal shows — `layout="expanded"` marks it as the one
               that cannot be opened further (see the prop's own doc). */}
           <SymbolProfilePanel
             symbol={symbol}
@@ -457,7 +471,7 @@ export function SymbolProfilePanel({
             onMoreNews={onMoreNews}
             priceHistory={priceHistory}
             onOpenInChart={onOpenInChart}
-            expandable={false}
+            layout="expanded"
           />
         </DetachedWindow>
       )}

@@ -27,7 +27,7 @@ import { strategyFromIndicator } from "./candlestick/scripting/strategyFromIndic
 import { ScriptEditorPanel } from "./candlestick/scripting/components/ScriptEditorPanel";
 import { Popover } from "../forms/Popover";
 import { Modal } from "../primitives/Modal";
-import { WatchlistIcon, BellIcon, PlusIcon, CandleModeIcon, GridIcon, MaximizeIcon, MinimizeIcon, HelpIcon, CodeIcon, LockIcon } from "../icons";
+import { WatchlistIcon, BellIcon, PlusIcon, CandleModeIcon, GridIcon, MaximizeIcon, MinimizeIcon, HelpIcon, CodeIcon, LockIcon, SettingsIcon } from "../icons";
 import { useFullscreen } from "./internal/useFullscreen";
 import { useChartDimensions } from "./internal/useChartDimensions";
 import { MOBILE_LAYOUT_BREAKPOINT } from "./candlestick/constants";
@@ -661,6 +661,12 @@ export function ChartWorkspace({
   const rawChildren = Children.toArray(children) as ReactElement<CandlestickChartProps>[];
   const panelElements = rawChildren.length === 1 ? Array.from({ length: panels }, () => rawChildren[0]) : rawChildren.slice(0, panels);
   const effectiveFocusedPanelIndex = focusedPanelIndex !== null && focusedPanelIndex < panels ? focusedPanelIndex : null;
+  // Which panel currently has its chart-settings modal open, or null. Held here rather than inside
+  // each chart for the same reason `focusedPanelIndex` above is: one shared piece of state means
+  // two panels cannot both open the modal at once, and it gives the mobile toolbar's own
+  // "Paramètres" button something to set — a phone has neither the double-click nor the
+  // right-click the chart normally opens that modal from.
+  const [settingsPanelIndex, setSettingsPanelIndex] = useState<number | null>(null);
   // One candidate target per panel for the shared editor's own "Exécuter" picker (exigence: "si
   // plusieurs charts sont ouvertes, on me demande sur laquelle exécuter") — a single-panel
   // workspace never shows this at all (ScriptEditorPanel's own needsTargetChoice only engages past
@@ -853,6 +859,10 @@ export function ChartWorkspace({
             fullscreenToggle: panels >= 2,
             isFullscreen: effectiveFocusedPanelIndex === i,
             onFullscreenChange: (value: boolean) => setFocusedPanelIndex(value ? i : null),
+            // Same controlled-pair shape as the two lines above, for the chart-settings modal —
+            // see settingsPanelIndex's own doc.
+            settingsOpen: settingsPanelIndex === i,
+            onSettingsOpenChange: (open: boolean) => setSettingsPanelIndex(open ? i : null),
             // The workspace's own shared script list, filtered down to whichever scripts target
             // *this* panel (see ScriptDef.targetPanelIndex's own doc) — same controlled-prop split
             // as isFullscreen/onFullscreenChange just above, but for the list itself rather than a
@@ -1095,6 +1105,11 @@ export function ChartWorkspace({
                             setMobileProfileTicker(null);
                             sidePanelState.commitOpen(false);
                           }}
+                          // A full page of its own, not a 260px column: it carries the financial
+                          // tabs (Aperçu, Comptes, Statistiques…) inline rather than behind a
+                          // "plus de détails" button, and drops the full-screen/detach buttons,
+                          // which have nothing to offer a sheet already filling the screen.
+                          layout="mobile"
                         />
                       </div>
                     </div>
@@ -1293,6 +1308,20 @@ export function ChartWorkspace({
                 promise a page that doesn't exist. */}
             {hasWatchlists ? <WatchlistIcon size={18} /> : <BellIcon size={18} />}
             {hasWatchlists ? "Listes" : "Alertes"}
+          </button>
+          {/* An action, not a third page — hence no `aria-current` and no active state: it opens
+              the focused chart's own settings modal over whichever page you were on, and closing it
+              puts you back there. It exists on this layout alone because the two gestures that
+              normally open that modal (double-clicking the symbol label, right-clicking the plot)
+              are both desktop gestures a phone cannot perform. */}
+          <button
+            type="button"
+            className="lq-chart-workspace__mobile-bottomnav-item"
+            onClick={() => setSettingsPanelIndex(effectiveFocusedPanelIndex ?? 0)}
+            aria-label="Paramètres du graphique"
+          >
+            <SettingsIcon size={18} />
+            Paramètres
           </button>
         </div>
       )}

@@ -93,8 +93,10 @@ export interface SymbolProfile {
    *  shown as a small dot chart. */
   earnings?: SymbolProfileEarningsPoint[];
   /** The financial detail behind this symbol — statements, statistics, dividends, earnings and
-   *  segments — rendered as tabs in the details modal. Supplied by the application like every
-   *  other data prop here; each section is optional and its tab only appears when its data does.
-   *  See `SymbolFinancials`. */
+   *  segments — rendered as tabs wherever the panel has the width for them: the details modal and
+   *  its detached window on desktop, and the details sheet itself on the mobile layout (see
+   *  `SymbolProfilePanel`'s own `layout` prop). Supplied by the application like every other data
+   *  prop here; each section is optional and its tab only appears when its data does. See
+   *  `SymbolFinancials`. */
   financials?: SymbolFinancials;
 }

@@ -112,6 +112,8 @@ export function CandlestickChart({
   fullscreenToggle = true,
   isFullscreen: isFullscreenProp,
   onFullscreenChange,
+  settingsOpen: settingsOpenProp,
+  onSettingsOpenChange,
   seasonality = false,
   replay = false,
   drawingTools = false,
@@ -247,7 +249,13 @@ export function CandlestickChart({
     futureZoneVisible, setFutureZoneVisible,
     pastZoneVisible, setPastZoneVisible,
     now,
-  } = useChartAppearance({ YAutoScaling, livePrice });
+  } = useChartAppearance({
+    YAutoScaling,
+    livePrice,
+    // Same shape and same condition as `useFullscreen`'s own controlled argument below: the pair
+    // only takes over once a caller has supplied the callback to report changes back through.
+    controlledSettings: onSettingsOpenChange ? { open: settingsOpenProp ?? false, onChange: onSettingsOpenChange } : undefined,
+  });
   // Swaps the whole chart body for SeasonalityView — its own flag, not folded into
   // `chartDisplayMode`: its x-axis shares no meaningful relationship with candle/line/Renko's.
   const [seasonalityOpen, setSeasonalityOpen] = useState(false);

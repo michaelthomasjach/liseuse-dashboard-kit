@@ -65,6 +65,16 @@ export interface CandlestickChartProps {
   /** Fired on every entry into and exit from fullscreen, including one triggered by Escape rather than by
    *  the toggle — so a caller mirroring this in its own state never drifts out of sync with it. */
   onFullscreenChange?: (value: boolean) => void;
+  /** Controls the chart-settings modal from outside instead of it managing its own state — pairs
+   *  with `onSettingsOpenChange` below, exactly as `isFullscreen`/`onFullscreenChange` do just
+   *  above, and only takes effect when that callback is given. Normally the modal opens from
+   *  inside the chart (double-click the symbol/chart-type label, or the plot's own right-click
+   *  menu); a caller needs this when neither gesture is available, which is the mobile layout's
+   *  case — `ChartWorkspace` opens the focused panel's settings from a button in its own bottom
+   *  toolbar there, since a phone has no double-click and no right-click. */
+  settingsOpen?: boolean;
+  /** Fired whenever the chart-settings modal opens or closes, from any of the ways it can. */
+  onSettingsOpenChange?: (open: boolean) => void;
   /** Shows a header button that swaps the whole chart body for `SeasonalityView` — the average
    *  cumulative return through a reference year, aggregated across `data`'s own historical years
    *  (see `computeSeasonality` in `internal/seasonality.ts`, kept independent of this component on

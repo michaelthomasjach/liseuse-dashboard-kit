@@ -328,3 +328,10 @@
   color: var(--lq-color-text);
   background-color: var(--lq-color-hover);
 }
+
+/* Title plus its detach button on one line in the modal's own header. */
+.lq-script-docs__title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lq-space-2);
+}

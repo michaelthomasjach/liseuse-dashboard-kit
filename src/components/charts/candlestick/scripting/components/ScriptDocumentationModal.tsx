@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Modal } from "../../../../primitives/Modal";
 import { CodeBlock } from "../../../../primitives/CodeBlock";
-import { SearchIcon, ChevronRightIcon, CloseIcon } from "../../../../icons";
+import { ChevronRightIcon, CloseIcon, DetachWindowIcon, SearchIcon } from "../../../../icons";
 import { SCRIPT_API_REFERENCE } from "../scriptApiReference";
 import { SCRIPT_DIAGRAM_REGISTRY } from "../scriptDiagramRegistry";
 import { SCRIPT_DOCS_NAV, headingAnchorId, searchDocsNav } from "../scriptDocsNav";
@@ -13,6 +13,12 @@ import "./ScriptDocumentationModal.css";
 export interface ScriptDocumentationModalProps {
   open: boolean;
   onClose: () => void;
+  /** Offers a button to open the documentation in a real browser window, so it can sit beside the
+   *  editor instead of covering it — which is what a reference is for. */
+  onRequestDetach?: () => void;
+  /** Renders the documentation as plain content filling its host, with no modal shell: for the
+   *  detached window, which is the shell. */
+  detached?: boolean;
 }
 
 /** The script editor's own "Documentation" button — an exhaustive, offline reference for every
@@ -21,7 +27,7 @@ export interface ScriptDocumentationModalProps {
  *  own `ScriptEditorWindow`, reading a reference doc while writing code has no reason to stay
  *  non-blocking or resizable, and a full-height scrollable page is the most readable shape for
  *  genuinely long reference content. */
-export function ScriptDocumentationModal({ open, onClose }: ScriptDocumentationModalProps) {
+export function ScriptDocumentationModal({ open, onClose, onRequestDetach, detached = false }: ScriptDocumentationModalProps) {
   const contentRef = useRef<HTMLDivElement>(null);
   const [activeId, setActiveId] = useState(SCRIPT_API_REFERENCE[0]?.id);
   // The specific sub-heading (if any) currently under the reader's eye, *within* the active
@@ -117,8 +123,7 @@ export function ScriptDocumentationModal({ open, onClose }: ScriptDocumentationM
     document.getElementById(anchorId)?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  return (
-    <Modal open={open} onClose={onClose} title="Documentation de l'éditeur de script" size="fullscreen" footer={null}>
+  const body = (
       <div className="lq-script-docs">
         <nav className="lq-script-docs__nav">
           <div className="lq-script-docs__search">
@@ -267,6 +272,38 @@ export function ScriptDocumentationModal({ open, onClose }: ScriptDocumentationM
           ))}
         </div>
       </div>
+  );
+
+  // Detached: the browser window is the shell, so the modal's own is dropped entirely.
+  if (detached) return body;
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={
+        <span className="lq-script-docs__title">
+          Documentation de l'éditeur de script
+          {onRequestDetach && (
+            <button
+              type="button"
+              className="lq-script-window__header-button"
+              // The modal's own header is draggable; without this the click would start a drag
+              // as well as open the window.
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={onRequestDetach}
+              aria-label="Ouvrir la documentation dans une fenêtre"
+              title="Ouvrir dans une fenêtre"
+            >
+              <DetachWindowIcon size={14} />
+            </button>
+          )}
+        </span>
+      }
+      size="fullscreen"
+      footer={null}
+    >
+      {body}
     </Modal>
   );
 }

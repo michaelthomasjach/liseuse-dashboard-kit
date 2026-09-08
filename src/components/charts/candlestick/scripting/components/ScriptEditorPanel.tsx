@@ -4,6 +4,7 @@ import type { ScriptParam, ScriptParamValue } from "../../interfaces/ScriptParam
 import { ScriptParamsFields } from "./ScriptParamsFields";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { ScriptEditorWindow } from "./ScriptEditorWindow";
+import { DetachedWindow } from "../../components/DetachedWindow";
 import { ScriptFileTabs } from "./ScriptFileTabs";
 import { Popover } from "../../../../forms/Popover";
 import { Modal } from "../../../../primitives/Modal";
@@ -40,6 +41,11 @@ export interface ScriptEditorPanelProps {
   open: boolean;
   onClose: () => void;
   scripts: ScriptDef[];
+  /** Offers a button to tear the editor out into a real browser window; absent means the host
+   *  does not support it. */
+  onRequestDetach?: () => void;
+  /** Renders inside that detached window: no floating-window chrome (see ScriptEditorWindow). */
+  detached?: boolean;
   /** Which scripts have a tab. Everything else lives behind the search field — see the tab strip. */
   openScriptIds: string[];
   openScript: (id: string) => void;
@@ -96,6 +102,8 @@ export function ScriptEditorPanel({
   open,
   onClose,
   scripts,
+  onRequestDetach,
+  detached,
   openScriptIds,
   openScript,
   closeScript,
@@ -218,6 +226,18 @@ export function hello() {
   }, [draft, draftFiles]);
   const [formatRequestId, setFormatRequestId] = useState(0);
   const [docsOpen, setDocsOpen] = useState(false);
+  // The documentation torn off into a browser window of its own — a reference is for reading
+  // *beside* the thing it documents, which a fullscreen modal over the editor cannot do.
+  const [docsWindow, setDocsWindow] = useState<Window | null>(null);
+
+  /** Opened inside the click, never from an effect: a popup that opens later is not attributed to
+   *  the gesture and every browser blocks it. */
+  function detachDocs() {
+    const child = window.open("", "", "width=1000,height=820");
+    if (child === null) return;
+    setDocsOpen(false);
+    setDocsWindow(child);
+  }
   const [targetPickerOpen, setTargetPickerOpen] = useState(false);
   const runButtonRef = useRef<HTMLButtonElement>(null);
   const codeMirrorRef = useRef<ScriptEditorCodeMirrorHandle>(null);
@@ -424,6 +444,8 @@ export function hello() {
 
   return (
     <ScriptEditorWindow
+      onRequestDetach={onRequestDetach}
+      detached={detached}
       open={open}
       onClose={onClose}
       title="Éditeur de script"
@@ -714,7 +736,20 @@ export function hello() {
       ) : (
         <div className="lq-script-editor-panel__empty">Aucun script — cliquez sur « + » pour en créer un.</div>
       )}
-      <ScriptDocumentationModal open={docsOpen} onClose={() => setDocsOpen(false)} />
+      <ScriptDocumentationModal open={docsOpen && docsWindow === null} onClose={() => setDocsOpen(false)} onRequestDetach={detachDocs} />
+
+      {docsWindow !== null && (
+        <DetachedWindow
+          target={docsWindow}
+          title="Documentation de l'éditeur de script"
+          // The editor is portaled to document.body, so it has no `.lq-root` ancestor to inherit a
+          // theme from — the app's own scope is looked up directly instead.
+          themeSource={document.querySelector(".lq-root") as HTMLElement | null}
+          onClose={() => setDocsWindow(null)}
+        >
+          <ScriptDocumentationModal open onClose={() => setDocsWindow(null)} detached />
+        </DetachedWindow>
+      )}
 
       {fileModal && (
         <Modal

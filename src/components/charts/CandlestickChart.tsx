@@ -1223,13 +1223,6 @@ export function CandlestickChart({
           ChartSidePaneColumn's own doc). */}
       <div className="lq-chart__main-row">
       {leftColumnProps && <ChartSidePaneColumn {...leftColumnProps} />}
-      {/* The plot and the strategy tester share one column *inside* the row, so the tester is
-          exactly as wide as the candles it is read against — never running on under a docked
-          pane — and narrows and widens with them as those panes open and close. `ref`
-          (useChartDimensions) stays on .lq-chart__plot-column, which is now the plot alone, so the
-          tester's own height comes off the candles the way a docked pane's does and every
-          downstream axis/margin measurement keeps meaning what it did. */}
-      <div className="lq-chart__plot-stack">
       <div ref={ref} className="lq-chart__plot-column" onContextMenu={handlePlotContextMenu} onClick={handlePlotClick}>
       {seasonalityOpen ? (
         <SeasonalityView data={data} symbol={symbol} onBack={() => setSeasonalityOpen(false)} showHeader={showHeader} height={plotHeight} mobile={isNarrowLayout} />
@@ -1483,10 +1476,12 @@ export function CandlestickChart({
       </div>
       )}
       </div>
-      {/* Docked under the plot — the position the request asked for ("comme l'indicateur MACD"),
-          and the right one: a strategy is read against the candles above it. A React panel rather
-          than a canvas pane because its content is a form, a table and a chart, none of which the
-          indicator pane machinery is for. */}
+      {rightColumnProps && <ChartSidePaneColumn {...rightColumnProps} />}
+      </div>
+      {/* Docked under the whole row — under the docked pane columns too, not only under the plot.
+          A backtest is a table, a form and a chart of its own; it reads better across the full
+          width than squeezed into whatever the candles were left, and a profile column beside the
+          plot has no reason to reserve width below itself. */}
       {strategyPanelProps !== null && strategyView === "docked" && (
         <ChartStrategyPanel
           {...strategyPanelProps}
@@ -1494,9 +1489,6 @@ export function CandlestickChart({
           onRequestDetach={detachStrategyPanel}
         />
       )}
-      </div>
-      {rightColumnProps && <ChartSidePaneColumn {...rightColumnProps} />}
-      </div>
 
       {isMobileRail && !seasonalityOpen && toolsRail}
 

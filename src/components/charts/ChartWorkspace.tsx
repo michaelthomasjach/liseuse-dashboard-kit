@@ -1,4 +1,5 @@
 import { Children, cloneElement, useCallback, useEffect, useRef, useState, type ReactElement, type ReactNode } from "react";
+import { DetachedWindow } from "./candlestick/components/DetachedWindow";
 import type { CandlestickChartProps } from "./candlestick/interfaces/CandlestickChartProps.interface";
 import type { SymbolSearchCategory } from "./candlestick/interfaces/SymbolSearchCategory.interface";
 import type { SymbolSearchResult } from "./candlestick/interfaces/SymbolSearchResult.interface";
@@ -330,6 +331,20 @@ export function ChartWorkspace({
   // panel. Uncontrolled at this level (nothing above ChartWorkspace itself needs to drive it).
   const workspaceScripting = useScriptingState({ defaultScripts, onScriptsChange });
   // Item 20: hold anywhere on the grid for LOCK_HOLD_MS to toggle the lock, in either direction.
+
+  // The script editor torn off into a real browser window. Null means it is docked in the page.
+  const [scriptEditorWindow, setScriptEditorWindow] = useState<Window | null>(null);
+
+  /** Opened inside the click, never from an effect: a `window.open` that runs after the gesture
+   *  has ended is treated as an unsolicited popup and blocked. When it is blocked anyway, nothing
+   *  changes here and the editor stays docked, leaving the browser's own blocked-popup indicator
+   *  as the explanation rather than a button that appears to do nothing. */
+  function detachScriptEditor() {
+    const child = window.open("", "", "width=1200,height=820");
+    if (child === null) return;
+    workspaceScripting.setEditorOpen(true);
+    setScriptEditorWindow(child);
+  }
   // A press rather than a click count (which this used to be) because a count has no way to show
   // its own progress — you either guessed right or nothing happened. A hold can be watched, and
   // abandoned.
@@ -1315,41 +1330,62 @@ export function ChartWorkspace({
         onSelectedPanelsChange={setSelectedPanels}
       />
 
-      {scripting && (
-        <ScriptEditorPanel
-          // The active script's own target panel's own candles — `.props.data` reads it straight
-          // off that panel's original JSX element the same way `resolvedSymbol` already reads
-          // `.props.symbol` above, since (unlike a panel's own *indicator* state, genuinely
-          // internal and never reported upward) a panel's own `data` is just the plain prop this
-          // workspace itself was given for it in the first place. `undefined` before a target is
-          // chosen — the notebook cell-output preview simply has nothing to draw against yet.
-          previewData={
-            (() => {
-              const targetIndex = workspaceScripting.scripts.find((s) => s.id === workspaceScripting.activeScriptId)?.targetPanelIndex;
-              return targetIndex !== undefined ? panelElements[targetIndex]?.props.data : undefined;
-            })()
-          }
-          open={workspaceScripting.editorOpen}
-          onClose={() => workspaceScripting.setEditorOpen(false)}
-          scripts={workspaceScripting.scripts}
-          activeScriptId={workspaceScripting.activeScriptId}
-          setActiveScriptId={workspaceScripting.setActiveScriptId}
-          addScript={workspaceScripting.addScript}
-          updateScript={workspaceScripting.updateScript}
-          openScriptIds={workspaceScripting.openScriptIds}
-          openScript={workspaceScripting.openScript}
-          closeScript={workspaceScripting.closeScript}
-          drafts={workspaceScripting.drafts}
-          setScriptDraft={workspaceScripting.setScriptDraft}
-          setScriptParamValue={workspaceScripting.setScriptParamValue}
-          resetScriptParamValues={workspaceScripting.resetScriptParamValues}
-          toggleScriptEnabled={workspaceScripting.toggleScriptEnabled}
-          runScript={workspaceScripting.runScript}
-          stopScript={workspaceScripting.stopScript}
-          runOutputs={workspaceScripting.runOutputs}
-          panelChoices={scriptPanelChoices}
-        />
-      )}
+      {scripting &&
+        (() => {
+          const panel = (
+          <ScriptEditorPanel
+            // The active script's own target panel's own candles — `.props.data` reads it straight
+            // off that panel's original JSX element the same way `resolvedSymbol` already reads
+            // `.props.symbol` above, since (unlike a panel's own *indicator* state, genuinely
+            // internal and never reported upward) a panel's own `data` is just the plain prop this
+            // workspace itself was given for it in the first place. `undefined` before a target is
+            // chosen — the notebook cell-output preview simply has nothing to draw against yet.
+            previewData={
+              (() => {
+                const targetIndex = workspaceScripting.scripts.find((s) => s.id === workspaceScripting.activeScriptId)?.targetPanelIndex;
+                return targetIndex !== undefined ? panelElements[targetIndex]?.props.data : undefined;
+              })()
+            }
+            open={workspaceScripting.editorOpen || scriptEditorWindow !== null}
+            onRequestDetach={detachScriptEditor}
+            detached={scriptEditorWindow !== null}
+            onClose={() => workspaceScripting.setEditorOpen(false)}
+            scripts={workspaceScripting.scripts}
+            activeScriptId={workspaceScripting.activeScriptId}
+            setActiveScriptId={workspaceScripting.setActiveScriptId}
+            addScript={workspaceScripting.addScript}
+            updateScript={workspaceScripting.updateScript}
+            openScriptIds={workspaceScripting.openScriptIds}
+            openScript={workspaceScripting.openScript}
+            closeScript={workspaceScripting.closeScript}
+            drafts={workspaceScripting.drafts}
+            setScriptDraft={workspaceScripting.setScriptDraft}
+            setScriptParamValue={workspaceScripting.setScriptParamValue}
+            resetScriptParamValues={workspaceScripting.resetScriptParamValues}
+            toggleScriptEnabled={workspaceScripting.toggleScriptEnabled}
+            runScript={workspaceScripting.runScript}
+            stopScript={workspaceScripting.stopScript}
+            runOutputs={workspaceScripting.runOutputs}
+            panelChoices={scriptPanelChoices}
+          />
+          );
+          // Docked in the page, or torn off into a real browser window — one or the other,
+          // never both. The window is opened inside the click that asks for it (see
+          // detachScriptEditor); from an effect it would land after the gesture and be
+          // blocked as a popup.
+          return scriptEditorWindow === null ? (
+            panel
+          ) : (
+            <DetachedWindow
+              target={scriptEditorWindow}
+              title="Éditeur de script"
+              themeSource={typeof document === "undefined" ? null : (document.querySelector(".lq-root") as HTMLElement | null)}
+              onClose={() => setScriptEditorWindow(null)}
+            >
+              {panel}
+            </DetachedWindow>
+          );
+        })()}
     </div>
   );
 }

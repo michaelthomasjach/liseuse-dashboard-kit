@@ -118,17 +118,29 @@ export function ChartStrategyPanel({
   // and its height handed down.
   const [fillRef, fillDims] = useChartDimensions({ top: 0, right: 0, bottom: 0, left: 0 });
 
-  /** Drag the top edge to trade height with the candles above. The ceiling is computed at grab
-   *  time from the row this panel shares with the plot, so the chart keeps MIN_PLOT_HEIGHT however
-   *  far the pointer travels. */
+  /** How tall this panel may grow, given how much room there is above it right now.
+   *
+   *  Measured from the gap between this panel's own top and its container's, rather than from the
+   *  container's height minus a guess at what else is in it: the panel sits below the whole chart
+   *  row — header, plot and any docked columns — and only that gap knows what is actually up
+   *  there. Whatever it is, MIN_PLOT_HEIGHT of it survives. */
+  function maxHeight(currentHeight: number): number {
+    const section = sectionRef.current;
+    const parent = section?.parentElement;
+    if (!section || !parent) return currentHeight;
+    const spaceAbove = section.getBoundingClientRect().top - parent.getBoundingClientRect().top;
+    return Math.max(MIN_PANEL_HEIGHT, currentHeight + (spaceAbove - MIN_PLOT_HEIGHT));
+  }
+
+  /** Drag the top edge to trade height with everything above. The ceiling is computed at grab
+   *  time, so the chart keeps MIN_PLOT_HEIGHT however far the pointer travels. */
   function startResize(e: React.PointerEvent<HTMLDivElement>) {
     if (collapsed) return;
     e.preventDefault();
     const handle = e.currentTarget;
     const startY = e.clientY;
     const startHeight = sectionRef.current?.getBoundingClientRect().height ?? height;
-    const available = sectionRef.current?.parentElement?.getBoundingClientRect().height ?? 0;
-    const max = Math.max(MIN_PANEL_HEIGHT, available - MIN_PLOT_HEIGHT);
+    const max = maxHeight(startHeight);
     handle.setPointerCapture(e.pointerId);
     const onMove = (ev: PointerEvent) => {
       // Dragging up (a smaller clientY) makes the panel taller — it grows from its own top edge.
@@ -148,8 +160,7 @@ export function ChartStrategyPanel({
   function onHandleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
     if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
     e.preventDefault();
-    const available = sectionRef.current?.parentElement?.getBoundingClientRect().height ?? 0;
-    const max = Math.max(MIN_PANEL_HEIGHT, available - MIN_PLOT_HEIGHT);
+    const max = maxHeight(sectionRef.current?.getBoundingClientRect().height ?? height);
     const step = e.shiftKey ? 48 : 16;
     setHeight((h) => Math.max(MIN_PANEL_HEIGHT, Math.min(max, h + (e.key === "ArrowUp" ? step : -step))));
   }

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { CloseIcon, MaximizeIcon, MinimizeIcon } from "../../../../icons";
+import { CloseIcon, DetachWindowIcon, MaximizeIcon, MinimizeIcon } from "../../../../icons";
 import { LqThemeProvider, useLqTheme } from "../../../../../theme";
 import "./ScriptEditorWindow.css";
 
@@ -15,6 +15,14 @@ export interface ScriptEditorWindowProps {
    *  the header's own drag-to-move (exigence : « je veux que le bouton de documentation soit dans
    *  la topbar de la modale », not the toolbar row below it). */
   headerActions?: ReactNode;
+  /** Offers a button to tear the editor out into a real browser window. Absent means the host does
+   *  not support it and no button appears. */
+  onRequestDetach?: () => void;
+  /** Renders the editor as plain content filling whatever it is inside, with none of the floating
+   *  window's own chrome — no title bar to drag, no resize edges, no maximize or close, and no
+   *  portal to `document.body`. For the detached browser window, which supplies all of that
+   *  itself: a draggable window inside a window is two sets of controls for one thing. */
+  detached?: boolean;
   children: ReactNode;
 }
 
@@ -51,7 +59,7 @@ type DragMode = "move" | ResizeEdges;
  *  result on the live chart right away, not after closing the editor first). Portaled straight to
  *  `document.body`, same stacking-context escape `Modal.tsx`/`Popover.tsx` already use and for the
  *  same reason (see either of their own docs). */
-export function ScriptEditorWindow({ open, onClose, title, toolbar, headerActions, children }: ScriptEditorWindowProps) {
+export function ScriptEditorWindow({ open, onClose, title, toolbar, headerActions, onRequestDetach, detached = false, children }: ScriptEditorWindowProps) {
   const theme = useLqTheme();
   const [rect, setRect] = useState<Rect>(initialRect);
   const [maximized, setMaximized] = useState(false);
@@ -120,6 +128,29 @@ export function ScriptEditorWindow({ open, onClose, title, toolbar, headerAction
 
   if (!open) return null;
 
+  // Detached: the browser window is the window. Rendered in place rather than portaled, since the
+  // host it is handed (see DetachedWindow) is already in the right document — portaling to *this*
+  // document's body would put it back in the page it was torn out of.
+  if (detached) {
+    return (
+      <LqThemeProvider palette={theme.palette} surface={theme.surface} font={theme.font} style={{ display: "contents" }}>
+        <div className="lq-script-window lq-script-window--detached">
+          {/* The host's own header buttons survive — Documentation among them. Only the *window's*
+              controls are dropped (drag, resize, maximize, close, detach), since the browser
+              window now provides those. */}
+          {headerActions && (
+            <div className="lq-script-window__header lq-script-window__header--detached">
+              <span className="lq-script-window__title">{title}</span>
+              <div className="lq-script-window__header-actions">{headerActions}</div>
+            </div>
+          )}
+          {toolbar}
+          <div className="lq-script-window__body">{children}</div>
+        </div>
+      </LqThemeProvider>
+    );
+  }
+
   return createPortal(
     <LqThemeProvider palette={theme.palette} surface={theme.surface} font={theme.font} style={{ display: "contents" }}>
       <div
@@ -132,6 +163,18 @@ export function ScriptEditorWindow({ open, onClose, title, toolbar, headerAction
           <span className="lq-script-window__title">{title}</span>
           <div className="lq-script-window__header-actions">
             {headerActions}
+            {onRequestDetach && (
+              <button
+                type="button"
+                className="lq-script-window__header-button"
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={onRequestDetach}
+                aria-label="Détacher l'éditeur dans une fenêtre"
+                title="Détacher dans une fenêtre"
+              >
+                <DetachWindowIcon size={14} />
+              </button>
+            )}
             <button
               type="button"
               className="lq-script-window__header-button"

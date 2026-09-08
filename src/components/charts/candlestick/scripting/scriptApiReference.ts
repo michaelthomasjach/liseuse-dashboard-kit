@@ -323,7 +323,7 @@ const rsiH4 = ta.rsi(h4.series("close", 60), 14);`
   {
     id: "market-heikinashi",
     title: "market.heikinAshi",
-    group: "Données de marché",
+    group: "API du script",
     blocks: [
       t(
         "Renvoie les quatre séries Heikin-Ashi calculées sur les mêmes barres — l'OHLC lissé que le mode d'affichage « Heikin-Ashi » de la chart dessine, mis à disposition d'un script sous forme de nombres. Les quatre tableaux sont alignés entre eux et ordonnés de la plus ancienne barre à la plus récente, comme market.series."

@@ -1,0 +1,164 @@
+/* Scrolls horizontally on its own: a statement carries twenty years of columns, and the page
+   around it must not have to. */
+.lq-data-table {
+  overflow-x: auto;
+  width: 100%;
+}
+
+.lq-data-table table {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.lq-data-table__head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 6px 10px;
+  background-color: var(--lq-color-panel);
+  border-bottom: 1px solid var(--lq-color-border-subtle);
+  font-weight: 600;
+  color: var(--lq-color-text-muted);
+  white-space: nowrap;
+}
+
+.lq-data-table__head-label {
+  display: block;
+}
+
+/* "Mar 2024" under "2024": the fiscal period a column really covers, which the year alone hides. */
+.lq-data-table__head-sublabel {
+  display: block;
+  font-size: 0.65rem;
+  font-weight: 400;
+  opacity: 0.75;
+}
+
+/* The label column stays put while the years scroll behind it. `position: sticky` on the cells
+   themselves rather than a second table beside a scrolling one — two tables cannot keep their row
+   heights in step without measuring each other every render, and a label a pixel off from its own
+   figures is worse than no pinning. */
+.lq-data-table__cell--sticky {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background-color: var(--lq-color-panel);
+}
+
+.lq-data-table__head.lq-data-table__cell--sticky {
+  z-index: 3;
+}
+
+.lq-data-table__cell {
+  /* Enough for a figure and its own change underneath without wrapping either. Columns still grow
+     past this for longer values; they never shrink below it. */
+  min-width: 84px;
+  padding: 5px 10px;
+  border-bottom: 1px solid var(--lq-color-border-subtle);
+  vertical-align: middle;
+}
+
+.lq-data-table__cell--right {
+  text-align: right;
+}
+
+.lq-data-table__cell--left {
+  text-align: left;
+}
+
+/* A total, not a line item. */
+.lq-data-table__row--emphasis .lq-data-table__cell {
+  background-color: var(--lq-color-hover);
+  font-weight: 700;
+}
+
+.lq-data-table__row:hover .lq-data-table__cell {
+  background-color: var(--lq-color-hover);
+}
+
+.lq-data-table__cell--up .lq-data-table__value,
+.lq-data-table__cell--up .lq-data-table__note {
+  color: var(--lq-color-up);
+}
+
+.lq-data-table__cell--down .lq-data-table__value,
+.lq-data-table__cell--down .lq-data-table__note {
+  color: var(--lq-color-down);
+}
+
+.lq-data-table__cell--muted .lq-data-table__value {
+  color: var(--lq-color-text-muted);
+}
+
+/* A figure must never wrap: "843.00 M" broken across two lines reads as two numbers. The column
+   widens instead, which the horizontal scroll above already accommodates. */
+.lq-data-table__value {
+  display: block;
+  white-space: nowrap;
+}
+
+/* The year-on-year change under a figure — smaller, so the figure stays the thing being read. */
+.lq-data-table__note {
+  display: block;
+  white-space: nowrap;
+  font-size: 0.68rem;
+  color: var(--lq-color-text-muted);
+}
+
+/* An em dash, deliberately quiet: "no figure" is an answer, not a value. */
+.lq-data-table__missing {
+  color: var(--lq-color-text-muted);
+  opacity: 0.6;
+}
+
+.lq-data-table__disclosure {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  margin-right: 4px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--lq-color-text-muted);
+  cursor: pointer;
+  vertical-align: middle;
+}
+
+/* Same footprint with no triangle, so a column of labels does not zig-zag between rows that nest
+   and rows that do not. */
+.lq-data-table__disclosure--empty {
+  cursor: default;
+}
+
+.lq-data-table__accent {
+  display: inline-block;
+  width: 3px;
+  height: 12px;
+  margin-right: 6px;
+  border-radius: 2px;
+  vertical-align: middle;
+}
+
+.lq-data-table__label {
+  vertical-align: middle;
+}
+
+/* Defined here as well as in the script editor so the table is self-contained: a consumer that
+   never loads the editor's stylesheet still gets a caption that reads to a screen reader and to
+   nobody else. */
+.lq-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

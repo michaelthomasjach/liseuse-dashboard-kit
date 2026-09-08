@@ -1,5 +1,5 @@
 import * as d3 from "d3";
-import { useMemo, useState } from "react";
+import { memo, useMemo, useState } from "react";
 import type { StrategyEquityPoint, StrategyTrade } from "../interfaces/StrategyResult.interface";
 
 /** How near a fill the pointer has to be, in pixels along the curve, to be reading it. Beyond this
@@ -41,7 +41,7 @@ export interface StrategyEquityChartProps {
  *  Plain SVG rather than the canvas pipeline the chart itself uses: this is a few hundred points
  *  in a panel, not a zoomable series over the whole history, and SVG keeps it inspectable and
  *  crisp with no device-pixel-ratio handling of its own. */
-export function StrategyEquityChart({ equity, trades, initialCapital, currency, width, height, formatDate, markedTime = null, onHoverTrades }: StrategyEquityChartProps) {
+function StrategyEquityChartImpl({ equity, trades, initialCapital, currency, width, height, formatDate, markedTime = null, onHoverTrades }: StrategyEquityChartProps) {
   // Where the pointer is inside the plot, in the group's own coordinates. Null when it is outside.
   // Declared up here with the other hooks: there is an early return further down for a run with
   // too few bars to draw, and a hook after it would not run on every render.
@@ -264,3 +264,10 @@ export function StrategyEquityChart({ equity, trades, initialCapital, currency, 
     </svg>
   );
 }
+
+/** Re-renders only when its own inputs change, `markedTime` among them; the point is that it no longer re-renders when a *sibling*'s do.
+ *
+ *  A shallow prop comparison is enough: every prop here is either a primitive or an array/object
+ *  the panel already holds stable across renders (it comes from the run result, which only changes
+ *  when the script re-runs). */
+export const StrategyEquityChart = memo(StrategyEquityChartImpl);

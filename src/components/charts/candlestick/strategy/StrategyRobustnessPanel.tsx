@@ -1,4 +1,5 @@
 import type { StrategyRobustness } from "../interfaces/StrategyRobustness.interface";
+import { memo } from "react";
 
 export interface StrategyRobustnessPanelProps {
   robustness: StrategyRobustness;
@@ -11,7 +12,7 @@ export interface StrategyRobustnessPanelProps {
  *  their own reading, and the two this engine cannot measure from a single backtest are shown as
  *  unmeasured rather than dropped. A reader who does not know parameter stability was never tested
  *  will over-read whatever remains. */
-export function StrategyRobustnessPanel({ robustness }: StrategyRobustnessPanelProps) {
+function StrategyRobustnessPanelImpl({ robustness }: StrategyRobustnessPanelProps) {
   const tone = robustness.score === null ? "" : robustness.score >= 70 ? "up" : robustness.score >= 40 ? "" : "down";
   // A mean treats a fatal axis as equal to a cosmetic one: a strategy whose entire profit vanishes
   // at double commission still averages to a respectable-looking number if its other axes hold.
@@ -83,3 +84,10 @@ export function StrategyRobustnessPanel({ robustness }: StrategyRobustnessPanelP
     </div>
   );
 }
+
+/** Pure function of the run's own robustness scores — nothing the cursor can change.
+ *
+ *  A shallow prop comparison is enough: every prop here is either a primitive or an array/object
+ *  the panel already holds stable across renders (it comes from the run result, which only changes
+ *  when the script re-runs). */
+export const StrategyRobustnessPanel = memo(StrategyRobustnessPanelImpl);

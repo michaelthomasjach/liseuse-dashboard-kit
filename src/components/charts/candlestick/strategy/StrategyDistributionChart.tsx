@@ -1,5 +1,5 @@
 import * as d3 from "d3";
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 import type { StrategyTrade } from "../interfaces/StrategyResult.interface";
 import { tradeAtTime } from "./markedTrade";
 
@@ -28,7 +28,7 @@ export interface StrategyDistributionChartProps {
  *  Bin edges are aligned so that one of them falls exactly on zero. Without that a single bin
  *  straddles the axis and mixes small winners with small losers, which is precisely the boundary
  *  the whole chart exists to show. */
-export function StrategyDistributionChart({ trades, width, height = 150, markedTime = null, markedToleranceMs = 0, onHoverTrades }: StrategyDistributionChartProps) {
+function StrategyDistributionChartImpl({ trades, width, height = 150, markedTime = null, markedToleranceMs = 0, onHoverTrades }: StrategyDistributionChartProps) {
   const margin = { top: 10, right: 12, bottom: 26, left: 12 };
   const innerWidth = Math.max(0, width - margin.left - margin.right);
   const innerHeight = Math.max(0, height - margin.top - margin.bottom);
@@ -118,3 +118,10 @@ export function StrategyDistributionChart({ trades, width, height = 150, markedT
     </svg>
   );
 }
+
+/** Same: only its own inputs, not every render of the panel around it.
+ *
+ *  A shallow prop comparison is enough: every prop here is either a primitive or an array/object
+ *  the panel already holds stable across renders (it comes from the run result, which only changes
+ *  when the script re-runs). */
+export const StrategyDistributionChart = memo(StrategyDistributionChartImpl);

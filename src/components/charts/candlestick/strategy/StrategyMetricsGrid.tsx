@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { memo, useState } from "react";
 import { InfoIcon } from "../../../icons";
 import { Modal } from "../../../primitives/Modal";
 import type { StrategyMetrics } from "../interfaces/StrategyResult.interface";
@@ -45,7 +45,7 @@ const EXPLANATIONS: Record<string, { title: string; body: string }> = {
   },
 };
 
-export function StrategyMetricsGrid({ metrics, currency }: StrategyMetricsGridProps) {
+function StrategyMetricsGridImpl({ metrics, currency }: StrategyMetricsGridProps) {
   const [explaining, setExplaining] = useState<string | null>(null);
   const cells: { label: string; value: string; hint?: string; tone?: "up" | "down"; info?: string }[] = [
     {
@@ -167,3 +167,10 @@ export function StrategyMetricsGrid({ metrics, currency }: StrategyMetricsGridPr
     </div>
   );
 }
+
+/** Nothing in here depends on the cursor: it is the run's own summary. Memoized so moving the pointer over the candles stops re-formatting two dozen figures sixty times a second.
+ *
+ *  A shallow prop comparison is enough: every prop here is either a primitive or an array/object
+ *  the panel already holds stable across renders (it comes from the run result, which only changes
+ *  when the script re-runs). */
+export const StrategyMetricsGrid = memo(StrategyMetricsGridImpl);

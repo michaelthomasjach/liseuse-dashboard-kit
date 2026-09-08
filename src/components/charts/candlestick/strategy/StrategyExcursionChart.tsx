@@ -1,5 +1,5 @@
 import * as d3 from "d3";
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 import type { StrategyTrade } from "../interfaces/StrategyResult.interface";
 import { tradeAtTime } from "./markedTrade";
 
@@ -42,7 +42,7 @@ export interface StrategyExcursionChartProps {
  *  never applies. */
 const MAX_ROW_HEIGHT = 22;
 
-export function StrategyExcursionChart({ trades, currency, width, height, markedTime = null, markedToleranceMs = 0, onHoverTrades }: StrategyExcursionChartProps) {
+function StrategyExcursionChartImpl({ trades, currency, width, height, markedTime = null, markedToleranceMs = 0, onHoverTrades }: StrategyExcursionChartProps) {
   const margin = { top: 18, right: 12, bottom: 18, left: 12 };
   const innerWidth = Math.max(0, width - margin.left - margin.right);
   // Rows share out whatever height there is, rather than each claiming a fixed step and the whole
@@ -145,3 +145,10 @@ export function StrategyExcursionChart({ trades, currency, width, height, marked
     </svg>
   );
 }
+
+/** Same: only its own inputs, not every render of the panel around it.
+ *
+ *  A shallow prop comparison is enough: every prop here is either a primitive or an array/object
+ *  the panel already holds stable across renders (it comes from the run result, which only changes
+ *  when the script re-runs). */
+export const StrategyExcursionChart = memo(StrategyExcursionChartImpl);

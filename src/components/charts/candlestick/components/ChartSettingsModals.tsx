@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { Modal } from "../../../primitives/Modal";
+import { ChartPropsModal } from "./ChartPropsModal";
+import { CodeIcon } from "../../../icons";
 import { Checkbox } from "../../../forms/Checkbox";
 import { Toggle } from "../../../primitives/Toggle";
 import { capitalize } from "../formatting";
@@ -95,6 +97,11 @@ export function ChartSettingsModals({
       isEink: el.closest('[data-lq-palette="eink"]') !== null,
     });
   }, [settingsOpen, volumeSettingsOpen]);
+
+  // The props reference, opened from the settings modal — the settings are what a reader can
+  // change from inside the chart, and this is what the *host application* can change from outside
+  // it, so one is the natural place to ask about the other.
+  const [propsOpen, setPropsOpen] = useState(false);
 
   return (
     <div ref={wrapperRef} style={{ display: "contents" }}>
@@ -223,6 +230,16 @@ export function ChartSettingsModals({
               ))}
             </div>
           )}
+          <div className="lq-field">
+            <label className="lq-field__label">Intégration</label>
+            <button type="button" className="lq-chart__reset-button lq-chart__props-button" onClick={() => setPropsOpen(true)}>
+              <CodeIcon size={13} /> Voir les props du graphique
+            </button>
+            <p className="lq-field__hint">
+              La liste complète de ce que l&apos;application peut passer à ce graphique, avec les types et les valeurs par défaut.
+            </p>
+          </div>
+
         </Modal>
       )}
 
@@ -269,6 +286,8 @@ export function ChartSettingsModals({
           )}
         </Modal>
       )}
+
+      <ChartPropsModal open={propsOpen} onClose={() => setPropsOpen(false)} />
     </div>
   );
 }

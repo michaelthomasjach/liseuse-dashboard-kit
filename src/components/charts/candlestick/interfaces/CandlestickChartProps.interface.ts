@@ -17,6 +17,9 @@ import type { ScriptAlertEvent } from "./ScriptAlertEvent.interface";
 import type { ScriptRunOutput } from "../scripting/interfaces/ScriptRunOutput.interface";
 
 export interface CandlestickChartProps {
+  /** The candles to draw, oldest first. This library has no data source of its own — the app fetches them
+   *  and keeps them up to date; every other data prop here (`events`, `fundamentals`,
+   *  `symbolSearchResults`) takes the same stance. */
   data: Candle[];
   /** Fixed pixel width. Omitted (default): fills 100% of the parent container's width, like
    *  every other chart in this library — pass a number only to opt out of that. Ignored while
@@ -38,10 +41,18 @@ export interface CandlestickChartProps {
    *  320px measurement floor, same as `fullscreenToggle`'s own mechanism would in that situation.
    *  Default false. */
   fillHeight?: boolean;
+  /** Enables wheel zoom, horizontal drag-to-pan and the zoom shortcuts on the plot. Default false — a
+   *  thumbnail or a demo chart usually has nothing to explore. */
   zoomable?: boolean;
+  /** Shows the volume pane under the candles. Default false. */
   showVolume?: boolean;
+  /** Formats a date everywhere a human reads one: the date axis, the hover badge, a drawing's own labels.
+   *  Defaults to a short localized format. */
   formatDate?: (d: Date) => string;
+  /** Formats a price everywhere one is read: the price axis, the header, drawing labels. Defaults to two
+   *  decimals. */
   formatPrice?: (v: number) => string;
+  /** Formats a volume: the volume pane's own axis and the header. Defaults to compact notation (12k, 3.4M). */
   formatVolume?: (v: number) => string;
   /** Shows a fullscreen toggle button in the header ("Focus fenêtre active"). Default true. */
   fullscreenToggle?: boolean;
@@ -51,6 +62,8 @@ export interface CandlestickChartProps {
    *  it before); a standalone chart has no reason to and keeps its self-contained internal state
    *  instead (see `useFullscreen`). */
   isFullscreen?: boolean;
+  /** Fired on every entry into and exit from fullscreen, including one triggered by Escape rather than by
+   *  the toggle — so a caller mirroring this in its own state never drifts out of sync with it. */
   onFullscreenChange?: (value: boolean) => void;
   /** Shows a header button that swaps the whole chart body for `SeasonalityView` — the average
    *  cumulative return through a reference year, aggregated across `data`'s own historical years
@@ -142,6 +155,8 @@ export interface CandlestickChartProps {
    *  an internal copy seeded from this prop, same uncontrolled pattern as `drawings`/
    *  `indicators`, reported back via `onYAutoScalingChange`. */
   YAutoScaling?: boolean;
+  /** Fired when price auto-scaling turns on or off. It also turns off implicitly the moment the axis is
+   *  dragged by hand, which this reports too. */
   onYAutoScalingChange?: (value: boolean) => void;
   /** Timeframe/interval options shown as a dropdown in the header — flat, or grouped (e.g. one
    *  group per "Minutes"/"Heures"/"Jours"), matching a typical trading-platform interval menu.
@@ -150,6 +165,8 @@ export interface CandlestickChartProps {
   timeframes?: TimeframeEntry[];
   /** Currently selected timeframe's `value`, to highlight it in the menu. */
   timeframe?: string;
+  /** Fired when another timeframe is picked. The library recomputes nothing: supplying the matching candles
+   *  is the app's own job, same stance `timeframes` itself takes. */
   onTimeframeChange?: (value: string) => void;
   /** How the price series itself is drawn — bougies japonaises (défaut), ligne de clôture,
    *  Heikin Ashi, Renko, Line Break, ou Time Price Opportunities (bougies + histogramme de
@@ -157,6 +174,8 @@ export interface CandlestickChartProps {
    *  juste à côté du sélecteur de timeframe, ouvrant un menu des six modes. Uncontrolled, like
    *  `drawings`/`indicators` — see `defaultChartDisplayMode`/`onChartDisplayModeChange`. */
   defaultChartDisplayMode?: ChartDisplayMode;
+  /** Fired when the display mode changes (candles, Heikin-Ashi, Renko, line…), from the header popover or
+   *  the settings modal alike. */
   onChartDisplayModeChange?: (mode: ChartDisplayMode) => void;
   /** ATR period used to size Renko bricks (a new brick forms every time the close moves this
    *  many candles' worth of average true range past the last one) — recomputed from the whole
@@ -216,6 +235,7 @@ export interface CandlestickChartProps {
    *  row (visible on hover, or always once favorited). Persisted the same way as `drawings`/
    *  `indicators`: seeds initial state, changes reported back via `onFavoriteSymbolIdsChange`. */
   defaultFavoriteSymbolIds?: string[];
+  /** Fired when a symbol is starred or unstarred in the search modal. */
   onFavoriteSymbolIdsChange?: (ids: string[]) => void;
   /** A dashed line across the price plot at the last candle's close, its price on the Y axis
    *  (colored up/down against the previous close), and — right below that badge — a MM:SS
@@ -262,6 +282,9 @@ export interface CandlestickChartProps {
   /** Highlights the link button to show this chart is currently part of a link group. Purely
    *  cosmetic — `ChartWorkspace` is what actually knows the group membership. Default false. */
   isLinked?: boolean;
+  /** Called by the link button. The library synchronizes nothing by itself — it reports the intent and the
+   *  app decides what \"linked\" means, the same way `isLinked` is the app's own answer rather than
+   *  internal state. */
   onLinkClick?: () => void;
   /** Content for a collapsible, resizable panel docked to the chart's own right edge, sharing the
    *  same outer bordered widget rather than floating separately — a watchlist, an order ticket,
@@ -274,6 +297,7 @@ export interface CandlestickChartProps {
    *  its full width; a header button (shown whenever `sidePanel` is set) toggles it either way.
    *  Default true (open). */
   defaultSidePanelOpen?: boolean;
+  /** Fired whenever the side panel opens or closes, whatever caused it. */
   onSidePanelOpenChange?: (open: boolean) => void;
   /** Scripts this chart runs — always supplied from outside (this chart never owns its own script
    *  list, never shows a script editor, and has no header button for one). `ChartWorkspace` is the
@@ -332,6 +356,9 @@ export interface CandlestickChartProps {
    *  closed) — the conservative choice, so a script gating on "closed" never fires early just
    *  because this wasn't set. */
   lastCandleOpen?: boolean;
+  /** Plot margins in pixels — the room reserved around the candles for the axes. Only the keys given are
+   *  replaced; the rest keep their defaults. */
   margin?: Partial<ChartMargin>;
+  /** Extra CSS class on the root element, so the host app can style the chart without patching the library. */
   className?: string;
 }

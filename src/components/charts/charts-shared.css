@@ -3134,3 +3134,10 @@
   padding-left: 0;
   padding-right: 0;
 }
+
+/* The props-reference button in the settings modal: a full-width row rather than a chip, since it
+   opens a whole reference rather than toggling something. */
+.lq-chart__props-button {
+  width: 100%;
+  justify-content: center;
+}

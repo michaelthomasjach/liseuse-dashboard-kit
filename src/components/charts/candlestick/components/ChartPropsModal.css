@@ -1,0 +1,142 @@
+.lq-chart-props {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lq-space-4);
+}
+
+/* Sticky so the search field and the count stay reachable while reading down a long list — the
+   whole point of the search is that you use it after you have started scrolling. */
+.lq-chart-props__toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lq-space-3);
+  padding-bottom: var(--lq-space-2);
+  background-color: var(--lq-color-panel);
+}
+
+.lq-chart-props__search {
+  display: flex;
+  align-items: center;
+  gap: var(--lq-space-2);
+  flex: 1;
+  max-width: 460px;
+  padding: 6px var(--lq-space-2);
+  border: 1px solid var(--lq-color-border-subtle);
+  border-radius: var(--lq-radius-sm);
+  color: var(--lq-color-text-muted);
+}
+
+.lq-chart-props__search:focus-within {
+  border-color: var(--lq-color-accent);
+}
+
+.lq-chart-props__search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--lq-color-text);
+  font: inherit;
+  font-size: 0.85rem;
+}
+
+.lq-chart-props__search input:focus {
+  outline: none;
+}
+
+.lq-chart-props__search button {
+  display: inline-flex;
+  padding: 2px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.lq-chart-props__count {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-chart-props__section-title {
+  margin: 0 0 var(--lq-space-2);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--lq-color-text-muted);
+}
+
+/* Two columns where there is room. A prop is a short block — name, type, a sentence or three — so
+   one column down a fullscreen modal wastes most of the width and doubles the scrolling. */
+.lq-chart-props__list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: var(--lq-space-2);
+  align-items: start;
+}
+
+.lq-chart-props__item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--lq-space-2) var(--lq-space-3);
+  border: 1px solid var(--lq-color-border-subtle);
+  border-radius: var(--lq-radius-sm);
+}
+
+.lq-chart-props__head {
+  display: flex;
+  align-items: center;
+  gap: var(--lq-space-2);
+}
+
+.lq-chart-props__name {
+  font-family: var(--lq-font-mono, ui-monospace, monospace);
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--lq-color-text);
+}
+
+.lq-chart-props__required {
+  padding: 1px 6px;
+  border-radius: 999px;
+  background-color: var(--lq-color-accent);
+  color: var(--lq-color-accent-contrast);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* Scrolls on its own rather than widening the card: a few of these types are long unions, and one
+   of them must not set the column width for all the others. */
+.lq-chart-props__type {
+  overflow-x: auto;
+  font-family: var(--lq-font-mono, ui-monospace, monospace);
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: var(--lq-color-text-muted);
+  white-space: pre;
+}
+
+.lq-chart-props__doc {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.55;
+  color: var(--lq-color-text);
+}
+
+.lq-chart-props__empty {
+  margin: 0;
+  padding: var(--lq-space-5) 0;
+  font-size: 0.85rem;
+  color: var(--lq-color-text-muted);
+  text-align: center;
+}

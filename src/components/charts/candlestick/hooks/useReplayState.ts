@@ -102,12 +102,31 @@ export function useReplayState({ dataLength }: UseReplayStateArgs) {
   useEffect(() => {
     if (!armed && !active) return;
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key !== "Escape") return;
-      quit();
+      if (e.key === "Escape") {
+        quit();
+        return;
+      }
+      // Left/right step the cutoff one bar at a time — the manual equivalent of the play button,
+      // and the only way to study the bar a signal fired on rather than watch it go past. Only
+      // once a cutoff exists: while still choosing one there is nothing to step.
+      if (!active || (e.key !== "ArrowLeft" && e.key !== "ArrowRight")) return;
+      // Not while typing: an arrow key in a text field belongs to the caret.
+      const target = e.target as HTMLElement | null;
+      if (target && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))) return;
+      e.preventDefault();
+      // Stepping by hand takes over from the clock, the way touching any transport control does.
+      setPlaying(false);
+      setCutoffIndex((i) => {
+        if (i === null) return i;
+        const next = i + (e.key === "ArrowRight" ? 1 : -1);
+        // Clamped rather than wrapped or exiting: the last bar is where "reveal everything" lives
+        // (the play loop's own job), and bar 0 is as far back as the data goes.
+        return Math.max(0, Math.min(dataLength - 1, next));
+      });
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [armed, active]);
+  }, [armed, active, dataLength]);
 
   // Same setInterval/clearInterval-in-cleanup shape useChartAppearance.ts's own live-price tick
   // uses — the only other self-ticking state in this whole chart library. Reveals one more candle

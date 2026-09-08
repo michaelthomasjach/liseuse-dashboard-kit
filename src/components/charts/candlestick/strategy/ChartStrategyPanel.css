@@ -690,3 +690,28 @@
 .lq-strategy__excursion-marked {
   pointer-events: none;
 }
+
+/* Crosshair on the equity curve, in the price chart's own idiom — a hairline rule per axis with
+   its reading pinned to that axis. */
+.lq-strategy__crosshair {
+  pointer-events: none;
+}
+
+.lq-strategy__crosshair-line {
+  stroke: var(--lq-color-text-muted);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+/* Same filled chip the price chart's own axis badges use, so a reading pinned to an axis looks the
+   same wherever it is read. */
+.lq-strategy__crosshair-badge {
+  fill: var(--lq-color-accent);
+}
+
+.lq-strategy__crosshair-badge-text {
+  fill: var(--lq-color-accent-contrast);
+  font-size: 0.65rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}

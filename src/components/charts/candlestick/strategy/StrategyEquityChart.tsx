@@ -1,5 +1,5 @@
 import * as d3 from "d3";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { StrategyEquityPoint, StrategyTrade } from "../interfaces/StrategyResult.interface";
 
 /** How near a fill the pointer has to be, in pixels along the curve, to be reading it. Beyond this
@@ -42,6 +42,10 @@ export interface StrategyEquityChartProps {
  *  in a panel, not a zoomable series over the whole history, and SVG keeps it inspectable and
  *  crisp with no device-pixel-ratio handling of its own. */
 export function StrategyEquityChart({ equity, trades, initialCapital, currency, width, height, formatDate, markedTime = null, onHoverTrades }: StrategyEquityChartProps) {
+  // Where the pointer is inside the plot, in the group's own coordinates. Null when it is outside.
+  // Declared up here with the other hooks: there is an early return further down for a run with
+  // too few bars to draw, and a hook after it would not run on every render.
+  const [crosshair, setCrosshair] = useState<{ x: number; y: number } | null>(null);
   const margin = { top: 8, bottom: 20, left: 8 };
   const innerHeight = Math.max(0, height - margin.top - margin.bottom);
 
@@ -124,8 +128,13 @@ export function StrategyEquityChart({ equity, trades, initialCapital, currency, 
    *  while a fill knows only its own timestamp, so both are converted to a pixel and compared
    *  there — one mapping instead of two that could disagree. */
   function handleMove(e: React.MouseEvent<SVGSVGElement>) {
+    const box = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - box.left - margin.left;
+    const y = e.clientY - box.top - margin.top;
+    // Only inside the plot: a crosshair tracking the pointer across the axis gutters would put its
+    // own labels on values that are not there.
+    setCrosshair(x >= 0 && x <= innerWidth && y >= 0 && y <= innerHeight ? { x, y } : null);
     if (onHoverTrades === undefined) return;
-    const x = e.clientX - e.currentTarget.getBoundingClientRect().left - margin.left;
     let best: StrategyTrade | null = null;
     let bestDistance = FILL_HOVER_DISTANCE;
     for (const trade of trades) {
@@ -150,6 +159,18 @@ export function StrategyEquityChart({ equity, trades, initialCapital, currency, 
     onHoverTrades(best === null ? null : [best]);
   }
 
+  /** The trade the hovered moment belongs to, as a 1-based number.
+   *
+   *  The curve is indexed by bar while trades are events on it, so "which trade is this" is
+   *  answered by how many have finished: the last one whose exit is at or before this point. That
+   *  is also the one whose result the curve is standing on — the step under the cursor is the one
+   *  that trade produced. `null` before the first exit, where the honest answer is "none yet". */
+  function tradeNumberAt(time: number): number | null {
+    let n = 0;
+    for (const t of trades) if (t.exitTime <= time) n++;
+    return n === 0 ? null : n;
+  }
+
   const zeroY = yScale(0);
   const first = equity[0];
   const last = equity[equity.length - 1];
@@ -163,7 +184,10 @@ export function StrategyEquityChart({ equity, trades, initialCapital, currency, 
       role="img"
       aria-label="Courbe de P&L cumulé"
       onMouseMove={handleMove}
-      onMouseLeave={() => onHoverTrades?.(null)}
+      onMouseLeave={() => {
+        setCrosshair(null);
+        onHoverTrades?.(null);
+      }}
     >
       <g transform={`translate(${margin.left}, ${margin.top})`}>
         {ticks.map((t) => (
@@ -197,6 +221,44 @@ export function StrategyEquityChart({ equity, trades, initialCapital, currency, 
         <text className="lq-strategy__equity-date lq-strategy__equity-date--end" x={innerWidth} y={innerHeight + 14}>
           {formatDate(new Date(last.time))}
         </text>
+
+        {/* Crosshair, in the price chart's own idiom: a thin rule on each axis with the reading it
+            points at pinned to that axis. Drawn last so it sits over the curve it is measuring. */}
+        {crosshair !== null &&
+          (() => {
+            // The bar under the pointer, hence its own moment — the x scale maps equity index to
+            // pixels, so inverting it is what turns a cursor position into a point in the run.
+            const index = Math.max(0, Math.min(equity.length - 1, Math.round(xScale.invert(crosshair.x))));
+            const tradeNumber = tradeNumberAt(equity[index].time);
+            // Labelled with the *account*, not the P&L the ticks show: "how much do I have here"
+            // is the question a horizontal line invites, and the two differ only by the starting
+            // capital.
+            const account = initialCapital + yScale.invert(crosshair.y);
+            const xLabel = tradeNumber === null ? "avant le 1er trade" : `Trade ${tradeNumber}`;
+            // Same locale formatting as the panel's own header and metric tiles — d3's default
+            // grouping would put an English comma in the middle of a French figure.
+            const yLabel = `${account.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`;
+            return (
+              <g className="lq-strategy__crosshair">
+                <line className="lq-strategy__crosshair-line" x1={crosshair.x} x2={crosshair.x} y1={0} y2={innerHeight} />
+                <line className="lq-strategy__crosshair-line" x1={0} x2={innerWidth} y1={crosshair.y} y2={crosshair.y} />
+                {/* Widths are estimated from the string at this font rather than measured: a
+                    badge one pixel wide of perfect is not worth a layout pass per pointer move. */}
+                <g transform={`translate(${crosshair.x}, ${innerHeight})`}>
+                  <rect className="lq-strategy__crosshair-badge" x={-(xLabel.length * 3.3 + 6)} y={2} width={xLabel.length * 6.6 + 12} height={15} rx={2} />
+                  <text className="lq-strategy__crosshair-badge-text" x={0} y={12.5} textAnchor="middle">
+                    {xLabel}
+                  </text>
+                </g>
+                <g transform={`translate(${innerWidth + axisGutter}, ${crosshair.y})`}>
+                  <rect className="lq-strategy__crosshair-badge" x={-(yLabel.length * 6.6 + 12)} y={-7.5} width={yLabel.length * 6.6 + 12} height={15} rx={2} />
+                  <text className="lq-strategy__crosshair-badge-text" x={-6} y={3} textAnchor="end">
+                    {yLabel}
+                  </text>
+                </g>
+              </g>
+            );
+          })()}
       </g>
       <title>{`P&L cumulé : ${finalPnl >= 0 ? "+" : ""}${finalPnl.toFixed(2)} ${currency} sur ${trades.length} trades`}</title>
     </svg>

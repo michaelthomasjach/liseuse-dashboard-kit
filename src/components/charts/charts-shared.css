@@ -3135,6 +3135,16 @@
   padding-right: 0;
 }
 
+/* The rows' own *content* has to line up with the labels above them, not just their boxes: the
+   button's 8px inset put "Bougies" eight pixels right of "Style de bougie", which is what reads as
+   misaligned. The inset moves to the row's own background instead — negative margins let the
+   filled selection still bleed to the full width of the list, so a selected row looks like a band
+   across it rather than a chip floating inside it. */
+.lq-modal .lq-chart__display-mode-option {
+  padding-left: 0;
+  padding-right: 0;
+}
+
 /* The props-reference button in the settings modal: a full-width row rather than a chip, since it
    opens a whole reference rather than toggling something. */
 .lq-chart__props-button {

@@ -7,6 +7,10 @@ import type { StrategyEquityPoint, StrategyTrade } from "../interfaces/StrategyR
  *  fill anyway would light up the price chart for a gesture that meant nothing. */
 const FILL_HOVER_DISTANCE = 8;
 
+/** Gap between the plot's right edge and the tick labels sitting beside it. Also part of how wide
+ *  the gutter holding them has to be — see where it is computed. */
+const TICK_LABEL_OFFSET = 6;
+
 export interface StrategyEquityChartProps {
   equity: StrategyEquityPoint[];
   trades: StrategyTrade[];
@@ -38,22 +42,30 @@ export interface StrategyEquityChartProps {
  *  in a panel, not a zoomable series over the whole history, and SVG keeps it inspectable and
  *  crisp with no device-pixel-ratio handling of its own. */
 export function StrategyEquityChart({ equity, trades, initialCapital, currency, width, height, formatDate, markedTime = null, onHoverTrades }: StrategyEquityChartProps) {
-  const margin = { top: 8, right: 64, bottom: 20, left: 8 };
-  const innerWidth = Math.max(0, width - margin.left - margin.right);
+  const margin = { top: 8, bottom: 20, left: 8 };
   const innerHeight = Math.max(0, height - margin.top - margin.bottom);
 
-  const { yScale, xScale, areaAbove, areaBelow, peakLine, ticks } = useMemo(() => {
+  const { yScale, xScale, areaAbove, areaBelow, peakLine, ticks, innerWidth, axisGutter } = useMemo(() => {
     const points = equity.map((p) => ({ ...p, pnl: p.equity - initialCapital, peakPnl: p.peak - initialCapital }));
-    const x = d3
-      .scaleLinear()
-      .domain([0, Math.max(1, points.length - 1)])
-      .range([0, innerWidth]);
     const lo = Math.min(0, d3.min(points, (p) => p.pnl) ?? 0);
     const hi = Math.max(0, d3.max(points, (p) => p.peakPnl) ?? 0);
     // A flat curve would otherwise collapse the domain to a single value and put every point on the
     // same pixel row; padding it keeps the zero line visible and the shape honest.
     const pad = (hi - lo) * 0.08 || 1;
     const y = d3.scaleLinear().domain([lo - pad, hi + pad]).range([innerHeight, 0]).nice();
+    const tickValues = y.ticks(4);
+    // The right gutter is sized to the labels that actually go in it rather than fixed: at a flat
+    // 64px a chart whose ticks read "100" left nearly forty pixels of nothing between the widest
+    // label and the panel's own edge, which is visible as a gap once the panel spans the full
+    // width. Estimated from the string lengths at this font rather than measured — being a pixel
+    // out moves a tick label a pixel, which is not worth a layout pass per render.
+    const longest = Math.max(1, ...tickValues.map((t) => d3.format(",.0f")(t).length));
+    const gutter = Math.max(24, Math.round(longest * 6.2) + TICK_LABEL_OFFSET);
+    const innerW = Math.max(0, width - margin.left - gutter);
+    const x = d3
+      .scaleLinear()
+      .domain([0, Math.max(1, points.length - 1)])
+      .range([0, innerW]);
     const zero = y(0);
     // Split at zero so profit and loss can be filled in their own colours: one area clipped to
     // above the line, one to below.
@@ -77,9 +89,11 @@ export function StrategyEquityChart({ equity, trades, initialCapital, currency, 
       areaAbove: above(points) ?? "",
       areaBelow: below(points) ?? "",
       peakLine: peak(points) ?? "",
-      ticks: y.ticks(4),
+      ticks: tickValues,
+      innerWidth: innerW,
+      axisGutter: gutter,
     };
-  }, [equity, initialCapital, innerWidth, innerHeight]);
+  }, [equity, initialCapital, width, margin.left, innerHeight]);
 
   if (equity.length < 2 || innerWidth <= 0 || innerHeight <= 0) {
     return <p className="lq-strategy__empty">Pas encore assez de barres rejouées pour tracer une courbe.</p>;
@@ -155,7 +169,11 @@ export function StrategyEquityChart({ equity, trades, initialCapital, currency, 
         {ticks.map((t) => (
           <g key={t}>
             <line className="lq-strategy__equity-grid" x1={0} x2={innerWidth} y1={yScale(t)} y2={yScale(t)} />
-            <text className="lq-strategy__equity-tick" x={innerWidth + 6} y={yScale(t)} dy="0.32em">
+            {/* Anchored to the *right* edge of the gutter rather than started at its left: the
+                gutter's own width is an estimate, and ending the labels flush means an
+                over-estimate moves the plot's edge instead of leaving a visible strip of nothing
+                between the numbers and the panel's edge. */}
+            <text className="lq-strategy__equity-tick" x={innerWidth + axisGutter} y={yScale(t)} dy="0.32em" textAnchor="end">
               {d3.format(",.0f")(t)}
             </text>
           </g>

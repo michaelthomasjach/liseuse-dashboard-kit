@@ -260,11 +260,29 @@ export function hello() {
   // Finds a script that is not currently open, so one written earlier can be brought back without
   // scrolling a tab strip that only ever shows what is being worked on.
   const [search, setSearch] = useState("");
+  // Whether the results list is showing. Focusing the field opens it on the *whole* list, so it
+  // reads as "here is everything, narrow it down" rather than a box that stays empty until you
+  // guess a name that exists.
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchBoxRef = useRef<HTMLDivElement | null>(null);
   const searchResults = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (q === "") return [];
-    return scripts.filter((s) => s.name.toLowerCase().includes(q)).slice(0, 12);
+    const matching = q === "" ? scripts : scripts.filter((s) => s.name.toLowerCase().includes(q));
+    return matching.slice(0, 12);
   }, [search, scripts]);
+
+  // Closed by a press anywhere else. `pointerdown` rather than `click` so the list is gone before
+  // the next gesture lands, and captured so it still fires over a child that stops propagation —
+  // but not for a press *inside* the box, which would close the list before its own button could
+  // be clicked.
+  useEffect(() => {
+    if (!searchOpen) return;
+    function onPointerDown(e: PointerEvent) {
+      if (!searchBoxRef.current?.contains(e.target as Node)) setSearchOpen(false);
+    }
+    window.addEventListener("pointerdown", onPointerDown, true);
+    return () => window.removeEventListener("pointerdown", onPointerDown, true);
+  }, [searchOpen]);
 
   // Opening the editor onto no tabs at all would be a blank window with a search field, which is
   // the wrong first impression when scripts exist. Seeded once per opening — guarded by the ref so
@@ -525,24 +543,34 @@ export function hello() {
             >
               <PlusIcon size={14} />
             </button>
-            <div className="lq-script-editor-panel__tab-search">
+            <div className="lq-script-editor-panel__tab-search" ref={searchBoxRef}>
               <SearchIcon size={12} />
               <input
                 type="search"
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onFocus={() => setSearchOpen(true)}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setSearchOpen(true);
+                }}
                 placeholder="Rechercher un script…"
                 aria-label="Rechercher un indicateur ou une stratégie déjà écrit"
                 onKeyDown={(e) => {
-                  if (e.key === "Escape") setSearch("");
+                  if (e.key === "Escape") {
+                    // First Escape closes the list, a second clears the field — so dismissing the
+                    // list never also throws away what was typed.
+                    if (searchOpen) setSearchOpen(false);
+                    else setSearch("");
+                  }
                   // Enter opens the first match, so a search can be finished without the mouse.
                   if (e.key === "Enter" && searchResults[0]) {
                     openScript(searchResults[0].id);
                     setSearch("");
+                    setSearchOpen(false);
                   }
                 }}
               />
-              {searchResults.length > 0 && (
+              {searchOpen && searchResults.length > 0 && (
                 <ul className="lq-script-editor-panel__tab-search-results">
                   {searchResults.map((s) => (
                     <li key={s.id}>
@@ -551,6 +579,7 @@ export function hello() {
                         onClick={() => {
                           openScript(s.id);
                           setSearch("");
+                          setSearchOpen(false);
                         }}
                       >
                         <span className="lq-script-editor-panel__tab-search-name">{s.name}</span>
@@ -561,8 +590,10 @@ export function hello() {
                   ))}
                 </ul>
               )}
-              {search.trim() !== "" && searchResults.length === 0 && (
-                <p className="lq-script-editor-panel__tab-search-empty">Aucun script à ce nom.</p>
+              {searchOpen && searchResults.length === 0 && (
+                <p className="lq-script-editor-panel__tab-search-empty">
+                  {search.trim() === "" ? "Aucun script enregistré." : "Aucun script à ce nom."}
+                </p>
               )}
             </div>
           </div>

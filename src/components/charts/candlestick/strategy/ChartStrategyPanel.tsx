@@ -112,7 +112,12 @@ export function ChartStrategyPanel({
   // by the panel's height and scrolls its content (see .lq-strategy__body), so sizing children
   // from it cannot feed back into it.
   const [bodyRef, bodyDims] = useChartDimensions({ top: 0, right: 0, bottom: 0, left: 0 });
-  const chartWidth = Math.max(120, bodyDims.width - 24);
+  // `bodyDims.width` is already the body's *content* box — ResizeObserver reports it with padding
+  // and any scrollbar removed — so nothing more may be subtracted. Taking another 24 off for the
+  // padding drew every chart 24px narrower than the element it lives in, and since these SVGs are
+  // stretched by `width: 100%` and carry no viewBox, that difference does not scale away: it shows
+  // up as a strip of blank chart down the right-hand edge.
+  const chartWidth = Math.max(120, bodyDims.width);
   // A second measurement, for the tabs whose content is meant to fill the panel rather than stack
   // up and scroll. An SVG has no `flex: 1` — it needs a number — so the flexible box is measured
   // and its height handed down.

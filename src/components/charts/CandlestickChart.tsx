@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { scriptIdFromIndicatorId } from "./candlestick/scripting/scriptOutputToCustomIndicatorDef";
 import * as d3 from "d3";
 import { useChartDimensions } from "./internal/useChartDimensions";
 import { useViewportWidth } from "./internal/useViewportWidth";
@@ -353,9 +354,14 @@ export function CandlestickChart({
       // The open one was deleted, disabled, or stopped being a @strategy: show whatever just
       // arrived instead, and otherwise close rather than silently switching to an unrelated one.
       if (current !== null && !ids.includes(current)) return appeared ?? null;
-      if (current === null && appeared !== undefined) return appeared;
+      if (current === null && appeared !== undefined) {
+        // A strategy opening on its own also un-withholds whatever it had drawn before.
+        scriptingState.restoreScriptDrawings(appeared);
+        return appeared;
+      }
       return current;
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [strategyScripts]);
   // Where the right-click landed, in both coordinate spaces the menu needs: `menuX/menuY` against
   // the chart's own positioned root (to place the menu), `price`/`index` against the plot's own
@@ -390,6 +396,7 @@ export function CandlestickChart({
 
   const strategyScriptIds = useMemo(() => strategyScripts.map((s) => s.id), [strategyScripts]);
 
+
   // Where the tester is being read: docked under the chart, filling a modal, or torn off into a
   // window of its own. Exactly one at a time — the point of the last two is to get the pane out of
   // the way, so leaving it behind as well would defeat them.
@@ -411,12 +418,30 @@ export function CandlestickChart({
     setStrategyView("detached");
   }
   const closeStrategyPanel = useCallback(() => {
+    // The fills this strategy drew go with its pane. Leaving them on the candles after the panel
+    // that explains them is gone leaves the chart asserting a backtest the user just dismissed.
+    if (openStrategyId !== null) scriptingState.withholdScriptDrawings(openStrategyId);
     setOpenStrategyId(null);
     // Back to docked, so reopening never lands in a mode left behind from last time.
     setStrategyView("docked");
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openStrategyId, scriptingState.withholdScriptDrawings]);
   // Open it, or close it if this same strategy's panel is already the one showing.
-  const toggleStrategyPanel = useCallback((scriptId: string) => setOpenStrategyId((c) => (c === scriptId ? null : scriptId)), []);
+  const toggleStrategyPanel = useCallback(
+    (scriptId: string) => {
+      setOpenStrategyId((current) => {
+        if (current === scriptId) {
+          scriptingState.withholdScriptDrawings(scriptId);
+          return null;
+        }
+        // Reopening a pane brings its own drawings back — they were only ever withheld.
+        scriptingState.restoreScriptDrawings(scriptId);
+        return scriptId;
+      });
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [scriptingState.withholdScriptDrawings, scriptingState.restoreScriptDrawings]
+  );
   const showHeader = fullscreenToggle || zoomable || !!timeframes?.length || showIndicators;
   // `dims.height` is measured off `.lq-chart__plot-column`, already below `.lq-chart__main`'s own
   // header in the flex-column layout (see charts-shared.css's own doc on that element) — no more
@@ -694,6 +719,26 @@ export function CandlestickChart({
     onEditScript,
     toggleSidePaneCollapsed,
   });
+
+  /** Removes an indicator's pane, and with it whatever that indicator's own script had drawn on
+   *  the candles. A script pane and its overlay markers are one thing to the reader: closing the
+   *  pane and leaving its arrows behind leaves the chart annotated by something that is no longer
+   *  there to explain itself. Wrapped around every path that removes one — the legend, the pane
+   *  header and the indicator manager — so it cannot be true from one entry point and not another.
+   *
+   *  Withheld at script granularity, which is the granularity drawings have: they are keyed by
+   *  script, not by pane. A script with two panes therefore gives up its drawings when the first
+   *  is closed; reopening either brings them back. */
+  const removeIndicatorAndItsDrawings = useCallback(
+    (id: string) => {
+      const indicator = indicatorValues.find((entry) => entry.indicator.id === id)?.indicator;
+      const scriptId = indicator === undefined ? null : scriptIdFromIndicatorId(indicator.customData?.id);
+      if (scriptId !== null) scriptingState.withholdScriptDrawings(scriptId);
+      removeIndicator(id);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [indicatorValues, removeIndicator, scriptingState.withholdScriptDrawings]
+  );
 
   // The fill markers a running strategy has put on the chart. They are ordinary drawings (see
   // scriptOutputToDrawings), which is what lets them be hovered and clicked here with no
@@ -1280,7 +1325,7 @@ export function CandlestickChart({
             setHoveredIndicatorId={setHoveredIndicatorId}
             indicatorLabel={indicatorLabel}
             toggleIndicatorHidden={toggleIndicatorHidden}
-            removeIndicator={removeIndicator}
+            removeIndicator={removeIndicatorAndItsDrawings}
             alertedIndicatorIds={alertFlow.alertedIndicatorIds} onOpenIndicatorAlert={(ind) => alertFlow.openForIndicator(ind.id, indicatorLabel(ind))}
             symbolOverlays={symbolOverlays}
             drawings={drawings}
@@ -1329,7 +1374,7 @@ export function CandlestickChart({
           indicators={indicators}
           indicatorLabel={indicatorLabel}
           openIndicatorSettings={openIndicatorSettings}
-          removeIndicator={removeIndicator}
+          removeIndicator={removeIndicatorAndItsDrawings}
           indicatorValues={indicatorValues} onOpenIndicatorInfo={setInfoKind}
           fullscreenPaneId={fullscreenPaneId}
           onTogglePaneFullscreen={togglePaneFullscreen}
@@ -1600,7 +1645,7 @@ export function CandlestickChart({
         commitDrawings={commitDrawings}
         drawings={drawings}
         openIndicatorSettings={openIndicatorSettings}
-        removeIndicator={removeIndicator}
+        removeIndicator={removeIndicatorAndItsDrawings}
         editingIndicatorId={editingIndicatorId}
         indicatorDraft={indicatorDraft}
         setIndicatorDraft={setIndicatorDraft}

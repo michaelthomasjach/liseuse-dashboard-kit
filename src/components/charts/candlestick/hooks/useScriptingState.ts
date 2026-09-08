@@ -235,7 +235,28 @@ export function useScriptingState({ defaultScripts, onScriptsChange, controlledE
   // its own script's own ids (see useScriptEngine's own upsert-by-scriptId design), so a plain
   // concat here can never collide or duplicate across scripts.
   const scriptIndicators = useMemo(() => Object.values(runOutputs).flatMap((o) => o.indicators), [runOutputs]);
-  const scriptDrawings = useMemo(() => Object.values(runOutputs).flatMap((o) => o.drawings), [runOutputs]);
+  // Scripts whose chart drawings are currently withheld, because the pane that produced them was
+  // closed. Closing a pane and leaving its markers scattered over the candles leaves the chart
+  // asserting things nothing on screen explains any more.
+  //
+  // Withheld rather than deleted: the script is still enabled and still running, so its next bar
+  // would put them straight back. Reopening the pane restores them, which is also what makes this
+  // safe — nothing is lost, it is just not shown.
+  const [drawingsWithheldScriptIds, setDrawingsWithheldScriptIds] = useState<string[]>([]);
+  const withholdScriptDrawings = useCallback((id: string) => {
+    setDrawingsWithheldScriptIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
+  }, []);
+  const restoreScriptDrawings = useCallback((id: string) => {
+    setDrawingsWithheldScriptIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : prev));
+  }, []);
+
+  const scriptDrawings = useMemo(
+    () =>
+      Object.entries(runOutputs)
+        .filter(([id]) => !drawingsWithheldScriptIds.includes(id))
+        .flatMap(([, o]) => o.drawings),
+    [runOutputs, drawingsWithheldScriptIds]
+  );
   // At most one table per active script (not a flatMap like the two above — plot.table's own
   // "latest call wins" semantics mean each script contributes zero or one, never several).
   const scriptTables = useMemo(
@@ -278,6 +299,8 @@ export function useScriptingState({ defaultScripts, onScriptsChange, controlledE
     reportRunOutput,
     scriptIndicators,
     scriptDrawings,
+    withholdScriptDrawings,
+    restoreScriptDrawings,
     scriptTables,
     scriptLabels,
   };

@@ -138,6 +138,19 @@ export interface UsePaneLayoutArgs {
    *  appears (see the effect below), never as an ongoing constraint: this sets how a docked pane
    *  *opens*, and past that its fold state is the user's. */
   dockedPanesStartFolded?: boolean | null;
+  /** Called just before an indicator is removed, with its id, and returning every id that should
+   *  go with it. The one seam through which "removing this also removes that" is expressed, so it
+   *  holds for every path in this hook that removes an indicator — the legend, a pane header, a
+   *  docked pane header, the indicator manager, the settings modal's own delete — rather than for
+   *  whichever ones a caller remembered to wrap.
+   *
+   *  That distinction is the reason it exists rather than a wrapper at the call site: there *was*
+   *  such a wrapper, and the docked pane column called straight past it — which is exactly the
+   *  case (a script's own docked pane) where it mattered most.
+   *
+   *  Side effects are expected here, not merely tolerated: `CandlestickChart` also withholds the
+   *  removed indicator's script's own drawings from this. Must be referentially stable. */
+  beforeRemoveIndicator?: (id: string) => string[];
 }
 
 /** Technical indicators (state + CRUD) and the sub-pane layout system they (and volume) share:
@@ -153,6 +166,7 @@ export function usePaneLayout({
   plotBoundedHeight,
   extraIndicators: rawExtraIndicators = [],
   dockedPanesStartFolded = null,
+  beforeRemoveIndicator,
 }: UsePaneLayoutArgs) {
   const [indicators, setIndicators] = useState<Indicator[]>(defaultIndicators ?? []);
   const [indicatorPickerOpen, setIndicatorPickerOpen] = useState(false);
@@ -454,13 +468,30 @@ export function usePaneLayout({
     setScriptIndicatorOverrides((prev) => ({ ...prev, [id]: { ...prev[id], hidden: !current.hidden } }));
   }
 
-  function removeIndicator(id: string) {
+  /** Removes several indicators at once. Not a loop over `removeIndicator` at the call site: the
+   *  CRUD branch below commits a list derived from `indicators`, which doesn't change until the
+   *  next render, so a second call in the same tick would compute its filter from the stale list
+   *  and put the first one back. One call, one commit. */
+  function removeIndicators(ids: string[]) {
+    if (ids.length === 0) return;
+    const idSet = new Set(ids);
     // A script-produced indicator isn't in the CRUD list at all, so filtering that list would be a
     // no-op (which is exactly what the trash button used to be for those). Record it as dismissed
     // instead — see `dismissedScriptIndicators`' own doc: the pane goes, the script stays.
-    if (indicators.some((i) => i.id === id)) commitIndicators(indicators.filter((i) => i.id !== id));
-    else setDismissedScriptIndicators((prev) => ({ ...prev, [id]: true }));
-    if (fullscreenPaneId === id) setFullscreenPaneId(null);
+    if (indicators.some((i) => idSet.has(i.id))) commitIndicators(indicators.filter((i) => !idSet.has(i.id)));
+    const scriptIds = ids.filter((id) => !indicators.some((i) => i.id === id));
+    if (scriptIds.length > 0) {
+      setDismissedScriptIndicators((prev) => {
+        const next = { ...prev };
+        for (const id of scriptIds) next[id] = true;
+        return next;
+      });
+    }
+    if (fullscreenPaneId !== null && idSet.has(fullscreenPaneId)) setFullscreenPaneId(null);
+  }
+
+  function removeIndicator(id: string) {
+    removeIndicators(beforeRemoveIndicator ? beforeRemoveIndicator(id) : [id]);
   }
 
   // Ctrl/Cmd+C over a hovered legend item copies that indicator (copiedIndicatorRef); Ctrl/Cmd+V
@@ -747,6 +778,7 @@ export function usePaneLayout({
     deleteEditingIndicator,
     toggleIndicatorHidden,
     removeIndicator,
+    removeIndicators,
     volumeVisible,
     volumeCollapsed,
     paneHeightFraction,

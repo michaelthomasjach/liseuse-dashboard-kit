@@ -335,6 +335,24 @@ export function CandlestickChart({
     : rawDims;
 
   const { scriptingState, scriptChartIndicators } = useChartScripting({ scripts, onScriptsChange });
+
+  /** What goes when an indicator is removed — see `usePaneLayout`'s own `beforeRemoveIndicator`.
+   *
+   *  A script pane and what it draws on the candles are one thing to the reader. The KDE support/
+   *  resistance example is the clearest case: its pane is the density profile docked on the right,
+   *  and the levels that profile finds are drawn as a scatter *on the candles*. Closing the pane
+   *  used to leave those dots behind, marking levels nothing on screen could still explain.
+   *
+   *  So closing a script's pane also takes that script's price overlays, and withholds the
+   *  drawings it had made. Not its *other panes*: each pane has its own close button, and taking a
+   *  second one away because the user shut the first would be deciding something they didn't ask
+   *  for. Removing an overlay directly likewise removes only that overlay.
+   *
+   *  Held behind a ref because the rule needs `indicatorValues`, which comes from a hook that runs
+   *  after `usePaneLayout` — the callback handed over has to be stable, the logic it runs does not.
+   *  Assigned during render, same pattern `useFullscreen` uses for its own controlled setter. */
+  const beforeRemoveIndicatorRef = useRef<(id: string) => string[]>((id) => [id]);
+  const beforeRemoveIndicator = useCallback((id: string) => beforeRemoveIndicatorRef.current(id), []);
   // Every enabled script that declared `@strategy` (see scriptKind.ts). The decorator is read from
   // the source text, so this costs a regex per script per render and needs no run to be known —
   // which is what lets the panel exist before the first backtest has produced anything.
@@ -565,6 +583,7 @@ export function CandlestickChart({
     plotBoundedHeight,
     extraIndicators: scriptChartIndicators,
     dockedPanesStartFolded,
+    beforeRemoveIndicator,
   });
   const correlationSetup = useCorrelationSetup({ appendIndicator, onAddSymbolOverlay, onSymbolSearchChange });
   // `activeScriptIndicators`, not the raw `scriptChartIndicators` — script outputs the user has
@@ -741,6 +760,27 @@ export function CandlestickChart({
     [indicatorValues],
   );
 
+
+  beforeRemoveIndicatorRef.current = (id: string) => {
+    const indicator = indicatorValues.find((entry) => entry.indicator.id === id)?.indicator;
+    const scriptId = indicator === undefined ? null : scriptIdFromIndicatorId(indicator.customData?.id);
+    if (scriptId === null || indicator === undefined) return [id];
+    // Drawings are withheld rather than deleted (see `useScriptingState`): the script keeps
+    // running, so reopening the pane brings them back.
+    scriptingState.withholdScriptDrawings(scriptId);
+    if (indicatorCatalogEntry(indicator).pane !== "own") return [id];
+    const overlays = indicatorValues
+      .map((entry) => entry.indicator)
+      .filter(
+        (other) =>
+          other.id !== id &&
+          scriptIdFromIndicatorId(other.customData?.id) === scriptId &&
+          indicatorCatalogEntry(other).pane === "price",
+      )
+      .map((other) => other.id);
+    return [id, ...overlays];
+  };
+
   // Everything for the two `<ChartSidePaneColumn>` siblings mounted further down — see that
   // hook's own doc for why this is one call instead of being inlined here (keeping this file
   // under its own line budget chief among the reasons).
@@ -779,25 +819,6 @@ export function CandlestickChart({
     toggleSidePaneCollapsed,
   });
 
-  /** Removes an indicator's pane, and with it whatever that indicator's own script had drawn on
-   *  the candles. A script pane and its overlay markers are one thing to the reader: closing the
-   *  pane and leaving its arrows behind leaves the chart annotated by something that is no longer
-   *  there to explain itself. Wrapped around every path that removes one — the legend, the pane
-   *  header and the indicator manager — so it cannot be true from one entry point and not another.
-   *
-   *  Withheld at script granularity, which is the granularity drawings have: they are keyed by
-   *  script, not by pane. A script with two panes therefore gives up its drawings when the first
-   *  is closed; reopening either brings them back. */
-  const removeIndicatorAndItsDrawings = useCallback(
-    (id: string) => {
-      const indicator = indicatorValues.find((entry) => entry.indicator.id === id)?.indicator;
-      const scriptId = indicator === undefined ? null : scriptIdFromIndicatorId(indicator.customData?.id);
-      if (scriptId !== null) scriptingState.withholdScriptDrawings(scriptId);
-      removeIndicator(id);
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [indicatorValues, removeIndicator, scriptingState.withholdScriptDrawings]
-  );
 
   // The fill markers a running strategy has put on the chart. They are ordinary drawings (see
   // scriptOutputToDrawings), which is what lets them be hovered and clicked here with no
@@ -1394,7 +1415,7 @@ export function CandlestickChart({
             setHoveredIndicatorId={setHoveredIndicatorId}
             indicatorLabel={indicatorLabel}
             toggleIndicatorHidden={toggleIndicatorHidden}
-            removeIndicator={removeIndicatorAndItsDrawings}
+            removeIndicator={removeIndicator}
             alertedIndicatorIds={alertFlow.alertedIndicatorIds} onOpenIndicatorAlert={(ind) => alertFlow.openForIndicator(ind.id, indicatorLabel(ind))}
             symbolOverlays={symbolOverlays}
             drawings={drawings}
@@ -1456,7 +1477,7 @@ export function CandlestickChart({
           indicators={indicators}
           indicatorLabel={indicatorLabel}
           openIndicatorSettings={openIndicatorSettings}
-          removeIndicator={removeIndicatorAndItsDrawings}
+          removeIndicator={removeIndicator}
           indicatorValues={indicatorValues} onOpenIndicatorInfo={setInfoKind}
           fullscreenPaneId={fullscreenPaneId}
           onTogglePaneFullscreen={togglePaneFullscreen}
@@ -1728,7 +1749,7 @@ export function CandlestickChart({
         commitDrawings={commitDrawings}
         drawings={drawings}
         openIndicatorSettings={openIndicatorSettings}
-        removeIndicator={removeIndicatorAndItsDrawings}
+        removeIndicator={removeIndicator}
         editingIndicatorId={editingIndicatorId}
         indicatorDraft={indicatorDraft}
         setIndicatorDraft={setIndicatorDraft}

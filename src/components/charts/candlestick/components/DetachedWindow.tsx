@@ -20,6 +20,17 @@ export interface DetachedWindowProps {
    *  to nothing: borders vanish, panels go transparent, and the window renders as unstyled text on
    *  white. */
   themeSource?: HTMLElement | null;
+  /** How the window lays its content out.
+   *
+   *  `"fill"` (default) hands the content the whole window and lets it manage its own space — what
+   *  a strategy tester or a script editor wants, since both are tools that use every pixel they
+   *  are given.
+   *
+   *  `"page"` is for content that is a *document* rather than a tool: a centred column with real
+   *  margins. A symbol's financial detail on a maximised 2560px screen is otherwise a single line
+   *  of text running the full width, welded to both edges — technically using the space, unreadable
+   *  in practice. */
+  layout?: "fill" | "page";
   children: ReactNode;
 }
 
@@ -34,7 +45,7 @@ export interface DetachedWindowProps {
  *  none of the theme attributes this library's own CSS variables hang off. Cloned once at open —
  *  a dev server that later swaps a `<style>` tag will not reach the detached window, which is a
  *  hot-reload artifact rather than something a user meets. */
-export function DetachedWindow({ target, title, onClose, themeSource, children }: DetachedWindowProps) {
+export function DetachedWindow({ target, title, onClose, themeSource, layout = "fill", children }: DetachedWindowProps) {
   const [container, setContainer] = useState<HTMLElement | null>(null);
 
   useEffect(() => {
@@ -57,12 +68,12 @@ export function DetachedWindow({ target, title, onClose, themeSource, children }
     child.document.body.style.margin = "0";
 
     const host = child.document.createElement("div");
-    host.className = "lq-detached-window";
+    host.className = `lq-detached-window lq-detached-window--${layout}`;
     // Then the theme scope itself, copied onto the host so every `--lq-*` variable the content
     // reads resolves exactly as it does in the opener.
     if (themeSource) {
       for (const attr of Array.from(themeSource.attributes)) {
-        if (attr.name === "class") host.className = `${attr.value} lq-detached-window`;
+        if (attr.name === "class") host.className = `${attr.value} lq-detached-window lq-detached-window--${layout}`;
         else if (attr.name.startsWith("data-")) host.setAttribute(attr.name, attr.value);
       }
     }

@@ -266,7 +266,13 @@ export function SymbolProfilePanel({
         </div>
       )}
 
-      {profile?.description && <p className="lq-chart-workspace__symbol-profile-description">{profile.description}</p>}
+      {/* Suppressed when the Overview tab is already showing prose about the company: the two say
+          the same thing, and printing both left the description on screen twice, a few centimetres
+          apart, which reads as a rendering fault rather than as emphasis. The tab's own copy wins —
+          it is the one with the "afficher plus" clamp. */}
+      {profile?.description && !(showFinancials && profile.financials?.overview?.about) && (
+        <p className="lq-chart-workspace__symbol-profile-description">{profile.description}</p>
+      )}
 
       {profile?.sectors && profile.sectors.length > 0 && (
         <div className="lq-chart-workspace__symbol-profile-sectors">
@@ -459,6 +465,9 @@ export function SymbolProfilePanel({
           title={`${symbol} — détails`}
           themeSource={typeof document === "undefined" ? null : (document.querySelector(".lq-root") as HTMLElement | null)}
           onClose={() => setDetachedWindow(null)}
+          // A document, not a tool: the symbol's detail is prose, figures and tables, and it reads
+          // in a column with margins rather than edge to edge across a maximised screen.
+          layout="page"
         >
           {/* The same expanded copy the modal shows — `layout="expanded"` marks it as the one
               that cannot be opened further (see the prop's own doc). */}

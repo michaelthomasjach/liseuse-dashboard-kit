@@ -3084,6 +3084,30 @@
   color: var(--lq-color-text);
 }
 
+/* A tool: it gets the whole window and manages its own space. */
+.lq-detached-window--fill {
+  height: 100vh;
+}
+
+/* A document: a centred column with margins, and it scrolls rather than being pinned to the
+   viewport's height. 1200px is where a line of prose stops being comfortable to read and a table of
+   periods still has room for a decade of columns — past it the content was running the full width
+   of a maximised screen, welded to both edges. */
+.lq-detached-window--page {
+  height: auto;
+  min-height: 100vh;
+  box-sizing: border-box;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: var(--lq-space-5) var(--lq-space-5) var(--lq-space-6);
+}
+
+@media (max-width: 640px) {
+  .lq-detached-window--page {
+    padding: var(--lq-space-3) var(--lq-space-3) var(--lq-space-5);
+  }
+}
+
 /* Where the strategy tester is pointing, raised on the price chart. Dashed so it never reads as a
    drawn line the user placed, and coloured by side so a buy and a sell are told apart before the
    badge is read. */

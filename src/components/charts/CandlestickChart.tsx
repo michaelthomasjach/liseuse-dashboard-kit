@@ -39,6 +39,7 @@ import { ScriptRunnerHost } from "./candlestick/scripting/components/ScriptRunne
 import { ChartHeader } from "./candlestick/components/ChartHeader";
 import { MarketStatePanel } from "./candlestick/components/MarketStatePanel";
 import { MarketStateBands } from "./candlestick/components/MarketStateBands";
+import { DEFAULT_MARKET_STATE_BAND_COLORS } from "./candlestick/marketStateBandColors";
 import { ChartSidePanel } from "./candlestick/components/ChartSidePanel";
 import { ChartStrategyPanel } from "./candlestick/strategy/ChartStrategyPanel";
 import { analyzeScriptKind } from "./candlestick/scripting/scriptKind";
@@ -518,6 +519,7 @@ export function CandlestickChart({
   // drawn large, and a chart tinted by something the user cannot see the reasoning for would be
   // the exact opposite of what this panel is for.
   const [marketStateBandsOn, setMarketStateBandsOn] = useState(false);
+  const [marketStateBandColors, setMarketStateBandColors] = useState(DEFAULT_MARKET_STATE_BAND_COLORS);
   // Its own browser window. Opened inside the click, never from an effect — see DetachedWindow.
   const [marketStateWindow, setMarketStateWindow] = useState<Window | null>(null);
   const showHeader =
@@ -1498,6 +1500,7 @@ export function CandlestickChart({
             top={dims.margin.top}
             width={Math.max(0, dims.width - dims.margin.left - dims.margin.right)}
             height={Math.max(0, priceHeight - dims.margin.top)}
+            colors={marketStateBandColors}
           />
         )}
         {marketStateOpen && marketStateWindow === null && (
@@ -1513,6 +1516,8 @@ export function CandlestickChart({
             }}
             bandsOn={marketStateBandsOn}
             onBandsChange={setMarketStateBandsOn}
+            bandColors={marketStateBandColors}
+            onBandColorsChange={setMarketStateBandColors}
           />
         )}
         {marketStateOpen && marketStateWindow !== null && (
@@ -1535,6 +1540,8 @@ export function CandlestickChart({
               // window worth opening: the reasoning on one screen, the chart on the other.
               bandsOn={marketStateBandsOn}
               onBandsChange={setMarketStateBandsOn}
+              bandColors={marketStateBandColors}
+              onBandColorsChange={setMarketStateBandColors}
             />
           </DetachedWindow>
         )}

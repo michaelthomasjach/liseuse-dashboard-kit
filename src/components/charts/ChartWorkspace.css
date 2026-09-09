@@ -991,7 +991,14 @@
   align-items: center;
   gap: 4px;
   flex: 0 0 auto;
+  box-sizing: border-box;
   padding: 4px;
+  /* Top and bottom, like the charts and the panel beside it. Without them the rail ran edge to
+     edge of the row while everything else sat inside its own 1px box, and the eye read the strip
+     as something bolted on rather than as the last column of one instrument. Its left border comes
+     from the adjacency rule just below, so only these two are set here. */
+  border-top: 1px solid var(--lq-color-border-subtle);
+  border-bottom: 1px solid var(--lq-color-border-subtle);
 }
 
 /* Open instead: the panel itself has no border of its own anymore (see above), so this is the

@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { CloseIcon, ChevronDownIcon, DetachWindowIcon } from "../../../icons";
 import { computeMarketState, SIGNAL_NEUTRAL_BAND, type MarketStateAxis, type MarketStateDirection } from "../marketState";
+import { MARKET_STATE_BAND_LABELS, type MarketStateBandColors } from "../marketStateBandColors";
 import type { Candle } from "../interfaces/Candle.interface";
 import type { Indicator } from "../interfaces/Indicator.interface";
 import type { IndicatorValue } from "../interfaces/IndicatorValue.interface";
@@ -27,6 +28,10 @@ export interface MarketStatePanelProps {
    *  not offer to. */
   bandsOn?: boolean;
   onBandsChange?: (on: boolean) => void;
+  /** The three zone colours, and the way to change them. Shown only while the shading is on —
+   *  colour pickers for something invisible are three controls asking about nothing. */
+  bandColors?: MarketStateBandColors;
+  onBandColorsChange?: (colors: MarketStateBandColors) => void;
 }
 
 /** The Market State dashboard: five 0-100 readings of the market and one long-side signal, all
@@ -58,6 +63,8 @@ export function MarketStatePanel({
   detached = false,
   bandsOn,
   onBandsChange,
+  bandColors,
+  onBandColorsChange,
 }: MarketStatePanelProps) {
   const [expanded, setExpanded] = useState<MarketStateAxis | "signal" | null>(null);
   // Where the reader has put it, as an offset from the corner it starts in. Kept here rather than
@@ -237,6 +244,21 @@ export function MarketStatePanel({
           <input type="checkbox" checked={bandsOn ?? false} onChange={(e) => onBandsChange(e.target.checked)} />
           <span>Surligner les zones sur le graphique</span>
         </label>
+      )}
+      {bandsOn && bandColors && onBandColorsChange && (
+        <div className="lq-market-state__band-colors">
+          {MARKET_STATE_BAND_LABELS.map(({ direction, label }) => (
+            <label key={direction} className="lq-market-state__band-color">
+              <input
+                type="color"
+                value={bandColors[direction]}
+                onChange={(e) => onBandColorsChange({ ...bandColors, [direction]: e.target.value })}
+                aria-label={`Couleur de la zone ${label}`}
+              />
+              <span>{label}</span>
+            </label>
+          ))}
+        </div>
       )}
 
       {bar && <p className="lq-market-state__at">Bougie du {formatDate(bar.date)}</p>}

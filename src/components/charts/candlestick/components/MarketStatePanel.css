@@ -5,7 +5,11 @@
   position: absolute;
   top: 8px;
   right: 8px;
-  z-index: 4;
+  /* Above every layer inside the plot — the price-axis labels, the hover badges (6), the docked
+     column dividers (7/8). At 4 it sat *under* the axis labels, so the right-hand column of prices
+     printed straight through a panel anchored to that same corner. Still below the floating
+     drawing toolbar (20) and modals, which are meant to be over everything including this. */
+  z-index: 9;
   width: 250px;
   max-height: calc(100% - 16px);
   overflow-y: auto;
@@ -316,4 +320,44 @@
   flex-shrink: 0;
   margin: 0;
   cursor: pointer;
+}
+
+/* The three zone colours, shown only while the shading is on. A row of small swatches rather than
+   three labelled fields: they sit at the foot of a 250px readout, and the label under each one is
+   all the naming they need. */
+.lq-market-state__band-colors {
+  display: flex;
+  gap: var(--lq-space-2);
+}
+
+.lq-market-state__band-color {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  font-family: var(--lq-font-sans, system-ui, sans-serif);
+  font-size: 0.62rem;
+  color: var(--lq-color-text-muted);
+  cursor: pointer;
+}
+
+.lq-market-state__band-color input {
+  width: 34px;
+  height: 16px;
+  padding: 0;
+  border: 1px solid var(--lq-color-border-subtle);
+  border-radius: 3px;
+  background: none;
+  cursor: pointer;
+}
+
+/* Chrome draws a colour input's swatch inset by a few px of its own chrome; zeroing that makes the
+   control read as the colour itself rather than as a button containing one. */
+.lq-market-state__band-color input::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.lq-market-state__band-color input::-webkit-color-swatch {
+  border: none;
+  border-radius: 2px;
 }

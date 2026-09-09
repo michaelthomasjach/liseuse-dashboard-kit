@@ -237,3 +237,39 @@
     width: auto;
   }
 }
+
+/* The arithmetic behind a contribution. Monospaced and boxed off from the prose above and below
+   it: it is the one line in the block that is a calculation rather than a sentence, and reading it
+   means checking it digit by digit. */
+.lq-market-state__part-formula {
+  margin: 1px 0;
+  padding: 2px 5px;
+  border-left: 2px solid var(--lq-color-border-subtle);
+  font-size: 0.62rem;
+  line-height: 1.5;
+  color: var(--lq-color-text-muted);
+}
+
+/* Same, for the blend at the foot of the panel. */
+.lq-market-state__formula-line {
+  margin: 0 0 6px;
+  padding: 3px 6px;
+  border-left: 2px solid var(--lq-color-border-subtle);
+  font-size: 0.62rem;
+  line-height: 1.5;
+  color: var(--lq-color-text-muted);
+}
+
+/* The three sides read differently at a glance: long and short take the chart's own up/down
+   colours, neutral stays deliberately colourless — "no side" should not look like a decision. */
+.lq-market-state__signal--long .lq-market-state__signal-value {
+  color: var(--lq-color-up);
+}
+
+.lq-market-state__signal--short .lq-market-state__signal-value {
+  color: var(--lq-color-down);
+}
+
+.lq-market-state__signal--neutral {
+  color: var(--lq-color-text-muted);
+}

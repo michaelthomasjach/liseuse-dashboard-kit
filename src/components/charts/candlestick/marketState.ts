@@ -43,6 +43,10 @@ export interface MarketStateContribution {
   /** Its share of the axis average. Baselines weigh 1; a directional indicator that says more
    *  weighs more. */
   weight: number;
+  /** The arithmetic itself, with this bar's own numbers already substituted — e.g.
+   *  `50 + (+0,19 % ÷ 4 %) × 50 = 52`. `why` says what the reading means; this says how it became
+   *  a number, which is the only form in which a score can actually be disagreed with. */
+  formula: string;
   /** One sentence turning the reading into the score, so the arithmetic is checkable. */
   why: string;
 }
@@ -66,21 +70,44 @@ export interface MarketStateSignalPart {
   weight: number;
 }
 
+/** Which side the blend comes down on. A weighted mean of four 0-100 axes sits near 50 whenever
+ *  nothing agrees, and calling that a weak long is how a readout starts lying: `"neutral"` covers
+ *  the band where the reading has no side, and it is a real answer, not a missing one. */
+export type MarketStateDirection = "long" | "short" | "neutral";
+
+/** Half-width of the neutral band around 50. ±10 rather than something tighter: the axes disagree
+ *  with each other constantly, and a blend that wanders a few points either way has not said
+ *  anything worth acting on. */
+export const SIGNAL_NEUTRAL_BAND = 10;
+
 export interface MarketState {
   scores: MarketStateScore[];
-  /** The long-side signal, 0-100 — the blend below. `null` when no axis could be scored. */
-  longSignal: number | null;
-  /** Exactly what went into `longSignal`, same decomposability rule as the axes. */
-  longSignalParts: MarketStateSignalPart[];
+  /** The blend, 0-100, read from the long side — 50 is the middle, 100 is maximally long, 0 is
+   *  maximally short. `null` when no axis could be scored. */
+  signal: number | null;
+  /** Which side that lands on, given the neutral band above. */
+  direction: MarketStateDirection;
+  /** How strongly, on the side `direction` names: the distance from the middle, restated as a
+   *  percentage of that side. A signal of 26 is "SHORT 74 %", not "LONG 26 %" — the same number,
+   *  said the way round a reader can act on. */
+  strength: number | null;
+  /** Exactly what went into `signal`, same decomposability rule as the axes. */
+  signalParts: MarketStateSignalPart[];
   /** Which bar every reading above describes — the last visible one, or whichever the pointer is
    *  on. Shown in the panel so a hovered reading is never mistaken for the current one. */
   atIndex: number;
 }
 
 const clamp = (value: number, low: number, high: number) => Math.min(high, Math.max(low, value));
+/** Every figure in this panel uses the reader's own decimal comma. */
+const n = (value: number, digits = 2) => value.toLocaleString("fr-FR", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+const p1 = (value: number) => `${value >= 0 ? "+" : ""}${n(value * 100)} %`;
 const clamp100 = (value: number) => clamp(value, 0, 100);
-const fmt = (value: number, digits = 2) => value.toFixed(digits);
-const pct = (value: number) => `${value >= 0 ? "+" : ""}${(value * 100).toFixed(2)} %`;
+// Everything the panel prints goes through these, so a reading and the formula under it are never
+// written in two different notations — which is what a decimal point above a decimal comma looks
+// like, and it reads as two unrelated numbers.
+const fmt = (value: number, digits = 2) => n(value, digits);
+const pct = (value: number) => p1(value);
 
 /** Maps a signed relative distance onto 0-100 around a neutral 50, saturating at `full`. The one
  *  place "how far above its moving average is far?" is answered, so every indicator that asks it
@@ -169,7 +196,14 @@ export function computeMarketState({ candles, index, indicators, lookback = 200 
   const flow: Bucket = { contributions: [] };
   const risk: Bucket = { contributions: [] };
 
-  const empty: MarketState = { scores: buildScores(trend, momentum, volatility, flow, risk), longSignal: null, longSignalParts: [], atIndex: at };
+  const empty: MarketState = {
+    scores: buildScores(trend, momentum, volatility, flow, risk),
+    signal: null,
+    direction: "neutral",
+    strength: null,
+    signalParts: [],
+    atIndex: at,
+  };
   if (candles.length < 20) return empty;
 
   const bar = candles[at];
@@ -188,6 +222,7 @@ export function computeMarketState({ candles, index, indicators, lookback = 200 
       reading: `${fmt(price)} vs moyenne 50 ${fmt(trendMean)}`,
       score: scoreFromRelative(distance, 0.04),
       weight: 1,
+      formula: `50 + (${p1(distance)} ÷ 4 %) × 50 = ${Math.round(scoreFromRelative(distance, 0.04))}`,
       why: `Écart de ${pct(distance)} à sa moyenne 50 périodes ; ±4 % sature l'échelle.`,
     });
   }
@@ -199,6 +234,7 @@ export function computeMarketState({ candles, index, indicators, lookback = 200 
       reading: `${pct(momentumBase)} sur 14 périodes`,
       score: scoreFromRelative(momentumBase, 0.06),
       weight: 1,
+      formula: `50 + (${p1(momentumBase)} ÷ 6 %) × 50 = ${Math.round(scoreFromRelative(momentumBase, 0.06))}`,
       why: "Variation sur 14 périodes ; ±6 % sature l'échelle.",
     });
   }
@@ -226,6 +262,7 @@ export function computeMarketState({ candles, index, indicators, lookback = 200 
         reading: `Volatilité réalisée ${(realizedNow * 100).toFixed(2)} % (20 p.)`,
         score: rank,
         weight: 1,
+        formula: `rang ${history.filter((v) => v < realizedNow).length} / ${history.length} → ${Math.round(rank)}`,
         why: rankPhrase(rank, history.length, "La plus forte volatilité", "La plus faible volatilité"),
       });
       risk.contributions.push({
@@ -233,6 +270,7 @@ export function computeMarketState({ candles, index, indicators, lookback = 200 
         reading: `${Math.round(rank)}ᵉ centile`,
         score: rank,
         weight: 1,
+        formula: `centile de volatilité = ${Math.round(rank)} → ${Math.round(rank)}`,
         why: "Une volatilité haute pour cet instrument est en soi un risque de position.",
       });
     }
@@ -246,6 +284,7 @@ export function computeMarketState({ candles, index, indicators, lookback = 200 
       reading: `${pct(-drawdown)} sous le plus haut de la fenêtre`,
       score: clamp100((drawdown / 0.2) * 100),
       weight: 1,
+      formula: `(${n(drawdown * 100)} % ÷ 20 %) × 100 = ${Math.round(clamp100((drawdown / 0.2) * 100))}`,
       why: "Distance au plus haut récent ; -20 % sature l'échelle.",
     });
   }
@@ -265,6 +304,7 @@ export function computeMarketState({ candles, index, indicators, lookback = 200 
       reading: `${relative >= 0 ? "+" : ""}${Math.round(relative * 100)} % vs moyenne 20`,
       score: clamp100(50 + direction * excess * 40),
       weight: 1,
+      formula: `50 + (${direction >= 0 ? "+1" : "−1"}) × ${n(excess)} × 40 = ${Math.round(clamp100(50 + direction * excess * 40))}`,
       why:
         excess === 0
           ? "Volume sous sa moyenne : rien ne dit qui mène, ni dans un sens ni dans l'autre."
@@ -293,6 +333,7 @@ export function computeMarketState({ candles, index, indicators, lookback = 200 
           reading: `${fmt(value)} — prix ${price >= value ? "au-dessus" : "en dessous"}`,
           score: scoreFromRelative(distance, 0.04),
           weight: 1.5,
+          formula: `50 + (${p1(distance)} ÷ 4 %) × 50 = ${Math.round(scoreFromRelative(distance, 0.04))}`,
           why: `Le prix est à ${pct(distance)} de cette moyenne ; ±4 % sature l'échelle.`,
         });
         break;
@@ -305,6 +346,7 @@ export function computeMarketState({ candles, index, indicators, lookback = 200 
           reading: `${fmt(value)} — prix ${price >= value ? "au-dessus" : "en dessous"}`,
           score: scoreFromRelative(distance, 0.03),
           weight: 2,
+          formula: `50 + (${p1(distance)} ÷ 3 %) × 50 = ${Math.round(scoreFromRelative(distance, 0.03))}`,
           why: "Le VWAP est le prix moyen pondéré par les volumes : s'en écarter par le haut, c'est acheter plus cher que la moyenne des échanges.",
         });
         break;
@@ -316,6 +358,7 @@ export function computeMarketState({ candles, index, indicators, lookback = 200 
           reading: fmt(value, 1),
           score: clamp100(value),
           weight: 2,
+          formula: `RSI ${n(value, 1)} → ${Math.round(clamp100(value))} (repris tel quel)`,
           why: "Le RSI est déjà une échelle 0-100 de momentum : il est repris tel quel.",
         });
         break;
@@ -334,6 +377,10 @@ export function computeMarketState({ candles, index, indicators, lookback = 200 
           reading: `Histogramme ${fmt(value.histogram, 3)}`,
           score: scale > 0 ? clamp100(50 + (value.histogram / scale) * 50) : 50,
           weight: 2,
+          formula:
+            scale > 0
+              ? `50 + (${n(value.histogram, 3)} ÷ ${n(scale, 3)}) × 50 = ${Math.round(clamp100(50 + (value.histogram / scale) * 50))}`
+              : "amplitude nulle sur la fenêtre → 50",
           why: "Histogramme rapporté à sa propre amplitude maximale sur la fenêtre.",
         });
         break;
@@ -347,6 +394,7 @@ export function computeMarketState({ candles, index, indicators, lookback = 200 
           // letting one saturate the axis would drown out everything measured on a real scale.
           score: value.trend === "up" ? 85 : 15,
           weight: 2,
+          formula: value.trend === "up" ? "haussière → 85" : "baissière → 15",
           why: "Indicateur directionnel binaire : forte opinion, jamais une certitude.",
         });
         break;
@@ -358,6 +406,7 @@ export function computeMarketState({ candles, index, indicators, lookback = 200 
           reading: value <= price ? "Points sous le prix" : "Points au-dessus du prix",
           score: value <= price ? 80 : 20,
           weight: 1.5,
+          formula: value <= price ? "points sous le prix → 80" : "points au-dessus → 20",
           why: "Le SAR passe sous le prix en tendance haussière, au-dessus en tendance baissière.",
         });
         break;
@@ -369,6 +418,7 @@ export function computeMarketState({ candles, index, indicators, lookback = 200 
           reading: value.dir > 0 ? "Stop long actif" : "Stop court actif",
           score: value.dir > 0 ? 80 : 20,
           weight: 1.5,
+          formula: value.dir > 0 ? "stop long actif → 80" : "stop court actif → 20",
           why: "Le stop actif indique de quel côté l'indicateur considère la tendance.",
         });
         risk.contributions.push({
@@ -376,6 +426,7 @@ export function computeMarketState({ candles, index, indicators, lookback = 200 
           reading: `Stop à ${fmt(value.dir > 0 ? value.longStop : value.shortStop)}`,
           score: clamp100((Math.abs(price - (value.dir > 0 ? value.longStop : value.shortStop)) / price / 0.08) * 100),
           weight: 1,
+          formula: `(${n((Math.abs(price - (value.dir > 0 ? value.longStop : value.shortStop)) / price) * 100)} % ÷ 8 %) × 100 = ${Math.round(clamp100((Math.abs(price - (value.dir > 0 ? value.longStop : value.shortStop)) / price / 0.08) * 100))}`,
           why: "Distance au stop : plus il est loin, plus la position risque avant d'être coupée.",
         });
         break;
@@ -388,6 +439,7 @@ export function computeMarketState({ candles, index, indicators, lookback = 200 
           reading: `ADX ${fmt(value.adx, 1)} — ${direction > 0 ? "+DI" : "-DI"} dominant`,
           score: clamp100(50 + direction * Math.min(value.adx, 50)),
           weight: 2,
+          formula: `50 ${direction > 0 ? "+" : "−"} min(${n(value.adx, 1)} ; 50) = ${Math.round(clamp100(50 + direction * Math.min(value.adx, 50)))}`,
           why: "L'ADX donne la force de la tendance, +DI/-DI son sens ; au-delà de 50 l'échelle sature.",
         });
         break;
@@ -402,6 +454,7 @@ export function computeMarketState({ candles, index, indicators, lookback = 200 
           reading: `Prix ${position}`,
           score: price > top ? 90 : price < bottom ? 10 : 50,
           weight: 2,
+          formula: price > top ? "au-dessus du nuage → 90" : price < bottom ? "sous le nuage → 10" : "dans le nuage → 50",
           why: "Le nuage est la zone d'indécision : au-dessus, la tendance est haussière ; dedans, elle n'est pas tranchée.",
         });
         break;
@@ -414,6 +467,7 @@ export function computeMarketState({ candles, index, indicators, lookback = 200 
           reading: `Dernier pivot ${value.label}`,
           score: bullish ? 75 : 25,
           weight: 1,
+          formula: `${value.label} → ${bullish ? 75 : 25}`,
           why: "Sommets et creux ascendants (HH/HL) décrivent une structure haussière, descendants une structure baissière.",
         });
         break;
@@ -432,6 +486,7 @@ export function computeMarketState({ candles, index, indicators, lookback = 200 
             reading: `Largeur ${(width * 100).toFixed(2)} % du prix`,
             score: rank,
             weight: 2,
+            formula: `rang ${widths.filter((w) => w < width).length} / ${widths.length} → ${Math.round(rank)}`,
             why: rankPhrase(rank, widths.length, "Bandes au plus large", "Bandes au plus serré"),
           });
         }
@@ -443,6 +498,7 @@ export function computeMarketState({ candles, index, indicators, lookback = 200 
             reading: `${Math.round(((price - value.lower) / span) * 100)} % de la bande`,
             score: clamp100(((price - value.lower) / span) * 100),
             weight: 1,
+            formula: `(${n(price)} − ${n(value.lower)}) ÷ (${n(value.upper)} − ${n(value.lower)}) × 100 = ${Math.round(clamp100(((price - value.lower) / span) * 100))}`,
             why: "Position du prix entre la bande basse (0) et la bande haute (100).",
           });
         }
@@ -458,6 +514,7 @@ export function computeMarketState({ candles, index, indicators, lookback = 200 
             reading: `${fmt(value)} (${((value / price) * 100).toFixed(2)} % du prix)`,
             score: rank,
             weight: 2,
+            formula: `rang ${history.filter((v) => v < value).length} / ${history.length} → ${Math.round(rank)}`,
             why: rankPhrase(rank, history.length, "ATR au plus haut", "ATR au plus bas"),
           });
           risk.contributions.push({
@@ -465,6 +522,7 @@ export function computeMarketState({ candles, index, indicators, lookback = 200 
             reading: `${((value / price) * 100).toFixed(2)} % du prix`,
             score: clamp100(((value / price) / 0.05) * 100),
             weight: 1.5,
+            formula: `(${n((value / price) * 100)} % ÷ 5 %) × 100 = ${Math.round(clamp100(((value / price) / 0.05) * 100))}`,
             why: "Amplitude moyenne d'une bougie rapportée au prix ; 5 % sature l'échelle.",
           });
         }
@@ -477,6 +535,7 @@ export function computeMarketState({ candles, index, indicators, lookback = 200 
           reading: fmt(value, 1),
           score: clamp100(value),
           weight: 1.5,
+          formula: `CHOP ${n(value, 1)} → ${Math.round(clamp100(value))} (repris tel quel)`,
           why: "Le Choppiness Index mesure l'absence de tendance : un marché sans direction est celui où les faux signaux coûtent le plus.",
         });
         break;
@@ -494,6 +553,7 @@ export function computeMarketState({ candles, index, indicators, lookback = 200 
           // predictable place to be, hence the highest risk reading.
           score: clamp100(100 - (distance / 0.03) * 100),
           weight: 1,
+          formula: `100 − (${n(distance * 100)} % ÷ 3 %) × 100 = ${Math.round(clamp100(100 - (distance / 0.03) * 100))}`,
           why: "Un prix collé à un niveau est à l'endroit le moins prévisible : cassure ou rejet.",
         });
         break;
@@ -519,17 +579,23 @@ export function computeMarketState({ candles, index, indicators, lookback = 200 
     { axis: "flow", label: "Flux", weight: 0.15 },
     { axis: "risk", label: "Risque (inversé)", weight: 0.15, invert: true },
   ];
-  const longSignalParts: MarketStateSignalPart[] = [];
+  const signalParts: MarketStateSignalPart[] = [];
   for (const { axis, label, weight, invert } of weights) {
     const score = byAxis.get(axis)?.score;
     if (score === null || score === undefined) continue;
-    longSignalParts.push({ label, score: invert ? 100 - score : score, weight });
+    signalParts.push({ label, score: invert ? 100 - score : score, weight });
   }
-  const totalWeight = longSignalParts.reduce((sum, p) => sum + p.weight, 0);
-  const longSignal =
-    totalWeight > 0 ? Math.round(longSignalParts.reduce((sum, p) => sum + p.score * p.weight, 0) / totalWeight) : null;
+  const totalWeight = signalParts.reduce((sum, part) => sum + part.weight, 0);
+  const signal =
+    totalWeight > 0 ? Math.round(signalParts.reduce((sum, part) => sum + part.score * part.weight, 0) / totalWeight) : null;
 
-  return { scores, longSignal, longSignalParts, atIndex: at };
+  const direction: MarketStateDirection =
+    signal === null || Math.abs(signal - 50) <= SIGNAL_NEUTRAL_BAND ? "neutral" : signal > 50 ? "long" : "short";
+  // Restated on the side it actually falls: 26 is a 74 % short, not a 26 % long. Neutral keeps the
+  // long-side number, since there is no side to restate it onto.
+  const strength = signal === null ? null : direction === "short" ? 100 - signal : signal;
+
+  return { scores, signal, direction, strength, signalParts, atIndex: at };
 }
 
 function buildScores(trend: Bucket, momentum: Bucket, volatility: Bucket, flow: Bucket, risk: Bucket): MarketStateScore[] {

@@ -97,7 +97,11 @@
   height: 100%;
   background-color: var(--lq-color-fill);
   border-radius: var(--lq-radius-pill);
-  transition: width 200ms ease;
+  /* A value change is a movement, not a jump: the bar travels to the new figure. Long enough to be
+     seen at a small delta (a 2-point step at 200ms is over before the eye finds it), eased out so
+     it arrives rather than stops. Cancelled under `prefers-reduced-motion` at the foot of this
+     file, where an instant width is exactly what is wanted. */
+  transition: width 420ms cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
 .lq-progress-bar__segments {
@@ -108,7 +112,7 @@
 
 .lq-progress-bar__segment {
   height: 100%;
-  transition: width 200ms ease;
+  transition: width 420ms cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
 .lq-root[data-lq-palette="eink"] .lq-progress-bar__fill {
@@ -129,8 +133,34 @@
   }
 }
 
-.lq-root[data-lq-palette="eink"] .lq-progress-bar__fill--indeterminate {
-  animation: none;
-  width: 100% !important;
-  opacity: 0.4;
+/* Motion is governed by `prefers-reduced-motion`, not by the palette. The e-ink *palette* used to
+   switch these animations off on the grounds that e-ink hardware cannot repaint smoothly — true of
+   the hardware, but the palette is a colour scheme anyone can select on an ordinary screen, and it
+   is the default one in Storybook, where the result was loaders that never moved. A device that
+   genuinely cannot animate reports it through `prefers-reduced-motion`, which is the signal every
+   rule below actually reads. */
+
+@media (prefers-reduced-motion: reduce) {
+  /* The stripe stops travelling, but the bar still has to say "working" — a filled track that
+     never changes reads as a finished one, which is the opposite of what an indeterminate bar
+     means. It pulses in place instead. */
+  .lq-progress-bar__fill--indeterminate {
+    animation: lq-progress-indeterminate-pulse 2.4s ease-in-out infinite;
+    width: 100% !important;
+  }
+
+  .lq-progress-bar__fill,
+  .lq-progress-bar__segment {
+    transition: none;
+  }
+}
+
+@keyframes lq-progress-indeterminate-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.8;
+  }
 }

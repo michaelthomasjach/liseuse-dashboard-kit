@@ -18,15 +18,17 @@
   }
 }
 
+/* Motion is governed by `prefers-reduced-motion`, not by the palette. The e-ink *palette* used to
+   switch these animations off on the grounds that e-ink hardware cannot repaint smoothly — true of
+   the hardware, but the palette is a colour scheme anyone can select on an ordinary screen, and it
+   is the default one in Storybook, where the result was loaders that never moved. A device that
+   genuinely cannot animate reports it through `prefers-reduced-motion`, which is the signal every
+   rule below actually reads. */
 @media (prefers-reduced-motion: reduce) {
+  /* Not stopped outright: a spinner that doesn't turn is a ring, and reads as decoration rather
+     than as "still working". Slowed to a rate that no longer flickers on a slow display. */
   .lq-spinner {
-    animation-duration: 1.8s;
+    animation-duration: 3s;
   }
-}
-
-/* Real e-ink hardware can't animate smoothly — a static partial ring still
-   reads as "loading" without a refresh-flicker. */
-.lq-root[data-lq-palette="eink"] .lq-spinner {
-  animation: none;
 }
 

@@ -22,13 +22,12 @@
   }
 }
 
-/* Real e-ink hardware can't animate smoothly — fall back to a static tone. */
-.lq-root[data-lq-palette="eink"] .lq-skeleton {
-  background: var(--lq-color-border-subtle);
-  animation: none;
-  opacity: 0.5;
-}
-
+/* Motion is governed by `prefers-reduced-motion`, not by the palette. The e-ink *palette* used to
+   switch these animations off on the grounds that e-ink hardware cannot repaint smoothly — true of
+   the hardware, but the palette is a colour scheme anyone can select on an ordinary screen, and it
+   is the default one in Storybook, where the result was loaders that never moved. A device that
+   genuinely cannot animate reports it through `prefers-reduced-motion`, which is the signal every
+   rule below actually reads. */
 @media (prefers-reduced-motion: reduce) {
   .lq-skeleton {
     background: var(--lq-color-border-subtle);

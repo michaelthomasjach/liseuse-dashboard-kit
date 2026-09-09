@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react";
 import { ProgressBar } from "./ProgressBar";
 import { Card } from "../primitives/Card";
@@ -78,4 +79,75 @@ export const Segmented: Story = {
       </Card>
     </div>
   ),
+};
+
+/** A value that actually moves. The transition on the fill is the whole point of this story: every
+ *  other one here shows the bar at rest, where a 42 % that arrived by jumping and one that arrived
+ *  by travelling look identical. */
+export const Animated: Story = {
+  name: "Valeur qui change",
+  render: () => {
+    function Demo() {
+      const [value, setValue] = useState(12);
+      // Deliberately uneven steps, and one step backwards: a bar that only ever creeps forward by
+      // the same amount could be a CSS animation rather than a value being re-rendered.
+      const steps = [12, 38, 44, 71, 68, 95, 100];
+      useEffect(() => {
+        let i = 0;
+        const id = setInterval(() => {
+          i = (i + 1) % steps.length;
+          setValue(steps[i]);
+        }, 1100);
+        return () => clearInterval(id);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+      }, []);
+      return (
+        <div style={{ display: "flex", flexDirection: "column", gap: 18, maxWidth: 420 }}>
+          <ProgressBar value={value} label="Import des transactions" showValue formatValue={(v) => `${Math.round(v)} %`} />
+          <ProgressBar value={value} label="Épaisse" showValue valuePosition="inside" thickness={22} />
+          <div style={{ display: "flex", gap: 8 }}>
+            {[0, 25, 50, 75, 100].map((v) => (
+              <button key={v} type="button" onClick={() => setValue(v)} style={{ font: "inherit", fontSize: "0.75rem", padding: "3px 9px" }}>
+                {v} %
+              </button>
+            ))}
+          </div>
+        </div>
+      );
+    }
+    return <Demo />;
+  },
+};
+
+/** The segmented bar moving too — segments are laid out as shares of their own total, so changing
+ *  one value re-proportions every other segment at the same time. */
+export const AnimatedSegments: Story = {
+  name: "Segments qui changent",
+  render: () => {
+    function Demo() {
+      const [tick, setTick] = useState(0);
+      useEffect(() => {
+        const id = setInterval(() => setTick((t) => t + 1), 1400);
+        return () => clearInterval(id);
+      }, []);
+      const mixes = [
+        [42, 28, 18, 12],
+        [20, 46, 22, 12],
+        [31, 19, 38, 12],
+        [12, 24, 20, 44],
+      ];
+      const mix = mixes[tick % mixes.length];
+      const labels = ["Actions", "Obligations", "Immobilier", "Liquidités"];
+      return (
+        <div style={{ maxWidth: 420 }}>
+          <ProgressBar
+            label="Répartition du portefeuille"
+            thickness={16}
+            segments={mix.map((value, i) => ({ id: labels[i], value, label: labels[i] }))}
+          />
+        </div>
+      );
+    }
+    return <Demo />;
+  },
 };

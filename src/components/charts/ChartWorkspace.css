@@ -684,11 +684,12 @@
  * not be scrolled at all: every drag was a reorder, and the rows below the fold were unreachable.
  * Reported as exactly that.
  *
- * `pan-y` hands vertical dragging back to the browser. The cost is that hold-to-drag reordering
- * stops working by finger — once the browser owns the gesture it sends `pointercancel`, which
- * useWatchlistRowDrag already handles cleanly, so the drag aborts rather than misbehaving. That is
- * the right way round: a list you cannot scroll is broken, a list you cannot reorder by finger is
- * merely less convenient, and rows can still be moved from a desktop. */
+ * `pan-y` hands vertical dragging back to the browser, so the list scrolls normally. It used to
+ * cost hold-to-drag entirely — the browser took the gesture and sent `pointercancel` — and that was
+ * accepted as the lesser loss. It no longer costs anything: `useWatchlistRowDrag` cancels
+ * `touchmove` from the moment the hold elapses, which is the one thing that actually stops a scroll
+ * mid-gesture (a browser latches `touch-action` when the gesture starts, so changing it here later
+ * would do nothing). Before the hold the browser scrolls; after it, every move belongs to the drag. */
 @media (pointer: coarse) {
   .lq-chart-workspace__watchlist-row-main,
   .lq-chart-workspace__watchlist-section-header {
@@ -770,8 +771,12 @@
    which fires before any movement at all, not just past the drag threshold) — a stronger,
    distinctly-tinted background so "you can now move this" reads as its own state, not just the
    plain :hover it's layered on top of. */
+/* Picked up, not yet moved. A quiet tint plus a hairline on the leading edge — enough to say "this
+   one is in your hand" without the row changing colour so hard that it stops looking like the row
+   you were pointing at. */
 .lq-chart-workspace__watchlist-row--pressed {
-  background-color: color-mix(in srgb, var(--lq-color-accent) 18%, var(--lq-color-hover));
+  background-color: var(--lq-color-hover);
+  box-shadow: inset 2px 0 0 var(--lq-color-accent);
 }
 
 /* On touch, `--pressed` only arrives once the one-second hold has elapsed (see
@@ -807,20 +812,60 @@
    .lq-chart-workspace__watchlist-drop-line just below for where it will actually land). */
 .lq-chart-workspace__watchlist-row--dragging {
   position: relative;
-  z-index: 1;
+  z-index: 2;
   background-color: var(--lq-color-panel);
-  box-shadow: 0 6px 16px rgb(0 0 0 / 0.25);
+  /* Lifted, not dropped-shadowed: a soft, wide shadow with almost no offset reads as height above
+     the page, where the previous hard 6px/16px/25% one read as a card that had fallen over. Paired
+     with a 1px outline so the row keeps a clean edge against the rows sliding past underneath it. */
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.08), 0 8px 24px rgb(0 0 0 / 0.14);
+  outline: 1px solid var(--lq-color-border-subtle);
+  border-radius: var(--lq-radius-sm);
+  /* The row is translated inline to follow the pointer (see WatchlistPanel) — no transition on
+     `transform`, or it would lag a frame behind the finger. Everything else eases. */
+  transition: box-shadow 140ms ease, opacity 140ms ease;
+  cursor: grabbing;
 }
+
 
 /* Where the dragged row will actually land if released right now (see useWatchlistRowDrag's own
    `dropIndicator`) — a thin accent line rendered as its own sibling between two rows (or at the
    very top/bottom of the list), not a border on any existing row, so it reads as "insert exactly
    here" rather than highlighting something already there. */
 .lq-chart-workspace__watchlist-drop-line {
+  position: relative;
   height: 2px;
   background-color: var(--lq-color-accent);
   border-radius: 1px;
   pointer-events: none;
+  /* Grows out from the left rather than appearing whole: the eye follows the growth to the line,
+     which is quicker to find than a 2px rule that blinks into existence somewhere in a list. */
+  transform-origin: left center;
+  animation: lq-watchlist-drop-line-in 140ms ease-out;
+}
+
+/* A dot at the leading end — the same "this is an insertion point, not a highlighted row" idea the
+   line already carries, made legible at a glance on a narrow list. */
+.lq-chart-workspace__watchlist-drop-line::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  margin-top: -3px;
+  border-radius: 50%;
+  background-color: var(--lq-color-accent);
+}
+
+@keyframes lq-watchlist-drop-line-in {
+  from {
+    transform: scaleX(0.2);
+    opacity: 0;
+  }
+  to {
+    transform: scaleX(1);
+    opacity: 1;
+  }
 }
 
 /* A column's own resize handle — same thin-strip-straddling-the-edge recipe as

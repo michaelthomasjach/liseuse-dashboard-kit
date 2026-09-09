@@ -74,6 +74,10 @@ export function useWatchlistRowDrag({ onMove, holdMs = 0 }: UseWatchlistRowDragA
   const [pressedRowId, setPressedRowId] = useState<string | null>(null);
   const [draggingRowId, setDraggingRowId] = useState<string | null>(null);
   const [dropIndicator, setDropIndicator] = useState<WatchlistDropIndicator | null>(null);
+  // How far the pointer has travelled since the row was picked up. The row is drawn at this offset
+  // so it follows the finger instead of staying put while a line moves somewhere else — a row that
+  // does not move when you move it reads as a list that has not understood the gesture.
+  const [dragOffsetY, setDragOffsetY] = useState(0);
 
   function startDrag(rowId: string, fromSectionId: string | null, e: ReactPointerEvent) {
     const startX = e.clientX;
@@ -127,6 +131,16 @@ export function useWatchlistRowDrag({ onMove, holdMs = 0 }: UseWatchlistRowDragA
       return { sectionId, index };
     }
 
+    // Suppressing the scroll, once and only once the row has actually been picked up.
+    //
+    // `touch-action: pan-y` on the row is what lets the list scroll normally before that (see
+    // ChartWorkspace.css) — but a browser latches `touch-action` at the start of a gesture, so
+    // flipping it here would change nothing. Cancelling `touchmove` does work, and it is the only
+    // thing that does: from the moment the hold elapses, every move belongs to the drag.
+    function onTouchMove(ev: TouchEvent) {
+      if (armed && ev.cancelable) ev.preventDefault();
+    }
+
     function onPointerMove(ev: PointerEvent) {
       if (!dragging) {
         if (Math.hypot(ev.clientX - startX, ev.clientY - startY) < DRAG_THRESHOLD) return;
@@ -137,11 +151,13 @@ export function useWatchlistRowDrag({ onMove, holdMs = 0 }: UseWatchlistRowDragA
           window.removeEventListener("pointermove", onPointerMove);
           window.removeEventListener("pointerup", onPointerUp);
           window.removeEventListener("pointercancel", onPointerUp);
+          window.removeEventListener("touchmove", onTouchMove);
           return;
         }
         dragging = true;
         setDraggingRowId(rowId);
       }
+      setDragOffsetY(ev.clientY - startY);
       indicator = computeIndicator(ev);
       setDropIndicator(indicator);
     }
@@ -153,16 +169,20 @@ export function useWatchlistRowDrag({ onMove, holdMs = 0 }: UseWatchlistRowDragA
       setPressedRowId(null);
       setDraggingRowId(null);
       setDropIndicator(null);
+      setDragOffsetY(0);
       window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("pointerup", onPointerUp);
       window.removeEventListener("pointercancel", onPointerUp);
+      window.removeEventListener("touchmove", onTouchMove);
     }
     window.addEventListener("pointermove", onPointerMove);
     window.addEventListener("pointerup", onPointerUp);
+    // Non-passive, which is the whole point: a passive listener may not cancel the scroll.
+    window.addEventListener("touchmove", onTouchMove, { passive: false });
     // A touch the browser reclaims (it decided the gesture was a scroll after all) must end this
     // the same way a lift does, or the hold timer fires into a gesture that no longer exists.
     window.addEventListener("pointercancel", onPointerUp);
   }
 
-  return { pressedRowId, draggingRowId, dropIndicator, startDrag };
+  return { pressedRowId, draggingRowId, dropIndicator, dragOffsetY, startDrag };
 }

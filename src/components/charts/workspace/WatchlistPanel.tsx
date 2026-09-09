@@ -134,7 +134,7 @@ export function WatchlistPanel({
   // drag clears it instead of fighting it.
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
-  const { pressedRowId, draggingRowId, dropIndicator, startDrag } = useWatchlistRowDrag({
+  const { pressedRowId, draggingRowId, dropIndicator, dragOffsetY, startDrag } = useWatchlistRowDrag({
     // A finger has to hold the row for a second before it can be dragged — see the hook's own
     // `holdMs` doc: on a touch layout the first pixel of movement is a scroll, and a drag that
     // starts on it hijacks the list. A mouse keeps the immediate desktop behaviour.
@@ -303,6 +303,10 @@ export function WatchlistPanel({
         ]
           .filter(Boolean)
           .join(" ")}
+        // Follows the pointer. Only the row being dragged gets an offset; every other one is
+        // untouched, so the list underneath stays exactly where the eye left it while the drop
+        // line says where this one is going.
+        style={draggingRowId === row.id ? { transform: `translateY(${dragOffsetY}px)` } : undefined}
         {...watchlistRowProps(row.id)}
       >
         <button

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { AAPL_FINANCIALS } from "../../test-data/symbolFinancialsSample";
 import type { ScriptDef } from "./candlestick/interfaces/ScriptDef.interface";
 import { SCRIPT_EXAMPLES } from "./candlestick/scripting/scriptExamples";
 import type { Meta, StoryObj } from "@storybook/react";
@@ -389,6 +390,11 @@ const DEMO_NEWS: WatchlistNewsItem[] = [
 // plain price/change readout on its own, no error. Only covers the three real companies in
 // DEMO_WATCHLISTS above, reusing DEMO_EARNINGS'/DEMO_NEWS' own MSFT entries where they already fit
 // rather than inventing unrelated numbers.
+/** Every profile here carries the same financial detail. Not because three companies really have
+ *  identical statements, but because the alternative — one symbol with financials and the rest
+ *  without — is what made the details modal look broken: open MSFT and its tabs are simply absent,
+ *  with nothing on screen to say the data was never supplied. A demo that only works on one row is
+ *  worse than one that repeats itself. */
 const SYMBOL_PROFILES: SymbolProfile[] = [
   {
     ticker: "MSFT",
@@ -396,6 +402,7 @@ const SYMBOL_PROFILES: SymbolProfile[] = [
     exchange: "NASDAQ",
     instrumentType: "Action",
     marketStatus: "Marché fermé",
+    financials: AAPL_FINANCIALS,
     description:
       "Microsoft développe, fabrique et commercialise des logiciels, services et appareils grand public et professionnels — Windows, Office 365, Azure, Xbox, Surface — et exploite l'un des plus grands clouds publics au monde.",
     sectors: ["Technologie", "Services applicatifs", "Cloud"],
@@ -423,6 +430,7 @@ const SYMBOL_PROFILES: SymbolProfile[] = [
     exchange: "NASDAQ",
     instrumentType: "Action",
     marketStatus: "Marché fermé",
+    financials: AAPL_FINANCIALS,
     description:
       "Apple conçoit, fabrique et commercialise des smartphones, ordinateurs personnels, tablettes et montres connectées, et propose une large gamme de services associés (App Store, iCloud, Apple Music, Apple Pay).",
     sectors: ["Technologie", "Matériel informatique", "Électronique grand public"],
@@ -442,6 +450,7 @@ const SYMBOL_PROFILES: SymbolProfile[] = [
     exchange: "NASDAQ",
     instrumentType: "Action",
     marketStatus: "Marché fermé",
+    financials: AAPL_FINANCIALS,
     description: "NVIDIA conçoit des processeurs graphiques (GPU) et des plateformes pour le calcul accéléré, le jeu vidéo, les centres de données et l'intelligence artificielle.",
     sectors: ["Technologie", "Semi-conducteurs"],
     performance: [

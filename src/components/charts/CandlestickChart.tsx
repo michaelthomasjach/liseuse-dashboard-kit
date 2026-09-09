@@ -403,13 +403,14 @@ export function CandlestickChart({
       // The open one was deleted, disabled, or stopped being a @strategy: show whatever just
       // arrived instead, and otherwise close rather than silently switching to an unrelated one.
       if (current !== null && !ids.includes(current)) return appeared ?? null;
-      if (current === null && appeared !== undefined) {
-        // A strategy opening on its own also un-withholds whatever it had drawn before.
-        scriptingState.restoreScriptDrawings(appeared);
-        return appeared;
-      }
+      if (current === null && appeared !== undefined) return appeared;
       return current;
     });
+    // Outside the updater, never inside it: an updater must be a pure function of the previous
+    // state — React is free to call it twice, and a second call here would be a second side
+    // effect. The restore covers the one case the derived rule below cannot: a strategy whose
+    // drawings `beforeRemoveIndicator` withheld because the user removed one of its indicators.
+    if (appeared !== undefined) scriptingState.restoreScriptDrawings(appeared);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [strategyScripts]);
   // Where the right-click landed, in both coordinate spaces the menu needs: `menuX/menuY` against
@@ -489,31 +490,17 @@ export function CandlestickChart({
     setDetachedStrategyWindow(child);
     setStrategyView("detached");
   }
+  // No withholding here any more: which fills are drawn follows from `openStrategyId` itself (see
+  // `closedStrategyDrawingPrefixes`). Two mechanisms for one fact is how the two come apart.
   const closeStrategyPanel = useCallback(() => {
-    // The fills this strategy drew go with its pane. Leaving them on the candles after the panel
-    // that explains them is gone leaves the chart asserting a backtest the user just dismissed.
-    if (openStrategyId !== null) scriptingState.withholdScriptDrawings(openStrategyId);
     setOpenStrategyId(null);
     // Back to docked, so reopening never lands in a mode left behind from last time.
     setStrategyView("docked");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [openStrategyId, scriptingState.withholdScriptDrawings]);
+  }, []);
   // Open it, or close it if this same strategy's panel is already the one showing.
-  const toggleStrategyPanel = useCallback(
-    (scriptId: string) => {
-      setOpenStrategyId((current) => {
-        if (current === scriptId) {
-          scriptingState.withholdScriptDrawings(scriptId);
-          return null;
-        }
-        // Reopening a pane brings its own drawings back — they were only ever withheld.
-        scriptingState.restoreScriptDrawings(scriptId);
-        return scriptId;
-      });
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [scriptingState.withholdScriptDrawings, scriptingState.restoreScriptDrawings]
-  );
+  const toggleStrategyPanel = useCallback((scriptId: string) => {
+    setOpenStrategyId((current) => (current === scriptId ? null : scriptId));
+  }, []);
   // Every control that lives in `ChartHeader` has to be listed here, or enabling that control
   // alone renders nothing at all — the button exists in the header's JSX, but the header itself
   // is never mounted. `zoomable`/`fullscreenToggle` default to true, which masked the gap: a
@@ -613,7 +600,27 @@ export function CandlestickChart({
   // Render-only concat — script signals stay out of the *interactive* `visibleDrawings` every
   // pointer-handler in useDrawingInteractions below still reads (they're read-only in v1, no
   // select/drag/double-click-edit), only the canvas draw pass (ChartPlotOverlays) sees this one.
-  const combinedVisibleDrawings = useMemo(() => [...visibleDrawings, ...scriptingState.scriptDrawings], [visibleDrawings, scriptingState.scriptDrawings]);
+  // A strategy's fills belong to its panel, and this is *derived* from whether that panel is open
+  // rather than toggled when it closes. The difference is the whole bug: withholding on close only
+  // ever holds if the panel was open first, so the moment the tester stopped opening itself at
+  // load, every backtest's Achat/Sortie bubbles sat on the candles with nothing on screen to
+  // explain them — and no amount of care at the close call sites would have caught it, because the
+  // close never happened. Stated as a rule, it cannot come apart: the markers are on screen if and
+  // only if the panel that accounts for them is.
+  //
+  // Script *indicators* keep the imperative withhold instead (see `beforeRemoveIndicator`), and
+  // rightly: removing one is a single explicit act, not a state that flips back and forth.
+  const closedStrategyDrawingPrefixes = useMemo(
+    () => strategyScripts.filter((s) => s.id !== openStrategyId).map((s) => `script:${s.id}:`),
+    [strategyScripts, openStrategyId],
+  );
+  const combinedVisibleDrawings = useMemo(
+    () => [
+      ...visibleDrawings,
+      ...scriptingState.scriptDrawings.filter((d) => !closedStrategyDrawingPrefixes.some((prefix) => d.id.startsWith(prefix))),
+    ],
+    [visibleDrawings, scriptingState.scriptDrawings, closedStrategyDrawingPrefixes],
+  );
 
   const {
     templates,

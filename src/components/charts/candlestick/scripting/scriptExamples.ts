@@ -197,6 +197,118 @@ const droite = plot.pane("Ma pane", { dock: "right" });
 droite.line("Clôture", market.close(0) ?? 0);`,
   },
   {
+    id: "trend-indicator-a",
+    title: "Trend Indicator A (v2.3) — portage Pine Script",
+    description:
+      "Portage fidèle de l'indicateur « Trend Indicator A (v2.3) » de DZIV (CC BY-NC-SA 4.0), écrit dans le langage de scripting. Il lisse les quatre séries Heikin-Ashi avec la même moyenne mobile — huit types au choix, dont ALMA, HMA, SWMA et ZLEMA — puis lit la bougie moyenne qui en résulte : la clôture lissée en couleur de tendance, un nuage entre ouverture et clôture dont l'épaisseur est la conviction, et deux nuages gris pour les mèches. Deux écarts assumés avec l'original, tous deux commentés dans le code : sa branche « WMA » calcule en fait une VWMA (un copier-coller), corrigée ici ; et la valeur de `trend` gagne son propre panneau, l'original n'en gardant que le signe.",
+    code: `@indicator
+@description "///Trend Indicator A (v2.3)///
+Portage fidèle de l'indicateur de **DZIV** (CC BY-NC-SA 4.0). L'idée tient en une phrase : lisser
+les quatre séries **Heikin-Ashi** avec la même moyenne mobile, puis lire la bougie moyenne qui en
+résulte.
+
+//Pourquoi Heikin-Ashi//
+Une bougie Heikin-Ashi est déjà une moyenne — son ouverture est la moyenne de l'ouverture et de la
+clôture précédentes. Lisser ces quatre séries plutôt que les prix bruts enlève le bruit deux fois,
+et ce qui reste est la --direction-- du marché plutôt que ses à-coups.
+
+//Ce qui est tracé//
+La ligne de __clôture lissée__, **verte quand le corps de la bougie moyenne est haussier**, rouge
+sinon. Entre l'ouverture et la clôture lissées, un nuage de la même couleur : son épaisseur est la
+conviction. Les mèches (haut et bas lissés) ferment deux nuages gris très pâles, qui disent
+jusqu'où le marché est allé sans y rester."
+
+@block Cellule 1 — les réglages
+// Tous les réglages de l'original, déclarés en Variable : ils apparaissent dans le panneau
+// « Paramètres » et se changent sans toucher au code.
+const TYPE_MM = new Variable("string", "EMA", {
+  description: "Type de moyenne mobile : ALMA, HMA, SMA, SWMA, VWMA, WMA, ZLEMA ou EMA.",
+});
+const PERIODE = new Variable("number", 9, { description: "Longueur de la moyenne mobile.", min: 1, max: 200 });
+const ALMA_DECALAGE = new Variable("number", 0.85, { description: "ALMA uniquement — position du pic de la fenêtre gaussienne (0 = le plus ancien, 1 = le plus récent).", min: 0, max: 1 });
+const ALMA_SIGMA = new Variable("number", 6, { description: "ALMA uniquement — netteté du pic. Plus grand = suit le prix de plus près.", min: 1, max: 20 });
+const AFFICHER_MECHES = new Variable("boolean", false, { description: "Trace aussi les lignes du haut et du bas lissés." });
+const AFFICHER_NUAGES = new Variable("boolean", true, { description: "Remplit les nuages entre les mèches et le corps." });
+const COULEUR_HAUSSE = new Variable("color", "#26a69a", { description: "Couleur quand le corps de la bougie moyenne est haussier." });
+const COULEUR_BAISSE = new Variable("color", "#ef5350", { description: "Couleur quand il est baissier." });
+const COULEUR_NEUTRE = new Variable("color", "#808080", { description: "Couleur des mèches et de leurs nuages." });
+
+@block Cellule 2 — les quatre séries Heikin-Ashi, lissées
+// market.heikinAshi() rend les quatre séries d'un coup, les plus anciennes en premier. Ce n'est
+// pas quelque chose qu'un script peut recalculer lui-même : l'ouverture HA dépend de la bougie
+// HA précédente, donc de toutes celles d'avant — voir sa doc.
+const FENETRE = Math.max(60, PERIODE * 4);
+const ha = market.heikinAshi(FENETRE);
+const volumes = market.series("volume", FENETRE);
+
+// Le switch de l'original. Une seule fonction appliquée aux quatre séries, exactement comme f(x).
+function moyenne(valeurs) {
+  switch (TYPE_MM.toUpperCase()) {
+    case "ALMA": return ta.alma(valeurs, PERIODE, ALMA_DECALAGE, ALMA_SIGMA);
+    case "HMA": return ta.hma(valeurs, PERIODE);
+    case "SMA": return ta.sma(valeurs, PERIODE);
+    case "SWMA": return ta.swma(valeurs);
+    case "VWMA": return ta.vwma(valeurs, volumes, PERIODE);
+    // L'original écrit ici \`ta.vwma(x, ma_period)\` — un copier-coller depuis la ligne VWMA
+    // juste au-dessus, qui fait que « WMA » calcule en réalité une VWMA. On corrige : une WMA
+    // pondère par l'ancienneté, pas par le volume.
+    case "WMA": return ta.wma(valeurs, PERIODE);
+    case "ZLEMA": return ta.zlema(valeurs, PERIODE);
+    default: return ta.ema(valeurs, PERIODE);
+  }
+}
+
+const mmOuverture = moyenne(ha.open);
+const mmCloture = moyenne(ha.close);
+const mmHaut = moyenne(ha.high);
+const mmBas = moyenne(ha.low);
+
+@block Cellule 3 — la tendance
+// trend = 100 × (clôture − ouverture) / (haut − bas) : la part du chemin parcouru sur la bougie
+// moyenne qui l'a été dans le sens du corps. Seul son signe sert au tracé, mais la valeur elle-
+// même se lit comme une force, d'où le panneau séparé plus bas.
+const amplitude = mmHaut !== null && mmBas !== null ? mmHaut - mmBas : null;
+const tendance =
+  mmCloture !== null && mmOuverture !== null && amplitude !== null && amplitude !== 0
+    ? (100 * (mmCloture - mmOuverture)) / amplitude
+    : null;
+const haussier = tendance !== null && tendance > 0;
+
+@block Cellule 4 — le tracé
+// Deux séries pour une seule courbe : la couleur d'une série est fixée à sa première valeur et ne
+// change plus ensuite. Une courbe bicolore se fait donc avec deux séries, chacune à null là où
+// l'autre s'affiche — sans le null, la série relierait ses points par-dessus le trou.
+const prix = plot.overlay("Trend Indicator A");
+prix.line("Clôture lissée (hausse)", haussier ? mmCloture : null, { color: COULEUR_HAUSSE, lineWidth: 2 });
+prix.line("Clôture lissée (baisse)", haussier ? null : mmCloture, { color: COULEUR_BAISSE, lineWidth: 2 });
+
+// Le nuage entre ouverture et clôture, en deux séries pour la même raison que la courbe.
+//
+// Et surtout : les deux sont émises à *chaque* bougie, celle qui ne s'applique pas recevant null.
+// Ne rien émettre du tout n'est pas la même chose — une série sans valeur sur une bougie prolonge
+// sa dernière, ce qui donnait de longs paliers horizontaux là où la couleur changeait. null est
+// ce qui perce un trou.
+prix.band("Corps (hausse)", haussier ? mmCloture : null, haussier ? mmOuverture : null, { color: COULEUR_HAUSSE, lineWidth: 0 });
+prix.band("Corps (baisse)", haussier ? null : mmCloture, haussier ? null : mmOuverture, { color: COULEUR_BAISSE, lineWidth: 0 });
+
+// Même règle ici : la valeur est null quand l'option est éteinte, jamais l'appel qui disparaît.
+prix.line("Haut lissé", AFFICHER_MECHES ? mmHaut : null, { color: COULEUR_NEUTRE });
+prix.line("Bas lissé", AFFICHER_MECHES ? mmBas : null, { color: COULEUR_NEUTRE });
+
+// Deux nuages très pâles : du haut jusqu'au sommet du corps, et du bas du corps jusqu'au bas.
+// Ils disent jusqu'où le marché est allé sans y rester.
+const corpsHaut = mmOuverture !== null && mmCloture !== null ? Math.max(mmOuverture, mmCloture) : null;
+const corpsBas = mmOuverture !== null && mmCloture !== null ? Math.min(mmOuverture, mmCloture) : null;
+prix.band("Mèche haute", AFFICHER_NUAGES ? mmHaut : null, AFFICHER_NUAGES ? corpsHaut : null, { color: COULEUR_NEUTRE, lineWidth: 0 });
+prix.band("Mèche basse", AFFICHER_NUAGES ? corpsBas : null, AFFICHER_NUAGES ? mmBas : null, { color: COULEUR_NEUTRE, lineWidth: 0 });
+
+@block Cellule 5 — la force, dans son propre panneau
+// Absent de l'original, qui n'affiche que la couleur. La valeur de \`trend\` est une échelle de
+// -100 à +100 qui se lit bien seule : au-delà de ±50, le corps de la bougie moyenne occupe plus
+// de la moitié de son amplitude, ce qui est une tendance franche.
+plot.pane("Force de tendance").histogram("Force", tendance, { color: haussier ? COULEUR_HAUSSE : COULEUR_BAISSE });`,
+  },
+  {
     id: "kde-support-resistance",
     title: "Niveaux de support/résistance (KDE gaussienne)",
     description:

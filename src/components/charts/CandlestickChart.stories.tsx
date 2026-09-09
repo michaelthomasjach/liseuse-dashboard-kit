@@ -562,7 +562,21 @@ const KDE_DEBUG_SCRIPT: ScriptDef[] = [
 /** Both fixtures together — an indicator script *and* a strategy script, so the picker shows both
  *  "Mes scripts" and "Mes stratégies" with real rows in each, and the conversion button on the
  *  indicator has something to convert. */
-const DEBUG_SCRIPTS: ScriptDef[] = [...KDE_DEBUG_SCRIPT, ...STRATEGY_DEBUG_SCRIPT];
+/** The Pine Script port (see SCRIPT_EXAMPLES "trend-indicator-a"), so "Mes scripts" lists it in
+ *  the indicator picker and it runs on one click. Disabled at rest, same as the KDE fixture and
+ *  for the same reason: a demo's first job is to show the chart. */
+const TREND_INDICATOR_SCRIPT: ScriptDef[] = [
+  {
+    id: "debug-trend-indicator-a",
+    name: "Trend Indicator A (v2.3)",
+    code: SCRIPT_EXAMPLES.find((example) => example.id === "trend-indicator-a")?.code ?? "",
+    named: true,
+    enabled: false,
+    targetPanelIndex: 0,
+  },
+];
+
+const DEBUG_SCRIPTS: ScriptDef[] = [...KDE_DEBUG_SCRIPT, ...TREND_INDICATOR_SCRIPT, ...STRATEGY_DEBUG_SCRIPT];
 
 export const AllFeatures: Story = {
   name: "Toutes les options",

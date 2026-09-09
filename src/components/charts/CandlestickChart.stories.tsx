@@ -530,12 +530,17 @@ const STRATEGY_DEBUG_SCRIPT: ScriptDef[] = [
 
 
 const KDE_DEBUG_SCRIPT: ScriptDef[] = [
+  // Présent mais éteint : le script est dans « Mes scripts », prêt à être lancé d'un clic, et il
+  // ne dessine rien tant qu'on ne l'a pas demandé. Un montage de démonstration a pour première
+  // tâche de montrer le graphique ; un profil ancré à droite et un semis de niveaux sur les
+  // bougies, arrivés sans que personne les demande, sont le contraire de ça. La story « Données
+  // BTC réelles » l'active explicitement — c'est la seule où le voir tourner *est* le sujet.
   {
     id: "debug-kde",
     name: "Niveaux de support/résistance (KDE)",
     code: SCRIPT_EXAMPLES.find((example) => example.id === "kde-support-resistance")?.code ?? "",
     named: true,
-    enabled: true,
+    enabled: false,
     targetPanelIndex: 0,
   },
   // Le même calcul, découpé en trois fichiers importés. Désactivé au départ — on l'active depuis
@@ -861,11 +866,20 @@ export const LiveMarket: Story = {
 // support/résistance (KDE gaussienne)") against real market structure. Reuses KDE_DEBUG_SCRIPT
 // (the exact same SCRIPT_EXAMPLES source "Toutes les options" already pre-loads) so both stories
 // stay in sync with the example itself rather than drifting apart.
+//
+// The one story that turns the KDE script on, and it says so here rather than inheriting it: the
+// fixture ships it disabled (see its own note), because everywhere else a profile nobody asked for
+// is just something covering the candles. Here, watching it run against real market structure is
+// the entire point.
+const KDE_ENABLED: ScriptDef[] = KDE_DEBUG_SCRIPT.map((script) =>
+  script.id === "debug-kde" ? { ...script, enabled: true } : script,
+);
+
 export const BtcRealSample: Story = {
   name: "Données BTC réelles (test KDE)",
   render: () => (
     <div style={{ margin: -32 }}>
-      <ChartWorkspace defaultPanels={1} scripting defaultScripts={KDE_DEBUG_SCRIPT}>
+      <ChartWorkspace defaultPanels={1} scripting defaultScripts={KDE_ENABLED}>
         <CandlestickChart data={BTC_REAL_SAMPLE} symbol="BTCUSDT" zoomable drawingTools showVolume showIndicators replay />
       </ChartWorkspace>
     </div>

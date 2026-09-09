@@ -212,6 +212,16 @@
   border-left: none;
 }
 
+/* Top and bottom, so the column is bounded the way every chart panel beside it is. Without them
+   the watchlist and the symbol detail ran edge to edge of the row while the charts sat inside
+   their own 1px box, and the eye read that as two different things bolted together rather than
+   one instrument. Not on the mobile form, which covers the whole area and has no charts beside it
+   to line up with. */
+.lq-chart-workspace .lq-chart__side-panel:not(.lq-chart__side-panel--fullscreen) {
+  border-top: 1px solid var(--lq-color-border-subtle);
+  border-bottom: 1px solid var(--lq-color-border-subtle);
+}
+
 /* Overrides `.lq-chart__side-panel-content`'s own top padding (see charts-shared.css) specifically
    in this context — that padding is what left `.lq-chart-workspace__side-panel-header` sitting a
    few px lower than a panel's own topbar alongside it, despite both having the same fixed 40px
@@ -222,11 +232,11 @@
    of that. Left/right/bottom padding untouched (only the top side is overridden) — the standalone
    CandlestickChart `sidePanel` case (outside `.lq-chart-workspace`) is unaffected either way. */
 .lq-chart-workspace .lq-chart__side-panel-content {
-  /* 1px, not 0 — a grid panel's own `.lq-chart` has a 1px border on every side (including top),
-     so its own topbar starts 1px below this row's shared top edge; matching that exactly here
-     (instead of flush at 0) is what makes the two topbars land on the exact same line despite the
-     panel having no border of its own to produce that same 1px offset on its own. */
-  padding-top: 1px;
+  /* Flush at 0. This used to be 1px, standing in for the border a grid panel's own `.lq-chart` has
+     and this one didn't — the fake inset that made the two topbars land on the same line. The
+     panel now has that border for real (see the rule above), so keeping the stand-in would offset
+     it twice and put this topbar a pixel below its neighbours' again. */
+  padding-top: 0;
 }
 
 /* The workspace's own docked side panel — reuses ChartSidePanel/.lq-chart__side-panel wholesale

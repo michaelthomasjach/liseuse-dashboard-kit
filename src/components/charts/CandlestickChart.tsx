@@ -558,6 +558,7 @@ export function CandlestickChart({
     editingIndicatorId,
     indicatorDraft,
     setIndicatorDraft,
+    hoveredIndicatorId,
     setHoveredIndicatorId,
     indicatorsManagerOpen,
     setIndicatorsManagerOpen,
@@ -986,6 +987,9 @@ export function CandlestickChart({
     indicatorValues,
     lastRevealedIndex,
     setSelectedIndicatorId,
+    // The legend outlines whichever row belongs to the line under the pointer — same shared state
+    // the legend's own hover writes, so hovering either surface produces the same outline.
+    onHoveredIndicatorChange: setHoveredIndicatorId,
     dims,
     plotBoundedHeight,
     priceHeight,
@@ -1447,6 +1451,8 @@ export function CandlestickChart({
             defaultIndicatorColor={defaultIndicatorColor}
             openIndicatorSettings={openIndicatorSettings}
             setHoveredIndicatorId={setHoveredIndicatorId}
+            hoveredIndicatorId={hoveredIndicatorId}
+            priceHeight={priceHeight}
             indicatorLabel={indicatorLabel}
             toggleIndicatorHidden={toggleIndicatorHidden}
             removeIndicator={removeIndicator}

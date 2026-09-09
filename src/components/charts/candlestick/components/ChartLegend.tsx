@@ -1,14 +1,22 @@
 import type { IndicatorInfoTarget } from "../interfaces/IndicatorInfoTarget.interface";
 import { infoTargetFor, scriptIdFromIndicatorId } from "../scripting/scriptOutputToCustomIndicatorDef";
 import type { Dispatch, SetStateAction } from "react";
-import { ActivityIcon, CodeIcon, EyeIcon, EyeOffIcon, TrashIcon, SettingsIcon, BellIcon, InfoIcon } from "../../../icons";
+import { useState } from "react";
+import { ActivityIcon, CodeIcon, EyeIcon, EyeOffIcon, TrashIcon, SettingsIcon, BellIcon, InfoIcon, ChevronDownIcon, ChevronRightIcon } from "../../../icons";
 import type { Candle } from "../interfaces/Candle.interface";
 import type { Indicator } from "../interfaces/Indicator.interface";
 import type { TrendLineDrawing } from "../interfaces/TrendLineDrawing.interface";
 import type { ChartDisplayModeDef } from "../chartModes";
 
+/** How many entries the legend carries before it offers to fold. Below this, a control to hide the
+ *  list is more chrome than the list itself. */
+const LEGEND_FOLD_THRESHOLD = 3;
+
 export interface ChartLegendProps {
   dims: { margin: { top: number; left: number } };
+  /** The price plot's own height, which caps how tall the indicator list may grow (see
+   *  `.lq-chart__indicator-legend`). */
+  priceHeight: number;
   symbol: string | undefined;
   symbolSearch: boolean;
   setSymbolSearchOpen: (open: boolean) => void;
@@ -30,6 +38,10 @@ export interface ChartLegendProps {
   defaultIndicatorColor: (index: number) => string;
   openIndicatorSettings: (id: string) => void;
   setHoveredIndicatorId: Dispatch<SetStateAction<string | null>>;
+  /** Which indicator is hovered right now, from *either* surface — this legend, or the line itself
+   *  on the plot (see `useDrawingInteractions`' own `onHoveredIndicatorChange`). One piece of state
+   *  for one fact, so pointing at a curve and pointing at its name light up the same row. */
+  hoveredIndicatorId: string | null;
   indicatorLabel: (indicator: Indicator) => string;
   toggleIndicatorHidden: (id: string) => void;
   removeIndicator: (id: string) => void;
@@ -72,6 +84,7 @@ export interface ChartLegendProps {
  *  own doc. Purely presentational; every interaction is a callback prop. */
 export function ChartLegend({
   dims,
+  priceHeight,
   symbol,
   symbolSearch,
   setSymbolSearchOpen,
@@ -89,6 +102,7 @@ export function ChartLegend({
   defaultIndicatorColor,
   openIndicatorSettings,
   setHoveredIndicatorId,
+  hoveredIndicatorId,
   indicatorLabel,
   toggleIndicatorHidden,
   removeIndicator,
@@ -110,8 +124,19 @@ export function ChartLegend({
   setEditModalTab,
   removeSymbolOverlay,
 }: ChartLegendProps) {
+  // Folded state lives here, not on the chart: it is a way of looking at this list, not a fact
+  // about the chart, and nothing outside this component has any use for it.
+  const [legendFolded, setLegendFolded] = useState(false);
+  const legendNames = [...overlayIndicators.map((ind) => indicatorLabel(ind)), ...symbolOverlays.map((dr) => drawingLabel(dr))];
+  const legendEntryCount = legendNames.length;
   return (
-    <div className="lq-chart__plot-topleft" style={{ top: dims.margin.top + 6, left: dims.margin.left + 6 }}>
+    <div
+      className="lq-chart__plot-topleft"
+      // `--lq-chart-price-height` is what caps the indicator list at half the plot (see
+      // .lq-chart__indicator-legend) — passed as a custom property rather than an inline
+      // max-height so the "half" lives in the stylesheet with the rest of the rule.
+      style={{ top: dims.margin.top + 6, left: dims.margin.left + 6, ["--lq-chart-price-height" as string]: `${priceHeight}px` }}
+    >
       <div className={["lq-chart__symbol-info", mobile && "lq-chart__symbol-info--stacked"].filter(Boolean).join(" ")}>
         {/* Its own hoverable zone (background on hover) only once `symbolSearch` opts in —
             otherwise `symbol` still renders, just as inert text, same as before this
@@ -173,7 +198,26 @@ export function ChartLegend({
           silent no-op, since an own-pane indicator's visibility reads `paneCollapsed`, not
           `hidden` (see `Indicator.hidden`'s own doc comment). */}
       {((showIndicators && overlayIndicators.length > 0) || symbolOverlays.length > 0) && (
-      <div className="lq-chart__indicator-legend">
+      <>
+      {/* Past a handful of indicators the list is taller than the chart it annotates. The chevron
+          folds every row into one line — the names, separated by dots, nothing else — and the same
+          chevron unfolds it. Only offered once folding would actually buy something: with two rows
+          on screen, a control to hide them is more chrome than the rows themselves. */}
+      {legendEntryCount > LEGEND_FOLD_THRESHOLD && (
+        <button
+          type="button"
+          className="lq-chart__indicator-legend-fold"
+          onClick={() => setLegendFolded((folded) => !folded)}
+          aria-expanded={!legendFolded}
+          title={legendFolded ? "Déplier la liste des indicateurs" : "Replier la liste des indicateurs"}
+        >
+          {legendFolded ? <ChevronRightIcon size={11} /> : <ChevronDownIcon size={11} />}
+          <span>
+            {legendFolded ? legendNames.join(" · ") : `${legendEntryCount} indicateurs`}
+          </span>
+        </button>
+      )}
+      <div className={["lq-chart__indicator-legend", legendFolded && "lq-chart__indicator-legend--folded"].filter(Boolean).join(" ")}>
         {overlayIndicators.map((indicator) => {
           // The *full* indicators array's own index, not this filtered map's — the canvas
           // draw effect cycles defaultIndicatorColor off that same full-array position (see
@@ -184,7 +228,12 @@ export function ChartLegend({
           return (
           <div
             key={indicator.id}
-            className="lq-chart__indicator-legend-item"
+            className={[
+              "lq-chart__indicator-legend-item",
+              hoveredIndicatorId === indicator.id && "lq-chart__indicator-legend-item--hovered",
+            ]
+              .filter(Boolean)
+              .join(" ")}
             style={{ color: indicator.color ?? defaultIndicatorColor(i) }}
             onDoubleClick={() => openIndicatorSettings(indicator.id)}
             onMouseEnter={() => setHoveredIndicatorId(indicator.id)}
@@ -344,6 +393,7 @@ export function ChartLegend({
           </div>
         ))}
       </div>
+      </>
       )}
     </div>
   );

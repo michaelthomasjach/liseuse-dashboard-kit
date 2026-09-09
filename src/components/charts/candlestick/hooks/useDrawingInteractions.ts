@@ -98,6 +98,12 @@ export interface UseDrawingInteractionsArgs {
    *  hit-testable over bars that are actually on screen. */
   lastRevealedIndex: number;
   setSelectedIndicatorId: (id: string | null) => void;
+  /** Fires when the indicator under the pointer changes — *only* when it changes, never on every
+   *  move. The id itself is kept in a ref below so a pointer travelling across the plot costs no
+   *  renders; this exists because the legend has to outline the row belonging to whatever line the
+   *  pointer is on, and that is a piece of shared state, not a ref. A change happens when the
+   *  pointer crosses onto or off a curve, which is rare enough to be free. */
+  onHoveredIndicatorChange: (id: string | null) => void;
   pixelYForDrawing: (dr: TrendLineDrawing) => number;
   resolveValueAxisAtY: (mouseY: number) => string;
   overlayProjections: { drawing: TrendLineDrawing; mainReference: number; points: { i: number; price: number }[] }[];
@@ -188,6 +194,7 @@ export function useDrawingInteractions({
   indicatorValues,
   lastRevealedIndex,
   setSelectedIndicatorId,
+  onHoveredIndicatorChange,
   pixelYForDrawing,
   resolveValueAxisAtY,
   overlayProjections,
@@ -804,7 +811,10 @@ export function useDrawingInteractions({
           closestId = indicator.id;
         }
       }
-      hoveredIndicatorIdRef.current = closestId;
+      if (hoveredIndicatorIdRef.current !== closestId) {
+        hoveredIndicatorIdRef.current = closestId;
+        onHoveredIndicatorChange(closestId);
+      }
     }
   }
 

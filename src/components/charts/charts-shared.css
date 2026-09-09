@@ -1949,6 +1949,56 @@
   align-items: flex-start;
   gap: 3px;
   pointer-events: none;
+  /* Never taller than half the chart. Past that the list stops annotating the candles and starts
+     covering them, which is the one thing a legend must not do — so it scrolls instead of growing.
+     `--lq-chart-price-height` is set inline by CandlestickChart from its own measured price plot;
+     the 50vh fallback only matters in the odd host that renders this legend outside a chart (see
+     SeasonalityView). */
+  max-height: calc(var(--lq-chart-price-height, 50vh) * 0.5);
+  overflow-y: auto;
+  overflow-x: hidden;
+  /* The rows opt back into pointer events themselves; the column has to as well or the scroll
+     wheel passes straight through to the chart's own zoom. */
+  scrollbar-width: thin;
+}
+
+.lq-chart__indicator-legend:hover {
+  pointer-events: auto;
+}
+
+/* Folded: the rows are gone and the chevron's own summary line is all that is left. */
+.lq-chart__indicator-legend--folded {
+  display: none;
+}
+
+/* The fold control. Reads as one of the legend's own rows rather than as a button bolted above it
+   — same padding, same weight, same hover background. */
+.lq-chart__indicator-legend-fold {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  padding: 2px 6px;
+  border: 0;
+  border-radius: var(--lq-radius-sm);
+  background-color: transparent;
+  color: var(--lq-color-text-muted);
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.lq-chart__indicator-legend-fold:hover {
+  background-color: var(--lq-color-panel);
+}
+
+.lq-chart__indicator-legend-fold span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Forces every row back to pointer-events:none too (they normally opt back in on their own, see
@@ -1962,11 +2012,26 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 2px 6px;
-  font-size: 0.7rem;
+  /* A transparent border at rest, not none: the outline on hover must not change the row's own
+     size, or every neighbour shifts by a pixel the moment the pointer arrives. */
+  border: 1px solid transparent;
+  border-radius: var(--lq-radius-sm);
+  /* Vertical padding back to 2px now the border takes a pixel of its own: at 1px the larger text
+     ran its action icons into the row below. */
+  padding: 2px 5px;
+  /* 0.7rem was small enough that reading a legend of six indicators meant leaning in. */
+  font-size: 0.76rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   pointer-events: auto;
+}
+
+/* Outlined whenever this indicator is the hovered one — from this list, or from its own line on
+   the plot. One rule, one piece of state: pointing at a curve and pointing at its name light up
+   the same row, which is the whole point of tying the two together. */
+.lq-chart__indicator-legend-item--hovered {
+  border-color: currentColor;
+  background-color: var(--lq-color-panel);
 }
 
 /* No background at rest — only appears on hover/focus, matching the same panel background

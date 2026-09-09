@@ -273,3 +273,47 @@
 .lq-market-state__signal--neutral {
   color: var(--lq-color-text-muted);
 }
+
+/* The header doubles as the drag handle. `touch-action: none` so a finger drag moves the panel
+   instead of scrolling whatever is under it — every gesture here is handled in JS. */
+.lq-market-state__head {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.lq-market-state__head:active {
+  cursor: grabbing;
+}
+
+/* In its own window it is the content, not something floating over a plot: no corner anchoring, no
+   height cap, no drag. */
+.lq-market-state--detached {
+  position: static;
+  width: auto;
+  max-width: 420px;
+  max-height: none;
+  margin: 0 auto;
+  border: 0;
+}
+
+.lq-market-state--detached .lq-market-state__head {
+  cursor: default;
+}
+
+.lq-market-state__switch {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--lq-font-sans, system-ui, sans-serif);
+  font-size: 0.66rem;
+  line-height: 1.4;
+  color: var(--lq-color-text-muted);
+  cursor: pointer;
+}
+
+.lq-market-state__switch input {
+  flex-shrink: 0;
+  margin: 0;
+  cursor: pointer;
+}

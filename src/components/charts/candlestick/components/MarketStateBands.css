@@ -1,0 +1,25 @@
+/* The Market State's own shading of the price plot. Under the candles and inert — it is context
+   for them, never something to read on its own. */
+.lq-market-bands {
+  position: absolute;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.lq-market-bands__band {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+}
+
+/* Very low alpha on purpose. A background that competes with the candles for attention has stopped
+   being a background; at this weight the eye picks up the *change* between stretches, which is the
+   only thing a band is there to say. */
+.lq-market-bands__band--long {
+  background-color: color-mix(in srgb, var(--lq-color-up) 12%, transparent);
+}
+
+.lq-market-bands__band--short {
+  background-color: color-mix(in srgb, var(--lq-color-down) 12%, transparent);
+}

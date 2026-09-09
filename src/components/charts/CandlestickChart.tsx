@@ -38,6 +38,7 @@ import { useChartScripting } from "./candlestick/hooks/useChartScripting";
 import { ScriptRunnerHost } from "./candlestick/scripting/components/ScriptRunnerHost";
 import { ChartHeader } from "./candlestick/components/ChartHeader";
 import { MarketStatePanel } from "./candlestick/components/MarketStatePanel";
+import { MarketStateBands } from "./candlestick/components/MarketStateBands";
 import { ChartSidePanel } from "./candlestick/components/ChartSidePanel";
 import { ChartStrategyPanel } from "./candlestick/strategy/ChartStrategyPanel";
 import { analyzeScriptKind } from "./candlestick/scripting/scriptKind";
@@ -512,6 +513,13 @@ export function CandlestickChart({
   // default: it is a summary of the indicators on the chart, and a chart with none has nothing
   // for it to summarise beyond its own price and volume baselines.
   const [marketStateOpen, setMarketStateOpen] = useState(false);
+  // Whether the readout also shades the plot by what it reads (see `MarketStateBands`). Off by
+  // default and only reachable while the readout is open: the shading is that readout's claim
+  // drawn large, and a chart tinted by something the user cannot see the reasoning for would be
+  // the exact opposite of what this panel is for.
+  const [marketStateBandsOn, setMarketStateBandsOn] = useState(false);
+  // Its own browser window. Opened inside the click, never from an effect — see DetachedWindow.
+  const [marketStateWindow, setMarketStateWindow] = useState<Window | null>(null);
   const showHeader =
     fullscreenToggle || zoomable || !!timeframes?.length || showIndicators ||
     seasonality || replay || showTemplates || linkable || !!sidePanel;
@@ -1472,14 +1480,57 @@ export function CandlestickChart({
             it. Fed the *visible* indicators only: a score built partly from something the reader
             has hidden would be unexplainable by looking at the chart, which is the one thing this
             panel promises. */}
-        {marketStateOpen && (
+        {/* Behind the candles, and only while the readout that explains it is open. */}
+        {marketStateOpen && marketStateBandsOn && priceHeight > 0 && (
+          <MarketStateBands
+            candles={data}
+            indicators={marketStateIndicators}
+            from={visibleRange.start}
+            to={visibleRange.end}
+            xForIndex={(i) => zoomedXScale(i)}
+            left={dims.margin.left}
+            top={dims.margin.top}
+            width={Math.max(0, dims.width - dims.margin.left - dims.margin.right)}
+            height={Math.max(0, priceHeight - dims.margin.top)}
+          />
+        )}
+        {marketStateOpen && marketStateWindow === null && (
           <MarketStatePanel
             candles={data}
             index={effectiveHoverIndex ?? lastRevealedIndex}
             indicators={marketStateIndicators}
             onClose={() => setMarketStateOpen(false)}
             formatDate={dFmt}
+            onRequestDetach={() => {
+              const child = window.open("", "", "width=460,height=900");
+              if (child !== null) setMarketStateWindow(child);
+            }}
+            bandsOn={marketStateBandsOn}
+            onBandsChange={setMarketStateBandsOn}
           />
+        )}
+        {marketStateOpen && marketStateWindow !== null && (
+          <DetachedWindow
+            target={marketStateWindow}
+            title="État du marché"
+            themeSource={ref.current}
+            onClose={() => setMarketStateWindow(null)}
+            layout="page"
+          >
+            <MarketStatePanel
+              candles={data}
+              index={effectiveHoverIndex ?? lastRevealedIndex}
+              indicators={marketStateIndicators}
+              onClose={() => setMarketStateWindow(null)}
+              formatDate={dFmt}
+              detached
+              // The switch still works from the detached copy — it drives shading on the chart
+              // this window was torn off, which is exactly the arrangement that makes a second
+              // window worth opening: the reasoning on one screen, the chart on the other.
+              bandsOn={marketStateBandsOn}
+              onBandsChange={setMarketStateBandsOn}
+            />
+          </DetachedWindow>
         )}
         <PaneHeaders
           volumeVisible={volumeVisible}

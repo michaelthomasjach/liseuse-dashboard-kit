@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { CloseIcon, ChevronDownIcon } from "../../../icons";
+import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { CloseIcon, ChevronDownIcon, DetachWindowIcon } from "../../../icons";
 import { computeMarketState, SIGNAL_NEUTRAL_BAND, type MarketStateAxis, type MarketStateDirection } from "../marketState";
 import type { Candle } from "../interfaces/Candle.interface";
 import type { Indicator } from "../interfaces/Indicator.interface";
@@ -16,6 +16,17 @@ export interface MarketStatePanelProps {
   onClose: () => void;
   /** Formats the date of the bar being read, so the panel says which one it describes. */
   formatDate: (date: Date) => string;
+  /** Opens the readout in a window of its own. Omitted (the detached copy's own case) hides the
+   *  button — a window has nowhere further to go. */
+  onRequestDetach?: () => void;
+  /** The copy living in that window: it fills it rather than floating over a plot, so it drops the
+   *  absolute positioning, the drag and the close button, none of which mean anything there. */
+  detached?: boolean;
+  /** The "surligner les zones" switch, owned by the chart because the shading it turns on is drawn
+   *  on the chart, not here. Omitted hides the switch — a host with nowhere to draw bands should
+   *  not offer to. */
+  bandsOn?: boolean;
+  onBandsChange?: (on: boolean) => void;
 }
 
 /** The Market State dashboard: five 0-100 readings of the market and one long-side signal, all
@@ -37,8 +48,45 @@ const SIGNAL_LABEL: Record<MarketStateDirection, string> = {
   neutral: "SIGNAL NEUTRE",
 };
 
-export function MarketStatePanel({ candles, index, indicators, onClose, formatDate }: MarketStatePanelProps) {
+export function MarketStatePanel({
+  candles,
+  index,
+  indicators,
+  onClose,
+  formatDate,
+  onRequestDetach,
+  detached = false,
+  bandsOn,
+  onBandsChange,
+}: MarketStatePanelProps) {
   const [expanded, setExpanded] = useState<MarketStateAxis | "signal" | null>(null);
+  // Where the reader has put it, as an offset from the corner it starts in. Kept here rather than
+  // persisted: it is a position on *this* chart in *this* session, and a readout that reappeared
+  // tomorrow in a spot chosen for a different screen would be worse than one that starts where it
+  // always starts.
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const dragRef = useRef<{ pointerId: number; startX: number; startY: number; originX: number; originY: number } | null>(null);
+
+  function onHeaderPointerDown(e: ReactPointerEvent<HTMLElement>) {
+    if (detached) return;
+    // Not from the buttons: a press that starts on the close or detach icon is a click, and
+    // capturing the pointer here would swallow it.
+    if ((e.target as HTMLElement).closest("button")) return;
+    dragRef.current = { pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, originX: offset.x, originY: offset.y };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  }
+
+  function onHeaderPointerMove(e: ReactPointerEvent<HTMLElement>) {
+    const drag = dragRef.current;
+    if (drag === null || drag.pointerId !== e.pointerId) return;
+    setOffset({ x: drag.originX + (e.clientX - drag.startX), y: drag.originY + (e.clientY - drag.startY) });
+  }
+
+  function endDrag(e: ReactPointerEvent<HTMLElement>) {
+    if (dragRef.current?.pointerId !== e.pointerId) return;
+    dragRef.current = null;
+    e.currentTarget.releasePointerCapture?.(e.pointerId);
+  }
   const state = useMemo(
     () => computeMarketState({ candles, index, indicators }),
     [candles, index, indicators],
@@ -46,12 +94,32 @@ export function MarketStatePanel({ candles, index, indicators, onClose, formatDa
   const bar = candles[state.atIndex];
 
   return (
-    <section className="lq-market-state" aria-label="État du marché">
-      <header className="lq-market-state__head">
+    <section
+      className={["lq-market-state", detached && "lq-market-state--detached"].filter(Boolean).join(" ")}
+      aria-label="État du marché"
+      // `translate`, not `top`/`left`: the panel keeps its corner anchoring (and so its own
+      // max-height against the plot) and is simply moved from there, which is also the cheaper of
+      // the two to animate on a drag.
+      style={detached ? undefined : { transform: `translate(${offset.x}px, ${offset.y}px)` }}
+    >
+      <header
+        className="lq-market-state__head"
+        onPointerDown={onHeaderPointerDown}
+        onPointerMove={onHeaderPointerMove}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+      >
         <span className="lq-market-state__title">MARKET STATE</span>
-        <button type="button" onClick={onClose} aria-label="Fermer l'état du marché" title="Fermer">
-          <CloseIcon size={11} />
-        </button>
+        {onRequestDetach && (
+          <button type="button" onClick={onRequestDetach} aria-label="Ouvrir dans une fenêtre" title="Ouvrir dans une fenêtre">
+            <DetachWindowIcon size={11} />
+          </button>
+        )}
+        {!detached && (
+          <button type="button" onClick={onClose} aria-label="Fermer l'état du marché" title="Fermer">
+            <CloseIcon size={11} />
+          </button>
+        )}
       </header>
 
       <div className="lq-market-state__box">
@@ -162,6 +230,13 @@ export function MarketStatePanel({ candles, index, indicators, onClose, formatDa
             ))}
           </ul>
         </div>
+      )}
+
+      {onBandsChange && (
+        <label className="lq-market-state__switch">
+          <input type="checkbox" checked={bandsOn ?? false} onChange={(e) => onBandsChange(e.target.checked)} />
+          <span>Surligner les zones sur le graphique</span>
+        </label>
       )}
 
       {bar && <p className="lq-market-state__at">Bougie du {formatDate(bar.date)}</p>}

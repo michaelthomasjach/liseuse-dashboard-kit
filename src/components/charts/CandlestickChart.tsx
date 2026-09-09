@@ -312,7 +312,14 @@ export function CandlestickChart({
   // `null` (not `false`) until the wrapper has actually been measured — see usePaneLayout's own
   // `dockedPanesStartFolded` doc, which reads that as "decide nothing yet" rather than "this is a
   // desktop", so a pane present at width 0 isn't permanently written off as already handled.
-  const dockedPanesStartFolded = rawDims.width > 0 ? isNarrowLayout : null;
+  //
+  // `true` on every layout, not only the narrow one it started as. A docked pane is produced by a
+  // script, and a script's pane arriving *expanded* takes a column of the chart the moment the
+  // worker's first run lands — the KDE profile is 220px of the candles, claimed before anyone
+  // asked to see it. Folded, it is a strip at the edge that one click opens, so the feature is
+  // announced without taking the space. Only the *opening* default: past that the fold state is
+  // the user's, and this never re-folds a pane they have opened.
+  const dockedPanesStartFolded = rawDims.width > 0 ? true : null;
   const resolvedMargin: ChartMargin = isMobileRail
     ? {
         ...rawDims.margin,
@@ -376,8 +383,20 @@ export function CandlestickChart({
   // null, this effect read that as an invitation, and the panel came back within the same frame.
   // The close button worked perfectly and was undone before it could be seen.
   const knownStrategyIdsRef = useRef<string[]>([]);
+  // Whether the effect below has run once. Strategies already present at mount — a caller's own
+  // `defaultScripts` — have not "just appeared" from anyone's point of view: the chart simply
+  // loaded carrying them, and opening a tester over the candles before the user has asked for
+  // anything is the panel imposing itself rather than answering. They are recorded as known on the
+  // first pass and open nothing; a strategy created or enabled afterwards still opens on its own,
+  // which is the case the auto-open exists for.
+  const strategiesSeededRef = useRef(false);
   useEffect(() => {
     const ids = strategyScripts.map((s) => s.id);
+    if (!strategiesSeededRef.current) {
+      strategiesSeededRef.current = true;
+      knownStrategyIdsRef.current = ids;
+      return;
+    }
     const appeared = ids.find((id) => !knownStrategyIdsRef.current.includes(id));
     knownStrategyIdsRef.current = ids;
     setOpenStrategyId((current) => {

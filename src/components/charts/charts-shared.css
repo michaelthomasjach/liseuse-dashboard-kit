@@ -1119,6 +1119,48 @@
   }
 }
 
+/* The count under a stack of more than two. Quiet: it is a fact about the cluster, not a third
+   thing competing with the coloured cards above it. */
+.lq-chart__event-marker-count {
+  fill: var(--lq-color-text-muted);
+  font-size: 8px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+/* The crosshair is on this event's own column. A slow, small swell — enough to catch the eye
+   travelling along the axis, not enough to become the thing being looked at. `transform-box`/
+   `transform-origin` because an SVG group scales about the user-space origin by default, which
+   would make the marker swing away from its bar instead of breathing in place.
+
+   `scale` only, and no colour change: the badge's colour is what says which kind of event it is,
+   and animating it would be overwriting information with attention. */
+.lq-chart__event-marker-swell--breathing {
+  animation: lq-event-breathe 1.6s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+@keyframes lq-event-breathe {
+  0%,
+  100% {
+    scale: 1;
+  }
+  50% {
+    scale: 1.18;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* No pulse, but the marker still has to answer to the pointer — it holds the swollen size
+     instead of travelling between the two. */
+  .lq-chart__event-marker-swell--breathing {
+    animation: none;
+    scale: 1.12;
+  }
+}
+
 .lq-chart__event-marker circle {
   stroke: var(--lq-color-bg);
   stroke-width: 1.5;

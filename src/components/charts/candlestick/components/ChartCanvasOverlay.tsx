@@ -88,6 +88,10 @@ export interface ChartCanvasOverlayProps {
   handleMeasureHandlePointerMove: (e: React.PointerEvent<SVGCircleElement>) => void;
   handleMeasureHandlePointerUp: (e: React.PointerEvent<SVGCircleElement>) => void;
   eventStacks: { i: number; events: ChartEvent[] }[];
+  /** The bar under the pointer, so an event sharing that column can answer to it. Already part of
+   *  the merged props `ChartPlotOverlays` passes down (see `ChartHoverBadgesProps`) — this only
+   *  names it here too. */
+  hoverIndex: number | null;
   dFmt: (date: Date) => string;
   setEventModalOpen: Dispatch<SetStateAction<boolean>>;
   setActiveEventStack: Dispatch<SetStateAction<{ i: number; events: ChartEvent[] } | null>>;
@@ -217,6 +221,7 @@ export function ChartCanvasOverlay({
   handleMeasureHandlePointerMove,
   handleMeasureHandlePointerUp,
   eventStacks,
+  hoverIndex,
   dFmt,
   setEventModalOpen,
   setActiveEventStack,
@@ -605,6 +610,10 @@ export function ChartCanvasOverlay({
                 const stacked = stack.events.length > 1;
                 const shown = stack.events.slice(0, MAX_STACKED_EVENT_MARKERS);
                 const overflow = stack.events.length - shown.length;
+                // The pointer is on this event's own column. Only the *same column*, not "near":
+                // the badge sits under the plot and the crosshair is what the eye is following, so
+                // lining up with it is the whole signal.
+                const underPointer = hoverIndex === stack.i;
                 const title = stacked
                   ? `${stack.events.length} évènements — cliquer pour les afficher`
                   : `${dFmt(stack.events[0].date)} — ${stack.events[0].label}`;
@@ -621,6 +630,18 @@ export function ChartCanvasOverlay({
                   >
                     <title>{title}</title>
                     <line x1={0} x2={0} y1={EVENT_MARKER_RADIUS} y2={priceHeight - cy} stroke={shown[0].color} strokeDasharray="2,2" />
+                    {/* The swell lives on an inner group with no transform of its own. The outer
+                        one carries `translate(cx, cy)`, and CSS composes the `scale` property
+                        *after* the `transform` attribute — so scaling there scaled the translation
+                        too and the marker swung away from its bar by tens of pixels instead of
+                        breathing in place (measured: a 55px drift). Nested, the scale is purely
+                        local. The dashed line stays outside it: it runs from the marker up to the
+                        plot's top edge, and stretching that is not what "breathe" means. */}
+                    <g
+                      className={["lq-chart__event-marker-swell", underPointer && "lq-chart__event-marker-swell--breathing"]
+                        .filter(Boolean)
+                        .join(" ")}
+                    >
                     {/* Invisible, cluster-wide sibling that alone widens the tap target on a
                         coarse (touch) pointer — same "grow only the hit area, not the visible
                         dot" reasoning as DrawingHandle's own hitarea circle, just sized (and
@@ -659,6 +680,28 @@ export function ChartCanvasOverlay({
                         </g>
                       );
                     })}
+                    {/* How many share this bar, once there is more than a pair. The fan already
+                        shows *which* events they are, but past two the cards overlap enough that
+                        counting them by eye stops being reliable — and that is exactly the moment
+                        the number is worth printing. Under the cluster rather than on it: it
+                        annotates the whole stack, and putting it on the topmost card would read as
+                        belonging to that one event.
+
+                        To the left, not below: the fan opens up-and-right, so the left side is the
+                        one piece of clear space around the cluster — and below is where the date
+                        badge sits once the crosshair is on this very column, which is exactly when
+                        the count is being looked at. */}
+                    {stack.events.length > 2 && (
+                      <text
+                        className="lq-chart__event-marker-count"
+                        textAnchor="end"
+                        x={-(EVENT_MARKER_RADIUS + 3)}
+                        dy="0.35em"
+                      >
+                        {stack.events.length}
+                      </text>
+                    )}
+                    </g>
                   </g>
                 );
               })}

@@ -57,6 +57,13 @@ const ALL_FEATURES_EVENTS: ChartEvent[] = [
   // a single "stack" marker instead of overlapping.
   { date: ALL_FEATURES_DATASET[180].date, kind: "news", label: "Annonce d'un partenariat stratégique" },
   { date: ALL_FEATURES_DATASET[280].date, kind: "dividend", label: "Dividende détaché : 0.62$/action" },
+  // Four on the same candle — the case the count badge under the cluster exists for. Past two, the
+  // fanned cards overlap enough that counting them by eye stops being reliable, which is exactly
+  // when printing the number earns its place.
+  { date: ALL_FEATURES_DATASET[340].date, kind: "earnings", label: "Résultats annuels : BPA 5.94$" },
+  { date: ALL_FEATURES_DATASET[340].date, kind: "dividend", label: "Dividende exceptionnel : 1.10$/action" },
+  { date: ALL_FEATURES_DATASET[340].date, kind: "news", label: "Rachat d'actions de 10 Md$ annoncé" },
+  { date: ALL_FEATURES_DATASET[340].date, kind: "update", label: "Changement de directeur financier" },
   { date: ALL_FEATURES_DATASET[420].date, kind: "earnings", label: "Résultats T3 : BPA 1.58$ (attendu 1.50$)" },
   { date: ALL_FEATURES_DATASET[520].date, kind: "update", label: "Lancement de la nouvelle gamme de produits" },
 ];

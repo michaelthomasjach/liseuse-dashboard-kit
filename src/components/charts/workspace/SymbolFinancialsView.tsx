@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { DataTable, type DataTableColumn, type DataTableRow } from "../../primitives/DataTable";
+import { PeriodTable, type PeriodTableColumn, type PeriodTableRow } from "../../primitives/PeriodTable";
 import type { FinancialFact, FinancialRow, FinancialShare, FinancialTable, SymbolFinancials } from "./SymbolFinancials.interface";
 import "./SymbolFinancialsView.css";
 
@@ -38,7 +38,7 @@ function figure(row: FinancialRow, periodKey: string): { text: string | null; va
   return { text: String(value), value };
 }
 
-function toDataRows(rows: FinancialRow[], table: FinancialTable): DataTableRow[] {
+function toDataRows(rows: FinancialRow[], table: FinancialTable): PeriodTableRow[] {
   return rows.map((row) => ({
     key: row.key,
     label: row.label,
@@ -57,7 +57,7 @@ function toDataRows(rows: FinancialRow[], table: FinancialTable): DataTableRow[]
 }
 
 function FinancialDataTable({ table }: { table: FinancialTable }) {
-  const columns = useMemo<DataTableColumn[]>(
+  const columns = useMemo<PeriodTableColumn[]>(
     () => [
       { key: "__label", label: table.title ?? "", sticky: true, align: "left", width: 260 },
       ...table.periods.map((p) => ({ key: p.key, label: p.label, sublabel: p.sublabel })),
@@ -65,7 +65,7 @@ function FinancialDataTable({ table }: { table: FinancialTable }) {
     [table]
   );
   const rows = useMemo(() => toDataRows(table.rows, table), [table]);
-  return <DataTable caption={table.title} columns={columns} rows={rows} defaultExpandedDepth={table.defaultExpandedDepth} />;
+  return <PeriodTable caption={table.title} columns={columns} rows={rows} defaultExpandedDepth={table.defaultExpandedDepth} />;
 }
 
 function FactGrid({ facts }: { facts: FinancialFact[] }) {

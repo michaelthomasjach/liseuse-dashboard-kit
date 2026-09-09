@@ -510,8 +510,11 @@ function playAlertSound(value: string) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// TEMPORAIRE — aide au débogage du profil KDE ancré à droite. À retirer une fois la mise au point
-// terminée : c'est un raccourci de confort, pas une capacité du produit à documenter.
+// Les scripts pré-chargés des démos : un indicateur, un portage Pine Script, une stratégie. Tous
+// éteints ou presque au départ (voir chacun) — ils remplissent « Mes scripts » et « Mes
+// stratégies » de lignes réelles, pour que le sélecteur et l'éditeur aient quelque chose à montrer
+// sans avoir à écrire un script d'abord. Ce n'était au départ qu'un raccourci de débogage marqué
+// « à retirer » ; c'est devenu le montage de démonstration, et l'étiquette ne décrivait plus rien.
 // ---------------------------------------------------------------------------------------------
 
 /** Le script de l'exemple « Niveaux de support/résistance (KDE gaussienne) », pris tel quel dans

@@ -9,27 +9,30 @@ export interface MarketStateBand {
   to: number;
 }
 
-/** How many points across the visible range are actually evaluated.
+/** How many points across the *whole series* are evaluated.
  *
  *  Every sample is a full `computeMarketState` — percentiles over a 200-bar window, every
- *  indicator on the chart read at that bar. Running it on all 400 visible bars of a wide screen
- *  costs a visible pause on every pan; running it 120 times does not, and 120 samples across a
- *  screen is already finer than a shaded background can show. The direction is held between
- *  samples, which is exactly what a band is: a claim about a stretch, not about a bar. */
-const MAX_SAMPLES = 120;
+ *  indicator on the chart read at that bar — so the count has to be bounded rather than "one per
+ *  bar", whatever the dataset's length. The direction is held between samples, which is exactly
+ *  what a band is: a claim about a stretch, not about a bar. */
+const MAX_SAMPLES = 200;
 
-/** The direction the readout would give at each sampled bar, merged into runs.
+/** The direction the readout would give at each sampled bar, merged into runs — over the whole
+ *  series, not the visible window.
+ *
+ *  That distinction is the difference between usable and not. A bar's direction depends on that
+ *  bar and its own lookback; the viewport has nothing to do with it. Computing per visible range
+ *  made the result change identity on every pan frame, and since each frame re-ran the full
+ *  computation the chart stalled while being dragged — measured at 128ms a frame, 2.5 seconds of
+ *  long tasks across one pan. Over the whole series it is computed once per dataset and per
+ *  indicator change, and panning costs nothing at all.
  *
  *  Deliberately routed through `computeMarketState` rather than through a cheaper approximation of
  *  it: the shading and the panel have to agree at the bar under the pointer, and two code paths
  *  computing "the same" score is how they stop agreeing. */
-export function computeMarketStateBands(
-  input: Omit<MarketStateInput, "index">,
-  from: number,
-  to: number,
-): MarketStateBand[] {
-  const first = Math.max(0, Math.floor(from));
-  const last = Math.min(input.candles.length - 1, Math.ceil(to));
+export function computeMarketStateBands(input: Omit<MarketStateInput, "index">): MarketStateBand[] {
+  const first = 0;
+  const last = input.candles.length - 1;
   if (last <= first) return [];
 
   const step = Math.max(1, Math.ceil((last - first + 1) / MAX_SAMPLES));

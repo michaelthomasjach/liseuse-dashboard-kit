@@ -1493,8 +1493,6 @@ export function CandlestickChart({
           <MarketStateBands
             candles={data}
             indicators={marketStateIndicators}
-            from={visibleRange.start}
-            to={visibleRange.end}
             xForIndex={(i) => zoomedXScale(i)}
             left={dims.margin.left}
             top={dims.margin.top}

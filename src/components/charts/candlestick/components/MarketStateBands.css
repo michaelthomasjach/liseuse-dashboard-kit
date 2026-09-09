@@ -7,12 +7,10 @@
   pointer-events: none;
 }
 
+/* Geometry only. The colour is inline, one per direction and editable from the readout — see
+   `marketStateBandColors.ts` for the defaults and for why they are as pale as they are. */
 .lq-market-bands__band {
   position: absolute;
   top: 0;
   bottom: 0;
 }
-
-/* The colour itself is inline, one per direction, editable from the readout (see
-   `marketStateBandColors.ts` for the defaults and why they are as pale as they are). Nothing here
-   overrides it — this rule only fixes the geometry. */

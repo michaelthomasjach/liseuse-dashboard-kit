@@ -1,10 +1,21 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { ChevronDownIcon, ChevronRightIcon } from "../icons";
-import "./DataTable.css";
+import "./PeriodTable.css";
+
+/* A table of figures across periods: statements, segments, key statistics — hierarchical rows that
+ * fold, a pinned label column, and a decade of period columns scrolling behind it.
+ *
+ * Named `PeriodTable`, not `DataTable`, and that is not cosmetic: `components/finance` already
+ * exports a `DataTable` (a flat, sortable table of holdings and orders — a different component
+ * that happened to share the name). `src/index.ts` re-exports both modules with `export *`, and a
+ * name provided by two of those is silently *excluded* from the public surface rather than
+ * flagged — so exporting this one under the old name would have quietly removed `DataTable` from
+ * the package altogether, including the one that works today. The two also shared a CSS namespace
+ * until recently, with real consequences (see PeriodTable.css). One name, one component. */
 
 /** One column. The first column is normally the row label's own — pass `sticky` so it stays put
  *  while a decade of year columns scrolls past it. */
-export interface DataTableColumn {
+export interface PeriodTableColumn {
   key: string;
   label: ReactNode;
   /** A second, quieter line under the label — "Mar 2024" under "2024". */
@@ -18,8 +29,8 @@ export interface DataTableColumn {
   width?: number;
 }
 
-/** One cell. A bare string or number is accepted too — see `DataTableRow.cells`. */
-export interface DataTableCell {
+/** One cell. A bare string or number is accepted too — see `PeriodTableRow.cells`. */
+export interface PeriodTableCell {
   value: ReactNode;
   /** A smaller line under the value, for the year-on-year change a statement carries under each
    *  figure. */
@@ -28,23 +39,23 @@ export interface DataTableCell {
   tone?: "up" | "down" | "muted";
 }
 
-export interface DataTableRow {
+export interface PeriodTableRow {
   key: string;
   label: ReactNode;
   /** Rows nested under this one, collapsed with it. Any depth. */
-  children?: DataTableRow[];
+  children?: PeriodTableRow[];
   /** A colour chip before the label, tying the row to its own series in a chart above. */
   accent?: string;
   /** Draws the row as a total rather than a line item: filled, heavier. */
   emphasis?: boolean;
   /** `null`, `undefined` or a missing key all render as an em dash — "we have no figure here" is
    *  a real answer and should look the same however it arrives. */
-  cells: Record<string, DataTableCell | ReactNode | null | undefined>;
+  cells: Record<string, PeriodTableCell | ReactNode | null | undefined>;
 }
 
-export interface DataTableProps {
-  columns: DataTableColumn[];
-  rows: DataTableRow[];
+export interface PeriodTableProps {
+  columns: PeriodTableColumn[];
+  rows: PeriodTableRow[];
   /** How deep to start expanded. 0 shows only top-level rows; `Infinity` opens everything.
    *  Default `Infinity` — a table whose totals are all you can see hides the numbers. */
   defaultExpandedDepth?: number;
@@ -53,7 +64,7 @@ export interface DataTableProps {
   className?: string;
 }
 
-function isCell(value: DataTableCell | ReactNode | null | undefined): value is DataTableCell {
+function isCell(value: PeriodTableCell | ReactNode | null | undefined): value is PeriodTableCell {
   // A React element is an object too, so the `value` key is what tells a described cell from a
   // node passed straight in. Cast through `unknown`: the two types genuinely do not overlap, which
   // is exactly why this guard exists.
@@ -62,8 +73,8 @@ function isCell(value: DataTableCell | ReactNode | null | undefined): value is D
 
 /** Rows flattened to what is currently visible, each carrying its own depth. Collapsing a parent
  *  drops its whole subtree, not just its immediate children. */
-function visibleRows(rows: DataTableRow[], expanded: Set<string>, depth = 0): { row: DataTableRow; depth: number }[] {
-  const out: { row: DataTableRow; depth: number }[] = [];
+function visibleRows(rows: PeriodTableRow[], expanded: Set<string>, depth = 0): { row: PeriodTableRow; depth: number }[] {
+  const out: { row: PeriodTableRow; depth: number }[] = [];
   for (const row of rows) {
     out.push({ row, depth });
     if (row.children && row.children.length > 0 && expanded.has(row.key)) {
@@ -73,7 +84,7 @@ function visibleRows(rows: DataTableRow[], expanded: Set<string>, depth = 0): { 
   return out;
 }
 
-function keysToDepth(rows: DataTableRow[], maxDepth: number, depth = 0): string[] {
+function keysToDepth(rows: PeriodTableRow[], maxDepth: number, depth = 0): string[] {
   if (depth >= maxDepth) return [];
   return rows.flatMap((row) => (row.children?.length ? [row.key, ...keysToDepth(row.children, maxDepth, depth + 1)] : []));
 }
@@ -92,7 +103,7 @@ function keysToDepth(rows: DataTableRow[], maxDepth: number, depth = 0): string[
  *  beside a scrolling one. Two tables cannot keep their row heights in step without measuring
  *  each other every render, and a row whose label sits a pixel off from its own figures is worse
  *  than no pinning at all. */
-export function DataTable({ columns, rows, defaultExpandedDepth = Infinity, caption, className }: DataTableProps) {
+export function PeriodTable({ columns, rows, defaultExpandedDepth = Infinity, caption, className }: PeriodTableProps) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const expandableByDefault = useMemo(
     () => new Set(keysToDepth(rows, defaultExpandedDepth === Infinity ? Number.MAX_SAFE_INTEGER : defaultExpandedDepth)),

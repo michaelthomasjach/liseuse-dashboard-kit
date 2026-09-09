@@ -1,9 +1,9 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { DataTable, type DataTableColumn, type DataTableRow } from "./DataTable";
+import { PeriodTable, type PeriodTableColumn, type PeriodTableRow } from "./PeriodTable";
 
-const meta: Meta<typeof DataTable> = {
-  title: "Primitives/DataTable",
-  component: DataTable,
+const meta: Meta<typeof PeriodTable> = {
+  title: "Primitives/PeriodTable",
+  component: PeriodTable,
   parameters: {
     docs: {
       description: {
@@ -16,8 +16,8 @@ const meta: Meta<typeof DataTable> = {
 export default meta;
 
 /** Year columns, oldest first, the way a statement reads. */
-function yearColumns(from: number, to: number, extra?: { key: string; label: string }[]): DataTableColumn[] {
-  const years: DataTableColumn[] = [{ key: "label", label: "", sticky: true, align: "left", width: 260 }];
+function yearColumns(from: number, to: number, extra?: { key: string; label: string }[]): PeriodTableColumn[] {
+  const years: PeriodTableColumn[] = [{ key: "label", label: "", sticky: true, align: "left", width: 260 }];
   for (let y = from; y <= to; y++) years.push({ key: String(y), label: String(y), sublabel: `Mar ${y}` });
   for (const c of extra ?? []) years.push({ key: c.key, label: c.label });
   return years;
@@ -33,7 +33,7 @@ function growthNote(current: number, previous: number | undefined) {
   return { note: `${pct >= 0 ? "+" : ""}${pct.toFixed(2)} %`, tone: pct >= 0 ? ("up" as const) : ("down" as const) };
 }
 
-function cashFlowRows(): DataTableRow[] {
+function cashFlowRows(): PeriodTableRow[] {
   const years = [2019, 2020, 2021, 2022, 2023, 2024, 2025];
   const cells = (base: number, step: number) => {
     const values = years.map((_, i) => base + step * i);
@@ -92,14 +92,14 @@ function cashFlowRows(): DataTableRow[] {
   ];
 }
 
-type Story = StoryObj<typeof DataTable>;
+type Story = StoryObj<typeof PeriodTable>;
 
 /** A statement: nesting several levels deep, totals filled, a growth figure under every value. */
 export const Statement: Story = {
   name: "Compte de flux de trésorerie",
   render: () => (
     <div style={{ maxWidth: 1100 }}>
-      <DataTable caption="Flux de trésorerie" columns={yearColumns(2019, 2025, [{ key: "ttm", label: "TTM" }])} rows={cashFlowRows()} />
+      <PeriodTable caption="Flux de trésorerie" columns={yearColumns(2019, 2025, [{ key: "ttm", label: "TTM" }])} rows={cashFlowRows()} />
     </div>
   ),
 };
@@ -109,11 +109,11 @@ export const Segments: Story = {
   name: "Segments (pastilles de couleur)",
   render: () => {
     const years = [2021, 2022, 2023, 2024, 2025];
-    const columns: DataTableColumn[] = [
+    const columns: PeriodTableColumn[] = [
       { key: "label", label: "", sticky: true, align: "left", width: 240 },
       ...years.map((y) => ({ key: String(y), label: String(y) })),
     ];
-    const rows: DataTableRow[] = [
+    const rows: PeriodTableRow[] = [
       { key: "mobile", label: "Mobile", accent: "#2f7fe0", cells: { 2021: "403.44 M", 2022: "2.54 B", 2023: "2.75 B", 2024: "2.94 B", 2025: "3.33 B" } },
       { key: "console", label: "Console", accent: "#38bdd0", cells: { 2021: "2.53 B", 2022: "2.30 B", 2023: "2.17 B", 2024: "2.10 B", 2025: "2.60 B" } },
       { key: "pc", label: "Personal Computers and Other", accent: "#e8853a", cells: { 2021: "572.51 M", 2022: "507.50 M", 2023: "434.30 M", 2024: "592.50 M", 2025: "726.10 M" } },
@@ -122,7 +122,7 @@ export const Segments: Story = {
     ];
     return (
       <div style={{ maxWidth: 900 }}>
-        <DataTable caption="Revenu par segment" columns={columns} rows={rows} />
+        <PeriodTable caption="Revenu par segment" columns={columns} rows={rows} />
       </div>
     );
   },
@@ -133,13 +133,13 @@ export const Earnings: Story = {
   name: "Résultats (réalisé / estimé / surprise)",
   render: () => {
     const years = [2020, 2021, 2022, 2023, 2024, 2025, 2026];
-    const columns: DataTableColumn[] = [
+    const columns: PeriodTableColumn[] = [
       { key: "label", label: "Metrics", sticky: true, align: "left", width: 200 },
       ...years.map((y) => ({ key: String(y), label: String(y) })),
     ];
     const reported = [6.92, 5.06, 3.48, 2.47, 2.52, 4.1, null];
     const estimate = [6.27, 4.96, 3.58, 2.29, 2.51, 3.91, 6.94];
-    const rows: DataTableRow[] = [
+    const rows: PeriodTableRow[] = [
       { key: "rep", label: "Reported", emphasis: true, cells: Object.fromEntries(years.map((y, i) => [String(y), reported[i]?.toFixed(2)])) },
       { key: "est", label: "Estimate", cells: Object.fromEntries(years.map((y, i) => [String(y), estimate[i].toFixed(2)])) },
       {
@@ -157,7 +157,7 @@ export const Earnings: Story = {
     ];
     return (
       <div style={{ maxWidth: 900 }}>
-        <DataTable caption="Résultats" columns={columns} rows={rows} />
+        <PeriodTable caption="Résultats" columns={columns} rows={rows} />
       </div>
     );
   },
@@ -168,14 +168,14 @@ export const Statistics: Story = {
   name: "Statistiques (colonne « Actuel »)",
   render: () => {
     const columns = yearColumns(2021, 2025, [{ key: "current", label: "Actuel" }]);
-    const row = (key: string, label: string, values: (number | null)[]): DataTableRow => ({
+    const row = (key: string, label: string, values: (number | null)[]): PeriodTableRow => ({
       key,
       label,
       cells: Object.fromEntries([...values.map((v, i) => [String(2021 + i), v === null ? null : v.toFixed(2)])]),
     });
     return (
       <div style={{ maxWidth: 900 }}>
-        <DataTable
+        <PeriodTable
           caption="Statistiques"
           columns={columns}
           rows={[
@@ -196,7 +196,7 @@ export const CollapsedByDefault: Story = {
   name: "Replié par défaut",
   render: () => (
     <div style={{ maxWidth: 1100 }}>
-      <DataTable caption="Flux de trésorerie replié" columns={yearColumns(2019, 2025)} rows={cashFlowRows()} defaultExpandedDepth={0} />
+      <PeriodTable caption="Flux de trésorerie replié" columns={yearColumns(2019, 2025)} rows={cashFlowRows()} defaultExpandedDepth={0} />
     </div>
   ),
 };
@@ -209,7 +209,7 @@ export const DeepNesting: Story = {
   name: "Trois niveaux d'imbrication",
   render: () => (
     <div style={{ maxWidth: 1100 }}>
-      <DataTable caption="Flux de trésorerie détaillé" columns={yearColumns(2021, 2025)} rows={cashFlowRows()} />
+      <PeriodTable caption="Flux de trésorerie détaillé" columns={yearColumns(2021, 2025)} rows={cashFlowRows()} />
     </div>
   ),
 };
@@ -227,7 +227,7 @@ export const BalanceSheet: Story = {
           return [String(y), { value: money(values[i]), ...growthNote(values[i], values[i - 1]) }];
         }),
       );
-    const rows: DataTableRow[] = [
+    const rows: PeriodTableRow[] = [
       {
         key: "assets",
         label: "Total actif",
@@ -269,7 +269,7 @@ export const BalanceSheet: Story = {
     ];
     return (
       <div style={{ maxWidth: 1000 }}>
-        <DataTable caption="Bilan" columns={yearColumns(2021, 2025)} rows={rows} />
+        <PeriodTable caption="Bilan" columns={yearColumns(2021, 2025)} rows={rows} />
       </div>
     );
   },
@@ -281,11 +281,11 @@ export const BalanceSheet: Story = {
 export const KeyValue: Story = {
   name: "Clé / valeur",
   render: () => {
-    const columns: DataTableColumn[] = [
+    const columns: PeriodTableColumn[] = [
       { key: "label", label: "Caractéristique", sticky: true, align: "left", width: 260 },
       { key: "value", label: "Valeur", align: "right" },
     ];
-    const rows: DataTableRow[] = [
+    const rows: PeriodTableRow[] = [
       { key: "isin", label: "Code ISIN", cells: { value: "FR0000131104" } },
       { key: "mic", label: "Place de cotation", cells: { value: "XPAR" } },
       { key: "currency", label: "Devise", cells: { value: "EUR" } },
@@ -295,7 +295,7 @@ export const KeyValue: Story = {
     ];
     return (
       <div style={{ maxWidth: 520 }}>
-        <DataTable caption="Fiche instrument" columns={columns} rows={rows} />
+        <PeriodTable caption="Fiche instrument" columns={columns} rows={rows} />
       </div>
     );
   },
@@ -307,7 +307,7 @@ export const ManyPeriods: Story = {
   name: "Vingt exercices (défilement)",
   render: () => (
     <div style={{ maxWidth: 760 }}>
-      <DataTable caption="Historique long" columns={yearColumns(2006, 2025)} rows={cashFlowRows()} defaultExpandedDepth={1} />
+      <PeriodTable caption="Historique long" columns={yearColumns(2006, 2025)} rows={cashFlowRows()} defaultExpandedDepth={1} />
     </div>
   ),
 };
@@ -318,13 +318,13 @@ export const ManyPeriods: Story = {
 export const Comparison: Story = {
   name: "Comparaison à un indice",
   render: () => {
-    const columns: DataTableColumn[] = [
+    const columns: PeriodTableColumn[] = [
       { key: "label", label: "", sticky: true, align: "left", width: 220 },
       { key: "fund", label: "Fonds" },
       { key: "bench", label: "Indice" },
       { key: "delta", label: "Écart" },
     ];
-    const row = (key: string, label: string, fund: string, bench: string, delta: number): DataTableRow => ({
+    const row = (key: string, label: string, fund: string, bench: string, delta: number): PeriodTableRow => ({
       key,
       label,
       cells: {
@@ -333,7 +333,7 @@ export const Comparison: Story = {
         delta: { value: `${delta >= 0 ? "+" : ""}${delta.toFixed(2)} pt`, tone: delta >= 0 ? "up" : "down" },
       },
     });
-    const rows: DataTableRow[] = [
+    const rows: PeriodTableRow[] = [
       row("1m", "1 mois", "+2.40 %", "+1.90 %", 0.5),
       row("3m", "3 mois", "+5.10 %", "+6.30 %", -1.2),
       row("ytd", "Depuis le 1er janvier", "+11.80 %", "+9.40 %", 2.4),
@@ -342,7 +342,7 @@ export const Comparison: Story = {
     ];
     return (
       <div style={{ maxWidth: 720 }}>
-        <DataTable caption="Performance comparée" columns={columns} rows={rows} />
+        <PeriodTable caption="Performance comparée" columns={columns} rows={rows} />
       </div>
     );
   },

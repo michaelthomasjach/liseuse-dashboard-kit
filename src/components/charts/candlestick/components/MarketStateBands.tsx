@@ -9,9 +9,6 @@ import "./MarketStateBands.css";
 export interface MarketStateBandsProps {
   candles: Candle[];
   indicators: { indicator: Indicator; values: (IndicatorValue | null)[] }[];
-  /** The visible bar range, as the chart's own x scale sees it. */
-  from: number;
-  to: number;
   /** Maps a bar index to a pixel x inside the plot. */
   xForIndex: (index: number) => number;
   /** The price plot's own box, so the shading stops at the volume pane rather than running the
@@ -31,11 +28,11 @@ export interface MarketStateBandsProps {
  *  thing to read on its own, which is also why the defaults are as pale as they are (see
  *  `DEFAULT_MARKET_STATE_BAND_COLORS`). A band that competes with the candles has stopped being a
  *  background. */
-export function MarketStateBands({ candles, indicators, from, to, xForIndex, left, top, height, width, colors }: MarketStateBandsProps) {
-  const bands = useMemo(
-    () => computeMarketStateBands({ candles, indicators }, from, to),
-    [candles, indicators, from, to],
-  );
+export function MarketStateBands({ candles, indicators, xForIndex, left, top, height, width, colors }: MarketStateBandsProps) {
+  // Keyed on the data alone — not on the visible range, which the bands do not depend on (see
+  // `computeMarketStateBands`). That is what keeps a pan free: the bands are computed once and the
+  // container simply clips whichever ones fall outside it.
+  const bands = useMemo(() => computeMarketStateBands({ candles, indicators }), [candles, indicators]);
 
   return (
     <div className="lq-market-bands" style={{ left, top, width, height }} aria-hidden="true">

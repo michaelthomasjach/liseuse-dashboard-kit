@@ -599,9 +599,10 @@ export function ChartCanvasOverlay({
               nudged slightly up-and-right of the previous one (a fanned-out stack, like a hand
               of cards) rather than either fully overlapping into one indistinguishable blob or
               collapsing into a single generic "N" badge that hides which events are actually
-              there. Capped at MAX_STACKED_EVENT_MARKERS individually-drawn circles — the
-              topmost one becomes a "+N" overflow badge past that, so an unusually eventful bar
-              can't make the cluster grow without bound. */}
+              there. Capped at MAX_STACKED_EVENT_MARKERS circles, all of them real events — past
+              that the cluster simply stops growing and the count beside it carries the quantity,
+              so an unusually eventful bar can't make the cluster sprawl and no card has to be
+              spent on saying how many there are. */}
           {eventStacks.length > 0 && (
             <g className="lq-chart__events">
               {eventStacks.map((stack) => {
@@ -609,7 +610,6 @@ export function ChartCanvasOverlay({
                 const cy = priceHeight - EVENT_MARKER_OFFSET;
                 const stacked = stack.events.length > 1;
                 const shown = stack.events.slice(0, MAX_STACKED_EVENT_MARKERS);
-                const overflow = stack.events.length - shown.length;
                 // The pointer is on this event's own column. Only the *same column*, not "near":
                 // the badge sits under the plot and the crosshair is what the eye is following, so
                 // lining up with it is the whole signal.
@@ -656,11 +656,14 @@ export function ChartCanvasOverlay({
                       cy={-(shown.length - 1) * (EVENT_STACK_OFFSET / 2)}
                     />
                     {shown.map((event, i) => {
-                      const isTop = i === shown.length - 1;
-                      const glyph = isTop && overflow > 0 ? `+${overflow}` : (event.symbol ?? event.kind.charAt(0)).slice(0, 2).toUpperCase();
+                      // Every card is a real event now. The topmost one used to be replaced by a
+                      // "+N" overflow badge, which cost a colour and said the same thing the count
+                      // beside the cluster already says — in a second format, so a four-stack
+                      // asserted its size twice and disagreed with itself ("+2" against "4").
+                      const glyph = (event.symbol ?? event.kind.charAt(0)).slice(0, 2).toUpperCase();
                       return (
                         <g key={i} transform={`translate(${i * EVENT_STACK_OFFSET}, ${-i * EVENT_STACK_OFFSET})`}>
-                          <circle r={EVENT_MARKER_RADIUS} fill={isTop && overflow > 0 ? "var(--lq-color-accent)" : event.color} />
+                          <circle r={EVENT_MARKER_RADIUS} fill={event.color} />
                           {/* dominantBaseline="central" alone renders visibly high in Chromium
                               for this glyph's own small font-size (see charts-shared.css) — a
                               manual dy nudge is the standard cross-browser fix for that
@@ -690,8 +693,13 @@ export function ChartCanvasOverlay({
                         To the left, not below: the fan opens up-and-right, so the left side is the
                         one piece of clear space around the cluster — and below is where the date
                         badge sits once the crosshair is on this very column, which is exactly when
-                        the count is being looked at. */}
-                    {stack.events.length > 2 && (
+                        the count is being looked at.
+
+                        The *total*, not how many are hidden. At two events with two cards drawn
+                        nothing is hidden, and a counter reading "+0" there would be worse than no
+                        counter at all — so the number answers "how many are here", which holds at
+                        every size. */}
+                    {stacked && (
                       <text
                         className="lq-chart__event-marker-count"
                         textAnchor="end"

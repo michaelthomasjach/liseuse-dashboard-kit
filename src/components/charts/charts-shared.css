@@ -2077,7 +2077,13 @@
     opacity: 0;
   }
 
+  /* `--hovered` as well as `:hover`: the row is marked hovered when the pointer is on this
+     indicator's own *line on the plot* too (see .lq-chart__indicator-legend-item--hovered), and
+     the actions are the point of finding the row that way — you pointed at a curve to get at its
+     eye, its gear or its bin, and a row that answers with a border and nothing to press is half an
+     answer. */
   .lq-chart__indicator-legend-item:hover .lq-chart__indicator-legend-action,
+  .lq-chart__indicator-legend-item--hovered .lq-chart__indicator-legend-action,
   .lq-chart__indicator-legend-action:focus-visible {
     opacity: 0.85;
   }

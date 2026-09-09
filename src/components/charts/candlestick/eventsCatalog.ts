@@ -30,10 +30,13 @@ export const EVENT_MARKER_RADIUS = 10;
  *  than one generic "N" badge that hides which events are actually there — see
  *  `ChartCanvasOverlay.tsx`'s own render of `eventStacks`. */
 export const EVENT_STACK_OFFSET = 5;
-/** Past this many events on the same bar, the cluster stops growing — the topmost circle becomes
- *  a "+N" overflow badge (neutral accent color) instead of drawing every single one, so an
- *  unusually eventful bar can't make the fanned-out cluster sprawl without bound. */
-export const MAX_STACKED_EVENT_MARKERS = 4;
+/** How many circles a cluster ever draws. Past this the cluster stops growing and the count beside
+ *  it says how many there really are (see `ChartCanvasOverlay.tsx`'s own render of `eventStacks`).
+ *
+ *  Two: enough to say "there is more than one thing here" — which is the whole job of the fan —
+ *  and few enough that the cards stay legible instead of sprawling into a pile whose own outline
+ *  has to be decoded. The number carries the quantity; the cards only carry the fact. */
+export const MAX_STACKED_EVENT_MARKERS = 2;
 /** Fixed width (px) of the event-stack popover — fixed, not measured, so its horizontal
  *  clamp-to-bounds position can be computed synchronously in the same render as the click that
  *  opens it, no post-mount measurement pass (and the flash-of-unpositioned-content that would

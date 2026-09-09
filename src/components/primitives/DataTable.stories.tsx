@@ -54,8 +54,25 @@ function cashFlowRows(): DataTableRow[] {
           label: "Depreciation & amortization",
           cells: cells(264e6, 30e6),
           children: [
-            { key: "dep", label: "Depreciation/depletion", cells: cells(39e6, 20e6) },
-            { key: "amo", label: "Amortization", cells: cells(225e6, 10e6) },
+            {
+              key: "dep",
+              label: "Depreciation/depletion",
+              cells: cells(39e6, 20e6),
+              children: [
+                { key: "dep-ppe", label: "Property, plant & equipment", cells: cells(24e6, 13e6) },
+                { key: "dep-rou", label: "Right-of-use assets", cells: cells(11e6, 5e6) },
+                { key: "dep-depl", label: "Depletion", cells: cells(4e6, 2e6) },
+              ],
+            },
+            {
+              key: "amo",
+              label: "Amortization",
+              cells: cells(225e6, 10e6),
+              children: [
+                { key: "amo-intang", label: "Acquired intangibles", cells: cells(180e6, 6e6) },
+                { key: "amo-soft", label: "Capitalised software", cells: cells(45e6, 4e6) },
+              ],
+            },
           ],
         },
         { key: "wc", label: "Changes in working capital", cells: cells(-114e6, -100e6) },
@@ -182,4 +199,151 @@ export const CollapsedByDefault: Story = {
       <DataTable caption="Flux de trésorerie replié" columns={yearColumns(2019, 2025)} rows={cashFlowRows()} defaultExpandedDepth={0} />
     </div>
   ),
+};
+
+/** Three levels, all open, so the depth stepping is visible in one glance: each level is a shade
+ *  smaller than the one above it, and only a row that *has* children carries any weight. Indent
+ *  alone used to do this job and stopped working exactly here — at the third level, against long
+ *  labels, with figures that looked identical whatever their depth. */
+export const DeepNesting: Story = {
+  name: "Trois niveaux d'imbrication",
+  render: () => (
+    <div style={{ maxWidth: 1100 }}>
+      <DataTable caption="Flux de trésorerie détaillé" columns={yearColumns(2021, 2025)} rows={cashFlowRows()} />
+    </div>
+  ),
+};
+
+/** A balance sheet: the same shape as a cash-flow statement, but every line is a stock rather than
+ *  a flow, and the two halves have to add up — which is what the two `emphasis` totals are for. */
+export const BalanceSheet: Story = {
+  name: "Bilan",
+  render: () => {
+    const years = [2021, 2022, 2023, 2024, 2025];
+    const line = (base: number, step: number) =>
+      Object.fromEntries(
+        years.map((y, i) => {
+          const values = years.map((_, j) => base + step * j);
+          return [String(y), { value: money(values[i]), ...growthNote(values[i], values[i - 1]) }];
+        }),
+      );
+    const rows: DataTableRow[] = [
+      {
+        key: "assets",
+        label: "Total actif",
+        emphasis: true,
+        cells: line(4.2e9, 380e6),
+        children: [
+          {
+            key: "current",
+            label: "Actif circulant",
+            cells: line(2.1e9, 190e6),
+            children: [
+              { key: "cash", label: "Trésorerie et équivalents", cells: line(1.1e9, 90e6) },
+              { key: "recv", label: "Créances clients", cells: line(620e6, 55e6) },
+              { key: "inv", label: "Stocks", cells: line(380e6, 45e6) },
+            ],
+          },
+          {
+            key: "noncurrent",
+            label: "Actif immobilisé",
+            cells: line(2.1e9, 190e6),
+            children: [
+              { key: "ppe", label: "Immobilisations corporelles", cells: line(1.4e9, 120e6) },
+              { key: "goodwill", label: "Écarts d'acquisition", cells: line(700e6, 70e6) },
+            ],
+          },
+        ],
+      },
+      {
+        key: "liabilities",
+        label: "Total passif et capitaux propres",
+        emphasis: true,
+        cells: line(4.2e9, 380e6),
+        children: [
+          { key: "debt", label: "Dettes financières", cells: line(1.3e9, 60e6) },
+          { key: "payables", label: "Dettes fournisseurs", cells: line(540e6, 40e6) },
+          { key: "equity", label: "Capitaux propres", cells: line(2.36e9, 280e6) },
+        ],
+      },
+    ];
+    return (
+      <div style={{ maxWidth: 1000 }}>
+        <DataTable caption="Bilan" columns={yearColumns(2021, 2025)} rows={rows} />
+      </div>
+    );
+  },
+};
+
+/** No period columns at all — just a label and a value. The narrowest thing this component is
+ *  asked to be, and worth a story precisely because it is the case where a table risks looking
+ *  like an over-engineered list: no nesting, no notes, no scroll. */
+export const KeyValue: Story = {
+  name: "Clé / valeur",
+  render: () => {
+    const columns: DataTableColumn[] = [
+      { key: "label", label: "Caractéristique", sticky: true, align: "left", width: 260 },
+      { key: "value", label: "Valeur", align: "right" },
+    ];
+    const rows: DataTableRow[] = [
+      { key: "isin", label: "Code ISIN", cells: { value: "FR0000131104" } },
+      { key: "mic", label: "Place de cotation", cells: { value: "XPAR" } },
+      { key: "currency", label: "Devise", cells: { value: "EUR" } },
+      { key: "lot", label: "Quotité", cells: { value: "1" } },
+      { key: "sector", label: "Secteur", cells: { value: "Services financiers" } },
+      { key: "employees", label: "Effectif", cells: { value: "191 000" } },
+    ];
+    return (
+      <div style={{ maxWidth: 520 }}>
+        <DataTable caption="Fiche instrument" columns={columns} rows={rows} />
+      </div>
+    );
+  },
+};
+
+/** Twenty years of columns against a pinned label column — the case the horizontal scroll and the
+ *  sticky first column exist for. Scroll the table sideways: the labels stay put. */
+export const ManyPeriods: Story = {
+  name: "Vingt exercices (défilement)",
+  render: () => (
+    <div style={{ maxWidth: 760 }}>
+      <DataTable caption="Historique long" columns={yearColumns(2006, 2025)} rows={cashFlowRows()} defaultExpandedDepth={1} />
+    </div>
+  ),
+};
+
+/** Tone and note used for something other than growth: a comparison against a benchmark, where
+ *  "up" and "down" mean better and worse rather than more and less. The component has no opinion
+ *  on what a tone means — that is the caller's to decide, which this story exists to show. */
+export const Comparison: Story = {
+  name: "Comparaison à un indice",
+  render: () => {
+    const columns: DataTableColumn[] = [
+      { key: "label", label: "", sticky: true, align: "left", width: 220 },
+      { key: "fund", label: "Fonds" },
+      { key: "bench", label: "Indice" },
+      { key: "delta", label: "Écart" },
+    ];
+    const row = (key: string, label: string, fund: string, bench: string, delta: number): DataTableRow => ({
+      key,
+      label,
+      cells: {
+        fund,
+        bench,
+        delta: { value: `${delta >= 0 ? "+" : ""}${delta.toFixed(2)} pt`, tone: delta >= 0 ? "up" : "down" },
+      },
+    });
+    const rows: DataTableRow[] = [
+      row("1m", "1 mois", "+2.40 %", "+1.90 %", 0.5),
+      row("3m", "3 mois", "+5.10 %", "+6.30 %", -1.2),
+      row("ytd", "Depuis le 1er janvier", "+11.80 %", "+9.40 %", 2.4),
+      row("1y", "1 an", "+14.20 %", "+15.05 %", -0.85),
+      { key: "since", label: "Depuis création", emphasis: true, cells: { fund: "+68.30 %", bench: "+59.10 %", delta: { value: "+9.20 pt", tone: "up" } } },
+    ];
+    return (
+      <div style={{ maxWidth: 720 }}>
+        <DataTable caption="Performance comparée" columns={columns} rows={rows} />
+      </div>
+    );
+  },
 };

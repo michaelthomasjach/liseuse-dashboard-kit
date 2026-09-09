@@ -1,11 +1,21 @@
-/* Scrolls horizontally on its own: a statement carries twenty years of columns, and the page
+/* `lq-table`, not `lq-data-table`: `components/finance/DataTable` — a different component that
+   happens to share the name — already owns `.lq-data-table`, and the published `style.css` carries
+   both. Sharing the namespace meant its rules silently reached in here, and two of them did real
+   damage: `.lq-data-table th { font-weight: 700 }` bolded every row *label* (this table's first
+   column is a `<th scope="row">`), so a nested row looked exactly as important as its parent; and
+   `.lq-data-table tbody tr:last-child td { border-bottom: none }` — more specific than this file's
+   own `.lq-table__cell` — stripped the last row's separator from the `<td>`s while its `<th>` kept
+   one, leaving a rule that stopped after the first column. Neither was visible in this component's
+   own stories, where the other stylesheet isn't loaded at all.
+
+   Scrolls horizontally on its own: a statement carries twenty years of columns, and the page
    around it must not have to. */
-.lq-data-table {
+.lq-table {
   overflow-x: auto;
   width: 100%;
 }
 
-.lq-data-table table {
+.lq-table table {
   border-collapse: separate;
   border-spacing: 0;
   width: 100%;
@@ -17,7 +27,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-.lq-data-table__head {
+.lq-table__head {
   position: sticky;
   top: 0;
   z-index: 2;
@@ -29,12 +39,12 @@
   white-space: nowrap;
 }
 
-.lq-data-table__head-label {
+.lq-table__head-label {
   display: block;
 }
 
 /* "Mar 2024" under "2024": the fiscal period a column really covers, which the year alone hides. */
-.lq-data-table__head-sublabel {
+.lq-table__head-sublabel {
   display: block;
   font-size: 0.65rem;
   font-weight: 400;
@@ -45,24 +55,24 @@
    themselves rather than a second table beside a scrolling one — two tables cannot keep their row
    heights in step without measuring each other every render, and a label a pixel off from its own
    figures is worse than no pinning. */
-.lq-data-table__cell--sticky {
+.lq-table__cell--sticky {
   position: sticky;
   left: 0;
   z-index: 1;
   background-color: var(--lq-color-panel);
 }
 
-.lq-data-table__head.lq-data-table__cell--sticky {
+.lq-table__head.lq-table__cell--sticky {
   z-index: 3;
 }
 
-.lq-data-table__cell,
-.lq-data-table__head {
+.lq-table__cell,
+.lq-table__head {
   text-transform: none;
   letter-spacing: normal;
 }
 
-.lq-data-table__cell {
+.lq-table__cell {
   /* Enough for a figure and its own change underneath without wrapping either. Columns still grow
      past this for longer values; they never shrink below it. */
   min-width: 84px;
@@ -71,47 +81,85 @@
   vertical-align: middle;
 }
 
-.lq-data-table__cell--right {
+.lq-table__cell--right {
   text-align: right;
 }
 
-.lq-data-table__cell--left {
+.lq-table__cell--left {
   text-align: left;
 }
 
+/* Each level of nesting reads one step quieter than the one above: a shade smaller, and only the
+   rows that *have* children carry any weight. Sizes are in `em` against the table, not compounding
+   `%` — every row is a flat sibling in one `<tbody>`, so nesting is a data fact, not a DOM one, and
+   a relative unit that compounded would be describing a tree the markup doesn't have.
+
+   Indentation alone was doing this job and wasn't enough: past two levels the eye stops counting
+   pixels, and the figures — the half of the row actually being compared — looked identical at every
+   depth. */
+/* The row-label cell is a `<th scope="row">` — right for a screen reader, and rendered bold by
+   the browser's own default, which inverted the whole hierarchy: every leaf came out heavier than
+   the parent above it. The weight is stated here instead, and only a parent gets any. */
+.lq-table__row .lq-table__cell {
+  font-weight: 400;
+}
+
+.lq-table__row--parent .lq-table__label {
+  font-weight: 600;
+}
+
+.lq-table__row[data-depth="1"] .lq-table__cell {
+  font-size: 0.95em;
+}
+
+.lq-table__row[data-depth="2"] .lq-table__cell {
+  font-size: 0.9em;
+}
+
+.lq-table__row[data-depth="3"] .lq-table__cell {
+  font-size: 0.86em;
+  color: var(--lq-color-text-muted);
+}
+
+/* The note under a figure is already the quietest thing in the row; letting it shrink with its
+   depth as well would take it under the point of being readable at all. */
+.lq-table__row[data-depth] .lq-table__note {
+  font-size: 0.68rem;
+}
+
 /* A total, not a line item. */
-.lq-data-table__row--emphasis .lq-data-table__cell {
+.lq-table__row--emphasis .lq-table__cell {
   background-color: var(--lq-color-hover);
   font-weight: 700;
 }
 
-.lq-data-table__row:hover .lq-data-table__cell {
+.lq-table__row:hover .lq-table__cell {
   background-color: var(--lq-color-hover);
 }
 
-.lq-data-table__cell--up .lq-data-table__value,
-.lq-data-table__cell--up .lq-data-table__note {
+.lq-table__cell--up .lq-table__value,
+.lq-table__cell--up .lq-table__note {
   color: var(--lq-color-up);
 }
 
-.lq-data-table__cell--down .lq-data-table__value,
-.lq-data-table__cell--down .lq-data-table__note {
+.lq-table__cell--down .lq-table__value,
+.lq-table__cell--down .lq-table__note {
   color: var(--lq-color-down);
 }
 
-.lq-data-table__cell--muted .lq-data-table__value {
+.lq-table__cell--muted .lq-table__value {
   color: var(--lq-color-text-muted);
 }
 
 /* A figure must never wrap: "843.00 M" broken across two lines reads as two numbers. The column
    widens instead, which the horizontal scroll above already accommodates. */
-.lq-data-table__value {
+.lq-table__value {
   display: block;
   white-space: nowrap;
 }
 
 /* The year-on-year change under a figure — smaller, so the figure stays the thing being read. */
-.lq-data-table__note {
+.lq-table__note {
   display: block;
   white-space: nowrap;
   font-size: 0.68rem;
@@ -119,12 +167,12 @@
 }
 
 /* An em dash, deliberately quiet: "no figure" is an answer, not a value. */
-.lq-data-table__missing {
+.lq-table__missing {
   color: var(--lq-color-text-muted);
   opacity: 0.6;
 }
 
-.lq-data-table__disclosure {
+.lq-table__disclosure {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -141,11 +189,11 @@
 
 /* Same footprint with no triangle, so a column of labels does not zig-zag between rows that nest
    and rows that do not. */
-.lq-data-table__disclosure--empty {
+.lq-table__disclosure--empty {
   cursor: default;
 }
 
-.lq-data-table__accent {
+.lq-table__accent {
   display: inline-block;
   width: 3px;
   height: 12px;
@@ -154,7 +202,7 @@
   vertical-align: middle;
 }
 
-.lq-data-table__label {
+.lq-table__label {
   vertical-align: middle;
 }
 

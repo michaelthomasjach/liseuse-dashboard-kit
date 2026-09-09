@@ -119,7 +119,7 @@ export function DataTable({ columns, rows, defaultExpandedDepth = Infinity, capt
   }
 
   return (
-    <div className={["lq-data-table", className].filter(Boolean).join(" ")}>
+    <div className={["lq-table", className].filter(Boolean).join(" ")}>
       <table>
         {caption && <caption className="lq-visually-hidden">{caption}</caption>}
         <thead>
@@ -129,16 +129,16 @@ export function DataTable({ columns, rows, defaultExpandedDepth = Infinity, capt
                 key={column.key}
                 scope="col"
                 className={[
-                  "lq-data-table__head",
-                  column.sticky && "lq-data-table__cell--sticky",
-                  `lq-data-table__cell--${column.align ?? "right"}`,
+                  "lq-table__head",
+                  column.sticky && "lq-table__cell--sticky",
+                  `lq-table__cell--${column.align ?? "right"}`,
                 ]
                   .filter(Boolean)
                   .join(" ")}
                 style={column.width === undefined ? undefined : { width: column.width, minWidth: column.width }}
               >
-                <span className="lq-data-table__head-label">{column.label}</span>
-                {column.sublabel !== undefined && <span className="lq-data-table__head-sublabel">{column.sublabel}</span>}
+                <span className="lq-table__head-label">{column.label}</span>
+                {column.sublabel !== undefined && <span className="lq-table__head-sublabel">{column.sublabel}</span>}
               </th>
             ))}
           </tr>
@@ -148,16 +148,30 @@ export function DataTable({ columns, rows, defaultExpandedDepth = Infinity, capt
             const hasChildren = (row.children?.length ?? 0) > 0;
             const isOpen = expanded.has(row.key);
             return (
-              <tr key={row.key} className={["lq-data-table__row", row.emphasis && "lq-data-table__row--emphasis"].filter(Boolean).join(" ")}>
+              <tr
+                key={row.key}
+                // Depth on the row, not just as left padding on its first cell: indentation alone
+                // stops carrying the hierarchy the moment a table is more than two levels deep or
+                // its labels are long, and the *figures* give no clue at all. The stylesheet reads
+                // this to step the whole row down a size per level — see `.lq-table__row[data-depth]`.
+                data-depth={Math.min(depth, 3)}
+                className={[
+                  "lq-table__row",
+                  row.emphasis && "lq-table__row--emphasis",
+                  hasChildren && "lq-table__row--parent",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+              >
                 {columns.map((column, index) => {
                   const raw = row.cells[column.key];
                   const cell = isCell(raw) ? raw : { value: raw as ReactNode };
                   const missing = cell.value === null || cell.value === undefined || cell.value === "";
                   const className = [
-                    "lq-data-table__cell",
-                    column.sticky && "lq-data-table__cell--sticky",
-                    `lq-data-table__cell--${column.align ?? "right"}`,
-                    cell.tone && `lq-data-table__cell--${cell.tone}`,
+                    "lq-table__cell",
+                    column.sticky && "lq-table__cell--sticky",
+                    `lq-table__cell--${column.align ?? "right"}`,
+                    cell.tone && `lq-table__cell--${cell.tone}`,
                   ]
                     .filter(Boolean)
                     .join(" ");
@@ -170,7 +184,7 @@ export function DataTable({ columns, rows, defaultExpandedDepth = Infinity, capt
                         {hasChildren ? (
                           <button
                             type="button"
-                            className="lq-data-table__disclosure"
+                            className="lq-table__disclosure"
                             onClick={() => toggle(row.key)}
                             aria-expanded={isOpen}
                             aria-label={isOpen ? `Replier ${String(row.label)}` : `Déplier ${String(row.label)}`}
@@ -180,12 +194,12 @@ export function DataTable({ columns, rows, defaultExpandedDepth = Infinity, capt
                         ) : (
                           // Keeps every label on the same left edge whether or not it has a
                           // triangle, so a column of names does not zig-zag.
-                          <span className="lq-data-table__disclosure lq-data-table__disclosure--empty" aria-hidden="true" />
+                          <span className="lq-table__disclosure lq-table__disclosure--empty" aria-hidden="true" />
                         )}
                         {row.accent !== undefined && (
-                          <span className="lq-data-table__accent" style={{ backgroundColor: row.accent }} aria-hidden="true" />
+                          <span className="lq-table__accent" style={{ backgroundColor: row.accent }} aria-hidden="true" />
                         )}
-                        <span className="lq-data-table__label">{row.label}</span>
+                        <span className="lq-table__label">{row.label}</span>
                       </th>
                     );
                   }
@@ -193,13 +207,13 @@ export function DataTable({ columns, rows, defaultExpandedDepth = Infinity, capt
                   return (
                     <td key={column.key} className={className}>
                       {missing ? (
-                        <span className="lq-data-table__missing" aria-label="Donnée indisponible">
+                        <span className="lq-table__missing" aria-label="Donnée indisponible">
                           —
                         </span>
                       ) : (
                         <>
-                          <span className="lq-data-table__value">{cell.value}</span>
-                          {cell.note !== undefined && <span className="lq-data-table__note">{cell.note}</span>}
+                          <span className="lq-table__value">{cell.value}</span>
+                          {cell.note !== undefined && <span className="lq-table__note">{cell.note}</span>}
                         </>
                       )}
                     </td>

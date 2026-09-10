@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronLeftIcon, ChevronRightIcon } from "../../../../icons";
 import type { ScriptFile } from "../../interfaces/ScriptDef.interface";
+import { observeElementSizes } from "../../../../../internal/observeElementSize";
 
 export interface ScriptFileTabsProps {
   files: ScriptFile[];
@@ -51,10 +52,9 @@ export function ScriptFileTabs({ files, activeFile, onSelect, onRename, onRemove
     const el = scrollerRef.current;
     if (!el) return;
     measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(el);
-    for (const child of Array.from(el.children)) observer.observe(child);
-    return () => observer.disconnect();
+    // The strip and each of its items: its own box can stay put while its contents change
+    // width. Through the element's own document — see observeElementSizes.
+    return observeElementSizes([el, ...Array.from(el.children)], measure);
   }, [measure, files]);
 
   // Keeps the selected file in view — the tab a new file adds sits at the end of the strip, past

@@ -346,6 +346,7 @@ export function ChartWorkspace({
   } = useWorkspaceSidePanelState({
     watchlists,
     hasWatchlists,
+    hasAlerts,
     defaultSidePanelTab,
     defaultActiveWatchlistId,
     defaultVisibleColumnIds,

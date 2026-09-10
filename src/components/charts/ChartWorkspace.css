@@ -1616,13 +1616,24 @@
   max-width: 520px;
 }
 
-/* The fullscreen copy draws its own chart at a real size chosen for that context (see
-   SymbolProfilePanel), so it is not stretched at all — `width: auto` rather than a raised cap.
-   Lifting the cap alone still left it magnified 1.65x, i.e. axis labels bigger than the section
-   titles above them, which is the same defect in a milder form. `max-width: 100%` keeps it shrinking
-   on a narrow screen, where scaling *down* costs nothing a reader notices. */
+/* A chart drawn with `fill` is not stretched at all: it measured its container and laid itself out
+   at that width, so its labels are already 9px and the cap above has nothing left to protect. It
+   is also what the cap was getting wrong — the cap applies wherever the drawing is *not* in a
+   modal, which included the detached details window, where a 1152px-wide section was showing a
+   520px chart. `max-width: 100%` keeps it shrinking on a narrow screen, where scaling *down* costs
+   nothing a reader notices. */
+.lq-earnings-dot-chart--fill,
 .lq-modal .lq-earnings-dot-chart {
   width: auto;
+  max-width: 100%;
+}
+
+/* Seasonality has no text inside its own viewBox, so stretching it magnifies nothing and the cap
+   above buys nothing either — it only kept the drawing short of the column it sits in wherever
+   that column is wide. Lifted for the two copies that have real width; the docked 260px column
+   keeps the cap, which it never reaches anyway. */
+.lq-chart-workspace__symbol-profile--expanded .lq-chart-workspace__symbol-profile-seasonality,
+.lq-chart-workspace__symbol-profile--mobile .lq-chart-workspace__symbol-profile-seasonality {
   max-width: 100%;
 }
 

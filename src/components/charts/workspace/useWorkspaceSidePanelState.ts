@@ -7,6 +7,7 @@ export type ChartWorkspaceSidePanelTab = "watchlist" | "alerts";
 export interface UseWorkspaceSidePanelStateArgs {
   watchlists?: ChartWorkspaceWatchlist[];
   hasWatchlists: boolean;
+  hasAlerts: boolean;
   defaultSidePanelTab?: ChartWorkspaceSidePanelTab;
   defaultActiveWatchlistId?: string;
   defaultVisibleColumnIds?: string[];
@@ -31,6 +32,7 @@ export interface UseWorkspaceSidePanelStateArgs {
 export function useWorkspaceSidePanelState({
   watchlists,
   hasWatchlists,
+  hasAlerts,
   defaultSidePanelTab,
   defaultActiveWatchlistId,
   defaultVisibleColumnIds,
@@ -58,8 +60,25 @@ export function useWorkspaceSidePanelState({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewportWidth]);
 
-  const [activeTab, setActiveTab] = useState<ChartWorkspaceSidePanelTab>(defaultSidePanelTab ?? (hasWatchlists ? "watchlist" : "alerts"));
-  const [activeWatchlistId, setActiveWatchlistId] = useState(defaultActiveWatchlistId ?? watchlists?.[0]?.id);
+  const [pickedTab, setActiveTab] = useState<ChartWorkspaceSidePanelTab>(defaultSidePanelTab ?? (hasWatchlists ? "watchlist" : "alerts"));
+  // Resolved against what the workspace actually has, for the same reason `activeWatchlistId` below
+  // is: the initialiser runs once, so a workspace mounted with neither list nor alerts settled on
+  // "alerts" for good — and once its `watchlists` arrived (fetched, not literal) the panel drew an
+  // empty "Alertes" heading over a list it was holding but not showing. A tab with nothing behind
+  // it now yields to the one that has something.
+  const activeTab: ChartWorkspaceSidePanelTab =
+    pickedTab === "watchlist" && !hasWatchlists && hasAlerts
+      ? "alerts"
+      : pickedTab === "alerts" && !hasAlerts && hasWatchlists
+        ? "watchlist"
+        : pickedTab;
+  const [pickedWatchlistId, setActiveWatchlistId] = useState(defaultActiveWatchlistId ?? watchlists?.[0]?.id);
+  // Falls back to the first list, exactly as `WatchlistPanel` already does when it can't find the
+  // id it was handed. Without the same fallback here, a workspace whose `watchlists` arrive after
+  // mount (fetched, not literal) showed the first list in the panel while the mobile topbar
+  // highlighted no list at all: the initialiser had run against an empty array and left the id
+  // undefined for good, so the two disagreed about which list was open.
+  const activeWatchlistId = watchlists?.some((w) => w.id === pickedWatchlistId) ? pickedWatchlistId : watchlists?.[0]?.id;
   // Bumped by the mobile topbar's own "+" to open WatchlistPanel's add-symbol modal — that panel
   // drops its whole header row (and with it its own "+") on this layout, see its `mobile` prop.
   // A counter, not a boolean: the modal's open state stays down in the panel, which closes it

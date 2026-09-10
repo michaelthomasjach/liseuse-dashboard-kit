@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import "./Tabs.css";
+import { observeElementSize } from "../../internal/observeElementSize";
 
 export interface TabItem {
   id: string;
@@ -43,9 +44,9 @@ export function Tabs({ items, value, onChange, orientation = "horizontal", class
 
     update();
     if (!container) return;
-    const observer = new ResizeObserver(update);
-    observer.observe(container);
-    return () => observer.disconnect();
+    // Through the container's own document, so this keeps working when the component is
+    // portalled into a second browser window — see observeElementSize.
+    return observeElementSize(container, update);
   }, [value, orientation, items.length]);
 
   return (

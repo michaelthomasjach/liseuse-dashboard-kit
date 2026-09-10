@@ -1,10 +1,20 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { PeriodTable, type PeriodTableColumn, type PeriodTableRow } from "../../primitives/PeriodTable";
 import type { FinancialFact, FinancialRow, FinancialShare, FinancialTable, SymbolFinancials } from "./SymbolFinancials.interface";
 import "./SymbolFinancialsView.css";
 
 export interface SymbolFinancialsViewProps {
   financials: SymbolFinancials;
+  /** Rendered at the top of the "Vue d'ensemble" tab, above the key figures. What the reader wants
+   *  first — the performance tiles. */
+  overviewLead?: ReactNode;
+  /** Rendered at the bottom of the "Vue d'ensemble" tab, under the ownership bars.
+   *
+   *  Both slots exist so the panel's own at-a-glance sections can belong to a tab instead of
+   *  sitting under the tab strip: rendered outside it, they stayed on screen while the reader was
+   *  looking at Dividendes or Segments, which makes the tabs look like they only govern part of
+   *  the page. */
+  overviewTail?: ReactNode;
 }
 
 type TabId = "overview" | "statements" | "statistics" | "dividends" | "earnings" | "segments";
@@ -170,17 +180,21 @@ function TableSwitcher({ tables }: { tables: FinancialTable[] }) {
  *  Every section is optional and its tab simply does not appear when the application supplied no
  *  data for it — this library owns no data source, the same stance `data` and `events` already
  *  take, so a caller with only an income statement gets one tab rather than five empty ones. */
-export function SymbolFinancialsView({ financials }: SymbolFinancialsViewProps) {
+export function SymbolFinancialsView({ financials, overviewLead, overviewTail }: SymbolFinancialsViewProps) {
+  const hasOverviewExtras = overviewLead !== undefined || overviewTail !== undefined;
   const tabs = useMemo(() => {
     const present: TabId[] = [];
-    if (financials.overview) present.push("overview");
+    // Also when the caller has its own overview content but the application supplied no
+    // `financials.overview` — the tab then holds only what was handed in, which is still a tab
+    // worth having rather than a section with nowhere to live.
+    if (financials.overview || hasOverviewExtras) present.push("overview");
     if (financials.statements?.length) present.push("statements");
     if (financials.statistics?.length) present.push("statistics");
     if (financials.dividends) present.push("dividends");
     if (financials.earnings) present.push("earnings");
     if (financials.segments?.length) present.push("segments");
     return present;
-  }, [financials]);
+  }, [financials, hasOverviewExtras]);
 
   const [active, setActive] = useState<TabId | undefined>(tabs[0]);
   const current = active !== undefined && tabs.includes(active) ? active : tabs[0];
@@ -206,14 +220,18 @@ export function SymbolFinancialsView({ financials }: SymbolFinancialsViewProps) 
       </nav>
 
       <div className="lq-financials__body">
-        {current === "overview" && financials.overview && (
+        {current === "overview" && (
           <>
-            {financials.overview.keyFacts && <FactGrid facts={financials.overview.keyFacts} />}
-            {financials.overview.about && <About text={financials.overview.about} />}
-            <div className="lq-financials__columns">
-              {financials.overview.ownership && <ShareBar {...financials.overview.ownership} />}
-              {financials.overview.capitalStructure && <ShareBar {...financials.overview.capitalStructure} />}
-            </div>
+            {overviewLead}
+            {financials.overview?.keyFacts && <FactGrid facts={financials.overview.keyFacts} />}
+            {financials.overview?.about && <About text={financials.overview.about} />}
+            {(financials.overview?.ownership || financials.overview?.capitalStructure) && (
+              <div className="lq-financials__columns">
+                {financials.overview.ownership && <ShareBar {...financials.overview.ownership} />}
+                {financials.overview.capitalStructure && <ShareBar {...financials.overview.capitalStructure} />}
+              </div>
+            )}
+            {overviewTail}
           </>
         )}
 

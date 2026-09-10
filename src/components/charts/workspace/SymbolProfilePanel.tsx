@@ -134,7 +134,7 @@ export function SymbolProfilePanel({
   const rangePoints = pointsByRange[priceRange] ?? [];
 
   return (
-    <div className="lq-chart-workspace__symbol-profile">
+    <div className={`lq-chart-workspace__symbol-profile lq-chart-workspace__symbol-profile--${layout}`}>
       <div className="lq-chart-workspace__symbol-profile-header">
         <div className="lq-chart-workspace__symbol-profile-name">
           <span className="lq-chart-workspace__symbol-profile-ticker">{symbol}</span>
@@ -256,164 +256,185 @@ export function SymbolProfilePanel({
         </div>
       )}
 
-      {/* The financial tabs. Never in the docked copy: they are a page's worth of tables, which a
-          260px column cannot show and the modal exists to give room to. The mobile sheet is a full
-          page, so it gets them where the column does not — the tab strip and every table scroll
-          horizontally on their own, so a phone's width costs nothing here. */}
-      {showFinancials && profile?.financials && (
-        <div className="lq-chart-workspace__symbol-profile-section">
-          <SymbolFinancialsView financials={profile.financials} />
-        </div>
-      )}
-
-      {/* Suppressed when the Overview tab is already showing prose about the company: the two say
-          the same thing, and printing both left the description on screen twice, a few centimetres
-          apart, which reads as a rendering fault rather than as emphasis. The tab's own copy wins —
-          it is the one with the "afficher plus" clamp. */}
-      {profile?.description && !(showFinancials && profile.financials?.overview?.about) && (
-        <p className="lq-chart-workspace__symbol-profile-description">{profile.description}</p>
-      )}
-
-      {profile?.sectors && profile.sectors.length > 0 && (
-        <div className="lq-chart-workspace__symbol-profile-sectors">
-          {profile.sectors.map((sector) => (
-            <span key={sector} className="lq-chart-workspace__symbol-profile-sector-tag">
-              {sector}
-            </span>
-          ))}
-        </div>
-      )}
-
-      {profile?.performance && profile.performance.length > 0 && (
-        <div className="lq-chart-workspace__symbol-profile-section">
-          <span className="lq-chart-workspace__symbol-profile-section-title">Performance</span>
-          <div className="lq-chart-workspace__symbol-profile-performance-grid">
-            {profile.performance.map((p) => (
-              <div key={p.label} className="lq-chart-workspace__symbol-profile-performance-tile">
-                <PriceChangeTag value={p.changePercent} showIcon={false} />
-                <span className="lq-chart-workspace__symbol-profile-performance-label">{p.label}</span>
-              </div>
+      {/* The panel's own at-a-glance sections. Two shapes, depending on whether the financial
+          tabs are on screen: without them (the 260px docked column) they are simply the panel,
+          one after another; with them they belong *inside* "Vue d'ensemble" instead, because a
+          section that stays put while the reader switches to Dividendes reads as though the tabs
+          only govern part of the page. Performance leads — it is what a reader opening a symbol
+          looks at first — and the rest follows the financial overview's own key figures,
+          description and ownership bars. */}
+      {(() => {
+        const lead = (
+          <>
+          {profile?.performance && profile.performance.length > 0 && (
+          <div className="lq-chart-workspace__symbol-profile-section">
+            <span className="lq-chart-workspace__symbol-profile-section-title">Performance</span>
+            <div className="lq-chart-workspace__symbol-profile-performance-grid">
+              {profile.performance.map((p) => (
+                <div key={p.label} className="lq-chart-workspace__symbol-profile-performance-tile">
+                  <PriceChangeTag value={p.changePercent} showIcon={false} />
+                  <span className="lq-chart-workspace__symbol-profile-performance-label">{p.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+          </>
+        );
+        const tail = (
+          <>
+        {/* Suppressed when the Overview tab is already showing prose about the company: the two say
+            the same thing, and printing both left the description on screen twice, a few centimetres
+            apart, which reads as a rendering fault rather than as emphasis. The tab's own copy wins —
+            it is the one with the "afficher plus" clamp. */}
+        {profile?.description && !(showFinancials && profile.financials?.overview?.about) && (
+          <p className="lq-chart-workspace__symbol-profile-description">{profile.description}</p>
+        )}
+        
+        {profile?.sectors && profile.sectors.length > 0 && (
+          <div className="lq-chart-workspace__symbol-profile-sectors">
+            {profile.sectors.map((sector) => (
+              <span key={sector} className="lq-chart-workspace__symbol-profile-sector-tag">
+                {sector}
+              </span>
             ))}
           </div>
-        </div>
-      )}
-
-      {profile?.seasonality && profile.seasonality.length > 1 && (
-        <div className="lq-chart-workspace__symbol-profile-section">
-          <span className="lq-chart-workspace__symbol-profile-section-title">Saisonnalité</span>
-          <Sparkline
-            data={profile.seasonality.map((p) => p.value)}
-            width={260}
-            height={48}
-            area
-            colorByTrend
-            className="lq-chart-workspace__symbol-profile-seasonality"
-          />
-        </div>
-      )}
-
-      {profile?.news && profile.news.length > 0 && (
-        <div className="lq-chart-workspace__symbol-profile-section">
-          <span className="lq-chart-workspace__symbol-profile-section-title">Actualités</span>
-          <div className="lq-chart-workspace__symbol-profile-news">
-            <span className="lq-chart-workspace__symbol-profile-news-time">{profile.news[0].time}</span>
-            {profile.news[0].url ? (
-              <a
-                href={profile.news[0].url}
-                target="_blank"
-                rel="noreferrer"
-                className="lq-chart-workspace__symbol-profile-news-headline lq-chart-workspace__symbol-profile-news-headline--link"
+        )}
+        
+        
+        {profile?.seasonality && profile.seasonality.length > 1 && (
+          <div className="lq-chart-workspace__symbol-profile-section">
+            <span className="lq-chart-workspace__symbol-profile-section-title">Saisonnalité</span>
+            <Sparkline
+              data={profile.seasonality.map((p) => p.value)}
+              width={260}
+              height={48}
+              area
+              colorByTrend
+              className="lq-chart-workspace__symbol-profile-seasonality"
+            />
+          </div>
+        )}
+        
+        {profile?.news && profile.news.length > 0 && (
+          <div className="lq-chart-workspace__symbol-profile-section">
+            <span className="lq-chart-workspace__symbol-profile-section-title">Actualités</span>
+            <div className="lq-chart-workspace__symbol-profile-news">
+              <span className="lq-chart-workspace__symbol-profile-news-time">{profile.news[0].time}</span>
+              {profile.news[0].url ? (
+                <a
+                  href={profile.news[0].url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="lq-chart-workspace__symbol-profile-news-headline lq-chart-workspace__symbol-profile-news-headline--link"
+                >
+                  {profile.news[0].headline}
+                  {profile.news[0].provider && ` — ${profile.news[0].provider}`}
+                </a>
+              ) : (
+                <span className="lq-chart-workspace__symbol-profile-news-headline">
+                  {profile.news[0].headline}
+                  {profile.news[0].provider && ` — ${profile.news[0].provider}`}
+                </span>
+              )}
+            </div>
+            {profile.news.length > 1 && onMoreNews && (
+              <button type="button" className="lq-chart-workspace__symbol-profile-news-more" onClick={onMoreNews}>
+                Plus d'actualités ›
+              </button>
+            )}
+          </div>
+        )}
+        
+        {profile?.keyStats && (
+          <div className="lq-chart-workspace__symbol-profile-section">
+            <span className="lq-chart-workspace__symbol-profile-section-title">Statistiques clés</span>
+            <div className="lq-chart-workspace__symbol-profile-stats">
+              {profile.keyStats.nextEarningsInDays !== undefined && (
+                <div className="lq-chart-workspace__symbol-profile-stat-row">
+                  <span className="lq-chart-workspace__symbol-profile-stat-label">Prochain rapport de résultats</span>
+                  <span className="lq-chart-workspace__symbol-profile-stat-value">Dans {profile.keyStats.nextEarningsInDays} jours</span>
+                </div>
+              )}
+              {profile.keyStats.volume && (
+                <div className="lq-chart-workspace__symbol-profile-stat-row">
+                  <span className="lq-chart-workspace__symbol-profile-stat-label">Volume</span>
+                  <span className="lq-chart-workspace__symbol-profile-stat-value">{profile.keyStats.volume}</span>
+                </div>
+              )}
+              {profile.keyStats.averageVolume && (
+                <div className="lq-chart-workspace__symbol-profile-stat-row">
+                  <span className="lq-chart-workspace__symbol-profile-stat-label">Volume moyen (30 j)</span>
+                  <span className="lq-chart-workspace__symbol-profile-stat-value">{profile.keyStats.averageVolume}</span>
+                </div>
+              )}
+              {profile.keyStats.marketCap && (
+                <div className="lq-chart-workspace__symbol-profile-stat-row">
+                  <span className="lq-chart-workspace__symbol-profile-stat-label">Capitalisation boursière</span>
+                  <span className="lq-chart-workspace__symbol-profile-stat-value">{profile.keyStats.marketCap}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+        
+        {profile?.earnings && profile.earnings.length > 0 && (
+          <div className="lq-chart-workspace__symbol-profile-section">
+            <div className="lq-chart-workspace__symbol-profile-earnings-header">
+              <span className="lq-chart-workspace__symbol-profile-section-title">Résultats</span>
+              {profile.keyStats?.nextEarningsInDays !== undefined && (
+                <span className="lq-chart-workspace__symbol-profile-earnings-badge">{profile.keyStats.nextEarningsInDays}</span>
+              )}
+              {/* Pushed to the header's trailing edge by its own auto margin. Eight quarters in a
+                  120px-tall drawing inside a narrow panel is readable but not comparable; the modal
+                  is the same component with room to breathe, which is why it takes a `scale` rather
+                  than just a bigger box — at three times the height, 4px dots would disappear. */}
+              <button
+                type="button"
+                className="lq-chart-workspace__symbol-profile-earnings-expand"
+                onClick={() => setEarningsModalOpen(true)}
+                aria-label="Agrandir les résultats"
+                title="Agrandir les résultats"
               >
-                {profile.news[0].headline}
-                {profile.news[0].provider && ` — ${profile.news[0].provider}`}
-              </a>
-            ) : (
-              <span className="lq-chart-workspace__symbol-profile-news-headline">
-                {profile.news[0].headline}
-                {profile.news[0].provider && ` — ${profile.news[0].provider}`}
-              </span>
+                <MaximizeIcon size={13} />
+              </button>
+            </div>
+            {/* `fill` in the expanded copy rather than letting CSS stretch the 260px one: the
+                drawing carries a viewBox, so stretching it magnifies its own 9px labels by the same
+                factor — 51px in a column that wide. Measured instead, it re-lays out across the
+                real width — the labels stay 9px and the dots grow with `scale`, which is exactly
+                what that prop is for. Measured rather than fixed at 1100px because "expanded" is
+                two different widths: a fullscreen modal and a detached window's 1200px page, and a
+                fixed number could only ever be right for one of them. Only that layout: the mobile
+                sheet is not the copy this is sized for. */}
+            <EarningsDotChart points={profile.earnings} {...(layout === "expanded" ? { height: 340, scale: 2, fill: true } : {})} />
+            {/* Under the chart rather than in the header: the header's own icons are for people who
+                already know what they do, and this is the one action a reader arrives at by reading
+                downward. Only on the docked copy — inside the modal there is nothing further to
+                open. */}
+            {canExpand && (
+              <button type="button" className="lq-chart-workspace__symbol-profile-more" onClick={() => setFullscreenOpen(true)}>
+                Afficher plus de détails
+              </button>
             )}
           </div>
-          {profile.news.length > 1 && onMoreNews && (
-            <button type="button" className="lq-chart-workspace__symbol-profile-news-more" onClick={onMoreNews}>
-              Plus d'actualités ›
-            </button>
-          )}
-        </div>
-      )}
-
-      {profile?.keyStats && (
-        <div className="lq-chart-workspace__symbol-profile-section">
-          <span className="lq-chart-workspace__symbol-profile-section-title">Statistiques clés</span>
-          <div className="lq-chart-workspace__symbol-profile-stats">
-            {profile.keyStats.nextEarningsInDays !== undefined && (
-              <div className="lq-chart-workspace__symbol-profile-stat-row">
-                <span className="lq-chart-workspace__symbol-profile-stat-label">Prochain rapport de résultats</span>
-                <span className="lq-chart-workspace__symbol-profile-stat-value">Dans {profile.keyStats.nextEarningsInDays} jours</span>
-              </div>
-            )}
-            {profile.keyStats.volume && (
-              <div className="lq-chart-workspace__symbol-profile-stat-row">
-                <span className="lq-chart-workspace__symbol-profile-stat-label">Volume</span>
-                <span className="lq-chart-workspace__symbol-profile-stat-value">{profile.keyStats.volume}</span>
-              </div>
-            )}
-            {profile.keyStats.averageVolume && (
-              <div className="lq-chart-workspace__symbol-profile-stat-row">
-                <span className="lq-chart-workspace__symbol-profile-stat-label">Volume moyen (30 j)</span>
-                <span className="lq-chart-workspace__symbol-profile-stat-value">{profile.keyStats.averageVolume}</span>
-              </div>
-            )}
-            {profile.keyStats.marketCap && (
-              <div className="lq-chart-workspace__symbol-profile-stat-row">
-                <span className="lq-chart-workspace__symbol-profile-stat-label">Capitalisation boursière</span>
-                <span className="lq-chart-workspace__symbol-profile-stat-value">{profile.keyStats.marketCap}</span>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {profile?.earnings && profile.earnings.length > 0 && (
-        <div className="lq-chart-workspace__symbol-profile-section">
-          <div className="lq-chart-workspace__symbol-profile-earnings-header">
-            <span className="lq-chart-workspace__symbol-profile-section-title">Résultats</span>
-            {profile.keyStats?.nextEarningsInDays !== undefined && (
-              <span className="lq-chart-workspace__symbol-profile-earnings-badge">{profile.keyStats.nextEarningsInDays}</span>
-            )}
-            {/* Pushed to the header's trailing edge by its own auto margin. Eight quarters in a
-                120px-tall drawing inside a narrow panel is readable but not comparable; the modal
-                is the same component with room to breathe, which is why it takes a `scale` rather
-                than just a bigger box — at three times the height, 4px dots would disappear. */}
-            <button
-              type="button"
-              className="lq-chart-workspace__symbol-profile-earnings-expand"
-              onClick={() => setEarningsModalOpen(true)}
-              aria-label="Agrandir les résultats"
-              title="Agrandir les résultats"
-            >
-              <MaximizeIcon size={13} />
-            </button>
-          </div>
-          {/* Real dimensions in the fullscreen copy rather than letting CSS stretch the 260px one:
-              the drawing carries a viewBox, so stretching it magnifies its own 9px labels by the
-              same factor — 51px in a column that wide. Drawn larger, the labels stay 9px and the
-              dots grow with `scale`, which is exactly what that prop is for. Only the `"expanded"`
-              layout: the mobile sheet cannot show 1100px of chart either, and is not the copy this
-              is sized for. */}
-          <EarningsDotChart points={profile.earnings} {...(layout === "expanded" ? { width: 1100, height: 340, scale: 2 } : {})} />
-          {/* Under the chart rather than in the header: the header's own icons are for people who
-              already know what they do, and this is the one action a reader arrives at by reading
-              downward. Only on the docked copy — inside the modal there is nothing further to
-              open. */}
-          {canExpand && (
-            <button type="button" className="lq-chart-workspace__symbol-profile-more" onClick={() => setFullscreenOpen(true)}>
-              Afficher plus de détails
-            </button>
-          )}
-        </div>
-      )}
-
+        )}
+          </>
+        );
+        if (showFinancials && profile?.financials) {
+          return (
+            <div className="lq-chart-workspace__symbol-profile-section">
+              <SymbolFinancialsView financials={profile.financials} overviewLead={lead} overviewTail={tail} />
+            </div>
+          );
+        }
+        return (
+          <>
+            {lead}
+            {tail}
+          </>
+        );
+      })()}
 
       {/* The whole panel again, at the size of the screen. The same component rather than a
           bespoke big layout: everything it knows how to show is already here, and the modal's only

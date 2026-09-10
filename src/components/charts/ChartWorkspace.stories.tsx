@@ -160,3 +160,31 @@ export const ScriptingWorkspace: Story = {
     </div>
   ),
 };
+
+/** Watchlists that only exist a moment after the workspace has mounted — a host that fetches them
+ *  rather than writing them out inline, which is the ordinary case outside a storybook.
+ *
+ *  Worth a story of its own because the workspace's own tab and list state are *uncontrolled*:
+ *  their initialisers run once, against whatever was there at mount, which here is nothing. Both
+ *  therefore have to keep resolving against what the workspace actually has rather than trusting
+ *  what it had — without that, this story showed an empty "Alertes" heading over a list it was
+ *  holding but not showing, and, on the phone layout, a topbar highlighting no list while the
+ *  panel below it displayed one. */
+export const LateWatchlists: Story = {
+  name: "Listes chargées après coup",
+  render: function LateWatchlistsStory() {
+    const [watchlists, setWatchlists] = useState<ChartWorkspaceWatchlist[] | undefined>(undefined);
+    return (
+      <div style={{ margin: -32 }}>
+        {watchlists === undefined && (
+          <button type="button" style={{ position: "absolute", zIndex: 10, top: 8, left: 8 }} onClick={() => setWatchlists(SYMBOL_PROFILE_WATCHLISTS)}>
+            Charger les listes
+          </button>
+        )}
+        <ChartWorkspace defaultPanels={1} watchlists={watchlists} symbolProfiles={SYMBOL_PROFILES}>
+          <CandlestickChart data={DATASETS.AAPL} symbol="AAPL" zoomable />
+        </ChartWorkspace>
+      </div>
+    );
+  },
+};

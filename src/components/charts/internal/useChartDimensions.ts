@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { observeElementSize } from "../../../internal/observeElementSize";
 
 export interface ChartMargin {
   top: number;
@@ -84,16 +85,12 @@ export function useChartDimensions(
   useEffect(() => {
     if (!node) return;
 
-    const observer = new ResizeObserver((entries) => {
-      const entry = entries[0];
-      if (!entry) return;
+    // Through the node's own document, never the global constructor — see observeElementSize.
+    return observeElementSize(node, (entry) => {
       const width = options.width ?? entry.contentRect.width;
       const height = options.height ?? (options.aspectRatio ? width / options.aspectRatio : entry.contentRect.height || 320);
       setSize({ width, height });
     });
-
-    observer.observe(node);
-    return () => observer.disconnect();
   }, [node, options.width, options.height, options.aspectRatio]);
 
   const boundedWidth = Math.max(0, size.width - resolvedMargin.left - resolvedMargin.right);

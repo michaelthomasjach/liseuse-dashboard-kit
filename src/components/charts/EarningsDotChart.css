@@ -30,6 +30,12 @@
 .lq-earnings-dot-chart-wrapper {
   display: flex;
   flex-direction: column;
+  /* What `fill` measures. Without it the wrapper is only as wide as the svg it contains, so the
+     measurement would just report back the width the drawing already had. */
+  width: 100%;
+  /* The svg is laid out at a measured width, so it must never make its own container wider than
+     the space that was measured — that pair alone can oscillate. */
+  min-width: 0;
 }
 
 /* The per-quarter click target — the full column height, transparent, drawn under the marks it

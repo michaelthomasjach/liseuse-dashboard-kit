@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as d3 from "d3";
 import type { SymbolProfileEarningsPoint } from "./workspace/SymbolProfile.interface";
+import { observeElementSize } from "../../internal/observeElementSize";
 import "./EarningsDotChart.css";
 
 export interface EarningsDotChartProps {
@@ -12,6 +13,14 @@ export interface EarningsDotChartProps {
    *  it, never by how big the drawing it annotates happens to be. Without this the dots stay 4px
    *  across and vanish once the drawing is three times as tall. */
   scale?: number;
+  /** Lay the drawing out at whatever width its container actually has, re-measured as that
+   *  changes, instead of at the fixed `width`.
+   *
+   *  Not the same as stretching the svg with CSS: the drawing carries a viewBox, so stretching it
+   *  magnifies its own 9px axis labels by the same factor. Measuring lets it *re-lay out* at the
+   *  real width — the dots spread across the whole span, the labels stay 9px. `width` is still
+   *  used, as the width to draw at until the first measurement arrives. */
+  fill?: boolean;
 }
 
 /** Small quarterly-EPS dot chart for `SymbolProfilePanel`'s own "Résultats" section — estimate
@@ -19,7 +28,27 @@ export interface EarningsDotChartProps {
  *  quarter's own date underneath. Not built on `Sparkline` (a continuous line/area through every
  *  point) since this is a fundamentally different shape: two independent, unconnected point
  *  series read by their fill (hollow/solid), not a trend to follow with the eye. */
-export function EarningsDotChart({ points, width = 260, height = 120, scale = 1 }: EarningsDotChartProps) {
+export function EarningsDotChart({ points, width: fixedWidth = 260, height = 120, scale = 1, fill = false }: EarningsDotChartProps) {
+  // Measured rather than read off a prop when `fill` is set — see that prop's own doc. A plain
+  // ResizeObserver instead of `useChartDimensions`: this needs one number, not a margin-derived
+  // bounded box, and the margins here are scale-dependent and computed below.
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const [measuredWidth, setMeasuredWidth] = useState<number | null>(null);
+  useEffect(() => {
+    const el = wrapperRef.current;
+    if (!fill || el === null) return;
+    return observeElementSize(el, (entry) => {
+      const next = Math.round(entry.contentRect.width);
+      // Sub-pixel jitter from a flex parent would otherwise re-lay out the whole drawing on every
+      // frame of an unrelated resize.
+      setMeasuredWidth((current) => (current !== null && Math.abs(current - next) < 1 ? current : next));
+    });
+    // `points.length` too: the wrapper does not exist while there is nothing to draw (see the
+    // early return below), so a chart whose points arrive after mount would otherwise never get
+    // an observer at all.
+  }, [fill, points.length]);
+  const width = fill && measuredWidth !== null && measuredWidth > 0 ? measuredWidth : fixedWidth;
+
   const margin = { top: 8 * scale, right: 34 * scale, bottom: 16 * scale, left: 4 * scale };
   // Which quarter is currently being read, by index — click a dot (or its column) to select, click
   // it again to clear. State rather than hover: this is used with a finger as much as a mouse, and
@@ -54,8 +83,14 @@ export function EarningsDotChart({ points, width = 260, height = 120, scale = 1 
     active && active.estimateEps !== undefined && active.actualEps !== undefined ? active.actualEps - active.estimateEps : undefined;
 
   return (
-    <div className="lq-earnings-dot-chart-wrapper">
-      <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="lq-earnings-dot-chart" role="img">
+    <div ref={wrapperRef} className="lq-earnings-dot-chart-wrapper">
+      <svg
+        width={width}
+        height={height}
+        viewBox={`0 0 ${width} ${height}`}
+        className={["lq-earnings-dot-chart", fill && "lq-earnings-dot-chart--fill"].filter(Boolean).join(" ")}
+        role="img"
+      >
       {ticks.map((tick) => (
         <g key={tick}>
           <line x1={margin.left} x2={width - margin.right} y1={y(tick)} y2={y(tick)} className="lq-earnings-dot-chart__gridline" />

@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type React from "react";
 
 /** How long the grid has to be held to toggle its lock. Three seconds is deliberately long: this
@@ -59,6 +59,11 @@ export function useWorkspaceLockHold() {
     },
     [locked, end],
   );
+
+  // A workspace unmounted mid-press never receives the pointerup that would end the hold, so the
+  // frame loop would run on to its three seconds and toggle a lock nobody can see. Cancelled here
+  // instead — the same `end` the gesture's own handlers call, just triggered by going away.
+  useEffect(() => end, [end]);
 
   const track = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {

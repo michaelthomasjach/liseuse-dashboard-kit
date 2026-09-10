@@ -36,6 +36,7 @@ import { CandlestickChart } from "../../../CandlestickChart";
 import { LqThemeProvider, useLqTheme, type LqThemeContextValue } from "../../../../../theme";
 import { ScriptXYChart } from "./ScriptXYChart";
 import "./ScriptEditorCodeMirror.css";
+import { observeElementSize } from "../../../../../internal/observeElementSize";
 
 export interface ScriptEditorCodeMirrorProps {
   value: string;
@@ -361,7 +362,7 @@ class CellRunButtonWidget extends WidgetType {
 
 class CellOutputWidget extends WidgetType {
   private root: Root | null = null;
-  private resizeObserver: ResizeObserver | null = null;
+  private disconnectResize: (() => void) | null = null;
   constructor(
     private readonly output: CellOutput,
     private readonly previewData: Candle[] | undefined,
@@ -393,15 +394,16 @@ class CellOutputWidget extends WidgetType {
       container.style.maxWidth = `${Math.max(0, view.scrollDOM.clientWidth - guttersWidth)}px`;
     };
     updateMaxWidth();
-    this.resizeObserver = new ResizeObserver(updateMaxWidth);
-    this.resizeObserver.observe(view.scrollDOM);
+    // Through the editor's own document, so this keeps working in the detached editor window —
+    // see observeElementSize.
+    this.disconnectResize = observeElementSize(view.scrollDOM, updateMaxWidth);
     this.root = createRoot(container);
     this.root.render(<CellOutputContent output={this.output} previewData={this.previewData} theme={this.theme} />);
     return container;
   }
   destroy() {
-    this.resizeObserver?.disconnect();
-    this.resizeObserver = null;
+    this.disconnectResize?.();
+    this.disconnectResize = null;
     // Unmounting synchronously from inside CodeMirror's own update cycle (which this destroy()
     // call happens during) is exactly the kind of "unmount while another render is in flight"
     // React warns about — deferred a tick to be safe.

@@ -13,6 +13,7 @@ import type { Indicator } from "../interfaces/Indicator.interface";
 import type { IndicatorKind } from "../interfaces/IndicatorKind.interface";
 import type { CustomIndicatorDef } from "../interfaces/CustomIndicatorDef.interface";
 import type { ScriptDef } from "../interfaces/ScriptDef.interface";
+import { observeElementSizes } from "../../../../internal/observeElementSize";
 
 /** The picker's own grouping/filter label for `scripts` — the one category that isn't a
  *  `IndicatorCatalogEntry.category` or a `CustomIndicatorDef.section` but a fixed name this file
@@ -114,10 +115,9 @@ export function IndicatorPickerModal({
     const el = categoryStripRef.current;
     if (!el) return;
     measureCategoryOverflow();
-    const observer = new ResizeObserver(measureCategoryOverflow);
-    observer.observe(el);
-    for (const child of Array.from(el.children)) observer.observe(child);
-    return () => observer.disconnect();
+    // The strip and each of its items: its own box can stay put while its contents change
+    // width. Through the element's own document — see observeElementSizes.
+    return observeElementSizes([el, ...Array.from(el.children)], measureCategoryOverflow);
   }, [measureCategoryOverflow, open, scripts.length]);
   function scrollCategories(direction: -1 | 1) {
     categoryStripRef.current?.scrollBy({ left: direction * categoryStripRef.current.clientWidth * 0.66, behavior: "smooth" });

@@ -6,7 +6,7 @@
   position: relative;
   /* The track's height *is* the animation's duration. Five screens of scroll covers the four
      phases below with room to read between them. */
-  height: 520vh;
+  height: 620vh;
   margin-top: 112px;
 }
 
@@ -14,36 +14,33 @@
   position: sticky;
   top: 0;
   height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   overflow: hidden;
   background-color: var(--lq-color-bg);
 }
 
-.lqx-cinema__chart {
-  position: absolute;
-  inset: 0;
-  transform-origin: center;
-  will-change: clip-path, transform;
+/* Sized in JavaScript, from the scroll position: a real width and height, not a transform. At rest
+   this has to *be* a chart at the content column's width, with its toolbar and its axes at the
+   size they have anywhere else on the page; a scaled-down full-screen chart would have miniature
+   chrome, and a clip-path one would be a crop rather than a chart. Every size it is given costs a
+   re-measure inside the chart, which is affordable only because `useScrollProgress` writes at most
+   once per animation frame. */
+.lqx-cinema__box {
+  position: relative;
+  overflow: hidden;
 }
 
-/* `fillHeight` measures the wrapper's own box, and `.lq-chart` is `width: 100%` with no height of
-   its own — so without this the chart sized itself to its content and left the bottom half of the
-   screen empty. */
-.lqx-cinema__chart > .lq-chart {
+.lqx-cinema__box > .lq-chart {
   height: 100%;
 }
 
-/* Dims the chart while it is still a "card", so the headline over it stays readable; gone by the
-   time it fills the screen. */
-.lqx-cinema__veil {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background-color: var(--lq-color-bg);
-}
-
+/* Above the chart, not under it: at rest the chart is a 460px card in the middle of the screen,
+   and a headline pinned to the bottom ran straight into it. */
 .lqx-cinema__intro {
   position: absolute;
-  inset: auto 0 8vh;
+  inset: 5vh 0 auto;
   padding: 0 32px;
   text-align: center;
   pointer-events: none;
@@ -61,8 +58,8 @@
 .lqx-cinema__title {
   margin: 0 auto;
   max-width: 20ch;
-  font-size: clamp(1.8rem, 4.4vw, 3.4rem);
-  line-height: 1.08;
+  font-size: clamp(1.5rem, 3.4vw, 2.7rem);
+  line-height: 1.12;
   font-weight: 800;
   letter-spacing: -0.03em;
 }
@@ -263,15 +260,11 @@
     padding-bottom: 32px;
   }
 
-  .lqx-cinema__chart {
-    position: relative;
-    inset: auto;
-    height: 60vh;
-    clip-path: none !important;
-    transform: none !important;
+  .lqx-cinema__box {
+    width: 100% !important;
+    height: 60vh !important;
   }
 
-  .lqx-cinema__veil,
   .lqx-cinema__intro {
     display: none;
   }

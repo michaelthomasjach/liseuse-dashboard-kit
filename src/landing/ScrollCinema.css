@@ -1,0 +1,298 @@
+/* The scroll-driven section: a tall scroll track with a sticky, screen-filling stage inside it.
+   Everything that moves here is a transform, an opacity or a clip-path, so the chart underneath is
+   never re-laid-out and never re-measures while the reader scrolls. */
+
+.lqx-cinema {
+  position: relative;
+  /* The track's height *is* the animation's duration. Five screens of scroll covers the four
+     phases below with room to read between them. */
+  height: 520vh;
+  margin-top: 112px;
+}
+
+.lqx-cinema__sticky {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow: hidden;
+  background-color: var(--lq-color-bg);
+}
+
+.lqx-cinema__chart {
+  position: absolute;
+  inset: 0;
+  transform-origin: center;
+  will-change: clip-path, transform;
+}
+
+/* `fillHeight` measures the wrapper's own box, and `.lq-chart` is `width: 100%` with no height of
+   its own — so without this the chart sized itself to its content and left the bottom half of the
+   screen empty. */
+.lqx-cinema__chart > .lq-chart {
+  height: 100%;
+}
+
+/* Dims the chart while it is still a "card", so the headline over it stays readable; gone by the
+   time it fills the screen. */
+.lqx-cinema__veil {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-color: var(--lq-color-bg);
+}
+
+.lqx-cinema__intro {
+  position: absolute;
+  inset: auto 0 8vh;
+  padding: 0 32px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.lqx-cinema__kicker {
+  margin: 0 0 12px;
+  font-size: var(--lq-text-xs);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--lq-color-text-muted);
+}
+
+.lqx-cinema__title {
+  margin: 0 auto;
+  max-width: 20ch;
+  font-size: clamp(1.8rem, 4.4vw, 3.4rem);
+  line-height: 1.08;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.lqx-cinema__accent {
+  background-image: linear-gradient(
+    100deg,
+    var(--lq-color-fill),
+    color-mix(in srgb, var(--lq-color-violet) 80%, var(--lq-color-fill))
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.lq-root[data-lq-palette="eink"] .lqx-cinema__accent {
+  background-image: none;
+  color: var(--lq-color-text);
+  box-shadow: inset 0 -0.14em 0 var(--lq-color-fill);
+}
+
+/* ── The editor sliding in over the chart ───────────────────────────────────────────────── */
+
+.lqx-cinema__editor {
+  position: absolute;
+  top: 6vh;
+  right: 3vw;
+  bottom: 6vh;
+  width: min(560px, 42vw);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--lq-color-border);
+  background-color: var(--lq-color-panel);
+  box-shadow: 0 40px 80px -40px rgba(0, 0, 0, 0.65);
+  will-change: transform, opacity;
+}
+
+.lq-root[data-lq-palette="eink"] .lqx-cinema__editor {
+  box-shadow: none;
+}
+
+.lqx-cinema__editor-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--lq-color-border-subtle);
+}
+
+.lqx-cinema__dots {
+  display: flex;
+  gap: 6px;
+}
+
+.lqx-cinema__dots span {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background-color: var(--lq-color-border);
+}
+
+.lqx-cinema__filename {
+  flex: 1;
+  font-family: var(--lq-font-mono);
+  font-size: var(--lq-text-xs);
+  color: var(--lq-color-text-muted);
+}
+
+.lqx-cinema__badge {
+  padding: 2px 8px;
+  border: 1px solid var(--lq-color-border);
+  font-size: var(--lq-text-xs);
+  color: var(--lq-color-text-muted);
+}
+
+.lqx-cinema__code {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 16px 18px;
+  overflow: auto;
+  font-family: var(--lq-font-mono);
+  font-size: 0.82rem;
+  line-height: 1.6;
+  color: var(--lq-color-text);
+  white-space: pre-wrap;
+  word-break: break-word;
+  background-color: var(--lq-color-bg);
+}
+
+.lqx-cinema__caret {
+  display: inline-block;
+  width: 8px;
+  height: 1.05em;
+  margin-left: 1px;
+  vertical-align: text-bottom;
+  background-color: var(--lq-color-fill);
+  animation: lqx-caret 1s steps(2, start) infinite;
+}
+
+@keyframes lqx-caret {
+  to {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lqx-cinema__caret {
+    animation: none;
+  }
+}
+
+.lqx-cinema__status {
+  padding: 10px 14px;
+  border-top: 1px solid var(--lq-color-border-subtle);
+  font-size: var(--lq-text-xs);
+  color: var(--lq-color-text-muted);
+}
+
+/* ── The no-code canvas taking over at the end ──────────────────────────────────────────── */
+
+.lqx-cinema__nocode {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 4vh 3vw;
+  background-color: var(--lq-color-bg);
+  will-change: opacity;
+}
+
+.lqx-nocode {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  gap: 18px;
+}
+
+.lqx-nocode__head {
+  text-align: center;
+}
+
+.lqx-nocode__title {
+  margin: 0 0 8px;
+  font-size: clamp(1.3rem, 2.6vw, 2rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.lqx-nocode__lead {
+  margin: 0 auto;
+  max-width: 68ch;
+  font-size: var(--lq-text-sm);
+  line-height: 1.65;
+  color: var(--lq-color-text-muted);
+}
+
+.lqx-nocode__canvas {
+  flex: 1;
+  min-height: 0;
+  border: 1px solid var(--lq-color-border);
+  overflow: hidden;
+}
+
+.lqx-nocode__canvas > * {
+  height: 100%;
+}
+
+.lqx-nocode__body {
+  width: 100%;
+  min-height: 88px;
+  padding: 8px 10px;
+  border: 0;
+  resize: none;
+  font-family: var(--lq-font-mono);
+  font-size: 0.76rem;
+  line-height: 1.55;
+  color: var(--lq-color-text);
+  background-color: var(--lq-color-bg);
+}
+
+.lqx-nocode__body:focus {
+  outline: 2px solid var(--lq-color-focus-ring);
+  outline-offset: -2px;
+}
+
+/* Below this the sticky choreography has nowhere to put a 42vw panel beside a chart, so the
+   section collapses to a plain, readable stack. */
+@media (max-width: 900px) {
+  .lqx-cinema {
+    height: auto;
+  }
+
+  .lqx-cinema__sticky {
+    position: static;
+    height: auto;
+    padding-bottom: 32px;
+  }
+
+  .lqx-cinema__chart {
+    position: relative;
+    inset: auto;
+    height: 60vh;
+    clip-path: none !important;
+    transform: none !important;
+  }
+
+  .lqx-cinema__veil,
+  .lqx-cinema__intro {
+    display: none;
+  }
+
+  .lqx-cinema__editor,
+  .lqx-cinema__nocode {
+    position: relative;
+    inset: auto;
+    width: auto;
+    height: auto;
+    margin-top: 20px;
+    transform: none !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+
+  .lqx-cinema__code {
+    max-height: 46vh;
+  }
+
+  .lqx-nocode__canvas {
+    height: 60vh;
+  }
+}

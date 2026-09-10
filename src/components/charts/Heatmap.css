@@ -79,9 +79,12 @@
   opacity: 0.85;
 }
 
+/* No `fill` here on purpose: the tile's background runs from barely tinted to nearly solid, so
+   the readable label color is decided per tile and set on the group that wraps these two (see
+   `useTileMixer`/`labelColorOn` in Heatmap.tsx). A flat `var(--lq-color-text)` was legible on a
+   pale tile and invisible on a saturated one. */
 .lq-heatmap__tile-label,
 .lq-heatmap__tile-value {
-  fill: var(--lq-color-text);
   text-anchor: middle;
 }
 

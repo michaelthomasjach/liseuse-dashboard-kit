@@ -87,9 +87,20 @@ const preview: Preview = {
       const palette = context.globals.lqPalette as LqPalette;
       const surface = context.globals.lqSurface as LqSurface;
       const font = context.globals.lqFont as LqFont;
+      // `minHeight: 100vh` only where there is a viewport to fill. A Docs page stacks every story
+      // of a file one under the other, and each of those blocks was being forced to a full screen
+      // of height whatever it actually contained — a three-row card sat on a screenful of cream
+      // with nothing in it. In `docs` the wrapper sizes to its content instead.
+      const fillsViewport = context.viewMode !== "docs";
       return (
         <LqThemeProvider palette={palette} surface={surface} font={font}>
-          <div style={{ minHeight: "100vh", padding: "32px", backgroundColor: "var(--lq-color-bg)" }}>
+          <div
+            style={{
+              minHeight: fillsViewport ? "100vh" : undefined,
+              padding: "32px",
+              backgroundColor: "var(--lq-color-bg)",
+            }}
+          >
             <PrimitiveLinks title={context.title} viewMode={context.viewMode} />
             <Story />
           </div>

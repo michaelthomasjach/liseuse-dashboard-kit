@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import * as d3 from "d3";
 import { useD3Zoom } from "./internal/useD3Zoom";
@@ -109,6 +109,92 @@ function tileColor(colorValue: number, domain: [number, number]): string {
   return `color-mix(in srgb, var(${hueVar}) ${percent}%, var(--lq-color-panel))`;
 }
 
+/** The tile fill above is a `color-mix()` string the browser only resolves at paint time, so the
+ *  contrast of the label sitting on it cannot be known from the markup. This resolves the same mix
+ *  in JavaScript, from the very same custom properties, and returns a label color light or dark
+ *  enough to stay readable on it.
+ *
+ *  It exists because the labels used to be a flat `fill: var(--lq-color-text)`: fine on a pale
+ *  tile, illegible on a saturated one, and worst of all under the E-ink palette, where a strong
+ *  reading paints the tile nearly black and the label was black too. The two literal grays are
+ *  deliberate — they are not theme colors but the two ends of a contrast decision, and the token
+ *  that would be "the readable one" flips meaning between the light and dark surfaces. */
+/* Pure black and white, not a softened near-black/near-white pair. The worst case for a
+   two-choice label is a background sitting exactly where the two candidates tie, and how bad that
+   tie is depends entirely on how far apart the pair is: #14161a/#f7f8fa bottomed out at 4.26:1,
+   under the 4.5:1 AA threshold, while #000/#fff bottoms out at 4.58:1, over it. */
+const LABEL_DARK = "#000000";
+const LABEL_LIGHT = "#ffffff";
+
+/** WCAG relative luminance. */
+function luminance(color: d3.RGBColor): number {
+  const channel = (v: number) => {
+    const c = v / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * channel(color.r) + 0.7152 * channel(color.g) + 0.0722 * channel(color.b);
+}
+
+function contrast(a: number, b: number): number {
+  return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+}
+
+function labelColorOn(mixed: d3.RGBColor | null): string {
+  if (mixed === null) return "var(--lq-color-text)";
+  // Whichever of the two actually contrasts better, rather than a luminance threshold picked by
+  // eye: a first attempt used `> 0.45`, which put white text on a mid-gray tile at 2.3:1 where
+  // black would have given 7.3:1. Comparing the two ratios has no such blind spot and puts the
+  // crossover exactly where it belongs.
+  const bg = luminance(mixed);
+  const dark = contrast(bg, luminance(d3.rgb(LABEL_DARK)));
+  const light = contrast(bg, luminance(d3.rgb(LABEL_LIGHT)));
+  return dark >= light ? LABEL_DARK : LABEL_LIGHT;
+}
+
+/** Resolves `--lq-color-up`/`--lq-color-down`/`--lq-color-panel` as they currently stand on this
+ *  chart's own element, and mixes them the way `tileColor` does. Re-read after every render rather
+ *  than once, because a palette or surface switch changes all three without unmounting anything. */
+function useTileMixer(el: HTMLElement | null): (colorValue: number, domain: [number, number]) => string {
+  const [tokens, setTokens] = useState<{ up: string; down: string; panel: string } | null>(null);
+
+  useLayoutEffect(() => {
+    if (el === null) return;
+    function read() {
+      if (el === null) return;
+      const cs = getComputedStyle(el);
+      const next = {
+        up: cs.getPropertyValue("--lq-color-up").trim(),
+        down: cs.getPropertyValue("--lq-color-down").trim(),
+        panel: cs.getPropertyValue("--lq-color-panel").trim(),
+      };
+      setTokens((prev) =>
+        prev !== null && prev.up === next.up && prev.down === next.down && prev.panel === next.panel ? prev : next
+      );
+    }
+    read();
+    // Watched rather than re-read on every render: a `getComputedStyle` per render would force a
+    // style flush on every hover, and the only thing that actually changes these three values is
+    // the palette/surface pair switching on the theme root above.
+    const root = el.closest(".lq-root");
+    if (root === null) return;
+    const observer = new MutationObserver(read);
+    observer.observe(root, { attributes: true, attributeFilter: ["data-lq-palette", "data-lq-surface"] });
+    return () => observer.disconnect();
+  }, [el]);
+
+  return (colorValue, domain) => {
+    if (tokens === null) return "var(--lq-color-text)";
+    const [lo, hi] = domain;
+    const clamped = Math.max(lo, Math.min(hi, colorValue));
+    const span = Math.max(Math.abs(lo), Math.abs(hi), 1e-6);
+    const percent = (15 + (Math.abs(clamped) / span) * 70) / 100;
+    const hue = d3.color(clamped >= 0 ? tokens.up : tokens.down);
+    const base = d3.color(tokens.panel);
+    if (hue === null || base === null) return "var(--lq-color-text)";
+    return labelColorOn(d3.rgb(d3.interpolateRgb(base, hue)(percent)));
+  };
+}
+
 /** Squarified-treemap "stock heatmap": stocks grouped by sector, each tile sized by one metric
  *  (`value`) and colored by another (`colorValue`) — the classic pairing being market cap for
  *  size, % change for color, though nothing here assumes that specifically. Click a group's own
@@ -124,7 +210,15 @@ export function Heatmap({ groups, width = 900, height = 560, colorDomain = [-3, 
   const [focusedGroupId, setFocusedGroupId] = useState<string | null>(null);
   const [hovered, setHovered] = useState<{ node: PositionedNode; x: number; y: number } | null>(null);
   const [hoveredGroupId, setHoveredGroupId] = useState<string | null>(null);
-  const wrapperRef = useRef<HTMLDivElement>(null);
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
+  // Kept as state as well as a ref: `useTileMixer` has to re-run when the node first attaches, and
+  // a ref assignment alone never re-renders.
+  const [wrapperEl, setWrapperEl] = useState<HTMLDivElement | null>(null);
+  const attachWrapper = useCallback((node: HTMLDivElement | null) => {
+    wrapperRef.current = node;
+    setWrapperEl(node);
+  }, []);
+  const labelColorFor = useTileMixer(wrapperEl);
   const [transform, setTransform] = useState(d3.zoomIdentity);
 
   const focusedGroup = groups.find((g) => g.id === focusedGroupId) ?? null;
@@ -216,7 +310,7 @@ export function Heatmap({ groups, width = 900, height = 560, colorDomain = [-3, 
   const isZoomed = transform.k !== 1 || transform.x !== 0 || transform.y !== 0;
 
   return (
-    <div className={["lq-heatmap", className].filter(Boolean).join(" ")} ref={wrapperRef} style={{ width, height }}>
+    <div className={["lq-heatmap", className].filter(Boolean).join(" ")} ref={attachWrapper} style={{ width, height }}>
       {focusedGroup && (
         <div className="lq-heatmap__breadcrumb">
           <button type="button" onClick={closeGroup}>
@@ -274,7 +368,7 @@ export function Heatmap({ groups, width = 900, height = 560, colorDomain = [-3, 
                       height={Math.max(0, node.y1 - node.y0)}
                       fill={tileColor(node.tile.colorValue, colorDomain)}
                     />
-                    <HeatmapTileContent node={node} />
+                    <HeatmapTileContent node={node} labelColor={labelColorFor(node.tile.colorValue, colorDomain)} />
                   </g>
                 )
               )
@@ -316,7 +410,7 @@ export function Heatmap({ groups, width = 900, height = 560, colorDomain = [-3, 
 // same two-line check for every single tile.
 const MIN_LABEL_WIDTH = 40;
 const MIN_LABEL_HEIGHT = 28;
-function HeatmapTileContent({ node }: { node: PositionedNode }) {
+function HeatmapTileContent({ node, labelColor }: { node: PositionedNode; labelColor: string }) {
   const tile = node.tile;
   if (!tile) return null;
   const w = node.x1 - node.x0;
@@ -326,7 +420,7 @@ function HeatmapTileContent({ node }: { node: PositionedNode }) {
   const cy = node.y0 + h / 2;
   const showLogo = h > MIN_LABEL_HEIGHT * 1.6;
   return (
-    <g className="lq-heatmap__tile-content" pointerEvents="none">
+    <g className="lq-heatmap__tile-content" pointerEvents="none" fill={labelColor}>
       {showLogo &&
         (tile.logoUrl ? (
           <image href={tile.logoUrl} x={cx - 10} y={cy - h / 4 - 10} width={20} height={20} clipPath="circle(10px)" />

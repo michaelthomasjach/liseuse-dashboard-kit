@@ -5,7 +5,10 @@
 .lqx-landing {
   position: relative;
   isolation: isolate;
-  overflow-x: hidden;
+  /* `clip`, not `hidden`. `overflow: hidden` turns this element into a scroll container, and a
+     `position: sticky` descendant then sticks against *it* instead of the viewport, which is what
+     the cinema section relies on. `clip` cuts the same overflow without that side effect. */
+  overflow-x: clip;
   min-height: 100vh;
   padding-bottom: 96px;
   background-color: var(--lq-color-bg);
@@ -55,11 +58,12 @@
   padding: 0 32px;
 }
 
-/* The hero has to be named explicitly: `.lqx-section + .lqx-section` never matched the first
-   section after it, so the "Thèmes" pill sat flush against the figures band's bottom border — a
-   measured 0px gap. */
+/* The hero and the cinema track both have to be named explicitly: `.lqx-section + .lqx-section`
+   never matched the first section after either of them, so the "Thèmes" pill sat flush against the
+   figures band's bottom border — a measured 0px gap. */
 .lqx-section + .lqx-section,
-.lqx-hero + .lqx-section {
+.lqx-hero + .lqx-section,
+.lqx-cinema + .lqx-section {
   margin-top: 112px;
 }
 
@@ -574,13 +578,20 @@
   grid-column: 1 / -1;
 }
 
+/* No padding and a height both sides agree on: the chart fills the card edge to edge instead of
+   floating in the middle of it with a band of card showing all around (see STAGE_H in
+   ChartGallery.tsx, which is what these custom properties carry). */
 .lqx-chart-frame__stage {
   display: flex;
-  flex: 1;
   align-items: center;
   justify-content: center;
   min-width: 0;
-  padding: 18px;
+  height: var(--lqx-stage-h, 268px);
+  overflow: hidden;
+}
+
+.lqx-chart-frame--wide .lqx-chart-frame__stage {
+  height: var(--lqx-stage-h-wide, 320px);
 }
 
 .lqx-chart-frame__stage > * {
@@ -839,4 +850,14 @@
   .lqx-form-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* The tile's own trend curve, full width. `Sparkline` draws in its `width`/`height` coordinate
+   space and stretches to whatever box CSS gives it, so this is the only place the real width is
+   decided. */
+.lqx-tile-spark {
+  display: block;
+  width: 100%;
+  height: 38px;
+  margin-top: 14px;
 }

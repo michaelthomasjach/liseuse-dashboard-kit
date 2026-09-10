@@ -34,6 +34,10 @@ export interface DeltaChartProps {
   zoomable?: boolean;
   /** Shows a fullscreen toggle button in the toolbar. Default true. */
   fullscreenToggle?: boolean;
+  /** Drops the chart's own outer border, for a chart that sits inside a container already
+   *  drawing one (a card, a panel, a dashboard cell). Same flag and same effect as
+   *  `LineAreaChart.embedded`. Default false. */
+  embedded?: boolean;
   margin?: Partial<ChartMargin>;
   className?: string;
 }
@@ -74,6 +78,7 @@ export function DeltaChart({
   zoomable = true,
   fullscreenToggle = true,
   margin,
+  embedded = false,
   className,
 }: DeltaChartProps) {
   const clipId = useId();
@@ -174,7 +179,7 @@ export function DeltaChart({
   const catTickValues = visible.filter((_, k) => k % tickStep === 0).map((v) => v.i + 0.5);
   const catTickFormat = (v: number) => labelFor(items[Math.round(v - 0.5)]?.id ?? "");
 
-  const wrapperClass = ["lq-chart", isFullscreen && "lq-chart--fullscreen", className].filter(Boolean).join(" ");
+  const wrapperClass = ["lq-chart", isFullscreen && "lq-chart--fullscreen", embedded && "lq-chart--embedded", className].filter(Boolean).join(" ");
 
   if (dims.width === 0) return <div ref={ref} className={wrapperClass} style={{ height }} />;
   if (items.length === 0) {

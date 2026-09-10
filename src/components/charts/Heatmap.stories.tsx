@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { Heatmap } from "./Heatmap";
 import type { HeatmapGroup } from "./Heatmap";
+import { COMPANY_BRAND, COMPANY_LOGOS } from "../../test-data/companyLogos";
 
 const meta: Meta<typeof Heatmap> = {
   title: "Charts/Heatmap",
@@ -15,6 +16,10 @@ function tile(id: string, label: string, marketCapB: number, changePct: number) 
     label,
     value: marketCapB,
     colorValue: changePct,
+    // What a real application passes here is its data provider's own logo URL; these fixtures
+    // carry a generated one so the story renders the same offline (see `companyLogos.ts`).
+    logoUrl: COMPANY_LOGOS[label],
+    logoColor: COMPANY_BRAND[label],
     formattedValue: `${changePct >= 0 ? "+" : ""}${changePct.toFixed(2)} %`,
     tooltip: (
       <>

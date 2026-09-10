@@ -14,10 +14,12 @@ const meta: Meta<typeof LandingPage> = {
   tags: ["!autodocs"],
   parameters: {
     layout: "fullscreen",
-    // No addons panel and no props table on the way in. This is the first thing a visitor sees,
-    // and a `version: string` control docked across the bottom third of the screen is noise for a
-    // component nobody is meant to import.
-    options: { showPanel: false },
+    // Neither the sidebar nor the addons panel on the way in. This is the first thing a visitor
+    // sees and it is meant to read as a cover, not as one entry among two hundred; a
+    // `version: string` control docked across the bottom third of the screen is noise for a
+    // component nobody is meant to import either. Both come back on any other story, and the
+    // toolbar's own sidebar button reopens the menu here at any time.
+    options: { showNav: false, showPanel: false },
     controls: { disable: true },
   },
 };

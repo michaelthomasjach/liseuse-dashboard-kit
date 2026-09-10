@@ -23,6 +23,7 @@ import { ChartGallery } from "./ChartGallery";
 import { Laptop, Phone, Tablet } from "./DeviceFrames";
 import { FormsShowcase } from "./FormsShowcase";
 import { FoundationsStrip } from "./FoundationsStrip";
+import { ScrollCinema } from "./ScrollCinema";
 import {
   DECORATORS,
   FAQ,
@@ -82,9 +83,7 @@ function ThemeTile({ palette, surface, label }: { palette: LqPalette; surface: L
             <Badge tone="up">+3,4 %</Badge>
             <Badge tone="neutral">6 positions</Badge>
           </div>
-          <div style={{ marginTop: 14 }}>
-            <Sparkline data={THEME_SPARK} colorByTrend area width={220} height={38} />
-          </div>
+          <Sparkline data={THEME_SPARK} colorByTrend area width={220} height={38} className="lqx-tile-spark" />
         </div>
       </LqThemeProvider>
       <div className="lqx-theme-tile__label">
@@ -244,6 +243,8 @@ export function LandingPage({ version }: LandingPageProps) {
           ))}
         </div>
       </header>
+
+      <ScrollCinema />
 
       <section className="lqx-section">
         <SectionHead

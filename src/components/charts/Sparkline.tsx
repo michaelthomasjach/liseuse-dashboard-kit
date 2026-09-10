@@ -48,7 +48,22 @@ export function Sparkline({
   const resolvedColor = color ?? (colorByTrend ? (data[data.length - 1] >= data[0] ? "var(--lq-color-up)" : "var(--lq-color-down)") : "var(--lq-color-accent)");
 
   return (
-    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className={["lq-sparkline", className].filter(Boolean).join(" ")} role="img">
+    <svg
+      width={width}
+      height={height}
+      viewBox={`0 0 ${width} ${height}`}
+      /* Stretch to whatever box CSS gives this element instead of shrinking to fit inside it.
+         `width`/`height` are the drawing's own coordinate space; several callers then size the
+         element from CSS (StatCard and HighlightStatCard both set `width: 100%` on it). Under the
+         default "xMidYMid meet" the drawing kept its 120x32 intrinsic size and sat *centred* in a
+         wider card, with dead space either side — the "the curve does not use the full width of
+         the card" report. With "none" the two axes scale independently, and `vector-effect` below
+         keeps the stroke a constant 1.5px through that stretch instead of thinning with it.
+         Where nothing overrides the size, both axes scale by 1 and this changes nothing. */
+      preserveAspectRatio="none"
+      className={["lq-sparkline", className].filter(Boolean).join(" ")}
+      role="img"
+    >
       {area && (
         <>
           <clipPath id={clipId}>
@@ -57,7 +72,7 @@ export function Sparkline({
           <rect width={width} height={height} fill={resolvedColor} opacity={0.12} clipPath={`url(#${clipId})`} />
         </>
       )}
-      <path d={path.line} fill="none" stroke={resolvedColor} strokeWidth={strokeWidth} />
+      <path d={path.line} fill="none" stroke={resolvedColor} strokeWidth={strokeWidth} vectorEffect="non-scaling-stroke" />
     </svg>
   );
 }

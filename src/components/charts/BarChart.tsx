@@ -55,6 +55,10 @@ export interface BarChartProps {
   zoomable?: boolean;
   /** Shows a fullscreen toggle button in the toolbar. Default true. */
   fullscreenToggle?: boolean;
+  /** Drops the chart's own outer border, for a chart that sits inside a container already
+   *  drawing one (a card, a panel, a dashboard cell). Same flag and same effect as
+   *  `LineAreaChart.embedded`. Default false. */
+  embedded?: boolean;
   margin?: Partial<ChartMargin>;
   className?: string;
   /** Highlight positive/negative bars using the theme's up/down colors instead of a single accent.
@@ -79,6 +83,7 @@ export function BarChart({
   zoomable = true,
   fullscreenToggle = true,
   margin,
+  embedded = false,
   className,
   colorByValue = false,
 }: BarChartProps) {
@@ -220,7 +225,7 @@ export function BarChart({
   const catTickValues = visible.filter((_, k) => k % tickStep === 0).map((v) => v.i + 0.5);
   const catTickFormat = (v: number) => data[Math.round(v - 0.5)]?.label ?? "";
 
-  const wrapperClass = ["lq-chart", isFullscreen && "lq-chart--fullscreen", className].filter(Boolean).join(" ");
+  const wrapperClass = ["lq-chart", isFullscreen && "lq-chart--fullscreen", embedded && "lq-chart--embedded", className].filter(Boolean).join(" ");
 
   const toolbar = (
     <div className="lq-chart__toolbar">

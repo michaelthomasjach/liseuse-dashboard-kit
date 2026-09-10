@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { AAPL_FINANCIALS } from "../../test-data/symbolFinancialsSample";
 import type { ScriptDef } from "./candlestick/interfaces/ScriptDef.interface";
 import { SCRIPT_EXAMPLES } from "./candlestick/scripting/scriptExamples";
@@ -9,7 +9,6 @@ import {
   type ChartEvent,
   type FundamentalDataPoint,
   type SymbolSearchResult,
-  type Candle,
   type ChartDisplayMode,
   type OverlayDataPoint,
   type CustomIndicatorDef,
@@ -30,6 +29,7 @@ import {
 import { generateCandles, generateCandlesByTimeframe, type MockTimeframeKey } from "../../test-data/financeSampleData";
 import { BTC_REAL_SAMPLE } from "../../test-data/btcRealSample";
 import type { AiSend } from "./candlestick/ai/interfaces/AiMessage.interface";
+import type { ChartWorkspaceProps } from "./ChartWorkspace";
 
 const meta: Meta<typeof CandlestickChart> = {
   title: "Charts/CandlestickChart",
@@ -39,9 +39,6 @@ const meta: Meta<typeof CandlestickChart> = {
 export default meta;
 type Story = StoryObj<typeof CandlestickChart>;
 
-// Generated once at module load (not inside `render`, which re-runs on every interaction) —
-// a real app would memoize its own data the same way rather than regenerate it per render.
-const MEDIUM_DATASET = generateCandles(2_500, 180, 44);
 const ALL_FEATURES_DATASET = generateCandles(600, 180, 66);
 // One candle series per timeframe (see TIMEFRAMES below) — the daily entry alone covers a full
 // ~10 years, the finer intraday ones their own shorter, realistic lookback windows (see
@@ -158,9 +155,6 @@ const CUSTOM_INDICATORS: CustomIndicatorDef[] = [
   },
 ];
 
-// Taller than the `height` prop's own default (380) — a more realistic size for these demos,
-// which otherwise felt cramped compared to how the chart gets used in a real dashboard.
-const STORY_HEIGHT = 640;
 
 const TIMEFRAMES: TimeframeEntry[] = [
   { group: "Minutes", options: [{ label: "1 minute", value: "1m" }, { label: "5 minutes", value: "5m" }, { label: "15 minutes", value: "15m" }] },
@@ -598,6 +592,72 @@ const TREND_INDICATOR_SCRIPT: ScriptDef[] = [
 
 const DEBUG_SCRIPTS: ScriptDef[] = [...KDE_DEBUG_SCRIPT, ...TREND_INDICATOR_SCRIPT, ...STRATEGY_DEBUG_SCRIPT];
 
+/** The assistant, wired to a scripted stand-in instead of a real model.
+ *
+ *  A story cannot hold an API key, and one that asked for yours would be a story nobody could run.
+ *  What it *can* do is prove the half this library owns: the button, the panel, the `/` menu, the
+ *  streaming transcript, and — the part worth seeing — the tool loop actually moving the chart.
+ *  The `send` below is a real `AiSend`: it answers with tool calls, reads their results back, and
+ *  finishes with a sentence, exactly as a model would. Swap it for `apiKey` (or your own `send`)
+ *  and nothing else changes. */
+const scriptedAssistant: AiSend = async function* (request) {
+  const lastUser = [...request.messages].reverse().find((m) => m.role === "user" && m.content.some((b) => b.type === "text"));
+  const question = lastUser?.content.map((b) => (b.type === "text" ? b.text : "")).join(" ") ?? "";
+  const alreadyRan = request.messages.some((m) => m.content.some((b) => b.type === "tool_result"));
+
+  const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+  const say = async function* (text: string) {
+    for (const word of text.split(" ")) {
+      await delay(18);
+      yield { type: "text_delta" as const, text: `${word} ` };
+    }
+  };
+
+  if (alreadyRan) {
+    yield* say("Voilà, c'est fait. Les résultats des outils sont dépliables au-dessus.");
+    yield { type: "done", stopReason: "end_turn" };
+    return;
+  }
+
+  if (/volume|sma|ema|indicateur/i.test(question)) {
+    yield* say("J'ajoute ça.");
+    yield { type: "tool_use", id: "t1", name: "afficher_le_volume", input: { visible: true } };
+    yield { type: "tool_use", id: "t2", name: "ajouter_un_indicateur", input: { kind: "sma", period: 20 } };
+    yield { type: "tool_use", id: "t3", name: "ajouter_un_indicateur", input: { kind: "ema", period: 50 } };
+    yield { type: "done", stopReason: "tool_use" };
+    return;
+  }
+  if (/canal|canaux/i.test(question)) {
+    yield* say("Je trace le canal sur la période demandée.");
+    yield { type: "tool_use", id: "t1", name: "tracer_un_canal", input: { debut: "01/01/2025", fin: "01/06/2025" } };
+    yield { type: "done", stopReason: "tool_use" };
+    return;
+  }
+  yield* say("Je regarde ce que montre le graphique.");
+  yield { type: "tool_use", id: "t1", name: "lire_le_graphique", input: {} };
+  yield { type: "done", stopReason: "tool_use" };
+};
+
+/** A real key, when the developer running Storybook has put one in `.env.local` as
+ *  `VITE_ANTHROPIC_API_KEY`. That file is gitignored and never read by the library itself — only by
+ *  these stories, and only in a dev server. Absent (the normal case, and the only case in CI), they
+ *  fall back to the scripted stand-in above, so the feature is still demonstrated. */
+const REAL_KEY = (import.meta.env?.VITE_ANTHROPIC_API_KEY as string | undefined) ?? undefined;
+/** Required only when that key belongs to an organisation rather than to a workspace — see the
+ *  `ai.workspaceId` prop. Absent for a workspace-scoped key, and nothing sends an empty header. */
+const REAL_WORKSPACE = (import.meta.env?.VITE_ANTHROPIC_WORKSPACE_ID as string | undefined) ?? undefined;
+
+/** The assistant, on every workspace in this file.
+ *
+ *  On *every* one deliberately: gating the button on a prop and then wiring that prop into a single
+ *  story is how a shipped feature stays invisible — the button is there, in the rail, in the story
+ *  nobody opens. It belongs wherever there is a chart to point it at. */
+// Pas exporté : dans un fichier de stories, chaque export est *lu comme une story*, et celui-ci
+// s'affichait dans la barre latérale sous le nom « STORY ASSISTANT ».
+const STORY_ASSISTANT: ChartWorkspaceProps["ai"] = REAL_KEY
+  ? { apiKey: REAL_KEY, workspaceId: REAL_WORKSPACE, serverTools: ["web_search"], symbols: ["AAPL", "MSFT", "NVDA"] }
+  : { send: scriptedAssistant, symbols: ["AAPL", "MSFT", "NVDA"] };
+
 export const AllFeatures: Story = {
   name: "Toutes les options",
   render: () => {
@@ -717,6 +777,7 @@ export const AllFeatures: Story = {
         <ChartWorkspace
           defaultPanels={1}
           scripting
+          ai={STORY_ASSISTANT}
           watchlists={watchlists}
           watchlistSymbolSearchResults={watchlistSearchResults}
           onWatchlistSymbolSearchChange={(query, category) => setWatchlistSearchResults(filterMockSymbols(query, category, []))}
@@ -797,215 +858,4 @@ export const AllFeatures: Story = {
       </div>
     );
   },
-};
-
-export const LargeDataset: Story = {
-  name: "Grand volume de données (2 500 bougies)",
-  render: () => (
-    <div style={{ padding: 24 }}>
-      <p style={{ fontSize: 13, opacity: 0.7, marginBottom: 8 }}>
-        2 500 bougies (~10 ans de séance). Les bougies, le volume, le crosshair et les lignes de dessin sont rendus
-        sur un seul <code>canvas</code> plutôt qu'un nœud SVG par bougie — zoom/pan/dessin restent fluides à cette
-        échelle. Molette ou glisser pour naviguer dans l'historique. S'ouvre sur les 500 dernières bougies par défaut
-        (`initialVisibleCandles`, appliqué une seule fois au montage) — "Réinitialiser le zoom" revient à cette même
-        vue initiale (pas tout l'historique dézoomé) ; pour voir les 2 500, dézoomer manuellement.
-      </p>
-      <CandlestickChart data={MEDIUM_DATASET} symbol="GOOGL" drawingTools timeframes={TIMEFRAMES} timeframe="1d" height={STORY_HEIGHT} />
-    </div>
-  ),
-};
-
-// 15 real seconds per candle (not a genuine "1m"/"5m" interval) purely so the countdown-to-
-// next-candle and a real new candle forming are both watchable within a normal Storybook
-// session instead of requiring several real minutes of patience.
-const LIVE_INTERVAL_MS = 15_000;
-
-function generateLiveSeed(count: number, start: number): Candle[] {
-  const candles: Candle[] = [];
-  let close = start;
-  const now = Date.now();
-  for (let i = count - 1; i >= 0; i--) {
-    const date = new Date(now - i * LIVE_INTERVAL_MS);
-    const open = close;
-    const change = (Math.random() - 0.5) * (start * 0.006);
-    close = Math.max(1, open + change);
-    const high = Math.max(open, close) + Math.random() * (start * 0.002);
-    const low = Math.min(open, close) - Math.random() * (start * 0.002);
-    candles.push({ date, open, high, low, close, volume: Math.round(Math.random() * 50_000) });
-  }
-  return candles;
-}
-
-export const LiveMarket: Story = {
-  name: "Marché ouvert (simulation)",
-  render: () => {
-    const [data, setData] = useState<Candle[]>(() => generateLiveSeed(120, 180));
-
-    // Every real second: either nudges the still-forming last candle's close (extending its
-    // high/low if this tick pushed past either), or — once LIVE_INTERVAL_MS has actually
-    // elapsed since it opened — closes it and starts a brand new one. This is the *story*
-    // simulating a live feed; the component itself has no polling/simulation of its own, it
-    // only ever renders whatever `data` it's given.
-    useEffect(() => {
-      const id = setInterval(() => {
-        setData((prev) => {
-          const last = prev[prev.length - 1];
-          const change = (Math.random() - 0.5) * (last.close * 0.004);
-          if (Date.now() - last.date.getTime() >= LIVE_INTERVAL_MS) {
-            const open = last.close;
-            const close = Math.max(1, open + change);
-            const next: Candle = {
-              date: new Date(last.date.getTime() + LIVE_INTERVAL_MS),
-              open,
-              close,
-              high: Math.max(open, close),
-              low: Math.min(open, close),
-              volume: Math.round(Math.random() * 50_000),
-            };
-            return [...prev, next];
-          }
-          const close = Math.max(1, last.close + change);
-          const updated: Candle = {
-            ...last,
-            close,
-            high: Math.max(last.high, close),
-            low: Math.min(last.low, close),
-            volume: (last.volume ?? 0) + Math.round(Math.random() * 500),
-          };
-          return [...prev.slice(0, -1), updated];
-        });
-      }, 1000);
-      return () => clearInterval(id);
-    }, []);
-
-    return (
-      <div style={{ padding: 24 }}>
-        <p style={{ fontSize: 13, opacity: 0.7, marginBottom: 8 }}>
-          `data` change toutes les secondes ici, uniquement pour la démo — la bibliothèque elle-même ne simule
-          rien, elle se contente d'afficher ce qu'on lui passe. `livePrice` affiche une ligne pointillée sur le
-          close de la dernière bougie, sa valeur sur l'axe Y (verte/rouge selon le sens depuis la clôture
-          précédente) et, juste en dessous, un <strong>compte à rebours</strong> vers la prochaine bougie —
-          l'intervalle est déduit de l'écart entre les deux dernières bougies (pas une prop séparée) : à 5 minutes
-          il compterait de 05:00 à 00:00, ici (15 secondes par bougie, pour rester regardable) de 00:15 à 00:00,
-          avant qu'une vraie nouvelle bougie apparaisse.
-        </p>
-        <CandlestickChart data={data} symbol="LIVE" livePrice showVolume height={STORY_HEIGHT} />
-      </div>
-    );
-  },
-};
-
-// Real BTC/USDT 15-minute candles (Binance historical klines, May 2026 — see btcRealSample.ts's
-// own doc), not a generated series — for checking a script's own output (originally "Niveaux de
-// support/résistance (KDE gaussienne)") against real market structure. Reuses KDE_DEBUG_SCRIPT
-// (the exact same SCRIPT_EXAMPLES source "Toutes les options" already pre-loads) so both stories
-// stay in sync with the example itself rather than drifting apart.
-//
-// The one story that turns the KDE script on, and it says so here rather than inheriting it: the
-// fixture ships it disabled (see its own note), because everywhere else a profile nobody asked for
-// is just something covering the candles. Here, watching it run against real market structure is
-// the entire point.
-const KDE_ENABLED: ScriptDef[] = KDE_DEBUG_SCRIPT.map((script) =>
-  script.id === "debug-kde" ? { ...script, enabled: true } : script,
-);
-
-export const BtcRealSample: Story = {
-  name: "Données BTC réelles (test KDE)",
-  render: () => (
-    <div style={{ margin: -32 }}>
-      <ChartWorkspace defaultPanels={1} scripting defaultScripts={KDE_ENABLED}>
-        <CandlestickChart data={BTC_REAL_SAMPLE} symbol="BTCUSDT" zoomable drawingTools showVolume showIndicators replay />
-      </ChartWorkspace>
-    </div>
-  ),
-};
-
-/** The strategy tester, on real data — the fastest way to see a `@strategy` script produce an
- *  equity curve, a trade list and its own docked panel without writing one first. */
-export const StrategyTester: Story = {
-  name: "Testeur de stratégie",
-  render: () => (
-    <div style={{ margin: -32 }}>
-      <ChartWorkspace defaultPanels={1} scripting defaultScripts={STRATEGY_DEBUG_SCRIPT}>
-        <CandlestickChart data={BTC_REAL_SAMPLE} symbol="BTCUSDT" zoomable drawingTools showVolume showIndicators replay />
-      </ChartWorkspace>
-    </div>
-  ),
-};
-
-/** The assistant, wired to a scripted stand-in instead of a real model.
- *
- *  A story cannot hold an API key, and one that asked for yours would be a story nobody could run.
- *  What it *can* do is prove the half this library owns: the button, the panel, the `/` menu, the
- *  streaming transcript, and — the part worth seeing — the tool loop actually moving the chart.
- *  The `send` below is a real `AiSend`: it answers with tool calls, reads their results back, and
- *  finishes with a sentence, exactly as a model would. Swap it for `apiKey` (or your own `send`)
- *  and nothing else changes. */
-const scriptedAssistant: AiSend = async function* (request) {
-  const lastUser = [...request.messages].reverse().find((m) => m.role === "user" && m.content.some((b) => b.type === "text"));
-  const question = lastUser?.content.map((b) => (b.type === "text" ? b.text : "")).join(" ") ?? "";
-  const alreadyRan = request.messages.some((m) => m.content.some((b) => b.type === "tool_result"));
-
-  const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
-  const say = async function* (text: string) {
-    for (const word of text.split(" ")) {
-      await delay(18);
-      yield { type: "text_delta" as const, text: `${word} ` };
-    }
-  };
-
-  if (alreadyRan) {
-    yield* say("Voilà, c'est fait. Les résultats des outils sont dépliables au-dessus.");
-    yield { type: "done", stopReason: "end_turn" };
-    return;
-  }
-
-  if (/volume|sma|ema|indicateur/i.test(question)) {
-    yield* say("J'ajoute ça.");
-    yield { type: "tool_use", id: "t1", name: "afficher_le_volume", input: { visible: true } };
-    yield { type: "tool_use", id: "t2", name: "ajouter_un_indicateur", input: { kind: "sma", period: 20 } };
-    yield { type: "tool_use", id: "t3", name: "ajouter_un_indicateur", input: { kind: "ema", period: 50 } };
-    yield { type: "done", stopReason: "tool_use" };
-    return;
-  }
-  if (/canal|canaux/i.test(question)) {
-    yield* say("Je trace le canal sur la période demandée.");
-    yield { type: "tool_use", id: "t1", name: "tracer_un_canal", input: { debut: "01/01/2025", fin: "01/06/2025" } };
-    yield { type: "done", stopReason: "tool_use" };
-    return;
-  }
-  yield* say("Je regarde ce que montre le graphique.");
-  yield { type: "tool_use", id: "t1", name: "lire_le_graphique", input: {} };
-  yield { type: "done", stopReason: "tool_use" };
-};
-
-/** A real key, when the developer running Storybook has put one in `.env.local` as
- *  `VITE_ANTHROPIC_API_KEY`. That file is gitignored and never read by the library itself — only by
- *  this story, and only in a dev server. Absent (the normal case, and the only case in CI), the
- *  story falls back to the scripted stand-in above, so it still demonstrates the whole feature. */
-const REAL_KEY = (import.meta.env?.VITE_ANTHROPIC_API_KEY as string | undefined) ?? undefined;
-/** Required only when that key belongs to an organisation rather than to a workspace — see the
- *  `ai.workspaceId` prop. Absent for a workspace-scoped key, and nothing sends an empty header. */
-const REAL_WORKSPACE = (import.meta.env?.VITE_ANTHROPIC_WORKSPACE_ID as string | undefined) ?? undefined;
-
-export const AiAssistant: Story = {
-  name: "Assistant IA",
-  render: () => (
-    <div style={{ margin: -32 }}>
-      <ChartWorkspace
-        defaultPanels={1}
-        scripting
-        defaultScripts={STRATEGY_DEBUG_SCRIPT}
-        // On the workspace, not on the chart: the assistant's button belongs on the workspace's own
-        // right-hand rail, beside the watchlist and the script editor.
-        ai={
-          REAL_KEY
-            ? { apiKey: REAL_KEY, workspaceId: REAL_WORKSPACE, serverTools: ["web_search"], symbols: ["AAPL", "MSFT", "NVDA"] }
-            : { send: scriptedAssistant, symbols: ["AAPL", "MSFT", "NVDA"] }
-        }
-      >
-        <CandlestickChart data={BTC_REAL_SAMPLE} symbol="BTCUSDT" zoomable drawingTools showVolume showIndicators />
-      </ChartWorkspace>
-    </div>
-  ),
 };

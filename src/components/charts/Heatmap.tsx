@@ -15,7 +15,12 @@ export interface HeatmapTile {
    *  than `value` (e.g. % change vs. market cap, the classic stock-heatmap pairing), so kept
    *  separate rather than reusing `value` for both. */
   colorValue: number;
+  /** The company's logo, as a URL — whatever the market-data provider serves alongside the quote.
+   *  Drawn as a 20px disc above the label. A URL that fails to load (offline, blocked, 404 for a
+   *  ticker the provider does not know) falls back to `logoColor` rather than leaving a hole. */
   logoUrl?: string;
+  /** Flat color for the disc when there is no `logoUrl`, or when it fails to load. Defaults to the
+   *  muted text color, which reads as "no logo" rather than as a company's own color. */
   logoColor?: string;
   /** Shown inside the tile itself, under the label (e.g. "+1.24%") — purely display text, not
    *  read for sizing/coloring (see `value`/`colorValue` for those). Falls back to `colorValue`
@@ -210,6 +215,13 @@ export function Heatmap({ groups, width = 900, height = 560, colorDomain = [-3, 
   const [focusedGroupId, setFocusedGroupId] = useState<string | null>(null);
   const [hovered, setHovered] = useState<{ node: PositionedNode; x: number; y: number } | null>(null);
   const [hoveredGroupId, setHoveredGroupId] = useState<string | null>(null);
+  /* Tiles whose `logoUrl` did not load. Kept here rather than in each tile because the tiles are
+     re-created on every layout pass (the treemap recomputes on resize, hover and drill-down), so
+     state living inside one would be lost each time and the failed request retried forever. */
+  const [brokenLogos, setBrokenLogos] = useState<ReadonlySet<string>>(() => new Set());
+  const markLogoBroken = useCallback((id: string) => {
+    setBrokenLogos((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
+  }, []);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   // Kept as state as well as a ref: `useTileMixer` has to re-run when the node first attaches, and
   // a ref assignment alone never re-renders.
@@ -368,7 +380,12 @@ export function Heatmap({ groups, width = 900, height = 560, colorDomain = [-3, 
                       height={Math.max(0, node.y1 - node.y0)}
                       fill={tileColor(node.tile.colorValue, colorDomain)}
                     />
-                    <HeatmapTileContent node={node} labelColor={labelColorFor(node.tile.colorValue, colorDomain)} />
+                    <HeatmapTileContent
+                      node={node}
+                      labelColor={labelColorFor(node.tile.colorValue, colorDomain)}
+                      logoBroken={brokenLogos.has(node.tile.id)}
+                      onLogoError={markLogoBroken}
+                    />
                   </g>
                 )
               )
@@ -410,7 +427,17 @@ export function Heatmap({ groups, width = 900, height = 560, colorDomain = [-3, 
 // same two-line check for every single tile.
 const MIN_LABEL_WIDTH = 40;
 const MIN_LABEL_HEIGHT = 28;
-function HeatmapTileContent({ node, labelColor }: { node: PositionedNode; labelColor: string }) {
+function HeatmapTileContent({
+  node,
+  labelColor,
+  logoBroken,
+  onLogoError,
+}: {
+  node: PositionedNode;
+  labelColor: string;
+  logoBroken: boolean;
+  onLogoError: (id: string) => void;
+}) {
   const tile = node.tile;
   if (!tile) return null;
   const w = node.x1 - node.x0;
@@ -422,8 +449,16 @@ function HeatmapTileContent({ node, labelColor }: { node: PositionedNode; labelC
   return (
     <g className="lq-heatmap__tile-content" pointerEvents="none" fill={labelColor}>
       {showLogo &&
-        (tile.logoUrl ? (
-          <image href={tile.logoUrl} x={cx - 10} y={cy - h / 4 - 10} width={20} height={20} clipPath="circle(10px)" />
+        (tile.logoUrl !== undefined && !logoBroken ? (
+          <image
+            href={tile.logoUrl}
+            x={cx - 10}
+            y={cy - h / 4 - 10}
+            width={20}
+            height={20}
+            clipPath="circle(10px)"
+            onError={() => onLogoError(tile.id)}
+          />
         ) : (
           <circle cx={cx} cy={cy - h / 4} r={10} fill={tile.logoColor ?? "var(--lq-color-text-muted)"} />
         ))}

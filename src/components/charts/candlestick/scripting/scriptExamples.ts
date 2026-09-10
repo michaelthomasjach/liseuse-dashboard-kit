@@ -32,11 +32,14 @@ export const SCRIPT_EXAMPLES: ScriptExample[] = [
     code: `@report
 @description "Analyse fondamentale : croissance, rentabilité,investissement, avantage concurrentiel."
 
-// Quatre exercices, lus en remontant : company.value(champ, décalage) renvoie ce que l'entreprise
-// avait publié il y a N bougies. 252 séances ≈ un an.
-const AN = 252;
-const exercices = [3, 2, 1, 0];
-const lire = (champ, i) => company.value(champ, exercices[i] * AN);
+// Quatre exercices, lus en remontant. company.value(champ, décalage) renvoie ce que l'entreprise
+// avait publié il y a N bougies — les décalages se déduisent donc de l'historique réellement
+// disponible, jamais d'un « 252 séances = un an » qui tombe dans le vide dès que la chart est plus
+// courte que ce qu'on suppose.
+const historique = market.series("close").length;
+const exercices = [0, 1, 2, 3];
+const decalage = (i) => Math.floor((historique - 1) * ((3 - i) / 4));
+const lire = (champ, i) => company.value(champ, decalage(i));
 const md = (v) => (v === null ? null : +(v / 1e9).toFixed(2));
 const pct = (v) => (v === null ? null : v.toFixed(1) + " %");
 
@@ -57,7 +60,7 @@ report.metrics([
 report.heading("Compte de résultat");
 report.table(
   ["Exercice", "CA", "Résultat net", "Marge nette", "Impôt", "Taux effectif"],
-  exercices.map((_, i) => [
+  exercices.map((i) => [
     "N-" + (3 - i),
     md(lire("totalRevenue", i)),
     md(lire("netIncome", i)),
@@ -73,12 +76,12 @@ report.heading("Investissement et trésorerie");
 report.text(
   "Le CAPEX dit ce qu'il en coûte de maintenir la position ; le flux de trésorerie disponible dit ce qu'il en reste."
 );
-const etiquettes = exercices.map((_, i) => "N-" + (3 - i));
-report.series("CAPEX", etiquettes, exercices.map((_, i) => md(lire("capex", i))), { unit: "Md" });
+const etiquettes = exercices.map((i) => "N-" + (3 - i));
+report.series("CAPEX", etiquettes, exercices.map((i) => md(lire("capex", i))), { unit: "Md" });
 report.series(
   "Flux de trésorerie disponible",
   etiquettes,
-  exercices.map((_, i) => {
+  exercices.map((i) => {
     const flux = lire("operatingCashFlow", i);
     const capex = lire("capex", i);
     return flux === null || capex === null ? null : md(flux - capex);

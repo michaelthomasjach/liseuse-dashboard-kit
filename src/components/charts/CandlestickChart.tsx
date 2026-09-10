@@ -987,10 +987,21 @@ export function CandlestickChart({
     nextDrawingId: () => `drawing-${drawingIdRef.current++}`,
     scripts: scriptingState.scripts,
     runOutputs: scriptingState.runOutputs,
-    addScript: (name, code) => scriptingState.addScript(name, code, { named: true }),
+    // `targetPanelIndex` at creation time, never as a follow-up: inside a `ChartWorkspace` each
+    // panel is handed only the scripts that target it (see panelScriptingProps), so a script
+    // created without one belongs to no panel and never runs. Taken from whichever panel this
+    // chart already is — the assistant writes for the chart it was asked from.
+    // Through the caller's own `onCreateScript` when there is one — that is the seam that knows
+    // which panel this chart is, and stamps `targetPanelIndex` accordingly. Without it a script
+    // created inside a workspace belongs to no panel and never runs. Falls back to this chart's own
+    // list for a standalone chart, where there is only one panel and nothing to stamp.
+    addScript: (name, code) => onCreateScript?.(name, code) ?? scriptingState.addScript(name, code, { named: true }),
     updateScript: (id, code) => scriptingState.updateScript(id, { code }),
+    // Through `currentScripts()`, not the render's own `scripts`: the assistant creates a script
+    // and runs it in one synchronous call, and reading the stale list here is what used to delete
+    // the script it had just written (and revert the edit it had just made).
     runScript: (id) => {
-      const script = scriptingState.scripts.find((s) => s.id === id);
+      const script = scriptingState.currentScripts().find((s) => s.id === id);
       scriptingState.runScript(id, script?.code ?? "", script?.files);
     },
     onTimeframeChange,

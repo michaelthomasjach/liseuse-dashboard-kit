@@ -1,4 +1,5 @@
 import type { Candle } from "../interfaces/Candle.interface";
+import type { FundamentalDataPoint } from "../interfaces/FundamentalDataPoint.interface";
 
 // Same generator as scriptTutorialSampleData.ts's own mulberry32/generateTutorialCandles —
 // duplicated rather than imported for the exact same reason that file's own doc gives (this is a
@@ -52,3 +53,37 @@ function generateExampleCandles(count: number, start: number, seed: number): Can
  *  good deal more than that on top — 260 gives ~60 candles of room once SMA 200 first turns
  *  non-null. Every other example's own periods (20-60) fit comfortably within this too. */
 export const SCRIPT_EXAMPLE_DATA: Candle[] = generateExampleCandles(260, 180, 42);
+
+/** Four reported years, for the `@report` example.
+ *
+ *  A report reads what a company published, and the documentation has no data source of its own —
+ *  without these, `company.value("capex")` and the rest are null everywhere and the example prints
+ *  a document of dashes, which teaches nothing about what a report can say. Made up, obviously, and
+ *  shaped like a business that is growing while keeping its margins: that is the case the example's
+ *  own commentary discusses.
+ *
+ *  Dated off `SCRIPT_EXAMPLE_DATA`'s own span so the forward-fill lands inside the demo history
+ *  rather than before it — a report positioned at the last bar has to find something behind it. */
+export const SCRIPT_EXAMPLE_FUNDAMENTALS: FundamentalDataPoint[] = [
+  { revenue: 90e9, income: 18e9, capex: 7.0e9, cash: 26e9, tax: 4.1e9, rate: 18.5, roic: 21.4, margin: 20.0 },
+  { revenue: 105e9, income: 23e9, capex: 8.2e9, cash: 31e9, tax: 5.2e9, rate: 18.4, roic: 23.8, margin: 21.9 },
+  { revenue: 121e9, income: 27e9, capex: 9.1e9, cash: 36e9, tax: 6.0e9, rate: 18.2, roic: 25.1, margin: 22.3 },
+  { revenue: 138e9, income: 32e9, capex: 10.4e9, cash: 42e9, tax: 7.3e9, rate: 18.6, roic: 27.3, margin: 23.2 },
+].map((year, i, all) => ({
+  // Evenly spread across the demo history, the most recent landing well before its last bar.
+  date: SCRIPT_EXAMPLE_DATA[Math.floor((SCRIPT_EXAMPLE_DATA.length - 1) * ((i + 0.5) / all.length))].date,
+  totalRevenue: year.revenue,
+  netIncome: year.income,
+  netMargin: year.margin,
+  grossMargin: year.margin + 24,
+  capex: year.capex,
+  operatingCashFlow: year.cash,
+  taxExpense: year.tax,
+  effectiveTaxRate: year.rate,
+  returnOnInvestedCapital: year.roic,
+  returnOnEquity: year.roic + 6,
+  totalEquity: year.income * 5,
+  totalDebt: year.revenue * 0.35,
+  eps: year.income / 15e9,
+  sharesOutstanding: 15e9,
+}));

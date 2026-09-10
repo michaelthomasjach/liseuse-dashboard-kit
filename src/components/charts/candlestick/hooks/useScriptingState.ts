@@ -88,7 +88,24 @@ export function useScriptingState({ defaultScripts, onScriptsChange, controlledE
   const [runOutputs, setRunOutputs] = useState<Record<string, ScriptRunOutput>>({});
   const scriptIdRef = useRef(0);
 
+  /** The committed list, current *within the tick*.
+   *
+   *  `scripts` is state (or a controlled prop), so it only changes at the next render — fine for a
+   *  person, who cannot click twice inside one tick, and wrong for anything that acts in a batch.
+   *  The assistant does exactly that: `ecrire_un_script` adds a script and runs it in one
+   *  synchronous call, and `runScript` rebuilt the list from the render's own `scripts` — which did
+   *  not contain the script that had just been added, so creating it and running it in one breath
+   *  *deleted* it. The same shape reverted an edit: update-then-run put the pre-edit code back.
+   *
+   *  Mirrored here rather than resolved with a `setState` updater because the caller's own
+   *  `onScriptsChange` has to be told the new list too, and reaching outside is not something an
+   *  updater may do. Same fix as `indicatorsRef` in usePaneLayout and `drawingsRef` in
+   *  useDrawingState. */
+  const scriptsRef = useRef(scripts);
+  scriptsRef.current = scripts;
+
   function commitScripts(next: ScriptDef[]) {
+    scriptsRef.current = next;
     if (controlledScripts) {
       controlledScripts.onChange(next);
       return;
@@ -96,6 +113,10 @@ export function useScriptingState({ defaultScripts, onScriptsChange, controlledE
     setInternalScripts(next);
     onScriptsChange?.(next);
   }
+
+  /** The scripts as they stand right now — what anything building `next` from the current list
+   *  must read instead of the `scripts` its own render closed over. */
+  const currentScripts = useCallback(() => scriptsRef.current, []);
 
   // `code` is a plain parameter (not a separate follow-up updateScript call) deliberately — a
   // caller adding a script and setting its initial content in the same synchronous handler would
@@ -106,7 +127,7 @@ export function useScriptingState({ defaultScripts, onScriptsChange, controlledE
   // (see that file's own per-panel `scripts` filter) and so never runs.
   function addScript(name = "Nouveau script", code = "", rest?: Partial<Omit<ScriptDef, "id" | "name" | "code">>): string {
     const id = `script-${scriptIdRef.current++}`;
-    commitScripts([...scripts, { id, name, code, enabled: true, ...rest }]);
+    commitScripts([...scriptsRef.current, { id, name, code, enabled: true, ...rest }]);
     setRawOpenScriptIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
     setActiveScriptId(id);
     setEditorOpen(true);
@@ -114,7 +135,8 @@ export function useScriptingState({ defaultScripts, onScriptsChange, controlledE
   }
 
   function updateScript(id: string, patch: Partial<Omit<ScriptDef, "id">>) {
-    commitScripts(scripts.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+    commitScripts(
+      scriptsRef.current.map((s) => (s.id === id ? { ...s, ...patch } : s)));
   }
 
   /** Keeps a `@quant` run on its own script, newest first — see `ScriptDef.quantRuns`.
@@ -124,7 +146,7 @@ export function useScriptingState({ defaultScripts, onScriptsChange, controlledE
    *  rather than a live reading. Capped so a script that is run and kept every day does not grow
    *  without bound in whatever the caller persists these to. */
   function saveQuantRun(id: string, rows: QuantSymbolResult[], ranAt: number, label?: string) {
-    const script = scripts.find((s) => s.id === id);
+    const script = scriptsRef.current.find((s) => s.id === id);
     if (!script) return;
     const run: QuantSavedRun = { id: `quant-${ranAt}-${Math.random().toString(36).slice(2, 8)}`, ranAt, label, rows };
     updateScript(id, { quantRuns: [run, ...(script.quantRuns ?? [])].slice(0, MAX_SAVED_QUANT_RUNS) });
@@ -132,7 +154,7 @@ export function useScriptingState({ defaultScripts, onScriptsChange, controlledE
 
   /** Drops one kept run. */
   function removeQuantRun(id: string, runId: string) {
-    const script = scripts.find((s) => s.id === id);
+    const script = scriptsRef.current.find((s) => s.id === id);
     if (!script) return;
     updateScript(id, { quantRuns: (script.quantRuns ?? []).filter((r) => r.id !== runId) });
   }
@@ -180,7 +202,7 @@ export function useScriptingState({ defaultScripts, onScriptsChange, controlledE
   }, []);
 
   function removeScript(id: string) {
-    commitScripts(scripts.filter((s) => s.id !== id));
+    commitScripts(scriptsRef.current.filter((s) => s.id !== id));
     setRawOpenScriptIds((prev) => prev.filter((x) => x !== id));
     setDrafts((prev) => {
       if (!(id in prev)) return prev;
@@ -202,11 +224,13 @@ export function useScriptingState({ defaultScripts, onScriptsChange, controlledE
    *  *inside* the run (see buildStrategyApi), so there is no separate simulation to refresh — a
    *  changed commission is a different run, not a different view of the same one. */
   function setStrategySettings(id: string, settings: StrategySettings) {
-    commitScripts(scripts.map((s) => (s.id === id ? { ...s, strategySettings: settings } : s)));
+    commitScripts(
+      scriptsRef.current.map((s) => (s.id === id ? { ...s, strategySettings: settings } : s)));
   }
 
   function toggleScriptEnabled(id: string) {
-    commitScripts(scripts.map((s) => (s.id === id ? { ...s, enabled: s.enabled === false } : s)));
+    commitScripts(
+      scriptsRef.current.map((s) => (s.id === id ? { ...s, enabled: s.enabled === false } : s)));
   }
 
   // The editor's own Run button — executes `code` (the editor's current draft buffer, which may
@@ -219,7 +243,7 @@ export function useScriptingState({ defaultScripts, onScriptsChange, controlledE
   // they want running.
   function runScript(id: string, code: string, files?: ScriptFile[]) {
     commitScripts(
-      scripts.map((s) =>
+      scriptsRef.current.map((s) =>
         s.id === id ? { ...s, enabled: true, runRequestId: (s.runRequestId ?? 0) + 1, runDraftCode: code, runDraftFiles: files } : s
       )
     );
@@ -233,7 +257,7 @@ export function useScriptingState({ defaultScripts, onScriptsChange, controlledE
   // a call reaches here the edit has already settled.
   function setScriptParamValue(id: string, name: string, value: ScriptParamValue) {
     commitScripts(
-      scripts.map((s) =>
+      scriptsRef.current.map((s) =>
         s.id === id ? { ...s, paramValues: { ...(s.paramValues ?? {}), [name]: value }, runRequestId: (s.runRequestId ?? 0) + 1 } : s
       )
     );
@@ -242,7 +266,8 @@ export function useScriptingState({ defaultScripts, onScriptsChange, controlledE
   // Drops every stored value for one script, so each parameter falls back to the default written in
   // its own declaration (see ScriptDef.paramValues' own doc) — same re-run on the way out.
   function resetScriptParamValues(id: string) {
-    commitScripts(scripts.map((s) => (s.id === id ? { ...s, paramValues: {}, runRequestId: (s.runRequestId ?? 0) + 1 } : s)));
+    commitScripts(
+      scriptsRef.current.map((s) => (s.id === id ? { ...s, paramValues: {}, runRequestId: (s.runRequestId ?? 0) + 1 } : s)));
   }
 
   // The editor's own Stop button — terminates that script's own in-flight Worker (via
@@ -250,7 +275,8 @@ export function useScriptingState({ defaultScripts, onScriptsChange, controlledE
   // stopping, which wouldn't preempt an actual infinite loop: a Worker only starts processing a
   // *new* postMessage once whatever it's currently running finishes on its own.
   function stopScript(id: string) {
-    commitScripts(scripts.map((s) => (s.id === id ? { ...s, stopRequestId: (s.stopRequestId ?? 0) + 1 } : s)));
+    commitScripts(
+      scriptsRef.current.map((s) => (s.id === id ? { ...s, stopRequestId: (s.stopRequestId ?? 0) + 1 } : s)));
   }
 
   const reportRunOutput = useCallback((id: string, output: ScriptRunOutput) => {
@@ -313,6 +339,7 @@ export function useScriptingState({ defaultScripts, onScriptsChange, controlledE
     removeScript,
     toggleScriptEnabled,
     setStrategySettings,
+    currentScripts,
     saveQuantRun,
     removeQuantRun,
     editorOpen,

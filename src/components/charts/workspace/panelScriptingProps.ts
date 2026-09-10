@@ -52,9 +52,9 @@ export function panelScriptingProps(
     // creation time (not a follow-up updateScript, see addScript's own doc on the stale closure
     // that would be) points it at the panel the user was actually looking at, so it runs there
     // immediately instead of sitting untargeted until they pick a chart in the editor's "Cible".
-    onCreateScript: (name: string, code: string) => {
-      scripting.addScript(name, code, { targetPanelIndex: panelIndex });
-    },
+    // Returns the new id, so a caller that has to act on the script it just asked for — the
+    // assistant, which runs it and opens it — can, instead of guessing which one it was.
+    onCreateScript: (name: string, code: string) => scripting.addScript(name, code, { targetPanelIndex: panelIndex }),
     // The picker's own trash button on a "Mes scripts" row, after its confirmation modal.
     // Deliberately the *workspace's* own removeScript, not the panel's own (which would work on
     // the list all the same, routing back up through onScriptsChange): only this one also clears

@@ -53,3 +53,35 @@
   color: var(--lq-color-text-muted);
   margin-bottom: var(--lq-space-1);
 }
+
+/* Ce qu'une analyse @quant ou un rapport @report produit, à la place du graphique qu'ils ne
+   dessinent pas — voir le commentaire dans ScriptExampleRunner.tsx. */
+.lq-script-example__result {
+  border: 1px solid var(--lq-color-border-subtle);
+  border-radius: var(--lq-radius-sm);
+  padding: var(--lq-space-3);
+  background-color: var(--lq-color-surface);
+  overflow-x: auto;
+}
+
+.lq-script-example__result-row {
+  display: flex;
+  gap: var(--lq-space-2);
+  align-items: baseline;
+  min-width: 0;
+}
+
+.lq-script-example__result-symbol {
+  font-weight: 700;
+  font-size: var(--lq-font-size-xs);
+  letter-spacing: 0.04em;
+  flex: 0 0 auto;
+}
+
+.lq-script-example__result-row pre {
+  margin: 0;
+  font-family: var(--lq-font-mono);
+  font-size: var(--lq-font-size-xs);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

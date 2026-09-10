@@ -1,6 +1,7 @@
 import type { Preview } from "@storybook/react";
 import { LqThemeProvider } from "../src/theme";
 import type { LqFont, LqPalette, LqSurface } from "../src/theme";
+import { PrimitiveLinks } from "./PrimitiveLinks";
 
 export const globalTypes = {
   lqPalette: {
@@ -68,6 +69,7 @@ const preview: Preview = {
       return (
         <LqThemeProvider palette={palette} surface={surface} font={font}>
           <div style={{ minHeight: "100vh", padding: "32px", backgroundColor: "var(--lq-color-bg)" }}>
+            <PrimitiveLinks title={context.title} />
             <Story />
           </div>
         </LqThemeProvider>

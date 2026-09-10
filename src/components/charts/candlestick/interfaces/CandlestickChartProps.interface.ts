@@ -401,7 +401,7 @@ export interface CandlestickChartProps {
    *  `onEditScript` above: this chart owns no editor, so creating the script and focusing it is the
    *  caller's job, and omitting this hides the button rather than offering a dead one. `code` is
    *  the snippet as displayed; `name` is the indicator's own catalog label. */
-  onCreateScript?: (name: string, code: string) => void;
+  onCreateScript?: (name: string, code: string) => string | void;
   /** Fires when the user confirms deleting a script from the "Mes scripts" section of "Ajouter un
    *  indicateur". Same reasoning as `onEditScript`/`onCreateScript` above — the script list belongs
    *  to whoever owns the editor, not to this chart, so deleting one is that caller's job and

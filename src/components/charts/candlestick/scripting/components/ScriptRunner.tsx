@@ -1,4 +1,5 @@
-import { analyzeScriptVariables, applyScriptParams } from "../scriptVariables";
+import { analyzeScriptVariables } from "../scriptVariables";
+import { withScriptParams, withScriptParamsForFiles } from "../prepareScriptCode";
 import { stripScriptDescription } from "../scriptDescription";
 import { stripScriptBlocks } from "../scriptBlocks";
 import { analyzeScriptKind, stripScriptKind } from "../scriptKind";
@@ -47,31 +48,6 @@ export interface ScriptRunnerProps {
  *  the rules of hooks forbid calling one a variable number of times in a loop. Mounting/unmounting
  *  a component per script sidesteps that entirely — each gets its own independent Worker, matching
  *  the approved plan's own "one Worker per enabled script" design. Renders nothing. */
-/** The code actually handed to the engine: every `const NAME = new Variable(type, default)` in the
- *  source swapped for the value the settings currently hold (see `applyScriptParams`). Resolved at
- *  each run rather than once when the script is saved, so a parameter change — which re-runs
- *  without touching the code — picks up the new value, and so does an edit that moves a default.
- *  `Variable` itself is never injected into the sandbox: by the time anything compiles, no call to
- *  it is left. */
-function withParams(source: string, paramValues: ScriptDef["paramValues"]): string {
-  // `@description "…"` isn't JavaScript, so it has to go before anything compiles — same reasoning
-  // as the parameters below it, and the same line-count-preserving removal.
-  // Both keywords are read from the source text and then removed: neither is valid JavaScript, so
-  // what actually gets compiled must contain neither. Blocks first or description first makes no
-  // difference — each blanks its own lines in place and leaves every other line's number alone.
-  const code = stripScriptKind(stripScriptBlocks(stripScriptDescription(source)));
-  const { params } = analyzeScriptVariables(code);
-  return applyScriptParams(code, params, paramValues);
-}
-
-/** The same substitution applied to every extra file of a multi-file script. A file declares its
- *  own parameters exactly like the entry does, and reads the same `paramValues` — so a value set
- *  once in the settings reaches whichever file actually declares it. */
-function filesWithParams(files: ScriptDef["files"], paramValues: ScriptDef["paramValues"]): { name: string; code: string }[] | undefined {
-  if (!files || files.length === 0) return undefined;
-  return files.map((file) => ({ name: file.name, code: withParams(file.code, paramValues) }));
-}
-
 /** `DEBOUNCE_MS`'s own resolved value, if this script declares one — see useScriptEngine's own
  *  `debounceMs` doc for why this one specific name is read here instead of only ever being
  *  substituted into the compiled source like every other declared parameter. `undefined` (no such
@@ -87,11 +63,22 @@ function resolveDebounceMs(code: string, paramValues: ScriptDef["paramValues"]):
 }
 
 export function ScriptRunner({ script, data, indicators, fundamentals, lastCandleOpen, availableTimeframes, runUpToIndex, symbol, quantData, ai, onOutput, onAlert }: ScriptRunnerProps) {
-  const debounceMs = useMemo(() => resolveDebounceMs(script.code, script.paramValues), [script.code, script.paramValues]);
+  const debounceMs = useMemo(
+    () => resolveDebounceMs(script.runDraftCode ?? script.code, script.paramValues),
+    [script.runDraftCode, script.code, script.paramValues],
+  );
   // Settings are handed over only when the script actually declared itself a strategy. That is what
   // withholds the `strategy.*` API from an indicator (runScript builds it from these or not at
   // all), so the decorator isn't merely descriptive — it gates the capability.
-  const kindAnalysis = useMemo(() => analyzeScriptKind(script.code), [script.code]);
+  /** What the script *about to run* declares itself to be.
+   *
+   *  Read from the draft when there is one, not from the saved `code`: "Exécuter" runs
+   *  `runDraftCode` (see the effect below), so reading the saved copy meant a freshly typed
+   *  `@quant` ran down the indicator path — with `plot.*` not blocked at all, which is precisely
+   *  the guarantee the decorator is supposed to give. The kind and the code that runs have to come
+   *  from the same text. */
+  const runningCode = script.runDraftCode ?? script.code;
+  const kindAnalysis = useMemo(() => analyzeScriptKind(runningCode), [runningCode]);
   const strategySettings = kindAnalysis.kind === "strategy" ? (script.strategySettings ?? DEFAULT_STRATEGY_SETTINGS) : undefined;
   // Handed over only when the script actually declared itself a quant analysis — the same gate
   // `strategySettings` is: runScript builds the quant path from this or not at all, so the
@@ -153,7 +140,7 @@ export function ScriptRunner({ script, data, indicators, fundamentals, lastCandl
     hasRunOnceRef.current = true;
     if (script.runRequestId !== undefined) return;
     reportedAlertCountRef.current = 0;
-    engine.run(withParams(script.code, script.paramValues), false, filesWithParams(script.files, script.paramValues));
+    engine.run(withScriptParams(script.code, script.paramValues), false, withScriptParamsForFiles(script.files, script.paramValues));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -164,9 +151,9 @@ export function ScriptRunner({ script, data, indicators, fundamentals, lastCandl
     lastRunRequestIdRef.current = script.runRequestId;
     reportedAlertCountRef.current = 0;
     engine.run(
-      withParams(script.runDraftCode ?? script.code, script.paramValues),
+      withScriptParams(script.runDraftCode ?? script.code, script.paramValues),
       false,
-      filesWithParams(script.runDraftFiles ?? script.files, script.paramValues)
+      withScriptParamsForFiles(script.runDraftFiles ?? script.files, script.paramValues)
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [script.runRequestId]);

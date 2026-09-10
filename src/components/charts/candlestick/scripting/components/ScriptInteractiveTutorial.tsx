@@ -12,6 +12,8 @@ import { isCellInstrumentationLog } from "../scriptCellSentinels";
 import { ScriptErrorPanel } from "./ScriptErrorPanel";
 import type { ScriptEditorCodeMirrorHandle } from "./ScriptEditorCodeMirror";
 import "./ScriptInteractiveTutorial.css";
+import { withScriptParams } from "../prepareScriptCode";
+import { DEFAULT_STRATEGY_SETTINGS } from "../../interfaces/StrategySettings.interface";
 
 const LazyScriptEditorCodeMirror = lazy(() =>
   import("./ScriptEditorCodeMirror").then((m) => ({ default: m.ScriptEditorCodeMirror }))
@@ -56,7 +58,11 @@ export function ScriptInteractiveTutorial() {
   // real intraday bars (see ScriptTutorialStep.data's own doc) so market.resample(...) has
   // something meaningful to aggregate.
   const stepData = step.data ?? SCRIPT_TUTORIAL_DATA;
-  const engine = useScriptEngine("tutorial-preview", stepData, [], undefined);
+  // Strategy settings unconditionally: a tutorial step is edited live, so what the reader is about
+  // to run is whatever they just typed — including a `@strategy` they were invited to write. The
+  // engine only builds `strategy.*` when handed settings, and withholding them here would fail the
+  // very step that teaches it.
+  const engine = useScriptEngine("tutorial-preview", stepData, [], undefined, false, [], null, undefined, DEFAULT_STRATEGY_SETTINGS);
 
   function switchTrack(index: number) {
     setTrackIndex(index);
@@ -75,7 +81,7 @@ export function ScriptInteractiveTutorial() {
   // mount-only effect.
   useEffect(() => {
     setDraft(step.code ?? "");
-    if (step.code) engine.run(step.code);
+    if (step.code) engine.run(withScriptParams(step.code, undefined));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trackIndex, stepIndex]);
 
@@ -174,7 +180,7 @@ export function ScriptInteractiveTutorial() {
         <div className="lq-script-tutorial__workspace">
           <div className="lq-script-tutorial__editor">
             <div className="lq-script-tutorial__toolbar">
-              <button type="button" className="lq-script-tutorial__toolbar-button" onClick={() => engine.run(draft)}>
+              <button type="button" className="lq-script-tutorial__toolbar-button" onClick={() => engine.run(withScriptParams(draft, undefined))}>
                 <PlayIcon size={13} /> Exécuter
               </button>
               <button
@@ -209,7 +215,7 @@ export function ScriptInteractiveTutorial() {
                 value={draft}
                 onChange={setDraft}
                 error={engine.result?.error ?? null}
-                onRunCell={(code) => engine.run(code)}
+                onRunCell={(code) => engine.run(withScriptParams(code, undefined))}
                 previewData={stepData}
               />
             </Suspense>

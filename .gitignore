@@ -9,5 +9,12 @@ debug-storybook.log
 # Never commit a real GitHub Packages token
 .npmrc.local
 
+# Never commit an AI provider key. Covered by `*.local` above too, but spelled out because this one
+# is a secret rather than a preference: `.env.local` is where a real ANTHROPIC key goes for the
+# assistant's own storybook story (see CandlestickChart.stories.tsx).
+.env
+.env.local
+.env.*.local
+
 # Standalone app build output (see vite.config.app.ts) — published by CI, never committed.
 app-dist

@@ -375,6 +375,16 @@ export interface CandlestickChartProps {
     /** Extra symbols the `/` menu offers, beyond this chart's own — a watchlist, typically. */
     symbols?: string[];
   };
+  /** Whether the assistant's panel is open, when something outside this chart owns that.
+   *
+   *  `ChartWorkspace` does: the assistant's button belongs on the workspace's own right-hand rail,
+   *  beside the watchlist and the script editor, because it is a whole-view concept rather than a
+   *  per-panel one — so the workspace holds the state and this chart just renders the panel.
+   *
+   *  Left undefined (a standalone chart, with no workspace around it), the chart owns it itself and
+   *  puts the button on its own tools rail — the only rail it has. */
+  aiOpen?: boolean;
+  onAiOpenChange?: (open: boolean) => void;
   /** Fires when the user clicks the "</>" shortcut on a script-produced indicator's own pane
    *  header (see `PaneHeaders.tsx`) — this chart has no editor of its own to open (see `scripts`'s
    *  own doc), so jumping to that script's own tab is entirely up to whichever caller does own the

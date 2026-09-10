@@ -194,6 +194,14 @@ export interface ChartWorkspaceProps {
    *  defaults to "watchlist" if set, else "alerts". */
   defaultSidePanelTab?: ChartWorkspaceSidePanelTab;
   onSidePanelTabChange?: (tab: ChartWorkspaceSidePanelTab) => void;
+  /** The AI assistant: a button on the workspace's own right-hand rail, and a panel docked beside
+   *  whichever panel is currently focused (the first one when none is).
+   *
+   *  A workspace-wide concept rather than a per-panel one, like `watchlists` and `scripting`: one
+   *  assistant, pointed at whichever chart is in front. Forwarded verbatim to that panel's own
+   *  `CandlestickChart.ai` — see that prop for what it accepts, and for why an `apiKey` in a
+   *  browser is a decision to take deliberately. */
+  ai?: CandlestickChartProps["ai"];
   /** Shows the rail's own "</>" button and shares *one* script list (and one editor) across every
    *  panel — unlike every other `CandlestickChartProps` scripting prop, which stays per-panel for
    *  a standalone chart, a workspace script explicitly targets one chosen panel (see
@@ -248,6 +256,7 @@ export function ChartWorkspace({
   defaultSidePanelTab,
   onSidePanelTabChange,
   scripting = false,
+  ai,
   defaultScripts,
   onScriptsChange,
   onScriptAlert,
@@ -316,6 +325,10 @@ export function ChartWorkspace({
   }
   const lockHold = useWorkspaceLockHold();
   const [helpOpen, setHelpOpen] = useState(false);
+  // Held here rather than inside a panel for the same reason `focusedPanelIndex` is: the button
+  // that opens it lives on the workspace's own rail, so the workspace is what knows whether it is
+  // open — and one shared value means two panels can never both show an assistant.
+  const [assistantOpen, setAssistantOpen] = useState(false);
   // Reuses CandlestickChart's own generic wrapper-measuring hook (see its own doc — margin/options
   // both optional, and nothing about it assumes a canvas/candles) purely for `dims.width`, to
   // decide the same "too narrow to fit" question ToolsRail/MOBILE_LAYOUT_BREAKPOINT already answer
@@ -604,6 +617,12 @@ export function ChartWorkspace({
             // *this* panel — see panelScriptingProps for the whole set and why each one is shaped
             // the way it is.
             ...(scripting ? panelScriptingProps(i, workspaceScripting, onScriptAlert) : {}),
+            // The assistant belongs to the workspace, and is rendered by whichever panel is in
+            // front — the focused one, else the first. Every other panel is handed `ai: undefined`
+            // so there is exactly one assistant on screen, pointed at the chart being looked at.
+            ...(ai && i === (effectiveFocusedPanelIndex ?? 0)
+              ? { ai, aiOpen: assistantOpen, onAiOpenChange: setAssistantOpen }
+              : { ai: undefined }),
             timeframe: i in timeframeByPanel ? timeframeByPanel[i] : child.props.timeframe,
             onTimeframeChange: (value: string) => {
               setTimeframeByPanel((prev) => ({ ...prev, [i]: value }));
@@ -839,6 +858,7 @@ export function ChartWorkspace({
           activeTab={activeTab}
           onToggleTab={toggleTab}
           scripting={scripting ? { editorOpen: workspaceScripting.editorOpen, setEditorOpen: workspaceScripting.setEditorOpen } : undefined}
+          assistant={ai ? { open: assistantOpen, setOpen: setAssistantOpen } : undefined}
           panels={panels}
           onPanelsChange={handlePanelsChange}
           workspaceFullscreen={workspaceFullscreen}

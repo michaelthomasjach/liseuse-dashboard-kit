@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { Popover } from "../../forms/Popover";
-import { WatchlistIcon, BellIcon, GridIcon, MaximizeIcon, MinimizeIcon, HelpIcon, CodeIcon } from "../../icons";
+import { WatchlistIcon, BellIcon, GridIcon, MaximizeIcon, MinimizeIcon, HelpIcon, CodeIcon, SparkleIcon } from "../../icons";
 import type { ChartWorkspaceSidePanelTab } from "./useWorkspaceSidePanelState";
 
 // Moved here from CandlestickChart's own ChartHeader (see this file's own git history) — laying
@@ -20,8 +20,9 @@ export interface WorkspaceSideRailProps {
   panelOpen: boolean;
   activeTab: ChartWorkspaceSidePanelTab;
   onToggleTab: (tab: ChartWorkspaceSidePanelTab) => void;
-  /** Undefined when the workspace has no `scripting` — the button then doesn't exist. */
   scripting?: { editorOpen: boolean; setEditorOpen: (open: boolean) => void };
+  /** Undefined when the workspace has no `ai` — the button then doesn't exist. */
+  assistant?: { open: boolean; setOpen: (open: boolean) => void };
   panels: 1 | 2 | 4 | 6 | 8;
   onPanelsChange: (panels: 1 | 2 | 4 | 6 | 8) => void;
   workspaceFullscreen: boolean;
@@ -42,6 +43,7 @@ export function WorkspaceSideRail({
   activeTab,
   onToggleTab,
   scripting,
+  assistant,
   panels,
   onPanelsChange,
   workspaceFullscreen,
@@ -87,6 +89,20 @@ export function WorkspaceSideRail({
           title="Éditeur de script"
         >
           <CodeIcon size={16} />
+        </button>
+      )}
+      {/* Beside the script editor, above the layout controls: like them it is a whole-view tool,
+          not a per-panel one — one assistant for the workspace, wherever it is pointed. */}
+      {assistant && (
+        <button
+          type="button"
+          className={["lq-chart__icon-button", assistant.open && "lq-chart__icon-button--active"].filter(Boolean).join(" ")}
+          onClick={() => assistant.setOpen(!assistant.open)}
+          aria-label="Assistant"
+          aria-pressed={assistant.open}
+          title="Poser une question sur le graphique, ou lui demander d'agir dessus"
+        >
+          <SparkleIcon size={16} />
         </button>
       )}
       <button

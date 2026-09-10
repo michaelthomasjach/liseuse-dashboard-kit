@@ -157,7 +157,7 @@ export function CandlestickChart({
   onLinkClick,
   fillHeight = false,
   sidePanel, defaultSidePanelOpen, onSidePanelOpenChange,
-  scripts, onScriptsChange, onScriptAlert, quantData, ai, onEditScript, onCreateScript, onDeleteScript, onCreateStrategyFromIndicator, onScriptRunOutput, lastCandleOpen = false,
+  scripts, onScriptsChange, onScriptAlert, quantData, ai, aiOpen: aiOpenProp, onAiOpenChange, onEditScript, onCreateScript, onDeleteScript, onCreateStrategyFromIndicator, onScriptRunOutput, lastCandleOpen = false,
   margin,
   className,
 }: CandlestickChartProps) {
@@ -440,7 +440,19 @@ export function CandlestickChart({
   // default: it is a summary of the indicators on the chart, and a chart with none has nothing
   // for it to summarise beyond its own price and volume baselines.
   const [marketStateOpen, setMarketStateOpen] = useState(false);
-  const [aiOpen, setAiOpen] = useState(false);
+  // Controlled by `ChartWorkspace` when there is one — its right-hand rail owns the button (see
+  // the prop's own doc). Uncontrolled for a standalone chart, which puts the button on its own
+  // tools rail because that is the only rail it has.
+  const [uncontrolledAiOpen, setUncontrolledAiOpen] = useState(false);
+  const aiControlled = onAiOpenChange !== undefined;
+  const aiOpen = aiControlled ? aiOpenProp === true : uncontrolledAiOpen;
+  const setAiOpen = useCallback(
+    (open: boolean) => {
+      if (onAiOpenChange) onAiOpenChange(open);
+      else setUncontrolledAiOpen(open);
+    },
+    [onAiOpenChange],
+  );
   /** How the assistant reaches a model. A caller's own `send` wins over `apiKey`: it is the shape
    *  this library recommends, and a caller who supplied both has told us where they want the key
    *  to live. Null when neither is set, which the panel says out loud rather than offering a box
@@ -1130,8 +1142,8 @@ export function CandlestickChart({
       setIndicatorsManagerOpen={setIndicatorsManagerOpen}
       marketStateOpen={marketStateOpen}
       setMarketStateOpen={setMarketStateOpen}
-      aiOpen={ai ? aiOpen : undefined}
-      setAiOpen={ai ? setAiOpen : undefined}
+      aiOpen={ai && !aiControlled ? aiOpen : undefined}
+      setAiOpen={ai && !aiControlled ? setAiOpen : undefined}
       onOpenToolInfo={setInfoTool}
     />
   );

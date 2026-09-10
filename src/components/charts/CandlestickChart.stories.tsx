@@ -979,20 +979,29 @@ const scriptedAssistant: AiSend = async function* (request) {
   yield { type: "done", stopReason: "tool_use" };
 };
 
+/** A real key, when the developer running Storybook has put one in `.env.local` as
+ *  `VITE_ANTHROPIC_API_KEY`. That file is gitignored and never read by the library itself — only by
+ *  this story, and only in a dev server. Absent (the normal case, and the only case in CI), the
+ *  story falls back to the scripted stand-in above, so it still demonstrates the whole feature. */
+const REAL_KEY = (import.meta.env?.VITE_ANTHROPIC_API_KEY as string | undefined) ?? undefined;
+
 export const AiAssistant: Story = {
   name: "Assistant IA",
   render: () => (
     <div style={{ margin: -32 }}>
-      <ChartWorkspace defaultPanels={1} scripting defaultScripts={STRATEGY_DEBUG_SCRIPT}>
-        <CandlestickChart
-          data={BTC_REAL_SAMPLE}
-          symbol="BTCUSDT"
-          zoomable
-          drawingTools
-          showVolume
-          showIndicators
-          ai={{ send: scriptedAssistant, symbols: ["AAPL", "MSFT", "NVDA"] }}
-        />
+      <ChartWorkspace
+        defaultPanels={1}
+        scripting
+        defaultScripts={STRATEGY_DEBUG_SCRIPT}
+        // On the workspace, not on the chart: the assistant's button belongs on the workspace's own
+        // right-hand rail, beside the watchlist and the script editor.
+        ai={
+          REAL_KEY
+            ? { apiKey: REAL_KEY, serverTools: ["web_search"], symbols: ["AAPL", "MSFT", "NVDA"] }
+            : { send: scriptedAssistant, symbols: ["AAPL", "MSFT", "NVDA"] }
+        }
+      >
+        <CandlestickChart data={BTC_REAL_SAMPLE} symbol="BTCUSDT" zoomable drawingTools showVolume showIndicators />
       </ChartWorkspace>
     </div>
   ),

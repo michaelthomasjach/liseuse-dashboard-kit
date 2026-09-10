@@ -101,9 +101,19 @@ export function ScrollCinema() {
             <div className="lqx-cinema__stage" ref={refs.stage}>
               <CinemaChart scripts={scripts} />
 
+              {/* An inert pane over the chart. `.lq-chart__overlay` carries `touch-action: none`
+                  so the chart can own a finger for its crosshair, its drawings and its pan — right
+                  everywhere else, and a trap here: on a phone a swipe started anywhere over the
+                  plot moved nothing at all (measured: 0px, against 570px on the rest of the page).
+                  This section's chart is a display, and the gesture belongs to the page, so this
+                  catches it and does nothing with it. Deliberately NOT `pointer-events: none`,
+                  which would hand the touch straight back to the chart. */}
+              <div className="lqx-cinema__glass" aria-hidden="true" />
+
               <aside
                 className="lqx-cinema__editor"
-                style={{ transform: `translateX(${((1 - panel) * 112).toFixed(2)}%)`, opacity: panel }}
+                // Only the progress; which edge it slides in from is the stylesheet's call.
+                style={{ ["--panel-in" as string]: panel.toFixed(3) }}
                 aria-hidden={panel < 0.5}
               >
                 <div className="lqx-cinema__editor-bar">

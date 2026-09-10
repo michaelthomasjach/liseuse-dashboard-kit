@@ -61,6 +61,21 @@
   height: 100%;
 }
 
+/* See the comment on the element itself: it exists to receive gestures and ignore them, so the
+   page scrolls instead of the chart eating the swipe. Over every part of the chart — the toolbars
+   and rails inside it go up to z-index 1000 (charts-shared.css), and at 1 the glass was still
+   being poked through by the OHLC readout and the pane-resize handle — and under the panels. */
+.lqx-cinema__glass {
+  position: absolute;
+  inset: 0;
+  z-index: 1200;
+}
+
+.lqx-cinema__editor,
+.lqx-cinema__nocode {
+  z-index: 1300;
+}
+
 .lqx-cinema__kicker {
   display: block;
   margin-bottom: 8px;
@@ -108,12 +123,17 @@
 
 /* ── The editor sliding in over the chart ───────────────────────────────────────────────── */
 
+/* `--panel-in` runs 0 to 1 and the transform is built from it here rather than inline, so the
+   panel can come in from the right on a wide screen and from the bottom on a phone without the
+   component knowing anything about the viewport. */
 .lqx-cinema__editor {
   position: absolute;
   top: 5%;
   right: 3%;
   bottom: 5%;
   width: min(560px, 44%);
+  opacity: var(--panel-in, 0);
+  transform: translateX(calc((1 - var(--panel-in, 0)) * 112%));
   display: flex;
   flex-direction: column;
   border: 1px solid var(--lq-color-border);
@@ -272,58 +292,43 @@
   outline-offset: -2px;
 }
 
-/* Below this the sticky choreography has nowhere to put a 42vw panel beside a chart, so the
-   section collapses to a plain, readable stack. */
-@media (max-width: 900px) {
-  .lqx-cinema__section {
-    height: auto;
-  }
+/* ── Phones ─────────────────────────────────────────────────────────────────────────────── */
 
-  .lqx-cinema__sticky {
-    position: static;
-    height: auto;
-    padding-bottom: 32px;
-  }
-
-  .lqx-cinema__wrapper {
-    flex-direction: column;
-    width: 100%;
-    transform: none !important;
-  }
-
-  .lqx-cinema__stage {
-    width: 100% !important;
-    height: 60vh !important;
-    transform: none !important;
-    border-width: 1px !important;
-  }
-
+/* The sequence itself runs at every width — it is the whole point of the section, and switching
+   it off below a breakpoint is what left a phone with a static chart. Only the furniture moves:
+   the editor cannot sit in a 44%-wide column next to a chart on a 390px screen, so it takes the
+   bottom of the stage and comes up from underneath, leaving the chart legible above it. */
+@media (max-width: 760px) {
   .lqx-cinema__label {
-    position: static;
     flex-direction: column;
     align-items: flex-start;
-    gap: 8px;
-    margin-bottom: 20px;
-    opacity: 1 !important;
+    gap: 6px;
   }
 
-  .lqx-cinema__editor,
-  .lqx-cinema__nocode {
-    position: relative;
-    inset: auto;
+  .lqx-cinema__nudge {
+    display: none;
+  }
+
+  .lqx-cinema__editor {
+    top: auto;
+    right: 3%;
+    left: 3%;
+    bottom: 3%;
     width: auto;
-    height: auto;
-    margin-top: 20px;
-    transform: none !important;
-    opacity: 1 !important;
-    pointer-events: auto !important;
+    height: 56%;
+    transform: translateY(calc((1 - var(--panel-in, 0)) * 112%));
   }
 
   .lqx-cinema__code {
-    max-height: 46vh;
+    padding: 12px 14px;
+    font-size: 0.72rem;
   }
 
-  .lqx-nocode__canvas {
-    height: 60vh;
+  .lqx-cinema__nocode {
+    padding: 12px;
+  }
+
+  .lqx-nocode__head {
+    display: none;
   }
 }

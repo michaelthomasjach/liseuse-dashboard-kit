@@ -1544,6 +1544,7 @@ export function CandlestickChart({
       <ScriptRunnerHost
         scripts={scriptingState.scripts} data={data} indicators={indicators} fundamentals={fundamentals}
         symbol={symbol} quantData={quantData}
+        ai={aiSend ? { send: aiSend, serverTools: ai?.serverTools ?? [] } : null}
         // Replay's own cutoff, so a script replays with the chart instead of always computing over
         // the whole history. The replay mask (drawReplayMask.ts) only *hides* what sits past the
         // cutoff on the main plot's canvas — enough for a series laid out along time, but not for

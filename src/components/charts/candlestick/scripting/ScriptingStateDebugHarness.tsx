@@ -81,6 +81,7 @@ export function ScriptingStateDebugHarness({ data: initialData, indicators }: Sc
         availableTimeframes={[]}
         symbol={undefined}
         quantData={undefined}
+        ai={null}
         runUpToIndex={null}
         onOutput={scripting.reportRunOutput}
         onAlert={(event) => setAlerts((prev) => [...prev, event])}

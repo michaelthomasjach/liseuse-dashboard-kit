@@ -11,6 +11,7 @@ import type { ScriptDef } from "../../interfaces/ScriptDef.interface";
 import type { ScriptAlertEvent } from "../../interfaces/ScriptAlertEvent.interface";
 import type { ScriptRunOutput } from "../interfaces/ScriptRunOutput.interface";
 import { useScriptEngine } from "../hooks/useScriptEngine";
+import type { AiSend, AiServerTool } from "../../ai/interfaces/AiMessage.interface";
 
 export interface ScriptRunnerProps {
   /** The whole `ScriptDef`, not its fields spread individually — `runRequestId`/`runDraftCode`/
@@ -34,6 +35,8 @@ export interface ScriptRunnerProps {
    *  The library owns no data source (the same stance `data` and `events` take), so a symbol
    *  missing here comes back as that symbol's own "aucune donnée" row rather than being invented. */
   quantData: Record<string, Candle[]> | undefined;
+  /** How a `@quant` or `@report` script's own `ai.*` calls reach a model — see `buildAiApi`. */
+  ai: { send: AiSend; serverTools: AiServerTool[] } | null;
   onOutput: (id: string, output: ScriptRunOutput) => void;
   onAlert: ((event: ScriptAlertEvent) => void) | undefined;
 }
@@ -83,7 +86,7 @@ function resolveDebounceMs(code: string, paramValues: ScriptDef["paramValues"]):
   return typeof value === "number" ? value : undefined;
 }
 
-export function ScriptRunner({ script, data, indicators, fundamentals, lastCandleOpen, availableTimeframes, runUpToIndex, symbol, quantData, onOutput, onAlert }: ScriptRunnerProps) {
+export function ScriptRunner({ script, data, indicators, fundamentals, lastCandleOpen, availableTimeframes, runUpToIndex, symbol, quantData, ai, onOutput, onAlert }: ScriptRunnerProps) {
   const debounceMs = useMemo(() => resolveDebounceMs(script.code, script.paramValues), [script.code, script.paramValues]);
   // Settings are handed over only when the script actually declared itself a strategy. That is what
   // withholds the `strategy.*` API from an indicator (runScript builds it from these or not at
@@ -120,7 +123,8 @@ export function ScriptRunner({ script, data, indicators, fundamentals, lastCandl
     strategySettings,
     quant,
     report,
-    symbol
+    symbol,
+    ai
   );
   const hasRunOnceRef = useRef(false);
   const lastRunRequestIdRef = useRef<number | null>(null);

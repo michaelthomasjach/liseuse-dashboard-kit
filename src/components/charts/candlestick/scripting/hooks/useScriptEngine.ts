@@ -26,6 +26,9 @@ import {
 // Vite's own `?worker` import suffix (typed via src/vite-env.d.ts's vite/client reference) —
 // resolves to a Worker *constructor*, not the module's own exports.
 import ScriptWorkerFactory from "../worker/scriptWorkerEntry?worker";
+import type { ScriptAiRequestMessage, ScriptAiResponseMessage } from "../worker/buildAiApi";
+import type { AiSend, AiServerTool } from "../../ai/interfaces/AiMessage.interface";
+import { answerScriptAiRequest } from "../../ai/answerScriptAiRequest";
 
 /** What a `@quant` run needs from the host: which symbols to cover, each one's own candles, and
  *  which of them is the chart's own (the only one whose indicator/fundamental series apply). */
@@ -165,7 +168,10 @@ export function useScriptEngine(
   /** Set only for a `@report` script — see `ScriptEngineSnapshot.report`. */
   report: { symbol?: string } | undefined = undefined,
   /** What the chart is showing — read by `market.symbol()`. */
-  symbol: string | undefined = undefined
+  symbol: string | undefined = undefined,
+  /** How a script's own `ai.*` calls reach a model. Null (the default) and they come back saying
+   *  no engine is configured, rather than hanging. */
+  ai: { send: AiSend; serverTools: AiServerTool[] } | null = null
 ) {
   // Clamped: a cutoff from a previous, longer dataset would otherwise run past the end of this one.
   const effectiveRunUpToIndex = runUpToIndex === null ? data.length - 1 : Math.max(0, Math.min(runUpToIndex, data.length - 1));
@@ -176,6 +182,10 @@ export function useScriptEngine(
   const [scriptDrawings, setScriptDrawings] = useState<TrendLineDrawing[]>([]);
   const [scriptTable, setScriptTable] = useState<ScriptTableOutput | null>(null);
   const [scriptLabels, setScriptLabels] = useState<ResolvedScriptLabel[]>([]);
+  /** The transport a script's own `ai.*` calls go through, always current: a run can be in flight
+   *  across several renders, and the answer must be sent by whatever is configured *now*. */
+  const aiRef = useRef(ai);
+  aiRef.current = ai;
   const workerRef = useRef<Worker | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -271,11 +281,28 @@ export function useScriptEngine(
     const timeoutMs = isRealtimeTick ? REALTIME_TICK_TIMEOUT_MS : HISTORICAL_REPLAY_TIMEOUT_MS;
 
     return new Promise<ScriptRunResult>((resolve) => {
-      worker.onmessage = (e: MessageEvent<ScriptRunResult>) => {
+      worker.onmessage = (e: MessageEvent<ScriptRunResult | ScriptAiRequestMessage>) => {
+        // A running script asking the model something (see `buildAiApi`) — answered here, on the
+        // thread that owns the provider, and posted back. The worker never sees a credential and
+        // never opens a socket: a string out, a string back. Deliberately *not* clearing the
+        // pending timeout: a script that waits on the model still has to finish within its budget,
+        // or a slow answer would be indistinguishable from an infinite loop.
+        if ((e.data as ScriptAiRequestMessage).kind === "ai_request") {
+          const request = e.data as ScriptAiRequestMessage;
+          const reply = (message: ScriptAiResponseMessage) => worker.postMessage(message);
+          if (aiRef.current === null) {
+            reply({ kind: "ai_response", id: request.id, error: "Aucun moteur d'IA n'est configuré pour ce graphique (voir la prop `ai`)." });
+            return;
+          }
+          void answerScriptAiRequest(aiRef.current.send, request.prompt, request.options, aiRef.current.serverTools, new AbortController().signal)
+            .then((text) => reply({ kind: "ai_response", id: request.id, text }))
+            .catch((err: unknown) => reply({ kind: "ai_response", id: request.id, error: err instanceof Error ? err.message : String(err) }));
+          return;
+        }
         clearPendingTimeout();
-        applyRunOutput(e.data);
+        applyRunOutput(e.data as ScriptRunResult);
         setRunning(false);
-        resolve(e.data);
+        resolve(e.data as ScriptRunResult);
       };
       // A script bug the try/catch inside runScript.ts didn't anticipate (an engine-level failure,
       // not an ordinary thrown error — those already come back as a normal ScriptRunResult) —

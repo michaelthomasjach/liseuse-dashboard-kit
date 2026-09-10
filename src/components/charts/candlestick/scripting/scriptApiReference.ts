@@ -257,6 +257,27 @@ report.metrics([{ label: "Chiffre d'affaires", value: company.value("totalRevenu
 report.table(["Exercice", "CA"], [["N", company.value("totalRevenue")]]);
 report.callout("positive", "Rentabilité élevée", "Le ROIC dépasse 20 % depuis quatre ans.");`
       ),
+      h("ai.* — interroger un modèle depuis un script", ["ai.ask", "ai.search", "ai.json"]),
+      t(
+        "C'est le seul appel de tout le bac à sable qui sort du worker : le script pose une question, la fenêtre principale la transmet au modèle configuré par l'application (prop ai du graphique), et renvoie la réponse. Le worker ne voit jamais de clé et n'ouvre jamais de connexion — une chaîne sort, une chaîne revient."
+      ),
+      t(
+        "Il faut l'attendre avec await, et c'est pourquoi ai.* n'existe que dans un @quant ou un @report : eux s'exécutent une seule fois. Un @indicator ou un @strategy s'exécute une fois par bougie — attendre une réponse réseau à chaque bougie ne serait plus un rejeu. L'éditeur le signale avant l'exécution."
+      ),
+      c(
+        `@report
+const resume = await ai.ask("Résume l'activité de " + market.symbol() + " en trois phrases.");
+report.text(resume);
+
+// Avec la recherche web du fournisseur, quand l'application l'a activée (ai.serverTools) :
+const actus = await ai.search("résultats trimestriels " + market.symbol());
+
+// Et pour récupérer une structure plutôt qu'un texte — renvoie null si la réponse n'est pas du JSON :
+const note = await ai.json("Note la solidité du bilan sur 10. Réponds au format { note, raison }.");`
+      ),
+      t(
+        "Une question qui échoue (aucun moteur configuré, refus du fournisseur) lève une erreur ordinaire, à attraper avec try/catch : un rapport qui interroge le modèle sur un point secondaire ne devrait pas mourir parce que ce point est resté sans réponse. Et le délai d'exécution du script continue de courir pendant l'attente — une réponse lente reste une exécution lente."
+      ),
       t(
         "company.fields() dit quelles données l'application a réellement fournies : chiffre d'affaires, résultat, marges, CAPEX, flux de trésorerie, impôts, taux effectif, dette, capitaux propres, ROIC… Un rapport honnête commence par regarder cette liste plutôt que par supposer, et dit ce qui manque au lieu de l'inventer."
       ),

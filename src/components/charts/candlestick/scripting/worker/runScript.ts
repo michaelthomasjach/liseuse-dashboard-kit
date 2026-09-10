@@ -9,6 +9,7 @@ import { buildStrategyApi } from "./buildStrategyApi";
 import { buildCompanyApi } from "./buildCompanyApi";
 import { buildQuantPlotApi } from "./buildQuantPlotApi";
 import { buildReportApi } from "./buildReportApi";
+import type { AiApi } from "./buildAiApi";
 import { mathApi } from "./mathLib";
 import { taApi } from "./taLib";
 import { SCRIPT_MODULE_EXPORTS, SCRIPT_MODULE_REQUIRE, transformScriptModule } from "../scriptModules";
@@ -21,6 +22,12 @@ import { SCRIPT_MODULE_EXPORTS, SCRIPT_MODULE_REQUIRE, transformScriptModule } f
 // file's own `new Function(...)` call would itself start throwing the moment the sandbox lockdown
 // that's supposed to stop user code from doing exactly that also caught its own compiler.
 const RealFunction = Function;
+// The async counterpart, reached the same way — `AsyncFunction` is not a global, only the
+// constructor of an async function's own prototype. Captured here, before lockdown, for the same
+// reason `RealFunction` is. A `@quant` analysis and a `@report` are compiled with this so a script
+// may `await ai.ask(...)`; an indicator or a strategy is not, because a per-bar replay that
+// awaited anything would no longer be a replay.
+const RealAsyncFunction = Object.getPrototypeOf(async function () {}).constructor as FunctionConstructor;
 
 // `new Function(...paramNames, body)` wraps `body` in a synthetic `function anonymous(<params>
 // ) {` header, always exactly 2 lines regardless of how many params there are (confirmed by
@@ -71,7 +78,14 @@ function toScriptError(err: unknown): ScriptError {
   return line >= 1 ? { message, line, column } : { message };
 }
 
-/** Runs one script, once per bar from bar 0 through `snapshot.runUpToIndex` inclusive — the
+/** Runs one script.
+ *
+ *  Asynchronous because two of the four kinds can wait for something: a `@quant` analysis and a
+ *  `@report` may `await ai.ask(...)`, the one call in this sandbox that leaves the worker. An
+ *  indicator and a strategy still run exactly as before — a per-bar replay that awaited anything
+ *  would no longer be a replay — and simply resolve immediately.
+ *
+ *  Runs one script, once per bar from bar 0 through `snapshot.runUpToIndex` inclusive — the
  *  platform's own "script re-runs automatically every bar" model (matching the user-facing
  *  example syntax, plain top-level statements rather than an explicit per-bar callback the user
  *  has to wire up themselves). A historical replay and a single real-time tick are the exact
@@ -83,7 +97,7 @@ function toScriptError(err: unknown): ScriptError {
  *  `chart`/`plot`/etc. only need constructing once regardless of how many bars it then runs
  *  against, since `buildMarketApi`'s own `getCurrentIndex` callback (not a fixed value baked in
  *  at construction time) is what actually varies per bar. */
-export function runScript(snapshot: ScriptEngineSnapshot): ScriptRunResult {
+export async function runScript(snapshot: ScriptEngineSnapshot, ai: AiApi | null = null): Promise<ScriptRunResult> {
   const logs: string[] = [];
   const scriptConsole = {
     log: (...args: unknown[]) => {
@@ -182,8 +196,10 @@ export function runScript(snapshot: ScriptEngineSnapshot): ScriptRunResult {
     ta: unknown,
     console: unknown,
     strategy: unknown,
-    report: unknown
-    // `unknown` rather than `void`: on the quant path what the script returns *is* its output.
+    report: unknown,
+    ai: unknown
+    // `unknown` rather than `void`: on the quant path what the script returns *is* its output, and
+    // on the async paths what comes back is a promise of it.
   ) => unknown;
   // The entry file goes through the same rewrite as any other — a single-file script simply has
   // nothing to rewrite, and comes back unchanged.
@@ -207,9 +223,12 @@ export function runScript(snapshot: ScriptEngineSnapshot): ScriptRunResult {
     };
   }
 
+  // Async only where the script runs once and something can wait for it — see RealAsyncFunction.
+  const canAwait = snapshot.quant !== undefined || snapshot.report !== undefined;
+  const Compiler = canAwait ? RealAsyncFunction : RealFunction;
   let compiled: CompiledScript;
   try {
-    compiled = new RealFunction(
+    compiled = new Compiler(
       SCRIPT_MODULE_EXPORTS,
       SCRIPT_MODULE_REQUIRE,
       "market",
@@ -228,6 +247,7 @@ export function runScript(snapshot: ScriptEngineSnapshot): ScriptRunResult {
       // is exactly how this shipped broken once, as a ReferenceError no type-check could catch.
       "strategy",
       "report",
+      "ai",
       entry.code
     ) as CompiledScript;
   } catch (err) {
@@ -253,7 +273,7 @@ export function runScript(snapshot: ScriptEngineSnapshot): ScriptRunResult {
   if (snapshot.report) {
     currentIndex = snapshot.ohlcv.length - 1;
     try {
-      compiled(entryExports, requireModule, market, chart, quantPlot, state, alert, bar, company, mathApi, taApi, scriptConsole, undefined, reportApi);
+      await compiled(entryExports, requireModule, market, chart, quantPlot, state, alert, bar, company, mathApi, taApi, scriptConsole, undefined, reportApi, ai);
     } catch (err) {
       return {
         error: toScriptError(err),
@@ -318,7 +338,7 @@ export function runScript(snapshot: ScriptEngineSnapshot): ScriptRunResult {
       const symbolBar = buildBarApi(symbolSnapshot, getCurrentIndex);
       const symbolCompany = buildCompanyApi(symbolSnapshot, getCurrentIndex);
       try {
-        const value = compiled(
+        const value = await compiled(
           // A fresh exports object per symbol, so one symbol's run cannot see the last one's.
           {},
           requireModule,
@@ -334,6 +354,7 @@ export function runScript(snapshot: ScriptEngineSnapshot): ScriptRunResult {
           scriptConsole,
           undefined,
           undefined,
+          ai,
         );
         rows.push({ symbol, value });
       } catch (err) {
@@ -361,7 +382,7 @@ export function runScript(snapshot: ScriptEngineSnapshot): ScriptRunResult {
   for (let i = 0; i <= snapshot.runUpToIndex; i++) {
     currentIndex = i;
     try {
-      compiled(entryExports, requireModule, market, chart, plot, state, alert, bar, company, mathApi, taApi, scriptConsole, strategy?.api, undefined);
+      compiled(entryExports, requireModule, market, chart, plot, state, alert, bar, company, mathApi, taApi, scriptConsole, strategy?.api, undefined, undefined);
       // After the bar's own pass, never during it: an order placed mid-script fills once, at this
       // bar's own price, no matter how many times the script changed its mind (see settleBar).
       strategy?.settleBar(snapshot.ohlcv[i], i + 1 < snapshot.ohlcv.length ? snapshot.ohlcv[i + 1] : null);

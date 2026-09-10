@@ -92,6 +92,24 @@ export function stripScriptKind(code: string): string {
  *  is replaced by an API that throws — a diagnostic alone would be advice, and this is a rule. */
 const PLOT_CALL_RE = /\bplot\s*\.\s*([A-Za-z_$][\w$]*)/g;
 
+/** Every `ai.*` call in a script that cannot wait for one.
+ *
+ *  `ai.ask` is the only call in this sandbox that leaves the worker, so it returns a promise — and
+ *  only a `@quant` analysis or a `@report` is compiled as an async function, because both run once
+ *  rather than once per bar. In an `@indicator` or a `@strategy` the engine refuses it structurally
+ *  (an `await` there is a syntax error), which is correct and says nothing useful. This says the
+ *  useful thing, in the editor, before anything runs. */
+const AI_CALL_RE = /\bai\s*\.\s*(ask|search|json)\b/g;
+
+export function analyzeAiCalls(code: string, kind: ScriptKind): ScriptParamDiagnostic[] {
+  if (kind === "quant" || kind === "report") return [];
+  return [...code.matchAll(AI_CALL_RE)].map((m) => ({
+    from: m.index ?? 0,
+    to: (m.index ?? 0) + m[0].length,
+    message: `« ai.${m[1]} » attend une réponse du modèle, ce qu'un ${kind === "strategy" ? "@strategy" : "@indicator"} ne peut pas faire : il s'exécute une fois par bougie. Seuls @quant et @report, qui s'exécutent une seule fois, disposent de ai.*.`,
+  }));
+}
+
 export function analyzeQuantPlotCalls(code: string, kind: "quant" | "report" = "quant"): ScriptParamDiagnostic[] {
   const instead = kind === "quant" ? "Renvoyez vos résultats avec « return » à la place." : "Écrivez le rapport avec « report.* » à la place.";
   const what = kind === "quant" ? "Une analyse @quant" : "Un rapport @report";

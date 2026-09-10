@@ -5,6 +5,7 @@ import type { ScriptDef } from "../../interfaces/ScriptDef.interface";
 import type { ScriptAlertEvent } from "../../interfaces/ScriptAlertEvent.interface";
 import type { ScriptRunOutput } from "../interfaces/ScriptRunOutput.interface";
 import { ScriptRunner } from "./ScriptRunner";
+import type { AiSend, AiServerTool } from "../../ai/interfaces/AiMessage.interface";
 
 export interface ScriptRunnerHostProps {
   scripts: ScriptDef[];
@@ -21,6 +22,8 @@ export interface ScriptRunnerHostProps {
    *  `ScriptRunner`'s own props. */
   symbol: string | undefined;
   quantData: Record<string, Candle[]> | undefined;
+  /** Forwarded to every runner — see `ScriptRunner`'s own prop. */
+  ai: { send: AiSend; serverTools: AiServerTool[] } | null;
   onOutput: (id: string, output: ScriptRunOutput) => void;
   onAlert: ((event: ScriptAlertEvent) => void) | undefined;
 }
@@ -29,7 +32,7 @@ export interface ScriptRunnerHostProps {
  *  disabled or removed simply drops out of the filter below, unmounting its own `ScriptRunner`
  *  and, via that component's own cleanup effect, clearing its contribution to the aggregated
  *  `scriptIndicators`/`scriptDrawings`. Purely a mount/unmount driver; renders nothing itself. */
-export function ScriptRunnerHost({ scripts, data, indicators, fundamentals, lastCandleOpen, availableTimeframes, runUpToIndex, symbol, quantData, onOutput, onAlert }: ScriptRunnerHostProps) {
+export function ScriptRunnerHost({ scripts, data, indicators, fundamentals, lastCandleOpen, availableTimeframes, runUpToIndex, symbol, quantData, ai, onOutput, onAlert }: ScriptRunnerHostProps) {
   return (
     <>
       {scripts
@@ -46,6 +49,7 @@ export function ScriptRunnerHost({ scripts, data, indicators, fundamentals, last
             runUpToIndex={runUpToIndex}
             symbol={symbol}
             quantData={quantData}
+            ai={ai}
             onOutput={onOutput}
             onAlert={onAlert}
           />

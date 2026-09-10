@@ -38,6 +38,24 @@ export const SCRIPT_API_COMPLETIONS: ScriptApiCompletion[] = [
     apply: "@strategy",
   },
   {
+    label: "ai.ask",
+    type: "function",
+    detail: "await ai.ask(question) — interroge le modèle configuré. @quant et @report uniquement",
+    apply: "await ai.ask(",
+  },
+  {
+    label: "ai.search",
+    type: "function",
+    detail: "await ai.search(requête) — interroge le modèle avec la recherche web activée",
+    apply: "await ai.search(",
+  },
+  {
+    label: "ai.json",
+    type: "function",
+    detail: "await ai.json(question) — demande du JSON et le parse ; null si la réponse n'en est pas",
+    apply: "await ai.json(",
+  },
+  {
     label: "@report",
     type: "keyword",
     detail: "déclare un script qui écrit un document — report.* au lieu de plot.*, exportable en PDF",

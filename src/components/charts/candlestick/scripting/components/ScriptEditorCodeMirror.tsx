@@ -1,7 +1,7 @@
 import { analyzeScriptVariables } from "../scriptVariables";
 import { analyzeScriptDescription } from "../scriptDescription";
 import { isBlockMarkerLine } from "../scriptBlocks";
-import { analyzeQuantPlotCalls, analyzeScriptKind } from "../scriptKind";
+import { analyzeAiCalls, analyzeQuantPlotCalls, analyzeScriptKind } from "../scriptKind";
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { EditorState, StateEffect, StateField, type Text } from "@codemirror/state";
@@ -693,6 +693,7 @@ export const ScriptEditorCodeMirror = forwardRef<ScriptEditorCodeMirrorHandle, S
       ...(analyzeScriptKind(source).kind === "quant" || analyzeScriptKind(source).kind === "report"
         ? analyzeQuantPlotCalls(source, analyzeScriptKind(source).kind as "quant" | "report")
         : []),
+      ...analyzeAiCalls(source, analyzeScriptKind(source).kind),
     ]) {
       diagnostics.push({
         from: Math.min(issue.from, docLength),

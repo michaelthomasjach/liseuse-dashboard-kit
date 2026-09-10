@@ -95,4 +95,22 @@ export interface ScriptEngineSnapshot {
    *  scope per the approved plan; this just answers "what timeframes exist" the same way
    *  `chart.listIndicators()` answers "what indicators exist" without granting access to either. */
   availableTimeframes: string[];
+  /** Set only for a `@quant` script (see `scriptKind.ts`) — the analysis and the symbols it runs
+   *  over. Its presence is what puts the worker on the quant path: run once per symbol rather than
+   *  once per bar, with no drawing surface at all, and keep whatever each run `return`s.
+   *
+   *  Absent for every other kind, the same separation `strategySettings` already makes: a script
+   *  that never declared itself a quant analysis cannot accidentally be run as one. */
+  quant?: {
+    /** In the order the script named them. Always at least one entry — a `@quant` that named no
+     *  symbol is run on the host chart's own, resolved on the main thread. */
+    symbols: string[];
+    /** Each symbol's own OHLCV history. A symbol the host supplied no data for is simply absent
+     *  here, and comes back as that symbol's own error row rather than failing the whole run. */
+    series: Record<string, ScriptEngineSnapshotCandle[]>;
+    /** Which of `symbols` is the host chart's own. Only that one gets `indicatorSeries` and
+     *  `fundamentalSeries`: those are computed for the chart's own data, and handing them to
+     *  another symbol's run would answer questions about the wrong company. */
+    hostSymbol?: string;
+  };
 }

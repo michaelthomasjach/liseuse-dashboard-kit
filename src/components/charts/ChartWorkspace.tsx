@@ -970,6 +970,8 @@ export function ChartWorkspace({
             setScriptDraft={workspaceScripting.setScriptDraft}
             setScriptParamValue={workspaceScripting.setScriptParamValue}
             resetScriptParamValues={workspaceScripting.resetScriptParamValues}
+            saveQuantRun={workspaceScripting.saveQuantRun}
+            removeQuantRun={workspaceScripting.removeQuantRun}
             toggleScriptEnabled={workspaceScripting.toggleScriptEnabled}
             runScript={workspaceScripting.runScript}
             stopScript={workspaceScripting.stopScript}

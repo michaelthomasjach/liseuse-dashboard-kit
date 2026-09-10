@@ -335,6 +335,15 @@ export interface CandlestickChartProps {
    *  produces the event (see `ScriptAlertEvent`'s own doc); how it actually reaches the user
    *  (toast, sound, the app's own notification system) is entirely up to this callback. */
   onScriptAlert?: (event: ScriptAlertEvent) => void;
+  /** Candles for the symbols a `@quant` analysis names, beyond this chart's own.
+   *
+   *  A quant script declares the symbols it covers (`@quant(AAPL, MSFT, NVDA)`) and is run once
+   *  against each of them. This library owns no data source — the same stance `data` and `events`
+   *  already take — so the host is the one that says what "MSFT" means here. This chart's own
+   *  `symbol`/`data` pair is added automatically and needs no entry; a symbol the analysis names
+   *  but that is absent here comes back as that symbol's own "aucune donnée" row rather than being
+   *  invented or silently skipped. */
+  quantData?: Record<string, Candle[]>;
   /** Fires when the user clicks the "</>" shortcut on a script-produced indicator's own pane
    *  header (see `PaneHeaders.tsx`) — this chart has no editor of its own to open (see `scripts`'s
    *  own doc), so jumping to that script's own tab is entirely up to whichever caller does own the

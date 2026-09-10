@@ -210,11 +210,11 @@ export class Tracker {
     group: "Démarrage",
     blocks: [
       t(
-        "Cinq mots-clés ne font pas partie de l'API exécutée : ils se lisent dans le texte du script lui-même, avant que quoi que ce soit ne tourne. @indicator ou @strategy dit ce qu'est le script, @description le documente, new Variable(...) en expose les réglages, et @block le découpe en cellules (voir « L'éditeur » plus haut). Tous sont retirés du code avant compilation — aucun n'existe à l'exécution."
+        "Cinq mots-clés ne font pas partie de l'API exécutée : ils se lisent dans le texte du script lui-même, avant que quoi que ce soit ne tourne. @indicator, @strategy ou @quant dit ce qu'est le script, @description le documente, new Variable(...) en expose les réglages, et @block le découpe en cellules (voir « L'éditeur » plus haut). Tous sont retirés du code avant compilation — aucun n'existe à l'exécution."
       ),
-      h("@indicator / @strategy — ce qu'est le script", ["@indicator", "@strategy"]),
+      h("@indicator / @strategy / @quant — ce qu'est le script", ["@indicator", "@strategy", "@quant"]),
       t(
-        "Un script est l'un des deux, déclaré sur sa propre ligne, en général tout en haut. @indicator dessine sur la chart : des courbes, des bandes, des marqueurs. @strategy fait la même chose et prend en plus des positions, qui sont rejouées sur un compte simulé et lues dans un panneau dédié ancré sous les bougies."
+        "Un script est l'un des trois, déclaré sur sa propre ligne, en général tout en haut. @indicator dessine sur la chart : des courbes, des bandes, des marqueurs. @strategy fait la même chose et prend en plus des positions, qui sont rejouées sur un compte simulé et lues dans un panneau dédié ancré sous les bougies. @quant ne dessine rien du tout."
       ),
       c(
         `@indicator
@@ -225,7 +225,23 @@ plot.overlay("SMA").line("SMA", math.sma(market.series("close", 20), 20));`
 if (market.close(0) > market.close(1)) strategy.long("Deux hausses");`
       ),
       t(
-        "Ce n'est pas une étiquette : c'est ce décorateur qui donne — ou refuse — l'accès à strategy.*. Un script @indicator n'a tout simplement pas cet objet, et l'appeler échoue en nommant ce qui manque, plutôt que d'ouvrir silencieusement une position que personne n'a demandée. Un script qui ne déclare rien est un indicateur : c'est ce qu'était tout script écrit avant l'existence de ces décorateurs, et ce que reste l'immense majorité d'entre eux. Déclarer les deux est une contradiction, signalée comme telle dans l'éditeur."
+        "Ce n'est pas une étiquette : c'est ce décorateur qui donne — ou refuse — l'accès à strategy.*. Un script @indicator n'a tout simplement pas cet objet, et l'appeler échoue en nommant ce qui manque, plutôt que d'ouvrir silencieusement une position que personne n'a demandée. Un script qui ne déclare rien est un indicateur : c'est ce qu'était tout script écrit avant l'existence de ces décorateurs, et ce que reste l'immense majorité d'entre eux. En déclarer plusieurs est une contradiction, signalée comme telle dans l'éditeur."
+      ),
+      h("@quant — une analyse qui ne dessine pas", ["@quant"]),
+      t(
+        "Une analyse @quant n'a ni pane ni overlay : elle ne produit rien sur la chart, et plot.* n'y est pas disponible — l'éditeur le signale avant l'exécution, et l'appeler échoue en nommant ce qu'il faut faire à la place. Ce qu'elle renvoie avec return est la totalité de son résultat."
+      ),
+      t(
+        "Elle ne tourne pas non plus une fois par bougie mais une fois par symbole, positionnée sur la dernière bougie de chacun — market.* voit donc tout l'historique d'un coup. Les symboles se déclarent entre parenthèses ; sans liste, l'analyse tourne sur le symbole de la chart. Les bougies des autres symboles viennent de l'application (prop quantData) : cette bibliothèque n'a pas de source de données, et un symbole sans données revient avec sa propre ligne « aucune donnée » au lieu de faire échouer toute l'analyse."
+      ),
+      c(
+        `@quant(AAPL, MSFT, NVDA)
+const closes = market.series("close", 260);
+const last = closes[closes.length - 1];
+return { cours: last, "plus haut": Math.max(...closes) };`
+      ),
+      t(
+        "Le résultat s'affiche dans l'éditeur, à côté du code, une section par symbole. Une analyse peut être longue et sa réponse est un constat daté, pas une lecture en direct : chaque calcul peut donc être enregistré et relu plus tard sans être refait, depuis la même section."
       ),
       h("@description — documenter le script", ["@description"]),
       t(

@@ -38,6 +38,12 @@ export const SCRIPT_API_COMPLETIONS: ScriptApiCompletion[] = [
     apply: "@strategy",
   },
   {
+    label: "@quant",
+    type: "keyword",
+    detail: "déclare une analyse qui ne dessine rien — une exécution par symbole, le résultat est ce que le script renvoie",
+    apply: "@quant(",
+  },
+  {
     label: "strategy",
     type: "keyword",
     detail: "long/short/close + position/positionSize/averagePrice/unrealizedProfit — scripts @strategy uniquement",

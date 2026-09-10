@@ -24,6 +24,21 @@ import { isBlockMarkerLine } from "./scriptBlocks";
  *  B may use what A defined, and orders them accordingly. Making arrows carry values would mean
  *  inventing a runtime that no longer matches the code you get when you switch back to text, which
  *  is precisely the property this whole file exists to protect. */
+/** One incoming arrow.
+ *
+ *  `input` names which of the block's own declared inputs this parent satisfies (see
+ *  `ScriptGraphNode.inputs`); left off, the parent feeds the block's default, unnamed input — which
+ *  is what every arrow was before inputs could be named, and still what most of them are.
+ *
+ *  Naming inputs does not change what an arrow *means*: it is still "runs after", not "sends data
+ *  to". What it adds is which of the block's several expectations that parent is there to meet, so
+ *  one block's output can be wired into two different inputs of the same block and the diagram
+ *  says which is which. */
+export interface ScriptGraphEdge {
+  from: string;
+  input?: string;
+}
+
 export interface ScriptGraphNode {
   /** Unique within the graph. Referenced by other nodes' `after`, so it has to survive a round
    *  trip through the text — which is why it is written out rather than regenerated. */
@@ -32,8 +47,13 @@ export interface ScriptGraphNode {
   title: string;
   /** Canvas position. `null` when the source carried no `at` — `layoutScriptGraph` assigns one. */
   at: { x: number; y: number } | null;
-  /** Ids of the nodes this one runs after. Empty for a root. */
-  after: string[];
+  /** The arrows into this block. Empty for a root. Several may share one `from`, wired into
+   *  different `input`s — see `ScriptGraphEdge`. */
+  after: ScriptGraphEdge[];
+  /** Input ports this block declares, in the order they are drawn, top to bottom. Absent (or
+   *  empty) means the block has the single unnamed input every block has always had — which is
+   *  what a script written before inputs could be named still reads as. */
+  inputs?: string[];
   /** Everything between this block's header line and the next one, verbatim, newlines included.
    *  Never parsed, never reformatted: whatever the graph does to a script, it must not silently
    *  rewrite the code inside a block. */
@@ -65,7 +85,7 @@ export interface ScriptGraph {
 export const PREAMBLE_ID = "__preambule__";
 
 /** Attribute keywords inside `@block(...)`. Anything else in first position is the block's own id. */
-const ATTRIBUTE_KEYWORDS = new Set(["at", "after"]);
+const ATTRIBUTE_KEYWORDS = new Set(["at", "after", "inputs"]);
 
 /** `@block(<attrs>) <title>` / `@block <title>` / the legacy `// %% <title>`. The attribute list is
  *  optional so that every block line written before this existed still parses. */
@@ -94,8 +114,18 @@ export function slugifyBlockId(title: string, taken: ReadonlySet<string>): strin
 interface ParsedHeader {
   id: string | null;
   at: { x: number; y: number } | null;
-  after: string[] | null;
+  after: ScriptGraphEdge[] | null;
+  inputs: string[] | null;
   title: string;
+}
+
+/** `after` token → edge. `prix:moyennes` wires the parent `moyennes` into this block's own `prix`
+ *  input; a bare `moyennes` feeds its default one. Ids are slugs (lowercase letters, digits and
+ *  dashes — see `slugify`), so a colon can never be part of one and needs no escaping. */
+function parseEdgeToken(token: string): ScriptGraphEdge {
+  const colon = token.indexOf(":");
+  if (colon <= 0 || colon === token.length - 1) return { from: token };
+  return { input: token.slice(0, colon), from: token.slice(colon + 1) };
 }
 
 /** Reads the inside of `@block(...)`. Whitespace-separated tokens: a leading bare token is the id,
@@ -106,7 +136,8 @@ function parseHeaderAttributes(raw: string): Omit<ParsedHeader, "title"> {
   const tokens = raw.trim().split(/\s+/).filter(Boolean);
   let id: string | null = null;
   let at: { x: number; y: number } | null = null;
-  let after: string[] | null = null;
+  let after: ScriptGraphEdge[] | null = null;
+  let inputs: string[] | null = null;
 
   let i = 0;
   if (tokens.length > 0 && !ATTRIBUTE_KEYWORDS.has(tokens[0])) {
@@ -123,19 +154,23 @@ function parseHeaderAttributes(raw: string): Omit<ParsedHeader, "title"> {
         i += 2;
       }
     } else if (keyword === "after") {
-      const parents: string[] = [];
-      while (i < tokens.length && !ATTRIBUTE_KEYWORDS.has(tokens[i])) parents.push(tokens[i++]);
+      const parents: ScriptGraphEdge[] = [];
+      while (i < tokens.length && !ATTRIBUTE_KEYWORDS.has(tokens[i])) parents.push(parseEdgeToken(tokens[i++]));
       after = parents;
+    } else if (keyword === "inputs") {
+      const names: string[] = [];
+      while (i < tokens.length && !ATTRIBUTE_KEYWORDS.has(tokens[i])) names.push(tokens[i++]);
+      inputs = names;
     }
   }
-  return { id, at, after };
+  return { id, at, after, inputs };
 }
 
 function parseHeader(line: string): ParsedHeader {
   const legacy = LEGACY_HEADER_RE.exec(line);
-  if (legacy) return { id: null, at: null, after: null, title: legacy[1].trim() };
+  if (legacy) return { id: null, at: null, after: null, inputs: null, title: legacy[1].trim() };
   const match = BLOCK_HEADER_RE.exec(line);
-  if (!match) return { id: null, at: null, after: null, title: "" };
+  if (!match) return { id: null, at: null, after: null, inputs: null, title: "" };
   return { ...parseHeaderAttributes(match[1] ?? ""), title: (match[2] ?? "").trim() };
 }
 
@@ -180,16 +215,24 @@ export function parseScriptGraph(code: string): ScriptGraph {
 
   const allIds = ids.map((entry) => entry.id);
   parsed.forEach(({ header, body }, n) => {
-    const previous = n === 0 ? (hasPreamble ? [PREAMBLE_ID] : []) : [allIds[n - 1]];
+    const previous: ScriptGraphEdge[] = n === 0 ? (hasPreamble ? [{ from: PREAMBLE_ID }] : []) : [{ from: allIds[n - 1] }];
     let after = previous;
     if (header.after !== null) {
-      const known = header.after.filter((parent) => allIds.includes(parent) || parent === PREAMBLE_ID);
-      for (const missing of header.after.filter((parent) => !known.includes(parent))) {
-        warnings.push(`Le bloc « ${header.title || allIds[n]} » suit « ${missing} », qui n'existe pas — lien ignoré.`);
+      const known = header.after.filter((edge) => allIds.includes(edge.from) || edge.from === PREAMBLE_ID);
+      for (const missing of header.after.filter((edge) => !known.includes(edge))) {
+        warnings.push(`Le bloc « ${header.title || allIds[n]} » suit « ${missing.from} », qui n'existe pas — lien ignoré.`);
       }
       after = known;
     }
-    nodes.push({ id: allIds[n], authoredId: ids[n].authored, title: header.title, at: header.at, after, body });
+    nodes.push({
+      id: allIds[n],
+      authoredId: ids[n].authored,
+      title: header.title,
+      at: header.at,
+      after,
+      inputs: header.inputs ?? undefined,
+      body,
+    });
   });
 
   return { nodes, warnings };
@@ -210,7 +253,7 @@ export function serializeScriptGraph(graph: ScriptGraph): string {
   // The preamble is never named in a written `after`. Depending on it is a no-op — it runs before
   // everything by construction — so writing `after … __preambule__` into someone's script would be
   // pure noise in a file they have to read.
-  const visibleAfter = (node: ScriptGraphNode) => node.after.filter((id) => id !== PREAMBLE_ID);
+  const visibleAfter = (node: ScriptGraphNode) => node.after.filter((edge) => edge.from !== PREAMBLE_ID);
   const impliedFor = (previous: string | null) => (previous === null || previous === PREAMBLE_ID ? [] : [previous]);
 
   const explicitAfter = new Set<string>();
@@ -220,10 +263,11 @@ export function serializeScriptGraph(graph: ScriptGraph): string {
     if (!node.preamble) {
       const after = visibleAfter(node);
       const implied = impliedFor(previous);
-      const sameAsImplied = after.length === implied.length && after.every((id, i) => id === implied[i]);
+      const sameAsImplied =
+        after.length === implied.length && after.every((edge, i) => edge.from === implied[i] && edge.input === undefined);
       if (!sameAsImplied) {
         explicitAfter.add(node.id);
-        for (const parent of after) referenced.add(parent);
+        for (const edge of after) referenced.add(edge.from);
       }
     }
     previous = node.id;
@@ -244,11 +288,14 @@ export function serializeScriptGraph(graph: ScriptGraph): string {
     const attributes: string[] = [];
     if (node.authoredId || node.at || referenced.has(node.id)) attributes.push(node.id);
     if (node.at) attributes.push(`at ${Math.round(node.at.x)} ${Math.round(node.at.y)}`);
+    // Written whenever the block declares any, so a named port survives even while nothing is
+    // wired into it yet — the ports are the block's own shape, not a by-product of its arrows.
+    if (node.inputs && node.inputs.length > 0) attributes.push(`inputs ${node.inputs.join(" ")}`);
     if (explicitAfter.has(node.id)) {
       const after = visibleAfter(node);
       // A bare `after` with nothing behind it is how a block says "I depend on nothing" — without
       // it, the reader would inherit the block written before it (see `parseScriptGraph`).
-      attributes.push(after.length > 0 ? `after ${after.join(" ")}` : "after");
+      attributes.push(after.length > 0 ? `after ${after.map((e) => (e.input ? `${e.input}:${e.from}` : e.from)).join(" ")}` : "after");
     }
     const header = attributes.length > 0 ? `@block(${attributes.join(" ")})` : "@block";
     parts.push(`${header}${node.title ? ` ${node.title}` : ""}\n${node.body}`);
@@ -275,7 +322,7 @@ export function topologicalOrder(graph: ScriptGraph): ScriptGraphNode[] {
     progress = false;
     for (const node of graph.nodes) {
       if (placed.has(node.id)) continue;
-      if (!node.after.every((parent) => !byId.has(parent) || placed.has(parent))) continue;
+      if (!node.after.every((edge) => !byId.has(edge.from) || placed.has(edge.from))) continue;
       placed.add(node.id);
       order.push(node);
       progress = true;
@@ -297,7 +344,7 @@ export function runPathTo(graph: ScriptGraph, id: string): ScriptGraphNode[] {
     const node = byId.get(nodeId);
     if (!node) return;
     needed.add(nodeId);
-    for (const parent of node.after) visit(parent);
+    for (const edge of node.after) visit(edge.from);
   };
   visit(id);
   return topologicalOrder(graph).filter((node) => needed.has(node.id));
@@ -327,7 +374,7 @@ export function wouldCreateCycle(graph: ScriptGraph, parentId: string, childId: 
     if (current === childId) return true;
     if (seen.has(current)) continue;
     seen.add(current);
-    stack.push(...(byId.get(current)?.after ?? []));
+    stack.push(...(byId.get(current)?.after ?? []).map((edge) => edge.from));
   }
   return false;
 }
@@ -350,7 +397,7 @@ export function layoutScriptGraph(graph: ScriptGraph): ScriptGraph {
   const byId = new Map(graph.nodes.map((n) => [n.id, n]));
   const depths = new Map<string, number>();
   for (const node of topologicalOrder(graph)) {
-    const parentDepths = node.after.map((parent) => (byId.has(parent) ? (depths.get(parent) ?? 0) + 1 : 0));
+    const parentDepths = node.after.map((edge) => (byId.has(edge.from) ? (depths.get(edge.from) ?? 0) + 1 : 0));
     depths.set(node.id, parentDepths.length > 0 ? Math.max(...parentDepths) : 0);
   }
   const usedRows = new Map<number, number>();

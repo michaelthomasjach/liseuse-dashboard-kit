@@ -17,6 +17,10 @@ export interface ScriptRunnerHostProps {
    *  so a script actually replays with the chart rather than staying pinned to what the full
    *  dataset produced — see useScriptEngine's own `runUpToIndex` doc. */
   runUpToIndex: number | null;
+  /** The chart's own symbol, and candles for any *other* symbol a `@quant` analysis names — see
+   *  `ScriptRunner`'s own props. */
+  symbol: string | undefined;
+  quantData: Record<string, Candle[]> | undefined;
   onOutput: (id: string, output: ScriptRunOutput) => void;
   onAlert: ((event: ScriptAlertEvent) => void) | undefined;
 }
@@ -25,7 +29,7 @@ export interface ScriptRunnerHostProps {
  *  disabled or removed simply drops out of the filter below, unmounting its own `ScriptRunner`
  *  and, via that component's own cleanup effect, clearing its contribution to the aggregated
  *  `scriptIndicators`/`scriptDrawings`. Purely a mount/unmount driver; renders nothing itself. */
-export function ScriptRunnerHost({ scripts, data, indicators, fundamentals, lastCandleOpen, availableTimeframes, runUpToIndex, onOutput, onAlert }: ScriptRunnerHostProps) {
+export function ScriptRunnerHost({ scripts, data, indicators, fundamentals, lastCandleOpen, availableTimeframes, runUpToIndex, symbol, quantData, onOutput, onAlert }: ScriptRunnerHostProps) {
   return (
     <>
       {scripts
@@ -40,6 +44,8 @@ export function ScriptRunnerHost({ scripts, data, indicators, fundamentals, last
             lastCandleOpen={lastCandleOpen}
             availableTimeframes={availableTimeframes}
             runUpToIndex={runUpToIndex}
+            symbol={symbol}
+            quantData={quantData}
             onOutput={onOutput}
             onAlert={onAlert}
           />

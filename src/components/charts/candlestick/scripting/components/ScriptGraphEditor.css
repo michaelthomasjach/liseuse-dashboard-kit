@@ -323,6 +323,56 @@
   background-color: var(--lq-color-accent);
 }
 
+/* A named input keeps the same dot, but positioned from an inline `top` (see INPUT_PORT_TOP) and
+   carrying its own label outside the node — several arrows into one block are only readable if the
+   ports they land on say which is which. */
+.lq-script-graph__port--named {
+  top: auto;
+}
+
+.lq-script-graph__port-label {
+  position: absolute;
+  right: calc(100% + 5px);
+  top: 50%;
+  transform: translateY(-50%);
+  /* Labels sit outside the node, so they must not push the canvas around or catch the pointer on
+     their way past a neighbouring block. */
+  pointer-events: none;
+  white-space: nowrap;
+  font-size: 9px;
+  line-height: 1;
+  color: var(--lq-color-text-muted);
+  background-color: var(--lq-color-panel);
+  padding: 1px 3px;
+  border-radius: var(--lq-radius-sm);
+}
+
+.lq-script-graph__port-remove {
+  position: absolute;
+  left: calc(100% + 3px);
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background: none;
+  padding: 0 2px;
+  font-size: 11px;
+  line-height: 1;
+  color: var(--lq-color-text-muted);
+  cursor: pointer;
+  /* Only once the block is being looked at — a row of × next to every port would read as the
+     ports' own purpose. */
+  opacity: 0;
+}
+
+.lq-script-graph__node:hover .lq-script-graph__port-remove,
+.lq-script-graph__node--selected .lq-script-graph__port-remove {
+  opacity: 1;
+}
+
+.lq-script-graph__port-remove:hover {
+  color: var(--lq-color-negative);
+}
+
 /* ---- inspector ---- */
 
 .lq-script-graph__inspector {

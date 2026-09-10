@@ -35,6 +35,9 @@ import { ScriptDocumentationModal } from "./ScriptDocumentationModal";
 import type { ScriptEditorCodeMirrorHandle } from "./ScriptEditorCodeMirror";
 import { ScriptGraphEditor } from "./ScriptGraphEditor";
 import "./ScriptEditorPanel.css";
+import { QuantResultsPanel } from "./QuantResultsPanel";
+import { analyzeScriptKind } from "../scriptKind";
+import type { QuantSymbolResult } from "../interfaces/ScriptRunResult.interface";
 
 const LazyScriptEditorCodeMirror = lazy(() =>
   import("./ScriptEditorCodeMirror").then((m) => ({ default: m.ScriptEditorCodeMirror }))
@@ -68,6 +71,9 @@ export interface ScriptEditorPanelProps {
    *  useScriptingState's own doc. */
   setScriptParamValue: (id: string, name: string, value: ScriptParamValue) => void;
   resetScriptParamValues: (id: string) => void;
+  /** Keeps / drops a `@quant` run on its own script — see `ScriptDef.quantRuns`. */
+  saveQuantRun: (id: string, rows: QuantSymbolResult[], ranAt: number, label?: string) => void;
+  removeQuantRun: (id: string, runId: string) => void;
   runOutputs: Record<string, ScriptRunOutput>;
   /** Present only when this editor is shared across more than one chart (`ChartWorkspace`) — one
    *  entry per candidate target panel for "Exécuter". `undefined`/a single entry for a standalone
@@ -121,6 +127,8 @@ export function ScriptEditorPanel({
   stopScript,
   setScriptParamValue,
   resetScriptParamValues,
+  saveQuantRun,
+  removeQuantRun,
   runOutputs,
   panelChoices,
   previewData,
@@ -465,6 +473,9 @@ export function hello() {
   if (!open) return null;
 
   const output = activeScriptId ? runOutputs[activeScriptId] : undefined;
+  // Read off the editor's own draft, so the results panel appears as soon as `@quant` is typed —
+  // the same immediacy the parameters list already has.
+  const isQuant = analyzeScriptKind(editorValue).kind === "quant";
   const isDirty = activeScript !== null && isScriptDirty(activeScript);
 
   return (
@@ -801,6 +812,18 @@ export function hello() {
             )}
           </div>
           <div className="lq-script-editor-panel__side">
+            {/* A `@quant` analysis has no pane and no overlay to show its findings in — this is
+                where they land instead, beside the code that produced them. Rendered on the
+                decorator alone, not on there being a result: an analysis that has never been run
+                still says so here rather than leaving the author wondering where its output goes. */}
+            {isQuant && activeScript && (
+              <QuantResultsPanel
+                result={output?.result?.quant ?? null}
+                savedRuns={activeScript.quantRuns ?? []}
+                onSave={(rows, ranAt) => saveQuantRun(activeScript.id, rows, ranAt)}
+                onRemoveSaved={(runId) => removeQuantRun(activeScript.id, runId)}
+              />
+            )}
             {/* Read off the *draft*, not the saved `code` — a parameter appears in this list as
                 soon as its declaration is typed, without needing a save or a run first. */}
             <section className="lq-script-editor-panel__params">

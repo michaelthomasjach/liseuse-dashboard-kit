@@ -25,6 +25,45 @@ export interface ScriptExample {
  *  scripts respectifs ». Every example's own code is unchanged from the original static text. */
 export const SCRIPT_EXAMPLES: ScriptExample[] = [
   {
+    id: "quant-cross-section",
+    title: "Analyse @quant — comparer plusieurs symboles",
+    description:
+      "Une analyse `@quant` ne dessine rien : elle s'exécute une fois par symbole de la liste qu'elle déclare, et ce qu'elle renvoie *est* son résultat. Celle-ci mesure, pour chaque titre, sa performance sur trois horizons, sa volatilité annualisée et la distance à son plus haut d'un an — de quoi trier une liste de surveillance sans ouvrir un graphique. Les symboles au-delà de celui de la chart ont besoin de leurs propres bougies, fournies par l'application via `quantData` ; un symbole sans données revient avec sa propre ligne « aucune donnée » plutôt que de faire échouer toute l'analyse.",
+    code: `@quant(AAPL, MSFT, NVDA)
+@description "Comparaison transversale : performance, volatilité, distance au plus haut."
+
+// Une analyse @quant tourne UNE fois par symbole, positionnée sur la dernière bougie — market.*
+// voit donc tout l'historique. Aucun plot n'est disponible ici : le résultat, c'est le return.
+const closes = market.series("close", 260);
+if (closes.length < 30) return { erreur: "Historique trop court" };
+
+const last = closes[closes.length - 1];
+const perf = (barres) => {
+  const past = closes[closes.length - 1 - barres];
+  return past === undefined || past === 0 ? null : +(((last - past) / past) * 100).toFixed(2);
+};
+
+// Volatilité annualisée à partir des rendements quotidiens, en supposant 252 séances.
+const rendements = [];
+for (let i = 1; i < closes.length; i++) {
+  if (closes[i - 1] !== 0) rendements.push(closes[i] / closes[i - 1] - 1);
+}
+const moyenne = rendements.reduce((a, b) => a + b, 0) / rendements.length;
+const variance = rendements.reduce((a, r) => a + (r - moyenne) ** 2, 0) / rendements.length;
+const volatilite = +(Math.sqrt(variance) * Math.sqrt(252) * 100).toFixed(2);
+
+const plusHaut = Math.max(...closes);
+
+return {
+  cours: +last.toFixed(2),
+  "perf 1M": perf(21),
+  "perf 3M": perf(63),
+  "perf 1A": perf(252),
+  "volatilité": volatilite,
+  "sous le plus haut": +(((last - plusHaut) / plusHaut) * 100).toFixed(2),
+};`,
+  },
+  {
     id: "quant-score",
     title: "Quant Score — RSI + MACD + moyenne mobile",
     description:

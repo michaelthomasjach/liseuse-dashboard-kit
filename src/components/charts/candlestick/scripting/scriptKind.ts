@@ -2,19 +2,42 @@ import type { ScriptParamDiagnostic } from "../interfaces/ScriptParam.interface"
 
 /** What a script *is*, declared by a decorator on its own line — `@indicator` for something that
  *  draws on the chart, `@strategy` for something that also takes positions and is backtested (see
- *  `buildStrategyApi.ts`). Same family as `@description` and `@block`: read from the source text
- *  before anything runs, then removed, because none of the three is valid JavaScript.
+ *  `buildStrategyApi.ts`), `@quant` for an analysis that draws nothing and simply returns its
+ *  findings. Same family as `@description` and `@block`: read from the source text before anything
+ *  runs, then removed, because none of them is valid JavaScript.
  *
- *  The distinction is not cosmetic. A strategy gets an execution model an indicator has no use for
- *  — an account, orders, fills, an equity curve — and a whole pane of its own to configure and read
- *  it in. Declaring it up front is what lets the editor, the indicator picker and the pane layout
- *  know which of the two they are dealing with without executing anything first. */
-export type ScriptKind = "indicator" | "strategy";
+ *  The distinction is not cosmetic. Each kind gets an execution model the others have no use for.
+ *  A strategy gets an account, orders, fills and an equity curve, plus a pane to configure and read
+ *  it in. A quant script gets none of that and no drawing surface either: it runs once per symbol
+ *  rather than once per bar, over a list of symbols it names itself, and what it `return`s is the
+ *  whole of its output. Declaring the kind up front is what lets the editor, the indicator picker
+ *  and the pane layout know what they are dealing with without executing anything first. */
+export type ScriptKind = "indicator" | "strategy" | "quant";
 
-const KIND_LINE_RE = /^[ \t]*@(indicator|strategy)\b.*$/gm;
+const KIND_LINE_RE = /^[ \t]*@(indicator|strategy|quant)\b.*$/gm;
+/** The symbols a `@quant` names, if any: everything between its parentheses. Tolerant on purpose —
+ *  `@quant(AAPL, MSFT)`, `@quant("AAPL", "MSFT")` and `@quant(["AAPL", "MSFT"])` all mean the same
+ *  list, and a ticker is whatever a ticker looks like (letters, digits, and the `.`/`-`/`:`/`_`
+ *  that real ones carry: BRK.B, BTC-USD, NASDAQ:AAPL). */
+const QUANT_SYMBOLS_RE = /^[ \t]*@quant[ \t]*\(([^)]*)\)/m;
+const TICKER_RE = /[A-Za-z0-9][A-Za-z0-9.:_-]*/g;
+
+/** The symbols a `@quant` script declares, in source order and without duplicates.
+ *
+ *  Empty when it declared none, which is not an error: the analysis then runs on the chart's own
+ *  symbol alone, the same thing every other kind of script already does. */
+export function analyzeQuantSymbols(code: string): string[] {
+  const match = QUANT_SYMBOLS_RE.exec(code);
+  if (match === null) return [];
+  const found = match[1].match(TICKER_RE) ?? [];
+  return [...new Set(found.map((t) => t.toUpperCase()))];
+}
 
 export interface ScriptKindAnalysis {
   kind: ScriptKind;
+  /** `@quant` only — the symbols it named. Empty for every other kind, and for a `@quant` that
+   *  named none (see `analyzeQuantSymbols`). */
+  symbols: string[];
   /** True only when the script actually declared one. A script with no decorator is treated as an
    *  indicator (see `analyzeScriptKind`) — this says whether that was its own choice or the
    *  fallback, which is what lets the editor hint at the missing declaration without treating a
@@ -33,7 +56,7 @@ export interface ScriptKindAnalysis {
 export function analyzeScriptKind(code: string): ScriptKindAnalysis {
   const diagnostics: ScriptParamDiagnostic[] = [];
   const matches = [...code.matchAll(KIND_LINE_RE)];
-  if (matches.length === 0) return { kind: "indicator", declared: false, diagnostics };
+  if (matches.length === 0) return { kind: "indicator", declared: false, symbols: [], diagnostics };
 
   const kinds = new Set(matches.map((m) => m[1]));
   for (const extra of matches.slice(1)) {
@@ -43,11 +66,12 @@ export function analyzeScriptKind(code: string): ScriptKindAnalysis {
       to: at + extra[0].length,
       message:
         kinds.size > 1
-          ? "Un script est soit @indicator, soit @strategy — pas les deux. Seule la première déclaration est prise en compte."
+          ? "Un script est @indicator, @strategy ou @quant — pas plusieurs à la fois. Seule la première déclaration est prise en compte."
           : `Un script ne déclare qu'un seul @${extra[1]}.`,
     });
   }
-  return { kind: matches[0][1] as ScriptKind, declared: true, diagnostics };
+  const kind = matches[0][1] as ScriptKind;
+  return { kind, declared: true, symbols: kind === "quant" ? analyzeQuantSymbols(code) : [], diagnostics };
 }
 
 /** Removes the declaration so the remaining source is valid JavaScript again — blanking its line
@@ -56,4 +80,20 @@ export function analyzeScriptKind(code: string): ScriptKindAnalysis {
  *  `stripScriptBlocks`, which run alongside it (see `useScriptEngine.run`). */
 export function stripScriptKind(code: string): string {
   return code.replace(KIND_LINE_RE, "");
+}
+
+/** Every `plot.*` call in a script's own source, as diagnostics.
+ *
+ *  A `@quant` script has no drawing surface: it produces no pane and no overlay, so a `plot` call
+ *  there is not a small mistake to be tolerated but a misunderstanding of what the script is. Said
+ *  in the editor, where it can be read before running, *and* enforced in the worker, where `plot`
+ *  is replaced by an API that throws — a diagnostic alone would be advice, and this is a rule. */
+const PLOT_CALL_RE = /\bplot\s*\.\s*([A-Za-z_$][\w$]*)/g;
+
+export function analyzeQuantPlotCalls(code: string): ScriptParamDiagnostic[] {
+  return [...code.matchAll(PLOT_CALL_RE)].map((m) => ({
+    from: m.index ?? 0,
+    to: (m.index ?? 0) + m[0].length,
+    message: `Une analyse @quant n'affiche rien sur le graphique : « plot.${m[1]} » n'y est pas disponible. Renvoyez vos résultats avec « return » à la place.`,
+  }));
 }

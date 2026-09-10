@@ -19,6 +19,11 @@ import "./ScriptGraphEditor.css";
  *  nodes would mean a ResizeObserver per node just to draw a line — and a diagram whose boxes are
  *  all the same size is easier to read anyway. Must match `.lq-script-graph__node`'s own height. */
 const NODE_HEIGHT = 92;
+/** Where the first named input port sits down a node's left edge, and how far apart the next ones
+ *  are. Two fit inside `NODE_HEIGHT`; past that the ports run below the box, which is deliberate —
+ *  a node with five inputs should look like one. */
+const INPUT_PORT_TOP = 26;
+const INPUT_PORT_GAP = 22;
 const MIN_SCALE = 0.4;
 const MAX_SCALE = 1.6;
 
@@ -131,27 +136,61 @@ export function ScriptGraphEditor({ code, onChange, onRunBlock, running, renderB
       id,
       title: template.title,
       at,
-      after: parent ? [parent.id] : [],
+      after: parent ? [{ from: parent.id }] : [],
       body: template.body,
     };
     commit({ ...graph, nodes: [...graph.nodes, node] });
     setSelectedId(id);
   }
 
-  function connect(parentId: string, childId: string) {
+  /** Wires one block's output into one of another's inputs. `input` names which — left off, the
+   *  block's default, unnamed one. A block's output may feed several of the same block's inputs:
+   *  each is its own edge, and the pair (parent, input) is what must be unique, not the parent. */
+  function connect(parentId: string, childId: string, input?: string) {
     const child = graph.nodes.find((n) => n.id === childId);
     if (!child || child.preamble) return;
     // Nothing depends on the preamble explicitly: it already runs before every block, so the edge
     // would draw a promise the script cannot break. Its arrow to the first block is drawn from the
     // implicit chain instead.
     if (parentId === PREAMBLE_ID) return;
-    if (child.after.includes(parentId)) return;
+    if (child.after.some((edge) => edge.from === parentId && edge.input === input)) return;
     if (wouldCreateCycle(graph, parentId, childId)) return;
-    withNodes((nodes) => nodes.map((n) => (n.id === childId ? { ...n, after: [...n.after, parentId] } : n)));
+    withNodes((nodes) => nodes.map((n) => (n.id === childId ? { ...n, after: [...n.after, { from: parentId, input }] } : n)));
   }
 
-  function disconnect(parentId: string, childId: string) {
-    withNodes((nodes) => nodes.map((n) => (n.id === childId ? { ...n, after: n.after.filter((p) => p !== parentId) } : n)));
+  function disconnect(parentId: string, childId: string, input?: string) {
+    withNodes((nodes) =>
+      nodes.map((n) => (n.id === childId ? { ...n, after: n.after.filter((e) => !(e.from === parentId && e.input === input)) } : n)),
+    );
+  }
+
+  /** Declares one more named input on a block. The first one also names the input the block
+   *  already had: a block that has been given ports should not keep an unlabelled one beside them,
+   *  which would leave the reader to guess which is which. Existing arrows are re-pointed at it, so
+   *  naming inputs never quietly unwires anything. */
+  function addInput(id: string, name: string) {
+    const trimmed = name.trim().replace(/[^\p{L}\p{N}_-]+/gu, "-").toLowerCase();
+    if (!trimmed) return;
+    withNodes((nodes) =>
+      nodes.map((n) => {
+        if (n.id !== id) return n;
+        const existing = n.inputs ?? [];
+        if (existing.includes(trimmed)) return n;
+        const inputs = existing.length === 0 ? ["entrée", trimmed] : [...existing, trimmed];
+        const after = existing.length === 0 ? n.after.map((e) => ({ ...e, input: e.input ?? "entrée" })) : n.after;
+        return { ...n, inputs, after };
+      }),
+    );
+  }
+
+  /** Removes a named input, and every arrow that fed it — the arrows belonged to that port, and
+   *  silently re-pointing them at another one would rewire the script behind the user's back. */
+  function removeInput(id: string, name: string) {
+    withNodes((nodes) =>
+      nodes.map((n) =>
+        n.id === id ? { ...n, inputs: (n.inputs ?? []).filter((i) => i !== name), after: n.after.filter((e) => e.input !== name) } : n,
+      ),
+    );
   }
 
   function removeNode(id: string) {
@@ -163,8 +202,19 @@ export function ScriptGraphEditor({ code, onChange, onRunBlock, running, renderB
         // Its children inherit its parents, so deleting a block from the middle of a chain closes
         // the gap instead of cutting everything downstream loose.
         .map((n) =>
-          n.after.includes(id)
-            ? { ...n, after: [...new Set([...n.after.filter((p) => p !== id), ...removed.after])] }
+          n.after.some((e) => e.from === id)
+            ? {
+                ...n,
+                after: [
+                  ...n.after.filter((e) => e.from !== id),
+                  // The removed block's own parents take its place, on whichever of this block's
+                  // inputs it was feeding — so closing the gap keeps the wiring's shape.
+                  ...n.after
+                    .filter((e) => e.from === id)
+                    .flatMap((e) => removed.after.map((inherited) => ({ from: inherited.from, input: e.input })))
+                    .filter((e, i, all) => all.findIndex((o) => o.from === e.from && o.input === e.input) === i),
+                ],
+              }
             : n,
         ),
     );
@@ -188,15 +238,25 @@ export function ScriptGraphEditor({ code, onChange, onRunBlock, running, renderB
 
   const edges = graph.nodes.flatMap((node) =>
     node.after
-      .filter((parentId) => graph.nodes.some((n) => n.id === parentId))
-      .map((parentId) => ({ parentId, childId: node.id })),
+      .filter((edge) => graph.nodes.some((n) => n.id === edge.from))
+      .map((edge) => ({ parentId: edge.from, childId: node.id, input: edge.input })),
   );
 
-  function edgePath(from: { x: number; y: number }, to: { x: number; y: number }) {
+  /** How far down a node's own left edge one of its input ports sits. A block with no declared
+   *  inputs has its single port at mid-height, exactly where it always was; declared ones are
+   *  spread evenly over the node's height so several arrows into the same block stay told apart. */
+  function inputOffsetY(node: ScriptGraphNode | undefined, input: string | undefined) {
+    const inputs = node?.inputs ?? [];
+    if (inputs.length === 0) return NODE_HEIGHT / 2;
+    const index = input === undefined ? 0 : Math.max(0, inputs.indexOf(input));
+    return INPUT_PORT_TOP + index * INPUT_PORT_GAP;
+  }
+
+  function edgePath(from: { x: number; y: number }, to: { x: number; y: number }, toOffsetY = NODE_HEIGHT / 2) {
     const x1 = from.x + GRAPH_NODE_WIDTH;
     const y1 = from.y + NODE_HEIGHT / 2;
     const x2 = to.x;
-    const y2 = to.y + NODE_HEIGHT / 2;
+    const y2 = to.y + toOffsetY;
     // Horizontal control points, so an arrow leaves an output port and enters an input port
     // travelling sideways whichever way the two boxes actually sit relative to each other.
     const reach = Math.max(40, Math.abs(x2 - x1) * 0.5);
@@ -296,21 +356,20 @@ export function ScriptGraphEditor({ code, onChange, onRunBlock, running, renderB
                   <path d="M 0 0 L 8 4 L 0 8 z" fill="var(--lq-color-border)" />
                 </marker>
               </defs>
-              {edges.map(({ parentId, childId }) => {
+              {edges.map(({ parentId, childId, input }) => {
                 const parent = graph.nodes.find((n) => n.id === parentId);
                 const child = graph.nodes.find((n) => n.id === childId);
                 if (!parent || !child) return null;
+                const path = edgePath(positionOf(parent), positionOf(child), inputOffsetY(child, input));
                 return (
-                  <g key={`${parentId}->${childId}`} className="lq-script-graph__edge">
-                    <path d={edgePath(positionOf(parent), positionOf(child))} markerEnd="url(#lq-graph-arrow)" />
+                  // Keyed by the input too: one block's output may feed several inputs of the same
+                  // block, and those edges differ in nothing else.
+                  <g key={`${parentId}->${childId}:${input ?? ""}`} className="lq-script-graph__edge">
+                    <path d={path} markerEnd="url(#lq-graph-arrow)" />
                     {/* A second, invisible, much thicker copy: a 1.5px curve is impossible to hit
                         with a pointer, and this is what carries the click that removes the link. */}
-                    <path
-                      className="lq-script-graph__edge-hit"
-                      d={edgePath(positionOf(parent), positionOf(child))}
-                      onClick={() => disconnect(parentId, childId)}
-                    >
-                      <title>Cliquer pour supprimer ce lien</title>
+                    <path className="lq-script-graph__edge-hit" d={path} onClick={() => disconnect(parentId, childId, input)}>
+                      <title>{input ? `Cliquer pour supprimer ce lien vers « ${input} »` : "Cliquer pour supprimer ce lien"}</title>
                     </path>
                   </g>
                 );
@@ -351,16 +410,45 @@ export function ScriptGraphEditor({ code, onChange, onRunBlock, running, renderB
                     setDrag({ kind: "node", id: node.id, grabX: point.x - at.x, grabY: point.y - at.y, x: at.x, y: at.y });
                   }}
                 >
-                  {!node.preamble && (
-                    <span
-                      className="lq-script-graph__port lq-script-graph__port--in"
-                      onPointerUp={(e) => {
-                        e.stopPropagation();
-                        if (drag?.kind === "link") connect(drag.fromId, node.id);
-                        setDrag(null);
-                      }}
-                    />
-                  )}
+                  {!node.preamble &&
+                    (node.inputs && node.inputs.length > 0 ? (
+                      // One port per declared input, labelled and spread down the node's own left
+                      // edge — which is what lets one block's output be wired into two of them and
+                      // still be read apart.
+                      node.inputs.map((input, i) => (
+                        <span
+                          key={input}
+                          className="lq-script-graph__port lq-script-graph__port--in lq-script-graph__port--named"
+                          style={{ top: INPUT_PORT_TOP + i * INPUT_PORT_GAP }}
+                          onPointerUp={(e) => {
+                            e.stopPropagation();
+                            if (drag?.kind === "link") connect(drag.fromId, node.id, input);
+                            setDrag(null);
+                          }}
+                        >
+                          <span className="lq-script-graph__port-label">{input}</span>
+                          <button
+                            type="button"
+                            className="lq-script-graph__port-remove"
+                            onPointerDown={(e) => e.stopPropagation()}
+                            onClick={() => removeInput(node.id, input)}
+                            aria-label={`Supprimer l'entrée ${input} de ${node.title}`}
+                            title="Supprimer cette entrée"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))
+                    ) : (
+                      <span
+                        className="lq-script-graph__port lq-script-graph__port--in"
+                        onPointerUp={(e) => {
+                          e.stopPropagation();
+                          if (drag?.kind === "link") connect(drag.fromId, node.id);
+                          setDrag(null);
+                        }}
+                      />
+                    ))}
                   <div className="lq-script-graph__node-head">
                     <span className="lq-script-graph__node-title">{node.title || "Sans titre"}</span>
                     <span className="lq-script-graph__node-actions">
@@ -374,6 +462,20 @@ export function ScriptGraphEditor({ code, onChange, onRunBlock, running, renderB
                       >
                         <PlayIcon size={11} />
                       </button>
+                      {!node.preamble && (
+                        <button
+                          type="button"
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onClick={() => {
+                            const name = window.prompt("Nom de la nouvelle entrée", `entrée ${(node.inputs?.length ?? 1) + 1}`);
+                            if (name !== null) addInput(node.id, name);
+                          }}
+                          title="Ajouter une entrée nommée à ce bloc"
+                          aria-label={`Ajouter une entrée à ${node.title}`}
+                        >
+                          <PlusIcon size={11} />
+                        </button>
+                      )}
                       {!node.preamble && (
                         <button
                           type="button"

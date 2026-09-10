@@ -1,0 +1,198 @@
+.lq-quant {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lq-space-2);
+  min-width: 0;
+}
+
+.lq-quant__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--lq-space-2);
+}
+
+.lq-quant__title {
+  margin: 0;
+  font-size: var(--lq-font-size-sm);
+  font-weight: 600;
+  color: var(--lq-color-text);
+}
+
+.lq-quant__save {
+  border: 1px solid var(--lq-color-border);
+  background: var(--lq-color-panel);
+  color: var(--lq-color-text);
+  border-radius: var(--lq-radius-sm);
+  padding: 2px 8px;
+  font-size: var(--lq-font-size-xs);
+  cursor: pointer;
+}
+
+.lq-quant__save:hover {
+  background: var(--lq-color-surface-hover);
+}
+
+/* One row of runs, scrolled sideways rather than wrapped: the list grows with use, and a strip
+   that reflows to three lines pushes the results themselves off the screen. */
+.lq-quant__runs {
+  display: flex;
+  gap: var(--lq-space-1);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.lq-quant__runs::-webkit-scrollbar {
+  display: none;
+}
+
+.lq-quant__run-wrap {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.lq-quant__run {
+  border: 1px solid transparent;
+  background: none;
+  color: var(--lq-color-text-muted);
+  border-radius: var(--lq-radius-sm);
+  padding: 2px 6px;
+  font-size: var(--lq-font-size-xs);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.lq-quant__run:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.lq-quant__run--active {
+  border-color: var(--lq-color-border);
+  background: var(--lq-color-surface-hover);
+  color: var(--lq-color-text);
+}
+
+.lq-quant__run-remove {
+  border: none;
+  background: none;
+  color: var(--lq-color-text-muted);
+  cursor: pointer;
+  padding: 0 4px;
+  font-size: var(--lq-font-size-sm);
+  line-height: 1;
+}
+
+.lq-quant__run-remove:hover {
+  color: var(--lq-color-negative);
+}
+
+.lq-quant__ran-at,
+.lq-quant__empty {
+  margin: 0;
+  font-size: var(--lq-font-size-xs);
+  color: var(--lq-color-text-muted);
+}
+
+.lq-quant__symbols {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lq-space-3);
+  min-width: 0;
+}
+
+.lq-quant__symbol {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lq-space-1);
+  min-width: 0;
+}
+
+.lq-quant__symbol-name {
+  margin: 0;
+  font-size: var(--lq-font-size-xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--lq-color-text);
+}
+
+.lq-quant__error {
+  margin: 0;
+  font-size: var(--lq-font-size-xs);
+  color: var(--lq-color-negative);
+}
+
+.lq-quant__scalar {
+  margin: 0;
+  font-family: var(--lq-font-mono);
+  font-size: var(--lq-font-size-sm);
+  color: var(--lq-color-text);
+}
+
+.lq-quant__fields {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px var(--lq-space-2);
+  margin: 0;
+  font-size: var(--lq-font-size-xs);
+}
+
+.lq-quant__field {
+  display: contents;
+}
+
+.lq-quant__field dt {
+  color: var(--lq-color-text-muted);
+}
+
+.lq-quant__field dd {
+  margin: 0;
+  font-family: var(--lq-font-mono);
+  color: var(--lq-color-text);
+  text-align: right;
+}
+
+/* Its own scroller: a returned table is as wide as the script decided, and the panel around it
+   must not grow to match. */
+.lq-quant__table-wrap {
+  overflow-x: auto;
+  min-width: 0;
+}
+
+.lq-quant__table {
+  border-collapse: collapse;
+  font-size: var(--lq-font-size-xs);
+  width: 100%;
+}
+
+.lq-quant__table th,
+.lq-quant__table td {
+  border-bottom: 1px solid var(--lq-color-border-subtle);
+  padding: 3px 8px 3px 0;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.lq-quant__table th:first-child,
+.lq-quant__table td:first-child {
+  text-align: left;
+}
+
+.lq-quant__table th {
+  color: var(--lq-color-text-muted);
+  font-weight: 500;
+}
+
+.lq-quant__table td {
+  font-family: var(--lq-font-mono);
+  color: var(--lq-color-text);
+}
+
+.lq-quant__json {
+  margin: 0;
+  overflow-x: auto;
+  font-family: var(--lq-font-mono);
+  font-size: var(--lq-font-size-xs);
+  color: var(--lq-color-text);
+}

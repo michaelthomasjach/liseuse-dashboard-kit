@@ -33,6 +33,18 @@ const FAVORITES_CATEGORY = "Favoris";
  *  indicator. */
 const STRATEGIES_CATEGORY = "Mes stratégies";
 
+/** Where a `@quant` script is listed. Its own category for the same reason strategies have one:
+ *  it is a different act. A quant analysis draws nothing on the chart at all — it runs over a list
+ *  of symbols and returns a table of findings — so listing it beside things you add to the price
+ *  scale would promise something clicking it can never do. */
+const QUANT_CATEGORY = "Mes analyses";
+
+const SCRIPT_CATEGORY_BY_KIND: Record<ReturnType<typeof analyzeScriptKind>["kind"], string> = {
+  indicator: SCRIPTS_CATEGORY,
+  strategy: STRATEGIES_CATEGORY,
+  quant: QUANT_CATEGORY,
+};
+
 export interface IndicatorPickerModalProps {
   open: boolean;
   onClose: () => void;
@@ -193,6 +205,7 @@ export function IndicatorPickerModal({
                 // instead of the generic "aucun indicateur ne correspond" (see below).
                 SCRIPTS_CATEGORY,
                 STRATEGIES_CATEGORY,
+                QUANT_CATEGORY,
               ])
             ).map(
               (category) => (
@@ -324,7 +337,7 @@ export function IndicatorPickerModal({
               .map((s) => ({
                 key: s.id,
                 label: s.name,
-                category: analyzeScriptKind(s.code).kind === "strategy" ? STRATEGIES_CATEGORY : SCRIPTS_CATEGORY,
+                category: SCRIPT_CATEGORY_BY_KIND[analyzeScriptKind(s.code).kind],
                 pane: "own",
                 onSelect: () => toggleScriptEnabled(s.id),
                 enabled: s.enabled !== false,
@@ -367,7 +380,10 @@ export function IndicatorPickerModal({
                   </p>
                 );
               }
-              if (categoryFilter === SCRIPTS_CATEGORY && !scripts.some((s) => analyzeScriptKind(s.code).kind !== "strategy")) {
+              if (categoryFilter === QUANT_CATEGORY && !scripts.some((s) => analyzeScriptKind(s.code).kind === "quant")) {
+                return <p className="lq-chart__indicator-picker-empty">Aucune analyse @quant pour l'instant.</p>;
+              }
+              if (categoryFilter === SCRIPTS_CATEGORY && !scripts.some((s) => analyzeScriptKind(s.code).kind === "indicator")) {
                 return (
                   <p className="lq-chart__indicator-picker-empty">
                     Aucun script pour l&apos;instant. Un script est un indicateur que vous écrivez vous-même : ouvrez l&apos;éditeur

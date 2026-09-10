@@ -11,6 +11,8 @@ export interface ScriptDraft {
 }
 import type { ScriptRunOutput } from "../scripting/interfaces/ScriptRunOutput.interface";
 import type { ScriptTableOutput } from "../scripting/interfaces/ScriptRunResult.interface";
+import type { QuantSavedRun } from "../interfaces/ScriptDef.interface";
+import type { QuantSymbolResult } from "../scripting/interfaces/ScriptRunResult.interface";
 
 export interface UseScriptingStateControlledEditorOpen {
   editorOpen: boolean;
@@ -61,6 +63,10 @@ export interface UseScriptingStateArgs {
  *  *saved* code instead of the fresh draft. Since every trigger now rides along with `scripts`
  *  itself, and `scripts` already correctly routes through `controlledScripts` end to end, this
  *  works correctly in both the standalone and workspace-shared cases with no separate plumbing. */
+/** How many kept runs one analysis holds. Twenty is a couple of months of daily keeping — past
+ *  that, what someone wants is an export, not a longer list in a dropdown. */
+const MAX_SAVED_QUANT_RUNS = 20;
+
 export function useScriptingState({ defaultScripts, onScriptsChange, controlledEditorOpen, controlledScripts }: UseScriptingStateArgs) {
   const [internalScripts, setInternalScripts] = useState<ScriptDef[]>(defaultScripts ?? []);
   const scripts = controlledScripts?.scripts ?? internalScripts;
@@ -109,6 +115,26 @@ export function useScriptingState({ defaultScripts, onScriptsChange, controlledE
 
   function updateScript(id: string, patch: Partial<Omit<ScriptDef, "id">>) {
     commitScripts(scripts.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+  }
+
+  /** Keeps a `@quant` run on its own script, newest first — see `ScriptDef.quantRuns`.
+   *
+   *  Saved rather than recomputed because that is the point: a quant analysis covers a list of
+   *  symbols, each a full pass over its own history, and its answer is a fact about a moment
+   *  rather than a live reading. Capped so a script that is run and kept every day does not grow
+   *  without bound in whatever the caller persists these to. */
+  function saveQuantRun(id: string, rows: QuantSymbolResult[], ranAt: number, label?: string) {
+    const script = scripts.find((s) => s.id === id);
+    if (!script) return;
+    const run: QuantSavedRun = { id: `quant-${ranAt}-${Math.random().toString(36).slice(2, 8)}`, ranAt, label, rows };
+    updateScript(id, { quantRuns: [run, ...(script.quantRuns ?? [])].slice(0, MAX_SAVED_QUANT_RUNS) });
+  }
+
+  /** Drops one kept run. */
+  function removeQuantRun(id: string, runId: string) {
+    const script = scripts.find((s) => s.id === id);
+    if (!script) return;
+    updateScript(id, { quantRuns: (script.quantRuns ?? []).filter((r) => r.id !== runId) });
   }
 
   /** Opens a script's tab (and focuses it), adding it if it was not already open. */
@@ -287,6 +313,8 @@ export function useScriptingState({ defaultScripts, onScriptsChange, controlledE
     removeScript,
     toggleScriptEnabled,
     setStrategySettings,
+    saveQuantRun,
+    removeQuantRun,
     editorOpen,
     setEditorOpen,
     activeScriptId,

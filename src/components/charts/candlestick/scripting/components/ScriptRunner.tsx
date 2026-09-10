@@ -27,6 +27,13 @@ export interface ScriptRunnerProps {
    *  so a script actually replays with the chart rather than staying pinned to what the full
    *  dataset produced — see useScriptEngine's own `runUpToIndex` doc. */
   runUpToIndex: number | null;
+  /** The chart's own symbol — the default a `@quant` that named none runs on, and the one symbol
+   *  whose indicator/fundamental series a quant run may read. */
+  symbol: string | undefined;
+  /** Candles per symbol, for a `@quant` analysis that names symbols other than the chart's own.
+   *  The library owns no data source (the same stance `data` and `events` take), so a symbol
+   *  missing here comes back as that symbol's own "aucune donnée" row rather than being invented. */
+  quantData: Record<string, Candle[]> | undefined;
   onOutput: (id: string, output: ScriptRunOutput) => void;
   onAlert: ((event: ScriptAlertEvent) => void) | undefined;
 }
@@ -76,13 +83,25 @@ function resolveDebounceMs(code: string, paramValues: ScriptDef["paramValues"]):
   return typeof value === "number" ? value : undefined;
 }
 
-export function ScriptRunner({ script, data, indicators, fundamentals, lastCandleOpen, availableTimeframes, runUpToIndex, onOutput, onAlert }: ScriptRunnerProps) {
+export function ScriptRunner({ script, data, indicators, fundamentals, lastCandleOpen, availableTimeframes, runUpToIndex, symbol, quantData, onOutput, onAlert }: ScriptRunnerProps) {
   const debounceMs = useMemo(() => resolveDebounceMs(script.code, script.paramValues), [script.code, script.paramValues]);
   // Settings are handed over only when the script actually declared itself a strategy. That is what
   // withholds the `strategy.*` API from an indicator (runScript builds it from these or not at
   // all), so the decorator isn't merely descriptive — it gates the capability.
-  const strategySettings =
-    analyzeScriptKind(script.code).kind === "strategy" ? (script.strategySettings ?? DEFAULT_STRATEGY_SETTINGS) : undefined;
+  const kindAnalysis = useMemo(() => analyzeScriptKind(script.code), [script.code]);
+  const strategySettings = kindAnalysis.kind === "strategy" ? (script.strategySettings ?? DEFAULT_STRATEGY_SETTINGS) : undefined;
+  // Handed over only when the script actually declared itself a quant analysis — the same gate
+  // `strategySettings` is: runScript builds the quant path from this or not at all, so the
+  // decorator grants the capability rather than merely describing it.
+  const quant = useMemo(() => {
+    if (kindAnalysis.kind !== "quant") return undefined;
+    // A `@quant` that named no symbol runs on the chart's own — the same thing every other kind of
+    // script already does, rather than an error about a list nobody had to write.
+    const symbols = kindAnalysis.symbols.length > 0 ? kindAnalysis.symbols : symbol ? [symbol] : [];
+    const series: Record<string, Candle[]> = { ...quantData };
+    if (symbol !== undefined && series[symbol] === undefined) series[symbol] = data;
+    return { symbols, series, hostSymbol: symbol };
+  }, [kindAnalysis, symbol, quantData, data]);
   const engine = useScriptEngine(
     script.id,
     data,
@@ -92,7 +111,8 @@ export function ScriptRunner({ script, data, indicators, fundamentals, lastCandl
     availableTimeframes,
     runUpToIndex,
     debounceMs,
-    strategySettings
+    strategySettings,
+    quant
   );
   const hasRunOnceRef = useRef(false);
   const lastRunRequestIdRef = useRef<number | null>(null);

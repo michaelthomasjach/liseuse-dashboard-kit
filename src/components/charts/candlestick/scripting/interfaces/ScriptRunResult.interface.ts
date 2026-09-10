@@ -183,4 +183,28 @@ export interface ScriptRunResult {
    *  which is the whole point of the decorator: nothing downstream has to guess whether a strategy
    *  pane belongs on screen, the presence of this answers it. */
   strategy: StrategyResult | null;
+  /** What a `@quant` analysis returned, per symbol. `null` for every other kind, and the same
+   *  reasoning as `strategy` above: nothing downstream has to guess. */
+  quant: QuantResult | null;
+}
+
+/** One symbol's own outcome inside a `@quant` run. A failing symbol does not fail the run: the
+ *  others still have answers, and losing them because one ticker had no data would be the analysis
+ *  punishing its author for the host's gaps. */
+export interface QuantSymbolResult {
+  symbol: string;
+  /** Whatever the script returned for this symbol, verbatim — this library never interprets it,
+   *  the same stance it takes on `data` and `events`. Structured-cloned across the worker
+   *  boundary, so it has to be plain data: no functions, no class instances. */
+  value: unknown;
+  /** Set instead of `value` when this symbol alone failed — a missing series, or the script
+   *  throwing on it. */
+  error?: ScriptError;
+}
+
+export interface QuantResult {
+  /** In the order the script named them (see `analyzeQuantSymbols`). */
+  rows: QuantSymbolResult[];
+  /** When the run finished, epoch ms — what a saved result is dated by. */
+  ranAt: number;
 }

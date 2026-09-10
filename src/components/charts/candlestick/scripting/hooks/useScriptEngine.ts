@@ -27,6 +27,14 @@ import {
 // resolves to a Worker *constructor*, not the module's own exports.
 import ScriptWorkerFactory from "../worker/scriptWorkerEntry?worker";
 
+/** What a `@quant` run needs from the host: which symbols to cover, each one's own candles, and
+ *  which of them is the chart's own (the only one whose indicator/fundamental series apply). */
+export interface QuantRunInput {
+  symbols: string[];
+  series: Record<string, Candle[]>;
+  hostSymbol?: string;
+}
+
 function buildSnapshot(
   data: Candle[],
   indicators: Indicator[],
@@ -39,7 +47,8 @@ function buildSnapshot(
   availableTimeframes: string[]
 ,
   runUpToIndex: number,
-  strategySettings: StrategySettings | undefined
+  strategySettings: StrategySettings | undefined,
+  quant: QuantRunInput | undefined
 ): ScriptEngineSnapshot {
   // Reuses `computeIndicatorValues` verbatim — the exact same function `useIndicatorPaneScales`
   // calls to produce what's actually drawn on the chart — rather than recomputing indicator
@@ -67,8 +76,11 @@ function buildSnapshot(
     if (points.length > 0) fundamentalSeries[field] = forwardFillSeries(data, points);
   }
 
+  const toSnapshotCandles = (candles: Candle[]) =>
+    candles.map((d) => ({ t: d.date.getTime(), o: d.open, h: d.high, l: d.low, c: d.close, v: d.volume }));
+
   return {
-    ohlcv: data.map((d) => ({ t: d.date.getTime(), o: d.open, h: d.high, l: d.low, c: d.close, v: d.volume })),
+    ohlcv: toSnapshotCandles(data),
     indicatorSeries,
     fundamentalSeries,
     runUpToIndex,
@@ -79,6 +91,14 @@ function buildSnapshot(
     isRealtimeTick,
     availableTimeframes,
     strategySettings,
+    quant:
+      quant === undefined
+        ? undefined
+        : {
+            symbols: quant.symbols,
+            series: Object.fromEntries(Object.entries(quant.series).map(([symbol, candles]) => [symbol, toSnapshotCandles(candles)])),
+            hostSymbol: quant.hostSymbol,
+          },
   };
 }
 
@@ -123,7 +143,11 @@ export function useScriptEngine(
    *  `undefined` for an indicator, which is what actually withholds the `strategy.*` API from it —
    *  see runScript.ts. Changing one of these re-runs the script, exactly as changing a `Variable`
    *  does: the simulation lives inside the run, so there is nothing else it could mean. */
-  strategySettings: StrategySettings | undefined = undefined
+  strategySettings: StrategySettings | undefined = undefined,
+  /** Set only for a `@quant` script — see `ScriptEngineSnapshot.quant`. Its presence is what puts
+   *  the worker on the quant path, so a script that never declared itself one cannot be run as
+   *  one. */
+  quant: QuantRunInput | undefined = undefined
 ) {
   // Clamped: a cutoff from a previous, longer dataset would otherwise run past the end of this one.
   const effectiveRunUpToIndex = runUpToIndex === null ? data.length - 1 : Math.max(0, Math.min(runUpToIndex, data.length - 1));
@@ -254,7 +278,9 @@ export function useScriptEngine(
           table: null,
           xyCharts: [],
           alerts: [],
-          labels: [], strategy: null,
+          labels: [],
+          strategy: null,
+          quant: null,
         };
         setResult(errorResult);
         setRunning(false);
@@ -271,7 +297,9 @@ export function useScriptEngine(
           table: null,
           xyCharts: [],
           alerts: [],
-          labels: [], strategy: null,
+          labels: [],
+          strategy: null,
+          quant: null,
         };
         setResult(timeoutResult);
         setRunning(false);
@@ -279,7 +307,20 @@ export function useScriptEngine(
       }, timeoutMs);
 
       worker.postMessage(
-        buildSnapshot(data, indicators, fundamentals, scriptCode, scriptModules, timeoutMs, lastCandleOpen, isRealtimeTick, availableTimeframes, effectiveRunUpToIndex, strategySettings)
+        buildSnapshot(
+          data,
+          indicators,
+          fundamentals,
+          scriptCode,
+          scriptModules,
+          timeoutMs,
+          lastCandleOpen,
+          isRealtimeTick,
+          availableTimeframes,
+          effectiveRunUpToIndex,
+          strategySettings,
+          quant
+        )
       );
     });
   }

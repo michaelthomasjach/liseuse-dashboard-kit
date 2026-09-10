@@ -1,5 +1,6 @@
 import type { StrategySettings } from "./StrategySettings.interface";
 import type { ScriptParamValue } from "./ScriptParam.interface";
+import type { QuantSymbolResult } from "../scripting/interfaces/ScriptRunResult.interface";
 
 /** One user-authored script, as seen from outside this library — see
  *  `CandlestickChartProps.defaultScripts`/`onScriptsChange`, the same uncontrolled-state
@@ -73,4 +74,25 @@ export interface ScriptDef {
    *  run started from the editor uses the unsaved state of *every* file, not just the entry. */
   runDraftFiles?: ScriptFile[];
   stopRequestId?: number;
+  /** Runs of this `@quant` analysis the user chose to keep, newest first.
+   *
+   *  A quant analysis can be slow — it covers a list of symbols, each one a full pass over its own
+   *  history — and its answer is a fact about a moment, not a live reading. Saving one is what lets
+   *  it be consulted, compared and shared later without paying for it again.
+   *
+   *  On the `ScriptDef` rather than in a store of its own, for the same reason `strategySettings`
+   *  is: it belongs to this script, is saved with it through the caller's own `onScriptsChange`,
+   *  routes with it to whichever panel runs it, and is gone with it when it is deleted. */
+  quantRuns?: QuantSavedRun[];
+}
+
+/** One kept run of a `@quant` analysis. */
+export interface QuantSavedRun {
+  id: string;
+  /** When the analysis actually ran, epoch ms — not when it was saved, which is what someone
+   *  reading two saved runs side by side needs to tell them apart. */
+  ranAt: number;
+  /** What the user called it, if anything. Unnamed runs are listed by date alone. */
+  label?: string;
+  rows: QuantSymbolResult[];
 }

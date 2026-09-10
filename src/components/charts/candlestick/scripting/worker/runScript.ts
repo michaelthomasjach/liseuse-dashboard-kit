@@ -1,5 +1,5 @@
 import type { ScriptEngineSnapshot } from "../interfaces/ScriptEngineSnapshot.interface";
-import type { ScriptError, ScriptRunResult } from "../interfaces/ScriptRunResult.interface";
+import type { QuantSymbolResult, ScriptError, ScriptRunResult } from "../interfaces/ScriptRunResult.interface";
 import { buildMarketApi, buildChartApi } from "./buildScriptApi";
 import { buildPlotApi } from "./buildPlotApi";
 import { buildStateApi } from "./buildStateApi";
@@ -7,6 +7,7 @@ import { buildAlertApi } from "./buildAlertApi";
 import { buildBarApi } from "./buildBarApi";
 import { buildStrategyApi } from "./buildStrategyApi";
 import { buildCompanyApi } from "./buildCompanyApi";
+import { buildQuantPlotApi } from "./buildQuantPlotApi";
 import { mathApi } from "./mathLib";
 import { taApi } from "./taLib";
 import { SCRIPT_MODULE_EXPORTS, SCRIPT_MODULE_REQUIRE, transformScriptModule } from "../scriptModules";
@@ -95,6 +96,8 @@ export function runScript(snapshot: ScriptEngineSnapshot): ScriptRunResult {
   const market = buildMarketApi(snapshot, getCurrentIndex);
   const chart = buildChartApi(snapshot, getCurrentIndex);
   const { api: plot, getResult: getPlotResult } = buildPlotApi(getCurrentDate, () => snapshot.ohlcv[currentIndex].c);
+  // What a `@quant` script is handed instead — every method throws, naming what to do instead.
+  const quantPlot = snapshot.quant ? buildQuantPlotApi() : null;
   const state = buildStateApi();
   const { api: alert, getAlerts } = buildAlertApi(getCurrentIndex, getCurrentDate);
   const bar = buildBarApi(snapshot, getCurrentIndex);
@@ -174,7 +177,8 @@ export function runScript(snapshot: ScriptEngineSnapshot): ScriptRunResult {
     ta: unknown,
     console: unknown,
     strategy: unknown
-  ) => void;
+    // `unknown` rather than `void`: on the quant path what the script returns *is* its output.
+  ) => unknown;
   // The entry file goes through the same rewrite as any other — a single-file script simply has
   // nothing to rewrite, and comes back unchanged.
   const entry = transformScriptModule(snapshot.scriptCode);
@@ -192,6 +196,7 @@ export function runScript(snapshot: ScriptEngineSnapshot): ScriptRunResult {
       alerts: [],
       labels: [],
       strategy: null,
+      quant: null,
     };
   }
 
@@ -230,6 +235,74 @@ export function runScript(snapshot: ScriptEngineSnapshot): ScriptRunResult {
       alerts: [],
       labels: [],
       strategy: null,
+      quant: null,
+    };
+  }
+
+  // A quant analysis is not a series and has nothing to draw: it runs once per symbol, positioned
+  // at that symbol's last bar so every `market.*` accessor sees the whole history, and what it
+  // returns is the whole of its output. Handled before the per-bar loop rather than inside it,
+  // because it is a different execution model, not a variation on one.
+  if (snapshot.quant) {
+    const rows: QuantSymbolResult[] = [];
+    for (const symbol of snapshot.quant.symbols) {
+      const series = snapshot.quant.series[symbol];
+      if (series === undefined || series.length === 0) {
+        rows.push({ symbol, value: undefined, error: { message: `Aucune donnée fournie pour ${symbol}.` } });
+        continue;
+      }
+      // Indicator and fundamental series are computed from the host chart's own data, so they
+      // belong to the host symbol alone — handing them to another company's run would answer a
+      // question about the wrong company. Emptied rather than approximated.
+      const isHost = symbol === snapshot.quant.hostSymbol;
+      const symbolSnapshot: ScriptEngineSnapshot = {
+        ...snapshot,
+        ohlcv: series,
+        runUpToIndex: series.length - 1,
+        indicatorSeries: isHost ? snapshot.indicatorSeries : {},
+        fundamentalSeries: isHost ? snapshot.fundamentalSeries : {},
+      };
+      currentIndex = series.length - 1;
+      const symbolMarket = buildMarketApi(symbolSnapshot, getCurrentIndex);
+      const symbolChart = buildChartApi(symbolSnapshot, getCurrentIndex);
+      const symbolBar = buildBarApi(symbolSnapshot, getCurrentIndex);
+      const symbolCompany = buildCompanyApi(symbolSnapshot, getCurrentIndex);
+      try {
+        const value = compiled(
+          // A fresh exports object per symbol, so one symbol's run cannot see the last one's.
+          {},
+          requireModule,
+          symbolMarket,
+          symbolChart,
+          quantPlot,
+          state,
+          alert,
+          symbolBar,
+          symbolCompany,
+          mathApi,
+          taApi,
+          scriptConsole,
+          undefined,
+        );
+        rows.push({ symbol, value });
+      } catch (err) {
+        // One symbol failing does not fail the run: the others still have answers, and losing them
+        // because one ticker had no usable data would be the analysis punishing its author for the
+        // host's own gaps.
+        rows.push({ symbol, value: undefined, error: toScriptError(err) });
+      }
+    }
+    return {
+      error: null,
+      logs,
+      panes: [],
+      drawings: [],
+      table: null,
+      xyCharts: [],
+      alerts: getAlerts(),
+      labels: [],
+      strategy: null,
+      quant: { rows, ranAt: Date.now() },
     };
   }
 
@@ -254,6 +327,7 @@ export function runScript(snapshot: ScriptEngineSnapshot): ScriptRunResult {
         alerts: getAlerts(),
         labels,
         strategy: strategy?.getResult() ?? null,
+        quant: null,
       };
     }
   }
@@ -270,5 +344,6 @@ export function runScript(snapshot: ScriptEngineSnapshot): ScriptRunResult {
     alerts: getAlerts(),
     labels,
     strategy: strategy?.getResult() ?? null,
+    quant: null,
   };
 }

@@ -1,7 +1,7 @@
 import { analyzeScriptVariables } from "../scriptVariables";
 import { analyzeScriptDescription } from "../scriptDescription";
 import { isBlockMarkerLine } from "../scriptBlocks";
-import { analyzeScriptKind } from "../scriptKind";
+import { analyzeQuantPlotCalls, analyzeScriptKind } from "../scriptKind";
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { EditorState, StateEffect, StateField, type Text } from "@codemirror/state";
@@ -688,6 +688,9 @@ export const ScriptEditorCodeMirror = forwardRef<ScriptEditorCodeMirrorHandle, S
       ...analyzeScriptDescription(source).diagnostics,
       ...analyzeScriptVariables(source).diagnostics,
       ...analyzeScriptKind(source).diagnostics,
+      // A @quant analysis has no drawing surface at all — said here, where it can be read before
+      // running, and enforced in the worker, where `plot` throws (see buildQuantPlotApi).
+      ...(analyzeScriptKind(source).kind === "quant" ? analyzeQuantPlotCalls(source) : []),
     ]) {
       diagnostics.push({
         from: Math.min(issue.from, docLength),

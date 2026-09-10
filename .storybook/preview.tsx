@@ -53,6 +53,27 @@ const preview: Preview = {
   // lets consumers copy-paste the exact JSX a story renders straight out of Storybook.
   tags: ["autodocs"],
   parameters: {
+    // The landing page first; after it, the sidebar reads roughly from the smallest building
+    // blocks to the largest assemblies. Anything not listed keeps its alphabetical place after
+    // these.
+    options: {
+      storySort: {
+        order: [
+          "Accueil",
+          "Foundations",
+          "Primitives",
+          "Forms",
+          "Feedback",
+          "Charts",
+          "Finance",
+          "Finance Widgets",
+          "Widgets",
+          "Dashboard",
+          "Layouts",
+          "Pages",
+        ],
+      },
+    },
     controls: {
       matchers: {
         color: /(background|color)$/i,

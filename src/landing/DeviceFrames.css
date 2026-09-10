@@ -1,0 +1,182 @@
+/* Device mock-ups for the Storybook landing page. Storybook chrome only — nothing here is
+   exported from src/index.ts, so none of it reaches the published bundle.
+   The `lqx-` prefix keeps these apart from the library's own public `lq-` namespace. */
+
+.lqx-device {
+  /* Chrome tones are mixed from the theme's own text colour instead of a fixed grey: on the dark
+     surfaces a fixed dark chrome would vanish into the page, and on e-ink a coloured one would
+     break the monochrome rule. */
+  --lqx-chrome: color-mix(in srgb, var(--lq-color-text) 74%, var(--lq-color-bg));
+  --lqx-chrome-edge: color-mix(in srgb, var(--lq-color-text) 88%, var(--lq-color-bg));
+  --lqx-screen-inset: color-mix(in srgb, var(--lq-color-bg) 35%, var(--lqx-chrome));
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 0;
+  width: 100%;
+}
+
+.lqx-device__caption {
+  margin-top: var(--lq-space-3);
+  font-size: var(--lq-text-xs);
+  color: var(--lq-color-text-muted);
+  text-align: center;
+  letter-spacing: 0.02em;
+}
+
+/* Contact shadow on the floor. Suppressed on e-ink, which has neither shadows nor gradients. */
+.lqx-device__shadow {
+  width: 74%;
+  height: 26px;
+  margin-top: -4px;
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.3), transparent 72%);
+  filter: blur(7px);
+}
+
+.lq-root[data-lq-palette="eink"] .lqx-device__shadow {
+  display: none;
+}
+
+/* ── Laptop ─────────────────────────────────────────────────────────────────────────────── */
+
+.lqx-laptop__lid {
+  position: relative;
+  width: 100%;
+  padding: 14px 14px 18px;
+  background: var(--lqx-chrome);
+  border-radius: 14px 14px 5px 5px;
+  box-shadow: 0 30px 64px -34px rgba(0, 0, 0, 0.6);
+}
+
+.lqx-laptop__camera {
+  position: absolute;
+  top: 5px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--lqx-screen-inset);
+}
+
+.lqx-laptop__screen {
+  overflow: hidden;
+  border-radius: 3px;
+  background-color: var(--lq-color-bg);
+}
+
+/* Tapered base, cut with clip-path rather than the border-triangle trick — the trapezoid stays a
+   real box, so the hinge lip below can be positioned inside it. */
+.lqx-laptop__base {
+  position: relative;
+  width: 100%;
+  height: 14px;
+  background: var(--lqx-chrome-edge);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 28px) 100%, 28px 100%);
+}
+
+.lqx-laptop__notch {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 92px;
+  height: 5px;
+  border-radius: 0 0 5px 5px;
+  background: var(--lqx-screen-inset);
+}
+
+/* ── Tablet ─────────────────────────────────────────────────────────────────────────────── */
+
+.lqx-tablet__body {
+  position: relative;
+  width: 100%;
+  padding: 16px;
+  background: var(--lqx-chrome);
+  border-radius: 18px;
+  box-shadow: 0 26px 54px -30px rgba(0, 0, 0, 0.55);
+}
+
+.lqx-tablet__camera {
+  position: absolute;
+  top: 7px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--lqx-screen-inset);
+}
+
+.lqx-tablet__screen {
+  overflow: hidden;
+  border-radius: 4px;
+  background-color: var(--lq-color-bg);
+}
+
+/* ── Phone ──────────────────────────────────────────────────────────────────────────────── */
+
+.lqx-phone__body {
+  position: relative;
+  /* Sized from what it holds, not from a guess: PortfolioSummaryWidget + WatchlistWidget need
+     348px before their own content starts clipping, and a real phone is ~390 CSS px wide anyway.
+     Anything narrower cut the price column off mid-figure. */
+  width: 380px;
+  max-width: 100%;
+  padding: 11px;
+  background: var(--lqx-chrome);
+  border-radius: 34px;
+  box-shadow: 0 24px 48px -28px rgba(0, 0, 0, 0.55);
+}
+
+.lqx-phone__notch {
+  position: absolute;
+  z-index: 2;
+  top: 11px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 104px;
+  height: 20px;
+  border-radius: 0 0 13px 13px;
+  background: var(--lqx-chrome);
+}
+
+.lqx-phone__screen {
+  overflow: hidden;
+  border-radius: 24px;
+  background-color: var(--lq-color-bg);
+}
+
+.lqx-phone__bar {
+  position: absolute;
+  bottom: 17px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 92px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--lqx-screen-inset);
+  opacity: 0.85;
+}
+
+/* Flat rendering: e-ink drops every shadow, and the device silhouettes keep only enough radius to
+   still read as hardware rather than as another panel. */
+.lq-root[data-lq-palette="eink"] .lqx-laptop__lid,
+.lq-root[data-lq-palette="eink"] .lqx-tablet__body,
+.lq-root[data-lq-palette="eink"] .lqx-phone__body {
+  box-shadow: none;
+}
+
+.lq-root[data-lq-palette="eink"] .lqx-laptop__screen,
+.lq-root[data-lq-palette="eink"] .lqx-tablet__screen {
+  border-radius: 0;
+}
+
+/* Once the tablet is this narrow, a two-column dashboard inside it starts clipping its own rows
+   against the screen's `overflow: hidden`. Its grid reads this property (see HomeDashboardScreen). */
+@media (max-width: 620px) {
+  .lqx-tablet {
+    --lqx-tablet-cols: 1fr;
+  }
+}

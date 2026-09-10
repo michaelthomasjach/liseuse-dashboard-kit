@@ -1,0 +1,550 @@
+/* Landing page for the Storybook sidebar's first entry. Storybook chrome only: nothing in
+   src/landing/ is re-exported from src/index.ts, so none of it ships in the published bundle.
+   Prefixed `lqx-` to stay clear of the library's own public `lq-` namespace. */
+
+.lqx-landing {
+  position: relative;
+  isolation: isolate;
+  overflow-x: hidden;
+  min-height: 100vh;
+  padding-bottom: 96px;
+  background-color: var(--lq-color-bg);
+  color: var(--lq-color-text);
+  font-family: var(--lq-font-family);
+}
+
+/* ── Decorative backdrop ────────────────────────────────────────────────────────────────── */
+
+/* Two layers, both painted from theme tokens so the page never hard-codes a colour: a fine
+   graph-paper grid, and (colour palette only) a pair of soft glows behind the hero. E-ink keeps
+   the grid alone — its whole premise is no gradients and no shadows — and gets a slightly firmer
+   hairline instead, which is what actually reads on electronic paper. */
+.lqx-backdrop {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 1180px;
+  pointer-events: none;
+  z-index: -1;
+  background-image:
+    linear-gradient(to right, var(--lq-color-border-subtle) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--lq-color-border-subtle) 1px, transparent 1px);
+  background-size: 34px 34px;
+  -webkit-mask-image: radial-gradient(ellipse 90% 60% at 50% 22%, #000 30%, transparent 78%);
+  mask-image: radial-gradient(ellipse 90% 60% at 50% 22%, #000 30%, transparent 78%);
+  opacity: 0.75;
+}
+
+.lqx-backdrop__glow {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(38rem 26rem at 18% 8%, color-mix(in srgb, var(--lq-color-fill) 22%, transparent), transparent 70%),
+    radial-gradient(34rem 24rem at 86% 2%, color-mix(in srgb, var(--lq-color-violet) 20%, transparent), transparent 68%),
+    radial-gradient(46rem 22rem at 50% 46%, color-mix(in srgb, var(--lq-color-sky) 14%, transparent), transparent 72%);
+}
+
+.lq-root[data-lq-palette="eink"] .lqx-backdrop__glow {
+  display: none;
+}
+
+/* ── Shared section shell ───────────────────────────────────────────────────────────────── */
+
+.lqx-section {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 32px;
+}
+
+.lqx-section + .lqx-section {
+  margin-top: 104px;
+}
+
+.lqx-section__head {
+  max-width: 620px;
+  margin: 0 auto 40px;
+  text-align: center;
+}
+
+.lqx-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px;
+  border: 1px solid var(--lq-color-border);
+  border-radius: var(--lq-radius-pill);
+  font-size: var(--lq-text-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--lq-color-text-muted);
+  background-color: color-mix(in srgb, var(--lq-color-panel) 70%, transparent);
+}
+
+.lqx-section__title {
+  margin: 18px 0 12px;
+  font-size: clamp(1.6rem, 3.2vw, 2.3rem);
+  line-height: var(--lq-line-height-heading);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.lqx-section__lead {
+  margin: 0;
+  font-size: var(--lq-text-md);
+  line-height: 1.65;
+  color: var(--lq-color-text-muted);
+}
+
+/* ── Hero ───────────────────────────────────────────────────────────────────────────────── */
+
+.lqx-hero {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 88px 32px 0;
+  text-align: center;
+}
+
+.lqx-hero__title {
+  margin: 22px auto 0;
+  max-width: 15ch;
+  font-size: clamp(2.4rem, 6vw, 4.4rem);
+  line-height: 1.04;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+}
+
+/* The half of the headline that names the payoff. Colour palette gets the accent gradient;
+   e-ink gets an underline instead, since a gradient on electronic paper is just mud. */
+.lqx-hero__accent {
+  background-image: linear-gradient(
+    100deg,
+    var(--lq-color-fill),
+    color-mix(in srgb, var(--lq-color-violet) 80%, var(--lq-color-fill))
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.lq-root[data-lq-palette="eink"] .lqx-hero__accent {
+  background-image: none;
+  color: var(--lq-color-text);
+  box-shadow: inset 0 -0.14em 0 var(--lq-color-fill);
+}
+
+.lqx-hero__lead {
+  margin: 26px auto 0;
+  max-width: 62ch;
+  font-size: clamp(0.98rem, 1.3vw, 1.16rem);
+  line-height: 1.7;
+  color: var(--lq-color-text-muted);
+}
+
+.lqx-hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 34px;
+}
+
+.lqx-hero__install {
+  max-width: 560px;
+  margin: 28px auto 0;
+  text-align: left;
+}
+
+.lqx-hero__stage {
+  position: relative;
+  margin-top: 64px;
+}
+
+.lqx-hero__hint {
+  margin: 0 0 18px;
+  font-size: var(--lq-text-xs);
+  color: var(--lq-color-text-muted);
+}
+
+/* ── Figures band ───────────────────────────────────────────────────────────────────────── */
+
+.lqx-figures {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 1px;
+  margin-top: 92px;
+  border: 1px solid var(--lq-color-border-subtle);
+  background-color: var(--lq-color-border-subtle);
+}
+
+.lqx-figure {
+  padding: 22px 14px;
+  text-align: center;
+  background-color: var(--lq-color-bg);
+}
+
+.lqx-figure__value {
+  display: block;
+  font-size: clamp(1.5rem, 2.6vw, 2.1rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+.lqx-figure__label {
+  display: block;
+  margin-top: 4px;
+  font-size: var(--lq-text-xs);
+  color: var(--lq-color-text-muted);
+}
+
+/* ── Theme showcase ─────────────────────────────────────────────────────────────────────── */
+
+.lqx-themes {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+}
+
+.lqx-theme-tile {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--lq-color-border);
+  overflow: hidden;
+}
+
+/* The nested LqThemeProvider inside each tile paints its own surface — this is what makes the
+   four combinations sit side by side on one page instead of one at a time via the toolbar. */
+.lqx-theme-tile__preview {
+  padding: 18px;
+  min-height: 188px;
+  background-color: var(--lq-color-bg);
+}
+
+.lqx-theme-tile__label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--lq-color-border-subtle);
+  font-size: var(--lq-text-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--lq-color-text-muted);
+  background-color: var(--lq-color-panel);
+}
+
+.lqx-theme-tile__code {
+  font-family: var(--lq-font-mono);
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  opacity: 0.75;
+}
+
+/* ── Device gallery ─────────────────────────────────────────────────────────────────────── */
+
+.lqx-gallery {
+  display: grid;
+  /* The phone is sized by its own contents (see DeviceFrames.css); the tablet takes whatever is
+     left, which keeps the two at roughly the ratio real hardware has. */
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 48px;
+  align-items: end;
+}
+
+.lqx-gallery__pair {
+  display: flex;
+  gap: 28px;
+  align-items: flex-end;
+}
+
+/* ── Feature grid ───────────────────────────────────────────────────────────────────────── */
+
+.lqx-features {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+}
+
+.lqx-feature {
+  padding: 24px;
+  border: 1px solid var(--lq-color-border-subtle);
+  background-color: var(--lq-color-panel);
+  transition: border-color var(--lq-transition-fast), transform var(--lq-transition-fast);
+}
+
+.lqx-feature:hover {
+  border-color: var(--lq-color-border);
+  transform: translateY(-2px);
+}
+
+.lq-root[data-lq-palette="eink"] .lqx-feature:hover {
+  transform: none;
+}
+
+.lqx-feature__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  margin-bottom: 16px;
+  border: 1px solid var(--lq-color-border);
+  color: var(--lq-color-fill);
+  background-color: color-mix(in srgb, var(--lq-color-fill) 12%, var(--lq-color-bg));
+}
+
+.lqx-feature__title {
+  margin: 0 0 8px;
+  font-size: var(--lq-text-lg);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.lqx-feature__body {
+  margin: 0;
+  font-size: var(--lq-text-sm);
+  line-height: 1.65;
+  color: var(--lq-color-text-muted);
+}
+
+.lqx-feature__body code {
+  font-family: var(--lq-font-mono);
+  font-size: 0.92em;
+  color: var(--lq-color-text);
+}
+
+/* ── Code split ─────────────────────────────────────────────────────────────────────────── */
+
+.lqx-code-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+/* ── Closing call to action ─────────────────────────────────────────────────────────────── */
+
+.lqx-cta {
+  position: relative;
+  overflow: hidden;
+  padding: 56px 32px;
+  text-align: center;
+  border: 1px solid var(--lq-color-border);
+  background-color: var(--lq-color-panel);
+}
+
+.lqx-cta__glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    32rem 16rem at 50% 0%,
+    color-mix(in srgb, var(--lq-color-fill) 20%, transparent),
+    transparent 70%
+  );
+}
+
+.lq-root[data-lq-palette="eink"] .lqx-cta__glow {
+  display: none;
+}
+
+.lqx-cta__title {
+  position: relative;
+  margin: 0 0 12px;
+  font-size: clamp(1.5rem, 3vw, 2.1rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.lqx-cta__lead {
+  position: relative;
+  margin: 0 auto 28px;
+  max-width: 56ch;
+  font-size: var(--lq-text-md);
+  line-height: 1.65;
+  color: var(--lq-color-text-muted);
+}
+
+.lqx-cta__install {
+  position: relative;
+  max-width: 560px;
+  margin: 0 auto 24px;
+  text-align: left;
+}
+
+.lqx-cta__actions {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+}
+
+.lqx-footnote {
+  margin: 40px auto 0;
+  max-width: 1180px;
+  padding: 0 32px;
+  font-size: var(--lq-text-xs);
+  line-height: 1.7;
+  color: var(--lq-color-text-muted);
+  text-align: center;
+}
+
+.lqx-footnote a {
+  color: var(--lq-color-text);
+}
+
+/* ── Narrower viewports ─────────────────────────────────────────────────────────────────── */
+
+@media (max-width: 1080px) {
+  .lqx-themes {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .lqx-features {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .lqx-figures {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .lqx-gallery {
+    grid-template-columns: 1fr;
+    gap: 56px;
+  }
+
+  .lqx-code-split {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 680px) {
+  .lqx-hero {
+    padding-top: 56px;
+  }
+
+  .lqx-section,
+  .lqx-hero,
+  .lqx-footnote {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+
+  .lqx-section + .lqx-section {
+    margin-top: 72px;
+  }
+
+  .lqx-themes,
+  .lqx-features,
+  .lqx-figures {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .lqx-gallery__pair {
+    flex-direction: column;
+    align-items: center;
+  }
+}
+
+/* ── Component sampler ──────────────────────────────────────────────────────────────────── */
+
+.lqx-catalog {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  border: 1px solid var(--lq-color-border-subtle);
+  background-color: var(--lq-color-border-subtle);
+}
+
+.lqx-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 176px;
+  margin: 0;
+  padding: 24px 18px 14px;
+  background-color: var(--lq-color-bg);
+}
+
+.lqx-cell__stage {
+  display: flex;
+  flex: 1;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+}
+
+/* The only click target in the cell — everything above it is the live component itself. */
+.lqx-cell__label {
+  padding: 2px 6px;
+  border: 0;
+  background: none;
+  font-family: var(--lq-font-mono);
+  font-size: var(--lq-text-xs);
+  color: var(--lq-color-text-muted);
+  cursor: pointer;
+}
+
+.lqx-cell__label:hover {
+  color: var(--lq-color-text);
+  text-decoration: underline;
+}
+
+.lqx-cell__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.lqx-cell__row--wrap {
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.lqx-cell__col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.lqx-cell__col--wide {
+  width: 100%;
+  align-items: stretch;
+}
+
+.lqx-cell__quote {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: var(--lq-text-sm);
+}
+
+@media (max-width: 1080px) {
+  .lqx-catalog {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 680px) {
+  .lqx-catalog {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Below this, two columns leave each cell around 190px — narrower than the fixed-width samples
+   inside them (the theme tiles' 220px Sparkline, the catalogue's 132px ones), which then get
+   clipped by the page's own overflow-x guard. One column each instead. */
+@media (max-width: 540px) {
+  .lqx-catalog,
+  .lqx-themes {
+    grid-template-columns: 1fr;
+  }
+}

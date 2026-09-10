@@ -180,3 +180,92 @@
     --lqx-tablet-cols: 1fr;
   }
 }
+
+/* ── Browser window ─────────────────────────────────────────────────────────────────────── */
+
+.lqx-window__chrome {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 12px;
+  border: 1px solid var(--lq-color-border);
+  border-bottom: 0;
+  border-radius: 10px 10px 0 0;
+  background-color: var(--lq-color-panel);
+}
+
+.lqx-window__dots {
+  display: flex;
+  gap: 6px;
+}
+
+.lqx-window__dots span {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: var(--lq-color-border);
+}
+
+.lqx-window__address {
+  flex: 1;
+  padding: 3px 10px;
+  border-radius: var(--lq-radius-pill);
+  background-color: var(--lq-color-bg);
+  font-family: var(--lq-font-mono);
+  font-size: var(--lq-text-xs);
+  color: var(--lq-color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lqx-window__viewport {
+  overflow: hidden;
+  border: 1px solid var(--lq-color-border);
+  border-radius: 0 0 10px 10px;
+  background-color: var(--lq-color-bg);
+  box-shadow: 0 28px 56px -34px rgba(0, 0, 0, 0.55);
+}
+
+.lq-root[data-lq-palette="eink"] .lqx-window__chrome,
+.lq-root[data-lq-palette="eink"] .lqx-window__viewport {
+  border-radius: 0;
+}
+
+.lq-root[data-lq-palette="eink"] .lqx-window__viewport {
+  box-shadow: none;
+}
+
+/* SidebarLayout is built to own a page: `min-height: 100vh`. Inside a window mock-up that would
+   make the fake browser as tall as the real one, so the shell is told to size to its contents
+   here (the wrapper in AppShowcase sets the floor). */
+.lqx-window__viewport .lq-sidebar-layout {
+  min-height: 0;
+}
+
+/* The window mock-up clips anything wider than itself, so its contents fold rather than get cut:
+   at 420px a two-up widget row was sliced down the middle by that clip. */
+.lqx-app-row {
+  display: grid;
+  gap: 14px;
+}
+
+.lqx-app-row--three {
+  grid-template-columns: var(--lqx-app-cols-3, repeat(3, minmax(0, 1fr)));
+}
+
+.lqx-app-row--two {
+  grid-template-columns: var(--lqx-app-cols-2, repeat(2, minmax(0, 1fr)));
+}
+
+@media (max-width: 900px) {
+  .lqx-window {
+    --lqx-app-cols-2: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .lqx-window {
+    --lqx-app-cols-3: 1fr;
+  }
+}

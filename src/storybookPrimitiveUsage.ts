@@ -3,7 +3,7 @@
  *
  * Quelles primitives chaque story utilise, pour que la barre de liens du décorateur global (voir
  * .storybook/PrimitiveLinks.tsx) renvoie vers leur documentation. Dérivé des imports du code,
- * jamais tenu à la main : 82 fichiers de stories scannés, 31 concernés.
+ * jamais tenu à la main : 84 fichiers de stories scannés, 32 concernés.
  */
 
 /** Une primitive dont une story dépend, et l'ancre de sa page de documentation. */
@@ -493,6 +493,52 @@ export const PRIMITIVE_USAGE_BY_STORY: Record<string, PrimitiveUsage[]> = {
     {
       "name": "Panel",
       "docsId": "primitives-panel--docs"
+    }
+  ],
+  "Accueil": [
+    {
+      "name": "Button",
+      "docsId": "primitives-button--docs"
+    },
+    {
+      "name": "Card",
+      "docsId": "primitives-card--docs"
+    },
+    {
+      "name": "CodeBlock",
+      "docsId": "primitives-codeblock--docs"
+    },
+    {
+      "name": "DropdownPanel",
+      "docsId": "primitives-dropdownpanel--docs"
+    },
+    {
+      "name": "LevelGauge",
+      "docsId": "primitives-levelgauge--docs"
+    },
+    {
+      "name": "Modal",
+      "docsId": "primitives-modal--docs"
+    },
+    {
+      "name": "Panel",
+      "docsId": "primitives-panel--docs"
+    },
+    {
+      "name": "PanelRow",
+      "docsId": "primitives-panel--docs"
+    },
+    {
+      "name": "SegmentedControl",
+      "docsId": "primitives-segmentedcontrol--docs"
+    },
+    {
+      "name": "Tabs",
+      "docsId": "primitives-tabs--docs"
+    },
+    {
+      "name": "Toggle",
+      "docsId": "primitives-toggle--docs"
     }
   ],
   "Pages/LoginPage": [

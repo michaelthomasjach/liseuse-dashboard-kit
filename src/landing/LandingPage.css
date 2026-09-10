@@ -55,8 +55,12 @@
   padding: 0 32px;
 }
 
-.lqx-section + .lqx-section {
-  margin-top: 104px;
+/* The hero has to be named explicitly: `.lqx-section + .lqx-section` never matched the first
+   section after it, so the "Thèmes" pill sat flush against the figures band's bottom border — a
+   measured 0px gap. */
+.lqx-section + .lqx-section,
+.lqx-hero + .lqx-section {
+  margin-top: 112px;
 }
 
 .lqx-section__head {
@@ -434,7 +438,8 @@
     padding-right: 20px;
   }
 
-  .lqx-section + .lqx-section {
+  .lqx-section + .lqx-section,
+  .lqx-hero + .lqx-section {
     margin-top: 72px;
   }
 
@@ -545,6 +550,293 @@
 @media (max-width: 540px) {
   .lqx-catalog,
   .lqx-themes {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Chart gallery ──────────────────────────────────────────────────────────────────────── */
+
+.lqx-charts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.lqx-chart-frame {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  border: 1px solid var(--lq-color-border-subtle);
+  background-color: var(--lq-color-panel);
+}
+
+.lqx-chart-frame--wide {
+  grid-column: 1 / -1;
+}
+
+.lqx-chart-frame__stage {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  padding: 18px;
+}
+
+.lqx-chart-frame__stage > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.lqx-chart-frame__foot {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--lq-color-border-subtle);
+  background-color: var(--lq-color-bg);
+}
+
+.lqx-chart-frame__name {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: var(--lq-font-mono);
+  font-size: var(--lq-text-xs);
+  color: var(--lq-color-text);
+  cursor: pointer;
+}
+
+.lqx-chart-frame__name:hover {
+  text-decoration: underline;
+}
+
+.lqx-chart-frame__purpose {
+  font-size: var(--lq-text-xs);
+  color: var(--lq-color-text-muted);
+}
+
+@media (max-width: 900px) {
+  .lqx-charts {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Foundations ────────────────────────────────────────────────────────────────────────── */
+
+.lqx-foundations {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  align-items: start;
+}
+
+/* Fourteen swatches read as two comfortable rows across the full width; squeezed into a third of
+   it they became five cramped rows and left the two cards beside them looking stunted. */
+.lqx-found-card--wide {
+  grid-column: 1 / -1;
+}
+
+.lqx-found-card {
+  padding: 22px;
+  border: 1px solid var(--lq-color-border-subtle);
+  background-color: var(--lq-color-panel);
+}
+
+.lqx-found-card__title {
+  margin: 0 0 8px;
+  font-size: var(--lq-text-lg);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.lqx-found-card__note {
+  margin: 0 0 18px;
+  font-size: var(--lq-text-sm);
+  line-height: 1.6;
+  color: var(--lq-color-text-muted);
+}
+
+.lqx-found-card__note code,
+.lqx-swatch__name,
+.lqx-typescale__token {
+  font-family: var(--lq-font-mono);
+  font-size: 0.92em;
+}
+
+.lqx-swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lqx-swatch {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+/* A border on every chip, because two of these tokens are the page's own background and panel:
+   without it they would read as empty space rather than as a colour. */
+.lqx-swatch__chip {
+  height: 34px;
+  border: 1px solid var(--lq-color-border);
+}
+
+.lqx-swatch__name {
+  color: var(--lq-color-text-muted);
+  font-size: var(--lq-text-xs);
+  word-break: break-all;
+}
+
+.lqx-typescale,
+.lqx-fonts {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lqx-typescale__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 10px 0;
+  border-top: 1px solid var(--lq-color-border-subtle);
+  overflow: hidden;
+}
+
+.lqx-typescale__row:first-child {
+  border-top: 0;
+}
+
+.lqx-typescale__row > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lqx-typescale__token {
+  flex: none;
+  color: var(--lq-color-text-muted);
+  font-size: var(--lq-text-xs);
+}
+
+.lqx-fonts__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 10px;
+  font-size: var(--lq-text-sm);
+}
+
+.lqx-fonts__row--active {
+  background-color: var(--lq-color-hover);
+  font-weight: 700;
+}
+
+.lqx-fonts__sample {
+  color: var(--lq-color-text-muted);
+}
+
+/* ── Scripting ──────────────────────────────────────────────────────────────────────────── */
+
+.lqx-script-split {
+  display: grid;
+  grid-template-columns: 1.35fr 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+.lqx-decorators {
+  display: grid;
+  gap: 12px;
+}
+
+.lqx-decorator {
+  padding: 16px 18px;
+  border: 1px solid var(--lq-color-border-subtle);
+  background-color: var(--lq-color-panel);
+}
+
+.lqx-decorator__name {
+  font-family: var(--lq-font-mono);
+  font-size: var(--lq-text-sm);
+  font-weight: 700;
+  color: var(--lq-color-fill);
+}
+
+.lqx-decorator__what {
+  margin: 6px 0 4px;
+  font-size: var(--lq-text-sm);
+  line-height: 1.55;
+}
+
+.lqx-decorator__gets {
+  margin: 0;
+  font-family: var(--lq-font-mono);
+  font-size: var(--lq-text-xs);
+  line-height: 1.6;
+  color: var(--lq-color-text-muted);
+}
+
+/* ── Forms ──────────────────────────────────────────────────────────────────────────────── */
+
+.lqx-forms-wrap {
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.lqx-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.lqx-form-grid__wide {
+  grid-column: 1 / -1;
+}
+
+.lqx-form-grid__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding-top: 4px;
+}
+
+/* ── FAQ ────────────────────────────────────────────────────────────────────────────────── */
+
+.lqx-faq {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+
+.lqx-faq__answer {
+  margin: 0;
+  font-size: var(--lq-text-sm);
+  line-height: 1.65;
+  color: var(--lq-color-text-muted);
+}
+
+@media (max-width: 1080px) {
+  .lqx-foundations,
+  .lqx-script-split,
+  .lqx-faq {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 680px) {
+  .lqx-form-grid {
     grid-template-columns: 1fr;
   }
 }

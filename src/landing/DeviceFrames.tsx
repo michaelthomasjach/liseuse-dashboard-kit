@@ -61,3 +61,31 @@ export function Phone({ children, caption, className }: DeviceFrameProps) {
     </figure>
   );
 }
+
+/** Browser window: chrome bar with its dots and an address, then the page itself.
+ *
+ *  For the screens that are a *page* rather than a device — an app shell, a chart workspace. The
+ *  address is decorative text, not a link: it says what you are looking at. */
+export function BrowserWindow({
+  address,
+  children,
+  caption,
+  className,
+}: DeviceFrameProps & { address: string }) {
+  return (
+    <figure className={["lqx-device", "lqx-window", className].filter(Boolean).join(" ")}>
+      <div style={{ width: "100%" }}>
+        <div className="lqx-window__chrome">
+          <span className="lqx-window__dots" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+          </span>
+          <span className="lqx-window__address">{address}</span>
+        </div>
+        <div className="lqx-window__viewport">{children}</div>
+      </div>
+      {caption && <figcaption className="lqx-device__caption">{caption}</figcaption>}
+    </figure>
+  );
+}

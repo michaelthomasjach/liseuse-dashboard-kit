@@ -69,7 +69,7 @@ const preview: Preview = {
       return (
         <LqThemeProvider palette={palette} surface={surface} font={font}>
           <div style={{ minHeight: "100vh", padding: "32px", backgroundColor: "var(--lq-color-bg)" }}>
-            <PrimitiveLinks title={context.title} />
+            <PrimitiveLinks title={context.title} viewMode={context.viewMode} />
             <Story />
           </div>
         </LqThemeProvider>

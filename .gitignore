@@ -16,5 +16,10 @@ debug-storybook.log
 .env.local
 .env.*.local
 
+# Traces d'outils de débogage de navigateur, écrites dans le dossier du projet.
+.playwright-mcp/
+*.png
+!src/**/*.png
+
 # Standalone app build output (see vite.config.app.ts) — published by CI, never committed.
 app-dist

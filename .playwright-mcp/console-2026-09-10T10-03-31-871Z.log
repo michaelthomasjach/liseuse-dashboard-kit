@@ -1,3 +1,0 @@
-[    3598ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ http://localhost:5199/liseuse-dashboard-kit/app/@fs/home/emja5960/Documents/GitHub/liseuse-dashboard-kit/node_modules/.vite/deps/chunk-KVMAXHTM.js?v=9fb53c8c:21608
-[    4168ms] [WARNING] <meta name="apple-mobile-web-app-capable" content="yes"> is deprecated. Please include <meta name="mobile-web-app-capable" content="yes"> @ http://localhost:5199/liseuse-dashboard-kit/app/:0
-[    4236ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://localhost:5199/liseuse-dashboard-kit/app/:0

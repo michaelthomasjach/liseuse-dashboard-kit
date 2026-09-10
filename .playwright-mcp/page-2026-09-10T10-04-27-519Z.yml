@@ -1,0 +1,211 @@
+- generic [ref=f6e3]:
+  - generic [ref=f6e9]:
+    - generic [ref=f6e12]:
+      - generic [ref=f6e13]:
+        - button "Mode d'affichage" [ref=f6e14] [cursor=pointer]
+        - button "Ajouter un indicateur" [ref=f6e18] [cursor=pointer]
+        - button "Replay" [ref=f6e21] [cursor=pointer]
+      - generic [ref=f6e27]:
+        - generic [ref=f6e29]:
+          - generic [ref=f6e30]:
+            - button "Ligne de tendance" [ref=f6e31] [cursor=pointer]
+            - button "Autres outils — lines" [ref=f6e36] [cursor=pointer]
+          - generic [ref=f6e39]:
+            - button "Retracement de Fibonacci" [ref=f6e40] [cursor=pointer]
+            - button "Autres outils — fibonacci" [ref=f6e42] [cursor=pointer]
+          - generic [ref=f6e45]:
+            - button "Vague d'Elliott (impulsive)" [ref=f6e46] [cursor=pointer]
+            - button "Autres outils — chartPatterns" [ref=f6e51] [cursor=pointer]
+          - generic [ref=f6e54]:
+            - button "Projection de prix" [ref=f6e55] [cursor=pointer]
+            - button "Autres outils — forecasting" [ref=f6e60] [cursor=pointer]
+          - generic [ref=f6e63]:
+            - button "Texte" [ref=f6e64] [cursor=pointer]
+            - button "Autres outils — textNotes" [ref=f6e66] [cursor=pointer]
+          - generic [ref=f6e70]:
+            - button "Mesure" [ref=f6e71] [cursor=pointer]
+            - button "À propos de Mesure" [ref=f6e76] [cursor=pointer]
+          - button "Aimant" [ref=f6e80] [cursor=pointer]
+          - button "Masquer les dessins" [ref=f6e84] [cursor=pointer]
+          - button "Verrouiller les dessins" [ref=f6e88] [cursor=pointer]
+          - button "Zoomer sur une zone" [ref=f6e92] [cursor=pointer]
+          - button "Réinitialiser le zoom" [ref=f6e97] [cursor=pointer]
+          - button "Dessins et indicateurs" [ref=f6e101] [cursor=pointer]
+          - button "État du marché" [ref=f6e106] [cursor=pointer]
+        - generic:
+          - generic [ref=f6e111]:
+            - generic [ref=f6e112]: BTCUSDT
+            - generic [ref=f6e113]: ·
+            - button "Bougies" [ref=f6e114] [cursor=pointer]
+            - generic [ref=f6e115]: O 73584.65 H 73716.00 L 73568.52 C 73674.39 +89.75 (+0.12%)
+          - generic [ref=f6e116]:
+            - generic [ref=f6e117]: Croisement de moyennes
+            - generic [ref=f6e118]:
+              - button "Créer une alerte sur Croisement de moyennes" [ref=f6e119] [cursor=pointer]
+              - button "À propos de Croisement de moyennes" [ref=f6e123] [cursor=pointer]
+              - button "Voir le code de Croisement de moyennes" [ref=f6e127] [cursor=pointer]
+              - button "Ouvrir le testeur de stratégie de Croisement de moyennes" [ref=f6e130] [cursor=pointer]
+              - button "Masquer Croisement de moyennes" [ref=f6e133] [cursor=pointer]
+              - button "Supprimer Croisement de moyennes" [ref=f6e137] [cursor=pointer]
+              - button "Paramètres Croisement de moyennes" [ref=f6e142] [cursor=pointer]
+        - generic:
+          - generic:
+            - button "Réordonner Volume" [ref=f6e147]
+            - button "Réduire le panneau Volume" [ref=f6e155] [cursor=pointer]
+            - generic [ref=f6e158] [cursor=pointer]: Volume
+            - generic: "51"
+            - generic:
+              - button "À propos de Volume" [ref=f6e159] [cursor=pointer]
+              - button "Paramètres du panneau Volume" [ref=f6e163] [cursor=pointer]
+              - button "Supprimer le panneau Volume" [ref=f6e167] [cursor=pointer]
+              - button "Plein écran du panneau Volume" [ref=f6e172] [cursor=pointer]
+        - img [ref=f6e175]:
+          - generic [ref=f6e176]:
+            - generic [ref=f6e177]:
+              - generic [ref=f6e178]: "73000.00"
+              - generic [ref=f6e180]: "74000.00"
+              - generic [ref=f6e182]: "75000.00"
+              - generic [ref=f6e184]: "76000.00"
+            - generic [ref=f6e187]:
+              - generic [ref=f6e189]: 1.0k
+              - generic [ref=f6e191]: 2.0k
+            - generic [ref=f6e194]:
+              - generic [ref=f6e196]: 27 May 2026
+              - generic [ref=f6e198]: 27 May 2026
+              - generic [ref=f6e200]: 28 May 2026
+              - generic [ref=f6e202]: 28 May 2026
+              - generic [ref=f6e204]: 29 May 2026
+              - generic [ref=f6e206]: 29 May 2026
+              - generic [ref=f6e208]: 29 May 2026
+              - generic [ref=f6e210]: 30 May 2026
+              - generic [ref=f6e212]: 30 May 2026
+              - generic [ref=f6e214]: 31 May 2026
+              - generic [ref=f6e216]: 31 May 2026
+        - generic: "73674.39"
+    - generic [ref=f6e221]:
+      - button "Éditeur de script" [active] [ref=f6e222] [cursor=pointer]
+      - button "Écran divisé" [ref=f6e225] [cursor=pointer]
+      - button "Plein écran de l'espace de travail" [ref=f6e231] [cursor=pointer]
+      - button "Aide" [ref=f6e234] [cursor=pointer]
+  - dialog "Éditeur de script" [ref=f6e240]:
+    - generic [ref=f6e241]:
+      - generic [ref=f6e242]: Éditeur de script
+      - generic [ref=f6e243]:
+        - button "Documentation" [ref=f6e244] [cursor=pointer]
+        - button "Détacher l'éditeur dans une fenêtre" [ref=f6e249] [cursor=pointer]
+        - button "Agrandir" [ref=f6e253] [cursor=pointer]
+        - button "Fermer" [ref=f6e256] [cursor=pointer]
+    - generic [ref=f6e259]:
+      - generic [ref=f6e260] [cursor=pointer]:
+        - generic [ref=f6e261]: Croisement de moyennes
+        - button "Désactiver ce script" [ref=f6e262]
+        - button "Fermer l'onglet Croisement de moyennes" [ref=f6e266]
+      - button "Nouveau script" [ref=f6e269] [cursor=pointer]
+      - searchbox "Rechercher un indicateur ou une stratégie déjà écrit" [ref=f6e276]
+    - generic [ref=f6e277]:
+      - group "Mode d'édition" [ref=f6e278]:
+        - button "Code" [pressed] [ref=f6e279] [cursor=pointer]
+        - button "No-code" [ref=f6e282] [cursor=pointer]
+      - button "Exécuter" [ref=f6e288] [cursor=pointer]
+      - button "Exécuter la cellule" [ref=f6e291] [cursor=pointer]
+      - button "Rechercher" [ref=f6e294] [cursor=pointer]
+      - button "Arrêter" [disabled] [ref=f6e298]
+      - button "Enregistrer" [disabled] [ref=f6e301]
+      - button "Enregistrer sous" [ref=f6e306] [cursor=pointer]
+      - button "Réinitialiser" [disabled] [ref=f6e307]
+      - button "Format" [ref=f6e311] [cursor=pointer]
+    - generic [ref=f6e313]:
+      - generic [ref=f6e314]:
+        - generic [ref=f6e315]:
+          - tablist "Fichiers du script" [ref=f6e317]:
+            - tab "Principal" [selected] [ref=f6e318] [cursor=pointer]
+          - button "Nouveau fichier" [ref=f6e319] [cursor=pointer]: +
+        - generic [ref=f6e322]:
+          - generic [ref=f6e324]:
+            - generic [ref=f6e325]: "1"
+            - generic [ref=f6e326]: "2"
+            - generic [ref=f6e327]: "3"
+            - generic [ref=f6e328]: "4"
+            - generic [ref=f6e329]: "5"
+            - generic [ref=f6e330]: "6"
+            - generic [ref=f6e331]: "7"
+            - generic [ref=f6e332]: "8"
+            - generic [ref=f6e333]: "9"
+            - generic [ref=f6e334]: "10"
+            - generic [ref=f6e335]: "11"
+            - generic [ref=f6e336]: "12"
+            - generic [ref=f6e337]: "13"
+            - generic [ref=f6e338]: "14"
+            - generic [ref=f6e339]: "15"
+            - generic [ref=f6e340]: "16"
+            - generic [ref=f6e341]: "17"
+            - generic [ref=f6e342]: "18"
+            - generic [ref=f6e343]: "19"
+            - generic [ref=f6e344]: "20"
+            - generic [ref=f6e345]: "21"
+            - generic [ref=f6e346]: "22"
+            - generic [ref=f6e347]: "23"
+            - generic [ref=f6e348]: "24"
+            - generic [ref=f6e349]: "25"
+            - generic [ref=f6e350]: "26"
+            - generic [ref=f6e351]: "27"
+            - generic [ref=f6e352]: "28"
+            - generic [ref=f6e353]: "29"
+            - generic [ref=f6e354]: "30"
+            - generic [ref=f6e355]: "31"
+            - generic [ref=f6e356]: "32"
+            - generic [ref=f6e357]: "33"
+            - generic [ref=f6e358]: "34"
+            - generic [ref=f6e359]: "35"
+            - generic [ref=f6e360]: "36"
+          - textbox [ref=f6e363]:
+            - generic [ref=f6e364]:
+              - text: "@strategy"
+              - button "Exécuter cette cellule (Maj+Entrée)" [ref=f6e365] [cursor=pointer]
+            - generic [ref=f6e368]: "@description \"///Croisement de moyennes///"
+            - generic [ref=f6e369]: Long quand la moyenne courte croise la longue à la hausse, sortie au croisement inverse.
+            - generic [ref=f6e371]: //À quoi ça sert//
+            - generic [ref=f6e372]: "C'est la stratégie de référence : celle à laquelle comparer les autres. Si une règle compliquée ne"
+            - generic [ref=f6e373]: bat pas celle-ci sur le même instrument, elle ne vaut pas sa complexité.
+            - generic [ref=f6e375]: //Ce qu'il faut regarder dans le panneau//
+            - generic [ref=f6e376]: Le **facteur de profit** (au-dessus de 1, elle gagne), le **drawdown max** (ce qu'il a fallu
+            - generic [ref=f6e377]: encaisser pour l'obtenir), et la part des **commissions** dans le profit brut.
+            - generic [ref=f6e378]: "\""
+            - generic [ref=f6e380]: "@block Réglages"
+            - generic [ref=f6e382]: "const COURTE = new Variable(\"number\", 20, { description: \"Période de la moyenne courte.\", min: 2, max: 200 });"
+            - generic [ref=f6e383]: "const LONGUE = new Variable(\"number\", 50, { description: \"Période de la moyenne longue.\", min: 3, max: 400 });"
+            - generic [ref=f6e385]: "@block Les deux moyennes, et leur position à la bougie précédente"
+            - generic [ref=f6e387]: const courte = math.sma(market.series("close", COURTE), COURTE);
+            - generic [ref=f6e388]: const longue = math.sma(market.series("close", LONGUE), LONGUE);
+            - generic [ref=f6e390]: // Un croisement se détecte par un CHANGEMENT de position relative, pas par la position elle-même.
+            - generic [ref=f6e391]: // Sans cette mémoire, "courte au-dessus de longue" resterait vrai pendant toute une tendance et on
+            - generic [ref=f6e392]: // tenterait une entrée à chaque bougie — que le pyramiding se contenterait d'ignorer en silence.
+            - generic [ref=f6e393]: const auDessusAvant = state.get("auDessus", null);
+            - generic [ref=f6e394]: "const auDessus = courte !== null && longue !== null ? courte > longue : null;"
+            - generic [ref=f6e395]: state.set("auDessus", auDessus);
+            - generic [ref=f6e397]: "@block Les règles"
+            - generic [ref=f6e399]: "if (auDessus !== null && auDessusAvant !== null && auDessus !== auDessusAvant) {"
+            - generic [ref=f6e400]: if (auDessus) strategy.long("Croisement haussier");
+            - generic [ref=f6e401]: else strategy.close("Croisement baissier");
+            - generic [ref=f6e402]: "}"
+      - generic [ref=f6e405]:
+        - generic [ref=f6e406]:
+          - heading "Paramètres" [level=3] [ref=f6e407]
+          - button "Réinitialiser" [ref=f6e408] [cursor=pointer]
+        - generic [ref=f6e409]:
+          - generic [ref=f6e410]:
+            - generic [ref=f6e411]: COURTE
+            - generic [ref=f6e412]:
+              - textbox "COURTE" [ref=f6e413]: "20"
+              - generic [ref=f6e415]:
+                - button "Augmenter" [ref=f6e416] [cursor=pointer]: +
+                - button "Diminuer" [ref=f6e417] [cursor=pointer]: −
+            - generic [ref=f6e418]: Période de la moyenne courte.
+          - generic [ref=f6e419]:
+            - generic [ref=f6e420]: LONGUE
+            - generic [ref=f6e421]:
+              - textbox "LONGUE" [ref=f6e422]: "50"
+              - generic [ref=f6e424]:
+                - button "Augmenter" [ref=f6e425] [cursor=pointer]: +
+                - button "Diminuer" [ref=f6e426] [cursor=pointer]: −
+            - generic [ref=f6e427]: Période de la moyenne longue.

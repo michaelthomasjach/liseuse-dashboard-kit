@@ -984,6 +984,9 @@ const scriptedAssistant: AiSend = async function* (request) {
  *  this story, and only in a dev server. Absent (the normal case, and the only case in CI), the
  *  story falls back to the scripted stand-in above, so it still demonstrates the whole feature. */
 const REAL_KEY = (import.meta.env?.VITE_ANTHROPIC_API_KEY as string | undefined) ?? undefined;
+/** Required only when that key belongs to an organisation rather than to a workspace — see the
+ *  `ai.workspaceId` prop. Absent for a workspace-scoped key, and nothing sends an empty header. */
+const REAL_WORKSPACE = (import.meta.env?.VITE_ANTHROPIC_WORKSPACE_ID as string | undefined) ?? undefined;
 
 export const AiAssistant: Story = {
   name: "Assistant IA",
@@ -997,7 +1000,7 @@ export const AiAssistant: Story = {
         // right-hand rail, beside the watchlist and the script editor.
         ai={
           REAL_KEY
-            ? { apiKey: REAL_KEY, serverTools: ["web_search"], symbols: ["AAPL", "MSFT", "NVDA"] }
+            ? { apiKey: REAL_KEY, workspaceId: REAL_WORKSPACE, serverTools: ["web_search"], symbols: ["AAPL", "MSFT", "NVDA"] }
             : { send: scriptedAssistant, symbols: ["AAPL", "MSFT", "NVDA"] }
         }
       >

@@ -459,9 +459,9 @@ export function CandlestickChart({
    *  that could never answer. */
   const aiSend = useMemo(() => {
     if (ai?.send) return ai.send;
-    if (ai?.apiKey) return anthropicSend({ apiKey: ai.apiKey, model: ai.model, baseUrl: ai.baseUrl });
+    if (ai?.apiKey) return anthropicSend({ apiKey: ai.apiKey, model: ai.model, baseUrl: ai.baseUrl, workspaceId: ai.workspaceId });
     return null;
-  }, [ai?.send, ai?.apiKey, ai?.model, ai?.baseUrl]);
+  }, [ai?.send, ai?.apiKey, ai?.model, ai?.baseUrl, ai?.workspaceId]);
   const showHeader =
     fullscreenToggle || zoomable || !!timeframes?.length || showIndicators ||
     seasonality || replay || showTemplates || linkable || !!sidePanel;

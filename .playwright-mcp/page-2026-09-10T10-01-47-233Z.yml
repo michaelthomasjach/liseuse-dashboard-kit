@@ -1,0 +1,224 @@
+- generic [ref=e8]:
+  - generic [ref=e9]:
+    - generic [ref=e12]:
+      - button "Mode d'affichage" [ref=e14] [cursor=pointer]
+      - generic [ref=e20]:
+        - generic [ref=e21]:
+          - generic [ref=e22]: AAPL
+          - generic [ref=e23]: ·
+          - button "Bougies" [ref=e24] [cursor=pointer]
+          - generic [ref=e25]: 154.46 -0.48 (-0.31%)
+        - generic:
+          - generic:
+            - button "Réordonner Volume" [ref=e27]
+            - button "Réduire le panneau Volume" [ref=e35] [cursor=pointer]
+            - generic [ref=e38] [cursor=pointer]: Volume
+            - generic: 160k
+            - generic:
+              - button "À propos de Volume" [ref=e39] [cursor=pointer]
+              - button "Paramètres du panneau Volume" [ref=e43] [cursor=pointer]
+              - button "Supprimer le panneau Volume" [ref=e47] [cursor=pointer]
+              - button "Plein écran du panneau Volume" [ref=e52] [cursor=pointer]
+        - img [ref=e55]:
+          - generic [ref=e56]:
+            - generic [ref=e57]:
+              - generic [ref=e58]: "140.00"
+              - generic [ref=e60]: "160.00"
+              - generic [ref=e62]: "180.00"
+              - generic [ref=e64]: "200.00"
+            - generic [ref=e67]:
+              - generic [ref=e69]: 100k
+              - generic [ref=e71]: 200k
+            - generic [ref=e74]:
+              - generic [ref=e76]: 18 Jul 2025
+              - generic [ref=e78]: 05 Dec 2025
+              - generic [ref=e80]: 24 Apr 2026
+        - generic: "154.46"
+    - generic [ref=e185]:
+      - generic [ref=e187]:
+        - generic [ref=e189]:
+          - button "Symbole" [ref=e190] [cursor=pointer]
+          - button [disabled] [ref=e191]:
+            - text: Prix
+            - separator "Redimensionner la colonne Prix" [ref=e192]
+        - generic [ref=e193]:
+          - button "MS MSFT 412,88" [ref=e195] [cursor=pointer]:
+            - generic [ref=e196]: MS
+            - generic [ref=e197]: MSFT
+            - generic [ref=e198]: 412,88
+          - button "NV NVDA 128,47" [ref=e200] [cursor=pointer]:
+            - generic [ref=e201]: NV
+            - generic [ref=e202]: NVDA
+            - generic [ref=e203]: 128,47
+          - button "AA AAPL 231,05" [active] [ref=e205] [cursor=pointer]:
+            - generic [ref=e206]: AA
+            - generic [ref=e207]: AAPL
+            - generic [ref=e208]: 231,05
+      - generic [ref=e209]:
+        - button "Fermer les détails du symbole" [ref=e210]
+        - generic [ref=e213]:
+          - generic [ref=e214]:
+            - generic [ref=e215]:
+              - generic [ref=e216]: AAPL
+              - generic [ref=e217]: Apple Inc. — NASDAQ · Action
+            - generic [ref=e218]: Marché fermé
+          - generic [ref=e220]:
+            - generic [ref=e221]: "154.46"
+            - generic [ref=e222]:
+              - text: "-0.48"
+              - generic [ref=e223]: −0.31 %
+          - generic [ref=e226]:
+            - img [ref=e228]:
+              - generic [ref=e229]:
+                - generic [ref=e230]:
+                  - generic [ref=e231]: "150"
+                  - generic [ref=e233]: "155"
+                  - generic [ref=e235]: "160"
+                - generic [ref=e237]:
+                  - generic [ref=e238]: July
+                  - generic [ref=e240]: August
+                  - generic [ref=e242]: September
+            - generic [ref=e250]:
+              - button "1D" [ref=e251] [cursor=pointer]
+              - button "5D" [ref=e252] [cursor=pointer]
+              - button "1M" [ref=e253] [cursor=pointer]
+              - button "3M" [pressed] [ref=e254] [cursor=pointer]
+              - button "YTD" [ref=e255] [cursor=pointer]
+              - button "1Y" [ref=e256] [cursor=pointer]
+              - button "Toute" [ref=e257] [cursor=pointer]
+              - button "Ouvrir dans le graphique" [ref=e258] [cursor=pointer]
+          - generic [ref=e262]:
+            - navigation "Sections financières" [ref=e263]:
+              - button "Vue d'ensemble" [pressed] [ref=e264] [cursor=pointer]
+              - button "États financiers" [ref=e265] [cursor=pointer]
+              - button "Statistiques" [ref=e266] [cursor=pointer]
+              - button "Dividendes" [ref=e267] [cursor=pointer]
+              - button "Résultats" [ref=e268] [cursor=pointer]
+              - button "Segments" [ref=e269] [cursor=pointer]
+            - generic [ref=e270]:
+              - generic [ref=e271]:
+                - generic [ref=e272]: Performance
+                - generic [ref=e273]:
+                  - generic [ref=e274]:
+                    - generic [ref=e275]: +0.80 %
+                    - generic [ref=e276]: 1S
+                  - generic [ref=e277]:
+                    - generic [ref=e278]: −2.30 %
+                    - generic [ref=e279]: 1M
+                  - generic [ref=e280]:
+                    - generic [ref=e281]: +5.10 %
+                    - generic [ref=e282]: 3M
+                  - generic [ref=e283]:
+                    - generic [ref=e284]: +12.40 %
+                    - generic [ref=e285]: 6M
+                  - generic [ref=e286]:
+                    - generic [ref=e287]: +18.60 %
+                    - generic [ref=e288]: YTD
+                  - generic [ref=e289]:
+                    - generic [ref=e290]: +24.70 %
+                    - generic [ref=e291]: 1A
+              - generic [ref=e292]:
+                - generic [ref=e293]:
+                  - generic [ref=e294]: Capitalisation boursière
+                  - generic [ref=e295]: 3 100Md USD
+                - generic [ref=e296]:
+                  - generic [ref=e297]: Rendement du dividende
+                  - generic [ref=e298]: 0,44%
+                - generic [ref=e299]:
+                  - generic [ref=e300]: PER (TTM)
+                  - generic [ref=e301]: 34,2
+                - generic [ref=e302]:
+                  - generic [ref=e303]: BPA de base (TTM)
+                  - generic [ref=e304]: 6,75USD
+                - generic [ref=e305]:
+                  - generic [ref=e306]: Fondée en
+                  - generic [ref=e307]: "1976"
+                - generic [ref=e308]:
+                  - generic [ref=e309]: Effectif
+                  - generic [ref=e310]: 161 000
+                - generic [ref=e311]:
+                  - generic [ref=e312]: Direction
+                  - generic [ref=e313]: Tim Cook
+                - generic [ref=e314]:
+                  - generic [ref=e315]: Site
+                  - link "apple.com" [ref=e317] [cursor=pointer]:
+                    - /url: https://www.apple.com
+              - generic [ref=e318]:
+                - paragraph [ref=e319]: Apple Inc. conçoit, fabrique et commercialise des smartphones, ordinateurs personnels, tablettes, montres connectées et accessoires, et propose une large gamme de services associés. L'entreprise vend ses produits dans le monde entier via ses propres magasins, son site en ligne et un réseau de revendeurs, opérateurs et distributeurs tiers.
+                - button "Afficher plus" [ref=e320] [cursor=pointer]
+              - generic [ref=e321]:
+                - generic [ref=e322]:
+                  - heading "Actionnariat" [level=4] [ref=e323]
+                  - generic [ref=e324]:
+                    - generic "Flottant — 14,82 Md (98,1 %)" [ref=e325]
+                    - generic "Détenu en interne — 287 M (1,9 %)" [ref=e326]
+                  - list [ref=e327]:
+                    - listitem [ref=e328]:
+                      - generic [ref=e330]: Flottant
+                      - generic [ref=e331]: 14,82 Md (98,1 %)
+                    - listitem [ref=e332]:
+                      - generic [ref=e334]: Détenu en interne
+                      - generic [ref=e335]: 287 M (1,9 %)
+                - generic [ref=e336]:
+                  - heading "Structure du capital" [level=4] [ref=e337]
+                  - generic [ref=e338]:
+                    - generic "Capitalisation — 3 100 Md" [ref=e339]
+                    - generic "Dette — 105 Md" [ref=e340]
+                    - generic "Trésorerie — 62 Md" [ref=e341]
+                  - list [ref=e342]:
+                    - listitem [ref=e343]:
+                      - generic [ref=e345]: Capitalisation
+                      - generic [ref=e346]: 3 100 Md
+                    - listitem [ref=e347]:
+                      - generic [ref=e349]: Dette
+                      - generic [ref=e350]: 105 Md
+                    - listitem [ref=e351]:
+                      - generic [ref=e353]: Trésorerie
+                      - generic [ref=e354]: 62 Md
+              - generic [ref=e355]:
+                - generic [ref=e356]: Technologie
+                - generic [ref=e357]: Matériel informatique
+                - generic [ref=e358]: Électronique grand public
+              - generic [ref=e359]: Saisonnalité
+              - generic [ref=e364]:
+                - generic [ref=e365]: Actualités
+                - generic [ref=e366]:
+                  - generic [ref=e367]: Il y a 2 jours
+                  - generic [ref=e368]: Wall Street mise sur le succès de GTA 6 — le titre Take-Two en profite. — Barrons.com
+              - generic [ref=e369]:
+                - generic [ref=e370]: Statistiques clés
+                - generic [ref=e371]:
+                  - generic [ref=e372]:
+                    - generic [ref=e373]: Prochain rapport de résultats
+                    - generic [ref=e374]: Dans 67 jours
+                  - generic [ref=e375]:
+                    - generic [ref=e376]: Volume
+                    - generic [ref=e377]: 3,71 M
+                  - generic [ref=e378]:
+                    - generic [ref=e379]: Volume moyen (30 j)
+                    - generic [ref=e380]: 2,22 M
+                  - generic [ref=e381]:
+                    - generic [ref=e382]: Capitalisation boursière
+                    - generic [ref=e383]: 44,01 Md
+              - generic [ref=e384]:
+                - generic [ref=e385]:
+                  - generic [ref=e386]: Résultats
+                  - generic [ref=e387]: "67"
+                  - button "Agrandir les résultats" [ref=e388] [cursor=pointer]
+                - generic [ref=e391]:
+                  - img [ref=e392]:
+                    - generic [ref=e393]: "0.00"
+                    - generic [ref=e395]: "0.50"
+                    - generic [ref=e397]: "1.00"
+                    - generic [ref=e399]: "1.50"
+                    - generic [ref=e401]: "2.00"
+                    - generic [ref=e403] [cursor=pointer]: T4 24
+                    - generic [ref=e408] [cursor=pointer]: T1 25
+                    - generic [ref=e413] [cursor=pointer]: T2 25
+                    - generic [ref=e418] [cursor=pointer]: T3 25
+                    - generic [ref=e423] [cursor=pointer]: T4 25
+                  - generic [ref=e427]: Touchez un trimestre pour voir le détail
+  - generic [ref=e85]:
+    - button "Graphique" [ref=e86] [cursor=pointer]
+    - button "Listes" [ref=e90] [cursor=pointer]
+    - button "Paramètres du graphique" [ref=e94] [cursor=pointer]: Paramètres

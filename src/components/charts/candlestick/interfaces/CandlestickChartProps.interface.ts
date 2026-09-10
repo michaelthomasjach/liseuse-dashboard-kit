@@ -371,6 +371,10 @@ export interface CandlestickChartProps {
     model?: string;
     /** For a gateway or proxy speaking the Anthropic protocol. `apiKey` only. */
     baseUrl?: string;
+    /** `apiKey` only, and required when that key belongs to an *organisation* rather than to a
+     *  workspace: the API refuses such a request and names this header. Console → Settings →
+     *  Workspaces; it looks like `wrkspc_…`. A workspace-scoped key needs none. */
+    workspaceId?: string;
     serverTools?: AiServerTool[];
     /** Extra symbols the `/` menu offers, beyond this chart's own — a watchlist, typically. */
     symbols?: string[];

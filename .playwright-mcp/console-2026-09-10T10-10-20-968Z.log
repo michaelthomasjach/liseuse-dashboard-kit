@@ -1,0 +1,14 @@
+[    1145ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:6017/favicon.ico:0
+[    1146ms] [WARNING] <meta name="apple-mobile-web-app-capable" content="yes"> is deprecated. Please include <meta name="mobile-web-app-capable" content="yes"> @ http://localhost:6017/iframe.html?id=charts-candlestickchart--all-features&viewMode=story:0
+[   17335ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ http://localhost:6017/node_modules/.cache/storybook/10.5.6/1c3385a5d25e538d10b518b310c74d3ca2690b6aaffeadccd74da79736171f86/sb-vite/deps/chunk-N4LOGA4R.js?v=f9be5fc6:21608
+[   19027ms] [WARNING] <meta name="apple-mobile-web-app-capable" content="yes"> is deprecated. Please include <meta name="mobile-web-app-capable" content="yes"> @ http://localhost:6006/iframe.html?id=charts-candlestickchart--strategy-tester&viewMode=story:0
+[   20454ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ http://localhost:6006/node_modules/.cache/storybook/10.5.6/1c3385a5d25e538d10b518b310c74d3ca2690b6aaffeadccd74da79736171f86/sb-vite/deps/chunk-N4LOGA4R.js?v=f9be5fc6:21608
+[   24870ms] [LOG] [vite] server connection lost. Polling for restart... @ http://localhost:6006/@vite/client:963
+[   24871ms] [ERROR] WebSocket connection to 'ws://localhost:6006/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:6006/@vite/client:1034
+[   25873ms] [ERROR] WebSocket connection to 'ws://localhost:6006/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:6006/@vite/client:1034
+[   26876ms] [ERROR] WebSocket connection to 'ws://localhost:6006/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:6006/@vite/client:1034
+[   27878ms] [ERROR] WebSocket connection to 'ws://localhost:6006/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:6006/@vite/client:1034
+[   28881ms] [ERROR] WebSocket connection to 'ws://localhost:6006/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:6006/@vite/client:1034
+[   29883ms] [ERROR] WebSocket connection to 'ws://localhost:6006/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:6006/@vite/client:1034
+[   30886ms] [ERROR] WebSocket connection to 'ws://localhost:6006/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:6006/@vite/client:1034
+[   31889ms] [ERROR] WebSocket connection to 'ws://localhost:6006/' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:6006/@vite/client:1034

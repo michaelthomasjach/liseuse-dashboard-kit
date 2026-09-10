@@ -1,0 +1,39 @@
+- generic [ref=f1e180]:
+  - generic [ref=f1e184]:
+    - button "Mode d'affichage" [ref=f1e186] [cursor=pointer]
+    - generic [ref=f1e192]:
+      - generic [ref=f1e193]:
+        - generic [ref=f1e194]: AAPL
+        - generic [ref=f1e195]: ·
+        - button "Bougies" [ref=f1e196] [cursor=pointer]
+        - generic [ref=f1e197]: 154.46 -0.48 (-0.31%)
+      - generic:
+        - generic:
+          - button "Réordonner Volume" [ref=f1e199]
+          - button "Réduire le panneau Volume" [ref=f1e207] [cursor=pointer]
+          - generic [ref=f1e210] [cursor=pointer]: Volume
+          - generic: 160k
+          - generic:
+            - button "À propos de Volume" [ref=f1e211] [cursor=pointer]
+            - button "Paramètres du panneau Volume" [ref=f1e215] [cursor=pointer]
+            - button "Supprimer le panneau Volume" [ref=f1e219] [cursor=pointer]
+            - button "Plein écran du panneau Volume" [ref=f1e224] [cursor=pointer]
+      - img [ref=f1e227]:
+        - generic [ref=f1e228]:
+          - generic [ref=f1e229]:
+            - generic [ref=f1e230]: "140.00"
+            - generic [ref=f1e232]: "160.00"
+            - generic [ref=f1e234]: "180.00"
+            - generic [ref=f1e236]: "200.00"
+          - generic [ref=f1e239]:
+            - generic [ref=f1e241]: 100k
+            - generic [ref=f1e243]: 200k
+          - generic [ref=f1e246]:
+            - generic [ref=f1e248]: 18 Jul 2025
+            - generic [ref=f1e250]: 05 Dec 2025
+            - generic [ref=f1e252]: 24 Apr 2026
+      - generic: "154.46"
+  - generic [ref=f1e257]:
+    - button "Graphique" [ref=f1e258] [cursor=pointer]
+    - button "Listes" [ref=f1e262] [cursor=pointer]
+    - button "Paramètres du graphique" [ref=f1e266] [cursor=pointer]: Paramètres

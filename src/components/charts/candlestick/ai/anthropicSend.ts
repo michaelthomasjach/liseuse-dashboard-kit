@@ -20,6 +20,10 @@ export interface AnthropicSendOptions {
   model?: string;
   /** For a gateway or proxy that speaks the same protocol. Defaults to the public API. */
   baseUrl?: string;
+  /** Required when the key is an *organisation* key rather than one scoped to a workspace — the
+   *  API refuses such a request outright, naming this header. A workspace-scoped key needs none.
+   *  Found in the Anthropic console under Settings → Workspaces; it looks like `wrkspc_…`. */
+  workspaceId?: string;
   maxTokens?: number;
 }
 
@@ -44,7 +48,13 @@ function toApiMessages(messages: AiMessage[]) {
  *  Adaptive thinking, because the questions this assistant is asked are the kind that deserve it,
  *  and streaming, because a turn that thinks and then calls three tools is long enough that
  *  waiting in silence reads as a hang. */
-export function anthropicSend({ apiKey, model = DEFAULT_AI_MODEL, baseUrl = "https://api.anthropic.com", maxTokens = 8192 }: AnthropicSendOptions): AiSend {
+export function anthropicSend({
+  apiKey,
+  model = DEFAULT_AI_MODEL,
+  baseUrl = "https://api.anthropic.com",
+  workspaceId,
+  maxTokens = 8192,
+}: AnthropicSendOptions): AiSend {
   return async function* send(request: AiRequest, signal: AbortSignal): AsyncIterable<AiStreamEvent> {
     const tools = [
       ...request.tools.map((tool) => ({ name: tool.name, description: tool.description, input_schema: tool.inputSchema })),
@@ -65,6 +75,9 @@ export function anthropicSend({ apiKey, model = DEFAULT_AI_MODEL, baseUrl = "htt
           // Without this the API refuses a browser origin outright. Naming the risk in the header
           // is the provider's own design; see the `ai` prop's doc for what it means here.
           "anthropic-dangerous-direct-browser-access": "true",
+          // Only when there is one: sending an empty value is not the same as sending nothing, and
+          // a workspace-scoped key with this header set to "" is rejected.
+          ...(workspaceId ? { "anthropic-workspace-id": workspaceId } : {}),
         },
         body: JSON.stringify({
           model,

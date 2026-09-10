@@ -1,0 +1,67 @@
+- generic [ref=f3e6]:
+  - generic [ref=f3e10]:
+    - generic [ref=f3e11]:
+      - button "1 jour" [ref=f3e12] [cursor=pointer]
+      - button "Plage" [ref=f3e16] [cursor=pointer]
+      - button "Mode d'affichage" [ref=f3e20] [cursor=pointer]
+      - button "Ajouter un indicateur" [ref=f3e24] [cursor=pointer]
+      - button "Saisonnalité" [ref=f3e27] [cursor=pointer]
+      - button "Replay" [ref=f3e31] [cursor=pointer]
+      - generic [ref=f3e36]:
+        - button "Enregistrer comme nouveau modèle (Ctrl+S)" [ref=f3e37] [cursor=pointer]
+        - button "Enregistrer sous (nouveau modèle)" [ref=f3e42] [cursor=pointer]
+        - button "Modèles enregistrés" [ref=f3e45] [cursor=pointer]
+    - generic [ref=f3e50]:
+      - generic [ref=f3e51]:
+        - button "Rechercher un symbole" [ref=f3e52] [cursor=pointer]: MSFT
+        - generic [ref=f3e53]: ·
+        - button "Bougies" [ref=f3e54] [cursor=pointer]
+        - generic [ref=f3e55]: 105.25 -0.08 (-0.08%)
+      - img [ref=f3e56]:
+        - generic [ref=f3e57]:
+          - generic [ref=f3e58]:
+            - generic [ref=f3e59]: "80.00"
+            - generic [ref=f3e61]: "100.00"
+            - generic [ref=f3e63]: "120.00"
+            - generic [ref=f3e65]: "140.00"
+            - generic [ref=f3e67]: "160.00"
+            - generic [ref=f3e69]: "180.00"
+            - generic [ref=f3e71]: "200.00"
+          - generic [ref=f3e73]:
+            - generic [ref=f3e75]: 04 Apr 2025
+            - generic [ref=f3e77]: 29 Sep 2025
+            - generic [ref=f3e79]: 24 Mar 2026
+          - generic [ref=f3e84]:
+            - generic "2 évènements — cliquer pour les afficher" [ref=f3e85] [cursor=pointer]:
+              - generic [ref=f3e86]:
+                - generic [ref=f3e88]: E
+                - generic [ref=f3e90]: "N"
+                - generic: "2"
+            - 'generic "20 Jun 2025 — Dividende détaché : 0.62$/action" [ref=f3e92] [cursor=pointer]': D
+            - generic "4 évènements — cliquer pour les afficher" [ref=f3e97] [cursor=pointer]:
+              - generic [ref=f3e98]:
+                - generic [ref=f3e100]: E
+                - generic [ref=f3e102]: D
+                - generic: "4"
+            - 'generic "02 Jan 2026 — Résultats T3 : BPA 1.58$ (attendu 1.50$)" [ref=f3e104] [cursor=pointer]': E
+            - generic "22 May 2026 — Lancement de la nouvelle gamme de produits" [ref=f3e109] [cursor=pointer]: U
+      - generic: "105.25"
+    - generic [ref=f3e115]:
+      - button "Ligne de tendance" [ref=f3e117] [cursor=pointer]
+      - button "Retracement de Fibonacci" [ref=f3e123] [cursor=pointer]
+      - button "Vague d'Elliott (impulsive)" [ref=f3e126] [cursor=pointer]
+      - button "Projection de prix" [ref=f3e132] [cursor=pointer]
+      - button "Texte" [ref=f3e138] [cursor=pointer]
+      - button "Mesure" [ref=f3e142] [cursor=pointer]
+      - button "Aimant" [ref=f3e147] [cursor=pointer]
+      - button "Masquer les dessins" [ref=f3e151] [cursor=pointer]
+      - button "Verrouiller les dessins" [ref=f3e155] [cursor=pointer]
+      - button "Zoomer sur une zone" [ref=f3e159] [cursor=pointer]
+      - button "Réinitialiser le zoom" [ref=f3e164] [cursor=pointer]
+      - button "Visibilité des évènements" [ref=f3e168] [cursor=pointer]
+      - button "Dessins et indicateurs" [ref=f3e172] [cursor=pointer]
+      - button "État du marché" [ref=f3e177] [cursor=pointer]
+  - generic [ref=f3e182]:
+    - button "Graphique" [ref=f3e183] [cursor=pointer]
+    - button "Listes" [ref=f3e187] [cursor=pointer]
+    - button "Paramètres du graphique" [ref=f3e191] [cursor=pointer]: Paramètres

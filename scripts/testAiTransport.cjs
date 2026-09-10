@@ -15,15 +15,29 @@
 const fs = require("fs");
 const path = require("path");
 
+function readEnvFile() {
+  const envFile = path.join(__dirname, "..", ".env.local");
+  const values = {};
+  if (!fs.existsSync(envFile)) return values;
+  for (const line of fs.readFileSync(envFile, "utf8").split("\n")) {
+    const match = /^\s*([A-Z_]+)\s*=\s*(.*?)\s*$/.exec(line);
+    if (match) values[match[1]] = match[2].replace(/^["']|["']$/g, "");
+  }
+  return values;
+}
+
+const ENV = readEnvFile();
+
 function readKey() {
   if (process.env.ANTHROPIC_API_KEY) return { key: process.env.ANTHROPIC_API_KEY, source: "variable d'environnement ANTHROPIC_API_KEY" };
-  const envFile = path.join(__dirname, "..", ".env.local");
-  if (!fs.existsSync(envFile)) return null;
-  for (const line of fs.readFileSync(envFile, "utf8").split("\n")) {
-    const match = /^\s*(?:VITE_)?ANTHROPIC_API_KEY\s*=\s*(.+?)\s*$/.exec(line);
-    if (match) return { key: match[1].replace(/^["']|["']$/g, ""), source: ".env.local" };
-  }
-  return null;
+  const fromFile = ENV.ANTHROPIC_API_KEY || ENV.VITE_ANTHROPIC_API_KEY;
+  return fromFile ? { key: fromFile, source: ".env.local" } : null;
+}
+
+/** Requis quand la clé appartient à l'organisation plutôt qu'à un workspace : l'API refuse alors la
+ *  requête en nommant cet en-tête. Une clé rattachée à un workspace n'en a pas besoin. */
+function readWorkspaceId() {
+  return process.env.ANTHROPIC_WORKSPACE_ID || ENV.ANTHROPIC_WORKSPACE_ID || ENV.VITE_ANTHROPIC_WORKSPACE_ID || null;
 }
 
 const MODEL = process.env.ANTHROPIC_MODEL || "claude-opus-5";
@@ -39,6 +53,7 @@ async function stream(body, onEvent) {
       "content-type": "application/json",
       "x-api-key": readKey().key,
       "anthropic-version": "2023-06-01",
+      ...(readWorkspaceId() ? { "anthropic-workspace-id": readWorkspaceId() } : {}),
     },
     body: JSON.stringify(body),
   });
@@ -111,7 +126,9 @@ const SYSTEM =
     console.log("\nPuis : node scripts/testAiTransport.cjs");
     process.exit(2);
   }
-  console.log(`Clé lue depuis : ${found.source}`);
+  const workspace = readWorkspaceId();
+  console.log(`Clé lue depuis  : ${found.source}`);
+  console.log(`Workspace       : ${workspace ? workspace : "aucun (clé supposée rattachée à un workspace)"}`);
   console.log(`Modèle          : ${MODEL}\n`);
 
   // --- 1. Le streaming de texte ---

@@ -1,0 +1,39 @@
+[     315ms] [WARNING] <meta name="apple-mobile-web-app-capable" content="yes"> is deprecated. Please include <meta name="mobile-web-app-capable" content="yes"> @ http://localhost:6006/iframe.html?id=charts-candlestickchart--strategy-tester&viewMode=story:0
+[    1760ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ http://localhost:6006/node_modules/.cache/storybook/10.5.6/1c3385a5d25e538d10b518b310c74d3ca2690b6aaffeadccd74da79736171f86/sb-vite/deps/chunk-N4LOGA4R.js?v=f9be5fc6:21608
+[    9870ms] [LOG] [vite] server connection lost. Polling for restart... @ http://localhost:6006/@vite/client:963
+[   10856ms] [WARNING] <meta name="apple-mobile-web-app-capable" content="yes"> is deprecated. Please include <meta name="mobile-web-app-capable" content="yes"> @ http://localhost:6006/iframe.html?id=charts-candlestickchart--strategy-tester&viewMode=story:0
+[   27486ms] [WARNING] <meta name="apple-mobile-web-app-capable" content="yes"> is deprecated. Please include <meta name="mobile-web-app-capable" content="yes"> @ http://localhost:6006/iframe.html?id=charts-candlestickchart--strategy-tester&viewMode=story:0
+[   27685ms] SB_PREVIEW_API_0005 (CalledPreviewMethodBeforeInitializationError): Called `Preview.onStoriesChanged()` before initialization.
+
+The preview needs to load the story index before most methods can be called. If you want
+to call `onStoriesChanged`, try `await preview.initializationPromise;` first.
+
+If you didn't call the above code, then likely it was called by an addon that needs to
+do the above.
+    at PreviewWeb.onStoriesChanged (http://localhost:6006/node_modules/.cache/storybook/10.5.6/1c3385a5d25e538d10b518b310c74d3ca2690b6aaffeadccd74da79736171f86/sb-vite/deps/storybook_internal_preview_runtime.js?v=f9be5fc6:35526:13)
+    at PreviewWeb.onStoriesChanged (http://localhost:6006/node_modules/.cache/storybook/10.5.6/1c3385a5d25e538d10b518b310c74d3ca2690b6aaffeadccd74da79736171f86/sb-vite/deps/storybook_internal_preview_runtime.js?v=f9be5fc6:36607:17)
+    at http://localhost:6006/@id/__x00__virtual:/@storybook/builder-vite/vite-app.js:22:34
+    at http://localhost:6006/@vite/client:36:52
+    at http://localhost:6006/@vite/client:213:11
+    at http://localhost:6006/@vite/client:186:58
+    at Array.forEach (<anonymous>)
+    at HMRClient.queueUpdate (http://localhost:6006/@vite/client:186:36)
+    at async Promise.all (index 0)
+    at async handleMessage (http://localhost:6006/@vite/client:927:7)
+[   27686ms] SB_PREVIEW_API_0005 (CalledPreviewMethodBeforeInitializationError): Called `Preview.onStoriesChanged()` before initialization.
+
+The preview needs to load the story index before most methods can be called. If you want
+to call `onStoriesChanged`, try `await preview.initializationPromise;` first.
+
+If you didn't call the above code, then likely it was called by an addon that needs to
+do the above.
+    at PreviewWeb.onStoriesChanged (http://localhost:6006/node_modules/.cache/storybook/10.5.6/1c3385a5d25e538d10b518b310c74d3ca2690b6aaffeadccd74da79736171f86/sb-vite/deps/storybook_internal_preview_runtime.js?v=f9be5fc6:35526:13)
+    at PreviewWeb.onStoriesChanged (http://localhost:6006/node_modules/.cache/storybook/10.5.6/1c3385a5d25e538d10b518b310c74d3ca2690b6aaffeadccd74da79736171f86/sb-vite/deps/storybook_internal_preview_runtime.js?v=f9be5fc6:36607:17)
+    at http://localhost:6006/@id/__x00__virtual:/@storybook/builder-vite/vite-app.js:22:34
+    at http://localhost:6006/@vite/client:36:52
+    at http://localhost:6006/@vite/client:213:11
+    at http://localhost:6006/@vite/client:186:58
+    at Array.forEach (<anonymous>)
+    at HMRClient.queueUpdate (http://localhost:6006/@vite/client:186:36)
+    at async Promise.all (index 0)
+    at async handleMessage (http://localhost:6006/@vite/client:927:7)

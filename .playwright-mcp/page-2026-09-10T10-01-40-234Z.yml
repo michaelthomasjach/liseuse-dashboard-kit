@@ -1,0 +1,62 @@
+- generic [ref=e8]:
+  - generic [ref=e177]:
+    - button "Liste de surveillance" [ref=e178] [cursor=pointer]
+    - button "Ajouter un symbole" [ref=e180] [cursor=pointer]
+  - generic [ref=e9]:
+    - generic [ref=e12]:
+      - button "Mode d'affichage" [ref=e14] [cursor=pointer]
+      - generic [ref=e20]:
+        - generic [ref=e21]:
+          - generic [ref=e22]: AAPL
+          - generic [ref=e23]: ·
+          - button "Bougies" [ref=e24] [cursor=pointer]
+          - generic [ref=e25]: 154.46 -0.48 (-0.31%)
+        - generic:
+          - generic:
+            - button "Réordonner Volume" [ref=e27]
+            - button "Réduire le panneau Volume" [ref=e35] [cursor=pointer]
+            - generic [ref=e38] [cursor=pointer]: Volume
+            - generic: 160k
+            - generic:
+              - button "À propos de Volume" [ref=e39] [cursor=pointer]
+              - button "Paramètres du panneau Volume" [ref=e43] [cursor=pointer]
+              - button "Supprimer le panneau Volume" [ref=e47] [cursor=pointer]
+              - button "Plein écran du panneau Volume" [ref=e52] [cursor=pointer]
+        - img [ref=e55]:
+          - generic [ref=e56]:
+            - generic [ref=e57]:
+              - generic [ref=e58]: "140.00"
+              - generic [ref=e60]: "160.00"
+              - generic [ref=e62]: "180.00"
+              - generic [ref=e64]: "200.00"
+            - generic [ref=e67]:
+              - generic [ref=e69]: 100k
+              - generic [ref=e71]: 200k
+            - generic [ref=e74]:
+              - generic [ref=e76]: 18 Jul 2025
+              - generic [ref=e78]: 05 Dec 2025
+              - generic [ref=e80]: 24 Apr 2026
+        - generic: "154.46"
+    - generic [ref=e187]:
+      - generic [ref=e189]:
+        - button "Symbole" [ref=e190] [cursor=pointer]
+        - button [disabled] [ref=e191]:
+          - text: Prix
+          - separator "Redimensionner la colonne Prix" [ref=e192]
+      - generic [ref=e193]:
+        - button "MS MSFT 412,88" [ref=e195] [cursor=pointer]:
+          - generic [ref=e196]: MS
+          - generic [ref=e197]: MSFT
+          - generic [ref=e198]: 412,88
+        - button "NV NVDA 128,47" [ref=e200] [cursor=pointer]:
+          - generic [ref=e201]: NV
+          - generic [ref=e202]: NVDA
+          - generic [ref=e203]: 128,47
+        - button "AA AAPL 231,05" [ref=e205] [cursor=pointer]:
+          - generic [ref=e206]: AA
+          - generic [ref=e207]: AAPL
+          - generic [ref=e208]: 231,05
+  - generic [ref=e85]:
+    - button "Graphique" [ref=e86] [cursor=pointer]
+    - button "Listes" [active] [ref=e90] [cursor=pointer]
+    - button "Paramètres du graphique" [ref=e94] [cursor=pointer]: Paramètres

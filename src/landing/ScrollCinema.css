@@ -1,13 +1,18 @@
-/* The scroll-driven section: a tall scroll track with a sticky, screen-filling stage inside it.
-   Everything that moves here is a transform, an opacity or a clip-path, so the chart underneath is
-   never re-laid-out and never re-measures while the reader scrolls. */
+/* The scroll-driven section. The geometry is written as custom properties by `useCinemaScroll`
+   from a smoothed rAF loop, so the rules here only ever *read* them: nothing in this stylesheet
+   animates, and nothing re-renders while the reader scrolls. Same shape as `trading-lab-front`'s
+   own chart section, which this is ported from. */
 
 .lqx-cinema {
   position: relative;
-  /* The track's height *is* the animation's duration. Five screens of scroll covers the four
-     phases below with room to read between them. */
-  height: 620vh;
   margin-top: 112px;
+}
+
+.lqx-cinema__section {
+  position: relative;
+  /* The track's height is the sequence's duration: an expand ramp, a long hold with room for the
+     whole script to be typed, and a collapse ramp. */
+  height: 420vh;
 }
 
 .lqx-cinema__sticky {
@@ -21,33 +26,44 @@
   background-color: var(--lq-color-bg);
 }
 
-/* Sized in JavaScript, from the scroll position: a real width and height, not a transform. At rest
-   this has to *be* a chart at the content column's width, with its toolbar and its axes at the
-   size they have anywhere else on the page; a scaled-down full-screen chart would have miniature
-   chrome, and a clip-path one would be a crop rather than a chart. Every size it is given costs a
-   re-measure inside the chart, which is affordable only because `useScrollProgress` writes at most
-   once per animation frame. */
-.lqx-cinema__box {
+.lqx-cinema__wrapper {
   position: relative;
-  overflow: hidden;
+  z-index: 1;
+  display: flex;
+  transform: translateY(var(--stage-y, 44px));
 }
 
-.lqx-cinema__box > .lq-chart {
-  height: 100%;
-}
-
-/* Above the chart, not under it: at rest the chart is a 460px card in the middle of the screen,
-   and a headline pinned to the bottom ran straight into it. */
-.lqx-cinema__intro {
+.lqx-cinema__label {
   position: absolute;
-  inset: 5vh 0 auto;
-  padding: 0 32px;
-  text-align: center;
+  top: var(--label-top, -88px);
+  left: var(--label-inset, 0px);
+  right: var(--label-inset, 0px);
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 24px;
+  opacity: var(--label-op, 1);
   pointer-events: none;
 }
 
+.lqx-cinema__stage {
+  position: relative;
+  max-width: 100vw;
+  width: var(--chart-w, calc(min(100vw, 1180px) - 64px));
+  height: var(--chart-h, 520px);
+  border: var(--chart-b, 1px) solid var(--lq-color-border);
+  transform: scale(var(--chart-scale, 1));
+  background-color: var(--lq-color-bg);
+  overflow: hidden;
+}
+
+.lqx-cinema__stage > .lq-chart {
+  height: 100%;
+}
+
 .lqx-cinema__kicker {
-  margin: 0 0 12px;
+  display: block;
+  margin-bottom: 8px;
   font-size: var(--lq-text-xs);
   font-weight: 600;
   letter-spacing: 0.14em;
@@ -56,12 +72,21 @@
 }
 
 .lqx-cinema__title {
-  margin: 0 auto;
-  max-width: 20ch;
-  font-size: clamp(1.5rem, 3.4vw, 2.7rem);
-  line-height: 1.12;
+  margin: 0;
+  max-width: 22ch;
+  font-size: clamp(1.3rem, 2.6vw, 2.1rem);
+  line-height: 1.14;
   font-weight: 800;
   letter-spacing: -0.03em;
+}
+
+.lqx-cinema__nudge {
+  flex: none;
+  font-size: var(--lq-text-xs);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--lq-color-text-muted);
 }
 
 .lqx-cinema__accent {
@@ -85,10 +110,10 @@
 
 .lqx-cinema__editor {
   position: absolute;
-  top: 6vh;
-  right: 3vw;
-  bottom: 6vh;
-  width: min(560px, 42vw);
+  top: 5%;
+  right: 3%;
+  bottom: 5%;
+  width: min(560px, 44%);
   display: flex;
   flex-direction: column;
   border: 1px solid var(--lq-color-border);
@@ -250,7 +275,7 @@
 /* Below this the sticky choreography has nowhere to put a 42vw panel beside a chart, so the
    section collapses to a plain, readable stack. */
 @media (max-width: 900px) {
-  .lqx-cinema {
+  .lqx-cinema__section {
     height: auto;
   }
 
@@ -260,13 +285,26 @@
     padding-bottom: 32px;
   }
 
-  .lqx-cinema__box {
-    width: 100% !important;
-    height: 60vh !important;
+  .lqx-cinema__wrapper {
+    flex-direction: column;
+    width: 100%;
+    transform: none !important;
   }
 
-  .lqx-cinema__intro {
-    display: none;
+  .lqx-cinema__stage {
+    width: 100% !important;
+    height: 60vh !important;
+    transform: none !important;
+    border-width: 1px !important;
+  }
+
+  .lqx-cinema__label {
+    position: static;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 20px;
+    opacity: 1 !important;
   }
 
   .lqx-cinema__editor,

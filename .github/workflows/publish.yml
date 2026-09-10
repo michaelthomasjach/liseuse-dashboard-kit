@@ -24,6 +24,17 @@ jobs:
 
       - run: npm run typecheck
 
+      # Les DEUX noms, et ce n'est pas une ceinture avec des bretelles.
+      #
+      # `setup-node` écrit un .npmrc utilisateur qui lit NODE_AUTH_TOKEN. Mais le .npmrc COMMITÉ à
+      # la racine du dépôt est un fichier de *projet*, et npm donne la priorité au projet sur
+      # l'utilisateur : c'est donc lui qui décide, et il réclame GITHUB_TOKEN. Sans cette seconde
+      # ligne la variable est vide, le jeton part vide, et npm répond 401 « unauthenticated » — ce
+      # qui se lit comme un problème de droits alors que c'est un problème de nom de variable.
+      #
+      # C'est aussi pourquoi toutes les versions publiées jusqu'ici l'ont été depuis un poste, où
+      # GITHUB_TOKEN est exporté dans le shell : ce .npmrc a été écrit pour ce chemin-là.
       - run: npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

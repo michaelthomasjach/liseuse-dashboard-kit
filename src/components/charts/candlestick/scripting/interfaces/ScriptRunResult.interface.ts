@@ -1,4 +1,5 @@
 import type { StrategyResult } from "../../interfaces/StrategyResult.interface";
+import type { ScriptReport } from "./ScriptReport.interface";
 /** A script error, with line/column when the engine can recover them — `new Function`-compiled
  *  code reports its own location relative to a synthetic wrapper the browser generates, not the
  *  user's script verbatim, so these are best-effort (calibrated empirically per engine — see
@@ -186,6 +187,9 @@ export interface ScriptRunResult {
   /** What a `@quant` analysis returned, per symbol. `null` for every other kind, and the same
    *  reasoning as `strategy` above: nothing downstream has to guess. */
   quant: QuantResult | null;
+  /** The document a `@report` script wrote. `null` for every other kind — same reasoning as
+   *  `strategy` and `quant` above. */
+  report: ScriptReport | null;
 }
 
 /** One symbol's own outcome inside a `@quant` run. A failing symbol does not fail the run: the

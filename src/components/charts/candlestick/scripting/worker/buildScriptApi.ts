@@ -60,6 +60,10 @@ export interface MarketApi {
    *  see `ScriptEngineSnapshot.availableTimeframes`'s own doc for why this doesn't grant access to
    *  any *other* timeframe's own data (that's `resample`'s own job, see below). */
   availableTimeframes(): string[];
+  /** What the chart is showing, as the host named it — `null` when it named nothing. Read by a
+   *  `@report` to title itself, and by a `@quant` to know which of its own symbols it is currently
+   *  running on. Inspection only: naming a symbol here grants no access to its data. */
+  symbol(): string | null;
   /** Aggregates the base OHLCV (the same data the chart itself displays, per `snapshot.ohlcv`)
    *  into a coarser timeframe — this library never owns a data source of its own (same stance
    *  `availableTimeframes()`'s own doc takes), so there is no separate finer/other feed to fetch;
@@ -243,6 +247,7 @@ export function buildMarketApi(snapshot: ScriptEngineSnapshot, getCurrentIndex: 
   return {
     ...base,
     availableTimeframes: () => snapshot.availableTimeframes,
+    symbol: () => snapshot.symbol ?? null,
     resample: (interval) => {
       const intervalMs = parseIntervalMs(interval);
       if (intervalMs === null) return ALL_NULL_RESAMPLED_API;

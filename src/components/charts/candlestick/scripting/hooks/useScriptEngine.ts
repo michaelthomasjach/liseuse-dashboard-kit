@@ -48,7 +48,9 @@ function buildSnapshot(
 ,
   runUpToIndex: number,
   strategySettings: StrategySettings | undefined,
-  quant: QuantRunInput | undefined
+  quant: QuantRunInput | undefined,
+  report: { symbol?: string } | undefined,
+  symbol: string | undefined
 ): ScriptEngineSnapshot {
   // Reuses `computeIndicatorValues` verbatim — the exact same function `useIndicatorPaneScales`
   // calls to produce what's actually drawn on the chart — rather than recomputing indicator
@@ -69,7 +71,17 @@ function buildSnapshot(
   // projection the built-in fundamental panes use (see `fundamentalSeries`' own doc), computed here
   // rather than in the worker so both sides read one implementation.
   const fundamentalSeries: ScriptEngineSnapshot["fundamentalSeries"] = {};
-  for (const field of FUNDAMENTAL_INDICATOR_KINDS) {
+  // Every numeric field the host actually reported, not only the eight that have a pane of their
+  // own: a `@report` script needs CAPEX, tax, invested-capital returns and the rest of the line
+  // items, none of which anything plots. Read off the data rather than from a list, so a field
+  // added to `FundamentalDataPoint` reaches scripts without a second place remembering to say so.
+  const reportedFields = new Set<string>();
+  for (const entry of fundamentals ?? []) {
+    for (const [key, value] of Object.entries(entry)) {
+      if (key !== "date" && typeof value === "number") reportedFields.add(key);
+    }
+  }
+  for (const field of new Set([...FUNDAMENTAL_INDICATOR_KINDS, ...reportedFields])) {
     const points = (fundamentals ?? [])
       .map((entry) => ({ date: entry.date, value: entry[field as keyof FundamentalDataPoint] }))
       .filter((entry): entry is { date: Date; value: number } => typeof entry.value === "number");
@@ -99,6 +111,8 @@ function buildSnapshot(
             series: Object.fromEntries(Object.entries(quant.series).map(([symbol, candles]) => [symbol, toSnapshotCandles(candles)])),
             hostSymbol: quant.hostSymbol,
           },
+    report,
+    symbol,
   };
 }
 
@@ -147,7 +161,11 @@ export function useScriptEngine(
   /** Set only for a `@quant` script — see `ScriptEngineSnapshot.quant`. Its presence is what puts
    *  the worker on the quant path, so a script that never declared itself one cannot be run as
    *  one. */
-  quant: QuantRunInput | undefined = undefined
+  quant: QuantRunInput | undefined = undefined,
+  /** Set only for a `@report` script — see `ScriptEngineSnapshot.report`. */
+  report: { symbol?: string } | undefined = undefined,
+  /** What the chart is showing — read by `market.symbol()`. */
+  symbol: string | undefined = undefined
 ) {
   // Clamped: a cutoff from a previous, longer dataset would otherwise run past the end of this one.
   const effectiveRunUpToIndex = runUpToIndex === null ? data.length - 1 : Math.max(0, Math.min(runUpToIndex, data.length - 1));
@@ -281,6 +299,7 @@ export function useScriptEngine(
           labels: [],
           strategy: null,
           quant: null,
+          report: null,
         };
         setResult(errorResult);
         setRunning(false);
@@ -300,6 +319,7 @@ export function useScriptEngine(
           labels: [],
           strategy: null,
           quant: null,
+          report: null,
         };
         setResult(timeoutResult);
         setRunning(false);
@@ -319,7 +339,9 @@ export function useScriptEngine(
           availableTimeframes,
           effectiveRunUpToIndex,
           strategySettings,
-          quant
+          quant,
+          report,
+          symbol
         )
       );
     });

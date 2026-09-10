@@ -39,10 +39,15 @@ const STRATEGIES_CATEGORY = "Mes stratégies";
  *  scale would promise something clicking it can never do. */
 const QUANT_CATEGORY = "Mes analyses";
 
+/** Where a `@report` script is listed. Its own category again: what it produces is a document, not
+ *  anything you could put on a price scale. */
+const REPORT_CATEGORY = "Mes rapports";
+
 const SCRIPT_CATEGORY_BY_KIND: Record<ReturnType<typeof analyzeScriptKind>["kind"], string> = {
   indicator: SCRIPTS_CATEGORY,
   strategy: STRATEGIES_CATEGORY,
   quant: QUANT_CATEGORY,
+  report: REPORT_CATEGORY,
 };
 
 export interface IndicatorPickerModalProps {
@@ -206,6 +211,7 @@ export function IndicatorPickerModal({
                 SCRIPTS_CATEGORY,
                 STRATEGIES_CATEGORY,
                 QUANT_CATEGORY,
+                REPORT_CATEGORY,
               ])
             ).map(
               (category) => (
@@ -382,6 +388,9 @@ export function IndicatorPickerModal({
               }
               if (categoryFilter === QUANT_CATEGORY && !scripts.some((s) => analyzeScriptKind(s.code).kind === "quant")) {
                 return <p className="lq-chart__indicator-picker-empty">Aucune analyse @quant pour l'instant.</p>;
+              }
+              if (categoryFilter === REPORT_CATEGORY && !scripts.some((s) => analyzeScriptKind(s.code).kind === "report")) {
+                return <p className="lq-chart__indicator-picker-empty">Aucun rapport @report pour l'instant.</p>;
               }
               if (categoryFilter === SCRIPTS_CATEGORY && !scripts.some((s) => analyzeScriptKind(s.code).kind === "indicator")) {
                 return (

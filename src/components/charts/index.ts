@@ -29,6 +29,17 @@ export type {
 export { ChartEventTooltip } from "./EventTooltip";
 export type { ChartEventTooltipProps } from "./EventTooltip";
 
+export type {
+  AiSend,
+  AiRequest,
+  AiMessage,
+  AiContentBlock,
+  AiToolDefinition,
+  AiServerTool,
+  AiStreamEvent,
+} from "./candlestick/ai/interfaces/AiMessage.interface";
+export { anthropicSend, DEFAULT_AI_MODEL } from "./candlestick/ai/anthropicSend";
+
 export { ChartWorkspace } from "./ChartWorkspace";
 export type {
   ChartWorkspaceProps,

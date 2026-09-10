@@ -1030,3 +1030,13 @@ export const CodeIcon = (props: IconProps) => (
     <path d="M9 8 4 12 9 16M15 8l5 4-5 4" />
   </IconBase>
 );
+
+/** The AI assistant, in the tools rail and on its own panel's header. A four-point star rather than
+ *  a robot or a speech bubble: neither of those says "this one reasons about what you are looking
+ *  at", and the sparkle is what the whole industry has settled on for that. */
+export const SparkleIcon = (props: IconProps) => (
+  <IconBase {...props}>
+    <path d="M12 3.5c.6 3.1 1.8 4.3 4.9 4.9-3.1.6-4.3 1.8-4.9 4.9-.6-3.1-1.8-4.3-4.9-4.9 3.1-.6 4.3-1.8 4.9-4.9Z" />
+    <path d="M17.5 14c.35 1.75 1.05 2.45 2.8 2.8-1.75.35-2.45 1.05-2.8 2.8-.35-1.75-1.05-2.45-2.8-2.8 1.75-.35 2.45-1.05 2.8-2.8Z" />
+  </IconBase>
+);

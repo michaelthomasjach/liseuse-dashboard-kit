@@ -95,6 +95,10 @@ export interface ScriptEngineSnapshot {
    *  scope per the approved plan; this just answers "what timeframes exist" the same way
    *  `chart.listIndicators()` answers "what indicators exist" without granting access to either. */
   availableTimeframes: string[];
+  /** What the chart is showing, as the host named it — read by `market.symbol()`. On a `@quant`
+   *  run this is the symbol *currently being run*, not the chart's, so a script covering a list
+   *  always knows which one it is looking at. */
+  symbol?: string;
   /** Set only for a `@quant` script (see `scriptKind.ts`) — the analysis and the symbols it runs
    *  over. Its presence is what puts the worker on the quant path: run once per symbol rather than
    *  once per bar, with no drawing surface at all, and keep whatever each run `return`s.
@@ -113,4 +117,8 @@ export interface ScriptEngineSnapshot {
      *  another symbol's run would answer questions about the wrong company. */
     hostSymbol?: string;
   };
+  /** Set only for a `@report` script (see `scriptKind.ts`). Its presence is what puts the worker on
+   *  the report path: run once, no drawing surface, and `report.*` to write into. Carries the
+   *  symbol the report is about, which the script reads back through `report`'s own title. */
+  report?: { symbol?: string };
 }

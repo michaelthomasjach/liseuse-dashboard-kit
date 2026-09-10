@@ -8,6 +8,7 @@ import { buildBarApi } from "./buildBarApi";
 import { buildStrategyApi } from "./buildStrategyApi";
 import { buildCompanyApi } from "./buildCompanyApi";
 import { buildQuantPlotApi } from "./buildQuantPlotApi";
+import { buildReportApi } from "./buildReportApi";
 import { mathApi } from "./mathLib";
 import { taApi } from "./taLib";
 import { SCRIPT_MODULE_EXPORTS, SCRIPT_MODULE_REQUIRE, transformScriptModule } from "../scriptModules";
@@ -97,7 +98,11 @@ export function runScript(snapshot: ScriptEngineSnapshot): ScriptRunResult {
   const chart = buildChartApi(snapshot, getCurrentIndex);
   const { api: plot, getResult: getPlotResult } = buildPlotApi(getCurrentDate, () => snapshot.ohlcv[currentIndex].c);
   // What a `@quant` script is handed instead — every method throws, naming what to do instead.
-  const quantPlot = snapshot.quant ? buildQuantPlotApi() : null;
+  const quantPlot = snapshot.report ? buildQuantPlotApi("report") : snapshot.quant ? buildQuantPlotApi("quant") : null;
+  // The document a `@report` script writes into. Built only for that kind, the same gate every
+  // other capability goes through: a script that never declared itself a report has no `report`
+  // object, and calling it names what is missing.
+  const { api: reportApi, getResult: getReport } = buildReportApi();
   const state = buildStateApi();
   const { api: alert, getAlerts } = buildAlertApi(getCurrentIndex, getCurrentDate);
   const bar = buildBarApi(snapshot, getCurrentIndex);
@@ -176,7 +181,8 @@ export function runScript(snapshot: ScriptEngineSnapshot): ScriptRunResult {
     math: unknown,
     ta: unknown,
     console: unknown,
-    strategy: unknown
+    strategy: unknown,
+    report: unknown
     // `unknown` rather than `void`: on the quant path what the script returns *is* its output.
   ) => unknown;
   // The entry file goes through the same rewrite as any other — a single-file script simply has
@@ -197,6 +203,7 @@ export function runScript(snapshot: ScriptEngineSnapshot): ScriptRunResult {
       labels: [],
       strategy: null,
       quant: null,
+      report: null,
     };
   }
 
@@ -220,6 +227,7 @@ export function runScript(snapshot: ScriptEngineSnapshot): ScriptRunResult {
       // at all, and the call below silently passes an argument the function never declared — which
       // is exactly how this shipped broken once, as a ReferenceError no type-check could catch.
       "strategy",
+      "report",
       entry.code
     ) as CompiledScript;
   } catch (err) {
@@ -236,6 +244,45 @@ export function runScript(snapshot: ScriptEngineSnapshot): ScriptRunResult {
       labels: [],
       strategy: null,
       quant: null,
+      report: null,
+    };
+  }
+
+  // A report is a document, not a series: it runs once, positioned at the last bar so `market.*`
+  // and `company.*` see the whole history, and what it writes through `report.*` is its output.
+  if (snapshot.report) {
+    currentIndex = snapshot.ohlcv.length - 1;
+    try {
+      compiled(entryExports, requireModule, market, chart, quantPlot, state, alert, bar, company, mathApi, taApi, scriptConsole, undefined, reportApi);
+    } catch (err) {
+      return {
+        error: toScriptError(err),
+        logs,
+        panes: [],
+        drawings: [],
+        table: null,
+        xyCharts: [],
+        alerts: getAlerts(),
+        labels: [],
+        strategy: null,
+        quant: null,
+        // The partial document is kept for the same reason a partial backtest is: a report that
+        // threw on its last section still wrote the ones before it, and those are most of the work.
+        report: getReport(),
+      };
+    }
+    return {
+      error: null,
+      logs,
+      panes: [],
+      drawings: [],
+      table: null,
+      xyCharts: [],
+      alerts: getAlerts(),
+      labels: [],
+      strategy: null,
+      quant: null,
+      report: getReport(),
     };
   }
 
@@ -261,6 +308,9 @@ export function runScript(snapshot: ScriptEngineSnapshot): ScriptRunResult {
         runUpToIndex: series.length - 1,
         indicatorSeries: isHost ? snapshot.indicatorSeries : {},
         fundamentalSeries: isHost ? snapshot.fundamentalSeries : {},
+        // `market.symbol()` answers with the symbol *being run*, not the chart's — a script
+        // covering a list has no other way to know which one it is looking at.
+        symbol,
       };
       currentIndex = series.length - 1;
       const symbolMarket = buildMarketApi(symbolSnapshot, getCurrentIndex);
@@ -283,6 +333,7 @@ export function runScript(snapshot: ScriptEngineSnapshot): ScriptRunResult {
           taApi,
           scriptConsole,
           undefined,
+          undefined,
         );
         rows.push({ symbol, value });
       } catch (err) {
@@ -303,13 +354,14 @@ export function runScript(snapshot: ScriptEngineSnapshot): ScriptRunResult {
       labels: [],
       strategy: null,
       quant: { rows, ranAt: Date.now() },
+      report: null,
     };
   }
 
   for (let i = 0; i <= snapshot.runUpToIndex; i++) {
     currentIndex = i;
     try {
-      compiled(entryExports, requireModule, market, chart, plot, state, alert, bar, company, mathApi, taApi, scriptConsole, strategy?.api);
+      compiled(entryExports, requireModule, market, chart, plot, state, alert, bar, company, mathApi, taApi, scriptConsole, strategy?.api, undefined);
       // After the bar's own pass, never during it: an order placed mid-script fills once, at this
       // bar's own price, no matter how many times the script changed its mind (see settleBar).
       strategy?.settleBar(snapshot.ohlcv[i], i + 1 < snapshot.ohlcv.length ? snapshot.ohlcv[i + 1] : null);
@@ -328,6 +380,7 @@ export function runScript(snapshot: ScriptEngineSnapshot): ScriptRunResult {
         labels,
         strategy: strategy?.getResult() ?? null,
         quant: null,
+        report: null,
       };
     }
   }
@@ -345,5 +398,6 @@ export function runScript(snapshot: ScriptEngineSnapshot): ScriptRunResult {
     labels,
     strategy: strategy?.getResult() ?? null,
     quant: null,
+    report: null,
   };
 }

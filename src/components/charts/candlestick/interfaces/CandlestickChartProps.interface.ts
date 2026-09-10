@@ -14,6 +14,7 @@ import type { SymbolSearchCategory } from "./SymbolSearchCategory.interface";
 import type { ChartAlertDraft, ChartAlert } from "./ChartAlertDraft.interface";
 import type { ScriptDef } from "./ScriptDef.interface";
 import type { ScriptAlertEvent } from "./ScriptAlertEvent.interface";
+import type { AiSend, AiServerTool } from "../ai/interfaces/AiMessage.interface";
 import type { ScriptRunOutput } from "../scripting/interfaces/ScriptRunOutput.interface";
 
 export interface CandlestickChartProps {
@@ -344,6 +345,36 @@ export interface CandlestickChartProps {
    *  but that is absent here comes back as that symbol's own "aucune donnée" row rather than being
    *  invented or silently skipped. */
   quantData?: Record<string, Candle[]>;
+  /** The AI assistant: a button in the tools rail, and a panel that can read this chart and act on
+   *  it — add indicators, draw, write and run scripts, read a backtest.
+   *
+   *  Omitted, none of it renders. Present, it needs exactly one way to reach a model:
+   *
+   *  - `send` — your own function. **The shape to prefer**: the key stays on your server, you
+   *    choose the provider, and you decide what the model may see. This library only needs a
+   *    request turned into a stream of events (see `AiSend`).
+   *  - `apiKey` — Anthropic, straight from this browser. Simple, and worth being clear-eyed about:
+   *    a key in a browser is a key your users can read out of it. Fine for a desktop app, a
+   *    prototype or an internal tool where the key is the user's own; not for a public web page
+   *    where it is yours.
+   *
+   *  `serverTools` lets the model use the provider's own hosted tools — `"web_search"` and
+   *  `"web_fetch"` — which is what a question like "what happened to this company last quarter"
+   *  needs and no amount of chart data can answer. Off unless you ask for them.
+   *
+   *  Every action the assistant takes goes through the very functions this chart's own buttons
+   *  call, so nothing it does is reachable that a person could not do, and everything it does is
+   *  undone the same way. */
+  ai?: {
+    send?: AiSend;
+    apiKey?: string;
+    model?: string;
+    /** For a gateway or proxy speaking the Anthropic protocol. `apiKey` only. */
+    baseUrl?: string;
+    serverTools?: AiServerTool[];
+    /** Extra symbols the `/` menu offers, beyond this chart's own — a watchlist, typically. */
+    symbols?: string[];
+  };
   /** Fires when the user clicks the "</>" shortcut on a script-produced indicator's own pane
    *  header (see `PaneHeaders.tsx`) — this chart has no editor of its own to open (see `scripts`'s
    *  own doc), so jumping to that script's own tab is entirely up to whichever caller does own the

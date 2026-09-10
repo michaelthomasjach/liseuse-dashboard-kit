@@ -690,7 +690,9 @@ export const ScriptEditorCodeMirror = forwardRef<ScriptEditorCodeMirrorHandle, S
       ...analyzeScriptKind(source).diagnostics,
       // A @quant analysis has no drawing surface at all — said here, where it can be read before
       // running, and enforced in the worker, where `plot` throws (see buildQuantPlotApi).
-      ...(analyzeScriptKind(source).kind === "quant" ? analyzeQuantPlotCalls(source) : []),
+      ...(analyzeScriptKind(source).kind === "quant" || analyzeScriptKind(source).kind === "report"
+        ? analyzeQuantPlotCalls(source, analyzeScriptKind(source).kind as "quant" | "report")
+        : []),
     ]) {
       diagnostics.push({
         from: Math.min(issue.from, docLength),

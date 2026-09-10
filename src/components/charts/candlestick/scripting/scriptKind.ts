@@ -12,14 +12,14 @@ import type { ScriptParamDiagnostic } from "../interfaces/ScriptParam.interface"
  *  rather than once per bar, over a list of symbols it names itself, and what it `return`s is the
  *  whole of its output. Declaring the kind up front is what lets the editor, the indicator picker
  *  and the pane layout know what they are dealing with without executing anything first. */
-export type ScriptKind = "indicator" | "strategy" | "quant";
+export type ScriptKind = "indicator" | "strategy" | "quant" | "report";
 
-const KIND_LINE_RE = /^[ \t]*@(indicator|strategy|quant)\b.*$/gm;
+const KIND_LINE_RE = /^[ \t]*@(indicator|strategy|quant|report)\b.*$/gm;
 /** The symbols a `@quant` names, if any: everything between its parentheses. Tolerant on purpose —
  *  `@quant(AAPL, MSFT)`, `@quant("AAPL", "MSFT")` and `@quant(["AAPL", "MSFT"])` all mean the same
  *  list, and a ticker is whatever a ticker looks like (letters, digits, and the `.`/`-`/`:`/`_`
  *  that real ones carry: BRK.B, BTC-USD, NASDAQ:AAPL). */
-const QUANT_SYMBOLS_RE = /^[ \t]*@quant[ \t]*\(([^)]*)\)/m;
+const QUANT_SYMBOLS_RE = /^[ \t]*@(?:quant|report)[ \t]*\(([^)]*)\)/m;
 const TICKER_RE = /[A-Za-z0-9][A-Za-z0-9.:_-]*/g;
 
 /** The symbols a `@quant` script declares, in source order and without duplicates.
@@ -66,12 +66,14 @@ export function analyzeScriptKind(code: string): ScriptKindAnalysis {
       to: at + extra[0].length,
       message:
         kinds.size > 1
-          ? "Un script est @indicator, @strategy ou @quant — pas plusieurs à la fois. Seule la première déclaration est prise en compte."
+          ? "Un script est @indicator, @strategy, @quant ou @report — pas plusieurs à la fois. Seule la première déclaration est prise en compte."
           : `Un script ne déclare qu'un seul @${extra[1]}.`,
     });
   }
   const kind = matches[0][1] as ScriptKind;
-  return { kind, declared: true, symbols: kind === "quant" ? analyzeQuantSymbols(code) : [], diagnostics };
+  // `@report(AAPL)` names its subject the same way `@quant(...)` names its list — one symbol
+  // rather than several, but read by the same parser rather than a second one that could disagree.
+  return { kind, declared: true, symbols: kind === "quant" || kind === "report" ? analyzeQuantSymbols(code) : [], diagnostics };
 }
 
 /** Removes the declaration so the remaining source is valid JavaScript again — blanking its line
@@ -90,10 +92,12 @@ export function stripScriptKind(code: string): string {
  *  is replaced by an API that throws — a diagnostic alone would be advice, and this is a rule. */
 const PLOT_CALL_RE = /\bplot\s*\.\s*([A-Za-z_$][\w$]*)/g;
 
-export function analyzeQuantPlotCalls(code: string): ScriptParamDiagnostic[] {
+export function analyzeQuantPlotCalls(code: string, kind: "quant" | "report" = "quant"): ScriptParamDiagnostic[] {
+  const instead = kind === "quant" ? "Renvoyez vos résultats avec « return » à la place." : "Écrivez le rapport avec « report.* » à la place.";
+  const what = kind === "quant" ? "Une analyse @quant" : "Un rapport @report";
   return [...code.matchAll(PLOT_CALL_RE)].map((m) => ({
     from: m.index ?? 0,
     to: (m.index ?? 0) + m[0].length,
-    message: `Une analyse @quant n'affiche rien sur le graphique : « plot.${m[1]} » n'y est pas disponible. Renvoyez vos résultats avec « return » à la place.`,
+    message: `${what} n'affiche rien sur le graphique : « plot.${m[1]} » n'y est pas disponible. ${instead}`,
   }));
 }

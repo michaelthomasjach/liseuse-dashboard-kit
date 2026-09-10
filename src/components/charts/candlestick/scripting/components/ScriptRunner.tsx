@@ -102,6 +102,12 @@ export function ScriptRunner({ script, data, indicators, fundamentals, lastCandl
     if (symbol !== undefined && series[symbol] === undefined) series[symbol] = data;
     return { symbols, series, hostSymbol: symbol };
   }, [kindAnalysis, symbol, quantData, data]);
+  // Same gate as `strategySettings` and `quant`: the decorator grants the capability, it does not
+  // merely describe it.
+  const report = useMemo(
+    () => (kindAnalysis.kind === "report" ? { symbol: kindAnalysis.symbols[0] ?? symbol } : undefined),
+    [kindAnalysis, symbol],
+  );
   const engine = useScriptEngine(
     script.id,
     data,
@@ -112,7 +118,9 @@ export function ScriptRunner({ script, data, indicators, fundamentals, lastCandl
     runUpToIndex,
     debounceMs,
     strategySettings,
-    quant
+    quant,
+    report,
+    symbol
   );
   const hasRunOnceRef = useRef(false);
   const lastRunRequestIdRef = useRef<number | null>(null);

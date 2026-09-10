@@ -1,0 +1,320 @@
+/* Docked to the chart's right edge, its own column of the chart row — same shape ChartSidePanel
+   uses, and for the same reason: flexbox hands the plot whatever width is left, so every
+   measurement downstream picks up the narrower box for free. */
+.lq-ai {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  width: 360px;
+  max-width: 100%;
+  flex: 0 0 auto;
+  border-left: 1px solid var(--lq-color-border);
+  background-color: var(--lq-color-panel);
+}
+
+.lq-ai__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lq-space-2);
+  padding: var(--lq-space-2) var(--lq-space-3);
+  border-bottom: 1px solid var(--lq-color-border-subtle);
+}
+
+.lq-ai__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--lq-font-size-sm);
+  font-weight: 600;
+  color: var(--lq-color-text);
+}
+
+.lq-ai__header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lq-space-1);
+}
+
+.lq-ai__header-button {
+  display: inline-flex;
+  align-items: center;
+  border: none;
+  background: none;
+  color: var(--lq-color-text-muted);
+  font-size: var(--lq-font-size-xs);
+  padding: 2px 4px;
+  border-radius: var(--lq-radius-sm);
+  cursor: pointer;
+}
+
+.lq-ai__header-button:hover {
+  background-color: var(--lq-color-surface-hover);
+  color: var(--lq-color-text);
+}
+
+.lq-ai__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--lq-space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--lq-space-2);
+}
+
+.lq-ai__intro,
+.lq-ai__notice {
+  font-size: var(--lq-font-size-xs);
+  color: var(--lq-color-text-muted);
+  margin: 0;
+}
+
+.lq-ai__intro p {
+  margin: 0 0 var(--lq-space-2);
+}
+
+.lq-ai__intro ul {
+  margin: 0 0 var(--lq-space-2);
+  padding-left: var(--lq-space-3);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.lq-ai__intro-hint {
+  font-style: italic;
+}
+
+.lq-ai__message {
+  font-size: var(--lq-font-size-sm);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  border-radius: var(--lq-radius-md);
+  padding: var(--lq-space-2);
+}
+
+/* The user's own turns are set apart by alignment and ground rather than by a coloured bubble —
+   this panel sits beside a chart, and a saturated block beside it would read as a chart element. */
+.lq-ai__message--user {
+  background-color: var(--lq-color-surface-hover);
+  color: var(--lq-color-text);
+  align-self: flex-end;
+  max-width: 92%;
+}
+
+.lq-ai__message--assistant {
+  color: var(--lq-color-text);
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.lq-ai__message--error {
+  color: var(--lq-color-negative);
+}
+
+/* A tool call is folded away by default: it is the assistant showing its work, which matters when
+   an answer looks wrong and is noise the rest of the time. */
+.lq-ai__tool {
+  font-size: var(--lq-font-size-xs);
+  color: var(--lq-color-text-muted);
+  border-left: 2px solid var(--lq-color-border);
+  padding-left: var(--lq-space-2);
+}
+
+.lq-ai__tool--error {
+  border-left-color: var(--lq-color-negative);
+  color: var(--lq-color-negative);
+}
+
+.lq-ai__tool summary {
+  cursor: pointer;
+  font-family: var(--lq-font-mono);
+}
+
+.lq-ai__tool pre {
+  margin: var(--lq-space-1) 0 0;
+  max-height: 220px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-family: var(--lq-font-mono);
+}
+
+.lq-ai__busy {
+  margin: 0;
+  font-size: var(--lq-font-size-xs);
+  color: var(--lq-color-text-muted);
+  font-style: italic;
+}
+
+.lq-ai__composer {
+  position: relative;
+  border-top: 1px solid var(--lq-color-border-subtle);
+  padding: var(--lq-space-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--lq-space-1);
+}
+
+.lq-ai__input {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  border: 1px solid var(--lq-color-border);
+  border-radius: var(--lq-radius-sm);
+  background-color: var(--lq-color-surface);
+  color: var(--lq-color-text);
+  font: inherit;
+  font-size: var(--lq-font-size-sm);
+  padding: var(--lq-space-2);
+}
+
+.lq-ai__input:focus-visible {
+  outline: 2px solid var(--lq-color-accent);
+  outline-offset: -1px;
+}
+
+.lq-ai__composer-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lq-space-2);
+}
+
+.lq-ai__composer-hint {
+  font-size: 10px;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-ai__send {
+  border: 1px solid var(--lq-color-border);
+  background-color: var(--lq-color-surface);
+  color: var(--lq-color-text);
+  border-radius: var(--lq-radius-sm);
+  padding: 3px 10px;
+  font-size: var(--lq-font-size-xs);
+  cursor: pointer;
+}
+
+.lq-ai__send:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.lq-ai__send:not(:disabled):hover {
+  background-color: var(--lq-color-surface-hover);
+}
+
+/* Above the box, not below it: the box is already at the bottom of the panel, and a menu opening
+   downward would be off-screen. */
+.lq-ai__menu {
+  position: absolute;
+  bottom: calc(100% - var(--lq-space-1));
+  left: var(--lq-space-2);
+  right: var(--lq-space-2);
+  max-height: 260px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  border: 1px solid var(--lq-color-border);
+  border-radius: var(--lq-radius-md);
+  background-color: var(--lq-color-panel);
+  box-shadow: var(--lq-shadow-md);
+  z-index: 2;
+}
+
+.lq-ai__menu-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: baseline;
+  gap: var(--lq-space-2);
+  width: 100%;
+  border: none;
+  background: none;
+  text-align: left;
+  padding: 4px 6px;
+  border-radius: var(--lq-radius-sm);
+  cursor: pointer;
+}
+
+.lq-ai__menu-item--active,
+.lq-ai__menu-item:hover {
+  background-color: var(--lq-color-surface-hover);
+}
+
+.lq-ai__menu-label {
+  font-family: var(--lq-font-mono);
+  font-size: var(--lq-font-size-xs);
+  color: var(--lq-color-text);
+}
+
+.lq-ai__menu-hint {
+  font-size: 10px;
+  color: var(--lq-color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lq-ai__menu-group {
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--lq-color-text-muted);
+}
+
+/* On a phone the panel is the screen: it covers the chart rather than squeezing it into nothing. */
+@media (max-width: 720px) {
+  .lq-ai {
+    position: absolute;
+    inset: 0;
+    width: auto;
+    z-index: 30;
+  }
+}
+
+/* A report the assistant produced, offered where it was asked for. A card rather than another
+   message: it is a thing to open, not something to read in the transcript. */
+.lq-ai__report {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border: 1px solid var(--lq-color-border);
+  border-radius: var(--lq-radius-sm);
+  padding: var(--lq-space-2);
+  background-color: var(--lq-color-surface);
+}
+
+.lq-ai__report-title {
+  font-size: var(--lq-font-size-sm);
+  font-weight: 600;
+  color: var(--lq-color-text);
+}
+
+.lq-ai__report-meta {
+  font-size: 10px;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-ai__report-actions {
+  display: flex;
+  gap: var(--lq-space-1);
+  margin-top: 4px;
+}
+
+.lq-ai__report-actions button {
+  border: 1px solid var(--lq-color-border);
+  background: var(--lq-color-panel);
+  color: var(--lq-color-text);
+  border-radius: var(--lq-radius-sm);
+  padding: 2px 8px;
+  font-size: var(--lq-font-size-xs);
+  cursor: pointer;
+}
+
+.lq-ai__report-actions button:hover {
+  background: var(--lq-color-surface-hover);
+}

@@ -29,6 +29,7 @@ import {
 } from "./ChartWorkspace";
 import { generateCandles, generateCandlesByTimeframe, type MockTimeframeKey } from "../../test-data/financeSampleData";
 import { BTC_REAL_SAMPLE } from "../../test-data/btcRealSample";
+import type { AiSend } from "./candlestick/ai/interfaces/AiMessage.interface";
 
 const meta: Meta<typeof CandlestickChart> = {
   title: "Charts/CandlestickChart",
@@ -927,6 +928,71 @@ export const StrategyTester: Story = {
     <div style={{ margin: -32 }}>
       <ChartWorkspace defaultPanels={1} scripting defaultScripts={STRATEGY_DEBUG_SCRIPT}>
         <CandlestickChart data={BTC_REAL_SAMPLE} symbol="BTCUSDT" zoomable drawingTools showVolume showIndicators replay />
+      </ChartWorkspace>
+    </div>
+  ),
+};
+
+/** The assistant, wired to a scripted stand-in instead of a real model.
+ *
+ *  A story cannot hold an API key, and one that asked for yours would be a story nobody could run.
+ *  What it *can* do is prove the half this library owns: the button, the panel, the `/` menu, the
+ *  streaming transcript, and — the part worth seeing — the tool loop actually moving the chart.
+ *  The `send` below is a real `AiSend`: it answers with tool calls, reads their results back, and
+ *  finishes with a sentence, exactly as a model would. Swap it for `apiKey` (or your own `send`)
+ *  and nothing else changes. */
+const scriptedAssistant: AiSend = async function* (request) {
+  const lastUser = [...request.messages].reverse().find((m) => m.role === "user" && m.content.some((b) => b.type === "text"));
+  const question = lastUser?.content.map((b) => (b.type === "text" ? b.text : "")).join(" ") ?? "";
+  const alreadyRan = request.messages.some((m) => m.content.some((b) => b.type === "tool_result"));
+
+  const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+  const say = async function* (text: string) {
+    for (const word of text.split(" ")) {
+      await delay(18);
+      yield { type: "text_delta" as const, text: `${word} ` };
+    }
+  };
+
+  if (alreadyRan) {
+    yield* say("Voilà, c'est fait. Les résultats des outils sont dépliables au-dessus.");
+    yield { type: "done", stopReason: "end_turn" };
+    return;
+  }
+
+  if (/volume|sma|ema|indicateur/i.test(question)) {
+    yield* say("J'ajoute ça.");
+    yield { type: "tool_use", id: "t1", name: "afficher_le_volume", input: { visible: true } };
+    yield { type: "tool_use", id: "t2", name: "ajouter_un_indicateur", input: { kind: "sma", period: 20 } };
+    yield { type: "tool_use", id: "t3", name: "ajouter_un_indicateur", input: { kind: "ema", period: 50 } };
+    yield { type: "done", stopReason: "tool_use" };
+    return;
+  }
+  if (/canal|canaux/i.test(question)) {
+    yield* say("Je trace le canal sur la période demandée.");
+    yield { type: "tool_use", id: "t1", name: "tracer_un_canal", input: { debut: "01/01/2025", fin: "01/06/2025" } };
+    yield { type: "done", stopReason: "tool_use" };
+    return;
+  }
+  yield* say("Je regarde ce que montre le graphique.");
+  yield { type: "tool_use", id: "t1", name: "lire_le_graphique", input: {} };
+  yield { type: "done", stopReason: "tool_use" };
+};
+
+export const AiAssistant: Story = {
+  name: "Assistant IA",
+  render: () => (
+    <div style={{ margin: -32 }}>
+      <ChartWorkspace defaultPanels={1} scripting defaultScripts={STRATEGY_DEBUG_SCRIPT}>
+        <CandlestickChart
+          data={BTC_REAL_SAMPLE}
+          symbol="BTCUSDT"
+          zoomable
+          drawingTools
+          showVolume
+          showIndicators
+          ai={{ send: scriptedAssistant, symbols: ["AAPL", "MSFT", "NVDA"] }}
+        />
       </ChartWorkspace>
     </div>
   ),

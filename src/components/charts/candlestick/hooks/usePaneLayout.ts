@@ -333,8 +333,21 @@ export function usePaneLayout({
   // effect would tear down and re-add its own `window` listener on every render of this hook
   // (crosshair hover, zoom/pan… none of which this function's own behavior actually depends on),
   // not just when `onIndicatorsChange` itself changes.
+  /** The committed list, always current *within the tick*.
+   *
+   *  `indicators` is state, so it only changes at the next render — which is fine for a person,
+   *  who cannot click twice inside one tick, and wrong for anything that acts in a batch. The
+   *  assistant does exactly that: "affiche le volume, une SMA 20 et une EMA 50" runs three tool
+   *  calls in one pass, and with each of them reading the same render's `indicators`, the last one
+   *  silently threw away the other two. Mirrored here rather than resolved with a `setState`
+   *  updater because the caller's own `onIndicatorsChange` has to be told the new list too, and
+   *  reaching outside is not something an updater may do. */
+  const indicatorsRef = useRef(indicators);
+  indicatorsRef.current = indicators;
+
   const commitIndicators = useCallback(
     (next: Indicator[]) => {
+      indicatorsRef.current = next;
       setIndicators(next);
       onIndicatorsChange?.(next);
     },
@@ -383,7 +396,7 @@ export function usePaneLayout({
 
   function addIndicator(entry: IndicatorCatalogEntry) {
     commitIndicators([
-      ...indicators,
+      ...indicatorsRef.current,
       {
         id: `indicator-${indicatorIdRef.current++}`,
         kind: entry.kind,
@@ -400,7 +413,7 @@ export function usePaneLayout({
   // the type (never actually read for these — computeIndicatorValues/indicatorCatalogEntry both
   // check `customData` first).
   function addCustomIndicator(def: CustomIndicatorDef) {
-    commitIndicators([...indicators, { id: `indicator-${indicatorIdRef.current++}`, kind: "custom", period: 0, customData: def }]);
+    commitIndicators([...indicatorsRef.current, { id: `indicator-${indicatorIdRef.current++}`, kind: "custom", period: 0, customData: def }]);
   }
 
   // A lower-level primitive addIndicator/addCustomIndicator above don't need themselves (both
@@ -408,7 +421,7 @@ export function usePaneLayout({
   // what it's adding *after* an async step elsewhere (see useCorrelationSetup), this is the one
   // piece of "give it a fresh id and commit it" logic worth sharing rather than duplicating.
   function appendIndicator(partial: Omit<Indicator, "id">) {
-    commitIndicators([...indicators, { id: `indicator-${indicatorIdRef.current++}`, ...partial }]);
+    commitIndicators([...indicatorsRef.current, { id: `indicator-${indicatorIdRef.current++}`, ...partial }]);
   }
 
   function openIndicatorSettings(id: string) {

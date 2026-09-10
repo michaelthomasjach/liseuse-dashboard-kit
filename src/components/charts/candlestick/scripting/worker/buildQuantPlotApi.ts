@@ -12,9 +12,10 @@ const PLOT_METHODS = [
   "xy",
 ] as const;
 
-/** The `plot` a `@quant` script is handed: every method throws, naming what it should do instead.
+/** The `plot` a `@quant` analysis or a `@report` is handed: every method throws, naming what that
+ *  kind of script should do instead.
  *
- *  A quant analysis has no pane and no overlay — that is what the decorator declares. The editor
+ *  Neither has a pane or an overlay — that is what the decorator declares. The editor
  *  says so before the script runs (see `analyzeQuantPlotCalls`), and this is the same rule where
  *  it cannot be talked past. Throwing rather than silently ignoring: a call that quietly does
  *  nothing leaves the author watching an empty chart and wondering which of the two of them is
@@ -23,11 +24,11 @@ const PLOT_METHODS = [
  *  A Proxy rather than the fixed list alone, so a method added to the real API later is refused
  *  here too instead of coming back `undefined` — a `TypeError: plot.newThing is not a function`
  *  says much less than the message below. */
-export function buildQuantPlotApi(): Record<string, unknown> {
+export function buildQuantPlotApi(kind: "quant" | "report" = "quant"): Record<string, unknown> {
+  const what = kind === "quant" ? "Une analyse @quant" : "Un rapport @report";
+  const instead = kind === "quant" ? "Renvoyez vos résultats avec « return » à la place." : "Écrivez le rapport avec « report.* » à la place.";
   const refuse = (name: string) => () => {
-    throw new Error(
-      `Une analyse @quant n'affiche rien sur le graphique : « plot.${name} » n'y est pas disponible. Renvoyez vos résultats avec « return » à la place.`,
-    );
+    throw new Error(`${what} n'affiche rien sur le graphique : « plot.${name} » n'y est pas disponible. ${instead}`);
   };
   const base: Record<string, unknown> = {};
   for (const name of PLOT_METHODS) base[name] = refuse(name);

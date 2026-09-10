@@ -27,10 +27,13 @@ export interface UseDrawingStateArgs {
  *  this hook's full return value as its own input. */
 export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAddSymbolOverlay }: UseDrawingStateArgs) {
   const [drawings, setDrawings] = useState<TrendLineDrawing[]>(defaultDrawings ?? []);
-  // Kept in sync every render — handleAddSymbolOverlay's own async resolution below reads this
-  // instead of the plain `drawings` closure variable specifically so two concurrent adds (see its
-  // own doc) each commit against whatever's *actually* latest at the moment they resolve, not a
-  // stale pre-fetch snapshot shared by every in-flight call that started around the same time.
+  // Kept in sync every render *and* on every commit — handleAddSymbolOverlay's own async
+  // resolution reads this instead of the plain `drawings` closure variable specifically so two
+  // concurrent adds (see its own doc) each commit against whatever's *actually* latest at the
+  // moment they resolve, not a stale pre-fetch snapshot shared by every in-flight call that
+  // started around the same time. Updating it inside `commitDrawings` extends that to anything
+  // committing twice *within one tick*, before a render can refresh it — the assistant running
+  // several tool calls in one pass, where the second would otherwise throw away the first.
   const drawingsRef = useRef(drawings);
   drawingsRef.current = drawings;
   const [activeTool, setActiveTool] = useState<DrawingToolType | null>(null);
@@ -178,11 +181,16 @@ export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAdd
   // not just when `onDrawingsChange` itself changes.
   const commitDrawings = useCallback(
     (next: TrendLineDrawing[]) => {
+      drawingsRef.current = next;
       setDrawings(next);
       onDrawingsChange?.(next);
     },
     [onDrawingsChange]
   );
+
+  /** The list as it stands right now — what a caller building `next` from the current drawings
+   *  should read instead of the `drawings` its own render closed over. */
+  const currentDrawings = useCallback(() => drawingsRef.current, []);
 
   function removeSymbolOverlay(ticker: string) {
     commitDrawings(drawings.filter((d) => !(d.lineType === "symbolOverlay" && d.overlaySymbol === ticker)));
@@ -570,6 +578,7 @@ export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAdd
     dragLineRef,
     isPanningYRef,
     commitDrawings,
+    currentDrawings,
     removeSymbolOverlay,
     handleAddSymbolOverlay,
     cancelDrawingTool,

@@ -18,6 +18,9 @@ import { usePaneLayout } from "./candlestick/hooks/usePaneLayout";
 import { useChartTemplates } from "./candlestick/hooks/useChartTemplates";
 import { useStrategyMarkers } from "./candlestick/hooks/useStrategyMarkers";
 import { useStrategyPanelState } from "./candlestick/hooks/useStrategyPanelState";
+import { useAiChartContext } from "./candlestick/ai/useAiChartContext";
+import { AiPanel } from "./candlestick/ai/components/AiPanel";
+import { anthropicSend } from "./candlestick/ai/anthropicSend";
 import { useHoverSync } from "./candlestick/hooks/useHoverSync";
 import { usePaneDragReorder } from "./candlestick/hooks/usePaneDragReorder";
 import { useThemePaletteTick } from "./candlestick/hooks/useThemePaletteTick";
@@ -154,7 +157,7 @@ export function CandlestickChart({
   onLinkClick,
   fillHeight = false,
   sidePanel, defaultSidePanelOpen, onSidePanelOpenChange,
-  scripts, onScriptsChange, onScriptAlert, quantData, onEditScript, onCreateScript, onDeleteScript, onCreateStrategyFromIndicator, onScriptRunOutput, lastCandleOpen = false,
+  scripts, onScriptsChange, onScriptAlert, quantData, ai, onEditScript, onCreateScript, onDeleteScript, onCreateStrategyFromIndicator, onScriptRunOutput, lastCandleOpen = false,
   margin,
   className,
 }: CandlestickChartProps) {
@@ -225,6 +228,7 @@ export function CandlestickChart({
     dragLineRef,
     isPanningYRef,
     commitDrawings,
+    currentDrawings,
     removeSymbolOverlay,
     handleAddSymbolOverlay,
     cancelDrawingTool,
@@ -436,6 +440,16 @@ export function CandlestickChart({
   // default: it is a summary of the indicators on the chart, and a chart with none has nothing
   // for it to summarise beyond its own price and volume baselines.
   const [marketStateOpen, setMarketStateOpen] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
+  /** How the assistant reaches a model. A caller's own `send` wins over `apiKey`: it is the shape
+   *  this library recommends, and a caller who supplied both has told us where they want the key
+   *  to live. Null when neither is set, which the panel says out loud rather than offering a box
+   *  that could never answer. */
+  const aiSend = useMemo(() => {
+    if (ai?.send) return ai.send;
+    if (ai?.apiKey) return anthropicSend({ apiKey: ai.apiKey, model: ai.model, baseUrl: ai.baseUrl });
+    return null;
+  }, [ai?.send, ai?.apiKey, ai?.model, ai?.baseUrl]);
   const showHeader =
     fullscreenToggle || zoomable || !!timeframes?.length || showIndicators ||
     seasonality || replay || showTemplates || linkable || !!sidePanel;
@@ -941,6 +955,45 @@ export function CandlestickChart({
   // if the plot column is ever allowed to reach zero width while the parent has some. It can't:
   // `.lq-chart__plot-column` carries a min-width for exactly this reason (see charts-shared.css).
 
+  // Everything the assistant may read and every lever it may pull, gathered in one place — see
+  // `useAiChartContext`. Built regardless of whether `ai` is set: it is a plain memo over values
+  // this component already holds, and branching on a prop would put a hook behind a condition.
+  const aiChart = useAiChartContext({
+    symbol,
+    timeframe,
+    availableTimeframes: flattenTimeframeValues(timeframes),
+    data,
+    fundamentals,
+    indicators: combinedIndicators,
+    indicatorLabel,
+    addIndicator,
+    removeIndicator,
+    volumeVisible,
+    setVolumePaneState,
+    drawings: currentDrawings,
+    commitDrawings,
+    nextDrawingId: () => `drawing-${drawingIdRef.current++}`,
+    scripts: scriptingState.scripts,
+    runOutputs: scriptingState.runOutputs,
+    addScript: (name, code) => scriptingState.addScript(name, code, { named: true }),
+    updateScript: (id, code) => scriptingState.updateScript(id, { code }),
+    runScript: (id) => {
+      const script = scriptingState.scripts.find((s) => s.id === id);
+      scriptingState.runScript(id, script?.code ?? "", script?.files);
+    },
+    onTimeframeChange,
+    // The chart's own symbol prop is controlled by the caller, so "affiche MSFT" is a *request* to
+    // them — routed through the very callback the symbol search already uses, which is what makes
+    // the assistant's version of the action indistinguishable from a person's.
+    // Everything but the ticker is unknown here — the assistant was given a symbol, not a search
+    // result — and saying so plainly beats inventing a category and an exchange the caller would
+    // then have to distrust.
+    onSymbolChange: onSymbolSelect
+      ? (ticker: string) => onSymbolSelect({ id: ticker, ticker, name: ticker, category: "stocks", source: "" })
+      : undefined,
+    onEditScript,
+  });
+
   const mobilePlacement = useMobilePointPlacement({
     enabled: placementActive,
     plotRef: zoomRef,
@@ -1077,6 +1130,8 @@ export function CandlestickChart({
       setIndicatorsManagerOpen={setIndicatorsManagerOpen}
       marketStateOpen={marketStateOpen}
       setMarketStateOpen={setMarketStateOpen}
+      aiOpen={ai ? aiOpen : undefined}
+      setAiOpen={ai ? setAiOpen : undefined}
       onOpenToolInfo={setInfoTool}
     />
   );
@@ -1595,6 +1650,20 @@ export function CandlestickChart({
         <ChartSidePanel panelRef={sidePanelState.panelRef} widthPx={sidePanelState.widthPx} startResize={sidePanelState.startResize}>
           {sidePanel}
         </ChartSidePanel>
+      )}
+
+      {/* Outside `.lq-chart__main`, beside the docked side panel: the assistant is a column of the
+          chart row, so flexbox hands the plot whatever width is left and every measurement
+          downstream picks up the narrower box for free — the same arrangement `sidePanel` uses. */}
+      {ai && (
+        <AiPanel
+          open={aiOpen}
+          onClose={() => setAiOpen(false)}
+          chart={aiChart}
+          send={aiSend}
+          serverTools={ai.serverTools ?? []}
+          symbols={ai.symbols ?? []}
+        />
       )}
     </div>
   );

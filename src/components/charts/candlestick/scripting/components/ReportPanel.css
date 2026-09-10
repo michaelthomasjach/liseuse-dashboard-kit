@@ -1,0 +1,48 @@
+.lq-report-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lq-space-2);
+  min-width: 0;
+}
+
+.lq-report-panel__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--lq-space-2);
+}
+
+.lq-report-panel__title {
+  margin: 0;
+  font-size: var(--lq-font-size-sm);
+  font-weight: 600;
+  color: var(--lq-color-text);
+}
+
+.lq-report-panel__print {
+  border: 1px solid var(--lq-color-border);
+  background: var(--lq-color-panel);
+  color: var(--lq-color-text);
+  border-radius: var(--lq-radius-sm);
+  padding: 2px 8px;
+  font-size: var(--lq-font-size-xs);
+  cursor: pointer;
+}
+
+.lq-report-panel__print:hover {
+  background: var(--lq-color-surface-hover);
+}
+
+.lq-report-panel__empty {
+  margin: 0;
+  font-size: var(--lq-font-size-xs);
+  color: var(--lq-color-text-muted);
+}
+
+/* Its own scroller: a report is a page and the editor's side column is not. */
+.lq-report-panel__body {
+  max-height: 420px;
+  overflow-y: auto;
+  min-width: 0;
+  padding-right: var(--lq-space-1);
+}

@@ -243,6 +243,23 @@ return { cours: last, "plus haut": Math.max(...closes) };`
       t(
         "Le résultat s'affiche dans l'éditeur, à côté du code, une section par symbole. Une analyse peut être longue et sa réponse est un constat daté, pas une lecture en direct : chaque calcul peut donc être enregistré et relu plus tard sans être refait, depuis la même section."
       ),
+      h("@report — écrire un document", ["@report", "report.title", "report.heading", "report.text", "report.metrics", "report.table", "report.series", "report.callout"]),
+      t(
+        "Un @report ne dessine rien non plus, et ne renvoie rien : il écrit un document. Il s'exécute une fois, positionné sur la dernière bougie — market.* et company.* voient donc tout l'historique — et chaque appel à report.* ajoute une section, dans l'ordre où elle sera lue."
+      ),
+      t(
+        "Sept blocs, et pas davantage : un titre, des sous-titres, du texte, une grille de chiffres clés, un tableau, une petite série dessinée, et un encart pour conclure. C'est ce qu'un rapport contient ; tout le reste s'écrit en toutes lettres. Le document s'affiche à côté du code et s'exporte en PDF — c'est le navigateur qui imprime, donc le texte reste sélectionnable et la pagination est la vraie."
+      ),
+      c(
+        `@report
+report.title("Analyse fondamentale", { symbol: market.symbol() });
+report.metrics([{ label: "Chiffre d'affaires", value: company.value("totalRevenue") }]);
+report.table(["Exercice", "CA"], [["N", company.value("totalRevenue")]]);
+report.callout("positive", "Rentabilité élevée", "Le ROIC dépasse 20 % depuis quatre ans.");`
+      ),
+      t(
+        "company.fields() dit quelles données l'application a réellement fournies : chiffre d'affaires, résultat, marges, CAPEX, flux de trésorerie, impôts, taux effectif, dette, capitaux propres, ROIC… Un rapport honnête commence par regarder cette liste plutôt que par supposer, et dit ce qui manque au lieu de l'inventer."
+      ),
       h("@description — documenter le script", ["@description"]),
       t(
         "Écrit tout en haut du script, @description \"…\" donne le texte qui s'affiche quand on clique sur le petit cercle « ? » de l'en-tête d'une pane produite par ce script. Un script n'en déclare qu'une seule."

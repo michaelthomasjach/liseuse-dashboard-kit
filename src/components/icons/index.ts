@@ -120,4 +120,5 @@ export {
   GreaterThanIcon,
   LessThanIcon,
   CodeIcon,
+  SparkleIcon,
 } from "./icons";

@@ -25,6 +25,94 @@ export interface ScriptExample {
  *  scripts respectifs ». Every example's own code is unchanged from the original static text. */
 export const SCRIPT_EXAMPLES: ScriptExample[] = [
   {
+    id: "report-company",
+    title: "Rapport @report — analyse fondamentale d'une entreprise",
+    description:
+      "Un `@report` ne dessine rien et ne renvoie rien : il *écrit un document*, section par section, avec `report.*`. Il s'exécute une fois, positionné sur la dernière bougie, donc `market.*` et `company.*` voient tout l'historique. Celui-ci lit les comptes fournis par l'application — chiffre d'affaires, résultat, CAPEX, impôts, ROIC — en construit un compte de résultat, un pont de trésorerie et une discussion de l'avantage concurrentiel, puis conclut. Le résultat s'affiche à côté du code et s'exporte en PDF.",
+    code: `@report
+@description "Analyse fondamentale : croissance, rentabilité,investissement, avantage concurrentiel."
+
+// Quatre exercices, lus en remontant : company.value(champ, décalage) renvoie ce que l'entreprise
+// avait publié il y a N bougies. 252 séances ≈ un an.
+const AN = 252;
+const exercices = [3, 2, 1, 0];
+const lire = (champ, i) => company.value(champ, exercices[i] * AN);
+const md = (v) => (v === null ? null : +(v / 1e9).toFixed(2));
+const pct = (v) => (v === null ? null : v.toFixed(1) + " %");
+
+report.title("Analyse fondamentale", { subtitle: "Quatre exercices", symbol: market.symbol() });
+
+// --- Chiffres clés : ce qu'on regarde avant de lire quoi que ce soit ---
+const caN = lire("totalRevenue", 3);
+const caDebut = lire("totalRevenue", 0);
+const croissance = caDebut ? ((caN / caDebut) ** (1 / 3) - 1) * 100 : null;
+report.metrics([
+  { label: "Chiffre d'affaires", value: md(caN) + " Md", tone: "up" },
+  { label: "Croissance annualisée", value: croissance === null ? "—" : pct(croissance), tone: croissance > 0 ? "up" : "down" },
+  { label: "Marge nette", value: pct(lire("netMargin", 3)) },
+  { label: "ROIC", value: pct(lire("returnOnInvestedCapital", 3)), note: "vs " + pct(lire("returnOnInvestedCapital", 0)) + " il y a 4 ans" },
+]);
+
+// --- Compte de résultat ---
+report.heading("Compte de résultat");
+report.table(
+  ["Exercice", "CA", "Résultat net", "Marge nette", "Impôt", "Taux effectif"],
+  exercices.map((_, i) => [
+    "N-" + (3 - i),
+    md(lire("totalRevenue", i)),
+    md(lire("netIncome", i)),
+    pct(lire("netMargin", i)),
+    md(lire("taxExpense", i)),
+    pct(lire("effectiveTaxRate", i)),
+  ]),
+  { title: "En milliards, sauf pourcentages" }
+);
+
+// --- Investissement et trésorerie ---
+report.heading("Investissement et trésorerie");
+report.text(
+  "Le CAPEX dit ce qu'il en coûte de maintenir la position ; le flux de trésorerie disponible dit ce qu'il en reste."
+);
+const etiquettes = exercices.map((_, i) => "N-" + (3 - i));
+report.series("CAPEX", etiquettes, exercices.map((_, i) => md(lire("capex", i))), { unit: "Md" });
+report.series(
+  "Flux de trésorerie disponible",
+  etiquettes,
+  exercices.map((_, i) => {
+    const flux = lire("operatingCashFlow", i);
+    const capex = lire("capex", i);
+    return flux === null || capex === null ? null : md(flux - capex);
+  }),
+  { unit: "Md" }
+);
+
+// --- Avantage concurrentiel ---
+report.heading("Avantage concurrentiel");
+const roic = lire("returnOnInvestedCapital", 3);
+const roicDebut = lire("returnOnInvestedCapital", 0);
+report.text(
+  roic === null
+    ? "L'application n'a pas fourni de ROIC : impossible de conclure sur la rentabilité du capital investi."
+    : "Le ROIC s'établit à " + pct(roic) + ", contre " + pct(roicDebut) + " il y a quatre exercices."
+);
+if (roic !== null && roic > 15) {
+  report.callout(
+    "positive",
+    "Rentabilité durablement élevée",
+    "Un ROIC maintenu au-dessus de 15 % sur plusieurs exercices consécutifs s'explique rarement par la conjoncture : c'est le signe d'une barrière à l'entrée. Reste à nommer laquelle."
+  );
+} else if (roic !== null) {
+  report.callout(
+    "neutral",
+    "Rentabilité ordinaire",
+    "Rien ici n'indique un avantage concurrentiel durable : le capital investi rapporte ce que rapporte le capital investi."
+  );
+}
+
+report.heading("Champs disponibles");
+report.text("Données fournies par l'application : " + company.fields().join(", ") + ".");`,
+  },
+  {
     id: "quant-cross-section",
     title: "Analyse @quant — comparer plusieurs symboles",
     description:

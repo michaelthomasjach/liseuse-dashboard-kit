@@ -38,6 +38,12 @@ export const SCRIPT_API_COMPLETIONS: ScriptApiCompletion[] = [
     apply: "@strategy",
   },
   {
+    label: "@report",
+    type: "keyword",
+    detail: "déclare un script qui écrit un document — report.* au lieu de plot.*, exportable en PDF",
+    apply: "@report",
+  },
+  {
     label: "@quant",
     type: "keyword",
     detail: "déclare une analyse qui ne dessine rien — une exécution par symbole, le résultat est ce que le script renvoie",

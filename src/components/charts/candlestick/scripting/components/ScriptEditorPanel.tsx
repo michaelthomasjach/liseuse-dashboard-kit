@@ -38,6 +38,7 @@ import "./ScriptEditorPanel.css";
 import { QuantResultsPanel } from "./QuantResultsPanel";
 import { analyzeScriptKind } from "../scriptKind";
 import type { QuantSymbolResult } from "../interfaces/ScriptRunResult.interface";
+import { ReportPanel } from "./ReportPanel";
 
 const LazyScriptEditorCodeMirror = lazy(() =>
   import("./ScriptEditorCodeMirror").then((m) => ({ default: m.ScriptEditorCodeMirror }))
@@ -475,7 +476,9 @@ export function hello() {
   const output = activeScriptId ? runOutputs[activeScriptId] : undefined;
   // Read off the editor's own draft, so the results panel appears as soon as `@quant` is typed —
   // the same immediacy the parameters list already has.
-  const isQuant = analyzeScriptKind(editorValue).kind === "quant";
+  const editorKind = analyzeScriptKind(editorValue).kind;
+  const isQuant = editorKind === "quant";
+  const isReport = editorKind === "report";
   const isDirty = activeScript !== null && isScriptDirty(activeScript);
 
   return (
@@ -816,6 +819,7 @@ export function hello() {
                 where they land instead, beside the code that produced them. Rendered on the
                 decorator alone, not on there being a result: an analysis that has never been run
                 still says so here rather than leaving the author wondering where its output goes. */}
+            {isReport && <ReportPanel report={output?.result?.report ?? null} />}
             {isQuant && activeScript && (
               <QuantResultsPanel
                 result={output?.result?.quant ?? null}

@@ -8,6 +8,7 @@ import type { DrawingToolType } from "../interfaces/DrawingToolType.interface";
 import { DRAWING_TOOL_CATEGORIES } from "../drawingCatalog";
 import { capitalize } from "../formatting";
 import { TOOLS_RAIL_HEIGHT_MOBILE } from "../constants";
+import { SparkleIcon } from "../../../icons";
 
 export interface ToolsRailProps {
   drawingTools: boolean;
@@ -49,6 +50,10 @@ export interface ToolsRailProps {
    *  rail rather than in the header because it is read *against* the chart, like the drawing
    *  toggles beside it, not chosen once like a timeframe. */
   marketStateOpen: boolean;
+  /** Undefined when the chart has no assistant configured (see `CandlestickChartProps.ai`) — the
+   *  button then does not render at all, rather than opening a panel that could never answer. */
+  aiOpen: boolean | undefined;
+  setAiOpen: ((open: boolean) => void) | undefined;
   setMarketStateOpen: Dispatch<SetStateAction<boolean>>;
   onOpenToolInfo: (tool: DrawingToolType) => void;
 }
@@ -94,6 +99,8 @@ export function ToolsRail({
   indicatorsManagerOpen,
   setIndicatorsManagerOpen,
   marketStateOpen,
+  aiOpen,
+  setAiOpen,
   setMarketStateOpen,
   onOpenToolInfo,
 }: ToolsRailProps) {
@@ -430,6 +437,21 @@ export function ToolsRail({
         >
           <GaugeIcon size={14} />
         </button>
+        {/* Last in the rail, and only when an assistant is actually wired up. Beside the readouts
+            rather than beside the drawing tools: like them, it reads the chart and reports on it —
+            it just happens to be able to act on it too. */}
+        {setAiOpen !== undefined && (
+          <button
+            type="button"
+            className={["lq-chart__icon-button", aiOpen && "lq-chart__icon-button--active"].filter(Boolean).join(" ")}
+            onClick={() => setAiOpen(!aiOpen)}
+            aria-label="Assistant"
+            aria-pressed={aiOpen === true}
+            title="Poser une question sur ce graphique, ou lui demander d'agir dessus"
+          >
+            <SparkleIcon size={14} />
+          </button>
+        )}
       </div>
       {/* One sheet for the whole rail, not one per category — it renders whichever category
           `openToolMenu` names (see sheetCategory above), so there's never more than one on screen

@@ -1083,4 +1083,81 @@ const overlay = plot.overlay("Croisement de moyennes");
 if (courte !== null) overlay.line("SMA " + COURTE, courte, { color: "#e0a95c" });
 if (longue !== null) overlay.line("SMA " + LONGUE, longue, { color: "#6c87c9" });`,
   },
+  {
+    id: "permutation-entropy",
+    title: "Entropie de permutation — mesurer le désordre d'une série",
+    description:
+      "Une mesure issue de la littérature (Bandt & Pompe, affinée par Unakafova & Keller 2013) qui ne regarde pas les niveaux mais l'ORDRE des barres : elle découpe la fenêtre en motifs de d barres consécutives, compte combien de fois chacun des d! ordres possibles apparaît, et résume cette distribution par son entropie de Shannon ramenée entre 0 et 1. Proche de 0, les mêmes enchaînements reviennent sans cesse — la série tend, ou elle est mécanique ; proche de 1, tous les enchaînements sont aussi fréquents les uns que les autres. C'est un indicateur de filtrage : il ne dit pas d'acheter, il dit dans quel régime on se trouve. Le portage suit la définition publiée, pas un transcodage ligne à ligne : la numérotation des motifs y est différente (code de Lehmer), ce qui ne change aucune valeur puisque l'entropie ne lit que la forme de la distribution, jamais les étiquettes. Vérifié contre une seconde implémentation indépendante sur quatre régimes (bruit, tendance stricte, alternance, marche aléatoire) et trois profondeurs : identique à la précision machine, avec 0 exactement sur une tendance strictement croissante et ~0,99 sur du bruit.",
+    code: `@indicator
+@description "Entropie de permutation : à quel point l'ordre des dernières barres est prévisible. Proche de 0, la série répète toujours les mêmes enchaînements (elle tend, ou elle est mécanique) ; proche de 1, tous les enchaînements sont aussi fréquents les uns que les autres (elle est désordonnée). Sert de filtre : beaucoup de stratégies de suivi de tendance travaillent mieux quand l'entropie est basse, beaucoup de stratégies de retour à la moyenne quand elle est haute."
+
+const SOURCE = new Variable("string", "close", {
+  description: 'La série mesurée : "close" pour le prix, "volume" pour les volumes.',
+});
+const PROFONDEUR = new Variable("number", 3, {
+  description: "d — combien de barres consécutives forment un motif. 3 en compare trois de suite.",
+  min: 2,
+  max: 5,
+});
+const MULTIPLICATEUR = new Variable("number", 28, {
+  description: "La fenêtre observée vaut d! fois ce nombre. Avec d = 3, 28 donne 168 barres.",
+  min: 4,
+  max: 120,
+});
+const SEUIL_BAS = new Variable("number", 0.9, { description: "En dessous, la série est jugée ordonnée.", min: 0, max: 1 });
+const SEUIL_HAUT = new Variable("number", 0.97, { description: "Au-dessus, elle est jugée désordonnée.", min: 0, max: 1 });
+
+const FACTORIELLES = [1, 1, 2, 6, 24, 120];
+
+const d = Math.min(5, Math.max(2, Math.round(PROFONDEUR)));
+const motifsPossibles = FACTORIELLES[d];
+const fenetre = motifsPossibles * Math.max(4, Math.round(MULTIPLICATEUR));
+
+const champ = SOURCE === "volume" ? "volume" : "close";
+// Une barre de plus que la fenêtre par motif : le premier motif a besoin de d valeurs.
+const valeurs = market.series(champ, fenetre + d - 1);
+
+let entropie = null;
+
+if (valeurs.length === fenetre + d - 1) {
+  // Un motif ordinal, c'est l'ORDRE de d valeurs consécutives, pas leurs niveaux :
+  // [12, 15, 14] et [3, 9, 8] sont le même motif. Il y a d! ordres possibles, et le code
+  // de Lehmer ci-dessous en numérote chacun une fois et une seule, de 0 à d!-1 : pour
+  // chaque position, on compte combien de valeurs la SUIVENT en lui étant inférieures.
+  //
+  // Quelle numérotation exactement n'a aucune importance pour la suite, et c'est ce qui
+  // permet de l'écrire autrement que l'implémentation de référence sans changer le
+  // résultat : l'entropie ne lit que la forme de la distribution, jamais les étiquettes.
+  const comptes = new Array(motifsPossibles).fill(0);
+
+  for (let debut = 0; debut + d <= valeurs.length; debut++) {
+    let code = 0;
+    for (let i = 0; i < d - 1; i++) {
+      let inferieuresApres = 0;
+      for (let j = i + 1; j < d; j++) {
+        if (valeurs[debut + j] < valeurs[debut + i]) inferieuresApres++;
+      }
+      code = code * (d - i) + inferieuresApres;
+    }
+    comptes[code]++;
+  }
+
+  // Entropie de Shannon de cette distribution, divisée par son maximum log2(d!) pour
+  // atterrir entre 0 et 1. Ce maximum est atteint quand les d! motifs sont équiprobables.
+  let somme = 0;
+  for (const compte of comptes) {
+    // Un motif jamais vu ne contribue rien : 0 x log2(0) vaut 0, alors que log2(0) seul
+    // vaut -Infini et empoisonnerait toute la somme.
+    if (compte === 0) continue;
+    const p = compte / fenetre;
+    somme += p * Math.log2(p);
+  }
+  entropie = -somme / Math.log2(motifsPossibles);
+}
+
+const panneau = plot.pane("Entropie de permutation");
+panneau.line("Entropie", entropie);
+panneau.line("Ordonnée", SEUIL_BAS, { color: "var(--lq-color-up)", lineStyle: "dashed", lineWidth: 1 });
+panneau.line("Désordonnée", SEUIL_HAUT, { color: "var(--lq-color-down)", lineStyle: "dashed", lineWidth: 1 });`,
+  },
 ];

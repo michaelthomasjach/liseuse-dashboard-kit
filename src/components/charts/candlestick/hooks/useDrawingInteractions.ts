@@ -106,6 +106,11 @@ export interface UseDrawingInteractionsArgs {
   onHoveredIndicatorChange: (id: string | null) => void;
   pixelYForDrawing: (dr: TrendLineDrawing) => number;
   resolveValueAxisAtY: (mouseY: number) => string;
+  /** A sub-pane's current vertical transform, and how to slide it — see usePaneLayout's panPaneY.
+   *  Both are needed here because a vertical drag belongs to whichever pane it started in, not to
+   *  the price. */
+  getPaneYTransform: (paneId: string) => d3.ZoomTransform;
+  panPaneY: (paneId: string, startTransform: d3.ZoomTransform, dy: number) => void;
   overlayProjections: { drawing: TrendLineDrawing; mainReference: number; points: { i: number; price: number }[] }[];
   /** The "zoomIn" tool's own math — see its own click-handling branch below. `xScale` is the base
    *  (unzoomed) index-domain scale (distinct from `zoomedXScale` above, already rescaled by
@@ -197,6 +202,8 @@ export function useDrawingInteractions({
   onHoveredIndicatorChange,
   pixelYForDrawing,
   resolveValueAxisAtY,
+  getPaneYTransform,
+  panPaneY,
   overlayProjections,
   xScale,
   maxXZoom,
@@ -588,6 +595,18 @@ export function useDrawingInteractions({
     scheduleHoverUpdate(mouseX, mouseY, e.pointerType === "touch" ? DRAWING_HIT_DISTANCE * 2 : DRAWING_HIT_DISTANCE);
   }
 
+  /** resolveValueAxisAtY, narrowed to panes a vertical drag can actually move: a collapsed pane is
+   *  only its own header strip, with no value scale on screen to slide, so a gesture landing on one
+   *  goes to the price rather than disappearing into a scale nobody can see. Same test
+   *  updateHoverState already applies before showing a pane's hover readout. */
+  function paneForGestureAtY(mouseY: number): string {
+    const axis = resolveValueAxisAtY(mouseY);
+    if (axis === "price") return "price";
+    if (axis === "volume") return volumeCollapsed ? "price" : "volume";
+    const ind = ownPaneIndicators.find((i) => i.id === axis);
+    return ind && !ind.paneCollapsed ? axis : "price";
+  }
+
   // When hovering a drawing, starts a "drag the whole line" gesture — d3-zoom already backs off
   // in that case via the filter above, so capturing the pointer here doesn't compete with
   // anything. Otherwise starts an independent Y-pan via plain window listeners (same pattern
@@ -652,10 +671,26 @@ export function useDrawingInteractions({
     }
     if (!zoomable) return;
     const startClientY = e.clientY;
-    const startYTransform = yTransform;
+    // One rect covers the whole plot column — price, volume and every indicator pane — so a
+    // pointerdown here says nothing on its own about which value axis the gesture means. Asking
+    // resolveValueAxisAtY is what routes it: before this, every vertical drag moved the *price*
+    // scale, whichever pane it started in, so dragging inside "Entropie de permutation" left the
+    // pane still and slid the candles above it instead.
+    //
+    // Resolved once, at pointerdown, and held for the whole gesture: recomputing it per move would
+    // hand the drag to a different pane the moment the pointer crossed a boundary. X is untouched
+    // either way — it stays shared, so panning sideways from anywhere still moves every pane
+    // together, which is the whole point of them sitting under one time axis.
+    const paneAtStart = paneForGestureAtY(e.clientY - e.currentTarget.getBoundingClientRect().top);
+    const onPrice = paneAtStart === "price";
+    const startYTransform = onPrice ? yTransform : getPaneYTransform(paneAtStart);
     isPanningYRef.current = true;
     const onMove = (ev: PointerEvent) => {
       const dy = ev.clientY - startClientY;
+      if (!onPrice) {
+        panPaneY(paneAtStart, startYTransform, dy);
+        return;
+      }
       // Only flagged here (once actual movement happens), not at pointerdown — a plain click
       // with no drag shouldn't disable YAutoScaling.
       setYManuallyAdjusted(true);

@@ -319,6 +319,21 @@ export function usePaneLayout({
     if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
   }
 
+  /** Slides a sub-pane's own value axis by `dy` screen pixels, from the transform it had when the
+   *  drag started.
+   *
+   *  The axis strip next to a pane *rescales* it (see handlePaneYAxisPointerMove); dragging inside
+   *  the pane's own body moves it, which is a different gesture and needs its own maths — the same
+   *  translate the price body drag already does, in the pane's own transform instead of the
+   *  price's. Without this, a vertical drag anywhere in a sub-pane fell through to the price scale,
+   *  so the pane never moved and the candles above it did. */
+  function panPaneY(paneId: string, startTransform: d3.ZoomTransform, dy: number) {
+    setPaneYTransform((prev) => ({
+      ...prev,
+      [paneId]: d3.zoomIdentity.scale(startTransform.k).translate(0, startTransform.y / startTransform.k + dy / startTransform.k),
+    }));
+  }
+
   function resetPaneYAxis(paneId: string) {
     setPaneYTransform((prev) => {
       if (!(paneId in prev)) return prev;
@@ -776,6 +791,7 @@ export function usePaneLayout({
     paneHeightFractions,
     paneYTransform,
     getPaneYTransform,
+    panPaneY,
     handlePaneYAxisPointerDown,
     handlePaneYAxisPointerMove,
     handlePaneYAxisPointerUp,

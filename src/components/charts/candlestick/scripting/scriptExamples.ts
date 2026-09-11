@@ -364,6 +364,32 @@ const COULEUR_HAUSSE = new Variable("color", "#26a69a", { description: "Couleur 
 const COULEUR_BAISSE = new Variable("color", "#ef5350", { description: "Couleur quand il est baissier." });
 const COULEUR_NEUTRE = new Variable("color", "#808080", { description: "Couleur des mèches et de leurs nuages." });
 
+// L'opacité de chaque famille de traits, réglable une par une. 0 masque sans supprimer : la série
+// reste listée dans la légende, et il suffit de remonter le curseur pour la revoir.
+const OPACITE_CLOTURE = new Variable("number", 1, {
+  description: "Opacité de la ligne de clôture lissée, le bord du corps côté clôture.",
+  min: 0,
+  max: 1,
+});
+const OPACITE_OUVERTURE = new Variable("number", 1, {
+  description: "Opacité de la ligne d'ouverture lissée, l'autre bord du corps.",
+  min: 0,
+  max: 1,
+});
+const OPACITE_EXTREMES = new Variable("number", 0.2, {
+  description: "Opacité des bordures extrêmes (haut et bas lissés), celles qui ferment les nuages.",
+  min: 0,
+  max: 1,
+});
+
+// Les remplissages, couleur et opacité séparées des lignes : un nuage peut prendre sa propre
+// teinte sans que le trait qui le borde change.
+const COULEUR_CORPS_HAUSSE = new Variable("color", "#26a69a", { description: "Remplissage du corps quand il est haussier." });
+const COULEUR_CORPS_BAISSE = new Variable("color", "#ef5350", { description: "Remplissage du corps quand il est baissier." });
+const OPACITE_CORPS = new Variable("number", 1, { description: "Opacité du remplissage du corps.", min: 0, max: 1 });
+const COULEUR_MECHES = new Variable("color", "#808080", { description: "Remplissage des deux nuages de mèches." });
+const OPACITE_MECHES = new Variable("number", 1, { description: "Opacité des nuages de mèches.", min: 0, max: 1 });
+
 @block Cellule 2 — les quatre séries Heikin-Ashi, lissées
 // market.heikinAshi() rend les quatre séries d'un coup, les plus anciennes en premier. Ce n'est
 // pas quelque chose qu'un script peut recalculer lui-même : l'ouverture HA dépend de la bougie
@@ -411,20 +437,22 @@ const haussier = tendance !== null && tendance > 0;
 // l'autre s'affiche — sans le null, la série relierait ses points par-dessus le trou.
 // Les options de tracé n'ont pas de champ opacity, et le rendu passe par un canvas, dont
 // l'analyseur de couleurs ne comprend pas color-mix(). Un suffixe alpha sur un hex à six
-// chiffres, lui, est compris partout — et toute autre écriture de couleur ressort inchangée
-// plutôt que cassée.
-function pale(couleur) {
-  return /^#[0-9a-fA-F]{6}$/.test(couleur) ? couleur + "33" : couleur;
+// chiffres, lui, est compris partout — et toute autre écriture de couleur ressort inchangée,
+// pleine opacité, ce qui se voit tout de suite au lieu de disparaître sans explication.
+function avecOpacite(couleur, opacite) {
+  const o = Math.max(0, Math.min(1, opacite));
+  if (o >= 1 || !/^#[0-9a-fA-F]{6}$/.test(couleur)) return couleur;
+  return couleur + Math.round(o * 255).toString(16).padStart(2, "0");
 }
 
 const prix = plot.overlay("Trend Indicator A");
-prix.line("Clôture lissée (hausse)", haussier ? mmCloture : null, { color: COULEUR_HAUSSE, lineWidth: 2 });
-prix.line("Clôture lissée (baisse)", haussier ? null : mmCloture, { color: COULEUR_BAISSE, lineWidth: 2 });
+prix.line("Clôture lissée (hausse)", haussier ? mmCloture : null, { color: avecOpacite(COULEUR_HAUSSE, OPACITE_CLOTURE), lineWidth: 2 });
+prix.line("Clôture lissée (baisse)", haussier ? null : mmCloture, { color: avecOpacite(COULEUR_BAISSE, OPACITE_CLOTURE), lineWidth: 2 });
 
 // L'autre bord du corps. Le nuage ci-dessous va de l'ouverture à la clôture : sans cette
 // ligne-là, la zone colorée n'était bordée que d'un côté.
-prix.line("Ouverture lissée (hausse)", haussier ? mmOuverture : null, { color: COULEUR_HAUSSE, lineWidth: 2 });
-prix.line("Ouverture lissée (baisse)", haussier ? null : mmOuverture, { color: COULEUR_BAISSE, lineWidth: 2 });
+prix.line("Ouverture lissée (hausse)", haussier ? mmOuverture : null, { color: avecOpacite(COULEUR_HAUSSE, OPACITE_OUVERTURE), lineWidth: 2 });
+prix.line("Ouverture lissée (baisse)", haussier ? null : mmOuverture, { color: avecOpacite(COULEUR_BAISSE, OPACITE_OUVERTURE), lineWidth: 2 });
 
 // Le nuage entre ouverture et clôture, en deux séries pour la même raison que la courbe.
 //
@@ -432,21 +460,21 @@ prix.line("Ouverture lissée (baisse)", haussier ? null : mmOuverture, { color: 
 // Ne rien émettre du tout n'est pas la même chose — une série sans valeur sur une bougie prolonge
 // sa dernière, ce qui donnait de longs paliers horizontaux là où la couleur changeait. null est
 // ce qui perce un trou.
-prix.band("Corps (hausse)", haussier ? mmCloture : null, haussier ? mmOuverture : null, { color: COULEUR_HAUSSE, lineWidth: 0 });
-prix.band("Corps (baisse)", haussier ? null : mmCloture, haussier ? null : mmOuverture, { color: COULEUR_BAISSE, lineWidth: 0 });
+prix.band("Corps (hausse)", haussier ? mmCloture : null, haussier ? mmOuverture : null, { color: avecOpacite(COULEUR_CORPS_HAUSSE, OPACITE_CORPS), lineWidth: 0 });
+prix.band("Corps (baisse)", haussier ? null : mmCloture, haussier ? null : mmOuverture, { color: avecOpacite(COULEUR_CORPS_BAISSE, OPACITE_CORPS), lineWidth: 0 });
 
 // Même règle ici : la valeur est null quand l'option est éteinte, jamais l'appel qui disparaît.
 // Les deux bordures extrêmes : présentes pour fermer les nuages, à peine visibles pour ne pas
 // concurrencer les bords du corps, qui sont la lecture utile.
-prix.line("Haut lissé", AFFICHER_MECHES ? mmHaut : null, { color: pale(COULEUR_NEUTRE) });
-prix.line("Bas lissé", AFFICHER_MECHES ? mmBas : null, { color: pale(COULEUR_NEUTRE) });
+prix.line("Haut lissé", AFFICHER_MECHES ? mmHaut : null, { color: avecOpacite(COULEUR_NEUTRE, OPACITE_EXTREMES) });
+prix.line("Bas lissé", AFFICHER_MECHES ? mmBas : null, { color: avecOpacite(COULEUR_NEUTRE, OPACITE_EXTREMES) });
 
 // Deux nuages très pâles : du haut jusqu'au sommet du corps, et du bas du corps jusqu'au bas.
 // Ils disent jusqu'où le marché est allé sans y rester.
 const corpsHaut = mmOuverture !== null && mmCloture !== null ? Math.max(mmOuverture, mmCloture) : null;
 const corpsBas = mmOuverture !== null && mmCloture !== null ? Math.min(mmOuverture, mmCloture) : null;
-prix.band("Mèche haute", AFFICHER_NUAGES ? mmHaut : null, AFFICHER_NUAGES ? corpsHaut : null, { color: COULEUR_NEUTRE, lineWidth: 0 });
-prix.band("Mèche basse", AFFICHER_NUAGES ? corpsBas : null, AFFICHER_NUAGES ? mmBas : null, { color: COULEUR_NEUTRE, lineWidth: 0 });
+prix.band("Mèche haute", AFFICHER_NUAGES ? mmHaut : null, AFFICHER_NUAGES ? corpsHaut : null, { color: avecOpacite(COULEUR_MECHES, OPACITE_MECHES), lineWidth: 0 });
+prix.band("Mèche basse", AFFICHER_NUAGES ? corpsBas : null, AFFICHER_NUAGES ? mmBas : null, { color: avecOpacite(COULEUR_MECHES, OPACITE_MECHES), lineWidth: 0 });
 
 @block Cellule 5 — la force, dans son propre panneau
 // Absent de l'original, qui n'affiche que la couleur. La valeur de \`trend\` est une échelle de

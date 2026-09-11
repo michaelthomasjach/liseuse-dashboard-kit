@@ -609,10 +609,24 @@ const PERMUTATION_ENTROPY_SCRIPT: ScriptDef[] = [
   },
 ];
 
+/** Le portage du Pine Script « Trend Survival Matrix » (voir SCRIPT_EXAMPLES), une ligne de plus
+ *  sous « Mes indicateurs ». Éteint au repos comme les autres fixtures. */
+const SURVIVAL_MATRIX_SCRIPT: ScriptDef[] = [
+  {
+    id: "debug-trend-survival-matrix",
+    name: "Trend Survival Matrix",
+    code: SCRIPT_EXAMPLES.find((example) => example.id === "trend-survival-matrix")?.code ?? "",
+    named: true,
+    enabled: false,
+    targetPanelIndex: 0,
+  },
+];
+
 const DEBUG_SCRIPTS: ScriptDef[] = [
   ...KDE_DEBUG_SCRIPT,
   ...TREND_INDICATOR_SCRIPT,
   ...PERMUTATION_ENTROPY_SCRIPT,
+  ...SURVIVAL_MATRIX_SCRIPT,
   ...STRATEGY_DEBUG_SCRIPT,
 ];
 

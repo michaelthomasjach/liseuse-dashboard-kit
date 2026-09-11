@@ -1204,4 +1204,253 @@ panneau.line("Entropie", entropie);
 panneau.line("Ordonnée", SEUIL_BAS, { color: "var(--lq-color-up)", lineStyle: "dashed", lineWidth: 1 });
 panneau.line("Désordonnée", SEUIL_HAUT, { color: "var(--lq-color-down)", lineStyle: "dashed", lineWidth: 1 });`,
   },
+  {
+    id: "trend-survival-matrix",
+    title: "Trend Survival Matrix — combien de temps la tendance peut encore durer",
+    description:
+      "Portage d'un indicateur Pine Script v6. Trois échelles de temps (8/21, 21/55, 55/200) tournent en parallèle ; chacune tient l'âge de sa tendance en cours et archive la longueur de chaque tendance terminée dans l'un des trois seaux de volatilité où elle est née (percentile d'ATR bas, normal, haut). Ce qui est affiché est une survie EMPIRIQUE et non un modèle : la part des tendances passées du même seau qui ont dépassé l'âge actuel plus k barres, rapportée à celles qui ont au moins atteint l'âge actuel. Trois choses de l'original n'ont pas d'équivalent ici et sont dites plutôt que simulées : la teinte de fond du graphique n'existe pas dans cette API, le tableau colore une ligne entière et non chaque cellule, et les étiquettes d'épuisement sont remplacées par une alerte et un marqueur, la fiabilité faible étant signalée par « (?) » dans la colonne État.",
+    code: `@indicator
+@description "Trend Survival Matrix : combien de temps la tendance en cours a des chances de durer, d'après ce que les tendances passées de ce marché ont fait. Trois échelles de temps (8/21, 21/55, 55/200) tournent en parallèle ; chacune tient l'âge de sa tendance en cours et archive la longueur de chaque tendance terminée dans un des trois seaux de volatilité où elle est née. La survie affichée est empirique, pas modélisée : P(la tendance dure encore k barres | elle a déjà duré son âge) = la part des tendances passées du même seau qui ont dépassé âge + k."
+
+@block Cellule 1 — les réglages
+const COURT_RAPIDE = new Variable("number", 8, { description: "Échelle courte — EMA rapide.", min: 2, max: 400 });
+const COURT_LENT = new Variable("number", 21, { description: "Échelle courte — EMA lente.", min: 3, max: 600 });
+const MOYEN_RAPIDE = new Variable("number", 21, { description: "Échelle moyenne — EMA rapide.", min: 2, max: 400 });
+const MOYEN_LENT = new Variable("number", 55, { description: "Échelle moyenne — EMA lente.", min: 3, max: 600 });
+const LONG_RAPIDE = new Variable("number", 55, { description: "Échelle longue — EMA rapide.", min: 2, max: 400 });
+const LONG_LENT = new Variable("number", 200, { description: "Échelle longue — EMA lente.", min: 3, max: 600 });
+
+const PRINCIPALE = new Variable("number", 1, { description: "Quelle échelle pilote le ruban et les alertes : 0 courte, 1 moyenne, 2 longue.", min: 0, max: 2 });
+
+const HORIZON_1 = new Variable("number", 5, { description: "Premier horizon de survie, en barres.", min: 1, max: 500 });
+const HORIZON_2 = new Variable("number", 10, { description: "Deuxième horizon — c'est lui qui déclenche l'alerte d'épuisement.", min: 1, max: 500 });
+const HORIZON_3 = new Variable("number", 20, { description: "Troisième horizon.", min: 1, max: 500 });
+
+const FENETRE_VOL = new Variable("number", 200, { description: "Fenêtre sur laquelle le percentile d'ATR situe la volatilité à la naissance d'une tendance.", min: 20, max: 2000 });
+const SEUIL_VOL_BAS = new Variable("number", 33, { description: "Sous ce percentile d'ATR, la tendance naît en seau BASSE volatilité.", min: 5, max: 90 });
+const SEUIL_VOL_HAUT = new Variable("number", 66, { description: "Au-dessus, seau HAUTE volatilité. Entre les deux, NORMALE.", min: 10, max: 95 });
+const MEMOIRE = new Variable("number", 500, { description: "Nombre de tendances terminées gardées par seau. La plus ancienne saute au-delà.", min: 20, max: 2000 });
+const ECHANTILLON_MIN = new Variable("number", 15, { description: "En dessous de ce nombre de tendances comparables, l'estimation est signalée peu fiable.", min: 3, max: 500 });
+
+const ALERTE_SURVIE = new Variable("number", 25, { description: "Alerte d'épuisement quand la survie à l'horizon 2 passe sous ce pourcentage.", min: 1, max: 99 });
+const ALERTE_Z = new Variable("number", 2, { description: "…ou quand l'âge dépasse la moyenne des tendances passées de ce nombre d'écarts-types.", min: 0.5, max: 10 });
+
+const AFFICHER_TABLEAU = new Variable("boolean", true, { description: "Affiche la matrice de survie." });
+const AFFICHER_RUBAN = new Variable("boolean", true, { description: "Remplit l'espace entre les deux EMA de l'échelle principale, d'autant plus opaque que la tendance est durable." });
+const AFFICHER_DEPARTS = new Variable("boolean", true, { description: "Marque les changements de sens de l'échelle principale." });
+
+const COULEUR_HAUSSE = new Variable("color", "#089981", { description: "Couleur des tendances haussières." });
+const COULEUR_BAISSE = new Variable("color", "#f23645", { description: "Couleur des tendances baissières." });
+const COULEUR_ALERTE = new Variable("color", "#f59e0b", { description: "Couleur des états d'alerte." });
+
+@block Cellule 2 — les outils
+// L'opacité s'écrit dans la couleur : les options de tracé n'ont pas de champ opacity et le rendu
+// passe par un canvas, qui ne comprend pas color-mix().
+function avecOpacite(couleur, opacite) {
+  const o = Math.max(0, Math.min(1, opacite));
+  if (o >= 1 || !/^#[0-9a-fA-F]{6}$/.test(couleur)) return couleur;
+  return couleur + Math.round(o * 255).toString(16).padStart(2, "0");
+}
+
+// Le dénominateur et le numérateur de la survie : combien de tendances passées ont atteint v.
+function combienOntAtteint(longueurs, v) {
+  let n = 0;
+  for (const l of longueurs) if (l >= v) n++;
+  return n;
+}
+
+// La survie conditionnelle empirique, en pourcentage. null quand aucune tendance passée n'a même
+// atteint l'âge actuel : il n'y a alors rien sur quoi conditionner, et 0 % serait un mensonge.
+function survie(longueurs, age, k) {
+  const d = combienOntAtteint(longueurs, age);
+  if (d === 0) return null;
+  return (100 * combienOntAtteint(longueurs, age + k)) / d;
+}
+
+function seauDe(etat, seau) {
+  return seau === 0 ? etat.bas : seau === 1 ? etat.normal : etat.haut;
+}
+
+@block Cellule 3 — la machine à états
+const closes = market.series("close", Math.max(LONG_LENT, MOYEN_LENT, COURT_LENT) * 3);
+const highs = market.series("high", 60);
+const lows = market.series("low", 60);
+const clotures = market.series("close", 60);
+
+const echelles = [
+  { nom: "Courte", dir: math.ema(closes, COURT_RAPIDE) > math.ema(closes, COURT_LENT) ? 1 : -1 },
+  { nom: "Moyenne", dir: math.ema(closes, MOYEN_RAPIDE) > math.ema(closes, MOYEN_LENT) ? 1 : -1 },
+  { nom: "Longue", dir: math.ema(closes, LONG_RAPIDE) > math.ema(closes, LONG_LENT) ? 1 : -1 },
+];
+
+// Le percentile d'ATR sur la fenêtre : sa place, en pourcentage, parmi les ATR récents.
+const atr = ta.atr(highs, lows, clotures, 14);
+const histoAtr = state.get("atr", []);
+if (atr !== null) {
+  histoAtr.push(atr);
+  if (histoAtr.length > FENETRE_VOL) histoAtr.shift();
+  state.set("atr", histoAtr);
+}
+const percentileAtr =
+  atr === null || histoAtr.length < 20 ? 50 : (100 * combienOntAtteint(histoAtr.map((v) => -v), -atr)) / histoAtr.length;
+const seauCourant = percentileAtr < SEUIL_VOL_BAS ? 0 : percentileAtr < SEUIL_VOL_HAUT ? 1 : 2;
+
+const etats = state.get("etats", [
+  { dir: 0, age: 0, seau: 1, bas: [], normal: [], haut: [] },
+  { dir: 0, age: 0, seau: 1, bas: [], normal: [], haut: [] },
+  { dir: 0, age: 0, seau: 1, bas: [], normal: [], haut: [] },
+]);
+
+// Une avance par barre, sans garde. Le réflexe venu de Pine serait d'écrire bar.isNew() ici,
+// comme son barstate.isconfirmed — ce serait faux : bar.isNew() n'est vrai que sur la DERNIÈRE
+// barre du rejeu, parce que ce moteur reconstruit l'état depuis la barre 0 à chaque exécution
+// (voir buildBarApi). Avec ce garde, la machine n'avançait qu'une fois et le tableau restait
+// vide. Rejouer tout l'historique à chaque fois est précisément ce qui rend cette boucle sûre.
+{
+  for (let i = 0; i < 3; i++) {
+    const etat = etats[i];
+    const sens = echelles[i].dir;
+    if (etat.dir === 0) {
+      etat.dir = sens;
+      etat.age = 1;
+      etat.seau = seauCourant;
+    } else if (sens === etat.dir) {
+      etat.age += 1;
+    } else {
+      // La tendance vient de se retourner : on archive sa longueur dans le seau où elle est née,
+      // puis on repart à un.
+      const memoire = seauDe(etat, etat.seau);
+      memoire.push(etat.age);
+      if (memoire.length > MEMOIRE) memoire.shift();
+      etat.dir = sens;
+      etat.age = 1;
+      etat.seau = seauCourant;
+    }
+  }
+  state.set("etats", etats);
+}
+
+@block Cellule 4 — la lecture de chaque échelle
+function lire(etat) {
+  const longueurs = seauDe(etat, etat.seau);
+  const moyenne = longueurs.length > 0 ? math.mean(longueurs) : null;
+  const ecartType = longueurs.length > 1 ? math.std(longueurs) : null;
+  return {
+    dir: etat.dir,
+    age: etat.age,
+    mediane: longueurs.length > 0 ? math.median(longueurs) : null,
+    z: ecartType !== null && ecartType > 0 ? (etat.age - moyenne) / ecartType : null,
+    comparables: combienOntAtteint(longueurs, etat.age),
+    s1: survie(longueurs, etat.age, HORIZON_1),
+    s2: survie(longueurs, etat.age, HORIZON_2),
+    s3: survie(longueurs, etat.age, HORIZON_3),
+  };
+}
+
+// L'état de maturité, dans l'ordre où il est décidé : l'absence de données passe avant tout le
+// reste, parce qu'un âge sans rien à quoi le comparer ne dit rien du tout.
+function maturite(l) {
+  if (l.s2 === null) return "PEU DE DONNÉES";
+  if (l.mediane !== null && l.age < 0.5 * l.mediane) return "JEUNE";
+  if (l.z !== null && l.z > 2) return "ÉPUISEMENT";
+  if (l.z !== null && l.z > 1) return "ÉTIRÉE";
+  return l.s2 >= 50 ? "SOLIDE" : "MÛRISSANTE";
+}
+
+const lectures = etats.map(lire);
+const principale = lectures[Math.min(2, Math.max(0, Math.round(PRINCIPALE)))];
+const haussier = principale.dir === 1;
+const couleurPrincipale = principale.dir === 0 ? "#808080" : haussier ? COULEUR_HAUSSE : COULEUR_BAISSE;
+
+@block Cellule 5 — le ruban
+// L'opacité du remplissage dit la durabilité : plus la survie est haute, plus le ruban est franc.
+const survieRuban = principale.s2 === null ? 50 : principale.s2;
+const opaciteRuban = 0.12 + 0.45 * (Math.max(0, Math.min(100, survieRuban)) / 100);
+
+const idx = Math.min(2, Math.max(0, Math.round(PRINCIPALE)));
+const rapide = math.ema(closes, idx === 0 ? COURT_RAPIDE : idx === 1 ? MOYEN_RAPIDE : LONG_RAPIDE);
+const lente = math.ema(closes, idx === 0 ? COURT_LENT : idx === 1 ? MOYEN_LENT : LONG_LENT);
+
+const ruban = plot.overlay("Trend Survival Matrix");
+ruban.line("EMA rapide", AFFICHER_RUBAN ? rapide : null, { color: avecOpacite(couleurPrincipale, 0.55) });
+ruban.line("EMA lente", AFFICHER_RUBAN ? lente : null, { color: avecOpacite(couleurPrincipale, 0.3) });
+ruban.band("Ruban de survie", AFFICHER_RUBAN ? rapide : null, AFFICHER_RUBAN ? lente : null, {
+  color: avecOpacite(couleurPrincipale, opaciteRuban),
+  lineWidth: 0,
+});
+
+@block Cellule 6 — départs et épuisement
+const sensPrecedent = state.get("sensPrecedent", 0);
+const nouveauSens = principale.dir !== 0 && principale.dir !== sensPrecedent;
+state.set("sensPrecedent", principale.dir);
+
+// Le marqueur est posé sur chaque barre de retournement : c'est un point par barre, il doit
+// s'accumuler sur tout l'historique. L'alerte, elle, ne sort que sur la dernière barre —
+// bar.isNew() est ici à sa vraie place, sinon un rejeu en enverrait des centaines.
+if (AFFICHER_DEPARTS && nouveauSens) plot.signal(haussier ? "BUY" : "SELL");
+if (nouveauSens && bar.isNew()) {
+  alert("Trend Survival Matrix : l'échelle principale passe " + (haussier ? "haussière" : "baissière") + ".");
+}
+
+// Une seule alerte d'épuisement par tendance : le drapeau se remet à zéro au retournement suivant.
+const epuiseeDejaSignalee = state.get("epuisee", false);
+const epuisee =
+  principale.dir !== 0 &&
+  ((principale.z !== null && principale.z > ALERTE_Z) || (principale.s2 !== null && principale.s2 < ALERTE_SURVIE));
+if (nouveauSens) state.set("epuisee", false);
+else if (epuisee && !epuiseeDejaSignalee) {
+  state.set("epuisee", true);
+  if (bar.isNew()) alert("Trend Survival Matrix : la tendance principale montre un risque d'épuisement.");
+}
+
+@block Cellule 7 — la matrice
+function pct(v) {
+  return v === null ? "–" : Math.round(v) + " %";
+}
+function sensTexte(d) {
+  return d === 1 ? "▲ hausse" : d === -1 ? "▼ baisse" : "—";
+}
+
+if (AFFICHER_TABLEAU) {
+  const lignes = ["Courte", "Moyenne", "Longue"].map((nom, i) => {
+    const l = lectures[i];
+    const fiable = l.comparables >= ECHANTILLON_MIN;
+    return {
+      cells: [
+        nom,
+        sensTexte(l.dir),
+        String(l.age),
+        l.mediane === null ? "–" : l.mediane.toFixed(1),
+        pct(l.s1),
+        pct(l.s2),
+        pct(l.s3),
+        maturite(l) + (fiable ? "" : " (?)"),
+      ],
+      // La couleur porte le sens de la tendance ; le « (?) » porte la fiabilité, parce que les
+      // deux sont des informations différentes et qu'une seule couleur ne peut pas dire les deux.
+      color: l.dir === 0 ? undefined : l.dir === 1 ? COULEUR_HAUSSE : COULEUR_BAISSE,
+    };
+  });
+
+  const seauTexte = seauCourant === 0 ? "basse" : seauCourant === 1 ? "normale" : "haute";
+  lignes.push({
+    cells: [
+      "Volatilité " + seauTexte,
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "n = " + principale.comparables,
+    ],
+    color: principale.comparables >= ECHANTILLON_MIN * 3 ? COULEUR_HAUSSE : principale.comparables >= ECHANTILLON_MIN ? COULEUR_ALERTE : COULEUR_BAISSE,
+  });
+
+  plot.table(lignes, {
+    title: "Matrice de survie de tendance",
+    columns: ["Échelle", "Sens", "Âge", "Médiane", "S+" + HORIZON_1, "S+" + HORIZON_2, "S+" + HORIZON_3, "État"],
+  });
+}`,
+  },
 ];

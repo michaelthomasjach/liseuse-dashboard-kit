@@ -20,6 +20,8 @@ debug-storybook.log
 .playwright-mcp/
 *.png
 !src/**/*.png
+# …et les illustrations du README, qui sont voulues dans le dépôt.
+!docs/*.png
 
 # Standalone app build output (see vite.config.app.ts) — published by CI, never committed.
 app-dist

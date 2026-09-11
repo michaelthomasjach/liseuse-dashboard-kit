@@ -14,8 +14,7 @@ import { ClockWidget } from "../components/widgets/ClockWidget";
 import { WeatherWidget } from "../components/widgets/WeatherWidget";
 import { MetricListWidget } from "../components/widgets/MetricListWidget";
 import { LightsWidget } from "../components/widgets/LightsWidget";
-import { EnergyWidget } from "../components/widgets/EnergyWidget";
-import { ArrowRightIcon, PartlyCloudyIcon, SolarPanelIcon, SunIcon } from "../components/icons";
+import { ArrowRightIcon, PartlyCloudyIcon, SunIcon } from "../components/icons";
 import { generateCandles, generateSeries, SAMPLE_HOLDINGS } from "../test-data/financeSampleData";
 import { AppShowcase } from "./AppShowcase";
 import { CatalogStrip } from "./CatalogStrip";
@@ -155,18 +154,6 @@ function HomeDashboardScreen() {
             { id: "bureau", label: "Bureau", on: false, level: 0, statusText: "éteint" },
           ]}
         />
-        <EnergyWidget
-          rows={[
-            {
-              id: "solar",
-              icon: <SolarPanelIcon />,
-              label: "Solaire produit aujourd'hui",
-              value: "1,0 kWh",
-              details: ["442 W à l'instant"],
-            },
-            { id: "battery", label: "Batterie maison", value: "62 %", gaugePercent: 62 },
-          ]}
-        />
       </DashboardGridItem>
     </DashboardGrid>
   );
@@ -222,7 +209,7 @@ export function LandingPage({ version }: LandingPageProps) {
             <CandlestickChart
               data={HERO_CANDLES}
               symbol="MSFT"
-              height={392}
+              fillHeight
               showVolume
               zoomable
               showIndicators
@@ -301,7 +288,7 @@ export function LandingPage({ version }: LandingPageProps) {
                     formatX={(x) => (x as Date).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" })}
                   />
                   <WatchlistWidget
-                    items={SAMPLE_HOLDINGS.slice(0, 3).map((h) => ({
+                    items={SAMPLE_HOLDINGS.slice(0, 4).map((h) => ({
                       id: h.id,
                       symbol: h.symbol,
                       name: h.name,

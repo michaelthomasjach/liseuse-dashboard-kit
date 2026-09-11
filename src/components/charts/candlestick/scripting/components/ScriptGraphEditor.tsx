@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { PlayIcon, CloseIcon, PlusIcon } from "../../../../icons";
+import { Modal } from "../../../../primitives/Modal";
 import {
   GRAPH_NODE_WIDTH,
   codeForRunPath,
@@ -65,12 +66,20 @@ export function ScriptGraphEditor({ code, onChange, onRunBlock, running, renderB
   const [view, setView] = useState({ x: 0, y: 0, scale: 1 });
   const [drag, setDrag] = useState<DragState | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  /* Which block's code is open in the modal. Separate from `selectedId`, which also means "what a
+     newly added block attaches to" and is set on pointer-down: tying the modal to it would pop it
+     open at the start of every drag. */
+  const [editingId, setEditingId] = useState<string | null>(null);
+  /* Set as soon as a node drag actually moves. A block is opened by a click that did not move the
+     block, which is the only way to tell a tap from the beginning of a drag. */
+  const draggedRef = useRef(false);
 
   // Parsed fresh from the code every time it changes, then laid out — nodes the source positions
   // stay where they are, the rest get a place by depth (see `layoutScriptGraph`).
   const parsed = useMemo(() => parseScriptGraph(code), [code]);
   const graph = useMemo(() => layoutScriptGraph(parsed), [parsed]);
   const selected = graph.nodes.find((n) => n.id === selectedId) ?? null;
+  const editing = graph.nodes.find((n) => n.id === editingId) ?? null;
 
   /** Writes a graph back to the code. Every mutation goes through here, so the code is updated
    *  synchronously with the diagram and the two can never drift apart. */
@@ -95,7 +104,10 @@ export function ScriptGraphEditor({ code, onChange, onRunBlock, running, renderB
       return;
     }
     const point = toCanvas(e.clientX, e.clientY);
-    if (drag.kind === "node") setDrag({ ...drag, x: point.x - drag.grabX, y: point.y - drag.grabY });
+    if (drag.kind === "node") {
+      draggedRef.current = true;
+      setDrag({ ...drag, x: point.x - drag.grabX, y: point.y - drag.grabY });
+    }
     else setDrag({ ...drag, x: point.x, y: point.y });
   }
 
@@ -219,6 +231,7 @@ export function ScriptGraphEditor({ code, onChange, onRunBlock, running, renderB
         ),
     );
     if (selectedId === id) setSelectedId(null);
+    if (editingId === id) setEditingId(null);
   }
 
   function setNodeTitle(id: string, title: string) {
@@ -403,11 +416,16 @@ export function ScriptGraphEditor({ code, onChange, onRunBlock, running, renderB
                   onPointerDown={(e) => {
                     e.stopPropagation();
                     setSelectedId(node.id);
+                    draggedRef.current = false;
                     // The preamble is pinned: it has no `@block` line to write a position on, and
                     // it always runs first anyway (see ScriptGraphNode.preamble).
                     if (node.preamble) return;
                     const point = toCanvas(e.clientX, e.clientY);
                     setDrag({ kind: "node", id: node.id, grabX: point.x - at.x, grabY: point.y - at.y, x: at.x, y: at.y });
+                  }}
+                  onClick={() => {
+                    if (draggedRef.current) return;
+                    setEditingId(node.id);
                   }}
                 >
                   {!node.preamble &&
@@ -525,40 +543,42 @@ export function ScriptGraphEditor({ code, onChange, onRunBlock, running, renderB
         </div>
       </div>
 
-      <div className="lq-script-graph__inspector">
-        {selected ? (
-          <>
-            <div className="lq-script-graph__inspector-head">
-              {selected.preamble ? (
-                <span className="lq-script-graph__inspector-title">Préambule — s'exécute avant tous les blocs</span>
-              ) : (
-                <input
-                  className="lq-script-graph__inspector-name"
-                  value={selected.title}
-                  onChange={(e) => setNodeTitle(selected.id, e.target.value)}
-                  placeholder="Titre du bloc"
-                  aria-label="Titre du bloc"
-                />
-              )}
-              <button
-                type="button"
-                className="lq-script-graph__inspector-run"
-                onClick={() => onRunBlock(codeForRunPath(graph, selected.id))}
-                disabled={running}
-              >
-                <PlayIcon size={12} /> Exécuter jusqu'ici
-              </button>
-            </div>
-            <div className="lq-script-graph__inspector-editor">
-              {renderBodyEditor(selected.body, (next) => setNodeBody(selected.id, next), selected.id)}
-            </div>
-          </>
-        ) : (
-          <p className="lq-script-graph__inspector-empty">
-            Sélectionnez un bloc pour en modifier le code, ou glissez-en un depuis la palette.
-          </p>
+      <Modal
+        open={editing !== null}
+        onClose={() => setEditingId(null)}
+        size="wide"
+        title={
+          editing === null ? null : editing.preamble ? (
+            "Préambule — s'exécute avant tous les blocs"
+          ) : (
+            <input
+              className="lq-script-graph__inspector-name"
+              value={editing.title}
+              onChange={(e) => setNodeTitle(editing.id, e.target.value)}
+              placeholder="Titre du bloc"
+              aria-label="Titre du bloc"
+            />
+          )
+        }
+        footer={
+          editing === null ? null : (
+            <button
+              type="button"
+              className="lq-script-graph__inspector-run"
+              onClick={() => onRunBlock(codeForRunPath(graph, editing.id))}
+              disabled={running}
+            >
+              <PlayIcon size={12} /> Exécuter jusqu'ici
+            </button>
+          )
+        }
+      >
+        {editing !== null && (
+          <div className="lq-script-graph__inspector-editor">
+            {renderBodyEditor(editing.body, (next) => setNodeBody(editing.id, next), editing.id)}
+          </div>
         )}
-      </div>
+      </Modal>
     </div>
   );
 }

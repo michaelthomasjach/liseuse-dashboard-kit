@@ -276,7 +276,9 @@
 
 .lqx-nocode__body {
   width: 100%;
-  min-height: 88px;
+  /* Fills the box the modal gives it, rather than sitting at the top of it with the rest empty.
+     The real editor (CodeMirror, in ScriptEditorPanel) does this on its own. */
+  height: 100%;
   padding: 8px 10px;
   border: 0;
   resize: none;

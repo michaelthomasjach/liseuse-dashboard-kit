@@ -1,12 +1,14 @@
-/* The no-code view: palette, canvas, inspector. Three columns collapsing to a stack of two rows
-   plus a drawer on a narrow editor — see the media query at the bottom. */
+/* The no-code view: a palette and a canvas, side by side, stacking on a narrow editor — see the
+   media query at the bottom. A block's code lives in a modal opened by clicking the block, not in
+   a pane under the canvas. */
 .lq-script-graph {
   display: grid;
   grid-template-columns: 210px minmax(0, 1fr);
-  grid-template-rows: minmax(0, 1fr) minmax(180px, 40%);
-  grid-template-areas:
-    "palette stage"
-    "palette inspector";
+  /* One row. The canvas is the view; a block's code opens in a modal on click, so the pane that
+     used to sit under it — empty until something was selected, and a third of the height even
+     then — is gone. */
+  grid-template-rows: minmax(0, 1fr);
+  grid-template-areas: "palette stage";
   gap: var(--lq-space-2);
   /* `flex: 1 1 0`, not `height: 100%`: the parent (.lq-script-editor-panel__main) is a flex column
      whose height comes from *its* parent, so a percentage here would resolve against a height the
@@ -373,23 +375,7 @@
   color: var(--lq-color-negative);
 }
 
-/* ---- inspector ---- */
-
-.lq-script-graph__inspector {
-  grid-area: inspector;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  border-top: 1px solid var(--lq-color-border-subtle);
-  padding-top: var(--lq-space-2);
-}
-
-.lq-script-graph__inspector-head {
-  display: flex;
-  align-items: center;
-  gap: var(--lq-space-2);
-  padding-bottom: var(--lq-space-2);
-}
+/* ---- the block's code, inside the modal ---- */
 
 .lq-script-graph__inspector-name {
   flex: 1;
@@ -407,13 +393,6 @@
 .lq-script-graph__inspector-name:focus {
   outline: none;
   border-color: var(--lq-color-accent);
-}
-
-.lq-script-graph__inspector-title {
-  flex: 1;
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--lq-color-text-muted);
 }
 
 .lq-script-graph__inspector-run {
@@ -439,6 +418,9 @@
   cursor: default;
 }
 
+/* Fills the modal's body rather than taking a fixed slice of it: `.lq-modal--wide` has a fixed
+   640px height, so a code editor sized to its own content left a band of empty white between
+   itself and the footer. */
 .lq-script-graph__inspector-editor {
   flex: 1 1 0;
   min-height: 0;
@@ -447,24 +429,15 @@
   flex-direction: column;
 }
 
-.lq-script-graph__inspector-empty {
-  margin: 0;
-  padding: var(--lq-space-4) 0;
-  font-size: 0.78rem;
-  color: var(--lq-color-text-muted);
-  text-align: center;
-}
-
 /* Narrow editor (a docked pane, a phone): the palette becomes a scrolling strip above the canvas
    rather than a column stealing 210px of the width the diagram needs. */
 @media (max-width: 720px) {
   .lq-script-graph {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto minmax(0, 1fr) minmax(150px, 38%);
+    grid-template-rows: auto minmax(0, 1fr);
     grid-template-areas:
       "palette"
-      "stage"
-      "inspector";
+      "stage";
   }
 
   .lq-script-graph__palette {

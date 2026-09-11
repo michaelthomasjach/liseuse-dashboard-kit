@@ -3,7 +3,7 @@
  *
  * Quelles primitives chaque story utilise, pour que la barre de liens du décorateur global (voir
  * .storybook/PrimitiveLinks.tsx) renvoie vers leur documentation. Dérivé des imports du code,
- * jamais tenu à la main : 84 fichiers de stories scannés, 32 concernés.
+ * jamais tenu à la main : 85 fichiers de stories scannés, 32 concernés.
  */
 
 /** Une primitive dont une story dépend, et l'ancre de sa page de documentation. */

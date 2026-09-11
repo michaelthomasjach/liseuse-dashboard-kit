@@ -376,10 +376,18 @@ const OPACITE_OUVERTURE = new Variable("number", 1, {
   min: 0,
   max: 1,
 });
-const OPACITE_EXTREMES = new Variable("number", 0.2, {
+const OPACITE_EXTREMES = new Variable("number", 0.12, {
   description: "Opacité des bordures extrêmes (haut et bas lissés), celles qui ferment les nuages.",
   min: 0,
   max: 1,
+});
+
+// Les traits DROITS que l'on voyait traverser tout un mouvement, rouges dans une phase haussière
+// et verts dans une phase baissière. Ce ne sont pas des moyennes : c'est la série de l'autre sens
+// qui, n'ayant aucune valeur sur cette portion, relie ses deux extrémités en ligne droite par-
+// dessus le trou. Masquées par défaut, elles n'ont rien à dire de la tendance en cours.
+const AFFICHER_LIGNES_DROITES = new Variable("boolean", false, {
+  description: "Trace aussi les segments droits de la série du sens opposé, qui enjambent les portions où elle n'a pas de valeur.",
 });
 
 // Les remplissages, couleur et opacité séparées des lignes : un nuage peut prendre sa propre
@@ -446,13 +454,19 @@ function avecOpacite(couleur, opacite) {
 }
 
 const prix = plot.overlay("Trend Indicator A");
-prix.line("Clôture lissée (hausse)", haussier ? mmCloture : null, { color: avecOpacite(COULEUR_HAUSSE, OPACITE_CLOTURE), lineWidth: 2 });
-prix.line("Clôture lissée (baisse)", haussier ? null : mmCloture, { color: avecOpacite(COULEUR_BAISSE, OPACITE_CLOTURE), lineWidth: 2 });
+// L'opacité tombe à zéro sur la série qui ne correspond pas au sens en cours : c'est elle qui
+// dessinait le segment droit, et l'éteindre la retire sans toucher à celle qui, elle, a quelque
+// chose à tracer ici.
+const opacCloture = (duSens) => (duSens || AFFICHER_LIGNES_DROITES ? OPACITE_CLOTURE : 0);
+const opacOuverture = (duSens) => (duSens || AFFICHER_LIGNES_DROITES ? OPACITE_OUVERTURE : 0);
+
+prix.line("Clôture lissée (hausse)", haussier ? mmCloture : null, { color: avecOpacite(COULEUR_HAUSSE, opacCloture(haussier)), lineWidth: 2 });
+prix.line("Clôture lissée (baisse)", haussier ? null : mmCloture, { color: avecOpacite(COULEUR_BAISSE, opacCloture(!haussier)), lineWidth: 2 });
 
 // L'autre bord du corps. Le nuage ci-dessous va de l'ouverture à la clôture : sans cette
 // ligne-là, la zone colorée n'était bordée que d'un côté.
-prix.line("Ouverture lissée (hausse)", haussier ? mmOuverture : null, { color: avecOpacite(COULEUR_HAUSSE, OPACITE_OUVERTURE), lineWidth: 2 });
-prix.line("Ouverture lissée (baisse)", haussier ? null : mmOuverture, { color: avecOpacite(COULEUR_BAISSE, OPACITE_OUVERTURE), lineWidth: 2 });
+prix.line("Ouverture lissée (hausse)", haussier ? mmOuverture : null, { color: avecOpacite(COULEUR_HAUSSE, opacOuverture(haussier)), lineWidth: 2 });
+prix.line("Ouverture lissée (baisse)", haussier ? null : mmOuverture, { color: avecOpacite(COULEUR_BAISSE, opacOuverture(!haussier)), lineWidth: 2 });
 
 // Le nuage entre ouverture et clôture, en deux séries pour la même raison que la courbe.
 //

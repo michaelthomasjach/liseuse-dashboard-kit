@@ -3,7 +3,7 @@ import { Modal } from "../../../primitives/Modal";
 import { TextField } from "../../../forms/TextField";
 import {
   SearchIcon, TrashIcon, InfoIcon, OverlayBadgeIcon, PaneBadgeIcon, CheckIcon, CodeIcon,
-  EyeOffIcon, TrendLineIcon, StarIcon, ChevronLeftIcon, ChevronRightIcon,
+  TrendLineIcon, StarIcon, ChevronLeftIcon, ChevronRightIcon,
 } from "../../../icons";
 import { INDICATOR_CATALOG, type IndicatorCatalogEntry } from "../indicatorCatalog";
 import { INDICATOR_SCRIPT_SOURCES } from "../indicatorScriptSources";
@@ -443,7 +443,6 @@ export function IndicatorPickerModal({
                         key={option.key}
                         className={[
                           "lq-chart__indicator-picker-option",
-                          option.enabled === false && "lq-chart__indicator-picker-option--disabled",
                           option.alreadyPresent && "lq-chart__indicator-picker-option--active",
                         ]
                           .filter(Boolean)
@@ -463,15 +462,6 @@ export function IndicatorPickerModal({
                           {/* A dimmed row on its own says nothing about *why* it is dimmed —
                               the same eye-off the editor's own script tabs use for this exact
                               state names it, and the tooltip says what clicking will do. */}
-                          {option.enabled === false && (
-                            <span
-                              className="lq-chart__indicators-manager-badge"
-                              title="Script désactivé — cliquez pour l'activer"
-                              aria-label="Script désactivé"
-                            >
-                              <EyeOffIcon size={13} />
-                            </span>
-                          )}
                           {option.alreadyPresent && (
                             <span className="lq-chart__indicator-picker-check" title="Déjà affiché sur ce graphique">
                               <CheckIcon size={13} />
@@ -495,7 +485,6 @@ export function IndicatorPickerModal({
                             <CodeIcon size={13} />
                           </button>
                         )}
-                        {option.enabled === false && <span className="lq-chart__indicator-picker-off">désactivé</span>}
                         <button
                           type="button"
                           className={[

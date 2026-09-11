@@ -2372,12 +2372,6 @@
   gap: 4px;
 }
 
-/* A disabled script row (see IndicatorModals.tsx's own PickerOption.enabled doc) — dimmed rather
-   than hidden, so it stays discoverable/re-enableable from the same picker it was added from. */
-.lq-chart__indicator-picker-option--disabled {
-  opacity: 0.5;
-}
-
 /* A built-in/custom indicator already on the chart (see IndicatorModals.tsx's own
    PickerOption.alreadyPresent doc) — a persistent tint (not just a hover state) so it reads as
    "already there" at a glance, before the checkmark badge inside its own button is even parsed. */
@@ -3079,22 +3073,6 @@
 
 .lq-chart__indicator-picker-star--on svg {
   fill: currentColor;
-}
-
-/* A disabled script says so in words. It was already dimmed (see
-   .lq-chart__indicator-picker-option--disabled), but dimming alone reads as "unavailable" just as
-   easily as "switched off", and the only thing that disambiguated it was a hover tooltip — which a
-   real user asked about, having no way to guess. */
-.lq-chart__indicator-picker-off {
-  flex-shrink: 0;
-  padding: 1px 5px;
-  font-size: 0.62rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--lq-color-text-muted);
-  border: 1px solid var(--lq-color-border-subtle);
-  border-radius: var(--lq-radius-sm);
 }
 
 /* Wrapper for the category strip, so the chevrons below can be overlaid on its own edges rather

@@ -459,9 +459,6 @@ export function IndicatorPickerModal({
                           title={option.enabled === undefined ? undefined : option.enabled ? "Désactiver ce script" : "Activer ce script"}
                         >
                           <span className="lq-chart__indicator-picker-name">{option.label}</span>
-                          {/* A dimmed row on its own says nothing about *why* it is dimmed —
-                              the same eye-off the editor's own script tabs use for this exact
-                              state names it, and the tooltip says what clicking will do. */}
                           {option.alreadyPresent && (
                             <span className="lq-chart__indicator-picker-check" title="Déjà affiché sur ce graphique">
                               <CheckIcon size={13} />

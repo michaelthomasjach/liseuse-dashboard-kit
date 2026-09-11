@@ -53,6 +53,10 @@ type DragState =
   | { kind: "link"; fromId: string; x: number; y: number }
   | { kind: "pan"; startX: number; startY: number; originX: number; originY: number };
 
+/** How far a node may travel between press and release and still count as a click rather than a
+ *  drag, in screen pixels. */
+const CLICK_SLACK = 4;
+
 /** The no-code view of a script: its `@block` cells as boxes on a canvas, the "runs after"
  *  relationships between them as arrows, and a palette of ready-made blocks to drag in.
  *
@@ -70,8 +74,12 @@ export function ScriptGraphEditor({ code, onChange, onRunBlock, running, renderB
      newly added block attaches to" and is set on pointer-down: tying the modal to it would pop it
      open at the start of every drag. */
   const [editingId, setEditingId] = useState<string | null>(null);
-  /* Set as soon as a node drag actually moves. A block is opened by a click that did not move the
-     block, which is the only way to tell a tap from the beginning of a drag. */
+  /* Where a node grab started, and whether it has since travelled far enough to count as a drag.
+     A block is opened by a click that did not move it, which is the only way to tell a tap from
+     the beginning of a drag — but "did not move" has to allow a few pixels of slack. A mouse or a
+     trackpad reports movement on almost every press, so treating the very first pointermove as a
+     drag made a perfectly ordinary click fail to open anything, at random. */
+  const grabOriginRef = useRef<{ x: number; y: number } | null>(null);
   const draggedRef = useRef(false);
 
   // Parsed fresh from the code every time it changes, then laid out — nodes the source positions
@@ -105,7 +113,8 @@ export function ScriptGraphEditor({ code, onChange, onRunBlock, running, renderB
     }
     const point = toCanvas(e.clientX, e.clientY);
     if (drag.kind === "node") {
-      draggedRef.current = true;
+      const origin = grabOriginRef.current;
+      if (origin !== null && Math.hypot(e.clientX - origin.x, e.clientY - origin.y) > CLICK_SLACK) draggedRef.current = true;
       setDrag({ ...drag, x: point.x - drag.grabX, y: point.y - drag.grabY });
     }
     else setDrag({ ...drag, x: point.x, y: point.y });
@@ -416,6 +425,7 @@ export function ScriptGraphEditor({ code, onChange, onRunBlock, running, renderB
                   onPointerDown={(e) => {
                     e.stopPropagation();
                     setSelectedId(node.id);
+                    grabOriginRef.current = { x: e.clientX, y: e.clientY };
                     draggedRef.current = false;
                     // The preamble is pinned: it has no `@block` line to write a position on, and
                     // it always runs first anyway (see ScriptGraphNode.preamble).

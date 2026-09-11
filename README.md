@@ -10,6 +10,10 @@ Bibliothèque de composants React pour construire des tableaux de bord — domot
 
 Les quatre combinaisons palette × surface sont pilotées par variables CSS ; aucune classe conditionnelle à gérer côté consommateur. Les deux palettes partagent la **même géométrie** — coins carrés partout (`--lq-radius-*` vaut `0px` dans les deux cas), `color` n'est qu'une variante *colorée* du même langage visuel qu'`eink`, pas un style différent. Les couleurs de `color` sont volontairement **pastel/dusty** (désaturées) plutôt que des teintes UI-kit brutes, pour rester cohérentes avec la sobriété d'`eink`.
 
+![Le même StatCard, le même Badge et la même Sparkline rendus dans les quatre combinaisons palette x surface](docs/themes.png)
+
+*Le même `StatCard`, le même `Badge` et la même `Sparkline` dans les quatre combinaisons. Aucun code conditionnel.*
+
 📖 **[Documentation complète (Storybook)](https://michaelthomasjach.github.io/liseuse-dashboard-kit/)** — catalogue interactif de tous les composants, avec leurs props et variantes.
 
 ## Installation
@@ -68,6 +72,11 @@ function App() {
 
 Un seul `<LqThemeProvider>` suffit pour toute l'app ; on peut aussi en imbriquer plusieurs pour prévisualiser deux modes côte à côte.
 
+
+![Un tableau de bord domotique en palette eink sur une tablette, et un portefeuille en palette color sombre sur un telephone](docs/devices.png)
+
+*Les mêmes composants et les mêmes tokens, sur une liseuse e-ink et sur un téléphone.*
+
 ### Basculer le thème depuis l'app
 
 ```tsx
@@ -90,11 +99,20 @@ La lib ne bundle pas les fonts (pour rester légère et éviter les conflits de 
 />
 ```
 
+
+![Les 14 tokens de couleur en pastilles, l'echelle typographique et les cinq familles de polices](docs/tokens.png)
+
+*Ce que les composants lisent : 14 tokens de couleur, six niveaux de titre, cinq piles de polices.*
+
 ### Scrollbars
 
 Toute zone scrollable sous `.lq-root` reçoit automatiquement un ascenseur fin et discret (`scrollbar-width`/`scrollbar-color` sur Firefox, `::-webkit-scrollbar` ailleurs), avec une opacité faible au repos qui augmente au survol **et** pendant un scroll actif (classe `.lq-scrolling`, posée/retirée par un unique listener `scroll` global — voir `theme/scrollActivity.ts`, importé une seule fois par `LqThemeProvider` quel que soit le nombre d'instances montées).
 
 ## Composants
+
+![Un ecran d'application complet : barre laterale, fil d'Ariane, menu utilisateur, tuiles de chiffres, graphique et deux widgets](docs/app.png)
+
+*Sept composants de la bibliothèque assemblés : `SidebarLayout`, `Breadcrumbs`, `UserMenu`, `StatCard`, `LineAreaChart`, `WatchlistWidget`, `MarketMoversWidget`.*
 
 **Thème**
 - `LqThemeProvider`, `useLqTheme`
@@ -121,6 +139,10 @@ Toute zone scrollable sous `.lq-root` reçoit automatiquement un ascenseur fin e
 - `CodeBlock` — bloc de code monospace avec bouton copier ; pas de coloration syntaxique (pas de dépendance lourde), numéros de ligne optionnels
 - `Heading`, `Text` — typographie du système (h1-h6, tailles xs→xl, graisses, variante atténuée) — voir la story "Foundations/Typography"
 
+
+![Boutons, bascules, controle segmente, badges, tags, jauges, sparklines, donut, jauge en arc et barres de progression](docs/catalog.png)
+
+*Un échantillon des primitives, dans la palette `color`.*
 **Widgets** — composants métier prêts à brancher sur tes données
 - `ClockWidget` — heure/date + ligne de présence
 - `WeatherWidget` — météo courante, alerte, prévision multi-jours
@@ -156,6 +178,19 @@ Une ligne de tendance classique (pas "étendue", pas les autres types à géomé
 - `ChartEventTooltip` — la tooltip/modale détaillée qui s'ouvre au clic sur une bulle d'évènement de `CandlestickChart` (voir `events` plus haut), exportée séparément pour qui veut la réutiliser hors de ce graphe précis
 - `SeasonalityView` — le mode saisonnalité de `CandlestickChart` (voir `seasonality` plus haut), exporté séparément, ainsi que son moteur de calcul `computeSeasonality` (`SeasonalityGranularity`/`SeasonalityBucket`/`SeasonalityOccurrence`/`SeasonalityResult`) — pur, sans React, réutilisable pour qui veut calculer une saisonnalité sans le composant de rendu
 
+
+![Huit graphiques cote a cote : LineAreaChart, Heatmap, DonutChart, BarChart, GaugeChart, DeltaChart, EarningsDotChart et WorldExposureMap](docs/charts.png)
+
+*Huit des onze graphiques.*
+
+![Le CandlestickChart en plein ecran avec deux moyennes mobiles et un panneau RSI, et l'editeur de script au premier plan](docs/scripting.png)
+
+*Le moteur de scripting : le code à droite est celui qui s'exécute, les moyennes mobiles et le panneau RSI à gauche sont sa sortie.*
+
+![Le meme script en blocs relies par des fleches sur un canevas, avec une palette de blocs a gauche](docs/nocode.png)
+
+*Le même script en blocs. Le canevas se déduit des lignes `@block` du code, il n'est stocké nulle part.*
+
 **Forms** — dropdowns adaptatifs (collision detection), champs avec état d'erreur
 - `Popover` — moteur de positionnement générique (flip vertical bas/haut + décalage horizontal gauche/droite selon l'espace dispo), portalé dans `document.body` **avec réapplication du thème actif** (palette/surface/police) sur le portail, donc stylé correctement même en dehors de l'arbre `.lq-root` ; ferme au clic extérieur/Échap
 - `Select` — dropdown construit sur `Popover`
@@ -173,6 +208,11 @@ Une ligne de tendance classique (pas "étendue", pas les autres types à géomé
 - `CheckboxButton` — case à cocher qui a l'apparence d'un `Button` : coché → ton actif + icône coché animée, décoché → bouton neutre, sans icône (filtres sous forme de puces)
 - `Tag` — puce supprimable (croix optionnelle)
 - `TagInput` — saisie de tags libres : virgule/Entrée pour ajouter, Retour arrière (champ vide) ou croix pour retirer
+
+
+![Un panneau de saisie : champ texte, champ numerique, select, calendrier, mot de passe, tags, curseur de plage et case a cocher](docs/forms.png)
+
+*Huit champs, tous contrôlés par l'état de l'appelant.*
 
 **Feedback**
 - `Spinner`, `Skeleton` (effet de balayage), `ProgressBar` (déterminée ou indéterminée) — animations désactivées sous la palette e-ink (l'e-ink réel ne peut pas s'animer proprement)

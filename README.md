@@ -1,5 +1,7 @@
 # @michaelthomasjach/liseuse-dashboard-kit
 
+[![La page d'accueil du catalogue : le CandlestickChart dans un portable, la commande d'installation, et les chiffres de la bibliothèque](docs/landing.png)](https://michaelthomasjach.github.io/liseuse-dashboard-kit/)
+
 Bibliothèque de composants React pour construire des tableaux de bord — domotique façon liseuse e-ink (BOOX, Kindle…) ou tablette, et applications finance (graphiques D3 interactifs, formulaires, layouts, pages). Chaque composant supporte nativement :
 
 - **Palette** — `eink` (monochrome, hairlines, sans ombre ni dégradé) ou `color` (tablette couleur, accents pastel).

@@ -590,7 +590,31 @@ const TREND_INDICATOR_SCRIPT: ScriptDef[] = [
   },
 ];
 
-const DEBUG_SCRIPTS: ScriptDef[] = [...KDE_DEBUG_SCRIPT, ...TREND_INDICATOR_SCRIPT, ...STRATEGY_DEBUG_SCRIPT];
+/** L'entropie de permutation (voir SCRIPT_EXAMPLES « permutation-entropy »), pour que « Mes
+ *  indicateurs » ait une ligne de plus dans le sélecteur. Un `@indicator` y est classé
+ *  automatiquement par son décorateur (voir SCRIPT_CATEGORY_BY_KIND) — il n'y a rien à déclarer
+ *  d'autre que le script lui-même.
+ *
+ *  Éteint au repos, comme les deux fixtures au-dessus et pour la même raison : la première tâche
+ *  d'un montage de démonstration est de montrer le graphique. Un clic sur sa ligne dans « Ajouter
+ *  un indicateur » l'allume et ouvre sa pane. */
+const PERMUTATION_ENTROPY_SCRIPT: ScriptDef[] = [
+  {
+    id: "debug-permutation-entropy",
+    name: "Entropie de permutation",
+    code: SCRIPT_EXAMPLES.find((example) => example.id === "permutation-entropy")?.code ?? "",
+    named: true,
+    enabled: false,
+    targetPanelIndex: 0,
+  },
+];
+
+const DEBUG_SCRIPTS: ScriptDef[] = [
+  ...KDE_DEBUG_SCRIPT,
+  ...TREND_INDICATOR_SCRIPT,
+  ...PERMUTATION_ENTROPY_SCRIPT,
+  ...STRATEGY_DEBUG_SCRIPT,
+];
 
 /** The assistant, wired to a scripted stand-in instead of a real model.
  *

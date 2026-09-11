@@ -343,10 +343,11 @@ clôture précédentes. Lisser ces quatre séries plutôt que les prix bruts enl
 et ce qui reste est la --direction-- du marché plutôt que ses à-coups.
 
 //Ce qui est tracé//
-La ligne de __clôture lissée__, **verte quand le corps de la bougie moyenne est haussier**, rouge
-sinon. Entre l'ouverture et la clôture lissées, un nuage de la même couleur : son épaisseur est la
-conviction. Les mèches (haut et bas lissés) ferment deux nuages gris très pâles, qui disent
-jusqu'où le marché est allé sans y rester."
+Entre l'ouverture et la clôture lissées, un nuage **vert quand le corps de la bougie moyenne est
+haussier**, rouge sinon : son épaisseur est la conviction. Ses deux bords sont tracés, la clôture
+et l'ouverture lissées, dans la couleur du nuage. Les mèches (haut et bas lissés) ferment deux
+nuages gris très pâles, qui disent jusqu'où le marché est allé sans y rester ; leurs deux lignes
+sont dessinées à 0,2 d'opacité, assez pour marquer la limite sans tirer l'œil."
 
 @block Cellule 1 — les réglages
 // Tous les réglages de l'original, déclarés en Variable : ils apparaissent dans le panneau
@@ -408,9 +409,22 @@ const haussier = tendance !== null && tendance > 0;
 // Deux séries pour une seule courbe : la couleur d'une série est fixée à sa première valeur et ne
 // change plus ensuite. Une courbe bicolore se fait donc avec deux séries, chacune à null là où
 // l'autre s'affiche — sans le null, la série relierait ses points par-dessus le trou.
+// Les options de tracé n'ont pas de champ opacity, et le rendu passe par un canvas, dont
+// l'analyseur de couleurs ne comprend pas color-mix(). Un suffixe alpha sur un hex à six
+// chiffres, lui, est compris partout — et toute autre écriture de couleur ressort inchangée
+// plutôt que cassée.
+function pale(couleur) {
+  return /^#[0-9a-fA-F]{6}$/.test(couleur) ? couleur + "33" : couleur;
+}
+
 const prix = plot.overlay("Trend Indicator A");
 prix.line("Clôture lissée (hausse)", haussier ? mmCloture : null, { color: COULEUR_HAUSSE, lineWidth: 2 });
 prix.line("Clôture lissée (baisse)", haussier ? null : mmCloture, { color: COULEUR_BAISSE, lineWidth: 2 });
+
+// L'autre bord du corps. Le nuage ci-dessous va de l'ouverture à la clôture : sans cette
+// ligne-là, la zone colorée n'était bordée que d'un côté.
+prix.line("Ouverture lissée (hausse)", haussier ? mmOuverture : null, { color: COULEUR_HAUSSE, lineWidth: 2 });
+prix.line("Ouverture lissée (baisse)", haussier ? null : mmOuverture, { color: COULEUR_BAISSE, lineWidth: 2 });
 
 // Le nuage entre ouverture et clôture, en deux séries pour la même raison que la courbe.
 //
@@ -422,8 +436,10 @@ prix.band("Corps (hausse)", haussier ? mmCloture : null, haussier ? mmOuverture 
 prix.band("Corps (baisse)", haussier ? null : mmCloture, haussier ? null : mmOuverture, { color: COULEUR_BAISSE, lineWidth: 0 });
 
 // Même règle ici : la valeur est null quand l'option est éteinte, jamais l'appel qui disparaît.
-prix.line("Haut lissé", AFFICHER_MECHES ? mmHaut : null, { color: COULEUR_NEUTRE });
-prix.line("Bas lissé", AFFICHER_MECHES ? mmBas : null, { color: COULEUR_NEUTRE });
+// Les deux bordures extrêmes : présentes pour fermer les nuages, à peine visibles pour ne pas
+// concurrencer les bords du corps, qui sont la lecture utile.
+prix.line("Haut lissé", AFFICHER_MECHES ? mmHaut : null, { color: pale(COULEUR_NEUTRE) });
+prix.line("Bas lissé", AFFICHER_MECHES ? mmBas : null, { color: pale(COULEUR_NEUTRE) });
 
 // Deux nuages très pâles : du haut jusqu'au sommet du corps, et du bas du corps jusqu'au bas.
 // Ils disent jusqu'où le marché est allé sans y rester.

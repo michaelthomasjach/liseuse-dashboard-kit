@@ -679,7 +679,15 @@ export function CandlestickChart({
   const tpoOverlays = useTpoOverlay(data, visibleRange, indicators);
 
   const { hiddenEventKinds, setHiddenEventKinds, activeEventStack, setActiveEventStack, eventModalOpen, setEventModalOpen, eventKinds, eventStacks } =
-    useChartEvents({ events, indexForDate, visibleRange, dataLength: data.length });
+    useChartEvents({
+      events,
+      indexForDate,
+      visibleRange,
+      dataLength: data.length,
+      // The same index `drawReplayMask` covers from, so a marker is hidden exactly when the cover
+      // that would have clipped it is drawn — see this argument's own doc.
+      lastVisibleIndex: replayState.active ? replayState.cutoffIndex : replayState.armed ? replayState.previewIndex : null,
+    });
 
   // The bottom axis's own scale is index-based, so its auto tick generator would label raw
   // indices (0, 100, 200…) instead of dates — explicit tickValues (dateTickValues) plus this

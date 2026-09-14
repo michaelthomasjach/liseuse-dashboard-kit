@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ChartEvent } from "../interfaces/ChartEvent.interface";
 import { defaultEventColor } from "../eventsCatalog";
 
@@ -7,12 +7,23 @@ export interface UseChartEventsArgs {
   indexForDate: (d: Date) => number;
   visibleRange: { start: number; end: number };
   dataLength: number;
+  /** The last candle index the chart is currently allowed to reveal, or `null` when the whole
+   *  history is on show. Replay's own cutoff (its preview position while armed, its committed one
+   *  while running — the exact rule `drawReplayMask` follows for its cover), so an event further
+   *  right than the replay has reached is not drawn at all.
+   *
+   *  Without it a marker sat *half* hidden: the cover is painted on the canvas and stops at the
+   *  bottom of the plot, while a marker lives in the SVG overlay above it and hangs below that
+   *  edge — so the disc was clipped by the cover and its lower half kept showing. A marker is a
+   *  chip, not a candle: it cannot be dimmed by a veil drawn beneath it, so the only honest
+   *  choices are drawn or not drawn. */
+  lastVisibleIndex: number | null;
 }
 
 /** Event markers (see `CandlestickChartProps.events`) — per-kind show/hide, which marker's stack
  *  popover/modal is currently open, and the derived eventKinds/visibleEvents/eventStacks the
  *  markers and their tooltip actually render from. */
-export function useChartEvents({ events, indexForDate, visibleRange, dataLength }: UseChartEventsArgs) {
+export function useChartEvents({ events, indexForDate, visibleRange, dataLength, lastVisibleIndex }: UseChartEventsArgs) {
   const [hiddenEventKinds, setHiddenEventKinds] = useState<Set<string>>(new Set());
   // The candle index ("i") of the currently open event stack's popover/modal, plus a frozen
   // snapshot of its events — frozen so panning the marker out of the nearby-visible window (see
@@ -37,8 +48,11 @@ export function useChartEvents({ events, indexForDate, visibleRange, dataLength 
     const end = Math.min(dataLength, visibleRange.end + 2);
     return events
       .map((event, idx) => ({ event, idx, i: indexForDate(event.date) }))
-      .filter(({ event, i }) => !hiddenEventKinds.has(event.kind) && i >= start && i <= end);
-  }, [events, hiddenEventKinds, visibleRange, dataLength, indexForDate]);
+      .filter(
+        ({ event, i }) =>
+          !hiddenEventKinds.has(event.kind) && i >= start && i <= end && (lastVisibleIndex === null || i <= lastVisibleIndex)
+      );
+  }, [events, hiddenEventKinds, visibleRange, dataLength, indexForDate, lastVisibleIndex]);
 
   // Events sharing the same candle index render as a single "stack" marker instead of fully
   // overlapping circles — grouped from `visibleEvents` (not `events` directly) so this stays
@@ -60,6 +74,15 @@ export function useChartEvents({ events, indexForDate, visibleRange, dataLength 
       }),
     }));
   }, [visibleEvents, eventKinds]);
+
+  // An open card belongs to a marker. Stepping the replay back past that marker takes the marker
+  // away, so the card goes with it — otherwise rewinding would leave a card open describing an
+  // event that has not happened yet, anchored to nothing.
+  useEffect(() => {
+    if (lastVisibleIndex === null || activeEventStack === null || activeEventStack.i <= lastVisibleIndex) return;
+    setActiveEventStack(null);
+    setEventModalOpen(false);
+  }, [lastVisibleIndex, activeEventStack]);
 
   return {
     hiddenEventKinds,

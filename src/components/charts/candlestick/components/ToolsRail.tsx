@@ -449,7 +449,7 @@ export function ToolsRail({
             aria-pressed={aiOpen === true}
             title="Poser une question sur ce graphique, ou lui demander d'agir dessus"
           >
-            <SparkleIcon size={14} />
+            <SparkleIcon size={14} animated />
           </button>
         )}
       </div>

@@ -4,6 +4,7 @@ import type { ScriptDef } from "../components/charts/candlestick/interfaces/Scri
 import { generateCandles } from "../test-data/financeSampleData";
 import { CINEMA_CODE, CINEMA_STEPS, CINEMA_STEP_ENDS } from "./cinemaScript";
 import { NoCodeShowcase } from "./NoCodeShowcase";
+import { AiShowcase } from "./AiShowcase";
 import { smoothstep, useCinemaScroll } from "./useCinemaScroll";
 import "./ScrollCinema.css";
 
@@ -64,9 +65,19 @@ export function ScrollCinema() {
   const refs = useCinemaScroll();
   const { held } = refs.state;
 
-  const panel = smoothstep(0.06, 0.18, held) * (1 - smoothstep(0.72, 0.8, held));
-  const typing = smoothstep(0.18, 0.68, held);
-  const noCode = smoothstep(0.76, 0.84, held) * (1 - smoothstep(0.93, 0.99, held));
+  // The three beats, as shares of the held phase. The no-code canvas used to get 0.84 to 0.93 of
+  // it — nine percent, against fifty for the typing — and a reader scrolling at any normal speed
+  // saw it appear and leave before reading a single block. It now holds from 0.66 to 0.95, nearly
+  // a third of the section, which is what it takes to follow thirteen blocks and their arrows. The
+  // typing gives up the difference: it is the beat that explains itself fastest, since the code
+  // arrives a character at a time and the chart answers every few lines.
+  const panel = smoothstep(0.04, 0.13, held) * (1 - smoothstep(0.44, 0.5, held));
+  const typing = smoothstep(0.13, 0.42, held);
+  const noCode = smoothstep(0.46, 0.53, held) * (1 - smoothstep(0.74, 0.79, held));
+  // The last beat: the canvas closes and the assistant opens on the same chart. It is the end of
+  // the same story rather than a section further down the page — the script was written, then
+  // drawn, and now something reads what it produced.
+  const ai = smoothstep(0.76, 0.82, held) * (1 - smoothstep(0.97, 0.999, held));
 
   const typedLength = Math.round(typing * CINEMA_CODE.length);
   const stepsDone = CINEMA_STEP_ENDS.filter((end) => typedLength >= end).length;
@@ -140,6 +151,14 @@ export function ScrollCinema() {
                 aria-hidden={noCode < 0.5}
               >
                 <NoCodeShowcase />
+              </div>
+
+              <div
+                className="lqx-cinema__ai"
+                style={{ opacity: ai, pointerEvents: ai > 0.5 ? "auto" : "none" }}
+                aria-hidden={ai < 0.5}
+              >
+                <AiShowcase />
               </div>
             </div>
           </div>

@@ -936,7 +936,7 @@ export function ChartWorkspace({
               onClick={() => setAssistantOpen(!assistantOpen)}
               aria-pressed={assistantOpen}
             >
-              <SparkleIcon size={18} />
+              <SparkleIcon size={18} animated />
               IA
             </button>
           )}

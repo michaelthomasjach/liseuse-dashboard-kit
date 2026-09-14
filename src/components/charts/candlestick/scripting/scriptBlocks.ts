@@ -14,6 +14,12 @@
  *  `stripScriptBlocks` and its caller in `ScriptRunner.tsx`. */
 const BLOCK_KEYWORD_RE = /^[ \t]*@block\b.*$/;
 
+/** `@frame` — the no-code view's grouping rectangles (see `ScriptGraphFrame`). Not a cell, and
+ *  not JavaScript either, so it is stripped here alongside `@block`: those two are the only
+ *  keywords the diagram ever writes into a script, and a reader asking "what does the canvas add
+ *  to my file" finds both answers in one place. */
+const FRAME_KEYWORD_RE = /^[ \t]*@frame\b.*$/;
+
 /** The `// %%` this replaces, still recognised so a script written before `@block` existed keeps
  *  the cells it was written with instead of silently collapsing into one. Deliberately not
  *  documented anywhere a user would read: it exists for scripts already saved, not as a second way
@@ -36,6 +42,6 @@ export function isBlockMarkerLine(line: string): boolean {
 export function stripScriptBlocks(code: string): string {
   return code
     .split("\n")
-    .map((line) => (BLOCK_KEYWORD_RE.test(line) ? "" : line))
+    .map((line) => (BLOCK_KEYWORD_RE.test(line) || FRAME_KEYWORD_RE.test(line) ? "" : line))
     .join("\n");
 }

@@ -12,7 +12,10 @@
   position: relative;
   /* The track's height is the sequence's duration: an expand ramp, a long hold with room for the
      whole script to be typed, and a collapse ramp. */
-  height: 420vh;
+  /* Raised from 420vh: the no-code beat now holds for nearly a third of the section (see
+     ScrollCinema.tsx), and giving it a bigger share of a fixed track would have been giving the
+     typing beat less absolute time rather than giving the canvas more. Both get more here. */
+  height: 560vh;
 }
 
 .lqx-cinema__sticky {
@@ -74,6 +77,12 @@
 .lqx-cinema__editor,
 .lqx-cinema__nocode {
   z-index: 1300;
+}
+
+/* Above the canvas it replaces: the two cross-fade, and the one arriving has to be the one on top
+   or the fade would play backwards. */
+.lqx-cinema__ai {
+  z-index: 1400;
 }
 
 .lqx-cinema__kicker {
@@ -231,6 +240,22 @@
   inset: 0;
   display: flex;
   flex-direction: column;
+  padding: 4vh 3vw;
+  background-color: var(--lq-color-bg);
+  will-change: opacity;
+}
+
+/* The last beat, on the same stage: the canvas closes and the assistant opens on the same chart.
+   Centred rather than filling, because it is one panel and stretching it to a cinema screen would
+   make a 640px conversation look like a bug. */
+.lqx-cinema__ai {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
   padding: 4vh 3vw;
   background-color: var(--lq-color-bg);
   will-change: opacity;

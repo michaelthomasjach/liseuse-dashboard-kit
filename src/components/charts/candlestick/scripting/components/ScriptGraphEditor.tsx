@@ -1,8 +1,11 @@
 import { useCallback, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
-import { PlayIcon, CloseIcon, PlusIcon } from "../../../../icons";
+import { PlayIcon, CloseIcon, PlusIcon, TrashIcon, HelpIcon } from "../../../../icons";
 import { Modal } from "../../../../primitives/Modal";
 import {
   GRAPH_NODE_WIDTH,
+  FRAME_FILLS,
+  DEFAULT_FRAME_FILL,
+  MIN_FRAME_SIZE,
   codeForRunPath,
   layoutScriptGraph,
   parseScriptGraph,
@@ -12,8 +15,10 @@ import {
   PREAMBLE_ID,
   type ScriptGraph,
   type ScriptGraphNode,
+  type ScriptGraphFrame,
 } from "../scriptGraph";
 import { SCRIPT_BLOCK_TEMPLATES, scriptBlockTemplateGroups, type ScriptBlockTemplate } from "../scriptBlockTemplates";
+import { ScriptGraphHelp } from "./ScriptGraphHelp";
 import "./ScriptGraphEditor.css";
 
 /** Fixed, so an arrow can be anchored to a node's own middle without measuring it. Variable-height
@@ -49,6 +54,8 @@ export interface ScriptGraphEditorProps {
 
 type DragState =
   | { kind: "node"; id: string; grabX: number; grabY: number; x: number; y: number }
+  | { kind: "frame"; id: string; grabX: number; grabY: number; x: number; y: number }
+  | { kind: "frame-resize"; id: string; originX: number; originY: number; width: number; height: number; x: number; y: number }
   | { kind: "palette"; template: ScriptBlockTemplate; x: number; y: number }
   | { kind: "link"; fromId: string; x: number; y: number }
   | { kind: "pan"; startX: number; startY: number; originX: number; originY: number };
@@ -81,17 +88,29 @@ export function ScriptGraphEditor({ code, onChange, onRunBlock, running, renderB
      drag made a perfectly ordinary click fail to open anything, at random. */
   const grabOriginRef = useRef<{ x: number; y: number } | null>(null);
   const draggedRef = useRef(false);
+  /* Which grouping frame is selected, and therefore which one the floating bar is editing. Its own
+     state, not `selectedId`: a frame is never a block, cannot be wired to anything, and selecting
+     one must not change what a newly dropped block attaches to. */
+  const [selectedFrameId, setSelectedFrameId] = useState<string | null>(null);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [helpWindow, setHelpWindow] = useState<Window | null>(null);
 
   // Parsed fresh from the code every time it changes, then laid out — nodes the source positions
   // stay where they are, the rest get a place by depth (see `layoutScriptGraph`).
   const parsed = useMemo(() => parseScriptGraph(code), [code]);
   const graph = useMemo(() => layoutScriptGraph(parsed), [parsed]);
   const selected = graph.nodes.find((n) => n.id === selectedId) ?? null;
+  const selectedFrame = graph.frames.find((f) => f.id === selectedFrameId) ?? null;
   const editing = graph.nodes.find((n) => n.id === editingId) ?? null;
 
   /** Writes a graph back to the code. Every mutation goes through here, so the code is updated
    *  synchronously with the diagram and the two can never drift apart. */
   const commit = useCallback((next: ScriptGraph) => onChange(serializeScriptGraph(next)), [onChange]);
+
+  const withFrames = useCallback(
+    (update: (frames: ScriptGraphFrame[]) => ScriptGraphFrame[]) => commit({ ...graph, frames: update(graph.frames) }),
+    [commit, graph],
+  );
 
   const withNodes = useCallback(
     (update: (nodes: ScriptGraphNode[]) => ScriptGraphNode[]) => commit({ ...graph, nodes: update(graph.nodes) }),
@@ -112,6 +131,14 @@ export function ScriptGraphEditor({ code, onChange, onRunBlock, running, renderB
       return;
     }
     const point = toCanvas(e.clientX, e.clientY);
+    if (drag.kind === "frame") {
+      setDrag({ ...drag, x: point.x - drag.grabX, y: point.y - drag.grabY });
+      return;
+    }
+    if (drag.kind === "frame-resize") {
+      setDrag({ ...drag, x: point.x, y: point.y });
+      return;
+    }
     if (drag.kind === "node") {
       const origin = grabOriginRef.current;
       if (origin !== null && Math.hypot(e.clientX - origin.x, e.clientY - origin.y) > CLICK_SLACK) draggedRef.current = true;
@@ -127,10 +154,79 @@ export function ScriptGraphEditor({ code, onChange, onRunBlock, running, renderB
       // every other node's position is pinned too. Otherwise the ones still being auto-placed would
       // shuffle around the one that isn't, every time the graph changed.
       withNodes((nodes) => nodes.map((n) => (n.id === drag.id ? { ...n, at: { x: drag.x, y: drag.y } } : n)));
+    } else if (drag.kind === "frame") {
+      withFrames((frames) => frames.map((f) => (f.id === drag.id ? { ...f, at: { x: drag.x, y: drag.y } } : f)));
+    } else if (drag.kind === "frame-resize") {
+      withFrames((frames) =>
+        frames.map((f) =>
+          f.id === drag.id
+            ? {
+                ...f,
+                size: {
+                  width: Math.max(MIN_FRAME_SIZE, Math.round(drag.x - drag.originX)),
+                  height: Math.max(MIN_FRAME_SIZE, Math.round(drag.y - drag.originY)),
+                },
+              }
+            : f,
+        ),
+      );
     } else if (drag.kind === "palette") {
       addBlock(drag.template, { x: drag.x - GRAPH_NODE_WIDTH / 2, y: drag.y - NODE_HEIGHT / 2 });
     }
     setDrag(null);
+  }
+
+  /** Fits everything on the canvas into view — every block, every frame, with a margin. The
+   *  space bar and the "Recadrer" button both land here, and it replaces what that button used to
+   *  do (jump to 100 % at the origin), which was only ever the right answer for a graph that had
+   *  never been moved. */
+  const fitToContent = useCallback(() => {
+    const surface = surfaceRef.current;
+    if (!surface) return;
+    const boxes = [
+      ...graph.nodes.filter((node) => node.at !== null).map((node) => ({
+        x: node.at!.x,
+        y: node.at!.y,
+        width: GRAPH_NODE_WIDTH,
+        height: NODE_HEIGHT,
+      })),
+      ...graph.frames.map((frame) => ({ x: frame.at.x, y: frame.at.y, width: frame.size.width, height: frame.size.height })),
+    ];
+    if (boxes.length === 0) {
+      setView({ x: 0, y: 0, scale: 1 });
+      return;
+    }
+    const minX = Math.min(...boxes.map((b) => b.x));
+    const minY = Math.min(...boxes.map((b) => b.y));
+    const maxX = Math.max(...boxes.map((b) => b.x + b.width));
+    const maxY = Math.max(...boxes.map((b) => b.y + b.height));
+    const margin = 32;
+    const width = Math.max(1, maxX - minX);
+    const height = Math.max(1, maxY - minY);
+    const scale = Math.min(
+      MAX_SCALE,
+      Math.max(MIN_SCALE, Math.min((surface.clientWidth - margin * 2) / width, (surface.clientHeight - margin * 2) / height)),
+    );
+    // Centred on what it is fitting, not pinned to a corner: a graph wider than it is tall would
+    // otherwise sit against the top edge with all the slack below it.
+    setView({
+      x: (surface.clientWidth - width * scale) / 2 - minX * scale,
+      y: (surface.clientHeight - height * scale) / 2 - minY * scale,
+      scale,
+    });
+  }, [graph.nodes, graph.frames]);
+
+  /** Space fits the graph to the view. On the surface itself rather than on `window`: the canvas is
+   *  focusable and a shortcut that fires while the user is typing in a block's own code — or
+   *  anywhere else on the page — would be a trap rather than a convenience.
+   *
+   *  Every keyboard shortcut this canvas adds must also be listed in the help window (the `?`
+   *  below). A shortcut nobody can discover is a shortcut nobody has. */
+  function onSurfaceKeyDown(e: React.KeyboardEvent) {
+    if (e.key !== " " && e.code !== "Space") return;
+    if (e.target !== e.currentTarget) return;
+    e.preventDefault();
+    fitToContent();
   }
 
   /** Where a tapped (rather than dragged) block goes: to the right of whatever it will follow, or
@@ -145,6 +241,33 @@ export function ScriptGraphEditor({ code, onChange, onRunBlock, running, renderB
     const rightEdgeOnScreen = (right.x + GRAPH_NODE_WIDTH) * view.scale + view.x;
     if (surfaceWidth === 0 || rightEdgeOnScreen <= surfaceWidth) return right;
     return { x: anchor.at.x, y: anchor.at.y + NODE_HEIGHT + 40 };
+  }
+
+  /** Drops a new frame around whatever is currently in view, so it lands where the user is looking
+   *  rather than at the canvas origin they may be nowhere near. */
+  function addFrame() {
+    const rect = surfaceRef.current?.getBoundingClientRect();
+    const topLeft = toCanvas(rect ? rect.left + 40 : 0, rect ? rect.top + 40 : 0);
+    const taken = new Set(graph.frames.map((f) => f.id));
+    const id = slugifyBlockId("groupe", taken);
+    const frame: ScriptGraphFrame = {
+      id,
+      title: "Groupe",
+      at: { x: Math.round(topLeft.x), y: Math.round(topLeft.y) },
+      size: { width: 360, height: 260 },
+      fill: DEFAULT_FRAME_FILL,
+    };
+    commit({ ...graph, frames: [...graph.frames, frame] });
+    setSelectedFrameId(id);
+  }
+
+  function updateFrame(id: string, patch: Partial<ScriptGraphFrame>) {
+    withFrames((frames) => frames.map((f) => (f.id === id ? { ...f, ...patch } : f)));
+  }
+
+  function removeFrame(id: string) {
+    withFrames((frames) => frames.filter((f) => f.id !== id));
+    setSelectedFrameId(null);
   }
 
   function addBlock(template: ScriptBlockTemplate, at: { x: number; y: number }) {
@@ -334,12 +457,26 @@ export function ScriptGraphEditor({ code, onChange, onRunBlock, running, renderB
           <button type="button" onClick={() => setView((v) => ({ ...v, scale: Math.min(MAX_SCALE, v.scale + 0.15) }))} aria-label="Zoomer">
             +
           </button>
-          <button type="button" onClick={() => setView({ x: 0, y: 0, scale: 1 })}>
+          <button type="button" onClick={fitToContent} title="Tout afficher (Espace)">
             Recadrer
+          </button>
+          <button type="button" onClick={addFrame} title="Ajouter un groupe — un cadre derrière les blocs">
+            Groupe
           </button>
           <span className="lq-script-graph__count">
             {graph.nodes.length} bloc{graph.nodes.length > 1 ? "s" : ""}
           </span>
+          {/* Last in the bar and last in the tab order: it explains the canvas, so it belongs after
+              the things it explains. */}
+          <button
+            type="button"
+            className="lq-script-graph__help-button"
+            onClick={() => setHelpOpen(true)}
+            aria-label="Aide et raccourcis clavier"
+            title="Aide et raccourcis clavier"
+          >
+            <HelpIcon size={13} />
+          </button>
         </div>
 
         {graph.warnings.length > 0 && (
@@ -356,22 +493,103 @@ export function ScriptGraphEditor({ code, onChange, onRunBlock, running, renderB
           onPointerDown={(e) => {
             if (e.target !== e.currentTarget && !(e.target as HTMLElement).classList.contains("lq-script-graph__canvas")) return;
             setSelectedId(null);
+            setSelectedFrameId(null);
             setDrag({ kind: "pan", startX: e.clientX, startY: e.clientY, originX: view.x, originY: view.y });
             (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
           }}
           onPointerMove={onSurfacePointerMove}
           onPointerUp={onSurfacePointerUp}
           onPointerCancel={() => setDrag(null)}
+          tabIndex={0}
+          onKeyDown={onSurfaceKeyDown}
           onWheel={(e) => {
-            if (!e.ctrlKey && !e.metaKey) return;
+            // No modifier needed any more: on a canvas whose only other vertical gesture is panning
+            // by drag, a plain wheel that did nothing read as a dead surface. Ctrl/Cmd still works,
+            // since that is what a trackpad pinch sends.
             e.preventDefault();
-            setView((v) => ({ ...v, scale: Math.min(MAX_SCALE, Math.max(MIN_SCALE, v.scale - e.deltaY * 0.002)) }));
+            const rect = e.currentTarget.getBoundingClientRect();
+            const pointerX = e.clientX - rect.left;
+            const pointerY = e.clientY - rect.top;
+            setView((v) => {
+              const scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, v.scale * Math.exp(-e.deltaY * 0.0015)));
+              // Anchored on the pointer: the canvas point under the cursor stays under it, which is
+              // what makes zooming feel like moving closer rather than like the graph sliding away.
+              const ratio = scale / v.scale;
+              return { scale, x: pointerX - (pointerX - v.x) * ratio, y: pointerY - (pointerY - v.y) * ratio };
+            });
           }}
         >
           <div
             className="lq-script-graph__canvas"
             style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})` }}
           >
+            {/* Before the arrows and the blocks, so they sit under both. Grouping frames own
+                nothing and capture nothing: a block dragged across one is not "in" it, and deleting
+                one deletes only itself. That is what makes it safe to draw one around anything —
+                a frame that adopted what it covered would be a second structure competing with the
+                arrows, and the arrows are the structure this diagram actually has. */}
+            {graph.frames.map((frame) => {
+              const live = drag?.kind === "frame" && drag.id === frame.id ? { x: drag.x, y: drag.y } : frame.at;
+              const size =
+                drag?.kind === "frame-resize" && drag.id === frame.id
+                  ? {
+                      width: Math.max(MIN_FRAME_SIZE, drag.x - drag.originX),
+                      height: Math.max(MIN_FRAME_SIZE, drag.y - drag.originY),
+                    }
+                  : frame.size;
+              return (
+                <div
+                  key={frame.id}
+                  className={[
+                    "lq-script-graph__frame",
+                    selectedFrameId === frame.id && "lq-script-graph__frame--selected",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                  style={{ left: live.x, top: live.y, width: size.width, height: size.height, backgroundColor: frame.fill }}
+                  onPointerDown={(e) => {
+                    e.stopPropagation();
+                    setSelectedFrameId(frame.id);
+                    setSelectedId(null);
+                    const point = toCanvas(e.clientX, e.clientY);
+                    setDrag({
+                      kind: "frame",
+                      id: frame.id,
+                      grabX: point.x - frame.at.x,
+                      grabY: point.y - frame.at.y,
+                      x: frame.at.x,
+                      y: frame.at.y,
+                    });
+                    (e.currentTarget.parentElement?.parentElement as HTMLElement | null)?.setPointerCapture(e.pointerId);
+                  }}
+                >
+                  <span className="lq-script-graph__frame-title">{frame.title}</span>
+                  {/* The one part of a frame that is not inert, and only once it is selected: a
+                      resize grip permanently live in the corner of a background shape would be a
+                      target sitting over the blocks it is behind. */}
+                  {selectedFrameId === frame.id && (
+                    <span
+                      className="lq-script-graph__frame-grip"
+                      onPointerDown={(e) => {
+                        e.stopPropagation();
+                        const point = toCanvas(e.clientX, e.clientY);
+                        setDrag({
+                          kind: "frame-resize",
+                          id: frame.id,
+                          originX: frame.at.x,
+                          originY: frame.at.y,
+                          width: frame.size.width,
+                          height: frame.size.height,
+                          x: point.x,
+                          y: point.y,
+                        });
+                      }}
+                    />
+                  )}
+                </div>
+              );
+            })}
+
             <svg className="lq-script-graph__edges" aria-hidden="true">
               <defs>
                 <marker id="lq-graph-arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto">
@@ -589,6 +807,63 @@ export function ScriptGraphEditor({ code, onChange, onRunBlock, running, renderB
           </div>
         )}
       </Modal>
+
+      {/* The floating bar for a selected frame. Same idea as the chart's own bar over a selected
+          drawing: the thing is on the canvas, so its controls come to it rather than sending the
+          user to a panel elsewhere. */}
+      {selectedFrame !== null && (
+        <div className="lq-script-graph__frame-bar" role="group" aria-label={`Groupe ${selectedFrame.title}`}>
+          <input
+            className="lq-script-graph__frame-title-input"
+            value={selectedFrame.title}
+            onChange={(e) => updateFrame(selectedFrame.id, { title: e.target.value })}
+            placeholder="Titre du groupe"
+            aria-label="Titre du groupe"
+          />
+          <span className="lq-script-graph__frame-swatches">
+            {FRAME_FILLS.map((fill) => (
+              <button
+                key={fill}
+                type="button"
+                className={[
+                  "lq-script-graph__frame-swatch",
+                  selectedFrame.fill === fill && "lq-script-graph__frame-swatch--current",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+                style={{ backgroundColor: fill }}
+                onClick={() => updateFrame(selectedFrame.id, { fill })}
+                aria-label={`Couleur ${fill}`}
+                aria-pressed={selectedFrame.fill === fill}
+              />
+            ))}
+          </span>
+          <button
+            type="button"
+            className="lq-script-graph__frame-delete"
+            onClick={() => removeFrame(selectedFrame.id)}
+            aria-label="Supprimer le groupe"
+            title="Supprimer le groupe"
+          >
+            <TrashIcon size={13} />
+          </button>
+        </div>
+      )}
+
+      <ScriptGraphHelp
+        open={helpOpen}
+        onClose={() => {
+          setHelpOpen(false);
+          setHelpWindow(null);
+        }}
+        detachedWindow={helpWindow}
+        onDetach={() => {
+          const child = window.open("", "", "width=520,height=640");
+          if (child !== null) setHelpWindow(child);
+        }}
+        onDetachedClose={() => setHelpWindow(null)}
+        themeSource={surfaceRef.current?.closest(".lq-root") as HTMLElement | null}
+      />
     </div>
   );
 }

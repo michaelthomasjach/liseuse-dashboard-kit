@@ -105,7 +105,17 @@
   display: flex;
   align-items: center;
   gap: var(--lq-space-2);
-  padding-bottom: 4px;
+  /* The same room the palette column beside it has, for the same reason: the zoom controls and the
+     block count were flush against the edges, which reads as a rendering fault rather than as a
+     toolbar. Slightly less below, where the canvas starts. */
+  padding: var(--lq-space-2) var(--lq-space-2) var(--lq-space-1);
+}
+
+/* Pushed to the far end of the bar, after everything it explains. */
+.lq-script-graph__help-button {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
 }
 
 .lq-script-graph__toolbar button {
@@ -474,4 +484,169 @@
   .lq-script-graph__palette-item-hint {
     display: none;
   }
+}
+
+/* ── Grouping frames ──────────────────────────────────────────────────────────────────────────
+   Coloured rectangles behind the blocks, there to say "these belong together". Inert by design:
+   they own nothing, capture nothing, and a block dragged across one is not in it — see
+   `ScriptGraphFrame`. Only the frame itself takes a pointer, so the blocks over it stay reachable
+   exactly as if it were not there. */
+
+.lq-script-graph__frame {
+  position: absolute;
+  /* Under the arrows (which are the edges svg, painted after) and under every block. */
+  z-index: 0;
+  border: 1px solid var(--lq-color-border);
+  border-radius: var(--lq-radius-sm);
+  cursor: grab;
+}
+
+.lq-script-graph__frame--selected {
+  border-color: var(--lq-color-accent);
+  box-shadow: 0 0 0 1px var(--lq-color-accent);
+}
+
+.lq-script-graph__frame:active {
+  cursor: grabbing;
+}
+
+.lq-script-graph__frame-title {
+  position: absolute;
+  top: 4px;
+  left: 8px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  /* Dark enough to read on any of the pastels, faint enough not to compete with a block's own
+     title sitting over it. */
+  color: color-mix(in srgb, var(--lq-color-text) 55%, transparent);
+  pointer-events: none;
+  user-select: none;
+}
+
+.lq-script-graph__frame-grip {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  width: 12px;
+  height: 12px;
+  border: 1px solid var(--lq-color-accent);
+  background-color: var(--lq-color-bg);
+  cursor: nwse-resize;
+}
+
+/* The bar for the selected frame, over the canvas rather than beside it — same reasoning as the
+   chart's own bar over a selected drawing: the thing is on the canvas, so its controls come to it
+   rather than sending the reader to a panel somewhere else. */
+.lq-script-graph__frame-bar {
+  position: absolute;
+  left: 50%;
+  bottom: var(--lq-space-3);
+  transform: translateX(-50%);
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: var(--lq-space-2);
+  padding: 5px 8px;
+  border: 1px solid var(--lq-color-border);
+  border-radius: var(--lq-radius-sm);
+  background-color: var(--lq-color-panel);
+  box-shadow: 0 2px 10px rgb(0 0 0 / 12%);
+}
+
+.lq-script-graph__frame-title-input {
+  width: 16ch;
+  padding: 2px 6px;
+  border: 1px solid var(--lq-color-border-subtle);
+  background-color: var(--lq-color-bg);
+  color: var(--lq-color-text);
+  font: inherit;
+  font-size: var(--lq-text-xs);
+}
+
+.lq-script-graph__frame-swatches {
+  display: inline-flex;
+  gap: 3px;
+}
+
+.lq-script-graph__frame-swatch {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 1px solid var(--lq-color-border-subtle);
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.lq-script-graph__frame-swatch--current {
+  border-color: var(--lq-color-text);
+  box-shadow: 0 0 0 1px var(--lq-color-text);
+}
+
+.lq-script-graph__frame-delete {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px;
+  border: none;
+  background: none;
+  color: var(--lq-color-text-muted);
+  cursor: pointer;
+}
+
+.lq-script-graph__frame-delete:hover {
+  color: var(--lq-color-danger, #d64545);
+}
+
+/* ── The help window ──────────────────────────────────────────────────────────────────────── */
+
+.lq-script-graph-help {
+  padding: var(--lq-space-3);
+  font-size: var(--lq-text-xs);
+  line-height: 1.6;
+  overflow-y: auto;
+}
+
+.lq-script-graph-help__lead {
+  margin: 0 0 var(--lq-space-3);
+  color: var(--lq-color-text-muted);
+}
+
+.lq-script-graph-help__title {
+  margin: var(--lq-space-3) 0 var(--lq-space-1);
+  font-size: var(--lq-text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-script-graph-help__list {
+  margin: 0;
+}
+
+.lq-script-graph-help__row {
+  display: grid;
+  grid-template-columns: 14rem minmax(0, 1fr);
+  gap: var(--lq-space-2);
+  padding: 3px 0;
+  border-top: 1px solid var(--lq-color-border-subtle);
+}
+
+.lq-script-graph-help__row dt {
+  font-weight: 600;
+}
+
+.lq-script-graph-help__row dd {
+  margin: 0;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-script-graph-help__row kbd {
+  padding: 1px 5px;
+  border: 1px solid var(--lq-color-border);
+  border-radius: 3px;
+  background-color: var(--lq-color-bg);
+  font-family: var(--lq-font-mono, ui-monospace, monospace);
+  font-size: 0.95em;
 }

@@ -102,7 +102,7 @@ export function WorkspaceSideRail({
           aria-pressed={assistant.open}
           title="Poser une question sur le graphique, ou lui demander d'agir dessus"
         >
-          <SparkleIcon size={16} />
+          <SparkleIcon size={16} animated />
         </button>
       )}
       <button

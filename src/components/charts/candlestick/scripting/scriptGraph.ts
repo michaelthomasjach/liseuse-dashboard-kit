@@ -72,8 +72,32 @@ export interface ScriptGraphNode {
   preamble?: boolean;
 }
 
+/** A grouping frame: a coloured rectangle drawn *behind* the blocks, with a label, there to say
+ *  "these belong together" and nothing else.
+ *
+ *  Deliberately inert. It owns no blocks, moving it moves nothing, and deleting it deletes nothing
+ *  — which is exactly why it is safe to draw one around anything at all. A frame that captured the
+ *  blocks inside it would be a second structure competing with the arrows, and the arrows are the
+ *  structure this diagram actually has.
+ *
+ *  Written as `@frame(id at X Y W H fill "#e8f0e6") Titre`, and stripped before compiling exactly
+ *  like `@block` (see `stripScriptBlocks`). Living in the text rather than in some sidecar keeps
+ *  the rule this whole file is built on: the code is the source of truth, and the two views cannot
+ *  hold different pictures. */
+export interface ScriptGraphFrame {
+  id: string;
+  title: string;
+  at: { x: number; y: number };
+  size: { width: number; height: number };
+  /** Any CSS colour; the editor offers a pastel set and writes one of those. */
+  fill: string;
+}
+
 export interface ScriptGraph {
   nodes: ScriptGraphNode[];
+  /** The grouping frames, in the order they were written — which is also their paint order, so a
+   *  frame drawn later sits over an earlier one. Empty for every script that has never had one. */
+  frames: ScriptGraphFrame[];
   /** Problems found while reading the text, in French, ready to show. Never thrown: a graph that
    *  refuses to open because one `after` names a block that was renamed in the text would be worse
    *  than useless — it would be a trap. Unresolvable references are dropped and reported here. */
@@ -86,6 +110,54 @@ export const PREAMBLE_ID = "__preambule__";
 
 /** Attribute keywords inside `@block(...)`. Anything else in first position is the block's own id. */
 const ATTRIBUTE_KEYWORDS = new Set(["at", "after", "inputs"]);
+
+/** `@frame(<attrs>) <title>`. Parsed from anywhere in the file and always written back at the top,
+ *  which is what makes the round trip converge: a frame is not a cell, so it has no place of its
+ *  own in the block order and any other rule would move it about on every save. */
+const FRAME_HEADER_RE = /^[ \t]*@frame(?:\(([^)]*)\))?[ \t]*(.*)$/;
+
+export function isFrameLine(line: string): boolean {
+  return FRAME_HEADER_RE.test(line) && /^[ \t]*@frame\b/.test(line);
+}
+
+/** Reads one `@frame(...)` line. Forgiving in the same way `parseHeaderAttributes` is, and for the
+ *  same reason: the text may well be mid-keystroke while this runs. */
+function parseFrameLine(line: string, taken: ReadonlySet<string>): ScriptGraphFrame | null {
+  const match = FRAME_HEADER_RE.exec(line);
+  if (!match) return null;
+  const tokens = (match[1] ?? "").trim().split(/\s+/).filter(Boolean);
+  const title = (match[2] ?? "").trim();
+  let id: string | null = null;
+  let at = { x: 0, y: 0 };
+  let size = { width: 320, height: 220 };
+  let fill = DEFAULT_FRAME_FILL;
+  let i = 0;
+  if (tokens.length > 0 && tokens[0] !== "at" && tokens[0] !== "fill") id = tokens[i++];
+  while (i < tokens.length) {
+    const keyword = tokens[i++];
+    if (keyword === "at") {
+      const values = [Number(tokens[i]), Number(tokens[i + 1]), Number(tokens[i + 2]), Number(tokens[i + 3])];
+      if (values.every((value) => Number.isFinite(value))) {
+        at = { x: values[0], y: values[1] };
+        size = { width: Math.max(MIN_FRAME_SIZE, values[2]), height: Math.max(MIN_FRAME_SIZE, values[3]) };
+        i += 4;
+      }
+    } else if (keyword === "fill") {
+      const raw = tokens[i++] ?? "";
+      const value = raw.replace(/^["']|["']$/g, "");
+      if (value !== "") fill = value;
+    }
+  }
+  return { id: id ?? slugifyBlockId(title || "groupe", taken), title, at, size, fill };
+}
+
+/** The pastels the editor offers, and the one a frame written without a `fill` takes. Pale by
+ *  construction: a frame sits under the blocks, and a colour strong enough to admire is a colour
+ *  strong enough to compete with what it is grouping. */
+export const FRAME_FILLS = ["#e7efe6", "#e6ecf5", "#f4ecdd", "#f2e6ee", "#e6f0f1", "#efe9f5", "#f5e8e6", "#eceef0"] as const;
+export const DEFAULT_FRAME_FILL: string = FRAME_FILLS[0];
+/** Below this a frame is too small to read a label in, let alone group anything. */
+export const MIN_FRAME_SIZE = 80;
 
 /** `@block(<attrs>) <title>` / `@block <title>` / the legacy `// %% <title>`. The attribute list is
  *  optional so that every block line written before this existed still parses. */
@@ -179,7 +251,20 @@ function parseHeader(line: string): ParsedHeader {
  *  A block with no `after` attribute inherits the block written before it, which is what makes a
  *  plain notebook-style script read as a chain rather than as a heap of disconnected boxes. */
 export function parseScriptGraph(code: string): ScriptGraph {
-  const lines = code.split("\n");
+  // Frames come out first, and are removed from the text the blocks are then read from: they are
+  // not cells, they delimit nothing, and leaving them in would make each one part of whichever
+  // block body it happens to sit in — which is how one would come back doubled on the next save.
+  const frames: ScriptGraphFrame[] = [];
+  const frameIds = new Set<string>();
+  const lines = code.split("\n").filter((line) => {
+    if (!isFrameLine(line)) return true;
+    const frame = parseFrameLine(line, frameIds);
+    if (frame) {
+      frameIds.add(frame.id);
+      frames.push(frame);
+    }
+    return false;
+  });
   const headerIndices: number[] = [];
   lines.forEach((line, i) => {
     if (isBlockMarkerLine(line)) headerIndices.push(i);
@@ -235,7 +320,7 @@ export function parseScriptGraph(code: string): ScriptGraph {
     });
   });
 
-  return { nodes, warnings };
+  return { nodes, frames, warnings };
 }
 
 /** Writes a graph back out as a script. Bodies are copied verbatim; only the `@block` header lines
@@ -301,7 +386,21 @@ export function serializeScriptGraph(graph: ScriptGraph): string {
     parts.push(`${header}${node.title ? ` ${node.title}` : ""}\n${node.body}`);
     previous = node.id;
   }
-  return parts.join("\n");
+  const body = parts.join("\n");
+  if (graph.frames.length === 0) return body;
+  // At the very top, always. A frame is not a cell, so there is no position in the block order
+  // that would be its own; writing them all first is the one rule that survives a round trip
+  // unchanged however the blocks are reordered underneath them.
+  const frames = graph.frames.map(serializeFrame).join("\n");
+  return frames + "\n" + body;
+}
+
+/** One `@frame` line. The title is free text and goes last, like a block's; the fill is quoted
+ *  so a colour written as a function call (`rgb(1 2 3)`) cannot be read as three attributes. */
+function serializeFrame(frame: ScriptGraphFrame): string {
+  const at = [frame.at.x, frame.at.y, frame.size.width, frame.size.height].map(Math.round).join(" ");
+  const attributes = [frame.id, "at", at, "fill", JSON.stringify(frame.fill)].join(" ");
+  return `@frame(${attributes})${frame.title ? ` ${frame.title}` : ""}`;
 }
 
 /** Execution order: parents before children, and among nodes with no relationship, the order they

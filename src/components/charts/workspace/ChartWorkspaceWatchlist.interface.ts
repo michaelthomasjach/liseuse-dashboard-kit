@@ -38,6 +38,19 @@ export interface ChartWorkspaceWatchlistRow {
   assetType?: string;
   sector?: string;
   region?: string;
+  /** Whether this symbol can be traded right now — its market is open. Shown as a small dot beside
+   *  the ticker: pale green open, pale red closed. Left undefined, no dot at all, which is the
+   *  right answer for a caller who does not track session hours: an absent fact stated as "closed"
+   *  would be a lie every weekday morning. */
+  marketOpen?: boolean;
+  /** The row's own price as a number, when the caller has one.
+   *
+   *  `values` already carries what is *displayed* — a formatted string, or a coloured node — and
+   *  a formatted string cannot be compared against the previous one to tell a rise from a fall
+   *  without parsing it back, which no amount of care makes safe across locales and currencies.
+   *  This is the comparable value, used for one thing: flashing the row when it moves. Omitted,
+   *  the row simply never flashes. */
+  price?: number;
 }
 
 /** A named sub-group of rows within one list (see `ChartWorkspaceWatchlist.sections`) — e.g.

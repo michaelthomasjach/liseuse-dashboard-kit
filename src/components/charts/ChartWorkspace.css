@@ -441,7 +441,7 @@
    itself has none — flush with the shared content inset instead of doubling up on it. */
 .lq-chart-workspace__side-panel-title {
   padding: 4px 0;
-  font-size: 0.75rem;
+  font-size: 0.69rem;
   font-weight: 700;
   color: var(--lq-color-text);
 }
@@ -494,7 +494,7 @@
   min-width: 0;
   padding: 6px 0;
   font-family: inherit;
-  font-size: 0.75rem;
+  font-size: 0.69rem;
   color: inherit;
   text-align: left;
   background: none;
@@ -516,7 +516,7 @@
    divider) matches the gap below them, before the first section or row. */
 .lq-chart-workspace__watchlist-row--header {
   margin-top: var(--lq-space-1);
-  font-size: 0.65rem;
+  font-size: 0.598rem;
   font-weight: 700;
   color: var(--lq-color-text-muted);
   text-transform: uppercase;
@@ -723,7 +723,7 @@
   height: 18px;
   border-radius: var(--lq-radius-sm);
   overflow: hidden;
-  font-size: 0.5rem;
+  font-size: 0.46rem;
   font-weight: 700;
   color: #fff;
 }
@@ -967,7 +967,7 @@
   min-width: 0;
   padding: 6px 4px;
   font-family: inherit;
-  font-size: 0.68rem;
+  font-size: 0.626rem;
   font-weight: 700;
   color: var(--lq-color-text-muted);
   text-transform: uppercase;
@@ -1006,7 +1006,7 @@
   padding: 6px 4px;
   margin-top: var(--lq-space-2);
   font-family: inherit;
-  font-size: 0.7rem;
+  font-size: 0.644rem;
   font-weight: 600;
   color: var(--lq-color-text-muted);
   background: none;
@@ -1225,7 +1225,7 @@
 }
 
 .lq-watchlist-exposure__symbol-subtitle {
-  font-size: 0.75rem;
+  font-size: 0.69rem;
   color: var(--lq-color-text-muted);
 }
 
@@ -1235,7 +1235,7 @@
 
 .lq-watchlist-exposure__section-title {
   margin: 0;
-  font-size: 0.85rem;
+  font-size: 0.782rem;
   font-weight: 700;
   color: var(--lq-color-text);
 }
@@ -1270,14 +1270,14 @@
 }
 
 .lq-chart-workspace__symbol-profile-ticker {
-  font-size: 0.9rem;
+  font-size: 0.828rem;
   font-weight: 700;
   color: var(--lq-color-text);
 }
 
 .lq-chart-workspace__symbol-profile-subtitle {
   overflow: hidden;
-  font-size: 0.72rem;
+  font-size: 0.662rem;
   color: var(--lq-color-text-muted);
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1286,7 +1286,7 @@
 .lq-chart-workspace__symbol-profile-status {
   flex-shrink: 0;
   padding: 2px 6px;
-  font-size: 0.68rem;
+  font-size: 0.626rem;
   font-weight: 600;
   color: var(--lq-color-text-muted);
   white-space: nowrap;
@@ -1319,7 +1319,7 @@
   margin: 0;
   padding: var(--lq-space-5) var(--lq-space-2);
   text-align: center;
-  font-size: 0.7rem;
+  font-size: 0.644rem;
   color: var(--lq-color-text-muted);
 }
 
@@ -1342,7 +1342,7 @@
 .lq-chart-workspace__symbol-profile-range {
   padding: 4px 7px;
   font-family: inherit;
-  font-size: 0.68rem;
+  font-size: 0.626rem;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   color: var(--lq-color-text-muted);
@@ -1391,7 +1391,7 @@
 }
 
 .lq-chart-workspace__symbol-profile-price {
-  font-size: 1.3rem;
+  font-size: 1.196rem;
   font-weight: 700;
   color: var(--lq-color-text);
   font-variant-numeric: tabular-nums;
@@ -1401,7 +1401,7 @@
   display: flex;
   align-items: baseline;
   gap: 4px;
-  font-size: 0.78rem;
+  font-size: 0.718rem;
   font-variant-numeric: tabular-nums;
   color: var(--lq-color-text-muted);
 }
@@ -1415,7 +1415,7 @@
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  font-size: 0.78rem;
+  font-size: 0.718rem;
   line-height: var(--lq-line-height-body);
   color: var(--lq-color-text-muted);
 }
@@ -1428,7 +1428,7 @@
 
 .lq-chart-workspace__symbol-profile-sector-tag {
   padding: 2px 6px;
-  font-size: 0.68rem;
+  font-size: 0.626rem;
   color: var(--lq-color-text-muted);
   background-color: var(--lq-color-hover);
   border-radius: var(--lq-radius-sm);
@@ -1441,7 +1441,7 @@
 }
 
 .lq-chart-workspace__symbol-profile-section-title {
-  font-size: 0.72rem;
+  font-size: 0.662rem;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -1464,7 +1464,7 @@
 }
 
 .lq-chart-workspace__symbol-profile-performance-label {
-  font-size: 0.68rem;
+  font-size: 0.626rem;
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -1486,12 +1486,12 @@
 }
 
 .lq-chart-workspace__symbol-profile-news-time {
-  font-size: 0.68rem;
+  font-size: 0.626rem;
   color: var(--lq-color-text-muted);
 }
 
 .lq-chart-workspace__symbol-profile-news-headline {
-  font-size: 0.78rem;
+  font-size: 0.718rem;
   line-height: var(--lq-line-height-body);
   color: var(--lq-color-text);
 }
@@ -1507,7 +1507,7 @@
 .lq-chart-workspace__symbol-profile-news-more {
   align-self: flex-start;
   padding: 0;
-  font-size: 0.72rem;
+  font-size: 0.662rem;
   font-weight: 600;
   color: var(--lq-color-accent);
   cursor: pointer;
@@ -1526,7 +1526,7 @@
   align-items: baseline;
   justify-content: space-between;
   gap: var(--lq-space-2);
-  font-size: 0.78rem;
+  font-size: 0.718rem;
 }
 
 .lq-chart-workspace__symbol-profile-stat-label {
@@ -1549,7 +1549,7 @@
 
 .lq-chart-workspace__symbol-profile-earnings-badge {
   padding: 1px 7px;
-  font-size: 0.72rem;
+  font-size: 0.662rem;
   font-weight: 700;
   color: var(--lq-color-text);
   background-color: var(--lq-color-hover);
@@ -1566,16 +1566,16 @@
    charts-shared.css and are shared with the desktop layout; they're untouched here. */
 .lq-chart-workspace--mobile .lq-chart-workspace__mobile-bottomnav-item,
 .lq-chart-workspace--mobile .lq-chart-workspace__watchlist-row--header {
-  font-size: 0.55rem;
+  font-size: 0.506rem;
 }
 
 .lq-chart-workspace--mobile .lq-chart-workspace__side-panel-title,
 .lq-chart-workspace--mobile .lq-chart-workspace__watchlist-row-main {
-  font-size: 0.64rem;
+  font-size: 0.589rem;
 }
 
 .lq-chart-workspace--mobile .lq-chart-workspace__watchlist-logo {
-  font-size: 0.43rem;
+  font-size: 0.396rem;
 }
 
 .lq-chart-workspace--mobile .lq-chart-workspace__watchlist-section-toggle,
@@ -1584,34 +1584,34 @@
 .lq-chart-workspace--mobile .lq-chart-workspace__symbol-profile-sector-tag,
 .lq-chart-workspace--mobile .lq-chart-workspace__symbol-profile-performance-label,
 .lq-chart-workspace--mobile .lq-chart-workspace__symbol-profile-news-time {
-  font-size: 0.58rem;
+  font-size: 0.534rem;
 }
 
 .lq-chart-workspace--mobile .lq-chart-workspace__watchlist-add-section,
 .lq-chart-workspace--mobile .lq-chart-workspace__symbol-profile-chart-empty {
-  font-size: 0.6rem;
+  font-size: 0.552rem;
 }
 
 .lq-chart-workspace--mobile .lq-chart-workspace__symbol-profile-subtitle,
 .lq-chart-workspace--mobile .lq-chart-workspace__symbol-profile-section-title,
 .lq-chart-workspace--mobile .lq-chart-workspace__symbol-profile-news-more,
 .lq-chart-workspace--mobile .lq-chart-workspace__symbol-profile-earnings-badge {
-  font-size: 0.61rem;
+  font-size: 0.561rem;
 }
 
 .lq-chart-workspace--mobile .lq-chart-workspace__symbol-profile-change,
 .lq-chart-workspace--mobile .lq-chart-workspace__symbol-profile-description,
 .lq-chart-workspace--mobile .lq-chart-workspace__symbol-profile-news-headline,
 .lq-chart-workspace--mobile .lq-chart-workspace__symbol-profile-stat-row {
-  font-size: 0.66rem;
+  font-size: 0.607rem;
 }
 
 .lq-chart-workspace--mobile .lq-chart-workspace__symbol-profile-ticker {
-  font-size: 0.77rem;
+  font-size: 0.708rem;
 }
 
 .lq-chart-workspace--mobile .lq-chart-workspace__symbol-profile-price {
-  font-size: 1.11rem;
+  font-size: 1.021rem;
 }
 
 /* Axis tick labels, a further -20% on top of the -15% above (0.7rem × 0.8 = 0.56rem). Kept apart
@@ -1790,7 +1790,7 @@
   background-color: transparent;
   color: var(--lq-color-text);
   font: inherit;
-  font-size: 0.78rem;
+  font-size: 0.718rem;
   font-weight: 600;
   cursor: pointer;
 }
@@ -1844,6 +1844,59 @@
 @media (prefers-reduced-motion: reduce) {
   .lq-chart-workspace__watchlist-drop-line,
   .lq-chart-workspace__watchlist-row--landed {
+    animation: none;
+  }
+}
+
+/* ── A price that moved, and whether its market is open ───────────────────────────────────────
+   The whole row tints for a moment when its price changes — pale green up, pale red down, nothing
+   at all when it does not move. Pale because it is a background: the row is still a row, and a
+   tint strong enough to admire would compete with the figures it is about. */
+.lq-chart-workspace__watchlist-row--up,
+.lq-chart-workspace__watchlist-row--down {
+  animation: lq-watchlist-price-flash 1400ms ease-out;
+}
+
+@keyframes lq-watchlist-price-flash {
+  0% {
+    background-color: var(--lq-watchlist-flash);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.lq-chart-workspace__watchlist-row--up {
+  --lq-watchlist-flash: color-mix(in srgb, var(--lq-color-up) 22%, transparent);
+}
+
+.lq-chart-workspace__watchlist-row--down {
+  --lq-watchlist-flash: color-mix(in srgb, var(--lq-color-down) 22%, transparent);
+}
+
+/* Open or closed, beside the ticker. A dot rather than a word: it is a state, not a label, and it
+   has to survive a column narrow enough to truncate the symbol itself. */
+.lq-chart-workspace__watchlist-session {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-left: 5px;
+  border-radius: 50%;
+  vertical-align: middle;
+  flex: 0 0 auto;
+}
+
+.lq-chart-workspace__watchlist-session--open {
+  background-color: color-mix(in srgb, var(--lq-color-up) 55%, transparent);
+}
+
+.lq-chart-workspace__watchlist-session--closed {
+  background-color: color-mix(in srgb, var(--lq-color-down) 45%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lq-chart-workspace__watchlist-row--up,
+  .lq-chart-workspace__watchlist-row--down {
     animation: none;
   }
 }

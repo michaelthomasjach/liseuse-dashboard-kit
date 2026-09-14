@@ -27,7 +27,7 @@
   background-color: transparent;
   color: var(--lq-color-text-muted);
   font: inherit;
-  font-size: 0.78rem;
+  font-size: 0.718rem;
   font-weight: 600;
   white-space: nowrap;
   cursor: pointer;
@@ -58,7 +58,7 @@
 
 .lq-financials__subtitle {
   margin: 0;
-  font-size: 0.7rem;
+  font-size: 0.644rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -79,26 +79,26 @@
 }
 
 .lq-financials__fact-label {
-  font-size: 0.72rem;
+  font-size: 0.662rem;
   color: var(--lq-color-text-muted);
 }
 
 .lq-financials__fact-value {
-  font-size: 0.95rem;
+  font-size: 0.874rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 
 .lq-financials__fact-unit {
   margin-left: 4px;
-  font-size: 0.68rem;
+  font-size: 0.626rem;
   font-weight: 400;
   color: var(--lq-color-text-muted);
 }
 
 .lq-financials__about p {
   margin: 0;
-  font-size: 0.82rem;
+  font-size: 0.754rem;
   line-height: 1.55;
 }
 
@@ -118,7 +118,7 @@
   background: none;
   color: var(--lq-color-accent);
   font: inherit;
-  font-size: 0.78rem;
+  font-size: 0.718rem;
   font-weight: 600;
   cursor: pointer;
 }
@@ -160,7 +160,7 @@
   display: flex;
   align-items: center;
   gap: var(--lq-space-2);
-  font-size: 0.78rem;
+  font-size: 0.718rem;
 }
 
 .lq-financials__share-chip {
@@ -192,7 +192,7 @@
   background-color: transparent;
   color: var(--lq-color-text-muted);
   font: inherit;
-  font-size: 0.75rem;
+  font-size: 0.69rem;
   font-weight: 600;
   cursor: pointer;
 }
@@ -208,6 +208,6 @@
 .lq-financials__empty {
   margin: 0;
   padding: var(--lq-space-4) 0;
-  font-size: 0.82rem;
+  font-size: 0.754rem;
   color: var(--lq-color-text-muted);
 }

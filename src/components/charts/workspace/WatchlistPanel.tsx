@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Popover } from "../../forms/Popover";
 import { Checkbox } from "../../forms/Checkbox";
 import { TextField } from "../../forms/TextField";
@@ -134,6 +134,43 @@ export function WatchlistPanel({
   // drag clears it instead of fighting it.
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  /** Which way each row's price last moved, and the price it moved from.
+   *
+   *  A ref for the prices — they are compared, never rendered — and state for the directions,
+   *  which are. Keyed by row id rather than by index: a list that gets reordered or filtered would
+   *  otherwise compare a symbol against whatever used to sit in its place, and flash every row on
+   *  a sort. */
+  const previousPricesRef = useRef<Record<string, number>>({});
+  const [priceMoves, setPriceMoves] = useState<Record<string, "up" | "down">>({});
+  const allRows = useMemo(
+    () => [...activeWatchlist.rows, ...(activeWatchlist.sections?.flatMap((section) => section.rows) ?? [])],
+    [activeWatchlist],
+  );
+  useEffect(() => {
+    const moved: Record<string, "up" | "down"> = {};
+    for (const row of allRows) {
+      if (typeof row.price !== "number") continue;
+      const before = previousPricesRef.current[row.id];
+      previousPricesRef.current[row.id] = row.price;
+      // Unchanged means nothing happens, as asked — and so does a first sighting: a row appearing
+      // with a price has not moved, it has arrived.
+      if (before === undefined || before === row.price) continue;
+      moved[row.id] = row.price > before ? "up" : "down";
+    }
+    if (Object.keys(moved).length === 0) return;
+    setPriceMoves((current) => ({ ...current, ...moved }));
+    // Cleared after the tint has had time to be seen. Without this a row stays green from a rise
+    // that happened minutes ago, which says something false about the present.
+    const id = window.setTimeout(() => {
+      setPriceMoves((current) => {
+        const next = { ...current };
+        for (const rowId of Object.keys(moved)) if (next[rowId] === moved[rowId]) delete next[rowId];
+        return next;
+      });
+    }, 1400);
+    return () => window.clearTimeout(id);
+  }, [allRows]);
+
   /** The row dropped a moment ago — see the arrival animation in ChartWorkspace.css. */
   const [justDroppedId, setJustDroppedId] = useState<string | null>(null);
 
@@ -309,6 +346,7 @@ export function WatchlistPanel({
           pressedRowId === row.id && "lq-chart-workspace__watchlist-row--pressed",
           draggingRowId === row.id && "lq-chart-workspace__watchlist-row--dragging",
           justDroppedId === row.id && "lq-chart-workspace__watchlist-row--landed",
+          priceMoves[row.id] && `lq-chart-workspace__watchlist-row--${priceMoves[row.id]}`,
         ]
           .filter(Boolean)
           .join(" ")}
@@ -341,7 +379,18 @@ export function WatchlistPanel({
           >
             {row.logoUrl ? <img src={row.logoUrl} alt="" /> : row.ticker.slice(0, 2).toUpperCase()}
           </span>
-          <span className="lq-chart-workspace__watchlist-ticker">{row.ticker}</span>
+          <span className="lq-chart-workspace__watchlist-ticker">
+            {row.ticker}
+            {/* Open or closed, beside the name. Absent when the caller does not track it — see
+                `marketOpen`: stating "closed" for an unknown would be wrong every weekday. */}
+            {row.marketOpen !== undefined && (
+              <span
+                className={`lq-chart-workspace__watchlist-session lq-chart-workspace__watchlist-session--${row.marketOpen ? "open" : "closed"}`}
+                title={row.marketOpen ? "Marché ouvert" : "Marché fermé"}
+                aria-label={row.marketOpen ? "Marché ouvert" : "Marché fermé"}
+              />
+            )}
+          </span>
           {visibleColumns.map((c) => (
             <span key={c.id} className="lq-chart-workspace__watchlist-cell" style={columnFlexStyle(c.id)}>
               {row.values[c.id]}

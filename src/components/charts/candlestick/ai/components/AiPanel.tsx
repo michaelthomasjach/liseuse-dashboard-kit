@@ -141,7 +141,10 @@ export function AiPanel({
   }
 
   return (
-    <aside className="lq-ai" aria-label="Assistant">
+    <aside
+      className={["lq-ai", chrome === "bare" && "lq-ai--bare"].filter(Boolean).join(" ")}
+      aria-label="Assistant"
+    >
       <header className="lq-ai__header">
         <span className="lq-ai__title">
           <SparkleIcon size={13} /> Assistant

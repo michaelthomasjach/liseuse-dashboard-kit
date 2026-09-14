@@ -141,7 +141,15 @@ export function AiHost({
 
   if (view === "window") {
     return (
-      <ScriptEditorWindow open onClose={() => setView("docked")} title="Assistant" onRequestDetach={onRequestDetach}>
+      <ScriptEditorWindow
+        open
+        onClose={() => setView("docked")}
+        title="Assistant"
+        onRequestDetach={onRequestDetach}
+        // A conversation is prose, not code: it reads fine in a narrow column, and the editor's own
+        // 520px floor would stop this window well short of the width someone wants it at.
+        minWidth={300}
+      >
         <AiPanel {...panelProps} open chrome="bare" />
       </ScriptEditorWindow>
     );

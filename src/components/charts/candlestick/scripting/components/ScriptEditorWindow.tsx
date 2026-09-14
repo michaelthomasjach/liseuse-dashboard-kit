@@ -23,6 +23,10 @@ export interface ScriptEditorWindowProps {
    *  portal to `document.body`. For the detached browser window, which supplies all of that
    *  itself: a draggable window inside a window is two sets of controls for one thing. */
   detached?: boolean;
+  /** Smallest width this window may be dragged to, in pixels. Defaults to 520, which is a code
+   *  editor's floor — a line of script does not fit below it. A window holding prose rather than
+   *  code can be given a smaller one. */
+  minWidth?: number;
   children: ReactNode;
 }
 
@@ -59,7 +63,17 @@ type DragMode = "move" | ResizeEdges;
  *  result on the live chart right away, not after closing the editor first). Portaled straight to
  *  `document.body`, same stacking-context escape `Modal.tsx`/`Popover.tsx` already use and for the
  *  same reason (see either of their own docs). */
-export function ScriptEditorWindow({ open, onClose, title, toolbar, headerActions, onRequestDetach, detached = false, children }: ScriptEditorWindowProps) {
+export function ScriptEditorWindow({
+  open,
+  onClose,
+  title,
+  toolbar,
+  headerActions,
+  onRequestDetach,
+  detached = false,
+  minWidth = MIN_WIDTH,
+  children,
+}: ScriptEditorWindowProps) {
   const theme = useLqTheme();
   const [rect, setRect] = useState<Rect>(initialRect);
   const [maximized, setMaximized] = useState(false);
@@ -95,10 +109,10 @@ export function ScriptEditorWindow({ open, onClose, title, toolbar, headerAction
         return;
       }
       let { x, y, width, height } = drag.startRect;
-      if (drag.mode.right) width = Math.max(MIN_WIDTH, drag.startRect.width + dx);
+      if (drag.mode.right) width = Math.max(minWidth, drag.startRect.width + dx);
       if (drag.mode.bottom) height = Math.max(MIN_HEIGHT, drag.startRect.height + dy);
       if (drag.mode.left) {
-        width = Math.max(MIN_WIDTH, drag.startRect.width - dx);
+        width = Math.max(minWidth, drag.startRect.width - dx);
         x = drag.startRect.x + (drag.startRect.width - width);
       }
       if (drag.mode.top) {

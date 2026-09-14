@@ -18,6 +18,17 @@
   background-color: var(--lq-color-panel);
 }
 
+/* Out of the dock and into something that gave it a box — the floating window, a torn-off browser
+   window, the phone sheet. It fills that box instead of keeping the 360px column it has beside a
+   chart, which left the right two thirds of the window empty. The docked width is a choice about
+   how much of the chart to give up; inside a window there is no chart to give up. */
+.lq-ai--bare {
+  width: 100%;
+  height: 100%;
+  flex: 1 1 auto;
+  border-left: none;
+}
+
 .lq-ai__header {
   display: flex;
   align-items: center;

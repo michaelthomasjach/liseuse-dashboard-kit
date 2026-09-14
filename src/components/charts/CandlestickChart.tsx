@@ -19,6 +19,9 @@ import { useChartTemplates } from "./candlestick/hooks/useChartTemplates";
 import { useStrategyMarkers } from "./candlestick/hooks/useStrategyMarkers";
 import { useStrategyPanelState } from "./candlestick/hooks/useStrategyPanelState";
 import { useAiChartContext } from "./candlestick/ai/useAiChartContext";
+import { CloseIcon } from "../icons";
+import { useAiAssistant } from "./candlestick/ai/useAiAssistant";
+import { strategyAiRequest, type StrategyAiPrompt } from "./candlestick/strategy/strategyAiPrompts";
 import { AiPanel } from "./candlestick/ai/components/AiPanel";
 import { anthropicSend } from "./candlestick/ai/anthropicSend";
 import { useHoverSync } from "./candlestick/hooks/useHoverSync";
@@ -366,7 +369,7 @@ export function CandlestickChart({
     close: closeStrategyPanel,
     toggle: toggleStrategyPanel,
     detach: detachStrategyPanel,
-    closedDrawingPrefixes: closedStrategyDrawingPrefixes,
+    closedPrefixes: closedStrategyPrefixes,
   } = useStrategyPanelState({ scripts: scriptingState.scripts, restoreScriptDrawings: scriptingState.restoreScriptDrawings });
   // Starred picker rows (see IndicatorModals' own `favoriteIndicatorIds`). Chart-local for now,
   // which is enough for it to survive the modal closing but not a reload — persisting it is the
@@ -489,6 +492,15 @@ export function CandlestickChart({
     plotWidth: dims.boundedWidth,
   });
   const alertFlow = useAlertFlow(alerts ?? [], selectedDrawingId);
+
+  // A strategy's panes and overlays belong to its tester: closing the panel takes them off the
+  // chart with it, reopening brings them back. Derived from the very prefixes the fills already
+  // use, so the two can never disagree about what "this strategy is closed" means.
+  const openScriptChartIndicators = useMemo(
+    () => scriptChartIndicators.filter((ind) => !closedStrategyPrefixes.some((prefix) => ind.id.startsWith(prefix))),
+    [scriptChartIndicators, closedStrategyPrefixes],
+  );
+
   const {
     indicators,
     indicatorPickerOpen,
@@ -540,10 +552,26 @@ export function CandlestickChart({
     onIndicatorsChange,
     showVolume,
     plotBoundedHeight,
-    extraIndicators: scriptChartIndicators,
+    extraIndicators: openScriptChartIndicators,
     dockedPanesStartFolded,
     beforeRemoveIndicator,
   });
+  // Which chart placements each script actually produced — "price" for a plot.overlay, "own" for a
+  // plot.pane — so the picker can badge a row with both when a script draws both. Read off the raw
+  // list, not the filtered one above: a closed strategy's row still has to say what it will bring
+  // back.
+  const scriptPlacements = useMemo(() => {
+    const placements: Record<string, ("price" | "own")[]> = {};
+    for (const ind of scriptChartIndicators) {
+      const scriptId = scriptIdFromIndicatorId(ind.customData?.id ?? ind.id);
+      if (scriptId === null) continue;
+      const pane = indicatorCatalogEntry(ind).pane;
+      const seen = placements[scriptId] ?? (placements[scriptId] = []);
+      if (!seen.includes(pane)) seen.push(pane);
+    }
+    return placements;
+  }, [scriptChartIndicators]);
+
   const correlationSetup = useCorrelationSetup({ appendIndicator, onAddSymbolOverlay, onSymbolSearchChange });
   // `activeScriptIndicators`, not the raw `scriptChartIndicators` — script outputs the user has
   // deleted from the chart are already filtered out of it (see usePaneLayout's own
@@ -556,9 +584,9 @@ export function CandlestickChart({
   const combinedVisibleDrawings = useMemo(
     () => [
       ...visibleDrawings,
-      ...scriptingState.scriptDrawings.filter((d) => !closedStrategyDrawingPrefixes.some((prefix) => d.id.startsWith(prefix))),
+      ...scriptingState.scriptDrawings.filter((d) => !closedStrategyPrefixes.some((prefix) => d.id.startsWith(prefix))),
     ],
-    [visibleDrawings, scriptingState.scriptDrawings, closedStrategyDrawingPrefixes],
+    [visibleDrawings, scriptingState.scriptDrawings, closedStrategyPrefixes],
   );
 
   const {
@@ -1029,6 +1057,25 @@ export function CandlestickChart({
     onEditScript,
   });
 
+  // A second assistant, separate from the panel's own, for the strategy card's written-out
+  // questions. Separate on purpose rather than shared: a backtest review is a one-shot question
+  // with its own answer above the chart, and threading it into the chat's transcript would both
+  // bury it and drag every previous turn of an unrelated conversation into the request. `send` is
+  // null when the caller configured no transport — `ask` then does nothing and the card, which is
+  // gated on the same thing, never renders.
+  const strategyAi = useAiAssistant({ chart: aiChart, send: aiSend ?? null, serverTools: ai?.serverTools ?? [] });
+  // Which written-out question is in flight, and what came back for it. The transcript is the
+  // hook's; these two are what the banner above the chart is made of.
+  const [strategyAiPrompt, setStrategyAiPrompt] = useState<{ id: string; label: string } | null>(null);
+  const [strategyAiDismissed, setStrategyAiDismissed] = useState(false);
+  const strategyAiAnswer = useMemo(() => {
+    for (let i = strategyAi.transcript.length - 1; i >= 0; i--) {
+      const entry = strategyAi.transcript[i];
+      if (entry.role === "assistant" && entry.text.trim() !== "") return entry.text;
+    }
+    return null;
+  }, [strategyAi.transcript]);
+
   const mobilePlacement = useMobilePointPlacement({
     enabled: placementActive,
     plotRef: zoomRef,
@@ -1087,6 +1134,26 @@ export function CandlestickChart({
         onSettingsChange: (next: StrategySettings) => scriptingState.setStrategySettings(openStrategy.id, next),
         onHoverTrades: setPanelHoveredTrades,
         onClose: closeStrategyPanel,
+        // Only when the host actually has an editor to open it in — the chart owns none of its own.
+        onViewCode: onEditScript === undefined ? undefined : () => onEditScript(openStrategy.id),
+        // Gated on a transport actually existing, which is what "the AI is on" means here: the
+        // `ai` prop alone only says the caller wants an assistant, not that one can answer.
+        ai:
+          aiSend === null || aiSend === undefined
+            ? undefined
+            : {
+                ask: (prompt: StrategyAiPrompt) => {
+                  const result = scriptingState.runOutputs[openStrategy.id]?.result?.strategy ?? null;
+                  if (result === null) return;
+                  setStrategyAiPrompt({ id: prompt.id, label: prompt.label });
+                  setStrategyAiDismissed(false);
+                  strategyAi.reset();
+                  strategyAi.ask(
+                    strategyAiRequest(prompt, openStrategy.name, result, openStrategy.strategySettings ?? DEFAULT_STRATEGY_SETTINGS)
+                  );
+                },
+                pendingId: strategyAi.busy ? strategyAiPrompt?.id ?? null : null,
+              },
         formatDate: dFmt,
         markedTime: strategyMarkedTime,
         markedToleranceMs: barToleranceMs,
@@ -1176,6 +1243,30 @@ export function CandlestickChart({
       className={["lq-chart", isFullscreen && "lq-chart--fullscreen", placementActive && "lq-chart--placing", className].filter(Boolean).join(" ")}
       style={{ width: isFullscreen ? undefined : width }}
     >
+      {/* The assistant's answer to a strategy question, above the chart rather than inside the
+          panel that asked: the advice is about these candles, and a panel three screens down is
+          not where it can be read against them. */}
+      {strategyAiPrompt !== null && !strategyAiDismissed && (
+        <div className="lq-chart__strategy-ai-answer" role="status">
+          <div className="lq-chart__strategy-ai-answer-head">
+            <span className="lq-chart__strategy-ai-answer-question">{strategyAiPrompt.label}</span>
+            <button
+              type="button"
+              className="lq-chart__pane-header-action"
+              onClick={() => {
+                strategyAi.stop();
+                setStrategyAiDismissed(true);
+              }}
+              aria-label="Fermer la réponse de l'assistant"
+            >
+              <CloseIcon size={13} />
+            </button>
+          </div>
+          <div className="lq-chart__strategy-ai-answer-body">
+            {strategyAiAnswer ?? (strategyAi.busy ? "L'assistant réfléchit…" : "Aucune réponse.")}
+          </div>
+        </div>
+      )}
       <div ref={mainRef} className="lq-chart__main">
       {showHeader && !seasonalityOpen && (
         <ChartHeader
@@ -1616,6 +1707,7 @@ export function CandlestickChart({
         addIndicator={addIndicator}
         customIndicators={customIndicators} addCustomIndicator={addCustomIndicator}
         scripts={scriptingState.scripts} toggleScriptEnabled={scriptingState.toggleScriptEnabled}
+        scriptPlacements={scriptPlacements}
         onEditScript={onEditScript} onCreateScript={onCreateScript} onDeleteScript={onDeleteScript}
         onCreateStrategyFromIndicator={onCreateStrategyFromIndicator}
         favoriteIndicatorIds={favoriteIndicatorIds}

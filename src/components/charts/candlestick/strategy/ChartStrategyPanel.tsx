@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { useChartDimensions } from "../../internal/useChartDimensions";
-import { ChevronDownIcon, ChevronUpIcon, CloseIcon, DetachWindowIcon, MaximizeIcon, SettingsIcon } from "../../../icons";
+import { ChevronDownIcon, ChevronUpIcon, CloseIcon, CodeIcon, DetachWindowIcon, MaximizeIcon, SettingsIcon } from "../../../icons";
 import type { StrategyResult, StrategyTrade } from "../interfaces/StrategyResult.interface";
 import type { StrategySettings } from "../interfaces/StrategySettings.interface";
 import { StrategyEquityChart } from "./StrategyEquityChart";
@@ -9,6 +9,7 @@ import { StrategyExcursionChart } from "./StrategyExcursionChart";
 import { StrategyRobustnessPanel } from "./StrategyRobustnessPanel";
 import { StrategyMetricsGrid } from "./StrategyMetricsGrid";
 import { StrategySettingsForm } from "./StrategySettingsForm";
+import { STRATEGY_AI_PROMPTS, type StrategyAiPrompt } from "./strategyAiPrompts";
 import "./ChartStrategyPanel.css";
 
 export interface ChartStrategyPanelProps {
@@ -24,6 +25,21 @@ export interface ChartStrategyPanelProps {
   onSettingsChange: (next: StrategySettings) => void;
   onClose: () => void;
   formatDate: (date: Date) => string;
+  /** The assistant, when the host has one configured (see `CandlestickChartProps.ai`). Absent — no
+   *  transport, or no `ai` prop at all — and the card does not render: a row of questions that
+   *  cannot be asked is worse than no row. */
+  ai?: {
+    ask: (prompt: StrategyAiPrompt) => void;
+    /** Which question is being answered right now, so its own chip says so and the rest wait. */
+    pendingId: string | null;
+  };
+  /** Opens this strategy's own source in the script editor. Absent means the host has no editor to
+   *  open (see `CandlestickChartProps.onEditScript`) and the button does not appear.
+   *
+   *  Unlike the three buttons below it, this one shows in every chrome: it acts on the strategy,
+   *  not on the panel's frame, so a tester read in a modal has the same reason to reach its code as
+   *  a docked one. */
+  onViewCode?: () => void;
   /** Opens this same panel in a modal, and hides the docked one. Absent means the caller does not
    *  offer it, and the button does not appear. */
   onRequestFullscreen?: () => void;
@@ -86,6 +102,8 @@ export function ChartStrategyPanel({
   settings,
   onSettingsChange,
   onClose,
+  onViewCode,
+  ai,
   formatDate,
   markedTime = null,
   markedToleranceMs = 0,
@@ -247,6 +265,17 @@ export function ChartStrategyPanel({
             </button>
           ))}
         </nav>
+        {onViewCode && (
+          <button
+            type="button"
+            className="lq-chart__pane-header-action"
+            onClick={onViewCode}
+            aria-label="Voir le code de la stratégie"
+            title="Voir le code de la stratégie"
+          >
+            <CodeIcon size={13} />
+          </button>
+        )}
         {chrome === "full" && onRequestFullscreen && (
           <button
             type="button"
@@ -403,20 +432,18 @@ export function ChartStrategyPanel({
                 markedTime={markedTime}
                 onHoverTrades={onHoverTrades}
               />
-              {/* One segment per closed trade, in order — the run's own shape at a glance: a wall of
-                  red says "this loses steadily", a red patch says "this broke in one regime". */}
               {result.trades.length > 0 && (
-                <div className="lq-strategy__ribbon" aria-hidden="true">
-                  {result.trades.map((trade) => (
-                    <span
-                      key={trade.id}
-                      className={`lq-strategy__ribbon-cell lq-strategy__ribbon-cell--${trade.profit >= 0 ? "up" : "down"}`}
-                      title={`${trade.profit >= 0 ? "+" : "−"}${Math.abs(trade.profit).toFixed(2)}`}
-                    />
-                  ))}
-                </div>
+                <TradeRibbon
+                  trades={result.trades}
+                  currency={settings.currency}
+                  formatDate={formatDate}
+                  markedTime={markedTime}
+                  markedToleranceMs={markedToleranceMs}
+                  onHoverTrades={onHoverTrades}
+                />
               )}
               <StrategyMetricsGrid metrics={result.metrics} currency={settings.currency} />
+              {ai && <StrategyAiCard ask={ai.ask} pendingId={ai.pendingId} />}
               {result.openPosition && (
                 <p className="lq-strategy__open-position">
                   Position encore ouverte : {result.openPosition.direction === "long" ? "long" : "short"}{" "}
@@ -433,6 +460,141 @@ export function ChartStrategyPanel({
         </div>
       )}
     </section>
+  );
+}
+
+
+/** One segment per closed trade, in order — the run's own shape at a glance: a wall of losses says
+ *  "this loses steadily", a patch of them says "this broke in one regime".
+ *
+ *  It used to be a bare strip of colour with a number in a native tooltip, which on the black and
+ *  white palette is a black bar and nothing else: the two colours that carry its whole meaning
+ *  collapse into one, and no caption said what it was (exigence : « on ne sait pas à quoi elle
+ *  correspond »). So it now names itself, and pointing at a segment reads the trade out in full
+ *  underneath rather than waiting a second for a tooltip that only ever showed a number. Hovering
+ *  also marks the same fill on the price chart above, exactly as the other charts in this panel do,
+ *  which is what ties a segment to the bar it happened on.
+ *
+ *  A segment keeps its win/loss class regardless: on a colour palette that is the fastest read
+ *  there is, and on E-ink the pattern is carried by the outline the marked/hovered segment gets. */
+
+/** The row of questions worth asking about this backtest — click one and the assistant answers
+ *  above the chart.
+ *
+ *  Written-out questions rather than a text box: the panel already knows what a reader of a
+ *  backtest wants to know next, and a blank prompt in front of a grid of numbers is a worse
+ *  starting point than five good openings. The answer deliberately lands above the chart rather
+ *  than inside this card — the advice is about the candles, and reading it beside them beats
+ *  reading it inside a panel that may well be scrolled away from them. */
+function StrategyAiCard({ ask, pendingId }: { ask: (prompt: StrategyAiPrompt) => void; pendingId: string | null }) {
+  return (
+    <section className="lq-strategy__ai">
+      <h4 className="lq-strategy__ai-title">Demander à l&apos;assistant</h4>
+      <p className="lq-strategy__ai-hint">
+        Les chiffres ci-dessus partent avec la question. La réponse s&apos;affiche au-dessus du graphique.
+      </p>
+      <div className="lq-strategy__ai-prompts">
+        {STRATEGY_AI_PROMPTS.map((prompt) => (
+          <button
+            key={prompt.id}
+            type="button"
+            className={[
+              "lq-strategy__ai-prompt",
+              pendingId === prompt.id && "lq-strategy__ai-prompt--pending",
+            ]
+              .filter(Boolean)
+              .join(" ")}
+            // One question at a time: a second click while the first is still streaming would
+            // abort it (the assistant runs one turn at a time), losing an answer the user asked
+            // for in order to start one they may not have meant to.
+            disabled={pendingId !== null}
+            onClick={() => ask(prompt)}
+          >
+            {pendingId === prompt.id ? "En cours…" : prompt.label}
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function TradeRibbon({
+  trades,
+  currency,
+  formatDate,
+  markedTime,
+  markedToleranceMs,
+  onHoverTrades,
+}: {
+  trades: StrategyTrade[];
+  currency: string;
+  formatDate: (date: Date) => string;
+  markedTime?: number | null;
+  markedToleranceMs?: number;
+  onHoverTrades?: (trades: StrategyTrade[] | null) => void;
+}) {
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const hovered = trades.find((trade) => trade.id === hoveredId) ?? null;
+  // The fill the price chart is pointing at, so the ribbon answers the crosshair as well as asking
+  // it — same tolerance rule the other charts here use.
+  const tolerance = markedToleranceMs ?? 0;
+  const isMarked = (trade: StrategyTrade) =>
+    markedTime != null &&
+    (Math.abs(trade.entryTime - markedTime) <= tolerance || Math.abs(trade.exitTime - markedTime) <= tolerance);
+  // What the readout shows when nothing is under the pointer: the strip's own caption, so the row
+  // is never blank and never has to be discovered by hovering it.
+  const readout = hovered ?? trades.find(isMarked) ?? null;
+
+  return (
+    <div className="lq-strategy__ribbon-block">
+      <div
+        className="lq-strategy__ribbon"
+        role="img"
+        aria-label={`${trades.length} trades clôturés, du plus ancien au plus récent`}
+        onPointerLeave={() => {
+          setHoveredId(null);
+          onHoverTrades?.(null);
+        }}
+      >
+        {trades.map((trade) => (
+          <span
+            key={trade.id}
+            className={[
+              "lq-strategy__ribbon-cell",
+              `lq-strategy__ribbon-cell--${trade.profit >= 0 ? "up" : "down"}`,
+              (trade.id === hoveredId || isMarked(trade)) && "lq-strategy__ribbon-cell--marked",
+            ]
+              .filter(Boolean)
+              .join(" ")}
+            onPointerEnter={() => {
+              setHoveredId(trade.id);
+              onHoverTrades?.([trade]);
+            }}
+          />
+        ))}
+      </div>
+      <p className="lq-strategy__ribbon-readout">
+        {readout === null ? (
+          <>
+            Chaque segment est un trade clôturé, du plus ancien au plus récent. Survolez-en un pour le lire.
+          </>
+        ) : (
+          <>
+            <span className="lq-strategy__ribbon-readout-index">
+              Trade {trades.indexOf(readout) + 1}/{trades.length}
+            </span>{" "}
+            · {readout.direction === "long" ? "long" : "short"}
+            {readout.entryLabel ? ` (${readout.entryLabel})` : ""} · {formatDate(new Date(readout.entryTime))} →{" "}
+            {formatDate(new Date(readout.exitTime))} ·{" "}
+            <span className={readout.profit >= 0 ? "lq-strategy__up" : "lq-strategy__down"}>
+              {readout.profit >= 0 ? "+" : "−"}
+              {Math.abs(readout.profit).toFixed(2)} {currency} ({readout.profit >= 0 ? "+" : "−"}
+              {Math.abs(readout.profitPercent * 100).toFixed(2)} %)
+            </span>
+          </>
+        )}
+      </p>
+    </div>
   );
 }
 

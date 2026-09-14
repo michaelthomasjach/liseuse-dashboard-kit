@@ -603,120 +603,136 @@ export function ChartCanvasOverlay({
               that the cluster simply stops growing and the count beside it carries the quantity,
               so an unusually eventful bar can't make the cluster sprawl and no card has to be
               spent on saying how many there are. */}
-          {eventStacks.length > 0 && (
-            <g className="lq-chart__events">
-              {eventStacks.map((stack) => {
-                const cx = zoomedXScale(stack.i + 0.5);
-                const cy = priceHeight - EVENT_MARKER_OFFSET;
-                const stacked = stack.events.length > 1;
-                const shown = stack.events.slice(0, MAX_STACKED_EVENT_MARKERS);
-                // The pointer is on this event's own column. Only the *same column*, not "near":
-                // the badge sits under the plot and the crosshair is what the eye is following, so
-                // lining up with it is the whole signal.
-                const underPointer = hoverIndex === stack.i;
-                const title = stacked
-                  ? `${stack.events.length} évènements — cliquer pour les afficher`
-                  : `${dFmt(stack.events[0].date)} — ${stack.events[0].label}`;
-                return (
-                  <g
-                    key={stack.i}
-                    className="lq-chart__event-marker"
-                    transform={`translate(${cx}, ${cy})`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setEventModalOpen(false);
-                      setActiveEventStack({ i: stack.i, events: stack.events });
-                    }}
-                  >
-                    <title>{title}</title>
-                    <line x1={0} x2={0} y1={EVENT_MARKER_RADIUS} y2={priceHeight - cy} stroke={shown[0].color} strokeDasharray="2,2" />
-                    {/* The swell lives on an inner group with no transform of its own. The outer
-                        one carries `translate(cx, cy)`, and CSS composes the `scale` property
-                        *after* the `transform` attribute — so scaling there scaled the translation
-                        too and the marker swung away from its bar by tens of pixels instead of
-                        breathing in place (measured: a 55px drift). Nested, the scale is purely
-                        local. The dashed line stays outside it: it runs from the marker up to the
-                        plot's top edge, and stretching that is not what "breathe" means. */}
-                    <g
-                      className={["lq-chart__event-marker-swell", underPointer && "lq-chart__event-marker-swell--breathing"]
-                        .filter(Boolean)
-                        .join(" ")}
-                    >
-                    {/* Invisible, cluster-wide sibling that alone widens the tap target on a
-                        coarse (touch) pointer — same "grow only the hit area, not the visible
-                        dot" reasoning as DrawingHandle's own hitarea circle, just sized (and
-                        re-centered) to cover the whole fanned-out cluster rather than a single
-                        circle. The marker's onClick lives on the parent <g>; a click landing on
-                        this still-painted-but-transparent circle bubbles up to it exactly like
-                        one landing on any visible circle below already does. */}
-                    <circle
-                      className="lq-chart__event-marker-hitarea"
-                      r={EVENT_MARKER_RADIUS + (shown.length - 1) * (EVENT_STACK_OFFSET / 2)}
-                      cx={(shown.length - 1) * (EVENT_STACK_OFFSET / 2)}
-                      cy={-(shown.length - 1) * (EVENT_STACK_OFFSET / 2)}
-                    />
-                    {shown.map((event, i) => {
-                      // Every card is a real event now. The topmost one used to be replaced by a
-                      // "+N" overflow badge, which cost a colour and said the same thing the count
-                      // beside the cluster already says — in a second format, so a four-stack
-                      // asserted its size twice and disagreed with itself ("+2" against "4").
-                      const glyph = (event.symbol ?? event.kind.charAt(0)).slice(0, 2).toUpperCase();
-                      return (
-                        <g key={i} transform={`translate(${i * EVENT_STACK_OFFSET}, ${-i * EVENT_STACK_OFFSET})`}>
-                          <circle r={EVENT_MARKER_RADIUS} fill={event.color} />
-                          {/* dominantBaseline="central" alone renders visibly high in Chromium
-                              for this glyph's own small font-size (see charts-shared.css) — a
-                              manual dy nudge is the standard cross-browser fix for that
-                              well-known SVG baseline quirk. */}
-                          {/* `dy="0.35em"` on the default alphabetic baseline, not `dominant-baseline: central`.
-                              `central` centres the *font* box — midway between ascent and descent —
-                              which for an all-caps glyph sits slightly low, since the descender
-                              space below the baseline is empty here. Half a cap-height above the
-                              baseline is where a capital's own visual centre actually is, so this
-                              centres the letter itself, and being in `em` it stays centred at any
-                              font-size. The `dy="0.5"` user-unit nudge this replaces pushed the
-                              glyph further down still, compounding the offset instead of fixing
-                              it — and being absolute, it drifted as the font-size changed. */}
-                          <text textAnchor="middle" dy="0.35em">
-                            {glyph}
-                          </text>
-                        </g>
-                      );
-                    })}
-                    {/* How many share this bar, once there is more than a pair. The fan already
-                        shows *which* events they are, but past two the cards overlap enough that
-                        counting them by eye stops being reliable — and that is exactly the moment
-                        the number is worth printing. Under the cluster rather than on it: it
-                        annotates the whole stack, and putting it on the topmost card would read as
-                        belonging to that one event.
-
-                        To the left, not below: the fan opens up-and-right, so the left side is the
-                        one piece of clear space around the cluster — and below is where the date
-                        badge sits once the crosshair is on this very column, which is exactly when
-                        the count is being looked at.
-
-                        The *total*, not how many are hidden. At two events with two cards drawn
-                        nothing is hidden, and a counter reading "+0" there would be worse than no
-                        counter at all — so the number answers "how many are here", which holds at
-                        every size. */}
-                    {stacked && (
-                      <text
-                        className="lq-chart__event-marker-count"
-                        textAnchor="end"
-                        x={-(EVENT_MARKER_RADIUS + 3)}
-                        dy="0.35em"
-                      >
-                        {stack.events.length}
-                      </text>
-                    )}
-                    </g>
-                  </g>
-                );
-              })}
-            </g>
-          )}
         </g>
       </svg>
+      {/* The event markers ride their own layer, above the canvas instead of under it.
+          `.lq-chart__canvas` is absolutely positioned and the `<svg>` above is not, so CSS paints
+          the canvas *over* the SVG — which nothing notices while the canvas is almost entirely
+          transparent, and everything notices the moment replay paints an opaque cover across it:
+          a marker on the last revealed bar had its right side sliced off by a cover that starts
+          only half a candle away from its centre. A positioned sibling *after* the canvas paints
+          above it, so a revealed marker is drawn whole.
+
+          Its own `<svg>` rather than raising the one above: that one carries the axes, the pan
+          overlay and every drawing handle, and lifting all of it over the canvas would re-layer
+          far more than the markers this is about. */}
+      {eventStacks.length > 0 && (
+        <svg
+          className="lq-chart__events-layer"
+          style={{ left: dims.margin.left, top: dims.margin.top, width: dims.boundedWidth, height: plotBoundedHeight }}
+        >
+          <g className="lq-chart__events">
+            {eventStacks.map((stack) => {
+              const cx = zoomedXScale(stack.i + 0.5);
+              const cy = priceHeight - EVENT_MARKER_OFFSET;
+              const stacked = stack.events.length > 1;
+              const shown = stack.events.slice(0, MAX_STACKED_EVENT_MARKERS);
+              // The pointer is on this event's own column. Only the *same column*, not "near":
+              // the badge sits under the plot and the crosshair is what the eye is following, so
+              // lining up with it is the whole signal.
+              const underPointer = hoverIndex === stack.i;
+              const title = stacked
+                ? `${stack.events.length} évènements — cliquer pour les afficher`
+                : `${dFmt(stack.events[0].date)} — ${stack.events[0].label}`;
+              return (
+                <g
+                  key={stack.i}
+                  className="lq-chart__event-marker"
+                  transform={`translate(${cx}, ${cy})`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEventModalOpen(false);
+                    setActiveEventStack({ i: stack.i, events: stack.events });
+                  }}
+                >
+                  <title>{title}</title>
+                  <line x1={0} x2={0} y1={EVENT_MARKER_RADIUS} y2={priceHeight - cy} stroke={shown[0].color} strokeDasharray="2,2" />
+                  {/* The swell lives on an inner group with no transform of its own. The outer
+                      one carries `translate(cx, cy)`, and CSS composes the `scale` property
+                      *after* the `transform` attribute — so scaling there scaled the translation
+                      too and the marker swung away from its bar by tens of pixels instead of
+                      breathing in place (measured: a 55px drift). Nested, the scale is purely
+                      local. The dashed line stays outside it: it runs from the marker up to the
+                      plot's top edge, and stretching that is not what "breathe" means. */}
+                  <g
+                    className={["lq-chart__event-marker-swell", underPointer && "lq-chart__event-marker-swell--breathing"]
+                      .filter(Boolean)
+                      .join(" ")}
+                  >
+                  {/* Invisible, cluster-wide sibling that alone widens the tap target on a
+                      coarse (touch) pointer — same "grow only the hit area, not the visible
+                      dot" reasoning as DrawingHandle's own hitarea circle, just sized (and
+                      re-centered) to cover the whole fanned-out cluster rather than a single
+                      circle. The marker's onClick lives on the parent <g>; a click landing on
+                      this still-painted-but-transparent circle bubbles up to it exactly like
+                      one landing on any visible circle below already does. */}
+                  <circle
+                    className="lq-chart__event-marker-hitarea"
+                    r={EVENT_MARKER_RADIUS + (shown.length - 1) * (EVENT_STACK_OFFSET / 2)}
+                    cx={(shown.length - 1) * (EVENT_STACK_OFFSET / 2)}
+                    cy={-(shown.length - 1) * (EVENT_STACK_OFFSET / 2)}
+                  />
+                  {shown.map((event, i) => {
+                    // Every card is a real event now. The topmost one used to be replaced by a
+                    // "+N" overflow badge, which cost a colour and said the same thing the count
+                    // beside the cluster already says — in a second format, so a four-stack
+                    // asserted its size twice and disagreed with itself ("+2" against "4").
+                    const glyph = (event.symbol ?? event.kind.charAt(0)).slice(0, 2).toUpperCase();
+                    return (
+                      <g key={i} transform={`translate(${i * EVENT_STACK_OFFSET}, ${-i * EVENT_STACK_OFFSET})`}>
+                        <circle r={EVENT_MARKER_RADIUS} fill={event.color} />
+                        {/* dominantBaseline="central" alone renders visibly high in Chromium
+                            for this glyph's own small font-size (see charts-shared.css) — a
+                            manual dy nudge is the standard cross-browser fix for that
+                            well-known SVG baseline quirk. */}
+                        {/* `dy="0.35em"` on the default alphabetic baseline, not `dominant-baseline: central`.
+                            `central` centres the *font* box — midway between ascent and descent —
+                            which for an all-caps glyph sits slightly low, since the descender
+                            space below the baseline is empty here. Half a cap-height above the
+                            baseline is where a capital's own visual centre actually is, so this
+                            centres the letter itself, and being in `em` it stays centred at any
+                            font-size. The `dy="0.5"` user-unit nudge this replaces pushed the
+                            glyph further down still, compounding the offset instead of fixing
+                            it — and being absolute, it drifted as the font-size changed. */}
+                        <text textAnchor="middle" dy="0.35em">
+                          {glyph}
+                        </text>
+                      </g>
+                    );
+                  })}
+                  {/* How many share this bar, once there is more than a pair. The fan already
+                      shows *which* events they are, but past two the cards overlap enough that
+                      counting them by eye stops being reliable — and that is exactly the moment
+                      the number is worth printing. Under the cluster rather than on it: it
+                      annotates the whole stack, and putting it on the topmost card would read as
+                      belonging to that one event.
+
+                      To the left, not below: the fan opens up-and-right, so the left side is the
+                      one piece of clear space around the cluster — and below is where the date
+                      badge sits once the crosshair is on this very column, which is exactly when
+                      the count is being looked at.
+
+                      The *total*, not how many are hidden. At two events with two cards drawn
+                      nothing is hidden, and a counter reading "+0" there would be worse than no
+                      counter at all — so the number answers "how many are here", which holds at
+                      every size. */}
+                  {stacked && (
+                    <text
+                      className="lq-chart__event-marker-count"
+                      textAnchor="end"
+                      x={-(EVENT_MARKER_RADIUS + 3)}
+                      dy="0.35em"
+                    >
+                      {stack.events.length}
+                    </text>
+                  )}
+                  </g>
+                </g>
+              );
+            })}
+          </g>
+        </svg>
+      )}
       {/* "text"/"comment"/"note"/"priceNote" — a real HTML input, not anything canvas/SVG can
           offer an editable text cursor inside of, positioned at the click that opened it (see
           useDrawingState's own textEntry) and unmounted the moment it commits or cancels; the

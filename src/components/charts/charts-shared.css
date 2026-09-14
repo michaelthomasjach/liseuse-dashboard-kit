@@ -3266,3 +3266,57 @@
   width: 100%;
   justify-content: center;
 }
+
+/* The event markers' own layer. Positioned, and rendered after `.lq-chart__canvas`, which is what
+   puts it above: both are positioned siblings with `z-index: auto`, so document order decides, and
+   the SVG in normal flow between them is painted *below* both. Replay's opaque cover is the case
+   that made the difference visible — see ChartCanvasOverlay's own doc where this layer is built.
+   Transparent to the pointer so panning the plot underneath still works; each marker opts back in. */
+.lq-chart__events-layer {
+  position: absolute;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.lq-chart__events-layer .lq-chart__event-marker {
+  pointer-events: auto;
+}
+
+/* ── The assistant's answer to a strategy question ────────────────────────────────────────────
+   Above the chart row, full width, because the advice is about the candles below it — see the
+   strategy panel's own AI card for where the question comes from. A banner rather than a modal:
+   it must be readable *while* looking at what it is describing. */
+.lq-chart__strategy-ai-answer {
+  border: 1px solid var(--lq-color-border-subtle);
+  border-left: 3px solid var(--lq-color-accent);
+  background-color: var(--lq-color-panel);
+  padding: var(--lq-space-2) var(--lq-space-3);
+  margin-bottom: var(--lq-space-2);
+}
+
+.lq-chart__strategy-ai-answer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lq-space-2);
+}
+
+.lq-chart__strategy-ai-answer-question {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--lq-color-text-muted);
+}
+
+/* Capped and scrollable: an answer is prose of unpredictable length, and one that pushes the chart
+   off screen defeats the reason it is shown here rather than in the panel. */
+.lq-chart__strategy-ai-answer-body {
+  margin-top: var(--lq-space-1);
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--lq-color-text);
+  white-space: pre-wrap;
+  max-height: 11rem;
+  overflow-y: auto;
+}

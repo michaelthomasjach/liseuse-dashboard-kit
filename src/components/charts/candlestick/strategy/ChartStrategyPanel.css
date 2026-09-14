@@ -175,11 +175,16 @@
 
 /* One flex cell per trade, all sharing the width equally — the point is the *pattern* of wins and
    losses over the run, so every trade counts the same regardless of its size. */
+.lq-strategy__ribbon-block {
+  margin: var(--lq-space-2) 0 var(--lq-space-3);
+}
+
 .lq-strategy__ribbon {
   display: flex;
   gap: 1px;
-  height: 8px;
-  margin: var(--lq-space-2) 0 var(--lq-space-3);
+  /* Taller than the 8px it was: it is a hover target now, and 8px is below what a hand can aim at
+     without hunting. */
+  height: 12px;
 }
 
 .lq-strategy__ribbon-cell {
@@ -194,6 +199,28 @@
 
 .lq-strategy__ribbon-cell--down {
   background-color: var(--lq-color-down);
+}
+
+/* The segment under the pointer, or the one the price chart's crosshair is on. An outline rather
+   than a colour change: on the black and white palette a win and a loss are already the same ink,
+   so only a shape can single one out. */
+.lq-strategy__ribbon-cell--marked {
+  outline: 2px solid var(--lq-color-text);
+  outline-offset: 1px;
+}
+
+.lq-strategy__ribbon-readout {
+  margin: var(--lq-space-2) 0 0;
+  font-size: 0.72rem;
+  color: var(--lq-color-text-muted);
+  /* Fixed height: the line swaps between the caption and a trade on every pointer move, and a
+     reflow under the ribbon each time would make the whole panel twitch. */
+  min-height: 1.2em;
+}
+
+.lq-strategy__ribbon-readout-index {
+  font-weight: 600;
+  color: var(--lq-color-text);
 }
 
 /* ── Metrics ───────────────────────────────────────────────────────────────────────────────── */
@@ -714,4 +741,63 @@
   font-size: 0.65rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+}
+
+/* ── Assistant ─────────────────────────────────────────────────────────────────────────────── */
+
+.lq-strategy__ai {
+  margin-top: var(--lq-space-3);
+  padding-top: var(--lq-space-3);
+  border-top: 1px solid var(--lq-color-border-subtle);
+}
+
+.lq-strategy__ai-title {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-strategy__ai-hint {
+  margin: var(--lq-space-1) 0 var(--lq-space-2);
+  font-size: 0.72rem;
+  color: var(--lq-color-text-muted);
+}
+
+/* Wraps rather than scrolls: these are five short questions, and a row that hides two of them
+   behind a scroll defeats the point of writing them out in the first place. */
+.lq-strategy__ai-prompts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--lq-space-1);
+}
+
+.lq-strategy__ai-prompt {
+  padding: 4px 10px;
+  border: 1px solid var(--lq-color-border-subtle);
+  border-radius: 999px;
+  background: none;
+  color: var(--lq-color-text);
+  font: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.lq-strategy__ai-prompt:hover:not(:disabled) {
+  background-color: var(--lq-color-hover);
+  border-color: var(--lq-color-accent);
+}
+
+.lq-strategy__ai-prompt:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+/* The one being answered keeps full contrast while its siblings dim — it is the only one whose
+   state changed, and dimming it along with them would hide which question is running. */
+.lq-strategy__ai-prompt--pending:disabled {
+  opacity: 1;
+  border-color: var(--lq-color-accent);
 }

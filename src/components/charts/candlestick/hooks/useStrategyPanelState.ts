@@ -101,15 +101,20 @@ export function useStrategyPanelState({ scripts, restoreScriptDrawings }: UseStr
     setView("detached");
   }, []);
 
-  /** Drawing-id prefixes belonging to every strategy whose panel is *not* open — what the chart
-   *  filters its script drawings against.
+  /** Id prefixes belonging to every strategy whose panel is *not* open — what the chart filters
+   *  both its script drawings *and* its script indicators against. A strategy's panes and overlays
+   *  are as much its own accounting as its fills are, so closing the tester takes them with it
+   *  (exigence : « quand je ferme la pane stratégie, les éléments associés seront également
+   *  fermés ») and reopening it brings them back. The two id schemes agree by construction: a
+   *  drawing and a pane produced by the same script both start `script:<id>:` (see
+   *  `scriptPaneIndicatorId`).
    *
    *  Derived, never toggled, and that distinction is the whole bug it replaces: withholding on
    *  close only ever holds if the panel was open first, so the moment the tester stopped opening
    *  itself at load, every backtest's fills sat on the candles with nothing on screen to explain
    *  them. Stated as a rule it cannot come apart — the markers are drawn if and only if the panel
    *  that accounts for them is. */
-  const closedDrawingPrefixes = useMemo(
+  const closedPrefixes = useMemo(
     () => strategyScripts.filter((s) => s.id !== openStrategyId).map((s) => `script:${s.id}:`),
     [strategyScripts, openStrategyId],
   );
@@ -126,6 +131,6 @@ export function useStrategyPanelState({ scripts, restoreScriptDrawings }: UseStr
     close,
     toggle,
     detach,
-    closedDrawingPrefixes,
+    closedPrefixes,
   };
 }

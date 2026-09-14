@@ -52,6 +52,9 @@ export interface IndicatorModalsProps {
    *  already a unique, persistent thing (never "added" more than once) — clicking its row toggles
    *  it enabled/disabled instead of creating a new indicator instance. */
   scripts: ScriptDef[];
+  /** Where each script's own output currently lands on the chart, by script id — forwarded to the
+   *  picker, see `IndicatorPickerModalProps.scriptPlacements`. */
+  scriptPlacements?: Record<string, ("price" | "own")[]>;
   /** Commits one `new Variable(...)` parameter of a script-produced indicator's own script. Unlike
    *  every other field in this modal it applies immediately (and re-runs the script) rather than on
    *  "Enregistrer" — a parameter belongs to the script, not to the indicator draft this modal
@@ -138,6 +141,7 @@ export function IndicatorModals({
   scripts,
   setScriptParamValue,
   toggleScriptEnabled,
+  scriptPlacements,
   onEditScript,
   codeViewer,
   onCreateScript,
@@ -227,6 +231,7 @@ export function IndicatorModals({
         customIndicators={customIndicators}
         addCustomIndicator={addCustomIndicator}
         scripts={scripts}
+        scriptPlacements={scriptPlacements}
         toggleScriptEnabled={toggleScriptEnabled}
         openCorrelationSetup={openCorrelationSetup}
         favoriteIndicatorIds={favoriteIndicatorIds}

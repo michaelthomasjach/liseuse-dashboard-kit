@@ -66,6 +66,10 @@ export interface IndicatorPickerModalProps {
   customIndicators: CustomIndicatorDef[] | undefined;
   addCustomIndicator: (def: CustomIndicatorDef) => void;
   scripts: ScriptDef[];
+  /** Where each script's own output currently lands on the chart, by script id — see
+   *  `PickerOption.placements`. Absent (or missing an entry) simply means "not known yet", which
+   *  is the honest state for a script that has never run. */
+  scriptPlacements?: Record<string, ("price" | "own")[]>;
   toggleScriptEnabled: (id: string) => void;
   openCorrelationSetup: () => void;
   favoriteIndicatorIds: string[];
@@ -102,6 +106,7 @@ export function IndicatorPickerModal({
   customIndicators,
   addCustomIndicator,
   scripts,
+  scriptPlacements,
   toggleScriptEnabled,
   openCorrelationSetup,
   favoriteIndicatorIds,
@@ -281,6 +286,12 @@ export function IndicatorPickerModal({
               label: string;
               category: string;
               pane: "price" | "own";
+              /** Where this row's output actually lands on the chart, when that is known and is
+               *  more than one place. A script is not one or the other: the same run can open a
+               *  pane *and* draw over the candles, and a row badged only "panneau séparé" then
+               *  says half of what will happen. Falls back to `[pane]` — one badge, as before —
+               *  for a built-in or a script that has not run yet. */
+              placements?: ("price" | "own")[];
               onSelect: () => void;
               descriptionKind?: IndicatorKind;
               /** Script rows only — whether this script is currently enabled (running), shown
@@ -349,6 +360,7 @@ export function IndicatorPickerModal({
                 enabled: s.enabled !== false,
                 codeTarget: { scriptId: s.id },
                 scriptId: s.id,
+                placements: scriptPlacements?.[s.id],
                 canBecomeStrategy: analyzeScriptKind(s.code).kind !== "strategy",
               }));
             const allOptions = [...builtinOptions, ...customOptions, ...scriptOptions].filter((option) =>
@@ -464,12 +476,20 @@ export function IndicatorPickerModal({
                               <CheckIcon size={13} />
                             </span>
                           )}
-                          <span
-                            className="lq-chart__indicators-manager-badge"
-                            title={option.pane === "price" ? "Superposé au prix" : "Panneau séparé"}
-                          >
-                            {option.pane === "price" ? <OverlayBadgeIcon size={13} /> : <PaneBadgeIcon size={13} />}
-                          </span>
+                          {/* One badge per place this row's output lands — "price" first, so a
+                              row that does both always reads in the same order. */}
+                          {(option.placements?.length ? option.placements : [option.pane])
+                            .slice()
+                            .sort((a, b) => (a === b ? 0 : a === "price" ? -1 : 1))
+                            .map((placement) => (
+                              <span
+                                key={placement}
+                                className="lq-chart__indicators-manager-badge"
+                                title={placement === "price" ? "Superposé au prix" : "Panneau séparé"}
+                              >
+                                {placement === "price" ? <OverlayBadgeIcon size={13} /> : <PaneBadgeIcon size={13} />}
+                              </span>
+                            ))}
                         </button>
                         {option.codeTarget !== undefined && (
                           <button

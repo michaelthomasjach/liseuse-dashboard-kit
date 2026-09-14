@@ -6,7 +6,9 @@
   background-color: var(--lq-color-panel);
   border: 1px solid var(--lq-color-border);
   box-shadow: var(--lq-shadow-modal);
-  min-width: 520px;
+  /* The floor comes from the component, which knows what this particular window holds — see its
+     own `minWidth`. Left in CSS it contradicted the prop: a window told it could go to 300px still
+     stopped at 520. */
   min-height: 400px;
 }
 

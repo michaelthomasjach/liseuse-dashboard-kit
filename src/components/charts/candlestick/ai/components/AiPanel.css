@@ -24,7 +24,12 @@
    how much of the chart to give up; inside a window there is no chart to give up. */
 .lq-ai--bare {
   width: 100%;
+  /* Both, because the three hosts are not the same kind of box: the floating window and the phone
+     sheet are flex columns (so `flex` is what fills them), the detached browser window is not (so
+     `height` is). `min-height: 0` is what lets the transcript inside scroll rather than pushing the
+     panel past the bottom of whichever one it is in. */
   height: 100%;
+  min-height: 0;
   flex: 1 1 auto;
   border-left: none;
 }
@@ -74,6 +79,9 @@
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
+  /* A wheel that reaches the end of the conversation stops there instead of scrolling the page
+     behind it. */
+  overscroll-behavior: contain;
   padding: var(--lq-space-3);
   display: flex;
   flex-direction: column;
@@ -168,6 +176,8 @@
 
 .lq-ai__composer {
   position: relative;
+  /* Never gives way: the transcript above it is the part that scrolls. */
+  flex: 0 0 auto;
   border-top: 1px solid var(--lq-color-border-subtle);
   padding: var(--lq-space-2);
   display: flex;

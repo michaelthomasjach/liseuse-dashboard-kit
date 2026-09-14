@@ -169,7 +169,7 @@ export function ScriptEditorWindow({
     <LqThemeProvider palette={theme.palette} surface={theme.surface} font={theme.font} style={{ display: "contents" }}>
       <div
         className={["lq-script-window", maximized && "lq-script-window--maximized"].filter(Boolean).join(" ")}
-        style={maximized ? undefined : { left: rect.x, top: rect.y, width: rect.width, height: rect.height }}
+        style={maximized ? undefined : { left: rect.x, top: rect.y, width: rect.width, height: rect.height, minWidth }}
         role="dialog"
         aria-label={typeof title === "string" ? title : undefined}
       >

@@ -65,6 +65,11 @@ export function AiPanel({
   const [menuIndex, setMenuIndex] = useState(0);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  /** Whether new text should pull the view down with it. True until the reader scrolls away from
+   *  the bottom, true again as soon as they come back — and forced back on when they send a
+   *  question, since their own message arriving off-screen would read as nothing having happened.
+   *  A ref, not state: it changes on every scroll event and nothing renders from it. */
+  const stickToBottomRef = useRef(true);
   const [caret, setCaret] = useState(0);
   /** The `/` the menu is currently dismissed for. Escape closes the menu without touching the text
    *  — the slash the user typed is theirs to keep — so "closed" cannot be expressed by moving the
@@ -99,11 +104,19 @@ export function AiPanel({
   const matches = slash === null ? [] : filterSlashCommands(commands, slash.query).slice(0, 8);
   const menuOpen = slash !== null && matches.length > 0 && dismissed !== slash.query;
 
-  // Follows the conversation as it grows. `scrollTop` rather than scrollIntoView: the panel is its
-  // own scroller, and scrolling an element into view would drag the whole page on a narrow layout.
+  // Follows the conversation as it grows — but only while the reader is already at the bottom.
+  //
+  // Unconditionally, it made the transcript impossible to read back: an answer arrives in dozens of
+  // chunks, each one a `transcript` change, so scrolling up was undone within milliseconds and the
+  // panel looked like it had no scrolling at all. Following what is being written is only useful to
+  // someone watching it being written; the moment they go looking at what was said earlier, the
+  // right thing to do is nothing.
+  //
+  // `scrollTop` rather than scrollIntoView: the panel is its own scroller, and scrolling an element
+  // into view would drag the whole page on a narrow layout.
   useEffect(() => {
     const el = scrollRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
+    if (el && stickToBottomRef.current) el.scrollTop = el.scrollHeight;
   }, [transcript]);
 
   useEffect(() => {
@@ -134,6 +147,7 @@ export function AiPanel({
   }
 
   function submit() {
+    stickToBottomRef.current = true;
     if (busy || draft.trim() === "") return;
     void ask(draft);
     setDraft("");
@@ -185,7 +199,17 @@ export function AiPanel({
         </span>
       </header>
 
-      <div className="lq-ai__scroll" ref={scrollRef}>
+      <div
+        className="lq-ai__scroll"
+        ref={scrollRef}
+        onScroll={(e) => {
+          // A few pixels of tolerance: sub-pixel heights and momentum scrolling rarely land exactly
+          // on the bottom, and a reader who is plainly at the end should not stop being followed
+          // because of a rounding error.
+          const el = e.currentTarget;
+          stickToBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 24;
+        }}
+      >
         {send === null && (
           <p className="lq-ai__notice">
             Aucun moteur d'IA n'est configuré. L'application doit fournir la prop <code>ai</code> du graphique — soit une clé d'API, soit sa

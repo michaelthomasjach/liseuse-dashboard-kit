@@ -532,10 +532,11 @@ export function WatchlistPanel({
           here to match. Delete-spacer stays: real rows still reserve that space on their own
           right edge. Each cell (including "Symbole") is its own clickable sort button now — see
           toggleSort — with an arrow icon appearing next to whichever one is currently active. No
-          logo spacer, unlike a real row's own leading logo: "Symbole" labels the *whole* identity
-          column (logo + ticker together), so it starts flush with the logo's own left edge — the
-          leftmost thing that column actually shows — rather than indented past it to align with
-          the ticker text specifically. */}
+          "Symbole" labels the *whole* identity column (logo + ticker together), so it reads flush
+          with the logo's own left edge — the leftmost thing that column actually shows — rather
+          than indented past it to line up with the ticker text alone. The spacer below still
+          reserves the logo's width, and the label is pulled back over it in CSS; see
+          `.lq-chart-workspace__watchlist-row--header .lq-chart-workspace__watchlist-ticker`. */}
       <div className="lq-chart-workspace__watchlist-row lq-chart-workspace__watchlist-row--header">
         <span className="lq-chart-workspace__watchlist-row-main">
           {/* Inert stand-in for the logo every real row carries, same reasoning (and same

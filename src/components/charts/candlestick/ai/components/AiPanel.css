@@ -1,4 +1,10 @@
-/* Docked to the chart's right edge, its own column of the chart row — same shape ChartSidePanel
+/* Every rule in here draws with `--lq-color-border-subtle`, the same token every separator on the
+   chart already uses, and not `--lq-color-border`: on the E-ink palette those are #c9c4b6 and
+   #111111, so the panel was outlining itself and its composer in near-black beside a chart drawn
+   in pale grey. The one exception is the mobile sheet's grab bar at the bottom of this file, which
+   matches the symbol details page's own bar value for value — including its token.
+
+   Docked to the chart's right edge, its own column of the chart row — same shape ChartSidePanel
    uses, and for the same reason: flexbox hands the plot whatever width is left, so every
    measurement downstream picks up the narrower box for free. */
 .lq-ai {
@@ -8,7 +14,7 @@
   width: 360px;
   max-width: 100%;
   flex: 0 0 auto;
-  border-left: 1px solid var(--lq-color-border);
+  border-left: 1px solid var(--lq-color-border-subtle);
   background-color: var(--lq-color-panel);
 }
 
@@ -119,7 +125,7 @@
 .lq-ai__tool {
   font-size: var(--lq-text-xs);
   color: var(--lq-color-text-muted);
-  border-left: 2px solid var(--lq-color-border);
+  border-left: 2px solid var(--lq-color-border-subtle);
   padding-left: var(--lq-space-2);
 }
 
@@ -162,7 +168,7 @@
   width: 100%;
   box-sizing: border-box;
   resize: vertical;
-  border: 1px solid var(--lq-color-border);
+  border: 1px solid var(--lq-color-border-subtle);
   border-radius: var(--lq-radius-sm);
   background-color: var(--lq-color-surface);
   color: var(--lq-color-text);
@@ -189,7 +195,7 @@
 }
 
 .lq-ai__send {
-  border: 1px solid var(--lq-color-border);
+  border: 1px solid var(--lq-color-border-subtle);
   background-color: var(--lq-color-surface);
   color: var(--lq-color-text);
   border-radius: var(--lq-radius-sm);
@@ -219,7 +225,7 @@
   margin: 0;
   padding: 4px;
   list-style: none;
-  border: 1px solid var(--lq-color-border);
+  border: 1px solid var(--lq-color-border-subtle);
   border-radius: var(--lq-radius-md);
   background-color: var(--lq-color-panel);
   box-shadow: var(--lq-shadow-md);
@@ -282,7 +288,7 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  border: 1px solid var(--lq-color-border);
+  border: 1px solid var(--lq-color-border-subtle);
   border-radius: var(--lq-radius-sm);
   padding: var(--lq-space-2);
   background-color: var(--lq-color-surface);
@@ -306,7 +312,7 @@
 }
 
 .lq-ai__report-actions button {
-  border: 1px solid var(--lq-color-border);
+  border: 1px solid var(--lq-color-border-subtle);
   background: var(--lq-color-panel);
   color: var(--lq-color-text);
   border-radius: var(--lq-radius-sm);

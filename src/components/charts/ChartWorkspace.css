@@ -760,11 +760,36 @@
    already-shown column stays pinned at its own same size. A column the user has explicitly
    dragged (see WatchlistPanel.tsx's own columnFlexStyle) gets an inline `flex: 0 0 <px>` instead,
    overriding this default to hold that exact width regardless of what else changes around it. */
+/* "Symbole" labels the whole identity column — the logo and the ticker together — so it reads
+   starting at the logo's own left edge, the leftmost thing that column shows, rather than indented
+   past it to line up with the ticker text alone.
+   Done by pulling the label back over the (invisible) logo spacer rather than by removing that
+   spacer: the header and the rows are separate flex containers sharing one width, so a spacer only
+   one of them reserves hands the two *different* widths for the very same columns, and every
+   numeric header drifts a few pixels off the numbers it labels. The spacer holds the geometry; only
+   the glyphs move. 18px of logo plus the row's own 8px gap. */
+.lq-chart-workspace__watchlist-row--header .lq-chart-workspace__watchlist-ticker {
+  position: relative;
+  margin-left: calc(-18px - var(--lq-space-2));
+}
+
 .lq-chart-workspace__watchlist-cell {
   position: relative;
   flex: 1 1 68px;
   text-align: right;
   font-variant-numeric: tabular-nums;
+  /* One line, cropped — never two. A price like "64 210,00" carries a thin space between its
+     thousands, and a cell narrow enough would break at it: the row then stood twice as tall as its
+     neighbours with "64" over "210,00", which reads as two numbers rather than one. The column is
+     already resizable and hideable, so a number too long for the width it was given is a width the
+     reader chose; wrapping it is not the answer, and a truncated number that announces itself with
+     an ellipsis is honest where a silently rewrapped one is not.
+     `min-width: 0` is what lets a flex item shrink below its content at all — without it
+     `overflow` never has anything to hide. */
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* The instant a row is pressed (pointerdown — see useWatchlistRowDrag's own `pressedRowId`,

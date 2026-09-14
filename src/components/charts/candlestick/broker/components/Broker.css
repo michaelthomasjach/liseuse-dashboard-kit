@@ -1,0 +1,571 @@
+/* The trading side of the workspace. Sober on purpose: this is the one place in the library where a
+   misread costs money, so nothing here is decorative and nothing is coloured except what actually
+   carries a meaning — the side of an order, the environment, a refusal. */
+
+.lq-broker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lq-space-3);
+  font-size: var(--lq-text-xs);
+  line-height: 1.55;
+}
+
+.lq-broker__section + .lq-broker__section {
+  border-top: 1px solid var(--lq-color-border-subtle);
+  padding-top: var(--lq-space-3);
+}
+
+.lq-broker__title {
+  margin: 0 0 var(--lq-space-1);
+  font-size: var(--lq-text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-broker__note {
+  margin: 0 0 var(--lq-space-2);
+  color: var(--lq-color-text-muted);
+}
+
+.lq-broker__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--lq-space-2);
+}
+
+.lq-broker__empty p {
+  margin: 0;
+  max-width: 68ch;
+}
+
+/* The one-sentence explanation behind a label. */
+.lq-broker__what {
+  margin-left: 4px;
+  padding: 0 3px;
+  border: 1px solid var(--lq-color-border-subtle);
+  border-radius: 999px;
+  font-size: 0.85em;
+  text-decoration: none;
+  cursor: help;
+}
+
+.lq-broker__select,
+.lq-broker__input,
+.lq-broker__number {
+  padding: 4px 6px;
+  border: 1px solid var(--lq-color-border-subtle);
+  background-color: var(--lq-color-bg);
+  color: var(--lq-color-text);
+  font: inherit;
+}
+
+.lq-broker__number {
+  width: 8ch;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.lq-broker__select {
+  width: 100%;
+}
+
+.lq-broker__fields,
+.lq-broker__limits {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: var(--lq-space-2) var(--lq-space-3);
+}
+
+.lq-broker__field,
+.lq-broker__limit {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.lq-broker__limit-label {
+  font-weight: 600;
+}
+
+.lq-broker__limit-what {
+  color: var(--lq-color-text-muted);
+  line-height: 1.4;
+}
+
+.lq-broker__reset-limits {
+  align-self: flex-start;
+  margin-top: var(--lq-space-2);
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--lq-color-text-muted);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* ── Environment ────────────────────────────────────────────────────────────────────────────
+   Demo and live are two words that must never be confused, so live is the only one that carries a
+   colour anywhere in this feature. */
+
+.lq-broker__environments {
+  display: flex;
+  gap: var(--lq-space-2);
+}
+
+.lq-broker__environment {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border: 1px solid var(--lq-color-border-subtle);
+  cursor: pointer;
+}
+
+.lq-broker__environment--current {
+  border-color: var(--lq-color-text);
+}
+
+.lq-broker__environment--live.lq-broker__environment--current {
+  border-color: var(--lq-color-down);
+  color: var(--lq-color-down);
+  font-weight: 700;
+}
+
+.lq-broker__acknowledge {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: var(--lq-space-2);
+  padding: var(--lq-space-2);
+  border: 1px solid var(--lq-color-down);
+  background-color: color-mix(in srgb, var(--lq-color-down) 8%, transparent);
+  cursor: pointer;
+}
+
+.lq-broker__error,
+.lq-broker__problems {
+  margin: 0;
+  color: var(--lq-color-down);
+}
+
+.lq-broker__problems {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.lq-broker__problems li {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* ── Ticket ────────────────────────────────────────────────────────────────────────────────── */
+
+.lq-broker__sides {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--lq-space-2);
+}
+
+.lq-broker__side {
+  padding: 8px;
+  border: 1px solid var(--lq-color-border-subtle);
+  background: none;
+  color: var(--lq-color-text);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.lq-broker__side--buy {
+  border-color: var(--lq-color-up);
+  background-color: color-mix(in srgb, var(--lq-color-up) 12%, transparent);
+}
+
+.lq-broker__side--sell {
+  border-color: var(--lq-color-down);
+  background-color: color-mix(in srgb, var(--lq-color-down) 12%, transparent);
+}
+
+.lq-broker__buy {
+  color: var(--lq-color-up);
+}
+
+.lq-broker__sell {
+  color: var(--lq-color-down);
+}
+
+/* Anything the library could not work out. Never rendered as a zero: an unknown risk shown as 0
+   reads as "this order is safe", which is the one thing it does not say. */
+.lq-broker__missing {
+  color: var(--lq-color-text-muted);
+  font-style: italic;
+}
+
+.lq-broker__reference {
+  margin: 0;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-broker__confirm {
+  display: grid;
+  grid-template-columns: 12rem minmax(0, 1fr);
+  gap: 4px var(--lq-space-3);
+  margin: 0;
+}
+
+.lq-broker__confirm > div {
+  display: contents;
+}
+
+.lq-broker__confirm dt {
+  color: var(--lq-color-text-muted);
+}
+
+.lq-broker__confirm dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.lq-broker__risk {
+  font-weight: 700;
+}
+
+.lq-broker__epic {
+  color: var(--lq-color-text-muted);
+  font-family: var(--lq-font-mono, ui-monospace, monospace);
+}
+
+.lq-broker__live-word {
+  color: var(--lq-color-down);
+  font-weight: 700;
+}
+
+.lq-broker__send--live {
+  background-color: var(--lq-color-down);
+  border-color: var(--lq-color-down);
+}
+
+.lq-broker__header-help {
+  margin-left: auto;
+  margin-right: var(--lq-space-2);
+  border: 0;
+  background: none;
+  color: var(--lq-color-text-muted);
+  font: inherit;
+  font-size: var(--lq-text-xs);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* ── Panel ─────────────────────────────────────────────────────────────────────────────────── */
+
+.lq-broker-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  font-size: var(--lq-text-xs);
+}
+
+.lq-broker-panel__head {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.lq-broker-panel__title {
+  margin-right: auto;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-broker-panel__head button {
+  display: inline-flex;
+  padding: 2px;
+  border: 0;
+  background: transparent;
+  color: var(--lq-color-text-muted);
+  cursor: pointer;
+}
+
+.lq-broker-panel__head button:hover {
+  color: var(--lq-color-text);
+}
+
+/* The loudest thing in the component, deliberately: automation stays armed across reloads, so the
+   only thing between a reopened tab and orders being placed is that this is noticed. */
+.lq-broker-panel__armed {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border: 1px solid var(--lq-color-accent);
+  background-color: color-mix(in srgb, var(--lq-color-accent) 12%, transparent);
+}
+
+.lq-broker-panel__armed--live {
+  border-color: var(--lq-color-down);
+  background-color: color-mix(in srgb, var(--lq-color-down) 14%, transparent);
+}
+
+.lq-broker-panel__kill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  padding: 3px 8px;
+  border: 1px solid currentColor;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.lq-broker-panel__disconnected {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--lq-space-2);
+  color: var(--lq-color-text-muted);
+}
+
+.lq-broker-panel__disconnected p {
+  margin: 0;
+}
+
+.lq-broker-panel__session {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.lq-broker-panel__broker {
+  font-weight: 700;
+}
+
+.lq-broker-panel__env {
+  padding: 0 5px;
+  border: 1px solid var(--lq-color-border-subtle);
+  color: var(--lq-color-text-muted);
+}
+
+.lq-broker-panel__env--live {
+  border-color: var(--lq-color-down);
+  color: var(--lq-color-down);
+  font-weight: 700;
+}
+
+.lq-broker-panel__disconnect {
+  margin-left: auto;
+  border: 0;
+  background: none;
+  color: var(--lq-color-text-muted);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.lq-broker-panel__account,
+.lq-broker-panel__mode-what,
+.lq-broker-panel__counters {
+  margin: 0;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-broker-panel__counters {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--lq-space-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.lq-broker-panel__modes {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px;
+}
+
+.lq-broker-panel__mode {
+  padding: 4px;
+  border: 1px solid var(--lq-color-border-subtle);
+  background: none;
+  color: var(--lq-color-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.lq-broker-panel__mode--current {
+  border-color: var(--lq-color-text);
+  font-weight: 700;
+}
+
+.lq-broker-panel__arm {
+  padding: 6px;
+  border: 1px solid var(--lq-color-accent);
+  background: none;
+  color: var(--lq-color-text);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.lq-broker-panel__pending {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  border: 1px solid var(--lq-color-accent);
+}
+
+.lq-broker__countdown {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.lq-broker-panel__actions {
+  display: flex;
+  gap: var(--lq-space-2);
+}
+
+.lq-broker-panel__positions {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.lq-broker-panel__positions li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 0;
+  border-top: 1px solid var(--lq-color-border-subtle);
+  font-variant-numeric: tabular-nums;
+}
+
+.lq-broker-panel__position-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lq-broker-panel__journal summary {
+  cursor: pointer;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-broker-panel__journal ul {
+  list-style: none;
+  margin: var(--lq-space-1) 0 0;
+  padding: 0;
+}
+
+.lq-broker-panel__journal li {
+  display: flex;
+  gap: 6px;
+  padding: 2px 0;
+  border-top: 1px solid var(--lq-color-border-subtle);
+}
+
+.lq-broker-panel__journal-time {
+  font-variant-numeric: tabular-nums;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-broker-panel__journal-blocked {
+  opacity: 0.75;
+}
+
+/* ── Help ──────────────────────────────────────────────────────────────────────────────────── */
+
+.lq-broker-help {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lq-space-3);
+  font-size: var(--lq-text-xs);
+  line-height: 1.6;
+}
+
+.lq-detached-window .lq-broker-help {
+  padding: var(--lq-space-4);
+}
+
+.lq-broker-help p {
+  margin: 0 0 var(--lq-space-2);
+}
+
+.lq-broker-help__lead {
+  color: var(--lq-color-text-muted);
+}
+
+.lq-broker-help__section + .lq-broker-help__section {
+  border-top: 1px solid var(--lq-color-border-subtle);
+  padding-top: var(--lq-space-3);
+}
+
+.lq-broker-help__title {
+  margin: 0 0 var(--lq-space-1);
+  font-size: var(--lq-text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-broker-help__note {
+  color: var(--lq-color-text-muted);
+}
+
+.lq-broker-help__list {
+  margin: 0 0 var(--lq-space-2);
+  padding-left: var(--lq-space-3);
+}
+
+.lq-broker-help__figure {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: var(--lq-space-2) 0;
+}
+
+.lq-broker-help__box {
+  fill: var(--lq-color-bg);
+  stroke: var(--lq-color-border-subtle);
+  stroke-width: 1;
+}
+
+.lq-broker-help__box--live {
+  stroke: var(--lq-color-down);
+  fill: color-mix(in srgb, var(--lq-color-down) 10%, transparent);
+}
+
+.lq-broker-help__box-title {
+  font-size: 11px;
+  font-weight: 700;
+  fill: var(--lq-color-text);
+  font-family: var(--lq-font-mono, ui-monospace, monospace);
+}
+
+.lq-broker-help__box-sub {
+  font-size: 9.5px;
+  fill: var(--lq-color-text-muted);
+  font-family: var(--lq-font-mono, ui-monospace, monospace);
+}
+
+.lq-broker-help__arrow {
+  stroke: var(--lq-color-text-muted);
+  stroke-width: 1;
+  fill: none;
+}

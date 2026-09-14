@@ -19,7 +19,6 @@ import { useChartTemplates } from "./candlestick/hooks/useChartTemplates";
 import { useStrategyMarkers } from "./candlestick/hooks/useStrategyMarkers";
 import { useStrategyPanelState } from "./candlestick/hooks/useStrategyPanelState";
 import { useAiChartContext } from "./candlestick/ai/useAiChartContext";
-import { CloseIcon } from "../icons";
 import { useAiAssistant } from "./candlestick/ai/useAiAssistant";
 import { AiHost, type AiView } from "./candlestick/ai/components/AiHost";
 import { strategyAiRequest, type StrategyAiPrompt } from "./candlestick/strategy/strategyAiPrompts";
@@ -1069,6 +1068,9 @@ export function CandlestickChart({
   // and a transcript held down there would be discarded on every move.
   const assistant = useAiAssistant({ chart: aiChart, send: aiSend ?? null, serverTools: ai?.serverTools ?? [] });
   const [aiDraft, setAiDraft] = useState("");
+  /** Which of the strategy panel's written-out questions is in flight, so its own chip can say so.
+   *  The answer itself lives in the assistant's transcript like any other. */
+  const [strategyAiPromptId, setStrategyAiPromptId] = useState<string | null>(null);
   const [aiView, setAiView] = useState<AiView>("docked");
   const [detachedAiWindow, setDetachedAiWindow] = useState<Window | null>(null);
   /** Tears the assistant off into a window of its own, and closes the docked pane behind it —
@@ -1091,18 +1093,6 @@ export function CandlestickChart({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aiView]);
 
-  const strategyAi = useAiAssistant({ chart: aiChart, send: aiSend ?? null, serverTools: ai?.serverTools ?? [] });
-  // Which written-out question is in flight, and what came back for it. The transcript is the
-  // hook's; these two are what the banner above the chart is made of.
-  const [strategyAiPrompt, setStrategyAiPrompt] = useState<{ id: string; label: string } | null>(null);
-  const [strategyAiDismissed, setStrategyAiDismissed] = useState(false);
-  const strategyAiAnswer = useMemo(() => {
-    for (let i = strategyAi.transcript.length - 1; i >= 0; i--) {
-      const entry = strategyAi.transcript[i];
-      if (entry.role === "assistant" && entry.text.trim() !== "") return entry.text;
-    }
-    return null;
-  }, [strategyAi.transcript]);
 
   const mobilePlacement = useMobilePointPlacement({
     enabled: placementActive,
@@ -1166,6 +1156,10 @@ export function CandlestickChart({
         onViewCode: onEditScript === undefined ? undefined : () => onEditScript(openStrategy.id),
         // Gated on a transport actually existing, which is what "the AI is on" means here: the
         // `ai` prop alone only says the caller wants an assistant, not that one can answer.
+        // Asked of the panel's own assistant, not of a second one answering somewhere else: the
+        // reply then lands where every other reply lands — in the transcript the reader already
+        // knows how to scroll, detach and enlarge. The panel is opened by the question, since a
+        // question whose answer appears in a closed panel has gone nowhere.
         ai:
           aiSend === null || aiSend === undefined
             ? undefined
@@ -1173,14 +1167,13 @@ export function CandlestickChart({
                 ask: (prompt: StrategyAiPrompt) => {
                   const result = scriptingState.runOutputs[openStrategy.id]?.result?.strategy ?? null;
                   if (result === null) return;
-                  setStrategyAiPrompt({ id: prompt.id, label: prompt.label });
-                  setStrategyAiDismissed(false);
-                  strategyAi.reset();
-                  strategyAi.ask(
+                  setAiOpen(true);
+                  setStrategyAiPromptId(prompt.id);
+                  void assistant.ask(
                     strategyAiRequest(prompt, openStrategy.name, result, openStrategy.strategySettings ?? DEFAULT_STRATEGY_SETTINGS)
                   );
                 },
-                pendingId: strategyAi.busy ? strategyAiPrompt?.id ?? null : null,
+                pendingId: assistant.busy ? strategyAiPromptId : null,
               },
         formatDate: dFmt,
         markedTime: strategyMarkedTime,
@@ -1271,30 +1264,6 @@ export function CandlestickChart({
       className={["lq-chart", isFullscreen && "lq-chart--fullscreen", placementActive && "lq-chart--placing", className].filter(Boolean).join(" ")}
       style={{ width: isFullscreen ? undefined : width }}
     >
-      {/* The assistant's answer to a strategy question, above the chart rather than inside the
-          panel that asked: the advice is about these candles, and a panel three screens down is
-          not where it can be read against them. */}
-      {strategyAiPrompt !== null && !strategyAiDismissed && (
-        <div className="lq-chart__strategy-ai-answer" role="status">
-          <div className="lq-chart__strategy-ai-answer-head">
-            <span className="lq-chart__strategy-ai-answer-question">{strategyAiPrompt.label}</span>
-            <button
-              type="button"
-              className="lq-chart__pane-header-action"
-              onClick={() => {
-                strategyAi.stop();
-                setStrategyAiDismissed(true);
-              }}
-              aria-label="Fermer la réponse de l'assistant"
-            >
-              <CloseIcon size={13} />
-            </button>
-          </div>
-          <div className="lq-chart__strategy-ai-answer-body">
-            {strategyAiAnswer ?? (strategyAi.busy ? "L'assistant réfléchit…" : "Aucune réponse.")}
-          </div>
-        </div>
-      )}
       <div ref={mainRef} className="lq-chart__main">
       {showHeader && !seasonalityOpen && (
         <ChartHeader

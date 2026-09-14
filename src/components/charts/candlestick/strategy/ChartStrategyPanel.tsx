@@ -545,17 +545,34 @@ function TradeRibbon({
   // is never blank and never has to be discovered by hovering it.
   const readout = hovered ?? trades.find(isMarked) ?? null;
 
+  // The tallest trade of the run, which every bar is drawn as a fraction of. Magnitude is half the
+  // information here: a run of eight small wins and one huge loss is a different strategy from nine
+  // even trades, and a strip of identical blocks says they are the same.
+  const largest = trades.reduce((max, trade) => Math.max(max, Math.abs(trade.profit)), 0) || 1;
+
   return (
     <div className="lq-strategy__ribbon-block">
+      <div className="lq-strategy__ribbon-caption">
+        <span>Chaque trade, du plus ancien au plus récent</span>
+        <span className="lq-strategy__ribbon-legend">
+          <span className="lq-strategy__ribbon-legend-up" aria-hidden="true" /> gain au-dessus
+          <span className="lq-strategy__ribbon-legend-down" aria-hidden="true" /> perte en dessous
+        </span>
+      </div>
       <div
         className="lq-strategy__ribbon"
         role="img"
-        aria-label={`${trades.length} trades clôturés, du plus ancien au plus récent`}
+        aria-label={`${trades.length} trades clôturés, du plus ancien au plus récent, en barres au-dessus et en dessous de zéro`}
         onPointerLeave={() => {
           setHoveredId(null);
           onHoverTrades?.(null);
         }}
       >
+        {/* Zero. Everything above it was made, everything below it was lost — which is the whole
+            reading, and it works in one ink as well as in two. The flat strip this replaces carried
+            the same information *only* in colour, so on the black and white palette it carried
+            none: a win and a loss were the same black block. */}
+        <span className="lq-strategy__ribbon-zero" aria-hidden="true" />
         {trades.map((trade) => (
           <span
             key={trade.id}
@@ -570,13 +587,22 @@ function TradeRibbon({
               setHoveredId(trade.id);
               onHoverTrades?.([trade]);
             }}
-          />
+          >
+            <span
+              className="lq-strategy__ribbon-bar"
+              // A floor of 8 %: a trade worth almost nothing beside the run's biggest still has to
+              // be visible, or the strip would silently under-report how many there were.
+              style={{ height: `${Math.max(8, (Math.abs(trade.profit) / largest) * 100)}%` }}
+              aria-hidden="true"
+            />
+          </span>
         ))}
       </div>
       <p className="lq-strategy__ribbon-readout">
         {readout === null ? (
           <>
-            Chaque segment est un trade clôturé, du plus ancien au plus récent. Survolez-en un pour le lire.
+            La hauteur d'une barre est le gain ou la perte du trade, rapporté au plus gros de la série.
+            Survolez-en une pour la lire.
           </>
         ) : (
           <>

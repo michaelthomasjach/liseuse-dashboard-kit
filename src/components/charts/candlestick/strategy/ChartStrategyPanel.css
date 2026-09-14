@@ -173,39 +173,99 @@
 
 /* ── Trade ribbon ──────────────────────────────────────────────────────────────────────────── */
 
-/* One flex cell per trade, all sharing the width equally — the point is the *pattern* of wins and
-   losses over the run, so every trade counts the same regardless of its size. */
+/* One bar per trade, above or below a zero line: gains up, losses down, height proportional to the
+   biggest of the run. It replaces a flat strip of coloured blocks that carried its whole meaning in
+   colour alone — so on the black and white palette it carried none, and read as an unexplained
+   black bar. Position and height survive one ink; colour is the bonus, not the message. */
+
 .lq-strategy__ribbon-block {
   margin: var(--lq-space-2) 0 var(--lq-space-3);
 }
 
-.lq-strategy__ribbon {
+.lq-strategy__ribbon-caption {
   display: flex;
-  gap: 1px;
-  /* Taller than the 8px it was: it is a hover target now, and 8px is below what a hand can aim at
-     without hunting. */
-  height: 12px;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lq-space-2);
+  margin-bottom: 3px;
+  font-size: 0.68rem;
+  color: var(--lq-color-text-muted);
 }
 
+.lq-strategy__ribbon-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.lq-strategy__ribbon-legend-up,
+.lq-strategy__ribbon-legend-down {
+  display: inline-block;
+  width: 6px;
+  height: 8px;
+}
+
+.lq-strategy__ribbon-legend-up {
+  background-color: var(--lq-color-up);
+  margin-left: var(--lq-space-2);
+}
+
+.lq-strategy__ribbon-legend-down {
+  background-color: var(--lq-color-down);
+  margin-left: var(--lq-space-2);
+}
+
+.lq-strategy__ribbon {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: 1px;
+  /* Tall enough for a bar to have a readable height on each side of the line. The 12px strip this
+     replaces had room for a block and nothing else. */
+  height: 34px;
+}
+
+.lq-strategy__ribbon-zero {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background-color: var(--lq-color-border-subtle);
+}
+
+/* One column per trade, all sharing the width equally — the point is the *sequence*, so every trade
+   counts the same however long it was open. */
 .lq-strategy__ribbon-cell {
+  position: relative;
   flex: 1 1 0;
   min-width: 1px;
-  border-radius: 1px;
 }
 
-.lq-strategy__ribbon-cell--up {
+.lq-strategy__ribbon-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  /* Anchored on the zero line, growing away from it — which is what puts a win above and a loss
+     below without either needing a colour to say so. */
+  max-height: 50%;
+}
+
+.lq-strategy__ribbon-cell--up .lq-strategy__ribbon-bar {
+  bottom: 50%;
   background-color: var(--lq-color-up);
 }
 
-.lq-strategy__ribbon-cell--down {
+.lq-strategy__ribbon-cell--down .lq-strategy__ribbon-bar {
+  top: 50%;
   background-color: var(--lq-color-down);
 }
 
-/* The segment under the pointer, or the one the price chart's crosshair is on. An outline rather
-   than a colour change: on the black and white palette a win and a loss are already the same ink,
-   so only a shape can single one out. */
+/* The trade under the pointer, or the one the price chart's crosshair is on. An outline on the
+   column rather than a colour change: on the black and white palette a win and a loss are already
+   the same ink, so only a shape can single one out. */
 .lq-strategy__ribbon-cell--marked {
-  outline: 2px solid var(--lq-color-text);
+  outline: 1px solid var(--lq-color-text);
   outline-offset: 1px;
 }
 
@@ -213,9 +273,9 @@
   margin: var(--lq-space-2) 0 0;
   font-size: 0.72rem;
   color: var(--lq-color-text-muted);
-  /* Fixed height: the line swaps between the caption and a trade on every pointer move, and a
-     reflow under the ribbon each time would make the whole panel twitch. */
-  min-height: 1.2em;
+  /* Fixed: the line swaps between the caption and a trade on every pointer move, and a reflow under
+     the strip each time would make the whole panel twitch. */
+  min-height: 2.4em;
 }
 
 .lq-strategy__ribbon-readout-index {

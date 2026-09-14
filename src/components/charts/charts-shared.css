@@ -2448,18 +2448,22 @@
   border-radius: var(--lq-radius-sm);
 }
 
-/* The indicator diagrams' own canvas (see DiagramPrimitives' IndicatorDiagram). Taller than the
-   drawing tools' 220×110, because these carry thresholds, panel frames and callouts — a diagram
-   capped at 150px would render its 9px labels at around six, which is the height at which an
-   annotation stops being one. */
-.lq-chart__info-diagram--wide {
-  max-height: 260px;
-  padding: var(--lq-space-2);
-}
-
-/* The diagram sits directly above its own description; without this they touch. */
-.lq-chart__info-diagram + .lq-info-text {
-  margin-top: var(--lq-space-3);
+/* A captured illustration — a real screenshot of the indicator or drawing tool, at the top of its
+   own info modal.
+   
+   Edge to edge: the modal's own horizontal padding is cancelled with a negative margin, because
+   these are wide, shallow crops of a chart and the widest dimension is the only one they have to
+   spend. There is no max-height — capping one would letterbox it, and the crop already decides how
+   tall it should be. The border is what keeps a light chart from bleeding into a light panel. */
+.lq-chart__info-diagram-image {
+  display: block;
+  /* Edge to edge: the modal pads its own body by --lq-space-5, and a negative margin of the same
+     size gives that back. Horizontally only — the body is a flex column whose `gap` already
+     spaces the picture from the text under it, and pulling upward would only fight the header. */
+  width: calc(100% + var(--lq-space-5) * 2);
+  margin-inline: calc(var(--lq-space-5) * -1);
+  height: auto;
+  border-block: 1px solid var(--lq-color-border-subtle);
 }
 
 /* The "Gérer les indicateurs" modal — reuses .lq-chart__indicator-picker-group/-group-label

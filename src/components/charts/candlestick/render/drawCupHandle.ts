@@ -34,14 +34,32 @@ export function drawCupHandleDrawings(ctx: CanvasRenderingContext2D, params: Ren
     ctx.stroke();
     ctx.restore();
 
-    // The pattern's own polyline, through all 5 vertices in order.
+    // The pattern, as two rounded bowls rather than five straight segments.
+    //
+    // It was a polyline first, and a polyline draws a V — which is the one shape the figure is
+    // defined *against*: a cup is an arrondi, and its slowness is part of what makes it a cup
+    // rather than a spike. The five points still define it; only the stroke between them changed.
+    //
+    // Each bowl is one cubic Bézier whose two control points share a height, which puts the curve
+    // exactly through the middle vertex at its own midpoint (for a cubic, the point at t = 0.5 is
+    // (P₀ + 3P₁ + 3P₂ + P₃) / 8 — so a shared control height of (8·mid − start − end) / 6 lands it
+    // on `mid`). The bottom comes out flat, the way a real cup's does.
+    const bowl = (from: { x: number; y: number }, mid: { x: number; y: number }, to: { x: number; y: number }) => {
+      const span = to.x - from.x;
+      const controlY = (8 * mid.y - from.y - to.y) / 6;
+      ctx.bezierCurveTo(from.x + span * 0.28, controlY, to.x - span * 0.28, controlY, to.x, to.y);
+    };
+
     ctx.save();
     ctx.strokeStyle = lineColor;
     ctx.lineWidth = (dr.strokeWidth ?? 1.5) + (hoveredDrawingId === dr.id ? 1 : 0);
     ctx.lineJoin = "round";
+    ctx.lineCap = "round";
     ctx.setLineDash([]);
     ctx.beginPath();
-    points.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
+    ctx.moveTo(points[0].x, points[0].y);
+    bowl(points[0], points[1], points[2]); // A → B → C, the cup
+    bowl(points[2], points[3], points[4]); // C → D → E, the handle
     ctx.stroke();
     ctx.restore();
 

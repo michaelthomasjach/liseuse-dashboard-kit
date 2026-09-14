@@ -2,7 +2,7 @@ import type { ScaleLinear } from "d3";
 import type { TrendLineDrawing } from "./interfaces/TrendLineDrawing.interface";
 import type { Candle } from "./interfaces/Candle.interface";
 import { FIBONACCI_LEVELS, FIBONACCI_EXTENSION_LEVELS } from "./drawingCatalog";
-import { allPointsOf, distanceToSegment, effectiveExtendOf, extendSegmentToEdges, forecastCurvePoints } from "./drawingGeometry";
+import { allPointsOf, arrowMarkerExtent, distanceToSegment, effectiveExtendOf, extendSegmentToEdges, forecastCurvePoints } from "./drawingGeometry";
 import { pitchforkLines } from "./pitchforkGeometry";
 import type { PitchforkVariant } from "./pitchforkGeometry";
 
@@ -137,7 +137,18 @@ export function distanceToDrawing(dr: TrendLineDrawing, mouseX: number, mouseY: 
         );
   }
   if (dr.lineType === "arrowUp" || dr.lineType === "arrowDown") {
-    return Math.hypot(mouseX - zoomedXScale(indexForDate(dr.x1) + 0.5), mouseY - zoomedPriceScale(dr.y1));
+    // The arrow is drawn entirely to one side of its anchor (see arrowMarkerExtent), so measuring
+    // to the anchor pixel meant the pointer had to be some twenty-five pixels clear of the shape
+    // to register — past every hover threshold, which is why neither arrow ever showed a tooltip.
+    // Same clamp-into-the-box technique as pin/flagMark below.
+    const x = zoomedXScale(indexForDate(dr.x1) + 0.5);
+    const y = zoomedPriceScale(dr.y1);
+    const { dir, near, far, halfWidth } = arrowMarkerExtent(dr.strokeWidth, dr.lineType);
+    const top = Math.min(y + dir * near, y + dir * far);
+    const bottom = Math.max(y + dir * near, y + dir * far);
+    const clampedX = Math.min(Math.max(mouseX, x - halfWidth), x + halfWidth);
+    const clampedY = Math.min(Math.max(mouseY, top), bottom);
+    return Math.hypot(mouseX - clampedX, mouseY - clampedY);
   }
   if (dr.lineType === "pin" || dr.lineType === "flagMark") {
     // Both markers draw entirely *above* their own anchor (see drawMarkers.ts) — a plain distance

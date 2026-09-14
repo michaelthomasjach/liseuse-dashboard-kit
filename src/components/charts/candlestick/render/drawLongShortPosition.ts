@@ -1,6 +1,7 @@
 import type { RenderCandlestickChartParams } from "../interfaces/RenderCandlestickChartParams.interface";
 import type { ChartCanvasStyle } from "../interfaces/ChartCanvasStyle.interface";
 import { drawPillLabel } from "../drawingRender";
+import { FILL_ALPHA, PALE_GREEN, PALE_RED } from "../drawingFills";
 
 /** "longPosition"/"shortPosition" (see TrendLineDrawing.lineType's own doc): a risk/reward box —
  *  x1/y1 the entry, x2/y2 the profit target, extraPoints[0] the stop, each zone spanning from
@@ -26,12 +27,23 @@ export function drawLongShortPositionDrawings(ctx: CanvasRenderingContext2D, par
     const stopY = zoomedPriceScale(stop.y);
     const lineColor = dr.color ?? colorAccent;
 
+    // Both bands span the same dates. Target and stop each still carry their own point — they are
+    // dragged independently in price — but their *dates* are kept in step (see
+    // useDrawingInteractions' own syncPositionDates), so the box reads as one box rather than two
+    // ragged rectangles that happen to share an edge.
+    const rightX = Math.max(targetX, stopX);
+    const left = Math.min(entryX, rightX);
+    const width = Math.abs(rightX - entryX);
+
     ctx.save();
-    ctx.globalAlpha = 0.16;
-    ctx.fillStyle = colorUp;
-    ctx.fillRect(Math.min(entryX, targetX), Math.min(entryY, targetY), Math.abs(targetX - entryX), Math.abs(entryY - targetY));
-    ctx.fillStyle = colorDown;
-    ctx.fillRect(Math.min(entryX, stopX), Math.min(entryY, stopY), Math.abs(stopX - entryX), Math.abs(entryY - stopY));
+    ctx.globalAlpha = FILL_ALPHA;
+    // A pale green and a pale red, not the theme's up/down: on a monochrome palette those are two
+    // greys, and the one drawing whose whole meaning is "this half is the gain, that half is the
+    // loss" then has two identical halves.
+    ctx.fillStyle = dr.targetFillColor ?? PALE_GREEN;
+    ctx.fillRect(left, Math.min(entryY, targetY), width, Math.abs(entryY - targetY));
+    ctx.fillStyle = dr.stopFillColor ?? PALE_RED;
+    ctx.fillRect(left, Math.min(entryY, stopY), width, Math.abs(entryY - stopY));
     ctx.restore();
 
     ctx.save();
@@ -40,11 +52,11 @@ export function drawLongShortPositionDrawings(ctx: CanvasRenderingContext2D, par
     ctx.setLineDash([]);
     ctx.beginPath();
     ctx.moveTo(entryX, entryY);
-    ctx.lineTo(Math.max(targetX, stopX), entryY);
-    ctx.moveTo(Math.min(entryX, targetX), targetY);
-    ctx.lineTo(Math.max(entryX, targetX), targetY);
-    ctx.moveTo(Math.min(entryX, stopX), stopY);
-    ctx.lineTo(Math.max(entryX, stopX), stopY);
+    ctx.lineTo(rightX, entryY);
+    ctx.moveTo(left, targetY);
+    ctx.lineTo(left + width, targetY);
+    ctx.moveTo(left, stopY);
+    ctx.lineTo(left + width, stopY);
     ctx.stroke();
     ctx.restore();
 
@@ -61,7 +73,7 @@ export function drawLongShortPositionDrawings(ctx: CanvasRenderingContext2D, par
     const rr = riskPct !== 0 ? Math.abs(rewardPct / riskPct) : 0;
 
     drawPillLabel(ctx, entryX, entryY, `Entrée ${fmt(dr.y1)} · R:R ${rr.toFixed(2)}`, lineColor, colorBg, fontFamily, "left");
-    drawPillLabel(ctx, targetX, targetY, `Objectif ${signed(rewardPct)} ${fmt(dr.y2)}`, colorUp, colorBg, fontFamily, "right");
-    drawPillLabel(ctx, stopX, stopY, `Stop ${signed(riskPct)} ${fmt(stop.y)}`, colorDown, colorBg, fontFamily, "right");
+    drawPillLabel(ctx, rightX, targetY, `Objectif ${signed(rewardPct)} ${fmt(dr.y2)}`, colorUp, colorBg, fontFamily, "right");
+    drawPillLabel(ctx, rightX, stopY, `Stop ${signed(riskPct)} ${fmt(stop.y)}`, colorDown, colorBg, fontFamily, "right");
   }
 }

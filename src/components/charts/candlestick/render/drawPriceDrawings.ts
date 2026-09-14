@@ -8,8 +8,18 @@ import {
   ELLIOTT_CORRECTION_VERTEX_LABELS,
   MULTI_POINT_TOOLS,
 } from "../drawingCatalog";
-import { allPointsOf, snapPixel, extendSegmentToEdges, effectiveExtendOf, channelOffsetFromClick, forecastControlPoint, rangeForecastMaxMin } from "../drawingGeometry";
+import {
+  allPointsOf,
+  arrowMarkerExtent,
+  snapPixel,
+  extendSegmentToEdges,
+  effectiveExtendOf,
+  channelOffsetFromClick,
+  forecastControlPoint,
+  rangeForecastMaxMin,
+} from "../drawingGeometry";
 import { lineDashArray, drawDrawingText, drawArrowhead } from "../drawingRender";
+import { FILL_ALPHA, PALE_GREEN, PALE_NEUTRAL, PALE_RED } from "../drawingFills";
 import { defaultIndicatorColor } from "../indicatorCatalog";
 import { drawPitchforkDrawings } from "./drawPitchfork";
 import { drawRangeForecastDrawings } from "./drawRangeForecast";
@@ -53,7 +63,7 @@ export function drawPriceDrawings(ctx: CanvasRenderingContext2D, params: RenderC
     indexForDate,
     candleWidth,
   } = params;
-  const { colorUp, colorDown, colorBg, colorMuted, colorAccent, fontFamily } = style;
+  const { colorUp, colorDown, colorBg, colorAccent, fontFamily } = style;
 
 
     // Regular trend lines plus "horizontal"/"ray" price lines (ones anchored to volume or an
@@ -159,6 +169,19 @@ export function drawPriceDrawings(ctx: CanvasRenderingContext2D, params: RenderC
       // delta — constant in pixel terms too, since zoomedPriceScale is linear).
       if (dr.lineType === "channel") {
         const offsetPx = zoomedPriceScale(dr.y1 + (dr.channelOffset ?? 0)) - zoomedPriceScale(dr.y1);
+        // The corridor between the two lines, filled — a channel's subject is the space it
+        // encloses, and two bare lines leave the reader to imagine it.
+        ctx.save();
+        ctx.globalAlpha = FILL_ALPHA;
+        ctx.fillStyle = dr.fillColor ?? lineColor;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.lineTo(x2, y2 + offsetPx);
+        ctx.lineTo(x1, y1 + offsetPx);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
         ctx.beginPath();
         ctx.moveTo(x1, y1 + offsetPx);
         ctx.lineTo(x2, y2 + offsetPx);
@@ -170,9 +193,26 @@ export function drawPriceDrawings(ctx: CanvasRenderingContext2D, params: RenderC
       // placement time (see handleOverlayClick).
       if (dr.lineType === "disjointChannel" && dr.extraPoints?.length === 2) {
         const [p3, p4] = dr.extraPoints;
+        const p3x = zoomedXScale(indexForDate(p3.x) + 0.5);
+        const p3y = zoomedPriceScale(p3.y);
+        const p4x = zoomedXScale(indexForDate(p4.x) + 0.5);
+        const p4y = zoomedPriceScale(p4.y);
+        // extraPoints[0] lines up with x2/y2 and [1] with x1/y1 (see the lineType's own doc), so
+        // the enclosed quad runs x1 → x2 → p3 → p4.
+        ctx.save();
+        ctx.globalAlpha = FILL_ALPHA;
+        ctx.fillStyle = dr.fillColor ?? lineColor;
         ctx.beginPath();
-        ctx.moveTo(zoomedXScale(indexForDate(p3.x) + 0.5), zoomedPriceScale(p3.y));
-        ctx.lineTo(zoomedXScale(indexForDate(p4.x) + 0.5), zoomedPriceScale(p4.y));
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.lineTo(p3x, p3y);
+        ctx.lineTo(p4x, p4y);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+        ctx.beginPath();
+        ctx.moveTo(p3x, p3y);
+        ctx.lineTo(p4x, p4y);
         ctx.stroke();
       }
 
@@ -288,8 +328,8 @@ export function drawPriceDrawings(ctx: CanvasRenderingContext2D, params: RenderC
       const rectW = Math.abs(rx2 - rx1);
       const rectH = Math.abs(ry2 - ry1);
       ctx.save();
-      ctx.globalAlpha = 0.12;
-      ctx.fillStyle = lineColor;
+      ctx.globalAlpha = FILL_ALPHA;
+      ctx.fillStyle = dr.fillColor ?? lineColor;
       ctx.fillRect(rectX, rectY, rectW, rectH);
       ctx.globalAlpha = 1;
       ctx.strokeStyle = lineColor;
@@ -310,9 +350,12 @@ export function drawPriceDrawings(ctx: CanvasRenderingContext2D, params: RenderC
     for (const dr of visibleDrawings) {
       if (dr.lineType !== "zones") continue;
       const lineColor = dr.color ?? colorAccent;
-      const posColor = dr.positiveColor ?? colorUp;
-      const negColor = dr.negativeColor ?? colorDown;
-      const neutColor = dr.neutralColor ?? colorMuted;
+      // Pale green and pale red by default rather than the theme's own up/down, for the same
+      // reason a risk/reward box uses them: on a monochrome palette those are two greys, and a
+      // tool whose whole output is "above this is good, below it is bad" then says nothing.
+      const posColor = dr.positiveColor ?? PALE_GREEN;
+      const negColor = dr.negativeColor ?? PALE_RED;
+      const neutColor = dr.neutralColor ?? PALE_NEUTRAL;
       const rx1 = zoomedXScale(indexForDate(dr.x1) + 0.5);
       const ry1 = zoomedPriceScale(dr.y1);
       const rx2 = zoomedXScale(indexForDate(dr.x2) + 0.5);
@@ -322,7 +365,7 @@ export function drawPriceDrawings(ctx: CanvasRenderingContext2D, params: RenderC
       const topY = Math.min(ry1, ry2);
       const bottomY = Math.max(ry1, ry2);
       ctx.save();
-      ctx.globalAlpha = 0.14;
+      ctx.globalAlpha = FILL_ALPHA;
       ctx.fillStyle = posColor;
       ctx.fillRect(rectX, 0, rectW, topY);
       ctx.fillStyle = neutColor;
@@ -393,6 +436,11 @@ export function drawPriceDrawings(ctx: CanvasRenderingContext2D, params: RenderC
       screenPoints.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
       ctx.stroke();
       ctx.restore();
+      // The label, anchored to the stroke's own two ends — the same `drawDrawingText` every other
+      // tool's label already goes through. It was simply never called here, so the Texte tab
+      // accepted a label for a brush stroke and then nothing appeared.
+      const brushEnd = screenPoints[screenPoints.length - 1];
+      drawDrawingText(ctx, dr, screenPoints[0].x, screenPoints[0].y, brushEnd.x, brushEnd.y, lineColor, fontFamily);
     }
 
     // "forecast": a curved (not straight) arrow from x1/y1 to x2/y2 — a price-projection
@@ -474,13 +522,9 @@ export function drawPriceDrawings(ctx: CanvasRenderingContext2D, params: RenderC
       const lineColor = dr.color ?? colorAccent;
       const ax = zoomedXScale(indexForDate(dr.x1) + 0.5);
       const ay = zoomedPriceScale(dr.y1);
-      const strokeW = dr.strokeWidth ?? 1.5;
-      const headSize = strokeW * 4 + 6;
-      const shaftLength = headSize * 1.8;
-      const gap = 4;
-      const dir = dr.lineType === "arrowUp" ? 1 : -1;
-      const tailY = ay + dir * (gap + shaftLength);
-      const headY = ay + dir * gap;
+      const { dir, near, far, headSize, strokeW } = arrowMarkerExtent(dr.strokeWidth, dr.lineType);
+      const tailY = ay + dir * far;
+      const headY = ay + dir * near;
       ctx.save();
       ctx.strokeStyle = lineColor;
       ctx.lineWidth = strokeW;

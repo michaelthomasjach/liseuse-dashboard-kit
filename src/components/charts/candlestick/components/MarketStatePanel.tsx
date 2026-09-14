@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { CloseIcon, ChevronDownIcon, DetachWindowIcon, SettingsIcon, HelpIcon, MaximizeIcon } from "../../../icons";
+import { CloseIcon, ChevronDownIcon, DetachWindowIcon, SettingsIcon, HelpIcon } from "../../../icons";
 import { computeMarketState, type MarketStateAxis, type MarketStateDirection } from "../marketState";
 import { DEFAULT_MARKET_STATE_SETTINGS, type MarketStateSettings } from "../marketStateSettings";
 import { MarketStateSettingsModal } from "./MarketStateSettingsModal";
@@ -25,7 +25,6 @@ export interface MarketStatePanelProps {
   onRequestDetach?: () => void;
   /** Opens the readout in a modal filling the middle of the screen. Same convention as
    *  `onRequestDetach`: absent means the host does not offer it and no button appears. */
-  onRequestFullscreen?: () => void;
   /** The copy living in that window: it fills it rather than floating over a plot, so it drops the
    *  absolute positioning, the drag and the close button, none of which mean anything there. */
   detached?: boolean;
@@ -76,7 +75,6 @@ export function MarketStatePanel({
   onClose,
   formatDate,
   onRequestDetach,
-  onRequestFullscreen,
   detached = false,
   bandsOn,
   onBandsChange,
@@ -174,19 +172,6 @@ export function MarketStatePanel({
         >
           <HelpIcon size={11} />
         </button>
-        {/* Enlarge, not a second detach: two identical icons side by side said the same thing
-            twice. This one gives the readout the middle of the screen; the next one gives it a
-            window of its own. */}
-        {onRequestFullscreen && (
-          <button
-            type="button"
-            onClick={onRequestFullscreen}
-            aria-label="Agrandir l'état du marché"
-            title="Agrandir"
-          >
-            <MaximizeIcon size={11} />
-          </button>
-        )}
         {onRequestDetach && (
           <button type="button" onClick={onRequestDetach} aria-label="Ouvrir dans une fenêtre" title="Ouvrir dans une fenêtre">
             <DetachWindowIcon size={11} />

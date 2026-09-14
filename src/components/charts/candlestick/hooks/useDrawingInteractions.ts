@@ -353,6 +353,19 @@ export function useDrawingInteractions({
     };
   }
 
+  /** A risk/reward box is one box, not two rectangles that happen to share an edge: dragging the
+   *  target's date has to carry the stop's along with it, and the other way round. Only the
+   *  *dates* are tied — the two prices stay independent, which is the whole point of the tool. */
+  function syncPositionDates(d: TrendLineDrawing, pointIndex: number): TrendLineDrawing {
+    if (d.lineType !== "longPosition" && d.lineType !== "shortPosition") return d;
+    const stop = d.extraPoints?.[0];
+    if (!stop) return d;
+    // Whichever of the two was just dragged wins, and the other follows.
+    if (pointIndex === 1) return { ...d, extraPoints: [{ ...stop, x: d.x2 }, ...(d.extraPoints ?? []).slice(1)] };
+    if (pointIndex === 2) return { ...d, x2: stop.x };
+    return d;
+  }
+
   function handleEndpointPointerMove(e: React.PointerEvent<SVGCircleElement>) {
     const drag = dragEndpointRef.current;
     if (!drag) return;
@@ -361,10 +374,10 @@ export function useDrawingInteractions({
       drawings.map((d) => {
         if (d.id !== drag.id) return d;
         if (drag.pointIndex === 0) return { ...d, x1: point.x, y1: point.y };
-        if (drag.pointIndex === 1) return { ...d, x2: point.x, y2: point.y };
+        if (drag.pointIndex === 1) return syncPositionDates({ ...d, x2: point.x, y2: point.y }, 1);
         const extraPoints = [...(d.extraPoints ?? [])];
         extraPoints[drag.pointIndex - 2] = point;
-        return { ...d, extraPoints };
+        return syncPositionDates({ ...d, extraPoints }, drag.pointIndex);
       })
     );
   }

@@ -208,3 +208,26 @@ export function tableCellIndexAt(x1: number, y1: number, x2: number, y2: number,
   const row = Math.min(rows - 1, Math.floor(((mouseY - top) / h) * rows));
   return row * cols + col;
 }
+
+/** Where an arrow marker actually sits, relative to its own anchor.
+ *
+ *  Shared by the renderer and the hit test, and shared on purpose: the two had drifted, and the
+ *  drift was invisible. The arrow draws entirely to one side of its anchor — the head a few pixels
+ *  clear of it, the tail a good twenty-five further on — while the hit test measured the distance
+ *  to the anchor pixel itself. Pointing at the arrow therefore reported a distance of twenty-odd
+ *  pixels, past every hover threshold, and no tooltip ever appeared for either arrow tool.
+ *
+ *  `dir` is +1 for an up arrow and −1 for a down one, both in screen space (y grows downward), so
+ *  `anchorY + dir * near` and `anchorY + dir * far` bound the shape. */
+export function arrowMarkerExtent(strokeWidth: number | undefined, lineType: "arrowUp" | "arrowDown") {
+  const strokeW = strokeWidth ?? 1.5;
+  const headSize = strokeW * 4 + 6;
+  return {
+    dir: lineType === "arrowUp" ? 1 : -1,
+    near: 4,
+    far: 4 + headSize * 1.8,
+    halfWidth: headSize * 0.6,
+    headSize,
+    strokeW,
+  };
+}

@@ -185,17 +185,75 @@
   gap: var(--lq-space-1);
 }
 
+/* ── The composer, in two layers ──────────────────────────────────────────────────────────────
+   A painted copy of the draft sits underneath, and the real textarea sits on top of it with
+   transparent text and a visible caret. That is what lets an `@mention` be a coloured pill: a
+   textarea cannot style part of its own content, and the alternative — a contenteditable — means
+   re-implementing the caret, the selection, undo and IME behaviour that a textarea gives free.
+
+   The two layers have to agree on every metric that affects where a line wraps. Font, padding,
+   border, width and white-space are therefore declared once, shared, and must stay that way: a
+   single pixel of difference and the colours drift off the words by the end of a paragraph. */
+.lq-ai__composer-stack {
+  position: relative;
+}
+
+.lq-ai__highlight,
 .lq-ai__input {
   width: 100%;
   box-sizing: border-box;
-  resize: vertical;
   border: 1px solid var(--lq-color-border-subtle);
   border-radius: var(--lq-radius-sm);
-  background-color: var(--lq-color-surface);
-  color: var(--lq-color-text);
   font: inherit;
   font-size: var(--lq-text-sm);
+  line-height: 1.5;
   padding: var(--lq-space-2);
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
+.lq-ai__highlight {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-color: transparent;
+  color: transparent;
+  background-color: var(--lq-color-surface);
+  pointer-events: none;
+}
+
+.lq-ai__input {
+  position: relative;
+  resize: vertical;
+  background-color: transparent;
+  color: var(--lq-color-text);
+}
+
+/* A mention, painted behind the word it belongs to. Green when it names something the chart knows
+   about, red when it does not — and red is not a refusal: the message still sends, because the
+   user may be naming something this list has no way to know about, and a feature that blocks on
+   its own ignorance is worse than one that just says what it recognised. */
+.lq-ai__mention {
+  border-radius: 3px;
+  padding: 1px 0;
+  color: transparent;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.lq-ai__mention--known {
+  background-color: color-mix(in srgb, #4caf50 30%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, #4caf50 45%, transparent);
+}
+
+.lq-ai__mention--unknown {
+  background-color: color-mix(in srgb, #ef5350 26%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, #ef5350 45%, transparent);
+}
+
+/* The mention menu is the slash menu with one column fewer — a mention has a kind, not a group. */
+.lq-ai__menu--mentions .lq-ai__menu-label {
+  font-weight: 600;
 }
 
 .lq-ai__input:focus-visible {

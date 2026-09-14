@@ -2,6 +2,7 @@ import type { RenderCandlestickChartParams } from "../interfaces/RenderCandlesti
 import type { ChartCanvasStyle } from "../interfaces/ChartCanvasStyle.interface";
 import { pitchforkLines, pitchforkExtraPoints } from "../pitchforkGeometry";
 import type { PitchforkVariant } from "../pitchforkGeometry";
+import { FILL_ALPHA } from "../drawingFills";
 import { lineDashArray, drawDrawingText } from "../drawingRender";
 
 const PITCHFORK_TYPES = new Set(["pitchfork", "schiffPitchfork", "modifiedSchiffPitchfork", "insidePitchfork"]);
@@ -31,6 +32,20 @@ export function drawPitchforkDrawings(ctx: CanvasRenderingContext2D, params: Ren
     const lineColor = dr.color ?? colorAccent;
     const variant = dr.lineType as PitchforkVariant;
     const { handle, spine, median, tine1, tine2 } = pitchforkLines(p0, p1, p2, variant, 0, dims.boundedWidth);
+
+    // The corridor between the two tines, filled. A fork's reading is "the price is inside it or
+    // it is not", and two bare lines leave that boundary to the eye.
+    ctx.save();
+    ctx.globalAlpha = FILL_ALPHA;
+    ctx.fillStyle = dr.fillColor ?? lineColor;
+    ctx.beginPath();
+    ctx.moveTo(tine1.x1, tine1.y1);
+    ctx.lineTo(tine1.x2, tine1.y2);
+    ctx.lineTo(tine2.x2, tine2.y2);
+    ctx.lineTo(tine2.x1, tine2.y1);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
 
     ctx.save();
     ctx.strokeStyle = lineColor;

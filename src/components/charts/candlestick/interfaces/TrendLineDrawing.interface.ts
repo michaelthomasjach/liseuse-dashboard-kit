@@ -83,6 +83,28 @@ export interface TrendLineDrawing {
    *  background changes, so the label stays readable without the user having to think about
    *  it — still freely overridable by hand afterward via its own picker. */
   textColor?: string;
+  /** The shape's own filled area, for every tool that has one: the band between a channel's two
+   *  lines, the corridor between a pitchfork's tines, a rectangle's interior, a table's cells, the
+   *  region a head-and-shoulders encloses against its neckline, and the body of a pin or a flag.
+   *
+   *  Unset falls back to each tool's own previous default (its `color`, or the theme's accent),
+   *  so a drawing saved before this existed renders exactly as it did. The fill is always painted
+   *  at low opacity — this names the hue, not the strength, since a fill that competes with the
+   *  candles underneath it stops being a background.
+   *
+   *  Distinct from `textBackgroundColor`, which fills a *label*: the tools whose whole body is a
+   *  label — comment, note, priceNote, signpost, priceLabel — keep using that one, and the edit
+   *  modal's own "Couleur de fond" control writes whichever of the two applies to the tool at
+   *  hand, so there is one control and not two. */
+  fillColor?: string;
+  /** "longPosition"/"shortPosition" only — the two bands' own fills, reward and risk.
+   *
+   *  They default to a pale green and a pale red *independently of the palette*, rather than to
+   *  the theme's own up/down colours as they used to. On a monochrome palette those resolve to two
+   *  greys, which left the two halves of a risk/reward box — the one drawing whose entire point is
+   *  that one half is the gain and the other is the loss — indistinguishable. */
+  targetFillColor?: string;
+  stopFillColor?: string;
   /** Constrains the line to one axis instead of a free-form two-point line: "horizontal" keeps
    *  y1 === y2 and can only be dragged vertically (its price/volume changes, never its date
    *  span, which always covers the full width); "vertical" keeps x1 === x2 and can only be

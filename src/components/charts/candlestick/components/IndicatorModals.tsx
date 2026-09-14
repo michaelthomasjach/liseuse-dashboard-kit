@@ -20,8 +20,7 @@ import { INDICATOR_CATALOG, type IndicatorCatalogEntry, indicatorCatalogEntry, i
 import { INDICATOR_DESCRIPTIONS, VOLUME_DESCRIPTION } from "../indicatorDescriptions";
 import { INDICATOR_SCRIPT_SOURCES } from "../indicatorScriptSources";
 import { CodeBlock } from "../../../primitives/CodeBlock";
-import { INDICATOR_DIAGRAMS } from "../diagrams/indicatorDiagramRegistry";
-import { VolumeDiagram } from "../diagrams/structureDiagrams";
+import { INDICATOR_DIAGRAMS, VolumeDiagram } from "../diagrams/indicatorDiagramRegistry";
 import { drawingToolMeta, drawingLabel } from "../drawingCatalog";
 import { IndicatorSettingsInputs, IndicatorSettingsStyle } from "./IndicatorSettingsFields";
 import { IndicatorPickerModal } from "./IndicatorPickerModal";

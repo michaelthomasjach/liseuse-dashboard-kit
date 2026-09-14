@@ -31,8 +31,11 @@ export function drawMarkerDrawings(ctx: CanvasRenderingContext2D, params: Render
     const sideColor =
       dr.markerSide === "long" || dr.markerSide === "win" ? colorUp : dr.markerSide === "short" || dr.markerSide === "loss" ? colorDown : null;
     const color = dr.color ?? sideColor ?? colorAccent;
+    // The marker's own body. `color` stays the label's colour, so the two controls the edit modal
+    // offers for these tools do genuinely different things rather than one shadowing the other.
+    const bodyColor = dr.fillColor ?? color;
     ctx.save();
-    ctx.fillStyle = color;
+    ctx.fillStyle = bodyColor;
 
     if (dr.lineType === "pin") {
       const cy = y - PIN_CIRCLE_OFFSET_Y;

@@ -506,15 +506,3 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Enlarged into a modal: the readout centred in the room it was given, rather than stretched
-   across it — five figures in a column do not become more readable at 1200px wide. */
-.lq-market-state__modal-body {
-  display: flex;
-  justify-content: center;
-  padding: var(--lq-space-3);
-}
-
-.lq-market-state__modal-body .lq-market-state {
-  width: min(520px, 100%);
-  font-size: 1.05rem;
-}

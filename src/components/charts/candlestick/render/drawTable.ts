@@ -1,3 +1,4 @@
+import { FILL_ALPHA } from "../drawingFills";
 import type { RenderCandlestickChartParams } from "../interfaces/RenderCandlestickChartParams.interface";
 import type { ChartCanvasStyle } from "../interfaces/ChartCanvasStyle.interface";
 import { TABLE_DEFAULT_ROWS, TABLE_DEFAULT_COLS } from "../constants";
@@ -29,8 +30,8 @@ export function drawTableDrawings(ctx: CanvasRenderingContext2D, params: RenderC
     const lineColor = dr.color ?? colorAccent;
 
     ctx.save();
-    ctx.fillStyle = lineColor;
-    ctx.globalAlpha = 0.08;
+    ctx.fillStyle = dr.fillColor ?? lineColor;
+    ctx.globalAlpha = dr.fillColor ? FILL_ALPHA : 0.08;
     ctx.fillRect(left, top, w, h);
     ctx.globalAlpha = 1;
     ctx.strokeStyle = lineColor;

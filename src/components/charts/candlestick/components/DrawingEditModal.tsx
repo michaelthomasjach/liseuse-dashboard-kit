@@ -10,6 +10,7 @@ import type { DrawingToolType } from "../interfaces/DrawingToolType.interface";
 import { drawingLabel, MULTI_POINT_TOOLS } from "../drawingCatalog";
 import { allPointsOf, round4, effectiveExtendOf } from "../drawingGeometry";
 import { contrastingTextColor, toDateInputValue, fromDateInputValue } from "../formatting";
+import { fillColorField, PALE_GREEN, PALE_NEUTRAL, PALE_RED } from "../drawingFills";
 import { CHART_DISPLAY_MODES } from "../chartModes";
 import { TABLE_DEFAULT_ROWS, TABLE_DEFAULT_COLS } from "../constants";
 
@@ -49,6 +50,9 @@ export function DrawingEditModal({
   defaultColor,
 }: DrawingEditModalProps) {
   if (!draft) return null;
+  // Which field this tool's background actually lives in — null where it has none.
+  const fillField = fillColorField(draft);
+  const DEFAULT_FILL = PALE_NEUTRAL;
   // Every overlayDisplayMode besides "line" needs open/high/low on every point — a plain
   // close-only overlay (see OverlayDataPoint's own doc) has nothing a candle body or brick could
   // be drawn from, so the Style tab's own selector collapses to just "Ligne" then.
@@ -434,6 +438,53 @@ export function DrawingEditModal({
               <Checkbox checked={draft.arrowRight ?? false} onChange={(arrowRight) => setDraft({ ...draft, arrowRight })} label="Flèche à droite" />
             </div>
           )}
+          {/* One "Couleur de fond" control, writing whichever field actually carries this tool's
+              background — `fillColor` for a shape (channel, pitchfork, rectangle, table, head &
+              shoulders, pin, flag) and `textBackgroundColor` for the tools whose whole body is a
+              label (comment, note, price note, signpost, price label). A tool with no background
+              at all gets no control, rather than one that does nothing. */}
+          {fillField !== null && (
+            <div className="lq-chart__edit-drawing-row">
+              <div className="lq-field">
+                <label className="lq-field__label">Couleur de fond</label>
+                <input
+                  type="color"
+                  className="lq-chart__color-input"
+                  value={draft[fillField] ?? draft.color ?? DEFAULT_FILL}
+                  onChange={(e) => setDraft({ ...draft, [fillField]: e.target.value })}
+                />
+              </div>
+              {draft[fillField] !== undefined && (
+                <button type="button" className="lq-chart__link-button" onClick={() => setDraft({ ...draft, [fillField]: undefined })}>
+                  Réinitialiser
+                </button>
+              )}
+            </div>
+          )}
+          {/* A risk/reward box has two backgrounds, and which is which is its entire meaning — so
+              they get their own pair rather than sharing the single control above. */}
+          {(draft.lineType === "longPosition" || draft.lineType === "shortPosition") && (
+            <div className="lq-chart__edit-drawing-row">
+              <div className="lq-field">
+                <label className="lq-field__label">Fond objectif</label>
+                <input
+                  type="color"
+                  className="lq-chart__color-input"
+                  value={draft.targetFillColor ?? PALE_GREEN}
+                  onChange={(e) => setDraft({ ...draft, targetFillColor: e.target.value })}
+                />
+              </div>
+              <div className="lq-field">
+                <label className="lq-field__label">Fond stop</label>
+                <input
+                  type="color"
+                  className="lq-chart__color-input"
+                  value={draft.stopFillColor ?? PALE_RED}
+                  onChange={(e) => setDraft({ ...draft, stopFillColor: e.target.value })}
+                />
+              </div>
+            </div>
+          )}
           {draft.lineType === "zones" && (
             <>
               <Checkbox
@@ -447,7 +498,7 @@ export function DrawingEditModal({
                   <input
                     type="color"
                     className="lq-chart__color-input"
-                    value={draft.positiveColor ?? "#26a69a"}
+                    value={draft.positiveColor ?? PALE_GREEN}
                     onChange={(e) => setDraft({ ...draft, positiveColor: e.target.value })}
                   />
                 </div>
@@ -456,7 +507,7 @@ export function DrawingEditModal({
                   <input
                     type="color"
                     className="lq-chart__color-input"
-                    value={draft.neutralColor ?? "#9e9e9e"}
+                    value={draft.neutralColor ?? PALE_NEUTRAL}
                     onChange={(e) => setDraft({ ...draft, neutralColor: e.target.value })}
                   />
                 </div>
@@ -465,7 +516,7 @@ export function DrawingEditModal({
                   <input
                     type="color"
                     className="lq-chart__color-input"
-                    value={draft.negativeColor ?? "#ef5350"}
+                    value={draft.negativeColor ?? PALE_RED}
                     onChange={(e) => setDraft({ ...draft, negativeColor: e.target.value })}
                   />
                 </div>

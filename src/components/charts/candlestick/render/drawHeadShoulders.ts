@@ -2,7 +2,8 @@ import type { RenderCandlestickChartParams } from "../interfaces/RenderCandlesti
 import type { ChartCanvasStyle } from "../interfaces/ChartCanvasStyle.interface";
 import { HEAD_SHOULDERS_VERTEX_LABELS } from "../drawingCatalog";
 import { extendSegmentToEdges } from "../drawingGeometry";
-import { drawPillLabel } from "../drawingRender";
+import { FILL_ALPHA } from "../drawingFills";
+import { drawPillLabel, drawDrawingText } from "../drawingRender";
 
 // Which of the pattern's own 7 vertices get a named pill badge, keyed by index into the 7-point
 // array this file builds everywhere below — French, matching this tool's own name ("ETE :
@@ -54,8 +55,8 @@ export function drawHeadShouldersDrawings(ctx: CanvasRenderingContext2D, params:
     // own point directly under p7 (not a straight p7→p1 chord), so the fill's own lower edge
     // actually follows the neckline even where point 7 has drifted away from it.
     ctx.save();
-    ctx.fillStyle = lineColor;
-    ctx.globalAlpha = 0.12;
+    ctx.fillStyle = dr.fillColor ?? lineColor;
+    ctx.globalAlpha = FILL_ALPHA;
     ctx.beginPath();
     ctx.moveTo(p1.x, p1.y);
     for (const p of [p2, p3, p4, p5, p6, p7]) ctx.lineTo(p.x, p.y);
@@ -124,5 +125,10 @@ export function drawHeadShouldersDrawings(ctx: CanvasRenderingContext2D, params:
       const label = PEAK_LABELS[i];
       if (label) drawPillLabel(ctx, p.x, p.y - 26, label, lineColor, colorBg, fontFamily, "center");
     });
+
+    // The user's own label, anchored across the figure's first and last vertices — the same
+    // `drawDrawingText` every other tool goes through. It was never called here, so the Texte tab
+    // accepted a label for this pattern and then nothing appeared.
+    drawDrawingText(ctx, dr, points[0].x, points[0].y, points[points.length - 1].x, points[points.length - 1].y, lineColor, fontFamily);
   }
 }

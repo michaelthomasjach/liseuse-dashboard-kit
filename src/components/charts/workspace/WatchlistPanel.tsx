@@ -139,26 +139,36 @@ export function WatchlistPanel({
    *  A ref for the prices — they are compared, never rendered — and state for the directions,
    *  which are. Keyed by row id rather than by index: a list that gets reordered or filtered would
    *  otherwise compare a symbol against whatever used to sit in its place, and flash every row on
-   *  a sort. */
+   *  a sort.
+   *
+   *  "same" is a real value here, not a missing one: an update that leaves the price where it was
+   *  still bounces, it just bounces in the colour it already had. That is the difference between
+   *  "nothing arrived" and "something arrived and nothing changed", and only the first should be
+   *  silent. */
   const previousPricesRef = useRef<Record<string, number>>({});
-  const [priceMoves, setPriceMoves] = useState<Record<string, "up" | "down">>({});
+  const [priceMoves, setPriceMoves] = useState<Record<string, "up" | "down" | "same">>({});
+  /** Bumped on every tick, so an identical move in a row can restart its own animation — a CSS
+   *  animation only replays when the class actually changes, and "up" twice running is not a
+   *  change. */
+  const [tick, setTick] = useState(0);
   const allRows = useMemo(
     () => [...activeWatchlist.rows, ...(activeWatchlist.sections?.flatMap((section) => section.rows) ?? [])],
     [activeWatchlist],
   );
   useEffect(() => {
-    const moved: Record<string, "up" | "down"> = {};
+    const moved: Record<string, "up" | "down" | "same"> = {};
     for (const row of allRows) {
       if (typeof row.price !== "number") continue;
       const before = previousPricesRef.current[row.id];
       previousPricesRef.current[row.id] = row.price;
-      // Unchanged means nothing happens, as asked — and so does a first sighting: a row appearing
-      // with a price has not moved, it has arrived.
-      if (before === undefined || before === row.price) continue;
-      moved[row.id] = row.price > before ? "up" : "down";
+      // A first sighting stays silent: a row appearing with a price has not moved, it has arrived.
+      // An update that lands on the same price does not — it bounces, in its own colour.
+      if (before === undefined) continue;
+      moved[row.id] = before === row.price ? "same" : row.price > before ? "up" : "down";
     }
     if (Object.keys(moved).length === 0) return;
     setPriceMoves((current) => ({ ...current, ...moved }));
+    setTick((n) => n + 1);
     // Cleared after the tint has had time to be seen. Without this a row stays green from a rise
     // that happened minutes ago, which says something false about the present.
     const id = window.setTimeout(() => {
@@ -338,6 +348,7 @@ export function WatchlistPanel({
   }
 
   function renderRow(row: ChartWorkspaceWatchlistRow, sectionId: string | null, index: number) {
+    const move = priceMoves[row.id];
     return (
       <div
         key={row.id}
@@ -346,7 +357,6 @@ export function WatchlistPanel({
           pressedRowId === row.id && "lq-chart-workspace__watchlist-row--pressed",
           draggingRowId === row.id && "lq-chart-workspace__watchlist-row--dragging",
           justDroppedId === row.id && "lq-chart-workspace__watchlist-row--landed",
-          priceMoves[row.id] && `lq-chart-workspace__watchlist-row--${priceMoves[row.id]}`,
         ]
           .filter(Boolean)
           .join(" ")}
@@ -391,9 +401,21 @@ export function WatchlistPanel({
               />
             )}
           </span>
+          {/* The figures themselves react, not the row behind them. A whole-row tint said "this
+              row did something"; what the reader wants to know is which numbers moved, and which
+              way. `key` carries the tick so an identical move replays instead of sitting still —
+              a CSS animation restarts on a new element, not on the same class being set twice. */}
           {visibleColumns.map((c) => (
-            <span key={c.id} className="lq-chart-workspace__watchlist-cell" style={columnFlexStyle(c.id)}>
-              {row.values[c.id]}
+            <span
+              key={c.id}
+              className={["lq-chart-workspace__watchlist-cell", move && `lq-chart-workspace__watchlist-cell--${move}`]
+                .filter(Boolean)
+                .join(" ")}
+              style={columnFlexStyle(c.id)}
+            >
+              <span key={`${move ?? "idle"}-${tick}`} className="lq-chart-workspace__watchlist-value">
+                {row.values[c.id]}
+              </span>
             </span>
           ))}
         </button>

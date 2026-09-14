@@ -1,5 +1,7 @@
 import { useDragToDismiss } from "../../../workspace/useDragToDismiss";
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
+import { LqThemeProvider, useLqTheme } from "../../../../../theme";
 import { DetachedWindow } from "../../components/DetachedWindow";
 import { ScriptEditorWindow } from "../../scripting/components/ScriptEditorWindow";
 import { AiPanel, type AiPanelProps } from "./AiPanel";
@@ -57,6 +59,9 @@ export function AiHost({
   // Declared unconditionally — hooks cannot sit behind the `mobile` branch below — and simply
   // never consulted on the desktop layout, where `open` stays false and it does nothing.
   const drag = useDragToDismiss({ open: mobile && panelProps.open, onDismiss: panelProps.onClose });
+  // Carried across the portal by hand: the sheet is moved out of the chart's DOM below, and the
+  // palette/surface variables live on an ancestor it no longer has.
+  const theme = useLqTheme();
   // Kept mounted for the length of the exit. Closing from the bottom bar sets `open` false
   // directly rather than going through the grab bar, and the hook answers that by dropping
   // `entered` — which is exactly the class the slide down transitions from. Unmounting on the same
@@ -73,7 +78,14 @@ export function AiHost({
 
   if (mobile) {
     if (!panelProps.open && !drag.closing && !mounted) return null;
-    return (
+    // Portaled to `document.body`, like every other overlay in this library, and for a reason that
+    // showed up as two separate-looking bugs: a `position: fixed` element cannot escape an
+    // ancestor that establishes a stacking context, so left inside the chart the sheet was both
+    // outranked by the workspace's own bottom bar — the animated assistant icon painting over it —
+    // and sized against the panel rather than the screen, which put its grab bar somewhere other
+    // than the top of the display. No z-index can fix either; leaving the subtree is what does.
+    return createPortal(
+      <LqThemeProvider palette={theme.palette} surface={theme.surface} font={theme.font} style={{ display: "contents" }}>
       <div
         className={[
           "lq-ai-sheet",
@@ -99,6 +111,8 @@ export function AiHost({
             sheet is the open state, and its grab bar is the way out. */}
         <AiPanel {...panelProps} open chrome="bare" />
       </div>
+      </LqThemeProvider>,
+      document.body,
     );
   }
 

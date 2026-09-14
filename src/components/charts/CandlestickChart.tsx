@@ -21,8 +21,8 @@ import { useStrategyPanelState } from "./candlestick/hooks/useStrategyPanelState
 import { useAiChartContext } from "./candlestick/ai/useAiChartContext";
 import { CloseIcon } from "../icons";
 import { useAiAssistant } from "./candlestick/ai/useAiAssistant";
+import { AiHost, type AiView } from "./candlestick/ai/components/AiHost";
 import { strategyAiRequest, type StrategyAiPrompt } from "./candlestick/strategy/strategyAiPrompts";
-import { AiPanel } from "./candlestick/ai/components/AiPanel";
 import { anthropicSend } from "./candlestick/ai/anthropicSend";
 import { useHoverSync } from "./candlestick/hooks/useHoverSync";
 import { usePaneDragReorder } from "./candlestick/hooks/usePaneDragReorder";
@@ -1064,6 +1064,33 @@ export function CandlestickChart({
   // bury it and drag every previous turn of an unrelated conversation into the request. `send` is
   // null when the caller configured no transport — `ask` then does nothing and the card, which is
   // gated on the same thing, never renders.
+  // The panel's own conversation, owned here rather than inside the panel: the panel is unmounted
+  // and remounted as it moves between the dock, a floating window and a torn-off browser window,
+  // and a transcript held down there would be discarded on every move.
+  const assistant = useAiAssistant({ chart: aiChart, send: aiSend ?? null, serverTools: ai?.serverTools ?? [] });
+  const [aiDraft, setAiDraft] = useState("");
+  const [aiView, setAiView] = useState<AiView>("docked");
+  const [detachedAiWindow, setDetachedAiWindow] = useState<Window | null>(null);
+  /** Tears the assistant off into a window of its own, and closes the docked pane behind it —
+   *  exigence : « quand on ouvre en modale ou dans une nouvelle fenêtre alors la PANE Assistant se
+   *  ferme ». The window is opened inside the click for the same reason the strategy tester's is:
+   *  a `window.open` deferred to an effect is no longer attributed to the gesture and browsers
+   *  block it as an unsolicited popup. */
+  const detachAiPanel = useCallback(() => {
+    const child = window.open("", "", "width=520,height=760");
+    if (child === null) return;
+    setDetachedAiWindow(child);
+    setAiView("detached");
+    setAiOpen(false);
+  }, [setAiOpen]);
+  // Opening the floating window closes the pane too; closing it leaves the pane closed, which is
+  // why this watches the *view* rather than living in the button: both routes out of "docked" go
+  // through it, and only one of them is a click on a button in this file.
+  useEffect(() => {
+    if (aiView !== "docked") setAiOpen(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aiView]);
+
   const strategyAi = useAiAssistant({ chart: aiChart, send: aiSend ?? null, serverTools: ai?.serverTools ?? [] });
   // Which written-out question is in flight, and what came back for it. The transcript is the
   // hook's; these two are what the banner above the chart is made of.
@@ -1785,13 +1812,23 @@ export function CandlestickChart({
           chart row, so flexbox hands the plot whatever width is left and every measurement
           downstream picks up the narrower box for free — the same arrangement `sidePanel` uses. */}
       {ai && (
-        <AiPanel
-          open={aiOpen}
-          onClose={() => setAiOpen(false)}
-          chart={aiChart}
-          send={aiSend}
-          serverTools={ai.serverTools ?? []}
-          symbols={ai.symbols ?? []}
+        <AiHost
+          panelProps={{
+            open: aiOpen,
+            onClose: () => setAiOpen(false),
+            chart: aiChart,
+            send: aiSend ?? null,
+            symbols: ai.symbols ?? [],
+            assistant,
+            draft: aiDraft,
+            onDraftChange: setAiDraft,
+          }}
+          view={aiView}
+          setView={setAiView}
+          detachedWindow={detachedAiWindow}
+          setDetachedWindow={setDetachedAiWindow}
+          onRequestDetach={detachAiPanel}
+          themeSource={mainRef.current?.closest(".lq-root") as HTMLElement | null}
         />
       )}
     </div>

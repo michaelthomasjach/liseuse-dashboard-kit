@@ -13,38 +13,38 @@
 
 .lq-report__title {
   margin: 0;
-  font-size: var(--lq-font-size-lg);
+  font-size: var(--lq-text-lg);
   font-weight: 700;
 }
 
 .lq-report__subtitle {
   margin: 2px 0 0;
-  font-size: var(--lq-font-size-sm);
+  font-size: var(--lq-text-sm);
   color: var(--lq-color-text-muted);
 }
 
 .lq-report__meta {
   margin: var(--lq-space-1) 0 0;
-  font-size: var(--lq-font-size-xs);
+  font-size: var(--lq-text-xs);
   color: var(--lq-color-text-muted);
 }
 
 .lq-report__h2 {
   margin: var(--lq-space-2) 0 0;
-  font-size: var(--lq-font-size-md);
+  font-size: var(--lq-text-md);
   font-weight: 600;
 }
 
 .lq-report__h3 {
   margin: var(--lq-space-1) 0 0;
-  font-size: var(--lq-font-size-sm);
+  font-size: var(--lq-text-sm);
   font-weight: 600;
   color: var(--lq-color-text-muted);
 }
 
 .lq-report__text {
   margin: 0;
-  font-size: var(--lq-font-size-sm);
+  font-size: var(--lq-text-sm);
   line-height: 1.6;
 }
 
@@ -74,7 +74,7 @@
 }
 
 .lq-report__metric-value {
-  font-size: var(--lq-font-size-md);
+  font-size: var(--lq-text-md);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
@@ -94,7 +94,7 @@
 
 .lq-report__table-title {
   margin: 0 0 var(--lq-space-1);
-  font-size: var(--lq-font-size-xs);
+  font-size: var(--lq-text-xs);
   font-weight: 600;
   color: var(--lq-color-text-muted);
 }
@@ -107,7 +107,7 @@
 .lq-report__table {
   border-collapse: collapse;
   width: 100%;
-  font-size: var(--lq-font-size-xs);
+  font-size: var(--lq-text-xs);
   font-variant-numeric: tabular-nums;
 }
 
@@ -145,7 +145,7 @@
 }
 
 .lq-report__series-last {
-  font-size: var(--lq-font-size-sm);
+  font-size: var(--lq-text-sm);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
@@ -180,12 +180,12 @@
 
 .lq-report__callout-title {
   display: block;
-  font-size: var(--lq-font-size-sm);
+  font-size: var(--lq-text-sm);
 }
 
 .lq-report__callout-text {
   margin: 2px 0 0;
-  font-size: var(--lq-font-size-xs);
+  font-size: var(--lq-text-xs);
   line-height: 1.55;
   color: var(--lq-color-text-muted);
 }

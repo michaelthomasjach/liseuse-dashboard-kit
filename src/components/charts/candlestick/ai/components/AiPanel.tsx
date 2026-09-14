@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CloseIcon, SparkleIcon } from "../../../../icons";
+import { CloseIcon, DetachWindowIcon, MaximizeIcon, SparkleIcon } from "../../../../icons";
 import type { AiChartContext } from "../interfaces/AiChartContext.interface";
-import type { AiSend, AiServerTool } from "../interfaces/AiMessage.interface";
-import { useAiAssistant } from "../useAiAssistant";
+import type { AiSend } from "../interfaces/AiMessage.interface";
+import type { AiAssistant } from "../useAiAssistant";
 import { filterSlashCommands, slashCommandsFor, slashQueryAt, type SlashCommand } from "../slashCommands";
 import "./AiPanel.css";
 import type { ScriptReport } from "../../scripting/interfaces/ScriptReport.interface";
@@ -15,11 +15,29 @@ export interface AiPanelProps {
   onClose: () => void;
   chart: AiChartContext;
   /** Null when the caller configured no transport — the panel then explains that rather than
-   *  offering a box that could never answer. */
+   *  offering a box that could never answer. Only read to decide *that*: running the conversation
+   *  is the host's job now (see `assistant`). */
   send: AiSend | null;
-  serverTools: AiServerTool[];
   /** Extra symbols to offer in the `/` menu, beyond the chart's own — a watchlist, typically. */
   symbols: string[];
+  /** The conversation, owned above this panel. It has to be: this same panel is unmounted and
+   *  remounted as it moves between the dock, a floating window and a torn-off browser window, and
+   *  a transcript held here would be thrown away on each move — exigence : « l'historique des
+   *  conversations doit être affiché dans la discussion ». */
+  assistant: AiAssistant;
+  /** The composer's text, owned above for the same reason as `assistant`: a half-typed question
+   *  should survive being popped out, not be the price of popping out. */
+  draft: string;
+  onDraftChange: (draft: string) => void;
+  /** Opens the assistant in a floating window that can be dragged around the screen. Absent means
+   *  the host does not offer it and no button appears — the same convention the strategy tester's
+   *  own header follows. */
+  onRequestWindow?: () => void;
+  /** Tears it off into a real second browser window. */
+  onRequestDetach?: () => void;
+  /** "bare" drops the header's own window controls — for the floating window and the detached one,
+   *  each of which supplies its own way out and its own frame. The docked pane is "full". */
+  chrome?: "full" | "bare";
 }
 
 const PLACEHOLDER = "Posez une question, ou tapez / pour une commande";
@@ -29,9 +47,21 @@ const PLACEHOLDER = "Posez une question, ou tapez / pour une commande";
  *  A panel rather than a modal: everything it is asked about is on the chart behind it, and a
  *  dialog that covers the very thing being discussed would have to be dismissed to check its own
  *  answers. */
-export function AiPanel({ open, onClose, chart, send, serverTools, symbols }: AiPanelProps) {
-  const { transcript, busy, ask, stop, reset } = useAiAssistant({ chart, send, serverTools });
-  const [draft, setDraft] = useState("");
+export function AiPanel({
+  open,
+  onClose,
+  chart,
+  send,
+  symbols,
+  assistant,
+  draft,
+  onDraftChange,
+  onRequestWindow,
+  onRequestDetach,
+  chrome = "full",
+}: AiPanelProps) {
+  const { transcript, busy, ask, stop, reset } = assistant;
+  const setDraft = onDraftChange;
   const [menuIndex, setMenuIndex] = useState(0);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -122,9 +152,33 @@ export function AiPanel({ open, onClose, chart, send, serverTools, symbols }: Ai
               Effacer
             </button>
           )}
+          {chrome === "full" && onRequestWindow && (
+            <button
+              type="button"
+              className="lq-ai__header-button"
+              onClick={onRequestWindow}
+              aria-label="Ouvrir l'assistant dans une fenêtre déplaçable"
+              title="Ouvrir dans une fenêtre déplaçable"
+            >
+              <MaximizeIcon size={13} />
+            </button>
+          )}
+          {chrome === "full" && onRequestDetach && (
+            <button
+              type="button"
+              className="lq-ai__header-button"
+              onClick={onRequestDetach}
+              aria-label="Détacher l'assistant dans une nouvelle fenêtre"
+              title="Détacher dans une nouvelle fenêtre"
+            >
+              <DetachWindowIcon size={13} />
+            </button>
+          )}
+          {chrome === "full" && (
           <button type="button" className="lq-ai__header-button" onClick={onClose} aria-label="Fermer l'assistant" title="Fermer">
             <CloseIcon size={12} />
           </button>
+          )}
         </span>
       </header>
 

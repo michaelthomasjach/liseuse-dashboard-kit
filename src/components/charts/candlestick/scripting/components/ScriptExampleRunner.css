@@ -73,7 +73,7 @@
 
 .lq-script-example__result-symbol {
   font-weight: 700;
-  font-size: var(--lq-font-size-xs);
+  font-size: var(--lq-text-xs);
   letter-spacing: 0.04em;
   flex: 0 0 auto;
 }
@@ -81,7 +81,7 @@
 .lq-script-example__result-row pre {
   margin: 0;
   font-family: var(--lq-font-mono);
-  font-size: var(--lq-font-size-xs);
+  font-size: var(--lq-text-xs);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }

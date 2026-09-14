@@ -14,7 +14,7 @@
 
 .lq-quant__title {
   margin: 0;
-  font-size: var(--lq-font-size-sm);
+  font-size: var(--lq-text-sm);
   font-weight: 600;
   color: var(--lq-color-text);
 }
@@ -25,7 +25,7 @@
   color: var(--lq-color-text);
   border-radius: var(--lq-radius-sm);
   padding: 2px 8px;
-  font-size: var(--lq-font-size-xs);
+  font-size: var(--lq-text-xs);
   cursor: pointer;
 }
 
@@ -58,7 +58,7 @@
   color: var(--lq-color-text-muted);
   border-radius: var(--lq-radius-sm);
   padding: 2px 6px;
-  font-size: var(--lq-font-size-xs);
+  font-size: var(--lq-text-xs);
   white-space: nowrap;
   cursor: pointer;
 }
@@ -80,7 +80,7 @@
   color: var(--lq-color-text-muted);
   cursor: pointer;
   padding: 0 4px;
-  font-size: var(--lq-font-size-sm);
+  font-size: var(--lq-text-sm);
   line-height: 1;
 }
 
@@ -91,7 +91,7 @@
 .lq-quant__ran-at,
 .lq-quant__empty {
   margin: 0;
-  font-size: var(--lq-font-size-xs);
+  font-size: var(--lq-text-xs);
   color: var(--lq-color-text-muted);
 }
 
@@ -111,7 +111,7 @@
 
 .lq-quant__symbol-name {
   margin: 0;
-  font-size: var(--lq-font-size-xs);
+  font-size: var(--lq-text-xs);
   font-weight: 700;
   letter-spacing: 0.04em;
   color: var(--lq-color-text);
@@ -119,14 +119,14 @@
 
 .lq-quant__error {
   margin: 0;
-  font-size: var(--lq-font-size-xs);
+  font-size: var(--lq-text-xs);
   color: var(--lq-color-negative);
 }
 
 .lq-quant__scalar {
   margin: 0;
   font-family: var(--lq-font-mono);
-  font-size: var(--lq-font-size-sm);
+  font-size: var(--lq-text-sm);
   color: var(--lq-color-text);
 }
 
@@ -135,7 +135,7 @@
   grid-template-columns: auto 1fr;
   gap: 2px var(--lq-space-2);
   margin: 0;
-  font-size: var(--lq-font-size-xs);
+  font-size: var(--lq-text-xs);
 }
 
 .lq-quant__field {
@@ -162,7 +162,7 @@
 
 .lq-quant__table {
   border-collapse: collapse;
-  font-size: var(--lq-font-size-xs);
+  font-size: var(--lq-text-xs);
   width: 100%;
 }
 
@@ -193,6 +193,6 @@
   margin: 0;
   overflow-x: auto;
   font-family: var(--lq-font-mono);
-  font-size: var(--lq-font-size-xs);
+  font-size: var(--lq-text-xs);
   color: var(--lq-color-text);
 }

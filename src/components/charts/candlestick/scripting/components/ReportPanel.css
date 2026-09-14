@@ -14,7 +14,7 @@
 
 .lq-report-panel__title {
   margin: 0;
-  font-size: var(--lq-font-size-sm);
+  font-size: var(--lq-text-sm);
   font-weight: 600;
   color: var(--lq-color-text);
 }
@@ -25,7 +25,7 @@
   color: var(--lq-color-text);
   border-radius: var(--lq-radius-sm);
   padding: 2px 8px;
-  font-size: var(--lq-font-size-xs);
+  font-size: var(--lq-text-xs);
   cursor: pointer;
 }
 
@@ -35,7 +35,7 @@
 
 .lq-report-panel__empty {
   margin: 0;
-  font-size: var(--lq-font-size-xs);
+  font-size: var(--lq-text-xs);
   color: var(--lq-color-text-muted);
 }
 

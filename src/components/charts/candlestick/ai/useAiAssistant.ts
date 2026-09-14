@@ -33,6 +33,18 @@ export interface AiTranscriptEntry {
 let nextId = 0;
 const makeId = () => `ai-${++nextId}`;
 
+/** One live conversation: what has been said, whether a turn is in flight, and the three things
+ *  that can be done to it. Named rather than inferred because it travels as a prop — the panel that
+ *  renders a conversation is mounted and unmounted as it moves between the dock, a floating window
+ *  and a torn-off browser window, so the conversation itself has to live above all three. */
+export interface AiAssistant {
+  transcript: AiTranscriptEntry[];
+  busy: boolean;
+  ask: (question: string) => Promise<void>;
+  stop: () => void;
+  reset: () => void;
+}
+
 /** Runs the conversation: sends a turn, executes whatever tools the model asks for, sends the
  *  results back, and repeats until it stops asking.
  *
@@ -40,7 +52,7 @@ const makeId = () => `ai-${++nextId}`;
  *  of this chart, not of the provider: a caller who routes the model through their own backend gets
  *  the same tools, executed in the same browser, against the same chart. The transport's only job
  *  is to turn a request into a stream of events. */
-export function useAiAssistant({ chart, send, serverTools }: UseAiAssistantArgs) {
+export function useAiAssistant({ chart, send, serverTools }: UseAiAssistantArgs): AiAssistant {
   const [transcript, setTranscript] = useState<AiTranscriptEntry[]>([]);
   const [busy, setBusy] = useState(false);
   /** The conversation as the model sees it — kept in a ref, not state: it changes several times

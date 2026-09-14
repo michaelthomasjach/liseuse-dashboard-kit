@@ -26,8 +26,8 @@ export const Gallery: Story = {
         Tous les icônes exportés par <code>@michaelthomasjach/liseuse-dashboard-kit</code>, du plus générique (navigation,
         formulaires, statuts…) aux plus spécifiques (météo, finance, graphiques). Même style partout : viewBox 24×24,
         trait <code>currentColor</code> — ils héritent donc la couleur de texte ambiante et se redimensionnent via la prop{" "}
-        <code>size</code>. Quelques-uns (météo) acceptent aussi une prop <code>animated</code>, voir "Foundations/Animated
-        Icons".
+        <code>size</code>. Chacun accepte aussi une prop <code>animated</code> qui lui donne son animation de repos, choisie
+        pour ce qu&apos;il représente — voir "Foundations/Animated Icons".
       </p>
       <div
         style={{

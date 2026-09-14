@@ -350,24 +350,34 @@
   transition: none;
 }
 
+/* Deliberately identical to `.lq-chart-workspace__side-page-grabber`, value for value: this is the
+   same affordance on the same layout, and a bar that is nearly the same is worse than one that is
+   the same — it reads as a different control. Not the same class, because a chart-level element
+   wearing a workspace class would be a lie about where it lives; the duplication is the honest
+   half of that trade, and this comment is the link between them. */
 .lq-ai-sheet__grabber {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  flex: 0 0 auto;
-  height: 28px;
-  border: none;
+  padding: 12px 0;
   background: none;
+  border: none;
   cursor: grab;
-  /* Stops the browser claiming the vertical gesture for a scroll before the handler sees it. */
+  /* Stops the browser claiming the vertical gesture for a scroll before the handler ever sees it. */
   touch-action: none;
 }
 
+.lq-ai-sheet__grabber:active {
+  cursor: grabbing;
+}
+
 .lq-ai-sheet__grabber-bar {
-  width: 44px;
+  display: block;
+  width: 40px;
   height: 4px;
-  border-radius: 999px;
   background-color: var(--lq-color-border);
+  border-radius: 2px;
 }
 
 /* The panel fills what the grab bar leaves. */

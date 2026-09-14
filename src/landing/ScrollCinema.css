@@ -248,6 +248,9 @@
 /* The last beat, on the same stage: the canvas closes and the assistant opens on the same chart.
    Centred rather than filling, because it is one panel and stretching it to a cinema screen would
    make a 640px conversation look like a bug. */
+/* A dialog over the chart, not a page replacing it. The no-code beat before it takes the whole
+   stage because it *is* the script in another form; the assistant is something looking at the
+   chart, so the chart has to still be there — a scrim, and the panel floating on it. */
 .lqx-cinema__ai {
   position: absolute;
   inset: 0;
@@ -257,7 +260,8 @@
   justify-content: center;
   gap: 18px;
   padding: 4vh 3vw;
-  background-color: var(--lq-color-bg);
+  background-color: color-mix(in srgb, var(--lq-color-bg) 62%, transparent);
+  backdrop-filter: blur(2px);
   will-change: opacity;
 }
 

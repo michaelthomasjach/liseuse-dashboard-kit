@@ -7,14 +7,22 @@
   flex-direction: column;
   align-items: center;
   gap: 14px;
+  /* Definite, and that is the whole point: without a width of its own this box is sized by its
+     content, and `width: min(640px, 100%)` on the panel inside then resolves its `100%` against a
+     number that grows with every character the answer streams in. The panel visibly widened as the
+     assistant talked. The width belongs here, once; the panel just fills it. */
+  width: min(640px, 100%);
 }
 
 .lqx-ai__panel {
-  width: min(640px, 100%);
+  width: 100%;
   display: flex;
   flex-direction: column;
   border: 1px solid var(--lq-color-border);
   background-color: var(--lq-color-panel);
+  /* Reads as a dialog over the chart rather than as another region of the page — which is what it
+     is in the sequence: the chart stays visible behind it, being what the conversation is about. */
+  box-shadow: 0 18px 48px rgb(0 0 0 / 28%);
   /* Fixed, and tall enough for the longest answer: a box that grows as the text streams makes the
      whole page jump on every frame, which is a worse read than an inch of empty panel. */
   height: 340px;

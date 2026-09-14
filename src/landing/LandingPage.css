@@ -861,3 +861,13 @@
   height: 38px;
   margin-top: 14px;
 }
+
+/* The hero watchlist's own change column. Reads from the same up/down tokens the candles do, so a
+   palette change repaints the list and the chart together. */
+.lqx-up {
+  color: var(--lq-color-up);
+}
+
+.lqx-down {
+  color: var(--lq-color-down);
+}

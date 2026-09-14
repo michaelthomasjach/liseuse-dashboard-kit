@@ -209,3 +209,17 @@ export const FAQ: FaqEntry[] = [
       "Toute l'interface visible : libellés, menus, messages d'erreur, documentation du scripting. Les noms de composants, de props et d'événements sont en anglais.",
   },
 ];
+
+/** The watchlist the hero's workspace docks on its right. Static figures, and deliberately so:
+ *  this is a picture of the product, not a quote feed, and inventing a ticking price on a landing
+ *  page would be the one thing on it that is not real. */
+export const HERO_WATCHLIST_ROWS: { id: string; ticker: string; name: string; price: string; change: string; up: boolean }[] = [
+  { id: "msft", ticker: "MSFT", name: "Microsoft", price: "412,88", change: "+1,24 %", up: true },
+  { id: "nvda", ticker: "NVDA", name: "NVIDIA", price: "128,47", change: "+2,61 %", up: true },
+  { id: "aapl", ticker: "AAPL", name: "Apple", price: "231,05", change: "−0,38 %", up: false },
+  { id: "spx", ticker: "SPX", name: "S&P 500", price: "5 815,20", change: "+0,42 %", up: true },
+  { id: "wti", ticker: "WTI", name: "Pétrole WTI", price: "78,14", change: "+0,65 %", up: true },
+  { id: "xauusd", ticker: "XAUUSD", name: "Or", price: "2 415,30", change: "−0,44 %", up: false },
+  { id: "goog", ticker: "GOOG", name: "Alphabet", price: "178,42", change: "+0,91 %", up: true },
+  { id: "meta", ticker: "META", name: "Meta", price: "508,19", change: "+1,86 %", up: true },
+];

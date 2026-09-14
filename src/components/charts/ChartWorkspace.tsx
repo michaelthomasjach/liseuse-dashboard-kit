@@ -107,6 +107,14 @@ export interface ChartWorkspaceProps {
    *  `columns` are currently shown, see `defaultVisibleColumnIds`). Omit entirely (or pass an
    *  empty array) to skip the watchlist tab altogether — its own rail icon only appears once
    *  there's at least one list to show. */
+  /** Which layout to use, when the screen is not the right thing to ask.
+   *
+   *  `"auto"` (the default, and what every real app wants) decides from the viewport, the same way
+   *  the chart itself does. The two overrides exist for a workspace shown *inside* something —
+   *  a landing page's laptop mock-up, a documentation figure, a screenshot — where the window's
+   *  width says nothing about the box the workspace is actually in, and a 1366px laptop would
+   *  otherwise render the phone layout in a picture of a desktop. */
+  layout?: "auto" | "desktop" | "mobile";
   watchlists?: ChartWorkspaceWatchlist[];
   /** Uncontrolled initial pick among `watchlists` (by id) — defaults to the first one. */
   defaultActiveWatchlistId?: string;
@@ -231,6 +239,7 @@ export function ChartWorkspace({
   panelHeight,
   defaultLinkGroups,
   onLinkGroupsChange,
+  layout = "auto",
   watchlists,
   defaultActiveWatchlistId,
   onActiveWatchlistChange,
@@ -340,7 +349,8 @@ export function ChartWorkspace({
   // screen in hand (see MOBILE_LAYOUT_BREAKPOINT's own doc). The wrapper is still measured for its
   // ref alone; nothing here reads its size any more.
   const viewportWidth = useViewportWidth();
-  const isMobileWorkspace = viewportWidth > 0 && viewportWidth < MOBILE_LAYOUT_BREAKPOINT;
+  const isMobileWorkspace =
+    layout === "auto" ? viewportWidth > 0 && viewportWidth < MOBILE_LAYOUT_BREAKPOINT : layout === "mobile";
   const hasWatchlists = !!watchlists && watchlists.length > 0;
   const hasAlerts = alerts !== undefined;
   const {

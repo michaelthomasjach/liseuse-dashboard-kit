@@ -4,6 +4,7 @@ import { Button } from "../components/primitives/Button";
 import { Card } from "../components/primitives/Card";
 import { CodeBlock } from "../components/primitives/CodeBlock";
 import { CandlestickChart, type ChartEvent } from "../components/charts/CandlestickChart";
+import { ChartWorkspace } from "../components/charts/ChartWorkspace";
 import { Sparkline } from "../components/charts/Sparkline";
 import { StatCard } from "../components/finance/StatCard";
 import { Badge } from "../components/finance/Badge";
@@ -20,6 +21,29 @@ import { AppShowcase } from "./AppShowcase";
 import { CatalogStrip } from "./CatalogStrip";
 import { ChartGallery } from "./ChartGallery";
 import { Laptop, Phone, Tablet } from "./DeviceFrames";
+
+/** The hero's own watchlist, in the shape the workspace docks. Built here rather than in
+ *  `landingContent` because the cells are React nodes — a coloured change, a right-aligned price —
+ *  and that file is deliberately free of JSX. */
+const HERO_WATCHLISTS = [
+  {
+    id: "surveillance",
+    name: "Liste de surveillance",
+    columns: [
+      { id: "price", label: "Prix" },
+      { id: "change", label: "Variation" },
+    ],
+    rows: HERO_WATCHLIST_ROWS.map((row) => ({
+      id: row.id,
+      ticker: row.ticker,
+      name: row.name,
+      values: {
+        price: row.price,
+        change: <span className={row.up ? "lqx-up" : "lqx-down"}>{row.change}</span>,
+      },
+    })),
+  },
+];
 import { FormsShowcase } from "./FormsShowcase";
 import { FoundationsStrip } from "./FoundationsStrip";
 import { ScrollCinema } from "./ScrollCinema";
@@ -31,7 +55,7 @@ import {
   INSTALL_SNIPPET,
   LINKS,
   SCRIPT_SNIPPET,
-  USAGE_SNIPPET,
+  USAGE_SNIPPET, HERO_WATCHLIST_ROWS,
 } from "./landingContent";
 import "./LandingPage.css";
 
@@ -205,22 +229,33 @@ export function LandingPage({ version }: LandingPageProps) {
             Ce graphique est le composant lui-même, en état de marche : zoomez à la molette, tirez
             sur un axe, tracez une tendance, changez la palette dans la barre d'outils.
           </p>
-          <Laptop caption="CandlestickChart, avec son volume, ses événements, ses indicateurs et ses outils de dessin">
-            <CandlestickChart
-              data={HERO_CANDLES}
-              symbol="MSFT"
-              fillHeight
-              showVolume
-              zoomable
-              showIndicators
-              drawingTools
-              events={HERO_EVENTS}
-              timeframes={[
-                { group: "Jours", options: [{ label: "1 jour", value: "1d" }, { label: "1 semaine", value: "1w" }] },
-              ]}
-              timeframe={timeframe}
-              onTimeframeChange={setTimeframe}
-            />
+          <Laptop caption="Le poste complet : le graphique, sa liste de surveillance et la barre d'outils de l'espace de travail">
+            {/* The whole workspace, not a chart on its own: the right-hand list and the icon rail
+                beside it are what the product actually looks like, and a landing page showing less
+                than that is showing something else. `layout="desktop"` is pinned because the
+                workspace otherwise reads the *window* to decide — and on a 1366px laptop that would
+                render the phone layout inside a picture of a desktop. */}
+            <ChartWorkspace
+              layout="desktop"
+              watchlists={HERO_WATCHLISTS}
+              defaultSidePanelOpen
+            >
+              <CandlestickChart
+                data={HERO_CANDLES}
+                symbol="MSFT"
+                fillHeight
+                showVolume
+                zoomable
+                showIndicators
+                drawingTools
+                events={HERO_EVENTS}
+                timeframes={[
+                  { group: "Jours", options: [{ label: "1 jour", value: "1d" }, { label: "1 semaine", value: "1w" }] },
+                ]}
+                timeframe={timeframe}
+                onTimeframeChange={setTimeframe}
+              />
+            </ChartWorkspace>
           </Laptop>
         </div>
 

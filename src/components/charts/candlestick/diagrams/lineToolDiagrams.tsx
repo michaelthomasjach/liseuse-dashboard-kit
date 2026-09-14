@@ -67,7 +67,7 @@ export function RayDiagram() {
       <SamplePriceLine opacity={0.4} />
       <line x1={90} y1={44} x2={220} y2={44} stroke="var(--lq-color-accent)" strokeWidth={2} />
       <DiagramPoint x={90} y={44} label="Date" />
-      <DiagramLabel x={220} y={38} text="→" color="var(--lq-color-accent)" anchor="end" />
+      <DiagramLabel x={212} y={38} text="vers la droite →" color="var(--lq-color-text-muted)" anchor="end" />
     </InfoDiagram>
   );
 }

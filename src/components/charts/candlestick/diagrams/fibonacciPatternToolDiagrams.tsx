@@ -41,14 +41,14 @@ export function FibonacciExtensionDiagram() {
 export function ElliottImpulseDiagram() {
   return (
     <InfoDiagram>
-      <polyline points="10,90 40,50 60,64 90,20 110,36 150,8 170,26 200,10" fill="none" stroke="var(--lq-color-accent)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      <polyline points="14,96 46,58 68,72 100,30 122,46 164,20" fill="none" stroke="var(--lq-color-accent)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
       {[
-        [10, 90, "0"],
-        [40, 50, "1"],
-        [60, 64, "2"],
-        [90, 20, "3"],
-        [110, 36, "4"],
-        [150, 8, "5"],
+        [14, 96, "0"],
+        [46, 58, "1"],
+        [68, 72, "2"],
+        [100, 30, "3"],
+        [122, 46, "4"],
+        [164, 20, "5"],
       ].map(([x, y, l]) => (
         <DiagramPoint key={l} x={x as number} y={y as number} label={l as string} />
       ))}
@@ -87,7 +87,7 @@ export function HeadShouldersDiagram() {
       <DiagramLabel x={44} y={28} text="Épaule" color="var(--lq-color-text-muted)" anchor="middle" />
       <DiagramLabel x={92} y={6} text="Tête" color="var(--lq-color-text-muted)" anchor="middle" />
       <DiagramLabel x={140} y={28} text="Épaule" color="var(--lq-color-text-muted)" anchor="middle" />
-      <DiagramLabel x={175} y={92} text="Ligne de cou" color="var(--lq-color-text-muted)" />
+      <DiagramLabel x={214} y={92} text="Ligne de cou" color="var(--lq-color-text-muted)" anchor="end" />
     </InfoDiagram>
   );
 }
@@ -106,7 +106,7 @@ export function CupHandleDiagram() {
       ].map(([x, y, l]) => (
         <DiagramPoint key={l} x={x as number} y={y as number} label={l as string} />
       ))}
-      <DiagramLabel x={172} y={30} text="Tasse ↑ anse" color="var(--lq-color-text-muted)" />
+      <DiagramLabel x={6} y={104} text="Tasse arrondie, puis anse peu profonde" color="var(--lq-color-text-muted)" />
     </InfoDiagram>
   );
 }

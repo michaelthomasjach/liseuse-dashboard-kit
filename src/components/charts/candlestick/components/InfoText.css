@@ -1,0 +1,61 @@
+/* One explanation — an indicator's, a drawing tool's — as real paragraphs rather than one block of
+   pre-wrapped text. The shape is part of the explanation: this is read by someone who has just
+   clicked something unfamiliar and is scanning for the one line that answers their question. */
+
+.lq-info-text {
+  font-size: var(--lq-text-sm);
+  line-height: 1.65;
+  color: var(--lq-color-text);
+}
+
+.lq-info-text__paragraph {
+  margin: 0 0 var(--lq-space-2);
+}
+
+/* The lede — the first paragraph — carries the sentence that says what the thing *is*. Slightly
+   larger, so a reader who reads nothing else reads that one. */
+.lq-info-text__paragraph:first-child {
+  font-size: calc(var(--lq-text-sm) * 1.05);
+}
+
+/* Section headings, in the same uppercase register the rest of this library uses for them. Their
+   job is to be scanned past, not read — which is exactly why they are small and quiet. */
+.lq-info-text__heading {
+  margin: var(--lq-space-3) 0 var(--lq-space-1);
+  font-size: var(--lq-text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-info-text__heading:first-child {
+  margin-top: 0;
+}
+
+.lq-info-text__list {
+  margin: 0 0 var(--lq-space-2);
+  padding-left: var(--lq-space-3);
+}
+
+.lq-info-text__list li {
+  margin-bottom: 2px;
+}
+
+.lq-info-text code {
+  padding: 0 3px;
+  border-radius: 2px;
+  background-color: var(--lq-color-hover);
+  font-family: var(--lq-font-mono, ui-monospace, monospace);
+  font-size: 0.92em;
+}
+
+/* Italic carries a term being named — *range vrai*, *squeeze* — not emphasis. Emphasis is bold's
+   job, and having the two mean different things is what keeps either of them meaning anything. */
+.lq-info-text em {
+  font-style: italic;
+}
+
+.lq-info-text strong {
+  font-weight: 700;
+}

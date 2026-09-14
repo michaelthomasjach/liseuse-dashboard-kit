@@ -2448,17 +2448,18 @@
   border-radius: var(--lq-radius-sm);
 }
 
-/* The real-screenshot counterpart to `.lq-chart__info-diagram` above (see DiagramImage's own
-   doc) — a plain bordered JPEG instead of a padded/backgrounded SVG, since a screenshot of the
-   actual chart already reads as its own distinct panel without needing a background tint to
-   separate it from the modal behind it. */
-.lq-chart__info-diagram-image {
-  display: block;
-  width: 100%;
-  height: auto;
-  max-height: 280px;
-  border-radius: var(--lq-radius-sm);
-  border: 1px solid var(--lq-color-border-subtle);
+/* The indicator diagrams' own canvas (see DiagramPrimitives' IndicatorDiagram). Taller than the
+   drawing tools' 220×110, because these carry thresholds, panel frames and callouts — a diagram
+   capped at 150px would render its 9px labels at around six, which is the height at which an
+   annotation stops being one. */
+.lq-chart__info-diagram--wide {
+  max-height: 260px;
+  padding: var(--lq-space-2);
+}
+
+/* The diagram sits directly above its own description; without this they touch. */
+.lq-chart__info-diagram + .lq-info-text {
+  margin-top: var(--lq-space-3);
 }
 
 /* The "Gérer les indicateurs" modal — reuses .lq-chart__indicator-picker-group/-group-label

@@ -8,6 +8,7 @@ import { ScriptParamsFields } from "../scripting/components/ScriptParamsFields";
 import type { ScriptParamValue } from "../interfaces/ScriptParam.interface";
 import { useEffect, useState } from "react";
 import { Modal } from "../../../primitives/Modal";
+import { InfoText } from "./InfoText";
 import { Tabs } from "../../../primitives/Tabs";
 import { SettingsIcon, TrashIcon, OverlayBadgeIcon, PaneBadgeIcon } from "../../../icons";
 import type { TrendLineDrawing } from "../interfaces/TrendLineDrawing.interface";
@@ -20,6 +21,7 @@ import { INDICATOR_DESCRIPTIONS, VOLUME_DESCRIPTION } from "../indicatorDescript
 import { INDICATOR_SCRIPT_SOURCES } from "../indicatorScriptSources";
 import { CodeBlock } from "../../../primitives/CodeBlock";
 import { INDICATOR_DIAGRAMS } from "../diagrams/indicatorDiagramRegistry";
+import { VolumeDiagram } from "../diagrams/structureDiagrams";
 import { drawingToolMeta, drawingLabel } from "../drawingCatalog";
 import { IndicatorSettingsInputs, IndicatorSettingsStyle } from "./IndicatorSettingsFields";
 import { IndicatorPickerModal } from "./IndicatorPickerModal";
@@ -303,13 +305,13 @@ export function IndicatorModals({
           }
           const title = infoKind === "volume" ? "Volume" : (INDICATOR_CATALOG.find((entry) => entry.kind === infoKind)?.label ?? infoKind);
           const description = infoKind === "volume" ? VOLUME_DESCRIPTION : INDICATOR_DESCRIPTIONS[infoKind];
-          // "volume" has no diagram of its own — same reasoning it has no INDICATOR_DIAGRAMS
-          // entry as a plain number/IndicatorKind lookup: it isn't one.
-          const Diagram = infoKind === "volume" ? undefined : INDICATOR_DIAGRAMS[infoKind];
+          // "volume" has no INDICATOR_DIAGRAMS entry for the same reason it has no canned
+          // description keyed by IndicatorKind — it isn't one — so its diagram is named directly.
+          const Diagram = infoKind === "volume" ? VolumeDiagram : INDICATOR_DIAGRAMS[infoKind];
           return (
-            <Modal open onClose={() => setInfoKind(null)} title={title}>
+            <Modal open onClose={() => setInfoKind(null)} title={title} size="wide">
               {Diagram && <Diagram />}
-              <p className="lq-chart__indicator-info-text">{description}</p>
+              {description && <InfoText>{description}</InfoText>}
             </Modal>
           );
         })()}

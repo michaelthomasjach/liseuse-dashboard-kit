@@ -1,4 +1,5 @@
 import { Modal } from "../../../primitives/Modal";
+import { InfoText } from "./InfoText";
 import type { DrawingToolType } from "../interfaces/DrawingToolType.interface";
 import { toolMetaForType } from "../drawingCatalog";
 import { DRAWING_TOOL_DESCRIPTIONS } from "../drawingDescriptions";
@@ -19,9 +20,9 @@ export function DrawingToolInfoModal({ infoTool, setInfoTool }: DrawingToolInfoM
   const description = DRAWING_TOOL_DESCRIPTIONS[infoTool];
   const Diagram = DRAWING_DIAGRAMS[infoTool];
   return (
-    <Modal open onClose={() => setInfoTool(null)} title={label}>
+    <Modal open onClose={() => setInfoTool(null)} title={label} size="wide">
       {Diagram && <Diagram />}
-      {description && <p className="lq-chart__indicator-info-text">{description}</p>}
+      {description && <InfoText>{description}</InfoText>}
     </Modal>
   );
 }

@@ -54,10 +54,17 @@ export function MarketStateBands({
   return (
     <div className="lq-market-bands" style={{ left, top, width, height }} aria-hidden="true">
       {bands.map((band) => {
-          // Half a bar out on each side, so a band covers its bars rather than the gaps between
-          // their centres — otherwise every run stops visibly short of the candle it describes.
-          const x1 = xForIndex(band.from - 0.5) - left;
-          const x2 = xForIndex(band.to + 0.5) - left;
+          // `xForIndex(i)` is bar `i`'s own left edge — the candles are drawn at `i + 0.5`, their
+          // centre — so the run covering bars [from, to] spans from that bar's left edge to the
+          // *next* bar's, which is `to + 1`. Half-bar offsets were being applied on both sides,
+          // which put every band half a bar left of the candles it describes.
+          //
+          // And no `- left`: these coordinates are already relative to the plot, which is exactly
+          // where this container starts. Subtracting the margin a second time shifted every band
+          // left by the whole gutter — so the shading ran past the first candle by that much and
+          // stopped short of the last one by the same, which is the symptom that found this.
+          const x1 = xForIndex(band.from);
+          const x2 = xForIndex(band.to + 1);
           return (
             <span
               key={`${band.direction}-${band.from}`}

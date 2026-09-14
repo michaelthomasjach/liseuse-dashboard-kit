@@ -29,8 +29,14 @@
 .lq-market-state__head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--lq-space-2);
+  /* The title pushes everything else right (`margin-right: auto` below) rather than
+     `justify-content: space-between` spreading the buttons apart from each other: they are one
+     cluster of controls, and space between them made them read as three unrelated things. */
+  gap: 0;
+}
+
+.lq-market-state__head .lq-market-state__title {
+  margin-right: auto;
 }
 
 .lq-market-state__title {
@@ -120,6 +126,10 @@
   display: block;
   height: 100%;
   background-color: var(--lq-color-fill);
+  /* Eased, because these move for two very different reasons and only one of them is a jump: the
+     pointer crossing to the next bar is a small step the eye should follow, while a new dataset is
+     a genuine cut. 220ms reads as the first without dragging on the second. */
+  transition: width 220ms cubic-bezier(0.33, 1, 0.68, 1);
 }
 
 .lq-market-state__detail {
@@ -292,13 +302,16 @@
 
 /* In its own window it is the content, not something floating over a plot: no corner anchoring, no
    height cap, no drag. */
+/* In its own window it is the content rather than something floating over a plot — so it loses the
+   corner anchoring, the height cap and the drag. It keeps everything else, and that is the point:
+   the frame, the panel background and the monospace column are what make it a readout, and a copy
+   without them is a different component wearing the same words. */
 .lq-market-state--detached {
   position: static;
   width: auto;
   max-width: 420px;
   max-height: none;
-  margin: 0 auto;
-  border: 0;
+  margin: var(--lq-space-3) auto;
 }
 
 .lq-market-state--detached .lq-market-state__head {
@@ -424,4 +437,12 @@
   display: block;
   height: 100%;
   background-color: currentColor;
+  transition: width 220ms cubic-bezier(0.33, 1, 0.68, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lq-market-state__gauge span,
+  .lq-market-state__stance-fill {
+    transition: none;
+  }
 }

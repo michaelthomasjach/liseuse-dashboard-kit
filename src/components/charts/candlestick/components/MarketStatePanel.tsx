@@ -1,8 +1,9 @@
 import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { CloseIcon, ChevronDownIcon, DetachWindowIcon, SettingsIcon } from "../../../icons";
+import { CloseIcon, ChevronDownIcon, DetachWindowIcon, SettingsIcon, HelpIcon } from "../../../icons";
 import { computeMarketState, type MarketStateAxis, type MarketStateDirection } from "../marketState";
 import { DEFAULT_MARKET_STATE_SETTINGS, type MarketStateSettings } from "../marketStateSettings";
 import { MarketStateSettingsModal } from "./MarketStateSettingsModal";
+import { MarketStateHelpModal } from "./MarketStateHelpModal";
 import { MARKET_STATE_BAND_LABELS, type MarketStateBandColors } from "../marketStateBandColors";
 import type { Candle } from "../interfaces/Candle.interface";
 import type { Indicator } from "../interfaces/Indicator.interface";
@@ -81,6 +82,7 @@ export function MarketStatePanel({
   onSettingsChange,
 }: MarketStatePanelProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const [expanded, setExpanded] = useState<MarketStateAxis | "signal" | null>(null);
   // Where the reader has put it, as an offset from the corner it starts in. Kept here rather than
   // persisted: it is a position on *this* chart in *this* session, and a readout that reappeared
@@ -142,6 +144,16 @@ export function MarketStatePanel({
             <SettingsIcon size={11} />
           </button>
         )}
+        {/* Right of the gear, as asked. The two content controls first — what this panel is about
+            and how it is tuned — then the window ones. */}
+        <button
+          type="button"
+          onClick={() => setHelpOpen(true)}
+          aria-label="Comprendre l'état du marché"
+          title="Comprendre l'état du marché"
+        >
+          <HelpIcon size={11} />
+        </button>
         {onRequestDetach && (
           <button type="button" onClick={onRequestDetach} aria-label="Ouvrir dans une fenêtre" title="Ouvrir dans une fenêtre">
             <DetachWindowIcon size={11} />
@@ -312,6 +324,8 @@ export function MarketStatePanel({
       )}
 
       {bar && <p className="lq-market-state__at">Bougie du {formatDate(bar.date)}</p>}
+
+      <MarketStateHelpModal open={helpOpen} onClose={() => setHelpOpen(false)} settings={settings} />
 
       {onSettingsChange && (
         <MarketStateSettingsModal

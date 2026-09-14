@@ -47,6 +47,22 @@ export interface MarketStateSettings {
   axisWeights: Record<MarketStateAxis, number>;
   /** Per-source overrides, by label. Absent entries take `DEFAULT_SOURCE_SETTING`. */
   sources: Record<string, Partial<MarketStateSourceSetting>>;
+  /** Whether a side has to hold before it is called at all — see `confirmBars`. Off by default:
+   *  the unfiltered reading is the honest one, and hiding a side for three sessions is a trade the
+   *  reader should make on purpose. */
+  confirmEnabled: boolean;
+  /** How many consecutive sessions the same side must read before the panel will name it.
+   *
+   *  A market that keeps crossing the neutral band genuinely alternates short, neutral, short —
+   *  that is the market, not a fault. But a reading that flickers is a reading nobody can act on,
+   *  so this holds the verdict back until it has been the same for this many bars. Anything short
+   *  of that reads **neutral**, which is the honest name for "no side has held long enough to be
+   *  worth calling".
+   *
+   *  Deliberately not a memory of the last confirmed side: that would need the whole history, and
+   *  the panel and the chart shading would then disagree at any bar reached by a different route.
+   *  Looking back a fixed number of bars gives the same answer wherever it is asked from. */
+  confirmBars: number;
   /** Shortest run of bars the shading will draw, in bars. 1 shades exactly what the panel says at
    *  every bar; higher merges the flickers away and trades that exactness for calm. See
    *  `computeMarketStateBands`. */
@@ -66,6 +82,8 @@ export const DEFAULT_MARKET_STATE_SETTINGS: MarketStateSettings = {
   neutralBand: 10,
   axisWeights: { trend: 0.4, momentum: 0.3, flow: 0.15, risk: 0.15, volatility: 0 },
   sources: {},
+  confirmEnabled: false,
+  confirmBars: 3,
   bandSmoothing: 1,
   extraIndicators: [],
 };
@@ -89,6 +107,8 @@ export function isDefaultMarketStateSettings(settings: MarketStateSettings): boo
     settings.lookback === DEFAULT_MARKET_STATE_SETTINGS.lookback &&
     settings.neutralBand === DEFAULT_MARKET_STATE_SETTINGS.neutralBand &&
     settings.bandSmoothing === DEFAULT_MARKET_STATE_SETTINGS.bandSmoothing &&
+    settings.confirmEnabled === DEFAULT_MARKET_STATE_SETTINGS.confirmEnabled &&
+    settings.confirmBars === DEFAULT_MARKET_STATE_SETTINGS.confirmBars &&
     settings.extraIndicators.length === 0 &&
     Object.keys(settings.sources).length === 0 &&
     (Object.keys(settings.axisWeights) as MarketStateAxis[]).every(

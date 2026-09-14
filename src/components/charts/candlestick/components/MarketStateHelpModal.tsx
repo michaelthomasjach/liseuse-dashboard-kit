@@ -201,7 +201,28 @@ function HelpBody({ settings }: { settings: MarketStateSettings }) {
       </section>
 
       <section className="lq-ms-help__section">
-        <h4 className="lq-ms-help__title">5 · Les cinq axes</h4>
+        <h4 className="lq-ms-help__title">5 · Confirmer sur N séances</h4>
+        <p>
+          Un marché qui traverse la bande neutre alterne vraiment short, neutre, short. C&apos;est le marché, pas un
+          défaut. Mais une lecture qui scintille est une lecture sur laquelle on ne peut rien décider.
+        </p>
+        <p>
+          La case <strong>« Confirmer sur N séances »</strong>, sous la ligne du signal, retient le verdict : un camp
+          n&apos;est nommé qu&apos;une fois qu&apos;il a été lu pareil <strong>N bougies de suite</strong>.
+        </p>
+        <p>
+          Tant qu&apos;il ne l&apos;a pas été, la ligne affiche <strong>NEUTRE</strong> — le nom honnête de « rien
+          n&apos;a tenu assez longtemps pour valoir la peine d&apos;être annoncé ». Un compteur à droite indique où en
+          est le camp en attente.
+        </p>
+        <p className="lq-ms-help__note">
+          Les zones colorées suivent la même règle, puisqu&apos;elles lisent la même fonction. À 3 séances, un historique
+          typique passe d&apos;environ 214 basculements à 103 ; à 8, à une cinquantaine.
+        </p>
+      </section>
+
+      <section className="lq-ms-help__section">
+        <h4 className="lq-ms-help__title">6 · Les cinq axes</h4>
         <dl className="lq-ms-help__axes">
           {AXES.map((axis) => (
             <div key={axis.label} className="lq-ms-help__axis">
@@ -220,7 +241,7 @@ function HelpBody({ settings }: { settings: MarketStateSettings }) {
       </section>
 
       <section className="lq-ms-help__section">
-        <h4 className="lq-ms-help__title">6 · Les zones colorées</h4>
+        <h4 className="lq-ms-help__title">7 · Les zones colorées</h4>
         <p>
           La case « Surligner les zones » teinte le graphique : <strong>vert</strong> pour long, <strong>gris</strong>{" "}
           pour neutre, <strong>rouge</strong> pour short.
@@ -232,7 +253,7 @@ function HelpBody({ settings }: { settings: MarketStateSettings }) {
       </section>
 
       <section className="lq-ms-help__section">
-        <h4 className="lq-ms-help__title">7 · Une seule bougie à la fois</h4>
+        <h4 className="lq-ms-help__title">8 · Une seule bougie à la fois</h4>
         <p>
           Tout ce qui est affiché décrit <strong>une</strong> bougie : la dernière visible, ou celle que survole le
           pointeur.

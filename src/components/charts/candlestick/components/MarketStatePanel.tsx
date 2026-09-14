@@ -327,6 +327,43 @@ export function MarketStatePanel({
         </div>
       )}
 
+      {/* Directly under the verdict it qualifies, because it changes what that line says: with it
+          on, a side is named only once it has held. Anything short of that reads neutral — the
+          honest name for "nothing has lasted long enough to be worth calling". */}
+      {onSettingsChange && (
+        <div className="lq-market-state__confirm">
+          <label className="lq-market-state__switch">
+            <input
+              type="checkbox"
+              checked={settings.confirmEnabled}
+              onChange={(e) => onSettingsChange({ ...settings, confirmEnabled: e.target.checked })}
+            />
+            <span>Confirmer sur</span>
+          </label>
+          <input
+            className="lq-market-state__confirm-input"
+            type="number"
+            min={2}
+            max={50}
+            value={settings.confirmBars}
+            disabled={!settings.confirmEnabled}
+            onChange={(e) => {
+              const next = Number(e.target.value);
+              if (Number.isFinite(next)) onSettingsChange({ ...settings, confirmBars: Math.min(50, Math.max(2, Math.round(next))) });
+            }}
+            aria-label="Nombre de séances de confirmation"
+          />
+          <span className="lq-market-state__confirm-unit">séances</span>
+          {/* How far the current side has got towards being confirmed. Silent when confirmation is
+              off, and silent once it is reached — a counter that reads 3/3 forever is noise. */}
+          {settings.confirmEnabled && state.confirmedFor !== null && state.rawDirection !== "neutral" && state.confirmedFor < settings.confirmBars && (
+            <span className="lq-market-state__confirm-progress">
+              {SIGNAL_LABEL[state.rawDirection].replace("SIGNAL ", "")} {state.confirmedFor}/{settings.confirmBars}
+            </span>
+          )}
+        </div>
+      )}
+
       {onBandsChange && (
         <label className="lq-market-state__switch">
           <input type="checkbox" checked={bandsOn ?? false} onChange={(e) => onBandsChange(e.target.checked)} />

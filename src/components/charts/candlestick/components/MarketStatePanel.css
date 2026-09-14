@@ -454,3 +454,44 @@
     transition: none;
   }
 }
+
+/* Confirmation, directly under the verdict it qualifies: a side is named only once it has read the
+   same way for this many sessions. A market crossing the neutral band really does alternate short,
+   neutral, short — that is the market, not a fault — but a reading that flickers is a reading
+   nobody can act on. */
+.lq-market-state__confirm {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--lq-font-sans, system-ui, sans-serif);
+  font-size: 0.68rem;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-market-state__confirm .lq-market-state__switch {
+  gap: 6px;
+}
+
+.lq-market-state__confirm-input {
+  width: 4ch;
+  padding: 1px 4px;
+  border: 1px solid var(--lq-color-border-subtle);
+  background-color: var(--lq-color-bg);
+  color: var(--lq-color-text);
+  font: inherit;
+  font-family: var(--lq-font-mono, ui-monospace, monospace);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.lq-market-state__confirm-input:disabled {
+  opacity: 0.45;
+}
+
+/* How far the pending side has got. Pushed to the end, so it reads as a note on the row rather
+   than as another control in it. */
+.lq-market-state__confirm-progress {
+  margin-left: auto;
+  font-family: var(--lq-font-mono, ui-monospace, monospace);
+  font-variant-numeric: tabular-nums;
+}

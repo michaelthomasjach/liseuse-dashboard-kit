@@ -104,8 +104,17 @@ export interface MarketState {
   /** The blend, 0-100, read from the long side — 50 is the middle, 100 is maximally long, 0 is
    *  maximally short. `null` when no axis could be scored. */
   signal: number | null;
-  /** Which side that lands on, given the neutral band above. */
+  /** Which side that lands on, given the neutral band above — and, when confirmation is switched
+   *  on, only once that side has held for `settings.confirmBars` sessions. Until then this reads
+   *  neutral: no side has lasted long enough to be worth calling. */
   direction: MarketStateDirection;
+  /** The same verdict before confirmation. Identical to `direction` when confirmation is off; when
+   *  it is on, this is what the bar says on its own and `direction` is what the panel will stand
+   *  behind — the panel shows both, so a reading being held back is visible rather than silent. */
+  rawDirection: MarketStateDirection;
+  /** How many of the last `confirmBars` sessions agree with `rawDirection`, when confirmation is
+   *  on. `null` when it is off. Lets the panel say "2/3" rather than only "not yet". */
+  confirmedFor: number | null;
   /** How strongly, on the side `direction` names: the distance from the middle, restated as a
    *  percentage of that side. A signal of 26 is "SHORT 74 %", not "LONG 26 %" — the same number,
    *  said the way round a reader can act on. */
@@ -327,6 +336,8 @@ export function computeMarketState({
     scores: buildScores(trend, momentum, volatility, flow, risk, settings, offChartLabels),
     signal: null,
     direction: "neutral",
+    rawDirection: "neutral",
+    confirmedFor: null,
     strength: null,
     signalParts: [],
     stance: { long: 0, neutral: 100, short: 0 },
@@ -716,8 +727,29 @@ export function computeMarketState({
   const signal =
     totalWeight > 0 ? Math.round(signalParts.reduce((sum, part) => sum + part.score * part.weight, 0) / totalWeight) : null;
 
-  const direction: MarketStateDirection =
+  const rawDirection: MarketStateDirection =
     signal === null || Math.abs(signal - 50) <= settings.neutralBand ? "neutral" : signal > 50 ? "long" : "short";
+
+  // Confirmation: the side is named only once it has read the same way for `confirmBars` sessions
+  // in a row. Counted by asking this same function about the preceding bars with confirmation
+  // switched off — the raw verdict is what has to agree, and re-deriving it any other way is how
+  // two "identical" readings start differing.
+  let direction = rawDirection;
+  let confirmedFor: number | null = null;
+  const confirmBars = Math.max(1, Math.round(settings.confirmBars));
+  if (settings.confirmEnabled && confirmBars > 1) {
+    const rawSettings = { ...settings, confirmEnabled: false };
+    let agreeing = 1;
+    for (let back = 1; back < confirmBars; back++) {
+      const previous = at - back;
+      if (previous < 0) break;
+      const earlier = computeMarketState({ candles, index: previous, indicators, lookback, settings: rawSettings });
+      if (earlier.rawDirection !== rawDirection) break;
+      agreeing += 1;
+    }
+    confirmedFor = agreeing;
+    if (agreeing < confirmBars) direction = "neutral";
+  }
   // Restated on the side it actually falls: 26 is a 74 % short, not a 26 % long. Neutral keeps the
   // long-side number, since there is no side to restate it onto.
   const strength = signal === null ? null : direction === "short" ? 100 - signal : signal;
@@ -743,7 +775,7 @@ export function computeMarketState({
         })()
       : { long: 0, neutral: 100, short: 0 };
 
-  return { scores, signal, direction, strength, signalParts, stance, atIndex: at };
+  return { scores, signal, direction, rawDirection, confirmedFor, strength, signalParts, stance, atIndex: at };
 }
 
 function buildScores(

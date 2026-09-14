@@ -20,8 +20,8 @@ import {
 
 /** A series that makes a higher high while momentum makes a lower one — a textbook bearish
  *  divergence, which is what the RSI panel below it is drawn to show. */
-const DIVERGENCE_CLOSES = [40, 46, 52, 48, 58, 66, 62, 70, 64, 58, 54, 60, 68, 74, 70, 76, 82, 78, 72, 64, 56, 50];
-const RSI_VALUES = [42, 52, 61, 55, 66, 76, 70, 82, 72, 60, 54, 62, 68, 71, 66, 70, 74, 66, 56, 44, 36, 30];
+const DIVERGENCE_CLOSES = [40, 46, 52, 48, 58, 66, 62, 68, 60, 54, 50, 58, 66, 74, 80, 86, 92, 84, 74, 64, 56, 48];
+const RSI_VALUES = [42, 52, 61, 55, 70, 80, 74, 88, 76, 62, 54, 60, 66, 62, 56, 60, 68, 58, 48, 40, 33, 27];
 
 export function RsiDiagram() {
   return (

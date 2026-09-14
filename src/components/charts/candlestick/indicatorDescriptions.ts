@@ -74,7 +74,7 @@ Et dans un marché sans direction, elle se fait traverser en permanence : les si
 
 ## Réglages
 
-La période, dans les paramètres de l'indicateur. Il faut N bougies d'historique avant que la première valeur puisse être tracée.`,
+**Période : 20 par défaut.** Il faut N bougies d'historique avant que la première valeur puisse être tracée — sur une fenêtre plus courte que la période, rien ne s'affiche.`,
 
   ema: `**La moyenne mobile exponentielle donne plus de poids aux clôtures récentes.** Elle part de la moyenne simple des N premières, puis se met à jour bougie après bougie en appliquant un coefficient de lissage de 2/(N+1) à la nouvelle clôture.
 
@@ -92,7 +92,7 @@ Le revers est mécanique : **ce qui la rend plus réactive la rend aussi plus br
 
 ## Réglages
 
-La période, dans les paramètres. Il faut N bougies avant l'amorçage du calcul.`,
+**Période : 20 par défaut.** Il faut N bougies avant l'amorçage du calcul.`,
 
   wma: `**La moyenne mobile pondérée fait décroître les poids linéairement** : 1 pour la clôture la plus ancienne, 2 pour la suivante, jusqu'à N pour la plus récente, le tout divisé par N(N+1)/2.
 
@@ -114,7 +114,7 @@ La même chose que ses deux sœurs : elle **décrit ce qui vient de se passer**,
 
 ## Réglages
 
-La période, dans les paramètres.`,
+**Période : 20 par défaut.**`,
 
   vwap: `**Le VWAP est le prix moyen réellement payé**, pondéré par les volumes : chaque bougie compte à hauteur du nombre de titres qui y ont été échangés.
 
@@ -153,7 +153,7 @@ En tendance forte, le prix peut **longer une bande pendant des dizaines de bougi
 
 ## Réglages
 
-La période et le nombre d'écarts-types, tous deux dans les paramètres. Rien ne s'affiche avant N bougies d'historique.`,
+**20 périodes et 2 écarts-types par défaut.** Élargir à 2,5 rend les contacts nettement plus rares ; les resserrer à 1,5 les multiplie. Rien ne s'affiche avant N bougies d'historique.`,
 
   rsi: `**Le RSI compare la force des hausses à celle des baisses**, sur une échelle bornée de 0 à 100.
 
@@ -179,7 +179,7 @@ Un extrême n'est pas une échéance. Le RSI dit qu'un mouvement est inhabituel,
 
 ## Réglages
 
-La période, dans les paramètres. **La raccourcir rend l'indicateur beaucoup plus nerveux** et multiplie les incursions en zone extrême.
+**Période : 14 par défaut**, la valeur de référence depuis l'origine de l'indicateur. **La raccourcir le rend beaucoup plus nerveux** et multiplie les incursions en zone extrême.
 
 Il s'affiche dans son propre panneau : son échelle n'a rien à voir avec celle des cours.`,
 
@@ -204,7 +204,7 @@ Et il est descriptif, pas prédictif : il constate un régime déjà installé e
 
 ## Réglages
 
-La période, dans les paramètres. Il occupe son propre panneau.`,
+**Période : 14 par défaut.** Il occupe son propre panneau.`,
 
   macd: `**Le MACD mesure l'écartement entre deux horizons de tendance.** Il se lit sur trois éléments :
 
@@ -226,7 +226,7 @@ C'est un indicateur de **suivi**, donc en retard par construction, et particuli�
 
 ## Réglages
 
-Les trois périodes, dans les paramètres — ainsi que l'affichage et les couleurs de l'histogramme.`,
+**12, 26 et 9 par défaut** — les valeurs d'origine de l'indicateur. L'affichage et les couleurs de l'histogramme se règlent également.`,
 
   zigzag: `**Le Zig Zag réduit la courbe à ses sommets et ses creux significatifs**, reliés par une ligne brisée.
 
@@ -255,7 +255,7 @@ Il est rétrospectif par nature — un pivot ne se connaît qu'après coup — e
 
 ## Réglages
 
-Le seuil de déviation et l'affichage des étiquettes. Un seuil bas multiplie les pivots et réintroduit le bruit ; un seuil élevé ne conserve que la structure majeure.`,
+**Seuil de déviation : 5 % par défaut**, plus l'affichage des étiquettes. Un seuil bas multiplie les pivots et réintroduit le bruit qu'on cherchait à filtrer ; un seuil élevé ne conserve que la structure majeure.`,
 
   atr: `**L'ATR mesure l'amplitude moyenne des mouvements**, gaps compris.
 
@@ -283,7 +283,7 @@ Sa valeur est en unités de prix : elle **n'est pas comparable d'un instrument �
 
 ## Réglages
 
-La période, dans les paramètres. Il occupe son propre panneau.`,
+**Période : 14 par défaut.** Il occupe son propre panneau : son échelle est en unités de prix, pas comparable à celle des cours.`,
 
   supertrend: `**Le Supertrend est un stop suiveur qui ne recule jamais.** Deux bandes sont construites autour du prix médian de chaque bougie, décalées d'un multiple de l'ATR.
 
@@ -303,7 +303,7 @@ La faiblesse de tous les suiveurs : **en marché latéral, il bascule à répét
 
 ## Réglages
 
-La période de l'ATR et le multiplicateur. Plus le multiplicateur est grand, plus la bande est éloignée du prix : **les basculements se font rares, mais tardifs**.`,
+**ATR sur 10 périodes, multiplicateur 3.** Plus le multiplicateur est grand, plus la bande est éloignée du prix : **les basculements se font rares, mais tardifs**. C'est le seul arbitrage de l'outil.`,
 
   parabolicSar: `**Le Parabolic SAR dépose une série de points qui se rapprochent du prix de plus en plus vite.** Sous les bougies tant que la tendance est haussière, au-dessus dès qu'elle devient baissière.
 
@@ -323,7 +323,7 @@ Il a été conçu pour des marchés en tendance et devient franchement **contre-
 
 ## Réglages
 
-Le pas d'accélération et son plafond, ainsi que les couleurs de chaque sens. **Augmenter le pas rend l'outil plus agressif** et déclenche plus tôt.`,
+**Pas d'accélération 0,02, plafond 0,2** — les valeurs de Wilder. **Augmenter le pas rend l'outil plus agressif** et déclenche plus tôt. Les couleurs de chaque sens se règlent aussi.`,
 
   gaps: `**Un gap, ici, c'est deux bougies qui ne se chevauchent à aucun niveau de prix.** La détection ne compare pas une clôture à l'ouverture suivante, mais les plages complètes des deux bougies :
 
@@ -344,7 +344,7 @@ Sur des bougies quotidiennes, l'essentiel des gaps correspond simplement à l'é
 
 ## Réglages
 
-Le seuil minimal, dans les paramètres.`,
+**Seuil minimal : 0,1 % par défaut.** Le monter filtre les écarts anecdotiques d'une série intraday bruitée.`,
 
   patternRecognition: `**Cet indicateur cherche les figures chartistes classiques sur une fenêtre récente** — au maximum 20 bougies se terminant à la date limite choisie dans les paramètres, par défaut la dernière disponible, qui avance donc toute seule.
 
@@ -435,7 +435,7 @@ Leur seule autorité vient du fait que beaucoup de monde les regarde. Ce n'est p
 
 ## Réglages
 
-La période de référence (quotidienne, hebdomadaire, mensuelle) et la formule, dans les paramètres.`,
+**Formule *Classic*, période hebdomadaire par défaut.** La période de référence se règle en quotidienne, hebdomadaire ou mensuelle — une grille quotidienne bouge tous les jours, une grille mensuelle tient un mois entier.`,
 
   supportResistance: `**Cet indicateur déduit les niveaux qui ont le plus souvent servi de plancher ou de plafond.** Le calcul se fait en trois temps :
 
@@ -457,7 +457,7 @@ Et comme la fenêtre glisse avec les nouvelles données, un niveau ancien finit 
 
 ## Réglages
 
-La profondeur de la fenêtre et le nombre maximal de niveaux conservés.`,
+**Fenêtre de 100 bougies, 6 niveaux au maximum.** Élargir la fenêtre fait ressortir des niveaux plus anciens ; augmenter le nombre de niveaux en fait ressortir de moins touchés.`,
 
   adx: `**L'ADX mesure l'intensité d'une tendance, jamais son sens.** Trois courbes :
 
@@ -483,7 +483,7 @@ Son **double lissage** le rend nettement plus tardif que la plupart des indicate
 
 ## Réglages
 
-La période, dans les paramètres. Il occupe son propre panneau.`,
+**Période : 14 par défaut.** Il occupe son propre panneau.`,
 
   chandelierExit: `**Le Chandelier Exit est un stop suiveur ancré aux extrêmes récents**, pas au prix courant.
 
@@ -507,7 +507,7 @@ Comme tout suiveur, il **sort prématurément dans les phases de respiration** d
 
 ## Réglages
 
-La période, le multiplicateur d'ATR, les étiquettes et le remplissage.`,
+**22 périodes, multiplicateur 3** — une durée qui correspond à peu près à un mois de séances. Les étiquettes et le remplissage de la zone se règlent séparément.`,
 
   correlation: `**Cet indicateur mesure à quel point deux instruments bougent ensemble**, sur une échelle de -1 à +1.
 
@@ -527,7 +527,7 @@ Il sert aussi à repérer une **rupture de lien** — deux instruments habituell
 
 ## Réglages
 
-Le symbole de comparaison et la période, dans les paramètres.`,
+Le symbole de comparaison, et **une période de 20 par défaut**. Une fenêtre courte réagit vite mais donne des valeurs instables ; une fenêtre longue lisse au point de masquer une rupture récente.`,
 
   tpo: `**Le TPO — Time Price Opportunity — compte le temps passé à chaque niveau de prix**, et non le volume échangé.
 
@@ -545,7 +545,7 @@ Il décrit **où le marché s'est tenu**, pas où il va. Et il compte du temps, 
 
 ## Réglages
 
-La durée d'un bloc, dans les paramètres.`,
+**Blocs de 30 minutes par défaut.** Des blocs plus courts affinent le profil, au prix d'un histogramme beaucoup plus découpé.`,
 
   freeCashFlow: `**Le flux de trésorerie disponible est ce qui reste à l'entreprise une fois payées ses dépenses d'exploitation et ses investissements.**
 

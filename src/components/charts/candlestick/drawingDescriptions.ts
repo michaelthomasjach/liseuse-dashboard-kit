@@ -49,6 +49,12 @@ Une oblique de support tracée sur trois creux anciens indique alors **à quel p
 
 Le prolongement vers la gauche répond à l'autre question : *la droite avait-elle déjà un sens avant la zone qui a servi à la tracer ?*
 
+## Ce qu'elle ne dit pas
+
+L'erreur grandit avec la distance. **Une imprécision d'un pixel sur la pente devient un écart de plusieurs pour cent** quelques mois plus à droite — et le prolongement ne le signale pas : il trace une droite aussi nette près des points d'ancrage qu'à cent bougies de là.
+
+Plus la projection est lointaine, plus elle vaut comme zone, pas comme niveau.
+
 ## Réglages
 
 La direction du prolongement — gauche, droite ou les deux — se modifie dans la fenêtre d'édition. N'importe quelle ligne de tendance ordinaire peut y être convertie.`,
@@ -68,7 +74,13 @@ L'espace entre les deux devient une **zone de travail** — on achète près du 
 - **La sortie par le haut** — une accélération.
 - **La sortie par le bas** — l'invalidation de la structure.
 
-Un canal correctement tracé demande idéalement **deux points de contact sur chaque bord**.`,
+Un canal correctement tracé demande idéalement **deux points de contact sur chaque bord**.
+
+## Ce qu'il ne dit pas
+
+Le troisième clic est libre, et c'est sa faiblesse : **on peut faire entrer à peu près n'importe quelle hausse dans un canal** en choisissant bien l'écart.
+
+Le test honnête est de le tracer sur les oscillations passées et de vérifier que le prix a réellement touché les deux bords — pas de l'élargir jusqu'à ce qu'il contienne tout.`,
 
   disjointChannel: `**Trois clics, comme le canal parallèle — mais la seconde ligne n'est pas une copie décalée.** L'écart demandé sert à construire une ligne dont la pente est *inversée* par rapport à la première.
 
@@ -78,7 +90,13 @@ Le tracé compte donc bien quatre points, mais **le quatrième est calculé, pas
 
 ## À quoi ça sert
 
-C'est l'outil des figures **en biseau et en élargissement** — triangle, coin ascendant ou descendant, mégaphone — que le canal parallèle est incapable de représenter.`,
+C'est l'outil des figures **en biseau et en élargissement** — triangle, coin ascendant ou descendant, mégaphone — que le canal parallèle est incapable de représenter.
+
+## Ce qu'il ne dit pas
+
+Deux pentes indépendantes, c'est **un degré de liberté de plus** que le canal parallèle.
+
+Autrement dit : il épouse mieux, mais il prouve moins. *Plus une forme demande d'ajustements pour coller au passé, moins elle dit du futur.*`,
 
   horizontal: `**Un seul clic pose un niveau de prix traversant tout le graphique**, passé comme futur.
 
@@ -196,7 +214,13 @@ L'*Inside Pitchfork* suit alors la structure fine plutôt que l'enveloppe géné
 
 ## Comment ça se lit
 
-Comme les autres : médiane comme ligne d'équilibre, dents comme bornes, sortie franche comme invalidation. Chaque ligne peut être masquée séparément.`,
+Comme les autres : médiane comme ligne d'équilibre, dents comme bornes, sortie franche comme invalidation. Chaque ligne peut être masquée séparément.
+
+## Ce qu'elle ne dit pas
+
+Un couloir plus étroit est un couloir **dont on sort plus souvent**.
+
+Une sortie de l'*Inside Pitchfork* est donc un signal bien plus faible qu'une sortie de la fourche classique tracée sur les mêmes pivots : elle dit que la structure fine a cédé, pas la structure d'ensemble.`,
 
   rectangle: `**Deux clics posent deux coins opposés**, avec un contour et un remplissage léger de la même couleur.
 
@@ -490,6 +514,12 @@ En déplaçant l'objectif et le stop pour les caler sur des **niveaux techniques
 
 C'est ce qui permet d'écarter une opération *avant même de la prendre*, lorsque le rapport devient défavorable.
 
+## Ce qu'il ne dit pas
+
+Le rapport affiché suppose que **le stop sera exécuté à son prix**. Un gap d'ouverture ou un décrochage violent passe au travers, et la perte réelle dépasse alors celle qui est affichée.
+
+C'est une mesure du scénario, pas une garantie de son pire cas.
+
 ## Réglages
 
 Les deux niveaux se déplacent en prix comme en date, la date fixant l'horizon envisagé.`,
@@ -508,7 +538,11 @@ Chaque bande affiche son prix et son écart en pourcentage ; l'entrée indique l
 
 La même que pour une position longue : caler le **stop juste au-dessus d'une résistance** qui invaliderait le scénario, l'**objectif sur un support crédible**, et juger le rapport obtenu avant de décider.
 
-Les deux niveaux restent déplaçables en prix comme en date.`,
+Les deux niveaux restent déplaçables en prix comme en date.
+
+## Ce qu'il ne dit pas
+
+La même réserve que pour une position longue — un stop peut être franchi par un gap — **avec une asymétrie de plus** : le gain d'une vente à découvert est plafonné par le zéro, alors que la perte, elle, ne l'est par rien.`,
 
   text: `**Un clic ouvre une zone de saisie directement sur le graphique** : on tape, et le texte est posé. Sans fenêtre intermédiaire.
 

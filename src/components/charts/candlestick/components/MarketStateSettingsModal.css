@@ -1,0 +1,162 @@
+/* Settings for the Market State readout. Dense on purpose: it is a table of coefficients, and the
+   value of having them all in one place is lost the moment it needs scrolling to compare two. */
+
+.lq-ms-settings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lq-space-4);
+  font-size: var(--lq-text-xs);
+}
+
+.lq-ms-settings__section + .lq-ms-settings__section {
+  border-top: 1px solid var(--lq-color-border-subtle);
+  padding-top: var(--lq-space-3);
+}
+
+.lq-ms-settings__title {
+  margin: 0 0 var(--lq-space-1);
+  font-size: var(--lq-text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-ms-settings__note {
+  margin: 0 0 var(--lq-space-2);
+  color: var(--lq-color-text-muted);
+  line-height: 1.5;
+}
+
+.lq-ms-settings__fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--lq-space-2) var(--lq-space-3);
+}
+
+.lq-ms-settings__field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.lq-ms-settings__field-label {
+  font-weight: 600;
+}
+
+.lq-ms-settings__field-hint {
+  color: var(--lq-color-text-muted);
+  line-height: 1.4;
+}
+
+.lq-ms-settings__number {
+  width: 100%;
+  padding: 3px 6px;
+  border: 1px solid var(--lq-color-border-subtle);
+  background: var(--lq-color-bg);
+  color: var(--lq-color-text);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+.lq-ms-settings__number--tight {
+  width: 5.5ch;
+  text-align: right;
+}
+
+.lq-ms-settings__group + .lq-ms-settings__group {
+  margin-top: var(--lq-space-3);
+}
+
+.lq-ms-settings__group-label {
+  font-weight: 600;
+  margin-bottom: var(--lq-space-1);
+}
+
+.lq-ms-settings__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.lq-ms-settings__table th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--lq-color-text-muted);
+  padding-bottom: 4px;
+}
+
+.lq-ms-settings__table th:not(:first-child),
+.lq-ms-settings__table td:not(:first-child) {
+  text-align: center;
+  width: 1%;
+  white-space: nowrap;
+  padding-left: var(--lq-space-2);
+}
+
+.lq-ms-settings__table td {
+  padding: 3px 0;
+  border-top: 1px solid var(--lq-color-border-subtle);
+}
+
+/* What this source currently reads, coloured by the side its own thresholds put it on — so
+   changing a threshold and watching a row change camp is a single glance, which is the whole
+   reason the current score sits in this table at all. */
+.lq-ms-settings__reads {
+  font-weight: 600;
+}
+
+.lq-ms-settings__reads--long {
+  color: var(--lq-color-up);
+}
+
+.lq-ms-settings__reads--short {
+  color: var(--lq-color-down);
+}
+
+.lq-ms-settings__reads--neutral {
+  color: var(--lq-color-text-muted);
+}
+
+.lq-ms-settings__off-chart {
+  margin-left: var(--lq-space-1);
+  padding: 0 4px;
+  border: 1px solid var(--lq-color-border-subtle);
+  border-radius: 2px;
+  font-size: 0.9em;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-ms-settings__add {
+  display: flex;
+  gap: var(--lq-space-2);
+  align-items: center;
+}
+
+.lq-ms-settings__select {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 3px 6px;
+  border: 1px solid var(--lq-color-border-subtle);
+  background: var(--lq-color-bg);
+  color: var(--lq-color-text);
+  font: inherit;
+}
+
+.lq-ms-settings__extras {
+  list-style: none;
+  margin: var(--lq-space-2) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.lq-ms-settings__extra {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lq-space-2);
+  padding: 2px 0;
+  border-top: 1px solid var(--lq-color-border-subtle);
+}

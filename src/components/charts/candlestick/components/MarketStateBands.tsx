@@ -4,6 +4,7 @@ import type { Candle } from "../interfaces/Candle.interface";
 import type { Indicator } from "../interfaces/Indicator.interface";
 import type { IndicatorValue } from "../interfaces/IndicatorValue.interface";
 import type { MarketStateBandColors } from "../marketStateBandColors";
+import { DEFAULT_MARKET_STATE_SETTINGS, type MarketStateSettings } from "../marketStateSettings";
 import "./MarketStateBands.css";
 
 export interface MarketStateBandsProps {
@@ -19,6 +20,9 @@ export interface MarketStateBandsProps {
   width: number;
   /** One colour per direction, edited from the readout (see `marketStateBandColors.ts`). */
   colors: MarketStateBandColors;
+  /** The same settings the panel reads, so the shading and the readout are one claim rather than
+   *  two. `bandSmoothing` is read from here too. */
+  settings?: MarketStateSettings;
 }
 
 /** Shades the price plot by what the Market State reads across it — one colour per direction,
@@ -28,11 +32,24 @@ export interface MarketStateBandsProps {
  *  thing to read on its own, which is also why the defaults are as pale as they are (see
  *  `DEFAULT_MARKET_STATE_BAND_COLORS`). A band that competes with the candles has stopped being a
  *  background. */
-export function MarketStateBands({ candles, indicators, xForIndex, left, top, height, width, colors }: MarketStateBandsProps) {
+export function MarketStateBands({
+  candles,
+  indicators,
+  xForIndex,
+  left,
+  top,
+  height,
+  width,
+  colors,
+  settings = DEFAULT_MARKET_STATE_SETTINGS,
+}: MarketStateBandsProps) {
   // Keyed on the data alone — not on the visible range, which the bands do not depend on (see
   // `computeMarketStateBands`). That is what keeps a pan free: the bands are computed once and the
   // container simply clips whichever ones fall outside it.
-  const bands = useMemo(() => computeMarketStateBands({ candles, indicators }), [candles, indicators]);
+  const bands = useMemo(
+    () => computeMarketStateBands({ candles, indicators, settings }, settings.bandSmoothing),
+    [candles, indicators, settings],
+  );
 
   return (
     <div className="lq-market-bands" style={{ left, top, width, height }} aria-hidden="true">

@@ -361,3 +361,67 @@
   border: none;
   border-radius: 2px;
 }
+
+/* ── The three sides at once ──────────────────────────────────────────────────────────────────
+   Above the axes, because it is the conclusion and they are the reasoning. Three cells rather
+   than one number: a blend of 58 and a vote of 5-3 are different claims, and only the second says
+   whether the market agrees with itself. */
+
+.lq-market-state__stance {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px;
+  margin-bottom: var(--lq-space-2);
+}
+
+.lq-market-state__stance-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 6px;
+  border: 1px solid var(--lq-color-border-subtle);
+  /* Dimmed until it leads: three equally loud cells is three things to read, and the point is to
+     have one. */
+  opacity: 0.55;
+}
+
+.lq-market-state__stance-cell--leading {
+  opacity: 1;
+  border-color: currentColor;
+}
+
+.lq-market-state__stance-cell--long {
+  color: var(--lq-color-up);
+}
+
+.lq-market-state__stance-cell--short {
+  color: var(--lq-color-down);
+}
+
+.lq-market-state__stance-cell--neutral {
+  color: var(--lq-color-text-muted);
+}
+
+.lq-market-state__stance-label {
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+}
+
+.lq-market-state__stance-value {
+  font-size: 0.9rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.lq-market-state__stance-bar {
+  display: block;
+  height: 3px;
+  background-color: var(--lq-color-border-subtle);
+}
+
+.lq-market-state__stance-fill {
+  display: block;
+  height: 100%;
+  background-color: currentColor;
+}

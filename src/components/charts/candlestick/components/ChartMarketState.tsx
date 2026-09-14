@@ -3,6 +3,8 @@ import { MarketStatePanel } from "./MarketStatePanel";
 import { MarketStateBands } from "./MarketStateBands";
 import { DetachedWindow } from "./DetachedWindow";
 import { DEFAULT_MARKET_STATE_BAND_COLORS } from "../marketStateBandColors";
+import { DEFAULT_MARKET_STATE_SETTINGS, type MarketStateSettings } from "../marketStateSettings";
+import { computeIndicatorValues } from "../indicators";
 import type { Candle } from "../interfaces/Candle.interface";
 import type { Indicator } from "../interfaces/Indicator.interface";
 import type { IndicatorValue } from "../interfaces/IndicatorValue.interface";
@@ -51,6 +53,10 @@ export function ChartMarketState({
   const [bandColors, setBandColors] = useState(DEFAULT_MARKET_STATE_BAND_COLORS);
   // Its own browser window. Opened inside the click, never from an effect — see `DetachedWindow`.
   const [detachedWindow, setDetachedWindow] = useState<Window | null>(null);
+  // Weights, thresholds, the neutral band and the off-chart indicators. Here rather than in the
+  // chart for the same reason the band colours are: nothing outside this readout has any use for
+  // them, and the shading, the panel and the detached copy all have to read the same ones.
+  const [settings, setSettings] = useState<MarketStateSettings>(DEFAULT_MARKET_STATE_SETTINGS);
 
   // Hidden indicators are excluded: a score fed partly by something the reader cannot see would be
   // unexplainable by looking at the chart, which is the one thing this readout promises. Memoized
@@ -58,13 +64,26 @@ export function ChartMarketState({
   // would mean recomputing on every mouse move.
   const visible = useMemo(() => indicatorValues.filter(({ indicator }) => !indicator.hidden), [indicatorValues]);
 
+  // Indicators the reading uses without the chart drawing them — the one stated exception to the
+  // "only what is on screen" rule (see `MarketStateSettings.extraIndicators`). Their values are
+  // computed here through the very same function the chart itself uses, so an off-chart RSI and an
+  // on-chart one are the same number by construction rather than by coincidence.
+  const sources = useMemo(() => {
+    if (settings.extraIndicators.length === 0) return visible;
+    const onChart = new Set(visible.map(({ indicator }) => indicator.id));
+    const extras = settings.extraIndicators
+      .filter((indicator) => !onChart.has(indicator.id))
+      .map((indicator) => ({ indicator, values: computeIndicatorValues(candles, indicator, undefined), offChart: true }));
+    return [...visible, ...extras];
+  }, [visible, settings.extraIndicators, candles]);
+
   if (!open) return null;
 
   const panel = (detached: boolean, close: () => void) => (
     <MarketStatePanel
       candles={candles}
       index={index}
-      indicators={visible}
+      indicators={sources}
       onClose={close}
       formatDate={formatDate}
       detached={detached}
@@ -75,6 +94,8 @@ export function ChartMarketState({
       onBandsChange={setBandsOn}
       bandColors={bandColors}
       onBandColorsChange={setBandColors}
+      settings={settings}
+      onSettingsChange={setSettings}
       onRequestDetach={
         detached
           ? undefined
@@ -92,13 +113,14 @@ export function ChartMarketState({
       {bandsOn && bands !== null && (
         <MarketStateBands
           candles={candles}
-          indicators={visible}
+          indicators={sources}
           xForIndex={bands.xForIndex}
           left={bands.left}
           top={bands.top}
           width={bands.width}
           height={bands.height}
           colors={bandColors}
+          settings={settings}
         />
       )}
       {detachedWindow === null ? (

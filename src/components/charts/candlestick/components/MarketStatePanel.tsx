@@ -1,6 +1,8 @@
 import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { CloseIcon, ChevronDownIcon, DetachWindowIcon } from "../../../icons";
-import { computeMarketState, SIGNAL_NEUTRAL_BAND, type MarketStateAxis, type MarketStateDirection } from "../marketState";
+import { CloseIcon, ChevronDownIcon, DetachWindowIcon, SettingsIcon } from "../../../icons";
+import { computeMarketState, type MarketStateAxis, type MarketStateDirection } from "../marketState";
+import { DEFAULT_MARKET_STATE_SETTINGS, type MarketStateSettings } from "../marketStateSettings";
+import { MarketStateSettingsModal } from "./MarketStateSettingsModal";
 import { MARKET_STATE_BAND_LABELS, type MarketStateBandColors } from "../marketStateBandColors";
 import type { Candle } from "../interfaces/Candle.interface";
 import type { Indicator } from "../interfaces/Indicator.interface";
@@ -32,6 +34,10 @@ export interface MarketStatePanelProps {
    *  colour pickers for something invisible are three controls asking about nothing. */
   bandColors?: MarketStateBandColors;
   onBandColorsChange?: (colors: MarketStateBandColors) => void;
+  /** Weights, thresholds and the neutral band. Absent keeps the defaults and hides the gear — a
+   *  host that cannot store a change should not offer to take one. */
+  settings?: MarketStateSettings;
+  onSettingsChange?: (settings: MarketStateSettings) => void;
 }
 
 /** The Market State dashboard: five 0-100 readings of the market and one long-side signal, all
@@ -47,6 +53,12 @@ export interface MarketStatePanelProps {
  *  a column is what makes five of them comparable at a glance. */
 /** What the bottom line calls itself. The score is always read from the long side; only the label
  *  and the percentage beside it change with the side it lands on. */
+const STANCE_LABEL: Record<MarketStateDirection, string> = {
+  long: "LONG",
+  neutral: "NEUTRE",
+  short: "SHORT",
+};
+
 const SIGNAL_LABEL: Record<MarketStateDirection, string> = {
   long: "SIGNAL LONG",
   short: "SIGNAL SHORT",
@@ -65,7 +77,10 @@ export function MarketStatePanel({
   onBandsChange,
   bandColors,
   onBandColorsChange,
+  settings = DEFAULT_MARKET_STATE_SETTINGS,
+  onSettingsChange,
 }: MarketStatePanelProps) {
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [expanded, setExpanded] = useState<MarketStateAxis | "signal" | null>(null);
   // Where the reader has put it, as an offset from the corner it starts in. Kept here rather than
   // persisted: it is a position on *this* chart in *this* session, and a readout that reappeared
@@ -95,8 +110,8 @@ export function MarketStatePanel({
     e.currentTarget.releasePointerCapture?.(e.pointerId);
   }
   const state = useMemo(
-    () => computeMarketState({ candles, index, indicators }),
-    [candles, index, indicators],
+    () => computeMarketState({ candles, index, indicators, settings }),
+    [candles, index, indicators, settings],
   );
   const bar = candles[state.atIndex];
 
@@ -117,6 +132,16 @@ export function MarketStatePanel({
         onPointerCancel={endDrag}
       >
         <span className="lq-market-state__title">MARKET STATE</span>
+        {onSettingsChange && (
+          <button
+            type="button"
+            onClick={() => setSettingsOpen(true)}
+            aria-label="Réglages de l'état du marché"
+            title="Réglages : poids, seuils, indicateurs"
+          >
+            <SettingsIcon size={11} />
+          </button>
+        )}
         {onRequestDetach && (
           <button type="button" onClick={onRequestDetach} aria-label="Ouvrir dans une fenêtre" title="Ouvrir dans une fenêtre">
             <DetachWindowIcon size={11} />
@@ -128,6 +153,31 @@ export function MarketStatePanel({
           </button>
         )}
       </header>
+
+      {/* All three sides at once, before any of the axes. A blended signal of 58 says "slightly
+          long" and hides how it got there: five sources long against three short, and eleven all
+          mildly long, are the same 58 and are not the same market. This is the vote behind the
+          average — each source judged on its own thresholds (see the gear). */}
+      <div className="lq-market-state__stance" role="group" aria-label="Répartition long, neutre, short">
+        {(["long", "neutral", "short"] as MarketStateDirection[]).map((side) => (
+          <div
+            key={side}
+            className={[
+              "lq-market-state__stance-cell",
+              `lq-market-state__stance-cell--${side}`,
+              state.direction === side && "lq-market-state__stance-cell--leading",
+            ]
+              .filter(Boolean)
+              .join(" ")}
+          >
+            <span className="lq-market-state__stance-label">{STANCE_LABEL[side]}</span>
+            <span className="lq-market-state__stance-value">{state.stance[side]} %</span>
+            <span className="lq-market-state__stance-bar" aria-hidden="true">
+              <span className="lq-market-state__stance-fill" style={{ width: `${state.stance[side]}%` }} />
+            </span>
+          </div>
+        ))}
+      </div>
 
       <div className="lq-market-state__box">
         {state.scores.map((score) => {
@@ -209,7 +259,7 @@ export function MarketStatePanel({
         <div className="lq-market-state__detail lq-market-state__detail--signal">
           <p className="lq-market-state__hint">
             Moyenne pondérée des axes ci-dessus, lue du côté long : 50 est le milieu, 100 le plus haussier, 0 le plus
-            baissier. Entre {50 - SIGNAL_NEUTRAL_BAND} et {50 + SIGNAL_NEUTRAL_BAND}, le signal est dit neutre — les axes
+            baissier. Entre {50 - settings.neutralBand} et {50 + settings.neutralBand}, le signal est dit neutre — les axes
             se contredisent et il n'y a pas de côté à annoncer. La volatilité est volontairement absente du calcul : elle
             amplifie autant une bonne configuration qu'une mauvaise, donc la compter comme une direction serait faux dans
             les deux cas.
@@ -262,6 +312,18 @@ export function MarketStatePanel({
       )}
 
       {bar && <p className="lq-market-state__at">Bougie du {formatDate(bar.date)}</p>}
+
+      {onSettingsChange && (
+        <MarketStateSettingsModal
+          open={settingsOpen}
+          onClose={() => setSettingsOpen(false)}
+          settings={settings}
+          onChange={onSettingsChange}
+          // Built from this very reading, so the settings can only ever offer rows that are
+          // actually being counted right now.
+          sources={state.scores.map((score) => ({ axis: score.axis, axisLabel: score.label, contributions: score.contributions }))}
+        />
+      )}
     </section>
   );
 }

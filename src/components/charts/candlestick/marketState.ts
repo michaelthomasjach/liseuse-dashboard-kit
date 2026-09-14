@@ -10,6 +10,12 @@ import type { IndicatorChandelierPoint } from "./interfaces/IndicatorChandelierP
 import type { IndicatorZigZagPoint } from "./interfaces/IndicatorZigZagPoint.interface";
 import type { IndicatorSRLevel } from "./interfaces/IndicatorSRLevel.interface";
 import { indicatorLabel } from "./indicatorCatalog";
+import {
+  DEFAULT_MARKET_STATE_SETTINGS,
+  sourceDirection,
+  sourceSetting,
+  type MarketStateSettings,
+} from "./marketStateSettings";
 
 /** The "Market State" panel's own model: five 0-100 readings of the market, computed from
  *  whatever indicators are actually on the chart, plus a single long-side signal blended from
@@ -49,6 +55,19 @@ export interface MarketStateContribution {
   formula: string;
   /** One sentence turning the reading into the score, so the arithmetic is checkable. */
   why: string;
+  /** Which side this one source reads, on its own thresholds (see `MarketStateSourceSetting`).
+   *  Assigned after the fact rather than by each scorer: the thresholds are the reader's to set, so
+   *  the same 63 is a long for one source and neutral for another, and only the settings know. */
+  direction: MarketStateDirection;
+  /** False when the reader has switched this source off. Still listed — a source you turned off is
+   *  something you want to see is off, not something that should vanish — but it counts for
+   *  nothing. */
+  counted: boolean;
+  /** Its weight after the reader's own multiplier, which is the number actually used. */
+  effectiveWeight: number;
+  /** True for a source read from `settings.extraIndicators`: in the reading, absent from the
+   *  chart. Marked so the panel's "only what is on screen" rule shows its own exception. */
+  offChart?: boolean;
 }
 
 export interface MarketStateScore {
@@ -93,14 +112,35 @@ export interface MarketState {
   strength: number | null;
   /** Exactly what went into `signal`, same decomposability rule as the axes. */
   signalParts: MarketStateSignalPart[];
+  /** All three sides at once, as shares of the counted weight — exigence : « afficher les trois
+   *  états à la fois LONG, NEUTRAL, SHORT ».
+   *
+   *  A blended signal of 58 says "slightly long" and hides how it got there: eight sources split
+   *  five long, three short, or eleven sources all mildly long, are the same 58 and are not the
+   *  same market. This is the vote behind the average — what share of the weight reads each way,
+   *  each source judged on its own thresholds. The three always sum to 100. */
+  stance: Record<MarketStateDirection, number>;
   /** Which bar every reading above describes — the last visible one, or whichever the pointer is
    *  on. Shown in the panel so a hovered reading is never mistaken for the current one. */
   atIndex: number;
 }
 
 const clamp = (value: number, low: number, high: number) => Math.min(high, Math.max(low, value));
-/** Every figure in this panel uses the reader's own decimal comma. */
-const n = (value: number, digits = 2) => value.toLocaleString("fr-FR", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+/** Every figure in this panel uses the reader's own decimal comma.
+ *
+ *  Through a kept `Intl.NumberFormat` rather than `Number.toLocaleString`, which builds a fresh
+ *  formatter on every call: identical output, 22× faster, and it is most of what this file costs.
+ *  Every reading formats a handful of numbers, and shading a chart means computing every bar — so a
+ *  whole-series pass over 3000 bars spent 570 of its 660 ms inside the formatter alone. */
+const formatters = new Map<number, Intl.NumberFormat>();
+const n = (value: number, digits = 2) => {
+  let formatter = formatters.get(digits);
+  if (!formatter) {
+    formatter = new Intl.NumberFormat("fr-FR", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+    formatters.set(digits, formatter);
+  }
+  return formatter.format(value);
+};
 const p1 = (value: number) => `${value >= 0 ? "+" : ""}${n(value * 100)} %`;
 const clamp100 = (value: number) => clamp(value, 0, 100);
 // Everything the panel prints goes through these, so a reading and the formula under it are never
@@ -120,10 +160,18 @@ function scoreFromRelative(distance: number, full: number): number {
  *  this high *for this instrument*" — an ATR of 2.4 means nothing on its own, and everything
  *  against the range of the last few hundred bars. */
 function percentileOf(value: number, series: number[]): number | null {
-  const usable = series.filter((n) => Number.isFinite(n));
-  if (usable.length < 5) return null;
-  const below = usable.filter((n) => n < value).length;
-  return clamp100((below / usable.length) * 100);
+  // Counted in one pass rather than filtered twice. It reads no worse and it is called once per
+  // indicator per bar — over a whole series, two throwaway arrays per call is most of the cost of
+  // shading a chart.
+  let usable = 0;
+  let below = 0;
+  for (const entry of series) {
+    if (!Number.isFinite(entry)) continue;
+    usable += 1;
+    if (entry < value) below += 1;
+  }
+  if (usable < 5) return null;
+  return clamp100((below / usable) * 100);
 }
 
 /** How a percentile reads in a sentence. At the very ends, "plus élevé que 0 % de la fenêtre" is
@@ -136,9 +184,11 @@ function rankPhrase(rank: number, count: number, high: string, low: string): str
 }
 
 function weightedMean(contributions: MarketStateContribution[]): number | null {
-  const total = contributions.reduce((sum, c) => sum + c.weight, 0);
+  // `effectiveWeight`, not `weight`: a source switched off weighs nothing and a source the reader
+  // doubled weighs twice, and the axis average is the one place that has to know it.
+  const total = contributions.reduce((sum, c) => sum + c.effectiveWeight, 0);
   if (total <= 0) return null;
-  return Math.round(contributions.reduce((sum, c) => sum + c.score * c.weight, 0) / total);
+  return Math.round(contributions.reduce((sum, c) => sum + c.score * c.effectiveWeight, 0) / total);
 }
 
 /** A simple moving average of `values` ending at `end` (inclusive). `null` when the window doesn't
@@ -158,13 +208,35 @@ export interface MarketStateInput {
   /** Exactly what the chart is drawing right now — same array the legend and the canvas read, so
    *  the panel can never disagree with what is on screen. A hidden indicator is the caller's to
    *  filter out (see `computeMarketState`'s own usage in CandlestickChart). */
-  indicators: { indicator: Indicator; values: (IndicatorValue | null)[] }[];
+  indicators: { indicator: Indicator; values: (IndicatorValue | null)[]; offChart?: boolean }[];
   /** How many bars back the baselines and the percentiles look. Defaults to 200 — long enough for
-   *  "high for this instrument" to mean something, short enough to describe the present. */
+   *  "high for this instrument" to mean something, short enough to describe the present. Ignored
+   *  when `settings` carries its own, which is the normal path. */
   lookback?: number;
+  /** Weights, thresholds and the neutral band, as the reader set them. Defaults throughout when
+   *  absent, which is what every existing caller gets. */
+  settings?: MarketStateSettings;
 }
 
-type Bucket = { contributions: MarketStateContribution[] };
+/** What a scorer pushes. The three fields it lacks are not its business: whether a source counts,
+ *  how heavily, and which side it reads are all the reader's settings talking, and they are applied
+ *  in one place (`finalise`) rather than threaded through two dozen scorers that would each have to
+ *  remember to. */
+type RawContribution = Omit<MarketStateContribution, "direction" | "counted" | "effectiveWeight">;
+
+type Bucket = { contributions: RawContribution[] };
+
+/** Applies the reader's settings to one scorer's output. */
+function finalise(raw: RawContribution, settings: MarketStateSettings, offChartLabels: Set<string>): MarketStateContribution {
+  const setting = sourceSetting(settings, raw.label);
+  return {
+    ...raw,
+    direction: sourceDirection(raw.score, setting),
+    counted: setting.enabled,
+    effectiveWeight: setting.enabled ? raw.weight * setting.weight : 0,
+    offChart: offChartLabels.has(raw.label) || undefined,
+  };
+}
 
 /** Reads one indicator's value at `index`, skipping the nulls every series starts with. */
 function valueAt(entry: MarketStateInput["indicators"][number], index: number): IndicatorValue | null {
@@ -188,8 +260,63 @@ const isZigZag = (v: IndicatorValue): v is IndicatorZigZagPoint =>
   typeof v === "object" && v !== null && "kind" in v && "price" in v;
 const isSrLevels = (v: IndicatorValue): v is IndicatorSRLevel[] => Array.isArray(v);
 
-export function computeMarketState({ candles, index, indicators, lookback = 200 }: MarketStateInput): MarketState {
+/** The three series and the one rolling statistic every reading needs, derived once per dataset.
+ *
+ *  They are pure functions of `candles` and identical at every bar, yet the readout is computed per
+ *  bar — for the panel on each pointer move, and for the whole series when the chart shades its
+ *  zones. Rebuilding them per call made one reading cost 0.84 ms and a whole-series pass over 3000
+ *  bars cost 1.1 s, which is why the shading used to be sampled every Nth bar and disagreed with
+ *  the panel in between. Cached, a reading is a fraction of that and the shading can afford to be
+ *  computed at every bar, which is what makes the two agree by construction.
+ *
+ *  A `WeakMap` on the array's own identity: a new `candles` array is new data by definition, so
+ *  there is no invalidation rule to get wrong, and nothing is retained once the caller drops it. */
+const derivedCache = new WeakMap<Candle[], DerivedSeries>();
+
+interface DerivedSeries {
+  closes: number[];
+  volumes: number[];
+  /** `returns[i]` is the move from candle `i` to candle `i + 1`. */
+  returns: number[];
+  /** The standard deviation of the 20 returns ending just before bar `i`, or null where the window
+   *  does not fit. Same definition as the per-call version it replaces, bound for bound. */
+  realized: (number | null)[];
+}
+
+function derivedSeries(candles: Candle[]): DerivedSeries {
+  const cached = derivedCache.get(candles);
+  if (cached) return cached;
+  const closes = candles.map((c) => c.close);
+  const volumes = candles.map((c) => c.volume ?? 0);
+  const returns: number[] = [];
+  for (let i = 1; i < candles.length; i++) returns.push((closes[i] - closes[i - 1]) / closes[i - 1]);
+  const realized: (number | null)[] = new Array(candles.length).fill(null);
+  for (let end = 20; end < candles.length; end++) {
+    let sum = 0;
+    for (let i = end - 20; i < end; i++) sum += returns[i];
+    const mean = sum / 20;
+    let variance = 0;
+    for (let i = end - 20; i < end; i++) variance += (returns[i] - mean) ** 2;
+    realized[end] = Math.sqrt(variance / 20);
+  }
+  const derived: DerivedSeries = { closes, volumes, returns, realized };
+  derivedCache.set(candles, derived);
+  return derived;
+}
+
+export function computeMarketState({
+  candles,
+  index,
+  indicators,
+  lookback,
+  settings = DEFAULT_MARKET_STATE_SETTINGS,
+}: MarketStateInput): MarketState {
+  // The settings own the lookback; the bare argument stays for callers that predate them.
+  const effectiveLookback = lookback ?? settings.lookback;
   const at = clamp(Math.round(index), 0, Math.max(0, candles.length - 1));
+  // Which labels come from an indicator the chart is not drawing — see
+  // `MarketStateSettings.extraIndicators` for why that exception exists and why it is marked.
+  const offChartLabels = new Set(indicators.filter((entry) => entry.offChart).map((entry) => indicatorLabel(entry.indicator)));
   const trend: Bucket = { contributions: [] };
   const momentum: Bucket = { contributions: [] };
   const volatility: Bucket = { contributions: [] };
@@ -197,24 +324,27 @@ export function computeMarketState({ candles, index, indicators, lookback = 200 
   const risk: Bucket = { contributions: [] };
 
   const empty: MarketState = {
-    scores: buildScores(trend, momentum, volatility, flow, risk),
+    scores: buildScores(trend, momentum, volatility, flow, risk, settings, offChartLabels),
     signal: null,
     direction: "neutral",
     strength: null,
     signalParts: [],
+    stance: { long: 0, neutral: 100, short: 0 },
     atIndex: at,
   };
   if (candles.length < 20) return empty;
 
   const bar = candles[at];
   const price = bar.close;
-  const from = Math.max(0, at - lookback + 1);
-  const window = candles.slice(from, at + 1);
-  const closes = candles.map((c) => c.close);
+  const from = Math.max(0, at - effectiveLookback + 1);
+  // Length and highest high are all the window is ever asked for, and slicing 200 candles to ask
+  // is 200 allocations per bar. Both are one loop.
+  const windowLength = at - from + 1;
+  const { closes, volumes, realized: realizedSeries } = derivedSeries(candles);
 
   // ---- baselines: what price and volume say on their own -------------------------------------
 
-  const trendMean = meanEndingAt(closes, at, Math.min(50, Math.floor(window.length / 2)));
+  const trendMean = meanEndingAt(closes, at, Math.min(50, Math.floor(windowLength / 2)));
   if (trendMean !== null) {
     const distance = (price - trendMean) / trendMean;
     trend.contributions.push({
@@ -227,7 +357,7 @@ export function computeMarketState({ candles, index, indicators, lookback = 200 
     });
   }
 
-  const momentumBase = window.length > 14 ? (price - closes[at - 14]) / closes[at - 14] : null;
+  const momentumBase = windowLength > 14 ? (price - closes[at - 14]) / closes[at - 14] : null;
   if (momentumBase !== null) {
     momentum.contributions.push({
       label: "Prix (intégré)",
@@ -241,19 +371,12 @@ export function computeMarketState({ candles, index, indicators, lookback = 200 
 
   // Realized volatility: the standard deviation of daily returns over 20 bars, ranked against the
   // same measure over the whole window — the "is this calm or wild *for this instrument*" question.
-  const returns = candles.slice(1).map((c, i) => (c.close - candles[i].close) / candles[i].close);
-  const realized = (end: number) => {
-    if (end < 20) return null;
-    const slice = returns.slice(end - 20, end);
-    const mean = slice.reduce((s, r) => s + r, 0) / slice.length;
-    return Math.sqrt(slice.reduce((s, r) => s + (r - mean) ** 2, 0) / slice.length);
-  };
-  const realizedNow = realized(at);
+  const realizedNow = realizedSeries[at] ?? null;
   if (realizedNow !== null) {
     const history: number[] = [];
     for (let i = from + 20; i <= at; i++) {
-      const v = realized(i);
-      if (v !== null) history.push(v);
+      const v = realizedSeries[i];
+      if (v !== null && v !== undefined) history.push(v);
     }
     const rank = percentileOf(realizedNow, history);
     if (rank !== null) {
@@ -276,7 +399,8 @@ export function computeMarketState({ candles, index, indicators, lookback = 200 
     }
   }
 
-  const windowHigh = Math.max(...window.map((c) => c.high));
+  let windowHigh = -Infinity;
+  for (let i = from; i <= at; i++) if (candles[i].high > windowHigh) windowHigh = candles[i].high;
   if (windowHigh > 0) {
     const drawdown = (windowHigh - price) / windowHigh;
     risk.contributions.push({
@@ -293,8 +417,7 @@ export function computeMarketState({ candles, index, indicators, lookback = 200 
   // trading less than usual says nothing about who is in control, in either direction — reading a
   // quiet down-bar as mildly bullish (which subtracting a negative excess would do) is inventing a
   // conviction nobody showed. Below average therefore lands on a flat 50.
-  const volumes = candles.map((c) => c.volume ?? 0);
-  const volumeMean = meanEndingAt(volumes, at, Math.min(20, window.length));
+  const volumeMean = meanEndingAt(volumes, at, Math.min(20, windowLength));
   if (volumeMean !== null && volumeMean > 0) {
     const relative = (volumes[at] - volumeMean) / volumeMean;
     const excess = clamp(relative, 0, 1);
@@ -566,21 +689,25 @@ export function computeMarketState({ candles, index, indicators, lookback = 200 
     }
   }
 
-  const scores = buildScores(trend, momentum, volatility, flow, risk);
+  const scores = buildScores(trend, momentum, volatility, flow, risk, settings, offChartLabels);
   const byAxis = new Map(scores.map((s) => [s.axis, s]));
 
   // The blend. Trend and momentum say which way, flow says whether it is backed by real trading,
-  // risk counts against. Volatility is deliberately absent: high volatility amplifies a good setup
-  // and a bad one equally, so folding it in as a direction would be wrong either way — it is shown
-  // as its own reading instead.
-  const weights: { axis: MarketStateAxis; label: string; weight: number; invert?: boolean }[] = [
-    { axis: "trend", label: "Tendance", weight: 0.4 },
-    { axis: "momentum", label: "Momentum", weight: 0.3 },
-    { axis: "flow", label: "Flux", weight: 0.15 },
-    { axis: "risk", label: "Risque (inversé)", weight: 0.15, invert: true },
+  // risk counts against. Volatility weighs 0 by default and deliberately so: high volatility
+  // amplifies a good setup and a bad one equally, so folding it in as a direction would be wrong
+  // either way — it is shown as its own reading instead. The reader can overrule every one of
+  // these, which is why they are read from the settings rather than written here.
+  const weights: { axis: MarketStateAxis; label: string; invert?: boolean }[] = [
+    { axis: "trend", label: "Tendance" },
+    { axis: "momentum", label: "Momentum" },
+    { axis: "flow", label: "Flux" },
+    { axis: "risk", label: "Risque (inversé)", invert: true },
+    { axis: "volatility", label: "Volatilité" },
   ];
   const signalParts: MarketStateSignalPart[] = [];
-  for (const { axis, label, weight, invert } of weights) {
+  for (const { axis, label, invert } of weights) {
+    const weight = settings.axisWeights[axis] ?? 0;
+    if (weight <= 0) continue;
     const score = byAxis.get(axis)?.score;
     if (score === null || score === undefined) continue;
     signalParts.push({ label, score: invert ? 100 - score : score, weight });
@@ -590,50 +717,84 @@ export function computeMarketState({ candles, index, indicators, lookback = 200 
     totalWeight > 0 ? Math.round(signalParts.reduce((sum, part) => sum + part.score * part.weight, 0) / totalWeight) : null;
 
   const direction: MarketStateDirection =
-    signal === null || Math.abs(signal - 50) <= SIGNAL_NEUTRAL_BAND ? "neutral" : signal > 50 ? "long" : "short";
+    signal === null || Math.abs(signal - 50) <= settings.neutralBand ? "neutral" : signal > 50 ? "long" : "short";
   // Restated on the side it actually falls: 26 is a 74 % short, not a 26 % long. Neutral keeps the
   // long-side number, since there is no side to restate it onto.
   const strength = signal === null ? null : direction === "short" ? 100 - signal : signal;
 
-  return { scores, signal, direction, strength, signalParts, atIndex: at };
+  // The vote behind the average: what share of the counted weight reads each way, every source
+  // judged on its own thresholds. Only the axes that actually feed the blend are polled — a source
+  // whose axis weighs nothing has no say in the signal, and letting it have one here would make
+  // the two readings contradict each other in front of the reader.
+  const polled = scores
+    .filter((axis) => (settings.axisWeights[axis.axis] ?? 0) > 0)
+    .flatMap((axis) => axis.contributions.filter((c) => c.counted && c.effectiveWeight > 0));
+  const stanceWeight = polled.reduce((sum, c) => sum + c.effectiveWeight, 0);
+  const stance: Record<MarketStateDirection, number> =
+    stanceWeight > 0
+      ? (() => {
+          const share = (side: MarketStateDirection) =>
+            polled.filter((c) => c.direction === side).reduce((sum, c) => sum + c.effectiveWeight, 0) / stanceWeight;
+          const long = Math.round(share("long") * 100);
+          const short = Math.round(share("short") * 100);
+          // Neutral takes the remainder rather than its own rounding, so the three always sum to
+          // exactly 100 — three percentages that add up to 101 read as an arithmetic bug.
+          return { long, short, neutral: Math.max(0, 100 - long - short) };
+        })()
+      : { long: 0, neutral: 100, short: 0 };
+
+  return { scores, signal, direction, strength, signalParts, stance, atIndex: at };
 }
 
-function buildScores(trend: Bucket, momentum: Bucket, volatility: Bucket, flow: Bucket, risk: Bucket): MarketStateScore[] {
+function buildScores(
+  trend: Bucket,
+  momentum: Bucket,
+  volatility: Bucket,
+  flow: Bucket,
+  risk: Bucket,
+  settings: MarketStateSettings,
+  offChartLabels: Set<string>
+): MarketStateScore[] {
+  const t = trend.contributions.map((c) => finalise(c, settings, offChartLabels));
+  const m = momentum.contributions.map((c) => finalise(c, settings, offChartLabels));
+  const v = volatility.contributions.map((c) => finalise(c, settings, offChartLabels));
+  const f = flow.contributions.map((c) => finalise(c, settings, offChartLabels));
+  const r = risk.contributions.map((c) => finalise(c, settings, offChartLabels));
   return [
     {
       axis: "trend",
       label: "TREND",
       hint: "Dans quel sens le marché est orienté, et avec quelle conviction. 50 = sans direction.",
-      score: weightedMean(trend.contributions),
-      contributions: trend.contributions,
+      score: weightedMean(t),
+      contributions: t,
     },
     {
       axis: "volatility",
       label: "VOL",
       hint: "L'amplitude des mouvements, rapportée à l'habitude de cet instrument. 100 = agité comme jamais sur la fenêtre.",
-      score: weightedMean(volatility.contributions),
-      contributions: volatility.contributions,
+      score: weightedMean(v),
+      contributions: v,
     },
     {
       axis: "flow",
       label: "FLOW",
       hint: "Si les échanges accompagnent le mouvement ou le subissent. 50 = volume ordinaire.",
-      score: weightedMean(flow.contributions),
-      contributions: flow.contributions,
+      score: weightedMean(f),
+      contributions: f,
     },
     {
       axis: "momentum",
       label: "MOM",
       hint: "La vitesse du mouvement en cours, indépendamment de sa direction de fond. 50 = à l'équilibre.",
-      score: weightedMean(momentum.contributions),
-      contributions: momentum.contributions,
+      score: weightedMean(m),
+      contributions: m,
     },
     {
       axis: "risk",
       label: "RISK",
       hint: "Ce qui joue contre une position : volatilité, repli, absence de tendance, proximité d'un niveau. Bas vaut mieux que haut.",
-      score: weightedMean(risk.contributions),
-      contributions: risk.contributions,
+      score: weightedMean(r),
+      contributions: r,
     },
   ];
 }

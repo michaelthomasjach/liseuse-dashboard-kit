@@ -369,7 +369,8 @@ export function CandlestickChart({
     close: closeStrategyPanel,
     toggle: toggleStrategyPanel,
     detach: detachStrategyPanel,
-    closedPrefixes: closedStrategyPrefixes,
+    closedDrawingPrefixes: closedStrategyDrawingPrefixes,
+    closedPanePrefixes: closedStrategyPanePrefixes,
   } = useStrategyPanelState({ scripts: scriptingState.scripts, restoreScriptDrawings: scriptingState.restoreScriptDrawings });
   // Starred picker rows (see IndicatorModals' own `favoriteIndicatorIds`). Chart-local for now,
   // which is enough for it to survive the modal closing but not a reload — persisting it is the
@@ -497,8 +498,8 @@ export function CandlestickChart({
   // chart with it, reopening brings them back. Derived from the very prefixes the fills already
   // use, so the two can never disagree about what "this strategy is closed" means.
   const openScriptChartIndicators = useMemo(
-    () => scriptChartIndicators.filter((ind) => !closedStrategyPrefixes.some((prefix) => ind.id.startsWith(prefix))),
-    [scriptChartIndicators, closedStrategyPrefixes],
+    () => scriptChartIndicators.filter((ind) => !closedStrategyPanePrefixes.some((prefix) => ind.id.startsWith(prefix))),
+    [scriptChartIndicators, closedStrategyPanePrefixes],
   );
 
   const {
@@ -584,9 +585,9 @@ export function CandlestickChart({
   const combinedVisibleDrawings = useMemo(
     () => [
       ...visibleDrawings,
-      ...scriptingState.scriptDrawings.filter((d) => !closedStrategyPrefixes.some((prefix) => d.id.startsWith(prefix))),
+      ...scriptingState.scriptDrawings.filter((d) => !closedStrategyDrawingPrefixes.some((prefix) => d.id.startsWith(prefix))),
     ],
-    [visibleDrawings, scriptingState.scriptDrawings, closedStrategyPrefixes],
+    [visibleDrawings, scriptingState.scriptDrawings, closedStrategyDrawingPrefixes],
   );
 
   const {

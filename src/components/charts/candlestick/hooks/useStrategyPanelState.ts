@@ -75,15 +75,35 @@ export function useStrategyPanelState({ scripts, restoreScriptDrawings }: UseStr
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [strategyScriptIds]);
 
+  /** Strategies whose tester the user has closed *by hand*, which is a different fact from "its
+   *  panel is not open right now" and the reason this is state rather than another derivation.
+   *
+   *  Its panes and overlays go with the panel (see `closedPanePrefixes`), and those are ordinary
+   *  chart elements: a strategy that has simply never had its tester opened — just enabled from
+   *  the picker, say — must still draw them. Deriving that from "not open" instead put every such
+   *  strategy in the withheld set the moment it was enabled, so its lines appeared for one frame
+   *  and vanished. Fills are the opposite case and keep the derived rule; see below. */
+  const [closedByUser, setClosedByUser] = useState<string[]>([]);
+
   const close = useCallback(() => {
-    setOpenStrategyId(null);
+    setOpenStrategyId((current) => {
+      if (current !== null) setClosedByUser((ids) => (ids.includes(current) ? ids : [...ids, current]));
+      return null;
+    });
     // Back to docked, so reopening never lands in a mode left behind from last time.
     setView("docked");
   }, []);
 
   /** Open it, or close it if this same strategy's panel is already the one showing. */
   const toggle = useCallback((scriptId: string) => {
-    setOpenStrategyId((current) => (current === scriptId ? null : scriptId));
+    setOpenStrategyId((current) => {
+      if (current === scriptId) {
+        setClosedByUser((ids) => (ids.includes(scriptId) ? ids : [...ids, scriptId]));
+        return null;
+      }
+      setClosedByUser((ids) => ids.filter((id) => id !== scriptId));
+      return scriptId;
+    });
   }, []);
 
   /** Tears the tester off into a window of its own.
@@ -101,22 +121,31 @@ export function useStrategyPanelState({ scripts, restoreScriptDrawings }: UseStr
     setView("detached");
   }, []);
 
-  /** Id prefixes belonging to every strategy whose panel is *not* open — what the chart filters
-   *  both its script drawings *and* its script indicators against. A strategy's panes and overlays
-   *  are as much its own accounting as its fills are, so closing the tester takes them with it
-   *  (exigence : « quand je ferme la pane stratégie, les éléments associés seront également
-   *  fermés ») and reopening it brings them back. The two id schemes agree by construction: a
-   *  drawing and a pane produced by the same script both start `script:<id>:` (see
-   *  `scriptPaneIndicatorId`).
+  /** Drawing-id prefixes belonging to every strategy whose panel is *not* open — what the chart
+   *  filters its script *drawings* against.
    *
    *  Derived, never toggled, and that distinction is the whole bug it replaces: withholding on
    *  close only ever holds if the panel was open first, so the moment the tester stopped opening
    *  itself at load, every backtest's fills sat on the candles with nothing on screen to explain
    *  them. Stated as a rule it cannot come apart — the markers are drawn if and only if the panel
    *  that accounts for them is. */
-  const closedPrefixes = useMemo(
+  const closedDrawingPrefixes = useMemo(
     () => strategyScripts.filter((s) => s.id !== openStrategyId).map((s) => `script:${s.id}:`),
     [strategyScripts, openStrategyId],
+  );
+
+  /** The same prefixes for a strategy's *panes and overlays*, which follow a deliberately weaker
+   *  rule: only a tester the user actually closed takes its chart elements with it (exigence :
+   *  « quand je ferme la pane stratégie, les éléments associés seront également fermés »).
+   *
+   *  A fill is unreadable without the tester that accounts for it, so "not open" is the right rule
+   *  there. A pane or an overlay is an ordinary chart element that stands on its own, so the same
+   *  rule here would withhold the output of every strategy whose tester merely happens not to be
+   *  open — including one just enabled from the picker, whose lines then appeared for a frame and
+   *  went again. Opening the panel clears it, so closing and reopening does bring them back. */
+  const closedPanePrefixes = useMemo(
+    () => closedByUser.filter((id) => id !== openStrategyId).map((id) => `script:${id}:`),
+    [closedByUser, openStrategyId],
   );
 
   return {
@@ -131,6 +160,7 @@ export function useStrategyPanelState({ scripts, restoreScriptDrawings }: UseStr
     close,
     toggle,
     detach,
-    closedPrefixes,
+    closedDrawingPrefixes,
+    closedPanePrefixes,
   };
 }

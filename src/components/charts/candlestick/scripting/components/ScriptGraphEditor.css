@@ -26,7 +26,10 @@
   flex-direction: column;
   gap: var(--lq-space-3);
   overflow-y: auto;
-  padding-right: 2px;
+  /* Room on every side, not just the 2px the scrollbar needed: the cards were flush against the
+     column's own edges, which reads as a rendering fault rather than as a list. Slightly less on
+     the right so the padding and the scrollbar together do not look like twice the gap. */
+  padding: var(--lq-space-2) var(--lq-space-1) var(--lq-space-2) var(--lq-space-2);
   min-height: 0;
 }
 

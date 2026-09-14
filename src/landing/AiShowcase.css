@@ -1,0 +1,154 @@
+/* The assistant section of the landing page: one panel, answering a question about the chart,
+   typed out live. Shaped like the real one — header, transcript, composer — because it is a
+   picture of a real panel and any liberty taken with it is a promise that would not be kept. */
+
+.lqx-ai {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.lqx-ai__panel {
+  width: min(640px, 100%);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--lq-color-border);
+  background-color: var(--lq-color-panel);
+  /* Fixed, and tall enough for the longest answer: a box that grows as the text streams makes the
+     whole page jump on every frame, which is a worse read than an inch of empty panel. */
+  height: 340px;
+}
+
+.lqx-ai__head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--lq-color-border-subtle);
+  color: var(--lq-color-text-muted);
+  font-size: var(--lq-text-xs);
+}
+
+.lqx-ai__title {
+  font-weight: 600;
+  color: var(--lq-color-text);
+}
+
+.lqx-ai__chart {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+.lqx-ai__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.lqx-ai__question {
+  margin: 0;
+  align-self: flex-end;
+  max-width: 85%;
+  padding: 6px 10px;
+  border: 1px solid var(--lq-color-border-subtle);
+  background-color: var(--lq-color-bg);
+  font-size: var(--lq-text-sm);
+  line-height: 1.5;
+  /* The question keeps its box even while empty, so the first typed character does not shove the
+     transcript down. */
+  min-height: 1.5em;
+}
+
+/* What the assistant is doing about it, one line per call. These are the point of the section:
+   every action it takes goes through the same functions the chart's own buttons call. */
+.lqx-ai__tool {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--lq-font-mono, ui-monospace, monospace);
+  font-size: var(--lq-text-xs);
+  color: var(--lq-color-text-muted);
+}
+
+.lqx-ai__tool-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background-color: var(--lq-color-accent);
+  flex: 0 0 auto;
+}
+
+.lqx-ai__answer {
+  margin: 0;
+  font-size: var(--lq-text-sm);
+  line-height: 1.6;
+  color: var(--lq-color-text);
+}
+
+.lqx-ai__caret {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  background-color: var(--lq-color-accent);
+  animation: lqx-ai-caret 1s step-end infinite;
+}
+
+@keyframes lqx-ai-caret {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  50.01%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.lqx-ai__composer {
+  border-top: 1px solid var(--lq-color-border-subtle);
+  padding: 8px 10px;
+  font-size: var(--lq-text-sm);
+  color: var(--lq-color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lqx-ai__dots {
+  display: flex;
+  gap: 6px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.lqx-ai__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--lq-color-border);
+}
+
+.lqx-ai__dot--current {
+  background-color: var(--lq-color-accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lqx-ai__caret {
+    animation: none;
+  }
+}
+
+@media (max-width: 620px) {
+  .lqx-ai__panel {
+    height: 400px;
+  }
+}

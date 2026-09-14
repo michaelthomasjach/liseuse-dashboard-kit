@@ -1829,6 +1829,7 @@ export function CandlestickChart({
           setDetachedWindow={setDetachedAiWindow}
           onRequestDetach={detachAiPanel}
           themeSource={mainRef.current?.closest(".lq-root") as HTMLElement | null}
+          mobile={isNarrowLayout}
         />
       )}
     </div>

@@ -17,6 +17,7 @@ import { LightsWidget } from "../components/widgets/LightsWidget";
 import { ArrowRightIcon, PartlyCloudyIcon, SunIcon } from "../components/icons";
 import { generateCandles, generateSeries, SAMPLE_HOLDINGS } from "../test-data/financeSampleData";
 import { AppShowcase } from "./AppShowcase";
+import { AiShowcase } from "./AiShowcase";
 import { CatalogStrip } from "./CatalogStrip";
 import { ChartGallery } from "./ChartGallery";
 import { Laptop, Phone, Tablet } from "./DeviceFrames";
@@ -400,6 +401,22 @@ export function LandingPage({ version }: LandingPageProps) {
             </Card>
           ))}
         </div>
+      </section>
+
+      <section className="lqx-section">
+        <SectionHead
+          eyebrow="Assistant"
+          title="Demandez, il regarde le graphique."
+          lead={
+            <>
+              L'assistant lit les bougies, les indicateurs et les dessins qui sont à l'écran, et il
+              agit dessus par les fonctions mêmes qu'actionnent les boutons du graphique : ajouter un
+              indicateur, tracer un niveau, lancer un script. Rien de ce qu'il fait n'est hors de
+              portée d'un clic, et tout se défait pareil. Ci-dessous, une conversation rejouée.
+            </>
+          }
+        />
+        <AiShowcase />
       </section>
 
       <section className="lqx-section">

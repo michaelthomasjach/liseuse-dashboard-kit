@@ -31,7 +31,7 @@ import { WorkspaceSideRail } from "./workspace/WorkspaceSideRail";
 import { WorkspaceHelpModal } from "./workspace/WorkspaceHelpModal";
 import { currentSymbolProfile } from "./workspace/currentSymbolProfile";
 import { ScriptEditorPanel } from "./candlestick/scripting/components/ScriptEditorPanel";
-import { WatchlistIcon, BellIcon, PlusIcon, CandleModeIcon, LockIcon, SettingsIcon } from "../icons";
+import { WatchlistIcon, BellIcon, PlusIcon, CandleModeIcon, LockIcon, SettingsIcon, SparkleIcon } from "../icons";
 import { useFullscreen } from "./internal/useFullscreen";
 import { useChartDimensions } from "./internal/useChartDimensions";
 import { MOBILE_LAYOUT_BREAKPOINT } from "./candlestick/constants";
@@ -919,6 +919,27 @@ export function ChartWorkspace({
             {hasWatchlists ? <WatchlistIcon size={18} /> : <BellIcon size={18} />}
             {hasWatchlists ? "Listes" : "Alertes"}
           </button>
+          {/* Third, as asked, and an action rather than a page in the same sense the settings
+              button below is: it opens the assistant over whichever page you were on, as a sheet
+              that slides up from the bottom edge — the same arrival the symbol details use — and
+              closing it puts you back. Only when the caller actually configured an assistant;
+              otherwise the bar would offer a tab with nothing behind it. */}
+          {ai && (
+            <button
+              type="button"
+              className={[
+                "lq-chart-workspace__mobile-bottomnav-item",
+                assistantOpen && "lq-chart-workspace__mobile-bottomnav-item--active",
+              ]
+                .filter(Boolean)
+                .join(" ")}
+              onClick={() => setAssistantOpen(!assistantOpen)}
+              aria-pressed={assistantOpen}
+            >
+              <SparkleIcon size={18} />
+              IA
+            </button>
+          )}
           {/* An action, not a third page — hence no `aria-current` and no active state: it opens
               the focused chart's own settings modal over whichever page you were on, and closing it
               puts you back there. It exists on this layout alone because the two gestures that

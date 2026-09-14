@@ -134,6 +134,9 @@ export function WatchlistPanel({
   // drag clears it instead of fighting it.
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  /** The row dropped a moment ago — see the arrival animation in ChartWorkspace.css. */
+  const [justDroppedId, setJustDroppedId] = useState<string | null>(null);
+
   const { pressedRowId, draggingRowId, dropIndicator, dragOffsetY, startDrag } = useWatchlistRowDrag({
     // A finger has to hold the row for a second before it can be dragged — see the hook's own
     // `holdMs` doc: on a touch layout the first pixel of movement is a scroll, and a drag that
@@ -159,6 +162,11 @@ export function WatchlistPanel({
           // have, rather than a drag that silently does nothing while a sort is active.
           setSortColumn(null);
           onMoveRow?.(activeWatchlist.id, rowId, fromSectionId, toSectionId, rawIndex);
+          // Marks the row that just landed, so it can arrive rather than appear. Cleared on a
+          // timer because there is nothing else to clear it: the row is not re-rendered again
+          // after the list settles, and a class left on it would tint it for good.
+          setJustDroppedId(rowId);
+          window.setTimeout(() => setJustDroppedId((current) => (current === rowId ? null : current)), 520);
         }
       : undefined,
   });
@@ -300,6 +308,7 @@ export function WatchlistPanel({
           "lq-chart-workspace__watchlist-row",
           pressedRowId === row.id && "lq-chart-workspace__watchlist-row--pressed",
           draggingRowId === row.id && "lq-chart-workspace__watchlist-row--dragging",
+          justDroppedId === row.id && "lq-chart-workspace__watchlist-row--landed",
         ]
           .filter(Boolean)
           .join(" ")}

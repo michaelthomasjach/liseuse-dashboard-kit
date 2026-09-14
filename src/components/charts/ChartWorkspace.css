@@ -856,12 +856,31 @@
    `dropIndicator`) — a thin accent line rendered as its own sibling between two rows (or at the
    very top/bottom of the list), not a border on any existing row, so it reads as "insert exactly
    here" rather than highlighting something already there. */
+/* The list parts where the row will land: the indicator is a real gap the height of a row, opened
+   with a transition, rather than a 2px rule squeezed between two touching rows. Seeing the space
+   appear is what makes the drop predictable — the rule alone asked the reader to imagine it.
+   The accent line stays, centred in the gap, so the insertion point is still stated exactly. */
 .lq-chart-workspace__watchlist-drop-line {
   position: relative;
+  height: 26px;
+  background: none;
+  pointer-events: none;
+  /* Opened by the keyframe below rather than a transition: the indicator is remounted each time it
+     moves to another position (it is keyed by index), and a transition has nothing to animate from
+     on a fresh element. */
+  animation: lq-watchlist-drop-gap-open 160ms cubic-bezier(0.33, 1, 0.68, 1);
+}
+
+.lq-chart-workspace__watchlist-drop-line::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
   height: 2px;
+  margin-top: -1px;
   background-color: var(--lq-color-accent);
   border-radius: 1px;
-  pointer-events: none;
   /* Grows out from the left rather than appearing whole: the eye follows the growth to the line,
      which is quicker to find than a 2px rule that blinks into existence somewhere in a list. */
   transform-origin: left center;
@@ -873,6 +892,7 @@
 .lq-chart-workspace__watchlist-drop-line::before {
   content: "";
   position: absolute;
+  z-index: 1;
   left: 0;
   top: 50%;
   width: 6px;
@@ -1784,4 +1804,46 @@
   display: inline-flex;
   align-items: center;
   gap: var(--lq-space-2);
+}
+
+/* The gap opening where the row will land. Height alone, from nothing to a row's worth. */
+@keyframes lq-watchlist-drop-gap-open {
+  from {
+    height: 0;
+    opacity: 0;
+  }
+  to {
+    height: 26px;
+    opacity: 1;
+  }
+}
+
+/* And the row arriving into it. A short settle rather than a flash: it has just been carried
+   across the list by hand, so what it owes the reader is "this is where it landed", which a
+   movement says and a colour does not. */
+.lq-chart-workspace__watchlist-row--landed {
+  animation: lq-watchlist-row-landed 420ms cubic-bezier(0.33, 1, 0.68, 1);
+}
+
+@keyframes lq-watchlist-row-landed {
+  0% {
+    transform: translateY(-6px) scale(0.985);
+    opacity: 0.55;
+    background-color: var(--lq-color-hover);
+  }
+  60% {
+    background-color: var(--lq-color-hover);
+  }
+  100% {
+    transform: none;
+    opacity: 1;
+    background-color: transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lq-chart-workspace__watchlist-drop-line,
+  .lq-chart-workspace__watchlist-row--landed {
+    animation: none;
+  }
 }

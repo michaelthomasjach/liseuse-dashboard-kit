@@ -1,6 +1,11 @@
 /* What every part of the Market State readout means. Prose, not a readout — so it drops the panel's
    own monospace column and reads in the body face, at a comfortable measure. */
 
+/* In a page of its own it gets room to breathe, and the same full width. */
+.lq-detached-window .lq-ms-help {
+  padding: var(--lq-space-4);
+}
+
 .lq-ms-help {
   display: flex;
   flex-direction: column;
@@ -9,9 +14,11 @@
   line-height: 1.6;
 }
 
+/* Full width of whatever it is in — a modal or a whole page. The 72ch measure it had was a
+   typographic instinct applied to the wrong thing: this is a reference someone opens with two
+   numbers in front of them, read in a hurry, not an essay read from start to end. */
 .lq-ms-help p {
   margin: 0 0 var(--lq-space-2);
-  max-width: 72ch;
 }
 
 .lq-ms-help__lead {
@@ -38,19 +45,61 @@
 
 /* The two drawings. Capped rather than full-width: they are diagrams of a scale, and a scale
    stretched across a wide modal stops reading as one. */
-.lq-ms-help__scale,
-.lq-ms-help__stance {
+/* The drawings take the full width too — they are diagrams of a scale, and the scale is the point. */
+.lq-ms-help__figure {
   display: block;
   width: 100%;
-  max-width: 420px;
   height: auto;
-  margin: var(--lq-space-1) 0 var(--lq-space-2);
+  margin: var(--lq-space-2) 0;
 }
 
-.lq-ms-help__scale-text {
-  font-size: 9px;
+.lq-ms-help__box {
+  fill: var(--lq-color-bg);
+  stroke: var(--lq-color-border-subtle);
+  stroke-width: 1;
+}
+
+.lq-ms-help__box--up {
+  fill: color-mix(in srgb, var(--lq-color-up) 14%, transparent);
+  stroke: var(--lq-color-up);
+}
+
+.lq-ms-help__box-title {
+  font-size: 11px;
+  font-weight: 700;
+  fill: var(--lq-color-text);
+  font-family: var(--lq-font-mono, ui-monospace, monospace);
+}
+
+.lq-ms-help__box-sub {
+  font-size: 9.5px;
   fill: var(--lq-color-text-muted);
   font-family: var(--lq-font-mono, ui-monospace, monospace);
+}
+
+.lq-ms-help__arrow {
+  stroke: var(--lq-color-text-muted);
+  stroke-width: 1;
+  fill: none;
+}
+
+/* The detach button in the modal's own title bar. */
+.lq-ms-help__detach {
+  display: inline-flex;
+  align-items: center;
+  margin-left: auto;
+  margin-right: var(--lq-space-2);
+  padding: 4px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--lq-color-text-muted);
+  cursor: pointer;
+}
+
+.lq-ms-help__detach:hover {
+  background-color: var(--lq-color-hover);
+  color: var(--lq-color-text);
 }
 
 .lq-ms-help__axes {

@@ -1451,7 +1451,12 @@ export function CandlestickChart({
                 }
               : null
           }
-          themeSource={ref.current}
+          // The theme *scope*, not the chart's own wrapper. `DetachedWindow` copies this element's
+          // classes and data attributes onto the host it builds in the new window, and that is what
+          // makes every `--lq-*` variable resolve there. Pointed at the wrapper, it copied nothing:
+          // the readout arrived with its layout intact and every colour, border and gauge missing,
+          // because a declaration whose `var()` is undefined is simply dropped.
+          themeSource={(ref.current?.closest(".lq-root") as HTMLElement | null) ?? ref.current}
         />
         <PaneHeaders
           volumeVisible={volumeVisible}

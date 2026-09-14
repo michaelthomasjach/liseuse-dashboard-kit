@@ -306,12 +306,20 @@
    corner anchoring, the height cap and the drag. It keeps everything else, and that is the point:
    the frame, the panel background and the monospace column are what make it a readout, and a copy
    without them is a different component wearing the same words. */
+/* In its own window it is the content rather than something floating over a plot: no corner
+   anchoring, no height cap, no drag, and it takes the width it is given instead of holding a
+   250px column with an empty page beside it. Everything else — the frame, the panel background,
+   the monospace column — is what makes it a readout, and a copy without those is a different
+   component wearing the same words. */
 .lq-market-state--detached {
   position: static;
   width: auto;
-  max-width: 420px;
+  max-width: none;
   max-height: none;
-  margin: var(--lq-space-3) auto;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  min-height: 100%;
 }
 
 .lq-market-state--detached .lq-market-state__head {

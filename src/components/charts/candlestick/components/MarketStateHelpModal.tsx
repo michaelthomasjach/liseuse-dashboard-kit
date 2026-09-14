@@ -1,99 +1,272 @@
 import { Modal } from "../../../primitives/Modal";
+import { DetachWindowIcon } from "../../../icons";
+import { DetachedWindow } from "./DetachedWindow";
 import type { MarketStateSettings } from "../marketStateSettings";
 import "./MarketStateHelpModal.css";
 
 export interface MarketStateHelpModalProps {
   open: boolean;
   onClose: () => void;
-  /** Read only to print the reader's own neutral band in the drawing, rather than the default —
-   *  an explanation that describes settings someone has already changed is worse than none. */
+  /** Read only to print the reader's own neutral band in the drawings, rather than the default —
+   *  an explanation describing settings someone has already changed is worse than none. */
   settings: MarketStateSettings;
+  /** The window this has been torn off into, or null. */
+  detachedWindow: Window | null;
+  onDetach: () => void;
+  onDetachedClose: () => void;
+  themeSource: HTMLElement | null;
 }
 
-const AXES: { label: string; what: string; reads: string }[] = [
-  {
-    label: "TREND",
-    what: "Dans quel sens le marché est orienté, et avec quelle conviction.",
-    reads: "50 = sans direction. Haut = orienté à la hausse, bas = à la baisse.",
-  },
-  {
-    label: "VOL",
-    what: "L'amplitude des mouvements, rapportée à l'habitude de cet instrument.",
-    reads: "100 = agité comme jamais sur la fenêtre. Ni bon ni mauvais en soi — d'où son poids nul par défaut dans le signal.",
-  },
-  {
-    label: "FLOW",
-    what: "Si les échanges accompagnent le mouvement ou le subissent.",
-    reads: "50 = volume ordinaire. Haut = le mouvement est porté par du volume réel.",
-  },
-  {
-    label: "MOM",
-    what: "La vitesse du mouvement en cours, indépendamment de sa direction de fond.",
-    reads: "50 = à l'équilibre.",
-  },
-  {
-    label: "RISK",
-    what: "Ce qui joue contre une position : volatilité, repli, absence de tendance, proximité d'un niveau.",
-    reads: "Bas vaut mieux que haut. C'est le seul axe compté à l'envers dans le signal.",
-  },
-];
+/** One step of the pipeline, drawn. The whole panel is this same thing repeated, and seeing it once
+ *  makes every number in it readable. */
+function PipelineDiagram() {
+  return (
+    <svg className="lq-ms-help__figure" viewBox="0 0 460 96" role="img" aria-label="Un indicateur devient un score sur 100, puis un camp">
+      <rect x="2" y="24" width="110" height="40" className="lq-ms-help__box" />
+      <text x="57" y="42" textAnchor="middle" className="lq-ms-help__box-title">
+        RSI(14)
+      </text>
+      <text x="57" y="56" textAnchor="middle" className="lq-ms-help__box-sub">
+        vaut 63,4
+      </text>
 
-/** The scale the signal is read on, drawn rather than described: 0 to 100, the neutral band in the
- *  middle, short on the left and long on the right. A sentence saying "58 is a weak long" is a
- *  sentence the reader has to hold in their head; a picture of where 58 falls is not. */
+      <path d="M118 44 H160" className="lq-ms-help__arrow" markerEnd="url(#lq-ms-help-arrow)" />
+      <text x="139" y="36" textAnchor="middle" className="lq-ms-help__box-sub">
+        traduit
+      </text>
+
+      <rect x="166" y="24" width="110" height="40" className="lq-ms-help__box" />
+      <text x="221" y="42" textAnchor="middle" className="lq-ms-help__box-title">
+        68 / 100
+      </text>
+      <text x="221" y="56" textAnchor="middle" className="lq-ms-help__box-sub">
+        son score
+      </text>
+
+      <path d="M282 44 H324" className="lq-ms-help__arrow" markerEnd="url(#lq-ms-help-arrow)" />
+      <text x="303" y="36" textAnchor="middle" className="lq-ms-help__box-sub">
+        seuils
+      </text>
+
+      <rect x="330" y="24" width="126" height="40" className="lq-ms-help__box lq-ms-help__box--up" />
+      <text x="393" y="42" textAnchor="middle" className="lq-ms-help__box-title">
+        vote LONG
+      </text>
+      <text x="393" y="56" textAnchor="middle" className="lq-ms-help__box-sub">
+        68 ≥ seuil 60
+      </text>
+
+      <defs>
+        <marker id="lq-ms-help-arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M 0 0 L 8 4 L 0 8 z" fill="var(--lq-color-text-muted)" />
+        </marker>
+      </defs>
+    </svg>
+  );
+}
+
+/** The scale the signal is read on: 0 to 100, the neutral band in the middle. */
 function SignalScale({ band }: { band: number }) {
   const low = 50 - band;
   const high = 50 + band;
   return (
-    <svg className="lq-ms-help__scale" viewBox="0 0 300 46" role="img" aria-label={`Échelle du signal, bande neutre de ${low} à ${high}`}>
-      <rect x="0" y="10" width="300" height="12" fill="var(--lq-color-down)" opacity="0.18" />
-      <rect x={low * 3} y="10" width={(high - low) * 3} height="12" fill="var(--lq-color-text-muted)" opacity="0.18" />
-      <rect x={high * 3} y="10" width={300 - high * 3} height="12" fill="var(--lq-color-up)" opacity="0.18" />
-      <line x1="150" y1="6" x2="150" y2="26" stroke="var(--lq-color-text)" strokeWidth="1" />
-      <text x="4" y="38" className="lq-ms-help__scale-text">
+    <svg className="lq-ms-help__figure" viewBox="0 0 460 60" role="img" aria-label={`Échelle du signal, bande neutre de ${low} à ${high}`}>
+      <rect x="0" y="14" width="460" height="18" fill="var(--lq-color-down)" opacity="0.2" />
+      <rect x={(low / 100) * 460} y="14" width={((high - low) / 100) * 460} height="18" fill="var(--lq-color-text-muted)" opacity="0.2" />
+      <rect x={(high / 100) * 460} y="14" width={460 - (high / 100) * 460} height="18" fill="var(--lq-color-up)" opacity="0.2" />
+      <line x1="230" y1="8" x2="230" y2="38" stroke="var(--lq-color-text)" strokeWidth="1" />
+      <text x="4" y="52" className="lq-ms-help__box-sub">
         0 · short franc
       </text>
-      <text x="150" y="38" textAnchor="middle" className="lq-ms-help__scale-text">
-        {low}–{high} · neutre
+      <text x="230" y="52" textAnchor="middle" className="lq-ms-help__box-sub">
+        {low} à {high} · aucun camp
       </text>
-      <text x="296" y="38" textAnchor="end" className="lq-ms-help__scale-text">
+      <text x="456" y="52" textAnchor="end" className="lq-ms-help__box-sub">
         100 · long franc
+      </text>
+      <text x="230" y="10" textAnchor="middle" className="lq-ms-help__box-sub">
+        50
       </text>
     </svg>
   );
 }
 
-/** The vote, drawn: one bar split three ways. What the three cells at the top of the readout are,
- *  and the thing that makes them different from the single figure at the bottom. */
-function StanceBar() {
+/** The same eight sources, read two ways — which is the one thing worth understanding here. */
+function DisagreementDiagram() {
   return (
-    <svg className="lq-ms-help__stance" viewBox="0 0 300 34" role="img" aria-label="Exemple de répartition : 5 sources longues, 2 neutres, 1 short">
-      <rect x="0" y="8" width="187" height="14" fill="var(--lq-color-up)" opacity="0.35" />
-      <rect x="187" y="8" width="75" height="14" fill="var(--lq-color-text-muted)" opacity="0.3" />
-      <rect x="262" y="8" width="38" height="14" fill="var(--lq-color-down)" opacity="0.35" />
-      <text x="93" y="31" textAnchor="middle" className="lq-ms-help__scale-text">
-        LONG 62 %
+    <svg
+      className="lq-ms-help__figure"
+      viewBox="0 0 460 132"
+      role="img"
+      aria-label="Deux marchés différents : huit sources faibles, contre une forte contre trois faibles"
+    >
+      <text x="0" y="12" className="lq-ms-help__box-title">
+        A · huit sources, toutes un peu longues
       </text>
-      <text x="224" y="31" textAnchor="middle" className="lq-ms-help__scale-text">
-        NEUTRE 25 %
+      {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
+        <rect key={i} x={i * 58} y="18" width="50" height="14" fill="var(--lq-color-up)" opacity="0.35" />
+      ))}
+      <text x="0" y="46" className="lq-ms-help__box-sub">
+        vote LONG 100 % · signal 57 — tout le monde est d&apos;accord, personne n&apos;est convaincu
       </text>
-      <text x="296" y="31" textAnchor="end" className="lq-ms-help__scale-text">
-        SHORT 13 %
+
+      <text x="0" y="80" className="lq-ms-help__box-title">
+        B · une source très longue, trois un peu shorts
+      </text>
+      <rect x="0" y="86" width="50" height="14" fill="var(--lq-color-up)" opacity="0.85" />
+      {[1, 2, 3].map((i) => (
+        <rect key={i} x={i * 58} y="86" width="50" height="14" fill="var(--lq-color-down)" opacity="0.3" />
+      ))}
+      <text x="0" y="114" className="lq-ms-help__box-sub">
+        vote SHORT 75 % · signal 56 — la majorité penche short, la force est du côté long
       </text>
     </svg>
   );
 }
+
+const AXES: { label: string; what: string; reads: string }[] = [
+  { label: "TREND", what: "Le sens du marché.", reads: "50 = aucune direction. Au-dessus, il monte. En dessous, il descend." },
+  { label: "MOM", what: "La vitesse du mouvement en cours.", reads: "50 = à l'équilibre. Indépendant du sens de fond." },
+  { label: "VOL", what: "L'amplitude des mouvements.", reads: "Rapportée à l'habitude de cet instrument. 100 = agité comme jamais." },
+  { label: "FLOW", what: "Le volume derrière le mouvement.", reads: "50 = volume ordinaire. Haut = du vrai monde échange." },
+  { label: "RISK", what: "Ce qui joue contre une position.", reads: "Bas vaut mieux que haut. Seul axe compté à l'envers." },
+];
 
 /** What every part of the Market State readout means.
  *
- *  Written because the two numbers it leads with answer different questions and look like they
- *  answer the same one: the three cells at the top are a *vote*, the figure at the bottom is an
- *  *average*, and a reader with no way to know that will eventually see them disagree and conclude
- *  the panel is broken. Everything else here follows from explaining that one distinction properly.
- */
-export function MarketStateHelpModal({ open, onClose, settings }: MarketStateHelpModalProps) {
-  if (!open) return null;
+ *  Written because the two figures the panel leads with answer different questions and look like
+ *  they answer the same one. Short paragraphs and drawings rather than prose: this is read once, in
+ *  a hurry, by someone who has just noticed two numbers disagreeing — not studied. */
+function HelpBody({ settings }: { settings: MarketStateSettings }) {
   const band = settings.neutralBand;
+  return (
+    <div className="lq-ms-help">
+      <p className="lq-ms-help__lead">
+        Ce panneau lit les indicateurs qui sont <strong>déjà sur le graphique</strong> et les résume. Il n&apos;ajoute
+        aucune donnée.
+      </p>
+
+      <section className="lq-ms-help__section">
+        <h4 className="lq-ms-help__title">1 · Comment une source devient un vote</h4>
+        <p>
+          Chaque indicateur est traduit en un <strong>score sur 100</strong>. Puis deux seuils décident de son camp.
+        </p>
+        <PipelineDiagram />
+        <p>
+          Au-dessus du seuil haut, la source vote <strong>long</strong>. En dessous du seuil bas, elle vote{" "}
+          <strong>short</strong>. Entre les deux, elle est <strong>neutre</strong>.
+        </p>
+        <p className="lq-ms-help__note">Les deux seuils se règlent source par source, dans la roue crantée.</p>
+      </section>
+
+      <section className="lq-ms-help__section">
+        <h4 className="lq-ms-help__title">2 · Les trois cases du haut : qui vote quoi</h4>
+        <p>
+          Elles comptent les voix. Chaque case est la <strong>part du poids total</strong> qui lit le marché dans ce
+          sens-là.
+        </p>
+        <p>
+          Les trois font toujours 100 %. Une source dont l&apos;axe ne compte pas dans le signal ne vote pas ici non
+          plus.
+        </p>
+      </section>
+
+      <section className="lq-ms-help__section">
+        <h4 className="lq-ms-help__title">3 · La case du bas : la force</h4>
+        <p>
+          Le signal est une <strong>moyenne pondérée des cinq axes</strong>, lue du côté long.
+        </p>
+        <SignalScale band={band} />
+        <p>
+          Entre <strong>{50 - band}</strong> et <strong>{50 + band}</strong>, il est neutre : les axes se contredisent
+          trop pour dire quoi que ce soit.
+        </p>
+        <p>
+          Le pourcentage est retourné du côté où il tombe. Un signal à 26 s&apos;affiche <strong>SHORT 74 %</strong>,
+          parce que c&apos;est ainsi qu&apos;il se lit.
+        </p>
+      </section>
+
+      <section className="lq-ms-help__section">
+        <h4 className="lq-ms-help__title">4 · Pourquoi les deux peuvent se contredire</h4>
+        <p>
+          Parce qu&apos;ils ne répondent pas à la même question. Le vote dit <strong>combien</strong> de sources
+          penchent d&apos;un côté. La moyenne dit <strong>avec quelle force</strong>.
+        </p>
+        <DisagreementDiagram />
+        <p>
+          Quand les deux divergent, c&apos;est une information sur le marché : un accord sans conviction, ou une
+          conviction isolée. <strong>Ce n&apos;est pas une incohérence du panneau.</strong>
+        </p>
+      </section>
+
+      <section className="lq-ms-help__section">
+        <h4 className="lq-ms-help__title">5 · Les cinq axes</h4>
+        <dl className="lq-ms-help__axes">
+          {AXES.map((axis) => (
+            <div key={axis.label} className="lq-ms-help__axis">
+              <dt>{axis.label}</dt>
+              <dd>
+                <strong>{axis.what}</strong>
+                <span className="lq-ms-help__note"> {axis.reads}</span>
+              </dd>
+            </div>
+          ))}
+        </dl>
+        <p className="lq-ms-help__note">
+          Cliquer une ligne ouvre ce qui l&apos;a nourrie : quel indicateur, ce qu&apos;il vaut, ce que ça donne sur 100,
+          son poids, et le calcul avec les nombres de cette bougie déjà remplacés.
+        </p>
+      </section>
+
+      <section className="lq-ms-help__section">
+        <h4 className="lq-ms-help__title">6 · Les zones colorées</h4>
+        <p>
+          La case « Surligner les zones » teinte le graphique : <strong>vert</strong> pour long, <strong>gris</strong>{" "}
+          pour neutre, <strong>rouge</strong> pour short.
+        </p>
+        <p>
+          C&apos;est la même fonction que celle qui remplit ce panneau, calculée <strong>barre par barre</strong>. La
+          couleur sous une bougie dit donc exactement ce que dirait le panneau en la survolant.
+        </p>
+      </section>
+
+      <section className="lq-ms-help__section">
+        <h4 className="lq-ms-help__title">7 · Une seule bougie à la fois</h4>
+        <p>
+          Tout ce qui est affiché décrit <strong>une</strong> bougie : la dernière visible, ou celle que survole le
+          pointeur.
+        </p>
+        <p className="lq-ms-help__note">Sa date est rappelée en bas du panneau.</p>
+      </section>
+    </div>
+  );
+}
+
+export function MarketStateHelpModal({
+  open,
+  onClose,
+  settings,
+  detachedWindow,
+  onDetach,
+  onDetachedClose,
+  themeSource,
+}: MarketStateHelpModalProps) {
+  if (detachedWindow !== null) {
+    return (
+      <DetachedWindow
+        target={detachedWindow}
+        themeSource={themeSource}
+        title="Comprendre l'état du marché"
+        onClose={onDetachedClose}
+        layout="page"
+      >
+        <HelpBody settings={settings} />
+      </DetachedWindow>
+    );
+  }
+
+  if (!open) return null;
 
   return (
     <Modal
@@ -101,6 +274,18 @@ export function MarketStateHelpModal({ open, onClose, settings }: MarketStateHel
       onClose={onClose}
       title="Comprendre l'état du marché"
       size="wide"
+      headerActions={
+        <button
+          type="button"
+          className="lq-ms-help__detach"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={onDetach}
+          aria-label="Ouvrir dans une nouvelle fenêtre"
+          title="Ouvrir dans une nouvelle fenêtre"
+        >
+          <DetachWindowIcon size={14} />
+        </button>
+      }
       footer={
         <div className="lq-chart__edit-drawing-footer">
           <button type="button" className="lq-chart__confirm-button" onClick={onClose}>
@@ -109,89 +294,7 @@ export function MarketStateHelpModal({ open, onClose, settings }: MarketStateHel
         </div>
       }
     >
-      <div className="lq-ms-help">
-        <p className="lq-ms-help__lead">
-          Ce panneau lit les indicateurs présents sur le graphique et les résume. Il n'ajoute aucune donnée : tout ce qu'il
-          affiche vient de ce qui est déjà à l'écran, plus deux mesures tirées du prix et du volume seuls. Chaque chiffre
-          s'ouvre sur le détail de ce qui l'a produit — c'est la règle de ce panneau, un nombre qu'on ne peut pas
-          discuter ne vaut rien.
-        </p>
-
-        <section className="lq-ms-help__section">
-          <h4 className="lq-ms-help__title">Les trois cases du haut : le vote</h4>
-          <p>
-            Chaque source — un indicateur, ou l'une des deux mesures de base — lit le marché sur une échelle de 0 à 100.
-            Ses propres seuils décident du camp dans lequel elle tombe : au-dessus du seuil « long » elle vote long,
-            en dessous du seuil « short » elle vote short, entre les deux elle est neutre. Les trois cases sont la part
-            du poids total que représente chaque camp. Elles totalisent toujours 100 %.
-          </p>
-          <StanceBar />
-          <p className="lq-ms-help__note">
-            Les seuils de chaque source se règlent dans la roue crantée, à côté de cette icône. Une source dont l'axe ne
-            compte pas dans le signal ne vote pas non plus ici.
-          </p>
-        </section>
-
-        <section className="lq-ms-help__section">
-          <h4 className="lq-ms-help__title">La case du bas : la moyenne</h4>
-          <p>
-            Le signal est une moyenne pondérée des axes, lue du côté long : 0 est un short franc, 100 un long franc, 50 le
-            milieu. Entre {50 - band} et {50 + band} il est dit neutre — les axes se contredisent trop pour qu'il dise
-            quoi que ce soit. Le pourcentage affiché est retourné du côté où il tombe : un signal à 26 s'affiche
-            « SHORT 74 % », parce que c'est ainsi qu'il se lit.
-          </p>
-          <SignalScale band={band} />
-        </section>
-
-        <section className="lq-ms-help__section">
-          <h4 className="lq-ms-help__title">Pourquoi les deux peuvent ne pas dire la même chose</h4>
-          <p>
-            Parce qu'ils répondent à deux questions différentes. Le vote dit <em>combien</em> de sources penchent d'un
-            côté ; la moyenne dit <em>avec quelle force</em>. Huit sources mollement longues font un vote « LONG 100 % »
-            et un signal à 57. Une source très longue contre trois légèrement shorts fait l'inverse. Quand les deux
-            divergent, c'est une information sur le marché — un accord sans conviction, ou une conviction isolée — pas
-            une incohérence du panneau.
-          </p>
-        </section>
-
-        <section className="lq-ms-help__section">
-          <h4 className="lq-ms-help__title">Les cinq axes</h4>
-          <dl className="lq-ms-help__axes">
-            {AXES.map((axis) => (
-              <div key={axis.label} className="lq-ms-help__axis">
-                <dt>{axis.label}</dt>
-                <dd>
-                  {axis.what}
-                  <span className="lq-ms-help__note"> {axis.reads}</span>
-                </dd>
-              </div>
-            ))}
-          </dl>
-          <p className="lq-ms-help__note">
-            Cliquer une ligne ouvre la liste de ce qui l'a nourrie : quel indicateur, ce qu'il vaut actuellement, ce que
-            ça donne sur 100, son poids, et le calcul avec les nombres de cette bougie déjà remplacés.
-          </p>
-        </section>
-
-        <section className="lq-ms-help__section">
-          <h4 className="lq-ms-help__title">Les zones colorées sur le graphique</h4>
-          <p>
-            La case « Surligner les zones » teinte le graphique de la lecture faite à chaque bougie : vert pour long, gris
-            pour neutre, rouge pour short. C'est la même fonction que celle qui remplit ce panneau, calculée barre par
-            barre — la couleur sous une bougie dit donc exactement ce que dirait le panneau en la survolant. Les trois
-            couleurs se règlent juste en dessous de la case.
-          </p>
-        </section>
-
-        <section className="lq-ms-help__section">
-          <h4 className="lq-ms-help__title">La bougie lue</h4>
-          <p>
-            Tout ce que montre ce panneau décrit <em>une</em> bougie : la dernière visible, ou celle que survole le
-            pointeur. Sa date est rappelée en bas du panneau, pour qu'une lecture survolée ne soit jamais prise pour la
-            lecture du moment.
-          </p>
-        </section>
-      </div>
+      <HelpBody settings={settings} />
     </Modal>
   );
 }

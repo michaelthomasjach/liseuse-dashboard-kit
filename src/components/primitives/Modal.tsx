@@ -18,6 +18,10 @@ export interface ModalProps {
    *  size; `"fullscreen"` takes up nearly the whole viewport (a thin margin all round) — for a
    *  detail view or editor that needs real room instead of a small popup. Default "default". */
   size?: "default" | "wide" | "fullscreen";
+  /** Extra buttons in the title bar, to the left of the close button. Their own `pointerdown` has
+   *  to stop propagating or a click will first arm the header's drag — see the close button below,
+   *  which does exactly that and for the same reason. */
+  headerActions?: ReactNode;
 }
 
 /** Centered dialog used for a row's detail view (e.g. the light color/temperature picker).
@@ -25,7 +29,7 @@ export interface ModalProps {
  *  header (when `title` is set) — starts centered every time it opens (this offset is plain
  *  `useState`, which resets on its own the moment `open` goes false and the component unmounts
  *  below), drag only moves it for the rest of that same open/close cycle. */
-export function Modal({ open, onClose, title, children, footer, closeLabel = "Fermer", size = "default" }: ModalProps) {
+export function Modal({ open, onClose, title, children, footer, closeLabel = "Fermer", size = "default", headerActions }: ModalProps) {
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const dragRef = useRef<{ startClientX: number; startClientY: number; startOffsetX: number; startOffsetY: number } | null>(null);
   const theme = useLqTheme();
@@ -107,6 +111,7 @@ export function Modal({ open, onClose, title, children, footer, closeLabel = "Fe
             {title && (
               <header className="lq-modal__header lq-modal__header--draggable" onPointerDown={onHeaderPointerDown}>
                 <h2 className="lq-modal__title">{title}</h2>
+                {headerActions}
                 {/* Own pointerdown never reaches the header's drag handler above — otherwise a
                     plain click here would first arm a (zero-distance, harmless) drag before the
                     click itself closes the modal, which is pointless overhead for what should be

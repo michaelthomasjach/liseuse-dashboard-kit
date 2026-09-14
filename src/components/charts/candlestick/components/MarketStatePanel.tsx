@@ -83,6 +83,17 @@ export function MarketStatePanel({
 }: MarketStatePanelProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  /** The window the explanation has been torn off into. Opened inside the click that asks for it —
+   *  a `window.open` deferred to an effect is no longer attributed to the gesture and browsers
+   *  block it as an unsolicited popup. */
+  const [helpWindow, setHelpWindow] = useState<Window | null>(null);
+  const rootRef = useRef<HTMLElement | null>(null);
+  function openHelpWindow() {
+    const child = window.open("", "", "width=760,height=900");
+    if (child === null) return;
+    setHelpWindow(child);
+    setHelpOpen(false);
+  }
   const [expanded, setExpanded] = useState<MarketStateAxis | "signal" | null>(null);
   // Where the reader has put it, as an offset from the corner it starts in. Kept here rather than
   // persisted: it is a position on *this* chart in *this* session, and a readout that reappeared
@@ -119,6 +130,11 @@ export function MarketStatePanel({
 
   return (
     <section
+      ref={(node) => {
+        // The theme scope, looked up from the panel itself: whichever `.lq-root` this chart lives
+        // in is what a detached window has to copy its palette from.
+        rootRef.current = (node?.closest(".lq-root") as HTMLElement | null) ?? null;
+      }}
       className={["lq-market-state", detached && "lq-market-state--detached"].filter(Boolean).join(" ")}
       aria-label="État du marché"
       // `translate`, not `top`/`left`: the panel keeps its corner anchoring (and so its own
@@ -153,6 +169,16 @@ export function MarketStatePanel({
           title="Comprendre l'état du marché"
         >
           <HelpIcon size={11} />
+        </button>
+        {/* Straight to a window, skipping the modal — for a reader who wants the explanation open
+            on a second screen while they work on the first. */}
+        <button
+          type="button"
+          onClick={openHelpWindow}
+          aria-label="Ouvrir l'explication dans une nouvelle fenêtre"
+          title="Ouvrir l'explication dans une nouvelle fenêtre"
+        >
+          <DetachWindowIcon size={11} />
         </button>
         {onRequestDetach && (
           <button type="button" onClick={onRequestDetach} aria-label="Ouvrir dans une fenêtre" title="Ouvrir dans une fenêtre">
@@ -325,7 +351,15 @@ export function MarketStatePanel({
 
       {bar && <p className="lq-market-state__at">Bougie du {formatDate(bar.date)}</p>}
 
-      <MarketStateHelpModal open={helpOpen} onClose={() => setHelpOpen(false)} settings={settings} />
+      <MarketStateHelpModal
+        open={helpOpen}
+        onClose={() => setHelpOpen(false)}
+        settings={settings}
+        detachedWindow={helpWindow}
+        onDetach={openHelpWindow}
+        onDetachedClose={() => setHelpWindow(null)}
+        themeSource={rootRef.current}
+      />
 
       {onSettingsChange && (
         <MarketStateSettingsModal

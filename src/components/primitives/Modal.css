@@ -5,7 +5,11 @@
   align-items: center;
   justify-content: center;
   background-color: var(--lq-color-overlay);
-  z-index: 2000;
+  /* One scale for the whole library: floating surfaces over a chart (readouts, toolbars, the
+     assistant's sheet) sit at 2000, modals at 3000, and a popover opened from inside a modal at
+     3050. Stated once here because every one of those layers was picked in isolation, and the
+     Y-axis hover badge ended up painting over the Market State readout. */
+  z-index: 3000;
   padding: var(--lq-space-5);
 }
 

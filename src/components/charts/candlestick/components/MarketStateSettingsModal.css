@@ -59,8 +59,11 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Wide enough for three digits *and* the spinner the browser draws beside them. At 5.5ch the
+   value was clipped by its own control — "60" read as "6(". */
 .lq-ms-settings__number--tight {
-  width: 5.5ch;
+  width: 7.5ch;
+  min-width: 7.5ch;
   text-align: right;
 }
 
@@ -77,6 +80,18 @@
   width: 100%;
   border-collapse: collapse;
   font-variant-numeric: tabular-nums;
+}
+
+/* The one-sentence explanation behind each column name. A question mark rather than an icon: it
+   sits inline in a table header, where anything with its own box would push the columns around. */
+.lq-ms-settings__what {
+  margin-left: 3px;
+  padding: 0 3px;
+  border: 1px solid var(--lq-color-border-subtle);
+  border-radius: 999px;
+  font-size: 0.85em;
+  text-decoration: none;
+  cursor: help;
 }
 
 .lq-ms-settings__table th {
@@ -159,4 +174,18 @@
   gap: var(--lq-space-2);
   padding: 2px 0;
   border-top: 1px solid var(--lq-color-border-subtle);
+}
+
+.lq-ms-settings__extra-name {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* One indicator's own settings, inline on its row. */
+.lq-ms-settings__extra-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  color: var(--lq-color-text-muted);
 }

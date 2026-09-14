@@ -6,7 +6,7 @@
      entirely behind that overlay: technically open, but invisible and unclickable. Still below
      Notification's own "modal" variant (2100, see Notification.css) — that one's deliberately the
      topmost layer regardless of what else is open. */
-  z-index: 2050;
+  z-index: 3050;
   background-color: var(--lq-color-panel);
   border: 1px solid var(--lq-color-border);
   border-radius: var(--lq-radius-md);

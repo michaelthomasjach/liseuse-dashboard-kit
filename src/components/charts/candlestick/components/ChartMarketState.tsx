@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { MarketStatePanel } from "./MarketStatePanel";
 import { MarketStateBands } from "./MarketStateBands";
 import { DetachedWindow } from "./DetachedWindow";
+import { Modal } from "../../../primitives/Modal";
 import { DEFAULT_MARKET_STATE_BAND_COLORS } from "../marketStateBandColors";
 import { DEFAULT_MARKET_STATE_SETTINGS, type MarketStateSettings } from "../marketStateSettings";
 import { computeIndicatorValues } from "../indicators";
@@ -53,6 +54,9 @@ export function ChartMarketState({
   const [bandColors, setBandColors] = useState(DEFAULT_MARKET_STATE_BAND_COLORS);
   // Its own browser window. Opened inside the click, never from an effect — see `DetachedWindow`.
   const [detachedWindow, setDetachedWindow] = useState<Window | null>(null);
+  /** Enlarged into a modal. A third home for the same panel, beside the corner and the window —
+   *  same live props in all three, only the chrome and the host differ. */
+  const [fullscreen, setFullscreen] = useState(false);
   // Weights, thresholds, the neutral band and the off-chart indicators. Here rather than in the
   // chart for the same reason the band colours are: nothing outside this readout has any use for
   // them, and the shading, the panel and the detached copy all have to read the same ones.
@@ -104,6 +108,7 @@ export function ChartMarketState({
               if (child !== null) setDetachedWindow(child);
             }
       }
+      onRequestFullscreen={detached ? undefined : () => setFullscreen(true)}
     />
   );
 
@@ -123,7 +128,13 @@ export function ChartMarketState({
           settings={settings}
         />
       )}
-      {detachedWindow === null ? (
+      {/* Exactly one of the three is on screen at a time, which is what makes enlarging a *view* of
+          the readout rather than a second copy of it. */}
+      {fullscreen ? (
+        <Modal open onClose={() => setFullscreen(false)} title="État du marché" size="fullscreen" footer={null}>
+          <div className="lq-market-state__modal-body">{panel(true, () => setFullscreen(false))}</div>
+        </Modal>
+      ) : detachedWindow === null ? (
         panel(false, onClose)
       ) : (
         <DetachedWindow

@@ -25,6 +25,15 @@ export interface MarketStateSettingsModalProps {
   sources: { axis: MarketStateAxis; axisLabel: string; contributions: MarketStateContribution[] }[];
 }
 
+/** The five value columns, and one sentence each. */
+const COLUMNS: { label: string; what: string }[] = [
+  { label: "Lit", what: "Ce que cette source vaut actuellement, sur 100. Coloré du côté où ses seuils la placent." },
+  { label: "Compte", what: "Décochée, la source quitte son axe : elle ne vote pas et ne pèse rien. Ce n'est pas la même chose qu'un vote neutre." },
+  { label: "Poids", what: "Multiplie l'influence de la source dans son axe. 0,5 la divise par deux, 2 la double." },
+  { label: "Long ≥", what: "À partir de ce score, la source vote long." },
+  { label: "Short ≤", what: "À ce score ou en dessous, elle vote short. Entre les deux seuils, elle est neutre." },
+];
+
 const AXIS_LABELS: { axis: MarketStateAxis; label: string; note: string }[] = [
   { axis: "trend", label: "Tendance", note: "Dans quel sens, et avec quelle conviction." },
   { axis: "momentum", label: "Momentum", note: "La vitesse du mouvement en cours." },
@@ -203,11 +212,17 @@ export function MarketStateSettingsModal({ open, onClose, settings, onChange, so
                   <thead>
                     <tr>
                       <th>Source</th>
-                      <th>Lit</th>
-                      <th>Compte</th>
-                      <th>Poids</th>
-                      <th>Long ≥</th>
-                      <th>Short ≤</th>
+                      {COLUMNS.map((column) => (
+                        <th key={column.label}>
+                          {column.label}
+                          {/* The column names are four words carrying four different ideas, and a
+                              table of coefficients is exactly where a reader stops to wonder which
+                              is which. `title` rather than a modal: the answer is one sentence. */}
+                          <abbr className="lq-ms-settings__what" title={column.what}>
+                            ?
+                          </abbr>
+                        </th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody>
@@ -220,7 +235,9 @@ export function MarketStateSettingsModal({ open, onClose, settings, onChange, so
                             {contribution.offChart && <span className="lq-ms-settings__off-chart">hors graphique</span>}
                           </td>
                           <td className={`lq-ms-settings__reads lq-ms-settings__reads--${contribution.direction}`}>
-                            {contribution.score}
+                            {/* Rounded: this is a 0-100 score, and the raw float printed
+                                `89.4444444444444` across half the row. */}
+                            {Math.round(contribution.score)}
                           </td>
                           <td>
                             <input
@@ -299,23 +316,82 @@ export function MarketStateSettingsModal({ open, onClose, settings, onChange, so
             </button>
           </div>
           {settings.extraIndicators.length > 0 && (
+            <>
             <ul className="lq-ms-settings__extras">
-              {settings.extraIndicators.map((indicator) => (
-                <li key={indicator.id} className="lq-ms-settings__extra">
-                  <span>{indicatorLabel(indicator)}</span>
-                  <button
-                    type="button"
-                    className="lq-chart__pane-header-action"
-                    aria-label={`Retirer ${indicatorLabel(indicator)}`}
-                    onClick={() =>
-                      onChange({ ...settings, extraIndicators: settings.extraIndicators.filter((e) => e.id !== indicator.id) })
-                    }
-                  >
-                    <TrashIcon size={13} />
-                  </button>
-                </li>
-              ))}
+              {settings.extraIndicators.map((indicator) => {
+                const entry = INDICATOR_CATALOG.find((candidate) => candidate.kind === indicator.kind);
+                return (
+                  <li key={indicator.id} className="lq-ms-settings__extra">
+                    <span className="lq-ms-settings__extra-name">{indicatorLabel(indicator)}</span>
+                    {/* Its own settings, here rather than nowhere: an indicator added with its
+                        default period is an indicator someone will want at another period, and it
+                        is not on the chart to be opened from there. Its long / neutral / short
+                        thresholds are not repeated — they live in the table above, in the axis it
+                        feeds, beside every other source's. */}
+                    {entry?.hasPeriod && (
+                      <label className="lq-ms-settings__extra-field">
+                        Période
+                        <input
+                          type="number"
+                          className="lq-ms-settings__number lq-ms-settings__number--tight"
+                          value={indicator.period}
+                          min={1}
+                          max={500}
+                          onChange={(e) => {
+                            const period = Math.max(1, Math.min(500, Math.round(Number(e.target.value) || 1)));
+                            onChange({
+                              ...settings,
+                              extraIndicators: settings.extraIndicators.map((other) =>
+                                other.id === indicator.id ? { ...other, period } : other
+                              ),
+                            });
+                          }}
+                          aria-label={`Période de ${indicatorLabel(indicator)}`}
+                        />
+                      </label>
+                    )}
+                    {entry?.hasStdDev && (
+                      <label className="lq-ms-settings__extra-field">
+                        Écarts-types
+                        <input
+                          type="number"
+                          className="lq-ms-settings__number lq-ms-settings__number--tight"
+                          value={indicator.stdDev ?? 2}
+                          min={0.5}
+                          max={5}
+                          step={0.5}
+                          onChange={(e) => {
+                            const stdDev = Math.max(0.5, Math.min(5, Number(e.target.value) || 2));
+                            onChange({
+                              ...settings,
+                              extraIndicators: settings.extraIndicators.map((other) =>
+                                other.id === indicator.id ? { ...other, stdDev } : other
+                              ),
+                            });
+                          }}
+                          aria-label={`Écarts-types de ${indicatorLabel(indicator)}`}
+                        />
+                      </label>
+                    )}
+                    <button
+                      type="button"
+                      className="lq-chart__pane-header-action"
+                      aria-label={`Retirer ${indicatorLabel(indicator)}`}
+                      onClick={() =>
+                        onChange({ ...settings, extraIndicators: settings.extraIndicators.filter((e) => e.id !== indicator.id) })
+                      }
+                    >
+                      <TrashIcon size={13} />
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
+            <p className="lq-ms-settings__note">
+              Les seuils long / neutre / short d&apos;un indicateur ajouté se règlent dans le tableau ci-dessus, dans
+              l&apos;axe qu&apos;il alimente — au même endroit que ceux de toutes les autres sources.
+            </p>
+            </>
           )}
         </section>
       </div>

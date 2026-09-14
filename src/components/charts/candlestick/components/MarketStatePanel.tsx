@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { CloseIcon, ChevronDownIcon, DetachWindowIcon, SettingsIcon, HelpIcon } from "../../../icons";
+import { CloseIcon, ChevronDownIcon, DetachWindowIcon, SettingsIcon, HelpIcon, MaximizeIcon } from "../../../icons";
 import { computeMarketState, type MarketStateAxis, type MarketStateDirection } from "../marketState";
 import { DEFAULT_MARKET_STATE_SETTINGS, type MarketStateSettings } from "../marketStateSettings";
 import { MarketStateSettingsModal } from "./MarketStateSettingsModal";
@@ -23,6 +23,9 @@ export interface MarketStatePanelProps {
   /** Opens the readout in a window of its own. Omitted (the detached copy's own case) hides the
    *  button — a window has nowhere further to go. */
   onRequestDetach?: () => void;
+  /** Opens the readout in a modal filling the middle of the screen. Same convention as
+   *  `onRequestDetach`: absent means the host does not offer it and no button appears. */
+  onRequestFullscreen?: () => void;
   /** The copy living in that window: it fills it rather than floating over a plot, so it drops the
    *  absolute positioning, the drag and the close button, none of which mean anything there. */
   detached?: boolean;
@@ -73,6 +76,7 @@ export function MarketStatePanel({
   onClose,
   formatDate,
   onRequestDetach,
+  onRequestFullscreen,
   detached = false,
   bandsOn,
   onBandsChange,
@@ -170,16 +174,19 @@ export function MarketStatePanel({
         >
           <HelpIcon size={11} />
         </button>
-        {/* Straight to a window, skipping the modal — for a reader who wants the explanation open
-            on a second screen while they work on the first. */}
-        <button
-          type="button"
-          onClick={openHelpWindow}
-          aria-label="Ouvrir l'explication dans une nouvelle fenêtre"
-          title="Ouvrir l'explication dans une nouvelle fenêtre"
-        >
-          <DetachWindowIcon size={11} />
-        </button>
+        {/* Enlarge, not a second detach: two identical icons side by side said the same thing
+            twice. This one gives the readout the middle of the screen; the next one gives it a
+            window of its own. */}
+        {onRequestFullscreen && (
+          <button
+            type="button"
+            onClick={onRequestFullscreen}
+            aria-label="Agrandir l'état du marché"
+            title="Agrandir"
+          >
+            <MaximizeIcon size={11} />
+          </button>
+        )}
         {onRequestDetach && (
           <button type="button" onClick={onRequestDetach} aria-label="Ouvrir dans une fenêtre" title="Ouvrir dans une fenêtre">
             <DetachWindowIcon size={11} />
@@ -324,43 +331,42 @@ export function MarketStatePanel({
               </li>
             ))}
           </ul>
-        </div>
-      )}
-
-      {/* Directly under the verdict it qualifies, because it changes what that line says: with it
-          on, a side is named only once it has held. Anything short of that reads neutral — the
-          honest name for "nothing has lasted long enough to be worth calling". */}
-      {onSettingsChange && (
-        <div className="lq-market-state__confirm">
-          <label className="lq-market-state__switch">
+          {/* Inside the dropdown, under the arithmetic it changes: turning this on is a decision
+              about what the line above will be allowed to say, and it belongs beside the reasoning
+              rather than permanently under it. */}
+        {onSettingsChange && (
+          <div className="lq-market-state__confirm">
+            <label className="lq-market-state__switch">
+              <input
+                type="checkbox"
+                checked={settings.confirmEnabled}
+                onChange={(e) => onSettingsChange({ ...settings, confirmEnabled: e.target.checked })}
+              />
+              <span>Confirmer sur</span>
+            </label>
             <input
-              type="checkbox"
-              checked={settings.confirmEnabled}
-              onChange={(e) => onSettingsChange({ ...settings, confirmEnabled: e.target.checked })}
+              className="lq-market-state__confirm-input"
+              type="number"
+              min={2}
+              max={50}
+              value={settings.confirmBars}
+              disabled={!settings.confirmEnabled}
+              onChange={(e) => {
+                const next = Number(e.target.value);
+                if (Number.isFinite(next)) onSettingsChange({ ...settings, confirmBars: Math.min(50, Math.max(2, Math.round(next))) });
+              }}
+              aria-label="Nombre de séances de confirmation"
             />
-            <span>Confirmer sur</span>
-          </label>
-          <input
-            className="lq-market-state__confirm-input"
-            type="number"
-            min={2}
-            max={50}
-            value={settings.confirmBars}
-            disabled={!settings.confirmEnabled}
-            onChange={(e) => {
-              const next = Number(e.target.value);
-              if (Number.isFinite(next)) onSettingsChange({ ...settings, confirmBars: Math.min(50, Math.max(2, Math.round(next))) });
-            }}
-            aria-label="Nombre de séances de confirmation"
-          />
-          <span className="lq-market-state__confirm-unit">séances</span>
-          {/* How far the current side has got towards being confirmed. Silent when confirmation is
-              off, and silent once it is reached — a counter that reads 3/3 forever is noise. */}
-          {settings.confirmEnabled && state.confirmedFor !== null && state.rawDirection !== "neutral" && state.confirmedFor < settings.confirmBars && (
-            <span className="lq-market-state__confirm-progress">
-              {SIGNAL_LABEL[state.rawDirection].replace("SIGNAL ", "")} {state.confirmedFor}/{settings.confirmBars}
-            </span>
-          )}
+            <span className="lq-market-state__confirm-unit">séances</span>
+            {/* How far the current side has got towards being confirmed. Silent when confirmation is
+                off, and silent once it is reached — a counter that reads 3/3 forever is noise. */}
+            {settings.confirmEnabled && state.confirmedFor !== null && state.rawDirection !== "neutral" && state.confirmedFor < settings.confirmBars && (
+              <span className="lq-market-state__confirm-progress">
+                {SIGNAL_LABEL[state.rawDirection].replace("SIGNAL ", "")} {state.confirmedFor}/{settings.confirmBars}
+              </span>
+            )}
+          </div>
+        )}
         </div>
       )}
 

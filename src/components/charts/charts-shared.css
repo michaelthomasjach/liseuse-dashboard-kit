@@ -1680,7 +1680,10 @@
    .lq-chart__plot-topleft (6) — it's meant to float over the symbol/legend readout, not under it. */
 .lq-chart__floating-toolbar {
   position: absolute;
-  z-index: 20;
+  /* 2000, the library's layer for a floating surface over a chart — see Modal.css for the scale.
+     The hover badges in the axis gutters live in a different stacking context, so a small number
+     here could not stay above them. */
+  z-index: 2000;
   display: flex;
   align-items: center;
   gap: 4px;

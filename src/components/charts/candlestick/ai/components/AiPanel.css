@@ -355,11 +355,11 @@
 .lq-ai-sheet {
   position: fixed;
   inset: 0;
-  /* Above the chart's own rails, which sit at 999-1000 and were painting the drawing toolbar over
-     this sheet, and above the workspace's bottom bar. Below `Modal` at 2000, deliberately: the
-     assistant opens modals of its own (a script's report), and those have to land on top of the
-     sheet that opened them. */
-  z-index: 1500;
+  /* 2000, the library's layer for a floating surface over a chart — see Modal.css for the scale.
+     Above the chart's own rails and the workspace's bottom bar; below modals at 3000, which
+     matters because the assistant opens modals of its own and those must land on top of the sheet
+     that opened them. */
+  z-index: 2000;
   display: flex;
   flex-direction: column;
   background-color: var(--lq-color-bg);

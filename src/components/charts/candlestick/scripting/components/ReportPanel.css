@@ -30,7 +30,7 @@
 }
 
 .lq-report-panel__print:hover {
-  background: var(--lq-color-surface-hover);
+  background: var(--lq-color-hover);
 }
 
 .lq-report-panel__empty {

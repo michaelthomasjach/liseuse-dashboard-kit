@@ -30,7 +30,7 @@
 }
 
 .lq-quant__save:hover {
-  background: var(--lq-color-surface-hover);
+  background: var(--lq-color-hover);
 }
 
 /* One row of runs, scrolled sideways rather than wrapped: the list grows with use, and a strip
@@ -70,7 +70,7 @@
 
 .lq-quant__run--active {
   border-color: var(--lq-color-border);
-  background: var(--lq-color-surface-hover);
+  background: var(--lq-color-hover);
   color: var(--lq-color-text);
 }
 

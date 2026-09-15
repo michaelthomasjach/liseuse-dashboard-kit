@@ -71,7 +71,7 @@
 }
 
 .lq-ai__header-button:hover {
-  background-color: var(--lq-color-surface-hover);
+  background-color: var(--lq-color-hover);
   color: var(--lq-color-text);
 }
 
@@ -120,19 +120,24 @@
   padding: var(--lq-space-2);
 }
 
-/* The user's own turns are set apart by alignment and ground rather than by a coloured bubble —
-   this panel sits beside a chart, and a saturated block beside it would read as a chart element. */
+/* Both turns sit on a ground, and neither is a coloured bubble — this panel sits beside a chart,
+   and a saturated block beside it would read as a chart element. What separates them is how much
+   ground they get: the question is the darker of the two and hugs the right edge, the answer is a
+   pale wash running the full width. Running text on the bare panel was the hardest part to read,
+   because nothing marked where one turn ended and the next began.
+
+   Both are mixed from the text token rather than set as greys, so they stay a *pale* ground on a
+   dark surface too instead of turning into a light block. */
 .lq-ai__message--user {
-  background-color: var(--lq-color-surface-hover);
+  background-color: var(--lq-color-hover);
   color: var(--lq-color-text);
   align-self: flex-end;
   max-width: 92%;
 }
 
 .lq-ai__message--assistant {
+  background-color: color-mix(in srgb, var(--lq-color-text) 3.5%, transparent);
   color: var(--lq-color-text);
-  padding-left: 0;
-  padding-right: 0;
 }
 
 .lq-ai__message--error {
@@ -289,7 +294,7 @@
 }
 
 .lq-ai__send:not(:disabled):hover {
-  background-color: var(--lq-color-surface-hover);
+  background-color: var(--lq-color-hover);
 }
 
 /* Above the box, not below it: the box is already at the bottom of the panel, and a menu opening
@@ -327,7 +332,7 @@
 
 .lq-ai__menu-item--active,
 .lq-ai__menu-item:hover {
-  background-color: var(--lq-color-surface-hover);
+  background-color: var(--lq-color-hover);
 }
 
 .lq-ai__menu-label {
@@ -401,7 +406,7 @@
 }
 
 .lq-ai__report-actions button:hover {
-  background: var(--lq-color-surface-hover);
+  background: var(--lq-color-hover);
 }
 
 /* ── The narrow layout: a page, not a column ──────────────────────────────────────────────────

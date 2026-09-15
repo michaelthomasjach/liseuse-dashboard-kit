@@ -366,6 +366,7 @@ export function useScriptingState({ defaultScripts, onScriptsChange, controlledE
     reportRunOutput,
     scriptIndicators,
     scriptDrawings,
+    withheldScriptIds,
     withholdScriptOutput,
     restoreScriptOutput,
     scriptTables,

@@ -4,8 +4,12 @@ import type { ScriptDef } from "../interfaces/ScriptDef.interface";
 
 export interface UseStrategyPanelStateArgs {
   scripts: ScriptDef[];
-  /** Un-withholds a script's own drawings. Only reached for a strategy that has just appeared —
-   *  see the effect below for the one case it covers. */
+  /** Scripts whose contribution to the plot is currently withheld — what `scriptPaneRemoval` sets
+   *  when the reader removes one of a script's indicators from the chart. A strategy in this list
+   *  has had its marks taken off the chart, so its tester closes with them. */
+  withheldScriptIds: string[];
+  /** Un-withholds a script's output. Called when a strategy's tester is opened, since asking for
+   *  the strategy is asking for everything it draws. */
   restoreScriptOutput: (scriptId: string) => void;
 }
 
@@ -17,7 +21,7 @@ export interface UseStrategyPanelStateArgs {
  *  `closedDrawingPrefixes` — which fills reach the canvas. Keeping them together is what stops the
  *  third from drifting away from the first two, which is exactly what happened when the fills were
  *  hidden imperatively instead of derived. */
-export function useStrategyPanelState({ scripts, restoreScriptOutput }: UseStrategyPanelStateArgs) {
+export function useStrategyPanelState({ scripts, withheldScriptIds, restoreScriptOutput }: UseStrategyPanelStateArgs) {
   // Every enabled script that declared `@strategy` (see scriptKind.ts). The decorator is read from
   // the source text, so this costs a regex per script per render and needs no run to be known —
   // which is what lets the panel exist before the first backtest has produced anything.
@@ -42,6 +46,17 @@ export function useStrategyPanelState({ scripts, restoreScriptOutput }: UseStrat
    *  Recording the close instead makes the two cases different facts. */
   const [closedByUser, setClosedByUser] = useState<string[]>([]);
 
+  // A strategy that leaves — disabled from the picker, deleted, no longer a `@strategy` — takes its
+  // "closed" mark with it. Otherwise closing the tester and then bringing the strategy back would
+  // find it remembered as closed and open nothing, which is a dead end: with both the panel and the
+  // legend row gone, there is no other way left to ask for it. Coming back is asking for it.
+  useEffect(() => {
+    setClosedByUser((ids) => {
+      const next = ids.filter((id) => strategyScriptIds.includes(id));
+      return next.length === ids.length ? ids : next;
+    });
+  }, [strategyScriptIds]);
+
   /** Which strategy the reader has explicitly asked for, when they have asked for one. `null` means
    *  "whichever the rule below picks", not "none". */
   const [chosenStrategyId, setChosenStrategyId] = useState<string | null>(null);
@@ -63,20 +78,12 @@ export function useStrategyPanelState({ scripts, restoreScriptOutput }: UseStrat
    *  One at a time, because the tester is one panel. A second strategy opened takes the first's
    *  place, and the first's marks go with it rather than accumulating unexplained on the candles. */
   const openStrategyId = useMemo(() => {
-    if (chosenStrategyId !== null && strategyScriptIds.includes(chosenStrategyId)) return chosenStrategyId;
-    return strategyScripts.find((s) => !closedByUser.includes(s.id))?.id ?? null;
-  }, [chosenStrategyId, strategyScriptIds, strategyScripts, closedByUser]);
+    const available = strategyScripts.filter((s) => !closedByUser.includes(s.id) && !withheldScriptIds.includes(s.id));
+    if (chosenStrategyId !== null && available.some((s) => s.id === chosenStrategyId)) return chosenStrategyId;
+    return available[0]?.id ?? null;
+  }, [chosenStrategyId, strategyScripts, closedByUser, withheldScriptIds]);
 
   const openStrategy = strategyScripts.find((s) => s.id === openStrategyId) ?? null;
-
-  // Un-withholds whatever the open strategy had withheld — the case `beforeRemoveIndicator` creates
-  // when the reader removes one of its indicators from the chart (see `scriptPaneRemoval`). Keyed on
-  // the id alone: re-running it for the same open strategy would do nothing anyway, and this is the
-  // one side effect the derivation above cannot express.
-  useEffect(() => {
-    if (openStrategyId !== null) restoreScriptOutput(openStrategyId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [openStrategyId]);
 
   const close = useCallback(() => {
     if (openStrategyId !== null) setClosedByUser((ids) => (ids.includes(openStrategyId) ? ids : [...ids, openStrategyId]));
@@ -94,9 +101,13 @@ export function useStrategyPanelState({ scripts, restoreScriptOutput }: UseStrat
         return;
       }
       setClosedByUser((ids) => ids.filter((id) => id !== scriptId));
+      // Asking for a strategy asks for all of it: one whose marks were withheld when the reader
+      // removed its indicator has to get them back, or the tester would open onto a chart with
+      // nothing on it.
+      restoreScriptOutput(scriptId);
       setChosenStrategyId(scriptId);
     },
-    [openStrategyId],
+    [openStrategyId, restoreScriptOutput],
   );
 
   /** Tears the tester off into a window of its own.

@@ -377,7 +377,8 @@ export function CandlestickChart({
     toggle: toggleStrategyPanel,
     detach: detachStrategyPanel,
     closedPrefixes: closedStrategyPrefixes,
-  } = useStrategyPanelState({ scripts: scriptingState.scripts, restoreScriptOutput: scriptingState.restoreScriptOutput });
+  } = useStrategyPanelState({ scripts: scriptingState.scripts, withheldScriptIds: scriptingState.withheldScriptIds,
+    restoreScriptOutput: scriptingState.restoreScriptOutput });
   // Starred picker rows (see IndicatorModals' own `favoriteIndicatorIds`). Chart-local for now,
   // which is enough for it to survive the modal closing but not a reload — persisting it is the
   // caller's to own, the same way `favoriteSymbolIds` already is for symbol search, and this can be
@@ -1342,8 +1343,6 @@ export function CandlestickChart({
           sidePanelOpen={sidePanelState.open}
           onToggleSidePanel={() => sidePanelState.commitOpen(!sidePanelState.open)}
           showTemplates={showTemplates}
-          onBrokerClick={brokers !== undefined && brokers.length > 0 ? () => setBrokerModalOpen(true) : null}
-          brokerConnectionCount={brokerConnections.length}
           templates={templates}
           activeTemplateId={activeTemplateId}
           templatesDirty={templatesDirty}

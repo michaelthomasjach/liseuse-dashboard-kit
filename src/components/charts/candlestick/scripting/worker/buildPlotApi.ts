@@ -74,6 +74,8 @@ export interface PlotLabelOptions {
   color?: string;
   fontSize?: number;
   align?: "left" | "center" | "right";
+  /** Which layer this label sits on — see `ScriptLabelOutput.zIndex`. */
+  zIndex?: number;
 }
 export interface PlotXYOptions {
   color?: string;
@@ -186,7 +188,7 @@ export interface PlotApi {
    *  ever kept, so call this unconditionally every bar (like `plot.overlay`) rather than gating it
    *  behind `bar.isNew()`. `rows`/each cell string are silently truncated past this engine's own
    *  size limits rather than rejected. */
-  table(rows: ScriptTableRow[], options?: { title?: string; columns?: string[]; position?: ScriptTableOutput["position"] }): void;
+  table(rows: ScriptTableRow[], options?: { title?: string; columns?: string[]; position?: ScriptTableOutput["position"]; zIndex?: number }): void;
   /** A free-standing X/Y chart, decoupled from the bar-by-bar replay entirely — pass whole arrays
    *  at once (a function's own curve, a scatter of measurements), not one point per bar the way
    *  `pane.line`/`overlay.line` accumulate. Same "the latest call for a given name wins" rule as
@@ -304,6 +306,7 @@ export function buildPlotApi(
           color: options.color,
           fontSize: options.fontSize,
           align: options.align,
+          zIndex: options.zIndex,
         });
       },
     };
@@ -347,6 +350,7 @@ export function buildPlotApi(
         title: options?.title,
         columns: options?.columns,
         position: options?.position,
+        zIndex: options?.zIndex,
         rows: rows.slice(0, MAX_TABLE_ROWS).map((row) => ({ cells: row.cells.map(truncateCell), color: row.color })),
       };
     },

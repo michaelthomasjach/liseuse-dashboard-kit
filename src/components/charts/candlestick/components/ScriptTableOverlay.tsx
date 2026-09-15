@@ -23,7 +23,16 @@ export function ScriptTableOverlay({ tables }: ScriptTableOverlayProps) {
         const atPosition = tables.filter((t) => (t.position ?? "topRight") === position);
         if (atPosition.length === 0) return null;
         return (
-          <div key={position} className={`lq-chart__script-table-corner lq-chart__script-table-corner--${position}`}>
+          <div
+            key={position}
+            className={`lq-chart__script-table-corner lq-chart__script-table-corner--${position}`}
+            /* The highest `zIndex` any table in this corner asked for wins the corner, since they
+               share one stacking container. Omitted everywhere, the stylesheet's own layer stands. */
+            style={(() => {
+              const asked = atPosition.map((t) => t.zIndex).filter((z): z is number => typeof z === "number");
+              return asked.length > 0 ? { zIndex: Math.max(...asked) } : undefined;
+            })()}
+          >
             {atPosition.map((table, i) => (
               <div key={i} className="lq-chart__script-table">
                 {table.title && <div className="lq-chart__script-table-title">{table.title}</div>}

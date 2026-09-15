@@ -88,6 +88,7 @@ export function ScriptLabelOverlay({
               transform: `translate(${align === "left" ? "0" : align === "center" ? "-50%" : "-100%"}, -50%) rotate(${label.rotation}deg)`,
               color: label.color,
               fontSize: label.fontSize,
+              zIndex: label.zIndex,
             }}
           >
             {label.text}

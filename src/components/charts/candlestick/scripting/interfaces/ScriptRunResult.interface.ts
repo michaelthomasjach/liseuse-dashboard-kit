@@ -107,6 +107,11 @@ export interface ScriptLabelOutput {
   color?: string;
   fontSize?: number;
   align?: "left" | "center" | "right";
+  /** Which layer this label sits on. Same mechanism and same caveat as `ScriptTableOutput.zIndex`
+   *  — a label is a DOM overlay, so it has one. Unlike a table, a label defaults to the plot's own
+   *  layer rather than above the chart's floating surfaces: it is positioned *against the data*
+   *  (see `unit: "bar"`), so it belongs with the plot it annotates rather than over the chrome. */
+  zIndex?: number;
 }
 
 /** One `plot.xy(...)` output — a free-standing X/Y chart, decoupled from the bar-by-bar replay
@@ -150,6 +155,17 @@ export interface ScriptTableOutput {
   rows: ScriptTableRow[];
   /** Which corner of the price pane this table anchors to. Default `"topRight"`. */
   position?: "topRight" | "topLeft" | "bottomRight" | "bottomLeft";
+  /** Which layer this table sits on, when the corner it anchors to is already occupied.
+   *
+   *  A table is a DOM overlay, not canvas — see `ScriptTableOverlay`'s own doc — so it has a real
+   *  stacking order, unlike anything the script draws as a *series* (those are pixels in one
+   *  canvas, ordered only by the order they are painted in and with no z-index to give them).
+   *  That is the whole reason this option can exist at all.
+   *
+   *  Omitted, a table sits on the library's own script-overlay layer, which already clears the
+   *  chart's floating surfaces — see `Modal.css` for the scale. Set it to place one table above or
+   *  below another, or to duck under a readout deliberately. */
+  zIndex?: number;
 }
 
 /** One `alert(message)` call, timestamped with whichever bar was current when the script made it

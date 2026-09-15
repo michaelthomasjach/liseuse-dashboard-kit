@@ -1081,6 +1081,19 @@
   font-weight: 700;
 }
 
+/* The kit's own version, last line of the help modal. Deliberately quiet — it is a fact to look up
+   when reporting something, not a heading — so it sits below a rule, at the smallest readable size
+   and in the muted color, and is spaced off the list above by the same gap the list uses between
+   its own items. */
+.lq-chart-workspace__help-version {
+  margin: var(--lq-space-4) 0 0;
+  padding-top: var(--lq-space-3);
+  border-top: 1px solid var(--lq-color-border);
+  font-size: 0.7rem;
+  color: var(--lq-color-text-muted);
+  text-align: right;
+}
+
 /* Item 2: a "focused" panel (see ChartWorkspace.tsx's own focusedPanelIndex) takes over the whole
    grid's own area instead of the viewport CandlestickChart's plain `.lq-chart--fullscreen` covers
    standalone — chained onto that same class (not a replacement for it) so the focused panel still

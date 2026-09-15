@@ -1,3 +1,4 @@
+import { version } from "../../../../package.json";
 import { Modal } from "../../primitives/Modal";
 
 /** One entry per global feature the rail's own "?" button explains, in the order they read most
@@ -45,6 +46,13 @@ export function WorkspaceHelpModal({ open, onClose }: WorkspaceHelpModalProps) {
           </div>
         ))}
       </div>
+      {/* Which build of the kit is actually running, read straight from package.json rather than
+       *  stamped in by a release step — Vite turns the JSON into named exports, so the bundle gets
+       *  the one string and not the whole manifest (the same import .storybook/manager.ts already
+       *  makes for the sidebar). Bottom of the help modal because that is where someone goes when
+       *  something doesn't behave as described here, and the first useful thing to report back is
+       *  the version they are on. */}
+      <p className="lq-chart-workspace__help-version">liseuse-dashboard-kit · v{version}</p>
     </Modal>
   );
 }

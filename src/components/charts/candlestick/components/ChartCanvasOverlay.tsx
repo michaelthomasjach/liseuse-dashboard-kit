@@ -428,7 +428,15 @@ export function ChartCanvasOverlay({
 
           <rect
             ref={zoomRef}
-            className={["lq-chart__overlay", activeTool && "lq-chart__overlay--drawing"].filter(Boolean).join(" ")}
+            /* The zoom tool gets its own cursor rather than the crosshair every other tool
+               shares: selecting it changed nothing on the plot, so there was no way to tell it was
+               armed short of looking back at the rail. */
+            className={[
+              "lq-chart__overlay",
+              activeTool === "zoomIn" ? "lq-chart__overlay--zooming" : activeTool && "lq-chart__overlay--drawing",
+            ]
+              .filter(Boolean)
+              .join(" ")}
             width={dims.boundedWidth}
             height={plotBoundedHeight}
             onPointerDown={handleOverlayPointerDown}

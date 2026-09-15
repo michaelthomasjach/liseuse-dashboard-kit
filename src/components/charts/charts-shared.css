@@ -607,6 +607,20 @@
   cursor: crosshair;
 }
 
+/* A drawn magnifier first, the platform's own `zoom-in` as the fallback.
+
+   `zoom-in` alone was the first attempt and it is not reliable: it resolves through the operating
+   system's cursor *theme*, and a theme that ships no magnifier falls back to the plain arrow with
+   no warning — so the tool looked unarmed on exactly the machines whose theme is incomplete. The
+   image below cannot do that. It is stroked white underneath and black on top so it reads against
+   both a pale chart and a dark one, and the hotspot sits at the centre of the lens (10 10) rather
+   than at the corner of the image, which is where the click actually lands. */
+.lq-chart__overlay--zooming {
+  cursor:
+    url("data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20width=%2224%22%20height=%2224%22%20viewBox=%220%200%2024%2024%22%3E%3Cg%20fill=%22none%22%20stroke=%22%23ffffff%22%20stroke-width=%224.5%22%20stroke-linecap=%22round%22%3E%3Ccircle%20cx=%2210%22%20cy=%2210%22%20r=%226.5%22/%3E%3Cpath%20d=%22M14.9%2014.9%2020.5%2020.5%22/%3E%3C/g%3E%3Cg%20fill=%22none%22%20stroke=%22%23000000%22%20stroke-width=%222%22%20stroke-linecap=%22round%22%3E%3Ccircle%20cx=%2210%22%20cy=%2210%22%20r=%226.5%22/%3E%3Cpath%20d=%22M14.9%2014.9%2020.5%2020.5%22/%3E%3C/g%3E%3C/svg%3E") 10 10,
+    zoom-in;
+}
+
 /* A real zone next to the plot (its thickness is reserved via the chart's own left or bottom
    margin — see CandlestickChart's own isMobileRail — so the plot/axes never draw under it) — not
    a floating overlay stacked on top of the candles. Spans the plot's full cross-axis (height when
@@ -2381,6 +2395,10 @@
   display: flex;
   align-items: center;
   gap: 4px;
+  /* The row is the yardstick for the "Added" tag below, not the viewport: this picker is a wide
+     modal on a desktop and a narrow side panel on a phone, and the question the tag has to answer
+     is whether *it* has room, not how big the screen is. */
+  container-type: inline-size;
 }
 
 /* A built-in/custom indicator already on the chart (see IndicatorModals.tsx's own
@@ -2391,9 +2409,46 @@
   border-radius: var(--lq-radius-sm);
 }
 
-.lq-chart__indicator-picker-check {
+/* Every trailing mark in one group, so the row's own `space-between` pushes them to the right edge
+   together and the "already added" mark is flush against the placement badges instead of adrift in
+   the middle of the row. */
+.lq-chart__indicator-picker-marks {
   display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+}
+
+/* The word, and the tick that replaces it when the word will not fit. Both are in the markup; this
+   pair of rules is what chooses, so nothing has to be measured in JavaScript. */
+.lq-chart__indicator-picker-added {
+  padding: 1px 6px;
+  border: 1px solid var(--lq-color-accent);
+  border-radius: var(--lq-radius-sm);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  line-height: 1.5;
+  white-space: nowrap;
   color: var(--lq-color-accent);
+}
+
+.lq-chart__indicator-picker-check {
+  display: none;
+  color: var(--lq-color-accent);
+}
+
+/* 260px is where the name of a typical indicator starts being squeezed by the tag beside it —
+   "Moyenne mobile exponentielle (EMA)" is the long end of what this list holds. Below it the tag
+   gives way to the tick, which says the same thing in a fifth of the width. */
+@container (max-width: 260px) {
+  .lq-chart__indicator-picker-added {
+    display: none;
+  }
+
+  .lq-chart__indicator-picker-check {
+    display: inline-flex;
+  }
 }
 
 .lq-chart__indicator-picker-select {
@@ -2422,6 +2477,12 @@
 .lq-chart__indicator-picker-name {
   font-size: 0.85rem;
   font-weight: 600;
+  /* Gives way before the marks do: the name can be read from a prefix, whereas a tag cut in half
+     says nothing at all. */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .lq-chart__indicator-picker-empty {

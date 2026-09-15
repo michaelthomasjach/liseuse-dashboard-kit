@@ -813,7 +813,11 @@ export const AllFeatures: Story = {
             template gets cloned into every panel (see ChartWorkspace's own doc on why), so a
             panel-level docked panel would render once per panel instead of once for the whole
             workspace. */}
+        {/* Aucun `onBrokerConnect` : le dialogue simule la connexion, ce qui est le seul moyen de
+            montrer le parcours complet — en attente, connecté, déconnexion — sans compte nulle
+            part. Voir `simulateConnect`. */}
         <ChartWorkspace
+          brokers={SAMPLE_BROKERS}
           defaultPanels={1}
           scripting
           ai={STORY_ASSISTANT}
@@ -892,10 +896,6 @@ export const AllFeatures: Story = {
             seasonality
             replay
             showTemplates
-            /* Aucun `onBrokerConnect` : le dialogue simule la connexion, ce qui est le seul moyen
-               de montrer le parcours complet — en attente, connecté, déconnexion — sans compte
-               nulle part. Voir `simulateConnect`. */
-            brokers={SAMPLE_BROKERS}
           />
         </ChartWorkspace>
       </div>

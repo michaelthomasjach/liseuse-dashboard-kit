@@ -52,6 +52,8 @@ import type { WatchlistEarningsRow, WatchlistDividendRow, WatchlistNewsItem } fr
 /** Which of the docked panel's (up to) two tabs is currently showing — see `watchlists`/`alerts`. */
 export type { ChartWorkspaceSidePanelTab } from "./workspace/useWorkspaceSidePanelState";
 import type { ChartWorkspaceSidePanelTab } from "./workspace/useWorkspaceSidePanelState";
+import type { BrokerConnection } from "./candlestick/interfaces/Broker.interface";
+import { BrokerConnectModal } from "./candlestick/components/BrokerConnectModal";
 
 const GRID_COLUMNS: Record<1 | 2 | 4 | 6 | 8, number> = { 1: 1, 2: 2, 4: 2, 6: 3, 8: 4 };
 const GRID_ROWS: Record<1 | 2 | 4 | 6 | 8, number> = { 1: 1, 2: 1, 4: 2, 6: 2, 8: 2 };
@@ -210,6 +212,13 @@ export interface ChartWorkspaceProps {
    *  `CandlestickChart.ai` — see that prop for what it accepts, and for why an `apiKey` in a
    *  browser is a decision to take deliberately. */
   ai?: CandlestickChartProps["ai"];
+  /** Brokers this workspace can connect to. Passing a non-empty list is what puts the plug button
+   *  on the right-hand rail — one button for the whole workspace, since a connection is to an
+   *  account and not to a panel. This library ships no list of its own. */
+  brokers?: CandlestickChartProps["brokers"];
+  defaultBrokerConnections?: CandlestickChartProps["defaultBrokerConnections"];
+  onBrokerConnectionsChange?: CandlestickChartProps["onBrokerConnectionsChange"];
+  onBrokerConnect?: CandlestickChartProps["onBrokerConnect"];
   /** Shows the rail's own "</>" button and shares *one* script list (and one editor) across every
    *  panel — unlike every other `CandlestickChartProps` scripting prop, which stays per-panel for
    *  a standalone chart, a workspace script explicitly targets one chosen panel (see
@@ -266,6 +275,10 @@ export function ChartWorkspace({
   onSidePanelTabChange,
   scripting = false,
   ai,
+  brokers,
+  defaultBrokerConnections,
+  onBrokerConnectionsChange,
+  onBrokerConnect,
   defaultScripts,
   onScriptsChange,
   onScriptAlert,
@@ -338,6 +351,16 @@ export function ChartWorkspace({
   // that opens it lives on the workspace's own rail, so the workspace is what knows whether it is
   // open — and one shared value means two panels can never both show an assistant.
   const [assistantOpen, setAssistantOpen] = useState(false);
+
+  // One connection list for the whole workspace, not one per panel: a broker is connected to an
+  // account. Uncontrolled from the prop onward, like every other list this component owns, and the
+  // credentials never land here — see `BrokerConnection`.
+  const [brokerConnections, setBrokerConnections] = useState<BrokerConnection[]>(defaultBrokerConnections ?? []);
+  const [brokerModalOpen, setBrokerModalOpen] = useState(false);
+  const commitBrokerConnections = (next: BrokerConnection[]) => {
+    setBrokerConnections(next);
+    onBrokerConnectionsChange?.(next);
+  };
   // Reuses CandlestickChart's own generic wrapper-measuring hook (see its own doc — margin/options
   // both optional, and nothing about it assumes a canvas/candles) purely for `dims.width`, to
   // decide the same "too narrow to fit" question ToolsRail/MOBILE_LAYOUT_BREAKPOINT already answer
@@ -857,6 +880,20 @@ export function ChartWorkspace({
         </ChartSidePanel>
       )}
 
+      {brokers !== undefined && brokers.length > 0 && (
+        <BrokerConnectModal
+          open={brokerModalOpen}
+          onClose={() => setBrokerModalOpen(false)}
+          brokers={brokers}
+          connections={brokerConnections}
+          onConnect={onBrokerConnect}
+          onConnected={(connection) =>
+            commitBrokerConnections([...brokerConnections.filter((c) => c.brokerId !== connection.brokerId), connection])
+          }
+          onDisconnect={(brokerId) => commitBrokerConnections(brokerConnections.filter((c) => c.brokerId !== brokerId))}
+          />
+      )}
+
       {/* Hidden entirely on the mobile layout — watchlist/alerts move into the topbar above
           instead (see its own doc), and scripting/split-screen/fullscreen simply have no mobile
           equivalent. */}
@@ -869,6 +906,11 @@ export function ChartWorkspace({
           onToggleTab={toggleTab}
           scripting={scripting ? { editorOpen: workspaceScripting.editorOpen, setEditorOpen: workspaceScripting.setEditorOpen } : undefined}
           assistant={ai ? { open: assistantOpen, setOpen: setAssistantOpen } : undefined}
+          broker={
+            brokers !== undefined && brokers.length > 0
+              ? { connected: brokerConnections.length, onOpen: () => setBrokerModalOpen(true) }
+              : undefined
+          }
           panels={panels}
           onPanelsChange={handlePanelsChange}
           workspaceFullscreen={workspaceFullscreen}

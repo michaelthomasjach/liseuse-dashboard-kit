@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { Popover } from "../../forms/Popover";
-import { WatchlistIcon, AlarmClockIcon, GridIcon, MaximizeIcon, MinimizeIcon, HelpIcon, CodeIcon, SparkleIcon } from "../../icons";
+import { WatchlistIcon, AlarmClockIcon, GridIcon, MaximizeIcon, MinimizeIcon, HelpIcon, CodeIcon, SparkleIcon, PlugIcon } from "../../icons";
 import type { ChartWorkspaceSidePanelTab } from "./useWorkspaceSidePanelState";
 
 // Moved here from CandlestickChart's own ChartHeader (see this file's own git history) — laying
@@ -23,6 +23,9 @@ export interface WorkspaceSideRailProps {
   scripting?: { editorOpen: boolean; setEditorOpen: (open: boolean) => void };
   /** Undefined when the workspace has no `ai` — the button then doesn't exist. */
   assistant?: { open: boolean; setOpen: (open: boolean) => void };
+  /** Undefined when the workspace was given no `brokers` — the button then doesn't exist either.
+   *  `connected` is only the count, which is all the rail needs to read as active. */
+  broker?: { connected: number; onOpen: () => void };
   panels: 1 | 2 | 4 | 6 | 8;
   onPanelsChange: (panels: 1 | 2 | 4 | 6 | 8) => void;
   workspaceFullscreen: boolean;
@@ -44,6 +47,7 @@ export function WorkspaceSideRail({
   onToggleTab,
   scripting,
   assistant,
+  broker,
   panels,
   onPanelsChange,
   workspaceFullscreen,
@@ -103,6 +107,21 @@ export function WorkspaceSideRail({
           title="Poser une question sur le graphique, ou lui demander d'agir dessus"
         >
           <SparkleIcon size={16} animated />
+        </button>
+      )}
+      {/* Beside the assistant, above the layout controls, for the same reason: connecting an
+          account is a workspace-wide errand, not one panel's. It was first put in the chart's own
+          header, which is where "the toolbar on the right" was read as pointing — it meant one
+          button per panel for a connection there is only one of. */}
+      {broker && (
+        <button
+          type="button"
+          className={["lq-chart__icon-button", broker.connected > 0 && "lq-chart__icon-button--active"].filter(Boolean).join(" ")}
+          onClick={broker.onOpen}
+          aria-label={broker.connected > 0 ? `Brokers (${broker.connected} connecté${broker.connected > 1 ? "s" : ""})` : "Se connecter à un broker"}
+          title={broker.connected > 0 ? `Brokers (${broker.connected} connecté${broker.connected > 1 ? "s" : ""})` : "Se connecter à un broker"}
+        >
+          <PlugIcon size={16} />
         </button>
       )}
       <button

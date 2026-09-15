@@ -298,14 +298,20 @@ export function IndicatorPickerModal({
                *  as a dimmed row when it isn't. `undefined` for every other option kind, which
                *  never dims (they're always "add a new one", not an on/off toggle). */
               enabled?: boolean;
-              /** Built-in/custom rows only — at least one instance of this indicator is already
-               *  on the chart. Drives both the row's own "already there" visual (a checkmark
-               *  badge) and, on click, a confirm prompt instead of silently stacking a second
-               *  instance (see `duplicatePrompt` state above). `undefined` for a script or
-               *  Volume row, neither of which can be duplicated this way — a script click is
-               *  always an enable/disable toggle, and Volume is a single unique pane. */
-              alreadyPresent?: boolean;
-              /** Built-in/custom rows only, paired with `alreadyPresent` — what "add anyway"
+              /** Built-in/custom rows only — how many instances of this indicator are on the
+               *  chart right now. Drives the row's own "already there" visual, the count the tag
+               *  prints, and, on click, a confirm prompt instead of silently stacking another one
+               *  (see `duplicatePrompt` state above).
+               *
+               *  A count rather than the boolean this used to be, because the tag has to say
+               *  "Added ×3" and a boolean cannot: deriving one from the other would have meant two
+               *  fields that must agree, and fields that must agree eventually do not.
+               *
+               *  `undefined` for a script or Volume row, neither of which can be duplicated this
+               *  way — a script click is always an enable/disable toggle, and Volume is a single
+               *  unique pane. */
+              presentCount?: number;
+              /** Built-in/custom rows only, paired with `presentCount` — what "add anyway"
                *  vs. "remove from chart" each mean for this specific row. */
               onRemoveExisting?: () => void;
               /** What this row's own "</>" button opens, if it has one: a built-in kind (whose
@@ -335,7 +341,7 @@ export function IndicatorPickerModal({
               onSelect: () => (entry.kind === "correlation" ? openCorrelationSetup() : addIndicator(entry)),
               descriptionKind: entry.kind,
               codeTarget: INDICATOR_SCRIPT_SOURCES[entry.kind] ? entry.kind : undefined,
-              alreadyPresent: indicators.some((ind) => ind.kind === entry.kind),
+              presentCount: indicators.filter((ind) => ind.kind === entry.kind).length,
               onRemoveExisting: () => commitIndicators(indicators.filter((ind) => ind.kind !== entry.kind)),
             }));
             const customOptions: PickerOption[] = (customIndicators ?? [])
@@ -346,7 +352,7 @@ export function IndicatorPickerModal({
                 category: def.section,
                 pane: def.type === "overlay" ? "price" : "own",
                 onSelect: () => addCustomIndicator(def),
-                alreadyPresent: indicators.some((ind) => ind.customData?.id === def.id),
+                presentCount: indicators.filter((ind) => ind.customData?.id === def.id).length,
                 onRemoveExisting: () => commitIndicators(indicators.filter((ind) => ind.customData?.id !== def.id)),
               }));
             const scriptOptions: PickerOption[] = scripts
@@ -455,7 +461,7 @@ export function IndicatorPickerModal({
                         key={option.key}
                         className={[
                           "lq-chart__indicator-picker-option",
-                          option.alreadyPresent && "lq-chart__indicator-picker-option--active",
+                          (option.presentCount ?? 0) > 0 && "lq-chart__indicator-picker-option--active",
                         ]
                           .filter(Boolean)
                           .join(" ")}
@@ -464,7 +470,7 @@ export function IndicatorPickerModal({
                           type="button"
                           className="lq-chart__indicator-picker-select"
                           onClick={() =>
-                            option.alreadyPresent
+                            (option.presentCount ?? 0) > 0
                               ? onDuplicate({ label: option.label, onAdd: option.onSelect, onRemove: option.onRemoveExisting! })
                               : option.onSelect()
                           }
@@ -476,21 +482,32 @@ export function IndicatorPickerModal({
                               to sit loose between the name and the badges, which put it in the
                               middle of the row with nothing either side of it. */}
                           <span className="lq-chart__indicator-picker-marks">
-                            {option.alreadyPresent && (
-                              <>
-                                {/* Both are rendered; the stylesheet picks. A container query on the
-                                    row swaps the word for the tick once the row is too narrow to
-                                    hold it, which is a question about *this row's* width — the
-                                    picker is a side panel on one layout and a wide modal on
-                                    another — and not about the viewport's. */}
-                                <span className="lq-chart__indicator-picker-added" title="Déjà affiché sur ce graphique">
-                                  Added
-                                </span>
-                                <span className="lq-chart__indicator-picker-check" title="Déjà affiché sur ce graphique">
-                                  <CheckIcon size={13} />
-                                </span>
-                              </>
-                            )}
+                            {(option.presentCount ?? 0) > 0 &&
+                              (() => {
+                                const count = option.presentCount ?? 0;
+                                /* The count is only spelled out past one: "Added ×1" says nothing
+                                   "Added" does not, and reads as though something were being
+                                   counted for its own sake. The full sentence stays in the title,
+                                   which is also where it survives the narrow layout below — the
+                                   tick can carry a tooltip but not a number. */
+                                const label =
+                                  count > 1 ? `Affiché ${count} fois sur ce graphique` : "Déjà affiché sur ce graphique";
+                                return (
+                                  <>
+                                    {/* Both are rendered; the stylesheet picks. A container query on
+                                        the row swaps the word for the tick once the row is too
+                                        narrow to hold it, which is a question about *this row's*
+                                        width — the picker is a side panel on one layout and a wide
+                                        modal on another — and not about the viewport's. */}
+                                    <span className="lq-chart__indicator-picker-added" title={label}>
+                                      Added{count > 1 ? ` \u00d7${count}` : ""}
+                                    </span>
+                                    <span className="lq-chart__indicator-picker-check" title={label}>
+                                      <CheckIcon size={13} />
+                                    </span>
+                                  </>
+                                );
+                              })()}
                             {/* One badge per place this row's output lands — "price" first, so a
                                 row that does both always reads in the same order. */}
                             {(option.placements?.length ? option.placements : [option.pane])

@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { Popover } from "../../forms/Popover";
-import { WatchlistIcon, BellIcon, GridIcon, MaximizeIcon, MinimizeIcon, HelpIcon, CodeIcon, SparkleIcon } from "../../icons";
+import { WatchlistIcon, AlarmClockIcon, GridIcon, MaximizeIcon, MinimizeIcon, HelpIcon, CodeIcon, SparkleIcon } from "../../icons";
 import type { ChartWorkspaceSidePanelTab } from "./useWorkspaceSidePanelState";
 
 // Moved here from CandlestickChart's own ChartHeader (see this file's own git history) — laying
@@ -74,7 +74,7 @@ export function WorkspaceSideRail({
           aria-label="Alertes"
           title="Alertes"
         >
-          <BellIcon size={16} />
+          <AlarmClockIcon size={16} />
         </button>
       )}
       {/* Gated on ChartWorkspace's own `scripting` prop (same "the button only shows up if the

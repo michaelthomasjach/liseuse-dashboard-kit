@@ -31,7 +31,7 @@ import { WorkspaceSideRail } from "./workspace/WorkspaceSideRail";
 import { WorkspaceHelpModal } from "./workspace/WorkspaceHelpModal";
 import { currentSymbolProfile } from "./workspace/currentSymbolProfile";
 import { ScriptEditorPanel } from "./candlestick/scripting/components/ScriptEditorPanel";
-import { WatchlistIcon, BellIcon, PlusIcon, CandleModeIcon, LockIcon, SettingsIcon, SparkleIcon } from "../icons";
+import { WatchlistIcon, AlarmClockIcon, PlusIcon, CandleModeIcon, LockIcon, SettingsIcon, SparkleIcon } from "../icons";
 import { useFullscreen } from "./internal/useFullscreen";
 import { useChartDimensions } from "./internal/useChartDimensions";
 import { MOBILE_LAYOUT_BREAKPOINT } from "./candlestick/constants";
@@ -552,7 +552,7 @@ export function ChartWorkspace({
               aria-label="Alertes"
               title="Alertes"
             >
-              <BellIcon size={16} />
+              <AlarmClockIcon size={16} />
             </button>
           )}
         </div>
@@ -926,7 +926,7 @@ export function ChartWorkspace({
             {/* The panel is whatever `activeTab` last named, and a workspace given alerts but no
                 watchlists has only one thing it can ever be — naming it "Listes" there would
                 promise a page that doesn't exist. */}
-            {hasWatchlists ? <WatchlistIcon size={18} /> : <BellIcon size={18} />}
+            {hasWatchlists ? <WatchlistIcon size={18} /> : <AlarmClockIcon size={18} />}
             {hasWatchlists ? "Listes" : "Alertes"}
           </button>
           {/* Third, as asked, and an action rather than a page in the same sense the settings

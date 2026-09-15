@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import type { RefObject } from "react";
 import { Popover } from "../../../forms/Popover";
-import { GripIcon, PencilIcon, TextIcon, HorizontalLineIcon, BellIcon, TrashIcon } from "../../../icons";
+import { GripIcon, PencilIcon, TextIcon, HorizontalLineIcon, AlarmClockIcon, TrashIcon } from "../../../icons";
 
 const STROKE_WIDTH_OPTIONS = [1, 2, 3, 4];
 
@@ -128,7 +128,7 @@ export function FloatingDrawingToolbar({
         aria-label={hasAlert ? "Alertes sur ce dessin" : "Créer une alerte"}
         title={hasAlert ? "Alertes sur ce dessin" : "Créer une alerte"}
       >
-        <BellIcon size={14} />
+        <AlarmClockIcon size={14} />
       </button>
       {/* Last, and after its own divider: destructive, so kept apart from the styling controls it
           would otherwise sit among, and at the far end where a thumb reaching for the bell won't

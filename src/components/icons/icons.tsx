@@ -342,6 +342,24 @@ export const BellIcon = (props: AnimatedIconProps) => (
   </IconBase>
 );
 
+/** An alarm clock: the face, its hands, the two winding keys on top and the two feet.
+ *
+ *  This is the *alert* icon, and it exists because `BellIcon` could not be — a bell already names
+ *  the "afficher/masquer les évènements" toggle in the tools rail, and the two sat close enough on
+ *  screen to be read as the same control. Two different things cannot share one glyph.
+ *
+ *  Shakes rather than rings: a ring is a bell's own motion (see `lq-icon-ring`, which swings from
+ *  the top edge the way a hung bell does), and reusing it here would put back through movement the
+ *  confusion the shape was changed to remove. */
+export const AlarmClockIcon = (props: AnimatedIconProps) => (
+  <IconBase motion="shake" {...props}>
+    <circle cx="12" cy="13.5" r="7.5" />
+    <path d="M12 9.5v4l2.5 1.5" />
+    <path d="M4.8 3.2 2 6M19.2 3.2 22 6" />
+    <path d="M6.6 19.4 4.6 21.6M17.4 19.4 19.4 21.6" />
+  </IconBase>
+);
+
 /** A bordered panel with three short rows inside — reads as "a list of things", distinct from
  *  MenuIcon's plain full-width hamburger lines (that one reads as "options menu", a different
  *  concept) — ChartWorkspace's own right-rail watchlist toggle. */

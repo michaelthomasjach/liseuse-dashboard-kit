@@ -42,6 +42,7 @@ export {
   ArrowUpIcon,
   ArrowDownIcon,
   MenuIcon,
+  AlarmClockIcon,
   BellIcon,
   WatchlistIcon,
   PieChartIcon,

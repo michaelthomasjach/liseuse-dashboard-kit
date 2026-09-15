@@ -2,7 +2,7 @@ import type { IndicatorInfoTarget } from "../interfaces/IndicatorInfoTarget.inte
 import { infoTargetFor, scriptIdFromIndicatorId } from "../scripting/scriptOutputToCustomIndicatorDef";
 import type { Dispatch, SetStateAction } from "react";
 import { useState } from "react";
-import { ActivityIcon, CodeIcon, EyeIcon, EyeOffIcon, TrashIcon, SettingsIcon, BellIcon, InfoIcon, ChevronDownIcon, ChevronRightIcon } from "../../../icons";
+import { ActivityIcon, CodeIcon, EyeIcon, EyeOffIcon, TrashIcon, SettingsIcon, AlarmClockIcon, InfoIcon, ChevronDownIcon, ChevronRightIcon } from "../../../icons";
 import type { Candle } from "../interfaces/Candle.interface";
 import type { Indicator } from "../interfaces/Indicator.interface";
 import type { TrendLineDrawing } from "../interfaces/TrendLineDrawing.interface";
@@ -265,7 +265,7 @@ export function ChartLegend({
                 aria-pressed={alertedIndicatorIds.has(indicator.id)}
                 aria-label={alertedIndicatorIds.has(indicator.id) ? `Alertes sur ${indicatorLabel(indicator)}` : `Créer une alerte sur ${indicatorLabel(indicator)}`}
               >
-                <BellIcon size={11} />
+                <AlarmClockIcon size={11} />
               </button>
               <button
                 type="button"

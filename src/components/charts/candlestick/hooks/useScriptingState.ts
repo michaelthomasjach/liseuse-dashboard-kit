@@ -287,39 +287,51 @@ export function useScriptingState({ defaultScripts, onScriptsChange, controlledE
   // its own script's own ids (see useScriptEngine's own upsert-by-scriptId design), so a plain
   // concat here can never collide or duplicate across scripts.
   const scriptIndicators = useMemo(() => Object.values(runOutputs).flatMap((o) => o.indicators), [runOutputs]);
-  // Scripts whose chart drawings are currently withheld, because the pane that produced them was
-  // closed. Closing a pane and leaving its markers scattered over the candles leaves the chart
-  // asserting things nothing on screen explains any more.
+  // Scripts whose contribution to the price plot is currently withheld, because the pane that
+  // produced it was closed. Closing a pane and leaving its markers scattered over the candles
+  // leaves the chart asserting things nothing on screen explains any more.
   //
   // Withheld rather than deleted: the script is still enabled and still running, so its next bar
   // would put them straight back. Reopening the pane restores them, which is also what makes this
   // safe — nothing is lost, it is just not shown.
-  const [drawingsWithheldScriptIds, setDrawingsWithheldScriptIds] = useState<string[]>([]);
-  const withholdScriptDrawings = useCallback((id: string) => {
-    setDrawingsWithheldScriptIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
+  const [withheldScriptIds, setWithheldScriptIds] = useState<string[]>([]);
+  const withholdScriptOutput = useCallback((id: string) => {
+    setWithheldScriptIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
   }, []);
-  const restoreScriptDrawings = useCallback((id: string) => {
-    setDrawingsWithheldScriptIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : prev));
+  const restoreScriptOutput = useCallback((id: string) => {
+    setWithheldScriptIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : prev));
   }, []);
 
-  const scriptDrawings = useMemo(
-    () =>
-      Object.entries(runOutputs)
-        .filter(([id]) => !drawingsWithheldScriptIds.includes(id))
-        .flatMap(([, o]) => o.drawings),
-    [runOutputs, drawingsWithheldScriptIds]
+  /** The run outputs that may currently be drawn on the price plot.
+   *
+   *  **Every** plot decoration a script contributes is derived from this, never from `runOutputs`
+   *  directly. That is the entire point of it existing as its own value: the withholding used to be
+   *  applied inside each aggregation, under the name `drawingsWithheldScriptIds`, and the name was
+   *  true — it filtered the drawings and nothing else. So `plot.table` and `plot.label` were added
+   *  later and quietly escaped it, and closing a script's pane left its table sitting on the chart
+   *  with nothing on screen accounting for it. Filtering once, here, is what makes the next output
+   *  kind inherit the rule instead of having to remember it.
+   *
+   *  `scriptIndicators` is deliberately *not* filtered through this — see `scriptPaneRemoval`,
+   *  which removes the panes it means to remove by id. Withholding is for what a pane *brought to
+   *  the price plot*, not for the panes themselves. */
+  const plottableRunOutputs = useMemo(
+    () => Object.entries(runOutputs).filter(([id]) => !withheldScriptIds.includes(id)).map(([, o]) => o),
+    [runOutputs, withheldScriptIds]
   );
+
+  const scriptDrawings = useMemo(() => plottableRunOutputs.flatMap((o) => o.drawings), [plottableRunOutputs]);
   // At most one table per active script (not a flatMap like the two above — plot.table's own
   // "latest call wins" semantics mean each script contributes zero or one, never several).
   const scriptTables = useMemo(
-    () => Object.values(runOutputs).reduce<ScriptTableOutput[]>((acc, o) => (o.table ? [...acc, o.table] : acc), []),
-    [runOutputs]
+    () => plottableRunOutputs.reduce<ScriptTableOutput[]>((acc, o) => (o.table ? [...acc, o.table] : acc), []),
+    [plottableRunOutputs]
   );
   // Same "each script contributes its own, a plain concat can't collide" reasoning as
   // scriptIndicators/scriptDrawings above — a label's own paneName is only unique *within* the
   // script that created it, but ScriptLabelOverlay.tsx only ever needs it alongside that same
   // label's already-resolved paneId, never across scripts.
-  const scriptLabels = useMemo(() => Object.values(runOutputs).flatMap((o) => o.labels), [runOutputs]);
+  const scriptLabels = useMemo(() => plottableRunOutputs.flatMap((o) => o.labels), [plottableRunOutputs]);
 
   // Pruned rather than kept in sync by an effect: a script can disappear from under this hook at
   // any time (deleted here, or dropped by a caller that owns `scripts`), and deriving the open set
@@ -354,8 +366,8 @@ export function useScriptingState({ defaultScripts, onScriptsChange, controlledE
     reportRunOutput,
     scriptIndicators,
     scriptDrawings,
-    withholdScriptDrawings,
-    restoreScriptDrawings,
+    withholdScriptOutput,
+    restoreScriptOutput,
     scriptTables,
     scriptLabels,
   };

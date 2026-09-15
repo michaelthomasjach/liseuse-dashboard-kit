@@ -39,6 +39,7 @@ import { useDrawingToolMenuAnchors } from "./candlestick/hooks/useDrawingToolMen
 import { useFloatingToolbarState } from "./candlestick/hooks/useFloatingToolbarState";
 import { useAlertFlow } from "./candlestick/hooks/useAlertFlow";
 import { useReplayState } from "./candlestick/hooks/useReplayState";
+import { useClosePulse } from "./candlestick/hooks/useClosePulse";
 import { useCorrelationSetup } from "./candlestick/hooks/useCorrelationSetup";
 import { useRenderCandlestickChart } from "./candlestick/hooks/useRenderCandlestickChart";
 import { useSidePanel } from "./candlestick/hooks/useSidePanel";
@@ -247,6 +248,7 @@ export function CandlestickChart({
   const [tfOpen, setTfOpen] = useState(false);
   const {
     settingsOpen, setSettingsOpen,
+    closePulseVisible, setClosePulseVisible,
     upColorOverride, setUpColorOverride,
     downColorOverride, setDownColorOverride,
     volumeUpColorOverride, setVolumeUpColorOverride,
@@ -368,9 +370,8 @@ export function CandlestickChart({
     close: closeStrategyPanel,
     toggle: toggleStrategyPanel,
     detach: detachStrategyPanel,
-    closedDrawingPrefixes: closedStrategyDrawingPrefixes,
-    closedPanePrefixes: closedStrategyPanePrefixes,
-  } = useStrategyPanelState({ scripts: scriptingState.scripts, restoreScriptDrawings: scriptingState.restoreScriptDrawings });
+    closedPrefixes: closedStrategyPrefixes,
+  } = useStrategyPanelState({ scripts: scriptingState.scripts, restoreScriptOutput: scriptingState.restoreScriptOutput });
   // Starred picker rows (see IndicatorModals' own `favoriteIndicatorIds`). Chart-local for now,
   // which is enough for it to survive the modal closing but not a reload — persisting it is the
   // caller's to own, the same way `favoriteSymbolIds` already is for symbol search, and this can be
@@ -497,8 +498,8 @@ export function CandlestickChart({
   // chart with it, reopening brings them back. Derived from the very prefixes the fills already
   // use, so the two can never disagree about what "this strategy is closed" means.
   const openScriptChartIndicators = useMemo(
-    () => scriptChartIndicators.filter((ind) => !closedStrategyPanePrefixes.some((prefix) => ind.id.startsWith(prefix))),
-    [scriptChartIndicators, closedStrategyPanePrefixes],
+    () => scriptChartIndicators.filter((ind) => !closedStrategyPrefixes.some((prefix) => ind.id.startsWith(prefix))),
+    [scriptChartIndicators, closedStrategyPrefixes],
   );
 
   const {
@@ -584,9 +585,9 @@ export function CandlestickChart({
   const combinedVisibleDrawings = useMemo(
     () => [
       ...visibleDrawings,
-      ...scriptingState.scriptDrawings.filter((d) => !closedStrategyDrawingPrefixes.some((prefix) => d.id.startsWith(prefix))),
+      ...scriptingState.scriptDrawings.filter((d) => !closedStrategyPrefixes.some((prefix) => d.id.startsWith(prefix))),
     ],
-    [visibleDrawings, scriptingState.scriptDrawings, closedStrategyDrawingPrefixes],
+    [visibleDrawings, scriptingState.scriptDrawings, closedStrategyPrefixes],
   );
 
   const {
@@ -706,6 +707,15 @@ export function CandlestickChart({
     useChartDisplayMode({ data, visibleRange, renkoAtrPeriod, defaultChartDisplayMode });
   const tpoOverlays = useTpoOverlay(data, visibleRange, indicators);
 
+  // The ripple on the close line's own last point. `useClosePulse` fires on a *change* of the last
+  // revealed close, which is what makes this a live/replay feature without having to be told about
+  // either — see its own doc. The display mode is checked here rather than inside the hook, which
+  // stays about one question: did the price move.
+  const closePulse = useClosePulse(
+    chartDisplayMode === "line" && closePulseVisible,
+    lastRevealedIndex >= 0 ? data[lastRevealedIndex]?.close : undefined,
+  );
+
   const { hiddenEventKinds, setHiddenEventKinds, activeEventStack, setActiveEventStack, eventModalOpen, setEventModalOpen, eventKinds, eventStacks } =
     useChartEvents({
       events,
@@ -755,7 +765,7 @@ export function CandlestickChart({
     const { removeIds, withholdScriptId } = scriptPaneRemoval(id, indicatorValues.map((entry) => entry.indicator));
     // Withheld rather than deleted (see `useScriptingState`): the script keeps running, so
     // reopening the pane brings its drawings back.
-    if (withholdScriptId !== null) scriptingState.withholdScriptDrawings(withholdScriptId);
+    if (withholdScriptId !== null) scriptingState.withholdScriptOutput(withholdScriptId);
     return removeIds;
   };
 
@@ -1487,6 +1497,15 @@ export function CandlestickChart({
           onEditScript={onEditScript}
         />
         <ChartPlotOverlays
+          closePulse={
+            closePulse === null || lastRevealedIndex < 0
+              ? null
+              : {
+                  ...closePulse,
+                  x: zoomedXScale(lastRevealedIndex + 0.5),
+                  y: zoomedPriceScale(data[lastRevealedIndex].close),
+                }
+          }
           lastClose={lastCloseBadge}
           externalFills={externalFills}
           annotations={axisAnnotations}
@@ -1737,6 +1756,7 @@ export function CandlestickChart({
         settingsOpen={settingsOpen} setSettingsOpen={setSettingsOpen}
         mobileLayout={isNarrowLayout} layoutOverride={layoutOverride} setLayoutOverride={setLayoutOverride}
         chartDisplayMode={chartDisplayMode} setChartDisplayMode={setChartDisplayMode} onChartDisplayModeChange={onChartDisplayModeChange}
+        closePulseVisible={closePulseVisible} setClosePulseVisible={setClosePulseVisible}
         upColorOverride={upColorOverride} setUpColorOverride={setUpColorOverride}
         downColorOverride={downColorOverride}
         setDownColorOverride={setDownColorOverride}

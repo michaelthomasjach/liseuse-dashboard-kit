@@ -6,7 +6,7 @@ export interface UseStrategyPanelStateArgs {
   scripts: ScriptDef[];
   /** Un-withholds a script's own drawings. Only reached for a strategy that has just appeared —
    *  see the effect below for the one case it covers. */
-  restoreScriptDrawings: (scriptId: string) => void;
+  restoreScriptOutput: (scriptId: string) => void;
 }
 
 /** Which strategy's tester is open, where it is being read, and which strategies' fills the chart
@@ -17,7 +17,7 @@ export interface UseStrategyPanelStateArgs {
  *  `closedDrawingPrefixes` — which fills reach the canvas. Keeping them together is what stops the
  *  third from drifting away from the first two, which is exactly what happened when the fills were
  *  hidden imperatively instead of derived. */
-export function useStrategyPanelState({ scripts, restoreScriptDrawings }: UseStrategyPanelStateArgs) {
+export function useStrategyPanelState({ scripts, restoreScriptOutput }: UseStrategyPanelStateArgs) {
   // Every enabled script that declared `@strategy` (see scriptKind.ts). The decorator is read from
   // the source text, so this costs a regex per script per render and needs no run to be known —
   // which is what lets the panel exist before the first backtest has produced anything.
@@ -71,7 +71,7 @@ export function useStrategyPanelState({ scripts, restoreScriptDrawings }: UseStr
     // state — React is free to call it twice, and a second call here would be a second side effect.
     // The restore covers the one case the derived rule below cannot: a strategy whose drawings
     // `beforeRemoveIndicator` withheld because the user removed one of its indicators.
-    if (appeared !== undefined) restoreScriptDrawings(appeared);
+    if (appeared !== undefined) restoreScriptOutput(appeared);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [strategyScriptIds]);
 
@@ -121,29 +121,25 @@ export function useStrategyPanelState({ scripts, restoreScriptDrawings }: UseStr
     setView("detached");
   }, []);
 
-  /** Drawing-id prefixes belonging to every strategy whose panel is *not* open — what the chart
-   *  filters its script *drawings* against.
+  /** Id prefixes of every strategy the user has closed by hand — what the chart filters *all* of a
+   *  strategy's own output against: its fills and markers, and its panes and overlays alike.
    *
-   *  Derived, never toggled, and that distinction is the whole bug it replaces: withholding on
-   *  close only ever holds if the panel was open first, so the moment the tester stopped opening
-   *  itself at load, every backtest's fills sat on the candles with nothing on screen to explain
-   *  them. Stated as a rule it cannot come apart — the markers are drawn if and only if the panel
-   *  that accounts for them is. */
-  const closedDrawingPrefixes = useMemo(
-    () => strategyScripts.filter((s) => s.id !== openStrategyId).map((s) => `script:${s.id}:`),
-    [strategyScripts, openStrategyId],
-  );
-
-  /** The same prefixes for a strategy's *panes and overlays*, which follow a deliberately weaker
-   *  rule: only a tester the user actually closed takes its chart elements with it (exigence :
-   *  « quand je ferme la pane stratégie, les éléments associés seront également fermés »).
+   *  One rule for both, and it used to be two. The fills followed the stricter "drawn if and only
+   *  if the tester is open", on the reasoning that a fill is unreadable without the tester that
+   *  accounts for it. That reasoning is sound and it still produced a plain bug, because a strategy
+   *  that arrives already enabled — a caller's own `defaultScripts` — deliberately does *not* open
+   *  its tester (see the auto-open effect above, which only fires for one that just appeared). So
+   *  it drew nothing, which is indistinguishable from being switched off, and the only way to make
+   *  it show was to switch it off and on again in the picker: the first click did the invisible
+   *  work, the second made it "appear" and opened the tester. Measured on a chart loaded with one:
+   *  42 494 ink at load, 47 612 after the pointless round trip, the 5 118 difference being the
+   *  strategy that had been there the whole time (exigence : « pourquoi je dois double-cliquer sur
+   *  une stratégie pour qu'elle s'affiche ? »).
    *
-   *  A fill is unreadable without the tester that accounts for it, so "not open" is the right rule
-   *  there. A pane or an overlay is an ordinary chart element that stands on its own, so the same
-   *  rule here would withhold the output of every strategy whose tester merely happens not to be
-   *  open — including one just enabled from the picker, whose lines then appeared for a frame and
-   *  went again. Opening the panel clears it, so closing and reopening does bring them back. */
-  const closedPanePrefixes = useMemo(
+   *  Closing the tester by hand still takes everything with it, which is the requirement the
+   *  stricter rule was protecting (« quand je ferme la pane stratégie, les éléments associés seront
+   *  également fermés »), and reopening it brings them back. */
+  const closedPrefixes = useMemo(
     () => closedByUser.filter((id) => id !== openStrategyId).map((id) => `script:${id}:`),
     [closedByUser, openStrategyId],
   );
@@ -160,7 +156,6 @@ export function useStrategyPanelState({ scripts, restoreScriptDrawings }: UseStr
     close,
     toggle,
     detach,
-    closedDrawingPrefixes,
-    closedPanePrefixes,
+    closedPrefixes,
   };
 }

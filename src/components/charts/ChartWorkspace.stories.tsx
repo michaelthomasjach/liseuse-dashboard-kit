@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { SAMPLE_BROKERS } from "../../test-data/sampleBrokers";
 import { AAPL_FINANCIALS } from "../../test-data/symbolFinancialsSample";
 import type { Meta, StoryObj } from "@storybook/react";
 import { ChartWorkspace } from "./ChartWorkspace";
@@ -43,14 +44,14 @@ export const EightPanels: Story = {
           travail entier, quel que soit le panneau depuis lequel on clique.
         </p>
         <ChartWorkspace defaultPanels={8} defaultLinkGroups={groups} onLinkGroupsChange={setGroups}>
-          <CandlestickChart data={DATASETS.AAPL} symbol="AAPL" zoomable />
-          <CandlestickChart data={DATASETS.MSFT} symbol="MSFT" zoomable />
-          <CandlestickChart data={DATASETS.NVDA} symbol="NVDA" zoomable />
-          <CandlestickChart data={DATASETS.GOOGL} symbol="GOOGL" zoomable />
-          <CandlestickChart data={DATASETS.TSLA} symbol="TSLA" zoomable />
-          <CandlestickChart data={DATASETS.AMZN} symbol="AMZN" zoomable />
-          <CandlestickChart data={DATASETS.META} symbol="META" zoomable />
-          <CandlestickChart data={DATASETS.AMD} symbol="AMD" zoomable />
+          <CandlestickChart brokers={SAMPLE_BROKERS} data={DATASETS.AAPL} symbol="AAPL" zoomable />
+          <CandlestickChart brokers={SAMPLE_BROKERS} data={DATASETS.MSFT} symbol="MSFT" zoomable />
+          <CandlestickChart brokers={SAMPLE_BROKERS} data={DATASETS.NVDA} symbol="NVDA" zoomable />
+          <CandlestickChart brokers={SAMPLE_BROKERS} data={DATASETS.GOOGL} symbol="GOOGL" zoomable />
+          <CandlestickChart brokers={SAMPLE_BROKERS} data={DATASETS.TSLA} symbol="TSLA" zoomable />
+          <CandlestickChart brokers={SAMPLE_BROKERS} data={DATASETS.AMZN} symbol="AMZN" zoomable />
+          <CandlestickChart brokers={SAMPLE_BROKERS} data={DATASETS.META} symbol="META" zoomable />
+          <CandlestickChart brokers={SAMPLE_BROKERS} data={DATASETS.AMD} symbol="AMD" zoomable />
         </ChartWorkspace>
       </div>
     );
@@ -66,8 +67,8 @@ export const TwoPanels: Story = {
     // CandlestickChart.stories.tsx's own "Toutes les options" story.
     <div style={{ margin: -32 }}>
       <ChartWorkspace defaultPanels={2}>
-        <CandlestickChart data={DATASETS.AAPL} symbol="AAPL" zoomable />
-        <CandlestickChart data={DATASETS.MSFT} symbol="MSFT" zoomable />
+        <CandlestickChart brokers={SAMPLE_BROKERS} data={DATASETS.AAPL} symbol="AAPL" zoomable />
+        <CandlestickChart brokers={SAMPLE_BROKERS} data={DATASETS.MSFT} symbol="MSFT" zoomable />
       </ChartWorkspace>
     </div>
   ),
@@ -143,7 +144,7 @@ export const SymbolProfileWorkspace: Story = {
   render: () => (
     <div style={{ margin: -32 }}>
       <ChartWorkspace defaultPanels={1} watchlists={SYMBOL_PROFILE_WATCHLISTS} symbolProfiles={SYMBOL_PROFILES}>
-        <CandlestickChart data={DATASETS.AAPL} symbol="AAPL" zoomable />
+        <CandlestickChart brokers={SAMPLE_BROKERS} data={DATASETS.AAPL} symbol="AAPL" zoomable />
       </ChartWorkspace>
     </div>
   ),
@@ -154,8 +155,8 @@ export const ScriptingWorkspace: Story = {
   render: () => (
     <div style={{ margin: -32 }}>
       <ChartWorkspace defaultPanels={2} scripting>
-        <CandlestickChart data={DATASETS.AAPL} symbol="AAPL" zoomable showIndicators defaultIndicators={[{ id: "i-0", kind: "rsi", period: 14 }]} />
-        <CandlestickChart data={DATASETS.MSFT} symbol="MSFT" zoomable showIndicators defaultIndicators={[{ id: "i-0", kind: "rsi", period: 14 }]} />
+        <CandlestickChart brokers={SAMPLE_BROKERS} data={DATASETS.AAPL} symbol="AAPL" zoomable showIndicators defaultIndicators={[{ id: "i-0", kind: "rsi", period: 14 }]} />
+        <CandlestickChart brokers={SAMPLE_BROKERS} data={DATASETS.MSFT} symbol="MSFT" zoomable showIndicators defaultIndicators={[{ id: "i-0", kind: "rsi", period: 14 }]} />
       </ChartWorkspace>
     </div>
   ),
@@ -182,7 +183,7 @@ export const LateWatchlists: Story = {
           </button>
         )}
         <ChartWorkspace defaultPanels={1} watchlists={watchlists} symbolProfiles={SYMBOL_PROFILES}>
-          <CandlestickChart data={DATASETS.AAPL} symbol="AAPL" zoomable />
+          <CandlestickChart brokers={SAMPLE_BROKERS} data={DATASETS.AAPL} symbol="AAPL" zoomable />
         </ChartWorkspace>
       </div>
     );

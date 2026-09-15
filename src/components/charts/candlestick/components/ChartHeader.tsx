@@ -1,6 +1,6 @@
 import type { RefObject, Dispatch, SetStateAction } from "react";
 import { Popover } from "../../../forms/Popover";
-import {
+import { PlugIcon,
   ChevronDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -75,6 +75,11 @@ export interface ChartHeaderProps {
   sidePanelOpen: boolean;
   onToggleSidePanel: () => void;
   showTemplates: boolean;
+  /** Opens the broker dialog. Null when the caller passed no brokers, which is what keeps the
+   *  button out of the bar entirely rather than showing one that opens an empty list. */
+  onBrokerClick: (() => void) | null;
+  /** How many brokers are connected — the button reads as active past zero. */
+  brokerConnectionCount: number;
   templates: ChartTemplate[];
   activeTemplateId: string | null;
   templatesDirty: boolean;
@@ -142,6 +147,8 @@ export function ChartHeader({
   sidePanelOpen,
   onToggleSidePanel,
   showTemplates,
+  onBrokerClick,
+  brokerConnectionCount,
   templates,
   activeTemplateId,
   templatesDirty,
@@ -392,8 +399,19 @@ export function ChartHeader({
           .lq-chart__header-right's own CSS comment — so the link button and TemplateControls
           land flush together at the bar's far right edge instead of each fighting the other for
           the same leftover space. */}
-      {(linkable || showTemplates) && (
+      {(linkable || showTemplates || onBrokerClick !== null) && (
         <div className="lq-chart__header-right">
+          {onBrokerClick !== null && (
+            <button
+              type="button"
+              className={["lq-chart__icon-button", brokerConnectionCount > 0 && "lq-chart__icon-button--active"].filter(Boolean).join(" ")}
+              onClick={onBrokerClick}
+              aria-label={brokerConnectionCount > 0 ? `Brokers (${brokerConnectionCount} connecté${brokerConnectionCount > 1 ? "s" : ""})` : "Se connecter à un broker"}
+              title={brokerConnectionCount > 0 ? `Brokers (${brokerConnectionCount} connecté${brokerConnectionCount > 1 ? "s" : ""})` : "Se connecter à un broker"}
+            >
+              <PlugIcon size={14} />
+            </button>
+          )}
           {linkable && (
             <button
               type="button"

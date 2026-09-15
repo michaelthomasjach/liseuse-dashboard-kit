@@ -26,6 +26,7 @@ import {
   type WatchlistNewsItem,
   type SymbolProfile,
 } from "./ChartWorkspace";
+import { SAMPLE_BROKERS } from "../../test-data/sampleBrokers";
 import { generateCandles, generateCandlesByTimeframe, type MockTimeframeKey } from "../../test-data/financeSampleData";
 import { BTC_REAL_SAMPLE } from "../../test-data/btcRealSample";
 import type { AiSend } from "./candlestick/ai/interfaces/AiMessage.interface";
@@ -891,6 +892,10 @@ export const AllFeatures: Story = {
             seasonality
             replay
             showTemplates
+            /* Aucun `onBrokerConnect` : le dialogue simule la connexion, ce qui est le seul moyen
+               de montrer le parcours complet — en attente, connecté, déconnexion — sans compte
+               nulle part. Voir `simulateConnect`. */
+            brokers={SAMPLE_BROKERS}
           />
         </ChartWorkspace>
       </div>

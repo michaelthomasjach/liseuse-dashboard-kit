@@ -342,6 +342,17 @@ export const BellIcon = (props: AnimatedIconProps) => (
   </IconBase>
 );
 
+/** A plug, prongs up, on its lead — "connect this to something". Used for the broker connection
+ *  the chart's own header offers; a plug says *link to an outside service* in a way a chain link
+ *  does not, and `LinkIcon` is already spoken for by chart-to-chart linking in the same bar. */
+export const PlugIcon = (props: AnimatedIconProps) => (
+  <IconBase motion="bob" {...props}>
+    <path d="M9 3.5v4M15 3.5v4" />
+    <path d="M6 7.5h12v3a6 6 0 0 1-12 0v-3Z" />
+    <path d="M12 16.5v4" />
+  </IconBase>
+);
+
 /** An alarm clock: the face, its hands, the two winding keys on top and the two feet.
  *
  *  This is the *alert* icon, and it exists because `BellIcon` could not be — a bell already names

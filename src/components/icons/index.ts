@@ -43,6 +43,7 @@ export {
   ArrowDownIcon,
   MenuIcon,
   AlarmClockIcon,
+  PlugIcon,
   BellIcon,
   WatchlistIcon,
   PieChartIcon,

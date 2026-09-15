@@ -57,6 +57,7 @@ import { ChartLegend } from "./candlestick/components/ChartLegend";
 import { PaneHeaders } from "./candlestick/components/PaneHeaders";
 import { ChartPlotOverlays } from "./candlestick/components/ChartPlotOverlays";
 import { ScriptTableOverlay } from "./candlestick/components/ScriptTableOverlay";
+import { BrokerConnectModal } from "./candlestick/components/BrokerConnectModal";
 import { ScriptLabelOverlay } from "./candlestick/components/ScriptLabelOverlay";
 import { FloatingDrawingToolbar } from "./candlestick/components/FloatingDrawingToolbar";
 import { ChartModals } from "./candlestick/components/ChartModals";
@@ -65,6 +66,7 @@ import { SeasonalityView } from "./SeasonalityView";
 import "./charts-shared.css";
 
 import type { CandlestickChartProps } from "./CandlestickChart.types";
+import type { BrokerConnection } from "./candlestick/interfaces/Broker.interface";
 
 export type {
   Candle,
@@ -131,6 +133,10 @@ export function CandlestickChart({
   defaultIndicators,
   onIndicatorsChange, customIndicators,
   showTemplates = false,
+  brokers,
+  defaultBrokerConnections,
+  onBrokerConnectionsChange,
+  onBrokerConnect,
   defaultTemplates,
   onTemplatesChange,
   initialVisibleCandles = 500,
@@ -706,6 +712,16 @@ export function CandlestickChart({
   const { chartDisplayMode, setChartDisplayMode, displayModeOpen, setDisplayModeOpen, displayModeAnchorRef, visible, heikinAshiCandles, renkoBricks, lineBreakBricks } =
     useChartDisplayMode({ data, visibleRange, renkoAtrPeriod, defaultChartDisplayMode });
   const tpoOverlays = useTpoOverlay(data, visibleRange, indicators);
+
+  // Uncontrolled, like `drawings` and `indicators`: seeded from the prop, owned here afterwards,
+  // and every change reported outward. The credentials never reach this state — see
+  // `BrokerConnection`'s own doc for why the connection object carries none.
+  const [brokerConnections, setBrokerConnections] = useState<BrokerConnection[]>(defaultBrokerConnections ?? []);
+  const [brokerModalOpen, setBrokerModalOpen] = useState(false);
+  const commitBrokerConnections = (next: BrokerConnection[]) => {
+    setBrokerConnections(next);
+    onBrokerConnectionsChange?.(next);
+  };
 
   // The ripple on the close line's own last point. `useClosePulse` fires on a *change* of the last
   // revealed close, which is what makes this a live/replay feature without having to be told about
@@ -1326,6 +1342,8 @@ export function CandlestickChart({
           sidePanelOpen={sidePanelState.open}
           onToggleSidePanel={() => sidePanelState.commitOpen(!sidePanelState.open)}
           showTemplates={showTemplates}
+          onBrokerClick={brokers !== undefined && brokers.length > 0 ? () => setBrokerModalOpen(true) : null}
+          brokerConnectionCount={brokerConnections.length}
           templates={templates}
           activeTemplateId={activeTemplateId}
           templatesDirty={templatesDirty}
@@ -1443,6 +1461,19 @@ export function CandlestickChart({
             it. Fed the *visible* indicators only: a score built partly from something the reader
             has hidden would be unexplainable by looking at the chart, which is the one thing this
             panel promises. */}
+        {brokers !== undefined && brokers.length > 0 && (
+          <BrokerConnectModal
+            open={brokerModalOpen}
+            onClose={() => setBrokerModalOpen(false)}
+            brokers={brokers}
+            connections={brokerConnections}
+            onConnect={onBrokerConnect}
+            onConnected={(connection) =>
+              commitBrokerConnections([...brokerConnections.filter((c) => c.brokerId !== connection.brokerId), connection])
+            }
+            onDisconnect={(brokerId) => commitBrokerConnections(brokerConnections.filter((c) => c.brokerId !== brokerId))}
+          />
+        )}
         <ChartMarketState
           open={marketStateOpen}
           onClose={() => setMarketStateOpen(false)}

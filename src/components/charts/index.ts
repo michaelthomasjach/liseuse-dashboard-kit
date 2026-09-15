@@ -74,6 +74,8 @@ export type { WorldExposureMapProps, WorldExposureDatum } from "./WorldExposureM
 export { matchContinent, CONTINENT_LABELS, CONTINENTS } from "./worldGeo";
 export type { Continent } from "./worldGeo";
 
+export type { BrokerDef, BrokerConnection, BrokerCredentialField } from "./candlestick/interfaces/Broker.interface";
+
 export { MatrixChart } from "./MatrixChart";
 export type { MatrixChartProps, MatrixCell, MatrixCellDetail, MatrixAxisEntry } from "./MatrixChart";
 

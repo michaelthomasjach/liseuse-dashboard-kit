@@ -471,25 +471,41 @@ export function IndicatorPickerModal({
                           title={option.enabled === undefined ? undefined : option.enabled ? "Désactiver ce script" : "Activer ce script"}
                         >
                           <span className="lq-chart__indicator-picker-name">{option.label}</span>
-                          {option.alreadyPresent && (
-                            <span className="lq-chart__indicator-picker-check" title="Déjà affiché sur ce graphique">
-                              <CheckIcon size={13} />
-                            </span>
-                          )}
-                          {/* One badge per place this row's output lands — "price" first, so a
-                              row that does both always reads in the same order. */}
-                          {(option.placements?.length ? option.placements : [option.pane])
-                            .slice()
-                            .sort((a, b) => (a === b ? 0 : a === "price" ? -1 : 1))
-                            .map((placement) => (
-                              <span
-                                key={placement}
-                                className="lq-chart__indicators-manager-badge"
-                                title={placement === "price" ? "Superposé au prix" : "Panneau séparé"}
-                              >
-                                {placement === "price" ? <OverlayBadgeIcon size={13} /> : <PaneBadgeIcon size={13} />}
-                              </span>
-                            ))}
+                          {/* The trailing marks travel together, in one group the row's own
+                              `space-between` pushes to the right edge. The "already added" mark used
+                              to sit loose between the name and the badges, which put it in the
+                              middle of the row with nothing either side of it. */}
+                          <span className="lq-chart__indicator-picker-marks">
+                            {option.alreadyPresent && (
+                              <>
+                                {/* Both are rendered; the stylesheet picks. A container query on the
+                                    row swaps the word for the tick once the row is too narrow to
+                                    hold it, which is a question about *this row's* width — the
+                                    picker is a side panel on one layout and a wide modal on
+                                    another — and not about the viewport's. */}
+                                <span className="lq-chart__indicator-picker-added" title="Déjà affiché sur ce graphique">
+                                  Added
+                                </span>
+                                <span className="lq-chart__indicator-picker-check" title="Déjà affiché sur ce graphique">
+                                  <CheckIcon size={13} />
+                                </span>
+                              </>
+                            )}
+                            {/* One badge per place this row's output lands — "price" first, so a
+                                row that does both always reads in the same order. */}
+                            {(option.placements?.length ? option.placements : [option.pane])
+                              .slice()
+                              .sort((a, b) => (a === b ? 0 : a === "price" ? -1 : 1))
+                              .map((placement) => (
+                                <span
+                                  key={placement}
+                                  className="lq-chart__indicators-manager-badge"
+                                  title={placement === "price" ? "Superposé au prix" : "Panneau séparé"}
+                                >
+                                  {placement === "price" ? <OverlayBadgeIcon size={13} /> : <PaneBadgeIcon size={13} />}
+                                </span>
+                              ))}
+                          </span>
                         </button>
                         {option.codeTarget !== undefined && (
                           <button

@@ -11,6 +11,11 @@ const FILL_HOVER_DISTANCE = 8;
  *  the gutter holding them has to be — see where it is computed. */
 const TICK_LABEL_OFFSET = 6;
 
+/** The narrowest an active trade's band is allowed to be drawn. A trade that opened and closed on
+ *  the same bar is a real and common case, and at zero width its highlight is not a thin band, it
+ *  is nothing at all. */
+const MIN_SPAN_WIDTH = 3;
+
 /** The equity sample nearest a moment.
  *
  *  A bisection rather than the linear scan the hover path uses: this one runs once per trade on
@@ -46,6 +51,14 @@ export interface StrategyEquityChartProps {
   /** Reports the fill the pointer is on, so the price chart can point at it. `null` whenever the
    *  pointer is on the curve but not near any fill. */
   onHoverTrades?: (trades: StrategyTrade[] | null) => void;
+  /** One trade to show the *span* of — from its entry to its exit — rather than the single moment
+   *  `markedTime` marks. Everything outside it is dimmed, which is the only way to answer "how much
+   *  of this curve is that trade" on a series where one trade can be two pixels wide.
+   *
+   *  Separate from `markedTime` on purpose: that one comes from the price chart and points at a
+   *  fill, a moment; this comes from inside the panel — the trade strip below the curve — and a
+   *  trade there is a period. `null` when nothing is being pointed at. */
+  activeTrade?: StrategyTrade | null;
 }
 
 /** The strategy's own equity curve, drawn as cumulative P&L rather than raw account value: the
@@ -60,7 +73,7 @@ export interface StrategyEquityChartProps {
  *  Plain SVG rather than the canvas pipeline the chart itself uses: this is a few hundred points
  *  in a panel, not a zoomable series over the whole history, and SVG keeps it inspectable and
  *  crisp with no device-pixel-ratio handling of its own. */
-function StrategyEquityChartImpl({ equity, trades, initialCapital, currency, width, height, formatDate, markedTime = null, onHoverTrades }: StrategyEquityChartProps) {
+function StrategyEquityChartImpl({ equity, trades, initialCapital, currency, width, height, formatDate, markedTime = null, activeTrade = null, onHoverTrades }: StrategyEquityChartProps) {
   // Where the pointer is inside the plot, in the group's own coordinates. Null when it is outside.
   // Declared up here with the other hooks: there is an early return further down for a run with
   // too few bars to draw, and a hook after it would not run on every render.
@@ -164,6 +177,28 @@ function StrategyEquityChartImpl({ equity, trades, initialCapital, currency, wid
     return best === -1 ? null : xScale(best);
   })();
 
+  /** The band the active trade occupies, in pixels along the curve.
+   *
+   *  Both ends land on the equity sample nearest their own moment, the same rule the per-trade dots
+   *  use, so the band's right edge and that trade's dot are the same place rather than two answers
+   *  to the same question. A trade opened and closed on one bar would otherwise be a band of zero
+   *  width — invisible, and a reader would conclude the highlight was broken rather than that the
+   *  trade was that short — so it is widened to a couple of pixels around its own centre. */
+  const activeSpan = (() => {
+    if (activeTrade === null || equity.length === 0) return null;
+    const from = xScale(nearestEquityIndex(equity, activeTrade.entryTime));
+    const to = xScale(nearestEquityIndex(equity, activeTrade.exitTime));
+    const left = Math.min(from, to);
+    const right = Math.max(from, to);
+    const pad = right - left < MIN_SPAN_WIDTH ? (MIN_SPAN_WIDTH - (right - left)) / 2 : 0;
+    return {
+      left: Math.max(0, left - pad),
+      right: Math.min(innerWidth, right + pad),
+      entryLabel: formatDate(new Date(activeTrade.entryTime)),
+      exitLabel: formatDate(new Date(activeTrade.exitTime)),
+    };
+  })();
+
   /** Which trade's fill sits under the pointer, by x along the curve. The curve is indexed by bar
    *  while a fill knows only its own timestamp, so both are converted to a pixel and compared
    *  there — one mapping instead of two that could disagree. */
@@ -264,6 +299,45 @@ function StrategyEquityChartImpl({ equity, trades, initialCapital, currency, wid
         <g transform={`translate(${innerWidth}, ${yScale(finalPnl)})`}>
           <circle className={`lq-strategy__equity-last lq-strategy__equity-last--${finalPnl >= 0 ? "up" : "down"}`} r={3} />
         </g>
+        {/* The active trade's own stretch of the run. Drawn as two veils over everything *outside*
+            it rather than as a tint inside it: a tint would have to sit under the curve to be read
+            as a background, and under the curve is exactly where a filled area already is. Veiling
+            the rest leaves the trade's own stretch untouched — the curve, its dots and the grid all
+            at full strength — and needs no colour of its own to say which part is the answer.
+
+            Above everything the plot draws and below the crosshair, which measures whatever is
+            under the pointer and has to stay legible over a dimmed stretch. */}
+        {activeSpan !== null && (
+          <g className="lq-strategy__equity-span">
+            <rect className="lq-strategy__equity-veil" x={0} y={0} width={Math.max(0, activeSpan.left)} height={innerHeight} />
+            <rect
+              className="lq-strategy__equity-veil"
+              x={activeSpan.right}
+              y={0}
+              width={Math.max(0, innerWidth - activeSpan.right)}
+              height={innerHeight}
+            />
+            {/* The two fills themselves. Without them the band has edges but no *meaning*: this is
+                where the trade was opened and this is where it was closed, which is the half of the
+                question the veil alone does not answer. */}
+            <line className="lq-strategy__equity-span-edge" x1={activeSpan.left} x2={activeSpan.left} y1={0} y2={innerHeight} />
+            <line className="lq-strategy__equity-span-edge" x1={activeSpan.right} x2={activeSpan.right} y1={0} y2={innerHeight} />
+            {/* Named only when the band is wide enough to hold both without them colliding or
+                spilling over its own edges. Below that the band is a sliver and the dates it would
+                carry belong to the strip's own readout, which is already showing them. */}
+            {activeSpan.right - activeSpan.left >= 96 && (
+              <>
+                <text className="lq-strategy__equity-span-label" x={activeSpan.left + 4} y={10}>
+                  Entrée {activeSpan.entryLabel}
+                </text>
+                <text className="lq-strategy__equity-span-label" x={activeSpan.right - 4} y={10} textAnchor="end">
+                  Sortie {activeSpan.exitLabel}
+                </text>
+              </>
+            )}
+          </g>
+        )}
+
         {/* One tick per end of the replayed range: a full date axis would need its own thinning
             pass for what is, in a panel this size, two useful labels. */}
         <text className="lq-strategy__equity-date" x={0} y={innerHeight + 14}>

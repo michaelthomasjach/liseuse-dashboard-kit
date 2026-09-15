@@ -178,6 +178,28 @@
   fill: var(--lq-color-down);
 }
 
+/* The veil over everything outside the active trade. The panel's own background rather than a
+   neutral grey, so the dimmed stretch reads as *further away* rather than as tinted — and it works
+   on every palette, including the one where a grey would be the text colour. */
+.lq-strategy__equity-veil {
+  fill: var(--lq-color-panel);
+  opacity: 0.68;
+  pointer-events: none;
+}
+
+.lq-strategy__equity-span-edge {
+  stroke: var(--lq-color-accent);
+  stroke-width: 1;
+  pointer-events: none;
+}
+
+.lq-strategy__equity-span-label {
+  font-size: 9px;
+  fill: var(--lq-color-text-muted);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
 .lq-strategy__equity-tick,
 .lq-strategy__equity-date {
   font-size: 9px;

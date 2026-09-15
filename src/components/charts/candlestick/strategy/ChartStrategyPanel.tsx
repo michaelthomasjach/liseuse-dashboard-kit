@@ -114,6 +114,11 @@ export function ChartStrategyPanel({
   initialWidth,
 }: ChartStrategyPanelProps) {
   const [tab, setTab] = useState<StrategyTab>("performance");
+  // The trade the strip under the curve is pointing at, kept here rather than inside the strip
+  // because it is the *curve* that has to answer it. `markedTime` cannot carry this: it is one
+  // moment, and what a bar of the strip names is a period — where the trade was opened, where it
+  // was closed, and how much of the run is between the two.
+  const [ribbonTrade, setRibbonTrade] = useState<StrategyTrade | null>(null);
   // Folded to its header on a narrow chart. At 390px the panel is 41% of the screen, and this app's
   // whole point is trying the *chart* with a finger — opening onto a backtest that has pushed the
   // candles into the top half is the wrong first screen. Seeded from the width rather than watched:
@@ -426,6 +431,7 @@ export function ChartStrategyPanel({
                 height={equityChartHeight(bodyDims.height)}
                 formatDate={formatDate}
                 markedTime={markedTime}
+                activeTrade={ribbonTrade}
                 onHoverTrades={onHoverTrades}
               />
               {result.trades.length > 0 && (
@@ -435,7 +441,13 @@ export function ChartStrategyPanel({
                   formatDate={formatDate}
                   markedTime={markedTime}
                   markedToleranceMs={markedToleranceMs}
-                  onHoverTrades={onHoverTrades}
+                  // Two destinations for one gesture: the price chart above, which marks the two
+                  // fills, and the curve just above the strip, which shows the stretch between
+                  // them.
+                  onHoverTrades={(hovered) => {
+                    setRibbonTrade(hovered === null ? null : (hovered[0] ?? null));
+                    onHoverTrades?.(hovered);
+                  }}
                 />
               )}
               <StrategyMetricsGrid metrics={result.metrics} currency={settings.currency} />

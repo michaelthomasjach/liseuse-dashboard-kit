@@ -61,6 +61,10 @@ export interface ChartCanvasOverlayProps {
   /** Touch-placement marker in plot-local pixels, or null when nothing is being placed — see
    *  useMobilePointPlacement. Purely something to draw; this component owns none of the gesture. */
   placementMarker: { x: number; y: number } | null;
+  /** The ripple on the close line's last point: where it sits, which way the price went, and a
+   *  sequence number that changes on every fired ripple. Null whenever there is nothing to show —
+   *  another display mode, the option off, or a price that has not moved. */
+  closePulse: { x: number; y: number; direction: "up" | "down"; seq: number } | null;
   activeTool: DrawingToolType | null;
   handleOverlayPointerDown: (e: React.PointerEvent<SVGRectElement>) => void;
   handlePointerMove: (e: React.PointerEvent<SVGRectElement>) => void;
@@ -194,6 +198,7 @@ export function ChartCanvasOverlay({
   dateTickFormat,
   zoomRef,
   placementMarker,
+  closePulse,
   activeTool,
   handleOverlayPointerDown,
   handlePointerMove,
@@ -386,6 +391,27 @@ export function ChartCanvasOverlay({
             y1={snapPixel(plotBoundedHeight)}
             y2={snapPixel(plotBoundedHeight)}
           />
+
+          {/* A ripple where the close line ends, fired by `useClosePulse` each time the price
+              actually moves. Drawn here rather than on the canvas because it has to keep animating
+              between draws: the canvas is repainted when something changes, and a wave that only
+              advanced when the chart happened to redraw would stutter. As SVG with a CSS keyframe
+              it runs on the compositor and costs the chart nothing.
+
+              Keyed by `seq` so each new price remounts the circles — restarting a CSS animation
+              needs a new node, and without it a second rise in a row would draw nothing at all. */}
+          {closePulse && (
+            <g
+              key={closePulse.seq}
+              className={"lq-chart__close-pulse lq-chart__close-pulse--" + closePulse.direction}
+              transform={"translate(" + closePulse.x + ", " + closePulse.y + ")"}
+              aria-hidden="true"
+            >
+              <circle className="lq-chart__close-pulse-ring" r={0} />
+              <circle className="lq-chart__close-pulse-ring lq-chart__close-pulse-ring--late" r={0} />
+              <circle className="lq-chart__close-pulse-dot" r={2.5} />
+            </g>
+          )}
 
           {/* The touch placement marker (see useMobilePointPlacement) — a dot for the position
               itself, plus a dashed cross spanning the whole plot so it can be lined up against a

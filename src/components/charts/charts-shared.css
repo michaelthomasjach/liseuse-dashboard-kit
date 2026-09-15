@@ -1701,7 +1701,15 @@
    fixed 8px inset from that ancestor's own edge, not the chart's internal margins. */
 .lq-chart__script-table-corner {
   position: absolute;
-  z-index: 6;
+  /* 2100 — above the library's floating-surface layer (2000: the Market State readout, the drawing
+     toolbar, the assistant's sheet), below modals (3000). See Modal.css for the whole scale.
+
+     At 6 it lost to every one of those. Measured with the Market State open: the readout is
+     anchored to the same top-right corner, so it painted over the right third of a Trend Survival
+     Matrix table — the S+5, S+10, S+20 and ÉTAT columns simply were not there. A script's table is
+     output the reader asked a script to produce, so it wins over chrome they can close; a script
+     that wants the other order sets `plot.table(..., { zIndex })` itself. */
+  z-index: 2100;
   display: flex;
   flex-direction: column;
   gap: var(--lq-space-2);
@@ -3290,3 +3298,69 @@
   pointer-events: auto;
 }
 
+
+/* ── L'onde du dernier cours (mode « Ligne de clôture ») ──────────────────────────────────── */
+
+/* Deux anneaux partant du dernier point de la ligne, le second en retard sur le premier, plus un
+   point fixe qui marque la position. Le rayon s'arrête à 10px : l'exigence est « 20px de diamètre
+   au maximum », et c'est le rayon final de l'animation qui la fixe, pas la taille du <g>.
+
+   Discret par construction : l'anneau naît à 0.5 d'opacité et s'éteint en grandissant, donc il est
+   déjà presque invisible quand il atteint sa taille maximale. Il ne reste rien à l'écran entre deux
+   cours. */
+.lq-chart__close-pulse {
+  pointer-events: none;
+}
+
+.lq-chart__close-pulse-ring {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.25;
+  opacity: 0;
+  animation: lq-close-pulse 1.15s cubic-bezier(0.22, 0.61, 0.36, 1) 1 both;
+}
+
+.lq-chart__close-pulse-ring--late {
+  animation-delay: 0.22s;
+}
+
+.lq-chart__close-pulse-dot {
+  fill: currentColor;
+  opacity: 0.85;
+}
+
+/* `currentColor` sur le groupe : les deux anneaux et le point suivent la même teinte, et la seule
+   chose qui change entre hausse et baisse est cette déclaration-ci. */
+.lq-chart__close-pulse--up {
+  color: var(--lq-color-up);
+}
+
+.lq-chart__close-pulse--down {
+  color: var(--lq-color-down);
+}
+
+@keyframes lq-close-pulse {
+  from {
+    r: 1px;
+    opacity: 0.5;
+  }
+  to {
+    r: 10px;
+    opacity: 0;
+  }
+}
+
+/* Une onde est une animation décorative et rien d'autre : sans elle, le point reste et dit toujours
+   où la ligne se termine. */
+@media (prefers-reduced-motion: reduce) {
+  .lq-chart__close-pulse-ring {
+    animation: none;
+  }
+}
+
+.lq-chart__settings-hint {
+  margin: var(--lq-space-1) 0 0;
+  font-size: 0.74rem;
+  line-height: 1.4;
+  color: var(--lq-color-text-muted);
+}

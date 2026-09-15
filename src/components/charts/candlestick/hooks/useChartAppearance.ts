@@ -46,6 +46,11 @@ export function useChartAppearance({ YAutoScaling, livePrice, controlledSettings
   // same reasoning as yAutoScalingState above: purely a viewer preference, with no data of its own
   // for a caller to control. Both default on — exigence : « par défaut je veux que ces 2 options
   // soit cochées » (a change from futureZoneVisible's own previous default-off, see git history).
+  // The ripple on the close line's last point. Same kind of state as the two zones below — a
+  // viewer preference with no data of its own — except that the setting is only ever *shown* in the
+  // "Ligne de clôture" mode, the only one with a close line to put it on. Kept, not reset, when the
+  // mode changes: coming back to the line should find it as it was left.
+  const [closePulseVisible, setClosePulseVisible] = useState(true);
   const [futureZoneVisible, setFutureZoneVisible] = useState(true);
   const [pastZoneVisible, setPastZoneVisible] = useState(true);
 
@@ -74,6 +79,8 @@ export function useChartAppearance({ YAutoScaling, livePrice, controlledSettings
     setVolumeSettingsOpen,
     yAutoScalingState,
     setYAutoScalingState,
+    closePulseVisible,
+    setClosePulseVisible,
     futureZoneVisible,
     setFutureZoneVisible,
     pastZoneVisible,

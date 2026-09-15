@@ -19,6 +19,10 @@ export interface ChartSettingsModalsProps {
   setLayoutOverride: (mode: "mobile" | "desktop" | null) => void;
   setSettingsOpen: (open: boolean) => void;
   chartDisplayMode: ChartDisplayMode;
+  /** The ripple on the close line's last point — see `useClosePulse`. Only ever offered in the
+   *  "line" mode, which is the only one that draws a close line to put it on. */
+  closePulseVisible: boolean;
+  setClosePulseVisible: (visible: boolean) => void;
   setChartDisplayMode: (mode: ChartDisplayMode) => void;
   onChartDisplayModeChange: ((mode: ChartDisplayMode) => void) | undefined;
   upColorOverride: string | undefined;
@@ -54,6 +58,8 @@ export function ChartSettingsModals({
   setLayoutOverride,
   setSettingsOpen,
   chartDisplayMode,
+  closePulseVisible,
+  setClosePulseVisible,
   setChartDisplayMode,
   onChartDisplayModeChange,
   upColorOverride,
@@ -132,6 +138,27 @@ export function ChartSettingsModals({
               ))}
             </div>
           </div>
+          {/* Offered only where it applies. Every other mode draws bars, and a ripple pinned to
+              "the last point of the close line" has no point to sit on without one — a toggle for
+              something that cannot happen is worse than no toggle at all. */}
+          {chartDisplayMode === "line" && (
+            <div className="lq-field">
+              <label className="lq-field__label">Dernier cours</label>
+              <div className="lq-chart__settings-layout-row">
+                <Toggle
+                  checked={closePulseVisible}
+                  onChange={() => setClosePulseVisible(!closePulseVisible)}
+                  ariaLabel="Onde sur le dernier point de la ligne"
+                />
+                <span className="lq-chart__settings-layout-label">Onde à chaque nouveau cours</span>
+              </div>
+              <p className="lq-chart__settings-hint">
+                Une onde verte quand la clôture monte, rouge quand elle baisse. Visible seulement
+                quand le cours change : en direct ou pendant un replay.
+              </p>
+            </div>
+          )}
+
           {/* A manual override on the automatic width rule. Here rather than in the header because
               it is a "how this chart is laid out" setting — the same family as the candle style
               above it — and not something anyone flips often enough to earn a permanent button.

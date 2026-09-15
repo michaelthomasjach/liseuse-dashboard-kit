@@ -1139,7 +1139,23 @@ if (auDessus !== null && auDessusAvant !== null && auDessus !== auDessusAvant) {
 // un trade s'est déclenché à cet endroit-là plutôt qu'un autre.
 const overlay = plot.overlay("Croisement de moyennes");
 if (courte !== null) overlay.line("SMA " + COURTE, courte, { color: "#e0a95c" });
-if (longue !== null) overlay.line("SMA " + LONGUE, longue, { color: "#6c87c9" });`,
+if (longue !== null) overlay.line("SMA " + LONGUE, longue, { color: "#6c87c9" });
+
+@block L'écart des deux moyennes, dans une pane sous les bougies
+
+// Le même signal, vu autrement : l'écart passe par zéro exactement là où les deux courbes se
+// croisent. La superposition montre QUE les moyennes se croisent ; la pane montre DE COMBIEN on
+// s'en approche — sur un instrument où les deux courbes restent collées l'une à l'autre, c'est la
+// seule des deux vues qui soit lisible.
+//
+// Une pane et une superposition posées par le même script sont un seul objet : fermer l'une ferme
+// l'autre, et le testeur de stratégie avec elles.
+if (courte !== null && longue !== null) {
+  const ecart = courte - longue;
+  plot.pane("Écart des moyennes").histogram("Courte − longue", ecart, {
+    color: ecart >= 0 ? "#7fb37f" : "#c97c7c",
+  });
+}`,
   },
   {
     id: "permutation-entropy",

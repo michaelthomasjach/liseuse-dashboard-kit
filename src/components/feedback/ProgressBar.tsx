@@ -22,6 +22,14 @@ export interface ProgressBarSegment {
 
 // Mirrors charts/internal/palette.ts's own CHART_PALETTE — see ProgressBarSegment.color's own doc
 // for why this is a hand-kept duplicate instead of a cross-module import.
+//
+// Each entry steps in *strength* as well as hue, and that second axis is what makes the palette
+// work at all under E-ink. There, every accent token deliberately collapses to `--lq-color-text`
+// (see tokens.css's own monochrome fallbacks), so six hues became six identical blocks — measured:
+// four segments, one colour, a bar that partitions nothing anyone can see. Mixed toward the
+// background at a descending share, the same six entries become a legible ramp when the hues go
+// away, and stay six distinct colours when they do not.
+const SEGMENT_STRENGTHS = [100, 88, 76, 64, 52, 40];
 const SEGMENT_PALETTE = [
   "var(--lq-color-accent)",
   "var(--lq-color-green)",
@@ -29,7 +37,7 @@ const SEGMENT_PALETTE = [
   "var(--lq-color-sky)",
   "var(--lq-color-rose)",
   "var(--lq-color-violet)",
-];
+].map((hue, i) => `color-mix(in srgb, ${hue} ${SEGMENT_STRENGTHS[i]}%, var(--lq-color-bg))`);
 
 export interface ProgressBarProps {
   /** 0-100. Omit for an indeterminate bar. Ignored once `segments` is set. */

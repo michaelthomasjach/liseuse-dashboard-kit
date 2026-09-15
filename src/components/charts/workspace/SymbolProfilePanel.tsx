@@ -407,7 +407,11 @@ export function SymbolProfilePanel({
                 two different widths: a fullscreen modal and a detached window's 1200px page, and a
                 fixed number could only ever be right for one of them. Only that layout: the mobile
                 sheet is not the copy this is sized for. */}
-            <EarningsDotChart points={profile.earnings} {...(layout === "expanded" ? { height: 340, scale: 2, fill: true } : {})} />
+            <EarningsDotChart
+              points={profile.earnings}
+              highlightOnHover
+              {...(layout === "expanded" ? { height: 340, scale: 2, fill: true } : {})}
+            />
             {/* Under the chart rather than in the header: the header's own icons are for people who
                 already know what they do, and this is the one action a reader arrives at by reading
                 downward. Only on the docked copy — inside the modal there is nothing further to
@@ -508,7 +512,7 @@ export function SymbolProfilePanel({
 
       {profile?.earnings && profile.earnings.length > 0 && (
         <Modal open={earningsModalOpen} onClose={() => setEarningsModalOpen(false)} title={`Résultats — ${symbol}`} size="wide">
-          <EarningsDotChart points={profile.earnings} width={760} height={420} scale={2} />
+          <EarningsDotChart points={profile.earnings} width={760} height={420} scale={2} highlightOnHover />
         </Modal>
       )}
     </div>

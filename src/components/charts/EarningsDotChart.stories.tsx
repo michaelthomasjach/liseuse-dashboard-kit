@@ -1,6 +1,8 @@
+import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react";
 import { EarningsDotChart } from "./EarningsDotChart";
 import type { SymbolProfileEarningsPoint } from "./workspace/SymbolProfile.interface";
+import { StatCard } from "../finance/StatCard";
 
 const meta: Meta<typeof EarningsDotChart> = {
   title: "Charts/EarningsDotChart",
@@ -38,6 +40,57 @@ const MISSES: SymbolProfileEarningsPoint[] = [
   { date: "T1 25", estimateEps: 0.44, actualEps: 0.49 },
   { date: "T2 25", estimateEps: 0.58 },
 ];
+
+/** The hovered quarter, banded, and read somewhere else entirely.
+ *
+ *  Two things at once, and they are separate props on purpose. `highlightOnHover` bands the column
+ *  under the pointer and switches the chart's own readout to it — that much is self-contained.
+ *  `onQuarterHover` reports the same quarter outward, which is what lets a panel beside the drawing
+ *  follow the pointer, as the cards below do here.
+ *
+ *  Hovering asks and clicking decides: a quarter clicked stays selected while another is merely
+ *  hovered, and the cards fall back to the selection when the pointer leaves. Without that, moving
+ *  the mouse off the chart would wipe the very reading the reader had just clicked to keep. */
+export const Hovered: Story = {
+  name: "Survol : bande et lecture liée",
+  render: () => {
+    const [hovered, setHovered] = useState<SymbolProfileEarningsPoint | null>(null);
+    const [clicked, setClicked] = useState<SymbolProfileEarningsPoint | null>(null);
+    const shown = hovered ?? clicked;
+    const surprise =
+      shown && shown.estimateEps !== undefined && shown.actualEps !== undefined ? shown.actualEps - shown.estimateEps : undefined;
+    const two = (v: number | undefined) => (v === undefined ? "—" : v.toFixed(2));
+
+    return (
+      <div style={{ padding: 16, display: "grid", gap: 16 }}>
+        <EarningsDotChart
+          points={BEATS}
+          width={1200}
+          height={260}
+          scale={1.6}
+          highlightOnHover
+          onQuarterHover={(point) => setHovered(point)}
+          onQuarterSelect={(point) => setClicked(point)}
+        />
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12 }}>
+          <StatCard label="Trimestre" value={shown?.date ?? "—"} />
+          <StatCard label="Estimé" value={two(shown?.estimateEps)} />
+          <StatCard label="Réalisé" value={two(shown?.actualEps)} />
+          {/* Pas de `delta` : StatCard le rend en pourcentage, et une surprise de résultats est un
+              montant par action, pas un taux. */}
+          <StatCard
+            label="Surprise"
+            value={surprise === undefined ? "—" : `${surprise >= 0 ? "+" : "−"}${Math.abs(surprise).toFixed(2)}`}
+          />
+        </div>
+        <p style={{ margin: 0, fontSize: 12, color: "var(--lq-color-text-muted)" }}>
+          Survolez un trimestre : la colonne se colore et les quatre valeurs suivent. Cliquez-en un
+          pour le garder — la lecture y revient quand le pointeur quitte le graphique.
+        </p>
+      </div>
+    );
+  },
+};
 
 export const Default: Story = {
   name: "Par défaut",

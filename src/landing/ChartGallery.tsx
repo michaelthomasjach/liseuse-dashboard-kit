@@ -210,7 +210,7 @@ export function ChartGallery({ open }: { open: (path: string) => void }) {
       </Frame>
 
       <Frame name="EarningsDotChart" purpose="Résultats attendus contre publiés" onOpen={() => open("/docs/charts-earningsdotchart--docs")}>
-        {(w, h) => <EarningsDotChart points={EARNINGS} width={w} height={h} fill />}
+        {(w, h) => <EarningsDotChart points={EARNINGS} width={w} height={h} fill highlightOnHover />}
       </Frame>
 
       <Frame

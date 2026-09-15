@@ -21,6 +21,32 @@ export interface EarningsDotChartProps {
    *  real width — the dots spread across the whole span, the labels stay 9px. `width` is still
    *  used, as the width to draw at until the first measurement arrives. */
   fill?: boolean;
+  /** Bands the quarter under the pointer: a pale ground down the full height of its column, and
+   *  the readout switches to it without anything being clicked.
+   *
+   *  Off by default because selecting is the interaction this chart was built around — a click
+   *  that sticks, reachable with a finger, which hovering is not. Banding *adds* a second, lighter
+   *  way in for a pointer; it does not replace the first, and a quarter that was clicked stays
+   *  selected while another is merely hovered.
+   *
+   *  A band rather than the selected quarter's own dashed line: the line marks one position, and
+   *  what the pointer is asking about is the whole column — both dots, and which of the two sits
+   *  higher. */
+  highlightOnHover?: boolean;
+  /** Fires as the pointer moves between quarters, with the quarter under it and its index, and
+   *  with `null` on the way out.
+   *
+   *  Its own thing rather than a second meaning for a selection callback: hovering asks, clicking
+   *  decides, and a panel that showed the hovered quarter in the place it shows the chosen one
+   *  would lose the chosen one the moment the pointer crossed the drawing. */
+  onQuarterHover?: (point: SymbolProfileEarningsPoint | null, index: number | null) => void;
+  /** Fires when a quarter is picked, and with `null` when the same one is clicked again to clear.
+   *
+   *  The other half of `onQuarterHover`: hovering asks, clicking decides. A panel outside the chart
+   *  that wants to follow the pointer *and* keep what was chosen needs both — it shows the hovered
+   *  quarter while there is one and falls back to the chosen one when the pointer leaves, which is
+   *  what stops moving the mouse away from wiping the reading the reader clicked to keep. */
+  onQuarterSelect?: (point: SymbolProfileEarningsPoint | null, index: number | null) => void;
 }
 
 /** Small quarterly-EPS dot chart for `SymbolProfilePanel`'s own "Résultats" section — estimate
@@ -28,7 +54,16 @@ export interface EarningsDotChartProps {
  *  quarter's own date underneath. Not built on `Sparkline` (a continuous line/area through every
  *  point) since this is a fundamentally different shape: two independent, unconnected point
  *  series read by their fill (hollow/solid), not a trend to follow with the eye. */
-export function EarningsDotChart({ points, width: fixedWidth = 260, height = 120, scale = 1, fill = false }: EarningsDotChartProps) {
+export function EarningsDotChart({
+  points,
+  width: fixedWidth = 260,
+  height = 120,
+  scale = 1,
+  fill = false,
+  highlightOnHover = false,
+  onQuarterHover,
+  onQuarterSelect,
+}: EarningsDotChartProps) {
   // Measured rather than read off a prop when `fill` is set — see that prop's own doc. A plain
   // ResizeObserver instead of `useChartDimensions`: this needs one number, not a margin-derived
   // bounded box, and the margins here are scale-dependent and computed below.
@@ -54,6 +89,26 @@ export function EarningsDotChart({ points, width: fixedWidth = 260, height = 120
   // it again to clear. State rather than hover: this is used with a finger as much as a mouse, and
   // a tooltip that needs hovering is unreachable there.
   const [selected, setSelected] = useState<number | null>(null);
+  // Which quarter the pointer is over. Separate from `selected` on purpose — see
+  // `onQuarterHover`'s own doc — and never set on a touch, where there is no hover to speak of.
+  const [hovered, setHovered] = useState<number | null>(null);
+
+  /** Picks a quarter, or clears it when the same one is clicked again.
+   *
+   *  The callback fires here and not inside the `setSelected` updater: an updater must be a pure
+   *  function of the previous state, React is free to call it twice, and a second call would report
+   *  the same selection to the caller twice. */
+  function select(index: number) {
+    const next = selected === index ? null : index;
+    setSelected(next);
+    onQuarterSelect?.(next === null ? null : (points[next] ?? null), next);
+  }
+
+  function hover(index: number | null) {
+    if (!highlightOnHover) return;
+    setHovered(index);
+    onQuarterHover?.(index === null ? null : (points[index] ?? null), index);
+  }
 
   const { x, y, ticks, columnWidth } = useMemo(() => {
     const values = points.flatMap((p) => [p.estimateEps, p.actualEps]).filter((v): v is number => v !== undefined);
@@ -78,7 +133,11 @@ export function EarningsDotChart({ points, width: fixedWidth = 260, height = 120
 
   if (points.length === 0) return null;
 
-  const active = selected !== null ? points[selected] : undefined;
+  // What the readout describes: the pointer wins while it is on the drawing, and the click's own
+  // choice is what remains when it leaves. Reading the selection instead would make the readout
+  // contradict the band the reader is looking at.
+  const reading = hovered ?? selected;
+  const active = reading !== null ? points[reading] : undefined;
   const surprise =
     active && active.estimateEps !== undefined && active.actualEps !== undefined ? active.actualEps - active.estimateEps : undefined;
 
@@ -91,6 +150,18 @@ export function EarningsDotChart({ points, width: fixedWidth = 260, height = 120
         className={["lq-earnings-dot-chart", fill && "lq-earnings-dot-chart--fill"].filter(Boolean).join(" ")}
         role="img"
       >
+      {/* Drawn before the gridlines, not inside the quarter's own group with the dots: SVG paints
+          in document order, so a band emitted with the marks would lie over the grid and cut the
+          very lines the two dots are read against. */}
+      {hovered !== null && (
+        <rect
+          x={x(hovered)! - columnWidth / 2}
+          y={margin.top}
+          width={columnWidth}
+          height={height - margin.top - margin.bottom}
+          className="lq-earnings-dot-chart__band"
+        />
+      )}
       {ticks.map((tick) => (
         <g key={tick}>
           <line x1={margin.left} x2={width - margin.right} y1={y(tick)} y2={y(tick)} className="lq-earnings-dot-chart__gridline" />
@@ -102,10 +173,16 @@ export function EarningsDotChart({ points, width: fixedWidth = 260, height = 120
       {points.map((p, i) => (
         <g
           key={`${p.date}-${i}`}
-          className={["lq-earnings-dot-chart__quarter", selected === i && "lq-earnings-dot-chart__quarter--selected"]
+          className={[
+            "lq-earnings-dot-chart__quarter",
+            selected === i && "lq-earnings-dot-chart__quarter--selected",
+            hovered === i && "lq-earnings-dot-chart__quarter--hovered",
+          ]
             .filter(Boolean)
             .join(" ")}
-          onClick={() => setSelected((current) => (current === i ? null : i))}
+          onClick={() => select(i)}
+          onPointerEnter={(e) => (e.pointerType === "touch" ? undefined : hover(i))}
+          onPointerLeave={(e) => (e.pointerType === "touch" ? undefined : hover(null))}
         >
           {/* The whole column is the target, not the two 4px dots. A quarter is a column of the
               chart conceptually, and on a phone a dot that size cannot be hit at all. Transparent
@@ -158,7 +235,9 @@ export function EarningsDotChart({ points, width: fixedWidth = 260, height = 120
             )}
           </>
         ) : (
-          <span className="lq-earnings-dot-chart__readout-hint">Touchez un trimestre pour voir le détail</span>
+          <span className="lq-earnings-dot-chart__readout-hint">
+            {highlightOnHover ? "Survolez ou touchez un trimestre pour voir le détail" : "Touchez un trimestre pour voir le détail"}
+          </span>
         )}
       </div>
     </div>

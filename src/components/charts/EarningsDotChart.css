@@ -98,3 +98,19 @@
   color: var(--lq-color-down);
   font-weight: 700;
 }
+
+/* The hovered quarter's own ground. Mixed from the text token rather than set as a grey, so it
+   stays a pale wash on a dark surface instead of becoming a light block — and pale enough that the
+   dots and the gridlines keep their contrast against it, since banding a column is meant to say
+   "this one" and not to become the thing being looked at. */
+.lq-earnings-dot-chart__band {
+  fill: color-mix(in srgb, var(--lq-color-text) 7%, transparent);
+  pointer-events: none;
+}
+
+/* The date under a hovered column reads like a selected one — same emphasis, so the axis and the
+   band agree about which quarter is being asked about. */
+.lq-earnings-dot-chart__quarter--hovered .lq-earnings-dot-chart__date-label {
+  fill: var(--lq-color-text);
+  font-weight: 700;
+}

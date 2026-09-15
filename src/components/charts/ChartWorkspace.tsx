@@ -891,7 +891,12 @@ export function ChartWorkspace({
             commitBrokerConnections([...brokerConnections.filter((c) => c.brokerId !== connection.brokerId), connection])
           }
           onDisconnect={(brokerId) => commitBrokerConnections(brokerConnections.filter((c) => c.brokerId !== brokerId))}
-          />
+          onSelectAccount={(brokerId, accountId) =>
+            commitBrokerConnections(
+              brokerConnections.map((c) => (c.brokerId === brokerId ? { ...c, activeAccountId: accountId } : c)),
+            )
+          }
+        />
       )}
 
       {/* Hidden entirely on the mobile layout — watchlist/alerts move into the topbar above

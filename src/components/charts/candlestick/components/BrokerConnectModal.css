@@ -124,3 +124,71 @@
   font-size: var(--lq-text-xs);
   color: var(--lq-color-down);
 }
+
+/* The chevron on a connected row, saying the row goes somewhere. A character rather than an icon
+   import: it is one glyph, it inherits the muted colour, and it costs no bundle. */
+.lq-broker__chevron {
+  flex: none;
+  font-size: 1.1rem;
+  line-height: 1;
+  color: var(--lq-color-text-muted);
+}
+
+/* "Réel" in the list, "Actif" on a selected account. Both are one word carrying the weight of the
+   row, so they are drawn as a chip rather than as more meta text. */
+.lq-broker__badge {
+  flex: none;
+  padding: 1px var(--lq-space-2);
+  border-radius: var(--lq-radius-sm);
+  font-size: var(--lq-text-xs);
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+/* Real money is the one state in this dialog worth a warning colour — everything else here is
+   reversible. */
+.lq-broker__badge--real {
+  color: var(--lq-color-down);
+  border: 1px solid var(--lq-color-down);
+}
+
+.lq-broker__badge--active {
+  color: var(--lq-color-up);
+  border: 1px solid var(--lq-color-up);
+}
+
+.lq-broker__account--active {
+  border-color: var(--lq-color-accent);
+}
+
+.lq-broker__account--disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Same disc for every account, filled only on the live one: a shape that changed with the state
+   would move the text beside it, and these rows have to line up to be compared. */
+.lq-broker__radio {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid var(--lq-color-border);
+  box-sizing: border-box;
+}
+
+.lq-broker__radio--on {
+  border-color: var(--lq-color-accent);
+  /* An inset ring rather than a child element: the dot is the same box, drawn from its own border
+     inwards, so it cannot drift out of centre. */
+  background-color: var(--lq-color-accent);
+  box-shadow: inset 0 0 0 2px var(--lq-color-panel);
+}
+
+/* Disconnect is the last thing in the broker's own view rather than a control on its row, so it
+   reads as the end of the panel and not as one more option among the accounts. */
+.lq-broker__disconnect--block {
+  align-self: stretch;
+  padding: var(--lq-space-2);
+  text-align: center;
+}

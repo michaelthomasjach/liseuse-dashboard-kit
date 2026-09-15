@@ -32,6 +32,12 @@ export function ChartTooltip({ x, y, visible, children, align = "right" }: Chart
   const ref = useRef<HTMLDivElement | null>(null);
   const [left, setLeft] = useState<number | null>(null);
 
+  // Deliberately every render, with no dependency list. The box's own width changes with its
+  // *content*, which can change while `x` does not — hovering a different series on the same
+  // category — and the plot's width changes on resize; a list of ([align, x]) would miss both.
+  // It cannot loop: `next` below is derived from `x` and the two widths, never from `left`, so a
+  // second pass computes the same number and the guard makes React bail out.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useLayoutEffect(() => {
     const el = ref.current;
     const host = el?.offsetParent as HTMLElement | null;
@@ -44,12 +50,6 @@ export function ChartTooltip({ x, y, visible, children, align = "right" }: Chart
     const highest = Math.max(EDGE_PADDING, host.clientWidth - width - EDGE_PADDING);
     const next = Math.min(Math.max(EDGE_PADDING, preferred), highest);
     setLeft((current) => (current !== null && Math.abs(current - next) < 0.5 ? current : next));
-    // Deliberately every render, with no dependency list. The box's own width changes with its
-    // *content*, which can change while `x` does not — hovering a different series on the same
-    // category — and the plot's width changes on resize; a list of ([align, x]) would miss both.
-    // It cannot loop: `next` is derived from `x` and the two widths, never from `left`, so a second
-    // pass computes the same number and the guard above makes React bail out.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   });
 
   if (!visible) return null;

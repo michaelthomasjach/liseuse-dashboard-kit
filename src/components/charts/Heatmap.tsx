@@ -2,6 +2,7 @@ import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import * as d3 from "d3";
 import { useD3Zoom } from "./internal/useD3Zoom";
+import { labelColorOn } from "./internal/labelContrast";
 import { ChevronRightIcon } from "../icons";
 import "./charts-shared.css";
 import "./Heatmap.css";
@@ -124,37 +125,6 @@ function tileColor(colorValue: number, domain: [number, number]): string {
  *  reading paints the tile nearly black and the label was black too. The two literal grays are
  *  deliberate — they are not theme colors but the two ends of a contrast decision, and the token
  *  that would be "the readable one" flips meaning between the light and dark surfaces. */
-/* Pure black and white, not a softened near-black/near-white pair. The worst case for a
-   two-choice label is a background sitting exactly where the two candidates tie, and how bad that
-   tie is depends entirely on how far apart the pair is: #14161a/#f7f8fa bottomed out at 4.26:1,
-   under the 4.5:1 AA threshold, while #000/#fff bottoms out at 4.58:1, over it. */
-const LABEL_DARK = "#000000";
-const LABEL_LIGHT = "#ffffff";
-
-/** WCAG relative luminance. */
-function luminance(color: d3.RGBColor): number {
-  const channel = (v: number) => {
-    const c = v / 255;
-    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
-  };
-  return 0.2126 * channel(color.r) + 0.7152 * channel(color.g) + 0.0722 * channel(color.b);
-}
-
-function contrast(a: number, b: number): number {
-  return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
-}
-
-function labelColorOn(mixed: d3.RGBColor | null): string {
-  if (mixed === null) return "var(--lq-color-text)";
-  // Whichever of the two actually contrasts better, rather than a luminance threshold picked by
-  // eye: a first attempt used `> 0.45`, which put white text on a mid-gray tile at 2.3:1 where
-  // black would have given 7.3:1. Comparing the two ratios has no such blind spot and puts the
-  // crossover exactly where it belongs.
-  const bg = luminance(mixed);
-  const dark = contrast(bg, luminance(d3.rgb(LABEL_DARK)));
-  const light = contrast(bg, luminance(d3.rgb(LABEL_LIGHT)));
-  return dark >= light ? LABEL_DARK : LABEL_LIGHT;
-}
 
 /** Resolves `--lq-color-up`/`--lq-color-down`/`--lq-color-panel` as they currently stand on this
  *  chart's own element, and mixes them the way `tileColor` does. Re-read after every render rather

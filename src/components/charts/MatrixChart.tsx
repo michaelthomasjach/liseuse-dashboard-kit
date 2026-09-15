@@ -1,8 +1,9 @@
-import { useId, useMemo, useRef, useState } from "react";
+import { useCallback, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import * as d3 from "d3";
 import { useD3Zoom } from "./internal/useD3Zoom";
 import { observeElementSize } from "../../internal/observeElementSize";
+import { labelColorOn } from "./internal/labelContrast";
 import "./charts-shared.css";
 import "./MatrixChart.css";
 
@@ -86,6 +87,48 @@ function intensity(value: number, domain: [number, number]): number {
   return 0;
 }
 
+/** The three colours a cell can be painted from, resolved to real RGB.
+ *
+ *  They cannot be read from the markup. Two of them are props whose defaults are design tokens, and
+ *  `d3.color("var(--lq-color-up)")` returns null — measured, and the reason the ramp came out flat
+ *  the first time this chart was written. So the browser is asked instead: three hidden spans carry
+ *  the values, and `getComputedStyle` hands back what they resolve to on this element, under
+ *  whatever palette is currently on `.lq-root`.
+ *
+ *  Re-read when that palette or surface changes, the same way the heatmap watches for it: a theme
+ *  switch repaints every cell without unmounting anything. */
+function useResolvedPalette(
+  el: HTMLElement | null,
+  probes: { positive: HTMLElement | null; negative: HTMLElement | null; background: HTMLElement | null },
+): { positive: d3.RGBColor | null; negative: d3.RGBColor | null; background: d3.RGBColor | null } {
+  const [resolved, setResolved] = useState<{ positive: d3.RGBColor | null; negative: d3.RGBColor | null; background: d3.RGBColor | null }>({
+    positive: null,
+    negative: null,
+    background: null,
+  });
+  const { positive, negative, background } = probes;
+
+  useLayoutEffect(() => {
+    if (el === null || positive === null || negative === null || background === null) return;
+    function read() {
+      const of = (node: HTMLElement | null) => (node === null ? null : d3.rgb(getComputedStyle(node).color));
+      const next = { positive: of(positive), negative: of(negative), background: of(background) };
+      setResolved((prev) => {
+        const same = (a: d3.RGBColor | null, b: d3.RGBColor | null) => (a === null || b === null ? a === b : a.formatHex() === b.formatHex());
+        return same(prev.positive, next.positive) && same(prev.negative, next.negative) && same(prev.background, next.background) ? prev : next;
+      });
+    }
+    read();
+    const root = el.closest(".lq-root");
+    if (root === null) return;
+    const observer = new MutationObserver(read);
+    observer.observe(root, { attributes: true, attributeFilter: ["data-lq-palette", "data-lq-surface"] });
+    return () => observer.disconnect();
+  }, [el, positive, negative, background]);
+
+  return resolved;
+}
+
 /** A matrix of scored cells — a correlation grid being the case it was built for, though nothing
  *  here assumes correlation beyond the default `[-1, 1]` domain.
  *
@@ -125,16 +168,24 @@ export function MatrixChart({
   const gridClip = clipBase + "-grid";
 
   const wrapperRef = useRef<HTMLDivElement | null>(null);
+  // State rather than refs: the resolver has to re-run once the nodes attach, and a ref assignment
+  // never re-renders. Same reasoning as the heatmap's own `wrapperEl`.
+  const [wrapperEl, setWrapperEl] = useState<HTMLDivElement | null>(null);
+  const [positiveProbe, setPositiveProbe] = useState<HTMLSpanElement | null>(null);
+  const [negativeProbe, setNegativeProbe] = useState<HTMLSpanElement | null>(null);
+  const [backgroundProbe, setBackgroundProbe] = useState<HTMLSpanElement | null>(null);
+  const palette = useResolvedPalette(wrapperEl, { positive: positiveProbe, negative: negativeProbe, background: backgroundProbe });
   const [width, setWidth] = useState(0);
   const [transform, setTransform] = useState<d3.ZoomTransform>(d3.zoomIdentity);
   const [selected, setSelected] = useState<{ row: string; column: string } | null>(null);
 
-  function attachWrapper(node: HTMLDivElement | null) {
+  const attachWrapper = useCallback((node: HTMLDivElement | null) => {
     wrapperRef.current = node;
+    setWrapperEl(node);
     if (node === null) return;
     setWidth(node.clientWidth);
     observeElementSize(node, (entry) => setWidth(Math.round(entry.contentRect.width)));
-  }
+  }, []);
 
   // Indexed once rather than searched per cell: a 12x12 grid is 144 lookups a render, and the
   // caller hands the cells in as a flat list precisely so it does not have to build the grid.
@@ -176,6 +227,28 @@ export function MatrixChart({
     };
   }
 
+  /** The label colour for one cell, decided against the colour that cell is actually painted.
+   *
+   *  A cell is a hue at a fill-opacity over the chart's own background, so what the text sits on is
+   *  the composite of the two — not the hue, and not the background. Recomposing it here is the only
+   *  way to know: a strong positive is `--lq-color-up` at 0.9, which the E-ink palette resolves to
+   *  near-black, and the value printed on it was `--lq-color-text`, near-black as well. Measured at
+   *  1.63:1 on the worst cell, with fourteen of forty-two under the 4.5:1 AA threshold.
+   *
+   *  Applied as an inline style, never as a `fill` attribute: in SVG a CSS declaration beats a
+   *  presentation attribute, and `.lq-matrix-chart__value` already declares one. The attribute was
+   *  the first attempt and it computed correctly — measured at `#ffffff` on a near-black cell — and
+   *  painted near-black anyway, because the stylesheet outranked it.
+   *
+   *  Returns undefined when a colour cannot be resolved, leaving the stylesheet's own
+   *  `--lq-color-text` in place rather than guessing. */
+  function labelFill(cell: MatrixCell | undefined, paint: { fill: string; opacity: number }): string | undefined {
+    if (cell === undefined || cell.value === null || palette.background === null) return undefined;
+    const hue = colorMode === "manual" ? (d3.color(paint.fill)?.rgb() ?? null) : cell.value >= 0 ? palette.positive : palette.negative;
+    if (hue === null) return undefined;
+    return labelColorOn(d3.rgb(d3.interpolateRgb(palette.background, hue)(paint.opacity)));
+  }
+
   function pick(cell: MatrixCell | undefined, rowId: string, columnId: string) {
     if (cell === undefined || cell.value === null) return;
     setSelected({ row: rowId, column: columnId });
@@ -184,6 +257,11 @@ export function MatrixChart({
 
   return (
     <div className={["lq-matrix-chart", className].filter(Boolean).join(" ")} ref={attachWrapper}>
+      {/* Not rendered, only resolved: `color` accepts any CSS colour the caller passes — a token, a
+          hex, a named colour — and the browser hands back what it comes to on this element. */}
+      <span ref={setPositiveProbe} aria-hidden="true" style={{ display: "none", color: positiveColor }} />
+      <span ref={setNegativeProbe} aria-hidden="true" style={{ display: "none", color: negativeColor }} />
+      <span ref={setBackgroundProbe} aria-hidden="true" style={{ display: "none", color: "var(--lq-color-bg)" }} />
       <svg width={width} height={height} className="lq-matrix-chart__svg" role="img">
         <defs>
           <clipPath id={columnsClip}>
@@ -271,12 +349,24 @@ export function MatrixChart({
                         </text>
                       )}
                       {!empty && showValues && (
-                        <text className="lq-matrix-chart__value" x={cx} y={cy + (cell.note ? -1 : 4)} textAnchor="middle">
+                        <text
+                          className="lq-matrix-chart__value"
+                          style={{ fill: labelFill(cell, paint) }}
+                          x={cx}
+                          y={cy + (cell.note ? -1 : 4)}
+                          textAnchor="middle"
+                        >
                           {formatValue(cell.value as number)}
                         </text>
                       )}
                       {!empty && showValues && cell.note && (
-                        <text className="lq-matrix-chart__note" x={cx} y={cy + 12} textAnchor="middle">
+                        <text
+                          className="lq-matrix-chart__note"
+                          style={{ fill: labelFill(cell, paint), fillOpacity: 0.75 }}
+                          x={cx}
+                          y={cy + 12}
+                          textAnchor="middle"
+                        >
                           {cell.note}
                         </text>
                       )}

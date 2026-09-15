@@ -11,6 +11,25 @@ const FILL_HOVER_DISTANCE = 8;
  *  the gutter holding them has to be — see where it is computed. */
 const TICK_LABEL_OFFSET = 6;
 
+/** The equity sample nearest a moment.
+ *
+ *  A bisection rather than the linear scan the hover path uses: this one runs once per trade on
+ *  every layout, and a linear scan would make that trades x bars of work on each resize. The
+ *  equity series is sampled per bar and in order, which is what makes the bisection valid. */
+function nearestEquityIndex(equity: { time: number }[], at: number): number {
+  if (equity.length === 0) return -1;
+  let lo = 0;
+  let hi = equity.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (equity[mid].time < at) lo = mid + 1;
+    else hi = mid;
+  }
+  // `lo` is the first sample at or after `at`; the one before it can still be the nearer of the two.
+  const prev = Math.max(0, lo - 1);
+  return Math.abs(equity[prev].time - at) <= Math.abs(equity[lo].time - at) ? prev : lo;
+}
+
 export interface StrategyEquityChartProps {
   equity: StrategyEquityPoint[];
   trades: StrategyTrade[];
@@ -49,7 +68,7 @@ function StrategyEquityChartImpl({ equity, trades, initialCapital, currency, wid
   const margin = { top: 8, bottom: 20, left: 8 };
   const innerHeight = Math.max(0, height - margin.top - margin.bottom);
 
-  const { yScale, xScale, areaAbove, areaBelow, peakLine, ticks, innerWidth, axisGutter } = useMemo(() => {
+  const { yScale, xScale, areaAbove, areaBelow, peakLine, ticks, innerWidth, axisGutter, tradeMarks, markRadius } = useMemo(() => {
     const points = equity.map((p) => ({ ...p, pnl: p.equity - initialCapital, peakPnl: p.peak - initialCapital }));
     const lo = Math.min(0, d3.min(points, (p) => p.pnl) ?? 0);
     const hi = Math.max(0, d3.max(points, (p) => p.peakPnl) ?? 0);
@@ -87,7 +106,28 @@ function StrategyEquityChartImpl({ equity, trades, initialCapital, currency, wid
       .line<(typeof points)[number]>()
       .x((_, i) => x(i))
       .y((p) => y(p.peakPnl));
+    // One dot per trade, sitting on the curve at the bar where that trade closed — the point at
+    // which its result actually entered the account, and so the step the dot is explaining.
+    //
+    // Placed on the nearest equity sample rather than interpolated between two: the curve is
+    // sampled per bar and a fill happens on a bar, so the sample *is* the moment; interpolating
+    // would put the dot at a value the run never had, slightly off its own curve.
+    const marks = points.length === 0
+      ? []
+      : trades.map((trade) => {
+          const index = nearestEquityIndex(points, trade.exitTime);
+          return { id: trade.id, x: x(index), y: y(points[index].pnl), up: trade.profit >= 0 };
+        });
+    // Shrunk when the trades crowd, instead of dropping any: the reader asked for a dot per trade,
+    // and a run of three hundred should read as a dotted curve rather than either a smear or a
+    // silently thinned sample. Measured on the average room per dot across the plot — the honest
+    // figure for "is there space", where a single pair of near-simultaneous exits would otherwise
+    // shrink every dot on the chart.
+    const room = innerW / Math.max(1, marks.length);
+    const radius = room >= 10 ? 2.6 : room >= 5 ? 2 : 1.4;
     return {
+      tradeMarks: marks,
+      markRadius: radius,
       yScale: y,
       xScale: x,
       areaAbove: above(points) ?? "",
@@ -97,7 +137,7 @@ function StrategyEquityChartImpl({ equity, trades, initialCapital, currency, wid
       innerWidth: innerW,
       axisGutter: gutter,
     };
-  }, [equity, initialCapital, width, margin.left, innerHeight]);
+  }, [equity, trades, initialCapital, width, margin.left, innerHeight]);
 
   if (equity.length < 2 || innerWidth <= 0 || innerHeight <= 0) {
     return <p className="lq-strategy__empty">Pas encore assez de barres rejouées pour tracer une courbe.</p>;
@@ -206,6 +246,17 @@ function StrategyEquityChartImpl({ equity, trades, initialCapital, currency, wid
         <path className="lq-strategy__equity-area lq-strategy__equity-area--up" d={areaAbove} />
         <path className="lq-strategy__equity-area lq-strategy__equity-area--down" d={areaBelow} />
         <line className="lq-strategy__equity-zero" x1={0} x2={innerWidth} y1={zeroY} y2={zeroY} />
+        {/* Over the filled areas, so a dot inside a coloured stretch is still a dot: its outline is
+            the panel's own background, which is what separates it from the fill underneath. */}
+        {tradeMarks.map((mark) => (
+          <circle
+            key={mark.id}
+            className={`lq-strategy__equity-trade lq-strategy__equity-trade--${mark.up ? "up" : "down"}`}
+            cx={mark.x}
+            cy={mark.y}
+            r={markRadius}
+          />
+        ))}
         {/* Over the curve rather than under it: it answers "where am I pointing", which has to win
             against the thing it is pointing at. */}
         {markedX !== null && <line className="lq-strategy__equity-mark" x1={markedX} x2={markedX} y1={0} y2={innerHeight} />}

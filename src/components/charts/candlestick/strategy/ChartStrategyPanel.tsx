@@ -5,7 +5,7 @@ import type { StrategyResult, StrategyTrade } from "../interfaces/StrategyResult
 import type { StrategySettings } from "../interfaces/StrategySettings.interface";
 import { StrategyEquityChart } from "./StrategyEquityChart";
 import { StrategyDistributionChart } from "./StrategyDistributionChart";
-import { StrategyExcursionChart } from "./StrategyExcursionChart";
+import { StrategyExcursionChart, StrategyExcursionLegend } from "./StrategyExcursionChart";
 import { StrategyRobustnessPanel } from "./StrategyRobustnessPanel";
 import { StrategyMetricsGrid } from "./StrategyMetricsGrid";
 import { StrategySettingsForm } from "./StrategySettingsForm";
@@ -398,11 +398,7 @@ export function ChartStrategyPanel({
             </>
           ) : tab === "excursions" ? (
             <>
-              <p className="lq-strategy__hint">
-                Un trade par ligne : à gauche jusqu&apos;où il est allé contre vous (MAE), à droite jusqu&apos;où il est allé pour vous (MFE),
-                et le point où vous êtes réellement sorti. Un point loin à gauche de son propre segment est un gain rendu ; un long bras
-                gauche, un trade qui a été sous l&apos;eau avant de fonctionner.
-              </p>
+              <StrategyExcursionLegend />
               <div className="lq-strategy__fill" ref={fillRef}>
                 <StrategyExcursionChart
                   trades={result.trades}

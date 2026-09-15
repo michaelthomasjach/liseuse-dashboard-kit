@@ -160,6 +160,24 @@
   fill: var(--lq-color-down);
 }
 
+/* One dot per closed trade, on the curve where that trade landed. Outlined in the panel's own
+   background rather than left flat: the dot sits on top of a filled area in the same hue, and on
+   the one-ink palette in the same ink, so without the outline it would disappear into it. Colour
+   says won or lost; the outline is what makes it a dot at all. */
+.lq-strategy__equity-trade {
+  stroke: var(--lq-color-bg);
+  stroke-width: 1;
+  pointer-events: none;
+}
+
+.lq-strategy__equity-trade--up {
+  fill: var(--lq-color-up);
+}
+
+.lq-strategy__equity-trade--down {
+  fill: var(--lq-color-down);
+}
+
 .lq-strategy__equity-tick,
 .lq-strategy__equity-date {
   font-size: 9px;
@@ -405,9 +423,94 @@
 
 /* ── MAE / MFE ─────────────────────────────────────────────────────────────────────────────── */
 
+/* The chart and its tooltip share one box: ChartTooltip positions itself against its offset
+   parent, so the parent has to be this wrapper and not whatever ancestor happens to be positioned.
+   `position: relative` here is what makes the tooltip land on the row it describes. */
+.lq-strategy__excursion-wrap {
+  position: relative;
+}
+
 .lq-strategy__excursion {
   display: block;
   width: 100%;
+}
+
+/* What the three marks mean, in the marks' own colours — the text beside each key says the same
+   thing in words, so the one-ink palette loses nothing but the shortcut. */
+.lq-strategy__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--lq-space-1) var(--lq-space-4);
+  margin: 0 0 var(--lq-space-3);
+  padding: 0;
+  list-style: none;
+  font-size: 0.72rem;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-strategy__legend li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.lq-strategy__legend-key {
+  flex-shrink: 0;
+  width: 14px;
+  height: 3px;
+  border-radius: 2px;
+}
+
+.lq-strategy__legend-key--adverse {
+  background-color: var(--lq-color-down);
+}
+
+.lq-strategy__legend-key--favorable {
+  background-color: var(--lq-color-up);
+}
+
+/* The exit mark is a dot on the chart, so its key is round rather than a bar — the legend has to
+   look like the thing it names or it is one more thing to learn. */
+.lq-strategy__legend-key--dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--lq-color-text);
+}
+
+.lq-strategy__legend-key--up {
+  background-color: var(--lq-color-up);
+}
+
+.lq-strategy__legend-key--down {
+  background-color: var(--lq-color-down);
+}
+
+/* The half of an explanation that is worth reading once. Folded by default because the chart it
+   explains is sized from whatever height the text above it leaves over. */
+.lq-strategy__disclosure {
+  margin: 0 0 var(--lq-space-3);
+  font-size: 0.72rem;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-strategy__disclosure > summary {
+  cursor: pointer;
+  color: var(--lq-color-text-muted);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.lq-strategy__disclosure > summary:hover {
+  color: var(--lq-color-text);
+}
+
+.lq-strategy__disclosure .lq-strategy__hint:first-of-type {
+  margin-top: var(--lq-space-2);
+}
+
+.lq-strategy__disclosure .lq-strategy__hint:last-child {
+  margin-bottom: 0;
 }
 
 .lq-strategy__excursion-grid {
@@ -441,6 +544,41 @@
 
 .lq-strategy__excursion-dot--down {
   fill: var(--lq-color-down);
+}
+
+/* The row the pointer found. Stronger than the marked band (which comes from the price chart and
+   is a reference, not an answer to a gesture happening right now) and always tall enough to see,
+   because the row it confirms may be half a pixel. */
+.lq-strategy__excursion-hovered {
+  fill: var(--lq-color-text);
+  opacity: 0.1;
+}
+
+/* The pointer's own position, read off the axis in money. A hairline: it is a ruler laid over the
+   rows, not a series. */
+.lq-strategy__excursion-pointer-line {
+  stroke: var(--lq-color-text-muted);
+  stroke-width: 1;
+  stroke-dasharray: 2 3;
+  opacity: 0.7;
+}
+
+.lq-strategy__excursion-badge {
+  fill: var(--lq-color-panel);
+  stroke: var(--lq-color-border);
+}
+
+.lq-strategy__excursion-badge-text {
+  font-size: 9px;
+  fill: var(--lq-color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Both arms and the dot at full strength on the row being read, so the answer stands out of a wall
+   of rows without moving anything. */
+.lq-strategy__excursion-row--hovered .lq-strategy__excursion-span {
+  opacity: 1;
+  stroke-width: 2;
 }
 
 .lq-strategy__excursion-tick,
@@ -763,18 +901,22 @@
   align-content: start;
 }
 
-/* The invisible per-row hover band in MAE/MFE. `fill: transparent` is not optional: an SVG rect
-   with no fill paints solid black, which would cover the very rows it exists to make hoverable. */
+/* The single invisible overlay MAE/MFE resolves its rows against. `fill: transparent` is not
+   optional: an SVG rect with no fill paints solid black, which would cover the very chart it exists
+   to make hoverable. The crosshair says the whole plot is a measuring surface, which is what it
+   became once the row stopped being a target to aim at. */
 .lq-strategy__excursion-hit {
   fill: transparent;
-  cursor: pointer;
+  cursor: crosshair;
 }
 
-/* Decoration must never take the pointer from the hover bands above it. */
+/* Decoration must never take the pointer from the overlay above it. */
 .lq-strategy__excursion-span,
 .lq-strategy__excursion-zero,
 .lq-strategy__excursion-dot,
-.lq-strategy__excursion-marked {
+.lq-strategy__excursion-marked,
+.lq-strategy__excursion-hovered,
+.lq-strategy__excursion-pointer {
   pointer-events: none;
 }
 

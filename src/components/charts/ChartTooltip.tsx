@@ -20,21 +20,23 @@ const EDGE_PADDING = 4;
 /** Floating box positioned in pixel-space over a chart's plot area (absolute, parent must be
  *  `position: relative`).
  *
- *  Its horizontal placement is computed here rather than left to a CSS margin, because it has to
- *  know two things CSS cannot tell it: how wide the box came out, and how wide the plot is. The
- *  rule it replaces was "flip to the left past 65% of the width", which never measured either — so
- *  a box wider than the space its own flip left it ran straight off the left edge and took its
- *  text with it. Measured on a 300px gallery tile: 96px of a 160px box outside the plot.
+ *  Its placement is computed here rather than left to a CSS margin, because it has to know two
+ *  things CSS cannot tell it: how big the box came out, and how big the plot is. The rule it
+ *  replaces was "flip to the left past 65% of the width", which never measured either — so a box
+ *  wider than the space its own flip left it ran straight off the left edge and took its text with
+ *  it. Measured on a 300px gallery tile: 96px of a 160px box outside the plot. The vertical axis is
+ *  clamped the same way and for the same reason.
  *
  *  `useLayoutEffect`, so the correction lands before the browser paints and the box never appears
  *  in the wrong place first. */
 export function ChartTooltip({ x, y, visible, children, align = "right" }: ChartTooltipProps) {
   const ref = useRef<HTMLDivElement | null>(null);
   const [left, setLeft] = useState<number | null>(null);
+  const [top, setTop] = useState<number | null>(null);
 
-  // Deliberately every render, with no dependency list. The box's own width changes with its
-  // *content*, which can change while `x` does not — hovering a different series on the same
-  // category — and the plot's width changes on resize; a list of ([align, x]) would miss both.
+  // Deliberately every render, with no dependency list. The box's own size changes with its
+  // *content*, which can change while `x` and `y` do not — hovering a different series on the same
+  // category — and the plot's size changes on resize; a list of ([align, x, y]) would miss both.
   // It cannot loop: `next` below is derived from `x` and the two widths, never from `left`, so a
   // second pass computes the same number and the guard makes React bail out.
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -50,6 +52,13 @@ export function ChartTooltip({ x, y, visible, children, align = "right" }: Chart
     const highest = Math.max(EDGE_PADDING, host.clientWidth - width - EDGE_PADDING);
     const next = Math.min(Math.max(EDGE_PADDING, preferred), highest);
     setLeft((current) => (current !== null && Math.abs(current - next) < 0.5 ? current : next));
+    // The same correction downwards. It matters wherever the plot is short and the rows are many —
+    // a tooltip anchored to a row near the bottom hangs below the chart, and a plot with
+    // `overflow: hidden` around it (the strategy tester's is) simply cuts the box in half.
+    const height = el.offsetHeight;
+    const lowest = Math.max(EDGE_PADDING, host.clientHeight - height - EDGE_PADDING);
+    const nextTop = Math.min(Math.max(EDGE_PADDING, y), lowest);
+    setTop((current) => (current !== null && Math.abs(current - nextTop) < 0.5 ? current : nextTop));
   });
 
   if (!visible) return null;
@@ -59,7 +68,7 @@ export function ChartTooltip({ x, y, visible, children, align = "right" }: Chart
       className="lq-chart-tooltip"
       // Until the first measurement, the preferred side with no clamp — one frame at most, and
       // `useLayoutEffect` replaces it before anything is painted.
-      style={{ transform: `translate(${left ?? (align === "left" ? x - GAP_LEFT : x + GAP_RIGHT)}px, ${y}px)` }}
+      style={{ transform: `translate(${left ?? (align === "left" ? x - GAP_LEFT : x + GAP_RIGHT)}px, ${top ?? y}px)` }}
     >
       {children}
     </div>

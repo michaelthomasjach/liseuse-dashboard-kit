@@ -20,13 +20,9 @@
   border-radius: 0;
 }
 
-.lq-chart-tooltip--left {
-  margin-left: calc(-100% - 16px);
-}
-
-.lq-chart-tooltip:not(.lq-chart-tooltip--left) {
-  margin-left: 12px;
-}
+/* No margin rule decides the side any more: the gaps and the clamp both live in
+   ChartTooltip.tsx, which is the only place that can know how wide the box came out and how wide
+   the plot is. A margin here would be added on top of that and put the box back outside. */
 
 .lq-chart-tooltip__title {
   font-weight: 700;

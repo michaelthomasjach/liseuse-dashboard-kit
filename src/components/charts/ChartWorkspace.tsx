@@ -1,4 +1,4 @@
-import { Children, cloneElement, useState, type ReactElement, type ReactNode } from "react";
+import { Children, cloneElement, type ReactElement, type ReactNode, useEffect, useState } from "react";
 import { DetachedWindow } from "./candlestick/components/DetachedWindow";
 import type { CandlestickChartProps } from "./candlestick/interfaces/CandlestickChartProps.interface";
 import type { SymbolSearchCategory } from "./candlestick/interfaces/SymbolSearchCategory.interface";
@@ -29,6 +29,8 @@ import { ChartSidePanel } from "./candlestick/components/ChartSidePanel";
 import { panelScriptingProps } from "./workspace/panelScriptingProps";
 import { WorkspaceSideRail } from "./workspace/WorkspaceSideRail";
 import { WorkspaceHelpModal } from "./workspace/WorkspaceHelpModal";
+import { WorkspaceTour } from "./workspace/WorkspaceTour";
+import { WORKSPACE_TOUR_STEPS } from "./workspace/workspaceTourSteps";
 import { currentSymbolProfile } from "./workspace/currentSymbolProfile";
 import { ScriptEditorPanel } from "./candlestick/scripting/components/ScriptEditorPanel";
 import { WatchlistIcon, AlarmClockIcon, PlusIcon, CandleModeIcon, LockIcon, SettingsIcon, SparkleIcon } from "../icons";
@@ -65,6 +67,10 @@ const GRID_ROWS: Record<1 | 2 | 4 | 6 | 8, number> = { 1: 1, 2: 1, 4: 2, 6: 2, 8
 /** A stable empty list, so a workspace given no brokers does not hand `useBrokerState` a fresh
  *  array on every render and re-run everything that depends on it. */
 const EMPTY_BROKER_ADAPTERS: BrokerAdapter[] = [];
+
+/** Where "this reader has met the tour" is kept. Per browser, like every other viewer preference
+ *  in this component. */
+const WORKSPACE_TOUR_SEEN_KEY = "lq-workspace-tour-seen";
 
 export interface ChartWorkspaceProps {
   /** Uncontrolled initial panel count — also picks the grid: 1 is a plain single chart (no grid
@@ -361,6 +367,32 @@ export function ChartWorkspace({
   }
   const lockHold = useWorkspaceLockHold();
   const [helpOpen, setHelpOpen] = useState(false);
+  /** The guided tour, open on a first visit and never again on its own.
+   *
+   *  "Never again" is the whole contract: a tour that came back would be a tour nobody could get
+   *  rid of, and the one thing worse than not knowing where a feature is, is being told again
+   *  every morning. The flag is written the moment the tour opens rather than when it closes —
+   *  someone who shuts the tab mid-tour has still seen it, and should not meet it again.
+   *
+   *  Per browser, like every other viewer preference here. A storage that refuses (private mode,
+   *  blocked site data) means the tour shows again next time, which is the harmless direction to
+   *  fail in. */
+  const [tourOpen, setTourOpen] = useState(() => {
+    try {
+      return window.localStorage.getItem(WORKSPACE_TOUR_SEEN_KEY) === null;
+    } catch {
+      return false;
+    }
+  });
+  useEffect(() => {
+    if (!tourOpen) return;
+    try {
+      window.localStorage.setItem(WORKSPACE_TOUR_SEEN_KEY, "1");
+    } catch {
+      // A browser refusing storage is not a reason to withhold the tour — it only means it will be
+      // offered again next time.
+    }
+  }, [tourOpen]);
   // Held here rather than inside a panel for the same reason `focusedPanelIndex` is: the button
   // that opens it lives on the workspace's own rail, so the workspace is what knows whether it is
   // open — and one shared value means two panels can never both show an assistant.
@@ -1044,7 +1076,15 @@ export function ChartWorkspace({
         </div>
       )}
 
-      <WorkspaceHelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />
+      <WorkspaceHelpModal
+        open={helpOpen}
+        onClose={() => setHelpOpen(false)}
+        onStartTour={() => {
+          setHelpOpen(false);
+          setTourOpen(true);
+        }}
+      />
+      <WorkspaceTour open={tourOpen} steps={WORKSPACE_TOUR_STEPS} onClose={() => setTourOpen(false)} />
 
       <LinkGroupsModal
         open={linkModalOpen}

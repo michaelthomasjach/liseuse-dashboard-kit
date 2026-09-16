@@ -1965,3 +1965,29 @@
 }
 
 
+
+/* The way back into the guided tour, at the top of the help modal. A full-width button rather than
+   a link in a paragraph: it is the shortest road to the same answer the list below spells out, and
+   it should be the first thing the modal offers. */
+.lq-chart-workspace__help-tour {
+  display: block;
+  width: 100%;
+  margin-bottom: var(--lq-space-3);
+  padding: var(--lq-space-2);
+  border: 1px solid var(--lq-color-border);
+  border-radius: var(--lq-radius-md);
+  background-color: var(--lq-color-hover);
+  font: inherit;
+  font-size: var(--lq-text-sm);
+  font-weight: 600;
+  color: var(--lq-color-text);
+  cursor: pointer;
+}
+
+.lq-chart-workspace__help-tour:hover {
+  border-color: var(--lq-color-accent);
+}
+
+.lq-root[data-lq-palette="eink"] .lq-chart-workspace__help-tour {
+  border-radius: 0;
+}

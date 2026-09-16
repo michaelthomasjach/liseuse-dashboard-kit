@@ -25,6 +25,9 @@ const HELP_ITEMS: { title: string; description: string }[] = [
 ];
 
 export interface WorkspaceHelpModalProps {
+  /** Starts the guided tour and closes this modal. Optional: a host embedding the help on its own
+   *  has no tour to start. */
+  onStartTour?: () => void;
   open: boolean;
   onClose: () => void;
 }
@@ -34,10 +37,18 @@ export interface WorkspaceHelpModalProps {
  *  A component of its own because it is almost entirely copy: nineteen lines of French prose that
  *  have to be kept true as the rail changes, and that have no business being read past on the way
  *  to the workspace's actual logic. */
-export function WorkspaceHelpModal({ open, onClose }: WorkspaceHelpModalProps) {
+export function WorkspaceHelpModal({ open, onClose, onStartTour }: WorkspaceHelpModalProps) {
   if (!open) return null;
   return (
     <Modal open onClose={onClose} title="Fonctionnalités de l'espace de travail">
+      {/* First, above the list, because it is the shorter road to the same answer: the tour walks
+          to each thing and names it in place, which beats reading about it here and then hunting
+          for it. The list stays for the reader who would rather scan than be walked. */}
+      {onStartTour !== undefined && (
+        <button type="button" className="lq-chart-workspace__help-tour" onClick={onStartTour}>
+          Relancer la visite guidée
+        </button>
+      )}
       <div className="lq-chart-workspace__help-list">
         {HELP_ITEMS.map((item) => (
           <div className="lq-chart-workspace__help-item" key={item.title}>

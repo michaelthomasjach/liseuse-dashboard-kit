@@ -1182,8 +1182,9 @@ un dessin de la barre de volume dont elle vient.
 
 @block Réglages
 
-const NIVEAUX = new Variable("number", 20, { description: "Niveaux affichés de chaque côté du prix.", min: 4, max: 60 });
-const OPACITE = new Variable("number", 0.8, { description: "Opacité de la carte. En dessous de 1, les bougies restent lisibles au travers.", min: 0.1, max: 1 });
+const NIVEAUX = new Variable("number", 60, { description: "Niveaux affichés de chaque côté du prix.", min: 4, max: 200 });
+const OPACITE = new Variable("number", 1, { description: "Opacité de la carte.", min: 0.1, max: 1 });
+const FOND = new Variable("string", "#07131f", { description: "Couleur de fond de la carte. La rampe de profondeur est faite pour l'obscurité ; sur un fond clair ses bleus virent au gris." });
 const SEUIL_ICEBERG = new Variable("number", 8, { description: "Rapport volume exécuté / taille affichée au-delà duquel un niveau est signalé.", min: 2, max: 50 });
 
 @block Rien à dessiner sans carnet
@@ -1221,7 +1222,24 @@ if (pas !== null) {
     if (Math.abs(niveau.price - centre) > NIVEAUX * pas) continue;
     cellules.push({ price: niveau.price, value: niveau.size });
   }
-  plot.overlay("BOOKMAP").heatmap("Liquidité", cellules, { bucket: pas, opacity: OPACITE });
+  plot.overlay("BOOKMAP").heatmap("Liquidité", cellules, {
+    bucket: pas,
+    opacity: OPACITE,
+    // La carte EST le fond dans son étendue, et remplace les bougies : sur un fond opaque, des
+    // bougies à l'encre sombre ne seraient plus qu'une tache. Ce qui les remplace, c'est la traîne
+    // des exécutions ci-dessous.
+    ground: FOND,
+    replacesPrice: true,
+  });
+
+  // Les exécutions de la bougie, en disques : où la taille est allée, par-dessus la carte de là où
+  // elle attendait. Le rayon vient du volume, la couleur du côté qui a traversé le spread.
+  if (tape.available()) {
+    plot.overlay("BOOKMAP").bubbles(
+      "Liquidité",
+      tape.prints().map((p) => ({ price: p.price, size: p.size, aggressor: p.aggressor }))
+    );
+  }
 }
 
 @block Les icebergs
@@ -1241,9 +1259,14 @@ if (pas !== null && tape.available()) {
   // qu'il a cessé de l'être.
   const actifs = state.get("icebergs", {});
   const encore = {};
+  // Un iceberg est PETIT : c'est ce qu'il affiche qui ment, pas ce qu'il absorbe. Un gros niveau
+  // qui encaisse beaucoup est juste un gros niveau, et le signaler noierait le vrai signal sous
+  // les murs. On compare donc chaque niveau à la médiane de la bougie avant de regarder le rapport.
+  const tailles = book.levels().map((n) => n.size).sort((a, b) => a - b);
+  const mediane = tailles.length === 0 ? 0 : tailles[Math.floor(tailles.length / 2)];
   for (const niveau of book.levels()) {
     const affiche = book.sizeAt(niveau.price, pas / 2);
-    if (affiche <= 0) continue;
+    if (affiche <= 0 || affiche > mediane) continue;
     const execute = tape.volumeAt(niveau.price, pas / 2);
     if (execute < affiche * SEUIL_ICEBERG) continue;
     const cle = String(Math.round(niveau.price / pas));

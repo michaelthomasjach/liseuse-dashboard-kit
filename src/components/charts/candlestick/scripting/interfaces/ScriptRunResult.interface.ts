@@ -116,9 +116,27 @@ export interface ScriptHeatmapOutput {
   max?: number;
   /** Colour ramp, coldest first. Omitted, the depth ramp below is used. */
   colors?: string[];
-  /** 0-1. Below 1 the candles stay readable through the field, which is the whole reason a
-   *  liquidity map sits *under* the price and not instead of it. */
+  /** 0-1. Below 1 whatever the chart draws stays readable through the field. */
   opacity?: number;
+  /** A colour painted across the field's whole extent before the cells.
+   *
+   *  Without one the field is a translucent tint over the host's own background, which is right for
+   *  an accent on an ordinary chart and wrong for a liquidity map: the depth ramp is authored
+   *  against darkness, and on a light ground its blues come out as grey haze. With one, the field
+   *  *is* the background inside its own extent, which is what every dedicated liquidity map does
+   *  and what makes the ramp read the way it was designed to. */
+  ground?: string;
+  /** The field stands in for the price series: the chart does not draw its candles while it is
+   *  showing.
+   *
+   *  Only meaningful together with `ground` — a field that paints an opaque background has already
+   *  hidden the candles, and leaving them underneath would mean drawing dark ink on a dark ground.
+   *  What replaces them is `bubbles` below. */
+  replacesPrice?: boolean;
+  /** Executions drawn as discs over the field: the trade trail a liquidity map shows in place of
+   *  candles. Radius comes from `size` against the largest in the run; colour from which side
+   *  crossed the spread. */
+  bubbles?: { date: number; price: number; size: number; aggressor?: "buy" | "sell" }[];
 }
 
 export interface ScriptLabelOutput {

@@ -24,6 +24,38 @@ function intensity(value: number, max: number): number {
   return Math.min(1, Math.sqrt(value / max));
 }
 
+/** The value the hottest colour is given to, when the script does not name one.
+ *
+ *  A *percentile*, not the maximum, and this is the difference between a liquidity map and a
+ *  picture of its own biggest wall. Resting size is heavy-tailed: a handful of walls are twenty
+ *  times anything else, so scaling by the maximum pushes the entire ordinary book — which is most
+ *  of the cells and most of what there is to read — into the bottom of the ramp, where it is
+ *  near-black and invisible. Measured on the demo feed: the median level is 3% of the deepest wall.
+ *
+ *  Anchored on the **median** level, times a constant, rather than on a high percentile — and the
+ *  difference is not academic. A percentile moves with how many walls a book happens to have: on a
+ *  feed with four of them the 97th sits among ordinary levels and the picture is right; add twenty
+ *  more and the same percentile lands on the walls themselves, pushing everything else back into
+ *  the dark. Measured going from one to the other: 67 585 blue pixels down to 7 780, from the same
+ *  code, because the fixture grew more walls.
+ *
+ *  The median does not care. Ordinary levels land in the blues and cyans where they can be read,
+ *  and anything several times the typical level clamps at the top of the ramp — which is exactly
+ *  what a wall should do, however many of them there are.
+ *
+ *  Sampled rather than sorted whole: a hundred thousand cells is a sort nobody needs when every
+ *  fifth one answers the same question to within a rounding error. */
+const CEILING_OVER_MEDIAN = 8;
+
+function scaleCeiling(cells: { value: number }[]): number {
+  const step = Math.max(1, Math.floor(cells.length / 20_000));
+  const sample: number[] = [];
+  for (let i = 0; i < cells.length; i += step) sample.push(cells[i].value);
+  if (sample.length === 0) return 0;
+  sample.sort((a, b) => a - b);
+  return sample[Math.floor(sample.length / 2)] * CEILING_OVER_MEDIAN;
+}
+
 function sampleRamp(colors: string[]): Uint8ClampedArray {
   const stops = colors.map(parseColor);
   const table = new Uint8ClampedArray(RAMP_STEPS * 3);
@@ -98,7 +130,7 @@ function rasterise(field: ScriptHeatmapOutput, indexForDate: (date: Date) => num
     if (cell.price > maxPrice) maxPrice = cell.price;
     if (cell.value > peak) peak = cell.value;
   }
-  const max = field.max !== undefined && field.max > 0 ? field.max : peak;
+  const max = field.max !== undefined && field.max > 0 ? field.max : scaleCeiling(field.cells) || peak;
   const columns = maxIndex - minIndex + 1;
   const rows = Math.max(1, Math.round((maxPrice - minPrice) / field.bucket) + 1);
   // A field asking for more than this is a field whose bucket is wrong by orders of magnitude —
@@ -157,6 +189,54 @@ function rasterise(field: ScriptHeatmapOutput, indexForDate: (date: Date) => num
   return raster;
 }
 
+/** Radius bounds for a trade disc, in pixels. The floor keeps the smallest print visible at all;
+ *  the ceiling stops one outlier from covering a tenth of the pane. */
+const BUBBLE_MIN_R = 1.5;
+const BUBBLE_MAX_R = 9;
+
+/** The trade trail: one disc per print, radius from its size, colour from its side.
+ *
+ *  Area rather than radius carries the size — a disc twice the radius is four times the ink, and
+ *  scaling the radius linearly makes a print look four times bigger than it was. The square root is
+ *  the whole correction and it is the difference between a trail you can read and one that shouts.
+ *
+ *  Drawn per disc rather than rastered like the field, because a disc is a shape and not a cell:
+ *  it lands between bars and between levels, and snapping it to the field's grid would put every
+ *  print of a bar at the same place. That is why they are capped instead. */
+function drawBubbles(ctx: CanvasRenderingContext2D, params: RenderCandlestickChartParams, field: ScriptHeatmapOutput) {
+  const bubbles = field.bubbles;
+  if (bubbles === undefined || bubbles.length === 0) return;
+  const { zoomedXScale, zoomedPriceScale, dims, priceHeight, indexForDate } = params;
+  let largest = 0;
+  for (const bubble of bubbles) if (bubble.size > largest) largest = bubble.size;
+  if (largest <= 0) return;
+
+  ctx.globalAlpha = 0.85;
+  for (const bubble of bubbles) {
+    const x = zoomedXScale(indexForDate(new Date(bubble.date)) + 0.5);
+    if (x < -BUBBLE_MAX_R || x > dims.boundedWidth + BUBBLE_MAX_R) continue;
+    const y = zoomedPriceScale(bubble.price);
+    if (y < -BUBBLE_MAX_R || y > priceHeight + BUBBLE_MAX_R) continue;
+    const r = BUBBLE_MIN_R + Math.sqrt(bubble.size / largest) * (BUBBLE_MAX_R - BUBBLE_MIN_R);
+    // The two sides of the tape, and a third colour for a print whose side the feed never named —
+    // rather than picking one of the two and being wrong half the time.
+    ctx.fillStyle = bubble.aggressor === "buy" ? "#4caf72" : bubble.aggressor === "sell" ? "#e0564f" : "#b9c2cc";
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+/** True while any visible field has declared that it stands in for the price series.
+ *
+ *  Read by the candle pass, which then draws nothing: a field with an opaque ground has already
+ *  covered the candles, and leaving them underneath means dark ink on a dark ground — a smear
+ *  rather than a chart. What replaces them is the trade trail above. */
+export function heatmapReplacesPrice(params: RenderCandlestickChartParams): boolean {
+  return params.scriptHeatmaps.some((field) => field.replacesPrice === true && field.paneType === "overlay" && field.cells.length > 0);
+}
+
 /** Liquidity, as a field of colour under the candles.
  *
  *  Drawn first among the price-pane passes — before the candles, before every drawing — because it
@@ -192,11 +272,22 @@ export function drawScriptHeatmaps(ctx: CanvasRenderingContext2D, params: Render
     // Entirely off-screen: nothing to draw, and `drawImage` on a far-away rect is not free.
     if (right < 0 || left > dims.boundedWidth || bottom < 0 || top > priceHeight) continue;
 
+    // The ground first, across the *whole pane* rather than the raster's own box: a liquidity map
+    // is the background of the chart it is on, and a dark rectangle ending where the data happens
+    // to end would read as a panel floating in the middle of a light chart.
+    if (field.ground !== undefined) {
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = field.ground;
+      ctx.fillRect(0, 0, dims.boundedWidth, priceHeight);
+    }
+
     ctx.globalAlpha = raster.opacity;
     // Nearest-neighbour: a cell is a fact about one bar at one price, and smoothing would blur it
     // into its neighbours — inventing liquidity between two levels that had none.
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(raster.bitmap, left, top, width, height);
+
+    drawBubbles(ctx, params, field);
   }
 
   ctx.globalAlpha = 1;

@@ -23,8 +23,10 @@ export interface SampleDepthOptions {
   /** Price distance between two levels. Defaults to a thousandth of the first close, which puts
    *  roughly forty levels across a normal bar's range — the density the picture reads best at. */
   tick?: number;
-  /** How many levels a side. More is slower to generate and denser to look at; twenty a side is
-   *  what most venues publish. */
+  /** How many levels a side. Sixty by default rather than the ten or twenty a venue publishes on
+   *  its free tier: a liquidity map is read as a *field*, and a book only twenty levels deep draws
+   *  a ribbon hugging the price with empty chart above and below it — which is not what the picture
+   *  is for. A paid depth feed goes this deep and further. */
   levels?: number;
   seed?: number;
 }
@@ -48,7 +50,7 @@ function seeded(seed: number): () => number {
 
 export function makeSampleDepth(candles: Candle[], options: SampleDepthOptions = {}): SampleDepthFeed {
   const random = seeded(options.seed ?? 7);
-  const levels = Math.max(4, options.levels ?? 20);
+  const levels = Math.max(4, options.levels ?? 60);
   const tick = options.tick ?? Math.max(0.01, Number((candles[0].close / 1000).toPrecision(2)));
   const round = (price: number) => Math.round(price / tick) * tick;
 
@@ -57,11 +59,16 @@ export function makeSampleDepth(candles: Candle[], options: SampleDepthOptions =
   // prices would teach the wrong reflex.
   const low = Math.min(...candles.map((c) => c.low));
   const high = Math.max(...candles.map((c) => c.high));
-  const wallStep = (high - low) / 5;
-  const walls = Array.from({ length: 4 }, (_, i) => ({
-    price: round(low + wallStep * (i + 0.5)),
-    size: 4000 + random() * 9000,
-  }));
+  // Spaced so that several are always inside the book's own window, which is what makes them draw
+  // as the long horizontal bands a liquidity map is recognised by. Four walls spread over the whole
+  // range instead — the first version of this — sit outside the book on almost every bar and show
+  // up as short stubs wherever price happens to pass them, which is the opposite of the point: a
+  // wall matters *because* you can see it waiting long before price arrives.
+  const wallSpacing = Math.max(tick * 10, Number(((high - low) / 24).toPrecision(1)));
+  const walls: { price: number; size: number }[] = [];
+  for (let price = Math.ceil(low / wallSpacing) * wallSpacing; price <= high; price += wallSpacing) {
+    walls.push({ price: round(price), size: 4000 + random() * 9000 });
+  }
 
   // The iceberg sits just under the middle of the range, where price passes through it repeatedly.
   const icebergPrice = round(low + (high - low) * 0.42);

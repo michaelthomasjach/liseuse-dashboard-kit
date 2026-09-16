@@ -1,5 +1,6 @@
 import type { RenderCandlestickChartParams } from "../interfaces/RenderCandlestickChartParams.interface";
 import type { ChartCanvasStyle } from "../interfaces/ChartCanvasStyle.interface";
+import { heatmapReplacesPrice } from "./drawScriptHeatmaps";
 import type { IndicatorBand } from "../interfaces/IndicatorBand.interface";
 import type { IndicatorZigZagPoint } from "../interfaces/IndicatorZigZagPoint.interface";
 import type { IndicatorSupertrendPoint } from "../interfaces/IndicatorSupertrendPoint.interface";
@@ -108,7 +109,13 @@ export function drawPriceCandles(ctx: CanvasRenderingContext2D, params: RenderCa
       ctx.restore();
     }
 
-    if (chartDisplayMode === "line") {
+    // A liquidity map that paints the whole pane opaque has already covered the price series, and
+    // drawing it underneath would be dark ink on a dark ground. The map's own trade trail is what
+    // stands in for it — see `heatmapReplacesPrice`. Everything else in this pass (gridlines above,
+    // indicators and overlays below) still draws: the map replaces the candles, not the chart.
+    if (heatmapReplacesPrice(params)) {
+      // nothing
+    } else if (chartDisplayMode === "line") {
       // A plain close-price line, same treatment as the light area fill under an indicator
       // band (globalAlpha 0.08) rather than a fully opaque fill, so gridlines/drawings under it
       // stay legible.

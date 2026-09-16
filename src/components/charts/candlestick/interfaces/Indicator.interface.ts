@@ -1,6 +1,7 @@
 import type { IndicatorKind } from "./IndicatorKind.interface";
 import type { CustomIndicatorDef } from "./CustomIndicatorDef.interface";
 import type { OverlayDataPoint } from "./TrendLineDrawing.interface";
+import type { IndicatorProjectionMethod } from "../indicatorProjection";
 
 export interface Indicator {
   id: string;
@@ -186,6 +187,26 @@ export interface Indicator {
   correlationSymbol?: string;
   correlationSymbolName?: string;
   correlationData?: OverlayDataPoint[];
+  /** Continues the indicator's own lines past the last candle, dashed, in the empty space the
+   *  chart already reserves there. Off by default, and deliberately so: everything else this
+   *  library draws is measured from data that exists, and this is the one thing that is not.
+   *
+   *  Offered only by the kinds whose values are a *level that continues* — a moving average, an
+   *  oscillator, a band. A pattern detector or a zigzag has no projection to offer: "the next
+   *  pivot" is not something a curve fit can answer, and a toggle there would be a promise the
+   *  maths cannot keep. See `supportsProjection`. */
+  projection?: boolean;
+  /** How many bars forward. Default 12. */
+  projectionBars?: number;
+  /** How many past values the method is fitted on. Default 30. */
+  projectionLookback?: number;
+  /** How the next values are guessed — see `IndicatorProjectionMethod` for what each one reads and
+   *  where each one is wrong. Default "linear". */
+  projectionMethod?: IndicatorProjectionMethod;
+  /** How fast the trend is given up per projected bar, 0 to 1. Default 0.85 — see the field's own
+   *  doc on `IndicatorProjectionSettings` for why an undamped extrapolation is the one that ends up
+   *  off the pane. */
+  projectionDamping?: number;
   /** CSS color. Defaults to a color cycled from a small built-in palette. Ignored by
    *  "supertrend"/"parabolicSar"/"chandelierExit" (each has its own up/down pair above instead —
    *  a single color can't represent a trend flip) and "supportResistance"/"tpo" (colored by

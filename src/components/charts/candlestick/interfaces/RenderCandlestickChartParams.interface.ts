@@ -4,6 +4,7 @@ import type { Candle } from "./Candle.interface";
 import type { TrendLineDrawing } from "./TrendLineDrawing.interface";
 import type { DataPoint } from "./DataPoint.interface";
 import type { Indicator } from "./Indicator.interface";
+import type { IndicatorProjection } from "../indicatorProjection";
 import type { IndicatorValue } from "./IndicatorValue.interface";
 import type { ChartDisplayMode } from "./ChartDisplayMode.interface";
 import type { DrawingToolType } from "./DrawingToolType.interface";
@@ -76,6 +77,9 @@ export interface RenderCandlestickChartParams {
   measurePoints: { p1: DataPoint; p2: DataPoint } | null;
   livePrice: boolean;
   visibleIndicators: { indicator: Indicator; points: { i: number; value: IndicatorValue }[] }[];
+  /** Each projecting indicator's own continuation past the last bar — see `drawIndicatorProjections`
+   *  and `computeIndicatorProjection`. Empty when nothing has the option on, which is the default. */
+  indicatorProjections: IndicatorProjection[];
   indexForDate: (d: Date) => number;
   /** Draws a diagonal-hatched marker over the price pane's own "future" — from just past the last
    *  candle to the plot's right edge — see drawFutureZone.ts. A chart-settings toggle, not a

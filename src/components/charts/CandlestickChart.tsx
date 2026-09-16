@@ -740,6 +740,7 @@ export function CandlestickChart({
   const {
     indicatorValues,
     visibleIndicators,
+    indicatorProjections,
     zoomedOwnPaneScales,
     paneScaleAndOffset,
     pixelYForDrawing,
@@ -1002,6 +1003,7 @@ export function CandlestickChart({
     measurePoints,
     livePrice,
     visibleIndicators,
+    indicatorProjections,
     indexForDate,
     futureZoneVisible,
     pastZoneVisible,

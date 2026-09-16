@@ -6,6 +6,7 @@ import type { Indicator } from "../interfaces/Indicator.interface";
 import type { IndicatorValue } from "../interfaces/IndicatorValue.interface";
 import type { TrendLineDrawing } from "../interfaces/TrendLineDrawing.interface";
 import { computeIndicatorValues } from "../indicators";
+import { computeIndicatorProjection, type IndicatorProjection } from "../indicatorProjection";
 import { indicatorLabel } from "../indicatorCatalog";
 import { usePaneStackScales } from "./usePaneStackScales";
 
@@ -69,6 +70,21 @@ export function useIndicatorPaneScales({
     });
   }, [indicatorValues, data.length, visibleRange]);
 
+  /** Each projecting indicator's own continuation past the last bar.
+   *
+   *  Beside `visibleIndicators` rather than inside it: that one is a window onto data that exists,
+   *  clipped to what is on screen, and these points are on the other side of the last bar — they
+   *  would be filtered straight back out. It is also why this reads the *full* `indicatorValues`
+   *  and not the visible slice: a projection fitted on the thirty bars that happen to be in view
+   *  would change every time the chart is panned. */
+  const indicatorProjections = useMemo(
+    () =>
+      indicatorValues
+        .map(({ indicator, values }) => computeIndicatorProjection(indicator, values, data.length))
+        .filter((projection): projection is IndicatorProjection => projection !== null),
+    [indicatorValues, data.length]
+  );
+
   // One Y-scale per "own"-pane indicator, shared between the canvas draw effect and the SVG axis
   // ticks below it (computed once here instead of duplicated in both places, which would risk
   // the two drifting out of sync). RSI/CHOP are always 0-100 by definition; MACD and every
@@ -124,6 +140,7 @@ export function useIndicatorPaneScales({
 
   return {
     indicatorValues,
+    indicatorProjections,
     visibleIndicators,
     ownPaneScales,
     zoomedOwnPaneScales,

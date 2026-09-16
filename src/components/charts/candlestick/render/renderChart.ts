@@ -4,6 +4,7 @@ import { drawFutureZone, drawPastZone } from "./drawFutureZone";
 import { drawPriceCandles } from "./drawPriceCandles";
 import { drawPriceDrawings } from "./drawPriceDrawings";
 import { drawVolumeAndPanes } from "./drawVolumeAndPanes";
+import { drawIndicatorProjections } from "./drawIndicatorProjections";
 import { drawReplayMask } from "./drawReplayMask";
 
 export type { RenderCandlestickChartParams } from "../interfaces/RenderCandlestickChartParams.interface";
@@ -59,5 +60,8 @@ export function renderCandlestickChart(canvas: HTMLCanvasElement, wrapper: HTMLE
   drawPriceCandles(ctx, params, style);
   drawPriceDrawings(ctx, params, style);
   drawVolumeAndPanes(ctx, params, style);
+  // After the panes and the price lines, so a projection is always drawn over the series it
+  // continues rather than under it — and before the replay mask, which is allowed to cover it.
+  drawIndicatorProjections(ctx, params, style);
   drawReplayMask(ctx, params, style);
 }

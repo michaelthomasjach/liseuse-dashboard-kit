@@ -6,6 +6,7 @@ import { ChevronDownIcon, MagnetIcon, EyeIcon, EyeOffIcon, LockIcon, BellIcon, L
 import { ToolCategorySheet } from "./ToolCategorySheet";
 import type { DrawingToolType } from "../interfaces/DrawingToolType.interface";
 import { DRAWING_TOOL_CATEGORIES } from "../drawingCatalog";
+import { drawingToolSummary } from "../drawingDescriptions";
 import { capitalize } from "../formatting";
 import { TOOLS_RAIL_HEIGHT_MOBILE } from "../constants";
 import { SparkleIcon } from "../../../icons";
@@ -72,6 +73,11 @@ export interface ToolsRailProps {
  *  already uses for its own narrow-viewport row. Purely presentational — every interaction is a
  *  callback prop from
  *  `useDrawingState`/`useChartEvents`. */
+/** How long the pointer has to rest on a tool before it is taken as a question. Long enough that
+ *  crossing the rail says nothing, short enough that deliberately pausing does not feel like
+ *  waiting — the range every desktop toolbar has settled on. */
+const TOOL_HINT_DELAY_MS = 600;
+
 export function ToolsRail({
   drawingTools,
   dims,
@@ -105,6 +111,37 @@ export function ToolsRail({
   onOpenToolInfo,
 }: ToolsRailProps) {
   const [eventsMenuOpen, setEventsMenuOpen] = useState(false);
+
+  /** The tool the pointer has been resting on, and where its button is.
+   *
+   *  A delay, not an immediate tooltip: a pointer crossing a column of eight buttons on its way
+   *  somewhere else is not asking about any of them, and a box appearing under it each time would
+   *  be noise in the path of every gesture. Resting is the question. */
+  const [hint, setHint] = useState<{ tool: DrawingToolType; label: string; top: number; left: number; side: "right" | "top" } | null>(null);
+  const hintTimer = useRef<number | null>(null);
+
+  function cancelHint() {
+    if (hintTimer.current !== null) window.clearTimeout(hintTimer.current);
+    hintTimer.current = null;
+    setHint(null);
+  }
+
+  function armHint(tool: DrawingToolType, label: string, event: React.PointerEvent<HTMLElement>) {
+    // Touch has no hover, and a finger resting on a button is usually a press being decided.
+    if (event.pointerType !== "mouse") return;
+    if (drawingToolSummary(tool) === null) return;
+    const box = event.currentTarget.getBoundingClientRect();
+    if (hintTimer.current !== null) window.clearTimeout(hintTimer.current);
+    hintTimer.current = window.setTimeout(() => {
+      // Beside the button on the vertical rail, above it on the horizontal one — in both cases on
+      // the side the rail is not, so the box never covers the rest of the column it belongs to.
+      setHint(
+        horizontal
+          ? { tool, label, top: box.top - 8, left: box.left + box.width / 2, side: "top" }
+          : { tool, label, top: box.top + box.height / 2, left: box.right + 8, side: "right" }
+      );
+    }, TOOL_HINT_DELAY_MS);
+  }
   const eventsMenuAnchorRef = useRef<HTMLButtonElement>(null);
 
   if (!drawingTools) return null;
@@ -169,9 +206,13 @@ export function ToolsRail({
                 className={["lq-chart__icon-button", activeTool === selectedInCategory.type && "lq-chart__icon-button--active"]
                   .filter(Boolean)
                   .join(" ")}
-                onClick={() =>
-                  horizontal && category.tools.length > 1 ? setOpenToolMenu(category.id) : handleToolClick(selectedInCategory.type)
-                }
+                onClick={() => {
+                  cancelHint();
+                  if (horizontal && category.tools.length > 1) setOpenToolMenu(category.id);
+                  else handleToolClick(selectedInCategory.type);
+                }}
+                onPointerEnter={(e) => armHint(selectedInCategory.type, selectedInCategory.label, e)}
+                onPointerLeave={cancelHint}
                 aria-label={selectedInCategory.label}
                 aria-pressed={activeTool === selectedInCategory.type}
               >
@@ -469,6 +510,21 @@ export function ToolsRail({
           onOpenToolInfo(type);
         }}
       />
+      {/* What that tool is, in the first sentence its own explanation opens with. Fixed-positioned
+          against the viewport rather than absolute inside the rail: the rail is inside the chart's
+          own clipped plot area, and a box anchored in it would be cut off at the very edge it has
+          to sit beside. Never takes the pointer — this answers a question, it is not somewhere to
+          go, and a box that could be hovered would flicker as the pointer crossed into it. */}
+      {hint !== null && (
+        <div
+          className={`lq-chart__tool-hint lq-chart__tool-hint--${hint.side}`}
+          style={{ top: hint.top, left: hint.left }}
+          role="tooltip"
+        >
+          <span className="lq-chart__tool-hint-title">{hint.label}</span>
+          <span className="lq-chart__tool-hint-text">{drawingToolSummary(hint.tool)}</span>
+        </div>
+      )}
     </div>
   );
 }

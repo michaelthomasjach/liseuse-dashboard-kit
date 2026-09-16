@@ -3444,3 +3444,47 @@
   line-height: 1.45;
   color: var(--lq-color-text-muted);
 }
+
+/* The resting-pointer hint beside a drawing tool. Fixed, because the rail lives inside the chart's
+   own clipped plot area and an absolutely-positioned box would be cut off at the edge it has to sit
+   beside. */
+.lq-chart__tool-hint {
+  position: fixed;
+  z-index: 1900;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  max-width: 280px;
+  padding: var(--lq-space-2) var(--lq-space-3);
+  background-color: var(--lq-color-panel);
+  border: 1px solid var(--lq-color-border);
+  border-radius: var(--lq-radius-md);
+  box-shadow: var(--lq-shadow-modal);
+  pointer-events: none;
+}
+
+.lq-root[data-lq-palette="eink"] .lq-chart__tool-hint {
+  border-radius: 0;
+}
+
+/* Vertical rail: beside the button, centred on it. Horizontal rail: above it, centred. Both are
+   translated rather than offset in JS so the anchor stays the button's own edge. */
+.lq-chart__tool-hint--right {
+  transform: translateY(-50%);
+}
+
+.lq-chart__tool-hint--top {
+  transform: translate(-50%, -100%);
+}
+
+.lq-chart__tool-hint-title {
+  font-size: var(--lq-text-xs);
+  font-weight: 700;
+  color: var(--lq-color-text);
+}
+
+.lq-chart__tool-hint-text {
+  font-size: var(--lq-text-xs);
+  line-height: 1.45;
+  color: var(--lq-color-text-muted);
+}

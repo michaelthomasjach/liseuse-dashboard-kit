@@ -97,6 +97,7 @@ import { CHART_DISPLAY_MODES } from "./candlestick/chartModes";
 import { findTimeframeLabel, flattenTimeframeValues } from "./candlestick/timeframes";
 import { DEFAULT_MARGIN, MOBILE_LAYOUT_BREAKPOINT, NARROW_EMBED_BREAKPOINT, PRICE_AXIS_WIDTH_MOBILE, SUB_PANE_COLLAPSED_HEIGHT, TOOLS_RAIL_HEIGHT_MOBILE, TOOLS_RAIL_WIDTH } from "./candlestick/constants";
 import { formatPercentFromReference, computeOhlcReadout, toDayInputValue, candleIndexForDay } from "./candlestick/formatting";
+import { supportsProjection, projectionSettingsOf } from "./candlestick/indicatorProjection";
 
 /** Stands in for the plot's own pointer-down/up handlers while replay is armed — see where it is
  *  passed below. A module-level constant rather than an inline arrow so the overlay isn't handed a
@@ -640,6 +641,25 @@ export function CandlestickChart({
   // the view at the same time moves the very reference the point is being aimed against.
   const placementActive = isNarrowLayout && activeTool !== null && !replayState.armed;
 
+  /** How much empty room the plot keeps on its right, in bars: the longest horizon among the
+   *  indicators currently projecting, and zero when none is.
+   *
+   *  Read off the indicator list rather than off the computed projections, which are produced by a
+   *  hook that runs *after* this one — and which would be circular anyway, since they are drawn
+   *  against the very scale this number sizes. The settings are enough: a projection's horizon is
+   *  one of them, not something the maths decides. */
+  const projectionRoom = useMemo(
+    () =>
+      indicators.reduce(
+        (room, indicator) =>
+          indicator.projection === true && supportsProjection(indicator)
+            ? Math.max(room, projectionSettingsOf(indicator).bars)
+            : room,
+        0
+      ),
+    [indicators]
+  );
+
   const {
     yTransform,
     setYTransform,
@@ -670,6 +690,7 @@ export function CandlestickChart({
   } = useZoomAndScales({
     data,
     dims,
+    futureBars: projectionRoom,
     plotBoundedHeight,
     priceHeight,
     volumeHeight,

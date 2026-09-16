@@ -838,7 +838,8 @@ export function drawPriceDrawings(ctx: CanvasRenderingContext2D, params: RenderC
     // own doc comment), same clip as everything else in this section since it's conceptually
     // "another series over price", same as SMA/EMA above. `overlayDisplayMode` picks the shape: a
     // plain line through each point's rebased close (the default, and the only option when
-    // `overlayData` doesn't carry open/high/low), full OHLC bars ("candle"/"heikinAshi"), or
+    // `overlayData` doesn't carry open/high/low), OHLC bars ("bar"), candle bodies
+    // ("candle"/"heikinAshi"), or
     // bricks ("renko"/"lineBreak") — every non-line shape hollow (stroke-only, never filled) in
     // the overlay's own color rather than the theme's up/down hues, so it reads as "a comparison
     // instrument" instead of a second primary series competing with `data`'s own filled candles,
@@ -888,6 +889,28 @@ export function drawPriceDrawings(ctx: CanvasRenderingContext2D, params: RenderC
           const bottom = zoomedPriceScale(Math.min(brick.open, brick.close));
           const inset = Math.min(1.5, (x2 - x1) / 4);
           ctx.strokeRect(x1 + inset, top, Math.max(1, x2 - x1 - inset * 2), Math.max(1, bottom - top));
+        }
+        ctx.restore();
+      } else if (dr.overlayDisplayMode === "bar" && visiblePoints.every((p) => p.open !== undefined && p.high !== undefined && p.low !== undefined)) {
+        // OHLC bars, same notation as the main series' own "bar" mode — and the one shape here
+        // that needs no hollow/filled convention to stay distinct, since a bar has no body to
+        // fill. In the overlay's own colour like every other non-line shape above.
+        ctx.save();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = (dr.strokeWidth ?? 1.5) + (hoveredDrawingId === dr.id ? 1 : 0);
+        const tick = Math.max(1, candleWidth / 2);
+        for (const p of visiblePoints) {
+          const cx = zoomedXScale(p.i + 0.5);
+          ctx.beginPath();
+          ctx.moveTo(cx, zoomedPriceScale(p.high!));
+          ctx.lineTo(cx, zoomedPriceScale(p.low!));
+          const openY = zoomedPriceScale(p.open!);
+          ctx.moveTo(cx - tick, openY);
+          ctx.lineTo(cx, openY);
+          const closeY = zoomedPriceScale(p.price);
+          ctx.moveTo(cx, closeY);
+          ctx.lineTo(cx + tick, closeY);
+          ctx.stroke();
         }
         ctx.restore();
       } else if (dr.overlayDisplayMode === "candle" && visiblePoints.every((p) => p.open !== undefined && p.high !== undefined && p.low !== undefined)) {

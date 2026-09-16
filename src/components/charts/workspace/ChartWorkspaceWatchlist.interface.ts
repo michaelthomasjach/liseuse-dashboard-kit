@@ -6,7 +6,12 @@ export interface ChartWorkspaceWatchlistColumn {
   id: string;
   /** Shown as this column's own header, and as its label in the "..." visibility toggle. */
   label: string;
-  /** Clicking this column's own header sorts every list's rows by this — `values[id]` (see
+  /** The column's comparable value for one row. Two things read it, and they are the same
+   *  question: sorting, and telling a figure that rose from one that fell between two updates (see
+   *  `ChartWorkspaceWatchlistRow.price`). Only a *number* can do the second — a `sortValue`
+   *  returning a string is a label, and that column simply never flashes.
+   *
+   *  Clicking this column's own header sorts every list's rows by this — `values[id]` (see
    *  `ChartWorkspaceWatchlistRow.values`) is a `ReactNode`, not necessarily a plain comparable
    *  value (a colored "+1.24%" `<span>`, say), so a column whose own cell is anything beyond a
    *  bare string/number needs this to say what it should actually sort by. Omit it and the
@@ -48,8 +53,13 @@ export interface ChartWorkspaceWatchlistRow {
    *  `values` already carries what is *displayed* — a formatted string, or a coloured node — and
    *  a formatted string cannot be compared against the previous one to tell a rise from a fall
    *  without parsing it back, which no amount of care makes safe across locales and currencies.
-   *  This is the comparable value, used for one thing: flashing the row when it moves. Omitted,
-   *  the row simply never flashes. */
+   *  This is the comparable value, used for one thing: flashing a figure when it moves.
+   *
+   *  It is the fallback, not the first choice. Each column flashes on its own
+   *  `ChartWorkspaceWatchlistColumn.sortValue` when that returns a number, because the columns do
+   *  not move together — a price can rise on a day whose variation is still negative, and tinting
+   *  every column by the price would paint that variation green. A column declaring no numeric
+   *  `sortValue` falls back to this; with neither, that figure simply never flashes. */
   price?: number;
 }
 

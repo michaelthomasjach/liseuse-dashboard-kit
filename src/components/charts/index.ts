@@ -74,7 +74,19 @@ export type { WorldExposureMapProps, WorldExposureDatum } from "./WorldExposureM
 export { matchContinent, CONTINENT_LABELS, CONTINENTS } from "./worldGeo";
 export type { Continent } from "./worldGeo";
 
-export type { BrokerDef, BrokerConnection, BrokerCredentialField, BrokerAccount } from "./candlestick/interfaces/Broker.interface";
+export type {
+  BrokerAdapter,
+  BrokerAccount,
+  BrokerCredentialField,
+  BrokerEnvironment,
+  BrokerSession,
+  BrokerMarket,
+  BrokerOrderRequest,
+  BrokerOrderResult,
+  BrokerOrderSide,
+  BrokerOrderType,
+  BrokerPosition,
+} from "./candlestick/broker/interfaces/Broker.interface";
 
 export { MatrixChart } from "./MatrixChart";
 export type { MatrixChartProps, MatrixCell, MatrixCellDetail, MatrixAxisEntry } from "./MatrixChart";

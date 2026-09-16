@@ -6,10 +6,14 @@ import "./Broker.css";
 export interface BrokerHelpModalProps {
   open: boolean;
   onClose: () => void;
-  detachedWindow: Window | null;
-  onDetach: () => void;
-  onDetachedClose: () => void;
-  themeSource: HTMLElement | null;
+  /** The separate window this content has been moved to, when the host offers that. All four are
+   *  optional together: detaching is a feature a host opts into, and one that does not should not
+   *  have to invent three callbacks and a null to open a help dialog. Omitted, the modal simply
+   *  has no "open in a window" button. */
+  detachedWindow?: Window | null;
+  onDetach?: () => void;
+  onDetachedClose?: () => void;
+  themeSource?: HTMLElement | null;
 }
 
 /** The three routes a signal can take, drawn. The difference between them is who decides, and that
@@ -189,8 +193,10 @@ function HelpBody() {
   );
 }
 
-export function BrokerHelpModal({ open, onClose, detachedWindow, onDetach, onDetachedClose, themeSource }: BrokerHelpModalProps) {
-  if (detachedWindow !== null) {
+export function BrokerHelpModal({ open, onClose, detachedWindow = null, onDetach, onDetachedClose, themeSource = null }: BrokerHelpModalProps) {
+  // Both, not just the window: the detached view needs somewhere to report its own closing, and a
+  // host that gave a window but no `onDetachedClose` would leave it unclosable from inside.
+  if (detachedWindow !== null && onDetachedClose !== undefined) {
     return (
       <DetachedWindow target={detachedWindow} themeSource={themeSource} title="Passage d'ordres" onClose={onDetachedClose} layout="page">
         <HelpBody />
@@ -205,16 +211,20 @@ export function BrokerHelpModal({ open, onClose, detachedWindow, onDetach, onDet
       title="Passer des ordres depuis une stratégie"
       size="wide"
       headerActions={
-        <button
-          type="button"
-          className="lq-broker__header-help"
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={onDetach}
-          aria-label="Ouvrir dans une nouvelle fenêtre"
-          title="Ouvrir dans une nouvelle fenêtre"
-        >
-          <DetachWindowIcon size={14} />
-        </button>
+        // No button at all when the host did not offer detaching — an affordance for a feature
+        // that is not there is worse than its absence.
+        onDetach === undefined ? undefined : (
+          <button
+            type="button"
+            className="lq-broker__header-help"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={onDetach}
+            aria-label="Ouvrir dans une nouvelle fenêtre"
+            title="Ouvrir dans une nouvelle fenêtre"
+          >
+            <DetachWindowIcon size={14} />
+          </button>
+        )
       }
       footer={
         <div className="lq-chart__edit-drawing-footer">

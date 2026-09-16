@@ -4,7 +4,6 @@ import type { Candle } from "./Candle.interface";
 import type { TrendLineDrawing, OverlayDataPoint } from "./TrendLineDrawing.interface";
 import type { Indicator } from "./Indicator.interface";
 import type { CustomIndicatorDef } from "./CustomIndicatorDef.interface";
-import type { BrokerConnection, BrokerDef } from "./Broker.interface";
 import type { ChartTemplate } from "./ChartTemplate.interface";
 import type { TimeframeEntry } from "./TimeframeEntry.interface";
 import type { ChartDisplayMode } from "./ChartDisplayMode.interface";
@@ -149,21 +148,6 @@ export interface CandlestickChartProps {
    *  current layout has unsaved changes (including never having saved at all) offers to save
    *  first rather than silently discarding it. Default false. */
   showTemplates?: boolean;
-  /** Brokers this chart can offer to connect to. Passing a non-empty list is what puts the plug
-   *  button in the header's right-hand group; this library ships no list of its own, since one it
-   *  invented would be out of date the day after it was written. See `BrokerDef`. */
-  brokers?: BrokerDef[];
-  /** Brokers already connected when the chart mounts. Uncontrolled from then on — the chart owns
-   *  the list and reports every change through `onBrokerConnectionsChange`, the same convention
-   *  `drawings` and `indicators` already follow. */
-  defaultBrokerConnections?: BrokerConnection[];
-  onBrokerConnectionsChange?: (connections: BrokerConnection[]) => void;
-  /** Performs the connection. Resolving means connected, and whatever `BrokerConnection` it returns
-   *  is what the chart shows; throwing means it failed, and the error's own message is what the
-   *  form says. Omit it and the dialog *simulates* a connection instead, which is what makes the
-   *  whole flow demonstrable with no account anywhere. Credentials are handed here and kept
-   *  nowhere — see `BrokerConnection`. */
-  onBrokerConnect?: (broker: BrokerDef, credentials: Record<string, string>) => Promise<BrokerConnection | void> | BrokerConnection | void;
   /** Uncontrolled initial list of saved templates. */
   defaultTemplates?: ChartTemplate[];
   /** Fires whenever a template is saved (new or overwritten) or deleted. */

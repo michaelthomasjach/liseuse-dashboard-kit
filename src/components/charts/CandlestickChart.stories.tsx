@@ -856,9 +856,9 @@ export const AllFeatures: Story = {
             montrer le parcours complet — en attente, connecté, déconnexion — sans compte nulle
             part. Voir `simulateConnect`. */}
         <ChartWorkspace
-          brokers={SAMPLE_BROKERS}
           defaultPanels={1}
           scripting
+          brokers={SAMPLE_BROKERS}
           ai={STORY_ASSISTANT}
           watchlists={liveWatchlists}
           watchlistSymbolSearchResults={watchlistSearchResults}

@@ -55,7 +55,13 @@ const demoAdapter: BrokerAdapter = {
     await wait(120);
   },
   async accounts() {
-    return [{ id: "DEMO-1", label: "Compte de démonstration", currency: "EUR", available: 9_820.44, balance: 10_000 }];
+    // Several, so the panel's own account chooser has something to choose between — and one of
+    // each product, which is the distinction a single broker actually puts in front of you.
+    return [
+      { id: "DEMO-1", type: "Compte sur marge", label: "Compte de démonstration", currency: "EUR", available: 9_820.44, balance: 10_000 },
+      { id: "DEMO-2", type: "CFD", label: "Indices et actions", currency: "EUR", available: 5_000, balance: 5_000 },
+      { id: "DEMO-3", type: "Barrières & Options", label: "Barrières, vanilles", currency: "EUR", available: 2_500, balance: 2_500 },
+    ];
   },
   async resolveMarket(_session, symbol) {
     await wait(120);

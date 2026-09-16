@@ -10,8 +10,9 @@ export interface BrokerPanelProps {
   /** Opens the connection modal. */
   onConnect: () => void;
   onHelp: () => void;
-  /** Opens a blank ticket. */
-  onNewOrder: () => void;
+  /** Opens a blank ticket. Optional: a host that has not wired an order ticket to this connection
+   *  yet simply gets no button, rather than one that does nothing. */
+  onNewOrder?: () => void;
   /** Confirms the order a strategy raised in `confirm` mode. */
   onConfirmPending: () => void;
   currency: string;
@@ -219,9 +220,11 @@ export function BrokerPanel({ broker, onConnect, onHelp, onNewOrder, onConfirmPe
           </div>
 
           <div className="lq-broker-panel__actions">
-            <button type="button" className="lq-chart__reset-button" onClick={onNewOrder}>
-              Nouvel ordre
-            </button>
+            {onNewOrder && (
+              <button type="button" className="lq-chart__reset-button" onClick={onNewOrder}>
+                Nouvel ordre
+              </button>
+            )}
             <button type="button" className="lq-chart__reset-button" onClick={() => void broker.refreshPositions()}>
               <RefreshIcon size={12} /> Positions
             </button>

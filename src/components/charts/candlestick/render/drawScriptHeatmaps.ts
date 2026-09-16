@@ -194,6 +194,74 @@ function rasterise(field: ScriptHeatmapOutput, indexForDate: (date: Date) => num
 const BUBBLE_MIN_R = 1.5;
 const BUBBLE_MAX_R = 9;
 
+/** A trail, reduced to the three numbers a frame actually needs, sorted by bar.
+ *
+ *  Everything expensive about a disc is decided *once* here: which bar it belongs to (a date lookup
+ *  and an allocation), and how big it is (a square root against the run's largest print). What was
+ *  left for the frame was those two things times thirty thousand discs, sixty times a second, and
+ *  it is what took panning from 64 ms a frame to 199.
+ *
+ *  Typed arrays rather than objects, and sorted by bar rather than left in arrival order: the sort
+ *  is what lets a frame binary-search to the visible window and walk a slice instead of testing
+ *  every disc against the viewport. */
+interface PreparedBubbles {
+  index: Int32Array;
+  price: Float64Array;
+  radius: Float32Array;
+  /** 0 unknown, 1 buy, 2 sell — an index into the three colours, resolved once. */
+  side: Uint8Array;
+}
+
+const bubbleCache = new WeakMap<ScriptHeatmapOutput, PreparedBubbles | null>();
+
+function prepareBubbles(field: ScriptHeatmapOutput, indexForDate: (date: Date) => number): PreparedBubbles | null {
+  const cached = bubbleCache.get(field);
+  if (cached !== undefined) return cached;
+  const bubbles = field.bubbles;
+  if (bubbles === undefined || bubbles.length === 0) {
+    bubbleCache.set(field, null);
+    return null;
+  }
+  let largest = 0;
+  for (const bubble of bubbles) if (bubble.size > largest) largest = bubble.size;
+  if (largest <= 0) {
+    bubbleCache.set(field, null);
+    return null;
+  }
+  // One pass to resolve, one sort. The date objects die here rather than being rebuilt per frame.
+  const order = bubbles.map((bubble, i) => ({ i, at: indexForDate(new Date(bubble.date)) }));
+  order.sort((a, b) => a.at - b.at);
+  const prepared: PreparedBubbles = {
+    index: new Int32Array(order.length),
+    price: new Float64Array(order.length),
+    radius: new Float32Array(order.length),
+    side: new Uint8Array(order.length),
+  };
+  for (let k = 0; k < order.length; k++) {
+    const bubble = bubbles[order[k].i];
+    prepared.index[k] = order[k].at;
+    prepared.price[k] = bubble.price;
+    prepared.radius[k] = BUBBLE_MIN_R + Math.sqrt(bubble.size / largest) * (BUBBLE_MAX_R - BUBBLE_MIN_R);
+    prepared.side[k] = bubble.aggressor === "buy" ? 1 : bubble.aggressor === "sell" ? 2 : 0;
+  }
+  bubbleCache.set(field, prepared);
+  return prepared;
+}
+
+/** First entry whose bar index is at or after `target`. */
+function lowerBound(index: Int32Array, target: number): number {
+  let lo = 0;
+  let hi = index.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (index[mid] < target) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo;
+}
+
+const BUBBLE_COLORS = ["#b9c2cc", "#4caf72", "#e0564f"];
+
 /** The trade trail: one disc per print, radius from its size, colour from its side.
  *
  *  Area rather than radius carries the size — a disc twice the radius is four times the ink, and
@@ -204,26 +272,63 @@ const BUBBLE_MAX_R = 9;
  *  it lands between bars and between levels, and snapping it to the field's grid would put every
  *  print of a bar at the same place. That is why they are capped instead. */
 function drawBubbles(ctx: CanvasRenderingContext2D, params: RenderCandlestickChartParams, field: ScriptHeatmapOutput) {
-  const bubbles = field.bubbles;
-  if (bubbles === undefined || bubbles.length === 0) return;
-  const { zoomedXScale, zoomedPriceScale, dims, priceHeight, indexForDate } = params;
-  let largest = 0;
-  for (const bubble of bubbles) if (bubble.size > largest) largest = bubble.size;
-  if (largest <= 0) return;
+  const { zoomedXScale, zoomedPriceScale, dims, priceHeight, indexForDate, visibleRange } = params;
+  const prepared = prepareBubbles(field, indexForDate);
+  if (prepared === null) return;
+
+  // Only the discs whose bar is on screen, found by bisection. Everything else is not tested, not
+  // scaled, and not looked at — which on a long history is most of them.
+  const from = lowerBound(prepared.index, visibleRange.start - 1);
+  const to = lowerBound(prepared.index, visibleRange.end + 2);
+
+  // Batched into *runs* rather than one path per side, and the difference is the picture rather
+  // than the speed. `arc` is cheap and `fill` is not, so thirty thousand fills had to go — but
+  // three paths filled in a fixed order means whichever side is filled last covers the other
+  // wherever discs overlap, and the trail went from 18 328 green pixels to 9 202 without a single
+  // trade changing. Filling each consecutive same-side run keeps the tape's own order, which is the
+  // order a painter's algorithm is supposed to honour, and still collapses a dense trail from tens
+  // of thousands of fills to a few hundred.
+  const pending: { side: number; path: Path2D }[] = [];
+  let path = new Path2D();
+  let runSide = -1;
+  // Sub-pixel duplicates are dropped: at a zoom where a bar is half a pixel wide, a hundred discs
+  // land on the same dot and only the last is visible anyway. Rounded to the pixel, so this thins
+  // exactly when the picture stops being able to show the difference.
+  //
+  // Per side, not globally, and that took a measurement to notice: dropping whatever landed on an
+  // already-used pixel let iteration order decide which colour survived, and the trail went from
+  // 18 328 green pixels to 9 215 without a single trade changing. Two sides on one pixel is one
+  // overdraw; two hundred prints of the same side on one pixel is the thing worth dropping.
+  const lastX = [Number.NaN, Number.NaN, Number.NaN];
+  const lastY = [Number.NaN, Number.NaN, Number.NaN];
+  const lastR = [Number.NaN, Number.NaN, Number.NaN];
+  for (let k = from; k < to; k++) {
+    const x = zoomedXScale(prepared.index[k] + 0.5);
+    if (x < -BUBBLE_MAX_R || x > dims.boundedWidth + BUBBLE_MAX_R) continue;
+    const y = zoomedPriceScale(prepared.price[k]);
+    if (y < -BUBBLE_MAX_R || y > priceHeight + BUBBLE_MAX_R) continue;
+    const r = prepared.radius[k];
+    const rx = Math.round(x);
+    const ry = Math.round(y);
+    const side = prepared.side[k];
+    if (rx === lastX[side] && ry === lastY[side] && r <= lastR[side]) continue;
+    lastX[side] = rx;
+    lastY[side] = ry;
+    lastR[side] = r;
+    if (side !== runSide) {
+      if (runSide !== -1) pending.push({ side: runSide, path });
+      path = new Path2D();
+      runSide = side;
+    }
+    path.moveTo(x + r, y);
+    path.arc(x, y, r, 0, Math.PI * 2);
+  }
+  if (runSide !== -1) pending.push({ side: runSide, path });
 
   ctx.globalAlpha = 0.85;
-  for (const bubble of bubbles) {
-    const x = zoomedXScale(indexForDate(new Date(bubble.date)) + 0.5);
-    if (x < -BUBBLE_MAX_R || x > dims.boundedWidth + BUBBLE_MAX_R) continue;
-    const y = zoomedPriceScale(bubble.price);
-    if (y < -BUBBLE_MAX_R || y > priceHeight + BUBBLE_MAX_R) continue;
-    const r = BUBBLE_MIN_R + Math.sqrt(bubble.size / largest) * (BUBBLE_MAX_R - BUBBLE_MIN_R);
-    // The two sides of the tape, and a third colour for a print whose side the feed never named —
-    // rather than picking one of the two and being wrong half the time.
-    ctx.fillStyle = bubble.aggressor === "buy" ? "#4caf72" : bubble.aggressor === "sell" ? "#e0564f" : "#b9c2cc";
-    ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fill();
+  for (const run of pending) {
+    ctx.fillStyle = BUBBLE_COLORS[run.side];
+    ctx.fill(run.path);
   }
   ctx.globalAlpha = 1;
 }

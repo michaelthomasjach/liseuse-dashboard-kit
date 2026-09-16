@@ -24,7 +24,13 @@ export interface BrokerCredentialField {
   required?: boolean;
 }
 
-/** An account the connected session can trade on. */
+/** An account the connected session can trade on.
+ *
+ *  A broker is rarely one account. Behind a single connection there is usually a practice account
+ *  and a funded one, and under each of those a margin account, a CFD account, a barriers-and-
+ *  options account — different products, different rules, different money. Which one an order
+ *  reaches is a decision, so it is shown and chosen rather than assumed from the first item in a
+ *  list. */
 export interface BrokerAccount {
   id: string;
   label: string;
@@ -33,6 +39,23 @@ export interface BrokerAccount {
    *  figure so the two can be compared without leaving the panel. */
   available?: number;
   balance?: number;
+  /** Real money, or a simulator. A closed union, unlike `type`, because it is the one distinction
+   *  here that can cost somebody something.
+   *
+   *  Usually redundant with the session's own `BrokerSession.environment` and omitted — a broker
+   *  whose demo and live books are separate logins has already answered this at connection time.
+   *  It earns its place at the brokers that expose both under one login, where the environment
+   *  cannot say which of two accounts is the funded one. Absent, the session's environment
+   *  answers. */
+  kind?: "real" | "demo";
+  /** What this account trades, in the broker's own words — "Compte sur marge", "CFD", "Barrières &
+   *  Options", "Compte au comptant". Free text on purpose: every broker names its own products,
+   *  and a union here would either be wrong for somebody or grow forever. */
+  type?: string;
+  /** Not selectable — awaiting approval, closed, outside the hours it allows. */
+  disabled?: boolean;
+  /** Why, in one line. Shown beside the account, so a greyed-out row is never a mystery. */
+  disabledReason?: string;
 }
 
 /** What the adapter hands back from `connect`. Opaque to this library: it is passed to every other

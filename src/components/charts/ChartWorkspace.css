@@ -1873,32 +1873,13 @@
    ago never keeps claiming to be news. */
 .lq-chart-workspace__watchlist-value {
   display: inline-block;
-  animation: lq-watchlist-value-bounce 520ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-@keyframes lq-watchlist-value-bounce {
-  0% {
-    transform: translateY(0) scale(1);
-  }
-  35% {
-    transform: translateY(-3px) scale(1.09);
-  }
-  70% {
-    transform: translateY(1px) scale(0.98);
-  }
-  100% {
-    transform: translateY(0) scale(1);
-  }
-}
-
-/* Both animations, respelled together. The `animation` shorthand replaces whatever the base class
-   set, so naming only the tint here would silently drop the bounce from the very values that
-   moved — the only ones it exists for. */
+/* Colour, and nothing else. A figure that also jumped drew the eye to the movement rather than to
+   the number, and thirty of them jumping is a table that cannot be read while it updates. */
 .lq-chart-workspace__watchlist-value--up,
 .lq-chart-workspace__watchlist-value--down {
-  animation:
-    lq-watchlist-value-bounce 520ms cubic-bezier(0.34, 1.56, 0.64, 1),
-    lq-watchlist-value-tint 1400ms ease-out;
+  animation: lq-watchlist-value-tint 1400ms ease-out;
 }
 
 /* No closing keyframe on purpose, and this is load-bearing.
@@ -1952,10 +1933,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .lq-chart-workspace__watchlist-value {
-    animation: none;
-  }
-
+  /* The tint still happens, it just arrives at once: the colour is the information, and removing it
+     would remove the message rather than the motion. */
   .lq-chart-workspace__watchlist-value--up,
   .lq-chart-workspace__watchlist-value--down {
     animation-duration: 1ms;

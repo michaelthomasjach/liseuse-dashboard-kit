@@ -157,11 +157,17 @@ export function WatchlistPanel({
    *  symbols tick independently hands it one every time *any* symbol moves. Reading that as "an
    *  update arrived for every row" bounced all thirty rows each time one of them moved. */
   const previousValuesRef = useRef<Record<string, number>>({});
-  const [valueMoves, setValueMoves] = useState<Record<string, "up" | "down">>({});
-  /** Bumped on every tick, so an identical move in a row can restart its own animation — a CSS
-   *  animation only replays when the class actually changes, and "up" twice running is not a
-   *  change. */
-  const [tick, setTick] = useState(0);
+  /** Per figure: which way it went, and how many times it has gone anywhere.
+   *
+   *  The counter is per figure and not global, and that is the whole point. It becomes the `key` of
+   *  the element the animation runs on, so a figure that moved gets a new element and replays,
+   *  while every figure that did not keeps the one it had and stays perfectly still. A single
+   *  shared counter — which is what this was — re-keyed all ninety cells on every update, so one
+   *  symbol ticking re-created the entire table and the whole thing animated in lockstep. */
+  const [valueMoves, setValueMoves] = useState<Record<string, { dir: "up" | "down"; seq: number }>>({});
+  /** Pending "stop tinting" timers, one per batch of moves. Held so unmounting can drop them and
+   *  nothing else can — see the effect below for why cancelling them on every re-run was wrong. */
+  const fadeTimersRef = useRef<number[]>([]);
   const allRows = useMemo(
     () => [...activeWatchlist.rows, ...(activeWatchlist.sections?.flatMap((section) => section.rows) ?? [])],
     [activeWatchlist],
@@ -169,6 +175,7 @@ export function WatchlistPanel({
   const columns = useMemo(() => activeWatchlist?.columns ?? [], [activeWatchlist]);
   useEffect(() => {
     const moved: Record<string, "up" | "down"> = {};
+
     for (const row of allRows) {
       for (const column of columns) {
         // The column's own comparable value, or the row's price for a column that declares none.
@@ -187,19 +194,34 @@ export function WatchlistPanel({
       }
     }
     if (Object.keys(moved).length === 0) return;
-    setValueMoves((current) => ({ ...current, ...moved }));
-    setTick((n) => n + 1);
+    setValueMoves((current) => {
+      const next = { ...current };
+      for (const [key, dir] of Object.entries(moved)) next[key] = { dir, seq: (current[key]?.seq ?? 0) + 1 };
+      return next;
+    });
     // Cleared after the tint has had time to be seen. Without this a figure stays green from a
     // rise that happened minutes ago, which says something false about the present.
+    // Each batch gets its own expiry, and this effect deliberately does **not** cancel it on
+    // cleanup. It used to, and that was the bug: the effect re-runs whenever `rows` changes, which
+    // with symbols ticking independently is several times a second, so every run cancelled the
+    // previous batch's expiry before it could fire. Nothing was ever cleared — measured on the live
+    // table, 30 of 30 rows sat permanently tinted. The timers are tracked instead and dropped only
+    // when the panel goes away.
     const id = window.setTimeout(() => {
       setValueMoves((current) => {
         const next = { ...current };
-        for (const key of Object.keys(moved)) if (next[key] === moved[key]) delete next[key];
+        // Only the entries this batch wrote, and only if nothing has overwritten them since — a
+        // figure that moved again inside the window keeps its newer tint rather than losing it to
+        // this timeout.
+        for (const [key, dir] of Object.entries(moved)) if (next[key]?.dir === dir) delete next[key];
         return next;
       });
+      fadeTimersRef.current = fadeTimersRef.current.filter((timer) => timer !== id);
     }, 1400);
-    return () => window.clearTimeout(id);
+    fadeTimersRef.current.push(id);
   }, [allRows, columns]);
+
+  useEffect(() => () => fadeTimersRef.current.forEach((timer) => window.clearTimeout(timer)), []);
 
   /** The row dropped a moment ago — see the arrival animation in ChartWorkspace.css. */
   const [justDroppedId, setJustDroppedId] = useState<string | null>(null);
@@ -427,18 +449,19 @@ export function WatchlistPanel({
               animation restarts on a new element, not on the same class being set twice. */}
           {visibleColumns.map((c) => {
             const move = valueMoves[`${row.id}/${c.id}`];
+            const dir = move?.dir;
             return (
               <span key={c.id} className="lq-chart-workspace__watchlist-cell" style={columnFlexStyle(c.id)}>
-                {/* Tint and bounce both ride on this span rather than on the cell around it, and
-                    the `key` is what makes them run at all: a CSS animation starts when an element
-                    *gains* one, and swapping a class on an element that is already there does not
-                    reliably do that — measured on the live table, the cells carried their up/down
-                    class for 1.4s at a time while `document.getAnimations()` held zero tint
-                    animations and ninety bounces, the bounce being the one whose element is
-                    replaced. A new key is a new element, and a new element always animates. */}
+                {/* The tint rides on this span rather than on the cell around it, and the `key` is
+                    what makes it run at all: a CSS animation starts when an element *gains* one,
+                    and swapping a class on an element that is already there does not reliably do
+                    that — measured on the live table, cells carried their up/down class for 1.4s at
+                    a time while `document.getAnimations()` held zero tint animations. A new key is
+                    a new element, and a new element always animates. The key counts *this* figure's
+                    own moves, so only the figure that moved is replaced. */}
                 <span
-                  key={`${move ?? "idle"}-${tick}`}
-                  className={["lq-chart-workspace__watchlist-value", move && `lq-chart-workspace__watchlist-value--${move}`]
+                  key={`${dir ?? "idle"}-${move?.seq ?? 0}`}
+                  className={["lq-chart-workspace__watchlist-value", dir && `lq-chart-workspace__watchlist-value--${dir}`]
                     .filter(Boolean)
                     .join(" ")}
                 >

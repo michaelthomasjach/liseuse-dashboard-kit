@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { AlertTriangleIcon, HelpIcon, LockIcon, RefreshIcon, SettingsIcon } from "../../../../icons";
 import { ENVIRONMENT_LABEL, type BrokerMode } from "../brokerSafety";
+import type { BrokerAccount, BrokerEnvironment } from "../interfaces/Broker.interface";
 import type { BrokerState } from "../useBrokerState";
 import "./Broker.css";
 
@@ -14,6 +15,26 @@ export interface BrokerPanelProps {
   /** Confirms the order a strategy raised in `confirm` mode. */
   onConfirmPending: () => void;
   currency: string;
+}
+
+/** What an account reads as in the chooser: the product first, since that is what distinguishes
+ *  two accounts at the same broker, then whether real money is involved.
+ *
+ *  `kind` only when the account says so itself. Repeating the session's own environment on every
+ *  line would be noise at the brokers whose demo and live books are separate logins — which is most
+ *  of them — and the panel already states the environment right above. */
+function accountOptionLabel(account: BrokerAccount, environment: BrokerEnvironment): string {
+  const nature = account.kind === undefined ? null : account.kind === "real" ? "réel" : "démo";
+  // Deliberately unused beyond the guard above: named so the signature says what decides the
+  // fallback, and so a future panel that wants to state it has the value in hand.
+  void environment;
+  return [account.type, account.label, nature].filter(Boolean).join(" · ");
+}
+
+/** The active account's own line: what it is, and what is free to trade with. */
+function accountLine(account: BrokerAccount, fmt: (value: number) => string): string {
+  const money = account.available === undefined ? null : `${fmt(account.available)} ${account.currency} disponibles`;
+  return [account.type, account.label, money].filter(Boolean).join(" · ");
 }
 
 const MODES: { mode: BrokerMode; label: string; what: string }[] = [
@@ -54,7 +75,7 @@ function PendingCountdown({ expiresAt, onExpire }: { expiresAt: number; onExpire
  *  reloads here (a deliberate choice), which means the only thing standing between a page being
  *  opened and orders being placed is that the reader notices it is on. */
 export function BrokerPanel({ broker, onConnect, onHelp, onNewOrder, onConfirmPending, currency }: BrokerPanelProps) {
-  const { session, adapter, accounts, mode, setMode, armed, setArmed, limits, day, dailyLossUnknown, journal, positions, pending } = broker;
+  const { session, adapter, accounts, activeAccount, selectAccount, mode, setMode, armed, setArmed, limits, day, dailyLossUnknown, journal, positions, pending } = broker;
   const live = session?.environment === "live";
   const fmt = (value: number) => value.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -103,10 +124,37 @@ export function BrokerPanel({ broker, onConnect, onHelp, onNewOrder, onConfirmPe
             </button>
           </div>
 
+          {/* Which account an order would reach. A line when the broker offers one and a chooser
+              when it offers several — the same block either way, so the reader never has to learn
+              two layouts, and a second account appearing does not move anything. */}
           {accounts.length > 0 && (
-            <div className="lq-broker-panel__account">
-              {accounts[0].label}
-              {accounts[0].available !== undefined && <span> · {fmt(accounts[0].available)} {accounts[0].currency} disponibles</span>}
+            <div className="lq-broker-panel__accounts">
+              {accounts.length === 1 ? (
+                <div className="lq-broker-panel__account">{accountLine(accounts[0], fmt)}</div>
+              ) : (
+                <>
+                  <label className="lq-broker-panel__account-label" htmlFor="lq-broker-account">
+                    Compte
+                  </label>
+                  <select
+                    id="lq-broker-account"
+                    className="lq-broker__select"
+                    value={activeAccount?.id ?? ""}
+                    onChange={(e) => selectAccount(e.target.value)}
+                  >
+                    {accounts.map((account) => (
+                      // Disabled rather than hidden: an account the broker refuses is a fact about
+                      // the connection, and one silently missing from the list reads as the
+                      // library having lost it.
+                      <option key={account.id} value={account.id} disabled={account.disabled === true}>
+                        {accountOptionLabel(account, session.environment)}
+                        {account.disabled === true && account.disabledReason ? ` — ${account.disabledReason}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                  {activeAccount !== null && <div className="lq-broker-panel__account">{accountLine(activeAccount, fmt)}</div>}
+                </>
+              )}
             </div>
           )}
 

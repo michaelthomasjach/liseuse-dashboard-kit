@@ -1,4 +1,5 @@
 import type { Candle } from "../../interfaces/Candle.interface";
+import type { BarDepth } from "../../interfaces/MarketDepth.interface";
 import type { Indicator } from "../../interfaces/Indicator.interface";
 import type { FundamentalDataPoint } from "../../interfaces/FundamentalDataPoint.interface";
 import type { ScriptDef } from "../../interfaces/ScriptDef.interface";
@@ -8,6 +9,8 @@ import { ScriptRunner } from "./ScriptRunner";
 import type { AiSend, AiServerTool } from "../../ai/interfaces/AiMessage.interface";
 
 export interface ScriptRunnerHostProps {
+  /** Forwarded to every runner — see `ScriptRunnerProps.barDepth`. */
+  barDepth?: BarDepth[];
   scripts: ScriptDef[];
   data: Candle[];
   indicators: Indicator[];
@@ -32,13 +35,16 @@ export interface ScriptRunnerHostProps {
  *  disabled or removed simply drops out of the filter below, unmounting its own `ScriptRunner`
  *  and, via that component's own cleanup effect, clearing its contribution to the aggregated
  *  `scriptIndicators`/`scriptDrawings`. Purely a mount/unmount driver; renders nothing itself. */
-export function ScriptRunnerHost({ scripts, data, indicators, fundamentals, lastCandleOpen, availableTimeframes, runUpToIndex, symbol, quantData, ai, onOutput, onAlert }: ScriptRunnerHostProps) {
+export function ScriptRunnerHost({ scripts, data, indicators, fundamentals, lastCandleOpen, availableTimeframes, runUpToIndex, symbol, quantData, ai, onOutput, onAlert,
+  barDepth,
+}: ScriptRunnerHostProps) {
   return (
     <>
       {scripts
         .filter((s) => s.enabled !== false)
         .map((s) => (
           <ScriptRunner
+            barDepth={barDepth}
             key={s.id}
             script={s}
             data={data}

@@ -5,6 +5,7 @@ import type { TrendLineDrawing } from "./TrendLineDrawing.interface";
 import type { DataPoint } from "./DataPoint.interface";
 import type { Indicator } from "./Indicator.interface";
 import type { IndicatorProjection } from "../indicatorProjection";
+import type { ScriptHeatmapOutput } from "../scripting/interfaces/ScriptRunResult.interface";
 import type { IndicatorValue } from "./IndicatorValue.interface";
 import type { ChartDisplayMode } from "./ChartDisplayMode.interface";
 import type { DrawingToolType } from "./DrawingToolType.interface";
@@ -80,6 +81,9 @@ export interface RenderCandlestickChartParams {
   /** Each projecting indicator's own continuation past the last bar — see `drawIndicatorProjections`
    *  and `computeIndicatorProjection`. Empty when nothing has the option on, which is the default. */
   indicatorProjections: IndicatorProjection[];
+  /** Liquidity fields a script drew — see `drawScriptHeatmaps`. Empty unless a script called
+   *  `plot.overlay(...).heatmap(...)`, which is the normal case. */
+  scriptHeatmaps: ScriptHeatmapOutput[];
   indexForDate: (d: Date) => number;
   /** Draws a diagonal-hatched marker over the price pane's own "future" — from just past the last
    *  candle to the plot's right edge — see drawFutureZone.ts. A chart-settings toggle, not a

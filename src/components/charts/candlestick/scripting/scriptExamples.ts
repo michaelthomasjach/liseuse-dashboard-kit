@@ -1158,6 +1158,124 @@ if (courte !== null && longue !== null) {
 }`,
   },
   {
+    id: "bookmap-liquidity",
+    title: "BOOKMAP — carte de liquidité et détection d'icebergs",
+    description:
+      "La carte de liquidité : le carnet d'ordres dessiné dans le temps, une colonne par bougie, une cellule par niveau de prix, la couleur donnant la taille au repos. Ce qu'elle montre qu'un graphique de prix ne peut pas dire : où l'offre et la demande *attendent*. Une bande horizontale qui persiste sur des centaines de bougies est un mur — un ordre passif que le marché doit consommer pour passer ; une cellule vive qui apparaît et disparaît est un niveau retiré avant d'être touché. Le script détecte aussi les **icebergs** : un niveau qui n'affiche presque rien et absorbe énormément, réapprovisionné à chaque fois qu'il est frappé. C'est la seule chose ici qu'aucun agrégat de prix ou de volume ne peut révéler, parce que la taille affichée et la taille exécutée sont deux nombres différents et qu'il faut les deux. Exige que l'hôte fournisse `depth` et `tape` : cette bibliothèque n'embarque aucun flux de carnet et n'en invente pas.",
+    code: `@indicator
+@description "///BOOKMAP — carte de liquidité///
+Le carnet d'ordres dessiné dans le temps : une colonne par bougie, une cellule par niveau, la
+couleur donnant la taille au repos.
+
+//Ce qu'on y lit//
+- Une **bande horizontale** qui traverse l'écran : un mur passif. Le prix doit le consommer pour
+  passer, ou rebrousser chemin.
+- Une **cellule vive qui disparaît** sans avoir été touchée : un ordre retiré. Le niveau n'était
+  pas défendu.
+- Un **iceberg** : un niveau qui affiche peu et absorbe beaucoup. Marqué d'un point.
+
+//Ce que ça demande//
+L'hôte doit fournir un flux de carnet («depth») et le tape («tape»). Sans eux, ce script ne
+dessine rien — et c'est le comportement voulu : une carte de liquidité déduite des bougies serait
+un dessin de la barre de volume dont elle vient.
+"
+
+@block Réglages
+
+const NIVEAUX = new Variable("number", 20, { description: "Niveaux affichés de chaque côté du prix.", min: 4, max: 60 });
+const OPACITE = new Variable("number", 0.8, { description: "Opacité de la carte. En dessous de 1, les bougies restent lisibles au travers.", min: 0.1, max: 1 });
+const SEUIL_ICEBERG = new Variable("number", 8, { description: "Rapport volume exécuté / taille affichée au-delà duquel un niveau est signalé.", min: 2, max: 50 });
+
+@block Rien à dessiner sans carnet
+
+// Dit une fois, et seulement si le script tourne pour rien : un graphique sans flux de carnet est
+// le cas normal, pas une erreur.
+if (!book.available()) {
+  if (bar.isNew()) plot.overlay("BOOKMAP").label("absent", "Aucun flux de carnet : la carte de liquidité a besoin de depth/tape", { x: 50, y: 50, unit: "%" });
+  return;
+}
+
+@block La grille
+
+// Le pas de la grille est le pas du carnet lui-même, mesuré une fois sur les deux meilleurs
+// niveaux. Une grille déduite autrement changerait de hauteur dès que le flux saute un niveau.
+let pas = state.get("pas", null);
+if (pas === null) {
+  const bids = book.bids();
+  if (bids.length >= 2) {
+    pas = Math.abs(bids[0].price - bids[1].price);
+    state.set("pas", pas);
+  }
+}
+
+@block La carte
+
+// Une colonne par bougie. Les cellules sont les niveaux du carnet tels quels — pas une moyenne,
+// pas un lissage : la carte est une observation, et interpoler entre deux niveaux inventerait de
+// la liquidité là où il n'y en avait aucune.
+if (pas !== null) {
+  const meilleur = book.best();
+  const centre = meilleur.bid !== null && meilleur.ask !== null ? (meilleur.bid + meilleur.ask) / 2 : market.close();
+  const cellules = [];
+  for (const niveau of book.levels()) {
+    if (Math.abs(niveau.price - centre) > NIVEAUX * pas) continue;
+    cellules.push({ price: niveau.price, value: niveau.size });
+  }
+  plot.overlay("BOOKMAP").heatmap("Liquidité", cellules, { bucket: pas, opacity: OPACITE });
+}
+
+@block Les icebergs
+
+// Un iceberg se trahit par un rapport, pas par une taille : ce qui a traversé le niveau contre ce
+// qu'il a jamais montré. Un gros niveau qui absorbe beaucoup est juste un gros niveau ; un petit
+// niveau qui absorbe autant n'est pas ce qu'il prétend être.
+//
+// Les deux nombres viennent de sources différentes et c'est le fond du sujet : «book.sizeAt» est
+// la taille *affichée* la plus grande vue sur la bougie, «tape.volumeAt» le volume *exécuté* au
+// même prix. Un flux qui confondrait les deux rendrait cette détection vide de sens.
+if (pas !== null && tape.available()) {
+  // Un iceberg dure : tant qu'il absorbe, il est réapprovisionné et redétecté à chaque bougie.
+  // Marquer chaque bougie donnerait des centaines de pastilles sur un seul niveau — mesuré, et
+  // c'est un détecteur qui a cessé de détecter quelque chose. On ne marque donc que le DÉBUT d'un
+  // épisode : le niveau devient suspect, il le reste en silence, et il redevient marquable une fois
+  // qu'il a cessé de l'être.
+  const actifs = state.get("icebergs", {});
+  const encore = {};
+  for (const niveau of book.levels()) {
+    const affiche = book.sizeAt(niveau.price, pas / 2);
+    if (affiche <= 0) continue;
+    const execute = tape.volumeAt(niveau.price, pas / 2);
+    if (execute < affiche * SEUIL_ICEBERG) continue;
+    const cle = String(Math.round(niveau.price / pas));
+    encore[cle] = true;
+    if (actifs[cle]) continue;
+    plot.signal({
+      type: "point",
+      price: niveau.price,
+      color: "#ffb02e",
+      shape: "circle",
+      text: "Iceberg ×" + Math.round(execute / affiche),
+    });
+  }
+  state.set("icebergs", encore);
+}
+
+@block Le déséquilibre, sous les bougies
+
+// La pression de chaque côté du touch, dans sa propre pane : la carte montre où la taille est, ce
+// tracé dit de quel côté elle penche. Les deux répondent à des questions différentes et se lisent
+// mieux l'une à côté de l'autre qu'empilées.
+if (pas !== null) {
+  const pression = book.pressure(NIVEAUX * pas);
+  const total = pression.bid + pression.ask;
+  plot.pane("Déséquilibre du carnet").histogram(
+    "Bid − Ask",
+    total > 0 ? ((pression.bid - pression.ask) / total) * 100 : 0,
+    { color: pression.bid >= pression.ask ? "#6faf82" : "#c97c7c" }
+  );
+}`,
+  },
+  {
     id: "permutation-entropy",
     title: "Entropie de permutation — mesurer le désordre d'une série",
     description:

@@ -1,3 +1,4 @@
+import type { DepthSnapshot, TapePrint } from "./MarketDepth.interface";
 import type { ReactNode } from "react";
 import type { ChartMargin } from "../../internal/useChartDimensions";
 import type { Candle } from "./Candle.interface";
@@ -148,6 +149,18 @@ export interface CandlestickChartProps {
    *  current layout has unsaved changes (including never having saved at all) offers to save
    *  first rather than silently discarding it. Default false. */
   showTemplates?: boolean;
+  /** The resting order book over time, and the executions that printed against it.
+   *
+   *  **This library ships neither and cannot invent either.** A depth feed is a subscription a host
+   *  has or does not have, and deriving one from candles would produce a picture that looks exactly
+   *  like a real liquidity map while being a drawing of the volume bar it came from. Absent, every
+   *  script asking for them is told they are unavailable and simply draws nothing.
+   *
+   *  Both are bound to this chart's own bars before any script sees them (see `bindDepthToBars`),
+   *  so the heat map's time resolution is the chart's bar resolution — a feed publishing ten
+   *  snapshots inside one bar contributes ten observations to that bar's column, not ten columns. */
+  depth?: DepthSnapshot[];
+  tape?: TapePrint[];
   /** Uncontrolled initial list of saved templates. */
   defaultTemplates?: ChartTemplate[];
   /** Fires whenever a template is saved (new or overwritten) or deleted. */

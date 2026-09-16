@@ -74,6 +74,7 @@ export type { WorldExposureMapProps, WorldExposureDatum } from "./WorldExposureM
 export { matchContinent, CONTINENT_LABELS, CONTINENTS } from "./worldGeo";
 export type { Continent } from "./worldGeo";
 
+export type { DepthLevel, DepthSnapshot, TapePrint } from "./candlestick/interfaces/MarketDepth.interface";
 export type {
   BrokerAdapter,
   BrokerAccount,

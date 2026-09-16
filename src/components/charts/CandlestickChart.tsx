@@ -98,6 +98,7 @@ import { findTimeframeLabel, flattenTimeframeValues } from "./candlestick/timefr
 import { DEFAULT_MARGIN, MOBILE_LAYOUT_BREAKPOINT, NARROW_EMBED_BREAKPOINT, PRICE_AXIS_WIDTH_MOBILE, SUB_PANE_COLLAPSED_HEIGHT, TOOLS_RAIL_HEIGHT_MOBILE, TOOLS_RAIL_WIDTH } from "./candlestick/constants";
 import { formatPercentFromReference, computeOhlcReadout, toDayInputValue, candleIndexForDay } from "./candlestick/formatting";
 import { supportsProjection, projectionSettingsOf } from "./candlestick/indicatorProjection";
+import { bindDepthToBars } from "./candlestick/marketDepth";
 
 /** Stands in for the plot's own pointer-down/up handlers while replay is armed — see where it is
  *  passed below. A module-level constant rather than an inline arrow so the overlay isn't handed a
@@ -145,6 +146,8 @@ export function CandlestickChart({
   symbol,
   events,
   fundamentals,
+  depth,
+  tape,
   symbolSearch = false,
   symbolSearchResults,
   onSymbolSearchChange,
@@ -648,6 +651,17 @@ export function CandlestickChart({
    *  hook that runs *after* this one — and which would be circular anyway, since they are drawn
    *  against the very scale this number sizes. The settings are enough: a projection's horizon is
    *  one of them, not something the maths decides. */
+  /** The host's depth feed and tape, binned onto this chart's own bars, once.
+   *
+   *  Here rather than inside the script engine because it is chart data, not script data: the same
+   *  binding serves every script on the chart, and doing it per script would repeat a linear pass
+   *  over the whole feed for each one. Recomputed only when the data or the feed itself changes —
+   *  never on pan, zoom or a re-run. */
+  const barDepth = useMemo(
+    () => (depth === undefined && tape === undefined ? undefined : bindDepthToBars(data, depth, tape)),
+    [data, depth, tape]
+  );
+
   const projectionRoom = useMemo(
     () =>
       indicators.reduce(
@@ -1025,6 +1039,7 @@ export function CandlestickChart({
     livePrice,
     visibleIndicators,
     indicatorProjections,
+    scriptHeatmaps: scriptingState.scriptHeatmaps,
     indexForDate,
     futureZoneVisible,
     pastZoneVisible,
@@ -1714,7 +1729,7 @@ export function CandlestickChart({
       )}
 
       <ScriptRunnerHost
-        scripts={scriptingState.scripts} data={data} indicators={indicators} fundamentals={fundamentals}
+        scripts={scriptingState.scripts} data={data} indicators={indicators} fundamentals={fundamentals} barDepth={barDepth}
         symbol={symbol} quantData={quantData}
         ai={aiSend ? { send: aiSend, serverTools: ai?.serverTools ?? [] } : null}
         // Replay's own cutoff, so a script replays with the chart instead of always computing over

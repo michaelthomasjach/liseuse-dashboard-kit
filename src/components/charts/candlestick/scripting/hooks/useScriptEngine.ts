@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import type { Candle } from "../../interfaces/Candle.interface";
+import type { BarDepth } from "../../interfaces/MarketDepth.interface";
 import type { Indicator } from "../../interfaces/Indicator.interface";
 import type { FundamentalDataPoint } from "../../interfaces/FundamentalDataPoint.interface";
 import type { CustomIndicatorDef } from "../../interfaces/CustomIndicatorDef.interface";
 import type { TrendLineDrawing } from "../../interfaces/TrendLineDrawing.interface";
-import type { ScriptTableOutput } from "../interfaces/ScriptRunResult.interface";
+import type { ScriptHeatmapOutput, ScriptTableOutput } from "../interfaces/ScriptRunResult.interface";
 import type { ScriptEngineSnapshot } from "../interfaces/ScriptEngineSnapshot.interface";
 import { stripScriptDescription } from "../scriptDescription";
 import { stripScriptBlocks } from "../scriptBlocks";
@@ -53,7 +54,8 @@ function buildSnapshot(
   strategySettings: StrategySettings | undefined,
   quant: QuantRunInput | undefined,
   report: { symbol?: string } | undefined,
-  symbol: string | undefined
+  symbol: string | undefined,
+  barDepth: BarDepth[] | undefined
 ): ScriptEngineSnapshot {
   // Reuses `computeIndicatorValues` verbatim — the exact same function `useIndicatorPaneScales`
   // calls to produce what's actually drawn on the chart — rather than recomputing indicator
@@ -116,6 +118,7 @@ function buildSnapshot(
           },
     report,
     symbol,
+    barDepth,
   };
 }
 
@@ -171,7 +174,11 @@ export function useScriptEngine(
   symbol: string | undefined = undefined,
   /** How a script's own `ai.*` calls reach a model. Null (the default) and they come back saying
    *  no engine is configured, rather than hanging. */
-  ai: { send: AiSend; serverTools: AiServerTool[] } | null = null
+  ai: { send: AiSend; serverTools: AiServerTool[] } | null = null,
+  /** The order book and the tape, already bound to `data`'s own bars. Undefined — the normal case —
+   *  and `book.available()`/`tape.available()` answer false inside the script, which is what lets
+   *  one script run against a chart with a depth feed and a chart without. */
+  barDepth: BarDepth[] | undefined = undefined
 ) {
   // Clamped: a cutoff from a previous, longer dataset would otherwise run past the end of this one.
   const effectiveRunUpToIndex = runUpToIndex === null ? data.length - 1 : Math.max(0, Math.min(runUpToIndex, data.length - 1));
@@ -182,6 +189,7 @@ export function useScriptEngine(
   const [scriptDrawings, setScriptDrawings] = useState<TrendLineDrawing[]>([]);
   const [scriptTable, setScriptTable] = useState<ScriptTableOutput | null>(null);
   const [scriptLabels, setScriptLabels] = useState<ResolvedScriptLabel[]>([]);
+  const [scriptHeatmaps, setScriptHeatmaps] = useState<ScriptHeatmapOutput[]>([]);
   /** The transport a script's own `ai.*` calls go through, always current: a run can be in flight
    *  across several renders, and the answer must be sent by whatever is configured *now*. */
   const aiRef = useRef(ai);
@@ -208,6 +216,9 @@ export function useScriptEngine(
         paneId: label.paneType === "own" ? scriptPaneIndicatorId(scriptId, label.paneName) : null,
       }))
     );
+    // Replaced wholesale, not merged: a run is the script's complete answer, and a field it stopped
+    // drawing has to disappear rather than linger from the run before.
+    setScriptHeatmaps(runResult.heatmaps);
   }
 
   function clearPendingTimeout() {
@@ -324,6 +335,7 @@ export function useScriptEngine(
           xyCharts: [],
           alerts: [],
           labels: [],
+          heatmaps: [],
           strategy: null,
           quant: null,
           report: null,
@@ -344,6 +356,7 @@ export function useScriptEngine(
           xyCharts: [],
           alerts: [],
           labels: [],
+          heatmaps: [],
           strategy: null,
           quant: null,
           report: null,
@@ -368,7 +381,8 @@ export function useScriptEngine(
           strategySettings,
           quant,
           report,
-          symbol
+          symbol,
+          barDepth
         )
       );
     });
@@ -487,5 +501,5 @@ export function useScriptEngine(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, effectiveRunUpToIndex, running, debounceMs]);
 
-  return { result, running, scriptIndicators, scriptDrawings, scriptTable, scriptLabels, run, stop };
+  return { result, running, scriptIndicators, scriptDrawings, scriptTable, scriptLabels, scriptHeatmaps, run, stop };
 }

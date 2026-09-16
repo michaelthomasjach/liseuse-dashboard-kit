@@ -332,6 +332,10 @@ export function useScriptingState({ defaultScripts, onScriptsChange, controlledE
   // script that created it, but ScriptLabelOverlay.tsx only ever needs it alongside that same
   // label's already-resolved paneId, never across scripts.
   const scriptLabels = useMemo(() => plottableRunOutputs.flatMap((o) => o.labels), [plottableRunOutputs]);
+  // Withheld with everything else a script draws, which is the whole point of `plottableRunOutputs`
+  // — closing a script has to take its liquidity field with it, the same way it takes its lines and
+  // its tables. A heat field left behind would be the most visible orphan of the lot.
+  const scriptHeatmaps = useMemo(() => plottableRunOutputs.flatMap((o) => o.heatmaps), [plottableRunOutputs]);
 
   // Pruned rather than kept in sync by an effect: a script can disappear from under this hook at
   // any time (deleted here, or dropped by a caller that owns `scripts`), and deriving the open set
@@ -371,5 +375,6 @@ export function useScriptingState({ defaultScripts, onScriptsChange, controlledE
     restoreScriptOutput,
     scriptTables,
     scriptLabels,
+    scriptHeatmaps,
   };
 }

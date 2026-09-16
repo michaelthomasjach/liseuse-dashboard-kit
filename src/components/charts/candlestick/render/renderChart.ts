@@ -1,6 +1,7 @@
 import type { RenderCandlestickChartParams } from "../interfaces/RenderCandlestickChartParams.interface";
 import type { ChartCanvasStyle } from "../interfaces/ChartCanvasStyle.interface";
 import { drawFutureZone, drawPastZone } from "./drawFutureZone";
+import { drawScriptHeatmaps } from "./drawScriptHeatmaps";
 import { drawPriceCandles } from "./drawPriceCandles";
 import { drawPriceDrawings } from "./drawPriceDrawings";
 import { drawVolumeAndPanes } from "./drawVolumeAndPanes";
@@ -57,6 +58,9 @@ export function renderCandlestickChart(canvas: HTMLCanvasElement, wrapper: HTMLE
 
   drawFutureZone(ctx, params, style);
   drawPastZone(ctx, params, style);
+  // Before the candles: a liquidity field is a background the price moves over. Drawn after them
+  // it would be a curtain across the very thing it exists to give context to.
+  drawScriptHeatmaps(ctx, params);
   drawPriceCandles(ctx, params, style);
   drawPriceDrawings(ctx, params, style);
   drawVolumeAndPanes(ctx, params, style);

@@ -5,6 +5,7 @@ import { buildPlotApi } from "./buildPlotApi";
 import { buildStateApi } from "./buildStateApi";
 import { buildAlertApi } from "./buildAlertApi";
 import { buildBarApi } from "./buildBarApi";
+import { buildDepthApi } from "./buildDepthApi";
 import { buildStrategyApi } from "./buildStrategyApi";
 import { buildCompanyApi } from "./buildCompanyApi";
 import { buildQuantPlotApi } from "./buildQuantPlotApi";
@@ -120,6 +121,10 @@ export async function runScript(snapshot: ScriptEngineSnapshot, ai: AiApi | null
   const state = buildStateApi();
   const { api: alert, getAlerts } = buildAlertApi(getCurrentIndex, getCurrentDate);
   const bar = buildBarApi(snapshot, getCurrentIndex);
+  // The book and the tape, bound to bars on the main thread before the snapshot was posted (see
+  // `bindDepthToBars`): a script asks these once per level per bar, and searching an unindexed feed
+  // for each of those questions is the difference between a heatmap that draws and one that hangs.
+  const { book, tape } = buildDepthApi(snapshot.barDepth, getCurrentIndex);
   // Built only when the host declared strategy settings — which it does only for a `@strategy`
   // script (see ScriptEngineSnapshot.strategySettings). An indicator gets `undefined` for the
   // `strategy` argument, so calling it is a plain TypeError naming the thing that's missing rather
@@ -173,9 +178,11 @@ export async function runScript(snapshot: ScriptEngineSnapshot, ai: AiApi | null
         "math",
         "ta",
         "console",
+        "book",
+        "tape",
         source
       ) as (...args: unknown[]) => void;
-      factory(exports, requireModule, market, chart, plot, state, alert, bar, company, mathApi, taApi, scriptConsole);
+      factory(exports, requireModule, market, chart, plot, state, alert, bar, company, mathApi, taApi, scriptConsole, book, tape);
     } finally {
       loading.delete(name);
     }
@@ -197,7 +204,9 @@ export async function runScript(snapshot: ScriptEngineSnapshot, ai: AiApi | null
     console: unknown,
     strategy: unknown,
     report: unknown,
-    ai: unknown
+    ai: unknown,
+    book: unknown,
+    tape: unknown
     // `unknown` rather than `void`: on the quant path what the script returns *is* its output, and
     // on the async paths what comes back is a promise of it.
   ) => unknown;
@@ -217,6 +226,7 @@ export async function runScript(snapshot: ScriptEngineSnapshot, ai: AiApi | null
       xyCharts: [],
       alerts: [],
       labels: [],
+      heatmaps: [],
       strategy: null,
       quant: null,
       report: null,
@@ -248,6 +258,11 @@ export async function runScript(snapshot: ScriptEngineSnapshot, ai: AiApi | null
       "strategy",
       "report",
       "ai",
+      // Declared for every kind of script, indicator included: the book and the tape are market
+      // data, not a mode. A chart whose host supplied neither still gets the objects, and they
+      // answer `available() === false` — which is what lets one script run against both.
+      "book",
+      "tape",
       entry.code
     ) as CompiledScript;
   } catch (err) {
@@ -262,6 +277,7 @@ export async function runScript(snapshot: ScriptEngineSnapshot, ai: AiApi | null
       xyCharts: [],
       alerts: [],
       labels: [],
+      heatmaps: [],
       strategy: null,
       quant: null,
       report: null,
@@ -273,7 +289,7 @@ export async function runScript(snapshot: ScriptEngineSnapshot, ai: AiApi | null
   if (snapshot.report) {
     currentIndex = snapshot.ohlcv.length - 1;
     try {
-      await compiled(entryExports, requireModule, market, chart, quantPlot, state, alert, bar, company, mathApi, taApi, scriptConsole, undefined, reportApi, ai);
+      await compiled(entryExports, requireModule, market, chart, quantPlot, state, alert, bar, company, mathApi, taApi, scriptConsole, undefined, reportApi, ai, book, tape);
     } catch (err) {
       return {
         error: toScriptError(err),
@@ -284,6 +300,7 @@ export async function runScript(snapshot: ScriptEngineSnapshot, ai: AiApi | null
         xyCharts: [],
         alerts: getAlerts(),
         labels: [],
+        heatmaps: [],
         strategy: null,
         quant: null,
         // The partial document is kept for the same reason a partial backtest is: a report that
@@ -300,6 +317,7 @@ export async function runScript(snapshot: ScriptEngineSnapshot, ai: AiApi | null
       xyCharts: [],
       alerts: getAlerts(),
       labels: [],
+      heatmaps: [],
       strategy: null,
       quant: null,
       report: getReport(),
@@ -355,6 +373,11 @@ export async function runScript(snapshot: ScriptEngineSnapshot, ai: AiApi | null
           undefined,
           undefined,
           ai,
+          // A quant run sweeps other symbols, and the host's depth feed belongs to the chart's own
+          // symbol — so the book and the tape are deliberately absent here rather than quietly
+          // answering about the wrong instrument. `available()` says so.
+          buildDepthApi(undefined, getCurrentIndex).book,
+          buildDepthApi(undefined, getCurrentIndex).tape,
         );
         rows.push({ symbol, value });
       } catch (err) {
@@ -373,6 +396,7 @@ export async function runScript(snapshot: ScriptEngineSnapshot, ai: AiApi | null
       xyCharts: [],
       alerts: getAlerts(),
       labels: [],
+      heatmaps: [],
       strategy: null,
       quant: { rows, ranAt: Date.now() },
       report: null,
@@ -382,12 +406,12 @@ export async function runScript(snapshot: ScriptEngineSnapshot, ai: AiApi | null
   for (let i = 0; i <= snapshot.runUpToIndex; i++) {
     currentIndex = i;
     try {
-      compiled(entryExports, requireModule, market, chart, plot, state, alert, bar, company, mathApi, taApi, scriptConsole, strategy?.api, undefined, undefined);
+      compiled(entryExports, requireModule, market, chart, plot, state, alert, bar, company, mathApi, taApi, scriptConsole, strategy?.api, undefined, undefined, book, tape);
       // After the bar's own pass, never during it: an order placed mid-script fills once, at this
       // bar's own price, no matter how many times the script changed its mind (see settleBar).
       strategy?.settleBar(snapshot.ohlcv[i], i + 1 < snapshot.ohlcv.length ? snapshot.ohlcv[i + 1] : null);
     } catch (err) {
-      const { panes, drawings, table, xyCharts, labels } = getPlotResult();
+      const { panes, drawings, table, xyCharts, labels, heatmaps } = getPlotResult();
       // The partial backtest is kept, not discarded: a strategy that threw on bar 900 still traded
       // 899 bars, and seeing where its equity was when it broke is most of the debugging.
       return {
@@ -399,13 +423,14 @@ export async function runScript(snapshot: ScriptEngineSnapshot, ai: AiApi | null
         xyCharts,
         alerts: getAlerts(),
         labels,
+        heatmaps,
         strategy: strategy?.getResult() ?? null,
         quant: null,
         report: null,
       };
     }
   }
-  const { panes, drawings, table, xyCharts, labels } = getPlotResult();
+  const { panes, drawings, table, xyCharts, labels, heatmaps } = getPlotResult();
   // Entry/exit markers ride the same drawing channel every `plot.signal` already uses — the chart
   // needs no notion of a "strategy marker" to paint them.
   return {
@@ -417,6 +442,7 @@ export async function runScript(snapshot: ScriptEngineSnapshot, ai: AiApi | null
     xyCharts,
     alerts: getAlerts(),
     labels,
+    heatmaps,
     strategy: strategy?.getResult() ?? null,
     quant: null,
     report: null,

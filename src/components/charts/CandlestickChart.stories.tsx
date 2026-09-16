@@ -29,6 +29,7 @@ import {
 import { SAMPLE_BROKERS } from "../../test-data/sampleBrokers";
 import { generateCandles, generateCandlesByTimeframe, type MockTimeframeKey } from "../../test-data/financeSampleData";
 import { BTC_REAL_SAMPLE } from "../../test-data/btcRealSample";
+import { makeSampleDepth } from "../../test-data/sampleDepth";
 import { useLiveQuotes, type LiveQuote } from "../../test-data/liveWatchlist";
 import type { AiSend } from "./candlestick/ai/interfaces/AiMessage.interface";
 import type { ChartWorkspaceProps } from "./ChartWorkspace";
@@ -564,6 +565,31 @@ function playAlertSound(value: string) {
  *  enough trades to read the list by eye, and is the baseline the others are meant to be compared
  *  against. Same `targetPanelIndex` requirement as any other workspace-routed script — without it
  *  the script reaches no panel and never runs. */
+/** A synthetic book and tape for the chart's own dataset, so the liquidity map has something to
+ *  draw. Invented on purpose and said so in `makeSampleDepth`'s own doc: this library ships no
+ *  depth feed, and one derived from candles would be a drawing of the volume bar it came from.
+ *
+ *  Built from the *same* candles the chart is handed at its default timeframe. Generated from a
+ *  different series it still draws — bound to whichever bars happen to overlap, at prices from
+ *  another instrument — which is how this first went in: a field sitting above the chart's own
+ *  range, perfectly rendered and entirely wrong. Switching timeframe leaves the feed behind for the
+ *  same reason, and a story is the right place for that to be visible rather than papered over. */
+const DEMO_DEPTH = makeSampleDepth(ALL_FEATURES_TIMEFRAME_DATA["1d"]);
+
+/** The liquidity map, present and off — like the KDE script beside it. A heat field arriving
+ *  unasked would be the first thing anyone sees, and the first job of a demo chart is to show the
+ *  chart. */
+const BOOKMAP_DEBUG_SCRIPT: ScriptDef[] = [
+  {
+    id: "debug-bookmap",
+    name: "BOOKMAP — carte de liquidité",
+    code: SCRIPT_EXAMPLES.find((example) => example.id === "bookmap-liquidity")?.code ?? "",
+    named: true,
+    enabled: false,
+    targetPanelIndex: 0,
+  },
+];
+
 const STRATEGY_DEBUG_SCRIPT: ScriptDef[] = [
   {
     id: "debug-strategy",
@@ -661,6 +687,7 @@ const DEBUG_SCRIPTS: ScriptDef[] = [
   ...PERMUTATION_ENTROPY_SCRIPT,
   ...SURVIVAL_MATRIX_SCRIPT,
   ...STRATEGY_DEBUG_SCRIPT,
+  ...BOOKMAP_DEBUG_SCRIPT,
 ];
 
 /** The assistant, wired to a scripted stand-in instead of a real model.
@@ -909,6 +936,8 @@ export const AllFeatures: Story = {
             showVolume={false}
             showIndicators
             fundamentals={ALL_FEATURES_FUNDAMENTALS}
+            depth={DEMO_DEPTH.depth}
+            tape={DEMO_DEPTH.tape}
             customIndicators={CUSTOM_INDICATORS}
             fullscreenToggle
             zoomable

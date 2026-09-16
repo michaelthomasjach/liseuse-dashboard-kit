@@ -6,7 +6,7 @@ import { analyzeScriptKind, stripScriptKind } from "../scriptKind";
 import { DEFAULT_STRATEGY_SETTINGS } from "../../interfaces/StrategySettings.interface";
 import { useEffect, useMemo, useRef } from "react";
 import type { Candle } from "../../interfaces/Candle.interface";
-import type { BarDepth } from "../../interfaces/MarketDepth.interface";
+import type { PackedDepth } from "../../interfaces/MarketDepth.interface";
 import type { Indicator } from "../../interfaces/Indicator.interface";
 import type { FundamentalDataPoint } from "../../interfaces/FundamentalDataPoint.interface";
 import type { ScriptDef } from "../../interfaces/ScriptDef.interface";
@@ -26,7 +26,7 @@ export interface ScriptRunnerProps {
   fundamentals: FundamentalDataPoint[] | undefined;
   /** The order book and the tape, bound to `data`'s own bars. Undefined on a chart with no depth
    *  feed, which is the normal case. */
-  barDepth?: BarDepth[];
+  barDepth?: PackedDepth;
   lastCandleOpen: boolean;
   availableTimeframes: string[];
   /** The last bar every script here may see, or `null` for the whole history. Replay's own cutoff,

@@ -98,7 +98,7 @@ import { findTimeframeLabel, flattenTimeframeValues } from "./candlestick/timefr
 import { DEFAULT_MARGIN, MOBILE_LAYOUT_BREAKPOINT, NARROW_EMBED_BREAKPOINT, PRICE_AXIS_WIDTH_MOBILE, SUB_PANE_COLLAPSED_HEIGHT, TOOLS_RAIL_HEIGHT_MOBILE, TOOLS_RAIL_WIDTH } from "./candlestick/constants";
 import { formatPercentFromReference, computeOhlcReadout, toDayInputValue, candleIndexForDay } from "./candlestick/formatting";
 import { supportsProjection, projectionSettingsOf } from "./candlestick/indicatorProjection";
-import { bindDepthToBars } from "./candlestick/marketDepth";
+import { bindDepthToBars, packDepth } from "./candlestick/marketDepth";
 
 /** Stands in for the plot's own pointer-down/up handlers while replay is armed — see where it is
  *  passed below. A module-level constant rather than an inline arrow so the overlay isn't handed a
@@ -658,7 +658,7 @@ export function CandlestickChart({
    *  over the whole feed for each one. Recomputed only when the data or the feed itself changes —
    *  never on pan, zoom or a re-run. */
   const barDepth = useMemo(
-    () => (depth === undefined && tape === undefined ? undefined : bindDepthToBars(data, depth, tape)),
+    () => (depth === undefined && tape === undefined ? undefined : packDepth(bindDepthToBars(data, depth, tape))),
     [data, depth, tape]
   );
 

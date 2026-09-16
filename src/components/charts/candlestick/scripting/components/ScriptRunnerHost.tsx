@@ -1,5 +1,5 @@
 import type { Candle } from "../../interfaces/Candle.interface";
-import type { BarDepth } from "../../interfaces/MarketDepth.interface";
+import type { PackedDepth } from "../../interfaces/MarketDepth.interface";
 import type { Indicator } from "../../interfaces/Indicator.interface";
 import type { FundamentalDataPoint } from "../../interfaces/FundamentalDataPoint.interface";
 import type { ScriptDef } from "../../interfaces/ScriptDef.interface";
@@ -10,7 +10,7 @@ import type { AiSend, AiServerTool } from "../../ai/interfaces/AiMessage.interfa
 
 export interface ScriptRunnerHostProps {
   /** Forwarded to every runner — see `ScriptRunnerProps.barDepth`. */
-  barDepth?: BarDepth[];
+  barDepth?: PackedDepth;
   scripts: ScriptDef[];
   data: Candle[];
   indicators: Indicator[];

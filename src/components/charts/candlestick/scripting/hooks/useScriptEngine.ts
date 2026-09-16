@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { Candle } from "../../interfaces/Candle.interface";
-import type { BarDepth } from "../../interfaces/MarketDepth.interface";
+import type { PackedDepth } from "../../interfaces/MarketDepth.interface";
 import type { Indicator } from "../../interfaces/Indicator.interface";
 import type { FundamentalDataPoint } from "../../interfaces/FundamentalDataPoint.interface";
 import type { CustomIndicatorDef } from "../../interfaces/CustomIndicatorDef.interface";
@@ -55,7 +55,7 @@ function buildSnapshot(
   quant: QuantRunInput | undefined,
   report: { symbol?: string } | undefined,
   symbol: string | undefined,
-  barDepth: BarDepth[] | undefined
+  barDepth: PackedDepth | undefined
 ): ScriptEngineSnapshot {
   // Reuses `computeIndicatorValues` verbatim — the exact same function `useIndicatorPaneScales`
   // calls to produce what's actually drawn on the chart — rather than recomputing indicator
@@ -178,7 +178,7 @@ export function useScriptEngine(
   /** The order book and the tape, already bound to `data`'s own bars. Undefined — the normal case —
    *  and `book.available()`/`tape.available()` answer false inside the script, which is what lets
    *  one script run against a chart with a depth feed and a chart without. */
-  barDepth: BarDepth[] | undefined = undefined
+  barDepth: PackedDepth | undefined = undefined
 ) {
   // Clamped: a cutoff from a previous, longer dataset would otherwise run past the end of this one.
   const effectiveRunUpToIndex = runUpToIndex === null ? data.length - 1 : Math.max(0, Math.min(runUpToIndex, data.length - 1));

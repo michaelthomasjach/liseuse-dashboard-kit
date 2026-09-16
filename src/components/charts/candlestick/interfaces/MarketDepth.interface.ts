@@ -39,6 +39,47 @@ export interface TapePrint {
   aggressor?: "buy" | "sell";
 }
 
+/** The whole feed, flattened into typed arrays, one slice per bar.
+ *
+ *  This shape exists for one reason and it is worth stating plainly: a session's book is a few
+ *  hundred thousand small objects, and every script run posts it into a Worker. Structured-cloning
+ *  an object graph that size costs per *object* — measured on the demo feed, 160 ms on the main
+ *  thread, where it blocks everything, and a comparable share of the Worker's own time
+ *  deserialising it. The same numbers in typed arrays are a handful of memcpys.
+ *
+ *  It also front-loads the work the Worker used to repeat. `displayed` and `executed` are the two
+ *  indexes a script actually asks questions of, built once here rather than rebuilt per bar inside
+ *  the run — so the engine goes from "index this bar, then answer" to "answer".
+ *
+ *  Deliberately *not* transferred on postMessage: the same pack is reused across runs and across
+ *  every script on the chart, and transferring would detach it after the first one. Copied, which
+ *  for typed arrays is a memcpy rather than a graph walk. */
+export interface PackedDepth {
+  bars: number;
+  /** Levels of each bar's last snapshot — the book as it stood when the bar closed. `levelStart[i]`
+   *  to `levelStart[i + 1]` is bar i's slice; the first `levelBids[i]` of it are bids, best first,
+   *  and the rest are asks, best first. */
+  levelStart: Int32Array;
+  levelBids: Int32Array;
+  levelPrice: Float64Array;
+  levelSize: Float64Array;
+  /** Largest size ever *displayed* at each price during the bar, across every snapshot in it,
+   *  sorted by price. The maximum and not the last: a level that was eaten and not yet refilled
+   *  displayed something, and reading the last snapshot would say it displayed nothing. */
+  shownStart: Int32Array;
+  shownPrice: Float64Array;
+  shownSize: Float64Array;
+  /** Size *executed* at each price during the bar, sorted by price. */
+  doneStart: Int32Array;
+  donePrice: Float64Array;
+  doneSize: Float64Array;
+  /** The prints themselves, in order. `printSide` is 0 unknown, 1 buy, 2 sell. */
+  printStart: Int32Array;
+  printPrice: Float64Array;
+  printSize: Float64Array;
+  printSide: Uint8Array;
+}
+
 /** Everything a bar knows about its own book and tape, precomputed once per run.
  *
  *  Bound to bars on the main thread rather than searched inside the script, because a script asking

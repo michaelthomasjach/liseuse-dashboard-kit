@@ -18,6 +18,13 @@ const FLAG_HEIGHT = 8;
  *  background so it reads as a ring instead of a solid dot) or a flag on a pole (base at the
  *  point). Called from `drawPriceDrawings` while its own price-section clip is still open, same
  *  as every other price-space drawing type. */
+/** A closed trade's own two outcomes, pale on purpose: the badge is a filled block carrying dark
+ *  text, and a saturated green would fight the text it holds. Literals rather than theme tokens for
+ *  the reason given at the call site — the one-ink palette collapses the theme's pair, and this is
+ *  a distinction that has to survive it. */
+const EXIT_WIN_COLOR = "#9cc4a4";
+const EXIT_LOSS_COLOR = "#d9a5a5";
+
 export function drawMarkerDrawings(ctx: CanvasRenderingContext2D, params: RenderCandlestickChartParams, style: ChartCanvasStyle) {
   const { visibleDrawings, zoomedXScale, zoomedPriceScale, indexForDate } = params;
   const { colorAccent, colorBg, colorUp, colorDown, fontFamily } = style;
@@ -28,8 +35,23 @@ export function drawMarkerDrawings(ctx: CanvasRenderingContext2D, params: Render
     // A strategy fill names its side rather than a colour (see TrendLineDrawing.markerSide): an
     // entry takes the same green/red the candles use, and an exit takes the colour of its own
     // result, so a losing exit reads as one without having to open the trade list.
+    //
+    // An *exit* takes its pale pair rather than the candles' own up/down, and that is the whole
+    // reason those two constants exist: on the one-ink palette `colorUp` and `colorDown` are both
+    // the text colour — by design, it is a palette with one ink — so a won exit and a lost one came
+    // out as the same black badge, which is precisely the distinction this is for. Entries are left
+    // on the theme's own pair: they have no result to report, and keeping them there is what makes
+    // the two ends of a trade tell themselves apart at a glance.
     const sideColor =
-      dr.markerSide === "long" || dr.markerSide === "win" ? colorUp : dr.markerSide === "short" || dr.markerSide === "loss" ? colorDown : null;
+      dr.markerSide === "win"
+        ? EXIT_WIN_COLOR
+        : dr.markerSide === "loss"
+          ? EXIT_LOSS_COLOR
+          : dr.markerSide === "long"
+            ? colorUp
+            : dr.markerSide === "short"
+              ? colorDown
+              : null;
     const color = dr.color ?? sideColor ?? colorAccent;
     // The marker's own body. `color` stays the label's colour, so the two controls the edit modal
     // offers for these tools do genuinely different things rather than one shadowing the other.
@@ -72,7 +94,10 @@ export function drawMarkerDrawings(ctx: CanvasRenderingContext2D, params: Render
             fontFamily,
             dr.textSize ?? 10,
             true,
-            false
+            false,
+            // Square, like every other badge, panel and table on this chart. A fill's own label is
+            // chart furniture, not an annotation somebody drew.
+            0
           );
         } else {
           ctx.fillStyle = color;

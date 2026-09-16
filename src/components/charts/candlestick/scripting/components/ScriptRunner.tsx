@@ -104,6 +104,19 @@ export function ScriptRunner({ script, data, indicators, fundamentals, lastCandl
     () => (kindAnalysis.kind === "report" ? { symbol: kindAnalysis.symbols[0] ?? symbol } : undefined),
     [kindAnalysis, symbol],
   );
+  /** Whether this script ever mentions the book or the tape.
+   *
+   *  A crude source test on purpose, and it only ever errs by sending the feed to a script that
+   *  does not need it — never by withholding it from one that does, since a script cannot reach
+   *  these objects without naming them.
+   *
+   *  It exists because the feed is *big*: a session's depth is a few hundred thousand level objects,
+   *  structured-cloned into the Worker on every single run. Sent to every script, an ordinary moving
+   *  average paid the entire cost of a liquidity feed it never opened — and a chart with six scripts
+   *  on it paid for it six times before drawing anything.
+   */
+  const usesDepth = useMemo(() => /\b(?:book|tape)\s*\./.test(script.code), [script.code]);
+
   const engine = useScriptEngine(
     script.id,
     data,
@@ -118,7 +131,7 @@ export function ScriptRunner({ script, data, indicators, fundamentals, lastCandl
     report,
     symbol,
     ai,
-    barDepth
+    usesDepth ? barDepth : undefined
   );
   const hasRunOnceRef = useRef(false);
   const lastRunRequestIdRef = useRef<number | null>(null);

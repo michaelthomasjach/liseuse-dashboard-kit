@@ -1769,6 +1769,7 @@ export function CandlestickChart({
         customIndicators={customIndicators} addCustomIndicator={addCustomIndicator}
         scripts={scriptingState.scripts} toggleScriptEnabled={scriptingState.toggleScriptEnabled}
         scriptPlacements={scriptPlacements}
+        runningScriptIds={scriptingState.runningScriptIds}
         onEditScript={onEditScript} onCreateScript={onCreateScript} onDeleteScript={onDeleteScript}
         onCreateStrategyFromIndicator={onCreateStrategyFromIndicator}
         favoriteIndicatorIds={favoriteIndicatorIds}

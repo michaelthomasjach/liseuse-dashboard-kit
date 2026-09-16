@@ -336,6 +336,15 @@ export function useScriptingState({ defaultScripts, onScriptsChange, controlledE
   // — closing a script has to take its liquidity field with it, the same way it takes its lines and
   // its tables. A heat field left behind would be the most visible orphan of the lot.
   const scriptHeatmaps = useMemo(() => plottableRunOutputs.flatMap((o) => o.heatmaps), [plottableRunOutputs]);
+  /** Which scripts are mid-run right now, by id.
+   *
+   *  Read off the raw outputs rather than the filtered ones: a script whose output is withheld is
+   *  still running, and the picker has to say so — the whole point of surfacing this is that the
+   *  first run of a script is slow enough to look like nothing happened. */
+  const runningScriptIds = useMemo(
+    () => Object.entries(runOutputs).filter(([, output]) => output.running).map(([id]) => id),
+    [runOutputs]
+  );
 
   // Pruned rather than kept in sync by an effect: a script can disappear from under this hook at
   // any time (deleted here, or dropped by a caller that owns `scripts`), and deriving the open set
@@ -376,5 +385,6 @@ export function useScriptingState({ defaultScripts, onScriptsChange, controlledE
     scriptTables,
     scriptLabels,
     scriptHeatmaps,
+    runningScriptIds,
   };
 }

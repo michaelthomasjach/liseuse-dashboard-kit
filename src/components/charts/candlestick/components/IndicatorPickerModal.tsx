@@ -70,6 +70,10 @@ export interface IndicatorPickerModalProps {
    *  `PickerOption.placements`. Absent (or missing an entry) simply means "not known yet", which
    *  is the honest state for a script that has never run. */
   scriptPlacements?: Record<string, ("price" | "own")[]>;
+  /** Scripts mid-run. Their row spins and stops accepting clicks until the run comes back — the
+   *  first run of a script is slow enough that without this the row looks inert, and the reflex is
+   *  to click it again, which starts a second copy of the very thing that is already busy. */
+  runningScriptIds?: string[];
   toggleScriptEnabled: (id: string) => void;
   openCorrelationSetup: () => void;
   favoriteIndicatorIds: string[];
@@ -107,6 +111,7 @@ export function IndicatorPickerModal({
   addCustomIndicator,
   scripts,
   scriptPlacements,
+  runningScriptIds,
   toggleScriptEnabled,
   openCorrelationSetup,
   favoriteIndicatorIds,
@@ -311,6 +316,8 @@ export function IndicatorPickerModal({
                *  way — a script click is always an enable/disable toggle, and Volume is a single
                *  unique pane. */
               presentCount?: number;
+              /** Mid-run: the row spins and refuses clicks. */
+              busy?: boolean;
               /** Built-in/custom rows only, paired with `presentCount` — what "add anyway"
                *  vs. "remove from chart" each mean for this specific row. */
               onRemoveExisting?: () => void;
@@ -368,6 +375,7 @@ export function IndicatorPickerModal({
                 scriptId: s.id,
                 placements: scriptPlacements?.[s.id],
                 canBecomeStrategy: analyzeScriptKind(s.code).kind !== "strategy",
+                busy: runningScriptIds?.includes(s.id) === true,
               }));
             const allOptions = [...builtinOptions, ...customOptions, ...scriptOptions].filter((option) =>
               categoryFilter === null
@@ -469,13 +477,28 @@ export function IndicatorPickerModal({
                         <button
                           type="button"
                           className="lq-chart__indicator-picker-select"
+                          // Disabled rather than merely ignored: a row that still looks clickable
+                          // and does nothing teaches the reader to click harder, which is exactly
+                          // the double-add this exists to prevent.
+                          disabled={option.busy === true}
                           onClick={() =>
                             (option.presentCount ?? 0) > 0
                               ? onDuplicate({ label: option.label, onAdd: option.onSelect, onRemove: option.onRemoveExisting! })
                               : option.onSelect()
                           }
-                          title={option.enabled === undefined ? undefined : option.enabled ? "Désactiver ce script" : "Activer ce script"}
+                          title={
+                            option.busy === true
+                              ? "Chargement du script…"
+                              : option.enabled === undefined
+                                ? undefined
+                                : option.enabled
+                                  ? "Désactiver ce script"
+                                  : "Activer ce script"
+                          }
                         >
+                          {option.busy === true && (
+                            <span className="lq-chart__indicator-picker-spinner" aria-label="Chargement du script" role="status" />
+                          )}
                           <span className="lq-chart__indicator-picker-name">{option.label}</span>
                           {/* The trailing marks travel together, in one group the row's own
                               `space-between` pushes to the right edge. The "already added" mark used

@@ -32,7 +32,7 @@
   ],
   "scripts": {
     "dev": "nodemon",
-    "build": "tsc --noEmit && vite build --config vite.config.lib.ts",
+    "build": "node scripts/clean-dist.mjs && tsc --noEmit && vite build --config vite.config.lib.ts",
     "prepublishOnly": "npm run build",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",

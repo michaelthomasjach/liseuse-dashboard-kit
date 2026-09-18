@@ -1,0 +1,67 @@
+.lq-globe {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 240px;
+  overflow: hidden;
+  background: transparent;
+  /* The globe handles its own wheel and drag gestures, so the browser must not also try to scroll
+     or pinch the page out from under them. */
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.lq-globe--interactive {
+  cursor: grab;
+}
+
+.lq-globe__canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* The label layer sits on top of the GL layer and is purely decorative: every hit test runs
+   against the container itself, so it must never swallow a pointer event. */
+.lq-globe__canvas--labels {
+  pointer-events: none;
+}
+
+.lq-globe__overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* Opt back in per child, e.g. a control button placed in the overlay. */
+.lq-globe__overlay > * {
+  pointer-events: auto;
+}
+
+.lq-globe--error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--lq-space-5);
+  border: 1px solid var(--lq-color-border-subtle);
+  background: var(--lq-color-panel);
+}
+
+.lq-globe__error {
+  margin: 0;
+  max-width: 42ch;
+  text-align: center;
+  font-size: var(--lq-text-sm);
+  color: var(--lq-color-text-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Auto-rotation and particles are driven in JS, so this only covers any CSS transition added
+     later; the engine reads the same preference itself for the motion that matters. */
+  .lq-globe * {
+    transition: none !important;
+  }
+}

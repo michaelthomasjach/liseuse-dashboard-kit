@@ -3,6 +3,7 @@ export * from "./components/primitives";
 export * from "./components/icons";
 export * from "./components/widgets";
 export * from "./components/charts";
+export * from "./components/globe";
 export * from "./components/forms";
 export * from "./components/feedback";
 export * from "./components/finance";

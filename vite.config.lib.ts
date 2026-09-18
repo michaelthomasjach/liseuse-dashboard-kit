@@ -33,30 +33,38 @@ export default defineConfig({
     lib: {
       entry: resolve(__dirname, "src/index.ts"),
       name: "LiseuseDashboardKit",
-      fileName: (format) => `liseuse-dashboard-kit.${format === "es" ? "es" : "cjs"}.js`,
-      formats: ["es", "cjs"],
+      // `formats`/`fileName` are deliberately omitted: `rollupOptions.output` below is an array, and
+      // Vite ignores both when it is. Each format's entry and chunk names are declared there instead,
+      // which is what keeps the two builds from writing over each other — see that note.
     },
     rollupOptions: {
       external: ["react", "react-dom", "react/jsx-runtime", "d3"],
-      output: {
+      // One output per format, rather than one shared output config.
+      //
+      // Both formats used to share `chunkFileNames: "[name].js"`, which meant the ES pass wrote
+      // `dist/index.js` and the CJS pass then overwrote that exact file with its own CommonJS
+      // chunk. The ESM entry was left importing named bindings from a CommonJS module, so
+      // `dist/liseuse-dashboard-kit.es.js` — the `module`/`import` entry point, i.e. the one every
+      // modern bundler picks — failed to build in any consumer with `"<id>" is not exported by
+      // "index.js"`. Nothing in this repo caught it because Storybook and the app build both
+      // consume `src/`, never `dist/`.
+      //
+      // Giving each format its own chunk directory fixes the collision while keeping the property
+      // the names were chosen for in the first place: they are still content-hash-free, so each
+      // build overwrites the previous one instead of `dist/` growing without bound (see the
+      // chunkFileNames note that used to live here, and emptyOutDir's own caveat above).
+      output: ["es", "cjs"].map((format) => ({
+        format: format as "es" | "cjs",
+        entryFileNames: `liseuse-dashboard-kit.${format}.js`,
+        chunkFileNames: `${format}/[name].js`,
         globals: {
           react: "React",
           "react-dom": "ReactDOM",
           d3: "d3",
         },
-        assetFileNames: (assetInfo) =>
+        assetFileNames: (assetInfo: { name?: string }) =>
           assetInfo.name?.endsWith(".css") ? "style.css" : (assetInfo.name ?? "asset"),
-        // Deterministic chunk names — no content hash. Hashed names are what a *site* wants (a new
-        // name per deploy is how a CDN cache is busted); a published package has no cache to bust,
-        // and every build minting fresh names meant `dist/` only ever grew. `emptyOutDir` was
-        // supposed to prevent that and silently does nothing here — this repo sits in a
-        // OneDrive-synced folder and the delete is refused, with Node's `rmSync` reporting success
-        // regardless. The result was 343 files and 618 MB in `dist/`, which `files: ["dist"]`
-        // packed whole into a 197 MB published tarball (v0.67.0). With fixed names each build
-        // overwrites the previous one and the problem cannot recur, whether or not any clean step
-        // works.
-        chunkFileNames: "[name].js",
-      },
+      })),
     },
     cssCodeSplit: false,
     sourcemap: true,

@@ -166,6 +166,36 @@ surface changes automatically — the engine watches `data-lq-palette` / `data-l
 
 `lattice: "none"` drops the all-over dot lattice and leaves only landmasses.
 
+### The e-ink palette is a different rendering, not a recolour
+
+Under `data-lq-palette="eink"` the globe does not merely swap tokens — it draws differently,
+because that palette's design language has no gradients, no shadows and hairline borders:
+
+| | `color` | `eink` |
+| --- | --- | --- |
+| Sphere | Lit, with a limb gradient | Flat; the ocean *is* the page |
+| Silhouette | Soft atmospheric halo | Hairline outline |
+| Dots | Round | Square |
+| Arcs | Plain stroke | Stroke over a page-coloured **casing** |
+| Node markers | Soft halo | Page-coloured **moat** |
+| Particles | Additive blending | Normal blending |
+| Labels | Plain | Knocked out of the page colour |
+
+The last four exist because ink on paper is a harder problem than light on black. A soft halo works
+by *adding* light, which on a light ground pushes everything toward the page colour and erases it;
+separation has to come from clearing paper around the mark instead. An unbacked line crossing a
+densely stippled continent reads as more stipple — the casing is standard cartographic practice and
+is what makes routes followable over land.
+
+**Land/sea contrast** is the globe's most important distinction — it is what makes the picture a
+map — so `land` defaults to `--lq-color-text`, the palette's maximum-contrast ink, in every mode,
+and the lattice takes the subtle border token so the ocean never competes with a coastline.
+
+Dot size scales with `sqrt(z)` rather than linearly. That is a correction, not a preference:
+orthographic projection compresses an evenly spaced lattice radially by a factor of `z` near the
+limb, so density there goes as `1/z`. Ink coverage goes as size squared, and `sqrt(z)` is what holds
+coverage constant — without it the outer eighth of every landmass merges into a solid band.
+
 ## Limitations
 
 - Orthographic projection only — there is no perspective camera or surface-level fly-through.

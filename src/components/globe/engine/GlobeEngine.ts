@@ -123,18 +123,117 @@ interface ResolvedFlow {
   touchesSelection: boolean;
 }
 
-const DEFAULT_THEME: Required<GlobeTheme> = {
-  sphere: "var(--lq-color-panel)",
-  sphereEdge: "var(--lq-color-bg)",
-  atmosphere: "var(--lq-color-accent)",
-  land: "var(--lq-color-text-muted)",
-  lattice: "var(--lq-color-border)",
-  node: "var(--lq-color-accent)",
-  flow: "var(--lq-color-accent)",
-  marker: "var(--lq-color-amber)",
-  label: "var(--lq-color-text)",
-  highlight: "var(--lq-color-sky)",
+/** The kit's two design languages, which the globe has to render differently rather than recolour. */
+type GlobePalette = "eink" | "color";
+type GlobeSurface = "light" | "dark";
+
+/**
+ * How the sphere is drawn, per palette.
+ *
+ * `shading` and `roundDots` are not preferences — they are what makes the e-ink palette itself. That
+ * palette has no gradients, no shadows and hairline borders, so a lit sphere with a soft halo in it
+ * would look like a different component rather than the same one in a different colour.
+ */
+interface GlobeRenderStyle {
+  /** 1 = lit sphere and atmospheric halo; 0 = flat disc and hairline outline. */
+  shading: number;
+  /** 1 = round dots; 0 = square. */
+  roundDots: number;
+  bodyAlpha: number;
+  atmosphereAlpha: number;
+  /** Multiplier on the land dot size. */
+  landDotScale: number;
+  /** Multiplier on the lattice dot size, relative to land. */
+  latticeDotScale: number;
+  /** Extra width, in CSS pixels, of the page-coloured casing drawn under each arc. 0 disables it. */
+  arcCasingPx: number;
+  /** Strength of the page-coloured moat around each node marker, 0…1. */
+  nodeMoat: number;
+  /**
+   * Additive blending brightens whatever is behind it, which only reads as "glow" on a dark ground.
+   * On paper it moves every particle toward white and they vanish, so the light palette composites
+   * them normally instead.
+   */
+  additiveParticles: boolean;
+  /** Knocks a page-coloured outline out from behind label text. */
+  labelHalo: boolean;
+}
+
+const RENDER_STYLE: Record<GlobePalette, GlobeRenderStyle> = {
+  color: {
+    shading: 1,
+    roundDots: 1,
+    bodyAlpha: 0.95,
+    atmosphereAlpha: 0.3,
+    landDotScale: 1,
+    latticeDotScale: 0.7,
+    arcCasingPx: 0,
+    nodeMoat: 0,
+    additiveParticles: true,
+    labelHalo: false,
+  },
+  // A crisp outline instead of a glow, and square ink dots. The lattice shrinks further so the ocean
+  // reads as empty paper rather than as a second, competing texture. Everything else here exists
+  // because dense black stipple is a hostile background for anything drawn over it.
+  eink: {
+    shading: 0,
+    roundDots: 0,
+    bodyAlpha: 1,
+    atmosphereAlpha: 0.85,
+    landDotScale: 1.08,
+    latticeDotScale: 0.55,
+    arcCasingPx: 2.6,
+    nodeMoat: 1,
+    additiveParticles: false,
+    labelHalo: true,
+  },
 };
+
+/**
+ * Default colours, per palette and surface.
+ *
+ * `land` is deliberately `--lq-color-text` in every mode rather than the muted variant it used to
+ * be. Land against ocean is the single most important distinction on this globe — it is what makes
+ * the picture a map — so it gets the palette's maximum-contrast ink, and everything else is tuned
+ * around it. The lattice takes the subtle border token for the same reason: it has to suggest a
+ * sphere without competing with the coastlines.
+ */
+function defaultThemeFor(palette: GlobePalette, surface: GlobeSurface): Required<GlobeTheme> {
+  const shared = {
+    sphere: "var(--lq-color-panel)",
+    sphereEdge: "var(--lq-color-bg)",
+    land: "var(--lq-color-text)",
+    lattice: "var(--lq-color-border-subtle)",
+    node: "var(--lq-color-accent)",
+    flow: "var(--lq-color-accent)",
+    marker: "var(--lq-color-amber)",
+    label: "var(--lq-color-text)",
+    highlight: "var(--lq-color-sky)",
+  };
+
+  if (palette === "eink") {
+    return {
+      ...shared,
+      // The outline is drawn with the same ink as everything else; in monochrome an "atmosphere" in
+      // any other colour would just be a smudge.
+      atmosphere: "var(--lq-color-border)",
+      // On paper the ocean is the paper. Tinting it would defeat the point.
+      sphere: "var(--lq-color-bg)",
+      sphereEdge: "var(--lq-color-bg)",
+      marker: "var(--lq-color-text)",
+      highlight: "var(--lq-color-text)",
+    };
+  }
+
+  return {
+    ...shared,
+    atmosphere: "var(--lq-color-accent)",
+    // A glow reads as light spilling past the limb, which only makes sense against a dark ground.
+    // On a light surface the same effect is a grey ring, so it is dialled right back by
+    // `atmosphereAlpha` below rather than recoloured.
+    ...(surface === "light" ? { sphereEdge: "var(--lq-color-border-subtle)" } : {}),
+  };
+}
 
 /**
  * The globe's renderer: two stacked canvases (WebGL for the sphere, flows and points; 2D for text)
@@ -396,8 +495,22 @@ export class GlobeEngine {
 
   // ---------------------------------------------------------------- theme
 
+  /** The palette/surface currently in force, read from the kit's own root attributes. */
+  private palette: GlobePalette = "color";
+  private surface: GlobeSurface = "dark";
+
+  private get renderStyle(): GlobeRenderStyle {
+    return RENDER_STYLE[this.palette];
+  }
+
   private readTheme() {
-    const t = { ...DEFAULT_THEME, ...this.options.theme };
+    const root = this.container.closest<HTMLElement>(".lq-root");
+    this.palette = root?.dataset.lqPalette === "eink" ? "eink" : "color";
+    this.surface = root?.dataset.lqSurface === "light" ? "light" : "dark";
+
+    // Caller overrides still win, so a product can recolour any single role without losing the
+    // palette-appropriate defaults for the rest.
+    const t = { ...defaultThemeFor(this.palette, this.surface), ...this.options.theme };
     const host = this.container;
     this.colors = {
       sphere: resolveColor(host, t.sphere, [0.05, 0.07, 0.11, 1]),
@@ -724,8 +837,12 @@ export class GlobeEngine {
       gl.uniform3fv(p.uniform("uCore"), this.colors.sphere.slice(0, 3));
       gl.uniform3fv(p.uniform("uEdge"), this.colors.sphereEdge.slice(0, 3));
       gl.uniform3fv(p.uniform("uAtmo"), this.colors.atmosphere.slice(0, 3));
-      gl.uniform1f(p.uniform("uBodyAlpha"), 0.95);
-      gl.uniform1f(p.uniform("uAtmoAlpha"), 0.3);
+      const style = this.renderStyle;
+      gl.uniform1f(p.uniform("uBodyAlpha"), style.bodyAlpha);
+      gl.uniform1f(p.uniform("uAtmoAlpha"), style.atmosphereAlpha);
+      gl.uniform1f(p.uniform("uShading"), style.shading);
+      // Feathering is in sphere-radius units, so it has to be derived from the on-screen radius to
+      // stay a constant ~1.5px however far the camera is.
       gl.uniform1f(p.uniform("uFeather"), 1.5 / Math.max(1, this.radiusPx));
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
       unbindAttribs(gl, p, SPHERE_ATTRIBS);
@@ -739,18 +856,24 @@ export class GlobeEngine {
       gl.uniform1f(p.uniform("uRadiusPx"), this.radiusPx);
       gl.uniform2f(p.uniform("uViewport"), vpx, vpy);
 
-      const dotPx = clamp(1.05 * this.dpr * Math.pow(this.camera.zoom, 0.35), 1, 4.5);
+      const style = this.renderStyle;
+      gl.uniform1f(p.uniform("uRound"), style.roundDots);
+
+      // 1.7px rather than the 1.05px this used to be. A single-pixel dot, further shrunk by the
+      // circular mask and the depth falloff, covered so little of its pixel that a continent read
+      // as a faint haze rather than as land — which is exactly the contrast complaint this fixes.
+      const dotPx = clamp(2.2 * this.dpr * Math.pow(this.camera.zoom, 0.35), 1.6, 7);
 
       if (this.colors.lattice[3] > 0 && this.buffers.lattice.count > 0) {
         bindInterleaved(gl, p, this.buffers.lattice.buffer, DOT_STRIDE, DOT_ATTRIBS);
         gl.uniform3fv(p.uniform("uColor"), this.colors.lattice.slice(0, 3));
-        gl.uniform1f(p.uniform("uPointSize"), dotPx * 0.85);
+        gl.uniform1f(p.uniform("uPointSize"), dotPx * style.latticeDotScale);
         gl.drawArrays(gl.POINTS, 0, this.buffers.lattice.count);
       }
       if (this.buffers.land.count > 0) {
         bindInterleaved(gl, p, this.buffers.land.buffer, DOT_STRIDE, DOT_ATTRIBS);
         gl.uniform3fv(p.uniform("uColor"), this.colors.land.slice(0, 3));
-        gl.uniform1f(p.uniform("uPointSize"), dotPx);
+        gl.uniform1f(p.uniform("uPointSize"), dotPx * style.landDotScale);
         gl.drawArrays(gl.POINTS, 0, this.buffers.land.count);
       }
       unbindAttribs(gl, p, DOT_ATTRIBS);
@@ -759,18 +882,33 @@ export class GlobeEngine {
     // ---- arcs
     if (this.buffers.arcs.count > 0) {
       const p = this.programs.arcs;
+      const style = this.renderStyle;
       gl.useProgram(p.program);
       bindInterleaved(gl, p, this.buffers.arcs.buffer, ARC_STRIDE, ARC_ATTRIBS);
       gl.uniformMatrix3fv(p.uniform("uRot"), false, this.rot);
       gl.uniform1f(p.uniform("uRadiusPx"), this.radiusPx);
       gl.uniform2f(p.uniform("uViewport"), vpx, vpy);
+
+      if (style.arcCasingPx > 0) {
+        // Same buffer, drawn wider and in the page colour first. One extra draw call for the whole
+        // flow layer, which is why this is affordable at any flow count.
+        gl.uniform1f(p.uniform("uCasing"), 1);
+        gl.uniform3fv(p.uniform("uCasingColor"), this.colors.sphere.slice(0, 3));
+        gl.uniform1f(p.uniform("uWidthBoost"), style.arcCasingPx * this.dpr);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, this.buffers.arcs.count);
+      }
+
+      gl.uniform1f(p.uniform("uCasing"), 0);
+      gl.uniform1f(p.uniform("uWidthBoost"), 0);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, this.buffers.arcs.count);
       unbindAttribs(gl, p, ARC_ATTRIBS);
     }
 
-    // ---- particles (additive: overlapping trails brighten rather than muddy)
+    // ---- particles
     if (this.buffers.particles.count > 0 && this.options.animateFlows) {
-      gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+      // Additive on a dark ground so overlapping trails brighten rather than muddy; normal on paper,
+      // where additive would only push them toward the page colour and erase them.
+      if (this.renderStyle.additiveParticles) gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
       const p = this.programs.particles;
       gl.useProgram(p.program);
       bindInterleaved(gl, p, this.buffers.particles.buffer, PARTICLE_STRIDE, PARTICLE_ATTRIBS);
@@ -791,6 +929,8 @@ export class GlobeEngine {
       gl.uniform1f(p.uniform("uRadiusPx"), this.radiusPx);
       gl.uniform2f(p.uniform("uViewport"), vpx, vpy);
       gl.uniform1f(p.uniform("uTime"), time);
+      gl.uniform1f(p.uniform("uMoat"), this.renderStyle.nodeMoat);
+      gl.uniform3fv(p.uniform("uMoatColor"), this.colors.sphere.slice(0, 3));
       if (this.buffers.nodes.count > 0) {
         bindInterleaved(gl, p, this.buffers.nodes.buffer, NODE_STRIDE, NODE_ATTRIBS);
         gl.drawArrays(gl.POINTS, 0, this.buffers.nodes.count);
@@ -901,7 +1041,18 @@ export class GlobeEngine {
       if (placed.some((p) => !(box.x1 < p.x0 || box.x0 > p.x1 || box.y1 < p.y0 || box.y0 > p.y1))) continue;
       placed.push(box);
 
-      ctx.fillStyle = css(c.emphasis ? 0.98 : 0.66);
+      if (this.renderStyle.labelHalo) {
+        // Knocked out of the page colour rather than drawn in a box: a plate behind every label
+        // would tile the globe with rectangles, while an outline follows the glyphs and leaves the
+        // map visible between them.
+        const [br, bg2, bb] = this.colors.sphere;
+        ctx.strokeStyle = `rgba(${Math.round(br * 255)}, ${Math.round(bg2 * 255)}, ${Math.round(bb * 255)}, 0.92)`;
+        ctx.lineWidth = 3;
+        ctx.lineJoin = "round";
+        ctx.strokeText(c.text, x0, c.y);
+      }
+
+      ctx.fillStyle = css(c.emphasis ? 1 : this.renderStyle.labelHalo ? 0.88 : 0.66);
       ctx.fillText(c.text, x0, c.y);
       drawn++;
     }

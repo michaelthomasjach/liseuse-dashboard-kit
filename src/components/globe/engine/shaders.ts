@@ -56,21 +56,32 @@ uniform vec3 uAtmo;
 uniform float uBodyAlpha;
 uniform float uAtmoAlpha;
 uniform float uFeather;
+/* 1.0 = shaded sphere with a soft atmospheric halo; 0.0 = flat disc with a hairline outline.
+   The flat branch is what the e-ink palette asks for: that design language has no gradients and no
+   shadows, so a lit sphere in it would read as a different product rather than a darker one. */
+uniform float uShading;
 void main() {
   float r = length(vUv);
   if (r > 1.45) discard;
+
   if (r <= 1.0) {
     float z = sqrt(max(0.0, 1.0 - r * r));
     /* Fixed key light from the upper left. Not physically motivated — it just stops the disc
        reading as a flat circle, which is the entire job of this pass. */
     float lambert = clamp(dot(normalize(vec3(vUv, z)), normalize(vec3(-0.45, 0.55, 0.75))), 0.0, 1.0);
-    vec3 col = mix(uEdge, uCore, pow(z, 0.55));
-    col += col * lambert * 0.30;
+    vec3 shaded = mix(uEdge, uCore, pow(z, 0.55));
+    shaded += shaded * lambert * 0.30;
+    vec3 col = mix(uCore, shaded, uShading);
     gl_FragColor = vec4(col, uBodyAlpha * smoothstep(1.0, 1.0 - uFeather, r));
   } else {
-    float t = (r - 1.0) / 0.45;
-    float glow = exp(-t * 3.4) * (1.0 - t);
-    gl_FragColor = vec4(uAtmo, max(0.0, glow) * uAtmoAlpha);
+    float d = r - 1.0;
+    float t = d / 0.45;
+    float glow = max(0.0, exp(-t * 3.4) * (1.0 - t));
+    /* A crisp rule a couple of pixels wide, sitting just outside the silhouette. */
+    float ring = 1.0 - smoothstep(uFeather * 0.6, uFeather * 2.6, d);
+    float a = mix(ring, glow, uShading) * uAtmoAlpha;
+    if (a <= 0.002) discard;
+    gl_FragColor = vec4(uAtmo, a);
   }
 }
 `;
@@ -96,8 +107,19 @@ void main() {
     return;
   }
   gl_Position = vec4(r.xy * uRadiusPx / uViewport, 0.0, 1.0);
-  vAlpha = aWeight * smoothstep(-0.05, 0.30, r.z);
-  gl_PointSize = uPointSize * (0.55 + 0.45 * r.z);
+  /* Kept well above zero across the visible hemisphere. Fading purely with the facing angle looked
+     plausible but cost most of the land/sea contrast: two thirds of every continent sits on the
+     part of the sphere turning away from the viewer, so the coastlines that define a landmass were
+     exactly the ones dissolving into the ocean. The floor keeps them readable; the remaining ramp
+     is enough to round the sphere. */
+  vAlpha = aWeight * (0.72 + 0.28 * smoothstep(-0.05, 0.35, r.z));
+  /* Scaled by sqrt(z), which is not a taste call but the correction for the projection.
+     Orthographic foreshortening compresses the lattice radially by a factor of z near the limb, so
+     an evenly spaced sphere lands on screen with density proportional to 1/z there. Ink coverage
+     goes as size squared, so size ~ sqrt(z) holds coverage constant and stops the outer eighth of
+     every landmass merging into a solid black band. The floor keeps limb dots from vanishing
+     entirely. */
+  gl_PointSize = uPointSize * sqrt(clamp(r.z, 0.10, 1.0));
 }
 `;
 
@@ -105,9 +127,13 @@ export const DOTS_FS = `
 precision mediump float;
 varying float vAlpha;
 uniform vec3 uColor;
+/* 1.0 = round dots, 0.0 = square. Square is both truer to the e-ink design language and measurably
+   higher contrast at these sizes: a 2px round dot loses its corners to the discard below and covers
+   roughly 60% of the pixels a square one does. */
+uniform float uRound;
 void main() {
   vec2 c = gl_PointCoord - 0.5;
-  if (dot(c, c) > 0.25) discard;
+  if (uRound > 0.5 && dot(c, c) > 0.25) discard;
   gl_FragColor = vec4(uColor, vAlpha);
 }
 `;
@@ -123,6 +149,8 @@ attribute vec4 aColor;
 uniform mat3 uRot;
 uniform float uRadiusPx;
 uniform vec2 uViewport;
+/* Extra width, in pixels, for the casing pass — see ARCS_FS. */
+uniform float uWidthBoost;
 varying vec4 vColor;
 varying float vVis;
 varying float vT;
@@ -152,7 +180,7 @@ void main() {
 
   /* Widened in pixel space, not NDC: NDC is anisotropic whenever the canvas is not square, and
      offsetting there gives a ribbon that visibly thins out as it turns vertical. */
-  vec2 px = s0 + nrm * aTS.y * aStyle.x * 0.5;
+  vec2 px = s0 + nrm * aTS.y * (aStyle.x + uWidthBoost) * 0.5;
   gl_Position = vec4(px / uViewport, 0.0, 1.0);
 
   vVis = visibility(r0);
@@ -168,11 +196,22 @@ varying vec4 vColor;
 varying float vVis;
 varying float vT;
 varying float vDash;
+/* The casing pass: the same geometry, drawn wider and in the page colour, underneath the arc
+   itself. Over a densely stippled continent an unbacked line is read as more stipple; a thin gap of
+   paper on either side is what lets the eye follow it. Standard cartographic practice, and the only
+   thing that makes routes legible over land in the monochrome palette. */
+uniform float uCasing;
+uniform vec3 uCasingColor;
 void main() {
   if (vDash > 0.5 && fract(vT * vDash) > 0.55) discard;
   /* Not cut to nothing on the far side — a faint ghost is what tells you the link continues
      around the back rather than stopping dead at the limb. */
-  gl_FragColor = vec4(vColor.rgb, vColor.a * (0.10 + 0.90 * vVis));
+  float vis = 0.10 + 0.90 * vVis;
+  if (uCasing > 0.5) {
+    gl_FragColor = vec4(uCasingColor, vis * 0.92);
+    return;
+  }
+  gl_FragColor = vec4(vColor.rgb, vColor.a * vis);
 }
 `;
 
@@ -259,12 +298,17 @@ precision mediump float;
 varying vec4 vColor;
 varying float vPulse;
 varying float vSelected;
+/* Width of a page-coloured moat drawn around the core, 0 to disable. The soft halo below works by
+   adding light, which is meaningless on a light ground — there, separation has to come from
+   clearing a ring of paper around the marker instead. */
+uniform float uMoat;
+uniform vec3 uMoatColor;
 void main() {
   float d = length(gl_PointCoord - 0.5) * 2.0;
   if (d > 1.0) discard;
 
   float core = 1.0 - smoothstep(0.30, 0.38, d);
-  float halo = exp(-pow(d * 2.2, 2.0)) * 0.30;
+  float halo = exp(-pow(d * 2.2, 2.0)) * 0.30 * (1.0 - uMoat);
   float ring = vSelected > 0.5
     ? smoothstep(0.62, 0.68, d) * (1.0 - smoothstep(0.80, 0.88, d))
     : 0.0;
@@ -275,8 +319,13 @@ void main() {
     pulse = smoothstep(pr - 0.07, pr, d) * (1.0 - smoothstep(pr, pr + 0.07, d)) * (1.0 - vPulse);
   }
 
-  float a = clamp(core + ring + halo + pulse * 0.8, 0.0, 1.0) * vColor.a;
+  float ink = clamp(core + ring + halo + pulse * 0.8, 0.0, 1.0);
+  float moat = uMoat * smoothstep(0.34, 0.40, d) * (1.0 - smoothstep(0.56, 0.64, d));
+
+  /* Weighted so the moat only shows where there is no ink, rather than washing the core out. */
+  vec3 col = mix(vColor.rgb, uMoatColor, moat / max(0.001, ink + moat));
+  float a = clamp(ink + moat, 0.0, 1.0) * vColor.a;
   if (a <= 0.003) discard;
-  gl_FragColor = vec4(vColor.rgb, a);
+  gl_FragColor = vec4(col, a);
 }
 `;

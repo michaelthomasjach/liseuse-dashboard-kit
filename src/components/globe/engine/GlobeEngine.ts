@@ -154,7 +154,12 @@ export class GlobeEngine {
 
   readonly camera: GlobeCamera;
 
-  private programs: {
+  /**
+   * Definitely-assigned rather than initialised inline: every GL object here is owned by the
+   * context and has to be recreated from scratch if that context is lost and restored, so creation
+   * lives in `initGl()` where both the constructor and the restore handler can call it.
+   */
+  private programs!: {
     sphere: GlProgram;
     dots: GlProgram;
     arcs: GlProgram;
@@ -162,7 +167,7 @@ export class GlobeEngine {
     nodes: GlProgram;
   };
 
-  private buffers: {
+  private buffers!: {
     sphere: VertexBuffer;
     land: VertexBuffer;
     lattice: VertexBuffer;
@@ -219,6 +224,8 @@ export class GlobeEngine {
   private resizeObserver: ResizeObserver | null = null;
   private themeObserver: MutationObserver | null = null;
   private disposed = false;
+  /** True between `webglcontextlost` and `webglcontextrestored`; every GL call is skipped meanwhile. */
+  private contextLost = false;
 
   constructor(
     container: HTMLElement,
@@ -253,6 +260,23 @@ export class GlobeEngine {
     this.lastLod = this.camera.lod;
     this.lastReportedView = this.camera.getView();
 
+    this.initGl();
+    this.readTheme();
+    this.attachObservers();
+    this.attachPointer();
+    this.resize();
+  }
+
+  /**
+   * Creates every GL-owned object: programs, buffers, the sphere quad and the dot lattices.
+   *
+   * Called from the constructor and again after a context restore. A lost WebGL context invalidates
+   * every program and buffer it ever handed out, so recovery is not a matter of resuming — all of it
+   * has to be built again.
+   */
+  private initGl() {
+    const gl = this.gl;
+
     this.programs = {
       sphere: createProgram(gl, SPHERE_VS, SPHERE_FS),
       dots: createProgram(gl, DOTS_VS, DOTS_FS),
@@ -278,12 +302,28 @@ export class GlobeEngine {
     gl.disable(gl.DEPTH_TEST);
     gl.enable(gl.BLEND);
 
-    this.readTheme();
     this.uploadDots();
-    this.attachObservers();
-    this.attachPointer();
-    this.resize();
+    // The flow and node buffers rebuild from the arrays already in memory on the next frame, so a
+    // restore needs nothing re-fetched.
+    this.geometryDirty = true;
+    this.needsDraw = true;
   }
+
+  private onContextLost = (event: Event) => {
+    // Without preventDefault the browser will not attempt to restore the context at all — this one
+    // line is the difference between a globe that comes back and a permanently blank canvas.
+    event.preventDefault();
+    this.contextLost = true;
+    this.stop();
+  };
+
+  private onContextRestored = () => {
+    if (this.disposed) return;
+    this.contextLost = false;
+    this.initGl();
+    this.readTheme();
+    this.start();
+  };
 
   // ---------------------------------------------------------------- data
 
@@ -405,6 +445,9 @@ export class GlobeEngine {
   }
 
   private attachObservers() {
+    this.glCanvas.addEventListener("webglcontextlost", this.onContextLost);
+    this.glCanvas.addEventListener("webglcontextrestored", this.onContextRestored);
+
     if (typeof ResizeObserver !== "undefined") {
       this.resizeObserver = new ResizeObserver(() => this.resize());
       this.resizeObserver.observe(this.container);
@@ -582,7 +625,7 @@ export class GlobeEngine {
   // ---------------------------------------------------------------- loop
 
   start() {
-    if (this.running || this.disposed) return;
+    if (this.running || this.disposed || this.contextLost) return;
     this.running = true;
     this.startedAt = performance.now();
     this.lastFrame = this.startedAt;
@@ -606,6 +649,7 @@ export class GlobeEngine {
   }
 
   private frame(now: number) {
+    if (this.contextLost) return;
     const dt = Math.min(0.1, (now - this.lastFrame) / 1000);
     this.lastFrame = now;
 
@@ -1086,13 +1130,27 @@ export class GlobeEngine {
     this.disposed = true;
     this.stop();
     this.detachPointer();
+    this.glCanvas.removeEventListener("webglcontextlost", this.onContextLost);
+    this.glCanvas.removeEventListener("webglcontextrestored", this.onContextRestored);
     this.resizeObserver?.disconnect();
     this.themeObserver?.disconnect();
-    for (const b of Object.values(this.buffers)) b.dispose();
-    for (const p of Object.values(this.programs)) this.gl.deleteProgram(p.program);
-    // Frees the drawing buffer immediately instead of waiting for GC — a page that mounts and
-    // unmounts globes can otherwise hit the browser's hard cap on live WebGL contexts.
-    this.gl.getExtension("WEBGL_lose_context")?.loseContext();
+    if (!this.contextLost) {
+      for (const b of Object.values(this.buffers)) b.dispose();
+      for (const p of Object.values(this.programs)) this.gl.deleteProgram(p.program);
+    }
+
+    // Deliberately NOT calling `WEBGL_lose_context.loseContext()` here.
+    //
+    // It used to, to free the drawing buffer eagerly rather than wait for GC. But a context belongs
+    // to the *canvas*, not to this engine, and `getContext("webgl")` returns the same context object
+    // for a given canvas every time — so losing it poisons that canvas for any engine mounted on it
+    // afterwards, permanently. React StrictMode does exactly that in development: it mounts,
+    // unmounts and remounts every effect, so the second engine inherited a dead context and every
+    // shader compile failed with CONTEXT_LOST_WEBGL and an empty info log. Production builds do not
+    // double-invoke, which is why this only ever showed up under `npm run dev`.
+    //
+    // Deleting the programs and buffers above already releases the GPU memory this engine
+    // allocated; the context goes when the canvas is dropped and collected.
   }
 }
 

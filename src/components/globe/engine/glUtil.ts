@@ -7,16 +7,45 @@ export interface GlProgram {
 }
 
 function compileShader(gl: WebGLRenderingContext, type: number, source: string): WebGLShader {
+  // Checked before anything else: on a lost context every call below fails with a null info log, and
+  // "shader compilation failed — no log" sends you hunting through GLSL for a syntax error that is
+  // not there. The context is the problem, so the message has to say so.
+  if (gl.isContextLost()) {
+    throw new Error(
+      "globe: the WebGL context is lost, so shaders cannot be compiled. " +
+        "This usually means the canvas was reused after a previous context was released, " +
+        "or the GPU driver reset."
+    );
+  }
+
   const shader = gl.createShader(type);
   if (!shader) throw new Error("globe: could not create shader");
   gl.shaderSource(shader, source);
   gl.compileShader(shader);
+
   if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
     const log = gl.getShaderInfoLog(shader);
     gl.deleteShader(shader);
-    throw new Error(`globe: shader compilation failed — ${log ?? "no log"}`);
+    const kind = type === gl.VERTEX_SHADER ? "vertex" : "fragment";
+    if (gl.isContextLost()) {
+      throw new Error(`globe: the WebGL context was lost while compiling the ${kind} shader.`);
+    }
+    // The source is included because a driver's line numbers are useless without it — the shaders
+    // are assembled from a shared prelude plus a per-layer body, so "line 42" refers to neither file.
+    throw new Error(
+      `globe: ${kind} shader compilation failed — ${log?.trim() || "the driver reported no reason"}\n` +
+        `--- source ---\n${numberLines(source)}`
+    );
   }
   return shader;
+}
+
+/** Prefixes each line with its number, so a driver's "ERROR: 0:37" points somewhere. */
+function numberLines(source: string): string {
+  return source
+    .split("\n")
+    .map((line, i) => `${String(i + 1).padStart(3, " ")} | ${line}`)
+    .join("\n");
 }
 
 /** Compiles + links a program and memoises its attribute/uniform locations (they never change for

@@ -127,6 +127,21 @@ to a per-tier budget.
 - `prefers-reduced-motion: reduce` disables auto-rotation and particles, `autoRotate` notwithstanding.
 - Hover resolution runs at most once per frame, not once per `pointermove`.
 
+## Context loss
+
+A WebGL context can go away at any time — a driver reset, a laptop waking from sleep, the browser
+reclaiming contexts under pressure. The globe listens for `webglcontextlost`, calls `preventDefault`
+(without which the browser will not attempt to restore it at all), pauses, and rebuilds every
+program and buffer on `webglcontextrestored`. Node and flow data is already in memory, so nothing is
+re-fetched.
+
+`destroy()` deliberately does **not** call `WEBGL_lose_context.loseContext()`. A context belongs to
+the canvas, not to the engine, and `getContext("webgl")` returns the same object for a given canvas
+every time — losing it would poison that canvas for any globe mounted on it afterwards. React
+StrictMode makes this concrete: it double-invokes effects in development, so a globe that released
+its context on unmount would fail to start on the immediate remount, with `CONTEXT_LOST_WEBGL` and
+an empty shader info log.
+
 ### What is and is not measured
 
 The structural claim — that per-frame CPU work does not grow with the flow count — follows from the

@@ -13,6 +13,7 @@ export type {
   GlobeFlowStyle,
   GlobeNodeEvent,
   GlobeFlowEvent,
+  GlobeCountryRef,
   InteractiveGlobeHandle,
 } from "./types";
 export { GLOBE_LODS, lodRank } from "./types";

@@ -1,14 +1,11 @@
 import * as d3 from "d3";
-import { feature } from "topojson-client";
-import type { Topology, GeometryCollection } from "topojson-specification";
 // Deliberately the *countries* topology rather than world-atlas's own `land-110m.json`, even
 // though a single land multipolygon would be marginally cheaper to rasterise: `WorldExposureMap`
 // already imports this exact path, and Vite force-inlines every asset as base64 in library mode
 // (see vite.config.lib.ts's own note). Sharing the import keeps one copy in the bundle; pulling
-// in land-110m would add a second ~100 KB payload for the same pixels.
-import countries110mRaw from "world-atlas/countries-110m.json";
-
-const countries110m = countries110mRaw as unknown as Topology<{ countries: GeometryCollection }>;
+// in land-110m would add a second ~100 KB payload for the same pixels. The parse itself is shared
+// with the country-outline layer, which needs the same features.
+import { getCountryFeatures } from "./countries";
 
 /** Width of the equirectangular land raster. 110m data carries nowhere near enough detail to
  *  reward going finer, and this is sampled tens of thousands of times at startup. */
@@ -40,7 +37,7 @@ export function getLandMask(): Uint8Array | null {
       return null;
     }
 
-    const land = feature(countries110m, countries110m.objects.countries) as GeoJSON.FeatureCollection;
+    const land = getCountryFeatures();
 
     // `geoEquirectangular` with this exact scale/translate is what makes the sampling below a
     // plain (lon, lat) → (col, row) affine map rather than a projection call per sample.

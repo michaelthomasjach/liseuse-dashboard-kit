@@ -99,3 +99,20 @@ export function clamp(v: number, min: number, max: number): number {
 export function easeInOutCubic(t: number): number {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 }
+
+/**
+ * Applies the *transpose* of a column-major mat3 — the inverse, for the rotation matrices used
+ * here, since they are orthonormal. This is what turns a point on screen back into a point on the
+ * globe: `viewRotation` takes world to view, and un-projecting needs the other direction.
+ */
+export function applyMat3Transpose(m: Float32Array, x: number, y: number, z: number, out: number[] = [0, 0, 0]) {
+  out[0] = m[0] * x + m[1] * y + m[2] * z;
+  out[1] = m[3] * x + m[4] * y + m[5] * z;
+  out[2] = m[6] * x + m[7] * y + m[8] * z;
+  return out;
+}
+
+/** Inverse of `lonLatToVec3`, in degrees. The vector is assumed to be unit length. */
+export function vec3ToLonLat(x: number, y: number, z: number): [lon: number, lat: number] {
+  return [Math.atan2(x, z) / DEG, Math.asin(clamp(y, -1, 1)) / DEG];
+}

@@ -122,6 +122,16 @@ export interface GlobeTheme {
    * passing cursor look like it has selected something.
    */
   hover?: string;
+  /** Outline drawn around the country under the pointer. Defaults to the `hover` colour. */
+  countryBorder?: string;
+}
+
+/** The country under the pointer, as reported by `onCountryHover`. */
+export interface GlobeCountryRef {
+  /** ISO 3166-1 numeric, zero-padded — "250" for France. Stable, unlike the name. */
+  id: string;
+  /** English, from the underlying atlas. Localise it on the way out if your product is not. */
+  name: string;
 }
 
 /** Which labels the 2D overlay is allowed to draw. */

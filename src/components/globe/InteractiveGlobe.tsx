@@ -11,6 +11,7 @@ import {
 } from "react";
 import { GlobeEngine, type GlobeEngineCallbacks, type GlobeEngineOptions } from "./engine/GlobeEngine";
 import type {
+  GlobeCountryRef,
   GlobeFlow,
   GlobeFlowEvent,
   GlobeLabelMode,
@@ -45,6 +46,13 @@ export interface InteractiveGlobeProps {
   maxAnimatedFlows?: number;
   /** Multiplies the diameter of the particles travelling along each flow. Default 1. */
   particleScale?: number;
+  /**
+   * Outlines the country under the pointer, and reports it through `onCountryHover`. Default true.
+   *
+   * Turning it off skips loading the country outlines entirely, which is worth doing for a globe
+   * whose subject is not geography — a satellite track, say, where a highlighted Chad is noise.
+   */
+  countryHover?: boolean;
   /** "auto" thins labels to fit the zoom tier; "all" draws every one. Default "auto". */
   labelMode?: GlobeLabelMode;
   /** Colors. Every entry accepts any CSS color and defaults to a `--lq-*` token. */
@@ -63,6 +71,8 @@ export interface InteractiveGlobeProps {
   onNodeHover?: (event: GlobeNodeEvent | null) => void;
   onFlowClick?: (event: GlobeFlowEvent) => void;
   onFlowHover?: (event: GlobeFlowEvent | null) => void;
+  /** Fires when the pointer crosses into another country, or out to open water (`null`). */
+  onCountryHover?: (country: GlobeCountryRef | null, x: number, y: number) => void;
   /** Fired for a click that hit neither a node nor a flow — the usual "clear selection" hook. */
   onBackgroundClick?: () => void;
   /** Throttled: only fires past half a degree of rotation or a 1% zoom change. */
@@ -142,6 +152,7 @@ export const InteractiveGlobe = forwardRef<InteractiveGlobeHandle, InteractiveGl
       quality = "high",
       maxAnimatedFlows = 90,
       particleScale = 1,
+      countryHover = true,
       labelMode = "auto",
       theme,
       initialView,
@@ -152,6 +163,7 @@ export const InteractiveGlobe = forwardRef<InteractiveGlobeHandle, InteractiveGl
       onNodeHover,
       onFlowClick,
       onFlowHover,
+      onCountryHover,
       onBackgroundClick,
       onViewChange,
       onLodChange,
@@ -179,11 +191,21 @@ export const InteractiveGlobe = forwardRef<InteractiveGlobeHandle, InteractiveGl
         onNodeHover: onNodeHover ? (node, x, y) => onNodeHover(node ? { node, x, y } : null) : undefined,
         onFlowClick: onFlowClick ? (flow, x, y) => onFlowClick({ flow, x, y }) : undefined,
         onFlowHover: onFlowHover ? (flow, x, y) => onFlowHover(flow ? { flow, x, y } : null) : undefined,
+        onCountryHover,
         onBackgroundClick,
         onViewChange,
         onLodChange,
       }),
-      [onNodeClick, onNodeHover, onFlowClick, onFlowHover, onBackgroundClick, onViewChange, onLodChange]
+      [
+        onNodeClick,
+        onNodeHover,
+        onFlowClick,
+        onFlowHover,
+        onCountryHover,
+        onBackgroundClick,
+        onViewChange,
+        onLodChange,
+      ]
     );
 
     // Read once: the engine owns the camera from mount onward, and letting a prop yank it back
@@ -218,6 +240,7 @@ export const InteractiveGlobe = forwardRef<InteractiveGlobeHandle, InteractiveGl
             highlightedFlowIds: EMPTY_IDS,
             maxAnimatedFlows: 90,
             particleScale: 1,
+            countryHover: true,
             interactive: true,
           } satisfies GlobeEngineOptions,
           {
@@ -226,6 +249,7 @@ export const InteractiveGlobe = forwardRef<InteractiveGlobeHandle, InteractiveGl
             onNodeHover: (n, x, y) => callbacksRef.current.onNodeHover?.(n, x, y),
             onFlowClick: (f, x, y) => callbacksRef.current.onFlowClick?.(f, x, y),
             onFlowHover: (f, x, y) => callbacksRef.current.onFlowHover?.(f, x, y),
+            onCountryHover: (c, x, y) => callbacksRef.current.onCountryHover?.(c, x, y),
             onBackgroundClick: () => callbacksRef.current.onBackgroundClick?.(),
             onViewChange: (v) => callbacksRef.current.onViewChange?.(v),
             onLodChange: (l) => callbacksRef.current.onLodChange?.(l),
@@ -276,6 +300,7 @@ export const InteractiveGlobe = forwardRef<InteractiveGlobeHandle, InteractiveGl
         highlightedFlowIds,
         maxAnimatedFlows,
         particleScale,
+        countryHover,
         interactive,
       });
     }, [
@@ -290,6 +315,7 @@ export const InteractiveGlobe = forwardRef<InteractiveGlobeHandle, InteractiveGl
       highlightedFlowIds,
       maxAnimatedFlows,
       particleScale,
+      countryHover,
       interactive,
     ]);
 

@@ -1,4 +1,5 @@
 import type {
+  GlobeCountryRef,
   GlobeFlow,
   GlobeLabelMode,
   GlobeLod,
@@ -11,7 +12,18 @@ import type {
 } from "../types";
 import { lodRank } from "../types";
 import { GlobeCamera, lodForZoom } from "./GlobeCamera";
-import { angularDistance, applyMat3, clamp, defaultAltitude, lonLatToVec3, viewRotation } from "./geo";
+import { findCountryAt, getCountries, type CountryShape } from "./countries";
+import {
+  angularDistance,
+  applyMat3,
+  applyMat3Transpose,
+  clamp,
+  DEG,
+  defaultAltitude,
+  lonLatToVec3,
+  vec3ToLonLat,
+  viewRotation,
+} from "./geo";
 import { buildLandDots, buildLattice } from "./lattice";
 import {
   ARCS_FS,
@@ -92,6 +104,8 @@ export interface GlobeEngineCallbacks {
   onNodeHover?: (node: GlobeNode | null, x: number, y: number) => void;
   onFlowClick?: (flow: GlobeFlow, x: number, y: number) => void;
   onFlowHover?: (flow: GlobeFlow | null, x: number, y: number) => void;
+  /** Fires when the pointer crosses from one country to another, or out to open water. */
+  onCountryHover?: (country: GlobeCountryRef | null, x: number, y: number) => void;
   onBackgroundClick?: () => void;
   onViewChange?: (view: GlobeView) => void;
   onLodChange?: (lod: GlobeLod) => void;
@@ -109,6 +123,8 @@ export interface GlobeEngineOptions {
   maxAnimatedFlows: number;
   /** Multiplies the particle diameter. 1 is the default size. */
   particleScale: number;
+  /** Outlines the country under the pointer, and reports it through `onCountryHover`. */
+  countryHover: boolean;
   interactive: boolean;
 }
 
@@ -216,6 +232,7 @@ function defaultThemeFor(palette: GlobePalette, surface: GlobeSurface): Required
     label: "var(--lq-color-text)",
     highlight: "var(--lq-color-sky)",
     hover: "var(--lq-color-sky)",
+    countryBorder: "var(--lq-color-sky)",
   };
 
   if (palette === "eink") {
@@ -234,6 +251,7 @@ function defaultThemeFor(palette: GlobePalette, surface: GlobeSurface): Required
       // the same discipline the graph itself does, and in ink-on-paper a colour is the only
       // separation left once weight and dash are already spoken for.
       hover: "var(--lq-color-sky)",
+      countryBorder: "var(--lq-color-sky)",
     };
   }
 
@@ -285,6 +303,8 @@ export class GlobeEngine {
     arcs: VertexBuffer;
     /** Just the hovered arc, so pointing at one does not rebuild the whole flow buffer. */
     hoverArc: VertexBuffer;
+    /** The outline of the country under the pointer. Empty whenever there is none. */
+    border: VertexBuffer;
     particles: VertexBuffer;
     nodes: VertexBuffer;
     markers: VertexBuffer;
@@ -322,6 +342,8 @@ export class GlobeEngine {
   private geometryDirty = true;
   /** Set when the hovered flow changes; only the one-arc buffer is rebuilt, never the whole set. */
   private hoverDirty = false;
+  /** Set when the hovered country changes; rebuilds the outline buffer and nothing else. */
+  private borderDirty = false;
   private needsDraw = true;
   private lastLod: GlobeLod;
   private lastReportedView: GlobeView;
@@ -334,6 +356,14 @@ export class GlobeEngine {
   private drag = { active: false, moved: false, lastX: 0, lastY: 0, pointerId: -1 };
   private hoveredNodeId: string | null = null;
   private hoveredFlowId: string | null = null;
+  /**
+   * Built on first use rather than in the constructor. Parsing the topology costs a few
+   * milliseconds and holds on to a megabyte or so, and a globe that never turns country hover on
+   * should pay neither.
+   */
+  private countries: CountryShape[] | null = null;
+  private countriesLoaded = false;
+  private hoveredCountry: CountryShape | null = null;
 
   private colors: Record<string, Rgba> = {};
   private resizeObserver: ResizeObserver | null = null;
@@ -406,6 +436,7 @@ export class GlobeEngine {
       lattice: new VertexBuffer(gl),
       arcs: new VertexBuffer(gl),
       hoverArc: new VertexBuffer(gl),
+      border: new VertexBuffer(gl),
       particles: new VertexBuffer(gl),
       nodes: new VertexBuffer(gl),
       markers: new VertexBuffer(gl),
@@ -422,6 +453,8 @@ export class GlobeEngine {
     // The flow and node buffers rebuild from the arrays already in memory on the next frame, so a
     // restore needs nothing re-fetched.
     this.geometryDirty = true;
+    // The outline buffer is GL-owned too, so a restored context starts with an empty one.
+    this.borderDirty = true;
     this.needsDraw = true;
   }
 
@@ -461,6 +494,9 @@ export class GlobeEngine {
     this.camera.autoRotateSpeed = this.options.autoRotateSpeed;
     if (qualityChanged) this.uploadDots();
     if (themeChanged) this.readTheme();
+    if (next.countryHover === false) this.clearCountryHover();
+    // A recoloured theme has to reach the outline too, and it is not part of `rebuildGeometry`.
+    if (themeChanged) this.borderDirty = true;
     // Selection, highlights and LOD all feed the vertex colors, so any option change rebuilds.
     this.resolveFlows();
     this.geometryDirty = true;
@@ -541,6 +577,7 @@ export class GlobeEngine {
       label: resolveColor(host, t.label, [0.95, 0.96, 0.98, 1]),
       highlight: resolveColor(host, t.highlight, [0.56, 0.79, 0.86, 1]),
       hover: resolveColor(host, t.hover, [0.56, 0.79, 0.86, 1]),
+      countryBorder: resolveColor(host, t.countryBorder ?? t.hover, [0.56, 0.79, 0.86, 1]),
     };
   }
 
@@ -758,6 +795,88 @@ export class GlobeEngine {
   }
 
   /**
+   * Rebuilds the outline of the country under the pointer.
+   *
+   * Reuses the arc program rather than adding a line one: each border edge is a (very short)
+   * great-circle arc at altitude zero, which buys correct screen-space width, the page-coloured
+   * casing and the behind-the-globe fade for free. `gl.LINES` would have been less code and worse
+   * output — every desktop driver clamps `lineWidth` to 1, so the outline would be a hairline that
+   * vanishes at high DPI.
+   */
+  private buildCountryBorder() {
+    this.borderDirty = false;
+    const country = this.hoveredCountry;
+    if (!country) {
+      this.buffers.border.upload(new Float32Array(0), 0, this.gl.DYNAMIC_DRAW);
+      return;
+    }
+
+    // Long edges are subdivided because the shader places the *stations* on the great circle but
+    // draws straight quads between them: a 20-degree edge left as one quad visibly cuts across the
+    // curve near the limb. Two degrees a step is below a pixel at any zoom this globe allows.
+    const stepsFor = (i: number, ring: Float64Array) =>
+      clamp(
+        Math.ceil(angularDistance(ring[i * 2], ring[i * 2 + 1], ring[i * 2 + 2], ring[i * 2 + 3]) / DEG / 2),
+        1,
+        12
+      );
+
+    // Counted before writing so the buffer is allocated once. Building into a plain array and
+    // converting would spend more time in `push` than in everything else here put together.
+    let count = 0;
+    let firstRing = true;
+    for (const ring of country.rings) {
+      const points = ring.length / 2;
+      if (points < 2) continue;
+      if (!firstRing) count += 2;
+      firstRing = false;
+      for (let i = 0; i < points - 1; i++) count += (stepsFor(i, ring) + 1) * 2;
+    }
+    if (count === 0) {
+      this.buffers.border.upload(new Float32Array(0), 0, this.gl.DYNAMIC_DRAW);
+      return;
+    }
+
+    const data = new Float32Array(count * ARC_STRIDE);
+    const c = this.colors.countryBorder;
+    const style = [2.1 * this.dpr, 0, 0, 0];
+    const color = [c[0], c[1], c[2], 1];
+
+    let w = 0;
+    let prev: number[] | null = null;
+    let bridge = false;
+    for (const ring of country.rings) {
+      const points = ring.length / 2;
+      if (points < 2) continue;
+      for (let i = 0; i < points - 1; i++) {
+        const aLon = ring[i * 2];
+        const aLat = ring[i * 2 + 1];
+        const bLon = ring[i * 2 + 2];
+        const bLat = ring[i * 2 + 3];
+        const steps = stepsFor(i, ring);
+        for (let s = 0; s <= steps; s++) {
+          const t = s / steps;
+          for (const side of [-1, 1]) {
+            const v = [aLon, aLat, bLon, bLat, t, side, ...style, ...color];
+            if (bridge && prev) {
+              // Only between rings. Inside a ring the strip runs straight on from one edge to the
+              // next, and the quad it spans across the shared endpoint is exactly the wedge that
+              // fills the corner — a free mitre that a bridge here would throw away.
+              w = writeVertex(data, w, prev);
+              w = writeVertex(data, w, v);
+              bridge = false;
+            }
+            w = writeVertex(data, w, v);
+            prev = v;
+          }
+        }
+      }
+      bridge = true;
+    }
+    this.buffers.border.upload(data, count, this.gl.DYNAMIC_DRAW);
+  }
+
+  /**
    * Rebuilds the one-arc buffer for whatever the pointer is over.
    *
    * A separate buffer rather than a flag inside the main one. Hover changes as fast as the pointer
@@ -857,6 +976,7 @@ export class GlobeEngine {
 
     if (this.geometryDirty) this.rebuildGeometry();
     if (this.hoverDirty) this.buildHoverArc();
+    if (this.borderDirty) this.buildCountryBorder();
 
     // A settled globe with animation off draws nothing at all — no GPU work, no battery drain.
     if (moved || animating || this.needsDraw) {
@@ -937,6 +1057,28 @@ export class GlobeEngine {
         gl.drawArrays(gl.POINTS, 0, this.buffers.land.count);
       }
       unbindAttribs(gl, p, DOT_ATTRIBS);
+    }
+
+    // ---- country outline, under the flows: it answers "where am I pointing", which must never
+    // compete with the data drawn on top of it.
+    if (this.buffers.border.count > 0) {
+      const p = this.programs.arcs;
+      const style = this.renderStyle;
+      gl.useProgram(p.program);
+      bindInterleaved(gl, p, this.buffers.border.buffer, ARC_STRIDE, ARC_ATTRIBS);
+      gl.uniformMatrix3fv(p.uniform("uRot"), false, this.rot);
+      gl.uniform1f(p.uniform("uRadiusPx"), this.radiusPx);
+      gl.uniform2f(p.uniform("uViewport"), vpx, vpy);
+      if (style.arcCasingPx > 0) {
+        gl.uniform1f(p.uniform("uCasing"), 1);
+        gl.uniform3fv(p.uniform("uCasingColor"), this.colors.sphere.slice(0, 3));
+        gl.uniform1f(p.uniform("uWidthBoost"), style.arcCasingPx * this.dpr);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, this.buffers.border.count);
+      }
+      gl.uniform1f(p.uniform("uCasing"), 0);
+      gl.uniform1f(p.uniform("uWidthBoost"), 0);
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, this.buffers.border.count);
+      unbindAttribs(gl, p, ARC_ATTRIBS);
     }
 
     // ---- arcs
@@ -1232,6 +1374,7 @@ export class GlobeEngine {
       this.needsDraw = true;
       this.callbacks.onFlowHover?.(null, 0, 0);
     }
+    this.clearCountryHover();
     this.container.style.cursor = "";
   };
 
@@ -1244,6 +1387,53 @@ export class GlobeEngine {
     this.camera.nudgeZoom(Math.exp(-delta * 0.0015));
     this.needsDraw = true;
   };
+
+  /**
+   * Turns a pointer position into the coordinates under it, or `null` when the pointer is off the
+   * globe entirely.
+   *
+   * The projection is orthographic, so this inverts cleanly: undo the screen scaling to get the
+   * point's x and y on the unit sphere, recover z from them (the near hemisphere is the only one
+   * that can be pointed at), then undo the camera rotation — which, being orthonormal, inverts by
+   * transposition.
+   */
+  private pointerToLonLat(x: number, y: number): [number, number] | null {
+    const rCss = this.radiusPx / this.dpr;
+    if (rCss <= 0) return null;
+    const nx = (x - this.widthCss / 2) / rCss;
+    const ny = -(y - this.heightCss / 2) / rCss;
+    const d2 = nx * nx + ny * ny;
+    if (d2 > 1) return null;
+    const v = applyMat3Transpose(this.rot, nx, ny, Math.sqrt(1 - d2));
+    return vec3ToLonLat(v[0], v[1], v[2]);
+  }
+
+  /** Resolves, and reports, the country under the pointer. No-op unless `countryHover` is on. */
+  private updateCountryHover(x: number, y: number) {
+    if (!this.options.countryHover) return;
+    if (!this.countriesLoaded) {
+      this.countries = getCountries();
+      this.countriesLoaded = true;
+    }
+    if (!this.countries) return;
+
+    const ll = this.pointerToLonLat(x, y);
+    const country = ll ? findCountryAt(this.countries, ll[0], ll[1]) : null;
+    if ((country?.id ?? null) === (this.hoveredCountry?.id ?? null)) return;
+
+    this.hoveredCountry = country;
+    this.borderDirty = true;
+    this.needsDraw = true;
+    this.callbacks.onCountryHover?.(country ? { id: country.id, name: country.name } : null, x, y);
+  }
+
+  private clearCountryHover() {
+    if (!this.hoveredCountry) return;
+    this.hoveredCountry = null;
+    this.borderDirty = true;
+    this.needsDraw = true;
+    this.callbacks.onCountryHover?.(null, 0, 0);
+  }
 
   private pickNode(x: number, y: number): GlobeNode | null {
     let best: GlobeNode | null = null;
@@ -1336,6 +1526,8 @@ export class GlobeEngine {
       this.needsDraw = true;
       this.callbacks.onFlowHover?.(flow?.flow ?? null, x, y);
     }
+
+    this.updateCountryHover(x, y);
 
     this.container.style.cursor = node || flow ? "pointer" : this.options.interactive ? "grab" : "";
   }

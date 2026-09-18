@@ -114,6 +114,14 @@ export interface GlobeTheme {
   label?: string;
   /** Applied to the selected node and to flows listed in `highlightedFlowIds`. */
   highlight?: string;
+  /**
+   * Applied to whatever the pointer is currently over.
+   *
+   * Distinct from `highlight` on purpose: selection is a state the reader chose and that persists,
+   * hover is a transient answer to "what is under my cursor". Giving them the same colour makes a
+   * passing cursor look like it has selected something.
+   */
+  hover?: string;
 }
 
 /** Which labels the 2D overlay is allowed to draw. */

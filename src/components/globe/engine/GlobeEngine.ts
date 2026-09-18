@@ -215,6 +215,7 @@ function defaultThemeFor(palette: GlobePalette, surface: GlobeSurface): Required
     marker: "var(--lq-color-amber)",
     label: "var(--lq-color-text)",
     highlight: "var(--lq-color-sky)",
+    hover: "var(--lq-color-sky)",
   };
 
   if (palette === "eink") {
@@ -228,6 +229,11 @@ function defaultThemeFor(palette: GlobePalette, surface: GlobeSurface): Required
       sphereEdge: "var(--lq-color-bg)",
       marker: "var(--lq-color-text)",
       highlight: "var(--lq-color-text)",
+      // Hover keeps a real colour even in the monochrome palette. It encodes no data — it is the
+      // feedback that says "this is the thing under your cursor" — so it does not owe the palette
+      // the same discipline the graph itself does, and in ink-on-paper a colour is the only
+      // separation left once weight and dash are already spoken for.
+      hover: "var(--lq-color-sky)",
     };
   }
 
@@ -277,6 +283,8 @@ export class GlobeEngine {
     land: VertexBuffer;
     lattice: VertexBuffer;
     arcs: VertexBuffer;
+    /** Just the hovered arc, so pointing at one does not rebuild the whole flow buffer. */
+    hoverArc: VertexBuffer;
     particles: VertexBuffer;
     nodes: VertexBuffer;
     markers: VertexBuffer;
@@ -312,6 +320,8 @@ export class GlobeEngine {
   private lastFrame = 0;
   private startedAt = 0;
   private geometryDirty = true;
+  /** Set when the hovered flow changes; only the one-arc buffer is rebuilt, never the whole set. */
+  private hoverDirty = false;
   private needsDraw = true;
   private lastLod: GlobeLod;
   private lastReportedView: GlobeView;
@@ -395,6 +405,7 @@ export class GlobeEngine {
       land: new VertexBuffer(gl),
       lattice: new VertexBuffer(gl),
       arcs: new VertexBuffer(gl),
+      hoverArc: new VertexBuffer(gl),
       particles: new VertexBuffer(gl),
       nodes: new VertexBuffer(gl),
       markers: new VertexBuffer(gl),
@@ -529,6 +540,7 @@ export class GlobeEngine {
       marker: resolveColor(host, t.marker, [0.9, 0.7, 0.4, 1]),
       label: resolveColor(host, t.label, [0.95, 0.96, 0.98, 1]),
       highlight: resolveColor(host, t.highlight, [0.56, 0.79, 0.86, 1]),
+      hover: resolveColor(host, t.hover, [0.56, 0.79, 0.86, 1]),
     };
   }
 
@@ -651,6 +663,7 @@ export class GlobeEngine {
       }
     }
     this.buffers.arcs.upload(arcData, arcVerts, this.gl.DYNAMIC_DRAW);
+    this.hoverDirty = true;
 
     // ---- particles -------------------------------------------------
     // Only the strongest flows animate. Everything else keeps its arc but loses its particles,
@@ -744,6 +757,43 @@ export class GlobeEngine {
     this.geometryDirty = false;
   }
 
+  /**
+   * Rebuilds the one-arc buffer for whatever the pointer is over.
+   *
+   * A separate buffer rather than a flag inside the main one. Hover changes as fast as the pointer
+   * moves, and rewriting the whole flow buffer at that rate would make pointing at a dense graph
+   * cost O(flows) per movement; this is O(1) in the number of flows.
+   */
+  private buildHoverArc() {
+    this.hoverDirty = false;
+
+    const f = this.hoveredFlowId ? this.liveFlows.find((x) => x.flow.id === this.hoveredFlowId) : undefined;
+    if (!f) {
+      this.buffers.hoverArc.upload(new Float32Array(0), 0, this.gl.DYNAMIC_DRAW);
+      return;
+    }
+
+    const seg = clamp(Math.round(angularDistance(f.aLon, f.aLat, f.bLon, f.bLat) * 28) + 10, 12, 64);
+    const count = (seg + 1) * 2;
+    const data = new Float32Array(count * ARC_STRIDE);
+    const c = this.colors.hover;
+    // Thicker than the resting arc as well as recoloured: on a small screen, or for a reader who
+    // does not separate these hues easily, weight carries the same message colour does.
+    const width = (f.flow.width ?? 0.9 + 1.8 * f.intensity) * 2.1 * this.dpr;
+    const dash = (f.flow.style ?? "solid") === "dashed" ? 26 : 0;
+    const style = [width, f.altitude, dash, 0];
+    const color = [c[0], c[1], c[2], 1];
+
+    let w = 0;
+    for (let s = 0; s <= seg; s++) {
+      const t = s / seg;
+      for (const side of [-1, 1]) {
+        w = writeVertex(data, w, [f.aLon, f.aLat, f.bLon, f.bLat, t, side, ...style, ...color]);
+      }
+    }
+    this.buffers.hoverArc.upload(data, count, this.gl.DYNAMIC_DRAW);
+  }
+
   // ---------------------------------------------------------------- loop
 
   start() {
@@ -806,6 +856,7 @@ export class GlobeEngine {
     }
 
     if (this.geometryDirty) this.rebuildGeometry();
+    if (this.hoverDirty) this.buildHoverArc();
 
     // A settled globe with animation off draws nothing at all — no GPU work, no battery drain.
     if (moved || animating || this.needsDraw) {
@@ -910,6 +961,22 @@ export class GlobeEngine {
       gl.uniform1f(p.uniform("uCasing"), 0);
       gl.uniform1f(p.uniform("uWidthBoost"), 0);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, this.buffers.arcs.count);
+
+      // The hovered arc last, so it sits above every other flow it crosses — the whole point is to
+      // be able to follow it through a tangle.
+      if (this.buffers.hoverArc.count > 0) {
+        bindInterleaved(gl, p, this.buffers.hoverArc.buffer, ARC_STRIDE, ARC_ATTRIBS);
+        if (style.arcCasingPx > 0) {
+          gl.uniform1f(p.uniform("uCasing"), 1);
+          gl.uniform3fv(p.uniform("uCasingColor"), this.colors.sphere.slice(0, 3));
+          gl.uniform1f(p.uniform("uWidthBoost"), style.arcCasingPx * this.dpr);
+          gl.drawArrays(gl.TRIANGLE_STRIP, 0, this.buffers.hoverArc.count);
+          gl.uniform1f(p.uniform("uCasing"), 0);
+          gl.uniform1f(p.uniform("uWidthBoost"), 0);
+        }
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, this.buffers.hoverArc.count);
+      }
+
       unbindAttribs(gl, p, ARC_ATTRIBS);
     }
 
@@ -1161,6 +1228,8 @@ export class GlobeEngine {
     }
     if (this.hoveredFlowId !== null) {
       this.hoveredFlowId = null;
+      this.hoverDirty = true;
+      this.needsDraw = true;
       this.callbacks.onFlowHover?.(null, 0, 0);
     }
     this.container.style.cursor = "";
@@ -1263,6 +1332,8 @@ export class GlobeEngine {
     const flowId = flow?.flow.id ?? null;
     if (flowId !== this.hoveredFlowId) {
       this.hoveredFlowId = flowId;
+      this.hoverDirty = true;
+      this.needsDraw = true;
       this.callbacks.onFlowHover?.(flow?.flow ?? null, x, y);
     }
 

@@ -66,6 +66,7 @@ dozen at a time, so the atlas would buy nothing.
 | `animateFlows` | `boolean` | `true` | False keeps arcs, stops particles. |
 | `quality` | `"low" \| "medium" \| "high"` | `"high"` | Dot density; `"low"` also disables particles. |
 | `maxAnimatedFlows` | `number` | `90` | Only the strongest flows get particles. |
+| `particleScale` | `number` | `1` | Multiplies the particle diameter. |
 | `labelMode` | `"none" \| "auto" \| "all"` | `"auto"` | `"auto"` thins labels per zoom tier. |
 | `theme` | `GlobeTheme` | `--lq-*` tokens | Any CSS color, `var()` and `color-mix()` included. |
 | `initialView` | `Partial<GlobeView>` | `{lon:10,lat:25,zoom:1}` | Read once at mount; use the ref afterwards. |
@@ -178,7 +179,7 @@ because that palette's design language has no gradients, no shadows and hairline
 | Dots | Round | Square |
 | Arcs | Plain stroke | Stroke over a page-coloured **casing** |
 | Node markers | Soft halo | Page-coloured **moat** |
-| Particles | Additive blending | Normal blending |
+| Particles | Additive glow | Crisp disc, normal blending |
 | Labels | Plain | Knocked out of the page colour |
 
 The last four exist because ink on paper is a harder problem than light on black. A soft halo works

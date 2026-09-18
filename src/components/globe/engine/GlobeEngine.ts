@@ -107,6 +107,8 @@ export interface GlobeEngineOptions {
   selectedNodeId: string | null;
   highlightedFlowIds: string[];
   maxAnimatedFlows: number;
+  /** Multiplies the particle diameter. 1 is the default size. */
+  particleScale: number;
   interactive: boolean;
 }
 
@@ -157,6 +159,8 @@ interface GlobeRenderStyle {
   additiveParticles: boolean;
   /** Knocks a page-coloured outline out from behind label text. */
   labelHalo: boolean;
+  /** 1 = particles render as a soft glow, 0 = as a crisp disc. See PARTICLES_FS. */
+  particleSoftness: number;
 }
 
 const RENDER_STYLE: Record<GlobePalette, GlobeRenderStyle> = {
@@ -171,6 +175,7 @@ const RENDER_STYLE: Record<GlobePalette, GlobeRenderStyle> = {
     nodeMoat: 0,
     additiveParticles: true,
     labelHalo: false,
+    particleSoftness: 1,
   },
   // A crisp outline instead of a glow, and square ink dots. The lattice shrinks further so the ocean
   // reads as empty paper rather than as a second, competing texture. Everything else here exists
@@ -186,6 +191,7 @@ const RENDER_STYLE: Record<GlobePalette, GlobeRenderStyle> = {
     nodeMoat: 1,
     additiveParticles: false,
     labelHalo: true,
+    particleSoftness: 0,
   },
 };
 
@@ -671,7 +677,10 @@ export class GlobeEngine {
       const base = highlighted ? this.colors.highlight : this.colorFor(f.flow.color, this.colors.flow);
       const dim = hasFocus && !highlighted ? 0.3 : 1;
       const speed = f.flow.speed ?? 0.18;
-      const size = (2.2 + 3.2 * f.intensity) * (highlighted ? 1.35 : 1) * this.dpr;
+      // Base widened from 2.2–5.4px: with the old falloff on top, a particle read as roughly half
+      // the diameter it was drawn at, which left the weakest flows barely animated at all.
+      const size =
+        (3.6 + 5.4 * f.intensity) * (highlighted ? 1.35 : 1) * this.options.particleScale * this.dpr;
       const half = f.flow.bidirectional ? total / 2 : total;
       for (let k = 0; k < total; k++) {
         const forward = !f.flow.bidirectional || k < half;
@@ -916,6 +925,7 @@ export class GlobeEngine {
       gl.uniform1f(p.uniform("uRadiusPx"), this.radiusPx);
       gl.uniform2f(p.uniform("uViewport"), vpx, vpy);
       gl.uniform1f(p.uniform("uTime"), time);
+      gl.uniform1f(p.uniform("uSoftness"), this.renderStyle.particleSoftness);
       gl.drawArrays(gl.POINTS, 0, this.buffers.particles.count);
       unbindAttribs(gl, p, PARTICLE_ATTRIBS);
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);

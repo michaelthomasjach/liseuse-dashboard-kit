@@ -43,6 +43,8 @@ export interface InteractiveGlobeProps {
   quality?: GlobeQuality;
   /** Hard cap on how many flows may carry particles at once. Default 90. */
   maxAnimatedFlows?: number;
+  /** Multiplies the diameter of the particles travelling along each flow. Default 1. */
+  particleScale?: number;
   /** "auto" thins labels to fit the zoom tier; "all" draws every one. Default "auto". */
   labelMode?: GlobeLabelMode;
   /** Colors. Every entry accepts any CSS color and defaults to a `--lq-*` token. */
@@ -139,6 +141,7 @@ export const InteractiveGlobe = forwardRef<InteractiveGlobeHandle, InteractiveGl
       animateFlows = true,
       quality = "high",
       maxAnimatedFlows = 90,
+      particleScale = 1,
       labelMode = "auto",
       theme,
       initialView,
@@ -214,6 +217,7 @@ export const InteractiveGlobe = forwardRef<InteractiveGlobeHandle, InteractiveGl
             selectedNodeId: null,
             highlightedFlowIds: EMPTY_IDS,
             maxAnimatedFlows: 90,
+            particleScale: 1,
             interactive: true,
           } satisfies GlobeEngineOptions,
           {
@@ -271,6 +275,7 @@ export const InteractiveGlobe = forwardRef<InteractiveGlobeHandle, InteractiveGl
         selectedNodeId,
         highlightedFlowIds,
         maxAnimatedFlows,
+        particleScale,
         interactive,
       });
     }, [
@@ -284,6 +289,7 @@ export const InteractiveGlobe = forwardRef<InteractiveGlobeHandle, InteractiveGl
       selectedNodeId,
       highlightedFlowIds,
       maxAnimatedFlows,
+      particleScale,
       interactive,
     ]);
 

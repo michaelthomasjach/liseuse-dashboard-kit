@@ -253,11 +253,26 @@ export const PARTICLES_FS = `
 precision mediump float;
 varying vec4 vColor;
 varying float vVis;
+/* 1.0 = soft glow, 0.0 = a crisp disc with a one-pixel edge.
+   The glow suits additive blending on a dark ground, where a particle is a point of light. On paper
+   the same falloff makes a mark that is faint everywhere and solid nowhere, so the ink palette gets
+   a real disc instead. */
+uniform float uSoftness;
 void main() {
   float d = length(gl_PointCoord - 0.5) * 2.0;
   if (d > 1.0) discard;
-  float g = pow(1.0 - d, 2.2);
-  gl_FragColor = vec4(vColor.rgb * g, vColor.a * g * vVis);
+
+  /* The exponent was 2.2, which left a particle visually about half the diameter it was actually
+     drawn at: the falloff had already dropped to 0.22 by the halfway point. 1.5 keeps a readable
+     core out to the edge while still reading as a glow rather than a dot. */
+  float soft = pow(1.0 - d, 1.5);
+  float crisp = 1.0 - smoothstep(0.74, 0.96, d);
+  float g = mix(crisp, soft, uSoftness);
+
+  /* Only the additive branch dims the colour itself. Under normal blending, scaling rgb pulls the
+     ink toward black instead of toward the page, so there the falloff has to live in the alpha
+     alone. */
+  gl_FragColor = vec4(vColor.rgb * mix(1.0, g, uSoftness), vColor.a * g * vVis);
 }
 `;
 

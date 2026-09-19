@@ -73,6 +73,14 @@ export interface InteractiveGlobeProps {
   onFlowHover?: (event: GlobeFlowEvent | null) => void;
   /** Fires when the pointer crosses into another country, or out to open water (`null`). */
   onCountryHover?: (country: GlobeCountryRef | null, x: number, y: number) => void;
+  /**
+   * Fires when a click lands on a landmass that is not already a node or a flow.
+   *
+   * `country.nodeIds` names the nodes standing inside it, so a consumer can map the click onto its
+   * own entities without keeping a country-code table of its own. Takes precedence over
+   * `onBackgroundClick`, which now means "clicked the ocean".
+   */
+  onCountryClick?: (country: GlobeCountryRef, x: number, y: number) => void;
   /** Fired for a click that hit neither a node nor a flow — the usual "clear selection" hook. */
   onBackgroundClick?: () => void;
   /** Throttled: only fires past half a degree of rotation or a 1% zoom change. */
@@ -164,6 +172,7 @@ export const InteractiveGlobe = forwardRef<InteractiveGlobeHandle, InteractiveGl
       onFlowClick,
       onFlowHover,
       onCountryHover,
+      onCountryClick,
       onBackgroundClick,
       onViewChange,
       onLodChange,
@@ -192,6 +201,7 @@ export const InteractiveGlobe = forwardRef<InteractiveGlobeHandle, InteractiveGl
         onFlowClick: onFlowClick ? (flow, x, y) => onFlowClick({ flow, x, y }) : undefined,
         onFlowHover: onFlowHover ? (flow, x, y) => onFlowHover(flow ? { flow, x, y } : null) : undefined,
         onCountryHover,
+        onCountryClick,
         onBackgroundClick,
         onViewChange,
         onLodChange,
@@ -202,6 +212,7 @@ export const InteractiveGlobe = forwardRef<InteractiveGlobeHandle, InteractiveGl
         onFlowClick,
         onFlowHover,
         onCountryHover,
+        onCountryClick,
         onBackgroundClick,
         onViewChange,
         onLodChange,
@@ -250,6 +261,7 @@ export const InteractiveGlobe = forwardRef<InteractiveGlobeHandle, InteractiveGl
             onFlowClick: (f, x, y) => callbacksRef.current.onFlowClick?.(f, x, y),
             onFlowHover: (f, x, y) => callbacksRef.current.onFlowHover?.(f, x, y),
             onCountryHover: (c, x, y) => callbacksRef.current.onCountryHover?.(c, x, y),
+            onCountryClick: (c, x, y) => callbacksRef.current.onCountryClick?.(c, x, y),
             onBackgroundClick: () => callbacksRef.current.onBackgroundClick?.(),
             onViewChange: (v) => callbacksRef.current.onViewChange?.(v),
             onLodChange: (l) => callbacksRef.current.onLodChange?.(l),

@@ -126,12 +126,21 @@ export interface GlobeTheme {
   countryBorder?: string;
 }
 
-/** The country under the pointer, as reported by `onCountryHover`. */
+/** The country under the pointer, as reported by `onCountryHover` and `onCountryClick`. */
 export interface GlobeCountryRef {
   /** ISO 3166-1 numeric, zero-padded — "250" for France. Stable, unlike the name. */
   id: string;
   /** English, from the underlying atlas. Localise it on the way out if your product is not. */
   name: string;
+  /**
+   * Ids of the nodes whose coordinates fall inside this country.
+   *
+   * Populated on click only — the containment test is too expensive to run on every pointer move.
+   * It is what lets a consumer turn "the user clicked France" into one of its own entities without
+   * keeping a country-code table of its own: the globe already holds both the polygons and the
+   * points, so it is the only place where the question can be answered without duplicating data.
+   */
+  nodeIds: string[];
 }
 
 /** Which labels the 2D overlay is allowed to draw. */

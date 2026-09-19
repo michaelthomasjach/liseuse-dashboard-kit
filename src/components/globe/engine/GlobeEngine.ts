@@ -12,7 +12,7 @@ import type {
 } from "../types";
 import { lodRank } from "../types";
 import { GlobeCamera, lodForZoom } from "./GlobeCamera";
-import { findCountryAt, getCountries, type CountryShape } from "./countries";
+import { findCountryAt, getCountries, pointsInside, type CountryShape } from "./countries";
 import {
   angularDistance,
   applyMat3,
@@ -48,6 +48,14 @@ import {
   type GlProgram,
   type Rgba,
 } from "./glUtil";
+
+/**
+ * How far the pointer may travel during a press and still count as a click, in CSS pixels.
+ *
+ * Four is roughly the drift of a hand clicking a mouse without meaning to move it. Below that the
+ * camera has barely turned, so nothing is lost by treating the gesture as a click.
+ */
+const CLICK_SLOP_PX = 4;
 
 /** Vertex layouts. Every layer is one interleaved buffer and one draw call. */
 const DOT_ATTRIBS: AttribSpec[] = [
@@ -106,6 +114,14 @@ export interface GlobeEngineCallbacks {
   onFlowHover?: (flow: GlobeFlow | null, x: number, y: number) => void;
   /** Fires when the pointer crosses from one country to another, or out to open water. */
   onCountryHover?: (country: GlobeCountryRef | null, x: number, y: number) => void;
+  /**
+   * Fires when a click lands on a landmass that is not already a node or a flow.
+   *
+   * Takes precedence over `onBackgroundClick`, which now means "clicked the ocean, or off the
+   * globe". A country is a far larger target than a five-pixel dot, so this is usually what the
+   * user was aiming at.
+   */
+  onCountryClick?: (country: GlobeCountryRef, x: number, y: number) => void;
   onBackgroundClick?: () => void;
   onViewChange?: (view: GlobeView) => void;
   onLodChange?: (lod: GlobeLod) => void;
@@ -353,7 +369,7 @@ export class GlobeEngine {
   private fpsSince = 0;
 
   private pointer = { x: 0, y: 0, inside: false, moved: false };
-  private drag = { active: false, moved: false, lastX: 0, lastY: 0, pointerId: -1 };
+  private drag = { active: false, moved: false, lastX: 0, lastY: 0, startX: 0, startY: 0, pointerId: -1 };
   private hoveredNodeId: string | null = null;
   private hoveredFlowId: string | null = null;
   /**
@@ -364,6 +380,14 @@ export class GlobeEngine {
   private countries: CountryShape[] | null = null;
   private countriesLoaded = false;
   private hoveredCountry: CountryShape | null = null;
+  /**
+   * Nodes standing inside the hovered country.
+   *
+   * Recomputed when the hovered country *changes*, not on every pointer move, so the containment
+   * tests run a few times a second at worst. Worth that much because the cursor depends on it: a
+   * pointer cursor over a country the consumer has nothing for promises a click that does nothing.
+   */
+  private hoveredCountryNodeIds: string[] = [];
 
   private colors: Record<string, Rgba> = {};
   private resizeObserver: ResizeObserver | null = null;
@@ -1307,7 +1331,15 @@ export class GlobeEngine {
   private onPointerDown = (e: PointerEvent) => {
     if (!this.options.interactive || e.button !== 0) return;
     const p = this.localPoint(e);
-    this.drag = { active: true, moved: false, lastX: p.x, lastY: p.y, pointerId: e.pointerId };
+    this.drag = {
+      active: true,
+      moved: false,
+      lastX: p.x,
+      lastY: p.y,
+      startX: p.x,
+      startY: p.y,
+      pointerId: e.pointerId,
+    };
     this.camera.stopInertia();
     this.container.setPointerCapture?.(e.pointerId);
   };
@@ -1337,10 +1369,15 @@ export class GlobeEngine {
     const wasDragging = this.drag.active;
     const moved = this.drag.moved;
     if (this.drag.pointerId >= 0) this.container.releasePointerCapture?.(this.drag.pointerId);
-    this.drag = { active: false, moved: false, lastX: 0, lastY: 0, pointerId: -1 };
+    const travelled = Math.hypot(this.localPoint(e).x - this.drag.startX, this.localPoint(e).y - this.drag.startY);
+    this.drag = { active: false, moved: false, lastX: 0, lastY: 0, startX: 0, startY: 0, pointerId: -1 };
     if (!wasDragging) return;
 
-    if (moved) {
+    // Distance from where the press started, not "did the pointer report any movement at all".
+    // A hand on a real mouse drifts a pixel or two while clicking, and treating that as a drag
+    // silently swallowed the click — which made the globe feel as though only the node dots were
+    // clickable, since those were hit often enough by luck to seem like the only targets.
+    if (moved && travelled > CLICK_SLOP_PX) {
       this.camera.release();
       return;
     }
@@ -1353,13 +1390,50 @@ export class GlobeEngine {
       this.callbacks.onNodeClick?.(node, p.x, p.y);
       return;
     }
-    const flow = this.pickFlow(p.x, p.y);
+    // The landmass is resolved first so the arc test knows how forgiving it may be. Over open
+    // water an arc keeps its full seven-pixel catchment; over a country the consumer can actually
+    // open, it has to be hit within three, because arcs converge over land and a click aimed at
+    // China was being swallowed by whichever route happened to pass within a few pixels of it.
+    // Three pixels still hits comfortably: the hovered arc is already drawn in its own colour, so
+    // the aim is guided rather than blind.
+    const country = this.countryAt(p.x, p.y);
+    const countryRef = country && this.callbacks.onCountryClick ? this.countryRef(country) : null;
+    const claimsClick = Boolean(countryRef && countryRef.nodeIds.length > 0);
+
+    const flow = this.pickFlow(p.x, p.y, claimsClick ? 3 : 7);
     if (flow) {
       this.callbacks.onFlowClick?.(flow.flow, p.x, p.y);
       return;
     }
+    // A country the consumer models nothing in falls through to the background handler rather than
+    // being swallowed: as far as their data is concerned, it is ocean.
+    if (countryRef && claimsClick) {
+      this.callbacks.onCountryClick?.(countryRef, p.x, p.y);
+      return;
+    }
+
     this.callbacks.onBackgroundClick?.();
   };
+
+  /** The country under a screen position, loading the outlines on first use. */
+  private countryAt(x: number, y: number): CountryShape | null {
+    if (!this.options.countryHover) return null;
+    if (!this.countriesLoaded) {
+      this.countries = getCountries();
+      this.countriesLoaded = true;
+    }
+    if (!this.countries) return null;
+    const ll = this.pointerToLonLat(x, y);
+    return ll ? findCountryAt(this.countries, ll[0], ll[1]) : null;
+  }
+
+  /** Adds the nodes standing inside the country. Only worth computing for a click. */
+  private countryRef(shape: CountryShape): GlobeCountryRef {
+    const located = this.liveNodes
+      .filter((n) => Number.isFinite(n.lon) && Number.isFinite(n.lat))
+      .map((n) => ({ id: n.id, lon: n.lon, lat: n.lat }));
+    return { id: shape.id, name: shape.name, nodeIds: pointsInside(shape, located) };
+  }
 
   private onPointerLeave = () => {
     this.pointer.inside = false;
@@ -1422,14 +1496,20 @@ export class GlobeEngine {
     if ((country?.id ?? null) === (this.hoveredCountry?.id ?? null)) return;
 
     this.hoveredCountry = country;
+    this.hoveredCountryNodeIds = country ? this.countryRef(country).nodeIds : [];
     this.borderDirty = true;
     this.needsDraw = true;
-    this.callbacks.onCountryHover?.(country ? { id: country.id, name: country.name } : null, x, y);
+    this.callbacks.onCountryHover?.(
+      country ? { id: country.id, name: country.name, nodeIds: this.hoveredCountryNodeIds } : null,
+      x,
+      y
+    );
   }
 
   private clearCountryHover() {
     if (!this.hoveredCountry) return;
     this.hoveredCountry = null;
+    this.hoveredCountryNodeIds = [];
     this.borderDirty = true;
     this.needsDraw = true;
     this.callbacks.onCountryHover?.(null, 0, 0);
@@ -1462,13 +1542,12 @@ export class GlobeEngine {
    * frames where the pointer actually moved, keeps this in the tens of microseconds even with
    * several hundred flows.
    */
-  private pickFlow(x: number, y: number): ResolvedFlow | null {
+  private pickFlow(x: number, y: number, threshold = 7): ResolvedFlow | null {
     const rCss = this.radiusPx / this.dpr;
     const cx = this.widthCss / 2;
     const cy = this.heightCss / 2;
     const out: number[] = [0, 0, 0];
     const SAMPLES = 16;
-    const threshold = 7;
 
     let best: ResolvedFlow | null = null;
     let bestD = threshold * threshold;
@@ -1529,7 +1608,12 @@ export class GlobeEngine {
 
     this.updateCountryHover(x, y);
 
-    this.container.style.cursor = node || flow ? "pointer" : this.options.interactive ? "grab" : "";
+    // A country is clickable too now, so the cursor has to say so — but only when it actually
+    // leads somewhere. Most countries on the globe are not modelled by a consumer's graph, and a
+    // pointer cursor over every landmass would promise a click that does nothing.
+    const overCountry = this.hoveredCountryNodeIds.length > 0 && Boolean(this.callbacks.onCountryClick);
+    this.container.style.cursor =
+      node || flow || overCountry ? "pointer" : this.options.interactive ? "grab" : "";
   }
 
   // ---------------------------------------------------------------- public helpers

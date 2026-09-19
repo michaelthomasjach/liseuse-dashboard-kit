@@ -96,6 +96,27 @@ export function getCountries(): CountryShape[] | null {
   }
 }
 
+/**
+ * Which of `points` fall inside `shape`.
+ *
+ * Exists so a consumer can answer "what do I have in this country" without owning the polygons.
+ * Called on click rather than on movement: a containment test per point is cheap, a containment
+ * test per point per pointer move is not.
+ */
+export function pointsInside(
+  shape: CountryShape,
+  points: { id: string; lon: number; lat: number }[]
+): string[] {
+  const [west, south, east, north] = shape.bounds;
+  const inside: string[] = [];
+  for (const point of points) {
+    if (point.lat < south || point.lat > north) continue;
+    if (!lonInSpan(point.lon, west, east)) continue;
+    if (d3.geoContains(shape.feature, [point.lon, point.lat])) inside.push(point.id);
+  }
+  return inside;
+}
+
 /** True when `lon` falls inside the [west, east] span, taking the antimeridian wrap into account. */
 function lonInSpan(lon: number, west: number, east: number): boolean {
   return west <= east ? lon >= west && lon <= east : lon >= west || lon <= east;

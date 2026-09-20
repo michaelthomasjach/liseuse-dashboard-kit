@@ -1,0 +1,205 @@
+.lq-meter {
+  --lq-meter-thickness: 10px;
+  --lq-meter-length: 140px;
+  --lq-meter-gap: 2px;
+  /* Unlit blocks are a ghost of the lit ones rather than a separate grey: the meter then reads as
+     one object at every level, and the scale stays visible in the dark where a plain track would
+     disappear into the panel. */
+  --lq-meter-dim: 0.14;
+  display: flex;
+  gap: var(--lq-space-2);
+}
+
+.lq-meter--vertical {
+  flex-direction: row;
+  align-items: stretch;
+}
+
+.lq-meter--horizontal {
+  flex-direction: column;
+}
+
+.lq-meter__channels {
+  display: flex;
+  gap: var(--lq-space-2);
+}
+
+.lq-meter--vertical .lq-meter__channels {
+  flex-direction: row;
+  align-items: flex-end;
+}
+
+.lq-meter--horizontal .lq-meter__channels {
+  flex-direction: column;
+  width: 100%;
+}
+
+.lq-meter__channel {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.lq-meter--vertical .lq-meter__channel {
+  flex-direction: column;
+}
+
+.lq-meter--horizontal .lq-meter__channel {
+  flex-direction: row;
+  width: 100%;
+}
+
+.lq-meter__bar {
+  position: relative;
+  display: flex;
+  gap: var(--lq-meter-gap);
+  background-color: var(--lq-color-fill-track);
+  border-radius: var(--lq-radius-sm);
+  overflow: visible;
+}
+
+.lq-meter--vertical .lq-meter__bar {
+  /* Column-reverse so the first block in the DOM is the bottom one — which lets the JSX build the
+     blocks from the quiet end upward, the order the level itself is read in. */
+  flex-direction: column-reverse;
+  width: var(--lq-meter-thickness);
+  height: var(--lq-meter-length);
+}
+
+.lq-meter--horizontal .lq-meter__bar {
+  flex-direction: row;
+  flex: 1;
+  min-width: 0;
+  height: var(--lq-meter-thickness);
+}
+
+.lq-root[data-lq-palette="eink"] .lq-meter__bar {
+  border: 1px solid var(--lq-color-border);
+  background-color: var(--lq-color-bg);
+}
+
+.lq-meter__block {
+  flex: 1;
+  border-radius: 1px;
+  background-color: var(--lq-color-fill);
+  opacity: var(--lq-meter-dim);
+  /* A meter is redrawn many times a second by whatever feeds it; a transition here would smear
+     every block into the next frame and invent ballistics this component explicitly does not own
+     (see the component doc). The only thing that animates is the clip read-out. */
+}
+
+.lq-meter__block--warn {
+  background-color: var(--lq-color-warning);
+}
+
+.lq-meter__block--clip {
+  background-color: var(--lq-color-danger);
+}
+
+.lq-meter__block--lit {
+  opacity: 1;
+}
+
+.lq-meter__fill {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  background-color: var(--lq-color-fill);
+  border-radius: var(--lq-radius-sm);
+}
+
+.lq-meter--vertical .lq-meter__fill {
+  width: 100%;
+}
+
+.lq-meter--horizontal .lq-meter__fill {
+  height: 100%;
+}
+
+.lq-meter__fill--warn {
+  background-color: var(--lq-color-warning);
+}
+
+.lq-meter__fill--clip {
+  background-color: var(--lq-color-danger);
+}
+
+/* The held peak. Drawn over the blocks and slightly proud of the bar on both sides, so it stays
+   findable when it sits on top of a lit block of the same colour. */
+.lq-meter__peak {
+  position: absolute;
+  background-color: var(--lq-color-text);
+}
+
+.lq-meter--vertical .lq-meter__peak {
+  left: -1px;
+  right: -1px;
+  height: 2px;
+  transform: translateY(1px);
+}
+
+.lq-meter--horizontal .lq-meter__peak {
+  top: -1px;
+  bottom: -1px;
+  width: 2px;
+  transform: translateX(-1px);
+}
+
+.lq-meter__peak--clip {
+  background-color: var(--lq-color-danger);
+}
+
+.lq-meter__channel-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-meter__channel-value {
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--lq-color-text-muted);
+  min-width: 3.5ch;
+  text-align: center;
+}
+
+.lq-meter__channel-value--clip {
+  color: var(--lq-color-danger);
+  font-weight: 700;
+}
+
+.lq-meter__scale {
+  position: relative;
+  font-size: 0.6rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--lq-color-text-muted);
+  user-select: none;
+}
+
+.lq-meter--vertical .lq-meter__scale {
+  width: 2.4em;
+  height: var(--lq-meter-length);
+  text-align: right;
+}
+
+.lq-meter--horizontal .lq-meter__scale {
+  width: 100%;
+  height: 1.1em;
+}
+
+/* Each tick is positioned at its own level and pulled back by half its own size, so the number
+   lines up with the point on the bar it names rather than starting there. */
+.lq-meter__tick {
+  position: absolute;
+  white-space: nowrap;
+}
+
+.lq-meter--vertical .lq-meter__tick {
+  right: 0;
+  transform: translateY(50%);
+}
+
+.lq-meter--horizontal .lq-meter__tick {
+  top: 0;
+  transform: translateX(-50%);
+}

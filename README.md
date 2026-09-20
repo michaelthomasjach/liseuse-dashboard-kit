@@ -216,6 +216,11 @@ Une ligne de tendance classique (pas "étendue", pas les autres types à géomé
 
 *Huit champs, tous contrôlés par l'état de l'appelant.*
 
+**Audio** — trois commandes qui vont ensemble, dans le langage visuel du kit
+- `BalanceControl` — balance gauche/droite : une poignée, un cran au centre (sans lui on n'atterrit jamais pile au milieu à la souris ; les flèches du clavier le franchissent, une flèche valant exactement un pas), et un remplissage qui part **du milieu vers l'extérieur** — une balance est un écart, pas une quantité. Double-clic ou `Début` pour recentrer
+- `LevelMeter` — VU-mètres : une barre par voie, crête retenue, zone chaude et écrêtage posés **sur l'échelle** et non sur le signal (ils restent à hauteur fixe, comme sur un appareil), échelle dB optionnelle, vertical ou horizontal, segmenté ou continu. C'est un afficheur : la balistique (vitesse de chute, tenue de crête) appartient à ce qui produit le signal, un mètre qui inventerait la sienne contredirait ce qu'il mesure
+- `Equalizer` — égaliseur graphique : un curseur par bande sur une grille dB, remplissage depuis la ligne 0 dB (une coupe n'est pas un petit boost), et la **courbe de réponse** tracée à travers les poignées — ce qu'une rangée de curseurs indépendants ne montre pas. Spline Catmull-Rom écrite sur place plutôt que `d3-shape` : le module n'a aucun autre besoin de d3. Sans `onChange`, devient un afficheur de réponse
+
 **Feedback**
 - `Spinner`, `Skeleton` (effet de balayage), `ProgressBar` (déterminée ou indéterminée) — animations désactivées sous la palette e-ink (l'e-ink réel ne peut pas s'animer proprement)
 - `Stepper` — suite d'étapes enfilées sur un trait (horizontal ou vertical) : des petits carrés pleins que le trait traverse en plein milieu, un texte sous chaque carré (à côté en vertical, sinon il tomberait sur le trait). Tout se lit à l'opacité : l'étape courante à pleine force, le passé plus discret, l'à-venir le plus pâle — et le trait est découpé en un segment indépendant par intervalle, qui se rallume au fur et à mesure. Le trait part des extrémités (segment avant le premier carré, segment après le dernier), il ne s'arrête pas aux carrés extérieurs

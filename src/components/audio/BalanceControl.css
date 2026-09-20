@@ -1,0 +1,118 @@
+.lq-balance {
+  --lq-balance-track-height: 6px;
+  --lq-balance-handle-size: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+.lq-balance__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--lq-space-2);
+}
+
+.lq-balance__label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--lq-color-text);
+}
+
+.lq-balance__value {
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-balance__row {
+  display: flex;
+  align-items: center;
+  gap: var(--lq-space-3);
+}
+
+.lq-balance__end {
+  flex-shrink: 0;
+  min-width: 1.2em;
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-balance__track {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: var(--lq-balance-track-height);
+  background-color: var(--lq-color-fill-track);
+  border-radius: var(--lq-radius-pill);
+  cursor: pointer;
+  /* The handle is taller than the track and has to stay grabbable where it overhangs. */
+  overflow: visible;
+  touch-action: none;
+}
+
+.lq-root[data-lq-palette="eink"] .lq-balance__track {
+  border: 1px solid var(--lq-color-border);
+  background-color: var(--lq-color-bg);
+}
+
+/* The notch at dead centre. Drawn taller than the track and behind the handle, so it stays visible
+   as a reference once the handle has moved off it — which is the only moment it is useful. */
+.lq-balance__detent {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 2px;
+  height: calc(var(--lq-balance-track-height) + 8px);
+  transform: translate(-50%, -50%);
+  background-color: var(--lq-color-border);
+}
+
+/* From the middle out, never from the left edge: a balance is a displacement, not a quantity, and
+   a bar growing from the left would read as "40 % of something". */
+.lq-balance__fill {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  background-color: var(--lq-color-fill);
+  border-radius: var(--lq-radius-pill);
+}
+
+.lq-balance__handle {
+  position: absolute;
+  top: 50%;
+  width: var(--lq-balance-handle-size);
+  height: var(--lq-balance-handle-size);
+  transform: translate(-50%, -50%);
+  background-color: var(--lq-color-accent);
+  border: 2px solid var(--lq-color-panel);
+  border-radius: var(--lq-radius-sm);
+  box-shadow: 0 1px 3px var(--lq-color-overlay);
+  cursor: grab;
+  outline: none;
+}
+
+.lq-root[data-lq-palette="eink"] .lq-balance__handle {
+  box-shadow: none;
+  border-color: var(--lq-color-bg);
+}
+
+.lq-balance__handle:active {
+  cursor: grabbing;
+}
+
+.lq-balance__handle:focus-visible {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--lq-color-focus-ring) 35%, transparent);
+}
+
+.lq-balance--disabled {
+  opacity: 0.5;
+}
+
+.lq-balance--disabled .lq-balance__track,
+.lq-balance--disabled .lq-balance__handle {
+  cursor: not-allowed;
+}

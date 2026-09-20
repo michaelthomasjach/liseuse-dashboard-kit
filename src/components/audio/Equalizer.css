@@ -1,0 +1,193 @@
+.lq-eq {
+  --lq-eq-height: 150px;
+  --lq-eq-handle-width: 22px;
+  --lq-eq-handle-height: 10px;
+  --lq-eq-track-width: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+
+/* The grid, the curve and the faders are three layers over the same box, so the curve passes
+   exactly through the handles without anything having to be measured in JavaScript. */
+.lq-eq__plot {
+  position: relative;
+  height: var(--lq-eq-height);
+}
+
+.lq-eq__grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.lq-eq__gridline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background-color: var(--lq-color-border-subtle);
+}
+
+/* 0 dB is the line every other reading is relative to, so it is the one that has to be visible
+   without counting. */
+.lq-eq__gridline--zero {
+  background-color: var(--lq-color-border);
+}
+
+.lq-eq__gridlabel {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform: translateY(-50%);
+  padding-right: 4px;
+  font-size: 0.6rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--lq-color-text-muted);
+  background-color: var(--lq-color-panel);
+}
+
+.lq-eq__curve {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.lq-eq__curve path {
+  fill: none;
+  stroke: var(--lq-color-accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.55;
+}
+
+.lq-eq__bands {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+}
+
+.lq-eq__band {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* Zero-width basis with grow, so every band takes an equal share whatever its label's length —
+     otherwise "16 k" would claim more room than "60" and the curve's evenly spaced points would
+     stop lining up with the handles. */
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.lq-eq__track {
+  position: relative;
+  flex: 1;
+  /* The visible rail is 4px, but the grabbable column is the whole band: a 4px hit target is not
+     usable with a finger, and a fader you have to aim at is a fader nobody moves. */
+  width: 100%;
+  cursor: pointer;
+  touch-action: none;
+}
+
+.lq-eq__track-line {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: var(--lq-eq-track-width);
+  transform: translateX(-50%);
+  background-color: var(--lq-color-fill-track);
+  border-radius: var(--lq-radius-pill);
+}
+
+.lq-root[data-lq-palette="eink"] .lq-eq__track-line {
+  background-color: var(--lq-color-bg);
+  border: 1px solid var(--lq-color-border);
+}
+
+.lq-eq__fill {
+  position: absolute;
+  left: 50%;
+  width: var(--lq-eq-track-width);
+  transform: translateX(-50%);
+  background-color: var(--lq-color-fill);
+  border-radius: var(--lq-radius-pill);
+}
+
+/* A cut is not a smaller boost. Under every colour palette it gets its own tone; under e-ink,
+   where that tone collapses back into the same ink, the fill's own direction from the 0 dB line
+   is what still distinguishes them — which is the reason the fill grows from that line. */
+.lq-eq__fill--cut {
+  background-color: var(--lq-color-down);
+}
+
+.lq-eq__handle {
+  position: absolute;
+  left: 50%;
+  width: var(--lq-eq-handle-width);
+  height: var(--lq-eq-handle-height);
+  max-width: 100%;
+  transform: translate(-50%, 50%);
+  background-color: var(--lq-color-accent);
+  border: 1px solid var(--lq-color-panel);
+  border-radius: var(--lq-radius-sm);
+  box-shadow: 0 1px 3px var(--lq-color-overlay);
+  cursor: grab;
+  outline: none;
+}
+
+.lq-root[data-lq-palette="eink"] .lq-eq__handle {
+  box-shadow: none;
+  border-color: var(--lq-color-bg);
+}
+
+.lq-eq__handle:active {
+  cursor: grabbing;
+}
+
+.lq-eq__handle:focus-visible {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--lq-color-focus-ring) 35%, transparent);
+}
+
+.lq-eq__band-label,
+.lq-eq__band-value {
+  font-size: 0.62rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--lq-color-text-muted);
+  white-space: nowrap;
+  padding-top: 4px;
+}
+
+.lq-eq__band-value {
+  padding-top: 0;
+  padding-bottom: 2px;
+  color: var(--lq-color-text);
+  font-weight: 600;
+}
+
+.lq-eq__unit {
+  font-size: 0.62rem;
+  color: var(--lq-color-text-muted);
+  text-align: right;
+}
+
+.lq-eq--readonly .lq-eq__track,
+.lq-eq--readonly .lq-eq__handle {
+  cursor: default;
+}
+
+.lq-eq--disabled {
+  opacity: 0.5;
+}
+
+.lq-eq--disabled .lq-eq__track,
+.lq-eq--disabled .lq-eq__handle {
+  cursor: not-allowed;
+}

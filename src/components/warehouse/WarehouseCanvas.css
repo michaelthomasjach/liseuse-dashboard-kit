@@ -13,12 +13,18 @@
   --lq-wh-blocked: color-mix(in srgb, var(--lq-color-danger) 55%, var(--lq-color-bg));
   --lq-wh-closed: color-mix(in srgb, var(--lq-color-text-muted) 20%, var(--lq-color-bg));
 
-  /* The uprights and beams — the only thing a rack is actually made of.
+  /* The frame — the only thing a rack is actually made of.
      A rack is an open steel frame: the bays are holes in it, and anything drawn *inside* an empty
      one is a claim that something is there. So the lattice is the drawing, and a free bay is
      see-through. A fill was tried twice — first a tinted square, then the rack's own material —
-     and both read as a pallet at a glance, which is the opposite of what an empty rack says. */
-  --lq-wh-frame: color-mix(in srgb, var(--lq-color-text) 42%, transparent);
+     and both read as a pallet at a glance.
+
+     Uprights and beams are not the same member and must not be drawn the same. The uprights are
+     the posts that carry the load and the thing you actually see down an aisle; the beams are the
+     rails between them. Drawn at one weight, as they first were, the lattice reads as graph paper
+     and disappears — which is how a rack ended up looking like nothing at all. */
+  --lq-wh-upright: color-mix(in srgb, var(--lq-color-text) 72%, transparent);
+  --lq-wh-beam: color-mix(in srgb, var(--lq-color-text) 34%, transparent);
 
   display: grid;
   grid-template-columns: 200px minmax(0, 1fr);
@@ -321,9 +327,12 @@
 }
 
 /* No fill: the bays show what is behind them, floor or zone, because that is what you see
-   through an empty rack. Its own border still says where the rack is. */
+   through an empty rack. The outer border is the end frame, so it gets the uprights' own weight
+   rather than the generic item outline — otherwise the rack is bounded by something lighter than
+   the posts inside it. */
 .lq-wh__item--rack {
   background-color: transparent;
+  border-color: var(--lq-wh-upright);
 }
 
 .lq-wh__item--station {
@@ -426,17 +435,19 @@
   display: grid;
   gap: 0;
   box-sizing: border-box;
-  border-top: 1px solid var(--lq-wh-frame);
-  border-left: 1px solid var(--lq-wh-frame);
+  border-top: 1px solid var(--lq-wh-beam);
+  border-left: 2px solid var(--lq-wh-upright);
   pointer-events: none;
 }
 
-/* An empty bay is a hole. Nothing painted in it at all — only the frame around it. */
+/* An empty bay is a hole. Nothing painted in it at all — only the frame around it.
+   The right-hand border is the upright and the bottom one the beam; every cell in a column
+   carries the same right border, so they line up into one continuous post. */
 .lq-wh__slot {
   box-sizing: border-box;
   background-color: transparent;
-  border-right: 1px solid var(--lq-wh-frame);
-  border-bottom: 1px solid var(--lq-wh-frame);
+  border-right: 2px solid var(--lq-wh-upright);
+  border-bottom: 1px solid var(--lq-wh-beam);
 }
 
 /* A pallet: opaque, and darker than the opening it sits in. The only cells that are *filled*. */
@@ -741,16 +752,16 @@
   display: grid;
   gap: 0;
   box-sizing: border-box;
-  border-top: 1px solid var(--lq-wh-frame);
-  border-left: 1px solid var(--lq-wh-frame);
+  border-top: 1px solid var(--lq-wh-beam);
+  border-left: 2px solid var(--lq-wh-upright);
 }
 
 /* Same rule as the plan view's bays: a free one is a hole in the frame. */
 .lq-wh__cell {
   box-sizing: border-box;
   background-color: transparent;
-  border-right: 1px solid var(--lq-wh-frame);
-  border-bottom: 1px solid var(--lq-wh-frame);
+  border-right: 2px solid var(--lq-wh-upright);
+  border-bottom: 1px solid var(--lq-wh-beam);
 }
 
 .lq-wh__cell--occupied {
@@ -767,11 +778,16 @@
 
 /* The narrow end of a rack: shelves and uprights, no bays. An end view showing slots would claim
    there is a pallet position facing the aisle when there is only a stanchion. */
-/* Seen end-on, a rack is its beams: one line per level, nothing between them. */
+/* Seen end-on, a rack is a pair of posts with the beams between them: the uprights are what the
+   aisle actually shows you, so the end face is framed by them left and right. */
+.lq-wh__face--end {
+  border-right: 2px solid var(--lq-wh-upright);
+}
+
 .lq-wh__face--end .lq-wh__shelf {
   box-sizing: border-box;
   background-color: transparent;
-  border-bottom: 1px solid var(--lq-wh-frame);
+  border-bottom: 1px solid var(--lq-wh-beam);
 }
 
 /* ---- the flow wave ---- */

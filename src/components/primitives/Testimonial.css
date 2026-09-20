@@ -1,14 +1,46 @@
+/* Shared by all three variants; the box itself belongs to `--card` alone, further down, since the
+   other two are meant to sit inside running text rather than beside it. */
 .lq-testimonial {
   display: flex;
   flex-direction: column;
   gap: var(--lq-space-3);
   margin: 0;
+  max-width: 480px;
+}
+
+.lq-testimonial--card {
   padding: var(--lq-space-5);
   background-color: var(--lq-color-panel);
   border: 1px solid var(--lq-color-border-subtle);
   border-radius: var(--lq-radius-lg);
   box-shadow: var(--lq-shadow-panel);
-  max-width: 480px;
+}
+
+/* Bare italic pull quote. The quotes are drawn by CSS rather than typed into the text so that the
+   same string can be passed to any variant without picking up a stray pair of quotation marks in
+   the two that do not want them — and so a locale gets its own pair from `quotes` instead of the
+   French ones being hard-coded into every caller's copy. */
+.lq-testimonial--italic .lq-testimonial__quote {
+  font-style: italic;
+  quotes: "“" "”" "‘" "’";
+}
+
+.lq-testimonial--italic .lq-testimonial__quote::before {
+  content: open-quote;
+}
+
+.lq-testimonial--italic .lq-testimonial__quote::after {
+  content: close-quote;
+}
+
+/* Tinted band with a rule down its left edge. The tint is mixed from the fill colour rather than
+   set as a flat grey so it follows the palette — including e-ink, where `--lq-color-fill` collapses
+   to the text colour and an 8 % share of it still reads as a faint wash rather than disappearing. */
+.lq-testimonial--callout {
+  padding: var(--lq-space-4) var(--lq-space-5);
+  background-color: color-mix(in srgb, var(--lq-color-fill) 8%, var(--lq-color-panel));
+  border-left: 3px solid var(--lq-color-accent);
+  border-radius: var(--lq-radius-md);
 }
 
 .lq-testimonial__mark {
@@ -81,4 +113,16 @@
 .lq-testimonial__role {
   font-size: 0.78rem;
   color: var(--lq-color-text-muted);
+}
+
+/* A picked-out word inside the quote. `<mark>`'s user-agent yellow-on-black is wrong in every
+   palette here, so both colours are reset: the text keeps its own colour and the emphasis comes
+   from a wash behind it plus the extra weight — which is also what carries it under e-ink, where
+   the accent tint flattens toward the text colour and the wash alone would not be enough. */
+.lq-testimonial__mark-word {
+  background-color: color-mix(in srgb, var(--lq-color-accent) 18%, transparent);
+  color: inherit;
+  font-weight: 700;
+  padding: 0 0.15em;
+  border-radius: var(--lq-radius-sm);
 }

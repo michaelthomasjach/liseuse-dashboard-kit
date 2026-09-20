@@ -135,7 +135,7 @@ Toute zone scrollable sous `.lq-root` reçoit automatiquement un ascenseur fin e
 - `TreeView` — arbre expand/collapse récursif, avec glisser-déposer optionnel (`onMove`) pour réorganiser/reparenter — voir l'utilitaire `moveTreeNode`
 - `ExpandableCard` — carte qui se déplie verticalement (animation CSS pure, pas de mesure JS)
 - `TabbedCard` — carte dont le corps est découpé en onglets (`orientation="horizontal"|"vertical"`)
-- `Testimonial` — carte témoignage (citation, avatar/initiales, nom, rôle, note en étoiles)
+- `Testimonial` — citation, en trois styles (`variant`) : `card` (carte témoignage : gros guillemet, avatar/initiales, nom, rôle, note en étoiles), `italic` (citation nue en italique, entre guillemets typographiques, pour une incise dans du texte courant) et `callout` (fond teinté + trait vertical à gauche). L'attribution est facultative partout. `highlight` met des mots en avant dans la citation (chaîne ou liste, insensible à la casse) ; quand la citation est composée de nœuds plutôt que d'une simple chaîne, on pose soi-même ses `<QuoteMark>`
 - `CodeBlock` — bloc de code monospace avec bouton copier ; pas de coloration syntaxique (pas de dépendance lourde), numéros de ligne optionnels
 - `Heading`, `Text` — typographie du système (h1-h6, tailles xs→xl, graisses, variante atténuée) — voir la story "Foundations/Typography"
 

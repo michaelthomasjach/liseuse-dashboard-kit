@@ -49,8 +49,8 @@ export type { HighlightProps } from "./Highlight";
 export { TabbedCard } from "./TabbedCard";
 export type { TabbedCardProps, TabbedCardTab } from "./TabbedCard";
 
-export { Testimonial } from "./Testimonial";
-export type { TestimonialProps } from "./Testimonial";
+export { Testimonial, QuoteMark } from "./Testimonial";
+export type { TestimonialProps, TestimonialVariant } from "./Testimonial";
 
 export { CodeBlock } from "./CodeBlock";
 export type { CodeBlockProps } from "./CodeBlock";

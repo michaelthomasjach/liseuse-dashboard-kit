@@ -13,7 +13,23 @@
  * the zoom changes; the model never sees it.
  */
 
-export type WarehouseItemKind = "rack" | "conveyor" | "belt" | "station" | "charger" | "zone" | "wall";
+export type WarehouseItemKind =
+  | "rack"
+  | "conveyor"
+  | "belt"
+  | "curve"
+  | "junction"
+  | "station"
+  | "charger"
+  | "zone"
+  | "wall";
+
+/** The kinds that carry goods and therefore have a direction of travel. */
+export const CONVEYOR_KINDS: WarehouseItemKind[] = ["conveyor", "belt", "curve", "junction"];
+
+export function isConveyor(kind: WarehouseItemKind): boolean {
+  return CONVEYOR_KINDS.includes(kind);
+}
 
 /** How a lane is doing. Drawn in pale tints rather than saturated ones: a floor plan is mostly
  *  lanes, and five saturated colours covering most of the picture would leave nothing for the
@@ -60,6 +76,16 @@ export interface WarehouseItem {
   height: number;
   /** Quarter turns clockwise. Absent means 0. */
   rotation?: WarehouseRotation;
+  /**
+   * Conveyors only: run the goods the other way.
+   *
+   * Direction is `rotation` plus this, rather than a compass field of its own. A conveyor already
+   * has to be turned to be placed, and a separate "direction" would then be a second thing saying
+   * the same thing — free to disagree with it, and certain to, the first time someone rotated a
+   * conveyor and forgot. Half a turn and a reversal look identical on a straight run and are not
+   * the same thing on a corner, which is the case that settles it.
+   */
+  reversed?: boolean;
   /** Racks only: how many bays along the length and how many shelves up. Slots are addressed
    *  against these, so shrinking a rack leaves slots that no longer exist — `clampSlots` drops
    *  them rather than drawing them outside their own rack. */
@@ -116,6 +142,8 @@ export const WAREHOUSE_KINDS: Record<
   rack: { label: "Étagère", hint: "Rayonnage à emplacements", width: 8, height: 2, storage: true, bays: 8, levels: 3 },
   conveyor: { label: "Convoyeur", hint: "Rouleaux, sens unique", width: 8, height: 1, storage: false },
   belt: { label: "Tapis", hint: "Bande continue", width: 6, height: 1, storage: false },
+  curve: { label: "Angle", hint: "Quart de tour à 90°", width: 3, height: 3, storage: false },
+  junction: { label: "Jonction", hint: "Un embranchement rejoint la ligne", width: 4, height: 2, storage: false },
   station: { label: "Poste", hint: "Préparation ou emballage", width: 3, height: 3, storage: false },
   charger: { label: "Borne", hint: "Recharge des robots", width: 2, height: 2, storage: false },
   zone: { label: "Zone", hint: "Secteur nommé, posé au fond", width: 12, height: 8, storage: false },

@@ -2,8 +2,9 @@ import type { RefObject } from "react";
 import { Popover } from "../forms/Popover";
 import { NumberField } from "../forms/NumberField";
 import { TextField } from "../forms/TextField";
-import { RefreshIcon, TrashIcon } from "../icons";
-import { WAREHOUSE_KINDS, clampSlots, rotateItem, type WarehouseItem } from "./warehouseModel";
+import { ArrowRightIcon, RefreshIcon, TrashIcon } from "../icons";
+import { WAREHOUSE_KINDS, clampSlots, isConveyor, rotateItem, type WarehouseItem } from "./warehouseModel";
+import { flowHeading } from "./conveyorFlow";
 
 export interface WarehouseInspectorProps {
   item: WarehouseItem;
@@ -58,6 +59,18 @@ export function WarehouseInspector({ item, anchorRef, onChange, onDelete, onClos
             <RefreshIcon size={14} />
             <span className="lq-wh__inspector-rotation">{item.rotation ?? 0}°</span>
           </button>
+          {isConveyor(item.kind) && (
+            <button
+              type="button"
+              className="lq-wh__inspector-icon"
+              title="Inverser le sens du tapis"
+              aria-label="Inverser le sens"
+              onClick={() => onChange({ ...item, reversed: !item.reversed })}
+            >
+              <ArrowRightIcon size={14} style={item.reversed ? { transform: "scaleX(-1)" } : undefined} />
+              <span className="lq-wh__inspector-rotation">{flowHeading(item)}</span>
+            </button>
+          )}
           <button
             type="button"
             className="lq-wh__inspector-icon lq-wh__inspector-icon--danger"

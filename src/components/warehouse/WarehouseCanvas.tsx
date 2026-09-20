@@ -3,6 +3,7 @@ import {
   WAREHOUSE_KINDS,
   clampSlots,
   footprintOf,
+  isConveyor,
   isHorizontal,
   pointAlongPath,
   snapToGrid,
@@ -11,6 +12,7 @@ import {
   type WarehouseRail,
   type WarehouseRobot,
 } from "./warehouseModel";
+import { conveyorLines, flowChevrons } from "./conveyorFlow";
 import { WarehouseInspector } from "./WarehouseInspector";
 import "./WarehouseCanvas.css";
 
@@ -51,7 +53,7 @@ type Drag =
 
 const PALETTE_ORDER: WarehouseItemKind[][] = [
   ["rack", "station", "charger"],
-  ["conveyor", "belt"],
+  ["conveyor", "belt", "curve", "junction"],
   ["zone", "wall"],
 ];
 
@@ -586,11 +588,7 @@ export function WarehouseCanvas({
         }}
       >
         {item.kind === "rack" && showSlots && renderSlots(item)}
-        {(item.kind === "conveyor" || item.kind === "belt") && (
-          // Chevrons say which way it runs. Drawn as a repeating background rather than as
-          // elements, so a 40-cell conveyor costs the same as a 4-cell one.
-          <span className="lq-wh__flow" aria-hidden="true" />
-        )}
+        {isConveyor(item.kind) && renderFlow(item)}
         {item.label && <span className="lq-wh__item-label">{item.label}</span>}
 
         {editable && selected && item.kind !== "zone" && (
@@ -604,6 +602,55 @@ export function WarehouseCanvas({
           />
         )}
       </div>
+    );
+  }
+
+  /**
+   * The line the goods travel and the chevrons along it, as an SVG laid over the item.
+   *
+   * In the item's *own* frame — length along `+x` — and then rotated as a whole. That is what lets
+   * one corner drawing serve all four orientations: rotating the finished picture turns the corner
+   * with it, where four sets of coordinates would be four chances to get one of them backwards.
+   *
+   * SVG rather than a repeating CSS background, which is what the straight run used before: a
+   * background can hatch a box, it cannot follow an arc, and a corner whose arrows went straight
+   * through the turn would be saying the opposite of what the corner is for.
+   */
+  function renderFlow(item: WarehouseItem) {
+    const lines = conveyorLines(item.kind, item.width, item.height);
+    const rotation = item.rotation ?? 0;
+    // The SVG is drawn in the item's own frame, so its box is the unrotated one; the rotation is
+    // applied to the element and the box re-centred on the footprint it now occupies.
+    const w = px(item.width);
+    const h = px(item.height);
+    const box = footprintOf(item);
+    return (
+      <svg
+        className="lq-wh__flow"
+        aria-hidden="true"
+        width={w}
+        height={h}
+        viewBox={`0 0 ${w} ${h}`}
+        style={{
+          left: (px(box.width) - w) / 2,
+          top: (px(box.height) - h) / 2,
+          transform: `rotate(${rotation}deg)`,
+        }}
+      >
+        {lines.map((line, i) => (
+          <g key={i}>
+            <polyline className="lq-wh__flow-line" points={line.map((point) => `${px(point.x)},${px(point.y)}`).join(" ")} />
+            {flowChevrons(line, item.reversed === true).map((chevron, j) => (
+              <path
+                key={j}
+                className="lq-wh__flow-chevron"
+                d="M-3,-3 L3,0 L-3,3"
+                transform={`translate(${px(chevron.x)},${px(chevron.y)}) rotate(${chevron.angle})`}
+              />
+            ))}
+          </g>
+        ))}
+      </svg>
     );
   }
 

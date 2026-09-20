@@ -46,8 +46,13 @@ export const WAREHOUSE_ITEMS: WarehouseItem[] = [
   rack("b2", 18, 8, 10, 5),
   rack("b3", 18, 12, 10, 6),
 
-  { id: "conv-1", kind: "conveyor", label: "Convoyeur principal", x: 36, y: 6, width: 14, height: 1 },
-  { id: "belt-1", kind: "belt", label: "Tapis d'emballage", x: 36, y: 12, width: 10, height: 1 },
+  // A line that comes out of the racking, turns south at the far wall, and picks up a branch on
+  // the way to packing — the three conveyor shapes doing the job they exist for.
+  { id: "conv-1", kind: "conveyor", label: "Convoyeur principal", x: 35, y: 6, width: 12, height: 1 },
+  { id: "curve-1", kind: "curve", label: "Angle", x: 47, y: 5, width: 3, height: 3 },
+  { id: "conv-2", kind: "conveyor", x: 47, y: 8, width: 3, height: 1, rotation: 90 },
+  { id: "junc-1", kind: "junction", label: "Jonction", x: 44, y: 11, width: 4, height: 2 },
+  { id: "belt-1", kind: "belt", label: "Tapis d'emballage", x: 36, y: 11, width: 8, height: 1, reversed: true },
 
   { id: "st-pack", kind: "station", label: "Emballage", x: 46, y: 10, width: 4, height: 4 },
   { id: "st-pick", kind: "station", label: "Prélèvement", x: 31, y: 4, width: 3, height: 3 },

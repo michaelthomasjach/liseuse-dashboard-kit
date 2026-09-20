@@ -108,7 +108,9 @@
   background-color: color-mix(in srgb, var(--lq-color-green) 34%, var(--lq-color-panel));
 }
 .lq-wh__swatch--conveyor,
-.lq-wh__swatch--belt {
+.lq-wh__swatch--belt,
+.lq-wh__swatch--curve,
+.lq-wh__swatch--junction {
   background-color: color-mix(in srgb, var(--lq-color-amber) 30%, var(--lq-color-panel));
 }
 .lq-wh__swatch--zone {
@@ -324,7 +326,9 @@
 }
 
 .lq-wh__item--conveyor,
-.lq-wh__item--belt {
+.lq-wh__item--belt,
+.lq-wh__item--curve,
+.lq-wh__item--junction {
   background-color: color-mix(in srgb, var(--lq-color-amber) 24%, var(--lq-color-panel));
 }
 
@@ -361,17 +365,31 @@
   pointer-events: none;
 }
 
-/* Chevrons showing which way a conveyor runs, as a repeating gradient rather than as elements:
-   a forty-cell conveyor then costs exactly what a four-cell one does. */
+/* The line the goods travel, and the chevrons along it. Drawn in the item's own frame and rotated
+   as a whole (see `renderFlow`), so it overflows its box while turning — hence `overflow: visible`
+   and the item's own clipping doing the trimming. */
 .lq-wh__flow {
   position: absolute;
-  inset: 0;
-  background-image: repeating-linear-gradient(
-    115deg,
-    transparent 0 6px,
-    color-mix(in srgb, var(--lq-color-text) 22%, transparent) 6px 8px
-  );
+  overflow: visible;
   pointer-events: none;
+}
+
+.lq-wh__flow-line {
+  fill: none;
+  stroke: color-mix(in srgb, var(--lq-color-text) 16%, transparent);
+  stroke-width: 6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Stroked, not filled: a filled arrowhead at this size fills in solid at the first zoom step out
+   and the direction turns into a row of dots. */
+.lq-wh__flow-chevron {
+  fill: none;
+  stroke: color-mix(in srgb, var(--lq-color-text) 55%, transparent);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .lq-wh__handle {

@@ -208,6 +208,7 @@ Une ligne de tendance classique (pas "étendue", pas les autres types à géomé
 - `CheckboxButton` — case à cocher qui a l'apparence d'un `Button` : coché → ton actif + icône coché animée, décoché → bouton neutre, sans icône (filtres sous forme de puces)
 - `Tag` — puce supprimable (croix optionnelle)
 - `TagInput` — saisie de tags libres : virgule/Entrée pour ajouter, Retour arrière (champ vide) ou croix pour retirer
+- `WysiwygEditor` — éditeur de texte riche : barre d'outils (gras, italique, souligné, barré, titres/citation/bloc de code via un `Select`, listes, alignements, lien, code en ligne, effacer la mise en forme, annuler/rétablir) au-dessus d'une zone `contenteditable` habillée comme les autres champs. `value`/`onChange` échangent du **HTML ordinaire**, pas un arbre propriétaire. La barre se compose (`toolbar`, groupes séparés par un filet) et peut être vidée ; `readOnly` en fait une visionneuse. Le collage arrive en texte brut par défaut (`pasteAsPlainText`) pour ne pas traîner les polices et les couleurs de la page d'origine. Construit sur `document.execCommand` — déprécié, implémenté partout, et la seule alternative serait un modèle de document complet (ProseMirror, Slate…) plusieurs fois plus gros que toute cette librairie. ⚠️ `value` est posé en `innerHTML` : assainis ce qui ne vient pas de l'éditeur lui-même
 
 
 ![Un panneau de saisie : champ texte, champ numerique, select, calendrier, mot de passe, tags, curseur de plage et case a cocher](docs/forms.png)

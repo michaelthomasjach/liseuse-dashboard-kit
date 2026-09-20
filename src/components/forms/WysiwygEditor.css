@@ -1,0 +1,252 @@
+.lq-wysiwyg {
+  --lq-wysiwyg-min-height: 180px;
+  --lq-wysiwyg-max-height: none;
+}
+
+/* Deliberately *not* `.lq-field__control`: that one is a 40px-high row centred on its content, and
+   an editor is a block that grows. The border, radius and focus ring are copied from it by hand so
+   the two still read as the same family standing next to each other in a form. */
+.lq-wysiwyg__frame {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  background-color: var(--lq-color-panel);
+  border: 1.5px solid var(--lq-color-border);
+  border-radius: var(--lq-radius-md);
+  transition: border-color var(--lq-transition-fast), box-shadow var(--lq-transition-fast);
+  overflow: hidden;
+}
+
+.lq-root[data-lq-palette="eink"] .lq-wysiwyg__frame {
+  border-radius: 0;
+}
+
+.lq-wysiwyg__frame:focus-within {
+  border-color: var(--lq-color-focus-ring);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--lq-color-focus-ring) 25%, transparent);
+}
+
+.lq-wysiwyg__frame--error {
+  border-color: var(--lq-color-danger);
+}
+
+.lq-wysiwyg__frame--error:focus-within {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--lq-color-danger) 25%, transparent);
+}
+
+.lq-wysiwyg__frame--disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* No border of its own: the frame already has one, and a read-only document is meant to read as
+   prose rather than as a disabled input. */
+.lq-wysiwyg__frame--readonly {
+  border-color: var(--lq-color-border-subtle);
+}
+
+.lq-wysiwyg__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--lq-space-1);
+  padding: var(--lq-space-1) var(--lq-space-2);
+  border-bottom: 1px solid var(--lq-color-border-subtle);
+  background-color: color-mix(in srgb, var(--lq-color-fill) 4%, var(--lq-color-panel));
+}
+
+/* The hairline lives on the group rather than as a separate element, so a toolbar that wraps onto
+   a second line never leaves a stranded divider at the end of the first. */
+.lq-wysiwyg__group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding-right: var(--lq-space-2);
+  margin-right: var(--lq-space-1);
+  border-right: 1px solid var(--lq-color-border-subtle);
+}
+
+.lq-wysiwyg__group:last-child {
+  padding-right: 0;
+  margin-right: 0;
+  border-right: none;
+}
+
+.lq-wysiwyg__tool {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  color: var(--lq-color-text-muted);
+  background: none;
+  border: none;
+  border-radius: var(--lq-radius-sm);
+  cursor: pointer;
+  transition: background-color var(--lq-transition-fast), color var(--lq-transition-fast);
+}
+
+.lq-wysiwyg__tool:hover {
+  color: var(--lq-color-text);
+  background-color: var(--lq-color-hover);
+}
+
+/* A pressed toolbar button has to be readable under e-ink too, where accent and text are the same
+   ink and a coloured background says nothing. The fill-backed chip plus full-strength text works in
+   both: in colour palettes it reads as the accent, in e-ink as a block of ink under the glyph. */
+.lq-wysiwyg__tool--active {
+  color: var(--lq-color-text);
+  background-color: color-mix(in srgb, var(--lq-color-accent) 18%, transparent);
+}
+
+.lq-wysiwyg__tool--active:hover {
+  background-color: color-mix(in srgb, var(--lq-color-accent) 28%, transparent);
+}
+
+.lq-wysiwyg__block-select {
+  min-width: 132px;
+}
+
+.lq-wysiwyg__link-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--lq-space-1);
+  padding: var(--lq-space-1) var(--lq-space-2);
+  border-bottom: 1px solid var(--lq-color-border-subtle);
+  background-color: color-mix(in srgb, var(--lq-color-fill) 4%, var(--lq-color-panel));
+}
+
+.lq-wysiwyg__link-input {
+  flex: 1;
+  min-width: 0;
+  height: 26px;
+  padding: 0 var(--lq-space-2);
+  background-color: var(--lq-color-panel);
+  border: 1px solid var(--lq-color-border-subtle);
+  border-radius: var(--lq-radius-sm);
+  outline: none;
+  font-family: inherit;
+  font-size: 0.8rem;
+  color: var(--lq-color-text);
+}
+
+.lq-wysiwyg__link-input:focus {
+  border-color: var(--lq-color-focus-ring);
+}
+
+.lq-wysiwyg__content {
+  min-height: var(--lq-wysiwyg-min-height);
+  max-height: var(--lq-wysiwyg-max-height);
+  overflow-y: auto;
+  padding: var(--lq-space-3) var(--lq-space-4);
+  outline: none;
+  font-size: 0.9rem;
+  line-height: var(--lq-line-height-body);
+  color: var(--lq-color-text);
+  /* Long pasted URLs and code are the two things that reliably blow a fixed-width editor out
+     sideways; everything else wraps on its own. */
+  overflow-wrap: break-word;
+}
+
+/* The placeholder is drawn by the wrapper, not typed into the document: anything actually inside a
+   contenteditable becomes content the moment someone puts the caret in front of it. */
+.lq-wysiwyg__content[data-empty]::before {
+  content: attr(data-placeholder);
+  display: block;
+  color: var(--lq-color-text-muted);
+  pointer-events: none;
+}
+
+/* Document typography. Scoped to the editor rather than left to the host page, so what you see
+   while writing is what the kit renders afterwards. */
+.lq-wysiwyg__content > :first-child {
+  margin-top: 0;
+}
+
+.lq-wysiwyg__content > :last-child {
+  margin-bottom: 0;
+}
+
+.lq-wysiwyg__content p {
+  margin: 0 0 0.75em;
+}
+
+.lq-wysiwyg__content h1,
+.lq-wysiwyg__content h2,
+.lq-wysiwyg__content h3 {
+  margin: 1.1em 0 0.4em;
+  font-family: var(--lq-font-heading, inherit);
+  line-height: var(--lq-line-height-heading);
+  color: var(--lq-color-text);
+}
+
+.lq-wysiwyg__content h1 {
+  font-size: var(--lq-text-h4);
+}
+
+.lq-wysiwyg__content h2 {
+  font-size: var(--lq-text-h5);
+}
+
+.lq-wysiwyg__content h3 {
+  font-size: var(--lq-text-h6);
+  text-transform: none;
+}
+
+.lq-wysiwyg__content ul,
+.lq-wysiwyg__content ol {
+  margin: 0 0 0.75em;
+  padding-left: 1.4em;
+}
+
+.lq-wysiwyg__content li {
+  margin-bottom: 0.2em;
+}
+
+/* Same tinted band and left rule as `Testimonial`'s callout variant — a quote is a quote, whichever
+   component draws it. */
+.lq-wysiwyg__content blockquote {
+  margin: 0 0 0.75em;
+  padding: var(--lq-space-2) var(--lq-space-4);
+  background-color: color-mix(in srgb, var(--lq-color-fill) 8%, var(--lq-color-panel));
+  border-left: 3px solid var(--lq-color-accent);
+  color: var(--lq-color-text);
+}
+
+.lq-wysiwyg__content pre {
+  margin: 0 0 0.75em;
+  padding: var(--lq-space-3);
+  background-color: color-mix(in srgb, var(--lq-color-fill) 6%, var(--lq-color-panel));
+  border: 1px solid var(--lq-color-border-subtle);
+  border-radius: var(--lq-radius-sm);
+  font-family: var(--lq-font-mono);
+  font-size: 0.82rem;
+  white-space: pre-wrap;
+  overflow-x: auto;
+}
+
+.lq-wysiwyg__content code {
+  padding: 0.1em 0.3em;
+  background-color: color-mix(in srgb, var(--lq-color-fill) 10%, var(--lq-color-panel));
+  border-radius: var(--lq-radius-sm);
+  font-family: var(--lq-font-mono);
+  font-size: 0.85em;
+}
+
+.lq-wysiwyg__content pre code {
+  padding: 0;
+  background: none;
+}
+
+.lq-wysiwyg__content a {
+  color: var(--lq-color-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.lq-wysiwyg__content hr {
+  margin: 1em 0;
+  border: none;
+  border-top: 1px solid var(--lq-color-border-subtle);
+}

@@ -1077,3 +1077,125 @@ export const SparkleIcon = (props: AnimatedIconProps) => (
     <path d="M17.5 14c.35 1.75 1.05 2.45 2.8 2.8-1.75.35-2.45 1.05-2.8 2.8-.35-1.75-1.05-2.45-2.8-2.8 1.75-.35 2.45-1.05 2.8-2.8Z" />
   </IconBase>
 );
+
+/* ── Rich-text toolbar ─────────────────────────────────────────────────────────────────────────
+ * Drawn as letterforms rather than as abstract glyphs (a B for bold, an I for italic) because that
+ * is the convention every text editor has used for thirty years and the one users already read
+ * without a tooltip. They are stroked like every other icon here, which is why the B and the U are
+ * outlines rather than a heavy face — a filled letter at 24×24 would be the only solid shape in
+ * the whole set. */
+
+/** Gras. */
+export const BoldIcon = (props: AnimatedIconProps) => (
+  <IconBase motion="grow" {...props}>
+    <path d="M7.5 5h5a3.5 3.5 0 0 1 0 7h-5z" />
+    <path d="M7.5 12h6a3.5 3.5 0 0 1 0 7h-6z" />
+  </IconBase>
+);
+
+/** Italique. */
+export const ItalicIcon = (props: AnimatedIconProps) => (
+  <IconBase motion="sway" {...props}>
+    <path d="M10 5h8M6 19h8M14.5 5 9.5 19" />
+  </IconBase>
+);
+
+/** Souligné. */
+export const UnderlineIcon = (props: AnimatedIconProps) => (
+  <IconBase motion="bob" {...props}>
+    <path d="M7 4v6a5 5 0 0 0 10 0V4" />
+    <path d="M5 20h14" />
+  </IconBase>
+);
+
+/** Barré. */
+export const StrikethroughIcon = (props: AnimatedIconProps) => (
+  <IconBase motion="slide" {...props}>
+    <path d="M4 12h16" />
+    <path d="M8.5 8.2A3.5 3.5 0 0 1 12 5.5c1.9 0 3.2 1 3.7 2.4" />
+    <path d="M15.6 15.9A3.5 3.5 0 0 1 12 18.5c-2 0-3.4-1-3.9-2.5" />
+  </IconBase>
+);
+
+/** Liste à puces. */
+export const BulletListIcon = (props: AnimatedIconProps) => (
+  <IconBase motion="bob" {...props}>
+    <path d="M9 6h11M9 12h11M9 18h11" />
+    <circle cx="4.5" cy="6" r="1.1" fill="currentColor" stroke="none" />
+    <circle cx="4.5" cy="12" r="1.1" fill="currentColor" stroke="none" />
+    <circle cx="4.5" cy="18" r="1.1" fill="currentColor" stroke="none" />
+  </IconBase>
+);
+
+/** Liste numérotée. The digits are paths rather than `<text>`: a `<text>` node would pick up the
+ *  ambient font and stop matching the other icons the moment the theme's font changes. */
+export const OrderedListIcon = (props: AnimatedIconProps) => (
+  <IconBase motion="bob" {...props}>
+    <path d="M9 6h11M9 12h11M9 18h11" />
+    <path d="M3.2 4.6 4.6 4v4.2M3.2 8.2h2.6" strokeWidth={1.4} />
+    <path d="M3.2 10.8c0-.6.6-1 1.3-1 .8 0 1.3.5 1.3 1.1 0 1.2-2.6 1.6-2.6 3.3h2.8" strokeWidth={1.4} />
+    <path d="M3.3 16.2c.2-.5.7-.8 1.3-.8.8 0 1.3.4 1.3 1s-.5 1-1.2 1c.8 0 1.4.4 1.4 1.1s-.6 1.1-1.5 1.1c-.6 0-1.1-.2-1.4-.7" strokeWidth={1.4} />
+  </IconBase>
+);
+
+/** Aligner à gauche. */
+export const AlignLeftIcon = (props: AnimatedIconProps) => (
+  <IconBase motion="slide" {...props}>
+    <path d="M4 6h16M4 11h10M4 16h13M4 21h8" />
+  </IconBase>
+);
+
+/** Centrer. */
+export const AlignCenterIcon = (props: AnimatedIconProps) => (
+  <IconBase motion="grow" {...props}>
+    <path d="M4 6h16M7 11h10M5.5 16h13M8 21h8" />
+  </IconBase>
+);
+
+/** Aligner à droite. */
+export const AlignRightIcon = (props: AnimatedIconProps) => (
+  <IconBase motion="slide" {...props}>
+    <path d="M4 6h16M10 11h10M7 16h13M12 21h8" />
+  </IconBase>
+);
+
+/** Justifier. */
+export const AlignJustifyIcon = (props: AnimatedIconProps) => (
+  <IconBase motion="grow" {...props}>
+    <path d="M4 6h16M4 11h16M4 16h16M4 21h16" />
+  </IconBase>
+);
+
+/** Annuler. */
+export const UndoIcon = (props: AnimatedIconProps) => (
+  <IconBase motion="spin" {...props}>
+    <path d="M4 8h9.5a5.5 5.5 0 0 1 0 11H7" />
+    <path d="M7.5 4.5 4 8l3.5 3.5" />
+  </IconBase>
+);
+
+/** Rétablir. */
+export const RedoIcon = (props: AnimatedIconProps) => (
+  <IconBase motion="spin" {...props}>
+    <path d="M20 8h-9.5a5.5 5.5 0 0 0 0 11H17" />
+    <path d="M16.5 4.5 20 8l-3.5 3.5" />
+  </IconBase>
+);
+
+/** Effacer la mise en forme — un A avec une gomme qui le traverse. */
+export const ClearFormatIcon = (props: AnimatedIconProps) => (
+  <IconBase motion="shake" {...props}>
+    <path d="M5 19 10.5 5h2L18 19" />
+    <path d="M7.4 13.5h8.2" />
+    <path d="m15 15.5 5 5M20 15.5l-5 5" strokeWidth={1.5} />
+  </IconBase>
+);
+
+/** Retirer le lien — le maillon cassé de `LinkIcon`. */
+export const UnlinkIcon = (props: AnimatedIconProps) => (
+  <IconBase motion="shake" {...props}>
+    <path d="M9.5 14.5 8 16a3.5 3.5 0 0 1-5-5l1.5-1.5" />
+    <path d="M14.5 9.5 16 8a3.5 3.5 0 0 1 5 5l-1.5 1.5" />
+    <path d="M12 3.5v2M3.5 12h2M18.5 12h2M12 18.5v2" strokeWidth={1.5} />
+  </IconBase>
+);

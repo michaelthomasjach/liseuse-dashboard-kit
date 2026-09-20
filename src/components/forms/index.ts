@@ -53,3 +53,6 @@ export { TagInput } from "./TagInput";
 export type { TagInputProps } from "./TagInput";
 
 export type { PopoverPlacement } from "./internal/usePopoverPosition";
+
+export { WysiwygEditor, WYSIWYG_DEFAULT_TOOLBAR } from "./WysiwygEditor";
+export type { WysiwygEditorProps, WysiwygTool, WysiwygBlock } from "./WysiwygEditor";

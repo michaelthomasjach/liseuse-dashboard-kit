@@ -13,13 +13,12 @@
   --lq-wh-blocked: color-mix(in srgb, var(--lq-color-danger) 55%, var(--lq-color-bg));
   --lq-wh-closed: color-mix(in srgb, var(--lq-color-text-muted) 20%, var(--lq-color-bg));
 
-  /* The rack's own material, named once because three places have to agree on it: the box in plan
-     view, its walls in isometric, and — the reason it became a token — an *empty* bay, which is
-     nothing but that material seen through the frame. */
-  --lq-wh-rack: color-mix(in srgb, var(--lq-color-accent) 16%, var(--lq-color-panel));
-  /* The uprights and beams. Drawn as the grid's own gaps rather than as borders on the cells, so
-     one line is shared between two bays instead of two lines meeting. */
-  --lq-wh-frame: color-mix(in srgb, var(--lq-color-text) 34%, transparent);
+  /* The uprights and beams — the only thing a rack is actually made of.
+     A rack is an open steel frame: the bays are holes in it, and anything drawn *inside* an empty
+     one is a claim that something is there. So the lattice is the drawing, and a free bay is
+     see-through. A fill was tried twice — first a tinted square, then the rack's own material —
+     and both read as a pallet at a glance, which is the opposite of what an empty rack says. */
+  --lq-wh-frame: color-mix(in srgb, var(--lq-color-text) 42%, transparent);
 
   display: grid;
   grid-template-columns: 200px minmax(0, 1fr);
@@ -321,8 +320,10 @@
   z-index: 3;
 }
 
+/* No fill: the bays show what is behind them, floor or zone, because that is what you see
+   through an empty rack. Its own border still says where the rack is. */
 .lq-wh__item--rack {
-  background-color: var(--lq-wh-rack);
+  background-color: transparent;
 }
 
 .lq-wh__item--station {
@@ -415,22 +416,27 @@
 
 /* ---- storage locations ---- */
 
-/* The lattice itself: the container is the frame, the gaps are the uprights and beams, and every
-   cell sits in an opening. */
+/* The lattice, drawn as lines and nothing else.
+   `gap: 0` with a border on each cell's right and bottom, and the container closing the top and
+   left: every upright and every beam is then one line, not two meeting. A gap would instead leave
+   a transparent channel between cells and read as a second, paler set of lines. */
 .lq-wh__slots {
   position: absolute;
   inset: 1px;
   display: grid;
-  gap: 1px;
-  background-color: var(--lq-wh-frame);
+  gap: 0;
+  box-sizing: border-box;
+  border-top: 1px solid var(--lq-wh-frame);
+  border-left: 1px solid var(--lq-wh-frame);
   pointer-events: none;
 }
 
-/* An empty bay is the rack's own material showing through the frame — an opening, not a tile.
-   It used to be a faint tinted square, which is a *thing in a place*: at a glance a rack read as
-   full of pale pallets rather than as mostly empty, which is the opposite of what it was saying. */
+/* An empty bay is a hole. Nothing painted in it at all — only the frame around it. */
 .lq-wh__slot {
-  background-color: var(--lq-wh-rack);
+  box-sizing: border-box;
+  background-color: transparent;
+  border-right: 1px solid var(--lq-wh-frame);
+  border-bottom: 1px solid var(--lq-wh-frame);
 }
 
 /* A pallet: opaque, and darker than the opening it sits in. The only cells that are *filled*. */
@@ -668,7 +674,7 @@
 }
 
 .lq-wh__wall--rack {
-  background-color: var(--lq-wh-rack);
+  background-color: transparent;
 }
 .lq-wh__wall--station {
   background-color: color-mix(in srgb, var(--lq-color-sky) 26%, var(--lq-color-panel));
@@ -733,13 +739,18 @@
   position: absolute;
   inset: 1px;
   display: grid;
-  gap: 1px;
-  background-color: var(--lq-wh-frame);
+  gap: 0;
+  box-sizing: border-box;
+  border-top: 1px solid var(--lq-wh-frame);
+  border-left: 1px solid var(--lq-wh-frame);
 }
 
-/* Same rule as the plan view's own bays: empty is the rack's material, framed. */
+/* Same rule as the plan view's bays: a free one is a hole in the frame. */
 .lq-wh__cell {
-  background-color: var(--lq-wh-rack);
+  box-sizing: border-box;
+  background-color: transparent;
+  border-right: 1px solid var(--lq-wh-frame);
+  border-bottom: 1px solid var(--lq-wh-frame);
 }
 
 .lq-wh__cell--occupied {
@@ -756,8 +767,11 @@
 
 /* The narrow end of a rack: shelves and uprights, no bays. An end view showing slots would claim
    there is a pallet position facing the aisle when there is only a stanchion. */
+/* Seen end-on, a rack is its beams: one line per level, nothing between them. */
 .lq-wh__face--end .lq-wh__shelf {
-  background-color: var(--lq-wh-rack);
+  box-sizing: border-box;
+  background-color: transparent;
+  border-bottom: 1px solid var(--lq-wh-frame);
 }
 
 /* ---- the flow wave ---- */

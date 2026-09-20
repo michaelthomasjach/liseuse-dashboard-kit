@@ -1,0 +1,119 @@
+.lq-sched-modal {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lq-space-3);
+}
+
+.lq-sched-modal__row {
+  display: grid;
+  /* `minmax(0, 1fr)`, never a bare `1fr`: the `auto` floor of a plain `1fr` is the column's
+     min-content width, which for a column holding a text input is the input's own intrinsic size —
+     about twenty characters — and the two columns then burst out of the dialog. The same rule the
+     warehouse's inspector had to learn. */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--lq-space-3);
+}
+
+.lq-sched-modal__field,
+.lq-sched-modal__description {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.lq-sched-modal__textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: var(--lq-space-2) var(--lq-space-3);
+  background-color: var(--lq-color-panel);
+  border: 1.5px solid var(--lq-color-border);
+  border-radius: var(--lq-radius-md);
+  outline: none;
+  font-family: inherit;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--lq-color-text);
+  resize: vertical;
+}
+
+.lq-root[data-lq-palette="eink"] .lq-sched-modal__textarea {
+  border-radius: 0;
+}
+
+.lq-sched-modal__textarea:focus {
+  border-color: var(--lq-color-focus-ring);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--lq-color-focus-ring) 25%, transparent);
+}
+
+.lq-sched-modal__duration,
+.lq-sched-modal__hint,
+.lq-sched-modal__meta {
+  margin: 0;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-sched-modal__meta {
+  padding-top: var(--lq-space-2);
+  border-top: 1px solid var(--lq-color-border-subtle);
+  font-size: 0.68rem;
+}
+
+.lq-sched-modal__steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lq-space-2);
+  padding-top: var(--lq-space-2);
+  border-top: 1px solid var(--lq-color-border-subtle);
+}
+
+.lq-sched-modal__steps-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lq-space-2);
+}
+
+.lq-sched-modal__step-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lq-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Name, length, state, remove. The name takes what is left, because it is the only one whose
+   useful width has no upper bound. */
+.lq-sched-modal__step {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 96px 116px 28px;
+  gap: var(--lq-space-2);
+  align-items: center;
+}
+
+.lq-sched-modal__step-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--lq-color-border-subtle);
+  border-radius: var(--lq-radius-sm);
+  background: transparent;
+  color: var(--lq-color-text-muted);
+  cursor: pointer;
+}
+
+.lq-sched-modal__step-remove:hover {
+  border-color: var(--lq-color-danger);
+  color: var(--lq-color-danger);
+}
+
+.lq-sched-modal__footer {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--lq-space-2);
+}

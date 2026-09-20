@@ -9,6 +9,19 @@
 
 export type SchedulerTaskStatus = "planned" | "running" | "done" | "late" | "blocked";
 
+/** How a block is filled. A second axis alongside `status`, and deliberately not a replacement for
+ *  it: status says how the work is going, the pattern is for whatever else a board needs to
+ *  separate at a glance — provisional against confirmed, internal against subcontracted. */
+export type SchedulerTaskPattern = "solid" | "striped" | "hatched";
+
+export interface SchedulerSubtask {
+  id: string;
+  label: string;
+  /** Its own length, in minutes. */
+  minutes: number;
+  status?: SchedulerTaskStatus;
+}
+
 export interface SchedulerResource {
   id: string;
   label: string;
@@ -28,6 +41,20 @@ export interface SchedulerTask {
   end: number;
   status?: SchedulerTaskStatus;
   color?: string;
+  pattern?: SchedulerTaskPattern;
+  /** Shown in the task's own dialog. Not drawn on the block: a bar an inch tall has room for a
+   *  name and nothing else, and a description squeezed into it would only be legible on the two
+   *  longest tasks of the board. */
+  description?: string;
+  /**
+   * The steps the task breaks into, laid end to end from its start.
+   *
+   * When a task has these, **they are its length**: `end` is derived from their sum rather than
+   * kept alongside it. Two numbers that are supposed to agree eventually disagree, and a task
+   * whose parts add up to something other than the task is exactly the kind of wrongness a
+   * planner must not be able to display. `normaliseTask` is what enforces it.
+   */
+  subtasks?: SchedulerSubtask[];
   /** Neither movable nor resizable — a fixed appointment, a shift already signed off. */
   locked?: boolean;
 }
@@ -166,4 +193,49 @@ export function formatDuration(ms: number): string {
   const hours = Math.floor(minutes / 60);
   const rest = minutes % 60;
   return rest === 0 ? `${hours} h` : `${hours} h ${String(rest).padStart(2, "0")}`;
+}
+
+/** The task with its `end` back in step with its segments. A task without segments is returned
+ *  untouched, so this is safe to run over a whole board on every render. */
+export function normaliseTask(task: SchedulerTask): SchedulerTask {
+  if (!task.subtasks || task.subtasks.length === 0) return task;
+  const total = task.subtasks.reduce((sum, step) => sum + Math.max(1, step.minutes), 0);
+  const end = task.start + total * MINUTE;
+  return end === task.end ? task : { ...task, end };
+}
+
+/** Cuts a task into `count` equal steps, keeping its overall length.
+ *
+ *  Equal by default because the first thing anyone does after splitting is drag the divisions
+ *  around, and an even cut is the one starting point that makes no claim about the work. */
+export function segmentTask(task: SchedulerTask, count: number): SchedulerTask {
+  const steps = Math.max(1, Math.round(count));
+  const totalMinutes = Math.max(steps, Math.round((task.end - task.start) / MINUTE));
+  const each = Math.floor(totalMinutes / steps);
+  const subtasks: SchedulerSubtask[] = Array.from({ length: steps }, (_, i) => ({
+    id: `${task.id}-s${i + 1}`,
+    label: `Étape ${i + 1}`,
+    // The remainder goes to the last step rather than being spread: the task must keep exactly the
+    // length it had, and a minute handed out round-robin would leave the divisions off the grid.
+    minutes: i === steps - 1 ? totalMinutes - each * (steps - 1) : each,
+  }));
+  return normaliseTask({ ...task, subtasks });
+}
+
+/** Stretches a segmented task to a new end by scaling its steps in proportion.
+ *
+ *  Which is what lets the right-hand grip keep working on a segmented task: without it, dragging
+ *  the end would set an `end` the steps immediately contradict. */
+export function rescaleSegments(task: SchedulerTask, newEnd: number): SchedulerTask {
+  if (!task.subtasks || task.subtasks.length === 0) return { ...task, end: newEnd };
+  const wanted = Math.max(task.subtasks.length, Math.round((newEnd - task.start) / MINUTE));
+  const current = task.subtasks.reduce((sum, step) => sum + Math.max(1, step.minutes), 0);
+  const factor = wanted / current;
+  let handed = 0;
+  const subtasks = task.subtasks.map((step, i) => {
+    const minutes = i === task.subtasks!.length - 1 ? wanted - handed : Math.max(1, Math.round(step.minutes * factor));
+    handed += minutes;
+    return { ...step, minutes: Math.max(1, minutes) };
+  });
+  return normaliseTask({ ...task, subtasks });
 }

@@ -264,8 +264,12 @@
 }
 
 /* A clash is struck through as well as outlined: under e-ink the red edge is one more dark line,
-   and a double booking is the one thing on this board that must not be missable. */
-.lq-sched__task--clash {
+   and a double booking is the one thing on this board that must not be missable.
+
+   Two classes deep on purpose. The patterns below also paint `background-image`, they are declared
+   after this rule, and at equal specificity the later one wins — so a *striped* task that clashed
+   would quietly lose its clash marking to its own decoration. The clash always wins. */
+.lq-sched__task.lq-sched__task--clash {
   border-color: var(--lq-color-danger);
   border-width: 2px;
   background-image: repeating-linear-gradient(
@@ -300,4 +304,73 @@
 
 .lq-sched__task:hover .lq-sched__grip {
   background-color: color-mix(in srgb, var(--lq-color-text) 18%, transparent);
+}
+
+/* ---- patterns ---- */
+
+/* A second axis beside the status colour, for whatever else a board needs to tell apart —
+   provisional against confirmed, internal against subcontracted. Drawn as an overlay on the
+   status colour rather than replacing it, so the two can be read at once. */
+.lq-sched__task--pattern-striped {
+  background-image: repeating-linear-gradient(
+    90deg,
+    transparent 0 7px,
+    color-mix(in srgb, var(--lq-color-text) 16%, transparent) 7px 11px
+  );
+}
+
+.lq-sched__task--pattern-hatched {
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent 0 5px,
+    color-mix(in srgb, var(--lq-color-text) 18%, transparent) 5px 8px
+  );
+}
+
+/* ---- steps ---- */
+
+/* Under the label, not instead of it: the divisions are what the segmentation looks like, the name
+   is still what the block is. Laid out by `flex-grow` from each step's own minutes, so the parts
+   tile the block exactly whatever the zoom — no percentage arithmetic to drift. */
+.lq-sched__steps {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  pointer-events: none;
+}
+
+.lq-sched__step {
+  min-width: 0;
+  background-color: color-mix(in srgb, var(--lq-color-accent) 12%, transparent);
+  /* The divider belongs to the step that follows, so the first one has none and the block keeps a
+     clean left edge. */
+  border-left: 1px solid color-mix(in srgb, var(--lq-color-text) 30%, transparent);
+}
+
+.lq-sched__step:first-child {
+  border-left: none;
+}
+
+.lq-sched__step--running {
+  background-color: color-mix(in srgb, var(--lq-color-green) 26%, transparent);
+}
+
+.lq-sched__step--done {
+  background-color: color-mix(in srgb, var(--lq-color-text-muted) 22%, transparent);
+}
+
+.lq-sched__step--late {
+  background-color: color-mix(in srgb, var(--lq-color-amber) 32%, transparent);
+}
+
+.lq-sched__step--blocked {
+  background-color: color-mix(in srgb, var(--lq-color-danger) 26%, transparent);
+}
+
+/* The label has to sit over the divisions it describes. */
+.lq-sched__task-label,
+.lq-sched__task-time,
+.lq-sched__grip {
+  position: relative;
+  z-index: 1;
 }

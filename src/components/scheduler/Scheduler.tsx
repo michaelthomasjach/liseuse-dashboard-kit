@@ -4,13 +4,16 @@ import {
   MINUTE,
   buildTicks,
   formatDuration,
+  normaliseTask,
   overlappingTaskIds,
   packRows,
+  rescaleSegments,
   snapTime,
   tickStepMinutes,
   type SchedulerResource,
   type SchedulerTask,
 } from "./schedulerModel";
+import { SchedulerTaskModal } from "./SchedulerTaskModal";
 import "./Scheduler.css";
 
 export interface SchedulerProps {
@@ -35,6 +38,16 @@ export interface SchedulerProps {
   resourceWidth?: number;
   selectedTaskId?: string | null;
   onSelectedTaskIdChange?: (id: string | null) => void;
+  /**
+   * A plain wheel zooms the time axis; `Maj` + wheel scrolls the rows. Default true.
+   *
+   * It is worth knowing what this trades: a board is a table, and a table's wheel normally scrolls
+   * it. With this on, a list of forty machines is scrolled with `Maj`, the scrollbar, or a drag.
+   * Set it false to get the table behaviour back — plain wheel scrolls, `Ctrl` zooms.
+   */
+  wheelZoom?: boolean;
+  /** Opens the task's own dialog on click. Needs `onTasksChange` to be of any use. Default true. */
+  taskDialog?: boolean;
   height?: number | string;
   className?: string;
   locale?: string;
@@ -62,17 +75,24 @@ type Drag =
  * visible as two bars side by side, marked. Hiding one behind the other would make the board
  * quietest precisely where it should be loudest.
  *
- * ## Why the wheel scrolls and does not zoom
+ * ## The wheel zooms the time axis
  *
- * Every other canvas in this kit — the script graph, the warehouse, the tile map — zooms on a
- * plain wheel. This one does not, and the difference is deliberate: those are surfaces you fly
- * over, this is a table you read down. A board of forty machines needs the wheel for what the
- * wheel does in every other table. Zoom is Ctrl (or a trackpad pinch, which sends the same), plus
- * the two buttons in the toolbar.
+ * As it does on every other canvas in this kit, anchored on the pointer so the moment under the
+ * cursor stays under it. That is a trade and worth naming: a board is also a table, and a table's
+ * wheel normally scrolls it — so scrolling the rows moves to `Maj` + wheel, the scrollbar, or a
+ * drag. `wheelZoom={false}` swaps the two back for a board long enough that reading down it
+ * matters more than zooming across it.
+ *
+ * ## Clicking a task opens it
+ *
+ * The block carries a name and, if there is room, a duration; everything else — description,
+ * exact times, pattern, the steps it breaks into — lives in its dialog. A bar an inch tall has
+ * room for a name, and a board that tried to show more on it would be legible only on its two
+ * longest tasks.
  */
 export function Scheduler({
   resources,
-  tasks,
+  tasks: rawTasks,
   onTasksChange,
   from,
   to,
@@ -83,6 +103,8 @@ export function Scheduler({
   resourceWidth = 168,
   selectedTaskId = null,
   onSelectedTaskIdChange,
+  wheelZoom = true,
+  taskDialog = true,
   height = 460,
   className,
   locale = "fr-FR",
@@ -97,12 +119,21 @@ export function Scheduler({
   const [pxPerHour, setPxPerHour] = useState(initialPxPerHour);
   const [drag, setDrag] = useState<Drag | null>(null);
   const [hoverResource, setHoverResource] = useState<string | null>(null);
+  const [openTaskId, setOpenTaskId] = useState<string | null>(null);
+  /** Where the press landed, so a drag of two pixels is not mistaken for a click on a board where
+   *  every block is also a drag handle. */
+  const pressAt = useRef<{ x: number; y: number } | null>(null);
 
   const editable = onTasksChange !== undefined;
   const select = (id: string | null) => onSelectedTaskIdChange?.(id);
 
   const pxPerMs = pxPerHour / HOUR;
   const contentWidth = Math.max(1, (windowTo - windowFrom) * pxPerMs);
+
+  // Normalised once, here, rather than at every reader: a segmented task's length is the sum of
+  // its steps, and everything below — packing, clash detection, the blocks themselves — can then
+  // go on reading `end` without knowing that rule exists.
+  const tasks = useMemo(() => rawTasks.map(normaliseTask), [rawTasks]);
 
   const rows = useMemo(() => packRows(resources, tasks), [resources, tasks]);
   const clashing = useMemo(() => overlappingTaskIds(rows), [rows]);
@@ -177,19 +208,42 @@ export function Scheduler({
     }
 
     const snapped = snapTime(time, snapMinutes);
+    const task = tasks.find((candidate) => candidate.id === drag.id);
+    if (!task) return;
+
     if (drag.edge === "start") {
       // A block may not be pulled through its own far end: one snap step is the shortest thing
       // that still reads as a block.
-      commit(drag.id, { start: Math.min(snapped, drag.endTime - snapMinutes * MINUTE) });
-    } else {
-      commit(drag.id, { end: Math.max(snapped, drag.startTime + snapMinutes * MINUTE) });
+      const start = Math.min(snapped, drag.endTime - snapMinutes * MINUTE);
+      // Moving the start of a segmented task slides it: its steps keep their own lengths, and the
+      // end follows. Shortening it from the left would mean deciding which step to eat into,
+      // which is a decision the dialog exists to make.
+      onTasksChange?.(
+        tasks.map((candidate) =>
+          candidate.id !== drag.id
+            ? candidate
+            : candidate.subtasks && candidate.subtasks.length > 0
+              ? { ...candidate, start, end: start + (candidate.end - candidate.start) }
+              : { ...candidate, start }
+        )
+      );
+      return;
     }
+
+    const end = Math.max(snapped, drag.startTime + snapMinutes * MINUTE);
+    // `rescaleSegments` is a no-op on a plain task and scales the steps in proportion on a
+    // segmented one — which is what lets the grip keep working on both without the parts ever
+    // contradicting the whole.
+    onTasksChange?.(tasks.map((candidate) => (candidate.id === drag.id ? rescaleSegments(candidate, end) : candidate)));
   }
 
   const zoomBy = (factor: number) => setPxPerHour((current) => Math.min(MAX_PX_PER_HOUR, Math.max(MIN_PX_PER_HOUR, current * factor)));
 
   function onWheel(event: React.WheelEvent) {
-    if (!event.ctrlKey && !event.metaKey) return;
+    // `Maj` is the escape hatch in whichever direction the default points — it scrolls the rows
+    // when the wheel zooms, and zooms when the wheel scrolls.
+    const zooming = wheelZoom ? !event.shiftKey : event.ctrlKey || event.metaKey;
+    if (!zooming) return;
     event.preventDefault();
     const body = bodyRef.current;
     if (!body) return;
@@ -207,6 +261,7 @@ export function Scheduler({
   }
 
   const rowHeightOf = (lanes: number) => lanes * laneHeight + 6;
+  const openTask = tasks.find((task) => task.id === openTaskId) ?? null;
 
   return (
     <div className={["lq-sched", className].filter(Boolean).join(" ")} style={{ height }}>
@@ -296,6 +351,7 @@ export function Scheduler({
                       className={[
                         "lq-sched__task",
                         `lq-sched__task--${task.status ?? "planned"}`,
+                        `lq-sched__task--pattern-${task.pattern ?? "solid"}`,
                         selectedTaskId === task.id && "lq-sched__task--selected",
                         clashing.has(task.id) && "lq-sched__task--clash",
                         task.locked && "lq-sched__task--locked",
@@ -304,8 +360,17 @@ export function Scheduler({
                         .join(" ")}
                       style={{ left, width, top: lane * laneHeight + 3, height: laneHeight - 6, backgroundColor: task.color }}
                       title={`${task.label} · ${formatDuration(task.end - task.start)}`}
+                      onPointerUp={(event) => {
+                        const from = pressAt.current;
+                        pressAt.current = null;
+                        // A click, not the end of a drag — four pixels of slop, the same figure
+                        // the warehouse and the globe both use.
+                        if (!taskDialog || !from || Math.hypot(event.clientX - from.x, event.clientY - from.y) > 4) return;
+                        setOpenTaskId(task.id);
+                      }}
                       onPointerDown={(event) => {
                         event.stopPropagation();
+                        pressAt.current = { x: event.clientX, y: event.clientY };
                         select(task.id);
                         if (!editable || task.locked) return;
                         const time = clientToTime(event.clientX);
@@ -326,6 +391,21 @@ export function Scheduler({
                         }
                       }}
                     >
+                      {/* The steps, drawn as shares of the block. Under the label rather than
+                          replacing it: the divisions are what the segmentation looks like, the
+                          name is still what the block is. */}
+                      {task.subtasks && task.subtasks.length > 0 && (
+                        <span className="lq-sched__steps" aria-hidden="true">
+                          {task.subtasks.map((step) => (
+                            <span
+                              key={step.id}
+                              className={`lq-sched__step lq-sched__step--${step.status ?? task.status ?? "planned"}`}
+                              style={{ flexGrow: Math.max(1, step.minutes) }}
+                              title={`${step.label} · ${formatDuration(step.minutes * MINUTE)}`}
+                            />
+                          ))}
+                        </span>
+                      )}
                       {resizable && <span className="lq-sched__grip lq-sched__grip--start" />}
                       <span className="lq-sched__task-label">{task.label}</span>
                       {width > 72 && <span className="lq-sched__task-time">{formatDuration(task.end - task.start)}</span>}
@@ -338,6 +418,22 @@ export function Scheduler({
           </div>
         </div>
       </div>
+
+      {openTask && editable && (
+        <SchedulerTaskModal
+          task={openTask}
+          resources={resources}
+          snapMinutes={snapMinutes}
+          locale={locale}
+          onChange={(next) => onTasksChange?.(tasks.map((task) => (task.id === next.id ? next : task)))}
+          onDelete={() => {
+            onTasksChange?.(tasks.filter((task) => task.id !== openTask.id));
+            setOpenTaskId(null);
+            select(null);
+          }}
+          onClose={() => setOpenTaskId(null)}
+        />
+      )}
     </div>
   );
 }

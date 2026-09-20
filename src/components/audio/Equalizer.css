@@ -1,5 +1,9 @@
 .lq-eq {
   --lq-eq-height: 150px;
+  /* Width of the dB scale's own gutter, set inline by the component — zero when there is no scale
+     to put in it. The three layers below all start after it, which is what keeps the figures off
+     the faders. */
+  --lq-eq-scale: 0px;
   --lq-eq-handle-width: 22px;
   --lq-eq-handle-height: 10px;
   --lq-eq-track-width: 4px;
@@ -16,9 +20,14 @@
   height: var(--lq-eq-height);
 }
 
+/* The three layers over the plot — grid, curve, faders — all begin after the scale's gutter.
+   They used to start at the plot's own left edge, and the dB figures were drawn *inside* that
+   same box at `left: 0`: measured, "+6", "0" and "−6" sat on top of the first fader's track and
+   "+12" overlapped its handle. A number printed on a control is a number nobody can read and a
+   control nobody can grab. */
 .lq-eq__grid {
   position: absolute;
-  inset: 0;
+  inset: 0 0 0 var(--lq-eq-scale);
   pointer-events: none;
 }
 
@@ -36,23 +45,26 @@
   background-color: var(--lq-color-border);
 }
 
+/* In the gutter, right-aligned against the axis — so the figures form a column that reads down,
+   the way a chart's own axis does, instead of starting at the line and running into the plot.
+   No background plate any more: it was there to punch a hole in the gridline it was sitting on,
+   and it no longer sits on one. */
 .lq-eq__gridlabel {
   position: absolute;
-  left: 0;
+  left: calc(-1 * var(--lq-eq-scale));
   top: 0;
+  width: calc(var(--lq-eq-scale) - 6px);
   transform: translateY(-50%);
-  padding-right: 4px;
+  text-align: right;
   font-size: 0.6rem;
   font-variant-numeric: tabular-nums;
+  line-height: 1;
   color: var(--lq-color-text-muted);
-  background-color: var(--lq-color-panel);
 }
 
 .lq-eq__curve {
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
+  inset: 0 0 0 var(--lq-eq-scale);
   overflow: visible;
   pointer-events: none;
 }
@@ -68,7 +80,7 @@
 
 .lq-eq__bands {
   position: absolute;
-  inset: 0;
+  inset: 0 0 0 var(--lq-eq-scale);
   display: flex;
   align-items: stretch;
   justify-content: space-between;

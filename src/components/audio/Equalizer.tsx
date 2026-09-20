@@ -104,7 +104,14 @@ export function Equalizer({
   return (
     <div
       className={["lq-eq", readOnly && "lq-eq--readonly", disabled && "lq-eq--disabled", className].filter(Boolean).join(" ")}
-      style={{ "--lq-eq-height": `${height}px` } as CSSProperties}
+      style={
+        {
+          "--lq-eq-height": `${height}px`,
+          // The gutter only exists when there is a scale to put in it, so a bare equaliser keeps
+          // the whole width for its faders.
+          "--lq-eq-scale": showScale ? "30px" : "0px",
+        } as CSSProperties
+      }
     >
       <div className="lq-eq__plot">
         {showScale && (

@@ -1,0 +1,303 @@
+.lq-sched {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  color: var(--lq-color-text);
+}
+
+.lq-sched__toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--lq-space-2);
+  padding: 4px 6px;
+  flex-wrap: wrap;
+}
+
+.lq-sched__tool {
+  width: 24px;
+  height: 22px;
+  border: 1px solid var(--lq-color-border-subtle);
+  border-radius: var(--lq-radius-sm);
+  background: transparent;
+  color: var(--lq-color-text);
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.lq-sched__tool:hover {
+  border-color: var(--lq-color-border);
+  background-color: var(--lq-color-hover);
+}
+
+.lq-sched__zoom,
+.lq-sched__hint {
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-sched__hint {
+  margin-left: auto;
+}
+
+.lq-sched__clash-count {
+  padding: 1px 6px;
+  border-radius: var(--lq-radius-sm);
+  background-color: color-mix(in srgb, var(--lq-color-danger) 16%, transparent);
+  color: var(--lq-color-danger);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+/* Four panes: a corner, a header, a resource column and the board. Only the board really scrolls;
+   the other two are clipped panes driven from its scroll event (see `syncScroll`). Two-axis
+   `position: sticky` inside one two-axis scroller was the first attempt, and it is where the
+   header and the first column start disagreeing about who is on top. */
+.lq-sched__grid {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  flex: 1 1 0;
+  min-height: 0;
+  border: 1px solid var(--lq-color-border-subtle);
+  border-radius: var(--lq-radius-sm);
+  overflow: hidden;
+}
+
+.lq-sched__corner {
+  display: flex;
+  align-items: center;
+  padding: 0 var(--lq-space-2);
+  height: 30px;
+  border-right: 1px solid var(--lq-color-border);
+  border-bottom: 1px solid var(--lq-color-border);
+  background-color: var(--lq-color-panel);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-sched__head {
+  position: relative;
+  height: 30px;
+  overflow: hidden;
+  border-bottom: 1px solid var(--lq-color-border);
+  background-color: var(--lq-color-panel);
+}
+
+.lq-sched__head-inner {
+  position: relative;
+  height: 100%;
+}
+
+/* Anchored at the gridline, not centred on it: a label centred on midnight sits half in yesterday,
+   and a reader has to decide which side it belongs to. */
+.lq-sched__tick {
+  position: absolute;
+  top: 0;
+  padding: 0 4px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  border-left: 1px solid var(--lq-color-border-subtle);
+  font-size: 0.66rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-sched__tick--major {
+  border-left-color: var(--lq-color-border);
+  color: var(--lq-color-text);
+  font-weight: 700;
+}
+
+.lq-sched__aside {
+  overflow: hidden;
+  border-right: 1px solid var(--lq-color-border);
+  background-color: var(--lq-color-panel);
+}
+
+.lq-sched__resource {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+  padding: 0 var(--lq-space-2);
+  box-sizing: border-box;
+  border-bottom: 1px solid var(--lq-color-border-subtle);
+  overflow: hidden;
+}
+
+.lq-sched__resource-name {
+  font-size: 0.76rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lq-sched__resource-meta {
+  font-size: 0.64rem;
+  color: var(--lq-color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lq-sched__body {
+  overflow: auto;
+  background-color: var(--lq-color-bg);
+  /* Vertical panning by finger stays the browser's, because this is a table and not a canvas —
+     see the component's own note on the wheel. */
+  overscroll-behavior: contain;
+}
+
+.lq-sched__canvas {
+  position: relative;
+}
+
+.lq-sched__grid-lines {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.lq-sched__grid-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background-color: var(--lq-color-border-subtle);
+}
+
+.lq-sched__grid-line--major {
+  background-color: var(--lq-color-border);
+}
+
+/* The present. Given its own colour rather than the accent, which the blocks already use — a "now"
+   line that matched a task would be read as one. */
+.lq-sched__now {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background-color: var(--lq-color-danger);
+  pointer-events: none;
+  z-index: 3;
+}
+
+.lq-sched__row {
+  position: relative;
+  box-sizing: border-box;
+  border-bottom: 1px solid var(--lq-color-border-subtle);
+}
+
+/* The row a block is being dragged onto. Lit while it is over, so dropping onto the wrong machine
+   is something you see before you let go rather than after. */
+.lq-sched__row--target {
+  background-color: color-mix(in srgb, var(--lq-color-accent) 8%, transparent);
+}
+
+.lq-sched__task {
+  position: absolute;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 7px;
+  border: 1px solid color-mix(in srgb, var(--lq-color-text) 22%, transparent);
+  border-radius: var(--lq-radius-sm);
+  background-color: color-mix(in srgb, var(--lq-color-accent) 24%, var(--lq-color-panel));
+  font-size: 0.7rem;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+  overflow: hidden;
+}
+
+.lq-sched__task:active {
+  cursor: grabbing;
+}
+
+.lq-sched__task-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.lq-sched__task-time {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.64rem;
+  color: var(--lq-color-text-muted);
+}
+
+/* Statuses. Mixed toward the panel rather than set as flat colours, so they follow the palette and
+   still separate under e-ink, where the hues collapse and only the share of ink is left. */
+.lq-sched__task--running {
+  background-color: color-mix(in srgb, var(--lq-color-green) 32%, var(--lq-color-panel));
+}
+
+.lq-sched__task--done {
+  background-color: color-mix(in srgb, var(--lq-color-text-muted) 18%, var(--lq-color-panel));
+  color: var(--lq-color-text-muted);
+}
+
+.lq-sched__task--late {
+  background-color: color-mix(in srgb, var(--lq-color-amber) 38%, var(--lq-color-panel));
+}
+
+.lq-sched__task--blocked {
+  background-color: color-mix(in srgb, var(--lq-color-danger) 30%, var(--lq-color-panel));
+}
+
+.lq-sched__task--selected {
+  outline: 2px solid var(--lq-color-accent);
+  outline-offset: 1px;
+  z-index: 4;
+}
+
+/* A clash is struck through as well as outlined: under e-ink the red edge is one more dark line,
+   and a double booking is the one thing on this board that must not be missable. */
+.lq-sched__task--clash {
+  border-color: var(--lq-color-danger);
+  border-width: 2px;
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent 0 5px,
+    color-mix(in srgb, var(--lq-color-danger) 26%, transparent) 5px 9px
+  );
+}
+
+.lq-sched__task--locked {
+  cursor: default;
+  border-style: dashed;
+}
+
+/* Wide enough to hit with a mouse without stealing the middle of a short block, which is what you
+   grab to move it. */
+.lq-sched__grip {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  cursor: ew-resize;
+}
+
+.lq-sched__grip--start {
+  left: 0;
+}
+
+.lq-sched__grip--end {
+  right: 0;
+}
+
+.lq-sched__task:hover .lq-sched__grip {
+  background-color: color-mix(in srgb, var(--lq-color-text) 18%, transparent);
+}

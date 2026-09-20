@@ -88,6 +88,34 @@ export const PlanVierge: Story = {
   },
 };
 
+/** La même scène, inclinée. Les étagères se dressent, les convoyeurs restent bas — le relief sert
+ *  à dire ce qui est haut, pas seulement à annoncer que la vue a basculé. L'édition continue de
+ *  fonctionner : la matrice de la caméra est inversée pour retrouver la case sous le pointeur. */
+export const Isometrique: Story = {
+  name: "Vue isométrique",
+  render: function Render() {
+    const [items, setItems] = useState<WarehouseItem[]>(WAREHOUSE_ITEMS);
+    const [rails, setRails] = useState<WarehouseRail[]>(WAREHOUSE_RAILS);
+    const [selected, setSelected] = useState<string | null>(null);
+    const robots = useMovingRobots(true);
+    return (
+      <div style={{ height: "100dvh", padding: 12, boxSizing: "border-box" }}>
+        <WarehouseCanvas
+          items={items}
+          rails={rails}
+          robots={robots}
+          onItemsChange={setItems}
+          onRailsChange={setRails}
+          selectedId={selected}
+          onSelectedIdChange={setSelected}
+          view3d="iso"
+          height="100%"
+        />
+      </div>
+    );
+  },
+};
+
 /** Les statuts des voies, côte à côte. Les teintes sont volontairement pâles : un plan est
  *  essentiellement fait de voies, et cinq couleurs saturées couvrant la majorité de l'image ne
  *  laisseraient plus rien pour ce qui s'y déplace. */

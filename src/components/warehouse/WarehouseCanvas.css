@@ -599,3 +599,113 @@
   font-size: 0.66rem;
   color: var(--lq-color-text-muted);
 }
+
+/* ---- isometric view ---- */
+
+/* `preserve-3d` lives here, on the canvas, and not on the surface above it.
+   An element whose `overflow` is anything but `visible` does not establish a 3D context for its
+   descendants — and the surface clips, because that is how panning stays inside its box. Putting
+   the 3D context one level down, on the layer that carries the camera, gives the racks a real
+   space to stand up in while the surface keeps clipping as before. */
+.lq-wh__canvas--iso {
+  transform-style: preserve-3d;
+}
+
+/* Nothing but a colour here: the tilt comes from the canvas above. A plan view sets its own grid
+   in screen space, which is why that one is switched off in isometric (see the surface's inline
+   style) and replaced by the floor below. */
+.lq-wh__surface--iso {
+  background-image: none;
+  background-color: var(--lq-color-bg);
+}
+
+/* The slab everything stands on. Drawn inside the canvas, so the camera projects its grid along
+   with the racks — which is what makes the cells read as cells rather than as a flat backdrop the
+   plan happens to hover over. */
+.lq-wh__floor {
+  position: absolute;
+  background-color: color-mix(in srgb, var(--lq-color-text) 4%, var(--lq-color-bg));
+  background-image: linear-gradient(to right, var(--lq-color-border-subtle) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--lq-color-border-subtle) 1px, transparent 1px);
+  border: 1px solid var(--lq-color-border-subtle);
+  pointer-events: none;
+}
+
+/* A box's two visible sides. Only two are ever drawn: with the floor turned 45°, the canvas's +x
+   and +y edges both face the viewer and the other two are always behind. */
+.lq-wh__wall {
+  position: absolute;
+  box-sizing: border-box;
+  transform-origin: 0 0;
+  border: 1px solid var(--lq-color-border);
+  background-color: var(--lq-color-panel);
+  pointer-events: none;
+}
+
+/* The front wall catches the light, the side is in shade. Two shades of the same colour rather
+   than two colours: the relief has to read as one object lit from one side, and a box whose faces
+   are unrelated hues reads as two flat shapes meeting at a line. */
+.lq-wh__wall--front {
+  filter: brightness(0.94);
+}
+
+.lq-wh__wall--side {
+  filter: brightness(0.82);
+}
+
+.lq-wh__wall--rack {
+  background-color: color-mix(in srgb, var(--lq-color-accent) 16%, var(--lq-color-panel));
+}
+.lq-wh__wall--station {
+  background-color: color-mix(in srgb, var(--lq-color-sky) 26%, var(--lq-color-panel));
+}
+.lq-wh__wall--charger {
+  background-color: color-mix(in srgb, var(--lq-color-green) 28%, var(--lq-color-panel));
+}
+.lq-wh__wall--conveyor,
+.lq-wh__wall--belt,
+.lq-wh__wall--curve,
+.lq-wh__wall--junction {
+  background-color: color-mix(in srgb, var(--lq-color-amber) 24%, var(--lq-color-panel));
+}
+.lq-wh__wall--wall {
+  background-color: var(--lq-color-border);
+}
+
+/* The flat layer the names live on, over the tilt and outside it. */
+.lq-wh__overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.lq-wh__tag {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  padding: 1px 4px;
+  border-radius: 2px;
+  /* A pill of the surface colour behind it: a name sitting on a tilted rack of the same tone would
+     otherwise be legible on one face and lost on the next. */
+  background-color: color-mix(in srgb, var(--lq-color-panel) 82%, transparent);
+  font-size: 9px;
+  line-height: 1.3;
+  white-space: nowrap;
+  color: var(--lq-color-text);
+}
+
+.lq-wh__tag--selected {
+  outline: 1px solid var(--lq-color-accent);
+  font-weight: 700;
+}
+
+.lq-wh__tag--robot {
+  font-weight: 700;
+  background-color: color-mix(in srgb, var(--lq-color-accent) 78%, transparent);
+  color: var(--lq-color-accent-contrast);
+}
+
+.lq-wh__tag--fault {
+  background-color: var(--lq-color-danger);
+  color: var(--lq-color-accent-contrast);
+}

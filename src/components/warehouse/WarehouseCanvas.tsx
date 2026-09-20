@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import {
   WAREHOUSE_KINDS,
   clampSlots,
@@ -13,6 +13,7 @@ import {
   type WarehouseRobot,
 } from "./warehouseModel";
 import { conveyorLines, flowChevrons } from "./conveyorFlow";
+import { ISO_HEIGHT, ISO_TRANSFORM, projectIso, unprojectIso } from "./warehouseIso";
 import { WarehouseInspector } from "./WarehouseInspector";
 import "./WarehouseCanvas.css";
 
@@ -31,6 +32,10 @@ export interface WarehouseCanvasProps {
   onSelectedIdChange?: (id: string | null) => void;
   /** Hides the palette and every editing gesture, leaving pan and zoom. Default false. */
   readOnly?: boolean;
+  /** `"plan"` (default) looks straight down; `"iso"` tilts the floor into an isometric view and
+   *  stands the racks up. Editing works in both — see the component's own doc. */
+  view3d?: "plan" | "iso";
+  onView3dChange?: (mode: "plan" | "iso") => void;
   /** Height of the whole thing. Default "520px"; pass "100%" inside a sized container. */
   height?: number | string;
   className?: string;
@@ -93,11 +98,21 @@ export function WarehouseCanvas({
   selectedId = null,
   onSelectedIdChange,
   readOnly = false,
+  view3d,
+  onView3dChange,
   height = 520,
   className,
 }: WarehouseCanvasProps) {
   const surfaceRef = useRef<HTMLDivElement>(null);
   const [view, setView] = useState({ x: 40, y: 40, scale: 1 });
+  /** Uncontrolled unless the caller passes `view3d` — the toolbar toggle has to work on its own. */
+  const [ownMode, setOwnMode] = useState<"plan" | "iso">("plan");
+  const mode = view3d ?? ownMode;
+  const iso = mode === "iso";
+  const setMode = (next: "plan" | "iso") => {
+    setOwnMode(next);
+    onView3dChange?.(next);
+  };
   const [drag, setDrag] = useState<Drag | null>(null);
   /** Points of the rail being traced, in cells. `null` when not tracing. */
   const [tracing, setTracing] = useState<{ points: { x: number; y: number }[]; cursor: { x: number; y: number } } | null>(null);
@@ -148,12 +163,14 @@ export function WarehouseCanvas({
     (clientX: number, clientY: number) => {
       const rect = surfaceRef.current?.getBoundingClientRect();
       if (!rect) return { x: 0, y: 0 };
-      return {
-        x: (clientX - rect.left - view.x) / (view.scale * cellSize),
-        y: (clientY - rect.top - view.y) / (view.scale * cellSize),
-      };
+      // Back out the pan and the zoom first; what is left is the canvas's own pixel space in plan
+      // view, and the *projected* pixel space in isometric — which the inverse matrix undoes.
+      const px = (clientX - rect.left - view.x) / view.scale;
+      const py = (clientY - rect.top - view.y) / view.scale;
+      const flat = iso ? unprojectIso(px, py) : { x: px, y: py };
+      return { x: flat.x / cellSize, y: flat.y / cellSize };
     },
-    [view, cellSize]
+    [view, cellSize, iso]
   );
 
   /**
@@ -307,18 +324,64 @@ export function WarehouseCanvas({
     const maxX = Math.max(...xs) + 2;
     const minY = Math.min(...ys) - 2;
     const maxY = Math.max(...ys) + 2;
+
+    // The box to fit is the one that ends up *on screen*, and the camera changes it: a plan turned
+    // 45° is about half again as wide and a good deal shorter. Fitting the plan-view box in
+    // isometric would leave the floor rattling around inside a frame sized for a shape it no
+    // longer has. So the four corners are projected — plus the tallest item's top, which is what
+    // actually reaches the upper edge once the racks stand up.
+    const tallest = Math.max(0, ...items.map((item) => ISO_HEIGHT[item.kind])) * cellSize;
+    const corners = iso
+      ? [
+          projectIso(minX * cellSize, minY * cellSize, 0),
+          projectIso(maxX * cellSize, minY * cellSize, 0),
+          projectIso(minX * cellSize, maxY * cellSize, 0),
+          projectIso(maxX * cellSize, maxY * cellSize, 0),
+          projectIso(minX * cellSize, minY * cellSize, tallest),
+        ]
+      : [
+          { x: minX * cellSize, y: minY * cellSize },
+          { x: maxX * cellSize, y: maxY * cellSize },
+        ];
+    const left = Math.min(...corners.map((c) => c.x));
+    const right = Math.max(...corners.map((c) => c.x));
+    const top = Math.min(...corners.map((c) => c.y));
+    const bottom = Math.max(...corners.map((c) => c.y));
+
     const scale = Math.max(
       MIN_SCALE,
-      Math.min(MAX_SCALE, Math.min(rect.width / ((maxX - minX) * cellSize), rect.height / ((maxY - minY) * cellSize)))
+      Math.min(MAX_SCALE, Math.min(rect.width / Math.max(1, right - left), rect.height / Math.max(1, bottom - top)))
     );
     setView({
       scale,
-      x: rect.width / 2 - ((minX + maxX) / 2) * cellSize * scale,
-      y: rect.height / 2 - ((minY + maxY) / 2) * cellSize * scale,
+      x: rect.width / 2 - ((left + right) / 2) * scale,
+      y: rect.height / 2 - ((top + bottom) / 2) * scale,
     });
-  }, [items, rails, robots, cellSize]);
+  }, [items, rails, robots, cellSize, iso]);
 
   const px = (cells: number) => cells * cellSize;
+
+  /** The slab everything stands on, in cells — the content's own extent with a margin. Only drawn
+   *  in isometric, where a tilted plan with nothing under it reads as objects floating in a void. */
+  const floor = (() => {
+    if (items.length === 0 && rails.length === 0) return { x: 0, y: 0, width: 40, height: 24 };
+    const xs: number[] = [];
+    const ys: number[] = [];
+    for (const item of items) {
+      const box = footprintOf(item);
+      xs.push(item.x, item.x + box.width);
+      ys.push(item.y, item.y + box.height);
+    }
+    for (const rail of rails) {
+      for (const point of rail.points) {
+        xs.push(point.x);
+        ys.push(point.y);
+      }
+    }
+    const minX = Math.floor(Math.min(...xs)) - 2;
+    const minY = Math.floor(Math.min(...ys)) - 2;
+    return { x: minX, y: minY, width: Math.ceil(Math.max(...xs)) + 2 - minX, height: Math.ceil(Math.max(...ys)) + 2 - minY };
+  })();
   const showSlots = cellSize * view.scale >= SLOT_DETAIL_AT;
 
   /** A rail or a robot path as an SVG polyline, in pixels on the unscaled canvas layer. */
@@ -370,6 +433,14 @@ export function WarehouseCanvas({
               {tracing ? "Terminer le rail" : "Tracer un rail"}
             </button>
           )}
+          <button
+            type="button"
+            className={["lq-wh__tool", iso && "lq-wh__tool--on"].filter(Boolean).join(" ")}
+            onClick={() => setMode(iso ? "plan" : "iso")}
+            aria-pressed={iso}
+          >
+            {iso ? "Vue de dessus" : "Vue isométrique"}
+          </button>
           <button type="button" className="lq-wh__tool" onClick={fit}>
             Recadrer
           </button>
@@ -384,12 +455,21 @@ export function WarehouseCanvas({
           ref={surfaceRef}
           className={[
             "lq-wh__surface",
+            iso && "lq-wh__surface--iso",
             drag?.kind === "pan" && "lq-wh__surface--panning",
             tracing && "lq-wh__surface--tracing",
           ]
             .filter(Boolean)
             .join(" ")}
-          style={{ backgroundSize: `${px(1) * view.scale}px ${px(1) * view.scale}px`, backgroundPosition: `${view.x}px ${view.y}px` }}
+          // The screen-space grid is the plan view's own. Tilted, it would stay square while
+          // everything on it went diagonal — so in isometric it is switched off here and drawn as
+          // a real floor inside the canvas instead, where the camera projects it along with the
+          // racks standing on it.
+          style={
+            iso
+              ? undefined
+              : { backgroundSize: `${px(1) * view.scale}px ${px(1) * view.scale}px`, backgroundPosition: `${view.x}px ${view.y}px` }
+          }
           tabIndex={0}
           onPointerDown={onSurfacePointerDown}
           onPointerMove={onSurfacePointerMove}
@@ -411,7 +491,27 @@ export function WarehouseCanvas({
             });
           }}
         >
-          <div className="lq-wh__canvas" style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})` }}>
+          <div
+            className={["lq-wh__canvas", iso && "lq-wh__canvas--iso"].filter(Boolean).join(" ")}
+            style={{
+              // The camera is appended after the pan and the zoom, in that order — which is the
+              // order `toCell` undoes it in. The two must stay in step or a dragged rack lands
+              // somewhere other than where the hand was.
+              transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale}) ${iso ? ISO_TRANSFORM : ""}`.trim(),
+            }}
+          >
+            {iso && (
+              <div
+                className="lq-wh__floor"
+                style={{
+                  left: px(floor.x),
+                  top: px(floor.y),
+                  width: px(floor.width),
+                  height: px(floor.height),
+                  backgroundSize: `${px(1)}px ${px(1)}px`,
+                }}
+              />
+            )}
             {/* Zones first: they are the floor's own regions and everything stands on them. */}
             {items
               .filter((item) => item.kind === "zone")
@@ -480,13 +580,13 @@ export function WarehouseCanvas({
                     top: px(at.y),
                     width: px(1.6),
                     height: px(1.2),
-                    transform: `translate(-50%, -50%) rotate(${at.angle}deg)`,
+                    transform: `translate(-50%, -50%) rotate(${at.angle}deg)${iso ? ` translateZ(${px(0.35)}px)` : ""}`,
                     backgroundColor: robot.color,
                   }}
                   title={robot.label ?? robot.id}
                 >
                   {/* Counter-rotated, so the machine turns and its name stays readable. */}
-                  {robot.label && showSlots && (
+                  {robot.label && showSlots && !iso && (
                     <span className="lq-wh__robot-label" style={{ transform: `rotate(${-at.angle}deg)` }}>
                       {robot.label}
                     </span>
@@ -495,6 +595,47 @@ export function WarehouseCanvas({
               );
             })}
           </div>
+
+          {/* Labels, flat, over the tilt.
+              Text put through the camera comes out sheared and reads at a slant — which is exactly
+              what an isometric picture should do to a rack and must not do to its name. So the
+              names live outside the transform, each placed at the projected centre of its own top
+              face: the picture tilts, the words do not. */}
+          {iso && (
+            <div className="lq-wh__overlay" aria-hidden="true">
+              {items
+                .filter((item) => item.label)
+                .map((item) => {
+                  const box = footprintOf(item);
+                  const at = projectIso(px(item.x + box.width / 2), px(item.y + box.height / 2), px(ISO_HEIGHT[item.kind]));
+                  return (
+                    <span
+                      key={item.id}
+                      className={["lq-wh__tag", selectedId === item.id && "lq-wh__tag--selected"].filter(Boolean).join(" ")}
+                      style={{ left: view.x + view.scale * at.x, top: view.y + view.scale * at.y }}
+                    >
+                      {item.label}
+                    </span>
+                  );
+                })}
+              {robots
+                .filter((robot) => robot.label)
+                .map((robot) => {
+                  const on = pointAlongPath(robot.path, robot.progress);
+                  if (on === null) return null;
+                  const at = projectIso(px(on.x), px(on.y), px(0.9));
+                  return (
+                    <span
+                      key={robot.id}
+                      className={`lq-wh__tag lq-wh__tag--robot lq-wh__tag--${robot.status ?? "moving"}`}
+                      style={{ left: view.x + view.scale * at.x, top: view.y + view.scale * at.y }}
+                    >
+                      {robot.label}
+                    </span>
+                  );
+                })}
+            </div>
+          )}
         </div>
       </div>
 
@@ -560,9 +701,38 @@ export function WarehouseCanvas({
         : footprintOf(item);
     const selected = selectedId === item.id;
 
+    const lift = iso ? ISO_HEIGHT[item.kind] : 0;
+
     return (
+      <Fragment key={item.id}>
+        {/* The two walls that hold the top face up, and the only two a 45° camera ever shows: the
+            canvas's +x and +y edges both point toward the viewer once the floor is turned, so the
+            north and west faces are always hidden and are not drawn at all. */}
+        {lift > 0 && (
+          <>
+            <div
+              className={`lq-wh__wall lq-wh__wall--front lq-wh__wall--${item.kind}`}
+              style={{
+                left: px(live.x),
+                top: px(live.y + size.height),
+                width: px(size.width),
+                height: px(lift),
+                transform: "rotateX(90deg)",
+              }}
+            />
+            <div
+              className={`lq-wh__wall lq-wh__wall--side lq-wh__wall--${item.kind}`}
+              style={{
+                left: px(live.x + size.width),
+                top: px(live.y),
+                width: px(lift),
+                height: px(size.height),
+                transform: "rotateY(-90deg)",
+              }}
+            />
+          </>
+        )}
       <div
-        key={item.id}
         ref={(el) => {
           if (el) itemNodes.current.set(item.id, el);
           else itemNodes.current.delete(item.id);
@@ -574,6 +744,9 @@ export function WarehouseCanvas({
           width: px(size.width),
           height: px(size.height),
           backgroundColor: item.color,
+          // In isometric the box is the *top* face, lifted to its own height; the two walls below
+          // are rendered beside it, in the canvas's own frame.
+          transform: iso ? `translateZ(${px(ISO_HEIGHT[item.kind])}px)` : undefined,
         }}
         onPointerDown={(event) => {
           event.stopPropagation();
@@ -589,7 +762,7 @@ export function WarehouseCanvas({
       >
         {item.kind === "rack" && showSlots && renderSlots(item)}
         {isConveyor(item.kind) && renderFlow(item)}
-        {item.label && <span className="lq-wh__item-label">{item.label}</span>}
+        {item.label && !iso && <span className="lq-wh__item-label">{item.label}</span>}
 
         {editable && selected && item.kind !== "zone" && (
           <span
@@ -602,6 +775,7 @@ export function WarehouseCanvas({
           />
         )}
       </div>
+      </Fragment>
     );
   }
 

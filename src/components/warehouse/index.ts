@@ -18,3 +18,5 @@ export type {
 
 export { conveyorLines, flowChevrons, flowHeading } from "./conveyorFlow";
 export type { FlowChevron, FlowPoint } from "./conveyorFlow";
+
+export { ISO_HEIGHT, ISO_TRANSFORM, projectIso, unprojectIso } from "./warehouseIso";

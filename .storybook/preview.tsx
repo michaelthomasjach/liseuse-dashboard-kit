@@ -65,6 +65,7 @@ const preview: Preview = {
           "Forms",
           "Feedback",
           "Charts",
+          "Map",
           "Finance",
           "Finance Widgets",
           "Widgets",

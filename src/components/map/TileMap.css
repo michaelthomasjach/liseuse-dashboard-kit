@@ -1,0 +1,54 @@
+.lq-tilemap {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--lq-color-border);
+  background: var(--lq-color-panel);
+}
+
+.lq-tilemap__canvas {
+  display: block;
+  /* Le navigateur ne doit pas intercepter le geste : le panoramique est géré aux pointer events. */
+  touch-action: none;
+}
+
+.lq-tilemap__controls {
+  position: absolute;
+  top: var(--lq-space-2);
+  right: var(--lq-space-2);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.lq-tilemap__controls button {
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--lq-color-border);
+  background: var(--lq-color-panel);
+  color: var(--lq-color-text);
+  font-size: 0.95rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.lq-tilemap__controls button:hover {
+  border-color: var(--lq-color-accent);
+  color: var(--lq-color-accent);
+}
+
+/* La mention de source est posée sur la carte et non dessinée dans le canvas : elle doit rester
+   sélectionnable et lisible par un lecteur d'écran, ce qu'un texte peint en pixels n'est pas. */
+.lq-tilemap__attribution {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  margin: 0;
+  padding: 2px 6px;
+  /* Suit la surface plutôt qu'un blanc fixe : sous la palette sombre, une étiquette blanche en bas
+     à droite était le seul élément de la carte à ne pas avoir changé de thème. */
+  background: var(--lq-color-panel);
+  color: var(--lq-color-text-muted);
+  font-size: 0.62rem;
+  line-height: 1.5;
+  opacity: 0.88;
+}

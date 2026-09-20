@@ -7,16 +7,19 @@
      part of something, and removing the rest would turn a zoom into a different diagram. */
   --lq-sankey-dim-opacity: 0.1;
 
-  /* Labels are white, with a dark halo carrying them.
+  /* Labels take the surface's own text colour.
 
-     Not `--lq-color-text`, and that is the whole point: these labels are written *on the ribbons*,
-     not on the panel, so the colour that has to read against is the ribbon's — and under the dark
-     surface `--lq-color-text` is already near-white, which would leave white text on a white halo.
-     A fixed white on a fixed dark halo is legible over every ribbon in every palette, which is the
-     one thing a themed pair could not promise here. Both stay tokens, so a consumer whose ribbons
-     are pale can still swap them. */
-  --lq-sankey-label-color: #ffffff;
-  --lq-sankey-label-halo: rgba(0, 0, 0, 0.6);
+     They used to be a fixed white carried by a dark halo, on the reasoning that a label is written
+     over a ribbon and so has to read against the ribbon rather than the panel. That was half true:
+     node labels are placed *outward*, away from the ribbons they belong to (see the placement in
+     SankeyChart.tsx), so a short one lands on the ribbons behind it and a long one runs off onto
+     the panel. White served the first case and the halo rescued the second — at the price of an
+     outline around every glyph, which is what the halo looks like at 0.72rem.
+
+     With the halo gone, white on a cream panel is simply invisible, so the colour follows the
+     surface instead. It stays a token: a consumer whose ribbons are dark enough to want white back
+     can set it. */
+  --lq-sankey-label-color: var(--lq-color-text);
 }
 
 .lq-sankey__toolbar {
@@ -115,27 +118,20 @@
   pointer-events: none;
 }
 
+/* Pas de halo sous les libellés : le contour tracé autour des glyphes se lisait comme une bordure
+   et, sur une lettre fine, comme une ombre portée. Les libellés reposent donc sur leur seule
+   couleur — c'est un choix de netteté, au prix de la lisibilité là où un libellé passe sur un
+   ruban clair. */
 .lq-sankey__label {
   font-size: 0.72rem;
   font-weight: 600;
   fill: var(--lq-sankey-label-color);
-  /* `paint-order: stroke` draws the halo *under* the glyphs rather than over them, so the stroke
-     thickens the outline instead of eating the letterforms. Without it a 3px stroke on 0.72rem
-     text closes up the counters and the word turns into a blob. */
-  paint-order: stroke;
-  stroke: var(--lq-sankey-label-halo);
-  stroke-width: 3px;
-  stroke-linejoin: round;
 }
 
 .lq-sankey__ribbon-label {
   font-size: 0.66rem;
   font-weight: 700;
   fill: var(--lq-sankey-label-color);
-  paint-order: stroke;
-  stroke: var(--lq-sankey-label-halo);
-  stroke-width: 3px;
-  stroke-linejoin: round;
 }
 
 .lq-sankey__tooltip-hint {

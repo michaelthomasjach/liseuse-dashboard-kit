@@ -24,22 +24,25 @@ export const LINKS = {
   typography: "/docs/foundations-typography--docs",
 } as const;
 
-/** Counted from the source, not estimated: each category's own barrel file under
- *  `src/components` (public exports only, icons split out), `DrawingToolType`, and the story
- *  exports across every `.stories.tsx`.
- *  Re-check them before quoting a bigger number. A landing page that inflates its own figures is
- *  the fastest way to lose a reader who then opens the sidebar and counts. */
+/** Counted, not estimated — and now countable on demand: `node scripts/count-exports.mjs` asks the
+ *  type checker what `src/index.ts` actually exports and splits icons from the rest, and the story
+ *  total is the `type: "story"` entries in Storybook's own `index.json` (its docs pages are not
+ *  stories). `DrawingToolType` holds the drawing tools.
+ *
+ *  Re-run the script before quoting a bigger number. A landing page that inflates its own figures
+ *  is the fastest way to lose a reader who then opens the sidebar and counts — which is precisely
+ *  what these figures had drifted into: 96 quoted against 101, 11 against 13, 120 against 137. */
 export interface LandingFigure {
   value: string;
   label: string;
 }
 
 export const FIGURES: LandingFigure[] = [
-  { value: "96", label: "composants exportés" },
-  { value: "11", label: "graphiques D3" },
-  { value: "120", label: "icônes" },
-  { value: "37", label: "outils de dessin" },
-  { value: "200", label: "stories" },
+  { value: "101", label: "composants exportés" },
+  { value: "13", label: "graphiques D3" },
+  { value: "137", label: "icônes" },
+  { value: "39", label: "outils de dessin" },
+  { value: "254", label: "stories" },
   { value: "4", label: "thèmes livrés" },
 ];
 

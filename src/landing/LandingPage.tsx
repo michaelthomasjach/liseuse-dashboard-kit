@@ -206,7 +206,7 @@ export function LandingPage({ version }: LandingPageProps) {
           De la liseuse e-ink au <span className="lqx-hero__accent">terminal de trading</span>.
         </h1>
         <p className="lqx-hero__lead">
-          96 composants React et 11 graphiques D3, avec un moteur de scripting qui tourne dans un
+          101 composants React et 13 graphiques D3, avec un moteur de scripting qui tourne dans un
           Web Worker et un assistant IA relié au graphique. Quatre thèmes sont livrés : e-ink ou
           couleur, sur surface claire ou sombre. Ils sont pilotés par variables CSS, donc il n'y a
           aucune classe conditionnelle à écrire.

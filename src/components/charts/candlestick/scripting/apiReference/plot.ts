@@ -129,6 +129,25 @@ if (b !== null) plot.overlay("Bollinger").band("BB", b.upper, b.lower);`,
         caveat: "values et prices doivent avoir la même longueur. À utiliser dans un panneau accroché à gauche ou à droite (dock).",
       },
       {
+        signature: "…​.heatmap(name, cells, options)",
+        keywords: [".heatmap"],
+        purpose:
+          "Un champ temps × prix : une colonne par barre, une cellule par niveau, la couleur donnant l'intensité. C'est la forme d'une carte de liquidité — le carnet d'ordres dessiné dans le temps — et plus généralement de tout ce qui a une valeur à un prix ET à une barre. Contrairement à toutes les autres méthodes de tracé, une cellule n'est pas une valeur À une barre mais une valeur à un couple (barre, prix) : on passe donc une colonne entière à chaque appel, pas un nombre.",
+        params: [
+          "name — le nom du champ.",
+          "cells — la colonne de cette barre : un tableau de { price, value }. Une cellule de valeur nulle ou négative est ignorée, ce n'est pas une cellule mais son absence.",
+          "options.bucket — la hauteur d'une cellule en unités de prix. OBLIGATOIRE et volontairement non déduit : seul le script sait ce qu'est un niveau pour cet instrument, et une grille tirée des données changerait de hauteur dès que le flux saute un prix.",
+          "options.max — la valeur peinte de la couleur la plus chaude. Sans elle, la cellule la plus forte de tout le parcours donne l'échelle — ce qui est juste pour lire un symbole et faux dès qu'on en compare deux.",
+          "options.colors — la rampe, du plus froid au plus chaud. Sans elle, la rampe de profondeur : presque noir, bleu, cyan, jaune, rouge.",
+          "options.opacity — 0 à 1, 0,85 par défaut. En dessous de 1, les bougies restent lisibles au travers, ce qui est toute la raison pour laquelle la carte est SOUS le prix et non à sa place.",
+        ],
+        returns: "rien.",
+        caveat:
+          "Appeler à chaque barre, comme une ligne : les colonnes s'accumulent dans l'ordre d'arrivée. Le champ est dessiné avant les bougies — c'est un fond, pas un rideau — et il est tramé une seule fois en image puis redimensionné, si bien que déplacer ou zoomer le graphique ne le recalcule jamais.",
+        example: `const cellules = book.levels().map((n) => ({ price: n.price, value: n.size }));
+plot.overlay("BOOKMAP").heatmap("Liquidité", cellules, { bucket: 0.05 });`,
+      },
+      {
         signature: "plot.signal(arg)",
         keywords: ["plot.signal"],
         purpose:

@@ -53,7 +53,34 @@ export interface ScriptKindAnalysis {
  *  majority of scripts will keep being. Declaring both is a real contradiction, though — a script
  *  cannot be backtested *and* be a plain drawing — so that is a diagnostic, and the first
  *  declaration wins so the editor still has something coherent to show while the user fixes it. */
+/** Answers already worked out, keyed on the source itself.
+ *
+ *  This is a pure function of its input and a surprisingly hot one: the indicator picker asks it
+ *  twice per script while building its option list, and rebuilds that list on every render —
+ *  including every keystroke in its own search box. Each call walks the whole source with a global
+ *  regex, so a handful of scripts a few thousand characters long turn typing into a sweep over all
+ *  of them.
+ *
+ *  Bounded rather than a plain Map: script sources are edited character by character in this app,
+ *  so an unbounded cache keyed on source text grows with every keystroke of every editing session.
+ *  The oldest entry goes when it is full, which for a cache this size means "still holding every
+ *  script currently on the chart". */
+const KIND_CACHE = new Map<string, ScriptKindAnalysis>();
+const KIND_CACHE_MAX = 200;
+
 export function analyzeScriptKind(code: string): ScriptKindAnalysis {
+  const cached = KIND_CACHE.get(code);
+  if (cached !== undefined) return cached;
+  const analysis = analyzeScriptKindUncached(code);
+  if (KIND_CACHE.size >= KIND_CACHE_MAX) {
+    const oldest = KIND_CACHE.keys().next();
+    if (!oldest.done) KIND_CACHE.delete(oldest.value);
+  }
+  KIND_CACHE.set(code, analysis);
+  return analysis;
+}
+
+function analyzeScriptKindUncached(code: string): ScriptKindAnalysis {
   const diagnostics: ScriptParamDiagnostic[] = [];
   const matches = [...code.matchAll(KIND_LINE_RE)];
   if (matches.length === 0) return { kind: "indicator", declared: false, symbols: [], diagnostics };

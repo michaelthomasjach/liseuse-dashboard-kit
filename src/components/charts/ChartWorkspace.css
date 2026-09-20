@@ -1873,56 +1873,70 @@
    ago never keeps claiming to be news. */
 .lq-chart-workspace__watchlist-value {
   display: inline-block;
-  animation: lq-watchlist-value-bounce 520ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-@keyframes lq-watchlist-value-bounce {
-  0% {
-    transform: translateY(0) scale(1);
-  }
-  35% {
-    transform: translateY(-3px) scale(1.09);
-  }
-  70% {
-    transform: translateY(1px) scale(0.98);
-  }
-  100% {
-    transform: translateY(0) scale(1);
-  }
-}
-
-.lq-chart-workspace__watchlist-cell--up,
-.lq-chart-workspace__watchlist-cell--down {
+/* Colour, and nothing else. A figure that also jumped drew the eye to the movement rather than to
+   the number, and thirty of them jumping is a table that cannot be read while it updates. */
+.lq-chart-workspace__watchlist-value--up,
+.lq-chart-workspace__watchlist-value--down {
   animation: lq-watchlist-value-tint 1400ms ease-out;
 }
 
-/* Ends on `inherit`, not on a colour of its own: the cell has to land back on whatever the theme
-   says it should be, and naming that colour here would fork it. */
+/* No closing keyframe on purpose, and this is load-bearing.
+   
+   The cell has to land back on whatever colour the theme gives it, and naming that colour here
+   would fork it — so this used to end on `color: inherit`. A CSS-wide keyword inside `@keyframes`
+   is invalid and dropped, which left the rule with nothing animatable in it: Chrome reported the
+   animation as assigned and running while `getAnimations()` returned an empty list and the colour
+   never moved off `#111111`. The flash had never actually appeared.
+   
+   Omitting the 100% keyframe gets the same intent honestly: the implicit final keyframe *is* the
+   element's own underlying value, so the tint fades back to exactly what the theme says without
+   this rule ever naming it. */
 @keyframes lq-watchlist-value-tint {
   0%,
   45% {
     color: var(--lq-watchlist-move);
   }
-  100% {
-    color: inherit;
-  }
 }
 
-.lq-chart-workspace__watchlist-cell--up {
-  --lq-watchlist-move: color-mix(in srgb, var(--lq-color-up) 72%, var(--lq-color-text));
+/* The tint's own green and red, as literals, and deliberately *not* `--lq-color-up`/`--lq-color-down`.
+   Those two collapse to the text colour on the one-ink palette — by design, it is a palette with one
+   ink — and a tint drawn in the colour the figure already had is not a tint: measured on the E-ink
+   workspace, both tokens resolve to #111111 and the flash did nothing at all.
+
+   This is the one signal in the watchlist that is colour-only and momentary, so it keeps its hues
+   everywhere. Mixed with `--lq-color-text` rather than used raw, which is what makes the same pair
+   work on a dark theme: the text colour is light there, so the mix lightens with it instead of
+   leaving a dark green on a dark ground. Override these two custom properties to re-theme the
+   flash without touching the animation. */
+/* A cell's content is whatever the caller put there, and a caller who colours its own figure —
+   a "+1.24 %" in the day's own green — sets that colour *inside* this span, where an animation on
+   the span itself can never reach it. The result was a table where the price flashed and the two
+   columns beside it did not.
+   
+   So for the 1.4s the tint lasts, everything inside takes it. `!important` is the point rather than
+   an escape hatch: it is the one thing that outranks the caller's own inline style, and a figure
+   that flashes on a third of itself is worse than one that does not flash at all. `:where()` keeps
+   the selector at class specificity so a caller can still take it back. */
+.lq-chart-workspace__watchlist-value--up :where(*),
+.lq-chart-workspace__watchlist-value--down :where(*) {
+  color: inherit !important;
 }
 
-.lq-chart-workspace__watchlist-cell--down {
-  --lq-watchlist-move: color-mix(in srgb, var(--lq-color-down) 72%, var(--lq-color-text));
+.lq-chart-workspace__watchlist-value--up {
+  --lq-watchlist-move: color-mix(in srgb, #4f9e6a 82%, var(--lq-color-text));
+}
+
+.lq-chart-workspace__watchlist-value--down {
+  --lq-watchlist-move: color-mix(in srgb, #c0706e 82%, var(--lq-color-text));
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .lq-chart-workspace__watchlist-value {
-    animation: none;
-  }
-
-  .lq-chart-workspace__watchlist-cell--up,
-  .lq-chart-workspace__watchlist-cell--down {
+  /* The tint still happens, it just arrives at once: the colour is the information, and removing it
+     would remove the message rather than the motion. */
+  .lq-chart-workspace__watchlist-value--up,
+  .lq-chart-workspace__watchlist-value--down {
     animation-duration: 1ms;
   }
 }
@@ -1951,3 +1965,29 @@
 }
 
 
+
+/* The way back into the guided tour, at the top of the help modal. A full-width button rather than
+   a link in a paragraph: it is the shortest road to the same answer the list below spells out, and
+   it should be the first thing the modal offers. */
+.lq-chart-workspace__help-tour {
+  display: block;
+  width: 100%;
+  margin-bottom: var(--lq-space-3);
+  padding: var(--lq-space-2);
+  border: 1px solid var(--lq-color-border);
+  border-radius: var(--lq-radius-md);
+  background-color: var(--lq-color-hover);
+  font: inherit;
+  font-size: var(--lq-text-sm);
+  font-weight: 600;
+  color: var(--lq-color-text);
+  cursor: pointer;
+}
+
+.lq-chart-workspace__help-tour:hover {
+  border-color: var(--lq-color-accent);
+}
+
+.lq-root[data-lq-palette="eink"] .lq-chart-workspace__help-tour {
+  border-radius: 0;
+}

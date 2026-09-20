@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { AAPL_FINANCIALS } from "../../test-data/symbolFinancialsSample";
 import type { ScriptDef } from "./candlestick/interfaces/ScriptDef.interface";
 import { SCRIPT_EXAMPLES } from "./candlestick/scripting/scriptExamples";
@@ -29,6 +29,8 @@ import {
 import { SAMPLE_BROKERS } from "../../test-data/sampleBrokers";
 import { generateCandles, generateCandlesByTimeframe, type MockTimeframeKey } from "../../test-data/financeSampleData";
 import { BTC_REAL_SAMPLE } from "../../test-data/btcRealSample";
+import { makeSampleDepth } from "../../test-data/sampleDepth";
+import { useLiveQuotes, type LiveQuote } from "../../test-data/liveWatchlist";
 import type { AiSend } from "./candlestick/ai/interfaces/AiMessage.interface";
 import type { ChartWorkspaceProps } from "./ChartWorkspace";
 
@@ -353,6 +355,37 @@ const DEMO_WATCHLISTS: ChartWorkspaceWatchlist[] = [
   },
 ];
 
+/** Every demo row's starting quote, keyed by row id — what `useLiveQuotes` then moves.
+ *
+ *  Read back out of the rows rather than written twice: the rows are the source of the prices, and
+ *  a second hand-kept table of the same numbers is a second table to forget to update. Rows a user
+ *  adds from the search modal are not in here and simply sit still, which is the honest thing for
+ *  a symbol this story has no feed for. */
+const DEMO_QUOTES: Record<string, LiveQuote> = Object.fromEntries(
+  DEMO_WATCHLISTS.flatMap((list) => [...list.rows, ...(list.sections?.flatMap((section) => section.rows) ?? [])]).map((row) => [
+    row.id,
+    { price: (row as DemoWatchlistRow).raw.price, change: (row as DemoWatchlistRow).raw.change },
+  ]),
+);
+
+/** Re-renders one row at its current quote, leaving a row this story has no quote for untouched.
+ *
+ *  Goes back through `watchlistRow` rather than patching the cells: the row's three columns are
+ *  three renderings of the same two numbers — the price, the move in currency, the move in percent
+ *  — and patching one of them by hand is how they end up disagreeing. */
+function atQuote(row: ChartWorkspaceWatchlistRow, quote: LiveQuote | undefined): ChartWorkspaceWatchlistRow {
+  if (quote === undefined) return row;
+  return watchlistRow(row.id, row.ticker, quote.price, quote.change, row.assetType, row.sector, row.region);
+}
+
+function watchlistsAtQuotes(lists: ChartWorkspaceWatchlist[], quotes: Record<string, LiveQuote>): ChartWorkspaceWatchlist[] {
+  return lists.map((list) => ({
+    ...list,
+    rows: list.rows.map((row) => atQuote(row, quotes[row.id])),
+    sections: list.sections?.map((section) => ({ ...section, rows: section.rows.map((row) => atQuote(row, quotes[row.id])) })),
+  }));
+}
+
 // Placeholder data for WatchlistExposureModal's own "Résultats"/"Dividendes"/"Actualités" tabs —
 // same "just enough to visually verify the tab isn't empty" stance DEMO_WATCHLISTS' own doc
 // describes, not a real market-data source of any kind.
@@ -532,6 +565,31 @@ function playAlertSound(value: string) {
  *  enough trades to read the list by eye, and is the baseline the others are meant to be compared
  *  against. Same `targetPanelIndex` requirement as any other workspace-routed script — without it
  *  the script reaches no panel and never runs. */
+/** A synthetic book and tape for the chart's own dataset, so the liquidity map has something to
+ *  draw. Invented on purpose and said so in `makeSampleDepth`'s own doc: this library ships no
+ *  depth feed, and one derived from candles would be a drawing of the volume bar it came from.
+ *
+ *  Built from the *same* candles the chart is handed at its default timeframe. Generated from a
+ *  different series it still draws — bound to whichever bars happen to overlap, at prices from
+ *  another instrument — which is how this first went in: a field sitting above the chart's own
+ *  range, perfectly rendered and entirely wrong. Switching timeframe leaves the feed behind for the
+ *  same reason, and a story is the right place for that to be visible rather than papered over. */
+const DEMO_DEPTH = makeSampleDepth(ALL_FEATURES_TIMEFRAME_DATA["1d"]);
+
+/** The liquidity map, present and off — like the KDE script beside it. A heat field arriving
+ *  unasked would be the first thing anyone sees, and the first job of a demo chart is to show the
+ *  chart. */
+const BOOKMAP_DEBUG_SCRIPT: ScriptDef[] = [
+  {
+    id: "debug-bookmap",
+    name: "BOOKMAP — carte de liquidité",
+    code: SCRIPT_EXAMPLES.find((example) => example.id === "bookmap-liquidity")?.code ?? "",
+    named: true,
+    enabled: false,
+    targetPanelIndex: 0,
+  },
+];
+
 const STRATEGY_DEBUG_SCRIPT: ScriptDef[] = [
   {
     id: "debug-strategy",
@@ -629,6 +687,7 @@ const DEBUG_SCRIPTS: ScriptDef[] = [
   ...PERMUTATION_ENTROPY_SCRIPT,
   ...SURVIVAL_MATRIX_SCRIPT,
   ...STRATEGY_DEBUG_SCRIPT,
+  ...BOOKMAP_DEBUG_SCRIPT,
 ];
 
 /** The assistant, wired to a scripted stand-in instead of a real model.
@@ -722,6 +781,13 @@ export const AllFeatures: Story = {
     // stand-in for whatever real positions/watchlist store an app would have, updated here purely
     // by `onAddWatchlistSymbol` below (the library itself never mutates it).
     const [watchlists, setWatchlists] = useState<ChartWorkspaceWatchlist[]>(DEMO_WATCHLISTS);
+    // Quotes that move on their own, one timer per symbol (see `useLiveQuotes`). Kept *beside* the
+    // list rather than written into it: the list is what the user edits — rows added, moved,
+    // deleted — and a feed writing into the same state would race every one of those edits. The
+    // two are combined only on the way out, so a moved row keeps moving and a price never
+    // resurrects a row somebody just deleted.
+    const liveQuotes = useLiveQuotes(DEMO_QUOTES);
+    const liveWatchlists = useMemo(() => watchlistsAtQuotes(watchlists, liveQuotes), [watchlists, liveQuotes]);
     // Its own results list, independent of the main chart's own `results` above — a real app
     // could well feed both symbol-search modals from the same source, but they don't have to.
     const [watchlistSearchResults, setWatchlistSearchResults] = useState<SymbolSearchResult[]>(MOCK_SYMBOL_DB);
@@ -817,11 +883,11 @@ export const AllFeatures: Story = {
             montrer le parcours complet — en attente, connecté, déconnexion — sans compte nulle
             part. Voir `simulateConnect`. */}
         <ChartWorkspace
-          brokers={SAMPLE_BROKERS}
           defaultPanels={1}
           scripting
+          brokers={SAMPLE_BROKERS}
           ai={STORY_ASSISTANT}
-          watchlists={watchlists}
+          watchlists={liveWatchlists}
           watchlistSymbolSearchResults={watchlistSearchResults}
           onWatchlistSymbolSearchChange={(query, category) => setWatchlistSearchResults(filterMockSymbols(query, category, []))}
           // A fresh id per insertion (not `result.id`, the *symbol's* own stable catalog id) —
@@ -870,6 +936,8 @@ export const AllFeatures: Story = {
             showVolume={false}
             showIndicators
             fundamentals={ALL_FEATURES_FUNDAMENTALS}
+            depth={DEMO_DEPTH.depth}
+            tape={DEMO_DEPTH.tape}
             customIndicators={CUSTOM_INDICATORS}
             fullscreenToggle
             zoomable

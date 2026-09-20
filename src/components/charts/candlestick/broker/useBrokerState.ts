@@ -76,6 +76,20 @@ function readStored(): { mode: BrokerMode; armed: boolean; limits: BrokerLimits 
   }
 }
 
+/** The account a fresh connection starts on: a practice one when the broker exposes both under the
+ *  same login, and only otherwise the first account it offers.
+ *
+ *  Never a funded account by default. Picking one is a decision with a cost attached, and a default
+ *  is not a decision — it is what happens when nobody made one. Switching is one click away in the
+ *  panel, which is where that choice belongs.
+ *
+ *  A `demo` session has nothing to protect against and simply takes the first usable account. */
+function defaultAccountId(accounts: BrokerAccount[], environment: BrokerEnvironment): string | null {
+  const usable = accounts.filter((account) => account.disabled !== true);
+  if (environment === "demo") return usable[0]?.id ?? null;
+  return (usable.find((account) => account.kind === "demo") ?? usable[0])?.id ?? null;
+}
+
 export interface UseBrokerStateArgs {
   /** Every broker the host offers. **This library ships none**: an empty list is the normal state
    *  and the connection modal says so plainly rather than looking broken. */
@@ -97,6 +111,13 @@ export function useBrokerState({ adapters, pnlToday }: UseBrokerStateArgs) {
   const [session, setSession] = useState<BrokerSession | null>(null);
   const [adapterId, setAdapterId] = useState<string | null>(null);
   const [accounts, setAccounts] = useState<BrokerAccount[]>([]);
+  /** Which of `accounts` an order would reach. Null until a connection reports any.
+   *
+   *  Kept here rather than read as `accounts[0]` at each use — which is what the panel used to do,
+   *  and which quietly decided for the user: the first item in a list a broker happened to return
+   *  is not a choice, and at a broker exposing a funded account beside a practice one it is not
+   *  even a safe one. */
+  const [activeAccountId, setActiveAccountId] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
 
@@ -162,7 +183,9 @@ export function useBrokerState({ adapters, pnlToday }: UseBrokerStateArgs) {
         const opened = await target.connect(values, environment);
         setSession(opened);
         setAdapterId(id);
-        setAccounts(await target.accounts(opened));
+        const reported = await target.accounts(opened);
+        setAccounts(reported);
+        setActiveAccountId(defaultAccountId(reported, environment));
       } catch (error) {
         // Shown verbatim. A connection failure the user cannot read is a connection failure they
         // will retype their password against.
@@ -179,6 +202,7 @@ export function useBrokerState({ adapters, pnlToday }: UseBrokerStateArgs) {
     if (adapter && session) await adapter.disconnect(session).catch(() => undefined);
     setSession(null);
     setAccounts([]);
+    setActiveAccountId(null);
     setPositions([]);
     setPending(null);
     // Disconnecting disarms. Reconnecting to a different account with automation still live is the
@@ -347,6 +371,11 @@ export function useBrokerState({ adapters, pnlToday }: UseBrokerStateArgs) {
     adapter,
     session,
     accounts,
+    activeAccountId,
+    /** The account orders go to, resolved. Null while nothing is connected, and null too when a
+     *  broker reports no account at all — which is a real answer, not a missing one. */
+    activeAccount: accounts.find((account) => account.id === activeAccountId) ?? null,
+    selectAccount: setActiveAccountId,
     connecting,
     connectionError,
     connect,

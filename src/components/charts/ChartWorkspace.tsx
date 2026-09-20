@@ -1,4 +1,4 @@
-import { Children, cloneElement, useState, type ReactElement, type ReactNode } from "react";
+import { Children, cloneElement, type ReactElement, type ReactNode, useEffect, useState } from "react";
 import { DetachedWindow } from "./candlestick/components/DetachedWindow";
 import type { CandlestickChartProps } from "./candlestick/interfaces/CandlestickChartProps.interface";
 import type { SymbolSearchCategory } from "./candlestick/interfaces/SymbolSearchCategory.interface";
@@ -29,6 +29,8 @@ import { ChartSidePanel } from "./candlestick/components/ChartSidePanel";
 import { panelScriptingProps } from "./workspace/panelScriptingProps";
 import { WorkspaceSideRail } from "./workspace/WorkspaceSideRail";
 import { WorkspaceHelpModal } from "./workspace/WorkspaceHelpModal";
+import { WorkspaceTour } from "./workspace/WorkspaceTour";
+import { WORKSPACE_TOUR_STEPS } from "./workspace/workspaceTourSteps";
 import { currentSymbolProfile } from "./workspace/currentSymbolProfile";
 import { ScriptEditorPanel } from "./candlestick/scripting/components/ScriptEditorPanel";
 import { WatchlistIcon, AlarmClockIcon, PlusIcon, CandleModeIcon, LockIcon, SettingsIcon, SparkleIcon } from "../icons";
@@ -52,11 +54,23 @@ import type { WatchlistEarningsRow, WatchlistDividendRow, WatchlistNewsItem } fr
 /** Which of the docked panel's (up to) two tabs is currently showing — see `watchlists`/`alerts`. */
 export type { ChartWorkspaceSidePanelTab } from "./workspace/useWorkspaceSidePanelState";
 import type { ChartWorkspaceSidePanelTab } from "./workspace/useWorkspaceSidePanelState";
-import type { BrokerConnection } from "./candlestick/interfaces/Broker.interface";
-import { BrokerConnectModal } from "./candlestick/components/BrokerConnectModal";
+import type { BrokerAdapter } from "./candlestick/broker/interfaces/Broker.interface";
+import { BrokerConnectModal } from "./candlestick/broker/components/BrokerConnectModal";
+import { BrokerHelpModal } from "./candlestick/broker/components/BrokerHelpModal";
+import { BrokerPanel } from "./candlestick/broker/components/BrokerPanel";
+import { useBrokerState } from "./candlestick/broker/useBrokerState";
+import { Modal } from "../primitives/Modal";
 
 const GRID_COLUMNS: Record<1 | 2 | 4 | 6 | 8, number> = { 1: 1, 2: 2, 4: 2, 6: 3, 8: 4 };
 const GRID_ROWS: Record<1 | 2 | 4 | 6 | 8, number> = { 1: 1, 2: 1, 4: 2, 6: 2, 8: 2 };
+
+/** A stable empty list, so a workspace given no brokers does not hand `useBrokerState` a fresh
+ *  array on every render and re-run everything that depends on it. */
+const EMPTY_BROKER_ADAPTERS: BrokerAdapter[] = [];
+
+/** Where "this reader has met the tour" is kept. Per browser, like every other viewer preference
+ *  in this component. */
+const WORKSPACE_TOUR_SEEN_KEY = "lq-workspace-tour-seen";
 
 export interface ChartWorkspaceProps {
   /** Uncontrolled initial panel count — also picks the grid: 1 is a plain single chart (no grid
@@ -212,13 +226,21 @@ export interface ChartWorkspaceProps {
    *  `CandlestickChart.ai` — see that prop for what it accepts, and for why an `apiKey` in a
    *  browser is a decision to take deliberately. */
   ai?: CandlestickChartProps["ai"];
-  /** Brokers this workspace can connect to. Passing a non-empty list is what puts the plug button
-   *  on the right-hand rail — one button for the whole workspace, since a connection is to an
-   *  account and not to a panel. This library ships no list of its own. */
-  brokers?: CandlestickChartProps["brokers"];
-  defaultBrokerConnections?: CandlestickChartProps["defaultBrokerConnections"];
-  onBrokerConnectionsChange?: CandlestickChartProps["onBrokerConnectionsChange"];
-  onBrokerConnect?: CandlestickChartProps["onBrokerConnect"];
+  /** The brokers this workspace can trade through. Passing a non-empty list is what puts the plug
+   *  button on the right-hand rail — one button for the whole workspace, since a connection is to
+   *  an account and not to a panel.
+   *
+   *  **This library ships none.** Each entry is a `BrokerAdapter` the host implements: it declares
+   *  what its form asks for and carries every call that leaves the browser. See that interface for
+   *  why a front-end library must not be the thing holding credentials or signing orders.
+   *  `SAMPLE_BROKERS` in the test data is four fakes that answer from a file, for trying the flow
+   *  out. */
+  brokers?: BrokerAdapter[];
+  /** The account's realised change today, from the host — what the daily-loss ceiling is checked
+   *  against. This library never sees a fill, so it cannot compute one, and a limit measured
+   *  against a number it invented would be worse than no limit. Absent, that ceiling never
+   *  triggers and the panel says so. */
+  brokerPnlToday?: number;
   /** Shows the rail's own "</>" button and shares *one* script list (and one editor) across every
    *  panel — unlike every other `CandlestickChartProps` scripting prop, which stays per-panel for
    *  a standalone chart, a workspace script explicitly targets one chosen panel (see
@@ -276,9 +298,7 @@ export function ChartWorkspace({
   scripting = false,
   ai,
   brokers,
-  defaultBrokerConnections,
-  onBrokerConnectionsChange,
-  onBrokerConnect,
+  brokerPnlToday,
   defaultScripts,
   onScriptsChange,
   onScriptAlert,
@@ -347,20 +367,44 @@ export function ChartWorkspace({
   }
   const lockHold = useWorkspaceLockHold();
   const [helpOpen, setHelpOpen] = useState(false);
+  /** The guided tour, open on a first visit and never again on its own.
+   *
+   *  "Never again" is the whole contract: a tour that came back would be a tour nobody could get
+   *  rid of, and the one thing worse than not knowing where a feature is, is being told again
+   *  every morning. The flag is written the moment the tour opens rather than when it closes —
+   *  someone who shuts the tab mid-tour has still seen it, and should not meet it again.
+   *
+   *  Per browser, like every other viewer preference here. A storage that refuses (private mode,
+   *  blocked site data) means the tour shows again next time, which is the harmless direction to
+   *  fail in. */
+  const [tourOpen, setTourOpen] = useState(() => {
+    try {
+      return window.localStorage.getItem(WORKSPACE_TOUR_SEEN_KEY) === null;
+    } catch {
+      return false;
+    }
+  });
+  useEffect(() => {
+    if (!tourOpen) return;
+    try {
+      window.localStorage.setItem(WORKSPACE_TOUR_SEEN_KEY, "1");
+    } catch {
+      // A browser refusing storage is not a reason to withhold the tour — it only means it will be
+      // offered again next time.
+    }
+  }, [tourOpen]);
   // Held here rather than inside a panel for the same reason `focusedPanelIndex` is: the button
   // that opens it lives on the workspace's own rail, so the workspace is what knows whether it is
   // open — and one shared value means two panels can never both show an assistant.
   const [assistantOpen, setAssistantOpen] = useState(false);
 
-  // One connection list for the whole workspace, not one per panel: a broker is connected to an
-  // account. Uncontrolled from the prop onward, like every other list this component owns, and the
-  // credentials never land here — see `BrokerConnection`.
-  const [brokerConnections, setBrokerConnections] = useState<BrokerConnection[]>(defaultBrokerConnections ?? []);
+  // One connection for the whole workspace, not one per panel: a broker is connected to an account,
+  // and an account is not a chart. The hook owns the session, the accounts, the modes, the ceilings
+  // and the journal; the credentials never land here at all — they go from the form straight to the
+  // host's own adapter (see `BrokerAdapter`).
+  const broker = useBrokerState({ adapters: brokers ?? EMPTY_BROKER_ADAPTERS, pnlToday: brokerPnlToday });
   const [brokerModalOpen, setBrokerModalOpen] = useState(false);
-  const commitBrokerConnections = (next: BrokerConnection[]) => {
-    setBrokerConnections(next);
-    onBrokerConnectionsChange?.(next);
-  };
+  const [brokerHelpOpen, setBrokerHelpOpen] = useState(false);
   // Reuses CandlestickChart's own generic wrapper-measuring hook (see its own doc — margin/options
   // both optional, and nothing about it assumes a canvas/candles) purely for `dims.width`, to
   // decide the same "too narrow to fit" question ToolsRail/MOBILE_LAYOUT_BREAKPOINT already answer
@@ -881,22 +925,40 @@ export function ChartWorkspace({
       )}
 
       {brokers !== undefined && brokers.length > 0 && (
-        <BrokerConnectModal
-          open={brokerModalOpen}
-          onClose={() => setBrokerModalOpen(false)}
-          brokers={brokers}
-          connections={brokerConnections}
-          onConnect={onBrokerConnect}
-          onConnected={(connection) =>
-            commitBrokerConnections([...brokerConnections.filter((c) => c.brokerId !== connection.brokerId), connection])
-          }
-          onDisconnect={(brokerId) => commitBrokerConnections(brokerConnections.filter((c) => c.brokerId !== brokerId))}
-          onSelectAccount={(brokerId, accountId) =>
-            commitBrokerConnections(
-              brokerConnections.map((c) => (c.brokerId === brokerId ? { ...c, activeAccountId: accountId } : c)),
-            )
-          }
-        />
+        <>
+          {/* Two states behind one rail button, and which one shows follows from whether anything
+              is connected rather than from a second piece of state saying which screen this is.
+              Disconnected, the button is an invitation to connect; connected, it opens the
+              connection itself — its account, its mode, its ceilings, what it has sent. */}
+          {broker.session === null ? (
+            <BrokerConnectModal
+              open={brokerModalOpen}
+              onClose={() => setBrokerModalOpen(false)}
+              adapters={broker.adapters}
+              connecting={broker.connecting}
+              connectionError={broker.connectionError}
+              // Deliberately left open. A successful connection flips `broker.session`, which swaps
+              // this dialog for the connection's own panel — where the account still has to be
+              // chosen. Closing on success would put that choice one rail click away from a user
+              // who was in the middle of making it; a failure keeps the form and its error.
+              connect={(id, values, environment) => void broker.connect(id, values, environment)}
+              limits={broker.limits}
+              onLimitsChange={broker.setLimits}
+              onHelp={() => setBrokerHelpOpen(true)}
+            />
+          ) : (
+            <Modal open={brokerModalOpen} onClose={() => setBrokerModalOpen(false)} title="Courtier" footer={null}>
+              <BrokerPanel
+                broker={broker}
+                currency={broker.activeAccount?.currency ?? "EUR"}
+                onConnect={() => setBrokerModalOpen(true)}
+                onHelp={() => setBrokerHelpOpen(true)}
+                onConfirmPending={() => void broker.confirmPending()}
+              />
+            </Modal>
+          )}
+          <BrokerHelpModal open={brokerHelpOpen} onClose={() => setBrokerHelpOpen(false)} />
+        </>
       )}
 
       {/* Hidden entirely on the mobile layout — watchlist/alerts move into the topbar above
@@ -913,7 +975,7 @@ export function ChartWorkspace({
           assistant={ai ? { open: assistantOpen, setOpen: setAssistantOpen } : undefined}
           broker={
             brokers !== undefined && brokers.length > 0
-              ? { connected: brokerConnections.length, onOpen: () => setBrokerModalOpen(true) }
+              ? { connected: broker.session === null ? 0 : 1, onOpen: () => setBrokerModalOpen(true) }
               : undefined
           }
           panels={panels}
@@ -1014,7 +1076,15 @@ export function ChartWorkspace({
         </div>
       )}
 
-      <WorkspaceHelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />
+      <WorkspaceHelpModal
+        open={helpOpen}
+        onClose={() => setHelpOpen(false)}
+        onStartTour={() => {
+          setHelpOpen(false);
+          setTourOpen(true);
+        }}
+      />
+      <WorkspaceTour open={tourOpen} steps={WORKSPACE_TOUR_STEPS} onClose={() => setTourOpen(false)} />
 
       <LinkGroupsModal
         open={linkModalOpen}

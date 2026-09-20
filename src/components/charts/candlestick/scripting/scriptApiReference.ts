@@ -13,6 +13,7 @@ import { MARKET_SECTION } from "./apiReference/market";
 import { CHART_SECTION, STRATEGY_SECTION } from "./apiReference/chartStrategy";
 import { PLOT_SECTION } from "./apiReference/plot";
 import { COMPANY_SECTION, STATE_SECTION, BAR_SECTION, ALERT_SECTION } from "./apiReference/companyStateBarAlert";
+import { BOOK_SECTION, TAPE_SECTION } from "./apiReference/bookTape";
 import { REPORT_SECTION, AI_SECTION } from "./apiReference/reportAi";
 import { MATH_SECTION } from "./apiReference/math";
 import { TA_SECTION } from "./apiReference/ta";
@@ -310,6 +311,8 @@ if (AFFICHER_SIGNAUX) plot.signal("BUY");`
   STATE_SECTION,
   ALERT_SECTION,
   BAR_SECTION,
+  BOOK_SECTION,
+  TAPE_SECTION,
   MATH_SECTION,
   TA_SECTION,
   {

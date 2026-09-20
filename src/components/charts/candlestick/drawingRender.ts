@@ -146,7 +146,11 @@ export function drawSpeechBubble(
   fontFamily: string,
   size: number,
   bold: boolean,
-  italic: boolean
+  italic: boolean,
+  /** Corner radius. Defaults to the rounded bubble a hand-placed annotation gets; pass 0 where the
+   *  bubble is part of the chart's own furniture rather than something the reader drew, so it sits
+   *  in the same square-cornered family as every panel, badge and table around it. */
+  radius: number = BUBBLE_RADIUS
 ) {
   const weight = bold ? 600 : 400;
   const fontStyle = italic ? "italic" : "normal";
@@ -160,9 +164,12 @@ export function drawSpeechBubble(
 
   ctx.fillStyle = bg;
   ctx.beginPath();
-  ctx.roundRect(x, top, boxWidth, boxHeight, BUBBLE_RADIUS);
+  ctx.roundRect(x, top, boxWidth, boxHeight, radius);
   ctx.fill();
   ctx.beginPath();
+  // The tail's own offset stays fixed whatever the corner radius: it is "far enough in from the
+  // left edge to look attached", not "past the curve", and tying it to the radius would put a
+  // square bubble's tail in its own corner.
   ctx.moveTo(x + BUBBLE_RADIUS + 2, bottom);
   ctx.lineTo(x, y);
   ctx.lineTo(x + BUBBLE_RADIUS + 2 + BUBBLE_TAIL_WIDTH, bottom);

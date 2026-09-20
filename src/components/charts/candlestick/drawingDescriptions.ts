@@ -711,3 +711,23 @@ La distinction entre bougies et jours calendaires a son importance : **week-ends
 
 **La mesure n'est pas enregistrée parmi les dessins.** Elle reste affichée à l'écran, avec ses deux poignées déplaçables et son rectangle déplaçable d'un bloc, jusqu'à ce qu'**Échap** l'efface ou qu'une nouvelle mesure la remplace.`,
 };
+
+/** The first paragraph of a tool's own explanation, with the formatting markers taken out.
+ *
+ *  Derived rather than written again, and that is the point: the long text opens, by the
+ *  convention above, with a bold sentence naming the gesture and what the tool is for — which is
+ *  exactly the summary a hover is allowed to show. A second, hand-kept copy of the same sentence
+ *  would drift from the modal it summarises, and the drift would be invisible because nobody reads
+ *  both at once.
+ *
+ *  `null` for a tool with no explanation at all, which is how the caller knows to show nothing
+ *  rather than an empty box. */
+export function drawingToolSummary(tool: DrawingToolType): string | null {
+  const full = DRAWING_TOOL_DESCRIPTIONS[tool];
+  if (full === undefined) return null;
+  const firstParagraph = full.split("\n\n")[0]?.trim() ?? "";
+  if (firstParagraph === "") return null;
+  // `**bold**` and `*italic*` are markers for the renderer the modal uses; in a plain-text tooltip
+  // they are punctuation the reader has to look past.
+  return firstParagraph.replace(/\*\*/g, "").replace(/\*/g, "").replace(/\s+/g, " ");
+}

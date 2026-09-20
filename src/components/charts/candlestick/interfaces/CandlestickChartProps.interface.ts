@@ -1,10 +1,10 @@
+import type { DepthSnapshot, TapePrint } from "./MarketDepth.interface";
 import type { ReactNode } from "react";
 import type { ChartMargin } from "../../internal/useChartDimensions";
 import type { Candle } from "./Candle.interface";
 import type { TrendLineDrawing, OverlayDataPoint } from "./TrendLineDrawing.interface";
 import type { Indicator } from "./Indicator.interface";
 import type { CustomIndicatorDef } from "./CustomIndicatorDef.interface";
-import type { BrokerConnection, BrokerDef } from "./Broker.interface";
 import type { ChartTemplate } from "./ChartTemplate.interface";
 import type { TimeframeEntry } from "./TimeframeEntry.interface";
 import type { ChartDisplayMode } from "./ChartDisplayMode.interface";
@@ -149,21 +149,18 @@ export interface CandlestickChartProps {
    *  current layout has unsaved changes (including never having saved at all) offers to save
    *  first rather than silently discarding it. Default false. */
   showTemplates?: boolean;
-  /** Brokers this chart can offer to connect to. Passing a non-empty list is what puts the plug
-   *  button in the header's right-hand group; this library ships no list of its own, since one it
-   *  invented would be out of date the day after it was written. See `BrokerDef`. */
-  brokers?: BrokerDef[];
-  /** Brokers already connected when the chart mounts. Uncontrolled from then on — the chart owns
-   *  the list and reports every change through `onBrokerConnectionsChange`, the same convention
-   *  `drawings` and `indicators` already follow. */
-  defaultBrokerConnections?: BrokerConnection[];
-  onBrokerConnectionsChange?: (connections: BrokerConnection[]) => void;
-  /** Performs the connection. Resolving means connected, and whatever `BrokerConnection` it returns
-   *  is what the chart shows; throwing means it failed, and the error's own message is what the
-   *  form says. Omit it and the dialog *simulates* a connection instead, which is what makes the
-   *  whole flow demonstrable with no account anywhere. Credentials are handed here and kept
-   *  nowhere — see `BrokerConnection`. */
-  onBrokerConnect?: (broker: BrokerDef, credentials: Record<string, string>) => Promise<BrokerConnection | void> | BrokerConnection | void;
+  /** The resting order book over time, and the executions that printed against it.
+   *
+   *  **This library ships neither and cannot invent either.** A depth feed is a subscription a host
+   *  has or does not have, and deriving one from candles would produce a picture that looks exactly
+   *  like a real liquidity map while being a drawing of the volume bar it came from. Absent, every
+   *  script asking for them is told they are unavailable and simply draws nothing.
+   *
+   *  Both are bound to this chart's own bars before any script sees them (see `bindDepthToBars`),
+   *  so the heat map's time resolution is the chart's bar resolution — a feed publishing ten
+   *  snapshots inside one bar contributes ten observations to that bar's column, not ten columns. */
+  depth?: DepthSnapshot[];
+  tape?: TapePrint[];
   /** Uncontrolled initial list of saved templates. */
   defaultTemplates?: ChartTemplate[];
   /** Fires whenever a template is saved (new or overwritten) or deleted. */

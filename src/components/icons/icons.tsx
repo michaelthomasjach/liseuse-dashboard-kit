@@ -671,6 +671,16 @@ export const CandleModeIcon = (props: AnimatedIconProps) => (
   </IconBase>
 );
 
+/** Two OHLC bars: a vertical range with the open ticking left and the close ticking right. No
+ *  body at all, which is the whole distinction from CandleModeIcon above — the notation says the
+ *  same four numbers with a third of the ink. Centred on 12 like every sibling mode icon. */
+export const BarModeIcon = (props: AnimatedIconProps) => (
+  <IconBase motion="bob" {...props}>
+    <path d="M7 3v18M3.5 8H7M7 16h3.5" />
+    <path d="M17 5v14M13.5 15H17M17 8h3.5" />
+  </IconBase>
+);
+
 export const LineCloseModeIcon = (props: AnimatedIconProps) => (
   <IconBase motion="sway" {...props}>
     {/* Shifted 2 units down from its own original coordinates — its vertical content span (3.6 to

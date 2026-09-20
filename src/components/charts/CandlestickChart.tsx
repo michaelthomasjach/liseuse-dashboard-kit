@@ -57,7 +57,6 @@ import { ChartLegend } from "./candlestick/components/ChartLegend";
 import { PaneHeaders } from "./candlestick/components/PaneHeaders";
 import { ChartPlotOverlays } from "./candlestick/components/ChartPlotOverlays";
 import { ScriptTableOverlay } from "./candlestick/components/ScriptTableOverlay";
-import { BrokerConnectModal } from "./candlestick/components/BrokerConnectModal";
 import { ScriptLabelOverlay } from "./candlestick/components/ScriptLabelOverlay";
 import { FloatingDrawingToolbar } from "./candlestick/components/FloatingDrawingToolbar";
 import { ChartModals } from "./candlestick/components/ChartModals";
@@ -66,7 +65,6 @@ import { SeasonalityView } from "./SeasonalityView";
 import "./charts-shared.css";
 
 import type { CandlestickChartProps } from "./CandlestickChart.types";
-import type { BrokerConnection } from "./candlestick/interfaces/Broker.interface";
 
 export type {
   Candle,
@@ -99,6 +97,8 @@ import { CHART_DISPLAY_MODES } from "./candlestick/chartModes";
 import { findTimeframeLabel, flattenTimeframeValues } from "./candlestick/timeframes";
 import { DEFAULT_MARGIN, MOBILE_LAYOUT_BREAKPOINT, NARROW_EMBED_BREAKPOINT, PRICE_AXIS_WIDTH_MOBILE, SUB_PANE_COLLAPSED_HEIGHT, TOOLS_RAIL_HEIGHT_MOBILE, TOOLS_RAIL_WIDTH } from "./candlestick/constants";
 import { formatPercentFromReference, computeOhlcReadout, toDayInputValue, candleIndexForDay } from "./candlestick/formatting";
+import { supportsProjection, projectionSettingsOf } from "./candlestick/indicatorProjection";
+import { bindDepthToBars, packDepth } from "./candlestick/marketDepth";
 
 /** Stands in for the plot's own pointer-down/up handlers while replay is armed — see where it is
  *  passed below. A module-level constant rather than an inline arrow so the overlay isn't handed a
@@ -133,10 +133,6 @@ export function CandlestickChart({
   defaultIndicators,
   onIndicatorsChange, customIndicators,
   showTemplates = false,
-  brokers,
-  defaultBrokerConnections,
-  onBrokerConnectionsChange,
-  onBrokerConnect,
   defaultTemplates,
   onTemplatesChange,
   initialVisibleCandles = 500,
@@ -150,6 +146,8 @@ export function CandlestickChart({
   symbol,
   events,
   fundamentals,
+  depth,
+  tape,
   symbolSearch = false,
   symbolSearchResults,
   onSymbolSearchChange,
@@ -646,6 +644,36 @@ export function CandlestickChart({
   // the view at the same time moves the very reference the point is being aimed against.
   const placementActive = isNarrowLayout && activeTool !== null && !replayState.armed;
 
+  /** How much empty room the plot keeps on its right, in bars: the longest horizon among the
+   *  indicators currently projecting, and zero when none is.
+   *
+   *  Read off the indicator list rather than off the computed projections, which are produced by a
+   *  hook that runs *after* this one — and which would be circular anyway, since they are drawn
+   *  against the very scale this number sizes. The settings are enough: a projection's horizon is
+   *  one of them, not something the maths decides. */
+  /** The host's depth feed and tape, binned onto this chart's own bars, once.
+   *
+   *  Here rather than inside the script engine because it is chart data, not script data: the same
+   *  binding serves every script on the chart, and doing it per script would repeat a linear pass
+   *  over the whole feed for each one. Recomputed only when the data or the feed itself changes —
+   *  never on pan, zoom or a re-run. */
+  const barDepth = useMemo(
+    () => (depth === undefined && tape === undefined ? undefined : packDepth(bindDepthToBars(data, depth, tape))),
+    [data, depth, tape]
+  );
+
+  const projectionRoom = useMemo(
+    () =>
+      indicators.reduce(
+        (room, indicator) =>
+          indicator.projection === true && supportsProjection(indicator)
+            ? Math.max(room, projectionSettingsOf(indicator).bars)
+            : room,
+        0
+      ),
+    [indicators]
+  );
+
   const {
     yTransform,
     setYTransform,
@@ -676,6 +704,7 @@ export function CandlestickChart({
   } = useZoomAndScales({
     data,
     dims,
+    futureBars: projectionRoom,
     plotBoundedHeight,
     priceHeight,
     volumeHeight,
@@ -714,15 +743,6 @@ export function CandlestickChart({
     useChartDisplayMode({ data, visibleRange, renkoAtrPeriod, defaultChartDisplayMode });
   const tpoOverlays = useTpoOverlay(data, visibleRange, indicators);
 
-  // Uncontrolled, like `drawings` and `indicators`: seeded from the prop, owned here afterwards,
-  // and every change reported outward. The credentials never reach this state — see
-  // `BrokerConnection`'s own doc for why the connection object carries none.
-  const [brokerConnections, setBrokerConnections] = useState<BrokerConnection[]>(defaultBrokerConnections ?? []);
-  const [brokerModalOpen, setBrokerModalOpen] = useState(false);
-  const commitBrokerConnections = (next: BrokerConnection[]) => {
-    setBrokerConnections(next);
-    onBrokerConnectionsChange?.(next);
-  };
 
   // The ripple on the close line's own last point. `useClosePulse` fires on a *change* of the last
   // revealed close, which is what makes this a live/replay feature without having to be told about
@@ -755,6 +775,7 @@ export function CandlestickChart({
   const {
     indicatorValues,
     visibleIndicators,
+    indicatorProjections,
     zoomedOwnPaneScales,
     paneScaleAndOffset,
     pixelYForDrawing,
@@ -1017,6 +1038,8 @@ export function CandlestickChart({
     measurePoints,
     livePrice,
     visibleIndicators,
+    indicatorProjections,
+    scriptHeatmaps: scriptingState.scriptHeatmaps,
     indexForDate,
     futureZoneVisible,
     pastZoneVisible,
@@ -1460,19 +1483,6 @@ export function CandlestickChart({
             it. Fed the *visible* indicators only: a score built partly from something the reader
             has hidden would be unexplainable by looking at the chart, which is the one thing this
             panel promises. */}
-        {brokers !== undefined && brokers.length > 0 && (
-          <BrokerConnectModal
-            open={brokerModalOpen}
-            onClose={() => setBrokerModalOpen(false)}
-            brokers={brokers}
-            connections={brokerConnections}
-            onConnect={onBrokerConnect}
-            onConnected={(connection) =>
-              commitBrokerConnections([...brokerConnections.filter((c) => c.brokerId !== connection.brokerId), connection])
-            }
-            onDisconnect={(brokerId) => commitBrokerConnections(brokerConnections.filter((c) => c.brokerId !== brokerId))}
-          />
-        )}
         <ChartMarketState
           open={marketStateOpen}
           onClose={() => setMarketStateOpen(false)}
@@ -1719,7 +1729,7 @@ export function CandlestickChart({
       )}
 
       <ScriptRunnerHost
-        scripts={scriptingState.scripts} data={data} indicators={indicators} fundamentals={fundamentals}
+        scripts={scriptingState.scripts} data={data} indicators={indicators} fundamentals={fundamentals} barDepth={barDepth}
         symbol={symbol} quantData={quantData}
         ai={aiSend ? { send: aiSend, serverTools: ai?.serverTools ?? [] } : null}
         // Replay's own cutoff, so a script replays with the chart instead of always computing over
@@ -1759,6 +1769,7 @@ export function CandlestickChart({
         customIndicators={customIndicators} addCustomIndicator={addCustomIndicator}
         scripts={scriptingState.scripts} toggleScriptEnabled={scriptingState.toggleScriptEnabled}
         scriptPlacements={scriptPlacements}
+        runningScriptIds={scriptingState.runningScriptIds}
         onEditScript={onEditScript} onCreateScript={onCreateScript} onDeleteScript={onDeleteScript}
         onCreateStrategyFromIndicator={onCreateStrategyFromIndicator}
         favoriteIndicatorIds={favoriteIndicatorIds}

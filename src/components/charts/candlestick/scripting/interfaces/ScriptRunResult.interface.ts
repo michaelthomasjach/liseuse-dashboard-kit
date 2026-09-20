@@ -92,6 +92,53 @@ export interface ScriptDrawingOutput {
  *  own pane, same as every other `PaneSeriesHandle` method (`buildPlotApi.ts`'s own
  *  `subSeriesByName`-style upsert) — a script that wants an always-current label just calls
  *  `.label(...)` unconditionally every bar, no `bar.isNew()` gating needed. */
+/** A time-by-price heat field: one value per (bar, price bucket), drawn as coloured cells.
+ *
+ *  Its own output rather than another `ScriptPaneSubSeries.draw` mode, because it is not a series.
+ *  Every other draw mode is one value per bar joined into a shape; this is a *grid*, and forcing it
+ *  through a per-bar value would mean either one cell per bar or a sub-series per price level —
+ *  the first cannot express a book and the second would be forty series that pan and colour
+ *  independently. */
+export interface ScriptHeatmapOutput {
+  name: string;
+  /** Which pane it belongs to, so closing that pane takes it with it. */
+  paneName: string;
+  paneType: "overlay" | "own";
+  /** The cells themselves, in the order the script emitted them: one bar's worth at a time. */
+  cells: { date: number; price: number; value: number }[];
+  /** Height of one cell, in price units. The script says it because only the script knows what a
+   *  level *is* for this instrument — a tick, a cent, a dollar — and a grid inferred from the
+   *  data would change height whenever the feed skipped a level. */
+  bucket: number;
+  /** The value that paints the hottest colour. Omitted, the strongest cell in the run sets it —
+   *  which is right for a single symbol and wrong the moment two charts are meant to be compared,
+   *  hence the option. */
+  max?: number;
+  /** Colour ramp, coldest first. Omitted, the depth ramp below is used. */
+  colors?: string[];
+  /** 0-1. Below 1 whatever the chart draws stays readable through the field. */
+  opacity?: number;
+  /** A colour painted across the field's whole extent before the cells.
+   *
+   *  Without one the field is a translucent tint over the host's own background, which is right for
+   *  an accent on an ordinary chart and wrong for a liquidity map: the depth ramp is authored
+   *  against darkness, and on a light ground its blues come out as grey haze. With one, the field
+   *  *is* the background inside its own extent, which is what every dedicated liquidity map does
+   *  and what makes the ramp read the way it was designed to. */
+  ground?: string;
+  /** The field stands in for the price series: the chart does not draw its candles while it is
+   *  showing.
+   *
+   *  Only meaningful together with `ground` — a field that paints an opaque background has already
+   *  hidden the candles, and leaving them underneath would mean drawing dark ink on a dark ground.
+   *  What replaces them is `bubbles` below. */
+  replacesPrice?: boolean;
+  /** Executions drawn as discs over the field: the trade trail a liquidity map shows in place of
+   *  candles. Radius comes from `size` against the largest in the run; colour from which side
+   *  crossed the spread. */
+  bubbles?: { date: number; price: number; size: number; aggressor?: "buy" | "sell" }[];
+}
+
 export interface ScriptLabelOutput {
   paneName: string;
   paneType: "overlay" | "own";
@@ -196,6 +243,8 @@ export interface ScriptRunResult {
   xyCharts: ScriptXYChartOutput[];
   alerts: ScriptRunAlert[];
   labels: ScriptLabelOutput[];
+  /** Heat fields this run drew — see `ScriptHeatmapOutput`. */
+  heatmaps: ScriptHeatmapOutput[];
   /** The backtest, for a `@strategy` script only (see `scriptKind.ts`). `null` for an indicator —
    *  which is the whole point of the decorator: nothing downstream has to guess whether a strategy
    *  pane belongs on screen, the presence of this answers it. */

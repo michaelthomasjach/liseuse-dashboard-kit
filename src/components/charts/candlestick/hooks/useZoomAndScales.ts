@@ -61,6 +61,15 @@ export interface UseZoomAndScalesArgs {
    *  handlePointerMove so it's already correct by the time a *later* pointerdown needs it to
    *  decide whether to start a whole-body drag instead of this hook's own pan. */
   measureBodyHoveredRef: RefObject<boolean>;
+  /** Bars of empty room to keep on the right, past the last candle, as part of the plot itself
+   *  rather than as somewhere to pan to.
+   *
+   *  Normally 0, and the empty-space allowance below (see MAX_EMPTY_FRACTION) is the only way into
+   *  the future. It is non-zero for exactly one reason: an indicator is projecting, and a
+   *  projection drawn where nobody can see it without dragging is a feature nobody will find. The
+   *  slot count is fixed on purpose here — it is the projection's own horizon, not a general
+   *  margin, so it should not scale with the zoom. */
+  futureBars: number;
   yAutoScalingState: boolean;
   zoomable: boolean;
   initialVisibleCandles: number | undefined;
@@ -99,6 +108,7 @@ export function useZoomAndScales({
   placementActive,
   hoveredDrawingIdRef,
   measureBodyHoveredRef,
+  futureBars,
   yAutoScalingState,
   zoomable,
   initialVisibleCandles,
@@ -129,9 +139,14 @@ export function useZoomAndScales({
   // custom zoom `constrain` below) rather than baked into this domain — that keeps `xScale`
   // itself a simple, stable 1:1 mapping of the real data, and the empty-space allowance adaptive
   // to zoom level instead of a fixed slot count.
+  // `futureBars` widens the domain rather than being handled by the pan allowance, which is the
+  // one exception to the paragraph above: every index — candles, drawings, indicators — maps
+  // through this same scale, so widening it moves all of them together and nothing can disagree
+  // about where a bar is. What it costs is a slightly narrower candle; what it buys is that the
+  // projection is *there*, without a drag nobody would know to perform.
   const xScale = useMemo(
-    () => d3.scaleLinear().domain([0, Math.max(1, data.length)]).range([0, dims.boundedWidth]),
-    [data.length, dims.boundedWidth]
+    () => d3.scaleLinear().domain([0, Math.max(1, data.length + Math.max(0, futureBars))]).range([0, dims.boundedWidth]),
+    [data.length, futureBars, dims.boundedWidth]
   );
 
   const zoomedXScale = transform.rescaleX(xScale);

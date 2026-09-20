@@ -4,6 +4,7 @@ import { Select } from "../../../forms/Select";
 import type { Indicator } from "../interfaces/Indicator.interface";
 import { indicatorCatalogEntry, isFundamentalKind, defaultIndicatorColor } from "../indicatorCatalog";
 import { toDateInputValue, fromDateInputValue } from "../formatting";
+import { supportsProjection, DEFAULT_PROJECTION, type IndicatorProjectionMethod } from "../indicatorProjection";
 
 export interface IndicatorSettingsFieldsProps {
   indicatorDraft: Indicator;
@@ -344,9 +345,91 @@ export function IndicatorSettingsInputs({ indicatorDraft, setIndicatorDraft }: I
           ]}
         />
       )}
+
+      {/* Projection. Last in the tab on purpose: it is the one setting here that does not describe
+          the indicator, it describes a guess about where the indicator is going, and it should read
+          as an addition to the thing above rather than as one more of its parameters.
+
+          Only for the kinds whose values are a level that continues — see `supportsProjection`.
+          A pattern detector has no projection to offer, and a toggle there would be a promise the
+          maths cannot keep. */}
+      {supportsProjection(indicatorDraft) && (
+        <div className="lq-chart__indicator-projection">
+          <Checkbox
+            checked={indicatorDraft.projection === true}
+            onChange={(checked) => setIndicatorDraft({ ...indicatorDraft, projection: checked })}
+            label="Projection"
+          />
+          <p className="lq-chart__indicator-projection-note">
+            Prolonge les lignes de l&apos;indicateur au-delà de la dernière bougie, en pointillés. C&apos;est une
+            extrapolation de ses propres valeurs passées — pas une prévision de marché.
+          </p>
+          {indicatorDraft.projection === true && (
+            <>
+              <Select
+                label="Méthode"
+                value={indicatorDraft.projectionMethod ?? DEFAULT_PROJECTION.method}
+                onChange={(v) => setIndicatorDraft({ ...indicatorDraft, projectionMethod: v })}
+                options={[
+                  { value: "linear", label: "Régression linéaire" },
+                  { value: "drift", label: "Dérive (pas moyen)" },
+                  { value: "holt", label: "Lissage de Holt (tendance)" },
+                  { value: "flat", label: "Dernière valeur tenue" },
+                ]}
+              />
+              <p className="lq-chart__indicator-projection-note">{METHOD_NOTES[indicatorDraft.projectionMethod ?? DEFAULT_PROJECTION.method]}</p>
+              <div className="lq-chart__edit-drawing-row">
+                <NumberField
+                  label="Bougies projetées"
+                  min={1}
+                  max={200}
+                  step={1}
+                  value={indicatorDraft.projectionBars ?? DEFAULT_PROJECTION.bars}
+                  onChange={(v) => setIndicatorDraft({ ...indicatorDraft, projectionBars: v === "" ? undefined : v })}
+                />
+                <NumberField
+                  label="Historique utilisé"
+                  min={2}
+                  max={500}
+                  step={1}
+                  value={indicatorDraft.projectionLookback ?? DEFAULT_PROJECTION.lookback}
+                  onChange={(v) => setIndicatorDraft({ ...indicatorDraft, projectionLookback: v === "" ? undefined : v })}
+                />
+              </div>
+              {indicatorDraft.projectionMethod !== "flat" && (
+                <>
+                  <NumberField
+                    label="Amortissement de la tendance"
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    value={indicatorDraft.projectionDamping ?? DEFAULT_PROJECTION.damping}
+                    onChange={(v) => setIndicatorDraft({ ...indicatorDraft, projectionDamping: v === "" ? undefined : v })}
+                  />
+                  <p className="lq-chart__indicator-projection-note">
+                    1 garde toute la pente indéfiniment — c&apos;est ce qui envoie une extrapolation naïve hors du
+                    graphique au bout de vingt bougies. 0 l&apos;abandonne tout de suite. Entre les deux, la projection
+                    s&apos;aplatit progressivement.
+                  </p>
+                </>
+              )}
+            </>
+          )}
+        </div>
+      )}
     </>
   );
 }
+
+/** What each method actually reads, and where each one is wrong. Shown under the picker rather than
+ *  behind a tooltip: choosing between four extrapolations is not a choice anyone can make from four
+ *  names. */
+const METHOD_NOTES: Record<IndicatorProjectionMethod, string> = {
+  linear: "Droite des moindres carrés sur l'historique retenu, prolongée. Suit bien une pente régulière, dépasse une courbe qui s'aplatit déjà.",
+  drift: "Dernière valeur, plus le pas moyen de l'historique. Plus calme que la régression : ancrée sur le dernier point plutôt que sur une droite ajustée.",
+  holt: "Un niveau et une tendance remis à jour bougie après bougie, donc le passé récent pèse plus que le début de la fenêtre. À prendre quand la série a changé de régime.",
+  flat: "Tient la dernière valeur. Sur une série bornée qui revient vers sa moyenne (RSI, CHOP, ADX), « ça reste à peu près là » bat souvent une droite — et c'est la référence que les trois autres doivent battre.",
+};
 
 /** The settings modal's "Style" tab (see IndicatorModals.tsx) — colors and display toggles, same
  *  extraction reasoning as `IndicatorSettingsInputs` above. */

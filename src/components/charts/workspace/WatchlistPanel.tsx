@@ -134,52 +134,94 @@ export function WatchlistPanel({
   // drag clears it instead of fighting it.
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
-  /** Which way each row's price last moved, and the price it moved from.
+  /** Which way each *figure* last moved, and the figure it moved from — one entry per row per
+   *  column, keyed `rowId/columnId`.
    *
-   *  A ref for the prices — they are compared, never rendered — and state for the directions,
-   *  which are. Keyed by row id rather than by index: a list that gets reordered or filtered would
+   *  Per cell rather than per row, because the columns do not move together: a price can rise on a
+   *  day whose variation is still negative, and a row-wide tint driven by the price alone would
+   *  paint that "Variation −1.50 %" green. Each figure answers for itself.
+   *
+   *  What a figure is *compared* by is the column's own `sortValue` when it returns a number —
+   *  the comparable value it already declares for sorting, which is the same question asked of the
+   *  same number. A column that declares none falls back to `row.price`, which is the row-wide
+   *  behaviour this replaced, kept for callers who supply only that.
+   *
+   *  A ref for the numbers — they are compared, never rendered — and state for the directions,
+   *  which are. Keyed by id rather than by index: a list that gets reordered or filtered would
    *  otherwise compare a symbol against whatever used to sit in its place, and flash every row on
    *  a sort.
    *
-   *  "same" is a real value here, not a missing one: an update that leaves the price where it was
-   *  still bounces, it just bounces in the colour it already had. That is the difference between
-   *  "nothing arrived" and "something arrived and nothing changed", and only the first should be
-   *  silent. */
-  const previousPricesRef = useRef<Record<string, number>>({});
-  const [priceMoves, setPriceMoves] = useState<Record<string, "up" | "down" | "same">>({});
-  /** Bumped on every tick, so an identical move in a row can restart its own animation — a CSS
-   *  animation only replays when the class actually changes, and "up" twice running is not a
-   *  change. */
-  const [tick, setTick] = useState(0);
+   *  Only a figure that actually *changed* is recorded. There used to be a third value, "same",
+   *  for an update that arrived and left the number where it was — a real distinction in a feed,
+   *  and one this component cannot make: what it sees is a new `rows` array, and a caller whose
+   *  symbols tick independently hands it one every time *any* symbol moves. Reading that as "an
+   *  update arrived for every row" bounced all thirty rows each time one of them moved. */
+  const previousValuesRef = useRef<Record<string, number>>({});
+  /** Per figure: which way it went, and how many times it has gone anywhere.
+   *
+   *  The counter is per figure and not global, and that is the whole point. It becomes the `key` of
+   *  the element the animation runs on, so a figure that moved gets a new element and replays,
+   *  while every figure that did not keeps the one it had and stays perfectly still. A single
+   *  shared counter — which is what this was — re-keyed all ninety cells on every update, so one
+   *  symbol ticking re-created the entire table and the whole thing animated in lockstep. */
+  const [valueMoves, setValueMoves] = useState<Record<string, { dir: "up" | "down"; seq: number }>>({});
+  /** Pending "stop tinting" timers, one per batch of moves. Held so unmounting can drop them and
+   *  nothing else can — see the effect below for why cancelling them on every re-run was wrong. */
+  const fadeTimersRef = useRef<number[]>([]);
   const allRows = useMemo(
     () => [...activeWatchlist.rows, ...(activeWatchlist.sections?.flatMap((section) => section.rows) ?? [])],
     [activeWatchlist],
   );
+  const columns = useMemo(() => activeWatchlist?.columns ?? [], [activeWatchlist]);
   useEffect(() => {
-    const moved: Record<string, "up" | "down" | "same"> = {};
+    const moved: Record<string, "up" | "down"> = {};
+
     for (const row of allRows) {
-      if (typeof row.price !== "number") continue;
-      const before = previousPricesRef.current[row.id];
-      previousPricesRef.current[row.id] = row.price;
-      // A first sighting stays silent: a row appearing with a price has not moved, it has arrived.
-      // An update that lands on the same price does not — it bounces, in its own colour.
-      if (before === undefined) continue;
-      moved[row.id] = before === row.price ? "same" : row.price > before ? "up" : "down";
+      for (const column of columns) {
+        // The column's own comparable value, or the row's price for a column that declares none.
+        // A `sortValue` returning a string is a label, not a quantity — nothing to compare.
+        const sorted = column.sortValue?.(row);
+        const now = typeof sorted === "number" ? sorted : typeof row.price === "number" ? row.price : undefined;
+        if (now === undefined || !Number.isFinite(now)) continue;
+        const key = `${row.id}/${column.id}`;
+        const before = previousValuesRef.current[key];
+        previousValuesRef.current[key] = now;
+        // A first sighting stays silent: a figure appearing has not moved, it has arrived. So does
+        // one that came back identical — see the note on `valueMoves` for why that cannot be told
+        // apart from "this row was re-rendered because a different symbol moved".
+        if (before === undefined || before === now) continue;
+        moved[key] = now > before ? "up" : "down";
+      }
     }
     if (Object.keys(moved).length === 0) return;
-    setPriceMoves((current) => ({ ...current, ...moved }));
-    setTick((n) => n + 1);
-    // Cleared after the tint has had time to be seen. Without this a row stays green from a rise
-    // that happened minutes ago, which says something false about the present.
+    setValueMoves((current) => {
+      const next = { ...current };
+      for (const [key, dir] of Object.entries(moved)) next[key] = { dir, seq: (current[key]?.seq ?? 0) + 1 };
+      return next;
+    });
+    // Cleared after the tint has had time to be seen. Without this a figure stays green from a
+    // rise that happened minutes ago, which says something false about the present.
+    // Each batch gets its own expiry, and this effect deliberately does **not** cancel it on
+    // cleanup. It used to, and that was the bug: the effect re-runs whenever `rows` changes, which
+    // with symbols ticking independently is several times a second, so every run cancelled the
+    // previous batch's expiry before it could fire. Nothing was ever cleared — measured on the live
+    // table, 30 of 30 rows sat permanently tinted. The timers are tracked instead and dropped only
+    // when the panel goes away.
     const id = window.setTimeout(() => {
-      setPriceMoves((current) => {
+      setValueMoves((current) => {
         const next = { ...current };
-        for (const rowId of Object.keys(moved)) if (next[rowId] === moved[rowId]) delete next[rowId];
+        // Only the entries this batch wrote, and only if nothing has overwritten them since — a
+        // figure that moved again inside the window keeps its newer tint rather than losing it to
+        // this timeout.
+        for (const [key, dir] of Object.entries(moved)) if (next[key]?.dir === dir) delete next[key];
         return next;
       });
+      fadeTimersRef.current = fadeTimersRef.current.filter((timer) => timer !== id);
     }, 1400);
-    return () => window.clearTimeout(id);
-  }, [allRows]);
+    fadeTimersRef.current.push(id);
+  }, [allRows, columns]);
+
+  useEffect(() => () => fadeTimersRef.current.forEach((timer) => window.clearTimeout(timer)), []);
 
   /** The row dropped a moment ago — see the arrival animation in ChartWorkspace.css. */
   const [justDroppedId, setJustDroppedId] = useState<string | null>(null);
@@ -348,7 +390,6 @@ export function WatchlistPanel({
   }
 
   function renderRow(row: ChartWorkspaceWatchlistRow, sectionId: string | null, index: number) {
-    const move = priceMoves[row.id];
     return (
       <div
         key={row.id}
@@ -401,23 +442,34 @@ export function WatchlistPanel({
               />
             )}
           </span>
-          {/* The figures themselves react, not the row behind them. A whole-row tint said "this
-              row did something"; what the reader wants to know is which numbers moved, and which
-              way. `key` carries the tick so an identical move replays instead of sitting still —
-              a CSS animation restarts on a new element, not on the same class being set twice. */}
-          {visibleColumns.map((c) => (
-            <span
-              key={c.id}
-              className={["lq-chart-workspace__watchlist-cell", move && `lq-chart-workspace__watchlist-cell--${move}`]
-                .filter(Boolean)
-                .join(" ")}
-              style={columnFlexStyle(c.id)}
-            >
-              <span key={`${move ?? "idle"}-${tick}`} className="lq-chart-workspace__watchlist-value">
-                {row.values[c.id]}
+          {/* Each figure reacts on its own, not the row behind it and not in step with its
+              neighbours. A whole-row tint said "this row did something"; what the reader wants to
+              know is which number moved and which way, and the columns do not move together.
+              `key` carries the tick so an identical move replays instead of sitting still — a CSS
+              animation restarts on a new element, not on the same class being set twice. */}
+          {visibleColumns.map((c) => {
+            const move = valueMoves[`${row.id}/${c.id}`];
+            const dir = move?.dir;
+            return (
+              <span key={c.id} className="lq-chart-workspace__watchlist-cell" style={columnFlexStyle(c.id)}>
+                {/* The tint rides on this span rather than on the cell around it, and the `key` is
+                    what makes it run at all: a CSS animation starts when an element *gains* one,
+                    and swapping a class on an element that is already there does not reliably do
+                    that — measured on the live table, cells carried their up/down class for 1.4s at
+                    a time while `document.getAnimations()` held zero tint animations. A new key is
+                    a new element, and a new element always animates. The key counts *this* figure's
+                    own moves, so only the figure that moved is replaced. */}
+                <span
+                  key={`${dir ?? "idle"}-${move?.seq ?? 0}`}
+                  className={["lq-chart-workspace__watchlist-value", dir && `lq-chart-workspace__watchlist-value--${dir}`]
+                    .filter(Boolean)
+                    .join(" ")}
+                >
+                  {row.values[c.id]}
+                </span>
               </span>
-            </span>
-          ))}
+            );
+          })}
         </button>
         {onRemoveRow && (
           <button

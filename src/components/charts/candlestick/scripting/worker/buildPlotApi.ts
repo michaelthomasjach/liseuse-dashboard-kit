@@ -1,12 +1,4 @@
-import type {
-  ScriptDrawingOutput,
-  ScriptLabelOutput,
-  ScriptPaneSeries,
-  ScriptPaneSubSeries,
-  ScriptTableOutput,
-  ScriptTableRow,
-  ScriptXYChartOutput,
-} from "../interfaces/ScriptRunResult.interface";
+import type { ScriptDrawingOutput, ScriptHeatmapOutput, ScriptLabelOutput, ScriptPaneSeries, ScriptPaneSubSeries, ScriptTableOutput, ScriptTableRow, ScriptXYChartOutput } from "../interfaces/ScriptRunResult.interface";
 
 /** Hard caps on `plot.table()`/`plot.xy()`'s own output — the `plot.*` calls whose size a script
  *  directly controls (an accidental `rows`/`x`/`y` from an unbounded loop or a huge literal array)
@@ -134,6 +126,27 @@ export interface PaneSeriesHandle {
    *  value at all. See `PlotLabelOptions`'s own doc. "Latest call for this `name` wins," same
    *  upsert-by-name rule as every other method here. */
   label(name: string, text: string, options: PlotLabelOptions): void;
+  /** A time-by-price *heat field*: one call per bar, each carrying that bar's own column of
+   *  (price, value) cells. Drawn as coloured rectangles under the candles — the liquidity-map
+   *  shape, where a bright row that persists across many bars is a resting wall and a bright cell
+   *  that appears and vanishes is a level that was pulled.
+   *
+   *  Unlike every other method here, a cell is not a value *at* a bar but a value at a (bar, price)
+   *  pair, so this takes a whole column at once rather than a single number. Call it every bar; the
+   *  columns accumulate in the order they arrive.
+   *
+   *  `bucket` — the height of one cell in price units — is required and deliberately not inferred:
+   *  only the script knows what a level is for this instrument, and a grid derived from the data
+   *  would change height on any bar where the feed skipped a price. */
+  heatmap(name: string, cells: { price: number; value: number }[], options: PlotHeatmapOptions): void;
+  /** The executions of this bar, as discs over a heat field of the same name — the trade trail a
+   *  liquidity map draws in place of candles. Radius from `size` against the largest disc of the
+   *  run, colour from which side crossed the spread.
+   *
+   *  Attached to the field by name rather than being an output of its own, because they are one
+   *  picture: the map is where size waits and the trail is where it went, and drawing one without
+   *  the other answers half a question. */
+  bubbles(name: string, items: { price: number; size: number; aggressor?: "buy" | "sell" }[]): void;
   /** A horizontal *profile* — the market-profile / volume-profile shape: `values[i]` is how much
    *  mass sits at price `prices[i]`. Pass whole arrays at once, like `plot.xy`, not one point per
    *  bar: a profile is computed once over a price range and has no bar to attach each point to.
@@ -152,6 +165,26 @@ export interface PaneSeriesHandle {
    *  profile is a profile pane: any other series drawn on it is ignored. `values`/`prices` must be
    *  the same length; both are truncated past MAX_PROFILE_POINTS rather than rejected. */
   profile(name: string, values: number[], prices: number[], options?: PlotProfileOptions): void;
+}
+
+export interface PlotHeatmapOptions {
+  /** Height of one cell, in price units. Required — see `heatmap`. */
+  bucket: number;
+  /** The value painted with the hottest colour. Omitted, the strongest cell of the run sets it,
+   *  which is right for reading one symbol and wrong for comparing two. */
+  max?: number;
+  /** Colour ramp, coldest first. Omitted, the depth ramp is used: near-black through blue and
+   *  cyan to yellow and red, the convention every liquidity map has settled on. */
+  colors?: string[];
+  /** 0-1, default 0.9. Below 1 whatever the chart draws stays readable through the field. */
+  opacity?: number;
+  /** A colour painted across the field's whole extent before the cells — the ground the depth ramp
+   *  was designed against. Without it the field is a translucent tint over the host's background,
+   *  which on a light theme turns the ramp's blues into grey haze. */
+  ground?: string;
+  /** Hides the chart's own candles while this field is showing. Only sensible with `ground`: an
+   *  opaque field has already covered them, and what replaces them is `bubbles`. */
+  replacesPrice?: boolean;
 }
 
 export interface PlotPaneOptions {
@@ -215,6 +248,19 @@ function slugify(name: string): string {
  *  that one pane's own `subSeriesByName` (or `labelsByName` for `.label`, upserted the same way);
  *  a discrete marker (`signal`/`point`/`horizontal`/`vertical`) just appends to `drawings`, one
  *  entry per call. */
+/** Hard ceiling on the cells one heat field may hold, across the whole run.
+ *
+ *  A book of forty levels over two thousand bars is eighty thousand cells, which rasterises in a
+ *  few milliseconds; a script looping over a thousand prices per bar would reach tens of millions
+ *  and take the Worker down with it. The cap stops filling rather than throwing — a truncated map
+ *  still shows the recent liquidity, which is the part anyone is looking at. */
+const MAX_HEATMAP_CELLS = 400_000;
+
+/** And on the trail. A disc is drawn individually — there is no raster to hide behind — so this cap
+ *  is about frame time rather than memory: forty thousand arcs is already more than any screen can
+ *  distinguish, and a tape replayed print by print would reach millions. */
+const MAX_BUBBLES = 40_000;
+
 export function buildPlotApi(
   getCurrentDate: () => number,
   getCurrentClose: () => number | null
@@ -226,6 +272,7 @@ export function buildPlotApi(
     table: ScriptTableOutput | null;
     xyCharts: ScriptXYChartOutput[];
     labels: ScriptLabelOutput[];
+    heatmaps: ScriptHeatmapOutput[];
   };
 } {
   interface PaneEntry {
@@ -237,6 +284,9 @@ export function buildPlotApi(
   }
   const panesByName = new Map<string, PaneEntry>();
   const drawings: ScriptDrawingOutput[] = [];
+  /** Keyed by pane name *and* series name, since two panes may each hold one called "Liquidité"
+   *  and they are not the same field. */
+  const heatmapsByKey = new Map<string, ScriptHeatmapOutput>();
   let table: ScriptTableOutput | null = null;
   const xyChartsByName = new Map<string, ScriptXYChartOutput>();
 
@@ -268,6 +318,52 @@ export function buildPlotApi(
       histogram: (name, value, options) => upsert(name, "histogram", { date: getCurrentDate(), value }, options),
       dots: (name, value, options) => upsert(name, "dots", { date: getCurrentDate(), value }, options),
       band: (name, upper, lower, options) => upsert(name, "band", { date: getCurrentDate(), upper, lower }, options),
+      heatmap: (name, cells, options) => {
+        if (!Array.isArray(cells) || options == null || !Number.isFinite(options.bucket) || options.bucket <= 0) return;
+        const key = `${paneEntry.name}\u0000${name}`;
+        let field = heatmapsByKey.get(key);
+        if (field === undefined) {
+          field = {
+            name,
+            paneName: paneEntry.name,
+            paneType: paneEntry.pane,
+            cells: [],
+            bucket: options.bucket,
+            max: Number.isFinite(options.max as number) ? options.max : undefined,
+            colors: Array.isArray(options.colors) && options.colors.length >= 2 ? options.colors.slice(0, 16) : undefined,
+            opacity: Number.isFinite(options.opacity as number) ? Math.min(1, Math.max(0, options.opacity as number)) : undefined,
+            ground: typeof options.ground === "string" ? options.ground : undefined,
+            replacesPrice: options.replacesPrice === true,
+          };
+          heatmapsByKey.set(key, field);
+        }
+        const date = getCurrentDate();
+        for (const cell of cells) {
+          // A cell with no size is not a cell: it is the absence of one, and keeping it would cost
+          // a quarter of the array on a book whose outer levels are usually empty.
+          if (cell == null || !Number.isFinite(cell.price) || !Number.isFinite(cell.value) || cell.value <= 0) continue;
+          if (field.cells.length >= MAX_HEATMAP_CELLS) break;
+          field.cells.push({ date, price: cell.price, value: cell.value });
+        }
+      },
+      bubbles: (name, items) => {
+        if (!Array.isArray(items)) return;
+        const key = `${paneEntry.name}\u0000${name}`;
+        // Upserted the same way a heat field is, so the two can be called in either order and a
+        // script that draws only a trail still gets one.
+        let field = heatmapsByKey.get(key);
+        if (field === undefined) {
+          field = { name, paneName: paneEntry.name, paneType: paneEntry.pane, cells: [], bucket: 0 };
+          heatmapsByKey.set(key, field);
+        }
+        if (field.bubbles === undefined) field.bubbles = [];
+        const date = getCurrentDate();
+        for (const item of items) {
+          if (item == null || !Number.isFinite(item.price) || !Number.isFinite(item.size) || item.size <= 0) continue;
+          if (field.bubbles.length >= MAX_BUBBLES) break;
+          field.bubbles.push({ date, price: item.price, size: item.size, aggressor: item.aggressor });
+        }
+      },
       profile: (name, values, prices, options) => {
         const count = Math.min(values.length, prices.length, MAX_PROFILE_POINTS);
         const profile: { price: number; value: number }[] = [];
@@ -376,6 +472,7 @@ export function buildPlotApi(
       table,
       xyCharts: [...xyChartsByName.values()],
       labels: [...panesByName.values()].flatMap((entry) => [...entry.labelsByName.values()]),
+      heatmaps: [...heatmapsByKey.values()],
     }),
   };
 }

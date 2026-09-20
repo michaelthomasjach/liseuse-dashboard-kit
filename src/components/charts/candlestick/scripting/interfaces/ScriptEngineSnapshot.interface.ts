@@ -1,5 +1,6 @@
 import type { IndicatorValue } from "../../interfaces/IndicatorValue.interface";
 import type { StrategySettings } from "../../interfaces/StrategySettings.interface";
+import type { PackedDepth } from "../../interfaces/MarketDepth.interface";
 
 /** One candle, flattened to a plain JSON-safe shape for `structuredClone`-based `postMessage` —
  *  `Candle`'s own `date: Date` survives structured clone fine on its own, but keeping the
@@ -94,6 +95,11 @@ export interface ScriptEngineSnapshot {
    *  timeframe's own data is the deferred multi-timeframe requirement (#20), explicitly out of v1
    *  scope per the approved plan; this just answers "what timeframes exist" the same way
    *  `chart.listIndicators()` answers "what indicators exist" without granting access to either. */
+  /** The order book and the tape, already binned onto `ohlcv`'s own bars (see `bindDepthToBars`).
+   *  Flattened into typed arrays rather than objects — see `PackedDepth` for why. One slice per
+   *  candle, same indices. Absent when the host supplied no depth feed, which is the
+   *  normal case — this library ships none and cannot invent one. */
+  barDepth?: PackedDepth;
   availableTimeframes: string[];
   /** What the chart is showing, as the host named it — read by `market.symbol()`. On a `@quant`
    *  run this is the symbol *currently being run*, not the chart's, so a script covering a list

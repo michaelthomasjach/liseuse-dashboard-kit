@@ -194,6 +194,21 @@ export const SCRIPT_API_COMPLETIONS: ScriptApiCompletion[] = [
   { label: "bar.isNew", type: "function", detail: "() => boolean", apply: "bar.isNew()" },
   { label: "bar.isClosed", type: "function", detail: "() => boolean", apply: "bar.isClosed()" },
   { label: "bar.isRealtime", type: "function", detail: "() => boolean", apply: "bar.isRealtime()" },
+
+  // Le carnet d'ordres et le tape. Absents de la plupart des graphiques — `available()` le dit, et
+  // tout le reste répond vide plutôt que d'inventer.
+  { label: "book.available", type: "function", detail: "() => boolean", apply: "book.available()" },
+  { label: "book.bids", type: "function", detail: "() => { price, size }[]", apply: "book.bids()" },
+  { label: "book.asks", type: "function", detail: "() => { price, size }[]", apply: "book.asks()" },
+  { label: "book.levels", type: "function", detail: "() => { price, size }[]", apply: "book.levels()" },
+  { label: "book.best", type: "function", detail: "() => { bid, ask, spread }", apply: "book.best()" },
+  { label: "book.sizeAt", type: "function", detail: "(price, tolerance?) => number — taille AFFICHÉE max sur la bougie", apply: "book.sizeAt(${price})" },
+  { label: "book.pressure", type: "function", detail: "(depth) => { bid, ask }", apply: "book.pressure(${depth})" },
+  { label: "tape.available", type: "function", detail: "() => boolean", apply: "tape.available()" },
+  { label: "tape.prints", type: "function", detail: "() => { time, price, size, aggressor }[]", apply: "tape.prints()" },
+  { label: "tape.volumeAt", type: "function", detail: "(price, tolerance?) => number — volume EXÉCUTÉ au prix", apply: "tape.volumeAt(${price})" },
+  { label: "tape.delta", type: "function", detail: "() => number — acheteur moins vendeur", apply: "tape.delta()" },
+  { label: "tape.volume", type: "function", detail: "() => number", apply: "tape.volume()" },
   { label: "math.sma", type: "function", detail: "(values, period) => number | null", apply: "math.sma(, )" },
   { label: "math.ema", type: "function", detail: "(values, period) => number | null", apply: "math.ema(, )" },
   { label: "math.std", type: "function", detail: "(values) => number | null", apply: "math.std()" },

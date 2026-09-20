@@ -1,5 +1,5 @@
 import { ATR } from "technicalindicators";
-import { CandleModeIcon, LineCloseModeIcon, HeikinAshiModeIcon, RenkoModeIcon, LineBreakModeIcon } from "../../icons";
+import { CandleModeIcon, BarModeIcon, LineCloseModeIcon, HeikinAshiModeIcon, RenkoModeIcon, LineBreakModeIcon } from "../../icons";
 import type { Candle } from "./interfaces/Candle.interface";
 import type { ChartDisplayMode } from "./interfaces/ChartDisplayMode.interface";
 
@@ -338,6 +338,10 @@ export interface ChartDisplayModeDef {
 
 export const CHART_DISPLAY_MODES: ChartDisplayModeDef[] = [
   { mode: "candle", label: "Bougies", icon: CandleModeIcon },
+  // Right after candles, because it is the same four numbers drawn differently — and before the
+  // modes that change what a bar *is* (Heikin Ashi averages them, Renko and Line Break drop time
+  // altogether).
+  { mode: "bar", label: "Barres", icon: BarModeIcon },
   { mode: "line", label: "Ligne de clôture", icon: LineCloseModeIcon },
   { mode: "heikinAshi", label: "Heikin Ashi", icon: HeikinAshiModeIcon },
   { mode: "renko", label: "Renko", icon: RenkoModeIcon },

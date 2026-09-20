@@ -3425,3 +3425,100 @@
   line-height: 1.4;
   color: var(--lq-color-text-muted);
 }
+
+/* The projection block in an indicator's own settings. Set apart from the parameters above it by a
+   rule rather than by spacing alone: everything above describes the indicator, and this describes a
+   guess about where it is going — a reader should be able to see the seam. */
+.lq-chart__indicator-projection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lq-space-2);
+  margin-top: var(--lq-space-2);
+  padding-top: var(--lq-space-3);
+  border-top: 1px solid var(--lq-color-border-subtle);
+}
+
+.lq-chart__indicator-projection-note {
+  margin: 0;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: var(--lq-color-text-muted);
+}
+
+/* The resting-pointer hint beside a drawing tool. Fixed, because the rail lives inside the chart's
+   own clipped plot area and an absolutely-positioned box would be cut off at the edge it has to sit
+   beside. */
+.lq-chart__tool-hint {
+  position: fixed;
+  z-index: 1900;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  max-width: 280px;
+  padding: var(--lq-space-2) var(--lq-space-3);
+  background-color: var(--lq-color-panel);
+  border: 1px solid var(--lq-color-border);
+  border-radius: var(--lq-radius-md);
+  box-shadow: var(--lq-shadow-modal);
+  pointer-events: none;
+}
+
+.lq-root[data-lq-palette="eink"] .lq-chart__tool-hint {
+  border-radius: 0;
+}
+
+/* Vertical rail: beside the button, centred on it. Horizontal rail: above it, centred. Both are
+   translated rather than offset in JS so the anchor stays the button's own edge. */
+.lq-chart__tool-hint--right {
+  transform: translateY(-50%);
+}
+
+.lq-chart__tool-hint--top {
+  transform: translate(-50%, -100%);
+}
+
+.lq-chart__tool-hint-title {
+  font-size: var(--lq-text-xs);
+  font-weight: 700;
+  color: var(--lq-color-text);
+}
+
+.lq-chart__tool-hint-text {
+  font-size: var(--lq-text-xs);
+  line-height: 1.45;
+  color: var(--lq-color-text-muted);
+}
+
+/* The spinner on a script row that is mid-run. Ahead of the name rather than beside the trailing
+   marks: it is the row's own state, not one more badge about what the row contains, and a reader
+   scanning down the left edge sees which one is busy without reading across. */
+.lq-chart__indicator-picker-spinner {
+  flex: none;
+  width: 11px;
+  height: 11px;
+  margin-right: 6px;
+  border: 2px solid var(--lq-color-border);
+  border-top-color: var(--lq-color-accent);
+  border-radius: 50%;
+  animation: lq-picker-spin 700ms linear infinite;
+}
+
+@keyframes lq-picker-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Reduced motion gets a static ring rather than nothing: the row still has to say it is busy, and
+   the message is the mark, not the turning. */
+@media (prefers-reduced-motion: reduce) {
+  .lq-chart__indicator-picker-spinner {
+    animation: none;
+  }
+}
+
+/* A row waiting on its own script. Dimmed and inert — the pointer says so before the click does. */
+.lq-chart__indicator-picker-select:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}

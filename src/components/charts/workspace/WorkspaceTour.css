@@ -1,0 +1,119 @@
+/* The ring around the thing a step is about. Fixed, because it tracks a viewport rectangle, and
+   inert, because it is a mark on the workspace rather than a surface — a reader who decides to stop
+   reading and click the thing being described should be able to, without closing anything. */
+.lq-tour__ring {
+  position: fixed;
+  z-index: 2400;
+  pointer-events: none;
+  border: 2px solid var(--lq-color-accent);
+  border-radius: var(--lq-radius-md);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--lq-color-accent) 22%, transparent);
+  transition:
+    top 180ms ease,
+    left 180ms ease,
+    width 180ms ease,
+    height 180ms ease;
+}
+
+.lq-root[data-lq-palette="eink"] .lq-tour__ring {
+  border-radius: 0;
+}
+
+.lq-tour__card {
+  position: fixed;
+  z-index: 2401;
+  width: 300px;
+  box-sizing: border-box;
+  padding: var(--lq-space-3);
+  background-color: var(--lq-color-panel);
+  border: 1px solid var(--lq-color-border);
+  border-radius: var(--lq-radius-md);
+  box-shadow: var(--lq-shadow-modal);
+  /* Same easing as the ring, so the card and the mark it belongs to arrive together rather than
+     one chasing the other. */
+  transition:
+    top 180ms ease,
+    left 180ms ease;
+}
+
+.lq-root[data-lq-palette="eink"] .lq-tour__card {
+  border-radius: 0;
+}
+
+.lq-tour__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--lq-space-1);
+}
+
+.lq-tour__count {
+  font-size: var(--lq-text-xs);
+  letter-spacing: 0.08em;
+  color: var(--lq-color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.lq-tour__close {
+  display: inline-flex;
+  padding: 2px;
+  border: 0;
+  background: none;
+  color: var(--lq-color-text-muted);
+  cursor: pointer;
+}
+
+.lq-tour__close:hover {
+  color: var(--lq-color-text);
+}
+
+.lq-tour__title {
+  margin: 0 0 var(--lq-space-1);
+  font-size: var(--lq-text-sm);
+  font-weight: 700;
+  color: var(--lq-color-text);
+}
+
+.lq-tour__body {
+  margin: 0 0 var(--lq-space-3);
+  font-size: var(--lq-text-xs);
+  line-height: 1.5;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-tour__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lq-space-2);
+}
+
+.lq-tour__skip {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--lq-text-xs);
+  color: var(--lq-color-text-muted);
+  cursor: pointer;
+}
+
+.lq-tour__skip:hover {
+  color: var(--lq-color-text);
+}
+
+.lq-tour__next {
+  padding: 5px var(--lq-space-3);
+  border: 1px solid var(--lq-color-accent);
+  border-radius: var(--lq-radius-sm);
+  background-color: var(--lq-color-accent);
+  font: inherit;
+  font-size: var(--lq-text-xs);
+  font-weight: 600;
+  color: var(--lq-color-bg);
+  cursor: pointer;
+}
+
+.lq-root[data-lq-palette="eink"] .lq-tour__next {
+  border-radius: 0;
+}

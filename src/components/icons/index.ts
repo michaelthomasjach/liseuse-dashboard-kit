@@ -81,6 +81,7 @@ export {
   ElliottCorrectionIcon,
   ActivityIcon,
   GaugeIcon,
+  BarModeIcon,
   CandleModeIcon,
   LineCloseModeIcon,
   HeikinAshiModeIcon,

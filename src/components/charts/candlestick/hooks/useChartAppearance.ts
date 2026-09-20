@@ -44,15 +44,16 @@ export function useChartAppearance({ YAutoScaling, livePrice, controlledSettings
   // Whether the hatched "future"/"past" zones (past the last candle to the plot's own right edge,
   // and before the first candle to its left edge) are drawn — chart-settings toggles, not props,
   // same reasoning as yAutoScalingState above: purely a viewer preference, with no data of its own
-  // for a caller to control. Both default on — exigence : « par défaut je veux que ces 2 options
-  // soit cochées » (a change from futureZoneVisible's own previous default-off, see git history).
+  // for a caller to control. Both default **off** — exigence : « par défaut je ne veux pas les
+  // zones rayées avant et après d'activées ». They were briefly defaulted on, at the same user's
+  // earlier request; the toggles themselves are unchanged, only where they start.
   // The ripple on the close line's last point. Same kind of state as the two zones below — a
   // viewer preference with no data of its own — except that the setting is only ever *shown* in the
   // "Ligne de clôture" mode, the only one with a close line to put it on. Kept, not reset, when the
   // mode changes: coming back to the line should find it as it was left.
   const [closePulseVisible, setClosePulseVisible] = useState(true);
-  const [futureZoneVisible, setFutureZoneVisible] = useState(true);
-  const [pastZoneVisible, setPastZoneVisible] = useState(true);
+  const [futureZoneVisible, setFutureZoneVisible] = useState(false);
+  const [pastZoneVisible, setPastZoneVisible] = useState(false);
 
   // Ticks once a second, only while `livePrice` is on — its only job is giving the countdown
   // badge (a plain DOM element, not part of the canvas draw effect) a reason to re-render each

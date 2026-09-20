@@ -150,7 +150,11 @@ export function buildStrategyApi(
       // chart is actually drawn in. `markerSide` names the *meaning* and drawMarkers.ts resolves it
       // against the same colorUp/colorDown the candles use.
       markerSide: direction === "long" ? "long" : "short",
-      text: `${direction === "long" ? "Achat" : "Vente"} ${formatQuantity(quantity)} @ ${price.toFixed(2)}`,
+      // "Entrée", not "Achat"/"Vente". The pair a reader is following is entry-and-exit, and
+      // naming one end by its order side and the other by its role made two halves of one trade
+      // read as two unrelated events. The side is not lost — `markerSide` still carries it, and it
+      // is what colours the badge.
+      text: `Entrée ${formatQuantity(quantity)} @ ${price.toFixed(2)}`,
     });
   }
 

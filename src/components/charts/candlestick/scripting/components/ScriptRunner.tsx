@@ -6,6 +6,7 @@ import { analyzeScriptKind, stripScriptKind } from "../scriptKind";
 import { DEFAULT_STRATEGY_SETTINGS } from "../../interfaces/StrategySettings.interface";
 import { useEffect, useMemo, useRef } from "react";
 import type { Candle } from "../../interfaces/Candle.interface";
+import type { PackedDepth } from "../../interfaces/MarketDepth.interface";
 import type { Indicator } from "../../interfaces/Indicator.interface";
 import type { FundamentalDataPoint } from "../../interfaces/FundamentalDataPoint.interface";
 import type { ScriptDef } from "../../interfaces/ScriptDef.interface";
@@ -23,6 +24,9 @@ export interface ScriptRunnerProps {
   data: Candle[];
   indicators: Indicator[];
   fundamentals: FundamentalDataPoint[] | undefined;
+  /** The order book and the tape, bound to `data`'s own bars. Undefined on a chart with no depth
+   *  feed, which is the normal case. */
+  barDepth?: PackedDepth;
   lastCandleOpen: boolean;
   availableTimeframes: string[];
   /** The last bar every script here may see, or `null` for the whole history. Replay's own cutoff,
@@ -62,7 +66,9 @@ function resolveDebounceMs(code: string, paramValues: ScriptDef["paramValues"]):
   return typeof value === "number" ? value : undefined;
 }
 
-export function ScriptRunner({ script, data, indicators, fundamentals, lastCandleOpen, availableTimeframes, runUpToIndex, symbol, quantData, ai, onOutput, onAlert }: ScriptRunnerProps) {
+export function ScriptRunner({ script, data, indicators, fundamentals, lastCandleOpen, availableTimeframes, runUpToIndex, symbol, quantData, ai, onOutput, onAlert,
+  barDepth,
+}: ScriptRunnerProps) {
   const debounceMs = useMemo(
     () => resolveDebounceMs(script.runDraftCode ?? script.code, script.paramValues),
     [script.runDraftCode, script.code, script.paramValues],
@@ -98,6 +104,19 @@ export function ScriptRunner({ script, data, indicators, fundamentals, lastCandl
     () => (kindAnalysis.kind === "report" ? { symbol: kindAnalysis.symbols[0] ?? symbol } : undefined),
     [kindAnalysis, symbol],
   );
+  /** Whether this script ever mentions the book or the tape.
+   *
+   *  A crude source test on purpose, and it only ever errs by sending the feed to a script that
+   *  does not need it — never by withholding it from one that does, since a script cannot reach
+   *  these objects without naming them.
+   *
+   *  It exists because the feed is *big*: a session's depth is a few hundred thousand level objects,
+   *  structured-cloned into the Worker on every single run. Sent to every script, an ordinary moving
+   *  average paid the entire cost of a liquidity feed it never opened — and a chart with six scripts
+   *  on it paid for it six times before drawing anything.
+   */
+  const usesDepth = useMemo(() => /\b(?:book|tape)\s*\./.test(script.code), [script.code]);
+
   const engine = useScriptEngine(
     script.id,
     data,
@@ -111,7 +130,8 @@ export function ScriptRunner({ script, data, indicators, fundamentals, lastCandl
     quant,
     report,
     symbol,
-    ai
+    ai,
+    usesDepth ? barDepth : undefined
   );
   const hasRunOnceRef = useRef(false);
   const lastRunRequestIdRef = useRef<number | null>(null);
@@ -173,9 +193,10 @@ export function ScriptRunner({ script, data, indicators, fundamentals, lastCandl
       drawings: engine.scriptDrawings,
       table: engine.scriptTable,
       labels: engine.scriptLabels,
+      heatmaps: engine.scriptHeatmaps,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [script.id, engine.result, engine.running, engine.scriptIndicators, engine.scriptDrawings, engine.scriptTable, engine.scriptLabels]);
+  }, [script.id, engine.result, engine.running, engine.scriptIndicators, engine.scriptDrawings, engine.scriptTable, engine.scriptLabels, engine.scriptHeatmaps]);
 
   useEffect(() => {
     if (!onAlert || !engine.result) return;
@@ -189,7 +210,7 @@ export function ScriptRunner({ script, data, indicators, fundamentals, lastCandl
   // this its last output would linger forever in useScriptingState's aggregated
   // scriptIndicators/scriptDrawings after the very thing that produced it is gone.
   useEffect(() => {
-    return () => onOutput(script.id, { result: null, running: false, indicators: [], drawings: [], table: null, labels: [] });
+    return () => onOutput(script.id, { result: null, running: false, indicators: [], drawings: [], table: null, labels: [], heatmaps: [] });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

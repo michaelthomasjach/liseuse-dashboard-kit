@@ -1,9 +1,11 @@
 import type { RenderCandlestickChartParams } from "../interfaces/RenderCandlestickChartParams.interface";
 import type { ChartCanvasStyle } from "../interfaces/ChartCanvasStyle.interface";
 import { drawFutureZone, drawPastZone } from "./drawFutureZone";
+import { drawScriptHeatmaps } from "./drawScriptHeatmaps";
 import { drawPriceCandles } from "./drawPriceCandles";
 import { drawPriceDrawings } from "./drawPriceDrawings";
 import { drawVolumeAndPanes } from "./drawVolumeAndPanes";
+import { drawIndicatorProjections } from "./drawIndicatorProjections";
 import { drawReplayMask } from "./drawReplayMask";
 
 export type { RenderCandlestickChartParams } from "../interfaces/RenderCandlestickChartParams.interface";
@@ -56,8 +58,14 @@ export function renderCandlestickChart(canvas: HTMLCanvasElement, wrapper: HTMLE
 
   drawFutureZone(ctx, params, style);
   drawPastZone(ctx, params, style);
+  // Before the candles: a liquidity field is a background the price moves over. Drawn after them
+  // it would be a curtain across the very thing it exists to give context to.
+  drawScriptHeatmaps(ctx, params);
   drawPriceCandles(ctx, params, style);
   drawPriceDrawings(ctx, params, style);
   drawVolumeAndPanes(ctx, params, style);
+  // After the panes and the price lines, so a projection is always drawn over the series it
+  // continues rather than under it — and before the replay mask, which is allowed to cover it.
+  drawIndicatorProjections(ctx, params, style);
   drawReplayMask(ctx, params, style);
 }

@@ -1,5 +1,6 @@
 import type { RenderCandlestickChartParams } from "../interfaces/RenderCandlestickChartParams.interface";
 import type { ChartCanvasStyle } from "../interfaces/ChartCanvasStyle.interface";
+import { heatmapReplacesPrice } from "./drawScriptHeatmaps";
 import type { IndicatorBand } from "../interfaces/IndicatorBand.interface";
 import type { IndicatorZigZagPoint } from "../interfaces/IndicatorZigZagPoint.interface";
 import type { IndicatorSupertrendPoint } from "../interfaces/IndicatorSupertrendPoint.interface";
@@ -108,7 +109,13 @@ export function drawPriceCandles(ctx: CanvasRenderingContext2D, params: RenderCa
       ctx.restore();
     }
 
-    if (chartDisplayMode === "line") {
+    // A liquidity map that paints the whole pane opaque has already covered the price series, and
+    // drawing it underneath would be dark ink on a dark ground. The map's own trade trail is what
+    // stands in for it — see `heatmapReplacesPrice`. Everything else in this pass (gridlines above,
+    // indicators and overlays below) still draws: the map replaces the candles, not the chart.
+    if (heatmapReplacesPrice(params)) {
+      // nothing
+    } else if (chartDisplayMode === "line") {
       // A plain close-price line, same treatment as the light area fill under an indicator
       // band (globalAlpha 0.08) rather than a fully opaque fill, so gridlines/drawings under it
       // stay legible.
@@ -172,6 +179,34 @@ export function drawPriceCandles(ctx: CanvasRenderingContext2D, params: RenderCa
         ctx.strokeStyle = isEink ? colorText : hueColor;
         ctx.fillRect(rectX, top, rectWidth, rectHeight);
         ctx.strokeRect(rectX, top, rectWidth, rectHeight);
+      }
+    } else if (chartDisplayMode === "bar") {
+      // OHLC bars: a vertical high-low line with the open ticking left and the close ticking
+      // right. The oldest notation there is, and still the most honest at density — a bar carries
+      // the same four numbers a candle does in about a third of the ink, so a screen that turns
+      // into a wall of overlapping bodies stays readable as bars.
+      for (const { d, i } of visible) {
+        const cx = zoomedXScale(i + 0.5);
+        const up = d.close >= d.open;
+        // Half the candle's own width per side, floored at a pixel: at the zoom levels where bars
+        // earn their keep the ticks are what still distinguishes one bar from the next, and a tick
+        // rounded away to nothing turns the whole thing into a bare range line.
+        const tick = Math.max(1, candleWidth / 2);
+        ctx.lineWidth = 1;
+        // E-ink has one ink and cannot code direction by hue — but a bar already says its
+        // direction by where its two ticks sit, which is exactly why this notation survives on
+        // paper. So it simply draws in the text colour there rather than inventing a fallback.
+        ctx.strokeStyle = isEink ? colorText : up ? colorUp : colorDown;
+        ctx.beginPath();
+        ctx.moveTo(cx, zoomedPriceScale(d.high));
+        ctx.lineTo(cx, zoomedPriceScale(d.low));
+        const openY = zoomedPriceScale(d.open);
+        ctx.moveTo(cx - tick, openY);
+        ctx.lineTo(cx, openY);
+        const closeY = zoomedPriceScale(d.close);
+        ctx.moveTo(cx, closeY);
+        ctx.lineTo(cx + tick, closeY);
+        ctx.stroke();
       }
     } else {
       // "candle"/"heikinAshi" (same candle body/wick drawing, just fed transformed OHLC values

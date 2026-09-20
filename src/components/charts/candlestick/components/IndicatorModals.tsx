@@ -56,6 +56,8 @@ export interface IndicatorModalsProps {
   /** Where each script's own output currently lands on the chart, by script id — forwarded to the
    *  picker, see `IndicatorPickerModalProps.scriptPlacements`. */
   scriptPlacements?: Record<string, ("price" | "own")[]>;
+  /** Scripts mid-run, so their picker row can say so and refuse a second click. */
+  runningScriptIds?: string[];
   /** Commits one `new Variable(...)` parameter of a script-produced indicator's own script. Unlike
    *  every other field in this modal it applies immediately (and re-runs the script) rather than on
    *  "Enregistrer" — a parameter belongs to the script, not to the indicator draft this modal
@@ -143,6 +145,7 @@ export function IndicatorModals({
   setScriptParamValue,
   toggleScriptEnabled,
   scriptPlacements,
+  runningScriptIds,
   onEditScript,
   codeViewer,
   onCreateScript,
@@ -233,6 +236,7 @@ export function IndicatorModals({
         addCustomIndicator={addCustomIndicator}
         scripts={scripts}
         scriptPlacements={scriptPlacements}
+        runningScriptIds={runningScriptIds}
         toggleScriptEnabled={toggleScriptEnabled}
         openCorrelationSetup={openCorrelationSetup}
         favoriteIndicatorIds={favoriteIndicatorIds}

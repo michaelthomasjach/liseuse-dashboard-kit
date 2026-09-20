@@ -8,6 +8,7 @@ export * from "./components/map";
 export * from "./components/forms";
 export * from "./components/feedback";
 export * from "./components/audio";
+export * from "./components/warehouse";
 export * from "./components/finance";
 export * from "./components/finance-widgets";
 export * from "./components/layout";

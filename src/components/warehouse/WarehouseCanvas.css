@@ -1,0 +1,459 @@
+/* The floor plan: a palette and a canvas side by side, the same arrangement the no-code script
+   editor uses — and deliberately the same gesture vocabulary, so the second canvas in this kit is
+   not the one that feels different. */
+.lq-wh {
+  /* Status tints. Pale on purpose: a floor plan is mostly lanes, and five saturated colours
+     covering most of the picture would leave nothing for the things that actually move on it.
+     Mixed toward the background rather than set as fixed pastels, so they follow the palette —
+     including e-ink, where every accent collapses to the text colour and only the *share* of it
+     still separates one status from another. */
+  --lq-wh-idle: color-mix(in srgb, var(--lq-color-text-muted) 38%, var(--lq-color-bg));
+  --lq-wh-active: color-mix(in srgb, var(--lq-color-green) 55%, var(--lq-color-bg));
+  --lq-wh-reserved: color-mix(in srgb, var(--lq-color-amber) 58%, var(--lq-color-bg));
+  --lq-wh-blocked: color-mix(in srgb, var(--lq-color-danger) 55%, var(--lq-color-bg));
+  --lq-wh-closed: color-mix(in srgb, var(--lq-color-text-muted) 20%, var(--lq-color-bg));
+
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+  gap: var(--lq-space-2);
+  min-height: 0;
+  color: var(--lq-color-text);
+}
+
+/* No palette, no column for it. */
+.lq-wh:has(> .lq-wh__stage:first-child) {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* ---- palette ---- */
+
+.lq-wh__palette {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lq-space-3);
+  overflow-y: auto;
+  padding: var(--lq-space-2) var(--lq-space-1) var(--lq-space-2) var(--lq-space-2);
+  min-height: 0;
+}
+
+.lq-wh__palette-intro {
+  margin: 0;
+  font-size: 0.68rem;
+  line-height: 1.5;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-wh__palette-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.lq-wh__palette-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--lq-color-border-subtle);
+  border-radius: var(--lq-radius-sm);
+  background-color: transparent;
+  color: var(--lq-color-text);
+  font: inherit;
+  text-align: left;
+  cursor: grab;
+  /* Otherwise a drag out of the palette selects the label instead of carrying the item. */
+  user-select: none;
+  touch-action: none;
+}
+
+.lq-wh__palette-item:hover {
+  border-color: var(--lq-color-border);
+  background-color: var(--lq-color-hover);
+}
+
+.lq-wh__palette-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.lq-wh__palette-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.lq-wh__palette-hint {
+  font-size: 0.64rem;
+  line-height: 1.35;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-wh__swatch {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  margin-top: 2px;
+  border: 1px solid var(--lq-color-border);
+  border-radius: 2px;
+}
+
+.lq-wh__swatch--rack {
+  background-color: color-mix(in srgb, var(--lq-color-accent) 22%, var(--lq-color-panel));
+}
+.lq-wh__swatch--station {
+  background-color: color-mix(in srgb, var(--lq-color-sky) 32%, var(--lq-color-panel));
+}
+.lq-wh__swatch--charger {
+  background-color: color-mix(in srgb, var(--lq-color-green) 34%, var(--lq-color-panel));
+}
+.lq-wh__swatch--conveyor,
+.lq-wh__swatch--belt {
+  background-color: color-mix(in srgb, var(--lq-color-amber) 30%, var(--lq-color-panel));
+}
+.lq-wh__swatch--zone {
+  background-color: color-mix(in srgb, var(--lq-color-violet) 16%, var(--lq-color-panel));
+}
+.lq-wh__swatch--wall {
+  background-color: var(--lq-color-border);
+}
+
+/* ---- stage ---- */
+
+.lq-wh__stage {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+
+.lq-wh__toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--lq-space-2);
+  padding: 4px 6px;
+  flex-wrap: wrap;
+}
+
+.lq-wh__tool {
+  padding: 3px 8px;
+  border: 1px solid var(--lq-color-border-subtle);
+  border-radius: var(--lq-radius-sm);
+  background: transparent;
+  color: var(--lq-color-text);
+  font: inherit;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+.lq-wh__tool:hover {
+  border-color: var(--lq-color-border);
+  background-color: var(--lq-color-hover);
+}
+
+.lq-wh__tool--on {
+  border-color: var(--lq-color-accent);
+  background-color: color-mix(in srgb, var(--lq-color-accent) 16%, transparent);
+  font-weight: 700;
+}
+
+.lq-wh__zoom,
+.lq-wh__count {
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-wh__count {
+  margin-left: auto;
+}
+
+/* The window onto the plan. `touch-action: none` because every gesture is handled in JS — without
+   it a touch drag scrolls the page out from under the rack being moved. */
+.lq-wh__surface {
+  position: relative;
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--lq-color-border-subtle);
+  border-radius: var(--lq-radius-sm);
+  background-color: var(--lq-color-bg);
+  /* A real grid rather than the script canvas's dot field: here the grid *is* the coordinate
+     system things snap to, so it has to be readable as lines rather than suggested as texture.
+     Its size and offset are set inline from the live zoom and pan, so it slides with the plan. */
+  background-image: linear-gradient(to right, var(--lq-color-border-subtle) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--lq-color-border-subtle) 1px, transparent 1px);
+  cursor: grab;
+  touch-action: none;
+  outline: none;
+}
+
+.lq-wh__surface--panning {
+  cursor: grabbing;
+}
+
+.lq-wh__surface--tracing {
+  cursor: crosshair;
+}
+
+.lq-wh__canvas {
+  position: absolute;
+  inset: 0;
+  transform-origin: 0 0;
+}
+
+.lq-wh__lanes {
+  position: absolute;
+  /* Far bigger than the viewport: the layer is translated and scaled under a clipping parent, so
+     it only has to cover wherever the plan has been dragged to. */
+  width: 8000px;
+  height: 6000px;
+  overflow: visible;
+  pointer-events: none;
+}
+
+/* ---- rails and paths ---- */
+
+.lq-wh__rail-bed,
+.lq-wh__rail-line,
+.lq-wh__path,
+.lq-wh__rail-pending {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* The bed is the sleeper: a wider stroke of the surface colour under the rail, so a track stays
+   readable where it crosses a zone, a conveyor or another track. Same reason the tile map gives
+   its routes a casing. */
+.lq-wh__rail-bed {
+  stroke: var(--lq-color-bg);
+  stroke-width: 7;
+}
+
+.lq-wh__rail-line {
+  stroke: var(--lq-wh-idle);
+  stroke-width: 3;
+}
+
+.lq-wh__rail--active .lq-wh__rail-line {
+  stroke: var(--lq-wh-active);
+}
+.lq-wh__rail--reserved .lq-wh__rail-line {
+  stroke: var(--lq-wh-reserved);
+}
+.lq-wh__rail--blocked .lq-wh__rail-line {
+  stroke: var(--lq-wh-blocked);
+}
+/* A closed lane is dashed as well as pale: under e-ink the tint alone would be one more grey, and
+   "you may not go here" is the one status that must not be guessable. */
+.lq-wh__rail--closed .lq-wh__rail-line {
+  stroke: var(--lq-wh-closed);
+  stroke-dasharray: 6 5;
+}
+
+.lq-wh__rail-hit {
+  stroke: transparent;
+  stroke-width: 14;
+  pointer-events: stroke;
+  cursor: pointer;
+}
+
+.lq-wh__rail-node {
+  fill: var(--lq-color-accent);
+  stroke: var(--lq-color-bg);
+  stroke-width: 1.5;
+}
+
+.lq-wh__rail-pending {
+  stroke: var(--lq-color-accent);
+  stroke-width: 2;
+  stroke-dasharray: 5 4;
+}
+
+/* A robot's assigned route, drawn under the rails it runs on: it is a claim on the track, not the
+   track itself, so it reads as a highlight along it rather than as a second line beside it. */
+.lq-wh__path {
+  stroke: var(--lq-wh-idle);
+  stroke-width: 9;
+  opacity: 0.5;
+}
+
+.lq-wh__path--active {
+  stroke: var(--lq-wh-active);
+}
+.lq-wh__path--reserved {
+  stroke: var(--lq-wh-reserved);
+}
+.lq-wh__path--blocked {
+  stroke: var(--lq-wh-blocked);
+}
+.lq-wh__path--closed {
+  stroke: var(--lq-wh-closed);
+}
+
+/* ---- items ---- */
+
+.lq-wh__item {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1px solid var(--lq-color-border);
+  border-radius: 2px;
+  background-color: var(--lq-color-panel);
+  cursor: grab;
+  user-select: none;
+  overflow: hidden;
+}
+
+.lq-wh__item--selected {
+  outline: 2px solid var(--lq-color-accent);
+  outline-offset: 1px;
+  z-index: 3;
+}
+
+.lq-wh__item--rack {
+  background-color: color-mix(in srgb, var(--lq-color-accent) 16%, var(--lq-color-panel));
+}
+
+.lq-wh__item--station {
+  background-color: color-mix(in srgb, var(--lq-color-sky) 26%, var(--lq-color-panel));
+}
+
+.lq-wh__item--charger {
+  background-color: color-mix(in srgb, var(--lq-color-green) 28%, var(--lq-color-panel));
+}
+
+.lq-wh__item--conveyor,
+.lq-wh__item--belt {
+  background-color: color-mix(in srgb, var(--lq-color-amber) 24%, var(--lq-color-panel));
+}
+
+.lq-wh__item--wall {
+  background-color: var(--lq-color-border);
+  border-color: var(--lq-color-text);
+}
+
+/* A zone is a region of the floor, not an object on it: no fill to speak of, a dashed edge, and
+   it never takes a click — otherwise it would swallow every gesture aimed at what stands in it. */
+.lq-wh__item--zone {
+  background-color: color-mix(in srgb, var(--lq-color-violet) 10%, transparent);
+  border: 1px dashed var(--lq-color-border);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.lq-wh__item--zone .lq-wh__item-label {
+  top: 2px;
+  bottom: auto;
+}
+
+.lq-wh__item-label {
+  position: absolute;
+  left: 3px;
+  bottom: 2px;
+  max-width: calc(100% - 6px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 9px;
+  line-height: 1.2;
+  color: var(--lq-color-text);
+  pointer-events: none;
+}
+
+/* Chevrons showing which way a conveyor runs, as a repeating gradient rather than as elements:
+   a forty-cell conveyor then costs exactly what a four-cell one does. */
+.lq-wh__flow {
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(
+    115deg,
+    transparent 0 6px,
+    color-mix(in srgb, var(--lq-color-text) 22%, transparent) 6px 8px
+  );
+  pointer-events: none;
+}
+
+.lq-wh__handle {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  width: 10px;
+  height: 10px;
+  background-color: var(--lq-color-accent);
+  border: 1px solid var(--lq-color-bg);
+  border-radius: 2px;
+  cursor: nwse-resize;
+  z-index: 4;
+}
+
+/* ---- storage locations ---- */
+
+.lq-wh__slots {
+  position: absolute;
+  inset: 1px;
+  display: grid;
+  gap: 1px;
+  pointer-events: none;
+}
+
+.lq-wh__slot {
+  border-radius: 1px;
+  background-color: color-mix(in srgb, var(--lq-color-text) 8%, transparent);
+}
+
+.lq-wh__slot--occupied {
+  background-color: color-mix(in srgb, var(--lq-color-accent) 70%, var(--lq-color-panel));
+}
+
+.lq-wh__slot--reserved {
+  background-color: var(--lq-wh-reserved);
+}
+
+.lq-wh__slot--blocked {
+  background-color: var(--lq-wh-blocked);
+}
+
+/* ---- machines ---- */
+
+.lq-wh__robot {
+  position: absolute;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid var(--lq-color-bg);
+  border-radius: 3px;
+  background-color: var(--lq-color-accent);
+  /* Above the racks: a machine working at a rack must never disappear behind it. */
+  z-index: 5;
+  pointer-events: none;
+}
+
+.lq-wh__robot--idle {
+  background-color: color-mix(in srgb, var(--lq-color-text-muted) 70%, var(--lq-color-bg));
+}
+
+.lq-wh__robot--loaded {
+  background-color: var(--lq-color-green);
+}
+
+.lq-wh__robot--charging {
+  background-color: var(--lq-color-amber);
+}
+
+/* A fault gets an outline as well as a colour, for the same reason a closed lane gets a dash:
+   under e-ink the colour is gone and this is the one state that must still shout. */
+.lq-wh__robot--fault {
+  background-color: var(--lq-color-danger);
+  outline: 2px solid var(--lq-color-text);
+  outline-offset: 1px;
+}
+
+.lq-wh__robot-label {
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--lq-color-accent-contrast);
+  white-space: nowrap;
+}

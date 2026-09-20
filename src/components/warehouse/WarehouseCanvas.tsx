@@ -517,6 +517,20 @@ export function WarehouseCanvas({
         <WarehouseInspector
           item={selectedItem}
           anchorRef={anchorRef}
+          // Everything that can move the item's box on screen: the camera, its own geometry, and
+          // the live coordinates while it is being dragged or resized (which the committed
+          // geometry does not yet reflect).
+          trackKey={[
+            view.x,
+            view.y,
+            view.scale,
+            selectedItem.x,
+            selectedItem.y,
+            selectedItem.width,
+            selectedItem.height,
+            selectedItem.rotation ?? 0,
+            drag && "id" in drag && drag.id === selectedItem.id ? `${drag.x},${drag.y}` : "",
+          ].join("|")}
           onChange={(next) => onItemsChange?.(items.map((item) => (item.id === next.id ? next : item)))}
           onDelete={() => {
             onItemsChange?.(items.filter((item) => item.id !== selectedItem.id));

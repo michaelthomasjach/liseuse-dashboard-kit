@@ -509,7 +509,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--lq-space-2);
-  width: 232px;
+  width: 252px;
   padding: var(--lq-space-3);
 }
 
@@ -562,9 +562,15 @@
   color: var(--lq-color-text-muted);
 }
 
+/* `minmax(0, 1fr)`, not `1fr`.
+   A bare `1fr` is `minmax(auto, 1fr)`, and that `auto` floor is the column's *min-content* width —
+   which, for a column holding a text input, is the input's own intrinsic size, about twenty
+   characters. The two columns therefore refused to go below ~186px each and burst out of a 232px
+   panel by 160px, measured. Flooring them at zero lets them share what there is; the input inside
+   already carries `min-width: 0` (see field.css), which is the other half of the same rule. */
 .lq-wh__inspector-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: var(--lq-space-2);
 }
 

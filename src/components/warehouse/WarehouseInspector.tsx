@@ -12,6 +12,10 @@ export interface WarehouseInspectorProps {
   onChange: (item: WarehouseItem) => void;
   onDelete: () => void;
   onClose: () => void;
+  /** Changes whenever the item moves on screen — pan, zoom, drag, resize — so the panel re-measures
+   *  and stays on it. Without it the panel is placed once and then floats away from what it
+   *  describes the first time the plan moves under it. */
+  trackKey: string;
 }
 
 /**
@@ -26,7 +30,7 @@ export interface WarehouseInspectorProps {
  * Every control commits on the spot. There is no "Apply": the item is right there behind the
  * panel, so a change you cannot see until you confirm it is a change you have to guess at.
  */
-export function WarehouseInspector({ item, anchorRef, onChange, onDelete, onClose }: WarehouseInspectorProps) {
+export function WarehouseInspector({ item, anchorRef, onChange, onDelete, onClose, trackKey }: WarehouseInspectorProps) {
   const preset = WAREHOUSE_KINDS[item.kind];
 
   /** Resizing has to take the slots with it: a rack made shorter otherwise keeps stock addressed
@@ -40,7 +44,7 @@ export function WarehouseInspector({ item, anchorRef, onChange, onDelete, onClos
   const size = (value: number | "") => (value === "" ? 1 : Math.max(1, Math.round(value)));
 
   return (
-    <Popover open onClose={onClose} anchorRef={anchorRef} placement="bottom" className="lq-wh__inspector">
+    <Popover open onClose={onClose} anchorRef={anchorRef} placement="bottom" trackKey={trackKey} className="lq-wh__inspector">
       <div className="lq-wh__inspector-head">
         <span className="lq-wh__inspector-kind">{preset.label}</span>
         <div className="lq-wh__inspector-actions">
@@ -82,7 +86,6 @@ export function WarehouseInspector({ item, anchorRef, onChange, onDelete, onClos
           label="Longueur"
           min={1}
           step={1}
-          suffix="c"
           value={item.width}
           onChange={(value) => patch({ width: size(value), bays: item.bays === undefined ? undefined : size(value) })}
         />
@@ -91,7 +94,6 @@ export function WarehouseInspector({ item, anchorRef, onChange, onDelete, onClos
           label="Largeur"
           min={1}
           step={1}
-          suffix="c"
           value={item.height}
           onChange={(value) => patch({ height: size(value) })}
         />

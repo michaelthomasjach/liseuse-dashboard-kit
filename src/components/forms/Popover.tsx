@@ -12,6 +12,10 @@ export interface PopoverProps {
   placement?: PopoverPlacement;
   /** Match the panel's width to the anchor's width (typical for a Select). */
   matchAnchorWidth?: boolean;
+  /** Re-measure whenever this changes — for an anchor that moves without the page scrolling or
+   *  resizing, such as an element on a canvas being panned, zoomed or dragged. See
+   *  `usePopoverPosition`. */
+  trackKey?: string | number;
   children: ReactNode;
   className?: string;
 }
@@ -22,9 +26,9 @@ export interface PopoverProps {
  * outside click / Escape. Powers `Select`, `DatePicker`, and any menu-style
  * dropdown built on top of this library.
  */
-export function Popover({ open, onClose, anchorRef, placement = "bottom", matchAnchorWidth, children, className }: PopoverProps) {
+export function Popover({ open, onClose, anchorRef, placement = "bottom", matchAnchorWidth, trackKey, children, className }: PopoverProps) {
   const panelRef = useRef<HTMLDivElement>(null);
-  const position = usePopoverPosition(anchorRef, panelRef, open, placement);
+  const position = usePopoverPosition(anchorRef, panelRef, open, placement, trackKey);
   const theme = useLqTheme();
 
   useEffect(() => {

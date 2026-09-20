@@ -44,12 +44,19 @@ function compute(anchor: DOMRect, panel: DOMRect, preferred: PopoverPlacement): 
  * Positions a floating panel relative to an anchor element, flipping
  * vertically (bottom ↔ top) and shifting horizontally to stay inside the
  * viewport, re-measuring on scroll/resize while open.
+ *
+ * `trackKey` covers the anchors that move without either of those firing. Scroll and resize catch
+ * a page that moves under the panel; they say nothing about an anchor that moves *within* a static
+ * page — an item on a canvas that is being panned, zoomed or dragged. Change this on every such
+ * move and the panel re-measures; leave it out and nothing changes for the menus and date pickers
+ * that have always been anchored to something that stays put.
  */
 export function usePopoverPosition(
   anchorRef: RefObject<HTMLElement | null>,
   panelRef: RefObject<HTMLElement | null>,
   open: boolean,
-  preferred: PopoverPlacement = "bottom"
+  preferred: PopoverPlacement = "bottom",
+  trackKey?: string | number
 ): PopoverPosition {
   const [position, setPosition] = useState<PopoverPosition>({ top: 0, left: 0, placement: preferred, ready: false });
 
@@ -74,7 +81,7 @@ export function usePopoverPosition(
       window.removeEventListener("resize", update);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, preferred]);
+  }, [open, preferred, trackKey]);
 
   return position;
 }

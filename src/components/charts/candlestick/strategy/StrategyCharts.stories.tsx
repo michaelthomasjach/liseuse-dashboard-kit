@@ -10,7 +10,7 @@ const meta: Meta = {
     docs: {
       description: {
         component:
-          "Les graphiques du testeur de stratégie, isolés de la chart pour pouvoir être lus et ajustés seuls. Les données sont synthétiques mais construites pour montrer la lecture que chaque graphique rend possible. Le graphique MAE / MFE a sa propre entrée, « Charts/MAE — MFE ».",
+          "Les graphiques du testeur de stratégie, isolés de la chart pour pouvoir être lus et ajustés seuls. Les données sont synthétiques mais construites pour montrer la lecture que chaque graphique rend possible. Le graphique de distribution verticale — les excursions MAE / MFE, une ligne par trade — a sa propre entrée, « Charts/Vertical Distribution ».",
       },
     },
   },

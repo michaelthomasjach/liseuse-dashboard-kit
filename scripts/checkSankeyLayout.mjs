@@ -60,9 +60,36 @@ const { SANKEY_BUDGET_NODES, SANKEY_BUDGET_LINKS, SANKEY_REVENUE_NODES, SANKEY_R
 /** Slack, in px, for the float arithmetic the relaxation passes accumulate. */
 const EPS = 0.6;
 
+/** Pairs of ribbons that visibly cross, measured on the drawn endpoints.
+ *
+ *  Only links spanning the same pair of columns are comparable, and after waypoint routing every
+ *  link spans exactly one — so grouping by the source's column is the whole comparison. Two
+ *  monotone ribbons over the same horizontal span cross precisely when their ends are inverted. */
+function countDrawnCrossings(links) {
+  const byColumn = new Map();
+  for (const link of links) {
+    const key = link.source.depth;
+    if (!byColumn.has(key)) byColumn.set(key, []);
+    byColumn.get(key).push(link);
+  }
+  let total = 0;
+  for (const group of byColumn.values()) {
+    for (let i = 0; i < group.length; i += 1) {
+      for (let j = i + 1; j < group.length; j += 1) {
+        const a = group[i];
+        const b = group[j];
+        if ((a.y0 - b.y0) * (a.y1 - b.y1) < 0) total += 1;
+      }
+    }
+  }
+  return total;
+}
+
 function run(name, nodes, links, width, height) {
   const layout = sankeyLayout(nodes, links, { width, height, nodeWidth: 12, nodePadding: 14 });
-  console.log(`${name.padEnd(16)} ${String(width).padStart(4)}x${String(height).padStart(4)}  nodes=${layout.nodes.length} links=${layout.links.length} columns=${layout.columns.length} ky=${layout.ky.toFixed(4)}`);
+  console.log(
+    `${name.padEnd(16)} ${String(width).padStart(4)}x${String(height).padStart(4)}  nodes=${layout.nodes.length} links=${layout.links.length} columns=${layout.columns.length} ky=${layout.ky.toFixed(4)} crossings=${layout.crossings}`
+  );
 
   for (const n of layout.nodes) {
     check(Number.isFinite(n.x0) && Number.isFinite(n.y0) && Number.isFinite(n.y1), `${name}: NaN on node ${n.id}`);
@@ -89,15 +116,60 @@ function run(name, nodes, links, width, height) {
     for (let i = 1; i < sorted.length; i += 1) {
       check(sorted[i].y0 >= sorted[i - 1].y1 - EPS, `${name}: ${sorted[i - 1].id} overlaps ${sorted[i].id}`);
     }
+    // The stacking order must be the order that was computed to be crossing-free. If the two ever
+    // disagree the diagram is drawn against an ordering nobody checked.
+    for (let i = 1; i < column.length; i += 1) {
+      check(column[i].y0 >= column[i - 1].y0 - EPS, `${name}: column ${column[i].depth} is drawn out of its own order`);
+    }
   }
 
-  return layout;
+  // Crossings, counted on the geometry that actually gets drawn rather than on the layout's own
+  // bookkeeping — two ribbons between the same columns cross exactly when one starts above the
+  // other and ends below it. Cross-checked against `layout.crossings` so a bug in either shows up.
+  const drawn = countDrawnCrossings(layout.links);
+  check(
+    drawn === layout.crossings,
+    `${name}: reports ${layout.crossings} crossings but ${drawn} are drawn`
+  );
+
+  return { layout, drawn };
 }
 
 // A wide desktop chart, a phone-sized one, and a shallow three-column diagram.
-const budget = run("budget", SANKEY_BUDGET_NODES, SANKEY_BUDGET_LINKS, 900, 480);
-run("budget-narrow", SANKEY_BUDGET_NODES, SANKEY_BUDGET_LINKS, 320, 240);
-run("revenue", SANKEY_REVENUE_NODES, SANKEY_REVENUE_LINKS, 700, 320);
+// Both fixtures are trees, so zero crossings is not a hope, it is the contract — see the header
+// of sankeyLayout.ts for why a tree always admits a crossing-free order and a general graph does
+// not. Several plot sizes, because the ordering must not depend on how much room it is given.
+const treeCases = [
+  ["budget", SANKEY_BUDGET_NODES, SANKEY_BUDGET_LINKS, 900, 480],
+  ["budget-narrow", SANKEY_BUDGET_NODES, SANKEY_BUDGET_LINKS, 320, 240],
+  ["budget-tall", SANKEY_BUDGET_NODES, SANKEY_BUDGET_LINKS, 1400, 900],
+  ["revenue", SANKEY_REVENUE_NODES, SANKEY_REVENUE_LINKS, 700, 320],
+];
+let budget = null;
+for (const [name, nodes, links, w, h] of treeCases) {
+  const { layout, drawn } = run(name, nodes, links, w, h);
+  check(drawn === 0, `${name}: ${drawn} ribbon crossing(s) on tree-shaped data — that must be zero`);
+  if (name === "budget") budget = layout;
+}
+
+// A node with two parents. Not a tree, so zero is not promised — but the ordering still has to do
+// its job rather than leave the seed untouched.
+const diamond = sankeyLayout(
+  [
+    { id: "a", label: "A" },
+    { id: "b", label: "B" },
+    { id: "x", label: "X" },
+    { id: "y", label: "Y" },
+  ],
+  [
+    { source: "a", target: "x", value: 10 },
+    { source: "a", target: "y", value: 6 },
+    { source: "b", target: "x", value: 4 },
+  ],
+  { width: 400, height: 300 }
+);
+console.log(`diamond          crossings=${diamond.crossings}`);
+check(diamond.crossings === 0, `the two-parent case should still reach zero here, got ${diamond.crossings}`);
 
 const logement = budget.nodes.find((n) => n.id === "logement");
 check(downstreamOf(logement).size === 10, `downstream(logement) should be itself + 9 leaves, got ${downstreamOf(logement).size}`);

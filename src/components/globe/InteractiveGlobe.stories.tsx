@@ -6,7 +6,7 @@ import { Button } from "../primitives/Button";
 import { Panel } from "../primitives/Panel";
 
 const meta: Meta<typeof InteractiveGlobe> = {
-  title: "Globe/InteractiveGlobe",
+  title: "Map/Interactive Globe",
   component: InteractiveGlobe,
   parameters: { layout: "fullscreen" },
 };

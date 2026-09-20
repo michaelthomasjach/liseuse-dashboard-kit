@@ -280,6 +280,11 @@ export function SankeyChart({
   }
 
   const labelled = layout.nodes.filter((node) => {
+    // Off-branch nodes lose their label outright rather than getting a faint one. A dimmed label
+    // was the first attempt and it does not survive white type: white at a quarter opacity over a
+    // light panel is a smudge, not a word, and it competes with the branch you asked to see. The
+    // dimmed ribbons already carry the "there is more here" context on their own.
+    if (!inBranch(node.id)) return false;
     if ((node.y1 - node.y0) * transform.k < LABEL_MIN_PX) return false;
     const y = transform.applyY((node.y0 + node.y1) / 2);
     const x = transform.applyX(node.x0);
@@ -368,11 +373,14 @@ export function SankeyChart({
             <g clipPath={`url(#${clipId})`}>
               <g transform={transform.toString()}>
                 {layout.links.map((link) => {
-                  const lit = inBranch(link.source.id) && inBranch(link.target.id);
+                  // A link threaded through waypoints arrives as several segments. Membership and
+                  // highlighting are decided on the ends the caller actually gave (`from`/`to`),
+                  // never on this segment's own, so a chain lights and dims as one flow.
+                  const lit = inBranch(link.from.id) && inBranch(link.to.id);
                   const hovered = hover?.kind === "link" && hover.link.index === link.index;
                   return (
                     <path
-                      key={link.index}
+                      key={`${link.index}-${link.segment}`}
                       className={["lq-sankey__ribbon", !lit && "lq-sankey__ribbon--dim", hovered && "lq-sankey__ribbon--hover"]
                         .filter(Boolean)
                         .join(" ")}
@@ -424,7 +432,15 @@ export function SankeyChart({
               <g className="lq-sankey__labels">
                 {detail === "share" &&
                   layout.links
-                    .filter((link) => link.width * transform.k >= RIBBON_LABEL_MIN_PX && inBranch(link.source.id) && inBranch(link.target.id))
+                    // `segment === 0` so a flow routed through waypoints is labelled once, next to
+                    // the node it leaves, rather than once per column it passes through.
+                    .filter(
+                      (link) =>
+                        link.segment === 0 &&
+                        link.width * transform.k >= RIBBON_LABEL_MIN_PX &&
+                        inBranch(link.from.id) &&
+                        inBranch(link.to.id)
+                    )
                     .map((link) => {
                       const x = transform.applyX((link.source.x1 + link.target.x0) / 2);
                       const y = transform.applyY((link.y0 + link.y1) / 2);
@@ -446,7 +462,7 @@ export function SankeyChart({
                   return (
                     <text
                       key={node.id}
-                      className={["lq-sankey__label", !inBranch(node.id) && "lq-sankey__label--dim"].filter(Boolean).join(" ")}
+                      className="lq-sankey__label"
                       x={x}
                       y={transform.applyY((node.y0 + node.y1) / 2)}
                       textAnchor={onLeftHalf ? "start" : "end"}
@@ -488,16 +504,16 @@ export function SankeyChart({
         {hover?.kind === "link" && (
           <>
             <div className="lq-chart-tooltip__title">
-              {hover.link.source.label} → {hover.link.target.label}
+              {hover.link.from.label} → {hover.link.to.label}
             </div>
             <div className="lq-chart-tooltip__row">
               <span>Montant</span>
               <strong>{fmt(hover.link.value)}</strong>
             </div>
-            {hover.link.source.value > 0 && (
+            {hover.link.from.value > 0 && (
               <div className="lq-chart-tooltip__row">
-                <span>Part de {hover.link.source.label}</span>
-                <strong>{Math.round((hover.link.value / hover.link.source.value) * 100)} %</strong>
+                <span>Part de {hover.link.from.label}</span>
+                <strong>{Math.round((hover.link.value / hover.link.from.value) * 100)} %</strong>
               </div>
             )}
           </>

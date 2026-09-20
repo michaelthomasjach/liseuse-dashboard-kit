@@ -5,7 +5,7 @@ import type { StrategyResult, StrategyTrade } from "../interfaces/StrategyResult
 import type { StrategySettings } from "../interfaces/StrategySettings.interface";
 import { StrategyEquityChart } from "./StrategyEquityChart";
 import { StrategyDistributionChart } from "./StrategyDistributionChart";
-import { StrategyExcursionChart, StrategyExcursionLegend } from "./StrategyExcursionChart";
+import { VerticalDistributionChart, VerticalDistributionLegend } from "./VerticalDistributionChart";
 import { StrategyRobustnessPanel } from "./StrategyRobustnessPanel";
 import { StrategyMetricsGrid } from "./StrategyMetricsGrid";
 import { StrategySettingsForm } from "./StrategySettingsForm";
@@ -403,9 +403,9 @@ export function ChartStrategyPanel({
             </>
           ) : tab === "excursions" ? (
             <>
-              <StrategyExcursionLegend />
+              <VerticalDistributionLegend />
               <div className="lq-strategy__fill" ref={fillRef}>
-                <StrategyExcursionChart
+                <VerticalDistributionChart
                   trades={result.trades}
                   currency={settings.currency}
                   width={chartWidth}

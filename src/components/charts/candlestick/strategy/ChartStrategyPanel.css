@@ -866,7 +866,7 @@
 }
 
 /* The MAE/MFE chart has a row per trade rather than a time axis, so its mark is a band behind the
-   row — see StrategyExcursionChart's own doc. */
+   row — see VerticalDistributionChart's own doc. */
 .lq-strategy__excursion-marked {
   fill: var(--lq-color-accent);
   opacity: 0.16;

@@ -6,6 +6,17 @@
   /* What "off the current branch" looks like. Dim rather than hidden: a branch is only legible as
      part of something, and removing the rest would turn a zoom into a different diagram. */
   --lq-sankey-dim-opacity: 0.1;
+
+  /* Labels are white, with a dark halo carrying them.
+
+     Not `--lq-color-text`, and that is the whole point: these labels are written *on the ribbons*,
+     not on the panel, so the colour that has to read against is the ribbon's — and under the dark
+     surface `--lq-color-text` is already near-white, which would leave white text on a white halo.
+     A fixed white on a fixed dark halo is legible over every ribbon in every palette, which is the
+     one thing a themed pair could not promise here. Both stay tokens, so a consumer whose ribbons
+     are pale can still swap them. */
+  --lq-sankey-label-color: #ffffff;
+  --lq-sankey-label-halo: rgba(0, 0, 0, 0.6);
 }
 
 .lq-sankey__toolbar {
@@ -106,27 +117,23 @@
 
 .lq-sankey__label {
   font-size: 0.72rem;
-  fill: var(--lq-color-text);
-  /* The label sits over whatever ribbon happens to pass behind it, and both are theme colours that
-     can be close. A halo in the panel's own colour keeps the text readable without needing a
-     background rectangle per label — the same trick `ProgressBar`'s inside-label uses, and for the
-     same reason: blend modes wash out on the light palette, a halo does not care. */
+  font-weight: 600;
+  fill: var(--lq-sankey-label-color);
+  /* `paint-order: stroke` draws the halo *under* the glyphs rather than over them, so the stroke
+     thickens the outline instead of eating the letterforms. Without it a 3px stroke on 0.72rem
+     text closes up the counters and the word turns into a blob. */
   paint-order: stroke;
-  stroke: var(--lq-color-panel);
+  stroke: var(--lq-sankey-label-halo);
   stroke-width: 3px;
   stroke-linejoin: round;
-}
-
-.lq-sankey__label--dim {
-  opacity: 0.25;
 }
 
 .lq-sankey__ribbon-label {
   font-size: 0.66rem;
   font-weight: 700;
-  fill: var(--lq-color-text);
+  fill: var(--lq-sankey-label-color);
   paint-order: stroke;
-  stroke: var(--lq-color-panel);
+  stroke: var(--lq-sankey-label-halo);
   stroke-width: 3px;
   stroke-linejoin: round;
 }

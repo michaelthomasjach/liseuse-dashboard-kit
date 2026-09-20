@@ -4,7 +4,7 @@ import type { StrategyTrade } from "../interfaces/StrategyResult.interface";
 import { tradeAtTime } from "./markedTrade";
 import { ChartTooltip } from "../../ChartTooltip";
 
-export interface StrategyExcursionChartProps {
+export interface VerticalDistributionChartProps {
   trades: StrategyTrade[];
   currency: string;
   width: number;
@@ -27,9 +27,13 @@ export interface StrategyExcursionChartProps {
   onHoverTrades?: (trades: StrategyTrade[] | null) => void;
 }
 
-/** MAE / MFE, one row per trade: a horizontal span from how far the trade went *against* you (left
- *  of the centre line) to how far it went *for* you (right of it), with a dot where you actually
- *  got out.
+/** A vertical distribution: one row per trade, stacked, each a horizontal span from how far the
+ *  trade went *against* you (left of the centre line) to how far it went *for* you (right of it),
+ *  with a dot where you actually got out.
+ *
+ *  The spans are the MAE and the MFE, and those keep their names everywhere the *measure* is
+ *  referred to — the panel's own tab, the metric labels, the fields on `StrategyTrade`. What is
+ *  named here is the chart, which is a distribution read down the page rather than across it.
  *
  *  Chosen over the conventional MAE-versus-outcome scatter because it shows three things at once
  *  where the scatter shows two, and the third is the interesting one. A scatter answers "how much
@@ -70,7 +74,7 @@ function money(value: number, currency: string): string {
  *  used: in the tester the chart takes whatever height the text leaves it, so an explanation good
  *  enough to learn from would squeeze the thing it explains down to a strip. The definitions and
  *  the key stay; the reading lesson is one click away and, once read, does not need re-reading. */
-export function StrategyExcursionLegend({ defaultOpen = false }: { defaultOpen?: boolean }) {
+export function VerticalDistributionLegend({ defaultOpen = false }: { defaultOpen?: boolean }) {
   return (
     <div className="lq-strategy__excursion-legend">
       <p className="lq-strategy__hint">
@@ -111,7 +115,7 @@ export function StrategyExcursionLegend({ defaultOpen = false }: { defaultOpen?:
   );
 }
 
-function StrategyExcursionChartImpl({ trades, currency, width, height = 180, markedTime = null, markedToleranceMs = 0, onHoverTrades }: StrategyExcursionChartProps) {
+function VerticalDistributionChartImpl({ trades, currency, width, height = 180, markedTime = null, markedToleranceMs = 0, onHoverTrades }: VerticalDistributionChartProps) {
   // Which row the pointer is on, and where it is. Declared above the early return below so it runs
   // on every render, empty trade list included.
   const [hover, setHover] = useState<{ index: number; x: number } | null>(null);
@@ -318,4 +322,4 @@ function StrategyExcursionChartImpl({ trades, currency, width, height = 180, mar
  *  A shallow prop comparison is enough: every prop here is either a primitive or an array/object
  *  the panel already holds stable across renders (it comes from the run result, which only changes
  *  when the script re-runs). */
-export const StrategyExcursionChart = memo(StrategyExcursionChartImpl);
+export const VerticalDistributionChart = memo(VerticalDistributionChartImpl);

@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { WorldExposureMap, type WorldExposureDatum } from "./WorldExposureMap";
 
 const meta: Meta<typeof WorldExposureMap> = {
-  title: "Charts/WorldExposureMap",
+  title: "Map/World Exposure Map",
   component: WorldExposureMap,
 };
 export default meta;

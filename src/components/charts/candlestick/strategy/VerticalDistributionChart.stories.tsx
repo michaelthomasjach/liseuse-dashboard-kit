@@ -2,12 +2,12 @@ import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react";
 import type { StrategyTrade } from "../interfaces/StrategyResult.interface";
 import { makeSampleTrades } from "../../../../test-data/sampleStrategyTrades";
-import { StrategyExcursionChart, StrategyExcursionLegend } from "./StrategyExcursionChart";
+import { VerticalDistributionChart, VerticalDistributionLegend } from "./VerticalDistributionChart";
 import "./ChartStrategyPanel.css";
 
-const meta: Meta<typeof StrategyExcursionChart> = {
-  title: "Charts/MAE — MFE",
-  component: StrategyExcursionChart,
+const meta: Meta<typeof VerticalDistributionChart> = {
+  title: "Charts/Vertical Distribution",
+  component: VerticalDistributionChart,
   parameters: {
     docs: {
       description: {
@@ -18,7 +18,7 @@ const meta: Meta<typeof StrategyExcursionChart> = {
   },
 };
 export default meta;
-type Story = StoryObj<typeof StrategyExcursionChart>;
+type Story = StoryObj<typeof VerticalDistributionChart>;
 
 const CHART_WIDTH = 860;
 
@@ -29,7 +29,7 @@ function money(value: number): string {
 function Frame({ children, note }: { children: React.ReactNode; note?: string }) {
   return (
     <div style={{ maxWidth: 900, background: "var(--lq-color-panel)", padding: 16, borderRadius: 8 }}>
-      <StrategyExcursionLegend defaultOpen />
+      <VerticalDistributionLegend defaultOpen />
       {children}
       {note !== undefined && <p className="lq-strategy__hint" style={{ margin: "12px 0 0" }}>{note}</p>}
     </div>
@@ -87,7 +87,7 @@ function Interactive({ trades, height, note }: { trades: StrategyTrade[]; height
   const [hovered, setHovered] = useState<StrategyTrade | null>(null);
   return (
     <Frame note={note}>
-      <StrategyExcursionChart
+      <VerticalDistributionChart
         trades={trades}
         currency="EUR"
         width={CHART_WIDTH}
@@ -148,7 +148,7 @@ function MarkedDemo({ trades }: { trades: StrategyTrade[] }) {
   const [marked, setMarked] = useState<number | null>(null);
   return (
     <Frame note="Dans le testeur, `markedTime` vient de la chart des prix : survoler une exécution là-haut allume sa ligne ici. Les boutons ci-dessous tiennent ce rôle. La marque est une bande sur la ligne du trade, pas un trait vertical — un trait vertical traverserait tous les trades et n'en désignerait aucun.">
-      <StrategyExcursionChart trades={trades} currency="EUR" width={CHART_WIDTH} height={300} markedTime={marked} />
+      <VerticalDistributionChart trades={trades} currency="EUR" width={CHART_WIDTH} height={300} markedTime={marked} />
       <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 12 }}>
         {trades.map((trade, i) => (
           <button

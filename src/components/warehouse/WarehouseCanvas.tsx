@@ -45,9 +45,12 @@ export interface WarehouseCanvasProps {
 
 const MIN_SCALE = 0.25;
 const MAX_SCALE = 3;
-/** Past this many screen pixels per cell, a rack is drawn with its individual locations rather
- *  than as one block. Same idea as the Sankey's labels: zooming in adds information instead of
- *  only making the same information bigger. */
+/** Past this many screen pixels per cell, labels and other per-item detail are worth drawing.
+ *
+ *  A rack's own frame is deliberately *not* gated on this any more. It was, back when the lattice
+ *  was decoration laid over a solid block and hiding it when zoomed out cost nothing. Now the
+ *  frame is the rack — there is no fill behind it — so the gate turned every rack below about
+ *  64 % zoom into an empty rectangle. A rack has to look like a rack at every distance. */
 const SLOT_DETAIL_AT = 14;
 /** A pointer that moves less than this between press and release was a click, not a drag. */
 const CLICK_SLACK = 4;
@@ -837,7 +840,7 @@ export function WarehouseCanvas({
           setDrag({ kind: "item", id: item.id, grabX: cell.x - item.x, grabY: cell.y - item.y, x: item.x, y: item.y });
         }}
       >
-        {item.kind === "rack" && showSlots && renderSlots(item)}
+        {item.kind === "rack" && renderSlots(item)}
         {isConveyor(item.kind) && renderFlow(item)}
         {item.label && !iso && <span className="lq-wh__item-label">{item.label}</span>}
 

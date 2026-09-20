@@ -150,6 +150,42 @@ function isBlank(html: string): boolean {
   return html.replace(/<br\s*\/?>/gi, "").replace(/<(p|div)>\s*<\/\1>/gi, "").trim() === "";
 }
 
+/** Lifts a list out of the paragraph `insertUnorderedList` sometimes leaves it inside.
+ *
+ *  Chrome, asked to make a list of a `<p>` it did not itself create, puts the `<ul>` *inside* the
+ *  paragraph instead of replacing it. It renders correctly and re-parses to something valid, so
+ *  nothing looks wrong — but the string handed to `onChange` is `<p><ul>…</ul></p>`, which is not
+ *  legal HTML, and the contract of this component is precisely the string it gives you. Moving the
+ *  list up a level keeps the text nodes, so a caret inside the list stays where it was.
+ *
+ *  Kept deliberately narrow: this repairs one known, reproducible browser wart, it is not an
+ *  attempt to police the whole document. Chasing every quirk of execCommand is what a document
+ *  model is for, and choosing not to have one is a decision made openly above. */
+function liftListsOutOfParagraphs(root: HTMLElement) {
+  for (const list of Array.from(root.querySelectorAll("p > ul, p > ol"))) {
+    const paragraph = list.parentElement;
+    if (!paragraph) continue;
+    paragraph.parentNode?.insertBefore(list, paragraph);
+    if (paragraph.textContent?.trim() === "" && paragraph.children.length === 0) paragraph.remove();
+  }
+}
+
+/** The node the selection actually starts *on*.
+ *
+ *  `range.startContainer` is not it once a command has wrapped the selection: surrounding the text
+ *  in a `<code>` leaves the range spanning that element, so its `startContainer` is the element's
+ *  *parent* with an offset pointing at it, and asking "is the caret inside a `<code>`" of that
+ *  parent answers no. That was a real bug — pressing the inline-code button twice nested one
+ *  `<code>` inside another instead of undoing the first. Resolving the offset to the child it
+ *  points at is what makes the question answerable. */
+function selectionStartNode(range: Range): Node {
+  const { startContainer, startOffset } = range;
+  if (startContainer.nodeType !== 1) return startContainer;
+  const children = startContainer.childNodes;
+  if (children.length === 0) return startContainer;
+  return children[Math.min(startOffset, children.length - 1)];
+}
+
 function closestElement(node: Node | null, selector: string, root: HTMLElement): HTMLElement | null {
   let current: Node | null = node;
   while (current && current !== root) {
@@ -236,6 +272,7 @@ export function WysiwygEditor({
   const emit = useCallback(() => {
     const el = editorRef.current;
     if (!el) return;
+    liftListsOutOfParagraphs(el);
     const html = el.innerHTML;
     lastEmitted.current = html;
     setEmpty(isBlank(html));
@@ -263,8 +300,9 @@ export function WysiwygEditor({
         next[tool] = false;
       }
     }
-    next.code = closestElement(range.startContainer, "code", el) !== null;
-    next.link = closestElement(range.startContainer, "a", el) !== null;
+    const start = selectionStartNode(range);
+    next.code = closestElement(start, "code", el) !== null;
+    next.link = closestElement(start, "a", el) !== null;
     setActive(next);
 
     const blockEl = closestElement(range.startContainer, "p,h1,h2,h3,blockquote,pre", el);
@@ -315,13 +353,24 @@ export function WysiwygEditor({
     const selection = window.getSelection();
     if (!el || !selection || selection.rangeCount === 0) return;
     const range = selection.getRangeAt(0);
-    const existing = closestElement(range.startContainer, "code", el);
+    const existing = closestElement(selectionStartNode(range), "code", el);
 
     if (existing) {
       const parent = existing.parentNode;
       if (parent) {
+        const first = existing.firstChild;
+        const last = existing.lastChild;
         while (existing.firstChild) parent.insertBefore(existing.firstChild, existing);
         parent.removeChild(existing);
+        // Re-select what was inside it. Removing the element the range was spanning otherwise
+        // leaves the selection pointing at nothing, and the next press has no text to act on.
+        if (first && last) {
+          const restored = document.createRange();
+          restored.setStartBefore(first);
+          restored.setEndAfter(last);
+          selection.removeAllRanges();
+          selection.addRange(restored);
+        }
       }
     } else if (!range.collapsed) {
       const code = document.createElement("code");
@@ -340,7 +389,7 @@ export function WysiwygEditor({
     const el = editorRef.current;
     const selection = window.getSelection();
     const anchor =
-      el && selection && selection.rangeCount > 0 ? closestElement(selection.getRangeAt(0).startContainer, "a", el) : null;
+      el && selection && selection.rangeCount > 0 ? closestElement(selectionStartNode(selection.getRangeAt(0)), "a", el) : null;
     setLinkDraft(anchor?.getAttribute("href") ?? "");
   }, []);
 

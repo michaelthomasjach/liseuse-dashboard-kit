@@ -1,5 +1,5 @@
 export { TileMap } from "./TileMap";
-export type { TileMapProps, TileMapMarker } from "./TileMap";
+export type { TileMapProps, TileMapMarker, TileMapRoute } from "./TileMap";
 export {
   TILE_SIZE,
   MAX_LATITUDE,
@@ -10,3 +10,4 @@ export {
   tileXToLon,
   tileYToLat,
 } from "./tileMath";
+export { pathLengthKm } from "./routeGeometry";

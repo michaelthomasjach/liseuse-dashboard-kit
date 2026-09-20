@@ -4,6 +4,7 @@ import {
   clampSlots,
   footprintOf,
   isConveyor,
+  rotateItem,
   isHorizontal,
   pointAlongPath,
   snapToGrid,
@@ -14,6 +15,7 @@ import {
 } from "./warehouseModel";
 import { conveyorLines, flowChevrons } from "./conveyorFlow";
 import { ISO_HEIGHT, ISO_TRANSFORM, projectIso, unprojectIso } from "./warehouseIso";
+import { RefreshIcon } from "../icons";
 import { WarehouseInspector } from "./WarehouseInspector";
 import "./WarehouseCanvas.css";
 
@@ -49,6 +51,11 @@ const MAX_SCALE = 3;
 const SLOT_DETAIL_AT = 14;
 /** A pointer that moves less than this between press and release was a click, not a drag. */
 const CLICK_SLACK = 4;
+/** Seconds for one pass of the flow wave down a conveyor. Slow enough to read as a direction
+ *  rather than a flicker, and the same for every conveyor whatever its length — a plan where the
+ *  short belts pulsed faster than the long ones would be saying something about speed that is not
+ *  in the data. */
+const FLOW_CYCLE = 1.6;
 
 type Drag =
   | { kind: "pan"; startX: number; startY: number; originX: number; originY: number }
@@ -118,6 +125,25 @@ export function WarehouseCanvas({
   const [tracing, setTracing] = useState<{ points: { x: number; y: number }[]; cursor: { x: number; y: number } } | null>(null);
   const pressOrigin = useRef<{ x: number; y: number } | null>(null);
   const movedRef = useRef(false);
+  /**
+   * The item the rotate handle belongs to, and the timer that lets the pointer reach it.
+   *
+   * The handle sits *outside* the box it turns, which is what makes it reachable on a rack that
+   * fills its own footprint — and also means leaving the box would hide the handle before the
+   * pointer got there. Releasing the hover is deferred, the same trick `UserMenu` uses to let a
+   * pointer cross into a cascading submenu.
+   */
+  const [hoverItem, setHoverItem] = useState<string | null>(null);
+  const hoverTimer = useRef<number | undefined>(undefined);
+  const holdHover = (id: string) => {
+    window.clearTimeout(hoverTimer.current);
+    setHoverItem(id);
+  };
+  const releaseHover = () => {
+    window.clearTimeout(hoverTimer.current);
+    hoverTimer.current = window.setTimeout(() => setHoverItem(null), 140);
+  };
+  useEffect(() => () => window.clearTimeout(hoverTimer.current), []);
   /** Each item's own box on the plan. The inspector anchors to one of these, so it follows the
    *  item when the plan is panned or zoomed instead of floating where the item used to be. */
   const itemNodes = useRef(new Map<string, HTMLDivElement>());
@@ -361,6 +387,14 @@ export function WarehouseCanvas({
 
   const px = (cells: number) => cells * cellSize;
 
+  /** A point on the plan, in cells, to its place on screen — whichever camera is in force. The
+   *  overlay is outside the canvas transform, so anything drawn there has to be projected by hand;
+   *  that is also what keeps its contents at a constant size instead of shrinking with the zoom. */
+  const toScreen = (cellX: number, cellY: number, cellZ = 0) => {
+    const flat = iso ? projectIso(px(cellX), px(cellY), px(cellZ)) : { x: px(cellX), y: px(cellY) };
+    return { left: view.x + view.scale * flat.x, top: view.y + view.scale * flat.y };
+  };
+
   /** The slab everything stands on, in cells — the content's own extent with a margin. Only drawn
    *  in isometric, where a tilted plan with nothing under it reads as objects floating in a void. */
   const floor = (() => {
@@ -596,6 +630,41 @@ export function WarehouseCanvas({
             })}
           </div>
 
+          {/* The flat layer: labels in isometric, and the rotate handle in both views. Outside the
+              canvas transform, so its contents keep their own size at every zoom and, in
+              isometric, are not sheared by the camera. */}
+          <div className="lq-wh__overlay">
+            {editable &&
+              hoverItem !== null &&
+              (() => {
+                const item = items.find((candidate) => candidate.id === hoverItem);
+                if (!item || item.kind === "zone") return null;
+                const box = footprintOf(item);
+                // The box's top-right corner, and then a nudge up and out — the handle belongs
+                // *beside* the thing it turns, not on top of it, or it would cover the very corner
+                // someone is trying to see while turning it.
+                const at = toScreen(item.x + box.width, item.y, iso ? ISO_HEIGHT[item.kind] : 0);
+                return (
+                  <button
+                    type="button"
+                    className="lq-wh__rotate"
+                    style={{ left: at.left, top: at.top }}
+                    title="Pivoter de 90°"
+                    aria-label="Pivoter de 90°"
+                    onPointerEnter={() => holdHover(item.id)}
+                    onPointerLeave={releaseHover}
+                    onPointerDown={(event) => event.stopPropagation()}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onItemsChange?.(items.map((candidate) => (candidate.id === item.id ? rotateItem(candidate) : candidate)));
+                    }}
+                  >
+                    <RefreshIcon size={13} />
+                  </button>
+                );
+              })()}
+          </div>
+
           {/* Labels, flat, over the tilt.
               Text put through the camera comes out sheared and reads at a slant — which is exactly
               what an isometric picture should do to a rack and must not do to its name. So the
@@ -719,7 +788,9 @@ export function WarehouseCanvas({
                 height: px(lift),
                 transform: "rotateX(90deg)",
               }}
-            />
+            >
+              {renderRackFace(item, "front")}
+            </div>
             <div
               className={`lq-wh__wall lq-wh__wall--side lq-wh__wall--${item.kind}`}
               style={{
@@ -729,7 +800,9 @@ export function WarehouseCanvas({
                 height: px(size.height),
                 transform: "rotateY(-90deg)",
               }}
-            />
+            >
+              {renderRackFace(item, "side")}
+            </div>
           </>
         )}
       <div
@@ -748,6 +821,10 @@ export function WarehouseCanvas({
           // are rendered beside it, in the canvas's own frame.
           transform: iso ? `translateZ(${px(ISO_HEIGHT[item.kind])}px)` : undefined,
         }}
+        onPointerEnter={() => {
+          if (editable && item.kind !== "zone") holdHover(item.id);
+        }}
+        onPointerLeave={releaseHover}
         onPointerDown={(event) => {
           event.stopPropagation();
           if (tracing) return;
@@ -811,20 +888,88 @@ export function WarehouseCanvas({
           transform: `rotate(${rotation}deg)`,
         }}
       >
-        {lines.map((line, i) => (
-          <g key={i}>
-            <polyline className="lq-wh__flow-line" points={line.map((point) => `${px(point.x)},${px(point.y)}`).join(" ")} />
-            {flowChevrons(line, item.reversed === true).map((chevron, j) => (
-              <path
-                key={j}
-                className="lq-wh__flow-chevron"
-                d="M-3,-3 L3,0 L-3,3"
-                transform={`translate(${px(chevron.x)},${px(chevron.y)}) rotate(${chevron.angle})`}
-              />
-            ))}
-          </g>
-        ))}
+        {lines.map((line, i) => {
+          const chevrons = flowChevrons(line, item.reversed === true);
+          return (
+            <g key={i}>
+              <polyline className="lq-wh__flow-line" points={line.map((point) => `${px(point.x)},${px(point.y)}`).join(" ")} />
+              {chevrons.map((chevron, j) => (
+                <path
+                  key={j}
+                  className="lq-wh__flow-chevron"
+                  d="M-3,-3 L3,0 L-3,3"
+                  transform={`translate(${px(chevron.x)},${px(chevron.y)}) rotate(${chevron.angle})`}
+                  // A wave of brightness running down the line, not arrows sliding along it.
+                  // Sliding would be wrong on a corner — the chevrons follow an arc, and a
+                  // translation would carry them off it — and on a junction there are two arms
+                  // with nothing to slide between. Staggering the *same* pulse gives the sense of
+                  // travel on any shape, for one animated property.
+                  //
+                  // The delay is negative so the wave is already spread out on the first frame
+                  // rather than starting with every arrow lit at once; it counts backwards when
+                  // the belt is reversed, so the wave runs the way the goods do.
+                  style={{
+                    animationDelay: `${-((item.reversed === true ? chevrons.length - 1 - j : j) / Math.max(1, chevrons.length)) * FLOW_CYCLE}s`,
+                  }}
+                />
+              ))}
+            </g>
+          );
+        })}
       </svg>
+    );
+  }
+
+  /**
+   * A rack's shelves, drawn on the wall you actually look at.
+   *
+   * Without this a rack in the isometric view is a plain box — which is what it looked like,
+   * because everything that says "rack" (the levels, the bays, what is in them) was on the top
+   * face, and the top face is the one you barely see once the floor is tilted. A rack is read from
+   * the front: uprights, shelves, and the pallets between them.
+   *
+   * Which wall carries the bays depends on how the rack is turned. Its bays run along its own
+   * length, so an unturned rack shows them on the front wall (the `+y` edge, which spans x) and
+   * its narrow end on the side; a rack turned a quarter shows the opposite. Getting this the wrong
+   * way round draws a ten-bay rack as a ten-shelf tower, which is a different object.
+   */
+  function renderRackFace(item: WarehouseItem, wall: "front" | "side") {
+    if (item.kind !== "rack") return null;
+    const bays = item.bays ?? 0;
+    const levels = item.levels ?? 0;
+    if (bays === 0 || levels === 0) return null;
+
+    const byKey = new Map(clampSlots(item).map((slot) => [`${slot.bay}:${slot.level}`, slot]));
+    const showsBays = wall === (isHorizontal(item) ? "front" : "side");
+
+    // The end of the rack: no bays to show, just the shelves stacked up. Drawn as plain bands
+    // rather than as empty slots, because an end view that showed slots would be claiming there is
+    // a pallet position facing the aisle when there is only a stanchion.
+    if (!showsBays) {
+      return (
+        <span className="lq-wh__face lq-wh__face--end" style={{ gridTemplateRows: `repeat(${levels}, 1fr)` }}>
+          {Array.from({ length: levels }, (_, i) => (
+            <span key={i} className="lq-wh__shelf" />
+          ))}
+        </span>
+      );
+    }
+
+    // Level 0 is the bottom shelf and a grid fills row by row, so the top row is emitted first —
+    // the same rule the plan view's own slot grid follows, and for the same reason: a rack drawn
+    // upside down lies about where the stock is.
+    return (
+      <span
+        className="lq-wh__face"
+        style={{ gridTemplateColumns: `repeat(${bays}, 1fr)`, gridTemplateRows: `repeat(${levels}, 1fr)` }}
+      >
+        {Array.from({ length: levels }, (_, row) => levels - 1 - row).flatMap((level) =>
+          Array.from({ length: bays }, (_, bay) => {
+            const slot = byKey.get(`${bay}:${level}`);
+            return <span key={`${bay}:${level}`} className={`lq-wh__cell lq-wh__cell--${slot?.status ?? "empty"}`} />;
+          })
+        )}
+      </span>
     );
   }
 

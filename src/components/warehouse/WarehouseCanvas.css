@@ -709,3 +709,106 @@
   background-color: var(--lq-color-danger);
   color: var(--lq-color-accent-contrast);
 }
+
+/* ---- a rack's own face, in the isometric view ---- */
+
+/* Drawn on the wall you actually look at. Without it a rack in isometric is a plain box: every
+   sign that it is a rack — levels, bays, what is in them — lives on the top face, and the top face
+   is what you barely see once the floor is tilted. */
+.lq-wh__face {
+  position: absolute;
+  inset: 1px;
+  display: grid;
+  gap: 1px;
+}
+
+.lq-wh__cell {
+  border-radius: 1px;
+  /* The empty bay is the *opening* between two uprights, so it is darker than the frame around it
+     rather than lighter — a gap reads as a hole, not as a panel. */
+  background-color: color-mix(in srgb, var(--lq-color-text) 14%, transparent);
+}
+
+.lq-wh__cell--occupied {
+  background-color: color-mix(in srgb, var(--lq-color-accent) 72%, var(--lq-color-panel));
+}
+
+.lq-wh__cell--reserved {
+  background-color: var(--lq-wh-reserved);
+}
+
+.lq-wh__cell--blocked {
+  background-color: var(--lq-wh-blocked);
+}
+
+/* The narrow end of a rack: shelves and uprights, no bays. An end view showing slots would claim
+   there is a pallet position facing the aisle when there is only a stanchion. */
+.lq-wh__face--end .lq-wh__shelf {
+  background-color: color-mix(in srgb, var(--lq-color-text) 26%, transparent);
+  border-radius: 1px;
+}
+
+/* ---- the flow wave ---- */
+
+.lq-wh__flow-chevron {
+  animation: lq-wh-flow var(--lq-wh-flow-cycle, 1.6s) linear infinite;
+}
+
+@keyframes lq-wh-flow {
+  0% {
+    opacity: 0.25;
+  }
+  /* A short bright crest and a long trough: an even fade makes every arrow the same most of the
+     time, which reads as a shimmer rather than as something travelling. */
+  18% {
+    opacity: 1;
+  }
+  45% {
+    opacity: 0.25;
+  }
+  100% {
+    opacity: 0.25;
+  }
+}
+
+/* Motion is governed by `prefers-reduced-motion`, not by the palette — the same stance the loaders
+   take, and for the same reason: the e-ink palette is a colour scheme anyone can pick on an
+   ordinary screen, while a device that genuinely cannot animate says so here. The arrows stay,
+   at the strength they were drawn with before this existed. */
+@media (prefers-reduced-motion: reduce) {
+  .lq-wh__flow-chevron {
+    animation: none;
+  }
+}
+
+/* ---- the rotate handle ---- */
+
+/* The overlay itself lets pointers through; only what is drawn on it takes them back. */
+.lq-wh__rotate {
+  position: absolute;
+  /* Up and out from the corner it is anchored to: beside the thing it turns, not over it. */
+  transform: translate(-10%, -90%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--lq-color-border);
+  border-radius: 50%;
+  background-color: var(--lq-color-panel);
+  color: var(--lq-color-text);
+  box-shadow: 0 1px 4px var(--lq-color-overlay);
+  cursor: pointer;
+  pointer-events: auto;
+  z-index: 8;
+}
+
+.lq-root[data-lq-palette="eink"] .lq-wh__rotate {
+  box-shadow: none;
+}
+
+.lq-wh__rotate:hover {
+  border-color: var(--lq-color-accent);
+  color: var(--lq-color-accent);
+}

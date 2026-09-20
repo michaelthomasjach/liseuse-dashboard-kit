@@ -40,11 +40,14 @@ export const LabelLeftValueRight: Story = {
   ),
 };
 
+// Une barre par défaut fait 6 px : du texte posé dedans dépasse des deux côtés et ne se lit pas.
+// Poser quelque chose à l'intérieur, c'est demander une barre qui a la place de le contenir.
 export const Inside: Story = {
   name: "Label et valeur à l'intérieur",
   render: () => (
-    <div style={{ maxWidth: 420 }}>
-      <ProgressBar label="Téléchargement" value={73} labelPosition="inside" valuePosition="inside" showValue />
+    <div style={{ display: "flex", flexDirection: "column", gap: 16, maxWidth: 420 }}>
+      <ProgressBar label="Téléchargement" value={73} labelPosition="inside" valuePosition="inside" showValue thickness={26} />
+      <ProgressBar label="Import des transactions" value={38} labelPosition="inside" valuePosition="inside" showValue thickness={26} />
     </div>
   ),
 };

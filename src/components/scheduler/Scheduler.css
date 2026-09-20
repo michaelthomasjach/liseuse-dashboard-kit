@@ -374,3 +374,27 @@
   position: relative;
   z-index: 1;
 }
+
+/* ---- dragging the board ---- */
+
+/* The board is pannable by hand, which matters more now that the wheel zooms. `grab` on the
+   surface and not on the blocks: those carry their own cursor and their own drag. */
+.lq-sched__body {
+  cursor: grab;
+}
+
+.lq-sched__body--panning {
+  cursor: grabbing;
+  /* Otherwise a pan across the ticks selects the labels it passes over and leaves the board
+     covered in highlight. */
+  user-select: none;
+}
+
+/* The header pans too, horizontally — it is the part of a timeline a hand reaches for first. */
+.lq-sched__head {
+  cursor: grab;
+}
+
+.lq-sched__head--panning {
+  cursor: grabbing;
+}

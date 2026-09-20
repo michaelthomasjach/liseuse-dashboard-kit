@@ -123,6 +123,16 @@ export function Scheduler({
   /** Where the press landed, so a drag of two pixels is not mistaken for a click on a board where
    *  every block is also a drag handle. */
   const pressAt = useRef<{ x: number; y: number } | null>(null);
+  /**
+   * A drag on the empty board, which moves the view rather than anything on it.
+   *
+   * It matters more since the wheel started zooming: without it the only ways left to move across
+   * a week were `Maj` + wheel and the scrollbar. Panning drives `scrollLeft`/`scrollTop` rather
+   * than a transform, because the board is a real scroller and a transform would leave its
+   * scrollbars describing a position it no longer had.
+   */
+  const pan = useRef<{ x: number; y: number; left: number; top: number; moved: boolean } | null>(null);
+  const [panning, setPanning] = useState(false);
 
   const editable = onTasksChange !== undefined;
   const select = (id: string | null) => onSelectedTaskIdChange?.(id);
@@ -191,6 +201,24 @@ export function Scheduler({
   };
 
   function onBodyPointerMove(event: ReactPointerEvent) {
+    const grip = pan.current;
+    if (grip) {
+      const body = bodyRef.current;
+      if (!body) return;
+      const dx = event.clientX - grip.x;
+      const dy = event.clientY - grip.y;
+      if (!grip.moved && Math.hypot(dx, dy) > 4) {
+        grip.moved = true;
+        setPanning(true);
+      }
+      if (grip.moved) {
+        // Opposite the pointer: the board follows the hand, the way a map does.
+        body.scrollLeft = grip.left - dx;
+        body.scrollTop = grip.top - dy;
+        syncScroll();
+      }
+      return;
+    }
     if (!drag) return;
     const time = clientToTime(event.clientX);
 
@@ -284,7 +312,39 @@ export function Scheduler({
       <div className="lq-sched__grid" style={{ gridTemplateColumns: `${resourceWidth}px minmax(0, 1fr)` }}>
         <div className="lq-sched__corner">Ressource</div>
 
-        <div className="lq-sched__head" ref={headRef}>
+        <div
+          className={["lq-sched__head", panning && "lq-sched__head--panning"].filter(Boolean).join(" ")}
+          ref={headRef}
+          // The header pans too, and only sideways: it is the strip a hand reaches for on a
+          // timeline, and there is nothing above or below it to reach.
+          onPointerDown={(event) => {
+            if (event.pointerType === "touch") return;
+            const body = bodyRef.current;
+            if (!body) return;
+            pan.current = { x: event.clientX, y: 0, left: body.scrollLeft, top: body.scrollTop, moved: false };
+          }}
+          onPointerMove={(event) => {
+            const grip = pan.current;
+            const body = bodyRef.current;
+            if (!grip || !body) return;
+            const dx = event.clientX - grip.x;
+            if (!grip.moved && Math.abs(dx) > 4) {
+              grip.moved = true;
+              setPanning(true);
+            }
+            if (!grip.moved) return;
+            body.scrollLeft = grip.left - dx;
+            syncScroll();
+          }}
+          onPointerUp={() => {
+            pan.current = null;
+            setPanning(false);
+          }}
+          onPointerLeave={() => {
+            pan.current = null;
+            setPanning(false);
+          }}
+        >
           <div className="lq-sched__head-inner" style={{ width: contentWidth }}>
             {ticks.map((tick) => (
               <span
@@ -308,13 +368,32 @@ export function Scheduler({
         </div>
 
         <div
-          className="lq-sched__body"
+          className={["lq-sched__body", panning && "lq-sched__body--panning"].filter(Boolean).join(" ")}
           ref={bodyRef}
           onScroll={syncScroll}
           onWheel={onWheel}
           onPointerMove={onBodyPointerMove}
           onPointerDown={(event) => {
-            if (event.target === event.currentTarget || (event.target as HTMLElement).hasAttribute("data-resource")) select(null);
+            // Only a press on the board itself — never on a block, which has its own drag.
+            const target = event.target as HTMLElement;
+            if (target.closest(".lq-sched__task")) return;
+            // Touch is left to the browser: a finger already scrolls this, natively and better
+            // than a hand-rolled pan, and taking the gesture would only make it worse.
+            if (event.pointerType === "touch") return;
+            const body = bodyRef.current;
+            if (!body) return;
+            pan.current = { x: event.clientX, y: event.clientY, left: body.scrollLeft, top: body.scrollTop, moved: false };
+          }}
+          onPointerUp={() => {
+            // A press that never moved is a click on the background, which clears the selection.
+            // Doing it on press instead would wipe the selection at the start of every pan.
+            if (pan.current && !pan.current.moved) select(null);
+            pan.current = null;
+            setPanning(false);
+          }}
+          onPointerLeave={() => {
+            pan.current = null;
+            setPanning(false);
           }}
         >
           <div className="lq-sched__canvas" style={{ width: contentWidth }}>

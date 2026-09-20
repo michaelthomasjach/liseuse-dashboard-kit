@@ -24,7 +24,12 @@
      rails between them. Drawn at one weight, as they first were, the lattice reads as graph paper
      and disappears — which is how a rack ended up looking like nothing at all. */
   --lq-wh-upright: color-mix(in srgb, var(--lq-color-text) 72%, transparent);
-  --lq-wh-beam: color-mix(in srgb, var(--lq-color-text) 34%, transparent);
+  /* 55 %, not the 34 % it was: at 100 % zoom a beam is a single pixel, and 34 % of the text colour
+     over the zone tint measures 2.15∶1 — under the 3∶1 floor for a graphic, so the horizontals
+     simply vanished and each rack read as white columns between dark posts. */
+  --lq-wh-beam: color-mix(in srgb, var(--lq-color-text) 55%, transparent);
+  /* The shade a beam throws into the bay below it. */
+  --lq-wh-depth: color-mix(in srgb, var(--lq-color-text) 30%, transparent);
 
   display: grid;
   grid-template-columns: 200px minmax(0, 1fr);
@@ -332,7 +337,10 @@
    the posts inside it. */
 .lq-wh__item--rack {
   background-color: transparent;
-  border-color: var(--lq-wh-upright);
+  /* The frame is drawn by the lattice's own outer members (see .lq-wh__slots); a second outline
+     here made a dark / gap / dark triple line all round the rack, measured at 294 %: 2 px border,
+     2 px of floor, 6 px of grid. One frame, not two. */
+  border-color: transparent;
 }
 
 .lq-wh__item--station {
@@ -431,7 +439,7 @@
    a transparent channel between cells and read as a second, paler set of lines. */
 .lq-wh__slots {
   position: absolute;
-  inset: 1px;
+  inset: 0;
   display: grid;
   gap: 0;
   box-sizing: border-box;
@@ -448,6 +456,21 @@
   background-color: transparent;
   border-right: 2px solid var(--lq-wh-upright);
   border-bottom: 1px solid var(--lq-wh-beam);
+}
+
+/* Why an empty bay still looked like a white tile after the fill was removed.
+   A transparent hole over a flat floor is pixel-for-pixel an opaque tile of the floor's colour —
+   measured: the inside of an empty bay was rgb(235,234,241), exactly the aisle beside the rack.
+   There was nothing *in* the opening to say it was an opening. A real bay has two things in it
+   that a tile does not: the shade the beam above throws into it, and the rear rail of the level
+   showing at the back. Both drawn here as inset shadows, so the background stays transparent and
+   the floor — or an AGV rail passing behind — still shows through. It is still a hole; it is now
+   a hole in a steel frame. */
+.lq-wh__slot--empty,
+.lq-wh__cell--empty {
+  box-shadow:
+    inset 0 3px 3px -2px var(--lq-wh-depth),
+    inset 0 -2px 0 0 var(--lq-wh-beam);
 }
 
 /* A pallet: opaque, and darker than the opening it sits in. The only cells that are *filled*. */
@@ -686,6 +709,7 @@
 
 .lq-wh__wall--rack {
   background-color: transparent;
+  border-color: transparent;
 }
 .lq-wh__wall--station {
   background-color: color-mix(in srgb, var(--lq-color-sky) 26%, var(--lq-color-panel));
@@ -748,7 +772,7 @@
    is what you barely see once the floor is tilted. */
 .lq-wh__face {
   position: absolute;
-  inset: 1px;
+  inset: 0;
   display: grid;
   gap: 0;
   box-sizing: border-box;

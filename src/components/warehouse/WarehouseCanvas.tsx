@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPoi
 import {
   WAREHOUSE_KINDS,
   clampSlots,
+  footprintOf,
+  isHorizontal,
   pointAlongPath,
   snapToGrid,
   type WarehouseItem,
@@ -9,6 +11,7 @@ import {
   type WarehouseRail,
   type WarehouseRobot,
 } from "./warehouseModel";
+import { WarehouseInspector } from "./WarehouseInspector";
 import "./WarehouseCanvas.css";
 
 export interface WarehouseCanvasProps {
@@ -44,7 +47,7 @@ type Drag =
   | { kind: "pan"; startX: number; startY: number; originX: number; originY: number }
   | { kind: "item"; id: string; grabX: number; grabY: number; x: number; y: number }
   | { kind: "resize"; id: string; x: number; y: number }
-  | { kind: "palette"; itemKind: WarehouseItemKind; x: number; y: number };
+  | { kind: "palette"; itemKind: WarehouseItemKind; x: number; y: number; clientX: number; clientY: number };
 
 const PALETTE_ORDER: WarehouseItemKind[][] = [
   ["rack", "station", "charger"],
@@ -98,6 +101,22 @@ export function WarehouseCanvas({
   const [tracing, setTracing] = useState<{ points: { x: number; y: number }[]; cursor: { x: number; y: number } } | null>(null);
   const pressOrigin = useRef<{ x: number; y: number } | null>(null);
   const movedRef = useRef(false);
+  /** Each item's own box on the plan. The inspector anchors to one of these, so it follows the
+   *  item when the plan is panned or zoomed instead of floating where the item used to be. */
+  const itemNodes = useRef(new Map<string, HTMLDivElement>());
+  /** A stable object for `Popover`'s `anchorRef`, re-pointed at whichever item is selected. */
+  const anchorRef = useRef<HTMLElement | null>(null);
+  anchorRef.current = selectedId === null ? null : itemNodes.current.get(selectedId) ?? null;
+  const selectedItem = items.find((item) => item.id === selectedId) ?? null;
+  /**
+   * Set when a click lands on an item, read by the inspector's own `onClose`.
+   *
+   * `Popover` closes on any pointerdown outside its panel and its anchor — and clicking a *second*
+   * item is exactly that. Its close handler runs after the item's own, so without this guard
+   * selecting B would deselect B: select(B), then close → select(null). Escape and a click on the
+   * empty plan still clear the selection, which is what closing should mean.
+   */
+  const reselecting = useRef(false);
 
   /**
    * A pointer released anywhere else ends the drag.
@@ -134,6 +153,27 @@ export function WarehouseCanvas({
     },
     [view, cellSize]
   );
+
+  /**
+   * While something is being carried out of the palette, the pointer is tracked on `window`.
+   *
+   * The surface's own `pointermove` only fires over the surface, so the ghost would sit frozen on
+   * the palette until the pointer crossed into the plan — exactly the stretch where someone needs
+   * to see that they have picked something up.
+   */
+  useEffect(() => {
+    if (drag?.kind !== "palette") return;
+    const track = (event: PointerEvent) => {
+      const cell = toCell(event.clientX, event.clientY);
+      setDrag((current) =>
+        current?.kind === "palette"
+          ? { ...current, x: cell.x, y: cell.y, clientX: event.clientX, clientY: event.clientY }
+          : current
+      );
+    };
+    window.addEventListener("pointermove", track);
+    return () => window.removeEventListener("pointermove", track);
+  }, [drag?.kind, toCell]);
 
   function onSurfacePointerDown(event: ReactPointerEvent) {
     if (event.button !== 0) return;
@@ -178,8 +218,13 @@ export function WarehouseCanvas({
       onItemsChange?.(
         items.map((item) => {
           if (item.id !== drag.id) return item;
-          const width = Math.max(1, snapToGrid(drag.x - item.x));
-          const height = Math.max(1, snapToGrid(drag.y - item.y));
+          // The handle is dragged in the *footprint's* frame — what is on screen — and `width`
+          // and `height` are the item's own sides, so a quarter-turned item has to map them back
+          // or resizing it would swap which side was being pulled.
+          const box = { width: Math.max(1, snapToGrid(drag.x - item.x)), height: Math.max(1, snapToGrid(drag.y - item.y)) };
+          const quarter = (item.rotation ?? 0) % 180 !== 0;
+          const width = quarter ? box.height : box.width;
+          const height = quarter ? box.width : box.height;
           // A rack's bays follow its length rather than staying put: a rack made twice as long
           // with the same number of bays is a drawing of nothing real.
           const bays = item.bays === undefined ? undefined : Math.max(1, width);
@@ -281,7 +326,9 @@ export function WarehouseCanvas({
     <div className={["lq-wh", className].filter(Boolean).join(" ")} style={{ height }}>
       {editable && (
         <div className="lq-wh__palette">
-          <p className="lq-wh__palette-intro">Glissez un élément sur le plan. Les positions s&apos;alignent sur la grille.</p>
+          <p className="lq-wh__palette-intro">
+            Glissez un élément sur le plan — il suit la souris et se pose sur la grille. Cliquez-en un pour le régler.
+          </p>
           {PALETTE_ORDER.map((group, i) => (
             <section key={i} className="lq-wh__palette-group">
               {group.map((kind) => {
@@ -294,7 +341,7 @@ export function WarehouseCanvas({
                     onPointerDown={(event) => {
                       event.preventDefault();
                       const cell = toCell(event.clientX, event.clientY);
-                      setDrag({ kind: "palette", itemKind: kind, x: cell.x, y: cell.y });
+                      setDrag({ kind: "palette", itemKind: kind, x: cell.x, y: cell.y, clientX: event.clientX, clientY: event.clientY });
                     }}
                   >
                     <span className={`lq-wh__swatch lq-wh__swatch--${kind}`} aria-hidden="true" />
@@ -404,6 +451,21 @@ export function WarehouseCanvas({
 
             {items.filter((item) => item.kind !== "zone").map((item) => renderItem(item))}
 
+            {/* Where it will land. The ghost under the cursor says what is being carried; this
+                says where it goes — and they are different places, because the drop snaps to the
+                grid and the cursor does not. Without it, releasing is a guess. */}
+            {drag?.kind === "palette" && (
+              <div
+                className="lq-wh__drop-preview"
+                style={{
+                  left: px(snapToGrid(drag.x - WAREHOUSE_KINDS[drag.itemKind].width / 2)),
+                  top: px(snapToGrid(drag.y - WAREHOUSE_KINDS[drag.itemKind].height / 2)),
+                  width: px(WAREHOUSE_KINDS[drag.itemKind].width),
+                  height: px(WAREHOUSE_KINDS[drag.itemKind].height),
+                }}
+              />
+            )}
+
             {robots.map((robot) => {
               const at = pointAlongPath(robot.path, robot.progress);
               if (at === null) return null;
@@ -433,20 +495,62 @@ export function WarehouseCanvas({
           </div>
         </div>
       </div>
+
+      {/* Fixed to the viewport, not to the canvas: it follows the hand, so it must not be scaled
+          by the zoom or clipped by the surface — it is picked up on the palette, which is outside
+          the surface entirely. */}
+      {drag?.kind === "palette" && (
+        <div
+          className="lq-wh__ghost"
+          style={{
+            left: drag.clientX,
+            top: drag.clientY,
+            width: px(WAREHOUSE_KINDS[drag.itemKind].width) * view.scale,
+            height: px(WAREHOUSE_KINDS[drag.itemKind].height) * view.scale,
+          }}
+        >
+          <span className="lq-wh__ghost-label">{WAREHOUSE_KINDS[drag.itemKind].label}</span>
+        </div>
+      )}
+
+      {editable && selectedItem && (
+        <WarehouseInspector
+          item={selectedItem}
+          anchorRef={anchorRef}
+          onChange={(next) => onItemsChange?.(items.map((item) => (item.id === next.id ? next : item)))}
+          onDelete={() => {
+            onItemsChange?.(items.filter((item) => item.id !== selectedItem.id));
+            select(null);
+          }}
+          onClose={() => {
+            if (reselecting.current) {
+              reselecting.current = false;
+              return;
+            }
+            select(null);
+          }}
+        />
+      )}
     </div>
   );
 
   function renderItem(item: WarehouseItem) {
     const live = drag?.kind === "item" && drag.id === item.id ? { x: drag.x, y: drag.y } : item;
+    // The drawn box is the *footprint*: width and height are the item's own sides and do not swap
+    // when it is turned, so the plan has to ask for the rotated box rather than read them.
     const size =
       drag?.kind === "resize" && drag.id === item.id
         ? { width: Math.max(1, drag.x - item.x), height: Math.max(1, drag.y - item.y) }
-        : item;
+        : footprintOf(item);
     const selected = selectedId === item.id;
 
     return (
       <div
         key={item.id}
+        ref={(el) => {
+          if (el) itemNodes.current.set(item.id, el);
+          else itemNodes.current.delete(item.id);
+        }}
         className={[`lq-wh__item`, `lq-wh__item--${item.kind}`, selected && "lq-wh__item--selected"].filter(Boolean).join(" ")}
         style={{
           left: px(live.x),
@@ -458,6 +562,7 @@ export function WarehouseCanvas({
         onPointerDown={(event) => {
           event.stopPropagation();
           if (tracing) return;
+          if (selectedId !== null && selectedId !== item.id) reselecting.current = true;
           select(item.id);
           if (!editable) return;
           pressOrigin.current = { x: event.clientX, y: event.clientY };
@@ -493,22 +598,40 @@ export function WarehouseCanvas({
     const levels = item.levels ?? 0;
     if (bays === 0 || levels === 0) return null;
     const byKey = new Map(clampSlots(item).map((slot) => [`${slot.bay}:${slot.level}`, slot]));
+    const horizontal = isHorizontal(item);
+    const cell = (bay: number, level: number) => {
+      const slot = byKey.get(`${bay}:${level}`);
+      return (
+        <span
+          key={`${bay}:${level}`}
+          className={`lq-wh__slot lq-wh__slot--${slot?.status ?? "empty"}`}
+          title={slot?.label ?? `Travée ${bay + 1}, niveau ${level + 1}`}
+        />
+      );
+    };
+
+    // Turned a quarter, the bays run down the rack instead of across it — so the grid is
+    // transposed rather than the whole box rotated in CSS. Transposing keeps every slot a square
+    // aligned to the plan; a CSS rotation would leave them tilted against the grid everything else
+    // snaps to.
     return (
-      <span className="lq-wh__slots" style={{ gridTemplateColumns: `repeat(${bays}, 1fr)`, gridTemplateRows: `repeat(${levels}, 1fr)` }}>
-        {/* Top row first in the DOM, because a grid fills row by row and level 0 is the bottom
-            shelf — a rack drawn upside down is a rack that lies about where the stock is. */}
-        {Array.from({ length: levels }, (_, row) => levels - 1 - row).flatMap((level) =>
-          Array.from({ length: bays }, (_, bay) => {
-            const slot = byKey.get(`${bay}:${level}`);
-            return (
-              <span
-                key={`${bay}:${level}`}
-                className={`lq-wh__slot lq-wh__slot--${slot?.status ?? "empty"}`}
-                title={slot?.label ?? `Allée ${bay + 1}, niveau ${level + 1}`}
-              />
-            );
-          })
-        )}
+      <span
+        className="lq-wh__slots"
+        style={
+          horizontal
+            ? { gridTemplateColumns: `repeat(${bays}, 1fr)`, gridTemplateRows: `repeat(${levels}, 1fr)` }
+            : { gridTemplateColumns: `repeat(${levels}, 1fr)`, gridTemplateRows: `repeat(${bays}, 1fr)` }
+        }
+      >
+        {/* Level 0 is the bottom shelf, and a grid fills row by row — so the top row is drawn
+            first. A rack drawn upside down is a rack that lies about where the stock is. */}
+        {horizontal
+          ? Array.from({ length: levels }, (_, row) => levels - 1 - row).flatMap((level) =>
+              Array.from({ length: bays }, (_, bay) => cell(bay, level))
+            )
+          : Array.from({ length: bays }, (_, bay) =>
+              Array.from({ length: levels }, (_, column) => cell(bay, levels - 1 - column))
+            ).flat()}
       </span>
     );
   }

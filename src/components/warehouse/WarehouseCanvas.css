@@ -457,3 +457,121 @@
   color: var(--lq-color-accent-contrast);
   white-space: nowrap;
 }
+
+/* ---- carrying something out of the palette ---- */
+
+/* The thing under the hand. Fixed to the viewport because it is picked up on the palette, which is
+   outside the scrolling surface entirely — anchoring it to the canvas would mean it did not exist
+   until the pointer crossed into the plan, which is the half of the gesture that most needs to be
+   visible. `pointer-events: none` so it never becomes the element the release lands on. */
+.lq-wh__ghost {
+  position: fixed;
+  z-index: 60;
+  transform: translate(-50%, -50%);
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--lq-color-accent);
+  border-radius: 2px;
+  background-color: color-mix(in srgb, var(--lq-color-accent) 24%, var(--lq-color-panel));
+  box-shadow: 0 4px 12px var(--lq-color-overlay);
+  opacity: 0.85;
+  pointer-events: none;
+}
+
+.lq-wh__ghost-label {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--lq-color-text);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+/* Where it will actually land. Separate from the ghost on purpose: the drop snaps to the grid and
+   the cursor does not, so the two are in different places and only this one is the answer to
+   "where does it go if I let go now". */
+.lq-wh__drop-preview {
+  position: absolute;
+  box-sizing: border-box;
+  border: 2px dashed var(--lq-color-accent);
+  border-radius: 2px;
+  background-color: color-mix(in srgb, var(--lq-color-accent) 12%, transparent);
+  pointer-events: none;
+  z-index: 6;
+}
+
+/* ---- inspector ---- */
+
+/* Sits inside `Popover`'s own panel, so the border, shadow, portal and theme come from there —
+   this only lays the controls out. */
+.lq-wh__inspector {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lq-space-2);
+  width: 232px;
+  padding: var(--lq-space-3);
+}
+
+.lq-wh__inspector-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lq-space-2);
+}
+
+.lq-wh__inspector-kind {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-wh__inspector-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.lq-wh__inspector-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 6px;
+  border: 1px solid var(--lq-color-border-subtle);
+  border-radius: var(--lq-radius-sm);
+  background: transparent;
+  color: var(--lq-color-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.lq-wh__inspector-icon:hover {
+  border-color: var(--lq-color-border);
+  background-color: var(--lq-color-hover);
+}
+
+.lq-wh__inspector-icon--danger:hover {
+  border-color: var(--lq-color-danger);
+  color: var(--lq-color-danger);
+}
+
+.lq-wh__inspector-rotation {
+  font-size: 0.62rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-wh__inspector-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--lq-space-2);
+}
+
+.lq-wh__inspector-hint {
+  margin: 0;
+  padding-top: var(--lq-space-1);
+  border-top: 1px solid var(--lq-color-border-subtle);
+  font-size: 0.66rem;
+  color: var(--lq-color-text-muted);
+}

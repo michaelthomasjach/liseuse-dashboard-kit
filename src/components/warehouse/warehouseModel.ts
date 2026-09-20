@@ -38,6 +38,9 @@ export interface WarehouseSlot {
   label?: string;
 }
 
+/** Quarter turns. Anything else would break the grid the whole model is built on. */
+export type WarehouseRotation = 0 | 90 | 180 | 270;
+
 export interface WarehouseItem {
   id: string;
   kind: WarehouseItemKind;
@@ -45,9 +48,18 @@ export interface WarehouseItem {
   /** Top-left corner, in grid cells. */
   x: number;
   y: number;
-  /** Size in grid cells. */
+  /**
+   * Size in grid cells, in the item's *own* frame — along its length and across it.
+   *
+   * These do not swap when it is turned. A rack of eight bays is eight long whichever way it
+   * faces, and swapping the numbers on rotation would mean "width" sometimes counted bays and
+   * sometimes counted shelves. What the plan needs is `footprintOf`, which applies the rotation
+   * and hands back the box the item actually occupies.
+   */
   width: number;
   height: number;
+  /** Quarter turns clockwise. Absent means 0. */
+  rotation?: WarehouseRotation;
   /** Racks only: how many bays along the length and how many shelves up. Slots are addressed
    *  against these, so shrinking a rack leaves slots that no longer exist — `clampSlots` drops
    *  them rather than drawing them outside their own rack. */
@@ -112,6 +124,35 @@ export const WAREHOUSE_KINDS: Record<
 
 export function snapToGrid(value: number): number {
   return Math.round(value);
+}
+
+/** The box an item actually occupies on the plan, once its rotation is applied. A quarter turn
+ *  swaps the two sides; a half turn leaves them alone. */
+export function footprintOf(item: WarehouseItem): { width: number; height: number } {
+  const quarter = (item.rotation ?? 0) % 180 !== 0;
+  return quarter ? { width: item.height, height: item.width } : { width: item.width, height: item.height };
+}
+
+/** Turns an item a quarter clockwise, **about its own centre**.
+ *
+ *  About the centre rather than the top-left corner, because that is where a rack stays put: an
+ *  eight-by-two rack turned about its corner swings six cells across the aisle and lands on
+ *  whatever was there. The result is re-snapped, so a turn never leaves an item off the grid. */
+export function rotateItem(item: WarehouseItem): WarehouseItem {
+  const before = footprintOf(item);
+  const rotation = (((item.rotation ?? 0) + 90) % 360) as WarehouseRotation;
+  const after = footprintOf({ ...item, rotation });
+  return {
+    ...item,
+    rotation,
+    x: snapToGrid(item.x + (before.width - after.width) / 2),
+    y: snapToGrid(item.y + (before.height - after.height) / 2),
+  };
+}
+
+/** Whether a rack's bays run left to right (as opposed to top to bottom) once turned. */
+export function isHorizontal(item: WarehouseItem): boolean {
+  return (item.rotation ?? 0) % 180 === 0;
 }
 
 /** Total length of a polyline in grid cells. */

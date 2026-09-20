@@ -1,7 +1,7 @@
 export { WarehouseCanvas } from "./WarehouseCanvas";
 export type { WarehouseCanvasProps } from "./WarehouseCanvas";
 
-export { WAREHOUSE_KINDS, advanceRobots, buildSlots, clampSlots, pathLength, pointAlongPath, snapToGrid } from "./warehouseModel";
+export { WAREHOUSE_KINDS, advanceRobots, buildSlots, clampSlots, footprintOf, isHorizontal, pathLength, pointAlongPath, rotateItem, snapToGrid } from "./warehouseModel";
 export type {
   WarehouseItem,
   WarehouseItemKind,
@@ -11,6 +11,7 @@ export type {
   WarehouseRail,
   WarehouseRobot,
   WarehouseRobotStatus,
+  WarehouseRotation,
   WarehouseSlot,
   WarehouseSlotStatus,
 } from "./warehouseModel";

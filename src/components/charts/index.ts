@@ -98,3 +98,6 @@ export { ChartAxis } from "./ChartAxis";
 export type { ChartAxisProps } from "./ChartAxis";
 
 export type { ChartMargin, ChartDimensions } from "./internal/useChartDimensions";
+
+export { SankeyChart } from "./SankeyChart";
+export type { SankeyChartProps, SankeyNodeDatum, SankeyLinkDatum } from "./SankeyChart";

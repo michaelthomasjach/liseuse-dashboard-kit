@@ -35,6 +35,7 @@
     "build": "node scripts/clean-dist.mjs && tsc --noEmit && vite build --config vite.config.lib.ts",
     "prepublishOnly": "npm run build",
     "typecheck": "tsc --noEmit",
+    "check-sankey": "node scripts/checkSankeyLayout.mjs",
     "lint": "eslint .",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",

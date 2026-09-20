@@ -1,0 +1,163 @@
+.lq-sankey {
+  /* How solid a ribbon is at rest. Low enough that overlapping ribbons still read as two, high
+     enough that a single one reads as a real quantity rather than a wash. */
+  --lq-sankey-ribbon-opacity: 0.45;
+  --lq-sankey-ribbon-hover-opacity: 0.78;
+  /* What "off the current branch" looks like. Dim rather than hidden: a branch is only legible as
+     part of something, and removing the rest would turn a zoom into a different diagram. */
+  --lq-sankey-dim-opacity: 0.1;
+}
+
+.lq-sankey__toolbar {
+  /* The trail can be long; it takes whatever the buttons on its right do not, and elides rather
+     than pushing them off the chart. */
+  gap: var(--lq-space-2);
+  min-width: 0;
+}
+
+.lq-sankey__trail {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  margin-right: auto;
+  overflow: hidden;
+}
+
+.lq-sankey__crumb-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.lq-sankey__crumb-sep {
+  color: var(--lq-color-text-muted);
+  flex-shrink: 0;
+}
+
+.lq-sankey__crumb {
+  max-width: 14ch;
+  padding: 2px 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: none;
+  border: none;
+  border-radius: var(--lq-radius-sm);
+  font-family: inherit;
+  font-size: 0.72rem;
+  color: var(--lq-color-text-muted);
+  cursor: pointer;
+}
+
+.lq-sankey__crumb:hover {
+  color: var(--lq-color-text);
+  background-color: var(--lq-color-hover);
+}
+
+.lq-sankey__crumb--current {
+  color: var(--lq-color-text);
+  font-weight: 700;
+}
+
+.lq-sankey__ribbon {
+  fill-opacity: var(--lq-sankey-ribbon-opacity);
+  cursor: pointer;
+  transition: fill-opacity var(--lq-transition-fast);
+}
+
+.lq-sankey__ribbon--hover {
+  fill-opacity: var(--lq-sankey-ribbon-hover-opacity);
+}
+
+.lq-sankey__ribbon--dim {
+  fill-opacity: var(--lq-sankey-dim-opacity);
+  pointer-events: none;
+}
+
+.lq-sankey__node {
+  cursor: pointer;
+  /* Without this the 1px outline below would be magnified along with the shape and turn into a
+     thick border at high zoom. */
+  vector-effect: non-scaling-stroke;
+  stroke: var(--lq-color-panel);
+  stroke-width: 0;
+  transition: stroke-width var(--lq-transition-fast), opacity var(--lq-transition-fast);
+}
+
+.lq-sankey__node:hover {
+  stroke-width: 2;
+}
+
+.lq-sankey__node--focus {
+  stroke: var(--lq-color-text);
+  stroke-width: 2;
+}
+
+.lq-sankey__node--dim {
+  opacity: var(--lq-sankey-dim-opacity);
+  pointer-events: none;
+}
+
+.lq-sankey__labels {
+  pointer-events: none;
+}
+
+.lq-sankey__label {
+  font-size: 0.72rem;
+  fill: var(--lq-color-text);
+  /* The label sits over whatever ribbon happens to pass behind it, and both are theme colours that
+     can be close. A halo in the panel's own colour keeps the text readable without needing a
+     background rectangle per label — the same trick `ProgressBar`'s inside-label uses, and for the
+     same reason: blend modes wash out on the light palette, a halo does not care. */
+  paint-order: stroke;
+  stroke: var(--lq-color-panel);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+
+.lq-sankey__label--dim {
+  opacity: 0.25;
+}
+
+.lq-sankey__ribbon-label {
+  font-size: 0.66rem;
+  font-weight: 700;
+  fill: var(--lq-color-text);
+  paint-order: stroke;
+  stroke: var(--lq-color-panel);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+
+.lq-sankey__tooltip-hint {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--lq-color-border-subtle);
+  font-size: 0.7rem;
+  color: var(--lq-color-text-muted);
+}
+
+/* Under e-ink every accent collapses to the text colour, so the ribbons arrive as one ink and the
+   palette ramp (see internal/palette.ts) is what separates them — at the cost of contrast. They
+   get a hairline of the background colour between them to keep the edges of each ribbon readable,
+   and a little more solidity, since a 45 % wash of a single ink is a grey with no edges at all. */
+.lq-root[data-lq-palette="eink"] .lq-sankey {
+  --lq-sankey-ribbon-opacity: 0.6;
+  --lq-sankey-ribbon-hover-opacity: 0.9;
+  --lq-sankey-dim-opacity: 0.15;
+}
+
+.lq-root[data-lq-palette="eink"] .lq-sankey__ribbon {
+  stroke: var(--lq-color-bg);
+  stroke-width: 0.5;
+  vector-effect: non-scaling-stroke;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lq-sankey__ribbon,
+  .lq-sankey__node {
+    transition: none;
+  }
+}

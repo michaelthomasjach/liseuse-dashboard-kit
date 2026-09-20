@@ -6,3 +6,6 @@ export type { SkeletonProps } from "./Skeleton";
 
 export { ProgressBar } from "./ProgressBar";
 export type { ProgressBarProps, ProgressBarSlot, ProgressBarSegment } from "./ProgressBar";
+
+export { Stepper } from "./Stepper";
+export type { StepperProps, StepperStep, StepperOrientation } from "./Stepper";

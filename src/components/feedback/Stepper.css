@@ -1,0 +1,163 @@
+.lq-stepper {
+  --lq-stepper-marker-size: 12px;
+  --lq-stepper-thickness: 2px;
+  --lq-stepper-step-size: 0px;
+  --lq-stepper-color: var(--lq-color-fill);
+  /* What the squares and the line are mixed *toward* to dim them. A stepper almost always sits on
+     a panel, so that is the default; a caller who puts one straight on the page background can
+     point this at `--lq-color-bg` (the two are the same colour under the e-ink palette anyway). */
+  --lq-stepper-backdrop: var(--lq-color-panel);
+
+  --lq-stepper-o-active: 1;
+  --lq-stepper-o-completed: 0.55;
+  --lq-stepper-o-upcoming: 0.22;
+  --lq-stepper-mix-active: 100%;
+  --lq-stepper-mix-completed: 55%;
+  --lq-stepper-mix-upcoming: 22%;
+
+  position: relative;
+  display: block;
+  width: 100%;
+}
+
+/* The line layer is centred on the squares' own centre line: the squares are the first child of
+   each step, so that centre is half a square in from the top (horizontal) or the left (vertical)
+   of the steps grid. */
+.lq-stepper__line {
+  position: absolute;
+  pointer-events: none;
+}
+
+/* A vertical stepper has no natural length the way a horizontal one has its container's width, so
+   its rows need a floor of their own or a list of one-line labels collapses into a stack of
+   squares with no line worth seeing between them. Overridden by `stepSize`, which lands inline. */
+.lq-stepper--vertical {
+  --lq-stepper-step-size: 56px;
+}
+
+.lq-stepper--horizontal .lq-stepper__line {
+  left: 0;
+  right: 0;
+  top: calc(var(--lq-stepper-marker-size) / 2);
+  height: var(--lq-stepper-thickness);
+  transform: translateY(-50%);
+}
+
+.lq-stepper--vertical .lq-stepper__line {
+  top: 0;
+  bottom: 0;
+  left: calc(var(--lq-stepper-marker-size) / 2);
+  width: var(--lq-stepper-thickness);
+  transform: translateX(-50%);
+}
+
+/* One element per gap, each with its own level — that independence is the point: advancing a step
+   re-shades exactly one segment instead of the whole rule. Same color-mix as the squares (rather
+   than plain `opacity`) so the two layers match tone for tone where they meet. */
+.lq-stepper__segment {
+  position: absolute;
+  background-color: color-mix(in srgb, var(--lq-stepper-color) var(--lq-stepper-mix), var(--lq-stepper-backdrop));
+  transition: background-color 420ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.lq-stepper--horizontal .lq-stepper__segment {
+  top: 0;
+  height: 100%;
+}
+
+.lq-stepper--vertical .lq-stepper__segment {
+  left: 0;
+  width: 100%;
+}
+
+/* Equal tracks, so every square lands on the fraction the line was positioned off. `1fr` in a grid
+   whose own size is indefinite resolves to the largest track's content, which is what equalises
+   rows of unequal label heights in the vertical layout. */
+.lq-stepper__steps {
+  position: relative;
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lq-stepper--horizontal .lq-stepper__steps {
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(var(--lq-stepper-step-size), 1fr);
+}
+
+.lq-stepper--vertical .lq-stepper__steps {
+  grid-auto-flow: row;
+  grid-auto-rows: minmax(var(--lq-stepper-step-size), 1fr);
+}
+
+.lq-stepper__step {
+  position: relative;
+  display: flex;
+  min-width: 0;
+}
+
+.lq-stepper--horizontal .lq-stepper__step {
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--lq-space-2);
+}
+
+.lq-stepper--vertical .lq-stepper__step {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--lq-space-3);
+}
+
+.lq-stepper__marker {
+  flex: 0 0 auto;
+  width: var(--lq-stepper-marker-size);
+  height: var(--lq-stepper-marker-size);
+  border-radius: var(--lq-radius-sm);
+  background-color: color-mix(in srgb, var(--lq-stepper-color) var(--lq-stepper-mix), var(--lq-stepper-backdrop));
+  transition: background-color 420ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.lq-stepper__label {
+  min-width: 0;
+  font-size: var(--lq-text-sm);
+  line-height: 1.35;
+  color: var(--lq-color-text);
+  /* Text is the one part that really does take `opacity`: nothing is drawn behind it, and fading
+     the glyphs themselves keeps the colour relationship with the surrounding copy intact where a
+     mix toward the panel would grey it out. */
+  opacity: var(--lq-stepper-o);
+  transition: opacity 420ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.lq-stepper--horizontal .lq-stepper__label {
+  padding-inline: var(--lq-space-1);
+}
+
+.lq-stepper__step--active {
+  --lq-stepper-o: var(--lq-stepper-o-active);
+  --lq-stepper-mix: var(--lq-stepper-mix-active);
+}
+
+.lq-stepper__step--completed,
+.lq-stepper__segment--completed {
+  --lq-stepper-o: var(--lq-stepper-o-completed);
+  --lq-stepper-mix: var(--lq-stepper-mix-completed);
+}
+
+.lq-stepper__step--upcoming,
+.lq-stepper__segment--upcoming {
+  --lq-stepper-o: var(--lq-stepper-o-upcoming);
+  --lq-stepper-mix: var(--lq-stepper-mix-upcoming);
+}
+
+/* Advancing a step is a change of state, not a movement, but it still reads better as a fade than
+   as a jump — cancelled where the reader has asked for no motion at all. */
+@media (prefers-reduced-motion: reduce) {
+  .lq-stepper__segment,
+  .lq-stepper__marker,
+  .lq-stepper__label {
+    transition: none;
+  }
+}

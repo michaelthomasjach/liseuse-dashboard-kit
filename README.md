@@ -216,6 +216,7 @@ Une ligne de tendance classique (pas "étendue", pas les autres types à géomé
 
 **Feedback**
 - `Spinner`, `Skeleton` (effet de balayage), `ProgressBar` (déterminée ou indéterminée) — animations désactivées sous la palette e-ink (l'e-ink réel ne peut pas s'animer proprement)
+- `Stepper` — suite d'étapes enfilées sur un trait (horizontal ou vertical) : des petits carrés pleins que le trait traverse en plein milieu, un texte sous chaque carré (à côté en vertical, sinon il tomberait sur le trait). Tout se lit à l'opacité : l'étape courante à pleine force, le passé plus discret, l'à-venir le plus pâle — et le trait est découpé en un segment indépendant par intervalle, qui se rallume au fur et à mesure. Le trait part des extrémités (segment avant le premier carré, segment après le dernier), il ne s'arrête pas aux carrés extérieurs
 
 **Finance** — composants pensés pour un dashboard finance, mais génériques
 - `Badge` — pastille de statut (tons neutral/up/down/warning/info)

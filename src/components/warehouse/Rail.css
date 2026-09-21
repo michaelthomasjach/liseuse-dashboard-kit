@@ -1,0 +1,9 @@
+/* Rail. Le modèle de lumière et les matières sont dans rackItems.css, partagés avec l'étagère et le
+   tapis ; ici, ce qui n'appartient qu'au rail. Voir Rail.tsx pour le pourquoi. */
+
+.lq-rail {
+  display: block;
+  /* Un angle déborde de son propre carré par la moitié d'un champignon, et une ombre déborde encore
+     un peu plus loin. Rien ici n'a de raison d'être rogné par sa boîte. */
+  overflow: visible;
+}

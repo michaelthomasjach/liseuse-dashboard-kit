@@ -159,6 +159,35 @@ export interface RackV2Props {
    *  ombres qui tomberaient de deux côtés différents dans la même image sont pires que pas
    *  d'ombre du tout. */
   shadows?: boolean;
+  /** Où poser le bloc sur le sol, en cases. Sert à le composer avec d'autres modules — un rail, un
+   *  tapis, un picker — dans une même scène. */
+  origin?: { x: number; y: number };
+  /** Le pavé du monde que la `viewBox` doit couvrir, en cases. Donné, il remplace le cadrage sur le
+   *  bloc lui-même : plusieurs modules qui partagent un cadre partagent exactement le même repère à
+   *  l'écran, et se superposent sans rien avoir à aligner. */
+  frame?: { x: number; y: number; width: number; depth: number; height: number };
+  /** Ce qu'on dessine : tout, l'ombre seule, ou le bloc seul. L'ombre se sépare parce qu'elle est au
+   *  sol et doit passer sous *tous* les modules d'une scène, pas seulement sous le sien — sans quoi
+   *  l'ombre d'une étagère proche se poserait par-dessus le tapis lointain qu'elle traverse. */
+  parts?: "all" | "shadow" | "machine";
+  /**
+   * Ne dessiner que ce qui **recouvre** une chose engagée dans l'étagère à cette hauteur, en cases :
+   * les fourches d'un picker dans une alvéole, par exemple.
+   *
+   * Une fourche entrée dans une alvéole a devant elle le plateau qui la couvre et le montant du côté
+   * de la caméra, alors que le reste de la machine est devant toute l'étagère : aucun ordre de
+   * peinture ne satisfait les deux. On peint donc l'étagère, puis la machine, puis cette couche-ci
+   * par-dessus — **masquée à la silhouette de ce qui est engagé** (`mask` sur l'élément, voir
+   * `reachMask` sur `Picker`) : elle cache ce qui est entré, et ne touche à rien d'autre.
+   *
+   * Ce qui recouvre : tout niveau entièrement au-dessus de cette hauteur, et, pour le niveau où elle
+   * tombe, son plafond et les montants et l'écharpe du bout que la caméra voit. Les montants de
+   * l'autre bout sont derrière. La chose engagée est supposée entrer par une face longue — celle
+   * qu'un rail longe.
+   */
+  cover?: number;
+  /** L'`id` d'un `<mask>` SVG à appliquer au dessin — celui que publie `Picker` par `reachMask`. */
+  mask?: string;
   /** Pixels par case. Le même défaut que le plan d'entrepôt, pour que les deux s'accordent. */
   cellSize?: number;
   className?: string;
@@ -219,6 +248,11 @@ export function RackV2({
   footHeight,
   rotation = 0,
   shadows = false,
+  origin = { x: 0, y: 0 },
+  frame,
+  parts = "all",
+  cover,
+  mask,
   cellSize = 22,
   className,
 }: RackV2Props) {
@@ -252,9 +286,17 @@ export function RackV2({
     return { x: spanX / 2 + dx * cosT - dy * sinT, y: spanY / 2 + dx * sinT + dy * cosT };
   };
 
+  /** Un point du monde vers l'écran, sans passer par le bloc : le cadre partagé et le soleil sont
+   *  tous deux en coordonnées du monde. */
+  const world: Project = (x, y, z) => projectIso(x * cellSize, y * cellSize, z * cellSize);
   const at: Project = (x, y, z) => {
     const p = spin(x, y);
-    return projectIso(p.x * cellSize, p.y * cellSize, z * cellSize);
+    return world(p.x + origin.x, p.y + origin.y, z);
+  };
+  /** Une emprise du bloc, ramenée au monde. */
+  const onGround = (x: number, y: number) => {
+    const p = spin(x, y);
+    return { x: p.x + origin.x, y: p.y + origin.y };
   };
 
   // Quelles faces de chaque volume la caméra voit, une fois le sol tourné. Sans ça, tourner le bloc
@@ -300,6 +342,13 @@ export function RackV2({
     const floorZ = oz + slabZ;
     const ceilZ = oz + height - (roofed ? slabZ : 0);
     const clearance = ceilZ - floorZ;
+    // Le recouvrement : rien de ce qui est tout entier sous la hauteur engagée ne peut la couvrir.
+    const covering = cover !== undefined;
+    if (covering && oz + height <= cover) return [];
+    /** Le niveau où tombe la chose engagée : on n'en garde que ce qui est devant elle. */
+    const engaged = covering && floorZ <= cover + 1e-6;
+    /** Le bout que la caméra voit. */
+    const nearX = facing.xFace > 0 ? ox + width : ox;
     const foot: Cell[] = [
       [ox, oy],
       [ox + width, oy],
@@ -310,6 +359,7 @@ export function RackV2({
     const pieces: Piece[] = [];
 
     foot.forEach(([cx, cy], i) => {
+      if (engaged && cx !== nearX) return;
       const x0 = cx > ox ? cx - side : cx;
       const x1 = cx > ox ? cx : cx + side;
       const y0 = cy > oy ? cy - side : cy;
@@ -358,6 +408,7 @@ export function RackV2({
       const ny2 = (-rise / span) * (strap / 2);
       const nz2 = (run / span) * (strap / 2);
       [ox + inset, ox + width - inset].forEach((planeX, i) => {
+        if (engaged && (i === 0) !== (nearX === ox)) return;
         pieces.push({
           x: planeX,
           y: yFar,
@@ -419,7 +470,7 @@ export function RackV2({
     for (let j = 0; j < sy; j += 1) {
       for (let i = 0; i < sx; i += 1) {
         const slot = contents[j * sx + i];
-        if (!slot) continue;
+        if (!slot || engaged) continue;
         const x0 = areaX + i * slotW;
         const y0 = areaY + j * slotD;
         if (slot === "interdit") {
@@ -465,7 +516,7 @@ export function RackV2({
     // est au-dessus d'eux et opaque : il recouvre ce qui est engagé dessous, et ne laisse voir que
     // ce qui dépasse — ce qui est exactement ce qu'on veut voir.
     const footNodes: ReactNode[] = [];
-    if (feet && footZ > 0 && oz === 0) {
+    if (feet && footZ > 0 && oz === 0 && !covering) {
       const stand: Piece[] = foot.map(([cx, cy], i) => {
         const x0 = cx > ox ? cx - side : cx;
         const x1 = cx > ox ? cx : cx + side;
@@ -497,6 +548,10 @@ export function RackV2({
     const deck = (material: string, key: string, z0: number, z1: number, extra?: ReactNode) =>
       solidVolume(material, `${tag}${key}`, boxFaces(at, ox, ox + width, oy, oy + depth, z0, z1, facing), slabZ === 0, extra);
 
+    if (engaged) {
+      return [...sorted(pieces).map((piece) => piece.render()), ...(roofed ? [deck("steel", "upper", ceilZ, oz + height)] : [])];
+    }
+
     return [
       ...footNodes,
       deck("steel-shaded", "lower", oz, floorZ, dividers.length + barred.length > 0 ? <>{dividers}{barred}</> : undefined),
@@ -506,15 +561,19 @@ export function RackV2({
   };
 
   // L'ombre du bloc entier, au sol : elle passe avant tout, rien ne pouvant se glisser dessous.
-  /** Le projecteur du monde, sans la rotation du bloc : le soleil est une direction du monde. */
-  const flat: Project = (x, y, z) => projectIso(x * cellSize, y * cellSize, z * cellSize);
   const shade = shadows
     ? [
         castShadow(
-          flat,
-          // Les coins du bloc *tournés* : le soleil est une direction du monde, et un décalage posé
-          // dans le repère du bloc tournerait avec lui.
-          [spin(0, 0), spin(nx * width, 0), spin(nx * width, ny * depth), spin(0, ny * depth)],
+          // Le projecteur du **monde**, sans la rotation du bloc : le soleil est une direction du
+          // monde, et un décalage posé dans le repère du bloc tournerait avec lui.
+          world,
+          // Les coins du bloc tournés, puis ramenés au monde par `origin`.
+          [
+            onGround(0, 0),
+            onGround(nx * width, 0),
+            onGround(nx * width, ny * depth),
+            onGround(0, ny * depth),
+          ],
           nz * height,
           "shadow"
         ),
@@ -550,7 +609,16 @@ export function RackV2({
     [spanX, spanY],
     [0, spanY],
   ];
-  const corners = [...ground.map(([x, y]) => at(x, y, under)), ...ground.map(([x, y]) => at(x, y, spanZ))];
+  const corners = frame
+    ? [0, 1].flatMap((k) =>
+        [
+          [frame.x, frame.y],
+          [frame.x + frame.width, frame.y],
+          [frame.x + frame.width, frame.y + frame.depth],
+          [frame.x, frame.y + frame.depth],
+        ].map(([x, y]) => world(x, y, k === 0 ? 0 : frame.height))
+      )
+    : [...ground.map(([x, y]) => at(x, y, under)), ...ground.map(([x, y]) => at(x, y, spanZ))];
   const minX = Math.min(...corners.map((p) => p.x)) - PAD;
   const minY = Math.min(...corners.map((p) => p.y)) - PAD;
   const boxWidth = Math.max(...corners.map((p) => p.x)) + PAD - minX;
@@ -565,8 +633,8 @@ export function RackV2({
       role="img"
       aria-label={nx * ny * nz > 1 ? `${nx * ny * nz} étagères` : "Étagère"}
     >
-      {shade}
-      {drawn}
+      {(parts === "all" || parts === "shadow") && shade}
+      {(parts === "all" || parts === "machine") && (mask ? <g mask={`url(#${mask})`}>{drawn}</g> : drawn)}
     </svg>
   );
 }

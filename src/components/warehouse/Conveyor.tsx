@@ -3,6 +3,7 @@ import { projectIso } from "./warehouseIso";
 import { paintOrder } from "./warehousePaint";
 import {
   ISO_POST_SIZE,
+  arcRingVolume,
   boxFaces,
   castShadow,
   fitRackItem,
@@ -367,47 +368,17 @@ export function Conveyor({
   const arcPoint = (r: number, a: number, z: number) => at(r * Math.cos(a), spanY + r * Math.sin(a), z);
   /** L'angle du parcours au tronçon `i` d'un découpage en `n`. */
   const arcAngle = (i: number, n: number) => -Math.PI / 2 + (Math.PI / 2) * (i / n);
-  /**
-   * Un anneau **d'un seul tenant** : sa face du dessus, ses deux parois, et ses deux bouts droits
-   * quand ils regardent la caméra. Le bâti d'un angle et ses barrières sont tous deux faits de ça —
-   * un bâti n'est qu'un anneau très épais, et il ne sert à rien d'en écrire deux fois la géométrie.
-   *
-   * Il était d'abord découpé en tronçons, un volume par facette, pour que chacun montre la paroi
-   * que la caméra voit de son côté de l'arc — car ce côté change en cours de virage. Mais chaque
-   * facette porte son propre trait, et une bordure faite de quatorze petits rectangles cernés se
-   * lit comme quatorze petits rectangles. Les deux parois sont donc dessinées entières, d'une seule
-   * courbe, et **de la même teinte** : celle qui se trouve derrière est alors recouverte par l'autre
-   * sans que rien ne le montre, et la réunion des deux couvre exactement la silhouette vraie. La
-   * face du dessus passe en dernier et recouvre la paroi lointaine, qui pend sous elle.
-   */
-  const arcRing = (material: string, rIn: number, rOut: number, z0: number, z1: number, key: string): ReactNode => {
-    const N = 48;
-    const band = (r: number, z: number) => Array.from({ length: N + 1 }, (_, i) => arcPoint(r, arcAngle(i, N), z));
-    const outerTop = band(rOut, z1);
-    const innerTop = band(rIn, z1);
-    const outerLow = band(rOut, z0);
-    const innerLow = band(rIn, z0);
-    const caps: Point[][] = [];
-    const capAt = (a: number, sign: number) => {
-      const t = spin(-Math.sin(a) * sign, Math.cos(a) * sign);
-      const o = spin(0, 0);
-      return t.x - o.x + (t.y - o.y) > 0;
-    };
-    const a0 = arcAngle(0, 1);
-    const a1 = arcAngle(1, 1);
-    if (capAt(a0, -1)) caps.push([arcPoint(rIn, a0, z0), arcPoint(rOut, a0, z0), arcPoint(rOut, a0, z1), arcPoint(rIn, a0, z1)]);
-    if (capAt(a1, 1)) caps.push([arcPoint(rIn, a1, z0), arcPoint(rOut, a1, z0), arcPoint(rOut, a1, z1), arcPoint(rIn, a1, z1)]);
-    return (
-      <g key={key} className={`lq-iso__solid lq-iso__solid--${material}`}>
-        <polygon className="lq-iso__face lq-iso__face--front" points={ring([...innerTop, ...[...innerLow].reverse()])} />
-        <polygon className="lq-iso__face lq-iso__face--front" points={ring([...outerTop, ...[...outerLow].reverse()])} />
-        {caps.map((c, k) => (
-          <polygon key={`cap${k}`} className="lq-iso__face lq-iso__face--front" points={ring(c)} />
-        ))}
-        <polygon className="lq-iso__face lq-iso__face--top" points={ring([...outerTop, ...[...innerTop].reverse()])} />
-      </g>
+  /** L'anneau d'un angle : son bâti, et ses deux barrières. La géométrie est dans `rackItems.tsx`,
+   *  partagée avec le rail d'angle — un bâti est un anneau très épais, une file de rail un anneau
+   *  très mince, et c'est le même dessin. */
+  const arcRing = (material: string, rIn: number, rOut: number, z0: number, z1: number, key: string): ReactNode =>
+    arcRingVolume(
+      at,
+      spin,
+      { cx: 0, cy: spanY, rIn, rOut, z0, z1, a0: arcAngle(0, 1), a1: arcAngle(1, 1) },
+      material,
+      key
     );
-  };
 
   /** La bande elle-même : le ruban balayé par le parcours, à plat sur le bâti. */
   const beltFace = (() => {

@@ -198,6 +198,99 @@ export function solidVolume(material: string, key: string, faces: Faces, flat = 
   );
 }
 
+/** Une portion de couronne circulaire : entre deux rayons, deux hauteurs et deux angles. */
+export interface ArcRing {
+  /** Centre de l'arc, en cases, dans le repère du module. */
+  cx: number;
+  cy: number;
+  /** Rayon intérieur, rayon extérieur. */
+  rIn: number;
+  rOut: number;
+  /** Dessous, dessus. */
+  z0: number;
+  z1: number;
+  /** Début et fin de l'arc, en radians. */
+  a0: number;
+  a1: number;
+}
+
+/**
+ * Un anneau **d'un seul tenant** : sa face du dessus, ses deux parois, et ses deux bouts droits
+ * quand ils regardent la caméra.
+ *
+ * Il était d'abord découpé en tronçons, un volume par facette, pour que chacun montre la paroi que
+ * la caméra voit de son côté de l'arc — car ce côté change en cours de virage. Mais chaque facette
+ * porte son propre trait, et une bordure faite de quatorze petits rectangles cernés se lit comme
+ * quatorze petits rectangles. Les deux parois sont donc dessinées entières, d'une seule courbe, et
+ * **de la même teinte** : celle qui se trouve derrière est alors recouverte par l'autre sans que
+ * rien ne le montre, et la réunion des deux couvre exactement la silhouette vraie. La face du dessus
+ * passe en dernier et recouvre la paroi lointaine, qui pend sous elle.
+ *
+ * Le bâti d'un tapis d'angle, ses barrières et les deux files d'un rail d'angle sont tous faits de
+ * ça — un bâti n'est qu'un anneau très épais, une file de rail qu'un anneau très mince, et il ne
+ * sert à rien d'en écrire trois fois la géométrie.
+ *
+ * `spin` est la rotation du module sur le sol : elle ne sert qu'à décider lequel des deux bouts
+ * droits regarde la caméra, ce qui est une question de *direction* et non de position — d'où la
+ * différence entre deux points tournés plutôt qu'un point tourné.
+ */
+export function arcRingVolume(
+  at: Project,
+  spin: (x: number, y: number) => Point,
+  arc: ArcRing,
+  material: string,
+  key: string,
+  steps = 48
+): ReactNode {
+  const point = (r: number, a: number, z: number) => at(arc.cx + r * Math.cos(a), arc.cy + r * Math.sin(a), z);
+  const angle = (i: number, n: number) => arc.a0 + ((arc.a1 - arc.a0) * i) / n;
+  const band = (r: number, z: number) => Array.from({ length: steps + 1 }, (_, i) => point(r, angle(i, steps), z));
+  const outerTop = band(arc.rOut, arc.z1);
+  const innerTop = band(arc.rIn, arc.z1);
+  const outerLow = band(arc.rOut, arc.z0);
+  const innerLow = band(arc.rIn, arc.z0);
+
+  /** Un bout droit se voit quand sa normale part vers la caméra, qui regarde depuis +x, +y. */
+  const capAt = (a: number, sign: number) => {
+    const t = spin(-Math.sin(a) * sign, Math.cos(a) * sign);
+    const o = spin(0, 0);
+    return t.x - o.x + (t.y - o.y) > 0;
+  };
+  const cap = (a: number) => [point(arc.rIn, a, arc.z0), point(arc.rOut, a, arc.z0), point(arc.rOut, a, arc.z1), point(arc.rIn, a, arc.z1)];
+  const caps: Point[][] = [];
+  if (capAt(arc.a0, -1)) caps.push(cap(arc.a0));
+  if (capAt(arc.a1, 1)) caps.push(cap(arc.a1));
+
+  return (
+    <g key={key} className={`lq-iso__solid lq-iso__solid--${material}`}>
+      <polygon className="lq-iso__face lq-iso__face--front" points={ring([...innerTop, ...[...innerLow].reverse()])} />
+      <polygon className="lq-iso__face lq-iso__face--front" points={ring([...outerTop, ...[...outerLow].reverse()])} />
+      {caps.map((c, k) => (
+        <polygon key={`cap${k}`} className="lq-iso__face lq-iso__face--front" points={ring(c)} />
+      ))}
+      <polygon className="lq-iso__face lq-iso__face--top" points={ring([...outerTop, ...[...innerTop].reverse()])} />
+    </g>
+  );
+}
+
+/**
+ * Un projecteur tourné de `deg` autour d'un point du sol, et les faces qu'il fait voir.
+ *
+ * Tourner le *projecteur* plutôt que la boîte, c'est dessiner une boîte tournée avec le code qui
+ * n'en sait dessiner que des droites — et c'est la seule façon correcte ici, la caméra envoyant un
+ * *plan* affinement et non l'espace. Sert à tout ce qui est posé de biais : une charge dans un
+ * virage, une traverse radiale sous un rail d'angle.
+ */
+export function spunProject(at: Project, deg: number, cx: number, cy: number, rotation = 0): { project: Project; facing: IsoFacing } {
+  const r = (deg * Math.PI) / 180;
+  const c = Math.cos(r);
+  const s = Math.sin(r);
+  return {
+    project: (x, y, z) => at(cx + (x - cx) * c - (y - cy) * s, cy + (x - cx) * s + (y - cy) * c, z),
+    facing: isoFacing(rotation + deg),
+  };
+}
+
 /**
  * D'où vient la lumière, en cases, pour une hauteur d'une case.
  *

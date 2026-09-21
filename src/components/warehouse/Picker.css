@@ -1,0 +1,94 @@
+/* Picker. Le modèle de lumière et les matières sont dans rackItems.css, partagés avec l'étagère, le
+   tapis et le rail ; ici, ce qui n'appartient qu'à la machine. Voir Picker.tsx pour le pourquoi. */
+
+.lq-picker {
+  display: block;
+  /* Le mât monte plus haut que l'emprise et le tablier sort des deux côtés : rien ici n'a de raison
+     d'être rogné par sa boîte. */
+  overflow: visible;
+}
+
+/* Le jaune de sécurité : les tampons et les fourches, c'est-à-dire ce qui touche. Sur une vraie
+   machine c'est la couleur de ce contre quoi on se cogne, et c'est ce qui la sépare du rayonnage
+   qu'elle dessert, fait du même acier. En e-ink l'ambre retombe sur la couleur du texte : les
+   fourches restent lisibles par leur clarté, simplement plus sombres que le tablier. */
+.lq-iso__solid--safety {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-amber) 62%, var(--lq-color-bg));
+}
+
+/* L'armoire électrique : une tôle peinte, plus sombre que la structure — un coffret, pas un
+   montant. */
+.lq-iso__solid--cabinet {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-text) 42%, var(--lq-color-bg));
+}
+
+/* Le moyeu d'une roue, dans l'acier du châssis ; l'axe au centre, plus sombre. C'est le seul
+   dessin qui dise qu'un disque noir est une roue et non un trou. */
+.lq-picker__hub,
+.lq-picker__axle {
+  stroke: color-mix(in srgb, var(--lq-color-text) 72%, transparent);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.lq-picker__hub {
+  fill: color-mix(in srgb, var(--lq-color-accent) 14%, var(--lq-color-bg));
+}
+
+.lq-picker__axle {
+  fill: color-mix(in srgb, var(--lq-color-text) 55%, var(--lq-color-bg));
+}
+
+/* Le masque des fourches : leur silhouette en blanc — un masque ne retient que la clarté, et la
+   couleur des matières n'y a aucun sens. Le trait est plus épais que celui du dessin : au bord, le
+   lissage laisse passer une fraction de ce qui est dessous, et un masque au trait exact laissait
+   voir le contour des fourches en filigrane à travers le plateau qui les couvre. */
+.lq-picker__mask * {
+  fill: #fff !important;
+  stroke: #fff !important;
+  stroke-width: 3px !important;
+}
+
+/* Les trois mouvements de la machine, et l'opacité de ce qu'elle porte.
+
+   Ils s'emboîtent : `travel` porte `lift`, qui porte `reach`. Chacun est une pure translation, ce
+   qui n'est possible que parce que la caméra est affine — une translation du monde devient alors
+   une translation de l'écran, la même quel que soit l'endroit d'où on part (voir warehouseIso.ts).
+   L'origine est celle de la `viewBox` : la part qu'elle prend dans la transformation est calculée
+   dans le composant, sans quoi une partie linéaire non triviale déplacerait aussi tout ce qui la
+   sépare du dessin.
+
+   Toutes partagent le même cycle, et c'est ce qui les tient ensemble : la levée finit exactement
+   quand la translation finit, et le tablier ne s'engage qu'après. */
+.lq-picker__travel,
+.lq-picker__lift,
+.lq-picker__reach,
+.lq-picker__held {
+  transform-box: view-box;
+  transform-origin: 0 0;
+  animation-duration: var(--lq-picker-cycle, 8s);
+  /* Linéaire, et les arrêts du cycle portent le rythme : chaque temps est à vitesse constante, donc
+     l'interpolation entre deux images-clés est la vitesse elle-même. Un assouplissement ajouterait
+     une accélération à chacun des dix temps, ce qui ferait de la machine un objet élastique. */
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+/* À l'arrêt : la machine se fige dans la pose que `phase` lui donne. Les groupes gardent alors la
+   transformation et l'opacité que le composant leur pose en ligne — le tablier du côté qui ne sert
+   pas y reste caché, sans quoi deux tabliers se superposeraient sur un seul mât. */
+.lq-picker--stopped .lq-picker__travel,
+.lq-picker--stopped .lq-picker__lift,
+.lq-picker--stopped .lq-picker__reach,
+.lq-picker--stopped .lq-picker__held {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lq-picker__travel,
+  .lq-picker__lift,
+  .lq-picker__reach,
+  .lq-picker__held {
+    animation: none !important;
+  }
+}

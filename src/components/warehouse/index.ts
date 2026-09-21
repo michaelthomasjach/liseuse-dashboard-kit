@@ -13,6 +13,15 @@ export type { StorageZoneProps } from "./StorageZone";
 export { Conveyor } from "./Conveyor";
 export type { ConveyorKind, ConveyorProps } from "./Conveyor";
 
+export { railCircuit } from "./railCircuit";
+export type { CircuitModule, CircuitPiece, CircuitPose, RailCircuit } from "./railCircuit";
+
+export { Rail, RAIL_GAUGE, RAIL_HEIGHT, RAIL_SLEEPER_THICKNESS, RAIL_TOP, RAIL_WIDTH } from "./Rail";
+export type { RailKind, RailProps } from "./Rail";
+
+export { Picker } from "./Picker";
+export type { PickerProps, PickerSide, PickerStop } from "./Picker";
+
 export { RackItem } from "./RackItem";
 export type { RackItemProps } from "./RackItem";
 export { ISO_POST_SIZE, RACK_ITEM_KINDS, RACK_ITEM_LABEL } from "./rackItems";

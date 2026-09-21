@@ -10,10 +10,24 @@ type Story = StoryObj<typeof RackV2>;
 
 export const Boite: Story = {
   name: "La boîte",
-  args: { width: 8, depth: 2, height: 2.4, cellSize: 34 },
+  args: { width: 8, depth: 2, height: 2.4, cellSize: 34, posts: false, postSize: 0.22 },
   render: (args) => (
     <div style={{ padding: 40 }}>
       <RackV2 {...args} />
+    </div>
+  ),
+};
+
+/** `posts` remplace les quatre arêtes verticales par de vrais poteaux — des colonnes carrées
+ *  posées *vers l'intérieur* de leur coin, donc la silhouette de la boîte ne bouge pas d'un pixel :
+ *  on change ce dont les montants sont faits, pas où est l'étagère. `postSize` en donne le côté. */
+export const Poteaux: Story = {
+  name: "De vrais poteaux",
+  render: () => (
+    <div style={{ display: "flex", gap: 64, alignItems: "flex-end", padding: 40, flexWrap: "wrap" }}>
+      <RackV2 width={6} depth={2} height={2.4} cellSize={40} posts />
+      <RackV2 width={6} depth={2} height={2.4} cellSize={40} posts postSize={0.4} />
+      <RackV2 width={6} depth={2} height={2.4} cellSize={40} />
     </div>
   ),
 };

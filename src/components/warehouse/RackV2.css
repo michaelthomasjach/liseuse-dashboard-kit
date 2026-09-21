@@ -7,6 +7,7 @@
   /* Kraft. En e-ink l'ambre s'effondre sur la couleur du texte : les trois faces du carton restent
      alors trois gris, parce qu'elles se distinguent par la clarté et non par la teinte. */
   --lq-rack2-carton: color-mix(in srgb, var(--lq-color-amber) 58%, var(--lq-color-bg));
+  --lq-rack2-post: color-mix(in srgb, var(--lq-color-text) 34%, var(--lq-color-bg));
 
   display: block;
   overflow: visible;
@@ -35,8 +36,10 @@
   vector-effect: non-scaling-stroke;
 }
 
-/* Le carton est plein lui aussi, mais c'est le seul volume fermé du dessin : c'est ce contraste
-   avec l'ossature ajourée qui dit lequel des deux est la chose et lequel est le contenant. */
+/* Les deux volumes pleins du dessin. Même trait, même convention de lumière : ce qui les
+   distingue est leur matière, pas leur manière d'être dessinés — et c'est ce contraste avec
+   l'ossature ajourée qui dit lequel est la chose et lequel est le contenant. */
+.lq-rack2__post-face,
 .lq-rack2__carton-face {
   stroke: color-mix(in srgb, var(--lq-color-text) 55%, transparent);
   stroke-width: 1;
@@ -57,6 +60,21 @@
 
 .lq-rack2__carton-face--side {
   fill: color-mix(in srgb, var(--lq-rack2-carton) 72%, var(--lq-color-text));
+}
+
+/* Le poteau, aux mêmes trois clartés, mais dans la matière de l'étagère : la couleur du texte et
+   non un accent. Un poteau ne dit rien d'autre que « de l'acier, ici » — lui donner une teinte en
+   ferait un statut. */
+.lq-rack2__post-face--top {
+  fill: var(--lq-rack2-post);
+}
+
+.lq-rack2__post-face--front {
+  fill: color-mix(in srgb, var(--lq-rack2-post) 86%, var(--lq-color-text));
+}
+
+.lq-rack2__post-face--side {
+  fill: color-mix(in srgb, var(--lq-rack2-post) 72%, var(--lq-color-text));
 }
 
 /* La jointure des rabats. Sans elle, un carton est un cube. */

@@ -8,7 +8,6 @@ import {
   isoFacing,
   rackItemIso,
   solidVolume,
-  type Faces,
   type Point,
   type Project,
   type RackItemKind,
@@ -115,6 +114,10 @@ const DEFAULT_GUARD = 0.14;
  *  pour que chaque tronçon reste un volume qu'on trie avec les autres. */
 const GUARD_SEGMENTS = 14;
 
+/** Tronçons du bâti d'un angle. Plus nombreux que ceux d'une barrière : c'est la pièce la plus
+ *  large du dessin, donc celle dont un pan coupé se verrait le plus. */
+const BED_SEGMENTS = 20;
+
 /** Points d'echantillonnage du parcours d'une charge, tous troncons confondus. Un arc en demande
  *  beaucoup ; une ligne droite s'en contenterait de deux. */
 const LOAD_SAMPLES = 24;
@@ -171,12 +174,21 @@ export function Conveyor({
   const facing = isoFacing(rotation);
   const ring = (points: Point[]) => points.map((p) => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(" ");
 
+  const footprint = (xs: number[], ys: number[]) => {
+    const x = Math.min(...xs);
+    const y = Math.min(...ys);
+    return { x, y, width: Math.max(...xs) - x, height: Math.max(...ys) - y };
+  };
+
   const leg = Math.max(0.04, Math.min(legSize, Math.min(spanX, spanY) / 2));
   const bedZ = Math.max(0, legHeight);
   const bedTop = bedZ + Math.max(0.02, bedThickness);
   const beltHalf = (spanY * BELT_SHARE) / 2;
   const guard = Math.max(0, guardHeight);
   const guardThick = Math.max(0.03, spanY * 0.045);
+  /** Ce que le bati deborde de part et d'autre de la bande : de quoi porter la barriere et un peu
+   *  de rive au-dela. */
+  const bedMargin = guardThick * 1.8;
 
   // ---- le parcours de la bande ----
   // Un angle est un quart de cercle centré sur le coin (0, largeur) : tangent à +x où il entre, à
@@ -192,6 +204,72 @@ export function Conveyor({
   };
   /** Un point de l'anneau d'un angle, par rayon et par angle. */
   const arcPoint = (r: number, a: number, z: number) => at(r * Math.cos(a), spanY + r * Math.sin(a), z);
+  /** L'angle du parcours au tronçon `i` d'un découpage en `n`. */
+  const arcAngle = (i: number, n: number) => -Math.PI / 2 + (Math.PI / 2) * (i / n);
+  /** De quel côté d'un rayon la caméra regarde, une fois le sol tourné : c'est ce qui décide quelle
+   *  paroi d'un anneau est visible, et ça change de bord en cours d'arc. */
+  const outwardAt = (a: number) => {
+    const n = spin(Math.cos(a), Math.sin(a));
+    const o = spin(0, 0);
+    return n.x - o.x + (n.y - o.y) > 0;
+  };
+
+  /**
+   * Un tronçon d'anneau : sa face du dessus, la paroi que la caméra voit, et le bout droit quand
+   * c'en est un. Le bâti d'un angle et ses barrières sont tous deux faits de ça — un anneau plein
+   * n'est qu'un anneau très épais, et il ne sert à rien d'en écrire deux fois la géométrie.
+   */
+  const arcSegment = (
+    material: string,
+    rIn: number,
+    rOut: number,
+    z0: number,
+    z1: number,
+    i: number,
+    n: number,
+    key: string
+  ): Piece => {
+    const a0 = arcAngle(i, n);
+    const a1 = arcAngle(i + 1, n);
+    const wall = outwardAt((a0 + a1) / 2) ? rOut : rIn;
+    const world = [
+      [rIn, a0],
+      [rOut, a0],
+      [rOut, a1],
+      [rIn, a1],
+    ].map(([r, a]) => ({ x: r * Math.cos(a), y: spanY + r * Math.sin(a) }));
+    // Les deux bouts de l'anneau sont des plans radiaux : on ne voit que celui dont la normale,
+    // qui est la tangente sortante, regarde la caméra.
+    const capAt = (a: number, sign: number) => {
+      const t = spin(-Math.sin(a) * sign, Math.cos(a) * sign);
+      const o = spin(0, 0);
+      return t.x - o.x + (t.y - o.y) > 0;
+    };
+    const caps: Point[][] = [];
+    if (i === 0 && capAt(a0, -1)) caps.push([arcPoint(rIn, a0, z0), arcPoint(rOut, a0, z0), arcPoint(rOut, a0, z1), arcPoint(rIn, a0, z1)]);
+    if (i === n - 1 && capAt(a1, 1)) caps.push([arcPoint(rIn, a1, z0), arcPoint(rOut, a1, z0), arcPoint(rOut, a1, z1), arcPoint(rIn, a1, z1)]);
+    return {
+      ...footprint(
+        world.map((p) => p.x),
+        world.map((p) => p.y)
+      ),
+      render: () => (
+        <g key={key} className={`lq-iso__solid lq-iso__solid--${material}`}>
+          <polygon
+            className="lq-iso__face lq-iso__face--front"
+            points={ring([arcPoint(wall, a0, z0), arcPoint(wall, a1, z0), arcPoint(wall, a1, z1), arcPoint(wall, a0, z1)])}
+          />
+          {caps.map((c, k) => (
+            <polygon key={`cap${k}`} className="lq-iso__face lq-iso__face--side" points={ring(c)} />
+          ))}
+          <polygon
+            className="lq-iso__face lq-iso__face--top"
+            points={ring([arcPoint(rIn, a0, z1), arcPoint(rOut, a0, z1), arcPoint(rOut, a1, z1), arcPoint(rIn, a1, z1)])}
+          />
+        </g>
+      ),
+    };
+  };
 
   /** La bande elle-même : le ruban balayé par le parcours, à plat sur le bâti. */
   const beltFace = (() => {
@@ -230,11 +308,6 @@ export function Conveyor({
 
   // ---- ce qui se tient sur le bâti : les barrières, et la charge ----
   const pieces: Piece[] = [];
-  const footprint = (xs: number[], ys: number[]) => {
-    const x = Math.min(...xs);
-    const y = Math.min(...ys);
-    return { x, y, width: Math.max(...xs) - x, height: Math.max(...ys) - y };
-  };
 
   if (guard > 0) {
     if (kind === "corner") {
@@ -244,51 +317,9 @@ export function Conveyor({
       // centré. Une barrière d'un bloc ne pourrait pas dire les deux.
       for (const r of [radius - beltHalf - guardThick / 2, radius + beltHalf + guardThick / 2]) {
         for (let i = 0; i < GUARD_SEGMENTS; i += 1) {
-          const a0 = -Math.PI / 2 + (Math.PI / 2) * (i / GUARD_SEGMENTS);
-          const a1 = -Math.PI / 2 + (Math.PI / 2) * ((i + 1) / GUARD_SEGMENTS);
-          const ri = r - guardThick / 2;
-          const ro = r + guardThick / 2;
-          const corners = [
-            [ri, a0],
-            [ro, a0],
-            [ro, a1],
-            [ri, a1],
-          ] as const;
-          const world = corners.map(([rr, aa]) => ({ x: rr * Math.cos(aa), y: spanY + rr * Math.sin(aa) }));
-          // La face qu'on voit est celle dont la normale, une fois tournée, regarde la caméra ; sur
-          // un arc elle change de bord en cours de route, donc elle se décide par tronçon.
-          const am = (a0 + a1) / 2;
-          const n = spin(Math.cos(am), Math.sin(am));
-          const o = spin(0, 0);
-          const outward = n.x - o.x + (n.y - o.y) > 0;
-          const wallR = outward ? ro : ri;
-          const faces: Faces = {
-            top: [
-              arcPoint(ri, a0, bedTop + guard),
-              arcPoint(ro, a0, bedTop + guard),
-              arcPoint(ro, a1, bedTop + guard),
-              arcPoint(ri, a1, bedTop + guard),
-            ],
-            front: [
-              arcPoint(wallR, a0, bedTop),
-              arcPoint(wallR, a1, bedTop),
-              arcPoint(wallR, a1, bedTop + guard),
-              arcPoint(wallR, a0, bedTop + guard),
-            ],
-            side: [],
-          };
-          pieces.push({
-            ...footprint(
-              world.map((p) => p.x),
-              world.map((p) => p.y)
-            ),
-            render: () => (
-              <g key={`g${r.toFixed(3)}-${i}`} className="lq-iso__solid lq-iso__solid--post">
-                <polygon className="lq-iso__face lq-iso__face--front" points={ring(faces.front)} />
-                <polygon className="lq-iso__face lq-iso__face--top" points={ring(faces.top)} />
-              </g>
-            ),
-          });
+          pieces.push(
+            arcSegment("post", r - guardThick / 2, r + guardThick / 2, bedTop, bedTop + guard, i, GUARD_SEGMENTS, `g${r.toFixed(3)}-${i}`)
+          );
         }
       }
     } else {
@@ -365,7 +396,13 @@ export function Conveyor({
     const fadeIn = i === 0 ? 0.03 : 0;
     const fadeOut = i === turns - 1 ? 0.03 : 0;
     const stops: string[] = [];
-    if (t0 > 0) stops.push(`0%{opacity:0;transform:${shift(t0)}}`, `${pct(t0)}%{opacity:0;transform:${shift(t0)}}`);
+    // Deux arrets ne peuvent pas partager le meme pourcentage : le dernier ecrase le premier, et
+    // l'opacite 0 qui devait tenir jusqu'a la fenetre disparaissait — chaque exemplaire fondait
+    // alors en continu depuis le debut du cycle, et les douze se voyaient tous en meme temps, en
+    // eventail. Le relais se fait donc sur un millieme de cycle, ce qui est franc a l'oeil.
+    const BLINK = 0.0005;
+    if (t0 > 0)
+      stops.push(`0%{opacity:0;transform:${shift(t0)}}`, `${pct(t0 - BLINK)}%{opacity:0;transform:${shift(t0)}}`);
     stops.push(`${pct(t0)}%{opacity:${fadeIn ? 0 : 1};transform:${shift(t0)}}`);
     if (fadeIn) stops.push(`${pct(t0 + fadeIn)}%{opacity:1;transform:${shift(t0 + fadeIn)}}`);
     for (let k = 1; k < perTurn; k += 1) {
@@ -375,7 +412,8 @@ export function Conveyor({
     }
     if (fadeOut) stops.push(`${pct(t1 - fadeOut)}%{opacity:1;transform:${shift(t1 - fadeOut)}}`);
     stops.push(`${pct(t1)}%{opacity:${fadeOut ? 0 : 1};transform:${shift(t1)}}`);
-    if (t1 < 1) stops.push(`${pct(t1)}%{opacity:0;transform:${shift(t1)}}`, `100%{opacity:0;transform:${shift(t1)}}`);
+    if (t1 < 1)
+      stops.push(`${pct(t1 + BLINK)}%{opacity:0;transform:${shift(t1)}}`, `100%{opacity:0;transform:${shift(t1)}}`);
     rideFrames.push(`@keyframes lq-ride-${uid}-${i}{${stops.join("")}}`);
 
     if (!load) continue;
@@ -413,21 +451,53 @@ export function Conveyor({
     });
   }
 
+  // ---- le bâti ----
+  // Dans un angle, il suit la courbe : un plateau carré sous une bande qui tourne dit que la
+  // machine est une caisse à laquelle on a peint un arc dessus, alors que c'est une courbe qui a
+  // une largeur. C'est le même anneau que les barrières, en beaucoup plus épais.
+  const bedPieces: Piece[] = [];
+  if (kind === "corner") {
+    for (let i = 0; i < BED_SEGMENTS; i += 1) {
+      bedPieces.push(
+        arcSegment("steel", radius - beltHalf - bedMargin, radius + beltHalf + bedMargin, bedZ, bedTop, i, BED_SEGMENTS, `b${i}`)
+      );
+    }
+  } else {
+    bedPieces.push({
+      x: 0,
+      y: 0,
+      width: spanX,
+      height: spanY,
+      render: () => solidVolume("steel", "bed", boxFaces(at, 0, spanX, 0, spanY, bedZ, bedTop, facing)),
+    });
+  }
+
   // ---- les pieds ----
   // Un tapis long fait pousser des pieds intermédiaires : un bâti de neuf mètres sur quatre pieds
   // est un plongeoir.
-  const rows = kind === "corner" ? 2 : Math.max(2, Math.round(spanX / 2.5) + 1);
   const legs: Piece[] = [];
-  for (let r = 0; r < rows; r += 1) {
-    const x0 = ((spanX - leg) * r) / (rows - 1);
-    for (const y0 of [0, spanY - leg]) {
-      legs.push({
-        x: x0,
-        y: y0,
-        width: leg,
-        height: leg,
-        render: () => solidVolume("post", `l${r}-${y0}`, boxFaces(at, x0, x0 + leg, y0, y0 + leg, 0, bedZ, facing)),
-      });
+  const legAt = (cx: number, cy: number, key: string) =>
+    legs.push({
+      x: cx - leg / 2,
+      y: cy - leg / 2,
+      width: leg,
+      height: leg,
+      render: () =>
+        solidVolume("post", key, boxFaces(at, cx - leg / 2, cx + leg / 2, cy - leg / 2, cy + leg / 2, 0, bedZ, facing)),
+    });
+  if (kind === "corner") {
+    // Un pied sous chaque coin de l'anneau : ce sont les quatre seuls endroits où le bâti a un
+    // bout droit sur lequel poser quelque chose.
+    for (const a of [arcAngle(0, 1), arcAngle(1, 1)]) {
+      for (const r of [radius - beltHalf - bedMargin + leg / 2, radius + beltHalf + bedMargin - leg / 2]) {
+        legAt(r * Math.cos(a), spanY + r * Math.sin(a), `l${a.toFixed(2)}-${r.toFixed(2)}`);
+      }
+    }
+  } else {
+    const rows = Math.max(2, Math.round(spanX / 2.5) + 1);
+    for (let r = 0; r < rows; r += 1) {
+      const x0 = leg / 2 + ((spanX - leg) * r) / (rows - 1);
+      for (const y0 of [leg / 2, spanY - leg / 2]) legAt(x0, y0, `l${r}-${y0}`);
     }
   }
 
@@ -479,7 +549,7 @@ export function Conveyor({
       )}
 
       {sorted(legs).map((piece) => piece.render())}
-      {solidVolume("steel", "bed", boxFaces(at, 0, spanX, 0, spanY, bedZ, bedTop, facing))}
+      {sorted(bedPieces).map((piece) => piece.render())}
       {/* La bande et sa flèche sont à plat sur le bâti : rien ne peut passer dessous, donc elles
           sont posées avant tout ce qui se dresse dessus plutôt que triées avec. */}
       <polygon className="lq-conveyor__belt" points={ring(beltFace)} />

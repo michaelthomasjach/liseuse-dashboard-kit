@@ -14,10 +14,40 @@
 }
 
 /* The grid, the curve and the faders are three layers over the same box, so the curve passes
-   exactly through the handles without anything having to be measured in JavaScript. */
+   exactly through the handles without anything having to be measured in JavaScript.
+   That only holds if the box really is the same one. The dB figures and the band names used to be
+   stacked *inside* each fader's own column, which made the faders shorter than the plot by those
+   two lines — the curve and the gridlines still spanned the whole plot, so neither met a handle.
+   They are rows of their own now, above and below, sharing the columns and nothing else: the
+   alignment is structural instead of being two numbers that have to agree. */
 .lq-eq__plot {
   position: relative;
   height: var(--lq-eq-height);
+}
+
+/* The three rows that share the faders' columns: the values, the plot's own fader row, and the
+   names. Same gutter, same equal shares, so a value, a fader and a name line up by construction. */
+.lq-eq__row {
+  display: flex;
+  align-items: stretch;
+  box-sizing: border-box;
+  padding-left: var(--lq-eq-scale);
+}
+
+/* Room for the half of a handle that sticks out past the end of its travel. */
+.lq-eq__values {
+  padding-bottom: 6px;
+}
+
+.lq-eq__labels {
+  padding-top: 6px;
+}
+
+.lq-eq__values > *,
+.lq-eq__labels > * {
+  flex: 1 1 0;
+  min-width: 0;
+  text-align: center;
 }
 
 /* The three layers over the plot — grid, curve, faders — all begin after the scale's gutter.
@@ -31,11 +61,14 @@
   pointer-events: none;
 }
 
+/* Centred on its own value, like a handle is — `bottom` alone puts the line's *bottom edge* there,
+   so a fader sitting exactly on 0 dB was drawing its handle one pixel under the 0 dB line. */
 .lq-eq__gridline {
   position: absolute;
   left: 0;
   right: 0;
   height: 1px;
+  transform: translateY(50%);
   background-color: var(--lq-color-border-subtle);
 }
 
@@ -62,9 +95,17 @@
   color: var(--lq-color-text-muted);
 }
 
+/* Width and height spelled out, not left to `inset`. An `<svg>` with a viewBox is a *replaced*
+   element: absolutely positioned with `auto` width and height it takes its intrinsic size and its
+   intrinsic ratio, and the opposite offsets are simply dropped as over-constrained. Measured, a
+   viewBox of `0 0 100 100` in a 530 × 150 plot came out 530 × 530 — the curve stretched to three
+   and a half times its height and hung 380 px below the equaliser. */
 .lq-eq__curve {
   position: absolute;
-  inset: 0 0 0 var(--lq-eq-scale);
+  top: 0;
+  left: var(--lq-eq-scale);
+  width: calc(100% - var(--lq-eq-scale));
+  height: 100%;
   overflow: visible;
   pointer-events: none;
 }
@@ -80,20 +121,16 @@
 
 .lq-eq__bands {
   position: absolute;
-  inset: 0 0 0 var(--lq-eq-scale);
-  display: flex;
-  align-items: stretch;
-  justify-content: space-between;
+  inset: 0;
 }
 
 .lq-eq__band {
   position: relative;
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  /* Zero-width basis with grow, so every band takes an equal share whatever its label's length —
+  /* Zero-width basis with grow, so every band takes an equal share whatever its name's length —
      otherwise "16 k" would claim more room than "60" and the curve's evenly spaced points would
-     stop lining up with the handles. */
+     stop lining up with the handles. The name is in its own row now, but the rule still matters:
+     all three rows divide their width the same way only because all three divide it equally. */
   flex: 1 1 0;
   min-width: 0;
 }
@@ -174,12 +211,9 @@
   font-variant-numeric: tabular-nums;
   color: var(--lq-color-text-muted);
   white-space: nowrap;
-  padding-top: 4px;
 }
 
 .lq-eq__band-value {
-  padding-top: 0;
-  padding-bottom: 2px;
   color: var(--lq-color-text);
   font-weight: 600;
 }

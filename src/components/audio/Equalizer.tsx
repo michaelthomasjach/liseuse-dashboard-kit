@@ -96,8 +96,12 @@ export function Equalizer({
 
   const curvePoints = bands.map((band, i) => ({
     // Percentages, so the curve follows the columns when the container resizes without this
-    // component having to measure anything.
-    x: bands.length === 1 ? 50 : (i / (bands.length - 1)) * 100,
+    // component having to measure anything — and the *centre* of each column, not its edge. The
+    // faders share the width equally and each sits in the middle of its share, so band i is at
+    // (i + ½)/n. Spacing the points i/(n−1) instead put the first one on the left edge and the
+    // last on the right: measured, the curve's ends missed their handles by half a column, 26 px
+    // on a ten-band equaliser, and leaned across every one in between.
+    x: ((i + 0.5) / bands.length) * 100,
     y: (1 - ratioOf(band.gain)) * 100,
   }));
 
@@ -113,6 +117,16 @@ export function Equalizer({
         } as CSSProperties
       }
     >
+      {showValues && (
+        <div className="lq-eq__row lq-eq__values" aria-hidden="true">
+          {bands.map((band) => (
+            <span key={band.id} className="lq-eq__band-value">
+              {band.gain > 0 ? `+${band.gain}` : band.gain}
+            </span>
+          ))}
+        </div>
+      )}
+
       <div className="lq-eq__plot">
         {showScale && (
           <div className="lq-eq__grid" aria-hidden="true">
@@ -136,14 +150,11 @@ export function Equalizer({
           </svg>
         )}
 
-        <div className="lq-eq__bands">
+        <div className="lq-eq__row lq-eq__bands">
           {bands.map((band) => {
             const ratio = ratioOf(band.gain);
             return (
               <div key={band.id} className="lq-eq__band">
-                {showValues && (
-                  <span className="lq-eq__band-value">{band.gain > 0 ? `+${band.gain}` : band.gain}</span>
-                )}
                 <div
                   ref={(el) => {
                     if (el) trackRefs.current.set(band.id, el);
@@ -190,11 +201,18 @@ export function Equalizer({
                     }}
                   />
                 </div>
-                <span className="lq-eq__band-label">{band.label}</span>
               </div>
             );
           })}
         </div>
+      </div>
+
+      <div className="lq-eq__row lq-eq__labels">
+        {bands.map((band) => (
+          <span key={band.id} className="lq-eq__band-label">
+            {band.label}
+          </span>
+        ))}
       </div>
 
       {unit && <div className="lq-eq__unit">{unit}</div>}

@@ -29,3 +29,21 @@
   stroke-dasharray: 3 3;
   vector-effect: non-scaling-stroke;
 }
+
+/* Une zone où rien ne peut être déposé. La teinte dit « attention » et les rayures disent
+   « interdit » : sous e-ink la teinte d'alerte s'effondre sur la couleur du texte, et il ne reste
+   que les rayures — c'est donc elles qui portent le message, la teinte n'étant qu'un renfort. */
+.lq-rack2__blocked {
+  fill: color-mix(in srgb, var(--lq-color-danger) 14%, transparent);
+  stroke: color-mix(in srgb, var(--lq-color-danger) 50%, transparent);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.lq-rack2__hatch {
+  fill: none;
+  stroke: color-mix(in srgb, var(--lq-color-danger) 62%, var(--lq-color-text));
+  stroke-width: 1.5;
+  stroke-linecap: butt;
+  vector-effect: non-scaling-stroke;
+}

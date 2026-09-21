@@ -2,7 +2,8 @@ import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react";
 import { RackV2 } from "./RackV2";
 import { RackItem } from "./RackItem";
-import { RACK_ITEM_KINDS, RACK_ITEM_LABEL, type RackItemKind } from "./rackItems";
+import { RACK_ITEM_KINDS, RACK_ITEM_LABEL } from "./rackItems";
+import type { RackV2Slot } from "./RackV2";
 import { NumberField } from "../forms";
 
 const meta: Meta<typeof RackV2> = {
@@ -21,10 +22,11 @@ export const Boite: Story = {
     cellSize: 34,
     posts: true,
     braces: true,
+    feet: true,
     postSize: 0.22,
     deckThickness: 0.2,
-    slotsX: 3,
-    contents: ["carton", null, "bidon"],
+    slotsX: 4,
+    contents: ["carton", "interdit", null, "bidon"],
   },
   render: (args) => (
     <div style={{ padding: 40 }}>
@@ -53,17 +55,17 @@ export const Catalogue: Story = {
   ),
 };
 
-/** Le plateau du bas se divise en portions, et chaque portion porte un élément. C'est l'unité de
- *  « quelque part où poser quelque chose » : remplir une étagère est affaire de nommer des choses,
- *  pas de les placer. */
+/** Le plateau du bas se divise en portions, et chaque portion porte un élément — ou rien, ou un
+ *  interdit. C'est l'unité de « quelque part où poser quelque chose » : remplir une étagère est
+ *  affaire de nommer des choses, pas de les placer. Cliquer un bouton fait défiler les états. */
 export const Portions: Story = {
   name: "Portions du plateau",
   render: function Render() {
     const [slots, setSlots] = useState(4);
-    const [contents, setContents] = useState<(RackItemKind | null)[]>(["carton", "bidon", "boite", "bouteille"]);
+    const [contents, setContents] = useState<RackV2Slot[]>(["carton", "interdit", "boite", "bouteille"]);
 
     const cycle = (i: number) => {
-      const order: (RackItemKind | null)[] = [...RACK_ITEM_KINDS, null];
+      const order: RackV2Slot[] = [...RACK_ITEM_KINDS, "interdit", null];
       setContents((current) => {
         const next = [...current];
         while (next.length < slots) next.push(null);
@@ -94,11 +96,16 @@ export const Portions: Story = {
               onClick={() => cycle(i)}
               style={{ font: "inherit", fontSize: "0.7rem", padding: "6px 10px", cursor: "pointer" }}
             >
-              {i + 1} · {contents[i] ? RACK_ITEM_LABEL[contents[i] as RackItemKind] : "vide"}
+              {i + 1} ·{" "}
+              {contents[i] === "interdit"
+                ? "interdit"
+                : contents[i]
+                  ? RACK_ITEM_LABEL[contents[i] as Exclude<RackV2Slot, "interdit" | null>]
+                  : "vide"}
             </button>
           ))}
         </div>
-        <RackV2 width={slots * 2} depth={2} height={2.4} cellSize={38} posts braces slotsX={slots} contents={contents} />
+        <RackV2 width={slots * 2} depth={2} height={2.4} cellSize={38} posts braces feet slotsX={slots} contents={contents} />
       </div>
     );
   },
@@ -171,6 +178,7 @@ export const Atelier: Story = {
             cellSize={cellSize}
             posts
             braces
+            feet
           />
         </div>
       </div>
@@ -185,8 +193,8 @@ export const Poteaux: Story = {
   name: "Poteaux et contreventement",
   render: () => (
     <div style={{ display: "flex", gap: 64, alignItems: "flex-end", padding: 40, flexWrap: "wrap" }}>
-      <RackV2 width={6} depth={2} height={2.4} cellSize={40} posts braces />
-      <RackV2 width={6} depth={2} height={2.4} cellSize={40} braces />
+      <RackV2 width={6} depth={2} height={2.4} cellSize={40} posts braces feet />
+      <RackV2 width={6} depth={2} height={2.4} cellSize={40} braces feet />
     </div>
   ),
 };
@@ -198,9 +206,9 @@ export const Proportions: Story = {
   name: "Proportions",
   render: () => (
     <div style={{ display: "flex", gap: 48, alignItems: "flex-end", padding: 40, flexWrap: "wrap" }}>
-      <RackV2 width={10} depth={2} height={1.5} cellSize={30} posts braces slotsX={4} contents={["carton", "boite", null, "bidon"]} />
-      <RackV2 width={4} depth={4} height={4} cellSize={30} posts braces slotsX={2} slotsY={2} contents={["carton", "bidon", "bouteille", "boite"]} />
-      <RackV2 width={2} depth={2} height={6} cellSize={30} posts braces contents={["palette"]} />
+      <RackV2 width={10} depth={2} height={1.5} cellSize={30} posts braces feet slotsX={4} contents={["carton", "boite", "interdit", "bidon"]} />
+      <RackV2 width={4} depth={4} height={4} cellSize={30} posts braces feet slotsX={2} slotsY={2} contents={["carton", "interdit", "bouteille", "boite"]} />
+      <RackV2 width={2} depth={2} height={6} cellSize={30} posts braces feet contents={["palette"]} />
     </div>
   ),
 };

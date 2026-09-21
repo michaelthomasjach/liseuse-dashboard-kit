@@ -32,6 +32,10 @@ import "./RackV2.css";
  *     is, which corner of the footprint it stands on and which way it faces. Each is a square column
  *     set *inward* from its corner, so the box's silhouette is exactly the one the lines drew —
  *     turning the posts on changes what the uprights are made of, not where the rack is;
+ *   - the four **feet**, with `feet`: the uprights carrying on below the bottom deck, on the racks
+ *     that actually stand on the ground — a stacked rack rests on the one under it and has nothing
+ *     to lift. A foot is not an extra part, it is the post continuing to the floor, so it has the
+ *     post's own section;
  *   - the two **braces**, with `braces`: one diagonal across each end frame, from the near post's
  *     foot to the far post's head. It is the member that makes a rack a rack rather than four legs
  *     under two shelves — an unbraced frame is a parallelogram waiting to happen, and every real
@@ -40,8 +44,9 @@ import "./RackV2.css";
  *
  * ## What is put on the lower deck
  *
- * The lower deck divides into `slotsX` × `slotsY` **portions**, and `contents` says what stands on
- * each of them, in reading order. A portion is the unit of "somewhere to put something": whatever a
+ * The lower deck divides into `slotsX` × `slotsY` **portions**, and `contents` gives each one's
+ * state, in reading order: a kind of thing standing on it, `"interdit"` if nothing may be put there,
+ * or `null` if it is free. A portion is the unit of "somewhere to put something": whatever a
  * kind is, it is centred on its own portion and fitted to it, so filling a rack is a matter of
  * naming things rather than of placing them. The kinds themselves — carton, boîte, palette, bidon,
  * bouteille — live in `rackItems.tsx`, where each is drawn once and shown from two cameras.
@@ -51,8 +56,13 @@ import "./RackV2.css";
  * `width`, `depth` and `height` are one rack's three dimensions; `countX`, `countY` and `countZ`
  * are how many of it to draw along each axis. They **abut exactly** — no gap, no spacing prop:
  * racks pushed together is what a run of shelving is, and a gap is something a caller can get by
- * asking for two blocks. Stacked, one rack's bottom slab lands on the one below's top slab, which
- * is what the doubled thickness at each floor is telling you.
+ * asking for two blocks.
+ *
+ * Stacked, a deck is **shared rather than doubled**: only the rack with nothing above it carries a
+ * top deck, and the others run their uprights straight up to the underside of the one overhead. A
+ * shelf between two floors is one piece of steel, not two lying on each other — drawing both put a
+ * seam across every floor of the stack and made the whole thing read as boxes piled up instead of
+ * as shelving.
  *
  * A block is drawn as **one** picture, not as N pictures side by side, because depth ordering is
  * the whole difficulty here and it cannot be decided a rack at a time.
@@ -78,6 +88,15 @@ import "./RackV2.css";
  *     since each is just one more footprint), then the top slab.
  */
 
+/**
+ * L'état d'une portion de plateau : ce qui est dessus, ou le fait que rien ne peut y aller.
+ *
+ * Un seul champ et non deux listes parallèles : une portion répond à une seule question, et deux
+ * tableaux à tenir en phase par leur indice finiraient par se contredire — une portion à la fois
+ * interdite et occupée n'a pas de sens, et le type est l'endroit où le dire.
+ */
+export type RackV2Slot = RackItemKind | "interdit" | null;
+
 export interface RackV2Props {
   /** Longueur d'une étagère (axe X), en cases. */
   width?: number;
@@ -95,9 +114,10 @@ export interface RackV2Props {
   slotsX?: number;
   /** Portions du plateau du bas sur l'axe Y. */
   slotsY?: number;
-  /** Ce qui est posé sur chaque portion, en ordre de lecture (une rangée Y après l'autre).
-   *  `null` pour une portion vide ; la liste peut être plus courte que le nombre de portions. */
-  contents?: (RackItemKind | null)[];
+  /** L'état de chaque portion, en ordre de lecture (une rangée Y après l'autre) : une sorte de
+   *  chose posée dessus, `"interdit"` si rien ne peut y être déposé, `null` si elle est libre.
+   *  La liste peut être plus courte que le nombre de portions. */
+  contents?: RackV2Slot[];
   /** Épaisseur des deux plateaux, en cases. */
   deckThickness?: number;
   /** Des poteaux modélisés en volume à la place des quatre arêtes verticales. */
@@ -106,6 +126,8 @@ export interface RackV2Props {
   postSize?: number;
   /** Une diagonale de contreventement dans chacun des deux cadres d'about. */
   braces?: boolean;
+  /** Des pieds sous les étagères qui touchent le sol, pour que leur plateau n'y soit pas posé. */
+  feet?: boolean;
   /** Pixels par case. Le même défaut que le plan d'entrepôt, pour que les deux s'accordent. */
   cellSize?: number;
   className?: string;
@@ -123,9 +145,20 @@ const DEFAULT_POST_SIZE = 0.22;
  *  propre contour n'est pas une épaisseur, c'est un trait plus gras. */
 const DEFAULT_DECK_THICKNESS = 0.2;
 
+/** Ce qu'un pied dépasse sous le plateau, en fraction de la section d'un montant. Un pied est le
+ *  montant qui continue jusqu'au sol, pas une pièce de plus : il a donc la même section, et il ne
+ *  dépasse que de quoi décoller le plateau — assez pour qu'on voie le jour dessous, pas assez pour
+ *  que l'étagère ait l'air montée sur pilotis. */
+const FOOT_RISE = 0.75;
+
 /** Par axe. Ce composant dessine chaque étagère entièrement, sans niveau de détail : au-delà, ce
  *  n'est plus un dessin mais une scène, et c'est un autre travail que celui-ci. */
 const MAX_COUNT = 24;
+
+/** Pas des rayures d'une zone interdite, en cases. Fixe, et non proportionnel à la portion : des
+ *  rayures plus serrées sur une petite zone se liraient comme un motif différent, or c'est le même
+ *  interdit. */
+const HATCH_STEP = 0.3;
 
 type Cell = [number, number];
 type Piece = { x: number; y: number; width: number; height: number; render: () => ReactNode };
@@ -146,6 +179,7 @@ export function RackV2({
   posts = false,
   postSize = DEFAULT_POST_SIZE,
   braces = false,
+  feet = false,
   cellSize = 22,
   className,
 }: RackV2Props) {
@@ -163,10 +197,12 @@ export function RackV2({
   const slabZ = Math.max(0, Math.min(deckThickness, height / 3));
   const side = Math.max(0.02, Math.min(postSize, Math.min(width, depth) / 2));
 
-  /** One rack, standing with its far-left-bottom corner at (ox, oy, oz). */
-  const rack = (ox: number, oy: number, oz: number, tag: string): ReactNode[] => {
+  /** One rack, standing with its far-left-bottom corner at (ox, oy, oz). `roofed` is false when
+   *  another rack is stacked on this one: the deck above then belongs to *that* rack, and this one
+   *  carries its uprights right up to it. */
+  const rack = (ox: number, oy: number, oz: number, roofed: boolean, tag: string): ReactNode[] => {
     const floorZ = oz + slabZ;
-    const ceilZ = oz + height - slabZ;
+    const ceilZ = oz + height - (roofed ? slabZ : 0);
     const clearance = ceilZ - floorZ;
     const foot: Cell[] = [
       [ox, oy],
@@ -263,17 +299,52 @@ export function RackV2({
     const areaY = oy + side;
     const slotW = (width - 2 * side) / sx;
     const slotD = (depth - 2 * side) / sy;
+    // Les zones interdites, hachurées à même le plateau : les rayures sont tracées *dans* le plan
+    // du plateau, pas plaquées à l'écran, donc elles suivent la surface comme une peinture au sol
+    // et non comme un filtre posé sur l'image. Elles portent seules le message sous e-ink, où la
+    // teinte d'alerte s'effondre sur la couleur du texte.
+    const barred: ReactNode[] = [];
+    const hatch = (x0: number, x1: number, y0: number, y1: number, z: number, key: string) => {
+      const out: ReactNode[] = [];
+      // Les rayures sont les droites x − y = c : à 45° des bords de la portion, ce qu'une hachure
+      // d'interdiction doit être.
+      const from = Math.ceil((x0 - y1) / HATCH_STEP) * HATCH_STEP;
+      for (let c = from, n = 0; c < x1 - y0; c += HATCH_STEP, n += 1) {
+        const xa = Math.max(x0, y0 + c);
+        const xb = Math.min(x1, y1 + c);
+        if (xb - xa < 1e-6) continue;
+        const a = at(xa, xa - c, z);
+        const b = at(xb, xb - c, z);
+        out.push(<line key={`${key}h${n}`} className="lq-rack2__hatch" x1={a.x} y1={a.y} x2={b.x} y2={b.y} />);
+      }
+      return out;
+    };
+
     for (let j = 0; j < sy; j += 1) {
       for (let i = 0; i < sx; i += 1) {
-        const kind = contents[j * sx + i];
-        if (!kind) continue;
-        const fit = fitRackItem(kind, { x: areaX + i * slotW, y: areaY + j * slotD, width: slotW, depth: slotD }, floorZ, clearance);
+        const slot = contents[j * sx + i];
+        if (!slot) continue;
+        const x0 = areaX + i * slotW;
+        const y0 = areaY + j * slotD;
+        if (slot === "interdit") {
+          const key = `${tag}x${i}-${j}`;
+          barred.push(
+            <polygon
+              key={key}
+              className="lq-rack2__blocked"
+              points={ring([at(x0, y0, floorZ), at(x0 + slotW, y0, floorZ), at(x0 + slotW, y0 + slotD, floorZ), at(x0, y0 + slotD, floorZ)])}
+            />
+          );
+          barred.push(...hatch(x0, x0 + slotW, y0, y0 + slotD, floorZ, key));
+          continue;
+        }
+        const fit = fitRackItem(slot, { x: x0, y: y0, width: slotW, depth: slotD }, floorZ, clearance);
         pieces.push({
           x: fit.cx - fit.half,
           y: fit.cy - fit.half,
           width: fit.half * 2,
           height: fit.half * 2,
-          render: () => rackItemIso(kind, fit, at, `${tag}i${i}-${j}`),
+          render: () => rackItemIso(slot, fit, at, `${tag}i${i}-${j}`),
         });
       }
     }
@@ -293,13 +364,49 @@ export function RackV2({
       dividers.push(<line key={`${tag}dy${j}`} className="lq-rack2__divider" x1={a.x} y1={a.y} x2={b.x} y2={b.y} />);
     }
 
+    // Les pieds : seulement sous les étagères qui touchent vraiment le sol. Une étagère empilée
+    // repose sur celle du dessous, elle n'a rien à décoller. Dessinés avant le plateau du bas, qui
+    // est au-dessus d'eux et opaque : il recouvre ce qui est engagé dessous, et ne laisse voir que
+    // ce qui dépasse — ce qui est exactement ce qu'on veut voir.
+    const footNodes: ReactNode[] = [];
+    if (feet && oz === 0) {
+      const rise = side * FOOT_RISE;
+      const stand: Piece[] = foot.map(([cx, cy], i) => {
+        const x0 = cx > ox ? cx - side : cx;
+        const x1 = cx > ox ? cx : cx + side;
+        const y0 = cy > oy ? cy - side : cy;
+        const y1 = cy > oy ? cy : cy + side;
+        return {
+          x: posts ? x0 : cx,
+          y: posts ? y0 : cy,
+          width: posts ? x1 - x0 : 0,
+          height: posts ? y1 - y0 : 0,
+          render: () =>
+            posts ? (
+              solidVolume("post", `${tag}f${i}`, boxFaces(at, x0, x1, y0, y1, -rise, oz))
+            ) : (
+              <line
+                key={`${tag}f${i}`}
+                className="lq-rack2__edge"
+                x1={at(cx, cy, -rise).x}
+                y1={at(cx, cy, -rise).y}
+                x2={at(cx, cy, oz).x}
+                y2={at(cx, cy, oz).y}
+              />
+            ),
+        };
+      });
+      paintOrder(stand).forEach((piece) => footNodes.push(piece.render()));
+    }
+
     const deck = (material: string, key: string, z0: number, z1: number, extra?: ReactNode) =>
       solidVolume(material, `${tag}${key}`, boxFaces(at, ox, ox + width, oy, oy + depth, z0, z1), slabZ === 0, extra);
 
     return [
-      deck("steel-shaded", "lower", oz, floorZ, dividers.length > 0 ? <>{dividers}</> : undefined),
+      ...footNodes,
+      deck("steel-shaded", "lower", oz, floorZ, dividers.length + barred.length > 0 ? <>{dividers}{barred}</> : undefined),
       ...paintOrder(pieces).map((piece) => piece.render()),
-      deck("steel", "upper", ceilZ, oz + height),
+      ...(roofed ? [deck("steel", "upper", ceilZ, oz + height)] : []),
     ];
   };
 
@@ -316,7 +423,7 @@ export function RackV2({
           y: oy,
           width,
           height: depth,
-          render: () => <g key={`${ix}-${iy}-${iz}`}>{rack(ox, oy, iz * height, `${ix}-${iy}-${iz}-`)}</g>,
+          render: () => <g key={`${ix}-${iy}-${iz}`}>{rack(ox, oy, iz * height, iz === nz - 1, `${ix}-${iy}-${iz}-`)}</g>,
         });
       }
     }
@@ -326,7 +433,15 @@ export function RackV2({
   const spanX = nx * width;
   const spanY = ny * depth;
   const spanZ = nz * height;
-  const corners = [at(0, 0, 0), at(spanX, 0, 0), at(spanX, spanY, 0), at(0, spanY, 0), at(0, 0, spanZ), at(spanX, spanY, spanZ)];
+  const under = feet ? -side * FOOT_RISE : 0;
+  const corners = [
+    at(0, 0, 0),
+    at(spanX, 0, under),
+    at(spanX, spanY, under),
+    at(0, spanY, under),
+    at(0, 0, spanZ),
+    at(spanX, spanY, spanZ),
+  ];
   const minX = Math.min(...corners.map((p) => p.x)) - PAD;
   const minY = Math.min(...corners.map((p) => p.y)) - PAD;
   const boxWidth = Math.max(...corners.map((p) => p.x)) + PAD - minX;

@@ -2,7 +2,7 @@ export { WarehouseCanvas } from "./WarehouseCanvas";
 export type { WarehouseCanvasProps } from "./WarehouseCanvas";
 
 export { RackV2 } from "./RackV2";
-export type { RackV2Props } from "./RackV2";
+export type { RackV2Props, RackV2Slot } from "./RackV2";
 
 export { RackItem } from "./RackItem";
 export type { RackItemProps } from "./RackItem";

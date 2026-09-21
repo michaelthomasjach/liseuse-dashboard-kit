@@ -329,7 +329,7 @@ export const Boucle: Story = {
               dessus. Un colis appartient au module qu'il traverse, donc il hérite de sa place dans
               la pile — et le module suivant, dessiné après parce qu'il est plus proche, le
               recouvrait juste au moment où il arrivait à la jonction. */}
-          {(["machine", "load"] as const).map((part) =>
+          {(["shadow", "machine", "load"] as const).map((part) =>
             order.map(({ m, i }) => (
               <div key={`${part}${i}`} style={{ position: "absolute", left: 0, top: 0 }}>
                 <Conveyor
@@ -344,6 +344,7 @@ export const Boucle: Story = {
                   parts={part}
                   load="carton"
                   span={{ start: m.from / travelled, end: (m.from + m.run) / travelled }}
+                  shadows
                   fadeIn={false}
                   fadeOut={false}
                   speed={speed}
@@ -483,7 +484,7 @@ export const Circuit: Story = {
     return (
       <div style={{ padding: 32 }}>
         <div style={{ position: "relative", width: box.width, height: box.height }}>
-          {(["machine", "load"] as const).map((part) =>
+          {(["shadow", "machine", "load"] as const).map((part) =>
             order.map(({ m, i }) => (
               <div key={`${part}${i}`} style={{ position: "absolute", left: 0, top: 0 }}>
                 <Conveyor
@@ -499,6 +500,7 @@ export const Circuit: Story = {
                   parts={part}
                   load="carton"
                   span={{ start: m.from / done, end: (m.from + m.run) / done }}
+                  shadows
                   fadeIn={false}
                   fadeOut={false}
                   speed={speed}
@@ -595,12 +597,12 @@ export const Transfert: Story = {
     };
 
     const total = L1 + dropRun + L2;
-    const shared = { width: W, bedThickness: thick, cellSize, frame, load: "carton" as const, speed };
+    const shared = { width: W, bedThickness: thick, cellSize, frame, load: "carton" as const, speed, shadows: true };
 
     return (
       <div style={{ padding: 32 }}>
         <div style={{ position: "relative", width: box.width, height: box.height }}>
-          {(["machine", "load"] as const).map((part) => (
+          {(["shadow", "machine", "load"] as const).map((part) => (
             <div key={part}>
               <div style={{ position: "absolute", left: 0, top: 0 }}>
                 <Conveyor

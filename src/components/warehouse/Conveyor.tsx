@@ -184,8 +184,11 @@ export interface ConveyorProps {
    *  de plusieurs modules a besoin de la séparation : la charge appartient au module qu'elle
    *  traverse, donc elle hérite de sa place dans la pile, et le module suivant — dessiné après, car
    *  plus proche — la recouvre juste au moment où elle arrive à la jonction. Dessiner toutes les
-   *  machines, puis toutes les charges, remet chaque chose là où on la cherche. */
-  parts?: "all" | "machine" | "load";
+   *  machines, puis toutes les charges, remet chaque chose là où on la cherche. L'ombre se sépare
+   *  pour la même raison, d'un cran plus bas : elle est au sol, donc elle doit passer sous *tous*
+   *  les modules et pas seulement sous le sien, sans quoi l'ombre d'un tapis proche se poserait
+   *  par-dessus le tapis lointain qu'elle traverse. */
+  parts?: "all" | "shadow" | "machine" | "load";
   /** La part du cycle pendant laquelle une charge traverse ce module, quand le cycle appartient à
    *  quelque chose de plus grand — une boucle, par exemple. Hors de cette part, le module est vide.
    *  C'est ce qui permet de ne faire circuler **qu'un seul colis** sur toute une ligne : chaque
@@ -735,9 +738,9 @@ export function Conveyor({
         </defs>
       )}
 
-      {parts !== "load" && (
+      {(parts === "all" || parts === "shadow") && shade}
+      {(parts === "all" || parts === "machine") && (
         <>
-          {shade}
           {sorted(legs).map((piece) => piece.render())}
           {bed}
           {/* La bande et sa flèche sont à plat sur le bâti : rien ne peut passer dessous, donc elles
@@ -752,7 +755,7 @@ export function Conveyor({
           {guards}
         </>
       )}
-      {parts !== "machine" && sorted(pieces).map((piece) => piece.render())}
+      {(parts === "all" || parts === "load") && sorted(pieces).map((piece) => piece.render())}
     </svg>
   );
 }

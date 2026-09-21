@@ -1,85 +1,80 @@
-/* Étagère V2 : douze arêtes, deux faces pleines, et un carton posé sur le plateau du bas.
-   Voir RackV2.tsx pour le pourquoi. */
+/* Étagère V2 : deux plateaux, quatre montants, un carton. Voir RackV2.tsx pour le pourquoi. */
 
 .lq-rack2 {
-  /* Le plateau. Opaque : un plateau est une tôle, pas une vitre. */
-  --lq-rack2-deck: color-mix(in srgb, var(--lq-color-accent) 14%, var(--lq-color-bg));
-  /* Kraft. En e-ink l'ambre s'effondre sur la couleur du texte : les trois faces du carton restent
-     alors trois gris, parce qu'elles se distinguent par la clarté et non par la teinte. */
-  --lq-rack2-carton: color-mix(in srgb, var(--lq-color-amber) 58%, var(--lq-color-bg));
+  /* Les matières. L'acier ne prend pas de teinte : un plateau et un poteau ne disent rien d'autre
+     que « de l'acier, ici », et une teinte en ferait un statut. Le carton est kraft — et en e-ink,
+     où l'ambre s'effondre sur la couleur du texte, il redevient un gris parmi les autres, ce qui
+     est sans conséquence : les faces se distinguent par la clarté, jamais par la teinte. */
+  --lq-rack2-steel: color-mix(in srgb, var(--lq-color-accent) 14%, var(--lq-color-bg));
   --lq-rack2-post: color-mix(in srgb, var(--lq-color-text) 34%, var(--lq-color-bg));
+  --lq-rack2-carton: color-mix(in srgb, var(--lq-color-amber) 58%, var(--lq-color-bg));
+  --lq-rack2-line: color-mix(in srgb, var(--lq-color-text) 72%, transparent);
 
   display: block;
   overflow: visible;
 }
 
-.lq-rack2__face--top {
-  fill: var(--lq-rack2-deck);
+/* Une seule source de lumière pour tout le dessin : le dessus prend le jour, la face avant est en
+   demi-teinte, le côté est dans l'ombre. Chaque volume ne fournit que sa matière — trois teintes
+   par face donneraient trois formes plates sans rapport qui se rejoignent sur une arête. */
+.lq-rack2__solid-face--top {
+  fill: var(--lq-rack2-face);
 }
 
-/* Le même plateau, en dessous, donc à l'ombre de celui du dessus. Deux plateaux identiques se
-   liraient comme un seul à double épaisseur. */
-.lq-rack2__face--bottom {
-  fill: color-mix(in srgb, var(--lq-rack2-deck) 84%, var(--lq-color-text));
+.lq-rack2__solid-face--front {
+  fill: color-mix(in srgb, var(--lq-rack2-face) 86%, var(--lq-color-text));
 }
 
-/* Toutes au même poids : ce qui décide de ce qu'on voit d'une arête, c'est sa place dans l'ordre de
-   dessin, pas son épaisseur. Une arête « de derrière » dessinée plus légère par-dessus un plateau
-   plein ferait lire ce plateau comme une vitre — c'est la seule chose qu'un plateau ne doit pas
-   faire. Celles qui passent derrière le plateau du haut sont donc simplement cachées par lui. */
-.lq-rack2__edge {
-  fill: none;
-  stroke: color-mix(in srgb, var(--lq-color-text) 72%, transparent);
-  stroke-width: 1.5;
-  stroke-linecap: square;
+.lq-rack2__solid-face--side {
+  fill: color-mix(in srgb, var(--lq-rack2-face) 72%, var(--lq-color-text));
+}
+
+.lq-rack2__solid--deck-upper {
+  --lq-rack2-face: var(--lq-rack2-steel);
+}
+
+/* Le plateau du bas est à l'ombre de celui du dessus. Deux plateaux identiques se liraient comme un
+   seul à double épaisseur. */
+.lq-rack2__solid--deck-lower {
+  --lq-rack2-face: color-mix(in srgb, var(--lq-rack2-steel) 84%, var(--lq-color-text));
+}
+
+.lq-rack2__solid--post {
+  --lq-rack2-face: var(--lq-rack2-post);
+}
+
+.lq-rack2__solid--carton {
+  --lq-rack2-face: var(--lq-rack2-carton);
+}
+
+/* Le trait de toutes les arêtes. Ce qui décide de ce qu'on voit d'une arête, c'est sa place dans
+   l'ordre de dessin et non son épaisseur : une arête « de derrière » dessinée plus légère par-dessus
+   un plateau plein ferait lire ce plateau comme une vitre, et c'est la seule chose qu'un plateau ne
+   doit pas faire. Celles qui passent derrière le plateau du haut sont donc cachées par lui. Les
+   plateaux portent le trait fort — ce sont eux qui donnent à la boîte sa silhouette. */
+.lq-rack2__solid-face,
+.lq-rack2__edge,
+.lq-rack2__seam {
+  stroke: var(--lq-rack2-line);
+  stroke-width: var(--lq-rack2-stroke, 1);
+  stroke-linejoin: miter;
   /* L'épaisseur reste celle qu'on a demandée quel que soit le zoom appliqué au-dessus. */
   vector-effect: non-scaling-stroke;
 }
 
-/* Les deux volumes pleins du dessin. Même trait, même convention de lumière : ce qui les
-   distingue est leur matière, pas leur manière d'être dessinés — et c'est ce contraste avec
-   l'ossature ajourée qui dit lequel est la chose et lequel est le contenant. */
-.lq-rack2__post-face,
-.lq-rack2__carton-face {
-  stroke: color-mix(in srgb, var(--lq-color-text) 55%, transparent);
-  stroke-width: 1;
-  stroke-linejoin: round;
-  vector-effect: non-scaling-stroke;
+.lq-rack2__solid--deck-upper,
+.lq-rack2__solid--deck-lower {
+  --lq-rack2-stroke: 1.5;
 }
 
-/* Une seule source de lumière, trois clartés : le dessus prend le jour, la face avant est en
-   demi-teinte, le côté est dans l'ombre. Des teintes différentes par face donneraient trois formes
-   plates sans rapport qui se rejoignent sur une arête. */
-.lq-rack2__carton-face--top {
-  fill: var(--lq-rack2-carton);
-}
+.lq-rack2__edge {
+  --lq-rack2-stroke: 1.5;
 
-.lq-rack2__carton-face--front {
-  fill: color-mix(in srgb, var(--lq-rack2-carton) 86%, var(--lq-color-text));
-}
-
-.lq-rack2__carton-face--side {
-  fill: color-mix(in srgb, var(--lq-rack2-carton) 72%, var(--lq-color-text));
-}
-
-/* Le poteau, aux mêmes trois clartés, mais dans la matière de l'étagère : la couleur du texte et
-   non un accent. Un poteau ne dit rien d'autre que « de l'acier, ici » — lui donner une teinte en
-   ferait un statut. */
-.lq-rack2__post-face--top {
-  fill: var(--lq-rack2-post);
-}
-
-.lq-rack2__post-face--front {
-  fill: color-mix(in srgb, var(--lq-rack2-post) 86%, var(--lq-color-text));
-}
-
-.lq-rack2__post-face--side {
-  fill: color-mix(in srgb, var(--lq-rack2-post) 72%, var(--lq-color-text));
+  fill: none;
+  stroke-linecap: square;
 }
 
 /* La jointure des rabats. Sans elle, un carton est un cube. */
-.lq-rack2__carton-seam {
+.lq-rack2__seam {
   stroke: color-mix(in srgb, var(--lq-color-text) 42%, transparent);
-  stroke-width: 1;
-  vector-effect: non-scaling-stroke;
 }

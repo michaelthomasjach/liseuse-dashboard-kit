@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { projectIso } from "./warehouseIso";
 import { paintOrder } from "./warehousePaint";
 import {
+  ISO_POST_SIZE,
   boxFaces,
   fitRackItem,
   isoFacing,
@@ -147,9 +148,9 @@ export interface RackV2Props {
 /** Room for half a stroke on each side, so the silhouette is not shaved by the viewBox. */
 const PAD = 2;
 
-/** Assez épais pour se lire comme un volume à une case de large, assez mince pour rester un
- *  poteau : c'est la section d'un montant de palettier ramenée à l'échelle du plan. */
-const DEFAULT_POST_SIZE = 0.22;
+/** La section d'un montant de palettier, partagée avec le tapis roulant : c'est le même profilé,
+ *  donc la même constante et non deux qui se ressemblent. */
+const DEFAULT_POST_SIZE = ISO_POST_SIZE;
 
 /** La hauteur d'une lisse de palettier, à l'échelle du plan. Mesuré : à 0,12 il ne restait que
  *  deux pixels de tranche entre les deux traits qui la bordent, et une tranche plus mince que son

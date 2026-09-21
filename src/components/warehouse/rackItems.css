@@ -80,6 +80,11 @@
   --lq-iso-face: color-mix(in srgb, var(--lq-color-amber) 30%, var(--lq-color-text-muted));
 }
 
+/* Le caoutchouc d'une bande de tapis. */
+.lq-iso__solid--rubber {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-text) 46%, var(--lq-color-bg));
+}
+
 /* ---- l'étagère ---- */
 
 .lq-iso__solid--steel {

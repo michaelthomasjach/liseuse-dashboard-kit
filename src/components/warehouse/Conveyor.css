@@ -1,0 +1,56 @@
+/* Tapis roulant. Le modèle de lumière et les matières sont dans rackItems.css, partagés avec
+   l'étagère ; ici, ce qui n'appartient qu'au tapis. Voir Conveyor.tsx pour le pourquoi. */
+
+.lq-conveyor {
+  display: block;
+  overflow: visible;
+}
+
+/* La bande : du caoutchouc, à plat sur le bâti. Sombre parce qu'elle l'est, et parce que c'est le
+   contraste avec l'acier qui dit où passe la charge — les deux bandes d'acier qui la bordent
+   tiennent lieu de joues. */
+.lq-conveyor__belt {
+  fill: color-mix(in srgb, var(--lq-color-text) 46%, var(--lq-color-bg));
+  stroke: color-mix(in srgb, var(--lq-color-text) 62%, transparent);
+  stroke-width: 1;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+/* Les chevrons disent le sens ; leur éclat, qui descend le parcours, dit que ça tourne. Deux
+   porteurs distincts, parce que le mouvement est justement ce qu'un lecteur peut ne pas voir. */
+.lq-conveyor__chevron {
+  fill: none;
+  stroke: color-mix(in srgb, var(--lq-color-bg) 72%, var(--lq-color-text));
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  opacity: 0.3;
+  animation: lq-conveyor-flow var(--lq-conveyor-cycle, 1.8s) linear infinite;
+}
+
+/* Une seule onde à la fois : le creux est long et la crête courte, sinon tout le tapis brille en
+   même temps et plus rien ne descend. */
+@keyframes lq-conveyor-flow {
+  0%,
+  100% {
+    opacity: 0.28;
+  }
+  12% {
+    opacity: 1;
+  }
+}
+
+/* Arrêté : les chevrons restent, et disent encore de quel côté ça irait. */
+.lq-conveyor--stopped .lq-conveyor__chevron {
+  animation: none;
+  opacity: 0.72;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lq-conveyor__chevron {
+    animation: none;
+    opacity: 0.72;
+  }
+}

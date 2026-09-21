@@ -204,38 +204,56 @@ export function RackV2({
     });
 
     if (braces) {
-      // A flat strap in the plane of the end frame — the plane through both posts' centres, which
-      // is where it is welded. From the near post's foot to the far post's head; drawn as a strip
-      // whose width is measured across the diagonal, inside that plane, so it keeps its section
-      // however tall or deep the rack is.
-      const yNear = oy + depth - side / 2;
-      const yFar = oy + side / 2;
+      // The diagonal across each end frame, from the near upright's foot to the far upright's head.
+      //
+      // It is made of whatever the frame is made of: a strap when the uprights are posts, a line
+      // when they are lines. A solid diagonal between two drawn lines would say that the brace is
+      // the real member and the uprights are guides — and it would be the only volume in a drawing
+      // that had decided not to have any.
+      //
+      // Where it sits follows from the same thing. Against posts it lies *in* the frame, on the
+      // plane through both posts' centres, because that is where it is welded; against lines there
+      // is no thickness to be inside of, so it runs corner to corner, exactly where those lines are.
+      const inset = posts ? side / 2 : 0;
+      const yNear = oy + depth - inset;
+      const yFar = oy + inset;
       const run = yFar - yNear;
       const rise = ceilZ - floorZ;
       const span = Math.hypot(run, rise) || 1;
       const strap = side * 0.5;
-      // The normal to the diagonal, within the (y, z) plane.
+      // The normal to the diagonal, within the (y, z) plane — so the strap keeps its section
+      // however tall or deep the rack is.
       const ny2 = (-rise / span) * (strap / 2);
       const nz2 = (run / span) * (strap / 2);
-      [ox + side / 2, ox + width - side / 2].forEach((planeX, i) => {
+      [ox + inset, ox + width - inset].forEach((planeX, i) => {
         pieces.push({
           x: planeX,
           y: yFar,
           width: 0,
-          height: depth - side,
-          render: () => (
-            <g key={`${tag}b${i}`} className="lq-iso__solid lq-iso__solid--post">
-              <polygon
-                className="lq-iso__face lq-iso__face--front"
-                points={ring([
-                  at(planeX, yNear + ny2, floorZ + nz2),
-                  at(planeX, yFar + ny2, ceilZ + nz2),
-                  at(planeX, yFar - ny2, ceilZ - nz2),
-                  at(planeX, yNear - ny2, floorZ - nz2),
-                ])}
+          height: depth - 2 * inset,
+          render: () =>
+            posts ? (
+              <g key={`${tag}b${i}`} className="lq-iso__solid lq-iso__solid--post">
+                <polygon
+                  className="lq-iso__face lq-iso__face--front"
+                  points={ring([
+                    at(planeX, yNear + ny2, floorZ + nz2),
+                    at(planeX, yFar + ny2, ceilZ + nz2),
+                    at(planeX, yFar - ny2, ceilZ - nz2),
+                    at(planeX, yNear - ny2, floorZ - nz2),
+                  ])}
+                />
+              </g>
+            ) : (
+              <line
+                key={`${tag}b${i}`}
+                className="lq-rack2__edge"
+                x1={at(planeX, yNear, floorZ).x}
+                y1={at(planeX, yNear, floorZ).y}
+                x2={at(planeX, yFar, ceilZ).x}
+                y2={at(planeX, yFar, ceilZ).y}
               />
-            </g>
-          ),
+            ),
         });
       });
     }

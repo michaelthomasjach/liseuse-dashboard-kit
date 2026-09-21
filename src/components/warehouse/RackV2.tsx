@@ -4,6 +4,7 @@ import { paintOrder } from "./warehousePaint";
 import {
   ISO_POST_SIZE,
   boxFaces,
+  castShadow,
   fitRackItem,
   isoFacing,
   rackItemIso,
@@ -140,6 +141,10 @@ export interface RackV2Props {
   footHeight?: number;
   /** Rotation du bloc sur le sol, en degrés — 0, 45 et 90 étant les orientations utiles. */
   rotation?: number;
+  /** Poser l'ombre du bloc au sol. La direction de la lumière est celle du reste du kit : deux
+   *  ombres qui tomberaient de deux côtés différents dans la même image sont pires que pas
+   *  d'ombre du tout. */
+  shadows?: boolean;
   /** Pixels par case. Le même défaut que le plan d'entrepôt, pour que les deux s'accordent. */
   cellSize?: number;
   className?: string;
@@ -195,6 +200,7 @@ export function RackV2({
   feet = false,
   footHeight,
   rotation = 0,
+  shadows = false,
   cellSize = 22,
   className,
 }: RackV2Props) {
@@ -475,6 +481,23 @@ export function RackV2({
     ];
   };
 
+  // L'ombre du bloc entier, au sol : elle passe avant tout, rien ne pouvant se glisser dessous.
+  const shade = shadows
+    ? [
+        castShadow(
+          at,
+          [
+            { x: 0, y: 0 },
+            { x: nx * width, y: 0 },
+            { x: nx * width, y: ny * depth },
+            { x: 0, y: ny * depth },
+          ],
+          nz * height,
+          "shadow"
+        ),
+      ]
+    : [];
+
   // Floor by floor from the ground up, and inside each floor the racks sorted back to front.
   const drawn: ReactNode[] = [];
   for (let iz = 0; iz < nz; iz += 1) {
@@ -519,6 +542,7 @@ export function RackV2({
       role="img"
       aria-label={nx * ny * nz > 1 ? `${nx * ny * nz} étagères` : "Étagère"}
     >
+      {shade}
       {drawn}
     </svg>
   );

@@ -4,6 +4,9 @@ export type { WarehouseCanvasProps } from "./WarehouseCanvas";
 export { RackV2 } from "./RackV2";
 export type { RackV2Props, RackV2Slot } from "./RackV2";
 
+export { StorageZone } from "./StorageZone";
+export type { StorageZoneProps } from "./StorageZone";
+
 export { Conveyor } from "./Conveyor";
 export type { ConveyorKind, ConveyorProps } from "./Conveyor";
 

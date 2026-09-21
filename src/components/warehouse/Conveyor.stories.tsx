@@ -20,6 +20,7 @@ export const Droit: Story = {
     legHeight: 1,
     bedThickness: 0.22,
     guardHeight: 0.14,
+    shadows: true,
     load: "carton",
     loadCount: 2,
     speed: 1.1,
@@ -47,6 +48,7 @@ export const Angle: Story = {
     legHeight: 1,
     bedThickness: 0.22,
     guardHeight: 0.14,
+    shadows: true,
     load: "carton",
     speed: 1.1,
     reversed: false,
@@ -526,7 +528,7 @@ export const Pente: Story = {
         { label: "Monte", rise: 1.2 },
       ].map((it) => (
         <div key={it.label} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
-          <Conveyor kind="straight" length={5} width={1.8} legHeight={0.9} rise={it.rise} cellSize={30} load="carton" speed={1.2} />
+          <Conveyor kind="straight" length={5} width={1.8} legHeight={0.9} rise={it.rise} cellSize={30} load="carton" speed={1.2} shadows />
           <span style={{ fontSize: "0.72rem", fontWeight: 600 }}>{it.label}</span>
         </div>
       ))}

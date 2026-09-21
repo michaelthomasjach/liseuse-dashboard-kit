@@ -4,6 +4,7 @@ import { paintOrder } from "./warehousePaint";
 import {
   ISO_POST_SIZE,
   boxFaces,
+  castShadow,
   fitRackItem,
   isoFacing,
   rackItemIso,
@@ -80,6 +81,12 @@ import "./Conveyor.css";
  *
  * ## Monter et descendre
  *
+ * Ce qui repose sur la bande **penche avec elle** : un colis posé sur un tapis incliné n'est pas
+ * d'aplomb, puisque la surface qui le porte ne l'est pas. Là encore ce n'est pas la boîte qu'on
+ * incline mais le **projecteur**, comme pour le cap dans un virage — la pente d'abord, autour de
+ * l'axe transversal passant par la base de la charge, puis le cap autour de la verticale, les deux
+ * ne commutant pas.
+ *
  * `rise` dit ce que le tapis gagne en hauteur sur toute sa longueur : positif il grimpe, négatif il
  * descend. Ce n'est pas un effet appliqué après coup — le bâti devient un prisme dont le dessus et
  * le dessous suivent la pente, les pieds s'allongent à mesure, les barrières montent avec, et la
@@ -99,6 +106,15 @@ import "./Conveyor.css";
  * n'acquiert la verticale qu'en tombant — l'avance est linéaire, le creux est en `q²`. La chute
  * compte dans le trajet du module au même titre que la bande, donc dans sa part du cycle, et le
  * colis y garde le cap qu'il avait en quittant la bande, ce qui est ce que fait un colis qui tombe.
+ *
+ * ## Ombres
+ *
+ * `shadows` pose l'ombre du module au sol. Elle n'est pas dessinée sous chaque pièce mais sous le
+ * **bâti**, poussée dans la direction opposée à la lumière du kit — le modèle d'éclairage dit que
+ * la face `+y` est à demi-éclairée et la face `+x` dans l'ombre, donc la lumière vient du côté
+ * `+y`, et l'ombre part à l'opposé, d'autant plus loin que la pièce est haute. La constante est
+ * partagée avec l'étagère : deux ombres qui tomberaient de deux côtés différents dans la même
+ * image sont pires que pas d'ombre du tout.
  *
  * ## Legs
  *
@@ -125,6 +141,8 @@ export interface ConveyorProps {
   bedThickness?: number;
   /** Hauteur des barrières de rive, en cases. Zéro pour un tapis sans joues. */
   guardHeight?: number;
+  /** Poser les ombres du module sur le sol. */
+  shadows?: boolean;
   /** Ce que le tapis **monte** sur toute sa longueur, en cases : positif il grimpe, négatif il
    *  descend, zéro il est de niveau. Sans effet sur un angle, qui reste à plat. */
   rise?: number;
@@ -212,6 +230,7 @@ export function Conveyor({
   bedThickness = 0.22,
   guardHeight = DEFAULT_GUARD,
   rise = 0,
+  shadows = false,
   load = null,
   loadCount = 1,
   reversed = false,
@@ -412,14 +431,25 @@ export function Conveyor({
   /** Le projecteur d'une charge qui a pris le cap `deg` autour de son propre centre. Tourner le
    *  projecteur plutot que la boite, c'est dessiner une boite tournee avec le code qui n'en sait
    *  dessiner que des droites. */
-  const bearingAt = (deg: number, cx: number, cy: number) => {
+  /** L'angle de la pente : c'est de cet angle que penche ce qui repose sur la bande. */
+  const tilt = Math.atan2(slope, spanX);
+  const bearingAt = (deg: number, cx: number, cy: number, baseZ: number) => {
     const r = (deg * Math.PI) / 180;
     const c = Math.cos(r);
     const sn = Math.sin(r);
+    const ca = Math.cos(tilt);
+    const sa = Math.sin(tilt);
     const project: Project = (x, y, z) => {
-      const dx = x - cx;
+      // D'abord la pente, autour de l'axe y passant par la base de la charge : un colis posé sur un
+      // tapis incliné penche avec lui, il ne reste pas d'aplomb sur une surface qui ne l'est pas.
+      const dz = z - baseZ;
+      const xt = cx + (x - cx) * ca - dz * sa;
+      const zt = baseZ + (x - cx) * sa + dz * ca;
+      // Puis le cap, autour de la verticale : les deux ne commutent pas, et c'est bien la pente qui
+      // est dans le repère du module et le cap qui l'oriente ensuite.
+      const dx = xt - cx;
       const dy = y - cy;
-      return at(cx + dx * c - dy * sn, cy + dx * sn + dy * c, z);
+      return at(cx + dx * c - dy * sn, cy + dx * sn + dy * c, zt);
     };
     return { project, facing: isoFacing(rotation + deg) };
   };
@@ -483,7 +513,7 @@ export function Conveyor({
     const t1 = onCycle(u1);
     const hereM = beltShare > 0 ? Math.min(1, u0 / beltShare) : 1;
     const here = along(hereM);
-    const view = bearingAt(bearing(hereM), here.x, here.y);
+    const view = bearingAt(bearing(hereM), here.x, here.y, deck(here.x));
     const fit = fitRackItem(
       load ?? "carton",
       { x: here.x - berth / 2, y: here.y - berth / 2, width: berth, depth: berth },
@@ -563,6 +593,36 @@ export function Conveyor({
   // Dans un angle, il suit la courbe : un plateau carré sous une bande qui tourne dit que la
   // machine est une caisse à laquelle on a peint un arc dessus, alors que c'est une courbe qui a
   // une largeur. C'est le même anneau que les barrières, en beaucoup plus épais.
+  /** Les ombres : l'emprise du bâti, et celle de chaque pied. Elles sont au sol, donc elles
+   *  passent avant tout le reste — rien ne peut se glisser dessous. */
+  const shade: ReactNode[] = [];
+  if (shadows) {
+    const high = deck(spanX / 2);
+    if (kind === "corner") {
+      const rIn = radius - beltHalf - bedMargin;
+      const rOut = radius + beltHalf + bedMargin;
+      const band = (r: number) => Array.from({ length: 33 }, (_, i) => {
+        const a = arcAngle(i, 32);
+        return { x: r * Math.cos(a), y: spanY + r * Math.sin(a) };
+      });
+      shade.push(castShadow(at, [...band(rOut), ...band(rIn).reverse()], high, "sh-bed"));
+    } else {
+      shade.push(
+        castShadow(
+          at,
+          [
+            { x: 0, y: 0 },
+            { x: spanX, y: 0 },
+            { x: spanX, y: spanY },
+            { x: 0, y: spanY },
+          ],
+          high,
+          "sh-bed"
+        )
+      );
+    }
+  }
+
   const bed: ReactNode =
     kind === "corner" ? (
       arcRing("steel", radius - beltHalf - bedMargin, radius + beltHalf + bedMargin, bedZ, bedTop, "bed")
@@ -677,6 +737,7 @@ export function Conveyor({
 
       {parts !== "load" && (
         <>
+          {shade}
           {sorted(legs).map((piece) => piece.render())}
           {bed}
           {/* La bande et sa flèche sont à plat sur le bâti : rien ne peut passer dessous, donc elles

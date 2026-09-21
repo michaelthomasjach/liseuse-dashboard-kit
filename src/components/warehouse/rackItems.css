@@ -52,6 +52,14 @@
   vector-effect: non-scaling-stroke;
 }
 
+/* Une ombre portée : une seule teinte, sans contour et sans dégradé. Un sol d'entrepôt est mat et
+   la lumière y est diffuse — une ombre nette et grise dit « posé là » sans prétendre à une
+   physique que le reste du dessin n'a pas. */
+.lq-iso__shadow {
+  fill: color-mix(in srgb, var(--lq-color-text) 15%, transparent);
+  stroke: none;
+}
+
 /* ---- les matières ---- */
 
 /* Chaque sorte ne dit que sa matière ; les trois clartés en découlent. L'ambre, le ciel, le vert

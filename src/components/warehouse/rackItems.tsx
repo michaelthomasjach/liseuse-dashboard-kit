@@ -198,6 +198,29 @@ export function solidVolume(material: string, key: string, faces: Faces, flat = 
   );
 }
 
+/**
+ * D'où vient la lumière, en cases, pour une hauteur d'une case.
+ *
+ * Le modèle d'éclairage du kit dit que la face `+y` est à demi-éclairée et la face `+x` dans
+ * l'ombre : la lumière vient donc du côté `+y`, un peu en hauteur. Une ombre portée est l'objet
+ * poussé dans la direction opposée, à plat sur le sol — ce qui suffit, le sol étant plan et la
+ * lumière tenue pour lointaine. Deux nombres, et ils sont ici parce que l'ombre d'une étagère et
+ * celle d'un tapis doivent tomber du même côté.
+ */
+export const SUN_CAST = { x: 0.34, y: -0.62 };
+
+/** L'ombre d'une emprise : la même forme, poussée au sol. */
+export function castShadow(at: Project, points: { x: number; y: number }[], height: number, key: string) {
+  const d = { x: SUN_CAST.x * height, y: SUN_CAST.y * height };
+  return (
+    <polygon
+      key={key}
+      className="lq-iso__shadow"
+      points={points.map((p) => { const q = at(p.x + d.x, p.y + d.y, 0); return `${q.x.toFixed(2)},${q.y.toFixed(2)}`; }).join(" ")}
+    />
+  );
+}
+
 function rim(at: Project, cx: number, cy: number, z: number, r: number, from: number, to: number, steps = 24): Point[] {
   const points: Point[] = [];
   for (let i = 0; i <= steps; i += 1) {

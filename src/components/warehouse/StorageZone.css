@@ -1,0 +1,7 @@
+/* Zone de stockage. Le modèle de lumière et les matières sont dans rackItems.css, partagés avec
+   l'étagère et le tapis. Voir StorageZone.tsx pour le pourquoi. */
+
+.lq-storage {
+  display: block;
+  overflow: visible;
+}

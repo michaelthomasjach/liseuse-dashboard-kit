@@ -24,6 +24,7 @@ export const Boite: Story = {
     braces: true,
     feet: true,
     footHeight: 0.17,
+    rotation: 0,
     postSize: 0.22,
     deckThickness: 0.2,
     slotsX: 4,
@@ -121,6 +122,7 @@ export const Atelier: Story = {
     const [size, setSize] = useState({ x: 6, y: 2, z: 2.4 });
     const [count, setCount] = useState({ x: 2, y: 2, z: 2 });
     const [foot, setFoot] = useState(0.17);
+    const [turn, setTurn] = useState(0);
 
     // Le dessin grandit avec ce qu'on lui demande ; la case rétrécit pour que le tout reste
     // regardable sans faire défiler à chaque frappe.
@@ -155,6 +157,7 @@ export const Atelier: Story = {
             {field("Y — profondeur", size.y, (y) => setSize((s) => ({ ...s, y })), dimension)}
             {field("Z — hauteur", size.z, (z) => setSize((s) => ({ ...s, z })), dimension)}
             {field("Pieds", foot, setFoot, { min: 0, max: 3, step: 0.05 })}
+            {field("Rotation °", turn, setTurn, { min: 0, max: 360, step: 45 })}
           </fieldset>
 
           <fieldset style={{ border: 0, padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 8 }}>
@@ -183,11 +186,42 @@ export const Atelier: Story = {
             braces
             feet
             footHeight={foot}
+            rotation={turn}
           />
         </div>
       </div>
     );
   },
+};
+
+/** `rotation` fait tourner le bloc sur le sol, autour de son propre centre — une rotation pour le
+ *  bloc et non une par étagère, des étagères tournées chacune de leur côté se découpant l'une dans
+ *  l'autre. La caméra, elle, ne bouge pas : tourner le rayonnage est quelque chose qu'on fait au
+ *  rayonnage. À 90° la longueur et la profondeur échangent leur place à l'écran ; à 45° le bloc se
+ *  présente par l'angle. */
+export const Orientation: Story = {
+  name: "Rotation",
+  render: () => (
+    <div style={{ display: "flex", gap: 48, alignItems: "flex-end", padding: 40, flexWrap: "wrap" }}>
+      {[0, 45, 90].map((angle) => (
+        <div key={angle} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
+          <RackV2
+            width={6}
+            depth={2}
+            height={2.4}
+            cellSize={32}
+            posts
+            braces
+            feet
+            rotation={angle}
+            slotsX={3}
+            contents={["carton", "interdit", "bidon"]}
+          />
+          <span style={{ fontSize: "0.72rem", fontWeight: 600 }}>{angle}°</span>
+        </div>
+      ))}
+    </div>
+  ),
 };
 
 /** `posts` remplace les quatre arêtes verticales par de vrais poteaux, `braces` ajoute la diagonale

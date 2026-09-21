@@ -67,6 +67,10 @@ import "./RackV2.css";
  * A block is drawn as **one** picture, not as N pictures side by side, because depth ordering is
  * the whole difficulty here and it cannot be decided a rack at a time.
  *
+ * `rotation` turns the whole block on the floor, about its own centre — one rotation for the block
+ * and not one per rack, since racks turned individually inside a block would cut into each other.
+ * The camera does not move: turning the shelving is something you do to the shelving.
+ *
  * ## What covers what
  *
  * The decks are **opaque**, and that is taken literally: nothing shows through them. A line drawn
@@ -132,6 +136,8 @@ export interface RackV2Props {
    *  la section d'un montant — un pied étant ce montant qui continue, sa taille par défaut suit la
    *  sienne plutôt que d'être un nombre de plus à tenir en accord avec elle. */
   footHeight?: number;
+  /** Rotation du bloc sur le sol, en degrés — 0, 45 et 90 étant les orientations utiles. */
+  rotation?: number;
   /** Pixels par case. Le même défaut que le plan d'entrepôt, pour que les deux s'accordent. */
   cellSize?: number;
   className?: string;
@@ -186,10 +192,10 @@ export function RackV2({
   braces = false,
   feet = false,
   footHeight,
+  rotation = 0,
   cellSize = 22,
   className,
 }: RackV2Props) {
-  const at: Project = (x, y, z) => projectIso(x * cellSize, y * cellSize, z * cellSize);
   const ring = (points: Point[]) => points.map((p) => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(" ");
 
   const nx = count(countX);
@@ -197,6 +203,53 @@ export function RackV2({
   const nz = count(countZ);
   const sx = count(slotsX);
   const sy = count(slotsY);
+
+  // The block turns on the floor, about its own centre — one rotation for the whole block, not one
+  // per rack: racks turned individually inside a block would cut into each other, and "turn the
+  // shelving" is a thing you do to the shelving, not to each shelf.
+  const spanX = nx * width;
+  const spanY = ny * depth;
+  const spanZ = nz * height;
+  const theta = (rotation * Math.PI) / 180;
+  const cosT = Math.cos(theta);
+  const sinT = Math.sin(theta);
+  const spin = (x: number, y: number) => {
+    if (!rotation) return { x, y };
+    const dx = x - spanX / 2;
+    const dy = y - spanY / 2;
+    return { x: spanX / 2 + dx * cosT - dy * sinT, y: spanY / 2 + dx * sinT + dy * cosT };
+  };
+
+  const at: Project = (x, y, z) => {
+    const p = spin(x, y);
+    return projectIso(p.x * cellSize, p.y * cellSize, z * cellSize);
+  };
+
+  /**
+   * Depth is decided in the **turned** frame, because that is the frame the camera sees. A piece is
+   * handed to `paintOrder` as the box its footprint occupies once turned: at a right angle that is
+   * the footprint itself, and at 45° it is the smallest upright box around a diamond — wider than
+   * the shape, so the rule orders fewer pairs outright and more of them fall through to its
+   * tie-break. That is the safe direction to err in, since the tie-break is x + y, which *is* the
+   * depth.
+   */
+  const sorted = (list: Piece[]) =>
+    paintOrder(
+      list.map((piece) => {
+        if (!rotation) return piece;
+        const pts = [
+          spin(piece.x, piece.y),
+          spin(piece.x + piece.width, piece.y),
+          spin(piece.x + piece.width, piece.y + piece.height),
+          spin(piece.x, piece.y + piece.height),
+        ];
+        const xs = pts.map((p) => p.x);
+        const ys = pts.map((p) => p.y);
+        const x = Math.min(...xs);
+        const y = Math.min(...ys);
+        return { x, y, width: Math.max(...xs) - x, height: Math.max(...ys) - y, render: piece.render };
+      })
+    );
 
   // Two slabs can never eat the whole rack: a third of the height each is already more deck than
   // rack, and past that there would be nowhere for the posts to run.
@@ -402,7 +455,7 @@ export function RackV2({
             ),
         };
       });
-      paintOrder(stand).forEach((piece) => footNodes.push(piece.render()));
+      sorted(stand).forEach((piece) => footNodes.push(piece.render()));
     }
 
     const deck = (material: string, key: string, z0: number, z1: number, extra?: ReactNode) =>
@@ -411,7 +464,7 @@ export function RackV2({
     return [
       ...footNodes,
       deck("steel-shaded", "lower", oz, floorZ, dividers.length + barred.length > 0 ? <>{dividers}{barred}</> : undefined),
-      ...paintOrder(pieces).map((piece) => piece.render()),
+      ...sorted(pieces).map((piece) => piece.render()),
       ...(roofed ? [deck("steel", "upper", ceilZ, oz + height)] : []),
     ];
   };
@@ -433,21 +486,19 @@ export function RackV2({
         });
       }
     }
-    paintOrder(floor).forEach((piece) => drawn.push(piece.render()));
+    sorted(floor).forEach((piece) => drawn.push(piece.render()));
   }
 
-  const spanX = nx * width;
-  const spanY = ny * depth;
-  const spanZ = nz * height;
+  // All eight corners of the block, not the four that happen to be extreme when it is square to
+  // the camera: turn it and the extremes change hands.
   const under = feet ? -footZ : 0;
-  const corners = [
-    at(0, 0, 0),
-    at(spanX, 0, under),
-    at(spanX, spanY, under),
-    at(0, spanY, under),
-    at(0, 0, spanZ),
-    at(spanX, spanY, spanZ),
+  const ground: Cell[] = [
+    [0, 0],
+    [spanX, 0],
+    [spanX, spanY],
+    [0, spanY],
   ];
+  const corners = [...ground.map(([x, y]) => at(x, y, under)), ...ground.map(([x, y]) => at(x, y, spanZ))];
   const minX = Math.min(...corners.map((p) => p.x)) - PAD;
   const minY = Math.min(...corners.map((p) => p.y)) - PAD;
   const boxWidth = Math.max(...corners.map((p) => p.x)) + PAD - minX;

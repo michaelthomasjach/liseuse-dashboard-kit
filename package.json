@@ -36,6 +36,7 @@
     "prepublishOnly": "npm run build",
     "typecheck": "tsc --noEmit",
     "check-sankey": "node scripts/checkSankeyLayout.mjs",
+    "check-paint": "node scripts/checkPaintOrder.mjs",
     "lint": "eslint .",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",

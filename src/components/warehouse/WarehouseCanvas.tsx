@@ -5,7 +5,6 @@ import {
   footprintOf,
   isConveyor,
   rotateItem,
-  isHorizontal,
   pointAlongPath,
   snapToGrid,
   type WarehouseItem,
@@ -14,9 +13,11 @@ import {
   type WarehouseRobot,
 } from "./warehouseModel";
 import { conveyorLines, flowChevrons } from "./conveyorFlow";
-import { ISO_HEIGHT, ISO_TRANSFORM, projectIso, unprojectIso } from "./warehouseIso";
+import { ISO_FRONT_WALL, ISO_HEIGHT, ISO_SIDE_WALL, ISO_TRANSFORM, liftIso, projectIso, unprojectIso } from "./warehouseIso";
+import { paintOrder } from "./warehousePaint";
 import { RefreshIcon } from "../icons";
 import { WarehouseInspector } from "./WarehouseInspector";
+import { RackModules } from "./RackModules";
 import "./WarehouseCanvas.css";
 
 export interface WarehouseCanvasProps {
@@ -42,6 +43,10 @@ export interface WarehouseCanvasProps {
   height?: number | string;
   className?: string;
 }
+
+/** A machine's footprint, in cells — drawn centred on its point along the rail. */
+const ROBOT_SIZE = { width: 1.6, height: 1.2 };
+type RobotPlacement = NonNullable<ReturnType<typeof pointAlongPath>>;
 
 const MIN_SCALE = 0.25;
 const MAX_SCALE = 3;
@@ -588,7 +593,7 @@ export function WarehouseCanvas({
               )}
             </svg>
 
-            {items.filter((item) => item.kind !== "zone").map((item) => renderItem(item))}
+            {renderStanding()}
 
             {/* Where it will land. The ghost under the cursor says what is being carried; this
                 says where it goes — and they are different places, because the drop snaps to the
@@ -604,33 +609,6 @@ export function WarehouseCanvas({
                 }}
               />
             )}
-
-            {robots.map((robot) => {
-              const at = pointAlongPath(robot.path, robot.progress);
-              if (at === null) return null;
-              return (
-                <div
-                  key={robot.id}
-                  className={`lq-wh__robot lq-wh__robot--${robot.status ?? "moving"}`}
-                  style={{
-                    left: px(at.x),
-                    top: px(at.y),
-                    width: px(1.6),
-                    height: px(1.2),
-                    transform: `translate(-50%, -50%) rotate(${at.angle}deg)${iso ? ` translateZ(${px(0.35)}px)` : ""}`,
-                    backgroundColor: robot.color,
-                  }}
-                  title={robot.label ?? robot.id}
-                >
-                  {/* Counter-rotated, so the machine turns and its name stays readable. */}
-                  {robot.label && showSlots && !iso && (
-                    <span className="lq-wh__robot-label" style={{ transform: `rotate(${-at.angle}deg)` }}>
-                      {robot.label}
-                    </span>
-                  )}
-                </div>
-              );
-            })}
           </div>
 
           {/* The flat layer: labels in isometric, and the rotate handle in both views. Outside the
@@ -763,6 +741,76 @@ export function WarehouseCanvas({
     </div>
   );
 
+  /**
+   * Everything that stands on the floor — items and machines — in the order it must be painted.
+   *
+   * Plan view: items in their own order, then the machines over them (a machine working at a rack
+   * must never disappear behind it — in plan that is the robot's z-index). Isometric: one list,
+   * sorted back to front by `paintOrder`, because there what is over what is a matter of depth
+   * and the DOM order *is* the depth order — there is no 3D sorter behind it, on purpose (see
+   * warehouseIso.ts).
+   */
+  function renderStanding() {
+    const standing = items.filter((item) => item.kind !== "zone");
+    const placed: { robot: WarehouseRobot; at: RobotPlacement }[] = [];
+    for (const robot of robots) {
+      const at = pointAlongPath(robot.path, robot.progress);
+      if (at !== null) placed.push({ robot, at });
+    }
+    if (!iso) {
+      return (
+        <>
+          {standing.map((item) => renderItem(item))}
+          {placed.map(({ robot, at }) => renderRobot(robot, at))}
+        </>
+      );
+    }
+    const entries = [
+      ...standing.map((item) => {
+        // Sorted where it is *drawn*: a rack being dragged has to change depth as it crosses an
+        // aisle, not once it is dropped.
+        const live = drag?.kind === "item" && drag.id === item.id ? { x: drag.x, y: drag.y } : item;
+        const box = footprintOf(item);
+        return { x: live.x, y: live.y, width: box.width, height: box.height, render: () => renderItem(item) };
+      }),
+      ...placed.map(({ robot, at }) => ({
+        x: at.x - ROBOT_SIZE.width / 2,
+        y: at.y - ROBOT_SIZE.height / 2,
+        width: ROBOT_SIZE.width,
+        height: ROBOT_SIZE.height,
+        render: () => renderRobot(robot, at),
+      })),
+    ];
+    return paintOrder(entries).map((entry) => entry.render());
+  }
+
+  function renderRobot(robot: WarehouseRobot, at: RobotPlacement) {
+    return (
+      <div
+        key={robot.id}
+        className={`lq-wh__robot lq-wh__robot--${robot.status ?? "moving"}`}
+        style={{
+          left: px(at.x),
+          top: px(at.y),
+          width: px(ROBOT_SIZE.width),
+          height: px(ROBOT_SIZE.height),
+          // The lift comes first: it is a step in the canvas's frame. What follows is the
+          // machine's own — centred on its point, turned to its heading on the floor.
+          transform: `${iso ? `${liftIso(px(0.35))} ` : ""}translate(-50%, -50%) rotate(${at.angle}deg)`,
+          backgroundColor: robot.color,
+        }}
+        title={robot.label ?? robot.id}
+      >
+        {/* Counter-rotated, so the machine turns and its name stays readable. */}
+        {robot.label && showSlots && !iso && (
+          <span className="lq-wh__robot-label" style={{ transform: `rotate(${-at.angle}deg)` }}>
+            {robot.label}
+          </span>
+        )}
+      </div>
+    );
+  }
+
   function renderItem(item: WarehouseItem) {
     const live = drag?.kind === "item" && drag.id === item.id ? { x: drag.x, y: drag.y } : item;
     // The drawn box is the *footprint*: width and height are the item's own sides and do not swap
@@ -779,7 +827,9 @@ export function WarehouseCanvas({
       <Fragment key={item.id}>
         {/* The two walls that hold the top face up, and the only two a 45° camera ever shows: the
             canvas's +x and +y edges both point toward the viewer once the floor is turned, so the
-            north and west faces are always hidden and are not drawn at all. */}
+            north and west faces are always hidden and are not drawn at all. Each is a plain box
+            laid on the floor line it stands on and sheared up from it — a 2D transform, like the
+            camera itself (see warehouseIso.ts). */}
         {lift > 0 && (
           <>
             <div
@@ -789,10 +839,10 @@ export function WarehouseCanvas({
                 top: px(live.y + size.height),
                 width: px(size.width),
                 height: px(lift),
-                transform: "rotateX(90deg)",
+                transform: ISO_FRONT_WALL,
               }}
             >
-              {renderRackFace(item, "front")}
+              {item.kind === "rack" && <RackModules item={item} face="front" cellSize={cellSize} lift={lift} />}
             </div>
             <div
               className={`lq-wh__wall lq-wh__wall--side lq-wh__wall--${item.kind}`}
@@ -801,10 +851,10 @@ export function WarehouseCanvas({
                 top: px(live.y),
                 width: px(lift),
                 height: px(size.height),
-                transform: "rotateY(-90deg)",
+                transform: ISO_SIDE_WALL,
               }}
             >
-              {renderRackFace(item, "side")}
+              {item.kind === "rack" && <RackModules item={item} face="side" cellSize={cellSize} lift={lift} />}
             </div>
           </>
         )}
@@ -822,7 +872,7 @@ export function WarehouseCanvas({
           backgroundColor: item.color,
           // In isometric the box is the *top* face, lifted to its own height; the two walls below
           // are rendered beside it, in the canvas's own frame.
-          transform: iso ? `translateZ(${px(ISO_HEIGHT[item.kind])}px)` : undefined,
+          transform: iso ? liftIso(px(ISO_HEIGHT[item.kind])) : undefined,
         }}
         onPointerEnter={() => {
           if (editable && item.kind !== "zone") holdHover(item.id);
@@ -840,7 +890,7 @@ export function WarehouseCanvas({
           setDrag({ kind: "item", id: item.id, grabX: cell.x - item.x, grabY: cell.y - item.y, x: item.x, y: item.y });
         }}
       >
-        {item.kind === "rack" && renderSlots(item)}
+        {item.kind === "rack" && <RackModules item={item} face={iso ? "roof" : "plan"} cellSize={cellSize} />}
         {isConveyor(item.kind) && renderFlow(item)}
         {item.label && !iso && <span className="lq-wh__item-label">{item.label}</span>}
 
@@ -936,86 +986,4 @@ export function WarehouseCanvas({
    * its narrow end on the side; a rack turned a quarter shows the opposite. Getting this the wrong
    * way round draws a ten-bay rack as a ten-shelf tower, which is a different object.
    */
-  function renderRackFace(item: WarehouseItem, wall: "front" | "side") {
-    if (item.kind !== "rack") return null;
-    const bays = item.bays ?? 0;
-    const levels = item.levels ?? 0;
-    if (bays === 0 || levels === 0) return null;
-
-    const byKey = new Map(clampSlots(item).map((slot) => [`${slot.bay}:${slot.level}`, slot]));
-    const showsBays = wall === (isHorizontal(item) ? "front" : "side");
-
-    // The end of the rack: no bays to show, just the shelves stacked up. Drawn as plain bands
-    // rather than as empty slots, because an end view that showed slots would be claiming there is
-    // a pallet position facing the aisle when there is only a stanchion.
-    if (!showsBays) {
-      return (
-        <span className="lq-wh__face lq-wh__face--end" style={{ gridTemplateRows: `repeat(${levels}, 1fr)` }}>
-          {Array.from({ length: levels }, (_, i) => (
-            <span key={i} className="lq-wh__shelf" />
-          ))}
-        </span>
-      );
-    }
-
-    // Level 0 is the bottom shelf and a grid fills row by row, so the top row is emitted first —
-    // the same rule the plan view's own slot grid follows, and for the same reason: a rack drawn
-    // upside down lies about where the stock is.
-    return (
-      <span
-        className="lq-wh__face"
-        style={{ gridTemplateColumns: `repeat(${bays}, 1fr)`, gridTemplateRows: `repeat(${levels}, 1fr)` }}
-      >
-        {Array.from({ length: levels }, (_, row) => levels - 1 - row).flatMap((level) =>
-          Array.from({ length: bays }, (_, bay) => {
-            const slot = byKey.get(`${bay}:${level}`);
-            return <span key={`${bay}:${level}`} className={`lq-wh__cell lq-wh__cell--${slot?.status ?? "empty"}`} />;
-          })
-        )}
-      </span>
-    );
-  }
-
-  function renderSlots(item: WarehouseItem) {
-    const bays = item.bays ?? 0;
-    const levels = item.levels ?? 0;
-    if (bays === 0 || levels === 0) return null;
-    const byKey = new Map(clampSlots(item).map((slot) => [`${slot.bay}:${slot.level}`, slot]));
-    const horizontal = isHorizontal(item);
-    const cell = (bay: number, level: number) => {
-      const slot = byKey.get(`${bay}:${level}`);
-      return (
-        <span
-          key={`${bay}:${level}`}
-          className={`lq-wh__slot lq-wh__slot--${slot?.status ?? "empty"}`}
-          title={slot?.label ?? `Travée ${bay + 1}, niveau ${level + 1}`}
-        />
-      );
-    };
-
-    // Turned a quarter, the bays run down the rack instead of across it — so the grid is
-    // transposed rather than the whole box rotated in CSS. Transposing keeps every slot a square
-    // aligned to the plan; a CSS rotation would leave them tilted against the grid everything else
-    // snaps to.
-    return (
-      <span
-        className="lq-wh__slots"
-        style={
-          horizontal
-            ? { gridTemplateColumns: `repeat(${bays}, 1fr)`, gridTemplateRows: `repeat(${levels}, 1fr)` }
-            : { gridTemplateColumns: `repeat(${levels}, 1fr)`, gridTemplateRows: `repeat(${bays}, 1fr)` }
-        }
-      >
-        {/* Level 0 is the bottom shelf, and a grid fills row by row — so the top row is drawn
-            first. A rack drawn upside down is a rack that lies about where the stock is. */}
-        {horizontal
-          ? Array.from({ length: levels }, (_, row) => levels - 1 - row).flatMap((level) =>
-              Array.from({ length: bays }, (_, bay) => cell(bay, level))
-            )
-          : Array.from({ length: bays }, (_, bay) =>
-              Array.from({ length: levels }, (_, column) => cell(bay, levels - 1 - column))
-            ).flat()}
-      </span>
-    );
-  }
 }

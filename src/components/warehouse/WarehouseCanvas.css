@@ -13,23 +13,15 @@
   --lq-wh-blocked: color-mix(in srgb, var(--lq-color-danger) 55%, var(--lq-color-bg));
   --lq-wh-closed: color-mix(in srgb, var(--lq-color-text-muted) 20%, var(--lq-color-bg));
 
-  /* The frame — the only thing a rack is actually made of.
-     A rack is an open steel frame: the bays are holes in it, and anything drawn *inside* an empty
-     one is a claim that something is there. So the lattice is the drawing, and a free bay is
-     see-through. A fill was tried twice — first a tinted square, then the rack's own material —
-     and both read as a pallet at a glance.
-
-     Uprights and beams are not the same member and must not be drawn the same. The uprights are
-     the posts that carry the load and the thing you actually see down an aisle; the beams are the
-     rails between them. Drawn at one weight, as they first were, the lattice reads as graph paper
-     and disappears — which is how a rack ended up looking like nothing at all. */
+  /* The rack's two members. A rack is an open steel frame — see RackModules.tsx for why it is
+     drawn as one module of posts and beams repeated per bay rather than as a grid of cells. The
+     uprights carry the load and are what you see down an aisle; the beams are the rails between
+     them. They are not drawn at the same weight: at one weight the frame reads as graph paper. */
   --lq-wh-upright: color-mix(in srgb, var(--lq-color-text) 72%, transparent);
   /* 55 %, not the 34 % it was: at 100 % zoom a beam is a single pixel, and 34 % of the text colour
      over the zone tint measures 2.15∶1 — under the 3∶1 floor for a graphic, so the horizontals
      simply vanished and each rack read as white columns between dark posts. */
   --lq-wh-beam: color-mix(in srgb, var(--lq-color-text) 55%, transparent);
-  /* The shade a beam throws into the bay below it. */
-  --lq-wh-depth: color-mix(in srgb, var(--lq-color-text) 30%, transparent);
 
   display: grid;
   grid-template-columns: 200px minmax(0, 1fr);
@@ -337,10 +329,16 @@
    the posts inside it. */
 .lq-wh__item--rack {
   background-color: transparent;
-  /* The frame is drawn by the lattice's own outer members (see .lq-wh__slots); a second outline
-     here made a dark / gap / dark triple line all round the rack, measured at 294 %: 2 px border,
-     2 px of floor, 6 px of grid. One frame, not two. */
-  border-color: transparent;
+  /* No border at all — not even a transparent one. The frame is the rack's own end posts and top
+     beam, drawn by RackModules into an SVG exactly the item's size. With `box-sizing: border-box`
+     a 1 px border, transparent or not, shrinks the padding box to (W−2)×(H−2), and `overflow:
+     hidden` then clips the SVG's last pixel on the right and at the bottom: measured, that was the
+     level-0 beam and the end post, so the aisle-side pallets sat on nothing and a ten-bay rack
+     showed ten posts instead of eleven. And no rounding: the item's 2 px radius, scaled with the
+     zoom, was shaving the corner off the end post where it meets the top and bottom beams. A steel
+     frame has square corners. */
+  border: 0;
+  border-radius: 0;
 }
 
 .lq-wh__item--station {
@@ -429,61 +427,6 @@
   border-radius: 2px;
   cursor: nwse-resize;
   z-index: 4;
-}
-
-/* ---- storage locations ---- */
-
-/* The lattice, drawn as lines and nothing else.
-   `gap: 0` with a border on each cell's right and bottom, and the container closing the top and
-   left: every upright and every beam is then one line, not two meeting. A gap would instead leave
-   a transparent channel between cells and read as a second, paler set of lines. */
-.lq-wh__slots {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  gap: 0;
-  box-sizing: border-box;
-  border-top: 1px solid var(--lq-wh-beam);
-  border-left: 2px solid var(--lq-wh-upright);
-  pointer-events: none;
-}
-
-/* An empty bay is a hole. Nothing painted in it at all — only the frame around it.
-   The right-hand border is the upright and the bottom one the beam; every cell in a column
-   carries the same right border, so they line up into one continuous post. */
-.lq-wh__slot {
-  box-sizing: border-box;
-  background-color: transparent;
-  border-right: 2px solid var(--lq-wh-upright);
-  border-bottom: 1px solid var(--lq-wh-beam);
-}
-
-/* Why an empty bay still looked like a white tile after the fill was removed.
-   A transparent hole over a flat floor is pixel-for-pixel an opaque tile of the floor's colour —
-   measured: the inside of an empty bay was rgb(235,234,241), exactly the aisle beside the rack.
-   There was nothing *in* the opening to say it was an opening. A real bay has two things in it
-   that a tile does not: the shade the beam above throws into it, and the rear rail of the level
-   showing at the back. Both drawn here as inset shadows, so the background stays transparent and
-   the floor — or an AGV rail passing behind — still shows through. It is still a hole; it is now
-   a hole in a steel frame. */
-.lq-wh__slot--empty,
-.lq-wh__cell--empty {
-  box-shadow:
-    inset 0 3px 3px -2px var(--lq-wh-depth),
-    inset 0 -2px 0 0 var(--lq-wh-beam);
-}
-
-/* A pallet: opaque, and darker than the opening it sits in. The only cells that are *filled*. */
-.lq-wh__slot--occupied {
-  background-color: color-mix(in srgb, var(--lq-color-accent) 78%, var(--lq-color-panel));
-}
-
-.lq-wh__slot--reserved {
-  background-color: var(--lq-wh-reserved);
-}
-
-.lq-wh__slot--blocked {
-  background-color: var(--lq-wh-blocked);
 }
 
 /* ---- machines ---- */
@@ -656,13 +599,14 @@
 
 /* ---- isometric view ---- */
 
-/* `preserve-3d` lives here, on the canvas, and not on the surface above it.
-   An element whose `overflow` is anything but `visible` does not establish a 3D context for its
-   descendants — and the surface clips, because that is how panning stays inside its box. Putting
-   the 3D context one level down, on the layer that carries the camera, gives the racks a real
-   space to stand up in while the surface keeps clipping as before. */
-.lq-wh__canvas--iso {
-  transform-style: preserve-3d;
+/* No 3D anywhere: the camera is a 2D matrix and the walls are shears (warehouseIso.ts says why
+   the CSS 3D version was dropped), so what covers what is the DOM order, which the canvas writes
+   back to front. Nothing may reorder it. The plan view's stacking — machines over racks, the
+   selected item over its neighbours — is a top-down convenience, and here it would put a machine
+   in front of the rack it is parked behind. */
+.lq-wh__canvas--iso .lq-wh__item--selected,
+.lq-wh__canvas--iso .lq-wh__robot {
+  z-index: auto;
 }
 
 /* Nothing but a colour here: the tilt comes from the canvas above. A plan view sets its own grid
@@ -709,7 +653,10 @@
 
 .lq-wh__wall--rack {
   background-color: transparent;
-  border-color: transparent;
+  /* Same reasons as the rack box: the wall's SVG must sit on the wall's true origin, not 1 px in,
+     and its corners are the frame's corners. */
+  border: 0;
+  border-radius: 0;
 }
 .lq-wh__wall--station {
   background-color: color-mix(in srgb, var(--lq-color-sky) 26%, var(--lq-color-panel));
@@ -765,55 +712,9 @@
   color: var(--lq-color-accent-contrast);
 }
 
-/* ---- a rack's own face, in the isometric view ---- */
-
 /* Drawn on the wall you actually look at. Without it a rack in isometric is a plain box: every
    sign that it is a rack — levels, bays, what is in them — lives on the top face, and the top face
    is what you barely see once the floor is tilted. */
-.lq-wh__face {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  gap: 0;
-  box-sizing: border-box;
-  border-top: 1px solid var(--lq-wh-beam);
-  border-left: 2px solid var(--lq-wh-upright);
-}
-
-/* Same rule as the plan view's bays: a free one is a hole in the frame. */
-.lq-wh__cell {
-  box-sizing: border-box;
-  background-color: transparent;
-  border-right: 2px solid var(--lq-wh-upright);
-  border-bottom: 1px solid var(--lq-wh-beam);
-}
-
-.lq-wh__cell--occupied {
-  background-color: color-mix(in srgb, var(--lq-color-accent) 78%, var(--lq-color-panel));
-}
-
-.lq-wh__cell--reserved {
-  background-color: var(--lq-wh-reserved);
-}
-
-.lq-wh__cell--blocked {
-  background-color: var(--lq-wh-blocked);
-}
-
-/* The narrow end of a rack: shelves and uprights, no bays. An end view showing slots would claim
-   there is a pallet position facing the aisle when there is only a stanchion. */
-/* Seen end-on, a rack is a pair of posts with the beams between them: the uprights are what the
-   aisle actually shows you, so the end face is framed by them left and right. */
-.lq-wh__face--end {
-  border-right: 2px solid var(--lq-wh-upright);
-}
-
-.lq-wh__face--end .lq-wh__shelf {
-  box-sizing: border-box;
-  background-color: transparent;
-  border-bottom: 1px solid var(--lq-wh-beam);
-}
-
 /* ---- the flow wave ---- */
 
 .lq-wh__flow-chevron {
@@ -877,4 +778,47 @@
 .lq-wh__rotate:hover {
   border-color: var(--lq-color-accent);
   color: var(--lq-color-accent);
+}
+
+/* ---- the rack itself ---- */
+
+/* One SVG per face, drawn by RackModules: the members are rectangles with real thickness, a
+   pallet is a box on a beam, and an empty bay is the gap between two posts under a beam with
+   nothing in it. `pointer-events: none` so the rack's box keeps its own drag. */
+.lq-wh__rack {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+/* Snapped to device pixels. At 100 % a beam is two pixels tall and a post two wide; anti-aliased
+   across a half-pixel boundary, the level-0 beam measured at 15 % contrast and read as nothing. */
+.lq-wh__post {
+  fill: var(--lq-wh-upright);
+  shape-rendering: crispEdges;
+}
+
+.lq-wh__beam {
+  fill: var(--lq-wh-beam);
+  shape-rendering: crispEdges;
+}
+
+/* A pallet is the one solid thing on a rack, so it is the one solid colour: opaque, edged in a
+   darker tone of itself so it still separates from the beam it sits on under e-ink. */
+.lq-wh__pallet {
+  fill: color-mix(in srgb, var(--lq-color-accent) 78%, var(--lq-color-panel));
+  stroke: color-mix(in srgb, var(--lq-color-accent) 55%, var(--lq-color-text));
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.lq-wh__pallet--reserved {
+  fill: var(--lq-wh-reserved);
+  stroke: color-mix(in srgb, var(--lq-color-amber) 55%, var(--lq-color-text));
+}
+
+.lq-wh__pallet--blocked {
+  fill: var(--lq-wh-blocked);
+  stroke: color-mix(in srgb, var(--lq-color-danger) 55%, var(--lq-color-text));
 }

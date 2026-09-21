@@ -2,7 +2,12 @@ export { WarehouseCanvas } from "./WarehouseCanvas";
 export type { WarehouseCanvasProps } from "./WarehouseCanvas";
 
 export { RackV2 } from "./RackV2";
-export type { RackV2Carton, RackV2Props } from "./RackV2";
+export type { RackV2Props } from "./RackV2";
+
+export { RackItem } from "./RackItem";
+export type { RackItemProps } from "./RackItem";
+export { RACK_ITEM_KINDS, RACK_ITEM_LABEL } from "./rackItems";
+export type { RackItemKind } from "./rackItems";
 
 export { CONVEYOR_KINDS, WAREHOUSE_KINDS, advanceRobots, buildSlots, clampSlots, footprintOf, isHorizontal, pathLength, pointAlongPath, isConveyor, rotateItem, snapToGrid } from "./warehouseModel";
 export type {

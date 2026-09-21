@@ -1,80 +1,31 @@
-/* Étagère V2 : deux plateaux, quatre montants, un carton. Voir RackV2.tsx pour le pourquoi. */
+/* Étagère V2. Le modèle de lumière et les matières sont dans rackItems.css, partagés avec ce qu'on
+   pose dessus ; ici, ce qui n'appartient qu'à l'étagère. Voir RackV2.tsx pour le pourquoi. */
 
 .lq-rack2 {
-  /* Les matières. L'acier ne prend pas de teinte : un plateau et un poteau ne disent rien d'autre
-     que « de l'acier, ici », et une teinte en ferait un statut. Le carton est kraft — et en e-ink,
-     où l'ambre s'effondre sur la couleur du texte, il redevient un gris parmi les autres, ce qui
-     est sans conséquence : les faces se distinguent par la clarté, jamais par la teinte. */
-  --lq-rack2-steel: color-mix(in srgb, var(--lq-color-accent) 14%, var(--lq-color-bg));
-  --lq-rack2-post: color-mix(in srgb, var(--lq-color-text) 34%, var(--lq-color-bg));
-  --lq-rack2-carton: color-mix(in srgb, var(--lq-color-amber) 58%, var(--lq-color-bg));
-  --lq-rack2-line: color-mix(in srgb, var(--lq-color-text) 72%, transparent);
-
   display: block;
   overflow: visible;
 }
 
-/* Une seule source de lumière pour tout le dessin : le dessus prend le jour, la face avant est en
-   demi-teinte, le côté est dans l'ombre. Chaque volume ne fournit que sa matière — trois teintes
-   par face donneraient trois formes plates sans rapport qui se rejoignent sur une arête. */
-.lq-rack2__solid-face--top {
-  fill: var(--lq-rack2-face);
-}
-
-.lq-rack2__solid-face--front {
-  fill: color-mix(in srgb, var(--lq-rack2-face) 86%, var(--lq-color-text));
-}
-
-.lq-rack2__solid-face--side {
-  fill: color-mix(in srgb, var(--lq-rack2-face) 72%, var(--lq-color-text));
-}
-
-.lq-rack2__solid--deck-upper {
-  --lq-rack2-face: var(--lq-rack2-steel);
-}
-
-/* Le plateau du bas est à l'ombre de celui du dessus. Deux plateaux identiques se liraient comme un
-   seul à double épaisseur. */
-.lq-rack2__solid--deck-lower {
-  --lq-rack2-face: color-mix(in srgb, var(--lq-rack2-steel) 84%, var(--lq-color-text));
-}
-
-.lq-rack2__solid--post {
-  --lq-rack2-face: var(--lq-rack2-post);
-}
-
-.lq-rack2__solid--carton {
-  --lq-rack2-face: var(--lq-rack2-carton);
-}
-
-/* Le trait de toutes les arêtes. Ce qui décide de ce qu'on voit d'une arête, c'est sa place dans
-   l'ordre de dessin et non son épaisseur : une arête « de derrière » dessinée plus légère par-dessus
-   un plateau plein ferait lire ce plateau comme une vitre, et c'est la seule chose qu'un plateau ne
-   doit pas faire. Celles qui passent derrière le plateau du haut sont donc cachées par lui. Les
-   plateaux portent le trait fort — ce sont eux qui donnent à la boîte sa silhouette. */
-.lq-rack2__solid-face,
-.lq-rack2__edge,
-.lq-rack2__seam {
-  stroke: var(--lq-rack2-line);
-  stroke-width: var(--lq-rack2-stroke, 1);
-  stroke-linejoin: miter;
+/* Les quatre montants quand ils ne sont pas modélisés en volume. Ce qui décide de ce qu'on voit
+   d'une arête, c'est sa place dans l'ordre de dessin et non son épaisseur : une arête « de
+   derrière » dessinée plus légère par-dessus un plateau plein ferait lire ce plateau comme une
+   vitre, et c'est la seule chose qu'un plateau ne doit pas faire. */
+.lq-rack2__edge {
+  fill: none;
+  stroke: color-mix(in srgb, var(--lq-color-text) 72%, transparent);
+  stroke-width: 1.5;
+  stroke-linecap: square;
   /* L'épaisseur reste celle qu'on a demandée quel que soit le zoom appliqué au-dessus. */
   vector-effect: non-scaling-stroke;
 }
 
-.lq-rack2__solid--deck-upper,
-.lq-rack2__solid--deck-lower {
-  --lq-rack2-stroke: 1.5;
-}
-
-.lq-rack2__edge {
-  --lq-rack2-stroke: 1.5;
-
+/* La limite entre deux portions du plateau. Un trait rayé, pas un plein : une portion est une
+   convention de rangement, pas une cloison — rien n'empêche physiquement de poser à cheval, et un
+   trait franc prétendrait le contraire. */
+.lq-rack2__divider {
   fill: none;
-  stroke-linecap: square;
-}
-
-/* La jointure des rabats. Sans elle, un carton est un cube. */
-.lq-rack2__seam {
-  stroke: color-mix(in srgb, var(--lq-color-text) 42%, transparent);
+  stroke: color-mix(in srgb, var(--lq-color-text) 34%, transparent);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  vector-effect: non-scaling-stroke;
 }

@@ -1,0 +1,113 @@
+/* Le vocabulaire de dessin isométrique partagé par l'étagère et par ce qu'on pose dessus.
+   Voir rackItems.tsx pour le pourquoi. */
+
+.lq-rack-item {
+  display: block;
+  overflow: visible;
+}
+
+/* Une seule source de lumière pour tout le dessin : le dessus prend le jour, la face avant est en
+   demi-teinte, le côté est dans l'ombre. Chaque volume ne fournit que sa matière — trois teintes
+   par face donneraient trois formes plates sans rapport qui se rejoignent sur une arête, et sous
+   e-ink, où tout accent s'effondre sur la couleur du texte, il ne resterait rien du tout. */
+.lq-iso__face--top {
+  fill: var(--lq-iso-face);
+}
+
+.lq-iso__face--front {
+  fill: color-mix(in srgb, var(--lq-iso-face) 86%, var(--lq-color-text));
+}
+
+.lq-iso__face--side {
+  fill: color-mix(in srgb, var(--lq-iso-face) 72%, var(--lq-color-text));
+}
+
+/* Vue de dessus : on ne voit qu'une face, donc c'est celle qui prend le jour. */
+.lq-iso__plan-face {
+  fill: var(--lq-iso-face);
+}
+
+.lq-iso__plan-detail {
+  fill: color-mix(in srgb, var(--lq-iso-face) 78%, var(--lq-color-text));
+}
+
+.lq-iso__face,
+.lq-iso__plan-face,
+.lq-iso__plan-detail {
+  stroke: var(--lq-iso-line, color-mix(in srgb, var(--lq-color-text) 72%, transparent));
+  stroke-width: var(--lq-iso-stroke, 1);
+  stroke-linejoin: miter;
+  /* L'épaisseur reste celle qu'on a demandée quel que soit le zoom appliqué au-dessus. */
+  vector-effect: non-scaling-stroke;
+}
+
+/* Les traits qui disent de quoi une forme est faite : la jointure des rabats d'un carton, les
+   entretoises d'une palette, les frettes d'un fût. Sans eux, les trois sont un cube et un tube. */
+.lq-iso__seam,
+.lq-iso__slat,
+.lq-iso__hoop {
+  fill: none;
+  stroke: color-mix(in srgb, var(--lq-color-text) 42%, transparent);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+/* ---- les matières ---- */
+
+/* Chaque sorte ne dit que sa matière ; les trois clartés en découlent. L'ambre, le ciel, le vert
+   et le violet s'effondrent tous sur la couleur du texte en e-ink — c'est sans conséquence, les
+   faces s'y distinguant par la clarté, mais deux objets voisins s'y ressemblent alors davantage,
+   d'où des parts volontairement écartées les unes des autres. */
+.lq-iso__solid--kraft {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-amber) 58%, var(--lq-color-bg));
+}
+
+.lq-iso__solid--bin {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-sky) 46%, var(--lq-color-bg));
+}
+
+.lq-iso__solid--drum {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-violet) 38%, var(--lq-color-bg));
+}
+
+.lq-iso__solid--glass {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-green) 44%, var(--lq-color-bg));
+}
+
+/* Le bois est la seule matière qui ne soit pas un accent : une palette est un support, pas une
+   marchandise, et elle ne doit pas se disputer le regard avec ce qui est posé dessus. */
+.lq-iso__solid--wood {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-amber) 30%, var(--lq-color-text-muted));
+}
+
+/* ---- l'étagère ---- */
+
+.lq-iso__solid--steel {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-accent) 14%, var(--lq-color-bg));
+  --lq-iso-stroke: 1.5;
+}
+
+/* Le plateau du bas est à l'ombre de celui du dessus. Deux plateaux identiques se liraient comme un
+   seul à double épaisseur. */
+.lq-iso__solid--steel-shaded {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-accent) 14%, var(--lq-color-bg));
+  --lq-iso-stroke: 1.5;
+}
+
+.lq-iso__solid--steel-shaded .lq-iso__face--top {
+  fill: color-mix(in srgb, var(--lq-iso-face) 84%, var(--lq-color-text));
+}
+
+.lq-iso__solid--steel-shaded .lq-iso__face--front {
+  fill: color-mix(in srgb, var(--lq-iso-face) 72%, var(--lq-color-text));
+}
+
+.lq-iso__solid--steel-shaded .lq-iso__face--side {
+  fill: color-mix(in srgb, var(--lq-iso-face) 60%, var(--lq-color-text));
+}
+
+/* L'acier des montants ne prend pas de teinte : un poteau ne dit rien d'autre que « de l'acier,
+   ici », et une teinte en ferait un statut. */
+.lq-iso__solid--post {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-text) 34%, var(--lq-color-bg));
+}

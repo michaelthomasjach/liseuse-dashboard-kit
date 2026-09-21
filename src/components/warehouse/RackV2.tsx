@@ -1,21 +1,30 @@
 import type { ReactNode } from "react";
 import { projectIso } from "./warehouseIso";
 import { paintOrder } from "./warehousePaint";
+import {
+  boxFaces,
+  fitRackItem,
+  rackItemIso,
+  solidVolume,
+  type Point,
+  type Project,
+  type RackItemKind,
+} from "./rackItems";
 import "./RackV2.css";
 
 /**
- * Étagère V2 — deux plateaux, quatre montants, et ce qui est posé dedans.
+ * Étagère V2 — deux plateaux, quatre montants, et ce qu'on pose dessus.
  *
  * A rack drawn as what it is in space: a rectangular box under the isometric camera, with only its
- * **horizontal members** filled in. The four sides are not drawn at all, so the eye goes straight
- * through the rack and out the other side.
+ * **members** filled in. The long sides are not closed, so the eye goes straight through the rack
+ * and out the other side.
  *
  * That is deliberate. Every earlier attempt at this drawing started from a filled shape and tried
  * to open it up afterwards — a grid whose cells were tinted, then transparent, then bordered, then
  * shadowed — and each one still read as a solid object with a pattern on it. An open steel frame is
  * not a solid with holes; it is members with nothing between them.
  *
- * ## Everything in the picture is a volume, and every volume is opaque
+ * ## The members
  *
  *   - the two **decks**, slabs of `deckThickness`. A deck with no thickness is a shape; a deck with
  *     an edge is a piece of steel, and it is the edge that says which side of it you are looking at;
@@ -23,13 +32,19 @@ import "./RackV2.css";
  *     is, which corner of the footprint it stands on and which way it faces. Each is a square column
  *     set *inward* from its corner, so the box's silhouette is exactly the one the lines drew —
  *     turning the posts on changes what the uprights are made of, not where the rack is;
- *   - the **carton** on the bottom deck, a closed box. That contrast is the point of putting one
- *     there: a frame you see through, with something solid inside it.
+ *   - the two **braces**, with `braces`: one diagonal across each end frame, from the near post's
+ *     foot to the far post's head. It is the member that makes a rack a rack rather than four legs
+ *     under two shelves — an unbraced frame is a parallelogram waiting to happen, and every real
+ *     upright frame carries one. It lies *in* the frame, on the plane through the two posts'
+ *     centres, because that is where it is welded.
  *
- * All four are drawn the same way — top face, then the two sides the camera can see, at three
- * lightnesses of one colour under one light source. What distinguishes them is their material, not
- * their manner: a deck and a post are steel, a carton is kraft. Three lightnesses rather than three
- * hues is also what survives e-ink, where every accent collapses to the text colour.
+ * ## What is put on the lower deck
+ *
+ * The lower deck divides into `slotsX` × `slotsY` **portions**, and `contents` says what stands on
+ * each of them, in reading order. A portion is the unit of "somewhere to put something": whatever a
+ * kind is, it is centred on its own portion and fitted to it, so filling a rack is a matter of
+ * naming things rather than of placing them. The kinds themselves — carton, boîte, palette, bidon,
+ * bouteille — live in `rackItems.tsx`, where each is drawn once and shown from two cameras.
  *
  * ## One rack, or a block of them
  *
@@ -59,18 +74,9 @@ import "./RackV2.css";
  *   - **within a floor**, `paintOrder` — the floor plan's own sorter: of two footprints that do not
  *     overlap, the one further along +x or +y is in front, and that only decides anything when
  *     their pictures meet;
- *   - **within a rack**: the bottom slab, then its posts and carton (`paintOrder` again, since a
- *     post and a carton are just two more footprints), then the top slab.
+ *   - **within a rack**: the bottom slab, then its posts, braces and contents (`paintOrder` again,
+ *     since each is just one more footprint), then the top slab.
  */
-
-/** Un carton posé sur le plateau : position et taille en cases, `height` compté depuis le plateau. */
-export interface RackV2Carton {
-  x: number;
-  y: number;
-  width: number;
-  depth: number;
-  height: number;
-}
 
 export interface RackV2Props {
   /** Longueur d'une étagère (axe X), en cases. */
@@ -85,14 +91,21 @@ export interface RackV2Props {
   countY?: number;
   /** Nombre d'étagères empilées sur l'axe Z. */
   countZ?: number;
+  /** Portions du plateau du bas sur l'axe X. */
+  slotsX?: number;
+  /** Portions du plateau du bas sur l'axe Y. */
+  slotsY?: number;
+  /** Ce qui est posé sur chaque portion, en ordre de lecture (une rangée Y après l'autre).
+   *  `null` pour une portion vide ; la liste peut être plus courte que le nombre de portions. */
+  contents?: (RackItemKind | null)[];
   /** Épaisseur des deux plateaux, en cases. */
   deckThickness?: number;
   /** Des poteaux modélisés en volume à la place des quatre arêtes verticales. */
   posts?: boolean;
-  /** Côté d'un poteau, en cases. Sans effet si `posts` est faux. */
+  /** Côté d'un poteau, en cases. */
   postSize?: number;
-  /** Le carton posé sur le plateau du bas de chaque étagère. `null` pour des étagères vides. */
-  carton?: RackV2Carton | null;
+  /** Une diagonale de contreventement dans chacun des deux cadres d'about. */
+  braces?: boolean;
   /** Pixels par case. Le même défaut que le plan d'entrepôt, pour que les deux s'accordent. */
   cellSize?: number;
   className?: string;
@@ -100,10 +113,6 @@ export interface RackV2Props {
 
 /** Room for half a stroke on each side, so the silhouette is not shaved by the viewBox. */
 const PAD = 2;
-
-/** Posé vers le bout gauche du plateau, en retrait de tous les bords — un carton touche rarement
- *  les montants. */
-const DEFAULT_CARTON: RackV2Carton = { x: 0.9, y: 0.35, width: 1.5, depth: 1.3, height: 1.1 };
 
 /** Assez épais pour se lire comme un volume à une case de large, assez mince pour rester un
  *  poteau : c'est la section d'un montant de palettier ramenée à l'échelle du plan. */
@@ -118,9 +127,7 @@ const DEFAULT_DECK_THICKNESS = 0.2;
  *  n'est plus un dessin mais une scène, et c'est un autre travail que celui-ci. */
 const MAX_COUNT = 24;
 
-type Point = { x: number; y: number };
 type Cell = [number, number];
-type Faces = { top: Point[]; front: Point[]; side: Point[] };
 type Piece = { x: number; y: number; width: number; height: number; render: () => ReactNode };
 
 const count = (n: number) => Math.max(1, Math.min(MAX_COUNT, Math.floor(n) || 1));
@@ -132,46 +139,35 @@ export function RackV2({
   countX = 1,
   countY = 1,
   countZ = 1,
+  slotsX = 1,
+  slotsY = 1,
+  contents = ["carton"],
   deckThickness = DEFAULT_DECK_THICKNESS,
   posts = false,
   postSize = DEFAULT_POST_SIZE,
-  carton = DEFAULT_CARTON,
+  braces = false,
   cellSize = 22,
   className,
 }: RackV2Props) {
-  const at = (x: number, y: number, z: number) => projectIso(x * cellSize, y * cellSize, z * cellSize);
-  const ring = (points: Point[]) => points.map((p) => `${p.x},${p.y}`).join(" ");
+  const at: Project = (x, y, z) => projectIso(x * cellSize, y * cellSize, z * cellSize);
+  const ring = (points: Point[]) => points.map((p) => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(" ");
 
   const nx = count(countX);
   const ny = count(countY);
   const nz = count(countZ);
+  const sx = count(slotsX);
+  const sy = count(slotsY);
 
   // Two slabs can never eat the whole rack: a third of the height each is already more deck than
   // rack, and past that there would be nowhere for the posts to run.
   const slabZ = Math.max(0, Math.min(deckThickness, height / 3));
   const side = Math.max(0.02, Math.min(postSize, Math.min(width, depth) / 2));
 
-  /** The three faces of a box the camera can see: its top, and the two sides facing +y and +x. */
-  const solid = (x0: number, x1: number, y0: number, y1: number, z0: number, z1: number): Faces => ({
-    top: [at(x0, y0, z1), at(x1, y0, z1), at(x1, y1, z1), at(x0, y1, z1)],
-    front: [at(x0, y1, z0), at(x1, y1, z0), at(x1, y1, z1), at(x0, y1, z1)],
-    side: [at(x1, y0, z0), at(x1, y1, z0), at(x1, y1, z1), at(x1, y0, z1)],
-  });
-
-  /** A volume, back face to front: the far side, then the near side, then the top over both. */
-  const volume = (material: string, key: string, faces: Faces, flat: boolean, seam?: [Point, Point]) => (
-    <g key={key} className={`lq-rack2__solid lq-rack2__solid--${material}`}>
-      {!flat && <polygon className="lq-rack2__solid-face lq-rack2__solid-face--side" points={ring(faces.side)} />}
-      {!flat && <polygon className="lq-rack2__solid-face lq-rack2__solid-face--front" points={ring(faces.front)} />}
-      <polygon className="lq-rack2__solid-face lq-rack2__solid-face--top" points={ring(faces.top)} />
-      {seam && <line className="lq-rack2__seam" x1={seam[0].x} y1={seam[0].y} x2={seam[1].x} y2={seam[1].y} />}
-    </g>
-  );
-
-  /** One rack, standing with its near-left-bottom corner at (ox, oy, oz). */
+  /** One rack, standing with its far-left-bottom corner at (ox, oy, oz). */
   const rack = (ox: number, oy: number, oz: number, tag: string): ReactNode[] => {
     const floorZ = oz + slabZ;
     const ceilZ = oz + height - slabZ;
+    const clearance = ceilZ - floorZ;
     const foot: Cell[] = [
       [ox, oy],
       [ox + width, oy],
@@ -180,6 +176,7 @@ export function RackV2({
     ];
 
     const pieces: Piece[] = [];
+
     foot.forEach(([cx, cy], i) => {
       const x0 = cx > ox ? cx - side : cx;
       const x1 = cx > ox ? cx : cx + side;
@@ -192,7 +189,7 @@ export function RackV2({
         height: posts ? y1 - y0 : 0,
         render: () =>
           posts ? (
-            volume("post", `${tag}p${i}`, solid(x0, x1, y0, y1, floorZ, ceilZ), false)
+            solidVolume("post", `${tag}p${i}`, boxFaces(at, x0, x1, y0, y1, floorZ, ceilZ))
           ) : (
             <line
               key={`${tag}p${i}`}
@@ -206,30 +203,86 @@ export function RackV2({
       });
     });
 
-    if (carton) {
-      const x0 = ox + carton.x;
-      const x1 = x0 + carton.width;
-      const y0 = oy + carton.y;
-      const y1 = y0 + carton.depth;
-      const lid = floorZ + carton.height;
-      pieces.push({
-        x: x0,
-        y: y0,
-        width: carton.width,
-        height: carton.depth,
-        // The seam where the flaps meet is what makes it a carton rather than a block.
-        render: () =>
-          volume("carton", `${tag}c`, solid(x0, x1, y0, y1, floorZ, lid), false, [
-            at(x0, (y0 + y1) / 2, lid),
-            at(x1, (y0 + y1) / 2, lid),
-          ]),
+    if (braces) {
+      // A flat strap in the plane of the end frame — the plane through both posts' centres, which
+      // is where it is welded. From the near post's foot to the far post's head; drawn as a strip
+      // whose width is measured across the diagonal, inside that plane, so it keeps its section
+      // however tall or deep the rack is.
+      const yNear = oy + depth - side / 2;
+      const yFar = oy + side / 2;
+      const run = yFar - yNear;
+      const rise = ceilZ - floorZ;
+      const span = Math.hypot(run, rise) || 1;
+      const strap = side * 0.5;
+      // The normal to the diagonal, within the (y, z) plane.
+      const ny2 = (-rise / span) * (strap / 2);
+      const nz2 = (run / span) * (strap / 2);
+      [ox + side / 2, ox + width - side / 2].forEach((planeX, i) => {
+        pieces.push({
+          x: planeX,
+          y: yFar,
+          width: 0,
+          height: depth - side,
+          render: () => (
+            <g key={`${tag}b${i}`} className="lq-iso__solid lq-iso__solid--post">
+              <polygon
+                className="lq-iso__face lq-iso__face--front"
+                points={ring([
+                  at(planeX, yNear + ny2, floorZ + nz2),
+                  at(planeX, yFar + ny2, ceilZ + nz2),
+                  at(planeX, yFar - ny2, ceilZ - nz2),
+                  at(planeX, yNear - ny2, floorZ - nz2),
+                ])}
+              />
+            </g>
+          ),
+        });
       });
     }
 
-    const deck = (which: "upper" | "lower", z0: number, z1: number) =>
-      volume(`deck-${which}`, `${tag}${which}`, solid(ox, ox + width, oy, oy + depth, z0, z1), slabZ === 0);
+    // The lower deck's portions: the area between the posts, divided in reading order.
+    const areaX = ox + side;
+    const areaY = oy + side;
+    const slotW = (width - 2 * side) / sx;
+    const slotD = (depth - 2 * side) / sy;
+    for (let j = 0; j < sy; j += 1) {
+      for (let i = 0; i < sx; i += 1) {
+        const kind = contents[j * sx + i];
+        if (!kind) continue;
+        const fit = fitRackItem(kind, { x: areaX + i * slotW, y: areaY + j * slotD, width: slotW, depth: slotD }, floorZ, clearance);
+        pieces.push({
+          x: fit.cx - fit.half,
+          y: fit.cy - fit.half,
+          width: fit.half * 2,
+          height: fit.half * 2,
+          render: () => rackItemIso(kind, fit, at, `${tag}i${i}-${j}`),
+        });
+      }
+    }
 
-    return [deck("lower", oz, floorZ), ...paintOrder(pieces).map((piece) => piece.render()), deck("upper", ceilZ, oz + height)];
+    // Where one portion ends and the next begins, scored on the deck it divides.
+    const dividers: ReactNode[] = [];
+    for (let i = 1; i < sx; i += 1) {
+      const x = areaX + i * slotW;
+      const a = at(x, areaY, floorZ);
+      const b = at(x, areaY + slotD * sy, floorZ);
+      dividers.push(<line key={`${tag}dx${i}`} className="lq-rack2__divider" x1={a.x} y1={a.y} x2={b.x} y2={b.y} />);
+    }
+    for (let j = 1; j < sy; j += 1) {
+      const y = areaY + j * slotD;
+      const a = at(areaX, y, floorZ);
+      const b = at(areaX + slotW * sx, y, floorZ);
+      dividers.push(<line key={`${tag}dy${j}`} className="lq-rack2__divider" x1={a.x} y1={a.y} x2={b.x} y2={b.y} />);
+    }
+
+    const deck = (material: string, key: string, z0: number, z1: number, extra?: ReactNode) =>
+      solidVolume(material, `${tag}${key}`, boxFaces(at, ox, ox + width, oy, oy + depth, z0, z1), slabZ === 0, extra);
+
+    return [
+      deck("steel-shaded", "lower", oz, floorZ, dividers.length > 0 ? <>{dividers}</> : undefined),
+      ...paintOrder(pieces).map((piece) => piece.render()),
+      deck("steel", "upper", ceilZ, oz + height),
+    ];
   };
 
   // Floor by floor from the ground up, and inside each floor the racks sorted back to front.
@@ -268,7 +321,7 @@ export function RackV2({
       height={boxHeight}
       viewBox={`${minX} ${minY} ${boxWidth} ${boxHeight}`}
       role="img"
-      aria-label={nx * ny * nz > 1 ? `${nx * ny * nz} étagères` : carton ? "Étagère portant un carton" : "Étagère"}
+      aria-label={nx * ny * nz > 1 ? `${nx * ny * nz} étagères` : "Étagère"}
     >
       {drawn}
     </svg>

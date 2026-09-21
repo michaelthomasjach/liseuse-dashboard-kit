@@ -1,6 +1,8 @@
 import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react";
 import { RackV2 } from "./RackV2";
+import { RackItem } from "./RackItem";
+import { RACK_ITEM_KINDS, RACK_ITEM_LABEL, type RackItemKind } from "./rackItems";
 import { NumberField } from "../forms";
 
 const meta: Meta<typeof RackV2> = {
@@ -12,12 +14,94 @@ type Story = StoryObj<typeof RackV2>;
 
 export const Boite: Story = {
   name: "La boîte",
-  args: { width: 8, depth: 2, height: 2.4, cellSize: 34, posts: true, postSize: 0.22, deckThickness: 0.2 },
+  args: {
+    width: 8,
+    depth: 2,
+    height: 2.4,
+    cellSize: 34,
+    posts: true,
+    braces: true,
+    postSize: 0.22,
+    deckThickness: 0.2,
+    slotsX: 3,
+    contents: ["carton", null, "bidon"],
+  },
   render: (args) => (
     <div style={{ padding: 40 }}>
       <RackV2 {...args} />
     </div>
   ),
+};
+
+/** Chaque sorte est décrite une fois et vue de deux caméras : de trois quarts pour l'étagère, de
+ *  dessus pour un plan. Un bidon est un cylindre ici et un disque là *parce que c'est un bidon* —
+ *  les deux vues ne peuvent pas diverger. */
+export const Catalogue: Story = {
+  name: "Ce qu'on pose dessus",
+  render: () => (
+    <div style={{ display: "flex", gap: 28, padding: 40, flexWrap: "wrap" }}>
+      {RACK_ITEM_KINDS.map((kind) => (
+        <div key={kind} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, width: 120 }}>
+          <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "center", height: 130 }}>
+            <RackItem kind={kind} view="iso" cellSize={34} />
+          </div>
+          <RackItem kind={kind} view="plan" cellSize={26} />
+          <span style={{ fontSize: "0.72rem", fontWeight: 600 }}>{RACK_ITEM_LABEL[kind]}</span>
+        </div>
+      ))}
+    </div>
+  ),
+};
+
+/** Le plateau du bas se divise en portions, et chaque portion porte un élément. C'est l'unité de
+ *  « quelque part où poser quelque chose » : remplir une étagère est affaire de nommer des choses,
+ *  pas de les placer. */
+export const Portions: Story = {
+  name: "Portions du plateau",
+  render: function Render() {
+    const [slots, setSlots] = useState(4);
+    const [contents, setContents] = useState<(RackItemKind | null)[]>(["carton", "bidon", "boite", "bouteille"]);
+
+    const cycle = (i: number) => {
+      const order: (RackItemKind | null)[] = [...RACK_ITEM_KINDS, null];
+      setContents((current) => {
+        const next = [...current];
+        while (next.length < slots) next.push(null);
+        const at = order.indexOf(next[i] ?? null);
+        next[i] = order[(at + 1) % order.length];
+        return next;
+      });
+    };
+
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 20, padding: 32, alignItems: "flex-start" }}>
+        <div style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap" }}>
+          <div style={{ width: 150 }}>
+            <NumberField
+              label="Portions"
+              size="small"
+              value={slots}
+              min={1}
+              max={8}
+              step={1}
+              onChange={(next) => setSlots(next === "" ? 1 : Math.max(1, Math.min(8, next)))}
+            />
+          </div>
+          {Array.from({ length: slots }, (_, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => cycle(i)}
+              style={{ font: "inherit", fontSize: "0.7rem", padding: "6px 10px", cursor: "pointer" }}
+            >
+              {i + 1} · {contents[i] ? RACK_ITEM_LABEL[contents[i] as RackItemKind] : "vide"}
+            </button>
+          ))}
+        </div>
+        <RackV2 width={slots * 2} depth={2} height={2.4} cellSize={38} posts braces slotsX={slots} contents={contents} />
+      </div>
+    );
+  },
 };
 
 /** Trois champs pour les dimensions d'une étagère, trois pour le nombre d'étagères sur chaque axe.
@@ -86,6 +170,7 @@ export const Atelier: Story = {
             countZ={count.z}
             cellSize={cellSize}
             posts
+            braces
           />
         </div>
       </div>
@@ -93,28 +178,15 @@ export const Atelier: Story = {
   },
 };
 
-/** `posts` remplace les quatre arêtes verticales par de vrais poteaux — des colonnes carrées posées
- *  *vers l'intérieur* de leur coin, donc la silhouette de la boîte ne bouge pas d'un pixel : on
- *  change ce dont les montants sont faits, pas où est l'étagère. La section par défaut est celle
- *  d'un montant de palettier ramenée à l'échelle du plan, et elle est la même partout. */
+/** `posts` remplace les quatre arêtes verticales par de vrais poteaux, `braces` ajoute la diagonale
+ *  de contreventement dans chaque cadre d'about — le membre qui fait d'une étagère autre chose que
+ *  quatre pieds sous deux plateaux. */
 export const Poteaux: Story = {
-  name: "De vrais poteaux",
+  name: "Poteaux et contreventement",
   render: () => (
     <div style={{ display: "flex", gap: 64, alignItems: "flex-end", padding: 40, flexWrap: "wrap" }}>
-      <RackV2 width={6} depth={2} height={2.4} cellSize={40} posts />
-      <RackV2 width={6} depth={2} height={2.4} cellSize={40} />
-    </div>
-  ),
-};
-
-/** Le plateau du bas porte un carton — une chose pleine dans une ossature ajourée. À côté, la même
- *  étagère vide : c'est la comparaison qui dit ce que le carton ajoute. */
-export const AvecCarton: Story = {
-  name: "Un carton sur le plateau",
-  render: () => (
-    <div style={{ display: "flex", gap: 64, alignItems: "flex-end", padding: 40, flexWrap: "wrap" }}>
-      <RackV2 width={6} depth={2} height={2.4} cellSize={40} posts />
-      <RackV2 width={6} depth={2} height={2.4} cellSize={40} posts carton={null} />
+      <RackV2 width={6} depth={2} height={2.4} cellSize={40} posts braces />
+      <RackV2 width={6} depth={2} height={2.4} cellSize={40} braces />
     </div>
   ),
 };
@@ -126,9 +198,9 @@ export const Proportions: Story = {
   name: "Proportions",
   render: () => (
     <div style={{ display: "flex", gap: 48, alignItems: "flex-end", padding: 40, flexWrap: "wrap" }}>
-      <RackV2 width={10} depth={2} height={1.5} cellSize={30} posts />
-      <RackV2 width={4} depth={4} height={4} cellSize={30} posts carton={{ x: 0.6, y: 0.6, width: 2, depth: 2, height: 1.4 }} />
-      <RackV2 width={2} depth={2} height={6} cellSize={30} posts carton={{ x: 0.3, y: 0.3, width: 1.4, depth: 1.4, height: 1.2 }} />
+      <RackV2 width={10} depth={2} height={1.5} cellSize={30} posts braces slotsX={4} contents={["carton", "boite", null, "bidon"]} />
+      <RackV2 width={4} depth={4} height={4} cellSize={30} posts braces slotsX={2} slotsY={2} contents={["carton", "bidon", "bouteille", "boite"]} />
+      <RackV2 width={2} depth={2} height={6} cellSize={30} posts braces contents={["palette"]} />
     </div>
   ),
 };

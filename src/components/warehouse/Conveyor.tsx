@@ -55,7 +55,7 @@ import "./Conveyor.css";
  * takes there — by turning the *projector* about the load's own centre, which draws a turned box
  * with the code that only knows how to draw square ones — and each copy slides across its own
  * segment before handing over to the next. The position never jumps; only the bearing steps, by
- * seven degrees at a time. A round load is exempt: a drum looks the same at every bearing, so it is
+ * under four degrees at a time, which does not read as stepping at all. A round load is exempt: a drum looks the same at every bearing, so it is
  * drawn once and carried. It fades in where it arrives and out where it leaves, a module drawn on
  * its own having no upstream to show.
  *
@@ -110,14 +110,6 @@ const BELT_SHARE = 0.74;
 /** Hauteur d'une barrière, en cases. Basse : elle retient un colis, elle ne le cache pas. */
 const DEFAULT_GUARD = 0.14;
 
-/** Nombre de tronçons d'une barrière d'angle. Assez pour que le pan coupé ne se voie pas, assez peu
- *  pour que chaque tronçon reste un volume qu'on trie avec les autres. */
-const GUARD_SEGMENTS = 14;
-
-/** Tronçons du bâti d'un angle. Plus nombreux que ceux d'une barrière : c'est la pièce la plus
- *  large du dessin, donc celle dont un pan coupé se verrait le plus. */
-const BED_SEGMENTS = 20;
-
 /** Points d'echantillonnage du parcours d'une charge, tous troncons confondus. Un arc en demande
  *  beaucoup ; une ligne droite s'en contenterait de deux. */
 const LOAD_SAMPLES = 24;
@@ -127,8 +119,9 @@ const LOAD_SAMPLES = 24;
  *  l'espace, et le deplacement d'un point sous une rotation du sol depend de sa hauteur. Une seule
  *  matrice cisaillerait donc le colis d'une vingtaine de pixels dans le virage. Il est redessine a
  *  chaque troncon, au cap qu'il y prend, et chaque exemplaire glisse sur sa part du parcours : la
- *  position ne saute jamais, seul le cap change, de sept degres a la fois. */
-const TURN_STEPS = 12;
+ *  position ne saute jamais, seul le cap change — de moins de quatre degres a la fois, ce qui ne
+ *  se voit plus. */
+const TURN_STEPS = 24;
 
 type Piece = { x: number; y: number; width: number; height: number; render: () => ReactNode };
 /** Un point du parcours et la direction qu'y prend la bande. */
@@ -206,69 +199,46 @@ export function Conveyor({
   const arcPoint = (r: number, a: number, z: number) => at(r * Math.cos(a), spanY + r * Math.sin(a), z);
   /** L'angle du parcours au tronçon `i` d'un découpage en `n`. */
   const arcAngle = (i: number, n: number) => -Math.PI / 2 + (Math.PI / 2) * (i / n);
-  /** De quel côté d'un rayon la caméra regarde, une fois le sol tourné : c'est ce qui décide quelle
-   *  paroi d'un anneau est visible, et ça change de bord en cours d'arc. */
-  const outwardAt = (a: number) => {
-    const n = spin(Math.cos(a), Math.sin(a));
-    const o = spin(0, 0);
-    return n.x - o.x + (n.y - o.y) > 0;
-  };
-
   /**
-   * Un tronçon d'anneau : sa face du dessus, la paroi que la caméra voit, et le bout droit quand
-   * c'en est un. Le bâti d'un angle et ses barrières sont tous deux faits de ça — un anneau plein
-   * n'est qu'un anneau très épais, et il ne sert à rien d'en écrire deux fois la géométrie.
+   * Un anneau **d'un seul tenant** : sa face du dessus, ses deux parois, et ses deux bouts droits
+   * quand ils regardent la caméra. Le bâti d'un angle et ses barrières sont tous deux faits de ça —
+   * un bâti n'est qu'un anneau très épais, et il ne sert à rien d'en écrire deux fois la géométrie.
+   *
+   * Il était d'abord découpé en tronçons, un volume par facette, pour que chacun montre la paroi
+   * que la caméra voit de son côté de l'arc — car ce côté change en cours de virage. Mais chaque
+   * facette porte son propre trait, et une bordure faite de quatorze petits rectangles cernés se
+   * lit comme quatorze petits rectangles. Les deux parois sont donc dessinées entières, d'une seule
+   * courbe, et **de la même teinte** : celle qui se trouve derrière est alors recouverte par l'autre
+   * sans que rien ne le montre, et la réunion des deux couvre exactement la silhouette vraie. La
+   * face du dessus passe en dernier et recouvre la paroi lointaine, qui pend sous elle.
    */
-  const arcSegment = (
-    material: string,
-    rIn: number,
-    rOut: number,
-    z0: number,
-    z1: number,
-    i: number,
-    n: number,
-    key: string
-  ): Piece => {
-    const a0 = arcAngle(i, n);
-    const a1 = arcAngle(i + 1, n);
-    const wall = outwardAt((a0 + a1) / 2) ? rOut : rIn;
-    const world = [
-      [rIn, a0],
-      [rOut, a0],
-      [rOut, a1],
-      [rIn, a1],
-    ].map(([r, a]) => ({ x: r * Math.cos(a), y: spanY + r * Math.sin(a) }));
-    // Les deux bouts de l'anneau sont des plans radiaux : on ne voit que celui dont la normale,
-    // qui est la tangente sortante, regarde la caméra.
+  const arcRing = (material: string, rIn: number, rOut: number, z0: number, z1: number, key: string): ReactNode => {
+    const N = 48;
+    const band = (r: number, z: number) => Array.from({ length: N + 1 }, (_, i) => arcPoint(r, arcAngle(i, N), z));
+    const outerTop = band(rOut, z1);
+    const innerTop = band(rIn, z1);
+    const outerLow = band(rOut, z0);
+    const innerLow = band(rIn, z0);
+    const caps: Point[][] = [];
     const capAt = (a: number, sign: number) => {
       const t = spin(-Math.sin(a) * sign, Math.cos(a) * sign);
       const o = spin(0, 0);
       return t.x - o.x + (t.y - o.y) > 0;
     };
-    const caps: Point[][] = [];
-    if (i === 0 && capAt(a0, -1)) caps.push([arcPoint(rIn, a0, z0), arcPoint(rOut, a0, z0), arcPoint(rOut, a0, z1), arcPoint(rIn, a0, z1)]);
-    if (i === n - 1 && capAt(a1, 1)) caps.push([arcPoint(rIn, a1, z0), arcPoint(rOut, a1, z0), arcPoint(rOut, a1, z1), arcPoint(rIn, a1, z1)]);
-    return {
-      ...footprint(
-        world.map((p) => p.x),
-        world.map((p) => p.y)
-      ),
-      render: () => (
-        <g key={key} className={`lq-iso__solid lq-iso__solid--${material}`}>
-          <polygon
-            className="lq-iso__face lq-iso__face--front"
-            points={ring([arcPoint(wall, a0, z0), arcPoint(wall, a1, z0), arcPoint(wall, a1, z1), arcPoint(wall, a0, z1)])}
-          />
-          {caps.map((c, k) => (
-            <polygon key={`cap${k}`} className="lq-iso__face lq-iso__face--side" points={ring(c)} />
-          ))}
-          <polygon
-            className="lq-iso__face lq-iso__face--top"
-            points={ring([arcPoint(rIn, a0, z1), arcPoint(rOut, a0, z1), arcPoint(rOut, a1, z1), arcPoint(rIn, a1, z1)])}
-          />
-        </g>
-      ),
-    };
+    const a0 = arcAngle(0, 1);
+    const a1 = arcAngle(1, 1);
+    if (capAt(a0, -1)) caps.push([arcPoint(rIn, a0, z0), arcPoint(rOut, a0, z0), arcPoint(rOut, a0, z1), arcPoint(rIn, a0, z1)]);
+    if (capAt(a1, 1)) caps.push([arcPoint(rIn, a1, z0), arcPoint(rOut, a1, z0), arcPoint(rOut, a1, z1), arcPoint(rIn, a1, z1)]);
+    return (
+      <g key={key} className={`lq-iso__solid lq-iso__solid--${material}`}>
+        <polygon className="lq-iso__face lq-iso__face--front" points={ring([...innerTop, ...[...innerLow].reverse()])} />
+        <polygon className="lq-iso__face lq-iso__face--front" points={ring([...outerTop, ...[...outerLow].reverse()])} />
+        {caps.map((c, k) => (
+          <polygon key={`cap${k}`} className="lq-iso__face lq-iso__face--front" points={ring(c)} />
+        ))}
+        <polygon className="lq-iso__face lq-iso__face--top" points={ring([...outerTop, ...[...innerTop].reverse()])} />
+      </g>
+    );
   };
 
   /** La bande elle-même : le ruban balayé par le parcours, à plat sur le bâti. */
@@ -276,8 +246,8 @@ export function Conveyor({
     if (kind === "corner") {
       const outer: Point[] = [];
       const inner: Point[] = [];
-      for (let i = 0; i <= 24; i += 1) {
-        const a = -Math.PI / 2 + (Math.PI / 2) * (i / 24);
+      for (let i = 0; i <= 48; i += 1) {
+        const a = arcAngle(i, 48);
         outer.push(arcPoint(radius + beltHalf, a, bedTop));
         inner.push(arcPoint(radius - beltHalf, a, bedTop));
       }
@@ -298,29 +268,25 @@ export function Conveyor({
     const tail = stepAt(0.5 - 0.09 * way);
     const nx = -tail.hy;
     const ny = tail.hx;
-    const arm = beltHalf * 0.5;
+    const armLen = beltHalf * 0.5;
     return ring([
-      at(tail.x + nx * arm, tail.y + ny * arm, bedTop),
+      at(tail.x + nx * armLen, tail.y + ny * armLen, bedTop),
       at(tip.x, tip.y, bedTop),
-      at(tail.x - nx * arm, tail.y - ny * arm, bedTop),
+      at(tail.x - nx * armLen, tail.y - ny * armLen, bedTop),
     ]);
   })();
 
   // ---- ce qui se tient sur le bâti : les barrières, et la charge ----
   const pieces: Piece[] = [];
 
+  // Les barrières d'un angle sont deux anneaux minces ; celles d'un droit, deux boîtes. Les deux
+  // anneaux sont séparés par toute la largeur de la bande, donc ils ne se recouvrent jamais à
+  // l'écran et leur ordre entre eux est sans objet : seule compte leur place autour de la charge.
+  const guards: ReactNode[] = [];
   if (guard > 0) {
     if (kind === "corner") {
-      // Chaque barrière est une chaîne de tronçons droits le long de l'arc, et chacun est un volume
-      // trié avec le reste : l'extérieure passe devant l'intérieure sur la seconde moitié du virage
-      // et derrière sur la première, puisque la caméra regarde depuis le coin même où l'arc est
-      // centré. Une barrière d'un bloc ne pourrait pas dire les deux.
       for (const r of [radius - beltHalf - guardThick / 2, radius + beltHalf + guardThick / 2]) {
-        for (let i = 0; i < GUARD_SEGMENTS; i += 1) {
-          pieces.push(
-            arcSegment("post", r - guardThick / 2, r + guardThick / 2, bedTop, bedTop + guard, i, GUARD_SEGMENTS, `g${r.toFixed(3)}-${i}`)
-          );
-        }
+        guards.push(arcRing("post", r - guardThick / 2, r + guardThick / 2, bedTop, bedTop + guard, `g${r.toFixed(3)}`));
       }
     } else {
       for (const edge of [spanY / 2 - beltHalf - guardThick, spanY / 2 + beltHalf]) {
@@ -455,22 +421,12 @@ export function Conveyor({
   // Dans un angle, il suit la courbe : un plateau carré sous une bande qui tourne dit que la
   // machine est une caisse à laquelle on a peint un arc dessus, alors que c'est une courbe qui a
   // une largeur. C'est le même anneau que les barrières, en beaucoup plus épais.
-  const bedPieces: Piece[] = [];
-  if (kind === "corner") {
-    for (let i = 0; i < BED_SEGMENTS; i += 1) {
-      bedPieces.push(
-        arcSegment("steel", radius - beltHalf - bedMargin, radius + beltHalf + bedMargin, bedZ, bedTop, i, BED_SEGMENTS, `b${i}`)
-      );
-    }
-  } else {
-    bedPieces.push({
-      x: 0,
-      y: 0,
-      width: spanX,
-      height: spanY,
-      render: () => solidVolume("steel", "bed", boxFaces(at, 0, spanX, 0, spanY, bedZ, bedTop, facing)),
-    });
-  }
+  const bed: ReactNode =
+    kind === "corner" ? (
+      arcRing("steel", radius - beltHalf - bedMargin, radius + beltHalf + bedMargin, bedZ, bedTop, "bed")
+    ) : (
+      solidVolume("steel", "bed", boxFaces(at, 0, spanX, 0, spanY, bedZ, bedTop, facing))
+    );
 
   // ---- les pieds ----
   // Un tapis long fait pousser des pieds intermédiaires : un bâti de neuf mètres sur quatre pieds
@@ -488,11 +444,30 @@ export function Conveyor({
   if (kind === "corner") {
     // Un pied sous chaque coin de l'anneau : ce sont les quatre seuls endroits où le bâti a un
     // bout droit sur lequel poser quelque chose.
-    for (const a of [arcAngle(0, 1), arcAngle(1, 1)]) {
-      for (const r of [radius - beltHalf - bedMargin + leg / 2, radius + beltHalf + bedMargin - leg / 2]) {
-        legAt(r * Math.cos(a), spanY + r * Math.sin(a), `l${a.toFixed(2)}-${r.toFixed(2)}`);
-      }
-    }
+    // Un poteau affleure le bord du bâti, et un poteau est un carré : ce dont il déborde dans une
+    // direction n'est donc pas la moitié de son côté mais `h·(|cos| + |sin|)` — la moitié à plat,
+    // la demi-diagonale en biais. Posé en biais avec un retrait d'une demi-largeur, comme il
+    // l'était, il sortait de l'anneau d'un cinquième de sa taille.
+    const h = leg / 2;
+    const reachAt = (ux: number, uy: number) => h * (Math.abs(ux) + Math.abs(uy));
+    const stand = (a: number, outer: boolean, tangentSign: number, key: string) => {
+      const ux = Math.cos(a);
+      const uy = Math.sin(a);
+      const edge = outer ? radius + beltHalf + bedMargin : radius - beltHalf - bedMargin;
+      const r = outer ? edge - reachAt(ux, uy) : edge + reachAt(ux, uy);
+      // Aux deux bouts, il affleure aussi le plan droit qui ferme l'anneau.
+      const tx = -uy * tangentSign;
+      const ty = ux * tangentSign;
+      const slide = tangentSign === 0 ? 0 : reachAt(tx, ty);
+      legAt(r * ux + tx * slide, spanY + r * uy + ty * slide, key);
+    };
+    stand(arcAngle(0, 1), false, 1, "l-in-start");
+    stand(arcAngle(0, 1), true, 1, "l-out-start");
+    stand(arcAngle(1, 1), false, -1, "l-in-end");
+    stand(arcAngle(1, 1), true, -1, "l-out-end");
+    // Et un cinquième au milieu de la courbe, sur la rive extérieure : c'est la portée la plus
+    // longue du bâti, et la seule qui n'a rien sous elle entre les deux bouts.
+    stand(arcAngle(1, 2), true, 0, "l-mid");
   } else {
     const rows = Math.max(2, Math.round(spanX / 2.5) + 1);
     for (let r = 0; r < rows; r += 1) {
@@ -549,12 +524,18 @@ export function Conveyor({
       )}
 
       {sorted(legs).map((piece) => piece.render())}
-      {sorted(bedPieces).map((piece) => piece.render())}
+      {bed}
       {/* La bande et sa flèche sont à plat sur le bâti : rien ne peut passer dessous, donc elles
           sont posées avant tout ce qui se dresse dessus plutôt que triées avec. */}
       <polygon className="lq-conveyor__belt" points={ring(beltFace)} />
       <polyline className="lq-conveyor__arrow" points={arrow} />
+      {/* Sur un angle, la barrière intérieure passe avant la charge et l'extérieure après : celle
+          qui est devant change de bord au milieu du virage, et un anneau d'un seul tenant ne peut
+          pas dire les deux — mais une barrière fait cinq pixels de haut, et c'est le seul endroit
+          où le choix se voit. */}
+      {guards[0]}
       {sorted(pieces).map((piece) => piece.render())}
+      {guards[1]}
     </svg>
   );
 }

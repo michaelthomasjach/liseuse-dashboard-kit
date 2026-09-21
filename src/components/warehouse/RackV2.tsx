@@ -61,6 +61,11 @@ import "./RackV2.css";
  * racks pushed together is what a run of shelving is, and a gap is something a caller can get by
  * asking for two blocks.
  *
+ * `aisle` ouvre une allée entre les rangées, et `aisleEvery` dit tous les combien — deux par
+ * défaut, parce que des palettiers se posent **dos à dos** : ce qu'une allée dessert, c'est une
+ * paire de rangées et non une rangée. `crossAisle` fait la même chose en travers. À zéro, les
+ * rangées se touchent, ce qui reste ce qu'un bloc compact veut dire.
+ *
  * Stacked, a deck is **shared rather than doubled**: only the rack with nothing above it carries a
  * top deck, and the others run their uprights straight up to the underside of the one overhead. A
  * shelf between two floors is one piece of steel, not two lying on each other — drawing both put a
@@ -117,6 +122,15 @@ export interface RackV2Props {
   countY?: number;
   /** Nombre d'étagères empilées sur l'axe Z. */
   countZ?: number;
+  /** Largeur d'une allée entre deux rangées, en cases. Zéro : les rangées se touchent. */
+  aisle?: number;
+  /** Une allée toutes les combien de rangées. Deux par défaut, parce que des palettiers se posent
+   *  dos à dos : ce qu'on dessert par une allée, c'est une paire de rangées et non une rangée. */
+  aisleEvery?: number;
+  /** Largeur d'une allée transversale, en cases, sur l'axe X. */
+  crossAisle?: number;
+  /** Une allée transversale toutes les combien d'étagères en enfilade. */
+  crossEvery?: number;
   /** Portions du plateau du bas sur l'axe X. */
   slotsX?: number;
   /** Portions du plateau du bas sur l'axe Y. */
@@ -190,6 +204,10 @@ export function RackV2({
   countX = 1,
   countY = 1,
   countZ = 1,
+  aisle = 0,
+  aisleEvery = 2,
+  crossAisle = 0,
+  crossEvery = 4,
   slotsX = 1,
   slotsY = 1,
   contents = ["carton"],
@@ -206,6 +224,12 @@ export function RackV2({
 }: RackV2Props) {
   const ring = (points: Point[]) => points.map((p) => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(" ");
 
+  /** L'écart cumulé avant l'index `i`, quand une allée s'ouvre toutes les `every` unités. Le
+   *  `Math.floor` est ce qui fait les paires : les rangées 0 et 1 se touchent, l'allée vient avant
+   *  la 2. */
+  const aisleBefore = (i: number, width: number, every: number) =>
+    width > 0 && every >= 1 ? Math.floor(i / Math.max(1, Math.floor(every))) * width : 0;
+
   const nx = count(countX);
   const ny = count(countY);
   const nz = count(countZ);
@@ -215,8 +239,8 @@ export function RackV2({
   // The block turns on the floor, about its own centre — one rotation for the whole block, not one
   // per rack: racks turned individually inside a block would cut into each other, and "turn the
   // shelving" is a thing you do to the shelving, not to each shelf.
-  const spanX = nx * width;
-  const spanY = ny * depth;
+  const spanX = nx * width + aisleBefore(nx - 1, crossAisle, crossEvery);
+  const spanY = ny * depth + aisleBefore(ny - 1, aisle, aisleEvery);
   const spanZ = nz * height;
   const theta = (rotation * Math.PI) / 180;
   const cosT = Math.cos(theta);
@@ -482,16 +506,15 @@ export function RackV2({
   };
 
   // L'ombre du bloc entier, au sol : elle passe avant tout, rien ne pouvant se glisser dessous.
+  /** Le projecteur du monde, sans la rotation du bloc : le soleil est une direction du monde. */
+  const flat: Project = (x, y, z) => projectIso(x * cellSize, y * cellSize, z * cellSize);
   const shade = shadows
     ? [
         castShadow(
-          at,
-          [
-            { x: 0, y: 0 },
-            { x: nx * width, y: 0 },
-            { x: nx * width, y: ny * depth },
-            { x: 0, y: ny * depth },
-          ],
+          flat,
+          // Les coins du bloc *tournés* : le soleil est une direction du monde, et un décalage posé
+          // dans le repère du bloc tournerait avec lui.
+          [spin(0, 0), spin(nx * width, 0), spin(nx * width, ny * depth), spin(0, ny * depth)],
           nz * height,
           "shadow"
         ),
@@ -504,8 +527,8 @@ export function RackV2({
     const floor: Piece[] = [];
     for (let iy = 0; iy < ny; iy += 1) {
       for (let ix = 0; ix < nx; ix += 1) {
-        const ox = ix * width;
-        const oy = iy * depth;
+        const ox = ix * width + aisleBefore(ix, crossAisle, crossEvery);
+        const oy = iy * depth + aisleBefore(iy, aisle, aisleEvery);
         floor.push({
           x: ox,
           y: oy,

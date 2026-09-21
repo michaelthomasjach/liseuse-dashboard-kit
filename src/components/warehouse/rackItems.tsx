@@ -209,14 +209,27 @@ export function solidVolume(material: string, key: string, faces: Faces, flat = 
  */
 export const SUN_CAST = { x: 0.34, y: -0.62 };
 
-/** L'ombre d'une emprise : la même forme, poussée au sol. */
-export function castShadow(at: Project, points: { x: number; y: number }[], height: number, key: string) {
+/**
+ * L'ombre d'une emprise : la même forme, poussée au sol.
+ *
+ * `project` doit être le projecteur du **monde**, et `points` des points du monde — pas ceux du
+ * repère d'un module. Le décalage est une direction du monde : appliqué dans le repère local d'un
+ * objet, il tourne avec lui, et une scène où chaque pièce est tournée autrement se retrouve avec
+ * autant de soleils que de pièces. C'est le genre d'erreur qui ne se voit que sur la deuxième
+ * pièce.
+ */
+export function castShadow(project: Project, points: { x: number; y: number }[], height: number, key: string) {
   const d = { x: SUN_CAST.x * height, y: SUN_CAST.y * height };
   return (
     <polygon
       key={key}
       className="lq-iso__shadow"
-      points={points.map((p) => { const q = at(p.x + d.x, p.y + d.y, 0); return `${q.x.toFixed(2)},${q.y.toFixed(2)}`; }).join(" ")}
+      points={points
+        .map((p) => {
+          const q = project(p.x + d.x, p.y + d.y, 0);
+          return `${q.x.toFixed(2)},${q.y.toFixed(2)}`;
+        })
+        .join(" ")}
     />
   );
 }

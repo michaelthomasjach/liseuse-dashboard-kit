@@ -23,7 +23,15 @@ import "./Conveyor.css";
  * the visible faces chosen from the rotation rather than assumed. A conveyor standing next to a
  * rack has to be made of the same stuff, or the picture reads as two drawings side by side.
  *
- * ## The two kinds
+ * ## Les trois sortes
+ *
+ * Un **T** est le module de bifurcation ou de jonction : la ligne le traverse tout droit et une
+ * dérivation part du milieu, à angle droit. `flow` dit si elle sort de la ligne ou y entre — c'est
+ * la seule chose qui distingue une bifurcation d'une jonction quand rien ne bouge, d'où ses deux
+ * flèches — et `branch` dit si la charge l'emprunte. Une charge n'y **tourne pas** : sur un vrai
+ * transfert à angle droit elle est poussée de côté, donc son cap change d'un coup au milieu et le
+ * colis garde le sien. Les deux routes mesurent la même longueur, une largeur, ce qui fait qu'elles
+ * prennent le même temps.
  *
  * A **straight** run is a bed of `length` × `width` on legs. A **corner** is the square transfer
  * module a real floor uses to turn a line: the same bed over a `width` × `width` footprint, with
@@ -124,11 +132,16 @@ import "./Conveyor.css";
  * two: a nine-metre bed on four legs is a diving board.
  */
 
-export type ConveyorKind = "straight" | "corner";
+export type ConveyorKind = "straight" | "corner" | "tee";
 
 export interface ConveyorProps {
-  /** Droit, ou à angle droit. */
+  /** Droit, à angle droit, ou en T. */
   kind?: ConveyorKind;
+  /** Sur un T : la dérivation **sort** de la ligne (`"split"`) ou y **entre** (`"merge"`). C'est ce
+   *  qui décide du sens de sa flèche, et d'où vient la charge quand elle l'emprunte. */
+  flow?: "split" | "merge";
+  /** Sur un T : la charge emprunte la dérivation au lieu de suivre la ligne principale. */
+  branch?: boolean;
   /** Longueur du tapis, en cases. Un angle est carré : il prend sa largeur. */
   length?: number;
   /** Largeur du tapis, en cases. */
@@ -226,6 +239,8 @@ type Step = { x: number; y: number; hx: number; hy: number };
 
 export function Conveyor({
   kind = "straight",
+  flow = "split",
+  branch = false,
   length = 6,
   width = 1.6,
   legHeight = 1,
@@ -253,9 +268,9 @@ export function Conveyor({
 }: ConveyorProps) {
   const uid = useId().replace(/[^a-zA-Z0-9]/g, "");
 
-  // Un angle est carré : il tourne dans son propre encombrement, et une longueur n'aurait aucun
-  // sens à lui donner.
-  const spanX = kind === "corner" ? width : Math.max(width, length);
+  // Un angle et un T sont carrés : ils tiennent dans leur propre encombrement, et une longueur
+  // n'aurait aucun sens à leur donner.
+  const spanX = kind === "straight" ? Math.max(width, length) : width;
   const spanY = width;
 
   const theta = (rotation * Math.PI) / 180;
@@ -287,7 +302,9 @@ export function Conveyor({
   const bedZ = Math.max(0, legHeight);
   const slab = Math.max(0.02, bedThickness);
   // Un angle reste de niveau : une courbe qui monte est une hélice, et ce n'est pas le même objet.
-  const slope = kind === "corner" ? 0 : rise;
+  // Seule une ligne droite s'incline : une courbe qui monte est une hélice, et un T qui monte
+  // devrait choisir laquelle de ses trois branches est de niveau.
+  const slope = kind === "straight" ? rise : 0;
   /** Le dessous du bâti à l'abscisse `x`, puis son dessus. Tout ce qui repose sur le tapis se lit
    *  ici plutôt que sur une hauteur unique, faute de quoi seule la moitié du dessin s'inclinerait. */
   const under = (x: number) => bedZ + (slope * x) / Math.max(1e-6, spanX);
@@ -306,8 +323,25 @@ export function Conveyor({
   const radius = spanY / 2;
   // Un tapis incliné est plus long que son ombre au sol : c'est la pente qu'on parcourt, pas
   // l'horizontale, et à vitesse égale il prend donc plus de temps.
-  const run = kind === "corner" ? (Math.PI / 2) * radius : Math.hypot(spanX, slope);
+  // Un T mesure une largeur quel que soit le chemin pris : tout droit c'est `W`, par la
+  // dérivation c'est deux demies. C'est une coïncidence utile — les deux routes prennent le même
+  // temps, ce qui est vrai d'un vrai transfert à angle droit.
+  const run = kind === "corner" ? (Math.PI / 2) * radius : kind === "tee" ? spanX : Math.hypot(spanX, slope);
   const stepAt = (t: number): Step => {
+    if (kind === "tee") {
+      const half = spanY / 2;
+      if (!branch) return { x: spanX * t, y: half, hx: 1, hy: 0 };
+      const u = t < 0.5 ? t / 0.5 : (t - 0.5) / 0.5;
+      // Une charge ne tourne pas sur un transfert à angle droit : elle est poussée de côté. Le cap
+      // change donc d'un coup au milieu, et le colis garde le sien — ce qui est exactement ce que
+      // fait un colis sur un transfert à rouleaux escamotables.
+      if (flow === "merge") {
+        return t < 0.5
+          ? { x: half, y: spanY - half * u, hx: 0, hy: -1 }
+          : { x: half + half * u, y: half, hx: 1, hy: 0 };
+      }
+      return t < 0.5 ? { x: half * u, y: half, hx: 1, hy: 0 } : { x: half, y: half + half * u, hx: 0, hy: 1 };
+    }
     if (kind === "corner") {
       const a = -Math.PI / 2 + (Math.PI / 2) * t;
       return { x: radius * Math.cos(a), y: spanY + radius * Math.sin(a), hx: -Math.sin(a), hy: Math.cos(a) };
@@ -387,6 +421,22 @@ export function Conveyor({
       }
       return [...outer, ...inner.reverse()];
     }
+    if (kind === "tee") {
+      const c = spanY / 2;
+      const h = beltHalf;
+      // Un seul polygone en T plutôt que deux rectangles : deux formes cernées laisseraient un
+      // trait en travers du croisement, là où il n'y a rien.
+      return [
+        [0, c - h],
+        [spanX, c - h],
+        [spanX, c + h],
+        [c + h, c + h],
+        [c + h, spanY],
+        [c - h, spanY],
+        [c - h, c + h],
+        [0, c + h],
+      ].map(([x, y]) => at(x, y, bedTop));
+    }
     return [
       at(0, spanY / 2 - beltHalf, deck(0)),
       at(spanX, spanY / 2 - beltHalf, deck(spanX)),
@@ -395,19 +445,37 @@ export function Conveyor({
     ];
   })();
 
-  /** La flèche : une seule, au milieu du parcours, et elle ne bouge pas. */
-  const arrow = (() => {
-    const way = reversed ? -1 : 1;
-    const tip = stepAt(0.5 + 0.09 * way);
-    const tail = stepAt(0.5 - 0.09 * way);
-    const nx = -tail.hy;
-    const ny = tail.hx;
+  /** Une flèche posée en un point, dans un cap. Elle ne bouge pas. */
+  const arrowAt = (x: number, y: number, hx: number, hy: number) => {
+    const reach = 0.09 * Math.max(1, spanX);
+    const nx = -hy;
+    const ny = hx;
     const armLen = beltHalf * 0.5;
     return ring([
-      at(tail.x + nx * armLen, tail.y + ny * armLen, deck(tail.x)),
-      at(tip.x, tip.y, deck(tip.x)),
-      at(tail.x - nx * armLen, tail.y - ny * armLen, deck(tail.x)),
+      at(x - hx * reach + nx * armLen, y - hy * reach + ny * armLen, deck(x - hx * reach)),
+      at(x + hx * reach, y + hy * reach, deck(x + hx * reach)),
+      at(x - hx * reach - nx * armLen, y - hy * reach - ny * armLen, deck(x - hx * reach)),
     ]);
+  };
+
+  /** Les flèches. Un T en porte deux : sa ligne et sa dérivation, chacune disant son sens — c'est
+   *  la seule chose qui distingue une bifurcation d'une jonction quand rien ne bouge. */
+  const arrows = (() => {
+    const way = reversed ? -1 : 1;
+    if (kind === "tee") {
+      const c = spanY / 2;
+      const branchWay = flow === "merge" ? -1 : 1;
+      return [
+        arrowAt(spanX * 0.28, c, way, 0),
+        arrowAt(c, c + (spanY - c) * 0.62, 0, branchWay * way),
+      ];
+    }
+    const mid = stepAt(0.5);
+    const tip = stepAt(0.5 + 0.09 * way);
+    const tail = stepAt(0.5 - 0.09 * way);
+    const hx = (tip.x - tail.x) / Math.max(1e-6, Math.hypot(tip.x - tail.x, tip.y - tail.y));
+    const hy = (tip.y - tail.y) / Math.max(1e-6, Math.hypot(tip.x - tail.x, tip.y - tail.y));
+    return [arrowAt(mid.x, mid.y, hx, hy)];
   })();
 
   // ---- ce qui se tient sur le bâti : les barrières, et la charge ----
@@ -423,6 +491,21 @@ export function Conveyor({
       for (const r of [radius - beltHalf - guardThick / 2, radius + beltHalf + guardThick / 2]) {
         guards.push(arcRing("post", r - guardThick / 2, r + guardThick / 2, bedTop, bedTop + guard, `g${r.toFixed(3)}`));
       }
+    } else if (kind === "tee") {
+      const c = spanY / 2;
+      const h = beltHalf;
+      const gt = guardThick;
+      // Cinq pans, et les trois ouvertures qu'ils laissent sont les trois ports du T.
+      const rails: [number, number, number, number][] = [
+        [0, spanX, c - h - gt, c - h],
+        [0, c - h, c + h, c + h + gt],
+        [c + h, spanX, c + h, c + h + gt],
+        [c - h - gt, c - h, c + h, spanY],
+        [c + h, c + h + gt, c + h, spanY],
+      ];
+      rails.forEach(([x0, x1, y0, y1], i) =>
+        guards.push(solidVolume("post", `g${i}`, boxFaces(at, x0, x1, y0, y1, bedTop, bedTop + guard, facing)))
+      );
     } else {
       for (const edge of [spanY / 2 - beltHalf - guardThick, spanY / 2 + beltHalf]) {
         guards.push(solidVolume("post", `g${edge.toFixed(3)}`, slopedFaces(0, spanX, edge, edge + guardThick, slab, guard)));
@@ -467,6 +550,7 @@ export function Conveyor({
   // Un colis rond a le meme dessin sous tous les caps : inutile de le redecouper. Un colis
   // anguleux dans un angle, si.
   const rounded = load ? fitRackItem(load, { x: 0, y: 0, width: 1, depth: 1 }, 0, Infinity).spec.round : false;
+  // Un T ne fait pas tourner sa charge : elle est poussée de côté, pas virée.
   const turns = kind === "corner" && load && !rounded ? TURN_STEPS : 1;
   const perTurn = Math.max(2, Math.round(LOAD_SAMPLES / turns));
   const berth = beltHalf * 2;
@@ -596,29 +680,32 @@ export function Conveyor({
   // Dans un angle, il suit la courbe : un plateau carré sous une bande qui tourne dit que la
   // machine est une caisse à laquelle on a peint un arc dessus, alors que c'est une courbe qui a
   // une largeur. C'est le même anneau que les barrières, en beaucoup plus épais.
-  /** Les ombres : l'emprise du bâti, et celle de chaque pied. Elles sont au sol, donc elles
-   *  passent avant tout le reste — rien ne peut se glisser dessous. */
+  /** Une emprise du module, ramenée au monde : c'est là que l'ombre se calcule, le soleil étant
+   *  une direction du monde et non du module. */
+  const onGround = (x: number, y: number) => {
+    const p = spin(x, y);
+    return { x: p.x + origin.x, y: p.y + origin.y };
+  };
+
+  /** Les ombres : l'emprise du bâti. Elles sont au sol, donc elles passent avant tout le reste —
+   *  rien ne peut se glisser dessous. */
   const shade: ReactNode[] = [];
   if (shadows) {
     const high = deck(spanX / 2);
     if (kind === "corner") {
       const rIn = radius - beltHalf - bedMargin;
       const rOut = radius + beltHalf + bedMargin;
-      const band = (r: number) => Array.from({ length: 33 }, (_, i) => {
-        const a = arcAngle(i, 32);
-        return { x: r * Math.cos(a), y: spanY + r * Math.sin(a) };
-      });
-      shade.push(castShadow(at, [...band(rOut), ...band(rIn).reverse()], high, "sh-bed"));
+      const band = (r: number) =>
+        Array.from({ length: 33 }, (_, i) => {
+          const a = arcAngle(i, 32);
+          return onGround(r * Math.cos(a), spanY + r * Math.sin(a));
+        });
+      shade.push(castShadow(world, [...band(rOut), ...band(rIn).reverse()], high, "sh-bed"));
     } else {
       shade.push(
         castShadow(
-          at,
-          [
-            { x: 0, y: 0 },
-            { x: spanX, y: 0 },
-            { x: spanX, y: spanY },
-            { x: 0, y: spanY },
-          ],
+          world,
+          [onGround(0, 0), onGround(spanX, 0), onGround(spanX, spanY), onGround(0, spanY)],
           high,
           "sh-bed"
         )
@@ -646,7 +733,13 @@ export function Conveyor({
       render: () =>
         solidVolume("post", key, boxFaces(at, cx - leg / 2, cx + leg / 2, cy - leg / 2, cy + leg / 2, 0, top, facing)),
     });
-  if (kind === "corner") {
+  if (kind !== "corner") {
+    const rows = kind === "tee" ? 2 : Math.max(2, Math.round(spanX / 2.5) + 1);
+    for (let r = 0; r < rows; r += 1) {
+      const x0 = leg / 2 + ((spanX - leg) * r) / (rows - 1);
+      for (const y0 of [leg / 2, spanY - leg / 2]) legAt(x0, y0, `l${r}-${y0}`, under(x0));
+    }
+  } else {
     // Un pied sous chaque coin de l'anneau : ce sont les quatre seuls endroits où le bâti a un
     // bout droit sur lequel poser quelque chose.
     // Un poteau affleure le bord du bâti, et un poteau est un carré : ce dont il déborde dans une
@@ -673,12 +766,6 @@ export function Conveyor({
     // Et un cinquième au milieu de la courbe, sur la rive extérieure : c'est la portée la plus
     // longue du bâti, et la seule qui n'a rien sous elle entre les deux bouts.
     stand(arcAngle(1, 2), true, 0, "l-mid");
-  } else {
-    const rows = Math.max(2, Math.round(spanX / 2.5) + 1);
-    for (let r = 0; r < rows; r += 1) {
-      const x0 = leg / 2 + ((spanX - leg) * r) / (rows - 1);
-      for (const y0 of [leg / 2, spanY - leg / 2]) legAt(x0, y0, `l${r}-${y0}`, under(x0));
-    }
   }
 
   const sorted = (list: Piece[]) =>
@@ -746,7 +833,9 @@ export function Conveyor({
           {/* La bande et sa flèche sont à plat sur le bâti : rien ne peut passer dessous, donc elles
               sont posées avant tout ce qui se dresse dessus plutôt que triées avec. */}
           <polygon className="lq-conveyor__belt" points={ring(beltFace)} />
-          <polyline className="lq-conveyor__arrow" points={arrow} />
+              {arrows.map((a, i) => (
+            <polyline key={`arrow${i}`} className="lq-conveyor__arrow" points={a} />
+          ))}
       {/* Les deux barrières avant tout ce qui voyage, jamais après. Une barrière fait cinq pixels
           de haut et un colis en fait cinquante : la rive qui lui passe devant ne se lit pas comme
           « le colis est derrière la rive », elle se lit comme un colis coupé. Les deux barrières

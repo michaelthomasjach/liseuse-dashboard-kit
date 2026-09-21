@@ -636,3 +636,26 @@ export const Transfert: Story = {
     );
   },
 };
+
+/** Le T est le module de bifurcation ou de jonction : la ligne le traverse tout droit et une
+ *  dérivation part du milieu, à angle droit. `flow` dit si elle sort de la ligne ou y entre — c'est
+ *  la seule chose qui distingue les deux quand rien ne bouge, d'où ses deux flèches — et `branch`
+ *  dit si la charge l'emprunte. Une charge n'y **tourne pas** : sur un vrai transfert à angle droit
+ *  elle est poussée de côté, donc son cap change d'un coup au milieu et le colis garde le sien. */
+export const Te: Story = {
+  name: "Tapis en T",
+  render: () => (
+    <div style={{ display: "flex", gap: 44, alignItems: "flex-end", padding: 40, flexWrap: "wrap" }}>
+      {[
+        { label: "Bifurcation, tout droit", flow: "split" as const, branch: false },
+        { label: "Bifurcation, dérivé", flow: "split" as const, branch: true },
+        { label: "Jonction", flow: "merge" as const, branch: true },
+      ].map((it) => (
+        <div key={it.label} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
+          <Conveyor kind="tee" width={2.4} legHeight={1} cellSize={40} load="carton" flow={it.flow} branch={it.branch} shadows />
+          <span style={{ fontSize: "0.72rem", fontWeight: 600 }}>{it.label}</span>
+        </div>
+      ))}
+    </div>
+  ),
+};

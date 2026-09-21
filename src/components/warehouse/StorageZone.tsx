@@ -99,9 +99,10 @@ export function StorageZone({
     const dy = y - spanY / 2;
     return { x: spanX / 2 + dx * cosT - dy * sinT, y: spanY / 2 + dx * sinT + dy * cosT };
   };
+  const ground: Project = (x, y, z) => projectIso(x * cellSize, y * cellSize, z * cellSize);
   const at: Project = (x, y, z) => {
     const p = spin(x, y);
-    return projectIso(p.x * cellSize, p.y * cellSize, z * cellSize);
+    return ground(p.x, p.y, z);
   };
   const facing = isoFacing(rotation);
 
@@ -125,13 +126,9 @@ export function StorageZone({
       if (shadows) {
         shade.push(
           castShadow(
-            at,
-            [
-              { x: x0, y: y0 },
-              { x: x0 + side, y: y0 },
-              { x: x0 + side, y: y0 + side },
-              { x: x0, y: y0 + side },
-            ],
+            ground,
+            // Les coins tournés : le soleil est une direction du monde, pas de la zone.
+            [spin(x0, y0), spin(x0 + side, y0), spin(x0 + side, y0 + side), spin(x0, y0 + side)],
             top,
             `sh${i}-${j}`
           )
@@ -177,17 +174,17 @@ export function StorageZone({
     })
   );
 
-  const ground: [number, number][] = [
+  const outline: [number, number][] = [
     [0, 0],
     [spanX, 0],
     [spanX, spanY],
     [0, spanY],
   ];
   const corners = [
-    ...ground.map(([x, y]) => at(x, y, 0)),
-    ...ground.map(([x, y]) => at(x, y, tallest)),
+    ...outline.map(([x, y]) => at(x, y, 0)),
+    ...outline.map(([x, y]) => at(x, y, tallest)),
     // Les ombres débordent du côté opposé à la lumière.
-    ...ground.map(([x, y]) => at(x + tallest, y - tallest, 0)),
+    ...outline.map(([x, y]) => at(x + tallest, y - tallest, 0)),
   ];
   const minX = Math.min(...corners.map((p) => p.x)) - PAD;
   const minY = Math.min(...corners.map((p) => p.y)) - PAD;

@@ -250,3 +250,38 @@ export const Proportions: Story = {
     </div>
   ),
 };
+
+/** `aisle` ouvre une allée entre les rangées, et `aisleEvery` dit tous les combien — deux par
+ *  défaut, parce que des palettiers se posent **dos à dos** : ce qu'une allée dessert, c'est une
+ *  paire de rangées et non une rangée. À gauche, six rangées collées ; à droite, les mêmes avec
+ *  une allée entre chaque paire, et c'est à ce moment-là seulement qu'on voit qu'il y a des
+ *  étagères et pas un bloc. */
+export const Allees: Story = {
+  name: "Des allées",
+  render: () => (
+    <div style={{ display: "flex", gap: 56, alignItems: "flex-end", padding: 32, flexWrap: "wrap" }}>
+      {[
+        { label: "Sans allée", aisle: 0 },
+        { label: "Une allée par paire", aisle: 2.2 },
+      ].map((it) => (
+        <div key={it.label} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
+          <RackV2
+            width={6}
+            depth={1.8}
+            height={2.4}
+            countY={6}
+            aisle={it.aisle}
+            aisleEvery={2}
+            cellSize={16}
+            posts
+            braces
+            feet
+            shadows
+            contents={["carton"]}
+          />
+          <span style={{ fontSize: "0.72rem", fontWeight: 600 }}>{it.label}</span>
+        </div>
+      ))}
+    </div>
+  ),
+};

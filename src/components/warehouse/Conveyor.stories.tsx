@@ -228,7 +228,8 @@ export const Rond: Story = {
  * parce qu'il est plus proche, le recouvrait juste au moment où il arrivait à la jonction, ce qui
  * se lisait comme un colis passant *sous* le tapis.
  *
- * Le fondu d'entrée et de sortie est **coupé** (`fadeEnds={false}`) : un module seul n'a pas d'amont
+ * Le fondu d'entrée et de sortie est **coupé** (`fadeIn={false}
+                  fadeOut={false}`) : un module seul n'a pas d'amont
  * à montrer et doit s'effacer, un module au milieu d'une chaîne en a un.
  *
  * Et **un seul colis** circule, pas un par module. Chaque module reçoit le `span` qu'il occupe dans
@@ -341,12 +342,291 @@ export const Boucle: Story = {
                   parts={part}
                   load="carton"
                   span={{ start: m.from / travelled, end: (m.from + m.run) / travelled }}
-                  fadeEnds={false}
+                  fadeIn={false}
+                  fadeOut={false}
                   speed={speed}
                 />
               </div>
             ))
           )}
+        </div>
+      </div>
+    );
+  },
+};
+
+/**
+ * Un circuit qui tourne des deux côtés.
+ *
+ * Un angle tourne à gauche : sa bande entre par `+x` et sort par `+y`. Pour tourner à **droite**, on
+ * le parcourt à l'envers — `reversed` fait entrer la charge par la sortie, donc le module prend le
+ * flux par `−y` et le rend par `−x`, soit un quart de tour dans l'autre sens. Il n'y a pas de
+ * module miroir à écrire : une rotation ne peut pas retourner une forme, mais un sens de marche,
+ * si.
+ *
+ * Un circuit fermé tourne en tout d'un tour complet, donc **gauches − droites = 4** : celui-ci a
+ * cinq virages à gauche et un à droite. Sa fermeture n'est pas ajustée à l'œil non plus — un
+ * segment droit avance de sa longueur dans son cap, un angle avance de `W/2` dans le cap d'entrée
+ * *plus* `W/2` dans celui de sortie, et il suffit d'imposer que la somme soit nulle sur les deux
+ * axes pour trouver les deux dernières longueurs.
+ *
+ * Les longueurs n'ont ici aucune raison d'être commensurables, contrairement à une ligne pleine :
+ * avec un seul colis, chaque module reçoit la part du tour qui lui revient et le reste suit.
+ */
+export const Circuit: Story = {
+  name: "Un circuit plus complexe",
+  render: function Render() {
+    const cellSize = 18;
+    const W = 2;
+    const r = W / 2;
+    const speed = 2.2;
+    const arc = (Math.PI / 2) * r;
+
+    // gauche − droite = 4, et les deux derniers segments ferment le tracé : e = a + c + 2r sur x,
+    // f = b + d + 2r sur y.
+    const plan = [
+      { run: 3 },
+      { turn: "left" as const },
+      { run: 2.5 },
+      { turn: "right" as const },
+      { run: 2.5 },
+      { turn: "left" as const },
+      { run: 2.5 },
+      { turn: "left" as const },
+      { run: 3 + 2.5 + 2 * r },
+      { turn: "left" as const },
+      { run: 2.5 + 2.5 + 2 * r },
+      { turn: "left" as const },
+    ];
+
+    const spin = (deg: number, px: number, py: number, cx: number, cy: number) => {
+      const a = (deg * Math.PI) / 180;
+      const c = Math.cos(a);
+      const sn = Math.sin(a);
+      return { x: cx + (px - cx) * c - (py - cy) * sn, y: cy + (px - cx) * sn + (py - cy) * c };
+    };
+
+    const modules: {
+      kind: "straight" | "corner";
+      length: number;
+      rotation: number;
+      reversed: boolean;
+      origin: { x: number; y: number };
+      run: number;
+      from: number;
+      box: { cx: number; cy: number; halfW: number; halfH: number };
+    }[] = [];
+    let here = { x: 0, y: 0 };
+    let heading = 0;
+    let done = 0;
+    for (const step of plan) {
+      const corner = step.turn !== undefined;
+      const right = step.turn === "right";
+      const length = corner ? W : (step.run as number);
+      // Le module est tourné de façon que le cap d'entrée de sa bande soit celui du flux.
+      const rotation = ((corner && right ? heading - 270 : heading) % 360 + 360) % 360;
+      const cx = (corner ? W : length) / 2;
+      const cy = W / 2;
+      const localIn = right ? { x: W / 2, y: W } : { x: 0, y: W / 2 };
+      const localOut = right ? { x: 0, y: W / 2 } : corner ? { x: W / 2, y: W } : { x: length, y: W / 2 };
+      const entry = spin(rotation, localIn.x, localIn.y, cx, cy);
+      const exit = spin(rotation, localOut.x, localOut.y, cx, cy);
+      const origin = { x: here.x - entry.x, y: here.y - entry.y };
+      const run = corner ? arc : length;
+      const flat = rotation % 180 === 0;
+      modules.push({
+        kind: corner ? "corner" : "straight",
+        length,
+        rotation,
+        reversed: right,
+        origin,
+        run,
+        from: done,
+        box: {
+          cx: origin.x + cx,
+          cy: origin.y + cy,
+          halfW: (flat ? (corner ? W : length) : W) / 2,
+          halfH: (flat ? W : corner ? W : length) / 2,
+        },
+      });
+      here = { x: origin.x + exit.x, y: origin.y + exit.y };
+      done += run;
+      heading += corner ? (right ? -90 : 90) : 0;
+    }
+
+    const lo = (pick: (b: (typeof modules)[number]["box"]) => number) => Math.min(...modules.map((m) => pick(m.box)));
+    const hi = (pick: (b: (typeof modules)[number]["box"]) => number) => Math.max(...modules.map((m) => pick(m.box)));
+    const frame = {
+      x: lo((b) => b.cx - b.halfW) - 0.5,
+      y: lo((b) => b.cy - b.halfH) - 0.5,
+      width: hi((b) => b.cx + b.halfW) - lo((b) => b.cx - b.halfW) + 1,
+      depth: hi((b) => b.cy + b.halfH) - lo((b) => b.cy - b.halfH) + 1,
+      height: 1 + 0.22 + 0.14,
+    };
+    const shot = [0, frame.height].flatMap((z) =>
+      [
+        [frame.x, frame.y],
+        [frame.x + frame.width, frame.y],
+        [frame.x + frame.width, frame.y + frame.depth],
+        [frame.x, frame.y + frame.depth],
+      ].map(([x, y]) => projectIso(x * cellSize, y * cellSize, z * cellSize))
+    );
+    const box = {
+      width: Math.max(...shot.map((p) => p.x)) - Math.min(...shot.map((p) => p.x)) + 4,
+      height: Math.max(...shot.map((p) => p.y)) - Math.min(...shot.map((p) => p.y)) + 4,
+    };
+
+    const order = modules.map((m, i) => ({ m, i, key: m.box.cx + m.box.cy })).sort((a, b) => a.key - b.key);
+
+    return (
+      <div style={{ padding: 32 }}>
+        <div style={{ position: "relative", width: box.width, height: box.height }}>
+          {(["machine", "load"] as const).map((part) =>
+            order.map(({ m, i }) => (
+              <div key={`${part}${i}`} style={{ position: "absolute", left: 0, top: 0 }}>
+                <Conveyor
+                  kind={m.kind}
+                  length={m.length}
+                  width={W}
+                  legHeight={1}
+                  cellSize={cellSize}
+                  rotation={m.rotation}
+                  reversed={m.reversed}
+                  origin={m.origin}
+                  frame={frame}
+                  parts={part}
+                  load="carton"
+                  span={{ start: m.from / done, end: (m.from + m.run) / done }}
+                  fadeIn={false}
+                  fadeOut={false}
+                  speed={speed}
+                />
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    );
+  },
+};
+
+/** `rise` dit ce que le tapis gagne en hauteur sur toute sa longueur. Ce n'est pas un effet appliqué
+ *  après coup : le bâti devient un prisme dont le dessus et le dessous suivent la pente, les pieds
+ *  s'allongent à mesure, les barrières montent avec, et la charge aussi — tout ce qui repose sur le
+ *  tapis lit sa hauteur à l'abscisse où il se trouve, faute de quoi la moitié du dessin resterait de
+ *  niveau. Un tapis incliné est aussi plus *long* que son ombre au sol, donc à vitesse égale il
+ *  prend plus de temps. */
+export const Pente: Story = {
+  name: "Monter et descendre",
+  render: () => (
+    <div style={{ display: "flex", gap: 40, alignItems: "flex-end", padding: 40, flexWrap: "wrap" }}>
+      {[
+        { label: "Descend", rise: -1.2 },
+        { label: "De niveau", rise: 0 },
+        { label: "Monte", rise: 1.2 },
+      ].map((it) => (
+        <div key={it.label} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
+          <Conveyor kind="straight" length={5} width={1.8} legHeight={0.9} rise={it.rise} cellSize={30} load="carton" speed={1.2} />
+          <span style={{ fontSize: "0.72rem", fontWeight: 600 }}>{it.label}</span>
+        </div>
+      ))}
+    </div>
+  ),
+};
+
+/**
+ * Un tapis qui en alimente un autre, **plus bas et à quatre-vingt-dix degrés** : le colis quitte la
+ * bande, tombe, et repart.
+ *
+ * La chute n'est pas une descente en ligne droite mais une **parabole** — un colis qui quitte un
+ * tapis garde sa vitesse horizontale et n'acquiert la verticale qu'en tombant. Elle compte dans le
+ * trajet du premier module au même titre que sa bande, donc dans sa part du cycle, et le colis y
+ * garde le cap qu'il avait en quittant la bande.
+ *
+ * Le second tapis est posé là où le colis atterrit : le point de chute se déduit de la sortie du
+ * premier, et la hauteur de ses pieds de la hauteur de chute. Les deux fondus sont réglés
+ * séparément — le premier module fond à l'arrivée mais pas au départ, le second l'inverse — parce
+ * qu'un colis ne doit pas s'effacer à une jonction, il doit y passer.
+ */
+export const Transfert: Story = {
+  name: "Une chute vers un autre tapis",
+  render: function Render() {
+    const cellSize = 26;
+    const W = 2;
+    const L1 = 5;
+    const L2 = 5;
+    const thick = 0.22;
+    const highLegs = 1.7;
+    const fall = 0.7;
+    const lowLegs = highLegs - fall;
+    const dropRun = 0.9;
+    const speed = 1.4;
+
+    // Le colis quitte le premier tapis en (L1, W/2) et touche le second `dropRun` plus loin.
+    const landing = { x: L1 + dropRun, y: W / 2 };
+    // Le second tapis est tourné d'un quart : son entrée, en (0, W/2) avant rotation, se retrouve
+    // en (L2/2, W/2 − L2/2) après. On le pose donc de façon que ce point tombe sur l'atterrissage.
+    const origin2 = { x: landing.x - L2 / 2, y: landing.y - (W / 2 - L2 / 2) };
+
+    const boxes = [
+      { cx: L1 / 2, cy: W / 2, halfW: L1 / 2, halfH: W / 2 },
+      { cx: origin2.x + L2 / 2, cy: origin2.y + W / 2, halfW: W / 2, halfH: L2 / 2 },
+    ];
+    const frame = {
+      x: Math.min(...boxes.map((b) => b.cx - b.halfW)) - 0.5,
+      y: Math.min(...boxes.map((b) => b.cy - b.halfH)) - 0.5,
+      width: Math.max(...boxes.map((b) => b.cx + b.halfW)) - Math.min(...boxes.map((b) => b.cx - b.halfW)) + 1,
+      depth: Math.max(...boxes.map((b) => b.cy + b.halfH)) - Math.min(...boxes.map((b) => b.cy - b.halfH)) + 1,
+      height: highLegs + thick + 0.2,
+    };
+    const shot = [0, frame.height].flatMap((z) =>
+      [
+        [frame.x, frame.y],
+        [frame.x + frame.width, frame.y],
+        [frame.x + frame.width, frame.y + frame.depth],
+        [frame.x, frame.y + frame.depth],
+      ].map(([x, y]) => projectIso(x * cellSize, y * cellSize, z * cellSize))
+    );
+    const box = {
+      width: Math.max(...shot.map((p) => p.x)) - Math.min(...shot.map((p) => p.x)) + 4,
+      height: Math.max(...shot.map((p) => p.y)) - Math.min(...shot.map((p) => p.y)) + 4,
+    };
+
+    const total = L1 + dropRun + L2;
+    const shared = { width: W, bedThickness: thick, cellSize, frame, load: "carton" as const, speed };
+
+    return (
+      <div style={{ padding: 32 }}>
+        <div style={{ position: "relative", width: box.width, height: box.height }}>
+          {(["machine", "load"] as const).map((part) => (
+            <div key={part}>
+              <div style={{ position: "absolute", left: 0, top: 0 }}>
+                <Conveyor
+                  {...shared}
+                  kind="straight"
+                  length={L1}
+                  legHeight={highLegs}
+                  parts={part}
+                  drop={{ fall, run: dropRun }}
+                  span={{ start: 0, end: (L1 + dropRun) / total }}
+                  fadeOut={false}
+                />
+              </div>
+              <div style={{ position: "absolute", left: 0, top: 0 }}>
+                <Conveyor
+                  {...shared}
+                  kind="straight"
+                  length={L2}
+                  legHeight={lowLegs}
+                  rotation={90}
+                  origin={origin2}
+                  parts={part}
+                  span={{ start: (L1 + dropRun) / total, end: 1 }}
+                  fadeIn={false}
+                />
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     );

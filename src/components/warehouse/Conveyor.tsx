@@ -66,8 +66,9 @@ import "./Conveyor.css";
  * superposer suffit à les raccorder — il n'y a rien à aligner, puisqu'ils sont déjà dans le même
  * repère. Sans cadre, chacun se cadre sur lui-même, ce qu'un module seul veut.
  *
- * Pour qu'un colis *passe* une jonction au lieu d'y disparaître, il faut encore `fadeEnds={false}`,
- * qui supprime le fondu d'entrée et de sortie, puis l'une de deux choses selon ce qu'on veut voir.
+ * Pour qu'un colis *passe* une jonction au lieu d'y disparaître, il faut encore couper le fondu du
+ * côté de la jonction (`fadeIn`, `fadeOut`, séparés parce qu'un module au milieu d'une ligne reçoit
+ * d'un voisin et rend à un autre, quand le premier de la ligne ne reçoit de personne), puis l'une de deux choses selon ce qu'on veut voir.
  * `phase` avance la charge d'une fraction de tour du module, et chaque module porte alors sa propre
  * charge en permanence : une ligne pleine. `span` dit au contraire quelle part d'un cycle *plus
  * grand* la traversée de ce module occupe, le module restant vide le reste du temps — ce qui fait
@@ -76,6 +77,28 @@ import "./Conveyor.css";
  * colis quitte le module précédent à l'instant même où celui-ci en accueille un, au même point et
  * au même cap. C'est pour ça que la vitesse est en cases par seconde : tous les modules d'une
  * boucle avancent alors du même pas, et il suffit que leurs longueurs soient commensurables.
+ *
+ * ## Monter et descendre
+ *
+ * `rise` dit ce que le tapis gagne en hauteur sur toute sa longueur : positif il grimpe, négatif il
+ * descend. Ce n'est pas un effet appliqué après coup — le bâti devient un prisme dont le dessus et
+ * le dessous suivent la pente, les pieds s'allongent à mesure, les barrières montent avec, et la
+ * charge aussi. Tout ce qui repose sur le tapis lit sa hauteur à l'abscisse où il se trouve et non
+ * sur une valeur unique, faute de quoi la moitié du dessin resterait de niveau.
+ *
+ * Un tapis incliné est aussi plus **long** que son ombre au sol, et c'est la pente qu'on parcourt :
+ * à vitesse égale il prend donc plus de temps, ce qui est la seule réponse juste quand plusieurs
+ * modules se partagent un même cycle. Un angle, lui, reste à plat : une courbe qui monte est une
+ * hélice, et ce n'est pas le même objet.
+ *
+ * ## Passer d'un tapis à un autre, plus bas
+ *
+ * `drop` fait quitter la bande à la charge au lieu de l'arrêter au bout : elle tombe de `fall`
+ * cases en parcourant encore `run` cases dans son cap de sortie. La trajectoire est une **parabole**
+ * et non une droite, parce qu'un colis qui quitte un tapis garde sa vitesse horizontale et
+ * n'acquiert la verticale qu'en tombant — l'avance est linéaire, le creux est en `q²`. La chute
+ * compte dans le trajet du module au même titre que la bande, donc dans sa part du cycle, et le
+ * colis y garde le cap qu'il avait en quittant la bande, ce qui est ce que fait un colis qui tombe.
  *
  * ## Legs
  *
@@ -102,6 +125,9 @@ export interface ConveyorProps {
   bedThickness?: number;
   /** Hauteur des barrières de rive, en cases. Zéro pour un tapis sans joues. */
   guardHeight?: number;
+  /** Ce que le tapis **monte** sur toute sa longueur, en cases : positif il grimpe, négatif il
+   *  descend, zéro il est de niveau. Sans effet sur un angle, qui reste à plat. */
+  rise?: number;
   /** Ce qui voyage sur la bande. `null` pour un tapis à vide. */
   load?: RackItemKind | null;
   /** Combien de charges à la fois, réparties le long du parcours. */
@@ -121,12 +147,21 @@ export interface ConveyorProps {
    *  module lui-même : plusieurs modules qui partagent un cadre partagent alors exactement le même
    *  repère à l'écran, et se superposent sans rien avoir à aligner. */
   frame?: { x: number; y: number; width: number; depth: number; height: number };
-  /** Fondre la charge à l'entrée et à la sortie. À couper quand un autre module prend le relais :
-   *  le colis ne doit pas s'effacer à une jonction, il doit y passer. */
-  fadeEnds?: boolean;
+  /** Fondre la charge à son arrivée, et à son départ. Les deux se règlent séparément parce qu'un
+   *  module au milieu d'une ligne n'est pas dans la même situation aux deux bouts : il reçoit d'un
+   *  voisin et rend à un autre, alors que le premier de la ligne reçoit de nulle part. Un colis ne
+   *  doit pas s'effacer à une jonction, il doit y passer. */
+  fadeIn?: boolean;
+  fadeOut?: boolean;
   /** Avance de la charge au premier rendu, en tours de ce module. C'est ce qui fait qu'un colis
    *  quitte un module à l'instant même où le suivant en accueille un. */
   phase?: number;
+  /** Ce que devient la charge une fois au bout : elle quitte la bande et **tombe**, de `fall`
+   *  cases, en parcourant encore `run` cases dans son cap de sortie. La trajectoire est une
+   *  parabole et non une droite, parce qu'un colis qui quitte un tapis garde sa vitesse
+   *  horizontale et n'acquiert la verticale qu'en tombant. Sert à passer d'un tapis à un autre,
+   *  plus bas. */
+  drop?: { fall: number; run: number };
   /** Ce qu'on dessine : tout, la machine seule, ou ce qui voyage dessus seul. Une ligne composée
    *  de plusieurs modules a besoin de la séparation : la charge appartient au module qu'elle
    *  traverse, donc elle hérite de sa place dans la pile, et le module suivant — dessiné après, car
@@ -176,6 +211,7 @@ export function Conveyor({
   legSize = ISO_POST_SIZE,
   bedThickness = 0.22,
   guardHeight = DEFAULT_GUARD,
+  rise = 0,
   load = null,
   loadCount = 1,
   reversed = false,
@@ -184,10 +220,12 @@ export function Conveyor({
   rotation = 0,
   origin = { x: 0, y: 0 },
   frame,
-  fadeEnds = true,
+  fadeIn = true,
+  fadeOut = true,
   phase = 0,
   span,
   parts = "all",
+  drop,
   cellSize = 34,
   className,
 }: ConveyorProps) {
@@ -225,7 +263,14 @@ export function Conveyor({
 
   const leg = Math.max(0.04, Math.min(legSize, Math.min(spanX, spanY) / 2));
   const bedZ = Math.max(0, legHeight);
-  const bedTop = bedZ + Math.max(0.02, bedThickness);
+  const slab = Math.max(0.02, bedThickness);
+  // Un angle reste de niveau : une courbe qui monte est une hélice, et ce n'est pas le même objet.
+  const slope = kind === "corner" ? 0 : rise;
+  /** Le dessous du bâti à l'abscisse `x`, puis son dessus. Tout ce qui repose sur le tapis se lit
+   *  ici plutôt que sur une hauteur unique, faute de quoi seule la moitié du dessin s'inclinerait. */
+  const under = (x: number) => bedZ + (slope * x) / Math.max(1e-6, spanX);
+  const deck = (x: number) => under(x) + slab;
+  const bedTop = deck(0);
   const beltHalf = (spanY * BELT_SHARE) / 2;
   const guard = Math.max(0, guardHeight);
   const guardThick = Math.max(0.03, spanY * 0.045);
@@ -237,14 +282,31 @@ export function Conveyor({
   // Un angle est un quart de cercle centré sur le coin (0, largeur) : tangent à +x où il entre, à
   // +y où il sort, donc il se raccorde d'équerre à un tapis droit des deux côtés.
   const radius = spanY / 2;
-  const run = kind === "corner" ? (Math.PI / 2) * radius : spanX;
+  // Un tapis incliné est plus long que son ombre au sol : c'est la pente qu'on parcourt, pas
+  // l'horizontale, et à vitesse égale il prend donc plus de temps.
+  const run = kind === "corner" ? (Math.PI / 2) * radius : Math.hypot(spanX, slope);
   const stepAt = (t: number): Step => {
     if (kind === "corner") {
       const a = -Math.PI / 2 + (Math.PI / 2) * t;
       return { x: radius * Math.cos(a), y: spanY + radius * Math.sin(a), hx: -Math.sin(a), hy: Math.cos(a) };
     }
-    return { x: run * t, y: spanY / 2, hx: 1, hy: 0 };
+    return { x: spanX * t, y: spanY / 2, hx: 1, hy: 0 };
   };
+  /** Les trois faces visibles d'un pavé dont le dessus et le dessous suivent la pente. */
+  const slopedFaces = (x0: number, x1: number, y0: number, y1: number, lift: number, thick: number) => {
+    const zb = (x: number) => under(x) + lift;
+    const zt = (x: number) => zb(x) + thick;
+    const xs = facing.xFace > 0 ? x1 : x0;
+    const ys = facing.yFace > 0 ? y1 : y0;
+    const faceX = [at(xs, y0, zb(xs)), at(xs, y1, zb(xs)), at(xs, y1, zt(xs)), at(xs, y0, zt(xs))];
+    const faceY = [at(x0, ys, zb(x0)), at(x1, ys, zb(x1)), at(x1, ys, zt(x1)), at(x0, ys, zt(x0))];
+    return {
+      top: [at(x0, y0, zt(x0)), at(x1, y0, zt(x1)), at(x1, y1, zt(x1)), at(x0, y1, zt(x0))],
+      front: facing.xOnLeft ? faceX : faceY,
+      side: facing.xOnLeft ? faceY : faceX,
+    };
+  };
+
   /** Un point de l'anneau d'un angle, par rayon et par angle. */
   const arcPoint = (r: number, a: number, z: number) => at(r * Math.cos(a), spanY + r * Math.sin(a), z);
   /** L'angle du parcours au tronçon `i` d'un découpage en `n`. */
@@ -304,10 +366,10 @@ export function Conveyor({
       return [...outer, ...inner.reverse()];
     }
     return [
-      at(0, spanY / 2 - beltHalf, bedTop),
-      at(spanX, spanY / 2 - beltHalf, bedTop),
-      at(spanX, spanY / 2 + beltHalf, bedTop),
-      at(0, spanY / 2 + beltHalf, bedTop),
+      at(0, spanY / 2 - beltHalf, deck(0)),
+      at(spanX, spanY / 2 - beltHalf, deck(spanX)),
+      at(spanX, spanY / 2 + beltHalf, deck(spanX)),
+      at(0, spanY / 2 + beltHalf, deck(0)),
     ];
   })();
 
@@ -320,9 +382,9 @@ export function Conveyor({
     const ny = tail.hx;
     const armLen = beltHalf * 0.5;
     return ring([
-      at(tail.x + nx * armLen, tail.y + ny * armLen, bedTop),
-      at(tip.x, tip.y, bedTop),
-      at(tail.x - nx * armLen, tail.y - ny * armLen, bedTop),
+      at(tail.x + nx * armLen, tail.y + ny * armLen, deck(tail.x)),
+      at(tip.x, tip.y, deck(tip.x)),
+      at(tail.x - nx * armLen, tail.y - ny * armLen, deck(tail.x)),
     ]);
   })();
 
@@ -341,13 +403,7 @@ export function Conveyor({
       }
     } else {
       for (const edge of [spanY / 2 - beltHalf - guardThick, spanY / 2 + beltHalf]) {
-        guards.push(
-          solidVolume(
-            "post",
-            `g${edge.toFixed(3)}`,
-            boxFaces(at, 0, spanX, edge, edge + guardThick, bedTop, bedTop + guard, facing)
-          )
-        );
+        guards.push(solidVolume("post", `g${edge.toFixed(3)}`, slopedFaces(0, spanX, edge, edge + guardThick, slab, guard)));
       }
     }
   }
@@ -368,7 +424,12 @@ export function Conveyor({
     return { project, facing: isoFacing(rotation + deg) };
   };
 
-  const travel = run / Math.max(0.01, speed);
+  // Le trajet d'une charge, c'est la bande *plus* la chute s'il y en a une. La vitesse
+  // horizontale ne change pas en tombant, donc la chute se compte en cases comme le reste.
+  const dropRun = drop ? Math.max(0, drop.run) : 0;
+  const pathLength = run + dropRun;
+  const beltShare = pathLength > 0 ? run / pathLength : 1;
+  const travel = pathLength / Math.max(0.01, speed);
   const many = Math.max(1, Math.floor(loadCount));
   // Un colis rond a le meme dessin sous tous les caps : inutile de le redecouper. Un colis
   // anguleux dans un angle, si.
@@ -377,6 +438,24 @@ export function Conveyor({
   const perTurn = Math.max(2, Math.round(LOAD_SAMPLES / turns));
   const berth = beltHalf * 2;
   const along = (t: number) => stepAt(reversed ? 1 - t : t);
+  /**
+   * Où se trouve une charge à la fraction `m` de son trajet dans ce module — bande d'abord, chute
+   * ensuite. La chute est une parabole : l'avance est linéaire, le creux est en `q²`.
+   */
+  const carriedAt = (m: number) => {
+    if (m <= beltShare || !drop) {
+      const p = along(beltShare > 0 ? Math.min(1, m / beltShare) : 1);
+      return at(p.x, p.y, deck(p.x));
+    }
+    const q = (m - beltShare) / Math.max(1e-6, 1 - beltShare);
+    const end = along(1);
+    const way = reversed ? -1 : 1;
+    return at(
+      end.x + end.hx * way * dropRun * q,
+      end.y + end.hy * way * dropRun * q,
+      deck(end.x) - Math.max(0, drop.fall) * q * q
+    );
+  };
   const bearing = (t: number) => {
     const h = along(t);
     const way = reversed ? -1 : 1;
@@ -396,30 +475,32 @@ export function Conveyor({
   const rideFrames: string[] = [];
   const rides: ReactNode[] = [];
   for (let i = 0; i < turns; i += 1) {
-    const u0 = i / turns;
-    const u1 = (i + 1) / turns;
+    const u0 = (beltShare * i) / turns;
+    // Le dernier exemplaire emmène la chute avec lui : c'est le même colis qui quitte la bande, et
+    // il garde en tombant le cap qu'il avait en la quittant.
+    const u1 = i === turns - 1 ? 1 : (beltShare * (i + 1)) / turns;
     const t0 = onCycle(u0);
     const t1 = onCycle(u1);
-    const here = along(u0);
-    const view = bearingAt(bearing(u0), here.x, here.y);
+    const hereM = beltShare > 0 ? Math.min(1, u0 / beltShare) : 1;
+    const here = along(hereM);
+    const view = bearingAt(bearing(hereM), here.x, here.y);
     const fit = fitRackItem(
       load ?? "carton",
       { x: here.x - berth / 2, y: here.y - berth / 2, width: berth, depth: berth },
-      bedTop,
+      deck(here.x),
       Infinity
     );
-    const base = at(here.x, here.y, bedTop);
-    /** Le décalage, pour une part `t` du cycle : on repasse d'abord au paramètre du module. */
+    const base = at(here.x, here.y, deck(here.x));
+    /** Le décalage, pour une part `t` du cycle : on repasse d'abord au trajet du module. */
     const shift = (t: number) => {
-      const p = along((t - s0) / share);
-      const q = at(p.x, p.y, bedTop);
+      const q = carriedAt((t - s0) / share);
       return `translate(${(q.x - base.x).toFixed(3)}px,${(q.y - base.y).toFixed(3)}px)`;
     };
     const pct = (t: number) => (t * 100).toFixed(3);
     // Hors de sa fenetre l'exemplaire est transparent ; le passage de relais est franc, les deux
     // exemplaires voisins etant au meme endroit a cet instant, seul leur cap differant.
-    const fadeIn = fadeEnds && i === 0 ? 0.03 : 0;
-    const fadeOut = fadeEnds && i === turns - 1 ? 0.03 : 0;
+    const easeIn = fadeIn && i === 0 ? 0.03 : 0;
+    const easeOut = fadeOut && i === turns - 1 ? 0.03 : 0;
     const stops: string[] = [];
     // Deux arrets ne peuvent pas partager le meme pourcentage : le dernier ecrase le premier, et
     // l'opacite 0 qui devait tenir jusqu'a la fenetre disparaissait — chaque exemplaire fondait
@@ -428,15 +509,17 @@ export function Conveyor({
     const BLINK = 0.0005;
     if (t0 > 0)
       stops.push(`0%{opacity:0;transform:${shift(t0)}}`, `${pct(t0 - BLINK)}%{opacity:0;transform:${shift(t0)}}`);
-    stops.push(`${pct(t0)}%{opacity:${fadeIn ? 0 : 1};transform:${shift(t0)}}`);
-    if (fadeIn) stops.push(`${pct(t0 + fadeIn)}%{opacity:1;transform:${shift(t0 + fadeIn)}}`);
-    for (let k = 1; k < perTurn; k += 1) {
-      const t = onCycle(u0 + ((u1 - u0) * k) / perTurn);
-      if (t <= t0 + fadeIn || t >= t1 - fadeOut) continue;
+    stops.push(`${pct(t0)}%{opacity:${easeIn ? 0 : 1};transform:${shift(t0)}}`);
+    if (easeIn) stops.push(`${pct(t0 + easeIn)}%{opacity:1;transform:${shift(t0 + easeIn)}}`);
+    // La chute mérite ses propres points : c'est une parabole, pas un segment.
+    const steps = i === turns - 1 && drop ? perTurn + 8 : perTurn;
+    for (let k = 1; k < steps; k += 1) {
+      const t = onCycle(u0 + ((u1 - u0) * k) / steps);
+      if (t <= t0 + easeIn || t >= t1 - easeOut) continue;
       stops.push(`${pct(t)}%{opacity:1;transform:${shift(t)}}`);
     }
-    if (fadeOut) stops.push(`${pct(t1 - fadeOut)}%{opacity:1;transform:${shift(t1 - fadeOut)}}`);
-    stops.push(`${pct(t1)}%{opacity:${fadeOut ? 0 : 1};transform:${shift(t1)}}`);
+    if (easeOut) stops.push(`${pct(t1 - easeOut)}%{opacity:1;transform:${shift(t1 - easeOut)}}`);
+    stops.push(`${pct(t1)}%{opacity:${easeOut ? 0 : 1};transform:${shift(t1)}}`);
     if (t1 < 1)
       stops.push(`${pct(t1 + BLINK)}%{opacity:0;transform:${shift(t1)}}`, `100%{opacity:0;transform:${shift(t1)}}`);
     rideFrames.push(`@keyframes lq-ride-${uid}-${i}{${stops.join("")}}`);
@@ -484,21 +567,21 @@ export function Conveyor({
     kind === "corner" ? (
       arcRing("steel", radius - beltHalf - bedMargin, radius + beltHalf + bedMargin, bedZ, bedTop, "bed")
     ) : (
-      solidVolume("steel", "bed", boxFaces(at, 0, spanX, 0, spanY, bedZ, bedTop, facing))
+      solidVolume("steel", "bed", slopedFaces(0, spanX, 0, spanY, 0, slab))
     );
 
   // ---- les pieds ----
   // Un tapis long fait pousser des pieds intermédiaires : un bâti de neuf mètres sur quatre pieds
   // est un plongeoir.
   const legs: Piece[] = [];
-  const legAt = (cx: number, cy: number, key: string) =>
+  const legAt = (cx: number, cy: number, key: string, top = bedZ) =>
     legs.push({
       x: cx - leg / 2,
       y: cy - leg / 2,
       width: leg,
       height: leg,
       render: () =>
-        solidVolume("post", key, boxFaces(at, cx - leg / 2, cx + leg / 2, cy - leg / 2, cy + leg / 2, 0, bedZ, facing)),
+        solidVolume("post", key, boxFaces(at, cx - leg / 2, cx + leg / 2, cy - leg / 2, cy + leg / 2, 0, top, facing)),
     });
   if (kind === "corner") {
     // Un pied sous chaque coin de l'anneau : ce sont les quatre seuls endroits où le bâti a un
@@ -531,7 +614,7 @@ export function Conveyor({
     const rows = Math.max(2, Math.round(spanX / 2.5) + 1);
     for (let r = 0; r < rows; r += 1) {
       const x0 = leg / 2 + ((spanX - leg) * r) / (rows - 1);
-      for (const y0 of [leg / 2, spanY - leg / 2]) legAt(x0, y0, `l${r}-${y0}`);
+      for (const y0 of [leg / 2, spanY - leg / 2]) legAt(x0, y0, `l${r}-${y0}`, under(x0));
     }
   }
 
@@ -565,10 +648,11 @@ export function Conveyor({
         at(spanX, 0, 0),
         at(spanX, spanY, 0),
         at(0, spanY, 0),
-        at(0, 0, bedTop + guard),
-        at(spanX, 0, bedTop + guard),
-        at(spanX, spanY, bedTop + guard),
-        at(0, spanY, bedTop + guard),
+        at(0, 0, deck(0) + guard),
+        at(spanX, 0, deck(spanX) + guard),
+        at(spanX, spanY, deck(spanX) + guard),
+        at(0, spanY, deck(0) + guard),
+        at(0, 0, Math.max(deck(0), deck(spanX)) + guard),
       ];
   const minX = Math.min(...corners.map((p) => p.x)) - PAD;
   const minY = Math.min(...corners.map((p) => p.y)) - PAD;

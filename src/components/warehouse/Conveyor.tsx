@@ -279,9 +279,10 @@ export function Conveyor({
   // ---- ce qui se tient sur le bâti : les barrières, et la charge ----
   const pieces: Piece[] = [];
 
-  // Les barrières d'un angle sont deux anneaux minces ; celles d'un droit, deux boîtes. Les deux
-  // anneaux sont séparés par toute la largeur de la bande, donc ils ne se recouvrent jamais à
-  // l'écran et leur ordre entre eux est sans objet : seule compte leur place autour de la charge.
+  // Les barrières d'un angle sont deux anneaux minces ; celles d'un droit, deux boîtes. Leur ordre
+  // entre elles est sans objet : toute la largeur de la bande les sépare, donc elles ne se
+  // recouvrent jamais à l'écran. Ce qui compte est qu'elles passent toutes deux *avant* ce qui
+  // voyage sur la bande.
   const guards: ReactNode[] = [];
   if (guard > 0) {
     if (kind === "corner") {
@@ -290,18 +291,13 @@ export function Conveyor({
       }
     } else {
       for (const edge of [spanY / 2 - beltHalf - guardThick, spanY / 2 + beltHalf]) {
-        pieces.push({
-          x: 0,
-          y: edge,
-          width: spanX,
-          height: guardThick,
-          render: () =>
-            solidVolume(
-              "post",
-              `g${edge.toFixed(3)}`,
-              boxFaces(at, 0, spanX, edge, edge + guardThick, bedTop, bedTop + guard, facing)
-            ),
-        });
+        guards.push(
+          solidVolume(
+            "post",
+            `g${edge.toFixed(3)}`,
+            boxFaces(at, 0, spanX, edge, edge + guardThick, bedTop, bedTop + guard, facing)
+          )
+        );
       }
     }
   }
@@ -529,13 +525,13 @@ export function Conveyor({
           sont posées avant tout ce qui se dresse dessus plutôt que triées avec. */}
       <polygon className="lq-conveyor__belt" points={ring(beltFace)} />
       <polyline className="lq-conveyor__arrow" points={arrow} />
-      {/* Sur un angle, la barrière intérieure passe avant la charge et l'extérieure après : celle
-          qui est devant change de bord au milieu du virage, et un anneau d'un seul tenant ne peut
-          pas dire les deux — mais une barrière fait cinq pixels de haut, et c'est le seul endroit
-          où le choix se voit. */}
-      {guards[0]}
+      {/* Les deux barrières avant tout ce qui voyage, jamais après. Une barrière fait cinq pixels
+          de haut et un colis en fait cinquante : la rive qui lui passe devant ne se lit pas comme
+          « le colis est derrière la rive », elle se lit comme un colis coupé. Les deux barrières
+          entre elles n'ont pas d'ordre à avoir — toute la largeur de la bande les sépare, donc
+          elles ne se recouvrent jamais à l'écran. */}
+      {guards}
       {sorted(pieces).map((piece) => piece.render())}
-      {guards[1]}
     </svg>
   );
 }

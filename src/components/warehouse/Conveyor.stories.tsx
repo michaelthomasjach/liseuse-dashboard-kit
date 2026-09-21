@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react";
 import { Conveyor } from "./Conveyor";
+import { projectIso } from "./warehouseIso";
 import { NumberField } from "../forms";
 
 const meta: Meta<typeof Conveyor> = {
@@ -35,7 +36,9 @@ export const Droit: Story = {
 
 /** L'angle est le module de transfert carré qu'un vrai sol utilise pour tourner une ligne : la
  *  bande décrit un quart de cercle centré sur le coin, tangente à l'entrée comme à la sortie, donc
- *  elle se raccorde d'équerre à un tapis droit des deux côtés. */
+ *  elle se raccorde d'équerre à un tapis droit des deux côtés. Les trois orientations montrent que
+ *  la rotation ne change pas le module, seulement d'où on le regarde : les faces visibles de chaque
+ *  volume sont choisies d'après elle, et non supposées. */
 export const Angle: Story = {
   name: "Tapis d'angle",
   args: {
@@ -48,11 +51,16 @@ export const Angle: Story = {
     speed: 1.1,
     reversed: false,
     running: true,
-    cellSize: 44,
+    cellSize: 34,
   },
   render: (args) => (
-    <div style={{ padding: 40 }}>
-      <Conveyor {...args} />
+    <div style={{ display: "flex", gap: 40, alignItems: "flex-end", padding: 32, flexWrap: "wrap" }}>
+      {[0, 45, 90].map((angle) => (
+        <div key={angle} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
+          <Conveyor {...args} rotation={angle} />
+          <span style={{ fontSize: "0.72rem", fontWeight: 600 }}>{angle}°</span>
+        </div>
+      ))}
     </div>
   ),
 };
@@ -153,21 +161,45 @@ export const Atelier: Story = {
   },
 };
 
-/** Un droit, un angle, un droit : les trois se raccordent parce que la bande de l'angle est
- *  tangente à ses deux bords. Les tapis sont posés côte à côte ici, chacun dans son propre
- *  dessin — le plan d'entrepôt, lui, les ordonnerait dans une seule image. */
+/**
+ * Un droit et un angle **réellement raccordés**, et non posés côte à côte.
+ *
+ * Chacun est son propre dessin, avec sa propre `viewBox`, donc les accoler ne suffit pas : il faut
+ * savoir de combien décaler le second. La réponse se lit sur la caméra du kit — le module d'angle
+ * commence là où le droit finit, c'est-à-dire au point `(longueur, 0)` du monde, et `projectIso`
+ * dit où ce point tombe à l'écran. Les deux tapis partageant la même largeur, la même hauteur de
+ * pieds et la même épaisseur, leurs deux `viewBox` ont exactement la même origine, et ce décalage
+ * est donc aussi celui de leurs coins supérieurs gauches.
+ *
+ * Le raccord tient parce que la bande de l'angle est **tangente** à ses deux bords : elle arrive
+ * d'équerre sur le droit, à la même largeur et au même endroit.
+ */
 export const Ligne: Story = {
-  name: "Une ligne",
-  render: () => (
-    <div style={{ display: "flex", alignItems: "flex-end", padding: 40, gap: 0 }}>
-      <Conveyor kind="straight" length={4} width={2} legHeight={1} cellSize={34} load="carton" />
-      <Conveyor kind="corner" width={2.4} legHeight={1} cellSize={34} load="boite" />
-    </div>
-  ),
+  name: "Un droit raccordé à un angle",
+  render: function Render() {
+    const cellSize = 34;
+    const length = 5;
+    const width = 2.2;
+    const shift = projectIso(length * cellSize, 0, 0);
+
+    return (
+      <div style={{ padding: 40 }}>
+        <div style={{ position: "relative", height: 320 }}>
+          <div style={{ position: "absolute", left: 0, top: 0 }}>
+            <Conveyor kind="straight" length={length} width={width} legHeight={1} cellSize={cellSize} load="carton" speed={1.1} />
+          </div>
+          <div style={{ position: "absolute", left: shift.x, top: shift.y }}>
+            <Conveyor kind="corner" width={width} legHeight={1} cellSize={cellSize} load="carton" speed={1.1} />
+          </div>
+        </div>
+      </div>
+    );
+  },
 };
 
 /** Un colis rond est dispensé du découpage en tronçons : un fût a le même dessin sous tous les
- *  caps, donc il est dessiné une fois et simplement porté. */
+ *  caps, donc il est dessiné une fois et simplement porté. À côté, un carton, qui lui doit être
+ *  redessiné à chaque cap. */
 export const Rond: Story = {
   name: "Une charge ronde",
   render: () => (

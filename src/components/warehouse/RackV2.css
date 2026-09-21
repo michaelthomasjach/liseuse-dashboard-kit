@@ -1,28 +1,65 @@
-/* Étagère V2 : douze arêtes, deux faces. Voir RackV2.tsx pour le pourquoi. */
+/* Étagère V2 : douze arêtes, deux faces pleines, et un carton posé sur le plateau du bas.
+   Voir RackV2.tsx pour le pourquoi. */
 
 .lq-rack2 {
+  /* Le plateau. Opaque : un plateau est une tôle, pas une vitre. */
+  --lq-rack2-deck: color-mix(in srgb, var(--lq-color-accent) 14%, var(--lq-color-bg));
+  /* Kraft. En e-ink l'ambre s'effondre sur la couleur du texte : les trois faces du carton restent
+     alors trois gris, parce qu'elles se distinguent par la clarté et non par la teinte. */
+  --lq-rack2-carton: color-mix(in srgb, var(--lq-color-amber) 58%, var(--lq-color-bg));
+
   display: block;
   overflow: visible;
 }
 
-/* Les deux faces sont translucides, pas seulement celle du bas : elles se projettent sur le même
-   losange à une hauteur d'écart et se recouvrent dès que la boîte est plus large que haute — une
-   face du haut opaque cacherait justement le plancher qui doit rester visible. */
-.lq-rack2__face--bottom {
-  fill: color-mix(in srgb, var(--lq-color-text) 8%, transparent);
-}
-
 .lq-rack2__face--top {
-  fill: color-mix(in srgb, var(--lq-color-accent) 14%, transparent);
+  fill: var(--lq-rack2-deck);
 }
 
-/* Toutes au même poids : aucune face n'étant pleine, aucune arête n'est cachée, et une arête
-   « de derrière » dessinée plus légère annoncerait une occultation qui n'a pas lieu. */
+/* Le même plateau, en dessous, donc à l'ombre de celui du dessus. Deux plateaux identiques se
+   liraient comme un seul à double épaisseur. */
+.lq-rack2__face--bottom {
+  fill: color-mix(in srgb, var(--lq-rack2-deck) 84%, var(--lq-color-text));
+}
+
+/* Toutes au même poids, et toutes par-dessus les plateaux : l'ossature est le sujet, et une arête
+   « de derrière » escamotée ou dessinée plus légère laisserait la boîte incomplète. */
 .lq-rack2__edge {
   fill: none;
   stroke: color-mix(in srgb, var(--lq-color-text) 72%, transparent);
   stroke-width: 1.5;
   stroke-linecap: square;
   /* L'épaisseur reste celle qu'on a demandée quel que soit le zoom appliqué au-dessus. */
+  vector-effect: non-scaling-stroke;
+}
+
+/* Le carton est plein lui aussi, mais c'est le seul volume fermé du dessin : c'est ce contraste
+   avec l'ossature ajourée qui dit lequel des deux est la chose et lequel est le contenant. */
+.lq-rack2__carton-face {
+  stroke: color-mix(in srgb, var(--lq-color-text) 55%, transparent);
+  stroke-width: 1;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+/* Une seule source de lumière, trois clartés : le dessus prend le jour, la face avant est en
+   demi-teinte, le côté est dans l'ombre. Des teintes différentes par face donneraient trois formes
+   plates sans rapport qui se rejoignent sur une arête. */
+.lq-rack2__carton-face--top {
+  fill: var(--lq-rack2-carton);
+}
+
+.lq-rack2__carton-face--front {
+  fill: color-mix(in srgb, var(--lq-rack2-carton) 86%, var(--lq-color-text));
+}
+
+.lq-rack2__carton-face--side {
+  fill: color-mix(in srgb, var(--lq-rack2-carton) 72%, var(--lq-color-text));
+}
+
+/* La jointure des rabats. Sans elle, un carton est un cube. */
+.lq-rack2__carton-seam {
+  stroke: color-mix(in srgb, var(--lq-color-text) 42%, transparent);
+  stroke-width: 1;
   vector-effect: non-scaling-stroke;
 }

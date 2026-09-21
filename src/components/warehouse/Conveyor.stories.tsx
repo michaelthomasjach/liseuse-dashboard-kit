@@ -226,11 +226,12 @@ export const Rond: Story = {
  * Le fondu d'entrée et de sortie est **coupé** (`fadeEnds={false}`) : un module seul n'a pas d'amont
  * à montrer et doit s'effacer, un module au milieu d'une chaîne en a un.
  *
- * Et les **phases** sont calculées. La vitesse étant en cases par seconde, tous les modules
- * avancent du même pas ; il reste à ce que leurs longueurs soient commensurables, d'où une droite
- * longue d'exactement deux fois l'arc d'un angle et portant deux colis. La phase d'un module vaut
- * alors la distance parcourue avant lui rapportée à sa propre longueur, et un colis quitte un
- * module à l'instant même où le suivant en accueille un, au même point et au même cap.
+ * Et **un seul colis** circule, pas un par module. Chaque module reçoit le `span` qu'il occupe dans
+ * le tour de boucle — la distance parcourue avant lui et celle après, rapportées au périmètre — et
+ * ne montre la charge que pendant qu'elle y est, restant vide le reste du temps. Son cycle
+ * d'animation est donc le tour entier, et non sa propre traversée. La vitesse étant en cases par
+ * seconde, tous les modules avancent du même pas, et le colis quitte un module à l'instant même où
+ * le suivant le reçoit, au même point et au même cap.
  */
 export const Boucle: Story = {
   name: "Une boucle fermée",
@@ -256,8 +257,7 @@ export const Boucle: Story = {
       rotation: number;
       origin: { x: number; y: number };
       run: number;
-      loads: number;
-      phase: number;
+      from: number;
     }[] = [];
     let here = { x: 0, y: 0 };
     let heading = 0;
@@ -271,8 +271,7 @@ export const Boucle: Story = {
       const exit = corner ? turn(heading, W / 2, W, cx, cy) : turn(heading, L, W / 2, cx, cy);
       const origin = { x: here.x - entry.x, y: here.y - entry.y };
       const run = corner ? arc : L;
-      const loads = corner ? 1 : 2;
-      modules.push({ kind: corner ? "corner" : "straight", rotation: heading, origin, run, loads, phase: travelled / run });
+      modules.push({ kind: corner ? "corner" : "straight", rotation: heading, origin, run, from: travelled });
       here = { x: origin.x + exit.x, y: origin.y + exit.y };
       travelled += run;
       if (corner) heading += 90;
@@ -330,8 +329,7 @@ export const Boucle: Story = {
                 origin={m.origin}
                 frame={frame}
                 load="carton"
-                loadCount={m.loads}
-                phase={m.phase}
+                span={{ start: m.from / travelled, end: (m.from + m.run) / travelled }}
                 fadeEnds={false}
                 speed={speed}
               />

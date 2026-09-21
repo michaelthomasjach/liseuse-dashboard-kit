@@ -66,9 +66,12 @@ import "./Conveyor.css";
  * superposer suffit à les raccorder — il n'y a rien à aligner, puisqu'ils sont déjà dans le même
  * repère. Sans cadre, chacun se cadre sur lui-même, ce qu'un module seul veut.
  *
- * Pour qu'un colis *passe* une jonction au lieu d'y disparaître, il faut encore deux choses :
- * `fadeEnds={false}`, qui supprime le fondu d'entrée et de sortie, et `phase`, qui avance la
- * charge d'une fraction de tour. Un module rendant sa charge à l'entrée à chaque tour, il suffit
+ * Pour qu'un colis *passe* une jonction au lieu d'y disparaître, il faut encore `fadeEnds={false}`,
+ * qui supprime le fondu d'entrée et de sortie, puis l'une de deux choses selon ce qu'on veut voir.
+ * `phase` avance la charge d'une fraction de tour du module, et chaque module porte alors sa propre
+ * charge en permanence : une ligne pleine. `span` dit au contraire quelle part d'un cycle *plus
+ * grand* la traversée de ce module occupe, le module restant vide le reste du temps — ce qui fait
+ * circuler **un seul colis** sur toute la ligne. Un module rendant sa charge à l'entrée à chaque tour, il suffit
  * que sa phase vaille la distance parcourue avant lui rapportée à sa propre longueur pour qu'un
  * colis quitte le module précédent à l'instant même où celui-ci en accueille un, au même point et
  * au même cap. C'est pour ça que la vitesse est en cases par seconde : tous les modules d'une
@@ -124,6 +127,11 @@ export interface ConveyorProps {
   /** Avance de la charge au premier rendu, en tours de ce module. C'est ce qui fait qu'un colis
    *  quitte un module à l'instant même où le suivant en accueille un. */
   phase?: number;
+  /** La part du cycle pendant laquelle une charge traverse ce module, quand le cycle appartient à
+   *  quelque chose de plus grand — une boucle, par exemple. Hors de cette part, le module est vide.
+   *  C'est ce qui permet de ne faire circuler **qu'un seul colis** sur toute une ligne : chaque
+   *  module ne le montre que pendant qu'il y est, au lieu d'en avoir un en permanence. */
+  span?: { start: number; end: number };
   /** Pixels par case. */
   cellSize?: number;
   className?: string;
@@ -172,6 +180,7 @@ export function Conveyor({
   frame,
   fadeEnds = true,
   phase = 0,
+  span,
   cellSize = 34,
   className,
 }: ConveyorProps) {
@@ -367,13 +376,25 @@ export function Conveyor({
     return (Math.atan2(h.hy * way, h.hx * way) * 180) / Math.PI;
   };
 
+  // Sans `span`, la traversée occupe tout le cycle. Avec, elle n'en occupe qu'une part, et le
+  // cycle dure d'autant plus longtemps : c'est le tour de la boucle entière, et le module reste
+  // vide le reste du temps.
+  const s0 = span ? span.start : 0;
+  const s1 = span ? span.end : 1;
+  const share = Math.max(1e-6, s1 - s0);
+  const cycleSeconds = travel / share;
+  /** Du paramètre du module, entre 0 et 1, vers la part du cycle qui lui revient. */
+  const onCycle = (u: number) => s0 + share * u;
+
   const rideFrames: string[] = [];
   const rides: ReactNode[] = [];
   for (let i = 0; i < turns; i += 1) {
-    const t0 = i / turns;
-    const t1 = (i + 1) / turns;
-    const here = along(t0);
-    const view = bearingAt(bearing(t0), here.x, here.y);
+    const u0 = i / turns;
+    const u1 = (i + 1) / turns;
+    const t0 = onCycle(u0);
+    const t1 = onCycle(u1);
+    const here = along(u0);
+    const view = bearingAt(bearing(u0), here.x, here.y);
     const fit = fitRackItem(
       load ?? "carton",
       { x: here.x - berth / 2, y: here.y - berth / 2, width: berth, depth: berth },
@@ -381,8 +402,9 @@ export function Conveyor({
       Infinity
     );
     const base = at(here.x, here.y, bedTop);
+    /** Le décalage, pour une part `t` du cycle : on repasse d'abord au paramètre du module. */
     const shift = (t: number) => {
-      const p = along(t);
+      const p = along((t - s0) / share);
       const q = at(p.x, p.y, bedTop);
       return `translate(${(q.x - base.x).toFixed(3)}px,${(q.y - base.y).toFixed(3)}px)`;
     };
@@ -402,7 +424,7 @@ export function Conveyor({
     stops.push(`${pct(t0)}%{opacity:${fadeIn ? 0 : 1};transform:${shift(t0)}}`);
     if (fadeIn) stops.push(`${pct(t0 + fadeIn)}%{opacity:1;transform:${shift(t0 + fadeIn)}}`);
     for (let k = 1; k < perTurn; k += 1) {
-      const t = t0 + ((t1 - t0) * k) / perTurn;
+      const t = onCycle(u0 + ((u1 - u0) * k) / perTurn);
       if (t <= t0 + fadeIn || t >= t1 - fadeOut) continue;
       stops.push(`${pct(t)}%{opacity:1;transform:${shift(t)}}`);
     }
@@ -422,8 +444,8 @@ export function Conveyor({
             running
               ? {
                   animationName: `lq-ride-${uid}-${i}`,
-                  animationDuration: `${travel}s`,
-                  animationDelay: `${-travel * (phase + n / many)}s`,
+                  animationDuration: `${cycleSeconds}s`,
+                  animationDelay: `${-cycleSeconds * (phase + n / many)}s`,
                 }
               : { opacity: i === 0 ? 1 : 0 }
           }
@@ -552,7 +574,7 @@ export function Conveyor({
       width={boxWidth}
       height={boxHeight}
       viewBox={`${minX} ${minY} ${boxWidth} ${boxHeight}`}
-      style={{ "--lq-conveyor-cycle": `${travel}s` } as CSSProperties}
+      style={{ "--lq-conveyor-cycle": `${cycleSeconds}s` } as CSSProperties}
       role="img"
       aria-label={`Tapis roulant ${kind === "corner" ? "d'angle" : "droit"}${running ? ", en marche" : ", arrêté"}`}
     >

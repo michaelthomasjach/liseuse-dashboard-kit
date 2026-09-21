@@ -1,0 +1,28 @@
+/* Étagère V2 : douze arêtes, deux faces. Voir RackV2.tsx pour le pourquoi. */
+
+.lq-rack2 {
+  display: block;
+  overflow: visible;
+}
+
+/* Les deux faces sont translucides, pas seulement celle du bas : elles se projettent sur le même
+   losange à une hauteur d'écart et se recouvrent dès que la boîte est plus large que haute — une
+   face du haut opaque cacherait justement le plancher qui doit rester visible. */
+.lq-rack2__face--bottom {
+  fill: color-mix(in srgb, var(--lq-color-text) 8%, transparent);
+}
+
+.lq-rack2__face--top {
+  fill: color-mix(in srgb, var(--lq-color-accent) 14%, transparent);
+}
+
+/* Toutes au même poids : aucune face n'étant pleine, aucune arête n'est cachée, et une arête
+   « de derrière » dessinée plus légère annoncerait une occultation qui n'a pas lieu. */
+.lq-rack2__edge {
+  fill: none;
+  stroke: color-mix(in srgb, var(--lq-color-text) 72%, transparent);
+  stroke-width: 1.5;
+  stroke-linecap: square;
+  /* L'épaisseur reste celle qu'on a demandée quel que soit le zoom appliqué au-dessus. */
+  vector-effect: non-scaling-stroke;
+}

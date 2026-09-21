@@ -35,7 +35,7 @@ import "./RackV2.css";
  *   - the four **feet**, with `feet`: the uprights carrying on below the bottom deck, on the racks
  *     that actually stand on the ground — a stacked rack rests on the one under it and has nothing
  *     to lift. A foot is not an extra part, it is the post continuing to the floor, so it has the
- *     post's own section;
+ *     post's own section and, by default, a height taken from it; `footHeight` says otherwise;
  *   - the two **braces**, with `braces`: one diagonal across each end frame, from the near post's
  *     foot to the far post's head. It is the member that makes a rack a rack rather than four legs
  *     under two shelves — an unbraced frame is a parallelogram waiting to happen, and every real
@@ -128,6 +128,10 @@ export interface RackV2Props {
   braces?: boolean;
   /** Des pieds sous les étagères qui touchent le sol, pour que leur plateau n'y soit pas posé. */
   feet?: boolean;
+  /** Hauteur dont les pieds dépassent sous le plateau, en cases. Par défaut, les trois quarts de
+   *  la section d'un montant — un pied étant ce montant qui continue, sa taille par défaut suit la
+   *  sienne plutôt que d'être un nombre de plus à tenir en accord avec elle. */
+  footHeight?: number;
   /** Pixels par case. Le même défaut que le plan d'entrepôt, pour que les deux s'accordent. */
   cellSize?: number;
   className?: string;
@@ -145,10 +149,11 @@ const DEFAULT_POST_SIZE = 0.22;
  *  propre contour n'est pas une épaisseur, c'est un trait plus gras. */
 const DEFAULT_DECK_THICKNESS = 0.2;
 
-/** Ce qu'un pied dépasse sous le plateau, en fraction de la section d'un montant. Un pied est le
- *  montant qui continue jusqu'au sol, pas une pièce de plus : il a donc la même section, et il ne
- *  dépasse que de quoi décoller le plateau — assez pour qu'on voie le jour dessous, pas assez pour
- *  que l'étagère ait l'air montée sur pilotis. */
+/** Ce qu'un pied dépasse sous le plateau **par défaut**, en fraction de la section d'un montant.
+ *  Un pied est le montant qui continue jusqu'au sol, pas une pièce de plus : sa taille suit donc
+ *  celle du montant au lieu d'être un nombre de plus à tenir en accord avec elle, et il ne dépasse
+ *  que de quoi décoller le plateau — assez pour qu'on voie le jour dessous, pas assez pour que
+ *  l'étagère ait l'air montée sur pilotis. `footHeight` passe outre quand on veut des pieds. */
 const FOOT_RISE = 0.75;
 
 /** Par axe. Ce composant dessine chaque étagère entièrement, sans niveau de détail : au-delà, ce
@@ -180,6 +185,7 @@ export function RackV2({
   postSize = DEFAULT_POST_SIZE,
   braces = false,
   feet = false,
+  footHeight,
   cellSize = 22,
   className,
 }: RackV2Props) {
@@ -196,6 +202,7 @@ export function RackV2({
   // rack, and past that there would be nowhere for the posts to run.
   const slabZ = Math.max(0, Math.min(deckThickness, height / 3));
   const side = Math.max(0.02, Math.min(postSize, Math.min(width, depth) / 2));
+  const footZ = Math.max(0, footHeight ?? side * FOOT_RISE);
 
   /** One rack, standing with its far-left-bottom corner at (ox, oy, oz). `roofed` is false when
    *  another rack is stacked on this one: the deck above then belongs to *that* rack, and this one
@@ -369,8 +376,7 @@ export function RackV2({
     // est au-dessus d'eux et opaque : il recouvre ce qui est engagé dessous, et ne laisse voir que
     // ce qui dépasse — ce qui est exactement ce qu'on veut voir.
     const footNodes: ReactNode[] = [];
-    if (feet && oz === 0) {
-      const rise = side * FOOT_RISE;
+    if (feet && footZ > 0 && oz === 0) {
       const stand: Piece[] = foot.map(([cx, cy], i) => {
         const x0 = cx > ox ? cx - side : cx;
         const x1 = cx > ox ? cx : cx + side;
@@ -383,13 +389,13 @@ export function RackV2({
           height: posts ? y1 - y0 : 0,
           render: () =>
             posts ? (
-              solidVolume("post", `${tag}f${i}`, boxFaces(at, x0, x1, y0, y1, -rise, oz))
+              solidVolume("post", `${tag}f${i}`, boxFaces(at, x0, x1, y0, y1, -footZ, oz))
             ) : (
               <line
                 key={`${tag}f${i}`}
                 className="lq-rack2__edge"
-                x1={at(cx, cy, -rise).x}
-                y1={at(cx, cy, -rise).y}
+                x1={at(cx, cy, -footZ).x}
+                y1={at(cx, cy, -footZ).y}
                 x2={at(cx, cy, oz).x}
                 y2={at(cx, cy, oz).y}
               />
@@ -433,7 +439,7 @@ export function RackV2({
   const spanX = nx * width;
   const spanY = ny * depth;
   const spanZ = nz * height;
-  const under = feet ? -side * FOOT_RISE : 0;
+  const under = feet ? -footZ : 0;
   const corners = [
     at(0, 0, 0),
     at(spanX, 0, under),

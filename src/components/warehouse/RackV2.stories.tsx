@@ -23,6 +23,7 @@ export const Boite: Story = {
     posts: true,
     braces: true,
     feet: true,
+    footHeight: 0.17,
     postSize: 0.22,
     deckThickness: 0.2,
     slotsX: 4,
@@ -119,6 +120,7 @@ export const Atelier: Story = {
   render: function Render() {
     const [size, setSize] = useState({ x: 6, y: 2, z: 2.4 });
     const [count, setCount] = useState({ x: 2, y: 2, z: 2 });
+    const [foot, setFoot] = useState(0.17);
 
     // Le dessin grandit avec ce qu'on lui demande ; la case rétrécit pour que le tout reste
     // regardable sans faire défiler à chaque frappe.
@@ -152,6 +154,7 @@ export const Atelier: Story = {
             {field("X — longueur", size.x, (x) => setSize((s) => ({ ...s, x })), dimension)}
             {field("Y — profondeur", size.y, (y) => setSize((s) => ({ ...s, y })), dimension)}
             {field("Z — hauteur", size.z, (z) => setSize((s) => ({ ...s, z })), dimension)}
+            {field("Pieds", foot, setFoot, { min: 0, max: 3, step: 0.05 })}
           </fieldset>
 
           <fieldset style={{ border: 0, padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 8 }}>
@@ -179,6 +182,7 @@ export const Atelier: Story = {
             posts
             braces
             feet
+            footHeight={foot}
           />
         </div>
       </div>

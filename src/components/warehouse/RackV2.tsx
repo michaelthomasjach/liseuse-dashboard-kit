@@ -28,18 +28,22 @@ import "./RackV2.css";
  *
  * ## What covers what
  *
- * The decks are opaque, so on a strict reading of depth they would swallow the far edges and the
- * back of the frame with them. They do not, because the frame is the subject: both decks are laid
- * down first and **every** edge is drawn over them. That is the one deliberate departure from what
- * the camera would really see, and it is the whole reason this drawing exists — a rack you can
- * read is a rack whose twelve edges are all there.
+ * The decks are **opaque**, and that is taken literally: nothing shows through them. A line drawn
+ * over a solid deck is how a picture says "this deck is glass", so the far uprights and the far
+ * rails are simply hidden where the upper deck stands in front of them — which is what you see
+ * looking at a real rack from above, and what makes the deck read as a sheet of steel rather than a
+ * tinted pane.
  *
- * The carton is the exception to the exception. It is genuinely in front of everything it overlaps:
- * two points that land on the same pixel differ by the camera's own direction, which runs along +x,
- * +y and up, so of two such points the one with the greater **x + y** is nearer — and the only
- * edges whose picture crosses a carton sitting away from the rack's near corner are edges behind
- * it. So the edges are split on that one number: those behind the carton are drawn before it, those
- * in front after.
+ * The order is therefore strict depth, and depth here is one number. Two points that land on the
+ * same pixel differ by the camera's own direction, which runs along +x, +y and up, so of two such
+ * points the one with the greater **x + y** is nearer. Hence, back to front:
+ *
+ *   1. the bottom deck;
+ *   2. the rails and uprights that pass behind the carton;
+ *   3. the carton;
+ *   4. the rails and uprights that pass in front of it;
+ *   5. the top deck, nearer than everything below it wherever the two overlap;
+ *   6. the top deck's own four edges, which are its silhouette and so are never behind it.
  */
 
 /** Un carton posé sur le plateau : position et taille en cases, `height` compté depuis le plateau. */
@@ -98,14 +102,16 @@ export function RackV2({
   const bottom = foot.map(([x, y]) => at(x, y, 0));
   const top = foot.map(([x, y]) => at(x, y, height));
 
-  const edges = [
-    ...foot.map((cell, i) => ({ a: bottom[i], b: bottom[(i + 1) % 4], near: Math.min(nearness(cell), nearness(foot[(i + 1) % 4])) })),
-    ...foot.map((cell, i) => ({ a: top[i], b: top[(i + 1) % 4], near: Math.min(nearness(cell), nearness(foot[(i + 1) % 4])) })),
-    ...foot.map((cell, i) => ({ a: bottom[i], b: top[i], near: nearness(cell) })),
-  ];
+  // The top deck's own ring stands apart: it is that deck's silhouette, so it is drawn after it.
+  // Everything else — the floor rails and the four uprights — passes under the deck and is drawn
+  // before it, split around the carton by the same one-number depth test.
+  const ringEdges = (points: Point[]) =>
+    foot.map((cell, i) => ({ a: points[i], b: points[(i + 1) % 4], near: Math.min(nearness(cell), nearness(foot[(i + 1) % 4])) }));
+  const topRing = ringEdges(top);
+  const underDeck = [...ringEdges(bottom), ...foot.map((cell, i) => ({ a: bottom[i], b: top[i], near: nearness(cell) }))];
   const cartonNear = carton ? carton.x + carton.width + carton.y + carton.depth : Infinity;
-  const behind = edges.filter((edge) => edge.near < cartonNear);
-  const inFront = edges.filter((edge) => edge.near >= cartonNear);
+  const behind = underDeck.filter((edge) => edge.near < cartonNear);
+  const inFront = underDeck.filter((edge) => edge.near >= cartonNear);
 
   // The carton's three visible faces — its top and the two sides the camera can see — and the seam
   // where its flaps meet, which is what makes it a carton rather than a block.
@@ -142,7 +148,6 @@ export function RackV2({
       aria-label={carton ? "Étagère portant un carton" : "Étagère"}
     >
       <polygon className="lq-rack2__face lq-rack2__face--bottom" points={ring(bottom)} />
-      <polygon className="lq-rack2__face lq-rack2__face--top" points={ring(top)} />
       {behind.map((edge, i) => line(edge, `b${i}`))}
       {cartonTop && cartonFront && cartonSide && seam && (
         <g className="lq-rack2__carton">
@@ -153,6 +158,8 @@ export function RackV2({
         </g>
       )}
       {inFront.map((edge, i) => line(edge, `f${i}`))}
+      <polygon className="lq-rack2__face lq-rack2__face--top" points={ring(top)} />
+      {topRing.map((edge, i) => line(edge, `t${i}`))}
     </svg>
   );
 }

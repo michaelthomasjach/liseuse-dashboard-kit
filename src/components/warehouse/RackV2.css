@@ -22,8 +22,10 @@
   fill: color-mix(in srgb, var(--lq-rack2-deck) 84%, var(--lq-color-text));
 }
 
-/* Toutes au même poids, et toutes par-dessus les plateaux : l'ossature est le sujet, et une arête
-   « de derrière » escamotée ou dessinée plus légère laisserait la boîte incomplète. */
+/* Toutes au même poids : ce qui décide de ce qu'on voit d'une arête, c'est sa place dans l'ordre de
+   dessin, pas son épaisseur. Une arête « de derrière » dessinée plus légère par-dessus un plateau
+   plein ferait lire ce plateau comme une vitre — c'est la seule chose qu'un plateau ne doit pas
+   faire. Celles qui passent derrière le plateau du haut sont donc simplement cachées par lui. */
 .lq-rack2__edge {
   fill: none;
   stroke: color-mix(in srgb, var(--lq-color-text) 72%, transparent);

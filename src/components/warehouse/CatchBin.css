@@ -1,0 +1,16 @@
+/* Bac récupérateur. Le modèle de lumière et les matières sont dans rackItems.css, partagés avec
+   l'étagère, le tapis et la zone. Voir CatchBin.tsx pour le pourquoi. */
+
+.lq-bin {
+  display: block;
+  overflow: visible;
+}
+
+/* Le fond du bac : la même matière que ses parois, mais à l'ombre — on le voit par au-dessus, et
+   rien ne l'éclaire directement puisqu'il est au fond d'une caisse. */
+.lq-bin__floor {
+  fill: color-mix(in srgb, color-mix(in srgb, var(--lq-color-sky) 46%, var(--lq-color-bg)) 70%, var(--lq-color-text));
+  stroke: color-mix(in srgb, var(--lq-color-text) 72%, transparent);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}

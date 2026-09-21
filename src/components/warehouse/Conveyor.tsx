@@ -127,6 +127,12 @@ export interface ConveyorProps {
   /** Avance de la charge au premier rendu, en tours de ce module. C'est ce qui fait qu'un colis
    *  quitte un module à l'instant même où le suivant en accueille un. */
   phase?: number;
+  /** Ce qu'on dessine : tout, la machine seule, ou ce qui voyage dessus seul. Une ligne composée
+   *  de plusieurs modules a besoin de la séparation : la charge appartient au module qu'elle
+   *  traverse, donc elle hérite de sa place dans la pile, et le module suivant — dessiné après, car
+   *  plus proche — la recouvre juste au moment où elle arrive à la jonction. Dessiner toutes les
+   *  machines, puis toutes les charges, remet chaque chose là où on la cherche. */
+  parts?: "all" | "machine" | "load";
   /** La part du cycle pendant laquelle une charge traverse ce module, quand le cycle appartient à
    *  quelque chose de plus grand — une boucle, par exemple. Hors de cette part, le module est vide.
    *  C'est ce qui permet de ne faire circuler **qu'un seul colis** sur toute une ligne : chaque
@@ -181,6 +187,7 @@ export function Conveyor({
   fadeEnds = true,
   phase = 0,
   span,
+  parts = "all",
   cellSize = 34,
   className,
 }: ConveyorProps) {
@@ -584,19 +591,23 @@ export function Conveyor({
         </defs>
       )}
 
-      {sorted(legs).map((piece) => piece.render())}
-      {bed}
-      {/* La bande et sa flèche sont à plat sur le bâti : rien ne peut passer dessous, donc elles
-          sont posées avant tout ce qui se dresse dessus plutôt que triées avec. */}
-      <polygon className="lq-conveyor__belt" points={ring(beltFace)} />
-      <polyline className="lq-conveyor__arrow" points={arrow} />
+      {parts !== "load" && (
+        <>
+          {sorted(legs).map((piece) => piece.render())}
+          {bed}
+          {/* La bande et sa flèche sont à plat sur le bâti : rien ne peut passer dessous, donc elles
+              sont posées avant tout ce qui se dresse dessus plutôt que triées avec. */}
+          <polygon className="lq-conveyor__belt" points={ring(beltFace)} />
+          <polyline className="lq-conveyor__arrow" points={arrow} />
       {/* Les deux barrières avant tout ce qui voyage, jamais après. Une barrière fait cinq pixels
           de haut et un colis en fait cinquante : la rive qui lui passe devant ne se lit pas comme
           « le colis est derrière la rive », elle se lit comme un colis coupé. Les deux barrières
           entre elles n'ont pas d'ordre à avoir — toute la largeur de la bande les sépare, donc
           elles ne se recouvrent jamais à l'écran. */}
-      {guards}
-      {sorted(pieces).map((piece) => piece.render())}
+          {guards}
+        </>
+      )}
+      {parts !== "machine" && sorted(pieces).map((piece) => piece.render())}
     </svg>
   );
 }

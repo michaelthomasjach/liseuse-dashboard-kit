@@ -223,6 +223,11 @@ export const Rond: Story = {
  * suffit de faire coïncider l'entrée de l'un avec la sortie du précédent. Le cap s'accumule tout
  * seul : un angle tourne d'un quart, donc les rotations sont 0, 0, 90, 90, 180, 180, 270, 270.
  *
+ * Les machines sont toutes dessinées avant les charges (`parts`). Un colis appartient au module
+ * qu'il traverse, donc il hérite de sa place dans la pile — et le module suivant, dessiné après
+ * parce qu'il est plus proche, le recouvrait juste au moment où il arrivait à la jonction, ce qui
+ * se lisait comme un colis passant *sous* le tapis.
+ *
  * Le fondu d'entrée et de sortie est **coupé** (`fadeEnds={false}`) : un module seul n'a pas d'amont
  * à montrer et doit s'effacer, un module au milieu d'une chaîne en a un.
  *
@@ -317,24 +322,31 @@ export const Boucle: Story = {
     return (
       <div style={{ padding: 32 }}>
         <div style={{ position: "relative", width: box.width, height: box.height }}>
-          {order.map(({ m, i }) => (
-            <div key={i} style={{ position: "absolute", left: 0, top: 0 }}>
-              <Conveyor
-                kind={m.kind}
-                length={L}
-                width={W}
-                legHeight={1}
-                cellSize={cellSize}
-                rotation={m.rotation}
-                origin={m.origin}
-                frame={frame}
-                load="carton"
-                span={{ start: m.from / travelled, end: (m.from + m.run) / travelled }}
-                fadeEnds={false}
-                speed={speed}
-              />
-            </div>
-          ))}
+          {/* D'abord les huit machines, du fond vers l'avant ; puis les huit couches de charge, par
+              dessus. Un colis appartient au module qu'il traverse, donc il hérite de sa place dans
+              la pile — et le module suivant, dessiné après parce qu'il est plus proche, le
+              recouvrait juste au moment où il arrivait à la jonction. */}
+          {(["machine", "load"] as const).map((part) =>
+            order.map(({ m, i }) => (
+              <div key={`${part}${i}`} style={{ position: "absolute", left: 0, top: 0 }}>
+                <Conveyor
+                  kind={m.kind}
+                  length={L}
+                  width={W}
+                  legHeight={1}
+                  cellSize={cellSize}
+                  rotation={m.rotation}
+                  origin={m.origin}
+                  frame={frame}
+                  parts={part}
+                  load="carton"
+                  span={{ start: m.from / travelled, end: (m.from + m.run) / travelled }}
+                  fadeEnds={false}
+                  speed={speed}
+                />
+              </div>
+            ))
+          )}
         </div>
       </div>
     );

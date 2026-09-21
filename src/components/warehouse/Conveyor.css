@@ -17,40 +17,39 @@
   vector-effect: non-scaling-stroke;
 }
 
-/* Les chevrons disent le sens ; leur éclat, qui descend le parcours, dit que ça tourne. Deux
-   porteurs distincts, parce que le mouvement est justement ce qu'un lecteur peut ne pas voir. */
-.lq-conveyor__chevron {
+/* Les barreaux de la bande. Ils vont presque d'un bord à l'autre et pointent par où ça part : le
+   sens reste lisible sans mouvement, ce qui compte parce que le mouvement est la seule chose qu'un
+   lecteur peut être incapable de voir. */
+.lq-conveyor__cleat {
   fill: none;
-  stroke: color-mix(in srgb, var(--lq-color-bg) 72%, var(--lq-color-text));
+  stroke: color-mix(in srgb, var(--lq-color-bg) 66%, var(--lq-color-text));
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
   vector-effect: non-scaling-stroke;
-  opacity: 0.3;
-  animation: lq-conveyor-flow var(--lq-conveyor-cycle, 1.8s) linear infinite;
 }
 
-/* Une seule onde à la fois : le creux est long et la crête courte, sinon tout le tapis brille en
-   même temps et plus rien ne descend. */
-@keyframes lq-conveyor-flow {
-  0%,
-  100% {
-    opacity: 0.28;
-  }
-  12% {
-    opacity: 1;
-  }
+/* Le groupe qui porte la bande, et celui qui porte ce qui voyage dessus. L'origine est celle de la
+   `viewBox` : la part qu'elle prend dans la transformation est calculée dans le composant, sans
+   quoi une partie linéaire non triviale déplacerait aussi tout ce qui la sépare du dessin. */
+.lq-conveyor__flow,
+.lq-conveyor__ride {
+  transform-box: view-box;
+  transform-origin: 0 0;
+  animation-duration: var(--lq-conveyor-cycle, 0.9s);
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
 }
 
-/* Arrêté : les chevrons restent, et disent encore de quel côté ça irait. */
-.lq-conveyor--stopped .lq-conveyor__chevron {
+/* Arrêté : les barreaux restent, et disent encore de quel côté ça irait. */
+.lq-conveyor--stopped .lq-conveyor__flow,
+.lq-conveyor--stopped .lq-conveyor__ride {
   animation: none;
-  opacity: 0.72;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .lq-conveyor__chevron {
-    animation: none;
-    opacity: 0.72;
+  .lq-conveyor__flow,
+  .lq-conveyor__ride {
+    animation: none !important;
   }
 }

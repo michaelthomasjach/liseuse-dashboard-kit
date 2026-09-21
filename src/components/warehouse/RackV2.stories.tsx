@@ -1,5 +1,7 @@
+import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react";
 import { RackV2 } from "./RackV2";
+import { NumberField } from "../forms";
 
 const meta: Meta<typeof RackV2> = {
   title: "Warehouse/Étagère V2",
@@ -16,6 +18,79 @@ export const Boite: Story = {
       <RackV2 {...args} />
     </div>
   ),
+};
+
+/** Trois champs pour les dimensions d'une étagère, trois pour le nombre d'étagères sur chaque axe.
+ *  Les étagères se touchent : une enfilade d'étagères, c'est des étagères poussées l'une contre
+ *  l'autre, et un espace entre deux est quelque chose qu'on obtient en demandant deux blocs. */
+export const Atelier: Story = {
+  name: "Dimensionner et multiplier",
+  render: function Render() {
+    const [size, setSize] = useState({ x: 6, y: 2, z: 2.4 });
+    const [count, setCount] = useState({ x: 2, y: 2, z: 2 });
+
+    // Le dessin grandit avec ce qu'on lui demande ; la case rétrécit pour que le tout reste
+    // regardable sans faire défiler à chaque frappe.
+    const cellSize = Math.max(8, Math.min(40, 260 / Math.max(size.x * count.x, size.y * count.y)));
+
+    const field = (
+      label: string,
+      value: number,
+      onChange: (next: number) => void,
+      { min, max, step }: { min: number; max: number; step: number }
+    ) => (
+      <NumberField
+        label={label}
+        size="small"
+        value={value}
+        min={min}
+        max={max}
+        step={step}
+        onChange={(next) => onChange(next === "" ? min : Math.max(min, Math.min(max, next)))}
+      />
+    );
+
+    const dimension = { min: 1, max: 20, step: 0.5 };
+    const quantity = { min: 1, max: 8, step: 1 };
+
+    return (
+      <div style={{ display: "flex", gap: 32, alignItems: "flex-start", padding: 24, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 20, width: 220 }}>
+          <fieldset style={{ border: 0, padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 8 }}>
+            <legend style={{ padding: 0, fontSize: "0.75rem", fontWeight: 700 }}>Dimensions d'une étagère</legend>
+            {field("X — longueur", size.x, (x) => setSize((s) => ({ ...s, x })), dimension)}
+            {field("Y — profondeur", size.y, (y) => setSize((s) => ({ ...s, y })), dimension)}
+            {field("Z — hauteur", size.z, (z) => setSize((s) => ({ ...s, z })), dimension)}
+          </fieldset>
+
+          <fieldset style={{ border: 0, padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 8 }}>
+            <legend style={{ padding: 0, fontSize: "0.75rem", fontWeight: 700 }}>Nombre d'étagères</legend>
+            {field("X — en enfilade", count.x, (x) => setCount((c) => ({ ...c, x })), quantity)}
+            {field("Y — en rangées", count.y, (y) => setCount((c) => ({ ...c, y })), quantity)}
+            {field("Z — empilées", count.z, (z) => setCount((c) => ({ ...c, z })), quantity)}
+          </fieldset>
+
+          <p style={{ margin: 0, fontSize: "0.68rem", color: "var(--lq-color-text-muted)" }}>
+            {count.x * count.y * count.z} étagère{count.x * count.y * count.z > 1 ? "s" : ""} ·{" "}
+            {(size.x * count.x).toFixed(1)} × {(size.y * count.y).toFixed(1)} × {(size.z * count.z).toFixed(1)} cases
+          </p>
+        </div>
+
+        <div style={{ flex: "1 1 400px", minWidth: 0, overflow: "auto" }}>
+          <RackV2
+            width={size.x}
+            depth={size.y}
+            height={size.z}
+            countX={count.x}
+            countY={count.y}
+            countZ={count.z}
+            cellSize={cellSize}
+            posts
+          />
+        </div>
+      </div>
+    );
+  },
 };
 
 /** `posts` remplace les quatre arêtes verticales par de vrais poteaux — des colonnes carrées posées

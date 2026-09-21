@@ -31,14 +31,16 @@ import "./RackV2.css";
  * their manner: a deck and a post are steel, a carton is kraft. Three lightnesses rather than three
  * hues is also what survives e-ink, where every accent collapses to the text colour.
  *
- * ## The geometry
+ * ## One rack, or a block of them
  *
- * The footprint's four corners, at z = 0 and again at z = `height`; the camera (`projectIso`, shared
- * with the floor plan so this box sits in the same space as everything else) sends each to the
- * screen. The bottom slab takes the first `deckThickness` of that height and the top slab the last,
- * so the posts run between them and whatever stands in the rack stands on the lower slab's face —
- * `height` stays the height of the whole rack, which is the only number a caller should have to
- * think about.
+ * `width`, `depth` and `height` are one rack's three dimensions; `countX`, `countY` and `countZ`
+ * are how many of it to draw along each axis. They **abut exactly** — no gap, no spacing prop:
+ * racks pushed together is what a run of shelving is, and a gap is something a caller can get by
+ * asking for two blocks. Stacked, one rack's bottom slab lands on the one below's top slab, which
+ * is what the doubled thickness at each floor is telling you.
+ *
+ * A block is drawn as **one** picture, not as N pictures side by side, because depth ordering is
+ * the whole difficulty here and it cannot be decided a rack at a time.
  *
  * ## What covers what
  *
@@ -47,11 +49,18 @@ import "./RackV2.css";
  * where the upper deck stands in front of them — which is what you see looking at a real rack from
  * above, and what makes the deck read as a sheet of steel rather than a tinted pane.
  *
- * So the order is strict depth, back to front: the bottom slab, then everything standing on it —
- * posts and carton — sorted by `paintOrder`, then the top slab, which is nearer than all of them
- * wherever it overlaps. `paintOrder` is the floor plan's own sorter: of two footprints that do not
- * overlap, the one further along +x or +y is in front, and that only decides anything when their
- * pictures meet.
+ * Depth is one number. Two points that land on the same pixel differ by the camera's own direction,
+ * which runs along +x, +y and up, so of two such points the one with the greater **x + y** is
+ * nearer — and if they are at different heights, the higher one is nearer, since reaching it from
+ * the lower one means travelling along that direction. That gives the order at three scales:
+ *
+ *   - **between floors**, bottom to top: every point of a floor is at or above every point of the
+ *     floor below, so the whole of one floor is drawn before the whole of the next;
+ *   - **within a floor**, `paintOrder` — the floor plan's own sorter: of two footprints that do not
+ *     overlap, the one further along +x or +y is in front, and that only decides anything when
+ *     their pictures meet;
+ *   - **within a rack**: the bottom slab, then its posts and carton (`paintOrder` again, since a
+ *     post and a carton are just two more footprints), then the top slab.
  */
 
 /** Un carton posé sur le plateau : position et taille en cases, `height` compté depuis le plateau. */
@@ -64,19 +73,25 @@ export interface RackV2Carton {
 }
 
 export interface RackV2Props {
-  /** Longueur de l'étagère, en cases. */
+  /** Longueur d'une étagère (axe X), en cases. */
   width?: number;
-  /** Profondeur, en cases. */
+  /** Profondeur d'une étagère (axe Y), en cases. */
   depth?: number;
-  /** Hauteur hors tout, plateaux compris, en cases. */
+  /** Hauteur hors tout d'une étagère (axe Z), plateaux compris, en cases. */
   height?: number;
+  /** Nombre d'étagères en enfilade sur l'axe X. */
+  countX?: number;
+  /** Nombre de rangées d'étagères sur l'axe Y. */
+  countY?: number;
+  /** Nombre d'étagères empilées sur l'axe Z. */
+  countZ?: number;
   /** Épaisseur des deux plateaux, en cases. */
   deckThickness?: number;
   /** Des poteaux modélisés en volume à la place des quatre arêtes verticales. */
   posts?: boolean;
   /** Côté d'un poteau, en cases. Sans effet si `posts` est faux. */
   postSize?: number;
-  /** Le carton posé sur le plateau du bas. `null` pour une étagère vide. */
+  /** Le carton posé sur le plateau du bas de chaque étagère. `null` pour des étagères vides. */
   carton?: RackV2Carton | null;
   /** Pixels par case. Le même défaut que le plan d'entrepôt, pour que les deux s'accordent. */
   cellSize?: number;
@@ -99,15 +114,24 @@ const DEFAULT_POST_SIZE = 0.22;
  *  propre contour n'est pas une épaisseur, c'est un trait plus gras. */
 const DEFAULT_DECK_THICKNESS = 0.2;
 
+/** Par axe. Ce composant dessine chaque étagère entièrement, sans niveau de détail : au-delà, ce
+ *  n'est plus un dessin mais une scène, et c'est un autre travail que celui-ci. */
+const MAX_COUNT = 24;
+
 type Point = { x: number; y: number };
 type Cell = [number, number];
 type Faces = { top: Point[]; front: Point[]; side: Point[] };
 type Piece = { x: number; y: number; width: number; height: number; render: () => ReactNode };
 
+const count = (n: number) => Math.max(1, Math.min(MAX_COUNT, Math.floor(n) || 1));
+
 export function RackV2({
   width = 8,
   depth = 2,
   height = 2.4,
+  countX = 1,
+  countY = 1,
+  countZ = 1,
   deckThickness = DEFAULT_DECK_THICKNESS,
   posts = false,
   postSize = DEFAULT_POST_SIZE,
@@ -118,21 +142,14 @@ export function RackV2({
   const at = (x: number, y: number, z: number) => projectIso(x * cellSize, y * cellSize, z * cellSize);
   const ring = (points: Point[]) => points.map((p) => `${p.x},${p.y}`).join(" ");
 
-  const foot: Cell[] = [
-    [0, 0],
-    [width, 0],
-    [width, depth],
-    [0, depth],
-  ];
-  const bottom = foot.map(([x, y]) => at(x, y, 0));
-  const top = foot.map(([x, y]) => at(x, y, height));
+  const nx = count(countX);
+  const ny = count(countY);
+  const nz = count(countZ);
 
   // Two slabs can never eat the whole rack: a third of the height each is already more deck than
   // rack, and past that there would be nowhere for the posts to run.
   const slabZ = Math.max(0, Math.min(deckThickness, height / 3));
-  /** The face things stand on, and the underside of the deck above them. */
-  const floorZ = slabZ;
-  const ceilZ = height - slabZ;
+  const side = Math.max(0.02, Math.min(postSize, Math.min(width, depth) / 2));
 
   /** The three faces of a box the camera can see: its top, and the two sides facing +y and +x. */
   const solid = (x0: number, x1: number, y0: number, y1: number, z0: number, z1: number): Faces => ({
@@ -151,65 +168,98 @@ export function RackV2({
     </g>
   );
 
-  const deck = (which: "upper" | "lower", z0: number, z1: number) =>
-    volume(`deck-${which}`, which, solid(0, width, 0, depth, z0, z1), slabZ === 0);
+  /** One rack, standing with its near-left-bottom corner at (ox, oy, oz). */
+  const rack = (ox: number, oy: number, oz: number, tag: string): ReactNode[] => {
+    const floorZ = oz + slabZ;
+    const ceilZ = oz + height - slabZ;
+    const foot: Cell[] = [
+      [ox, oy],
+      [ox + width, oy],
+      [ox + width, oy + depth],
+      [ox, oy + depth],
+    ];
 
-  // Everything standing on the lower deck, each with the footprint `paintOrder` sorts on.
-  const pieces: Piece[] = [];
-
-  // The uprights: four lines, or four columns set inward from their own corner so the silhouette
-  // stays exactly where the lines were.
-  const side = Math.max(0.02, Math.min(postSize, Math.min(width, depth) / 2));
-  foot.forEach(([cx, cy], i) => {
-    const x0 = cx > 0 ? cx - side : cx;
-    const x1 = cx > 0 ? cx : cx + side;
-    const y0 = cy > 0 ? cy - side : cy;
-    const y1 = cy > 0 ? cy : cy + side;
-    pieces.push({
-      x: posts ? x0 : cx,
-      y: posts ? y0 : cy,
-      width: posts ? x1 - x0 : 0,
-      height: posts ? y1 - y0 : 0,
-      render: () =>
-        posts ? (
-          volume("post", `p${i}`, solid(x0, x1, y0, y1, floorZ, ceilZ), false)
-        ) : (
-          <line
-            key={`p${i}`}
-            className="lq-rack2__edge"
-            x1={at(cx, cy, floorZ).x}
-            y1={at(cx, cy, floorZ).y}
-            x2={at(cx, cy, ceilZ).x}
-            y2={at(cx, cy, ceilZ).y}
-          />
-        ),
+    const pieces: Piece[] = [];
+    foot.forEach(([cx, cy], i) => {
+      const x0 = cx > ox ? cx - side : cx;
+      const x1 = cx > ox ? cx : cx + side;
+      const y0 = cy > oy ? cy - side : cy;
+      const y1 = cy > oy ? cy : cy + side;
+      pieces.push({
+        x: posts ? x0 : cx,
+        y: posts ? y0 : cy,
+        width: posts ? x1 - x0 : 0,
+        height: posts ? y1 - y0 : 0,
+        render: () =>
+          posts ? (
+            volume("post", `${tag}p${i}`, solid(x0, x1, y0, y1, floorZ, ceilZ), false)
+          ) : (
+            <line
+              key={`${tag}p${i}`}
+              className="lq-rack2__edge"
+              x1={at(cx, cy, floorZ).x}
+              y1={at(cx, cy, floorZ).y}
+              x2={at(cx, cy, ceilZ).x}
+              y2={at(cx, cy, ceilZ).y}
+            />
+          ),
+      });
     });
-  });
 
-  if (carton) {
-    const x1 = carton.x + carton.width;
-    const y1 = carton.y + carton.depth;
-    const midY = (carton.y + y1) / 2;
-    const lid = floorZ + carton.height;
-    pieces.push({
-      x: carton.x,
-      y: carton.y,
-      width: carton.width,
-      height: carton.depth,
-      // The seam where the flaps meet is what makes it a carton rather than a block.
-      render: () =>
-        volume("carton", "carton", solid(carton.x, x1, carton.y, y1, floorZ, lid), false, [
-          at(carton.x, midY, lid),
-          at(x1, midY, lid),
-        ]),
-    });
+    if (carton) {
+      const x0 = ox + carton.x;
+      const x1 = x0 + carton.width;
+      const y0 = oy + carton.y;
+      const y1 = y0 + carton.depth;
+      const lid = floorZ + carton.height;
+      pieces.push({
+        x: x0,
+        y: y0,
+        width: carton.width,
+        height: carton.depth,
+        // The seam where the flaps meet is what makes it a carton rather than a block.
+        render: () =>
+          volume("carton", `${tag}c`, solid(x0, x1, y0, y1, floorZ, lid), false, [
+            at(x0, (y0 + y1) / 2, lid),
+            at(x1, (y0 + y1) / 2, lid),
+          ]),
+      });
+    }
+
+    const deck = (which: "upper" | "lower", z0: number, z1: number) =>
+      volume(`deck-${which}`, `${tag}${which}`, solid(ox, ox + width, oy, oy + depth, z0, z1), slabZ === 0);
+
+    return [deck("lower", oz, floorZ), ...paintOrder(pieces).map((piece) => piece.render()), deck("upper", ceilZ, oz + height)];
+  };
+
+  // Floor by floor from the ground up, and inside each floor the racks sorted back to front.
+  const drawn: ReactNode[] = [];
+  for (let iz = 0; iz < nz; iz += 1) {
+    const floor: Piece[] = [];
+    for (let iy = 0; iy < ny; iy += 1) {
+      for (let ix = 0; ix < nx; ix += 1) {
+        const ox = ix * width;
+        const oy = iy * depth;
+        floor.push({
+          x: ox,
+          y: oy,
+          width,
+          height: depth,
+          render: () => <g key={`${ix}-${iy}-${iz}`}>{rack(ox, oy, iz * height, `${ix}-${iy}-${iz}-`)}</g>,
+        });
+      }
+    }
+    paintOrder(floor).forEach((piece) => drawn.push(piece.render()));
   }
 
-  const all = [...bottom, ...top];
-  const minX = Math.min(...all.map((p) => p.x)) - PAD;
-  const minY = Math.min(...all.map((p) => p.y)) - PAD;
-  const boxWidth = Math.max(...all.map((p) => p.x)) + PAD - minX;
-  const boxHeight = Math.max(...all.map((p) => p.y)) + PAD - minY;
+  const spanX = nx * width;
+  const spanY = ny * depth;
+  const spanZ = nz * height;
+  const corners = [at(0, 0, 0), at(spanX, 0, 0), at(spanX, spanY, 0), at(0, spanY, 0), at(0, 0, spanZ), at(spanX, spanY, spanZ)];
+  const minX = Math.min(...corners.map((p) => p.x)) - PAD;
+  const minY = Math.min(...corners.map((p) => p.y)) - PAD;
+  const boxWidth = Math.max(...corners.map((p) => p.x)) + PAD - minX;
+  const boxHeight = Math.max(...corners.map((p) => p.y)) + PAD - minY;
 
   return (
     <svg
@@ -218,11 +268,9 @@ export function RackV2({
       height={boxHeight}
       viewBox={`${minX} ${minY} ${boxWidth} ${boxHeight}`}
       role="img"
-      aria-label={carton ? "Étagère portant un carton" : "Étagère"}
+      aria-label={nx * ny * nz > 1 ? `${nx * ny * nz} étagères` : carton ? "Étagère portant un carton" : "Étagère"}
     >
-      {deck("lower", 0, floorZ)}
-      {paintOrder(pieces).map((piece) => piece.render())}
-      {deck("upper", ceilZ, height)}
+      {drawn}
     </svg>
   );
 }

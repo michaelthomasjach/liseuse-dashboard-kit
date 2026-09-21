@@ -59,6 +59,51 @@ export interface Faces {
   side: Point[];
 }
 
+/**
+ * Quelles faces d'un volume la caméra voit, une fois le sol tourné de `rotation` degrés.
+ *
+ * Sans rotation la réponse est toujours la même — la face +x et la face +y — et c'était écrit en
+ * dur. Dès que le sol tourne, c'est faux : à 90° la face +y est passée derrière, et chaque volume
+ * du dessin peignait une face cachée tout en omettant une face visible. Plateaux, poteaux, pieds,
+ * cartons : tout, d'un coup.
+ *
+ * La règle est un produit scalaire. La caméra regarde depuis +x, +y ; une face est visible quand sa
+ * normale, une fois tournée, pointe de ce côté. La face +x a pour normale (1, 0), tournée elle
+ * devient (cos, sin), et elle est visible tant que `cos + sin > 0` ; la face +y a pour normale
+ * (0, 1), tournée en (−sin, cos), visible tant que `cos − sin > 0`. Sinon c'est la face opposée
+ * qu'on voit.
+ *
+ * Reste à savoir laquelle des deux apparaît à gauche, puisque c'est de là que vient la lumière : la
+ * normale d'une face part vers la gauche de l'écran quand sa composante `x − y` est négative. La
+ * lumière est ainsi attachée à l'*image* et non au monde — tourner le meuble ne déplace pas le
+ * soleil.
+ */
+export interface IsoFacing {
+  /** +1 quand la face x visible est celle de x1, −1 quand c'est celle de x0. */
+  xFace: 1 | -1;
+  yFace: 1 | -1;
+  /** Vrai quand c'est la face x qui apparaît à gauche, donc à demi-éclairée. */
+  xOnLeft: boolean;
+  /** L'angle où la silhouette d'un cylindre s'arrête, à droite. Son opposé la ferme à gauche. */
+  rimRight: number;
+}
+
+export function isoFacing(rotation = 0): IsoFacing {
+  const t = (rotation * Math.PI) / 180;
+  const cos = Math.cos(t);
+  const sin = Math.sin(t);
+  const xFace = cos + sin >= 0 ? 1 : -1;
+  const yFace = cos - sin >= 0 ? 1 : -1;
+  return {
+    xFace,
+    yFace,
+    xOnLeft: xFace * (cos - sin) < 0,
+    // L'extrême droit de l'ellipse projetée. Sans rotation il tombe à −45°, la valeur qu'il avait
+    // quand il était constant.
+    rimRight: Math.atan2(-(sin + cos), cos - sin),
+  };
+}
+
 interface ItemSpec {
   material: string;
   round: boolean;
@@ -112,12 +157,25 @@ export function fitRackItem(
   };
 }
 
-/** The three faces of an axis-aligned box the camera can see. */
-export function boxFaces(at: Project, x0: number, x1: number, y0: number, y1: number, z0: number, z1: number): Faces {
+/** The three faces of an axis-aligned box the camera can see, for the given facing. */
+export function boxFaces(
+  at: Project,
+  x0: number,
+  x1: number,
+  y0: number,
+  y1: number,
+  z0: number,
+  z1: number,
+  facing: IsoFacing
+): Faces {
+  const xs = facing.xFace > 0 ? x1 : x0;
+  const ys = facing.yFace > 0 ? y1 : y0;
+  const faceX = [at(xs, y0, z0), at(xs, y1, z0), at(xs, y1, z1), at(xs, y0, z1)];
+  const faceY = [at(x0, ys, z0), at(x1, ys, z0), at(x1, ys, z1), at(x0, ys, z1)];
   return {
     top: [at(x0, y0, z1), at(x1, y0, z1), at(x1, y1, z1), at(x0, y1, z1)],
-    front: [at(x0, y1, z0), at(x1, y1, z0), at(x1, y1, z1), at(x0, y1, z1)],
-    side: [at(x1, y0, z0), at(x1, y1, z0), at(x1, y1, z1), at(x1, y0, z1)],
+    front: facing.xOnLeft ? faceX : faceY,
+    side: facing.xOnLeft ? faceY : faceX,
   };
 }
 
@@ -135,10 +193,6 @@ export function solidVolume(material: string, key: string, faces: Faces, flat = 
   );
 }
 
-/** Les extrêmes de l'ellipse projetée : c'est là que la silhouette d'un cylindre s'arrête. */
-const LEFT = (3 * Math.PI) / 4;
-const RIGHT = -Math.PI / 4;
-
 function rim(at: Project, cx: number, cy: number, z: number, r: number, from: number, to: number, steps = 24): Point[] {
   const points: Point[] = [];
   for (let i = 0; i <= steps; i += 1) {
@@ -148,17 +202,24 @@ function rim(at: Project, cx: number, cy: number, z: number, r: number, from: nu
   return points;
 }
 
-/** Un cylindre : le couvercle, et la silhouette du corps. */
-export function cylinderParts(at: Project, cx: number, cy: number, r: number, z0: number, z1: number) {
+/** Un cylindre : le couvercle, et la silhouette du corps.
+ *
+ *  Les deux angles où la silhouette s'arrête ne sont pas constants : l'ellipse projetée tourne avec
+ *  le sol et ses extrêmes avec elle. Ils sortent de `isoFacing`, comme les faces d'une boîte. */
+export function cylinderParts(at: Project, cx: number, cy: number, r: number, z0: number, z1: number, facing: IsoFacing) {
+  const right = facing.rimRight;
+  const left = right + Math.PI;
   return {
-    lid: rim(at, cx, cy, z1, r, LEFT, LEFT + 2 * Math.PI, 40),
-    body: [...rim(at, cx, cy, z1, r, LEFT, RIGHT), ...rim(at, cx, cy, z0, r, RIGHT, LEFT)],
+    lid: rim(at, cx, cy, z1, r, left, left + 2 * Math.PI, 40),
+    body: [...rim(at, cx, cy, z1, r, left, right), ...rim(at, cx, cy, z0, r, right, left)],
   };
 }
 
 /** Le devant d'un cerceau : ce qu'on voit d'une frette de bidon. */
-function hoop(at: Project, cx: number, cy: number, z: number, r: number): string {
-  return rim(at, cx, cy, z, r, LEFT, RIGHT).map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(2)},${p.y.toFixed(2)}`).join("");
+function hoop(at: Project, cx: number, cy: number, z: number, r: number, facing: IsoFacing): string {
+  return rim(at, cx, cy, z, r, facing.rimRight + Math.PI, facing.rimRight)
+    .map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(2)},${p.y.toFixed(2)}`)
+    .join("");
 }
 
 /**
@@ -168,15 +229,15 @@ function hoop(at: Project, cx: number, cy: number, z: number, r: number): string
  * exactement le même espace qu'elle — pas dans un dessin séparé qu'il faudrait ensuite faire
  * coïncider.
  */
-export function rackItemIso(kind: RackItemKind, fit: RackItemFit, at: Project, key: string): ReactNode {
+export function rackItemIso(kind: RackItemKind, fit: RackItemFit, at: Project, facing: IsoFacing, key: string): ReactNode {
   const { cx, cy, half, z, height, spec } = fit;
   const top = z + height;
 
   if (kind === "bouteille") {
     // Un corps, un goulot : deux cylindres, ce qui suffit à dire « bouteille » et pas « tube ».
     const neck = z + height * 0.62;
-    const body = cylinderParts(at, cx, cy, half, z, neck);
-    const cap = cylinderParts(at, cx, cy, half * 0.42, neck, top);
+    const body = cylinderParts(at, cx, cy, half, z, neck, facing);
+    const cap = cylinderParts(at, cx, cy, half * 0.42, neck, top, facing);
     return (
       <g key={key} className={`lq-iso__solid lq-iso__solid--${spec.material}`}>
         <polygon className="lq-iso__face lq-iso__face--front" points={ring(body.body)} />
@@ -187,19 +248,19 @@ export function rackItemIso(kind: RackItemKind, fit: RackItemFit, at: Project, k
   }
 
   if (spec.round) {
-    const parts = cylinderParts(at, cx, cy, half, z, top);
+    const parts = cylinderParts(at, cx, cy, half, z, top, facing);
     return (
       <g key={key} className={`lq-iso__solid lq-iso__solid--${spec.material}`}>
         <polygon className="lq-iso__face lq-iso__face--front" points={ring(parts.body)} />
         {/* Deux frettes : c'est ce qui distingue un fût d'un simple tube. */}
-        <path className="lq-iso__hoop" d={hoop(at, cx, cy, z + height * 0.34, half)} />
-        <path className="lq-iso__hoop" d={hoop(at, cx, cy, z + height * 0.68, half)} />
+        <path className="lq-iso__hoop" d={hoop(at, cx, cy, z + height * 0.34, half, facing)} />
+        <path className="lq-iso__hoop" d={hoop(at, cx, cy, z + height * 0.68, half, facing)} />
         <polygon className="lq-iso__face lq-iso__face--top" points={ring(parts.lid)} />
       </g>
     );
   }
 
-  const faces = boxFaces(at, cx - half, cx + half, cy - half, cy + half, z, top);
+  const faces = boxFaces(at, cx - half, cx + half, cy - half, cy + half, z, top, facing);
 
   if (kind === "palette") {
     // Les entretoises, vues de dessus : c'est ce qui fait qu'une palette n'est pas une planche.

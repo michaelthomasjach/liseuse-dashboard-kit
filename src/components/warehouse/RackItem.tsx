@@ -1,5 +1,5 @@
 import { projectIso } from "./warehouseIso";
-import { RACK_ITEM_LABEL, fitRackItem, rackItemIso, rackItemPlan, type Project, type RackItemKind } from "./rackItems";
+import { RACK_ITEM_LABEL, fitRackItem, isoFacing, rackItemIso, rackItemPlan, type Project, type RackItemKind } from "./rackItems";
 import "./rackItems.css";
 
 /** Un élément seul, dans l'une ou l'autre vue — pour un catalogue, une légende, une palette.
@@ -67,7 +67,7 @@ export function RackItem({ kind, view = "iso", slot = 2, cellSize = 40, classNam
       role="img"
       aria-label={RACK_ITEM_LABEL[kind]}
     >
-      {rackItemIso(kind, fit, at, kind)}
+      {rackItemIso(kind, fit, at, isoFacing(0), kind)}
     </svg>
   );
 }

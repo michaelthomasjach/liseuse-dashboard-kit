@@ -4,6 +4,7 @@ import { paintOrder } from "./warehousePaint";
 import {
   boxFaces,
   fitRackItem,
+  isoFacing,
   rackItemIso,
   solidVolume,
   type Point,
@@ -225,6 +226,10 @@ export function RackV2({
     return projectIso(p.x * cellSize, p.y * cellSize, z * cellSize);
   };
 
+  // Quelles faces de chaque volume la caméra voit, une fois le sol tourné. Sans ça, tourner le bloc
+  // faisait peindre à chaque boîte une face passée derrière et en oublier une visible.
+  const facing = isoFacing(rotation);
+
   /**
    * Depth is decided in the **turned** frame, because that is the frame the camera sees. A piece is
    * handed to `paintOrder` as the box its footprint occupies once turned: at a right angle that is
@@ -285,7 +290,7 @@ export function RackV2({
         height: posts ? y1 - y0 : 0,
         render: () =>
           posts ? (
-            solidVolume("post", `${tag}p${i}`, boxFaces(at, x0, x1, y0, y1, floorZ, ceilZ))
+            solidVolume("post", `${tag}p${i}`, boxFaces(at, x0, x1, y0, y1, floorZ, ceilZ, facing))
           ) : (
             <line
               key={`${tag}p${i}`}
@@ -404,7 +409,7 @@ export function RackV2({
           y: fit.cy - fit.half,
           width: fit.half * 2,
           height: fit.half * 2,
-          render: () => rackItemIso(slot, fit, at, `${tag}i${i}-${j}`),
+          render: () => rackItemIso(slot, fit, at, facing, `${tag}i${i}-${j}`),
         });
       }
     }
@@ -442,7 +447,7 @@ export function RackV2({
           height: posts ? y1 - y0 : 0,
           render: () =>
             posts ? (
-              solidVolume("post", `${tag}f${i}`, boxFaces(at, x0, x1, y0, y1, -footZ, oz))
+              solidVolume("post", `${tag}f${i}`, boxFaces(at, x0, x1, y0, y1, -footZ, oz, facing))
             ) : (
               <line
                 key={`${tag}f${i}`}
@@ -459,7 +464,7 @@ export function RackV2({
     }
 
     const deck = (material: string, key: string, z0: number, z1: number, extra?: ReactNode) =>
-      solidVolume(material, `${tag}${key}`, boxFaces(at, ox, ox + width, oy, oy + depth, z0, z1), slabZ === 0, extra);
+      solidVolume(material, `${tag}${key}`, boxFaces(at, ox, ox + width, oy, oy + depth, z0, z1, facing), slabZ === 0, extra);
 
     return [
       ...footNodes,

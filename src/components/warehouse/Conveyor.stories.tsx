@@ -209,3 +209,136 @@ export const Rond: Story = {
     </div>
   ),
 };
+
+/**
+ * Une boucle fermée : droit, angle, droit, angle, droit, angle, droit, angle — et **un colis ne
+ * disparaît jamais** à une jonction, il y passe.
+ *
+ * Trois choses le permettent, et aucune n'est un réglage à tâtons.
+ *
+ * Les huit modules **partagent un cadre** (`frame`), donc la même `viewBox` et la même taille : les
+ * superposer suffit à les raccorder, il n'y a rien à aligner puisqu'ils sont déjà dans le même
+ * repère. Chacun est posé par son `origin`, calculé en chaînant les modules : l'entrée de la bande
+ * est au même endroit dans le repère local d'un droit et d'un angle — `(0, largeur / 2)` — donc il
+ * suffit de faire coïncider l'entrée de l'un avec la sortie du précédent. Le cap s'accumule tout
+ * seul : un angle tourne d'un quart, donc les rotations sont 0, 0, 90, 90, 180, 180, 270, 270.
+ *
+ * Le fondu d'entrée et de sortie est **coupé** (`fadeEnds={false}`) : un module seul n'a pas d'amont
+ * à montrer et doit s'effacer, un module au milieu d'une chaîne en a un.
+ *
+ * Et les **phases** sont calculées. La vitesse étant en cases par seconde, tous les modules
+ * avancent du même pas ; il reste à ce que leurs longueurs soient commensurables, d'où une droite
+ * longue d'exactement deux fois l'arc d'un angle et portant deux colis. La phase d'un module vaut
+ * alors la distance parcourue avant lui rapportée à sa propre longueur, et un colis quitte un
+ * module à l'instant même où le suivant en accueille un, au même point et au même cap.
+ */
+export const Boucle: Story = {
+  name: "Une boucle fermée",
+  render: function Render() {
+    const cellSize = 26;
+    const W = 2.2;
+    const arc = (Math.PI / 4) * W; // la longueur d'un quart de cercle de rayon W / 2
+    const L = 2 * arc; // pour que les deux longueurs soient commensurables
+    const speed = 1.4;
+
+    // La chaîne : on enfile les modules en faisant coïncider l'entrée de chacun avec la sortie du
+    // précédent. L'entrée d'un module est en (0, W / 2) dans son repère avant rotation, la sortie
+    // en (L, W / 2) pour un droit et en (W / 2, W) pour un angle.
+    const turn = (deg: number, px: number, py: number, cx: number, cy: number) => {
+      const r = (deg * Math.PI) / 180;
+      const c = Math.cos(r);
+      const sn = Math.sin(r);
+      return { x: cx + (px - cx) * c - (py - cy) * sn, y: cy + (px - cx) * sn + (py - cy) * c };
+    };
+
+    const modules: {
+      kind: "straight" | "corner";
+      rotation: number;
+      origin: { x: number; y: number };
+      run: number;
+      loads: number;
+      phase: number;
+    }[] = [];
+    let here = { x: 0, y: 0 };
+    let heading = 0;
+    let travelled = 0;
+    for (let i = 0; i < 8; i += 1) {
+      const corner = i % 2 === 1;
+      const spanX = corner ? W : L;
+      const cx = spanX / 2;
+      const cy = W / 2;
+      const entry = turn(heading, 0, W / 2, cx, cy);
+      const exit = corner ? turn(heading, W / 2, W, cx, cy) : turn(heading, L, W / 2, cx, cy);
+      const origin = { x: here.x - entry.x, y: here.y - entry.y };
+      const run = corner ? arc : L;
+      const loads = corner ? 1 : 2;
+      modules.push({ kind: corner ? "corner" : "straight", rotation: heading, origin, run, loads, phase: travelled / run });
+      here = { x: origin.x + exit.x, y: origin.y + exit.y };
+      travelled += run;
+      if (corner) heading += 90;
+    }
+
+    // Le cadre commun : l'emprise de tout le monde, plus une case de marge.
+    const boxes = modules.map((m) => {
+      const spanX = m.kind === "corner" ? W : L;
+      const flat = m.rotation % 180 === 0;
+      const halfW = (flat ? spanX : W) / 2;
+      const halfH = (flat ? W : spanX) / 2;
+      return { cx: m.origin.x + spanX / 2, cy: m.origin.y + W / 2, halfW, halfH };
+    });
+    const frame = {
+      x: Math.min(...boxes.map((b) => b.cx - b.halfW)) - 0.5,
+      y: Math.min(...boxes.map((b) => b.cy - b.halfH)) - 0.5,
+      width: Math.max(...boxes.map((b) => b.cx + b.halfW)) - Math.min(...boxes.map((b) => b.cx - b.halfW)) + 1,
+      depth: Math.max(...boxes.map((b) => b.cy + b.halfH)) - Math.min(...boxes.map((b) => b.cy - b.halfH)) + 1,
+      height: 1 + 0.22 + 0.14,
+    };
+
+    // Du fond vers l'avant : les modules sont disjoints, donc leur ordre est celui de la profondeur,
+    // qui tient dans x + y.
+    const order = modules
+      .map((m, i) => ({ m, key: boxes[i].cx + boxes[i].cy, i }))
+      .sort((a, b) => a.key - b.key);
+
+    // Les huit dessins sont en position absolue : le conteneur doit donc réserver la place lui-même,
+    // qui est celle du cadre projeté — la même arithmétique que la `viewBox` des modules.
+    const shot = [0, frame.height].flatMap((z) =>
+      [
+        [frame.x, frame.y],
+        [frame.x + frame.width, frame.y],
+        [frame.x + frame.width, frame.y + frame.depth],
+        [frame.x, frame.y + frame.depth],
+      ].map(([x, y]) => projectIso(x * cellSize, y * cellSize, z * cellSize))
+    );
+    const box = {
+      width: Math.max(...shot.map((p) => p.x)) - Math.min(...shot.map((p) => p.x)) + 4,
+      height: Math.max(...shot.map((p) => p.y)) - Math.min(...shot.map((p) => p.y)) + 4,
+    };
+
+    return (
+      <div style={{ padding: 32 }}>
+        <div style={{ position: "relative", width: box.width, height: box.height }}>
+          {order.map(({ m, i }) => (
+            <div key={i} style={{ position: "absolute", left: 0, top: 0 }}>
+              <Conveyor
+                kind={m.kind}
+                length={L}
+                width={W}
+                legHeight={1}
+                cellSize={cellSize}
+                rotation={m.rotation}
+                origin={m.origin}
+                frame={frame}
+                load="carton"
+                loadCount={m.loads}
+                phase={m.phase}
+                fadeEnds={false}
+                speed={speed}
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  },
+};

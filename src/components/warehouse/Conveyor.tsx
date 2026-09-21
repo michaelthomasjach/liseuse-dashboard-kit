@@ -59,6 +59,21 @@ import "./Conveyor.css";
  * drawn once and carried. It fades in where it arrives and out where it leaves, a module drawn on
  * its own having no upstream to show.
  *
+ * ## Composer plusieurs modules
+ *
+ * `origin` pose le module sur le sol et `frame` fixe le pavé du monde que la `viewBox` couvre.
+ * Deux modules qui partagent un cadre ont exactement la même `viewBox` et la même taille, donc les
+ * superposer suffit à les raccorder — il n'y a rien à aligner, puisqu'ils sont déjà dans le même
+ * repère. Sans cadre, chacun se cadre sur lui-même, ce qu'un module seul veut.
+ *
+ * Pour qu'un colis *passe* une jonction au lieu d'y disparaître, il faut encore deux choses :
+ * `fadeEnds={false}`, qui supprime le fondu d'entrée et de sortie, et `phase`, qui avance la
+ * charge d'une fraction de tour. Un module rendant sa charge à l'entrée à chaque tour, il suffit
+ * que sa phase vaille la distance parcourue avant lui rapportée à sa propre longueur pour qu'un
+ * colis quitte le module précédent à l'instant même où celui-ci en accueille un, au même point et
+ * au même cap. C'est pour ça que la vitesse est en cases par seconde : tous les modules d'une
+ * boucle avancent alors du même pas, et il suffit que leurs longueurs soient commensurables.
+ *
  * ## Legs
  *
  * `legHeight` sets how high the bed stands, and the legs have the **rack's own post section** —
@@ -97,6 +112,18 @@ export interface ConveyorProps {
   speed?: number;
   /** Rotation du tapis sur le sol, en degrés. */
   rotation?: number;
+  /** Où poser le module sur le sol, en cases. Sert à composer une ligne de plusieurs modules. */
+  origin?: { x: number; y: number };
+  /** Le pavé du monde que la `viewBox` doit couvrir, en cases. Donné, il remplace le cadrage sur le
+   *  module lui-même : plusieurs modules qui partagent un cadre partagent alors exactement le même
+   *  repère à l'écran, et se superposent sans rien avoir à aligner. */
+  frame?: { x: number; y: number; width: number; depth: number; height: number };
+  /** Fondre la charge à l'entrée et à la sortie. À couper quand un autre module prend le relais :
+   *  le colis ne doit pas s'effacer à une jonction, il doit y passer. */
+  fadeEnds?: boolean;
+  /** Avance de la charge au premier rendu, en tours de ce module. C'est ce qui fait qu'un colis
+   *  quitte un module à l'instant même où le suivant en accueille un. */
+  phase?: number;
   /** Pixels par case. */
   cellSize?: number;
   className?: string;
@@ -141,6 +168,10 @@ export function Conveyor({
   running = true,
   speed = 1.1,
   rotation = 0,
+  origin = { x: 0, y: 0 },
+  frame,
+  fadeEnds = true,
+  phase = 0,
   cellSize = 34,
   className,
 }: ConveyorProps) {
@@ -160,9 +191,12 @@ export function Conveyor({
     const dy = y - spanY / 2;
     return { x: spanX / 2 + dx * cosT - dy * sinT, y: spanY / 2 + dx * sinT + dy * cosT };
   };
+  /** Un point du monde vers l'écran, sans passer par le module : le cadre partagé est déjà en
+   *  coordonnées du monde. */
+  const world: Project = (x, y, z) => projectIso(x * cellSize, y * cellSize, z * cellSize);
   const at: Project = (x, y, z) => {
     const p = spin(x, y);
-    return projectIso(p.x * cellSize, p.y * cellSize, z * cellSize);
+    return world(p.x + origin.x, p.y + origin.y, z);
   };
   const facing = isoFacing(rotation);
   const ring = (points: Point[]) => points.map((p) => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(" ");
@@ -355,8 +389,8 @@ export function Conveyor({
     const pct = (t: number) => (t * 100).toFixed(3);
     // Hors de sa fenetre l'exemplaire est transparent ; le passage de relais est franc, les deux
     // exemplaires voisins etant au meme endroit a cet instant, seul leur cap differant.
-    const fadeIn = i === 0 ? 0.03 : 0;
-    const fadeOut = i === turns - 1 ? 0.03 : 0;
+    const fadeIn = fadeEnds && i === 0 ? 0.03 : 0;
+    const fadeOut = fadeEnds && i === turns - 1 ? 0.03 : 0;
     const stops: string[] = [];
     // Deux arrets ne peuvent pas partager le meme pourcentage : le dernier ecrase le premier, et
     // l'opacite 0 qui devait tenir jusqu'a la fenetre disparaissait — chaque exemplaire fondait
@@ -389,7 +423,7 @@ export function Conveyor({
               ? {
                   animationName: `lq-ride-${uid}-${i}`,
                   animationDuration: `${travel}s`,
-                  animationDelay: `${-(travel * n) / many}s`,
+                  animationDelay: `${-travel * (phase + n / many)}s`,
                 }
               : { opacity: i === 0 ? 1 : 0 }
           }
@@ -488,16 +522,25 @@ export function Conveyor({
       })
     );
 
-  const corners = [
-    at(0, 0, 0),
-    at(spanX, 0, 0),
-    at(spanX, spanY, 0),
-    at(0, spanY, 0),
-    at(0, 0, bedTop + guard),
-    at(spanX, 0, bedTop + guard),
-    at(spanX, spanY, bedTop + guard),
-    at(0, spanY, bedTop + guard),
-  ];
+  const corners = frame
+    ? [0, 1].flatMap((k) =>
+        [
+          [frame.x, frame.y],
+          [frame.x + frame.width, frame.y],
+          [frame.x + frame.width, frame.y + frame.depth],
+          [frame.x, frame.y + frame.depth],
+        ].map(([x, y]) => world(x, y, k === 0 ? 0 : frame.height))
+      )
+    : [
+        at(0, 0, 0),
+        at(spanX, 0, 0),
+        at(spanX, spanY, 0),
+        at(0, spanY, 0),
+        at(0, 0, bedTop + guard),
+        at(spanX, 0, bedTop + guard),
+        at(spanX, spanY, bedTop + guard),
+        at(0, spanY, bedTop + guard),
+      ];
   const minX = Math.min(...corners.map((p) => p.x)) - PAD;
   const minY = Math.min(...corners.map((p) => p.y)) - PAD;
   const boxWidth = Math.max(...corners.map((p) => p.x)) + PAD - minX;

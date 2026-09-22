@@ -198,6 +198,178 @@ export function solidVolume(material: string, key: string, faces: Faces, flat = 
   );
 }
 
+/**
+ * Un volume dont le **contour au sol** est quelconque : on l'extrude entre deux hauteurs.
+ *
+ * La boîte est le vocabulaire de l'entrepôt, et elle suffit pour ce qui est rectangulaire ; mais
+ * une cabine de camion ne l'est pas. Tout ce qui est arrondi l'est ici en **coupant les angles** :
+ * un contour à seize points au lieu de quatre, et ce sont seize facettes verticales au lieu de
+ * deux. Une arête vive devient une suite de facettes qui s'éclairent différemment, et c'est ce qui
+ * se lit comme un arrondi.
+ *
+ * Trois choses s'en déduisent, et aucune n'est réglable à la main :
+ *
+ * - **quelles facettes se voient** — celle dont la normale regarde la caméra, et elle seule. Un
+ *   objet convexe n'en montre jamais plus de la moitié, quel que soit le cap ;
+ * - **dans quel ordre les peindre** — de la plus lointaine à la plus proche, par la profondeur du
+ *   milieu de chaque facette. Elles ne se recouvrent pas sur un convexe, mais leurs contours se
+ *   touchent, et un ordre arbitraire ferait baver un trait sur sa voisine ;
+ * - **leur clarté** — la même règle que la boîte : une facette qui regarde surtout selon `x` prend
+ *   la clarté de la face `x`, une facette qui regarde surtout selon `y` celle de la face `y`, et
+ *   c'est `xOnLeft` qui dit laquelle des deux est la plus sombre. Une facette d'angle penche du
+ *   côté dont elle est la plus proche : la transition d'un arrondi se fait donc en deux tons, ceux
+ *   que le kit a déjà, sans inventer d'éclairage que le reste de l'entrepôt n'aurait pas.
+ *
+ * Les facettes sont dessinées **sans trait**, et la silhouette est retracée d'un seul contour
+ * par-dessus. Un arrondi n'a pas d'arêtes : bordée chacune, seize facettes donnent seize traits
+ * serrés là où le tournant est le plus court, et un angle abattu se lit alors comme une hachure
+ * sombre — exactement ce qu'on cherchait à supprimer.
+ */
+export function prismVolume(
+  material: string,
+  key: string,
+  at: Project,
+  /** Le contour au sol, fermé implicitement, dans le repère du module. */
+  ground: Point[],
+  z0: number,
+  z1: number,
+  facing: IsoFacing,
+  /** D'où regarde la caméra, en direction du sol — `isoCamera().view`. */
+  view: Point,
+  extra?: ReactNode
+): ReactNode {
+  return stackedVolume(material, key, at, [{ ring: ground, z0, z1 }], facing, view, extra);
+}
+
+/** Une couche d'un volume empilé : son contour au sol, et entre quelles hauteurs on l'extrude. */
+export interface VolumeLayer {
+  ring: Point[];
+  z0: number;
+  z1: number;
+}
+
+/**
+ * Plusieurs prismes empilés, lus comme **un seul volume** : c'est ainsi qu'on arrondit une arête
+ * horizontale, que l'extrusion d'un contour ne sait pas faire.
+ *
+ * Quatre couches minces dont le retrait suit un quart de cercle, et le haut d'une cabine cesse
+ * d'être un pavé. Il faut pour cela qu'elles ne se lisent pas comme quatre boîtes empilées : une
+ * seule silhouette pour toute la pile, et le dessus de la seule couche du dessus — sinon chaque
+ * couche cerne son propre contour, et l'arrondi revient en anneaux concentriques, l'exact contraire
+ * de ce qu'on cherchait.
+ */
+export function stackedVolume(
+  material: string,
+  key: string,
+  at: Project,
+  layers: VolumeLayer[],
+  facing: IsoFacing,
+  view: Point,
+  extra?: ReactNode
+): ReactNode {
+  const faces: { depth: number; quad: Point[]; dark: boolean }[] = [];
+  let top: Point[] = [];
+
+  for (const layer of layers) {
+    const n = layer.ring.length;
+    // Le sens du contour décide du côté où pointe une normale : on le normalise plutôt que de le
+    // demander à l'appelant, qui l'écrirait juste une fois sur deux.
+    let area = 0;
+    for (let i = 0; i < n; i += 1) {
+      const a = layer.ring[i];
+      const b = layer.ring[(i + 1) % n];
+      area += a.x * b.y - b.x * a.y;
+    }
+    const loop = area < 0 ? [...layer.ring].reverse() : layer.ring;
+    top = loop.map((p) => at(p.x, p.y, layer.z1));
+
+    for (let i = 0; i < n; i += 1) {
+      const a = loop[i];
+      const b = loop[(i + 1) % n];
+      const normal = { x: b.y - a.y, y: a.x - b.x };
+      if (normal.x * view.x + normal.y * view.y <= 0) continue;
+      const isX = Math.abs(normal.x) >= Math.abs(normal.y);
+      faces.push({
+        depth: ((a.x + b.x) / 2) * view.x + ((a.y + b.y) / 2) * view.y,
+        quad: [at(a.x, a.y, layer.z0), at(b.x, b.y, layer.z0), at(b.x, b.y, layer.z1), at(a.x, a.y, layer.z1)],
+        dark: isX !== facing.xOnLeft,
+      });
+    }
+  }
+  faces.sort((p, q) => p.depth - q.depth);
+  const silhouette = convexHull([...faces.flatMap((f) => f.quad), ...top]);
+
+  return (
+    <g key={key} className={`lq-iso__solid lq-iso__solid--${material}`}>
+      {faces.map((f, i) => (
+        <polygon
+          key={`s${i}`}
+          className={`lq-iso__face lq-iso__face--${f.dark ? "front" : "side"} lq-iso__face--seamless`}
+          points={ring(f.quad)}
+        />
+      ))}
+      <polygon className="lq-iso__face lq-iso__face--top lq-iso__face--seamless" points={ring(top)} />
+      <polygon className="lq-iso__outline" points={ring(silhouette)} />
+      {extra}
+    </g>
+  );
+}
+
+/**
+ * Un congé : la pile de couches qui arrondit le haut d'un volume, sur un rayon `r`. Chaque couche
+ * rentre et monte le long d'un quart de cercle, donc les marches sont serrées là où la pente est
+ * forte et larges là où elle s'aplatit — c'est ce qui se lit comme une courbe et non comme un
+ * escalier.
+ */
+export function filletLayers(
+  /** Le contour, rentré de `inset` : c'est l'appelant qui sait comment son contour se rétrécit. */
+  ringAt: (inset: number) => Point[],
+  top: number,
+  radius: number,
+  steps = 4
+): VolumeLayer[] {
+  return Array.from({ length: steps }, (_, i) => {
+    const a0 = (Math.PI / 2) * (i / steps);
+    const a1 = (Math.PI / 2) * ((i + 1) / steps);
+    return {
+      ring: ringAt(radius * (1 - Math.cos(a0))),
+      z0: top + radius * Math.sin(a0),
+      z1: top + radius * Math.sin(a1),
+    };
+  });
+}
+
+/**
+ * Un rectangle **aux angles abattus**, comme contour d'un `prismVolume`. `radius` est le rayon de
+ * l'arrondi, `steps` le nombre de facettes par angle — trois suffisent à ne plus voir une arête.
+ */
+export function roundedRing(x0: number, x1: number, y0: number, y1: number, radius: number, steps = 3): Point[] {
+  const r = Math.max(0, Math.min(radius, (x1 - x0) / 2, (y1 - y0) / 2));
+  if (r === 0) {
+    return [
+      { x: x0, y: y0 },
+      { x: x1, y: y0 },
+      { x: x1, y: y1 },
+      { x: x0, y: y1 },
+    ];
+  }
+  // Les quatre centres d'arc, et l'angle où chaque quart commence.
+  const corners: [number, number, number][] = [
+    [x1 - r, y1 - r, 0],
+    [x0 + r, y1 - r, 90],
+    [x0 + r, y0 + r, 180],
+    [x1 - r, y0 + r, 270],
+  ];
+  const points: Point[] = [];
+  for (const [cx, cy, start] of corners) {
+    for (let k = 0; k <= steps; k += 1) {
+      const a = ((start + (90 * k) / steps) * Math.PI) / 180;
+      points.push({ x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) });
+    }
+  }
+  return points;
+}
+
 /** Une portion de couronne circulaire : entre deux rayons, deux hauteurs et deux angles. */
 export interface ArcRing {
   /** Centre de l'arc, en cases, dans le repère du module. */

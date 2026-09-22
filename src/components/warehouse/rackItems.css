@@ -22,6 +22,7 @@
   fill: color-mix(in srgb, var(--lq-iso-face) 72%, var(--lq-color-text));
 }
 
+
 /* Vue de dessus : on ne voit qu'une face, donc c'est celle qui prend le jour. */
 .lq-iso__plan-face {
   fill: var(--lq-iso-face);
@@ -160,4 +161,18 @@
    montant. */
 .lq-iso__solid--cabinet {
   --lq-iso-face: color-mix(in srgb, var(--lq-color-text) 42%, var(--lq-color-bg));
+}
+
+/* Les facettes d'un volume facetté (voir prismVolume) : pas de trait entre elles, sinon un angle
+   abattu se lit comme une hachure. C'est le contour qui porte le trait, une fois pour toutes. */
+.lq-iso__face--seamless {
+  stroke: none;
+}
+
+.lq-iso__outline {
+  fill: none;
+  stroke: var(--lq-iso-line, color-mix(in srgb, var(--lq-color-text) 72%, transparent));
+  stroke-width: var(--lq-iso-stroke, 1);
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
 }

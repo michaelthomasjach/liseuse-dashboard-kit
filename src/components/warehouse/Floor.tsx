@@ -1,4 +1,3 @@
-import type { ReactNode } from "react";
 import { boxFaces, solidVolume, type Point, type Project } from "./rackItems";
 import { frameCorners } from "./rackItems";
 import { useIsoCamera } from "./isoCamera";
@@ -20,9 +19,9 @@ import "./Floor.css";
  * tout le monde : `parts="shadow"` ne dessine donc rien, pour qu'une scène puisse lui demander ses
  * couches comme à n'importe quel autre module.
  *
- * `joints` trace les joints de dalle, tous les n cases. Ce n'est pas un décor : sans eux, une
- * grande dalle est un aplat où l'œil n'a aucune échelle, et deux scènes au même zoom se ressemblent
- * alors qu'elles ne font pas la même taille.
+ * Elle est **lisse**. Des joints de dalle donneraient l'échelle, mais ils quadrillent le fond de
+ * toute la scène : dans une image faite de traits fins, une grille pâle sous chaque objet se lit
+ * comme un calque de plus, et ce qui est posé dessus passe au second plan.
  */
 
 export interface FloorProps {
@@ -32,8 +31,6 @@ export interface FloorProps {
   depth?: number;
   /** Épaisseur visible de la tranche, en cases. */
   thickness?: number;
-  /** Pas des joints de dalle, en cases. `0` : aucun. */
-  joints?: number;
   /** Où poser le coin de la dalle, en cases. */
   origin?: { x: number; y: number };
   /** Le pavé du monde que la `viewBox` doit couvrir, en cases. Partagé avec les autres modules
@@ -52,7 +49,6 @@ export function Floor({
   width = 12,
   depth = 8,
   thickness = 0.3,
-  joints = 0,
   origin = { x: 0, y: 0 },
   frame,
   parts = "all",
@@ -68,20 +64,7 @@ export function Floor({
   const y1 = Math.max(0.5, depth);
   const z0 = -Math.max(0.02, thickness);
 
-  const line = (a: Point, b: Point, key: string) => <line key={key} x1={a.x} y1={a.y} x2={b.x} y2={b.y} />;
-  const seams: ReactNode =
-    joints > 0 ? (
-      <g className="lq-floor__joints">
-        {Array.from({ length: Math.max(0, Math.ceil(x1 / joints) - 1) }, (_, i) =>
-          line(at((i + 1) * joints, 0, 0), at((i + 1) * joints, y1, 0), `x${i}`)
-        )}
-        {Array.from({ length: Math.max(0, Math.ceil(y1 / joints) - 1) }, (_, i) =>
-          line(at(0, (i + 1) * joints, 0), at(x1, (i + 1) * joints, 0), `y${i}`)
-        )}
-      </g>
-    ) : null;
-
-  const slab = solidVolume("slab", "slab", boxFaces(at, 0, x1, 0, y1, z0, 0, facing), false, seams);
+  const slab = solidVolume("slab", "slab", boxFaces(at, 0, x1, 0, y1, z0, 0, facing));
 
   // Le cadrage. Avec un cadre partagé, la dalle **ajoute** sa tranche aux coins du cadre : elle
   // descend sous le zéro du monde, que le cadre ne connaît pas. Ça ne décale rien — ce qui s'ajoute

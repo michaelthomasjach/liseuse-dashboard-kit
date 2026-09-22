@@ -12,10 +12,3 @@
 .lq-iso__solid--slab {
   --lq-iso-face: color-mix(in srgb, var(--lq-color-text) 9%, var(--lq-color-bg));
 }
-
-/* Les joints de dalle : un trait à peine visible, qui donne l'échelle sans quadriller l'image. */
-.lq-floor__joints line {
-  stroke: color-mix(in srgb, var(--lq-color-text) 14%, transparent);
-  stroke-width: 1;
-  vector-effect: non-scaling-stroke;
-}

@@ -14,7 +14,7 @@ type Story = StoryObj<typeof Floor>;
 
 export const Dalle: Story = {
   name: "Une dalle",
-  args: { width: 10, depth: 7, thickness: 0.3, joints: 2.5, cellSize: 34 },
+  args: { width: 10, depth: 7, thickness: 0.3, cellSize: 34 },
 };
 
 /**
@@ -96,7 +96,7 @@ export const Posee: Story = {
         padding={28}
         under={
           <div style={layer}>
-            <Floor {...shared} origin={{ x: 0, y: 0 }} width={floor.width} depth={floor.depth} joints={3} />
+            <Floor {...shared} origin={{ x: 0, y: 0 }} width={floor.width} depth={floor.depth} />
           </div>
         }
       />
@@ -112,7 +112,7 @@ export const Epaisseurs: Story = {
     <div style={{ display: "flex", gap: 40, alignItems: "flex-end", flexWrap: "wrap" }}>
       {[0.08, 0.3, 0.8].map((t) => (
         <div key={t} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
-          <Floor width={5} depth={4} thickness={t} joints={2} cellSize={34} />
+          <Floor width={5} depth={4} thickness={t} cellSize={34} />
           <span style={{ fontSize: "0.72rem", fontWeight: 600 }}>{t} case</span>
         </div>
       ))}

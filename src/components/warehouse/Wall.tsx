@@ -1,5 +1,4 @@
-import type { ReactNode } from "react";
-import { boxFaces, convexHull, frameCorners, solidVolume, type Point, type Project } from "./rackItems";
+import { convexHull, frameCorners, type Point, type Project } from "./rackItems";
 import { useIsoCamera } from "./isoCamera";
 import "./Wall.css";
 
@@ -119,25 +118,56 @@ export function Wall({
     .filter((o) => o.x1 > o.x0)
     .sort((a, b) => a.x0 - b.x0);
 
-  const piece = (key: string, x0: number, x1: number, z0: number, z1: number) =>
-    z1 > z0 + 0.001 && x1 > x0 + 0.001
-      ? { x: (x0 + x1) / 2, node: solidVolume("wall", key, boxFaces(at, x0, x1, 0, D, z0, z1, facing), false) }
-      : null;
+  const ring = (points: Point[]) => points.map((p) => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(" ");
+  // Les clartés, comme pour une boîte : la face qui regarde selon `x` et celle qui regarde selon
+  // `y` n'ont pas la même, et c'est `xOnLeft` qui dit laquelle est la plus sombre.
+  const faceY = facing.xOnLeft ? "side" : "front";
+  const faceX = facing.xOnLeft ? "front" : "side";
 
-  // Les pleins entre les ouvertures, et les linteaux au-dessus.
-  const pieces: ({ x: number; node: ReactNode } | null)[] = [];
-  let cursor = 0;
-  holes.forEach((h, i) => {
-    pieces.push(piece(`solid${i}`, cursor, h.x0, 0, top));
-    pieces.push(piece(`lintel${i}`, h.x0, h.x1, h.z, top));
-    cursor = Math.max(cursor, h.x1);
-  });
-  pieces.push(piece("solid-end", cursor, L, 0, top));
+  // La face qu'on voit, et le bout qu'on voit : un mur est mince, on n'en voit jamais qu'un de
+  // chaque.
+  const ys = facing.yFace > 0 ? D : 0;
+  const xs = facing.xFace > 0 ? L : 0;
 
-  const wall = <g key="wall">{[...pieces.filter((p): p is { x: number; node: ReactNode } => p !== null)].sort((a, b) => (a.x - b.x) * facing.xFace).map((p) => p.node)}</g>;
+  /** La grande face, **d'un seul tenant**, percée de ses ouvertures. */
+  const sheet = () => {
+    const quad = (points: Point[]) => `M ${points.map((p) => `${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(" L ")} Z`;
+    const outer = quad([at(0, ys, 0), at(L, ys, 0), at(L, ys, top), at(0, ys, top)]);
+    const cuts = holes.map((h) => {
+      const z = Math.min(h.z, top);
+      return quad([at(h.x0, ys, 0), at(h.x1, ys, 0), at(h.x1, ys, z), at(h.x0, ys, z)]);
+    });
+    // `evenodd` : les ouvertures sont des sous-contours qui **percent** la face, et non des
+    // rectangles posés dessus. C'est ce qui laisse voir la scène à travers une porte.
+    return <path className={`lq-iso__face lq-iso__face--${faceY}`} fillRule="evenodd" d={[outer, ...cuts].join(" ")} />;
+  };
+
+  /** Le tableau d'une porte : le côté de l'épaisseur du mur qu'on voit dedans. Sans lui, une
+   *  ouverture est un trou dans une feuille de papier ; avec lui, c'est un passage. */
+  const jamb = (h: { x0: number; x1: number; z: number }, key: string) => {
+    const x = facing.xFace > 0 ? h.x0 : h.x1;
+    const z = Math.min(h.z, top);
+    return (
+      <polygon
+        key={key}
+        className={`lq-iso__face lq-iso__face--${faceX}`}
+        points={ring([at(x, 0, 0), at(x, D, 0), at(x, D, z), at(x, 0, z)])}
+      />
+    );
+  };
+
+  const wall = (
+    <g key="wall" className="lq-iso__solid lq-iso__solid--wall">
+      {/* Les tableaux d'abord : ils sont au fond des ouvertures, et la face percée les laisse voir
+          par ses trous. Puis le bout, puis le dessus, qui est au-dessus de tout. */}
+      {holes.map((h, i) => jamb(h, `jamb${i}`))}
+      {sheet()}
+      <polygon className={`lq-iso__face lq-iso__face--${faceX}`} points={ring([at(xs, 0, 0), at(xs, D, 0), at(xs, D, top), at(xs, 0, top)])} />
+      <polygon className="lq-iso__face lq-iso__face--top" points={ring([at(0, 0, top), at(L, 0, top), at(L, D, top), at(0, D, top)])} />
+    </g>
+  );
 
   // ---- l'ombre ----
-  const ring = (points: Point[]) => points.map((p) => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(" ");
   const sweep = (x0: number, x1: number, h: number, key: string) => {
     const foot = [onGround(x0, 0), onGround(x1, 0), onGround(x1, D), onGround(x0, D)];
     const cast = foot.map((p) => ({ x: p.x + cam.sun.x * h, y: p.y + cam.sun.y * h }));

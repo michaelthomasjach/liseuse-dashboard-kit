@@ -152,7 +152,7 @@ export const Quai: Story = {
         padding={24}
         under={
           <div style={layer}>
-            <Floor {...shared} origin={{ x: -0.4, y: -0.4 }} width={13.8} depth={10.2} joints={3} />
+            <Floor {...shared} origin={{ x: -0.4, y: -0.4 }} width={13.8} depth={10.2} />
           </div>
         }
       />

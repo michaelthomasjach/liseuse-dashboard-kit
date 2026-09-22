@@ -23,14 +23,33 @@
 }
 
 .lq-truck__glass {
-  fill: color-mix(in srgb, var(--lq-color-text) 70%, var(--lq-color-bg));
-  stroke: color-mix(in srgb, var(--lq-color-text) 72%, transparent);
+  fill: color-mix(in srgb, var(--lq-color-text) 52%, var(--lq-color-bg));
+  stroke: color-mix(in srgb, var(--lq-color-text) 68%, transparent);
   stroke-width: 1;
   vector-effect: non-scaling-stroke;
 }
 
-/* Les joints des portes arrière et les barres de la calandre : des traits, pas des volumes. */
+/* La calandre : une tôle sombre, mais moins qu'une vitre — un camion blanc a une calandre grise,
+   pas noire. */
+.lq-truck__panel {
+  fill: color-mix(in srgb, var(--lq-color-text) 40%, var(--lq-color-bg));
+  stroke: color-mix(in srgb, var(--lq-color-text) 60%, transparent);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+/* Les feux : clairs sur la calandre sombre, c'est tout ce qu'il en faut à cette taille. */
+.lq-truck__lamp {
+  fill: color-mix(in srgb, var(--lq-color-text) 12%, var(--lq-color-bg));
+  stroke: color-mix(in srgb, var(--lq-color-text) 55%, transparent);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+/* Les joints des portes arrière, les barres de la calandre et la portière : des traits, pas des
+   volumes. */
 .lq-truck__doors line,
+.lq-truck__door line,
 .lq-truck__grille line {
   stroke: color-mix(in srgb, var(--lq-color-text) 55%, transparent);
   stroke-width: 1;

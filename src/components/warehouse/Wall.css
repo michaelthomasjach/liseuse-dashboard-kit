@@ -11,3 +11,12 @@
 .lq-iso__solid--wall {
   --lq-iso-face: color-mix(in srgb, var(--lq-color-text) 7%, var(--lq-color-bg));
 }
+
+/* Le joint d'étanchéité qui encadre une porte de quai : un bourrelet de toile sombre, contre lequel
+   la remorque s'appuie. C'est ce cadre noir qu'on reconnaît de loin sur une façade de quai. */
+.lq-wall__seal {
+  fill: color-mix(in srgb, var(--lq-color-text) 62%, var(--lq-color-bg));
+  stroke: color-mix(in srgb, var(--lq-color-text) 72%, transparent);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}

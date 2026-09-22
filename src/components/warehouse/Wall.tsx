@@ -1,4 +1,4 @@
-import { convexHull, frameCorners, type Point, type Project } from "./rackItems";
+import { boxFaces, convexHull, frameCorners, solidVolume, type Point, type Project } from "./rackItems";
 import { useIsoCamera } from "./isoCamera";
 import "./Wall.css";
 
@@ -40,6 +40,8 @@ export interface WallOpening {
   width: number;
   /** Sa hauteur, en cases. Par défaut, les trois quarts du mur. */
   height?: number;
+  /** L'équiper en **porte de quai** : joint d'étanchéité, butées et commande. */
+  dock?: boolean;
 }
 
 export interface WallProps {
@@ -53,6 +55,8 @@ export interface WallProps {
   openings?: WallOpening[];
   /** Couper le mur à cette hauteur, pour voir ce qu'il y a derrière. `0` ou absent : mur entier. */
   cut?: number;
+  /** De quel côté du mur se rangent les camions, donc où sont les équipements de quai. */
+  dockSide?: "y0" | "y1";
   /** Rotation sur le sol, en degrés. À 0, le mur court le long des `x`. */
   rotation?: number;
   /** Poser l'ombre au sol. */
@@ -77,6 +81,7 @@ export function Wall({
   thickness = 0.3,
   openings = [],
   cut = 0,
+  dockSide = "y0",
   rotation = 0,
   shadows = false,
   origin = { x: 0, y: 0 },
@@ -114,7 +119,12 @@ export function Wall({
   // Les trous, remis dans l'ordre du mur. Au-dessus d'un trou, il reste le linteau — et il n'en
   // reste rien si la coupe passe sous lui.
   const holes = openings
-    .map((o) => ({ x0: Math.max(0, o.at), x1: Math.min(L, o.at + Math.max(0.1, o.width)), z: Math.min(o.height ?? H * 0.75, H) }))
+    .map((o) => ({
+      x0: Math.max(0, o.at),
+      x1: Math.min(L, o.at + Math.max(0.1, o.width)),
+      z: Math.min(o.height ?? H * 0.75, H),
+      dock: o.dock === true,
+    }))
     .filter((o) => o.x1 > o.x0)
     .sort((a, b) => a.x0 - b.x0);
 
@@ -156,12 +166,57 @@ export function Wall({
     );
   };
 
+  /**
+   * Ce qui fait d'une ouverture une **porte de quai** : le joint d'étanchéité qui l'encadre, contre
+   * lequel la remorque vient s'appuyer — c'est lui qui ferme le passage autour de la caisse, et
+   * c'est ce cadre sombre qu'on voit de loin —, les deux **butées** que le pare-chocs de la
+   * remorque touche en reculant, et la **commande** du niveleur à côté.
+   *
+   * Tout cela est sur la face du quai, et ne se dessine donc que quand c'est elle qu'on regarde :
+   * vue de l'intérieur, une porte de quai n'est qu'une porte.
+   */
+  const fittings = (h: { x0: number; x1: number; z: number; dock: boolean }, key: string) => {
+    if (!h.dock) return null;
+    const z = Math.min(h.z, top);
+    const out = dockSide === "y0" ? -1 : 1;
+    const face = dockSide === "y0" ? 0 : D;
+    const band = 0.12;
+    const seal = [
+      [h.x0 - band, h.x1 + band, z, Math.min(z + band, top)] as const,
+      [h.x0 - band, h.x0, 0, z] as const,
+      [h.x1, h.x1 + band, 0, z] as const,
+    ].map(([a, b, c, d], i) => (
+      <polygon
+        key={`seal${i}`}
+        className="lq-wall__seal"
+        points={ring([at(a, face, c), at(b, face, c), at(b, face, d), at(a, face, d)])}
+      />
+    ));
+    // Les butées et la commande **dépassent** du mur : ce sont des volumes, pas des dessins sur la
+    // face, et leur épaisseur est ce qui les fait exister.
+    const jut = (x0: number, x1: number, z0: number, z1: number, depth: number, material: string, k: string) => {
+      const y0 = out < 0 ? -depth : D;
+      const y1 = out < 0 ? 0 : D + depth;
+      return solidVolume(material, k, boxFaces(at, x0, x1, y0, y1, z0, z1, facing));
+    };
+    return (
+      <g key={key}>
+        {seal}
+        {jut(h.x0 - 0.16, h.x0 - 0.02, 0.28, 0.58, 0.1, "safety", `bump0${key}`)}
+        {jut(h.x1 + 0.02, h.x1 + 0.16, 0.28, 0.58, 0.1, "safety", `bump1${key}`)}
+        {jut(h.x1 + 0.26, h.x1 + 0.38, 1.0, 1.34, 0.06, "cabinet", `box${key}`)}
+      </g>
+    );
+  };
+  const dockFaceVisible = dockSide === "y0" ? facing.yFace < 0 : facing.yFace > 0;
+
   const wall = (
     <g key="wall" className="lq-iso__solid lq-iso__solid--wall">
       {/* Les tableaux d'abord : ils sont au fond des ouvertures, et la face percée les laisse voir
           par ses trous. Puis le bout, puis le dessus, qui est au-dessus de tout. */}
       {holes.map((h, i) => jamb(h, `jamb${i}`))}
       {sheet()}
+      {dockFaceVisible && holes.map((h, i) => fittings(h, `dock${i}`))}
       <polygon className={`lq-iso__face lq-iso__face--${faceX}`} points={ring([at(xs, 0, 0), at(xs, D, 0), at(xs, D, top), at(xs, 0, top)])} />
       <polygon className="lq-iso__face lq-iso__face--top" points={ring([at(0, 0, top), at(L, 0, top), at(L, D, top), at(0, D, top)])} />
     </g>

@@ -29,9 +29,9 @@ export const Portes: Story = {
     shadows: true,
     cellSize: 30,
     openings: [
-      { at: 1.2, width: 1.8, height: 2.6 },
-      { at: 5.1, width: 1.8, height: 2.6 },
-      { at: 9, width: 1.8, height: 2.6 },
+      { at: 1.2, width: 1.8, height: 2.6, dock: true },
+      { at: 5.1, width: 1.8, height: 2.6, dock: true },
+      { at: 9, width: 1.8, height: 2.6, dock: true },
     ],
   },
 };
@@ -62,86 +62,89 @@ export const Quai: Story = {
   name: "Un quai de chargement",
   render: function Render() {
     const cellSize = 24;
-    const wallY = 6.4;
+    // Le quai face à la caméra : les équipements d'une porte — joint, butées, commande — sont du
+    // côté des camions, et une scène qui les montre de dos ne montre qu'un mur.
+    const wallY = 3.2;
     const bays = [1.6, 5.4, 9.2];
     const trailer = 4.4;
-    // Une remorque se range **cul au quai** : tournée d'un demi-tour de plus, sa porte arrière
-    // regarde le mur et sa cabine pointe vers l'extérieur. Le camion tourne autour du centre de son
-    // emprise, d'où l'origine qui recentre chaque camion sur sa porte.
-    const truckLength = trailer + 1.6;
-    const truckAt = (bay: number) => ({ x: bay - truckLength / 2 + 0.65, y: wallY - 3.35 - 0.65 });
-    const frame = { x: -0.8, y: -0.8, width: 14.6, depth: 11, height: 3.6 };
+    const truckLength = trailer + 1.75;
+    // Une remorque se range **cul au quai** : tournée d'un quart de tour, son arrière regarde le
+    // mur et sa cabine pointe vers la cour. Le camion tourne autour du centre de son emprise, d'où
+    // l'origine qui recentre chaque camion sur sa porte.
+    const truckAt = (bay: number) => ({ x: bay - truckLength / 2, y: wallY + 0.5 + truckLength / 2 - 0.65 });
+    const openings = bays.map((x) => ({ at: x - 0.95, width: 1.9, height: 2.7, dock: true }));
+    const frame = { x: -0.8, y: -2.6, width: 14.6, depth: 13.4, height: 3.6 };
     const shared = { cellSize, frame, shadows: true };
 
+    const wall = (part: "shadow" | "machine") => (
+      <div style={layer}>
+        <Wall
+          {...shared}
+          origin={{ x: 0, y: wallY }}
+          length={13}
+          height={3.4}
+          thickness={0.4}
+          cut={1.5}
+          dockSide="y1"
+          openings={openings}
+          parts={part}
+        />
+      </div>
+    );
+
     const units: SceneUnit[] = [
-      ...bays.map((x, i) => ({
-        key: `truck${i}`,
-        x: x - 0.75,
-        y: wallY - truckLength,
-        width: 1.4,
-        height: truckLength,
-        shadow: (
-          <div style={layer}>
-            <SemiTruck {...shared} origin={truckAt(x)} rotation={270} trailerLength={trailer} parts="shadow" />
-          </div>
-        ),
-        machine: (
-          <div style={layer}>
-            <SemiTruck {...shared} origin={truckAt(x)} rotation={270} trailerLength={trailer} parts="machine" />
-          </div>
-        ),
-      })),
-      {
-        key: "wall",
-        x: 0,
-        y: wallY,
-        width: 13,
-        height: 0.4,
-        shadow: (
-          <div style={layer}>
-            <Wall {...shared} origin={{ x: 0, y: wallY }} length={13} height={3.4} thickness={0.4} cut={1.4} openings={bays.map((x) => ({ at: x - 0.25, width: 1.9, height: 2.7 }))} parts="shadow" />
-          </div>
-        ),
-        machine: (
-          <div style={layer}>
-            <Wall {...shared} origin={{ x: 0, y: wallY }} length={13} height={3.4} thickness={0.4} cut={1.4} openings={bays.map((x) => ({ at: x - 0.25, width: 1.9, height: 2.7 }))} parts="machine" />
-          </div>
-        ),
-      },
       {
         key: "rack",
         x: 1,
-        y: 7.6,
+        y: -1.6,
         width: 6,
         height: 1.6,
         shadow: (
           <div style={layer}>
-            <RackV2 {...shared} origin={{ x: 1, y: 7.6 }} width={6} depth={1.6} height={1.3} countZ={2} slotsX={4} contents={["carton", "boite", null, "carton"]} posts braces feet parts="shadow" />
+            <RackV2 {...shared} origin={{ x: 1, y: -1.6 }} width={6} depth={1.6} height={1.3} countZ={2} slotsX={4} contents={["carton", "boite", null, "carton"]} posts braces feet parts="shadow" />
           </div>
         ),
         machine: (
           <div style={layer}>
-            <RackV2 {...shared} origin={{ x: 1, y: 7.6 }} width={6} depth={1.6} height={1.3} countZ={2} slotsX={4} contents={["carton", "boite", null, "carton"]} posts braces feet parts="machine" />
+            <RackV2 {...shared} origin={{ x: 1, y: -1.6 }} width={6} depth={1.6} height={1.3} countZ={2} slotsX={4} contents={["carton", "boite", null, "carton"]} posts braces feet parts="machine" />
           </div>
         ),
       },
       {
         key: "forklift",
-        x: 8.6,
-        y: 7.8,
+        x: 8.4,
+        y: -0.4,
         width: 2.7,
         height: 1,
         shadow: (
           <div style={layer}>
-            <Forklift {...shared} origin={{ x: 8.6, y: 7.8 }} rotation={180} load="palette" lift={0.5} parts="shadow" />
+            <Forklift {...shared} origin={{ x: 8.4, y: -0.4 }} rotation={90} load="palette" lift={0.5} parts="shadow" />
           </div>
         ),
         machine: (
           <div style={layer}>
-            <Forklift {...shared} origin={{ x: 8.6, y: 7.8 }} rotation={180} load="palette" lift={0.5} parts="machine" />
+            <Forklift {...shared} origin={{ x: 8.4, y: -0.4 }} rotation={90} load="palette" lift={0.5} parts="machine" />
           </div>
         ),
       },
+      { key: "wall", x: 0, y: wallY, width: 13, height: 0.4, shadow: wall("shadow"), machine: wall("machine") },
+      ...bays.map((x, i) => ({
+        key: `truck${i}`,
+        x: x - 0.75,
+        y: wallY + 0.5,
+        width: 1.4,
+        height: truckLength,
+        shadow: (
+          <div style={layer}>
+            <SemiTruck {...shared} origin={truckAt(x)} rotation={90} trailerLength={trailer} parts="shadow" />
+          </div>
+        ),
+        machine: (
+          <div style={layer}>
+            <SemiTruck {...shared} origin={truckAt(x)} rotation={90} trailerLength={trailer} parts="machine" />
+          </div>
+        ),
+      })),
     ];
 
     return (
@@ -152,7 +155,7 @@ export const Quai: Story = {
         padding={24}
         under={
           <div style={layer}>
-            <Floor {...shared} origin={{ x: -0.4, y: -0.4 }} width={13.8} depth={10.2} />
+            <Floor {...shared} origin={{ x: -0.4, y: -2.2 }} width={13.8} depth={12.6} />
           </div>
         }
       />

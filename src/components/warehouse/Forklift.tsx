@@ -2,6 +2,8 @@ import { useId, type CSSProperties, type ReactNode } from "react";
 import {
   boxFaces,
   castShadow,
+  prismVolume,
+  roundedRing,
   frameCorners,
   convexHull,
   fitRackItem,
@@ -129,6 +131,11 @@ export function Forklift({
 
   const box = (material: string, key: string, x0: number, x1: number, y0: number, y1: number, z0: number, z1: number) =>
     solidVolume(material, key, boxFaces(at, x0, x1, y0, y1, z0, z1, facing));
+  // La caméra ramenée dans le repère du chariot : c'est là que sont les contours arrondis, et c'est
+  // donc là qu'il faut savoir d'où l'on regarde pour dire quelles facettes se voient.
+  const localView = { x: cam.view.x * cosT + cam.view.y * sinT, y: -cam.view.x * sinT + cam.view.y * cosT };
+  const prism = (material: string, key: string, ground: Point[], z0: number, z1: number) =>
+    prismVolume(material, key, at, ground, z0, z1, facing, localView);
   /** Du fond vers l'avant, le long de `y` : c'est `yFace` qui dit lequel des deux bords est devant. */
   const acrossY = (items: { y: number; node: ReactNode }[]) =>
     [...items].sort((a, b) => (a.y - b.y) * facing.yFace).map((it) => it.node);
@@ -152,7 +159,17 @@ export function Forklift({
     <g key="rear">
       {acrossY([
         { y: wheelY[0], node: isoWheel(at, 0.26, wheelY[0], rearR, rearR, tyre, facing, "rw0") },
-        { y: WIDTH / 2, node: box("safety", "counterweight", 0, 0.45, bodyY0, bodyY1, 0.1, 0.86) },
+        {
+          y: WIDTH / 2,
+          node: (
+            <g key="counterweight">
+              {/* Le contrepoids : une fonte moulée, pas une caisse. Ses angles abattus sont ce qui
+                  le distingue d'un bloc posé à l'arrière. */}
+              {prism("safety", "counterweight", roundedRing(0, 0.46, bodyY0, bodyY1, 0.1, 3), 0.1, 0.8)}
+              {prism("safety", "counterweight-top", roundedRing(0.03, 0.46, bodyY0 + 0.03, bodyY1 - 0.03, 0.09, 3), 0.8, 0.86)}
+            </g>
+          ),
+        },
         { y: wheelY[1], node: isoWheel(at, 0.26, wheelY[1], rearR, rearR, tyre, facing, "rw1") },
       ])}
     </g>
@@ -171,8 +188,10 @@ export function Forklift({
       x: 0.5,
       node: (
         <g key="seat">
-          {box("iron", "backrest", 0.5, 0.58, 0.3, 0.7, deck + 0.18, deck + 0.52)}
-          {box("iron", "seat", 0.58, 0.88, 0.3, 0.7, deck, deck + 0.18)}
+          {/* Un dossier et une assise, aux angles abattus : à cette taille, deux caisses droites se
+              lisent comme un carton posé sur le capot. */}
+          {prism("iron", "backrest", roundedRing(0.5, 0.6, 0.3, 0.7, 0.05, 2), deck + 0.16, deck + 0.54)}
+          {prism("iron", "seat", roundedRing(0.58, 0.9, 0.3, 0.7, 0.07, 2), deck, deck + 0.16)}
         </g>
       ),
     },
@@ -180,8 +199,11 @@ export function Forklift({
       x: 1.2,
       node: (
         <g key="dash">
-          {box("safety", "dash", 1.22, 1.45, 0.18, 0.82, deck, deck + 0.3)}
-          {box("iron", "column", 1.12, 1.2, 0.46, 0.54, deck + 0.3, deck + 0.52)}
+          {prism("safety", "dash", roundedRing(1.2, 1.45, 0.16, 0.84, 0.09, 3), deck, deck + 0.28)}
+          {box("iron", "column", 1.14, 1.2, 0.47, 0.53, deck + 0.26, deck + 0.46)}
+          {/* Le volant : un disque, dans le plan où la roue en dessine un. C'est le détail qui dit
+              qu'il y a un poste de conduite et non un capot avec un siège dessus. */}
+          {isoWheel(at, 1.08, WIDTH / 2, deck + 0.5, 0.11, 0.03, facing, "steering")}
         </g>
       ),
     },
@@ -194,13 +216,29 @@ export function Forklift({
           y: WIDTH / 2,
           node: (
             <g key="cabin">
-              {box("safety", "body", 0.45, 1.45, bodyY0, bodyY1, 0.12, deck)}
+              {prism("safety", "body", roundedRing(0.45, 1.46, bodyY0, bodyY1, 0.12, 3), 0.12, deck)}
               {acrossY([
                 { y: bodyY0, node: <g key="pf">{pillars(bodyY0 + 0.02)}</g> },
                 { y: WIDTH / 2, node: <g key="seatdash">{seat}</g> },
                 { y: bodyY1, node: <g key="pn">{pillars(bodyY1 - 0.02 - pillar)}</g> },
               ])}
-              {box("iron", "roof", 0.44, 1.46, bodyY0, bodyY1, roofZ, roofZ + 0.05)}
+              {/* Le toit de protection est une **grille**, pas une tôle : c'est ce qui laisse voir
+                  le poste de conduite au travers, et c'est aussi ce qu'il est — des barreaux assez
+                  serrés pour arrêter un colis, assez écartés pour qu'on voie le mât. */}
+              <g key="roof">
+                {acrossY(
+                  [bodyY0, bodyY1 - 0.07].map((y) => ({
+                    y,
+                    node: box("iron", `rail${y}`, 0.44, 1.48, y, y + 0.07, roofZ, roofZ + 0.05),
+                  }))
+                )}
+                {alongX(
+                  [0.52, 0.76, 1.0, 1.24].map((x) => ({
+                    x,
+                    node: box("iron", `bar${x}`, x, x + 0.05, bodyY0 + 0.07, bodyY1 - 0.07, roofZ + 0.01, roofZ + 0.04),
+                  }))
+                )}
+              </g>
             </g>
           ),
         },
@@ -252,6 +290,15 @@ export function Forklift({
       }
     >
       {box("iron", "carriage", 1.6, 1.66, 0.1, 0.9, FLOOR, FLOOR + 0.5)}
+      {/* Le dosseret : la grille contre laquelle la charge s'appuie. Sans lui, une palette haute
+          bascule sur le conducteur, et un chariot sans dosseret ne se lit pas comme un chariot. */}
+      {alongX(
+        [0.14, 0.38, 0.62, 0.86].map((y) => ({
+          x: y,
+          node: box("iron", `back${y}`, 1.6, 1.64, y, y + 0.05, FLOOR + 0.5, FLOOR + 1.05),
+        }))
+      )}
+      {box("iron", "back-top", 1.6, 1.64, 0.1, 0.9, FLOOR + 1.0, FLOOR + 1.05)}
       {acrossY(
         [0.29, 0.71].map((y) => ({
           y,

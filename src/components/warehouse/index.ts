@@ -31,7 +31,7 @@ export type { SemiTruckProps } from "./SemiTruck";
 export { IsoCamera, isoCamera, useIsoCamera } from "./isoCamera";
 export type { IsoCameraView } from "./isoCamera";
 
-export { RotationGizmo } from "./RotationGizmo";
+export { RotationGizmo, useDragRotation } from "./RotationGizmo";
 export type { RotationGizmoProps } from "./RotationGizmo";
 
 export { RackItem } from "./RackItem";

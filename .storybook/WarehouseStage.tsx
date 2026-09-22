@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { IsoCamera } from "../src/components/warehouse/isoCamera";
-import { RotationGizmo } from "../src/components/warehouse/RotationGizmo";
+import { RotationGizmo, useDragRotation } from "../src/components/warehouse/RotationGizmo";
 
 const KEY = "lq-warehouse-yaw";
 
@@ -23,6 +23,9 @@ function read(): number {
  * Sur une story seule, le gizmo est `docked` : fixé en haut à droite de l'écran. Une page Docs empile
  * toutes les stories d'un fichier, chacune avec sa caméra ; là, chaque gizmo se pose au-dessus de sa
  * scène au lieu de s'empiler au même coin.
+ *
+ * On tourne aussi **en tirant dans la scène au clic molette**, partout sur l'exemple : c'est le même
+ * angle, et le cadran suit.
  */
 export function WarehouseStage({ children, docked = true }: { children: ReactNode; docked?: boolean }) {
   const [yaw, setYaw] = useState(read);
@@ -34,12 +37,39 @@ export function WarehouseStage({ children, docked = true }: { children: ReactNod
       // Sans stockage, l'angle vaut pour cette story seulement.
     }
   };
+  const drag = useDragRotation(yaw, change);
   return (
     <IsoCamera yaw={yaw}>
-      <div style={docked ? { position: "fixed", top: 12, right: 12, zIndex: 10 } : { display: "flex", justifyContent: "flex-end" }}>
-        <RotationGizmo value={yaw} onChange={change} />
+      {/* La surface qui prend le glisser au bouton du milieu, et qui **centre la scène**.
+
+          Une scène tournée n'occupe pas la même place à l'écran qu'à plat — un magasin vu dans l'axe
+          de ses rangées est deux fois moins large que vu de trois quarts — donc son conteneur change
+          de taille en tournant. Calé en haut à gauche, il grandit et rétrécit vers la droite et vers
+          le bas, et la scène semble glisser alors qu'elle tourne sur elle-même. Centré, il grandit
+          des deux côtés à la fois : ce qu'on regarde reste où on le regarde.
+
+          Sur une story seule, la surface occupe toute la hauteur visible — moins les marges du
+          décorateur — pour qu'on puisse aussi tirer à côté de la scène ; sur une page Docs, elle
+          s'en tient à la hauteur de sa story. */}
+      <div
+        {...drag}
+        style={{
+          touchAction: "none",
+          minHeight: docked ? "calc(100vh - 64px)" : undefined,
+          display: "flex",
+          flexDirection: "column",
+          // `safe` : un contenu plus haut que la zone — une story d'atelier et ses réglages — se
+          // cale en haut au lieu d'être centré, faute de quoi il déborderait par le haut, là où
+          // rien ne permet d'aller le rechercher.
+          alignItems: "safe center",
+          justifyContent: "safe center",
+        }}
+      >
+        <div style={docked ? { position: "fixed", top: 12, right: 12, zIndex: 10 } : { alignSelf: "stretch", display: "flex", justifyContent: "flex-end" }}>
+          <RotationGizmo value={yaw} onChange={change} />
+        </div>
+        {children}
       </div>
-      {children}
     </IsoCamera>
   );
 }

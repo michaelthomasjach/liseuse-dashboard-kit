@@ -1,4 +1,4 @@
-import { useRef, type KeyboardEvent, type PointerEvent } from "react";
+import { useRef, type KeyboardEvent, type MouseEvent, type PointerEvent } from "react";
 import "./RotationGizmo.css";
 
 /**
@@ -14,6 +14,9 @@ import "./RotationGizmo.css";
  *
  * Il ne tourne rien lui-même : il donne un angle (`value`, `onChange`). Posé autour d'une scène, c'est
  * `IsoCamera` qui fait tourner la caméra de toutes les pièces isométriques qu'elle contient.
+ *
+ * Le cadran n'est pas le seul moyen de tourner : `useDragRotation`, dans ce fichier, fait tourner la
+ * vue en **tirant dans la scène au clic molette**, et les deux règlent le même angle.
  */
 
 export interface RotationGizmoProps {
@@ -29,6 +32,57 @@ export interface RotationGizmoProps {
 }
 
 const norm = (deg: number) => ((deg % 360) + 360) % 360;
+
+/**
+ * Tourner la vue **en tirant dans la scène elle-même**, au bouton du milieu — le clic molette, celui
+ * qu'on trouve sous le doigt dans tous les visualiseurs 3D. Le gizmo dit l'angle et le règle au
+ * degré près ; ceci le change là où l'on regarde, sans viser un cadran de 76 pixels.
+ *
+ * Le bouton du milieu plutôt que le gauche, parce que le gauche appartient au contenu : une scène
+ * peut avoir des pièces qu'on sélectionne ou qu'on déplace, et un glisser qui ferait les deux à la
+ * fois n'en ferait aucun correctement.
+ *
+ * C'est le **déplacement horizontal** qui tourne, et non l'angle du pointeur : on n'est pas sur un
+ * cadran, il n'y a pas de centre autour duquel tourner. Le cap s'accumule donc, et on suit le cap
+ * courant par une référence plutôt que par la valeur du rendu : deux `pointermove` peuvent arriver
+ * avant le rendu suivant, et le second lirait alors un cap déjà périmé.
+ *
+ * Le navigateur ouvre son défilement automatique sur un clic molette : `preventDefault` sur
+ * `mousedown` est ce qui l'empêche, le `pointerdown` ne suffisant pas.
+ */
+export function useDragRotation(value: number, onChange: (degrees: number) => void, degreesPerPixel = 0.6) {
+  const from = useRef<{ x: number; yaw: number } | null>(null);
+  const latest = useRef(value);
+  latest.current = value;
+
+  return {
+    onMouseDown: (event: MouseEvent) => {
+      if (event.button === 1) event.preventDefault();
+    },
+    onPointerDown: (event: PointerEvent) => {
+      if (event.button !== 1) return;
+      event.preventDefault();
+      event.currentTarget.setPointerCapture(event.pointerId);
+      from.current = { x: event.clientX, yaw: latest.current };
+    },
+    onPointerMove: (event: PointerEvent) => {
+      if (!from.current) return;
+      const next = norm(from.current.yaw + (event.clientX - from.current.x) * degreesPerPixel);
+      latest.current = next;
+      onChange(Math.round(next * 10) / 10);
+    },
+    onPointerUp: (event: PointerEvent) => {
+      if (from.current && event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
+      from.current = null;
+    },
+    // Sans quoi un clic molette colle l'onglet ouvert d'un lien survolé, ou déclenche le défilement.
+    onAuxClick: (event: MouseEvent) => {
+      if (event.button === 1) event.preventDefault();
+    },
+  };
+}
 
 export function RotationGizmo({ value, onChange, size = 76, snap = 0, label = "Rotation de la vue", className }: RotationGizmoProps) {
   const dial = useRef<SVGSVGElement | null>(null);

@@ -1,5 +1,6 @@
 import { useId, type CSSProperties } from "react";
 import {
+  frameCorners,
   boxFaces,
   convexHull as hull,
   isoWheel,
@@ -587,14 +588,7 @@ export function Picker({
   const yHi = Math.max(spanY, cy + reachOn("right") + tineLen / 2);
   const zHi = Math.max(mastZ1, P.level + BITE, D.level + BITE) + 0.3;
   const corners: Point[] = frame
-    ? [0, 1].flatMap((k) =>
-        [
-          [frame.x, frame.y],
-          [frame.x + frame.width, frame.y],
-          [frame.x + frame.width, frame.y + frame.depth],
-          [frame.x, frame.y + frame.depth],
-        ].map(([x, y]) => world(x, y, k === 0 ? 0 : frame.height))
-      )
+    ? frameCorners(frame, world, cam.sun)
     : [0, zHi].flatMap((z) =>
         [
           [-0.1, yLo],

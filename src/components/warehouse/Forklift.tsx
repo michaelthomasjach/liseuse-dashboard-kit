@@ -2,6 +2,7 @@ import { useId, type CSSProperties, type ReactNode } from "react";
 import {
   boxFaces,
   castShadow,
+  frameCorners,
   convexHull,
   fitRackItem,
   isoWheel,
@@ -285,14 +286,7 @@ export function Forklift({
 
   // ---- le cadrage ----
   const corners: Point[] = frame
-    ? [0, 1].flatMap((k) =>
-        [
-          [frame.x, frame.y],
-          [frame.x + frame.width, frame.y],
-          [frame.x + frame.width, frame.y + frame.depth],
-          [frame.x, frame.y + frame.depth],
-        ].map(([x, y]) => world(x, y, k === 0 ? 0 : frame.height))
-      )
+    ? frameCorners(frame, world, cam.sun)
     : [0, mastTop + 0.2].flatMap((z) =>
         [
           [0, 0],

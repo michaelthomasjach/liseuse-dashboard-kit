@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import {
+  frameCorners,
   boxFaces,
   convexHull,
   isoWheel,
@@ -230,14 +231,7 @@ export function SemiTruck({
 
   // ---- le cadrage ----
   const corners: Point[] = frame
-    ? [0, 1].flatMap((k) =>
-        [
-          [frame.x, frame.y],
-          [frame.x + frame.width, frame.y],
-          [frame.x + frame.width, frame.y + frame.depth],
-          [frame.x, frame.y + frame.depth],
-        ].map(([x, y]) => world(x, y, k === 0 ? 0 : frame.height))
-      )
+    ? frameCorners(frame, world, cam.sun)
     : [0, cabZ1 + 0.5].flatMap((z) =>
         [
           [0, 0],

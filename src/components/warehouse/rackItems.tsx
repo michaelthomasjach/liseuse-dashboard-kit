@@ -306,6 +306,36 @@ export function spunProject(at: Project, deg: number, cx: number, cy: number, ro
 export const SUN_CAST = { x: 0.34, y: -0.62 };
 
 /**
+ * Les points que la `viewBox` d'un module doit couvrir quand il partage un **cadre** : les huit
+ * coins du pavé, et l'ombre de sa base.
+ *
+ * L'ombre est là parce qu'elle tombe **hors** de l'emprise — c'est ce qu'est une ombre portée — et
+ * qu'un cadre décrit ce que la scène occupe, pas ce qu'elle projette. Sans elle, l'ombre d'une
+ * rangée d'étagères se fait couper net au bord du dessin. Elle se voyait d'autant moins que la
+ * lumière tombait toujours du même côté : la marge du cadre de ce côté-là suffisait souvent. Le
+ * soleil suivant maintenant la caméra, elle part dans toutes les directions à mesure qu'on tourne,
+ * et la marge ne suffit plus nulle part.
+ */
+export function frameCorners(
+  frame: { x: number; y: number; width: number; depth: number; height: number },
+  world: Project,
+  sun: Point = SUN_CAST
+): Point[] {
+  const ground: [number, number][] = [
+    [frame.x, frame.y],
+    [frame.x + frame.width, frame.y],
+    [frame.x + frame.width, frame.y + frame.depth],
+    [frame.x, frame.y + frame.depth],
+  ];
+  const cast = { x: sun.x * frame.height, y: sun.y * frame.height };
+  return [
+    ...ground.map(([x, y]) => world(x, y, 0)),
+    ...ground.map(([x, y]) => world(x, y, frame.height)),
+    ...ground.map(([x, y]) => world(x + cast.x, y + cast.y, 0)),
+  ];
+}
+
+/**
  * L'ombre d'une emprise : la même forme, poussée au sol.
  *
  * `project` doit être le projecteur du **monde**, et `points` des points du monde — pas ceux du

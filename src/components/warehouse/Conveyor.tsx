@@ -4,6 +4,7 @@ import {
   arcRingVolume,
   boxFaces,
   castShadow,
+  frameCorners,
   fitRackItem,
   rackItemIso,
   solidVolume,
@@ -753,14 +754,7 @@ export function Conveyor({
     );
 
   const corners = frame
-    ? [0, 1].flatMap((k) =>
-        [
-          [frame.x, frame.y],
-          [frame.x + frame.width, frame.y],
-          [frame.x + frame.width, frame.y + frame.depth],
-          [frame.x, frame.y + frame.depth],
-        ].map(([x, y]) => world(x, y, k === 0 ? 0 : frame.height))
-      )
+    ? frameCorners(frame, world, cam.sun)
     : [
         at(0, 0, 0),
         at(spanX, 0, 0),

@@ -3,6 +3,7 @@ import {
   ISO_POST_SIZE,
   boxFaces,
   castShadow,
+  frameCorners,
   fitRackItem,
   rackItemIso,
   solidVolume,
@@ -608,14 +609,7 @@ export function RackV2({
     [0, spanY],
   ];
   const corners = frame
-    ? [0, 1].flatMap((k) =>
-        [
-          [frame.x, frame.y],
-          [frame.x + frame.width, frame.y],
-          [frame.x + frame.width, frame.y + frame.depth],
-          [frame.x, frame.y + frame.depth],
-        ].map(([x, y]) => world(x, y, k === 0 ? 0 : frame.height))
-      )
+    ? frameCorners(frame, world, cam.sun)
     : [...ground.map(([x, y]) => at(x, y, under)), ...ground.map(([x, y]) => at(x, y, spanZ))];
   const minX = Math.min(...corners.map((p) => p.x)) - PAD;
   const minY = Math.min(...corners.map((p) => p.y)) - PAD;

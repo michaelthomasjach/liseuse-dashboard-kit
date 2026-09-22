@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { arcRingVolume, boxFaces, castShadow, solidVolume, spunProject, type Point, type Project } from "./rackItems";
+import { frameCorners, arcRingVolume, boxFaces, castShadow, solidVolume, spunProject, type Point, type Project } from "./rackItems";
 import "./Rail.css";
 import { useIsoCamera } from "./isoCamera";
 
@@ -307,14 +307,7 @@ export function Rail({
   }
 
   const corners: Point[] = frame
-    ? [0, 1].flatMap((k) =>
-        [
-          [frame.x, frame.y],
-          [frame.x + frame.width, frame.y],
-          [frame.x + frame.width, frame.y + frame.depth],
-          [frame.x, frame.y + frame.depth],
-        ].map(([x, y]) => world(x, y, k === 0 ? 0 : frame.height))
-      )
+    ? frameCorners(frame, world, cam.sun)
     : [
         at(0, 0, 0),
         at(spanX, 0, 0),

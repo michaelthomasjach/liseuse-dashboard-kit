@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { boxFaces, castShadow, solidVolume, type Project } from "./rackItems";
+import { frameCorners, boxFaces, castShadow, solidVolume, type Project } from "./rackItems";
 import "./CatchBin.css";
 import { useIsoCamera } from "./isoCamera";
 
@@ -220,14 +220,7 @@ export function CatchBin({
           "shadow", cam.sun)] : [];
 
   const corners = frame
-    ? [0, 1].flatMap((k) =>
-        [
-          [frame.x, frame.y],
-          [frame.x + frame.width, frame.y],
-          [frame.x + frame.width, frame.y + frame.depth],
-          [frame.x, frame.y + frame.depth],
-        ].map(([x, y]) => flat(x, y, k === 0 ? 0 : frame.height))
-      )
+    ? frameCorners(frame, flat, cam.sun)
     : [
         ...outline.map(([x, y]) => at(x, y, 0)),
         ...outline.map(([x, y]) => at(x, y, tallest)),

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { useIsoCamera } from "./isoCamera";
+import { frameCorners } from "./rackItems";
 
 /**
  * Ce dont les stories ont besoin pour composer une scène de plusieurs modules — et que la caméra
@@ -18,17 +19,14 @@ import { useIsoCamera } from "./isoCamera";
 
 export type Frame = { x: number; y: number; width: number; depth: number; height: number };
 
-/** La place que le cadre prend à l'écran, sous la caméra courante. */
+/**
+ * La place que le cadre prend à l'écran, sous la caméra courante — **la même règle que la `viewBox`
+ * des modules** (`frameCorners`), ombre portée comprise. Deux règles différentes et le conteneur
+ * cadrerait autre chose que ce que les modules dessinent : le dessin se décalerait dedans.
+ */
 export function useFrameBox(frame: Frame, cellSize: number) {
   const cam = useIsoCamera();
-  const shot = [0, frame.height].flatMap((z) =>
-    [
-      [frame.x, frame.y],
-      [frame.x + frame.width, frame.y],
-      [frame.x + frame.width, frame.y + frame.depth],
-      [frame.x, frame.y + frame.depth],
-    ].map(([x, y]) => cam.project(x * cellSize, y * cellSize, z * cellSize))
-  );
+  const shot = frameCorners(frame, (x, y, z) => cam.project(x * cellSize, y * cellSize, z * cellSize), cam.sun);
   return {
     width: Math.max(...shot.map((p) => p.x)) - Math.min(...shot.map((p) => p.x)) + 4,
     height: Math.max(...shot.map((p) => p.y)) - Math.min(...shot.map((p) => p.y)) + 4,

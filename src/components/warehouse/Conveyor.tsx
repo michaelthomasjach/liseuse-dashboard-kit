@@ -152,6 +152,10 @@ export interface ConveyorProps {
   legSize?: number;
   /** Épaisseur du bâti qui porte la bande. */
   bedThickness?: number;
+  /** Les **rouleaux** en travers de la bande. Un convoyeur à rouleaux est ce qu'on trouve le plus
+   *  souvent dans un entrepôt — un colis y roule sans que rien ne l'entraîne — et c'est ce qui
+   *  distingue un tapis d'une planche posée sur des pieds. Faux pour une bande lisse. */
+  rollers?: boolean;
   /** Hauteur des barrières de rive, en cases. Zéro pour un tapis sans joues. */
   guardHeight?: number;
   /** Poser les ombres du module sur le sol. */
@@ -246,6 +250,7 @@ export function Conveyor({
   legHeight = 1,
   legSize = ISO_POST_SIZE,
   bedThickness = 0.22,
+  rollers = true,
   guardHeight = DEFAULT_GUARD,
   rise = 0,
   shadows = false,
@@ -413,6 +418,40 @@ export function Conveyor({
       at(spanX, spanY / 2 + beltHalf, deck(spanX)),
       at(0, spanY / 2 + beltHalf, deck(0)),
     ];
+  })();
+
+  /**
+   * Les rouleaux : un trait en travers de la bande, tous les quarts de case.
+   *
+   * Un trait et non un volume, et c'est un choix : à l'échelle où ce kit dessine, un rouleau fait
+   * trois pixels de diamètre. Modelé, il coûterait quarante volumes par tapis pour finir en une
+   * ligne grise ; tracé, il donne exactement ce qu'on lui demande — la trame régulière qui dit
+   * qu'un colis roule là-dessus. Ils suivent la bande partout : le long d'un droit, en rayons dans
+   * un angle, et des deux côtés du croisement d'un T.
+   */
+  const rollerLines = (() => {
+    if (!rollers) return [];
+    const step = 0.26;
+    const lines: string[] = [];
+    const across = (x: number, c: number, half: number) =>
+      lines.push(ring([at(x, c - half, deck(x)), at(x, c + half, deck(x))]));
+    if (kind === "corner") {
+      const count = Math.max(3, Math.round((Math.PI / 2) * radius / step));
+      for (let i = 1; i < count; i += 1) {
+        const a = arcAngle(i, count);
+        lines.push(ring([arcPoint(radius - beltHalf, a, bedTop), arcPoint(radius + beltHalf, a, bedTop)]));
+      }
+      return lines;
+    }
+    const c = spanY / 2;
+    for (let x = step; x < spanX - step / 2; x += step) across(x, c, beltHalf);
+    if (kind === "tee") {
+      // La dérivation a les siens, dans l'autre sens, et ils s'arrêtent au croisement.
+      for (let y = c + beltHalf + step; y < spanY - step / 2; y += step) {
+        lines.push(ring([at(c - beltHalf, y, bedTop), at(c + beltHalf, y, bedTop)]));
+      }
+    }
+    return lines;
   })();
 
   /** Une flèche posée en un point, dans un cap. Elle ne bouge pas. */
@@ -795,6 +834,9 @@ export function Conveyor({
           {/* La bande et sa flèche sont à plat sur le bâti : rien ne peut passer dessous, donc elles
               sont posées avant tout ce qui se dresse dessus plutôt que triées avec. */}
           <polygon className="lq-conveyor__belt" points={ring(beltFace)} />
+          {rollerLines.map((r, i) => (
+            <polyline key={`roller${i}`} className="lq-conveyor__roller" points={r} />
+          ))}
               {arrows.map((a, i) => (
             <polyline key={`arrow${i}`} className="lq-conveyor__arrow" points={a} />
           ))}

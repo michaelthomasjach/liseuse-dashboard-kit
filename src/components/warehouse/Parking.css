@@ -1,0 +1,40 @@
+/* Le parking. Le modèle de lumière et les matières partagées sont dans rackItems.css ; ici, ce qui
+   n'appartient qu'au parking. Voir Parking.tsx pour le pourquoi. */
+
+.lq-parking {
+  display: block;
+  overflow: visible;
+}
+
+/* Le marquage au sol : pâle, parce qu'une peinture de sol est pâle, et parce que ces traits sont
+   partout — au contraste du reste, ils quadrilleraient l'image. */
+.lq-parking__marks line {
+  stroke: color-mix(in srgb, var(--lq-color-text) 26%, transparent);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+/* Les voitures, en deux teintes : un parking d'une seule couleur se lit comme un motif. */
+.lq-iso__solid--car {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-text) 14%, var(--lq-color-bg));
+}
+
+.lq-iso__solid--car-dark {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-text) 44%, var(--lq-color-bg));
+}
+
+/* Le pare-brise et la lunette : sombres comme une vitre vue de jour, la même convention que la
+   cabine du camion. */
+.lq-parking__glass {
+  fill: color-mix(in srgb, var(--lq-color-text) 54%, var(--lq-color-bg));
+  stroke: color-mix(in srgb, var(--lq-color-text) 68%, transparent);
+  stroke-width: 1;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+/* Le pavillon vitré : sombre comme une vitre vue de jour, la même convention que la cabine du
+   camion. */
+.lq-iso__solid--car-glass {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-text) 56%, var(--lq-color-bg));
+}

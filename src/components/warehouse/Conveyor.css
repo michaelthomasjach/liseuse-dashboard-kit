@@ -17,6 +17,16 @@
   vector-effect: non-scaling-stroke;
 }
 
+/* Les rouleaux, en travers de la bande : clairs sur le caoutchouc sombre, assez fins pour se lire
+   comme une trame et non comme un grillage. C'est ce qui dit qu'un colis roule là-dessus. */
+.lq-conveyor__roller {
+  fill: none;
+  stroke: color-mix(in srgb, var(--lq-color-bg) 52%, var(--lq-color-text));
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
 /* Les barreaux de la bande. Ils vont presque d'un bord à l'autre et pointent par où ça part : le
    sens reste lisible sans mouvement, ce qui compte parce que le mouvement est la seule chose qu'un
    lecteur peut être incapable de voir. */

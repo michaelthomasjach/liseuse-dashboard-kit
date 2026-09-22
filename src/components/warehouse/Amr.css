@@ -1,0 +1,26 @@
+/* Robot autonome. Le modèle de lumière et les matières partagées sont dans rackItems.css ; ici, ce
+   qui n'appartient qu'au robot. Voir Amr.tsx pour le pourquoi. */
+
+.lq-amr {
+  display: block;
+  overflow: visible;
+}
+
+/* La carrosserie : une tôle claire, pour qu'un robot se distingue au premier coup d'œil des engins
+   conduits, qui sont jaunes, et des rayonnages, qui sont gris acier. */
+.lq-iso__solid--robot {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-text) 10%, var(--lq-color-bg));
+}
+
+/* Le soubassement et les capteurs : sombres, parce que c'est ce qui est dans l'ombre du plateau et
+   ce qui regarde le sol. */
+.lq-iso__solid--robot-dark {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-text) 58%, var(--lq-color-bg));
+}
+
+/* Le bandeau lumineux : l'accent du kit, la seule chose qui s'allume sur un entrepôt entier. En
+   e-ink il retombe sur un gris franc, et le bandeau reste lisible par son contraste avec la tôle
+   claire au-dessus et le soubassement sombre en dessous. */
+.lq-iso__solid--robot-led {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-accent) 62%, var(--lq-color-bg));
+}

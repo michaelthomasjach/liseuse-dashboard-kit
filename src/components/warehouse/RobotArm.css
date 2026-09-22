@@ -1,0 +1,44 @@
+/* Bras robotisé. Le modèle de lumière et les matières partagées sont dans rackItems.css ; ici, ce
+   qui n'appartient qu'au bras. Voir RobotArm.tsx pour le pourquoi.
+
+   Un segment incliné n'a ni dessus ni côté : il prend un ton unique, et c'est son contour qui le
+   détache — la même convention que les pièces minces du reste du kit. */
+
+.lq-arm {
+  display: block;
+  overflow: visible;
+}
+
+.lq-arm__beam {
+  stroke: color-mix(in srgb, var(--lq-color-text) 72%, transparent);
+  stroke-width: 1;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+/* Le bras : la teinte des engins, celle du chariot élévateur. Un manipulateur est une machine, pas
+   une structure. */
+.lq-arm__beam--arm {
+  fill: color-mix(in srgb, var(--lq-color-amber) 52%, var(--lq-color-bg));
+}
+
+/* L'embase, le poignet et les doigts : la fonte sombre des mâts et des fourches. */
+.lq-arm__beam--arm-dark {
+  fill: color-mix(in srgb, var(--lq-color-text) 58%, var(--lq-color-bg));
+}
+
+/* Les articulations, plus sombres que le bras : ce sont elles qu'on suit du regard pour lire une
+   pose, et elles doivent se détacher des segments qu'elles relient. */
+.lq-arm__beam--joint {
+  fill: color-mix(in srgb, var(--lq-color-text) 46%, var(--lq-color-bg));
+}
+
+/* L'embase et la tourelle sont des volumes debout, pas des poutres : elles passent par le modèle de
+   lumière du kit, et c'est leur matière qu'on définit ici, pas leur remplissage. */
+.lq-iso__solid--arm {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-amber) 52%, var(--lq-color-bg));
+}
+
+.lq-iso__solid--arm-dark {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-text) 52%, var(--lq-color-bg));
+}

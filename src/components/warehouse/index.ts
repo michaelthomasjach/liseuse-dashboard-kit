@@ -28,8 +28,17 @@ export type { ForkliftProps } from "./Forklift";
 export { SemiTruck } from "./SemiTruck";
 export type { SemiTruckProps } from "./SemiTruck";
 
+export { Amr } from "./Amr";
+export type { AmrProps } from "./Amr";
+
 export { Floor } from "./Floor";
 export type { FloorProps } from "./Floor";
+
+export { Parking } from "./Parking";
+export type { ParkingProps } from "./Parking";
+
+export { RobotArm } from "./RobotArm";
+export type { RobotArmProps } from "./RobotArm";
 
 export { Wall } from "./Wall";
 export type { WallOpening, WallProps } from "./Wall";

@@ -33,28 +33,41 @@ export interface PaintBox {
   height: number;
 }
 
-function isBehind(a: PaintBox, b: PaintBox): boolean {
+/** D'où regarde la caméra, en direction du sol. Par défaut `(1, 1)` : depuis le coin +x, +y. */
+export interface PaintView {
+  x: number;
+  y: number;
+}
+
+const DEFAULT_VIEW: PaintView = { x: 1, y: 1 };
+
+/** A is behind B. Along an axis the camera looks down, the nearer box is the one further along the
+ *  camera's direction; along an axis it looks straight across (a zero component), neither is. */
+function isBehind(a: PaintBox, b: PaintBox, view: PaintView): boolean {
   const shareX = a.x < b.x + b.width && b.x < a.x + a.width;
   const shareY = a.y < b.y + b.height && b.y < a.y + a.height;
-  return (shareX && a.y + a.height <= b.y) || (shareY && a.x + a.width <= b.x);
+  const alongY = view.y > 1e-9 ? a.y + a.height <= b.y : view.y < -1e-9 ? b.y + b.height <= a.y : false;
+  const alongX = view.x > 1e-9 ? a.x + a.width <= b.x : view.x < -1e-9 ? b.x + b.width <= a.x : false;
+  return (shareX && alongY) || (shareY && alongX);
 }
 
 /** The boxes, furthest first. Stable for boxes the rule does not order. */
-export function paintOrder<T extends PaintBox>(boxes: T[]): T[] {
+export function paintOrder<T extends PaintBox>(boxes: T[], view: PaintView = DEFAULT_VIEW): T[] {
   const n = boxes.length;
   // `after[a]` is everything a must be painted before; `waits[b]` how many boxes b still waits on.
   const after: number[][] = boxes.map(() => []);
   const waits = new Array<number>(n).fill(0);
   for (let a = 0; a < n; a += 1) {
     for (let b = 0; b < n; b += 1) {
-      if (a !== b && isBehind(boxes[a], boxes[b])) {
+      if (a !== b && isBehind(boxes[a], boxes[b], view)) {
         after[a].push(b);
         waits[b] += 1;
       }
     }
   }
 
-  const key = (i: number) => boxes[i].x + boxes[i].y;
+  // The depth of a box's centre along the camera's direction.
+  const key = (i: number) => (boxes[i].x + boxes[i].width / 2) * view.x + (boxes[i].y + boxes[i].height / 2) * view.y;
   const done = new Array<boolean>(n).fill(false);
   let ready: number[] = [];
   for (let i = 0; i < n; i += 1) if (waits[i] === 0) ready.push(i);

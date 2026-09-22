@@ -124,3 +124,40 @@
 .lq-iso__solid--post {
   --lq-iso-face: color-mix(in srgb, var(--lq-color-text) 34%, var(--lq-color-bg));
 }
+
+/* Le moyeu d'une roue, dans l'acier clair ; l'axe au centre, plus sombre. C'est le seul
+   dessin qui dise qu'un disque noir est une roue et non un trou. */
+.lq-iso__hub,
+.lq-iso__axle {
+  stroke: color-mix(in srgb, var(--lq-color-text) 72%, transparent);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.lq-iso__hub {
+  fill: color-mix(in srgb, var(--lq-color-accent) 14%, var(--lq-color-bg));
+}
+
+.lq-iso__axle {
+  fill: color-mix(in srgb, var(--lq-color-text) 55%, var(--lq-color-bg));
+}
+
+/* La fonte peinte des engins : mât, fourches, toit de protection, siège. Plus sombre que l'acier des
+   rayonnages — ce n'est pas de la structure, c'est de la machine. */
+.lq-iso__solid--iron {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-text) 58%, var(--lq-color-bg));
+}
+
+/* Le jaune de sécurité : ce qui touche — tampons et fourches d'un picker, caisse d'un chariot élévateur. Sur une vraie
+   machine c'est la couleur de ce contre quoi on se cogne, et c'est ce qui la sépare du rayonnage
+   qu'elle dessert, fait du même acier. En e-ink l'ambre retombe sur la couleur du texte : les
+   fourches restent lisibles par leur clarté, simplement plus sombres que le tablier. */
+.lq-iso__solid--safety {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-amber) 62%, var(--lq-color-bg));
+}
+
+/* L'armoire électrique : une tôle peinte, plus sombre que la structure — un coffret, pas un
+   montant. */
+.lq-iso__solid--cabinet {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-text) 42%, var(--lq-color-bg));
+}

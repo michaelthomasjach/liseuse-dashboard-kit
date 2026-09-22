@@ -1,8 +1,7 @@
 import type { ReactNode } from "react";
-import { projectIso } from "./warehouseIso";
-import { paintOrder } from "./warehousePaint";
-import { boxFaces, castShadow, isoFacing, solidVolume, type Project } from "./rackItems";
+import { boxFaces, castShadow, solidVolume, type Project } from "./rackItems";
 import "./StorageZone.css";
+import { useIsoCamera } from "./isoCamera";
 
 /**
  * Zone de stockage — des marchandises sur palettes, posées au sol.
@@ -81,6 +80,7 @@ export function StorageZone({
   cellSize = 30,
   className,
 }: StorageZoneProps) {
+  const cam = useIsoCamera();
   const nx = count(columns);
   const ny = count(rows);
   const side = Math.max(0.2, palletSize);
@@ -99,12 +99,12 @@ export function StorageZone({
     const dy = y - spanY / 2;
     return { x: spanX / 2 + dx * cosT - dy * sinT, y: spanY / 2 + dx * sinT + dy * cosT };
   };
-  const ground: Project = (x, y, z) => projectIso(x * cellSize, y * cellSize, z * cellSize);
+  const ground: Project = (x, y, z) => cam.project(x * cellSize, y * cellSize, z * cellSize);
   const at: Project = (x, y, z) => {
     const p = spin(x, y);
     return ground(p.x, p.y, z);
   };
-  const facing = isoFacing(rotation);
+  const facing = cam.facing(rotation);
 
   const heightOf = (i: number) => {
     const asked = stacks ? stacks[i] : fill;
@@ -130,8 +130,7 @@ export function StorageZone({
             // Les coins tournés : le soleil est une direction du monde, pas de la zone.
             [spin(x0, y0), spin(x0 + side, y0), spin(x0 + side, y0 + side), spin(x0, y0 + side)],
             top,
-            `sh${i}-${j}`
-          )
+            `sh${i}-${j}`, cam.sun)
         );
       }
       pieces.push({
@@ -157,7 +156,7 @@ export function StorageZone({
     }
   }
 
-  const sorted = paintOrder(
+  const sorted = cam.order(
     pieces.map((piece) => {
       if (!rotation) return piece;
       const pts = [

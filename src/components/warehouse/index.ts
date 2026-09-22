@@ -22,6 +22,9 @@ export type { RailKind, RailProps } from "./Rail";
 export { Picker } from "./Picker";
 export type { PickerProps, PickerSide, PickerStop } from "./Picker";
 
+export { IsoCamera, isoCamera, useIsoCamera } from "./isoCamera";
+export type { IsoCameraView } from "./isoCamera";
+
 export { RackItem } from "./RackItem";
 export type { RackItemProps } from "./RackItem";
 export { ISO_POST_SIZE, RACK_ITEM_KINDS, RACK_ITEM_LABEL } from "./rackItems";

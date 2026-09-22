@@ -1,10 +1,9 @@
 import { useId, type CSSProperties } from "react";
-import { projectIso } from "./warehouseIso";
 import {
-  SUN_CAST,
   boxFaces,
+  convexHull as hull,
+  isoWheel,
   fitRackItem,
-  isoFacing,
   rackItemIso,
   solidVolume,
   type Point,
@@ -12,6 +11,7 @@ import {
   type RackItemKind,
 } from "./rackItems";
 import { RAIL_GAUGE, RAIL_TOP, RAIL_WIDTH } from "./Rail";
+import { useIsoCamera } from "./isoCamera";
 import "./Picker.css";
 
 /**
@@ -201,25 +201,6 @@ const BITE = 0.2;
  *  confondues se disputent le même pixel et l'arête scintille. */
 const PLAY = 0.03;
 
-/** L'enveloppe convexe de points de l'écran — la chaîne monotone d'Andrew. */
-function hull(points: Point[]): Point[] {
-  const p = [...points].sort((a, b) => a.x - b.x || a.y - b.y);
-  if (p.length < 3) return p;
-  const cross = (o: Point, a: Point, b: Point) => (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
-  const lower: Point[] = [];
-  for (const q of p) {
-    while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], q) <= 0) lower.pop();
-    lower.push(q);
-  }
-  const upper: Point[] = [];
-  for (let i = p.length - 1; i >= 0; i -= 1) {
-    const q = p[i];
-    while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], q) <= 0) upper.pop();
-    upper.push(q);
-  }
-  return [...lower.slice(0, -1), ...upper.slice(0, -1)];
-}
-
 const ring = (points: Point[]) => points.map((p) => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(" ");
 
 export function Picker({
@@ -248,6 +229,7 @@ export function Picker({
   cellSize = 34,
   className,
 }: PickerProps) {
+  const cam = useIsoCamera();
   const uid = useId().replace(/[^a-zA-Z0-9]/g, "");
 
   const spanY = Math.max(0.6, width);
@@ -264,7 +246,7 @@ export function Picker({
     const dy = y - spanY / 2;
     return { x: spanX / 2 + dx * cosT - dy * sinT, y: spanY / 2 + dx * sinT + dy * cosT };
   };
-  const world: Project = (x, y, z) => projectIso(x * cellSize, y * cellSize, z * cellSize);
+  const world: Project = (x, y, z) => cam.project(x * cellSize, y * cellSize, z * cellSize);
   const at: Project = (x, y, z) => {
     const p = spin(x, y);
     return world(p.x + origin.x, p.y + origin.y, z);
@@ -273,7 +255,7 @@ export function Picker({
     const p = spin(x, y);
     return { x: p.x + origin.x, y: p.y + origin.y };
   };
-  const facing = isoFacing(rotation);
+  const facing = cam.facing(rotation);
 
   // ---- les cotes ----
   const wheelR = Math.max(0.06, wheelRadius);
@@ -445,28 +427,8 @@ export function Picker({
   const box = (material: string, key: string, x0: number, x1: number, y0: number, y1: number, z0: number, z1: number) =>
     solidVolume(material, key, boxFaces(at, x0, x1, y0, y1, z0, z1, facing));
 
-  /** Un disque vertical, dans le plan du rail, projeté point à point. Sous une caméra affine c'est
-   *  une ellipse exacte, à toute rotation du sol. */
-  const disk = (x: number, y: number, z: number, r: number, n = 32) =>
-    Array.from({ length: n }, (_, i) => {
-      const a = (2 * Math.PI * i) / n;
-      return at(x + r * Math.cos(a), y, z + r * Math.sin(a));
-    });
-
-  /** Une roue : la bande de roulement, le flanc qui regarde la caméra, le moyeu. Le flanc visible
-   *  est celui que `yFace` désigne, comme pour la face d'une boîte. */
-  const wheelAt = (x: number, railY: number, key: string) => {
-    const near = railY + (facing.yFace * wheelT) / 2;
-    const far = railY - (facing.yFace * wheelT) / 2;
-    return (
-      <g key={key} className="lq-iso__solid lq-iso__solid--rubber lq-picker__wheel">
-        <polygon className="lq-iso__face lq-iso__face--side" points={ring(hull([...disk(x, far, axleZ, wheelR), ...disk(x, near, axleZ, wheelR)]))} />
-        <polygon className="lq-iso__face lq-iso__face--front" points={ring(disk(x, near, axleZ, wheelR))} />
-        <polygon className="lq-picker__hub" points={ring(disk(x, near, axleZ, wheelR * 0.52, 24))} />
-        <polygon className="lq-picker__axle" points={ring(disk(x, near, axleZ, wheelR * 0.18, 12))} />
-      </g>
-    );
-  };
+  /** Une roue, sur sa file : `isoWheel` la dessine ronde à toute rotation du sol. */
+  const wheelAt = (x: number, railY: number, key: string) => isoWheel(at, x, railY, axleZ, wheelR, wheelT, facing, key);
 
   /** La profondeur d'un point du module vue de la caméra : x + y au sol, une fois tourné. */
   const depthOf = (x: number, y: number) => {
@@ -594,7 +556,7 @@ export function Picker({
    *  deux rectangles et tout ce qui les relie, c'est-à-dire leur enveloppe. */
   const sweep = (x0: number, x1: number, y0: number, y1: number, h: number, key: string) => {
     const foot = [onGround(x0, y0), onGround(x1, y0), onGround(x1, y1), onGround(x0, y1)];
-    const cast = foot.map((p) => ({ x: p.x + SUN_CAST.x * h, y: p.y + SUN_CAST.y * h }));
+    const cast = foot.map((p) => ({ x: p.x + cam.sun.x * h, y: p.y + cam.sun.y * h }));
     return <polygon key={key} className="lq-iso__shadow" points={ring(hull([...foot, ...cast].map((p) => world(p.x, p.y, 0))))} />;
   };
   const shade = shadows ? (
@@ -612,7 +574,7 @@ export function Picker({
             onGround(xRef + half - inset, cy - mastY / 2),
             onGround(xRef + half - inset, cy + mastY / 2),
             onGround(xRef - half + inset, cy + mastY / 2),
-          ].map((p) => world(p.x + SUN_CAST.x * mastZ1, p.y + SUN_CAST.y * mastZ1, 0))
+          ].map((p) => world(p.x + cam.sun.x * mastZ1, p.y + cam.sun.y * mastZ1, 0))
         )}
       />
     </g>

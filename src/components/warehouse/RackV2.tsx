@@ -1,12 +1,9 @@
 import type { ReactNode } from "react";
-import { projectIso } from "./warehouseIso";
-import { paintOrder } from "./warehousePaint";
 import {
   ISO_POST_SIZE,
   boxFaces,
   castShadow,
   fitRackItem,
-  isoFacing,
   rackItemIso,
   solidVolume,
   type Point,
@@ -14,6 +11,7 @@ import {
   type RackItemKind,
 } from "./rackItems";
 import "./RackV2.css";
+import { useIsoCamera } from "./isoCamera";
 
 /**
  * Étagère V2 — deux plateaux, quatre montants, et ce qu'on pose dessus.
@@ -256,6 +254,7 @@ export function RackV2({
   cellSize = 22,
   className,
 }: RackV2Props) {
+  const cam = useIsoCamera();
   const ring = (points: Point[]) => points.map((p) => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(" ");
 
   /** L'écart cumulé avant l'index `i`, quand une allée s'ouvre toutes les `every` unités. Le
@@ -288,7 +287,7 @@ export function RackV2({
 
   /** Un point du monde vers l'écran, sans passer par le bloc : le cadre partagé et le soleil sont
    *  tous deux en coordonnées du monde. */
-  const world: Project = (x, y, z) => projectIso(x * cellSize, y * cellSize, z * cellSize);
+  const world: Project = (x, y, z) => cam.project(x * cellSize, y * cellSize, z * cellSize);
   const at: Project = (x, y, z) => {
     const p = spin(x, y);
     return world(p.x + origin.x, p.y + origin.y, z);
@@ -301,7 +300,7 @@ export function RackV2({
 
   // Quelles faces de chaque volume la caméra voit, une fois le sol tourné. Sans ça, tourner le bloc
   // faisait peindre à chaque boîte une face passée derrière et en oublier une visible.
-  const facing = isoFacing(rotation);
+  const facing = cam.facing(rotation);
 
   /**
    * Depth is decided in the **turned** frame, because that is the frame the camera sees. A piece is
@@ -312,7 +311,7 @@ export function RackV2({
    * depth.
    */
   const sorted = (list: Piece[]) =>
-    paintOrder(
+    cam.order(
       list.map((piece) => {
         if (!rotation) return piece;
         const pts = [
@@ -575,8 +574,7 @@ export function RackV2({
             onGround(0, ny * depth),
           ],
           nz * height,
-          "shadow"
-        ),
+          "shadow", cam.sun),
       ]
     : [];
 

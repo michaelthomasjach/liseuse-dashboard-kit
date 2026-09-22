@@ -1,8 +1,7 @@
 import type { ReactNode } from "react";
-import { projectIso } from "./warehouseIso";
-import { paintOrder } from "./warehousePaint";
-import { boxFaces, castShadow, isoFacing, solidVolume, type Project } from "./rackItems";
+import { boxFaces, castShadow, solidVolume, type Project } from "./rackItems";
 import "./CatchBin.css";
+import { useIsoCamera } from "./isoCamera";
 
 /**
  * Bac récupérateur — une caisse ouverte, et ce qui tombe dedans en vrac.
@@ -99,6 +98,7 @@ export function CatchBin({
   cellSize = 40,
   className,
 }: CatchBinProps) {
+  const cam = useIsoCamera();
   const spanX = Math.max(0.6, width);
   const spanY = Math.max(0.6, depth);
   const wallThick = Math.max(0.03, Math.min(wall, Math.min(spanX, spanY) / 4));
@@ -113,12 +113,12 @@ export function CatchBin({
     const dy = y - spanY / 2;
     return { x: spanX / 2 + dx * cosT - dy * sinT, y: spanY / 2 + dx * sinT + dy * cosT };
   };
-  const flat: Project = (x, y, z) => projectIso(x * cellSize, y * cellSize, z * cellSize);
+  const flat: Project = (x, y, z) => cam.project(x * cellSize, y * cellSize, z * cellSize);
   const at: Project = (x, y, z) => {
     const p = spin(x, y);
     return flat(p.x + origin.x, p.y + origin.y, z);
   };
-  const facing = isoFacing(rotation);
+  const facing = cam.facing(rotation);
 
   const floorZ = wallThick;
   const inner = { x0: wallThick, x1: spanX - wallThick, y0: wallThick, y1: spanY - wallThick };
@@ -176,7 +176,7 @@ export function CatchBin({
       const dy = py - y;
       return at(x + dx * c - dy * sn, y + dx * sn + dy * c, pz);
     };
-    const view = isoFacing(rotation + yaw);
+    const view = cam.facing(rotation + yaw);
     pieces.push({
       x: x - size / 2,
       y: y - size / 2,
@@ -187,7 +187,7 @@ export function CatchBin({
     });
   }
 
-  const sorted = paintOrder(
+  const sorted = cam.order(
     pieces.map((piece) => {
       if (!rotation) return piece;
       const pts = [
@@ -217,8 +217,7 @@ export function CatchBin({
             return { x: p.x + origin.x, y: p.y + origin.y };
           }),
           walls,
-          "shadow"
-        )] : [];
+          "shadow", cam.sun)] : [];
 
   const corners = frame
     ? [0, 1].flatMap((k) =>

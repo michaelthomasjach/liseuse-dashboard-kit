@@ -1,13 +1,10 @@
 import { useId, type CSSProperties, type ReactNode } from "react";
-import { projectIso } from "./warehouseIso";
-import { paintOrder } from "./warehousePaint";
 import {
   ISO_POST_SIZE,
   arcRingVolume,
   boxFaces,
   castShadow,
   fitRackItem,
-  isoFacing,
   rackItemIso,
   solidVolume,
   type Point,
@@ -15,6 +12,7 @@ import {
   type RackItemKind,
 } from "./rackItems";
 import "./Conveyor.css";
+import { useIsoCamera } from "./isoCamera";
 
 /**
  * Tapis roulant — droit, ou à angle droit.
@@ -267,6 +265,7 @@ export function Conveyor({
   cellSize = 34,
   className,
 }: ConveyorProps) {
+  const cam = useIsoCamera();
   const uid = useId().replace(/[^a-zA-Z0-9]/g, "");
 
   // Un angle et un T sont carrés : ils tiennent dans leur propre encombrement, et une longueur
@@ -285,12 +284,12 @@ export function Conveyor({
   };
   /** Un point du monde vers l'écran, sans passer par le module : le cadre partagé est déjà en
    *  coordonnées du monde. */
-  const world: Project = (x, y, z) => projectIso(x * cellSize, y * cellSize, z * cellSize);
+  const world: Project = (x, y, z) => cam.project(x * cellSize, y * cellSize, z * cellSize);
   const at: Project = (x, y, z) => {
     const p = spin(x, y);
     return world(p.x + origin.x, p.y + origin.y, z);
   };
-  const facing = isoFacing(rotation);
+  const facing = cam.facing(rotation);
   const ring = (points: Point[]) => points.map((p) => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(" ");
 
   const footprint = (xs: number[], ys: number[]) => {
@@ -377,8 +376,7 @@ export function Conveyor({
       spin,
       { cx: 0, cy: spanY, rIn, rOut, z0, z1, a0: arcAngle(0, 1), a1: arcAngle(1, 1) },
       material,
-      key
-    );
+      key, undefined, cam.view);
 
   /** La bande elle-même : le ruban balayé par le parcours, à plat sur le bâti. */
   const beltFace = (() => {
@@ -508,7 +506,7 @@ export function Conveyor({
       const dy = y - cy;
       return at(cx + dx * c - dy * sn, cy + dx * sn + dy * c, zt);
     };
-    return { project, facing: isoFacing(rotation + deg) };
+    return { project, facing: cam.facing(rotation + deg) };
   };
 
   // Le trajet d'une charge, c'est la bande *plus* la chute s'il y en a une. La vitesse
@@ -671,15 +669,14 @@ export function Conveyor({
           const a = arcAngle(i, 32);
           return onGround(r * Math.cos(a), spanY + r * Math.sin(a));
         });
-      shade.push(castShadow(world, [...band(rOut), ...band(rIn).reverse()], high, "sh-bed"));
+      shade.push(castShadow(world, [...band(rOut), ...band(rIn).reverse()], high, "sh-bed", cam.sun));
     } else {
       shade.push(
         castShadow(
           world,
           [onGround(0, 0), onGround(spanX, 0), onGround(spanX, spanY), onGround(0, spanY)],
           high,
-          "sh-bed"
-        )
+          "sh-bed", cam.sun)
       );
     }
   }
@@ -740,7 +737,7 @@ export function Conveyor({
   }
 
   const sorted = (list: Piece[]) =>
-    paintOrder(
+    cam.order(
       list.map((piece) => {
         if (!rotation) return piece;
         const pts = [

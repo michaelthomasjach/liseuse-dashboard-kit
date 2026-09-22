@@ -240,7 +240,10 @@ export function arcRingVolume(
   arc: ArcRing,
   material: string,
   key: string,
-  steps = 48
+  steps = 48,
+  /** D'où regarde la caméra, en direction du sol — `(1, 1)` pour la caméra par défaut. Voir
+   *  `isoCamera.tsx`. */
+  view: Point = { x: 1, y: 1 }
 ): ReactNode {
   const point = (r: number, a: number, z: number) => at(arc.cx + r * Math.cos(a), arc.cy + r * Math.sin(a), z);
   const angle = (i: number, n: number) => arc.a0 + ((arc.a1 - arc.a0) * i) / n;
@@ -250,11 +253,11 @@ export function arcRingVolume(
   const outerLow = band(arc.rOut, arc.z0);
   const innerLow = band(arc.rIn, arc.z0);
 
-  /** Un bout droit se voit quand sa normale part vers la caméra, qui regarde depuis +x, +y. */
+  /** Un bout droit se voit quand sa normale part vers la caméra — depuis +x, +y par défaut. */
   const capAt = (a: number, sign: number) => {
     const t = spin(-Math.sin(a) * sign, Math.cos(a) * sign);
     const o = spin(0, 0);
-    return t.x - o.x + (t.y - o.y) > 0;
+    return (t.x - o.x) * view.x + (t.y - o.y) * view.y > 0;
   };
   const cap = (a: number) => [point(arc.rIn, a, arc.z0), point(arc.rOut, a, arc.z0), point(arc.rOut, a, arc.z1), point(arc.rIn, a, arc.z1)];
   const caps: Point[][] = [];
@@ -311,8 +314,16 @@ export const SUN_CAST = { x: 0.34, y: -0.62 };
  * autant de soleils que de pièces. C'est le genre d'erreur qui ne se voit que sur la deuxième
  * pièce.
  */
-export function castShadow(project: Project, points: { x: number; y: number }[], height: number, key: string) {
-  const d = { x: SUN_CAST.x * height, y: SUN_CAST.y * height };
+export function castShadow(
+  project: Project,
+  points: { x: number; y: number }[],
+  height: number,
+  key: string,
+  /** D'où vient la lumière — `SUN_CAST` pour la caméra par défaut. Le soleil suit la caméra quand
+   *  elle tourne, comme l'éclairage des faces : voir `isoCamera.tsx`. */
+  sun: Point = SUN_CAST
+) {
+  const d = { x: sun.x * height, y: sun.y * height };
   return (
     <polygon
       key={key}
@@ -446,6 +457,55 @@ export function rackItemPlan(kind: RackItemKind, fit: RackItemFit, scale: number
         [0.28, 0.5, 0.72].map((t, i) => (
           <line key={`s${i}`} className="lq-iso__slat" x1={x} y1={y + size * t} x2={x + size} y2={y + size * t} />
         ))}
+    </g>
+  );
+}
+
+/** L'enveloppe convexe de points de l'écran — la chaîne monotone d'Andrew. */
+export function convexHull(points: Point[]): Point[] {
+  const p = [...points].sort((a, b) => a.x - b.x || a.y - b.y);
+  if (p.length < 3) return p;
+  const cross = (o: Point, a: Point, b: Point) => (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+  const lower: Point[] = [];
+  for (const q of p) {
+    while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], q) <= 0) lower.pop();
+    lower.push(q);
+  }
+  const upper: Point[] = [];
+  for (let i = p.length - 1; i >= 0; i -= 1) {
+    const q = p[i];
+    while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], q) <= 0) upper.pop();
+    upper.push(q);
+  }
+  return [...lower.slice(0, -1), ...upper.slice(0, -1)];
+}
+
+
+/**
+ * Une roue : un disque dans le plan vertical `xz`, d'axe `y`, centré en `(x, y, z)`.
+ *
+ * Sous une caméra affine, un cercle d'un plan devient une ellipse exacte — celle qu'on obtient en
+ * projetant ses points un à un. La bande de roulement est l'enveloppe convexe des deux flancs : pas
+ * de tangentes à calculer, et c'est juste à toute rotation du sol. Le flanc visible est celui que
+ * `yFace` désigne, comme pour la face d'une boîte ; le moyeu et l'axe y sont dessinés, sans quoi un
+ * disque sombre se lit comme un trou.
+ *
+ * Le picker, le chariot élévateur et le camion roulent sur les mêmes.
+ */
+export function isoWheel(at: Project, x: number, y: number, z: number, r: number, thickness: number, facing: IsoFacing, key: string): ReactNode {
+  const disk = (yy: number, rr: number, n: number) =>
+    Array.from({ length: n }, (_, i) => {
+      const a = (2 * Math.PI * i) / n;
+      return at(x + rr * Math.cos(a), yy, z + rr * Math.sin(a));
+    });
+  const near = y + (facing.yFace * thickness) / 2;
+  const far = y - (facing.yFace * thickness) / 2;
+  return (
+    <g key={key} className="lq-iso__solid lq-iso__solid--rubber lq-iso__wheel">
+      <polygon className="lq-iso__face lq-iso__face--side" points={ring(convexHull([...disk(far, r, 32), ...disk(near, r, 32)]))} />
+      <polygon className="lq-iso__face lq-iso__face--front" points={ring(disk(near, r, 32))} />
+      <polygon className="lq-iso__hub" points={ring(disk(near, r * 0.52, 24))} />
+      <polygon className="lq-iso__axle" points={ring(disk(near, r * 0.18, 12))} />
     </g>
   );
 }

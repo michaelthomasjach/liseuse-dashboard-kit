@@ -113,7 +113,17 @@ export const ISO_HEIGHT: Record<WarehouseItemKind, number> = {
 
 /** A point on the floor (or above it), in canvas pixels, to its position on screen — before the
  *  pan and zoom, which the caller applies. */
-export function projectIso(x: number, y: number, z = 0): { x: number; y: number } {
+export function projectIso(x: number, y: number, z = 0, yaw = 0): { x: number; y: number } {
+  if (yaw) {
+    // La caméra tourne autour de la verticale : c'est le sol qu'on tourne d'autant avant de le
+    // projeter. Voir `isoCamera.tsx`.
+    const t = (yaw * Math.PI) / 180;
+    const c = Math.cos(t);
+    const s = Math.sin(t);
+    const rx = x * c - y * s;
+    const ry = x * s + y * c;
+    return { x: KX * (rx - ry), y: KY * (rx + ry) - KZ * z };
+  }
   return { x: KX * (x - y), y: KY * (x + y) - KZ * z };
 }
 

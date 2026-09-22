@@ -1,8 +1,7 @@
 import type { ReactNode } from "react";
-import { projectIso } from "./warehouseIso";
-import { paintOrder } from "./warehousePaint";
-import { arcRingVolume, boxFaces, castShadow, isoFacing, solidVolume, spunProject, type Point, type Project } from "./rackItems";
+import { arcRingVolume, boxFaces, castShadow, solidVolume, spunProject, type Point, type Project } from "./rackItems";
 import "./Rail.css";
+import { useIsoCamera } from "./isoCamera";
 
 /**
  * Rail — droit, ou à angle droit. La voie sur laquelle roule un picker.
@@ -142,6 +141,7 @@ export function Rail({
   cellSize = 34,
   className,
 }: RailProps) {
+  const cam = useIsoCamera();
   // Un angle est carré : il tient dans sa propre largeur, et une longueur n'aurait aucun sens à lui
   // donner.
   const W = Math.max(0.6, width);
@@ -163,7 +163,7 @@ export function Rail({
   };
   /** Un point du monde vers l'écran, sans passer par le module : l'ombre se calcule là, le soleil
    *  étant une direction du monde et non du module. */
-  const world: Project = (x, y, z) => projectIso(x * cellSize, y * cellSize, z * cellSize);
+  const world: Project = (x, y, z) => cam.project(x * cellSize, y * cellSize, z * cellSize);
   const at: Project = (x, y, z) => {
     const p = spin(x, y);
     return world(p.x + origin.x, p.y + origin.y, z);
@@ -172,7 +172,7 @@ export function Rail({
     const p = spin(x, y);
     return { x: p.x + origin.x, y: p.y + origin.y };
   };
-  const facing = isoFacing(rotation);
+  const facing = cam.facing(rotation);
 
   const cy = spanY / 2;
   const tie = Math.max(0.03, sleeperThickness);
@@ -207,7 +207,7 @@ export function Rail({
       const px = radius * Math.cos(a);
       const py = spanY + radius * Math.sin(a);
       const deg = (a * 180) / Math.PI;
-      const view = spunProject(at, deg, px, py, rotation);
+      const view = spunProject(at, deg, px, py, rotation + cam.yaw);
       // L'emprise d'une boîte tournée : sa plus petite boîte droite. `paintOrder` ordonne alors
       // moins de paires d'office et en laisse davantage tomber sur son départage — qui est x + y,
       // c'est-à-dire la profondeur elle-même, donc c'est le bon sens de l'erreur.
@@ -254,14 +254,13 @@ export function Rail({
             spin,
             { cx: 0, cy: spanY, rIn: r - bar / 2, rOut: r + bar / 2, z0: tie, z1: top, a0: -Math.PI / 2, a1: 0 },
             "steel",
-            key
-          ),
+            key, undefined, cam.view),
       });
     }
   }
 
   const sorted = (list: Piece[]) =>
-    paintOrder(
+    cam.order(
       list.map((piece) => {
         if (!rotation) return piece;
         const pts = [
@@ -293,8 +292,7 @@ export function Rail({
             world,
             [onGround(0, c - bar / 2), onGround(spanX, c - bar / 2), onGround(spanX, c + bar / 2), onGround(0, c + bar / 2)],
             top,
-            `sh${side}`
-          )
+            `sh${side}`, cam.sun)
         );
       } else {
         const r = radius + side * half;
@@ -303,7 +301,7 @@ export function Rail({
             const a = -Math.PI / 2 + (Math.PI / 2) * (i / 24);
             return onGround(rr * Math.cos(a), spanY + rr * Math.sin(a));
           });
-        shade.push(castShadow(world, [...band(r + bar / 2), ...band(r - bar / 2).reverse()], top, `sh${side}`));
+        shade.push(castShadow(world, [...band(r + bar / 2), ...band(r - bar / 2).reverse()], top, `sh${side}`, cam.sun));
       }
     }
   }

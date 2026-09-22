@@ -8,37 +8,6 @@
   overflow: visible;
 }
 
-/* Le jaune de sécurité : les tampons et les fourches, c'est-à-dire ce qui touche. Sur une vraie
-   machine c'est la couleur de ce contre quoi on se cogne, et c'est ce qui la sépare du rayonnage
-   qu'elle dessert, fait du même acier. En e-ink l'ambre retombe sur la couleur du texte : les
-   fourches restent lisibles par leur clarté, simplement plus sombres que le tablier. */
-.lq-iso__solid--safety {
-  --lq-iso-face: color-mix(in srgb, var(--lq-color-amber) 62%, var(--lq-color-bg));
-}
-
-/* L'armoire électrique : une tôle peinte, plus sombre que la structure — un coffret, pas un
-   montant. */
-.lq-iso__solid--cabinet {
-  --lq-iso-face: color-mix(in srgb, var(--lq-color-text) 42%, var(--lq-color-bg));
-}
-
-/* Le moyeu d'une roue, dans l'acier du châssis ; l'axe au centre, plus sombre. C'est le seul
-   dessin qui dise qu'un disque noir est une roue et non un trou. */
-.lq-picker__hub,
-.lq-picker__axle {
-  stroke: color-mix(in srgb, var(--lq-color-text) 72%, transparent);
-  stroke-width: 1;
-  vector-effect: non-scaling-stroke;
-}
-
-.lq-picker__hub {
-  fill: color-mix(in srgb, var(--lq-color-accent) 14%, var(--lq-color-bg));
-}
-
-.lq-picker__axle {
-  fill: color-mix(in srgb, var(--lq-color-text) 55%, var(--lq-color-bg));
-}
-
 /* Le masque des fourches : leur silhouette en blanc — un masque ne retient que la clarté, et la
    couleur des matières n'y a aucun sens. Le trait est plus épais que celui du dessin : au bord, le
    lissage laisse passer une fraction de ce qui est dessous, et un masque au trait exact laissait

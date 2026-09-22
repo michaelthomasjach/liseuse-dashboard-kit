@@ -52,6 +52,14 @@ export interface CatchBinProps {
   rotation?: number;
   /** Poser l'ombre au sol. */
   shadows?: boolean;
+  /** Où poser le bac sur le sol, en cases. Sert à le composer avec d'autres modules — le bout d'un
+   *  tapis — dans une même scène. */
+  origin?: { x: number; y: number };
+  /** Le pavé du monde que la `viewBox` doit couvrir, en cases. Partagé avec les autres modules
+   *  d'une scène, il leur donne exactement le même repère à l'écran. */
+  frame?: { x: number; y: number; width: number; depth: number; height: number };
+  /** Ce qu'on dessine : tout, l'ombre seule, ou le bac seul. */
+  parts?: "all" | "shadow" | "machine";
   /** Pixels par case. */
   cellSize?: number;
   className?: string;
@@ -85,6 +93,9 @@ export function CatchBin({
   seed = 7,
   rotation = 0,
   shadows = false,
+  origin = { x: 0, y: 0 },
+  frame,
+  parts = "all",
   cellSize = 40,
   className,
 }: CatchBinProps) {
@@ -105,7 +116,7 @@ export function CatchBin({
   const flat: Project = (x, y, z) => projectIso(x * cellSize, y * cellSize, z * cellSize);
   const at: Project = (x, y, z) => {
     const p = spin(x, y);
-    return flat(p.x, p.y, z);
+    return flat(p.x + origin.x, p.y + origin.y, z);
   };
   const facing = isoFacing(rotation);
 
@@ -199,13 +210,30 @@ export function CatchBin({
     [spanX, spanY],
     [0, spanY],
   ];
-  const shade = shadows ? [castShadow(flat, outline.map(([x, y]) => spin(x, y)), walls, "shadow")] : [];
+  const shade = shadows ? [castShadow(
+          flat,
+          outline.map(([x, y]) => {
+            const p = spin(x, y);
+            return { x: p.x + origin.x, y: p.y + origin.y };
+          }),
+          walls,
+          "shadow"
+        )] : [];
 
-  const corners = [
-    ...outline.map(([x, y]) => at(x, y, 0)),
-    ...outline.map(([x, y]) => at(x, y, tallest)),
-    ...outline.map(([x, y]) => at(x + walls, y - walls, 0)),
-  ];
+  const corners = frame
+    ? [0, 1].flatMap((k) =>
+        [
+          [frame.x, frame.y],
+          [frame.x + frame.width, frame.y],
+          [frame.x + frame.width, frame.y + frame.depth],
+          [frame.x, frame.y + frame.depth],
+        ].map(([x, y]) => flat(x, y, k === 0 ? 0 : frame.height))
+      )
+    : [
+        ...outline.map(([x, y]) => at(x, y, 0)),
+        ...outline.map(([x, y]) => at(x, y, tallest)),
+        ...outline.map(([x, y]) => at(x + walls, y - walls, 0)),
+      ];
   const minX = Math.min(...corners.map((p) => p.x)) - PAD;
   const minY = Math.min(...corners.map((p) => p.y)) - PAD;
   const boxWidth = Math.max(...corners.map((p) => p.x)) + PAD - minX;
@@ -227,10 +255,14 @@ export function CatchBin({
       role="img"
       aria-label={`Bac récupérateur, ${Math.max(0, Math.floor(count))} colis`}
     >
-      {shade}
-      {/* Le fond, sous tout le reste : rien ne peut passer dessous. */}
-      <polygon className="lq-bin__floor" points={floorPoints.map((p) => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(" ")} />
-      {sorted.map((piece) => piece.render())}
+      {(parts === "all" || parts === "shadow") && shade}
+      {(parts === "all" || parts === "machine") && (
+        <>
+          {/* Le fond, sous tout le reste : rien ne peut passer dessous. */}
+          <polygon className="lq-bin__floor" points={floorPoints.map((p) => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(" ")} />
+          {sorted.map((piece) => piece.render())}
+        </>
+      )}
     </svg>
   );
 }

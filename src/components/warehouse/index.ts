@@ -22,6 +22,12 @@ export type { RailKind, RailProps } from "./Rail";
 export { Picker } from "./Picker";
 export type { PickerProps, PickerSide, PickerStop } from "./Picker";
 
+export { Forklift } from "./Forklift";
+export type { ForkliftProps } from "./Forklift";
+
+export { SemiTruck } from "./SemiTruck";
+export type { SemiTruckProps } from "./SemiTruck";
+
 export { IsoCamera, isoCamera, useIsoCamera } from "./isoCamera";
 export type { IsoCameraView } from "./isoCamera";
 

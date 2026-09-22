@@ -1,0 +1,38 @@
+/* Semi-remorque. Le modèle de lumière et les matières partagées sont dans rackItems.css ; ici, ce
+   qui n'appartient qu'au camion. Voir SemiTruck.tsx pour le pourquoi. */
+
+.lq-truck {
+  display: block;
+  overflow: visible;
+}
+
+/* La caisse d'une remorque fourgon : une tôle claire, presque la couleur du fond — c'est la plus
+   grande surface de la scène, et elle ne doit pas manger l'image. */
+.lq-iso__solid--trailer {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-text) 6%, var(--lq-color-bg));
+}
+
+/* La cabine, d'une teinte à part : c'est elle qui dit de quel côté le camion va. */
+.lq-iso__solid--cab {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-accent) 22%, var(--lq-color-bg));
+}
+
+/* Le vitrage : sombre, comme une vitre vue de jour depuis dehors. */
+.lq-iso__solid--glass-dark {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-text) 70%, var(--lq-color-bg));
+}
+
+.lq-truck__glass {
+  fill: color-mix(in srgb, var(--lq-color-text) 70%, var(--lq-color-bg));
+  stroke: color-mix(in srgb, var(--lq-color-text) 72%, transparent);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+/* Les joints des portes arrière et les barres de la calandre : des traits, pas des volumes. */
+.lq-truck__doors line,
+.lq-truck__grille line {
+  stroke: color-mix(in srgb, var(--lq-color-text) 55%, transparent);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}

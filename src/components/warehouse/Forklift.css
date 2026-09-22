@@ -1,0 +1,27 @@
+/* Chariot élévateur. Le modèle de lumière et les matières sont dans rackItems.css, partagés avec
+   l'étagère, le tapis et le picker. Voir Forklift.tsx pour le pourquoi. */
+
+.lq-forklift {
+  display: block;
+  /* Les fourches et le mât dépassent de l'emprise au sol : rien n'a de raison d'être rogné. */
+  overflow: visible;
+}
+
+/* La levée : une pure translation, que la caméra affine garde telle quelle à l'écran. */
+.lq-forklift__lift {
+  transform-box: view-box;
+  transform-origin: 0 0;
+}
+
+/* Un palier en haut et en bas, et une accélération à chaque bout : un vérin hydraulique ne part ni
+   ne s'arrête d'un coup. */
+.lq-forklift__lift--running {
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lq-forklift__lift--running {
+    animation: none !important;
+  }
+}

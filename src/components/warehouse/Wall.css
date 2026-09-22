@@ -1,0 +1,13 @@
+/* Les murs. Le modèle de lumière et les matières partagées sont dans rackItems.css ; ici, ce qui
+   n'appartient qu'au mur. Voir Wall.tsx pour le pourquoi. */
+
+.lq-wall {
+  display: block;
+  overflow: visible;
+}
+
+/* Le béton d'un mur : un peu plus clair que la dalle, parce qu'il est debout et qu'il prend la
+   lumière, et assez proche d'elle pour que les deux se lisent comme le même bâtiment. */
+.lq-iso__solid--wall {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-text) 7%, var(--lq-color-bg));
+}

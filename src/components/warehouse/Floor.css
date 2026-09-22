@@ -1,0 +1,21 @@
+/* Le sol. Le modèle de lumière et les matières partagées sont dans rackItems.css ; ici, ce qui
+   n'appartient qu'à la dalle. Voir Floor.tsx pour le pourquoi. */
+
+.lq-floor {
+  display: block;
+  overflow: visible;
+}
+
+/* Le béton d'une dalle : à peine plus foncé que le fond. C'est la plus grande surface de la scène
+   et elle est derrière tout le reste — elle doit se lire comme un sol, pas comme un objet. Sa
+   tranche, elle, prend les deux clartés des faces latérales, ce qui suffit à la détacher. */
+.lq-iso__solid--slab {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-text) 9%, var(--lq-color-bg));
+}
+
+/* Les joints de dalle : un trait à peine visible, qui donne l'échelle sans quadriller l'image. */
+.lq-floor__joints line {
+  stroke: color-mix(in srgb, var(--lq-color-text) 14%, transparent);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}

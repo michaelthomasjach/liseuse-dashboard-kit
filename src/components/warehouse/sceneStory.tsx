@@ -69,13 +69,28 @@ export const layer = { position: "absolute", left: 0, top: 0 } as const;
  * seulement sous le leur — puis les groupes, du plus lointain au plus proche **pour la caméra
  * courante**.
  */
-export function Scene({ frame, cellSize, units, padding = 24 }: { frame: Frame; cellSize: number; units: SceneUnit[]; padding?: number }) {
+export function Scene({
+  frame,
+  cellSize,
+  units,
+  padding = 24,
+  under,
+}: {
+  frame: Frame;
+  cellSize: number;
+  units: SceneUnit[];
+  padding?: number;
+  /** Ce qui est **sous** la scène — une dalle. Peint avant tout, ombres comprises : le sol ne prend
+   *  jamais sa place dans l'ordre des groupes, il est dessous à tous les caps. */
+  under?: ReactNode;
+}) {
   const cam = useIsoCamera();
   const box = useFrameBox(frame, cellSize);
   const ordered = cam.order(units);
   return (
     <div style={{ padding }}>
       <div style={{ position: "relative", width: box.width, height: box.height }}>
+        {under}
         {units.map((u) => (u.shadow ? <div key={`s-${u.key}`}>{u.shadow}</div> : null))}
         {ordered.map((u) => (
           <div key={`m-${u.key}`}>{u.machine}</div>

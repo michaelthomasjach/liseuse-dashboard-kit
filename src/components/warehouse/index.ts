@@ -28,6 +28,12 @@ export type { ForkliftProps } from "./Forklift";
 export { SemiTruck } from "./SemiTruck";
 export type { SemiTruckProps } from "./SemiTruck";
 
+export { Floor } from "./Floor";
+export type { FloorProps } from "./Floor";
+
+export { Wall } from "./Wall";
+export type { WallOpening, WallProps } from "./Wall";
+
 export { IsoCamera, isoCamera, useIsoCamera } from "./isoCamera";
 export type { IsoCameraView } from "./isoCamera";
 
@@ -36,8 +42,8 @@ export type { RotationGizmoProps } from "./RotationGizmo";
 
 export { RackItem } from "./RackItem";
 export type { RackItemProps } from "./RackItem";
-export { ISO_POST_SIZE, RACK_ITEM_KINDS, RACK_ITEM_LABEL } from "./rackItems";
-export type { RackItemKind } from "./rackItems";
+export { ISO_POST_SIZE, RACK_ITEM_KINDS, RACK_ITEM_LABEL, filletLayers, prismVolume, roundedRing, stackedVolume } from "./rackItems";
+export type { RackItemKind, VolumeLayer } from "./rackItems";
 
 export { CONVEYOR_KINDS, WAREHOUSE_KINDS, advanceRobots, buildSlots, clampSlots, footprintOf, isHorizontal, pathLength, pointAlongPath, isConveyor, rotateItem, snapToGrid } from "./warehouseModel";
 export type {

@@ -2,6 +2,7 @@ import type { Preview } from "@storybook/react";
 import { LqThemeProvider } from "../src/theme";
 import type { LqFont, LqPalette, LqSurface } from "../src/theme";
 import { PrimitiveLinks } from "./PrimitiveLinks";
+import { WarehouseStage } from "./WarehouseStage";
 
 export const globalTypes = {
   lqPalette: {
@@ -103,7 +104,13 @@ const preview: Preview = {
             }}
           >
             <PrimitiveLinks title={context.title} viewMode={context.viewMode} />
-            <Story />
+            {context.title.startsWith("Warehouse/") && context.parameters.isoCamera !== false ? (
+              <WarehouseStage docked={fillsViewport}>
+                <Story />
+              </WarehouseStage>
+            ) : (
+              <Story />
+            )}
           </div>
         </LqThemeProvider>
       );

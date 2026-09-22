@@ -1,7 +1,8 @@
 import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react";
 import { Conveyor } from "./Conveyor";
-import { projectIso } from "./warehouseIso";
+import { useIsoCamera } from "./isoCamera";
+import { Scene, footprint, layer, useFrameBox, type SceneUnit } from "./sceneStory";
 import { NumberField } from "../forms";
 
 const meta: Meta<typeof Conveyor> = {
@@ -166,12 +167,10 @@ export const Atelier: Story = {
 /**
  * Un droit et un angle **réellement raccordés**, et non posés côte à côte.
  *
- * Chacun est son propre dessin, avec sa propre `viewBox`, donc les accoler ne suffit pas : il faut
- * savoir de combien décaler le second. La réponse se lit sur la caméra du kit — le module d'angle
- * commence là où le droit finit, c'est-à-dire au point `(longueur, 0)` du monde, et `projectIso`
- * dit où ce point tombe à l'écran. Les deux tapis partageant la même largeur, la même hauteur de
- * pieds et la même épaisseur, leurs deux `viewBox` ont exactement la même origine, et ce décalage
- * est donc aussi celui de leurs coins supérieurs gauches.
+ * Les deux **partagent un cadre** (`frame`), donc la même `viewBox` : on les superpose, et chacun
+ * est posé par son `origin` en cases du monde. Le module d'angle commence là où le droit finit, au
+ * point `(longueur, 0)`. Rien n'est décalé à l'écran — un décalage calculé pour une caméra serait
+ * faux dès qu'elle tourne — et c'est la caméra qui dit lequel des deux passe devant.
  *
  * Le raccord tient parce que la bande de l'angle est **tangente** à ses deux bords : elle arrive
  * d'équerre sur le droit, à la même largeur et au même endroit.
@@ -182,20 +181,23 @@ export const Ligne: Story = {
     const cellSize = 34;
     const length = 5;
     const width = 2.2;
-    const shift = projectIso(length * cellSize, 0, 0);
-
-    return (
-      <div style={{ padding: 40 }}>
-        <div style={{ position: "relative", height: 320 }}>
-          <div style={{ position: "absolute", left: 0, top: 0 }}>
-            <Conveyor kind="straight" length={length} width={width} legHeight={1} cellSize={cellSize} load="carton" speed={1.1} />
-          </div>
-          <div style={{ position: "absolute", left: shift.x, top: shift.y }}>
-            <Conveyor kind="corner" width={width} legHeight={1} cellSize={cellSize} load="carton" speed={1.1} />
-          </div>
-        </div>
+    const frame = { x: -0.5, y: -0.5, width: length + width + 1, depth: width + 1, height: 2.2 };
+    const shared = { width, legHeight: 1, cellSize, frame, load: "carton" as const, speed: 1.1, shadows: true };
+    const straight = (part: "shadow" | "machine" | "load") => (
+      <div style={layer}>
+        <Conveyor {...shared} kind="straight" length={length} parts={part} />
       </div>
     );
+    const corner = (part: "shadow" | "machine" | "load") => (
+      <div style={layer}>
+        <Conveyor {...shared} kind="corner" origin={{ x: length, y: 0 }} parts={part} />
+      </div>
+    );
+    const units: SceneUnit[] = [
+      { key: "straight", x: 0, y: 0, width: length, height: width, shadow: straight("shadow"), machine: straight("machine"), load: straight("load") },
+      { key: "corner", x: length, y: 0, width, height: width, shadow: corner("shadow"), machine: corner("machine"), load: corner("load") },
+    ];
+    return <Scene frame={frame} cellSize={cellSize} units={units} padding={40} />;
   },
 };
 
@@ -244,6 +246,7 @@ export const Rond: Story = {
 export const Boucle: Story = {
   name: "Une boucle fermée",
   render: function Render() {
+    const cam = useIsoCamera();
     const cellSize = 26;
     const W = 2.2;
     const arc = (Math.PI / 4) * W; // la longueur d'un quart de cercle de rayon W / 2
@@ -301,26 +304,13 @@ export const Boucle: Story = {
       height: 1 + 0.22 + 0.14,
     };
 
-    // Du fond vers l'avant : les modules sont disjoints, donc leur ordre est celui de la profondeur,
-    // qui tient dans x + y.
-    const order = modules
-      .map((m, i) => ({ m, key: boxes[i].cx + boxes[i].cy, i }))
-      .sort((a, b) => a.key - b.key);
+    // Du fond vers l'avant, pour la caméra courante : les modules sont disjoints, donc c'est elle
+    // qui dit lequel est devant.
+    const order = cam.order(modules.map((m, i) => ({ m, i, ...footprint(m.origin, m.kind === "corner" ? W : L, W, m.rotation) })));
 
     // Les huit dessins sont en position absolue : le conteneur doit donc réserver la place lui-même,
     // qui est celle du cadre projeté — la même arithmétique que la `viewBox` des modules.
-    const shot = [0, frame.height].flatMap((z) =>
-      [
-        [frame.x, frame.y],
-        [frame.x + frame.width, frame.y],
-        [frame.x + frame.width, frame.y + frame.depth],
-        [frame.x, frame.y + frame.depth],
-      ].map(([x, y]) => projectIso(x * cellSize, y * cellSize, z * cellSize))
-    );
-    const box = {
-      width: Math.max(...shot.map((p) => p.x)) - Math.min(...shot.map((p) => p.x)) + 4,
-      height: Math.max(...shot.map((p) => p.y)) - Math.min(...shot.map((p) => p.y)) + 4,
-    };
+    const box = useFrameBox(frame, cellSize);
 
     return (
       <div style={{ padding: 32 }}>
@@ -379,6 +369,7 @@ export const Boucle: Story = {
 export const Circuit: Story = {
   name: "Un circuit plus complexe",
   render: function Render() {
+    const cam = useIsoCamera();
     const cellSize = 18;
     const W = 2;
     const r = W / 2;
@@ -466,20 +457,11 @@ export const Circuit: Story = {
       depth: hi((b) => b.cy + b.halfH) - lo((b) => b.cy - b.halfH) + 1,
       height: 1 + 0.22 + 0.14,
     };
-    const shot = [0, frame.height].flatMap((z) =>
-      [
-        [frame.x, frame.y],
-        [frame.x + frame.width, frame.y],
-        [frame.x + frame.width, frame.y + frame.depth],
-        [frame.x, frame.y + frame.depth],
-      ].map(([x, y]) => projectIso(x * cellSize, y * cellSize, z * cellSize))
-    );
-    const box = {
-      width: Math.max(...shot.map((p) => p.x)) - Math.min(...shot.map((p) => p.x)) + 4,
-      height: Math.max(...shot.map((p) => p.y)) - Math.min(...shot.map((p) => p.y)) + 4,
-    };
+    const box = useFrameBox(frame, cellSize);
 
-    const order = modules.map((m, i) => ({ m, i, key: m.box.cx + m.box.cy })).sort((a, b) => a.key - b.key);
+    const order = cam.order(
+      modules.map((m, i) => ({ m, i, x: m.box.cx - m.box.halfW, y: m.box.cy - m.box.halfH, width: 2 * m.box.halfW, height: 2 * m.box.halfH }))
+    );
 
     return (
       <div style={{ padding: 32 }}>
@@ -583,57 +565,49 @@ export const Transfert: Story = {
       depth: Math.max(...boxes.map((b) => b.cy + b.halfH)) - Math.min(...boxes.map((b) => b.cy - b.halfH)) + 1,
       height: highLegs + thick + 0.2,
     };
-    const shot = [0, frame.height].flatMap((z) =>
-      [
-        [frame.x, frame.y],
-        [frame.x + frame.width, frame.y],
-        [frame.x + frame.width, frame.y + frame.depth],
-        [frame.x, frame.y + frame.depth],
-      ].map(([x, y]) => projectIso(x * cellSize, y * cellSize, z * cellSize))
-    );
-    const box = {
-      width: Math.max(...shot.map((p) => p.x)) - Math.min(...shot.map((p) => p.x)) + 4,
-      height: Math.max(...shot.map((p) => p.y)) - Math.min(...shot.map((p) => p.y)) + 4,
-    };
-
     const total = L1 + dropRun + L2;
     const shared = { width: W, bedThickness: thick, cellSize, frame, load: "carton" as const, speed, shadows: true };
-
-    return (
-      <div style={{ padding: 32 }}>
-        <div style={{ position: "relative", width: box.width, height: box.height }}>
-          {(["shadow", "machine", "load"] as const).map((part) => (
-            <div key={part}>
-              <div style={{ position: "absolute", left: 0, top: 0 }}>
-                <Conveyor
-                  {...shared}
-                  kind="straight"
-                  length={L1}
-                  legHeight={highLegs}
-                  parts={part}
-                  drop={{ fall, run: dropRun }}
-                  span={{ start: 0, end: (L1 + dropRun) / total }}
-                  fadeOut={false}
-                />
-              </div>
-              <div style={{ position: "absolute", left: 0, top: 0 }}>
-                <Conveyor
-                  {...shared}
-                  kind="straight"
-                  length={L2}
-                  legHeight={lowLegs}
-                  rotation={90}
-                  origin={origin2}
-                  parts={part}
-                  span={{ start: (L1 + dropRun) / total, end: 1 }}
-                  fadeIn={false}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
+    const high = (part: "shadow" | "machine" | "load") => (
+      <div style={layer}>
+        <Conveyor
+          {...shared}
+          kind="straight"
+          length={L1}
+          legHeight={highLegs}
+          parts={part}
+          drop={{ fall, run: dropRun }}
+          span={{ start: 0, end: (L1 + dropRun) / total }}
+          fadeOut={false}
+        />
       </div>
     );
+    const low = (part: "shadow" | "machine" | "load") => (
+      <div style={layer}>
+        <Conveyor
+          {...shared}
+          kind="straight"
+          length={L2}
+          legHeight={lowLegs}
+          rotation={90}
+          origin={origin2}
+          parts={part}
+          span={{ start: (L1 + dropRun) / total, end: 1 }}
+          fadeIn={false}
+        />
+      </div>
+    );
+    const units: SceneUnit[] = [high, low].map((draw, i) => ({
+      key: String(i),
+      x: boxes[i].cx - boxes[i].halfW,
+      y: boxes[i].cy - boxes[i].halfH,
+      width: 2 * boxes[i].halfW,
+      height: 2 * boxes[i].halfH,
+      shadow: draw("shadow"),
+      machine: draw("machine"),
+      load: draw("load"),
+    }));
+
+    return <Scene frame={frame} cellSize={cellSize} units={units} padding={32} />;
   },
 };
 

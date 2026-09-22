@@ -1,7 +1,8 @@
 import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react";
 import { Rail } from "./Rail";
-import { projectIso } from "./warehouseIso";
+import { useIsoCamera } from "./isoCamera";
+import { footprint, useFrameBox } from "./sceneStory";
 import { NumberField } from "../forms";
 import { railCircuit } from "./railCircuit";
 
@@ -74,6 +75,7 @@ export const Angle: Story = {
 export const Voie: Story = {
   name: "Une voie qui tourne",
   render: function Render() {
+    const cam = useIsoCamera();
     const cellSize = 34;
     const W = 2;
     const circuit = railCircuit(
@@ -86,22 +88,12 @@ export const Voie: Story = {
     );
     const b = circuit.bounds;
     const frame = { x: b.x - 0.5, y: b.y - 0.5, width: b.width + 1, depth: b.depth + 1, height: 0.6 };
-    const shot = [0, frame.height].flatMap((z) =>
-      [
-        [frame.x, frame.y],
-        [frame.x + frame.width, frame.y],
-        [frame.x + frame.width, frame.y + frame.depth],
-        [frame.x, frame.y + frame.depth],
-      ].map(([x, y]) => projectIso(x * cellSize, y * cellSize, z * cellSize))
-    );
-    const box = {
-      width: Math.max(...shot.map((p) => p.x)) - Math.min(...shot.map((p) => p.x)) + 4,
-      height: Math.max(...shot.map((p) => p.y)) - Math.min(...shot.map((p) => p.y)) + 4,
-    };
+    const box = useFrameBox(frame, cellSize);
 
     const shared = { width: W, gauge: 1.2, cellSize, frame, shadows: true };
-    // Du fond vers l'avant : les modules sont disjoints, donc leur ordre est celui de la profondeur.
-    const modules = [...circuit.modules].sort((a, b) => a.depth - b.depth);
+    // Du fond vers l'avant, pour la caméra courante : les modules sont disjoints, donc c'est elle
+    // qui dit lequel est devant.
+    const modules = cam.order(circuit.modules.map((m) => ({ ...m, ...footprint(m.origin, m.length, m.kind === "corner" ? m.length : W, m.rotation) })));
 
     return (
       <div style={{ padding: 32 }}>

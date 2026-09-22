@@ -7,7 +7,9 @@ import { WAREHOUSE_ITEMS, WAREHOUSE_RAILS, WAREHOUSE_ROBOTS } from "./warehouseS
 const meta: Meta<typeof WarehouseCanvas> = {
   title: "Warehouse/Plan d'entrepôt",
   component: WarehouseCanvas,
-  parameters: { layout: "fullscreen" },
+  // Pas de gizmo de rotation ici : le plan est du DOM tourné par une transformation CSS fixe, pas
+  // des pièces isométriques qui lisent `IsoCamera` — le gizmo n'y ferait rien.
+  parameters: { layout: "fullscreen", isoCamera: false },
 };
 export default meta;
 type Story = StoryObj<typeof WarehouseCanvas>;

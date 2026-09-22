@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react";
 import { CatchBin } from "./CatchBin";
 import { Conveyor } from "./Conveyor";
-import { projectIso } from "./warehouseIso";
+import { Scene, layer, type SceneUnit } from "./sceneStory";
 import { NumberField } from "../forms";
 
 const meta: Meta<typeof CatchBin> = {
@@ -79,32 +79,59 @@ export const BoutDeLigne: Story = {
     const fall = legs + thick - binWalls * 0.55;
     const bin = { width: 2.4, depth: 2.2 };
     const origin = { x: L + dropRun - bin.width / 2, y: W / 2 - bin.depth / 2 };
-    const shift = projectIso(origin.x * cellSize, origin.y * cellSize, 0);
-
-    return (
-      <div style={{ padding: 40 }}>
-        <div style={{ position: "relative", height: 260 }}>
-          <div style={{ position: "absolute", left: 0, top: 0 }}>
-            <Conveyor
-              kind="straight"
-              length={L}
-              width={W}
-              legHeight={legs}
-              bedThickness={thick}
-              cellSize={cellSize}
-              load="carton"
-              speed={1.3}
-              drop={{ fall, run: dropRun }}
-              fadeOut={false}
-              shadows
-            />
-          </div>
-          <div style={{ position: "absolute", left: shift.x, top: shift.y }}>
-            <CatchBin width={bin.width} depth={bin.depth} height={binWalls} count={7} cellSize={cellSize} shadows />
-          </div>
-        </div>
+    // Un cadre commun : le tapis et le bac se posent par leur `origin`, et c'est la caméra qui dit
+    // lequel passe devant.
+    const frame = {
+      x: -0.5,
+      y: Math.min(0, origin.y) - 0.5,
+      width: origin.x + bin.width + 1,
+      depth: Math.max(W, origin.y + bin.depth) - Math.min(0, origin.y) + 1,
+      height: legs + thick + 1,
+    };
+    const shared = { cellSize, frame, shadows: true };
+    const belt = (part: "shadow" | "machine" | "load") => (
+      <div style={layer}>
+        <Conveyor
+          {...shared}
+          kind="straight"
+          length={L}
+          width={W}
+          legHeight={legs}
+          bedThickness={thick}
+          load="carton"
+          speed={1.3}
+          drop={{ fall, run: dropRun }}
+          fadeOut={false}
+          parts={part}
+        />
       </div>
     );
+    const catcher = (part: "shadow" | "machine") => (
+      <div style={layer}>
+        <CatchBin {...shared} origin={origin} width={bin.width} depth={bin.depth} height={binWalls} count={7} parts={part} />
+      </div>
+    );
+    const units: SceneUnit[] = [
+      // Le colis reste avec son tapis, et non par-dessus toute la scène : il tombe *dans* le bac, dont
+      // la paroi avant doit le cacher.
+      {
+        key: "belt",
+        x: 0,
+        y: 0,
+        width: L,
+        height: W,
+        shadow: belt("shadow"),
+        machine: (
+          <>
+            {belt("machine")}
+            {belt("load")}
+          </>
+        ),
+      },
+      { key: "bin", x: origin.x, y: origin.y, width: bin.width, height: bin.depth, shadow: catcher("shadow"), machine: catcher("machine") },
+    ];
+
+    return <Scene frame={frame} cellSize={cellSize} units={units} padding={40} />;
   },
 };
 

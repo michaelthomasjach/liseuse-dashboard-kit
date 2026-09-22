@@ -5,7 +5,7 @@ import { Rail } from "./Rail";
 import { RackV2 } from "./RackV2";
 import { Conveyor } from "./Conveyor";
 import { CatchBin } from "./CatchBin";
-import { projectIso } from "./warehouseIso";
+import { Scene, layer, type Frame, type SceneUnit } from "./sceneStory";
 
 const meta: Meta = {
   title: "Warehouse/Allées",
@@ -13,26 +13,7 @@ const meta: Meta = {
 export default meta;
 type Story = StoryObj;
 
-type Frame = { x: number; y: number; width: number; depth: number; height: number };
-
-/** Le pavé du monde vers la place qu'il prend à l'écran — la même arithmétique que la `viewBox` des
- *  modules, les dessins étant en position absolue et le conteneur devant réserver la place. */
-function frameBox(frame: Frame, cellSize: number) {
-  const shot = [0, frame.height].flatMap((z) =>
-    [
-      [frame.x, frame.y],
-      [frame.x + frame.width, frame.y],
-      [frame.x + frame.width, frame.y + frame.depth],
-      [frame.x, frame.y + frame.depth],
-    ].map(([x, y]) => projectIso(x * cellSize, y * cellSize, z * cellSize))
-  );
-  return {
-    width: Math.max(...shot.map((p) => p.x)) - Math.min(...shot.map((p) => p.x)) + 4,
-    height: Math.max(...shot.map((p) => p.y)) - Math.min(...shot.map((p) => p.y)) + 4,
-  };
-}
-
-const at = { position: "absolute", left: 0, top: 0 } as const;
+const at = layer;
 
 /**
  * Un magasin : des **rangées d'étagères**, un **rail et un picker dans chaque allée**, une **ligne
@@ -108,7 +89,6 @@ export const Magasin: Story = {
       depth: binOrigin.y + binSize.depth + 1.2,
       height: 3.6,
     };
-    const box = frameBox(frame, cellSize);
     const shared = { cellSize, frame, shadows: true };
 
     // ---- les allées ----
@@ -172,90 +152,147 @@ export const Magasin: Story = {
       </div>
     );
 
-    const layer = (part: "shadow" | "machine") => (
-      <>
-        {Array.from({ length: rows }, (_, i) => {
-          const served = aisles[i];
-          return (
-            <div key={`row${i}${part}`}>
-              <div style={at}>
-                <RackV2 {...rackProps(i)} parts={part} />
-              </div>
-              {i < rows - 1 && spurOf(i, part)}
-              {i < rows - 1 && part === "machine" && spurOf(i, "load")}
-              {served && (
-                <>
-                  <div style={at}>
-                    <Rail {...shared} kind="straight" origin={served.rail} length={railLength} width={aisle} parts={part} />
-                  </div>
-                  <div style={at}>
-                    <Picker
-                      {...shared}
-                      origin={served.rail}
-                      travel={railLength}
-                      width={aisle}
-                      mastHeight={2.5}
-                      speed={1.8}
-                      dwell={0.4}
-                      phase={served.i * 0.29}
-                      pick={served.pick}
-                      drop={served.drop}
-                      load="carton"
-                      parts={part}
-                      reachMask={part === "machine" ? served.mask : undefined}
-                    />
-                  </div>
-                  {part === "machine" && (
-                    <div style={at}>
-                      <RackV2 {...rackProps(i)} shadows={false} parts="machine" cover={served.pick.level} mask={served.mask} />
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          );
-        })}
-        {(part === "machine" ? (["machine", "load"] as const) : (["shadow"] as const)).map((p) => (
-          <div key={`line${p}`} style={at}>
-            <Conveyor
-              {...shared}
-              kind="straight"
-              origin={lineOrigin}
-              rotation={90}
-              length={lineLength}
-              width={lineWidth}
-              legHeight={lineTop - bed}
-              bedThickness={bed}
-              load="carton"
-              loadCount={3}
-              speed={1.1}
-              drop={{ fall: lineTop - binWalls * 0.55, run: binRun }}
-              parts={p}
-            />
-          </div>
-        ))}
-        <div style={at}>
-          <CatchBin
-            {...shared}
-            origin={binOrigin}
-            width={binSize.width}
-            depth={binSize.depth}
-            height={binWalls}
-            count={8}
-            itemSize={0.6}
-            parts={part}
-          />
-        </div>
-      </>
-    );
-
-    return (
-      <div style={{ padding: 24 }}>
-        <div style={{ position: "relative", width: box.width, height: box.height }}>
-          {layer("shadow")}
-          {layer("machine")}
-        </div>
+    const pickerOf = (a: (typeof aisles)[number], part: "shadow" | "machine") => (
+      <div style={at}>
+        <Picker
+          {...shared}
+          origin={a.rail}
+          travel={railLength}
+          width={aisle}
+          mastHeight={2.5}
+          speed={1.8}
+          dwell={0.4}
+          phase={a.i * 0.29}
+          pick={a.pick}
+          drop={a.drop}
+          load="carton"
+          parts={part}
+          reachMask={part === "machine" ? a.mask : undefined}
+        />
       </div>
     );
+    const lineOf = (part: "shadow" | "machine" | "load") => (
+      <div key={`line${part}`} style={at}>
+        <Conveyor
+          {...shared}
+          kind="straight"
+          origin={lineOrigin}
+          rotation={90}
+          length={lineLength}
+          width={lineWidth}
+          legHeight={lineTop - bed}
+          bedThickness={bed}
+          load="carton"
+          loadCount={3}
+          speed={1.1}
+          drop={{ fall: lineTop - binWalls * 0.55, run: binRun }}
+          parts={part}
+        />
+      </div>
+    );
+    const binOf = (part: "shadow" | "machine") => (
+      <div style={at}>
+        <CatchBin
+          {...shared}
+          origin={binOrigin}
+          width={binSize.width}
+          depth={binSize.depth}
+          height={binWalls}
+          count={8}
+          itemSize={0.6}
+          parts={part}
+        />
+      </div>
+    );
+
+    // Chaque groupe déclare son emprise au sol, et c'est la caméra qui les range : l'ordre du fond
+    // vers l'avant n'est plus le même dès qu'elle tourne.
+    const units: SceneUnit[] = [
+      ...Array.from({ length: rows }, (_, i) => ({
+        key: `row${i}`,
+        x: 0,
+        y: rowY(i),
+        width: rackLength,
+        height: rackDepth,
+        shadow: (
+          <div style={at}>
+            <RackV2 {...rackProps(i)} parts="shadow" />
+          </div>
+        ),
+        machine: (
+          <div style={at}>
+            <RackV2 {...rackProps(i)} parts="machine" />
+          </div>
+        ),
+      })),
+      ...aisles.map((a) => ({
+        key: `spur${a.i}`,
+        x: rackLength,
+        y: rowY(a.i),
+        width: spur,
+        height: rackDepth,
+        shadow: spurOf(a.i, "shadow"),
+        machine: (
+          <>
+            {spurOf(a.i, "machine")}
+            {spurOf(a.i, "load")}
+          </>
+        ),
+      })),
+      // Une allée : le rail, la machine qui roule dessus, puis ce qui dans la rangée servie recouvre
+      // des fourches entrées dans une alvéole — repeint par-dessus la machine, dans leur seule
+      // silhouette.
+      ...aisles.map((a) => ({
+        key: `aisle${a.i}`,
+        x: a.rail.x,
+        y: a.rail.y,
+        width: railLength,
+        height: aisle,
+        shadow: (
+          <>
+            <div style={at}>
+              <Rail {...shared} kind="straight" origin={a.rail} length={railLength} width={aisle} parts="shadow" />
+            </div>
+            {pickerOf(a, "shadow")}
+          </>
+        ),
+        machine: (
+          <>
+            <div style={at}>
+              <Rail {...shared} kind="straight" origin={a.rail} length={railLength} width={aisle} parts="machine" />
+            </div>
+            {pickerOf(a, "machine")}
+            <div style={at}>
+              <RackV2 {...rackProps(a.i)} shadows={false} parts="machine" cover={a.pick.level} mask={a.mask} />
+            </div>
+          </>
+        ),
+      })),
+      {
+        key: "line",
+        x: lineX,
+        y: 0,
+        width: lineWidth,
+        height: lineLength,
+        shadow: lineOf("shadow"),
+        machine: (
+          <>
+            {lineOf("machine")}
+            {lineOf("load")}
+          </>
+        ),
+      },
+      {
+        key: "bin",
+        x: binOrigin.x,
+        y: binOrigin.y,
+        width: binSize.width,
+        height: binSize.depth,
+        shadow: binOf("shadow"),
+        machine: binOf("machine"),
+      },
+    ];
+
+    return <Scene frame={frame} cellSize={cellSize} units={units} />;
   },
 };

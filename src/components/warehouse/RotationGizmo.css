@@ -1,0 +1,75 @@
+/* Le gizmo de rotation. Voir RotationGizmo.tsx. */
+
+.lq-gizmo {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  user-select: none;
+}
+
+.lq-gizmo__dial {
+  display: block;
+  cursor: grab;
+  touch-action: none;
+  border-radius: 50%;
+  outline: none;
+}
+
+.lq-gizmo__dial:active {
+  cursor: grabbing;
+}
+
+.lq-gizmo__dial:focus-visible {
+  box-shadow: 0 0 0 2px var(--lq-color-accent);
+}
+
+.lq-gizmo__face {
+  fill: color-mix(in srgb, var(--lq-color-bg) 88%, var(--lq-color-text));
+  stroke: color-mix(in srgb, var(--lq-color-text) 30%, transparent);
+  stroke-width: 1;
+}
+
+.lq-gizmo__track {
+  fill: none;
+  stroke: color-mix(in srgb, var(--lq-color-text) 18%, transparent);
+  stroke-width: 2;
+}
+
+.lq-gizmo__tick {
+  stroke: color-mix(in srgb, var(--lq-color-text) 35%, transparent);
+  stroke-width: 1;
+}
+
+.lq-gizmo__tick--major {
+  stroke: color-mix(in srgb, var(--lq-color-text) 65%, transparent);
+  stroke-width: 1.5;
+}
+
+.lq-gizmo__arc {
+  fill: none;
+  stroke: var(--lq-color-accent);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.lq-gizmo__needle {
+  stroke: var(--lq-color-text);
+  stroke-width: 1.5;
+}
+
+.lq-gizmo__hub {
+  fill: var(--lq-color-text);
+}
+
+.lq-gizmo__knob {
+  fill: var(--lq-color-accent);
+  stroke: var(--lq-color-bg);
+  stroke-width: 2;
+}
+
+.lq-gizmo__value {
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--lq-color-text-muted);
+}

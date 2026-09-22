@@ -4,7 +4,8 @@ import { Picker } from "./Picker";
 import { Rail } from "./Rail";
 import { RackV2 } from "./RackV2";
 import { Conveyor } from "./Conveyor";
-import { projectIso } from "./warehouseIso";
+import { useIsoCamera } from "./isoCamera";
+import { Scene as SceneView, footprint, layer, useFrameBox, type SceneUnit } from "./sceneStory";
 import { NumberField } from "../forms";
 import { railCircuit, type CircuitPiece } from "./railCircuit";
 
@@ -14,24 +15,6 @@ const meta: Meta<typeof Picker> = {
 };
 export default meta;
 type Story = StoryObj<typeof Picker>;
-
-/** Le pavé du monde vers la place qu'il prend à l'écran : la même arithmétique que la `viewBox` des
- *  modules, puisque les dessins sont en position absolue et que le conteneur doit réserver la place
- *  lui-même. */
-function frameBox(frame: { x: number; y: number; width: number; depth: number; height: number }, cellSize: number) {
-  const shot = [0, frame.height].flatMap((z) =>
-    [
-      [frame.x, frame.y],
-      [frame.x + frame.width, frame.y],
-      [frame.x + frame.width, frame.y + frame.depth],
-      [frame.x, frame.y + frame.depth],
-    ].map(([x, y]) => projectIso(x * cellSize, y * cellSize, z * cellSize))
-  );
-  return {
-    width: Math.max(...shot.map((p) => p.x)) - Math.min(...shot.map((p) => p.x)) + 4,
-    height: Math.max(...shot.map((p) => p.y)) - Math.min(...shot.map((p) => p.y)) + 4,
-  };
-}
 
 export const Machine: Story = {
   name: "Le picker",
@@ -73,7 +56,7 @@ export const SurSonRail: Story = {
     const L = 11;
     const W = 1.8;
     const frame = { x: -0.5, y: -2.2, width: L + 1, depth: W + 4.4, height: 3.6 };
-    const box = frameBox(frame, cellSize);
+    const box = useFrameBox(frame, cellSize);
     const shared = { width: W, cellSize, frame, shadows: true, origin: { x: 0, y: 0 } };
 
     return (
@@ -146,7 +129,6 @@ export const Scene: Story = {
     const ontoBelt = axis - (belt.y + belt.width / 2);
 
     const frame = { x: -0.5, y: 2.1, width: L + 1, depth: 5.2, height: 3.8 };
-    const box = frameBox(frame, cellSize);
     const shared = { cellSize, frame, shadows: true };
     const reach = `reach${useId().replace(/[^a-zA-Z0-9]/g, "")}`;
     const rackProps = {
@@ -164,62 +146,90 @@ export const Scene: Story = {
       deckThickness: rack.deck,
     };
 
-    return (
-      <div style={{ padding: 28 }}>
-        <div style={{ position: "relative", width: box.width, height: box.height }}>
-          {/* Du fond vers l'avant : l'étagère, le tapis (plus loin sur l'axe des x, donc plus
-              proche), la voie, puis la machine qui roule dessus. */}
-          {(["shadow", "machine"] as const).map((part) => (
-            <div key={part}>
-              <div style={{ position: "absolute", left: 0, top: 0 }}>
-                <RackV2 {...rackProps} parts={part} />
-              </div>
-              <div style={{ position: "absolute", left: 0, top: 0 }}>
-                <Conveyor
-                  {...shared}
-                  origin={{ x: belt.x, y: belt.y }}
-                  kind="straight"
-                  length={belt.length}
-                  width={belt.width}
-                  legHeight={belt.legs}
-                  bedThickness={belt.bed}
-                  load="carton"
-                  speed={1.2}
-                  parts={part}
-                />
-              </div>
-              <div style={{ position: "absolute", left: 0, top: 0 }}>
-                <Rail {...shared} origin={rail} kind="straight" length={L} width={W} parts={part} />
-              </div>
-              <div style={{ position: "absolute", left: 0, top: 0 }}>
-                <Picker
-                  {...shared}
-                  origin={rail}
-                  travel={L}
-                  width={W}
-                  mastHeight={2.6}
-                  speed={1.7}
-                  dwell={0.6}
-                  load="carton"
-                  // Le niveau haut de l'étagère, au milieu de sa longueur.
-                  pick={{ at: rack.x + rack.width / 2, side: "left", level: shelfTop, reach: intoRack }}
-                  // Le brin du tapis, au milieu de sa longueur. Le tablier s'engage juste au-dessus
-                  // et redescend de quoi y laisser le colis.
-                  drop={{ at: belt.x + belt.length / 2, side: "left", level: beltTop + 0.2, reach: ontoBelt }}
-                  parts={part}
-                  reachMask={part === "machine" ? reach : undefined}
-                />
-              </div>
-            </div>
-          ))}
-          {/* Ce qui, dans l'étagère, passe devant des fourches entrées dans une alvéole : repeint
-              par-dessus la machine, mais seulement dans la silhouette des fourches et du colis. */}
-          <div style={{ position: "absolute", left: 0, top: 0 }}>
-            <RackV2 {...rackProps} shadows={false} parts="machine" cover={shelfTop} mask={reach} />
-          </div>
-        </div>
+    const belt_ = (part: "shadow" | "machine") => (
+      <div style={layer}>
+        <Conveyor
+          {...shared}
+          origin={{ x: belt.x, y: belt.y }}
+          kind="straight"
+          length={belt.length}
+          width={belt.width}
+          legHeight={belt.legs}
+          bedThickness={belt.bed}
+          load="carton"
+          speed={1.2}
+          parts={part}
+        />
       </div>
     );
+    const lane = (part: "shadow" | "machine") => (
+      <>
+        <div style={layer}>
+          <Rail {...shared} origin={rail} kind="straight" length={L} width={W} parts={part} />
+        </div>
+        <div style={layer}>
+          <Picker
+            {...shared}
+            origin={rail}
+            travel={L}
+            width={W}
+            mastHeight={2.6}
+            speed={1.7}
+            dwell={0.6}
+            load="carton"
+            // Le niveau haut de l'étagère, au milieu de sa longueur.
+            pick={{ at: rack.x + rack.width / 2, side: "left", level: shelfTop, reach: intoRack }}
+            // Le brin du tapis, au milieu de sa longueur. Le tablier s'engage juste au-dessus et
+            // redescend de quoi y laisser le colis.
+            drop={{ at: belt.x + belt.length / 2, side: "left", level: beltTop + 0.2, reach: ontoBelt }}
+            parts={part}
+            reachMask={part === "machine" ? reach : undefined}
+          />
+        </div>
+      </>
+    );
+
+    // Chaque groupe déclare son emprise au sol, et c'est la caméra qui les range. La voie porte avec
+    // elle ce qui, dans l'étagère, passe devant des fourches entrées dans une alvéole : repeint
+    // par-dessus la machine, mais seulement dans la silhouette des fourches et du colis.
+    const units: SceneUnit[] = [
+      {
+        key: "rack",
+        x: rack.x,
+        y: rack.y,
+        width: rack.width,
+        height: rack.depth,
+        shadow: (
+          <div style={layer}>
+            <RackV2 {...rackProps} parts="shadow" />
+          </div>
+        ),
+        machine: (
+          <div style={layer}>
+            <RackV2 {...rackProps} parts="machine" />
+          </div>
+        ),
+      },
+      { key: "belt", x: belt.x, y: belt.y, width: belt.length, height: belt.width, shadow: belt_("shadow"), machine: belt_("machine") },
+      {
+        key: "lane",
+        x: rail.x,
+        y: rail.y,
+        width: L,
+        height: W,
+        shadow: lane("shadow"),
+        machine: (
+          <>
+            {lane("machine")}
+            <div style={layer}>
+              <RackV2 {...rackProps} shadows={false} parts="machine" cover={shelfTop} mask={reach} />
+            </div>
+          </>
+        ),
+      },
+    ];
+
+    return <SceneView frame={frame} cellSize={cellSize} units={units} padding={28} />;
   },
 };
 
@@ -408,6 +418,7 @@ const easeInOut = (u: number) => u * u * (3 - 2 * u);
 export const Circuit: Story = {
   name: "Un circuit de rail",
   render: function Render() {
+    const cam = useIsoCamera();
     const cellSize = 26;
     const W = 2.2;
     const L1 = 8;
@@ -491,9 +502,9 @@ export const Circuit: Story = {
       depth: circuit.bounds.depth + 3,
       height: 4,
     };
-    const box = frameBox(frame, cellSize);
     const shared = { cellSize, frame, shadows: true };
-    const rails = [...circuit.modules].sort((a, b) => a.depth - b.depth);
+    // Les modules de la voie sont disjoints : la caméra courante dit lequel est devant.
+    const rails = cam.order(circuit.modules.map((m) => ({ ...m, ...footprint(m.origin, m.length, m.kind === "corner" ? m.length : W, m.rotation) })));
     const stop = { at: chassis / 2, side: "left" as const, level, reach };
 
     const reachId = `reach${useId().replace(/[^a-zA-Z0-9]/g, "")}`;
@@ -512,31 +523,30 @@ export const Circuit: Story = {
       deckThickness: rack.deck,
     };
 
-    const layer = (part: "shadow" | "machine") => (
+    const beltOf = (part: "shadow" | "machine") => (
+      <div style={layer}>
+        <Conveyor
+          {...shared}
+          origin={beltOrigin}
+          rotation={90}
+          kind="straight"
+          length={belt.length}
+          width={belt.width}
+          legHeight={level - 0.2 - belt.bed}
+          bedThickness={belt.bed}
+          speed={0.8}
+          parts={part}
+        />
+      </div>
+    );
+    const track = (part: "shadow" | "machine") => (
       <>
-        <div style={{ position: "absolute", left: 0, top: 0 }}>
-          <RackV2 {...rackProps} parts={part} />
-        </div>
-        <div style={{ position: "absolute", left: 0, top: 0 }}>
-          <Conveyor
-            {...shared}
-            origin={beltOrigin}
-            rotation={90}
-            kind="straight"
-            length={belt.length}
-            width={belt.width}
-            legHeight={level - 0.2 - belt.bed}
-            bedThickness={belt.bed}
-            speed={0.8}
-            parts={part}
-          />
-        </div>
         {rails.map((m, i) => (
-          <div key={i} style={{ position: "absolute", left: 0, top: 0 }}>
+          <div key={i} style={layer}>
             <Rail {...shared} kind={m.kind} length={m.length} width={W} rotation={m.rotation} origin={m.origin} parts={part} />
           </div>
         ))}
-        <div style={{ position: "absolute", left: 0, top: 0 }}>
+        <div style={layer}>
           <Picker
             {...shared}
             travel={chassis}
@@ -557,16 +567,50 @@ export const Circuit: Story = {
       </>
     );
 
-    return (
-      <div style={{ padding: 24 }}>
-        <div style={{ position: "relative", width: box.width, height: box.height }}>
-          {layer("shadow")}
-          {layer("machine")}
-          <div style={{ position: "absolute", left: 0, top: 0 }}>
-            <RackV2 {...rackProps} shadows={false} parts="machine" cover={level} mask={reachId} />
+    // L'étagère et le tapis sont hors de la voie : trois groupes disjoints, que la caméra range. La
+    // machine appartient à la voie, et le recouvrement de l'étagère la suit.
+    const units: SceneUnit[] = [
+      {
+        key: "rack",
+        x: rack.x,
+        y: rack.y,
+        width: rack.width,
+        height: rack.depth,
+        shadow: (
+          <div style={layer}>
+            <RackV2 {...rackProps} parts="shadow" />
           </div>
-        </div>
-      </div>
-    );
+        ),
+        machine: (
+          <div style={layer}>
+            <RackV2 {...rackProps} parts="machine" />
+          </div>
+        ),
+      },
+      {
+        key: "belt",
+        ...footprint(beltOrigin, belt.length, belt.width, 90),
+        shadow: beltOf("shadow"),
+        machine: beltOf("machine"),
+      },
+      {
+        key: "track",
+        x: circuit.bounds.x,
+        y: circuit.bounds.y,
+        width: circuit.bounds.width,
+        height: circuit.bounds.depth,
+        shadow: track("shadow"),
+        machine: (
+          <>
+            {track("machine")}
+            <div style={layer}>
+              <RackV2 {...rackProps} shadows={false} parts="machine" cover={level} mask={reachId} />
+            </div>
+          </>
+        ),
+      },
+    ];
+
+    return <SceneView frame={frame} cellSize={cellSize} units={units} padding={24} />;
   },
 };

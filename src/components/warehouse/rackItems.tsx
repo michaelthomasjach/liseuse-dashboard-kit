@@ -38,7 +38,7 @@ import "./rackItems.css";
 /** La section d'un montant, en cases — d'étagère comme de tapis. Une seule valeur parce que c'est
  *  le même profilé : deux constantes égales finissent toujours par cesser de l'être. Assez épaisse
  *  pour se lire comme un volume à une case de large, assez mince pour rester un montant. */
-export const ISO_POST_SIZE = 0.22;
+export const ISO_POST_SIZE = 0.13;
 
 export type RackItemKind = "carton" | "boite" | "bidon" | "bouteille" | "palette";
 

@@ -11,9 +11,10 @@ import "./Floor.css";
  * côtés qui regardent la caméra. C'est cette tranche qui dit où le sol s'arrête, et qui donne à
  * tout ce qui est dessus quelque chose sur quoi reposer.
  *
- * Elle occupe `z` de `−thickness` à `0`, et non de `0` à `thickness` : le zéro du monde est le sol
- * sur lequel tout le reste est déjà posé, et le relever déplacerait toute la scène. La dalle
- * descend donc sous lui, et c'est son dessus qui est le sol.
+ * Elle occupe `z` de `−0,1` à `0`, et non de `0` à `0,1` : le zéro du monde est le sol sur lequel
+ * tout le reste est déjà posé, et le relever déplacerait toute la scène. La dalle descend donc sous
+ * lui, et c'est son dessus qui est le sol. Son épaisseur ne se règle pas : une dalle est une dalle,
+ * et deux sols d'épaisseurs différentes dans la même image se lisent comme deux niveaux.
  *
  * Elle ne porte pas d'ombre — elle *est* ce sur quoi les autres la portent — et elle se peint avant
  * tout le monde : `parts="shadow"` ne dessine donc rien, pour qu'une scène puisse lui demander ses
@@ -29,8 +30,6 @@ export interface FloorProps {
   width?: number;
   /** Profondeur, en cases, le long des `y`. */
   depth?: number;
-  /** Épaisseur visible de la tranche, en cases. */
-  thickness?: number;
   /** Où poser le coin de la dalle, en cases. */
   origin?: { x: number; y: number };
   /** Le pavé du monde que la `viewBox` doit couvrir, en cases. Partagé avec les autres modules
@@ -44,11 +43,13 @@ export interface FloorProps {
 }
 
 const PAD = 2;
+/** L'épaisseur de la tranche, en cases. Elle ne se règle pas : une dalle est une dalle, et deux
+ *  sols d'épaisseurs différentes dans la même image se lisent comme deux niveaux. */
+const THICKNESS = 0.1;
 
 export function Floor({
   width = 12,
   depth = 8,
-  thickness = 0.3,
   origin = { x: 0, y: 0 },
   frame,
   parts = "all",
@@ -62,7 +63,7 @@ export function Floor({
 
   const x1 = Math.max(0.5, width);
   const y1 = Math.max(0.5, depth);
-  const z0 = -Math.max(0.02, thickness);
+  const z0 = -THICKNESS;
 
   const slab = solidVolume("slab", "slab", boxFaces(at, 0, x1, 0, y1, z0, 0, facing));
 

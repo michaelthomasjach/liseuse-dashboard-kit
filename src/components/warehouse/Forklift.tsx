@@ -4,6 +4,7 @@ import {
   castShadow,
   prismVolume,
   roundedRing,
+  spunProject,
   frameCorners,
   convexHull,
   fitRackItem,
@@ -201,9 +202,13 @@ export function Forklift({
         <g key="dash">
           {prism("safety", "dash", roundedRing(1.2, 1.45, 0.16, 0.84, 0.09, 3), deck, deck + 0.28)}
           {box("iron", "column", 1.14, 1.2, 0.47, 0.53, deck + 0.26, deck + 0.46)}
-          {/* Le volant : un disque, dans le plan où la roue en dessine un. C'est le détail qui dit
-              qu'il y a un poste de conduite et non un capot avec un siège dessus. */}
-          {isoWheel(at, 1.08, WIDTH / 2, deck + 0.5, 0.11, 0.03, facing, "steering")}
+          {/* Le volant : un disque **en travers de la marche**, comme sur la machine — on le tient
+              de part et d'autre, pas dans l'axe. `spunProject` tourne le projecteur d'un quart de
+              tour autour de son centre plutôt que de tourner le disque, qui ne saurait pas l'être. */}
+          {(() => {
+            const spun = spunProject(at, 90, 1.08, WIDTH / 2, rotation);
+            return isoWheel(spun.project, 1.08, WIDTH / 2, deck + 0.5, 0.11, 0.03, spun.facing, "steering");
+          })()}
         </g>
       ),
     },

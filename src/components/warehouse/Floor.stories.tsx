@@ -14,7 +14,7 @@ type Story = StoryObj<typeof Floor>;
 
 export const Dalle: Story = {
   name: "Une dalle",
-  args: { width: 10, depth: 7, thickness: 0.3, cellSize: 34 },
+  args: { width: 10, depth: 7, cellSize: 34 },
 };
 
 /**
@@ -102,20 +102,4 @@ export const Posee: Story = {
       />
     );
   },
-};
-
-/** L'épaisseur, de la tôle à la dalle de quai. C'est elle qu'on voit de la tranche, et c'est donc
- *  elle qui dit si le sol est un plancher ou un quai. */
-export const Epaisseurs: Story = {
-  name: "Ce que l'épaisseur change",
-  render: () => (
-    <div style={{ display: "flex", gap: 40, alignItems: "flex-end", flexWrap: "wrap" }}>
-      {[0.08, 0.3, 0.8].map((t) => (
-        <div key={t} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
-          <Floor width={5} depth={4} thickness={t} cellSize={34} />
-          <span style={{ fontSize: "0.72rem", fontWeight: 600 }}>{t} case</span>
-        </div>
-      ))}
-    </div>
-  ),
 };

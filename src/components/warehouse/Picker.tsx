@@ -2,6 +2,8 @@ import { useId, type CSSProperties } from "react";
 import {
   frameCorners,
   boxFaces,
+  prismVolume,
+  roundedRing,
   convexHull as hull,
   isoWheel,
   fitRackItem,
@@ -257,6 +259,10 @@ export function Picker({
     return { x: p.x + origin.x, y: p.y + origin.y };
   };
   const facing = cam.facing(rotation);
+  // La caméra ramenée dans le repère de la machine, pour les volumes à contour arrondi.
+  const localView = { x: cam.view.x * cosT + cam.view.y * sinT, y: -cam.view.x * sinT + cam.view.y * cosT };
+  const prism = (material: string, key: string, ground: Point[], z0: number, z1: number) =>
+    prismVolume(material, key, at, ground, z0, z1, facing, localView);
 
   // ---- les cotes ----
   const wheelR = Math.max(0.06, wheelRadius);
@@ -449,7 +455,16 @@ export function Picker({
 
   const chassis = (
     <g key="chassis">
-      {box("steel", "chassis", xRef - half, xRef + half, cy - deckHalfY, cy + deckHalfY, deckZ0, deckZ1)}
+      {/* Le châssis porte la teinte des engins et non celle des rayonnages : ce qui roule et ce
+          qui est monté à demeure ne doivent pas se ressembler, surtout quand l'un passe devant
+          l'autre à longueur d'image. Ses angles sont abattus, comme ceux des autres machines. */}
+      {prism(
+        "safety",
+        "chassis",
+        roundedRing(xRef - half, xRef + half, cy - deckHalfY, cy + deckHalfY, Math.min(0.12, deckHalfY * 0.5)),
+        deckZ0,
+        deckZ1
+      )}
       {/* Les tampons, aux deux bouts : ce qui touche en premier en fin de course. */}
       {[-1, 1]
         .sort((a, b) => a * facing.xFace - b * facing.xFace)
@@ -462,9 +477,9 @@ export function Picker({
 
   const mastAt = (k: -1 | 1) => {
     const x0 = k < 0 ? xRef - half + inset : xRef + gap;
-    return box("steel", `mast${k}`, x0, x0 + mastX, cy - mastY / 2, cy + mastY / 2, deckZ1, mastZ1 - headThick);
+    return box("iron", `mast${k}`, x0, x0 + mastX, cy - mastY / 2, cy + mastY / 2, deckZ1, mastZ1 - headThick);
   };
-  const head = box("steel", "head", xRef - half + inset, xRef + half - inset, cy - mastY / 2, cy + mastY / 2, mastZ1 - headThick, mastZ1);
+  const head = box("iron", "head", xRef - half + inset, xRef + half - inset, cy - mastY / 2, cy + mastY / 2, mastZ1 - headThick, mastZ1);
 
   /** L'armoire, contre le montant arrière, côté `+y` : hors du portique, donc hors de la course du
    *  tablier. Elle se range avec son montant — ils sont séparés en `y`, et c'est `yFace` qui dit

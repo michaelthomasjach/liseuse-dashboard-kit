@@ -72,7 +72,15 @@ export function Floor({
   const x1 = Math.max(0.5, width);
   const y1 = Math.max(0.5, depth);
   const z1 = Math.max(0, level);
-  const z0 = z1 - THICKNESS;
+  /**
+   * Une dalle surélevée descend **jusqu'au sol**, elle ne flotte pas à sa hauteur.
+   *
+   *  Prise à son épaisseur nominale, elle donnait une plaque de six centimètres suspendue à
+   *  1 200 mm : le bâtiment n'avait plus de socle, et la marche qu'on voulait montrer n'existait
+   *  qu'en l'air. Une plateforme de quai est un massif — ce qu'on voit tout autour est sa tranche
+   *  entière, du sol à son dessus.
+   */
+  const z0 = Math.min(0, z1) - THICKNESS;
 
   const slab = solidVolume("slab", "slab", boxFaces(at, 0, x1, 0, y1, z0, z1, facing));
 

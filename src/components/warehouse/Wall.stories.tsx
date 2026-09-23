@@ -225,7 +225,9 @@ export const Batiment: Story = {
       depth: P + YARD + SKIRT + 1,
       height: H + 0.4,
     };
-    const shared = { cellSize, frame, height: H, thickness: D, shadows: true, dockHeight: DOCK } as const;
+    // Les murs sont **assis sur la dalle**, pas plantés dans la cour : c'est la tranche de la dalle
+    // qu'on voit sous eux, et le seuil des portes tombe alors exactement au niveau du plancher.
+    const shared = { cellSize, frame, height: H, thickness: D, shadows: true, dockHeight: DOCK, base: DOCK } as const;
 
     const side = (key: string, axis: "x" | "y", length: number, x: number, y: number, extra: object = {}) => {
       const pos = place(axis, length, x, y);

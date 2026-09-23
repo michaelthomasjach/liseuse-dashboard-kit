@@ -68,6 +68,17 @@ export interface WallProps {
   pierSpacing?: number;
   /** La hauteur de la plateforme de quai, en cases. `0` : pas de quai, les portes au ras du sol. */
   dockHeight?: number;
+  /**
+   * Le niveau sur lequel le mur est **posé**, en cases. `0` : à même le sol.
+   *
+   *  Un mur de quai ne part pas de la cour : il est assis sur la plateforme, et ce qu'on voit
+   *  au-dessous est la tranche de la dalle. Le poser au sol le ferait passer **devant** cette dalle
+   *  plutôt que dessus — le plancher se peint avant les murs, puisqu'il est le sol — et ses
+   *  1 200 mm de base viendraient recouvrir le plancher tout autour du bâtiment, si bien que le
+   *  seuil des portes paraîtrait flotter au-dessus de lui. Assis dessus, il n'y a plus rien de lui
+   *  sous le plancher, et la question ne se pose plus.
+   */
+  base?: number;
   /** Une rampe d'accès à un bout du quai, pour monter de la cour au niveau de la plateforme. */
   ramp?: "none" | "start" | "end";
   /** Sa longueur, en cases. */
@@ -131,6 +142,7 @@ export function Wall({
   piers = true,
   pierSpacing = 3,
   dockHeight,
+  base = 0,
   ramp = "none",
   rampLength = 2,
   rampWidth = 1.6,
@@ -146,7 +158,9 @@ export function Wall({
   const L = Math.max(0.5, length);
   const D = Math.max(0.04, thickness);
   const H = Math.max(0.1, height);
-  const top = cut > 0 ? Math.min(cut, H) : H;
+  /** L'assise du mur : son pied. Tout ce qui est du mur part de là, et rien n'existe au-dessous. */
+  const sole = Math.max(0, base);
+  const top = sole + (cut > 0 ? Math.min(cut, H) : H);
 
   const theta = (rotation * Math.PI) / 180;
   const cosT = Math.cos(theta);
@@ -184,12 +198,14 @@ export function Wall({
   // reste rien si la coupe passe sous lui.
   const holes = openings
     .map((o) => {
-      const base = Math.max(0, Math.min(o.sill ?? (o.dock ? dockZ : 0), H));
+      // Une porte de quai se cale sur la plateforme, que le mur soit assis dessus ou planté dans la
+      // cour : dans le premier cas c'est déjà son pied, dans le second c'est 1 200 mm plus haut.
+      const sill = Math.max(sole, Math.min(o.sill ?? (o.dock ? Math.max(sole, dockZ) : sole), sole + H));
       return {
         x0: Math.max(0, o.at),
         x1: Math.min(L, o.at + Math.max(0.1, o.width)),
-        z0: base,
-        z: Math.min(base + (o.height ?? H * 0.75), H),
+        z0: sill,
+        z: Math.min(sill + (o.height ?? H * 0.75), sole + H),
         dock: o.dock === true,
       };
     })
@@ -228,7 +244,7 @@ export function Wall({
   /** La grande face, **d'un seul tenant**, percée de ses ouvertures. */
   const sheet = () => {
     const quad = (points: Point[]) => `M ${points.map((p) => `${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(" L ")} Z`;
-    const outer = quad([at(0, ys, 0), at(L, ys, 0), at(L, ys, top), at(0, ys, top)]);
+    const outer = quad([at(0, ys, sole), at(L, ys, sole), at(L, ys, top), at(0, ys, top)]);
     const cuts = holes
       .filter((h) => h.z0 < top)
       .map((h) => {
@@ -254,7 +270,7 @@ export function Wall({
         />
         {/* L'allège : le dessus du muret sous la porte, qu'on voit dans l'embrasure dès que le seuil
             est au-dessus du sol. Sans elle, une porte de quai s'ouvre sur un trou. */}
-        {h.z0 > 0 && (
+        {h.z0 > sole && (
           <polygon
             className="lq-iso__face lq-iso__face--top"
             points={ring([at(h.x0, 0, h.z0), at(h.x1, 0, h.z0), at(h.x1, D, h.z0), at(h.x0, D, h.z0)])}
@@ -361,6 +377,7 @@ export function Wall({
       </g>
     );
   };
+
   const dockFaceVisible = dockSide === "y0" ? facing.yFace < 0 : facing.yFace > 0;
 
   /**
@@ -376,8 +393,11 @@ export function Wall({
    *  triangles de flanc, et le petit bout vertical qui la raccorde à la plateforme.
    */
   const apronY: [number, number] = dockSide === "y0" ? [-nose, 0] : [D, D + nose];
+  /** Le quai n'appartient qu'aux murs qui en portent un : un mur aveugle n'a pas de nez, même quand
+   *  la scène lui donne la hauteur de plateforme pour que ses portes tombent au bon niveau. */
+  const hasDock = holes.some((h) => h.dock) || ramp !== "none";
   const apron =
-    dockZ > 0 ? solidVolume("wall", "apron", boxFaces(at, 0, L, apronY[0], apronY[1], 0, dockZ, facing)) : null;
+    dockZ > 0 && hasDock ? solidVolume("wall", "apron", boxFaces(at, 0, L, apronY[0], apronY[1], 0, dockZ, facing)) : null;
 
   const slope = (() => {
     if (ramp === "none" || dockZ <= 0) return null;
@@ -421,7 +441,7 @@ export function Wall({
   })();
   const pierRow = pierXs.map((x) => ({
     x,
-    node: solidVolume("wall", `pier${x.toFixed(2)}`, boxFaces(at, x, x + pierW, -pierOut, D + pierOut, 0, pierTop, facing)),
+    node: solidVolume("wall", `pier${x.toFixed(2)}`, boxFaces(at, x, x + pierW, -pierOut, D + pierOut, sole, pierTop, facing)),
   }));
   const coping = solidVolume("wall", "coping", boxFaces(at, 0, L, -0.035, D + 0.035, top - 0.07, top, facing));
 
@@ -429,16 +449,21 @@ export function Wall({
     <g key="wall" className="lq-iso__solid lq-iso__solid--wall">
       {/* Les tableaux d'abord : ils sont au fond des ouvertures, et la face percée les laisse voir
           par ses trous. Puis le bout, puis le dessus, qui est au-dessus de tout. */}
+      {/* Le quai est **d'un seul côté du mur**, et il se range donc comme tout ce qui l'est : devant
+          quand on est de ce côté-là, derrière sinon. Peint systématiquement après le mur, son nez
+          revenait par-dessus les panneaux vus de l'intérieur — une bande claire courant le long de
+          la façade, dans le bâtiment — et la rampe débordait par-dessus le mur voisin. */}
+      {!dockFaceVisible && slope}
+      {!dockFaceVisible && apron}
       {holes.map((h, i) => jamb(h, `jamb${i}`))}
       {sheet()}
-      <polygon className={`lq-iso__face lq-iso__face--${faceX}`} points={ring([at(xs, 0, 0), at(xs, D, 0), at(xs, D, top), at(xs, 0, top)])} />
+      <polygon className={`lq-iso__face lq-iso__face--${faceX}`} points={ring([at(xs, 0, sole), at(xs, D, sole), at(xs, D, top), at(xs, 0, top)])} />
       {coping}
       {/* Les poteaux après les panneaux : ils sont en saillie des deux faces, donc rien du mur ne
           passe devant eux. Rangés le long du mur, puisqu'ils ne se chevauchent pas entre eux. */}
       {[...pierRow].sort((a, b) => (a.x - b.x) * facing.xFace).map((p) => p.node)}
-      {/* Le quai vient ensuite : il est devant le mur, du côté de la cour. */}
-      {slope}
-      {apron}
+      {dockFaceVisible && slope}
+      {dockFaceVisible && apron}
       {dockFaceVisible && holes.map((h, i) => fittings(h, `dock${i}`))}
     </g>
   );

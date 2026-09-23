@@ -334,6 +334,12 @@ export function SemiTruck({
    *  roulement** qui la coiffe d'un bout à l'autre, et le flanc de devant. Les facettes de la
    *  bande sont sans trait — sinon les douze segments de l'arc se lisent comme des hachures — et
    *  ce sont les deux flancs, cernés de leur contour, qui portent le dessin.
+   *
+   *  Et **la roue passe entre les deux flancs**, d'où deux morceaux rendus séparément. Peint d'un
+   *  bloc après la roue, le garde-boue paraissait transparent : son flanc du fond, qui est derrière
+   *  le pneu, se posait devant lui, et son contour — tracé en dernier — traversait la roue et
+   *  l'autre flanc. Ce n'était pas une histoire de remplissage mais d'ordre : le fond, la roue,
+   *  puis le devant, chaque flanc portant son contour aussitôt après sa matière.
    */
   const FENDER_GAP = 0.03;
   const FENDER_T = 0.075;
@@ -344,7 +350,7 @@ export function SemiTruck({
    *  laquelle est à l'ombre. */
   const xClass = facing.xOnLeft ? "side" : "front";
   const yClass = facing.xOnLeft ? "front" : "side";
-  const fender = (key: string, xc: number, yW: number) => {
+  const fender = (key: string, xc: number, yW: number): [ReactNode, ReactNode] => {
     const ri = r + FENDER_GAP;
     const ro = ri + FENDER_T;
     const y0 = yW - tyre / 2 - FENDER_OVER;
@@ -365,9 +371,15 @@ export function SemiTruck({
       .map((p, i) => ({ p, q: outer[i + 1], mid: angle(i + 0.5) }))
       .filter((seg) => Math.sin(seg.mid) > 0.35 || Math.cos(seg.mid) * localView.x > 0)
       .sort((a, b) => (Math.cos(a.mid) - Math.cos(b.mid)) * facing.xFace);
-    return (
-      <g key={key} className="lq-iso__solid lq-iso__solid--iron">
-        <polygon className={`lq-iso__face lq-iso__face--${yClass} lq-iso__face--seamless`} points={band(far)} />
+    const flank = (k: string, y: number) => (
+      <g key={k} className="lq-iso__solid lq-iso__solid--iron">
+        <polygon className={`lq-iso__face lq-iso__face--${yClass} lq-iso__face--seamless`} points={band(y)} />
+        <polygon className="lq-iso__outline" points={band(y)} />
+      </g>
+    );
+    return [
+      flank(`${key}-far`, far),
+      <g key={`${key}-front`} className="lq-iso__solid lq-iso__solid--iron">
         {tread.map((seg, i) => (
           <polygon
             key={i}
@@ -375,23 +387,25 @@ export function SemiTruck({
             points={ring([at(seg.p.x, y0, seg.p.z), at(seg.q.x, y0, seg.q.z), at(seg.q.x, y1, seg.q.z), at(seg.p.x, y1, seg.p.z)])}
           />
         ))}
-        <polygon className={`lq-iso__face lq-iso__face--${yClass} lq-iso__face--seamless`} points={band(near)} />
-        <polygon className="lq-iso__outline" points={band(far)} />
-        <polygon className="lq-iso__outline" points={band(near)} />
-      </g>
-    );
+        {flank(`${key}-near`, near)}
+      </g>,
+    ];
   };
   const wheelRow = (y: number) => (
     <g key={`wheels${y}`}>
       {alongX(
         axles.map((x, i) => ({
           x,
-          node: (
-            <g key={`ax${i}${y}`}>
-              {isoWheel(at, x, y, r, r, tyre, facing, `w${i}${y}`)}
-              {fender(`f${i}${y}`, x, y)}
-            </g>
-          ),
+          node: (() => {
+            const [back, front] = fender(`f${i}${y}`, x, y);
+            return (
+              <g key={`ax${i}${y}`}>
+                {back}
+                {isoWheel(at, x, y, r, r, tyre, facing, `w${i}${y}`)}
+                {front}
+              </g>
+            );
+          })(),
         }))
       )}
     </g>

@@ -172,12 +172,15 @@ export const Quai: Story = {
  * qui donne son sens au reste : les trois autres murs sont aveugles, parce qu'un entrepôt ne
  * s'ouvre que là où les camions se rangent.
  *
- * **Tout est de plain-pied** : le sol de la cour et celui du bâtiment sont le même, et le seuil
- * des portes est à ce niveau. Un vrai quai est une plateforme de 1 200 mm — la hauteur d'un
- * plancher de remorque — mais dessinée, cette marche met une bande de béton au pied de chaque mur,
- * et cette bande passe devant le sol qu'elle est censée porter : on lit un soubassement qui n'a
- * rien à faire là, et l'œil en fait un défaut d'empilement plutôt qu'une hauteur. De plain-pied,
- * la question ne se pose plus, et rien de ce que la scène raconte n'en dépend.
+ * **Le sol est au seuil des portes**, et c'est toute la scène. Un quai est une plateforme de
+ * 1 200 mm — la hauteur d'un plancher de remorque — donc le sol du bâtiment *est* à cette
+ * hauteur-là, et le seuil des portes tombe dessus. Ce qu'on voit tout autour est la tranche de
+ * cette plateforme, qui descend jusqu'à la terre : un massif, pas une plaque en l'air.
+ *
+ * Ce qui ne doit **pas** se voir, c'est du mur sous ce niveau. Les murs sont donc assis sur la
+ * plateforme (`base`) et non plantés dans le sol : un mur qui partirait d'en bas mettrait
+ * 1 200 mm de béton au pied de chaque panneau, et cette bande passerait devant le sol qu'elle est
+ * censée porter — l'œil y lit un défaut d'empilement, pas une hauteur.
  *
  * Les quatre murs sont quatre exemplaires du même composant. Un mur couché le long des `y` est le
  * même, tourné d'un quart de tour : `place` ci-dessous ne fait que traduire l'emprise voulue en
@@ -204,6 +207,8 @@ export const Batiment: Story = {
      */
     const SKIRT = 1.2;
     const YARD = 4.8;
+    /** La hauteur de la plateforme, et donc du seuil des portes : celle d'un plancher de remorque. */
+    const DOCK = 0.6;
 
     /** L'emprise voulue, traduite en origine : un mur tourné pivote autour de son centre. */
     const place = (axis: "x" | "y", length: number, x: number, y: number) =>
@@ -219,9 +224,9 @@ export const Batiment: Story = {
       depth: P + YARD + SKIRT + 1,
       height: H + 0.4,
     };
-    // Les murs partent du sol, et les portes avec eux : de plain-pied, il n'y a rien du mur sous le
-    // niveau du plancher, donc rien qui puisse passer devant lui.
-    const shared = { cellSize, frame, height: H, thickness: D, shadows: true } as const;
+    // Les murs sont **assis sur la plateforme** : rien d'eux ne descend sous le plancher, donc rien
+    // ne peut passer devant lui, et le seuil des portes tombe exactement au niveau du sol.
+    const shared = { cellSize, frame, height: H, thickness: D, shadows: true, dockHeight: DOCK, base: DOCK } as const;
 
     const side = (key: string, axis: "x" | "y", length: number, x: number, y: number, extra: object = {}) => {
       const pos = place(axis, length, x, y);
@@ -257,7 +262,8 @@ export const Batiment: Story = {
         cellSize={cellSize}
         units={units}
         under={
-          /* Un seul sol : la cour et le plancher du bâtiment sont le même, et il passe sous tout. */
+          /* Un seul sol, **porté à hauteur de quai** : le plancher du bâtiment et la plateforme
+             devant les portes sont la même dalle, et elle passe sous tout. */
           <div style={layer}>
             <Floor
               cellSize={cellSize}
@@ -265,6 +271,7 @@ export const Batiment: Story = {
               origin={{ x: -SKIRT, y: -YARD }}
               width={W + 2 * SKIRT}
               depth={P + YARD + SKIRT}
+              level={DOCK}
             />
           </div>
         }

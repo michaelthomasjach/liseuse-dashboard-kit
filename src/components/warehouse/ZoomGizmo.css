@@ -1,0 +1,43 @@
+/* Les deux loupes, en colonne sous le cadran de rotation : elles règlent la même vue, elles se
+   tiennent donc ensemble plutôt que de se disputer un autre coin de l'écran. */
+.lq-zoom {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.lq-zoom__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--lq-color-border);
+  border-radius: var(--lq-radius-md);
+  background-color: var(--lq-color-panel);
+  color: var(--lq-color-text-muted);
+  cursor: pointer;
+}
+
+.lq-root[data-lq-palette="eink"] .lq-zoom__button {
+  border-radius: 0;
+}
+
+.lq-zoom__button:hover:not(:disabled) {
+  color: var(--lq-color-text);
+  border-color: var(--lq-color-accent);
+}
+
+.lq-zoom__button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* Le trait de la loupe suit la couleur du bouton, donc son état de survol et son état désactivé,
+   sans que l'icône ait à les connaître. */
+.lq-zoom__button svg {
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+}

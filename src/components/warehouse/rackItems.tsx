@@ -267,7 +267,22 @@ export function stackedVolume(
   view: Point,
   extra?: ReactNode
 ): ReactNode {
-  const faces: { depth: number; quad: Point[]; dark: boolean }[] = [];
+  // Les facettes se peignent **couche par couche, de bas en haut**, et par profondeur à l'intérieur
+  // d'une couche.
+  //
+  // Trié d'un bloc par profondeur, l'empilement n'était juste que tant qu'il rétrécissait
+  // régulièrement. Dès qu'une couche se retire franchement — le haut d'une cabine derrière son
+  // pare-brise — les parois des deux étages s'interclassent et l'étage bas repasse devant l'étage
+  // haut. L'ordre d'un empilement est pourtant donné : ce qui est plus haut est plus près du
+  // dessus, donc se peint après. La profondeur ne départage que les parois d'une même couche, qui
+  // sont toutes à la même hauteur.
+  //
+  // Et **chaque couche pose son dessus**, pas seulement la dernière. Un retrait laisse à découvert
+  // l'anneau horizontal entre les deux plans ; sans dessus, cet anneau n'appartient à personne et
+  // on voit à travers le volume. Le dessus vient juste après les parois de sa propre couche : les
+  // parois de la couche suivante, qui se dressent sur son pourtour, le recouvrent ensuite d'elles-
+  // mêmes là où elles le doivent.
+  const faces: { quad: Point[]; kind: "front" | "side" | "top" }[] = [];
   let top: Point[] = [];
 
   for (const layer of layers) {
@@ -283,32 +298,30 @@ export function stackedVolume(
     const loop = area < 0 ? [...layer.ring].reverse() : layer.ring;
     top = loop.map((p) => at(p.x, p.y, layer.z1));
 
+    const walls: { depth: number; quad: Point[]; dark: boolean }[] = [];
     for (let i = 0; i < n; i += 1) {
       const a = loop[i];
       const b = loop[(i + 1) % n];
       const normal = { x: b.y - a.y, y: a.x - b.x };
       if (normal.x * view.x + normal.y * view.y <= 0) continue;
       const isX = Math.abs(normal.x) >= Math.abs(normal.y);
-      faces.push({
+      walls.push({
         depth: ((a.x + b.x) / 2) * view.x + ((a.y + b.y) / 2) * view.y,
         quad: [at(a.x, a.y, layer.z0), at(b.x, b.y, layer.z0), at(b.x, b.y, layer.z1), at(a.x, a.y, layer.z1)],
         dark: isX !== facing.xOnLeft,
       });
     }
+    walls.sort((p, q) => p.depth - q.depth);
+    for (const w of walls) faces.push({ quad: w.quad, kind: w.dark ? "front" : "side" });
+    faces.push({ quad: top, kind: "top" });
   }
-  faces.sort((p, q) => p.depth - q.depth);
-  const silhouette = convexHull([...faces.flatMap((f) => f.quad), ...top]);
+  const silhouette = convexHull(faces.flatMap((f) => f.quad));
 
   return (
     <g key={key} className={`lq-iso__solid lq-iso__solid--${material}`}>
       {faces.map((f, i) => (
-        <polygon
-          key={`s${i}`}
-          className={`lq-iso__face lq-iso__face--${f.dark ? "front" : "side"} lq-iso__face--seamless`}
-          points={ring(f.quad)}
-        />
+        <polygon key={`s${i}`} className={`lq-iso__face lq-iso__face--${f.kind} lq-iso__face--seamless`} points={ring(f.quad)} />
       ))}
-      <polygon className="lq-iso__face lq-iso__face--top lq-iso__face--seamless" points={ring(top)} />
       <polygon className="lq-iso__outline" points={ring(silhouette)} />
       {extra}
     </g>

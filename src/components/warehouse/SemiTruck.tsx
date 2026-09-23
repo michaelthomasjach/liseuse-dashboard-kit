@@ -76,6 +76,13 @@ export interface SemiTruckProps {
   frame?: { x: number; y: number; width: number; depth: number; height: number };
   /** Ce qu'on dessine : tout, l'ombre seule, ou le camion seul. */
   parts?: "all" | "shadow" | "machine";
+  /** Quel véhicule : l'attelage complet, le tracteur seul, ou la remorque seule.
+   *
+   *  Un semi est **deux véhicules** — on dételle, on change de remorque, on repart — et c'est la
+   *  raison d'être de la sellette. Les dessiner séparément n'est donc pas un cadrage de la même
+   *  image : chacun se tient debout tout seul, le tracteur sur ses deux essieux, la remorque sur son
+   *  tridem et ses béquilles, et c'est ce qui se voit ici. */
+  vehicle?: "semi" | "tractor" | "trailer";
   /** Pixels par case. */
   cellSize?: number;
   className?: string;
@@ -105,12 +112,24 @@ const TRAILER_H_MM = 4000;
  *  proportion qui fait un semi, et non la taille de la cabine prise isolément. */
 const CAB_LEN_MM = 2920;
 const CAB_H_MM = 3700;
+/** Le jeu entre le dos de la cabine et le nez de la remorque.
+ *
+ *  Il n'est pas décoratif : c'est lui qui permet au semi de tourner. En virage serré la remorque
+ *  pivote autour de la sellette et son angle avant vient balayer l'arrière de la cabine ; sans jeu,
+ *  elle la touche. Aucun attelage ne se dessine collé, et collés les deux volumes se lisent comme
+ *  une seule caisse coupée en deux plutôt que comme deux véhicules attelés. */
+const CAB_GAP_MM = 980;
 /** Porte-à-faux avant, puis empattement du tracteur : 1 400 et 3 700. C'est ce qui place l'essieu
  *  directeur *sous* la cabine et l'essieu moteur loin derrière elle. */
 const FRONT_OVERHANG_MM = 1400;
 const CAB_WHEELBASE_MM = 3700;
-/** Porte-à-faux arrière de la remorque, et le pas du tridem. */
-const REAR_OVERHANG_MM = 1320;
+/** Porte-à-faux arrière de la remorque, et le pas du tridem.
+ *
+ *  Le tridem d'un semi est **très en avant du cul de la remorque** : il se place là où la charge
+ *  s'équilibre entre lui et la sellette, pas au bout de la caisse. Serré contre l'arrière, la
+ *  remorque prend l'air d'une benne posée sur ses roues ; reculé de ce qu'il faut, le porte-à-faux
+ *  arrière devient lisible et c'est lui qui donne la longueur. */
+const REAR_OVERHANG_MM = 2300;
 const TRIDEM_PITCH_MM = 1310;
 /** Plancher de remorque : la hauteur hors-tout moins la hauteur utile (2 720) et l'épaisseur du
  *  pavillon. */
@@ -123,9 +142,19 @@ const WHEEL_R_MM = 525;
 const TYRE_W_MM = 385;
 
 const WIDTH = WIDTH_MM * MM;
-/** Le congé du toit de la cabine : son rayon, et en combien de couches on le monte. */
+/**
+ * Le congé du toit de la cabine : son rayon, et en combien de couches on le monte.
+ *
+ * **Une seule couche**, et c'est une correction. Un congé monté en quatre gradins donne, vu de
+ * face et de haut — l'angle même sous lequel on regarde un toit de camion en vue isométrique —
+ * quatre bandes alternées : dessus clair, devant sombre, dessus clair, devant sombre. Ce n'est pas
+ * un arrondi, c'est un escalier, et à cette échelle on ne lit que les rayures. Chaque marche
+ * laissait en plus filer, dans les angles, de courts jours entre deux couches là où leurs contours
+ * arrondis ne se recouvraient pas tout à fait. Un seul chanfrein n'a ni rayures ni jours : une
+ * arête abattue, ce qui est exactement ce qu'on voulait dire.
+ */
 const ROOF_R = 0.13;
-const ROOF_STEPS = 4;
+const ROOF_STEPS = 1;
 
 const ring = (points: Point[]) => points.map((p) => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(" ");
 
@@ -136,24 +165,22 @@ export function SemiTruck({
   origin = { x: 0, y: 0 },
   frame,
   parts = "all",
+  vehicle = "semi",
   cellSize = 30,
   className,
 }: SemiTruckProps) {
   const cam = useIsoCamera();
+  const hasTractor = vehicle !== "trailer";
+  const hasTrailer = vehicle !== "tractor";
   // ---- les cotes, le long du camion ----
   //
   // L'origine est l'arrière de la remorque et les x montent vers le nez, comme la vue de profil de
   // la planche se lit de droite à gauche. Tout ce qui suit est une cote du plan divisée par
   // l'échelle : rien n'est choisi ici.
   const T = Math.max(3, trailerLength);
-  /** Le tracteur est ce qui dépasse devant la remorque : la longueur hors-tout moins la remorque.
-   *  La cabine occupe exactement cette avancée, et sa face arrière touche celle de la remorque —
-   *  c'est ce que montre la vue de profil, et c'est ce qui rend le semi compact. */
-  const cab0 = T;
-  // La planche donne la même avancée par deux chemins — le hors-tout moins la remorque
-  // (16 540 − 13 620 = 2 920) et la longueur de cabine (2 920) — et ils concordent. On prend la
-  // seconde, la seule des deux que le plan mesure directement sur la pièce.
-  const cab1 = T + CAB_LEN_MM * MM;
+  /** Le dos de la cabine : le nez de la remorque, plus le jeu d'attelage. */
+  const cab0 = T + CAB_GAP_MM * MM;
+  const cab1 = cab0 + CAB_LEN_MM * MM;
   const LENGTH = cab1;
   /** L'axe directeur, à 1 400 du nez, et l'axe moteur 3 700 derrière lui. */
   const steerX = cab1 - FRONT_OVERHANG_MM * MM;
@@ -206,12 +233,14 @@ export function SemiTruck({
   // depuis le nez. Les six essieux d'un semi ne se placent pas au jugé : ce sont eux qui disent où
   // la charge passe.
   const axles = [
-    REAR_OVERHANG_MM * MM,
-    (REAR_OVERHANG_MM + TRIDEM_PITCH_MM) * MM,
-    (REAR_OVERHANG_MM + 2 * TRIDEM_PITCH_MM) * MM,
-    driveX,
-    steerX,
+    ...(hasTrailer
+      ? [REAR_OVERHANG_MM * MM, (REAR_OVERHANG_MM + TRIDEM_PITCH_MM) * MM, (REAR_OVERHANG_MM + 2 * TRIDEM_PITCH_MM) * MM]
+      : []),
+    ...(hasTractor ? [driveX, steerX] : []),
   ];
+  /** Le premier essieu du tridem, qu'on ait dessiné le tridem ou non : c'est là que s'arrête le
+   *  carénage de la remorque, et il le sait même quand les roues ne sont pas là. */
+  const tridemFront = (REAR_OVERHANG_MM + 2 * TRIDEM_PITCH_MM) * MM;
   const beamY0 = 0.38;
   const beamY1 = WIDTH - 0.38;
   const trailerZ0 = TRAILER_FLOOR_MM * MM;
@@ -226,6 +255,22 @@ export function SemiTruck({
    * trois marches.
    */
   const cabZ0 = CAB_FLOOR_MM * MM;
+  /**
+   * Le rayon des montants d'angle de la cabine, **et la largeur qu'il laisse au nez**.
+   *
+   *  Un coin arrondi de rayon `R` rétrécit la face avant de `R` de chaque côté : à son extrémité,
+   *  le volume ne fait plus que `largeur − 2R`. Le pare-brise et la calandre, eux, étaient tracés
+   *  sur la largeur pleine — donc ils débordaient de la cabine des deux côtés, et c'est ce qu'on
+   *  voyait dépasser du museau à certains caps. Deux façons de le corriger : rétrécir ce qu'on
+   *  pose sur le nez, ou adoucir moins les montants. La première donne un pare-brise en bandeau
+   *  étroit, ce qu'aucune cabine n'a ; c'est donc la seconde — et un montant de cabine avancée est
+   *  de toute façon presque vif, c'est le pavillon qui est rond.
+   *
+   *  `CAB_INSET` est la marge que gardent le vitrage et la calandre : le rayon, plus un jeu, donc
+   *  ils tiennent dans le nez par construction et non par tâtonnement.
+   */
+  const CAB_R = 0.1;
+  const CAB_INSET = 0.02 + CAB_R + 0.02;
   /**
    * Les trois hauteurs d'une cabine, et pourquoi elles sont trois.
    *
@@ -259,9 +304,65 @@ export function SemiTruck({
   /** De combien le haut de la cabine est en retrait du nez : la pente du pare-brise. */
   const WINDSHIELD = 0.2;
 
+  /**
+   * Les gardes-boue, au-dessus de chaque roue.
+   *
+   *  Ils débordent la roue des deux côtés — c'est leur métier, arrêter ce que le pneu projette — et
+   *  c'est ce débord qui les fait lire comme des gardes-boue et non comme une tôle posée à plat.
+   *  Le tridem n'en a qu'un, d'un seul tenant par-dessus les trois roues, comme sur une vraie
+   *  remorque : trois capots séparés donneraient trois objets là où l'œil en cherche un.
+   *
+   *  Ils se peignent **après les roues de leur file**, et non rangés avec elles le long du camion :
+   *  un garde-boue couvre sa roue en x, donc il n'est pas une tranche de plus dans l'ordre en
+   *  longueur — celui-ci suppose des tranches qui ne se chevauchent pas. Au-dessus de tout ce que
+   *  sa file contient, le peindre en dernier est juste à tous les caps.
+   */
+  /**
+   * Le garde-boue : **un arc au-dessus de la roue**, pas un caisson posé dessus.
+   *
+   *  Un pavé rectangulaire par-dessus le pneu donne un coussin, et un coussin n'a rien d'un
+   *  garde-boue : ce qui fait reconnaître la pièce, c'est qu'elle **épouse la roue** — elle descend
+   *  de part et d'autre jusqu'au moyeu et se referme au-dessus. L'arc se monte en couches de
+   *  hauteur égale dont la demi-longueur suit le cercle, `√(R² − h²)`, ce qui en fait un vrai
+   *  profil de roue et non un arrondi approché à l'œil ; et comme toutes les couches appartiennent
+   *  au même volume, l'ensemble ne se cerne que d'une silhouette.
+   *
+   *  Il s'arrête net sous la caisse qui le surmonte — plancher de remorque ou de cabine — parce
+   *  qu'un garde-boue y est boulonné : c'est cette coupe à plat qui le rattache, au lieu de le
+   *  laisser flotter en couronne au-dessus du pneu.
+   */
+  const FENDER_T = 0.1;
+  const FENDER_OVER = 0.05;
+  const FENDER_STEPS = 9;
+  const fender = (key: string, xc: number, y: number, zTop: number) => {
+    const outer = r + FENDER_T;
+    const top = Math.min(r + outer, zTop);
+    const y0 = y - tyre / 2 - FENDER_OVER;
+    const y1 = y + tyre / 2 + FENDER_OVER;
+    return stack(
+      "iron",
+      key,
+      Array.from({ length: FENDER_STEPS }, (_, k) => {
+        const z0 = r + ((top - r) * k) / FENDER_STEPS;
+        const z1 = r + ((top - r) * (k + 1)) / FENDER_STEPS;
+        const half = Math.sqrt(Math.max(0, outer * outer - (z1 - r) * (z1 - r)));
+        return { ring: roundedRing(xc - half, xc + half, y0, y1, 0.03), z0, z1 };
+      })
+    );
+  };
   const wheelRow = (y: number) => (
     <g key={`wheels${y}`}>
-      {alongX(axles.map((x, i) => ({ x, node: isoWheel(at, x, y, r, r, tyre, facing, `w${i}${y}`) })))}
+      {alongX(
+        axles.map((x, i) => ({
+          x,
+          node: (
+            <g key={`ax${i}${y}`}>
+              {isoWheel(at, x, y, r, r, tyre, facing, `w${i}${y}`)}
+              {fender(`f${i}${y}`, x, y, i < 3 && hasTrailer ? trailerZ0 : cabZ0)}
+            </g>
+          ),
+        }))
+      )}
     </g>
   );
 
@@ -286,7 +387,7 @@ export function SemiTruck({
    *  ces jupes, qui doivent passer les dos-d'âne. */
   const trailerSkirtZ0 = 600 * MM;
   const trailerSkirt = (y: number) =>
-    prism("trailer", `tskirt${y}`, roundedRing(axles[2] + 0.5, kingpin - 1.85, y, y + 0.07, 0.03), trailerSkirtZ0, trailerZ0);
+    prism("trailer", `tskirt${y}`, roundedRing(tridemFront + 0.5, kingpin - 1.85, y, y + 0.07, 0.03), trailerSkirtZ0, trailerZ0);
 
   /**
    * Le bas de caisse du tracteur : **une seule pièce**, du nez jusque sous la cabine.
@@ -317,12 +418,32 @@ export function SemiTruck({
     VALANCE_Z0,
     VALANCE_Z1
   );
-  const skirtPart = prism("cab", "skirt", roundedRing(cab0, steerX - archGap, VALANCE_Y, WIDTH - VALANCE_Y, 0.07), VALANCE_Z0, VALANCE_Z1);
+  /** Le morceau arrière **ne s'arrête plus au dos de la cabine** : il file jusqu'à l'essieu moteur.
+   *
+   *  Entre les deux essieux du tracteur il n'y avait qu'un longeron haut de quinze centimètres, et
+   *  sous lui on voyait le sol d'un bout à l'autre du camion — un trou en plein milieu du véhicule,
+   *  d'autant plus visible que la cabine s'est écartée de la remorque. Le combler avec des pièces
+   *  rapportées — un tablier, des réservoirs — revenait à poser des caisses les unes à côté des
+   *  autres, et on lisait les caisses plutôt que le camion. Une seule pièce, de la même hauteur et
+   *  des mêmes flancs que le pare-chocs, ne se lit pas du tout comme un ajout : c'est le bas du
+   *  tracteur, continu du nez à l'attelage, avec la roue directrice pour seule interruption. */
+  /**
+   * Derrière la roue directrice, ce n'est plus une jupe mais **le châssis lui-même**.
+   *
+   *  Une jupe basse allant jusqu'à l'essieu moteur passait sous les roues arrière et ressortait
+   *  derrière le tracteur en langue plate, avec la sellette posée en l'air au-dessus. Or le
+   *  dessous d'un tracteur n'est pas une jupe : c'est un plateau, celui sur lequel repose la
+   *  sellette et sous lequel pendent les roues motrices. Dessiné à sa vraie hauteur — bas du
+   *  plateau au-dessus du moyeu, dessus au niveau du plancher de cabine — il cesse d'être une
+   *  pièce ajoutée : les roues s'y logent, les gardes-boue s'y raccrochent, la sellette s'y pose.
+   */
+  const chassisZ0 = 0.42;
+  const chassis = box("iron", "chassis", tractor0, steerX - archGap, 0.1, WIDTH - 0.1, chassisZ0, cabZ0);
 
   const valance = (
     <g key="valance">
       {alongX([
-        { x: cab0, node: <g key="skirt">{skirtPart}</g> },
+        { x: tractor0, node: <g key="chassis">{chassis}</g> },
         { x: cab1, node: <g key="bumper">{bumperPart}</g> },
       ])}
     </g>
@@ -332,8 +453,12 @@ export function SemiTruck({
     <g key="under">
       {acrossY([
         { y: sideY[0], node: wheelRow(sideY[0]) },
-        { y: 0.05, node: <g key="tskirt-near">{trailerSkirt(0.05)}</g> },
-        { y: WIDTH - 0.12, node: <g key="tskirt-far">{trailerSkirt(WIDTH - 0.12)}</g> },
+        ...(hasTrailer
+          ? [
+              { y: 0.05, node: <g key="tskirt-near">{trailerSkirt(0.05)}</g> },
+              { y: WIDTH - 0.12, node: <g key="tskirt-far">{trailerSkirt(WIDTH - 0.12)}</g> },
+            ]
+          : []),
         {
           y: WIDTH / 2,
           node: (
@@ -348,28 +473,31 @@ export function SemiTruck({
                   la sortir devant dès que la caméra passe d'un côté à l'autre, et c'est le
                   pare-chocs qui doublait la cabine. Sous elle, la question ne se pose plus : rien
                   de ce qui est sous le plancher ne peut masquer ce qui est dessus. */}
-              {valance}
-              {box("iron", "tractor-beam", tractor0, cab1 - 0.1, beamY0, beamY1, 0.42, cabZ0)}
-              {box("iron", "trailer-beam", 0, T, beamY0, beamY1, trailerZ0 - 0.12, trailerZ0)}
-              {acrossY(
-                [0.12, WIDTH - 0.22].map((y) => ({
+              {hasTractor && valance}
+              {/* La sellette, posée sur le plateau et non suspendue au-dessus : elle part du
+                  plancher de cabine, qui est le dessus du châssis, et s'arrête au plancher de la
+                  remorque, qu'elle porte — d'un millimètre de plus, elle le traverserait. */}
+              {hasTractor &&
+                prism(
+                  "steel",
+                  "fifth-wheel",
+                  roundedRing(kingpin - 0.42, kingpin + 0.46, 0.3, WIDTH - 0.3, 0.12),
+                  cabZ0,
+                  trailerZ0
+                )}
+              {hasTrailer && box("iron", "trailer-beam", 0, T, beamY0, beamY1, trailerZ0 - 0.12, trailerZ0)}
+              {hasTrailer &&
+                acrossY(
+                  [0.12, WIDTH - 0.22].map((y) => ({
                   y,
-                  node: (
-                    <g key={`gear${y}`}>
-                      {box("iron", `leg${y}`, kingpin - 1.6, kingpin - 1.5, y, y + 0.1, 0.18, trailerZ0)}
-                      {box("iron", `pad${y}`, kingpin - 1.64, kingpin - 1.46, y - 0.03, y + 0.13, 0.12, 0.18)}
-                    </g>
-                  ),
-                }))
-              )}
-              {acrossY(
-                [0.02, WIDTH - 0.26].map((y) => ({
-                  y,
-                  // Un réservoir est un cylindre couché : à défaut, un volume dont on a abattu les
-                  // angles, ce qui suffit à ne plus lire une caisse.
-                  node: prism("steel", `tank${y}`, roundedRing(cab0 + 0.05, cab0 + 0.8, y, y + 0.24, 0.11), 0.34, 0.66),
-                }))
-              )}
+                    node: (
+                      <g key={`gear${y}`}>
+                        {box("iron", `leg${y}`, kingpin - 1.6, kingpin - 1.5, y, y + 0.1, 0.18, trailerZ0)}
+                        {box("iron", `pad${y}`, kingpin - 1.64, kingpin - 1.46, y - 0.03, y + 0.13, 0.12, 0.18)}
+                      </g>
+                    ),
+                  }))
+                )}
             </g>
           ),
         },
@@ -390,24 +518,20 @@ export function SemiTruck({
         })}
       </g>
     ) : null;
-  // La caisse et sa **casquette** : un chapeau rentré de cinq centimètres, donc une arête abattue
-  // tout autour du toit. Une caisse d'un seul volume se lit comme un pavé, et c'est ce qu'on
-  // reproche à un dessin anguleux.
-  const trailer = (
-    <g key="trailer">
-      {stack(
-        "trailer",
-        "trailer",
-        [
-          { ring: roundedRing(0, T, 0, WIDTH, 0.08), z0: trailerZ0, z1: trailerZ1 - 0.16 },
-          ...filletLayers((d) => roundedRing(d * 0.5, T - d * 0.5, d, WIDTH - d, 0.08 + d), trailerZ1 - 0.16, 0.16, 3),
-        ],
-        doors
-      )}
-    </g>
-  );
+  /**
+   * La caisse : **un pavé à angles vifs**.
+   *
+   *  Elle avait des montants arrondis et une casquette abattue tout autour du toit, par crainte
+   *  qu'un volume nu se lise comme une boîte. C'est l'inverse : une semi-remorque *est* une boîte,
+   *  et c'est même ce qui la distingue de la cabine, dont chaque arête est adoucie parce qu'elle
+   *  fend l'air. Les arrondis ne faisaient pas une caisse plus fine, ils lui enlevaient ses arêtes —
+   *  or ce sont elles qui donnent l'échelle, puisqu'on lit la longueur sur le fil du toit.
+   */
+  const trailer = <g key="trailer">{box("trailer", "trailer", 0, T, 0, WIDTH, trailerZ0, trailerZ1, doors)}</g>;
 
   // ---- la cabine ----
+  /** Le plan de l'étage bas de la cabine : du dos au nez, pleine largeur. */
+  const cabFloorRing = roundedRing(cab0, cab1, 0.02, WIDTH - 0.02, CAB_R, 4);
   const front = facing.xFace > 0;
   const sideY1 = facing.yFace > 0 ? WIDTH - 0.015 : 0.015;
   const frontFace = (x: number, y0: number, y1: number, z0: number, z1: number) =>
@@ -448,25 +572,32 @@ export function SemiTruck({
    *  Sur la planche il occupe presque toute la moitié haute de la face : c'est la plus grande
    *  surface de la cabine, loin devant la calandre. Réduit à un bandeau, il rendait la face avant
    *  majoritairement tôlée — l'inverse de ce que montre le plan. */
+  /** Et il joint la tôle **des deux côtés**.
+   *
+   *  Il s'arrêtait quatre centièmes sous le pavillon et trois centièmes avant le nez : deux marges
+   *  de rien du tout dans les cotes, mais qui laissaient tout autour de la glace un liseré de
+   *  carrosserie clair — et, vu de trois quarts, un vide franc entre le haut du pare-brise et le
+   *  toit. Une glace de camion est collée bord à bord sur son ouverture ; la marge n'est pas une
+   *  sécurité, c'est le défaut. */
   const GLASS_Z0 = beltZ;
-  const GLASS_Z1 = cabZ1 - 0.04;
+  const GLASS_Z1 = cabZ1;
   const windshield = front ? (
     <g>
       <polygon
         className="lq-truck__glass"
         points={ring([
-          at(cab1 - WINDSHIELD, 0.12, GLASS_Z1),
-          at(cab1 - WINDSHIELD, WIDTH - 0.12, GLASS_Z1),
-          at(cab1 - 0.03, WIDTH - 0.12, GLASS_Z0),
-          at(cab1 - 0.03, 0.12, GLASS_Z0),
+          at(cab1 - WINDSHIELD, CAB_INSET, GLASS_Z1),
+          at(cab1 - WINDSHIELD, WIDTH - CAB_INSET, GLASS_Z1),
+          at(cab1, WIDTH - CAB_INSET, GLASS_Z0),
+          at(cab1, CAB_INSET, GLASS_Z0),
         ])}
       />
       {/* Le montant : un trait, pas un volume. Il sépare le pare-brise de la vitre de coin et c'est
           tout ce qu'il a à faire. */}
       <g className="lq-truck__door">
-        {[0.12, WIDTH - 0.12].map((y) => {
+        {[CAB_INSET, WIDTH - CAB_INSET].map((y) => {
           const a = at(cab1 - WINDSHIELD, y, GLASS_Z1);
-          const b = at(cab1 - 0.03, y, GLASS_Z0);
+          const b = at(cab1, y, GLASS_Z0);
           return <line key={y} x1={a.x} y1={a.y} x2={b.x} y2={b.y} />;
         })}
       </g>
@@ -485,19 +616,19 @@ export function SemiTruck({
     <g>
       {/* Un panneau, pas des traits perdus au milieu d'une grande tôle claire : trois lignes seules
           flottent, et c'est ce qu'on voyait. La calandre est une pièce, et elle porte ses barres. */}
-      <polygon className="lq-truck__panel" points={frontFace(cab1 + 0.01, 0.15, WIDTH - 0.15, beltZ - 0.46, beltZ - 0.04)} />
+      <polygon className="lq-truck__panel" points={frontFace(cab1 + 0.01, CAB_INSET + 0.03, WIDTH - CAB_INSET - 0.03, beltZ - 0.46, beltZ - 0.04)} />
       <g className="lq-truck__grille">
         {[0, 1, 2].map((i) => {
           const z = beltZ - 0.38 + i * 0.11;
-          const a = at(cab1 + 0.02, 0.19, z);
-          const b = at(cab1 + 0.02, WIDTH - 0.19, z);
+          const a = at(cab1 + 0.02, CAB_INSET + 0.07, z);
+          const b = at(cab1 + 0.02, WIDTH - CAB_INSET - 0.07, z);
           return <line key={z} x1={a.x} y1={a.y} x2={b.x} y2={b.y} />;
         })}
       </g>
       {/* Dans le pare-chocs, donc au nu de la face : ils étaient posés douze centièmes devant, sur
           la saillie qui n'existe plus. */}
-      <polygon className="lq-truck__lamp" points={frontFace(cab1 + 0.01, 0.09, 0.35, 0.34, 0.5)} />
-      <polygon className="lq-truck__lamp" points={frontFace(cab1 + 0.01, WIDTH - 0.35, WIDTH - 0.09, 0.34, 0.5)} />
+      <polygon className="lq-truck__lamp" points={frontFace(cab1 + 0.01, CAB_INSET, CAB_INSET + 0.26, 0.34, 0.5)} />
+      <polygon className="lq-truck__lamp" points={frontFace(cab1 + 0.01, WIDTH - CAB_INSET - 0.26, WIDTH - CAB_INSET, 0.34, 0.5)} />
     </g>
   ) : null;
 
@@ -554,10 +685,10 @@ export function SemiTruck({
         "cab",
         "cab",
         [
-          { ring: roundedRing(cab0, cab1, 0.02, WIDTH - 0.02, 0.22, 4), z0: cabZ0, z1: beltZ },
-          { ring: roundedRing(cab0, cab1 - WINDSHIELD, 0.02, WIDTH - 0.02, 0.22, 4), z0: beltZ, z1: cabZ1 },
+          { ring: cabFloorRing, z0: cabZ0, z1: beltZ },
+          { ring: roundedRing(cab0, cab1 - WINDSHIELD, 0.02, WIDTH - 0.02, CAB_R, 4), z0: beltZ, z1: cabZ1 },
           ...filletLayers(
-            (d) => roundedRing(cab0 + d, cab1 - WINDSHIELD - d, 0.02 + d, WIDTH - 0.02 - d, 0.22, 4),
+            (d) => roundedRing(cab0 + d, cab1 - WINDSHIELD - d, 0.02 + d, WIDTH - 0.02 - d, CAB_R, 4),
             cabZ1,
             ROOF_R,
             ROOF_STEPS
@@ -572,13 +703,13 @@ export function SemiTruck({
           // Elle court presque jusqu'au montant : s'arrêtant à mi-pavillon, elle laissait devant
           // elle une bande de toit plate, large et en pleine lumière, qui se lit comme une trappe
           // ouverte au milieu du toit. Un pavillon de couchette est une seule surface qui monte.
-          { ring: roundedRing(cab0 + 0.03, cab1 - WINDSHIELD - 0.34, 0.05, WIDTH - 0.05, 0.18, 3), z0: roofZ, z1: deflectorZ - 0.05 },
-          ...filletLayers(
-            (d) => roundedRing(cab0 + 0.03 + d, cab1 - WINDSHIELD - 0.34 - d, 0.05 + d, WIDTH - 0.05 - d, 0.18, 3),
-            deflectorZ - 0.05,
-            0.05,
-            2
-          ),
+          // Et elle monte **d'un seul pan**, au ras du pare-brise.
+          //
+          // Reculée d'un tiers de case et coiffée de son propre congé, elle laissait devant elle une
+          // bande de toit plate, puis deux marches sombres avant son dessus : trois plans parallèles
+          // là où il n'y a qu'une carène, et l'œil y lisait des rayures en travers du toit plutôt
+          // qu'un pavillon. Une face, un dessus, rien entre les deux.
+          { ring: roundedRing(cab0 + 0.03, cab1 - WINDSHIELD - 0.1, 0.05, WIDTH - 0.05, CAB_R, 3), z0: roofZ, z1: deflectorZ },
         ],
         (
           <>
@@ -591,35 +722,49 @@ export function SemiTruck({
     </g>
   );
 
-  /** Les rétroviseurs : une glace et le bras court qui la tient, de chaque côté du pare-brise. */
-  const mirrors = (
-    <g key="mirrors">
-      {acrossY(
-        [
-          { y: -0.07, arm: [-0.04, 0.05] as const },
-          { y: WIDTH - 0.01, arm: [WIDTH - 0.05, WIDTH + 0.04] as const },
-        ].map((m) => ({
-          y: m.y,
-          node: (
-            <g key={`mirror${m.y}`}>
-              {prism("cab", `arm${m.y}`, roundedRing(cab1 - WINDSHIELD - 0.13, cab1 - WINDSHIELD - 0.09, m.arm[0], m.arm[1], 0.015), cabZ1 - 0.3, cabZ1 - 0.25)}
-              {/* La glace pend sous le bras sur une demi-case — la hauteur d'un vrai rétroviseur de
-                  camion. Descendue jusqu'à la ceinture, elle cessait d'être un rétroviseur pour
-                  devenir un poteau planté devant la portière, et c'est ce qu'on voyait. */}
-              {prism("cab", `mirror${m.y}`, roundedRing(cab1 - WINDSHIELD - 0.16, cab1 - WINDSHIELD - 0.09, m.y, m.y + 0.1, 0.025), cabZ1 - 0.72, cabZ1 - 0.28)}
-            </g>
-          ),
-        }))
-      )}
+  /**
+   * Les rétroviseurs : une glace et le bras court qui la tient, de chaque côté du pare-brise.
+   *
+   *  Ils ne peuvent pas être **un** groupe dans l'ordre en longueur, et c'est ce qui donnait au
+   *  pare-brise l'air d'être transparent : les deux rétroviseurs partagent la même position le long
+   *  du camion, donc l'ordre en x les traitait ensemble, tous les deux après la cabine. Celui du
+   *  côté opposé se peignait alors par-dessus la glace, et on voyait au travers un rétroviseur qui
+   *  est en réalité derrière toute la cabine.
+   *
+   *  Ce qui les sépare n'est pas leur longueur mais leur **travers** : l'un est devant la cabine,
+   *  l'autre derrière, et la cabine passe entre les deux. */
+  const mirror = (m: { y: number; arm: readonly [number, number] }) => (
+    <g key={`mirror${m.y}`}>
+      {prism("cab", `arm${m.y}`, roundedRing(cab1 - WINDSHIELD - 0.13, cab1 - WINDSHIELD - 0.09, m.arm[0], m.arm[1], 0.015), cabZ1 - 0.3, cabZ1 - 0.25)}
+      {/* La glace pend sous le bras sur une demi-case — la hauteur d'un vrai rétroviseur de
+          camion. Descendue jusqu'à la ceinture, elle cessait d'être un rétroviseur pour
+          devenir un poteau planté devant la portière, et c'est ce qu'on voyait. */}
+      {prism("cab", `mirror${m.y}`, roundedRing(cab1 - WINDSHIELD - 0.16, cab1 - WINDSHIELD - 0.09, m.y, m.y + 0.1, 0.025), cabZ1 - 0.72, cabZ1 - 0.28)}
     </g>
   );
+  const mirrorSides = [
+    { y: -0.07, arm: [-0.04, 0.05] as const },
+    { y: WIDTH - 0.01, arm: [WIDTH - 0.05, WIDTH + 0.04] as const },
+  ].sort((a, b) => (a.y - b.y) * facing.yFace);
 
 
 
   const above = alongX([
-    { x: 0, node: trailer },
-    { x: cab0 + 0.01, node: cab },
-    { x: cab1 - WINDSHIELD - 0.11, node: mirrors },
+    ...(hasTrailer ? [{ x: 0, node: trailer }] : []),
+    ...(hasTractor
+      ? [
+          {
+            x: cab0 + 0.01,
+            node: (
+              <g key="cab-and-mirrors">
+                {mirror(mirrorSides[0])}
+                {cab}
+                {mirror(mirrorSides[1])}
+              </g>
+            ),
+          },
+        ]
+      : []),
   ]);
 
   // ---- l'ombre ----
@@ -630,20 +775,24 @@ export function SemiTruck({
   };
   const shade = shadows ? (
     <g>
-      {sweep(0, T, 0, WIDTH, trailerZ1, "s-trailer")}
-      {sweep(cab0, LENGTH, 0.03, WIDTH - 0.03, deflectorZ, "s-cab")}
+      {hasTrailer && sweep(0, T, 0, WIDTH, trailerZ1, "s-trailer")}
+      {hasTractor && sweep(cab0, LENGTH, 0.03, WIDTH - 0.03, deflectorZ, "s-cab")}
     </g>
   ) : null;
 
   // ---- le cadrage ----
+  // Le cadre se serre sur le véhicule dessiné : le tracteur seul n'a pas à réserver la place d'une
+  // remorque absente, sans quoi il se retrouverait dans un coin d'une image aux trois quarts vide.
+  const boundX0 = hasTrailer ? 0 : tractor0 - 0.1;
+  const boundX1 = hasTractor ? LENGTH : T;
   const corners: Point[] = frame
     ? frameCorners(frame, world, cam.sun)
-    : [0, trailerZ1 + 0.2].flatMap((z) =>
+    : [0, (hasTrailer ? trailerZ1 : deflectorZ) + 0.2].flatMap((z) =>
         [
-          [0, 0],
-          [LENGTH, 0],
-          [LENGTH, WIDTH],
-          [0, WIDTH],
+          [boundX0, 0],
+          [boundX1, 0],
+          [boundX1, WIDTH],
+          [boundX0, WIDTH],
         ].map(([x, y]) => at(x, y, z))
       );
   const minX = Math.min(...corners.map((p) => p.x)) - PAD;

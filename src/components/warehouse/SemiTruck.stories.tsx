@@ -18,6 +18,36 @@ export const Camion: Story = {
   ),
 };
 
+/** Le tracteur seul, dételé.
+ *
+ *  Ce n'est pas un cadrage plus serré du semi : c'est l'autre moitié de l'attelage, celle qui roule
+ *  et qui s'en va chercher une autre remorque. On voit ce que la remorque cache le reste du temps —
+ *  la sellette, le bas de caisse continu du pare-chocs à l'essieu moteur, le dos de la cabine. */
+export const Tracteur: Story = {
+  name: "Le tracteur seul",
+  args: { vehicle: "tractor", rotation: 0, shadows: true, cellSize: 60 },
+  render: (args) => (
+    <div style={{ padding: 40 }}>
+      <SemiTruck {...args} />
+    </div>
+  ),
+};
+
+/** La remorque seule, posée sur ses béquilles.
+ *
+ *  Une semi-remorque n'a pas d'essieu avant : dételée, elle tient debout sur son tridem et sur les
+ *  deux béquilles qu'on descend à la manivelle. C'est ce qui se voit ici, et qui explique la
+ *  sellette d'en face. */
+export const Remorque: Story = {
+  name: "La remorque seule",
+  args: { vehicle: "trailer", trailerLength: 7.6, rotation: 0, shadows: true, cellSize: 40 },
+  render: (args) => (
+    <div style={{ padding: 40 }}>
+      <SemiTruck {...args} />
+    </div>
+  ),
+};
+
 /** Quatre caps. Ce qui est sous la caisse passe avant elle ; au-dessus, le camion se range le long
  *  de sa longueur, dans l'ordre où la caméra le voit — ce qui tient à tout cap. Les portes arrière ne
  *  sont tracées que quand leur face regarde la caméra. */

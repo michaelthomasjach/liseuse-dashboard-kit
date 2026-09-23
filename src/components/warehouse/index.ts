@@ -47,6 +47,8 @@ export { IsoCamera, isoCamera, useIsoCamera } from "./isoCamera";
 export type { IsoCameraView } from "./isoCamera";
 
 export { RotationGizmo, useDragRotation } from "./RotationGizmo";
+export { ZoomGizmo, useWheelZoom, clampZoom, ZOOM_MIN, ZOOM_MAX } from "./ZoomGizmo";
+export type { ZoomGizmoProps } from "./ZoomGizmo";
 export type { RotationGizmoProps } from "./RotationGizmo";
 
 export { RackItem } from "./RackItem";

@@ -451,10 +451,21 @@ export function Wall({
   );
 
   // ---- l'ombre ----
+  /**
+   * L'ombre tombe sur le sol **où le mur est posé**, et non au zéro du monde.
+   *
+   *  Écrite à zéro, l'ombre d'un mur assis sur une plateforme s'étalait à l'étage du dessous : elle
+   *  sortait de sous la dalle, décalée de toute la hauteur de celle-ci, et le mur paraissait
+   *  flotter au-dessus de son ombre. Deux choses en découlent, et ce sont les deux mêmes :
+   *
+   *  - elle se projette à la hauteur `sole`, celle du plancher qui la reçoit ;
+   *  - elle s'allonge de ce que le mur fait **au-dessus de ce plancher**, et non de sa cote
+   *    absolue — un mur de trois mètres posé sur un quai en fait toujours trois, pas quatre.
+   */
   const sweep = (x0: number, x1: number, h: number, key: string) => {
     const foot = [onGround(x0, 0), onGround(x1, 0), onGround(x1, D), onGround(x0, D)];
     const cast = foot.map((p) => ({ x: p.x + cam.sun.x * h, y: p.y + cam.sun.y * h }));
-    return <polygon key={key} className="lq-iso__shadow" points={ring(convexHull([...foot, ...cast].map((p) => world(p.x, p.y, 0))))} />;
+    return <polygon key={key} className="lq-iso__shadow" points={ring(convexHull([...foot, ...cast].map((p) => world(p.x, p.y, sole))))} />;
   };
   // Une ouverture laisse passer la lumière, mais son linteau porte quand même : l'ombre est celle du
   // mur entier, moins les tranches de sol qu'on voit par les portes.
@@ -466,7 +477,7 @@ export function Wall({
     from = Math.max(from, h.x1);
   }
   if (from < L) spans.push([from, L]);
-  const shade = shadows ? <g>{spans.map(([a, b], i) => sweep(a, b, top, `s${i}`))}</g> : null;
+  const shade = shadows ? <g>{spans.map(([a, b], i) => sweep(a, b, top - sole, `s${i}`))}</g> : null;
 
   // ---- le cadrage ----
   const corners: Point[] = frame

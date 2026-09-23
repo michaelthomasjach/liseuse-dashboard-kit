@@ -79,7 +79,7 @@ export function isoCamera(yaw = 0, tilt = ISO_TILT): IsoCameraView {
 
 const IsoCameraContext = createContext<{ yaw: number; tilt: number }>({ yaw: 0, tilt: ISO_TILT });
 
-/** Le site, ramené entre ses bornes : de 5°, presque au ras du sol, à 50°, presque à la verticale. */
+/** Le site, ramené entre ses bornes : de 0°, dans le plan du sol, à 90°, à la verticale. */
 export const clampTilt = (deg: number) => Math.min(ISO_TILT_MAX, Math.max(ISO_TILT_MIN, deg));
 
 /** Oriente la caméra de toutes les pièces isométriques qu'il contient : son cap, et son site. */

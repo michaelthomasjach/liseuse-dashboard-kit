@@ -50,18 +50,18 @@ const TILT = 60;
  */
 export const ISO_TILT = 90 - TILT;
 /**
- * Les bornes du réglage.
+ * Les bornes du réglage : tout ce qu'une caméra peut voir d'un sol, de l'horizon au zénith.
  *
- *  En bas, 5° : presque au ras du sol, une scène s'aplatit en frise et on la lit comme une
- *  élévation plutôt que comme un plan — c'est une vue utile, celle où l'on compare des hauteurs,
- *  et c'est pour ça qu'on descend si bas. Zéro serait l'horizon, où le sol n'a plus d'épaisseur
- *  apparente et où rien ne dit plus ce qui est devant.
+ *  À **0°** on est dans le plan du sol : il n'a plus d'épaisseur apparente, la scène est une
+ *  élévation pure, et rien ne dit plus ce qui est devant — l'ordre de peinture tient encore, mais
+ *  tout se superpose sur une ligne. C'est une vue de coupe, et elle se lit comme telle.
  *
- *  En haut, 50° : au-delà on tombe à la verticale, les faces debout se réduisent et l'isométrie
- *  devient un plan.
+ *  À **90°** on est à la verticale : les faces debout disparaissent et il ne reste que les dessus,
+ *  c'est-à-dire un plan. Le kit en dessine un vrai par ailleurs (`WarehouseCanvas`), mais y arriver
+ *  en inclinant la caméra est ce qui rend les deux comparables.
  */
-export const ISO_TILT_MIN = 5;
-export const ISO_TILT_MAX = 50;
+export const ISO_TILT_MIN = 0;
+export const ISO_TILT_MAX = 90;
 /** Turn about the vertical. 45° is what puts the corner of the plan toward the viewer and makes
  *  both visible walls of a box equal — anything else favours one side. */
 const SWING = 45;

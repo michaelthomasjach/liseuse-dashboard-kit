@@ -63,7 +63,7 @@ import "./SemiTruck.css";
  */
 
 export interface SemiTruckProps {
-  /** Longueur de la remorque, en cases. */
+  /** Longueur de la remorque, en cases. Par défaut, la cote de la planche : 13 620 mm. */
   trailerLength?: number;
   /** Rotation sur le sol, en degrés. À 0, la cabine regarde vers les `x` croissants. */
   rotation?: number;
@@ -82,7 +82,47 @@ export interface SemiTruckProps {
 }
 
 const PAD = 2;
-const WIDTH = 1.3;
+
+/**
+ * Les cotes du camion, en millimètres, relevées sur la planche.
+ *
+ * Elles sont ici en toutes lettres plutôt que converties, et c'est délibéré : un nombre comme
+ * `1.46` ne se vérifie contre rien, alors que `2 920 mm` se lit sur le plan. Tant que les cotes
+ * étaient choisies à l'œil, chaque correction en déplaçait une autre ; une fois qu'elles viennent
+ * toutes de la même planche, elles sont d'équerre entre elles par construction.
+ *
+ * L'échelle est le seul choix libre : une case du sol vaut deux mètres, ce qui met la largeur
+ * réglementaire de 2 550 mm à un peu plus d'une case et le semi complet à un peu plus de huit.
+ */
+const MM = 1 / 2000;
+
+const WIDTH_MM = 2550;
+/** La remorque : 13 620 de long, 4 000 de haut — **plus haute que la cabine**, ce qui est le fait
+ *  que le dessin ratait le plus : à hauteur égale les deux se lisent comme un seul bloc. */
+const TRAILER_LEN_MM = 13620;
+const TRAILER_H_MM = 4000;
+/** La cabine : 2 920 de long, 3 700 de haut. Soit 18 % de la longueur totale — c'est cette
+ *  proportion qui fait un semi, et non la taille de la cabine prise isolément. */
+const CAB_LEN_MM = 2920;
+const CAB_H_MM = 3700;
+/** Porte-à-faux avant, puis empattement du tracteur : 1 400 et 3 700. C'est ce qui place l'essieu
+ *  directeur *sous* la cabine et l'essieu moteur loin derrière elle. */
+const FRONT_OVERHANG_MM = 1400;
+const CAB_WHEELBASE_MM = 3700;
+/** Porte-à-faux arrière de la remorque, et le pas du tridem. */
+const REAR_OVERHANG_MM = 1320;
+const TRIDEM_PITCH_MM = 1310;
+/** Plancher de remorque : la hauteur hors-tout moins la hauteur utile (2 720) et l'épaisseur du
+ *  pavillon. */
+const TRAILER_FLOOR_MM = 1180;
+/** Bas de la cabine, ceinture de caisse (bas du pare-brise), et le pneu — un 315/70 R22.5 fait
+ *  1 050 mm de diamètre. */
+const CAB_FLOOR_MM = 1150;
+const BELT_MM = 2320;
+const WHEEL_R_MM = 525;
+const TYRE_W_MM = 385;
+
+const WIDTH = WIDTH_MM * MM;
 /** Le congé du toit de la cabine : son rayon, et en combien de couches on le monte. */
 const ROOF_R = 0.13;
 const ROOF_STEPS = 4;
@@ -90,7 +130,7 @@ const ROOF_STEPS = 4;
 const ring = (points: Point[]) => points.map((p) => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(" ");
 
 export function SemiTruck({
-  trailerLength = 7.6,
+  trailerLength = TRAILER_LEN_MM * MM,
   rotation = 0,
   shadows = false,
   origin = { x: 0, y: 0 },
@@ -100,13 +140,27 @@ export function SemiTruck({
   className,
 }: SemiTruckProps) {
   const cam = useIsoCamera();
-  // ---- les cotes, en cases, le long du camion ----
+  // ---- les cotes, le long du camion ----
+  //
+  // L'origine est l'arrière de la remorque et les x montent vers le nez, comme la vue de profil de
+  // la planche se lit de droite à gauche. Tout ce qui suit est une cote du plan divisée par
+  // l'échelle : rien n'est choisi ici.
   const T = Math.max(3, trailerLength);
-  const kingpin = T - 0.9; // où la remorque repose sur le tracteur
-  const tractor0 = kingpin - 0.9; // l'arrière du tracteur
-  const cab0 = T + 0.22; // l'arrière de la cabine, juste devant la remorque
-  const cab1 = cab0 + 1.62; // le nez du camion
-  const LENGTH = cab1 + 0.1; // le pare-chocs
+  /** Le tracteur est ce qui dépasse devant la remorque : la longueur hors-tout moins la remorque.
+   *  La cabine occupe exactement cette avancée, et sa face arrière touche celle de la remorque —
+   *  c'est ce que montre la vue de profil, et c'est ce qui rend le semi compact. */
+  const cab0 = T;
+  // La planche donne la même avancée par deux chemins — le hors-tout moins la remorque
+  // (16 540 − 13 620 = 2 920) et la longueur de cabine (2 920) — et ils concordent. On prend la
+  // seconde, la seule des deux que le plan mesure directement sur la pièce.
+  const cab1 = T + CAB_LEN_MM * MM;
+  const LENGTH = cab1;
+  /** L'axe directeur, à 1 400 du nez, et l'axe moteur 3 700 derrière lui. */
+  const steerX = cab1 - FRONT_OVERHANG_MM * MM;
+  const driveX = steerX - CAB_WHEELBASE_MM * MM;
+  /** La sellette repose au-dessus de l'essieu moteur : c'est là que la remorque s'appuie. */
+  const kingpin = driveX + 0.1;
+  const tractor0 = driveX - 0.55; // l'arrière du châssis tracteur
 
   const theta = (rotation * Math.PI) / 180;
   const cosT = Math.cos(theta);
@@ -143,16 +197,25 @@ export function SemiTruck({
   const stack = (material: string, key: string, layers: VolumeLayer[], extra?: ReactNode) =>
     stackedVolume(material, key, at, layers, facing, localView, extra);
 
-  const r = 0.26;
-  const tyre = 0.2;
+  const r = WHEEL_R_MM * MM;
+  const tyre = TYRE_W_MM * MM;
   const sideY = [tyre / 2 + 0.01, WIDTH - tyre / 2 - 0.01];
   // L'essieu directeur est **sous la cabine** — c'est ce qui fait une cabine avancée — et les deux
   // essieux moteurs sont derrière elle, sous le nez de la remorque.
-  const axles = [0.9, 1.5, 2.1, tractor0 + 0.35, tractor0 + 0.95, cab1 - 0.45];
+  // Le tridem se compte depuis l'arrière — porte-à-faux, puis deux fois le pas — et le tracteur
+  // depuis le nez. Les six essieux d'un semi ne se placent pas au jugé : ce sont eux qui disent où
+  // la charge passe.
+  const axles = [
+    REAR_OVERHANG_MM * MM,
+    (REAR_OVERHANG_MM + TRIDEM_PITCH_MM) * MM,
+    (REAR_OVERHANG_MM + 2 * TRIDEM_PITCH_MM) * MM,
+    driveX,
+    steerX,
+  ];
   const beamY0 = 0.38;
   const beamY1 = WIDTH - 0.38;
-  const trailerZ0 = 0.78;
-  const trailerZ1 = 2.35;
+  const trailerZ0 = TRAILER_FLOOR_MM * MM;
+  const trailerZ1 = TRAILER_H_MM * MM;
   /**
    * Le plancher de la cabine — au niveau de celui de la remorque, pas à mi-hauteur des roues.
    *
@@ -162,7 +225,7 @@ export function SemiTruck({
    * plancher est à la même hauteur que le plancher de la remorque — c'est pour ça qu'on y monte par
    * trois marches.
    */
-  const cabZ0 = 0.74;
+  const cabZ0 = CAB_FLOOR_MM * MM;
   /**
    * Les trois hauteurs d'une cabine, et pourquoi elles sont trois.
    *
@@ -174,7 +237,7 @@ export function SemiTruck({
    * Le volume est donc en deux étages : le bas va jusqu'au nez du camion (`cab1`), le haut s'arrête
    * en retrait (`cab1 − WINDSHIELD`), et le pan qui les relie est le pare-brise.
    */
-  const beltZ = 1.30;
+  const beltZ = BELT_MM * MM;
   /**
    * Le haut de la cabine — presque à hauteur de caisse.
    *
@@ -183,11 +246,16 @@ export function SemiTruck({
    * semi, un bloc continu que le déflecteur finit de raccorder. Une cabine qui s'arrête bien plus
    * bas est celle d'un porteur de chantier, pas celle qui vient à un quai.
    */
-  const cabZ1 = 2.12;
+  const cabZ1 = CAB_H_MM * MM - ROOF_R;
   const roofZ = cabZ1 + ROOF_R;
   /** Le déflecteur monte à hauteur de caisse : c'est à ça qu'il sert, coucher le filet d'air
    *  par-dessus la remorque au lieu de le laisser taper dedans. */
-  const deflectorZ = trailerZ1 - 0.02;
+  /** La carène s'arrête au toit de la cabine — 3 700 — et **pas** à hauteur de caisse.
+   *
+   *  La planche est nette là-dessus : la remorque fait 4 000, la cabine 3 700, et les 300 mm
+   *  d'écart sont ce qui fait lire deux véhicules attelés plutôt qu'un seul fourgon. Monter la
+   *  carène jusqu'au toit de la remorque efface précisément cet écart. */
+  const deflectorZ = CAB_H_MM * MM;
   /** De combien le haut de la cabine est en retrait du nez : la pente du pare-brise. */
   const WINDSHIELD = 0.2;
 
@@ -300,23 +368,28 @@ export function SemiTruck({
    *  un bandeau blanc sous le pare-brise dès qu'on approche : à cette échelle, six centièmes de
    *  case font trois pixels de tôle là où l'œil attend la jonction. La glace touche donc la
    *  ceinture, et c'est le montant qui fait la séparation. */
-  const GLASS_Z0 = beltZ + 0.03;
-  const GLASS_Z1 = cabZ1 - 0.13;
+  /** Le pare-brise va de la ceinture (2 320) à juste sous le pavillon.
+   *
+   *  Sur la planche il occupe presque toute la moitié haute de la face : c'est la plus grande
+   *  surface de la cabine, loin devant la calandre. Réduit à un bandeau, il rendait la face avant
+   *  majoritairement tôlée — l'inverse de ce que montre le plan. */
+  const GLASS_Z0 = beltZ;
+  const GLASS_Z1 = cabZ1 - 0.04;
   const windshield = front ? (
     <g>
       <polygon
         className="lq-truck__glass"
         points={ring([
-          at(cab1 - WINDSHIELD, 0.19, GLASS_Z1),
-          at(cab1 - WINDSHIELD, WIDTH - 0.19, GLASS_Z1),
-          at(cab1 - 0.03, WIDTH - 0.19, GLASS_Z0),
-          at(cab1 - 0.03, 0.19, GLASS_Z0),
+          at(cab1 - WINDSHIELD, 0.12, GLASS_Z1),
+          at(cab1 - WINDSHIELD, WIDTH - 0.12, GLASS_Z1),
+          at(cab1 - 0.03, WIDTH - 0.12, GLASS_Z0),
+          at(cab1 - 0.03, 0.12, GLASS_Z0),
         ])}
       />
       {/* Le montant : un trait, pas un volume. Il sépare le pare-brise de la vitre de coin et c'est
           tout ce qu'il a à faire. */}
       <g className="lq-truck__door">
-        {[0.19, WIDTH - 0.19].map((y) => {
+        {[0.12, WIDTH - 0.12].map((y) => {
           const a = at(cab1 - WINDSHIELD, y, GLASS_Z1);
           const b = at(cab1 - 0.03, y, GLASS_Z0);
           return <line key={y} x1={a.x} y1={a.y} x2={b.x} y2={b.y} />;
@@ -337,17 +410,17 @@ export function SemiTruck({
     <g>
       {/* Un panneau, pas des traits perdus au milieu d'une grande tôle claire : trois lignes seules
           flottent, et c'est ce qu'on voyait. La calandre est une pièce, et elle porte ses barres. */}
-      <polygon className="lq-truck__panel" points={frontFace(cab1 + 0.01, 0.24, WIDTH - 0.24, beltZ - 0.44, beltZ - 0.06)} />
+      <polygon className="lq-truck__panel" points={frontFace(cab1 + 0.01, 0.15, WIDTH - 0.15, beltZ - 0.46, beltZ - 0.04)} />
       <g className="lq-truck__grille">
-        {[0, 1].map((i) => {
-          const z = beltZ - 0.32 + i * 0.12;
-          const a = at(cab1 + 0.02, 0.28, z);
-          const b = at(cab1 + 0.02, WIDTH - 0.28, z);
+        {[0, 1, 2].map((i) => {
+          const z = beltZ - 0.38 + i * 0.11;
+          const a = at(cab1 + 0.02, 0.19, z);
+          const b = at(cab1 + 0.02, WIDTH - 0.19, z);
           return <line key={z} x1={a.x} y1={a.y} x2={b.x} y2={b.y} />;
         })}
       </g>
-      <polygon className="lq-truck__lamp" points={frontFace(cab1 + 0.12, 0.1, 0.32, 0.36, 0.54)} />
-      <polygon className="lq-truck__lamp" points={frontFace(cab1 + 0.12, WIDTH - 0.32, WIDTH - 0.1, 0.36, 0.54)} />
+      <polygon className="lq-truck__lamp" points={frontFace(cab1 + 0.12, 0.08, 0.34, 0.32, 0.5)} />
+      <polygon className="lq-truck__lamp" points={frontFace(cab1 + 0.12, WIDTH - 0.34, WIDTH - 0.08, 0.32, 0.5)} />
     </g>
   ) : null;
 

@@ -211,6 +211,12 @@ export function SemiTruck({
 
   const box = (material: string, key: string, x0: number, x1: number, y0: number, y1: number, z0: number, z1: number, extra?: ReactNode) =>
     solidVolume(material, key, boxFaces(at, x0, x1, y0, y1, z0, z1, facing), false, extra);
+  /** Le nez regarde-t-il la caméra ? C'est ce qui décide de la calandre, du pare-brise, de la
+   *  casquette — et de la place du pare-chocs dans l'ordre de peinture. */
+  const front = facing.xFace > 0;
+  /** Un quadrilatère plaqué sur un flanc d'ordonnée constante. */
+  const sideFace = (y: number, x0: number, x1: number, z0: number, z1: number) =>
+    ring([at(x0, y, z0), at(x1, y, z0), at(x1, y, z1), at(x0, y, z1)]);
   /** Un quadrilatère plaqué sur une face d'abscisse constante : calandre, feux, plaques. Défini
    *  ici, avec les autres primitives, parce que le châssis s'en sert aussi — et qu'une constante
    *  déclarée plus bas n'existe pas encore quand on la lit. */
@@ -472,13 +478,31 @@ export function SemiTruck({
    *  pas ; on les sépare, et la question ne se pose plus à aucun cap.
    */
   const archGap = r + FENDER_GAP + FENDER_T + 0.025;
+  /**
+   * Les marchepieds, **creusés dans le flanc du pare-chocs**.
+   *
+   *  En petits caissons rapportés ils ne marchaient à aucun cap : vus par la tranche — ce qui
+   *  arrive dès qu'on regarde le camion de face — cinq centimètres d'épaisseur ne laissent voir
+   *  que le contour, et deux cadres vides flottaient au coin du pare-chocs. Une marche de cabine
+   *  avancée n'est de toute façon pas une pièce ajoutée : elle est *creusée* dedans. Deux
+   *  panneaux sur le flanc, du côté qu'on voit, disent la même chose sans rien ajouter au volume —
+   *  et sans rien à ranger dans l'ordre de peinture.
+   */
+  const stepY = facing.yFace > 0 ? WIDTH - VALANCE_Y + 0.002 : VALANCE_Y - 0.002;
+  const bumperSteps = (
+    <>
+      <polygon className="lq-truck__panel" points={sideFace(stepY, cab1 - 0.31, cab1 - 0.13, 0.29, 0.36)} />
+      <polygon className="lq-truck__panel" points={sideFace(stepY, cab1 - 0.29, cab1 - 0.15, 0.45, 0.52)} />
+    </>
+  );
   const bumperPart = prism(
     "cab",
     "bumper",
     // Se termine exactement sur `cab1`, le nez de la cabine : au nu, sans saillie.
     roundedRing(steerX + archGap, cab1, VALANCE_Y, WIDTH - VALANCE_Y, 0.07),
     VALANCE_Z0,
-    VALANCE_Z1
+    VALANCE_Z1,
+    bumperSteps
   );
   /** Le morceau arrière **ne s'arrête plus au dos de la cabine** : il file jusqu'à l'essieu moteur.
    *
@@ -502,14 +526,22 @@ export function SemiTruck({
   const chassisZ0 = 0.42;
   const chassis = box("iron", "chassis", tractor0, steerX - archGap, 0.1, WIDTH - 0.1, chassisZ0, cabZ0);
 
-  const valance = (
-    <g key="valance">
-      {alongX([
-        { x: tractor0, node: <g key="chassis">{chassis}</g> },
-        { x: cab1, node: <g key="bumper">{bumperPart}</g> },
-      ])}
-    </g>
-  );
+  /**
+   * Le pare-chocs se range **en longueur**, et il sort donc du groupe du châssis.
+   *
+   *  Rangé en travers avec lui, il se peignait entre les deux files de roues — et la file de
+   *  devant passait après, donc la roue directrice et son garde-boue venaient par-dessus le
+   *  pare-chocs, qui est pourtant devant eux. L'ordre en travers ne pouvait pas trancher : le
+   *  pare-chocs tient toute la largeur, les roues sont en dehors, aucune n'est « avant » l'autre
+   *  en travers.
+   *
+   *  En longueur, la réponse est nette : le pare-chocs occupe du nez jusqu'au passage de roue, les
+   *  essieux sont derrière, et les deux emprises ne se touchent plus depuis que le dégagement
+   *  tient compte du garde-boue. Nez vers la caméra il se peint donc en dernier, cul vers la
+   *  caméra en premier — deux cas, parce qu'il n'y a que deux positions possibles pour une pièce
+   *  qui est à un bout du véhicule.
+   */
+  const bumper = <g key="bumper">{bumperPart}</g>;
 
   /**
    * L'équipement du tracteur — celui qu'on reconnaît de loin.
@@ -537,21 +569,7 @@ export function SemiTruck({
       {prism("steel", `tank${y0}`, roundedRing(driveX + 0.42, cab0 - 0.06, y0, y0 + 0.2, 0.06), TANK_Z0, TANK_Z1)}
     </g>
   );
-  /**
-   * Les marchepieds : deux marches décalées, **logées dans le pare-chocs**.
-   *
-   *  Posées entre la roue directrice et le pare-chocs, elles n'avaient rien où se tenir : le
-   *  passage de roue les séparait de l'un et elles s'arrêtaient avant l'autre, si bien qu'elles
-   *  flottaient en deux plateaux devant le pneu. Sur une cabine avancée on monte par le
-   *  pare-chocs, les marches sont creusées dedans ; ancrées dans son emprise et à peine
-   *  débordantes, elles en font partie au lieu d'être posées devant.
-   */
-  const steps = (out: number) => (
-    <g key={`steps${out}`}>
-      {box("cab", `step-lo${out}`, cab1 - 0.3, cab1 - 0.12, Math.min(out, 0.06), Math.max(out, 0.06), 0.28, 0.33)}
-      {box("cab", `step-hi${out}`, cab1 - 0.28, cab1 - 0.14, Math.min(out, 0.07), Math.max(out, 0.07), 0.45, 0.5)}
-    </g>
-  );
+
   /** Les feux arrière, dans la traverse de queue. Tracés seulement quand cette face regarde la
    *  caméra : sinon le plateau les cache, et les peindre par-dessus les ferait traverser. */
   const rearLamps =
@@ -568,11 +586,12 @@ export function SemiTruck({
 
   const under = (
     <g key="under">
+      {hasTractor && !front && bumper}
       {acrossY([
         ...(hasTractor
           ? [
-              { y: 0.0, node: <g key="rig-near">{tank(-0.01)}{steps(-0.03)}</g> },
-              { y: WIDTH, node: <g key="rig-far">{tank(WIDTH - 0.19)}{steps(WIDTH + 0.03)}</g> },
+              { y: 0.0, node: <g key="rig-near">{tank(-0.01)}</g> },
+              { y: WIDTH, node: <g key="rig-far">{tank(WIDTH - 0.19)}</g> },
             ]
           : []),
         { y: sideY[0], node: wheelRow(sideY[0]) },
@@ -596,7 +615,7 @@ export function SemiTruck({
                   la sortir devant dès que la caméra passe d'un côté à l'autre, et c'est le
                   pare-chocs qui doublait la cabine. Sous elle, la question ne se pose plus : rien
                   de ce qui est sous le plancher ne peut masquer ce qui est dessus. */}
-              {hasTractor && valance}
+              {hasTractor && chassis}
               {/* La sellette, posée sur le plateau et non suspendue au-dessus : elle part du
                   plancher de cabine, qui est le dessus du châssis, et s'arrête au plancher de la
                   remorque, qu'elle porte — d'un millimètre de plus, elle le traverserait. */}
@@ -637,6 +656,7 @@ export function SemiTruck({
         },
         { y: sideY[1], node: wheelRow(sideY[1]) },
       ])}
+      {hasTractor && front && bumper}
     </g>
   );
 
@@ -666,7 +686,6 @@ export function SemiTruck({
   // ---- la cabine ----
   /** Le plan de l'étage bas de la cabine : du dos au nez, pleine largeur. */
   const cabFloorRing = roundedRing(cab0, cab1, 0.02, WIDTH - 0.02, CAB_R, 4);
-  const front = facing.xFace > 0;
   const sideY1 = facing.yFace > 0 ? WIDTH - 0.015 : 0.015;
 
   /** Un arc échantillonné dans un plan du camion, projeté point par point.

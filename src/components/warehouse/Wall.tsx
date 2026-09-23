@@ -1,3 +1,4 @@
+import { IsoCanvas } from "./isoCanvas";
 import { boxFaces, convexHull, frameCorners, solidVolume, type Point, type Project } from "./rackItems";
 import { useIsoCamera } from "./isoCamera";
 import "./Wall.css";
@@ -257,16 +258,15 @@ export function Wall({
   const boxHeight = Math.max(...corners.map((p) => p.y)) + PAD - minY;
 
   return (
-    <svg
+    <IsoCanvas
       className={["lq-wall", className].filter(Boolean).join(" ")}
       width={boxWidth}
       height={boxHeight}
-      viewBox={`${minX} ${minY} ${boxWidth} ${boxHeight}`}
-      role="img"
-      aria-label={holes.length > 0 ? `Mur à ${holes.length} ouvertures` : "Mur"}
+      viewBox={[minX, minY, boxWidth, boxHeight]}
+      ariaLabel={holes.length > 0 ? `Mur à ${holes.length} ouvertures` : "Mur"}
     >
       {(parts === "all" || parts === "shadow") && shade}
       {(parts === "all" || parts === "machine") && wall}
-    </svg>
+    </IsoCanvas>
   );
 }

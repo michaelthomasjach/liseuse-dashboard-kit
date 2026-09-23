@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { IsoCanvas } from "./isoCanvas";
 import { convexHull, frameCorners, prismVolume, roundedRing, type Point, type Project } from "./rackItems";
 import { useIsoCamera } from "./isoCamera";
 import "./Parking.css";
@@ -238,13 +239,12 @@ export function Parking({
   const boxHeight = Math.max(...corners.map((p) => p.y)) + PAD - minY;
 
   return (
-    <svg
+    <IsoCanvas
       className={["lq-parking", className].filter(Boolean).join(" ")}
       width={boxWidth}
       height={boxHeight}
-      viewBox={`${minX} ${minY} ${boxWidth} ${boxHeight}`}
-      role="img"
-      aria-label={`Parking de ${n * rowCount} places`}
+      viewBox={[minX, minY, boxWidth, boxHeight]}
+      ariaLabel={`Parking de ${n * rowCount} places`}
     >
       {(parts === "all" || parts === "shadow") && shade}
       {(parts === "all" || parts === "machine") && (
@@ -254,6 +254,6 @@ export function Parking({
           {cam.order(cars.map((c) => ({ ...c, width: c.wide, height: c.len }))).map((c) => carBody(c))}
         </>
       )}
-    </svg>
+    </IsoCanvas>
   );
 }

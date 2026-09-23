@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { IsoCanvas } from "./isoCanvas";
 import { boxFaces, castShadow, solidVolume, type Project } from "./rackItems";
 import "./StorageZone.css";
 import { useIsoCamera } from "./isoCamera";
@@ -192,16 +193,15 @@ export function StorageZone({
 
   const filled = pieces.length;
   return (
-    <svg
+    <IsoCanvas
       className={["lq-storage", className].filter(Boolean).join(" ")}
       width={width}
       height={height}
-      viewBox={`${minX} ${minY} ${width} ${height}`}
-      role="img"
-      aria-label={`Zone de stockage, ${filled} emplacement${filled > 1 ? "s" : ""} occupé${filled > 1 ? "s" : ""} sur ${nx * ny}`}
+      viewBox={[minX, minY, width, height]}
+      ariaLabel={`Zone de stockage, ${filled} emplacement${filled > 1 ? "s" : ""} occupé${filled > 1 ? "s" : ""} sur ${nx * ny}`}
     >
       {shade}
       {sorted.map((piece) => piece.render())}
-    </svg>
+    </IsoCanvas>
   );
 }

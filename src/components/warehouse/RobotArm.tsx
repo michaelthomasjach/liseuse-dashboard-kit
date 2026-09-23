@@ -7,6 +7,7 @@ import {
   type Point,
   type Project,
 } from "./rackItems";
+import { IsoCanvas } from "./isoCanvas";
 import { useIsoCamera } from "./isoCamera";
 import "./RobotArm.css";
 
@@ -233,15 +234,14 @@ export function RobotArm({
   );
 
   return (
-    <svg
+    <IsoCanvas
       className={["lq-arm", className].filter(Boolean).join(" ")}
       width={boxWidth}
       height={boxHeight}
-      viewBox={`${minX} ${minY} ${boxWidth} ${boxHeight}`}
-      role="img"
-      aria-label="Bras robotisé"
+      viewBox={[minX, minY, boxWidth, boxHeight]}
+      ariaLabel="Bras robotisé"
     >
       {content}
-    </svg>
+    </IsoCanvas>
   );
 }

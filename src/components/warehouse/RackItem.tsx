@@ -1,3 +1,4 @@
+import { IsoCanvas } from "./isoCanvas";
 import { useIsoCamera } from "./isoCamera";
 import { RACK_ITEM_LABEL, fitRackItem, rackItemIso, rackItemPlan, type Project, type RackItemKind } from "./rackItems";
 import "./rackItems.css";
@@ -27,16 +28,15 @@ export function RackItem({ kind, view = "iso", slot = 2, cellSize = 40, classNam
   if (view === "plan") {
     const size = slot * cellSize;
     return (
-      <svg
+      <IsoCanvas
         className={["lq-rack-item", className].filter(Boolean).join(" ")}
         width={size + pad * 2}
         height={size + pad * 2}
-        viewBox={`${-pad} ${-pad} ${size + pad * 2} ${size + pad * 2}`}
-        role="img"
-        aria-label={RACK_ITEM_LABEL[kind]}
+        viewBox={[-pad, -pad, size + pad * 2, size + pad * 2]}
+        ariaLabel={RACK_ITEM_LABEL[kind]}
       >
         {rackItemPlan(kind, fit, cellSize, kind)}
-      </svg>
+      </IsoCanvas>
     );
   }
 
@@ -63,15 +63,14 @@ export function RackItem({ kind, view = "iso", slot = 2, cellSize = 40, classNam
   const height = Math.max(...corners.map((p) => p.y)) + pad - minY;
 
   return (
-    <svg
+    <IsoCanvas
       className={["lq-rack-item", className].filter(Boolean).join(" ")}
       width={width}
       height={height}
-      viewBox={`${minX} ${minY} ${width} ${height}`}
-      role="img"
-      aria-label={RACK_ITEM_LABEL[kind]}
+      viewBox={[minX, minY, width, height]}
+      ariaLabel={RACK_ITEM_LABEL[kind]}
     >
       {rackItemIso(kind, fit, at, cam.facing(0), kind)}
-    </svg>
+    </IsoCanvas>
   );
 }

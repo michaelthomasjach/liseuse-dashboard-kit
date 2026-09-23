@@ -1,3 +1,4 @@
+import { IsoCanvas } from "./isoCanvas";
 import { boxFaces, solidVolume, type Point, type Project } from "./rackItems";
 import { frameCorners } from "./rackItems";
 import { useIsoCamera } from "./isoCamera";
@@ -93,15 +94,14 @@ export function Floor({
   const boxHeight = Math.max(...corners.map((p) => p.y)) + PAD - minY;
 
   return (
-    <svg
+    <IsoCanvas
       className={["lq-floor", className].filter(Boolean).join(" ")}
       width={boxWidth}
       height={boxHeight}
-      viewBox={`${minX} ${minY} ${boxWidth} ${boxHeight}`}
-      role="img"
-      aria-label="Sol"
+      viewBox={[minX, minY, boxWidth, boxHeight]}
+      ariaLabel="Sol"
     >
       {(parts === "all" || parts === "machine") && slab}
-    </svg>
+    </IsoCanvas>
   );
 }

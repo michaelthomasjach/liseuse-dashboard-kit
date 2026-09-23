@@ -15,6 +15,7 @@ import {
   type Project,
   type RackItemKind,
 } from "./rackItems";
+import { IsoCanvas } from "./isoCanvas";
 import { useIsoCamera } from "./isoCamera";
 import "./Forklift.css";
 
@@ -357,13 +358,12 @@ export function Forklift({
     : "";
 
   return (
-    <svg
+    <IsoCanvas
       className={["lq-forklift", className].filter(Boolean).join(" ")}
       width={boxWidth}
       height={boxHeight}
-      viewBox={`${minX} ${minY} ${boxWidth} ${boxHeight}`}
-      role="img"
-      aria-label="Chariot élévateur"
+      viewBox={[minX, minY, boxWidth, boxHeight]}
+      ariaLabel="Chariot élévateur"
     >
       {running && (
         <defs>
@@ -372,6 +372,6 @@ export function Forklift({
       )}
       {(parts === "all" || parts === "shadow") && shade}
       {(parts === "all" || parts === "machine") && slices}
-    </svg>
+    </IsoCanvas>
   );
 }

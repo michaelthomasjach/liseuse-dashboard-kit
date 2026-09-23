@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { IsoCanvas } from "./isoCanvas";
 import { frameCorners, arcRingVolume, boxFaces, castShadow, solidVolume, spunProject, type Point, type Project } from "./rackItems";
 import "./Rail.css";
 import { useIsoCamera } from "./isoCamera";
@@ -324,13 +325,12 @@ export function Rail({
   const boxHeight = Math.max(...corners.map((p) => p.y)) + PAD - minY;
 
   return (
-    <svg
+    <IsoCanvas
       className={["lq-rail", className].filter(Boolean).join(" ")}
       width={boxWidth}
       height={boxHeight}
-      viewBox={`${minX} ${minY} ${boxWidth} ${boxHeight}`}
-      role="img"
-      aria-label={kind === "corner" ? "Rail d'angle" : "Rail droit"}
+      viewBox={[minX, minY, boxWidth, boxHeight]}
+      ariaLabel={kind === "corner" ? "Rail d'angle" : "Rail droit"}
     >
       {(parts === "all" || parts === "shadow") && shade}
       {(parts === "all" || parts === "machine") && (
@@ -339,6 +339,6 @@ export function Rail({
           {sorted(files).map((piece) => piece.render())}
         </>
       )}
-    </svg>
+    </IsoCanvas>
   );
 }

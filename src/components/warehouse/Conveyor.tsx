@@ -13,6 +13,7 @@ import {
   type RackItemKind,
 } from "./rackItems";
 import "./Conveyor.css";
+import { IsoCanvas } from "./isoCanvas";
 import { useIsoCamera } from "./isoCamera";
 
 /**
@@ -811,14 +812,13 @@ export function Conveyor({
   const boxHeight = Math.max(...corners.map((p) => p.y)) + PAD - minY;
 
   return (
-    <svg
+    <IsoCanvas
       className={["lq-conveyor", !running && "lq-conveyor--stopped", className].filter(Boolean).join(" ")}
       width={boxWidth}
       height={boxHeight}
-      viewBox={`${minX} ${minY} ${boxWidth} ${boxHeight}`}
+      viewBox={[minX, minY, boxWidth, boxHeight]}
       style={{ "--lq-conveyor-cycle": `${cycleSeconds}s` } as CSSProperties}
-      role="img"
-      aria-label={`Tapis roulant ${kind === "corner" ? "d'angle" : "droit"}${running ? ", en marche" : ", arrêté"}`}
+      ariaLabel={`Tapis roulant ${kind === "corner" ? "d'angle" : "droit"}${running ? ", en marche" : ", arrêté"}`}
     >
       {load && (
         <defs>
@@ -849,6 +849,6 @@ export function Conveyor({
         </>
       )}
       {(parts === "all" || parts === "load") && sorted(pieces).map((piece) => piece.render())}
-    </svg>
+    </IsoCanvas>
   );
 }

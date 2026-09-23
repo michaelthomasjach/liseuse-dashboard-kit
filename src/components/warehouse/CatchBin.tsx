@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { IsoCanvas } from "./isoCanvas";
 import { frameCorners, boxFaces, castShadow, solidVolume, type Project } from "./rackItems";
 import "./CatchBin.css";
 import { useIsoCamera } from "./isoCamera";
@@ -239,13 +240,12 @@ export function CatchBin({
   ];
 
   return (
-    <svg
+    <IsoCanvas
       className={["lq-bin", className].filter(Boolean).join(" ")}
       width={boxWidth}
       height={boxHeight}
-      viewBox={`${minX} ${minY} ${boxWidth} ${boxHeight}`}
-      role="img"
-      aria-label={`Bac récupérateur, ${Math.max(0, Math.floor(count))} colis`}
+      viewBox={[minX, minY, boxWidth, boxHeight]}
+      ariaLabel={`Bac récupérateur, ${Math.max(0, Math.floor(count))} colis`}
     >
       {(parts === "all" || parts === "shadow") && shade}
       {(parts === "all" || parts === "machine") && (
@@ -255,6 +255,6 @@ export function CatchBin({
           {sorted.map((piece) => piece.render())}
         </>
       )}
-    </svg>
+    </IsoCanvas>
   );
 }

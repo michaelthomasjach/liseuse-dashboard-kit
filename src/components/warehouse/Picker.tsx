@@ -13,6 +13,7 @@ import {
   type Project,
   type RackItemKind,
 } from "./rackItems";
+import { IsoCanvas } from "./isoCanvas";
 import { RAIL_GAUGE, RAIL_TOP, RAIL_WIDTH } from "./Rail";
 import { useIsoCamera } from "./isoCamera";
 import "./Picker.css";
@@ -618,14 +619,13 @@ export function Picker({
   const boxHeight = Math.max(...corners.map((p) => p.y)) + PAD - minY;
 
   return (
-    <svg
+    <IsoCanvas
       className={["lq-picker", !running && "lq-picker--stopped", className].filter(Boolean).join(" ")}
       width={boxWidth}
       height={boxHeight}
-      viewBox={`${minX} ${minY} ${boxWidth} ${boxHeight}`}
+      viewBox={[minX, minY, boxWidth, boxHeight]}
       style={{ "--lq-picker-cycle": `${cycle.toFixed(3)}s` } as CSSProperties}
-      role="img"
-      aria-label={`Picker sur rail${running ? ", en service" : ", à l'arrêt"}`}
+      ariaLabel={`Picker sur rail${running ? ", en service" : ", à l'arrêt"}`}
     >
       {(running || mask) && (
         <defs>
@@ -635,6 +635,6 @@ export function Picker({
       )}
       {(parts === "all" || parts === "shadow") && shade}
       {(parts === "all" || parts === "machine") && machine}
-    </svg>
+    </IsoCanvas>
   );
 }

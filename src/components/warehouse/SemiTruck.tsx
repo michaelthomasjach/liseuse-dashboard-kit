@@ -13,6 +13,7 @@ import {
   type Project,
   type VolumeLayer,
 } from "./rackItems";
+import { IsoCanvas } from "./isoCanvas";
 import { useIsoCamera } from "./isoCamera";
 import "./SemiTruck.css";
 
@@ -1034,13 +1035,12 @@ export function SemiTruck({
   const boxHeight = Math.max(...corners.map((p) => p.y)) + PAD - minY;
 
   return (
-    <svg
+    <IsoCanvas
       className={["lq-truck", className].filter(Boolean).join(" ")}
       width={boxWidth}
       height={boxHeight}
-      viewBox={`${minX} ${minY} ${boxWidth} ${boxHeight}`}
-      role="img"
-      aria-label="Semi-remorque"
+      viewBox={[minX, minY, boxWidth, boxHeight]}
+      ariaLabel="Semi-remorque"
     >
       {(parts === "all" || parts === "shadow") && shade}
       {(parts === "all" || parts === "machine") && (
@@ -1049,6 +1049,6 @@ export function SemiTruck({
           {above}
         </>
       )}
-    </svg>
+    </IsoCanvas>
   );
 }

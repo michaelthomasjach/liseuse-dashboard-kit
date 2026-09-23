@@ -12,6 +12,7 @@ import {
   type RackItemKind,
 } from "./rackItems";
 import "./RackV2.css";
+import { IsoCanvas } from "./isoCanvas";
 import { useIsoCamera } from "./isoCamera";
 
 /**
@@ -617,16 +618,15 @@ export function RackV2({
   const boxHeight = Math.max(...corners.map((p) => p.y)) + PAD - minY;
 
   return (
-    <svg
+    <IsoCanvas
       className={["lq-rack2", className].filter(Boolean).join(" ")}
       width={boxWidth}
       height={boxHeight}
-      viewBox={`${minX} ${minY} ${boxWidth} ${boxHeight}`}
-      role="img"
-      aria-label={nx * ny * nz > 1 ? `${nx * ny * nz} étagères` : "Étagère"}
+      viewBox={[minX, minY, boxWidth, boxHeight]}
+      ariaLabel={nx * ny * nz > 1 ? `${nx * ny * nz} étagères` : "Étagère"}
     >
       {(parts === "all" || parts === "shadow") && shade}
       {(parts === "all" || parts === "machine") && (mask ? <g mask={`url(#${mask})`}>{drawn}</g> : drawn)}
-    </svg>
+    </IsoCanvas>
   );
 }

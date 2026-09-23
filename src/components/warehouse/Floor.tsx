@@ -1,5 +1,5 @@
 import { IsoCanvas } from "./isoCanvas";
-import { boxFaces, solidVolume, type Point, type Project } from "./rackItems";
+import { solidVolume, type Point, type Project } from "./rackItems";
 import { frameCorners } from "./rackItems";
 import { useIsoCamera } from "./isoCamera";
 import "./Floor.css";
@@ -39,6 +39,19 @@ export interface FloorProps {
    *  pas au niveau de la cour, il est 1 200 mm au-dessus — la hauteur d'un plancher de remorque —
    *  et ce qu'on voit tout autour du bâtiment est la tranche de cette dalle. */
   level?: number;
+  /**
+   * Le niveau du dessus au bord `y = 0`, quand il n'est pas celui du bord opposé : la dalle
+   * **penche**.
+   *
+   *  Une cour de quai n'est pas plate. Le plancher des remorques est à 1 200 mm, le sol de la cour
+   *  est en bas, et entre les deux il faut bien que quelque chose monte : c'est le plan incliné
+   *  devant les portes, celui par lequel on rejoint le niveau du quai autrement qu'en sautant.
+   *  Sans lui, la plateforme s'arrête sur une falaise et la cour n'est plus reliée à rien.
+   *
+   *  L'inclinaison est **sur `y` seulement**, et c'est suffisant : une rampe est une voie, elle
+   *  monte dans un sens. Une scène qui la veut en travers pose sa dalle tournée d'un quart de tour.
+   */
+  slope?: number;
   /** Le pavé du monde que la `viewBox` doit couvrir, en cases. Partagé avec les autres modules
    *  d'une scène, il leur donne exactement le même repère à l'écran. */
   frame?: { x: number; y: number; width: number; depth: number; height: number };
@@ -59,6 +72,7 @@ export function Floor({
   depth = 8,
   origin = { x: 0, y: 0 },
   level = 0,
+  slope,
   frame,
   parts = "all",
   cellSize = 30,
@@ -80,9 +94,32 @@ export function Floor({
    *  qu'en l'air. Une plateforme de quai est un massif — ce qu'on voit tout autour est sa tranche
    *  entière, du sol à son dessus.
    */
-  const z0 = Math.min(0, z1) - THICKNESS;
+  /** Le niveau du bord `y = 0`. Égal à celui du reste, la dalle est plate et rien ne change. */
+  const zNear = Math.max(0, slope ?? z1);
+  const z0 = Math.min(0, z1, zNear) - THICKNESS;
 
-  const slab = solidVolume("slab", "slab", boxFaces(at, 0, x1, 0, y1, z0, z1, facing));
+  /**
+   * Les trois faces qu'on voit de la dalle — celles de `boxFaces`, avec **une hauteur par bord**.
+   *
+   *  Une dalle qui penche n'est plus un pavé : son dessus est un plan qui monte, ses deux flancs
+   *  sont des trapèzes, et ses deux bouts n'ont pas la même hauteur. Rien d'autre ne bouge — les
+   *  mêmes trois faces, la même règle pour savoir lesquelles, la même clarté — donc c'est bien la
+   *  boîte qu'on écrit, avec un `z` par bord au lieu d'un seul.
+   */
+  const faces = () => {
+    const xs = facing.xFace > 0 ? x1 : 0;
+    const ys = facing.yFace > 0 ? y1 : 0;
+    const zTop = ys > 0 ? z1 : zNear;
+    const faceX = [at(xs, 0, z0), at(xs, y1, z0), at(xs, y1, z1), at(xs, 0, zNear)];
+    const faceY = [at(0, ys, z0), at(x1, ys, z0), at(x1, ys, zTop), at(0, ys, zTop)];
+    return {
+      top: [at(0, 0, zNear), at(x1, 0, zNear), at(x1, y1, z1), at(0, y1, z1)],
+      front: facing.xOnLeft ? faceX : faceY,
+      side: facing.xOnLeft ? faceY : faceX,
+    };
+  };
+
+  const slab = solidVolume("slab", "slab", faces());
 
   // Le cadrage. Avec un cadre partagé, la dalle **ajoute** sa tranche aux coins du cadre : elle
   // descend sous le zéro du monde, que le cadre ne connaît pas. Ça ne décale rien — ce qui s'ajoute
@@ -94,11 +131,11 @@ export function Floor({
     [0, y1],
   ].map(([x, y]) => at(x, y, z0));
   const over = [
-    [0, 0],
-    [x1, 0],
-    [x1, y1],
-    [0, y1],
-  ].map(([x, y]) => at(x, y, z1));
+    [0, 0, zNear],
+    [x1, 0, zNear],
+    [x1, y1, z1],
+    [0, y1, z1],
+  ].map(([x, y, z]) => at(x, y, z));
   const corners: Point[] = frame
     ? [...frameCorners(frame, world, cam.sun), ...under, ...over]
     : [...under, ...over];

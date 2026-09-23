@@ -8,15 +8,18 @@ import { Scene, layer, type SceneUnit } from "./sceneStory";
 import { useIsoCamera } from "./isoCamera";
 
 /**
- * La dalle du bâtiment : **échancrée devant les portes**, et donc en trois pavés.
+ * Le sol de la scène : la plateforme, ses deux retours, et **la cour qui monte entre eux**.
  *
- * Une `Floor` est un pavé, parce qu'une dalle en est un ; celle-ci ne l'est pas tout à fait — la
+ * Quatre dalles plutôt qu'une, parce qu'une `Floor` est un pavé et que ce sol n'en est pas un. La
  * plateforme s'arrête au nu de la façade de quai, sauf à ses deux bouts où elle avance border
- * l'aire de manœuvre. Trois pavés jointifs, à la même hauteur et de la même épaisseur, donnent
- * exactement ce contour et se raccordent sans joint : les faces qu'ils s'opposent sont confondues.
+ * l'aire de manœuvre ; et entre ces deux retours, là où la plateforme manque, la cour **descend en
+ * pente** jusqu'au pied des portes. Sans elle, l'échancrure est un trou et les cinq portes ouvrent
+ * sur rien.
  *
- * Ils sont rangés par la caméra comme n'importe quels modules : ce sont trois emprises au sol
- * disjointes, et au demi-tour ce sont les retours qui passent devant.
+ * Les quatre sont jointifs et de la même épaisseur, donc ils se raccordent sans joint : les faces
+ * qu'ils s'opposent sont confondues. Ce sont quatre emprises au sol disjointes, rangées par la
+ * caméra comme n'importe quels modules — au demi-tour, ce sont les retours et la pente qui passent
+ * devant.
  */
 function Dalle({
   cellSize,
@@ -36,16 +39,28 @@ function Dalle({
   level: number;
 }) {
   const cam = useIsoCamera();
-  const pads = [
-    { key: "dalle", x: -skirt, y: 0, width: width + 2 * skirt, height: depth + skirt },
-    { key: "retour-gauche", x: -skirt, y: -yard, width: skirt, height: yard },
-    { key: "retour-droit", x: width, y: -yard, width: skirt, height: yard },
+  const pads: { key: string; x: number; y: number; width: number; height: number; level: number; slope?: number }[] = [
+    { key: "dalle", x: -skirt, y: 0, width: width + 2 * skirt, height: depth + skirt, level },
+    { key: "retour-gauche", x: -skirt, y: -yard, width: skirt, height: yard, level },
+    { key: "retour-droit", x: width, y: -yard, width: skirt, height: yard, level },
+    // La cour, entre les deux retours : elle **descend** vers le pied du quai. Le bord du fond est
+    // au niveau de la plateforme, celui du quai tout en bas — c'est une fosse, et c'est ce qu'il
+    // faut pour qu'une remorque vienne y mettre son plancher à hauteur de seuil.
+    { key: "cour", x: 0, y: -yard, width, height: yard, level: 0, slope: level },
   ];
   return (
     <>
       {cam.order(pads).map((pad) => (
         <div key={pad.key} style={layer}>
-          <Floor cellSize={cellSize} frame={frame} origin={{ x: pad.x, y: pad.y }} width={pad.width} depth={pad.height} level={level} />
+          <Floor
+            cellSize={cellSize}
+            frame={frame}
+            origin={{ x: pad.x, y: pad.y }}
+            width={pad.width}
+            depth={pad.height}
+            level={pad.level}
+            slope={pad.slope}
+          />
         </div>
       ))}
     </>

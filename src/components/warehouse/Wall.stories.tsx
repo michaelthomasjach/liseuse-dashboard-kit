@@ -172,11 +172,12 @@ export const Quai: Story = {
  * qui donne son sens au reste : les trois autres murs sont aveugles, parce qu'un entrepôt ne
  * s'ouvre que là où les camions se rangent.
  *
- * **La dalle est à 1 200 mm**, et c'est la cote qui commande tout. Un plancher de remorque est à
- * 1 180 du sol ; un quai n'existe que pour arriver à ce niveau-là, sans quoi le seuil des portes
- * ouvrirait sur le vide sous la remorque. Ce qu'on voit tout autour du bâtiment est la tranche de
- * cette dalle, et la **rampe** au bout de la façade est le seul moyen d'y monter autrement que par
- * une porte.
+ * **Tout est de plain-pied** : le sol de la cour et celui du bâtiment sont le même, et le seuil
+ * des portes est à ce niveau. Un vrai quai est une plateforme de 1 200 mm — la hauteur d'un
+ * plancher de remorque — mais dessinée, cette marche met une bande de béton au pied de chaque mur,
+ * et cette bande passe devant le sol qu'elle est censée porter : on lit un soubassement qui n'a
+ * rien à faire là, et l'œil en fait un défaut d'empilement plutôt qu'une hauteur. De plain-pied,
+ * la question ne se pose plus, et rien de ce que la scène raconte n'en dépend.
  *
  * Les quatre murs sont quatre exemplaires du même composant. Un mur couché le long des `y` est le
  * même, tourné d'un quart de tour : `place` ci-dessous ne fait que traduire l'emprise voulue en
@@ -191,25 +192,18 @@ export const Batiment: Story = {
     const P = 12;
     const D = 0.3;
     const H = 3;
-    const DOCK = 0.6;
-    const RAMP = 3;
-    const RAMP_W = 2.2;
     /**
      * La bande de sol autour du bâtiment.
      *
      *  Un bâtiment posé sur rien flotte : on lit ses murs, pas son emprise. Une bande de cour tout
-     *  autour lui donne un pied, et surtout elle rend visible ce qui fait un quai — la dalle est
-     *  1 200 mm plus haut que cette bande, et c'est cette marche-là, courant sur tout le pourtour,
-     *  qu'on cherche à voir.
+     *  autour lui donne un pied.
      *
      *  Elle est **plus profonde du côté des portes**, parce que ce n'est pas la même chose : les
      *  trois autres faces n'ont qu'un tour de bâtiment à border, la façade de quai a une cour où
-     *  les remorques manœuvrent et où la rampe descend.
+     *  les remorques manœuvrent.
      */
     const SKIRT = 1.2;
-    const YARD = RAMP_W + 2.6;
-    /** Ce dont la dalle déborde des murs : la marche qu'on veut voir au pied du bâtiment. */
-    const PLINTH = 0.25;
+    const YARD = 4.8;
 
     /** L'emprise voulue, traduite en origine : un mur tourné pivote autour de son centre. */
     const place = (axis: "x" | "y", length: number, x: number, y: number) =>
@@ -219,15 +213,15 @@ export const Batiment: Story = {
 
     const bays = [2.6, 5.6, 8.6, 11.6, 14.6];
     const frame = {
-      x: -RAMP - SKIRT - 0.5,
+      x: -SKIRT - 0.5,
       y: -YARD - 0.5,
-      width: W + RAMP + 2 * SKIRT + 1,
+      width: W + 2 * SKIRT + 1,
       depth: P + YARD + SKIRT + 1,
       height: H + 0.4,
     };
-    // Les murs sont **assis sur la dalle**, pas plantés dans la cour : c'est la tranche de la dalle
-    // qu'on voit sous eux, et le seuil des portes tombe alors exactement au niveau du plancher.
-    const shared = { cellSize, frame, height: H, thickness: D, shadows: true, dockHeight: DOCK, base: DOCK } as const;
+    // Les murs partent du sol, et les portes avec eux : de plain-pied, il n'y a rien du mur sous le
+    // niveau du plancher, donc rien qui puisse passer devant lui.
+    const shared = { cellSize, frame, height: H, thickness: D, shadows: true } as const;
 
     const side = (key: string, axis: "x" | "y", length: number, x: number, y: number, extra: object = {}) => {
       const pos = place(axis, length, x, y);
@@ -253,9 +247,6 @@ export const Batiment: Story = {
       side("right", "y", P, W - D, 0),
       side("dock", "x", W, 0, 0, {
         dockSide: "y0",
-        ramp: "start",
-        rampLength: RAMP,
-        rampWidth: RAMP_W,
         openings: bays.map((x) => ({ at: x - 0.875, width: 1.75, height: 1.8, dock: true })),
       }),
     ];
@@ -266,31 +257,16 @@ export const Batiment: Story = {
         cellSize={cellSize}
         units={units}
         under={
-          <>
-            {/* La cour, au niveau du sol : elle passe sous tout, rampe comprise. */}
-            <div style={layer}>
-              <Floor
-                cellSize={cellSize}
-                frame={frame}
-                origin={{ x: -RAMP - SKIRT, y: -YARD }}
-                width={W + RAMP + 2 * SKIRT}
-                depth={P + YARD + SKIRT}
-              />
-            </div>
-            {/* La dalle du bâtiment, 1 200 mm plus haut — et **débordant un peu des murs**, sinon sa
-                tranche passe exactement dessous et on ne la voit nulle part. Ce sont ces 500 mm de
-                béton au pied des murs qui font voir que le bâtiment est sur une plateforme. */}
-            <div style={layer}>
-              <Floor
-                cellSize={cellSize}
-                frame={frame}
-                origin={{ x: -PLINTH, y: -PLINTH }}
-                width={W + 2 * PLINTH}
-                depth={P + 2 * PLINTH}
-                level={DOCK}
-              />
-            </div>
-          </>
+          /* Un seul sol : la cour et le plancher du bâtiment sont le même, et il passe sous tout. */
+          <div style={layer}>
+            <Floor
+              cellSize={cellSize}
+              frame={frame}
+              origin={{ x: -SKIRT, y: -YARD }}
+              width={W + 2 * SKIRT}
+              depth={P + YARD + SKIRT}
+            />
+          </div>
         }
       />
     );

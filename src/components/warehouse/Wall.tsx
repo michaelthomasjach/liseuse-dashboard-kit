@@ -79,12 +79,6 @@ export interface WallProps {
    *  sous le plancher, et la question ne se pose plus.
    */
   base?: number;
-  /** Une rampe d'accès à un bout du quai, pour monter de la cour au niveau de la plateforme. */
-  ramp?: "none" | "start" | "end";
-  /** Sa longueur, en cases. */
-  rampLength?: number;
-  /** Sa largeur, en cases — une rampe est une voie, pas un nez de quai. */
-  rampWidth?: number;
   /** Rotation sur le sol, en degrés. À 0, le mur court le long des `x`. */
   rotation?: number;
   /** Poser l'ombre au sol. */
@@ -143,9 +137,6 @@ export function Wall({
   pierSpacing = 3,
   dockHeight,
   base = 0,
-  ramp = "none",
-  rampLength = 2,
-  rampWidth = 1.6,
   rotation = 0,
   shadows = false,
   origin = { x: 0, y: 0 },
@@ -381,43 +372,18 @@ export function Wall({
   const dockFaceVisible = dockSide === "y0" ? facing.yFace < 0 : facing.yFace > 0;
 
   /**
-   * La plateforme de quai, et la rampe qui y monte.
+   * Le nez de la plateforme de quai.
    *
-   *  La plateforme est le sol du bâtiment, porté à 1 200 mm : c'est elle qui met le seuil des
-   *  portes à hauteur de plancher de remorque. Vue de la cour on n'en voit que le nez — 300 mm de
-   *  béton en avant du mur — et c'est contre ce nez que la remorque vient buter.
-   *
-   *  La rampe est le seul moyen d'y monter autrement que par une porte : un plan incliné à un bout
-   *  du quai, qui descend jusqu'à la cour. Elle n'est pas un pavé — une rampe qui serait une marche
-   *  n'en serait pas une — donc ses faces sont écrites une à une : le plan incliné, les deux
-   *  triangles de flanc, et le petit bout vertical qui la raccorde à la plateforme.
+   *  Quand la scène met le bâtiment sur une plateforme, c'est elle qui porte le seuil des portes à
+   *  hauteur de plancher de remorque. Vue de la cour on n'en voit que le nez — le débord de béton
+   *  en avant du mur — et c'est contre ce nez que la remorque vient buter.
    */
   const apronY: [number, number] = dockSide === "y0" ? [-nose, 0] : [D, D + nose];
   /** Le quai n'appartient qu'aux murs qui en portent un : un mur aveugle n'a pas de nez, même quand
    *  la scène lui donne la hauteur de plateforme pour que ses portes tombent au bon niveau. */
-  const hasDock = holes.some((h) => h.dock) || ramp !== "none";
+  const hasDock = holes.some((h) => h.dock);
   const apron =
     dockZ > 0 && hasDock ? solidVolume("wall", "apron", boxFaces(at, 0, L, apronY[0], apronY[1], 0, dockZ, facing)) : null;
-
-  const slope = (() => {
-    if (ramp === "none" || dockZ <= 0) return null;
-    const len = Math.max(0.5, rampLength);
-    const [a, b] = ramp === "start" ? [-len, 0] : [L, L + len];
-    // Le haut de la pente est du côté du quai, le bas du côté de la cour.
-    const up = ramp === "start" ? b : a;
-    const down = ramp === "start" ? a : b;
-    // La rampe est large : c'est une voie qu'on monte, pas le nez du quai.
-    const [y0, y1]: [number, number] = dockSide === "y0" ? [-Math.max(nose, rampWidth), 0] : [D, D + Math.max(nose, rampWidth)];
-    const near = facing.yFace > 0 ? y1 : y0;
-    const quad = (pts: Point[], cls: string, k: string) => <polygon key={k} className={`lq-iso__face lq-iso__face--${cls}`} points={ring(pts)} />;
-    return (
-      <g key="ramp">
-        {quad([at(down, y0, 0), at(up, y0, dockZ), at(up, y1, dockZ), at(down, y1, 0)], "top", "slope")}
-        {quad([at(down, near, 0), at(up, near, dockZ), at(up, near, 0)], faceY, "cheek")}
-        {quad([at(up, y0, 0), at(up, y1, 0), at(up, y1, dockZ), at(up, y0, dockZ)], faceX, "riser")}
-      </g>
-    );
-  })();
 
   /**
    * Les poteaux, et la couvertine.
@@ -452,8 +418,7 @@ export function Wall({
       {/* Le quai est **d'un seul côté du mur**, et il se range donc comme tout ce qui l'est : devant
           quand on est de ce côté-là, derrière sinon. Peint systématiquement après le mur, son nez
           revenait par-dessus les panneaux vus de l'intérieur — une bande claire courant le long de
-          la façade, dans le bâtiment — et la rampe débordait par-dessus le mur voisin. */}
-      {!dockFaceVisible && slope}
+          la façade, dans le bâtiment. */}
       {!dockFaceVisible && apron}
       {holes.map((h, i) => jamb(h, `jamb${i}`))}
       {sheet()}
@@ -462,7 +427,6 @@ export function Wall({
       {/* Les poteaux après les panneaux : ils sont en saillie des deux faces, donc rien du mur ne
           passe devant eux. Rangés le long du mur, puisqu'ils ne se chevauchent pas entre eux. */}
       {[...pierRow].sort((a, b) => (a.x - b.x) * facing.xFace).map((p) => p.node)}
-      {dockFaceVisible && slope}
       {dockFaceVisible && apron}
       {dockFaceVisible && holes.map((h, i) => fittings(h, `dock${i}`))}
     </g>
@@ -491,10 +455,10 @@ export function Wall({
     ? frameCorners(frame, world, cam.sun)
     : [0, Math.max(top, pierTop)].flatMap((z) =>
         [
-          [ramp === "start" ? -rampLength : 0, apronY[0]],
-          [ramp === "end" ? L + rampLength : L, apronY[0]],
-          [ramp === "end" ? L + rampLength : L, apronY[1]],
-          [ramp === "start" ? -rampLength : 0, apronY[1]],
+          [0, apronY[0]],
+          [L, apronY[0]],
+          [L, apronY[1]],
+          [0, apronY[1]],
         ].map(([x, y]) => at(x, y, z))
       );
   const minX = Math.min(...corners.map((p) => p.x)) - PAD;

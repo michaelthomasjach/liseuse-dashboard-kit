@@ -194,6 +194,22 @@ export const Batiment: Story = {
     const DOCK = 0.6;
     const RAMP = 3;
     const RAMP_W = 2.2;
+    /**
+     * La bande de sol autour du bâtiment.
+     *
+     *  Un bâtiment posé sur rien flotte : on lit ses murs, pas son emprise. Une bande de cour tout
+     *  autour lui donne un pied, et surtout elle rend visible ce qui fait un quai — la dalle est
+     *  1 200 mm plus haut que cette bande, et c'est cette marche-là, courant sur tout le pourtour,
+     *  qu'on cherche à voir.
+     *
+     *  Elle est **plus profonde du côté des portes**, parce que ce n'est pas la même chose : les
+     *  trois autres faces n'ont qu'un tour de bâtiment à border, la façade de quai a une cour où
+     *  les remorques manœuvrent et où la rampe descend.
+     */
+    const SKIRT = 1.2;
+    const YARD = RAMP_W + 2.6;
+    /** Ce dont la dalle déborde des murs : la marche qu'on veut voir au pied du bâtiment. */
+    const PLINTH = 0.25;
 
     /** L'emprise voulue, traduite en origine : un mur tourné pivote autour de son centre. */
     const place = (axis: "x" | "y", length: number, x: number, y: number) =>
@@ -202,7 +218,13 @@ export const Batiment: Story = {
         : { origin: { x: x + (D - length) / 2, y: y + (length - D) / 2 }, rotation: 90 };
 
     const bays = [2.6, 5.6, 8.6, 11.6, 14.6];
-    const frame = { x: -RAMP - 1, y: -RAMP_W - 1, width: W + RAMP + 2, depth: P + RAMP_W + 2, height: H + 0.4 };
+    const frame = {
+      x: -RAMP - SKIRT - 0.5,
+      y: -YARD - 0.5,
+      width: W + RAMP + 2 * SKIRT + 1,
+      depth: P + YARD + SKIRT + 1,
+      height: H + 0.4,
+    };
     const shared = { cellSize, frame, height: H, thickness: D, shadows: true, dockHeight: DOCK } as const;
 
     const side = (key: string, axis: "x" | "y", length: number, x: number, y: number, extra: object = {}) => {
@@ -242,9 +264,31 @@ export const Batiment: Story = {
         cellSize={cellSize}
         units={units}
         under={
-          <div style={layer}>
-            <Floor cellSize={cellSize} frame={frame} origin={{ x: 0, y: 0 }} width={W} depth={P} level={DOCK} />
-          </div>
+          <>
+            {/* La cour, au niveau du sol : elle passe sous tout, rampe comprise. */}
+            <div style={layer}>
+              <Floor
+                cellSize={cellSize}
+                frame={frame}
+                origin={{ x: -RAMP - SKIRT, y: -YARD }}
+                width={W + RAMP + 2 * SKIRT}
+                depth={P + YARD + SKIRT}
+              />
+            </div>
+            {/* La dalle du bâtiment, 1 200 mm plus haut — et **débordant un peu des murs**, sinon sa
+                tranche passe exactement dessous et on ne la voit nulle part. Ce sont ces 500 mm de
+                béton au pied des murs qui font voir que le bâtiment est sur une plateforme. */}
+            <div style={layer}>
+              <Floor
+                cellSize={cellSize}
+                frame={frame}
+                origin={{ x: -PLINTH, y: -PLINTH }}
+                width={W + 2 * PLINTH}
+                depth={P + 2 * PLINTH}
+                level={DOCK}
+              />
+            </div>
+          </>
         }
       />
     );

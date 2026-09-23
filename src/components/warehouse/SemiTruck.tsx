@@ -211,6 +211,11 @@ export function SemiTruck({
 
   const box = (material: string, key: string, x0: number, x1: number, y0: number, y1: number, z0: number, z1: number, extra?: ReactNode) =>
     solidVolume(material, key, boxFaces(at, x0, x1, y0, y1, z0, z1, facing), false, extra);
+  /** Un quadrilatère plaqué sur une face d'abscisse constante : calandre, feux, plaques. Défini
+   *  ici, avec les autres primitives, parce que le châssis s'en sert aussi — et qu'une constante
+   *  déclarée plus bas n'existe pas encore quand on la lit. */
+  const frontFace = (x: number, y0: number, y1: number, z0: number, z1: number) =>
+    ring([at(x, y0, z0), at(x, y1, z0), at(x, y1, z1), at(x, y0, z1)]);
   const acrossY = (items: { y: number; node: ReactNode }[]) =>
     [...items].sort((a, b) => (a.y - b.y) * facing.yFace).map((it) => it.node);
   const alongX = (items: { x: number; node: ReactNode }[]) =>
@@ -270,6 +275,9 @@ export function SemiTruck({
    *  ils tiennent dans le nez par construction et non par tâtonnement.
    */
   const CAB_R = 0.1;
+  /** La pente du pare-brise : combien de marches, et où en est le nez à une hauteur donnée. */
+  const SLOPE_STEPS = 5;
+  const noseAt = (z: number) => cab1 - (WINDSHIELD * (z - beltZ)) / (cabZ1 - beltZ);
   const CAB_INSET = 0.02 + CAB_R + 0.02;
   /**
    * Les trois hauteurs d'une cabine, et pourquoi elles sont trois.
@@ -494,9 +502,60 @@ export function SemiTruck({
     </g>
   );
 
+  /**
+   * L'équipement du tracteur — celui qu'on reconnaît de loin.
+   *
+   *  Un tracteur nu se lit comme une maquette : ce qui le rend vrai, ce ne sont pas ses cotes,
+   *  qui sont justes depuis longtemps, mais les pièces qu'on s'attend à voir dessus. Elles ont
+   *  toutes la même contrainte : **se raccrocher à quelque chose**. Le réservoir pend du châssis
+   *  et le chevauche, les marchepieds sortent du bas de caisse, les feux arrière sont dans la
+   *  traverse — aucune ne flotte, et c'est ce qui les distingue d'un décor posé à côté.
+   */
+  const TANK_Z0 = 0.27;
+  const TANK_Z1 = 0.47;
+  /** Le réservoir, avec ses deux sangles : un cylindre couché n'existe pas ici, mais un volume
+   *  cerclé de deux feuillards se lit comme un réservoir et pas comme une caisse. */
+  const tank = (y0: number) => (
+    <g key={`tank${y0}`}>
+      {prism("steel", `tank${y0}`, roundedRing(driveX + 0.42, cab0 - 0.06, y0, y0 + 0.2, 0.06), TANK_Z0, TANK_Z1)}
+      {[0.12, 0.4].map((d) => (
+        <g key={d}>
+          {prism("iron", `strap${y0}${d}`, roundedRing(driveX + 0.45 + d, driveX + 0.475 + d, y0 - 0.008, y0 + 0.208, 0.012), TANK_Z0 - 0.008, TANK_Z1 + 0.008)}
+        </g>
+      ))}
+    </g>
+  );
+  /** Les marchepieds : deux marches décalées, devant la roue directrice, débordant du bas de
+   *  caisse — c'est par là qu'on monte dans une cabine avancée, et le décalage dit la montée. */
+  const steps = (y0: number, y1: number) => (
+    <g key={`steps${y0}`}>
+      {box("cab", `step-lo${y0}`, cab1 - 0.47, cab1 - 0.25, y0, y1, 0.28, 0.33)}
+      {box("cab", `step-hi${y0}`, cab1 - 0.45, cab1 - 0.27, y0 + 0.012, y1 - 0.012, 0.45, 0.5)}
+    </g>
+  );
+  /** Les feux arrière, dans la traverse de queue. Tracés seulement quand cette face regarde la
+   *  caméra : sinon le plateau les cache, et les peindre par-dessus les ferait traverser. */
+  const rearLamps =
+    facing.xFace < 0 ? (
+      <g key="rear-lamps">
+        {[0.14, WIDTH - 0.3].map((y) => (
+          <g key={y}>
+            {box("cab", `rl${y}`, tractor0 - 0.03, tractor0 + 0.02, y, y + 0.16, 0.44, 0.56)}
+            <polygon className="lq-truck__lamp" points={frontFace(tractor0 - 0.036, y + 0.025, y + 0.135, 0.468, 0.536)} />
+          </g>
+        ))}
+      </g>
+    ) : null;
+
   const under = (
     <g key="under">
       {acrossY([
+        ...(hasTractor
+          ? [
+              { y: 0.0, node: <g key="rig-near">{tank(-0.01)}{steps(-0.05, 0.05)}</g> },
+              { y: WIDTH, node: <g key="rig-far">{tank(WIDTH - 0.19)}{steps(WIDTH - 0.05, WIDTH + 0.05)}</g> },
+            ]
+          : []),
         { y: sideY[0], node: wheelRow(sideY[0]) },
         ...(hasTrailer
           ? [
@@ -530,6 +589,17 @@ export function SemiTruck({
                   cabZ0,
                   trailerZ0
                 )}
+              {/* La gorge en fer à cheval : c'est elle qui fait reconnaître une sellette, et non
+                  le plateau, qui n'est qu'une plaque. */}
+              {hasTractor && (
+                <polygon
+                  className="lq-truck__panel"
+                  points={ring(
+                    roundedRing(kingpin - 0.26, kingpin + 0.5, WIDTH / 2 - 0.075, WIDTH / 2 + 0.075, 0.05).map((q) => at(q.x, q.y, trailerZ0 + 0.002))
+                  )}
+                />
+              )}
+              {hasTractor && rearLamps}
               {hasTrailer && box("iron", "trailer-beam", 0, T, beamY0, beamY1, trailerZ0 - 0.12, trailerZ0)}
               {hasTrailer &&
                 acrossY(
@@ -579,8 +649,6 @@ export function SemiTruck({
   const cabFloorRing = roundedRing(cab0, cab1, 0.02, WIDTH - 0.02, CAB_R, 4);
   const front = facing.xFace > 0;
   const sideY1 = facing.yFace > 0 ? WIDTH - 0.015 : 0.015;
-  const frontFace = (x: number, y0: number, y1: number, z0: number, z1: number) =>
-    ring([at(x, y0, z0), at(x, y1, z0), at(x, y1, z1), at(x, y0, z1)]);
 
   /** Un arc échantillonné dans un plan du camion, projeté point par point.
    *
@@ -721,6 +789,68 @@ export function SemiTruck({
     </g>
   );
 
+  /**
+   * Ce qui est **posé sur le pavillon** : la casquette pare-soleil et ses feux, les trompes, les
+   * antennes.
+   *
+   *  Le pare-soleil et ses feux ne se dessinent que nez vers la caméra, comme la calandre et la
+   *  glace : une casquette est au-dessus du pare-brise, elle n'existe pas de dos, et le pavillon
+   *  la cacherait. Les trompes et les antennes, elles, sont **au-dessus de tout** — rien ne les
+   *  masque jamais — donc elles se peignent sans condition, rangées seulement en travers pour
+   *  que celle du fond passe avant celle de devant.
+   */
+  const VISOR_X0 = cab1 - WINDSHIELD - 0.03;
+  const VISOR_X1 = cab1 - WINDSHIELD + 0.14;
+  const visor = front ? (
+    <g key="visor">
+      {prism("cab", "visor", roundedRing(VISOR_X0, VISOR_X1, 0.04, WIDTH - 0.04, 0.05), cabZ1 - 0.11, cabZ1 - 0.02)}
+      {/* Cinq feux de gabarit sur la casquette : c'est leur alignement qu'on reconnaît, pas leur
+          nombre exact, et cinq est ce qui tient dans la largeur sans se toucher. */}
+      {Array.from({ length: 5 }, (_, i) => {
+        const pitch = (WIDTH - 0.44) / 4;
+        const y = 0.22 + i * pitch;
+        return <polygon key={i} className="lq-truck__lamp" points={frontFace(VISOR_X1 + 0.004, y, y + 0.09, cabZ1 - 0.092, cabZ1 - 0.048)} />;
+      })}
+    </g>
+  ) : null;
+
+  /** Les trompes : un tube et un pavillon évasé. Le tube seul fait une barre, l'évasement seul
+   *  fait une tache ; c'est le couple des deux qui se lit comme un klaxon. */
+  const horns = (
+    <g key="horns">
+      {acrossY(
+        [WIDTH / 2 - 0.19, WIDTH / 2 + 0.06].map((y) => ({
+          y,
+          node: (
+            <g key={`horn${y}`}>
+              {prism("steel", `horn-tube${y}`, roundedRing(cab0 + 0.5, cab0 + 0.92, y + 0.028, y + 0.062, 0.017), deflectorZ, deflectorZ + 0.038)}
+              {prism("steel", `horn-bell${y}`, roundedRing(cab0 + 0.92, cab0 + 1.05, y - 0.02, y + 0.11, 0.04), deflectorZ, deflectorZ + 0.09)}
+            </g>
+          ),
+        }))
+      )}
+    </g>
+  );
+
+  /** Les antennes, à l'arrière du pavillon : un socle, et un brin. Le brin est le plus fin trait
+   *  du camion — un tiers de la largeur d'un montant — et c'est ce qui le fait lire comme un fil
+   *  plutôt que comme un mât. */
+  const antennas = (
+    <g key="antennas">
+      {acrossY(
+        [0.13, WIDTH - 0.19].map((y) => ({
+          y,
+          node: (
+            <g key={`ant${y}`}>
+              {box("iron", `ant-base${y}`, cab0 + 0.115, cab0 + 0.165, y + 0.005, y + 0.055, deflectorZ, deflectorZ + 0.025)}
+              {box("steel", `ant-whip${y}`, cab0 + 0.133, cab0 + 0.147, y + 0.023, y + 0.037, deflectorZ + 0.025, deflectorZ + 0.32)}
+            </g>
+          ),
+        }))
+      )}
+    </g>
+  );
+
   const cab = (
     <g key="cab">
       {/* Les deux étages et le congé du toit, en **un seul volume** : une seule silhouette, et le
@@ -731,7 +861,24 @@ export function SemiTruck({
         "cab",
         [
           { ring: cabFloorRing, z0: cabZ0, z1: beltZ },
-          { ring: roundedRing(cab0, cab1 - WINDSHIELD, 0.02, WIDTH - 0.02, CAB_R, 4), z0: beltZ, z1: cabZ1 },
+          // Le pare-brise est un **plan incliné**, et il se monte en marches serrées.
+          //
+          // D'une seule marche, il avait un dessus horizontal large d'une demi-case au ras du nez —
+          // et un dessus se voit **par-dessus**, quel que soit le cap. De trois quarts arrière, là
+          // où un vrai pare-brise est caché par le pavillon, on voyait donc à la place un grand
+          // pan clair posé à plat sur le museau. La glace, elle, ne se dessine que nez vers la
+          // caméra : elle n'était pas là pour le recouvrir.
+          //
+          // Découpé en marches, le pan disparaît de lui-même : à 48° la pente est plus raide que
+          // les 35° du regard, donc la contremarche de chaque marche recouvre le dessus de la
+          // précédente — le nez redevient une pente, sans qu'aucun test de visibilité n'ait à le
+          // décider. Les marches sont inscrites sous la pente, si bien que la glace, qui suit la
+          // pente vraie, les recouvre exactement quand elle se dessine.
+          ...Array.from({ length: SLOPE_STEPS }, (_, k) => {
+            const z0 = beltZ + ((cabZ1 - beltZ) * k) / SLOPE_STEPS;
+            const z1 = beltZ + ((cabZ1 - beltZ) * (k + 1)) / SLOPE_STEPS;
+            return { ring: roundedRing(cab0, noseAt(z1), 0.02, WIDTH - 0.02, CAB_R, 4), z0, z1 };
+          }),
           ...filletLayers(
             (d) => roundedRing(cab0 + d, cab1 - WINDSHIELD - d, 0.02 + d, WIDTH - 0.02 - d, CAB_R, 4),
             cabZ1,
@@ -764,6 +911,9 @@ export function SemiTruck({
           </>
         )
       )}
+      {visor}
+      {horns}
+      {antennas}
     </g>
   );
 

@@ -84,7 +84,7 @@ export interface SemiTruckProps {
 const PAD = 2;
 const WIDTH = 1.3;
 /** Le congé du toit de la cabine : son rayon, et en combien de couches on le monte. */
-const ROOF_R = 0.16;
+const ROOF_R = 0.13;
 const ROOF_STEPS = 4;
 
 const ring = (points: Point[]) => points.map((p) => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(" ");
@@ -105,7 +105,7 @@ export function SemiTruck({
   const kingpin = T - 0.9; // où la remorque repose sur le tracteur
   const tractor0 = kingpin - 0.9; // l'arrière du tracteur
   const cab0 = T + 0.22; // l'arrière de la cabine, juste devant la remorque
-  const cab1 = cab0 + 1.5; // le nez du camion
+  const cab1 = cab0 + 1.62; // le nez du camion
   const LENGTH = cab1 + 0.1; // le pare-chocs
 
   const theta = (rotation * Math.PI) / 180;
@@ -153,7 +153,16 @@ export function SemiTruck({
   const beamY1 = WIDTH - 0.38;
   const trailerZ0 = 0.78;
   const trailerZ1 = 2.35;
-  const cabZ0 = 0.5;
+  /**
+   * Le plancher de la cabine — au niveau de celui de la remorque, pas à mi-hauteur des roues.
+   *
+   * C'est la cote qui décidait le plus de l'allure et elle était fausse : posée bas, la cabine
+   * devient un cagibi accroché devant une grande caisse, et aucun détail ajouté dessus ne le
+   * rattrape. Une cabine avancée est assise *sur* le châssis, ses roues avant sous elle, et son
+   * plancher est à la même hauteur que le plancher de la remorque — c'est pour ça qu'on y monte par
+   * trois marches.
+   */
+  const cabZ0 = 0.74;
   /**
    * Les trois hauteurs d'une cabine, et pourquoi elles sont trois.
    *
@@ -165,14 +174,22 @@ export function SemiTruck({
    * Le volume est donc en deux étages : le bas va jusqu'au nez du camion (`cab1`), le haut s'arrête
    * en retrait (`cab1 − WINDSHIELD`), et le pan qui les relie est le pare-brise.
    */
-  const beltZ = 1.28;
-  const cabZ1 = 1.98;
+  const beltZ = 1.30;
+  /**
+   * Le haut de la cabine — presque à hauteur de caisse.
+   *
+   * L'autre cote qui était fausse. Un tracteur de semi moderne a une cabine couchette dont le toit
+   * arrive à quelques centimètres du toit de la remorque : c'est ce qui fait la silhouette d'un
+   * semi, un bloc continu que le déflecteur finit de raccorder. Une cabine qui s'arrête bien plus
+   * bas est celle d'un porteur de chantier, pas celle qui vient à un quai.
+   */
+  const cabZ1 = 2.12;
   const roofZ = cabZ1 + ROOF_R;
   /** Le déflecteur monte à hauteur de caisse : c'est à ça qu'il sert, coucher le filet d'air
    *  par-dessus la remorque au lieu de le laisser taper dedans. */
   const deflectorZ = trailerZ1 - 0.02;
   /** De combien le haut de la cabine est en retrait du nez : la pente du pare-brise. */
-  const WINDSHIELD = 0.26;
+  const WINDSHIELD = 0.2;
 
   const wheelRow = (y: number) => (
     <g key={`wheels${y}`}>
@@ -253,58 +270,127 @@ export function SemiTruck({
   const frontFace = (x: number, y0: number, y1: number, z0: number, z1: number) =>
     ring([at(x, y0, z0), at(x, y1, z0), at(x, y1, z1), at(x, y0, z1)]);
 
+  /** Un arc échantillonné dans un plan du camion, projeté point par point.
+   *
+   *  Le passage de roue est le seul trait courbe de la cabine et il ne peut pas être un `arc` SVG :
+   *  la projection isométrique transforme un cercle du plan (x, z) en ellipse *inclinée*, que les
+   *  paramètres d'un arc SVG ne décrivent pas directement. Vingt points suffisent à ne plus voir la
+   *  corde, et coûtent moins qu'une matrice. */
+  const archPath = (cx: number, cz: number, radius: number, y: number) => {
+    const pts: Point[] = [];
+    for (let i = 0; i <= 20; i++) {
+      const a = Math.PI * (i / 20);
+      pts.push(at(cx + Math.cos(a) * radius, y, cz + Math.sin(a) * radius * 0.92));
+    }
+    return pts.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(" ");
+  };
+
   /**
-   * Le pare-brise : un pan **incliné**, du haut du capot au haut du pavillon. C'est la seule
-   * surface oblique de la cabine, et c'est elle qui donne au camion son nez — un vitrage vertical,
-   * si grand soit-il, laisse une armoire.
+   * Le pare-brise, et ce qui en fait un pare-brise : **il tourne le coin**.
+   *
+   *  Un quadrilatère sombre sur la face avant ne se lit pas comme une cabine ; il se lit comme une
+   *  porte. Ce qui dit « cabine » à cette taille, c'est le vitrage qui continue sur le flanc après
+   *  le montant — le déflecteur d'angle — parce que c'est la seule chose de la silhouette qu'aucun
+   *  autre volume de l'entrepôt ne possède. Il occupe donc toute la largeur entre les montants et
+   *  tout le tiers haut de la cabine, et il se prolonge en biais sur la joue.
    */
+  /** Le vitrage va d'une ceinture à l'autre, sans marge.
+   *
+   *  Un jeu de quelques centièmes sous la glace paraît inoffensif dans les cotes et se voit comme
+   *  un bandeau blanc sous le pare-brise dès qu'on approche : à cette échelle, six centièmes de
+   *  case font trois pixels de tôle là où l'œil attend la jonction. La glace touche donc la
+   *  ceinture, et c'est le montant qui fait la séparation. */
+  const GLASS_Z0 = beltZ + 0.03;
+  const GLASS_Z1 = cabZ1 - 0.13;
   const windshield = front ? (
-    <polygon
-      className="lq-truck__glass"
-      points={ring([
-        at(cab1 - WINDSHIELD, 0.13, cabZ1 - 0.06),
-        at(cab1 - WINDSHIELD, WIDTH - 0.13, cabZ1 - 0.06),
-        at(cab1 - 0.01, WIDTH - 0.13, beltZ + 0.04),
-        at(cab1 - 0.01, 0.13, beltZ + 0.04),
-      ])}
-    />
-  ) : null;
-
-  /** Le bas de la face avant : la calandre, deux feux, et rien d'autre. Sur un camion clair, la
-   *  calandre est une bande sombre au milieu d'une tôle claire, pas un panneau plein. */
-  const nose = front ? (
     <g>
-      <polygon className="lq-truck__panel" points={frontFace(cab1 + 0.01, 0.26, WIDTH - 0.26, 0.86, 1.14)} />
-      <g className="lq-truck__grille">
-        {[0.94, 1.06].map((z) => {
-          const a = at(cab1 + 0.02, 0.3, z);
-          const b = at(cab1 + 0.02, WIDTH - 0.3, z);
-          return <line key={z} x1={a.x} y1={a.y} x2={b.x} y2={b.y} />;
-        })}
-      </g>
-      <polygon className="lq-truck__lamp" points={frontFace(cab1 + 0.01, 0.1, 0.26, 0.62, 0.78)} />
-      <polygon className="lq-truck__lamp" points={frontFace(cab1 + 0.01, WIDTH - 0.26, WIDTH - 0.1, 0.62, 0.78)} />
-    </g>
-  ) : null;
-
-  /** La joue : la vitre de portière, et la portière elle-même. */
-  const flank = (
-    <g className="lq-truck__glass-side">
       <polygon
         className="lq-truck__glass"
         points={ring([
-          at(cab1 - WINDSHIELD - 0.5, sideY1, beltZ + 0.1),
-          at(cab1 - WINDSHIELD - 0.06, sideY1, beltZ + 0.1),
-          at(cab1 - WINDSHIELD - 0.06, sideY1, cabZ1 - 0.12),
-          at(cab1 - WINDSHIELD - 0.5, sideY1, cabZ1 - 0.12),
+          at(cab1 - WINDSHIELD, 0.19, GLASS_Z1),
+          at(cab1 - WINDSHIELD, WIDTH - 0.19, GLASS_Z1),
+          at(cab1 - 0.03, WIDTH - 0.19, GLASS_Z0),
+          at(cab1 - 0.03, 0.19, GLASS_Z0),
+        ])}
+      />
+      {/* Le montant : un trait, pas un volume. Il sépare le pare-brise de la vitre de coin et c'est
+          tout ce qu'il a à faire. */}
+      <g className="lq-truck__door">
+        {[0.19, WIDTH - 0.19].map((y) => {
+          const a = at(cab1 - WINDSHIELD, y, GLASS_Z1);
+          const b = at(cab1 - 0.03, y, GLASS_Z0);
+          return <line key={y} x1={a.x} y1={a.y} x2={b.x} y2={b.y} />;
+        })}
+      </g>
+    </g>
+  ) : null;
+
+  /**
+   * Le nez : un pare-chocs plein en bas, une calandre étroite au-dessus, deux feux dans le
+   * pare-chocs.
+   *
+   *  L'ancienne version mettait une grande tôle sombre au milieu de la face : sur un camion clair,
+   *  ça se lit comme un trou. Une calandre est une bande — large, mais basse — et c'est le
+   *  pare-chocs, plus clair et plus haut qu'on ne croit, qui occupe le bas.
+   */
+  const nose = front ? (
+    <g>
+      {/* Un panneau, pas des traits perdus au milieu d'une grande tôle claire : trois lignes seules
+          flottent, et c'est ce qu'on voyait. La calandre est une pièce, et elle porte ses barres. */}
+      <polygon className="lq-truck__panel" points={frontFace(cab1 + 0.01, 0.24, WIDTH - 0.24, beltZ - 0.44, beltZ - 0.06)} />
+      <g className="lq-truck__grille">
+        {[0, 1].map((i) => {
+          const z = beltZ - 0.32 + i * 0.12;
+          const a = at(cab1 + 0.02, 0.28, z);
+          const b = at(cab1 + 0.02, WIDTH - 0.28, z);
+          return <line key={z} x1={a.x} y1={a.y} x2={b.x} y2={b.y} />;
+        })}
+      </g>
+      <polygon className="lq-truck__lamp" points={frontFace(cab1 + 0.12, 0.1, 0.32, 0.36, 0.54)} />
+      <polygon className="lq-truck__lamp" points={frontFace(cab1 + 0.12, WIDTH - 0.32, WIDTH - 0.1, 0.36, 0.54)} />
+    </g>
+  ) : null;
+
+  /**
+   * La joue : la vitre de coin, la vitre de portière, la ligne de portière, la poignée, et le
+   * passage de roue.
+   *
+   *  Le passage de roue est ce qui ancre la cabine sur son essieu. Sans lui, le volume flotte
+   *  au-dessus d'une roue qui ne lui appartient pas — et c'est exactement ce qu'on voyait.
+   */
+  const flank = (
+    <g className="lq-truck__glass-side">
+      {/* La vitre de coin : le pare-brise qui tourne. Un trapèze, parce que le montant est incliné. */}
+      <polygon
+        className="lq-truck__glass"
+        points={ring([
+          at(cab1 - WINDSHIELD - 0.02, sideY1, GLASS_Z1),
+          at(cab1 - WINDSHIELD - 0.15, sideY1, GLASS_Z1),
+          at(cab1 - WINDSHIELD - 0.15, sideY1, GLASS_Z0 + 0.06),
+          at(cab1 - WINDSHIELD - 0.02, sideY1, GLASS_Z0 + 0.02),
+        ])}
+      />
+      <polygon
+        className="lq-truck__glass"
+        points={ring([
+          at(cab1 - WINDSHIELD - 0.22, sideY1, GLASS_Z1),
+          at(cab1 - WINDSHIELD - 0.82, sideY1, GLASS_Z1),
+          at(cab1 - WINDSHIELD - 0.82, sideY1, GLASS_Z0 + 0.12),
+          at(cab1 - WINDSHIELD - 0.22, sideY1, GLASS_Z0 + 0.02),
         ])}
       />
       <g className="lq-truck__door">
-        {[cab1 - WINDSHIELD - 0.58, cab0 + 0.2].map((x) => {
-          const a = at(x, sideY1, cabZ0 + 0.04);
-          const b = at(x, sideY1, cabZ1 - 0.08);
+        {[cab1 - WINDSHIELD - 0.9, cab1 - WINDSHIELD - 0.18].map((x) => {
+          const a = at(x, sideY1, cabZ0 + 0.06);
+          const b = at(x, sideY1, GLASS_Z1);
           return <line key={x} x1={a.x} y1={a.y} x2={b.x} y2={b.y} />;
         })}
+        {(() => {
+          const a = at(cab1 - WINDSHIELD - 0.86, sideY1, GLASS_Z0 - 0.06);
+          const b = at(cab1 - WINDSHIELD - 0.62, sideY1, GLASS_Z0 - 0.06);
+          return <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} />;
+        })()}
+        <path d={archPath(cab1 - 0.45, cabZ0 + 0.02, 0.34, sideY1)} fill="none" />
       </g>
     </g>
   );
@@ -326,6 +412,23 @@ export function SemiTruck({
             ROOF_R,
             ROOF_STEPS
           ),
+          // La carène de toit, dans le MÊME empilement que la cabine.
+          //
+          // Dessinée à part, elle revenait en second coussin posé à côté du pavillon : deux volumes
+          // arrondis l'un contre l'autre, chacun cerné de sa propre silhouette, et le regard y lit
+          // deux objets. Ici elle n'est qu'une couche de plus du volume de la cabine — une seule
+          // silhouette, un seul dessus — et c'est ce qui la fait lire comme un toit qui monte
+          // plutôt que comme une pièce rapportée.
+          // Elle court presque jusqu'au montant : s'arrêtant à mi-pavillon, elle laissait devant
+          // elle une bande de toit plate, large et en pleine lumière, qui se lit comme une trappe
+          // ouverte au milieu du toit. Un pavillon de couchette est une seule surface qui monte.
+          { ring: roundedRing(cab0 + 0.03, cab1 - WINDSHIELD - 0.34, 0.05, WIDTH - 0.05, 0.18, 3), z0: roofZ, z1: deflectorZ - 0.05 },
+          ...filletLayers(
+            (d) => roundedRing(cab0 + 0.03 + d, cab1 - WINDSHIELD - 0.34 - d, 0.05 + d, WIDTH - 0.05 - d, 0.18, 3),
+            deflectorZ - 0.05,
+            0.05,
+            2
+          ),
         ],
         (
           <>
@@ -335,17 +438,6 @@ export function SemiTruck({
           </>
         )
       )}
-      {/* Le déflecteur : il part du toit et monte à hauteur de caisse, rentré de tous les côtés
-          pour rester un accessoire posé dessus et non une rehausse de la cabine. */}
-      {stack("cab", "deflector", [
-        { ring: roundedRing(cab0 + 0.04, cab1 - WINDSHIELD - 0.03, 0.05, WIDTH - 0.05, 0.2, 3), z0: roofZ - 0.06, z1: deflectorZ - 0.05 },
-        ...filletLayers(
-          (d) => roundedRing(cab0 + 0.04 + d, cab1 - WINDSHIELD - 0.03 - d, 0.05 + d, WIDTH - 0.05 - d, 0.2, 3),
-          deflectorZ - 0.05,
-          0.05,
-          2
-        ),
-      ])}
     </g>
   );
 
@@ -354,14 +446,17 @@ export function SemiTruck({
     <g key="mirrors">
       {acrossY(
         [
-          { y: -0.1, arm: [-0.06, 0.06] as const },
-          { y: WIDTH + 0.02, arm: [WIDTH - 0.06, WIDTH + 0.06] as const },
+          { y: -0.07, arm: [-0.04, 0.05] as const },
+          { y: WIDTH - 0.01, arm: [WIDTH - 0.05, WIDTH + 0.04] as const },
         ].map((m) => ({
           y: m.y,
           node: (
             <g key={`mirror${m.y}`}>
-              {prism("cab", `arm${m.y}`, roundedRing(cab1 - WINDSHIELD - 0.1, cab1 - WINDSHIELD - 0.07, m.arm[0], m.arm[1], 0.014), cabZ1 - 0.16, cabZ1 - 0.12)}
-              {prism("cab", `mirror${m.y}`, roundedRing(cab1 - WINDSHIELD - 0.11, cab1 - WINDSHIELD - 0.07, m.y, m.y + 0.08, 0.02), beltZ + 0.12, cabZ1 - 0.14)}
+              {prism("cab", `arm${m.y}`, roundedRing(cab1 - WINDSHIELD - 0.13, cab1 - WINDSHIELD - 0.09, m.arm[0], m.arm[1], 0.015), cabZ1 - 0.3, cabZ1 - 0.25)}
+              {/* La glace pend sous le bras sur une demi-case — la hauteur d'un vrai rétroviseur de
+                  camion. Descendue jusqu'à la ceinture, elle cessait d'être un rétroviseur pour
+                  devenir un poteau planté devant la portière, et c'est ce qu'on voyait. */}
+              {prism("cab", `mirror${m.y}`, roundedRing(cab1 - WINDSHIELD - 0.16, cab1 - WINDSHIELD - 0.09, m.y, m.y + 0.1, 0.025), cabZ1 - 0.72, cabZ1 - 0.28)}
             </g>
           ),
         }))
@@ -369,10 +464,18 @@ export function SemiTruck({
     </g>
   );
 
-  /** Le pare-chocs, et le bas de caisse entre les roues : ce qui pose la cabine sur le sol au lieu
-   *  de la laisser flotter au-dessus. */
-  const bumper = prism("cab", "bumper", roundedRing(cab1 - 0.02, cab1 + 0.1, 0.03, WIDTH - 0.03, 0.1), 0.26, 0.64);
-  const skirt = prism("cab", "skirt", roundedRing(cab0 + 0.04, cab1 - 0.72, 0.08, WIDTH - 0.08, 0.1), 0.28, cabZ0 + 0.02);
+  /**
+   * Le pare-chocs, et la jupe entre les roues.
+   *
+   *  Le pare-chocs est **pleine largeur et haut** : c'est une pièce massive sur un camion, et le
+   *  rendre étroit et bas laisse la cabine flotter au-dessus du vide. Il déborde légèrement devant
+   *  le nez, comme le vrai, ce qui donne au camion son aplomb par l'avant.
+   *
+   *  La jupe ne va que de l'arrière de la cabine au passage de roue avant : au-delà elle
+   *  masquerait la roue directrice, qui est justement ce qui dit « cabine avancée ».
+   */
+  const bumper = prism("cab", "bumper", roundedRing(cab1 - 0.02, cab1 + 0.1, 0.02, WIDTH - 0.02, 0.06), 0.3, 0.64);
+  const skirt = prism("cab", "skirt", roundedRing(cab0 + 0.03, cab1 - 0.82, 0.07, WIDTH - 0.07, 0.09), 0.3, cabZ0 + 0.01);
 
   const above = alongX([
     { x: 0, node: trailer },

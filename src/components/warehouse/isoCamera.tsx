@@ -1,5 +1,5 @@
 import { createContext, useContext, useMemo, type ReactNode } from "react";
-import { projectIso } from "./warehouseIso";
+import { ISO_TILT, ISO_TILT_MAX, ISO_TILT_MIN, projectIso } from "./warehouseIso";
 import { paintOrder, type PaintBox } from "./warehousePaint";
 import { SUN_CAST, isoFacing, type IsoFacing, type Point } from "./rackItems";
 
@@ -28,12 +28,21 @@ import { SUN_CAST, isoFacing, type IsoFacing, type Point } from "./rackItems";
  *   face de gauche est à demi-éclairée, quelle qu'elle soit — et une ombre portée qui resterait fixe
  *   dans le monde tomberait, au bout d'un demi-tour, du côté éclairé des objets qui la portent.
  *
- * À `yaw = 0`, tout vaut exactement ce que le kit faisait avant : la caméra par défaut n'a pas changé.
+ * Le **site** (`tilt`) est l'autre réglage : de combien la caméra est au-dessus du sol. Il ne change
+ * ni les faces visibles, ni l'ordre de peinture, ni l'ombre — tout cela se lit sur le cap — il ne
+ * change que l'écrasement du sol et l'allongement des hauteurs, donc il tient entier dans la
+ * projection. C'est pour cette raison qu'il coûte si peu : une scène se redessine sous un autre
+ * site sans qu'une seule pièce ait à le savoir.
+ *
+ * À `yaw = 0` et au site par défaut, tout vaut exactement ce que le kit faisait avant : la caméra
+ * par défaut n'a pas changé.
  */
 
 export interface IsoCameraView {
   /** Le cap, en degrés. */
   yaw: number;
+  /** Le site : de combien la caméra est au-dessus du sol, en degrés. */
+  tilt: number;
   /** Un point du sol (et une hauteur), en pixels, vers l'écran. */
   project: (x: number, y: number, z?: number) => Point;
   /** Les faces qu'on voit d'une pièce tournée de `rotation` degrés sur le sol. */
@@ -48,8 +57,8 @@ export interface IsoCameraView {
   sun: Point;
 }
 
-/** La caméra à un cap donné. */
-export function isoCamera(yaw = 0): IsoCameraView {
+/** La caméra à un cap et un site donnés. */
+export function isoCamera(yaw = 0, tilt = ISO_TILT): IsoCameraView {
   const t = (-yaw * Math.PI) / 180;
   const c = Math.cos(t);
   const s = Math.sin(t);
@@ -58,7 +67,8 @@ export function isoCamera(yaw = 0): IsoCameraView {
   const view = back({ x: 1, y: 1 });
   return {
     yaw,
-    project: (x, y, z = 0) => projectIso(x, y, z, yaw),
+    tilt,
+    project: (x, y, z = 0) => projectIso(x, y, z, yaw, tilt),
     facing: (rotation = 0) => isoFacing(rotation + yaw),
     view,
     depth: (x, y) => x * view.x + y * view.y,
@@ -67,15 +77,19 @@ export function isoCamera(yaw = 0): IsoCameraView {
   };
 }
 
-const IsoCameraContext = createContext(0);
+const IsoCameraContext = createContext<{ yaw: number; tilt: number }>({ yaw: 0, tilt: ISO_TILT });
 
-/** Tourne la caméra de toutes les pièces isométriques qu'il contient. */
-export function IsoCamera({ yaw, children }: { yaw: number; children: ReactNode }) {
-  return <IsoCameraContext.Provider value={((yaw % 360) + 360) % 360}>{children}</IsoCameraContext.Provider>;
+/** Le site, ramené entre ses bornes : de 5°, presque au ras du sol, à 50°, presque à la verticale. */
+export const clampTilt = (deg: number) => Math.min(ISO_TILT_MAX, Math.max(ISO_TILT_MIN, deg));
+
+/** Oriente la caméra de toutes les pièces isométriques qu'il contient : son cap, et son site. */
+export function IsoCamera({ yaw, tilt = ISO_TILT, children }: { yaw: number; tilt?: number; children: ReactNode }) {
+  const view = useMemo(() => ({ yaw: ((yaw % 360) + 360) % 360, tilt: clampTilt(tilt) }), [yaw, tilt]);
+  return <IsoCameraContext.Provider value={view}>{children}</IsoCameraContext.Provider>;
 }
 
 /** La caméra de l'`IsoCamera` qui entoure le composant — la caméra par défaut s'il n'y en a pas. */
 export function useIsoCamera(): IsoCameraView {
-  const yaw = useContext(IsoCameraContext);
-  return useMemo(() => isoCamera(yaw), [yaw]);
+  const { yaw, tilt } = useContext(IsoCameraContext);
+  return useMemo(() => isoCamera(yaw, tilt), [yaw, tilt]);
 }

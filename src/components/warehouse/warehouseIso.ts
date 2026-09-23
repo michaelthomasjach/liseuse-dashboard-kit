@@ -40,6 +40,28 @@ import type { WarehouseItemKind } from "./warehouseModel";
  *  floor becomes twice as wide as it is tall, so the diagonals land on whole pixels and the grid
  *  does not shimmer. */
 const TILT = 60;
+/**
+ * Le **site** de la caméra par défaut : de combien elle est au-dessus du plan du sol, en degrés.
+ *
+ *  C'est l'autre façon de dire `TILT`, et la seule qui se règle : un site de 30° est l'inclinaison
+ *  de l'isométrique 2∶1, celle que le kit dessine depuis toujours. Plus bas, on rase le sol et les
+ *  hauteurs s'allongent ; plus haut, on regarde de plus haut et les emprises s'ouvrent. `projectIso`
+ *  et `isoCamera` acceptent une autre valeur, et tout le reste en découle sans le savoir.
+ */
+export const ISO_TILT = 90 - TILT;
+/**
+ * Les bornes du réglage.
+ *
+ *  En bas, 5° : presque au ras du sol, une scène s'aplatit en frise et on la lit comme une
+ *  élévation plutôt que comme un plan — c'est une vue utile, celle où l'on compare des hauteurs,
+ *  et c'est pour ça qu'on descend si bas. Zéro serait l'horizon, où le sol n'a plus d'épaisseur
+ *  apparente et où rien ne dit plus ce qui est devant.
+ *
+ *  En haut, 50° : au-delà on tombe à la verticale, les faces debout se réduisent et l'isométrie
+ *  devient un plan.
+ */
+export const ISO_TILT_MIN = 5;
+export const ISO_TILT_MAX = 50;
 /** Turn about the vertical. 45° is what puts the corner of the plan toward the viewer and makes
  *  both visible walls of a box equal — anything else favours one side. */
 const SWING = 45;
@@ -113,7 +135,12 @@ export const ISO_HEIGHT: Record<WarehouseItemKind, number> = {
 
 /** A point on the floor (or above it), in canvas pixels, to its position on screen — before the
  *  pan and zoom, which the caller applies. */
-export function projectIso(x: number, y: number, z = 0, yaw = 0): { x: number; y: number } {
+export function projectIso(x: number, y: number, z = 0, yaw = 0, tilt = ISO_TILT): { x: number; y: number } {
+  // Le **site** de la caméra : de combien elle est au-dessus du sol. À 30° on retrouve les
+  // constantes de l'isométrique du kit, et le chemin rapide ci-dessous n'a rien à calculer.
+  const flat = tilt === ISO_TILT;
+  const ky = flat ? KY : Math.cos(SWING * RAD) * Math.sin(tilt * RAD);
+  const kz = flat ? KZ : Math.cos(tilt * RAD);
   if (yaw) {
     // La caméra tourne autour de la verticale : c'est le sol qu'on tourne d'autant avant de le
     // projeter. Voir `isoCamera.tsx`.
@@ -122,9 +149,9 @@ export function projectIso(x: number, y: number, z = 0, yaw = 0): { x: number; y
     const s = Math.sin(t);
     const rx = x * c - y * s;
     const ry = x * s + y * c;
-    return { x: KX * (rx - ry), y: KY * (rx + ry) - KZ * z };
+    return { x: KX * (rx - ry), y: ky * (rx + ry) - kz * z };
   }
-  return { x: KX * (x - y), y: KY * (x + y) - KZ * z };
+  return { x: KX * (x - y), y: ky * (x + y) - kz * z };
 }
 
 /** The floor point under a screen position — the inverse of `projectIso` at z = 0.

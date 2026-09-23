@@ -1,4 +1,6 @@
 import { useRef, type KeyboardEvent, type MouseEvent, type PointerEvent } from "react";
+import { clampTilt } from "./isoCamera";
+import { ISO_TILT } from "./warehouseIso";
 import "./RotationGizmo.css";
 
 /**
@@ -27,6 +29,10 @@ export interface RotationGizmoProps {
   size?: number;
   /** Pas de l'aimantation pendant le glisser, en degrés. `0` : aucune. */
   snap?: number;
+  /** Le site de la caméra, s'il se règle : affiché sous le cadran. Le cadran ne le change pas —
+   *  c'est le glisser vertical qui le fait — mais une valeur qui bouge sans être écrite nulle part
+   *  ne se compare pas d'une story à l'autre. */
+  tilt?: number;
   label?: string;
   className?: string;
 }
@@ -47,15 +53,38 @@ const norm = (deg: number) => ((deg % 360) + 360) % 360;
  * courant par une référence plutôt que par la valeur du rendu : deux `pointermove` peuvent arriver
  * avant le rendu suivant, et le second lirait alors un cap déjà périmé.
  *
+ * Le **déplacement vertical incline** : c'est le site de la caméra, de combien elle est au-dessus
+ * du sol. Les deux axes du même glisser font les deux angles d'une orbite, comme dans tout
+ * visualiseur — et il n'y a que ces deux-là, une caméra sans perspective n'ayant rien d'autre à
+ * régler.
+ *
  * Le navigateur ouvre son défilement automatique sur un clic molette : `preventDefault` sur
  * `mousedown` est ce qui l'empêche, le `pointerdown` ne suffisant pas.
  */
+export interface DragOrbit {
+  /** Le cap courant, et ce qu'on en fait. */
+  yaw: number;
+  onYaw: (degrees: number) => void;
+  /** Le site courant, et ce qu'on en fait. Absent : le glisser ne fait que tourner. */
+  tilt?: number;
+  onTilt?: (degrees: number) => void;
+  /** Degrés de cap par pixel horizontal, et de site par pixel vertical. */
+  perPixel?: number;
+  tiltPerPixel?: number;
+}
+
+/** Tourner seulement, sans incliner — la forme courte, et celle qui existait d'abord. */
 export function useDragRotation(value: number, onChange: (degrees: number) => void, degreesPerPixel = 0.6) {
-  const from = useRef<{ x: number; yaw: number } | null>(null);
-  const latest = useRef(value);
-  latest.current = value;
-  const notify = useRef(onChange);
-  notify.current = onChange;
+  return useDragOrbit({ yaw: value, onYaw: onChange, perPixel: degreesPerPixel });
+}
+
+export function useDragOrbit({ yaw, onYaw, tilt, onTilt, perPixel = 0.6, tiltPerPixel = 0.35 }: DragOrbit) {
+  const degreesPerPixel = perPixel;
+  const from = useRef<{ x: number; y: number; yaw: number; tilt: number } | null>(null);
+  const latest = useRef({ yaw, tilt: tilt ?? ISO_TILT });
+  latest.current = { yaw, tilt: tilt ?? ISO_TILT };
+  const notify = useRef({ onYaw, onTilt });
+  notify.current = { onYaw, onTilt };
 
   /**
    * Un angle par image affichée, et non un par événement.
@@ -69,16 +98,18 @@ export function useDragRotation(value: number, onChange: (degrees: number) => vo
    *  C'est bien le **dernier** cap qu'on garde, et non une moyenne : entre deux images, la position
    *  qui compte est celle où le pointeur se trouve, pas le chemin qu'il a pris pour y arriver.
    */
-  const pending = useRef<number | null>(null);
+  const pending = useRef<{ yaw: number; tilt: number } | null>(null);
   const raf = useRef(0);
   const flush = () => {
     raf.current = 0;
     const next = pending.current;
     pending.current = null;
-    if (next !== null) notify.current(next);
+    if (!next) return;
+    notify.current.onYaw(next.yaw);
+    notify.current.onTilt?.(next.tilt);
   };
-  const publish = (deg: number) => {
-    pending.current = deg;
+  const publish = (next: { yaw: number; tilt: number }) => {
+    pending.current = next;
     if (raf.current === 0) raf.current = requestAnimationFrame(flush);
   };
   const settle = () => {
@@ -97,13 +128,16 @@ export function useDragRotation(value: number, onChange: (degrees: number) => vo
       if (event.button !== 1) return;
       event.preventDefault();
       event.currentTarget.setPointerCapture(event.pointerId);
-      from.current = { x: event.clientX, yaw: latest.current };
+      from.current = { x: event.clientX, y: event.clientY, yaw: latest.current.yaw, tilt: latest.current.tilt };
     },
     onPointerMove: (event: PointerEvent) => {
       if (!from.current) return;
-      const next = norm(from.current.yaw + (event.clientX - from.current.x) * degreesPerPixel);
-      latest.current = next;
-      publish(Math.round(next * 10) / 10);
+      const nextYaw = norm(from.current.yaw + (event.clientX - from.current.x) * degreesPerPixel);
+      // Le site monte quand la main monte : on tire la caméra vers le haut, et on voit la scène de
+      // plus haut. L'inverse se lit comme un bras de levier au lieu d'une prise directe.
+      const nextTilt = clampTilt(from.current.tilt + (from.current.y - event.clientY) * tiltPerPixel);
+      latest.current = { yaw: nextYaw, tilt: nextTilt };
+      publish({ yaw: Math.round(nextYaw * 10) / 10, tilt: Math.round(nextTilt * 10) / 10 });
     },
     onPointerUp: (event: PointerEvent) => {
       if (from.current && event.currentTarget.hasPointerCapture(event.pointerId)) {
@@ -121,7 +155,7 @@ export function useDragRotation(value: number, onChange: (degrees: number) => vo
   };
 }
 
-export function RotationGizmo({ value, onChange, size = 76, snap = 0, label = "Rotation de la vue", className }: RotationGizmoProps) {
+export function RotationGizmo({ value, onChange, size = 76, snap = 0, tilt, label = "Rotation de la vue", className }: RotationGizmoProps) {
   const dial = useRef<SVGSVGElement | null>(null);
   const r = size / 2;
   const track = r - 9;
@@ -209,7 +243,9 @@ export function RotationGizmo({ value, onChange, size = 76, snap = 0, label = "R
         <circle className="lq-gizmo__hub" cx={r} cy={r} r={3} />
         <circle className="lq-gizmo__knob" cx={knob.x} cy={knob.y} r={6} />
       </svg>
-      <output className="lq-gizmo__value">{Math.round(angle)}°</output>
+      <output className="lq-gizmo__value">
+        {Math.round(angle)}°{tilt === undefined ? null : <span className="lq-gizmo__tilt"> · ↕ {Math.round(tilt)}°</span>}
+      </output>
     </div>
   );
 }

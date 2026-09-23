@@ -73,3 +73,9 @@
   font-variant-numeric: tabular-nums;
   color: var(--lq-color-text-muted);
 }
+
+/* Le site, à côté du cap : plus discret que lui, parce qu'on le règle moins souvent et qu'on le
+   compare surtout d'une image à l'autre. */
+.lq-gizmo__tilt {
+  opacity: 0.72;
+}

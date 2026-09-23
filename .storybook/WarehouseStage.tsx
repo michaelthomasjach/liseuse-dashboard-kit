@@ -1,9 +1,11 @@
 import { useCallback, useRef, useState, type ReactNode } from "react";
-import { IsoCamera } from "../src/components/warehouse/isoCamera";
-import { RotationGizmo, useDragRotation } from "../src/components/warehouse/RotationGizmo";
+import { IsoCamera, clampTilt } from "../src/components/warehouse/isoCamera";
+import { ISO_TILT } from "../src/components/warehouse/warehouseIso";
+import { RotationGizmo, useDragOrbit } from "../src/components/warehouse/RotationGizmo";
 import { ZoomGizmo, useWheelZoom, clampZoom } from "../src/components/warehouse/ZoomGizmo";
 
 const KEY = "lq-warehouse-yaw";
+const TILT_KEY = "lq-warehouse-tilt";
 const ZOOM_KEY = "lq-warehouse-zoom";
 
 function read(key: string, fallback: number): number {
@@ -39,15 +41,24 @@ function remember(key: string, value: number) {
  *
  * On tourne aussi **en tirant dans la scène au clic molette**, partout sur l'exemple, et on
  * grossit **à la molette** : c'est le même angle et le même grossissement, et les cadrans suivent.
+ * Le même glisser, **de haut en bas**, change le site de la caméra — de combien elle est au-dessus
+ * du sol, entre 20 et 50°. Les deux axes d'un glisser font les deux angles d'une orbite, et une
+ * caméra sans perspective n'a rien d'autre à régler.
  */
 export function WarehouseStage({ children, docked = true }: { children: ReactNode; docked?: boolean }) {
   const [yaw, setYaw] = useState(() => read(KEY, 0));
+  const [tilt, setTilt] = useState(() => clampTilt(read(TILT_KEY, ISO_TILT)));
   const [zoom, setZoom] = useState(() => clampZoom(read(ZOOM_KEY, 1)));
   const surface = useRef<HTMLDivElement>(null);
 
   const change = (deg: number) => {
     setYaw(deg);
     remember(KEY, deg);
+  };
+  const tiltTo = (deg: number) => {
+    const value = clampTilt(deg);
+    setTilt(value);
+    remember(TILT_KEY, value);
   };
   // Stable, donc l'écouteur de molette est posé une fois et non à chaque rendu — et il reçoit une
   // fonction de mise à jour plutôt qu'une valeur, parce qu'un cran de molette part toujours du
@@ -59,11 +70,11 @@ export function WarehouseStage({ children, docked = true }: { children: ReactNod
       return value;
     });
   }, []);
-  const drag = useDragRotation(yaw, change);
+  const drag = useDragOrbit({ yaw, onYaw: change, tilt, onTilt: tiltTo });
   useWheelZoom(surface, zoomTo);
 
   return (
-    <IsoCamera yaw={yaw}>
+    <IsoCamera yaw={yaw} tilt={tilt}>
       {/* La surface qui prend le glisser au bouton du milieu et la molette, et qui **centre la
           scène**.
 
@@ -98,7 +109,7 @@ export function WarehouseStage({ children, docked = true }: { children: ReactNod
               : { alignSelf: "stretch", display: "flex", justifyContent: "flex-end", alignItems: "flex-start", gap: 8 }
           }
         >
-          <RotationGizmo value={yaw} onChange={change} />
+          <RotationGizmo value={yaw} onChange={change} tilt={tilt} />
           <ZoomGizmo value={zoom} onChange={(z) => zoomTo(() => z)} />
         </div>
         {/* Le grossissement porte ici, et non sur la surface : les commandes sont à l'intérieur de

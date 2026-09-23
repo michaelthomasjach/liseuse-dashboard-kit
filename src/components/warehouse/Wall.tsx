@@ -340,12 +340,24 @@ export function Wall({
       </g>
     );
 
-    /** Les butoirs, sur le nez du quai, sous les jambages. */
+    /**
+     * Ce qui est **planté devant le quai** part du sol de la cour, et ce sol est celui sur lequel
+     * le mur est assis (`sole`) — pas le zéro du monde.
+     *
+     *  Écrits depuis zéro, les poteaux de protection s'enfonçaient sous le plancher dès que la
+     *  scène portait le bâtiment à hauteur de quai : on voyait, courant sous les portes, une file
+     *  de poteaux qui aurait dû être enterrée, et c'est le niveau du sol lui-même qu'on finissait
+     *  par mettre en doute.
+     */
+    const ground = sole;
+
+    /** Les butoirs, sur le nez du quai, sous les jambages — donc seulement s'il y a un nez. Quand
+     *  le seuil est au ras du sol, il n'y a rien sous la porte où les poser. */
     const bw = BUMPER_W_MM * MM;
     const bh = BUMPER_H_MM * MM;
     const [by0, by1] = span(nose + 0.05);
     const bumpers =
-      h.z0 > bh
+      h.z0 - bh - 0.04 >= ground
         ? [h.x0 + jambW * 0.2, h.x1 - jambW * 0.2 - bw].map((bx, i) =>
             solidVolume("dock", `bump${i}${key}`, boxFaces(at, bx, bx + bw, by0, by1, h.z0 - bh - 0.04, h.z0 - 0.04, facing))
           )
@@ -356,7 +368,7 @@ export function Wall({
     const bz = BOLLARD_H_MM * MM;
     const py = out < 0 ? face - nose - 0.22 : face + nose + 0.22;
     const bollards = [h.x0 - frameT * 0.5, h.x1 + frameT * 0.5 - bd].map((bx, i) =>
-      solidVolume("safety", `boll${i}${key}`, boxFaces(at, bx, bx + bd, py - bd / 2, py + bd / 2, 0, bz, facing))
+      solidVolume("safety", `boll${i}${key}`, boxFaces(at, bx, bx + bd, py - bd / 2, py + bd / 2, ground, ground + bz, facing))
     );
 
     return (
@@ -377,13 +389,19 @@ export function Wall({
    *  Quand la scène met le bâtiment sur une plateforme, c'est elle qui porte le seuil des portes à
    *  hauteur de plancher de remorque. Vue de la cour on n'en voit que le nez — le débord de béton
    *  en avant du mur — et c'est contre ce nez que la remorque vient buter.
+   *
+   *  Il n'appartient qu'au mur **planté dans la cour**, celui dont le pied est plus bas que le
+   *  seuil de ses portes. Assis sur la plateforme, le mur n'a rien à dessiner sous lui : c'est la
+   *  dalle de la scène qui est cette plateforme, et le nez du mur venait alors se poser par-dessus
+   *  elle — une marche en travers du sol, juste devant les portes, qui faisait douter du niveau du
+   *  plancher lui-même.
    */
   const apronY: [number, number] = dockSide === "y0" ? [-nose, 0] : [D, D + nose];
   /** Le quai n'appartient qu'aux murs qui en portent un : un mur aveugle n'a pas de nez, même quand
    *  la scène lui donne la hauteur de plateforme pour que ses portes tombent au bon niveau. */
   const hasDock = holes.some((h) => h.dock);
   const apron =
-    dockZ > 0 && hasDock ? solidVolume("wall", "apron", boxFaces(at, 0, L, apronY[0], apronY[1], 0, dockZ, facing)) : null;
+    dockZ > sole && hasDock ? solidVolume("wall", "apron", boxFaces(at, 0, L, apronY[0], apronY[1], sole, dockZ, facing)) : null;
 
   /**
    * Les poteaux, et la couvertine.

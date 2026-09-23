@@ -62,8 +62,26 @@ export interface WallProps {
   cut?: number;
   /** De quel côté du mur se rangent les camions, donc où sont les équipements de quai. */
   dockSide?: "y0" | "y1";
-  /** Les poteaux qui raidissent les panneaux : aux deux bouts, puis tous les `pierSpacing`. */
-  piers?: boolean;
+  /**
+   * Les poteaux qui raidissent les panneaux, et c'est ce qui fait les **deux familles de murs** du
+   * bâtiment.
+   *
+   *  - `"spaced"` — un poteau à chaque bout, puis un tous les `pierSpacing` : le mur **aveugle**.
+   *    Ce sont les joints entre panneaux préfabriqués, et sans eux un mur de trente mètres est une
+   *    plaque sans échelle.
+   *  - `"ends"` — un poteau à chaque bout, et rien entre : le mur **à portes**.
+   *  - `"none"` — aucun.
+   *
+   *  Par défaut, **le mur choisit d'après ses ouvertures** : aveugle, il prend ses poteaux espacés ;
+   *  percé, il n'en garde qu'aux deux bouts. Ce n'est pas un réglage d'exemple, c'est ce qu'un mur à
+   *  portes est : ses portes l'articulent déjà. Un poteau tous les trois mètres entre des portes
+   *  tous les trois mètres donne une file d'éléments verticaux de même largeur qu'on ne lit plus
+   *  comme une structure mais comme une grille — et les poteaux tombent alors sur les casquettes,
+   *  qu'ils traversent, puisqu'ils sont en saillie des deux faces et les casquettes aussi.
+   *
+   *  `true` et `false` restent acceptés pour `"spaced"` et `"none"`.
+   */
+  piers?: boolean | "spaced" | "ends" | "none";
   /** L'écart entre deux poteaux, en cases. */
   pierSpacing?: number;
   /** La hauteur de la plateforme de quai, en cases. `0` : pas de quai, les portes au ras du sol. */
@@ -133,7 +151,7 @@ export function Wall({
   openings = [],
   cut = 0,
   dockSide = "y0",
-  piers = true,
+  piers,
   pierSpacing = 3,
   dockHeight,
   base = 0,
@@ -363,13 +381,23 @@ export function Wall({
           )
         : [];
 
-    /** Les poteaux de protection, plantés dans la cour devant les butoirs. */
+    /**
+     * Les poteaux de protection, plantés dans la cour devant les butoirs — **s'il y a une cour**.
+     *
+     *  Ils n'appartiennent pas au mur mais au sol devant lui, et un mur assis sur la plateforme n'a
+     *  rien devant : la dalle de la scène s'arrête à son nu, et des poteaux dessinés là se
+     *  planteraient dans le vide. Ils ne sortent donc que pour le mur planté dans la cour, celui
+     *  qui a un nez de quai — le même partage que les butoirs.
+     */
     const bd = BOLLARD_D_MM * MM;
     const bz = BOLLARD_H_MM * MM;
     const py = out < 0 ? face - nose - 0.22 : face + nose + 0.22;
-    const bollards = [h.x0 - frameT * 0.5, h.x1 + frameT * 0.5 - bd].map((bx, i) =>
-      solidVolume("safety", `boll${i}${key}`, boxFaces(at, bx, bx + bd, py - bd / 2, py + bd / 2, ground, ground + bz, facing))
-    );
+    const bollards =
+      dockZ > ground
+        ? [h.x0 - frameT * 0.5, h.x1 + frameT * 0.5 - bd].map((bx, i) =>
+            solidVolume("safety", `boll${i}${key}`, boxFaces(at, bx, bx + bd, py - bd / 2, py + bd / 2, ground, ground + bz, facing))
+          )
+        : [];
 
     return (
       <g key={key}>
@@ -416,11 +444,17 @@ export function Wall({
   const pierW = PIER_W_MM * MM;
   const pierOut = PIER_OUT_MM * MM;
   const pierTop = top + PIER_UP_MM * MM;
+  // Non dit, le mode se lit sur le mur lui-même : percé, il n'a de poteaux qu'aux bouts.
+  const pierMode = piers === true ? "spaced" : piers === false ? "none" : (piers ?? (holes.length > 0 ? "ends" : "spaced"));
   const pierXs = (() => {
-    if (!piers) return [];
+    if (pierMode === "none") return [];
+    // Les deux bouts, toujours : c'est là qu'un mur s'arrête, et un mur qui s'arrête sur une tranche
+    // de panneau n'a pas de fin, il a une coupure.
     const xs = [0, L - pierW];
-    const step = Math.max(0.5, pierSpacing);
-    for (let x = step; x < L - pierW; x += step) xs.push(x - pierW / 2);
+    if (pierMode === "spaced") {
+      const step = Math.max(0.5, pierSpacing);
+      for (let x = step; x < L - pierW; x += step) xs.push(x - pierW / 2);
+    }
     return [...new Set(xs.map((x) => Math.max(0, Math.min(L - pierW, x))))].sort((a, b) => a - b);
   })();
   const pierRow = pierXs.map((x) => ({

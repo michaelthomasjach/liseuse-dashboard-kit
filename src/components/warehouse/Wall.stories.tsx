@@ -5,6 +5,52 @@ import { SemiTruck } from "./SemiTruck";
 import { RackV2 } from "./RackV2";
 import { Forklift } from "./Forklift";
 import { Scene, layer, type SceneUnit } from "./sceneStory";
+import { useIsoCamera } from "./isoCamera";
+
+/**
+ * La dalle du bâtiment : **échancrée devant les portes**, et donc en trois pavés.
+ *
+ * Une `Floor` est un pavé, parce qu'une dalle en est un ; celle-ci ne l'est pas tout à fait — la
+ * plateforme s'arrête au nu de la façade de quai, sauf à ses deux bouts où elle avance border
+ * l'aire de manœuvre. Trois pavés jointifs, à la même hauteur et de la même épaisseur, donnent
+ * exactement ce contour et se raccordent sans joint : les faces qu'ils s'opposent sont confondues.
+ *
+ * Ils sont rangés par la caméra comme n'importe quels modules : ce sont trois emprises au sol
+ * disjointes, et au demi-tour ce sont les retours qui passent devant.
+ */
+function Dalle({
+  cellSize,
+  frame,
+  width,
+  depth,
+  skirt,
+  yard,
+  level,
+}: {
+  cellSize: number;
+  frame: { x: number; y: number; width: number; depth: number; height: number };
+  width: number;
+  depth: number;
+  skirt: number;
+  yard: number;
+  level: number;
+}) {
+  const cam = useIsoCamera();
+  const pads = [
+    { key: "dalle", x: -skirt, y: 0, width: width + 2 * skirt, height: depth + skirt },
+    { key: "retour-gauche", x: -skirt, y: -yard, width: skirt, height: yard },
+    { key: "retour-droit", x: width, y: -yard, width: skirt, height: yard },
+  ];
+  return (
+    <>
+      {cam.order(pads).map((pad) => (
+        <div key={pad.key} style={layer}>
+          <Floor cellSize={cellSize} frame={frame} origin={{ x: pad.x, y: pad.y }} width={pad.width} depth={pad.height} level={level} />
+        </div>
+      ))}
+    </>
+  );
+}
 
 const meta: Meta<typeof Wall> = {
   title: "Warehouse/Mur",
@@ -201,11 +247,17 @@ export const Batiment: Story = {
      *  Un bâtiment posé sur rien flotte : on lit ses murs, pas son emprise. Une bande de cour tout
      *  autour lui donne un pied.
      *
-     *  Elle est **plus profonde du côté des portes**, parce que ce n'est pas la même chose : les
-     *  trois autres faces n'ont qu'un tour de bâtiment à border, la façade de quai a une cour où
-     *  les remorques manœuvrent.
+     *  Devant les portes, elle **s'efface** : c'est un quai, et un quai finit là où la remorque
+     *  commence. Une plateforme qui continuerait devant les portes se lirait comme un trottoir, et
+     *  les remorques n'auraient plus où se ranger.
+     *
+     *  Elle garde en revanche ses **deux retours d'angle**, aussi avancés que la cour l'était. Ce
+     *  sont eux qui bordent l'aire de manœuvre et qui disent jusqu'où elle va ; sans eux la dalle
+     *  s'arrête net au nu de la façade, sur une tranche qui ne ferme rien, et les cinq portes
+     *  ouvrent sur un vide sans limites.
      */
     const SKIRT = 1.2;
+    /** Ce dont les deux retours avancent devant la façade : ce qu'était la profondeur de la cour. */
     const YARD = 4.8;
     /** La hauteur de la plateforme, et donc du seuil des portes : celle d'un plancher de remorque. */
     const DOCK = 0.6;
@@ -250,6 +302,8 @@ export const Batiment: Story = {
       side("back", "x", W, 0, P - D),
       side("left", "y", P, 0, 0),
       side("right", "y", P, W - D, 0),
+      // La façade de quai n'a de poteaux qu'à ses deux bouts, et rien ne le lui demande ici : un mur
+      // percé les prend tout seul, c'est ce qu'il est.
       side("dock", "x", W, 0, 0, {
         dockSide: "y0",
         openings: bays.map((x) => ({ at: x - 0.875, width: 1.75, height: 1.8, dock: true })),
@@ -262,18 +316,9 @@ export const Batiment: Story = {
         cellSize={cellSize}
         units={units}
         under={
-          /* Un seul sol, **porté à hauteur de quai** : le plancher du bâtiment et la plateforme
-             devant les portes sont la même dalle, et elle passe sous tout. */
-          <div style={layer}>
-            <Floor
-              cellSize={cellSize}
-              frame={frame}
-              origin={{ x: -SKIRT, y: -YARD }}
-              width={W + 2 * SKIRT}
-              depth={P + YARD + SKIRT}
-              level={DOCK}
-            />
-          </div>
+          /* Un seul sol, **porté à hauteur de quai** : le plancher du bâtiment et la bande qui en
+             fait le tour sont la même dalle, et elle passe sous tout. */
+          <Dalle cellSize={cellSize} frame={frame} width={W} depth={P} skirt={SKIRT} yard={YARD} level={DOCK} />
         }
       />
     );

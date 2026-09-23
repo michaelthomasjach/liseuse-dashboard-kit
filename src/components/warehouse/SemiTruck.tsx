@@ -266,10 +266,28 @@ export function SemiTruck({
   );
 
   // ---- sous la caisse ----
+  /**
+   * Les bas de caisse de la remorque : un panneau le long de chaque flanc, sous la caisse.
+   *
+   *  Ce sont les carénages latéraux, et ils manquaient. Sans eux, le dessous de la remorque est un
+   *  vide traversant entre les béquilles et le tridem, et la remorque flotte sur ses roues — le
+   *  même défaut que la cabine sur pilotis, à une autre échelle. Avec eux, la caisse descend
+   *  visuellement jusqu'à hauteur d'essieu et la silhouette se ferme.
+   *
+   *  Ils vont d'un peu derrière les béquilles à un peu devant le premier essieu du tridem : c'est
+   *  l'emprise réelle, et c'est aussi ce qui laisse voir les deux, qui sont ce que l'œil cherche
+   *  pour comprendre comment la remorque tient debout.
+   */
+  const trailerSkirtZ0 = 0.42;
+  const trailerSkirt = (y: number) =>
+    prism("trailer", `tskirt${y}`, roundedRing(axles[2] + 0.5, kingpin - 1.85, y, y + 0.07, 0.03), trailerSkirtZ0, trailerZ0);
+
   const under = (
     <g key="under">
       {acrossY([
         { y: sideY[0], node: wheelRow(sideY[0]) },
+        { y: 0.05, node: <g key="tskirt-near">{trailerSkirt(0.05)}</g> },
+        { y: WIDTH - 0.12, node: <g key="tskirt-far">{trailerSkirt(WIDTH - 0.12)}</g> },
         {
           y: WIDTH / 2,
           node: (
@@ -419,8 +437,10 @@ export function SemiTruck({
           return <line key={z} x1={a.x} y1={a.y} x2={b.x} y2={b.y} />;
         })}
       </g>
-      <polygon className="lq-truck__lamp" points={frontFace(cab1 + 0.12, 0.08, 0.34, 0.32, 0.5)} />
-      <polygon className="lq-truck__lamp" points={frontFace(cab1 + 0.12, WIDTH - 0.34, WIDTH - 0.08, 0.32, 0.5)} />
+      {/* Dans le pare-chocs, donc au nu de la face : ils étaient posés douze centièmes devant, sur
+          la saillie qui n'existe plus. */}
+      <polygon className="lq-truck__lamp" points={frontFace(cab1 + 0.01, 0.09, 0.35, 0.34, 0.5)} />
+      <polygon className="lq-truck__lamp" points={frontFace(cab1 + 0.01, WIDTH - 0.35, WIDTH - 0.09, 0.34, 0.5)} />
     </g>
   ) : null;
 
@@ -538,17 +558,36 @@ export function SemiTruck({
   );
 
   /**
-   * Le pare-chocs, et la jupe entre les roues.
+   * Le bas de caisse du tracteur : **une seule pièce**, du nez jusque sous la cabine.
    *
-   *  Le pare-chocs est **pleine largeur et haut** : c'est une pièce massive sur un camion, et le
-   *  rendre étroit et bas laisse la cabine flotter au-dessus du vide. Il déborde légèrement devant
-   *  le nez, comme le vrai, ce qui donne au camion son aplomb par l'avant.
+   *  C'était un petit mur planté devant la cabine, débordant du nez et s'arrêtant là. Deux défauts
+   *  dans le même objet. D'abord l'alignement : un pare-chocs de camion est dans le nu de la
+   *  cabine, il en prolonge la face vers le bas — c'est la même tôle qui descend — et le faire
+   *  saillir donne un museau que rien sur le plan ne montre. Ensuite la continuité : il ne s'arrête
+   *  pas au nez, il file sous la cabine jusqu'à l'arrière du tracteur, et c'est ce bandeau bas
+   *  continu qui pose le camion au sol au lieu de le laisser sur pilotis.
    *
-   *  La jupe ne va que de l'arrière de la cabine au passage de roue avant : au-delà elle
-   *  masquerait la roue directrice, qui est justement ce qui dit « cabine avancée ».
+   *  Il est donc en deux morceaux de **mêmes hauteurs et mêmes flancs**, séparés seulement par le
+   *  passage de la roue directrice : devant elle, l'avant du bas de caisse avec le pare-chocs ;
+   *  derrière elle, le marchepied et les réservoirs. Deux morceaux, une seule ligne — c'est ainsi
+   *  que se lit un camion, et c'est pour ça que la roue avant doit rester visible entre les deux
+   *  plutôt qu'être avalée par une jupe d'un seul tenant.
    */
-  const bumper = prism("cab", "bumper", roundedRing(cab1 - 0.02, cab1 + 0.1, 0.02, WIDTH - 0.02, 0.06), 0.3, 0.64);
-  const skirt = prism("cab", "skirt", roundedRing(cab0 + 0.03, cab1 - 0.82, 0.07, WIDTH - 0.07, 0.09), 0.3, cabZ0 + 0.01);
+  const VALANCE_Z0 = 0.26;
+  const VALANCE_Z1 = cabZ0 + 0.01;
+  const VALANCE_Y = 0.03;
+  /** Le dégagement laissé de part et d'autre de la roue directrice : son rayon, plus un jeu. */
+  const archGap = r + 0.08;
+  const bumper = prism(
+    "cab",
+    "bumper",
+    // Se termine exactement sur `cab1`, le nez de la cabine : au nu, sans saillie.
+    roundedRing(steerX + archGap, cab1, VALANCE_Y, WIDTH - VALANCE_Y, 0.07),
+    VALANCE_Z0,
+    VALANCE_Z1
+  );
+  const skirt = prism("cab", "skirt", roundedRing(cab0, steerX - archGap, VALANCE_Y, WIDTH - VALANCE_Y, 0.07), VALANCE_Z0, VALANCE_Z1);
+
 
   const above = alongX([
     { x: 0, node: trailer },

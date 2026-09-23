@@ -54,6 +54,40 @@ export function useDragRotation(value: number, onChange: (degrees: number) => vo
   const from = useRef<{ x: number; yaw: number } | null>(null);
   const latest = useRef(value);
   latest.current = value;
+  const notify = useRef(onChange);
+  notify.current = onChange;
+
+  /**
+   * Un angle par image affichée, et non un par événement.
+   *
+   *  Une souris rapporte sa position bien plus souvent que l'écran n'affiche : cent vingt fois par
+   *  seconde, parfois davantage, contre soixante images. Chaque `pointermove` refaisait pourtant
+   *  tourner toute la scène — jusqu'à deux rendus complets pour une seule image montrée, dont un
+   *  que personne ne voit. On retient donc le dernier cap et on ne le publie qu'à la frame : le
+   *  travail utile est le même, le travail perdu disparaît.
+   *
+   *  C'est bien le **dernier** cap qu'on garde, et non une moyenne : entre deux images, la position
+   *  qui compte est celle où le pointeur se trouve, pas le chemin qu'il a pris pour y arriver.
+   */
+  const pending = useRef<number | null>(null);
+  const raf = useRef(0);
+  const flush = () => {
+    raf.current = 0;
+    const next = pending.current;
+    pending.current = null;
+    if (next !== null) notify.current(next);
+  };
+  const publish = (deg: number) => {
+    pending.current = deg;
+    if (raf.current === 0) raf.current = requestAnimationFrame(flush);
+  };
+  const settle = () => {
+    if (raf.current !== 0) {
+      cancelAnimationFrame(raf.current);
+      raf.current = 0;
+    }
+    flush();
+  };
 
   return {
     onMouseDown: (event: MouseEvent) => {
@@ -69,13 +103,16 @@ export function useDragRotation(value: number, onChange: (degrees: number) => vo
       if (!from.current) return;
       const next = norm(from.current.yaw + (event.clientX - from.current.x) * degreesPerPixel);
       latest.current = next;
-      onChange(Math.round(next * 10) / 10);
+      publish(Math.round(next * 10) / 10);
     },
     onPointerUp: (event: PointerEvent) => {
       if (from.current && event.currentTarget.hasPointerCapture(event.pointerId)) {
         event.currentTarget.releasePointerCapture(event.pointerId);
       }
       from.current = null;
+      // Le dernier cap est publié tout de suite : attendre une image de plus laisserait la scène
+      // s'arrêter un cheveu avant l'endroit où le doigt l'a lâchée.
+      settle();
     },
     // Sans quoi un clic molette colle l'onglet ouvert d'un lien survolé, ou déclenche le défilement.
     onAuxClick: (event: MouseEvent) => {

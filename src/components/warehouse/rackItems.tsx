@@ -184,7 +184,42 @@ export function boxFaces(
   };
 }
 
-const ring = (points: Point[]) => points.map((p) => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(" ");
+/**
+ * Un contour, **rendu en nombres et non en texte**.
+ *
+ *  Il rendait `"12.34,56.78 …"`, parce qu'un attribut `points` de SVG est une chaîne. Depuis que le
+ *  dessin va sur un canvas, cette chaîne n'est plus lue par personne : elle est fabriquée à coups
+ *  de `toFixed`, puis re-découpée et reconvertie en nombres par le peintre. Deux conversions et une
+ *  allocation par facette, à chaque image — c'était le premier poste du profil pendant une
+ *  rotation. Les éléments n'étant jamais montés dans le document, rien n'oblige à passer par du
+ *  texte : le tableau va directement du calcul au tracé.
+ */
+/**
+ * Le contour d'une facette : **des nombres, déclarés comme une chaîne**.
+ *
+ *  Le type dit `string` parce que c'est ce que React exige pour l'attribut `points` d'un
+ *  `<polygon>`. La valeur, elle, est un tableau de coordonnées — et c'est délibéré : ces éléments
+ *  ne sont jamais montés dans le document, ils décrivent un dessin que le peintre du canvas lit.
+ *  Les fabriquer en texte revenait à formater soixante coordonnées par facette avec `toFixed`, puis
+ *  à les re-découper et les reconvertir de l'autre côté — deux conversions et deux allocations par
+ *  facette, à chaque image, dont personne ne lisait le résultat. C'était le premier poste du profil
+ *  pendant une rotation.
+ *
+ *  L'inexactitude est donc ici, en un seul endroit et nommée, plutôt que dispersée en soixante
+ *  conversions muettes. Le peintre accepte les deux formes, si bien qu'un `points` écrit à la main
+ *  dans une story continue de marcher.
+ */
+export type Contour = string;
+
+const ring = (points: Point[]): Contour => {
+  const out = new Array<number>(points.length * 2);
+  for (let i = 0; i < points.length; i += 1) {
+    out[i * 2] = points[i].x;
+    out[i * 2 + 1] = points[i].y;
+  }
+  // Le tableau se donne pour une chaîne : voir `Contour`.
+  return out as unknown as Contour;
+};
 
 /** Un volume fermé : la face lointaine, puis la proche, puis le dessus par-dessus les deux. */
 export function solidVolume(material: string, key: string, faces: Faces, flat = false, extra?: ReactNode): ReactNode {

@@ -6,6 +6,7 @@ import {
   roundedRing,
   type Point,
   type Project,
+  type Contour,
 } from "./rackItems";
 import { IsoCanvas } from "./isoCanvas";
 import { useIsoCamera } from "./isoCamera";
@@ -70,7 +71,25 @@ const BASE_R = 0.34;
 const BASE_Z = 0.16;
 const TURRET_Z = 0.52;
 
-const ring = (points: Point[]) => points.map((p) => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(" ");
+/**
+ * Un contour, **rendu en nombres et non en texte**.
+ *
+ *  Il rendait `"12.34,56.78 …"`, parce qu'un attribut `points` de SVG est une chaîne. Depuis que le
+ *  dessin va sur un canvas, cette chaîne n'est plus lue par personne : elle est fabriquée à coups
+ *  de `toFixed`, puis re-découpée et reconvertie en nombres par le peintre. Deux conversions et une
+ *  allocation par facette, à chaque image — c'était le premier poste du profil pendant une
+ *  rotation. Les éléments n'étant jamais montés dans le document, rien n'oblige à passer par du
+ *  texte : le tableau va directement du calcul au tracé.
+ */
+const ring = (points: Point[]): Contour => {
+  const out = new Array<number>(points.length * 2);
+  for (let i = 0; i < points.length; i += 1) {
+    out[i * 2] = points[i].x;
+    out[i * 2 + 1] = points[i].y;
+  }
+  // Le tableau se donne pour une chaîne : voir `Contour`.
+  return out as unknown as Contour;
+};
 
 interface P3 {
   x: number;

@@ -190,14 +190,17 @@ function makeProbe(host: HTMLElement) {
   host.appendChild(svg);
   const cache = new Map<string, Resolved>();
   return {
-    resolve(chain: string[], tag: string): Resolved {
-      const key = `${tag}|${chain.join(">")}`;
+    /** `path` est la chaîne d'ancêtres déjà assemblée — la même pour toutes les facettes d'un
+     *  groupe, donc assemblée une fois par groupe et non une fois par facette. */
+    resolve(path: string, cls: string, tag: string): Resolved {
+      const key = `${tag}|${path}>${cls}`;
       const hit = cache.get(key);
       if (hit) return hit;
+      const chain = cls ? [...path.split(">").filter(Boolean), cls] : path.split(">").filter(Boolean);
       let parent: Element = svg;
-      for (const cls of chain) {
+      for (const c of chain) {
         const g = document.createElementNS(NS, "g");
-        if (cls) g.setAttribute("class", cls);
+        g.setAttribute("class", c);
         parent.appendChild(g);
         parent = g;
       }
@@ -245,6 +248,8 @@ interface Clock {
   /** Secondes écoulées depuis l'origine commune. */
   t: number;
   frames: Map<string, Stop[]>;
+  /** Les masques empruntés à d'autres modules pendant cette peinture. */
+  consumed: string[];
   /** Un calque de la taille et du repère du canvas courant, pour composer un masque. */
   layer: () => CanvasRenderingContext2D | null;
   /** Le visiteur a demandé qu'on ne l'anime pas : on montre alors la pose de repos, comme le ferait
@@ -253,7 +258,10 @@ interface Clock {
 }
 
 interface Frame {
-  chain: string[];
+  /** La chaîne d'ancêtres, jointe par `>` : assemblée une fois par groupe. */
+  chain: string;
+  /** La matrice du dessin à cet endroit de l'arbre — sans la mise à l'écran. */
+  m: Mat;
   /** L'échelle accumulée des `transform` de groupe, pour le trait à épaisseur fixe. */
   scale: number;
   alpha: number;
@@ -271,6 +279,14 @@ interface Frame {
  *  combien le dessin sort du cadre. Le bitmap est agrandi d'autant et recalé par des décalages
  *  négatifs : la boîte de mise en page reste celle du corps, le dessin déborde comme avant.
  */
+/** Le débord du dessin hors de son cadre, en points d'écran, côté par côté. */
+interface Bleed {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+
 export interface Extent {
   minX: number;
   minY: number;
@@ -285,25 +301,50 @@ const grow = (e: Extent, x: number, y: number) => {
   if (y > e.maxY) e.maxY = y;
 };
 
-/** Les points d'une forme, passés par la matrice courante puis versés dans l'étendue. */
-function measure(ctx: CanvasRenderingContext2D, e: Extent, pts: number[], pad: number) {
-  const m = ctx.getTransform();
+/**
+ * Les points d'une forme, passés par la matrice du groupe puis versés dans l'étendue.
+ *
+ *  La matrice est portée par le parcours et non demandée au contexte. Deux raisons, et la seconde
+ *  est la vraie : `getTransform()` alloue une `DOMMatrix` à chaque forme, ce qui pèse plus que la
+ *  mesure elle-même ; mais surtout le contexte porte **la matrice de peinture**, qui inclut le
+ *  débord et le rapport de pixels. Mesurée à travers elle, l'étendue reviendrait en pixels
+ *  d'appareil alors qu'on la compare au cadre, qui est en unités de dessin — et le débord calculé
+ *  dessus n'aurait aucun sens. Le parcours garde donc la matrice du dessin seul.
+ */
+function measure(m: Mat, e: Extent | null, pts: number[], pad: number) {
+  if (e === null) return;
   for (let i = 0; i + 1 < pts.length; i += 2) {
-    const x = m.a * pts[i] + m.c * pts[i + 1] + m.e;
-    const y = m.b * pts[i] + m.d * pts[i + 1] + m.f;
+    const x = m[0] * pts[i] + m[2] * pts[i + 1] + m[4];
+    const y = m[1] * pts[i] + m[3] * pts[i + 1] + m[5];
     grow(e, x - pad, y - pad);
     grow(e, x + pad, y + pad);
   }
 }
 
+/** Une matrice affine du plan : `a b c d e f`, comme en SVG. */
+type Mat = [number, number, number, number, number, number];
+const IDENTITY: Mat = [1, 0, 0, 1, 0, 0];
+const mul = (m: Mat, n: Mat): Mat => [
+  m[0] * n[0] + m[2] * n[1],
+  m[1] * n[0] + m[3] * n[1],
+  m[0] * n[2] + m[2] * n[3],
+  m[1] * n[2] + m[3] * n[3],
+  m[0] * n[4] + m[2] * n[5] + m[4],
+  m[1] * n[4] + m[3] * n[5] + m[5],
+];
+
 /** `transform="translate(a b) rotate(d) scale(s)"` — la poignée de formes qu'émettent les modules,
  *  appliquées telles quelles au contexte. Rien de général : ce qui n'est pas reconnu est ignoré,
  *  parce qu'un transform inconnu qui décale silencieusement le dessin est pire qu'un transform
  *  absent. */
-function applyTransform(ctx: CanvasRenderingContext2D, spec: string): number {
+function applyTransform(ctx: CanvasRenderingContext2D, spec: string, into: Mat): { scale: number; m: Mat } {
   let scale = 1;
+  let acc = into;
   const re = /(matrix|translate|rotate|scale|skewX|skewY)\s*\(([^)]*)\)/g;
   let m: RegExpExecArray | null;
+  const step = (n: Mat) => {
+    acc = mul(acc, n);
+  };
   while ((m = re.exec(spec)) !== null) {
     // `parseFloat` et non `Number` : une transformation CSS porte ses unités (`3px`, `20deg`),
     // une transformation SVG non, et les deux passent ici.
@@ -311,45 +352,67 @@ function applyTransform(ctx: CanvasRenderingContext2D, spec: string): number {
     switch (m[1]) {
       case "matrix":
         ctx.transform(n[0], n[1], n[2], n[3], n[4], n[5]);
+        step([n[0], n[1], n[2], n[3], n[4], n[5]]);
         scale *= Math.sqrt(Math.abs(n[0] * n[3] - n[1] * n[2])) || 1;
         break;
       case "translate":
         ctx.translate(n[0] || 0, n[1] || 0);
+        step([1, 0, 0, 1, n[0] || 0, n[1] || 0]);
         break;
-      case "rotate":
+      case "rotate": {
+        const a = ((n[0] || 0) * Math.PI) / 180;
+        const cos = Math.cos(a);
+        const sin = Math.sin(a);
         if (n.length >= 3) {
           ctx.translate(n[1], n[2]);
-          ctx.rotate(((n[0] || 0) * Math.PI) / 180);
+          ctx.rotate(a);
           ctx.translate(-n[1], -n[2]);
-        } else ctx.rotate(((n[0] || 0) * Math.PI) / 180);
-        break;
-      case "scale": {
-        const sx = n[0] ?? 1;
-        const sy = n[1] ?? sx;
-        ctx.scale(sx, sy);
-        scale *= Math.sqrt(Math.abs(sx * sy)) || 1;
+          step([1, 0, 0, 1, n[1], n[2]]);
+          step([cos, sin, -sin, cos, 0, 0]);
+          step([1, 0, 0, 1, -n[1], -n[2]]);
+        } else {
+          ctx.rotate(a);
+          step([cos, sin, -sin, cos, 0, 0]);
+        }
         break;
       }
-      case "skewX":
-        ctx.transform(1, 0, Math.tan(((n[0] || 0) * Math.PI) / 180), 1, 0, 0);
+      case "scale": {
+        const kx = n[0] ?? 1;
+        const ky = n[1] ?? kx;
+        ctx.scale(kx, ky);
+        step([kx, 0, 0, ky, 0, 0]);
+        scale *= Math.sqrt(Math.abs(kx * ky)) || 1;
         break;
-      case "skewY":
-        ctx.transform(1, Math.tan(((n[0] || 0) * Math.PI) / 180), 0, 1, 0, 0);
+      }
+      case "skewX": {
+        const t = Math.tan(((n[0] || 0) * Math.PI) / 180);
+        ctx.transform(1, 0, t, 1, 0, 0);
+        step([1, 0, t, 1, 0, 0]);
         break;
+      }
+      case "skewY": {
+        const t = Math.tan(((n[0] || 0) * Math.PI) / 180);
+        ctx.transform(1, t, 0, 1, 0, 0);
+        step([1, t, 0, 1, 0, 0]);
+        break;
+      }
     }
   }
-  return scale;
+  return { scale, m: acc };
 }
 
-const points = (spec: string): number[] =>
-  spec
-    .trim()
-    .split(/[\s,]+/)
-    .map(Number)
-    .filter((n) => !Number.isNaN(n));
+/** Les modules donnent leurs contours en nombres ; une chaîne reste acceptée, parce qu'un `points`
+ *  écrit à la main dans une story doit continuer de marcher. */
+const points = (spec: string | number[]): number[] =>
+  Array.isArray(spec)
+    ? spec
+    : spec
+        .trim()
+        .split(/[\s,]+/)
+        .map(Number)
+        .filter((n) => !Number.isNaN(n));
 
-function tracePoints(ctx: CanvasRenderingContext2D, spec: string, close: boolean) {
-  const n = points(spec);
+function tracePoints(ctx: CanvasRenderingContext2D, n: number[], close: boolean) {
   if (n.length < 4) return false;
   ctx.beginPath();
   ctx.moveTo(n[0], n[1]);
@@ -419,14 +482,15 @@ function walk(ctx: CanvasRenderingContext2D, node: ReactNode, frame: Frame, prob
   // Un groupe masqué : on le dessine à part, on l'ampute de ce que le masque ne garde pas, puis on
   // pose le calque. `destination-in` est l'exact équivalent du masque de luminance employé ici,
   // puisque le publieur peint ses formes en blanc plein : là où il a peint, on garde.
-  if (extent === null && typeof props.mask === "string") {
+  if (typeof props.mask === "string") {
     const id = /url\(#([^)]+)\)/.exec(props.mask)?.[1];
     const src = id ? masks.get(id) : undefined;
+    if (id) clock.consumed.push(id);
     if (src !== undefined) {
       const lctx = clock.layer();
       if (lctx !== null) {
         const inner: Clock = { ...clock, frames: src.frames };
-        walk(lctx, kids, { ...frame, alpha: 1 }, probe, missing, null, clock);
+        walk(lctx, kids, { ...frame, alpha: 1 }, probe, missing, extent, clock);
         lctx.globalCompositeOperation = "destination-in";
         walk(lctx, src.node, { ...frame, alpha: 1 }, probe, missing, null, inner);
         lctx.globalCompositeOperation = "source-over";
@@ -443,7 +507,7 @@ function walk(ctx: CanvasRenderingContext2D, node: ReactNode, frame: Frame, prob
   // Les conteneurs : ils n'ont pas de dessin propre, seulement un contexte.
   if (tag === "g" || tag === "svg") {
     const style = props.style as (CSSProperties & { animationName?: string; animationDuration?: string }) | undefined;
-    const chainHere = cls ? [...frame.chain, cls] : frame.chain;
+    const chainHere = cls ? (frame.chain ? `${frame.chain}>${cls}` : cls) : frame.chain;
     let opacity = props.opacity !== undefined ? Number(props.opacity) : style?.opacity !== undefined ? Number(style.opacity) : 1;
     // La transformation vient de l'attribut SVG ou de la propriété CSS — les modules emploient les
     // deux — et l'animation, quand il y en a une, l'emporte sur les deux. Toutes sont des
@@ -454,14 +518,16 @@ function walk(ctx: CanvasRenderingContext2D, node: ReactNode, frame: Frame, prob
     if (track !== undefined && !clock.reduced) {
       const seconds = style?.animationDuration ? parseFloat(style.animationDuration) : 1;
       const u = seconds > 0 ? (((clock.t / seconds) % 1) + 1) % 1 : 0;
-      const pose = sample(track, u, easing(probe.resolve(chainHere, "g").timing));
+      const pose = sample(track, u, easing(probe.resolve(chainHere, "", "g").timing));
       if (pose.translate !== null) transform = `translate(${pose.translate[0]} ${pose.translate[1]})`;
       if (pose.opacity !== null) opacity *= pose.opacity;
     }
-    const next: Frame = { chain: chainHere, scale: frame.scale, alpha: frame.alpha * opacity };
+    const next: Frame = { chain: chainHere, m: frame.m, scale: frame.scale, alpha: frame.alpha * opacity };
     if (transform) {
       ctx.save();
-      next.scale = frame.scale * applyTransform(ctx, transform);
+      const applied = applyTransform(ctx, transform, frame.m);
+      next.m = applied.m;
+      next.scale = frame.scale * applied.scale;
       ctx.globalAlpha = next.alpha;
       walk(ctx, kids, next, probe, missing, extent, clock);
       ctx.restore();
@@ -473,30 +539,42 @@ function walk(ctx: CanvasRenderingContext2D, node: ReactNode, frame: Frame, prob
     }
     return;
   }
-  // `<defs>` et `<mask>` ne se peignent pas ; `<style>` et `<title>` non plus.
-  if (tag === "defs" || tag === "mask" || tag === "style" || tag === "title" || tag === "desc" || tag === "clipPath") return;
+  // `<defs>` et `<mask>` ne se peignent pas — mais on les lit au passage.
+  //
+  // Le ramassage se faisait dans un parcours à part, pour ne rien devoir à l'ordre de l'arbre. Un
+  // troisième parcours par image, pour trouver trois éléments : les modules écrivent tous leur
+  // `<defs>` en tête, donc une piste est connue avant le groupe qui s'y réfère. Si elle ne l'était
+  // pas, la première image serait à l'arrêt et la suivante juste — la boucle d'animation repasse.
+  if (tag === "defs") {
+    walk(ctx, kids, frame, probe, missing, extent, clock);
+    return;
+  }
+  if (tag === "style") {
+    const text = Array.isArray(kids) ? kids.join("") : typeof kids === "string" ? kids : "";
+    if (text) parseKeyframes(text, clock.frames);
+    return;
+  }
+  if (tag === "mask") {
+    if (typeof props.id === "string") masks.set(props.id, { node: kids, frames: clock.frames });
+    return;
+  }
+  if (tag === "title" || tag === "desc" || tag === "clipPath") return;
 
-  const s = probe.resolve(cls ? [...frame.chain, cls] : frame.chain, tag);
+  const s = probe.resolve(frame.chain, cls, tag);
 
   const pad = s.stroke ? (s.fixedStroke ? s.strokeWidth / frame.scale : s.strokeWidth) : 0;
 
   switch (tag) {
     case "polygon":
     case "polyline": {
-      const spec = String(props.points ?? "");
-      if (extent !== null) {
-        measure(ctx, extent, points(spec), pad);
-        return;
-      }
+      const spec = points((props.points as string | number[] | undefined) ?? "");
+      measure(frame.m, extent, spec, pad);
       if (tracePoints(ctx, spec, tag === "polygon")) strokeAndFill(ctx, s, props, frame);
       return;
     }
     case "line": {
       const seg = [Number(props.x1) || 0, Number(props.y1) || 0, Number(props.x2) || 0, Number(props.y2) || 0];
-      if (extent !== null) {
-        measure(ctx, extent, seg, pad);
-        return;
-      }
+      measure(frame.m, extent, seg, pad);
       ctx.beginPath();
       ctx.moveTo(seg[0], seg[1]);
       ctx.lineTo(seg[2], seg[3]);
@@ -506,13 +584,10 @@ function walk(ctx: CanvasRenderingContext2D, node: ReactNode, frame: Frame, prob
     case "path": {
       const d = typeof props.d === "string" ? props.d : "";
       if (!d) return;
-      if (extent !== null) {
-        // Les nombres d'un `d`, pris deux à deux. Exact pour les tracés que les modules écrivent —
-        // ils n'emploient que `M` et `L` — et jamais sous-estimé pour un tracé courbe, puisque les
-        // points de contrôle d'une Bézier encadrent la courbe.
-        measure(ctx, extent, d.match(/-?\d*\.?\d+(?:e[-+]?\d+)?/gi)?.map(Number) ?? [], pad);
-        return;
-      }
+      // Les nombres d'un `d`, pris deux à deux. Exact pour les tracés que les modules écrivent —
+      // ils n'emploient que `M` et `L` — et jamais sous-estimé pour un tracé courbe, puisque les
+      // points de contrôle d'une Bézier encadrent la courbe.
+      if (extent !== null) measure(frame.m, extent, d.match(/-?\d*\.?\d+(?:e[-+]?\d+)?/gi)?.map(Number) ?? [], pad);
       const p = new Path2D(d);
       const fill = typeof props.fill === "string" ? paint(props.fill) : s.fill;
       const stroke = typeof props.stroke === "string" ? paint(props.stroke) : s.stroke;
@@ -541,8 +616,7 @@ function walk(ctx: CanvasRenderingContext2D, node: ReactNode, frame: Frame, prob
       if (extent !== null) {
         const cx = Number(props.cx) || 0;
         const cy = Number(props.cy) || 0;
-        measure(ctx, extent, [cx - r, cy - r, cx + r, cy + r], pad);
-        return;
+        measure(frame.m, extent, [cx - r, cy - r, cx + r, cy + r], pad);
       }
       ctx.beginPath();
       ctx.arc(Number(props.cx) || 0, Number(props.cy) || 0, r, 0, Math.PI * 2);
@@ -556,8 +630,7 @@ function walk(ctx: CanvasRenderingContext2D, node: ReactNode, frame: Frame, prob
       if (extent !== null) {
         const cx = Number(props.cx) || 0;
         const cy = Number(props.cy) || 0;
-        measure(ctx, extent, [cx - rx, cy - ry, cx + rx, cy + ry], pad);
-        return;
+        measure(frame.m, extent, [cx - rx, cy - ry, cx + rx, cy + ry], pad);
       }
       ctx.beginPath();
       ctx.ellipse(Number(props.cx) || 0, Number(props.cy) || 0, rx, ry, 0, 0, Math.PI * 2);
@@ -570,10 +643,7 @@ function walk(ctx: CanvasRenderingContext2D, node: ReactNode, frame: Frame, prob
       if (w <= 0 || h <= 0) return;
       const x = Number(props.x) || 0;
       const y = Number(props.y) || 0;
-      if (extent !== null) {
-        measure(ctx, extent, [x, y, x + w, y + h], pad);
-        return;
-      }
+      if (extent !== null) measure(frame.m, extent, [x, y, x + w, y + h], pad);
       const rx = Math.min(Number(props.rx) || 0, w / 2, h / 2);
       ctx.beginPath();
       if (rx > 0) ctx.roundRect(x, y, w, h, rx);
@@ -584,35 +654,6 @@ function walk(ctx: CanvasRenderingContext2D, node: ReactNode, frame: Frame, prob
     default:
       missing.add(tag);
   }
-}
-
-/** Les `@keyframes` posées dans l'arbre, ramassées avant de peindre : un `<style>` se trouve dans
- *  un `<defs>` en tête, donc avant les groupes qui s'y réfèrent — mais rien ne l'impose, et une
- *  passe séparée coûte moins cher que de s'en remettre à l'ordre. */
-function collectKeyframes(node: ReactNode, into: Map<string, Stop[]>, found: string[]) {
-  if (node === null || node === undefined || typeof node === "boolean") return;
-  if (Array.isArray(node)) {
-    for (const child of node) collectKeyframes(child, into, found);
-    return;
-  }
-  if (!isValidElement(node)) return;
-  const el = node as ReactElement<Record<string, unknown>>;
-  const kids = el.props?.children as ReactNode;
-  if (el.type === "style") {
-    const text = Array.isArray(kids) ? kids.join("") : typeof kids === "string" ? kids : "";
-    if (text) parseKeyframes(text, into);
-    return;
-  }
-  if (el.type === "mask" && typeof el.props.id === "string") {
-    found.push(el.props.id);
-    masks.set(el.props.id, { node: kids, frames: into });
-    return;
-  }
-  if (typeof el.props.mask === "string") {
-    const id = /url\(#([^)]+)\)/.exec(el.props.mask)?.[1];
-    if (id) found.push(`?${id}`);
-  }
-  collectKeyframes(kids, into, found);
 }
 
 export interface IsoCanvasProps {
@@ -644,8 +685,17 @@ export function IsoCanvas({ viewBox, width, height, className, role = "img", ari
   const host = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const probe = useRef<StyleProbe | null>(null);
-  /** La largeur réellement occupée à l'écran, mesurée. Elle sert de déclencheur de repeinture. */
+  /** La largeur réellement occupée à l'écran, en pixels de l'appareil. Elle sert de déclencheur de
+   *  repeinture, et c'est l'observateur qui la fournit. */
   const [shown, setShown] = useState(0);
+  /** Pixels d'appareil par point de mise en page : le ratio du moniteur **multiplié par le zoom**.
+   *
+   *  Il était relu à chaque peinture par `getBoundingClientRect`, ce qui force une mise en page —
+   *  treize fois par image pendant une rotation. Or il ne change que quand la taille affichée
+   *  change, ce que l'observateur signale déjà. */
+  const scale = useRef(0);
+  /** Le débord retenu d'une peinture à la suivante. */
+  const spill = useRef<Bleed>({ left: 0, top: 0, right: 0, bottom: 0 });
   const [minX, minY, vw, vh] = viewBox;
   /** Le tracé courant, partagé avec la boucle d'animation. Une **référence** et non un état : une
    *  animation qui re-rendrait React soixante fois par seconde ferait payer à tout l'arbre ce qui
@@ -672,9 +722,23 @@ export function IsoCanvas({ viewBox, width, height, className, role = "img", ari
   useEffect(() => {
     const cv = canvas.current;
     if (cv === null || typeof ResizeObserver === "undefined") return;
-    const ro = new ResizeObserver(() => setShown(cv.getBoundingClientRect().width));
-    ro.observe(cv);
-    setShown(cv.getBoundingClientRect().width);
+    const ro = new ResizeObserver((entries) => {
+      // Les deux tailles **de la même entrée** : les pixels d'appareil et les points de mise en
+      // page d'un seul et même instant. Rapportée à la largeur qu'on avait posée au dernier tracé,
+      // la mesure se serait comparée à une valeur d'un autre moment — et un ratio faux d'un
+      // centième décale tout le dessin d'un demi-pixel.
+      const dev = entries[0]?.devicePixelContentBoxSize?.[0]?.inlineSize;
+      const css = entries[0]?.contentBoxSize?.[0]?.inlineSize;
+      if (dev !== undefined && css !== undefined && css > 0) {
+        scale.current = dev / css;
+        setShown(dev);
+      }
+    });
+    try {
+      ro.observe(cv, { box: "device-pixel-content-box" });
+    } catch {
+      ro.observe(cv);
+    }
     return () => ro.disconnect();
   }, []);
 
@@ -683,17 +747,16 @@ export function IsoCanvas({ viewBox, width, height, className, role = "img", ari
     if (cv === null || probe.current === null) return;
     const ctx = cv.getContext("2d");
     if (ctx === null) return;
+    const probeNow = probe.current;
     const missing = new Set<string>();
     const frames = new Map<string, Stop[]>();
-    const seen: string[] = [];
-    collectKeyframes(children, frames, seen);
+    const consumed: string[] = [];
     const reduced = typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    // Un masque consommé anime le calque qui le porte : c'est le publieur qui bouge, pas nous.
-    const borrowed = seen.filter((k) => k.startsWith("?")).some((k) => (masks.get(k.slice(1))?.frames.size ?? 0) > 0);
     let sheet: HTMLCanvasElement | null = null;
     const clock: Clock = {
       t: 0,
       frames,
+      consumed,
       reduced,
       layer: () => {
         if (sheet === null) sheet = document.createElement("canvas");
@@ -710,52 +773,81 @@ export function IsoCanvas({ viewBox, width, height, className, role = "img", ari
         return lc;
       },
     };
-    const chain = className ? [className] : [];
+    const chain = className ?? "";
     const sx = width / vw;
     const sy = height / vh;
-    const base: Frame = { chain, scale: Math.sqrt(Math.abs(sx * sy)) || 1, alpha: 1 };
-
-    // Passe de mesure : le même parcours, dans le repère du dessin, sans rien tracer.
-    const e: Extent = { minX: minX, minY: minY, maxX: minX + vw, maxY: minY + vh };
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    walk(ctx, children, base, probe.current, missing, e, clock);
-
-    // Le débord, en points d'écran, arrondi au point supérieur pour ne jamais raboter d'un pixel.
-    const left = Math.ceil(Math.max(0, minX - e.minX) * sx);
-    const top = Math.ceil(Math.max(0, minY - e.minY) * sy);
-    const right = Math.ceil(Math.max(0, e.maxX - (minX + vw)) * sx);
-    const bottom = Math.ceil(Math.max(0, e.maxY - (minY + vh)) * sy);
-    const cw = width + left + right;
-    const ch = height + top + bottom;
-
-    const rect = cv.getBoundingClientRect();
+    const base: Frame = { chain, m: IDENTITY, scale: Math.sqrt(Math.abs(sx * sy)) || 1, alpha: 1 };
     // Le rapport de pixels du moniteur, multiplié par le grossissement que la mise en page a
     // appliqué : sur un écran à deux pixels par point, un canvas dimensionné en points rend un
     // dessin flou là où le SVG restait net.
-    const dpr = (window.devicePixelRatio || 1) * (rect.width > 0 ? rect.width / cw : 1);
-    const pw = Math.max(1, Math.round(cw * dpr));
-    const ph = Math.max(1, Math.round(ch * dpr));
-    cv.style.width = `${cw}px`;
-    cv.style.height = `${ch}px`;
-    cv.style.left = `${-left}px`;
-    cv.style.top = `${-top}px`;
-    if (cv.width !== pw) cv.width = pw;
-    if (cv.height !== ph) cv.height = ph;
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.clearRect(0, 0, pw, ph);
-    const probeNow = probe.current;
-    const render = (t: number) => {
+    const dpr = scale.current > 0 ? scale.current : window.devicePixelRatio || 1;
+
+    /** Une peinture, avec le débord qu'on croit nécessaire — et l'étendue réellement rencontrée. */
+    const paint = (t: number, b: Bleed): Extent => {
+      const cw = width + b.left + b.right;
+      const ch = height + b.top + b.bottom;
+      const pw = Math.max(1, Math.round(cw * dpr));
+      const ph = Math.max(1, Math.round(ch * dpr));
+      cv.style.width = `${cw}px`;
+      cv.style.height = `${ch}px`;
+      cv.style.left = `${-b.left}px`;
+      cv.style.top = `${-b.top}px`;
+      if (cv.width !== pw) cv.width = pw;
+      if (cv.height !== ph) cv.height = ph;
+      const e: Extent = { minX, minY, maxX: minX + vw, maxY: minY + vh };
       clock.t = t;
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, pw, ph);
-      ctx.setTransform(sx * dpr, 0, 0, sy * dpr, (left - minX * sx) * dpr, (top - minY * sy) * dpr);
+      ctx.setTransform(sx * dpr, 0, 0, sy * dpr, (b.left - minX * sx) * dpr, (b.top - minY * sy) * dpr);
       ctx.globalAlpha = 1;
-      walk(ctx, children, base, probeNow, missing, null, clock);
+      walk(ctx, children, base, probeNow, missing, e, clock);
+      return e;
     };
+
+    /** Le débord qu'aurait demandé une étendue, en points d'écran, arrondi au point supérieur pour
+     *  ne jamais raboter d'un pixel. */
+    const needed = (e: Extent): Bleed => ({
+      left: Math.ceil(Math.max(0, minX - e.minX) * sx),
+      top: Math.ceil(Math.max(0, minY - e.minY) * sy),
+      right: Math.ceil(Math.max(0, e.maxX - (minX + vw)) * sx),
+      bottom: Math.ceil(Math.max(0, e.maxY - (minY + vh)) * sy),
+    });
+
+    /**
+     * Peindre, et se corriger si le débord manquait.
+     *
+     *  Le débord n'est connu qu'une fois l'arbre parcouru, et il servait pour cela d'une passe de
+     *  mesure — un second parcours complet, à chaque image, dont la peinture ne profitait pas. Or
+     *  la peinture rencontre exactement les mêmes points : elle peut donc les relever au passage.
+     *  On peint avec le débord de la fois précédente, et s'il se révèle trop court on repeint. Pendant
+     *  une rotation le débord ne bouge pratiquement pas — l'ombre est portée par un soleil fixe à
+     *  l'écran — si bien que la seconde passe ne se produit presque jamais.
+     */
+    const render = (t: number) => {
+      const want = needed(paint(t, spill.current));
+      const grew = want.left > spill.current.left || want.top > spill.current.top || want.right > spill.current.right || want.bottom > spill.current.bottom;
+      // On ne rétrécit que franchement : à la marge, le bitmap garderait sa taille pour rien mais
+      // une oscillation d'un pixel ferait réallouer à chaque image.
+      const shrank = want.left + want.top + want.right + want.bottom < (spill.current.left + spill.current.top + spill.current.right + spill.current.bottom) / 2;
+      if (grew || shrank) {
+        spill.current = grew
+          ? {
+              left: Math.max(want.left, spill.current.left),
+              top: Math.max(want.top, spill.current.top),
+              right: Math.max(want.right, spill.current.right),
+              bottom: Math.max(want.bottom, spill.current.bottom),
+            }
+          : want;
+        paint(t, spill.current);
+      }
+    };
+
     render(0);
     if (missing.size > 0 && typeof console !== "undefined") {
       console.warn(`[IsoCanvas] non peint : ${[...missing].join(", ")}`);
     }
+    // Un masque consommé anime le calque qui le porte : c'est le publieur qui bouge, pas nous.
+    const borrowed = consumed.some((id) => (masks.get(id)?.frames.size ?? 0) > 0);
     if ((frames.size === 0 && !borrowed) || reduced) return;
     // Une seule boucle par module, et seulement quand il y a quelque chose à animer : un entrepôt à
     // l'arrêt ne consomme rien.

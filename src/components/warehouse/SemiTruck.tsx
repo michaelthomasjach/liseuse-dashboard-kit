@@ -461,8 +461,17 @@ export function SemiTruck({
   const VALANCE_Z0 = 0.26;
   const VALANCE_Z1 = cabZ0 + 0.01;
   const VALANCE_Y = 0.03;
-  /** Le dégagement laissé de part et d'autre de la roue directrice : son rayon, plus un jeu. */
-  const archGap = r + 0.08;
+  /**
+   * Le dégagement laissé de part et d'autre de la roue directrice.
+   *
+   *  Il valait le rayon du **pneu** plus un jeu — ce qui était juste tant que la roue était nue.
+   *  Depuis qu'elle porte un garde-boue, c'est le rayon extérieur de l'arc qui compte : sinon la
+   *  pointe avant du garde-boue entre dans l'emprise du pare-chocs, et comme la file de roues du
+   *  devant se peint après le châssis, c'est elle qui passe par-dessus. Le désordre ne venait pas
+   *  de l'ordre de peinture mais de deux pièces qui se chevauchaient là où elles ne le devraient
+   *  pas ; on les sépare, et la question ne se pose plus à aucun cap.
+   */
+  const archGap = r + FENDER_GAP + FENDER_T + 0.025;
   const bumperPart = prism(
     "cab",
     "bumper",
@@ -513,24 +522,34 @@ export function SemiTruck({
    */
   const TANK_Z0 = 0.27;
   const TANK_Z1 = 0.47;
-  /** Le réservoir, avec ses deux sangles : un cylindre couché n'existe pas ici, mais un volume
-   *  cerclé de deux feuillards se lit comme un réservoir et pas comme une caisse. */
+  /**
+   * Le réservoir : **un seul volume**, sans sangles en relief.
+   *
+   *  Les feuillards étaient des prismes plus hauts et plus larges que la cuve, d'une matière plus
+   *  sombre : ils ne la cerclaient pas, ils en sortaient, et on lisait deux plaques verticales
+   *  plantées dedans plutôt qu'un réservoir sanglé. À cette échelle un cerclage ne peut pas être
+   *  un volume — il fait deux centimètres sur un objet qui en fait quarante — et un volume qui ne
+   *  peut pas être vu comme tel se voit comme autre chose. La cuve seule, aux angles abattus, se
+   *  lit déjà comme un réservoir.
+   */
   const tank = (y0: number) => (
     <g key={`tank${y0}`}>
       {prism("steel", `tank${y0}`, roundedRing(driveX + 0.42, cab0 - 0.06, y0, y0 + 0.2, 0.06), TANK_Z0, TANK_Z1)}
-      {[0.12, 0.4].map((d) => (
-        <g key={d}>
-          {prism("iron", `strap${y0}${d}`, roundedRing(driveX + 0.45 + d, driveX + 0.475 + d, y0 - 0.008, y0 + 0.208, 0.012), TANK_Z0 - 0.008, TANK_Z1 + 0.008)}
-        </g>
-      ))}
     </g>
   );
-  /** Les marchepieds : deux marches décalées, devant la roue directrice, débordant du bas de
-   *  caisse — c'est par là qu'on monte dans une cabine avancée, et le décalage dit la montée. */
-  const steps = (y0: number, y1: number) => (
-    <g key={`steps${y0}`}>
-      {box("cab", `step-lo${y0}`, cab1 - 0.47, cab1 - 0.25, y0, y1, 0.28, 0.33)}
-      {box("cab", `step-hi${y0}`, cab1 - 0.45, cab1 - 0.27, y0 + 0.012, y1 - 0.012, 0.45, 0.5)}
+  /**
+   * Les marchepieds : deux marches décalées, **logées dans le pare-chocs**.
+   *
+   *  Posées entre la roue directrice et le pare-chocs, elles n'avaient rien où se tenir : le
+   *  passage de roue les séparait de l'un et elles s'arrêtaient avant l'autre, si bien qu'elles
+   *  flottaient en deux plateaux devant le pneu. Sur une cabine avancée on monte par le
+   *  pare-chocs, les marches sont creusées dedans ; ancrées dans son emprise et à peine
+   *  débordantes, elles en font partie au lieu d'être posées devant.
+   */
+  const steps = (out: number) => (
+    <g key={`steps${out}`}>
+      {box("cab", `step-lo${out}`, cab1 - 0.3, cab1 - 0.12, Math.min(out, 0.06), Math.max(out, 0.06), 0.28, 0.33)}
+      {box("cab", `step-hi${out}`, cab1 - 0.28, cab1 - 0.14, Math.min(out, 0.07), Math.max(out, 0.07), 0.45, 0.5)}
     </g>
   );
   /** Les feux arrière, dans la traverse de queue. Tracés seulement quand cette face regarde la
@@ -552,8 +571,8 @@ export function SemiTruck({
       {acrossY([
         ...(hasTractor
           ? [
-              { y: 0.0, node: <g key="rig-near">{tank(-0.01)}{steps(-0.05, 0.05)}</g> },
-              { y: WIDTH, node: <g key="rig-far">{tank(WIDTH - 0.19)}{steps(WIDTH - 0.05, WIDTH + 0.05)}</g> },
+              { y: 0.0, node: <g key="rig-near">{tank(-0.01)}{steps(-0.03)}</g> },
+              { y: WIDTH, node: <g key="rig-far">{tank(WIDTH - 0.19)}{steps(WIDTH + 0.03)}</g> },
             ]
           : []),
         { y: sideY[0], node: wheelRow(sideY[0]) },

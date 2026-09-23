@@ -162,3 +162,91 @@ export const Quai: Story = {
     );
   },
 };
+
+/**
+ * **Le bâtiment fermé** : quatre murs, et la dalle qu'ils entourent.
+ *
+ * C'est la planche, à l'échelle : 36 000 × 24 000 mm hors tout, des murs de 6 000 de haut en
+ * panneaux préfabriqués, un poteau à chaque bout et à chaque joint. Seule la façade avant est un
+ * quai — cinq portes, leur casquette, leurs butoirs et leurs poteaux de protection — et c'est ce
+ * qui donne son sens au reste : les trois autres murs sont aveugles, parce qu'un entrepôt ne
+ * s'ouvre que là où les camions se rangent.
+ *
+ * **La dalle est à 1 200 mm**, et c'est la cote qui commande tout. Un plancher de remorque est à
+ * 1 180 du sol ; un quai n'existe que pour arriver à ce niveau-là, sans quoi le seuil des portes
+ * ouvrirait sur le vide sous la remorque. Ce qu'on voit tout autour du bâtiment est la tranche de
+ * cette dalle, et la **rampe** au bout de la façade est le seul moyen d'y monter autrement que par
+ * une porte.
+ *
+ * Les quatre murs sont quatre exemplaires du même composant. Un mur couché le long des `y` est le
+ * même, tourné d'un quart de tour : `place` ci-dessous ne fait que traduire l'emprise voulue en
+ * origine, puisque la rotation se fait autour du centre du mur et non autour de son coin.
+ */
+export const Batiment: Story = {
+  name: "Le bâtiment fermé",
+  render: function Render() {
+    const cellSize = 20;
+    // Les cotes de la planche, en cases — une case vaut deux mètres.
+    const W = 18;
+    const P = 12;
+    const D = 0.3;
+    const H = 3;
+    const DOCK = 0.6;
+    const RAMP = 3;
+    const RAMP_W = 2.2;
+
+    /** L'emprise voulue, traduite en origine : un mur tourné pivote autour de son centre. */
+    const place = (axis: "x" | "y", length: number, x: number, y: number) =>
+      axis === "x"
+        ? { origin: { x, y }, rotation: 0 }
+        : { origin: { x: x + (D - length) / 2, y: y + (length - D) / 2 }, rotation: 90 };
+
+    const bays = [2.6, 5.6, 8.6, 11.6, 14.6];
+    const frame = { x: -RAMP - 1, y: -RAMP_W - 1, width: W + RAMP + 2, depth: P + RAMP_W + 2, height: H + 0.4 };
+    const shared = { cellSize, frame, height: H, thickness: D, shadows: true, dockHeight: DOCK } as const;
+
+    const side = (key: string, axis: "x" | "y", length: number, x: number, y: number, extra: object = {}) => {
+      const pos = place(axis, length, x, y);
+      const draw = (part: "shadow" | "machine") => (
+        <div style={layer}>
+          <Wall {...shared} {...pos} length={length} parts={part} {...extra} />
+        </div>
+      );
+      return {
+        key,
+        x,
+        y,
+        width: axis === "x" ? length : D,
+        height: axis === "x" ? D : length,
+        shadow: draw("shadow"),
+        machine: draw("machine"),
+      };
+    };
+
+    const units: SceneUnit[] = [
+      side("back", "x", W, 0, P - D),
+      side("left", "y", P, 0, 0),
+      side("right", "y", P, W - D, 0),
+      side("dock", "x", W, 0, 0, {
+        dockSide: "y0",
+        ramp: "start",
+        rampLength: RAMP,
+        rampWidth: RAMP_W,
+        openings: bays.map((x) => ({ at: x - 0.875, width: 1.75, height: 1.8, dock: true })),
+      }),
+    ];
+
+    return (
+      <Scene
+        frame={frame}
+        cellSize={cellSize}
+        units={units}
+        under={
+          <div style={layer}>
+            <Floor cellSize={cellSize} frame={frame} origin={{ x: 0, y: 0 }} width={W} depth={P} level={DOCK} />
+          </div>
+        }
+      />
+    );
+  },
+};

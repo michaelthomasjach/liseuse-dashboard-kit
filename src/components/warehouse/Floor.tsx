@@ -33,6 +33,12 @@ export interface FloorProps {
   depth?: number;
   /** Où poser le coin de la dalle, en cases. */
   origin?: { x: number; y: number };
+  /** La hauteur de son dessus, en cases. `0` : au niveau du sol.
+   *
+   *  C'est ce qui fait une **plateforme de quai** : le plancher d'un entrepôt de messagerie n'est
+   *  pas au niveau de la cour, il est 1 200 mm au-dessus — la hauteur d'un plancher de remorque —
+   *  et ce qu'on voit tout autour du bâtiment est la tranche de cette dalle. */
+  level?: number;
   /** Le pavé du monde que la `viewBox` doit couvrir, en cases. Partagé avec les autres modules
    *  d'une scène, il leur donne exactement le même repère à l'écran. */
   frame?: { x: number; y: number; width: number; depth: number; height: number };
@@ -52,6 +58,7 @@ export function Floor({
   width = 12,
   depth = 8,
   origin = { x: 0, y: 0 },
+  level = 0,
   frame,
   parts = "all",
   cellSize = 30,
@@ -64,9 +71,10 @@ export function Floor({
 
   const x1 = Math.max(0.5, width);
   const y1 = Math.max(0.5, depth);
-  const z0 = -THICKNESS;
+  const z1 = Math.max(0, level);
+  const z0 = z1 - THICKNESS;
 
-  const slab = solidVolume("slab", "slab", boxFaces(at, 0, x1, 0, y1, z0, 0, facing));
+  const slab = solidVolume("slab", "slab", boxFaces(at, 0, x1, 0, y1, z0, z1, facing));
 
   // Le cadrage. Avec un cadre partagé, la dalle **ajoute** sa tranche aux coins du cadre : elle
   // descend sous le zéro du monde, que le cadre ne connaît pas. Ça ne décale rien — ce qui s'ajoute
@@ -77,17 +85,15 @@ export function Floor({
     [x1, y1],
     [0, y1],
   ].map(([x, y]) => at(x, y, z0));
+  const over = [
+    [0, 0],
+    [x1, 0],
+    [x1, y1],
+    [0, y1],
+  ].map(([x, y]) => at(x, y, z1));
   const corners: Point[] = frame
-    ? [...frameCorners(frame, world, cam.sun), ...under]
-    : [
-        ...under,
-        ...[
-          [0, 0],
-          [x1, 0],
-          [x1, y1],
-          [0, y1],
-        ].map(([x, y]) => at(x, y, 0)),
-      ];
+    ? [...frameCorners(frame, world, cam.sun), ...under, ...over]
+    : [...under, ...over];
   const minX = Math.min(...corners.map((p) => p.x)) - PAD;
   const minY = Math.min(...corners.map((p) => p.y)) - PAD;
   const boxWidth = Math.max(...corners.map((p) => p.x)) + PAD - minX;

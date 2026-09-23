@@ -20,3 +20,35 @@
   stroke-width: 1;
   vector-effect: non-scaling-stroke;
 }
+
+/* La casquette d'une porte de quai, et les butoirs : la même tôle sombre, parce que c'est le même
+   ouvrage — un caisson noir boulonné sur la façade, que l'on reconnaît de loin à son contraste avec
+   le béton. */
+.lq-iso__solid--dock {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-text) 66%, var(--lq-color-bg));
+}
+
+/* Le tablier sectionnel : clair, presque blanc. C'est la seule chose vraiment claire d'une façade
+   de quai, et c'est ce qui fait lire l'ouverture comme fermée plutôt que comme un trou. */
+.lq-wall__leaf {
+  fill: color-mix(in srgb, var(--lq-color-text) 4%, var(--lq-color-bg));
+  stroke: color-mix(in srgb, var(--lq-color-text) 55%, transparent);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+/* Les refends entre panneaux du tablier : des traits, pas des volumes. Leur nombre dit la hauteur
+   de la porte mieux qu'une cote. */
+.lq-wall__section line {
+  stroke: color-mix(in srgb, var(--lq-color-text) 26%, transparent);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+/* Les deux hublots. */
+.lq-wall__pane {
+  fill: color-mix(in srgb, var(--lq-color-text) 46%, var(--lq-color-bg));
+  stroke: color-mix(in srgb, var(--lq-color-text) 62%, transparent);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}

@@ -278,9 +278,55 @@ export function SemiTruck({
    *  l'emprise réelle, et c'est aussi ce qui laisse voir les deux, qui sont ce que l'œil cherche
    *  pour comprendre comment la remorque tient debout.
    */
-  const trailerSkirtZ0 = 0.42;
+  /** Le bas du carénage : 600 mm du sol, soit plus bas que le moyeu des roues.
+   *
+   *  À mi-hauteur de roue il laissait encore voir le jour sous la remorque, et un carénage qui ne
+   *  ferme pas la silhouette ne sert à rien de ce qu'on lui demande ici. Descendu sous l'axe, il
+   *  referme le flanc tout en gardant les roues lisibles — c'est aussi la garde au sol réelle de
+   *  ces jupes, qui doivent passer les dos-d'âne. */
+  const trailerSkirtZ0 = 600 * MM;
   const trailerSkirt = (y: number) =>
     prism("trailer", `tskirt${y}`, roundedRing(axles[2] + 0.5, kingpin - 1.85, y, y + 0.07, 0.03), trailerSkirtZ0, trailerZ0);
+
+  /**
+   * Le bas de caisse du tracteur : **une seule pièce**, du nez jusque sous la cabine.
+   *
+   *  C'était un petit mur planté devant la cabine, débordant du nez et s'arrêtant là. Deux défauts
+   *  dans le même objet. D'abord l'alignement : un pare-chocs de camion est dans le nu de la
+   *  cabine, il en prolonge la face vers le bas — c'est la même tôle qui descend — et le faire
+   *  saillir donne un museau que rien sur le plan ne montre. Ensuite la continuité : il ne s'arrête
+   *  pas au nez, il file sous la cabine jusqu'à l'arrière du tracteur, et c'est ce bandeau bas
+   *  continu qui pose le camion au sol au lieu de le laisser sur pilotis.
+   *
+   *  Il est donc en deux morceaux de **mêmes hauteurs et mêmes flancs**, séparés seulement par le
+   *  passage de la roue directrice : devant elle, l'avant du bas de caisse avec le pare-chocs ;
+   *  derrière elle, le marchepied et les réservoirs. Deux morceaux, une seule ligne — c'est ainsi
+   *  que se lit un camion, et c'est pour ça que la roue avant doit rester visible entre les deux
+   *  plutôt qu'être avalée par une jupe d'un seul tenant.
+   */
+  const VALANCE_Z0 = 0.26;
+  const VALANCE_Z1 = cabZ0 + 0.01;
+  const VALANCE_Y = 0.03;
+  /** Le dégagement laissé de part et d'autre de la roue directrice : son rayon, plus un jeu. */
+  const archGap = r + 0.08;
+  const bumperPart = prism(
+    "cab",
+    "bumper",
+    // Se termine exactement sur `cab1`, le nez de la cabine : au nu, sans saillie.
+    roundedRing(steerX + archGap, cab1, VALANCE_Y, WIDTH - VALANCE_Y, 0.07),
+    VALANCE_Z0,
+    VALANCE_Z1
+  );
+  const skirtPart = prism("cab", "skirt", roundedRing(cab0, steerX - archGap, VALANCE_Y, WIDTH - VALANCE_Y, 0.07), VALANCE_Z0, VALANCE_Z1);
+
+  const valance = (
+    <g key="valance">
+      {alongX([
+        { x: cab0, node: <g key="skirt">{skirtPart}</g> },
+        { x: cab1, node: <g key="bumper">{bumperPart}</g> },
+      ])}
+    </g>
+  );
 
   const under = (
     <g key="under">
@@ -292,6 +338,17 @@ export function SemiTruck({
           y: WIDTH / 2,
           node: (
             <g key="frame">
+              {/* Le bas de caisse du tracteur est **sous** la cabine, donc ici et non dans l'ordre
+                  en x au-dessus.
+                  
+                  Rangé là-haut, il devait se donner une position le long du camion — et il n'en a
+                  pas une seule : il court du nez jusque derrière la roue directrice, donc il
+                  chevauche la cabine sur toute sa longueur. L'ordre en x suppose des tranches qui
+                  ne se chevauchent pas ; avec une pièce qui en couvre une autre, le tri finit par
+                  la sortir devant dès que la caméra passe d'un côté à l'autre, et c'est le
+                  pare-chocs qui doublait la cabine. Sous elle, la question ne se pose plus : rien
+                  de ce qui est sous le plancher ne peut masquer ce qui est dessus. */}
+              {valance}
               {box("iron", "tractor-beam", tractor0, cab1 - 0.1, beamY0, beamY1, 0.42, cabZ0)}
               {box("iron", "trailer-beam", 0, T, beamY0, beamY1, trailerZ0 - 0.12, trailerZ0)}
               {acrossY(
@@ -557,44 +614,12 @@ export function SemiTruck({
     </g>
   );
 
-  /**
-   * Le bas de caisse du tracteur : **une seule pièce**, du nez jusque sous la cabine.
-   *
-   *  C'était un petit mur planté devant la cabine, débordant du nez et s'arrêtant là. Deux défauts
-   *  dans le même objet. D'abord l'alignement : un pare-chocs de camion est dans le nu de la
-   *  cabine, il en prolonge la face vers le bas — c'est la même tôle qui descend — et le faire
-   *  saillir donne un museau que rien sur le plan ne montre. Ensuite la continuité : il ne s'arrête
-   *  pas au nez, il file sous la cabine jusqu'à l'arrière du tracteur, et c'est ce bandeau bas
-   *  continu qui pose le camion au sol au lieu de le laisser sur pilotis.
-   *
-   *  Il est donc en deux morceaux de **mêmes hauteurs et mêmes flancs**, séparés seulement par le
-   *  passage de la roue directrice : devant elle, l'avant du bas de caisse avec le pare-chocs ;
-   *  derrière elle, le marchepied et les réservoirs. Deux morceaux, une seule ligne — c'est ainsi
-   *  que se lit un camion, et c'est pour ça que la roue avant doit rester visible entre les deux
-   *  plutôt qu'être avalée par une jupe d'un seul tenant.
-   */
-  const VALANCE_Z0 = 0.26;
-  const VALANCE_Z1 = cabZ0 + 0.01;
-  const VALANCE_Y = 0.03;
-  /** Le dégagement laissé de part et d'autre de la roue directrice : son rayon, plus un jeu. */
-  const archGap = r + 0.08;
-  const bumper = prism(
-    "cab",
-    "bumper",
-    // Se termine exactement sur `cab1`, le nez de la cabine : au nu, sans saillie.
-    roundedRing(steerX + archGap, cab1, VALANCE_Y, WIDTH - VALANCE_Y, 0.07),
-    VALANCE_Z0,
-    VALANCE_Z1
-  );
-  const skirt = prism("cab", "skirt", roundedRing(cab0, steerX - archGap, VALANCE_Y, WIDTH - VALANCE_Y, 0.07), VALANCE_Z0, VALANCE_Z1);
 
 
   const above = alongX([
     { x: 0, node: trailer },
-    { x: cab0, node: <g key="skirt">{skirt}</g> },
     { x: cab0 + 0.01, node: cab },
     { x: cab1 - WINDSHIELD - 0.11, node: mirrors },
-    { x: cab1, node: <g key="bumper">{bumper}</g> },
   ]);
 
   // ---- l'ombre ----

@@ -318,36 +318,67 @@ export function SemiTruck({
    *  sa file contient, le peindre en dernier est juste à tous les caps.
    */
   /**
-   * Le garde-boue : **un arc au-dessus de la roue**, pas un caisson posé dessus.
+   * Le garde-boue : **une bande arquée autour du pneu**, pas un capot par-dessus.
    *
-   *  Un pavé rectangulaire par-dessus le pneu donne un coussin, et un coussin n'a rien d'un
-   *  garde-boue : ce qui fait reconnaître la pièce, c'est qu'elle **épouse la roue** — elle descend
-   *  de part et d'autre jusqu'au moyeu et se referme au-dessus. L'arc se monte en couches de
-   *  hauteur égale dont la demi-longueur suit le cercle, `√(R² − h²)`, ce qui en fait un vrai
-   *  profil de roue et non un arrondi approché à l'œil ; et comme toutes les couches appartiennent
-   *  au même volume, l'ensemble ne se cerne que d'une silhouette.
+   *  Rempli, l'arc mangeait le haut de la roue : à hauteur de moyeu il couvrait déjà toute la
+   *  largeur du pneu, et la roue se retrouvait à moitié avalée — la pièce n'était plus un
+   *  garde-boue mais une aile pleine. Un garde-boue est une tôle mince **à distance** du pneu, qui
+   *  le suit de moyeu à moyeu en passant au-dessus ; entre les deux, on voit le pneu, et c'est
+   *  justement ce vide qui dit que la roue tourne là-dedans.
    *
-   *  Il s'arrête net sous la caisse qui le surmonte — plancher de remorque ou de cabine — parce
-   *  qu'un garde-boue y est boulonné : c'est cette coupe à plat qui le rattache, au lieu de le
-   *  laisser flotter en couronne au-dessus du pneu.
+   *  D'où une bande, définie par deux rayons : `ri`, franchement au-delà du pneu, et `ro`, un peu
+   *  plus loin. Elle ne recouvre rien par construction, puisque son bord intérieur est déjà hors
+   *  du pneu — il n'y a plus de réglage à trouver pour que la roue reste visible.
+   *
+   *  Trois surfaces suffisent à la faire tenir en volume : le flanc du fond, la **bande de
+   *  roulement** qui la coiffe d'un bout à l'autre, et le flanc de devant. Les facettes de la
+   *  bande sont sans trait — sinon les douze segments de l'arc se lisent comme des hachures — et
+   *  ce sont les deux flancs, cernés de leur contour, qui portent le dessin.
    */
-  const FENDER_T = 0.1;
-  const FENDER_OVER = 0.05;
-  const FENDER_STEPS = 9;
-  const fender = (key: string, xc: number, y: number, zTop: number) => {
-    const outer = r + FENDER_T;
-    const top = Math.min(r + outer, zTop);
-    const y0 = y - tyre / 2 - FENDER_OVER;
-    const y1 = y + tyre / 2 + FENDER_OVER;
-    return stack(
-      "iron",
-      key,
-      Array.from({ length: FENDER_STEPS }, (_, k) => {
-        const z0 = r + ((top - r) * k) / FENDER_STEPS;
-        const z1 = r + ((top - r) * (k + 1)) / FENDER_STEPS;
-        const half = Math.sqrt(Math.max(0, outer * outer - (z1 - r) * (z1 - r)));
-        return { ring: roundedRing(xc - half, xc + half, y0, y1, 0.03), z0, z1 };
-      })
+  const FENDER_GAP = 0.03;
+  const FENDER_T = 0.075;
+  const FENDER_OVER = 0.045;
+  const FENDER_SEGS = 14;
+  /** Les deux teintes de facette, lues comme les lit un volume : une paroi tournée vers les `x` et
+   *  une paroi tournée vers les `y` ne prennent pas le même jour, et c'est `xOnLeft` qui dit
+   *  laquelle est à l'ombre. */
+  const xClass = facing.xOnLeft ? "side" : "front";
+  const yClass = facing.xOnLeft ? "front" : "side";
+  const fender = (key: string, xc: number, yW: number) => {
+    const ri = r + FENDER_GAP;
+    const ro = ri + FENDER_T;
+    const y0 = yW - tyre / 2 - FENDER_OVER;
+    const y1 = yW + tyre / 2 + FENDER_OVER;
+    const near = facing.yFace > 0 ? y1 : y0;
+    const far = facing.yFace > 0 ? y0 : y1;
+    const angle = (i: number) => (Math.PI * i) / FENDER_SEGS;
+    const on = (R: number, t: number) => ({ x: xc + R * Math.cos(t), z: r + R * Math.sin(t) });
+    const outer = Array.from({ length: FENDER_SEGS + 1 }, (_, i) => on(ro, angle(i)));
+    const inner = Array.from({ length: FENDER_SEGS + 1 }, (_, i) => on(ri, angle(i)));
+    /** Le profil de la bande sur un flanc : l'arc extérieur à l'aller, l'intérieur au retour. */
+    const band = (y: number) => ring([...outer.map((p) => at(p.x, y, p.z)), ...[...inner].reverse().map((p) => at(p.x, y, p.z))]);
+    // La bande de roulement, segment par segment. On écarte ceux qui tournent le dos à la caméra —
+    // le flanc opposé de l'arc, que le flanc de devant cache de toute façon — et on peint les
+    // autres dans l'ordre où la caméra les rencontre le long du camion.
+    const tread = outer
+      .slice(0, -1)
+      .map((p, i) => ({ p, q: outer[i + 1], mid: angle(i + 0.5) }))
+      .filter((seg) => Math.sin(seg.mid) > 0.35 || Math.cos(seg.mid) * localView.x > 0)
+      .sort((a, b) => (Math.cos(a.mid) - Math.cos(b.mid)) * facing.xFace);
+    return (
+      <g key={key} className="lq-iso__solid lq-iso__solid--iron">
+        <polygon className={`lq-iso__face lq-iso__face--${yClass} lq-iso__face--seamless`} points={band(far)} />
+        {tread.map((seg, i) => (
+          <polygon
+            key={i}
+            className={`lq-iso__face lq-iso__face--${Math.sin(seg.mid) > 0.6 ? "top" : xClass} lq-iso__face--seamless`}
+            points={ring([at(seg.p.x, y0, seg.p.z), at(seg.q.x, y0, seg.q.z), at(seg.q.x, y1, seg.q.z), at(seg.p.x, y1, seg.p.z)])}
+          />
+        ))}
+        <polygon className={`lq-iso__face lq-iso__face--${yClass} lq-iso__face--seamless`} points={band(near)} />
+        <polygon className="lq-iso__outline" points={band(far)} />
+        <polygon className="lq-iso__outline" points={band(near)} />
+      </g>
     );
   };
   const wheelRow = (y: number) => (
@@ -358,7 +389,7 @@ export function SemiTruck({
           node: (
             <g key={`ax${i}${y}`}>
               {isoWheel(at, x, y, r, r, tyre, facing, `w${i}${y}`)}
-              {fender(`f${i}${y}`, x, y, i < 3 && hasTrailer ? trailerZ0 : cabZ0)}
+              {fender(`f${i}${y}`, x, y)}
             </g>
           ),
         }))

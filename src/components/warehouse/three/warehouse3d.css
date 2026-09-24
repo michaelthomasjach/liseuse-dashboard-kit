@@ -156,11 +156,11 @@
 /* --- Les bâtiments du voisinage --------------------------------------------------------------- */
 
 .lq-building__window {
-  fill: color-mix(in srgb, var(--lq-color-sky) 30%, var(--lq-color-text) 45%);
+  fill: color-mix(in srgb, var(--lq-color-sky) 30%, color-mix(in srgb, var(--lq-color-text) 64%, var(--lq-color-bg)));
   stroke: color-mix(in srgb, var(--lq-color-text) 30%, transparent);
 }
 .lq-building__door {
-  fill: color-mix(in srgb, var(--lq-color-amber) 30%, var(--lq-color-text) 55%);
+  fill: color-mix(in srgb, var(--lq-color-amber) 30%, color-mix(in srgb, var(--lq-color-text) 79%, var(--lq-color-bg)));
   stroke: color-mix(in srgb, var(--lq-color-text) 40%, transparent);
 }
 .lq-building__garage {
@@ -187,7 +187,7 @@
 /* --- L'énergie : panneaux solaires et lignes électriques ------------------------------------------ */
 
 .lq-solar__glass {
-  fill: color-mix(in srgb, var(--lq-color-sky) 28%, var(--lq-color-text) 62%);
+  fill: color-mix(in srgb, var(--lq-color-sky) 28%, color-mix(in srgb, var(--lq-color-text) 86%, var(--lq-color-bg)));
 }
 .lq-solar__cells line,
 .lq-solar__cells {
@@ -228,7 +228,7 @@
   fill: color-mix(in srgb, var(--lq-color-text) 38%, var(--lq-color-bg));
 }
 .lq-plot__tuft {
-  fill: color-mix(in srgb, var(--lq-color-green) 38%, var(--lq-color-text) 20%);
+  fill: color-mix(in srgb, var(--lq-color-green) 38%, color-mix(in srgb, var(--lq-color-text) 32%, var(--lq-color-bg)));
 }
 .lq-plot__tuft-light {
   fill: color-mix(in srgb, var(--lq-color-green) 20%, var(--lq-color-bg));
@@ -242,5 +242,116 @@
   stroke: color-mix(in srgb, var(--lq-color-text) 70%, transparent);
 }
 .lq-iso__solid--window {
-  --lq-iso-face: color-mix(in srgb, var(--lq-color-sky) 18%, var(--lq-color-text) 66%);
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-sky) 18%, color-mix(in srgb, var(--lq-color-text) 80%, var(--lq-color-bg)));
+}
+
+/* --- Portails, parterres, péage, toitures, emballage ------------------------------------------ */
+
+.lq-gate__bar line,
+.lq-gate__bar {
+  stroke: color-mix(in srgb, var(--lq-color-text) 75%, transparent);
+}
+.lq-iso__solid--soil {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-amber) 25%, color-mix(in srgb, var(--lq-color-text) 47%, var(--lq-color-bg)));
+}
+.lq-iso__solid--flower-rose {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-rose) 70%, var(--lq-color-bg));
+}
+.lq-iso__solid--flower-amber {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-amber) 75%, var(--lq-color-bg));
+}
+.lq-iso__solid--flower-violet {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-violet) 65%, var(--lq-color-bg));
+}
+.lq-iso__solid--flower-sky {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-sky) 65%, var(--lq-color-bg));
+}
+.lq-iso__solid--flower-white {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-text) 3%, var(--lq-color-bg));
+}
+.lq-iso__solid--film {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-sky) 10%, var(--lq-color-bg));
+}
+.lq-toll__go {
+  fill: color-mix(in srgb, var(--lq-color-green) 70%, var(--lq-color-bg));
+}
+.lq-roof__fan {
+  fill: color-mix(in srgb, var(--lq-color-text) 62%, var(--lq-color-bg));
+  stroke: color-mix(in srgb, var(--lq-color-text) 70%, transparent);
+}
+.lq-roof__grille line,
+.lq-roof__grille {
+  stroke: color-mix(in srgb, var(--lq-color-bg) 60%, transparent);
+}
+.lq-roof__cold {
+  fill: color-mix(in srgb, var(--lq-color-sky) 45%, var(--lq-color-bg));
+}
+.lq-pack__in,
+.lq-pack__out {
+  fill: color-mix(in srgb, var(--lq-color-amber) 55%, var(--lq-color-bg));
+  stroke: color-mix(in srgb, var(--lq-color-text) 60%, transparent);
+}
+.lq-pack__out {
+  fill: color-mix(in srgb, var(--lq-color-green) 55%, var(--lq-color-bg));
+}
+.lq-pack__mouth {
+  fill: color-mix(in srgb, var(--lq-color-text) 80%, var(--lq-color-bg));
+  stroke: color-mix(in srgb, var(--lq-color-text) 80%, transparent);
+}
+.lq-pack__window {
+  fill: color-mix(in srgb, var(--lq-color-sky) 20%, color-mix(in srgb, var(--lq-color-text) 69%, var(--lq-color-bg)));
+  stroke: color-mix(in srgb, var(--lq-color-text) 60%, transparent);
+}
+.lq-pack__fold line,
+.lq-pack__fold {
+  stroke: color-mix(in srgb, var(--lq-color-text) 40%, transparent);
+}
+.lq-pack__label {
+  fill: color-mix(in srgb, var(--lq-color-text) 2%, var(--lq-color-bg));
+  stroke: color-mix(in srgb, var(--lq-color-text) 55%, transparent);
+}
+
+/* --- Les classes de stockage : une plaque blanche, un pictogramme par classe ------------------- */
+
+.lq-storage__plate {
+  fill: color-mix(in srgb, var(--lq-color-text) 2%, var(--lq-color-bg));
+  stroke: color-mix(in srgb, var(--lq-color-text) 70%, transparent);
+}
+.lq-storage__mark line,
+.lq-storage__mark {
+  stroke: color-mix(in srgb, var(--lq-color-text) 92%, transparent);
+}
+.lq-storage__all {
+  fill: color-mix(in srgb, var(--lq-color-text) 35%, var(--lq-color-bg));
+}
+.lq-storage__dry {
+  fill: color-mix(in srgb, var(--lq-color-amber) 40%, var(--lq-color-bg));
+  stroke: color-mix(in srgb, var(--lq-color-text) 80%, transparent);
+}
+.lq-storage__liquid {
+  fill: color-mix(in srgb, var(--lq-color-sky) 70%, color-mix(in srgb, var(--lq-color-text) 50%, var(--lq-color-bg)));
+  stroke: color-mix(in srgb, var(--lq-color-text) 80%, transparent);
+}
+.lq-storage__solvent {
+  fill: color-mix(in srgb, var(--lq-color-violet) 55%, var(--lq-color-bg));
+  stroke: color-mix(in srgb, var(--lq-color-text) 85%, transparent);
+}
+.lq-storage__flammable {
+  fill: color-mix(in srgb, var(--lq-color-rose) 70%, var(--lq-color-bg));
+  stroke: color-mix(in srgb, var(--lq-color-text) 85%, transparent);
+}
+.lq-storage__corrosive {
+  fill: color-mix(in srgb, var(--lq-color-text) 18%, var(--lq-color-bg));
+  stroke: color-mix(in srgb, var(--lq-color-text) 85%, transparent);
+}
+.lq-storage__cold {
+  fill: color-mix(in srgb, var(--lq-color-sky) 50%, var(--lq-color-bg));
+}
+.lq-storage__fragile {
+  fill: color-mix(in srgb, var(--lq-color-amber) 60%, var(--lq-color-bg));
+  stroke: color-mix(in srgb, var(--lq-color-text) 80%, transparent);
+}
+.lq-storage__heavy {
+  fill: color-mix(in srgb, var(--lq-color-text) 70%, var(--lq-color-bg));
+  stroke: color-mix(in srgb, var(--lq-color-text) 80%, transparent);
 }

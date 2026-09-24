@@ -49,7 +49,22 @@ export interface WallOpening {
   sill?: number;
   /** Une porte de quai ouverte : `0` fermée, `1` le tablier remonté en entier. */
   open?: number;
+  /**
+   * Ce qui garnit l'ouverture, hors quai :
+   * - `"door"` : une **porte d'entrée** de local — huisserie, vantail plein à oculus, poignée ;
+   * - `"window"` : une **fenêtre** — appui saillant, dormant, vitrage, meneau ;
+   * - `"bay"` : une **baie vitrée** — un grand vitrage recoupé de montants et d'une imposte.
+   * Sans lui, l'ouverture reste un trou. Chaque sorte a sa hauteur et son allège ordinaires.
+   */
+  kind?: "door" | "window" | "bay";
 }
+
+/** L'allège et la hauteur ordinaires de chaque garniture, en cases. */
+const OPENING_DEFAULTS: Record<"door" | "window" | "bay", { sill: number; height: number }> = {
+  door: { sill: 0, height: 1.1 },
+  window: { sill: 0.5, height: 0.6 },
+  bay: { sill: 0.04, height: 1.3 },
+};
 
 export interface WallProps {
   /** Longueur, en cases. */
@@ -154,6 +169,7 @@ interface Hole {
   z: number;
   dock: boolean;
   open: number;
+  kind?: "door" | "window" | "bay";
 }
 
 /** Les cotes dérivées d'un mur : ses ouvertures remises dans l'ordre, sa hauteur utile. */
@@ -169,14 +185,16 @@ function wallLayout(props: WallProps) {
     .map((o) => {
       // Une porte de quai se cale sur la plateforme, que le mur soit assis dessus ou planté dans
       // la cour : dans le premier cas c'est déjà son pied, dans le second c'est 1 200 mm plus haut.
-      const sill = Math.max(sole, Math.min(o.sill ?? (o.dock ? Math.max(sole, dockZ) : sole), sole + H));
+      const def = o.kind ? OPENING_DEFAULTS[o.kind] : null;
+      const sill = Math.max(sole, Math.min(o.sill ?? (o.dock ? Math.max(sole, dockZ) : sole + (def?.sill ?? 0)), sole + H));
       return {
         x0: Math.max(0, o.at),
         x1: Math.min(L, o.at + Math.max(0.1, o.width)),
         z0: sill,
-        z: Math.min(sill + (o.height ?? H * 0.75), sole + H),
+        z: Math.min(sill + (o.height ?? def?.height ?? H * 0.75), sole + H),
         dock: o.dock === true,
         open: Math.max(0, Math.min(1, o.open ?? 0)),
+        kind: o.dock ? undefined : o.kind,
       };
     })
     .filter((o) => o.x1 > o.x0 && o.z > o.z0)
@@ -255,6 +273,39 @@ function WallBody(props: WallProps) {
       const xs = [0, L - pierW];
       if (pierMode === "spaced") for (let x = pierSpacing; x < L - pierW; x += Math.max(0.5, pierSpacing)) xs.push(x - pierW / 2);
       for (const x of [...new Set(xs.map((v) => Math.max(0, Math.min(L - pierW, v))))]) b.box("wall", x, x + pierW, -pierOut, D + pierOut, sole, pierTop);
+    }
+
+    // ---- Les garnitures : portes, fenêtres, baies ----
+    for (const h of holes) {
+      if (!h.kind) continue;
+      const f = 0.045;
+      const mid = D / 2;
+      const zt = Math.min(h.z, top);
+      // L'huisserie ou le dormant : deux montants, une traverse haute, et une basse hors porte.
+      b.box("paint-dark", h.x0, h.x0 + f, mid - 0.04, mid + 0.04, h.z0, zt);
+      b.box("paint-dark", h.x1 - f, h.x1, mid - 0.04, mid + 0.04, h.z0, zt);
+      b.box("paint-dark", h.x0, h.x1, mid - 0.04, mid + 0.04, zt - f, zt);
+      if (h.kind !== "door") b.box("paint-dark", h.x0, h.x1, mid - 0.04, mid + 0.04, h.z0, h.z0 + f);
+      if (h.kind === "door") {
+        // Le vantail plein, son oculus, sa poignée de chaque côté.
+        b.box("paint-light", h.x0 + f, h.x1 - f, mid - 0.02, mid + 0.02, h.z0, zt - f);
+        for (const y of [mid - 0.021, mid + 0.021]) {
+          b.faceY("lq-building__window", y, (h.x0 + h.x1) / 2 - 0.08, (h.x0 + h.x1) / 2 + 0.08, h.z0 + (zt - h.z0) * 0.6, h.z0 + (zt - h.z0) * 0.85, true);
+        }
+        b.box("chrome", h.x1 - f - 0.1, h.x1 - f - 0.04, mid - 0.06, mid + 0.06, h.z0 + 0.48, h.z0 + 0.51, false);
+      } else {
+        b.box("glass", h.x0 + f, h.x1 - f, mid - 0.008, mid + 0.008, h.z0 + f, zt - f, false);
+        // Les montants : un meneau pour une fenêtre, un tous les 60 cm pour une baie, et l'imposte.
+        const step = h.kind === "bay" ? 0.6 : (h.x1 - h.x0) / 2;
+        for (let x = h.x0 + step; x < h.x1 - 0.1; x += step) b.box("paint-dark", x - 0.02, x + 0.02, mid - 0.03, mid + 0.03, h.z0, zt);
+        if (h.kind === "bay") {
+          const zi = h.z0 + (zt - h.z0) * 0.8;
+          b.box("paint-dark", h.x0, h.x1, mid - 0.03, mid + 0.03, zi - 0.02, zi + 0.02);
+        } else {
+          // L'appui de fenêtre, en saillie des deux côtés.
+          b.box("kerb", h.x0 - 0.04, h.x1 + 0.04, -0.06, D + 0.06, h.z0 - 0.04, h.z0);
+        }
+      }
     }
 
     // ---- Le quai ----

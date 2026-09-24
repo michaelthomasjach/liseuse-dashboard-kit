@@ -3,6 +3,7 @@ import { Parts, Solo, frameBounds, placed, useBuilt } from "./three/scene";
 import { GOOD_SIZE, addGood } from "./three/goods";
 import { rng } from "./three/random";
 import type { RackItemKind } from "./rackItems";
+import { STORAGE_GOODS, addStorageFloor, addStoragePlate, storageAt, type StorageClass } from "./storageClass";
 
 /**
  * Le rack à palettes — le rayonnage lourd d'un centre de distribution.
@@ -47,6 +48,19 @@ export interface PalletRackProps {
   seed?: number;
   /** Adosser un second rack derrière le premier : un rack double, servi des deux côtés. */
   double?: boolean;
+  /**
+   * Un **passage sous le rack** : les travées `from` à `to` (exclu) n'ont pas de niveaux sous
+   * `clearance` — un pont que les chariots et les camions franchissent. Les montants du passage
+   * sont gainés de protections jaunes, et la lisse du premier niveau est zébrée : c'est elle que
+   * l'on risque de toucher.
+   */
+  passage?: { from: number; to: number; clearance?: number };
+  /**
+   * Ce que chaque emplacement peut recevoir (voir `storageClass.ts`) : une classe pour tout le rack,
+   * une par niveau (du bas vers le haut), ou une par travée et par niveau. Chaque emplacement porte
+   * alors sa plaque, et reçoit des marchandises de sa classe.
+   */
+  storage?: StorageClass | StorageClass[] | StorageClass[][];
   rotation?: number;
   origin?: { x: number; y: number };
   frame?: { x: number; y: number; width: number; depth: number; height: number };
@@ -109,7 +123,7 @@ export function PalletRack(props: PalletRackProps) {
 }
 
 function PalletRackBody(props: PalletRackProps) {
-  const { fill = 0.75, goods = ["carton", "carton", "boite", "bidon"], seed = 3, rotation = 0, origin = { x: 0, y: 0 } } = props;
+  const { fill = 0.75, goods = ["carton", "carton", "boite", "bidon"], seed = 3, rotation = 0, origin = { x: 0, y: 0 }, passage, storage } = props;
   const { bays, levels, bayW, D, lh, perBay, rows, L, Dt, H } = layout(props);
   const kinds = Array.isArray(goods) ? goods : [goods];
   const built = useBuilt(() => {
@@ -136,19 +150,43 @@ function PalletRackBody(props: PalletRackProps) {
       for (let bay = 0; bay < bays; bay += 1) {
         const x0 = bay * bayW + POST;
         const x1 = (bay + 1) * bayW;
-        for (let lv = 0; lv < levels; lv += 1) {
+        const bridged = !!passage && bay >= passage.from && bay < passage.to;
+        // Sous un pont, les niveaux qui gêneraient le passage disparaissent.
+        const firstLevel = bridged ? Math.max(1, Math.ceil((passage?.clearance ?? 2.2) / lh)) : 0;
+        for (let lv = firstLevel; lv < levels; lv += 1) {
           const z = lv * lh;
           // Les lisses, avant et arrière — le sol n'en a pas.
           if (lv > 0) {
             b.box("safety", x0, x1, y0, y0 + 0.04, z - 0.09, z);
             b.box("safety", x0, x1, y1 - 0.04, y1, z - 0.09, z);
           }
+          if (bridged && lv === firstLevel)
+            // La lisse du pont, zébrée de noir, des deux côtés.
+            for (let x = x0 + 0.05; x < x1 - 0.1; x += 0.3)
+              for (const [ya, yb] of [
+                [y0 - 0.001, y0 + 0.041],
+                [y1 - 0.041, y1 + 0.001],
+              ])
+                b.box("paint-dark", x, x + 0.15, ya, yb, z - 0.091, z + 0.001, false);
+          const cls = storageAt(storage, bay, lv);
+          const pool = cls ? STORAGE_GOODS[cls] : kinds;
           for (let k = 0; k < perBay; k += 1) {
             if (r() > fill) continue;
             const cx = x0 + ((k + 0.5) * (x1 - x0)) / perBay;
             const half = Math.min((x1 - x0) / perBay / 2 - 0.03, D / 2 - 0.01);
-            addPalletLoad(b, cx, (y0 + y1) / 2, z, half, lh - 0.18 - r() * 0.15, kinds[Math.floor(r() * kinds.length)]);
+            addPalletLoad(b, cx, (y0 + y1) / 2, z, half, lh - 0.18 - r() * 0.15, pool[Math.floor(r() * pool.length)]);
           }
+          if (cls) {
+            // La plaque de l'emplacement, sur le nez de la lisse — ou au sol pour le niveau bas.
+            const pz = lv === 0 ? 0.16 : z - 0.045;
+            addStoragePlate(b, cls, (x0 + x1) / 2, row === 0 ? y0 - 0.002 : y1 + 0.002, pz, 0.34, 0.2, row === 0 ? -1 : 1);
+            if (lv === 0) addStorageFloor(b, cls, x0, x1, y0, y1);
+          }
+        }
+        if (bridged) {
+          // Les protections de montants, jaunes, au pied du passage.
+          for (const x of [bay * bayW, (bay + 1) * bayW])
+            for (const y of [y0 - 0.05, y1 - POST - 0.01]) b.box("safety", x - 0.04, x + POST + 0.04, y, y + POST + 0.06, 0, 0.5);
         }
       }
       // Les entretoises de dos-à-dos, qui tiennent deux racks adossés.
@@ -157,7 +195,7 @@ function PalletRackBody(props: PalletRackProps) {
           for (const z of [lh * 0.5, H - 0.3]) b.box("paint-cool", i * bayW, i * bayW + POST, y0 - FLUE, y0, z, z + 0.04, false);
     }
     return b.build();
-  }, [bays, levels, bayW, D, lh, perBay, rows, fill, seed, kinds.join(",")]);
+  }, [bays, levels, bayW, D, lh, perBay, rows, fill, seed, kinds.join(","), JSON.stringify(passage ?? null), JSON.stringify(storage ?? null)]);
   const { pose } = placed(origin, rotation, { x0: 0, x1: L, y0: 0, y1: Dt, z0: 0, z1: 1 });
   return (
     <group matrixAutoUpdate={false} matrix={pose}>

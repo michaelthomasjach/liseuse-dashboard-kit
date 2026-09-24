@@ -4,6 +4,7 @@ import { Parts, Solo, frameBounds, placed, useBuilt } from "./three/scene";
 import { rng } from "./three/random";
 import { addTree } from "./Tree";
 import { addCar } from "./Car";
+import { addCondenser } from "./Roof";
 
 /**
  * Les bâtiments du voisinage — **non interactifs** : on ne les construit pas, on ne les exploite
@@ -223,6 +224,9 @@ export function addBuilding(b: Builder, kind: BuildingKind, seed = 1): void {
     b.box(wall, x0 - 0.05, x1 + 0.05, y0 - 0.05, y1 + 0.05, H, H + 0.2);
     b.box("roof", x0 + 0.1, x1 - 0.1, y0 + 0.1, y1 - 0.1, H, H + 0.12, false);
     b.box("steel", x1 - 2, x1 - 1, y1 - 1.8, y1 - 0.8, H + 0.12, H + 0.8);
+    // Les climatiseurs sur le toit-terrasse.
+    const units = 1 + Math.floor(r() * 3);
+    for (let i = 0; i < units; i += 1) addCondenser(b, x0 + 0.8 + i * 1.1, y0 + 0.8, H + 0.12, 0.8, 0.45, 0.32);
     windowsY(b, y0 + F, x0, x1, floors, 0, { every: 1.5, w: 0.7 });
     windowsY(b, y1 - F, x0, x1, floors, 0, { every: 1.5, w: 0.7 });
     windowsX(b, x0 + F, y0, y1, floors, 0, { every: 1.6 });
@@ -252,6 +256,9 @@ export function addBuilding(b: Builder, kind: BuildingKind, seed = 1): void {
     const H = floors * STOREY;
     b.box("pavement", 0, lot.width, 0, y0, -0.02, 0.03, false);
     b.box(wall, x0, x1, y0, y1, 0, H + 0.3);
+    // Sur le toit, deux groupes de climatisation et leur gaine.
+    for (let i = 0; i < 2; i += 1) addCondenser(b, x0 + 1 + i * 1.3, y1 - 1.4, H + 0.3, 0.9, 0.5, 0.35);
+    b.box("paint-light", x0 + 1, x0 + 3.2, y1 - 1.9, y1 - 1.75, H + 0.3, H + 0.45);
     // Les bandeaux vitrés filants, un par niveau.
     for (let f = 0; f < floors; f += 1) {
       const z = f * STOREY + 0.35;

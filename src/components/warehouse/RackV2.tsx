@@ -2,6 +2,7 @@ import { Builder, placeAt } from "./three/builder";
 import { Parts, Solo, frameBounds, useBuilt } from "./three/scene";
 import { addGood } from "./three/goods";
 import { ISO_POST_SIZE, fitRackItem, type RackItemKind } from "./rackItems";
+import { STORAGE_GOODS, addStoragePlate, storageAt, type StorageClass } from "./storageClass";
 import "./rackItems.css";
 import "./RackV2.css";
 
@@ -137,6 +138,17 @@ export interface RackV2Props {
    * ou cinq tablettes — et non une pile d'étagères (`countZ`), dont chaque étage a son propre cadre.
    */
   shelves?: number;
+  /**
+   * Hisser l'étagère sur des pieds de cette hauteur, en cases : un **pont** sous lequel passent les
+   * chariots. Les pieds sont gainés de protections jaunes, la traverse basse est zébrée.
+   */
+  clearance?: number;
+  /**
+   * Ce que chaque plateau peut recevoir (voir `storageClass.ts`) : une classe pour toute l'étagère,
+   * une par plateau (du bas vers le haut), ou une par étagère et par plateau. Chaque plateau porte
+   * sa plaque, et ses marchandises suivent la classe.
+   */
+  storage?: StorageClass | StorageClass[] | StorageClass[][];
   /** Des poteaux modélisés en volume à la place des quatre arêtes verticales. */
   posts?: boolean;
   /** Côté d'un poteau, en cases. */
@@ -249,7 +261,7 @@ export function RackV2(props: RackV2Props) {
   ].map(([x, y]) => ({ x: e[0] * x + e[4] * y + e[12], y: e[1] * x + e[5] * y + e[13] }));
   const bounds = frame
     ? frameBounds(frame)
-    : { x0: Math.min(...pts.map((q) => q.x)), x1: Math.max(...pts.map((q) => q.x)), y0: Math.min(...pts.map((q) => q.y)), y1: Math.max(...pts.map((q) => q.y)), z0: under, z1: L.spanZ };
+    : { x0: Math.min(...pts.map((q) => q.x)), x1: Math.max(...pts.map((q) => q.x)), y0: Math.min(...pts.map((q) => q.y)), y1: Math.max(...pts.map((q) => q.y)), z0: under, z1: L.spanZ + (props.clearance ?? 0) };
   const n = L.nx * L.ny * L.nz;
   return (
     <Solo bounds={bounds} cellSize={cellSize} className={["lq-rack2", className].filter(Boolean).join(" ")} ariaLabel={n > 1 ? `${n} étagères` : "Étagère"}>
@@ -265,6 +277,8 @@ function RackV2Body(props: RackV2Props) {
     contents = ["carton"],
     deckThickness = DEFAULT_DECK_THICKNESS,
     shelves = 1,
+    clearance = 0,
+    storage,
     posts = false,
     postSize = DEFAULT_POST_SIZE,
     braces = false,
@@ -274,7 +288,7 @@ function RackV2Body(props: RackV2Props) {
     origin = { x: 0, y: 0 },
   } = props;
   const L = rackLayout(props);
-  const key = JSON.stringify([L, slotsX, slotsY, contents, deckThickness, shelves, posts, postSize, braces, feet, footHeight]);
+  const key = JSON.stringify([L, slotsX, slotsY, contents, deckThickness, shelves, clearance, storage ?? null, posts, postSize, braces, feet, footHeight]);
   const built = useBuilt(() => {
     const b = new Builder();
     const { width, depth } = L;
@@ -288,7 +302,7 @@ function RackV2Body(props: RackV2Props) {
     const footZ = Math.max(0, footHeight ?? side * FOOT_RISE);
     const edge: [[number, number, number], [number, number, number]][] = [];
 
-    const bay = (ox: number, oy: number, oz: number, roofed: boolean, level = 0) => {
+    const bay = (ox: number, oy: number, oz: number, roofed: boolean, level = 0, cls?: StorageClass) => {
       const floorZ = oz + slabZ;
       const ceilZ = oz + height - (roofed ? slabZ : 0);
       const clearance = ceilZ - floorZ;
@@ -350,7 +364,12 @@ function RackV2Body(props: RackV2Props) {
           // D'une tablette à l'autre, le contenu tourne d'un cran : un rayonnage n'a pas cinq fois la
           // même rangée.
           const index = j * sx + i;
-          const slot = level === 0 ? contents[index] : contents[(index + level) % Math.max(1, contents.length)];
+          let slot = level === 0 ? contents[index] : contents[(index + level) % Math.max(1, contents.length)];
+          // Une classe de stockage choisit ce qui est posé : des fûts sur un plateau « liquides ».
+          if (cls && slot && slot !== "interdit") {
+            const pool = STORAGE_GOODS[cls].filter((k) => k !== "palette");
+            slot = pool[(index + level) % pool.length] ?? slot;
+          }
           if (!slot) continue;
           const x0 = areaX + i * slotW;
           const y0 = areaY + j * slotD;
@@ -375,14 +394,33 @@ function RackV2Body(props: RackV2Props) {
     for (let iz = 0; iz < L.nz; iz += 1)
       for (let iy = 0; iy < L.ny; iy += 1)
         for (let ix = 0; ix < L.nx; ix += 1)
-          for (let k = 0; k < levels; k += 1)
-            bay(
-              ix * width + L.aisleBefore(ix, props.crossAisle ?? 0, props.crossEvery ?? 4),
-              iy * depth + L.aisleBefore(iy, props.aisle ?? 0, props.aisleEvery ?? 2),
-              iz * L.height + k * height,
-              iz === L.nz - 1 && k === levels - 1,
-              k
-            );
+          for (let k = 0; k < levels; k += 1) {
+            const ox = ix * width + L.aisleBefore(ix, props.crossAisle ?? 0, props.crossEvery ?? 4);
+            const oy = iy * depth + L.aisleBefore(iy, props.aisle ?? 0, props.aisleEvery ?? 2);
+            const oz = clearance + iz * L.height + k * height;
+            const unit = ix + iy * L.nx;
+            const cls = storageAt(storage, unit, iz * levels + k);
+            bay(ox, oy, oz, iz === L.nz - 1 && k === levels - 1, k, cls);
+            // La plaque du plateau, sur son nez, côté allée.
+            if (cls) addStoragePlate(b, cls, ox + width / 2, oy - 0.002, oz + Math.min(deckThickness, height / 3) / 2 + 0.06, 0.36, 0.2);
+          }
+    if (clearance > 0)
+      // Le pont : des pieds sous chaque étagère, gainés de jaune, et la traverse basse zébrée.
+      for (let iy = 0; iy < L.ny; iy += 1)
+        for (let ix = 0; ix < L.nx; ix += 1) {
+          const ox = ix * width + L.aisleBefore(ix, props.crossAisle ?? 0, props.crossEvery ?? 4);
+          const oy = iy * depth + L.aisleBefore(iy, props.aisle ?? 0, props.aisleEvery ?? 2);
+          const side = Math.max(0.05, Math.min(postSize, Math.min(width, depth) / 2));
+          for (const cx of [ox, ox + width - side])
+            for (const cy of [oy, oy + depth - side]) {
+              b.box("post", cx, cx + side, cy, cy + side, 0, clearance);
+              b.box("safety", cx - 0.03, cx + side + 0.03, cy - 0.03, cy + side + 0.03, 0, 0.45);
+            }
+          for (const y of [oy, oy + depth - 0.05]) {
+            b.box("safety", ox, ox + width, y, y + 0.05, clearance - 0.1, clearance);
+            for (let x = ox + 0.1; x < ox + width - 0.2; x += 0.3) b.box("paint-dark", x, x + 0.15, y - 0.001, y + 0.051, clearance - 0.101, clearance + 0.001, false);
+          }
+        }
     if (edge.length) b.lines("lq-rack2__edge", edge);
     return b.build();
   }, [key]);

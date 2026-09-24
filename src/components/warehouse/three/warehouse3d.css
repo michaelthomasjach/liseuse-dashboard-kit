@@ -167,3 +167,12 @@
   fill: color-mix(in srgb, var(--lq-color-text) 18%, var(--lq-color-bg));
   stroke: color-mix(in srgb, var(--lq-color-text) 45%, transparent);
 }
+
+/* --- Le terrain à bâtir ------------------------------------------------------------------------ */
+
+.lq-plot__dot {
+  fill: color-mix(in srgb, var(--lq-color-text) 30%, var(--lq-color-bg));
+}
+.lq-plot__edge {
+  fill: color-mix(in srgb, var(--lq-color-text) 78%, var(--lq-color-bg));
+}

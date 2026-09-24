@@ -109,3 +109,7 @@ export { PalletRack, palletRackSlot } from "./PalletRack";
 export type { PalletRackProps } from "./PalletRack";
 export { BUILDING_KINDS, BUILDING_LABEL, Building, Buildings, addBuilding, lotSize } from "./Building";
 export type { BuildingKind, BuildingProps, BuildingSpec } from "./Building";
+export { BuildPlot, PlotScene } from "./BuildPlot";
+export type { BuildPlotProps } from "./BuildPlot";
+export { PLOT_SHAPES, generatePlot, plotArea, plotInside, plotOutline } from "./plot";
+export type { PlotCar, PlotLayout, PlotRect, PlotShape, PlotTile } from "./plot";

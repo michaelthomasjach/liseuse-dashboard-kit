@@ -9,6 +9,9 @@ import { PalletRack } from "./PalletRack";
 import { Car } from "./Car";
 import { Worker } from "./Worker";
 import { SceneBox } from "./sceneStory";
+import { SolarArray } from "./SolarPanel";
+import { PowerLine } from "./PowerLine";
+import { Parking } from "./Parking";
 
 /**
  * Le site autour de l'entrepôt : ce qui en fait un lieu et non un plan. Arbres, routes et
@@ -172,6 +175,39 @@ export const Personnes: Story = {
       {cell(<Worker pose="stand" cellSize={90} />, "Debout")}
       {cell(<Worker pose="walk" walking={0.7} cellSize={90} />, "En marche")}
       {cell(<Worker pose="sit" cellSize={90} />, "Assis")}
+    </div>
+  ),
+};
+
+export const Solaire: Story = {
+  name: "Panneaux solaires",
+  render: () => (
+    <div style={row}>
+      {cell(<SolarArray rows={1} columns={6} cellSize={30} />, "Une table")}
+      {cell(<SolarArray rows={3} columns={8} inverter cellSize={22} />, "Un champ et son onduleur")}
+      {cell(<SolarArray rows={3} columns={8} inverter battery cellSize={22} />, "Avec stockage")}
+    </div>
+  ),
+};
+
+export const Lignes: Story = {
+  name: "Lignes électriques",
+  render: () => (
+    <div style={row}>
+      {cell(<PowerLine kind="wood" length={24} cellSize={12} />, "Poteaux bois")}
+      {cell(<PowerLine kind="concrete" length={30} cellSize={10} />, "Poteaux béton")}
+      {cell(<PowerLine kind="pylon" length={60} cellSize={6} />, "Haute tension")}
+    </div>
+  ),
+};
+
+export const Ombrieres: Story = {
+  name: "Parking : nu, couvert, solaire",
+  render: () => (
+    <div style={row}>
+      {cell(<Parking bays={6} rows={2} fill={0.7} seed={3} cellSize={22} />, "Nu")}
+      {cell(<Parking bays={6} rows={2} fill={0.7} seed={3} canopy="roof" cellSize={22} />, "Ombrière")}
+      {cell(<Parking bays={6} rows={2} fill={0.7} seed={3} canopy="solar" cellSize={22} />, "Ombrière solaire")}
     </div>
   ),
 };

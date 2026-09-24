@@ -6,6 +6,14 @@ import { IsoCamera, useIsoCamera, useIsoZoom } from "../isoCamera";
 import { PaletteContext, createPalette, usePalette, type Palette } from "./palette";
 import { SimClockProvider } from "./time";
 import type { Built } from "./builder";
+// Toutes les matières du kit, pour qu'un module posé seul — un bâtiment, un conteneur — trouve
+// celles qu'il emprunte aux autres (le verre du camion, le béton du mur, l'acier des racks).
+import "../rackItems.css";
+import "../Floor.css";
+import "../Wall.css";
+import "../SemiTruck.css";
+import "../Amr.css";
+import "../Parking.css";
 import "./warehouse3d.css";
 
 /**

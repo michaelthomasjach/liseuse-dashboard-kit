@@ -152,3 +152,18 @@
 .lq-trailer__inside {
   fill: color-mix(in srgb, var(--lq-color-text) 72%, var(--lq-color-bg));
 }
+
+/* --- Les bâtiments du voisinage --------------------------------------------------------------- */
+
+.lq-building__window {
+  fill: color-mix(in srgb, var(--lq-color-sky) 30%, var(--lq-color-text) 45%);
+  stroke: color-mix(in srgb, var(--lq-color-text) 30%, transparent);
+}
+.lq-building__door {
+  fill: color-mix(in srgb, var(--lq-color-amber) 30%, var(--lq-color-text) 55%);
+  stroke: color-mix(in srgb, var(--lq-color-text) 40%, transparent);
+}
+.lq-building__garage {
+  fill: color-mix(in srgb, var(--lq-color-text) 18%, var(--lq-color-bg));
+  stroke: color-mix(in srgb, var(--lq-color-text) 45%, transparent);
+}

@@ -107,3 +107,5 @@ export { ShippingContainer, CONTAINER_DIMENSIONS } from "./ShippingContainer";
 export type { ContainerSize, ShippingContainerProps } from "./ShippingContainer";
 export { PalletRack, palletRackSlot } from "./PalletRack";
 export type { PalletRackProps } from "./PalletRack";
+export { BUILDING_KINDS, BUILDING_LABEL, Building, Buildings, addBuilding, lotSize } from "./Building";
+export type { BuildingKind, BuildingProps, BuildingSpec } from "./Building";

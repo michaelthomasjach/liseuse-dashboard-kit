@@ -1,5 +1,6 @@
 import { useMemo, type ReactNode } from "react";
-import { Builder } from "./three/builder";
+import { Builder, type P3 } from "./three/builder";
+import { rng } from "./three/random";
 import { Parts, Solo, WarehouseScene, frameBounds, useBuilt } from "./three/scene";
 import { Road } from "./Road";
 import { Buildings } from "./Building";
@@ -55,6 +56,7 @@ function buildGround(plot: PlotLayout, grid: boolean) {
       x = x1;
     }
   }
+  addGroundDetail(b, plot);
   // La bande entre le terrain et la rue : de l'herbe, déjà posée.
   if (!grid) return b.build();
   // Les points de la grille, à chaque croisement intérieur.
@@ -70,6 +72,75 @@ function buildGround(plot: PlotLayout, grid: boolean) {
     else b.faceZ("lq-plot__edge", 0.007, x0 - h, x0 + h, y0 + 0.2, y1 - 0.2);
   }
   return b.build();
+}
+
+/** Un disque à plat, en décalque : un regard, une tache. */
+function disc(b: Builder, cls: string, x: number, y: number, z: number, rx: number, ry = rx, n = 14) {
+  const pts: P3[] = [];
+  for (let i = 0; i < n; i += 1) {
+    const a = (i / n) * Math.PI * 2;
+    pts.push([x + Math.cos(a) * rx, y + Math.sin(a) * ry, z]);
+  }
+  b.decal(cls, pts);
+}
+
+/**
+ * Le grain du sol : ce qui fait qu'une dalle est une dalle et une pelouse une pelouse.
+ *
+ *  Sur le terrain, les **joints** de la dalle de béton, tous les deux cases ; quelques **taches**
+ *  d'huile, là où l'on a garé ; des **regards** et des **grilles** d'évacuation. Dans l'herbe, des
+ *  **touffes** plus sombres, semées au hasard — les routes et les dalles, posées par-dessus, les
+ *  couvrent d'elles-mêmes. Tout est tiré de la graine du terrain : le même terrain a toujours les
+ *  mêmes taches.
+ */
+function addGroundDetail(b: Builder, plot: PlotLayout) {
+  const r = rng(plot.seed * 7 + 5);
+  const f = plot.frame;
+  // Les joints de la dalle.
+  const joints: [P3, P3][] = [];
+  const inside = (x: number, y: number) => plotInside(plot, Math.floor(x), Math.floor(y));
+  for (let x = 2; x < plot.width; x += 2)
+    for (let y = 0; y < plot.depth; y += 1) if (inside(x - 0.5, y + 0.5) && inside(x + 0.5, y + 0.5)) joints.push([[x, y, 0.005], [x, y + 1, 0.005]]);
+  for (let y = 2; y < plot.depth; y += 2)
+    for (let x = 0; x < plot.width; x += 1) if (inside(x + 0.5, y - 0.5) && inside(x + 0.5, y + 0.5)) joints.push([[x, y, 0.005], [x + 1, y, 0.005]]);
+  b.lines("lq-plot__joint", joints);
+  // Des taches, des regards, des grilles — seulement sur la dalle.
+  const spot = () => {
+    for (let k = 0; k < 20; k += 1) {
+      const x = 1 + r() * (plot.width - 2);
+      const y = 1 + r() * (plot.depth - 2);
+      if (inside(x - 0.8, y - 0.8) && inside(x + 0.8, y + 0.8)) return { x, y };
+    }
+    return null;
+  };
+  const area = plot.width * plot.depth;
+  for (let i = 0; i < Math.round(area / 90); i += 1) {
+    const p = spot();
+    if (p) disc(b, "lq-plot__stain", p.x, p.y, 0.0052 + i * 1e-5, 0.2 + r() * 0.35, 0.12 + r() * 0.25, 10);
+  }
+  for (let i = 0; i < Math.round(area / 400) + 2; i += 1) {
+    const p = spot();
+    if (!p) continue;
+    disc(b, "lq-plot__manhole", p.x, p.y, 0.0058, 0.3, 0.3, 16);
+    disc(b, "lq-plot__manhole-lid", p.x, p.y, 0.0062, 0.24, 0.24, 16);
+  }
+  for (let i = 0; i < Math.round(area / 500) + 2; i += 1) {
+    const p = spot();
+    if (!p) continue;
+    b.faceZ("lq-plot__manhole", 0.0058, p.x - 0.35, p.x + 0.35, p.y - 0.12, p.y + 0.12, true);
+    b.lines(
+      "lq-plot__joint",
+      [-0.25, -0.15, -0.05, 0.05, 0.15, 0.25].map((d): [P3, P3] => [[p.x + d, p.y - 0.1, 0.0064], [p.x + d, p.y + 0.1, 0.0064]])
+    );
+  }
+  // Les touffes d'herbe, partout ; ce qui est posé par-dessus les cache.
+  const tufts = Math.round((f.width * f.depth) / 5);
+  for (let i = 0; i < tufts; i += 1) {
+    const x = f.x + r() * f.width;
+    const y = f.y + r() * f.depth;
+    const s = 0.05 + r() * 0.12;
+    b.faceZ(r() < 0.5 ? "lq-plot__tuft" : "lq-plot__tuft-light", -0.0045, x - s, x + s, y - s * 0.6, y + s * 0.6);
+  }
 }
 
 export function BuildPlot(props: BuildPlotProps) {
@@ -105,7 +176,7 @@ function BuildPlotBody({ layout, traffic = true, grid = true, children }: BuildP
       })}
       {traffic &&
         plot.cars.map((c, i) => (
-          <Car key={`c${i}`} kind={c.kind} tone={c.tone} follow={{ route: c.reverse ? plot.lanes.backward : plot.lanes.forward, closed: true, speed: c.speed, phase: c.phase }} />
+          <Car key={`c${i}`} kind={c.kind} tone={c.tone} follow={{ route: c.reverse ? plot.lanes.backward : plot.lanes.forward, closed: true, speed: c.speed, phase: c.phase, corners: 0.5 }} />
         ))}
       {children}
     </>

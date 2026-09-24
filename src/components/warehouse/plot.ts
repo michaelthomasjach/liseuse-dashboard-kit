@@ -120,13 +120,14 @@ export function generatePlot(seed: number, opts: { shape?: PlotShape; width?: nu
   // Les cotes : un carré est carré, les formes découpées sont plus grandes pour garder de la place.
   let W: number;
   let D: number;
-  if (shape === "square") W = D = between(22, 32);
+  // De quoi construire un vrai centre de distribution : de 70 à 130 m de côté.
+  if (shape === "square") W = D = between(36, 48);
   else if (shape === "rect") {
-    W = between(28, 42);
-    D = between(18, 26);
+    W = between(46, 62);
+    D = between(30, 40);
   } else {
-    W = between(32, 44);
-    D = between(24, 34);
+    W = between(52, 66);
+    D = between(38, 50);
   }
   W = opts.width ?? W;
   D = opts.depth ?? D;
@@ -159,11 +160,13 @@ export function generatePlot(seed: number, opts: { shape?: PlotShape; width?: nu
 
   // --- La rue en boucle, et ses départs vers l'extérieur ------------------------------------------
   const roads: PlotTile[] = [];
-  const hs = (x0: number, y0: number, len: number, flip: boolean): PlotTile => ({ ...ROAD, kind: "straight", length: len, origin: { x: x0, y: y0 }, rotation: 0, flip });
-  const vs = (x0: number, y0: number, len: number, flip: boolean): PlotTile => {
+  // Un passage piéton à chaque bout de tronçon : là où l'on traverse, près des carrefours.
+  type Zebra = RoadProps["crosswalk"];
+  const hs = (x0: number, y0: number, len: number, flip: boolean, crosswalk: Zebra = "both"): PlotTile => ({ ...ROAD, kind: "straight", length: len, origin: { x: x0, y: y0 }, rotation: 0, flip, crosswalk: len > 5 ? crosswalk : undefined });
+  const vs = (x0: number, y0: number, len: number, flip: boolean, crosswalk: Zebra = "both"): PlotTile => {
     const cx = x0 + RW / 2;
     const cy = y0 + len / 2;
-    return { ...ROAD, kind: "straight", length: len, origin: { x: cx - len / 2, y: cy - RW / 2 }, rotation: 90, flip };
+    return { ...ROAD, kind: "straight", length: len, origin: { x: cx - len / 2, y: cy - RW / 2 }, rotation: 90, flip, crosswalk: len > 5 ? crosswalk : undefined };
   };
   const tee = (x0: number, y0: number, rotation: number): PlotTile => ({ ...ROAD, kind: "tee", origin: { x: x0, y: y0 }, rotation, flip: true });
   const corner = (x0: number, y0: number, rotation: number): PlotTile => ({ ...ROAD, kind: "corner", origin: { x: x0, y: y0 }, rotation });
@@ -181,7 +184,7 @@ export function generatePlot(seed: number, opts: { shape?: PlotShape; width?: nu
     if (b === null) roads.push(hs(x0, o, Sx, false));
     else {
       roads.push(hs(x0, o, b, false), tee(x0 + b, o, 180), hs(x0 + b + RW, o, Sx - b - RW, false));
-      outward.push(vs(x0 + b, o - BRANCH, BRANCH, false));
+      outward.push(vs(x0 + b, o - BRANCH, BRANCH, false, "end"));
     }
     roads.push(corner(o + RW + Sx, o, 0));
   }
@@ -193,7 +196,7 @@ export function generatePlot(seed: number, opts: { shape?: PlotShape; width?: nu
     if (b === null) roads.push(vs(x0, y0, Sy, false));
     else {
       roads.push(vs(x0, y0, b, false), tee(x0, y0 + b, 270), vs(x0, y0 + b + RW, Sy - b - RW, false));
-      outward.push(hs(x0 + RW, y0 + b, BRANCH, false));
+      outward.push(hs(x0 + RW, y0 + b, BRANCH, false, "start"));
     }
     roads.push(corner(x0, o + RW + Sy, 90));
   }
@@ -205,7 +208,7 @@ export function generatePlot(seed: number, opts: { shape?: PlotShape; width?: nu
     if (b === null) roads.push(hs(x0, y0, Sx, true));
     else {
       roads.push(hs(x0 + b + RW, y0, Sx - b - RW, true), tee(x0 + b, y0, 0), hs(x0, y0, b, true));
-      outward.push(vs(x0 + b, y0 + RW, BRANCH, false));
+      outward.push(vs(x0 + b, y0 + RW, BRANCH, false, "start"));
     }
     roads.push(corner(o, y0, 180));
   }
@@ -216,7 +219,7 @@ export function generatePlot(seed: number, opts: { shape?: PlotShape; width?: nu
     if (b === null) roads.push(vs(o, y0, Sy, true));
     else {
       roads.push(vs(o, y0 + b + RW, Sy - b - RW, true), tee(o, y0 + b, 90), vs(o, y0, b, true));
-      outward.push(hs(o - BRANCH, y0 + b, BRANCH, false));
+      outward.push(hs(o - BRANCH, y0 + b, BRANCH, false, "end"));
     }
     roads.push(corner(o, o, 270));
   }
@@ -242,7 +245,7 @@ export function generatePlot(seed: number, opts: { shape?: PlotShape; width?: nu
         const t = s + 0.8;
         const along = face === "+y" || face === "-y";
         const back = face === "-y" || face === "-x" ? edge + 1.2 : edge - 1.2;
-        trees.push({ x: along ? t : back, y: along ? back : t, kind: pick(["round", "conifer", "bush"] as const), seed: treeSeed++ });
+        trees.push({ x: along ? t : back, y: along ? back : t, kind: pick(["round", "conifer", "birch", "fruit", "willow", "shrub", "boxwood", "bush"] as const), seed: treeSeed++ });
         s += 1.6;
         continue;
       }
@@ -291,13 +294,16 @@ export function generatePlot(seed: number, opts: { shape?: PlotShape; width?: nu
   // Les arbres d'alignement, sur le trottoir extérieur, et les candélabres sur l'intérieur.
   const lights: PlotLayout["lights"] = [];
   const inBranch = (v: number, list: [number, number][]) => list.some(([a, b]) => v > a - 1 && v < b + 1);
+  // Une essence d'alignement par site : les rues d'une même ville sont plantées d'une même main.
+  const street = pick(["round", "birch", "poplar", "pine", "fruit", "cypress"] as const);
+  const streetH = street === "poplar" ? 4 : street === "fruit" ? 2.2 : 2.8;
   for (let x = o + RW + 2; x < o + RW + Sx - 1; x += 4) {
-    if (!inBranch(x, southBranch)) trees.push({ x, y: o + 0.5, kind: "round", height: 2.6, seed: treeSeed++ });
-    if (!inBranch(x, northBranch)) trees.push({ x, y: o + 2 * RW + Sy - 0.5, kind: "round", height: 2.6, seed: treeSeed++ });
+    if (!inBranch(x, southBranch)) trees.push({ x, y: o + 0.5, kind: street, height: streetH, seed: treeSeed++ });
+    if (!inBranch(x, northBranch)) trees.push({ x, y: o + 2 * RW + Sy - 0.5, kind: street, height: streetH, seed: treeSeed++ });
   }
   for (let y = o + RW + 2; y < o + RW + Sy - 1; y += 4) {
-    if (!inBranch(y, westBranch)) trees.push({ x: o + 0.5, y, kind: "round", height: 2.6, seed: treeSeed++ });
-    if (!inBranch(y, eastBranch)) trees.push({ x: o + 2 * RW + Sx - 0.5, y, kind: "round", height: 2.6, seed: treeSeed++ });
+    if (!inBranch(y, westBranch)) trees.push({ x: o + 0.5, y, kind: street, height: streetH, seed: treeSeed++ });
+    if (!inBranch(y, eastBranch)) trees.push({ x: o + 2 * RW + Sx - 0.5, y, kind: street, height: streetH, seed: treeSeed++ });
   }
   for (let x = o + RW + 4; x < o + RW + Sx - 2; x += 8) {
     lights.push({ x, y: o + RW - 0.5, rotation: 270 });
@@ -311,7 +317,7 @@ export function generatePlot(seed: number, opts: { shape?: PlotShape; width?: nu
   // --- Les voitures : même vitesse sur une même voie, réparties sur la boucle ---------------------
   const loop = 2 * (Sx + Sy) + 4 * RW;
   const cars: PlotCar[] = [];
-  const kinds: CarKind[] = ["sedan", "hatch", "van", "sedan"];
+  const kinds: CarKind[] = ["sedan", "hatch", "suv", "van", "sedan", "pickup", "hatch", "suv"];
   const tones: CarTone[] = ["light", "dark", "warm", "cool", "accent"];
   for (const reverse of [false, true]) {
     const n = 3 + Math.floor(r() * 3);

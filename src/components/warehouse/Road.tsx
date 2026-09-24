@@ -1,6 +1,7 @@
 import { Builder, type P2, type P3 } from "./three/builder";
 import { Parts, Solo, frameBounds, placed, useBuilt } from "./three/scene";
 import { transformTrack } from "./three/transport";
+import { rng } from "./three/random";
 
 /**
  * Les voies d'un site : la route qui y mène, la rue qui le longe, les carrefours qui les relient.
@@ -179,6 +180,27 @@ function buildRoad(p: RoadProps) {
     const cw = p.crosswalk;
     if (cw === "start" || cw === "both") zebra(b, 1, sw, carriage);
     if (cw === "end" || cw === "both") zebra(b, L - 1, sw, carriage);
+    // Le grain de l'enrobé : des regards au milieu d'une voie, des fissures qui courent.
+    const r = rng(Math.round(L * 131 + lanes * 7 + sw * 3));
+    for (let x = 3 + r() * 3; x < L - 2; x += 7 + r() * 5) {
+      const y = sw + lw * (0.5 + Math.floor(r() * lanes));
+      const ring: P3[] = [];
+      for (let i = 0; i < 14; i += 1) ring.push([x + Math.cos((i / 14) * Math.PI * 2) * 0.28, y + Math.sin((i / 14) * Math.PI * 2) * 0.28, TOP + 0.001]);
+      b.decal("lq-road__manhole", ring, true);
+    }
+    const cracks: [P3, P3][] = [];
+    for (let k = 0; k < Math.round(L / 3); k += 1) {
+      let x = r() * L;
+      let y = sw + 0.2 + r() * (carriage - 0.4);
+      for (let j = 0; j < 4; j += 1) {
+        const nx = Math.min(L, Math.max(0, x + (r() - 0.5) * 0.9));
+        const ny = Math.min(W - sw - 0.1, Math.max(sw + 0.1, y + (r() - 0.5) * 0.5));
+        cracks.push([[x, y, TOP + 0.0012], [nx, ny, TOP + 0.0012]]);
+        x = nx;
+        y = ny;
+      }
+    }
+    b.lines("lq-road__crack", cracks);
     return b.build();
   }
 

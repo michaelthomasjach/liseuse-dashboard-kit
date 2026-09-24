@@ -197,3 +197,50 @@
 .lq-powerline__wire {
   stroke: color-mix(in srgb, var(--lq-color-text) 80%, transparent);
 }
+
+/* --- Les voitures, détaillées ------------------------------------------------------------------- */
+
+.lq-car__arch {
+  fill: color-mix(in srgb, var(--lq-color-text) 82%, var(--lq-color-bg));
+}
+.lq-car__grille {
+  fill: color-mix(in srgb, var(--lq-color-text) 70%, var(--lq-color-bg));
+}
+.lq-car__plate {
+  fill: color-mix(in srgb, var(--lq-color-text) 2%, var(--lq-color-bg));
+  stroke: color-mix(in srgb, var(--lq-color-text) 50%, transparent);
+}
+.lq-car__bed {
+  fill: color-mix(in srgb, var(--lq-color-text) 60%, var(--lq-color-bg));
+}
+.lq-plot__joint line,
+.lq-plot__joint {
+  stroke: color-mix(in srgb, var(--lq-color-text) 22%, transparent);
+}
+.lq-plot__stain {
+  fill: color-mix(in srgb, var(--lq-color-text) 14%, var(--lq-color-bg));
+}
+.lq-plot__manhole {
+  fill: color-mix(in srgb, var(--lq-color-text) 55%, var(--lq-color-bg));
+  stroke: color-mix(in srgb, var(--lq-color-text) 60%, transparent);
+}
+.lq-plot__manhole-lid {
+  fill: color-mix(in srgb, var(--lq-color-text) 38%, var(--lq-color-bg));
+}
+.lq-plot__tuft {
+  fill: color-mix(in srgb, var(--lq-color-green) 38%, var(--lq-color-text) 20%);
+}
+.lq-plot__tuft-light {
+  fill: color-mix(in srgb, var(--lq-color-green) 20%, var(--lq-color-bg));
+}
+.lq-road__crack line,
+.lq-road__crack {
+  stroke: color-mix(in srgb, var(--lq-color-text) 55%, transparent);
+}
+.lq-road__manhole {
+  fill: color-mix(in srgb, var(--lq-color-text) 48%, var(--lq-color-bg));
+  stroke: color-mix(in srgb, var(--lq-color-text) 70%, transparent);
+}
+.lq-iso__solid--window {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-sky) 18%, var(--lq-color-text) 66%);
+}

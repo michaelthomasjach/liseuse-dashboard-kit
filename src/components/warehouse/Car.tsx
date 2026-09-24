@@ -1,38 +1,58 @@
 import { useRef } from "react";
 import type { Group } from "three";
-import { Builder, placeAt, type P2 } from "./three/builder";
+import { Builder, placeAt, type P2, type P3 } from "./three/builder";
 import { Parts, Solo, frameBounds, placed, useBuilt } from "./three/scene";
-import { useFollow, type Follow } from "./three/follow";
 import { useSimFrame } from "./three/time";
+import { useFollow, type Follow } from "./three/follow";
 
 /**
  * Une voiture — de tourisme ou de livraison — pour le parking, les rues et la cour d'un site.
  *
- * ## Une silhouette, pas une boîte
+ * ## Ce qui fait une voiture
  *
- * Une voiture se reconnaît de profil : capot, pare-brise, pavillon, lunette, coffre. C'est donc un
- * **profil extrudé sur la largeur**, arrondi sur ses arêtes, et non un empilement de pavés — un
- * pavé sur un pavé se lit comme un jouet en bois. Le vitrage est posé dans les pentes du profil, si
- * bien que la voiture dit de quel côté elle regarde sous tous les angles.
+ * Deux volumes, et non un : la **caisse**, jusqu'à la ligne de ceinture, dans la teinte de la
+ * carrosserie ; et le **pavillon vitré** au-dessus, sombre comme un vitrage vu de jour, que tiennent
+ * des montants et que coiffe le toit. C'est cette séparation — la bande sombre des vitres tout
+ * autour — qui fait lire une voiture et non un galet. Puis les détails qui la rendent crédible :
+ * les **passages de roue**, les pare-chocs, la calandre, les phares et les feux, les rétroviseurs,
+ * les plaques, les joints des portières, et des roues à jante claire.
  *
- * Trois gabarits, qui sont ceux qu'on croise autour d'un entrepôt :
- * - `"sedan"` : la berline des salariés, 4,5 m ;
- * - `"hatch"` : la citadine, 3,9 m, un hayon droit ;
- * - `"van"`   : l'utilitaire du dernier kilomètre, 5,4 m, un grand volume de caisse et une porte
- *   latérale coulissante — celui qui repart chargé des colis triés.
+ * Cinq gabarits, ceux qu'on croise autour d'un entrepôt :
+ * - `"sedan"`  : la berline, 4,5 m, trois volumes ;
+ * - `"hatch"`  : la citadine, 3,9 m, un hayon droit ;
+ * - `"suv"`    : le SUV, 4,7 m, haut sur roues ;
+ * - `"pickup"` : le pick-up, 5,2 m, une benne ouverte ;
+ * - `"van"`    : l'utilitaire du dernier kilomètre, 5,4 m, un grand volume de caisse.
  *
  * Les cotes sont en cases (une case vaut deux mètres), la voiture allongée sur les `x`, le nez vers
  * les `x` croissants.
  */
 
-export type CarKind = "sedan" | "hatch" | "van";
+export type CarKind = "sedan" | "hatch" | "suv" | "pickup" | "van";
 /** La teinte d'une carrosserie, dans la palette du kit. */
 export type CarTone = "light" | "dark" | "warm" | "cool" | "accent";
+
+export const CAR_KINDS: CarKind[] = ["sedan", "hatch", "suv", "pickup", "van"];
 
 export const CAR_DIMENSIONS: Record<CarKind, { length: number; width: number; height: number }> = {
   sedan: { length: 2.25, width: 0.9, height: 0.73 },
   hatch: { length: 1.95, width: 0.87, height: 0.76 },
+  suv: { length: 2.35, width: 0.95, height: 0.86 },
+  pickup: { length: 2.6, width: 0.98, height: 0.9 },
   van: { length: 2.7, width: 1.0, height: 1.25 },
+};
+
+/**
+ * La silhouette d'un gabarit, en fractions de sa longueur pour les `x` et en cases pour les `z` :
+ * la ligne de ceinture, le capot, la base du pare-brise, l'avant et l'arrière du toit, la base de
+ * la lunette, le dessus du coffre, le rayon des roues.
+ */
+const SHAPE: Record<CarKind, { belt: number; hood: number; ws: number; roofF: number; roofB: number; rw: number; deck: number; wheel: number }> = {
+  sedan: { belt: 0.47, hood: 0.43, ws: 0.65, roofF: 0.53, roofB: 0.28, rw: 0.18, deck: 0.46, wheel: 0.165 },
+  hatch: { belt: 0.47, hood: 0.42, ws: 0.67, roofF: 0.54, roofB: 0.08, rw: 0.03, deck: 0.47, wheel: 0.16 },
+  suv: { belt: 0.55, hood: 0.53, ws: 0.69, roofF: 0.58, roofB: 0.07, rw: 0.03, deck: 0.55, wheel: 0.19 },
+  pickup: { belt: 0.56, hood: 0.55, ws: 0.75, roofF: 0.65, roofB: 0.42, rw: 0.38, deck: 0.56, wheel: 0.19 },
+  van: { belt: 0.6, hood: 0.55, ws: 0.87, roofF: 0.81, roofB: 0.66, rw: 0.66, deck: 0.6, wheel: 0.18 },
 };
 
 const TONE: Record<CarTone, string> = {
@@ -43,136 +63,155 @@ const TONE: Record<CarTone, string> = {
   accent: "paint",
 };
 
-/** Le rayon d'une roue de voiture : 330 mm. */
-const WHEEL_R = 0.165;
-
-/** Le profil d'une carrosserie, dans `(x, z)`, de l'arrière au nez puis retour par le pavillon. */
-function profileOf(kind: CarKind, L: number): P2[] {
-  const H = CAR_DIMENSIONS[kind].height;
-  const sill = 0.12;
-  if (kind === "van") {
-    return [
-      { x: 0, y: sill },
-      { x: L, y: sill },
-      { x: L, y: 0.42 },
-      { x: L * 0.94, y: 0.52 },
-      { x: L * 0.8, y: 0.6 },
-      { x: L * 0.72, y: H - 0.04 },
-      { x: L * 0.68, y: H },
-      { x: 0.02, y: H },
-      { x: 0, y: H - 0.03 },
-    ];
-  }
-  if (kind === "hatch") {
-    return [
-      { x: 0, y: sill },
-      { x: L, y: sill },
-      { x: L, y: 0.3 },
-      { x: L * 0.8, y: 0.4 },
-      { x: L * 0.6, y: H },
-      { x: L * 0.12, y: H },
-      { x: 0.02, y: H - 0.08 },
-      { x: 0, y: 0.34 },
-    ];
-  }
-  return [
-    { x: 0, y: sill },
-    { x: L, y: sill },
-    { x: L, y: 0.29 },
-    { x: L * 0.97, y: 0.33 },
-    { x: L * 0.72, y: 0.37 },
-    { x: L * 0.56, y: H },
-    { x: L * 0.27, y: H },
-    { x: L * 0.12, y: 0.4 },
-    { x: 0, y: 0.36 },
-  ];
-}
+/** Le rayon des roues d'un gabarit. */
+export const carWheelRadius = (kind: CarKind) => SHAPE[kind].wheel;
 
 /**
  * Poser une voiture dans un constructeur, allongée sur les `x`, son arrière en `x = 0`.
  *
- *  La carrosserie seulement : les roues sont posées à part, pour pouvoir tourner — voir
- *  `carWheels`. Un parc de voitures immobiles les construit dans le même geste (`wheels: true`).
+ *  La carrosserie seulement : les roues sont posées à part, pour pouvoir tourner — voir `Car`. Un
+ *  parc de voitures immobiles les construit dans le même geste (`wheels: true`).
  */
 export function addCar(b: Builder, kind: CarKind, tone: CarTone, opts: { wheels?: boolean; length?: number; width?: number } = {}): void {
   const dim = CAR_DIMENSIONS[kind];
   const L = opts.length ?? dim.length;
   const W = opts.width ?? dim.width;
   const H = dim.height;
-  const mat = TONE[tone];
-  const p = profileOf(kind, L);
-  // La carrosserie, arrondie sur toutes ses arêtes.
-  b.profile(mat, p, 0, W, { bevel: 0.05 });
-  // Le bas de caisse sombre, entre les roues.
-  b.box("paint-dark", 0.1, L - 0.1, 0.03, W - 0.03, 0.06, 0.13, false);
-  // Le vitrage : dans les pentes du profil pour le pare-brise et la lunette, à plat sur les flancs
-  // pour les vitres latérales.
-  const along = (a: P2, c: P2, t: number): P2 => ({ x: a.x + (c.x - a.x) * t, y: a.y + (c.y - a.y) * t });
-  const inset = 0.09;
-  const shield = (a: P2, c: P2, from = 0.12, to = 0.9) => {
-    const s0 = along(a, c, from);
-    const s1 = along(a, c, to);
-    // Un rien en dehors de la tôle, pour ne pas s'y noyer.
-    const n = { x: -(c.y - a.y), y: c.x - a.x };
-    const l = Math.hypot(n.x, n.y) || 1;
-    const o = { x: (n.x / l) * -0.004, y: (n.y / l) * -0.004 };
-    b.decal("lq-car__glass", [
-      [s0.x + o.x, inset, s0.y + o.y],
-      [s0.x + o.x, W - inset, s0.y + o.y],
-      [s1.x + o.x, W - inset, s1.y + o.y],
-      [s1.x + o.x, inset, s1.y + o.y],
-    ]);
-  };
+  const s = SHAPE[kind];
+  const paint = TONE[tone];
+  const X = (u: number) => u * L;
+  const sill = 0.13;
+  const wsX = X(s.ws);
+  const roofF = X(s.roofF);
+  const roofB = X(s.roofB);
+  const rwX = X(s.rw);
+
+  // --- La caisse, jusqu'à la ligne de ceinture ---------------------------------------------------
+  let lower: P2[];
   if (kind === "van") {
-    shield(p[4], p[5]);
-    // Deux vitres de cabine, et la porte coulissante de la caisse, tracée.
-    for (const y of [-0.003, W + 0.003]) {
-      b.faceY("lq-car__glass", y, L * 0.73, L * 0.78, 0.66, H - 0.12);
-      b.lines("lq-truck__door", [
-        [[L * 0.36, y, 0.16], [L * 0.36, y, H - 0.1]],
-        [[L * 0.66, y, 0.16], [L * 0.66, y, H - 0.1]],
-      ]);
-    }
-    b.lines("lq-truck__door", [[[-0.003, W / 2, 0.16], [-0.003, W / 2, H - 0.08]]]);
+    // L'utilitaire : la caisse de chargement monte jusqu'au toit, derrière la cabine.
+    lower = [
+      { x: 0, y: sill },
+      { x: L, y: sill },
+      { x: L, y: s.hood - 0.08 },
+      { x: L - 0.08, y: s.hood },
+      { x: wsX, y: s.belt },
+      { x: roofB, y: s.belt },
+      { x: roofB, y: H },
+      { x: 0.02, y: H },
+      { x: 0, y: H - 0.03 },
+    ];
   } else {
-    const shieldAt = kind === "hatch" ? 3 : 4;
-    shield(p[shieldAt], p[shieldAt + 1]);
-    const rear = kind === "hatch" ? [p[6], p[5]] : [p[7], p[6]];
-    shield(rear[0], rear[1], 0.1, 0.85);
-    const roofFront = kind === "hatch" ? p[4].x : p[5].x;
-    const roofBack = kind === "hatch" ? p[5].x : p[6].x;
-    for (const y of [-0.003, W + 0.003]) {
-      b.decal("lq-car__glass", [
-        [roofBack - 0.04, y, H - 0.04],
-        [roofFront + 0.02, y, H - 0.04],
-        [roofFront + 0.1, y, 0.42],
-        [roofBack - 0.12, y, 0.42],
-      ]);
-      // Le montant entre les deux portes.
-      const mid = (roofFront + roofBack) / 2;
-      b.lines("lq-truck__door", [[[mid, y, 0.14], [mid, y, H - 0.02]]]);
+    lower = [
+      { x: 0, y: sill },
+      { x: L, y: sill },
+      { x: L, y: s.hood - 0.09 },
+      { x: L - 0.1, y: s.hood },
+      { x: wsX, y: s.belt },
+      { x: rwX, y: s.belt },
+      { x: 0.06, y: s.deck },
+      { x: 0, y: s.deck - 0.08 },
+    ];
+  }
+  b.profile(paint, lower, 0, W, { bevel: 0.035 });
+
+  // --- Le pavillon vitré, ses montants, son toit -------------------------------------------------
+  const inset = 0.05;
+  const gy0 = inset;
+  const gy1 = W - inset;
+  if (kind === "van") {
+    b.profile("window", [
+      { x: roofB, y: s.belt },
+      { x: wsX, y: s.belt },
+      { x: roofF, y: H - 0.02 },
+      { x: roofB, y: H - 0.02 },
+    ], gy0, gy1);
+  } else {
+    b.profile("window", [
+      { x: rwX, y: s.belt },
+      { x: wsX, y: s.belt },
+      { x: roofF, y: H - 0.02 },
+      { x: roofB, y: H - 0.02 },
+    ], gy0, gy1);
+    // Les montants : le pare-brise, la lunette, et le milieu des portières.
+    for (const y of [gy0 - 0.004, gy1 - 0.02]) {
+      b.beam(paint, [wsX, y + 0.012, s.belt], [roofF, y + 0.012, H - 0.02], 0.014, false);
+      b.beam(paint, [rwX, y + 0.012, s.belt], [roofB, y + 0.012, H - 0.02], 0.016, false);
+      const mid = (roofF + roofB) / 2;
+      b.box(paint, mid - 0.025, mid + 0.025, y, y + 0.024, s.belt, H - 0.02, false);
     }
   }
-  // Les phares et les feux.
-  for (const [y0, y1] of [
-    [0.08, 0.26],
-    [W - 0.26, W - 0.08],
-  ]) {
-    b.faceX("lq-car__lamp", L + 0.003, y0, y1, 0.2, 0.27, true);
-    b.faceX("lq-car__lamp--rear", -0.003, y0, y1, 0.22, 0.29, true);
+  // Le toit, un rien plus étroit que la caisse.
+  const r0 = kind === "van" ? 0.02 : roofB;
+  b.box(paint, r0, roofF, gy0 - 0.01, gy1 + 0.01, H - 0.025, H, true);
+  if (kind === "suv" || kind === "van") for (const y of [gy0 + 0.05, gy1 - 0.07]) b.box("chrome", r0 + 0.1, roofF - 0.06, y, y + 0.02, H, H + 0.03, false);
+
+  // --- La benne du pick-up -----------------------------------------------------------------------
+  if (kind === "pickup") {
+    b.faceZ("lq-car__bed", s.belt + 0.002, 0.04, rwX - 0.02, 0.05, W - 0.05);
+    b.box(paint, rwX - 0.03, rwX, 0.02, W - 0.02, s.belt, s.belt + 0.14);
+    for (const y of [0.02, W - 0.05]) b.box(paint, 0.02, rwX, y, y + 0.03, s.belt, s.belt + 0.1, false);
+    b.box(paint, 0, 0.04, 0.02, W - 0.02, s.belt - 0.02, s.belt + 0.1, false);
   }
-  if (opts.wheels) for (const [x, y] of carWheelSpots(kind, L, W)) b.cylinder("rubber", x, y, WHEEL_R, WHEEL_R, 0.12, "y", 16);
+
+  // --- Pare-chocs, calandre, phares, feux, plaques -----------------------------------------------
+  b.box("paint-dark", L - 0.05, L + 0.02, 0.03, W - 0.03, sill - 0.02, sill + 0.08, false);
+  b.box("paint-dark", -0.02, 0.05, 0.03, W - 0.03, sill - 0.02, sill + 0.08, false);
+  b.faceX("lq-car__grille", L + 0.004, W * 0.3, W * 0.7, s.hood - 0.2, s.hood - 0.1);
+  for (const [y0, y1] of [
+    [0.06, 0.24],
+    [W - 0.24, W - 0.06],
+  ]) {
+    b.faceX("lq-car__lamp", L + 0.005, y0, y1, s.hood - 0.13, s.hood - 0.06, true);
+    b.faceX("lq-car__lamp--rear", -0.005, y0, y1, (kind === "van" ? 0.5 : s.deck) - 0.14, (kind === "van" ? 0.5 : s.deck) - 0.07, true);
+  }
+  b.faceX("lq-car__plate", L + 0.025, W / 2 - 0.1, W / 2 + 0.1, sill + 0.01, sill + 0.06, true);
+  b.faceX("lq-car__plate", -0.025, W / 2 - 0.1, W / 2 + 0.1, sill + 0.1, sill + 0.15, true);
+
+  // --- Rétroviseurs ---------------------------------------------------------------------------
+  for (const side of [-1, 1]) {
+    const y = side < 0 ? -0.06 : W;
+    b.box("paint-dark", wsX - 0.06, wsX, y, y + 0.06, s.belt + 0.02, s.belt + 0.07, false);
+  }
+
+  // --- Passages de roue, joints de portières -----------------------------------------------------
+  const spots = carWheelSpots(kind, L, W);
+  const R = s.wheel + 0.025;
+  for (const y of [-0.004, W + 0.004]) {
+    for (const x of [spots[0][0], spots[2][0]]) {
+      // Le passage de roue : un demi-disque sombre au-dessus de l'axe, qui descend jusqu'au bas de
+      // caisse — la roue, qui affleure le flanc, vient se poser devant.
+      const arch: P3[] = [[x + R, y, sill - 0.03]];
+      for (let i = 0; i <= 12; i += 1) {
+        const a = (Math.PI * i) / 12;
+        arch.push([x + Math.cos(a) * R, y, s.wheel + Math.sin(a) * R]);
+      }
+      arch.push([x - R, y, sill - 0.03]);
+      b.decal("lq-car__arch", arch);
+    }
+    const doors = kind === "van" ? [wsX - 0.02, L * 0.62, L * 0.3] : [wsX - 0.02, (roofF + roofB) / 2, rwX + 0.03];
+    b.lines("lq-truck__door", doors.map((x): [P3, P3] => [[x, y, sill + 0.03], [x, y, s.belt - 0.01]]));
+  }
+  if (opts.wheels) for (const [x, y] of spots) addCarWheel(b, x, y, s.wheel);
+}
+
+/** Une roue : le pneu, la jante claire, son moyeu. Centrée en `(x, y, r)`. */
+function addCarWheel(b: Builder, x: number, y: number, r: number) {
+  b.cylinder("rubber", x, y, r, r, 0.11, "y", 18);
+  b.cylinder("chrome", x, y, r, r * 0.62, 0.115, "y", 14);
+  b.cylinder("paint-dark", x, y, r, r * 0.2, 0.12, "y", 8);
 }
 
 /** Où sont les quatre roues d'une voiture. */
 export function carWheelSpots(kind: CarKind, L = CAR_DIMENSIONS[kind].length, W = CAR_DIMENSIONS[kind].width): [number, number][] {
-  const f = L * (kind === "van" ? 0.8 : 0.78);
-  const r = L * (kind === "van" ? 0.17 : 0.2);
+  const front = L * (kind === "van" ? 0.82 : kind === "pickup" ? 0.8 : 0.79);
+  const rear = L * (kind === "van" ? 0.17 : kind === "pickup" ? 0.2 : 0.21);
+  // Les roues affleurent le flanc, un rien en dehors : c'est ainsi qu'on les voit entières.
   return [
-    [f, 0.06],
-    [f, W - 0.06],
-    [r, 0.06],
-    [r, W - 0.06],
+    [front, 0.045],
+    [front, W - 0.045],
+    [rear, 0.045],
+    [rear, W - 0.045],
   ];
 }
 
@@ -208,6 +247,7 @@ function CarBody({ kind = "sedan", tone = "light", rotation = 0, origin = { x: 0
   const rolling = follow ? follow.speed ?? 1 : roll;
   const ride = useFollow(follow);
   const d = CAR_DIMENSIONS[kind];
+  const R = SHAPE[kind].wheel;
   const body = useBuilt(() => {
     const b = new Builder();
     addCar(b, kind, tone);
@@ -215,21 +255,21 @@ function CarBody({ kind = "sedan", tone = "light", rotation = 0, origin = { x: 0
   }, [kind, tone]);
   const wheel = useBuilt(() => {
     const b = new Builder();
-    b.cylinder("rubber", 0, 0, 0, WHEEL_R, 0.12, "y", 16);
-    b.cylinder("chrome", 0, 0, 0, WHEEL_R * 0.55, 0.125, "y", 12);
-    b.box("chrome", -WHEEL_R * 0.6, WHEEL_R * 0.6, -0.064, 0.064, -0.012, 0.012, false);
+    addCarWheel(b, 0, 0, 0);
+    // Un rayon de jante, pour qu'on voie la roue tourner.
+    b.box("paint-dark", -R * 0.55, R * 0.55, -0.06, 0.06, -0.01, 0.01, false);
     return b.build();
-  }, []);
+  }, [R]);
   const spin = useRef<(Group | null)[]>([]);
   useSimFrame((t) => {
-    for (const w of spin.current) if (w) w.rotation.y = -(t * rolling) / WHEEL_R;
+    for (const w of spin.current) if (w) w.rotation.y = -(t * rolling) / R;
   }, rolling !== 0);
   const pose = placeAt(origin.x, origin.y, rotation, { x: d.length / 2, y: d.width / 2 });
   const car = (
     <>
       <Parts built={body} />
       {carWheelSpots(kind).map(([x, y], i) => (
-        <group key={i} position={[x, y, WHEEL_R]} ref={(el) => (spin.current[i] = el)}>
+        <group key={i} position={[x, y, R]} ref={(el) => (spin.current[i] = el)}>
           <Parts built={wheel} />
         </group>
       ))}

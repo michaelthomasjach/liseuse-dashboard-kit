@@ -67,13 +67,19 @@ export interface WorkerProps {
   origin?: { x: number; y: number };
   /** Sa vitesse de marche, en cases par seconde de simulation : bras et jambes balancent d'autant. */
   walking?: number;
+  /**
+   * Un grossissement de la silhouette. Par défaut `1.35` : à l'échelle exacte, un homme fait à
+   * peine la hauteur d'une roue de camion vu de haut, et on le perd dans la scène — le jeu le montre
+   * un peu plus grand qu'il n'est, comme une carte montre les routes plus larges qu'elles ne sont.
+   */
+  scale?: number;
   cellSize?: number;
   className?: string;
 }
 
 export function Worker(props: WorkerProps) {
-  const { rotation = 0, origin = { x: 0, y: 0 }, cellSize = 60, className } = props;
-  const { bounds } = placed({ x: origin.x - 0.15, y: origin.y - 0.15 }, rotation, { x0: 0, x1: 0.3, y0: 0, y1: 0.3, z0: 0, z1: 0.95 });
+  const { rotation = 0, origin = { x: 0, y: 0 }, cellSize = 60, className, scale = WORKER_SCALE } = props;
+  const { bounds } = placed({ x: origin.x - 0.2, y: origin.y - 0.2 }, rotation, { x0: 0, x1: 0.4, y0: 0, y1: 0.4, z0: 0, z1: 0.95 * scale });
   return (
     <Solo bounds={bounds} cellSize={cellSize} className={className} ariaLabel="Opérateur">
       <WorkerBody {...props} />
@@ -81,7 +87,10 @@ export function Worker(props: WorkerProps) {
   );
 }
 
-function WorkerBody({ pose = "stand", rotation = 0, origin = { x: 0, y: 0 }, walking = 0 }: WorkerProps) {
+/** Le grossissement ordinaire d'un opérateur posé seul. */
+export const WORKER_SCALE = 1.35;
+
+function WorkerBody({ pose = "stand", rotation = 0, origin = { x: 0, y: 0 }, walking = 0, scale = WORKER_SCALE }: WorkerProps) {
   const walks = pose === "walk";
   const body = useBuilt(() => {
     const b = new Builder();
@@ -112,7 +121,8 @@ function WorkerBody({ pose = "stand", rotation = 0, origin = { x: 0, y: 0 }, wal
   const m = placeAt(origin.x, origin.y, rotation);
   return (
     <group matrixAutoUpdate={false} matrix={m}>
-      <Parts built={body} />
+      <group scale={scale}>
+        <Parts built={body} />
       {walks && (
         <>
           {[-0.05, 0.05].map((y, i) => (
@@ -125,8 +135,9 @@ function WorkerBody({ pose = "stand", rotation = 0, origin = { x: 0, y: 0 }, wal
               <Parts built={arm} />
             </group>
           ))}
-        </>
-      )}
+          </>
+        )}
+      </group>
     </group>
   );
 }

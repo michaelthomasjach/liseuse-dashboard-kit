@@ -25,7 +25,41 @@ import { rng } from "./three/random";
  * mais un arbre donné garde la sienne d'un rendu à l'autre.
  */
 
-export type TreeKind = "round" | "conifer" | "poplar" | "bush";
+export type TreeKind =
+  | "round"
+  | "conifer"
+  | "poplar"
+  | "bush"
+  | "birch"
+  | "cypress"
+  | "pine"
+  | "willow"
+  | "fruit"
+  | "boxwood"
+  | "hedge"
+  | "grass"
+  | "shrub";
+
+/** Les arbres, du plus commun au plus singulier. */
+export const TREE_KINDS: TreeKind[] = ["round", "conifer", "poplar", "birch", "cypress", "pine", "willow", "fruit"];
+/** Les arbustes et les plantes basses, du plus petit au plus grand. */
+export const SHRUB_KINDS: TreeKind[] = ["grass", "boxwood", "hedge", "bush", "shrub"];
+
+export const TREE_LABEL: Record<TreeKind, string> = {
+  round: "Feuillu",
+  conifer: "Sapin",
+  poplar: "Peuplier",
+  bush: "Arbuste",
+  birch: "Bouleau",
+  cypress: "Cyprès",
+  pine: "Pin parasol",
+  willow: "Saule pleureur",
+  fruit: "Arbre fruitier",
+  boxwood: "Buis en boule",
+  hedge: "Haie taillée",
+  grass: "Graminée",
+  shrub: "Grand arbuste",
+};
 
 export interface TreeSpec {
   /** Où est le pied de l'arbre, en cases. */
@@ -38,11 +72,45 @@ export interface TreeSpec {
   seed?: number;
 }
 
-const DEFAULT_HEIGHT: Record<TreeKind, number> = { round: 3.2, conifer: 3.6, poplar: 4.4, bush: 0.7 };
+const DEFAULT_HEIGHT: Record<TreeKind, number> = {
+  round: 3.2,
+  conifer: 3.6,
+  poplar: 4.4,
+  bush: 0.7,
+  birch: 3.4,
+  cypress: 3.6,
+  pine: 3.8,
+  willow: 3,
+  fruit: 2.2,
+  boxwood: 0.4,
+  hedge: 0.6,
+  grass: 0.35,
+  shrub: 1.2,
+};
+
+/** La hauteur ordinaire d'une essence, en cases. */
+export const treeHeight = (kind: TreeKind) => DEFAULT_HEIGHT[kind];
 
 /** Le tronc d'un arbre, pied en `(x, y, 0)`. */
 function addTrunk(b: Builder, kind: TreeKind, x: number, y: number, h: number) {
-  if (kind === "bush") return;
+  if (kind === "bush" || kind === "boxwood" || kind === "hedge" || kind === "grass" || kind === "shrub") return;
+  if (kind === "birch") {
+    // Le bouleau : un fût mince et blanc, taché de noir.
+    const up = h * 0.62;
+    b.cylinder("paint-light", x, y, up / 2, h * 0.018, up, "z", 8, h * 0.013);
+    for (let z = 0.25; z < up - 0.1; z += 0.32) b.box("paint-dark", x - h * 0.019, x + h * 0.019, y - 0.01, y + 0.01, z, z + 0.04, false);
+    return;
+  }
+  if (kind === "pine") {
+    // Le pin parasol : un long fût nu, un rien penché.
+    const up = h * 0.72;
+    b.beam("bark", [x, y, 0], [x + h * 0.06, y, up], h * 0.022);
+    return;
+  }
+  if (kind === "cypress") {
+    b.cylinder("bark", x, y, 0.1, h * 0.02, 0.2, "z", 7);
+    return;
+  }
   const r = kind === "poplar" ? h * 0.018 : h * 0.028;
   const up = kind === "conifer" ? h * 0.22 : kind === "poplar" ? h * 0.2 : h * 0.42;
   b.cylinder("bark", x, y, up / 2, r, up, "z", 7, r * 0.75);
@@ -66,6 +134,88 @@ function addCrown(b: Builder, kind: TreeKind, x: number, y: number, h: number, s
   if (kind === "poplar") {
     b.blob("foliage", x, y, h * 0.58, h * 0.16, 1, 2.6);
     b.blob("foliage-dark", x + jitter(0.1), y + jitter(0.1), h * 0.44, h * 0.12, 1, 2.2);
+    return;
+  }
+  if (kind === "birch") {
+    // Une couronne légère, en petites touffes claires, haut placées.
+    for (let i = 0; i < 6; i += 1) {
+      const a = r() * Math.PI * 2;
+      const d = h * 0.12 * r();
+      b.blob(i % 3 ? "foliage" : "grass", x + Math.cos(a) * d, y + Math.sin(a) * d, h * (0.62 + r() * 0.28), h * (0.1 + r() * 0.05), 1, 1.2);
+    }
+    return;
+  }
+  if (kind === "cypress") {
+    // Le cyprès : une flamme sombre, étroite et haute.
+    b.blob("foliage-dark", x, y, h * 0.5, h * 0.12, 1, 4);
+    return;
+  }
+  if (kind === "pine") {
+    // Le pin parasol : une couronne plate et large, au sommet du fût.
+    const cx = x + h * 0.06;
+    b.blob("foliage-dark", cx, y, h * 0.8, h * 0.26, 1, 0.38);
+    for (let i = 0; i < 4; i += 1) {
+      const a = (i / 4) * Math.PI * 2 + r();
+      b.blob("foliage", cx + Math.cos(a) * h * 0.16, y + Math.sin(a) * h * 0.16, h * (0.78 + r() * 0.06), h * 0.14, 1, 0.45);
+    }
+    return;
+  }
+  if (kind === "willow") {
+    // Le saule pleureur : une couronne ronde d'où tombent des rideaux de feuillage.
+    b.blob("foliage", x, y, h * 0.7, h * 0.22, 1, 0.8);
+    const n = 7;
+    for (let i = 0; i < n; i += 1) {
+      const a = (i / n) * Math.PI * 2 + r() * 0.4;
+      b.blob(i % 2 ? "foliage" : "foliage-dark", x + Math.cos(a) * h * 0.2, y + Math.sin(a) * h * 0.2, h * 0.42, h * 0.08, 1, 3.2);
+    }
+    return;
+  }
+  if (kind === "fruit") {
+    // L'arbre fruitier : une couronne basse et ronde, piquée de fruits.
+    const R = h * 0.3;
+    b.blob("foliage", x, y, h * 0.62, R, 1, 0.85);
+    for (let i = 0; i < 9; i += 1) {
+      const a = r() * Math.PI * 2;
+      const e = (r() - 0.3) * 1.2;
+      b.blob("stripe", x + Math.cos(a) * R * Math.cos(e), y + Math.sin(a) * R * Math.cos(e), h * 0.62 + Math.sin(e) * R * 0.85, h * 0.025, 0);
+    }
+    return;
+  }
+  if (kind === "boxwood") {
+    b.blob("foliage-dark", x, y, h * 0.5, h * 0.55, 1, 0.9);
+    return;
+  }
+  if (kind === "hedge") {
+    // La haie taillée : un bloc au cordeau, un rien plus étroit en haut.
+    const L = h * 1.6;
+    b.hexa("foliage-dark", [
+      [x - L / 2, y - 0.2, 0],
+      [x + L / 2, y - 0.2, 0],
+      [x + L / 2, y + 0.2, 0],
+      [x - L / 2, y + 0.2, 0],
+      [x - L / 2, y - 0.16, h],
+      [x + L / 2, y - 0.16, h],
+      [x + L / 2, y + 0.16, h],
+      [x - L / 2, y + 0.16, h],
+    ]);
+    return;
+  }
+  if (kind === "grass") {
+    // La graminée : une touffe de feuilles fines qui s'écartent.
+    for (let i = 0; i < 7; i += 1) {
+      const a = (i / 7) * Math.PI * 2;
+      b.beam(i % 2 ? "foliage" : "grass", [x, y, 0], [x + Math.cos(a) * h * 0.4, y + Math.sin(a) * h * 0.4, h * (0.8 + r() * 0.3)], 0.012, false);
+    }
+    b.blob("foliage", x, y, h * 0.25, h * 0.3, 0, 0.8);
+    return;
+  }
+  if (kind === "shrub") {
+    // Le grand arbuste : plusieurs masses irrégulières, sans tronc visible.
+    for (let i = 0; i < 5; i += 1) {
+      const a = (i / 5) * Math.PI * 2 + r();
+      const d = i === 0 ? 0 : h * 0.22;
+      b.blob(i % 2 ? "foliage-dark" : "foliage", x + Math.cos(a) * d, y + Math.sin(a) * d, h * (0.45 + r() * 0.25), h * (0.3 + r() * 0.1), 1, 1);
+    }
     return;
   }
   if (kind === "bush") {
@@ -116,7 +266,8 @@ export interface TreeProps {
 export function Tree(props: TreeProps) {
   const { kind = "round", origin = { x: 0, y: 0 }, frame, cellSize = 40, className } = props;
   const h = props.height ?? DEFAULT_HEIGHT[kind];
-  const w = kind === "poplar" ? h * 0.2 : kind === "bush" ? h * 0.9 : h * 0.45;
+  const low = kind === "bush" || kind === "boxwood" || kind === "grass" || kind === "shrub" || kind === "hedge";
+  const w = kind === "poplar" || kind === "cypress" ? h * 0.2 : low ? h * 0.9 : h * 0.45;
   return (
     <Solo bounds={frame ? frameBounds(frame) : { x0: origin.x - w, x1: origin.x + w, y0: origin.y - w, y1: origin.y + w, z0: 0, z1: h }} cellSize={cellSize} className={className} ariaLabel="Arbre">
       <TreeBody {...props} />
@@ -144,7 +295,7 @@ function TreeBody({ kind = "round", height, origin = { x: 0, y: 0 }, seed = 1, w
     const k = 0.018 + 0.006 * Math.sin(t * 0.37 + seed);
     g.rotation.x = Math.sin(t * 1.1 + seed) * k;
     g.rotation.y = Math.sin(t * 0.83 + seed * 2) * k;
-  }, wind && kind !== "bush");
+  }, wind && kind !== "bush" && kind !== "boxwood" && kind !== "hedge" && kind !== "grass");
   return (
     <group position={[origin.x, origin.y, 0]}>
       <Parts built={trunk} />

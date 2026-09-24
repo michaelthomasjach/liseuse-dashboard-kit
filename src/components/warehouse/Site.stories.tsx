@@ -6,7 +6,8 @@ import { Gatehouse } from "./Gatehouse";
 import { StreetLight } from "./StreetLight";
 import { ShippingContainer } from "./ShippingContainer";
 import { PalletRack } from "./PalletRack";
-import { Car } from "./Car";
+import { CAR_KINDS, Car } from "./Car";
+import { SHRUB_KINDS, TREE_KINDS, TREE_LABEL } from "./Tree";
 import { Worker } from "./Worker";
 import { SceneBox } from "./sceneStory";
 import { SolarArray } from "./SolarPanel";
@@ -34,13 +35,20 @@ const cell = (node: React.ReactNode, text: string) => (
 );
 
 export const Arbres: Story = {
-  name: "Arbres",
+  name: "Arbres et arbustes",
+  render: () => (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <div style={row}>{TREE_KINDS.map((k, i) => cell(<Tree kind={k} seed={i + 2} cellSize={34} />, TREE_LABEL[k]))}</div>
+      <div style={row}>{SHRUB_KINDS.map((k, i) => cell(<Tree kind={k} seed={i + 5} cellSize={70} />, TREE_LABEL[k]))}</div>
+    </div>
+  ),
+};
+
+export const Voitures: Story = {
+  name: "Voitures",
   render: () => (
     <div style={row}>
-      {cell(<Tree kind="round" seed={2} cellSize={40} />, "Feuillu")}
-      {cell(<Tree kind="conifer" seed={4} cellSize={40} />, "Résineux")}
-      {cell(<Tree kind="poplar" seed={5} cellSize={40} />, "Peuplier")}
-      {cell(<Tree kind="bush" seed={6} cellSize={60} />, "Arbuste")}
+      {CAR_KINDS.map((k, i) => cell(<Car kind={k} tone={(["light", "accent", "dark", "warm", "cool"] as const)[i]} cellSize={70} />, k))}
     </div>
   ),
 };

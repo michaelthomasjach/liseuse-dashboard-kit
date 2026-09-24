@@ -549,3 +549,23 @@
   font-size: 0.58rem;
   color: var(--lq-color-text-muted);
 }
+
+/* ---- options d'un élément ---- */
+
+.lq-planner__option {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-planner__option select {
+  height: 26px;
+  border: 1px solid var(--lq-color-border);
+  border-radius: var(--lq-radius-sm, 6px);
+  background: var(--lq-color-bg);
+  color: var(--lq-color-text);
+  font: inherit;
+  font-size: 0.72rem;
+}

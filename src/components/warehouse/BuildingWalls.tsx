@@ -70,9 +70,10 @@ export interface DockWallProps extends CommonProps {
   doorHeight?: number;
   /** Ouverture des portes, de `0` (fermées) à `1` — une valeur pour toutes, ou une par porte. */
   open?: number | number[];
-  /** La profondeur de la cour devant le quai, en cases. */
+  /** La profondeur de la cour devant le quai, en cases. `0` (défaut) : pas de cour. */
   yard?: number;
-  /** La largeur des deux retours de plateforme qui bordent la cour, en cases. `0` : pas de retours. */
+  /** La largeur des deux retours de plateforme qui bordent la cour, en cases. `0` (défaut) : pas de
+   *  retours. */
   returns?: number;
 }
 
@@ -104,18 +105,19 @@ function dockLayout(p: DockWallProps) {
   const level = Math.max(0, p.level ?? DEFAULTS.level);
   const width = Math.max(0.4, p.doorWidth ?? 1.75);
   const centers = Array.isArray(p.doors) ? p.doors : dockDoorCenters(L, p.doors ?? 5, p.doorSpacing ?? 3, width);
-  const yard = Math.max(0, p.yard ?? 4.8);
-  const returns = Math.max(0, p.returns ?? 1.2);
+  // Par défaut, le mur seul : la cour et ses retours ne se posent que si on les demande.
+  const yard = Math.max(0, p.yard ?? 0);
+  const returns = Math.max(0, p.returns ?? 0);
   return { L, D, H, level, width, centers, yard, returns };
 }
 
 /**
  * Le mur de quai : une façade percée de portes sectionnelles, chacune avec son niveleur, ses
- * butoirs et ses bornes, et **la cour à plat devant elle**.
+ * butoirs et ses bornes — **le mur seul**, par défaut.
  *
- * La plateforme s'arrête au nu du mur, sauf à ses deux bouts où elle avance border la cour — les
- * deux retours. Entre eux, la cour est **de niveau**, au sol du site : `level` plus bas que le
- * seuil des portes, la hauteur d'un plancher de remorque, que les niveleurs rattrapent.
+ * En option (`yard`, `returns`), la cour à plat devant lui et les deux retours de plateforme qui la
+ * bordent : la cour est alors **de niveau**, au sol du site, `level` plus bas que le seuil des
+ * portes — la hauteur d'un plancher de remorque, que les niveleurs rattrapent.
  */
 export function DockWall(props: DockWallProps) {
   const { origin = { x: 0, y: 0 }, rotation = 0, frame, cellSize = 20, className, slab = true } = props;

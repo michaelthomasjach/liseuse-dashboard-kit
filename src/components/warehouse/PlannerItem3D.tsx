@@ -19,9 +19,19 @@ import { Car } from "./Car";
 import { Parking } from "./Parking";
 import { SolarArray } from "./SolarPanel";
 import { PowerLine } from "./PowerLine";
+import { Barrier } from "./Barrier";
+import { SlidingGate } from "./SlidingGate";
+import { TollBooth } from "./TollBooth";
+import { FlowerBed } from "./FlowerBed";
+import { Transformer } from "./Transformer";
+import { PackingMachine } from "./PackingMachine";
+import { RobotCell } from "./RobotCell";
+import { Roof } from "./Roof";
+import { TREE_KINDS } from "./Tree";
+import type { WallOpening } from "./Wall";
 import { Builder } from "./three/builder";
 import { Parts, placed, useBuilt } from "./three/scene";
-import { SOLAR_TIERS, isLinear, levelOf, sizeOf, thicknessOf, type PlannerItem, type PlannerPoint } from "./plannerModel";
+import { SOLAR_TIERS, WALL_MOUNTED, isLinear, levelOf, sizeOf, thicknessOf, type PlannerItem, type PlannerPoint } from "./plannerModel";
 
 /**
  * Un élément du plan, rendu par le module 3D du kit qui lui correspond — **à son niveau
@@ -81,7 +91,11 @@ function AutonomyKit({ origin, rotation }: { origin: { x: number; y: number }; r
   );
 }
 
-export function PlannerItem3D({ item }: { item: PlannerItem }) {
+/**
+ * `mounts` : les ouvertures qu'un mur porte — portes, fenêtres, baies accrochées à lui (voir
+ * `wallMounts`). `roofs` : afficher les toitures, qu'on masque pour voir dedans.
+ */
+export function PlannerItem3D({ item, mounts, roofs = true }: { item: PlannerItem; mounts?: WallOpening[]; roofs?: boolean }) {
   const lv = levelOf(item);
   if (isLinear(item)) {
     const L = Math.max(0.5, Math.hypot(item.x1 - item.x0, item.y1 - item.y0));
@@ -97,11 +111,12 @@ export function PlannerItem3D({ item }: { item: PlannerItem }) {
           <StandardWall
             length={L}
             thickness={T}
-            height={lv === 1 ? 2.6 : PLANNER_WALL_TOP}
+            height={PLANNER_WALL_TOP}
             level={0}
             slab={false}
             piers={lv === 1 ? "none" : "spaced"}
             cladding={lv === 3}
+            openings={mounts}
             origin={origin}
             rotation={rotation}
           />
@@ -111,7 +126,7 @@ export function PlannerItem3D({ item }: { item: PlannerItem }) {
           // De plain-pied : des portes sectionnelles au niveau du sol, pour les utilitaires.
           const n = Math.max(1, Math.floor((L - 1) / 4));
           const openings = Array.from({ length: n }, (_, i) => ({ at: (L * (i + 0.5)) / n - 0.8, width: 1.6, height: 1.9 }));
-          return <StandardWall length={L} thickness={T} height={PLANNER_WALL_TOP} level={0} slab={false} piers="ends" openings={openings} origin={origin} rotation={rotation} />;
+          return <StandardWall length={L} thickness={T} height={PLANNER_WALL_TOP} level={0} slab={false} piers="ends" openings={[...openings, ...(mounts ?? [])]} origin={origin} rotation={rotation} />;
         }
         return (
           <DockWall
@@ -121,8 +136,8 @@ export function PlannerItem3D({ item }: { item: PlannerItem }) {
             level={PLANNER_DOCK_LEVEL}
             doors={Math.max(1, Math.floor((L - 1) / 3))}
             doorSpacing={3}
-            yard={4.8}
-            returns={1}
+            yard={0}
+            returns={0}
             cladding={lv === 3}
             open={lv === 3 ? 0.85 : 0}
             origin={origin}
@@ -157,10 +172,36 @@ export function PlannerItem3D({ item }: { item: PlannerItem }) {
       case "palletRack": {
         const bays = Math.max(1, Math.round((L - 0.1) / 1.35));
         const La = bays * 1.35 + 0.1;
-        return <PalletRack bays={bays} levels={lv + 2} double={lv === 3} seed={hash(item.id)} origin={{ x: mx - La / 2, y: my - T / 2 }} rotation={rotation} />;
+        const mid = Math.floor(bays / 2);
+        return (
+          <PalletRack
+            bays={bays}
+            levels={lv + 2}
+            double={lv === 3}
+            seed={hash(item.id)}
+            storage={item.storage}
+            passage={item.passage && bays >= 3 ? { from: mid, to: mid + 1, clearance: 2.2 } : undefined}
+            origin={{ x: mx - La / 2, y: my - T / 2 }}
+            rotation={rotation}
+          />
+        );
       }
       case "powerLine":
         return <PowerLine kind={(["wood", "concrete", "pylon"] as const)[lv - 1]} length={L} origin={axis} rotation={rotation} />;
+      case "lowWall":
+        // Un muret : un mur bas, sans poteaux — ou à poteaux, plus haut — ou surmonté d'une grille.
+        return (
+          <>
+            <StandardWall length={L} thickness={T} height={lv === 2 ? 0.8 : 0.5} level={0} slab={false} piers={lv === 2 ? "spaced" : "none"} origin={origin} rotation={rotation} />
+            {lv === 3 && (
+              <group position={[0, 0, 0.5]}>
+                <Fence kind="mesh" length={L} height={0.7} origin={axis} rotation={rotation} />
+              </group>
+            )}
+          </>
+        );
+      case "gate":
+        return <SlidingGate length={L} origin={axis} rotation={rotation} cycle={lv === 2 ? 10 : undefined} />;
     }
     return null;
   }
@@ -169,9 +210,11 @@ export function PlannerItem3D({ item }: { item: PlannerItem }) {
   const origin = { x: p.x - s.length / 2, y: p.y - s.width / 2 };
   const center = { x: p.x, y: p.y };
   const rotation = p.rotation;
+  // Une porte, une fenêtre, une baie n'existent que dans leur mur : c'est lui qui les dessine.
+  if (WALL_MOUNTED.includes(p.kind)) return null;
   switch (p.kind) {
     case "shelf":
-      if (lv === 1) return <RackV2 width={s.length} depth={s.width} height={2.4} posts braces origin={origin} rotation={rotation} />;
+      if (lv === 1) return <RackV2 width={s.length} depth={s.width} height={2.4} posts braces storage={p.storage} clearance={p.passage ? 1.8 : 0} origin={origin} rotation={rotation} />;
       return (
         <RackV2
           width={s.length}
@@ -183,6 +226,8 @@ export function PlannerItem3D({ item }: { item: PlannerItem }) {
           contents={["carton", "boite", "bidon", "carton", "bouteille"]}
           posts
           braces
+          storage={p.storage}
+          clearance={p.passage ? 1.8 : 0}
           origin={origin}
           rotation={rotation}
         />
@@ -220,7 +265,7 @@ export function PlannerItem3D({ item }: { item: PlannerItem }) {
       return lv === 1 ? (
         <Tree origin={center} kind="bush" seed={hash(p.id)} height={0.8} />
       ) : (
-        <Tree origin={center} seed={hash(p.id)} kind={(["round", "conifer", "round", "poplar"] as const)[hash(p.id) % 4]} height={lv === 2 ? 3 : 4.6} />
+        <Tree origin={center} seed={hash(p.id)} kind={TREE_KINDS[hash(p.id) % TREE_KINDS.length]} height={lv === 2 ? 3 : 4.6} />
       );
     case "light":
       return <StreetLight kind={(["bollard", "street", "flood"] as const)[lv - 1]} origin={center} rotation={rotation} />;
@@ -228,6 +273,30 @@ export function PlannerItem3D({ item }: { item: PlannerItem }) {
       return <Parking bays={6} rows={1} fill={0.7} seed={hash(p.id)} canopy={(["none", "roof", "solar"] as const)[lv - 1]} origin={origin} rotation={rotation} />;
     case "solar":
       return <SolarArray {...SOLAR_TIERS[lv - 1]} origin={origin} rotation={rotation} />;
+    case "shrub":
+      return <Tree origin={center} seed={hash(p.id)} kind={(["grass", "boxwood", "bush", "shrub"] as const)[lv - 1]} />;
+    case "barrier":
+      return <Barrier kind={lv === 3 ? "gantry" : "boom"} width={s.width - 0.4} cycle={lv === 2 ? 6 : undefined} origin={{ x: p.x, y: p.y - (s.width - 0.4) / 2 }} rotation={rotation} />;
+    case "tollBooth":
+      return <TollBooth lanes={lv} origin={origin} rotation={rotation} />;
+    case "flowerBed":
+      return lv === 3 ? (
+        <FlowerBed shape="round" length={s.length} seed={hash(p.id)} origin={origin} rotation={rotation} />
+      ) : (
+        <FlowerBed length={s.length} width={s.width} seed={hash(p.id)} origin={origin} rotation={rotation} />
+      );
+    case "transformer":
+      return <Transformer kind={(["pad", "kiosk", "substation"] as const)[lv - 1]} origin={origin} rotation={rotation} />;
+    case "packer":
+      return <PackingMachine process={(["label", "strap", "wrap", "box"] as const)[lv - 1]} origin={origin} rotation={rotation} />;
+    case "consolidator":
+      return <RobotCell kind="gantry" slots={[4, 6, 8][lv - 1]} origin={origin} rotation={rotation} />;
+    case "delta":
+      return <RobotCell kind="delta" origin={origin} rotation={rotation} />;
+    case "palletizer":
+      return <RobotCell kind="palletizer" origin={origin} rotation={rotation} />;
+    case "roof":
+      return roofs ? <Roof kind={(["deck", "skylight", "cold"] as const)[lv - 1]} length={s.length} width={s.width} height={PLANNER_WALL_TOP} origin={origin} rotation={rotation} /> : null;
   }
   return null;
 }

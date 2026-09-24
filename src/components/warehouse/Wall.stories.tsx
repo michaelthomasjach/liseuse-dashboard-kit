@@ -172,7 +172,7 @@ export const Quai: Story = {
 export const MurDeQuai: StoryObj<typeof DockWall> = {
   name: "Mur de quai (composant)",
   render: (args) => <DockWall {...args} />,
-  args: { length: 18, doors: 5, height: 3, level: 0.6, yard: 4.8, returns: 1.2, open: 0, cellSize: 22 },
+  args: { length: 18, doors: 5, height: 3, level: 0.6, open: 0, cellSize: 22 },
 };
 
 /** Le mur standard, seul : le pan plein, ses poteaux, et la bande de sol qui borde l'extérieur. */

@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react";
 import { PlannerItem3D } from "./PlannerItem3D";
 import { SnapshotStudio, cachedSnapshot, type SnapshotJob } from "./three/snapshot";
-import { PLANNER_LABEL, TIERS, cornersOf, footprintOf, type PlannerItem, type PlannerKind } from "./plannerModel";
+import { PLANNER_LABEL, TIERS, WALL_MOUNTED, cornersOf, footprintOf, wallMounts, type PlannerItem, type PlannerKind, type PlannerLinear } from "./plannerModel";
 
 /**
  * Toutes les évolutions : chaque élément du plan d'entrepôt, décliné dans chacun de ses niveaux,
@@ -20,7 +20,7 @@ export default meta;
 type Story = StoryObj;
 
 /** La longueur d'un élément linéaire dans la galerie, en cases. */
-const LENGTH: Partial<Record<PlannerKind, number>> = { wall: 8, dock: 10, fence: 6, conveyor: 5, palletRack: 5.5, rail: 6, picker: 8, powerLine: 20 };
+const LENGTH: Partial<Record<PlannerKind, number>> = { lowWall: 6, wall: 8, dock: 10, fence: 6, conveyor: 5, palletRack: 5.5, rail: 6, picker: 8, powerLine: 20, gate: 4 };
 /** La hauteur à cadrer, par niveau. */
 const HEIGHT: Partial<Record<PlannerKind, number[]>> = {
   wall: [3, 3.3, 3.3],
@@ -45,15 +45,30 @@ const HEIGHT: Partial<Record<PlannerKind, number[]>> = {
   parking: [0.9, 1.5, 1.5],
   solar: [1.2, 1.2, 1.6],
   powerLine: [4.3, 6, 11.8],
+  gate: [1.2, 1.2],
+  lowWall: [0.7, 1, 1.3],
+  barrier: [2.8, 2.8, 2.4],
+  tollBooth: [3, 3, 3],
+  flowerBed: [0.4, 0.4, 0.5],
+  shrub: [0.4, 0.5, 0.8, 1.3],
+  transformer: [1.4, 1.6, 4.4],
+  packer: [2.2, 2.2, 2.2, 2.2],
+  consolidator: [2.6, 2.6, 2.6],
+  delta: [2.3],
+  palletizer: [2.4],
+  roof: [3.3, 3.4, 3.9],
+  door: [3.2],
+  window: [3.2, 3.2],
+  bay: [3.2, 3.2],
 };
 
 const ORDER: { title: string; kinds: PlannerKind[] }[] = [
-  { title: "Bâtiment", kinds: ["wall", "dock", "fence"] },
+  { title: "Bâtiment", kinds: ["wall", "lowWall", "dock", "fence", "door", "window", "bay", "roof"] },
   { title: "Stockage", kinds: ["palletRack", "shelf", "zone"] },
-  { title: "Convoyage", kinds: ["conveyor", "conveyorCorner", "conveyorTee", "rail", "railCorner", "picker", "arm"] },
+  { title: "Convoyage", kinds: ["conveyor", "conveyorCorner", "conveyorTee", "rail", "railCorner", "picker", "arm", "consolidator", "delta", "palletizer", "packer"] },
   { title: "Véhicules", kinds: ["forklift", "amr", "truck"] },
-  { title: "Extérieur", kinds: ["container", "light", "tree", "parking"] },
-  { title: "Énergie", kinds: ["solar", "powerLine"] },
+  { title: "Extérieur", kinds: ["barrier", "gate", "tollBooth", "container", "light", "tree", "shrub", "flowerBed", "parking"] },
+  { title: "Énergie", kinds: ["solar", "powerLine", "transformer"] },
 ];
 
 function sample(kind: PlannerKind, level: number): PlannerItem {
@@ -64,13 +79,23 @@ function sample(kind: PlannerKind, level: number): PlannerItem {
 
 function job(kind: PlannerKind, level: number): SnapshotJob {
   const item = sample(kind, level);
+  // Une ouverture se montre dans un bout de mur.
+  if (WALL_MOUNTED.includes(kind)) {
+    const L = kind === "bay" ? 7 : 3.5;
+    const wall = { id: `evo-wall-${kind}-${level}`, kind: "wall", level: 2, x0: -L / 2, y0: 0, x1: L / 2, y1: 0 } as PlannerLinear;
+    return {
+      id: `evolution-${kind}-${level}`,
+      bounds: { x0: -L / 2 - 0.3, x1: L / 2 + 0.3, y0: -0.6, y1: 0.6, z0: 0, z1: 3.2 },
+      node: <PlannerItem3D item={wall} mounts={wallMounts(wall, [item])} />,
+    };
+  }
   const pts = cornersOf(footprintOf(item));
   const pad = kind === "tree" || kind === "light" ? 0.8 : 0.4;
   const bounds = {
     x0: Math.min(...pts.map((p) => p.x)) - pad,
     x1: Math.max(...pts.map((p) => p.x)) + pad,
     // Un quai porte sa cour devant lui, dehors : on la cadre aussi.
-    y0: Math.min(...pts.map((p) => p.y)) - pad - (kind === "dock" && level > 1 ? 4.8 : 0),
+    y0: Math.min(...pts.map((p) => p.y)) - pad - (kind === "dock" && level > 1 ? 0.6 : 0),
     y1: Math.max(...pts.map((p) => p.y)) + pad,
     z0: 0,
     z1: HEIGHT[kind]?.[level - 1] ?? 2,
@@ -90,7 +115,7 @@ export const Catalogue: Story = {
           <section key={group.title} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <h2 style={{ margin: 0, fontSize: "0.8rem", letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--lq-color-text-muted)" }}>{group.title}</h2>
             {group.kinds.map((kind) => (
-              <div key={kind} style={{ display: "grid", gridTemplateColumns: "150px repeat(3, 240px)", alignItems: "center", gap: 12 }}>
+              <div key={kind} style={{ display: "grid", gridTemplateColumns: "150px repeat(4, 240px)", alignItems: "center", gap: 12 }}>
                 <strong style={{ fontSize: "0.82rem" }}>{PLANNER_LABEL[kind]}</strong>
                 {TIERS[kind].map((label, i) => {
                   const url = shots[`evolution-${kind}-${i + 1}`];

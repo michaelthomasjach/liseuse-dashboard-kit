@@ -4,6 +4,10 @@ import { CONTAINER_DIMENSIONS } from "./ShippingContainer";
 import { CAR_DIMENSIONS } from "./Car";
 import { solarArraySize } from "./SolarPanel";
 import { powerLineWidth } from "./PowerLine";
+import { tollBoothSize } from "./TollBooth";
+import { transformerSize } from "./Transformer";
+import { robotCellSize } from "./RobotCell";
+import type { StorageClass } from "./storageClass";
 
 /**
  * Ce qu'on pose sur le plan de l'entrepôt, et la géométrie qui va avec — sans rien dessiner.
@@ -20,7 +24,7 @@ import { powerLineWidth } from "./PowerLine";
  * Tout est en cases, comme le reste du kit : une case vaut deux mètres.
  */
 
-export type PlannerLinearKind = "wall" | "dock" | "fence" | "conveyor" | "palletRack" | "rail" | "picker" | "monorail" | "monoPicker" | "powerLine";
+export type PlannerLinearKind = "wall" | "dock" | "fence" | "conveyor" | "palletRack" | "rail" | "picker" | "monorail" | "monoPicker" | "powerLine" | "gate" | "lowWall";
 export type PlannerPointKind =
   | "shelf"
   | "shelfDecks"
@@ -38,7 +42,23 @@ export type PlannerPointKind =
   | "tree"
   | "light"
   | "parking"
-  | "solar";
+  | "solar"
+  | "barrier"
+  | "tollBooth"
+  | "flowerBed"
+  | "shrub"
+  | "transformer"
+  | "packer"
+  | "consolidator"
+  | "delta"
+  | "palletizer"
+  | "roof"
+  | "door"
+  | "window"
+  | "bay";
+
+/** Les éléments qu'on pose **sur un mur** : ils s'y accrochent et y percent leur ouverture. */
+export const WALL_MOUNTED: PlannerKind[] = ["door", "window", "bay"];
 export type PlannerKind = PlannerLinearKind | PlannerPointKind;
 
 export interface PlannerLinear {
@@ -50,6 +70,10 @@ export interface PlannerLinear {
   y0: number;
   x1: number;
   y1: number;
+  /** Rack : la classe de stockage de l'élément (voir `storageClass.ts`). */
+  storage?: StorageClass;
+  /** Rack : un passage sous le rack, au milieu. */
+  passage?: boolean;
 }
 
 export interface PlannerPoint {
@@ -61,11 +85,17 @@ export interface PlannerPoint {
   y: number;
   /** En degrés. */
   rotation: number;
+  /** Une emprise libre, pour ce qui se trace à la taille voulue — une toiture. */
+  size?: { length: number; width: number };
+  /** Étagère : la classe de stockage de l'élément. */
+  storage?: StorageClass;
+  /** Étagère : hissée sur des pieds, un passage dessous. */
+  passage?: boolean;
 }
 
 export type PlannerItem = PlannerLinear | PlannerPoint;
 
-export const LINEAR_KINDS: PlannerLinearKind[] = ["wall", "dock", "fence", "conveyor", "palletRack", "rail", "picker", "monorail", "monoPicker", "powerLine"];
+export const LINEAR_KINDS: PlannerLinearKind[] = ["wall", "dock", "fence", "conveyor", "palletRack", "rail", "picker", "monorail", "monoPicker", "powerLine", "gate", "lowWall"];
 
 export function isLinear(item: PlannerItem): item is PlannerLinear {
   return (LINEAR_KINDS as string[]).includes(item.kind);
@@ -107,12 +137,27 @@ export const PLANNER_TOOLS: PlannerTool[] = [
   { kind: "parking", label: "Parking", group: "Extérieur" },
   { kind: "solar", label: "Panneaux solaires", group: "Extérieur" },
   { kind: "powerLine", label: "Ligne électrique", group: "Extérieur", length: 24 },
+  { kind: "gate", label: "Portail coulissant", group: "Extérieur", length: 4 },
+  { kind: "lowWall", label: "Muret", group: "Bâtiment", length: 6 },
+  { kind: "barrier", label: "Barrière", group: "Extérieur" },
+  { kind: "tollBooth", label: "Poste de péage", group: "Extérieur" },
+  { kind: "flowerBed", label: "Parterre de fleurs", group: "Extérieur" },
+  { kind: "shrub", label: "Arbuste", group: "Extérieur" },
+  { kind: "transformer", label: "Transformateur", group: "Extérieur" },
+  { kind: "packer", label: "Machine d'emballage", group: "Manutention" },
+  { kind: "consolidator", label: "Regroupement de commande", group: "Manutention" },
+  { kind: "delta", label: "Robot delta", group: "Manutention" },
+  { kind: "palletizer", label: "Palettiseur", group: "Manutention" },
+  { kind: "roof", label: "Toiture", group: "Bâtiment" },
+  { kind: "door", label: "Porte", group: "Bâtiment" },
+  { kind: "window", label: "Fenêtre", group: "Bâtiment" },
+  { kind: "bay", label: "Baie vitrée", group: "Bâtiment" },
 ];
 
 export const PLANNER_LABEL: Record<PlannerKind, string> = Object.fromEntries(PLANNER_TOOLS.map((t) => [t.kind, t.label])) as Record<PlannerKind, string>;
 
 /** L'épaisseur d'un élément linéaire, en travers de son segment, en cases. */
-export const LINEAR_THICKNESS: Record<PlannerLinearKind, number> = { wall: 0.3, dock: 0.3, fence: 0.1, conveyor: 1.6, palletRack: 0.55, rail: 1.8, picker: 1.8, monorail: 1.2, monoPicker: 1.2, powerLine: 1.2 };
+export const LINEAR_THICKNESS: Record<PlannerLinearKind, number> = { wall: 0.3, dock: 0.3, fence: 0.1, conveyor: 1.6, palletRack: 0.55, rail: 1.8, picker: 1.8, monorail: 1.2, monoPicker: 1.2, powerLine: 1.2, gate: 0.4, lowWall: 0.2 };
 
 /** L'emprise d'un élément ponctuel, avant rotation : longueur (le long de son cap) et largeur. */
 export const POINT_SIZE: Record<PlannerPointKind, { length: number; width: number }> = {
@@ -132,6 +177,19 @@ export const POINT_SIZE: Record<PlannerPointKind, { length: number; width: numbe
   tree: { length: 1.4, width: 1.4 },
   light: { length: 0.6, width: 0.6 },
   parking: { length: 6.6, width: 2.2 },
+  barrier: { length: 0.8, width: 2.4 },
+  tollBooth: { length: 4, width: 7.2 },
+  flowerBed: { length: 3, width: 1 },
+  shrub: { length: 0.8, width: 0.8 },
+  transformer: { length: 2, width: 1.6 },
+  packer: { length: 5.5, width: 1.2 },
+  consolidator: { length: 5.5, width: 3.6 },
+  delta: { length: 5, width: 2.8 },
+  palletizer: { length: 4.5, width: 3.2 },
+  roof: { length: 8, width: 6 },
+  door: { length: 0.55, width: 0.3 },
+  window: { length: 1, width: 0.3 },
+  bay: { length: 3, width: 0.3 },
   solar: { length: solarArraySize({ rows: 1, columns: 6 }).length, width: solarArraySize({ rows: 1, columns: 6 }).width },
 };
 
@@ -174,6 +232,21 @@ export const TIERS: Record<PlannerKind, string[]> = {
   parking: ["Parking", "Parking couvert", "Parking solaire"],
   solar: ["Petit champ", "Champ et onduleur", "Champ et stockage"],
   powerLine: ["Ligne sur poteaux bois", "Ligne sur poteaux béton", "Ligne haute tension"],
+  gate: ["Portail manuel", "Portail motorisé"],
+  lowWall: ["Muret béton", "Muret haut à poteaux", "Muret surmonté d'une grille"],
+  barrier: ["Barrière levante", "Barrière automatique", "Portique de hauteur"],
+  tollBooth: ["Péage à une voie", "Péage à deux voies", "Péage à trois voies"],
+  flowerBed: ["Petit parterre", "Grand parterre", "Rond fleuri"],
+  shrub: ["Graminée", "Buis en boule", "Arbuste", "Grand arbuste"],
+  transformer: ["Transformateur sur socle", "Poste préfabriqué", "Poste de livraison"],
+  packer: ["Étiqueteuse", "Cercleuse", "Filmeuse", "Mise en carton"],
+  consolidator: ["Regroupement, 4 bacs", "Regroupement, 6 bacs", "Regroupement, 8 bacs"],
+  delta: ["Robot delta"],
+  palletizer: ["Palettiseur"],
+  roof: ["Toiture bac acier", "Toiture à lanterneaux", "Chambre froide"],
+  door: ["Porte d'entrée"],
+  window: ["Fenêtre", "Fenêtre large"],
+  bay: ["Baie vitrée", "Grande baie vitrée"],
 };
 
 /** Le niveau d'un élément, borné à ceux que sa sorte connaît. */
@@ -199,6 +272,13 @@ export function sizeOf(item: PlannerPoint): { length: number; width: number } {
   if (item.kind === "truck" && lv === 1) return { length: CAR_DIMENSIONS.van.length, width: CAR_DIMENSIONS.van.width };
   if (item.kind === "container" && lv === 1) return { length: CONTAINER_DIMENSIONS["20"].length, width: CONTAINER_DIMENSIONS["20"].width };
   if (item.kind === "solar") return solarArraySize(SOLAR_TIERS[lv - 1]);
+  if (item.kind === "roof") return item.size ?? POINT_SIZE.roof;
+  if (item.kind === "tollBooth") return tollBoothSize({ lanes: lv });
+  if (item.kind === "transformer") return transformerSize((["pad", "kiosk", "substation"] as const)[lv - 1]);
+  if (item.kind === "consolidator") return robotCellSize({ kind: "gantry", slots: [4, 6, 8][lv - 1] });
+  if (item.kind === "flowerBed") return lv === 1 ? { length: 3, width: 1 } : lv === 2 ? { length: 5, width: 1.4 } : { length: 2.4, width: 2.4 };
+  if (item.kind === "window" && lv === 2) return { length: 1.6, width: 0.3 };
+  if (item.kind === "bay" && lv === 2) return { length: 5, width: 0.3 };
   return POINT_SIZE[item.kind];
 }
 
@@ -209,6 +289,54 @@ export function thicknessOf(item: PlannerLinear): number {
   if (item.kind === "palletRack") return lv >= 3 ? 1.2 : 0.55;
   if (item.kind === "powerLine") return powerLineWidth((["wood", "concrete", "pylon"] as const)[lv - 1]);
   return LINEAR_THICKNESS[item.kind];
+}
+
+/**
+ * Accrocher un élément à un mur, comme dans les Sims : la porte, la fenêtre, la baie se posent sur
+ * l'axe du mur le plus proche, tournées comme lui, et glissent le long de lui. Hors de portée d'un
+ * mur, rien : `null`.
+ */
+export function snapToWall(item: PlannerPoint, items: PlannerItem[], reach = 1.2): PlannerPoint | null {
+  let best: { d: number; x: number; y: number; angle: number } | null = null;
+  const half = sizeOf(item).length / 2;
+  for (const w of items) {
+    if (!isLinear(w) || (w.kind !== "wall" && w.kind !== "dock")) continue;
+    const dx = w.x1 - w.x0;
+    const dy = w.y1 - w.y0;
+    const L = Math.hypot(dx, dy);
+    if (L < half * 2 + 0.2) continue;
+    const ux = dx / L;
+    const uy = dy / L;
+    // Le long du mur, à la demi-case, sans déborder de ses bouts.
+    const t = Math.max(half + 0.1, Math.min(L - half - 0.1, snap((item.x - w.x0) * ux + (item.y - w.y0) * uy, 0.5)));
+    const px = w.x0 + ux * t;
+    const py = w.y0 + uy * t;
+    const d = Math.hypot(item.x - px, item.y - py);
+    if (d < reach && (!best || d < best.d)) best = { d, x: px, y: py, angle: (Math.atan2(dy, dx) * 180) / Math.PI };
+  }
+  if (!best) return null;
+  return { ...item, x: best.x, y: best.y, rotation: ((best.angle % 360) + 360) % 360 };
+}
+
+/** Les ouvertures qu'un mur porte, d'après les éléments accrochés à lui. */
+export function wallMounts(wall: PlannerLinear, items: PlannerItem[]): { at: number; width: number; kind: "door" | "window" | "bay"; height?: number }[] {
+  const dx = wall.x1 - wall.x0;
+  const dy = wall.y1 - wall.y0;
+  const L = Math.hypot(dx, dy);
+  if (L < 1e-6) return [];
+  const ux = dx / L;
+  const uy = dy / L;
+  const out: { at: number; width: number; kind: "door" | "window" | "bay"; height?: number }[] = [];
+  for (const it of items) {
+    if (isLinear(it) || !WALL_MOUNTED.includes(it.kind)) continue;
+    const t = (it.x - wall.x0) * ux + (it.y - wall.y0) * uy;
+    const off = Math.abs(-(it.x - wall.x0) * uy + (it.y - wall.y0) * ux);
+    if (off > 0.2 || t < 0 || t > L) continue;
+    const w = sizeOf(it).length;
+    const kind = it.kind as "door" | "window" | "bay";
+    out.push({ at: t - w / 2, width: w, kind, height: kind === "bay" && levelOf(it) === 2 ? 1.6 : undefined });
+  }
+  return out;
 }
 
 /** Changer le niveau d'un élément — l'améliorer ou le rétrograder. Un élément posé reste calé. */
@@ -277,7 +405,7 @@ export function fitsPlot(item: PlannerItem, plot: Pick<PlotLayout, "width" | "de
   const f = footprintOf(item);
   // Un mur, une clôture se jugent sur leur axe, et un axe peut longer le bord du terrain : un point
   // posé sur une ligne de la grille est dedans si l'une des cases qu'il touche l'est.
-  if (item.kind === "wall" || item.kind === "dock" || item.kind === "fence" || item.kind === "powerLine") {
+  if (item.kind === "wall" || item.kind === "dock" || item.kind === "fence" || item.kind === "powerLine" || item.kind === "lowWall") {
     const e = 1e-4;
     const touches = (x: number, y: number) =>
       [
@@ -314,7 +442,7 @@ export function fitsPlot(item: PlannerItem, plot: Pick<PlotLayout, "width" | "de
 /** Le pas de la grille d'un élément : les murs vont d'un nœud entier à l'autre, comme dans les
  *  Sims ; le reste se pose à la demi-case. */
 export function gridStep(item: PlannerItem): number {
-  return item.kind === "wall" || item.kind === "dock" || item.kind === "fence" || item.kind === "powerLine" ? 1 : 0.5;
+  return item.kind === "wall" || item.kind === "dock" || item.kind === "fence" || item.kind === "powerLine" || item.kind === "lowWall" ? 1 : 0.5;
 }
 
 /** Arrondir à la grille — une demi-case par défaut. */

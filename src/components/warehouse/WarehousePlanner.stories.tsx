@@ -153,6 +153,11 @@ export const Demo: Story = {
         [57, 41],
       ].entries())
         list.push({ id: `tree${i}`, kind: "tree", level: 3, x, y, rotation: 0 });
+      // Des équipements : le poste qui alimente le site, des parterres devant les bureaux, une
+      // barrière sur l'accès, des fenêtres et une porte sur le mur arrière.
+      list.push({ id: "transfo", kind: "transformer", level: 2, x: 20, y: 41.3, rotation: 0 });
+      list.push({ id: "flowers1", kind: "flowerBed", level: 2, x: 40, y: 6, rotation: 0 }, { id: "flowers2", kind: "flowerBed", level: 3, x: 47, y: 6, rotation: 0 });
+      list.push({ id: "door1", kind: "door", x: 44, y: 12, rotation: 0 }, { id: "win1", kind: "window", x: 38, y: 12, rotation: 0 }, { id: "bay1", kind: "bay", level: 2, x: 31.5 + 2.5, y: 40, rotation: 180 });
       list.push({ id: "fence1", kind: "fence", level: 2, x0: 52, y0: 26, x1: 52, y1: 42 });
       return list;
     }, []);

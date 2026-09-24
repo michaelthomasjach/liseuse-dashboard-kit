@@ -28,12 +28,17 @@ import {
   rotateQuarter,
   rotateTo,
   wallPoint,
+  WALL_MOUNTED,
+  snapToWall,
+  wallMounts,
   type DrawMode,
   type PlannerItem,
   type PlannerLinear,
   type PlannerLinearKind,
+  type PlannerPoint,
   type PlannerPointKind,
 } from "./plannerModel";
+import { STORAGE_CLASSES, STORAGE_LABEL, type StorageClass } from "./storageClass";
 import { ChevronDownIcon, ChevronRightIcon, MaximizeIcon, RefreshIcon, SearchIcon, TrashIcon } from "../icons";
 import "./WarehousePlanner.css";
 
@@ -110,14 +115,20 @@ type P = { x: number; y: number };
 /** Une entrée de la palette : un outil de tracé, ou un élément à poser. */
 type Entry =
   | { id: string; label: string; group: string; type: "draw"; kind: PlannerLinearKind; mode: DrawMode }
-  | { id: string; label: string; group: string; type: "place"; kind: PlannerPointKind };
+  | { id: string; label: string; group: string; type: "place"; kind: PlannerPointKind }
+  | { id: string; label: string; group: string; type: "area"; kind: "roof" };
 
 const ENTRIES: Entry[] = [
   { id: "wall", label: "Mur", group: "Murs", type: "draw", kind: "wall", mode: "segment" },
   { id: "chain", label: "Murs en chaîne", group: "Murs", type: "draw", kind: "wall", mode: "chain" },
   { id: "parallel", label: "Murs //", group: "Murs", type: "draw", kind: "wall", mode: "parallel" },
   { id: "room", label: "Pièce", group: "Murs", type: "draw", kind: "wall", mode: "room" },
+  { id: "lowWall", label: "Muret", group: "Murs", type: "draw", kind: "lowWall", mode: "chain" },
   { id: "dock", label: "Mur de quai", group: "Murs", type: "draw", kind: "dock", mode: "segment" },
+  { id: "door", label: "Porte", group: "Murs", type: "place", kind: "door" },
+  { id: "window", label: "Fenêtre", group: "Murs", type: "place", kind: "window" },
+  { id: "bay", label: "Baie vitrée", group: "Murs", type: "place", kind: "bay" },
+  { id: "roof", label: "Toiture", group: "Murs", type: "area", kind: "roof" },
   { id: "fence", label: "Clôture", group: "Murs", type: "draw", kind: "fence", mode: "chain" },
   { id: "palletRack", label: "Rack à palettes", group: "Stockage", type: "draw", kind: "palletRack", mode: "segment" },
   { id: "shelf", label: "Étagère", group: "Stockage", type: "place", kind: "shelf" },
@@ -129,6 +140,10 @@ const ENTRIES: Entry[] = [
   { id: "railCorner", label: "Rail d'angle", group: "Manutention", type: "place", kind: "railCorner" },
   { id: "picker", label: "Picker sur rail", group: "Manutention", type: "draw", kind: "picker", mode: "segment" },
   { id: "arm", label: "Bras robotisé", group: "Manutention", type: "place", kind: "arm" },
+  { id: "consolidator", label: "Regroupement de commande", group: "Manutention", type: "place", kind: "consolidator" },
+  { id: "delta", label: "Robot delta", group: "Manutention", type: "place", kind: "delta" },
+  { id: "palletizer", label: "Palettiseur", group: "Manutention", type: "place", kind: "palletizer" },
+  { id: "packer", label: "Machine d'emballage", group: "Manutention", type: "place", kind: "packer" },
   { id: "forklift", label: "Chariot élévateur", group: "Véhicules", type: "place", kind: "forklift" },
   { id: "amr", label: "Robot autonome", group: "Véhicules", type: "place", kind: "amr" },
   { id: "truck", label: "Semi-remorque", group: "Véhicules", type: "place", kind: "truck" },
@@ -137,6 +152,12 @@ const ENTRIES: Entry[] = [
   { id: "tree", label: "Arbre", group: "Extérieur", type: "place", kind: "tree" },
   { id: "light", label: "Éclairage", group: "Extérieur", type: "place", kind: "light" },
   { id: "parking", label: "Parking", group: "Extérieur", type: "place", kind: "parking" },
+  { id: "shrub", label: "Arbuste", group: "Extérieur", type: "place", kind: "shrub" },
+  { id: "flowerBed", label: "Parterre de fleurs", group: "Extérieur", type: "place", kind: "flowerBed" },
+  { id: "barrier", label: "Barrière", group: "Extérieur", type: "place", kind: "barrier" },
+  { id: "gate", label: "Portail coulissant", group: "Extérieur", type: "draw", kind: "gate", mode: "segment" },
+  { id: "tollBooth", label: "Poste de péage", group: "Extérieur", type: "place", kind: "tollBooth" },
+  { id: "transformer", label: "Transformateur", group: "Énergie", type: "place", kind: "transformer" },
   { id: "solar", label: "Panneaux solaires", group: "Énergie", type: "place", kind: "solar" },
   { id: "powerLine", label: "Ligne électrique", group: "Énergie", type: "draw", kind: "powerLine", mode: "chain" },
 ];
@@ -148,8 +169,10 @@ const MENU: { title: string; subs: { title: string; ids: string[] }[] }[] = [
   {
     title: "Murs",
     subs: [
-      { title: "Tracer", ids: ["wall", "chain", "parallel", "room"] },
+      { title: "Tracer", ids: ["wall", "chain", "parallel", "room", "lowWall"] },
       { title: "Quai et clôtures", ids: ["dock", "fence"] },
+      { title: "Ouvertures", ids: ["door", "window", "bay"] },
+      { title: "Toiture", ids: ["roof"] },
     ],
   },
   {
@@ -165,7 +188,8 @@ const MENU: { title: string; subs: { title: string; ids: string[] }[] }[] = [
     subs: [
       { title: "Tapis", ids: ["conveyor", "conveyorCorner", "conveyorTee"] },
       { title: "Rails et pickers", ids: ["rail", "railCorner", "picker"] },
-      { title: "Robots", ids: ["arm"] },
+      { title: "Robots", ids: ["arm", "consolidator", "delta", "palletizer"] },
+      { title: "Machines", ids: ["packer"] },
     ],
   },
   {
@@ -178,15 +202,16 @@ const MENU: { title: string; subs: { title: string; ids: string[] }[] }[] = [
   {
     title: "Extérieur",
     subs: [
+      { title: "Accès", ids: ["barrier", "gate", "tollBooth"] },
       { title: "Cour", ids: ["container", "light", "parking"] },
-      { title: "Nature et personnes", ids: ["tree", "worker"] },
+      { title: "Nature et personnes", ids: ["tree", "shrub", "flowerBed", "worker"] },
     ],
   },
   {
     title: "Énergie",
     subs: [
       { title: "Production", ids: ["solar"] },
-      { title: "Réseau", ids: ["powerLine"] },
+      { title: "Réseau", ids: ["powerLine", "transformer"] },
     ],
   },
 ];
@@ -206,9 +231,18 @@ const ZOOM_MAX = 6;
 /** Le cap qui met les `x` à droite et les `y` en bas de l'écran, en vue de dessus. */
 const TOP_YAW = -45;
 
+/** La toiture tracée d'un coin à l'autre, ou rien si le rectangle est trop mince. */
+function roofBetween(a: P, b: P): PlannerPoint | null {
+  const length = Math.abs(b.x - a.x);
+  const width = Math.abs(b.y - a.y);
+  if (length < 1 || width < 1) return null;
+  return { id: "draft-roof", kind: "roof", level: 1, x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, rotation: 0, size: { length, width } };
+}
+
 /** Ce qu'une entrée pose quand on la lâche sur le terrain sans la tracer. */
 function dropped(entry: Entry, x: number, y: number): PlannerItem[] {
   if (entry.type === "place") return [createItem(entry.kind, x, y)];
+  if (entry.type === "area") return [{ ...createItem("roof", x, y), size: { length: 8, width: 6 } } as PlannerItem];
   const cx = Math.round(x);
   const cy = Math.round(y);
   if (entry.mode === "room") return commitDraft(draftWalls(entry.kind, "room", { x: cx - 5, y: cy - 4 }, { x: cx + 5, y: cy + 4 }));
@@ -218,18 +252,56 @@ function dropped(entry: Entry, x: number, y: number): PlannerItem[] {
 
 /** La prise de vue d'une entrée de la palette : ce qu'elle pose, seul, en perspective. */
 function entryJob(entry: Entry): SnapshotJob {
+  // Une ouverture se montre dans un bout de mur : seule, elle n'existe pas.
+  if (WALL_MOUNTED.includes(entry.kind)) {
+    const L = entry.kind === "bay" ? 5 : 3;
+    const wall: PlannerItem = { id: `thumb-${entry.id}-wall`, kind: "wall", level: 2, x0: 0, y0: 0, x1: L, y1: 0 };
+    const opening = { ...createItem(entry.kind, L / 2, 0), id: `thumb-${entry.id}` } as PlannerItem;
+    return {
+      id: `planner-${entry.id}`,
+      bounds: { x0: -0.3, x1: L + 0.3, y0: -0.6, y1: 0.6, z0: 0, z1: 3.2 },
+      node: <PlannerItem3D item={wall} mounts={wallMounts(wall as PlannerLinear, [opening])} />,
+    };
+  }
   const items = dropped(entry, 0, 0);
   const pts = items.map(footprintOf).flatMap(cornersOf);
   let x0 = Math.min(...pts.map((p) => p.x)) - 0.3;
   let x1 = Math.max(...pts.map((p) => p.x)) + 0.3;
   let y0 = Math.min(...pts.map((p) => p.y)) - 0.3;
   const y1 = Math.max(...pts.map((p) => p.y)) + 0.3;
-  if (entry.kind === "dock") y0 -= 4.8;
+  if (entry.kind === "dock") y0 -= 0.6;
   if (entry.kind === "tree" || entry.kind === "light") {
     x0 -= 0.6;
     x1 += 0.6;
   }
-  const tall: Partial<Record<string, number>> = { light: 6, tree: 3.4, palletRack: 3.5, shelfDecks: 2.8, picker: 4, parking: 1.5, solar: 1.4, powerLine: 4.3, fence: 1.6, conveyor: 1.6, conveyorCorner: 1.4, conveyorTee: 1.4, rail: 0.6, railCorner: 0.6 };
+  const tall: Partial<Record<string, number>> = {
+    light: 6,
+    tree: 3.4,
+    palletRack: 3.5,
+    shelfDecks: 2.8,
+    picker: 4,
+    parking: 1.5,
+    solar: 1.4,
+    powerLine: 4.3,
+    fence: 1.6,
+    conveyor: 1.6,
+    conveyorCorner: 1.4,
+    conveyorTee: 1.4,
+    rail: 0.6,
+    railCorner: 0.6,
+    roof: 3.5,
+    shrub: 0.5,
+    flowerBed: 0.4,
+    barrier: 1.3,
+    gate: 1.2,
+    lowWall: 1.2,
+    tollBooth: 3,
+    transformer: 1.4,
+    packer: 2.2,
+    consolidator: 2.6,
+    delta: 2.3,
+    palletizer: 2.4,
+  };
   const h = tall[entry.kind] ?? (entry.type === "place" ? 2 : 3);
   const node: ReactNode = items.map((it, i) => <PlannerItem3D key={i} item={{ ...it, id: `thumb-${entry.id}-${i}` }} />);
   return { id: `planner-${entry.id}`, bounds: { x0, x1, y0, y1, z0: 0, z1: h }, node };
@@ -281,6 +353,8 @@ export function WarehousePlanner({
   const [tool, setTool] = useState<Entry | null>(null);
   /** Le cap de l'élément qu'on s'apprête à poser — R le tourne avant le clic. */
   const [placeRot, setPlaceRot] = useState(0);
+  /** Les toitures affichées — on les masque pour voir et construire dedans. */
+  const [showRoofs, setShowRoofs] = useState(true);
   /** Le départ du tracé en cours, et le point sous le curseur. */
   const [start, setStart] = useState<P | null>(null);
   const [cursor, setCursor] = useState<P | null>(null);
@@ -364,9 +438,16 @@ export function WarehousePlanner({
   // --- Le tracé en cours -------------------------------------------------------------------------
   const drawing = tool?.type === "draw" ? tool : null;
   const placing = tool?.type === "place" ? tool : null;
-  /** L'élément à poser, sous le curseur, calé sur la grille : ce que le clic posera, exactement. */
-  const ghost = placing && cursor ? rotateTo(createItem(placing.kind, cursor.x, cursor.y), placeRot) : null;
+  const areaTool = tool?.type === "area" ? tool : null;
+  /** L'élément à poser, sous le curseur, calé sur la grille : ce que le clic posera, exactement.
+   *  Une porte, une fenêtre, une baie s'accrochent au mur le plus proche — sinon, rien. */
+  const rawGhost = placing && cursor ? rotateTo(createItem(placing.kind, cursor.x, cursor.y), placeRot) : null;
+  const mountedGhost = !!rawGhost && WALL_MOUNTED.includes(rawGhost.kind);
+  const ghost = rawGhost && mountedGhost ? snapToWall(rawGhost as PlannerPoint, items) : rawGhost;
   const ghostOk = ghost ? fitsPlot(ghost, plot) : false;
+  /** La toiture en cours de tracé : le rectangle entre le coin de départ et le curseur. */
+  const areaDraft = areaTool && start && cursor ? roofBetween(start, cursor) : null;
+  const areaOk = areaDraft ? fitsPlot(areaDraft, plot) : false;
   const draft: PlannerLinear[] = drawing && start && cursor ? draftWalls(drawing.kind, drawing.mode, start, cursor) : [];
   const draftOk = draft.every((w) => fitsPlot(w, plot));
 
@@ -393,6 +474,23 @@ export function WarehousePlanner({
     setItems([...itemsRef.current, ...commitDraft(walls)]);
     // Une chaîne continue là où le mur s'arrête ; les autres outils attendent un nouveau départ.
     setStart(drawing.mode === "chain" ? q : null);
+  };
+
+  const areaClick = (p: P) => {
+    const q = { x: Math.round(p.x), y: Math.round(p.y) };
+    if (!start) {
+      setStart(q);
+      setCursor(q);
+      return;
+    }
+    const roof = roofBetween(start, q);
+    if (!roof) return;
+    if (!fitsPlot(roof, plot)) {
+      flash("Cette toiture sort du terrain constructible.");
+      return;
+    }
+    setItems([...itemsRef.current, { ...roof, id: createItem("roof", 0, 0).id }]);
+    setStart(null);
   };
 
   const update = (id: string, next: PlannerItem) => setItems(itemsRef.current.map((it) => (it.id === id ? next : it)));
@@ -426,9 +524,21 @@ export function WarehousePlanner({
       drawClick(w);
       return;
     }
+    if (areaTool) {
+      areaClick(w);
+      return;
+    }
     if (placing) {
       // On pose ce que montre le fantôme, là où il est — pas ailleurs.
-      const item = rotateTo(createItem(placing.kind, w.x, w.y), placeRot);
+      let item = rotateTo(createItem(placing.kind, w.x, w.y), placeRot);
+      if (WALL_MOUNTED.includes(item.kind)) {
+        const onWall = snapToWall(item as PlannerPoint, itemsRef.current);
+        if (!onWall) {
+          flash("Une ouverture se pose sur un mur : approchez-la d'un mur.");
+          return;
+        }
+        item = onWall;
+      }
       if (!fitsPlot(item, plot)) {
         flash("Hors du terrain constructible.");
         return;
@@ -471,6 +581,11 @@ export function WarehousePlanner({
         if (!cursor || q.x !== cursor.x || q.y !== cursor.y) setCursor(q);
         return;
       }
+      if (areaTool) {
+        const q = { x: Math.round(w.x), y: Math.round(w.y) };
+        if (!cursor || q.x !== cursor.x || q.y !== cursor.y) setCursor(q);
+        return;
+      }
       if (placing) {
         // Le fantôme ne bouge que d'un cran de grille à l'autre.
         const g = rotateTo(createItem(placing.kind, w.x, w.y), placeRot);
@@ -495,7 +610,12 @@ export function WarehousePlanner({
       return;
     }
     const w = toWorld(p.x, p.y);
-    if (d.t === "move") update(d.id, moveBy(d.orig, w.x - d.wx, w.y - d.wy));
+    if (d.t === "move") {
+      let next = moveBy(d.orig, w.x - d.wx, w.y - d.wy);
+      // Une ouverture glisse le long de son mur, ou passe à un autre ; jamais dans le vide.
+      if (WALL_MOUNTED.includes(next.kind)) next = snapToWall(next as PlannerPoint, itemsRef.current.filter((it) => it.id !== d.id)) ?? d.orig;
+      update(d.id, next);
+    }
     else if (d.t === "rotate") update(d.id, rotateTo(d.orig, (Math.atan2(w.y - d.cy, w.x - d.cx) * 180) / Math.PI, e.altKey));
     else if (isLinear(d.orig)) update(d.id, dragEnd(d.orig, d.which, w, e.altKey));
   };
@@ -550,7 +670,8 @@ export function WarehousePlanner({
     setItems(itemsRef.current.filter((it) => it.id !== selected.id));
     setSelectedId(null);
   };
-  const turn = (dir: 1 | -1 = 1) => selected && update(selected.id, rotateQuarter(selected, dir));
+  const turn = (dir: 1 | -1 = 1) => selected && !WALL_MOUNTED.includes(selected.kind) && update(selected.id, rotateQuarter(selected, dir));
+  const setOption = (patch: { storage?: StorageClass; passage?: boolean }) => selected && update(selected.id, { ...selected, ...patch } as PlannerItem);
   const reverse = () => selected && update(selected.id, flip(selected));
   /** Améliorer (`+1`) ou rétrograder (`-1`) l'élément choisi — s'il tient encore sur le terrain. */
   const evolve = (dir: 1 | -1) => {
@@ -637,7 +758,7 @@ export function WarehousePlanner({
         </g>
       );
       if (strong) parts.push(dim(item, "d"));
-    } else if (strong) {
+    } else if (strong && !WALL_MOUNTED.includes(item.kind)) {
       // La poignée de rotation, devant l'élément, dans son cap : on la tire autour de lui.
       const f = footprintOf(item);
       const reach = f.halfL + 0.9;
@@ -704,7 +825,13 @@ export function WarehousePlanner({
     );
   };
 
-  const hint = drawing
+  const hint = areaTool
+    ? start
+      ? "Cliquez le coin opposé de la toiture — Échap pour l'annuler."
+      : "Toiture : cliquez un coin de la pièce à couvrir."
+    : placing && mountedGhost
+      ? "Approchez l'ouverture d'un mur : elle s'y accroche. Cliquez pour la poser."
+      : drawing
     ? start
       ? drawing.mode === "chain"
         ? "Cliquez pour poser et continuer — double-clic, clic droit ou Échap pour finir la chaîne."
@@ -791,10 +918,17 @@ export function WarehousePlanner({
             >
               <BuildPlot layout={plot} />
               {items.map((it) => (
-                <PlannerItem3D key={it.id} item={it} />
+                <PlannerItem3D
+                  key={it.id}
+                  item={it}
+                  roofs={showRoofs}
+                  // Un mur porte les ouvertures accrochées à lui — et celle qu'on s'apprête à poser.
+                  mounts={isLinear(it) && (it.kind === "wall" || it.kind === "dock") ? wallMounts(it, ghost && mountedGhost ? [...items, ghost] : items) : undefined}
+                />
               ))}
               {/* Le tracé en cours, déjà en volume : on voit le mur avant de le poser. */}
-              {ghost && <PlannerItem3D key={`ghost-${ghost.kind}-${placeRot}`} item={{ ...ghost, id: `ghost-${ghost.kind}` }} />}
+              {ghost && !mountedGhost && <PlannerItem3D key={`ghost-${ghost.kind}-${placeRot}`} item={{ ...ghost, id: `ghost-${ghost.kind}` }} />}
+              {areaDraft && <PlannerItem3D key={`roof-${areaDraft.x}-${areaDraft.y}-${areaDraft.size?.length}-${areaDraft.size?.width}`} item={areaDraft} />}
               {draft.map((w) => (
                 <PlannerItem3D key={`${w.id}:${w.x0},${w.y0},${w.x1},${w.y1}`} item={w} />
               ))}
@@ -806,7 +940,8 @@ export function WarehousePlanner({
               {draft.map((w, i) => outline(w, ["lq-planner__outline", "lq-planner__outline--draft", !draftOk && "lq-planner__outline--invalid"].filter(Boolean).join(" "), `draft${i}`))}
               {draft.map((w, i) => dim(w, `dd${i}`))}
               {anchor && <circle className="lq-planner__anchor" cx={anchor.x} cy={anchor.y} r={5} />}
-              {ghost && outline(ghost, ["lq-planner__outline", "lq-planner__outline--draft", !ghostOk && "lq-planner__outline--invalid"].filter(Boolean).join(" "), "ghost")}
+              {(ghost ?? rawGhost) && outline((ghost ?? rawGhost) as PlannerItem, ["lq-planner__outline", "lq-planner__outline--draft", !ghostOk && "lq-planner__outline--invalid"].filter(Boolean).join(" "), "ghost")}
+              {areaDraft && outline(areaDraft, ["lq-planner__outline", "lq-planner__outline--draft", !areaOk && "lq-planner__outline--invalid"].filter(Boolean).join(" "), "area")}
               {cur && cell && (
                 <g className="lq-planner__cursor">
                   <polygon points={cell.map((q) => `${q.x.toFixed(1)},${q.y.toFixed(1)}`).join(" ")} />
@@ -857,6 +992,9 @@ export function WarehousePlanner({
             <button type="button" onClick={fit} title="Cadrer le terrain" aria-label="Cadrer le terrain">
               <MaximizeIcon size={14} />
             </button>
+            <button type="button" className={showRoofs ? "is-on" : undefined} aria-pressed={showRoofs} onClick={() => setShowRoofs((v) => !v)} title="Afficher ou masquer les toitures, pour voir dedans">
+              Toits
+            </button>
           </div>
 
           {selected && !drawing && (
@@ -900,6 +1038,25 @@ export function WarehousePlanner({
                 <button type="button" onClick={reverse} title="Retourner (F)">
                   ⇅ Retourner
                 </button>
+              )}
+              {(selected.kind === "palletRack" || selected.kind === "shelf") && (
+                <>
+                  <label className="lq-planner__option" title="Ce que l'élément peut recevoir">
+                    Stockage
+                    <select value={selected.storage ?? ""} onChange={(e) => setOption({ storage: (e.target.value || undefined) as StorageClass | undefined })}>
+                      <option value="">—</option>
+                      {STORAGE_CLASSES.map((c) => (
+                        <option key={c} value={c}>
+                          {STORAGE_LABEL[c]}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="lq-planner__option" title="Un passage sous l'élément, pour les engins">
+                    <input type="checkbox" checked={!!selected.passage} onChange={(e) => setOption({ passage: e.target.checked })} />
+                    Passage dessous
+                  </label>
+                </>
               )}
               {isLinear(selected) && (selected.kind === "wall" || selected.kind === "dock") && (
                 <button type="button" onClick={swapDock} title="Changer en mur de quai, ou en mur plein">

@@ -84,6 +84,9 @@ export interface WallProps {
    *  `true` et `false` restent acceptés pour `"spaced"` et `"none"`.
    */
   piers?: boolean | "spaced" | "ends" | "none";
+  /** Un bardage : des panneaux métalliques horizontaux sur les deux faces, leurs joints tracés —
+   *  le mur d'un bâtiment logistique récent, par opposition au voile de béton nu. */
+  cladding?: boolean;
   /** L'écart entre deux poteaux, en cases. */
   pierSpacing?: number;
   /** La hauteur de la plateforme de quai, en cases. `0` : pas de quai, les portes au ras du sol. */
@@ -208,9 +211,9 @@ export function Wall(props: WallProps) {
 }
 
 function WallBody(props: WallProps) {
-  const { rotation = 0, origin = { x: 0, y: 0 }, dockSide = "y0", piers, pierSpacing = 3 } = props;
+  const { rotation = 0, origin = { x: 0, y: 0 }, dockSide = "y0", piers, pierSpacing = 3, cladding = false } = props;
   const { L, D, sole, top, dockZ, holes, pierTop } = wallLayout(props);
-  const key = JSON.stringify([props.length, props.height, props.thickness, props.openings, props.cut, props.dockHeight, props.base, dockSide, piers, pierSpacing]);
+  const key = JSON.stringify([props.length, props.height, props.thickness, props.openings, props.cut, props.dockHeight, props.base, dockSide, piers, pierSpacing, cladding]);
   const built = useBuilt(() => {
     const b = new Builder();
     const nose = DOCK_NOSE_MM * MM;
@@ -227,6 +230,22 @@ function WallBody(props: WallProps) {
     if (from < L) b.box("wall", from, L, 0, D, sole, top);
     // La couvertine, qui court au-dessus de tout et donne au mur son arête franche.
     b.box("wall", 0, L, -0.035, D + 0.035, top - 0.07, top);
+    // Le bardage : les joints horizontaux des panneaux, tous les 60 cm, hors des baies.
+    if (cladding) {
+      const joints: [[number, number, number], [number, number, number]][] = [];
+      for (let z = sole + 0.3; z < top - 0.1; z += 0.3)
+        for (const y of [-0.002, D + 0.002]) {
+          let x = 0;
+          for (const h of holes) {
+            if (z > h.z0 && z < h.z) {
+              if (h.x0 > x) joints.push([[x, y, z], [h.x0, y, z]]);
+              x = Math.max(x, h.x1);
+            }
+          }
+          if (x < L) joints.push([[x, y, z], [L, y, z]]);
+        }
+      b.lines("lq-trailer__line", joints);
+    }
 
     // ---- Les poteaux ----
     const pierW = PIER_W_MM * MM;

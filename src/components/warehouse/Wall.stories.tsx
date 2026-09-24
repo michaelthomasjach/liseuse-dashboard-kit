@@ -6,63 +6,6 @@ import { SemiTruck } from "./SemiTruck";
 import { RackV2 } from "./RackV2";
 import { Forklift } from "./Forklift";
 import { Scene, SceneBox, layer, type SceneUnit } from "./sceneStory";
-import { useIsoCamera } from "./isoCamera";
-
-/**
- * Le sol de la scène : la plateforme, ses deux retours, et **la cour, à plat, entre eux**.
- *
- * Quatre dalles plutôt qu'une, parce qu'une `Floor` est un pavé et que ce sol n'en est pas un. La
- * plateforme s'arrête au nu de la façade de quai, sauf à ses deux bouts où elle avance border
- * l'aire de manœuvre ; et entre ces deux retours, là où la plateforme manque, la cour est **de
- * niveau**, au sol du site, jusqu'au pied des portes.
- *
- * Les quatre sont jointifs et de la même épaisseur, donc ils se raccordent sans joint : les faces
- * qu'ils s'opposent sont confondues. Ce sont quatre emprises au sol disjointes, rangées par la
- * caméra comme n'importe quels modules — au demi-tour, ce sont les retours et la cour qui passent
- * devant.
- */
-function Dalle({
-  cellSize,
-  frame,
-  width,
-  depth,
-  skirt,
-  yard,
-  level,
-}: {
-  cellSize: number;
-  frame: { x: number; y: number; width: number; depth: number; height: number };
-  width: number;
-  depth: number;
-  skirt: number;
-  yard: number;
-  level: number;
-}) {
-  const pads: { key: string; x: number; y: number; width: number; height: number; level: number; slope?: number }[] = [
-    { key: "dalle", x: -skirt, y: 0, width: width + 2 * skirt, height: depth + skirt, level },
-    { key: "retour-gauche", x: -skirt, y: -yard, width: skirt, height: yard, level },
-    { key: "retour-droit", x: width, y: -yard, width: skirt, height: yard, level },
-    // La cour, entre les deux retours : à plat, au niveau du site.
-    { key: "cour", x: 0, y: -yard, width, height: yard, level: 0 },
-  ];
-  // En 3D, les dalles se posent sans ordre : c'est la profondeur qui dit laquelle cache l'autre.
-  return (
-    <>
-      {pads.map((pad) => (
-        <Floor
-          key={pad.key}
-          cellSize={cellSize}
-          frame={frame}
-          origin={{ x: pad.x, y: pad.y }}
-          width={pad.width}
-          depth={pad.height}
-          level={pad.level}
-          slope={pad.slope}
-        />
-      ))}
-    </>
-  );
-}
 
 const meta: Meta<typeof Wall> = {
   title: "Warehouse/Mur",

@@ -48,18 +48,18 @@ export const EnCours: Story = {
       const x1 = Math.min(plot.width - 4, 28);
       const y1 = Math.min(plot.depth - 2, 20);
       const out: PlannerItem[] = [
-        { id: "dock", kind: "dock", x0, y0, x1, y1: y0 },
-        { id: "east", kind: "wall", x0: x1, y0, x1, y1 },
-        { id: "north", kind: "wall", x0: x1, y0: y1, x1: x0, y1 },
-        { id: "west", kind: "wall", x0, y0: y1, x1: x0, y1: y0 },
+        { id: "dock", kind: "dock", level: 2, x0, y0, x1, y1: y0 },
+        { id: "east", kind: "wall", level: 2, x0: x1, y0, x1, y1 },
+        { id: "north", kind: "wall", level: 2, x0: x1, y0: y1, x1: x0, y1 },
+        { id: "west", kind: "wall", level: 2, x0, y0: y1, x1: x0, y1: y0 },
       ];
-      for (let i = 0; i < 3; i += 1) out.push({ id: `rack${i}`, kind: "palletRack", x0: x0 + 2, y0: y1 - 2 - i * 3, x1: x0 + 13, y1: y1 - 2 - i * 3 });
-      out.push({ id: "belt", kind: "conveyor", x0: x1 - 3, y0: y0 + 3, x1: x1 - 3, y1: y1 - 2 });
+      for (let i = 0; i < 3; i += 1) out.push({ id: `rack${i}`, kind: "palletRack", level: 2, x0: x0 + 2, y0: y1 - 2 - i * 3, x1: x0 + 13, y1: y1 - 2 - i * 3 });
+      out.push({ id: "belt", kind: "conveyor", level: 2, x0: x1 - 3, y0: y0 + 3, x1: x1 - 3, y1: y1 - 2 });
       out.push({ id: "fk", kind: "forklift", x: x0 + 8, y: y0 + 3, rotation: 0 });
-      out.push({ id: "amr", kind: "amr", x: x0 + 15, y: y0 + 4, rotation: 90 });
+      out.push({ id: "amr", kind: "amr", level: 2, x: x0 + 15, y: y0 + 4, rotation: 90 });
       out.push({ id: "w1", kind: "worker", x: x0 + 17, y: y0 + 3, rotation: 180 });
-      out.push({ id: "c1", kind: "container", x: plot.width - 5, y: 3, rotation: 90 });
-      out.push({ id: "t1", kind: "tree", x: 2, y: 2, rotation: 0 }, { id: "t2", kind: "tree", x: 2, y: plot.depth - 2, rotation: 0 });
+      out.push({ id: "c1", kind: "container", level: 2, x: plot.width - 5, y: 3, rotation: 90 });
+      out.push({ id: "t1", kind: "tree", level: 2, x: 2, y: 2, rotation: 0 }, { id: "t2", kind: "tree", level: 2, x: 2, y: plot.depth - 2, rotation: 0 });
       return out;
     }, [plot]);
     const [items, setItems] = useState<PlannerItem[]>(initial);
@@ -106,52 +106,54 @@ export const Demo: Story = {
       const doors = dockDoorCenters(DOCK, Math.floor((DOCK - 1) / 3), 3, 1.75);
       const list: PlannerItem[] = [
         // Le bâtiment : la façade de quai, puis les murs, tournés pour que leur dehors soit dehors.
-        { id: "dock", kind: "dock", x0: X0, y0: Y0, x1: X0 + DOCK, y1: Y0 },
-        { id: "front", kind: "wall", x0: X0 + DOCK, y0: Y0, x1: X1, y1: Y0 },
-        { id: "east", kind: "wall", x0: X1, y0: Y0, x1: X1, y1: Y1 },
-        { id: "north", kind: "wall", x0: X1, y0: Y1, x1: X0, y1: Y1 },
-        { id: "west", kind: "wall", x0: X0, y0: Y1, x1: X0, y1: Y0 },
+        { id: "dock", kind: "dock", level: 2, x0: X0, y0: Y0, x1: X0 + DOCK, y1: Y0 },
+        { id: "front", kind: "wall", level: 3, x0: X0 + DOCK, y0: Y0, x1: X1, y1: Y0 },
+        { id: "east", kind: "wall", level: 2, x0: X1, y0: Y0, x1: X1, y1: Y1 },
+        { id: "north", kind: "wall", level: 2, x0: X1, y0: Y1, x1: X0, y1: Y1 },
+        { id: "west", kind: "wall", level: 2, x0: X0, y0: Y1, x1: X0, y1: Y0 },
       ];
       // Trois camions à quai, arrière contre la porte.
-      for (const i of [0, 2, 4]) list.push({ id: `truck${i}`, kind: "truck", x: X0 + doors[i], y: Y0 - 0.35 - truck / 2, rotation: -90 });
+      for (const i of [0, 2, 4]) list.push({ id: `truck${i}`, kind: "truck", level: 2, x: X0 + doors[i], y: Y0 - 0.35 - truck / 2, rotation: -90 });
       // Le stockage lourd : trois rangées de racks, au fond.
-      for (const [i, y] of [30, 33.5, 37].entries()) list.push({ id: `rack${i}`, kind: "palletRack", x0: X0 + 3, y0: y, x1: X0 + 21, y1: y });
+      for (const [i, y] of [30, 33.5, 37].entries()) list.push({ id: `rack${i}`, kind: "palletRack", level: 2, x0: X0 + 3, y0: y, x1: X0 + 21, y1: y });
       // Derrière les quais, la réception : deux zones au sol, et les chariots qui les desservent.
-      list.push({ id: "zone1", kind: "zone", x: X0 + 6, y: Y0 + 4, rotation: 0 }, { id: "zone2", kind: "zone", x: X0 + 13, y: Y0 + 4, rotation: 0 });
-      list.push({ id: "fork1", kind: "forklift", x: X0 + 9, y: Y0 + 10, rotation: 90 }, { id: "fork2", kind: "forklift", x: X0 + 17, y: Y0 + 21, rotation: 180 });
+      list.push({ id: "zone1", kind: "zone", level: 3, x: X0 + 6, y: Y0 + 4, rotation: 0 }, { id: "zone2", kind: "zone", level: 2, x: X0 + 13, y: Y0 + 4, rotation: 0 });
+      list.push({ id: "fork1", kind: "forklift", x: X0 + 9, y: Y0 + 10, rotation: 90 }, { id: "fork2", kind: "forklift", level: 2, x: X0 + 17, y: Y0 + 21, rotation: 180 });
       // La ligne de tapis : un droit, un angle, un droit qui monte, un T qui dérive vers la gauche.
       list.push(
-        { id: "belt1", kind: "conveyor", x0: 30, y0: 18, x1: 40, y1: 18 },
-        { id: "corner1", kind: "conveyorCorner", x: 40.8, y: 18, rotation: 0 },
-        { id: "belt2", kind: "conveyor", x0: 40.8, y0: 18.8, x1: 40.8, y1: 26 },
-        { id: "tee1", kind: "conveyorTee", x: 40.8, y: 26.8, rotation: 90 },
-        { id: "belt3", kind: "conveyor", x0: 40.8, y0: 27.6, x1: 40.8, y1: 31 },
-        { id: "belt4", kind: "conveyor", x0: 40, y0: 26.8, x1: 33, y1: 26.8 }
+        { id: "belt1", kind: "conveyor", level: 3, x0: 30, y0: 18, x1: 40, y1: 18 },
+        { id: "corner1", kind: "conveyorCorner", level: 2, x: 40.8, y: 18, rotation: 0 },
+        { id: "belt2", kind: "conveyor", level: 2, x0: 40.8, y0: 18.8, x1: 40.8, y1: 26 },
+        { id: "tee1", kind: "conveyorTee", level: 2, x: 40.8, y: 26.8, rotation: 90 },
+        { id: "belt3", kind: "conveyor", level: 2, x0: 40.8, y0: 27.6, x1: 40.8, y1: 31 },
+        { id: "belt4", kind: "conveyor", level: 2, x0: 40, y0: 26.8, x1: 33, y1: 26.8 }
       );
-      list.push({ id: "arm1", kind: "arm", x: 43.2, y: 30.5, rotation: 180 });
+      list.push({ id: "arm1", kind: "arm", level: 2, x: 43.2, y: 30.5, rotation: 180 });
       // Le picker et sa voie : la travée, puis un rail d'angle et un rail qui remonte.
       list.push(
         { id: "picker1", kind: "picker", x0: 30, y0: 34, x1: 46, y1: 34 },
         { id: "railC", kind: "railCorner", x: 47.35, y: 34.45, rotation: 0 },
         { id: "rail1", kind: "rail", x0: 47.8, y0: 35.8, x1: 47.8, y1: 39 }
       );
-      list.push({ id: "decks1", kind: "shelfDecks", x: 34, y: 37.5, rotation: 0 }, { id: "decks2", kind: "shelfDecks", x: 39, y: 37.5, rotation: 0 });
+      list.push({ id: "decks1", kind: "shelf", level: 2, x: 34, y: 37.5, rotation: 0 }, { id: "decks2", kind: "shelf", level: 2, x: 39, y: 37.5, rotation: 0 });
       list.push({ id: "shelf1", kind: "shelf", x: 47.5, y: 22, rotation: 90 }, { id: "shelf2", kind: "shelf", x: 47.5, y: 27, rotation: 90 });
-      list.push({ id: "amr1", kind: "amr", x: 34, y: 22, rotation: 0 });
+      list.push({ id: "amr1", kind: "amr", level: 2, x: 34, y: 22, rotation: 0 });
       list.push({ id: "w1", kind: "worker", x: 28.5, y: 20, rotation: 180 }, { id: "w2", kind: "worker", x: 37, y: 30, rotation: 90 }, { id: "w3", kind: "worker", x: 12, y: 16.5, rotation: 0 });
       // Dehors.
-      list.push({ id: "cont1", kind: "container", x: 54, y: 20, rotation: 90 }, { id: "cont2", kind: "container", x: 56, y: 20, rotation: 90 });
-      list.push({ id: "light1", kind: "light", x: 3, y: 8, rotation: 0 }, { id: "light2", kind: "light", x: 34, y: 7, rotation: 0 });
+      list.push({ id: "cont1", kind: "container", level: 2, x: 54, y: 20, rotation: 90 }, { id: "cont2", kind: "container", level: 3, x: 56, y: 20, rotation: 90 });
+      list.push({ id: "light1", kind: "light", level: 3, x: 3, y: 8, rotation: 0 }, { id: "light2", kind: "light", level: 3, x: 34, y: 7, rotation: 0 });
+      // L'énergie : un parking solaire, un petit champ de panneaux, la ligne qui alimente le site.
+      list.push({ id: "parking1", kind: "parking", level: 3, x: 55.5, y: 33, rotation: 90 });
+      list.push({ id: "solar1", kind: "solar", level: 1, x: 3, y: 30, rotation: 90 });
+      list.push({ id: "line1", kind: "powerLine", level: 2, x0: 2, y0: 43, x1: 58, y1: 43 });
       for (const [i, [x, y]] of [
         [2, 2],
         [57, 3],
-        [2, 42],
-        [57, 42],
-        [53, 30],
-        [53, 36],
+        [2, 41],
+        [57, 41],
       ].entries())
-        list.push({ id: `tree${i}`, kind: "tree", x, y, rotation: 0 });
-      list.push({ id: "fence1", kind: "fence", x0: 52, y0: 26, x1: 52, y1: 42 });
+        list.push({ id: `tree${i}`, kind: "tree", level: 3, x, y, rotation: 0 });
+      list.push({ id: "fence1", kind: "fence", level: 2, x0: 52, y0: 26, x1: 52, y1: 42 });
       return list;
     }, []);
     const [items, setItems] = useState<PlannerItem[]>(initial);

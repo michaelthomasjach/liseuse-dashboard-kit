@@ -1,6 +1,9 @@
 import { plotInside, type PlotLayout } from "./plot";
 import { semiTruckGeometry } from "./SemiTruck";
 import { CONTAINER_DIMENSIONS } from "./ShippingContainer";
+import { CAR_DIMENSIONS } from "./Car";
+import { solarArraySize } from "./SolarPanel";
+import { powerLineWidth } from "./PowerLine";
 
 /**
  * Ce qu'on pose sur le plan de l'entrepôt, et la géométrie qui va avec — sans rien dessiner.
@@ -17,7 +20,7 @@ import { CONTAINER_DIMENSIONS } from "./ShippingContainer";
  * Tout est en cases, comme le reste du kit : une case vaut deux mètres.
  */
 
-export type PlannerLinearKind = "wall" | "dock" | "fence" | "conveyor" | "palletRack" | "rail" | "picker" | "monorail" | "monoPicker";
+export type PlannerLinearKind = "wall" | "dock" | "fence" | "conveyor" | "palletRack" | "rail" | "picker" | "monorail" | "monoPicker" | "powerLine";
 export type PlannerPointKind =
   | "shelf"
   | "shelfDecks"
@@ -33,12 +36,16 @@ export type PlannerPointKind =
   | "container"
   | "worker"
   | "tree"
-  | "light";
+  | "light"
+  | "parking"
+  | "solar";
 export type PlannerKind = PlannerLinearKind | PlannerPointKind;
 
 export interface PlannerLinear {
   id: string;
   kind: PlannerLinearKind;
+  /** Le niveau d'évolution, à partir de 1. Absent : le premier. */
+  level?: number;
   x0: number;
   y0: number;
   x1: number;
@@ -48,6 +55,8 @@ export interface PlannerLinear {
 export interface PlannerPoint {
   id: string;
   kind: PlannerPointKind;
+  /** Le niveau d'évolution, à partir de 1. Absent : le premier. */
+  level?: number;
   x: number;
   y: number;
   /** En degrés. */
@@ -56,7 +65,7 @@ export interface PlannerPoint {
 
 export type PlannerItem = PlannerLinear | PlannerPoint;
 
-export const LINEAR_KINDS: PlannerLinearKind[] = ["wall", "dock", "fence", "conveyor", "palletRack", "rail", "picker", "monorail", "monoPicker"];
+export const LINEAR_KINDS: PlannerLinearKind[] = ["wall", "dock", "fence", "conveyor", "palletRack", "rail", "picker", "monorail", "monoPicker", "powerLine"];
 
 export function isLinear(item: PlannerItem): item is PlannerLinear {
   return (LINEAR_KINDS as string[]).includes(item.kind);
@@ -94,13 +103,16 @@ export const PLANNER_TOOLS: PlannerTool[] = [
   { kind: "container", label: "Conteneur", group: "Extérieur" },
   { kind: "worker", label: "Opérateur", group: "Extérieur" },
   { kind: "tree", label: "Arbre", group: "Extérieur" },
-  { kind: "light", label: "Mât d'éclairage", group: "Extérieur" },
+  { kind: "light", label: "Éclairage", group: "Extérieur" },
+  { kind: "parking", label: "Parking", group: "Extérieur" },
+  { kind: "solar", label: "Panneaux solaires", group: "Extérieur" },
+  { kind: "powerLine", label: "Ligne électrique", group: "Extérieur", length: 24 },
 ];
 
 export const PLANNER_LABEL: Record<PlannerKind, string> = Object.fromEntries(PLANNER_TOOLS.map((t) => [t.kind, t.label])) as Record<PlannerKind, string>;
 
 /** L'épaisseur d'un élément linéaire, en travers de son segment, en cases. */
-export const LINEAR_THICKNESS: Record<PlannerLinearKind, number> = { wall: 0.3, dock: 0.3, fence: 0.1, conveyor: 1.6, palletRack: 0.55, rail: 1.8, picker: 1.8, monorail: 1.2, monoPicker: 1.2 };
+export const LINEAR_THICKNESS: Record<PlannerLinearKind, number> = { wall: 0.3, dock: 0.3, fence: 0.1, conveyor: 1.6, palletRack: 0.55, rail: 1.8, picker: 1.8, monorail: 1.2, monoPicker: 1.2, powerLine: 1.2 };
 
 /** L'emprise d'un élément ponctuel, avant rotation : longueur (le long de son cap) et largeur. */
 export const POINT_SIZE: Record<PlannerPointKind, { length: number; width: number }> = {
@@ -119,7 +131,91 @@ export const POINT_SIZE: Record<PlannerPointKind, { length: number; width: numbe
   worker: { length: 0.4, width: 0.4 },
   tree: { length: 1.4, width: 1.4 },
   light: { length: 0.6, width: 0.6 },
+  parking: { length: 6.6, width: 2.2 },
+  solar: { length: solarArraySize({ rows: 1, columns: 6 }).length, width: solarArraySize({ rows: 1, columns: 6 }).width },
 };
+
+// --- Les évolutions ----------------------------------------------------------------------------------
+
+/**
+ * Les niveaux d'évolution de chaque élément, du plus simple au plus abouti.
+ *
+ * C'est la progression d'un jeu de gestion : on pose d'abord ce qui est bon marché et encombrant,
+ * puis on **améliore** sur place. Un parking devient couvert, puis solaire ; un rail double, qui
+ * prend de la place, devient un monorail ; un chariot à conducteur devient autonome. Un élément
+ * amélioré garde sa place et son identité — seul son niveau change, et avec lui son allure et,
+ * parfois, son emprise.
+ */
+export const TIERS: Record<PlannerKind, string[]> = {
+  wall: ["Voile de béton", "Mur à poteaux", "Mur bardé"],
+  dock: ["Portes de plain-pied", "Quai de chargement", "Quai bardé, portes ouvertes"],
+  fence: ["Glissière", "Clôture grillagée", "Séparateur béton"],
+  conveyor: ["Tapis nu", "Tapis à rives", "Tapis contrôlé (portique scanner)"],
+  conveyorCorner: ["Angle nu", "Angle à rives"],
+  conveyorTee: ["Aiguillage nu", "Aiguillage à rives"],
+  palletRack: ["Rack 3 niveaux", "Rack 4 niveaux", "Rack double, 5 niveaux"],
+  rail: ["Rail double", "Monorail"],
+  railCorner: ["Virage de rail double", "Virage de monorail"],
+  picker: ["Picker sur rail double", "Picker sur monorail"],
+  monorail: ["Monorail"],
+  monorailCorner: ["Virage de monorail"],
+  monoPicker: ["Picker sur monorail"],
+  shelf: ["Étagère simple", "Étagère à plateaux", "Rayonnage haut"],
+  shelfDecks: ["Étagère à plateaux"],
+  zone: ["Marquage au sol", "Palettes", "Palettes gerbées"],
+  arm: ["Bras au repos", "Bras en production"],
+  forklift: ["Chariot à conducteur", "Chariot autonome"],
+  amr: ["Robot plateau", "Robot porteur"],
+  truck: ["Utilitaire", "Semi-remorque"],
+  container: ["Conteneur 20 pieds", "Conteneur 40 pieds", "Pile de conteneurs"],
+  worker: ["Opérateur"],
+  tree: ["Arbuste", "Arbre", "Grand arbre"],
+  light: ["Borne", "Candélabre", "Mât de cour"],
+  parking: ["Parking", "Parking couvert", "Parking solaire"],
+  solar: ["Petit champ", "Champ et onduleur", "Champ et stockage"],
+  powerLine: ["Ligne sur poteaux bois", "Ligne sur poteaux béton", "Ligne haute tension"],
+};
+
+/** Le niveau d'un élément, borné à ceux que sa sorte connaît. */
+export function levelOf(item: PlannerItem): number {
+  return Math.max(1, Math.min(TIERS[item.kind].length, Math.round(item.level ?? 1)));
+}
+
+/** Le nom du niveau d'un élément. */
+export function tierLabel(item: PlannerItem, level = levelOf(item)): string {
+  return TIERS[item.kind][level - 1] ?? "";
+}
+
+/** Les cotes d'un champ solaire à chaque niveau. */
+export const SOLAR_TIERS = [
+  { rows: 1, columns: 6, inverter: false, battery: false },
+  { rows: 2, columns: 8, inverter: true, battery: false },
+  { rows: 3, columns: 8, inverter: true, battery: true },
+];
+
+/** L'emprise d'un élément posé, avant rotation, à son niveau. */
+export function sizeOf(item: PlannerPoint): { length: number; width: number } {
+  const lv = levelOf(item);
+  if (item.kind === "truck" && lv === 1) return { length: CAR_DIMENSIONS.van.length, width: CAR_DIMENSIONS.van.width };
+  if (item.kind === "container" && lv === 1) return { length: CONTAINER_DIMENSIONS["20"].length, width: CONTAINER_DIMENSIONS["20"].width };
+  if (item.kind === "solar") return solarArraySize(SOLAR_TIERS[lv - 1]);
+  return POINT_SIZE[item.kind];
+}
+
+/** L'épaisseur d'un élément linéaire, à son niveau. */
+export function thicknessOf(item: PlannerLinear): number {
+  const lv = levelOf(item);
+  if (item.kind === "rail" || item.kind === "picker") return lv >= 2 ? 1.2 : 1.8;
+  if (item.kind === "palletRack") return lv >= 3 ? 1.2 : 0.55;
+  if (item.kind === "powerLine") return powerLineWidth((["wood", "concrete", "pylon"] as const)[lv - 1]);
+  return LINEAR_THICKNESS[item.kind];
+}
+
+/** Changer le niveau d'un élément — l'améliorer ou le rétrograder. Un élément posé reste calé. */
+export function withLevel(item: PlannerItem, level: number): PlannerItem {
+  const next = { ...item, level: Math.max(1, Math.min(TIERS[item.kind].length, level)) } as PlannerItem;
+  return isLinear(next) ? next : snapPoint(next);
+}
 
 /** Un rectangle orienté : son centre, ses demi-côtés, son cap en radians. */
 export interface Footprint {
@@ -137,11 +233,11 @@ export function footprintOf(item: PlannerItem): Footprint {
       cx: (item.x0 + item.x1) / 2,
       cy: (item.y0 + item.y1) / 2,
       halfL: L / 2,
-      halfW: LINEAR_THICKNESS[item.kind] / 2,
+      halfW: thicknessOf(item) / 2,
       angle: Math.atan2(item.y1 - item.y0, item.x1 - item.x0),
     };
   }
-  const s = POINT_SIZE[item.kind];
+  const s = sizeOf(item);
   return { cx: item.x, cy: item.y, halfL: s.length / 2, halfW: s.width / 2, angle: (item.rotation * Math.PI) / 180 };
 }
 
@@ -181,7 +277,7 @@ export function fitsPlot(item: PlannerItem, plot: Pick<PlotLayout, "width" | "de
   const f = footprintOf(item);
   // Un mur, une clôture se jugent sur leur axe, et un axe peut longer le bord du terrain : un point
   // posé sur une ligne de la grille est dedans si l'une des cases qu'il touche l'est.
-  if (item.kind === "wall" || item.kind === "dock" || item.kind === "fence") {
+  if (item.kind === "wall" || item.kind === "dock" || item.kind === "fence" || item.kind === "powerLine") {
     const e = 1e-4;
     const touches = (x: number, y: number) =>
       [
@@ -218,7 +314,7 @@ export function fitsPlot(item: PlannerItem, plot: Pick<PlotLayout, "width" | "de
 /** Le pas de la grille d'un élément : les murs vont d'un nœud entier à l'autre, comme dans les
  *  Sims ; le reste se pose à la demi-case. */
 export function gridStep(item: PlannerItem): number {
-  return item.kind === "wall" || item.kind === "dock" || item.kind === "fence" ? 1 : 0.5;
+  return item.kind === "wall" || item.kind === "dock" || item.kind === "fence" || item.kind === "powerLine" ? 1 : 0.5;
 }
 
 /** Arrondir à la grille — une demi-case par défaut. */
@@ -257,7 +353,7 @@ const norm360 = (deg: number) => ((deg % 360) + 360) % 360;
 /** L'emprise d'un élément posé, une fois tourné : sa largeur le long des `x`, sa profondeur le long
  *  des `y` — celles de la boîte qui l'enferme. */
 export function extentsOf(item: PlannerPoint): { w: number; d: number } {
-  const s = POINT_SIZE[item.kind];
+  const s = sizeOf(item);
   const a = (item.rotation * Math.PI) / 180;
   const c = Math.abs(Math.cos(a));
   const n = Math.abs(Math.sin(a));

@@ -8,7 +8,11 @@ import { PlannerItem3D } from "./PlannerItem3D";
 import { generatePlot, plotArea, type PlotShape } from "./plot";
 import {
   PLANNER_LABEL,
-  POINT_SIZE,
+  TIERS,
+  levelOf,
+  sizeOf,
+  tierLabel,
+  withLevel,
   commitDraft,
   cornersOf,
   createItem,
@@ -117,7 +121,6 @@ const ENTRIES: Entry[] = [
   { id: "fence", label: "Clôture", group: "Murs", type: "draw", kind: "fence", mode: "chain" },
   { id: "palletRack", label: "Rack à palettes", group: "Stockage", type: "draw", kind: "palletRack", mode: "segment" },
   { id: "shelf", label: "Étagère", group: "Stockage", type: "place", kind: "shelf" },
-  { id: "shelfDecks", label: "Étagère à plateaux", group: "Stockage", type: "place", kind: "shelfDecks" },
   { id: "zone", label: "Zone de stockage", group: "Stockage", type: "place", kind: "zone" },
   { id: "conveyor", label: "Tapis droit", group: "Manutention", type: "draw", kind: "conveyor", mode: "chain" },
   { id: "conveyorCorner", label: "Tapis d'angle", group: "Manutention", type: "place", kind: "conveyorCorner" },
@@ -125,9 +128,6 @@ const ENTRIES: Entry[] = [
   { id: "rail", label: "Rail", group: "Manutention", type: "draw", kind: "rail", mode: "chain" },
   { id: "railCorner", label: "Rail d'angle", group: "Manutention", type: "place", kind: "railCorner" },
   { id: "picker", label: "Picker sur rail", group: "Manutention", type: "draw", kind: "picker", mode: "segment" },
-  { id: "monorail", label: "Monorail", group: "Manutention", type: "draw", kind: "monorail", mode: "chain" },
-  { id: "monorailCorner", label: "Monorail, virage", group: "Manutention", type: "place", kind: "monorailCorner" },
-  { id: "monoPicker", label: "Picker monorail", group: "Manutention", type: "draw", kind: "monoPicker", mode: "segment" },
   { id: "arm", label: "Bras robotisé", group: "Manutention", type: "place", kind: "arm" },
   { id: "forklift", label: "Chariot élévateur", group: "Véhicules", type: "place", kind: "forklift" },
   { id: "amr", label: "Robot autonome", group: "Véhicules", type: "place", kind: "amr" },
@@ -135,7 +135,10 @@ const ENTRIES: Entry[] = [
   { id: "container", label: "Conteneur", group: "Extérieur", type: "place", kind: "container" },
   { id: "worker", label: "Opérateur", group: "Extérieur", type: "place", kind: "worker" },
   { id: "tree", label: "Arbre", group: "Extérieur", type: "place", kind: "tree" },
-  { id: "light", label: "Mât d'éclairage", group: "Extérieur", type: "place", kind: "light" },
+  { id: "light", label: "Éclairage", group: "Extérieur", type: "place", kind: "light" },
+  { id: "parking", label: "Parking", group: "Extérieur", type: "place", kind: "parking" },
+  { id: "solar", label: "Panneaux solaires", group: "Énergie", type: "place", kind: "solar" },
+  { id: "powerLine", label: "Ligne électrique", group: "Énergie", type: "draw", kind: "powerLine", mode: "chain" },
 ];
 /**
  * La palette, en menus et sous-menus : cinq familles qu'on ouvre et referme, et dans chacune des
@@ -153,7 +156,7 @@ const MENU: { title: string; subs: { title: string; ids: string[] }[] }[] = [
     title: "Stockage",
     subs: [
       { title: "Racks", ids: ["palletRack"] },
-      { title: "Étagères", ids: ["shelf", "shelfDecks"] },
+      { title: "Étagères", ids: ["shelf"] },
       { title: "Au sol", ids: ["zone"] },
     ],
   },
@@ -162,7 +165,6 @@ const MENU: { title: string; subs: { title: string; ids: string[] }[] }[] = [
     subs: [
       { title: "Tapis", ids: ["conveyor", "conveyorCorner", "conveyorTee"] },
       { title: "Rails et pickers", ids: ["rail", "railCorner", "picker"] },
-      { title: "Monorail", ids: ["monorail", "monorailCorner", "monoPicker"] },
       { title: "Robots", ids: ["arm"] },
     ],
   },
@@ -176,8 +178,15 @@ const MENU: { title: string; subs: { title: string; ids: string[] }[] }[] = [
   {
     title: "Extérieur",
     subs: [
-      { title: "Cour", ids: ["container", "light"] },
+      { title: "Cour", ids: ["container", "light", "parking"] },
       { title: "Nature et personnes", ids: ["tree", "worker"] },
+    ],
+  },
+  {
+    title: "Énergie",
+    subs: [
+      { title: "Production", ids: ["solar"] },
+      { title: "Réseau", ids: ["powerLine"] },
     ],
   },
 ];
@@ -220,7 +229,7 @@ function entryJob(entry: Entry): SnapshotJob {
     x0 -= 0.6;
     x1 += 0.6;
   }
-  const tall: Partial<Record<string, number>> = { light: 6, tree: 3.4, palletRack: 3.5, shelfDecks: 2.8, picker: 4, monoPicker: 4, monorail: 0.4, monorailCorner: 0.4, fence: 1.6, conveyor: 1.6, conveyorCorner: 1.4, conveyorTee: 1.4, rail: 0.6, railCorner: 0.6 };
+  const tall: Partial<Record<string, number>> = { light: 6, tree: 3.4, palletRack: 3.5, shelfDecks: 2.8, picker: 4, parking: 1.5, solar: 1.4, powerLine: 4.3, fence: 1.6, conveyor: 1.6, conveyorCorner: 1.4, conveyorTee: 1.4, rail: 0.6, railCorner: 0.6 };
   const h = tall[entry.kind] ?? (entry.type === "place" ? 2 : 3);
   const node: ReactNode = items.map((it, i) => <PlannerItem3D key={i} item={{ ...it, id: `thumb-${entry.id}-${i}` }} />);
   return { id: `planner-${entry.id}`, bounds: { x0, x1, y0, y1, z0: 0, z1: h }, node };
@@ -543,6 +552,17 @@ export function WarehousePlanner({
   };
   const turn = (dir: 1 | -1 = 1) => selected && update(selected.id, rotateQuarter(selected, dir));
   const reverse = () => selected && update(selected.id, flip(selected));
+  /** Améliorer (`+1`) ou rétrograder (`-1`) l'élément choisi — s'il tient encore sur le terrain. */
+  const evolve = (dir: 1 | -1) => {
+    if (!selected) return;
+    const next = withLevel(selected, levelOf(selected) + dir);
+    if (levelOf(next) === levelOf(selected)) return;
+    if (!fitsPlot(next, plot)) {
+      flash("Pas la place pour ce niveau ici : déplacez l'élément d'abord.");
+      return;
+    }
+    update(selected.id, next);
+  };
   const swapDock = () => {
     if (selected && isLinear(selected) && (selected.kind === "wall" || selected.kind === "dock")) update(selected.id, { ...selected, kind: selected.kind === "wall" ? "dock" : "wall" });
   };
@@ -561,6 +581,7 @@ export function WarehousePlanner({
       else turn(e.shiftKey ? -1 : 1);
     }
     else if (e.key === "f" || e.key === "F") reverse();
+    else if (e.key === "u" || e.key === "U") evolve(e.shiftKey ? -1 : 1);
     else if (e.key === "+" || e.key === "=") zoomBy(1.25);
     else if (e.key === "-") zoomBy(0.8);
     else return;
@@ -668,11 +689,16 @@ export function WarehousePlanner({
           e.dataTransfer.effectAllowed = "copy";
         }}
         onClick={() => pickTool(tool?.id === entry.id ? null : entry)}
-        title={entry.label}
+        title={`${entry.label} — évolutions : ${TIERS[entry.kind].join(" → ")}`}
         aria-pressed={tool?.id === entry.id}
       >
         {url ? <img className="lq-planner__thumb" src={url} alt="" draggable={false} /> : <span className="lq-planner__thumb lq-planner__thumb--pending" aria-hidden />}
         <span className="lq-planner__tool-label">{entry.label}</span>
+        {TIERS[entry.kind].length > 1 && (
+          <span className="lq-planner__tool-tiers" title={TIERS[entry.kind].join(" → ")}>
+            {TIERS[entry.kind].length} niveaux
+          </span>
+        )}
         {n ? <span className="lq-planner__tool-count">{n}</span> : null}
       </button>
     );
@@ -840,8 +866,28 @@ export function WarehousePlanner({
                 <span>{(Math.hypot(selected.x1 - selected.x0, selected.y1 - selected.y0) * 2).toFixed(0)} m</span>
               ) : (
                 <span>
-                  {(POINT_SIZE[selected.kind].length * 2).toFixed(1)} × {(POINT_SIZE[selected.kind].width * 2).toFixed(1)} m
+                  {(sizeOf(selected).length * 2).toFixed(1)} × {(sizeOf(selected).width * 2).toFixed(1)} m
                 </span>
+              )}
+              {TIERS[selected.kind].length > 1 && (
+                <span className="lq-planner__tier" title="Niveau d'évolution">
+                  <span className="lq-planner__tier-pips" aria-hidden>
+                    {TIERS[selected.kind].map((_, i) => (
+                      <i key={i} className={i < levelOf(selected) ? "is-on" : undefined} />
+                    ))}
+                  </span>
+                  {tierLabel(selected)}
+                </span>
+              )}
+              {levelOf(selected) < TIERS[selected.kind].length && (
+                <button type="button" className="lq-planner__upgrade" onClick={() => evolve(1)} title={`Améliorer : ${tierLabel(selected, levelOf(selected) + 1)} (U)`}>
+                  ▲ {tierLabel(selected, levelOf(selected) + 1)}
+                </button>
+              )}
+              {levelOf(selected) > 1 && (
+                <button type="button" onClick={() => evolve(-1)} title="Revenir au niveau précédent (Maj + U)" aria-label="Rétrograder">
+                  ▼
+                </button>
               )}
               <span className="lq-planner__angle">{Math.round(headingOf(selected))}°</span>
               <button type="button" onClick={() => turn(-1)} title="Quart de tour à gauche (Maj + R)" aria-label="Quart de tour à gauche">

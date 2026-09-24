@@ -125,3 +125,8 @@ export type { MonorailKind, MonorailProps } from "./Monorail";
 export { viewProjector, PERSPECTIVE_FOV } from "./three/camera";
 export type { Projection, ViewSpec } from "./three/camera";
 export type { IsoProjection } from "./isoCamera";
+export { SolarArray, addSolarPanel, solarArraySize, PANEL_L, PANEL_W } from "./SolarPanel";
+export type { SolarArrayProps } from "./SolarPanel";
+export { PowerLine, powerLineWidth } from "./PowerLine";
+export type { PowerLineKind, PowerLineProps } from "./PowerLine";
+export { TIERS, levelOf, tierLabel, withLevel, sizeOf as plannerSize } from "./plannerModel";

@@ -45,6 +45,8 @@ interface CommonProps {
   piers?: "spaced" | "ends" | "none";
   /** Couper le mur à cette hauteur, pour voir dedans. */
   cut?: number;
+  /** Un bardage de panneaux métalliques sur les deux faces, au lieu du béton nu. */
+  cladding?: boolean;
   /** Où poser le coin du mur, en cases. */
   origin?: { x: number; y: number };
   /** Rotation autour du centre du mur, en degrés. */
@@ -132,7 +134,7 @@ export function DockWall(props: DockWallProps) {
 }
 
 function DockWallBody(props: DockWallProps) {
-  const { origin = { x: 0, y: 0 }, rotation = 0, slab = true, piers, cut, open, doorHeight = 1.8 } = props;
+  const { origin = { x: 0, y: 0 }, rotation = 0, slab = true, piers, cut, open, doorHeight = 1.8, cladding } = props;
   const { L, D, H, level, width, centers, yard, returns } = dockLayout(props);
   const { pose } = placed(origin, rotation, { x0: 0, x1: L, y0: 0, y1: D, z0: 0, z1: 1 }, { x: L / 2, y: D / 2 });
   const openings: WallOpening[] = centers.map((c, i) => ({
@@ -159,7 +161,7 @@ function DockWallBody(props: DockWallProps) {
           {yard > 0 && <Floor origin={{ x: 0, y: -yard }} width={L} depth={yard} level={0} />}
         </>
       )}
-      <Wall length={L} height={H} thickness={D} base={level} dockHeight={level} dockSide="y0" openings={openings} piers={piers} cut={cut} shadows />
+      <Wall length={L} height={H} thickness={D} base={level} dockHeight={level} dockSide="y0" openings={openings} piers={piers} cut={cut} cladding={cladding} shadows />
     </group>
   );
 }
@@ -200,7 +202,7 @@ export function StandardWall(props: StandardWallProps) {
 }
 
 function StandardWallBody(props: StandardWallProps) {
-  const { origin = { x: 0, y: 0 }, rotation = 0, slab = true, piers, cut, openings } = props;
+  const { origin = { x: 0, y: 0 }, rotation = 0, slab = true, piers, cut, openings, cladding } = props;
   const { L, D, H, level, skirt, before, after } = standardLayout(props);
   const { pose } = placed(origin, rotation, { x0: 0, x1: L, y0: 0, y1: D, z0: 0, z1: 1 }, { x: L / 2, y: D / 2 });
   return (
@@ -211,7 +213,7 @@ function StandardWallBody(props: StandardWallProps) {
           {skirt > 0 && <Floor origin={{ x: -before, y: -skirt }} width={L + before + after} depth={skirt} level={level} />}
         </>
       )}
-      <Wall length={L} height={H} thickness={D} base={level} openings={openings} piers={piers} cut={cut} shadows />
+      <Wall length={L} height={H} thickness={D} base={level} openings={openings} piers={piers} cut={cut} cladding={cladding} shadows />
     </group>
   );
 }

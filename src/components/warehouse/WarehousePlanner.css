@@ -503,3 +503,49 @@
   font-variant-numeric: tabular-nums;
   text-align: center;
 }
+
+/* ---- évolutions ---- */
+
+.lq-planner__inspector {
+  flex-wrap: wrap;
+  max-width: calc(100% - 360px);
+}
+
+.lq-planner__tier {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-planner__tier-pips {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.lq-planner__tier-pips i {
+  width: 8px;
+  height: 8px;
+  border: 1px solid var(--lq-color-text);
+  border-radius: 2px;
+}
+
+.lq-planner__tier-pips i.is-on {
+  background: var(--lq-color-text);
+}
+
+.lq-planner__inspector .lq-planner__upgrade {
+  border-color: var(--lq-color-text);
+  background: var(--lq-color-text);
+  color: var(--lq-color-bg);
+}
+
+.lq-planner__inspector .lq-planner__upgrade:hover {
+  background: color-mix(in srgb, var(--lq-color-text) 80%, var(--lq-color-bg));
+}
+
+.lq-planner__tool-tiers {
+  font-size: 0.58rem;
+  color: var(--lq-color-text-muted);
+}

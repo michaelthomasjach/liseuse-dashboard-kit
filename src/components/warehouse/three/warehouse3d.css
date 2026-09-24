@@ -183,3 +183,17 @@
   fill: color-mix(in srgb, var(--lq-color-text) 12%, var(--lq-color-bg));
   stroke: color-mix(in srgb, var(--lq-color-text) 45%, transparent);
 }
+
+/* --- L'énergie : panneaux solaires et lignes électriques ------------------------------------------ */
+
+.lq-solar__glass {
+  fill: color-mix(in srgb, var(--lq-color-sky) 28%, var(--lq-color-text) 62%);
+}
+.lq-solar__cells line,
+.lq-solar__cells {
+  stroke: color-mix(in srgb, var(--lq-color-bg) 55%, transparent);
+}
+.lq-powerline__wire line,
+.lq-powerline__wire {
+  stroke: color-mix(in srgb, var(--lq-color-text) 80%, transparent);
+}

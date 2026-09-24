@@ -20,7 +20,9 @@ import {
   hitTest,
   isLinear,
   moveBy,
+  headingOf,
   rotateQuarter,
+  rotateTo,
   wallPoint,
   type DrawMode,
   type PlannerItem,
@@ -123,6 +125,9 @@ const ENTRIES: Entry[] = [
   { id: "rail", label: "Rail", group: "Manutention", type: "draw", kind: "rail", mode: "chain" },
   { id: "railCorner", label: "Rail d'angle", group: "Manutention", type: "place", kind: "railCorner" },
   { id: "picker", label: "Picker sur rail", group: "Manutention", type: "draw", kind: "picker", mode: "segment" },
+  { id: "monorail", label: "Monorail", group: "Manutention", type: "draw", kind: "monorail", mode: "chain" },
+  { id: "monorailCorner", label: "Monorail, virage", group: "Manutention", type: "place", kind: "monorailCorner" },
+  { id: "monoPicker", label: "Picker monorail", group: "Manutention", type: "draw", kind: "monoPicker", mode: "segment" },
   { id: "arm", label: "Bras robotisé", group: "Manutention", type: "place", kind: "arm" },
   { id: "forklift", label: "Chariot élévateur", group: "Véhicules", type: "place", kind: "forklift" },
   { id: "amr", label: "Robot autonome", group: "Véhicules", type: "place", kind: "amr" },
@@ -157,6 +162,7 @@ const MENU: { title: string; subs: { title: string; ids: string[] }[] }[] = [
     subs: [
       { title: "Tapis", ids: ["conveyor", "conveyorCorner", "conveyorTee"] },
       { title: "Rails et pickers", ids: ["rail", "railCorner", "picker"] },
+      { title: "Monorail", ids: ["monorail", "monorailCorner", "monoPicker"] },
       { title: "Robots", ids: ["arm"] },
     ],
   },
@@ -180,7 +186,8 @@ type Drag =
   | { t: "pan"; sx: number; sy: number; cx: number; cy: number; gx: number; gy: number; moved: boolean }
   | { t: "orbit"; sx: number; sy: number; yaw: number; tilt: number }
   | { t: "end"; id: string; which: 0 | 1; orig: PlannerItem }
-  | { t: "move"; id: string; wx: number; wy: number; orig: PlannerItem };
+  | { t: "move"; id: string; wx: number; wy: number; orig: PlannerItem }
+  | { t: "rotate"; id: string; cx: number; cy: number; orig: PlannerItem };
 
 const DND = "application/x-lq-planner";
 /** Comparer sans casse ni accents : « etagere » trouve « Étagère ». */
@@ -213,7 +220,7 @@ function entryJob(entry: Entry): SnapshotJob {
     x0 -= 0.6;
     x1 += 0.6;
   }
-  const tall: Partial<Record<string, number>> = { light: 6, tree: 3.4, palletRack: 3.5, shelfDecks: 2.8, picker: 4, fence: 1.6, conveyor: 1.6, conveyorCorner: 1.4, conveyorTee: 1.4, rail: 0.6, railCorner: 0.6 };
+  const tall: Partial<Record<string, number>> = { light: 6, tree: 3.4, palletRack: 3.5, shelfDecks: 2.8, picker: 4, monoPicker: 4, monorail: 0.4, monorailCorner: 0.4, fence: 1.6, conveyor: 1.6, conveyorCorner: 1.4, conveyorTee: 1.4, rail: 0.6, railCorner: 0.6 };
   const h = tall[entry.kind] ?? (entry.type === "place" ? 2 : 3);
   const node: ReactNode = items.map((it, i) => <PlannerItem3D key={i} item={{ ...it, id: `thumb-${entry.id}-${i}` }} />);
   return { id: `planner-${entry.id}`, bounds: { x0, x1, y0, y1, z0: 0, z1: h }, node };
@@ -263,6 +270,8 @@ export function WarehousePlanner({
   const [hoverId, setHoverId] = useState<string | null>(null);
   /** L'outil en main : une entrée de la palette. */
   const [tool, setTool] = useState<Entry | null>(null);
+  /** Le cap de l'élément qu'on s'apprête à poser — R le tourne avant le clic. */
+  const [placeRot, setPlaceRot] = useState(0);
   /** Le départ du tracé en cours, et le point sous le curseur. */
   const [start, setStart] = useState<P | null>(null);
   const [cursor, setCursor] = useState<P | null>(null);
@@ -345,6 +354,10 @@ export function WarehousePlanner({
 
   // --- Le tracé en cours -------------------------------------------------------------------------
   const drawing = tool?.type === "draw" ? tool : null;
+  const placing = tool?.type === "place" ? tool : null;
+  /** L'élément à poser, sous le curseur, calé sur la grille : ce que le clic posera, exactement. */
+  const ghost = placing && cursor ? rotateTo(createItem(placing.kind, cursor.x, cursor.y), placeRot) : null;
+  const ghostOk = ghost ? fitsPlot(ghost, plot) : false;
   const draft: PlannerLinear[] = drawing && start && cursor ? draftWalls(drawing.kind, drawing.mode, start, cursor) : [];
   const draftOk = draft.every((w) => fitsPlot(w, plot));
 
@@ -404,8 +417,15 @@ export function WarehousePlanner({
       drawClick(w);
       return;
     }
-    if (tool?.type === "place") {
-      place(tool, w.x, w.y);
+    if (placing) {
+      // On pose ce que montre le fantôme, là où il est — pas ailleurs.
+      const item = rotateTo(createItem(placing.kind, w.x, w.y), placeRot);
+      if (!fitsPlot(item, plot)) {
+        flash("Hors du terrain constructible.");
+        return;
+      }
+      setItems([...itemsRef.current, item]);
+      setSelectedId(item.id);
       if (!e.shiftKey) setTool(null);
       return;
     }
@@ -416,6 +436,10 @@ export function WarehousePlanner({
       if (!item) return;
       setSelectedId(id);
       if (handle.dataset.handle === "move") drag.current = { t: "move", id, wx: w.x, wy: w.y, orig: item };
+      else if (handle.dataset.handle === "rotate") {
+        const f = footprintOf(item);
+        drag.current = { t: "rotate", id, cx: f.cx, cy: f.cy, orig: item };
+      }
       else drag.current = { t: "end", id, which: handle.dataset.handle === "end0" ? 0 : 1, orig: item };
       return;
     }
@@ -438,12 +462,20 @@ export function WarehousePlanner({
         if (!cursor || q.x !== cursor.x || q.y !== cursor.y) setCursor(q);
         return;
       }
+      if (placing) {
+        // Le fantôme ne bouge que d'un cran de grille à l'autre.
+        const g = rotateTo(createItem(placing.kind, w.x, w.y), placeRot);
+        const q = { x: (g as { x: number }).x, y: (g as { y: number }).y };
+        if (!cursor || q.x !== cursor.x || q.y !== cursor.y) setCursor(q);
+        return;
+      }
       const id = hitTest(itemsRef.current, w)?.id ?? null;
       if (id !== hoverId) setHoverId(id);
       return;
     }
     if (d.t === "orbit") {
-      setOrbit({ yaw: d.yaw + (p.x - d.sx) * 0.4, tilt: Math.max(10, Math.min(89, d.tilt + (p.y - d.sy) * 0.25)) });
+      // La main qui monte relève la caméra, comme sur la planche : on voit la scène de plus haut.
+      setOrbit({ yaw: d.yaw + (p.x - d.sx) * 0.4, tilt: Math.max(10, Math.min(89, d.tilt - (p.y - d.sy) * 0.25)) });
       return;
     }
     if (d.t === "pan") {
@@ -455,6 +487,7 @@ export function WarehousePlanner({
     }
     const w = toWorld(p.x, p.y);
     if (d.t === "move") update(d.id, moveBy(d.orig, w.x - d.wx, w.y - d.wy));
+    else if (d.t === "rotate") update(d.id, rotateTo(d.orig, (Math.atan2(w.y - d.cy, w.x - d.cx) * 180) / Math.PI, e.altKey));
     else if (isLinear(d.orig)) update(d.id, dragEnd(d.orig, d.which, w, e.altKey));
   };
 
@@ -508,19 +541,25 @@ export function WarehousePlanner({
     setItems(itemsRef.current.filter((it) => it.id !== selected.id));
     setSelectedId(null);
   };
-  const turn = () => selected && update(selected.id, rotateQuarter(selected));
+  const turn = (dir: 1 | -1 = 1) => selected && update(selected.id, rotateQuarter(selected, dir));
   const reverse = () => selected && update(selected.id, flip(selected));
   const swapDock = () => {
     if (selected && isLinear(selected) && (selected.kind === "wall" || selected.kind === "dock")) update(selected.id, { ...selected, kind: selected.kind === "wall" ? "dock" : "wall" });
   };
 
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    // Dans le champ de recherche, une lettre est une lettre.
+    if ((e.target as HTMLElement).closest?.("input, textarea")) return;
     if (e.key === "Escape") {
       if (start) setStart(null);
       else if (tool) setTool(null);
       else setSelectedId(null);
     } else if (e.key === "Delete" || e.key === "Backspace") remove();
-    else if (e.key === "r" || e.key === "R") turn();
+    else if (e.key === "r" || e.key === "R") {
+      // Avant la pose, R tourne le fantôme ; après, l'élément choisi. Maj : dans l'autre sens.
+      if (placing) setPlaceRot((r) => (r + (e.shiftKey ? 270 : 90)) % 360);
+      else turn(e.shiftKey ? -1 : 1);
+    }
     else if (e.key === "f" || e.key === "F") reverse();
     else if (e.key === "+" || e.key === "=") zoomBy(1.25);
     else if (e.key === "-") zoomBy(0.8);
@@ -577,6 +616,23 @@ export function WarehousePlanner({
         </g>
       );
       if (strong) parts.push(dim(item, "d"));
+    } else if (strong) {
+      // La poignée de rotation, devant l'élément, dans son cap : on la tire autour de lui.
+      const f = footprintOf(item);
+      const reach = f.halfL + 0.9;
+      const c = toScreen(f.cx, f.cy);
+      const h = toScreen(f.cx + Math.cos(f.angle) * reach, f.cy + Math.sin(f.angle) * reach);
+      parts.push(
+        <line key="rl" className="lq-planner__rotate-arm" x1={c.x} y1={c.y} x2={h.x} y2={h.y} />,
+        <g key="r" className="lq-planner__handle lq-planner__handle--rotate" data-handle="rotate" data-id={item.id} transform={`translate(${h.x} ${h.y})`}>
+          <circle r={9} />
+          <path d="M-4 -3 A5 5 0 1 1 -5 2 M-4 -3 l-2.5 0.5 M-4 -3 l0.5 -2.5" />
+          <title>Tirer pour tourner (Alt : sans crans)</title>
+        </g>,
+        <text key="ra" className="lq-planner__dim" x={h.x} y={h.y - 14} textAnchor="middle">
+          {`${Math.round(headingOf(item))}°`}
+        </text>
+      );
     }
     return <g key={item.id}>{parts}</g>;
   };
@@ -633,7 +689,9 @@ export function WarehousePlanner({
       : null;
 
   return (
-    <div className={["lq-planner", className].filter(Boolean).join(" ")} style={{ height }}>
+    // Le clavier est écouté sur tout l'éditeur : juste après un clic dans la palette, R doit déjà
+    // tourner l'élément à poser.
+    <div className={["lq-planner", className].filter(Boolean).join(" ")} style={{ height }} onKeyDown={onKeyDown}>
       <SnapshotStudio jobs={jobs} width={128} height={96} onShot={(id, url) => setThumbs((t) => ({ ...t, [id]: url }))} />
       <aside className="lq-planner__palette" aria-label="Palette d'éléments">
         <p className="lq-planner__intro">Choisissez un outil puis cliquez sur le terrain — un mur se trace d'un clic à l'autre. Les éléments se glissent aussi depuis la palette.</p>
@@ -687,7 +745,6 @@ export function WarehousePlanner({
           onMouseDown={(e) => {
             if (e.button === 1) e.preventDefault();
           }}
-          onKeyDown={onKeyDown}
           onDragOver={(e) => {
             if (e.dataTransfer.types.includes(DND)) {
               e.preventDefault();
@@ -711,6 +768,7 @@ export function WarehousePlanner({
                 <PlannerItem3D key={it.id} item={it} />
               ))}
               {/* Le tracé en cours, déjà en volume : on voit le mur avant de le poser. */}
+              {ghost && <PlannerItem3D key={`ghost-${ghost.kind}-${placeRot}`} item={{ ...ghost, id: `ghost-${ghost.kind}` }} />}
               {draft.map((w) => (
                 <PlannerItem3D key={`${w.id}:${w.x0},${w.y0},${w.x1},${w.y1}`} item={w} />
               ))}
@@ -722,6 +780,7 @@ export function WarehousePlanner({
               {draft.map((w, i) => outline(w, ["lq-planner__outline", "lq-planner__outline--draft", !draftOk && "lq-planner__outline--invalid"].filter(Boolean).join(" "), `draft${i}`))}
               {draft.map((w, i) => dim(w, `dd${i}`))}
               {anchor && <circle className="lq-planner__anchor" cx={anchor.x} cy={anchor.y} r={5} />}
+              {ghost && outline(ghost, ["lq-planner__outline", "lq-planner__outline--draft", !ghostOk && "lq-planner__outline--invalid"].filter(Boolean).join(" "), "ghost")}
               {cur && cell && (
                 <g className="lq-planner__cursor">
                   <polygon points={cell.map((q) => `${q.x.toFixed(1)},${q.y.toFixed(1)}`).join(" ")} />
@@ -784,8 +843,12 @@ export function WarehousePlanner({
                   {(POINT_SIZE[selected.kind].length * 2).toFixed(1)} × {(POINT_SIZE[selected.kind].width * 2).toFixed(1)} m
                 </span>
               )}
-              <button type="button" onClick={turn} title="Tourner d'un quart de tour (R)">
-                <RefreshIcon size={13} /> Tourner
+              <span className="lq-planner__angle">{Math.round(headingOf(selected))}°</span>
+              <button type="button" onClick={() => turn(-1)} title="Quart de tour à gauche (Maj + R)" aria-label="Quart de tour à gauche">
+                ⟲ 90°
+              </button>
+              <button type="button" onClick={() => turn(1)} title="Quart de tour à droite (R)" aria-label="Quart de tour à droite">
+                ⟳ 90°
               </button>
               {isLinear(selected) && (
                 <button type="button" onClick={reverse} title="Retourner (F)">

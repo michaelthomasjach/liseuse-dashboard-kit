@@ -14,6 +14,7 @@ import { Tree } from "./Tree";
 import { StreetLight } from "./StreetLight";
 import { Rail } from "./Rail";
 import { Picker } from "./Picker";
+import { Monorail } from "./Monorail";
 import { LINEAR_THICKNESS, POINT_SIZE, isLinear, type PlannerItem } from "./plannerModel";
 
 /**
@@ -78,6 +79,15 @@ export function PlannerItem3D({ item }: { item: PlannerItem }) {
             <Picker travel={L} origin={origin} rotation={rotation} load="carton" />
           </>
         );
+      case "monorail":
+        return <Monorail length={L} origin={origin} rotation={rotation} />;
+      case "monoPicker":
+        return (
+          <>
+            <Monorail length={L} origin={origin} rotation={rotation} />
+            <Picker track="mono" travel={L} origin={origin} rotation={rotation} load="carton" />
+          </>
+        );
       case "palletRack": {
         const bays = Math.max(1, Math.round((L - 0.1) / 1.35));
         const La = bays * 1.35 + 0.1;
@@ -101,6 +111,8 @@ export function PlannerItem3D({ item }: { item: PlannerItem }) {
       return <Conveyor kind="tee" width={s.width} legHeight={0.8} origin={origin} rotation={rotation} load="carton" flow="split" branch shadows />;
     case "railCorner":
       return <Rail kind="corner" origin={origin} rotation={rotation} />;
+    case "monorailCorner":
+      return <Monorail kind="corner" radius={2} origin={origin} rotation={rotation} />;
     case "zone":
       return <StorageZone columns={3} rows={2} origin={origin} rotation={rotation} />;
     case "forklift":

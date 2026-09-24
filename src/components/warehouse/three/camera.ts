@@ -94,7 +94,10 @@ export function viewProjector(v: ViewSpec) {
     }
     if (Math.abs(d.z) < 1e-6) return null;
     const s = (z - o.z) / d.z;
-    if (s < 0) return null;
+    // En perspective, un rayon part de l'œil : le sol derrière lui n'est pas visé. En isométrique, le
+    // « rayon » est une droite qui traverse la scène de part en part — son origine, posée sur le plan
+    // de la cible, peut être au-dessus comme au-dessous du sol.
+    if (persp && s < 0) return null;
     const g = o.addScaledVector(d, s);
     return { x: g.y, y: g.x };
   };

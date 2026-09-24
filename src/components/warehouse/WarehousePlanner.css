@@ -468,3 +468,38 @@
   font-weight: 600;
   color: var(--lq-color-text-muted);
 }
+
+/* ---- rotation ---- */
+
+.lq-planner__rotate-arm {
+  stroke: color-mix(in srgb, var(--lq-color-text) 55%, transparent);
+  stroke-width: 1;
+  stroke-dasharray: 3 2;
+}
+
+.lq-planner__handle--rotate {
+  cursor: grab;
+}
+
+.lq-planner__handle--rotate circle {
+  fill: var(--lq-color-bg);
+  stroke: var(--lq-color-text);
+  stroke-width: 2;
+}
+
+.lq-planner__handle--rotate:hover circle {
+  fill: var(--lq-color-accent);
+}
+
+.lq-planner__handle--rotate path {
+  fill: none;
+  stroke: var(--lq-color-text);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+
+.lq-planner__angle {
+  min-width: 34px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}

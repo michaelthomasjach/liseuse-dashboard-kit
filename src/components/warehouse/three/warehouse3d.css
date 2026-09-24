@@ -176,3 +176,10 @@
 .lq-plot__edge {
   fill: color-mix(in srgb, var(--lq-color-text) 78%, var(--lq-color-bg));
 }
+
+/* --- Le picker ---------------------------------------------------------------------------------- */
+
+.lq-picker__plate {
+  fill: color-mix(in srgb, var(--lq-color-text) 12%, var(--lq-color-bg));
+  stroke: color-mix(in srgb, var(--lq-color-text) 45%, transparent);
+}

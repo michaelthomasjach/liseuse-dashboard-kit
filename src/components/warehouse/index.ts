@@ -120,3 +120,8 @@ export type { PlannerItem, PlannerKind, PlannerLinear, PlannerPoint, PlannerTool
 export { PlannerItem3D } from "./PlannerItem3D";
 export { Snapshot } from "./three/snapshot";
 export type { SnapshotProps } from "./three/snapshot";
+export { Monorail, MONORAIL_TOP, MONORAIL_WIDTH, monorailSize, monorailTrack } from "./Monorail";
+export type { MonorailKind, MonorailProps } from "./Monorail";
+export { viewProjector, PERSPECTIVE_FOV } from "./three/camera";
+export type { Projection, ViewSpec } from "./three/camera";
+export type { IsoProjection } from "./isoCamera";

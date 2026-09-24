@@ -17,7 +17,7 @@ import { CONTAINER_DIMENSIONS } from "./ShippingContainer";
  * Tout est en cases, comme le reste du kit : une case vaut deux mètres.
  */
 
-export type PlannerLinearKind = "wall" | "dock" | "fence" | "conveyor" | "palletRack" | "rail" | "picker";
+export type PlannerLinearKind = "wall" | "dock" | "fence" | "conveyor" | "palletRack" | "rail" | "picker" | "monorail" | "monoPicker";
 export type PlannerPointKind =
   | "shelf"
   | "shelfDecks"
@@ -25,6 +25,7 @@ export type PlannerPointKind =
   | "conveyorCorner"
   | "conveyorTee"
   | "railCorner"
+  | "monorailCorner"
   | "forklift"
   | "amr"
   | "arm"
@@ -55,7 +56,7 @@ export interface PlannerPoint {
 
 export type PlannerItem = PlannerLinear | PlannerPoint;
 
-export const LINEAR_KINDS: PlannerLinearKind[] = ["wall", "dock", "fence", "conveyor", "palletRack", "rail", "picker"];
+export const LINEAR_KINDS: PlannerLinearKind[] = ["wall", "dock", "fence", "conveyor", "palletRack", "rail", "picker", "monorail", "monoPicker"];
 
 export function isLinear(item: PlannerItem): item is PlannerLinear {
   return (LINEAR_KINDS as string[]).includes(item.kind);
@@ -83,6 +84,9 @@ export const PLANNER_TOOLS: PlannerTool[] = [
   { kind: "rail", label: "Rail", group: "Manutention", length: 8 },
   { kind: "railCorner", label: "Rail d'angle", group: "Manutention" },
   { kind: "picker", label: "Picker sur rail", group: "Manutention", length: 10 },
+  { kind: "monorail", label: "Monorail", group: "Manutention", length: 8 },
+  { kind: "monorailCorner", label: "Monorail, virage", group: "Manutention" },
+  { kind: "monoPicker", label: "Picker monorail", group: "Manutention", length: 10 },
   { kind: "arm", label: "Bras robotisé", group: "Manutention" },
   { kind: "forklift", label: "Chariot élévateur", group: "Véhicules" },
   { kind: "amr", label: "Robot autonome", group: "Véhicules" },
@@ -96,7 +100,7 @@ export const PLANNER_TOOLS: PlannerTool[] = [
 export const PLANNER_LABEL: Record<PlannerKind, string> = Object.fromEntries(PLANNER_TOOLS.map((t) => [t.kind, t.label])) as Record<PlannerKind, string>;
 
 /** L'épaisseur d'un élément linéaire, en travers de son segment, en cases. */
-export const LINEAR_THICKNESS: Record<PlannerLinearKind, number> = { wall: 0.3, dock: 0.3, fence: 0.1, conveyor: 1.6, palletRack: 0.55, rail: 1.8, picker: 1.8 };
+export const LINEAR_THICKNESS: Record<PlannerLinearKind, number> = { wall: 0.3, dock: 0.3, fence: 0.1, conveyor: 1.6, palletRack: 0.55, rail: 1.8, picker: 1.8, monorail: 1.2, monoPicker: 1.2 };
 
 /** L'emprise d'un élément ponctuel, avant rotation : longueur (le long de son cap) et largeur. */
 export const POINT_SIZE: Record<PlannerPointKind, { length: number; width: number }> = {
@@ -105,6 +109,7 @@ export const POINT_SIZE: Record<PlannerPointKind, { length: number; width: numbe
   conveyorCorner: { length: 1.6, width: 1.6 },
   conveyorTee: { length: 1.6, width: 1.6 },
   railCorner: { length: 2.7, width: 2.7 },
+  monorailCorner: { length: 2.6, width: 2.6 },
   zone: { length: 4.3, width: 2.75 },
   forklift: { length: 2.7, width: 1 },
   amr: { length: 1.6, width: 1.15 },
@@ -242,7 +247,66 @@ export function dragEnd(item: PlannerLinear, which: 0 | 1, p: { x: number; y: nu
   return which === 0 ? { ...item, x0: x, y0: y } : { ...item, x1: x, y1: y };
 }
 
-/** Déplacer un élément de `(dx, dy)`, arrondi à la grille. */
+// --- Le calage sur la grille, et la rotation -------------------------------------------------------
+
+/** Le pas de la grille des éléments posés : la demi-case, un mètre. */
+export const GRID = 0.5;
+
+const norm360 = (deg: number) => ((deg % 360) + 360) % 360;
+
+/** L'emprise d'un élément posé, une fois tourné : sa largeur le long des `x`, sa profondeur le long
+ *  des `y` — celles de la boîte qui l'enferme. */
+export function extentsOf(item: PlannerPoint): { w: number; d: number } {
+  const s = POINT_SIZE[item.kind];
+  const a = (item.rotation * Math.PI) / 180;
+  const c = Math.abs(Math.cos(a));
+  const n = Math.abs(Math.sin(a));
+  return { w: s.length * c + s.width * n, d: s.length * n + s.width * c };
+}
+
+/**
+ * Caler un élément posé sur la grille **par ses bords**, et non par son centre.
+ *
+ *  Un chariot de 2,7 cases dont on arrondissait le centre à la demi-case avait ses flancs entre deux
+ *  lignes : deux chariots côte à côte ne s'alignaient jamais tout à fait, et une étagère ne venait
+ *  pas se coller à un mur. Ici, c'est le coin de l'emprise — tournée — qui tombe sur un nœud de la
+ *  grille : deux éléments posés l'un contre l'autre se touchent, et un élément tourné d'un quart de
+ *  tour reste aligné.
+ */
+export function snapPoint(item: PlannerPoint): PlannerPoint {
+  const { w, d } = extentsOf(item);
+  return { ...item, x: snap(item.x - w / 2, GRID) + w / 2, y: snap(item.y - d / 2, GRID) + d / 2 };
+}
+
+/**
+ * Tourner un élément à un cap donné, en degrés.
+ *
+ *  Par crans de 15° — assez fin pour une diagonale, assez gros pour qu'un quart de tour tombe juste
+ *  — ou librement (`free`). Un élément posé est recalé sur la grille à chaque cap droit.
+ */
+export function rotateTo(item: PlannerItem, deg: number, free = false): PlannerItem {
+  const target = norm360(free ? Math.round(deg) : Math.round(deg / 15) * 15);
+  if (!isLinear(item)) {
+    const next = { ...item, rotation: target };
+    return target % 90 === 0 ? snapPoint(next) : next;
+  }
+  // Un segment tourne autour de son milieu, à longueur constante.
+  const cx = (item.x0 + item.x1) / 2;
+  const cy = (item.y0 + item.y1) / 2;
+  const half = Math.hypot(item.x1 - item.x0, item.y1 - item.y0) / 2;
+  const a = (target * Math.PI) / 180;
+  const step = gridStep(item);
+  const round = (v: number) => (target % 90 === 0 ? snap(v, step) : v);
+  return { ...item, x0: round(cx - Math.cos(a) * half), y0: round(cy - Math.sin(a) * half), x1: round(cx + Math.cos(a) * half), y1: round(cy + Math.sin(a) * half) };
+}
+
+/** Le cap d'un élément, en degrés. */
+export function headingOf(item: PlannerItem): number {
+  if (!isLinear(item)) return item.rotation;
+  return norm360((Math.atan2(item.y1 - item.y0, item.x1 - item.x0) * 180) / Math.PI);
+}
+
+/** Déplacer un élément de `(dx, dy)`, calé sur la grille. */
 export function moveBy(item: PlannerItem, dx: number, dy: number): PlannerItem {
   if (isLinear(item)) {
     const step = gridStep(item);
@@ -250,12 +314,13 @@ export function moveBy(item: PlannerItem, dx: number, dy: number): PlannerItem {
     const sy = snap(item.y0 + dy, step) - item.y0;
     return { ...item, x0: item.x0 + sx, y0: item.y0 + sy, x1: item.x1 + sx, y1: item.y1 + sy };
   }
-  return { ...item, x: snap(item.x + dx), y: snap(item.y + dy) };
+  return snapPoint({ ...item, x: item.x + dx, y: item.y + dy });
 }
 
-/** Tourner d'un quart de tour, autour du centre. */
-export function rotateQuarter(item: PlannerItem): PlannerItem {
-  if (!isLinear(item)) return { ...item, rotation: (item.rotation + 90) % 360 };
+/** Tourner d'un quart de tour, autour du centre — dans un sens (`+1`) ou dans l'autre (`-1`). */
+export function rotateQuarter(item: PlannerItem, dir: 1 | -1 = 1): PlannerItem {
+  if (dir === -1) return rotateTo(item, headingOf(item) - 90);
+  if (!isLinear(item)) return snapPoint({ ...item, rotation: (item.rotation + 90) % 360 });
   const cx = (item.x0 + item.x1) / 2;
   const cy = (item.y0 + item.y1) / 2;
   const rot = (x: number, y: number) => ({ x: snap(cx - (y - cy)), y: snap(cy + (x - cx)) });
@@ -267,7 +332,7 @@ export function rotateQuarter(item: PlannerItem): PlannerItem {
 /** Retourner un élément linéaire : ce qui était dehors passe dedans — la cour d'un quai change de
  *  côté. */
 export function flip(item: PlannerItem): PlannerItem {
-  if (!isLinear(item)) return { ...item, rotation: (item.rotation + 180) % 360 };
+  if (!isLinear(item)) return snapPoint({ ...item, rotation: (item.rotation + 180) % 360 });
   return { ...item, x0: item.x1, y0: item.y1, x1: item.x0, y1: item.y0 };
 }
 
@@ -284,7 +349,7 @@ export function createItem(kind: PlannerKind, x: number, y: number): PlannerItem
     const cy = snap(y, step);
     return { id, kind: kind as PlannerLinearKind, x0: cx - half, y0: cy, x1: cx + half, y1: cy };
   }
-  return { id, kind: kind as PlannerPointKind, x: snap(x), y: snap(y), rotation: 0 };
+  return snapPoint({ id, kind: kind as PlannerPointKind, x, y, rotation: 0 });
 }
 
 // --- Le tracé des murs, à la manière des Sims ------------------------------------------------------

@@ -1,8 +1,9 @@
 import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Canvas, useThree } from "@react-three/fiber";
-import { Matrix4, NoToneMapping, PCFSoftShadowMap, Vector3, type BufferGeometry, type DirectionalLight, type OrthographicCamera } from "three";
+import { Matrix4, NoToneMapping, PCFSoftShadowMap, Vector3, type BufferGeometry, type DirectionalLight, type OrthographicCamera, type PerspectiveCamera } from "three";
 import { projectIso } from "../warehouseIso";
-import { IsoCamera, useIsoCamera, useIsoZoom } from "../isoCamera";
+import { IsoCamera, useIsoCamera, useIsoProjection, useIsoZoom } from "../isoCamera";
+import { PERSPECTIVE_FOV, cameraBasis, heading, perspectiveDistance, type Projection } from "./camera";
 import { PaletteContext, createPalette, usePalette, type Palette } from "./palette";
 import { SimClockProvider } from "./time";
 import type { Built } from "./builder";
@@ -83,46 +84,45 @@ export function projectedBox(b: Bounds, yaw: number, tilt: number, scale: number
   return { width: Math.max(...xs) - Math.min(...xs), height: Math.max(...ys) - Math.min(...ys) };
 }
 
-/** Une direction horizontale au cap `deg`, depuis la diagonale des `x` et `y` croissants — vue à
- *  travers `MIRROR`, qui renverse le sens de toute rotation, d'où `+deg`. */
-function heading(deg: number) {
-  const t = (deg * Math.PI) / 180;
-  const hx = Math.cos(t) - Math.sin(t);
-  const hy = Math.sin(t) + Math.cos(t);
-  const n = Math.hypot(hx, hy);
-  return { hx: hx / n, hy: hy / n };
-}
-
 /**
  * La caméra et la lumière.
  *
- *  La caméra est posée sur la sphère autour du centre de la scène, au cap et au site demandés. Le
- *  soleil **suit la caméra**, comme dans le dessin : c'est un choix de lisibilité et non de
- *  réalisme. L'ombre tombe toujours du même côté à l'écran — vers la droite et l'arrière — si bien
- *  qu'une scène qu'on fait tourner garde la même lecture ; un soleil fixe ferait passer les ombres
- *  devant les objets à certains caps, et on perdrait ce qu'elles apportent : le contact avec le sol.
+ *  La caméra est posée sur la sphère autour du centre de la scène, au cap et au site demandés — en
+ *  isométrique, ou en perspective à la distance qui garde la même échelle au centre (voir
+ *  `camera.ts`). Le soleil **suit la caméra**, comme dans le dessin : c'est un choix de lisibilité
+ *  et non de réalisme. L'ombre tombe toujours du même côté à l'écran — vers la droite et l'arrière —
+ *  si bien qu'une scène qu'on fait tourner garde la même lecture.
  */
-function Rig({ yaw, tilt, scale, target, span }: { yaw: number; tilt: number; scale: number; target: Vector3; span: number }) {
-  const camera = useThree((s) => s.camera) as OrthographicCamera;
+function Rig({ yaw, tilt, scale, target, span, height, projection }: { yaw: number; tilt: number; scale: number; target: Vector3; span: number; height: number; projection: Projection }) {
+  const camera = useThree((s) => s.camera);
   const invalidate = useThree((s) => s.invalidate);
   const light = useRef<DirectionalLight>(null);
 
   useLayoutEffect(() => {
-    const { hx, hy } = heading(yaw);
-    const el = (Math.max(0.5, Math.min(89.9, tilt)) * Math.PI) / 180;
-    const dir = new Vector3(hx * Math.cos(el), hy * Math.cos(el), Math.sin(el));
-    const far = span * 4 + 60;
-    // À la verticale, « le haut » ne peut plus être le ciel : c'est alors le fond de la scène.
-    if (tilt > 89) camera.up.set(-hx, -hy, 0);
-    else camera.up.set(0, 0, 1);
-    camera.position.copy(target).addScaledVector(dir, far / 2);
-    camera.near = 0.01;
-    camera.far = far;
-    camera.zoom = scale;
-    camera.lookAt(target);
-    camera.updateProjectionMatrix();
+    const { dir, up } = cameraBasis(yaw, tilt);
+    camera.up.copy(up);
+    if (projection === "perspective" && (camera as PerspectiveCamera).isPerspectiveCamera) {
+      const cam = camera as PerspectiveCamera;
+      const dist = perspectiveDistance(height, scale);
+      cam.fov = PERSPECTIVE_FOV;
+      cam.position.copy(target).addScaledVector(dir, dist);
+      cam.near = Math.max(0.05, dist * 0.02);
+      cam.far = dist * 4 + span * 3 + 60;
+      cam.zoom = 1;
+      cam.lookAt(target);
+      cam.updateProjectionMatrix();
+    } else {
+      const cam = camera as OrthographicCamera;
+      const far = span * 4 + 60;
+      cam.position.copy(target).addScaledVector(dir, far / 2);
+      cam.near = 0.01;
+      cam.far = far;
+      cam.zoom = scale;
+      cam.lookAt(target);
+      cam.updateProjectionMatrix();
+    }
     invalidate();
-  }, [camera, yaw, tilt, scale, target, span, invalidate]);
+  }, [camera, yaw, tilt, scale, target, span, height, projection, invalidate]);
 
   useLayoutEffect(() => {
     const l = light.current;
@@ -218,10 +218,13 @@ export interface WarehouseSceneProps {
 export function WarehouseScene({ bounds, cellSize = 30, padding = 10, speed = 1, paused = false, catcher = false, viewport, lazy = true, className, style, ariaLabel, children }: WarehouseSceneProps) {
   const cam = useIsoCamera();
   const zoom = useIsoZoom();
+  const projection = useIsoProjection();
   const scale = cellSize * zoom * (viewport?.zoom ?? 1);
   const box = projectedBox(bounds, cam.yaw, cam.tilt, scale);
-  const width = viewport ? viewport.width : Math.ceil(box.width + padding * 2);
-  const height = viewport ? viewport.height : Math.ceil(box.height + padding * 2);
+  // En perspective, ce qui est près grossit : la toile garde une marge pour ne pas le couper.
+  const grow = projection === "perspective" ? 1.35 : 1;
+  const width = viewport ? viewport.width : Math.ceil(box.width * grow + padding * 2);
+  const height = viewport ? viewport.height : Math.ceil(box.height * grow + padding * 2);
   const host = useRef<HTMLDivElement>(null);
   const [palette, setPalette] = useState<Palette | null>(null);
   const [visible, setVisible] = useState(false);
@@ -256,7 +259,9 @@ export function WarehouseScene({ bounds, cellSize = 30, padding = 10, speed = 1,
     <div ref={host} className={className} role="img" aria-label={ariaLabel} style={{ position: "relative", width, height, flex: "none", ...style }}>
       {palette !== null && visible && (
         <Canvas
-          orthographic
+          // Changer de projection, c'est changer de caméra : la toile est remontée avec l'autre.
+          key={projection}
+          orthographic={projection === "orthographic"}
           flat
           shadows={{ type: PCFSoftShadowMap }}
           frameloop="demand"
@@ -264,11 +269,11 @@ export function WarehouseScene({ bounds, cellSize = 30, padding = 10, speed = 1,
           gl={{ antialias: true, alpha: true, toneMapping: NoToneMapping }}
           style={{ position: "absolute", inset: 0 }}
         >
-          <Rig yaw={cam.yaw} tilt={cam.tilt} scale={scale} target={target} span={span} />
+          <Rig yaw={cam.yaw} tilt={cam.tilt} scale={scale} target={target} span={span} height={height} projection={projection} />
           <SimClockProvider speed={speed} paused={paused}>
             <InScene.Provider value={true}>
               <PaletteContext.Provider value={palette}>
-                <IsoCamera yaw={cam.yaw} tilt={cam.tilt} zoom={zoom}>
+                <IsoCamera yaw={cam.yaw} tilt={cam.tilt} zoom={zoom} projection={projection}>
                   <group matrixAutoUpdate={false} matrix={MIRROR}>
                     {catcher && <ShadowCatcher bounds={bounds} />}
                     {children}

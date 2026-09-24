@@ -17,8 +17,22 @@ import { CONTAINER_DIMENSIONS } from "./ShippingContainer";
  * Tout est en cases, comme le reste du kit : une case vaut deux mètres.
  */
 
-export type PlannerLinearKind = "wall" | "dock" | "fence" | "conveyor" | "palletRack";
-export type PlannerPointKind = "shelf" | "zone" | "forklift" | "amr" | "arm" | "truck" | "container" | "worker" | "tree" | "light";
+export type PlannerLinearKind = "wall" | "dock" | "fence" | "conveyor" | "palletRack" | "rail" | "picker";
+export type PlannerPointKind =
+  | "shelf"
+  | "shelfDecks"
+  | "zone"
+  | "conveyorCorner"
+  | "conveyorTee"
+  | "railCorner"
+  | "forklift"
+  | "amr"
+  | "arm"
+  | "truck"
+  | "container"
+  | "worker"
+  | "tree"
+  | "light";
 export type PlannerKind = PlannerLinearKind | PlannerPointKind;
 
 export interface PlannerLinear {
@@ -41,7 +55,7 @@ export interface PlannerPoint {
 
 export type PlannerItem = PlannerLinear | PlannerPoint;
 
-export const LINEAR_KINDS: PlannerLinearKind[] = ["wall", "dock", "fence", "conveyor", "palletRack"];
+export const LINEAR_KINDS: PlannerLinearKind[] = ["wall", "dock", "fence", "conveyor", "palletRack", "rail", "picker"];
 
 export function isLinear(item: PlannerItem): item is PlannerLinear {
   return (LINEAR_KINDS as string[]).includes(item.kind);
@@ -61,8 +75,14 @@ export const PLANNER_TOOLS: PlannerTool[] = [
   { kind: "fence", label: "Clôture", group: "Bâtiment", length: 8 },
   { kind: "palletRack", label: "Rack à palettes", group: "Stockage", length: 5.5 },
   { kind: "shelf", label: "Étagère", group: "Stockage" },
+  { kind: "shelfDecks", label: "Étagère à plateaux", group: "Stockage" },
   { kind: "zone", label: "Zone de stockage", group: "Stockage" },
   { kind: "conveyor", label: "Tapis roulant", group: "Manutention", length: 6 },
+  { kind: "conveyorCorner", label: "Tapis d'angle", group: "Manutention" },
+  { kind: "conveyorTee", label: "Tapis en T", group: "Manutention" },
+  { kind: "rail", label: "Rail", group: "Manutention", length: 8 },
+  { kind: "railCorner", label: "Rail d'angle", group: "Manutention" },
+  { kind: "picker", label: "Picker sur rail", group: "Manutention", length: 10 },
   { kind: "arm", label: "Bras robotisé", group: "Manutention" },
   { kind: "forklift", label: "Chariot élévateur", group: "Véhicules" },
   { kind: "amr", label: "Robot autonome", group: "Véhicules" },
@@ -76,11 +96,15 @@ export const PLANNER_TOOLS: PlannerTool[] = [
 export const PLANNER_LABEL: Record<PlannerKind, string> = Object.fromEntries(PLANNER_TOOLS.map((t) => [t.kind, t.label])) as Record<PlannerKind, string>;
 
 /** L'épaisseur d'un élément linéaire, en travers de son segment, en cases. */
-export const LINEAR_THICKNESS: Record<PlannerLinearKind, number> = { wall: 0.3, dock: 0.3, fence: 0.1, conveyor: 1.6, palletRack: 0.55 };
+export const LINEAR_THICKNESS: Record<PlannerLinearKind, number> = { wall: 0.3, dock: 0.3, fence: 0.1, conveyor: 1.6, palletRack: 0.55, rail: 1.8, picker: 1.8 };
 
 /** L'emprise d'un élément ponctuel, avant rotation : longueur (le long de son cap) et largeur. */
 export const POINT_SIZE: Record<PlannerPointKind, { length: number; width: number }> = {
   shelf: { length: 4, width: 1.2 },
+  shelfDecks: { length: 4, width: 1.2 },
+  conveyorCorner: { length: 1.6, width: 1.6 },
+  conveyorTee: { length: 1.6, width: 1.6 },
+  railCorner: { length: 2.7, width: 2.7 },
   zone: { length: 4.3, width: 2.75 },
   forklift: { length: 2.7, width: 1 },
   amr: { length: 1.6, width: 1.15 },

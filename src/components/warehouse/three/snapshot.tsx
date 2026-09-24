@@ -100,7 +100,7 @@ export function Snapshot({ id, bounds, width, height, yaw = 30, tilt = 30, alt =
       {/* Hors de l'écran mais dans la page : la scène y lit les couleurs du thème courant. */}
       {turn && (
         <div style={{ position: "fixed", left: -10000, top: 0, pointerEvents: "none" }} aria-hidden>
-          <IsoCamera yaw={yaw} tilt={tilt} zoom={1}>
+          <IsoCamera yaw={yaw} tilt={tilt} zoom={1} projection="orthographic">
             <WarehouseScene bounds={bounds} cellSize={cellSize} padding={pad * 2} lazy={false} catcher>
               {children}
               <Capture onDone={done} />
@@ -138,7 +138,7 @@ export function SnapshotStudio({ jobs, width, height, yaw = 30, tilt = 30, onSho
   };
   return (
     <div style={{ position: "fixed", left: -10000, top: 0, pointerEvents: "none" }} aria-hidden>
-      <IsoCamera yaw={yaw} tilt={tilt} zoom={1}>
+      <IsoCamera yaw={yaw} tilt={tilt} zoom={1} projection="orthographic">
         <WarehouseScene
           bounds={b}
           cellSize={1}

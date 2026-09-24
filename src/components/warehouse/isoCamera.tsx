@@ -77,7 +77,10 @@ export function isoCamera(yaw = 0, tilt = ISO_TILT): IsoCameraView {
   };
 }
 
-const IsoCameraContext = createContext<{ yaw: number; tilt: number; zoom: number }>({ yaw: 0, tilt: ISO_TILT, zoom: 1 });
+/** La projection des scènes 3D : isométrique (sans fuite) ou perspective. */
+export type IsoProjection = "orthographic" | "perspective";
+
+const IsoCameraContext = createContext<{ yaw: number; tilt: number; zoom: number; projection: IsoProjection }>({ yaw: 0, tilt: ISO_TILT, zoom: 1, projection: "orthographic" });
 
 /** Le site, ramené entre ses bornes : de 0°, dans le plan du sol, à 90°, à la verticale. */
 export const clampTilt = (deg: number) => Math.min(ISO_TILT_MAX, Math.max(ISO_TILT_MIN, deg));
@@ -89,14 +92,20 @@ export const clampTilt = (deg: number) => Math.min(ISO_TILT_MAX, Math.max(ISO_TI
  *  prend à sa caméra, ce qui la redessine nette à chaque cran au lieu d'étirer une image déjà
  *  tramée ; il voyage donc avec le reste de la caméra.
  */
-export function IsoCamera({ yaw, tilt = ISO_TILT, zoom, children }: { yaw: number; tilt?: number; zoom?: number; children: ReactNode }) {
+export function IsoCamera({ yaw, tilt = ISO_TILT, zoom, projection, children }: { yaw: number; tilt?: number; zoom?: number; projection?: IsoProjection; children: ReactNode }) {
   const parent = useContext(IsoCameraContext);
   const z = zoom ?? parent.zoom;
-  const view = useMemo(() => ({ yaw: ((yaw % 360) + 360) % 360, tilt: clampTilt(tilt), zoom: z }), [yaw, tilt, z]);
+  const pr = projection ?? parent.projection;
+  const view = useMemo(() => ({ yaw: ((yaw % 360) + 360) % 360, tilt: clampTilt(tilt), zoom: z, projection: pr }), [yaw, tilt, z, pr]);
   return <IsoCameraContext.Provider value={view}>{children}</IsoCameraContext.Provider>;
 }
 
 /** Le grossissement de la loupe, `1` par défaut. */
+/** La projection courante : isométrique, ou perspective. */
+export function useIsoProjection(): IsoProjection {
+  return useContext(IsoCameraContext).projection;
+}
+
 export function useIsoZoom(): number {
   return useContext(IsoCameraContext).zoom;
 }

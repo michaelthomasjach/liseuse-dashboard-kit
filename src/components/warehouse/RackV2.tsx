@@ -131,6 +131,12 @@ export interface RackV2Props {
   contents?: RackV2Slot[];
   /** Épaisseur des deux plateaux, en cases. */
   deckThickness?: number;
+  /**
+   * Le nombre de niveaux **dans un même cadre** : autant de plateaux horizontaux, régulièrement
+   * espacés, chacun chargé comme le plateau du bas. C'est le rayonnage de magasin — un bâti, quatre
+   * ou cinq tablettes — et non une pile d'étagères (`countZ`), dont chaque étage a son propre cadre.
+   */
+  shelves?: number;
   /** Des poteaux modélisés en volume à la place des quatre arêtes verticales. */
   posts?: boolean;
   /** Côté d'un poteau, en cases. */
@@ -258,6 +264,7 @@ function RackV2Body(props: RackV2Props) {
     slotsY = 1,
     contents = ["carton"],
     deckThickness = DEFAULT_DECK_THICKNESS,
+    shelves = 1,
     posts = false,
     postSize = DEFAULT_POST_SIZE,
     braces = false,
@@ -267,10 +274,13 @@ function RackV2Body(props: RackV2Props) {
     origin = { x: 0, y: 0 },
   } = props;
   const L = rackLayout(props);
-  const key = JSON.stringify([L, slotsX, slotsY, contents, deckThickness, posts, postSize, braces, feet, footHeight]);
+  const key = JSON.stringify([L, slotsX, slotsY, contents, deckThickness, shelves, posts, postSize, braces, feet, footHeight]);
   const built = useBuilt(() => {
     const b = new Builder();
-    const { width, depth, height } = L;
+    const { width, depth } = L;
+    const levels = count(shelves);
+    // Un niveau : la hauteur d'un cadre partagée entre ses tablettes.
+    const height = L.height / levels;
     const sx = count(slotsX);
     const sy = count(slotsY);
     const slabZ = Math.max(0, Math.min(deckThickness, height / 3));
@@ -278,7 +288,7 @@ function RackV2Body(props: RackV2Props) {
     const footZ = Math.max(0, footHeight ?? side * FOOT_RISE);
     const edge: [[number, number, number], [number, number, number]][] = [];
 
-    const bay = (ox: number, oy: number, oz: number, roofed: boolean) => {
+    const bay = (ox: number, oy: number, oz: number, roofed: boolean, level = 0) => {
       const floorZ = oz + slabZ;
       const ceilZ = oz + height - (roofed ? slabZ : 0);
       const clearance = ceilZ - floorZ;
@@ -337,7 +347,10 @@ function RackV2Body(props: RackV2Props) {
       if (div.length) b.lines("lq-rack2__divider", div);
       for (let j = 0; j < sy; j += 1)
         for (let i = 0; i < sx; i += 1) {
-          const slot = contents[j * sx + i];
+          // D'une tablette à l'autre, le contenu tourne d'un cran : un rayonnage n'a pas cinq fois la
+          // même rangée.
+          const index = j * sx + i;
+          const slot = level === 0 ? contents[index] : contents[(index + level) % Math.max(1, contents.length)];
           if (!slot) continue;
           const x0 = areaX + i * slotW;
           const y0 = areaY + j * slotD;
@@ -362,7 +375,14 @@ function RackV2Body(props: RackV2Props) {
     for (let iz = 0; iz < L.nz; iz += 1)
       for (let iy = 0; iy < L.ny; iy += 1)
         for (let ix = 0; ix < L.nx; ix += 1)
-          bay(ix * width + L.aisleBefore(ix, props.crossAisle ?? 0, props.crossEvery ?? 4), iy * depth + L.aisleBefore(iy, props.aisle ?? 0, props.aisleEvery ?? 2), iz * height, iz === L.nz - 1);
+          for (let k = 0; k < levels; k += 1)
+            bay(
+              ix * width + L.aisleBefore(ix, props.crossAisle ?? 0, props.crossEvery ?? 4),
+              iy * depth + L.aisleBefore(iy, props.aisle ?? 0, props.aisleEvery ?? 2),
+              iz * L.height + k * height,
+              iz === L.nz - 1 && k === levels - 1,
+              k
+            );
     if (edge.length) b.lines("lq-rack2__edge", edge);
     return b.build();
   }, [key]);

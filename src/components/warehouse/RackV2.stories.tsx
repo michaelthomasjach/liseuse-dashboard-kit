@@ -285,3 +285,22 @@ export const Allees: Story = {
     </div>
   ),
 };
+
+/**
+ * La variante à tablettes : un seul bâti, et un plateau horizontal à **chaque niveau**, chacun
+ * chargé. C'est le rayonnage de magasin, par opposition à une pile d'étagères (`countZ`) où chaque
+ * étage a son propre cadre.
+ */
+export const Tablettes: Story = {
+  name: "Étagère à plateaux",
+  render: () => (
+    <div style={{ display: "flex", gap: 40, alignItems: "flex-end", flexWrap: "wrap" }}>
+      {[3, 4, 5].map((n) => (
+        <div key={n} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
+          <RackV2 width={4} depth={1.2} height={3.2} shelves={n} deckThickness={0.05} slotsX={3} contents={["carton", "boite", "bidon", "bouteille", "carton"]} posts braces cellSize={34} />
+          <span style={{ fontSize: "0.72rem", fontWeight: 600 }}>{n} plateaux</span>
+        </div>
+      ))}
+    </div>
+  ),
+};

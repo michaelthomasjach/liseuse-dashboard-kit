@@ -3,6 +3,8 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { WarehousePlanner } from "./WarehousePlanner";
 import { generatePlot } from "./plot";
 import type { PlannerItem } from "./plannerModel";
+import { semiTruckGeometry } from "./SemiTruck";
+import { dockDoorCenters } from "./BuildingWalls";
 
 /**
  * Le plan de l'entrepôt : un terrain tiré d'une graine, une palette d'éléments 3D, et la vue de
@@ -77,4 +79,86 @@ export const TerrainEnL: Story = {
       <WarehousePlanner defaultSeed={4} shape="L" height="100%" />
     </div>
   ),
+};
+
+/**
+ * La démo : un centre de distribution complet, tous les éléments de la palette réunis.
+ *
+ * Un bâtiment de 88 × 56 m fermé par quatre murs, dont une façade de quai à sept portes — trois
+ * semi-remorques à quai. Dedans : trois rangées de racks à palettes, des étagères, deux zones de
+ * stockage au sol derrière les quais, une ligne de tapis (droits, un angle, un T qui dérive vers un
+ * second tapis), un picker sur son rail qui tourne au bout de la travée, un bras robotisé en bout de
+ * ligne, des chariots, un robot autonome, des opérateurs. Dehors : des conteneurs, des mâts
+ * d'éclairage, des arbres, une clôture.
+ *
+ * Elle s'ouvre en vue 3D ; tout y reste modifiable — et « Dessus » ramène à la vue de plan.
+ */
+export const Demo: Story = {
+  name: "Démo : un entrepôt complet",
+  render: function Render() {
+    const initial = useMemo<PlannerItem[]>(() => {
+      const X0 = 6;
+      const X1 = 50;
+      const Y0 = 12;
+      const Y1 = 40;
+      const DOCK = 24;
+      const truck = semiTruckGeometry().length;
+      const doors = dockDoorCenters(DOCK, Math.floor((DOCK - 1) / 3), 3, 1.75);
+      const list: PlannerItem[] = [
+        // Le bâtiment : la façade de quai, puis les murs, tournés pour que leur dehors soit dehors.
+        { id: "dock", kind: "dock", x0: X0, y0: Y0, x1: X0 + DOCK, y1: Y0 },
+        { id: "front", kind: "wall", x0: X0 + DOCK, y0: Y0, x1: X1, y1: Y0 },
+        { id: "east", kind: "wall", x0: X1, y0: Y0, x1: X1, y1: Y1 },
+        { id: "north", kind: "wall", x0: X1, y0: Y1, x1: X0, y1: Y1 },
+        { id: "west", kind: "wall", x0: X0, y0: Y1, x1: X0, y1: Y0 },
+      ];
+      // Trois camions à quai, arrière contre la porte.
+      for (const i of [0, 2, 4]) list.push({ id: `truck${i}`, kind: "truck", x: X0 + doors[i], y: Y0 - 0.35 - truck / 2, rotation: -90 });
+      // Le stockage lourd : trois rangées de racks, au fond.
+      for (const [i, y] of [30, 33.5, 37].entries()) list.push({ id: `rack${i}`, kind: "palletRack", x0: X0 + 3, y0: y, x1: X0 + 21, y1: y });
+      // Derrière les quais, la réception : deux zones au sol, et les chariots qui les desservent.
+      list.push({ id: "zone1", kind: "zone", x: X0 + 6, y: Y0 + 4, rotation: 0 }, { id: "zone2", kind: "zone", x: X0 + 13, y: Y0 + 4, rotation: 0 });
+      list.push({ id: "fork1", kind: "forklift", x: X0 + 9, y: Y0 + 10, rotation: 90 }, { id: "fork2", kind: "forklift", x: X0 + 17, y: Y0 + 21, rotation: 180 });
+      // La ligne de tapis : un droit, un angle, un droit qui monte, un T qui dérive vers la gauche.
+      list.push(
+        { id: "belt1", kind: "conveyor", x0: 30, y0: 18, x1: 40, y1: 18 },
+        { id: "corner1", kind: "conveyorCorner", x: 40.8, y: 18, rotation: 0 },
+        { id: "belt2", kind: "conveyor", x0: 40.8, y0: 18.8, x1: 40.8, y1: 26 },
+        { id: "tee1", kind: "conveyorTee", x: 40.8, y: 26.8, rotation: 90 },
+        { id: "belt3", kind: "conveyor", x0: 40.8, y0: 27.6, x1: 40.8, y1: 31 },
+        { id: "belt4", kind: "conveyor", x0: 40, y0: 26.8, x1: 33, y1: 26.8 }
+      );
+      list.push({ id: "arm1", kind: "arm", x: 43.2, y: 30.5, rotation: 180 });
+      // Le picker et sa voie : la travée, puis un rail d'angle et un rail qui remonte.
+      list.push(
+        { id: "picker1", kind: "picker", x0: 30, y0: 34, x1: 46, y1: 34 },
+        { id: "railC", kind: "railCorner", x: 47.35, y: 34.45, rotation: 0 },
+        { id: "rail1", kind: "rail", x0: 47.8, y0: 35.8, x1: 47.8, y1: 39 }
+      );
+      list.push({ id: "decks1", kind: "shelfDecks", x: 34, y: 37.5, rotation: 0 }, { id: "decks2", kind: "shelfDecks", x: 39, y: 37.5, rotation: 0 });
+      list.push({ id: "shelf1", kind: "shelf", x: 47.5, y: 22, rotation: 90 }, { id: "shelf2", kind: "shelf", x: 47.5, y: 27, rotation: 90 });
+      list.push({ id: "amr1", kind: "amr", x: 34, y: 22, rotation: 0 });
+      list.push({ id: "w1", kind: "worker", x: 28.5, y: 20, rotation: 180 }, { id: "w2", kind: "worker", x: 37, y: 30, rotation: 90 }, { id: "w3", kind: "worker", x: 12, y: 16.5, rotation: 0 });
+      // Dehors.
+      list.push({ id: "cont1", kind: "container", x: 54, y: 20, rotation: 90 }, { id: "cont2", kind: "container", x: 56, y: 20, rotation: 90 });
+      list.push({ id: "light1", kind: "light", x: 3, y: 8, rotation: 0 }, { id: "light2", kind: "light", x: 34, y: 7, rotation: 0 });
+      for (const [i, [x, y]] of [
+        [2, 2],
+        [57, 3],
+        [2, 42],
+        [57, 42],
+        [53, 30],
+        [53, 36],
+      ].entries())
+        list.push({ id: `tree${i}`, kind: "tree", x, y, rotation: 0 });
+      list.push({ id: "fence1", kind: "fence", x0: 52, y0: 26, x1: 52, y1: 42 });
+      return list;
+    }, []);
+    const [items, setItems] = useState<PlannerItem[]>(initial);
+    return (
+      <div style={frame}>
+        <WarehousePlanner seed={12} shape="rect" plotSize={{ width: 60, depth: 44 }} items={items} onItemsChange={setItems} defaultView="3d" defaultOrbit={{ yaw: 210, tilt: 36 }} defaultZoom={1.9} height="100%" />
+      </div>
+    );
+  },
 };

@@ -274,9 +274,9 @@
 .lq-planner__hint {
   position: absolute;
   left: 50%;
-  top: 8px;
+  bottom: 12px;
   transform: translateX(-50%);
-  max-width: 50%;
+  max-width: 70%;
   padding: 5px 10px;
   border: 1px solid var(--lq-color-border);
   border-radius: var(--lq-radius-sm, 6px);
@@ -291,7 +291,7 @@
 .lq-planner__empty {
   position: absolute;
   left: 50%;
-  bottom: 12px;
+  bottom: 48px;
   transform: translateX(-50%);
   max-width: 80%;
   padding: 6px 12px;
@@ -391,4 +391,80 @@
 .lq-planner__toolbar button.is-on {
   background: var(--lq-color-text);
   color: var(--lq-color-bg);
+}
+
+/* ---- menus et sous-menus de la palette ---- */
+
+.lq-planner__search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  height: 28px;
+  border: 1px solid var(--lq-color-border);
+  border-radius: var(--lq-radius-sm, 6px);
+  background: var(--lq-color-bg);
+  color: var(--lq-color-text-muted);
+}
+
+.lq-planner__search input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--lq-color-text);
+  font: inherit;
+  font-size: 0.74rem;
+}
+
+.lq-planner__menu {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 5px 4px;
+  border: none;
+  border-bottom: 1px solid var(--lq-color-border-subtle);
+  background: transparent;
+  color: var(--lq-color-text);
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  text-align: left;
+  cursor: pointer;
+}
+
+.lq-planner__menu:hover {
+  background: var(--lq-color-hover);
+}
+
+.lq-planner__menu-count {
+  margin-left: auto;
+  min-width: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--lq-color-text);
+  color: var(--lq-color-bg);
+  font-size: 0.6rem;
+  line-height: 16px;
+  text-align: center;
+  letter-spacing: 0;
+}
+
+.lq-planner__sub {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-left: 6px;
+  border-left: 2px solid var(--lq-color-border-subtle);
+}
+
+.lq-planner__sub-title {
+  margin: 4px 0 0;
+  font-size: 0.64rem;
+  font-weight: 600;
+  color: var(--lq-color-text-muted);
 }

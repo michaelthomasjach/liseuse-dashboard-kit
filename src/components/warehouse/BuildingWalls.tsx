@@ -10,7 +10,7 @@ import { Solo, frameBounds, placed } from "./three/scene";
  *
  * Un `Wall` seul est un voile de béton ; ce qui en fait une façade, c'est le sol qui le borde. Ces
  * deux composants portent donc chacun **la dalle sous le mur et le sol qui est devant lui** : la
- * bande de cour pour un mur standard, les deux retours et la pente pour un mur de quai. Poser quatre
+ * bande de cour pour un mur standard, les deux retours et la cour pour un mur de quai. Poser quatre
  * murs, c'est poser le tour du bâtiment, sol compris — il ne reste que le plancher intérieur à
  * ajouter, une `Floor` entre les murs.
  *
@@ -68,7 +68,7 @@ export interface DockWallProps extends CommonProps {
   doorHeight?: number;
   /** Ouverture des portes, de `0` (fermées) à `1` — une valeur pour toutes, ou une par porte. */
   open?: number | number[];
-  /** La profondeur de la cour devant le quai : la longueur de la pente, en cases. */
+  /** La profondeur de la cour devant le quai, en cases. */
   yard?: number;
   /** La largeur des deux retours de plateforme qui bordent la cour, en cases. `0` : pas de retours. */
   returns?: number;
@@ -109,12 +109,11 @@ function dockLayout(p: DockWallProps) {
 
 /**
  * Le mur de quai : une façade percée de portes sectionnelles, chacune avec son niveleur, ses
- * butoirs et ses bornes, et **la cour qui descend jusqu'à son pied**.
+ * butoirs et ses bornes, et **la cour à plat devant elle**.
  *
  * La plateforme s'arrête au nu du mur, sauf à ses deux bouts où elle avance border la cour — les
- * deux retours. Entre eux, la cour est une pente : au fond elle est au niveau du sol du site, au
- * pied du quai elle est `level` plus bas que le seuil, de quoi y ranger une remorque plancher à
- * hauteur de porte.
+ * deux retours. Entre eux, la cour est **de niveau**, au sol du site : `level` plus bas que le
+ * seuil des portes, la hauteur d'un plancher de remorque, que les niveleurs rattrapent.
  */
 export function DockWall(props: DockWallProps) {
   const { origin = { x: 0, y: 0 }, rotation = 0, frame, cellSize = 20, className, slab = true } = props;
@@ -156,8 +155,8 @@ function DockWallBody(props: DockWallProps) {
               <Floor origin={{ x: L, y: -yard }} width={returns} depth={yard} level={level} />
             </>
           )}
-          {/* La cour : au niveau du site au fond, au pied du quai `level` plus bas que le seuil. */}
-          {yard > 0 && <Floor origin={{ x: 0, y: -yard }} width={L} depth={yard} level={0} slope={level} />}
+          {/* La cour, à plat, au niveau du site : `level` plus bas que le seuil des portes. */}
+          {yard > 0 && <Floor origin={{ x: 0, y: -yard }} width={L} depth={yard} level={0} />}
         </>
       )}
       <Wall length={L} height={H} thickness={D} base={level} dockHeight={level} dockSide="y0" openings={openings} piers={piers} cut={cut} shadows />

@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState, type ReactNode } from "react";
-import { IsoCamera, clampTilt } from "../src/components/warehouse/isoCamera";
+import { IsoCamera, clampTilt, type IsoProjection } from "../src/components/warehouse/isoCamera";
 import { ISO_TILT } from "../src/components/warehouse/warehouseIso";
 import { RotationGizmo, useDragOrbit } from "../src/components/warehouse/RotationGizmo";
 import { ZoomGizmo, useWheelZoom, clampZoom } from "../src/components/warehouse/ZoomGizmo";
@@ -7,6 +7,7 @@ import { ZoomGizmo, useWheelZoom, clampZoom } from "../src/components/warehouse/
 const KEY = "lq-warehouse-yaw";
 const TILT_KEY = "lq-warehouse-tilt";
 const ZOOM_KEY = "lq-warehouse-zoom";
+const PROJECTION_KEY = "lq-warehouse-projection";
 
 function read(key: string, fallback: number): number {
   try {
@@ -49,6 +50,12 @@ export function WarehouseStage({ children, docked = true }: { children: ReactNod
   const [yaw, setYaw] = useState(() => read(KEY, 0));
   const [tilt, setTilt] = useState(() => clampTilt(read(TILT_KEY, ISO_TILT)));
   const [zoom, setZoom] = useState(() => clampZoom(read(ZOOM_KEY, 1)));
+  // 1 : perspective, 0 : isométrique — rangé comme les autres réglages, en nombre.
+  const [projection, setProjection] = useState<IsoProjection>(() => (read(PROJECTION_KEY, 0) === 1 ? "perspective" : "orthographic"));
+  const project = (p: IsoProjection) => {
+    setProjection(p);
+    remember(PROJECTION_KEY, p === "perspective" ? 1 : 0);
+  };
   const surface = useRef<HTMLDivElement>(null);
 
   const change = (deg: number) => {
@@ -74,7 +81,7 @@ export function WarehouseStage({ children, docked = true }: { children: ReactNod
   useWheelZoom(surface, zoomTo);
 
   return (
-    <IsoCamera yaw={yaw} tilt={tilt} zoom={zoom}>
+    <IsoCamera yaw={yaw} tilt={tilt} zoom={zoom} projection={projection}>
       {/* La surface qui prend le glisser au bouton du milieu et la molette, et qui **centre la
           scène**.
 
@@ -111,6 +118,7 @@ export function WarehouseStage({ children, docked = true }: { children: ReactNod
         >
           <RotationGizmo value={yaw} onChange={change} tilt={tilt} />
           <ZoomGizmo value={zoom} onChange={(z) => zoomTo(() => z)} />
+          <ProjectionSwitch value={projection} onChange={project} />
         </div>
         {/* Le grossissement passe par la caméra des scènes 3D, et non par une propriété CSS : une
             toile WebGL étirée par la mise en page serait floue, alors qu'une caméra qui se
@@ -118,5 +126,35 @@ export function WarehouseStage({ children, docked = true }: { children: ReactNod
         {children}
       </div>
     </IsoCamera>
+  );
+}
+
+/** Isométrique ou perspective : deux boutons collés, celui qui est actif en plein. */
+function ProjectionSwitch({ value, onChange }: { value: IsoProjection; onChange: (p: IsoProjection) => void }) {
+  const button = (p: IsoProjection, label: string) => (
+    <button
+      type="button"
+      aria-pressed={value === p}
+      onClick={() => onChange(p)}
+      onPointerDown={(e) => e.stopPropagation()}
+      style={{
+        padding: "4px 9px",
+        border: "none",
+        background: value === p ? "var(--lq-color-text)" : "var(--lq-color-panel)",
+        color: value === p ? "var(--lq-color-bg)" : "var(--lq-color-text)",
+        font: "inherit",
+        fontSize: "0.72rem",
+        fontWeight: 600,
+        cursor: "pointer",
+      }}
+    >
+      {label}
+    </button>
+  );
+  return (
+    <div role="group" aria-label="Projection" style={{ display: "inline-flex", border: "1px solid var(--lq-color-border)", borderRadius: 6, overflow: "hidden" }}>
+      {button("orthographic", "Iso")}
+      {button("perspective", "Perspective")}
+    </div>
   );
 }

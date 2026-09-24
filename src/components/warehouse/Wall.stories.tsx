@@ -9,17 +9,16 @@ import { Scene, SceneBox, layer, type SceneUnit } from "./sceneStory";
 import { useIsoCamera } from "./isoCamera";
 
 /**
- * Le sol de la scène : la plateforme, ses deux retours, et **la cour qui monte entre eux**.
+ * Le sol de la scène : la plateforme, ses deux retours, et **la cour, à plat, entre eux**.
  *
  * Quatre dalles plutôt qu'une, parce qu'une `Floor` est un pavé et que ce sol n'en est pas un. La
  * plateforme s'arrête au nu de la façade de quai, sauf à ses deux bouts où elle avance border
- * l'aire de manœuvre ; et entre ces deux retours, là où la plateforme manque, la cour **descend en
- * pente** jusqu'au pied des portes. Sans elle, l'échancrure est un trou et les cinq portes ouvrent
- * sur rien.
+ * l'aire de manœuvre ; et entre ces deux retours, là où la plateforme manque, la cour est **de
+ * niveau**, au sol du site, jusqu'au pied des portes.
  *
  * Les quatre sont jointifs et de la même épaisseur, donc ils se raccordent sans joint : les faces
  * qu'ils s'opposent sont confondues. Ce sont quatre emprises au sol disjointes, rangées par la
- * caméra comme n'importe quels modules — au demi-tour, ce sont les retours et la pente qui passent
+ * caméra comme n'importe quels modules — au demi-tour, ce sont les retours et la cour qui passent
  * devant.
  */
 function Dalle({
@@ -43,10 +42,8 @@ function Dalle({
     { key: "dalle", x: -skirt, y: 0, width: width + 2 * skirt, height: depth + skirt, level },
     { key: "retour-gauche", x: -skirt, y: -yard, width: skirt, height: yard, level },
     { key: "retour-droit", x: width, y: -yard, width: skirt, height: yard, level },
-    // La cour, entre les deux retours : elle **descend** vers le pied du quai. Le bord du fond est
-    // au niveau de la plateforme, celui du quai tout en bas — c'est une fosse, et c'est ce qu'il
-    // faut pour qu'une remorque vienne y mettre son plancher à hauteur de seuil.
-    { key: "cour", x: 0, y: -yard, width, height: yard, level: 0, slope: level },
+    // La cour, entre les deux retours : à plat, au niveau du site.
+    { key: "cour", x: 0, y: -yard, width, height: yard, level: 0 },
   ];
   // En 3D, les dalles se posent sans ordre : c'est la profondeur qui dit laquelle cache l'autre.
   return (
@@ -226,7 +223,7 @@ export const Quai: Story = {
 
 /**
  * Le mur de quai, seul : la façade percée de ses portes, la plateforme et ses deux retours, et la
- * cour qui descend jusqu'au pied des portes. Un composant qu'on pose où on veut — `origin`,
+ * cour, à plat, devant les portes. Un composant qu'on pose où on veut — `origin`,
  * `rotation` — pour faire d'un côté quelconque du bâtiment son côté expédition.
  */
 export const MurDeQuai: StoryObj<typeof DockWall> = {

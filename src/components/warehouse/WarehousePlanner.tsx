@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent, type KeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
-import { IsoCamera } from "./isoCamera";
+import { IsoCamera, type IsoProjection } from "./isoCamera";
+import { viewProjector } from "./three/camera";
 import { WarehouseScene, frameBounds } from "./three/scene";
 import { SnapshotStudio, cachedSnapshot, type SnapshotJob } from "./three/snapshot";
 import { BuildPlot } from "./BuildPlot";
@@ -27,7 +28,7 @@ import {
   type PlannerLinearKind,
   type PlannerPointKind,
 } from "./plannerModel";
-import { MaximizeIcon, RefreshIcon, TrashIcon } from "../icons";
+import { ChevronDownIcon, ChevronRightIcon, MaximizeIcon, RefreshIcon, SearchIcon, TrashIcon } from "../icons";
 import "./WarehousePlanner.css";
 
 /**
@@ -36,10 +37,15 @@ import "./WarehousePlanner.css";
  * ## Ce qu'on voit
  *
  * Deux vues, qu'on bascule en haut à droite. **Dessus** : les modules 3D du kit vus d'aplomb — les
- * toits des voisins, le faîte des racks, les voitures sur la rue —, et c'est là qu'on construit.
- * **3D** : la même scène en perspective, qu'on fait tourner en tirant (à gauche, à droite pour le
- * cap, en haut, en bas pour la hauteur) et qu'on zoome à la molette. Le terrain à bâtir est la zone
- * claire semée de points, bordée d'un pointillé : c'est la seule où l'on peut poser quelque chose.
+ * toits des voisins, le faîte des racks, les voitures sur la rue. **3D** : la même scène vue de
+ * biais. On construit et on modifie **dans les deux** : un clic est ramené au point du sol qu'il vise,
+ * sous n'importe quel angle. Et deux projections : **isométrique**, sans fuite, où l'on mesure ; et
+ * **perspective**, où la scène prend sa profondeur.
+ *
+ * La caméra : **clic molette maintenu et glisser** pour tourner autour (de gauche à droite) et
+ * l'incliner (de haut en bas) — depuis la vue de dessus, cela passe en 3D ; glisser le fond pour se
+ * déplacer ; molette pour zoomer autour du pointeur. Le terrain à bâtir est la zone claire semée de
+ * points, bordée d'un pointillé : c'est la seule où l'on peut poser quelque chose.
  *
  * ## Tracer des murs, comme dans les Sims
  *
@@ -48,7 +54,7 @@ import "./WarehousePlanner.css";
  * main pour le mur suivant ; Échap ou un clic droit le repose.
  *
  * - **Mur**, **Mur de quai** : un segment par tracé ;
- * - **Murs en chaîne**, **Clôture**, **Tapis** : chaque clic pose un segment et commence le suivant
+ * - **Murs en chaîne**, **Clôture**, **Tapis**, **Rail** : chaque clic pose un segment et commence le suivant
  *   là où il s'arrête — un double-clic, un clic droit ou Échap terminent la chaîne ;
  * - **Murs //** : deux murs parallèles, les grands côtés du rectangle tiré — un couloir, une
  *   travée ;
@@ -76,8 +82,16 @@ export interface WarehousePlannerProps {
   items?: PlannerItem[];
   defaultItems?: PlannerItem[];
   onItemsChange?: (items: PlannerItem[]) => void;
-  /** La vue au départ : de dessus, ou en perspective. */
+  /** Imposer les cotes du terrain, en cases. */
+  plotSize?: { width: number; depth: number };
+  /** La vue au départ : de dessus, ou de biais. */
   defaultView?: "top" | "3d";
+  /** Le cap et l'inclinaison de la vue de biais au départ, en degrés. */
+  defaultOrbit?: { yaw: number; tilt: number };
+  /** La projection au départ. */
+  defaultProjection?: IsoProjection;
+  /** Le grossissement au départ, relatif au cadrage du terrain entier : `2` s'approche deux fois. */
+  defaultZoom?: number;
   /** Pixels par case au grossissement 1. */
   cellSize?: number;
   /** Hauteur de l'éditeur. */
@@ -101,8 +115,14 @@ const ENTRIES: Entry[] = [
   { id: "fence", label: "Clôture", group: "Murs", type: "draw", kind: "fence", mode: "chain" },
   { id: "palletRack", label: "Rack à palettes", group: "Stockage", type: "draw", kind: "palletRack", mode: "segment" },
   { id: "shelf", label: "Étagère", group: "Stockage", type: "place", kind: "shelf" },
+  { id: "shelfDecks", label: "Étagère à plateaux", group: "Stockage", type: "place", kind: "shelfDecks" },
   { id: "zone", label: "Zone de stockage", group: "Stockage", type: "place", kind: "zone" },
-  { id: "conveyor", label: "Tapis roulant", group: "Manutention", type: "draw", kind: "conveyor", mode: "chain" },
+  { id: "conveyor", label: "Tapis droit", group: "Manutention", type: "draw", kind: "conveyor", mode: "chain" },
+  { id: "conveyorCorner", label: "Tapis d'angle", group: "Manutention", type: "place", kind: "conveyorCorner" },
+  { id: "conveyorTee", label: "Tapis en T", group: "Manutention", type: "place", kind: "conveyorTee" },
+  { id: "rail", label: "Rail", group: "Manutention", type: "draw", kind: "rail", mode: "chain" },
+  { id: "railCorner", label: "Rail d'angle", group: "Manutention", type: "place", kind: "railCorner" },
+  { id: "picker", label: "Picker sur rail", group: "Manutention", type: "draw", kind: "picker", mode: "segment" },
   { id: "arm", label: "Bras robotisé", group: "Manutention", type: "place", kind: "arm" },
   { id: "forklift", label: "Chariot élévateur", group: "Véhicules", type: "place", kind: "forklift" },
   { id: "amr", label: "Robot autonome", group: "Véhicules", type: "place", kind: "amr" },
@@ -112,15 +132,59 @@ const ENTRIES: Entry[] = [
   { id: "tree", label: "Arbre", group: "Extérieur", type: "place", kind: "tree" },
   { id: "light", label: "Mât d'éclairage", group: "Extérieur", type: "place", kind: "light" },
 ];
-const GROUPS = ["Murs", "Stockage", "Manutention", "Véhicules", "Extérieur"];
+/**
+ * La palette, en menus et sous-menus : cinq familles qu'on ouvre et referme, et dans chacune des
+ * rayons — de quoi retrouver un outil d'un coup d'œil quand il y en a une vingtaine.
+ */
+const MENU: { title: string; subs: { title: string; ids: string[] }[] }[] = [
+  {
+    title: "Murs",
+    subs: [
+      { title: "Tracer", ids: ["wall", "chain", "parallel", "room"] },
+      { title: "Quai et clôtures", ids: ["dock", "fence"] },
+    ],
+  },
+  {
+    title: "Stockage",
+    subs: [
+      { title: "Racks", ids: ["palletRack"] },
+      { title: "Étagères", ids: ["shelf", "shelfDecks"] },
+      { title: "Au sol", ids: ["zone"] },
+    ],
+  },
+  {
+    title: "Convoyage",
+    subs: [
+      { title: "Tapis", ids: ["conveyor", "conveyorCorner", "conveyorTee"] },
+      { title: "Rails et pickers", ids: ["rail", "railCorner", "picker"] },
+      { title: "Robots", ids: ["arm"] },
+    ],
+  },
+  {
+    title: "Véhicules",
+    subs: [
+      { title: "Engins", ids: ["forklift", "amr"] },
+      { title: "Camions", ids: ["truck"] },
+    ],
+  },
+  {
+    title: "Extérieur",
+    subs: [
+      { title: "Cour", ids: ["container", "light"] },
+      { title: "Nature et personnes", ids: ["tree", "worker"] },
+    ],
+  },
+];
 
 type Drag =
-  | { t: "pan"; sx: number; sy: number; cx: number; cy: number; moved: boolean }
+  | { t: "pan"; sx: number; sy: number; cx: number; cy: number; gx: number; gy: number; moved: boolean }
   | { t: "orbit"; sx: number; sy: number; yaw: number; tilt: number }
   | { t: "end"; id: string; which: 0 | 1; orig: PlannerItem }
   | { t: "move"; id: string; wx: number; wy: number; orig: PlannerItem };
 
 const DND = "application/x-lq-planner";
+/** Comparer sans casse ni accents : « etagere » trouve « Étagère ». */
+const fold = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 const ZOOM_MIN = 0.25;
 const ZOOM_MAX = 6;
 /** Le cap qui met les `x` à droite et les `y` en bas de l'écran, en vue de dessus. */
@@ -149,7 +213,8 @@ function entryJob(entry: Entry): SnapshotJob {
     x0 -= 0.6;
     x1 += 0.6;
   }
-  const h = entry.kind === "light" ? 6 : entry.kind === "tree" ? 3.4 : entry.kind === "palletRack" ? 3.5 : entry.kind === "fence" || entry.kind === "conveyor" ? 1.6 : entry.type === "place" ? 2 : 3;
+  const tall: Partial<Record<string, number>> = { light: 6, tree: 3.4, palletRack: 3.5, shelfDecks: 2.8, picker: 4, fence: 1.6, conveyor: 1.6, conveyorCorner: 1.4, conveyorTee: 1.4, rail: 0.6, railCorner: 0.6 };
+  const h = tall[entry.kind] ?? (entry.type === "place" ? 2 : 3);
   const node: ReactNode = items.map((it, i) => <PlannerItem3D key={i} item={{ ...it, id: `thumb-${entry.id}-${i}` }} />);
   return { id: `planner-${entry.id}`, bounds: { x0, x1, y0, y1, z0: 0, z1: h }, node };
 }
@@ -162,7 +227,11 @@ export function WarehousePlanner({
   items: itemsProp,
   defaultItems = [],
   onItemsChange,
+  plotSize,
   defaultView = "top",
+  defaultOrbit = { yaw: 30, tilt: 40 },
+  defaultProjection = "orthographic",
+  defaultZoom = 1,
   cellSize = 14,
   height = 640,
   className,
@@ -186,7 +255,7 @@ export function WarehousePlanner({
     [onItemsChange]
   );
 
-  const plot = useMemo(() => generatePlot(seed, { shape }), [seed, shape]);
+  const plot = useMemo(() => generatePlot(seed, { shape, width: plotSize?.width, depth: plotSize?.depth }), [seed, shape, plotSize?.width, plotSize?.depth]);
   const jobs = useMemo(() => ENTRIES.map(entryJob), []);
   const [thumbs, setThumbs] = useState<Record<string, string>>(() => Object.fromEntries(jobs.map((j) => [j.id, cachedSnapshot(j.id)]).filter(([, u]) => u)));
 
@@ -198,7 +267,10 @@ export function WarehousePlanner({
   const [start, setStart] = useState<P | null>(null);
   const [cursor, setCursor] = useState<P | null>(null);
   const [mode3d, setMode3d] = useState(defaultView === "3d");
-  const [orbit, setOrbit] = useState({ yaw: 30, tilt: 40 });
+  const [orbit, setOrbit] = useState(defaultOrbit);
+  const [projection, setProjection] = useState<IsoProjection>(defaultProjection);
+  const [query, setQuery] = useState("");
+  const [open, setOpen] = useState<Record<string, boolean>>({ Murs: true, Stockage: true, Convoyage: true });
   const [message, setMessage] = useState<string | null>(null);
   const stage = useRef<HTMLDivElement>(null);
   const drag = useRef<Drag | null>(null);
@@ -227,14 +299,22 @@ export function WarehousePlanner({
   }, [plot, size, cellSize]);
   useEffect(() => {
     if (!measured.current || fitted.current === plot.seed) return;
+    // Le tout premier cadrage tient compte du grossissement demandé ; les suivants, non.
+    const first = fitted.current === null;
     fitted.current = plot.seed;
     fit();
-  }, [plot.seed, fit]);
+    if (first && defaultZoom !== 1) setView((v) => ({ ...v, zoom: Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, v.zoom * defaultZoom)) }));
+  }, [plot.seed, fit, defaultZoom]);
 
-  // --- La vue de dessus : une application affine entre le sol et l'écran ------------------------
-  const scale = cellSize * view.zoom;
-  const toScreen = (x: number, y: number) => ({ x: (x - view.cx) * scale + size.width / 2, y: (y - view.cy) * scale + size.height / 2 });
-  const toWorld = (sx: number, sy: number) => ({ x: (sx - size.width / 2) / scale + view.cx, y: (sy - size.height / 2) / scale + view.cy });
+  // --- La caméra, et le passage écran ↔ sol dans n'importe quelle vue ---------------------------
+  const camYaw = mode3d ? orbit.yaw : TOP_YAW;
+  const camTilt = mode3d ? orbit.tilt : 90;
+  const projectorFor = (cx: number, cy: number, zoom: number) =>
+    viewProjector({ yaw: camYaw, tilt: camTilt, scale: cellSize * zoom, width: size.width, height: size.height, center: { x: cx, y: cy }, projection });
+  const proj = projectorFor(view.cx, view.cy, view.zoom);
+  const toScreen = (x: number, y: number, z = 0) => proj.toScreen(x, y, z);
+  /** Le point du sol sous un pixel ; au-dessus de l'horizon, le centre de la vue. */
+  const toWorld = (sx: number, sy: number) => proj.toGround(sx, sy) ?? { x: view.cx, y: view.cy };
   const local = (e: { clientX: number; clientY: number }) => {
     const r = stage.current?.getBoundingClientRect();
     return { x: e.clientX - (r?.left ?? 0), y: e.clientY - (r?.top ?? 0) };
@@ -272,7 +352,6 @@ export function WarehousePlanner({
     setTool(entry);
     setStart(null);
     setSelectedId(null);
-    if (entry && mode3d) setMode3d(false);
   };
 
   const drawClick = (p: P) => {
@@ -307,15 +386,20 @@ export function WarehousePlanner({
       return;
     }
     e.currentTarget.setPointerCapture(e.pointerId);
-    if (mode3d) {
-      drag.current = e.button === 1 || e.shiftKey ? { t: "pan", sx: p.x, sy: p.y, cx: view.cx, cy: view.cy, moved: false } : { t: "orbit", sx: p.x, sy: p.y, yaw: orbit.yaw, tilt: orbit.tilt };
-      return;
-    }
-    if (e.button === 1) {
-      drag.current = { t: "pan", sx: p.x, sy: p.y, cx: view.cx, cy: view.cy, moved: false };
-      return;
-    }
     const w = toWorld(p.x, p.y);
+    const pan = { t: "pan" as const, sx: p.x, sy: p.y, cx: view.cx, cy: view.cy, gx: w.x, gy: w.y, moved: false };
+    if (e.button === 1) {
+      // Le clic molette tient la caméra : tourner autour, incliner. Depuis la vue de dessus, on part
+      // de l'aplomb, au même cap, et on bascule de biais sans à-coup.
+      e.preventDefault();
+      const from = mode3d ? orbit : { yaw: TOP_YAW, tilt: 89 };
+      if (!mode3d) {
+        setOrbit(from);
+        setMode3d(true);
+      }
+      drag.current = { t: "orbit", sx: p.x, sy: p.y, yaw: from.yaw, tilt: from.tilt };
+      return;
+    }
     if (drawing) {
       drawClick(w);
       return;
@@ -341,14 +425,13 @@ export function WarehousePlanner({
       drag.current = { t: "move", id: hit.id, wx: w.x, wy: w.y, orig: hit };
       return;
     }
-    drag.current = { t: "pan", sx: p.x, sy: p.y, cx: view.cx, cy: view.cy, moved: false };
+    drag.current = pan;
   };
 
   const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
     const p = local(e);
     const d = drag.current;
     if (!d) {
-      if (mode3d) return;
       const w = toWorld(p.x, p.y);
       if (drawing) {
         const q = wallPoint(w, start, drawing.mode, itemsRef.current);
@@ -360,18 +443,14 @@ export function WarehousePlanner({
       return;
     }
     if (d.t === "orbit") {
-      setOrbit({ yaw: d.yaw + (p.x - d.sx) * 0.4, tilt: Math.max(12, Math.min(88, d.tilt + (p.y - d.sy) * 0.25)) });
+      setOrbit({ yaw: d.yaw + (p.x - d.sx) * 0.4, tilt: Math.max(10, Math.min(89, d.tilt + (p.y - d.sy) * 0.25)) });
       return;
     }
     if (d.t === "pan") {
       if (Math.hypot(p.x - d.sx, p.y - d.sy) > 3) d.moved = true;
-      if (mode3d) {
-        // En perspective, l'écran est tourné du cap : on ramène le geste dans le repère du sol.
-        const a = ((orbit.yaw - TOP_YAW) * Math.PI) / 180;
-        const dx = (p.x - d.sx) / scale;
-        const dy = (p.y - d.sy) / scale / Math.max(0.3, Math.sin((orbit.tilt * Math.PI) / 180));
-        setView((v) => ({ ...v, cx: d.cx - (dx * Math.cos(a) + dy * Math.sin(a)), cy: d.cy - (-dx * Math.sin(a) + dy * Math.cos(a)) }));
-      } else setView((v) => ({ ...v, cx: d.cx - (p.x - d.sx) / scale, cy: d.cy - (p.y - d.sy) / scale }));
+      // On tient le point du sol attrapé sous le pointeur : la vue glisse d'autant, sous tout angle.
+      const g = projectorFor(d.cx, d.cy, view.zoom).toGround(p.x, p.y);
+      if (g) setView((v) => ({ ...v, cx: d.cx + (d.gx - g.x), cy: d.cy + (d.gy - g.y) }));
       return;
     }
     const w = toWorld(p.x, p.y);
@@ -385,7 +464,7 @@ export function WarehousePlanner({
     if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
     if (!d) return;
     if (d.t === "pan") {
-      if (!d.moved && !mode3d) setSelectedId(null);
+      if (!d.moved) setSelectedId(null);
       return;
     }
     if (d.t === "orbit") return;
@@ -396,7 +475,10 @@ export function WarehousePlanner({
     }
   };
 
-  // La molette zoome autour du pointeur. Écoutée à la main : React la rend passive.
+  // La molette zoome autour du pointeur. Écoutée à la main : React la rend passive. L'écouteur est
+  // posé une fois ; il lit la caméra du moment par une référence.
+  const zoomProjector = useRef(projectorFor);
+  zoomProjector.current = projectorFor;
   useEffect(() => {
     const el = stage.current;
     if (!el) return;
@@ -406,18 +488,17 @@ export function WarehousePlanner({
       const sx = e.clientX - r.left;
       const sy = e.clientY - r.top;
       setView((v) => {
-        const s0 = cellSize * v.zoom;
         const zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, v.zoom * Math.exp(-e.deltaY * 0.0015)));
-        if (mode3d) return { ...v, zoom };
-        const s1 = cellSize * zoom;
-        const wx = (sx - r.width / 2) / s0 + v.cx;
-        const wy = (sy - r.height / 2) / s0 + v.cy;
-        return { zoom, cx: wx - (sx - r.width / 2) / s1, cy: wy - (sy - r.height / 2) / s1 };
+        // Le point du sol sous le pointeur y reste : on le vise avant et après, et on recale.
+        const g0 = zoomProjector.current(v.cx, v.cy, v.zoom).toGround(sx, sy);
+        const g1 = zoomProjector.current(v.cx, v.cy, zoom).toGround(sx, sy);
+        if (!g0 || !g1) return { ...v, zoom };
+        return { zoom, cx: v.cx + g0.x - g1.x, cy: v.cy + g0.y - g1.y };
       });
     };
     el.addEventListener("wheel", onWheel, { passive: false });
     return () => el.removeEventListener("wheel", onWheel);
-  }, [cellSize, mode3d]);
+  }, [cellSize]);
 
   const zoomBy = (k: number) => setView((v) => ({ ...v, zoom: Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, v.zoom * k)) }));
 
@@ -450,7 +531,7 @@ export function WarehousePlanner({
   const onDrop = (e: DragEvent<HTMLDivElement>) => {
     const id = e.dataTransfer.getData(DND);
     const entry = ENTRIES.find((x) => x.id === id);
-    if (!entry || mode3d) return;
+    if (!entry) return;
     e.preventDefault();
     const p = local(e);
     const w = toWorld(p.x, p.y);
@@ -500,14 +581,47 @@ export function WarehousePlanner({
     return <g key={item.id}>{parts}</g>;
   };
 
-  const shown = mode3d || drawing ? [] : items.filter((it) => it.id === selectedId || it.id === hoverId);
+  const shown = drawing ? [] : items.filter((it) => it.id === selectedId || it.id === hoverId);
   const counts = useMemo(() => {
     const m = new Map<string, number>();
     for (const it of items) m.set(it.kind, (m.get(it.kind) ?? 0) + 1);
     return m;
   }, [items]);
-  const cur = cursor && drawing && !mode3d ? toScreen(cursor.x, cursor.y) : null;
-  const anchor = start && drawing && !mode3d ? toScreen(start.x, start.y) : null;
+  const cur = cursor && drawing ? toScreen(cursor.x, cursor.y) : null;
+  const anchor = start && drawing ? toScreen(start.x, start.y) : null;
+  /** Le carré de la case sous le curseur, projeté : un losange en vue de biais. */
+  const cell = cursor && drawing ? [toScreen(cursor.x - 0.5, cursor.y - 0.5), toScreen(cursor.x + 0.5, cursor.y - 0.5), toScreen(cursor.x + 0.5, cursor.y + 0.5), toScreen(cursor.x - 0.5, cursor.y + 0.5)] : null;
+  /** Combien d'éléments une entrée a posés — les murs, sur l'entrée « Mur » seulement. */
+  const entryCount = (id: string) => {
+    const entry = ENTRIES.find((e) => e.id === id);
+    if (!entry) return undefined;
+    if (entry.type === "draw" && entry.kind === "wall") return id === "wall" ? counts.get("wall") : undefined;
+    return counts.get(entry.kind);
+  };
+  const toolButton = (entry: Entry) => {
+    const url = thumbs[`planner-${entry.id}`];
+    const n = entryCount(entry.id);
+    return (
+      <button
+        key={entry.id}
+        type="button"
+        className={["lq-planner__tool", tool?.id === entry.id && "lq-planner__tool--armed"].filter(Boolean).join(" ")}
+        draggable
+        onDragStart={(e) => {
+          e.dataTransfer.setData(DND, entry.id);
+          e.dataTransfer.effectAllowed = "copy";
+        }}
+        onClick={() => pickTool(tool?.id === entry.id ? null : entry)}
+        title={entry.label}
+        aria-pressed={tool?.id === entry.id}
+      >
+        {url ? <img className="lq-planner__thumb" src={url} alt="" draggable={false} /> : <span className="lq-planner__thumb lq-planner__thumb--pending" aria-hidden />}
+        <span className="lq-planner__tool-label">{entry.label}</span>
+        {n ? <span className="lq-planner__tool-count">{n}</span> : null}
+      </button>
+    );
+  };
+
   const hint = drawing
     ? start
       ? drawing.mode === "chain"
@@ -523,37 +637,34 @@ export function WarehousePlanner({
       <SnapshotStudio jobs={jobs} width={128} height={96} onShot={(id, url) => setThumbs((t) => ({ ...t, [id]: url }))} />
       <aside className="lq-planner__palette" aria-label="Palette d'éléments">
         <p className="lq-planner__intro">Choisissez un outil puis cliquez sur le terrain — un mur se trace d'un clic à l'autre. Les éléments se glissent aussi depuis la palette.</p>
-        {GROUPS.map((group) => (
-          <section key={group} className="lq-planner__group">
-            <h3 className="lq-planner__group-title">{group}</h3>
-            <div className="lq-planner__tools">
-              {ENTRIES.filter((t) => t.group === group).map((entry) => {
-                const url = thumbs[`planner-${entry.id}`];
-                const shared = entry.type === "draw" && entry.kind === "wall";
-                const n = shared ? (entry.id === "wall" ? counts.get("wall") : undefined) : counts.get(entry.kind);
-                return (
-                  <button
-                    key={entry.id}
-                    type="button"
-                    className={["lq-planner__tool", tool?.id === entry.id && "lq-planner__tool--armed"].filter(Boolean).join(" ")}
-                    draggable
-                    onDragStart={(e) => {
-                      e.dataTransfer.setData(DND, entry.id);
-                      e.dataTransfer.effectAllowed = "copy";
-                    }}
-                    onClick={() => pickTool(tool?.id === entry.id ? null : entry)}
-                    title={entry.label}
-                    aria-pressed={tool?.id === entry.id}
-                  >
-                    {url ? <img className="lq-planner__thumb" src={url} alt="" draggable={false} /> : <span className="lq-planner__thumb lq-planner__thumb--pending" aria-hidden />}
-                    <span className="lq-planner__tool-label">{entry.label}</span>
-                    {n ? <span className="lq-planner__tool-count">{n}</span> : null}
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-        ))}
+        <label className="lq-planner__search">
+          <SearchIcon size={13} />
+          <input type="search" placeholder="Chercher un élément…" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Chercher un élément" />
+        </label>
+        {query.trim() ? (
+          <div className="lq-planner__tools">{ENTRIES.filter((e) => fold(e.label).includes(fold(query))).map(toolButton)}</div>
+        ) : (
+          MENU.map((menu) => {
+            const isOpen = open[menu.title] ?? false;
+            const total = menu.subs.flatMap((sub) => sub.ids).reduce((n, id) => n + (entryCount(id) ?? 0), 0);
+            return (
+              <section key={menu.title} className="lq-planner__group">
+                <button type="button" className="lq-planner__menu" aria-expanded={isOpen} onClick={() => setOpen((o) => ({ ...o, [menu.title]: !isOpen }))}>
+                  {isOpen ? <ChevronDownIcon size={13} /> : <ChevronRightIcon size={13} />}
+                  <span>{menu.title}</span>
+                  {total ? <span className="lq-planner__menu-count">{total}</span> : null}
+                </button>
+                {isOpen &&
+                  menu.subs.map((sub) => (
+                    <div key={sub.title} className="lq-planner__sub">
+                      <h4 className="lq-planner__sub-title">{sub.title}</h4>
+                      <div className="lq-planner__tools">{sub.ids.map((id) => ENTRIES.find((e) => e.id === id)).filter((e): e is Entry => !!e).map(toolButton)}</div>
+                    </div>
+                  ))}
+              </section>
+            );
+          })
+        )}
       </aside>
 
       <div className="lq-planner__main">
@@ -572,6 +683,10 @@ export function WarehousePlanner({
             if (drawing?.mode === "chain") setStart(null);
           }}
           onContextMenu={(e) => e.preventDefault()}
+          // Sans cela, le clic molette lance le défilement automatique du navigateur.
+          onMouseDown={(e) => {
+            if (e.button === 1) e.preventDefault();
+          }}
           onKeyDown={onKeyDown}
           onDragOver={(e) => {
             if (e.dataTransfer.types.includes(DND)) {
@@ -582,7 +697,7 @@ export function WarehousePlanner({
           onDrop={onDrop}
           aria-label="Plan de l'entrepôt"
         >
-          <IsoCamera yaw={mode3d ? orbit.yaw : TOP_YAW} tilt={mode3d ? orbit.tilt : 90} zoom={1}>
+          <IsoCamera yaw={camYaw} tilt={camTilt} zoom={1} projection={projection}>
             <WarehouseScene
               bounds={frameBounds(plot.frame)}
               cellSize={cellSize}
@@ -601,16 +716,16 @@ export function WarehousePlanner({
               ))}
             </WarehouseScene>
           </IsoCamera>
-          {!mode3d && (
+          {(
             <svg className="lq-planner__overlay" width={size.width} height={size.height}>
               {shown.map((it) => overlay(it, it.id === selectedId))}
               {draft.map((w, i) => outline(w, ["lq-planner__outline", "lq-planner__outline--draft", !draftOk && "lq-planner__outline--invalid"].filter(Boolean).join(" "), `draft${i}`))}
               {draft.map((w, i) => dim(w, `dd${i}`))}
               {anchor && <circle className="lq-planner__anchor" cx={anchor.x} cy={anchor.y} r={5} />}
-              {cur && (
-                <g className="lq-planner__cursor" transform={`translate(${cur.x} ${cur.y})`}>
-                  <rect x={-scale / 2} y={-scale / 2} width={scale} height={scale} />
-                  <path d="M-8 0 H8 M0 -8 V8" />
+              {cur && cell && (
+                <g className="lq-planner__cursor">
+                  <polygon points={cell.map((q) => `${q.x.toFixed(1)},${q.y.toFixed(1)}`).join(" ")} />
+                  <path d={`M${cur.x - 8} ${cur.y} H${cur.x + 8} M${cur.x} ${cur.y - 8} V${cur.y + 8}`} />
                 </g>
               )}
             </svg>
@@ -625,13 +740,17 @@ export function WarehousePlanner({
                 type="button"
                 className={mode3d ? "is-on" : undefined}
                 aria-pressed={mode3d}
-                onClick={() => {
-                  setMode3d(true);
-                  setTool(null);
-                  setStart(null);
-                }}
+                onClick={() => setMode3d(true)}
               >
                 3D
+              </button>
+            </div>
+            <div className="lq-planner__switch" role="group" aria-label="Projection">
+              <button type="button" className={projection === "orthographic" ? "is-on" : undefined} aria-pressed={projection === "orthographic"} onClick={() => setProjection("orthographic")} title="Vue isométrique, sans fuite">
+                Iso
+              </button>
+              <button type="button" className={projection === "perspective" ? "is-on" : undefined} aria-pressed={projection === "perspective"} onClick={() => setProjection("perspective")} title="Vue en perspective">
+                Perspective
               </button>
             </div>
             {mode3d && (
@@ -655,7 +774,7 @@ export function WarehousePlanner({
             </button>
           </div>
 
-          {selected && !mode3d && !drawing && (
+          {selected && !drawing && (
             <div className="lq-planner__inspector" onPointerDown={(e) => e.stopPropagation()}>
               <strong>{PLANNER_LABEL[selected.kind]}</strong>
               {isLinear(selected) ? (
@@ -684,10 +803,9 @@ export function WarehousePlanner({
             </div>
           )}
 
-          {hint && !mode3d && <div className="lq-planner__hint">{hint}</div>}
-          {mode3d && <div className="lq-planner__hint">Tirez pour tourner autour, Maj + tirer pour vous déplacer, molette pour zoomer. Revenez à « Dessus » pour construire.</div>}
+          {hint ? <div className="lq-planner__hint">{hint}</div> : mode3d && <div className="lq-planner__hint">Clic molette + glisser : tourner et incliner · glisser le fond : se déplacer · molette : zoomer.</div>}
           {message && <div className="lq-planner__toast">{message}</div>}
-          {items.length === 0 && !tool && !mode3d && <div className="lq-planner__empty">Choisissez « Mur » ou « Pièce » dans la palette, puis cliquez le point de départ sur le terrain pointillé.</div>}
+          {items.length === 0 && !tool && <div className="lq-planner__empty">Choisissez « Mur » ou « Pièce » dans la palette, puis cliquez le point de départ sur le terrain pointillé.</div>}
         </div>
 
         <footer className="lq-planner__status">

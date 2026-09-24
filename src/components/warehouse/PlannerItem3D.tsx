@@ -12,6 +12,8 @@ import { ShippingContainer } from "./ShippingContainer";
 import { Worker } from "./Worker";
 import { Tree } from "./Tree";
 import { StreetLight } from "./StreetLight";
+import { Rail } from "./Rail";
+import { Picker } from "./Picker";
 import { LINEAR_THICKNESS, POINT_SIZE, isLinear, type PlannerItem } from "./plannerModel";
 
 /**
@@ -66,6 +68,16 @@ export function PlannerItem3D({ item }: { item: PlannerItem }) {
         return <Fence kind="mesh" length={L} origin={{ x: mx - L / 2, y: my }} rotation={rotation} />;
       case "conveyor":
         return <Conveyor kind="straight" length={L} width={T} legHeight={0.8} origin={origin} rotation={rotation} load="carton" shadows />;
+      case "rail":
+        return <Rail length={L} origin={origin} rotation={rotation} />;
+      case "picker":
+        // Un picker n'existe pas sans sa voie : on pose le rail avec lui, de la même longueur.
+        return (
+          <>
+            <Rail length={L} origin={origin} rotation={rotation} />
+            <Picker travel={L} origin={origin} rotation={rotation} load="carton" />
+          </>
+        );
       case "palletRack": {
         const bays = Math.max(1, Math.round((L - 0.1) / 1.35));
         const La = bays * 1.35 + 0.1;
@@ -81,6 +93,14 @@ export function PlannerItem3D({ item }: { item: PlannerItem }) {
   switch (p.kind) {
     case "shelf":
       return <RackV2 width={s.length} depth={s.width} height={2.4} posts braces origin={origin} rotation={rotation} />;
+    case "shelfDecks":
+      return <RackV2 width={s.length} depth={s.width} height={2.8} shelves={4} deckThickness={0.05} slotsX={3} contents={["carton", "boite", "bidon", "carton", "bouteille"]} posts braces origin={origin} rotation={rotation} />;
+    case "conveyorCorner":
+      return <Conveyor kind="corner" width={s.width} legHeight={0.8} origin={origin} rotation={rotation} load="carton" shadows />;
+    case "conveyorTee":
+      return <Conveyor kind="tee" width={s.width} legHeight={0.8} origin={origin} rotation={rotation} load="carton" flow="split" branch shadows />;
+    case "railCorner":
+      return <Rail kind="corner" origin={origin} rotation={rotation} />;
     case "zone":
       return <StorageZone columns={3} rows={2} origin={origin} rotation={rotation} />;
     case "forklift":

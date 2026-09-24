@@ -3,6 +3,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { WarehousePlanner } from "./WarehousePlanner";
 import { generatePlot } from "./plot";
 import type { PlannerItem } from "./plannerModel";
+import type { PlannerEdit, PlannerPaletteEntry } from "./WarehousePlanner";
 import { semiTruckGeometry } from "./SemiTruck";
 import { dockDoorCenters } from "./BuildingWalls";
 
@@ -165,6 +166,74 @@ export const Demo: Story = {
     return (
       <div style={frame}>
         <WarehousePlanner seed={12} shape="rect" plotSize={{ width: 60, depth: 44 }} items={items} onItemsChange={setItems} defaultView="3d" defaultOrbit={{ yaw: 210, tilt: 36 }} defaultZoom={1.9} height="100%" />
+      </div>
+    );
+  },
+};
+
+/**
+ * Piloté par une application — un jeu de gestion : sa palette (des éléments du kit, à un niveau et
+ * une longueur fixés, avec leur prix), sa règle (le budget), et ses comptes, tenus à chaque geste
+ * terminé (`onEdit`). Les racks ne s'étirent pas et ne se rétrogradent pas : ce sont des achats.
+ * « Observer » passe l'éditeur en lecture seule ; « Montrer les racks » les désigne et les cadre.
+ */
+export const Application: Story = {
+  name: "Piloté par une application",
+  render: function Render() {
+    const prices: Record<string, number> = { rack: 6500, shelf: 1500, zone: 2500, belt: 4000, worker: 8000, packer: 6000 };
+    const [budget, setBudget] = useState(20000);
+    const [items, setItems] = useState<PlannerItem[]>([]);
+    const [selectedId, setSelectedId] = useState<string | null>(null);
+    const [readOnly, setReadOnly] = useState(false);
+    const [focus, setFocus] = useState<{ key: number; ids: string[] } | undefined>();
+    const [log, setLog] = useState<string[]>([]);
+    const owner = useMemo(() => new Map<string, string>(), []);
+    const entries: PlannerPaletteEntry[] = [
+      { id: "rack", label: "Rack palettier", kind: "palletRack", length: 5.5, group: "Stockage", sub: "Racks", meta: `${prices.rack} €`, disabled: budget < prices.rack },
+      { id: "shelf", label: "Étagère", kind: "shelf", group: "Stockage", sub: "Étagères", meta: `${prices.shelf} €`, disabled: budget < prices.shelf },
+      { id: "zone", label: "Zone de réception", kind: "zone", group: "Stockage", sub: "Au sol", meta: `${prices.zone} €`, disabled: budget < prices.zone },
+      { id: "belt", label: "Tapis", kind: "conveyor", length: 6, level: 2, group: "Flux", meta: `${prices.belt} €`, disabled: budget < prices.belt },
+      { id: "worker", label: "Préparateur", kind: "worker", group: "Flux", meta: `${prices.worker} €`, disabled: budget < prices.worker },
+      { id: "packer", label: "Emballage", kind: "packer", group: "Flux", meta: `${prices.packer} €`, disabled: budget < prices.packer },
+    ];
+    const onEdit = (edit: PlannerEdit) => {
+      if (edit.type === "add") {
+        edit.items.forEach((it) => owner.set(it.id, edit.entryId));
+        setBudget((b) => b - prices[edit.entryId]);
+      }
+      if (edit.type === "remove") edit.items.forEach((it) => setBudget((b) => b + Math.round(prices[owner.get(it.id) ?? ""] * 0.7)));
+      setLog((l) => [`${edit.type}${edit.type === "add" ? ` ${edit.entryId}` : ""}`, ...l].slice(0, 6));
+    };
+    return (
+      <div style={{ ...frame, display: "flex", flexDirection: "column", gap: 8 }}>
+        <div style={{ display: "flex", gap: 12, alignItems: "center", fontSize: 13 }}>
+          <strong>Budget : {budget} €</strong>
+          <button type="button" onClick={() => setReadOnly((r) => !r)}>{readOnly ? "Construire" : "Observer"}</button>
+          <button type="button" onClick={() => setFocus((f) => ({ key: (f?.key ?? 0) + 1, ids: items.filter((it) => it.kind === "palletRack").map((it) => it.id) }))}>
+            Montrer les racks
+          </button>
+          <span>Choisi : {selectedId ?? "—"}</span>
+          <span style={{ opacity: 0.7 }}>{log.join(" · ")}</span>
+        </div>
+        <WarehousePlanner
+          seed={12}
+          shape="rect"
+          plotSize={{ width: 40, depth: 26 }}
+          items={items}
+          onItemsChange={setItems}
+          entries={entries}
+          selectedId={selectedId}
+          onSelectedIdChange={setSelectedId}
+          readOnly={readOnly}
+          allowStretch={false}
+          allowDowngrade={false}
+          validate={(_, __, { entryId }) => (entryId && budget < prices[entryId] ? `Budget insuffisant : il manque ${prices[entryId] - budget} €.` : null)}
+          onEdit={onEdit}
+          highlightIds={focus?.ids}
+          focus={focus}
+          showStatus={false}
+          height="100%"
+        />
       </div>
     );
   },

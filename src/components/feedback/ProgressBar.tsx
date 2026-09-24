@@ -97,8 +97,9 @@ export function ProgressBar({
   const formattedValue = formatValue ? formatValue(clamped) : String(Math.round(clamped));
   const segmentTotal = segments ? segments.reduce((sum, s) => sum + Math.max(0, s.value), 0) : 0;
 
-  const labelNode = label !== undefined && label !== null ? <span className="lq-progress-bar__label">{label}</span> : null;
-  const valueNode = !segments && !indeterminate && showValue ? <span className="lq-progress-bar__value">{formattedValue}</span> : null;
+  // Keyed: a slot can hold both, and they are rendered as a list.
+  const labelNode = label !== undefined && label !== null ? <span key="label" className="lq-progress-bar__label">{label}</span> : null;
+  const valueNode = !segments && !indeterminate && showValue ? <span key="value" className="lq-progress-bar__value">{formattedValue}</span> : null;
 
   // One shared helper for every edge slot ("inside" is handled separately below, since it
   // overlays the track rather than sitting beside it) — label and value can land in the very same

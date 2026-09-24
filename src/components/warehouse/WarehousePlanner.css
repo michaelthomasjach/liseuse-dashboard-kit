@@ -569,3 +569,45 @@
   font: inherit;
   font-size: 0.72rem;
 }
+
+/* --- Piloté par une application ------------------------------------------------------------------ */
+
+/* Le calque de l'application : sous les poignées, il ne capte le pointeur que là où il le demande. */
+.lq-planner__app-overlay {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* Un élément montré du doigt : son contour clignote, plein et épais, dans la couleur d'accent. */
+.lq-planner__outline--highlight {
+  fill: color-mix(in srgb, var(--lq-color-accent) 22%, transparent);
+  stroke: var(--lq-color-accent);
+  stroke-width: 2.5;
+  stroke-dasharray: none;
+  animation: lq-planner-highlight 1.1s ease-in-out infinite;
+}
+
+@keyframes lq-planner-highlight {
+  50% {
+    fill-opacity: 0.25;
+    stroke-opacity: 0.35;
+  }
+}
+
+/* Ce que l'application dit d'une entrée : un prix, une capacité. */
+.lq-planner__tool-meta {
+  font-size: 0.66rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-planner__tool--disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.lq-planner__tool--disabled:hover {
+  background: none;
+}

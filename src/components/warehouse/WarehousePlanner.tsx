@@ -33,6 +33,7 @@ import {
   wallMounts,
   type DrawMode,
   type PlannerItem,
+  type PlannerKind,
   type PlannerLinear,
   type PlannerLinearKind,
   type PlannerPoint,
@@ -108,6 +109,109 @@ export interface WarehousePlannerProps {
   /** Hauteur de l'éditeur. */
   height?: number | string;
   className?: string;
+
+  // --- Piloter l'éditeur depuis une application (un jeu, un outil métier) ---------------------
+
+  /**
+   * La palette de l'application, à la place de la palette intégrée : ses entrées, dans ses
+   * familles, avec ce qu'elle veut dire de chacune (un prix, une capacité). Chaque entrée pose un
+   * élément du kit — ponctuel, ou linéaire à longueur fixe — à un niveau donné.
+   */
+  entries?: PlannerPaletteEntry[];
+  /** L'élément choisi. Contrôlé si `onSelectedIdChange` est donné avec lui. */
+  selectedId?: string | null;
+  onSelectedIdChange?: (id: string | null) => void;
+  /** La vue, de dessus ou de biais. Contrôlée si `onViewChange` est donné avec elle. */
+  view?: "top" | "3d";
+  onViewChange?: (view: "top" | "3d") => void;
+  /**
+   * Lecture seule : on regarde, on choisit, on tourne autour — on ne pose, ne déplace, ne tourne
+   * et ne supprime rien. Pour un plan qu'on observe pendant qu'il fonctionne.
+   */
+  readOnly?: boolean;
+  /**
+   * Une règle de plus que le terrain : `null` si l'élément peut être là, sinon la raison — qui est
+   * montrée telle quelle. Consultée pour le fantôme, à la pose, à la fin d'un déplacement, d'une
+   * rotation et d'une évolution. `others` est le reste du plan, sans l'élément lui-même ;
+   * `entryId` est l'entrée de palette en main, pour un élément qui n'est pas encore posé.
+   */
+  validate?: (item: PlannerItem, others: PlannerItem[], context: { entryId: string | null }) => string | null;
+  /**
+   * Un geste **terminé** : une pose, un déplacement lâché, une rotation, une suppression, une
+   * évolution. `onItemsChange` suit le geste pendant qu'il se fait (pour l'afficher) ; celui-ci ne
+   * parle qu'une fois, à la fin — le bon moment pour enregistrer, facturer, ou refuser.
+   */
+  onEdit?: (edit: PlannerEdit) => void;
+  /** Laisser rétrograder un élément (▼, Maj + U). Défaut : oui. */
+  allowDowngrade?: boolean;
+  /** Laisser étirer un élément linéaire par ses bouts. Défaut : oui. */
+  allowStretch?: boolean;
+  /** Le panneau de l'élément choisi, en bas de la vue. Défaut : affiché. */
+  showInspector?: boolean;
+  /** Le pied de page (terrain, graine, compte). Défaut : affiché. */
+  showStatus?: boolean;
+  /** Des éléments à montrer du doigt : leur contour clignote, dans les deux vues. */
+  highlightIds?: string[];
+  /**
+   * Cadrer la vue : à chaque nouvelle `key`, la caméra se pose sur les éléments `ids` (ou sur
+   * `point`, ou sur tout le terrain) — sans changer de vue ni de projection.
+   */
+  focus?: { key: string | number; ids?: string[]; point?: { x: number; y: number } };
+  /**
+   * Un calque de l'application, par-dessus la scène et sous les poignées : étiquettes, flux,
+   * carte de chaleur… `toScreen` ramène un point du plan (en cases) à son pixel, sous la caméra
+   * du moment. Le calque ne capte pas le pointeur, sauf ce qui le demande (`pointer-events`).
+   */
+  renderOverlay?: (api: PlannerOverlayApi) => ReactNode;
+  /** Des modules 3D de plus, posés dans la scène avec les éléments du plan. */
+  sceneChildren?: ReactNode;
+  /**
+   * L'entrée de palette en main (par son `id`), `null` pour les mains vides. Contrôlée si
+   * `onActiveEntryIdChange` est donné avec elle : l'application peut ainsi mettre un élément en
+   * main — une suggestion à poser, un copier-coller — et savoir ce que le joueur tient.
+   */
+  activeEntryId?: string | null;
+  onActiveEntryIdChange?: (id: string | null) => void;
+}
+
+/** Une entrée de palette fournie par l'application (voir `entries`). */
+export interface PlannerPaletteEntry {
+  id: string;
+  label: string;
+  /** L'élément du kit qu'elle pose. */
+  kind: PlannerKind;
+  /** La famille (un menu de la palette) et, dedans, le rayon. */
+  group: string;
+  sub?: string;
+  /** Élément linéaire : sa longueur à la pose, en cases. */
+  length?: number;
+  /** Le niveau d'évolution à la pose — et celui de la vignette. */
+  level?: number;
+  /** Ce que l'application dit de l'entrée, sous son nom : un prix, une capacité. */
+  meta?: ReactNode;
+  /** Grisée : visible, mais on ne peut pas la prendre (budget insuffisant…). */
+  disabled?: boolean;
+  /** L'infobulle. */
+  description?: string;
+}
+
+/** Un geste terminé sur le plan (voir `onEdit`). */
+export type PlannerEdit =
+  | { type: "add"; items: PlannerItem[]; entryId: string }
+  | { type: "update"; before: PlannerItem; after: PlannerItem }
+  | { type: "remove"; items: PlannerItem[] }
+  | { type: "evolve"; before: PlannerItem; after: PlannerItem };
+
+/** Ce que le calque de l'application reçoit (voir `renderOverlay`). */
+export interface PlannerOverlayApi {
+  /** Le pixel d'un point du plan, en cases (et d'une hauteur, en cases). */
+  toScreen: (x: number, y: number, z?: number) => { x: number; y: number };
+  width: number;
+  height: number;
+  /** Pixels par case au centre de la vue. */
+  scale: number;
+  view: "top" | "3d";
+  items: PlannerItem[];
 }
 
 type P = { x: number; y: number };
@@ -116,7 +220,22 @@ type P = { x: number; y: number };
 type Entry =
   | { id: string; label: string; group: string; type: "draw"; kind: PlannerLinearKind; mode: DrawMode }
   | { id: string; label: string; group: string; type: "place"; kind: PlannerPointKind }
-  | { id: string; label: string; group: string; type: "area"; kind: "roof" };
+  | { id: string; label: string; group: string; type: "area"; kind: "roof" }
+  | { id: string; label: string; group: string; type: "piece"; kind: PlannerKind; length?: number; level?: number; meta?: ReactNode; disabled?: boolean; description?: string };
+
+/** L'élément qu'une entrée de l'application pose, centré en `(x, y)`. */
+function pieceItem(entry: Extract<Entry, { type: "piece" }>, x: number, y: number): PlannerItem {
+  let item = createItem(entry.kind, x, y);
+  if (isLinear(item) && entry.length) {
+    const cx = (item.x0 + item.x1) / 2;
+    const half = entry.length / 2;
+    item = { ...item, x0: cx - half, x1: cx + half };
+  }
+  return entry.level ? withLevel(item, entry.level) : item;
+}
+
+/** L'identifiant de la vignette d'une entrée — sa sorte et son niveau y sont, puisqu'ils la dessinent. */
+const jobId = (entry: Entry) => (entry.type === "piece" ? `planner-app-${entry.kind}-${entry.level ?? 1}-${entry.length ?? 0}` : `planner-${entry.id}`);
 
 const ENTRIES: Entry[] = [
   { id: "wall", label: "Mur", group: "Murs", type: "draw", kind: "wall", mode: "segment" },
@@ -241,6 +360,7 @@ function roofBetween(a: P, b: P): PlannerPoint | null {
 
 /** Ce qu'une entrée pose quand on la lâche sur le terrain sans la tracer. */
 function dropped(entry: Entry, x: number, y: number): PlannerItem[] {
+  if (entry.type === "piece") return [pieceItem(entry, x, y)];
   if (entry.type === "place") return [createItem(entry.kind, x, y)];
   if (entry.type === "area") return [{ ...createItem("roof", x, y), size: { length: 8, width: 6 } } as PlannerItem];
   const cx = Math.round(x);
@@ -258,7 +378,7 @@ function entryJob(entry: Entry): SnapshotJob {
     const wall: PlannerItem = { id: `thumb-${entry.id}-wall`, kind: "wall", level: 2, x0: 0, y0: 0, x1: L, y1: 0 };
     const opening = { ...createItem(entry.kind, L / 2, 0), id: `thumb-${entry.id}` } as PlannerItem;
     return {
-      id: `planner-${entry.id}`,
+      id: jobId(entry),
       bounds: { x0: -0.3, x1: L + 0.3, y0: -0.6, y1: 0.6, z0: 0, z1: 3.2 },
       node: <PlannerItem3D item={wall} mounts={wallMounts(wall as PlannerLinear, [opening])} />,
     };
@@ -302,9 +422,9 @@ function entryJob(entry: Entry): SnapshotJob {
     delta: 2.3,
     palletizer: 2.4,
   };
-  const h = tall[entry.kind] ?? (entry.type === "place" ? 2 : 3);
+  const h = tall[entry.kind] ?? (entry.type === "place" || (entry.type === "piece" && !isLinear(items[0])) ? 2 : 3);
   const node: ReactNode = items.map((it, i) => <PlannerItem3D key={i} item={{ ...it, id: `thumb-${entry.id}-${i}` }} />);
-  return { id: `planner-${entry.id}`, bounds: { x0, x1, y0, y1, z0: 0, z1: h }, node };
+  return { id: jobId(entry), bounds: { x0, x1, y0, y1, z0: 0, z1: h }, node };
 }
 
 export function WarehousePlanner({
@@ -323,6 +443,24 @@ export function WarehousePlanner({
   cellSize = 14,
   height = 640,
   className,
+  entries: entriesProp,
+  selectedId: selectedIdProp,
+  onSelectedIdChange,
+  view: viewProp,
+  onViewChange,
+  readOnly = false,
+  validate,
+  onEdit,
+  allowDowngrade = true,
+  allowStretch = true,
+  showInspector = true,
+  showStatus = true,
+  activeEntryId,
+  onActiveEntryIdChange,
+  highlightIds,
+  focus,
+  renderOverlay,
+  sceneChildren,
 }: WarehousePlannerProps) {
   const [ownSeed, setOwnSeed] = useState(defaultSeed);
   const seed = seedProp ?? ownSeed;
@@ -344,13 +482,64 @@ export function WarehousePlanner({
   );
 
   const plot = useMemo(() => generatePlot(seed, { shape, width: plotSize?.width, depth: plotSize?.depth }), [seed, shape, plotSize?.width, plotSize?.depth]);
-  const jobs = useMemo(() => ENTRIES.map(entryJob), []);
+  /** Les entrées de la palette — celles de l'application si elle en donne — et leurs menus. */
+  const allEntries = useMemo<Entry[]>(
+    () =>
+      entriesProp
+        ? entriesProp.map((e) => ({
+            id: e.id,
+            label: e.label,
+            group: e.group,
+            type: "piece" as const,
+            kind: e.kind,
+            length: e.length,
+            level: e.level,
+            meta: e.meta,
+            disabled: e.disabled,
+            description: e.description,
+          }))
+        : ENTRIES,
+    [entriesProp]
+  );
+  const menus = useMemo(() => {
+    if (!entriesProp) return MENU;
+    const out: { title: string; subs: { title: string; ids: string[] }[] }[] = [];
+    for (const e of entriesProp) {
+      let group = out.find((g) => g.title === e.group);
+      if (!group) out.push((group = { title: e.group, subs: [] }));
+      const subTitle = e.sub ?? "";
+      let sub = group.subs.find((x) => x.title === subTitle);
+      if (!sub) group.subs.push((sub = { title: subTitle, ids: [] }));
+      sub.ids.push(e.id);
+    }
+    return out;
+  }, [entriesProp]);
+  const findEntry = (id: string) => allEntries.find((e) => e.id === id);
+  // Une vignette par dessin distinct : deux entrées qui posent la même chose la partagent.
+  const jobs = useMemo(() => {
+    const seen = new Map<string, SnapshotJob>();
+    for (const entry of allEntries) {
+      const id = jobId(entry);
+      if (!seen.has(id)) seen.set(id, entryJob(entry));
+    }
+    return [...seen.values()];
+  }, [allEntries]);
   const [thumbs, setThumbs] = useState<Record<string, string>>(() => Object.fromEntries(jobs.map((j) => [j.id, cachedSnapshot(j.id)]).filter(([, u]) => u)));
 
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [ownSelectedId, setOwnSelectedId] = useState<string | null>(null);
+  const selectedId = selectedIdProp !== undefined ? selectedIdProp : ownSelectedId;
+  const setSelectedId = (id: string | null) => {
+    setOwnSelectedId(id);
+    if (id !== selectedId) onSelectedIdChange?.(id);
+  };
   const [hoverId, setHoverId] = useState<string | null>(null);
   /** L'outil en main : une entrée de la palette. */
-  const [tool, setTool] = useState<Entry | null>(null);
+  const [ownTool, setOwnTool] = useState<Entry | null>(null);
+  const tool = activeEntryId !== undefined ? (activeEntryId === null ? null : findEntry(activeEntryId) ?? null) : ownTool;
+  const setTool = (entry: Entry | null) => {
+    setOwnTool(entry);
+    if ((entry?.id ?? null) !== (tool?.id ?? null)) onActiveEntryIdChange?.(entry?.id ?? null);
+  };
   /** Le cap de l'élément qu'on s'apprête à poser — R le tourne avant le clic. */
   const [placeRot, setPlaceRot] = useState(0);
   /** Les toitures affichées — on les masque pour voir et construire dedans. */
@@ -358,11 +547,18 @@ export function WarehousePlanner({
   /** Le départ du tracé en cours, et le point sous le curseur. */
   const [start, setStart] = useState<P | null>(null);
   const [cursor, setCursor] = useState<P | null>(null);
-  const [mode3d, setMode3d] = useState(defaultView === "3d");
+  const [ownMode3d, setOwnMode3d] = useState(defaultView === "3d");
+  const mode3d = viewProp !== undefined ? viewProp === "3d" : ownMode3d;
+  const setMode3d = (on: boolean) => {
+    setOwnMode3d(on);
+    if (on !== mode3d) onViewChange?.(on ? "3d" : "top");
+  };
   const [orbit, setOrbit] = useState(defaultOrbit);
   const [projection, setProjection] = useState<IsoProjection>(defaultProjection);
   const [query, setQuery] = useState("");
-  const [open, setOpen] = useState<Record<string, boolean>>({ Murs: true, Stockage: true, Convoyage: true });
+  const [open, setOpen] = useState<Record<string, boolean>>(() =>
+    entriesProp ? Object.fromEntries(entriesProp.map((e) => [e.group, true])) : { Murs: true, Stockage: true, Convoyage: true }
+  );
   const [message, setMessage] = useState<string | null>(null);
   const stage = useRef<HTMLDivElement>(null);
   const drag = useRef<Drag | null>(null);
@@ -398,6 +594,38 @@ export function WarehousePlanner({
     if (first && defaultZoom !== 1) setView((v) => ({ ...v, zoom: Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, v.zoom * defaultZoom)) }));
   }, [plot.seed, fit, defaultZoom]);
 
+  // Cadrer à la demande de l'application : les éléments désignés, un point, ou tout le terrain.
+  // Une demande faite pendant que l'éditeur est masqué (un onglet voisin, `display: none`) attend
+  // qu'il soit affiché et mesuré : cadrer sur une taille nulle poserait la caméra n'importe où.
+  const pendingFocus = useRef<typeof focus | null>(null);
+  const appliedFocus = useRef<string | number | null>(null);
+  useEffect(() => {
+    if (focus && focus.key !== appliedFocus.current) pendingFocus.current = focus;
+    const target = pendingFocus.current;
+    const el = stage.current;
+    if (!target || !el || el.clientWidth === 0 || el.clientHeight === 0) return;
+    if (Math.abs(size.width - el.clientWidth) > 1 || Math.abs(size.height - el.clientHeight) > 1) return;
+    pendingFocus.current = null;
+    appliedFocus.current = target.key;
+    const targets = target.ids ? itemsRef.current.filter((it) => target.ids!.includes(it.id)) : [];
+    if (targets.length === 0 && !target.point) {
+      fit();
+      return;
+    }
+    const pts = targets.length > 0 ? targets.map(footprintOf).flatMap(cornersOf) : [target.point!];
+    const x0 = Math.min(...pts.map((q) => q.x));
+    const x1 = Math.max(...pts.map((q) => q.x));
+    const y0 = Math.min(...pts.map((q) => q.y));
+    const y1 = Math.max(...pts.map((q) => q.y));
+    // Une marge de quelques cases, et pas plus près qu'un élément isolé ne le mérite.
+    const w = Math.max(8, x1 - x0 + 6);
+    const d = Math.max(8, y1 - y0 + 6);
+    const zoom = Math.min(size.width / w, size.height / d) / cellSize;
+    setView({ cx: (x0 + x1) / 2, cy: (y0 + y1) / 2, zoom: Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, zoom)) });
+    // La clé déclenche, la taille rattrape une demande en attente ; le reste ne recadre pas.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focus?.key, size.width, size.height]);
+
   // --- La caméra, et le passage écran ↔ sol dans n'importe quelle vue ---------------------------
   const camYaw = mode3d ? orbit.yaw : TOP_YAW;
   const camTilt = mode3d ? orbit.tilt : 90;
@@ -417,6 +645,13 @@ export function WarehousePlanner({
     window.setTimeout(() => setMessage((m) => (m === text ? null : m)), 2600);
   };
 
+  /** Pourquoi un élément ne peut pas être là — le terrain d'abord, puis la règle de l'application —
+   *  ou `null` s'il le peut. */
+  const problemOf = (item: PlannerItem, entryId: string | null = null): string | null => {
+    if (!fitsPlot(item, plot)) return "Hors du terrain constructible.";
+    return validate?.(item, itemsRef.current.filter((it) => it.id !== item.id), { entryId }) ?? null;
+  };
+
   /** Poser ce qu'une entrée pose au point `(x, y)`, ou au plus près qui tienne. */
   const place = (entry: Entry, x: number, y: number) => {
     const base = dropped(entry, x, y);
@@ -425,26 +660,34 @@ export function WarehousePlanner({
       for (let k = 0; k < steps; k += 1) {
         const a = (k / steps) * Math.PI * 2;
         const cand = base.map((it) => moveBy(it, Math.round(Math.cos(a) * r), Math.round(Math.sin(a) * r)));
-        if (cand.every((it) => fitsPlot(it, plot))) {
+        if (cand.every((it) => problemOf(it, entry.id) === null)) {
           setItems([...itemsRef.current, ...cand]);
           setSelectedId(cand.length === 1 ? cand[0].id : null);
+          onEdit?.({ type: "add", items: cand, entryId: entry.id });
           return;
         }
       }
     }
-    flash("Pas de place sur le terrain pour cet élément ici.");
+    flash(problemOf(base[0], entry.id) ?? "Pas de place sur le terrain pour cet élément ici.");
   };
 
   // --- Le tracé en cours -------------------------------------------------------------------------
   const drawing = tool?.type === "draw" ? tool : null;
-  const placing = tool?.type === "place" ? tool : null;
+  const placing = tool?.type === "place" || tool?.type === "piece" ? tool : null;
+  /** L'élément que l'outil en main poserait en `(x, y)`, calé et tourné. */
+  const armedItem = (x: number, y: number): PlannerItem | null => {
+    if (!placing) return null;
+    const base = placing.type === "piece" ? pieceItem(placing, x, y) : createItem(placing.kind, x, y);
+    return rotateTo(base, placeRot);
+  };
   const areaTool = tool?.type === "area" ? tool : null;
   /** L'élément à poser, sous le curseur, calé sur la grille : ce que le clic posera, exactement.
    *  Une porte, une fenêtre, une baie s'accrochent au mur le plus proche — sinon, rien. */
-  const rawGhost = placing && cursor ? rotateTo(createItem(placing.kind, cursor.x, cursor.y), placeRot) : null;
+  const rawGhost = placing && cursor ? armedItem(cursor.x, cursor.y) : null;
   const mountedGhost = !!rawGhost && WALL_MOUNTED.includes(rawGhost.kind);
   const ghost = rawGhost && mountedGhost ? snapToWall(rawGhost as PlannerPoint, items) : rawGhost;
-  const ghostOk = ghost ? fitsPlot(ghost, plot) : false;
+  const ghostProblem = ghost ? problemOf(ghost, placing?.id ?? null) : null;
+  const ghostOk = !!ghost && ghostProblem === null;
   /** La toiture en cours de tracé : le rectangle entre le coin de départ et le curseur. */
   const areaDraft = areaTool && start && cursor ? roofBetween(start, cursor) : null;
   const areaOk = areaDraft ? fitsPlot(areaDraft, plot) : false;
@@ -467,11 +710,14 @@ export function WarehousePlanner({
     }
     const walls = draftWalls(drawing.kind, drawing.mode, start, q);
     if (!walls.length) return;
-    if (!walls.every((w) => fitsPlot(w, plot))) {
-      flash("Ce tracé sort du terrain constructible.");
+    const wallProblem = walls.map((w) => problemOf(w, drawing.id)).find((m) => m !== null);
+    if (wallProblem) {
+      flash(wallProblem);
       return;
     }
-    setItems([...itemsRef.current, ...commitDraft(walls)]);
+    const committed = commitDraft(walls);
+    setItems([...itemsRef.current, ...committed]);
+    onEdit?.({ type: "add", items: committed, entryId: drawing.id });
     // Une chaîne continue là où le mur s'arrête ; les autres outils attendent un nouveau départ.
     setStart(drawing.mode === "chain" ? q : null);
   };
@@ -485,15 +731,29 @@ export function WarehousePlanner({
     }
     const roof = roofBetween(start, q);
     if (!roof) return;
-    if (!fitsPlot(roof, plot)) {
-      flash("Cette toiture sort du terrain constructible.");
+    const roofProblem = problemOf(roof, areaTool?.id ?? null);
+    if (roofProblem) {
+      flash(roofProblem);
       return;
     }
-    setItems([...itemsRef.current, { ...roof, id: createItem("roof", 0, 0).id }]);
+    const placedRoof = { ...roof, id: createItem("roof", 0, 0).id };
+    setItems([...itemsRef.current, placedRoof]);
+    onEdit?.({ type: "add", items: [placedRoof], entryId: areaTool?.id ?? "roof" });
     setStart(null);
   };
 
   const update = (id: string, next: PlannerItem) => setItems(itemsRef.current.map((it) => (it.id === id ? next : it)));
+  /** Un changement d'un coup (tourner, retourner, une option) : appliqué s'il est permis, puis signalé. */
+  const commit = (before: PlannerItem, next: PlannerItem) => {
+    if (readOnly) return;
+    const problem = problemOf(next);
+    if (problem) {
+      flash(problem);
+      return;
+    }
+    update(before.id, next);
+    onEdit?.({ type: "update", before, after: next });
+  };
 
   // --- Les gestes -------------------------------------------------------------------------------
   const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
@@ -520,6 +780,13 @@ export function WarehousePlanner({
       drag.current = { t: "orbit", sx: p.x, sy: p.y, yaw: from.yaw, tilt: from.tilt };
       return;
     }
+    if (readOnly) {
+      // On regarde : un clic choisit, un glisser déplace la vue — rien d'autre.
+      const hit = hitTest(itemsRef.current, w);
+      if (hit) setSelectedId(hit.id);
+      else drag.current = pan;
+      return;
+    }
     if (drawing) {
       drawClick(w);
       return;
@@ -530,7 +797,7 @@ export function WarehousePlanner({
     }
     if (placing) {
       // On pose ce que montre le fantôme, là où il est — pas ailleurs.
-      let item = rotateTo(createItem(placing.kind, w.x, w.y), placeRot);
+      let item = armedItem(w.x, w.y) as PlannerItem;
       if (WALL_MOUNTED.includes(item.kind)) {
         const onWall = snapToWall(item as PlannerPoint, itemsRef.current);
         if (!onWall) {
@@ -539,12 +806,14 @@ export function WarehousePlanner({
         }
         item = onWall;
       }
-      if (!fitsPlot(item, plot)) {
-        flash("Hors du terrain constructible.");
+      const placeProblem = problemOf(item, placing.id);
+      if (placeProblem) {
+        flash(placeProblem);
         return;
       }
       setItems([...itemsRef.current, item]);
       setSelectedId(item.id);
+      onEdit?.({ type: "add", items: [item], entryId: placing.id });
       if (!e.shiftKey) setTool(null);
       return;
     }
@@ -559,7 +828,7 @@ export function WarehousePlanner({
         const f = footprintOf(item);
         drag.current = { t: "rotate", id, cx: f.cx, cy: f.cy, orig: item };
       }
-      else drag.current = { t: "end", id, which: handle.dataset.handle === "end0" ? 0 : 1, orig: item };
+      else if (allowStretch) drag.current = { t: "end", id, which: handle.dataset.handle === "end0" ? 0 : 1, orig: item };
       return;
     }
     const hit = hitTest(itemsRef.current, w);
@@ -587,9 +856,10 @@ export function WarehousePlanner({
         return;
       }
       if (placing) {
-        // Le fantôme ne bouge que d'un cran de grille à l'autre.
-        const g = rotateTo(createItem(placing.kind, w.x, w.y), placeRot);
-        const q = { x: (g as { x: number }).x, y: (g as { y: number }).y };
+        // Le fantôme ne bouge que d'un cran de grille à l'autre. Son centre calé, et non ses `x`/`y` :
+        // un élément linéaire en main (un rack, un tapis) est un segment, il n'en a pas.
+        const f = footprintOf(armedItem(w.x, w.y) as PlannerItem);
+        const q = { x: f.cx, y: f.cy };
         if (!cursor || q.x !== cursor.x || q.y !== cursor.y) setCursor(q);
         return;
       }
@@ -631,10 +901,14 @@ export function WarehousePlanner({
     }
     if (d.t === "orbit") return;
     const now = itemsRef.current.find((it) => it.id === d.id);
-    if (now && !fitsPlot(now, plot)) {
+    if (!now || JSON.stringify(now) === JSON.stringify(d.orig)) return;
+    const problem = problemOf(now);
+    if (problem) {
       update(d.id, d.orig);
-      flash("Hors du terrain constructible : l'élément revient à sa place.");
+      flash(`${problem} L'élément revient à sa place.`);
+      return;
     }
+    onEdit?.({ type: "update", before: d.orig, after: now });
   };
 
   // La molette zoome autour du pointeur. Écoutée à la main : React la rend passive. L'écouteur est
@@ -666,43 +940,54 @@ export function WarehousePlanner({
 
   const selected = items.find((it) => it.id === selectedId) ?? null;
   const remove = () => {
-    if (!selected) return;
+    if (!selected || readOnly) return;
     setItems(itemsRef.current.filter((it) => it.id !== selected.id));
     setSelectedId(null);
+    onEdit?.({ type: "remove", items: [selected] });
   };
-  const turn = (dir: 1 | -1 = 1) => selected && !WALL_MOUNTED.includes(selected.kind) && update(selected.id, rotateQuarter(selected, dir));
-  const setOption = (patch: { storage?: StorageClass; passage?: boolean }) => selected && update(selected.id, { ...selected, ...patch } as PlannerItem);
-  const reverse = () => selected && update(selected.id, flip(selected));
+  const turn = (dir: 1 | -1 = 1) => selected && !WALL_MOUNTED.includes(selected.kind) && commit(selected, rotateQuarter(selected, dir));
+  const setOption = (patch: { storage?: StorageClass; passage?: boolean }) => selected && commit(selected, { ...selected, ...patch } as PlannerItem);
+  const reverse = () => selected && commit(selected, flip(selected));
   /** Améliorer (`+1`) ou rétrograder (`-1`) l'élément choisi — s'il tient encore sur le terrain. */
   const evolve = (dir: 1 | -1) => {
-    if (!selected) return;
+    if (!selected || readOnly || (dir < 0 && !allowDowngrade)) return;
     const next = withLevel(selected, levelOf(selected) + dir);
     if (levelOf(next) === levelOf(selected)) return;
-    if (!fitsPlot(next, plot)) {
-      flash("Pas la place pour ce niveau ici : déplacez l'élément d'abord.");
+    const problem = problemOf(next);
+    if (problem) {
+      flash(fitsPlot(next, plot) ? problem : "Pas la place pour ce niveau ici : déplacez l'élément d'abord.");
       return;
     }
     update(selected.id, next);
+    onEdit?.({ type: "evolve", before: selected, after: next });
   };
   const swapDock = () => {
-    if (selected && isLinear(selected) && (selected.kind === "wall" || selected.kind === "dock")) update(selected.id, { ...selected, kind: selected.kind === "wall" ? "dock" : "wall" });
+    if (selected && isLinear(selected) && (selected.kind === "wall" || selected.kind === "dock")) commit(selected, { ...selected, kind: selected.kind === "wall" ? "dock" : "wall" });
   };
 
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     // Dans le champ de recherche, une lettre est une lettre.
     if ((e.target as HTMLElement).closest?.("input, textarea")) return;
+    // Un raccourci avec Ctrl, Cmd ou Alt n'est pas pour l'éditeur (annuler, copier…).
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.key === "Escape") {
       if (start) setStart(null);
       else if (tool) setTool(null);
       else setSelectedId(null);
-    } else if (e.key === "Delete" || e.key === "Backspace") remove();
+    } else if (readOnly) return;
+    else if (e.key === "Delete" || e.key === "Backspace") {
+      if (!selected) return;
+      remove();
+    }
     else if (e.key === "r" || e.key === "R") {
       // Avant la pose, R tourne le fantôme ; après, l'élément choisi. Maj : dans l'autre sens.
       if (placing) setPlaceRot((r) => (r + (e.shiftKey ? 270 : 90)) % 360);
-      else turn(e.shiftKey ? -1 : 1);
+      else if (selected) turn(e.shiftKey ? -1 : 1);
+      else return;
     }
-    else if (e.key === "f" || e.key === "F") reverse();
-    else if (e.key === "u" || e.key === "U") evolve(e.shiftKey ? -1 : 1);
+    // F ne retourne qu'un segment : sur un élément posé, la touche reste à l'application.
+    else if ((e.key === "f" || e.key === "F") && selected && isLinear(selected)) reverse();
+    else if ((e.key === "u" || e.key === "U") && selected) evolve(e.shiftKey ? -1 : 1);
     else if (e.key === "+" || e.key === "=") zoomBy(1.25);
     else if (e.key === "-") zoomBy(0.8);
     else return;
@@ -711,8 +996,8 @@ export function WarehousePlanner({
 
   const onDrop = (e: DragEvent<HTMLDivElement>) => {
     const id = e.dataTransfer.getData(DND);
-    const entry = ENTRIES.find((x) => x.id === id);
-    if (!entry) return;
+    const entry = findEntry(id);
+    if (!entry || readOnly || (entry.type === "piece" && entry.disabled)) return;
     e.preventDefault();
     const p = local(e);
     const w = toWorld(p.x, p.y);
@@ -740,17 +1025,21 @@ export function WarehousePlanner({
     const ok = fitsPlot(item, plot);
     const cls = ["lq-planner__outline", strong && "lq-planner__outline--selected", !ok && "lq-planner__outline--invalid"].filter(Boolean).join(" ");
     const parts: ReactNode[] = [outline(item, cls, "o")];
+    if (readOnly) return <g key={item.id}>{parts}</g>;
     if (isLinear(item)) {
       const a = toScreen(item.x0, item.y0);
       const b = toScreen(item.x1, item.y1);
       const m = toScreen((item.x0 + item.x1) / 2, (item.y0 + item.y1) / 2);
+      if (allowStretch)
+        parts.push(
+          <circle key="e0" className="lq-planner__handle lq-planner__handle--end" data-handle="end0" data-id={item.id} cx={a.x} cy={a.y} r={7}>
+            <title>Tirer pour étirer</title>
+          </circle>,
+          <circle key="e1" className="lq-planner__handle lq-planner__handle--end" data-handle="end1" data-id={item.id} cx={b.x} cy={b.y} r={7}>
+            <title>Tirer pour étirer</title>
+          </circle>
+        );
       parts.push(
-        <circle key="e0" className="lq-planner__handle lq-planner__handle--end" data-handle="end0" data-id={item.id} cx={a.x} cy={a.y} r={7}>
-          <title>Tirer pour étirer</title>
-        </circle>,
-        <circle key="e1" className="lq-planner__handle lq-planner__handle--end" data-handle="end1" data-id={item.id} cx={b.x} cy={b.y} r={7}>
-          <title>Tirer pour étirer</title>
-        </circle>,
         <g key="m" className="lq-planner__handle lq-planner__handle--move" data-handle="move" data-id={item.id} transform={`translate(${m.x} ${m.y})`}>
           <rect x={-9} y={-9} width={18} height={18} rx={3} />
           <path d="M0 -6 L0 6 M-6 0 L6 0 M0 -6 l-2 2 M0 -6 l2 2 M0 6 l-2 -2 M0 6 l2 -2 M-6 0 l2 -2 M-6 0 l2 2 M6 0 l-2 -2 M6 0 l-2 2" />
@@ -791,31 +1080,37 @@ export function WarehousePlanner({
   const cell = cursor && drawing ? [toScreen(cursor.x - 0.5, cursor.y - 0.5), toScreen(cursor.x + 0.5, cursor.y - 0.5), toScreen(cursor.x + 0.5, cursor.y + 0.5), toScreen(cursor.x - 0.5, cursor.y + 0.5)] : null;
   /** Combien d'éléments une entrée a posés — les murs, sur l'entrée « Mur » seulement. */
   const entryCount = (id: string) => {
-    const entry = ENTRIES.find((e) => e.id === id);
+    const entry = findEntry(id);
     if (!entry) return undefined;
+    // L'application compte elle-même ce qui compte pour elle.
+    if (entry.type === "piece") return undefined;
     if (entry.type === "draw" && entry.kind === "wall") return id === "wall" ? counts.get("wall") : undefined;
     return counts.get(entry.kind);
   };
   const toolButton = (entry: Entry) => {
-    const url = thumbs[`planner-${entry.id}`];
+    const url = thumbs[jobId(entry)];
     const n = entryCount(entry.id);
+    const piece = entry.type === "piece" ? entry : null;
+    const off = readOnly || !!piece?.disabled;
     return (
       <button
         key={entry.id}
         type="button"
-        className={["lq-planner__tool", tool?.id === entry.id && "lq-planner__tool--armed"].filter(Boolean).join(" ")}
-        draggable
+        className={["lq-planner__tool", tool?.id === entry.id && "lq-planner__tool--armed", off && "lq-planner__tool--disabled"].filter(Boolean).join(" ")}
+        draggable={!off}
+        disabled={off}
         onDragStart={(e) => {
           e.dataTransfer.setData(DND, entry.id);
           e.dataTransfer.effectAllowed = "copy";
         }}
         onClick={() => pickTool(tool?.id === entry.id ? null : entry)}
-        title={`${entry.label} — évolutions : ${TIERS[entry.kind].join(" → ")}`}
+        title={piece?.description ?? `${entry.label} — évolutions : ${TIERS[entry.kind].join(" → ")}`}
         aria-pressed={tool?.id === entry.id}
       >
         {url ? <img className="lq-planner__thumb" src={url} alt="" draggable={false} /> : <span className="lq-planner__thumb lq-planner__thumb--pending" aria-hidden />}
         <span className="lq-planner__tool-label">{entry.label}</span>
-        {TIERS[entry.kind].length > 1 && (
+        {piece?.meta !== undefined && <span className="lq-planner__tool-meta">{piece.meta}</span>}
+        {!piece && TIERS[entry.kind].length > 1 && (
           <span className="lq-planner__tool-tiers" title={TIERS[entry.kind].join(" → ")}>
             {TIERS[entry.kind].length} niveaux
           </span>
@@ -838,7 +1133,7 @@ export function WarehousePlanner({
         : "Cliquez une seconde fois pour arrêter le tracé — Échap pour l'annuler."
       : `${drawing.label} : cliquez le point de départ.`
     : tool
-      ? `${tool.label} : cliquez où le poser (Maj pour en poser plusieurs).`
+      ? `${tool.label} : cliquez où le poser (Maj pour en poser plusieurs, R pour tourner).${ghostProblem ? ` — ${ghostProblem}` : ""}`
       : null;
 
   return (
@@ -847,15 +1142,21 @@ export function WarehousePlanner({
     <div className={["lq-planner", className].filter(Boolean).join(" ")} style={{ height }} onKeyDown={onKeyDown}>
       <SnapshotStudio jobs={jobs} width={128} height={96} onShot={(id, url) => setThumbs((t) => ({ ...t, [id]: url }))} />
       <aside className="lq-planner__palette" aria-label="Palette d'éléments">
-        <p className="lq-planner__intro">Choisissez un outil puis cliquez sur le terrain — un mur se trace d'un clic à l'autre. Les éléments se glissent aussi depuis la palette.</p>
+        <p className="lq-planner__intro">
+          {readOnly
+            ? "Lecture seule : on observe, on choisit, on tourne autour."
+            : entriesProp
+              ? "Choisissez un élément puis cliquez sur le terrain — ou glissez-le depuis la palette. R le tourne avant la pose."
+              : "Choisissez un outil puis cliquez sur le terrain — un mur se trace d'un clic à l'autre. Les éléments se glissent aussi depuis la palette."}
+        </p>
         <label className="lq-planner__search">
           <SearchIcon size={13} />
           <input type="search" placeholder="Chercher un élément…" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Chercher un élément" />
         </label>
         {query.trim() ? (
-          <div className="lq-planner__tools">{ENTRIES.filter((e) => fold(e.label).includes(fold(query))).map(toolButton)}</div>
+          <div className="lq-planner__tools">{allEntries.filter((e) => fold(e.label).includes(fold(query))).map(toolButton)}</div>
         ) : (
-          MENU.map((menu) => {
+          menus.map((menu) => {
             const isOpen = open[menu.title] ?? false;
             const total = menu.subs.flatMap((sub) => sub.ids).reduce((n, id) => n + (entryCount(id) ?? 0), 0);
             return (
@@ -868,8 +1169,8 @@ export function WarehousePlanner({
                 {isOpen &&
                   menu.subs.map((sub) => (
                     <div key={sub.title} className="lq-planner__sub">
-                      <h4 className="lq-planner__sub-title">{sub.title}</h4>
-                      <div className="lq-planner__tools">{sub.ids.map((id) => ENTRIES.find((e) => e.id === id)).filter((e): e is Entry => !!e).map(toolButton)}</div>
+                      {sub.title && <h4 className="lq-planner__sub-title">{sub.title}</h4>}
+                      <div className="lq-planner__tools">{sub.ids.map((id) => findEntry(id)).filter((e): e is Entry => !!e).map(toolButton)}</div>
                     </div>
                   ))}
               </section>
@@ -932,10 +1233,17 @@ export function WarehousePlanner({
               {draft.map((w) => (
                 <PlannerItem3D key={`${w.id}:${w.x0},${w.y0},${w.x1},${w.y1}`} item={w} />
               ))}
+              {sceneChildren}
             </WarehouseScene>
           </IsoCamera>
+          {renderOverlay && (
+            <div className="lq-planner__app-overlay">
+              {renderOverlay({ toScreen, width: size.width, height: size.height, scale: cellSize * view.zoom, view: mode3d ? "3d" : "top", items })}
+            </div>
+          )}
           {(
             <svg className="lq-planner__overlay" width={size.width} height={size.height}>
+              {highlightIds && items.filter((it) => highlightIds.includes(it.id)).map((it) => outline(it, "lq-planner__outline lq-planner__outline--highlight", `hl-${it.id}`))}
               {shown.map((it) => overlay(it, it.id === selectedId))}
               {draft.map((w, i) => outline(w, ["lq-planner__outline", "lq-planner__outline--draft", !draftOk && "lq-planner__outline--invalid"].filter(Boolean).join(" "), `draft${i}`))}
               {draft.map((w, i) => dim(w, `dd${i}`))}
@@ -997,7 +1305,7 @@ export function WarehousePlanner({
             </button>
           </div>
 
-          {selected && !drawing && (
+          {showInspector && selected && !drawing && (
             <div className="lq-planner__inspector" onPointerDown={(e) => e.stopPropagation()}>
               <strong>{PLANNER_LABEL[selected.kind]}</strong>
               {isLinear(selected) ? (
@@ -1017,12 +1325,12 @@ export function WarehousePlanner({
                   {tierLabel(selected)}
                 </span>
               )}
-              {levelOf(selected) < TIERS[selected.kind].length && (
+              {!readOnly && levelOf(selected) < TIERS[selected.kind].length && (
                 <button type="button" className="lq-planner__upgrade" onClick={() => evolve(1)} title={`Améliorer : ${tierLabel(selected, levelOf(selected) + 1)} (U)`}>
                   ▲ {tierLabel(selected, levelOf(selected) + 1)}
                 </button>
               )}
-              {levelOf(selected) > 1 && (
+              {!readOnly && allowDowngrade && levelOf(selected) > 1 && (
                 <button type="button" onClick={() => evolve(-1)} title="Revenir au niveau précédent (Maj + U)" aria-label="Rétrograder">
                   ▼
                 </button>
@@ -1071,10 +1379,10 @@ export function WarehousePlanner({
 
           {hint ? <div className="lq-planner__hint">{hint}</div> : mode3d && <div className="lq-planner__hint">Clic molette + glisser : tourner et incliner · glisser le fond : se déplacer · molette : zoomer.</div>}
           {message && <div className="lq-planner__toast">{message}</div>}
-          {items.length === 0 && !tool && <div className="lq-planner__empty">Choisissez « Mur » ou « Pièce » dans la palette, puis cliquez le point de départ sur le terrain pointillé.</div>}
+          {items.length === 0 && !tool && !entriesProp && <div className="lq-planner__empty">Choisissez « Mur » ou « Pièce » dans la palette, puis cliquez le point de départ sur le terrain pointillé.</div>}
         </div>
 
-        <footer className="lq-planner__status">
+        {showStatus && <footer className="lq-planner__status">
           <span>
             Terrain <strong>{plot.shape}</strong> · {plot.width * 2} × {plot.depth * 2} m · {plotArea(plot) * 4} m² constructibles
           </span>
@@ -1088,7 +1396,7 @@ export function WarehousePlanner({
           <span className="lq-planner__count">
             {items.length} élément{items.length > 1 ? "s" : ""}
           </span>
-        </footer>
+        </footer>}
       </div>
     </div>
   );

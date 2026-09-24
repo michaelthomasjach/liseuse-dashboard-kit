@@ -184,6 +184,15 @@ export interface WarehouseSceneProps {
    *  l'ombre, posée sur le papier. Une scène qui a sa propre dalle n'en a pas besoin.
    */
   catcher?: boolean;
+  /**
+   * Une fenêtre de taille fixe sur la scène, au lieu d'une toile taillée sur ce qu'elle cadre :
+   * sa taille en pixels, le point du sol au centre, en cases, et un grossissement. C'est ce que
+   * pilote un éditeur qui fait défiler et zoomer la vue.
+   */
+  viewport?: { width: number; height: number; center: { x: number; y: number; z?: number }; zoom?: number };
+  /** Ne monter la toile que quand elle est à l'écran (défaut). `false` : tout de suite, même hors
+   *  de la vue — pour une scène qu'on photographie hors écran. */
+  lazy?: boolean;
   className?: string;
   style?: CSSProperties;
   ariaLabel?: string;
@@ -206,13 +215,13 @@ export interface WarehouseSceneProps {
  *  Le contexte React ne traverse pas la frontière de la toile : ce qui vient de l'extérieur — la
  *  caméra, la palette — est relu ici et redonné à l'intérieur.
  */
-export function WarehouseScene({ bounds, cellSize = 30, padding = 10, speed = 1, paused = false, catcher = false, className, style, ariaLabel, children }: WarehouseSceneProps) {
+export function WarehouseScene({ bounds, cellSize = 30, padding = 10, speed = 1, paused = false, catcher = false, viewport, lazy = true, className, style, ariaLabel, children }: WarehouseSceneProps) {
   const cam = useIsoCamera();
   const zoom = useIsoZoom();
-  const scale = cellSize * zoom;
+  const scale = cellSize * zoom * (viewport?.zoom ?? 1);
   const box = projectedBox(bounds, cam.yaw, cam.tilt, scale);
-  const width = Math.ceil(box.width + padding * 2);
-  const height = Math.ceil(box.height + padding * 2);
+  const width = viewport ? viewport.width : Math.ceil(box.width + padding * 2);
+  const height = viewport ? viewport.height : Math.ceil(box.height + padding * 2);
   const host = useRef<HTMLDivElement>(null);
   const [palette, setPalette] = useState<Palette | null>(null);
   const [visible, setVisible] = useState(false);
@@ -227,20 +236,20 @@ export function WarehouseScene({ bounds, cellSize = 30, padding = 10, speed = 1,
   useEffect(() => {
     const el = host.current;
     if (el === null) return;
-    if (typeof IntersectionObserver === "undefined") {
+    if (!lazy || typeof IntersectionObserver === "undefined") {
       setVisible(true);
       return;
     }
     const io = new IntersectionObserver((entries) => setVisible(entries.some((e) => e.isIntersecting)), { rootMargin: "300px" });
     io.observe(el);
     return () => io.disconnect();
-  }, []);
+  }, [lazy]);
 
   // Le centre du cadre, passé par la symétrie comme tout le reste de la scène.
-  const target = useMemo(
-    () => new Vector3((bounds.y0 + bounds.y1) / 2, (bounds.x0 + bounds.x1) / 2, (bounds.z0 + bounds.z1) / 2),
-    [bounds.x0, bounds.x1, bounds.y0, bounds.y1, bounds.z0, bounds.z1]
-  );
+  const cx = viewport ? viewport.center.x : (bounds.x0 + bounds.x1) / 2;
+  const cy = viewport ? viewport.center.y : (bounds.y0 + bounds.y1) / 2;
+  const cz = viewport ? viewport.center.z ?? 0 : (bounds.z0 + bounds.z1) / 2;
+  const target = useMemo(() => new Vector3(cy, cx, cz), [cx, cy, cz]);
   const span = Math.hypot(bounds.x1 - bounds.x0, bounds.y1 - bounds.y0, bounds.z1 - bounds.z0);
 
   return (

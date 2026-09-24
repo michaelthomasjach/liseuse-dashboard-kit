@@ -5,7 +5,7 @@ import { advanceRobots, type WarehouseItem, type WarehouseRail } from "./warehou
 import { WAREHOUSE_ITEMS, WAREHOUSE_RAILS, WAREHOUSE_ROBOTS } from "./warehouseSampleData";
 
 const meta: Meta<typeof WarehouseCanvas> = {
-  title: "Warehouse/Plan d'entrepôt",
+  title: "Warehouse/Plan 2D (historique)",
   component: WarehouseCanvas,
   // Pas de gizmo de rotation ici : le plan est du DOM tourné par une transformation CSS fixe, pas
   // des pièces isométriques qui lisent `IsoCamera` — le gizmo n'y ferait rien.

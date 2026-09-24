@@ -1,0 +1,394 @@
+/* Le plan de l'entrepôt : une palette illustrée à gauche, la vue de dessus à droite — la même
+   disposition que le canevas de l'éditeur de scripts, et les mêmes gestes. */
+
+.lq-planner {
+  display: grid;
+  grid-template-columns: 216px minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  gap: var(--lq-space-2, 8px);
+  min-height: 0;
+  color: var(--lq-color-text);
+  font-size: 0.8rem;
+}
+
+/* ---- palette ---- */
+
+.lq-planner__palette {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  min-height: 0;
+  padding: 8px 4px 8px 8px;
+  border: 1px solid var(--lq-color-border-subtle);
+  border-radius: var(--lq-radius-sm, 6px);
+  background: var(--lq-color-panel);
+}
+
+.lq-planner__intro {
+  margin: 0;
+  font-size: 0.68rem;
+  line-height: 1.5;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-planner__group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.lq-planner__group-title {
+  margin: 0;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-planner__tools {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.lq-planner__tool {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 4px 6px;
+  border: 1px solid var(--lq-color-border-subtle);
+  border-radius: var(--lq-radius-sm, 6px);
+  background: var(--lq-color-bg);
+  color: var(--lq-color-text);
+  font: inherit;
+  cursor: grab;
+  user-select: none;
+}
+
+.lq-planner__tool:hover {
+  border-color: var(--lq-color-border);
+  background: var(--lq-color-hover);
+}
+
+.lq-planner__tool--armed {
+  border-color: var(--lq-color-accent);
+  box-shadow: inset 0 0 0 1px var(--lq-color-accent);
+}
+
+.lq-planner__thumb {
+  display: block;
+  width: 64px;
+  height: 48px;
+  pointer-events: none;
+}
+
+.lq-planner__tool-label {
+  font-size: 0.66rem;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.lq-planner__tool-count {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  min-width: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--lq-color-text);
+  color: var(--lq-color-bg);
+  font-size: 0.6rem;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+}
+
+/* ---- la vue ---- */
+
+.lq-planner__main {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.lq-planner__stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--lq-color-border-subtle);
+  border-radius: var(--lq-radius-sm, 6px);
+  background: color-mix(in srgb, var(--lq-color-green) 12%, var(--lq-color-bg));
+  cursor: grab;
+  touch-action: none;
+  outline: none;
+}
+
+.lq-planner__stage:focus-visible {
+  border-color: var(--lq-color-accent);
+}
+
+.lq-planner__stage:active {
+  cursor: grabbing;
+}
+
+.lq-planner__stage--armed,
+.lq-planner__stage--drawing {
+  cursor: crosshair;
+}
+
+.lq-planner__stage--3d {
+  cursor: move;
+}
+
+.lq-planner__overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.lq-planner__outline {
+  fill: color-mix(in srgb, var(--lq-color-accent) 8%, transparent);
+  stroke: color-mix(in srgb, var(--lq-color-accent) 60%, var(--lq-color-text));
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+}
+
+.lq-planner__outline--selected {
+  stroke-width: 1.6;
+  stroke-dasharray: none;
+}
+
+.lq-planner__outline--invalid {
+  fill: color-mix(in srgb, var(--lq-color-danger) 18%, transparent);
+  stroke: var(--lq-color-danger);
+}
+
+.lq-planner__handle {
+  pointer-events: all;
+}
+
+.lq-planner__handle--end {
+  fill: var(--lq-color-bg);
+  stroke: var(--lq-color-text);
+  stroke-width: 2;
+  cursor: ew-resize;
+}
+
+.lq-planner__handle--end:hover {
+  fill: var(--lq-color-accent);
+}
+
+.lq-planner__handle--move {
+  cursor: move;
+}
+
+.lq-planner__handle--move rect {
+  fill: var(--lq-color-text);
+}
+
+.lq-planner__handle--move path {
+  fill: none;
+  stroke: var(--lq-color-bg);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+}
+
+.lq-planner__dim {
+  fill: var(--lq-color-text);
+  font-size: 11px;
+  font-weight: 700;
+  paint-order: stroke;
+  stroke: var(--lq-color-bg);
+  stroke-width: 3px;
+}
+
+.lq-planner__toolbar,
+.lq-planner__inspector {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--lq-color-border);
+  border-radius: var(--lq-radius-sm, 6px);
+  background: var(--lq-color-panel);
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--lq-color-text) 14%, transparent);
+}
+
+.lq-planner__toolbar {
+  top: 8px;
+  right: 8px;
+}
+
+.lq-planner__inspector {
+  top: 8px;
+  left: 8px;
+  gap: 8px;
+  padding: 4px 6px 4px 10px;
+}
+
+.lq-planner__toolbar button,
+.lq-planner__inspector button,
+.lq-planner__status button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 28px;
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid var(--lq-color-border-subtle);
+  border-radius: var(--lq-radius-sm, 6px);
+  background: var(--lq-color-bg);
+  color: var(--lq-color-text);
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 600;
+  cursor: pointer;
+  justify-content: center;
+}
+
+.lq-planner__toolbar button:hover,
+.lq-planner__inspector button:hover,
+.lq-planner__status button:hover {
+  background: var(--lq-color-hover);
+}
+
+.lq-planner__toolbar button.is-on {
+  background: var(--lq-color-text);
+  color: var(--lq-color-bg);
+}
+
+.lq-planner__inspector .lq-planner__danger {
+  color: var(--lq-color-danger);
+}
+
+.lq-planner__hint {
+  position: absolute;
+  left: 50%;
+  top: 8px;
+  transform: translateX(-50%);
+  max-width: 50%;
+  padding: 5px 10px;
+  border: 1px solid var(--lq-color-border);
+  border-radius: var(--lq-radius-sm, 6px);
+  background: var(--lq-color-panel);
+  font-size: 0.72rem;
+  font-weight: 600;
+  pointer-events: none;
+  text-align: center;
+}
+
+.lq-planner__toast,
+.lq-planner__empty {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  max-width: 80%;
+  padding: 6px 12px;
+  border-radius: var(--lq-radius-sm, 6px);
+  background: var(--lq-color-text);
+  color: var(--lq-color-bg);
+  font-size: 0.74rem;
+  font-weight: 600;
+  pointer-events: none;
+  text-align: center;
+}
+
+.lq-planner__empty {
+  background: var(--lq-color-panel);
+  color: var(--lq-color-text-muted);
+  border: 1px dashed var(--lq-color-border);
+}
+
+.lq-planner__status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.74rem;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-planner__status strong {
+  color: var(--lq-color-text);
+}
+
+.lq-planner__seed {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.lq-planner__seed input {
+  width: 72px;
+  height: 26px;
+  padding: 0 6px;
+  border: 1px solid var(--lq-color-border);
+  border-radius: var(--lq-radius-sm, 6px);
+  background: var(--lq-color-bg);
+  color: var(--lq-color-text);
+  font: inherit;
+}
+
+.lq-planner__count {
+  margin-left: auto;
+}
+
+.lq-planner__thumb {
+  object-fit: contain;
+}
+
+.lq-planner__thumb--pending {
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--lq-color-text) 6%, transparent);
+}
+
+.lq-planner__outline--draft {
+  fill: color-mix(in srgb, var(--lq-color-accent) 14%, transparent);
+  stroke-dasharray: none;
+  stroke-width: 1.4;
+}
+
+.lq-planner__anchor {
+  fill: var(--lq-color-text);
+  stroke: var(--lq-color-bg);
+  stroke-width: 2;
+}
+
+.lq-planner__cursor rect {
+  fill: color-mix(in srgb, var(--lq-color-accent) 10%, transparent);
+  stroke: color-mix(in srgb, var(--lq-color-text) 50%, transparent);
+  stroke-width: 1;
+}
+
+.lq-planner__cursor path {
+  stroke: var(--lq-color-text);
+  stroke-width: 1.5;
+}
+
+.lq-planner__switch {
+  display: inline-flex;
+  border: 1px solid var(--lq-color-border);
+  border-radius: var(--lq-radius-sm, 6px);
+  overflow: hidden;
+}
+
+.lq-planner__toolbar .lq-planner__switch button {
+  border: none;
+  border-radius: 0;
+}
+
+.lq-planner__toolbar button.is-on {
+  background: var(--lq-color-text);
+  color: var(--lq-color-bg);
+}

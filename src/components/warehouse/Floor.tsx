@@ -1,7 +1,5 @@
-import { IsoCanvas } from "./isoCanvas";
-import { solidVolume, type Point, type Project } from "./rackItems";
-import { frameCorners } from "./rackItems";
-import { useIsoCamera } from "./isoCamera";
+import { Builder } from "./three/builder";
+import { Parts, Solo, frameBounds, useBuilt } from "./three/scene";
 import "./Floor.css";
 
 /**
@@ -62,97 +60,41 @@ export interface FloorProps {
   className?: string;
 }
 
-const PAD = 2;
-/** L'épaisseur de la tranche, en cases. Elle ne se règle pas : une dalle est une dalle, et deux
- *  sols d'épaisseurs différentes dans la même image se lisent comme deux niveaux. */
+/** L'épaisseur d'une dalle : 200 mm. */
 const THICKNESS = 0.1;
 
-export function Floor({
-  width = 12,
-  depth = 8,
-  origin = { x: 0, y: 0 },
-  level = 0,
-  slope,
-  frame,
-  parts = "all",
-  cellSize = 30,
-  className,
-}: FloorProps) {
-  const cam = useIsoCamera();
-  const world: Project = (x, y, z) => cam.project(x * cellSize, y * cellSize, z * cellSize);
-  const at: Project = (x, y, z) => world(x + origin.x, y + origin.y, z);
-  const facing = cam.facing();
-
+export function Floor({ width = 12, depth = 8, origin = { x: 0, y: 0 }, level = 0, slope, frame, parts = "all", cellSize = 30, className }: FloorProps) {
   const x1 = Math.max(0.5, width);
   const y1 = Math.max(0.5, depth);
   const z1 = Math.max(0, level);
-  /**
-   * Une dalle surélevée descend **jusqu'au sol**, elle ne flotte pas à sa hauteur.
-   *
-   *  Prise à son épaisseur nominale, elle donnait une plaque de six centimètres suspendue à
-   *  1 200 mm : le bâtiment n'avait plus de socle, et la marche qu'on voulait montrer n'existait
-   *  qu'en l'air. Une plateforme de quai est un massif — ce qu'on voit tout autour est sa tranche
-   *  entière, du sol à son dessus.
-   */
-  /** Le niveau du bord `y = 0`. Égal à celui du reste, la dalle est plate et rien ne change. */
   const zNear = Math.max(0, slope ?? z1);
+  // Une dalle surélevée descend jusqu'au sol : c'est un massif, pas une plaque suspendue.
   const z0 = Math.min(0, z1, zNear) - THICKNESS;
-
-  /**
-   * Les trois faces qu'on voit de la dalle — celles de `boxFaces`, avec **une hauteur par bord**.
-   *
-   *  Une dalle qui penche n'est plus un pavé : son dessus est un plan qui monte, ses deux flancs
-   *  sont des trapèzes, et ses deux bouts n'ont pas la même hauteur. Rien d'autre ne bouge — les
-   *  mêmes trois faces, la même règle pour savoir lesquelles, la même clarté — donc c'est bien la
-   *  boîte qu'on écrit, avec un `z` par bord au lieu d'un seul.
-   */
-  const faces = () => {
-    const xs = facing.xFace > 0 ? x1 : 0;
-    const ys = facing.yFace > 0 ? y1 : 0;
-    const zTop = ys > 0 ? z1 : zNear;
-    const faceX = [at(xs, 0, z0), at(xs, y1, z0), at(xs, y1, z1), at(xs, 0, zNear)];
-    const faceY = [at(0, ys, z0), at(x1, ys, z0), at(x1, ys, zTop), at(0, ys, zTop)];
-    return {
-      top: [at(0, 0, zNear), at(x1, 0, zNear), at(x1, y1, z1), at(0, y1, z1)],
-      front: facing.xOnLeft ? faceX : faceY,
-      side: facing.xOnLeft ? faceY : faceX,
-    };
-  };
-
-  const slab = solidVolume("slab", "slab", faces());
-
-  // Le cadrage. Avec un cadre partagé, la dalle **ajoute** sa tranche aux coins du cadre : elle
-  // descend sous le zéro du monde, que le cadre ne connaît pas. Ça ne décale rien — ce qui s'ajoute
-  // est en bas de l'image, jamais en haut à gauche, d'où partent toutes les `viewBox` de la scène.
-  const under = [
-    [0, 0],
-    [x1, 0],
-    [x1, y1],
-    [0, y1],
-  ].map(([x, y]) => at(x, y, z0));
-  const over = [
-    [0, 0, zNear],
-    [x1, 0, zNear],
-    [x1, y1, z1],
-    [0, y1, z1],
-  ].map(([x, y, z]) => at(x, y, z));
-  const corners: Point[] = frame
-    ? [...frameCorners(frame, world, cam.sun), ...under, ...over]
-    : [...under, ...over];
-  const minX = Math.min(...corners.map((p) => p.x)) - PAD;
-  const minY = Math.min(...corners.map((p) => p.y)) - PAD;
-  const boxWidth = Math.max(...corners.map((p) => p.x)) + PAD - minX;
-  const boxHeight = Math.max(...corners.map((p) => p.y)) + PAD - minY;
-
+  const built = useBuilt(() => {
+    const b = new Builder();
+    const X = origin.x;
+    const Y = origin.y;
+    // Huit coins et non une boîte : le dessus peut monter de `zNear` au bord des `y` bas jusqu'à
+    // `z1` au bord des `y` hauts — la cour qui descend en pente jusqu'au pied des portes.
+    b.hexa("slab", [
+      [X, Y, z0],
+      [X + x1, Y, z0],
+      [X + x1, Y + y1, z0],
+      [X, Y + y1, z0],
+      [X, Y, zNear],
+      [X + x1, Y, zNear],
+      [X + x1, Y + y1, z1],
+      [X, Y + y1, z1],
+    ]);
+    return b.build();
+  }, [origin.x, origin.y, x1, y1, z0, z1, zNear]);
+  // Les ombres ne sont plus une couche à part : la lumière les porte. La dalle n'a donc rien à
+  // dessiner quand une scène en couches lui demande les siennes.
+  if (parts === "shadow") return null;
+  const bounds = frame ? frameBounds(frame) : { x0: origin.x, x1: origin.x + x1, y0: origin.y, y1: origin.y + y1, z0, z1: Math.max(z1, zNear) };
   return (
-    <IsoCanvas
-      className={["lq-floor", className].filter(Boolean).join(" ")}
-      width={boxWidth}
-      height={boxHeight}
-      viewBox={[minX, minY, boxWidth, boxHeight]}
-      ariaLabel="Sol"
-    >
-      {(parts === "all" || parts === "machine") && slab}
-    </IsoCanvas>
+    <Solo bounds={bounds} cellSize={cellSize} className={["lq-floor", className].filter(Boolean).join(" ")} ariaLabel="Sol">
+      <Parts built={built} />
+    </Solo>
   );
 }

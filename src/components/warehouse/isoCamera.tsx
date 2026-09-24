@@ -77,15 +77,28 @@ export function isoCamera(yaw = 0, tilt = ISO_TILT): IsoCameraView {
   };
 }
 
-const IsoCameraContext = createContext<{ yaw: number; tilt: number }>({ yaw: 0, tilt: ISO_TILT });
+const IsoCameraContext = createContext<{ yaw: number; tilt: number; zoom: number }>({ yaw: 0, tilt: ISO_TILT, zoom: 1 });
 
 /** Le site, ramené entre ses bornes : de 0°, dans le plan du sol, à 90°, à la verticale. */
 export const clampTilt = (deg: number) => Math.min(ISO_TILT_MAX, Math.max(ISO_TILT_MIN, deg));
 
-/** Oriente la caméra de toutes les pièces isométriques qu'il contient : son cap, et son site. */
-export function IsoCamera({ yaw, tilt = ISO_TILT, children }: { yaw: number; tilt?: number; children: ReactNode }) {
-  const view = useMemo(() => ({ yaw: ((yaw % 360) + 360) % 360, tilt: clampTilt(tilt) }), [yaw, tilt]);
+/**
+ * Oriente la caméra de toutes les pièces qu'il contient : son cap, son site — et son grossissement.
+ *
+ *  Le grossissement vivait dans une propriété CSS `zoom` posée autour de la scène. Une scène 3D le
+ *  prend à sa caméra, ce qui la redessine nette à chaque cran au lieu d'étirer une image déjà
+ *  tramée ; il voyage donc avec le reste de la caméra.
+ */
+export function IsoCamera({ yaw, tilt = ISO_TILT, zoom, children }: { yaw: number; tilt?: number; zoom?: number; children: ReactNode }) {
+  const parent = useContext(IsoCameraContext);
+  const z = zoom ?? parent.zoom;
+  const view = useMemo(() => ({ yaw: ((yaw % 360) + 360) % 360, tilt: clampTilt(tilt), zoom: z }), [yaw, tilt, z]);
   return <IsoCameraContext.Provider value={view}>{children}</IsoCameraContext.Provider>;
+}
+
+/** Le grossissement de la loupe, `1` par défaut. */
+export function useIsoZoom(): number {
+  return useContext(IsoCameraContext).zoom;
 }
 
 /** La caméra de l'`IsoCamera` qui entoure le composant — la caméra par défaut s'il n'y en a pas. */

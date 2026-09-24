@@ -38,7 +38,7 @@ export default defineConfig({
       // which is what keeps the two builds from writing over each other — see that note.
     },
     rollupOptions: {
-      external: ["react", "react-dom", "react/jsx-runtime", "d3"],
+      external: ["react", "react-dom", "react/jsx-runtime", "d3", "three", "@react-three/fiber", /^three\//],
       // One output per format, rather than one shared output config.
       //
       // Both formats used to share `chunkFileNames: "[name].js"`, which meant the ES pass wrote

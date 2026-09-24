@@ -1,4 +1,5 @@
-import type { ReactNode } from "react";
+import { Fragment, isValidElement, type ReactElement, type ReactNode } from "react";
+import { WarehouseScene, frameBounds } from "./three/scene";
 import { useIsoCamera } from "./isoCamera";
 import { frameCorners } from "./rackItems";
 
@@ -65,9 +66,29 @@ export interface SceneUnit {
 export const layer = { position: "absolute", left: 0, top: 0 } as const;
 
 /**
- * Une scène : toutes les ombres d'abord — elles sont au sol et passent sous tous les modules, pas
- * seulement sous le leur — puis les groupes, du plus lointain au plus proche **pour la caméra
- * courante**.
+ * Déballer les calques d'une scène écrite pour le dessin.
+ *
+ *  Les scènes isométriques empilaient chaque module dans un `<div>` en position absolue — une toile
+ *  par module, superposées. Une scène 3D n'a qu'une toile, et un `<div>` n'y a pas sa place : on ne
+ *  garde que ce qu'il contient. C'est ce qui laisse les stories écrites en calques marcher sans
+ *  être réécrites, en attendant qu'elles le soient.
+ */
+export function unwrapLayers(node: ReactNode): ReactNode {
+  if (node === null || node === undefined || typeof node === "boolean") return null;
+  if (Array.isArray(node)) return node.map((n, i) => <Fragment key={i}>{unwrapLayers(n)}</Fragment>);
+  if (!isValidElement(node)) return null;
+  const el = node as ReactElement<{ children?: ReactNode }>;
+  if (el.type === "div" || el.type === Fragment) return unwrapLayers(el.props.children);
+  return el;
+}
+
+/**
+ * Une scène : **une seule** scène 3D pour tous ses modules.
+ *
+ *  Plus d'ombres d'abord, plus de groupes rangés du plus lointain au plus proche : la profondeur
+ *  s'en charge, et les ombres viennent de la lumière. Les `shadow` des unités ne servent donc plus
+ *  — leur module en `parts="shadow"` ne dessine rien — et seules les machines et leurs charges
+ *  sont posées dans la scène.
  */
 export function Scene({
   frame,
@@ -75,28 +96,38 @@ export function Scene({
   units,
   padding = 24,
   under,
+  speed,
+  paused,
 }: {
   frame: Frame;
   cellSize: number;
   units: SceneUnit[];
   padding?: number;
-  /** Ce qui est **sous** la scène — une dalle. Peint avant tout, ombres comprises : le sol ne prend
-   *  jamais sa place dans l'ordre des groupes, il est dessous à tous les caps. */
+  /** Ce qui est sous la scène — une dalle. */
   under?: ReactNode;
+  speed?: number;
+  paused?: boolean;
 }) {
-  const cam = useIsoCamera();
-  const box = useFrameBox(frame, cellSize);
-  const ordered = cam.order(units);
   return (
     <div style={{ padding }}>
-      <div style={{ position: "relative", width: box.width, height: box.height }}>
-        {under}
-        {units.map((u) => (u.shadow ? <div key={`s-${u.key}`}>{u.shadow}</div> : null))}
-        {ordered.map((u) => (
-          <div key={`m-${u.key}`}>{u.machine}</div>
+      <WarehouseScene bounds={frameBounds(frame)} cellSize={cellSize} speed={speed} paused={paused}>
+        {unwrapLayers(under)}
+        {units.map((u) => (
+          <Fragment key={u.key}>
+            {unwrapLayers(u.machine)}
+            {unwrapLayers(u.load)}
+          </Fragment>
         ))}
-        {ordered.map((u) => (u.load ? <div key={`l-${u.key}`}>{u.load}</div> : null))}
-      </div>
+      </WarehouseScene>
     </div>
+  );
+}
+
+/** Une scène libre, cadrée sur `frame` : ce qu'on y pose est déballé de ses calques. */
+export function SceneBox({ frame, cellSize, children, speed, paused }: { frame: Frame; cellSize: number; children: ReactNode; speed?: number; paused?: boolean }) {
+  return (
+    <WarehouseScene bounds={frameBounds(frame)} cellSize={cellSize} speed={speed} paused={paused}>
+      {unwrapLayers(children)}
+    </WarehouseScene>
   );
 }

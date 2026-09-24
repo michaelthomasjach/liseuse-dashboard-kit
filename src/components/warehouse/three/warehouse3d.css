@@ -1,0 +1,154 @@
+/* Les matières et les pièces rapportées de l'entrepôt 3D.
+
+   Même règle que partout dans le kit : aucune couleur écrite en dur, rien que des mélanges de
+   l'encre et du papier, et des accents du thème. Dans la palette e-ink, les accents s'effondrent
+   sur l'encre : tout redevient une gamme de gris, et la scène reste lisible sur une liseuse. Dans la
+   palette couleur, ils reprennent leurs teintes poudrées. Une seule feuille sert les deux. */
+
+/* --- Les marchandises ------------------------------------------------------------------------ */
+
+.lq-good__tape {
+  fill: color-mix(in srgb, var(--lq-color-amber) 30%, var(--lq-color-bg));
+}
+.lq-good__label {
+  fill: color-mix(in srgb, var(--lq-color-text) 3%, var(--lq-color-bg));
+  stroke: color-mix(in srgb, var(--lq-color-text) 40%, transparent);
+}
+.lq-good__grip {
+  fill: color-mix(in srgb, var(--lq-color-text) 62%, var(--lq-color-bg));
+}
+
+/* --- Le site : la cour, les voies, la végétation ---------------------------------------------- */
+
+.lq-iso__solid--asphalt {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-text) 30%, var(--lq-color-bg));
+}
+.lq-iso__solid--kerb {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-text) 12%, var(--lq-color-bg));
+}
+.lq-iso__solid--pavement {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-text) 15%, var(--lq-color-bg));
+}
+.lq-iso__solid--grass {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-green) 26%, var(--lq-color-bg));
+}
+.lq-iso__solid--foliage {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-green) 52%, var(--lq-color-bg));
+}
+.lq-iso__solid--foliage-dark {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-green) 66%, var(--lq-color-text));
+}
+.lq-iso__solid--bark {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-amber) 36%, var(--lq-color-text));
+}
+.lq-road__mark {
+  fill: color-mix(in srgb, var(--lq-color-text) 2%, var(--lq-color-bg));
+}
+.lq-road__mark--warn {
+  fill: color-mix(in srgb, var(--lq-color-amber) 70%, var(--lq-color-bg));
+}
+.lq-zone__line {
+  fill: color-mix(in srgb, var(--lq-color-amber) 72%, var(--lq-color-bg));
+}
+.lq-zone__walk {
+  fill: color-mix(in srgb, var(--lq-color-green) 38%, var(--lq-color-bg));
+}
+.lq-zone__hatch {
+  fill: color-mix(in srgb, var(--lq-color-text) 70%, var(--lq-color-bg));
+}
+.lq-zone__label {
+  fill: color-mix(in srgb, var(--lq-color-text) 78%, var(--lq-color-bg));
+}
+
+/* --- Les véhicules et le mobilier -------------------------------------------------------------- */
+
+.lq-iso__solid--paint {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-accent) 40%, var(--lq-color-bg));
+}
+.lq-iso__solid--paint-warm {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-rose) 42%, var(--lq-color-bg));
+}
+.lq-iso__solid--paint-cool {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-sky) 46%, var(--lq-color-bg));
+}
+.lq-iso__solid--paint-light {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-text) 5%, var(--lq-color-bg));
+}
+.lq-iso__solid--paint-dark {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-text) 52%, var(--lq-color-bg));
+}
+.lq-iso__solid--chrome {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-text) 22%, var(--lq-color-bg));
+}
+.lq-iso__solid--stripe {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-rose) 62%, var(--lq-color-bg));
+}
+.lq-iso__solid--container {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-rose) 34%, var(--lq-color-text-muted));
+}
+.lq-iso__solid--container-alt {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-sky) 40%, var(--lq-color-text-muted));
+}
+.lq-iso__solid--mesh {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-text) 36%, var(--lq-color-bg));
+}
+.lq-iso__solid--skin {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-amber) 30%, var(--lq-color-bg));
+}
+.lq-iso__solid--vest {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-amber) 74%, var(--lq-color-bg));
+}
+.lq-iso__solid--denim {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-accent) 58%, var(--lq-color-text));
+}
+.lq-iso__solid--lamp {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-text) 2%, var(--lq-color-bg));
+}
+.lq-iso__solid--screen {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-text) 74%, var(--lq-color-bg));
+}
+.lq-iso__solid--pod {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-amber) 46%, var(--lq-color-bg));
+}
+.lq-iso__solid--roof {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-text) 18%, var(--lq-color-bg));
+}
+
+.lq-car__glass {
+  fill: color-mix(in srgb, var(--lq-color-text) 60%, var(--lq-color-bg));
+}
+.lq-car__lamp {
+  fill: color-mix(in srgb, var(--lq-color-text) 2%, var(--lq-color-bg));
+}
+.lq-car__lamp--rear {
+  fill: color-mix(in srgb, var(--lq-color-rose) 60%, var(--lq-color-bg));
+}
+.lq-sign__face {
+  fill: color-mix(in srgb, var(--lq-color-text) 2%, var(--lq-color-bg));
+  stroke: color-mix(in srgb, var(--lq-color-text) 70%, transparent);
+}
+.lq-sign__mark {
+  fill: color-mix(in srgb, var(--lq-color-rose) 64%, var(--lq-color-bg));
+}
+.lq-screen__face {
+  fill: color-mix(in srgb, var(--lq-color-accent) 30%, var(--lq-color-text));
+}
+.lq-trailer__line line,
+.lq-trailer__line {
+  stroke: color-mix(in srgb, var(--lq-color-text) 38%, transparent);
+}
+.lq-fence__wire line,
+.lq-fence__wire {
+  stroke: color-mix(in srgb, var(--lq-color-text) 55%, transparent);
+}
+.lq-truck__door line,
+.lq-truck__door {
+  stroke: color-mix(in srgb, var(--lq-color-text) 55%, transparent);
+}
+.lq-container__bar line,
+.lq-container__bar {
+  stroke: color-mix(in srgb, var(--lq-color-text) 70%, transparent);
+}
+.lq-trailer__inside {
+  fill: color-mix(in srgb, var(--lq-color-text) 72%, var(--lq-color-bg));
+}

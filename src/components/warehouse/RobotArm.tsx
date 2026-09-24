@@ -1,15 +1,10 @@
-import type { ReactNode } from "react";
-import {
-  convexHull,
-  frameCorners,
-  prismVolume,
-  roundedRing,
-  type Point,
-  type Project,
-  type Contour,
-} from "./rackItems";
-import { IsoCanvas } from "./isoCanvas";
-import { useIsoCamera } from "./isoCamera";
+import { useRef } from "react";
+import type { Group } from "three";
+import { Builder, roundedRect } from "./three/builder";
+import { Parts, Solo, frameBounds, useBuilt } from "./three/scene";
+import { useSimFrame } from "./three/time";
+import { addGood } from "./three/goods";
+import "./rackItems.css";
 import "./RobotArm.css";
 
 /**
@@ -61,206 +56,124 @@ export interface RobotArmProps {
   frame?: { x: number; y: number; width: number; depth: number; height: number };
   /** Ce qu'on dessine : tout, l'ombre seule, ou le robot seul. */
   parts?: "all" | "shadow" | "machine";
+  /** Enchaîner les prises : la tourelle pivote d'un poste à l'autre, le bras plonge, saisit, remonte,
+   *  pivote, dépose. */
+  running?: boolean;
+  /** Durée d'un aller-retour, en secondes de simulation. */
+  cycle?: number;
+  /** L'amplitude du pivot de la tourelle entre ses deux postes, en degrés. */
+  swing?: number;
   /** Pixels par case. */
   cellSize?: number;
   className?: string;
 }
 
-const PAD = 2;
 const BASE_R = 0.34;
 const BASE_Z = 0.16;
 const TURRET_Z = 0.52;
 
-/**
- * Un contour, **rendu en nombres et non en texte**.
- *
- *  Il rendait `"12.34,56.78 …"`, parce qu'un attribut `points` de SVG est une chaîne. Depuis que le
- *  dessin va sur un canvas, cette chaîne n'est plus lue par personne : elle est fabriquée à coups
- *  de `toFixed`, puis re-découpée et reconvertie en nombres par le peintre. Deux conversions et une
- *  allocation par facette, à chaque image — c'était le premier poste du profil pendant une
- *  rotation. Les éléments n'étant jamais montés dans le document, rien n'oblige à passer par du
- *  texte : le tableau va directement du calcul au tracé.
- */
-const ring = (points: Point[]): Contour => {
-  const out = new Array<number>(points.length * 2);
-  for (let i = 0; i < points.length; i += 1) {
-    out[i * 2] = points[i].x;
-    out[i * 2 + 1] = points[i].y;
-  }
-  // Le tableau se donne pour une chaîne : voir `Contour`.
-  return out as unknown as Contour;
-};
 
-interface P3 {
-  x: number;
-  y: number;
-  z: number;
+export function RobotArm(props: RobotArmProps) {
+  const { reach = 1.7, origin = { x: 0, y: 0 }, frame, parts = "all", cellSize = 30, className } = props;
+  if (parts === "shadow") return null;
+  const span = reach + BASE_R + 0.4;
+  const bounds = frame ? frameBounds(frame) : { x0: origin.x - span, x1: origin.x + span, y0: origin.y - span, y1: origin.y + span, z0: 0, z1: TURRET_Z + reach + 0.4 };
+  return (
+    <Solo bounds={bounds} cellSize={cellSize} className={["lq-arm", className].filter(Boolean).join(" ")} ariaLabel="Bras robotisé">
+      <RobotArmBody {...props} />
+    </Solo>
+  );
 }
 
-export function RobotArm({
-  shoulder = 52,
-  elbow = 74,
-  reach = 1.7,
-  rotation = 0,
-  holding = true,
-  shadows = false,
-  origin = { x: 0, y: 0 },
-  frame,
-  parts = "all",
-  cellSize = 30,
-  className,
-}: RobotArmProps) {
-  const cam = useIsoCamera();
-  const world: Project = (x, y, z) => cam.project(x * cellSize, y * cellSize, z * cellSize);
-  const at: Project = (x, y, z) => world(x + origin.x, y + origin.y, z);
-  const facing = cam.facing(rotation);
-  const localView = { x: cam.view.x, y: cam.view.y };
-  const prism = (material: string, key: string, ground: Point[], z0: number, z1: number) =>
-    prismVolume(material, key, at, ground, z0, z1, facing, localView);
+/** Une courbe douce d'un palier à l'autre. */
+const ease = (x: number) => x * x * (3 - 2 * x);
 
-  // ---- la pose, en trois points ----
-  const rad = (deg: number) => (deg * Math.PI) / 180;
-  const dir = { x: Math.cos(rad(rotation)), y: Math.sin(rad(rotation)) };
+function RobotArmBody({ shoulder = 52, elbow = 74, reach = 1.7, rotation = 0, holding = true, origin = { x: 0, y: 0 }, running = false, cycle = 6, swing = 120 }: RobotArmProps) {
   const upper = reach * 0.54;
   const fore = reach * 0.46;
-  const shoulderPt: P3 = { x: 0, y: 0, z: TURRET_Z + 0.12 };
-  const a1 = rad(shoulder);
-  const a2 = a1 - rad(elbow);
-  const elbowPt: P3 = {
-    x: shoulderPt.x + dir.x * upper * Math.cos(a1),
-    y: shoulderPt.y + dir.y * upper * Math.cos(a1),
-    z: shoulderPt.z + upper * Math.sin(a1),
+  const shoulderZ = TURRET_Z + 0.12;
+  const square = (r: number) => roundedRect(-r, r, -r, r, r * 0.55, 4);
+  const base = useBuilt(() => {
+    const b = new Builder();
+    b.prism("arm-dark", square(BASE_R), 0, BASE_Z);
+    return b.build();
+  }, []);
+  const turret = useBuilt(() => {
+    const b = new Builder();
+    b.prism("arm", square(BASE_R * 0.78), BASE_Z, TURRET_Z);
+    b.cylinder("arm-dark", 0, 0, shoulderZ, 0.13, 0.3, "y", 16);
+    return b.build();
+  }, []);
+  const upperArm = useBuilt(() => {
+    const b = new Builder();
+    b.beam("arm", [0, 0, 0], [upper, 0, 0], 0.1);
+    b.cylinder("arm-dark", upper, 0, 0, 0.1, 0.24, "y", 16);
+    return b.build();
+  }, [upper]);
+  const foreArm = useBuilt(() => {
+    const b = new Builder();
+    b.beam("arm", [0, 0, 0], [fore, 0, 0], 0.075);
+    b.blob("arm-dark", fore, 0, 0, 0.075, 1);
+    return b.build();
+  }, [fore]);
+  const hand = useBuilt(() => {
+    const b = new Builder();
+    // Le poignet pend toujours à la verticale : c'est lui qui porte, et la pince regarde le sol.
+    b.box("arm-dark", -0.05, 0.05, -0.05, 0.05, -0.2, 0);
+    b.box("arm-dark", -0.14, 0.14, -0.05, 0.05, -0.23, -0.2);
+    for (const s of [-1, 1]) b.box("arm-dark", s * 0.11 - 0.025, s * 0.11 + 0.025, -0.035, 0.035, -0.36, -0.23);
+    if (holding) addGood(b, "carton", 0, 0, -0.56, 0.17, 0.3);
+    return b.build();
+  }, [holding]);
+
+  const turretRef = useRef<Group>(null);
+  const shoulderRef = useRef<Group>(null);
+  const elbowRef = useRef<Group>(null);
+  const wristRef = useRef<Group>(null);
+  const rad = (d: number) => (d * Math.PI) / 180;
+  const pose = (yaw: number, s: number, e: number) => {
+    const a1 = rad(s);
+    const a2 = a1 - rad(e);
+    if (turretRef.current) turretRef.current.rotation.z = rad(yaw);
+    if (shoulderRef.current) shoulderRef.current.rotation.y = -a1;
+    if (elbowRef.current) elbowRef.current.rotation.y = rad(e);
+    // Annuler l'inclinaison cumulée : la pince reste verticale.
+    if (wristRef.current) wristRef.current.rotation.y = a2;
   };
-  const wristPt: P3 = {
-    x: elbowPt.x + dir.x * fore * Math.cos(a2),
-    y: elbowPt.y + dir.y * fore * Math.cos(a2),
-    z: elbowPt.z + fore * Math.sin(a2),
-  };
-
-  /**
-   * Une poutre d'un point à l'autre : l'enveloppe convexe des huit coins du pavé. La caméra étant
-   * affine, cette enveloppe **est** la silhouette du volume, et non une approximation.
-   */
-  const beam = (a: P3, b: P3, half: number, material: string, key: string) => {
-    const ax = b.x - a.x;
-    const ay = b.y - a.y;
-    const az = b.z - a.z;
-    const len = Math.hypot(ax, ay, az) || 1e-6;
-    // Deux directions perpendiculaires à la poutre : l'une à plat, l'autre dans son plan vertical.
-    const flat = Math.hypot(ax, ay) || 1e-6;
-    const n1 = { x: -ay / flat, y: ax / flat, z: 0 };
-    const n2 = {
-      x: (-(ax / len) * (az / len)) / Math.max(1e-6, flat / len),
-      y: (-(ay / len) * (az / len)) / Math.max(1e-6, flat / len),
-      z: flat / len,
-    };
-    const pts: Point[] = [];
-    for (const end of [a, b]) {
-      for (const s1 of [-1, 1]) {
-        for (const s2 of [-1, 1]) {
-          pts.push(
-            at(
-              end.x + n1.x * half * s1 + n2.x * half * s2,
-              end.y + n1.y * half * s1 + n2.y * half * s2,
-              end.z + n1.z * half * s1 + n2.z * half * s2
-            )
-          );
-        }
-      }
-    }
-    return <polygon key={key} className={`lq-arm__beam lq-arm__beam--${material}`} points={ring(convexHull(pts))} />;
-  };
-
-  const joint = (p: P3, r: number, key: string) => {
-    const pts: Point[] = [];
-    for (let i = 0; i < 12; i += 1) {
-      const a = (i / 12) * Math.PI * 2;
-      pts.push(at(p.x + r * Math.cos(a), p.y + r * Math.sin(a), p.z + r * Math.sin(a) * 0.0));
-      pts.push(at(p.x + r * Math.cos(a) * 0.2, p.y + r * Math.sin(a) * 0.2, p.z + r * Math.cos(a)));
-    }
-    return <polygon key={key} className="lq-arm__beam lq-arm__beam--joint" points={ring(convexHull(pts))} />;
-  };
-
-  const square = (r: number) => roundedRing(-r, r, -r, r, r * 0.55, 4);
-
-  const machine = (
-    <g key="arm">
-      {/* L'embase et la tourelle : ce qui tient au sol et ce qui tourne dessus. */}
-      {prism("arm-dark", "base", square(BASE_R), 0, BASE_Z)}
-      {prism("arm", "turret", square(BASE_R * 0.78), BASE_Z, TURRET_Z)}
-      {joint(shoulderPt, 0.13, "j-shoulder")}
-      {beam(shoulderPt, elbowPt, 0.1, "arm", "upper")}
-      {joint(elbowPt, 0.1, "j-elbow")}
-      {beam(elbowPt, wristPt, 0.075, "arm", "fore")}
-      {joint(wristPt, 0.075, "j-wrist")}
-      {/* La pince : deux doigts sous le poignet. C'est le seul endroit par lequel un bras touche ce
-          qu'il déplace, donc le seul qu'on doive voir en entier. */}
-      {beam(wristPt, { ...wristPt, z: wristPt.z - 0.2 }, 0.05, "arm-dark", "wrist")}
-      {[-1, 1].map((s) => {
-        const off = { x: -dir.y * 0.11 * s, y: dir.x * 0.11 * s };
-        return beam(
-          { x: wristPt.x + off.x, y: wristPt.y + off.y, z: wristPt.z - 0.2 },
-          { x: wristPt.x + off.x, y: wristPt.y + off.y, z: wristPt.z - 0.36 },
-          0.035,
-          "arm-dark",
-          `finger${s}`
-        );
-      })}
-      {holding ? prism("kraft", "held", roundedRing(wristPt.x - 0.17, wristPt.x + 0.17, wristPt.y - 0.17, wristPt.y + 0.17, 0.03), wristPt.z - 0.56, wristPt.z - 0.24) : null}
-    </g>
-  );
-
-  const shade = shadows
-    ? (() => {
-        const foot: Point[] = [];
-        for (const p of [shoulderPt, elbowPt, wristPt]) {
-          foot.push({ x: p.x + cam.sun.x * p.z, y: p.y + cam.sun.y * p.z });
-        }
-        for (let i = 0; i < 8; i += 1) {
-          const a = (i / 8) * Math.PI * 2;
-          foot.push({ x: BASE_R * Math.cos(a), y: BASE_R * Math.sin(a) });
-        }
-        return (
-          <polygon
-            className="lq-iso__shadow"
-            points={ring(convexHull(foot.map((p) => at(p.x, p.y, 0))))}
-          />
-        );
-      })()
-    : null;
-
-  const span = reach + BASE_R + 0.4;
-  const corners: Point[] = frame
-    ? frameCorners(frame, world, cam.sun)
-    : [0, wristPt.z + 0.4].flatMap((z) =>
-        [
-          [-span, -span],
-          [span, -span],
-          [span, span],
-          [-span, span],
-        ].map(([x, y]) => at(x, y, z))
-      );
-  const minX = Math.min(...corners.map((p) => p.x)) - PAD;
-  const minY = Math.min(...corners.map((p) => p.y)) - PAD;
-  const boxWidth = Math.max(...corners.map((p) => p.x)) + PAD - minX;
-  const boxHeight = Math.max(...corners.map((p) => p.y)) + PAD - minY;
-
-  const content: ReactNode = (
-    <>
-      {(parts === "all" || parts === "shadow") && shade}
-      {(parts === "all" || parts === "machine") && machine}
-    </>
-  );
+  useSimFrame((t) => {
+    // Un demi-cycle par trajet : plonger et remonter au poste de départ, pivoter bras levé, plonger
+    // et remonter au poste d'arrivée. Le suivant fait le chemin inverse.
+    const u = (((t / Math.max(1, cycle)) % 1) + 1) % 1;
+    const half = u < 0.5 ? u / 0.5 : (u - 0.5) / 0.5;
+    const from = u < 0.5 ? rotation - swing / 2 : rotation + swing / 2;
+    const to = u < 0.5 ? rotation + swing / 2 : rotation - swing / 2;
+    const turn = half < 0.22 ? 0 : half < 0.78 ? ease((half - 0.22) / 0.56) : 1;
+    const low =
+      half < 0.12 ? ease(half / 0.12) : half < 0.22 ? 1 - ease((half - 0.12) / 0.1) : half < 0.78 ? 0 : half < 0.88 ? ease((half - 0.78) / 0.1) : 1 - ease((half - 0.88) / 0.12);
+    pose(from + (to - from) * turn, shoulder - 22 * low, elbow + 18 * low);
+  }, running);
 
   return (
-    <IsoCanvas
-      className={["lq-arm", className].filter(Boolean).join(" ")}
-      width={boxWidth}
-      height={boxHeight}
-      viewBox={[minX, minY, boxWidth, boxHeight]}
-      ariaLabel="Bras robotisé"
-    >
-      {content}
-    </IsoCanvas>
+    <group position={[origin.x, origin.y, 0]}>
+      <Parts built={base} />
+      <group ref={turretRef} rotation={[0, 0, rad(rotation)]}>
+        <Parts built={turret} />
+        <group position={[0, 0, shoulderZ]}>
+          <group ref={shoulderRef} rotation={[0, -rad(shoulder), 0]}>
+            <Parts built={upperArm} />
+            <group position={[upper, 0, 0]}>
+              <group ref={elbowRef} rotation={[0, rad(elbow), 0]}>
+                <Parts built={foreArm} />
+                <group position={[fore, 0, 0]}>
+                  <group ref={wristRef} rotation={[0, rad(shoulder - elbow), 0]}>
+                    <Parts built={hand} />
+                  </group>
+                </group>
+              </group>
+            </group>
+          </group>
+        </group>
+      </group>
+    </group>
   );
 }

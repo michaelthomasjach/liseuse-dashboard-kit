@@ -1,117 +1,55 @@
-import { useId, type CSSProperties } from "react";
-import {
-  frameCorners,
-  boxFaces,
-  prismVolume,
-  roundedRing,
-  convexHull as hull,
-  isoWheel,
-  fitRackItem,
-  rackItemIso,
-  solidVolume,
-  type Point,
-  type Project,
-  type RackItemKind,
-  type Contour,
-} from "./rackItems";
-import { IsoCanvas } from "./isoCanvas";
+import { useLayoutEffect, useRef } from "react";
+import { useThree } from "@react-three/fiber";
+import type { Group } from "three";
+import { Builder, roundedRect } from "./three/builder";
+import { Parts, Solo, frameBounds, placed, useBuilt } from "./three/scene";
+import { useSimClock, useSimFrame } from "./three/time";
+import { addGood } from "./three/goods";
+import { fitRackItem, type RackItemKind } from "./rackItems";
 import { RAIL_GAUGE, RAIL_TOP, RAIL_WIDTH } from "./Rail";
-import { useIsoCamera } from "./isoCamera";
+import "./rackItems.css";
 import "./Picker.css";
 
 /**
  * Picker — la machine qui roule sur un rail, prend un colis dans une étagère et le dépose sur un
  * tapis. Un transstockeur, en plus petit.
  *
- * Même vocabulaire que l'étagère, le tapis et le rail (`rackItems.tsx`) : des volumes alignés sur
- * les axes, trois faces, trois clartés d'une seule lumière, faces visibles choisies d'après la
- * rotation. Une machine posée sur une voie doit être faite de la même matière que la voie, sans quoi
- * l'image se lit comme deux dessins côte à côte.
- *
  * ## Les pièces, et ce que chacune fait
  *
- * Un **châssis** sur quatre roues, qui roule le long du rail. Le châssis tient entre les deux files
- * et les roues sont à l'extérieur, sur leur file, comme les galets d'un bogie : on les voit donc
- * entières, et c'est leur rondeur qui dit que la machine roule.
- * Deux **montants**, un à chaque bout, reliés en tête par une **traverse** : un portique, et non un
- * poteau — un seul mât ne tient pas une charge en porte-à-faux, et la machine se lisait comme un
- * lampadaire sur un socle. Entre les montants, le **tablier** qui monte et descend, tenu par deux
- * **patins** qui embrassent les montants. Sur le tablier, deux étages **télescopiques** et les
- * fourches, qui sortent d'un côté ou de l'autre. Et au pied d'un montant, l'**armoire** électrique,
- * sans laquelle une machine n'est qu'un meuble.
+ * Un **châssis** sur quatre roues, qui roule le long du rail : il tient entre les deux files, les
+ * roues sont dessus, comme les galets d'un bogie. Deux **montants**, un à chaque bout, reliés en tête
+ * par une **traverse** : un portique, et non un poteau — un seul mât ne tient pas une charge en
+ * porte-à-faux. Entre les montants, le **tablier** qui monte et descend, guidé par deux **patins** ;
+ * sur le tablier, deux étages **télescopiques** et les fourches, qui sortent d'un côté ou de
+ * l'autre. Au pied d'un montant, l'**armoire** électrique.
  *
- * Trois mouvements sur trois axes indépendants, et c'est exactement ce qui fait qu'un picker peut
- * desservir une alvéole : il faut arriver à la bonne travée (`x`), au bon niveau (`z`), puis entrer
- * dans l'alvéole (`y`). Une machine à deux axes ne peut que passer devant.
- *
- * ## Les roues sont rondes, et ce n'est pas un détail de dessin
- *
- * Une roue est un disque dans le plan vertical du rail. Sous cette caméra, un plan passe par une
- * application affine, donc un cercle devient une ellipse — la même qu'on calcule en projetant ses
- * points un à un. La bande de roulement est alors l'enveloppe convexe des deux flancs : pas de
- * calcul de tangentes, et c'est juste à toute rotation du sol.
- *
- * ## Pourquoi tout ici est une translation, et pourquoi c'est la raison d'être du dessin
- *
- * La caméra du kit est **affine** : elle envoie un plan par une matrice 2×2 et une hauteur par un
- * décalage vertical fixe (voir `warehouseIso.ts`). Donc une translation dans le monde devient une
- * translation à l'écran, la même quel que soit l'endroit d'où on part — et c'est vrai des trois
- * axes à la fois.
- *
- * Les trois mouvements de la machine sont **précisément trois translations**. Chacun est donc un
- * `translate()` CSS sur un groupe SVG, et les trois groupes s'emboîtent : `travel` porte `lift`, qui
- * porte `reach`. Rien n'est redessiné image par image : le dessin est fait une fois, à une position
- * de référence, et les trois `@keyframes` disent de combien il s'écarte.
- *
- * C'est aussi ce qui limite la machine sur une voie droite. Dans un virage elle **tourne**, et une
- * rotation d'un volume n'est pas une transformation d'écran sous cette caméra : là, on la redessine
- * à chaque cap (`rotation`), comme une charge dans un virage de tapis. Voir la story du circuit.
+ * Trois mouvements sur trois axes indépendants — la travée (`x`), le niveau (`z`), l'entrée dans
+ * l'alvéole (`y`) —, qui sont trois groupes emboîtés : `travel` porte `lift`, qui porte les deux
+ * étages. En 3D, une fourche qui entre dans une alvéole y est vraiment : c'est le tampon de
+ * profondeur qui la cache derrière les lisses, et non un masque repeint par-dessus.
  *
  * ## Le cycle
  *
- * Dix temps qui bouclent, et la boucle se referme sur elle-même sans retour à vide :
+ * Dix temps qui bouclent, sans retour à vide :
  *
  *   approche → arrêt → engagement → prise → dégagement →
  *   transfert → arrêt → présentation → dépose → dégagement
  *
- * La translation et la levée sont **simultanées** dans l'approche et le transfert : ce sont deux
- * moteurs distincts sur une vraie machine, et les faire l'un après l'autre doublerait un temps que
- * personne ne perd. La durée du déplacement est donc le plus long des deux, pas leur somme.
+ * La translation et la levée sont **simultanées** : deux moteurs distincts sur une vraie machine. La
+ * durée d'un déplacement est donc le plus long des deux, pas leur somme. `level` est la hauteur du
+ * plan des fourches quand elles s'engagent ; la machine lève ensuite de quoi décoller la charge
+ * (`BITE`), et c'est ce petit mouvement qui est la prise.
  *
- * `level` est la hauteur du **plan des fourches quand elles s'engagent** : le dessous de l'alvéole,
- * ou le brin du tapis. La machine lève ensuite de quoi décoller la charge, et c'est ce petit
- * mouvement qui est la prise — sans lui, le colis et l'alvéole se traverseraient. Le tablier ne
- * descend pas plus bas que le châssis : un niveau trop bas est relevé jusque-là.
- *
- * Le cycle est **calculé, pas animé** : le composant sait dire la pose de la machine à n'importe
- * quelle fraction de tour, et le mouvement n'est que cette pose reprise image par image par le
- * navigateur. C'est ce qui fait qu'un arrêt sur image (`running={false}` et un `phase`) montre
- * exactement ce qui passe, et non une reconstitution.
+ * Le cycle est **calculé** : la pose de la machine est une fonction du temps de la simulation, si
+ * bien qu'un arrêt sur image (`running={false}` et un `phase`) montre exactement ce qui passe. La
+ * charge est à bord de la prise à la dépose — elle ne naît ni ne s'efface en l'air : elle apparaît
+ * quand les fourches la soulèvent dans l'alvéole, et quitte la machine posée sur le tapis
+ * (`onPick`, `onDrop`), là où le module suivant la reprend.
  *
  * ## Les vitesses
  *
- * Une seule prop, et trois vitesses. Un transstockeur roule vite, lève plus lentement, et sort ses
- * fourches plus lentement encore : ce sont des rapports de la machine, pas des réglages. La vitesse
- * est en **cases par seconde** comme celle du tapis, pas en durée : à la même vitesse, un rail long
- * et un rail court vont à la même allure.
- *
- * ## L'ordre de peinture, et pourquoi il ne dépend plus du côté servi
- *
- * Tout ce qui monte est **entre les deux montants**. Le long de l'axe du rail, la machine se range
- * donc en tranches qui ne se chevauchent jamais — montant, tablier, montant — et leur ordre est
- * celui de la caméra le long de cet axe, quel que soit le côté où sortent les fourches. Dans le
- * tablier, tout est **empilé** : patins et chariot en bas, étages au-dessus, fourches, charge. Ce qui
- * est au-dessus se peint après, et une fourche qui sort vers le fond passe sur le chariot au lieu de
- * s'y couper.
- *
- * La version à un seul mât devait dessiner le tablier deux fois — un exemplaire derrière le mât, un
- * devant — et le chariot, peint entre les deux, recouvrait le pied des fourches qui sortaient vers
- * le fond : on les voyait tronquées. Le portique supprime la question au lieu d'y répondre.
- *
- * L'ordre se lit sur les axes **de la machine** et non sur des emprises au sol : dans un virage, la
- * machine tourne en continu, et les boîtes englobantes de ses pièces se chevaucheraient au premier
- * cap de biais. Le long de son propre axe, elles ne se chevauchent à aucun cap — et le sens où la
- * caméra les voit est exactement ce que `isoFacing` répond déjà pour les faces (`xFace`, `yFace`).
+ * Une seule prop, trois vitesses : un transstockeur roule vite, lève plus lentement, sort ses
+ * fourches plus lentement encore. La vitesse est en **cases par seconde** de simulation.
  */
 
 export type PickerSide = "left" | "right";
@@ -172,7 +110,7 @@ export interface PickerProps {
    * lecteur qui refuse le mouvement, une capture d'écran ou une impression.
    */
   phase?: number;
-  /** Poser l'ombre de la machine sur le sol. */
+  /** Obsolète : la machine porte ses ombres d'elle-même. */
   shadows?: boolean;
   /** Rotation sur le sol, en degrés — la même que celle du rail. */
   rotation?: number;
@@ -183,143 +121,69 @@ export interface PickerProps {
   frame?: { x: number; y: number; width: number; depth: number; height: number };
   /** Ce qu'on dessine : tout, l'ombre seule, ou la machine seule. */
   parts?: "all" | "shadow" | "machine";
-  /**
-   * Publie la silhouette des fourches et de leur charge comme un `<mask>` SVG portant cet `id`,
-   * qui suit leurs trois mouvements. Sert à `RackV2` et sa prop `cover` : ce qui recouvre une
-   * fourche entrée dans une alvéole est repeint par-dessus la machine, mais **seulement là** — le
-   * reste de la machine, qui est devant l'étagère, n'est pas touché. Le masque est dans le repère de
-   * la `viewBox` : les deux modules doivent partager un `frame`.
-   */
+  /** Obsolète : en 3D, le tampon de profondeur cache ce qui entre dans une alvéole. Ignoré. */
   reachMask?: string;
+  /** La machine prend sa charge — le numéro du cycle. De quoi, pour un jeu, vider l'alvéole. */
+  onPick?: (cycle: number) => void;
+  /** La machine pose sa charge — de quoi la confier au module suivant. */
+  onDrop?: (cycle: number) => void;
   /** Pixels par case. */
   cellSize?: number;
   className?: string;
 }
 
-const PAD = 2;
-
-/** Ce que le tablier lève pour décoller la charge de son appui, en cases. Petit : c'est un
- *  mouvement de prise, pas une levée. */
+/** Ce que le tablier lève pour décoller la charge de son appui, en cases. */
 const BITE = 0.2;
 
-/** Le jeu entre deux pièces qui glissent l'une contre l'autre, en cases. Sans lui, deux faces
- *  confondues se disputent le même pixel et l'arête scintille. */
+/** Le jeu entre deux pièces qui glissent l'une contre l'autre, en cases. */
 const PLAY = 0.03;
 
-/**
- * Un contour, **rendu en nombres et non en texte**.
- *
- *  Il rendait `"12.34,56.78 …"`, parce qu'un attribut `points` de SVG est une chaîne. Depuis que le
- *  dessin va sur un canvas, cette chaîne n'est plus lue par personne : elle est fabriquée à coups
- *  de `toFixed`, puis re-découpée et reconvertie en nombres par le peintre. Deux conversions et une
- *  allocation par facette, à chaque image — c'était le premier poste du profil pendant une
- *  rotation. Les éléments n'étant jamais montés dans le document, rien n'oblige à passer par du
- *  texte : le tableau va directement du calcul au tracé.
- */
-const ring = (points: Point[]): Contour => {
-  const out = new Array<number>(points.length * 2);
-  for (let i = 0; i < points.length; i += 1) {
-    out[i * 2] = points[i].x;
-    out[i * 2 + 1] = points[i].y;
-  }
-  // Le tableau se donne pour une chaîne : voir `Contour`.
-  return out as unknown as Contour;
-};
-
-export function Picker({
-  travel = 10,
-  width = RAIL_WIDTH,
-  gauge = RAIL_GAUGE,
-  railTop = RAIL_TOP,
-  chassisLength = 1.8,
-  chassisHeight = 0.26,
-  mastHeight = 3.2,
-  mastSize = 0.2,
-  wheelRadius = 0.2,
-  pick,
-  drop,
-  load = "carton",
-  speed = 1.6,
-  dwell = 0.5,
-  running = true,
-  phase = 0,
-  shadows = false,
-  rotation = 0,
-  origin = { x: 0, y: 0 },
-  frame,
-  parts = "all",
-  reachMask,
-  cellSize = 34,
-  className,
-}: PickerProps) {
-  const cam = useIsoCamera();
-  const uid = useId().replace(/[^a-zA-Z0-9]/g, "");
-
+/** Les cotes et le cycle d'une machine, tirés de ses props. */
+function pickerLayout(p: PickerProps) {
+  const {
+    travel = 10,
+    width = RAIL_WIDTH,
+    gauge = RAIL_GAUGE,
+    railTop = RAIL_TOP,
+    chassisLength = 1.8,
+    chassisHeight = 0.26,
+    mastHeight = 3.2,
+    mastSize = 0.2,
+    wheelRadius = 0.2,
+    pick,
+    drop,
+    speed = 1.6,
+    dwell = 0.5,
+  } = p;
   const spanY = Math.max(0.6, width);
   const half = Math.max(0.5, chassisLength) / 2;
   const spanX = Math.max(half * 2, travel);
   const cy = spanY / 2;
 
-  const theta = (rotation * Math.PI) / 180;
-  const cosT = Math.cos(theta);
-  const sinT = Math.sin(theta);
-  const spin = (x: number, y: number) => {
-    if (!rotation) return { x, y };
-    const dx = x - spanX / 2;
-    const dy = y - spanY / 2;
-    return { x: spanX / 2 + dx * cosT - dy * sinT, y: spanY / 2 + dx * sinT + dy * cosT };
-  };
-  const world: Project = (x, y, z) => cam.project(x * cellSize, y * cellSize, z * cellSize);
-  const at: Project = (x, y, z) => {
-    const p = spin(x, y);
-    return world(p.x + origin.x, p.y + origin.y, z);
-  };
-  const onGround = (x: number, y: number) => {
-    const p = spin(x, y);
-    return { x: p.x + origin.x, y: p.y + origin.y };
-  };
-  const facing = cam.facing(rotation);
-  // La caméra ramenée dans le repère de la machine, pour les volumes à contour arrondi.
-  const localView = { x: cam.view.x * cosT + cam.view.y * sinT, y: -cam.view.x * sinT + cam.view.y * cosT };
-  const prism = (material: string, key: string, ground: Point[], z0: number, z1: number) =>
-    prismVolume(material, key, at, ground, z0, z1, facing, localView);
-
-  // ---- les cotes ----
   const wheelR = Math.max(0.06, wheelRadius);
   const wheelT = wheelR * 0.5;
   const axleZ = railTop + wheelR;
-  // Le châssis part de l'axe : il est porté par les roues, qui tournent de part et d'autre.
   const deckZ0 = axleZ - wheelR * 0.25;
   const deckZ1 = deckZ0 + Math.max(0.1, chassisHeight);
-  /** Le châssis tient **entre** les roues, qui sont sur les files. */
   const deckHalfY = Math.max(0.15, gauge / 2 - wheelT / 2 - PLAY);
 
   const mastX = Math.max(0.08, Math.min(mastSize, half / 3));
   const mastY = Math.min(spanY * 0.4, mastX * 1.7);
   const inset = 0.06;
-  /** L'intérieur du portique : ce qui monte et descend tient entre ces deux abscisses. */
   const gap = half - inset - mastX;
   const mastZ1 = deckZ1 + Math.max(0.8, mastHeight);
   const headThick = 0.16;
 
-  // Le tablier se dimensionne sur **l'emprise du module** et sur le portique : ce qu'il porte est un
-  // colis, et un colis a la taille d'un colis.
   const shoe = 0.1;
   const carriageHalfX = gap - PLAY;
   const carriageDepth = Math.min(spanY * 0.6, deckHalfY * 2);
   const carriageThick = 0.16;
-  /** L'étage intermédiaire. Sans lui, les fourches sorties sont deux barres qui flottent à côté de
-   *  la machine : c'est la pièce qui les rattache à quelque chose. */
   const midThick = 0.08;
   const midHalfX = (carriageHalfX - shoe) * 0.86;
   const tineThick = 0.07;
   const tineWide = 0.13;
   const tineGap = (carriageHalfX - shoe) * 1.1;
-  /** L'emprise de ce qui repose sur les fourches : l'écartement, plus un débord de chaque côté,
-   *  sans toucher les patins. */
   const berth = Math.min(2 * (carriageHalfX - shoe) - PLAY, tineGap + spanY * 0.2);
-  /** Ce qui se tient sous le plan des fourches : le chariot et l'étage. Le plan ne descend donc pas
-   *  sous le châssis plus cette épaisseur. */
   const stack = carriageThick + midThick + tineThick;
   const lowest = deckZ1 + PLAY + stack;
 
@@ -333,40 +197,17 @@ export function Picker({
   const P = stopOf(pick, "left", 2.2, spanX * 0.2);
   const D = stopOf(drop, "right", 1.4, spanX * 0.8);
 
-  /**
-   * La longueur des deux étages télescopiques, fixée par la **course** et non par le chariot.
-   *
-   * Chaque étage parcourt la moitié du débattement par rapport à celui qui le porte. Trop courts,
-   * ils se quittent : fourches sorties, il restait un vide entre le chariot et l'étage, puis entre
-   * l'étage et les fourches, et on voyait des bras coupés flotter à côté de la machine. Il faut donc
-   * que chaque étage recouvre encore celui du dessous en bout de course — d'au moins `GRIP` — ce qui
-   * donne deux conditions, et on prend la plus exigeante. Rentrés, les étages débordent un peu du
-   * chariot : c'est ce que fait un vrai tablier télescopique, dont les fourches sont plus longues que
-   * l'allée n'est large.
-   */
+  /** Chaque étage recouvre encore celui du dessous en bout de course, d'au moins `GRIP`. */
   const GRIP = 0.22;
   const stroke = Math.max(P.reach, D.reach);
   const stageLen = Math.max(carriageDepth, stroke / 2 + GRIP, stroke - carriageDepth + 2 * GRIP);
-  const tineLen = stageLen;
-
-  // Le dessin est fait une fois, au poste de prélèvement, fourches rentrées. Les `@keyframes` ne
-  // disent que l'écart à cette position — ce qui n'est possible que parce que les trois mouvements
-  // sont des translations, et que la caméra est affine.
-  const xRef = P.x;
-  const zRef = P.level;
 
   const sign = (s: PickerSide) => (s === "right" ? 1 : -1);
-  const reachOn = (s: PickerSide) => Math.max(P.side === s ? P.reach : 0, D.side === s ? D.reach : 0);
-
-  // ---- le cycle ----
   const vT = Math.max(0.05, speed);
   const vZ = vT / 2.4;
   const vF = vT / 4;
   const hold = Math.max(0, dwell);
-  /** Translation et levée sont deux moteurs distincts : elles vont **ensemble**, donc la durée est
-   *  le plus long des deux et non leur somme. */
   const ride = (dx: number, dz: number) => Math.max(Math.abs(dx) / vT, Math.abs(dz) / vZ, 0.001);
-
   const legs = [
     ride(P.x - D.x, P.level - D.level), // approche
     hold, // arrêt
@@ -380,10 +221,6 @@ export function Picker({
     D.reach / vF, // dégagement
   ];
   const cycle = legs.reduce((a, b) => a + b, 0) || 1;
-
-  /** L'état de la machine à chaque temps du cycle. Le dernier rejoint le premier : la boucle se
-   *  referme sur elle-même, il n'y a pas de retour à vide à cacher. `reach` est signé : négatif,
-   *  les fourches sortent à gauche. */
   const states = [
     { x: D.x, z: D.level, reach: 0 },
     { x: P.x, z: P.level, reach: 0 },
@@ -400,32 +237,12 @@ export function Picker({
   const times = [0];
   for (const d of legs) times.push(times[times.length - 1] + d / cycle);
   times[times.length - 1] = 1;
+  /** La charge monte à bord au milieu de la prise, et en descend au milieu de la dépose. */
+  const pickAt = (times[3] + times[4]) / 2;
+  const dropAt = (times[8] + times[9]) / 2;
 
-  /** La charge est à bord de la prise au dégagement. Les temps 3 et 9 la laissent à zéro, ce qui
-   *  donne les deux fondus : elle apparaît pendant la prise et s'efface pendant la dépose. */
-  const aboard = (i: number) => (i >= 4 && i <= 8 ? 1 : 0);
-
-  const zero = at(0, 0, 0);
-  const shift = (dx: number, dy: number, dz: number) => {
-    const p = at(dx, dy, dz);
-    return `translate(${(p.x - zero.x).toFixed(3)}px,${(p.y - zero.y).toFixed(3)}px)`;
-  };
-  const pct = (t: number) => (t * 100).toFixed(3);
-
-  // Un seul tablier, qui sort des deux côtés : le passage d'un côté à l'autre se fait fourches
-  // rentrées, là où « à gauche » et « à droite » valent zéro tous les deux. Deux étages emboîtés
-  // parcourent chacun la moitié du débattement, donc une seule piste sert aux deux.
-  const frames: string[] = [
-    `@keyframes lq-pk-run-${uid}{${times.map((t, i) => `${pct(t)}%{transform:${shift(states[i].x - xRef, 0, 0)}}`).join("")}}`,
-    `@keyframes lq-pk-lift-${uid}{${times.map((t, i) => `${pct(t)}%{transform:${shift(0, 0, states[i].z - zRef)}}`).join("")}}`,
-    `@keyframes lq-pk-fork-${uid}{${times.map((t, i) => `${pct(t)}%{transform:${shift(0, states[i].reach / 2, 0)}}`).join("")}}`,
-    `@keyframes lq-pk-held-${uid}{${times.map((t, i) => `${pct(t)}%{opacity:${aboard(i)}}`).join("")}}`,
-  ];
-
-  /**
-   * La pose de la machine à une fraction du cycle : les mêmes valeurs que l'animation, interpolées
-   * à la main entre deux temps. C'est ce qu'on dessine quand rien ne bouge.
-   */
+  /** La pose de la machine à une fraction du cycle. Les déplacements sont adoucis aux deux bouts :
+   *  une machine qui démarre et s'arrête d'un coup se lit comme un curseur, pas comme un engin. */
   const poseAt = (t: number) => {
     const u = ((t % 1) + 1) % 1;
     let i = 0;
@@ -433,227 +250,163 @@ export function Picker({
     const a = states[i];
     const b = states[i + 1];
     const span = times[i + 1] - times[i];
-    const k = span > 0 ? Math.min(1, Math.max(0, (u - times[i]) / span)) : 0;
+    const k0 = span > 0 ? Math.min(1, Math.max(0, (u - times[i]) / span)) : 0;
+    const k = k0 * k0 * (3 - 2 * k0);
     const mix = (from: number, to: number) => from + (to - from) * k;
-    return { x: mix(a.x, b.x), z: mix(a.z, b.z), reach: mix(a.reach, b.reach), aboard: mix(aboard(i), aboard(i + 1)) };
+    return { x: mix(a.x, b.x), z: mix(a.z, b.z), reach: mix(a.reach, b.reach), aboard: u >= pickAt && u < dropAt, moving: Math.abs(b.x - a.x) > 1e-3 ? (b.x - a.x) / (span * cycle) : 0 };
   };
-  const pose = poseAt(phase);
 
-  /**
-   * L'animation d'un groupe, et la pose où il se fige sans elle. La pose est posée en ligne **même
-   * en marche** : une déclaration d'animation l'emporte sur une déclaration en ligne, donc elle ne
-   * sert à rien tant que l'animation tourne — et elle est tout ce qui reste quand
-   * `prefers-reduced-motion` la coupe.
-   */
-  const anim = (name: string, still: number, transform?: string): CSSProperties =>
-    running
-      ? { animationName: `lq-pk-${name}-${uid}`, animationDelay: `${(-cycle * phase).toFixed(3)}s`, opacity: still, transform }
-      : { opacity: still, transform };
-
-  // ---- les volumes ----
-  const box = (material: string, key: string, x0: number, x1: number, y0: number, y1: number, z0: number, z1: number) =>
-    solidVolume(material, key, boxFaces(at, x0, x1, y0, y1, z0, z1, facing));
-
-  /** Une roue, sur sa file : `isoWheel` la dessine ronde à toute rotation du sol. */
-  const wheelAt = (x: number, railY: number, key: string) => isoWheel(at, x, railY, axleZ, wheelR, wheelT, facing, key);
-
-  /** La profondeur d'un point du module vue de la caméra : x + y au sol, une fois tourné. */
-  const depthOf = (x: number, y: number) => {
-    const p = spin(x, y);
-    return p.x + p.y;
+  return {
+    spanX, spanY, cy, half, wheelR, wheelT, axleZ, deckZ0, deckZ1, deckHalfY, mastX, mastY, inset, gap, mastZ1, headThick,
+    shoe, carriageHalfX, carriageDepth, carriageThick, midThick, midHalfX, tineThick, tineWide, tineGap, berth, stack,
+    P, D, stageLen, cycle, poseAt,
   };
-  /** Les roues d'une file, la plus lointaine d'abord. Les deux files sont de part et d'autre du
-   *  châssis : celle du fond passe avant lui, celle de devant après — c'est `yFace` qui dit
-   *  laquelle est laquelle. */
-  const wheelRow = (railY: number) =>
-    [-1, 1]
-      .map((dx) => ({ x: xRef + dx * (half - wheelR * 1.3), y: railY }))
-      .sort((a, b) => depthOf(a.x, a.y) - depthOf(b.x, b.y))
-      .map((w, i) => wheelAt(w.x, w.y, `w${railY.toFixed(3)}${i}`));
-  const farWheels = wheelRow(cy - (facing.yFace * gauge) / 2);
-  const nearWheels = wheelRow(cy + (facing.yFace * gauge) / 2);
+}
 
-  const chassis = (
-    <g key="chassis">
-      {/* Le châssis porte la teinte des engins et non celle des rayonnages : ce qui roule et ce
-          qui est monté à demeure ne doivent pas se ressembler, surtout quand l'un passe devant
-          l'autre à longueur d'image. Ses angles sont abattus, comme ceux des autres machines. */}
-      {prism(
-        "safety",
-        "chassis",
-        roundedRing(xRef - half, xRef + half, cy - deckHalfY, cy + deckHalfY, Math.min(0.12, deckHalfY * 0.5)),
-        deckZ0,
-        deckZ1
-      )}
-      {/* Les tampons, aux deux bouts : ce qui touche en premier en fin de course. */}
-      {[-1, 1]
-        .sort((a, b) => a * facing.xFace - b * facing.xFace)
-        .map((k) => {
-          const x0 = k < 0 ? xRef - half - 0.09 : xRef + half;
-          return box("safety", `buffer${k}`, x0, x0 + 0.09, cy - deckHalfY * 0.45, cy + deckHalfY * 0.45, deckZ0 + 0.04, deckZ1 - 0.04);
-        })}
-    </g>
-  );
-
-  const mastAt = (k: -1 | 1) => {
-    const x0 = k < 0 ? xRef - half + inset : xRef + gap;
-    return box("iron", `mast${k}`, x0, x0 + mastX, cy - mastY / 2, cy + mastY / 2, deckZ1, mastZ1 - headThick);
-  };
-  const head = box("iron", "head", xRef - half + inset, xRef + half - inset, cy - mastY / 2, cy + mastY / 2, mastZ1 - headThick, mastZ1);
-
-  /** L'armoire, contre le montant arrière, côté `+y` : hors du portique, donc hors de la course du
-   *  tablier. Elle se range avec son montant — ils sont séparés en `y`, et c'est `yFace` qui dit
-   *  lequel est devant. */
-  const cabinetX0 = xRef - half + PLAY;
-  const cabinetX1 = xRef - gap - PLAY;
-  const cabinet =
-    cabinetX1 - cabinetX0 > 0.08 ? box("cabinet", "cabinet", cabinetX0, cabinetX1, cy + mastY / 2 + PLAY, cy + deckHalfY - PLAY, deckZ1, deckZ1 + 0.7) : null;
-  const rearMast = facing.yFace > 0 ? [mastAt(-1), cabinet] : [cabinet, mastAt(-1)];
-
-  // ---- le tablier, de bas en haut ----
-  const zCar0 = zRef - stack;
-  const zCar1 = zCar0 + carriageThick;
-  const zMid1 = zCar1 + midThick;
-  const carriage = box("post", "carriage", xRef - carriageHalfX, xRef + carriageHalfX, cy - carriageDepth / 2, cy + carriageDepth / 2, zCar0, zCar1);
-  /** Les patins, qui embrassent les montants et montent plus haut que le chariot : c'est eux qui
-   *  disent que le tablier est guidé, et non posé en l'air. */
-  const shoeAt = (k: -1 | 1) => {
-    const x0 = k < 0 ? xRef - carriageHalfX : xRef + carriageHalfX - shoe;
-    return box("post", `shoe${k}`, x0, x0 + shoe, cy - mastY * 0.62, cy + mastY * 0.62, zCar0, zMid1 + 0.3);
-  };
-  const [shoeFar, shoeNear] = facing.xFace > 0 ? [shoeAt(-1), shoeAt(1)] : [shoeAt(1), shoeAt(-1)];
-
-  const middle = box("post", "mid", xRef - midHalfX, xRef + midHalfX, cy - stageLen / 2, cy + stageLen / 2, zCar1, zMid1);
-  const tines = [-1, 1]
-    .sort((a, b) => a * facing.xFace - b * facing.xFace)
-    .map((k) => {
-      const tx = xRef + (k * tineGap) / 2;
-      return box("safety", `tine${k}`, tx - tineWide / 2, tx + tineWide / 2, cy - tineLen / 2, cy + tineLen / 2, zMid1, zRef);
-    });
-
-  const carried = load ? (
-    <g className="lq-picker__held" style={anim("held", pose.aboard)}>
-      {rackItemIso(load, fitRackItem(load, { x: xRef - berth / 2, y: cy - berth / 2, width: berth, depth: berth }, zRef, Infinity), at, facing, "load")}
-    </g>
-  ) : null;
-
-  const reachPose = shift(0, pose.reach / 2, 0);
-  const lift = (
-    <g key="lift" className="lq-picker__lift" style={anim("lift", 1, shift(0, 0, pose.z - zRef))}>
-      {carriage}
-      {shoeFar}
-      <g className="lq-picker__reach" style={anim("fork", 1, reachPose)}>
-        {middle}
-        <g className="lq-picker__reach" style={anim("fork", 1, reachPose)}>
-          {tines}
-          {carried}
-        </g>
-      </g>
-      {shoeNear}
-    </g>
-  );
-
-  /** La même chaîne de mouvements que la machine, réduite à ce qui entre dans une alvéole, en
-   *  blanc : un masque. Mêmes animations, même départ, donc la même position à chaque image. */
-  const mask = reachMask ? (
-    <mask id={reachMask} maskUnits="userSpaceOnUse" x={-1e5} y={-1e5} width={2e5} height={2e5}>
-      <g className="lq-picker__mask">
-        <g className="lq-picker__travel" style={anim("run", 1, shift(pose.x - xRef, 0, 0))}>
-          <g className="lq-picker__lift" style={anim("lift", 1, shift(0, 0, pose.z - zRef))}>
-            <g className="lq-picker__reach" style={anim("fork", 1, reachPose)}>
-              {middle}
-              <g className="lq-picker__reach" style={anim("fork", 1, reachPose)}>
-                {tines}
-                {carried}
-              </g>
-            </g>
-          </g>
-        </g>
-      </g>
-    </mask>
-  ) : null;
-
-  // Le long de l'axe du rail, trois tranches qui ne se chevauchent jamais : montant arrière (avec
-  // son armoire), tablier, montant avant. La caméra les voit dans l'ordre que `xFace` dit.
-  const slices = [<g key="rear">{rearMast}</g>, lift, <g key="front">{mastAt(1)}</g>];
-  if (facing.xFace < 0) slices.reverse();
-
-  const machine = (
-    <g className="lq-picker__travel" style={anim("run", 1, shift(pose.x - xRef, 0, 0))}>
-      {farWheels}
-      {chassis}
-      {nearWheels}
-      {slices}
-      {head}
-    </g>
-  );
-
-  /** L'ombre d'un volume posé au sol : son emprise balayée jusqu'à l'ombre de son sommet — les
-   *  deux rectangles et tout ce qui les relie, c'est-à-dire leur enveloppe. */
-  const sweep = (x0: number, x1: number, y0: number, y1: number, h: number, key: string) => {
-    const foot = [onGround(x0, y0), onGround(x1, y0), onGround(x1, y1), onGround(x0, y1)];
-    const cast = foot.map((p) => ({ x: p.x + cam.sun.x * h, y: p.y + cam.sun.y * h }));
-    return <polygon key={key} className="lq-iso__shadow" points={ring(hull([...foot, ...cast].map((p) => world(p.x, p.y, 0))))} />;
-  };
-  const shade = shadows ? (
-    <g className="lq-picker__travel" style={anim("run", 1, shift(pose.x - xRef, 0, 0))}>
-      {sweep(xRef - half, xRef + half, cy - deckHalfY, cy + deckHalfY, deckZ1, "s-chassis")}
-      {sweep(xRef - half + inset, xRef - gap, cy - mastY / 2, cy + mastY / 2, mastZ1, "s-rear")}
-      {sweep(xRef + gap, xRef + half - inset, cy - mastY / 2, cy + mastY / 2, mastZ1, "s-front")}
-      {/* La traverse est en l'air : son ombre est son emprise, poussée de toute sa hauteur, et c'est
-          elle qui relie les ombres des deux montants en un portique. */}
-      <polygon
-        className="lq-iso__shadow"
-        points={ring(
-          [
-            onGround(xRef - half + inset, cy - mastY / 2),
-            onGround(xRef + half - inset, cy - mastY / 2),
-            onGround(xRef + half - inset, cy + mastY / 2),
-            onGround(xRef - half + inset, cy + mastY / 2),
-          ].map((p) => world(p.x + cam.sun.x * mastZ1, p.y + cam.sun.y * mastZ1, 0))
-        )}
-      />
-    </g>
-  ) : null;
-
-  // ---- le cadrage ----
-  // L'emprise est celle du **balayage**, pas celle de la machine à l'arrêt : elle parcourt tout le
-  // rail, ses fourches sortent des deux côtés et ses montants montent plus haut que tout le reste.
-  const yLo = Math.min(0, cy - reachOn("left") - tineLen / 2);
-  const yHi = Math.max(spanY, cy + reachOn("right") + tineLen / 2);
-  const zHi = Math.max(mastZ1, P.level + BITE, D.level + BITE) + 0.3;
-  const corners: Point[] = frame
-    ? frameCorners(frame, world, cam.sun)
-    : [0, zHi].flatMap((z) =>
-        [
-          [-0.1, yLo],
-          [spanX + 0.1, yLo],
-          [spanX + 0.1, yHi],
-          [-0.1, yHi],
-        ].map(([x, y]) => at(x, y, z))
-      );
-  const minX = Math.min(...corners.map((p) => p.x)) - PAD;
-  const minY = Math.min(...corners.map((p) => p.y)) - PAD;
-  const boxWidth = Math.max(...corners.map((p) => p.x)) + PAD - minX;
-  const boxHeight = Math.max(...corners.map((p) => p.y)) + PAD - minY;
-
+export function Picker(props: PickerProps) {
+  const { rotation = 0, origin = { x: 0, y: 0 }, frame, parts = "all", cellSize = 34, className } = props;
+  if (parts === "shadow") return null;
+  const L = pickerLayout(props);
+  const out = Math.max(L.P.reach, L.D.reach) + L.berth / 2;
+  const { bounds } = placed(origin, rotation, { x0: 0, x1: L.spanX, y0: Math.min(0, L.cy - out), y1: Math.max(L.spanY, L.cy + out), z0: 0, z1: L.mastZ1 }, { x: L.spanX / 2, y: L.spanY / 2 });
   return (
-    <IsoCanvas
-      className={["lq-picker", !running && "lq-picker--stopped", className].filter(Boolean).join(" ")}
-      width={boxWidth}
-      height={boxHeight}
-      viewBox={[minX, minY, boxWidth, boxHeight]}
-      style={{ "--lq-picker-cycle": `${cycle.toFixed(3)}s` } as CSSProperties}
-      ariaLabel={`Picker sur rail${running ? ", en service" : ", à l'arrêt"}`}
-    >
-      {(running || mask) && (
-        <defs>
-          {running && <style>{frames.join("")}</style>}
-          {mask}
-        </defs>
-      )}
-      {(parts === "all" || parts === "shadow") && shade}
-      {(parts === "all" || parts === "machine") && machine}
-    </IsoCanvas>
+    <Solo bounds={frame ? frameBounds(frame) : bounds} cellSize={cellSize} className={["lq-picker", className].filter(Boolean).join(" ")} ariaLabel="Picker sur rail">
+      <PickerBody {...props} />
+    </Solo>
+  );
+}
+
+function PickerBody(props: PickerProps) {
+  const { load = "carton", running = true, phase = 0, rotation = 0, origin = { x: 0, y: 0 }, onPick, onDrop } = props;
+  const L = pickerLayout(props);
+  const { spanX, spanY, cy, half, wheelR, wheelT, axleZ, deckZ0, deckZ1, deckHalfY, mastX, mastY, inset, gap, mastZ1, headThick } = L;
+  const { shoe, carriageHalfX, carriageDepth, carriageThick, midThick, midHalfX, tineThick, tineWide, tineGap, berth, stack, stageLen } = L;
+  const key = JSON.stringify([spanX, spanY, half, wheelR, deckZ1, mastZ1, carriageDepth, stageLen, berth]);
+
+  // Tout est construit autour de l'axe du tablier, `x = 0`, au plan des fourches `z = 0` pour ce
+  // qui monte : chaque groupe n'a plus qu'à se déplacer.
+  const frameBuilt = useBuilt(() => {
+    const b = new Builder();
+    b.prism("safety", roundedRect(-half, half, cy - deckHalfY, cy + deckHalfY, Math.min(0.12, deckHalfY * 0.5), 3), deckZ0, deckZ1);
+    for (const k of [-1, 1]) {
+      const x0 = k < 0 ? -half - 0.09 : half;
+      b.box("safety", x0, x0 + 0.09, cy - deckHalfY * 0.45, cy + deckHalfY * 0.45, deckZ0 + 0.04, deckZ1 - 0.04);
+      const m0 = k < 0 ? -half + inset : gap;
+      b.box("iron", m0, m0 + mastX, cy - mastY / 2, cy + mastY / 2, deckZ1, mastZ1 - headThick);
+    }
+    b.box("iron", -half + inset, half - inset, cy - mastY / 2, cy + mastY / 2, mastZ1 - headThick, mastZ1);
+    // Un feu à éclats sur la traverse : ce qu'on repère d'abord d'une machine qui bouge en hauteur.
+    b.cylinder("safety", 0, cy, mastZ1, 0.07, 0.1, "z", 12);
+    const c0 = -half + PLAY;
+    const c1 = -gap - PLAY;
+    if (c1 - c0 > 0.08) b.box("cabinet", c0, c1, cy + mastY / 2 + PLAY, cy + deckHalfY - PLAY, deckZ1, deckZ1 + 0.7);
+    // Les flasques des roues, sur leur file.
+    return b.build();
+  }, [key]);
+  const wheel = useBuilt(() => {
+    const b = new Builder();
+    b.cylinder("rubber", 0, 0, 0, wheelR, wheelT, "y", 16);
+    b.cylinder("steel", 0, 0, 0, wheelR * 0.45, wheelT + 0.01, "y", 10);
+    b.box("steel", -wheelR * 0.7, wheelR * 0.7, -wheelT / 2 - 0.006, wheelT / 2 + 0.006, -0.015, 0.015, false);
+    return b.build();
+  }, [key]);
+  const carriageBuilt = useBuilt(() => {
+    const b = new Builder();
+    const z0 = -stack;
+    const z1 = z0 + carriageThick;
+    b.box("post", -carriageHalfX, carriageHalfX, cy - carriageDepth / 2, cy + carriageDepth / 2, z0, z1);
+    for (const k of [-1, 1]) {
+      const x0 = k < 0 ? -carriageHalfX : carriageHalfX - shoe;
+      b.box("post", x0, x0 + shoe, cy - mastY * 0.62, cy + mastY * 0.62, z0, z1 + midThick + 0.3);
+    }
+    return b.build();
+  }, [key]);
+  const midBuilt = useBuilt(() => {
+    const b = new Builder();
+    const z0 = -stack + carriageThick;
+    b.box("post", -midHalfX, midHalfX, cy - stageLen / 2, cy + stageLen / 2, z0, z0 + midThick);
+    return b.build();
+  }, [key]);
+  const tineBuilt = useBuilt(() => {
+    const b = new Builder();
+    for (const k of [-1, 1]) {
+      const tx = (k * tineGap) / 2;
+      b.box("safety", tx - tineWide / 2, tx + tineWide / 2, cy - stageLen / 2, cy + stageLen / 2, -tineThick, 0);
+    }
+    return b.build();
+  }, [key]);
+  const loadBuilt = useBuilt(() => {
+    const b = new Builder();
+    if (load) {
+      const fit = fitRackItem(load, { x: -berth / 2, y: cy - berth / 2, width: berth, depth: berth }, 0, Infinity);
+      addGood(b, load, fit.cx, fit.cy, fit.z, fit.half, fit.height);
+    }
+    return b.build();
+  }, [key, load]);
+
+  const travel = useRef<Group>(null);
+  const lift = useRef<Group>(null);
+  const mid = useRef<Group>(null);
+  const tines = useRef<Group>(null);
+  const held = useRef<Group>(null);
+  const wheels = useRef<(Group | null)[]>([]);
+  const roll = useRef({ x: 0, spin: 0, lap: null as number | null, aboard: null as boolean | null });
+  const clock = useSimClock();
+  const invalidate = useThree((st) => st.invalidate);
+
+  const place = (t: number) => {
+    const u = running ? t / L.cycle + phase : phase;
+    const p = L.poseAt(u);
+    if (travel.current) travel.current.position.x = p.x;
+    if (lift.current) lift.current.position.z = p.z;
+    if (mid.current) mid.current.position.y = p.reach / 2;
+    if (tines.current) tines.current.position.y = p.reach / 2;
+    if (held.current) held.current.visible = !!load && p.aboard;
+    // Les roues tournent de ce que la machine a parcouru, et non d'un angle tiré du temps.
+    const r = roll.current;
+    r.spin += (p.x - r.x) / wheelR;
+    r.x = p.x;
+    for (const w of wheels.current) if (w) w.rotation.y = r.spin;
+    // Prise et dépose : les franchissements des deux instants, d'une image à l'autre.
+    const lap = Math.floor(u);
+    if (running && r.aboard !== null && r.aboard !== p.aboard) {
+      if (p.aboard) onPick?.(lap);
+      else onDrop?.(lap);
+    }
+    r.aboard = p.aboard;
+    r.lap = lap;
+  };
+  useSimFrame(place, running);
+  useLayoutEffect(() => {
+    place(clock.t.current);
+    invalidate();
+  });
+
+  const { pose } = placed(origin, rotation, { x0: 0, x1: spanX, y0: 0, y1: spanY, z0: 0, z1: 1 });
+  const wheelSpots: [number, number][] = [];
+  for (const dx of [-1, 1]) for (const dy of [-1, 1]) wheelSpots.push([dx * (half - wheelR * 1.3), cy + (dy * (deckHalfY + wheelT / 2 + PLAY))]);
+  return (
+    <group matrixAutoUpdate={false} matrix={pose}>
+      <group ref={travel}>
+        <Parts built={frameBuilt} />
+        {wheelSpots.map(([x, y], i) => (
+          <group key={i} position={[x, y, axleZ]} ref={(el) => (wheels.current[i] = el)}>
+            <Parts built={wheel} />
+          </group>
+        ))}
+        <group ref={lift}>
+          <Parts built={carriageBuilt} />
+          <group ref={mid}>
+            <Parts built={midBuilt} />
+            <group ref={tines}>
+              <Parts built={tineBuilt} />
+              <group ref={held} visible={false}>
+                <Parts built={loadBuilt} />
+              </group>
+            </group>
+          </group>
+        </group>
+      </group>
+    </group>
   );
 }

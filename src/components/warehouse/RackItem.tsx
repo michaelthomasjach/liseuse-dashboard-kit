@@ -1,6 +1,8 @@
 import { IsoCanvas } from "./isoCanvas";
-import { useIsoCamera } from "./isoCamera";
-import { RACK_ITEM_LABEL, fitRackItem, rackItemIso, rackItemPlan, type Project, type RackItemKind } from "./rackItems";
+import { Builder } from "./three/builder";
+import { Parts, Solo, useBuilt } from "./three/scene";
+import { addGood } from "./three/goods";
+import { RACK_ITEM_LABEL, fitRackItem, rackItemPlan, type RackItemKind } from "./rackItems";
 import "./rackItems.css";
 
 /** Un élément seul, dans l'une ou l'autre vue — pour un catalogue, une légende, une palette.
@@ -21,7 +23,6 @@ export interface RackItemProps {
 
 /** Un élément seul, dans l'une ou l'autre vue — pour un catalogue, une légende, une palette. */
 export function RackItem({ kind, view = "iso", slot = 2, cellSize = 40, className }: RackItemProps) {
-  const cam = useIsoCamera();
   const fit = fitRackItem(kind, { x: 0, y: 0, width: slot, depth: slot }, 0, Infinity);
   const pad = 3;
 
@@ -40,37 +41,20 @@ export function RackItem({ kind, view = "iso", slot = 2, cellSize = 40, classNam
     );
   }
 
-  const at: Project = (x, y, z) => cam.project(x * cellSize, y * cellSize, z * cellSize);
-  // Le cadre est celui de la *portion*, pas celui de l'objet — comme en vue de dessus. Cadrer
-  // chaque objet sur lui-même les ramenait tous à la même taille apparente : une bouteille sortait
-  // presque aussi large qu'un carton, alors que c'est justement leur rapport de taille qu'un
-  // catalogue est là pour montrer. Seule la hauteur suit l'objet, faute de quoi une bouteille
-  // laisserait un vide au-dessus d'un carton.
-  const corners = [
-    at(0, 0, 0),
-    at(slot, 0, 0),
-    at(slot, slot, 0),
-    at(0, slot, 0),
-    // Le haut de l'objet aux quatre coins : sous une caméra tournée, les extrêmes changent de coin.
-    at(fit.cx - fit.half, fit.cy - fit.half, fit.height),
-    at(fit.cx + fit.half, fit.cy - fit.half, fit.height),
-    at(fit.cx + fit.half, fit.cy + fit.half, fit.height),
-    at(fit.cx - fit.half, fit.cy + fit.half, fit.height),
-  ];
-  const minX = Math.min(...corners.map((p) => p.x)) - pad;
-  const minY = Math.min(...corners.map((p) => p.y)) - pad;
-  const width = Math.max(...corners.map((p) => p.x)) + pad - minX;
-  const height = Math.max(...corners.map((p) => p.y)) + pad - minY;
-
+  // En perspective, une marchandise seule est un petit volume dans sa propre scène 3D.
   return (
-    <IsoCanvas
-      className={["lq-rack-item", className].filter(Boolean).join(" ")}
-      width={width}
-      height={height}
-      viewBox={[minX, minY, width, height]}
-      ariaLabel={RACK_ITEM_LABEL[kind]}
-    >
-      {rackItemIso(kind, fit, at, cam.facing(0), kind)}
-    </IsoCanvas>
+    <Solo bounds={{ x0: 0, x1: slot, y0: 0, y1: slot, z0: 0, z1: fit.height }} cellSize={cellSize} className={["lq-rack-item", className].filter(Boolean).join(" ")} ariaLabel={RACK_ITEM_LABEL[kind]}>
+      <RackItemBody kind={kind} slot={slot} />
+    </Solo>
   );
+}
+
+function RackItemBody({ kind, slot }: { kind: RackItemKind; slot: number }) {
+  const built = useBuilt(() => {
+    const b = new Builder();
+    const fit = fitRackItem(kind, { x: 0, y: 0, width: slot, depth: slot }, 0, Infinity);
+    addGood(b, kind, fit.cx, fit.cy, fit.z, fit.half, fit.height);
+    return b.build();
+  }, [kind, slot]);
+  return <Parts built={built} />;
 }

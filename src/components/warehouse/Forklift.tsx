@@ -1,23 +1,12 @@
-import { useId, type CSSProperties, type ReactNode } from "react";
-import {
-  boxFaces,
-  castShadow,
-  prismVolume,
-  roundedRing,
-  spunProject,
-  frameCorners,
-  convexHull,
-  fitRackItem,
-  isoWheel,
-  rackItemIso,
-  solidVolume,
-  type Point,
-  type Project,
-  type RackItemKind,
-  type Contour,
-} from "./rackItems";
-import { IsoCanvas } from "./isoCanvas";
-import { useIsoCamera } from "./isoCamera";
+import { useRef } from "react";
+import { Matrix4, type Group } from "three";
+import { Builder, roundedRect } from "./three/builder";
+import { Parts, Solo, frameBounds, placed, useBuilt } from "./three/scene";
+import { useSimFrame } from "./three/time";
+import { GOOD_SIZE, addGood } from "./three/goods";
+import { addWorker } from "./Worker";
+import type { RackItemKind } from "./rackItems";
+import "./rackItems.css";
 import "./Forklift.css";
 
 /**
@@ -77,12 +66,15 @@ export interface ForkliftProps {
   frame?: { x: number; y: number; width: number; depth: number; height: number };
   /** Ce qu'on dessine : tout, l'ombre seule, ou le chariot seul. */
   parts?: "all" | "shadow" | "machine";
+  /** Vitesse au sol, en cases par seconde de simulation : les roues tournent d'autant. */
+  rolling?: number;
+  /** Un cariste au volant. */
+  driver?: boolean;
   /** Pixels par case. */
   cellSize?: number;
   className?: string;
 }
 
-const PAD = 2;
 
 /** L'emprise du chariot, en cases : longueur fourches comprises, largeur. */
 const LENGTH = 2.7;
@@ -91,306 +83,137 @@ const WIDTH = 1;
 /** Le bas de la course des fourches : juste au-dessus du sol, pour glisser sous une palette. */
 const FLOOR = 0.05;
 
-/**
- * Un contour, **rendu en nombres et non en texte**.
- *
- *  Il rendait `"12.34,56.78 …"`, parce qu'un attribut `points` de SVG est une chaîne. Depuis que le
- *  dessin va sur un canvas, cette chaîne n'est plus lue par personne : elle est fabriquée à coups
- *  de `toFixed`, puis re-découpée et reconvertie en nombres par le peintre. Deux conversions et une
- *  allocation par facette, à chaque image — c'était le premier poste du profil pendant une
- *  rotation. Les éléments n'étant jamais montés dans le document, rien n'oblige à passer par du
- *  texte : le tableau va directement du calcul au tracé.
- */
-const ring = (points: Point[]): Contour => {
-  const out = new Array<number>(points.length * 2);
-  for (let i = 0; i < points.length; i += 1) {
-    out[i * 2] = points[i].x;
-    out[i * 2 + 1] = points[i].y;
-  }
-  // Le tableau se donne pour une chaîne : voir `Contour`.
-  return out as unknown as Contour;
-};
 
-export function Forklift({
-  lift = 1.2,
-  mastHeight = 2.1,
-  load = "carton",
-  running = false,
-  cycle = 5,
-  rotation = 0,
-  shadows = false,
-  origin = { x: 0, y: 0 },
-  frame,
-  parts = "all",
-  cellSize = 40,
-  className,
-}: ForkliftProps) {
-  const cam = useIsoCamera();
-  const uid = useId().replace(/[^a-zA-Z0-9]/g, "");
+export function Forklift(props: ForkliftProps) {
+  const { mastHeight = 2.1, rotation = 0, origin = { x: 0, y: 0 }, frame, parts = "all", cellSize = 40, className } = props;
+  if (parts === "shadow") return null;
+  const { bounds } = placed(origin, rotation, { x0: 0, x1: LENGTH, y0: 0, y1: WIDTH, z0: 0, z1: Math.max(1.6, mastHeight) + 0.05 });
+  return (
+    <Solo bounds={frame ? frameBounds(frame) : bounds} cellSize={cellSize} className={["lq-forklift", className].filter(Boolean).join(" ")} ariaLabel="Chariot élévateur">
+      <ForkliftBody {...props} />
+    </Solo>
+  );
+}
+
+/**
+ * La levée d'un vérin : un aller-retour par cycle, avec un palier en haut — le temps de poser ou de
+ * prendre — et une accélération douce à chaque bout. `u` est la fraction du cycle, le résultat la
+ * fraction de la course.
+ */
+function liftCurve(u: number): number {
+  const ease = (x: number) => x * x * (3 - 2 * x);
+  if (u < 0.4) return ease(u / 0.4);
+  if (u < 0.6) return 1;
+  return 1 - ease((u - 0.6) / 0.4);
+}
+
+function ForkliftBody({ lift = 1.2, mastHeight = 2.1, load = "carton", running = false, cycle = 5, rotation = 0, origin = { x: 0, y: 0 }, rolling = 0, driver = true }: ForkliftProps) {
   const mastTop = Math.max(1.2, mastHeight);
   const top = Math.max(FLOOR, Math.min(lift, mastTop - 0.55));
-
-  const theta = (rotation * Math.PI) / 180;
-  const cosT = Math.cos(theta);
-  const sinT = Math.sin(theta);
-  const spin = (x: number, y: number) => {
-    if (!rotation) return { x, y };
-    const dx = x - LENGTH / 2;
-    const dy = y - WIDTH / 2;
-    return { x: LENGTH / 2 + dx * cosT - dy * sinT, y: WIDTH / 2 + dx * sinT + dy * cosT };
-  };
-  const world: Project = (x, y, z) => cam.project(x * cellSize, y * cellSize, z * cellSize);
-  const onGround = (x: number, y: number) => {
-    const p = spin(x, y);
-    return { x: p.x + origin.x, y: p.y + origin.y };
-  };
-  const at: Project = (x, y, z) => {
-    const p = onGround(x, y);
-    return world(p.x, p.y, z);
-  };
-  const facing = cam.facing(rotation);
-
-  const box = (material: string, key: string, x0: number, x1: number, y0: number, y1: number, z0: number, z1: number) =>
-    solidVolume(material, key, boxFaces(at, x0, x1, y0, y1, z0, z1, facing));
-  // La caméra ramenée dans le repère du chariot : c'est là que sont les contours arrondis, et c'est
-  // donc là qu'il faut savoir d'où l'on regarde pour dire quelles facettes se voient.
-  const localView = { x: cam.view.x * cosT + cam.view.y * sinT, y: -cam.view.x * sinT + cam.view.y * cosT };
-  const prism = (material: string, key: string, ground: Point[], z0: number, z1: number) =>
-    prismVolume(material, key, at, ground, z0, z1, facing, localView);
-  /** Du fond vers l'avant, le long de `y` : c'est `yFace` qui dit lequel des deux bords est devant. */
-  const acrossY = (items: { y: number; node: ReactNode }[]) =>
-    [...items].sort((a, b) => (a.y - b.y) * facing.yFace).map((it) => it.node);
-  /** Et le long de `x`. */
-  const alongX = (items: { x: number; node: ReactNode }[]) =>
-    [...items].sort((a, b) => (a.x - b.x) * facing.xFace).map((it) => it.node);
-
-  // ---- les cotes ----
+  const { pose } = placed(origin, rotation, { x0: 0, x1: LENGTH, y0: 0, y1: WIDTH, z0: 0, z1: 1 });
   const bodyY0 = 0.08;
   const bodyY1 = WIDTH - 0.08;
-  const rearR = 0.17;
-  const frontR = 0.22;
-  const tyre = 0.14;
-  const wheelY = [0.07, WIDTH - 0.07];
   const deck = 0.5;
   const roofZ = 1.55;
   const pillar = 0.06;
+  const rearR = 0.17;
+  const frontR = 0.22;
+  const tyre = 0.14;
 
-  // ---- l'arrière : le contrepoids et ses roues ----
-  const rear = (
-    <g key="rear">
-      {acrossY([
-        { y: wheelY[0], node: isoWheel(at, 0.26, wheelY[0], rearR, rearR, tyre, facing, "rw0") },
-        {
-          y: WIDTH / 2,
-          node: (
-            <g key="counterweight">
-              {/* Le contrepoids : une fonte moulée, pas une caisse. Ses angles abattus sont ce qui
-                  le distingue d'un bloc posé à l'arrière. */}
-              {prism("safety", "counterweight", roundedRing(0, 0.46, bodyY0, bodyY1, 0.1, 3), 0.1, 0.8)}
-              {prism("safety", "counterweight-top", roundedRing(0.03, 0.46, bodyY0 + 0.03, bodyY1 - 0.03, 0.09, 3), 0.8, 0.86)}
-            </g>
-          ),
-        },
-        { y: wheelY[1], node: isoWheel(at, 0.26, wheelY[1], rearR, rearR, tyre, facing, "rw1") },
-      ])}
-    </g>
-  );
+  // ---- Le châssis : tout ce qui ne lève pas ----
+  const chassis = useBuilt(() => {
+    const b = new Builder();
+    // Le contrepoids, arrondi, avec son chapeau : c'est lui qui fait basculer l'œil vers l'arrière.
+    b.prism("safety", roundedRect(0, 0.46, bodyY0, bodyY1, 0.1, 3), 0.1, 0.8);
+    b.prism("safety", roundedRect(0.03, 0.46, bodyY0 + 0.03, bodyY1 - 0.03, 0.09, 3), 0.8, 0.86);
+    // La caisse, le tableau de bord, la colonne de direction et son volant.
+    b.prism("safety", roundedRect(0.45, 1.46, bodyY0, bodyY1, 0.12, 3), 0.12, deck);
+    b.prism("safety", roundedRect(1.2, 1.45, 0.16, 0.84, 0.09, 3), deck, deck + 0.28);
+    b.box("iron", 1.14, 1.2, 0.47, 0.53, deck + 0.26, deck + 0.46);
+    b.cylinder("iron", 1.1, WIDTH / 2, deck + 0.5, 0.11, 0.025, "x", 16);
+    // Le siège et son dossier.
+    b.prism("iron", roundedRect(0.5, 0.6, 0.3, 0.7, 0.05, 2), deck + 0.16, deck + 0.54);
+    b.prism("iron", roundedRect(0.58, 0.9, 0.3, 0.7, 0.07, 2), deck, deck + 0.16);
+    // Le protège-conducteur : quatre montants, deux longerons, une grille de barreaux.
+    for (const y0 of [bodyY0 + 0.02, bodyY1 - 0.02 - pillar]) for (const x0 of [0.47, 1.37]) b.box("iron", x0, x0 + pillar, y0, y0 + pillar, deck, roofZ);
+    for (const y of [bodyY0, bodyY1 - 0.07]) b.box("iron", 0.44, 1.48, y, y + 0.07, roofZ, roofZ + 0.05);
+    for (const x of [0.52, 0.76, 1.0, 1.24]) b.box("iron", x, x + 0.05, bodyY0 + 0.07, bodyY1 - 0.07, roofZ + 0.01, roofZ + 0.04);
+    // Le mât : deux montants, le vérin entre eux, la traverse haute.
+    b.box("iron", 1.48, 1.58, 0.14, 0.24, 0.1, mastTop);
+    b.box("iron", 1.48, 1.58, 0.76, 0.86, 0.1, mastTop);
+    b.cylinder("steel", 1.53, 0.5, 0.1 + (mastTop * 0.62 - 0.1) / 2, 0.035, mastTop * 0.62 - 0.1, "z", 12);
+    b.box("iron", 1.48, 1.58, 0.14, 0.86, mastTop - 0.08, mastTop);
+    // Le gyrophare, sur le toit : le signal que tout le monde cherche des yeux dans une allée.
+    b.cylinder("safety", 0.52, bodyY0 + 0.1, roofZ + 0.1, 0.035, 0.07, "z", 10);
+    // Le cariste, assis.
+    if (driver) b.within(new Matrix4().makeTranslation(0.66, WIDTH / 2, deck + 0.16), () => addWorker(b, "sit"));
+    return b.build();
+  }, [mastTop, driver]);
 
-  // ---- le poste : la caisse, le siège, le tableau de bord, le toit ----
-  const pillars = (y0: number) =>
-    alongX(
-      [0.47, 1.37].map((x0) => ({
-        x: x0,
-        node: box("iron", `pillar${x0}${y0}`, x0, x0 + pillar, y0, y0 + pillar, deck, roofZ),
-      }))
-    );
-  const seat = alongX([
-    {
-      x: 0.5,
-      node: (
-        <g key="seat">
-          {/* Un dossier et une assise, aux angles abattus : à cette taille, deux caisses droites se
-              lisent comme un carton posé sur le capot. */}
-          {prism("iron", "backrest", roundedRing(0.5, 0.6, 0.3, 0.7, 0.05, 2), deck + 0.16, deck + 0.54)}
-          {prism("iron", "seat", roundedRing(0.58, 0.9, 0.3, 0.7, 0.07, 2), deck, deck + 0.16)}
-        </g>
-      ),
-    },
-    {
-      x: 1.2,
-      node: (
-        <g key="dash">
-          {prism("safety", "dash", roundedRing(1.2, 1.45, 0.16, 0.84, 0.09, 3), deck, deck + 0.28)}
-          {box("iron", "column", 1.14, 1.2, 0.47, 0.53, deck + 0.26, deck + 0.46)}
-          {/* Le volant : un disque **en travers de la marche**, comme sur la machine — on le tient
-              de part et d'autre, pas dans l'axe. `spunProject` tourne le projecteur d'un quart de
-              tour autour de son centre plutôt que de tourner le disque, qui ne saurait pas l'être. */}
-          {(() => {
-            const spun = spunProject(at, 90, 1.08, WIDTH / 2, rotation);
-            return isoWheel(spun.project, 1.08, WIDTH / 2, deck + 0.5, 0.11, 0.03, spun.facing, "steering");
-          })()}
-        </g>
-      ),
-    },
-  ]);
-  const cab = (
-    <g key="cab">
-      {acrossY([
-        { y: wheelY[0], node: isoWheel(at, 1.18, wheelY[0], frontR, frontR, tyre, facing, "fw0") },
-        {
-          y: WIDTH / 2,
-          node: (
-            <g key="cabin">
-              {prism("safety", "body", roundedRing(0.45, 1.46, bodyY0, bodyY1, 0.12, 3), 0.12, deck)}
-              {acrossY([
-                { y: bodyY0, node: <g key="pf">{pillars(bodyY0 + 0.02)}</g> },
-                { y: WIDTH / 2, node: <g key="seatdash">{seat}</g> },
-                { y: bodyY1, node: <g key="pn">{pillars(bodyY1 - 0.02 - pillar)}</g> },
-              ])}
-              {/* Le toit de protection est une **grille**, pas une tôle : c'est ce qui laisse voir
-                  le poste de conduite au travers, et c'est aussi ce qu'il est — des barreaux assez
-                  serrés pour arrêter un colis, assez écartés pour qu'on voie le mât. */}
-              <g key="roof">
-                {acrossY(
-                  [bodyY0, bodyY1 - 0.07].map((y) => ({
-                    y,
-                    node: box("iron", `rail${y}`, 0.44, 1.48, y, y + 0.07, roofZ, roofZ + 0.05),
-                  }))
-                )}
-                {alongX(
-                  [0.52, 0.76, 1.0, 1.24].map((x) => ({
-                    x,
-                    node: box("iron", `bar${x}`, x, x + 0.05, bodyY0 + 0.07, bodyY1 - 0.07, roofZ + 0.01, roofZ + 0.04),
-                  }))
-                )}
-              </g>
-            </g>
-          ),
-        },
-        { y: wheelY[1], node: isoWheel(at, 1.18, wheelY[1], frontR, frontR, tyre, facing, "fw1") },
-      ])}
-    </g>
-  );
+  // ---- Les roues : à part, parce qu'elles tournent ----
+  const rearWheel = useBuilt(() => {
+    const b = new Builder();
+    b.cylinder("rubber", 0, 0, 0, rearR, tyre, "y", 18);
+    b.cylinder("chrome", 0, 0, 0, rearR * 0.5, tyre + 0.01, "y", 12);
+    b.box("chrome", -rearR * 0.5, rearR * 0.5, -tyre / 2 - 0.006, tyre / 2 + 0.006, -0.012, 0.012, false);
+    return b.build();
+  }, []);
+  const frontWheel = useBuilt(() => {
+    const b = new Builder();
+    b.cylinder("rubber", 0, 0, 0, frontR, tyre, "y", 18);
+    b.cylinder("chrome", 0, 0, 0, frontR * 0.5, tyre + 0.01, "y", 12);
+    b.box("chrome", -frontR * 0.5, frontR * 0.5, -tyre / 2 - 0.006, tyre / 2 + 0.006, -0.012, 0.012, false);
+    return b.build();
+  }, []);
 
-  // ---- le mât ----
-  const mast = (
-    <g key="mast">
-      {acrossY([
-        { y: 0.19, node: box("iron", "upright0", 1.48, 1.58, 0.14, 0.24, 0.1, mastTop) },
-        { y: 0.5, node: box("steel", "cylinder", 1.5, 1.56, 0.46, 0.54, 0.1, mastTop * 0.62) },
-        { y: 0.81, node: box("iron", "upright1", 1.48, 1.58, 0.76, 0.86, 0.1, mastTop) },
-      ])}
-      {box("iron", "crossbar", 1.48, 1.58, 0.14, 0.86, mastTop - 0.08, mastTop)}
-    </g>
-  );
-
-  // ---- le tablier et les fourches, dessinés à la hauteur la plus basse ----
+  // ---- Ce qui lève : tablier, dosseret, fourches, et la charge dessus ----
   const tineTop = FLOOR + 0.05;
-  const carried = (() => {
-    if (!load) return null;
-    const slot = { x: 1.72, y: bodyY0, width: 0.9, depth: bodyY1 - bodyY0 };
-    const pallet = fitRackItem("palette", slot, tineTop, Infinity);
-    const nodes: ReactNode[] = [rackItemIso("palette", pallet, at, facing, "pallet")];
-    if (load !== "palette") {
-      const goods = fitRackItem(load, { ...slot, x: slot.x + 0.04, width: slot.width - 0.08 }, tineTop + pallet.height, Infinity);
-      nodes.push(rackItemIso(load, goods, at, facing, "goods"));
-    }
-    return nodes;
-  })();
-
-  const zero = at(0, 0, 0);
-  const rise = (dz: number) => {
-    const p = at(0, 0, dz);
-    return `translate(${(p.x - zero.x).toFixed(3)}px,${(p.y - zero.y).toFixed(3)}px)`;
-  };
-  const forks = (
-    <g
-      key="forks"
-      className={running ? "lq-forklift__lift lq-forklift__lift--running" : "lq-forklift__lift"}
-      style={
-        {
-          transform: rise(top - FLOOR),
-          ...(running ? { animationName: `lq-fl-lift-${uid}`, animationDuration: `${Math.max(1, cycle)}s` } : {}),
-        } as CSSProperties
+  const carriage = useBuilt(() => {
+    const b = new Builder();
+    b.box("iron", 1.6, 1.66, 0.1, 0.9, FLOOR, FLOOR + 0.5);
+    for (const y of [0.14, 0.38, 0.62, 0.86]) b.box("iron", 1.6, 1.64, y, y + 0.05, FLOOR + 0.5, FLOOR + 1.05);
+    b.box("iron", 1.6, 1.64, 0.1, 0.9, FLOOR + 1.0, FLOOR + 1.05);
+    for (const y of [0.29, 0.71]) b.box("iron", 1.66, 2.65, y - 0.05, y + 0.05, FLOOR, tineTop);
+    if (load) {
+      // La palette sur les fourches, et la marchandise dessus : les mêmes objets que partout.
+      const cx = 1.72 + 0.45;
+      const pal = GOOD_SIZE.palette;
+      addGood(b, "palette", cx, WIDTH / 2, tineTop, 0.42, pal.height);
+      if (load !== "palette") {
+        const g = GOOD_SIZE[load as RackItemKind];
+        const k = 0.38 / g.half;
+        addGood(b, load as RackItemKind, cx, WIDTH / 2, tineTop + pal.height, g.half * k, g.height * k);
       }
-    >
-      {box("iron", "carriage", 1.6, 1.66, 0.1, 0.9, FLOOR, FLOOR + 0.5)}
-      {/* Le dosseret : la grille contre laquelle la charge s'appuie. Sans lui, une palette haute
-          bascule sur le conducteur, et un chariot sans dosseret ne se lit pas comme un chariot. */}
-      {alongX(
-        [0.14, 0.38, 0.62, 0.86].map((y) => ({
-          x: y,
-          node: box("iron", `back${y}`, 1.6, 1.64, y, y + 0.05, FLOOR + 0.5, FLOOR + 1.05),
-        }))
-      )}
-      {box("iron", "back-top", 1.6, 1.64, 0.1, 0.9, FLOOR + 1.0, FLOOR + 1.05)}
-      {acrossY(
-        [0.29, 0.71].map((y) => ({
-          y,
-          node: box("iron", `tine${y}`, 1.66, 2.65, y - 0.05, y + 0.05, FLOOR, tineTop),
-        }))
-      )}
-      {carried}
-    </g>
-  );
+    }
+    return b.build();
+  }, [load]);
 
-  const slices = alongX([
-    { x: 0, node: rear },
-    { x: 0.45, node: cab },
-    { x: 1.48, node: mast },
-    { x: 1.6, node: forks },
-  ]);
-
-  // ---- l'ombre ----
-  /** Une emprise balayée jusqu'à l'ombre de son sommet : les deux rectangles et ce qui les relie. */
-  const sweep = (x0: number, x1: number, y0: number, y1: number, h: number, key: string) => {
-    const foot = [onGround(x0, y0), onGround(x1, y0), onGround(x1, y1), onGround(x0, y1)];
-    const cast = foot.map((p) => ({ x: p.x + cam.sun.x * h, y: p.y + cam.sun.y * h }));
-    return <polygon key={key} className="lq-iso__shadow" points={ring(convexHull([...foot, ...cast].map((p) => world(p.x, p.y, 0))))} />;
-  };
-  const shade = shadows ? (
-    <g>
-      {sweep(0, 1.45, bodyY0, bodyY1, 0.86, "s-body")}
-      {castShadow(world, [onGround(0.44, bodyY0), onGround(1.46, bodyY0), onGround(1.46, bodyY1), onGround(0.44, bodyY1)], roofZ, "s-roof", cam.sun)}
-      {sweep(1.48, 1.58, 0.14, 0.86, mastTop, "s-mast")}
-    </g>
-  ) : null;
-
-  // ---- le cadrage ----
-  const corners: Point[] = frame
-    ? frameCorners(frame, world, cam.sun)
-    : [0, mastTop + 0.2].flatMap((z) =>
-        [
-          [0, 0],
-          [LENGTH, 0],
-          [LENGTH, WIDTH],
-          [0, WIDTH],
-        ].map(([x, y]) => at(x, y, z))
-      );
-  const minX = Math.min(...corners.map((p) => p.x)) - PAD;
-  const minY = Math.min(...corners.map((p) => p.y)) - PAD;
-  const boxWidth = Math.max(...corners.map((p) => p.x)) + PAD - minX;
-  const boxHeight = Math.max(...corners.map((p) => p.y)) + PAD - minY;
-
-  const keyframes = running
-    ? `@keyframes lq-fl-lift-${uid}{0%,100%{transform:${rise(0)}}40%,60%{transform:${rise(top - FLOOR)}}}`
-    : "";
+  const lifter = useRef<Group>(null);
+  const spinners = useRef<(Group | null)[]>([]);
+  useSimFrame((t) => {
+    if (lifter.current) {
+      const u = running ? ((t / Math.max(1, cycle)) % 1 + 1) % 1 : 0.5;
+      lifter.current.position.z = (top - FLOOR) * liftCurve(u);
+    }
+    for (const [i, w] of spinners.current.entries()) if (w) w.rotation.y = -(t * rolling) / (i < 2 ? rearR : frontR);
+  }, running || rolling !== 0);
 
   return (
-    <IsoCanvas
-      className={["lq-forklift", className].filter(Boolean).join(" ")}
-      width={boxWidth}
-      height={boxHeight}
-      viewBox={[minX, minY, boxWidth, boxHeight]}
-      ariaLabel="Chariot élévateur"
-    >
-      {running && (
-        <defs>
-          <style>{keyframes}</style>
-        </defs>
-      )}
-      {(parts === "all" || parts === "shadow") && shade}
-      {(parts === "all" || parts === "machine") && slices}
-    </IsoCanvas>
+    <group matrixAutoUpdate={false} matrix={pose}>
+      <Parts built={chassis} />
+      {[0.07, WIDTH - 0.07].map((y, i) => (
+        <group key={`r${i}`} position={[0.26, y, rearR]} ref={(el) => (spinners.current[i] = el)}>
+          <Parts built={rearWheel} />
+        </group>
+      ))}
+      {[0.07, WIDTH - 0.07].map((y, i) => (
+        <group key={`f${i}`} position={[1.18, y, frontR]} ref={(el) => (spinners.current[2 + i] = el)}>
+          <Parts built={frontWheel} />
+        </group>
+      ))}
+      <group ref={lifter} position={[0, 0, running ? 0 : top - FLOOR]}>
+        <Parts built={carriage} />
+      </group>
+    </group>
   );
 }

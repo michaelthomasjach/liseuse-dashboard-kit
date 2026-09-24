@@ -74,7 +74,7 @@ export function WarehouseStage({ children, docked = true }: { children: ReactNod
   useWheelZoom(surface, zoomTo);
 
   return (
-    <IsoCamera yaw={yaw} tilt={tilt}>
+    <IsoCamera yaw={yaw} tilt={tilt} zoom={zoom}>
       {/* La surface qui prend le glisser au bouton du milieu et la molette, et qui **centre la
           scène**.
 
@@ -112,9 +112,10 @@ export function WarehouseStage({ children, docked = true }: { children: ReactNod
           <RotationGizmo value={yaw} onChange={change} tilt={tilt} />
           <ZoomGizmo value={zoom} onChange={(z) => zoomTo(() => z)} />
         </div>
-        {/* Le grossissement porte ici, et non sur la surface : les commandes sont à l'intérieur de
-            celle-ci et ne doivent pas grossir avec la scène qu'elles règlent. */}
-        <div style={{ zoom }}>{children}</div>
+        {/* Le grossissement passe par la caméra des scènes 3D, et non par une propriété CSS : une
+            toile WebGL étirée par la mise en page serait floue, alors qu'une caméra qui se
+            rapproche redessine net à chaque cran. */}
+        {children}
       </div>
     </IsoCamera>
   );

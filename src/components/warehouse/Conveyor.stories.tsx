@@ -1,8 +1,8 @@
 import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react";
-import { Conveyor } from "./Conveyor";
-import { useIsoCamera } from "./isoCamera";
-import { Scene, footprint, layer, useFrameBox, type SceneUnit } from "./sceneStory";
+import { Conveyor, conveyorTrack, type ConveyorProps } from "./Conveyor";
+import { Cargo } from "./Cargo";
+import { SceneBox } from "./sceneStory";
 import { NumberField } from "../forms";
 
 const meta: Meta<typeof Conveyor> = {
@@ -11,6 +11,41 @@ const meta: Meta<typeof Conveyor> = {
 };
 export default meta;
 type Story = StoryObj<typeof Conveyor>;
+
+/**
+ * Une chaîne de tapis dans **une seule scène** : les modules, vides, et un seul flux de colis qui
+ * parcourt leurs pistes mises bout à bout.
+ *
+ * Aucun module ne porte de colis : un colis ne change donc jamais de propriétaire à une jonction, et
+ * ne peut pas y disparaître. Les pistes viennent des modules eux-mêmes (`conveyorTrack`), avec les
+ * mêmes props que ceux qu'on pose : déplacer un tapis déplace le chemin des colis avec lui.
+ */
+function Chain({
+  frame,
+  cellSize,
+  modules,
+  closed = false,
+  speed = 1.2,
+  spacing = 1.3,
+}: {
+  frame: { x: number; y: number; width: number; depth: number; height: number };
+  cellSize: number;
+  modules: ConveyorProps[];
+  closed?: boolean;
+  speed?: number;
+  spacing?: number;
+}) {
+  return (
+    <div style={{ padding: 32 }}>
+      <SceneBox frame={frame} cellSize={cellSize}>
+        {modules.map((m, i) => (
+          <Conveyor key={i} {...m} speed={speed} load={null} shadows />
+        ))}
+        <Cargo route={modules.map((m) => conveyorTrack(m))} closed={closed} kind={["carton", "boite", "carton", "bidon"]} speed={speed} spacing={spacing} fade={!closed} />
+      </SceneBox>
+    </div>
+  );
+}
 
 export const Droit: Story = {
   name: "Tapis droit",
@@ -182,22 +217,11 @@ export const Ligne: Story = {
     const length = 5;
     const width = 2.2;
     const frame = { x: -0.5, y: -0.5, width: length + width + 1, depth: width + 1, height: 2.2 };
-    const shared = { width, legHeight: 1, cellSize, frame, load: "carton" as const, speed: 1.1, shadows: true };
-    const straight = (part: "shadow" | "machine" | "load") => (
-      <div style={layer}>
-        <Conveyor {...shared} kind="straight" length={length} parts={part} />
-      </div>
-    );
-    const corner = (part: "shadow" | "machine" | "load") => (
-      <div style={layer}>
-        <Conveyor {...shared} kind="corner" origin={{ x: length, y: 0 }} parts={part} />
-      </div>
-    );
-    const units: SceneUnit[] = [
-      { key: "straight", x: 0, y: 0, width: length, height: width, shadow: straight("shadow"), machine: straight("machine"), load: straight("load") },
-      { key: "corner", x: length, y: 0, width, height: width, shadow: corner("shadow"), machine: corner("machine"), load: corner("load") },
+    const modules: ConveyorProps[] = [
+      { kind: "straight", length, width, legHeight: 1 },
+      { kind: "corner", width, legHeight: 1, origin: { x: length, y: 0 } },
     ];
-    return <Scene frame={frame} cellSize={cellSize} units={units} padding={40} />;
+    return <Chain frame={frame} cellSize={cellSize} modules={modules} speed={1.1} />;
   },
 };
 
@@ -218,35 +242,17 @@ export const Rond: Story = {
  * Une boucle fermée : droit, angle, droit, angle, droit, angle, droit, angle — et **un colis ne
  * disparaît jamais** à une jonction, il y passe.
  *
- * Trois choses le permettent, et aucune n'est un réglage à tâtons.
- *
- * Les huit modules **partagent un cadre** (`frame`), donc la même `viewBox` et la même taille : les
- * superposer suffit à les raccorder, il n'y a rien à aligner puisqu'ils sont déjà dans le même
- * repère. Chacun est posé par son `origin`, calculé en chaînant les modules : l'entrée de la bande
+ * Chaque module est posé par son `origin`, calculé en chaînant les modules : l'entrée de la bande
  * est au même endroit dans le repère local d'un droit et d'un angle — `(0, largeur / 2)` — donc il
  * suffit de faire coïncider l'entrée de l'un avec la sortie du précédent. Le cap s'accumule tout
  * seul : un angle tourne d'un quart, donc les rotations sont 0, 0, 90, 90, 180, 180, 270, 270.
  *
- * Les machines sont toutes dessinées avant les charges (`parts`). Un colis appartient au module
- * qu'il traverse, donc il hérite de sa place dans la pile — et le module suivant, dessiné après
- * parce qu'il est plus proche, le recouvrait juste au moment où il arrivait à la jonction, ce qui
- * se lisait comme un colis passant *sous* le tapis.
- *
- * Le fondu d'entrée et de sortie est **coupé** (`fadeIn={false}
-                  fadeOut={false}`) : un module seul n'a pas d'amont
- * à montrer et doit s'effacer, un module au milieu d'une chaîne en a un.
- *
- * Et **un seul colis** circule, pas un par module. Chaque module reçoit le `span` qu'il occupe dans
- * le tour de boucle — la distance parcourue avant lui et celle après, rapportées au périmètre — et
- * ne montre la charge que pendant qu'elle y est, restant vide le reste du temps. Son cycle
- * d'animation est donc le tour entier, et non sa propre traversée. La vitesse étant en cases par
- * seconde, tous les modules avancent du même pas, et le colis quitte un module à l'instant même où
- * le suivant le reçoit, au même point et au même cap.
+ * Les colis ne sont à aucun module : un seul flux parcourt les huit pistes mises bout à bout, en
+ * boucle (voir `Chain`).
  */
 export const Boucle: Story = {
   name: "Une boucle fermée",
   render: function Render() {
-    const cam = useIsoCamera();
     const cellSize = 26;
     const W = 2.2;
     const arc = (Math.PI / 4) * W; // la longueur d'un quart de cercle de rayon W / 2
@@ -304,46 +310,14 @@ export const Boucle: Story = {
       height: 1 + 0.22 + 0.14,
     };
 
-    // Du fond vers l'avant, pour la caméra courante : les modules sont disjoints, donc c'est elle
-    // qui dit lequel est devant.
-    const order = cam.order(modules.map((m, i) => ({ m, i, ...footprint(m.origin, m.kind === "corner" ? W : L, W, m.rotation) })));
-
-    // Les huit dessins sont en position absolue : le conteneur doit donc réserver la place lui-même,
-    // qui est celle du cadre projeté — la même arithmétique que la `viewBox` des modules.
-    const box = useFrameBox(frame, cellSize);
-
     return (
-      <div style={{ padding: 32 }}>
-        <div style={{ position: "relative", width: box.width, height: box.height }}>
-          {/* D'abord les huit machines, du fond vers l'avant ; puis les huit couches de charge, par
-              dessus. Un colis appartient au module qu'il traverse, donc il hérite de sa place dans
-              la pile — et le module suivant, dessiné après parce qu'il est plus proche, le
-              recouvrait juste au moment où il arrivait à la jonction. */}
-          {(["shadow", "machine", "load"] as const).map((part) =>
-            order.map(({ m, i }) => (
-              <div key={`${part}${i}`} style={{ position: "absolute", left: 0, top: 0 }}>
-                <Conveyor
-                  kind={m.kind}
-                  length={L}
-                  width={W}
-                  legHeight={1}
-                  cellSize={cellSize}
-                  rotation={m.rotation}
-                  origin={m.origin}
-                  frame={frame}
-                  parts={part}
-                  load="carton"
-                  span={{ start: m.from / travelled, end: (m.from + m.run) / travelled }}
-                  shadows
-                  fadeIn={false}
-                  fadeOut={false}
-                  speed={speed}
-                />
-              </div>
-            ))
-          )}
-        </div>
-      </div>
+      <Chain
+        frame={frame}
+        cellSize={cellSize}
+        closed
+        speed={speed}
+        modules={modules.map((m) => ({ kind: m.kind, length: L, width: W, legHeight: 1, rotation: m.rotation, origin: m.origin }))}
+      />
     );
   },
 };
@@ -369,7 +343,6 @@ export const Boucle: Story = {
 export const Circuit: Story = {
   name: "Un circuit plus complexe",
   render: function Render() {
-    const cam = useIsoCamera();
     const cellSize = 18;
     const W = 2;
     const r = W / 2;
@@ -457,41 +430,15 @@ export const Circuit: Story = {
       depth: hi((b) => b.cy + b.halfH) - lo((b) => b.cy - b.halfH) + 1,
       height: 1 + 0.22 + 0.14,
     };
-    const box = useFrameBox(frame, cellSize);
-
-    const order = cam.order(
-      modules.map((m, i) => ({ m, i, x: m.box.cx - m.box.halfW, y: m.box.cy - m.box.halfH, width: 2 * m.box.halfW, height: 2 * m.box.halfH }))
-    );
-
     return (
-      <div style={{ padding: 32 }}>
-        <div style={{ position: "relative", width: box.width, height: box.height }}>
-          {(["shadow", "machine", "load"] as const).map((part) =>
-            order.map(({ m, i }) => (
-              <div key={`${part}${i}`} style={{ position: "absolute", left: 0, top: 0 }}>
-                <Conveyor
-                  kind={m.kind}
-                  length={m.length}
-                  width={W}
-                  legHeight={1}
-                  cellSize={cellSize}
-                  rotation={m.rotation}
-                  reversed={m.reversed}
-                  origin={m.origin}
-                  frame={frame}
-                  parts={part}
-                  load="carton"
-                  span={{ start: m.from / done, end: (m.from + m.run) / done }}
-                  shadows
-                  fadeIn={false}
-                  fadeOut={false}
-                  speed={speed}
-                />
-              </div>
-            ))
-          )}
-        </div>
-      </div>
+      <Chain
+        frame={frame}
+        cellSize={cellSize}
+        closed
+        speed={speed}
+        spacing={1.6}
+        modules={modules.map((m) => ({ kind: m.kind, length: m.length, width: W, legHeight: 1, rotation: m.rotation, reversed: m.reversed, origin: m.origin }))}
+      />
     );
   },
 };
@@ -565,49 +512,11 @@ export const Transfert: Story = {
       depth: Math.max(...boxes.map((b) => b.cy + b.halfH)) - Math.min(...boxes.map((b) => b.cy - b.halfH)) + 1,
       height: highLegs + thick + 0.2,
     };
-    const total = L1 + dropRun + L2;
-    const shared = { width: W, bedThickness: thick, cellSize, frame, load: "carton" as const, speed, shadows: true };
-    const high = (part: "shadow" | "machine" | "load") => (
-      <div style={layer}>
-        <Conveyor
-          {...shared}
-          kind="straight"
-          length={L1}
-          legHeight={highLegs}
-          parts={part}
-          drop={{ fall, run: dropRun }}
-          span={{ start: 0, end: (L1 + dropRun) / total }}
-          fadeOut={false}
-        />
-      </div>
-    );
-    const low = (part: "shadow" | "machine" | "load") => (
-      <div style={layer}>
-        <Conveyor
-          {...shared}
-          kind="straight"
-          length={L2}
-          legHeight={lowLegs}
-          rotation={90}
-          origin={origin2}
-          parts={part}
-          span={{ start: (L1 + dropRun) / total, end: 1 }}
-          fadeIn={false}
-        />
-      </div>
-    );
-    const units: SceneUnit[] = [high, low].map((draw, i) => ({
-      key: String(i),
-      x: boxes[i].cx - boxes[i].halfW,
-      y: boxes[i].cy - boxes[i].halfH,
-      width: 2 * boxes[i].halfW,
-      height: 2 * boxes[i].halfH,
-      shadow: draw("shadow"),
-      machine: draw("machine"),
-      load: draw("load"),
-    }));
-
-    return <Scene frame={frame} cellSize={cellSize} units={units} padding={32} />;
+    const modules: ConveyorProps[] = [
+      { kind: "straight", length: L1, width: W, bedThickness: thick, legHeight: highLegs, drop: { fall, run: dropRun } },
+      { kind: "straight", length: L2, width: W, bedThickness: thick, legHeight: lowLegs, rotation: 90, origin: origin2 },
+    ];
+    return <Chain frame={frame} cellSize={cellSize} modules={modules} speed={speed} />;
   },
 };
 

@@ -1,8 +1,8 @@
-import type { ReactNode } from "react";
-import { IsoCanvas } from "./isoCanvas";
-import { boxFaces, castShadow, solidVolume, type Project } from "./rackItems";
+import { Builder } from "./three/builder";
+import { Parts, Solo, placed, useBuilt } from "./three/scene";
+import { addGood } from "./three/goods";
+import "./rackItems.css";
 import "./StorageZone.css";
-import { useIsoCamera } from "./isoCamera";
 
 /**
  * Zone de stockage — des marchandises sur palettes, posées au sol.
@@ -48,6 +48,10 @@ export interface StorageZoneProps {
   unitHeight?: number;
   /** Rotation de la zone sur le sol, en degrés. */
   rotation?: number;
+  /** Où poser la zone, en cases. */
+  origin?: { x: number; y: number };
+  /** Peindre la zone au sol : un liseré de sécurité autour, un trait entre les emplacements. */
+  marked?: boolean;
   /** Poser les ombres au sol. */
   shadows?: boolean;
   /** Pixels par case. */
@@ -55,7 +59,6 @@ export interface StorageZoneProps {
   className?: string;
 }
 
-const PAD = 2;
 
 /** Épaisseur d'une palette, en fraction de son côté. Assez pour qu'on voie qu'il y en a une. */
 const PALLET_THICK = 0.14;
@@ -64,24 +67,28 @@ const PALLET_THICK = 0.14;
  *  scène, et c'est un autre travail que celui-ci. */
 const MAX = 40;
 
-type Piece = { x: number; y: number; width: number; height: number; render: () => ReactNode };
 
 const count = (n: number) => Math.max(1, Math.min(MAX, Math.floor(n) || 1));
 
-export function StorageZone({
-  columns = 4,
-  rows = 3,
-  stacks,
-  fill = 3,
-  palletSize = 1.2,
-  gap = 0.35,
-  unitHeight = 0.62,
-  rotation = 0,
-  shadows = false,
-  cellSize = 30,
-  className,
-}: StorageZoneProps) {
-  const cam = useIsoCamera();
+export function StorageZone(props: StorageZoneProps) {
+  const { columns = 4, rows = 3, palletSize = 1.2, gap = 0.35, rotation = 0, origin = { x: 0, y: 0 }, cellSize = 30, className, stacks, fill = 3, unitHeight = 0.62 } = props;
+  const nx = count(columns);
+  const ny = count(rows);
+  const side = Math.max(0.2, palletSize);
+  const step = side + Math.max(0, gap);
+  const spanX = nx * step - Math.max(0, gap);
+  const spanY = ny * step - Math.max(0, gap);
+  const tallest = PALLET_THICK * side + Math.max(fill, ...(stacks ?? [0])) * Math.max(0.05, unitHeight) * side;
+  const { bounds } = placed(origin, rotation, { x0: -0.2, x1: spanX + 0.2, y0: -0.2, y1: spanY + 0.2, z0: 0, z1: tallest });
+  const filled = Array.from({ length: nx * ny }, (_, i) => (stacks ? stacks[i] : fill) ?? fill).filter((n) => n > 0).length;
+  return (
+    <Solo bounds={bounds} cellSize={cellSize} className={["lq-storage", className].filter(Boolean).join(" ")} ariaLabel={`Zone de stockage, ${filled} emplacement${filled > 1 ? "s" : ""} occupé${filled > 1 ? "s" : ""} sur ${nx * ny}`}>
+      <StorageZoneBody {...props} />
+    </Solo>
+  );
+}
+
+function StorageZoneBody({ columns = 4, rows = 3, stacks, fill = 3, palletSize = 1.2, gap = 0.35, unitHeight = 0.62, rotation = 0, origin = { x: 0, y: 0 }, marked = true }: StorageZoneProps) {
   const nx = count(columns);
   const ny = count(rows);
   const side = Math.max(0.2, palletSize);
@@ -90,118 +97,48 @@ export function StorageZone({
   const spanY = ny * step - Math.max(0, gap);
   const unit = Math.max(0.05, unitHeight) * side;
   const deck = PALLET_THICK * side;
-
-  const theta = (rotation * Math.PI) / 180;
-  const cosT = Math.cos(theta);
-  const sinT = Math.sin(theta);
-  const spin = (x: number, y: number) => {
-    if (!rotation) return { x, y };
-    const dx = x - spanX / 2;
-    const dy = y - spanY / 2;
-    return { x: spanX / 2 + dx * cosT - dy * sinT, y: spanY / 2 + dx * sinT + dy * cosT };
-  };
-  const ground: Project = (x, y, z) => cam.project(x * cellSize, y * cellSize, z * cellSize);
-  const at: Project = (x, y, z) => {
-    const p = spin(x, y);
-    return ground(p.x, p.y, z);
-  };
-  const facing = cam.facing(rotation);
-
-  const heightOf = (i: number) => {
-    const asked = stacks ? stacks[i] : fill;
-    return Math.max(0, Math.floor(asked ?? fill));
-  };
-
-  const pieces: Piece[] = [];
-  const shade: ReactNode[] = [];
-  let tallest = deck;
-
-  for (let j = 0; j < ny; j += 1) {
-    for (let i = 0; i < nx; i += 1) {
-      const n = heightOf(j * nx + i);
-      if (n === 0) continue;
-      const x0 = i * step;
-      const y0 = j * step;
-      const top = deck + n * unit;
-      tallest = Math.max(tallest, top);
-      if (shadows) {
-        shade.push(
-          castShadow(
-            ground,
-            // Les coins tournés : le soleil est une direction du monde, pas de la zone.
-            [spin(x0, y0), spin(x0 + side, y0), spin(x0 + side, y0 + side), spin(x0, y0 + side)],
-            top,
-            `sh${i}-${j}`, cam.sun)
-        );
-      }
-      pieces.push({
-        x: x0,
-        y: y0,
-        width: side,
-        height: side,
-        render: () => (
-          <g key={`s${i}-${j}`}>
-            {solidVolume("wood", `p${i}-${j}`, boxFaces(at, x0, x0 + side, y0, y0 + side, 0, deck, facing))}
-            {/* De bas en haut : plus c'est haut, plus c'est près, et chaque charge est un volume à
-                part — c'est la ligne entre deux d'entre elles qui dit combien il y en a. */}
-            {Array.from({ length: n }, (_, k) =>
-              solidVolume(
-                "kraft",
-                `u${i}-${j}-${k}`,
-                boxFaces(at, x0, x0 + side, y0, y0 + side, deck + k * unit, deck + (k + 1) * unit, facing)
-              )
-            )}
-          </g>
-        ),
-      });
+  const { pose } = placed(origin, rotation, { x0: 0, x1: spanX, y0: 0, y1: spanY, z0: 0, z1: 1 });
+  const built = useBuilt(() => {
+    const b = new Builder();
+    // Le marquage au sol : c'est lui qui fait une zone de stockage et non un tas de palettes. Un
+    // liseré de sécurité tout autour, et un trait qui délimite chaque emplacement — un
+    // emplacement vide se lit ainsi comme une place libre, pas comme un oubli.
+    if (marked) {
+      const w = 0.06;
+      const m = 0.16;
+      const z = 0.004;
+      b.faceZ("lq-zone__line", z, -m, spanX + m, -m, -m + w);
+      b.faceZ("lq-zone__line", z, -m, spanX + m, spanY + m - w, spanY + m);
+      b.faceZ("lq-zone__line", z, -m, -m + w, -m, spanY + m);
+      b.faceZ("lq-zone__line", z, spanX + m - w, spanX + m, -m, spanY + m);
+      for (let j = 0; j < ny; j += 1)
+        for (let i = 0; i < nx; i += 1) {
+          const x0 = i * step - 0.03;
+          const y0 = j * step - 0.03;
+          b.lines("lq-rack2__divider", [
+            [[x0, y0, z], [x0 + side + 0.06, y0, z]],
+            [[x0 + side + 0.06, y0, z], [x0 + side + 0.06, y0 + side + 0.06, z]],
+            [[x0 + side + 0.06, y0 + side + 0.06, z], [x0, y0 + side + 0.06, z]],
+            [[x0, y0 + side + 0.06, z], [x0, y0, z]],
+          ]);
+        }
     }
-  }
-
-  const sorted = cam.order(
-    pieces.map((piece) => {
-      if (!rotation) return piece;
-      const pts = [
-        spin(piece.x, piece.y),
-        spin(piece.x + piece.width, piece.y),
-        spin(piece.x + piece.width, piece.y + piece.height),
-        spin(piece.x, piece.y + piece.height),
-      ];
-      const xs = pts.map((p) => p.x);
-      const ys = pts.map((p) => p.y);
-      const x = Math.min(...xs);
-      const y = Math.min(...ys);
-      return { x, y, width: Math.max(...xs) - x, height: Math.max(...ys) - y, render: piece.render };
-    })
-  );
-
-  const outline: [number, number][] = [
-    [0, 0],
-    [spanX, 0],
-    [spanX, spanY],
-    [0, spanY],
-  ];
-  const corners = [
-    ...outline.map(([x, y]) => at(x, y, 0)),
-    ...outline.map(([x, y]) => at(x, y, tallest)),
-    // Les ombres débordent du côté opposé à la lumière.
-    ...outline.map(([x, y]) => at(x + tallest, y - tallest, 0)),
-  ];
-  const minX = Math.min(...corners.map((p) => p.x)) - PAD;
-  const minY = Math.min(...corners.map((p) => p.y)) - PAD;
-  const width = Math.max(...corners.map((p) => p.x)) + PAD - minX;
-  const height = Math.max(...corners.map((p) => p.y)) + PAD - minY;
-
-  const filled = pieces.length;
+    for (let j = 0; j < ny; j += 1)
+      for (let i = 0; i < nx; i += 1) {
+        const n = Math.max(0, Math.floor((stacks ? stacks[j * nx + i] : fill) ?? fill));
+        if (n === 0) continue;
+        const cx = i * step + side / 2;
+        const cy = j * step + side / 2;
+        // Une vraie palette, et dessus des couches de cartons : chacune avec son adhésif, si bien
+        // qu'on compte les couches d'un coup d'œil.
+        addGood(b, "palette", cx, cy, 0, side / 2, deck);
+        for (let k = 0; k < n; k += 1) addGood(b, "carton", cx, cy, deck + k * unit, side / 2 - 0.02, unit - 0.005);
+      }
+    return b.build();
+  }, [nx, ny, side, step, unit, deck, JSON.stringify(stacks), fill, marked]);
   return (
-    <IsoCanvas
-      className={["lq-storage", className].filter(Boolean).join(" ")}
-      width={width}
-      height={height}
-      viewBox={[minX, minY, width, height]}
-      ariaLabel={`Zone de stockage, ${filled} emplacement${filled > 1 ? "s" : ""} occupé${filled > 1 ? "s" : ""} sur ${nx * ny}`}
-    >
-      {shade}
-      {sorted.map((piece) => piece.render())}
-    </IsoCanvas>
+    <group matrixAutoUpdate={false} matrix={pose}>
+      <Parts built={built} />
+    </group>
   );
 }

@@ -1,8 +1,9 @@
-import type { ReactNode } from "react";
-import { IsoCanvas } from "./isoCanvas";
-import { frameCorners, arcRingVolume, boxFaces, castShadow, solidVolume, spunProject, type Point, type Project } from "./rackItems";
+import { Matrix4 } from "three";
+import { Builder, annulus, type P3 } from "./three/builder";
+import { Parts, Solo, frameBounds, placed, useBuilt } from "./three/scene";
+import { transformTrack } from "./three/transport";
+import "./rackItems.css";
 import "./Rail.css";
-import { useIsoCamera } from "./isoCamera";
 
 /**
  * Rail — droit, ou à angle droit. La voie sur laquelle roule un picker.
@@ -119,226 +120,93 @@ export interface RailProps {
   className?: string;
 }
 
-const PAD = 2;
 
-type Piece = { x: number; y: number; width: number; height: number; render: () => ReactNode };
 
-export function Rail({
-  kind = "straight",
-  length = 8,
-  width = RAIL_WIDTH,
-  gauge = RAIL_GAUGE,
-  curveRadius,
-  railSize = 0.16,
-  railHeight = RAIL_HEIGHT,
-  sleeperEvery = 1.1,
-  sleeperSize = 0.34,
-  sleeperThickness = RAIL_SLEEPER_THICKNESS,
-  shadows = false,
-  rotation = 0,
-  origin = { x: 0, y: 0 },
-  frame,
-  parts = "all",
-  cellSize = 34,
-  className,
-}: RailProps) {
-  const cam = useIsoCamera();
-  // Un angle est carré : il tient dans sa propre largeur, et une longueur n'aurait aucun sens à lui
-  // donner.
+function railLayout(p: RailProps) {
+  const { kind = "straight", length = 8, width = RAIL_WIDTH, curveRadius } = p;
   const W = Math.max(0.6, width);
-  // Le rayon de l'axe de la voie. Jamais sous la demi-largeur : en dessous, la file intérieure
-  // passerait de l'autre côté du centre.
   const radius = Math.max(W / 2, curveRadius ?? W);
-  // Un angle tient dans un carré : le rayon, plus la demi-largeur qui dépasse à l'extérieur.
   const spanY = kind === "straight" ? W : radius + W / 2;
   const spanX = kind === "straight" ? Math.max(W, length) : spanY;
+  return { kind, W, radius, spanX, spanY };
+}
 
-  const theta = (rotation * Math.PI) / 180;
-  const cosT = Math.cos(theta);
-  const sinT = Math.sin(theta);
-  const spin = (x: number, y: number) => {
-    if (!rotation) return { x, y };
-    const dx = x - spanX / 2;
-    const dy = y - spanY / 2;
-    return { x: spanX / 2 + dx * cosT - dy * sinT, y: spanY / 2 + dx * sinT + dy * cosT };
-  };
-  /** Un point du monde vers l'écran, sans passer par le module : l'ombre se calcule là, le soleil
-   *  étant une direction du monde et non du module. */
-  const world: Project = (x, y, z) => cam.project(x * cellSize, y * cellSize, z * cellSize);
-  const at: Project = (x, y, z) => {
-    const p = spin(x, y);
-    return world(p.x + origin.x, p.y + origin.y, z);
-  };
-  const onGround = (x: number, y: number) => {
-    const p = spin(x, y);
-    return { x: p.x + origin.x, y: p.y + origin.y };
-  };
-  const facing = cam.facing(rotation);
-
-  const cy = spanY / 2;
-  const tie = Math.max(0.03, sleeperThickness);
-  const head = Math.max(0.03, railHeight);
-  const top = tie + head;
-  const bar = Math.max(0.05, Math.min(railSize, W / 4));
-  const half = Math.max(bar, Math.min(gauge, W - bar) / 2);
-  const wide = Math.max(0.08, Math.min(sleeperSize, spanX));
-  const step = Math.max(0.25, sleeperEvery);
-
-  // ---- les traverses ----
-  // Elles sont au sol : rien ne peut se glisser dessous, donc elles passent avant les files, qui
-  // reposent dessus. Entre elles, l'ordre est celui de la profondeur.
-  const ties: Piece[] = [];
-  if (kind === "straight") {
-    const count = Math.max(2, Math.round(spanX / step) + 1);
-    for (let i = 0; i < count; i += 1) {
-      const x = wide / 2 + ((spanX - wide) * i) / (count - 1);
-      ties.push({
-        x: x - wide / 2,
-        y: 0,
-        width: wide,
-        height: spanY,
-        render: () => solidVolume("post", `t${i}`, boxFaces(at, x - wide / 2, x + wide / 2, 0, spanY, 0, tie, facing)),
-      });
+/** La piste d'un rail : son axe, à hauteur du champignon, **en coordonnées monde**. Ce que suit un
+ *  picker, ce qu'une scène met bout à bout pour faire un circuit. */
+export function railTrack(p: RailProps): P3[] {
+  const L = railLayout(p);
+  const topZ = Math.max(0.03, p.sleeperThickness ?? RAIL_SLEEPER_THICKNESS) + Math.max(0.03, p.railHeight ?? RAIL_HEIGHT);
+  const local: P3[] = [];
+  if (L.kind === "straight") local.push([0, L.spanY / 2, topZ], [L.spanX, L.spanY / 2, topZ]);
+  else
+    for (let i = 0; i <= 24; i += 1) {
+      const a = -Math.PI / 2 + (Math.PI / 2) * (i / 24);
+      local.push([L.radius * Math.cos(a), L.spanY + L.radius * Math.sin(a), topZ]);
     }
-  } else {
-    const count = Math.max(2, Math.round(((Math.PI / 2) * radius) / step) + 1);
-    for (let i = 0; i < count; i += 1) {
-      // De −90° à 0° : l'entrée est à l'ouest, la sortie au sud, comme pour un tapis d'angle.
-      const a = -Math.PI / 2 + (Math.PI / 2) * (i / (count - 1));
-      const px = radius * Math.cos(a);
-      const py = spanY + radius * Math.sin(a);
-      const deg = (a * 180) / Math.PI;
-      const view = spunProject(at, deg, px, py, rotation + cam.yaw);
-      // L'emprise d'une boîte tournée : sa plus petite boîte droite. `paintOrder` ordonne alors
-      // moins de paires d'office et en laisse davantage tomber sur son départage — qui est x + y,
-      // c'est-à-dire la profondeur elle-même, donc c'est le bon sens de l'erreur.
-      const hw = (W / 2) * Math.abs(Math.cos(a)) + (wide / 2) * Math.abs(Math.sin(a));
-      const hh = (W / 2) * Math.abs(Math.sin(a)) + (wide / 2) * Math.abs(Math.cos(a));
-      ties.push({
-        x: px - hw,
-        y: py - hh,
-        width: hw * 2,
-        height: hh * 2,
-        render: () =>
-          solidVolume(
-            "post",
-            `t${i}`,
-            boxFaces(view.project, px - W / 2, px + W / 2, py - wide / 2, py + wide / 2, 0, tie, view.facing)
-          ),
-      });
-    }
-  }
+  const { pose } = placed(p.origin ?? { x: 0, y: 0 }, p.rotation ?? 0, { x0: 0, x1: L.spanX, y0: 0, y1: L.spanY, z0: 0, z1: 1 });
+  return transformTrack(local, pose);
+}
 
-  // ---- les deux files ----
-  const files: Piece[] = [];
-  for (const side of [-1, 1] as const) {
-    const key = side < 0 ? "rail-in" : "rail-out";
+export function Rail(props: RailProps) {
+  const { rotation = 0, origin = { x: 0, y: 0 }, frame, parts = "all", cellSize = 34, className, kind = "straight" } = props;
+  if (parts === "shadow") return null;
+  const L = railLayout(props);
+  const { bounds } = placed(origin, rotation, { x0: 0, x1: L.spanX, y0: 0, y1: L.spanY, z0: 0, z1: RAIL_TOP + 0.05 });
+  return (
+    <Solo bounds={frame ? frameBounds(frame) : bounds} cellSize={cellSize} className={["lq-rail", className].filter(Boolean).join(" ")} ariaLabel={kind === "corner" ? "Rail d'angle" : "Rail droit"}>
+      <RailBody {...props} />
+    </Solo>
+  );
+}
+
+function RailBody(props: RailProps) {
+  const { gauge = RAIL_GAUGE, railSize = 0.16, railHeight = RAIL_HEIGHT, sleeperEvery = 1.1, sleeperSize = 0.34, sleeperThickness = RAIL_SLEEPER_THICKNESS, rotation = 0, origin = { x: 0, y: 0 } } = props;
+  const L = railLayout(props);
+  const { kind, W, radius, spanX, spanY } = L;
+  const { pose } = placed(origin, rotation, { x0: 0, x1: spanX, y0: 0, y1: spanY, z0: 0, z1: 1 });
+  const built = useBuilt(() => {
+    const b = new Builder();
+    const cy = spanY / 2;
+    const tie = Math.max(0.03, sleeperThickness);
+    const head = Math.max(0.03, railHeight);
+    const top = tie + head;
+    const bar = Math.max(0.05, Math.min(railSize, W / 4));
+    const half = Math.max(bar, Math.min(gauge, W - bar) / 2);
+    const wide = Math.max(0.08, Math.min(sleeperSize, spanX));
+    const step = Math.max(0.25, sleeperEvery);
     if (kind === "straight") {
-      const c = cy + side * half;
-      files.push({
-        x: 0,
-        y: c - bar / 2,
-        width: spanX,
-        height: bar,
-        render: () => solidVolume("steel", key, boxFaces(at, 0, spanX, c - bar / 2, c + bar / 2, tie, top, facing)),
-      });
-    } else {
-      const r = radius + side * half;
-      files.push({
-        x: -r - bar,
-        y: spanY - r - bar,
-        width: (r + bar) * 2,
-        height: (r + bar) * 2,
-        render: () =>
-          arcRingVolume(
-            at,
-            spin,
-            { cx: 0, cy: spanY, rIn: r - bar / 2, rOut: r + bar / 2, z0: tie, z1: top, a0: -Math.PI / 2, a1: 0 },
-            "steel",
-            key, undefined, cam.view),
-      });
-    }
-  }
-
-  const sorted = (list: Piece[]) =>
-    cam.order(
-      list.map((piece) => {
-        if (!rotation) return piece;
-        const pts = [
-          spin(piece.x, piece.y),
-          spin(piece.x + piece.width, piece.y),
-          spin(piece.x + piece.width, piece.y + piece.height),
-          spin(piece.x, piece.y + piece.height),
-        ];
-        const xs = pts.map((p) => p.x);
-        const ys = pts.map((p) => p.y);
-        const x = Math.min(...xs);
-        const y = Math.min(...ys);
-        return { x, y, width: Math.max(...xs) - x, height: Math.max(...ys) - y, render: piece.render };
-      })
-    );
-
-  // ---- l'ombre ----
-  // Celle des **files**, et non celle de la voie entière : une traverse fait un dixième de case de
-  // haut et ne projette rien, alors qu'une bande pleine d'un bout à l'autre prétendrait que la voie
-  // est un plancher. Ce qui décolle du sol, ce sont les deux files, et ce sont donc les deux seules
-  // choses qui portent une ombre.
-  const shade: ReactNode[] = [];
-  if (shadows) {
-    for (const side of [-1, 1] as const) {
-      if (kind === "straight") {
+      // Les traverses, puis les deux files — et leur semelle, un profilé en I et non un pavé.
+      const count = Math.max(2, Math.round(spanX / step) + 1);
+      for (let i = 0; i < count; i += 1) {
+        const x = wide / 2 + ((spanX - wide) * i) / (count - 1);
+        b.box("post", x - wide / 2, x + wide / 2, 0, spanY, 0, tie);
+      }
+      for (const side of [-1, 1]) {
         const c = cy + side * half;
-        shade.push(
-          castShadow(
-            world,
-            [onGround(0, c - bar / 2), onGround(spanX, c - bar / 2), onGround(spanX, c + bar / 2), onGround(0, c + bar / 2)],
-            top,
-            `sh${side}`, cam.sun)
-        );
-      } else {
+        b.box("steel", 0, spanX, c - bar / 2, c + bar / 2, tie, tie + head * 0.25);
+        b.box("steel", 0, spanX, c - bar / 5, c + bar / 5, tie + head * 0.25, top - head * 0.3);
+        b.box("steel", 0, spanX, c - bar * 0.35, c + bar * 0.35, top - head * 0.3, top);
+      }
+    } else {
+      const count = Math.max(2, Math.round(((Math.PI / 2) * radius) / step) + 1);
+      for (let i = 0; i < count; i += 1) {
+        const a = -Math.PI / 2 + (Math.PI / 2) * (i / (count - 1));
+        // Une traverse dans un virage est un rayon : on la tourne autour de son milieu.
+        const m = new Matrix4().makeTranslation(radius * Math.cos(a), spanY + radius * Math.sin(a), 0).multiply(new Matrix4().makeRotationZ(a));
+        b.within(m, () => b.box("post", -W / 2, W / 2, -wide / 2, wide / 2, 0, tie));
+      }
+      for (const side of [-1, 1]) {
         const r = radius + side * half;
-        const band = (rr: number) =>
-          Array.from({ length: 25 }, (_, i) => {
-            const a = -Math.PI / 2 + (Math.PI / 2) * (i / 24);
-            return onGround(rr * Math.cos(a), spanY + rr * Math.sin(a));
-          });
-        shade.push(castShadow(world, [...band(r + bar / 2), ...band(r - bar / 2).reverse()], top, `sh${side}`, cam.sun));
+        b.prism("steel", annulus(0, spanY, r - bar / 2, r + bar / 2, -Math.PI / 2, 0, 24), tie, tie + head * 0.25);
+        b.prism("steel", annulus(0, spanY, r - bar / 5, r + bar / 5, -Math.PI / 2, 0, 24), tie + head * 0.25, top - head * 0.3);
+        b.prism("steel", annulus(0, spanY, r - bar * 0.35, r + bar * 0.35, -Math.PI / 2, 0, 24), top - head * 0.3, top);
       }
     }
-  }
-
-  const corners: Point[] = frame
-    ? frameCorners(frame, world, cam.sun)
-    : [
-        at(0, 0, 0),
-        at(spanX, 0, 0),
-        at(spanX, spanY, 0),
-        at(0, spanY, 0),
-        at(0, 0, top),
-        at(spanX, 0, top),
-        at(spanX, spanY, top),
-        at(0, spanY, top),
-      ];
-  const minX = Math.min(...corners.map((p) => p.x)) - PAD;
-  const minY = Math.min(...corners.map((p) => p.y)) - PAD;
-  const boxWidth = Math.max(...corners.map((p) => p.x)) + PAD - minX;
-  const boxHeight = Math.max(...corners.map((p) => p.y)) + PAD - minY;
-
+    return b.build();
+  }, [kind, W, radius, spanX, spanY, gauge, railSize, railHeight, sleeperEvery, sleeperSize, sleeperThickness]);
   return (
-    <IsoCanvas
-      className={["lq-rail", className].filter(Boolean).join(" ")}
-      width={boxWidth}
-      height={boxHeight}
-      viewBox={[minX, minY, boxWidth, boxHeight]}
-      ariaLabel={kind === "corner" ? "Rail d'angle" : "Rail droit"}
-    >
-      {(parts === "all" || parts === "shadow") && shade}
-      {(parts === "all" || parts === "machine") && (
-        <>
-          {sorted(ties).map((piece) => piece.render())}
-          {sorted(files).map((piece) => piece.render())}
-        </>
-      )}
-    </IsoCanvas>
+    <group matrixAutoUpdate={false} matrix={pose}>
+      <Parts built={built} />
+    </group>
   );
 }

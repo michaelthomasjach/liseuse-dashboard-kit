@@ -1,20 +1,9 @@
-import type { ReactNode } from "react";
-import {
-  ISO_POST_SIZE,
-  boxFaces,
-  castShadow,
-  frameCorners,
-  fitRackItem,
-  rackItemIso,
-  solidVolume,
-  type Point,
-  type Project,
-  type RackItemKind,
-  type Contour,
-} from "./rackItems";
+import { Builder, placeAt } from "./three/builder";
+import { Parts, Solo, frameBounds, useBuilt } from "./three/scene";
+import { addGood } from "./three/goods";
+import { ISO_POST_SIZE, fitRackItem, type RackItemKind } from "./rackItems";
+import "./rackItems.css";
 import "./RackV2.css";
-import { IsoCanvas } from "./isoCanvas";
-import { useIsoCamera } from "./isoCamera";
 
 /**
  * Étagère V2 — deux plateaux, quatre montants, et ce qu'on pose dessus.
@@ -195,7 +184,6 @@ export interface RackV2Props {
 }
 
 /** Room for half a stroke on each side, so the silhouette is not shaved by the viewBox. */
-const PAD = 2;
 
 /** La section d'un montant de palettier, partagée avec le tapis roulant : c'est le même profilé,
  *  donc la même constante et non deux qui se ressemblent. */
@@ -222,430 +210,166 @@ const MAX_COUNT = 24;
  *  interdit. */
 const HATCH_STEP = 0.3;
 
-type Cell = [number, number];
-type Piece = { x: number; y: number; width: number; height: number; render: () => ReactNode };
 
 const count = (n: number) => Math.max(1, Math.min(MAX_COUNT, Math.floor(n) || 1));
 
-export function RackV2({
-  width = 8,
-  depth = 2,
-  height = 2.4,
-  countX = 1,
-  countY = 1,
-  countZ = 1,
-  aisle = 0,
-  aisleEvery = 2,
-  crossAisle = 0,
-  crossEvery = 4,
-  slotsX = 1,
-  slotsY = 1,
-  contents = ["carton"],
-  deckThickness = DEFAULT_DECK_THICKNESS,
-  posts = false,
-  postSize = DEFAULT_POST_SIZE,
-  braces = false,
-  feet = false,
-  footHeight,
-  rotation = 0,
-  shadows = false,
-  origin = { x: 0, y: 0 },
-  frame,
-  parts = "all",
-  cover,
-  mask,
-  cellSize = 22,
-  className,
-}: RackV2Props) {
-  const cam = useIsoCamera();
-  /**
-   * Un contour, **rendu en nombres et non en texte**.
-   *
-   *  Il rendait `"12.34,56.78 …"`, parce qu'un attribut `points` de SVG est une chaîne. Depuis que le
-   *  dessin va sur un canvas, cette chaîne n'est plus lue par personne : elle est fabriquée à coups
-   *  de `toFixed`, puis re-découpée et reconvertie en nombres par le peintre. Deux conversions et une
-   *  allocation par facette, à chaque image — c'était le premier poste du profil pendant une
-   *  rotation. Les éléments n'étant jamais montés dans le document, rien n'oblige à passer par du
-   *  texte : le tableau va directement du calcul au tracé.
-   */
-  const ring = (points: Point[]): Contour => {
-    const out = new Array<number>(points.length * 2);
-    for (let i = 0; i < points.length; i += 1) {
-      out[i * 2] = points[i].x;
-      out[i * 2 + 1] = points[i].y;
-    }
-    // Le tableau se donne pour une chaîne : voir `Contour`.
-    return out as unknown as Contour;
-  };
-
-  /** L'écart cumulé avant l'index `i`, quand une allée s'ouvre toutes les `every` unités. Le
-   *  `Math.floor` est ce qui fait les paires : les rangées 0 et 1 se touchent, l'allée vient avant
-   *  la 2. */
-  const aisleBefore = (i: number, width: number, every: number) =>
-    width > 0 && every >= 1 ? Math.floor(i / Math.max(1, Math.floor(every))) * width : 0;
-
+/** Les cotes dérivées d'une étagère : nombres, emprises, épaisseurs. */
+function rackLayout(p: RackV2Props) {
+  const { width = 8, depth = 2, height = 2.4, countX = 1, countY = 1, countZ = 1, aisle = 0, aisleEvery = 2, crossAisle = 0, crossEvery = 4 } = p;
+  const aisleBefore = (i: number, w: number, every: number) => (w > 0 && every >= 1 ? Math.floor(i / Math.max(1, Math.floor(every))) * w : 0);
   const nx = count(countX);
   const ny = count(countY);
   const nz = count(countZ);
-  const sx = count(slotsX);
-  const sy = count(slotsY);
-
-  // The block turns on the floor, about its own centre — one rotation for the whole block, not one
-  // per rack: racks turned individually inside a block would cut into each other, and "turn the
-  // shelving" is a thing you do to the shelving, not to each shelf.
   const spanX = nx * width + aisleBefore(nx - 1, crossAisle, crossEvery);
   const spanY = ny * depth + aisleBefore(ny - 1, aisle, aisleEvery);
-  const spanZ = nz * height;
-  const theta = (rotation * Math.PI) / 180;
-  const cosT = Math.cos(theta);
-  const sinT = Math.sin(theta);
-  const spin = (x: number, y: number) => {
-    if (!rotation) return { x, y };
-    const dx = x - spanX / 2;
-    const dy = y - spanY / 2;
-    return { x: spanX / 2 + dx * cosT - dy * sinT, y: spanY / 2 + dx * sinT + dy * cosT };
-  };
+  return { width, depth, height, nx, ny, nz, spanX, spanY, spanZ: nz * height, aisleBefore };
+}
 
-  /** Un point du monde vers l'écran, sans passer par le bloc : le cadre partagé et le soleil sont
-   *  tous deux en coordonnées du monde. */
-  const world: Project = (x, y, z) => cam.project(x * cellSize, y * cellSize, z * cellSize);
-  const at: Project = (x, y, z) => {
-    const p = spin(x, y);
-    return world(p.x + origin.x, p.y + origin.y, z);
-  };
-  /** Une emprise du bloc, ramenée au monde. */
-  const onGround = (x: number, y: number) => {
-    const p = spin(x, y);
-    return { x: p.x + origin.x, y: p.y + origin.y };
-  };
+export function RackV2(props: RackV2Props) {
+  const { rotation = 0, origin = { x: 0, y: 0 }, frame, parts = "all", cover, cellSize = 22, className, feet = false, postSize = DEFAULT_POST_SIZE, footHeight } = props;
+  // En 3D, la passe de recouvrement n'a plus d'objet : la profondeur fait passer les fourches dans
+  // l'alvéole d'elle-même. Dessinée, elle doublerait l'étagère au même endroit.
+  if (parts === "shadow" || cover !== undefined) return null;
+  const L = rackLayout(props);
+  const side = Math.max(0.02, Math.min(postSize, Math.min(L.width, L.depth) / 2));
+  const under = feet ? -Math.max(0, footHeight ?? side * FOOT_RISE) : 0;
+  const pose = placeAt(origin.x, origin.y, rotation, { x: L.spanX / 2, y: L.spanY / 2 });
+  const e = pose.elements;
+  const pts = [
+    [0, 0],
+    [L.spanX, 0],
+    [L.spanX, L.spanY],
+    [0, L.spanY],
+  ].map(([x, y]) => ({ x: e[0] * x + e[4] * y + e[12], y: e[1] * x + e[5] * y + e[13] }));
+  const bounds = frame
+    ? frameBounds(frame)
+    : { x0: Math.min(...pts.map((q) => q.x)), x1: Math.max(...pts.map((q) => q.x)), y0: Math.min(...pts.map((q) => q.y)), y1: Math.max(...pts.map((q) => q.y)), z0: under, z1: L.spanZ };
+  const n = L.nx * L.ny * L.nz;
+  return (
+    <Solo bounds={bounds} cellSize={cellSize} className={["lq-rack2", className].filter(Boolean).join(" ")} ariaLabel={n > 1 ? `${n} étagères` : "Étagère"}>
+      <RackV2Body {...props} />
+    </Solo>
+  );
+}
 
-  // Quelles faces de chaque volume la caméra voit, une fois le sol tourné. Sans ça, tourner le bloc
-  // faisait peindre à chaque boîte une face passée derrière et en oublier une visible.
-  const facing = cam.facing(rotation);
+function RackV2Body(props: RackV2Props) {
+  const {
+    slotsX = 1,
+    slotsY = 1,
+    contents = ["carton"],
+    deckThickness = DEFAULT_DECK_THICKNESS,
+    posts = false,
+    postSize = DEFAULT_POST_SIZE,
+    braces = false,
+    feet = false,
+    footHeight,
+    rotation = 0,
+    origin = { x: 0, y: 0 },
+  } = props;
+  const L = rackLayout(props);
+  const key = JSON.stringify([L, slotsX, slotsY, contents, deckThickness, posts, postSize, braces, feet, footHeight]);
+  const built = useBuilt(() => {
+    const b = new Builder();
+    const { width, depth, height } = L;
+    const sx = count(slotsX);
+    const sy = count(slotsY);
+    const slabZ = Math.max(0, Math.min(deckThickness, height / 3));
+    const side = Math.max(0.02, Math.min(postSize, Math.min(width, depth) / 2));
+    const footZ = Math.max(0, footHeight ?? side * FOOT_RISE);
+    const edge: [[number, number, number], [number, number, number]][] = [];
 
-  /**
-   * Depth is decided in the **turned** frame, because that is the frame the camera sees. A piece is
-   * handed to `paintOrder` as the box its footprint occupies once turned: at a right angle that is
-   * the footprint itself, and at 45° it is the smallest upright box around a diamond — wider than
-   * the shape, so the rule orders fewer pairs outright and more of them fall through to its
-   * tie-break. That is the safe direction to err in, since the tie-break is x + y, which *is* the
-   * depth.
-   */
-  const sorted = (list: Piece[]) =>
-    cam.order(
-      list.map((piece) => {
-        if (!rotation) return piece;
-        const pts = [
-          spin(piece.x, piece.y),
-          spin(piece.x + piece.width, piece.y),
-          spin(piece.x + piece.width, piece.y + piece.height),
-          spin(piece.x, piece.y + piece.height),
-        ];
-        const xs = pts.map((p) => p.x);
-        const ys = pts.map((p) => p.y);
-        const x = Math.min(...xs);
-        const y = Math.min(...ys);
-        return { x, y, width: Math.max(...xs) - x, height: Math.max(...ys) - y, render: piece.render };
-      })
-    );
-
-  // Two slabs can never eat the whole rack: a third of the height each is already more deck than
-  // rack, and past that there would be nowhere for the posts to run.
-  const slabZ = Math.max(0, Math.min(deckThickness, height / 3));
-  const side = Math.max(0.02, Math.min(postSize, Math.min(width, depth) / 2));
-  const footZ = Math.max(0, footHeight ?? side * FOOT_RISE);
-
-  /** One rack, standing with its far-left-bottom corner at (ox, oy, oz). `roofed` is false when
-   *  another rack is stacked on this one: the deck above then belongs to *that* rack, and this one
-   *  carries its uprights right up to it. */
-  const rack = (ox: number, oy: number, oz: number, roofed: boolean, tag: string): ReactNode[] => {
-    const floorZ = oz + slabZ;
-    const ceilZ = oz + height - (roofed ? slabZ : 0);
-    const clearance = ceilZ - floorZ;
-    // Le recouvrement : rien de ce qui est tout entier sous la hauteur engagée ne peut la couvrir.
-    const covering = cover !== undefined;
-    if (covering && oz + height <= cover) return [];
-    /** Le niveau où tombe la chose engagée : on n'en garde que ce qui est devant elle. */
-    const engaged = covering && floorZ <= cover + 1e-6;
-    /** Le bout que la caméra voit. */
-    const nearX = facing.xFace > 0 ? ox + width : ox;
-    const foot: Cell[] = [
-      [ox, oy],
-      [ox + width, oy],
-      [ox + width, oy + depth],
-      [ox, oy + depth],
-    ];
-
-    const pieces: Piece[] = [];
-
-    foot.forEach(([cx, cy], i) => {
-      if (engaged && cx !== nearX) return;
-      const x0 = cx > ox ? cx - side : cx;
-      const x1 = cx > ox ? cx : cx + side;
-      const y0 = cy > oy ? cy - side : cy;
-      const y1 = cy > oy ? cy : cy + side;
-      pieces.push({
-        x: posts ? x0 : cx,
-        y: posts ? y0 : cy,
-        width: posts ? x1 - x0 : 0,
-        height: posts ? y1 - y0 : 0,
-        render: () =>
-          posts ? (
-            solidVolume("post", `${tag}p${i}`, boxFaces(at, x0, x1, y0, y1, floorZ, ceilZ, facing))
-          ) : (
-            <line
-              key={`${tag}p${i}`}
-              className="lq-rack2__edge"
-              x1={at(cx, cy, floorZ).x}
-              y1={at(cx, cy, floorZ).y}
-              x2={at(cx, cy, ceilZ).x}
-              y2={at(cx, cy, ceilZ).y}
-            />
-          ),
-      });
-    });
-
-    if (braces) {
-      // The diagonal across each end frame, from the near upright's foot to the far upright's head.
-      //
-      // It is made of whatever the frame is made of: a strap when the uprights are posts, a line
-      // when they are lines. A solid diagonal between two drawn lines would say that the brace is
-      // the real member and the uprights are guides — and it would be the only volume in a drawing
-      // that had decided not to have any.
-      //
-      // Where it sits follows from the same thing. Against posts it lies *in* the frame, on the
-      // plane through both posts' centres, because that is where it is welded; against lines there
-      // is no thickness to be inside of, so it runs corner to corner, exactly where those lines are.
-      const inset = posts ? side / 2 : 0;
-      const yNear = oy + depth - inset;
-      const yFar = oy + inset;
-      const run = yFar - yNear;
-      const rise = ceilZ - floorZ;
-      const span = Math.hypot(run, rise) || 1;
-      const strap = side * 0.5;
-      // The normal to the diagonal, within the (y, z) plane — so the strap keeps its section
-      // however tall or deep the rack is.
-      const ny2 = (-rise / span) * (strap / 2);
-      const nz2 = (run / span) * (strap / 2);
-      [ox + inset, ox + width - inset].forEach((planeX, i) => {
-        if (engaged && (i === 0) !== (nearX === ox)) return;
-        pieces.push({
-          x: planeX,
-          y: yFar,
-          width: 0,
-          height: depth - 2 * inset,
-          render: () =>
-            posts ? (
-              <g key={`${tag}b${i}`} className="lq-iso__solid lq-iso__solid--post">
-                <polygon
-                  className="lq-iso__face lq-iso__face--front"
-                  points={ring([
-                    at(planeX, yNear + ny2, floorZ + nz2),
-                    at(planeX, yFar + ny2, ceilZ + nz2),
-                    at(planeX, yFar - ny2, ceilZ - nz2),
-                    at(planeX, yNear - ny2, floorZ - nz2),
-                  ])}
-                />
-              </g>
-            ) : (
-              <line
-                key={`${tag}b${i}`}
-                className="lq-rack2__edge"
-                x1={at(planeX, yNear, floorZ).x}
-                y1={at(planeX, yNear, floorZ).y}
-                x2={at(planeX, yFar, ceilZ).x}
-                y2={at(planeX, yFar, ceilZ).y}
-              />
-            ),
-        });
-      });
-    }
-
-    // The lower deck's portions: the area between the posts, divided in reading order.
-    const areaX = ox + side;
-    const areaY = oy + side;
-    const slotW = (width - 2 * side) / sx;
-    const slotD = (depth - 2 * side) / sy;
-    // Les zones interdites, hachurées à même le plateau : les rayures sont tracées *dans* le plan
-    // du plateau, pas plaquées à l'écran, donc elles suivent la surface comme une peinture au sol
-    // et non comme un filtre posé sur l'image. Elles portent seules le message sous e-ink, où la
-    // teinte d'alerte s'effondre sur la couleur du texte.
-    const barred: ReactNode[] = [];
-    const hatch = (x0: number, x1: number, y0: number, y1: number, z: number, key: string) => {
-      const out: ReactNode[] = [];
-      // Les rayures sont les droites x − y = c : à 45° des bords de la portion, ce qu'une hachure
-      // d'interdiction doit être.
-      const from = Math.ceil((x0 - y1) / HATCH_STEP) * HATCH_STEP;
-      for (let c = from, n = 0; c < x1 - y0; c += HATCH_STEP, n += 1) {
-        const xa = Math.max(x0, y0 + c);
-        const xb = Math.min(x1, y1 + c);
-        if (xb - xa < 1e-6) continue;
-        const a = at(xa, xa - c, z);
-        const b = at(xb, xb - c, z);
-        out.push(<line key={`${key}h${n}`} className="lq-rack2__hatch" x1={a.x} y1={a.y} x2={b.x} y2={b.y} />);
+    const bay = (ox: number, oy: number, oz: number, roofed: boolean) => {
+      const floorZ = oz + slabZ;
+      const ceilZ = oz + height - (roofed ? slabZ : 0);
+      const clearance = ceilZ - floorZ;
+      const corners: [number, number][] = [
+        [ox, oy],
+        [ox + width, oy],
+        [ox + width, oy + depth],
+        [ox, oy + depth],
+      ];
+      // Les montants : des profilés à section carrée, ou de simples arêtes quand on les veut fins.
+      for (const [cx, cy] of corners) {
+        const x0 = cx > ox ? cx - side : cx;
+        const y0 = cy > oy ? cy - side : cy;
+        if (posts) {
+          b.box("post", x0, x0 + side, y0, y0 + side, floorZ, ceilZ);
+          if (feet && oz === 0 && footZ > 0) b.box("post", x0, x0 + side, y0, y0 + side, -footZ, oz);
+        } else {
+          edge.push([[cx, cy, floorZ], [cx, cy, ceilZ]]);
+          if (feet && oz === 0 && footZ > 0) edge.push([[cx, cy, -footZ], [cx, cy, oz]]);
+        }
       }
-      return out;
+      // Les écharpes de contreventement, dans les deux pignons : un feuillard en diagonale.
+      if (braces) {
+        const inset = posts ? side / 2 : 0;
+        const yNear = oy + depth - inset;
+        const yFar = oy + inset;
+        for (const planeX of [ox + inset, ox + width - inset]) {
+          if (posts) {
+            const t = side * 0.25;
+            const s = side * 0.5;
+            b.hexa("post", [
+              [planeX - t, yNear, floorZ],
+              [planeX + t, yNear, floorZ],
+              [planeX + t, yNear, floorZ + s],
+              [planeX - t, yNear, floorZ + s],
+              [planeX - t, yFar, ceilZ - s],
+              [planeX + t, yFar, ceilZ - s],
+              [planeX + t, yFar, ceilZ],
+              [planeX - t, yFar, ceilZ],
+            ]);
+          } else edge.push([[planeX, yNear, floorZ], [planeX, yFar, ceilZ]]);
+        }
+      }
+      // Les plateaux : celui du bas porte la charge, celui du haut ferme le niveau.
+      if (slabZ > 0) b.box("steel-shaded", ox, ox + width, oy, oy + depth, oz, floorZ);
+      else b.faceZ("lq-rack2__blocked", oz + 0.002, ox, ox + width, oy, oy + depth);
+      if (roofed && slabZ > 0) b.box("steel", ox, ox + width, oy, oy + depth, ceilZ, oz + height);
+      // Les alvéoles et leur contenu.
+      const areaX = ox + side;
+      const areaY = oy + side;
+      const slotW = (width - 2 * side) / sx;
+      const slotD = (depth - 2 * side) / sy;
+      const div: [[number, number, number], [number, number, number]][] = [];
+      for (let i = 1; i < sx; i += 1) div.push([[areaX + i * slotW, areaY, floorZ + 0.002], [areaX + i * slotW, areaY + slotD * sy, floorZ + 0.002]]);
+      for (let j = 1; j < sy; j += 1) div.push([[areaX, areaY + j * slotD, floorZ + 0.002], [areaX + slotW * sx, areaY + j * slotD, floorZ + 0.002]]);
+      if (div.length) b.lines("lq-rack2__divider", div);
+      for (let j = 0; j < sy; j += 1)
+        for (let i = 0; i < sx; i += 1) {
+          const slot = contents[j * sx + i];
+          if (!slot) continue;
+          const x0 = areaX + i * slotW;
+          const y0 = areaY + j * slotD;
+          if (slot === "interdit") {
+            // Une alvéole condamnée : un fond sombre et des hachures, posés sur le plateau.
+            b.faceZ("lq-rack2__blocked", floorZ + 0.003, x0, x0 + slotW, y0, y0 + slotD);
+            const hatch: [[number, number, number], [number, number, number]][] = [];
+            const from = Math.ceil((x0 - (y0 + slotD)) / HATCH_STEP) * HATCH_STEP;
+            for (let c = from; c < x0 + slotW - y0; c += HATCH_STEP) {
+              const xa = Math.max(x0, y0 + c);
+              const xb = Math.min(x0 + slotW, y0 + slotD + c);
+              if (xb - xa > 1e-6) hatch.push([[xa, xa - c, floorZ + 0.004], [xb, xb - c, floorZ + 0.004]]);
+            }
+            b.lines("lq-rack2__hatch", hatch);
+            continue;
+          }
+          const fit = fitRackItem(slot as RackItemKind, { x: x0, y: y0, width: slotW, depth: slotD }, floorZ, clearance);
+          addGood(b, slot as RackItemKind, fit.cx, fit.cy, fit.z, fit.half, fit.height);
+        }
     };
 
-    for (let j = 0; j < sy; j += 1) {
-      for (let i = 0; i < sx; i += 1) {
-        const slot = contents[j * sx + i];
-        if (!slot || engaged) continue;
-        const x0 = areaX + i * slotW;
-        const y0 = areaY + j * slotD;
-        if (slot === "interdit") {
-          const key = `${tag}x${i}-${j}`;
-          barred.push(
-            <polygon
-              key={key}
-              className="lq-rack2__blocked"
-              points={ring([at(x0, y0, floorZ), at(x0 + slotW, y0, floorZ), at(x0 + slotW, y0 + slotD, floorZ), at(x0, y0 + slotD, floorZ)])}
-            />
-          );
-          barred.push(...hatch(x0, x0 + slotW, y0, y0 + slotD, floorZ, key));
-          continue;
-        }
-        const fit = fitRackItem(slot, { x: x0, y: y0, width: slotW, depth: slotD }, floorZ, clearance);
-        pieces.push({
-          x: fit.cx - fit.half,
-          y: fit.cy - fit.half,
-          width: fit.half * 2,
-          height: fit.half * 2,
-          render: () => rackItemIso(slot, fit, at, facing, `${tag}i${i}-${j}`),
-        });
-      }
-    }
-
-    // Where one portion ends and the next begins, scored on the deck it divides.
-    const dividers: ReactNode[] = [];
-    for (let i = 1; i < sx; i += 1) {
-      const x = areaX + i * slotW;
-      const a = at(x, areaY, floorZ);
-      const b = at(x, areaY + slotD * sy, floorZ);
-      dividers.push(<line key={`${tag}dx${i}`} className="lq-rack2__divider" x1={a.x} y1={a.y} x2={b.x} y2={b.y} />);
-    }
-    for (let j = 1; j < sy; j += 1) {
-      const y = areaY + j * slotD;
-      const a = at(areaX, y, floorZ);
-      const b = at(areaX + slotW * sx, y, floorZ);
-      dividers.push(<line key={`${tag}dy${j}`} className="lq-rack2__divider" x1={a.x} y1={a.y} x2={b.x} y2={b.y} />);
-    }
-
-    // Les pieds : seulement sous les étagères qui touchent vraiment le sol. Une étagère empilée
-    // repose sur celle du dessous, elle n'a rien à décoller. Dessinés avant le plateau du bas, qui
-    // est au-dessus d'eux et opaque : il recouvre ce qui est engagé dessous, et ne laisse voir que
-    // ce qui dépasse — ce qui est exactement ce qu'on veut voir.
-    const footNodes: ReactNode[] = [];
-    if (feet && footZ > 0 && oz === 0 && !covering) {
-      const stand: Piece[] = foot.map(([cx, cy], i) => {
-        const x0 = cx > ox ? cx - side : cx;
-        const x1 = cx > ox ? cx : cx + side;
-        const y0 = cy > oy ? cy - side : cy;
-        const y1 = cy > oy ? cy : cy + side;
-        return {
-          x: posts ? x0 : cx,
-          y: posts ? y0 : cy,
-          width: posts ? x1 - x0 : 0,
-          height: posts ? y1 - y0 : 0,
-          render: () =>
-            posts ? (
-              solidVolume("post", `${tag}f${i}`, boxFaces(at, x0, x1, y0, y1, -footZ, oz, facing))
-            ) : (
-              <line
-                key={`${tag}f${i}`}
-                className="lq-rack2__edge"
-                x1={at(cx, cy, -footZ).x}
-                y1={at(cx, cy, -footZ).y}
-                x2={at(cx, cy, oz).x}
-                y2={at(cx, cy, oz).y}
-              />
-            ),
-        };
-      });
-      sorted(stand).forEach((piece) => footNodes.push(piece.render()));
-    }
-
-    const deck = (material: string, key: string, z0: number, z1: number, extra?: ReactNode) =>
-      solidVolume(material, `${tag}${key}`, boxFaces(at, ox, ox + width, oy, oy + depth, z0, z1, facing), slabZ === 0, extra);
-
-    if (engaged) {
-      return [...sorted(pieces).map((piece) => piece.render()), ...(roofed ? [deck("steel", "upper", ceilZ, oz + height)] : [])];
-    }
-
-    return [
-      ...footNodes,
-      deck("steel-shaded", "lower", oz, floorZ, dividers.length + barred.length > 0 ? <>{dividers}{barred}</> : undefined),
-      ...sorted(pieces).map((piece) => piece.render()),
-      ...(roofed ? [deck("steel", "upper", ceilZ, oz + height)] : []),
-    ];
-  };
-
-  // L'ombre du bloc entier, au sol : elle passe avant tout, rien ne pouvant se glisser dessous.
-  const shade = shadows
-    ? [
-        castShadow(
-          // Le projecteur du **monde**, sans la rotation du bloc : le soleil est une direction du
-          // monde, et un décalage posé dans le repère du bloc tournerait avec lui.
-          world,
-          // Les coins du bloc tournés, puis ramenés au monde par `origin`.
-          [
-            onGround(0, 0),
-            onGround(nx * width, 0),
-            onGround(nx * width, ny * depth),
-            onGround(0, ny * depth),
-          ],
-          nz * height,
-          "shadow", cam.sun),
-      ]
-    : [];
-
-  // Floor by floor from the ground up, and inside each floor the racks sorted back to front.
-  const drawn: ReactNode[] = [];
-  for (let iz = 0; iz < nz; iz += 1) {
-    const floor: Piece[] = [];
-    for (let iy = 0; iy < ny; iy += 1) {
-      for (let ix = 0; ix < nx; ix += 1) {
-        const ox = ix * width + aisleBefore(ix, crossAisle, crossEvery);
-        const oy = iy * depth + aisleBefore(iy, aisle, aisleEvery);
-        floor.push({
-          x: ox,
-          y: oy,
-          width,
-          height: depth,
-          render: () => <g key={`${ix}-${iy}-${iz}`}>{rack(ox, oy, iz * height, iz === nz - 1, `${ix}-${iy}-${iz}-`)}</g>,
-        });
-      }
-    }
-    sorted(floor).forEach((piece) => drawn.push(piece.render()));
-  }
-
-  // All eight corners of the block, not the four that happen to be extreme when it is square to
-  // the camera: turn it and the extremes change hands.
-  const under = feet ? -footZ : 0;
-  const ground: Cell[] = [
-    [0, 0],
-    [spanX, 0],
-    [spanX, spanY],
-    [0, spanY],
-  ];
-  const corners = frame
-    ? frameCorners(frame, world, cam.sun)
-    : [...ground.map(([x, y]) => at(x, y, under)), ...ground.map(([x, y]) => at(x, y, spanZ))];
-  const minX = Math.min(...corners.map((p) => p.x)) - PAD;
-  const minY = Math.min(...corners.map((p) => p.y)) - PAD;
-  const boxWidth = Math.max(...corners.map((p) => p.x)) + PAD - minX;
-  const boxHeight = Math.max(...corners.map((p) => p.y)) + PAD - minY;
-
+    for (let iz = 0; iz < L.nz; iz += 1)
+      for (let iy = 0; iy < L.ny; iy += 1)
+        for (let ix = 0; ix < L.nx; ix += 1)
+          bay(ix * width + L.aisleBefore(ix, props.crossAisle ?? 0, props.crossEvery ?? 4), iy * depth + L.aisleBefore(iy, props.aisle ?? 0, props.aisleEvery ?? 2), iz * height, iz === L.nz - 1);
+    if (edge.length) b.lines("lq-rack2__edge", edge);
+    return b.build();
+  }, [key]);
+  const pose = placeAt(origin.x, origin.y, rotation, { x: L.spanX / 2, y: L.spanY / 2 });
   return (
-    <IsoCanvas
-      className={["lq-rack2", className].filter(Boolean).join(" ")}
-      width={boxWidth}
-      height={boxHeight}
-      viewBox={[minX, minY, boxWidth, boxHeight]}
-      ariaLabel={nx * ny * nz > 1 ? `${nx * ny * nz} étagères` : "Étagère"}
-    >
-      {(parts === "all" || parts === "shadow") && shade}
-      {(parts === "all" || parts === "machine") && (mask ? <g mask={`url(#${mask})`}>{drawn}</g> : drawn)}
-    </IsoCanvas>
+    <group matrixAutoUpdate={false} matrix={pose}>
+      <Parts built={built} />
+    </group>
   );
 }

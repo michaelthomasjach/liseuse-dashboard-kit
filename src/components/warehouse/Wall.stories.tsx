@@ -1,10 +1,11 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { Wall } from "./Wall";
+import { DockWall, StandardWall, wallPlacement } from "./BuildingWalls";
 import { Floor } from "./Floor";
 import { SemiTruck } from "./SemiTruck";
 import { RackV2 } from "./RackV2";
 import { Forklift } from "./Forklift";
-import { Scene, layer, type SceneUnit } from "./sceneStory";
+import { Scene, SceneBox, layer, type SceneUnit } from "./sceneStory";
 import { useIsoCamera } from "./isoCamera";
 
 /**
@@ -38,7 +39,6 @@ function Dalle({
   yard: number;
   level: number;
 }) {
-  const cam = useIsoCamera();
   const pads: { key: string; x: number; y: number; width: number; height: number; level: number; slope?: number }[] = [
     { key: "dalle", x: -skirt, y: 0, width: width + 2 * skirt, height: depth + skirt, level },
     { key: "retour-gauche", x: -skirt, y: -yard, width: skirt, height: yard, level },
@@ -48,20 +48,20 @@ function Dalle({
     // faut pour qu'une remorque vienne y mettre son plancher à hauteur de seuil.
     { key: "cour", x: 0, y: -yard, width, height: yard, level: 0, slope: level },
   ];
+  // En 3D, les dalles se posent sans ordre : c'est la profondeur qui dit laquelle cache l'autre.
   return (
     <>
-      {cam.order(pads).map((pad) => (
-        <div key={pad.key} style={layer}>
-          <Floor
-            cellSize={cellSize}
-            frame={frame}
-            origin={{ x: pad.x, y: pad.y }}
-            width={pad.width}
-            depth={pad.height}
-            level={pad.level}
-            slope={pad.slope}
-          />
-        </div>
+      {pads.map((pad) => (
+        <Floor
+          key={pad.key}
+          cellSize={cellSize}
+          frame={frame}
+          origin={{ x: pad.x, y: pad.y }}
+          width={pad.width}
+          depth={pad.height}
+          level={pad.level}
+          slope={pad.slope}
+        />
       ))}
     </>
   );
@@ -225,117 +225,50 @@ export const Quai: Story = {
 };
 
 /**
- * **Le bâtiment fermé** : quatre murs, et la dalle qu'ils entourent.
+ * Le mur de quai, seul : la façade percée de ses portes, la plateforme et ses deux retours, et la
+ * cour qui descend jusqu'au pied des portes. Un composant qu'on pose où on veut — `origin`,
+ * `rotation` — pour faire d'un côté quelconque du bâtiment son côté expédition.
+ */
+export const MurDeQuai: StoryObj<typeof DockWall> = {
+  name: "Mur de quai (composant)",
+  render: (args) => <DockWall {...args} />,
+  args: { length: 18, doors: 5, height: 3, level: 0.6, yard: 4.8, returns: 1.2, open: 0, cellSize: 22 },
+};
+
+/** Le mur standard, seul : le pan plein, ses poteaux, et la bande de sol qui borde l'extérieur. */
+export const MurStandard: StoryObj<typeof StandardWall> = {
+  name: "Mur standard (composant)",
+  render: (args) => <StandardWall {...args} />,
+  args: { length: 12, height: 3, level: 0.6, skirt: 1.2, corners: true, piers: "spaced", cellSize: 26 },
+};
+
+/**
+ * Le bâtiment fermé, **assemblé** : un mur de quai et trois murs standard autour d'un plancher.
  *
- * C'est la planche, à l'échelle : 36 000 × 24 000 mm hors tout, des murs de 6 000 de haut en
- * panneaux préfabriqués, un poteau à chaque bout et à chaque joint. Seule la façade avant est un
- * quai — cinq portes, leur casquette, leurs butoirs et leurs poteaux de protection — et c'est ce
- * qui donne son sens au reste : les trois autres murs sont aveugles, parce qu'un entrepôt ne
- * s'ouvre que là où les camions se rangent.
- *
- * **Le sol est au seuil des portes**, et c'est toute la scène. Un quai est une plateforme de
- * 1 200 mm — la hauteur d'un plancher de remorque — donc le sol du bâtiment *est* à cette
- * hauteur-là, et le seuil des portes tombe dessus. Ce qu'on voit tout autour est la tranche de
- * cette plateforme, qui descend jusqu'à la terre : un massif, pas une plaque en l'air.
- *
- * Ce qui ne doit **pas** se voir, c'est du mur sous ce niveau. Les murs sont donc assis sur la
- * plateforme (`base`) et non plantés dans le sol : un mur qui partirait d'en bas mettrait
- * 1 200 mm de béton au pied de chaque panneau, et cette bande passerait devant le sol qu'elle est
- * censée porter — l'œil y lit un défaut d'empilement, pas une hauteur.
- *
- * Les quatre murs sont quatre exemplaires du même composant. Un mur couché le long des `y` est le
- * même, tourné d'un quart de tour : `place` ci-dessous ne fait que traduire l'emprise voulue en
- * origine, puisque la rotation se fait autour du centre du mur et non autour de son coin.
+ * Aucune origine tournée n'est calculée à la main : `wallPlacement` dit où poser chaque mur pour
+ * qu'il tienne sur un bord du rectangle, l'extérieur vers le dehors. Changer la façade de quai de
+ * côté, c'est échanger deux noms. Le mur du fond couvre les deux angles arrière de sa bande de sol ;
+ * devant, ce sont les retours du quai qui bordent la cour.
  */
 export const Batiment: Story = {
   name: "Le bâtiment fermé",
   render: function Render() {
     const cellSize = 20;
-    // Les cotes de la planche, en cases — une case vaut deux mètres.
     const W = 18;
     const P = 12;
     const D = 0.3;
-    const H = 3;
-    /**
-     * La bande de sol autour du bâtiment.
-     *
-     *  Un bâtiment posé sur rien flotte : on lit ses murs, pas son emprise. Une bande de cour tout
-     *  autour lui donne un pied.
-     *
-     *  Devant les portes, elle **s'efface** : c'est un quai, et un quai finit là où la remorque
-     *  commence. Une plateforme qui continuerait devant les portes se lirait comme un trottoir, et
-     *  les remorques n'auraient plus où se ranger.
-     *
-     *  Elle garde en revanche ses **deux retours d'angle**, aussi avancés que la cour l'était. Ce
-     *  sont eux qui bordent l'aire de manœuvre et qui disent jusqu'où elle va ; sans eux la dalle
-     *  s'arrête net au nu de la façade, sur une tranche qui ne ferme rien, et les cinq portes
-     *  ouvrent sur un vide sans limites.
-     */
-    const SKIRT = 1.2;
-    /** Ce dont les deux retours avancent devant la façade : ce qu'était la profondeur de la cour. */
-    const YARD = 4.8;
-    /** La hauteur de la plateforme, et donc du seuil des portes : celle d'un plancher de remorque. */
-    const DOCK = 0.6;
-
-    /** L'emprise voulue, traduite en origine : un mur tourné pivote autour de son centre. */
-    const place = (axis: "x" | "y", length: number, x: number, y: number) =>
-      axis === "x"
-        ? { origin: { x, y }, rotation: 0 }
-        : { origin: { x: x + (D - length) / 2, y: y + (length - D) / 2 }, rotation: 90 };
-
-    const bays = [2.6, 5.6, 8.6, 11.6, 14.6];
-    const frame = {
-      x: -SKIRT - 0.5,
-      y: -YARD - 0.5,
-      width: W + 2 * SKIRT + 1,
-      depth: P + YARD + SKIRT + 1,
-      height: H + 0.4,
-    };
-    // Les murs sont **assis sur la plateforme** : rien d'eux ne descend sous le plancher, donc rien
-    // ne peut passer devant lui, et le seuil des portes tombe exactement au niveau du sol.
-    const shared = { cellSize, frame, height: H, thickness: D, shadows: true, dockHeight: DOCK, base: DOCK } as const;
-
-    const side = (key: string, axis: "x" | "y", length: number, x: number, y: number, extra: object = {}) => {
-      const pos = place(axis, length, x, y);
-      const draw = (part: "shadow" | "machine") => (
-        <div style={layer}>
-          <Wall {...shared} {...pos} length={length} parts={part} {...extra} />
-        </div>
-      );
-      return {
-        key,
-        x,
-        y,
-        width: axis === "x" ? length : D,
-        height: axis === "x" ? D : length,
-        shadow: draw("shadow"),
-        machine: draw("machine"),
-      };
-    };
-
-    const units: SceneUnit[] = [
-      side("back", "x", W, 0, P - D),
-      side("left", "y", P, 0, 0),
-      side("right", "y", P, W - D, 0),
-      // La façade de quai n'a de poteaux qu'à ses deux bouts, et rien ne le lui demande ici : un mur
-      // percé les prend tout seul, c'est ce qu'il est.
-      side("dock", "x", W, 0, 0, {
-        dockSide: "y0",
-        openings: bays.map((x) => ({ at: x - 0.875, width: 1.75, height: 1.8, dock: true })),
-      }),
-    ];
-
+    const LEVEL = 0.6;
+    const rect = { x: 0, y: 0, width: W, depth: P };
+    const frame = { x: -1.7, y: -5.3, width: W + 3.4, depth: P + 7, height: 3.4 };
     return (
-      <Scene
-        frame={frame}
-        cellSize={cellSize}
-        units={units}
-        under={
-          /* Un seul sol, **porté à hauteur de quai** : le plancher du bâtiment et la bande qui en
-             fait le tour sont la même dalle, et elle passe sous tout. */
-          <Dalle cellSize={cellSize} frame={frame} width={W} depth={P} skirt={SKIRT} yard={YARD} level={DOCK} />
-        }
-      />
+      <SceneBox frame={frame} cellSize={cellSize}>
+        {/* Le plancher, entre les murs : chaque mur apporte la dalle qui est sous lui. */}
+        <Floor origin={{ x: D, y: D }} width={W - 2 * D} depth={P - 2 * D} level={LEVEL} />
+        <DockWall {...wallPlacement("front", rect, D)} thickness={D} level={LEVEL} doors={5} />
+        <StandardWall {...wallPlacement("back", rect, D)} thickness={D} level={LEVEL} corners />
+        <StandardWall {...wallPlacement("left", rect, D)} thickness={D} level={LEVEL} />
+        <StandardWall {...wallPlacement("right", rect, D)} thickness={D} level={LEVEL} />
+      </SceneBox>
     );
   },
 };

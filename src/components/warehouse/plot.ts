@@ -43,6 +43,18 @@ export interface PlotRect {
   depth: number;
 }
 
+/**
+ * Une parcelle voisine **à vendre** : une partie du terrain que le joueur ne possède pas encore.
+ *
+ *  Elle est dans le rectangle du terrain, mais hors du constructible — comme une échancrure — tant
+ *  qu'elle n'est pas achetée : une friche, close d'une clôture du côté de ce qu'on possède, et un
+ *  panneau « À VENDRE » en son milieu. `label` s'y lit sous l'annonce (un prix, un nom).
+ */
+export interface PlotLockedArea extends PlotRect {
+  id: string;
+  label?: string;
+}
+
 export interface PlotTile extends RoadProps {
   /** La tuile est parcourue à rebours dans le sens de la boucle. */
   flip?: boolean;
@@ -64,6 +76,9 @@ export interface PlotLayout {
   depth: number;
   /** Les parties du rectangle englobant qui ne sont **pas** au joueur. */
   notches: PlotRect[];
+  /** Parmi elles, les parcelles à vendre (voir `withLockedAreas`) : ni voisins ni maisons dessus,
+   *  une friche close et son panneau. */
+  locked?: PlotLockedArea[];
   /** La bande entre le terrain et la rue, en cases. */
   margin: number;
   /** La rue : ses tuiles, et les deux voies de la boucle. */
@@ -100,6 +115,90 @@ export function plotOutline(plot: Pick<PlotLayout, "width" | "depth" | "notches"
       if (a !== plotInside(plot, x + 1, y)) out.push([x + 1, y, x + 1, y + 1]);
       if (a !== plotInside(plot, x, y + 1)) out.push([x, y + 1, x + 1, y + 1]);
     }
+  return out;
+}
+
+/**
+ * Le terrain, avec des parcelles **à vendre** en plus de ses échancrures.
+ *
+ *  Chaque parcelle est ramenée aux cases entières et au rectangle du terrain, puis ajoutée aux
+ *  `notches` : pour tout ce qui juge du constructible (`plotInside`, `fitsPlot`, le pointillé),
+ *  c'est une case qui n'est pas au joueur. Elle est aussi rangée dans `locked`, pour que le décor
+ *  la dessine en friche à vendre plutôt que d'y mettre des voisins.
+ */
+export function withLockedAreas(plot: PlotLayout, areas: PlotLockedArea[] | undefined): PlotLayout {
+  if (!areas || areas.length === 0) return plot;
+  const locked: PlotLockedArea[] = [];
+  for (const a of areas) {
+    const x0 = Math.max(0, Math.round(a.x));
+    const y0 = Math.max(0, Math.round(a.y));
+    const x1 = Math.min(plot.width, Math.round(a.x + a.width));
+    const y1 = Math.min(plot.depth, Math.round(a.y + a.depth));
+    if (x1 - x0 < 1 || y1 - y0 < 1) continue;
+    locked.push({ ...a, x: x0, y: y0, width: x1 - x0, depth: y1 - y0 });
+  }
+  if (locked.length === 0) return plot;
+  return { ...plot, notches: [...plot.notches, ...locked.map(({ x, y, width, depth }) => ({ x, y, width, depth }))], locked };
+}
+
+/**
+ * Les clôtures des parcelles à vendre : sur les bords qu'elles partagent avec ce que le joueur
+ * possède, et là seulement — le long de la rue ou d'une autre parcelle à vendre, il n'y a rien à
+ * séparer. Les tronçons d'une case qui se suivent sont fondus en un seul.
+ */
+export function lockedFences(plot: PlotLayout): { x0: number; y0: number; x1: number; y1: number }[] {
+  const out: { x0: number; y0: number; x1: number; y1: number }[] = [];
+  for (const a of plot.locked ?? []) {
+    const sides: { from: [number, number]; step: [number, number]; n: number; probe: [number, number] }[] = [
+      { from: [a.x, a.y], step: [1, 0], n: a.width, probe: [0, -1] },
+      { from: [a.x, a.y + a.depth], step: [1, 0], n: a.width, probe: [0, 0] },
+      { from: [a.x, a.y], step: [0, 1], n: a.depth, probe: [-1, 0] },
+      { from: [a.x + a.width, a.y], step: [0, 1], n: a.depth, probe: [0, 0] },
+    ];
+    for (const s of sides) {
+      let run: number | null = null;
+      for (let i = 0; i <= s.n; i += 1) {
+        const x = s.from[0] + s.step[0] * i;
+        const y = s.from[1] + s.step[1] * i;
+        const owned = i < s.n && plotInside(plot, x + s.probe[0], y + s.probe[1]);
+        if (owned && run === null) run = i;
+        if (!owned && run !== null) {
+          out.push({ x0: s.from[0] + s.step[0] * run, y0: s.from[1] + s.step[1] * run, x1: x, y1: y });
+          run = null;
+        }
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * La circulation de la rue à une heure donnée : `density` de 0 (la nuit, une voiture par sens) à 1
+ * (l'heure de pointe).
+ *
+ *  Plus il y a de monde, plus il y a de voitures — et plus elles vont lentement, **en paquets** : à
+ *  l'heure de pointe, on roule à 30 % de sa vitesse, pare-chocs contre pare-chocs par grappes de
+ *  quatre. Les voitures sont tirées de celles du terrain, dans l'ordre, et la place de chacune ne
+ *  dépend que de son rang : une densité qui monte en ajoute sans déplacer les autres.
+ */
+export function trafficCars(plot: PlotLayout, density: number): PlotCar[] {
+  const d = Math.max(0, Math.min(1, density));
+  const loop = plot.lanes.forward.reduce((s, t) => s + t.reduce((a, p, i) => (i === 0 ? a : a + Math.hypot(p[0] - t[i - 1][0], p[1] - t[i - 1][1])), 0), 0) || 100;
+  const out: PlotCar[] = [];
+  for (const reverse of [false, true]) {
+    const base = plot.cars.filter((c) => c.reverse === reverse);
+    if (base.length === 0) continue;
+    const n = Math.max(1, Math.round(1 + d * 15));
+    const speed = base[0].speed * (1 - 0.7 * d);
+    // Quatre têtes de file réparties sur la boucle ; chaque voiture de plus se range derrière l'une
+    // d'elles. La place d'une voiture ne dépend que de son rang : en ajouter n'en déplace aucune.
+    for (let i = 0; i < n; i += 1) {
+      const c = base[i % base.length];
+      const lead = i % 4;
+      const rank = Math.floor(i / 4);
+      out.push({ ...c, speed, phase: (loop * lead) / 4 + (reverse ? loop / 8 : 0) - rank * 2.6 });
+    }
+  }
   return out;
 }
 

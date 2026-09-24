@@ -55,10 +55,28 @@ export type PlannerPointKind =
   | "roof"
   | "door"
   | "window"
-  | "bay";
+  | "bay"
+  | "roofSolar"
+  | "hvac"
+  | "coldRoom"
+  | "truckBay";
 
 /** Les éléments qu'on pose **sur un mur** : ils s'y accrochent et y percent leur ouverture. */
 export const WALL_MOUNTED: PlannerKind[] = ["door", "window", "bay"];
+
+/**
+ * Les éléments qu'on pose **sur les toits** : des panneaux solaires, des groupes de climatisation.
+ *
+ *  Ils vivent au-dessus de tout le reste, à la hauteur de l'acrotère (`PLANNER_WALL_TOP`) : on ne
+ *  les voit — et on ne les attrape — que quand les toitures sont affichées, et ils passent alors
+ *  devant ce qui est dessous. Masquer les toits pour construire dedans les masque avec eux.
+ */
+export const ROOFTOP_KINDS: PlannerKind[] = ["roofSolar", "hvac"];
+
+/** L'élément est-il posé sur les toits ? */
+export function isRooftop(item: Pick<PlannerItem, "kind">): boolean {
+  return ROOFTOP_KINDS.includes(item.kind);
+}
 export type PlannerKind = PlannerLinearKind | PlannerPointKind;
 
 export interface PlannerLinear {
@@ -152,6 +170,10 @@ export const PLANNER_TOOLS: PlannerTool[] = [
   { kind: "door", label: "Porte", group: "Bâtiment" },
   { kind: "window", label: "Fenêtre", group: "Bâtiment" },
   { kind: "bay", label: "Baie vitrée", group: "Bâtiment" },
+  { kind: "roofSolar", label: "Panneaux solaires en toiture", group: "Bâtiment" },
+  { kind: "hvac", label: "Climatiseur de toiture", group: "Bâtiment" },
+  { kind: "coldRoom", label: "Chambre froide", group: "Stockage" },
+  { kind: "truckBay", label: "Parking poids lourds", group: "Extérieur" },
 ];
 
 export const PLANNER_LABEL: Record<PlannerKind, string> = Object.fromEntries(PLANNER_TOOLS.map((t) => [t.kind, t.label])) as Record<PlannerKind, string>;
@@ -191,7 +213,29 @@ export const POINT_SIZE: Record<PlannerPointKind, { length: number; width: numbe
   window: { length: 1, width: 0.3 },
   bay: { length: 3, width: 0.3 },
   solar: { length: solarArraySize({ rows: 1, columns: 6 }).length, width: solarArraySize({ rows: 1, columns: 6 }).width },
+  roofSolar: { length: solarArraySize({ rows: 1, columns: 6 }).length, width: solarArraySize({ rows: 1, columns: 6 }).width },
+  hvac: { length: 1.4, width: 1 },
+  coldRoom: { length: 6, width: 4 },
+  truckBay: { length: 10.5, width: 2.4 },
 };
+
+/**
+ * Le parking poids lourds : la longueur d'une place, le long du cap, et la largeur d'une place.
+ *
+ * ## Le repère d'un parking poids lourds — à retenir pour y faire manœuvrer des camions
+ *
+ *  L'élément est posé par son centre `(x, y)` et tourné de `rotation` (θ). Dans son repère :
+ *  - les `x` locaux vont **le long des places** : l'**entrée** est en `x = −length/2`, le **bout
+ *    quai** en `x = +length/2` — c'est là que viennent les portes arrière de la remorque, et c'est
+ *    de ce côté qu'est peint le butoir jaune ;
+ *  - les `y` locaux vont **en travers** : la place `i` (de `0` à `bays − 1`) a son axe en
+ *    `y = −width/2 + TRUCK_BAY_WIDTH · (i + ½)`.
+ *
+ *  Un point local `(u, v)` est donc, sur le plan, en `(x + u·cos θ − v·sin θ, y + u·sin θ + v·cos θ)`.
+ *  Un camion garé a l'arrière au bout quai et la cabine vers l'entrée : son cap est `θ + 180°`.
+ */
+export const TRUCK_BAY_LENGTH = 10.5;
+export const TRUCK_BAY_WIDTH = 2.4;
 
 // --- Les évolutions ----------------------------------------------------------------------------------
 
@@ -238,7 +282,7 @@ export const TIERS: Record<PlannerKind, string[]> = {
   tollBooth: ["Péage à une voie", "Péage à deux voies", "Péage à trois voies"],
   flowerBed: ["Petit parterre", "Grand parterre", "Rond fleuri"],
   shrub: ["Graminée", "Buis en boule", "Arbuste", "Grand arbuste"],
-  transformer: ["Transformateur sur socle", "Poste préfabriqué", "Poste de livraison"],
+  transformer: ["Transformateur sur socle", "Poste préfabriqué", "Poste de livraison", "Poste source HTB"],
   packer: ["Étiqueteuse", "Cercleuse", "Filmeuse", "Mise en carton"],
   consolidator: ["Regroupement, 4 bacs", "Regroupement, 6 bacs", "Regroupement, 8 bacs"],
   delta: ["Robot delta"],
@@ -247,6 +291,10 @@ export const TIERS: Record<PlannerKind, string[]> = {
   door: ["Porte d'entrée"],
   window: ["Fenêtre", "Fenêtre large"],
   bay: ["Baie vitrée", "Grande baie vitrée"],
+  roofSolar: ["Petit champ en toiture", "Champ en toiture", "Grand champ en toiture"],
+  hvac: ["Groupe froid simple", "Groupe froid double", "Groupe froid triple"],
+  coldRoom: ["Chambre froide positive", "Chambre froide négative"],
+  truckBay: ["1 place camion", "2 places camion", "3 places camion"],
 };
 
 /** Le niveau d'un élément, borné à ceux que sa sorte connaît. */
@@ -266,15 +314,30 @@ export const SOLAR_TIERS = [
   { rows: 3, columns: 8, inverter: true, battery: true },
 ];
 
+/** Les cotes d'un champ solaire posé en toiture, à chaque niveau : les panneaux seuls — l'onduleur
+ *  et le stockage restent au sol. */
+export const ROOF_SOLAR_TIERS = [
+  { rows: 1, columns: 6 },
+  { rows: 2, columns: 8 },
+  { rows: 3, columns: 8 },
+];
+
+/** Le nombre de condenseurs d'un climatiseur de toiture, à chaque niveau. */
+export const HVAC_UNITS = [1, 2, 3];
+const HVAC_LENGTH = [1.4, 2.4, 3.4];
+
 /** L'emprise d'un élément posé, avant rotation, à son niveau. */
 export function sizeOf(item: PlannerPoint): { length: number; width: number } {
   const lv = levelOf(item);
   if (item.kind === "truck" && lv === 1) return { length: CAR_DIMENSIONS.van.length, width: CAR_DIMENSIONS.van.width };
   if (item.kind === "container" && lv === 1) return { length: CONTAINER_DIMENSIONS["20"].length, width: CONTAINER_DIMENSIONS["20"].width };
   if (item.kind === "solar") return solarArraySize(SOLAR_TIERS[lv - 1]);
+  if (item.kind === "roofSolar") return solarArraySize(ROOF_SOLAR_TIERS[lv - 1]);
+  if (item.kind === "hvac") return { length: HVAC_LENGTH[lv - 1], width: 1 };
+  if (item.kind === "truckBay") return { length: TRUCK_BAY_LENGTH, width: TRUCK_BAY_WIDTH * lv };
   if (item.kind === "roof") return item.size ?? POINT_SIZE.roof;
   if (item.kind === "tollBooth") return tollBoothSize({ lanes: lv });
-  if (item.kind === "transformer") return transformerSize((["pad", "kiosk", "substation"] as const)[lv - 1]);
+  if (item.kind === "transformer") return transformerSize((["pad", "kiosk", "substation", "gridStation"] as const)[lv - 1]);
   if (item.kind === "consolidator") return robotCellSize({ kind: "gantry", slots: [4, 6, 8][lv - 1] });
   if (item.kind === "flowerBed") return lv === 1 ? { length: 3, width: 1 } : lv === 2 ? { length: 5, width: 1.4 } : { length: 2.4, width: 2.4 };
   if (item.kind === "window" && lv === 2) return { length: 1.6, width: 0.3 };

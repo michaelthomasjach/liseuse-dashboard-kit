@@ -64,3 +64,15 @@ export const Caps: Story = {
     </div>
   ),
 };
+
+/** Diesel et électrique côte à côte : la cheminée d'échappement d'un côté ; de l'autre, les
+ *  batteries, le liseré vert d'eau et la trappe de recharge. */
+export const Electrique: Story = {
+  name: "Diesel et électrique",
+  render: () => (
+    <div style={{ padding: 40, display: "flex", gap: 40, flexWrap: "wrap" }}>
+      <SemiTruck trailerLength={7.6} cellSize={30} variant="diesel" />
+      <SemiTruck trailerLength={7.6} cellSize={30} variant="electric" />
+    </div>
+  ),
+};

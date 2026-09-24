@@ -33,3 +33,6 @@ export { DashboardGrid, DashboardGridItem } from "./DashboardGrid";
 export type { DashboardGridProps, DashboardGridItemProps } from "./DashboardGrid";
 
 export type { ControlListEntry } from "./internal/ControlRow";
+
+export { SkillTree } from "./SkillTree";
+export type { SkillTreeProps, SkillTreeNode, SkillTreeBranch, SkillNodeState } from "./SkillTree";

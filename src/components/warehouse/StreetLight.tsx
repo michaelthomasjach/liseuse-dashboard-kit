@@ -1,3 +1,5 @@
+import { useEffect, useMemo } from "react";
+import { AdditiveBlending, CanvasTexture, Color, MeshBasicMaterial, SRGBColorSpace, SpriteMaterial, type Texture } from "three";
 import { Builder } from "./three/builder";
 import { Parts, Solo, frameBounds, placed, useBuilt } from "./three/scene";
 
@@ -23,6 +25,11 @@ export interface StreetLightProps {
   rotation?: number;
   origin?: { x: number; y: number };
   frame?: { x: number; y: number; width: number; depth: number; height: number };
+  /**
+   * La nuit, de 0 (le jour : rien ne change) à 1 (la nuit noire) : la lanterne s'allume et pose au
+   * sol une flaque de lumière chaude, d'autant plus franche qu'il fait nuit.
+   */
+  glow?: number;
   cellSize?: number;
   className?: string;
 }
@@ -77,7 +84,77 @@ export function StreetLight(props: StreetLightProps) {
   );
 }
 
-function StreetLightBody({ kind = "street", height, rotation = 0, origin = { x: 0, y: 0 } }: StreetLightProps) {
+/**
+ * Le dégradé d'une flaque de lumière : chaud et plein au centre, qui s'éteint doucement vers le bord.
+ * Une seule texture pour tous les luminaires d'une page — c'est ce qui rend la nuit bon marché : pas
+ * une lumière de la scène, un simple disque peint par lampadaire.
+ */
+let POOL: Texture | null = null;
+function poolTexture(): Texture {
+  if (POOL) return POOL;
+  const c = document.createElement("canvas");
+  c.width = c.height = 128;
+  const ctx = c.getContext("2d");
+  if (ctx) {
+    const g = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+    g.addColorStop(0, "rgba(255, 214, 140, 1)");
+    g.addColorStop(0.35, "rgba(255, 196, 110, 0.55)");
+    g.addColorStop(0.7, "rgba(255, 180, 90, 0.16)");
+    g.addColorStop(1, "rgba(255, 170, 80, 0)");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 128, 128);
+  }
+  POOL = new CanvasTexture(c);
+  POOL.colorSpace = SRGBColorSpace;
+  return POOL;
+}
+
+/** Où tombe la lumière de chaque luminaire, en cases autour de son pied, et jusqu'où. */
+const POOL_OF: Record<StreetLightKind, { x: number; radius: number; heads: [number, number, number][] }> = {
+  street: { x: 1.2, radius: 3.6, heads: [[1.2, 0, 0]] },
+  flood: { x: 0, radius: 6.5, heads: [[0.32, 0, 0], [-0.32, 0, 0], [0, 0.32, 0], [0, -0.32, 0]] },
+  bollard: { x: 0, radius: 1.3, heads: [[0, 0, 0]] },
+};
+
+/** La flaque de lumière et le halo des lanternes, à la mesure de la nuit. */
+function LightPool({ kind, height, glow }: { kind: StreetLightKind; height: number; glow: number }) {
+  const spec = POOL_OF[kind];
+  const pool = useMemo(() => new MeshBasicMaterial({ map: poolTexture(), transparent: true, depthWrite: false, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }), []);
+  const halo = useMemo(() => new SpriteMaterial({ map: poolTexture(), transparent: true, depthWrite: false, blending: AdditiveBlending, toneMapped: false }), []);
+  const lamp = useMemo(() => new MeshBasicMaterial({ color: new Color("#ffe3a6"), transparent: true, toneMapped: false }), []);
+  useEffect(() => {
+    pool.opacity = Math.min(1, glow) * 0.8;
+    halo.opacity = Math.min(1, glow);
+    lamp.opacity = Math.min(1, glow);
+  }, [glow, pool, halo, lamp]);
+  useEffect(
+    () => () => {
+      pool.dispose();
+      halo.dispose();
+      lamp.dispose();
+    },
+    [pool, halo, lamp]
+  );
+  const h = kind === "street" ? height + 0.11 : kind === "flood" ? height - 0.19 : height + 0.02;
+  const r = spec.radius;
+  return (
+    <group>
+      <mesh position={[spec.x, 0, 0.05]} material={pool} renderOrder={5}>
+        <planeGeometry args={[r * 2, r * 2]} />
+      </mesh>
+      {spec.heads.map(([x, y], i) => (
+        <group key={i}>
+          <mesh position={[x, y, h]} material={lamp}>
+            <boxGeometry args={kind === "street" ? [0.4, 0.18, 0.01] : [0.2, 0.2, 0.01]} />
+          </mesh>
+          <sprite position={[x, y, h - 0.05]} scale={kind === "bollard" ? [0.5, 0.5, 1] : [1.3, 1.3, 1]} material={halo} renderOrder={6} />
+        </group>
+      ))}
+    </group>
+  );
+}
+
+function StreetLightBody({ kind = "street", height, rotation = 0, origin = { x: 0, y: 0 }, glow = 0 }: StreetLightProps) {
   const built = useBuilt(() => {
     const b = new Builder();
     addStreetLight(b, kind, height ?? HEIGHT[kind]);
@@ -87,6 +164,7 @@ function StreetLightBody({ kind = "street", height, rotation = 0, origin = { x: 
   return (
     <group matrixAutoUpdate={false} matrix={pose}>
       <Parts built={built} />
+      {glow > 0 && <LightPool kind={kind} height={Math.max(0.2, height ?? HEIGHT[kind])} glow={glow} />}
     </group>
   );
 }

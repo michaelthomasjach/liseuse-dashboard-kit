@@ -1,0 +1,245 @@
+/* La visite guidée : un voile léger pour les étapes d'accueil, un anneau autour de la cible, et
+   la carte qui glisse de l'une à l'autre. L'anneau et le voile ne captent pas le pointeur : la
+   chose montrée reste cliquable. */
+
+.lq-gtour__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2400;
+  pointer-events: none;
+  background: color-mix(in srgb, var(--lq-color-text, #12141a) 18%, transparent);
+  animation: lq-gtour-fade 200ms ease both;
+}
+
+.lq-gtour__ring {
+  position: fixed;
+  z-index: 2400;
+  pointer-events: none;
+  border: 2px solid var(--lq-color-accent, #6c87c9);
+  border-radius: var(--lq-radius-md, 8px);
+  /* Un projecteur doux : l'écran s'assombrit à peine autour de la cible, sans rien bloquer. */
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--lq-color-accent, #6c87c9) 22%, transparent),
+    0 0 0 9999px color-mix(in srgb, var(--lq-color-text, #12141a) 10%, transparent);
+  transition:
+    top 260ms ease,
+    left 260ms ease,
+    width 260ms ease,
+    height 260ms ease;
+}
+
+.lq-gtour__card {
+  position: fixed;
+  z-index: 2401;
+  width: 340px;
+  max-width: calc(100vw - 24px);
+  box-sizing: border-box;
+  padding: var(--lq-space-4, 16px);
+  background-color: var(--lq-color-panel, #fff);
+  color: var(--lq-color-text, #12141a);
+  border: 1px solid var(--lq-color-border, #dfe2e8);
+  border-radius: var(--lq-radius-md, 8px);
+  box-shadow: var(--lq-shadow-modal);
+  font-family: var(--lq-font-family, inherit);
+  outline: none;
+  /* Même pas que l'anneau : la carte et sa cible arrivent ensemble. */
+  transition:
+    top 260ms ease,
+    left 260ms ease,
+    opacity 160ms ease;
+}
+
+.lq-gtour__card--center {
+  width: 400px;
+  text-align: center;
+}
+
+.lq-gtour__card--pending {
+  opacity: 0.72;
+}
+
+.lq-root[data-lq-palette="eink"] .lq-gtour__card,
+.lq-root[data-lq-palette="eink"] .lq-gtour__ring {
+  border-radius: 0;
+  transition: none;
+}
+.lq-root[data-lq-palette="eink"] .lq-gtour__card {
+  border: 2px solid var(--lq-color-text);
+}
+.lq-root[data-lq-palette="eink"] .lq-gtour__ring {
+  box-shadow: none;
+}
+
+.lq-gtour__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--lq-space-2, 8px);
+}
+.lq-gtour__card--center .lq-gtour__head {
+  justify-content: space-between;
+}
+
+.lq-gtour__count {
+  font-size: var(--lq-text-xs, 0.72rem);
+  letter-spacing: 0.08em;
+  color: var(--lq-color-text-muted, #656b78);
+  font-variant-numeric: tabular-nums;
+}
+
+.lq-gtour__close {
+  display: inline-flex;
+  padding: 3px;
+  border: 0;
+  background: none;
+  color: var(--lq-color-text-muted, #656b78);
+  cursor: pointer;
+}
+.lq-gtour__close:hover {
+  color: var(--lq-color-text, #12141a);
+}
+
+.lq-gtour__media {
+  display: flex;
+  justify-content: center;
+  margin: var(--lq-space-1, 4px) 0 var(--lq-space-3, 12px);
+  color: var(--lq-color-accent, #6c87c9);
+}
+.lq-gtour__card:not(.lq-gtour__card--center) .lq-gtour__media {
+  justify-content: flex-start;
+}
+
+.lq-gtour__title {
+  margin: 0 0 var(--lq-space-2, 8px);
+  font-size: var(--lq-text-lg, 1.05rem);
+  font-weight: 700;
+  color: var(--lq-color-text, #12141a);
+}
+
+.lq-gtour__body {
+  margin: 0 0 var(--lq-space-3, 12px);
+  font-size: var(--lq-text-sm, 0.8rem);
+  line-height: 1.55;
+  color: var(--lq-color-text-muted, #656b78);
+}
+.lq-gtour__body p {
+  margin: 0 0 var(--lq-space-2, 8px);
+}
+.lq-gtour__body p:last-child {
+  margin-bottom: 0;
+}
+
+.lq-gtour__dots {
+  display: flex;
+  gap: 6px;
+  margin-bottom: var(--lq-space-3, 12px);
+}
+.lq-gtour__card--center .lq-gtour__dots {
+  justify-content: center;
+}
+.lq-gtour__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--lq-color-fill-track, #e4e7ee);
+  transition:
+    width 200ms ease,
+    background-color 200ms ease;
+}
+.lq-gtour__dot.is-done {
+  background: color-mix(in srgb, var(--lq-color-accent, #6c87c9) 45%, var(--lq-color-fill-track, #e4e7ee));
+}
+.lq-gtour__dot.is-current {
+  width: 18px;
+  border-radius: 4px;
+  background: var(--lq-color-accent, #6c87c9);
+}
+.lq-root[data-lq-palette="eink"] .lq-gtour__dot {
+  border-radius: 0;
+  border: 1px solid var(--lq-color-text);
+  background: transparent;
+}
+.lq-root[data-lq-palette="eink"] .lq-gtour__dot.is-current {
+  background: var(--lq-color-text);
+}
+
+.lq-gtour__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lq-space-2, 8px);
+}
+
+.lq-gtour__nav {
+  display: flex;
+  gap: var(--lq-space-2, 8px);
+}
+
+.lq-gtour__skip {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--lq-text-xs, 0.72rem);
+  color: var(--lq-color-text-muted, #656b78);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.lq-gtour__skip:hover {
+  color: var(--lq-color-text, #12141a);
+}
+
+.lq-gtour__prev,
+.lq-gtour__next {
+  padding: 6px var(--lq-space-3, 12px);
+  border-radius: var(--lq-radius-sm, 6px);
+  font: inherit;
+  font-size: var(--lq-text-xs, 0.72rem);
+  font-weight: 600;
+  cursor: pointer;
+}
+.lq-gtour__prev {
+  border: 1px solid var(--lq-color-border, #dfe2e8);
+  background: transparent;
+  color: var(--lq-color-text, #12141a);
+}
+.lq-gtour__prev:hover {
+  background: var(--lq-color-hover, rgba(0, 0, 0, 0.04));
+}
+.lq-gtour__next {
+  border: 1px solid var(--lq-color-accent, #6c87c9);
+  background-color: var(--lq-color-accent, #6c87c9);
+  color: var(--lq-color-accent-contrast, #fff);
+}
+.lq-gtour__next:hover {
+  filter: brightness(1.05);
+}
+.lq-gtour__prev:focus-visible,
+.lq-gtour__next:focus-visible,
+.lq-gtour__skip:focus-visible,
+.lq-gtour__close:focus-visible {
+  outline: 2px solid var(--lq-color-accent, #6c87c9);
+  outline-offset: 2px;
+}
+.lq-root[data-lq-palette="eink"] .lq-gtour__prev,
+.lq-root[data-lq-palette="eink"] .lq-gtour__next {
+  border-radius: 0;
+}
+
+@keyframes lq-gtour-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lq-gtour__card,
+  .lq-gtour__ring,
+  .lq-gtour__dot {
+    transition: none;
+  }
+  .lq-gtour__backdrop {
+    animation: none;
+  }
+}

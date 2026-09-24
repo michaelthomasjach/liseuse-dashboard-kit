@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react";
 import { WarehousePlanner } from "./WarehousePlanner";
 import { generatePlot } from "./plot";
@@ -6,6 +6,7 @@ import type { PlannerItem } from "./plannerModel";
 import type { PlannerEdit, PlannerPaletteEntry } from "./WarehousePlanner";
 import { semiTruckGeometry } from "./SemiTruck";
 import { dockDoorCenters } from "./BuildingWalls";
+import { PlannerDockTraffic, PlannerShuttle } from "./PlannerLogistics";
 
 /**
  * Le plan de l'entrepôt : un terrain tiré d'une graine, une palette d'éléments 3D, et la vue de
@@ -177,6 +178,123 @@ export const Demo: Story = {
  * terminé (`onEdit`). Les racks ne s'étirent pas et ne se rétrogradent pas : ce sont des achats.
  * « Observer » passe l'éditeur en lecture seule ; « Montrer les racks » les désigne et les cadre.
  */
+/**
+ * Le plan qui **travaille** : un bâtiment, ses toits équipés (panneaux, climatiseurs), une chambre
+ * froide, deux parkings poids lourds et une parcelle voisine à vendre. Des compteurs, incrémentés
+ * par une minuterie comme le ferait un jeu, font rouler les engins : un transpalette et un
+ * préparateur font la navette dans l'entrepôt ; à l'est, des camions vides viennent à quai et
+ * repartent pleins ; à l'ouest, des camions pleins sont vidés au chariot. « Toits » masque les
+ * toitures et tout ce qui est posé dessus.
+ */
+export const Logistique: Story = {
+  name: "Logistique animée",
+  render: function Render() {
+    const initial = useMemo<PlannerItem[]>(() => {
+      const x0 = 16;
+      const y0 = 8;
+      const x1 = 40;
+      const y1 = 32;
+      return [
+        { id: "south", kind: "wall", level: 2, x0, y0, x1, y1: y0 },
+        { id: "east", kind: "dock", level: 2, x0: x1, y0, x1, y1 },
+        { id: "north", kind: "wall", level: 2, x0: x1, y0: y1, x1: x0, y1 },
+        { id: "west", kind: "dock", level: 2, x0, y0: y1, x1: x0, y1: y0 },
+        { id: "roof", kind: "roof", level: 1, x: 28, y: 20, rotation: 0, size: { length: 24, width: 24 } },
+        { id: "pv", kind: "roofSolar", level: 3, x: 24, y: 14, rotation: 0 },
+        { id: "hvac", kind: "hvac", level: 3, x: 34, y: 28, rotation: 0 },
+        { id: "cold", kind: "coldRoom", level: 2, x: 21, y: 27, rotation: 0 },
+        { id: "rack1", kind: "palletRack", level: 2, x0: 19, y0: 12, x1: 30, y1: 12 },
+        { id: "rack2", kind: "palletRack", level: 2, x0: 19, y0: 16, x1: 30, y1: 16 },
+        { id: "ship", kind: "truckBay", level: 3, x: 45.55, y: 20, rotation: 180 },
+        { id: "recv", kind: "truckBay", level: 2, x: 10.45, y: 20, rotation: 0 },
+        { id: "mast", kind: "light", level: 3, x: 48, y: 30, rotation: 0 },
+        { id: "grid", kind: "transformer", level: 4, x: 60, y: 8, rotation: 0 },
+      ];
+    }, []);
+    const [items, setItems] = useState<PlannerItem[]>(initial);
+    const [roofs, setRoofs] = useState(true);
+    const [paused, setPaused] = useState(false);
+    const [shipped, setShipped] = useState(0);
+    const [received, setReceived] = useState(0);
+    const [moved, setMoved] = useState(0);
+    const [picked, setPicked] = useState(0);
+    const [events, setEvents] = useState<string[]>([]);
+    const [traffic, setTraffic] = useState(0.4);
+    const [night, setNight] = useState(0);
+    const [electric, setElectric] = useState(false);
+    useEffect(() => {
+      if (paused) return;
+      const id = window.setInterval(() => {
+        setShipped((n) => n + 3);
+        setReceived((n) => n + 2);
+        setMoved((n) => n + 2);
+        setPicked((n) => n + 1);
+      }, 1500);
+      return () => window.clearInterval(id);
+    }, [paused]);
+    const bayOf = (id: string) => {
+      const it = items.find((i) => i.id === id);
+      return it && !("x0" in it) ? { x: it.x, y: it.y, rotation: it.rotation, bays: it.level ?? 1 } : null;
+    };
+    const ship = bayOf("ship");
+    const recv = bayOf("recv");
+    const log = (text: string) => setEvents((e) => [text, ...e].slice(0, 4));
+    return (
+      <div style={{ ...frame, display: "flex", flexDirection: "column", gap: 8 }}>
+        <div style={{ display: "flex", gap: 12, alignItems: "center", fontSize: 13, flexWrap: "wrap" }}>
+          <button type="button" onClick={() => setPaused((p) => !p)}>{paused ? "Reprendre" : "Pause"}</button>
+          <button type="button" onClick={() => setRoofs((r) => !r)}>{roofs ? "Masquer les toits" : "Afficher les toits"}</button>
+          <label style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
+            Circulation
+            <input type="range" min={0} max={1} step={0.05} value={traffic} onChange={(e) => setTraffic(Number(e.target.value))} />
+          </label>
+          <label style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
+            Nuit
+            <input type="range" min={0} max={1} step={0.05} value={night} onChange={(e) => setNight(Number(e.target.value))} />
+          </label>
+          <label style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
+            <input type="checkbox" checked={electric} onChange={(e) => setElectric(e.target.checked)} />
+            Camions électriques
+          </label>
+          <span>Expédiés : {shipped}</span>
+          <span>Reçus : {received}</span>
+          <span>Palettes déplacées : {moved}</span>
+          <span>Colis préparés : {picked}</span>
+          <span style={{ opacity: 0.7 }}>{events.join(" · ")}</span>
+        </div>
+        <WarehousePlanner
+          seed={5}
+          shape="rect"
+          plotSize={{ width: 72, depth: 44 }}
+          items={items}
+          onItemsChange={setItems}
+          roofs={roofs}
+          onRoofsChange={setRoofs}
+          lockedAreas={[{ id: "lot-nord", x: 52, y: 30, width: 20, depth: 14, label: "Parcelle nord · 120 000 €" }]}
+          traffic={traffic}
+          night={night}
+          defaultView="3d"
+          defaultZoom={1.4}
+          height="100%"
+          sceneChildren={
+            <>
+              {ship && (
+                <PlannerDockTraffic bay={ship} mode="ship" count={shipped} capacity={18} roadSpeed={1 - 0.6 * traffic} electric={electric} staging={{ x: 36, y: 20 }} paused={paused} onTruck={(e) => log(`expédition : camion ${e.kind === "arrive" ? "à quai" : "parti"} (place ${e.slot + 1})`)} />
+              )}
+              {recv && (
+                <PlannerDockTraffic bay={recv} mode="receive" count={received} capacity={12} roadSpeed={1 - 0.6 * traffic} electric={electric} staging={{ x: 20, y: 22 }} paused={paused} onTruck={(e) => log(`réception : camion ${e.kind === "arrive" ? "à quai" : "parti"} (place ${e.slot + 1})`)} />
+              )}
+              <PlannerShuttle vehicle="palletJack" from={{ x: 22, y: 20 }} to={{ x: 34, y: 20 }} trips={moved} batch={4} paused={paused} label="Transpalette" />
+              <PlannerShuttle vehicle="worker" from={{ x: 31, y: 14 }} to={{ x: 33, y: 24 }} via={[{ x: 32, y: 18 }]} trips={picked} batch={1} speed={1.4} paused={paused} label="Préparateur" />
+              <PlannerShuttle vehicle="amr" from={{ x: 25, y: 23 }} to={{ x: 25, y: 30 }} trips={picked} batch={2} load="palette" paused={paused} label="Robot" />
+            </>
+          }
+        />
+      </div>
+    );
+  },
+};
+
 export const Application: Story = {
   name: "Piloté par une application",
   render: function Render() {

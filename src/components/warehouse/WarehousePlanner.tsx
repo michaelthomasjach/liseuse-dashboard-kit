@@ -4,8 +4,8 @@ import { viewProjector } from "./three/camera";
 import { WarehouseScene, frameBounds } from "./three/scene";
 import { SnapshotStudio, cachedSnapshot, type SnapshotJob } from "./three/snapshot";
 import { BuildPlot } from "./BuildPlot";
-import { PlannerItem3D } from "./PlannerItem3D";
-import { generatePlot, plotArea, type PlotShape } from "./plot";
+import { PLANNER_WALL_TOP, PlannerItem3D } from "./PlannerItem3D";
+import { generatePlot, plotArea, withLockedAreas, type PlotLockedArea, type PlotShape } from "./plot";
 import {
   PLANNER_LABEL,
   TIERS,
@@ -23,6 +23,7 @@ import {
   footprintOf,
   hitTest,
   isLinear,
+  isRooftop,
   moveBy,
   headingOf,
   rotateQuarter,
@@ -172,7 +173,39 @@ export interface WarehousePlannerProps {
    */
   activeEntryId?: string | null;
   onActiveEntryIdChange?: (id: string | null) => void;
+  /**
+   * Les toitures affichées. Contrôlées si `onRoofsChange` est donné avec elles ; sinon, le bouton
+   * « Toits » de la barre les bascule. Masquées, elles emportent ce qui est posé dessus
+   * (`ROOFTOP_KINDS`) — qu'on ne voit ni n'attrape plus — et le plafond des chambres froides.
+   * Affichées, ce qui est sur les toits passe **devant** au clic. Tant que l'élément en main se pose
+   * sur un toit, elles restent affichées, quoi que dise cette prop.
+   */
+  roofs?: boolean;
+  onRoofsChange?: (roofs: boolean) => void;
+  /**
+   * Des parcelles du terrain **à vendre** : dans le rectangle du terrain, mais pas encore au
+   * joueur. Elles ne sont pas constructibles (« Hors du terrain constructible. »), et la scène les
+   * montre en friche, closes du côté de ce qu'on possède, un panneau « À VENDRE » en leur milieu —
+   * `label` s'y lit dessous. En cases, alignées sur les axes.
+   */
+  lockedAreas?: PlannerLockedArea[];
+  /**
+   * La circulation sur la rue autour du terrain, de 0 (la nuit : presque personne) à 1 (l'heure de
+   * pointe : beaucoup de voitures, lentes, en paquets). Défaut : 0,4. Un changement ne fait pas
+   * sauter les voitures : elles ralentissent ou accélèrent là où elles sont.
+   */
+  traffic?: number;
+  /**
+   * La nuit, de 0 (le jour : rien ne change) à 1 (la nuit noire), en passant par le crépuscule :
+   * les candélabres de la rue et les éclairages posés (`light`) s'allument et posent au sol une
+   * flaque de lumière chaude, d'autant plus franche qu'il fait nuit. Le thème de l'application
+   * (clair le jour, sombre la nuit) reste à sa charge.
+   */
+  night?: number;
 }
+
+/** Une parcelle à vendre (voir `lockedAreas`). */
+export type PlannerLockedArea = PlotLockedArea;
 
 /** Une entrée de palette fournie par l'application (voir `entries`). */
 export interface PlannerPaletteEntry {
@@ -248,6 +281,10 @@ const ENTRIES: Entry[] = [
   { id: "window", label: "Fenêtre", group: "Murs", type: "place", kind: "window" },
   { id: "bay", label: "Baie vitrée", group: "Murs", type: "place", kind: "bay" },
   { id: "roof", label: "Toiture", group: "Murs", type: "area", kind: "roof" },
+  { id: "roofSolar", label: "Panneaux en toiture", group: "Murs", type: "place", kind: "roofSolar" },
+  { id: "hvac", label: "Climatiseur de toiture", group: "Murs", type: "place", kind: "hvac" },
+  { id: "coldRoom", label: "Chambre froide", group: "Stockage", type: "place", kind: "coldRoom" },
+  { id: "truckBay", label: "Parking poids lourds", group: "Extérieur", type: "place", kind: "truckBay" },
   { id: "fence", label: "Clôture", group: "Murs", type: "draw", kind: "fence", mode: "chain" },
   { id: "palletRack", label: "Rack à palettes", group: "Stockage", type: "draw", kind: "palletRack", mode: "segment" },
   { id: "shelf", label: "Étagère", group: "Stockage", type: "place", kind: "shelf" },
@@ -291,7 +328,7 @@ const MENU: { title: string; subs: { title: string; ids: string[] }[] }[] = [
       { title: "Tracer", ids: ["wall", "chain", "parallel", "room", "lowWall"] },
       { title: "Quai et clôtures", ids: ["dock", "fence"] },
       { title: "Ouvertures", ids: ["door", "window", "bay"] },
-      { title: "Toiture", ids: ["roof"] },
+      { title: "Toiture", ids: ["roof", "roofSolar", "hvac"] },
     ],
   },
   {
@@ -300,6 +337,7 @@ const MENU: { title: string; subs: { title: string; ids: string[] }[] }[] = [
       { title: "Racks", ids: ["palletRack"] },
       { title: "Étagères", ids: ["shelf"] },
       { title: "Au sol", ids: ["zone"] },
+      { title: "Froid", ids: ["coldRoom"] },
     ],
   },
   {
@@ -322,7 +360,7 @@ const MENU: { title: string; subs: { title: string; ids: string[] }[] }[] = [
     title: "Extérieur",
     subs: [
       { title: "Accès", ids: ["barrier", "gate", "tollBooth"] },
-      { title: "Cour", ids: ["container", "light", "parking"] },
+      { title: "Cour", ids: ["container", "light", "parking", "truckBay"] },
       { title: "Nature et personnes", ids: ["tree", "shrub", "flowerBed", "worker"] },
     ],
   },
@@ -421,10 +459,16 @@ function entryJob(entry: Entry): SnapshotJob {
     consolidator: 2.6,
     delta: 2.3,
     palletizer: 2.4,
+    roofSolar: PLANNER_WALL_TOP + 1.2,
+    hvac: PLANNER_WALL_TOP + 0.7,
+    coldRoom: 2,
+    truckBay: 0.3,
   };
   const h = tall[entry.kind] ?? (entry.type === "place" || (entry.type === "piece" && !isLinear(items[0])) ? 2 : 3);
+  // Ce qui est posé sur un toit flotte à sa hauteur : la vignette cadre la dalle, pas le vide dessous.
+  const z0 = isRooftop(entry) ? PLANNER_WALL_TOP - 0.1 : 0;
   const node: ReactNode = items.map((it, i) => <PlannerItem3D key={i} item={{ ...it, id: `thumb-${entry.id}-${i}` }} />);
-  return { id: jobId(entry), bounds: { x0, x1, y0, y1, z0: 0, z1: h }, node };
+  return { id: jobId(entry), bounds: { x0, x1, y0, y1, z0, z1: h }, node };
 }
 
 export function WarehousePlanner({
@@ -461,6 +505,11 @@ export function WarehousePlanner({
   focus,
   renderOverlay,
   sceneChildren,
+  roofs: roofsProp,
+  onRoofsChange,
+  lockedAreas,
+  traffic = 0.4,
+  night = 0,
 }: WarehousePlannerProps) {
   const [ownSeed, setOwnSeed] = useState(defaultSeed);
   const seed = seedProp ?? ownSeed;
@@ -481,7 +530,11 @@ export function WarehousePlanner({
     [onItemsChange]
   );
 
-  const plot = useMemo(() => generatePlot(seed, { shape, width: plotSize?.width, depth: plotSize?.depth }), [seed, shape, plotSize?.width, plotSize?.depth]);
+  const basePlot = useMemo(() => generatePlot(seed, { shape, width: plotSize?.width, depth: plotSize?.depth }), [seed, shape, plotSize?.width, plotSize?.depth]);
+  // Les parcelles à vendre rejoignent les échancrures : ce qui n'est pas au joueur ne se construit pas.
+  const lockKey = JSON.stringify(lockedAreas ?? []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const plot = useMemo(() => withLockedAreas(basePlot, lockedAreas), [basePlot, lockKey]);
   /** Les entrées de la palette — celles de l'application si elle en donne — et leurs menus. */
   const allEntries = useMemo<Entry[]>(
     () =>
@@ -543,7 +596,12 @@ export function WarehousePlanner({
   /** Le cap de l'élément qu'on s'apprête à poser — R le tourne avant le clic. */
   const [placeRot, setPlaceRot] = useState(0);
   /** Les toitures affichées — on les masque pour voir et construire dedans. */
-  const [showRoofs, setShowRoofs] = useState(true);
+  const [ownRoofs, setOwnRoofs] = useState(true);
+  const roofsWanted = roofsProp ?? ownRoofs;
+  const setRoofs = (on: boolean) => {
+    setOwnRoofs(on);
+    if (on !== roofsWanted) onRoofsChange?.(on);
+  };
   /** Le départ du tracé en cours, et le point sous le curseur. */
   const [start, setStart] = useState<P | null>(null);
   const [cursor, setCursor] = useState<P | null>(null);
@@ -556,6 +614,17 @@ export function WarehousePlanner({
   const [orbit, setOrbit] = useState(defaultOrbit);
   const [projection, setProjection] = useState<IsoProjection>(defaultProjection);
   const [query, setQuery] = useState("");
+  // Ce qu'on s'apprête à poser sur un toit ne se pose pas sur un toit masqué : on les montre.
+  const showRoofs = roofsWanted || (!!tool && (isRooftop(tool) || tool.kind === "roof"));
+  /**
+   * L'élément sous un point du plan. Toits masqués, ce qui est dessus n'existe pas pour la main ;
+   * toits affichés, ce qui est dessus passe devant tout le reste — c'est ce qu'on voit d'abord.
+   */
+  const pick = (p: P): PlannerItem | null => {
+    const all = itemsRef.current;
+    if (!showRoofs) return hitTest(all.filter((it) => !isRooftop(it) && it.kind !== "roof"), p);
+    return hitTest(all.filter(isRooftop), p) ?? hitTest(all.filter((it) => !isRooftop(it)), p);
+  };
   const [open, setOpen] = useState<Record<string, boolean>>(() =>
     entriesProp ? Object.fromEntries(entriesProp.map((e) => [e.group, true])) : { Murs: true, Stockage: true, Convoyage: true }
   );
@@ -782,7 +851,7 @@ export function WarehousePlanner({
     }
     if (readOnly) {
       // On regarde : un clic choisit, un glisser déplace la vue — rien d'autre.
-      const hit = hitTest(itemsRef.current, w);
+      const hit = pick(w);
       if (hit) setSelectedId(hit.id);
       else drag.current = pan;
       return;
@@ -831,7 +900,7 @@ export function WarehousePlanner({
       else if (allowStretch) drag.current = { t: "end", id, which: handle.dataset.handle === "end0" ? 0 : 1, orig: item };
       return;
     }
-    const hit = hitTest(itemsRef.current, w);
+    const hit = pick(w);
     if (hit) {
       setSelectedId(hit.id);
       drag.current = { t: "move", id: hit.id, wx: w.x, wy: w.y, orig: hit };
@@ -863,7 +932,7 @@ export function WarehousePlanner({
         if (!cursor || q.x !== cursor.x || q.y !== cursor.y) setCursor(q);
         return;
       }
-      const id = hitTest(itemsRef.current, w)?.id ?? null;
+      const id = pick(w)?.id ?? null;
       if (id !== hoverId) setHoverId(id);
       return;
     }
@@ -1068,7 +1137,7 @@ export function WarehousePlanner({
     return <g key={item.id}>{parts}</g>;
   };
 
-  const shown = drawing ? [] : items.filter((it) => it.id === selectedId || it.id === hoverId);
+  const shown = drawing ? [] : items.filter((it) => (it.id === selectedId || it.id === hoverId) && (showRoofs || (!isRooftop(it) && it.kind !== "roof")));
   const counts = useMemo(() => {
     const m = new Map<string, number>();
     for (const it of items) m.set(it.kind, (m.get(it.kind) ?? 0) + 1);
@@ -1217,12 +1286,13 @@ export function WarehousePlanner({
               style={{ position: "absolute", inset: 0 }}
               ariaLabel="Terrain et construction"
             >
-              <BuildPlot layout={plot} />
+              <BuildPlot layout={plot} traffic={traffic} night={night} />
               {items.map((it) => (
                 <PlannerItem3D
                   key={it.id}
                   item={it}
                   roofs={showRoofs}
+                  night={night}
                   // Un mur porte les ouvertures accrochées à lui — et celle qu'on s'apprête à poser.
                   mounts={isLinear(it) && (it.kind === "wall" || it.kind === "dock") ? wallMounts(it, ghost && mountedGhost ? [...items, ghost] : items) : undefined}
                 />
@@ -1300,7 +1370,7 @@ export function WarehousePlanner({
             <button type="button" onClick={fit} title="Cadrer le terrain" aria-label="Cadrer le terrain">
               <MaximizeIcon size={14} />
             </button>
-            <button type="button" className={showRoofs ? "is-on" : undefined} aria-pressed={showRoofs} onClick={() => setShowRoofs((v) => !v)} title="Afficher ou masquer les toitures, pour voir dedans">
+            <button type="button" className={showRoofs ? "is-on" : undefined} aria-pressed={showRoofs} onClick={() => setRoofs(!showRoofs)} title="Afficher ou masquer les toitures (et ce qui est posé dessus), pour voir dedans">
               Toits
             </button>
           </div>

@@ -1,0 +1,321 @@
+/* L'arbre de compétences : des colonnes par branche, des nœuds par rang, et les traits qui les
+   relient, dessinés dessous. Chaque branche peut avoir sa couleur (--lq-skill-color) ; sans elle,
+   c'est l'accent du thème. Sous l'e-ink, les couleurs retombent sur l'encre : ce sont les formes —
+   cadenas, coche, jauge, bord épais — qui portent les états. */
+
+.lq-skilltree {
+  --lq-skill-color: var(--lq-color-accent);
+  display: flex;
+  flex-direction: column;
+  gap: var(--lq-space-3);
+  min-width: 0;
+  color: var(--lq-color-text);
+  font-family: var(--lq-font-family);
+}
+
+.lq-skilltree__header {
+  font-size: var(--lq-text-sm);
+  color: var(--lq-color-text);
+}
+
+.lq-skilltree__body {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--lq-space-4);
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.lq-skilltree__scroll {
+  flex: 1 1 480px;
+  min-width: 0;
+  overflow-x: auto;
+  padding-bottom: var(--lq-space-2);
+}
+
+.lq-skilltree__grid {
+  position: relative;
+  display: grid;
+  column-gap: var(--lq-space-5);
+  row-gap: var(--lq-space-5);
+  min-width: min-content;
+  padding: 2px;
+}
+
+.lq-skilltree__links {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  overflow: visible;
+  z-index: 0;
+}
+
+.lq-skilltree__link {
+  fill: none;
+  stroke: var(--lq-color-border);
+  stroke-width: 2;
+}
+.lq-skilltree__link.is-cross {
+  stroke-dasharray: 5 4;
+}
+.lq-skilltree__link.is-lit {
+  stroke: color-mix(in srgb, var(--lq-skill-color) 70%, var(--lq-color-bg));
+  stroke-width: 2.5;
+}
+.lq-skilltree__link.is-done {
+  stroke: var(--lq-skill-color);
+  stroke-width: 3;
+}
+
+.lq-skilltree__branch {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--lq-space-2);
+  padding: var(--lq-space-2) var(--lq-space-3);
+  border-bottom: 3px solid var(--lq-skill-color);
+  font-size: var(--lq-text-sm);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--lq-color-text);
+}
+
+.lq-skilltree__branch-icon {
+  display: inline-flex;
+  color: var(--lq-skill-color);
+}
+
+.lq-skilltree__cell {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--lq-space-3);
+}
+
+.lq-skilltree__slot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lq-space-2);
+}
+
+.lq-skilltree__node {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--lq-space-2);
+  width: 100%;
+  min-height: 54px;
+  padding: var(--lq-space-2) var(--lq-space-3);
+  border: 1.5px solid var(--lq-color-border);
+  border-radius: var(--lq-radius-md);
+  background: var(--lq-color-panel);
+  color: var(--lq-color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    box-shadow 160ms ease;
+}
+.lq-skilltree__node:hover {
+  border-color: color-mix(in srgb, var(--lq-skill-color) 60%, var(--lq-color-border));
+}
+.lq-skilltree__node:focus-visible {
+  outline: 2px solid var(--lq-skill-color);
+  outline-offset: 2px;
+}
+
+.lq-skilltree__icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--lq-skill-color) 14%, var(--lq-color-panel));
+  color: var(--lq-skill-color);
+}
+
+.lq-skilltree__pip {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.lq-skilltree__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.lq-skilltree__label {
+  font-size: var(--lq-text-sm);
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.lq-skilltree__effect {
+  font-size: var(--lq-text-xs);
+  color: var(--lq-color-text-muted);
+  line-height: 1.3;
+}
+
+.lq-skilltree__points {
+  flex: none;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--lq-skill-color) 16%, var(--lq-color-panel));
+  color: var(--lq-color-text);
+  font-size: var(--lq-text-xs);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.lq-skilltree__progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 4px;
+  background: var(--lq-color-fill-track);
+}
+.lq-skilltree__progress > span {
+  display: block;
+  height: 100%;
+  background: var(--lq-skill-color);
+  transition: width 300ms ease;
+}
+
+/* --- Les états ---------------------------------------------------------------------------- */
+
+.lq-skilltree__node--locked {
+  opacity: 0.55;
+  background: color-mix(in srgb, var(--lq-color-text) 3%, var(--lq-color-panel));
+}
+.lq-skilltree__node--locked .lq-skilltree__icon {
+  background: var(--lq-color-fill-track);
+  color: var(--lq-color-text-muted);
+}
+
+.lq-skilltree__node--available {
+  border-color: var(--lq-skill-color);
+  animation: lq-skill-pulse 2.2s ease-in-out infinite;
+}
+
+.lq-skilltree__node--researching {
+  border-color: color-mix(in srgb, var(--lq-skill-color) 70%, var(--lq-color-border));
+  border-style: dashed;
+}
+
+.lq-skilltree__node--unlocked {
+  border-color: var(--lq-skill-color);
+  background: color-mix(in srgb, var(--lq-skill-color) 16%, var(--lq-color-panel));
+}
+.lq-skilltree__node--unlocked .lq-skilltree__icon {
+  background: var(--lq-skill-color);
+  color: var(--lq-color-accent-contrast, #fff);
+}
+
+.lq-skilltree__node.is-selected {
+  box-shadow:
+    0 0 0 2px var(--lq-color-panel),
+    0 0 0 4px var(--lq-skill-color);
+  opacity: 1;
+}
+
+@keyframes lq-skill-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--lq-skill-color) 0%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--lq-skill-color) 28%, transparent);
+  }
+}
+
+/* --- Le détail --------------------------------------------------------------------------------- */
+
+.lq-skilltree__inline {
+  padding: var(--lq-space-2) var(--lq-space-3);
+  border: 1px solid var(--lq-color-border);
+  border-left: 3px solid var(--lq-skill-color);
+  border-radius: var(--lq-radius-sm);
+  background: var(--lq-color-panel);
+  font-size: var(--lq-text-xs);
+  line-height: 1.45;
+  color: var(--lq-color-text-muted);
+}
+.lq-skilltree__inline p {
+  margin: 0 0 var(--lq-space-1);
+}
+.lq-skilltree__needs {
+  color: var(--lq-color-text);
+}
+.lq-skilltree__owned {
+  font-weight: 600;
+  color: var(--lq-color-text);
+}
+
+.lq-skilltree__unlock {
+  margin-top: var(--lq-space-1);
+  padding: 5px var(--lq-space-3);
+  border: 1px solid var(--lq-skill-color);
+  border-radius: var(--lq-radius-sm);
+  background: var(--lq-skill-color);
+  color: var(--lq-color-accent-contrast, #fff);
+  font: inherit;
+  font-size: var(--lq-text-xs);
+  font-weight: 700;
+  cursor: pointer;
+}
+.lq-skilltree__unlock:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.lq-skilltree__unlock:focus-visible {
+  outline: 2px solid var(--lq-skill-color);
+  outline-offset: 2px;
+}
+
+.lq-skilltree__detail {
+  flex: 0 1 280px;
+  min-width: 220px;
+  padding: var(--lq-space-3);
+  border: 1px solid var(--lq-color-border);
+  border-radius: var(--lq-radius-md);
+  background: var(--lq-color-panel);
+}
+
+/* --- E-ink ---------------------------------------------------------------------------------------- */
+
+/* Les couleurs de branche, même données en ligne, retombent sur l'encre. */
+.lq-root[data-lq-palette="eink"] .lq-skilltree,
+.lq-root[data-lq-palette="eink"] .lq-skilltree * {
+  --lq-skill-color: var(--lq-color-text) !important;
+}
+.lq-root[data-lq-palette="eink"] .lq-skilltree__node,
+.lq-root[data-lq-palette="eink"] .lq-skilltree__inline,
+.lq-root[data-lq-palette="eink"] .lq-skilltree__detail,
+.lq-root[data-lq-palette="eink"] .lq-skilltree__unlock {
+  border-radius: 0;
+}
+.lq-root[data-lq-palette="eink"] .lq-skilltree__node--available {
+  animation: none;
+  border-width: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lq-skilltree__node--available {
+    animation: none;
+  }
+}

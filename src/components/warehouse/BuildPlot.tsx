@@ -1,14 +1,16 @@
-import { useMemo, type ReactNode } from "react";
+import { useMemo, useRef, type ReactNode } from "react";
 import { Builder, type P3 } from "./three/builder";
 import { rng } from "./three/random";
 import { Parts, Solo, WarehouseScene, frameBounds, useBuilt } from "./three/scene";
+import { useSimClock } from "./three/time";
 import { Road } from "./Road";
 import { Buildings } from "./Building";
 import { Trees } from "./Tree";
 import { Fence } from "./Fence";
 import { StreetLight } from "./StreetLight";
 import { Car } from "./Car";
-import { generatePlot, plotInside, plotOutline, type PlotLayout, type PlotShape } from "./plot";
+import { ForSaleSign } from "./ForSaleSign";
+import { generatePlot, lockedFences, plotInside, plotOutline, trafficCars, type PlotCar, type PlotLayout, type PlotShape } from "./plot";
 
 /**
  * Le terrain à bâtir, et tout ce qui l'entoure — le décor d'une partie.
@@ -28,8 +30,13 @@ export interface BuildPlotProps {
   shape?: PlotShape;
   /** Un terrain déjà tiré — pour le partager avec un éditeur qui en connaît les limites. */
   layout?: PlotLayout;
-  /** La circulation sur la rue. */
-  traffic?: boolean;
+  /**
+   * La circulation sur la rue : `true` (les voitures du terrain), `false`, ou une **densité** de
+   * 0 (la nuit, presque personne) à 1 (l'heure de pointe : beaucoup de voitures, lentes, en paquets).
+   */
+  traffic?: boolean | number;
+  /** La nuit, de 0 (le jour) à 1 (la nuit noire) : les candélabres s'allument et éclairent la rue. */
+  night?: number;
   /** La grille de points et le pointillé du terrain. */
   grid?: boolean;
   cellSize?: number;
@@ -153,9 +160,12 @@ export function BuildPlot(props: BuildPlotProps) {
   );
 }
 
-function BuildPlotBody({ layout, traffic = true, grid = true, children }: BuildPlotProps) {
+function BuildPlotBody({ layout, traffic = true, grid = true, night = 0, children }: BuildPlotProps) {
   const plot = layout as PlotLayout;
   const ground = useBuilt(() => buildGround(plot, grid), [plot, grid]);
+  // Les parcelles à vendre : closes du côté de ce qu'on possède, et leur panneau.
+  const lockFences = useMemo(() => lockedFences(plot), [plot]);
+  const cars = useMemo(() => (traffic === false ? [] : traffic === true ? plot.cars : trafficCars(plot, traffic)), [plot, traffic]);
   return (
     <>
       <Parts built={ground} />
@@ -165,7 +175,7 @@ function BuildPlotBody({ layout, traffic = true, grid = true, children }: BuildP
       <Buildings buildings={plot.neighbors} />
       <Trees trees={plot.trees} />
       {plot.lights.map((l, i) => (
-        <StreetLight key={`l${i}`} kind="street" origin={{ x: l.x, y: l.y }} rotation={l.rotation} />
+        <StreetLight key={`l${i}`} kind="street" origin={{ x: l.x, y: l.y }} rotation={l.rotation} glow={night} />
       ))}
       {plot.fences.map((f, i) => {
         const L = Math.hypot(f.x1 - f.x0, f.y1 - f.y0);
@@ -174,21 +184,51 @@ function BuildPlotBody({ layout, traffic = true, grid = true, children }: BuildP
         const rot = (Math.atan2(f.y1 - f.y0, f.x1 - f.x0) * 180) / Math.PI;
         return <Fence key={`f${i}`} kind="mesh" length={L} origin={{ x: mx - L / 2, y: my }} rotation={rot} />;
       })}
-      {traffic &&
-        plot.cars.map((c, i) => (
-          <Car key={`c${i}`} kind={c.kind} tone={c.tone} follow={{ route: c.reverse ? plot.lanes.backward : plot.lanes.forward, closed: true, speed: c.speed, phase: c.phase, corners: 0.5 }} />
-        ))}
+      {lockFences.map((f, i) => {
+        const L = Math.hypot(f.x1 - f.x0, f.y1 - f.y0);
+        const mx = (f.x0 + f.x1) / 2;
+        const my = (f.y0 + f.y1) / 2;
+        const rot = (Math.atan2(f.y1 - f.y0, f.x1 - f.x0) * 180) / Math.PI;
+        return <Fence key={`lf${i}`} kind="mesh" length={L} origin={{ x: mx - L / 2, y: my }} rotation={rot} />;
+      })}
+      {(plot.locked ?? []).map((a) => (
+        <ForSaleSign key={`sale-${a.id}`} x={a.x + a.width / 2} y={a.y + a.depth / 2} label={a.label} />
+      ))}
+      {cars.map((c, i) => (
+        // Une clé par sens et par rang : une voiture ajoutée dans un sens ne renumérote pas l'autre.
+        <StreetCar key={`${c.reverse ? "b" : "f"}${cars.slice(0, i).filter((o) => o.reverse === c.reverse).length}`} car={c} plot={plot} />
+      ))}
       {children}
     </>
   );
 }
 
+/**
+ * Une voiture de la rue. Sa position ne dépend que de l'horloge et de sa vitesse (`useFollow`) :
+ * changer la vitesse la ferait sauter le long de la boucle. Quand la circulation ralentit, on décale
+ * donc sa phase d'autant, pour qu'elle reparte **d'où elle est**, simplement plus lentement.
+ */
+function StreetCar({ car, plot }: { car: PlotCar; plot: PlotLayout }) {
+  const clock = useSimClock();
+  const state = useRef({ speed: car.speed, phase: car.phase, base: car.phase });
+  const st = state.current;
+  if (st.base !== car.phase) {
+    st.base = car.phase;
+    st.phase = car.phase;
+    st.speed = car.speed;
+  } else if (st.speed !== car.speed) {
+    st.phase += clock.t.current * (st.speed - car.speed);
+    st.speed = car.speed;
+  }
+  return <Car kind={car.kind} tone={car.tone} follow={{ route: car.reverse ? plot.lanes.backward : plot.lanes.forward, closed: true, speed: car.speed, phase: st.phase, corners: 0.5 }} />;
+}
+
 /** Une scène toute prête : le terrain et son décor, et ce qu'on y pose. */
-export function PlotScene({ seed = 1, shape, layout, cellSize = 10, traffic, grid, className, children }: BuildPlotProps) {
+export function PlotScene({ seed = 1, shape, layout, cellSize = 10, traffic, grid, night, className, children }: BuildPlotProps) {
   const plot = useMemo(() => layout ?? generatePlot(seed, { shape }), [layout, seed, shape]);
   return (
     <WarehouseScene bounds={frameBounds(plot.frame)} cellSize={cellSize} className={className} ariaLabel="Terrain à bâtir">
-      <BuildPlotBody layout={plot} traffic={traffic} grid={grid}>
+      <BuildPlotBody layout={plot} traffic={traffic} grid={grid} night={night}>
         {children}
       </BuildPlotBody>
     </WarehouseScene>

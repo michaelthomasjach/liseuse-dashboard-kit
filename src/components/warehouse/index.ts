@@ -150,3 +150,18 @@ export { STORAGE_CLASSES, STORAGE_GOODS, STORAGE_LABEL, addStoragePlate, storage
 export type { StorageClass } from "./storageClass";
 export { CAR_KINDS } from "./Car";
 export { SHRUB_KINDS, TREE_KINDS, TREE_LABEL, treeHeight } from "./Tree";
+export { ROOFTOP_KINDS, isRooftop, ROOF_SOLAR_TIERS, HVAC_UNITS, TRUCK_BAY_LENGTH, TRUCK_BAY_WIDTH } from "./plannerModel";
+export { PLANNER_WALL_TOP, PLANNER_DOCK_LEVEL } from "./PlannerItem3D";
+export type { PlannerLockedArea } from "./WarehousePlanner";
+export { withLockedAreas, lockedFences } from "./plot";
+export type { PlotLockedArea } from "./plot";
+export { RoofSolar, RoofHvac, roofHvacLength } from "./RoofUnits";
+export type { RoofSolarProps, RoofHvacProps } from "./RoofUnits";
+export { ColdRoom } from "./ColdRoom";
+export type { ColdRoomKind, ColdRoomProps } from "./ColdRoom";
+export { TruckBay } from "./TruckBay";
+export type { TruckBayProps } from "./TruckBay";
+export { PalletJack, PalletJackBody, addHaul, PALLET_JACK_LENGTH, PALLET_JACK_WIDTH } from "./PalletJack";
+export type { PalletJackProps, HaulLoad } from "./PalletJack";
+export { PlannerShuttle, PlannerDockTraffic } from "./PlannerLogistics";
+export type { PlannerShuttleProps, PlannerDockTrafficProps, ShuttleVehicle } from "./PlannerLogistics";

@@ -27,11 +27,14 @@ import { Transformer } from "./Transformer";
 import { PackingMachine } from "./PackingMachine";
 import { RobotCell } from "./RobotCell";
 import { Roof } from "./Roof";
+import { RoofHvac, RoofSolar } from "./RoofUnits";
+import { ColdRoom } from "./ColdRoom";
+import { TruckBay } from "./TruckBay";
 import { TREE_KINDS } from "./Tree";
 import type { WallOpening } from "./Wall";
 import { Builder } from "./three/builder";
 import { Parts, placed, useBuilt } from "./three/scene";
-import { SOLAR_TIERS, WALL_MOUNTED, isLinear, levelOf, sizeOf, thicknessOf, type PlannerItem, type PlannerPoint } from "./plannerModel";
+import { HVAC_UNITS, ROOF_SOLAR_TIERS, SOLAR_TIERS, TRUCK_BAY_WIDTH, WALL_MOUNTED, isLinear, isRooftop, levelOf, sizeOf, thicknessOf, type PlannerItem, type PlannerPoint } from "./plannerModel";
 
 /**
  * Un élément du plan, rendu par le module 3D du kit qui lui correspond — **à son niveau
@@ -93,9 +96,11 @@ function AutonomyKit({ origin, rotation }: { origin: { x: number; y: number }; r
 
 /**
  * `mounts` : les ouvertures qu'un mur porte — portes, fenêtres, baies accrochées à lui (voir
- * `wallMounts`). `roofs` : afficher les toitures, qu'on masque pour voir dedans.
+ * `wallMounts`). `roofs` : afficher les toitures, qu'on masque pour voir dedans — et avec elles ce
+ * qui est posé dessus (`ROOFTOP_KINDS`) et le plafond des chambres froides. `night` : de 0 à 1,
+ * allume les luminaires (`light`).
  */
-export function PlannerItem3D({ item, mounts, roofs = true }: { item: PlannerItem; mounts?: WallOpening[]; roofs?: boolean }) {
+export function PlannerItem3D({ item, mounts, roofs = true, night = 0 }: { item: PlannerItem; mounts?: WallOpening[]; roofs?: boolean; night?: number }) {
   const lv = levelOf(item);
   if (isLinear(item)) {
     const L = Math.max(0.5, Math.hypot(item.x1 - item.x0, item.y1 - item.y0));
@@ -212,6 +217,8 @@ export function PlannerItem3D({ item, mounts, roofs = true }: { item: PlannerIte
   const rotation = p.rotation;
   // Une porte, une fenêtre, une baie n'existent que dans leur mur : c'est lui qui les dessine.
   if (WALL_MOUNTED.includes(p.kind)) return null;
+  // Ce qui est sur les toits disparaît avec eux.
+  if (!roofs && isRooftop(p)) return null;
   switch (p.kind) {
     case "shelf":
       if (lv === 1) return <RackV2 width={s.length} depth={s.width} height={2.4} posts braces storage={p.storage} clearance={p.passage ? 1.8 : 0} origin={origin} rotation={rotation} />;
@@ -268,7 +275,7 @@ export function PlannerItem3D({ item, mounts, roofs = true }: { item: PlannerIte
         <Tree origin={center} seed={hash(p.id)} kind={TREE_KINDS[hash(p.id) % TREE_KINDS.length]} height={lv === 2 ? 3 : 4.6} />
       );
     case "light":
-      return <StreetLight kind={(["bollard", "street", "flood"] as const)[lv - 1]} origin={center} rotation={rotation} />;
+      return <StreetLight kind={(["bollard", "street", "flood"] as const)[lv - 1]} origin={center} rotation={rotation} glow={night} />;
     case "parking":
       return <Parking bays={6} rows={1} fill={0.7} seed={hash(p.id)} canopy={(["none", "roof", "solar"] as const)[lv - 1]} origin={origin} rotation={rotation} />;
     case "solar":
@@ -286,7 +293,7 @@ export function PlannerItem3D({ item, mounts, roofs = true }: { item: PlannerIte
         <FlowerBed length={s.length} width={s.width} seed={hash(p.id)} origin={origin} rotation={rotation} />
       );
     case "transformer":
-      return <Transformer kind={(["pad", "kiosk", "substation"] as const)[lv - 1]} origin={origin} rotation={rotation} />;
+      return <Transformer kind={(["pad", "kiosk", "substation", "gridStation"] as const)[lv - 1]} origin={origin} rotation={rotation} />;
     case "packer":
       return <PackingMachine process={(["label", "strap", "wrap", "box"] as const)[lv - 1]} origin={origin} rotation={rotation} />;
     case "consolidator":
@@ -295,6 +302,14 @@ export function PlannerItem3D({ item, mounts, roofs = true }: { item: PlannerIte
       return <RobotCell kind="delta" origin={origin} rotation={rotation} />;
     case "palletizer":
       return <RobotCell kind="palletizer" origin={origin} rotation={rotation} />;
+    case "roofSolar":
+      return <RoofSolar {...ROOF_SOLAR_TIERS[lv - 1]} height={PLANNER_WALL_TOP} origin={origin} rotation={rotation} />;
+    case "hvac":
+      return <RoofHvac units={HVAC_UNITS[lv - 1]} length={s.length} width={s.width} height={PLANNER_WALL_TOP} origin={origin} rotation={rotation} />;
+    case "coldRoom":
+      return <ColdRoom kind={lv === 2 ? "negative" : "positive"} length={s.length} width={s.width} height={1.6} ceiling={roofs} origin={origin} rotation={rotation} />;
+    case "truckBay":
+      return <TruckBay bays={Math.round(s.width / TRUCK_BAY_WIDTH)} length={s.length} bayWidth={TRUCK_BAY_WIDTH} origin={origin} rotation={rotation} />;
     case "roof":
       return roofs ? <Roof kind={(["deck", "skylight", "cold"] as const)[lv - 1]} length={s.length} width={s.width} height={PLANNER_WALL_TOP} origin={origin} rotation={rotation} /> : null;
   }

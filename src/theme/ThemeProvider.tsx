@@ -104,3 +104,8 @@ export function useLqTheme(): LqThemeContextValue {
   }
   return ctx;
 }
+
+/** Le thème du moment, ou `null` hors d'un `LqThemeProvider` — pour ce qui s'affiche aussi sans. */
+export function useLqThemeOptional(): LqThemeContextValue | null {
+  return useContext(LqThemeContext);
+}

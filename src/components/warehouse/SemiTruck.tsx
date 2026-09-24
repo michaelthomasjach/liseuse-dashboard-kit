@@ -61,6 +61,12 @@ export interface SemiTruckProps {
   load?: RackItemKind[];
   /** Vitesse au sol, en cases par seconde de simulation : les roues tournent d'autant. */
   rolling?: number;
+  /**
+   * La motorisation. `"diesel"` (défaut) : un réservoir sous le châssis et une cheminée
+   * d'échappement derrière la cabine. `"electric"` : pas d'échappement, des batteries à la place
+   * du réservoir, un liseré vert d'eau sur la cabine et la remorque, et la trappe de recharge.
+   */
+  variant?: "diesel" | "electric";
   /** Pixels par case. */
   cellSize?: number;
   className?: string;
@@ -202,7 +208,9 @@ function SemiTruckBody({
   doorsOpen = false,
   load = [],
   rolling = 0,
+  variant = "diesel",
 }: SemiTruckProps) {
+  const electric = variant === "electric";
   const g = semiTruckGeometry(trailerLength);
   const { trailer: T, cab0, cab1, steerX, driveX, kingpin, tractor0 } = g;
   const LENGTH = cab1;
@@ -273,8 +281,19 @@ function SemiTruckBody({
       // La sellette, et sa gorge en fer à cheval.
       b.prism("steel", roundedRect(kingpin - 0.42, kingpin + 0.46, 0.3, WIDTH - 0.3, 0.12, 3), cabZ0, trailerZ0 - 0.005);
       b.faceZ("lq-truck__panel", trailerZ0 - 0.004, kingpin - 0.26, kingpin + 0.5, WIDTH / 2 - 0.075, WIDTH / 2 + 0.075);
-      // Le réservoir, de chaque côté, sous le châssis.
-      for (const y0 of [-0.01, WIDTH - 0.19]) b.prism("steel", roundedRect(driveX + 0.42, cab0 - 0.06, y0, y0 + 0.2, 0.06, 3), 0.27, 0.47);
+      if (electric) {
+        // Les batteries, de chaque côté, sous le châssis — des caissons plats, un liseré vert d'eau.
+        for (const y0 of [-0.01, WIDTH - 0.19]) {
+          b.box("paint-dark", driveX + 0.4, cab0 - 0.04, y0, y0 + 0.2, 0.25, 0.5);
+          b.faceY("lq-truck__ev", y0 < 0.1 ? y0 - 0.002 : y0 + 0.202, driveX + 0.42, cab0 - 0.06, 0.4, 0.44);
+        }
+      } else {
+        // Le réservoir, de chaque côté, sous le châssis, et la cheminée d'échappement dressée
+        // derrière la cabine.
+        for (const y0 of [-0.01, WIDTH - 0.19]) b.prism("steel", roundedRect(driveX + 0.42, cab0 - 0.06, y0, y0 + 0.2, 0.06, 3), 0.27, 0.47);
+        b.cylinder("chrome", cab0 - 0.1, WIDTH - 0.16, (cabZ0 + CAB_H_MM * MM + 0.2) / 2, 0.045, CAB_H_MM * MM + 0.2 - cabZ0, "z", 12);
+        b.cylinder("iron", cab0 - 0.1, WIDTH - 0.16, CAB_H_MM * MM + 0.21, 0.05, 0.03, "z", 12);
+      }
       // Les feux arrière du tracteur, dans la traverse de queue.
       for (const y of [0.14, WIDTH - 0.3]) {
         b.box("cab", tractor0 - 0.03, tractor0 + 0.02, y, y + 0.16, 0.44, 0.56);
@@ -376,8 +395,18 @@ function SemiTruckBody({
         b.prism("cab", roundedRect(wx - 0.16, wx - 0.09, y, y + 0.1, 0.025, 2), roofZ - 0.72, roofZ - 0.28);
       }
     }
+    if (electric) {
+      // L'électrique se reconnaît à son liseré, sur la cabine et le long de la remorque, et à la
+      // trappe de recharge derrière la portière.
+      if (hasTractor)
+        for (const y of [0.016, WIDTH - 0.016]) {
+          b.faceY("lq-truck__ev", y, cab0 + 0.06, cab1 - 0.04, cabZ0 + 0.1, cabZ0 + 0.18);
+          b.faceY("lq-truck__ev-port", y, cab0 + 0.12, cab0 + 0.34, cabZ0 + 0.3, cabZ0 + 0.48, true);
+        }
+      if (hasTrailer) for (const y of [-0.015, WIDTH + 0.015]) b.faceY("lq-truck__ev", y, 0.35, T - 0.35, trailerZ0 + 0.3, trailerZ0 + 0.38);
+    }
     return b.build();
-  }, [T, hasTractor, hasTrailer]);
+  }, [T, hasTractor, hasTrailer, electric]);
 
   // ---- Les roues : un maillage à part, parce qu'elles tournent ----
   const axles = useMemo(() => [...(hasTrailer ? tridem : []), ...(hasTractor ? [driveX, steerX] : [])], [hasTrailer, hasTractor, T]); // eslint-disable-line react-hooks/exhaustive-deps

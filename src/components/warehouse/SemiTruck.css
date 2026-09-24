@@ -55,3 +55,12 @@
   stroke-width: 1;
   vector-effect: non-scaling-stroke;
 }
+
+/* L'électrique : un liseré vert d'eau, la trappe de recharge. Sous l'e-ink, un gris moyen. */
+.lq-truck__ev {
+  fill: color-mix(in srgb, var(--lq-color-green) 55%, var(--lq-color-sky));
+}
+.lq-truck__ev-port {
+  fill: color-mix(in srgb, var(--lq-color-text) 70%, var(--lq-color-bg));
+  stroke: color-mix(in srgb, var(--lq-color-green) 60%, var(--lq-color-text));
+}

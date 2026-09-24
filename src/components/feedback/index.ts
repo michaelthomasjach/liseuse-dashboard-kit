@@ -9,3 +9,6 @@ export type { ProgressBarProps, ProgressBarSlot, ProgressBarSegment } from "./Pr
 
 export { Stepper } from "./Stepper";
 export type { StepperProps, StepperStep, StepperOrientation } from "./Stepper";
+
+export { GuidedTour } from "./GuidedTour";
+export type { GuidedTourProps, GuidedTourStep, GuidedTourLabels, GuidedTourPlacement } from "./GuidedTour";

@@ -13,6 +13,10 @@ import { PalletRack } from "./PalletRack";
 import { RackV2 } from "./RackV2";
 import { Forklift } from "./Forklift";
 import { SceneBox } from "./sceneStory";
+import { RoofHvac, RoofSolar } from "./RoofUnits";
+import { ColdRoom } from "./ColdRoom";
+import { TruckBay } from "./TruckBay";
+import { PalletJack } from "./PalletJack";
 import { STORAGE_CLASSES, STORAGE_LABEL } from "./storageClass";
 
 /**
@@ -72,6 +76,7 @@ export const Transformateurs: Story = {
       {cell(<Transformer kind="pad" cellSize={60} />, "Sur socle")}
       {cell(<Transformer kind="kiosk" cellSize={50} />, "Poste préfabriqué")}
       {cell(<Transformer kind="substation" cellSize={22} />, "Poste de livraison")}
+      {cell(<Transformer kind="gridStation" cellSize={18} />, "Poste source HTB")}
     </div>
   ),
 };
@@ -84,6 +89,46 @@ export const Toitures: Story = {
       {cell(<Roof kind="deck" length={8} width={5} height={0.4} cellSize={26} />, "Bac acier")}
       {cell(<Roof kind="skylight" length={8} width={5} height={0.4} cellSize={26} />, "Lanterneaux")}
       {cell(<Roof kind="cold" length={8} width={5} height={0.4} cellSize={26} />, "Chambre froide")}
+    </div>
+  ),
+};
+
+/** Ce qu'on pose sur un toit : chaque équipement sur sa dalle, qui dit « ceci est en toiture ». */
+export const EquipementsDeToiture: Story = {
+  name: "Équipements de toiture",
+  render: () => (
+    <div style={row}>
+      {cell(<RoofSolar rows={1} columns={6} height={0.2} cellSize={40} />, "Petit champ en toiture")}
+      {cell(<RoofSolar rows={2} columns={8} height={0.2} cellSize={30} />, "Champ en toiture")}
+      {cell(<RoofHvac units={1} height={0.2} cellSize={60} />, "Groupe froid simple")}
+      {cell(<RoofHvac units={3} height={0.2} cellSize={44} />, "Groupe froid triple")}
+    </div>
+  ),
+};
+
+/** La chambre froide : positive, négative, et sans plafond — comme quand les toits sont masqués. */
+export const ChambresFroides: Story = {
+  name: "Chambres froides",
+  render: () => (
+    <div style={row}>
+      {cell(<ColdRoom kind="positive" cellSize={34} />, "Positive")}
+      {cell(<ColdRoom kind="negative" cellSize={34} />, "Négative")}
+      {cell(<ColdRoom kind="negative" ceiling={false} cellSize={34} />, "Sans plafond : on voit dedans")}
+    </div>
+  ),
+};
+
+/** Le parking poids lourds, vide : les marquages, la flèche de la marche arrière, le butoir au bout
+ *  quai (à droite), et le transpalette qui fait le lien entre le quai et l'entrepôt. */
+export const QuaiPoidsLourds: Story = {
+  name: "Parking poids lourds et transpalette",
+  render: () => (
+    <div style={row}>
+      {cell(<TruckBay bays={1} cellSize={26} />, "1 place")}
+      {cell(<TruckBay bays={3} cellSize={22} />, "3 places")}
+      {cell(<PalletJack cellSize={70} />, "Transpalette")}
+      {cell(<PalletJack load="carton" cartons={6} cellSize={70} />, "Six cartons")}
+      {cell(<PalletJack load="palette" operator={false} cellSize={70} />, "Palette pleine, sans opérateur")}
     </div>
   ),
 };

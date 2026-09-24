@@ -355,3 +355,38 @@
   fill: color-mix(in srgb, var(--lq-color-text) 70%, var(--lq-color-bg));
   stroke: color-mix(in srgb, var(--lq-color-text) 80%, transparent);
 }
+
+/* --- La chambre froide, les toits équipés, le parking poids lourds ---------------------------- */
+
+/* Le froid se dit en bleu : un sol givré, un bandeau, un voyant. Sous l'e-ink, un gris plus clair
+   que les panneaux — le givre reste lisible par son ton, pas par sa teinte. */
+.lq-iso__solid--frost {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-sky) 22%, var(--lq-color-bg));
+}
+.lq-iso__solid--cold-band {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-sky) 62%, var(--lq-color-text));
+}
+.lq-iso__solid--cold-lamp {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-sky) 80%, var(--lq-color-bg));
+}
+.lq-cold__floor {
+  fill: color-mix(in srgb, var(--lq-color-sky) 30%, var(--lq-color-bg));
+}
+.lq-cold__frost {
+  fill: color-mix(in srgb, var(--lq-color-bg) 70%, transparent);
+}
+.lq-cold__curtain {
+  fill: color-mix(in srgb, var(--lq-color-sky) 30%, transparent);
+}
+.lq-cold__sign {
+  fill: color-mix(in srgb, var(--lq-color-sky) 70%, var(--lq-color-text));
+}
+.lq-iso__solid--roof-pad {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-text) 14%, var(--lq-color-bg));
+}
+.lq-bay__arrow {
+  fill: color-mix(in srgb, var(--lq-color-text) 2%, var(--lq-color-bg));
+}
+.lq-bay__hatch {
+  fill: color-mix(in srgb, var(--lq-color-amber) 60%, var(--lq-color-bg));
+}

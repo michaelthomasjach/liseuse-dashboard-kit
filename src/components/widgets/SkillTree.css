@@ -226,6 +226,22 @@
   color: var(--lq-color-accent-contrast, #fff);
 }
 
+/* Un choix écarté : fané — grisé, éteint, son bord en pointillé. */
+.lq-skilltree__node--closed {
+  opacity: 0.45;
+  filter: grayscale(1);
+  border-style: dotted;
+  background: color-mix(in srgb, var(--lq-color-text) 4%, var(--lq-color-panel));
+}
+.lq-skilltree__node--closed .lq-skilltree__icon {
+  background: var(--lq-color-fill-track);
+  color: var(--lq-color-text-muted);
+}
+.lq-skilltree__node--closed .lq-skilltree__label {
+  text-decoration: line-through;
+  text-decoration-color: var(--lq-color-text-muted);
+}
+
 .lq-skilltree__node.is-selected {
   box-shadow:
     0 0 0 2px var(--lq-color-panel),
@@ -375,6 +391,380 @@
 @media (pointer: coarse) {
   .lq-skilltree__unlock {
     min-height: 44px;
+  }
+}
+
+/* --- En arbre ------------------------------------------------------------------------------------ */
+
+/* Le bois : l'ambre du thème assombri par l'encre, pour un brun d'écorce en surface claire ; sur une
+   surface sombre, l'ambre fondu dans le fond, pour un bois qui ne crie pas. Les membres vivants
+   prennent la couleur de leur branche, tirée vers le vert ; les lianes sont vertes. */
+.lq-skilltree--tree {
+  --lq-skill-wood: color-mix(in srgb, var(--lq-color-amber) 48%, var(--lq-color-text));
+  --lq-skill-wood-dark: color-mix(in srgb, var(--lq-skill-wood) 70%, var(--lq-color-text));
+  --lq-skill-dead: color-mix(in srgb, var(--lq-color-text-muted) 45%, var(--lq-color-bg));
+  --lq-skill-vine: var(--lq-color-green);
+}
+/* Le vert de la vie se calcule là où la couleur de branche est posée — sur chaque nœud, chaque
+   membre — et non une fois pour tout l'arbre. */
+.lq-skilltree--tree,
+.lq-skilltree--tree * {
+  --lq-skill-alive: color-mix(in srgb, var(--lq-skill-color) 72%, var(--lq-color-green));
+}
+.lq-root[data-lq-surface="dark"] .lq-skilltree--tree {
+  --lq-skill-wood: color-mix(in srgb, var(--lq-color-amber) 58%, var(--lq-color-bg));
+  --lq-skill-wood-dark: color-mix(in srgb, var(--lq-skill-wood) 60%, var(--lq-color-bg));
+}
+
+/* Le cadre réserve la taille de l'arbre mis à l'échelle ; le plan, à sa taille propre, s'y pose par
+   son coin haut-gauche et se réduit (ou s'agrandit) d'un bloc. */
+.lq-skilltree__canvas {
+  position: relative;
+  margin: 0 auto;
+}
+.lq-skilltree__world {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+}
+.lq-skilltree__tree {
+  position: absolute;
+  top: 0;
+  left: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.lq-skilltree__ground {
+  fill: color-mix(in srgb, var(--lq-color-text) 7%, transparent);
+}
+
+.lq-skilltree__trunk {
+  fill: var(--lq-skill-wood);
+  stroke: var(--lq-skill-wood-dark);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+.lq-skilltree__grain {
+  fill: none;
+  stroke: var(--lq-skill-wood-dark);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  opacity: 0.55;
+}
+
+/* Les membres : du bois nu tant que rien n'y pousse ; teinté quand le nœud d'en dessous est acquis
+   (la branche peut grandir) ; vivant quand le nœud qu'il porte l'est ; mort quand il porte un choix
+   écarté. */
+.lq-skilltree__limb {
+  fill: none;
+  stroke: var(--lq-skill-wood);
+  stroke-linecap: round;
+  opacity: 0.9;
+  transition:
+    stroke 220ms ease,
+    opacity 220ms ease;
+}
+.lq-skilltree__limb.is-lit {
+  stroke: color-mix(in srgb, var(--lq-skill-wood) 65%, var(--lq-skill-color));
+}
+.lq-skilltree__limb.is-alive {
+  stroke: var(--lq-skill-alive);
+  opacity: 1;
+}
+.lq-skilltree__limb.is-dead {
+  stroke: var(--lq-skill-dead);
+  stroke-dasharray: 2 7;
+  opacity: 0.7;
+}
+
+/* Les lianes : les prérequis pris dans une autre branche. */
+.lq-skilltree__vine path {
+  fill: none;
+  stroke: var(--lq-skill-vine);
+  stroke-width: 2.2;
+  stroke-dasharray: 7 5;
+  stroke-linecap: round;
+}
+.lq-skilltree__vine-leaf {
+  fill: var(--lq-skill-vine);
+}
+.lq-skilltree__vine {
+  opacity: 0.5;
+}
+.lq-skilltree__vine.is-lit {
+  opacity: 0.85;
+}
+.lq-skilltree__vine.is-alive {
+  opacity: 1;
+}
+.lq-skilltree__vine.is-alive path {
+  stroke-width: 2.8;
+}
+.lq-skilltree__vine.is-dead {
+  opacity: 0.3;
+}
+.lq-skilltree__vine.is-dead path,
+.lq-skilltree__vine.is-dead .lq-skilltree__vine-leaf {
+  stroke: var(--lq-skill-dead);
+  fill: none;
+}
+.lq-skilltree__vine.is-dead .lq-skilltree__vine-leaf {
+  fill: var(--lq-skill-dead);
+}
+
+/* Les carrefours exclusifs : un trait fin entre les deux choix, et un « ou » au milieu. */
+.lq-skilltree__fork-line {
+  fill: none;
+  stroke: var(--lq-color-text-muted);
+  stroke-width: 1.5;
+  stroke-dasharray: 2 3;
+}
+.lq-skilltree__fork {
+  position: absolute;
+  z-index: 2;
+  transform: translate(-50%, -50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  height: 20px;
+  padding: 0 5px;
+  border: 1.5px solid var(--lq-color-text-muted);
+  border-radius: 999px;
+  background: var(--lq-color-panel);
+  color: var(--lq-color-text);
+  font-size: 11px;
+  font-weight: 700;
+  font-style: italic;
+  line-height: 1;
+  pointer-events: none;
+}
+
+/* Le nom d'une branche, à sa cime. */
+.lq-skilltree__tree-label {
+  position: absolute;
+  z-index: 1;
+  transform: translate(-50%, -50%);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lq-space-1);
+  padding: 2px 8px;
+  border-bottom: 3px solid var(--lq-skill-color);
+  background: color-mix(in srgb, var(--lq-color-bg) 85%, transparent);
+  font-size: var(--lq-text-sm);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  color: var(--lq-color-text);
+  pointer-events: none;
+}
+
+/* Un nœud : une pastille ronde sur son membre, l'étiquette dessous. Tout le bloc est le bouton. */
+.lq-skilltree__leaf {
+  position: absolute;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--lq-color-text);
+  font: inherit;
+  cursor: pointer;
+}
+.lq-skilltree__leaf.is-selected {
+  z-index: 3;
+}
+.lq-skilltree__leaf:focus-visible {
+  outline: none;
+}
+.lq-skilltree__leaf:focus-visible .lq-skilltree__dot {
+  outline: 2px solid var(--lq-color-focus-ring, var(--lq-skill-color));
+  outline-offset: 3px;
+}
+
+.lq-skilltree__dot {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 2px solid var(--lq-color-border);
+  border-radius: 50%;
+  background: var(--lq-color-panel);
+  color: var(--lq-skill-color);
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    box-shadow 200ms ease;
+}
+.lq-skilltree__leaf:hover .lq-skilltree__dot {
+  border-color: color-mix(in srgb, var(--lq-skill-color) 70%, var(--lq-color-border));
+}
+.lq-skilltree__leaf.is-trunk .lq-skilltree__dot {
+  border-color: var(--lq-skill-wood);
+  border-width: 3px;
+}
+
+.lq-skilltree__leaf-points {
+  position: absolute;
+  top: -6px;
+  right: -10px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border: 1.5px solid var(--lq-skill-color);
+  border-radius: 999px;
+  background: var(--lq-color-panel);
+  color: var(--lq-color-text);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 15px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.lq-skilltree__leaf-label {
+  display: -webkit-box;
+  max-width: 100%;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--lq-color-bg) 88%, transparent);
+  font-size: var(--lq-text-xs);
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: center;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.lq-skilltree__leaf-progress {
+  position: relative;
+  left: auto;
+  right: auto;
+  bottom: auto;
+  width: 64px;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+/* Les états, portés par la pastille. */
+.lq-skilltree__leaf--locked .lq-skilltree__dot {
+  background: var(--lq-color-fill-track);
+  color: var(--lq-color-text-muted);
+}
+.lq-skilltree__leaf--locked .lq-skilltree__leaf-label {
+  color: var(--lq-color-text-muted);
+}
+
+.lq-skilltree__leaf--available .lq-skilltree__dot {
+  border-color: var(--lq-skill-color);
+  border-width: 2.5px;
+  animation: lq-skill-pulse 2.2s ease-in-out infinite;
+}
+
+.lq-skilltree__leaf--researching .lq-skilltree__dot {
+  border-color: var(--lq-skill-color);
+  border-style: dashed;
+}
+
+.lq-skilltree__leaf--unlocked .lq-skilltree__dot,
+.lq-skilltree__leaf--unlocked.is-trunk .lq-skilltree__dot {
+  border-color: var(--lq-skill-alive);
+  background: var(--lq-skill-alive);
+  color: var(--lq-color-accent-contrast, #fff);
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--lq-skill-alive) 22%, transparent),
+    0 0 16px 3px color-mix(in srgb, var(--lq-skill-alive) 45%, transparent);
+}
+
+.lq-skilltree__leaf--closed {
+  opacity: 0.5;
+  filter: grayscale(1);
+}
+.lq-skilltree__leaf--closed .lq-skilltree__dot {
+  border-style: dotted;
+  border-color: var(--lq-color-text-muted);
+  background: var(--lq-color-fill-track);
+  color: var(--lq-color-text-muted);
+}
+.lq-skilltree__leaf--closed .lq-skilltree__leaf-label {
+  color: var(--lq-color-text-muted);
+  text-decoration: line-through;
+}
+
+.lq-skilltree__leaf.is-selected {
+  opacity: 1;
+}
+.lq-skilltree__leaf.is-selected .lq-skilltree__dot {
+  box-shadow:
+    0 0 0 3px var(--lq-color-panel),
+    0 0 0 5px var(--lq-skill-color);
+}
+.lq-skilltree__leaf.is-selected .lq-skilltree__leaf-label {
+  background: var(--lq-color-panel);
+  box-shadow: inset 0 0 0 1.5px var(--lq-skill-color);
+}
+
+/* Le détail par défaut, qui ne peut plus se glisser sous un nœud : à côté de l'arbre. */
+.lq-skilltree__detail--inline {
+  padding: 0;
+  border: 0;
+  background: none;
+}
+.lq-skilltree__detail--inline .lq-skilltree__inline {
+  padding: var(--lq-space-3);
+  font-size: var(--lq-text-sm);
+}
+.lq-skilltree__inline-title {
+  font-weight: 700;
+  color: var(--lq-color-text);
+}
+.lq-skilltree__inline-effect {
+  color: var(--lq-color-text);
+}
+
+/* E-ink : le bois devient gris, la vie devient l'encre ; pas de halo, pas de battement — les formes
+   (coche, croix, pointillés) portent les états. */
+.lq-root[data-lq-palette="eink"] .lq-skilltree--tree {
+  --lq-skill-wood: color-mix(in srgb, var(--lq-color-text) 38%, var(--lq-color-bg));
+  --lq-skill-wood-dark: color-mix(in srgb, var(--lq-color-text) 60%, var(--lq-color-bg));
+  --lq-skill-dead: color-mix(in srgb, var(--lq-color-text) 22%, var(--lq-color-bg));
+  --lq-skill-vine: var(--lq-color-text);
+}
+.lq-root[data-lq-palette="eink"] .lq-skilltree--tree,
+.lq-root[data-lq-palette="eink"] .lq-skilltree--tree * {
+  --lq-skill-alive: var(--lq-color-text) !important;
+}
+.lq-root[data-lq-palette="eink"] .lq-skilltree__leaf--unlocked .lq-skilltree__dot {
+  box-shadow: none;
+}
+.lq-root[data-lq-palette="eink"] .lq-skilltree__leaf--available .lq-skilltree__dot {
+  animation: none;
+  border-width: 3.5px;
+}
+.lq-root[data-lq-palette="eink"] .lq-skilltree__leaf.is-selected .lq-skilltree__dot {
+  box-shadow:
+    0 0 0 3px var(--lq-color-panel),
+    0 0 0 5px var(--lq-color-text);
+}
+.lq-root[data-lq-palette="eink"] .lq-skilltree__leaf-label,
+.lq-root[data-lq-palette="eink"] .lq-skilltree__fork,
+.lq-root[data-lq-palette="eink"] .lq-skilltree__tree-label {
+  border-radius: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lq-skilltree__leaf--available .lq-skilltree__dot {
+    animation: none;
   }
 }
 

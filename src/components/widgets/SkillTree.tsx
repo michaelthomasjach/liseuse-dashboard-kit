@@ -1,5 +1,6 @@
 import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
-import { CheckIcon, LockIcon, ZoomInIcon, ZoomOutIcon } from "../icons";
+import { CheckIcon, CloseIcon, LockIcon, ZoomInIcon, ZoomOutIcon } from "../icons";
+import { layoutTree, TREE_DOT_R, TREE_NODE_W } from "./skillTreeLayout";
 import "./SkillTree.css";
 
 /**
@@ -40,9 +41,36 @@ import "./SkillTree.css";
  *
  * `zoomControls` force les boutons (`true`) ou les retire (`false`) ; par défaut (`"auto"`), ils
  * n'apparaissent que dans un cadre étroit.
+ *
+ * ## En arbre
+ *
+ * Avec `layout="tree"`, l'arbre cesse d'être un tableau pour devenir un arbre. Au pied, un **tronc**
+ * épais et évasé porte les nœuds `trunk`, empilés sur l'axe du bas vers le haut ; un premier choix
+ * — deux nœuds du même rang — s'écarte de part et d'autre du fût. De son sommet partent les
+ * **branches**, chacune dans sa direction (`angle`, de −80° à gauche à +80° à droite, ou une part
+ * égale de l'éventail), en membres courbes qui s'amincissent en montant ; leurs nœuds s'y posent par
+ * rang, en pastilles rondes, et ceux d'un même rang s'écartent en rameaux. Une passe de poussée
+ * évite qu'une branche ne recouvre sa voisine (voir `skillTreeLayout.ts` pour les règles exactes).
+ *
+ * Un prérequis pris dans une **autre branche** se dessine en **liane** : un trait courbe, pointillé,
+ * semé de feuilles, qui court d'une branche à l'autre — c'est ainsi que se lisent les compétences
+ * hybrides. Les nœuds d'un même `exclusiveGroup` sont des **carrefours** : un petit « ou » se pose
+ * entre eux, et quand l'un est pris, l'application passe les autres à l'état `closed` — ils se
+ * **fanent** (grisés, éteints) et leur membre meurt. Ce qui est acquis, au contraire, vit : son
+ * membre prend la couleur de sa branche et sa pastille rayonne.
+ *
+ * L'arbre entier tient dans la largeur de son cadre, mis à l'échelle ; dans un cadre étroit, les
+ * boutons de zoom l'agrandissent à partir de cette vue d'ensemble et le cadre défile. Le détail par
+ * défaut, qui ne peut plus se glisser sous le nœud, se pose à côté de l'arbre. Au clavier, les nœuds
+ * se suivent dans l'ordre du tronc, puis branche après branche ; les tracés sont cachés aux
+ * technologies d'assistance.
  */
 
-export type SkillNodeState = "locked" | "available" | "researching" | "unlocked";
+/**
+ * `closed` : un choix écarté — son voisin d'un carrefour exclusif a été pris. Il reste fermé
+ * jusqu'à ce que l'application remette l'arbre à zéro.
+ */
+export type SkillNodeState = "locked" | "available" | "researching" | "unlocked" | "closed";
 
 export interface SkillTreeNode {
   id: string;
@@ -64,6 +92,14 @@ export interface SkillTreeNode {
   points?: number;
   /** Ce qu'il rapporte, en quelques mots : « +25 % de demande ». */
   effect?: ReactNode;
+  /**
+   * Un carrefour exclusif : les nœuds qui partagent ce groupe sont des choix qui s'excluent —
+   * prendre l'un ferme les autres (à l'application de les passer à `closed`). En arbre, un « ou »
+   * se pose entre eux.
+   */
+  exclusiveGroup?: string;
+  /** Le nœud fait partie du tronc : en arbre, il se pose sur l'axe central, au pied, par rang. */
+  trunk?: boolean;
 }
 
 export interface SkillTreeBranch {
@@ -72,7 +108,16 @@ export interface SkillTreeBranch {
   icon?: ReactNode;
   /** La couleur de la branche : ses traits, son bandeau, ses nœuds acquis. */
   color?: string;
+  /**
+   * En arbre, la direction où pousse la branche, en degrés : de −80 (à gauche) à +80 (à droite),
+   * 0 tout droit vers le haut. Absente : les branches se partagent l'éventail −70…+70 à parts
+   * égales, dans leur ordre.
+   */
+  angle?: number;
 }
+
+/** `columns` : une colonne par branche (défaut). `tree` : un tronc, des branches, des lianes. */
+export type SkillTreeLayoutMode = "columns" | "tree";
 
 export interface SkillTreeProps {
   nodes: SkillTreeNode[];
@@ -91,6 +136,8 @@ export interface SkillTreeProps {
   canUnlock?: (node: SkillTreeNode) => boolean;
   /** Les boutons de zoom. `"auto"` (défaut) : seulement dans un cadre de 640 px ou moins. */
   zoomControls?: boolean | "auto";
+  /** La disposition : en colonnes (défaut) ou en arbre. */
+  layout?: SkillTreeLayoutMode;
   className?: string;
 }
 
@@ -99,12 +146,17 @@ const STATE_LABEL: Record<SkillNodeState, string> = {
   available: "disponible",
   researching: "en cours",
   unlocked: "acquis",
+  closed: "fermé",
 };
 
 const pts = (n: number) => `${n} pt${Math.abs(n) > 1 ? "s" : ""}`;
 
 /** Les crans du zoom, de la vue d'ensemble au gros plan. */
 const ZOOMS = [0.5, 0.625, 0.75, 0.875, 1, 1.25, 1.5];
+/** En arbre, les crans sont relatifs à la vue d'ensemble (l'arbre entier dans la largeur du cadre) :
+ *  on ne réduit pas en deçà, on agrandit jusqu'à quatre fois — sans dépasser 150 % de la taille réelle. */
+const TREE_ZOOMS = [1, 1.5, 2, 2.5, 3, 4];
+const TREE_MAX_SCALE = 1.5;
 /** En deçà de cette largeur (celle du composant), l'arbre passe en mode compact : zoom et cadre borné. */
 const COMPACT_PX = 640;
 
@@ -120,8 +172,10 @@ export function SkillTree({
   onUnlock,
   canUnlock,
   zoomControls = "auto",
+  layout = "columns",
   className,
 }: SkillTreeProps) {
+  const isTree = layout === "tree";
   const [own, setOwn] = useState<string | null>(null);
   const selectedId = selectedProp !== undefined ? selectedProp : own;
   const select = (id: string) => {
@@ -131,9 +185,10 @@ export function SkillTree({
 
   const branches = useMemo<SkillTreeBranch[]>(() => {
     const out = [...(branchesProp ?? [])];
-    for (const n of nodes) if (!out.some((b) => b.id === n.branch)) out.push({ id: n.branch, label: n.branch });
+    // En arbre, les nœuds du tronc ne sont d'aucune branche : leur `branch` n'ouvre pas de membre.
+    for (const n of nodes) if (!(isTree && n.trunk) && !out.some((b) => b.id === n.branch)) out.push({ id: n.branch, label: n.branch });
     return out;
-  }, [branchesProp, nodes]);
+  }, [branchesProp, nodes, isTree]);
   const byId = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes]);
   const rows = Math.max(1, ...nodes.map((n) => Math.max(0, Math.round(n.tier)) + 1));
   const cells = useMemo(() => {
@@ -172,8 +227,17 @@ export function SkillTree({
   }, []);
   const showZoom = zoomControls === "auto" ? compact : zoomControls;
   const [zoomState, setZoom] = useState(1);
-  // Sans les boutons, pas de zoom : on ne laisse pas un arbre réduit sans moyen de le remettre.
-  const zoom = showZoom ? zoomState : 1;
+
+  // En arbre : la disposition, calculée une fois pour toutes par nœuds et branches ; puis l'échelle
+  // qui la fait tenir dans la largeur du cadre, que le zoom multiplie. Les crans permis dépendent de
+  // cette vue d'ensemble : un arbre qui tient déjà à 100 % ne s'agrandit guère.
+  const tree = useMemo(() => (isTree ? layoutTree(nodes, branches) : null), [isTree, nodes, branches]);
+  const fit = tree && viewW > 0 ? Math.min(1, viewW / tree.width) : 1;
+  const zooms = isTree ? TREE_ZOOMS.filter((z) => z === 1 || fit * z <= TREE_MAX_SCALE + 1e-6) : ZOOMS;
+  // Sans les boutons, pas de zoom : on ne laisse pas un arbre réduit sans moyen de le remettre. Et un
+  // cran devenu hors d'atteinte (le cadre s'est élargi) retombe sur le plus grand permis.
+  const zoom = showZoom ? Math.max(zooms[0], Math.min(zooms[zooms.length - 1], zoomState)) : 1;
+  const scale = isTree ? fit * zoom : zoom;
   const zoomRef = useRef(zoom);
   zoomRef.current = zoom;
   /** Où en était le cadre juste avant un changement de zoom — pour garder son centre en place. */
@@ -234,7 +298,7 @@ export function SkillTree({
     ro.observe(g);
     return () => ro.disconnect();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nodes, branches, selectedId]);
+  }, [nodes, branches, selectedId, layout]);
 
   // Un nouveau zoom : la scène prend sa nouvelle taille, puis le cadre défile pour que le point qui
   // était en son centre y reste.
@@ -250,14 +314,14 @@ export function SkillTree({
   }, [zoom, viewW]);
 
   const zoomTo = (next: number) => {
-    const z = Math.min(ZOOMS[ZOOMS.length - 1], Math.max(ZOOMS[0], next));
+    const z = Math.min(zooms[zooms.length - 1], Math.max(zooms[0], next));
     if (z === zoom) return;
     const sc = scroller.current;
     anchor.current = sc ? { left: sc.scrollLeft, top: sc.scrollTop, from: zoom } : null;
     setZoom(z);
   };
-  const zoomIn = () => zoomTo(ZOOMS.find((z) => z > zoom + 1e-6) ?? zoom);
-  const zoomOut = () => zoomTo([...ZOOMS].reverse().find((z) => z < zoom - 1e-6) ?? zoom);
+  const zoomIn = () => zoomTo(zooms.find((z) => z > zoom + 1e-6) ?? zoom);
+  const zoomOut = () => zoomTo([...zooms].reverse().find((z) => z < zoom - 1e-6) ?? zoom);
   const onZoomKey = (e: ReactKeyboardEvent<HTMLDivElement>) => {
     if (!showZoom || e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.key === "+" || e.key === "=") zoomIn();
@@ -274,6 +338,8 @@ export function SkillTree({
     const missing = (n.requires ?? []).map((id) => byId.get(id)).filter((r): r is SkillTreeNode => !!r && r.state !== "unlocked");
     return (
       <div className="lq-skilltree__inline" role="region" aria-label={`Détail : ${n.label}`}>
+        {isTree && <p className="lq-skilltree__inline-title">{n.label}</p>}
+        {isTree && n.effect !== undefined && <p className="lq-skilltree__inline-effect">{n.effect}</p>}
         {n.description && <p className="lq-skilltree__desc">{n.description}</p>}
         {n.cost !== undefined && <p className="lq-skilltree__cost">Coût : {n.cost}</p>}
         {missing.length > 0 && <p className="lq-skilltree__needs">Demande d'abord : {missing.map((r) => r.label).join(", ")}</p>}
@@ -283,6 +349,7 @@ export function SkillTree({
           </button>
         )}
         {n.state === "unlocked" && <p className="lq-skilltree__owned">Acquis.</p>}
+        {n.state === "closed" && <p className="lq-skilltree__owned">Fermé : un autre choix a été pris.</p>}
       </div>
     );
   };
@@ -306,7 +373,7 @@ export function SkillTree({
         onClick={() => select(n.id)}
       >
         <span className="lq-skilltree__icon" aria-hidden="true">
-          {n.state === "locked" ? <LockIcon size={14} /> : n.state === "unlocked" ? <CheckIcon size={14} /> : n.icon ?? <span className="lq-skilltree__pip" />}
+          {n.state === "locked" ? <LockIcon size={14} /> : n.state === "closed" ? <CloseIcon size={14} /> : n.state === "unlocked" ? <CheckIcon size={14} /> : n.icon ?? <span className="lq-skilltree__pip" />}
         </span>
         <span className="lq-skilltree__text">
           <span className="lq-skilltree__label">{n.label}</span>
@@ -322,12 +389,106 @@ export function SkillTree({
     );
   };
 
+  /** Un nœud de l'arbre : une pastille ronde posée sur son membre, l'étiquette pendue dessous. */
+  const treeNode = (n: SkillTreeNode, at: { x: number; y: number }, peers: string[]) => {
+    const color = colorOf(n.branch);
+    const progress = Math.max(0, Math.min(1, n.progress ?? 0));
+    const style = {
+      left: at.x - TREE_NODE_W / 2,
+      top: at.y - TREE_DOT_R,
+      width: TREE_NODE_W,
+      ...(color ? { "--lq-skill-color": color } : {}),
+    } as CSSProperties;
+    return (
+      <button
+        key={n.id}
+        type="button"
+        className={["lq-skilltree__leaf", `lq-skilltree__leaf--${n.state}`, n.trunk && "is-trunk", n.id === selectedId && "is-selected"].filter(Boolean).join(" ")}
+        style={style}
+        aria-pressed={n.id === selectedId}
+        aria-label={`${n.label} — ${STATE_LABEL[n.state]}${n.state === "researching" ? ` ${Math.round(progress * 100)} %` : ""}${n.points !== undefined ? `, ${pts(n.points)}` : ""}${peers.length ? `, au choix avec ${peers.join(", ")}` : ""}`}
+        onClick={() => select(n.id)}
+      >
+        <span className="lq-skilltree__dot" aria-hidden="true">
+          {n.state === "locked" ? <LockIcon size={16} /> : n.state === "closed" ? <CloseIcon size={16} /> : n.state === "unlocked" ? <CheckIcon size={18} /> : n.icon ?? <span className="lq-skilltree__pip" />}
+          {n.points !== undefined && n.state !== "unlocked" && n.state !== "closed" && <span className="lq-skilltree__leaf-points">{n.points}</span>}
+        </span>
+        <span className="lq-skilltree__leaf-label">{n.label}</span>
+        {n.state === "researching" && (
+          <span className="lq-skilltree__progress lq-skilltree__leaf-progress" aria-hidden="true">
+            <span style={{ width: `${progress * 100}%` }} />
+          </span>
+        )}
+      </button>
+    );
+  };
+
+  /** Le plan de l'arbre : le tronc, les membres, les lianes et les carrefours en SVG, dessous ; les
+   *  nœuds en boutons, dessus. Le tout est dessiné à sa taille propre puis mis à l'échelle d'un bloc ;
+   *  le cadre qui l'entoure réserve la taille mise à l'échelle, pour que le défilement la couvre. */
+  const treeCanvas = (t: NonNullable<typeof tree>) => {
+    const branchOf = new Map(branches.map((b) => [b.id, b]));
+    const tint = (branch?: string) => {
+      const c = branch ? colorOf(branch) : undefined;
+      return c ? ({ "--lq-skill-color": c } as CSSProperties) : undefined;
+    };
+    const peersOf = (n: SkillTreeNode) =>
+      n.exclusiveGroup ? nodes.filter((m) => m.id !== n.id && m.exclusiveGroup === n.exclusiveGroup).map((m) => m.label) : [];
+    return (
+      <div className="lq-skilltree__canvas" style={{ width: Math.floor(t.width * scale), height: Math.ceil(t.height * scale) }}>
+        <div className="lq-skilltree__world" style={{ width: t.width, height: t.height, transform: `scale(${scale})` }}>
+          <svg className="lq-skilltree__tree" width={t.width} height={t.height} aria-hidden="true" focusable="false">
+            <ellipse className="lq-skilltree__ground" cx={t.trunk.ground.cx} cy={t.trunk.ground.cy} rx={t.trunk.ground.rx} ry={12} />
+            {t.limbs.map((l) => (
+              <path key={l.id} d={l.d} className={`lq-skilltree__limb is-${l.state}`} style={{ ...tint(l.branch), strokeWidth: l.width }} />
+            ))}
+            <path className="lq-skilltree__trunk" d={t.trunk.body} />
+            {t.trunk.grain.map((d, i) => (
+              <path key={i} className="lq-skilltree__grain" d={d} />
+            ))}
+            {t.vines.map((v) => (
+              <g key={v.id} className={`lq-skilltree__vine is-${v.state}`} style={tint(v.branch)}>
+                <path d={v.d} />
+                {v.leaves.map((q, i) => (
+                  <ellipse key={i} className="lq-skilltree__vine-leaf" cx={0} cy={0} rx={6} ry={2.8} transform={`translate(${q.x} ${q.y}) rotate(${q.a}) translate(5 0)`} />
+                ))}
+              </g>
+            ))}
+            {t.forks.map((k) => (
+              <path key={k.id} className="lq-skilltree__fork-line" d={k.d} />
+            ))}
+          </svg>
+          {t.labels.map((l) => {
+            const b = branchOf.get(l.branch);
+            if (!b) return null;
+            return (
+              <div key={l.branch} className="lq-skilltree__tree-label" style={{ left: l.x, top: l.y, ...tint(b.id) }}>
+                {b.icon && (
+                  <span className="lq-skilltree__branch-icon" aria-hidden="true">
+                    {b.icon}
+                  </span>
+                )}
+                <span>{b.label}</span>
+              </div>
+            );
+          })}
+          {t.order.map((n) => treeNode(n, t.pos.get(n.id)!, peersOf(n)))}
+          {t.forks.map((k) => (
+            <span key={k.id} className="lq-skilltree__fork" style={{ left: k.x, top: k.y }} aria-hidden="true" title={`Au choix : ${k.labels[0]} ou ${k.labels[1]}`}>
+              ou
+            </span>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   return (
-    <div ref={root} className={["lq-skilltree", compact && "lq-skilltree--compact", className].filter(Boolean).join(" ")}>
+    <div ref={root} className={["lq-skilltree", isTree && "lq-skilltree--tree", compact && "lq-skilltree--compact", className].filter(Boolean).join(" ")}>
       {header !== undefined && <div className="lq-skilltree__header">{header}</div>}
       {showZoom && (
         <div className="lq-skilltree__zoom" role="toolbar" aria-label="Zoom de l'arbre">
-          <button type="button" className="lq-skilltree__zoom-btn" onClick={zoomOut} disabled={zoom <= ZOOMS[0]} aria-label="Dézoomer" title="Dézoomer (−)">
+          <button type="button" className="lq-skilltree__zoom-btn" onClick={zoomOut} disabled={zoom <= zooms[0]} aria-label="Dézoomer" title="Dézoomer (−)">
             <ZoomOutIcon size={18} />
           </button>
           <button
@@ -335,12 +496,12 @@ export function SkillTree({
             className="lq-skilltree__zoom-btn lq-skilltree__zoom-reset"
             onClick={() => zoomTo(1)}
             disabled={zoom === 1}
-            aria-label={`Zoom ${Math.round(zoom * 100)} % — revenir à 100 %`}
-            title="Taille réelle (0)"
+            aria-label={isTree ? `Zoom ${Math.round(scale * 100)} % — revenir à la vue d'ensemble` : `Zoom ${Math.round(zoom * 100)} % — revenir à 100 %`}
+            title={isTree ? "Vue d'ensemble (0)" : "Taille réelle (0)"}
           >
-            {Math.round(zoom * 100)} %
+            {Math.round(scale * 100)} %
           </button>
-          <button type="button" className="lq-skilltree__zoom-btn" onClick={zoomIn} disabled={zoom >= ZOOMS[ZOOMS.length - 1]} aria-label="Zoomer" title="Zoomer (+)">
+          <button type="button" className="lq-skilltree__zoom-btn" onClick={zoomIn} disabled={zoom >= zooms[zooms.length - 1]} aria-label="Zoomer" title="Zoomer (+)">
             <ZoomInIcon size={18} />
           </button>
         </div>
@@ -354,58 +515,63 @@ export function SkillTree({
           onKeyDown={onZoomKey}
           {...(compact ? { tabIndex: 0, role: "region", "aria-label": "Arbre de compétences" } : {})}
         >
-          <div ref={stage} className="lq-skilltree__stage">
-            <div
-              ref={grid}
-              className="lq-skilltree__grid"
-              style={{
-                gridTemplateColumns: `repeat(${branches.length}, minmax(188px, 1fr))`,
-                gridTemplateRows: `auto repeat(${rows}, auto)`,
-                // Mis à l'échelle, l'arbre se pose sur la largeur du cadre divisée par le zoom : réduit,
-                // il se déploie comme dans un cadre plus large ; agrandi, il déborde et le cadre défile.
-                ...(zoom !== 1 ? { position: "absolute", top: 0, left: 0, boxSizing: "border-box", width: viewW ? viewW / zoom : undefined, transform: `scale(${zoom})`, transformOrigin: "0 0" } : {}),
-              }}
-            >
-            <svg className="lq-skilltree__links" width={size.w} height={size.h} aria-hidden="true">
-              {links.map((l) => (
-                <path
-                  key={l.id}
-                  d={l.d}
-                  className={["lq-skilltree__link", l.lit && "is-lit", l.done && "is-done", l.cross && "is-cross"].filter(Boolean).join(" ")}
-                  style={l.color ? ({ "--lq-skill-color": l.color } as CSSProperties) : undefined}
-                />
-              ))}
-            </svg>
-            {branches.map((b, col) => (
+          {tree ? (
+            treeCanvas(tree)
+          ) : (
+            <div ref={stage} className="lq-skilltree__stage">
               <div
-                key={b.id}
-                className="lq-skilltree__branch"
-                style={{ gridColumn: col + 1, gridRow: 1, ...(b.color ? ({ "--lq-skill-color": b.color } as CSSProperties) : {}) }}
+                ref={grid}
+                className="lq-skilltree__grid"
+                style={{
+                  gridTemplateColumns: `repeat(${branches.length}, minmax(188px, 1fr))`,
+                  gridTemplateRows: `auto repeat(${rows}, auto)`,
+                  // Mis à l'échelle, l'arbre se pose sur la largeur du cadre divisée par le zoom : réduit,
+                  // il se déploie comme dans un cadre plus large ; agrandi, il déborde et le cadre défile.
+                  ...(zoom !== 1 ? { position: "absolute", top: 0, left: 0, boxSizing: "border-box", width: viewW ? viewW / zoom : undefined, transform: `scale(${zoom})`, transformOrigin: "0 0" } : {}),
+                }}
               >
-                {b.icon && <span className="lq-skilltree__branch-icon">{b.icon}</span>}
-                <span>{b.label}</span>
+              <svg className="lq-skilltree__links" width={size.w} height={size.h} aria-hidden="true">
+                {links.map((l) => (
+                  <path
+                    key={l.id}
+                    d={l.d}
+                    className={["lq-skilltree__link", l.lit && "is-lit", l.done && "is-done", l.cross && "is-cross"].filter(Boolean).join(" ")}
+                    style={l.color ? ({ "--lq-skill-color": l.color } as CSSProperties) : undefined}
+                  />
+                ))}
+              </svg>
+              {branches.map((b, col) => (
+                <div
+                  key={b.id}
+                  className="lq-skilltree__branch"
+                  style={{ gridColumn: col + 1, gridRow: 1, ...(b.color ? ({ "--lq-skill-color": b.color } as CSSProperties) : {}) }}
+                >
+                  {b.icon && <span className="lq-skilltree__branch-icon">{b.icon}</span>}
+                  <span>{b.label}</span>
+                </div>
+              ))}
+              {branches.flatMap((b, col) =>
+                Array.from({ length: rows }, (_, tier) => {
+                  const list = cells.get(`${b.id}|${tier}`);
+                  if (!list) return null;
+                  return (
+                    <div key={`${b.id}-${tier}`} className="lq-skilltree__cell" style={{ gridColumn: col + 1, gridRow: tier + 2 }}>
+                      {list.map((n) => (
+                        <div key={n.id} className="lq-skilltree__slot">
+                          {nodeButton(n)}
+                          {!renderDetail && n.id === selectedId && inlineDetail(n)}
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })
+              )}
               </div>
-            ))}
-            {branches.flatMap((b, col) =>
-              Array.from({ length: rows }, (_, tier) => {
-                const list = cells.get(`${b.id}|${tier}`);
-                if (!list) return null;
-                return (
-                  <div key={`${b.id}-${tier}`} className="lq-skilltree__cell" style={{ gridColumn: col + 1, gridRow: tier + 2 }}>
-                    {list.map((n) => (
-                      <div key={n.id} className="lq-skilltree__slot">
-                        {nodeButton(n)}
-                        {!renderDetail && n.id === selectedId && inlineDetail(n)}
-                      </div>
-                    ))}
-                  </div>
-                );
-              })
-            )}
             </div>
-          </div>
+          )}
         </div>
         {renderDetail && selected && <aside className="lq-skilltree__detail">{renderDetail(selected)}</aside>}
+        {isTree && !renderDetail && selected && <aside className="lq-skilltree__detail lq-skilltree__detail--inline">{inlineDetail(selected)}</aside>}
       </div>
     </div>
   );

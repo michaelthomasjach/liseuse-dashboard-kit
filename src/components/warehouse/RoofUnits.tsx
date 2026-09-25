@@ -26,12 +26,67 @@ function addPad(b: Builder, length: number, width: number, z: number) {
   b.lines("lq-trailer__line", ribs);
 }
 
+/**
+ * La charpente d'un équipement **qui n'a pas de toit sous lui** : une plate-forme technique en acier.
+ *
+ *  Un champ de panneaux ou un groupe froid posé là où il n'y a ni toiture ni chambre froide ne doit
+ *  pas flotter. On le hisse donc sur une ossature légère : des poteaux aux quatre coins de la dalle et
+ *  tous les trois mètres au plus le long de ses bords, chacun sur sa platine ; une ceinture de
+ *  poutrelles sous la dalle ; et des croix de contreventement entre les poteaux, sur les quatre
+ *  faces — ce qui se lit, de loin, comme un auvent ou une passerelle technique.
+ */
+export function addStilts(b: Builder, length: number, width: number, z: number) {
+  if (z <= 0.2) return;
+  const x0 = -MARGIN + 0.06;
+  const x1 = length + MARGIN - 0.06;
+  const y0 = -MARGIN + 0.06;
+  const y1 = width + MARGIN - 0.06;
+  /** Des positions régulières de `a` à `b`, à trois cases d'écart au plus. */
+  const spaced = (a: number, c: number) => {
+    const n = Math.max(1, Math.ceil((c - a) / 3));
+    return Array.from({ length: n + 1 }, (_, i) => a + ((c - a) * i) / n);
+  };
+  const xs = spaced(x0, x1);
+  const ys = spaced(y0, y1);
+  const posts: [number, number][] = [];
+  for (const x of xs) posts.push([x, y0], [x, y1]);
+  for (const y of ys.slice(1, -1)) posts.push([x0, y], [x1, y]);
+  const top = z - 0.02;
+  for (const [x, y] of posts) {
+    b.box("steel", x - 0.045, x + 0.045, y - 0.045, y + 0.045, 0.03, top);
+    b.box("slab", x - 0.11, x + 0.11, y - 0.11, y + 0.11, 0, 0.03);
+  }
+  // La ceinture sous la dalle.
+  const beamZ0 = top - 0.1;
+  b.box("steel", x0 - 0.04, x1 + 0.04, y0 - 0.04, y0 + 0.04, beamZ0, top, false);
+  b.box("steel", x0 - 0.04, x1 + 0.04, y1 - 0.04, y1 + 0.04, beamZ0, top, false);
+  b.box("steel", x0 - 0.04, x0 + 0.04, y0, y1, beamZ0, top, false);
+  b.box("steel", x1 - 0.04, x1 + 0.04, y0, y1, beamZ0, top, false);
+  // Les croix de Saint-André, entre deux poteaux voisins, sur chaque face.
+  const lo = Math.min(0.35, z * 0.2);
+  const hi = beamZ0 - 0.02;
+  const cross = (a: [number, number], c: [number, number]) => {
+    b.beam("steel", [a[0], a[1], lo], [c[0], c[1], hi], 0.018, false);
+    b.beam("steel", [c[0], c[1], lo], [a[0], a[1], hi], 0.018, false);
+  };
+  for (let i = 0; i < xs.length - 1; i += 1) {
+    cross([xs[i], y0], [xs[i + 1], y0]);
+    cross([xs[i], y1], [xs[i + 1], y1]);
+  }
+  for (let i = 0; i < ys.length - 1; i += 1) {
+    cross([x0, ys[i]], [x0, ys[i + 1]]);
+    cross([x1, ys[i]], [x1, ys[i + 1]]);
+  }
+}
+
 export interface RoofSolarProps {
   /** Le nombre de rangées de tables, et de modules par rangée. */
   rows?: number;
   columns?: number;
   /** La hauteur du toit, en cases. */
   height?: number;
+  /** Pas de toit dessous : la dalle est portée par une ossature d'acier jusqu'au sol (`addStilts`). */
+  legs?: boolean;
   rotation?: number;
   origin?: { x: number; y: number };
   frame?: { x: number; y: number; width: number; depth: number; height: number };
@@ -51,13 +106,14 @@ export function RoofSolar(props: RoofSolarProps) {
   );
 }
 
-function RoofSolarBody({ rows = 1, columns = 6, height = 3, rotation = 0, origin = { x: 0, y: 0 } }: RoofSolarProps) {
+function RoofSolarBody({ rows = 1, columns = 6, height = 3, legs = false, rotation = 0, origin = { x: 0, y: 0 } }: RoofSolarProps) {
   const s = solarArraySize({ rows, columns });
   const pad = useBuilt(() => {
     const b = new Builder();
     addPad(b, s.length, s.width, height);
+    if (legs) addStilts(b, s.length, s.width, height);
     return b.build();
-  }, [s.length, s.width, height]);
+  }, [s.length, s.width, height, legs]);
   const { pose } = placed(origin, rotation, { x0: 0, x1: s.length, y0: 0, y1: s.width, z0: 0, z1: 1 });
   return (
     <>
@@ -80,6 +136,8 @@ export interface RoofHvacProps {
   width?: number;
   /** La hauteur du toit, en cases. */
   height?: number;
+  /** Pas de toit dessous : la dalle est portée par une ossature d'acier jusqu'au sol (`addStilts`). */
+  legs?: boolean;
   rotation?: number;
   origin?: { x: number; y: number };
   frame?: { x: number; y: number; width: number; depth: number; height: number };
@@ -107,12 +165,13 @@ export function RoofHvac(props: RoofHvacProps) {
 }
 
 function RoofHvacBody(props: RoofHvacProps) {
-  const { units = 1, width = 1, height = 3, rotation = 0, origin = { x: 0, y: 0 } } = props;
+  const { units = 1, width = 1, height = 3, legs = false, rotation = 0, origin = { x: 0, y: 0 } } = props;
   const n = Math.max(1, Math.round(units));
   const length = props.length ?? roofHvacLength(n);
   const built = useBuilt(() => {
     const b = new Builder();
     addPad(b, length, width, height);
+    if (legs) addStilts(b, length, width, height);
     const z = height + PAD;
     const l = 0.9;
     const w = 0.45;
@@ -136,7 +195,7 @@ function RoofHvacBody(props: RoofHvacProps) {
     // Le fourreau d'étanchéité, là où le tuyau traverse la dalle.
     b.cylinder("steel", xb + 0.25, py, z + 0.04, 0.08, 0.08, "z", 12);
     return b.build();
-  }, [n, length, width, height]);
+  }, [n, length, width, height, legs]);
   const { pose } = placed(origin, rotation, { x0: 0, x1: length, y0: 0, y1: width, z0: 0, z1: 1 });
   return (
     <group matrixAutoUpdate={false} matrix={pose}>

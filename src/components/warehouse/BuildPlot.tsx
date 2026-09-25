@@ -10,7 +10,7 @@ import { Fence } from "./Fence";
 import { StreetLight } from "./StreetLight";
 import { Car } from "./Car";
 import { ForSaleSign } from "./ForSaleSign";
-import { generatePlot, lockedFences, plotInside, plotOutline, trafficCars, type PlotCar, type PlotLayout, type PlotShape } from "./plot";
+import { generatePlot, lockedFences, plotInside, plotOutline, trafficCars, type PlotCar, type PlotLayout, type PlotRect, type PlotShape } from "./plot";
 
 /**
  * Le terrain à bâtir, et tout ce qui l'entoure — le décor d'une partie.
@@ -39,13 +39,37 @@ export interface BuildPlotProps {
   night?: number;
   /** La grille de points et le pointillé du terrain. */
   grid?: boolean;
+  /**
+   * L'allure du sol constructible. `"site"` (défaut) : un chantier — dalle à joints, grille de points,
+   * taches d'huile, regards, touffes d'herbe. `"clean"` : un **sol industriel** propre et uni, béton
+   * poli ou résine clairs, à peine quadrillé de grands carreaux — ce qu'on attend sous un entrepôt. Les
+   * parcelles à vendre, la bande d'herbe, les trottoirs et la rue gardent leur allure.
+   */
+  groundStyle?: PlotGroundStyle;
+  /**
+   * Des rectangles (en cases, alignés sur les axes) où **ne pas planter de candélabres** : les
+   * lampadaires de la rue qui s'y trouvent, et leur flaque de lumière la nuit, ne sont pas dessinés.
+   * Pour dégager la manœuvre des camions devant les quais (voir `dockTrafficClearance`).
+   */
+  lightExclusions?: PlotRect[];
+  /** De même pour les arbres du décor — ceux d'alignement de la rue et ceux des parcelles voisines. */
+  treeExclusions?: PlotRect[];
   cellSize?: number;
   className?: string;
   children?: ReactNode;
 }
 
+/** L'allure du sol constructible (voir `BuildPlotProps.groundStyle`). */
+export type PlotGroundStyle = "site" | "clean";
+
+/** Le point `(x, y)` est-il dans l'un des rectangles ? */
+export function inRects(rects: PlotRect[] | undefined, x: number, y: number): boolean {
+  return !!rects && rects.some((r) => x >= r.x && x <= r.x + r.width && y >= r.y && y <= r.y + r.depth);
+}
+
 /** Le sol du terrain, sa grille de points et son pointillé, en un maillage. */
-function buildGround(plot: PlotLayout, grid: boolean) {
+function buildGround(plot: PlotLayout, grid: boolean, style: PlotGroundStyle = "site") {
+  const clean = style === "clean";
   const b = new Builder();
   const f = plot.frame;
   // L'herbe partout, puis la dalle claire du terrain, case par rangée.
@@ -59,26 +83,44 @@ function buildGround(plot: PlotLayout, grid: boolean) {
       }
       let x1 = x;
       while (x1 < plot.width && plotInside(plot, x1, y)) x1 += 1;
-      b.box("pavement", x, x1, y, y + 1, -0.1, 0.004, false);
+      b.box(clean ? "floor-clean" : "pavement", x, x1, y, y + 1, -0.1, 0.004, false);
       x = x1;
     }
   }
-  addGroundDetail(b, plot);
+  addGroundDetail(b, plot, clean);
+  if (clean) {
+    // Un sol d'entrepôt : uni, et seulement de grands carreaux de résine, tous les quatre cases, en
+    // traits à peine plus soutenus que lui.
+    const seams: [P3, P3][] = [];
+    const owned = (x: number, y: number) => plotInside(plot, Math.floor(x), Math.floor(y));
+    for (let x = 4; x < plot.width; x += 4)
+      for (let y = 0; y < plot.depth; y += 1) if (owned(x - 0.5, y + 0.5) && owned(x + 0.5, y + 0.5)) seams.push([[x, y, 0.005], [x, y + 1, 0.005]]);
+    for (let y = 4; y < plot.depth; y += 4)
+      for (let x = 0; x < plot.width; x += 1) if (owned(x + 0.5, y - 0.5) && owned(x + 0.5, y + 0.5)) seams.push([[x, y, 0.005], [x + 1, y, 0.005]]);
+    b.lines("lq-plot__seam", seams);
+  }
   // La bande entre le terrain et la rue : de l'herbe, déjà posée.
-  if (!grid) return b.build();
+  if (!grid || clean) {
+    if (clean && grid) addOutline(b, plot);
+    return b.build();
+  }
   // Les points de la grille, à chaque croisement intérieur.
   for (let x = 1; x < plot.width; x += 1)
     for (let y = 1; y < plot.depth; y += 1) {
       if (!(plotInside(plot, x - 1, y - 1) && plotInside(plot, x, y) && plotInside(plot, x - 1, y) && plotInside(plot, x, y - 1))) continue;
       b.faceZ("lq-plot__dot", 0.006, x - 0.05, x + 0.05, y - 0.05, y + 0.05);
     }
-  // Le pointillé : un tiret par arête de case, centré.
+  addOutline(b, plot);
+  return b.build();
+}
+
+/** Le pointillé du bord constructible : un tiret par arête de case, centré. */
+function addOutline(b: Builder, plot: PlotLayout) {
   for (const [x0, y0, x1, y1] of plotOutline(plot)) {
     const h = 0.07;
     if (y0 === y1) b.faceZ("lq-plot__edge", 0.007, x0 + 0.2, x1 - 0.2, y0 - h, y0 + h);
     else b.faceZ("lq-plot__edge", 0.007, x0 - h, x0 + h, y0 + 0.2, y1 - 0.2);
   }
-  return b.build();
 }
 
 /** Un disque à plat, en décalque : un regard, une tache. */
@@ -100,12 +142,26 @@ function disc(b: Builder, cls: string, x: number, y: number, z: number, rx: numb
  *  couvrent d'elles-mêmes. Tout est tiré de la graine du terrain : le même terrain a toujours les
  *  mêmes taches.
  */
-function addGroundDetail(b: Builder, plot: PlotLayout) {
+function addGroundDetail(b: Builder, plot: PlotLayout, clean = false) {
   const r = rng(plot.seed * 7 + 5);
   const f = plot.frame;
+  const inside = (x: number, y: number) => plotInside(plot, Math.floor(x), Math.floor(y));
+  if (clean) {
+    // Un sol propre n'a ni joints de chantier, ni taches, ni regards : seulement l'herbe autour, et
+    // ses touffes — hors du terrain.
+    const tufts = Math.round((f.width * f.depth) / 5);
+    for (let i = 0; i < tufts; i += 1) {
+      const x = f.x + r() * f.width;
+      const y = f.y + r() * f.depth;
+      const s = 0.05 + r() * 0.12;
+      const light = r() < 0.5;
+      if (inside(x, y) || inside(x - s, y - s) || inside(x + s, y + s)) continue;
+      b.faceZ(light ? "lq-plot__tuft" : "lq-plot__tuft-light", -0.0045, x - s, x + s, y - s * 0.6, y + s * 0.6);
+    }
+    return;
+  }
   // Les joints de la dalle.
   const joints: [P3, P3][] = [];
-  const inside = (x: number, y: number) => plotInside(plot, Math.floor(x), Math.floor(y));
   for (let x = 2; x < plot.width; x += 2)
     for (let y = 0; y < plot.depth; y += 1) if (inside(x - 0.5, y + 0.5) && inside(x + 0.5, y + 0.5)) joints.push([[x, y, 0.005], [x, y + 1, 0.005]]);
   for (let y = 2; y < plot.depth; y += 2)
@@ -160,9 +216,14 @@ export function BuildPlot(props: BuildPlotProps) {
   );
 }
 
-function BuildPlotBody({ layout, traffic = true, grid = true, night = 0, children }: BuildPlotProps) {
+function BuildPlotBody({ layout, traffic = true, grid = true, night = 0, groundStyle = "site", lightExclusions, treeExclusions, children }: BuildPlotProps) {
   const plot = layout as PlotLayout;
-  const ground = useBuilt(() => buildGround(plot, grid), [plot, grid]);
+  const ground = useBuilt(() => buildGround(plot, grid, groundStyle), [plot, grid, groundStyle]);
+  // Les candélabres et les arbres qu'une manœuvre accrocherait ne sont pas plantés.
+  const lightKey = JSON.stringify(lightExclusions ?? []);
+  const treeKey = JSON.stringify(treeExclusions ?? []);
+  const lights = useMemo(() => plot.lights.filter((l) => !inRects(lightExclusions, l.x, l.y)), [plot, lightKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const trees = useMemo(() => plot.trees.filter((t) => !inRects(treeExclusions, t.x, t.y)), [plot, treeKey]); // eslint-disable-line react-hooks/exhaustive-deps
   // Les parcelles à vendre : closes du côté de ce qu'on possède, et leur panneau.
   const lockFences = useMemo(() => lockedFences(plot), [plot]);
   const cars = useMemo(() => (traffic === false ? [] : traffic === true ? plot.cars : trafficCars(plot, traffic)), [plot, traffic]);
@@ -173,9 +234,9 @@ function BuildPlotBody({ layout, traffic = true, grid = true, night = 0, childre
         <Road key={`r${i}`} {...t} />
       ))}
       <Buildings buildings={plot.neighbors} />
-      <Trees trees={plot.trees} />
-      {plot.lights.map((l, i) => (
-        <StreetLight key={`l${i}`} kind="street" origin={{ x: l.x, y: l.y }} rotation={l.rotation} glow={night} />
+      <Trees trees={trees} />
+      {lights.map((l) => (
+        <StreetLight key={`l${l.x},${l.y}`} kind="street" origin={{ x: l.x, y: l.y }} rotation={l.rotation} glow={night} />
       ))}
       {plot.fences.map((f, i) => {
         const L = Math.hypot(f.x1 - f.x0, f.y1 - f.y0);
@@ -224,11 +285,11 @@ function StreetCar({ car, plot }: { car: PlotCar; plot: PlotLayout }) {
 }
 
 /** Une scène toute prête : le terrain et son décor, et ce qu'on y pose. */
-export function PlotScene({ seed = 1, shape, layout, cellSize = 10, traffic, grid, night, className, children }: BuildPlotProps) {
+export function PlotScene({ seed = 1, shape, layout, cellSize = 10, traffic, grid, night, groundStyle, lightExclusions, treeExclusions, className, children }: BuildPlotProps) {
   const plot = useMemo(() => layout ?? generatePlot(seed, { shape }), [layout, seed, shape]);
   return (
     <WarehouseScene bounds={frameBounds(plot.frame)} cellSize={cellSize} className={className} ariaLabel="Terrain à bâtir">
-      <BuildPlotBody layout={plot} traffic={traffic} grid={grid} night={night}>
+      <BuildPlotBody layout={plot} traffic={traffic} grid={grid} night={night} groundStyle={groundStyle} lightExclusions={lightExclusions} treeExclusions={treeExclusions}>
         {children}
       </BuildPlotBody>
     </WarehouseScene>

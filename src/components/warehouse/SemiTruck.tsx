@@ -1,4 +1,4 @@
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import type { Group } from "three";
 import { Builder, annulus, placeAt, roundedRect, type P2 } from "./three/builder";
 import { Parts, Solo, frameBounds, useBuilt } from "./three/scene";
@@ -67,6 +67,13 @@ export interface SemiTruckProps {
    * du réservoir, un liseré vert d'eau sur la cabine et la remorque, et la trappe de recharge.
    */
   variant?: "diesel" | "electric";
+  /**
+   * L'angle d'articulation, en degrés : le cap de la remorque moins celui du tracteur, positif
+   * quand la remorque tourne dans le sens trigonométrique (vue de dessus). La remorque pivote
+   * autour de la sellette ; `0` (défaut) : l'attelage est droit. Au-delà de ±65°, on est en
+   * portefeuille : l'angle y est borné.
+   */
+  articulation?: number;
   /** Pixels par case. */
   cellSize?: number;
   className?: string;
@@ -143,6 +150,9 @@ export function semiTruckGeometry(trailerLength = TRAILER_LEN_MM * MM) {
     driveX,
     kingpin: driveX + 0.1,
     tractor0: driveX - 0.55,
+    /** Le milieu du tridem, depuis le cul de la remorque : l'essieu « équivalent » autour duquel
+     *  elle pivote — celui que la cinématique d'une remorque fait suivre. */
+    trailerAxle: (REAR_OVERHANG_MM + TRIDEM_PITCH_MM) * MM,
     trailerFloor: TRAILER_FLOOR_MM * MM,
     trailerTop: TRAILER_H_MM * MM,
     cabTop: CAB_H_MM * MM,
@@ -177,12 +187,35 @@ export function SemiTruck(props: SemiTruckProps) {
   const bx1 = hasTractor ? g.length : g.trailer;
   const pose = placeAt(origin.x, origin.y, rotation, { x: g.length / 2, y: WIDTH / 2 });
   const e = pose.elements;
-  const corners = [
-    [bx0, 0],
-    [bx1, 0],
-    [bx1, WIDTH],
-    [bx0, WIDTH],
-  ].map(([x, y]) => ({ x: e[0] * x + e[4] * y + e[12], y: e[1] * x + e[5] * y + e[13] }));
+  // Attelé et plié, la remorque balaie autre chose que l'axe du tracteur : on cadre ses coins à elle,
+  // tournés autour de la sellette.
+  const art = ((Math.max(-65, Math.min(65, props.articulation ?? 0))) * Math.PI) / 180;
+  const bend = ([x, y]: number[]) => {
+    const dx = x - g.kingpin;
+    const dy = y - WIDTH / 2;
+    return [g.kingpin + dx * Math.cos(art) - dy * Math.sin(art), WIDTH / 2 + dx * Math.sin(art) + dy * Math.cos(art)];
+  };
+  const local =
+    art !== 0 && hasTractor && hasTrailer
+      ? [
+          [g.tractor0 - 0.1, 0],
+          [g.length, 0],
+          [g.length, WIDTH],
+          [g.tractor0 - 0.1, WIDTH],
+          ...[
+            [0, 0],
+            [g.trailer, 0],
+            [g.trailer, WIDTH],
+            [0, WIDTH],
+          ].map(bend),
+        ]
+      : [
+          [bx0, 0],
+          [bx1, 0],
+          [bx1, WIDTH],
+          [bx0, WIDTH],
+        ];
+  const corners = local.map(([x, y]) => ({ x: e[0] * x + e[4] * y + e[12], y: e[1] * x + e[5] * y + e[13] }));
   const bounds = frame
     ? frameBounds(frame)
     : {
@@ -209,6 +242,7 @@ function SemiTruckBody({
   load = [],
   rolling = 0,
   variant = "diesel",
+  articulation = 0,
 }: SemiTruckProps) {
   const electric = variant === "electric";
   const g = semiTruckGeometry(trailerLength);
@@ -232,8 +266,9 @@ function SemiTruckBody({
   const FENDER_RO = FENDER_RI + 0.075;
   const archGap = FENDER_RO + 0.025;
 
-  // ---- Le corps : tout ce qui ne bouge pas, fondu en quelques maillages ----
-  const built = useBuilt(() => {
+  // ---- Le corps : tout ce qui ne bouge pas, fondu en quelques maillages — un pour le tracteur, un
+  // pour la remorque, puisque la remorque pivote sur la sellette ----
+  const make = (hasTractor: boolean, hasTrailer: boolean) => {
     const b = new Builder();
 
     /** Un garde-boue : une demi-couronne à distance du pneu, épaissie sur la largeur de la roue. */
@@ -406,10 +441,13 @@ function SemiTruckBody({
       if (hasTrailer) for (const y of [-0.015, WIDTH + 0.015]) b.faceY("lq-truck__ev", y, 0.35, T - 0.35, trailerZ0 + 0.3, trailerZ0 + 0.38);
     }
     return b.build();
-  }, [T, hasTractor, hasTrailer, electric]);
+  };
+  const tractorBuilt = useBuilt(() => make(hasTractor, false), [T, hasTractor, electric]);
+  const trailerBuilt = useBuilt(() => make(false, hasTrailer), [T, hasTrailer, electric]);
 
   // ---- Les roues : un maillage à part, parce qu'elles tournent ----
-  const axles = useMemo(() => [...(hasTrailer ? tridem : []), ...(hasTractor ? [driveX, steerX] : [])], [hasTrailer, hasTractor, T]); // eslint-disable-line react-hooks/exhaustive-deps
+  const trailerAxles = useMemo(() => (hasTrailer ? tridem : []), [hasTrailer, T]); // eslint-disable-line react-hooks/exhaustive-deps
+  const tractorAxles = useMemo(() => (hasTractor ? [driveX, steerX] : []), [hasTractor, driveX, steerX]);
   const wheelParts = useBuilt(() => {
     const b = new Builder();
     // Chaque roue est construite autour de sa propre origine : on la fait tourner sur place.
@@ -419,10 +457,20 @@ function SemiTruckBody({
     return b.build();
   }, []);
   const spinners = useRef<(Group | null)[]>([]);
+  // L'angle des roues est **cumulé** d'une image à l'autre : un camion qui accélère ou freine fait
+  // tourner ses roues de plus en plus ou de moins en moins vite, sans qu'elles sautent d'un cran à
+  // chaque changement de vitesse.
+  const spin = useRef({ t: null as number | null, a: 0 });
+  useEffect(() => {
+    if (rolling === 0) spin.current.t = null;
+  }, [rolling]);
   useSimFrame((t) => {
+    const st = spin.current;
+    const dt = st.t === null ? 0 : Math.max(0, Math.min(0.25, t - st.t));
+    st.t = t;
     // Un tour de roue pour 2πR de chemin : les rayons de la jante avancent au rythme du sol.
-    const a = -((t * rolling) / R);
-    for (const w of spinners.current) if (w) w.rotation.y = a;
+    st.a -= (dt * rolling) / R;
+    for (const w of spinners.current) if (w) w.rotation.y = st.a;
   }, rolling !== 0);
 
   // ---- La charge et les portes ----
@@ -464,23 +512,33 @@ function SemiTruckBody({
 
   const pose = placeAt(origin.x, origin.y, rotation, { x: LENGTH / 2, y: WIDTH / 2 });
 
-  return (
-    <>
-      <group matrixAutoUpdate={false} matrix={pose}>
-        <Parts built={built} />
-        <Parts built={cargo} />
-        {axles.flatMap((x, i) =>
-          sideY.map((y, k) => (
-            <group key={`${i}-${k}`} position={[x, y, 0]}>
-              <group ref={(el) => (spinners.current[i * 2 + k] = el)} position={[0, 0, R]}>
-                <group position={[0, 0, -R]}>
-                  <Parts built={wheelParts} />
-                </group>
-              </group>
+  const wheels = (list: number[], base: number) =>
+    list.flatMap((x, i) =>
+      sideY.map((y, k) => (
+        <group key={`${base + i}-${k}`} position={[x, y, 0]}>
+          <group ref={(el) => (spinners.current[(base + i) * 2 + k] = el)} position={[0, 0, R]}>
+            <group position={[0, 0, -R]}>
+              <Parts built={wheelParts} />
             </group>
-          ))
-        )}
+          </group>
+        </group>
+      ))
+    );
+  // La remorque pivote sur la sellette : un groupe centré sur le pivot, tourné de l'angle
+  // d'articulation, qui la repose à sa place.
+  const art = (Math.max(-65, Math.min(65, articulation)) * Math.PI) / 180;
+
+  return (
+    <group matrixAutoUpdate={false} matrix={pose}>
+      <Parts built={tractorBuilt} />
+      {wheels(tractorAxles, 0)}
+      <group position={[kingpin, WIDTH / 2, 0]} rotation={[0, 0, art]}>
+        <group position={[-kingpin, -WIDTH / 2, 0]}>
+          <Parts built={trailerBuilt} />
+          <Parts built={cargo} />
+          {wheels(trailerAxles, tractorAxles.length)}
+        </group>
       </group>
-    </>
+    </group>
   );
 }

@@ -1,10 +1,10 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Group } from "three";
-import { Builder, type P3 } from "./three/builder";
+import { Builder } from "./three/builder";
 import { Parts, Solo, useBuilt, type Bounds } from "./three/scene";
 import { useSimFrame } from "./three/time";
-import { Mover, groundPath, type MoverTask } from "./three/mover";
-import { makeRoute, sampleRoute } from "./three/transport";
+import { Mover, type MoverStyle, type MoverTask } from "./three/mover";
+import { planDock } from "./dockManeuver";
 import { addGood } from "./three/goods";
 import { PALLET_JACK_LENGTH, PALLET_JACK_WIDTH, PalletJackBody, addHaul, type HaulLoad } from "./PalletJack";
 import { Forklift } from "./Forklift";
@@ -170,11 +170,32 @@ export interface PlannerShuttleProps {
 }
 
 /**
+ * La conduite de chaque engin : son rayon de braquage, son allure dans les virages, la vivacité de
+ * ses départs. Un opérateur à pied tourne presque sur lui-même ; un robot pivote sur place, posément ;
+ * un transpalette et un chariot prennent leurs demi-tours en arc serré, au pas.
+ */
+const STYLES: Record<ShuttleVehicle, Partial<MoverStyle>> = {
+  palletJack: { radius: 0.6, accel: 0.9, lateral: 1.0, yawRate: 1.3, spin: 1.0 },
+  forklift: { radius: 0.8, accel: 1.0, lateral: 1.2, yawRate: 1.3, spin: 1.0 },
+  worker: { radius: 0.3, accel: 1.6, lateral: 2.2, yawRate: 3.2, spin: 3.0 },
+  amr: { radius: 0.45, accel: 0.8, lateral: 1.0, yawRate: 1.4, spin: 1.3 },
+};
+
+/** Ce qui peut pivoter sur place quand il attend : un piéton, un robot à roues différentielles. */
+const SPINS: ShuttleVehicle[] = ["worker", "amr"];
+
+/** La vitesse montrée à l'engin (ses roues, ses pas), arrondie : on ne redessine pas à chaque image. */
+const shownSpeed = (v: number) => Math.round(v * 4) / 4;
+
+/**
  * Une navette : un engin qui porte des lots de `from` à `to`, à mesure qu'un compteur monte.
  *
- *  Au repos, il attend à `from`, tourné vers `to`. Quand il y a du travail, il charge un lot
- *  (`batch` au plus), roule par les points de passage, décharge, revient à vide — et recommence
- *  tant qu'il en reste. Il pivote sur place avant de partir, et prend ses virages en courbe.
+ *  Au repos, il attend à `from`. Quand il y a du travail, il charge un lot (`batch` au plus), roule
+ *  par les points de passage, décharge, revient à vide — et recommence tant qu'il en reste. Il
+ *  **conduit** : il part d'où il regarde, prend ses virages et ses demi-tours en arc, à son rayon de
+ *  braquage, accélère et freine en douceur et ralentit dans les courbes serrées. Un opérateur à pied
+ *  et un robot se remettent face à `to` en attendant ; un transpalette ou un chariot reste comme il
+ *  s'est garé, et repartira par un demi-tour.
  */
 export function PlannerShuttle(props: PlannerShuttleProps) {
   const bounds = boundsOf([props.from, props.to, ...(props.via ?? [])]);
@@ -187,16 +208,14 @@ export function PlannerShuttle(props: PlannerShuttleProps) {
 
 function ShuttleBody({ vehicle = "palletJack", from, to, via, trips, batch = 6, speed = 2.2, dwell = 1, load = "carton", paused = false, label }: PlannerShuttleProps) {
   const size = Math.max(1, Math.round(batch));
-  const key = JSON.stringify([from.x, from.y, to.x, to.y, (via ?? []).map((p) => [p.x, p.y])]);
+  const key = JSON.stringify([vehicle, from.x, from.y, to.x, to.y, (via ?? []).map((p) => [p.x, p.y])]);
   const tripsRef = useRef(trips);
   tripsRef.current = trips;
   const engine = useMemo(() => {
-    const pts = [from, ...(via ?? []), to];
-    const go = groundPath(pts);
-    const back = groundPath([...pts].reverse());
-    const face = go.length > 1e-3 ? sampleRoute(go, Math.min(0.05, go.length / 2)).heading : 0;
+    const first = (via ?? [])[0] ?? to;
+    const face = Math.atan2(first.y - from.y, first.x - from.x);
     // Ce que le compteur dit au montage est déjà fait : on ne rejoue pas l'histoire.
-    return { mover: new Mover(from.x, from.y, face), go, back, face, claimed: tripsRef.current, carry: 0 };
+    return { mover: new Mover(from.x, from.y, face, STYLES[vehicle]), go: [...(via ?? []), to], back: [...[...(via ?? [])].reverse(), from], face, claimed: tripsRef.current, carry: 0 };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
   const [view, setView] = useState<HaulerView>({ carry: 0, moving: false, speed: 0 });
@@ -226,7 +245,7 @@ function ShuttleBody({ vehicle = "palletJack", from, to, via, trips, batch = 6, 
     engine.carry = k;
     m.push(
       { kind: "wait", secs: dwell },
-      { kind: "drive", route: engine.go, speed },
+      { kind: "go", to: engine.go, speed },
       {
         kind: "wait",
         secs: dwell,
@@ -235,12 +254,12 @@ function ShuttleBody({ vehicle = "palletJack", from, to, via, trips, batch = 6, 
         },
       },
       {
-        kind: "drive",
-        route: engine.back,
+        kind: "go",
+        to: engine.back,
         speed,
-        // De retour : s'il n'y a plus rien, il se remet face à la destination.
+        // De retour : s'il n'y a plus rien, un piéton ou un robot se remet face à la destination.
         done: () => {
-          if (tripsRef.current - engine.claimed <= 0) m.push({ kind: "turn", to: engine.face });
+          if (tripsRef.current - engine.claimed <= 0 && SPINS.includes(vehicle)) m.push({ kind: "turn", to: engine.face });
         },
       }
     );
@@ -261,7 +280,7 @@ function ShuttleBody({ vehicle = "palletJack", from, to, via, trips, batch = 6, 
       engine.mover.step(dt);
       schedule();
       sync();
-      const next: HaulerView = { carry: engine.carry, moving: engine.mover.moving, speed: engine.mover.speed };
+      const next: HaulerView = { carry: engine.carry, moving: engine.mover.moving, speed: shownSpeed(engine.mover.speed) };
       if (!sameView(shown.current, next)) setView((shown.current = next));
       if (!engine.mover.busy && tripsRef.current - engine.claimed <= 0) {
         clock.reset();
@@ -279,6 +298,7 @@ function ShuttleBody({ vehicle = "palletJack", from, to, via, trips, batch = 6, 
 }
 
 // --- Le quai : les camions et le chargeur -----------------------------------------------------------
+
 
 export interface PlannerDockTrafficProps {
   /**
@@ -318,6 +338,7 @@ export interface PlannerDockTrafficProps {
 
 interface Slot {
   i: number;
+  /** Le camion, par sa sellette : `heading` est le cap du tracteur, `trailer` celui de la remorque. */
   mover: Mover;
   /** Le camion est sur le site — il roule, recule ou attend à quai. */
   present: boolean;
@@ -326,8 +347,6 @@ interface Slot {
   /** Ce qu'il contient, et ce que le chargeur a déjà promis d'y mettre ou d'en tirer. */
   loaded: number;
   reserved: number;
-  /** Le point du camion que suit son engin : l'arrière en marche arrière, l'avant en marche avant. */
-  ref: "rear" | "front";
 }
 
 interface TruckView {
@@ -344,9 +363,13 @@ interface TruckView {
  *
  * ## La manœuvre
  *
- *  Un camion apparaît à `entry`, roule jusque devant les places, les dépasse, puis recule en
- *  braquant jusqu'à s'aligner sur la sienne et vient mettre l'arrière de sa remorque au bout quai.
- *  Il ouvre ses portes et attend. Une place a toujours son camion : à quai, ou en train d'arriver.
+ *  Un camion est **articulé** : le tracteur, et la remorque qui pivote sur la sellette. Il apparaît à
+ *  `entry`, roule jusque devant les places, tourne pour longer leur entrée et la dépasse — la
+ *  remorque suit en coupant le virage, puis se remet dans l'axe. Il recule alors comme un chauffeur à
+ *  quai : c'est l'arrière de la remorque qui décrit une courbe lisse jusqu'à la place, le tracteur
+ *  braquant ce qu'il faut pour l'y mener, et il vient mettre ses portes au bout quai. Il les ouvre
+ *  et attend. Une place a toujours son camion : à quai, ou en train d'arriver. Voir `planDock`, et
+ *  `dockTrafficClearance` pour la place que prend la manœuvre.
  *
  * ## Le chargement
  *
@@ -364,7 +387,7 @@ export function PlannerDockTraffic(props: PlannerDockTrafficProps) {
   const n = Math.max(1, Math.round(props.bay.bays ?? 1));
   const t = (props.bay.rotation * Math.PI) / 180;
   const corners = [
-    [-TRUCK_BAY_LENGTH / 2 - 16, -n * TRUCK_BAY_WIDTH - 12],
+    [-TRUCK_BAY_LENGTH / 2 - 16, -n * TRUCK_BAY_WIDTH - 16],
     [TRUCK_BAY_LENGTH / 2 + 3, n * TRUCK_BAY_WIDTH + 6],
   ].map(([u, v]) => ({ x: props.bay.x + u * Math.cos(t) - v * Math.sin(t), y: props.bay.y + u * Math.sin(t) + v * Math.cos(t) }));
   const bounds = boundsOf([...corners, props.staging, ...(props.entry ? [props.entry] : [])], 2, 3);
@@ -377,9 +400,9 @@ export function PlannerDockTraffic(props: PlannerDockTrafficProps) {
 
 const TRUCK = semiTruckGeometry();
 const FORWARD_SPEED = 3.2;
-const REVERSE_SPEED = 1.5;
-/** Le rayon du virage en marche arrière qui aligne un camion sur sa place. */
-const SWING = 5;
+const REVERSE_SPEED = 1.3;
+/** La conduite d'un semi : un grand rayon, des départs posés, et un tracteur qui ne pivote pas vite. */
+const TRUCK_STYLE: Partial<MoverStyle> = { radius: 4.5, accel: 0.6, lateral: 0.8, yawRate: 0.45, spin: 0.3 };
 
 function DockBody({ bay, mode, count, capacity = 24, staging, entry, loader, batch = 6, paused = false, roadSpeed = 1, electric = false, onTruck }: PlannerDockTrafficProps) {
   const roadRef = useRef(roadSpeed);
@@ -394,62 +417,23 @@ function DockBody({ bay, mode, count, capacity = 24, staging, entry, loader, bat
   countRef.current = count;
   const onTruckRef = useRef(onTruck);
   onTruckRef.current = onTruck;
-  const key = JSON.stringify([bay.x, bay.y, bay.rotation, bays, mode, cap, size, staging.x, staging.y, entry?.x, entry?.y]);
+  const key = JSON.stringify([bay.x, bay.y, bay.rotation, bays, mode, cap, size, staging.x, staging.y, entry?.x, entry?.y, vehicle]);
 
   const engine = useMemo(() => {
-    const L = TRUCK_BAY_LENGTH;
-    const W = bays * TRUCK_BAY_WIDTH;
-    const th = (bay.rotation * Math.PI) / 180;
-    const c = Math.cos(th);
-    const s = Math.sin(th);
-    /** Du repère du parking au plan. */
-    const world = (u: number, v: number): Pt => ({ x: bay.x + u * c - v * s, y: bay.y + u * s + v * c });
-    const laneV = (i: number) => -W / 2 + TRUCK_BAY_WIDTH * (i + 0.5);
-    const E = entry ?? world(-L / 2 - 14, 0);
-    const parkedHeading = th + Math.PI;
-    const len = TRUCK.length;
-
-    const paths = Array.from({ length: bays }, (_, i) => {
-      const v = laneV(i);
-      // La marche arrière, suivie par l'arrière de la remorque : un quart de cercle qui l'aligne sur
-      // la place, puis tout droit jusqu'au bout quai.
-      const bu = -L / 2 + 1;
-      const q0 = { u: bu - SWING, v: v - SWING };
-      const reverse: P3[] = [];
-      for (let k = 0; k <= 12; k += 1) {
-        const a = Math.PI - (k / 12) * (Math.PI / 2);
-        const p = world(bu + SWING * Math.cos(a), v - SWING + SWING * Math.sin(a));
-        reverse.push([p.x, p.y, 0]);
-      }
-      const park = world(L / 2 - 0.15, v);
-      reverse.push([park.x, park.y, 0]);
-      // L'approche, suivie par l'avant de la cabine : elle longe l'entrée et s'arrête au-delà de la
-      // place, la remorque déjà dans l'axe du départ de la marche arrière.
-      const approach = groundPath([E, world(q0.u, v + 3), world(q0.u, q0.v - len)], 3);
-      // Le départ, par l'avant : tout droit hors de la place, puis vers la sortie.
-      const out0 = world(L / 2 - 0.15 - len, v);
-      const depart = groundPath([out0, world(-L / 2 - 3.5, v), E], 3);
-      // Le chargeur : du point de préparation à l'arrière de la remorque, par l'axe de la place.
-      const dockPt = world(L / 2 + 0.9, v);
-      const go = groundPath([staging, world(L / 2 + 2.6, v), dockPt], 0.8);
-      const back = groundPath([dockPt, world(L / 2 + 2.6, v), staging], 0.8);
-      return { reverse: makeRoute(reverse, false), approach, depart, park, go, back };
-    });
-
+    const plan = planDock({ ...bay, bays }, entry);
     // Au montage : chaque place a son camion à quai.
-    const slots: Slot[] = paths.map((p, i) => ({
+    const slots: Slot[] = plan.lanes.map((lane, i) => ({
       i,
-      mover: new Mover(p.park.x, p.park.y, parkedHeading),
+      mover: new Mover(lane.park.x, lane.park.y, lane.park.heading, TRUCK_STYLE),
       present: true,
       docked: true,
       leaving: false,
       loaded: mode === "ship" ? 0 : cap,
       reserved: 0,
-      ref: "rear",
     }));
-    const firstGo = paths[0].go;
-    const home = firstGo.length > 1e-3 ? sampleRoute(firstGo, Math.min(0.05, firstGo.length / 2)).heading : th;
-    return { paths, slots, E, len, loader: new Mover(staging.x, staging.y, home), home, carry: 0, claimed: countRef.current, cursor: 0 };
+    const first = plan.lanes[0].apron;
+    const home = Math.atan2(first.y - staging.y, first.x - staging.x);
+    return { plan, slots, loader: new Mover(staging.x, staging.y, home, STYLES[vehicle]), home, carry: 0, claimed: countRef.current, cursor: 0 };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
 
@@ -460,13 +444,13 @@ function DockBody({ bay, mode, count, capacity = 24, staging, entry, loader, bat
     present: sl.present,
     docked: sl.docked,
     cartons: Math.round((Math.max(0, Math.min(cap, sl.loaded)) / cap) * 20),
-    rolling: sl.mover.moving ? sl.mover.speed : 0,
+    rolling: sl.mover.moving ? shownSpeed(sl.mover.speed) : 0,
   });
   const [trucks, setTrucks] = useState<TruckView[]>(() => engine.slots.map(truckViewOf));
   const trucksShown = useRef(trucks);
   useEffect(() => setTrucks((trucksShown.current = engine.slots.map(truckViewOf))), [engine]); // eslint-disable-line react-hooks/exhaustive-deps
-  const truckGroups = useRef<(Group | null)[]>([]);
-  const truckBodies = useRef<(Group | null)[]>([]);
+  const tractorGroups = useRef<(Group | null)[]>([]);
+  const trailerGroups = useRef<(Group | null)[]>([]);
   const loaderGroup = useRef<Group>(null);
   const clock = useLocalClock();
 
@@ -480,28 +464,19 @@ function DockBody({ bay, mode, count, capacity = 24, staging, entry, loader, bat
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paused, engine]);
 
-  /** Changer le point suivi d'un camion sans le déplacer : de l'arrière à l'avant, ou l'inverse. */
-  const follow = (sl: Slot, ref: "rear" | "front") => {
-    if (sl.ref === ref) return;
-    const m = sl.mover;
-    const k = ref === "front" ? engine.len : -engine.len;
-    m.x += Math.cos(m.heading) * k;
-    m.y += Math.sin(m.heading) * k;
-    sl.ref = ref;
-  };
-
   const depart = (sl: Slot) => {
     sl.docked = false;
     sl.leaving = true;
     onTruckRef.current?.({ kind: "depart", slot: sl.i });
-    const p = engine.paths[sl.i];
+    const lane = engine.plan.lanes[sl.i];
     sl.mover.push(
-      { kind: "wait", secs: 0.8, done: () => follow(sl, "front") },
+      { kind: "wait", secs: 0.8 },
       {
-        kind: "drive",
-        route: p.depart,
+        kind: "track",
+        track: lane.depart,
         speed: forward,
-        turnFirst: false,
+        // Il quitte le site en roulant : pas de freinage devant le point où il disparaît.
+        endSpeed: FORWARD_SPEED,
         done: () => {
           sl.present = false;
           sl.leaving = false;
@@ -511,23 +486,21 @@ function DockBody({ bay, mode, count, capacity = 24, staging, entry, loader, bat
   };
 
   const spawn = (sl: Slot) => {
-    const p = engine.paths[sl.i];
+    const lane = engine.plan.lanes[sl.i];
     sl.present = true;
     sl.docked = false;
     sl.loaded = mode === "ship" ? 0 : cap;
     sl.reserved = 0;
-    sl.ref = "front";
-    const start = sampleRoute(p.approach, Math.min(0.05, p.approach.length / 2));
-    sl.mover.place(start.x, start.y, start.heading);
+    const a = lane.approach;
+    sl.mover.place(a.x[0], a.y[0], a.heading[0], a.trailer?.[0] ?? a.heading[0]);
     sl.mover.push(
-      { kind: "drive", route: p.approach, speed: forward, turnFirst: false, done: () => follow(sl, "rear") },
-      { kind: "wait", secs: 0.5 },
+      // Il arrive de la rue déjà lancé, et s'arrête au-delà de la place.
+      { kind: "track", track: a, speed: forward, startSpeed: FORWARD_SPEED },
+      { kind: "wait", secs: 0.8 },
       {
-        kind: "drive",
-        route: p.reverse,
+        kind: "track",
+        track: lane.reverse,
         speed: backward,
-        reverse: true,
-        turnFirst: false,
         done: () => {
           sl.docked = true;
           onTruckRef.current?.({ kind: "arrive", slot: sl.i });
@@ -538,22 +511,19 @@ function DockBody({ bay, mode, count, capacity = 24, staging, entry, loader, bat
 
   const trip = (sl: Slot, q: number) => {
     const m = engine.loader;
-    const p = engine.paths[sl.i];
+    const lane = engine.plan.lanes[sl.i];
     engine.claimed += q;
     sl.reserved += q;
-    const tail: MoverTask = {
-      kind: "drive",
-      route: p.back,
-      speed: 2.2,
-      done: () => {
-        if (countRef.current - engine.claimed <= 0) m.push({ kind: "turn", to: engine.home });
-      },
+    const go: MoverTask = { kind: "go", to: [lane.apron, lane.dock], speed: 2.2 };
+    const settle = () => {
+      if (countRef.current - engine.claimed <= 0 && SPINS.includes(vehicle)) m.push({ kind: "turn", to: engine.home });
     };
+    const tail: MoverTask = { kind: "go", to: [lane.apron, staging], speed: 2.2, done: settle };
     if (mode === "ship") {
       engine.carry = q;
       m.push(
         { kind: "wait", secs: 1 },
-        { kind: "drive", route: p.go, speed: 2.2 },
+        go,
         {
           kind: "wait",
           secs: 1,
@@ -569,7 +539,7 @@ function DockBody({ bay, mode, count, capacity = 24, staging, entry, loader, bat
     } else {
       engine.carry = 0;
       m.push(
-        { kind: "drive", route: p.go, speed: 2.2 },
+        go,
         {
           kind: "wait",
           secs: 1,
@@ -586,7 +556,7 @@ function DockBody({ bay, mode, count, capacity = 24, staging, entry, loader, bat
           secs: 1,
           done: () => {
             engine.carry = 0;
-            if (countRef.current - engine.claimed <= 0) m.push({ kind: "turn", to: engine.home });
+            settle();
           },
         }
       );
@@ -612,14 +582,20 @@ function DockBody({ bay, mode, count, capacity = 24, staging, entry, loader, bat
 
   const sync = () => {
     engine.slots.forEach((sl, i) => {
-      const g = truckGroups.current[i];
-      if (g) {
-        g.visible = sl.present;
-        g.position.set(sl.mover.x, sl.mover.y, 0);
-        g.rotation.set(0, 0, sl.mover.heading);
+      // Le tracteur et la remorque se posent tous deux sur la sellette, chacun à son cap.
+      const m = sl.mover;
+      const tg = tractorGroups.current[i];
+      if (tg) {
+        tg.visible = sl.present;
+        tg.position.set(m.x, m.y, 0);
+        tg.rotation.set(0, 0, m.heading);
       }
-      const body = truckBodies.current[i];
-      if (body) body.position.x = sl.ref === "front" ? -engine.len : 0;
+      const rg = trailerGroups.current[i];
+      if (rg) {
+        rg.visible = sl.present;
+        rg.position.set(m.x, m.y, 0);
+        rg.rotation.set(0, 0, m.trailer);
+      }
     });
     const lg = loaderGroup.current;
     if (lg) {
@@ -637,7 +613,7 @@ function DockBody({ bay, mode, count, capacity = 24, staging, entry, loader, bat
       engine.loader.step(dt);
       schedule();
       sync();
-      const lv: HaulerView = { carry: engine.carry, moving: engine.loader.moving, speed: engine.loader.speed };
+      const lv: HaulerView = { carry: engine.carry, moving: engine.loader.moving, speed: shownSpeed(engine.loader.speed) };
       if (!sameView(loaderShown.current, lv)) setLoaderView((loaderShown.current = lv));
       const tv = engine.slots.map(truckViewOf);
       const prev = trucksShown.current;
@@ -652,14 +628,21 @@ function DockBody({ bay, mode, count, capacity = 24, staging, entry, loader, bat
     awake && !paused
   );
 
+  // Les deux véhicules d'un semi, chacun dans le repère de la sellette : le kit les pose par le coin
+  // de leur emprise commune, on les recale pour que la sellette soit à l'origine.
+  const hitch = { x: -TRUCK.kingpin, y: -TRUCK.width / 2 };
+  const variant = electric ? "electric" : "diesel";
   return (
     <group>
       {engine.slots.map((sl, i) => {
         const v = trucks[i] ?? truckViewOf(sl);
         return (
-          <group key={`${key}-${i}`} ref={(el) => (truckGroups.current[i] = el)}>
-            <group ref={(el) => (truckBodies.current[i] = el)}>
-              <SemiTruck origin={{ x: 0, y: -TRUCK.width / 2 }} rotation={0} doorsOpen={v.docked} load={Array.from({ length: v.cartons }, () => "carton" as const)} rolling={v.rolling} variant={electric ? "electric" : "diesel"} />
+          <group key={`${key}-${i}`}>
+            <group ref={(el) => (tractorGroups.current[i] = el)}>
+              <SemiTruck vehicle="tractor" origin={hitch} rotation={0} rolling={v.rolling} variant={variant} />
+            </group>
+            <group ref={(el) => (trailerGroups.current[i] = el)}>
+              <SemiTruck vehicle="trailer" origin={hitch} rotation={0} doorsOpen={v.docked} load={Array.from({ length: v.cartons }, () => "carton" as const)} rolling={v.rolling} variant={variant} />
             </group>
           </group>
         );

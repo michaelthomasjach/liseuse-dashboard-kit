@@ -1,5 +1,6 @@
-import type { P3 } from "./builder";
-import { makeRoute, sampleRoute, type Route } from "./transport";
+import { angleDelta, distanceAt, planPath, sampleTrack, speedProfile, trackOf, type Pose, type Pt, type SpeedOptions, type Track } from "./drive";
+
+export { angleDelta };
 
 /**
  * Un engin **qui obéit** : ce qui fait rouler un transpalette, un chariot, un camion au gré de ce
@@ -11,38 +12,73 @@ import { makeRoute, sampleRoute, type Route } from "./transport";
  * que de l'instant. C'est la bonne règle pour la circulation d'une rue, pas pour un engin qui
  * travaille : on ne sait pas à l'avance quand il partira — c'est le jeu qui le dit, quand un compteur
  * bouge — ni où il ira ensuite. Un engin qui obéit tient donc une **file de tâches** : attendre,
- * tourner sur place, rouler le long d'un chemin (en avant ou en marche arrière). Il les exécute
- * l'une après l'autre au rythme de l'horloge de la scène, et chaque tâche peut dire ce qui se passe
- * quand elle s'achève — charger, décharger, prévenir le jeu, enchaîner la suivante.
+ * tourner sur place, aller quelque part, suivre un trajet tout tracé. Il les exécute l'une après
+ * l'autre au rythme de l'horloge de la scène, et chaque tâche peut dire ce qui se passe quand elle
+ * s'achève — charger, décharger, prévenir le jeu, enchaîner la suivante.
+ *
+ * ## Conduire, et non glisser
+ *
+ * Un trajet n'est pas une ligne qu'on parcourt à vitesse fixe. Au moment où l'engin part, son chemin
+ * est tracé **depuis sa pose** — un arc pour s'orienter, des virages au rayon de l'engin, un lissage
+ * qui fait entrer en courbe progressivement (voir `drive.ts`) — et son allure est calculée une fois
+ * pour toutes : il accélère, ralentit dans les virages serrés, freine avant l'arrêt. Son cap est la
+ * tangente du chemin, et ne tourne jamais plus vite que `yawRate`. Un demi-tour est donc un
+ * demi-cercle, pris au pas, et non une pirouette.
  *
  * Le temps qu'on lui donne est celui de la simulation : en pause, rien ne bouge ; accélérée, tout
- * va plus vite, du même pas que le reste de la scène.
+ * va plus vite, du même pas que le reste de la scène. Et comme le chemin et l'allure sont fixés au
+ * départ, la même suite de tâches donne toujours le même mouvement.
  */
 
 export type MoverTask =
   | { kind: "wait"; secs: number; done?: () => void }
+  /** Tourner sur place — un robot, un piéton : en douceur, départ et arrivée amortis. */
   | { kind: "turn"; to: number; done?: () => void }
   | {
-      kind: "drive";
-      route: Route;
+      /** Aller, depuis là où l'on est, par `to` — le dernier point est la destination. */
+      kind: "go";
+      to: Pt[];
       /** Cases par seconde — ou une fonction, relue à chaque pas, pour une vitesse qui change en route. */
       speed: number | (() => number);
-      /** En marche arrière : l'engin regarde à l'opposé de son mouvement. */
-      reverse?: boolean;
-      /** Tourner sur place avant de partir, face au chemin. Défaut : oui. */
-      turnFirst?: boolean;
+      /** Le rayon de braquage de l'engin. Défaut : celui du `Mover`. */
+      radius?: number;
+      done?: () => void;
+    }
+  | {
+      /** Suivre un trajet déjà tracé — ou tracé au départ, depuis la pose du moment. */
+      kind: "track";
+      track: Track | ((pose: Pose) => Track);
+      speed: number | (() => number);
+      /** La vitesse au départ et à l'arrivée : 0 par défaut (il démarre et s'arrête). */
+      startSpeed?: number;
+      endSpeed?: number;
       done?: () => void;
     };
 
-/** La vitesse de rotation sur place, en radians par seconde. */
-const TURN_RATE = 3.2;
+/** Ce qui caractérise la conduite d'un engin. */
+export interface MoverStyle {
+  /** Le rayon de braquage, en cases. */
+  radius: number;
+  /** L'accélération et le freinage, en cases par seconde². */
+  accel: number;
+  /** L'accélération latérale admise en courbe. */
+  lateral: number;
+  /** La vitesse de rotation la plus vive, en radians par seconde. */
+  yawRate: number;
+  /** La vitesse de rotation sur place (`turn`), en radians par seconde. */
+  spin: number;
+}
 
-/** L'écart d'angle le plus court de `a` vers `b`, dans ]−π, π]. */
-export function angleDelta(a: number, b: number): number {
-  let d = (b - a) % (Math.PI * 2);
-  if (d > Math.PI) d -= Math.PI * 2;
-  if (d <= -Math.PI) d += Math.PI * 2;
-  return d;
+const DEFAULT_STYLE: MoverStyle = { radius: 0.7, accel: 1.2, lateral: 1.5, yawRate: 1.8, spin: 1.6 };
+
+interface Running {
+  track: Track;
+  times: number[];
+  /** La vitesse de croisière pour laquelle l'allure a été calculée : une vitesse qui change en route
+   *  étire ou comprime le temps de parcours, sans refaire le calcul. */
+  nominal: number;
+  tau: number;
+  s: number;
 }
 
 export class Mover {
@@ -50,22 +86,32 @@ export class Mover {
   y = 0;
   /** Le cap, en radians : la direction où l'engin regarde. */
   heading = 0;
+  /** Le cap de sa remorque, s'il en a une (un semi) : suivi par les trajets qui le disent. */
+  trailer = 0;
   /** En train de rouler (et non d'attendre ou de tourner sur place). */
   moving = false;
   /** La vitesse signée du moment, en cases par seconde : négative en marche arrière. */
   speed = 0;
+  style: MoverStyle;
   private tasks: MoverTask[] = [];
   private elapsed = 0;
-  private started = false;
+  private turn0: number | null = null;
+  private run: Running | null = null;
 
-  constructor(x = 0, y = 0, heading = 0) {
+  constructor(x = 0, y = 0, heading = 0, style: Partial<MoverStyle> = {}) {
     this.x = x;
     this.y = y;
     this.heading = heading;
+    this.trailer = heading;
+    this.style = { ...DEFAULT_STYLE, ...style };
   }
 
   get busy(): boolean {
     return this.tasks.length > 0;
+  }
+
+  get pose(): Pose {
+    return { x: this.x, y: this.y, heading: this.heading };
   }
 
   push(...tasks: MoverTask[]): this {
@@ -74,13 +120,15 @@ export class Mover {
   }
 
   /** Oublier ce qui reste à faire, et se poser là. */
-  place(x: number, y: number, heading: number): this {
+  place(x: number, y: number, heading: number, trailer = heading): this {
     this.tasks = [];
     this.elapsed = 0;
-    this.started = false;
+    this.turn0 = null;
+    this.run = null;
     this.x = x;
     this.y = y;
     this.heading = heading;
+    this.trailer = trailer;
     this.moving = false;
     this.speed = 0;
     return this;
@@ -92,7 +140,7 @@ export class Mover {
     let guard = 0;
     while (left > 0 && this.tasks.length > 0 && guard < 64) {
       guard += 1;
-      left = this.run(this.tasks[0], left);
+      left = this.exec(this.tasks[0], left);
     }
     if (this.tasks.length === 0) {
       this.moving = false;
@@ -101,7 +149,7 @@ export class Mover {
   }
 
   /** Exécuter la tâche en cours pendant `dt` ; ce qui reste de `dt` si elle s'achève, sinon 0. */
-  private run(task: MoverTask, dt: number): number {
+  private exec(task: MoverTask, dt: number): number {
     if (task.kind === "wait") {
       this.moving = false;
       this.speed = 0;
@@ -115,96 +163,76 @@ export class Mover {
     if (task.kind === "turn") {
       this.moving = false;
       this.speed = 0;
-      const d = angleDelta(this.heading, task.to);
-      const need = Math.abs(d) / TURN_RATE;
-      if (dt < need) {
-        this.heading += Math.sign(d) * TURN_RATE * dt;
+      // Un pivot amorti : une courbe en S du cap de départ au cap visé, sur la durée qu'il faut à
+      // la vitesse de rotation de l'engin — une fois et demie, pour le démarrage et l'arrêt.
+      if (this.turn0 === null) this.turn0 = this.heading;
+      const d = angleDelta(this.turn0, task.to);
+      const total = (Math.abs(d) / this.style.spin) * 1.5;
+      const t = this.elapsed + dt;
+      if (t < total) {
+        this.elapsed = t;
+        const u = t / total;
+        this.heading = this.turn0 + d * u * u * (3 - 2 * u);
         return 0;
       }
-      this.heading = task.to;
-      return this.finish(task, dt - need);
+      this.heading = this.turn0 + d;
+      return this.finish(task, t - total);
     }
-    const { route, speed, reverse = false, turnFirst = true } = task;
-    if (!this.started) {
-      // Face au chemin d'abord, s'il le faut : un engin de manutention pivote sur place.
-      const start = sampleRoute(route, Math.min(0.05, route.length / 2));
-      const face = start.heading + (reverse ? Math.PI : 0);
-      const d = angleDelta(this.heading, face);
-      if (turnFirst && Math.abs(d) > 0.02 && route.length > 1e-3) {
-        this.moving = false;
-        const need = Math.abs(d) / TURN_RATE;
-        if (dt < need) {
-          this.heading += Math.sign(d) * TURN_RATE * dt;
-          return 0;
-        }
-        this.heading = face;
-        dt -= need;
-      }
-      this.started = true;
-    }
-    const v = Math.max(0.05, typeof speed === "function" ? speed() : speed);
-    const s = this.elapsed + dt * v;
+    if (!this.run) this.run = this.start(task);
+    const r = this.run;
+    const v = speedOf(task.speed);
+    r.tau += dt * (v / r.nominal);
+    const total = r.times[r.times.length - 1] ?? 0;
+    const s = distanceAt(r.track, r.times, r.tau);
+    const ds = s - r.s;
+    r.s = s;
+    const p = sampleTrack(r.track, s);
+    this.x = p.x;
+    this.y = p.y;
+    // Le cap suit la tangente, sans jamais tourner plus vite que l'engin ne le peut : l'allure a
+    // été calculée pour que ce soit toujours le cas — la borne n'est qu'un garde-fou.
+    const maxTurn = this.style.yawRate * 1.5 * dt + 1e-4;
+    this.heading += Math.max(-maxTurn, Math.min(maxTurn, angleDelta(this.heading, p.heading)));
+    if (p.trailer !== undefined) this.trailer += Math.max(-maxTurn, Math.min(maxTurn, angleDelta(this.trailer, p.trailer)));
     this.moving = true;
-    this.speed = reverse ? -v : v;
-    if (s < route.length) {
-      this.elapsed = s;
-      const p = sampleRoute(route, s);
-      this.x = p.x;
-      this.y = p.y;
-      this.heading = p.heading + (reverse ? Math.PI : 0);
-      return 0;
+    this.speed = (dt > 0 ? ds / dt : 0) * (r.track.reverse ? -1 : 1);
+    if (r.tau < total && s < r.track.length - 1e-6) return 0;
+    const spare = (r.tau - total) * (r.nominal / Math.max(0.05, v));
+    this.heading = this.heading + angleDelta(this.heading, p.heading);
+    if (p.trailer !== undefined) this.trailer = this.trailer + angleDelta(this.trailer, p.trailer);
+    this.speed = 0;
+    return this.finish(task, Math.max(0, spare));
+  }
+
+  /** Tracer le trajet d'une tâche au moment où elle commence, et en calculer l'allure. */
+  private start(task: Extract<MoverTask, { kind: "go" | "track" }>): Running {
+    const pose = this.pose;
+    const nominal = Math.max(0.05, speedOf(task.speed));
+    let track: Track;
+    let opts: Partial<SpeedOptions> = {};
+    if (task.kind === "go") {
+      const radius = task.radius ?? this.style.radius;
+      track = trackOf(planPath(pose, task.to, { radius }), false, pose.heading);
+      // Le chemin part de la pose : son premier cap est celui de l'engin, pas une corde de l'arc.
+      if (track.heading.length > 1) track.heading[0] = track.heading[1] + angleDelta(track.heading[1], pose.heading);
+    } else {
+      track = typeof task.track === "function" ? task.track(pose) : task.track;
+      opts = { startSpeed: task.startSpeed, endSpeed: task.endSpeed };
     }
-    const end = sampleRoute(route, route.length);
-    this.x = end.x;
-    this.y = end.y;
-    if (route.length > 1e-3) {
-      const last = sampleRoute(route, Math.max(0, route.length - 0.05));
-      this.heading = last.heading + (reverse ? Math.PI : 0);
-    }
-    return this.finish(task, (s - route.length) / v);
+    const times = speedProfile(track, { speed: nominal, accel: this.style.accel, lateral: this.style.lateral, yawRate: this.style.yawRate, ...opts });
+    return { track, times, nominal, tau: 0, s: 0 };
   }
 
   private finish(task: MoverTask, left: number): number {
     this.tasks.shift();
     this.elapsed = 0;
-    this.started = false;
+    this.turn0 = null;
+    this.run = null;
     task.done?.();
     return Math.max(0, left);
   }
 }
 
-/**
- * Un chemin au sol par des points, **aux angles arrondis** : un engin ne pivote pas d'un coup à
- * chaque sommet, il prend le virage. Chaque angle est remplacé par une courbe qui le coupe à
- * `radius` de son sommet — au plus à la moitié des côtés qui s'y rejoignent.
- */
-export function groundPath(points: { x: number; y: number }[], radius = 0.8): Route {
-  const pts = points.filter((p, i) => i === 0 || Math.hypot(p.x - points[i - 1].x, p.y - points[i - 1].y) > 1e-4);
-  const out: P3[] = [];
-  if (pts.length === 0) return makeRoute([[0, 0, 0]]);
-  out.push([pts[0].x, pts[0].y, 0]);
-  for (let i = 1; i < pts.length - 1; i += 1) {
-    const a = pts[i - 1];
-    const b = pts[i];
-    const c = pts[i + 1];
-    const l0 = Math.hypot(b.x - a.x, b.y - a.y);
-    const l1 = Math.hypot(c.x - b.x, c.y - b.y);
-    const r = Math.min(radius, l0 / 2, l1 / 2);
-    if (r < 1e-3) {
-      out.push([b.x, b.y, 0]);
-      continue;
-    }
-    const p0 = { x: b.x + ((a.x - b.x) / l0) * r, y: b.y + ((a.y - b.y) / l0) * r };
-    const p1 = { x: b.x + ((c.x - b.x) / l1) * r, y: b.y + ((c.y - b.y) / l1) * r };
-    const n = 8;
-    for (let k = 0; k <= n; k += 1) {
-      const u = k / n;
-      // Une courbe de Bézier quadratique, dont le sommet de l'angle est le point de contrôle.
-      const x = (1 - u) * (1 - u) * p0.x + 2 * (1 - u) * u * b.x + u * u * p1.x;
-      const y = (1 - u) * (1 - u) * p0.y + 2 * (1 - u) * u * b.y + u * u * p1.y;
-      out.push([x, y, 0]);
-    }
-  }
-  if (pts.length > 1) out.push([pts[pts.length - 1].x, pts[pts.length - 1].y, 0]);
-  return makeRoute(out, false);
+function speedOf(speed: number | (() => number)): number {
+  return Math.max(0.05, typeof speed === "function" ? speed() : speed);
 }

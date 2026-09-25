@@ -1,0 +1,59 @@
+.lq-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  font: inherit;
+  font-size: var(--lq-text-xs);
+  line-height: 1.4;
+  color: var(--lq-color-text);
+  cursor: pointer;
+  background: var(--lq-color-panel);
+  border: 1px solid var(--lq-color-border-subtle);
+  /* Une puce reste ronde, même sous un thème à angles vifs. */
+  border-radius: 999px;
+  transition:
+    color 120ms ease,
+    border-color 120ms ease,
+    background-color 120ms ease;
+}
+
+.lq-chip:hover:not(:disabled) {
+  border-color: var(--lq-color-accent);
+}
+
+.lq-chip:focus-visible {
+  outline: 2px solid var(--lq-color-focus-ring);
+  outline-offset: 2px;
+}
+
+.lq-chip--on {
+  color: var(--lq-color-accent);
+  background: color-mix(in srgb, var(--lq-color-accent) 10%, var(--lq-color-panel));
+  border-color: var(--lq-color-accent);
+  font-weight: 600;
+}
+
+.lq-chip:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.lq-chip__icon {
+  display: inline-flex;
+}
+
+.lq-chip__count {
+  padding: 0 5px;
+  font-size: 0.65rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--lq-color-text-muted);
+  background: color-mix(in srgb, var(--lq-color-text) 7%, transparent);
+  border-radius: 999px;
+}
+
+.lq-chip-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}

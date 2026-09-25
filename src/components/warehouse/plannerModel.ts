@@ -59,7 +59,8 @@ export type PlannerPointKind =
   | "roofSolar"
   | "hvac"
   | "coldRoom"
-  | "truckBay";
+  | "truckBay"
+  | "office";
 
 /** Les éléments qu'on pose **sur un mur** : ils s'y accrochent et y percent leur ouverture. */
 export const WALL_MOUNTED: PlannerKind[] = ["door", "window", "bay"];
@@ -174,6 +175,7 @@ export const PLANNER_TOOLS: PlannerTool[] = [
   { kind: "hvac", label: "Climatiseur de toiture", group: "Bâtiment" },
   { kind: "coldRoom", label: "Chambre froide", group: "Stockage" },
   { kind: "truckBay", label: "Parking poids lourds", group: "Extérieur" },
+  { kind: "office", label: "Bureaux", group: "Bâtiment" },
 ];
 
 export const PLANNER_LABEL: Record<PlannerKind, string> = Object.fromEntries(PLANNER_TOOLS.map((t) => [t.kind, t.label])) as Record<PlannerKind, string>;
@@ -216,6 +218,7 @@ export const POINT_SIZE: Record<PlannerPointKind, { length: number; width: numbe
   roofSolar: { length: solarArraySize({ rows: 1, columns: 6 }).length, width: solarArraySize({ rows: 1, columns: 6 }).width },
   hvac: { length: 1.4, width: 1 },
   coldRoom: { length: 6, width: 4 },
+  office: { length: 8, width: 4 },
   truckBay: { length: 10.5, width: 2.4 },
 };
 
@@ -294,6 +297,7 @@ export const TIERS: Record<PlannerKind, string[]> = {
   roofSolar: ["Petit champ en toiture", "Champ en toiture", "Grand champ en toiture"],
   hvac: ["Groupe froid simple", "Groupe froid double", "Groupe froid triple"],
   coldRoom: ["Chambre froide positive", "Chambre froide négative"],
+  office: ["Open space 4 postes", "Open space 8 postes", "Bureaux et salle de réunion"],
   truckBay: ["1 place camion", "2 places camion", "3 places camion"],
 };
 
@@ -442,6 +446,24 @@ export function cornersOf(f: Footprint): { x: number; y: number }[] {
     [f.halfL, f.halfW],
     [-f.halfL, f.halfW],
   ].map(([u, v]) => ({ x: f.cx + u * c - v * s, y: f.cy + u * s + v * c }));
+}
+
+/**
+ * Deux emprises se chevauchent-elles ? Le test des axes séparateurs : deux rectangles orientés sont
+ * disjoints si et seulement si l'un des quatre axes de leurs côtés les sépare. `slack` rogne les
+ * emprises d'autant — deux éléments qui ne font que se toucher ne se chevauchent pas.
+ */
+export function footprintsOverlap(a: Footprint, b: Footprint, slack = 0.01): boolean {
+  const ca = cornersOf(a);
+  const cb = cornersOf(b);
+  for (const angle of [a.angle, a.angle + Math.PI / 2, b.angle, b.angle + Math.PI / 2]) {
+    const ux = Math.cos(angle);
+    const uy = Math.sin(angle);
+    const pa = ca.map((p) => p.x * ux + p.y * uy);
+    const pb = cb.map((p) => p.x * ux + p.y * uy);
+    if (Math.max(...pa) - slack <= Math.min(...pb) || Math.max(...pb) - slack <= Math.min(...pa)) return false;
+  }
+  return true;
 }
 
 /** Le point `p` est-il sur l'élément ? Un rien de marge autour, pour attraper un mur fin. */

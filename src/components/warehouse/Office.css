@@ -1,0 +1,37 @@
+/* Les bureaux : un revêtement de sol plus chaud que la dalle, du bois clair pour les plateaux, du
+   sombre pour les fauteuils — et du verre pour la salle de réunion. Des mélanges de l'encre et du
+   papier, comme partout : la palette e-ink les ramène à des gris distincts. */
+
+.lq-iso__solid--office-floor {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-sky) 12%, color-mix(in srgb, var(--lq-color-text) 10%, var(--lq-color-bg)));
+}
+.lq-iso__solid--office-desk {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-amber) 22%, color-mix(in srgb, var(--lq-color-text) 4%, var(--lq-color-bg)));
+}
+.lq-iso__solid--office-chair {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-text) 68%, var(--lq-color-bg));
+}
+.lq-iso__solid--office-panel {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-green) 26%, color-mix(in srgb, var(--lq-color-text) 18%, var(--lq-color-bg)));
+}
+.lq-iso__solid--office-pot {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-text) 40%, var(--lq-color-bg));
+}
+.lq-office__screen {
+  fill: color-mix(in srgb, var(--lq-color-sky) 30%, color-mix(in srgb, var(--lq-color-text) 78%, var(--lq-color-bg)));
+}
+.lq-office__glass {
+  fill: color-mix(in srgb, var(--lq-color-sky) 22%, transparent);
+  stroke: color-mix(in srgb, var(--lq-color-text) 45%, transparent);
+  stroke-width: 1;
+}
+.lq-office__frost {
+  fill: color-mix(in srgb, var(--lq-color-bg) 70%, transparent);
+}
+.lq-office__panel {
+  fill: color-mix(in srgb, var(--lq-color-text) 14%, var(--lq-color-bg));
+}
+.lq-office__seam line,
+.lq-office__seam {
+  stroke: color-mix(in srgb, var(--lq-color-text) 12%, transparent);
+}

@@ -12,3 +12,6 @@ export type { StepperProps, StepperStep, StepperOrientation } from "./Stepper";
 
 export { GuidedTour } from "./GuidedTour";
 export type { GuidedTourProps, GuidedTourStep, GuidedTourLabels, GuidedTourPlacement } from "./GuidedTour";
+
+export { AlertList } from "./AlertList";
+export type { AlertListProps, AlertListItem, AlertLevel } from "./AlertList";

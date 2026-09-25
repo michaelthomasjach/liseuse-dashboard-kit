@@ -36,3 +36,12 @@ export type { ControlListEntry } from "./internal/ControlRow";
 
 export { SkillTree } from "./SkillTree";
 export type { SkillTreeProps, SkillTreeNode, SkillTreeBranch, SkillNodeState } from "./SkillTree";
+
+export { AnalogClock } from "./AnalogClock";
+export type { AnalogClockProps } from "./AnalogClock";
+
+export { KnowledgeBase, searchKnowledge, foldText, queryTerms } from "./KnowledgeBase";
+export type { KnowledgeBaseProps, KnowledgeEntry, KnowledgeHit } from "./KnowledgeBase";
+
+export { ObjectiveTracker } from "./ObjectiveTracker";
+export type { ObjectiveTrackerProps, Objective, ObjectiveState } from "./ObjectiveTracker";

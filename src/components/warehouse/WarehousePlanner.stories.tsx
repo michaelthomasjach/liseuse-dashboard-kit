@@ -3,7 +3,8 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { WarehousePlanner } from "./WarehousePlanner";
 import { generatePlot } from "./plot";
 import type { PlannerItem } from "./plannerModel";
-import type { PlannerEdit, PlannerPaletteEntry } from "./WarehousePlanner";
+import type { PlannerEdit, PlannerLink, PlannerPaletteEntry } from "./WarehousePlanner";
+import { dockTrafficClearance } from "./dockManeuver";
 import { semiTruckGeometry } from "./SemiTruck";
 import { dockDoorCenters } from "./BuildingWalls";
 import { PlannerDockTraffic, PlannerShuttle } from "./PlannerLogistics";
@@ -222,6 +223,7 @@ export const Logistique: Story = {
     const [traffic, setTraffic] = useState(0.4);
     const [night, setNight] = useState(0);
     const [electric, setElectric] = useState(false);
+    const [clean, setClean] = useState(true);
     useEffect(() => {
       if (paused) return;
       const id = window.setInterval(() => {
@@ -238,6 +240,8 @@ export const Logistique: Story = {
     };
     const ship = bayOf("ship");
     const recv = bayOf("recv");
+    // Ce que balaient les camions : on n'y plante ni candélabre ni arbre.
+    const clearance = [ship, recv].flatMap((b) => (b ? dockTrafficClearance(b) : []));
     const log = (text: string) => setEvents((e) => [text, ...e].slice(0, 4));
     return (
       <div style={{ ...frame, display: "flex", flexDirection: "column", gap: 8 }}>
@@ -256,6 +260,10 @@ export const Logistique: Story = {
             <input type="checkbox" checked={electric} onChange={(e) => setElectric(e.target.checked)} />
             Camions électriques
           </label>
+          <label style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
+            <input type="checkbox" checked={clean} onChange={(e) => setClean(e.target.checked)} />
+            Sol propre
+          </label>
           <span>Expédiés : {shipped}</span>
           <span>Reçus : {received}</span>
           <span>Palettes déplacées : {moved}</span>
@@ -273,6 +281,9 @@ export const Logistique: Story = {
           lockedAreas={[{ id: "lot-nord", x: 52, y: 30, width: 20, depth: 14, label: "Parcelle nord · 120 000 €" }]}
           traffic={traffic}
           night={night}
+          groundStyle={clean ? "clean" : "site"}
+          lightExclusions={clearance}
+          treeExclusions={clearance}
           defaultView="3d"
           defaultZoom={1.4}
           height="100%"
@@ -350,6 +361,98 @@ export const Application: Story = {
           highlightIds={focus?.ids}
           focus={focus}
           showStatus={false}
+          height="100%"
+        />
+      </div>
+    );
+  },
+};
+
+/**
+ * Les équipements de toiture ne flottent jamais. Le plan cherche ce qu'il y a sous chacun :
+ *
+ * - une **toiture** : il est posé dessus, à l'acrotère (le champ de gauche, sur le bâtiment) ;
+ * - une **chambre froide** hors du bâtiment couvert : il est posé sur son plafond (les condenseurs
+ *   au milieu) ;
+ * - rien : il reste à hauteur de toit, mais sur une **ossature d'acier** jusqu'au sol — une plate-forme
+ *   technique (le champ et le groupe de droite).
+ *
+ * Tenez un « Climatiseur de toiture » en main et promenez-le : le fantôme change d'appui en passant
+ * au-dessus du toit, de la chambre froide ou du vide.
+ */
+export const AppuisDeToiture: Story = {
+  name: "Appuis des équipements de toiture",
+  render: function Render() {
+    const [items, setItems] = useState<PlannerItem[]>([
+      { id: "s", kind: "wall", level: 2, x0: 6, y0: 6, x1: 20, y1: 6 },
+      { id: "e", kind: "wall", level: 2, x0: 20, y0: 6, x1: 20, y1: 18 },
+      { id: "n", kind: "wall", level: 2, x0: 20, y0: 18, x1: 6, y1: 18 },
+      { id: "w", kind: "wall", level: 2, x0: 6, y0: 18, x1: 6, y1: 6 },
+      { id: "roof", kind: "roof", level: 1, x: 13, y: 12, rotation: 0, size: { length: 14, width: 12 } },
+      { id: "pv-roof", kind: "roofSolar", level: 1, x: 12, y: 10, rotation: 0 },
+      { id: "cold", kind: "coldRoom", level: 1, x: 27, y: 12, rotation: 0 },
+      { id: "hvac-cold", kind: "hvac", level: 2, x: 27, y: 12.5, rotation: 0 },
+      { id: "pv-legs", kind: "roofSolar", level: 1, x: 36, y: 9, rotation: 0 },
+      { id: "hvac-legs", kind: "hvac", level: 3, x: 36, y: 15, rotation: 0 },
+    ]);
+    return (
+      <div style={frame}>
+        <WarehousePlanner seed={9} shape="rect" plotSize={{ width: 44, depth: 26 }} items={items} onItemsChange={setItems} groundStyle="clean" defaultView="3d" defaultZoom={1.5} height="100%" />
+      </div>
+    );
+  },
+};
+
+/**
+ * Des flux tracés à la main. « Tracer un flux » : pressez sur un élément, tirez — l'élastique suit et
+ * désigne l'élément survolé —, lâchez sur un autre. Un lien vers un arbre est refusé (`canLink`),
+ * l'élastique passe au rouge et dit pourquoi. Hors du mode de tracé, un clic sur une flèche la
+ * choisit, Suppr l'efface.
+ */
+export const Flux: Story = {
+  name: "Flux tracés par le joueur",
+  render: function Render() {
+    const [items, setItems] = useState<PlannerItem[]>([
+      { id: "recv", kind: "zone", level: 2, x: 8, y: 8, rotation: 0 },
+      { id: "rack", kind: "palletRack", level: 2, x0: 14, y0: 6, x1: 24, y1: 6 },
+      { id: "shelf", kind: "shelf", level: 2, x: 18, y: 12, rotation: 0 },
+      { id: "pack", kind: "packer", level: 2, x: 28, y: 12, rotation: 0 },
+      { id: "ship", kind: "zone", level: 1, x: 34, y: 6, rotation: 0 },
+      { id: "tree", kind: "tree", level: 2, x: 32, y: 18, rotation: 0 },
+    ]);
+    const [links, setLinks] = useState<PlannerLink[]>([
+      { id: "l1", from: "recv", to: "rack", label: "Palettes" },
+      { id: "l2", from: "rack", to: "shelf" },
+      { id: "l3", from: "shelf", to: "pack", color: "#6faf82", label: "Préparation" },
+      { id: "l4", from: "pack", to: "ship", dashed: true, label: "Prévu" },
+    ]);
+    const [linkMode, setLinkMode] = useState(false);
+    const [selected, setSelected] = useState<string | null>(null);
+    return (
+      <div style={{ ...frame, display: "flex", flexDirection: "column", gap: 8 }}>
+        <div style={{ display: "flex", gap: 12, alignItems: "center", fontSize: 13 }}>
+          <button type="button" onClick={() => setLinkMode((m) => !m)} aria-pressed={linkMode}>
+            {linkMode ? "Terminer le tracé" : "Tracer un flux"}
+          </button>
+          <span>{links.length} flux{selected ? ` · choisi : ${selected} (Suppr pour l'effacer)` : ""}</span>
+        </div>
+        <WarehousePlanner
+          seed={3}
+          shape="rect"
+          plotSize={{ width: 42, depth: 24 }}
+          items={items}
+          onItemsChange={setItems}
+          groundStyle="clean"
+          links={links}
+          linkMode={linkMode}
+          canLink={(from, to) => (to === "tree" || from === "tree" ? "Un arbre ne reçoit pas de marchandise." : links.some((l) => l.from === from && l.to === to) ? "Ce flux existe déjà." : null)}
+          onLink={(from, to) => setLinks((ls) => [...ls, { id: `l${Date.now()}`, from, to }])}
+          selectedLinkId={selected}
+          onLinkSelect={setSelected}
+          onLinkRemove={(id) => {
+            setLinks((ls) => ls.filter((l) => l.id !== id));
+            setSelected(null);
+          }}
           height="100%"
         />
       </div>

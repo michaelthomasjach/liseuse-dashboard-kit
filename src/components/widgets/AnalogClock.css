@@ -1,0 +1,75 @@
+.lq-analog-clock {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px 2px 4px;
+  color: var(--lq-color-text);
+  border: 1px solid var(--lq-color-border-subtle);
+  border-radius: var(--lq-radius-md);
+  font-variant-numeric: tabular-nums;
+}
+
+.lq-analog-clock__dial {
+  flex-shrink: 0;
+}
+
+.lq-analog-clock__face {
+  fill: var(--lq-color-panel);
+  stroke: var(--lq-color-border);
+  stroke-width: 1.5;
+}
+
+.lq-analog-clock__tick {
+  stroke: var(--lq-color-text-muted);
+  stroke-width: 1;
+}
+
+.lq-analog-clock__tick--major {
+  stroke: var(--lq-color-text);
+  stroke-width: 1.4;
+}
+
+.lq-analog-clock__hand {
+  stroke: var(--lq-color-accent);
+  stroke-linecap: round;
+}
+
+.lq-analog-clock__hand--hour {
+  stroke-width: 2.2;
+}
+
+.lq-analog-clock__hand--minute {
+  stroke-width: 1.3;
+}
+
+.lq-analog-clock__pin {
+  fill: var(--lq-color-accent);
+}
+
+.lq-analog-clock__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.15;
+}
+
+.lq-analog-clock__time {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--lq-text-sm);
+  font-weight: 700;
+}
+
+.lq-analog-clock__sky {
+  display: inline-flex;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-analog-clock__caption {
+  font-size: var(--lq-text-xs);
+  color: var(--lq-color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

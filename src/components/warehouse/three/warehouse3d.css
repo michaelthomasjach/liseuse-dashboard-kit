@@ -176,6 +176,15 @@
 .lq-plot__edge {
   fill: color-mix(in srgb, var(--lq-color-text) 78%, var(--lq-color-bg));
 }
+/* Le sol « propre » (`groundStyle="clean"`) : un béton poli, une résine claire — à peine plus soutenu
+   que le papier, dans les deux thèmes — et ses grands carreaux, en traits presque effacés. */
+.lq-iso__solid--floor-clean {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-text) 7%, var(--lq-color-bg));
+}
+.lq-plot__seam line,
+.lq-plot__seam {
+  stroke: color-mix(in srgb, var(--lq-color-text) 11%, transparent);
+}
 
 /* --- Le picker ---------------------------------------------------------------------------------- */
 

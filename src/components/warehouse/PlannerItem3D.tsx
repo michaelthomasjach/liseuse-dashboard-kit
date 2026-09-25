@@ -30,11 +30,12 @@ import { Roof } from "./Roof";
 import { RoofHvac, RoofSolar } from "./RoofUnits";
 import { ColdRoom } from "./ColdRoom";
 import { TruckBay } from "./TruckBay";
+import { Office } from "./Office";
 import { TREE_KINDS } from "./Tree";
 import type { WallOpening } from "./Wall";
 import { Builder } from "./three/builder";
 import { Parts, placed, useBuilt } from "./three/scene";
-import { HVAC_UNITS, ROOF_SOLAR_TIERS, SOLAR_TIERS, TRUCK_BAY_WIDTH, WALL_MOUNTED, isLinear, isRooftop, levelOf, sizeOf, thicknessOf, type PlannerItem, type PlannerPoint } from "./plannerModel";
+import { HVAC_UNITS, ROOF_SOLAR_TIERS, SOLAR_TIERS, TRUCK_BAY_WIDTH, WALL_MOUNTED, footprintOf, footprintsOverlap, isLinear, isRooftop, levelOf, sizeOf, thicknessOf, type PlannerItem, type PlannerPoint } from "./plannerModel";
 
 /**
  * Un élément du plan, rendu par le module 3D du kit qui lui correspond — **à son niveau
@@ -57,6 +58,36 @@ const hash = (s: string) => {
 export const PLANNER_DOCK_LEVEL = 0.6;
 /** La hauteur des murs, du sol à l'acrotère, en cases. */
 export const PLANNER_WALL_TOP = 3;
+/** La hauteur des parois d'une chambre froide, et le dessus de son plafond isolé. */
+export const PLANNER_COLD_ROOM_HEIGHT = 1.6;
+const COLD_ROOM_TOP = PLANNER_COLD_ROOM_HEIGHT + 0.08;
+
+/** Sur quoi repose un équipement de toiture : la hauteur de sa dalle, et s'il lui faut des jambes. */
+export interface RooftopSupport {
+  z: number;
+  legs: boolean;
+}
+
+/**
+ * Ce qui porte un équipement de toiture (`roofSolar`, `hvac`) — pour qu'il ne flotte jamais.
+ *
+ *  - Son emprise chevauche une **toiture** (`roof`) : il est posé dessus, à l'acrotère
+ *    (`PLANNER_WALL_TOP`) ;
+ *  - sinon, elle chevauche une **chambre froide** : il est posé sur son plafond — des condenseurs
+ *    sur une chambre froide, c'est ce qu'on voit vraiment ;
+ *  - sinon, rien ne le porte : il reste à l'acrotère, mais sur une **ossature d'acier** jusqu'au sol,
+ *    une plate-forme technique (`legs`).
+ *
+ *  `null` pour ce qui n'est pas un équipement de toiture.
+ */
+export function rooftopSupport(item: PlannerItem, items: PlannerItem[]): RooftopSupport | null {
+  if (!isRooftop(item)) return null;
+  const f = footprintOf(item);
+  const others = items.filter((o) => o.id !== item.id);
+  if (others.some((o) => o.kind === "roof" && footprintsOverlap(f, footprintOf(o)))) return { z: PLANNER_WALL_TOP, legs: false };
+  if (others.some((o) => o.kind === "coldRoom" && footprintsOverlap(f, footprintOf(o)))) return { z: COLD_ROOM_TOP, legs: false };
+  return { z: PLANNER_WALL_TOP, legs: true };
+}
 
 /** Le portique de contrôle d'un tapis : deux montants, une traverse, le scanner dessous. */
 function ScannerArch({ origin, rotation, length, width }: { origin: { x: number; y: number }; rotation: number; length: number; width: number }) {
@@ -98,9 +129,11 @@ function AutonomyKit({ origin, rotation }: { origin: { x: number; y: number }; r
  * `mounts` : les ouvertures qu'un mur porte — portes, fenêtres, baies accrochées à lui (voir
  * `wallMounts`). `roofs` : afficher les toitures, qu'on masque pour voir dedans — et avec elles ce
  * qui est posé dessus (`ROOFTOP_KINDS`) et le plafond des chambres froides. `night` : de 0 à 1,
- * allume les luminaires (`light`).
+ * allume les luminaires (`light`). `support` : ce qui porte un équipement de toiture — la hauteur de
+ * sa dalle, et une ossature jusqu'au sol s'il n'a rien dessous (voir `rooftopSupport`) ; sans lui,
+ * il est posé à l'acrotère, comme sur un toit.
  */
-export function PlannerItem3D({ item, mounts, roofs = true, night = 0 }: { item: PlannerItem; mounts?: WallOpening[]; roofs?: boolean; night?: number }) {
+export function PlannerItem3D({ item, mounts, roofs = true, night = 0, support }: { item: PlannerItem; mounts?: WallOpening[]; roofs?: boolean; night?: number; support?: RooftopSupport | null }) {
   const lv = levelOf(item);
   if (isLinear(item)) {
     const L = Math.max(0.5, Math.hypot(item.x1 - item.x0, item.y1 - item.y0));
@@ -303,11 +336,14 @@ export function PlannerItem3D({ item, mounts, roofs = true, night = 0 }: { item:
     case "palletizer":
       return <RobotCell kind="palletizer" origin={origin} rotation={rotation} />;
     case "roofSolar":
-      return <RoofSolar {...ROOF_SOLAR_TIERS[lv - 1]} height={PLANNER_WALL_TOP} origin={origin} rotation={rotation} />;
+      return <RoofSolar {...ROOF_SOLAR_TIERS[lv - 1]} height={support?.z ?? PLANNER_WALL_TOP} legs={!!support?.legs} origin={origin} rotation={rotation} />;
     case "hvac":
-      return <RoofHvac units={HVAC_UNITS[lv - 1]} length={s.length} width={s.width} height={PLANNER_WALL_TOP} origin={origin} rotation={rotation} />;
+      return <RoofHvac units={HVAC_UNITS[lv - 1]} length={s.length} width={s.width} height={support?.z ?? PLANNER_WALL_TOP} legs={!!support?.legs} origin={origin} rotation={rotation} />;
     case "coldRoom":
-      return <ColdRoom kind={lv === 2 ? "negative" : "positive"} length={s.length} width={s.width} height={1.6} ceiling={roofs} origin={origin} rotation={rotation} />;
+      return <ColdRoom kind={lv === 2 ? "negative" : "positive"} length={s.length} width={s.width} height={PLANNER_COLD_ROOM_HEIGHT} ceiling={roofs} origin={origin} rotation={rotation} />;
+    case "office":
+      // Des bureaux : un plateau de postes — quatre, huit —, puis huit postes et une salle de réunion.
+      return <Office workstations={lv === 1 ? 4 : 8} meetingRoom={lv === 3} length={s.length} width={s.width} origin={origin} rotation={rotation} />;
     case "truckBay":
       return <TruckBay bays={Math.round(s.width / TRUCK_BAY_WIDTH)} length={s.length} bayWidth={TRUCK_BAY_WIDTH} origin={origin} rotation={rotation} />;
     case "roof":

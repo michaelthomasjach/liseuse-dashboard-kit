@@ -48,6 +48,22 @@ export const Remorque: Story = {
   ),
 };
 
+/** L'attelage plié : la remorque pivote sur la sellette (`articulation`, en degrés). C'est ce qu'on
+ *  voit dans un virage, et surtout en marche arrière, quand le tracteur braque pour placer la remorque. */
+export const Articule: Story = {
+  name: "Attelage articulé",
+  render: () => (
+    <div style={{ display: "flex", gap: 24, alignItems: "flex-end", padding: 32, flexWrap: "wrap" }}>
+      {[-40, -15, 0, 20, 45].map((a) => (
+        <div key={a} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+          <SemiTruck rotation={0} articulation={a} doorsOpen={a === 45} variant={a < 0 ? "electric" : "diesel"} cellSize={18} />
+          <span style={{ fontSize: "0.72rem", fontWeight: 600 }}>{a}°</span>
+        </div>
+      ))}
+    </div>
+  ),
+};
+
 /** Quatre caps. Ce qui est sous la caisse passe avant elle ; au-dessus, le camion se range le long
  *  de sa longueur, dans l'ordre où la caméra le voit — ce qui tient à tout cap. Les portes arrière ne
  *  sont tracées que quand leur face regarde la caméra. */

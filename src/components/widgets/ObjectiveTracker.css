@@ -1,0 +1,290 @@
+.lq-objectives {
+  display: flex;
+  flex-direction: column;
+  width: 300px;
+  max-width: 100%;
+  color: var(--lq-color-text);
+  background: var(--lq-color-panel);
+  border: 1px solid var(--lq-color-border);
+  border-radius: var(--lq-radius-lg);
+  box-shadow: 0 6px 24px color-mix(in srgb, var(--lq-color-text) 14%, transparent);
+  overflow: hidden;
+}
+
+.lq-objectives__head {
+  display: flex;
+  align-items: center;
+  gap: var(--lq-space-2);
+  padding: var(--lq-space-2) var(--lq-space-2) var(--lq-space-2) var(--lq-space-3);
+}
+
+.lq-objectives__titles {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.2;
+}
+
+.lq-objectives__title {
+  font-size: var(--lq-text-sm);
+  font-weight: 700;
+}
+
+.lq-objectives__subtitle {
+  font-size: var(--lq-text-xs);
+  color: var(--lq-color-text-muted);
+}
+
+.lq-objectives__count {
+  flex-shrink: 0;
+  font-size: var(--lq-text-xs);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-objectives__icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  color: var(--lq-color-text-muted);
+  cursor: pointer;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--lq-radius-md);
+}
+
+.lq-objectives__icon-btn:hover {
+  color: var(--lq-color-text);
+  border-color: var(--lq-color-border-subtle);
+}
+
+.lq-objectives__icon-btn:focus-visible,
+.lq-objectives__action:focus-visible {
+  outline: 2px solid var(--lq-color-focus-ring);
+  outline-offset: 2px;
+}
+
+.lq-objectives__fold svg {
+  transition: transform 180ms ease;
+}
+
+.lq-objectives--collapsed .lq-objectives__fold svg {
+  transform: rotate(180deg);
+}
+
+.lq-objectives__bar {
+  height: 3px;
+  margin: 0 var(--lq-space-3) var(--lq-space-2);
+  background: var(--lq-color-fill-track);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.lq-objectives__fill {
+  display: block;
+  height: 100%;
+  background: var(--lq-color-accent);
+  border-radius: inherit;
+  transition: width 400ms ease;
+}
+
+.lq-objectives--complete .lq-objectives__fill {
+  background: var(--lq-color-up);
+}
+
+.lq-objectives__body {
+  padding: 0 var(--lq-space-2) var(--lq-space-2);
+}
+
+.lq-objectives__list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lq-objectives__step {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--lq-space-2);
+  padding: 5px var(--lq-space-2);
+  border: 1px solid transparent;
+  border-left-width: 3px;
+  border-radius: var(--lq-radius-md);
+  transition:
+    background-color 300ms ease,
+    border-color 300ms ease,
+    opacity 300ms ease;
+}
+
+.lq-objectives__mark {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  margin-top: 1px;
+  color: var(--lq-color-accent-contrast);
+  border: 1.5px solid var(--lq-color-border);
+  border-radius: 999px;
+}
+
+.lq-objectives__content {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  font-size: var(--lq-text-sm);
+  line-height: 1.3;
+}
+
+.lq-objectives__step-title {
+  font-weight: 600;
+}
+
+/* Faite : cochée, en retrait, barrée. */
+.lq-objectives__step--done {
+  opacity: 0.6;
+}
+
+.lq-objectives__step--done .lq-objectives__mark {
+  background: var(--lq-color-up);
+  border-color: var(--lq-color-up);
+}
+
+.lq-objectives__step--done .lq-objectives__step-title {
+  font-weight: 400;
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--lq-color-text) 45%, transparent);
+}
+
+/* En cours : la seule mise en avant. */
+.lq-objectives__step--current {
+  background: color-mix(in srgb, var(--lq-color-accent) 8%, var(--lq-color-panel));
+  border-color: color-mix(in srgb, var(--lq-color-accent) 30%, transparent);
+  border-left-color: var(--lq-color-accent);
+}
+
+.lq-objectives__step--current .lq-objectives__mark {
+  border-color: var(--lq-color-accent);
+  box-shadow: inset 0 0 0 3px var(--lq-color-panel);
+  background: var(--lq-color-accent);
+}
+
+/* À venir : estompée, réduite à son titre. */
+.lq-objectives__step--todo {
+  opacity: 0.5;
+}
+
+.lq-objectives__step--todo .lq-objectives__step-title {
+  font-weight: 400;
+}
+
+.lq-objectives__desc {
+  color: var(--lq-color-text);
+}
+
+.lq-objectives__hint {
+  font-size: var(--lq-text-xs);
+  color: var(--lq-color-text-muted);
+  font-style: italic;
+}
+
+.lq-objectives__action {
+  align-self: flex-start;
+  margin-top: 2px;
+  padding: 3px 10px;
+  font: inherit;
+  font-size: var(--lq-text-xs);
+  font-weight: 600;
+  color: var(--lq-color-accent-contrast);
+  cursor: pointer;
+  background: var(--lq-color-accent);
+  border: 1px solid var(--lq-color-accent);
+  border-radius: var(--lq-radius-md);
+}
+
+.lq-objectives__action:hover {
+  filter: brightness(1.08);
+}
+
+/* Une étape tout juste faite s'illumine un instant. */
+.lq-objectives__step--flash {
+  animation: lq-objectives-flash 1.4s ease-out;
+}
+
+.lq-objectives__step--flash .lq-objectives__mark {
+  animation: lq-objectives-pop 480ms cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+
+@keyframes lq-objectives-flash {
+  0% {
+    opacity: 1;
+    background: color-mix(in srgb, var(--lq-color-up) 32%, var(--lq-color-panel));
+    border-color: var(--lq-color-up);
+  }
+  60% {
+    opacity: 1;
+  }
+}
+
+@keyframes lq-objectives-pop {
+  0% {
+    transform: scale(0.4);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.lq-objectives__done {
+  display: flex;
+  align-items: center;
+  gap: var(--lq-space-2);
+  padding: var(--lq-space-3) var(--lq-space-2);
+  animation: lq-objectives-flash 1.4s ease-out;
+  border-radius: var(--lq-radius-md);
+}
+
+.lq-objectives__done-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  color: var(--lq-color-accent-contrast);
+  background: var(--lq-color-up);
+  border-radius: 999px;
+  animation: lq-objectives-pop 520ms cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+
+.lq-objectives__done-text {
+  font-size: var(--lq-text-lg);
+  font-weight: 700;
+}
+
+.lq-objectives__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lq-objectives__step--flash,
+  .lq-objectives__step--flash .lq-objectives__mark,
+  .lq-objectives__done,
+  .lq-objectives__done-badge {
+    animation: none;
+  }
+}

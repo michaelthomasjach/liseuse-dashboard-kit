@@ -611,3 +611,93 @@
 .lq-planner__tool--disabled:hover {
   background: none;
 }
+
+/* --- Les flèches de flux (`links`) ------------------------------------------------------------------
+   Un ruban posé au sol, sa pointe, et un trait central dont les tirets défilent du départ vers
+   l'arrivée : on lit le sens du flux sans lire la pointe. */
+.lq-planner__link {
+  --lq-link: var(--lq-link-color, var(--lq-color-accent));
+}
+
+.lq-planner__link-ribbon {
+  fill: color-mix(in srgb, var(--lq-link) 38%, transparent);
+  stroke: color-mix(in srgb, var(--lq-link) 80%, var(--lq-color-text));
+  stroke-width: 1;
+  stroke-linejoin: round;
+}
+
+.lq-planner__link-head {
+  fill: color-mix(in srgb, var(--lq-link) 85%, var(--lq-color-text));
+  stroke: color-mix(in srgb, var(--lq-link) 80%, var(--lq-color-text));
+  stroke-width: 1;
+  stroke-linejoin: round;
+}
+
+.lq-planner__link-flow {
+  stroke: var(--lq-color-bg);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-dasharray: 6 8;
+  animation: lq-planner-flow 0.9s linear infinite;
+}
+
+.lq-planner__link--dashed .lq-planner__link-ribbon {
+  fill: color-mix(in srgb, var(--lq-link) 14%, transparent);
+  stroke-dasharray: 5 4;
+}
+
+.lq-planner__link-label {
+  font-size: 11px;
+  font-weight: 600;
+  fill: var(--lq-color-text);
+  paint-order: stroke;
+  stroke: var(--lq-color-bg);
+  stroke-width: 3px;
+}
+
+.lq-planner__link-label--invalid {
+  fill: var(--lq-color-danger);
+}
+
+/* Hors du mode de tracé, une flèche se choisit d'un clic. */
+.lq-planner__link--pickable .lq-planner__link-ribbon,
+.lq-planner__link--pickable .lq-planner__link-head {
+  pointer-events: all;
+  cursor: pointer;
+}
+
+.lq-planner__link--selected .lq-planner__link-ribbon,
+.lq-planner__link--selected .lq-planner__link-head {
+  stroke: var(--lq-color-text);
+  stroke-width: 2.5;
+}
+
+.lq-planner__link--selected .lq-planner__link-ribbon {
+  fill: color-mix(in srgb, var(--lq-link) 60%, transparent);
+}
+
+/* L'élastique : plus léger, et rouge quand l'application refuse le lien. */
+.lq-planner__link--draft .lq-planner__link-ribbon {
+  fill: color-mix(in srgb, var(--lq-link) 22%, transparent);
+  stroke-dasharray: 4 3;
+}
+
+.lq-planner__link--invalid {
+  --lq-link: var(--lq-color-danger);
+}
+
+.lq-planner__stage--link {
+  cursor: crosshair;
+}
+
+@keyframes lq-planner-flow {
+  to {
+    stroke-dashoffset: -14;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lq-planner__link-flow {
+    animation: none;
+  }
+}

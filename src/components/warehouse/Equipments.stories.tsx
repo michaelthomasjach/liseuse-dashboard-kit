@@ -15,6 +15,7 @@ import { Forklift } from "./Forklift";
 import { SceneBox } from "./sceneStory";
 import { RoofHvac, RoofSolar } from "./RoofUnits";
 import { ColdRoom } from "./ColdRoom";
+import { Office } from "./Office";
 import { TruckBay } from "./TruckBay";
 import { PalletJack } from "./PalletJack";
 import { STORAGE_CLASSES, STORAGE_LABEL } from "./storageClass";
@@ -102,6 +103,32 @@ export const EquipementsDeToiture: Story = {
       {cell(<RoofSolar rows={2} columns={8} height={0.2} cellSize={30} />, "Champ en toiture")}
       {cell(<RoofHvac units={1} height={0.2} cellSize={60} />, "Groupe froid simple")}
       {cell(<RoofHvac units={3} height={0.2} cellSize={44} />, "Groupe froid triple")}
+    </div>
+  ),
+};
+
+/** Un équipement de toiture posé là où il n'y a pas de toit : une ossature d'acier le porte jusqu'au
+ *  sol — poteaux sur platines, ceinture sous la dalle, croix de contreventement. C'est ce que le plan
+ *  dessine quand un champ de panneaux ou un groupe froid n'a ni toiture ni chambre froide dessous. */
+export const PlateformesTechniques: Story = {
+  name: "Plates-formes techniques",
+  render: () => (
+    <div style={row}>
+      {cell(<RoofSolar rows={1} columns={6} height={3} legs cellSize={30} />, "Champ sur ossature")}
+      {cell(<RoofHvac units={2} height={3} legs cellSize={44} />, "Groupe froid sur ossature")}
+      {cell(<RoofHvac units={3} height={1.68} cellSize={44} />, "Posé sur une chambre froide (1,68)")}
+    </div>
+  ),
+};
+
+/** Des bureaux, sans leurs murs : un îlot de quatre postes, deux îlots, puis la salle de réunion vitrée. */
+export const Bureaux: Story = {
+  name: "Bureaux",
+  render: () => (
+    <div style={row}>
+      {cell(<Office workstations={4} cellSize={34} />, "Open space 4 postes")}
+      {cell(<Office workstations={8} cellSize={34} />, "Open space 8 postes")}
+      {cell(<Office workstations={8} meetingRoom cellSize={34} />, "Bureaux et salle de réunion")}
     </div>
   ),
 };

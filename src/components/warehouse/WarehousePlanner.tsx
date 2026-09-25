@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent, type KeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent, type KeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { IsoCamera, type IsoProjection } from "./isoCamera";
 import { viewProjector } from "./three/camera";
 import { WarehouseScene, frameBounds } from "./three/scene";
 import { SnapshotStudio, cachedSnapshot, type SnapshotJob } from "./three/snapshot";
-import { BuildPlot } from "./BuildPlot";
-import { PLANNER_WALL_TOP, PlannerItem3D } from "./PlannerItem3D";
-import { generatePlot, plotArea, withLockedAreas, type PlotLockedArea, type PlotShape } from "./plot";
+import { BuildPlot, type PlotGroundStyle } from "./BuildPlot";
+import { PLANNER_WALL_TOP, PlannerItem3D, rooftopSupport } from "./PlannerItem3D";
+import { generatePlot, plotArea, withLockedAreas, type PlotLockedArea, type PlotRect, type PlotShape } from "./plot";
 import {
   PLANNER_LABEL,
   TIERS,
@@ -33,6 +33,7 @@ import {
   snapToWall,
   wallMounts,
   type DrawMode,
+  type Footprint,
   type PlannerItem,
   type PlannerKind,
   type PlannerLinear,
@@ -211,6 +212,59 @@ export interface WarehousePlannerProps {
    * (clair le jour, sombre la nuit) reste à sa charge.
    */
   night?: number;
+  /**
+   * L'allure du sol constructible : `"site"` (défaut), un chantier — dalle à joints, grille de points,
+   * taches, regards ; `"clean"`, un sol industriel propre et uni, à peine quadrillé. Voir
+   * `BuildPlot.groundStyle`.
+   */
+  groundStyle?: PlotGroundStyle;
+  /**
+   * Des rectangles (en cases, alignés sur les axes) où la rue ne plante **pas de candélabres** —
+   * ni leur flaque de lumière la nuit. Pour dégager la manœuvre des camions devant les quais :
+   * `lightExclusions={bays.flatMap((b) => dockTrafficClearance(b))}`.
+   */
+  lightExclusions?: PlotRect[];
+  /** De même pour les arbres du décor (alignements de la rue, parcelles voisines). */
+  treeExclusions?: PlotRect[];
+
+  // --- Les flux tracés par le joueur ------------------------------------------------------------
+
+  /**
+   * Des **flèches de flux** d'un élément à un autre, dessinées au sol : un ruban de l'emprise de
+   * `from` à celle de `to` — de bord à bord, du côté où ils se font face —, une pointe à l'arrivée,
+   * et des tirets qui défilent dans le sens du flux. Visibles dans les deux vues. Une flèche dont un
+   * bout n'existe plus n'est pas dessinée.
+   */
+  links?: PlannerLink[];
+  /**
+   * Le mode « tracer un flux » : on presse sur un élément, on tire — un élastique suit le pointeur et
+   * désigne l'élément survolé —, on lâche sur un autre : `onLink(from, to)`. Lâché ailleurs, rien.
+   * Dans ce mode, on ne choisit ni ne déplace les éléments ; presser sur le sol déplace toujours la
+   * vue.
+   */
+  linkMode?: boolean;
+  onLink?: (from: string, to: string) => void;
+  /** Refuser un lien, en disant pourquoi : l'élastique passe au rouge et montre la raison. */
+  canLink?: (from: string, to: string) => string | null;
+  /** La flèche choisie (hors du mode de tracé, un clic sur une flèche la choisit). */
+  selectedLinkId?: string | null;
+  onLinkSelect?: (id: string | null) => void;
+  /** Suppr ou Retour arrière sur la flèche choisie. */
+  onLinkRemove?: (id: string) => void;
+}
+
+/** Une flèche de flux entre deux éléments du plan (voir `links`). */
+export interface PlannerLink {
+  id: string;
+  /** L'élément de départ, et celui d'arrivée, par leur `id`. */
+  from: string;
+  to: string;
+  /** La couleur du ruban. Défaut : la couleur d'accent. */
+  color?: string;
+  /** Une étiquette, au milieu de la flèche. */
+  label?: string;
+  /** Un ruban en pointillés — un flux prévu, secondaire. */
+  dashed?: boolean;
 }
 
 /** Une parcelle à vendre (voir `lockedAreas`). */
@@ -265,6 +319,18 @@ type Entry =
   | { id: string; label: string; group: string; type: "area"; kind: "roof" }
   | { id: string; label: string; group: string; type: "piece"; kind: PlannerKind; length?: number; level?: number; meta?: ReactNode; disabled?: boolean; description?: string };
 
+/** Le point du bord d'une emprise où sort la demi-droite de son centre vers `p`. */
+function edgeToward(f: Footprint, p: P): P {
+  const dx = p.x - f.cx;
+  const dy = p.y - f.cy;
+  const c = Math.cos(f.angle);
+  const s = Math.sin(f.angle);
+  const u = dx * c + dy * s;
+  const v = -dx * s + dy * c;
+  const k = Math.min(Math.abs(u) > 1e-9 ? f.halfL / Math.abs(u) : Infinity, Math.abs(v) > 1e-9 ? f.halfW / Math.abs(v) : Infinity, 1);
+  return { x: f.cx + dx * k, y: f.cy + dy * k };
+}
+
 /** L'élément qu'une entrée de l'application pose, centré en `(x, y)`. */
 function pieceItem(entry: Extract<Entry, { type: "piece" }>, x: number, y: number): PlannerItem {
   let item = createItem(entry.kind, x, y);
@@ -293,6 +359,7 @@ const ENTRIES: Entry[] = [
   { id: "roofSolar", label: "Panneaux en toiture", group: "Murs", type: "place", kind: "roofSolar" },
   { id: "hvac", label: "Climatiseur de toiture", group: "Murs", type: "place", kind: "hvac" },
   { id: "coldRoom", label: "Chambre froide", group: "Stockage", type: "place", kind: "coldRoom" },
+  { id: "office", label: "Bureaux", group: "Murs", type: "place", kind: "office" },
   { id: "truckBay", label: "Parking poids lourds", group: "Extérieur", type: "place", kind: "truckBay" },
   { id: "fence", label: "Clôture", group: "Murs", type: "draw", kind: "fence", mode: "chain" },
   { id: "palletRack", label: "Rack à palettes", group: "Stockage", type: "draw", kind: "palletRack", mode: "segment" },
@@ -338,6 +405,7 @@ const MENU: { title: string; subs: { title: string; ids: string[] }[] }[] = [
       { title: "Quai et clôtures", ids: ["dock", "fence"] },
       { title: "Ouvertures", ids: ["door", "window", "bay"] },
       { title: "Toiture", ids: ["roof", "roofSolar", "hvac"] },
+      { title: "Aménagement", ids: ["office"] },
     ],
   },
   {
@@ -387,7 +455,8 @@ type Drag =
   | { t: "orbit"; sx: number; sy: number; yaw: number; tilt: number }
   | { t: "end"; id: string; which: 0 | 1; orig: PlannerItem }
   | { t: "move"; id: string; wx: number; wy: number; orig: PlannerItem }
-  | { t: "rotate"; id: string; cx: number; cy: number; orig: PlannerItem };
+  | { t: "rotate"; id: string; cx: number; cy: number; orig: PlannerItem }
+  | { t: "link"; from: string };
 
 const DND = "application/x-lq-planner";
 /** Comparer sans casse ni accents : « etagere » trouve « Étagère ». */
@@ -472,6 +541,7 @@ function entryJob(entry: Entry): SnapshotJob {
     hvac: PLANNER_WALL_TOP + 0.7,
     coldRoom: 2,
     truckBay: 0.3,
+    office: 1.4,
   };
   const h = tall[entry.kind] ?? (entry.type === "place" || (entry.type === "piece" && !isLinear(items[0])) ? 2 : 3);
   // Ce qui est posé sur un toit flotte à sa hauteur : la vignette cadre la dalle, pas le vide dessous.
@@ -520,6 +590,16 @@ export function WarehousePlanner({
   lockedAreas,
   traffic = 0.4,
   night = 0,
+  groundStyle = "site",
+  lightExclusions,
+  treeExclusions,
+  links,
+  linkMode = false,
+  onLink,
+  canLink,
+  selectedLinkId = null,
+  onLinkSelect,
+  onLinkRemove,
 }: WarehousePlannerProps) {
   const [ownSeed, setOwnSeed] = useState(defaultSeed);
   const seed = seedProp ?? ownSeed;
@@ -596,6 +676,10 @@ export function WarehousePlanner({
     if (id !== selectedId) onSelectedIdChange?.(id);
   };
   const [hoverId, setHoverId] = useState<string | null>(null);
+  /** L'élastique du flux en cours de tracé : son départ, l'élément visé, le point sous le pointeur. */
+  const [linkDraft, setLinkDraft] = useState<{ from: string; to: string | null; at: P } | null>(null);
+  const linkDraftRef = useRef(linkDraft);
+  linkDraftRef.current = linkDraft;
   /** L'outil en main : une entrée de la palette. */
   const [ownTool, setOwnTool] = useState<Entry | null>(null);
   const tool = activeEntryId !== undefined ? (activeEntryId === null ? null : findEntry(activeEntryId) ?? null) : ownTool;
@@ -861,6 +945,21 @@ export function WarehousePlanner({
       drag.current = { t: "orbit", sx: p.x, sy: p.y, yaw: from.yaw, tilt: from.tilt };
       return;
     }
+    if (linkMode) {
+      // Tracer un flux : presser sur un élément tend l'élastique ; presser sur le sol déplace la vue.
+      const from = pick(w);
+      if (from) {
+        drag.current = { t: "link", from: from.id };
+        setLinkDraft({ from: from.id, to: null, at: w });
+      } else drag.current = pan;
+      return;
+    }
+    const linkEl = (e.target as Element).closest?.("[data-link]") as HTMLElement | null;
+    if (linkEl) {
+      onLinkSelect?.(linkEl.dataset.link ?? null);
+      setSelectedId(null);
+      return;
+    }
     if (readOnly) {
       // On regarde : un clic choisit, un glisser déplace la vue — rien d'autre.
       const hit = pick(w);
@@ -948,6 +1047,12 @@ export function WarehousePlanner({
       if (id !== hoverId) setHoverId(id);
       return;
     }
+    if (d.t === "link") {
+      const w = toWorld(p.x, p.y);
+      const over = pick(w);
+      setLinkDraft({ from: d.from, to: over && over.id !== d.from ? over.id : null, at: w });
+      return;
+    }
     if (d.t === "orbit") {
       // La main qui monte relève la caméra, comme sur la planche : on voit la scène de plus haut.
       setOrbit({ yaw: d.yaw + (p.x - d.sx) * 0.4, tilt: Math.max(10, Math.min(89, d.tilt - (p.y - d.sy) * 0.25)) });
@@ -976,8 +1081,17 @@ export function WarehousePlanner({
     drag.current = null;
     if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
     if (!d) return;
+    if (d.t === "link") {
+      const draftLink = linkDraftRef.current;
+      setLinkDraft(null);
+      if (draftLink?.to && !(canLink?.(d.from, draftLink.to) ?? null)) onLink?.(d.from, draftLink.to);
+      return;
+    }
     if (d.t === "pan") {
-      if (!d.moved) setSelectedId(null);
+      if (!d.moved) {
+        setSelectedId(null);
+        if (selectedLinkId) onLinkSelect?.(null);
+      }
       return;
     }
     if (d.t === "orbit") return;
@@ -1051,14 +1165,16 @@ export function WarehousePlanner({
     if ((e.target as HTMLElement).closest?.("input, textarea")) return;
     // Un raccourci avec Ctrl, Cmd ou Alt n'est pas pour l'éditeur (annuler, copier…).
     if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key === "Escape" && selectedLinkId && !start && !tool) onLinkSelect?.(null);
     if (e.key === "Escape") {
       if (start) setStart(null);
       else if (tool) setTool(null);
       else setSelectedId(null);
     } else if (readOnly) return;
     else if (e.key === "Delete" || e.key === "Backspace") {
-      if (!selected) return;
-      remove();
+      if (selectedLinkId && onLinkRemove) onLinkRemove(selectedLinkId);
+      else if (!selected) return;
+      else remove();
     }
     else if (e.key === "r" || e.key === "R") {
       // Avant la pose, R tourne le fantôme ; après, l'élément choisi. Maj : dans l'autre sens.
@@ -1148,6 +1264,75 @@ export function WarehousePlanner({
     }
     return <g key={item.id}>{parts}</g>;
   };
+
+  // --- Les flèches de flux ------------------------------------------------------------------------
+  /**
+   * Une flèche au sol, de l'emprise de `a` à celle de `b` (ou au point `b`) : un ruban projeté sur le
+   * sol — il suit la perspective —, sa pointe, et le trait central dont les tirets défilent.
+   */
+  const arrow = (a: PlannerItem, b: PlannerItem | P, key: string, opts: { cls: string; color?: string; label?: string; dashed?: boolean; linkId?: string; reason?: string | null }) => {
+    const fa = footprintOf(a);
+    const fb = "kind" in b ? footprintOf(b) : null;
+    const target = fb ? { x: fb.cx, y: fb.cy } : (b as P);
+    const p0 = edgeToward(fa, target);
+    const p1 = fb ? edgeToward(fb, { x: fa.cx, y: fa.cy }) : target;
+    const len = Math.hypot(p1.x - p0.x, p1.y - p0.y);
+    if (len < 0.3) return null;
+    const ux = (p1.x - p0.x) / len;
+    const uy = (p1.y - p0.y) / len;
+    const nx = -uy;
+    const ny = ux;
+    const half = 0.28;
+    const head = Math.min(1.1, len * 0.45);
+    const neck = { x: p1.x - ux * head, y: p1.y - uy * head };
+    const Z = 0.03;
+    const pt = (x: number, y: number) => {
+      const q = toScreen(x, y, Z);
+      return `${q.x.toFixed(1)},${q.y.toFixed(1)}`;
+    };
+    const ribbon = [pt(p0.x + nx * half, p0.y + ny * half), pt(neck.x + nx * half, neck.y + ny * half), pt(neck.x - nx * half, neck.y - ny * half), pt(p0.x - nx * half, p0.y - ny * half)].join(" ");
+    const tip = [pt(neck.x + nx * half * 2.2, neck.y + ny * half * 2.2), pt(p1.x, p1.y), pt(neck.x - nx * half * 2.2, neck.y - ny * half * 2.2)].join(" ");
+    const s0 = toScreen(p0.x, p0.y, Z);
+    const s1 = toScreen(neck.x, neck.y, Z);
+    const mid = toScreen((p0.x + neck.x) / 2, (p0.y + neck.y) / 2, Z);
+    const tgt = toScreen(p1.x, p1.y, Z);
+    const style = opts.color ? ({ ["--lq-link-color" as string]: opts.color } as CSSProperties) : undefined;
+    return (
+      <g key={key} className={[opts.cls, opts.dashed && "lq-planner__link--dashed"].filter(Boolean).join(" ")} style={style} data-link={opts.linkId}>
+        <polygon className="lq-planner__link-ribbon" points={ribbon} />
+        <polygon className="lq-planner__link-head" points={tip} />
+        <line className="lq-planner__link-flow" x1={s0.x} y1={s0.y} x2={s1.x} y2={s1.y} />
+        {opts.label && (
+          <text className="lq-planner__link-label" x={mid.x} y={mid.y - 8} textAnchor="middle">
+            {opts.label}
+          </text>
+        )}
+        {opts.reason && (
+          <text className="lq-planner__link-label lq-planner__link-label--invalid" x={tgt.x} y={tgt.y - 16} textAnchor="middle">
+            {opts.reason}
+          </text>
+        )}
+      </g>
+    );
+  };
+  const byId = new Map(items.map((it) => [it.id, it]));
+  const linkArrows: ReactNode[] = [];
+  for (const l of links ?? []) {
+    const a = byId.get(l.from);
+    const b = byId.get(l.to);
+    if (!a || !b || a === b) continue;
+    const on = l.id === selectedLinkId;
+    linkArrows.push(arrow(a, b, `link-${l.id}`, { cls: ["lq-planner__link", on && "lq-planner__link--selected", !linkMode && "lq-planner__link--pickable"].filter(Boolean).join(" "), color: l.color, label: l.label, dashed: l.dashed, linkId: l.id }));
+  }
+  if (linkDraft) {
+    const a = byId.get(linkDraft.from);
+    const b = linkDraft.to ? byId.get(linkDraft.to) : undefined;
+    const reason = a && b ? (canLink?.(a.id, b.id) ?? null) : null;
+    if (a) {
+      if (b) linkArrows.push(outline(b, ["lq-planner__outline", "lq-planner__outline--draft", reason && "lq-planner__outline--invalid"].filter(Boolean).join(" "), "link-target"));
+      linkArrows.push(arrow(a, b ?? linkDraft.at, "link-draft", { cls: ["lq-planner__link", "lq-planner__link--draft", reason && "lq-planner__link--invalid"].filter(Boolean).join(" "), reason }));
+    }
+  }
 
   const shown = drawing ? [] : items.filter((it) => (it.id === selectedId || it.id === hoverId) && (showRoofs || (!isRooftop(it) && it.kind !== "roof")));
   const counts = useMemo(() => {
@@ -1263,7 +1448,7 @@ export function WarehousePlanner({
       <div className="lq-planner__main">
         <div
           ref={stage}
-          className={["lq-planner__stage", drawing && "lq-planner__stage--drawing", tool?.type === "place" && "lq-planner__stage--armed", mode3d && "lq-planner__stage--3d"].filter(Boolean).join(" ")}
+          className={["lq-planner__stage", drawing && "lq-planner__stage--drawing", tool?.type === "place" && "lq-planner__stage--armed", mode3d && "lq-planner__stage--3d", linkMode && "lq-planner__stage--link"].filter(Boolean).join(" ")}
           tabIndex={0}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
@@ -1298,19 +1483,24 @@ export function WarehousePlanner({
               style={{ position: "absolute", inset: 0 }}
               ariaLabel="Terrain et construction"
             >
-              <BuildPlot layout={plot} traffic={traffic} night={night} />
+              <BuildPlot layout={plot} traffic={traffic} night={night} groundStyle={groundStyle} lightExclusions={lightExclusions} treeExclusions={treeExclusions} />
               {items.map((it) => (
                 <PlannerItem3D
                   key={it.id}
                   item={it}
                   roofs={showRoofs}
                   night={night}
+                  // Un équipement de toiture repose sur ce qu'il y a dessous — toit, chambre froide, ou sa
+                  // propre ossature : jamais dans le vide.
+                  support={isRooftop(it) ? rooftopSupport(it, items) : undefined}
                   // Un mur porte les ouvertures accrochées à lui — et celle qu'on s'apprête à poser.
                   mounts={isLinear(it) && (it.kind === "wall" || it.kind === "dock") ? wallMounts(it, ghost && mountedGhost ? [...items, ghost] : items) : undefined}
                 />
               ))}
               {/* Le tracé en cours, déjà en volume : on voit le mur avant de le poser. */}
-              {ghost && !mountedGhost && <PlannerItem3D key={`ghost-${ghost.kind}-${placeRot}`} item={{ ...ghost, id: `ghost-${ghost.kind}` }} />}
+              {ghost && !mountedGhost && (
+                <PlannerItem3D key={`ghost-${ghost.kind}-${placeRot}`} item={{ ...ghost, id: `ghost-${ghost.kind}` }} support={isRooftop(ghost) ? rooftopSupport({ ...ghost, id: `ghost-${ghost.kind}` }, items) : undefined} />
+              )}
               {areaDraft && <PlannerItem3D key={`roof-${areaDraft.x}-${areaDraft.y}-${areaDraft.size?.length}-${areaDraft.size?.width}`} item={areaDraft} />}
               {draft.map((w) => (
                 <PlannerItem3D key={`${w.id}:${w.x0},${w.y0},${w.x1},${w.y1}`} item={w} />
@@ -1325,6 +1515,7 @@ export function WarehousePlanner({
           )}
           {(
             <svg className="lq-planner__overlay" width={size.width} height={size.height}>
+              {linkArrows}
               {highlightIds && items.filter((it) => highlightIds.includes(it.id)).map((it) => outline(it, "lq-planner__outline lq-planner__outline--highlight", `hl-${it.id}`))}
               {shown.map((it) => overlay(it, it.id === selectedId))}
               {draft.map((w, i) => outline(w, ["lq-planner__outline", "lq-planner__outline--draft", !draftOk && "lq-planner__outline--invalid"].filter(Boolean).join(" "), `draft${i}`))}

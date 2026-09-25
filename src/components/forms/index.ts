@@ -49,6 +49,9 @@ export type { CheckboxButtonProps } from "./CheckboxButton";
 export { Tag } from "./Tag";
 export type { TagProps } from "./Tag";
 
+export { Chip, ChipGroup } from "./Chip";
+export type { ChipProps, ChipGroupProps, ChipGroupOption, ChipGroupSingleProps, ChipGroupMultipleProps } from "./Chip";
+
 export { TagInput } from "./TagInput";
 export type { TagInputProps } from "./TagInput";
 

@@ -21,6 +21,9 @@ export const Row: Story = {
       <div style={{ width: 220 }}>
         <StatCard label="Rendement solaire" value="1,0 kWh" icon={<SolarPanelIcon size={20} />} />
       </div>
+      <div style={{ width: 220 }}>
+        <StatCard label="Consommation" value="112 kWh" caption="fond 60 · machines 35 · froid 17" sparklineData={[90, 96, 104, 99, 108, 112]} />
+      </div>
     </div>
   ),
 };

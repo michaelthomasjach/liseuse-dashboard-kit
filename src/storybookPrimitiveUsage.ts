@@ -3,7 +3,7 @@
  *
  * Quelles primitives chaque story utilise, pour que la barre de liens du décorateur global (voir
  * .storybook/PrimitiveLinks.tsx) renvoie vers leur documentation. Dérivé des imports du code,
- * jamais tenu à la main : 85 fichiers de stories scannés, 32 concernés.
+ * jamais tenu à la main : 124 fichiers de stories scannés, 42 concernés.
  */
 
 /** Une primitive dont une story dépend, et l'ancre de sa page de documentation. */
@@ -13,111 +13,45 @@ export interface PrimitiveUsage {
 }
 
 export const PRIMITIVE_USAGE_BY_STORY: Record<string, PrimitiveUsage[]> = {
-  "Charts/CandlestickChart": [
+  "Audio/Balance, Niveaux, Égaliseur": [
     {
-      "name": "CodeBlock",
-      "docsId": "primitives-codeblock--docs"
+      "name": "Button",
+      "docsId": "primitives-button--docs"
     },
     {
-      "name": "DropdownPanel",
-      "docsId": "primitives-dropdownpanel--docs"
-    },
-    {
-      "name": "Modal",
-      "docsId": "primitives-modal--docs"
-    },
-    {
-      "name": "PeriodTable",
-      "docsId": "primitives-periodtable--docs"
-    },
-    {
-      "name": "SegmentedControl",
-      "docsId": "primitives-segmentedcontrol--docs"
-    },
-    {
-      "name": "Tabs",
-      "docsId": "primitives-tabs--docs"
-    },
-    {
-      "name": "Toggle",
-      "docsId": "primitives-toggle--docs"
+      "name": "Card",
+      "docsId": "primitives-card--docs"
     }
   ],
-  "Charts/ChartWorkspace": [
-    {
-      "name": "CodeBlock",
-      "docsId": "primitives-codeblock--docs"
-    },
-    {
-      "name": "DropdownPanel",
-      "docsId": "primitives-dropdownpanel--docs"
-    },
+  "Charts/Courtier": [
     {
       "name": "Modal",
       "docsId": "primitives-modal--docs"
-    },
-    {
-      "name": "PeriodTable",
-      "docsId": "primitives-periodtable--docs"
-    },
-    {
-      "name": "SegmentedControl",
-      "docsId": "primitives-segmentedcontrol--docs"
-    },
-    {
-      "name": "Tabs",
-      "docsId": "primitives-tabs--docs"
-    },
-    {
-      "name": "Toggle",
-      "docsId": "primitives-toggle--docs"
-    }
-  ],
-  "Charts/DonutChart": [
-    {
-      "name": "CodeBlock",
-      "docsId": "primitives-codeblock--docs"
-    },
-    {
-      "name": "DropdownPanel",
-      "docsId": "primitives-dropdownpanel--docs"
-    },
-    {
-      "name": "Modal",
-      "docsId": "primitives-modal--docs"
-    },
-    {
-      "name": "Tabs",
-      "docsId": "primitives-tabs--docs"
-    },
-    {
-      "name": "Toggle",
-      "docsId": "primitives-toggle--docs"
-    }
-  ],
-  "Charts/LineAreaChart": [
-    {
-      "name": "CodeBlock",
-      "docsId": "primitives-codeblock--docs"
-    },
-    {
-      "name": "DropdownPanel",
-      "docsId": "primitives-dropdownpanel--docs"
-    },
-    {
-      "name": "Modal",
-      "docsId": "primitives-modal--docs"
-    },
-    {
-      "name": "Tabs",
-      "docsId": "primitives-tabs--docs"
-    },
-    {
-      "name": "Toggle",
-      "docsId": "primitives-toggle--docs"
     }
   ],
   "Charts/CandlestickChart/État du marché": [
+    {
+      "name": "CodeBlock",
+      "docsId": "primitives-codeblock--docs"
+    },
+    {
+      "name": "DropdownPanel",
+      "docsId": "primitives-dropdownpanel--docs"
+    },
+    {
+      "name": "Modal",
+      "docsId": "primitives-modal--docs"
+    },
+    {
+      "name": "Tabs",
+      "docsId": "primitives-tabs--docs"
+    },
+    {
+      "name": "Toggle",
+      "docsId": "primitives-toggle--docs"
+    }
+  ],
+  "Charts/CandlestickChart/Captures de diagrammes": [
     {
       "name": "CodeBlock",
       "docsId": "primitives-codeblock--docs"
@@ -205,7 +139,139 @@ export const PRIMITIVE_USAGE_BY_STORY: Record<string, PrimitiveUsage[]> = {
       "docsId": "primitives-toggle--docs"
     }
   ],
+  "Charts/CandlestickChart": [
+    {
+      "name": "CodeBlock",
+      "docsId": "primitives-codeblock--docs"
+    },
+    {
+      "name": "DropdownPanel",
+      "docsId": "primitives-dropdownpanel--docs"
+    },
+    {
+      "name": "Modal",
+      "docsId": "primitives-modal--docs"
+    },
+    {
+      "name": "PeriodTable",
+      "docsId": "primitives-periodtable--docs"
+    },
+    {
+      "name": "SegmentedControl",
+      "docsId": "primitives-segmentedcontrol--docs"
+    },
+    {
+      "name": "Tabs",
+      "docsId": "primitives-tabs--docs"
+    },
+    {
+      "name": "Toggle",
+      "docsId": "primitives-toggle--docs"
+    }
+  ],
+  "Charts/ChartWorkspace": [
+    {
+      "name": "CodeBlock",
+      "docsId": "primitives-codeblock--docs"
+    },
+    {
+      "name": "DropdownPanel",
+      "docsId": "primitives-dropdownpanel--docs"
+    },
+    {
+      "name": "Modal",
+      "docsId": "primitives-modal--docs"
+    },
+    {
+      "name": "PeriodTable",
+      "docsId": "primitives-periodtable--docs"
+    },
+    {
+      "name": "SegmentedControl",
+      "docsId": "primitives-segmentedcontrol--docs"
+    },
+    {
+      "name": "Tabs",
+      "docsId": "primitives-tabs--docs"
+    },
+    {
+      "name": "Toggle",
+      "docsId": "primitives-toggle--docs"
+    }
+  ],
+  "Charts/DonutChart": [
+    {
+      "name": "CodeBlock",
+      "docsId": "primitives-codeblock--docs"
+    },
+    {
+      "name": "DropdownPanel",
+      "docsId": "primitives-dropdownpanel--docs"
+    },
+    {
+      "name": "Modal",
+      "docsId": "primitives-modal--docs"
+    },
+    {
+      "name": "Tabs",
+      "docsId": "primitives-tabs--docs"
+    },
+    {
+      "name": "Toggle",
+      "docsId": "primitives-toggle--docs"
+    }
+  ],
+  "Charts/EarningsDotChart": [
+    {
+      "name": "Panel",
+      "docsId": "primitives-panel--docs"
+    }
+  ],
+  "Charts/LineAreaChart": [
+    {
+      "name": "CodeBlock",
+      "docsId": "primitives-codeblock--docs"
+    },
+    {
+      "name": "DropdownPanel",
+      "docsId": "primitives-dropdownpanel--docs"
+    },
+    {
+      "name": "Modal",
+      "docsId": "primitives-modal--docs"
+    },
+    {
+      "name": "Tabs",
+      "docsId": "primitives-tabs--docs"
+    },
+    {
+      "name": "Toggle",
+      "docsId": "primitives-toggle--docs"
+    }
+  ],
+  "Charts/SankeyChart": [
+    {
+      "name": "Card",
+      "docsId": "primitives-card--docs"
+    }
+  ],
+  "Feedback/AlertList": [
+    {
+      "name": "Button",
+      "docsId": "primitives-button--docs"
+    }
+  ],
   "Feedback/ProgressBar": [
+    {
+      "name": "Card",
+      "docsId": "primitives-card--docs"
+    }
+  ],
+  "Feedback/Stepper": [
+    {
+      "name": "Button",
+      "docsId": "primitives-button--docs"
+    },
     {
       "name": "Card",
       "docsId": "primitives-card--docs"
@@ -323,6 +389,26 @@ export const PRIMITIVE_USAGE_BY_STORY: Record<string, PrimitiveUsage[]> = {
       "docsId": "primitives-toggle--docs"
     }
   ],
+  "Forms/WysiwygEditor": [
+    {
+      "name": "Card",
+      "docsId": "primitives-card--docs"
+    },
+    {
+      "name": "CodeBlock",
+      "docsId": "primitives-codeblock--docs"
+    }
+  ],
+  "Map/Interactive Globe": [
+    {
+      "name": "Button",
+      "docsId": "primitives-button--docs"
+    },
+    {
+      "name": "Panel",
+      "docsId": "primitives-panel--docs"
+    }
+  ],
   "Layouts/HeaderLayout": [
     {
       "name": "CodeBlock",
@@ -369,6 +455,20 @@ export const PRIMITIVE_USAGE_BY_STORY: Record<string, PrimitiveUsage[]> = {
     {
       "name": "Toggle",
       "docsId": "primitives-toggle--docs"
+    }
+  ],
+  "Scheduler/Planning de ressources": [
+    {
+      "name": "Button",
+      "docsId": "primitives-button--docs"
+    },
+    {
+      "name": "Modal",
+      "docsId": "primitives-modal--docs"
+    },
+    {
+      "name": "SegmentedControl",
+      "docsId": "primitives-segmentedcontrol--docs"
     }
   ],
   "Widgets/ClockWidget": [
@@ -527,6 +627,10 @@ export const PRIMITIVE_USAGE_BY_STORY: Record<string, PrimitiveUsage[]> = {
     {
       "name": "PanelRow",
       "docsId": "primitives-panel--docs"
+    },
+    {
+      "name": "PeriodTable",
+      "docsId": "primitives-periodtable--docs"
     },
     {
       "name": "SegmentedControl",

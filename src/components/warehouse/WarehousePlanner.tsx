@@ -44,6 +44,10 @@ import { STORAGE_CLASSES, STORAGE_LABEL, type StorageClass } from "./storageClas
 import { ChevronDownIcon, ChevronRightIcon, MaximizeIcon, RefreshIcon, SearchIcon, TrashIcon } from "../icons";
 import "./WarehousePlanner.css";
 
+
+/** Les deux projections, dans l'ordre du sélecteur. */
+const PROJECTIONS: IsoProjection[] = ["orthographic", "perspective"];
+
 /**
  * Le plan de l'entrepôt : un terrain, une palette, et ce qu'on y construit.
  *
@@ -103,6 +107,11 @@ export interface WarehousePlannerProps {
   defaultOrbit?: { yaw: number; tilt: number };
   /** La projection au départ. */
   defaultProjection?: IsoProjection;
+  /**
+   * Les projections proposées au joueur. Par défaut les deux ; avec une seule, le sélecteur
+   * disparaît et la vue reste dans celle-là.
+   */
+  projections?: IsoProjection[];
   /** Le grossissement au départ, relatif au cadrage du terrain entier : `2` s'approche deux fois. */
   defaultZoom?: number;
   /** Pixels par case au grossissement 1. */
@@ -483,6 +492,7 @@ export function WarehousePlanner({
   defaultView = "top",
   defaultOrbit = { yaw: 30, tilt: 40 },
   defaultProjection = "orthographic",
+  projections = PROJECTIONS,
   defaultZoom = 1,
   cellSize = 14,
   height = 640,
@@ -612,7 +622,9 @@ export function WarehousePlanner({
     if (on !== mode3d) onViewChange?.(on ? "3d" : "top");
   };
   const [orbit, setOrbit] = useState(defaultOrbit);
-  const [projection, setProjection] = useState<IsoProjection>(defaultProjection);
+  const [chosenProjection, setProjection] = useState<IsoProjection>(defaultProjection);
+  // Une projection qui n'est plus proposée cède la place à la première qui l'est.
+  const projection = projections.includes(chosenProjection) ? chosenProjection : (projections[0] ?? chosenProjection);
   const [query, setQuery] = useState("");
   // Ce qu'on s'apprête à poser sur un toit ne se pose pas sur un toit masqué : on les montre.
   const showRoofs = roofsWanted || (!!tool && (isRooftop(tool) || tool.kind === "roof"));
@@ -1343,14 +1355,20 @@ export function WarehousePlanner({
                 3D
               </button>
             </div>
-            <div className="lq-planner__switch" role="group" aria-label="Projection">
-              <button type="button" className={projection === "orthographic" ? "is-on" : undefined} aria-pressed={projection === "orthographic"} onClick={() => setProjection("orthographic")} title="Vue isométrique, sans fuite">
-                Iso
-              </button>
-              <button type="button" className={projection === "perspective" ? "is-on" : undefined} aria-pressed={projection === "perspective"} onClick={() => setProjection("perspective")} title="Vue en perspective">
-                Perspective
-              </button>
-            </div>
+            {projections.length > 1 && (
+              <div className="lq-planner__switch" role="group" aria-label="Projection">
+                {projections.includes("orthographic") && (
+                  <button type="button" className={projection === "orthographic" ? "is-on" : undefined} aria-pressed={projection === "orthographic"} onClick={() => setProjection("orthographic")} title="Vue isométrique, sans fuite">
+                    Iso
+                  </button>
+                )}
+                {projections.includes("perspective") && (
+                  <button type="button" className={projection === "perspective" ? "is-on" : undefined} aria-pressed={projection === "perspective"} onClick={() => setProjection("perspective")} title="Vue en perspective">
+                    Perspective
+                  </button>
+                )}
+              </div>
+            )}
             {mode3d && (
               <>
                 <button type="button" onClick={() => setOrbit((o) => ({ ...o, yaw: o.yaw - 45 }))} title="Tourner à gauche" aria-label="Tourner à gauche">

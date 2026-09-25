@@ -45,3 +45,12 @@ export type { KnowledgeBaseProps, KnowledgeEntry, KnowledgeHit } from "./Knowled
 
 export { ObjectiveTracker } from "./ObjectiveTracker";
 export type { ObjectiveTrackerProps, Objective, ObjectiveState } from "./ObjectiveTracker";
+
+export { IconDock } from "./IconDock";
+export type { IconDockProps, IconDockItem } from "./IconDock";
+
+export { DemandMeters } from "./DemandMeters";
+export type { DemandMetersProps, DemandMeter } from "./DemandMeters";
+
+export { AlertMarker, AlertMarkerStack } from "./AlertMarker";
+export type { AlertMarkerProps, AlertMarkerStackProps, AlertSeverity, AlertStackCorner } from "./AlertMarker";

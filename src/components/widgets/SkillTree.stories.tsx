@@ -99,3 +99,47 @@ export const AvecDetail: Story = {
     );
   },
 };
+
+/**
+ * Sur un téléphone : l'arbre défile au doigt dans les deux sens, dans un cadre borné à l'écran, et
+ * trois boutons le zooment sans pincement (−, 100 %, +). Au clavier, dans l'arbre : `+`, `-` et `0`.
+ * La story s'ouvre dans le cadre « mobile » de Storybook, dans une colonne de 390 px au plus.
+ */
+export const Mobile: Story = {
+  name: "Sur un téléphone",
+  globals: { viewport: { value: "mobile2", isRotated: false } },
+  render: function Render() {
+    const [owned, setOwned] = useState<string[]>(["l1", "e1"]);
+    const [points, setPoints] = useState(4);
+    const [selected, setSelected] = useState<string | null>("l2");
+    const nodes = useMemo<SkillTreeNode[]>(
+      () =>
+        BASE.map((n) => ({
+          ...n,
+          state: owned.includes(n.id) ? "unlocked" : (n.requires ?? []).every((r) => owned.includes(r)) ? "available" : "locked",
+        })),
+      [owned]
+    );
+    return (
+      <div style={{ width: 390, maxWidth: "100%" }}>
+        <SkillTree
+          nodes={nodes}
+          branches={BRANCHES}
+          selectedId={selected}
+          onSelect={setSelected}
+          header={
+            <span>
+              Points disponibles : <strong>{points}</strong>
+            </span>
+          }
+          canUnlock={(n) => (n.points ?? 0) <= points}
+          onUnlock={(id) => {
+            const n = BASE.find((b) => b.id === id);
+            setPoints((p) => p - (n?.points ?? 0));
+            setOwned((o) => [...o, id]);
+          }}
+        />
+      </div>
+    );
+  },
+};

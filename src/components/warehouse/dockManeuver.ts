@@ -80,8 +80,15 @@ function smooth(points: Pt[], radius: number): Pt[] {
   return smoothLine(resample(filletPolyline(points, radius), STEP), Math.round(EASE / STEP), 2);
 }
 
-/** Toute la manœuvre de chaque place d'un parking poids lourds. */
-export function planDock(bay: DockBay, entry?: Pt): DockPlan {
+/**
+ * Toute la manœuvre de chaque place d'un parking poids lourds.
+ *
+ *  `via` : des points de passage entre `entry` et les places — le bord d'une voie d'accès, un
+ *  portail. Le camion les suit à l'aller dans l'ordre, et au départ dans l'ordre inverse ; le trajet
+ *  reste lissé au rayon de braquage, et il **part aligné** sur le premier tronçon — celui de la voie
+ *  par laquelle il entre.
+ */
+export function planDock(bay: DockBay, entry?: Pt, via: Pt[] = []): DockPlan {
   const bays = Math.max(1, Math.round(bay.bays ?? 1));
   const th = (bay.rotation * Math.PI) / 180;
   const c = Math.cos(th);
@@ -95,7 +102,9 @@ export function planDock(bay: DockBay, entry?: Pt): DockPlan {
   const Lb = TRUCK_BAY_LENGTH;
   const Lt = TRAILER_WHEELBASE;
   const E = entry ?? world(-Lb / 2 - 14, 0);
-  const e = local(E);
+  // Le dernier point de passage — le bout de la voie d'accès, un portail — tient lieu d'entrée pour
+  // placer la ligne où le camion vient longer les places.
+  const e = local(via[via.length - 1] ?? E);
   const parked = th + Math.PI;
 
   const lanes = Array.from({ length: bays }, (_, i): DockLane => {
@@ -112,7 +121,7 @@ export function planDock(bay: DockBay, entry?: Pt): DockPlan {
     const topV = Math.max(e.v, v + 1.5);
 
     // 1. L'approche : de l'entrée au bord de la place, puis le long de l'entrée, jusqu'à l'arrêt.
-    const approachPts = smooth([E, world(u0, topV), world(u0, stopV)], DRIVE_RADIUS);
+    const approachPts = smooth([E, ...via, world(u0, topV), world(u0, stopV)], DRIVE_RADIUS);
     const h0 = Math.atan2(approachPts[1].y - approachPts[0].y, approachPts[1].x - approachPts[0].x);
     const approach = forwardTruck(approachPts, h0, Lt, h0);
 
@@ -131,7 +140,7 @@ export function planDock(bay: DockBay, entry?: Pt): DockPlan {
 
     // 3. Le départ : tout droit jusqu'à ce que la remorque soit sortie, puis vers l'entrée.
     const out = -Lb / 2 - 0.8 - TRUCK.kingpin - EASE - 1;
-    const departPts = smooth([park, world(Math.min(out, hitchU - 2), v), E], DRIVE_RADIUS);
+    const departPts = smooth([park, world(Math.min(out, hitchU - 2), v), ...[...via].reverse(), E], DRIVE_RADIUS);
     const depart = forwardTruck(departPts, parked, Lt, parked);
 
     return {
@@ -171,6 +180,8 @@ export function truckCorners(x: number, y: number, tractor: number, trailer: num
 export interface DockClearanceOptions {
   /** Le point d'où viennent les camions, comme `PlannerDockTraffic.entry`. Défaut : le sien. */
   entry?: Pt;
+  /** Les points de passage, comme `PlannerDockTraffic.via`. */
+  via?: Pt[];
   /** La marge autour de ce que balaie le camion, en cases. Défaut : 0,6. */
   margin?: number;
   /** La longueur de trajet couverte par un rectangle, en cases : plus court, plus serré. Défaut : 4. */
@@ -188,7 +199,7 @@ export interface DockClearanceOptions {
  *  de la remorque qu'on y prend, élargi de `margin`. Les rectangles contenus dans un autre sont ôtés.
  */
 export function dockTrafficClearance(bay: DockBay, opts: DockClearanceOptions = {}): { x: number; y: number; width: number; depth: number }[] {
-  const plan = planDock(bay, opts.entry);
+  const plan = planDock(bay, opts.entry, opts.via);
   const margin = opts.margin ?? 0.6;
   const chunk = Math.max(0.5, opts.chunk ?? 4);
   const rects: { x: number; y: number; width: number; depth: number }[] = [];

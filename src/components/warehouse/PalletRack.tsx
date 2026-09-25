@@ -1,5 +1,5 @@
 import { Builder, type P3 } from "./three/builder";
-import { Parts, Solo, frameBounds, placed, useBuilt } from "./three/scene";
+import { Parts, Solo, frameBounds, placed, useBuilt, useSceneQuality } from "./three/scene";
 import { GOOD_SIZE, addGood } from "./three/goods";
 import { rng } from "./three/random";
 import type { RackItemKind } from "./rackItems";
@@ -86,9 +86,9 @@ function layout(p: PalletRackProps) {
 }
 
 /** Une palette chargée : la palette, puis des cartons en couches, sous film. */
-export function addPalletLoad(b: Builder, cx: number, cy: number, z: number, half: number, height: number, kind: RackItemKind = "carton"): void {
+export function addPalletLoad(b: Builder, cx: number, cy: number, z: number, half: number, height: number, kind: RackItemKind = "carton", lite = false): void {
   const ph = GOOD_SIZE.palette.height * (half / GOOD_SIZE.palette.half);
-  addGood(b, "palette", cx, cy, z, half, ph);
+  addGood(b, "palette", cx, cy, z, half, ph, lite);
   if (kind === "palette") return;
   // Une grille de 2×2 colis, sur autant de couches que la hauteur en permet.
   const g = GOOD_SIZE[kind];
@@ -97,7 +97,7 @@ export function addPalletLoad(b: Builder, cx: number, cy: number, z: number, hal
   const gh = g.height * k;
   const layers = Math.max(1, Math.floor((height - ph) / gh));
   for (let l = 0; l < layers; l += 1)
-    for (const dx of [-1, 1]) for (const dy of [-1, 1]) addGood(b, kind, cx + (dx * cell) / 2, cy + (dy * cell) / 2, z + ph + l * gh, g.half * k, gh);
+    for (const dx of [-1, 1]) for (const dy of [-1, 1]) addGood(b, kind, cx + (dx * cell) / 2, cy + (dy * cell) / 2, z + ph + l * gh, g.half * k, gh, lite);
 }
 
 /** Où est un emplacement : le centre du dessus de sa lisse, en coordonnées monde. */
@@ -126,6 +126,8 @@ function PalletRackBody(props: PalletRackProps) {
   const { fill = 0.75, goods = ["carton", "carton", "boite", "bidon"], seed = 3, rotation = 0, origin = { x: 0, y: 0 }, passage, storage } = props;
   const { bays, levels, bayW, D, lh, perBay, rows, L, Dt, H } = layout(props);
   const kinds = Array.isArray(goods) ? goods : [goods];
+  // En qualité basse, les marchandises en peu de facettes : ce sont elles qui font les triangles.
+  const lite = useSceneQuality() === "low";
   const built = useBuilt(() => {
     const b = new Builder();
     const r = rng(seed);
@@ -174,7 +176,7 @@ function PalletRackBody(props: PalletRackProps) {
             if (r() > fill) continue;
             const cx = x0 + ((k + 0.5) * (x1 - x0)) / perBay;
             const half = Math.min((x1 - x0) / perBay / 2 - 0.03, D / 2 - 0.01);
-            addPalletLoad(b, cx, (y0 + y1) / 2, z, half, lh - 0.18 - r() * 0.15, pool[Math.floor(r() * pool.length)]);
+            addPalletLoad(b, cx, (y0 + y1) / 2, z, half, lh - 0.18 - r() * 0.15, pool[Math.floor(r() * pool.length)], lite);
           }
           if (cls) {
             // La plaque de l'emplacement, sur le nez de la lisse — ou au sol pour le niveau bas.
@@ -195,7 +197,7 @@ function PalletRackBody(props: PalletRackProps) {
           for (const z of [lh * 0.5, H - 0.3]) b.box("paint-cool", i * bayW, i * bayW + POST, y0 - FLUE, y0, z, z + 0.04, false);
     }
     return b.build();
-  }, [bays, levels, bayW, D, lh, perBay, rows, fill, seed, kinds.join(","), JSON.stringify(passage ?? null), JSON.stringify(storage ?? null)]);
+  }, [lite, bays, levels, bayW, D, lh, perBay, rows, fill, seed, kinds.join(","), JSON.stringify(passage ?? null), JSON.stringify(storage ?? null)]);
   const { pose } = placed(origin, rotation, { x0: 0, x1: L, y0: 0, y1: Dt, z0: 0, z1: 1 });
   return (
     <group matrixAutoUpdate={false} matrix={pose}>

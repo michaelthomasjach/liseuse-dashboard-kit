@@ -38,10 +38,20 @@ const MATERIAL: Record<RackItemKind, string> = {
  *
  *  `half` est sa demi-emprise, `height` sa hauteur. Le dessin se règle sur elles — une bande
  *  d'adhésif fait toujours un cinquième du carton — si bien qu'un carton agrandi reste un carton.
+ *
+ *  `lite` : la même silhouette, **en moins de facettes** — pour le stock immobile d'une scène en
+ *  qualité basse (voir `resolveSceneQuality`). Un rack plein porte des centaines de marchandises, et
+ *  ce sont elles, bien plus que le rack, qui font les triangles d'un entrepôt : une palette de
+ *  dix-sept planches devient quatre pièces, un fût de trois cylindres à dix-huit pans un seul à huit.
+ *  À la taille d'un téléphone, on lit toujours un carton, un bac, un fût, une palette.
  */
-export function addGood(b: Builder, kind: RackItemKind, cx: number, cy: number, z: number, half: number, height: number): void {
+export function addGood(b: Builder, kind: RackItemKind, cx: number, cy: number, z: number, half: number, height: number, lite = false): void {
   const mat = MATERIAL[kind];
   const top = z + height;
+  if (lite) {
+    addLiteGood(b, kind, mat, cx, cy, z, half, height);
+    return;
+  }
   switch (kind) {
     case "carton": {
       b.box(mat, cx - half, cx + half, cy - half, cy + half, z, top);
@@ -88,6 +98,41 @@ export function addGood(b: Builder, kind: RackItemKind, cx: number, cy: number, 
         const x = cx - half + (half * 2 * (i + 0.5)) / 5;
         b.box(mat, x - half * 0.15, x + half * 0.15, cy - half, cy + half, z + 2 * t, top);
       }
+      return;
+    }
+  }
+}
+
+/** Une marchandise en peu de facettes : ce qui en fait la silhouette, et rien de plus. */
+function addLiteGood(b: Builder, kind: RackItemKind, mat: string, cx: number, cy: number, z: number, half: number, height: number): void {
+  const top = z + height;
+  switch (kind) {
+    case "carton": {
+      // Le volume, et la bande d'adhésif du dessus : c'est elle qui dit « carton » vue de haut.
+      b.box(mat, cx - half, cx + half, cy - half, cy + half, z, top);
+      b.faceZ("lq-good__tape", top, cx - half, cx + half, cy - half * 0.2, cy + half * 0.2);
+      return;
+    }
+    case "boite": {
+      const rim = half * 0.08;
+      b.box(mat, cx - half, cx + half, cy - half, cy + half, z, top - height * 0.14, false);
+      b.box(mat, cx - half - rim, cx + half + rim, cy - half - rim, cy + half + rim, top - height * 0.14, top);
+      return;
+    }
+    case "bidon":
+      b.cylinder(mat, cx, cy, z + height / 2, half, height, "z", 8);
+      return;
+    case "bouteille": {
+      const neck = z + height * 0.62;
+      b.cylinder(mat, cx, cy, (z + neck) / 2, half, neck - z, "z", 6);
+      b.cylinder(mat, cx, cy, neck + (top - neck) / 2, half * 0.4, top - neck, "z", 5, undefined, false);
+      return;
+    }
+    case "palette": {
+      // Les trois semelles et le plancher d'un seul tenant : la palette, vue d'un peu loin.
+      const t = height / 3;
+      for (const f of [-1, 0, 1]) b.box(mat, cx - half, cx + half, cy + f * (half - half * 0.09) - half * 0.09, cy + f * (half - half * 0.09) + half * 0.09, z, z + 2 * t, false);
+      b.box(mat, cx - half, cx + half, cy - half, cy + half, z + 2 * t, top);
       return;
     }
   }

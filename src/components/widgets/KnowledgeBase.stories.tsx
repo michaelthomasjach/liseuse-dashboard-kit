@@ -92,12 +92,28 @@ export const Controle: Story = {
   },
 };
 
-/** Sur un écran étroit, la liste passe au-dessus de l'entrée. */
+/** Dans un cadre étroit (ici une colonne de 380 px sur un grand écran), une vue à la fois : la liste,
+ *  puis l'entrée touchée, avec « Retour » pour revenir à la liste. */
 export const Etroit: Story = {
   name: "Sur un écran étroit",
   render: () => (
     <div style={{ width: 380 }}>
       <KnowledgeBase entries={ENTRIES} />
+    </div>
+  ),
+};
+
+/**
+ * Sur un téléphone : la liste d'abord, pleine largeur ; toucher une entrée l'ouvre à sa place, et
+ * « Retour » ramène à la liste, le focus sur l'entrée qu'on vient de lire. La story s'ouvre dans le
+ * cadre « mobile » de Storybook, dans une colonne de 390 px au plus.
+ */
+export const Mobile: Story = {
+  name: "Sur un téléphone",
+  globals: { viewport: { value: "mobile2", isRotated: false } },
+  render: () => (
+    <div style={{ width: 390, maxWidth: "100%" }}>
+      <KnowledgeBase entries={ENTRIES} placeholder="Rechercher…" />
     </div>
   ),
 };

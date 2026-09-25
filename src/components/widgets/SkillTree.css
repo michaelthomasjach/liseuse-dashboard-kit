@@ -296,6 +296,88 @@
   background: var(--lq-color-panel);
 }
 
+/* --- Compact : cadre borné et zoom ------------------------------------------------------------------ */
+
+/* La scène : la place que l'arbre occupe une fois mis à l'échelle. À 100 %, elle n'a pas de taille
+   propre et l'arbre s'y pose comme avant ; zoomé, le composant lui donne la taille de l'arbre
+   transformé (voir fitStage), et l'arbre, positionné en absolu, s'y inscrit par son coin haut-gauche. */
+.lq-skilltree__stage {
+  position: relative;
+}
+
+/* Dans un cadre étroit, le cadre défile dans les deux sens, borné à la hauteur de l'écran pour que la
+   page autour reste à portée de pouce. Le défilement reste celui du navigateur : aucun geste n'est
+   intercepté, et le pincement de la page reste possible. */
+.lq-skilltree--compact .lq-skilltree__scroll {
+  flex-basis: 100%;
+  max-height: 70vh;
+  max-height: 70dvh;
+  overflow: auto;
+  border: 1px solid var(--lq-color-border-subtle);
+  border-radius: var(--lq-radius-md);
+  padding: var(--lq-space-2);
+}
+.lq-skilltree--compact .lq-skilltree__scroll:focus-visible {
+  outline: 2px solid var(--lq-color-focus-ring);
+  outline-offset: 2px;
+}
+
+.lq-skilltree--compact .lq-skilltree__detail {
+  flex: 1 1 100%;
+  min-width: 0;
+}
+
+.lq-skilltree__zoom {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--lq-space-1);
+}
+
+.lq-skilltree__zoom-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 var(--lq-space-2);
+  border: 1px solid var(--lq-color-border);
+  border-radius: var(--lq-radius-md);
+  background: var(--lq-color-panel);
+  color: var(--lq-color-text);
+  font: inherit;
+  font-size: var(--lq-text-sm);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.lq-skilltree__zoom-btn:hover:not(:disabled) {
+  border-color: var(--lq-color-accent);
+}
+.lq-skilltree__zoom-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.lq-skilltree__zoom-btn:focus-visible {
+  outline: 2px solid var(--lq-color-focus-ring);
+  outline-offset: 2px;
+}
+.lq-skilltree__zoom-reset {
+  min-width: 64px;
+}
+
+/* Au doigt, le bouton « Débloquer » devient lui aussi une cible de 44 px. */
+.lq-skilltree--compact .lq-skilltree__unlock {
+  min-height: 44px;
+  padding: 0 var(--lq-space-4);
+  font-size: var(--lq-text-sm);
+}
+@media (pointer: coarse) {
+  .lq-skilltree__unlock {
+    min-height: 44px;
+  }
+}
+
 /* --- E-ink ---------------------------------------------------------------------------------------- */
 
 /* Les couleurs de branche, même données en ligne, retombent sur l'encre. */
@@ -306,7 +388,9 @@
 .lq-root[data-lq-palette="eink"] .lq-skilltree__node,
 .lq-root[data-lq-palette="eink"] .lq-skilltree__inline,
 .lq-root[data-lq-palette="eink"] .lq-skilltree__detail,
-.lq-root[data-lq-palette="eink"] .lq-skilltree__unlock {
+.lq-root[data-lq-palette="eink"] .lq-skilltree__unlock,
+.lq-root[data-lq-palette="eink"] .lq-skilltree__zoom-btn,
+.lq-root[data-lq-palette="eink"] .lq-skilltree--compact .lq-skilltree__scroll {
   border-radius: 0;
 }
 .lq-root[data-lq-palette="eink"] .lq-skilltree__node--available {

@@ -55,3 +55,37 @@ export const Termine: Story = {
   name: "Tout est fait",
   args: { title: "Premiers pas", objectives: STEPS.map((s) => ({ ...s, state: "done" as const })) },
 };
+
+/**
+ * Sur un téléphone : la carte posée en bas de l'écran, sur toute la largeur, ses boutons à la taille
+ * d'un doigt. La story s'ouvre dans le cadre « mobile » de Storybook, dans une colonne de 390 px au plus.
+ */
+export const Mobile: Story = {
+  name: "Sur un téléphone",
+  globals: { viewport: { value: "mobile2", isRotated: false } },
+  render: function Render() {
+    const [done, setDone] = useState(1);
+    const [collapsed, setCollapsed] = useState(false);
+    const objectives: Objective[] = STEPS.map((s, i) => ({
+      ...s,
+      state: i < done ? "done" : i === done ? "current" : "todo",
+      action: i === done ? { label: "Valider l'étape", onClick: () => setDone((d) => (d + 1) % (STEPS.length + 1)) } : undefined,
+    }));
+    return (
+      <div style={{ position: "relative", width: 390, maxWidth: "100%", height: 640, background: "color-mix(in srgb, var(--lq-color-text) 5%, var(--lq-color-bg))" }}>
+        <div style={{ position: "absolute", left: 8, right: 8, bottom: 8 }}>
+          <ObjectiveTracker
+            title="Premiers pas"
+            subtitle="Monter son premier entrepôt — un sous-titre assez long pour passer à la ligne"
+            objectives={objectives}
+            collapsed={collapsed}
+            onCollapsedChange={setCollapsed}
+            onDismiss={() => setDone(0)}
+            className="lq-objectives--story-wide"
+          />
+        </div>
+        <style>{".lq-objectives--story-wide { width: 100%; }"}</style>
+      </div>
+    );
+  },
+};

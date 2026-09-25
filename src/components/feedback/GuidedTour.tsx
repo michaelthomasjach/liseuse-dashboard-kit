@@ -32,6 +32,16 @@ import "./GuidedTour.css";
  * taille — on relit sa boîte à chaque image tant que la visite est ouverte.
  *
  * Au clavier : Échap ferme, → et ← passent d'une étape à l'autre.
+ *
+ * ## Sur un téléphone
+ *
+ * Sur un écran de 640 px de large ou moins, il n'y a plus de « côté » où poser une carte de 340 px
+ * sans cacher ce qu'elle montre : la carte devient une **feuille** accrochée au bas de l'écran, de
+ * toute sa largeur, arrondie en haut, au-dessus de la barre de geste (`env(safe-area-inset-bottom)`).
+ * L'anneau continue d'entourer la cible ; si celle-ci tombe sous la feuille, on fait défiler la page
+ * pour la ramener dans la partie haute, restée libre ; une cible tout en bas de la page, que rien ne
+ * peut plus remonter, fait passer la feuille en haut de l'écran. La feuille ne dépasse jamais l'écran : trop
+ * longue, elle défile elle-même. Ses boutons prennent la taille d'un doigt.
  */
 
 export type GuidedTourPlacement = "auto" | "right" | "left" | "below" | "above" | "center";
@@ -116,6 +126,23 @@ function placeCard(target: Box | null, card: { w: number; h: number }, want: Gui
   return { left: clampX(midX), top: clampY(target.top - GAP - card.h), side };
 }
 
+/** La requête qui fait passer la carte en feuille — la même que dans GuidedTour.css. */
+const SHEET_QUERY = "(max-width: 640px)";
+
+/** L'écran est-il assez étroit pour la feuille ? Suivi en direct : un téléphone qu'on tourne. */
+function useSheetLayout(): boolean {
+  const [sheet, setSheet] = useState(() => typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia(SHEET_QUERY).matches);
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") return;
+    const mq = window.matchMedia(SHEET_QUERY);
+    const onChange = () => setSheet(mq.matches);
+    onChange();
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+  return sheet;
+}
+
 const sameBox = (a: Box | null, b: Box | null) =>
   a === b || (!!a && !!b && Math.abs(a.top - b.top) < 0.5 && Math.abs(a.left - b.left) < 0.5 && Math.abs(a.width - b.width) < 0.5 && Math.abs(a.height - b.height) < 0.5);
 
@@ -135,6 +162,9 @@ export function GuidedTour({ open, steps, onClose, onFinish, initialIndex = 0, o
   const [card, setCard] = useState({ w: 340, h: 220 });
   const [, setViewport] = useState(0);
   const cardRef = useRef<HTMLDivElement>(null);
+  const sheet = useSheetLayout();
+  const sheetRef = useRef(sheet);
+  sheetRef.current = sheet;
   const titleId = useId();
   const bodyId = useId();
 
@@ -196,8 +226,23 @@ export function GuidedTour({ open, steps, onClose, onFinish, initialIndex = 0, o
     const el = shown.target;
     if (el) {
       const r = el.getBoundingClientRect();
-      const off = r.bottom < 0 || r.top > window.innerHeight || r.right < 0 || r.left > window.innerWidth;
-      if (off && "scrollIntoView" in el) (el as HTMLElement).scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" });
+      const smooth = !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+      if (sheetRef.current) {
+        // En feuille, seule la partie de l'écran au-dessus de la carte est libre : une cible qui
+        // passe dessous (ou dépasse en haut) est ramenée en tête de page, avec un peu d'air.
+        const free = window.innerHeight - (cardRef.current?.offsetHeight ?? 0) - GAP;
+        const hidden = r.top < 0 || r.bottom > free || r.right < 0 || r.left > window.innerWidth;
+        if (hidden && "scrollIntoView" in el) {
+          const h = el as HTMLElement;
+          const before = h.style.scrollMarginTop;
+          h.style.scrollMarginTop = `${GAP * 2}px`;
+          h.scrollIntoView({ block: "start", inline: "nearest", behavior: smooth ? "smooth" : "auto" });
+          h.style.scrollMarginTop = before;
+        }
+      } else {
+        const off = r.bottom < 0 || r.top > window.innerHeight || r.right < 0 || r.left > window.innerWidth;
+        if (off && "scrollIntoView" in el) (el as HTMLElement).scrollIntoView({ block: "center", inline: "nearest", behavior: smooth ? "smooth" : "auto" });
+      }
     }
     cardRef.current?.focus({ preventScroll: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -279,6 +324,10 @@ export function GuidedTour({ open, steps, onClose, onFinish, initialIndex = 0, o
   const pos = placeCard(targeted ? box : null, card, step?.placement ?? "auto");
   const last = current >= count - 1;
   const pending = !shown || shown.index !== index;
+  // Une cible collée au bas de la page, que le défilement ne peut plus remonter : la feuille la
+  // couvrirait. Elle passe alors en haut de l'écran, s'il y a la place au-dessus de la cible.
+  const sheetTop =
+    sheet && targeted && !!box && box.top + box.height > window.innerHeight - card.h - GAP && box.top - GAP >= card.h;
 
   const content = (
     <>
@@ -292,8 +341,9 @@ export function GuidedTour({ open, steps, onClose, onFinish, initialIndex = 0, o
       )}
       <div
         ref={cardRef}
-        className={["lq-gtour__card", !targeted && "lq-gtour__card--center", pending && "lq-gtour__card--pending", step && `lq-gtour__card--${pos.side}`].filter(Boolean).join(" ")}
-        style={step ? { top: pos.top, left: pos.left } : { visibility: "hidden" }}
+        className={["lq-gtour__card", !targeted && "lq-gtour__card--center", sheet && "lq-gtour__card--sheet", sheetTop && "lq-gtour__card--sheet-top", pending && "lq-gtour__card--pending", step && `lq-gtour__card--${pos.side}`].filter(Boolean).join(" ")}
+        // En feuille, la position vient de la feuille de style (le bas de l'écran) : pas de coordonnées.
+        style={!step ? { visibility: "hidden" } : sheet ? undefined : { top: pos.top, left: pos.left }}
         role="dialog"
         aria-modal={!targeted}
         aria-labelledby={titleId}

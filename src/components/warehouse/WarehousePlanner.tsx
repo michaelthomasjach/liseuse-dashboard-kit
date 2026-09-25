@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent, type KeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { IsoCamera, type IsoProjection } from "./isoCamera";
 import { viewProjector } from "./three/camera";
-import { WarehouseScene, frameBounds } from "./three/scene";
+import { WarehouseScene, frameBounds, type SceneQuality } from "./three/scene";
 import { SnapshotStudio, cachedSnapshot, type SnapshotJob } from "./three/snapshot";
 import { BuildPlot, type PlotGroundStyle } from "./BuildPlot";
+import { PlannerZones3D, type PlannerZone } from "./PlannerZones";
+import { GATE_WIDTH, accessRoadDriveways, accessRoadOpenings, layGates, type PlannerGate } from "./accessRoad";
 import { PLANNER_WALL_TOP, PlannerItem3D, rooftopSupport } from "./PlannerItem3D";
-import { generatePlot, plotArea, withLockedAreas, type PlotLockedArea, type PlotRect, type PlotShape } from "./plot";
+import { generatePlot, perimeterFenceRuns, plotArea, plotInside, plotSideFrame, withLockedAreas, type PlotFenceRun, type PlotLockedArea, type PlotRect, type PlotShape } from "./plot";
 import {
   PLANNER_LABEL,
   TIERS,
@@ -42,7 +44,33 @@ import {
   type PlannerPointKind,
 } from "./plannerModel";
 import { STORAGE_CLASSES, STORAGE_LABEL, type StorageClass } from "./storageClass";
-import { ChevronDownIcon, ChevronRightIcon, MaximizeIcon, RefreshIcon, SearchIcon, TrashIcon } from "../icons";
+import {
+  BoltIcon,
+  BoxesIcon,
+  BuildingWarehouseIcon,
+  CartIcon,
+  CheckIcon,
+  ChevronDownIcon,
+  ChevronRightIcon,
+  ChevronUpIcon,
+  CloseIcon,
+  ConveyorIcon,
+  ForkliftIcon,
+  GridIcon,
+  HouseRoofIcon,
+  MaximizeIcon,
+  PackageIcon,
+  ParkingIcon,
+  RefreshIcon,
+  RoadIcon,
+  RobotIcon,
+  SearchIcon,
+  SnowflakeIcon,
+  TrashIcon,
+  TreeIcon,
+  TruckIcon,
+} from "../icons";
+import { Tooltip } from "../primitives/Tooltip";
 import "./WarehousePlanner.css";
 
 
@@ -251,7 +279,80 @@ export interface WarehousePlannerProps {
   onLinkSelect?: (id: string | null) => void;
   /** Suppr ou Retour arrière sur la flèche choisie. */
   onLinkRemove?: (id: string) => void;
+
+  // --- Les zones, à la manière de Cities: Skylines ---------------------------------------------
+
+  /**
+   * Des **zones** peintes au sol (voir `PlannerZone`) : un voile translucide, bordé, et une étiquette
+   * au milieu — son nom et ses cotes. Une zone **à affecter** est hachurée et neutre ; une zone
+   * **affectée** prend sa couleur et un trait plein. Visibles dans les deux vues, sous tout ce qui est
+   * posé : ce qui est construit dedans reste cliquable, les éléments passent avant les zones.
+   */
+  zones?: PlannerZone[];
+  /**
+   * Le mode « tracer une zone » : on presse sur le sol et on tire — un élastique calé sur les cases
+   * entières montre les cotes en mètres et la surface en m², rouge avec la raison tant que la zone
+   * est refusée (`canZone`, ou hors du terrain) — et on lâche : `onZoneDraw`. Dans ce mode, on ne
+   * choisit ni ne déplace les éléments ; clic droit ou molette maintenus déplacent toujours la vue.
+   */
+  zoneMode?: boolean;
+  onZoneDraw?: (rect: { x: number; y: number; width: number; depth: number }) => void;
+  /** Refuser une zone, en disant pourquoi. `null` : elle peut être là. */
+  canZone?: (rect: { x: number; y: number; width: number; depth: number }) => string | null;
+  /** La zone choisie — hors des modes de tracé, un clic sur une zone (pas sur un élément) la choisit. */
+  selectedZoneId?: string | null;
+  onZoneSelect?: (id: string | null) => void;
+  /** Suppr ou Retour arrière sur la zone choisie. */
+  onZoneRemove?: (id: string) => void;
+
+  // --- La clôture et les portails ---------------------------------------------------------------
+
+  /**
+   * Clore tout le terrain possédé d'une clôture grillagée (voir `BuildPlot.perimeterFence`). Elle
+   * s'ouvre au passage des voies d'accès (`accessRoad`) et des portails (`gates`), et suit le bord
+   * quand une parcelle à vendre est achetée.
+   */
+  perimeterFence?: boolean;
+  /**
+   * Des **portails coulissants** dans la clôture de pourtour, sur les côtés qui longent la rue : la
+   * rue est raccordée au terrain à travers eux (trottoir abaissé, enrobé jusqu'au portail). Voir
+   * `gateEntry` pour y faire passer les camions.
+   */
+  gates?: PlannerGate[];
+  /**
+   * Un clic sur la clôture de pourtour (hors des modes de tracé, mains vides) : le point, ramené sur
+   * la ligne de la clôture et calé à la demi-case, le côté du terrain, et si un portail de largeur
+   * `GATE_WIDTH` peut y être percé — sinon pourquoi. Au survol, la place du portail s'y dessine.
+   */
+  onFenceSelect?: (p: { x: number; y: number; edge: "north" | "south" | "east" | "west"; valid: boolean; reason?: string }) => void;
+  /** Le portail choisi ; un clic sur un portail le choisit, Suppr appelle `onGateRemove`. */
+  selectedGateId?: string | null;
+  onGateSelect?: (id: string | null) => void;
+  onGateRemove?: (id: string) => void;
+
+  // --- La palette en bas, à la manière de Cities: Skylines --------------------------------------
+
+  /**
+   * `"sidebar"` (défaut) : la palette en colonne, à gauche. `"bottom"` : un **bandeau translucide**
+   * posé sur le bas de la scène, sans la rétrécir — une rangée d'onglets en icônes (une famille par
+   * onglet, son nom en infobulle), la bande des vignettes de la famille choisie au-dessus, qu'on fait
+   * défiler de côté, la recherche au bout, et un chevron qui replie le bandeau sur ses onglets. Sa
+   * hauteur est publiée sur la scène dans `--lq-planner-palette-height`, pour que l'application
+   * décale ses propres panneaux flottants.
+   */
+  paletteLayout?: "sidebar" | "bottom";
+  /** Les icônes des onglets du bandeau, par nom de famille. Défaut : une icône devinée du nom. */
+  groupIcons?: Record<string, ReactNode>;
+
+  /**
+   * La qualité de rendu : densité de pixels, ombres, densité du décor. `"auto"` (défaut) choisit
+   * `"low"` sur un petit écran tactile ou un appareil modeste.
+   */
+  quality?: SceneQuality;
 }
+
+/** Ce que rend `onFenceSelect`. */
+export type PlannerFencePick = Parameters<NonNullable<WarehousePlannerProps["onFenceSelect"]>>[0];
 
 /** Une flèche de flux entre deux éléments du plan (voir `links`). */
 export interface PlannerLink {
@@ -388,6 +489,7 @@ const ENTRIES: Entry[] = [
   { id: "flowerBed", label: "Parterre de fleurs", group: "Extérieur", type: "place", kind: "flowerBed" },
   { id: "barrier", label: "Barrière", group: "Extérieur", type: "place", kind: "barrier" },
   { id: "gate", label: "Portail coulissant", group: "Extérieur", type: "draw", kind: "gate", mode: "segment" },
+  { id: "accessRoad", label: "Voie d'accès", group: "Extérieur", type: "draw", kind: "accessRoad", mode: "segment" },
   { id: "tollBooth", label: "Poste de péage", group: "Extérieur", type: "place", kind: "tollBooth" },
   { id: "transformer", label: "Transformateur", group: "Énergie", type: "place", kind: "transformer" },
   { id: "solar", label: "Panneaux solaires", group: "Énergie", type: "place", kind: "solar" },
@@ -436,7 +538,7 @@ const MENU: { title: string; subs: { title: string; ids: string[] }[] }[] = [
   {
     title: "Extérieur",
     subs: [
-      { title: "Accès", ids: ["barrier", "gate", "tollBooth"] },
+      { title: "Accès", ids: ["accessRoad", "barrier", "gate", "tollBooth"] },
       { title: "Cour", ids: ["container", "light", "parking", "truckBay"] },
       { title: "Nature et personnes", ids: ["tree", "shrub", "flowerBed", "worker"] },
     ],
@@ -450,13 +552,77 @@ const MENU: { title: string; subs: { title: string; ids: string[] }[] }[] = [
   },
 ];
 
+type PanDrag = { t: "pan"; sx: number; sy: number; cx: number; cy: number; gx: number; gy: number; moved: boolean };
 type Drag =
-  | { t: "pan"; sx: number; sy: number; cx: number; cy: number; gx: number; gy: number; moved: boolean }
+  | PanDrag
   | { t: "orbit"; sx: number; sy: number; yaw: number; tilt: number }
   | { t: "end"; id: string; which: 0 | 1; orig: PlannerItem }
   | { t: "move"; id: string; wx: number; wy: number; orig: PlannerItem }
   | { t: "rotate"; id: string; cx: number; cy: number; orig: PlannerItem }
-  | { t: "link"; from: string };
+  | { t: "link"; from: string }
+  | { t: "zone"; start: P }
+  /** Un doigt posé sur un élément : un glisser rapide déplace la vue, un appui tenu prend l'élément. */
+  | { t: "hold"; id: string; orig: PlannerItem; wx: number; wy: number; pan: PanDrag; timer: number };
+
+/**
+ * Deux doigts sur la scène. On attend de savoir ce qu'ils font : s'ils glissent ensemble à la
+ * verticale sans s'écarter, ils **inclinent** la vue ; sinon ils la **pincent** — l'écart zoome, le
+ * milieu tient le point du sol qu'il couvrait (on se déplace en même temps), et la rotation des
+ * doigts l'un autour de l'autre fait tourner la caméra en vue de biais.
+ */
+type TwoFingers = {
+  mode: "undecided" | "pinch" | "tilt";
+  d0: number;
+  a0: number;
+  m0: P;
+  zoom0: number;
+  view0: { cx: number; cy: number };
+  ground: P;
+  yaw0: number;
+  tilt0: number;
+  twist: boolean;
+};
+
+/**
+ * L'icône d'un onglet du bandeau, devinée du nom de sa famille — sans accents ni casse : « Stockage »,
+ * « Convoyage », « Énergie »… Ce qui ne ressemble à rien de connu prend une grille.
+ */
+function guessGroupIcon(title: string): ReactNode {
+  const t = title.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+  const has = (...words: string[]) => words.some((w) => t.includes(w));
+  if (has("toit")) return <HouseRoofIcon />;
+  if (has("froid", "frigo")) return <SnowflakeIcon />;
+  if (has("energ", "electr", "solaire")) return <BoltIcon />;
+  if (has("robot", "automat")) return <RobotIcon />;
+  if (has("convoy", "tapis", "manutention")) return <ConveyorIcon />;
+  if (has("picking", "prepar", "cueill")) return <CartIcon />;
+  if (has("emball", "colis", "condition")) return <PackageIcon />;
+  if (has("exped", "quai", "camion", "transport", "livraison")) return <TruckIcon />;
+  if (has("vehic", "engin", "chariot")) return <ForkliftIcon />;
+  if (has("stock", "rack", "etag", "rayon")) return <BoxesIcon />;
+  if (has("parking", "station")) return <ParkingIcon />;
+  if (has("route", "voie", "acces", "voirie")) return <RoadIcon />;
+  if (has("exter", "nature", "jardin", "paysag", "arbre")) return <TreeIcon />;
+  if (has("mur", "batiment", "infra", "structure", "construction", "entrepot")) return <BuildingWarehouseIcon />;
+  return <GridIcon />;
+}
+
+type ZoneRect = { x: number; y: number; width: number; depth: number };
+/** Le rectangle de cases entre deux nœuds de la grille. */
+const zoneRect = (a: P, b: P): ZoneRect => ({ x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), width: Math.abs(b.x - a.x), depth: Math.abs(b.y - a.y) });
+type FenceEdge = "north" | "south" | "east" | "west";
+/** Un point de la clôture de pourtour, et la place qu'y prendrait un portail (`from` → `to`). */
+type FenceSpot = { x: number; y: number; edge: FenceEdge; valid: boolean; reason?: string; from: P; to: P };
+/**
+ * Le sens de la rotation de la caméra quand deux doigts tournent l'un autour de l'autre : la scène
+ * tourne **avec** les doigts, comme une carte qu'on fait pivoter sur la table.
+ */
+const TWIST_SIGN = 1;
+
+/** Le délai d'un appui tenu, au doigt, avant de prendre l'élément sous lui, en millisecondes. */
+const HOLD_MS = 380;
+/** Ce qu'un doigt peut bouger sans que son appui cesse d'être un tapotement, en pixels. */
+const TAP_SLOP = 9;
 
 const DND = "application/x-lq-planner";
 /** Comparer sans casse ni accents : « etagere » trouve « Étagère ». */
@@ -542,6 +708,7 @@ function entryJob(entry: Entry): SnapshotJob {
     coldRoom: 2,
     truckBay: 0.3,
     office: 1.4,
+    accessRoad: 0.3,
   };
   const h = tall[entry.kind] ?? (entry.type === "place" || (entry.type === "piece" && !isLinear(items[0])) ? 2 : 3);
   // Ce qui est posé sur un toit flotte à sa hauteur : la vignette cadre la dalle, pas le vide dessous.
@@ -600,6 +767,22 @@ export function WarehousePlanner({
   selectedLinkId = null,
   onLinkSelect,
   onLinkRemove,
+  zones,
+  zoneMode = false,
+  onZoneDraw,
+  canZone,
+  selectedZoneId = null,
+  onZoneSelect,
+  onZoneRemove,
+  perimeterFence = false,
+  gates,
+  onFenceSelect,
+  selectedGateId = null,
+  onGateSelect,
+  onGateRemove,
+  paletteLayout = "sidebar",
+  groupIcons,
+  quality = "auto",
 }: WarehousePlannerProps) {
   const [ownSeed, setOwnSeed] = useState(defaultSeed);
   const seed = seedProp ?? ownSeed;
@@ -680,6 +863,44 @@ export function WarehousePlanner({
   const [linkDraft, setLinkDraft] = useState<{ from: string; to: string | null; at: P } | null>(null);
   const linkDraftRef = useRef(linkDraft);
   linkDraftRef.current = linkDraft;
+  /** L'élastique de la zone en cours de tracé : ses deux coins, sur les nœuds de la grille. */
+  const [zoneDraft, setZoneDraft] = useState<{ a: P; b: P } | null>(null);
+  const zoneDraftRef = useRef(zoneDraft);
+  zoneDraftRef.current = zoneDraft;
+  /** La clôture survolée : la place qu'y prendrait un portail. */
+  const [fenceHover, setFenceHover] = useState<FenceSpot | null>(null);
+  /** Le dernier geste venait d'un doigt : on montre les commandes tactiles de la pose. */
+  const [touchUi, setTouchUi] = useState(false);
+  /** Les doigts posés sur la scène, et le geste à deux doigts en cours. */
+  const touches = useRef(new Map<number, P>());
+  const two = useRef<TwoFingers | null>(null);
+  /** Après un geste à deux doigts, le doigt qui reste ne fait plus rien jusqu'à ce qu'il se lève. */
+  const spent = useRef(false);
+  /** Le bandeau de la palette : la famille ouverte, déplié ou non, et sa hauteur. */
+  const [bandGroup, setBandGroup] = useState<string | null>(null);
+  const [bandOpen, setBandOpen] = useState(true);
+  const band = useRef<HTMLDivElement>(null);
+  const [bandHeight, setBandHeight] = useState(0);
+  useLayoutEffect(() => {
+    const el = band.current;
+    if (!el) {
+      setBandHeight(0);
+      return;
+    }
+    const measure = () => setBandHeight(Math.round(el.getBoundingClientRect().height));
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [paletteLayout]);
+
+  // Les voies d'accès : leurs raccordements à la rue, et les ouvertures qu'elles font dans la clôture.
+  const roadOpenings = useMemo(() => accessRoadOpenings(items), [items]);
+  const driveways = useMemo(() => accessRoadDriveways(items, plot), [items, plot]);
+  const gateKey = JSON.stringify(gates ?? []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const laidGates = useMemo(() => layGates(plot, gates ?? [], roadOpenings), [plot, gateKey, roadOpenings]);
+  const fenceRuns = useMemo(() => (perimeterFence ? perimeterFenceRuns(plot, [...roadOpenings, ...laidGates.map((g) => g.layout.opening)]) : []), [perimeterFence, plot, roadOpenings, laidGates]);
   /** L'outil en main : une entrée de la palette. */
   const [ownTool, setOwnTool] = useState<Entry | null>(null);
   const tool = activeEntryId !== undefined ? (activeEntryId === null ? null : findEntry(activeEntryId) ?? null) : ownTool;
@@ -920,19 +1141,233 @@ export function WarehousePlanner({
     onEdit?.({ type: "update", before, after: next });
   };
 
+  // --- Les zones, la clôture, les portails ----------------------------------------------------------
+  /** La zone sous un point du sol — la dernière tracée d'abord, comme elle est peinte par-dessus. */
+  const zoneAt = (w: P): PlannerZone | null => {
+    const list = zones ?? [];
+    for (let i = list.length - 1; i >= 0; i -= 1) {
+      const z = list[i];
+      if (w.x >= z.x && w.x <= z.x + z.width && w.y >= z.y && w.y <= z.y + z.depth) return z;
+    }
+    return null;
+  };
+  /** Pourquoi une zone ne peut pas être là, ou `null`. */
+  const zoneProblem = (r: ZoneRect): string | null => {
+    if (r.width < 1 || r.depth < 1) return "Tirez au moins une case de côté.";
+    for (let x = r.x; x < r.x + r.width; x += 1) for (let y = r.y; y < r.y + r.depth; y += 1) if (!plotInside(plot, x, y)) return "Hors du terrain constructible.";
+    return canZone?.(r) ?? null;
+  };
+  /** Le portail sous un point du sol. */
+  const gateAt = (w: P): string | null => {
+    for (const { gate, layout: g } of laidGates) {
+      const f = plotSideFrame(plot, g.side);
+      if (Math.abs(f.along(w) - g.along) <= g.width / 2 + 0.2 && Math.abs(f.out(w)) < 0.9) return gate.id;
+    }
+    return null;
+  };
+  /**
+   * La clôture de pourtour sous un point du sol : le point ramené sur sa ligne et calé à la demi-case,
+   * le côté du terrain qu'elle ferme, et la place qu'y prendrait un portail — permise ou non.
+   */
+  const fenceAt = (w: P): FenceSpot | null => {
+    if (!perimeterFence || !onFenceSelect) return null;
+    let best: { run: PlotFenceRun; gap: number } | null = null;
+    for (const run of fenceRuns) {
+      const horizontal = run.y0 === run.y1;
+      const lo = horizontal ? Math.min(run.x0, run.x1) : Math.min(run.y0, run.y1);
+      const hi = horizontal ? Math.max(run.x0, run.x1) : Math.max(run.y0, run.y1);
+      const along = horizontal ? w.x : w.y;
+      const gap = horizontal ? Math.abs(w.y - run.y0) : Math.abs(w.x - run.x0);
+      if (along < lo - 0.2 || along > hi + 0.2 || gap > 0.45) continue;
+      if (!best || gap < best.gap) best = { run, gap };
+    }
+    if (!best) return null;
+    const { run } = best;
+    const horizontal = run.y0 === run.y1;
+    const line = horizontal ? run.y0 : run.x0;
+    const lo = horizontal ? Math.min(run.x0, run.x1) : Math.min(run.y0, run.y1);
+    const hi = horizontal ? Math.max(run.x0, run.x1) : Math.max(run.y0, run.y1);
+    const along = Math.max(lo, Math.min(hi, Math.round((horizontal ? w.x : w.y) * 2) / 2));
+    // Le côté : là où n'est pas le terrain. Une case prise un peu en deçà du bout du tronçon.
+    const probe = Math.floor(Math.max(lo + 0.25, Math.min(hi - 0.25, along)));
+    const insideAfter = horizontal ? plotInside(plot, probe, line) : plotInside(plot, line, probe);
+    const edge: FenceEdge = horizontal ? (insideAfter ? "south" : "north") : insideAfter ? "west" : "east";
+    const street = horizontal ? line === 0 || line === plot.depth : line === 0 || line === plot.width;
+    const half = GATE_WIDTH / 2;
+    let reason: string | undefined;
+    if (!street) reason = "Ce côté ne donne pas sur la rue.";
+    else if (laidGates.some(({ layout: g }) => g.side === edge && Math.abs(g.along - along) < g.width / 2 + half + 1)) reason = "Trop près d'un autre portail.";
+    else if (along - half < lo + 0.5 || along + half > hi - 0.5) reason = "Trop près d'un angle ou d'une ouverture de la clôture.";
+    const at = (v: number): P => (horizontal ? { x: v, y: line } : { x: line, y: v });
+    return { ...at(along), edge, valid: !reason, reason, from: at(along - half), to: at(along + half) };
+  };
+
   // --- Les gestes -------------------------------------------------------------------------------
+  /** Choisir un élément : la zone, le portail et la flèche choisis le cèdent. */
+  const selectItem = (id: string) => {
+    setSelectedId(id);
+    if (selectedZoneId) onZoneSelect?.(null);
+    if (selectedGateId) onGateSelect?.(null);
+    if (selectedLinkId) onLinkSelect?.(null);
+  };
+  /**
+   * Un tapotement sur le sol, sans élément dessous : un portail, la clôture, une zone — dans cet
+   * ordre, les plus fins d'abord — ou rien, et tout ce qui était choisi est laissé.
+   */
+  const tapGround = (w: P) => {
+    const drop = (keep: "zone" | "gate" | "none") => {
+      setSelectedId(null);
+      if (selectedLinkId) onLinkSelect?.(null);
+      if (keep !== "zone" && selectedZoneId) onZoneSelect?.(null);
+      if (keep !== "gate" && selectedGateId) onGateSelect?.(null);
+    };
+    if (!zoneMode && !linkMode) {
+      const gate = gateAt(w);
+      if (gate) {
+        drop("gate");
+        onGateSelect?.(gate);
+        return;
+      }
+      const spot = readOnly ? null : fenceAt(w);
+      if (spot) {
+        drop("none");
+        onFenceSelect?.({ x: spot.x, y: spot.y, edge: spot.edge, valid: spot.valid, reason: spot.reason });
+        return;
+      }
+      const zone = zoneAt(w);
+      if (zone) {
+        drop("zone");
+        onZoneSelect?.(zone.id);
+        return;
+      }
+    }
+    drop("none");
+  };
+  /** Poser ce que montre le fantôme, là où il est — pas ailleurs. `keep` : garder l'outil en main. */
+  const placeAt = (w: P, keep: boolean) => {
+    if (!placing) return;
+    let item = armedItem(w.x, w.y) as PlannerItem;
+    if (WALL_MOUNTED.includes(item.kind)) {
+      const onWall = snapToWall(item as PlannerPoint, itemsRef.current);
+      if (!onWall) {
+        flash("Une ouverture se pose sur un mur : approchez-la d'un mur.");
+        return;
+      }
+      item = onWall;
+    }
+    const placeProblem = problemOf(item, placing.id);
+    if (placeProblem) {
+      flash(placeProblem);
+      return;
+    }
+    setItems([...itemsRef.current, item]);
+    selectItem(item.id);
+    onEdit?.({ type: "add", items: [item], entryId: placing.id });
+    if (!keep) setTool(null);
+  };
+
+  /** Les deux doigts posés : leur milieu, leur écart, l'angle de l'un à l'autre. */
+  const pair = () => {
+    const [a, b] = [...touches.current.values()];
+    return { m: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, d: Math.hypot(b.x - a.x, b.y - a.y), ang: Math.atan2(b.y - a.y, b.x - a.x) };
+  };
+  /** Un second doigt se pose : ce que le premier avait commencé est défait, la caméra prend la main. */
+  const startTwo = () => {
+    const d = drag.current;
+    if (d?.t === "hold") window.clearTimeout(d.timer);
+    if (d && (d.t === "move" || d.t === "end" || d.t === "rotate")) update(d.id, d.orig);
+    if (d?.t === "zone") setZoneDraft(null);
+    if (d?.t === "link") setLinkDraft(null);
+    drag.current = null;
+    const q = pair();
+    two.current = {
+      mode: "undecided",
+      d0: Math.max(10, q.d),
+      a0: q.ang,
+      m0: q.m,
+      zoom0: view.zoom,
+      view0: { cx: view.cx, cy: view.cy },
+      ground: toWorld(q.m.x, q.m.y),
+      yaw0: orbit.yaw,
+      tilt0: orbit.tilt,
+      twist: false,
+    };
+  };
+  const moveTwo = () => {
+    const g = two.current;
+    if (!g || touches.current.size < 2) return;
+    const q = pair();
+    const dx = q.m.x - g.m0.x;
+    const dy = q.m.y - g.m0.y;
+    const spread = q.d - g.d0;
+    let turn = q.ang - g.a0;
+    turn = Math.atan2(Math.sin(turn), Math.cos(turn));
+    if (g.mode === "undecided") {
+      // Les doigts bougent l'un après l'autre, un événement chacun : on attend que le geste ait pris
+      // de l'ampleur avant de le lire, sans quoi le premier doigt parti ressemble à une rotation.
+      if (Math.hypot(dx, dy) < 16 && Math.abs(spread) < 16 && Math.abs(turn) < 0.3) return;
+      if (Math.abs(dy) > Math.abs(dx) * 1.5 && Math.abs(spread) < 24 && Math.abs(turn) < 0.25) {
+        g.mode = "tilt";
+        if (!mode3d) {
+          // Comme au clic molette : depuis la vue de dessus, on part de l'aplomb et on bascule.
+          g.yaw0 = TOP_YAW;
+          g.tilt0 = 89;
+          setOrbit({ yaw: TOP_YAW, tilt: 89 });
+          setMode3d(true);
+        }
+      } else g.mode = "pinch";
+    }
+    if (g.mode === "tilt") {
+      // Les doigts qui montent relèvent la caméra, comme la main au clic molette.
+      setOrbit((o) => ({ ...o, tilt: Math.max(10, Math.min(89, g.tilt0 - dy * 0.25)) }));
+      return;
+    }
+    const zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, (g.zoom0 * Math.max(10, q.d)) / g.d0));
+    let yaw = mode3d ? orbit.yaw : TOP_YAW;
+    if (mode3d) {
+      if (!g.twist && Math.abs(turn) > 0.1) g.twist = true;
+      if (g.twist) yaw = g.yaw0 + (TWIST_SIGN * turn * 180) / Math.PI;
+    }
+    // Le point du sol pris sous le milieu des doigts y reste : on vise avec la nouvelle caméra, et on
+    // recale le centre d'autant.
+    const pj = viewProjector({ yaw, tilt: camTilt, scale: cellSize * zoom, width: size.width, height: size.height, center: { x: g.view0.cx, y: g.view0.cy }, projection });
+    const hit = pj.toGround(q.m.x, q.m.y);
+    setView({ zoom, cx: hit ? g.view0.cx + g.ground.x - hit.x : view.cx, cy: hit ? g.view0.cy + g.ground.y - hit.y : view.cy });
+    if (mode3d && g.twist) setOrbit((o) => ({ ...o, yaw }));
+  };
+
   const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
     stage.current?.focus();
     const p = local(e);
+    const touch = e.pointerType === "touch";
+    if (touch !== touchUi) setTouchUi(touch);
+    if (touch) {
+      touches.current.set(e.pointerId, p);
+      e.currentTarget.setPointerCapture(e.pointerId);
+      if (touches.current.size === 2) {
+        startTwo();
+        return;
+      }
+      if (touches.current.size > 2) return;
+      spent.current = false;
+    }
     if (e.button === 2) {
+      if (zoneMode) {
+        // En traçant des zones, le clic droit tient la vue : on la déplace sans rien tracer.
+        setZoneDraft(null);
+        e.currentTarget.setPointerCapture(e.pointerId);
+        const g = toWorld(p.x, p.y);
+        drag.current = { t: "pan", sx: p.x, sy: p.y, cx: view.cx, cy: view.cy, gx: g.x, gy: g.y, moved: true };
+        return;
+      }
       // Le clic droit repose le tracé en cours, puis l'outil.
       if (start) setStart(null);
       else setTool(null);
       return;
     }
-    e.currentTarget.setPointerCapture(e.pointerId);
+    if (!touch) e.currentTarget.setPointerCapture(e.pointerId);
     const w = toWorld(p.x, p.y);
-    const pan = { t: "pan" as const, sx: p.x, sy: p.y, cx: view.cx, cy: view.cy, gx: w.x, gy: w.y, moved: false };
+    const pan: PanDrag = { t: "pan", sx: p.x, sy: p.y, cx: view.cx, cy: view.cy, gx: w.x, gy: w.y, moved: false };
     if (e.button === 1) {
       // Le clic molette tient la caméra : tourner autour, incliner. Depuis la vue de dessus, on part
       // de l'aplomb, au même cap, et on bascule de biais sans à-coup.
@@ -943,6 +1378,17 @@ export function WarehousePlanner({
         setMode3d(true);
       }
       drag.current = { t: "orbit", sx: p.x, sy: p.y, yaw: from.yaw, tilt: from.tilt };
+      return;
+    }
+    if (zoneMode) {
+      // Tracer une zone : du nœud de la grille pressé au nœud sous le pointeur.
+      if (readOnly) {
+        drag.current = pan;
+        return;
+      }
+      const q = { x: Math.round(w.x), y: Math.round(w.y) };
+      drag.current = { t: "zone", start: q };
+      setZoneDraft({ a: q, b: q });
       return;
     }
     if (linkMode) {
@@ -958,12 +1404,14 @@ export function WarehousePlanner({
     if (linkEl) {
       onLinkSelect?.(linkEl.dataset.link ?? null);
       setSelectedId(null);
+      if (selectedZoneId) onZoneSelect?.(null);
+      if (selectedGateId) onGateSelect?.(null);
       return;
     }
     if (readOnly) {
       // On regarde : un clic choisit, un glisser déplace la vue — rien d'autre.
       const hit = pick(w);
-      if (hit) setSelectedId(hit.id);
+      if (hit) selectItem(hit.id);
       else drag.current = pan;
       return;
     }
@@ -976,25 +1424,13 @@ export function WarehousePlanner({
       return;
     }
     if (placing) {
-      // On pose ce que montre le fantôme, là où il est — pas ailleurs.
-      let item = armedItem(w.x, w.y) as PlannerItem;
-      if (WALL_MOUNTED.includes(item.kind)) {
-        const onWall = snapToWall(item as PlannerPoint, itemsRef.current);
-        if (!onWall) {
-          flash("Une ouverture se pose sur un mur : approchez-la d'un mur.");
-          return;
-        }
-        item = onWall;
-      }
-      const placeProblem = problemOf(item, placing.id);
-      if (placeProblem) {
-        flash(placeProblem);
+      if (touch) {
+        // Au doigt, on vise d'abord : le fantôme vient sous le doigt, et c'est la coche qui pose.
+        const f = footprintOf(armedItem(w.x, w.y) as PlannerItem);
+        setCursor({ x: f.cx, y: f.cy });
         return;
       }
-      setItems([...itemsRef.current, item]);
-      setSelectedId(item.id);
-      onEdit?.({ type: "add", items: [item], entryId: placing.id });
-      if (!e.shiftKey) setTool(null);
+      placeAt(w, e.shiftKey);
       return;
     }
     const handle = (e.target as Element).closest?.("[data-handle]") as HTMLElement | null;
@@ -1002,7 +1438,7 @@ export function WarehousePlanner({
       const id = handle.dataset.id as string;
       const item = itemsRef.current.find((it) => it.id === id);
       if (!item) return;
-      setSelectedId(id);
+      selectItem(id);
       if (handle.dataset.handle === "move") drag.current = { t: "move", id, wx: w.x, wy: w.y, orig: item };
       else if (handle.dataset.handle === "rotate") {
         const f = footprintOf(item);
@@ -1013,7 +1449,20 @@ export function WarehousePlanner({
     }
     const hit = pick(w);
     if (hit) {
-      setSelectedId(hit.id);
+      if (touch) {
+        // Au doigt, un élément ne se prend qu'après un appui tenu : un glisser franc sur lui déplace
+        // la vue, comme partout ailleurs — on ne déménage pas un rack en voulant faire défiler.
+        const timer = window.setTimeout(() => {
+          const d = drag.current;
+          if (d?.t !== "hold" || d.id !== hit.id) return;
+          selectItem(hit.id);
+          drag.current = { t: "move", id: hit.id, wx: d.wx, wy: d.wy, orig: d.orig };
+          navigator.vibrate?.(12);
+        }, HOLD_MS);
+        drag.current = { t: "hold", id: hit.id, orig: hit, wx: w.x, wy: w.y, pan, timer };
+        return;
+      }
+      selectItem(hit.id);
       drag.current = { t: "move", id: hit.id, wx: w.x, wy: w.y, orig: hit };
       return;
     }
@@ -1022,7 +1471,16 @@ export function WarehousePlanner({
 
   const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
     const p = local(e);
-    const d = drag.current;
+    if (e.pointerType === "touch") {
+      if (!touches.current.has(e.pointerId)) return;
+      touches.current.set(e.pointerId, p);
+      if (two.current) {
+        moveTwo();
+        return;
+      }
+      if (spent.current) return;
+    }
+    let d = drag.current;
     if (!d) {
       const w = toWorld(p.x, p.y);
       if (drawing) {
@@ -1043,8 +1501,27 @@ export function WarehousePlanner({
         if (!cursor || q.x !== cursor.x || q.y !== cursor.y) setCursor(q);
         return;
       }
+      if (zoneMode) {
+        if (hoverId) setHoverId(null);
+        return;
+      }
       const id = pick(w)?.id ?? null;
       if (id !== hoverId) setHoverId(id);
+      // La clôture survolée montre la place du portail qu'on y percerait.
+      const spot = !id && !linkMode && !readOnly ? fenceAt(w) : null;
+      if ((spot?.x ?? null) !== (fenceHover?.x ?? null) || (spot?.y ?? null) !== (fenceHover?.y ?? null) || (spot?.valid ?? null) !== (fenceHover?.valid ?? null)) setFenceHover(spot);
+      return;
+    }
+    if (d.t === "hold") {
+      // Le doigt a glissé avant la fin de l'appui : ce n'était pas pour prendre l'élément.
+      if (Math.hypot(p.x - d.pan.sx, p.y - d.pan.sy) <= TAP_SLOP) return;
+      window.clearTimeout(d.timer);
+      d = drag.current = d.pan;
+    }
+    if (d.t === "zone") {
+      const w = toWorld(p.x, p.y);
+      const q = { x: Math.round(w.x), y: Math.round(w.y) };
+      setZoneDraft((z) => (z && (z.b.x !== q.x || z.b.y !== q.y) ? { a: z.a, b: q } : z));
       return;
     }
     if (d.t === "link") {
@@ -1059,7 +1536,7 @@ export function WarehousePlanner({
       return;
     }
     if (d.t === "pan") {
-      if (Math.hypot(p.x - d.sx, p.y - d.sy) > 3) d.moved = true;
+      if (Math.hypot(p.x - d.sx, p.y - d.sy) > (e.pointerType === "touch" ? TAP_SLOP : 3)) d.moved = true;
       // On tient le point du sol attrapé sous le pointeur : la vue glisse d'autant, sous tout angle.
       const g = projectorFor(d.cx, d.cy, view.zoom).toGround(p.x, p.y);
       if (g) setView((v) => ({ ...v, cx: d.cx + (d.gx - g.x), cy: d.cy + (d.gy - g.y) }));
@@ -1077,10 +1554,47 @@ export function WarehousePlanner({
   };
 
   const onPointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const release = () => {
+      if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+    };
+    if (e.pointerType === "touch") {
+      touches.current.delete(e.pointerId);
+      if (two.current) {
+        // Un doigt se lève : le geste à deux s'arrête, et celui qui reste ne fait plus rien.
+        if (touches.current.size < 2) {
+          two.current = null;
+          spent.current = touches.current.size > 0;
+        }
+        release();
+        return;
+      }
+      if (spent.current) {
+        if (touches.current.size === 0) spent.current = false;
+        release();
+        return;
+      }
+    }
     const d = drag.current;
     drag.current = null;
-    if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+    release();
     if (!d) return;
+    if (d.t === "hold") {
+      // Un tapotement sur un élément : il est choisi.
+      window.clearTimeout(d.timer);
+      selectItem(d.id);
+      return;
+    }
+    if (d.t === "zone") {
+      const z = zoneDraftRef.current;
+      setZoneDraft(null);
+      if (!z) return;
+      const rect = zoneRect(z.a, z.b);
+      if (rect.width < 1 && rect.depth < 1) return;
+      const problem = zoneProblem(rect);
+      if (problem) flash(problem);
+      else onZoneDraw?.(rect);
+      return;
+    }
     if (d.t === "link") {
       const draftLink = linkDraftRef.current;
       setLinkDraft(null);
@@ -1088,10 +1602,7 @@ export function WarehousePlanner({
       return;
     }
     if (d.t === "pan") {
-      if (!d.moved) {
-        setSelectedId(null);
-        if (selectedLinkId) onLinkSelect?.(null);
-      }
+      if (!d.moved && !zoneMode) tapGround({ x: d.gx, y: d.gy });
       return;
     }
     if (d.t === "orbit") return;
@@ -1114,6 +1625,8 @@ export function WarehousePlanner({
     const el = stage.current;
     if (!el) return;
     const onWheel = (e: WheelEvent) => {
+      // Dans le bandeau de la palette, la molette fait défiler les vignettes, pas la caméra.
+      if ((e.target as Element | null)?.closest?.(".lq-planner__band")) return;
       e.preventDefault();
       const r = el.getBoundingClientRect();
       const sx = e.clientX - r.left;
@@ -1167,12 +1680,22 @@ export function WarehousePlanner({
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.key === "Escape" && selectedLinkId && !start && !tool) onLinkSelect?.(null);
     if (e.key === "Escape") {
-      if (start) setStart(null);
+      if (drag.current?.t === "zone") {
+        drag.current = null;
+        setZoneDraft(null);
+      } else if (start) setStart(null);
       else if (tool) setTool(null);
-      else setSelectedId(null);
+      else {
+        setSelectedId(null);
+        if (selectedZoneId) onZoneSelect?.(null);
+        if (selectedGateId) onGateSelect?.(null);
+      }
     } else if (readOnly) return;
     else if (e.key === "Delete" || e.key === "Backspace") {
+      // La plus fine d'abord : une flèche, un portail, une zone, puis l'élément.
       if (selectedLinkId && onLinkRemove) onLinkRemove(selectedLinkId);
+      else if (selectedGateId && onGateRemove) onGateRemove(selectedGateId);
+      else if (selectedZoneId && onZoneRemove) onZoneRemove(selectedZoneId);
       else if (!selected) return;
       else remove();
     }
@@ -1192,6 +1715,8 @@ export function WarehousePlanner({
   };
 
   const onDrop = (e: DragEvent<HTMLDivElement>) => {
+    // Lâché sur le bandeau de la palette : ce n'est pas sur le terrain.
+    if ((e.target as Element).closest?.(".lq-planner__band")) return;
     const id = e.dataTransfer.getData(DND);
     const entry = findEntry(id);
     if (!entry || readOnly || (entry.type === "piece" && entry.disabled)) return;
@@ -1334,7 +1859,69 @@ export function WarehousePlanner({
     }
   }
 
-  const shown = drawing ? [] : items.filter((it) => (it.id === selectedId || it.id === hoverId) && (showRoofs || (!isRooftop(it) && it.kind !== "roof")));
+  const shown = drawing ? [] : items.filter((it) => (it.id === selectedId || (!zoneMode && it.id === hoverId)) && (showRoofs || (!isRooftop(it) && it.kind !== "roof")));
+
+  // --- Les zones, la clôture, les portails, à l'écran -------------------------------------------------
+  /** Un polygone du sol, projeté : une suite de points d'écran pour un `<polygon>`. */
+  const groundPoly = (pts: P[], z = 0.03) =>
+    pts
+      .map((q) => toScreen(q.x, q.y, z))
+      .map((q) => `${q.x.toFixed(1)},${q.y.toFixed(1)}`)
+      .join(" ");
+  const rectCorners = (r: ZoneRect): P[] => [
+    { x: r.x, y: r.y },
+    { x: r.x + r.width, y: r.y },
+    { x: r.x + r.width, y: r.y + r.depth },
+    { x: r.x, y: r.y + r.depth },
+  ];
+  /** Les cotes d'un rectangle de cases, en mètres, et sa surface. */
+  const zoneDims = (r: ZoneRect) => `${r.width * 2} × ${r.depth * 2} m · ${(r.width * r.depth * 4).toLocaleString("fr-FR")} m²`;
+  const zoneOverlay: ReactNode[] = [];
+  const selectedZone = (zones ?? []).find((z) => z.id === selectedZoneId);
+  if (selectedZone) zoneOverlay.push(<polygon key="zone-sel" className="lq-planner__zone-outline" points={groundPoly(rectCorners(selectedZone))} />);
+  if (zoneDraft) {
+    const r = zoneRect(zoneDraft.a, zoneDraft.b);
+    const empty = r.width < 1 || r.depth < 1;
+    const problem = empty ? null : zoneProblem(r);
+    const c = toScreen(r.x + r.width / 2, r.y + r.depth / 2, 0.03);
+    zoneOverlay.push(
+      <g key="zone-draft" className={["lq-planner__zone-draft", problem && "lq-planner__zone-draft--invalid"].filter(Boolean).join(" ")}>
+        <polygon points={groundPoly(rectCorners(r))} />
+        {!empty && (
+          <text className="lq-planner__dim" x={c.x} y={c.y} textAnchor="middle">
+            {zoneDims(r)}
+          </text>
+        )}
+        {problem && (
+          <text className="lq-planner__dim lq-planner__zone-reason" x={c.x} y={c.y + 16} textAnchor="middle">
+            {problem}
+          </text>
+        )}
+      </g>
+    );
+  }
+  /** La place d'un portail sur la clôture : un trait épais à mi-hauteur de la clôture. */
+  const gateSpan = (a: P, b: P, cls: string, key: string) => {
+    const lo = toScreen(a.x, a.y, 0.5);
+    const hi = toScreen(b.x, b.y, 0.5);
+    return <line key={key} className={cls} x1={lo.x} y1={lo.y} x2={hi.x} y2={hi.y} />;
+  };
+  if (fenceHover && !drawing && !placing && !zoneMode && !linkMode) {
+    zoneOverlay.push(gateSpan(fenceHover.from, fenceHover.to, ["lq-planner__fence-hover", !fenceHover.valid && "lq-planner__fence-hover--invalid"].filter(Boolean).join(" "), "fence-hover"));
+    if (!fenceHover.valid && fenceHover.reason) {
+      const c = toScreen(fenceHover.x, fenceHover.y, 1.2);
+      zoneOverlay.push(
+        <text key="fence-reason" className="lq-planner__dim lq-planner__zone-reason" x={c.x} y={c.y - 8} textAnchor="middle">
+          {fenceHover.reason}
+        </text>
+      );
+    }
+  }
+  for (const { gate, layout: g } of laidGates) {
+    if (gate.id !== selectedGateId) continue;
+    const f = plotSideFrame(plot, g.side);
+    zoneOverlay.push(gateSpan(f.at(g.along - g.width / 2, 0), f.at(g.along + g.width / 2, 0), "lq-planner__gate-selected", `gate-${gate.id}`));
+  }
   const counts = useMemo(() => {
     const m = new Map<string, number>();
     for (const it of items) m.set(it.kind, (m.get(it.kind) ?? 0) + 1);
@@ -1386,7 +1973,15 @@ export function WarehousePlanner({
     );
   };
 
-  const hint = areaTool
+  const hint = zoneMode
+    ? zoneDraft
+      ? "Lâchez pour tracer la zone — Échap pour l'annuler."
+      : touchUi
+        ? "Zones : posez le doigt sur le terrain et tirez. Deux doigts pour déplacer la vue."
+        : "Zones : pressez sur le terrain et tirez. Clic droit + glisser pour déplacer la vue."
+    : placing && touchUi
+      ? `${placing.label} : touchez le terrain pour viser, puis ✓ pour poser.${ghostProblem ? ` — ${ghostProblem}` : ""}`
+      : areaTool
     ? start
       ? "Cliquez le coin opposé de la toiture — Échap pour l'annuler."
       : "Toiture : cliquez un coin de la pièce à couvrir."
@@ -1402,12 +1997,91 @@ export function WarehousePlanner({
       ? `${tool.label} : cliquez où le poser (Maj pour en poser plusieurs, R pour tourner).${ghostProblem ? ` — ${ghostProblem}` : ""}`
       : null;
 
+  const bottom = paletteLayout === "bottom";
+  /**
+   * Le bandeau de la palette, en bas de la scène : les vignettes de la famille ouverte (ou les
+   * résultats de la recherche), puis la rangée des onglets — une icône par famille —, la recherche et
+   * le chevron qui replie le bandeau.
+   */
+  const renderBand = () => {
+    const current = menus.find((m) => m.title === bandGroup) ?? menus[0];
+    const searching = query.trim() !== "";
+    const shownEntries = searching
+      ? allEntries.filter((e) => fold(e.label).includes(fold(query)))
+      : (current?.subs.flatMap((sub) => sub.ids) ?? []).map((id) => findEntry(id)).filter((e): e is Entry => !!e);
+    return (
+      <div
+        ref={band}
+        className={["lq-planner__band", !bandOpen && "lq-planner__band--collapsed"].filter(Boolean).join(" ")}
+        onPointerDown={(e) => e.stopPropagation()}
+        onDoubleClick={(e) => e.stopPropagation()}
+        role="region"
+        aria-label="Palette d'éléments"
+      >
+        {bandOpen && (
+          <div
+            className="lq-planner__band-strip"
+            onWheel={(e) => {
+              // La molette verticale fait défiler la bande de côté.
+              if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) e.currentTarget.scrollLeft += e.deltaY;
+            }}
+          >
+            {shownEntries.length ? shownEntries.map(toolButton) : <p className="lq-planner__band-empty">{searching ? "Aucun élément ne correspond." : "Rien dans cette famille."}</p>}
+          </div>
+        )}
+        <div className="lq-planner__band-bar">
+          <div className="lq-planner__band-tabs" role="tablist" aria-label="Familles d'éléments">
+            {menus.map((menu) => {
+              const on = !searching && menu.title === current?.title;
+              const total = menu.subs.flatMap((sub) => sub.ids).reduce((n, id) => n + (entryCount(id) ?? 0), 0);
+              return (
+                <Tooltip key={menu.title} content={menu.title} placement="top">
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={on}
+                    aria-label={menu.title}
+                    className={["lq-planner__band-tab", on && "is-on"].filter(Boolean).join(" ")}
+                    onClick={() => {
+                      setBandGroup(menu.title);
+                      setQuery("");
+                      setBandOpen(true);
+                    }}
+                  >
+                    {groupIcons?.[menu.title] ?? guessGroupIcon(menu.title)}
+                    {total ? <span className="lq-planner__band-count">{total}</span> : null}
+                  </button>
+                </Tooltip>
+              );
+            })}
+          </div>
+          <label className="lq-planner__band-search" title="Chercher un élément">
+            <SearchIcon size={15} />
+            <input
+              type="search"
+              placeholder="Chercher…"
+              value={query}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setBandOpen(true);
+              }}
+              aria-label="Chercher un élément"
+            />
+          </label>
+          <button type="button" className="lq-planner__band-toggle" onClick={() => setBandOpen((o) => !o)} aria-expanded={bandOpen} aria-label={bandOpen ? "Replier la palette" : "Déplier la palette"}>
+            {bandOpen ? <ChevronDownIcon size={16} /> : <ChevronUpIcon size={16} />}
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   return (
     // Le clavier est écouté sur tout l'éditeur : juste après un clic dans la palette, R doit déjà
     // tourner l'élément à poser.
-    <div className={["lq-planner", className].filter(Boolean).join(" ")} style={{ height }} onKeyDown={onKeyDown}>
+    <div className={["lq-planner", bottom && "lq-planner--bottom", className].filter(Boolean).join(" ")} style={{ height }} onKeyDown={onKeyDown}>
       <SnapshotStudio jobs={jobs} width={128} height={96} onShot={(id, url) => setThumbs((t) => ({ ...t, [id]: url }))} />
-      <aside className="lq-planner__palette" aria-label="Palette d'éléments">
+      {!bottom && <aside className="lq-planner__palette" aria-label="Palette d'éléments">
         <p className="lq-planner__intro">
           {readOnly
             ? "Lecture seule : on observe, on choisit, on tourne autour."
@@ -1443,19 +2117,23 @@ export function WarehousePlanner({
             );
           })
         )}
-      </aside>
+      </aside>}
 
       <div className="lq-planner__main">
         <div
           ref={stage}
-          className={["lq-planner__stage", drawing && "lq-planner__stage--drawing", tool?.type === "place" && "lq-planner__stage--armed", mode3d && "lq-planner__stage--3d", linkMode && "lq-planner__stage--link"].filter(Boolean).join(" ")}
+          className={["lq-planner__stage", drawing && "lq-planner__stage--drawing", tool?.type === "place" && "lq-planner__stage--armed", mode3d && "lq-planner__stage--3d", linkMode && "lq-planner__stage--link", zoneMode && "lq-planner__stage--zone", fenceHover && !tool && "lq-planner__stage--fence"].filter(Boolean).join(" ")}
+          style={{ ["--lq-planner-palette-height" as string]: `${bottom ? bandHeight : 0}px` } as CSSProperties}
           tabIndex={0}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
           onPointerLeave={() => {
-            if (!drag.current) setHoverId(null);
+            if (!drag.current) {
+              setHoverId(null);
+              setFenceHover(null);
+            }
           }}
           onDoubleClick={() => {
             if (drawing?.mode === "chain") setStart(null);
@@ -1476,6 +2154,7 @@ export function WarehousePlanner({
         >
           <IsoCamera yaw={camYaw} tilt={camTilt} zoom={1} projection={projection}>
             <WarehouseScene
+              quality={quality}
               bounds={frameBounds(plot.frame)}
               cellSize={cellSize}
               viewport={{ width: size.width, height: size.height, center: { x: view.cx, y: view.cy }, zoom: view.zoom }}
@@ -1483,7 +2162,20 @@ export function WarehousePlanner({
               style={{ position: "absolute", inset: 0 }}
               ariaLabel="Terrain et construction"
             >
-              <BuildPlot layout={plot} traffic={traffic} night={night} groundStyle={groundStyle} lightExclusions={lightExclusions} treeExclusions={treeExclusions} />
+              <BuildPlot
+                layout={plot}
+                traffic={traffic}
+                night={night}
+                groundStyle={groundStyle}
+                lightExclusions={lightExclusions}
+                treeExclusions={treeExclusions}
+                driveways={driveways}
+                perimeterFence={perimeterFence}
+                fenceOpenings={roadOpenings}
+                gates={gates}
+                quality={quality}
+              />
+              {zones && zones.length > 0 && <PlannerZones3D zones={zones} selectedId={selectedZoneId} />}
               {items.map((it) => (
                 <PlannerItem3D
                   key={it.id}
@@ -1515,6 +2207,7 @@ export function WarehousePlanner({
           )}
           {(
             <svg className="lq-planner__overlay" width={size.width} height={size.height}>
+              {zoneOverlay}
               {linkArrows}
               {highlightIds && items.filter((it) => highlightIds.includes(it.id)).map((it) => outline(it, "lq-planner__outline lq-planner__outline--highlight", `hl-${it.id}`))}
               {shown.map((it) => overlay(it, it.id === selectedId))}
@@ -1531,6 +2224,43 @@ export function WarehousePlanner({
               )}
             </svg>
           )}
+          {zones && zones.length > 0 && (
+            <div className="lq-planner__zone-labels" aria-hidden>
+              {zones.map((z) => {
+                const c = toScreen(z.x + z.width / 2, z.y + z.depth / 2, 0.03);
+                if (c.x < -80 || c.y < -40 || c.x > size.width + 80 || c.y > size.height + 40) return null;
+                return (
+                  <span
+                    key={z.id}
+                    className={["lq-planner__zone-chip", z.assigned ? "lq-planner__zone-chip--assigned" : "lq-planner__zone-chip--open", z.id === selectedZoneId && "lq-planner__zone-chip--selected"].filter(Boolean).join(" ")}
+                    style={{ left: c.x, top: c.y, ...(z.assigned && z.color ? { ["--lq-zone-color" as string]: z.color } : {}) } as CSSProperties}
+                  >
+                    <strong>{z.label ?? (z.assigned ? "Zone" : "Zone à affecter")}</strong>
+                    <small>{zoneDims(z)}</small>
+                  </span>
+                );
+              })}
+            </div>
+          )}
+          {touchUi && placing && ghost && cursor && !readOnly && (() => {
+            // Au doigt : la coche pose, la flèche tourne, la croix repose l'outil — sous le fantôme.
+            const f = footprintOf(ghost);
+            const a = toScreen(f.cx, f.cy);
+            const top = Math.min(size.height - 64 - (bottom ? bandHeight : 0), a.y + Math.max(28, Math.min(90, (f.halfL + f.halfW) * cellSize * view.zoom * 0.6)));
+            return (
+              <div className="lq-planner__touch-place" style={{ left: Math.max(84, Math.min(size.width - 84, a.x)), top }} onPointerDown={(e) => e.stopPropagation()}>
+                <button type="button" className="lq-planner__touch-ok" disabled={!ghostOk} onClick={() => placeAt(cursor, false)} aria-label="Poser ici">
+                  <CheckIcon size={20} />
+                </button>
+                <button type="button" onClick={() => setPlaceRot((r) => (r + 90) % 360)} aria-label="Tourner d'un quart de tour">
+                  <RefreshIcon size={18} />
+                </button>
+                <button type="button" onClick={() => setTool(null)} aria-label="Annuler la pose">
+                  <CloseIcon size={18} />
+                </button>
+              </div>
+            );
+          })()}
 
           <div className="lq-planner__toolbar" onPointerDown={(e) => e.stopPropagation()}>
             <div className="lq-planner__switch" role="group" aria-label="Vue">
@@ -1656,8 +2386,9 @@ export function WarehousePlanner({
             </div>
           )}
 
-          {hint ? <div className="lq-planner__hint">{hint}</div> : mode3d && <div className="lq-planner__hint">Clic molette + glisser : tourner et incliner · glisser le fond : se déplacer · molette : zoomer.</div>}
+          {hint ? <div className="lq-planner__hint">{hint}</div> : mode3d && !touchUi && <div className="lq-planner__hint">Clic molette + glisser : tourner et incliner · glisser le fond : se déplacer · molette : zoomer.</div>}
           {message && <div className="lq-planner__toast">{message}</div>}
+          {bottom && renderBand()}
           {items.length === 0 && !tool && !entriesProp && <div className="lq-planner__empty">Choisissez « Mur » ou « Pièce » dans la palette, puis cliquez le point de départ sur le terrain pointillé.</div>}
         </div>
 

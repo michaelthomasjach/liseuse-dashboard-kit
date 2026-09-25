@@ -1,5 +1,5 @@
-import { Fragment, useMemo, useState, type ReactNode } from "react";
-import { SearchIcon } from "../icons";
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { ChevronLeftIcon, SearchIcon } from "../icons";
 import { TextField } from "../forms/TextField";
 import { ChipGroup } from "../forms/Chip";
 import "./KnowledgeBase.css";
@@ -13,7 +13,17 @@ import "./KnowledgeBase.css";
  * Deux colonnes. À gauche, le champ de recherche, les catégories en puces, et la liste des entrées
  * trouvées — titre, résumé, catégorie ; à droite, l'entrée ouverte : son résumé, ses paragraphes, ses
  * astuces dans un encadré, et « Voir aussi », des boutons vers les entrées liées. Les mots cherchés
- * sont surlignés partout où ils apparaissent. Sur un écran étroit, les deux colonnes s'empilent.
+ * sont surlignés partout où ils apparaissent.
+ *
+ * ## Dans un cadre étroit
+ *
+ * Deux colonnes n'ont pas de sens sous 640 px : la base passe alors à **une vue à la fois**, comme
+ * une application de téléphone. D'abord la liste, sur toute la largeur ; toucher une entrée l'ouvre à
+ * la place de la liste, avec un bouton « Retour » en tête pour y revenir (le focus retrouve alors
+ * l'entrée qu'on vient de lire). C'est la largeur **du composant** qui décide, mesurée par un
+ * `ResizeObserver`, et non celle de l'écran : la base bascule aussi bien sur un téléphone que dans
+ * une modale ou une colonne étroite d'un grand écran. Une entrée ouverte par l'application
+ * (`selectedId`) s'affiche directement.
  *
  * ## Une recherche qui pardonne
  *
@@ -62,6 +72,8 @@ export interface KnowledgeBaseProps {
   emptyText?: ReactNode;
   /** Le libellé de la puce qui montre toutes les catégories. Défaut : « Tout ». */
   allLabel?: string;
+  /** Le bouton qui ramène à la liste, dans un cadre étroit. Défaut : « Retour ». */
+  backLabel?: string;
   className?: string;
 }
 
@@ -171,6 +183,9 @@ function highlight(text: ReactNode | string, terms: string[]): ReactNode {
 
 // --- Le composant ----------------------------------------------------------------------------------
 
+/** En deçà de cette largeur (celle du composant), une seule vue à la fois : la liste, ou l'entrée. */
+const NARROW_PX = 640;
+
 export function KnowledgeBase({
   entries,
   categories,
@@ -181,6 +196,7 @@ export function KnowledgeBase({
   placeholder = "Rechercher…",
   emptyText = "Rien trouvé. Essayez un autre mot.",
   allLabel = "Tout",
+  backLabel = "Retour",
   className,
 }: KnowledgeBaseProps) {
   const [ownQuery, setOwnQuery] = useState("");
@@ -191,9 +207,49 @@ export function KnowledgeBase({
   };
   const [ownId, setOwnId] = useState<string | null>(null);
   const openId = selectedId !== undefined ? selectedId : ownId;
+
+  // Étroit ou non : la largeur du composant lui-même, relue à chaque redimensionnement. Mesurée
+  // avant la première peinture, pour ne jamais montrer deux colonnes écrasées le temps d'une image.
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [narrow, setNarrow] = useState(false);
+  useLayoutEffect(() => {
+    const el = rootRef.current;
+    if (!el) return;
+    const measure = () => setNarrow(el.getBoundingClientRect().width <= NARROW_PX);
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  // Dans un cadre étroit, la vue montrée : la liste, ou l'entrée ouverte. Une entrée choisie par
+  // l'application s'ouvre d'elle-même — c'est ce qu'elle demande en la choisissant.
+  const [reading, setReading] = useState(() => !!selectedId);
+  useEffect(() => {
+    if (selectedId) setReading(true);
+  }, [selectedId]);
+  const listRef = useRef<HTMLDivElement>(null);
+  const backRef = useRef<HTMLButtonElement>(null);
+  const [returnFocus, setReturnFocus] = useState(false);
+
   const open = (id: string) => {
     setOwnId(id);
     onSelect?.(id);
+    if (!narrow) return;
+    const fromList = !reading;
+    setReading(true);
+    // La liste disparaît sous le doigt : le focus passe au bouton « Retour », et l'entrée s'affiche
+    // depuis son début, même si l'on avait fait défiler la page loin dans la liste — ou dans
+    // l'entrée précédente, quand on arrive par « Voir aussi ».
+    requestAnimationFrame(() => {
+      if (fromList) backRef.current?.focus({ preventScroll: true });
+      const top = rootRef.current?.getBoundingClientRect().top ?? 0;
+      if (top < 0) rootRef.current?.scrollIntoView({ block: "start" });
+    });
+  };
+  const back = () => {
+    setReading(false);
+    setReturnFocus(true);
   };
   const [category, setCategory] = useState<string | null>(null);
   const cats = useMemo(() => categories ?? [...new Set(entries.map((e) => e.category))], [categories, entries]);
@@ -209,11 +265,21 @@ export function KnowledgeBase({
   // L'entrée ouverte suit la recherche : si elle n'est plus dans les résultats, on montre la première.
   const current = openId ? byId.get(openId) : undefined;
   const shown = (current && (terms.length === 0 || hits.some((h) => h.entry.id === current.id)) ? current : hits[0]?.entry) ?? null;
+  const single = narrow && reading && !!shown;
+
+  // Revenu à la liste : le focus retrouve l'entrée qu'on vient de lire, au lieu de repartir du haut.
+  useEffect(() => {
+    if (!returnFocus || single) return;
+    setReturnFocus(false);
+    const on = listRef.current?.querySelector<HTMLElement>("[aria-selected='true']");
+    on?.focus({ preventScroll: true });
+    on?.scrollIntoView({ block: "nearest" });
+  }, [returnFocus, single]);
 
   return (
-    <div className={["lq-kb", className].filter(Boolean).join(" ")}>
+    <div ref={rootRef} className={["lq-kb", narrow && "lq-kb--narrow", single && "lq-kb--reading", className].filter(Boolean).join(" ")}>
       <div className="lq-kb__layout">
-        <aside className="lq-kb__index">
+        <aside className="lq-kb__index" hidden={single}>
           <TextField
             type="search"
             placeholder={placeholder}
@@ -231,10 +297,12 @@ export function KnowledgeBase({
               options={cats.map((c) => ({ value: c, label: c, count: terms.length > 0 ? (counts.get(c) ?? 0) : undefined }))}
             />
           )}
-          <div className="lq-kb__results" role="listbox" aria-label="Résultats">
+          <div ref={listRef} className="lq-kb__results" role="listbox" aria-label="Résultats">
             {hits.length === 0 && <p className="lq-kb__empty">{emptyText}</p>}
             {hits.map(({ entry }) => {
-              const on = shown?.id === entry.id;
+              // Dans la liste seule, rien n'est « ouvert » tant qu'on n'a rien touché : la première
+              // entrée, montrée par défaut à côté de la liste sur un grand écran, n'y est pas marquée.
+              const on = narrow ? !!current && current.id === entry.id : shown?.id === entry.id;
               return (
                 <button key={entry.id} type="button" role="option" aria-selected={on} className={["lq-kb__hit", on && "lq-kb__hit--on"].filter(Boolean).join(" ")} onClick={() => open(entry.id)}>
                   <span className="lq-kb__hit-title">{highlight(entry.title, terms)}</span>
@@ -245,7 +313,13 @@ export function KnowledgeBase({
             })}
           </div>
         </aside>
-        <section className="lq-kb__entry" aria-live="polite">
+        <section className="lq-kb__entry" aria-live="polite" hidden={narrow && !single}>
+          {single && (
+            <button ref={backRef} type="button" className="lq-kb__back" onClick={back}>
+              <ChevronLeftIcon size={16} aria-hidden="true" />
+              {backLabel}
+            </button>
+          )}
           {shown && (
             <article className="lq-kb__article">
               <header className="lq-kb__head">

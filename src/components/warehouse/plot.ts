@@ -97,8 +97,67 @@ export interface PlotLayout {
 /** Deux voies de 3,50 m, deux trottoirs de 2 m. */
 const ROAD: RoadProps = { lanes: 2, laneWidth: 1.75, sidewalk: 1 };
 const RW = roadSize({ ...ROAD, kind: "corner" }).width;
+/**
+ * Le profil de la rue autour du terrain : la largeur d'un trottoir et d'une voie, en cases. La rue
+ * commence à `margin` cases du bord du terrain (voir `PlotLayout.margin`) — d'abord le trottoir côté
+ * terrain, puis la voie qui longe le terrain, puis l'autre.
+ */
+export const PLOT_STREET = { sidewalk: ROAD.sidewalk ?? 1, laneWidth: ROAD.laneWidth ?? 1.75, lanes: ROAD.lanes ?? 2 };
 /** La profondeur de la frange de voisins, au-delà de la rue. */
 const FRINGE = 11;
+
+/** Un côté du terrain, et de la rue qui le longe : au sud les `y` négatifs, au nord au-delà de
+ *  `depth`, à l'ouest les `x` négatifs, à l'est au-delà de `width`. */
+export type PlotSide = "south" | "north" | "west" | "east";
+export const PLOT_SIDES: PlotSide[] = ["south", "north", "west", "east"];
+
+type XY = { x: number; y: number };
+
+/** Le repère d'un côté du terrain (voir `plotSideFrame`). */
+export interface PlotSideFrame {
+  /** La longueur du côté, en cases. */
+  length: number;
+  /** Le vecteur unitaire le long du côté, et celui qui sort du terrain vers la rue. */
+  t: XY;
+  o: XY;
+  along: (p: XY) => number;
+  out: (p: XY) => number;
+  at: (a: number, d: number) => XY;
+}
+
+/**
+ * Le repère d'un côté du terrain : `a` le long du bord (les `x` au sud et au nord, les `y` à l'ouest
+ * et à l'est), `d` la distance **vers la rue**, comptée depuis le bord du terrain — négative dedans.
+ * La rue de ce côté commence à `d = margin` (le trottoir), sa chaussée à `d = margin + sidewalk`.
+ */
+export function plotSideFrame(plot: Pick<PlotLayout, "width" | "depth">, side: PlotSide): PlotSideFrame {
+  const W = plot.width;
+  const D = plot.depth;
+  switch (side) {
+    case "south":
+      return { length: W, t: { x: 1, y: 0 }, o: { x: 0, y: -1 }, along: (p) => p.x, out: (p) => -p.y, at: (a, d) => ({ x: a, y: -d }) };
+    case "north":
+      return { length: W, t: { x: 1, y: 0 }, o: { x: 0, y: 1 }, along: (p) => p.x, out: (p) => p.y - D, at: (a, d) => ({ x: a, y: D + d }) };
+    case "west":
+      return { length: D, t: { x: 0, y: 1 }, o: { x: -1, y: 0 }, along: (p) => p.y, out: (p) => -p.x, at: (a, d) => ({ x: -d, y: a }) };
+    default:
+      return { length: D, t: { x: 0, y: 1 }, o: { x: 1, y: 0 }, along: (p) => p.y, out: (p) => p.x - W, at: (a, d) => ({ x: W + d, y: a }) };
+  }
+}
+
+/**
+ * Un **raccordement** à la rue : là où une voie d'accès du terrain rejoint la chaussée.
+ *
+ *  `from` et `to` bornent, le long du côté (repère de `plotSideFrame`), l'ouverture du trottoir côté
+ *  terrain — le bateau ; `apron` est le polygone d'enrobé, en cases, qui va du bout de la voie
+ *  jusqu'au bord de la chaussée en traversant la bande d'herbe et le trottoir ouvert.
+ */
+export interface PlotDriveway {
+  side: PlotSide;
+  from: number;
+  to: number;
+  apron: XY[];
+}
 
 /** Une case est-elle constructible ? */
 export function plotInside(plot: Pick<PlotLayout, "width" | "depth" | "notches">, x: number, y: number): boolean {
@@ -115,6 +174,74 @@ export function plotOutline(plot: Pick<PlotLayout, "width" | "depth" | "notches"
       if (a !== plotInside(plot, x + 1, y)) out.push([x + 1, y, x + 1, y + 1]);
       if (a !== plotInside(plot, x, y + 1)) out.push([x, y + 1, x + 1, y + 1]);
     }
+  return out;
+}
+
+/** Un tronçon de clôture, d'un point à l'autre, en cases. */
+export interface PlotFenceRun {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+}
+
+/**
+ * La **clôture de pourtour** : le bord constructible tout entier (voir `plotOutline`) — le rectangle
+ * du terrain moins ses échancrures et ses parcelles à vendre —, en tronçons droits aussi longs que
+ * possible, interrompus là où passe une ouverture.
+ *
+ *  Les arêtes d'une case qui se suivent sur une même ligne sont fondues en un tronçon. `openings`
+ *  sont des polygones **convexes** (l'emprise d'une voie d'accès, élargie d'un rien) : chaque tronçon
+ *  en est retranché, et ce qui reste de moins d'un tiers de case n'est pas planté. Une parcelle
+ *  achetée n'est plus une échancrure : la clôture se déplace d'elle-même vers le nouveau bord.
+ */
+export function perimeterFenceRuns(plot: Pick<PlotLayout, "width" | "depth" | "notches">, openings: { x: number; y: number }[][] = []): PlotFenceRun[] {
+  // Les arêtes, rangées par ligne : les horizontales par leur `y`, les verticales par leur `x`.
+  const rows = new Map<string, { horizontal: boolean; at: number; spans: [number, number][] }>();
+  for (const [x0, y0, x1, y1] of plotOutline(plot)) {
+    const horizontal = y0 === y1;
+    const at = horizontal ? y0 : x0;
+    const key = `${horizontal ? "h" : "v"}${at}`;
+    const row = rows.get(key) ?? { horizontal, at, spans: [] };
+    row.spans.push(horizontal ? [Math.min(x0, x1), Math.max(x0, x1)] : [Math.min(y0, y1), Math.max(y0, y1)]);
+    rows.set(key, row);
+  }
+  /** Où une ligne entre dans un polygone convexe, et où elle en sort — le long de la ligne. */
+  const cross = (poly: { x: number; y: number }[], horizontal: boolean, at: number): [number, number] | null => {
+    const hits: number[] = [];
+    for (let i = 0; i < poly.length; i += 1) {
+      const p = poly[i];
+      const q = poly[(i + 1) % poly.length];
+      const pc = horizontal ? p.y : p.x;
+      const qc = horizontal ? q.y : q.x;
+      const pa = horizontal ? p.x : p.y;
+      const qa = horizontal ? q.x : q.y;
+      if ((pc - at) * (qc - at) > 0) continue;
+      if (Math.abs(qc - pc) < 1e-9) hits.push(pa, qa);
+      else hits.push(pa + ((at - pc) * (qa - pa)) / (qc - pc));
+    }
+    return hits.length >= 2 ? [Math.min(...hits), Math.max(...hits)] : null;
+  };
+  const out: PlotFenceRun[] = [];
+  for (const { horizontal, at, spans } of rows.values()) {
+    spans.sort((a, b) => a[0] - b[0]);
+    const merged: [number, number][] = [];
+    for (const s of spans) {
+      const last = merged[merged.length - 1];
+      if (last && s[0] <= last[1] + 1e-9) last[1] = Math.max(last[1], s[1]);
+      else merged.push([s[0], s[1]]);
+    }
+    const cuts = openings.map((poly) => cross(poly, horizontal, at)).filter((c): c is [number, number] => c !== null);
+    for (const [a0, a1] of merged) {
+      // Retrancher les ouvertures, de la gauche vers la droite.
+      let pieces: [number, number][] = [[a0, a1]];
+      for (const [c0, c1] of cuts) pieces = pieces.flatMap(([p0, p1]) => (c1 <= p0 || c0 >= p1 ? [[p0, p1] as [number, number]] : ([[p0, c0], [c1, p1]] as [number, number][]).filter(([u, v]) => v - u > 1e-6)));
+      for (const [p0, p1] of pieces) {
+        if (p1 - p0 < 1 / 3) continue;
+        out.push(horizontal ? { x0: p0, y0: at, x1: p1, y1: at } : { x0: at, y0: p0, x1: at, y1: p1 });
+      }
+    }
+  }
   return out;
 }
 

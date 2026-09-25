@@ -27,12 +27,37 @@ function Capture({ onDone }: { onDone: (url: string) => void }) {
   useEffect(() => {
     // Un temps pour que la caméra, la palette et les ombres soient posées, puis un rendu et une
     // lecture dans la même tâche — la toile n'a pas à garder son image.
-    const t = window.setTimeout(() => {
+    //
+    // La lecture passe par `toBlob` et non `toDataURL` : l'image est copiée tout de suite, mais
+    // compressée **hors du fil principal**. Mesuré sur un téléphone émulé, l'encodage en ligne d'une
+    // palette entière prenait deux cinquièmes du processeur pendant les premières dizaines de secondes
+    // d'une partie — autant d'images en moins pour la scène qu'on regarde.
+    // La prise elle-même attend un moment creux du navigateur (`requestIdleCallback`) : une scène
+    // qui s'anime à côté garde ses images, et les vignettes se font entre elles.
+    let alive = true;
+    let idle = 0;
+    const shoot = () => {
       gl.shadowMap.needsUpdate = true;
       gl.render(scene, camera);
-      done.current(gl.domElement.toDataURL("image/png"));
+      const canvas = gl.domElement;
+      if (typeof canvas.toBlob !== "function") {
+        done.current(canvas.toDataURL("image/png"));
+        return;
+      }
+      canvas.toBlob((blob) => {
+        if (!alive) return;
+        done.current(blob ? URL.createObjectURL(blob) : canvas.toDataURL("image/png"));
+      }, "image/png");
+    };
+    const t = window.setTimeout(() => {
+      if (typeof window.requestIdleCallback === "function") idle = window.requestIdleCallback(shoot, { timeout: 1000 });
+      else shoot();
     }, 180);
-    return () => window.clearTimeout(t);
+    return () => {
+      alive = false;
+      window.clearTimeout(t);
+      if (idle && typeof window.cancelIdleCallback === "function") window.cancelIdleCallback(idle);
+    };
   }, [gl, scene, camera]);
   return null;
 }

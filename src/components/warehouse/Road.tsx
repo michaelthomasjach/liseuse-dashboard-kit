@@ -50,6 +50,13 @@ export interface RoadProps {
   crosswalk?: "start" | "end" | "both";
   /** La ligne axiale : discontinue, continue, ou aucune. */
   centerLine?: "dashed" | "solid" | "none";
+  /**
+   * Des **bateaux** sur un tronçon droit : là où une voie d'accès vient se brancher, le trottoir est
+   * ouvert — l'enrobé de la chaussée court jusqu'à son bord — et descend en pente douce de part et
+   * d'autre de l'ouverture. `side` : le trottoir en `y = 0` (`0`) ou en `y = width` (`1`) ; `from` et
+   * `to` : l'ouverture, le long des `x` de la tuile, en cases.
+   */
+  driveways?: RoadDriveway[];
   /** Rotation sur le sol, en degrés, autour du centre de la tuile. */
   rotation?: number;
   /** Où poser le coin de la tuile, en cases. */
@@ -59,8 +66,17 @@ export interface RoadProps {
   className?: string;
 }
 
+/** Une ouverture du trottoir d'un tronçon droit (voir `RoadProps.driveways`). */
+export interface RoadDriveway {
+  side: 0 | 1;
+  from: number;
+  to: number;
+}
+
 /** Le dessus de la chaussée : un rien au-dessus du sol, pour ne pas s'y confondre. */
 const TOP = 0.02;
+/** Le dessus de la chaussée, exporté pour ce qui vient s'y raccorder à fleur (une voie d'accès). */
+export const ROAD_SURFACE = TOP;
 /** La hauteur d'un trottoir au-dessus de la chaussée : 160 mm. */
 const KERB = 0.08;
 /** L'épaisseur d'une ligne peinte : 150 mm. */
@@ -138,6 +154,43 @@ function sidewalkPiece(b: Builder, ring: P2[]) {
   b.prism("pavement", ring, -0.04, TOP + KERB);
 }
 
+/** La longueur de la pente d'un bateau, de chaque côté de l'ouverture. */
+const RAMP = 0.6;
+/** Ce qui reste de bordure au droit d'un bateau : une bordure abaissée, à peine une marche. */
+const LOW_KERB = 0.012;
+
+/**
+ * Le trottoir d'un tronçon droit, de `y0` à `y1`, ouvert là où passent des bateaux.
+ *
+ *  Entre deux ouvertures, la dalle surélevée ordinaire ; à l'approche d'une ouverture, elle descend
+ *  en pente — un profil en biais, extrudé sur la largeur du trottoir — jusqu'à la bordure abaissée ;
+ *  dans l'ouverture, plus de dalle du tout : l'enrobé de la chaussée, posé sous toute la tuile,
+ *  affleure, et seule une bordure couchée marque encore le fil d'eau.
+ */
+function sidewalkWithCuts(b: Builder, L: number, y0: number, y1: number, cuts: { from: number; to: number }[], edgeY: number) {
+  const sorted = cuts.map((c) => ({ from: Math.max(0, c.from), to: Math.min(L, c.to) })).filter((c) => c.to - c.from > 0.05).sort((a, c) => a.from - c.from);
+  let x = 0;
+  const slab = (a: number, c: number) => {
+    if (c - a > 0.01) sidewalkPiece(b, [{ x: a, y: y0 }, { x: c, y: y0 }, { x: c, y: y1 }, { x: a, y: y1 }]);
+  };
+  for (const cut of sorted) {
+    const r0 = Math.max(x, cut.from - RAMP);
+    slab(x, r0);
+    // La pente d'avant l'ouverture : de la hauteur du trottoir à celle de la bordure abaissée.
+    if (cut.from - r0 > 0.01)
+      b.profile("pavement", [{ x: r0, y: -0.04 }, { x: cut.from, y: -0.04 }, { x: cut.from, y: TOP + LOW_KERB }, { x: r0, y: TOP + KERB }], y0, y1, { edges: false });
+    const r1 = Math.min(L, cut.to + RAMP);
+    if (r1 - cut.to > 0.01)
+      b.profile("pavement", [{ x: cut.to, y: -0.04 }, { x: r1, y: -0.04 }, { x: r1, y: TOP + KERB }, { x: cut.to, y: TOP + LOW_KERB }], y0, y1, { edges: false });
+    // La bordure couchée, au fil de la chaussée.
+    // Elle est côté trottoir du fil d'eau : en deçà pour le trottoir bas, au-delà pour le haut.
+    const inward = y1 > edgeY ? 1 : -1;
+    b.box("kerb", cut.from, cut.to, Math.min(edgeY, edgeY + inward * 0.12), Math.max(edgeY, edgeY + inward * 0.12), -0.02, TOP + LOW_KERB, false);
+    x = Math.max(x, r1);
+  }
+  slab(x, L);
+}
+
 /** Un passage piéton en travers de la chaussée, à l'abscisse `x`. */
 function zebra(b: Builder, x: number, sw: number, carriage: number) {
   const bar = 0.25;
@@ -173,8 +226,9 @@ function buildRoad(p: RoadProps) {
 
   if (kind === "straight") {
     if (sw > 0) {
-      sidewalkPiece(b, [{ x: 0, y: 0 }, { x: L, y: 0 }, { x: L, y: sw }, { x: 0, y: sw }]);
-      sidewalkPiece(b, [{ x: 0, y: W - sw }, { x: L, y: W - sw }, { x: L, y: W }, { x: 0, y: W }]);
+      const cuts = p.driveways ?? [];
+      sidewalkWithCuts(b, L, 0, sw, cuts.filter((c) => c.side === 0), sw);
+      sidewalkWithCuts(b, L, W - sw, W, cuts.filter((c) => c.side === 1), W - sw);
     }
     straightMarks(0, L, true);
     const cw = p.crosswalk;
@@ -301,8 +355,140 @@ export function Road(props: RoadProps) {
 function RoadBody(props: RoadProps) {
   const { rotation = 0, origin = { x: 0, y: 0 } } = props;
   const { L, W } = roadLayout(props);
-  const built = useBuilt(() => buildRoad(props), [props.kind, props.length, props.lanes, props.laneWidth, props.sidewalk, props.crosswalk, props.centerLine]);
+  const cutKey = JSON.stringify(props.driveways ?? []);
+  const built = useBuilt(() => buildRoad(props), [props.kind, props.length, props.lanes, props.laneWidth, props.sidewalk, props.crosswalk, props.centerLine, cutKey]);
   const { pose } = placed(origin, rotation, { x0: 0, x1: L, y0: 0, y1: W, z0: 0, z1: 1 });
+  return (
+    <group matrixAutoUpdate={false} matrix={pose}>
+      <Parts built={built} />
+    </group>
+  );
+}
+
+// --- La voie d'accès ---------------------------------------------------------------------------------
+
+export interface AccessRoadProps {
+  /** La longueur de la voie, en cases, le long des `x`. */
+  length?: number;
+  /** Une voie à double sens unique (`1`), ou deux voies (`2`). */
+  lanes?: 1 | 2;
+  /** Un trottoir de chaque côté, au lieu d'une simple bordure. */
+  sidewalk?: boolean;
+  /** La largeur totale, bordures ou trottoirs compris, en cases. Défaut : 2,2 · 3,6 · 4,6. */
+  width?: number;
+  /** Rotation sur le sol, en degrés, autour du centre de la voie. */
+  rotation?: number;
+  /** Où poser le coin de la voie, en cases. */
+  origin?: { x: number; y: number };
+  frame?: { x: number; y: number; width: number; depth: number; height: number };
+  cellSize?: number;
+  className?: string;
+}
+
+/** La largeur d'une voie d'accès, bordures comprises. */
+export function accessRoadWidth(p: Pick<AccessRoadProps, "lanes" | "sidewalk" | "width">): number {
+  return p.width ?? (p.sidewalk ? 4.6 : (p.lanes ?? 2) === 1 ? 2.2 : 3.6);
+}
+
+/** Une flèche peinte au sol, pointe vers `dir` (±1 le long des `x`), centrée en `(x, y)`. */
+function groundArrow(b: Builder, x: number, y: number, dir: 1 | -1, half = false) {
+  const z = TOP + 0.0015;
+  const at = (u: number, v: number): P3 => [x + u * dir, y + v * dir, z];
+  // `half` : la moitié d'une flèche double — un fût court, la pointe au bout.
+  const tail = half ? -0.35 : -0.7;
+  b.decal("lq-road__arrow", [at(tail, -0.06), at(0.05, -0.06), at(0.05, 0.06), at(tail, 0.06)]);
+  b.decal("lq-road__arrow", [at(0.05, -0.24), at(0.65, 0), at(0.05, 0.24)]);
+}
+
+function buildAccessRoad(p: AccessRoadProps) {
+  const L = Math.max(0.5, p.length ?? 10);
+  const lanes = p.lanes ?? 2;
+  const T = accessRoadWidth(p);
+  const b = new Builder();
+  // L'enrobé, le même que celui de la rue : une voie d'accès est une rue qui entre chez soi.
+  b.box("asphalt", 0, L, 0, T, -0.04, TOP);
+  // Sur les côtés, des trottoirs de la rue en plus étroit, ou une simple bordure — la marche qui fait
+  // lire une chaussée plutôt qu'une bande peinte.
+  const side = p.sidewalk ? Math.min(0.5, T / 6) : Math.min(0.14, T / 10);
+  if (p.sidewalk) {
+    sidewalkPiece(b, [{ x: 0, y: 0 }, { x: L, y: 0 }, { x: L, y: side }, { x: 0, y: side }]);
+    sidewalkPiece(b, [{ x: 0, y: T - side }, { x: L, y: T - side }, { x: L, y: T }, { x: 0, y: T }]);
+  } else {
+    b.box("kerb", 0, L, 0, side, -0.04, TOP + KERB * 0.75);
+    b.box("kerb", 0, L, T - side, T, -0.04, TOP + KERB * 0.75);
+  }
+  const c0 = side;
+  const c1 = T - side;
+  // Les lignes de rive, et l'axe discontinu d'une voie double.
+  paintAlong(b, [{ x: 0, y: c0 + 0.12 }, { x: L, y: c0 + 0.12 }], PAINT / 2);
+  paintAlong(b, [{ x: 0, y: c1 - 0.12 }, { x: L, y: c1 - 0.12 }], PAINT / 2);
+  if (lanes === 2) paintAlong(b, [{ x: 0, y: (c0 + c1) / 2 }, { x: L, y: (c0 + c1) / 2 }], PAINT / 2, { on: 1.5, off: 1.5 });
+  // Une flèche à chaque bout, discrète : on roule à droite, la voie basse va vers les `x` croissants.
+  if (L >= 4) {
+    const inset = Math.min(1.6, L / 4);
+    if (lanes === 2) {
+      const yIn = c0 + (c1 - c0) * 0.25;
+      const yOut = c0 + (c1 - c0) * 0.75;
+      groundArrow(b, inset, yIn, 1);
+      groundArrow(b, L - inset, yOut, -1);
+      if (L >= 9) {
+        groundArrow(b, L - inset - 1.6, yIn, 1);
+        groundArrow(b, inset + 1.6, yOut, -1);
+      }
+    } else {
+      // Une voie unique se prend dans les deux sens : une flèche double à chaque bout.
+      for (const x of [inset, L - inset]) {
+        groundArrow(b, x + 0.35, (c0 + c1) / 2, 1, true);
+        groundArrow(b, x - 0.35, (c0 + c1) / 2, -1, true);
+      }
+    }
+  }
+  // Le grain de l'enrobé : quelques fissures, tirées de la longueur — deux voies pareilles se
+  // ressemblent.
+  const r = rng(Math.round(L * 53 + T * 11));
+  const cracks: [P3, P3][] = [];
+  for (let k = 0; k < Math.round(L / 4); k += 1) {
+    let x = r() * L;
+    let y = c0 + 0.2 + r() * Math.max(0.1, c1 - c0 - 0.4);
+    for (let j = 0; j < 3; j += 1) {
+      const nx = Math.min(L, Math.max(0, x + (r() - 0.5) * 0.8));
+      const ny = Math.min(c1 - 0.1, Math.max(c0 + 0.1, y + (r() - 0.5) * 0.4));
+      cracks.push([[x, y, TOP + 0.0012], [nx, ny, TOP + 0.0012]]);
+      x = nx;
+      y = ny;
+    }
+  }
+  b.lines("lq-road__crack", cracks);
+  return b.build();
+}
+
+/**
+ * Une **voie d'accès** : la route qui entre sur le terrain, depuis la rue jusqu'aux quais.
+ *
+ *  C'est un tronçon de rue en plus modeste — même enrobé, mêmes lignes blanches —, le long des `x` :
+ *  une voie unique bordée, deux voies séparées d'un axe discontinu, ou deux voies et leurs trottoirs.
+ *  Une flèche au sol à chaque bout dit dans quel sens on y roule. Elle ne sait rien de la rue : c'est
+ *  le terrain (`BuildPlot.driveways`) qui ouvre le trottoir et prolonge l'enrobé jusqu'à la
+ *  chaussée, là où un bout de la voie arrive au bord (voir `accessRoadLinks`).
+ */
+export function AccessRoad(props: AccessRoadProps) {
+  const { rotation = 0, origin = { x: 0, y: 0 }, frame, cellSize = 24, className } = props;
+  const L = Math.max(0.5, props.length ?? 10);
+  const T = accessRoadWidth(props);
+  const { bounds } = placed(origin, rotation, { x0: 0, x1: L, y0: 0, y1: T, z0: -0.05, z1: 0.3 });
+  return (
+    <Solo bounds={frame ? frameBounds(frame) : bounds} cellSize={cellSize} className={["lq-road", className].filter(Boolean).join(" ")} ariaLabel="Voie d'accès">
+      <AccessRoadBody {...props} />
+    </Solo>
+  );
+}
+
+function AccessRoadBody(props: AccessRoadProps) {
+  const { rotation = 0, origin = { x: 0, y: 0 } } = props;
+  const L = Math.max(0.5, props.length ?? 10);
+  const T = accessRoadWidth(props);
+  const built = useBuilt(() => buildAccessRoad(props), [L, props.lanes, props.sidewalk, props.width]);
+  const { pose } = placed(origin, rotation, { x0: 0, x1: L, y0: 0, y1: T, z0: 0, z1: 1 });
   return (
     <group matrixAutoUpdate={false} matrix={pose}>
       <Parts built={built} />

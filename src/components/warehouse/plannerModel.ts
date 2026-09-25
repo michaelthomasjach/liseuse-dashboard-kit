@@ -24,7 +24,7 @@ import type { StorageClass } from "./storageClass";
  * Tout est en cases, comme le reste du kit : une case vaut deux mètres.
  */
 
-export type PlannerLinearKind = "wall" | "dock" | "fence" | "conveyor" | "palletRack" | "rail" | "picker" | "monorail" | "monoPicker" | "powerLine" | "gate" | "lowWall";
+export type PlannerLinearKind = "wall" | "dock" | "fence" | "conveyor" | "palletRack" | "rail" | "picker" | "monorail" | "monoPicker" | "powerLine" | "gate" | "lowWall" | "accessRoad";
 export type PlannerPointKind =
   | "shelf"
   | "shelfDecks"
@@ -114,7 +114,7 @@ export interface PlannerPoint {
 
 export type PlannerItem = PlannerLinear | PlannerPoint;
 
-export const LINEAR_KINDS: PlannerLinearKind[] = ["wall", "dock", "fence", "conveyor", "palletRack", "rail", "picker", "monorail", "monoPicker", "powerLine", "gate", "lowWall"];
+export const LINEAR_KINDS: PlannerLinearKind[] = ["wall", "dock", "fence", "conveyor", "palletRack", "rail", "picker", "monorail", "monoPicker", "powerLine", "gate", "lowWall", "accessRoad"];
 
 export function isLinear(item: PlannerItem): item is PlannerLinear {
   return (LINEAR_KINDS as string[]).includes(item.kind);
@@ -176,12 +176,13 @@ export const PLANNER_TOOLS: PlannerTool[] = [
   { kind: "coldRoom", label: "Chambre froide", group: "Stockage" },
   { kind: "truckBay", label: "Parking poids lourds", group: "Extérieur" },
   { kind: "office", label: "Bureaux", group: "Bâtiment" },
+  { kind: "accessRoad", label: "Voie d'accès", group: "Extérieur", length: 12 },
 ];
 
 export const PLANNER_LABEL: Record<PlannerKind, string> = Object.fromEntries(PLANNER_TOOLS.map((t) => [t.kind, t.label])) as Record<PlannerKind, string>;
 
 /** L'épaisseur d'un élément linéaire, en travers de son segment, en cases. */
-export const LINEAR_THICKNESS: Record<PlannerLinearKind, number> = { wall: 0.3, dock: 0.3, fence: 0.1, conveyor: 1.6, palletRack: 0.55, rail: 1.8, picker: 1.8, monorail: 1.2, monoPicker: 1.2, powerLine: 1.2, gate: 0.4, lowWall: 0.2 };
+export const LINEAR_THICKNESS: Record<PlannerLinearKind, number> = { wall: 0.3, dock: 0.3, fence: 0.1, conveyor: 1.6, palletRack: 0.55, rail: 1.8, picker: 1.8, monorail: 1.2, monoPicker: 1.2, powerLine: 1.2, gate: 0.4, lowWall: 0.2, accessRoad: 2.2 };
 
 /** L'emprise d'un élément ponctuel, avant rotation : longueur (le long de son cap) et largeur. */
 export const POINT_SIZE: Record<PlannerPointKind, { length: number; width: number }> = {
@@ -299,6 +300,7 @@ export const TIERS: Record<PlannerKind, string[]> = {
   coldRoom: ["Chambre froide positive", "Chambre froide négative"],
   office: ["Open space 4 postes", "Open space 8 postes", "Bureaux et salle de réunion"],
   truckBay: ["1 place camion", "2 places camion", "3 places camion"],
+  accessRoad: ["Voie simple", "Voie double", "Voie double avec trottoir"],
 };
 
 /** Le niveau d'un élément, borné à ceux que sa sorte connaît. */
@@ -349,12 +351,19 @@ export function sizeOf(item: PlannerPoint): { length: number; width: number } {
   return POINT_SIZE[item.kind];
 }
 
+/**
+ * La largeur d'une voie d'accès à chaque niveau, en cases : une voie unique de 4,40 m, deux voies de
+ * 3,50 m bordées, puis les mêmes deux voies et un trottoir de chaque côté.
+ */
+export const ACCESS_ROAD_WIDTHS = [2.2, 3.6, 4.6];
+
 /** L'épaisseur d'un élément linéaire, à son niveau. */
 export function thicknessOf(item: PlannerLinear): number {
   const lv = levelOf(item);
   if (item.kind === "rail" || item.kind === "picker") return lv >= 2 ? 1.2 : 1.8;
   if (item.kind === "palletRack") return lv >= 3 ? 1.2 : 0.55;
   if (item.kind === "powerLine") return powerLineWidth((["wood", "concrete", "pylon"] as const)[lv - 1]);
+  if (item.kind === "accessRoad") return ACCESS_ROAD_WIDTHS[lv - 1];
   return LINEAR_THICKNESS[item.kind];
 }
 

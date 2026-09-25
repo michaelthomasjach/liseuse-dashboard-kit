@@ -1,4 +1,4 @@
-import { angleDelta, distanceAt, planPath, sampleTrack, speedProfile, trackOf, type Pose, type Pt, type SpeedOptions, type Track } from "./drive";
+import { angleDelta, distanceAt, planPath, sampleTrack, speedProfile, trackOf, type Pose, type Pt, type SpeedOptions, type Track, type TrackPose } from "./drive";
 
 export { angleDelta };
 
@@ -97,6 +97,8 @@ export class Mover {
   private elapsed = 0;
   private turn0: number | null = null;
   private run: Running | null = null;
+  /** La pose lue sur le trajet, réemployée d'une image à l'autre. */
+  private sample: TrackPose = { x: 0, y: 0, heading: 0 };
 
   constructor(x = 0, y = 0, heading = 0, style: Partial<MoverStyle> = {}) {
     this.x = x;
@@ -186,7 +188,7 @@ export class Mover {
     const s = distanceAt(r.track, r.times, r.tau);
     const ds = s - r.s;
     r.s = s;
-    const p = sampleTrack(r.track, s);
+    const p = sampleTrack(r.track, s, this.sample);
     this.x = p.x;
     this.y = p.y;
     // Le cap suit la tangente, sans jamais tourner plus vite que l'engin ne le peut : l'allure a

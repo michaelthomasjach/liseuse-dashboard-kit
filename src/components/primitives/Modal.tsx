@@ -28,7 +28,14 @@ export interface ModalProps {
  *  Use `size="fullscreen"` for content that needs the whole screen instead. Draggable by its own
  *  header (when `title` is set) — starts centered every time it opens (this offset is plain
  *  `useState`, which resets on its own the moment `open` goes false and the component unmounts
- *  below), drag only moves it for the rest of that same open/close cycle. */
+ *  below), drag only moves it for the rest of that same open/close cycle. *
+ *  Sur un téléphone (640 px de large ou moins), la modale devient une page entière, quelle que soit
+ *  sa taille demandée : elle occupe tout l'écran, sans arrondi, en respectant les encoches et la
+ *  barre du bas (`env(safe-area-inset-*)`), et son en-tête reste collé en haut pendant qu'on fait
+ *  défiler le contenu — la croix de fermeture, agrandie à la taille d'un doigt, ne quitte jamais
+ *  l'écran. Le glisser-déposer de l'en-tête n'a plus de sens quand la modale remplit l'écran : la
+ *  feuille de style y neutralise le décalage (voir Modal.css). Tout cela tient dans une requête
+ *  média, sans une ligne de JavaScript : l'API ne change pas. */
 export function Modal({ open, onClose, title, children, footer, closeLabel = "Fermer", size = "default", headerActions }: ModalProps) {
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const dragRef = useRef<{ startClientX: number; startClientY: number; startOffsetX: number; startOffsetY: number } | null>(null);
@@ -94,7 +101,7 @@ export function Modal({ open, onClose, title, children, footer, closeLabel = "Fe
     <LqThemeProvider palette={theme.palette} surface={theme.surface} font={theme.font} style={{ display: "contents" }}>
       <div className="lq-modal__overlay" onClick={onClose}>
         <div
-          className={["lq-modal", size === "wide" && "lq-modal--wide", size === "fullscreen" && "lq-modal--fullscreen"].filter(Boolean).join(" ")}
+          className={["lq-modal", size === "wide" && "lq-modal--wide", size === "fullscreen" && "lq-modal--fullscreen", title && "lq-modal--titled"].filter(Boolean).join(" ")}
           style={offset.x || offset.y ? { transform: `translate(${offset.x}px, ${offset.y}px)` } : undefined}
           role="dialog"
           aria-modal="true"

@@ -8,6 +8,10 @@ import { dockTrafficClearance } from "./dockManeuver";
 import { semiTruckGeometry } from "./SemiTruck";
 import { dockDoorCenters } from "./BuildingWalls";
 import { PlannerDockTraffic, PlannerShuttle } from "./PlannerLogistics";
+import { accessRoadRoute, gateEntry, type PlannerGate } from "./accessRoad";
+import type { PlannerZone } from "./PlannerZones";
+import { DemandMeters, IconDock } from "../widgets";
+import { BoltIcon, BoxesIcon, BuildingWarehouseIcon, ClipboardListIcon, GaugeIcon, TruckIcon } from "../icons";
 
 /**
  * Le plan de l'entrepôt : un terrain tiré d'une graine, une palette d'éléments 3D, et la vue de
@@ -458,4 +462,327 @@ export const Flux: Story = {
       </div>
     );
   },
+};
+
+// --- Les zones, la voie d'accès, la clôture, le bandeau --------------------------------------------
+
+/** Les usages qu'on donne à une zone dans l'histoire ci-dessous : un nom, une couleur. */
+const ZONE_USES = [
+  { kind: "storage", label: "Stockage", color: "var(--lq-color-sky)" },
+  { kind: "picking", label: "Préparation", color: "var(--lq-color-green)" },
+  { kind: "shipping", label: "Expédition", color: "var(--lq-color-amber)" },
+] as const;
+
+/**
+ * Le zonage, comme dans Cities: Skylines. « Tracer une zone » : pressez sur le terrain et tirez —
+ * l'élastique montre les cotes et la surface, et passe au rouge sur une zone refusée (ici, plus de
+ * 600 m², ou à cheval sur une autre). Hors du mode de tracé, un clic sur une zone la choisit : les
+ * boutons lui donnent un usage — elle perd ses hachures et prend sa couleur. Suppr l'efface. Le rack
+ * posé dans la zone de stockage reste cliquable : les éléments passent avant les zones.
+ */
+export const Zonage: Story = {
+  name: "Zonage",
+  render: function Render() {
+    const [items, setItems] = useState<PlannerItem[]>([{ id: "rack", kind: "palletRack", level: 2, x0: 6, y0: 8, x1: 14, y1: 8 }]);
+    const [zones, setZones] = useState<PlannerZone[]>([
+      { id: "z1", x: 4, y: 5, width: 12, depth: 7, assigned: true, kind: "storage", label: "Stockage", color: "var(--lq-color-sky)" },
+      { id: "z2", x: 20, y: 5, width: 8, depth: 8 },
+    ]);
+    const [zoneMode, setZoneMode] = useState(false);
+    const [selected, setSelected] = useState<string | null>("z2");
+    const zone = zones.find((z) => z.id === selected);
+    const overlaps = (r: { x: number; y: number; width: number; depth: number }) => zones.some((z) => r.x < z.x + z.width && z.x < r.x + r.width && r.y < z.y + z.depth && z.y < r.y + r.depth);
+    return (
+      <div style={{ ...frame, display: "flex", flexDirection: "column", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13, flexWrap: "wrap" }}>
+          <button type="button" onClick={() => setZoneMode((m) => !m)} aria-pressed={zoneMode}>
+            {zoneMode ? "Terminer le zonage" : "Tracer une zone"}
+          </button>
+          {zone ? (
+            <>
+              <span>Zone choisie : {zone.label ?? "à affecter"} —</span>
+              {ZONE_USES.map((u) => (
+                <button key={u.kind} type="button" onClick={() => setZones((zs) => zs.map((z) => (z.id === zone.id ? { ...z, assigned: true, kind: u.kind, label: u.label, color: u.color } : z)))}>
+                  Affecter : {u.label}
+                </button>
+              ))}
+              <button type="button" onClick={() => setZones((zs) => zs.map((z) => (z.id === zone.id ? { id: z.id, x: z.x, y: z.y, width: z.width, depth: z.depth } : z)))}>
+                Désaffecter
+              </button>
+              <button type="button" onClick={() => {
+                setZones((zs) => zs.filter((z) => z.id !== zone.id));
+                setSelected(null);
+              }}>
+                Supprimer
+              </button>
+            </>
+          ) : (
+            <span style={{ opacity: 0.7 }}>{zones.length} zones · cliquez une zone pour l'affecter</span>
+          )}
+        </div>
+        <WarehousePlanner
+          seed={4}
+          shape="rect"
+          plotSize={{ width: 40, depth: 24 }}
+          items={items}
+          onItemsChange={setItems}
+          groundStyle="clean"
+          zones={zones}
+          zoneMode={zoneMode}
+          canZone={(r) => (r.width * r.depth * 4 > 600 ? "Une zone fait au plus 600 m²." : overlaps(r) ? "Elle chevauche une autre zone." : null)}
+          onZoneDraw={(r) => {
+            const id = `z${Date.now()}`;
+            setZones((zs) => [...zs, { id, ...r }]);
+            setSelected(id);
+          }}
+          selectedZoneId={selected}
+          onZoneSelect={setSelected}
+          onZoneRemove={(id) => {
+            setZones((zs) => zs.filter((z) => z.id !== id));
+            setSelected(null);
+          }}
+          height="100%"
+        />
+      </div>
+    );
+  },
+};
+
+/**
+ * Une voie d'accès raccordée à la rue, et des camions qui entrent par elle.
+ *
+ * - Au sud, une **voie double** (`accessRoad`, niveau 2) part du bord du terrain : le trottoir est
+ *   ouvert en bateau et l'enrobé rejoint la chaussée. Les camions de l'expédition apparaissent sur la
+ *   rue, à `accessRoadEntry`, et la remontent (`via` : `accessRoadRoute(…).slice(1)`) avant de reculer
+ *   à quai.
+ * - À l'ouest, une **voie simple** (niveau 1), raccordée elle aussi.
+ * - Au nord, une **voie avec trottoirs** (niveau 3) posée loin du bord : ses bouts restent de simples
+ *   bouts.
+ * - Au nord-ouest, un **portail** de la clôture de pourtour : les camions de la réception passent par
+ *   lui (`gateEntry`).
+ */
+export const VoieDAcces: Story = {
+  name: "Voie d'accès et camions",
+  render: function Render() {
+    const plot = useMemo(() => generatePlot(5, { shape: "rect", width: 72, depth: 44 }), []);
+    const [items, setItems] = useState<PlannerItem[]>(() => {
+      const x0 = 20;
+      const y0 = 10;
+      const x1 = 44;
+      const y1 = 34;
+      return [
+        { id: "south", kind: "wall", level: 2, x0, y0, x1, y1: y0 },
+        { id: "east", kind: "dock", level: 2, x0: x1, y0, x1, y1 },
+        { id: "north", kind: "wall", level: 2, x0: x1, y0: y1, x1: x0, y1 },
+        { id: "west", kind: "dock", level: 2, x0, y0: y1, x1: x0, y1: y0 },
+        { id: "ship", kind: "truckBay", level: 2, x: 49.55, y: 16, rotation: 180 },
+        { id: "recv", kind: "truckBay", level: 1, x: 14.45, y: 26, rotation: 0 },
+        { id: "road-south", kind: "accessRoad", level: 2, x0: 62, y0: 0, x1: 62, y1: 12 },
+        { id: "road-west", kind: "accessRoad", level: 1, x0: 0, y0: 5, x1: 12, y1: 5 },
+        { id: "road-north", kind: "accessRoad", level: 3, x0: 24, y0: 39, x1: 40, y1: 39 },
+      ];
+    });
+    const [gates] = useState<PlannerGate[]>([{ id: "gate-nw", x: 4, y: 44, width: 3 }]);
+    const [shipped, setShipped] = useState(0);
+    const [received, setReceived] = useState(0);
+    const [clean, setClean] = useState(true);
+    useEffect(() => {
+      const id = window.setInterval(() => {
+        setShipped((n) => n + 3);
+        setReceived((n) => n + 2);
+      }, 1500);
+      return () => window.clearInterval(id);
+    }, []);
+    const road = items.find((it) => it.id === "road-south");
+    const route = road && "x0" in road ? accessRoadRoute(road, plot) : null;
+    const gate = gateEntry(gates[0], plot);
+    const bayOf = (id: string) => {
+      const it = items.find((i) => i.id === id);
+      return it && !("x0" in it) ? { x: it.x, y: it.y, rotation: it.rotation, bays: it.level ?? 1 } : null;
+    };
+    const ship = bayOf("ship");
+    const recv = bayOf("recv");
+    const shipRoute = route ? { entry: route[0], via: route.slice(1) } : undefined;
+    const recvRoute = gate ? { entry: gate.entry, via: [gate.inside] } : undefined;
+    const clearance = [
+      ...(ship ? dockTrafficClearance(ship, shipRoute) : []),
+      ...(recv ? dockTrafficClearance(recv, recvRoute) : []),
+    ];
+    return (
+      <div style={{ ...frame, display: "flex", flexDirection: "column", gap: 8 }}>
+        <div style={{ display: "flex", gap: 12, alignItems: "center", fontSize: 13, flexWrap: "wrap" }}>
+          <span>
+            Entrée de l'expédition : {route ? `(${route[0].x.toFixed(2)}, ${route[0].y.toFixed(2)})` : "voie non raccordée"}
+          </span>
+          <span>Entrée de la réception : {gate ? `(${gate.entry.x.toFixed(2)}, ${gate.entry.y.toFixed(2)})` : "—"}</span>
+          <label style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
+            <input type="checkbox" checked={clean} onChange={(e) => setClean(e.target.checked)} />
+            Sol propre
+          </label>
+          <span style={{ opacity: 0.7 }}>Déplacez la voie du sud : le raccordement suit, ou disparaît loin du bord.</span>
+        </div>
+        <WarehousePlanner
+          seed={5}
+          shape="rect"
+          plotSize={{ width: 72, depth: 44 }}
+          items={items}
+          onItemsChange={setItems}
+          groundStyle={clean ? "clean" : "site"}
+          perimeterFence
+          gates={gates}
+          lightExclusions={clearance}
+          treeExclusions={clearance}
+          defaultView="3d"
+          defaultZoom={1.3}
+          height="100%"
+          sceneChildren={
+            <>
+              {ship && <PlannerDockTraffic bay={ship} mode="ship" count={shipped} capacity={18} staging={{ x: 40, y: 16 }} entry={shipRoute?.entry} via={shipRoute?.via} />}
+              {recv && <PlannerDockTraffic bay={recv} mode="receive" count={received} capacity={12} staging={{ x: 24, y: 26 }} entry={recvRoute?.entry} via={recvRoute?.via} />}
+            </>
+          }
+        />
+      </div>
+    );
+  },
+};
+
+/**
+ * La clôture de pourtour et ses portails. Tout le terrain possédé est clos ; la parcelle à vendre
+ * reste dehors — achetez-la, la clôture recule jusqu'au nouveau bord. Survolez la clôture : la place
+ * d'un portail s'y dessine, rouge là où il ne peut pas aller (trop près d'un angle, d'un autre
+ * portail, ou d'un côté sans rue). Un clic y perce un portail ; un clic sur un portail le choisit,
+ * Suppr l'enlève. La voie d'accès du sud traverse la clôture : elle y fait son ouverture.
+ */
+export const ClotureEtPortails: Story = {
+  name: "Clôture et portails",
+  render: function Render() {
+    const [items, setItems] = useState<PlannerItem[]>([{ id: "road", kind: "accessRoad", level: 2, x0: 18, y0: 0, x1: 18, y1: 10 }]);
+    const [gates, setGates] = useState<PlannerGate[]>([{ id: "g1", x: 30, y: 26, width: 3 }]);
+    const [selected, setSelected] = useState<string | null>(null);
+    const [bought, setBought] = useState(false);
+    const [last, setLast] = useState<string>("—");
+    return (
+      <div style={{ ...frame, display: "flex", flexDirection: "column", gap: 8 }}>
+        <div style={{ display: "flex", gap: 12, alignItems: "center", fontSize: 13, flexWrap: "wrap" }}>
+          <button type="button" onClick={() => setBought((b) => !b)}>{bought ? "Revendre la parcelle" : "Acheter la parcelle est"}</button>
+          <span>{gates.length} portail{gates.length > 1 ? "s" : ""}{selected ? ` · choisi : ${selected} (Suppr pour l'enlever)` : ""}</span>
+          <span style={{ opacity: 0.7 }}>Dernier clic sur la clôture : {last}</span>
+        </div>
+        <WarehousePlanner
+          seed={8}
+          shape="rect"
+          plotSize={{ width: 44, depth: 26 }}
+          items={items}
+          onItemsChange={setItems}
+          groundStyle="clean"
+          lockedAreas={bought ? [] : [{ id: "est", x: 34, y: 0, width: 10, depth: 26, label: "Parcelle est · 80 000 €" }]}
+          perimeterFence
+          gates={gates}
+          onFenceSelect={(p) => {
+            setLast(`${p.edge} (${p.x}, ${p.y}) — ${p.valid ? "portail possible" : p.reason}`);
+            if (p.valid) setGates((gs) => [...gs, { id: `g${Date.now()}`, x: p.x, y: p.y, width: 3 }]);
+          }}
+          selectedGateId={selected}
+          onGateSelect={setSelected}
+          onGateRemove={(id) => {
+            setGates((gs) => gs.filter((g) => g.id !== id));
+            setSelected(null);
+          }}
+          defaultView="3d"
+          defaultZoom={1.2}
+          height="100%"
+        />
+      </div>
+    );
+  },
+};
+
+/** Les entrées d'une application de jeu, rangées par familles — pour le bandeau. */
+const GAME_ENTRIES: PlannerPaletteEntry[] = [
+  { id: "wall", label: "Mur", kind: "wall", length: 10, level: 2, group: "Infrastructure", meta: "1 200 €" },
+  { id: "dock", label: "Mur de quai", kind: "dock", length: 12, level: 2, group: "Infrastructure", meta: "4 800 €" },
+  { id: "office", label: "Bureaux", kind: "office", group: "Infrastructure", meta: "9 000 €" },
+  { id: "rack", label: "Rack palettier", kind: "palletRack", length: 5.5, level: 2, group: "Stockage", meta: "6 500 €" },
+  { id: "shelf", label: "Étagère", kind: "shelf", level: 2, group: "Stockage", meta: "1 500 €" },
+  { id: "floor", label: "Stockage au sol", kind: "zone", level: 2, group: "Stockage", meta: "2 500 €" },
+  { id: "cold", label: "Chambre froide", kind: "coldRoom", group: "Stockage", meta: "24 000 €", disabled: true },
+  { id: "picker", label: "Préparateur", kind: "worker", group: "Picking", meta: "8 000 €" },
+  { id: "amr", label: "Robot porteur", kind: "amr", level: 2, group: "Picking", meta: "18 000 €" },
+  { id: "belt", label: "Tapis", kind: "conveyor", length: 6, level: 2, group: "Convoyage", meta: "4 000 €" },
+  { id: "corner", label: "Tapis d'angle", kind: "conveyorCorner", level: 2, group: "Convoyage", meta: "1 800 €" },
+  { id: "arm", label: "Bras robotisé", kind: "arm", level: 2, group: "Robotique", meta: "35 000 €" },
+  { id: "delta", label: "Robot delta", kind: "delta", group: "Robotique", meta: "52 000 €", disabled: true },
+  { id: "packer", label: "Filmeuse", kind: "packer", level: 3, group: "Emballage", meta: "6 000 €" },
+  { id: "bay", label: "Quai camion", kind: "truckBay", level: 2, group: "Expédition", meta: "12 000 €" },
+  { id: "road", label: "Voie d'accès", kind: "accessRoad", length: 12, level: 2, group: "Expédition", meta: "3 000 €" },
+  { id: "solar", label: "Panneaux solaires", kind: "solar", level: 2, group: "Énergie", meta: "15 000 €" },
+  { id: "transfo", label: "Transformateur", kind: "transformer", level: 2, group: "Énergie", meta: "22 000 €" },
+  { id: "tree", label: "Arbre", kind: "tree", level: 2, group: "Extérieurs", meta: "300 €" },
+  { id: "parking", label: "Parking", kind: "parking", level: 2, group: "Extérieurs", meta: "5 000 €" },
+  { id: "roof", label: "Toiture", kind: "roof", group: "Toiture", meta: "8 000 €" },
+  { id: "roofSolar", label: "Solaire en toiture", kind: "roofSolar", group: "Toiture", meta: "11 000 €" },
+];
+
+/**
+ * Un écran de jeu : la palette en **bandeau** au bas de la scène (`paletteLayout="bottom"`), un onglet
+ * en icône par famille, les vignettes de la famille au-dessus, la recherche au bout, le chevron qui
+ * replie le bandeau. Par-dessus, dans le calque de l'application, le dock de navigation (`IconDock`)
+ * en haut à gauche et les jauges de demande (`DemandMeters`) posées juste au-dessus du bandeau, grâce
+ * à `--lq-planner-palette-height`.
+ */
+export const BandeauDePalette: Story = {
+  name: "Palette en bandeau (écran de jeu)",
+  render: function Render() {
+    const [items, setItems] = useState<PlannerItem[]>([]);
+    const [view, setView] = useState("warehouse");
+    return (
+      <div style={frame}>
+        <WarehousePlanner
+          seed={11}
+          shape="rect"
+          plotSize={{ width: 48, depth: 30 }}
+          items={items}
+          onItemsChange={setItems}
+          entries={GAME_ENTRIES}
+          paletteLayout="bottom"
+          groundStyle="clean"
+          perimeterFence
+          showStatus={false}
+          height="100%"
+          renderOverlay={() => (
+            <>
+              <div style={{ position: "absolute", left: 8, top: 8, pointerEvents: "auto" }}>
+                <IconDock
+                  items={[
+                    { id: "warehouse", label: "Entrepôt", icon: <BuildingWarehouseIcon />, active: view === "warehouse", onClick: () => setView("warehouse") },
+                    { id: "ops", label: "Opérations", icon: <GaugeIcon />, active: view === "ops", onClick: () => setView("ops") },
+                    { id: "orders", label: "Commandes", icon: <ClipboardListIcon />, badge: 3, active: view === "orders", onClick: () => setView("orders") },
+                    { id: "stock", label: "Stocks", icon: <BoxesIcon />, active: view === "stock", onClick: () => setView("stock") },
+                  ]}
+                />
+              </div>
+              <div style={{ position: "absolute", left: 8, bottom: "calc(var(--lq-planner-palette-height, 0px) + 16px)", pointerEvents: "auto" }}>
+                <DemandMeters
+                  compact
+                  meters={[
+                    { id: "orders", label: "Commandes", icon: <ClipboardListIcon />, value: 0.62, tone: "good", detail: "144 commandes/h demandées pour 286/h de capacité" },
+                    { id: "docks", label: "Quais", icon: <TruckIcon />, value: 0.91, tone: "warning", detail: "11 camions/h pour 12 de capacité" },
+                    { id: "power", label: "Énergie", icon: <BoltIcon />, value: 1.12, tone: "critical", detail: "Consommation au-delà de l'abonnement" },
+                  ]}
+                />
+              </div>
+            </>
+          )}
+        />
+      </div>
+    );
+  },
+};
+
+/** Le même écran sur un téléphone : bandeau resserré, onglets de 44 px, gestes au doigt. */
+export const BandeauTelephone: Story = {
+  ...BandeauDePalette,
+  name: "Palette en bandeau, au téléphone",
+  globals: { viewport: { value: "mobile2", isRotated: false } },
 };

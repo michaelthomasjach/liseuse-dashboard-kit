@@ -79,3 +79,44 @@ export const Accueil: Story = {
     );
   },
 };
+
+/**
+ * Sur un téléphone, la carte devient une feuille accrochée au bas de l'écran. L'anneau entoure
+ * toujours la cible ; la troisième étape montre un élément tout en bas de la page, que la visite fait
+ * remonter au-dessus de la feuille. La story s'ouvre dans le cadre « mobile » de Storybook.
+ */
+export const Mobile: Story = {
+  name: "Sur un téléphone",
+  globals: { viewport: { value: "mobile2", isRotated: false } },
+  render: function Render() {
+    const [open, setOpen] = useState(true);
+    const steps: GuidedTourStep[] = [
+      { id: "hello", title: "Bienvenue dans votre entrepôt !", media: <SparkleIcon size={32} />, body: "Trois étapes pour faire le tour : le menu, le plan, les réglages." },
+      { id: "menu", selector: "[data-tour='m-menu']", title: "Le menu", body: "Tout ce qui se construit part d'ici.", media: <HomeIcon size={22} /> },
+      { id: "plan", selector: "[data-tour='m-plan']", title: "Le plan", body: "Glissez un doigt pour vous déplacer, pincez pour zoomer." },
+      { id: "settings", selector: "[data-tour='m-settings']", title: "Les réglages", body: "Tout en bas de la page : la visite l'a fait remonter au-dessus de la feuille.", media: <SettingsIcon size={22} /> },
+      { id: "end", title: "À vous de jouer", body: "La visite se relance depuis le menu d'aide." },
+    ];
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <button type="button" data-tour="m-menu" style={{ minHeight: 44, padding: "0 14px" }}>
+            Menu
+          </button>
+          <span style={{ flex: 1 }} />
+          <button type="button" onClick={() => setOpen(true)} style={{ minHeight: 44, padding: "0 14px" }}>
+            Relancer
+          </button>
+        </div>
+        <div data-tour="m-plan" style={{ ...box, height: 260 }}>
+          Le plan
+        </div>
+        <div style={{ ...box, height: 520 }}>Le reste de la page</div>
+        <button type="button" data-tour="m-settings" style={{ minHeight: 44 }}>
+          Réglages
+        </button>
+        <GuidedTour open={open} steps={steps} onClose={() => setOpen(false)} />
+      </div>
+    );
+  },
+};

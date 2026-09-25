@@ -316,8 +316,17 @@ export interface PlannerDockTrafficProps {
   capacity?: number;
   /** Le point, côté entrepôt, où le chargeur prend (expédition) ou pose (réception) les colis. */
   staging: Pt;
-  /** Où les camions apparaissent et disparaissent. Défaut : 14 cases au-delà de l'entrée. */
+  /**
+   * Où les camions apparaissent et disparaissent. Défaut : 14 cases au-delà de l'entrée. Pour les
+   * faire venir de la rue par une voie d'accès ou un portail : `accessRoadEntry`, `gateEntry`.
+   */
   entry?: Pt;
+  /**
+   * Des points de passage entre `entry` et les places, suivis à l'aller et, à rebours, au départ :
+   * le long d'une voie d'accès (`accessRoadRoute(road, plot).slice(1)`), à travers un portail
+   * (`[gateEntry(gate, plot).inside]`). Le trajet part aligné sur le premier tronçon.
+   */
+  via?: Pt[];
   /** L'engin du chargeur. Défaut : transpalette en expédition, chariot en réception. */
   loader?: "palletJack" | "forklift" | "worker";
   /** Ce qu'un aller du chargeur emporte au plus. Défaut : 6. */
@@ -390,7 +399,7 @@ export function PlannerDockTraffic(props: PlannerDockTrafficProps) {
     [-TRUCK_BAY_LENGTH / 2 - 16, -n * TRUCK_BAY_WIDTH - 16],
     [TRUCK_BAY_LENGTH / 2 + 3, n * TRUCK_BAY_WIDTH + 6],
   ].map(([u, v]) => ({ x: props.bay.x + u * Math.cos(t) - v * Math.sin(t), y: props.bay.y + u * Math.sin(t) + v * Math.cos(t) }));
-  const bounds = boundsOf([...corners, props.staging, ...(props.entry ? [props.entry] : [])], 2, 3);
+  const bounds = boundsOf([...corners, props.staging, ...(props.entry ? [props.entry] : []), ...(props.via ?? [])], 2, 3);
   return (
     <Solo bounds={bounds} cellSize={16} ariaLabel="Trafic du quai">
       <DockBody {...props} />
@@ -404,7 +413,7 @@ const REVERSE_SPEED = 1.3;
 /** La conduite d'un semi : un grand rayon, des départs posés, et un tracteur qui ne pivote pas vite. */
 const TRUCK_STYLE: Partial<MoverStyle> = { radius: 4.5, accel: 0.6, lateral: 0.8, yawRate: 0.45, spin: 0.3 };
 
-function DockBody({ bay, mode, count, capacity = 24, staging, entry, loader, batch = 6, paused = false, roadSpeed = 1, electric = false, onTruck }: PlannerDockTrafficProps) {
+function DockBody({ bay, mode, count, capacity = 24, staging, entry, via, loader, batch = 6, paused = false, roadSpeed = 1, electric = false, onTruck }: PlannerDockTrafficProps) {
   const roadRef = useRef(roadSpeed);
   roadRef.current = Math.max(0.05, roadSpeed);
   const forward = () => FORWARD_SPEED * roadRef.current;
@@ -417,10 +426,10 @@ function DockBody({ bay, mode, count, capacity = 24, staging, entry, loader, bat
   countRef.current = count;
   const onTruckRef = useRef(onTruck);
   onTruckRef.current = onTruck;
-  const key = JSON.stringify([bay.x, bay.y, bay.rotation, bays, mode, cap, size, staging.x, staging.y, entry?.x, entry?.y, vehicle]);
+  const key = JSON.stringify([bay.x, bay.y, bay.rotation, bays, mode, cap, size, staging.x, staging.y, entry?.x, entry?.y, via ?? [], vehicle]);
 
   const engine = useMemo(() => {
-    const plan = planDock({ ...bay, bays }, entry);
+    const plan = planDock({ ...bay, bays }, entry, via);
     // Au montage : chaque place a son camion à quai.
     const slots: Slot[] = plan.lanes.map((lane, i) => ({
       i,
@@ -440,10 +449,11 @@ function DockBody({ bay, mode, count, capacity = 24, staging, entry, loader, bat
   const [awake, setAwake] = useState(false);
   const [loaderView, setLoaderView] = useState<HaulerView>({ carry: 0, moving: false, speed: 0 });
   const loaderShown = useRef(loaderView);
+  const cartonsOf = (sl: Slot) => Math.round((Math.max(0, Math.min(cap, sl.loaded)) / cap) * 20);
   const truckViewOf = (sl: Slot): TruckView => ({
     present: sl.present,
     docked: sl.docked,
-    cartons: Math.round((Math.max(0, Math.min(cap, sl.loaded)) / cap) * 20),
+    cartons: cartonsOf(sl),
     rolling: sl.mover.moving ? shownSpeed(sl.mover.speed) : 0,
   });
   const [trucks, setTrucks] = useState<TruckView[]>(() => engine.slots.map(truckViewOf));
@@ -613,12 +623,19 @@ function DockBody({ bay, mode, count, capacity = 24, staging, entry, loader, bat
       engine.loader.step(dt);
       schedule();
       sync();
-      const lv: HaulerView = { carry: engine.carry, moving: engine.loader.moving, speed: shownSpeed(engine.loader.speed) };
-      if (!sameView(loaderShown.current, lv)) setLoaderView((loaderShown.current = lv));
-      const tv = engine.slots.map(truckViewOf);
+      // Relire l'état montré sans rien allouer tant qu'il n'a pas changé : c'est le cas de presque
+      // toutes les images.
+      const ls = loaderShown.current;
+      const lSpeed = shownSpeed(engine.loader.speed);
+      if (ls.carry !== engine.carry || ls.moving !== engine.loader.moving || Math.abs(ls.speed - lSpeed) >= 1e-3) setLoaderView((loaderShown.current = { carry: engine.carry, moving: engine.loader.moving, speed: lSpeed }));
       const prev = trucksShown.current;
-      const same = prev.length === tv.length && prev.every((p, i) => p.present === tv[i].present && p.docked === tv[i].docked && p.cartons === tv[i].cartons && p.rolling === tv[i].rolling);
-      if (!same) setTrucks((trucksShown.current = tv));
+      let same = prev.length === engine.slots.length;
+      for (let i = 0; same && i < engine.slots.length; i += 1) {
+        const sl = engine.slots[i];
+        const p = prev[i];
+        same = p.present === sl.present && p.docked === sl.docked && p.cartons === cartonsOf(sl) && p.rolling === (sl.mover.moving ? shownSpeed(sl.mover.speed) : 0);
+      }
+      if (!same) setTrucks((trucksShown.current = engine.slots.map(truckViewOf)));
       const busy = engine.loader.busy || engine.slots.some((sl) => sl.mover.busy || !sl.present);
       if (!busy) {
         clock.reset();

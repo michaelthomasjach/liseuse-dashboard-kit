@@ -452,11 +452,25 @@ export function speedProfile(track: Track, o: SpeedOptions): number[] {
   return t;
 }
 
-/** La pose sur un trajet à l'abscisse `s`, interpolée entre deux échantillons. */
-export function sampleTrack(track: Track, s: number): { x: number; y: number; heading: number; trailer?: number } {
+/** Une pose sur un trajet (voir `sampleTrack`). */
+export interface TrackPose {
+  x: number;
+  y: number;
+  heading: number;
+  trailer?: number;
+}
+
+/**
+ * La pose sur un trajet à l'abscisse `s`, interpolée entre deux échantillons.
+ *
+ *  `out` : une pose à remplir plutôt qu'une neuve — ce que demande un engin à chaque image, pour ne
+ *  pas semer un objet par image et par engin que le ramasse-miettes viendrait reprendre en pleine
+ *  animation.
+ */
+export function sampleTrack(track: Track, s: number, out: TrackPose = { x: 0, y: 0, heading: 0 }): TrackPose {
   const n = track.s.length;
-  if (n === 1 || s <= 0) return { x: track.x[0], y: track.y[0], heading: track.heading[0], trailer: track.trailer?.[0] };
-  if (s >= track.length) return { x: track.x[n - 1], y: track.y[n - 1], heading: track.heading[n - 1], trailer: track.trailer?.[n - 1] };
+  if (n === 1 || s <= 0) return setPose(out, track.x[0], track.y[0], track.heading[0], track.trailer?.[0]);
+  if (s >= track.length) return setPose(out, track.x[n - 1], track.y[n - 1], track.heading[n - 1], track.trailer?.[n - 1]);
   let lo = 0;
   let hi = n - 1;
   while (hi - lo > 1) {
@@ -465,8 +479,22 @@ export function sampleTrack(track: Track, s: number): { x: number; y: number; he
     else hi = mid;
   }
   const u = (s - track.s[lo]) / (track.s[hi] - track.s[lo] || 1);
-  const lerp = (arr: number[]) => arr[lo] + (arr[hi] - arr[lo]) * u;
-  return { x: lerp(track.x), y: lerp(track.y), heading: lerp(track.heading), trailer: track.trailer ? lerp(track.trailer) : undefined };
+  const tr = track.trailer;
+  return setPose(
+    out,
+    track.x[lo] + (track.x[hi] - track.x[lo]) * u,
+    track.y[lo] + (track.y[hi] - track.y[lo]) * u,
+    track.heading[lo] + (track.heading[hi] - track.heading[lo]) * u,
+    tr ? tr[lo] + (tr[hi] - tr[lo]) * u : undefined
+  );
+}
+
+function setPose(out: TrackPose, x: number, y: number, heading: number, trailer: number | undefined): TrackPose {
+  out.x = x;
+  out.y = y;
+  out.heading = heading;
+  out.trailer = trailer;
+  return out;
 }
 
 /** L'abscisse atteinte au temps `t` d'un profil (`speedProfile`). */

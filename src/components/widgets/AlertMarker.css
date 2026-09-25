@@ -1,0 +1,353 @@
+/* L'enveloppe du `Tooltip` : alignée par le bas, pour qu'aucune ligne de texte fantôme (la « strut »
+   d'une boîte en ligne) n'ajoute d'espace sous la pointe et ne fausse l'ancrage. */
+.lq-alert-marker__anchor {
+  vertical-align: bottom;
+  line-height: 0;
+}
+
+/* ---- Géométrie --------------------------------------------------------------------------------
+   Une pastille ronde de `--am-head`, une pointe carrée de `--am-tail` tournée de 45°, dont le coin
+   inférieur tombe exactement sur le bord bas de l'élément — le point d'ancrage.
+   Hauteur totale : la pastille, plus ce que la pointe dépasse sous elle. */
+.lq-alert-marker {
+  --am-head: 32px;
+  --am-tail: 12px;
+  --am-height: 39px;
+  --am-tail-top: 24.5px;
+  --am-icon: 17px;
+  --am-color: var(--lq-color-accent);
+  --am-ink: var(--lq-color-accent-contrast);
+  --am-ring: var(--lq-color-panel);
+
+  position: relative;
+  display: inline-block;
+  width: var(--am-head);
+  height: var(--am-height);
+  padding: 0;
+  margin: 0;
+  color: var(--am-ink);
+  cursor: pointer;
+  background: none;
+  border: 0;
+  border-radius: 999px;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.lq-alert-marker--sm {
+  --am-head: 24px;
+  --am-tail: 9px;
+  --am-height: 29px;
+  --am-tail-top: 18.1px;
+  --am-icon: 13px;
+}
+
+.lq-alert-marker--critical {
+  --am-color: var(--lq-color-danger);
+}
+
+.lq-alert-marker--warning {
+  --am-color: var(--lq-color-amber);
+}
+
+/* Le doigt demande 40 px : la zone cliquable s'étend par un pseudo-élément, sans toucher à la taille
+   de l'élément — donc sans déplacer le point d'ancrage. */
+@media (pointer: coarse) {
+  .lq-alert-marker::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: max(40px, 100%);
+    height: max(44px, 100%);
+    transform: translate(-50%, -50%);
+  }
+}
+
+.lq-alert-marker__scale,
+.lq-alert-marker__body {
+  position: absolute;
+  inset: 0;
+  display: block;
+  transform-origin: 50% 100%;
+}
+
+.lq-alert-marker__scale {
+  transition: transform 160ms ease;
+}
+
+.lq-alert-marker:hover .lq-alert-marker__scale,
+.lq-alert-marker:focus-visible .lq-alert-marker__scale {
+  transform: scale(1.15);
+}
+
+.lq-alert-marker__head {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--am-head);
+  height: var(--am-head);
+  background: var(--am-color);
+  border: 2px solid var(--am-ring);
+  border-radius: 50%;
+  box-shadow: 0 3px 8px color-mix(in srgb, var(--lq-color-text) 30%, transparent);
+}
+
+.lq-alert-marker__head svg {
+  width: var(--am-icon);
+  height: var(--am-icon);
+  margin-top: -1px;
+  stroke-width: 2.2;
+}
+
+/* La pointe : un carré tourné, dont seuls les bords droit et bas portent l'anneau — ce sont eux qui,
+   une fois tournés, forment les deux côtés du « V » sous la pastille. Le haut est caché par elle. */
+.lq-alert-marker__tail {
+  position: absolute;
+  top: var(--am-tail-top);
+  left: calc(50% - var(--am-tail) / 2);
+  width: var(--am-tail);
+  height: var(--am-tail);
+  background: var(--am-color);
+  border-right: 2px solid var(--am-ring);
+  border-bottom: 2px solid var(--am-ring);
+  transform: rotate(45deg);
+  filter: drop-shadow(1px 1px 1.5px color-mix(in srgb, var(--lq-color-text) 25%, transparent));
+}
+
+.lq-alert-marker__count {
+  position: absolute;
+  top: -5px;
+  right: -8px;
+  z-index: 2;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  font-family: var(--lq-font-family);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 17px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  color: var(--lq-color-panel);
+  background: var(--lq-color-text);
+  border: 1.5px solid var(--am-ring);
+  border-radius: 999px;
+}
+
+/* L'ombre au sol, sur le point d'ancrage : elle reste au sol quand l'épingle saute, et se resserre. */
+.lq-alert-marker__ground {
+  position: absolute;
+  bottom: -2px;
+  left: calc(50% - 7px);
+  width: 14px;
+  height: 4px;
+  background: color-mix(in srgb, var(--lq-color-text) 28%, transparent);
+  border-radius: 50%;
+  filter: blur(1px);
+}
+
+.lq-alert-marker:focus-visible .lq-alert-marker__head {
+  outline: 2px solid var(--lq-color-focus-ring);
+  outline-offset: 2px;
+}
+
+/* ---- Rebond : un saut, un petit rebond, puis une longue pause ----------------------------------- */
+
+.lq-alert-marker--bounce .lq-alert-marker__body {
+  animation: lq-alert-bounce 2.6s ease-in-out infinite;
+}
+
+.lq-alert-marker--bounce .lq-alert-marker__ground {
+  animation: lq-alert-ground 2.6s ease-in-out infinite;
+}
+
+@keyframes lq-alert-bounce {
+  0%,
+  50%,
+  100% {
+    transform: translateY(0);
+  }
+  14% {
+    transform: translateY(-7px);
+  }
+  28% {
+    transform: translateY(0);
+  }
+  38% {
+    transform: translateY(-2.5px);
+  }
+}
+
+@keyframes lq-alert-ground {
+  0%,
+  50%,
+  100% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+  14% {
+    opacity: 0.45;
+    transform: scaleX(0.6);
+  }
+  28% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+  38% {
+    opacity: 0.8;
+    transform: scaleX(0.85);
+  }
+}
+
+/* ---- La pile ------------------------------------------------------------------------------------ */
+
+.lq-alert-stack {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.lq-alert-stack > * {
+  pointer-events: auto;
+}
+
+.lq-alert-stack--top-left {
+  top: 12px;
+  left: 12px;
+  align-items: flex-start;
+}
+
+.lq-alert-stack--top-right {
+  top: 12px;
+  right: 12px;
+  align-items: flex-end;
+}
+
+.lq-alert-stack--bottom-left {
+  bottom: 12px;
+  left: 12px;
+  align-items: flex-start;
+}
+
+.lq-alert-stack--bottom-right {
+  right: 12px;
+  bottom: 12px;
+  align-items: flex-end;
+}
+
+/* Des rebonds décalés d'une épingle à l'autre : une pile qui saute d'un bloc se lit comme un seul
+   objet, pas comme plusieurs alertes. */
+.lq-alert-stack > :nth-child(2) .lq-alert-marker__body,
+.lq-alert-stack > :nth-child(2) .lq-alert-marker__ground {
+  animation-delay: 0.35s;
+}
+
+.lq-alert-stack > :nth-child(3) .lq-alert-marker__body,
+.lq-alert-stack > :nth-child(3) .lq-alert-marker__ground {
+  animation-delay: 0.7s;
+}
+
+.lq-alert-stack > :nth-child(4) .lq-alert-marker__body,
+.lq-alert-stack > :nth-child(4) .lq-alert-marker__ground {
+  animation-delay: 1.05s;
+}
+
+.lq-alert-stack > :nth-child(5) .lq-alert-marker__body,
+.lq-alert-stack > :nth-child(5) .lq-alert-marker__ground {
+  animation-delay: 1.4s;
+}
+
+.lq-alert-stack__more {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 24px;
+  padding: 0 8px;
+  font-size: var(--lq-text-xs);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--lq-color-text);
+  background: color-mix(in srgb, var(--lq-color-panel) 85%, transparent);
+  border: 1px solid var(--lq-color-border);
+  border-radius: 999px;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--lq-color-text) 18%, transparent);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  outline: none;
+}
+
+.lq-alert-stack__more:focus-visible {
+  box-shadow: 0 0 0 2px var(--lq-color-focus-ring);
+}
+
+.lq-alert-stack__list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* ---- E-ink : tout est encre ; la gravité passe par la forme -------------------------------------
+   Critique : pastille pleine. Attention : pastille claire, anneau d'encre épais. Info : pastille
+   claire, anneau fin. Et rien ne bouge : un rebond laisserait une traînée de rémanence. */
+.lq-root[data-lq-palette="eink"] .lq-alert-marker {
+  --am-ring: var(--lq-color-panel);
+}
+
+.lq-root[data-lq-palette="eink"] .lq-alert-marker__head,
+.lq-root[data-lq-palette="eink"] .lq-alert-marker__tail {
+  box-shadow: none;
+  filter: none;
+}
+
+.lq-root[data-lq-palette="eink"] .lq-alert-marker__ground {
+  display: none;
+}
+
+.lq-root[data-lq-palette="eink"] .lq-alert-marker--warning,
+.lq-root[data-lq-palette="eink"] .lq-alert-marker--info {
+  --am-color: var(--lq-color-panel);
+  --am-ink: var(--lq-color-text);
+  --am-ring: var(--lq-color-text);
+}
+
+.lq-root[data-lq-palette="eink"] .lq-alert-marker--warning .lq-alert-marker__head {
+  border-width: 3px;
+}
+
+.lq-root[data-lq-palette="eink"] .lq-alert-marker--info .lq-alert-marker__head {
+  border-width: 1.5px;
+}
+
+.lq-root[data-lq-palette="eink"] .lq-alert-marker__body,
+.lq-root[data-lq-palette="eink"] .lq-alert-marker__ground,
+.lq-root[data-lq-palette="eink"] .lq-alert-marker__scale {
+  animation: none;
+  transition: none;
+}
+
+.lq-root[data-lq-palette="eink"] .lq-alert-stack__more {
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  background: var(--lq-color-panel);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lq-alert-marker__body,
+  .lq-alert-marker__ground {
+    animation: none !important;
+  }
+
+  .lq-alert-marker__scale {
+    transition: none;
+  }
+}

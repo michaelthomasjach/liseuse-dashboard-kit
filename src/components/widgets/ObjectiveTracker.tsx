@@ -23,6 +23,14 @@ import "./ObjectiveTracker.css";
  *
  * La liste est une vraie liste ordonnée ; l'étape en cours porte `aria-current="step"`, et le compte
  * est annoncé poliment quand il change.
+ *
+ * ## Sur un téléphone
+ *
+ * La carte garde sa largeur de 300 px mais ne dépasse jamais son conteneur, et les mots trop longs
+ * passent à la ligne plutôt que de la faire déborder. Sous un doigt (ou sous 640 px de large), chaque
+ * bouton — le chevron, la croix, l'action de l'étape en cours — devient une cible de 44 px, et le
+ * texte grossit d'un cran. Pour la poser en bas d'un écran de téléphone, l'application peut lui
+ * donner toute la largeur (`className` avec `width: 100%`).
  */
 
 export type ObjectiveState = "done" | "current" | "todo";

@@ -10,7 +10,9 @@
   align-items: start;
 }
 
-/* Étroit : la liste au-dessus, l'entrée dessous. */
+/* Étroit : la liste au-dessus, l'entrée dessous — la mise en page de repli, le temps que le composant
+   se mesure (ou sans JavaScript). Mesuré, il passe à une vue à la fois : voir « Une vue à la fois »
+   plus bas. */
 @container (max-width: 640px) {
   .lq-kb__layout {
     grid-template-columns: minmax(0, 1fr);
@@ -198,4 +200,92 @@
   color: inherit;
   background: color-mix(in srgb, var(--lq-color-amber) 45%, transparent);
   border-radius: 2px;
+}
+
+/* --- Une vue à la fois ---------------------------------------------------------------------------- */
+
+/* L'attribut `hidden` cède devant n'importe quel `display` d'auteur : `.lq-kb__index` est en flex, il
+   faut donc le redire ici pour que la vue cachée le soit vraiment. */
+.lq-kb__index[hidden],
+.lq-kb__entry[hidden] {
+  display: none;
+}
+
+/* La liste seule occupe toute la largeur et toute la hauteur qu'elle veut : c'est la page qui défile,
+   pas une petite fenêtre de 280 px dans la page. */
+.lq-kb--narrow .lq-kb__layout {
+  grid-template-columns: minmax(0, 1fr);
+}
+.lq-kb--narrow .lq-kb__index {
+  position: static;
+  max-height: none;
+}
+.lq-kb--narrow .lq-kb__results {
+  max-height: none;
+  overflow: visible;
+}
+.lq-kb--narrow .lq-kb__hit {
+  padding: var(--lq-space-3);
+  min-height: 48px;
+}
+.lq-kb--narrow .lq-kb__hit-summary {
+  font-size: var(--lq-text-sm);
+}
+
+.lq-kb__entry {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lq-space-3);
+}
+
+/* Le retour à la liste : en tête de l'entrée, là où le pouce et l'œil le cherchent, à la taille d'un
+   doigt. */
+.lq-kb__back {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: var(--lq-space-1);
+  min-height: 44px;
+  padding: 0 var(--lq-space-3) 0 var(--lq-space-2);
+  font: inherit;
+  font-size: var(--lq-text-sm);
+  font-weight: 700;
+  color: var(--lq-color-text);
+  cursor: pointer;
+  background: var(--lq-color-panel);
+  border: 1px solid var(--lq-color-border);
+  border-radius: var(--lq-radius-md);
+}
+.lq-kb__back:hover {
+  border-color: var(--lq-color-accent);
+}
+.lq-kb__back:focus-visible {
+  outline: 2px solid var(--lq-color-focus-ring);
+  outline-offset: 2px;
+}
+
+.lq-kb--narrow .lq-kb__article {
+  padding: var(--lq-space-3);
+}
+.lq-kb--narrow .lq-kb__title,
+.lq-kb--narrow .lq-kb__para,
+.lq-kb--narrow .lq-kb__summary {
+  overflow-wrap: anywhere;
+}
+
+/* Au doigt, les liens « Voir aussi » deviennent des cibles de 44 px — sur un téléphone, et aussi dans
+   un cadre étroit, qui est presque toujours un écran tactile. */
+.lq-kb--narrow .lq-kb__related-link {
+  min-height: 44px;
+  padding: 0 var(--lq-space-3);
+}
+@media (pointer: coarse) {
+  .lq-kb__related-link,
+  .lq-kb__hit {
+    min-height: 44px;
+  }
+}
+
+.lq-root[data-lq-palette="eink"] .lq-kb__back {
+  border-radius: 0;
 }

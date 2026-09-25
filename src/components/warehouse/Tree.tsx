@@ -1,7 +1,7 @@
 import { useRef } from "react";
 import type { Group } from "three";
 import { Builder } from "./three/builder";
-import { Parts, Solo, frameBounds, useBuilt } from "./three/scene";
+import { Parts, Solo, frameBounds, useBuilt, useSceneQuality } from "./three/scene";
 import { useSimFrame } from "./three/time";
 import { rng } from "./three/random";
 
@@ -288,6 +288,7 @@ function TreeBody({ kind = "round", height, origin = { x: 0, y: 0 }, seed = 1, w
     return b.build();
   }, [kind, h, seed]);
   const sway = useRef<Group>(null);
+  const quality = useSceneQuality();
   useSimFrame((t) => {
     const g = sway.current;
     if (!g) return;
@@ -295,7 +296,10 @@ function TreeBody({ kind = "round", height, origin = { x: 0, y: 0 }, seed = 1, w
     const k = 0.018 + 0.006 * Math.sin(t * 0.37 + seed);
     g.rotation.x = Math.sin(t * 1.1 + seed) * k;
     g.rotation.y = Math.sin(t * 0.83 + seed * 2) * k;
-  }, wind && kind !== "bush" && kind !== "boxwood" && kind !== "hedge" && kind !== "grass");
+    // Le vent est un agrément : il suit les images que la scène rend pour autre chose, sans en
+    // demander une seule (`passive`) — et il se tait en qualité basse, où le balancement d'un
+    // degré ne se voit pas à la taille d'un téléphone.
+  }, wind && quality === "high" && kind !== "bush" && kind !== "boxwood" && kind !== "hedge" && kind !== "grass", { passive: true });
   return (
     <group position={[origin.x, origin.y, 0]}>
       <Parts built={trunk} />

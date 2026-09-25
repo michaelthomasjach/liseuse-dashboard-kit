@@ -1,0 +1,50 @@
+/* L'enveloppe de l'ancre ne doit rien changer à la mise en page de ce qu'elle entoure : elle suit
+   son contenu (`inline-flex`, sans marge ni bordure) et ne sert qu'à capter survol et focus. */
+.lq-tooltip-anchor {
+  display: inline-flex;
+  max-width: 100%;
+}
+
+/* La bulle : encre sur papier inversé — le fond prend la couleur du texte, le texte celle du
+   panneau — ce qui donne le contraste le plus fort disponible dans chaque palette, clair comme
+   sombre, e-ink comprise. Les valeurs de repli ne servent que hors de tout `LqThemeProvider`. */
+.lq-tooltip {
+  position: fixed;
+  z-index: 4000;
+  max-width: min(280px, calc(100vw - 12px));
+  padding: 5px 9px;
+  font-family: var(--lq-font-family, ui-sans-serif, system-ui, sans-serif);
+  font-size: var(--lq-text-xs, 0.72rem);
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--lq-color-panel, Canvas);
+  background: var(--lq-color-text, CanvasText);
+  border-radius: var(--lq-tooltip-radius, 6px);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--lq-color-text, CanvasText) 22%, transparent);
+  pointer-events: none;
+  overflow-wrap: anywhere;
+  animation: lq-tooltip-in 120ms ease-out;
+}
+
+/* L'e-ink n'a ni ombre ni coin arrondi : une bulle au trait net, qui ne laisse pas de traînée de
+   rémanence en disparaissant (d'où aussi l'absence de fondu, plus bas). */
+.lq-root[data-lq-palette="eink"] .lq-tooltip {
+  border-radius: 0;
+  box-shadow: none;
+  animation: none;
+}
+
+@keyframes lq-tooltip-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lq-tooltip {
+    animation: none;
+  }
+}

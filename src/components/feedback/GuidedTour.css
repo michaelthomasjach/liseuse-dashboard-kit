@@ -227,6 +227,153 @@
   border-radius: 0;
 }
 
+/* --- Au doigt ------------------------------------------------------------------------------------ */
+
+/* Un pointeur grossier : chaque bouton de la carte devient une cible de 44 px, même sur une tablette
+   assez large pour garder la carte flottante. */
+@media (pointer: coarse) {
+  .lq-gtour__close {
+    min-width: 44px;
+    min-height: 44px;
+    align-items: center;
+    justify-content: center;
+    margin: -10px -10px -10px 0;
+  }
+  .lq-gtour__prev,
+  .lq-gtour__next,
+  .lq-gtour__skip {
+    min-height: 44px;
+  }
+}
+
+/* --- En feuille, sur un téléphone ------------------------------------------------------------------ */
+
+/* La carte quitte sa cible pour le bas de l'écran (la classe est posée par le composant, sur la même
+   requête que celle-ci — voir SHEET_QUERY) : toute la largeur, arrondie en haut seulement, posée
+   au-dessus de la barre de geste. Sa hauteur est bornée à l'écran moins une bande en haut — de quoi
+   laisser voir la cible et son anneau — et, au-delà, la feuille défile d'elle-même. La position
+   glissée d'une cible à l'autre n'a plus cours : seule l'opacité garde sa transition. */
+.lq-gtour__card--sheet,
+.lq-gtour__card--sheet.lq-gtour__card--center {
+  top: auto;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  max-width: none;
+  max-height: calc(100vh - 96px);
+  max-height: calc(100dvh - 96px - env(safe-area-inset-top, 0px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--lq-space-4, 16px) max(var(--lq-space-4, 16px), env(safe-area-inset-right, 0px))
+    max(var(--lq-space-4, 16px), env(safe-area-inset-bottom, 0px)) max(var(--lq-space-4, 16px), env(safe-area-inset-left, 0px));
+  border-width: 1px 0 0;
+  border-radius: var(--lq-radius-lg, 14px) var(--lq-radius-lg, 14px) 0 0;
+  text-align: left;
+  transition: opacity 160ms ease;
+  animation: lq-gtour-rise 220ms ease-out both;
+}
+
+/* En haut de l'écran, quand la cible est tout en bas : la même feuille, retournée — arrondie en bas,
+   posée sous l'encoche, et venue d'en haut. */
+.lq-gtour__card--sheet.lq-gtour__card--sheet-top {
+  top: 0;
+  bottom: auto;
+  padding-top: max(var(--lq-space-4, 16px), env(safe-area-inset-top, 0px));
+  padding-bottom: var(--lq-space-4, 16px);
+  border-width: 0 0 1px;
+  border-radius: 0 0 var(--lq-radius-lg, 14px) var(--lq-radius-lg, 14px);
+  animation-name: lq-gtour-drop;
+}
+.lq-gtour__card--sheet-top::before {
+  display: none;
+}
+.lq-root[data-lq-palette="eink"] .lq-gtour__card--sheet.lq-gtour__card--sheet-top {
+  border-width: 0 0 2px;
+}
+
+/* La poignée : un trait discret en tête de feuille, le signe connu d'un panneau venu du bas. */
+.lq-gtour__card--sheet::before {
+  content: "";
+  display: block;
+  width: 36px;
+  height: 4px;
+  margin: calc(-1 * var(--lq-space-2, 8px)) auto var(--lq-space-2, 8px);
+  border-radius: 2px;
+  background: var(--lq-color-border, #dfe2e8);
+}
+
+.lq-gtour__card--sheet .lq-gtour__media,
+.lq-gtour__card--sheet .lq-gtour__dots {
+  justify-content: flex-start;
+}
+
+.lq-gtour__card--sheet .lq-gtour__title {
+  font-size: var(--lq-text-h4, 1.15rem);
+}
+
+.lq-gtour__card--sheet .lq-gtour__body {
+  font-size: var(--lq-text-md, 0.9rem);
+}
+
+.lq-gtour__card--sheet .lq-gtour__close {
+  min-width: 44px;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  margin: -10px -10px -10px 0;
+}
+.lq-gtour__card--sheet .lq-gtour__close svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Les boutons passent à la taille d'un doigt ; s'ils ne tiennent plus sur une ligne (des libellés
+   longs, un écran de 320 px), « Passer la visite » part sur la sienne et la navigation garde la
+   largeur entière, chaque bouton se partageant la place. */
+.lq-gtour__card--sheet .lq-gtour__actions {
+  flex-wrap: wrap;
+}
+.lq-gtour__card--sheet .lq-gtour__nav {
+  flex: 1 1 auto;
+  justify-content: flex-end;
+}
+.lq-gtour__card--sheet .lq-gtour__prev,
+.lq-gtour__card--sheet .lq-gtour__next {
+  flex: 1 1 0;
+  max-width: 180px;
+  min-height: 44px;
+  font-size: var(--lq-text-sm, 0.8rem);
+}
+.lq-gtour__card--sheet .lq-gtour__skip {
+  min-height: 44px;
+  font-size: var(--lq-text-sm, 0.8rem);
+}
+
+.lq-root[data-lq-palette="eink"] .lq-gtour__card--sheet {
+  border-width: 2px 0 0;
+  border-radius: 0;
+  animation: none;
+}
+.lq-root[data-lq-palette="eink"] .lq-gtour__card--sheet::before {
+  border-radius: 0;
+  background: var(--lq-color-text);
+}
+
+@keyframes lq-gtour-rise {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+}
+
+@keyframes lq-gtour-drop {
+  from {
+    transform: translateY(-24px);
+    opacity: 0;
+  }
+}
+
 @keyframes lq-gtour-fade {
   from {
     opacity: 0;
@@ -239,7 +386,8 @@
   .lq-gtour__dot {
     transition: none;
   }
-  .lq-gtour__backdrop {
+  .lq-gtour__backdrop,
+  .lq-gtour__card--sheet {
     animation: none;
   }
 }

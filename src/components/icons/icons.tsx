@@ -1209,3 +1209,232 @@ export const UnlinkIcon = (props: AnimatedIconProps) => (
     <path d="M12 3.5v2M3.5 12h2M18.5 12h2M12 18.5v2" strokeWidth={1.5} />
   </IconBase>
 );
+
+/* ------------------------------------------------------------------------------------------------
+ * Jeu de gestion — l'entrepôt, ses flux, ses bâtiments.
+ *
+ * Ces icônes servent d'abord de boutons de barre d'outils, affichés entre 16 et 24 px par-dessus une
+ * scène : chacune est donc construite sur une seule silhouette franche (un bâtiment à grande porte,
+ * un camion de profil, un chariot) plutôt que sur des détails qui se fondraient à cette taille. Les
+ * traits intérieurs — les lattes d'une porte sectionnelle, le ruban d'un colis — ne sont là que pour
+ * lever l'ambiguïté entre deux silhouettes voisines (un colis n'est pas un cube, un entrepôt n'est
+ * pas une maison), jamais pour décorer.
+ * ------------------------------------------------------------------------------------------------ */
+
+/** Entrepôt — un bâtiment à deux pans, et une grande porte sectionnelle à lattes qui le distingue de
+ *  `HomeIcon` au premier coup d'œil. */
+export const BuildingWarehouseIcon = (props: AnimatedIconProps) => (
+  <IconBase motion="bob" {...props}>
+    <path d="M3.5 20V9.6L12 4.5l8.5 5.1V20" />
+    <path d="M2 20h20" />
+    <path d="M7.5 20v-7.5h9V20" />
+    <path d="M7.5 15h9M7.5 17.5h9" />
+  </IconBase>
+);
+
+/** Bon de commande — une écritoire à pince et sa liste à puces. */
+export const ClipboardListIcon = (props: AnimatedIconProps) => (
+  <IconBase motion="tilt" {...props}>
+    <path d="M9 4.5H6.5A1.5 1.5 0 0 0 5 6v13.5A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H15" />
+    <rect x="9" y="3" width="6" height="3" rx="1" />
+    <path d="M11 10.5h5M11 14h5M11 17.5h3.5" />
+    <circle cx="8.2" cy="10.5" r="0.9" fill="currentColor" stroke="none" />
+    <circle cx="8.2" cy="14" r="0.9" fill="currentColor" stroke="none" />
+    <circle cx="8.2" cy="17.5" r="0.9" fill="currentColor" stroke="none" />
+  </IconBase>
+);
+
+/** Colis — un carton vu en perspective ; la bande de ruban adhésif sur le dessus est ce qui en fait
+ *  un colis plutôt qu'un simple cube. */
+export const PackageIcon = (props: AnimatedIconProps) => (
+  <IconBase motion="bob" {...props}>
+    <path d="M12 3 20.5 7.5v9L12 21l-8.5-4.5v-9L12 3Z" />
+    <path d="M3.5 7.5 12 12l8.5-4.5" />
+    <path d="M12 12v9" />
+    <path d="m7.75 5.25 8.5 4.5" />
+  </IconBase>
+);
+
+/** Stocks — trois cartons empilés en pyramide, chacun avec son ruban. */
+export const BoxesIcon = (props: AnimatedIconProps) => (
+  <IconBase motion="float" {...props}>
+    <rect x="3" y="13" width="8" height="7" rx="1" />
+    <rect x="13" y="13" width="8" height="7" rx="1" />
+    <rect x="8" y="4" width="8" height="7" rx="1" />
+    <path d="M7 13v2.5M17 13v2.5M12 4v2.5" />
+  </IconBase>
+);
+
+/** Énergie — l'éclair. Il bat plutôt qu'il ne tourne : c'est une impulsion. */
+export const BoltIcon = (props: AnimatedIconProps) => (
+  <IconBase motion="beat" {...props}>
+    <path d="M13 2.5 4.5 13.5H11l-1 8 8.5-11H12l1-8Z" />
+  </IconBase>
+);
+
+/** Entreprise — la mallette, sa poignée et son fermoir. */
+export const BriefcaseIcon = (props: AnimatedIconProps) => (
+  <IconBase motion="tilt" {...props}>
+    <rect x="3" y="7" width="18" height="13" rx="2" />
+    <path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7" />
+    <path d="M3 12.5h7.5M13.5 12.5H21" />
+    <rect x="10.5" y="11.2" width="3" height="2.6" rx="0.6" />
+  </IconBase>
+);
+
+/** Arbre de compétences — une racine en bas qui se ramifie en deux, puis en trois nœuds. Les liens
+ *  s'arrêtent au bord des cercles au lieu de passer dessous : des nœuds creux traversés par leurs
+ *  traits se liraient comme des perles enfilées, pas comme un arbre. */
+export const SkillTreeIcon = (props: AnimatedIconProps) => (
+  <IconBase motion="grow" {...props}>
+    <circle cx="12" cy="20" r="1.8" />
+    <circle cx="7" cy="12.5" r="1.8" />
+    <circle cx="17" cy="12.5" r="1.8" />
+    <circle cx="4" cy="5" r="1.8" />
+    <circle cx="10" cy="5" r="1.8" />
+    <circle cx="17" cy="5" r="1.8" />
+    <path d="M11 18.5 8 14M13 18.5l3-4.5M6.3 10.8 4.7 6.7M7.7 10.8l1.6-4.1M17 10.7V6.8" />
+  </IconBase>
+);
+
+/** Statistiques — un repère et trois barres de hauteurs inégales. */
+export const BarChartIcon = (props: AnimatedIconProps) => (
+  <IconBase motion="bob" {...props}>
+    <path d="M3.5 3.5v17h17" />
+    <path d="M8.5 16.5v-4.5M13 16.5V7.5M17.5 16.5V10" strokeWidth={2.4} />
+  </IconBase>
+);
+
+/** Guide — un livre ouvert, ses deux pages qui retombent vers la reliure. */
+export const BookOpenIcon = (props: AnimatedIconProps) => (
+  <IconBase motion="float" {...props}>
+    <path d="M12 6.5C10.2 5 7.5 4.5 3 4.5v14c4.5 0 7.2.5 9 2 1.8-1.5 4.5-2 9-2v-14c-4.5 0-7.2.5-9 2Z" />
+    <path d="M12 6.5v14" />
+  </IconBase>
+);
+
+/** Tracer un flux — un chemin qui part d'un point, tourne deux fois à angle arrondi et finit en
+ *  flèche : l'outil qui dessine un trajet, pas une simple direction (d'où le point de départ, que
+ *  `ArrowRightIcon` n'a pas). */
+export const ArrowPathIcon = (props: AnimatedIconProps) => (
+  <IconBase motion="slide" {...props}>
+    <circle cx="5" cy="18" r="1.8" />
+    <path d="M6.8 18H10a3 3 0 0 0 3-3v-5a3 3 0 0 1 3-3h4.5" />
+    <path d="M17.5 4 20.5 7l-3 3" />
+  </IconBase>
+);
+
+/** Tracer une zone — un carré en pointillés. Les pointillés sont posés à la main (quatre coins, un
+ *  tiret au milieu de chaque côté) plutôt que par `stroke-dasharray`, qui tomberait n'importe où
+ *  sur les coins et donnerait un carré ébréché à 16 px. */
+export const SquareDashedIcon = (props: AnimatedIconProps) => (
+  <IconBase motion="blink" {...props}>
+    <path d="M4 7.5v-2A1.5 1.5 0 0 1 5.5 4h2" />
+    <path d="M16.5 4h2A1.5 1.5 0 0 1 20 5.5v2" />
+    <path d="M20 16.5v2a1.5 1.5 0 0 1-1.5 1.5h-2" />
+    <path d="M7.5 20h-2A1.5 1.5 0 0 1 4 18.5v-2" />
+    <path d="M10.5 4h3M10.5 20h3M4 10.5v3M20 10.5v3" />
+  </IconBase>
+);
+
+/** Toiture — le toit à deux pans et sa cheminée, les murs à peine esquissés dessous : c'est le toit
+ *  qui compte, la maison n'est là que pour qu'on le reconnaisse. */
+export const HouseRoofIcon = (props: AnimatedIconProps) => (
+  <IconBase motion="bob" {...props}>
+    <path d="M2.5 13 12 5.5l9.5 7.5" />
+    <path d="M16 8.3V5h2.5v5.3" />
+    <path d="M5.5 11v8.5h13V11" opacity={0.4} />
+  </IconBase>
+);
+
+/** Parking — le P de la signalisation, dans son carré arrondi. */
+export const ParkingIcon = (props: AnimatedIconProps) => (
+  <IconBase motion="pulse" {...props}>
+    <rect x="3.5" y="3.5" width="17" height="17" rx="3" />
+    <path d="M9.5 17V7.5H13a3 3 0 0 1 0 6H9.5" />
+  </IconBase>
+);
+
+/** Camion — un porteur de profil, caisse à gauche, cabine à droite, deux roues. */
+export const TruckIcon = (props: AnimatedIconProps) => (
+  <IconBase motion="slide" {...props}>
+    <path d="M4.8 17.5H3.5a1 1 0 0 1-1-1v-10a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v11" />
+    <path d="M9 17.5h6.5" />
+    <path d="M14.5 9h3.9l3.1 3.9v3.6a1 1 0 0 1-1 1h-.8" />
+    <path d="M14.5 12.8h7" />
+    <circle cx="7" cy="17.5" r="2" />
+    <circle cx="17.5" cy="17.5" r="2" />
+  </IconBase>
+);
+
+/** Route — deux bas-côtés qui fuient vers l'horizon et une ligne médiane en tirets qui s'allongent
+ *  en approchant, pour que la perspective se lise même sans les bords. */
+export const RoadIcon = (props: AnimatedIconProps) => (
+  <IconBase motion="bob" {...props}>
+    <path d="M9.5 3.5 4 20.5M14.5 3.5 20 20.5" />
+    <path d="M12 4v2M12 9.5v3M12 16v4.5" />
+  </IconBase>
+);
+
+/** Froid — le flocon à six branches. Une seule branche est dessinée avec ses chevrons, puis tournée
+ *  de 60° et de 120° : la symétrie est exacte sans six jeux de coordonnées à la main. */
+export const SnowflakeIcon = (props: AnimatedIconProps) => (
+  <IconBase motion="spin" {...props}>
+    <path d="M12 2.5v19M9.5 4 12 6.5 14.5 4M9.5 20l2.5-2.5 2.5 2.5" />
+    <path d="M12 2.5v19M9.5 4 12 6.5 14.5 4M9.5 20l2.5-2.5 2.5 2.5" transform="rotate(60 12 12)" />
+    <path d="M12 2.5v19M9.5 4 12 6.5 14.5 4M9.5 20l2.5-2.5 2.5 2.5" transform="rotate(120 12 12)" />
+  </IconBase>
+);
+
+/** Automatisation — une tête de robot : antenne, deux yeux pleins, une bouche, deux oreilles. */
+export const RobotIcon = (props: AnimatedIconProps) => (
+  <IconBase motion="bob" {...props}>
+    <rect x="4.5" y="8" width="15" height="11" rx="2.5" />
+    <path d="M12 8V5.2" />
+    <circle cx="12" cy="4" r="1.2" />
+    <circle cx="9" cy="12.8" r="1.3" fill="currentColor" stroke="none" />
+    <circle cx="15" cy="12.8" r="1.3" fill="currentColor" stroke="none" />
+    <path d="M9.5 16h5M2.5 12v3M21.5 12v3" />
+  </IconBase>
+);
+
+/** Arbre — un feuillu : une couronne arrondie, le tronc et deux branches qui y montent. */
+export const TreeIcon = (props: AnimatedIconProps) => (
+  <IconBase motion="sway" {...props}>
+    <path d="M8 16.5a4.5 4.5 0 0 1-2.2-8.4A5 5 0 0 1 12 3.5a5 5 0 0 1 6.2 4.6 4.5 4.5 0 0 1-2.2 8.4Z" />
+    <path d="M12 21v-8.5M12 15l-2.3-2.2M12 13.8l2-1.9" />
+  </IconBase>
+);
+
+/** Convoyeur — une bande sans fin sur trois rouleaux, un carton posé dessus. */
+export const ConveyorIcon = (props: AnimatedIconProps) => (
+  <IconBase motion="slide" {...props}>
+    <rect x="2.5" y="13" width="19" height="6" rx="3" />
+    <circle cx="5.5" cy="16" r="1" />
+    <circle cx="12" cy="16" r="1" />
+    <circle cx="18.5" cy="16" r="1" />
+    <rect x="8" y="6" width="8" height="7" rx="1" />
+    <path d="M12 6v2.5" />
+  </IconBase>
+);
+
+/** Chariot élévateur — de profil : le corps et sa cabine, deux roues, le mât dressé à l'avant et la
+ *  fourche qui en part au ras du sol. */
+export const ForkliftIcon = (props: AnimatedIconProps) => (
+  <IconBase motion="bob" {...props}>
+    <path d="M4 17.5h-.5a.5.5 0 0 1-.5-.5v-5.5a1 1 0 0 1 1-1h3.5V5a1 1 0 0 1 1-1h3.2a1 1 0 0 1 .97.76L14.5 10.5v5" />
+    <path d="M8 17.5h2.5" />
+    <path d="M17 3.5V19h4.5M14.5 12.5H17" />
+    <circle cx="6" cy="17.5" r="2" />
+    <circle cx="12.5" cy="17.5" r="2" />
+  </IconBase>
+);
+
+/** Chariot de préparation — le caddie : la poignée, le panier, deux roues. */
+export const CartIcon = (props: AnimatedIconProps) => (
+  <IconBase motion="slide" {...props}>
+    <path d="M2.5 4h2.2l2.3 11h11l2-8H6.2" />
+    <circle cx="8.5" cy="19" r="1.5" />
+    <circle cx="17" cy="19" r="1.5" />
+  </IconBase>
+);

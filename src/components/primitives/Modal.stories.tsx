@@ -57,3 +57,40 @@ export const Fullscreen: Story = {
     );
   },
 };
+
+/**
+ * Sur un téléphone, la modale devient une page entière : pas d'arrondi, les encoches respectées, et
+ * l'en-tête collé en haut — la croix, agrandie au doigt, reste à portée pendant qu'on fait défiler un
+ * contenu plus long que l'écran. La story s'ouvre dans le cadre « mobile » de Storybook ; ouverte
+ * seule (`iframe.html`) sur un vrai téléphone, c'est la largeur de l'écran qui décide.
+ */
+export const Mobile: Story = {
+  name: "Sur un téléphone",
+  globals: { viewport: { value: "mobile2", isRotated: false } },
+  render: () => {
+    const [open, setOpen] = useState(true);
+    return (
+      <>
+        <Button onClick={() => setOpen(true)}>Ouvrir la modale</Button>
+        <Modal open={open} onClose={() => setOpen(false)} title="Quai de réception n° 2">
+          <FieldGroup label="Allumage">
+            <Button selected>Allumer</Button>
+            <Button>Éteindre</Button>
+          </FieldGroup>
+          <FieldGroup label="Température">
+            <Button selected>Blanc chaud</Button>
+            <Button>Blanc doux</Button>
+            <Button>Blanc neutre</Button>
+            <Button>Blanc froid</Button>
+          </FieldGroup>
+          {Array.from({ length: 8 }, (_, i) => (
+            <p key={i} style={{ margin: 0, color: "var(--lq-color-text-muted)", lineHeight: 1.5 }}>
+              Paragraphe {i + 1} — un contenu plus long que l'écran, pour voir l'en-tête rester en place pendant le
+              défilement et le bouton « Fermer » attendre en bas de la page.
+            </p>
+          ))}
+        </Modal>
+      </>
+    );
+  },
+};

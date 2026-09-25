@@ -145,3 +145,128 @@
 .lq-root[data-lq-palette="eink"] .lq-modal__close-button {
   border-radius: 0;
 }
+
+/* --- Au doigt ---------------------------------------------------------------------------------- */
+
+/* Un pointeur grossier (un doigt, un stylet) : la croix et le bouton « Fermer » prennent la taille
+   d'une cible qu'on touche sans viser — 44 px, la mesure habituelle des guides d'interface tactile. */
+@media (pointer: coarse) {
+  .lq-modal__close-icon {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .lq-modal__close-button {
+    min-height: 44px;
+    align-items: center;
+  }
+}
+
+/* --- Sur un téléphone ----------------------------------------------------------------------------- */
+
+/* Une boîte centrée de 420 px, sur un écran de 390, ne laisse qu'un liseré de voile autour et
+   rogne son propre contenu : sur un petit écran, la modale devient une page. Toutes les tailles se
+   rejoignent ici — `wide` et `fullscreen` n'ont plus de place à réclamer que l'écran n'ait déjà.
+   `100dvh` suit la barre d'adresse qui apparaît et disparaît sur mobile (là où `100vh` cache le bas
+   de la page sous elle) ; `100vh` reste écrit avant, pour les navigateurs qui ne la connaissent pas.
+   Les marges internes tiennent compte des encoches et de la barre de geste : `env(safe-area-inset-*)`
+   vaut zéro partout ailleurs, et `max()` garde alors l'espacement ordinaire. */
+@media (max-width: 640px) {
+  .lq-modal__overlay {
+    align-items: stretch;
+    justify-content: stretch;
+    padding: 0;
+  }
+
+  .lq-modal,
+  .lq-modal--wide,
+  .lq-modal--fullscreen {
+    --lq-modal-pad-left: max(var(--lq-space-4), env(safe-area-inset-left, 0px));
+    --lq-modal-pad-right: max(var(--lq-space-4), env(safe-area-inset-right, 0px));
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    max-width: none;
+    max-height: none;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    /* Le défilement reste dans la page : arrivé en bout de contenu, le doigt ne fait pas défiler
+       l'application cachée derrière le voile. */
+    overscroll-behavior: contain;
+    /* Le décalage d'un glisser-déposer arrive en style en ligne ; une page qui remplit l'écran n'a
+       nulle part où aller, on l'annule donc ici plutôt que de laisser un bord vide apparaître. */
+    transform: none !important;
+  }
+
+  /* Une hauteur fixe pour toutes les tailles : le contenu remplit la page même quand il est court,
+     et le pied (le bouton « Fermer ») tombe en bas de l'écran, sous le pouce. */
+  .lq-modal__inner {
+    min-height: 100%;
+    padding: calc(var(--lq-space-4) + env(safe-area-inset-top, 0px)) var(--lq-modal-pad-right)
+      max(var(--lq-space-4), env(safe-area-inset-bottom, 0px)) var(--lq-modal-pad-left);
+    gap: var(--lq-space-3);
+  }
+
+  /* Avec un titre, c'est l'en-tête qui porte l'encoche du haut : il colle au bord de la zone qui
+     défile (`.lq-modal` pour la taille ordinaire, qui défile en entier) et doit donc couvrir lui-même
+     l'espace sous l'encoche, sans quoi le contenu y passerait en transparence. Ses marges négatives
+     l'étendent d'un bord à l'autre, par-dessus le rembourrage latéral de `.lq-modal__inner`. */
+  .lq-modal--titled .lq-modal__inner {
+    padding-top: 0;
+  }
+
+  .lq-modal__header {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    margin: 0 calc(-1 * var(--lq-modal-pad-right)) 0 calc(-1 * var(--lq-modal-pad-left));
+    padding: calc(var(--lq-space-2) + env(safe-area-inset-top, 0px)) calc(var(--lq-modal-pad-right) - var(--lq-space-2))
+      var(--lq-space-2) var(--lq-modal-pad-left);
+    background-color: var(--lq-color-panel);
+    border-bottom: 1px solid var(--lq-color-border);
+  }
+
+  /* On ne déplace plus la page : l'en-tête redevient une zone où le doigt peut faire défiler. */
+  .lq-modal__header--draggable {
+    cursor: default;
+    touch-action: auto;
+  }
+
+  .lq-modal__title {
+    flex: 1;
+    min-width: 0;
+    font-size: 1.15rem;
+    overflow-wrap: anywhere;
+  }
+
+  .lq-modal__close-icon {
+    min-width: 44px;
+    min-height: 44px;
+    color: var(--lq-color-text);
+  }
+
+  .lq-modal__close-icon svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  .lq-modal__close-icon:focus-visible {
+    outline: 2px solid var(--lq-color-focus-ring);
+    outline-offset: -2px;
+  }
+
+  .lq-modal__body {
+    min-width: 0;
+  }
+
+  /* Le pied descend au bas de la page, quelle que soit la longueur du contenu. */
+  .lq-modal__footer {
+    margin-top: auto;
+    padding-top: var(--lq-space-2);
+  }
+
+  .lq-modal__close-button {
+    min-height: 48px;
+    align-items: center;
+  }
+}

@@ -1,0 +1,243 @@
+/* Le dock : un panneau translucide qui laisse deviner la scène dessous (couleur de panneau à 78 %,
+   flou d'arrière-plan), des boutons carrés aux coins arrondis.
+   Les coins arrondis sont un choix propre à ce composant — le reste du kit est à angles vifs, mais
+   un dock de jeu posé sur une scène 3D se lit comme un objet, et un objet a des coins doux. Ils
+   passent par des propriétés locales (`--lq-dock-radius`, `--lq-dock-button-radius`) que
+   l'application peut ramener à 0, et que la palette e-ink ramène à 0 d'elle-même. */
+.lq-icon-dock {
+  --lq-dock-radius: 14px;
+  --lq-dock-button-radius: 10px;
+  --lq-dock-button: 44px;
+  --lq-dock-icon: 22px;
+  --lq-dock-gap: 6px;
+
+  display: inline-flex;
+  flex-wrap: nowrap;
+  gap: var(--lq-dock-gap);
+  max-width: 100%;
+  padding: var(--lq-dock-gap);
+  color: var(--lq-color-text);
+  background: color-mix(in srgb, var(--lq-color-panel) 78%, transparent);
+  border: 1px solid color-mix(in srgb, var(--lq-color-border) 70%, transparent);
+  border-radius: var(--lq-dock-radius);
+  box-shadow: 0 8px 28px color-mix(in srgb, var(--lq-color-text) 16%, transparent);
+  -webkit-backdrop-filter: blur(10px) saturate(1.2);
+  backdrop-filter: blur(10px) saturate(1.2);
+}
+
+.lq-icon-dock--horizontal {
+  flex-direction: row;
+}
+
+.lq-icon-dock--vertical {
+  flex-direction: column;
+}
+
+.lq-icon-dock--sm {
+  --lq-dock-button: 36px;
+  --lq-dock-icon: 18px;
+  --lq-dock-gap: 4px;
+  --lq-dock-button-radius: 8px;
+  --lq-dock-radius: 12px;
+}
+
+.lq-icon-dock--lg {
+  --lq-dock-button: 52px;
+  --lq-dock-icon: 26px;
+  --lq-dock-gap: 8px;
+  --lq-dock-button-radius: 12px;
+  --lq-dock-radius: 18px;
+}
+
+/* Un doigt demande au moins 40 px : le petit format remonte à 40 sur un pointeur grossier. */
+@media (pointer: coarse) {
+  .lq-icon-dock--sm {
+    --lq-dock-button: 40px;
+  }
+}
+
+.lq-icon-dock__slot {
+  flex: 0 0 auto;
+}
+
+.lq-icon-dock__button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--lq-dock-button);
+  height: var(--lq-dock-button);
+  padding: 0;
+  color: var(--lq-color-text);
+  cursor: pointer;
+  background: var(--lq-color-panel);
+  border: 1px solid var(--lq-color-border-subtle);
+  border-radius: var(--lq-dock-button-radius);
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--lq-color-text) 14%, transparent);
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background-color var(--lq-transition-fast),
+    color var(--lq-transition-fast),
+    border-color var(--lq-transition-fast),
+    box-shadow var(--lq-transition-fast),
+    transform 120ms ease;
+}
+
+.lq-icon-dock__icon {
+  display: inline-flex;
+}
+
+.lq-icon-dock__icon svg {
+  width: var(--lq-dock-icon);
+  height: var(--lq-dock-icon);
+}
+
+.lq-icon-dock__button:hover:not([aria-disabled="true"]) {
+  background: color-mix(in srgb, var(--lq-color-accent) 12%, var(--lq-color-panel));
+  border-color: color-mix(in srgb, var(--lq-color-accent) 45%, var(--lq-color-border-subtle));
+}
+
+.lq-icon-dock__button:active:not([aria-disabled="true"]) {
+  transform: scale(0.94);
+}
+
+.lq-icon-dock__button:focus-visible {
+  outline: 2px solid var(--lq-color-focus-ring);
+  outline-offset: 2px;
+}
+
+/* L'actif : rempli à l'accent, et un anneau clair entre le bouton et le panneau pour qu'il se
+   détache même quand l'accent est proche de la couleur du panneau. */
+.lq-icon-dock__button--active,
+.lq-icon-dock__button--active:hover:not([aria-disabled="true"]) {
+  color: var(--lq-color-accent-contrast);
+  background: var(--lq-color-accent);
+  border-color: var(--lq-color-accent);
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--lq-color-accent) 30%, transparent),
+    0 2px 8px color-mix(in srgb, var(--lq-color-accent) 35%, transparent);
+}
+
+.lq-icon-dock__button[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.4;
+  box-shadow: none;
+}
+
+/* La pastille est dessinée dans le coin du bouton, pas à cheval sur son bord : en mode ruban, le
+   dock défile et rogne tout ce qui dépasse de lui. */
+.lq-icon-dock__badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 16px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  color: var(--lq-color-accent-contrast);
+  background: var(--lq-color-danger);
+  border-radius: 999px;
+  box-shadow: 0 0 0 1.5px var(--lq-color-panel);
+  pointer-events: none;
+}
+
+.lq-icon-dock__badge--dot {
+  top: 5px;
+  right: 5px;
+  min-width: 0;
+  width: 9px;
+  height: 9px;
+  padding: 0;
+}
+
+.lq-icon-dock__button--active .lq-icon-dock__badge {
+  box-shadow: 0 0 0 1.5px var(--lq-color-accent);
+}
+
+/* Le ruban : une seule ligne qui défile et se cale sur chaque bouton, sans barre visible. Le padding
+   de fin (`scroll-padding`) laisse le premier et le dernier bouton se caler à distance du bord. */
+.lq-icon-dock--horizontal.lq-icon-dock--compact {
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline: var(--lq-dock-gap);
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.lq-icon-dock--horizontal.lq-icon-dock--compact .lq-icon-dock__slot {
+  scroll-snap-align: start;
+}
+
+.lq-root .lq-icon-dock--horizontal.lq-icon-dock--compact::-webkit-scrollbar,
+.lq-icon-dock--horizontal.lq-icon-dock--compact::-webkit-scrollbar {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .lq-icon-dock--horizontal {
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: var(--lq-dock-gap);
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .lq-icon-dock--horizontal .lq-icon-dock__slot {
+    scroll-snap-align: start;
+  }
+
+  .lq-root .lq-icon-dock--horizontal::-webkit-scrollbar,
+  .lq-icon-dock--horizontal::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* E-ink : panneau opaque, trait net, ni flou ni ombre ni arrondi — rien qui laisse de rémanence. */
+.lq-root[data-lq-palette="eink"] .lq-icon-dock {
+  --lq-dock-radius: 0px;
+  --lq-dock-button-radius: 0px;
+  background: var(--lq-color-panel);
+  border-color: var(--lq-color-border);
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.lq-root[data-lq-palette="eink"] .lq-icon-dock__button {
+  border-color: var(--lq-color-border);
+  box-shadow: none;
+  transition: none;
+}
+
+.lq-root[data-lq-palette="eink"] .lq-icon-dock__button--active {
+  box-shadow: none;
+}
+
+.lq-root[data-lq-palette="eink"] .lq-icon-dock__badge {
+  color: var(--lq-color-panel);
+  background: var(--lq-color-text);
+}
+
+/* Sur un bouton actif, déjà rempli d'encre, la pastille s'inverse pour rester visible. */
+.lq-root[data-lq-palette="eink"] .lq-icon-dock__button--active .lq-icon-dock__badge {
+  color: var(--lq-color-text);
+  background: var(--lq-color-panel);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lq-icon-dock__button {
+    transition: none;
+  }
+
+  .lq-icon-dock__button:active:not([aria-disabled="true"]) {
+    transform: none;
+  }
+}

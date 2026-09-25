@@ -400,3 +400,10 @@
 .lq-bay__hatch {
   fill: color-mix(in srgb, var(--lq-color-amber) 60%, var(--lq-color-bg));
 }
+
+/* --- La voie d'accès ------------------------------------------------------------------------------ */
+
+/* Ses flèches au sol : la peinture des lignes, un peu passée — elles se lisent sans crier. */
+.lq-road__arrow {
+  fill: color-mix(in srgb, color-mix(in srgb, var(--lq-color-text) 2%, var(--lq-color-bg)) 55%, transparent);
+}

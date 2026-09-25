@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { Canvas, useThree } from "@react-three/fiber";
-import { Matrix4, NoToneMapping, PCFSoftShadowMap, Vector3, type BufferGeometry, type DirectionalLight, type OrthographicCamera, type PerspectiveCamera } from "three";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { Matrix4, NoToneMapping, PCFShadowMap, PCFSoftShadowMap, Vector3, type BufferGeometry, type DirectionalLight, type OrthographicCamera, type PerspectiveCamera } from "three";
 import { projectIso } from "../warehouseIso";
 import { IsoCamera, useIsoCamera, useIsoProjection, useIsoZoom } from "../isoCamera";
 import { PERSPECTIVE_FOV, cameraBasis, heading, perspectiveDistance, type Projection } from "./camera";
@@ -93,8 +93,9 @@ export function projectedBox(b: Bounds, yaw: number, tilt: number, scale: number
  *  et non de réalisme. L'ombre tombe toujours du même côté à l'écran — vers la droite et l'arrière —
  *  si bien qu'une scène qu'on fait tourner garde la même lecture.
  */
-function Rig({ yaw, tilt, scale, target, span, height, projection }: { yaw: number; tilt: number; scale: number; target: Vector3; span: number; height: number; projection: Projection }) {
+function Rig({ yaw, tilt, scale, target, span, height, projection, quality }: { yaw: number; tilt: number; scale: number; target: Vector3; span: number; height: number; projection: Projection; quality: ResolvedQuality }) {
   const camera = useThree((s) => s.camera);
+  const gl = useThree((s) => s.gl);
   const invalidate = useThree((s) => s.invalidate);
   const light = useRef<DirectionalLight>(null);
 
@@ -144,8 +145,11 @@ function Rig({ yaw, tilt, scale, target, span, height, projection }: { yaw: numb
     cam.far = span * 5 + 40;
     cam.updateProjectionMatrix();
     l.shadow.needsUpdate = true;
+    // En qualité basse, la carte d'ombre n'est pas refaite à chaque image (voir `ShadowCadence`) :
+    // un soleil qui a tourné la redemande.
+    gl.shadowMap.needsUpdate = true;
     invalidate();
-  }, [yaw, target, span, invalidate]);
+  }, [yaw, target, span, invalidate, gl, quality]);
 
   return (
     <>
@@ -153,11 +157,13 @@ function Rig({ yaw, tilt, scale, target, span, height, projection }: { yaw: numb
           latérales du dessin, qui n'étaient qu'un ton plus sombres. */}
       <hemisphereLight args={["#ffffff", "#e8e4dc", 1.25]} />
       <directionalLight
+        // Une carte d'ombre ne change pas de taille en place : changer de qualité, c'est une autre lumière.
+        key={quality}
         ref={light}
         intensity={2.35}
         castShadow
-        shadow-mapSize-width={2048}
-        shadow-mapSize-height={2048}
+        shadow-mapSize-width={SHADOW_MAP[quality]}
+        shadow-mapSize-height={SHADOW_MAP[quality]}
         shadow-bias={-0.0015}
         shadow-normalBias={0.14}
       />
@@ -165,9 +171,87 @@ function Rig({ yaw, tilt, scale, target, span, height, projection }: { yaw: numb
   );
 }
 
+/** La qualité de rendu d'une scène : `"auto"` la choisit selon l'appareil. */
+export type SceneQuality = "auto" | "high" | "low";
+type ResolvedQuality = "high" | "low";
+
+/**
+ * La qualité qu'un appareil peut tenir.
+ *
+ * ## Ce que coûte une scène sur un téléphone
+ *
+ *  Mesurée sur une partie de 130 éléments (la story « Warehouse/Performance »), une image se paie
+ *  surtout en **objets à dessiner** — chacun deux fois, pour l'image et pour la carte d'ombre —, en
+ *  **triangles** — les marchandises des racks en font les quatre cinquièmes — et en **pixels** : un
+ *  téléphone a trois pixels physiques par pixel CSS, neuf fois plus de surface à remplir qu'un écran
+ *  de bureau pour la même toile. `"low"` rogne là où l'œil ne perd presque rien à la taille d'un
+ *  téléphone : une densité de pixels bornée à 1,5, une carte d'ombre plus petite et refaite une image
+ *  sur trois, des marchandises moins détaillées, un décor plus clair autour du terrain, des arbres
+ *  sans vent. `"high"` est l'image de toujours.
+ *
+ *  `"auto"` choisit `"low"` sur un **petit écran tactile** — pointeur grossier et 900 px ou moins
+ *  sur le petit côté : un téléphone, une petite tablette — ou sur un processeur de **quatre cœurs
+ *  ou moins**, et `"high"` ailleurs.
+ */
+export function resolveSceneQuality(q: SceneQuality = "auto"): ResolvedQuality {
+  if (q !== "auto") return q;
+  if (typeof window === "undefined") return "high";
+  const coarse = typeof window.matchMedia === "function" && window.matchMedia("(pointer: coarse)").matches;
+  const small = Math.min(window.innerWidth, window.innerHeight) <= 900;
+  const cores = typeof navigator !== "undefined" && navigator.hardwareConcurrency ? navigator.hardwareConcurrency : 8;
+  return (coarse && small) || cores <= 4 ? "low" : "high";
+}
+
+const SceneQualityContext = createContext<ResolvedQuality>("high");
+/**
+ * La qualité de la scène où l'on est — `"high"` hors d'une scène. Un module s'en sert pour alléger
+ * ce qui ne se verrait pas à la taille d'un téléphone ; en `"high"`, il ne change rien.
+ */
+export const useSceneQuality = () => useContext(SceneQualityContext);
+
+/** La densité de pixels la plus forte qu'on rend, par qualité. */
+const DPR_CAP: Record<ResolvedQuality, number> = { high: 2, low: 1.5 };
+/** Le côté de la carte d'ombre, par qualité. */
+const SHADOW_MAP: Record<ResolvedQuality, number> = { high: 2048, low: 1024 };
+/** Le temps sans mouvement de la vue après lequel la pleine densité revient, en millisecondes. */
+const SETTLE_MS = 300;
+
+/**
+ * La carte d'ombre, **une image sur `every`** tant que la scène s'anime.
+ *
+ *  Refaire la carte d'ombre, c'est redessiner toute la scène une seconde fois, du point de vue du
+ *  soleil : près de la moitié des appels de dessin d'une image. En qualité basse, on ne la refait
+ *  qu'une image sur trois pendant une animation continue — l'ombre d'un camion qui roule suit avec
+ *  une ou deux images de retard, invisibles à son allure — et **toujours** pour une image isolée, qui
+ *  suit un changement de la scène (un élément posé, déplacé) : là, une ombre n'est jamais en retard.
+ */
+function ShadowCadence({ every }: { every: number }) {
+  const gl = useThree((s) => s.gl);
+  const last = useRef(0);
+  const count = useRef(0);
+  useEffect(() => {
+    gl.shadowMap.autoUpdate = every <= 1;
+    gl.shadowMap.needsUpdate = true;
+    return () => {
+      gl.shadowMap.autoUpdate = true;
+    };
+  }, [gl, every]);
+  useFrame(() => {
+    if (every <= 1) return;
+    const now = performance.now();
+    const gap = now - last.current;
+    last.current = now;
+    count.current += 1;
+    if (gap > 120 || count.current % every === 0) gl.shadowMap.needsUpdate = true;
+  }, -200);
+  return null;
+}
+
 export interface WarehouseSceneProps {
   /** Ce que la scène doit cadrer, en cases. */
   bounds: Bounds;
+  /** La qualité de rendu (densité de pixels, ombres). Défaut : `"auto"`. */
+  quality?: SceneQuality;
   /** Pixels par case, au grossissement 1. */
   cellSize?: number;
   /** Marge autour du cadre, en pixels. */
@@ -215,7 +299,7 @@ export interface WarehouseSceneProps {
  *  Le contexte React ne traverse pas la frontière de la toile : ce qui vient de l'extérieur — la
  *  caméra, la palette — est relu ici et redonné à l'intérieur.
  */
-export function WarehouseScene({ bounds, cellSize = 30, padding = 10, speed = 1, paused = false, catcher = false, viewport, lazy = true, className, style, ariaLabel, children }: WarehouseSceneProps) {
+export function WarehouseScene({ bounds, quality: qualityProp = "auto", cellSize = 30, padding = 10, speed = 1, paused = false, catcher = false, viewport, lazy = true, className, style, ariaLabel, children }: WarehouseSceneProps) {
   const cam = useIsoCamera();
   const zoom = useIsoZoom();
   const projection = useIsoProjection();
@@ -255,6 +339,15 @@ export function WarehouseScene({ bounds, cellSize = 30, padding = 10, speed = 1,
   const target = useMemo(() => new Vector3(cy, cx, cz), [cx, cy, cz]);
   const span = Math.hypot(bounds.x1 - bounds.x0, bounds.y1 - bounds.y0, bounds.z1 - bounds.z0);
 
+  // La qualité, résolue pour l'appareil (et à nouveau si on la change).
+  const quality = useMemo(() => resolveSceneQuality(qualityProp), [qualityProp]);
+  // La densité de pixels : celle de l'écran, bornée — et **abaissée à 1 pendant que la vue bouge**.
+  // Un glisser, un zoom, une rotation redessinent tout à chaque image : c'est là que la fluidité se
+  // voit, pas la finesse du trait. La pleine densité revient quand la vue s'est posée.
+  const moving = useViewMotion([cam.yaw, cam.tilt, scale, cx, cy, cz, projection].join(","));
+  const deviceDpr = typeof window === "undefined" ? 1 : window.devicePixelRatio || 1;
+  const dpr = Math.min(deviceDpr, moving ? 1 : DPR_CAP[quality]);
+
   return (
     <div ref={host} className={className} role="img" aria-label={ariaLabel} style={{ position: "relative", width, height, flex: "none", ...style }}>
       {palette !== null && visible && (
@@ -263,14 +356,21 @@ export function WarehouseScene({ bounds, cellSize = 30, padding = 10, speed = 1,
           key={projection}
           orthographic={projection === "orthographic"}
           flat
-          shadows={{ type: PCFSoftShadowMap }}
+          shadows={{ type: quality === "high" ? PCFSoftShadowMap : PCFShadowMap }}
           frameloop="demand"
-          dpr={[1, 2]}
+          dpr={dpr}
           gl={{ antialias: true, alpha: true, toneMapping: NoToneMapping }}
+          // Vérifier chaque shader compilé, c'est attendre la carte graphique à chaque matière neuve :
+          // un aller-retour bloquant, pour des shaders qui sont tous ceux de three.
+          onCreated={({ gl }) => {
+            gl.debug.checkShaderErrors = false;
+          }}
           style={{ position: "absolute", inset: 0 }}
         >
-          <Rig yaw={cam.yaw} tilt={cam.tilt} scale={scale} target={target} span={span} height={height} projection={projection} />
+          <Rig yaw={cam.yaw} tilt={cam.tilt} scale={scale} target={target} span={span} height={height} projection={projection} quality={quality} />
+          <ShadowCadence every={quality === "low" ? 3 : 1} />
           <SimClockProvider speed={speed} paused={paused}>
+            <SceneQualityContext.Provider value={quality}>
             <InScene.Provider value={true}>
               <PaletteContext.Provider value={palette}>
                 <IsoCamera yaw={cam.yaw} tilt={cam.tilt} zoom={zoom} projection={projection}>
@@ -281,11 +381,29 @@ export function WarehouseScene({ bounds, cellSize = 30, padding = 10, speed = 1,
                 </IsoCamera>
               </PaletteContext.Provider>
             </InScene.Provider>
+            </SceneQualityContext.Provider>
           </SimClockProvider>
         </Canvas>
       )}
     </div>
   );
+}
+
+/**
+ * La vue bouge-t-elle ? Vrai dès que `key` (la caméra, le cadre) change, et jusqu'à `SETTLE_MS`
+ * après son dernier changement. Le premier cadrage ne compte pas : une scène qui s'ouvre est posée.
+ */
+function useViewMotion(key: string): boolean {
+  const [moving, setMoving] = useState(false);
+  const first = useRef(key);
+  useEffect(() => {
+    if (first.current === key) return;
+    first.current = key;
+    setMoving(true);
+    const t = window.setTimeout(() => setMoving(false), SETTLE_MS);
+    return () => window.clearTimeout(t);
+  }, [key]);
+  return moving;
 }
 
 /** Le sol invisible d'un module seul : il ne rend que l'ombre qu'on y porte. */
@@ -352,17 +470,20 @@ export function useBuilt(make: () => Built, deps: unknown[]): Built {
 /** Ce qu'un constructeur a produit, à l'écran : un maillage par matière, un tracé par trait. */
 export function Parts({ built, shadows = true }: { built: Built; shadows?: boolean }) {
   const pal = usePalette();
+  // Rien ici ne bouge par rapport à son parent : pas de matrice locale à recomposer à chaque image
+  // (`matrixAutoUpdate`). Leur place dans le monde suit toujours celle du parent, que la scène
+  // recalcule de haut en bas.
   return (
-    <group>
+    <group matrixAutoUpdate={false}>
       {[...built.solids].map(([mat, g]) => (
-        <mesh key={`s-${mat}`} geometry={g} material={pal.solid(mat)} castShadow={shadows} receiveShadow />
+        <mesh key={`s-${mat}`} geometry={g} material={pal.solid(mat)} castShadow={shadows} receiveShadow matrixAutoUpdate={false} />
       ))}
       {[...built.decals].map(([cls, g]) => (
-        <mesh key={`d-${cls}`} geometry={g} material={pal.decal(cls)} receiveShadow />
+        <mesh key={`d-${cls}`} geometry={g} material={pal.decal(cls)} receiveShadow matrixAutoUpdate={false} />
       ))}
-      {built.edges && <lineSegments geometry={built.edges} material={pal.edge} />}
+      {built.edges && <lineSegments geometry={built.edges} material={pal.edge} matrixAutoUpdate={false} />}
       {[...built.strokes].map(([cls, g]) => (
-        <lineSegments key={`l-${cls}`} geometry={g} material={pal.stroke(cls)} />
+        <lineSegments key={`l-${cls}`} geometry={g} material={pal.stroke(cls)} matrixAutoUpdate={false} />
       ))}
     </group>
   );

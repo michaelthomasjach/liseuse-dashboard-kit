@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { DockWall, StandardWall } from "./BuildingWalls";
 import { Fence } from "./Fence";
 import { Conveyor } from "./Conveyor";
@@ -31,6 +32,7 @@ import { RoofHvac, RoofSolar } from "./RoofUnits";
 import { ColdRoom } from "./ColdRoom";
 import { TruckBay } from "./TruckBay";
 import { Office } from "./Office";
+import { AccessRoad } from "./Road";
 import { TREE_KINDS } from "./Tree";
 import type { WallOpening } from "./Wall";
 import { Builder } from "./three/builder";
@@ -133,7 +135,47 @@ function AutonomyKit({ origin, rotation }: { origin: { x: number; y: number }; r
  * sa dalle, et une ossature jusqu'au sol s'il n'a rien dessous (voir `rooftopSupport`) ; sans lui,
  * il est posé à l'acrotère, comme sur un toit.
  */
-export function PlannerItem3D({ item, mounts, roofs = true, night = 0, support }: { item: PlannerItem; mounts?: WallOpening[]; roofs?: boolean; night?: number; support?: RooftopSupport | null }) {
+export interface PlannerItem3DProps {
+  item: PlannerItem;
+  mounts?: WallOpening[];
+  roofs?: boolean;
+  night?: number;
+  support?: RooftopSupport | null;
+}
+
+/** Deux éléments du plan décrits pareil : le même objet, ou les mêmes champs. */
+function sameItem(a: PlannerItem, b: PlannerItem): boolean {
+  return a === b || JSON.stringify(a) === JSON.stringify(b);
+}
+
+/** Deux listes d'ouvertures identiques, ouverture par ouverture. */
+function sameMounts(a: WallOpening[] | undefined, b: WallOpening[] | undefined): boolean {
+  if (a === b) return true;
+  if (!a || !b || a.length !== b.length) return false;
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
+/**
+ * Faut-il redessiner l'élément ? Seulement si **ce qu'il montre** a changé.
+ *
+ *  Le plan redessine sa scène à chaque geste, à chaque compteur d'un jeu qui monte : sans ce tri,
+ *  ses cent trente éléments repasseraient tous par React, et chacun par son module, pour rien. Le
+ *  plan passe à chacun des valeurs recalculées à chaque fois — les ouvertures d'un mur, l'appui d'un
+ *  équipement de toiture — et des réglages qui ne concernent que certains : la nuit n'allume que les
+ *  luminaires, les toits masqués n'emportent que les toitures, ce qui est posé dessus et le plafond
+ *  des chambres froides. On compare donc par valeur, et seulement ce qui compte pour cet élément.
+ */
+function sameProps(a: PlannerItem3DProps, b: PlannerItem3DProps): boolean {
+  if (!sameItem(a.item, b.item) || !sameMounts(a.mounts, b.mounts)) return false;
+  const kind = b.item.kind;
+  if (kind === "light" && (a.night ?? 0) !== (b.night ?? 0)) return false;
+  if ((kind === "roof" || kind === "coldRoom" || isRooftop(b.item)) && (a.roofs ?? true) !== (b.roofs ?? true)) return false;
+  return (a.support?.z ?? null) === (b.support?.z ?? null) && (a.support?.legs ?? null) === (b.support?.legs ?? null);
+}
+
+export const PlannerItem3D = memo(PlannerItem3DBody, sameProps);
+
+function PlannerItem3DBody({ item, mounts, roofs = true, night = 0, support }: PlannerItem3DProps) {
   const lv = levelOf(item);
   if (isLinear(item)) {
     const L = Math.max(0.5, Math.hypot(item.x1 - item.x0, item.y1 - item.y0));
@@ -240,6 +282,9 @@ export function PlannerItem3D({ item, mounts, roofs = true, night = 0, support }
         );
       case "gate":
         return <SlidingGate length={L} origin={axis} rotation={rotation} cycle={lv === 2 ? 10 : undefined} />;
+      case "accessRoad":
+        // Une voie simple, deux voies, puis deux voies et leurs trottoirs — de la largeur du niveau.
+        return <AccessRoad length={L} lanes={lv === 1 ? 1 : 2} sidewalk={lv === 3} width={T} origin={origin} rotation={rotation} />;
     }
     return null;
   }

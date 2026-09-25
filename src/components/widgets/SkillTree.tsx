@@ -1,5 +1,5 @@
-import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { CheckIcon, LockIcon } from "../icons";
+import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
+import { CheckIcon, LockIcon, ZoomInIcon, ZoomOutIcon } from "../icons";
 import "./SkillTree.css";
 
 /**
@@ -26,6 +26,20 @@ import "./SkillTree.css";
  * « Débloquer (2 pts) », que `canUnlock` peut griser (pas assez de points).
  *
  * Trop large pour son conteneur, l'arbre défile à l'horizontale, dans son cadre.
+ *
+ * ## Sur un téléphone
+ *
+ * Dans un cadre de 640 px ou moins (la largeur du composant, pas celle de l'écran), le cadre défile
+ * dans les deux sens — au doigt, par le défilement natif du navigateur, sans rien intercepter — et sa
+ * hauteur est bornée à l'écran, pour que la page reste accessible autour. Trois boutons s'ajoutent
+ * au-dessus : « − », la taille courante (qui ramène à 100 %), « + ». C'est un zoom sans pincement :
+ * l'arbre est mis à l'échelle d'un bloc (`transform: scale`), traits compris, et une scène autour
+ * réserve la taille de l'arbre mis à l'échelle, de sorte que le défilement couvre exactement l'arbre.
+ * Le point au centre du cadre reste au centre d'un zoom à l'autre. Au clavier, dans l'arbre, `+`,
+ * `-` et `0` font la même chose ; les nœuds restent des boutons qu'on atteint par Tab.
+ *
+ * `zoomControls` force les boutons (`true`) ou les retire (`false`) ; par défaut (`"auto"`), ils
+ * n'apparaissent que dans un cadre étroit.
  */
 
 export type SkillNodeState = "locked" | "available" | "researching" | "unlocked";
@@ -75,6 +89,8 @@ export interface SkillTreeProps {
   onUnlock?: (id: string) => void;
   /** Le nœud peut-il être débloqué maintenant (assez de points…) ? Défaut : oui s'il est disponible. */
   canUnlock?: (node: SkillTreeNode) => boolean;
+  /** Les boutons de zoom. `"auto"` (défaut) : seulement dans un cadre de 640 px ou moins. */
+  zoomControls?: boolean | "auto";
   className?: string;
 }
 
@@ -87,9 +103,25 @@ const STATE_LABEL: Record<SkillNodeState, string> = {
 
 const pts = (n: number) => `${n} pt${Math.abs(n) > 1 ? "s" : ""}`;
 
+/** Les crans du zoom, de la vue d'ensemble au gros plan. */
+const ZOOMS = [0.5, 0.625, 0.75, 0.875, 1, 1.25, 1.5];
+/** En deçà de cette largeur (celle du composant), l'arbre passe en mode compact : zoom et cadre borné. */
+const COMPACT_PX = 640;
+
 type Link = { id: string; d: string; lit: boolean; done: boolean; color?: string; cross: boolean };
 
-export function SkillTree({ nodes, branches: branchesProp, selectedId: selectedProp, onSelect, renderDetail, header, onUnlock, canUnlock, className }: SkillTreeProps) {
+export function SkillTree({
+  nodes,
+  branches: branchesProp,
+  selectedId: selectedProp,
+  onSelect,
+  renderDetail,
+  header,
+  onUnlock,
+  canUnlock,
+  zoomControls = "auto",
+  className,
+}: SkillTreeProps) {
   const [own, setOwn] = useState<string | null>(null);
   const selectedId = selectedProp !== undefined ? selectedProp : own;
   const select = (id: string) => {
@@ -114,6 +146,52 @@ export function SkillTree({ nodes, branches: branchesProp, selectedId: selectedP
   }, [nodes]);
   const colorOf = (branch: string) => branches.find((b) => b.id === branch)?.color;
 
+  // Compact ou non : la largeur du composant ; et celle du cadre qui défile, sur laquelle l'arbre se
+  // pose quand il est mis à l'échelle.
+  const root = useRef<HTMLDivElement>(null);
+  const scroller = useRef<HTMLDivElement>(null);
+  const stage = useRef<HTMLDivElement>(null);
+  const [compact, setCompact] = useState(false);
+  const [viewW, setViewW] = useState(0);
+  useLayoutEffect(() => {
+    const r = root.current;
+    const sc = scroller.current;
+    if (!r || !sc) return;
+    const measure = () => {
+      setCompact(r.getBoundingClientRect().width <= COMPACT_PX);
+      // La largeur utile du cadre : sans ses marges internes, là où la scène se pose.
+      const cs = getComputedStyle(sc);
+      setViewW(sc.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0));
+    };
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(measure);
+    ro.observe(r);
+    ro.observe(sc);
+    return () => ro.disconnect();
+  }, []);
+  const showZoom = zoomControls === "auto" ? compact : zoomControls;
+  const [zoomState, setZoom] = useState(1);
+  // Sans les boutons, pas de zoom : on ne laisse pas un arbre réduit sans moyen de le remettre.
+  const zoom = showZoom ? zoomState : 1;
+  const zoomRef = useRef(zoom);
+  zoomRef.current = zoom;
+  /** Où en était le cadre juste avant un changement de zoom — pour garder son centre en place. */
+  const anchor = useRef<{ left: number; top: number; from: number } | null>(null);
+
+  /** Le cadre qui défile doit connaître la taille de l'arbre **après** mise à l'échelle : une
+   *  transformation ne change pas la place qu'un élément occupe, c'est donc la scène autour qui la
+   *  réserve. Posée directement sur le DOM, d'après la taille de mise en page de l'arbre — sans
+   *  passer par un rendu, pour que la scène ait sa taille avant qu'on ajuste le défilement. */
+  const fitStage = () => {
+    const g = grid.current;
+    const st = stage.current;
+    if (!g || !st) return;
+    const z = zoomRef.current;
+    st.style.width = z === 1 ? "" : `${g.offsetWidth * z}px`;
+    st.style.height = z === 1 ? "" : `${g.offsetHeight * z}px`;
+  };
+
   // Les traits : mesurés sur les boutons une fois posés, et remesurés quand l'arbre change de taille.
   const grid = useRef<HTMLDivElement>(null);
   const refs = useRef(new Map<string, HTMLElement>());
@@ -124,6 +202,9 @@ export function SkillTree({ nodes, branches: branchesProp, selectedId: selectedP
     const g = grid.current;
     if (!g) return;
     const measure = () => {
+      // Les boîtes mesurées sont celles de l'écran, donc à l'échelle ; les traits, eux, se dessinent
+      // dans l'arbre avant sa mise à l'échelle : on divise.
+      const z = zoomRef.current || 1;
       const base = g.getBoundingClientRect();
       const out: Link[] = [];
       for (const n of nodes)
@@ -134,10 +215,10 @@ export function SkillTree({ nodes, branches: branchesProp, selectedId: selectedP
           if (!from || !to || !pre) continue;
           const a = from.getBoundingClientRect();
           const b = to.getBoundingClientRect();
-          const x0 = a.left + a.width / 2 - base.left;
-          const y0 = a.bottom - base.top;
-          const x1 = b.left + b.width / 2 - base.left;
-          const y1 = b.top - base.top;
+          const x0 = (a.left + a.width / 2 - base.left) / z;
+          const y0 = (a.bottom - base.top) / z;
+          const x1 = (b.left + b.width / 2 - base.left) / z;
+          const y1 = (b.top - base.top) / z;
           const cross = pre.branch !== n.branch;
           const dy = Math.max(24, Math.abs(y1 - y0) * 0.5);
           const d = !cross && Math.abs(x1 - x0) < 1 ? `M${x0} ${y0} L${x1} ${y1}` : `M${x0} ${y0} C${x0} ${y0 + dy}, ${x1} ${y1 - dy}, ${x1} ${y1}`;
@@ -145,6 +226,7 @@ export function SkillTree({ nodes, branches: branchesProp, selectedId: selectedP
         }
       setLinks(out);
       setSize({ w: g.scrollWidth, h: g.scrollHeight });
+      fitStage();
     };
     measure();
     if (typeof ResizeObserver === "undefined") return;
@@ -153,6 +235,37 @@ export function SkillTree({ nodes, branches: branchesProp, selectedId: selectedP
     return () => ro.disconnect();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nodes, branches, selectedId]);
+
+  // Un nouveau zoom : la scène prend sa nouvelle taille, puis le cadre défile pour que le point qui
+  // était en son centre y reste.
+  useLayoutEffect(() => {
+    fitStage();
+    const a = anchor.current;
+    const sc = scroller.current;
+    anchor.current = null;
+    if (!a || !sc || a.from === zoom) return;
+    const k = zoom / a.from;
+    sc.scrollLeft = (a.left + sc.clientWidth / 2) * k - sc.clientWidth / 2;
+    sc.scrollTop = (a.top + sc.clientHeight / 2) * k - sc.clientHeight / 2;
+  }, [zoom, viewW]);
+
+  const zoomTo = (next: number) => {
+    const z = Math.min(ZOOMS[ZOOMS.length - 1], Math.max(ZOOMS[0], next));
+    if (z === zoom) return;
+    const sc = scroller.current;
+    anchor.current = sc ? { left: sc.scrollLeft, top: sc.scrollTop, from: zoom } : null;
+    setZoom(z);
+  };
+  const zoomIn = () => zoomTo(ZOOMS.find((z) => z > zoom + 1e-6) ?? zoom);
+  const zoomOut = () => zoomTo([...ZOOMS].reverse().find((z) => z < zoom - 1e-6) ?? zoom);
+  const onZoomKey = (e: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (!showZoom || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key === "+" || e.key === "=") zoomIn();
+    else if (e.key === "-" || e.key === "_") zoomOut();
+    else if (e.key === "0") zoomTo(1);
+    else return;
+    e.preventDefault();
+  };
 
   const unlockable = (n: SkillTreeNode) => n.state === "available" && (canUnlock ? canUnlock(n) : true);
 
@@ -210,11 +323,49 @@ export function SkillTree({ nodes, branches: branchesProp, selectedId: selectedP
   };
 
   return (
-    <div className={["lq-skilltree", className].filter(Boolean).join(" ")}>
+    <div ref={root} className={["lq-skilltree", compact && "lq-skilltree--compact", className].filter(Boolean).join(" ")}>
       {header !== undefined && <div className="lq-skilltree__header">{header}</div>}
+      {showZoom && (
+        <div className="lq-skilltree__zoom" role="toolbar" aria-label="Zoom de l'arbre">
+          <button type="button" className="lq-skilltree__zoom-btn" onClick={zoomOut} disabled={zoom <= ZOOMS[0]} aria-label="Dézoomer" title="Dézoomer (−)">
+            <ZoomOutIcon size={18} />
+          </button>
+          <button
+            type="button"
+            className="lq-skilltree__zoom-btn lq-skilltree__zoom-reset"
+            onClick={() => zoomTo(1)}
+            disabled={zoom === 1}
+            aria-label={`Zoom ${Math.round(zoom * 100)} % — revenir à 100 %`}
+            title="Taille réelle (0)"
+          >
+            {Math.round(zoom * 100)} %
+          </button>
+          <button type="button" className="lq-skilltree__zoom-btn" onClick={zoomIn} disabled={zoom >= ZOOMS[ZOOMS.length - 1]} aria-label="Zoomer" title="Zoomer (+)">
+            <ZoomInIcon size={18} />
+          </button>
+        </div>
+      )}
       <div className="lq-skilltree__body">
-        <div className="lq-skilltree__scroll">
-          <div ref={grid} className="lq-skilltree__grid" style={{ gridTemplateColumns: `repeat(${branches.length}, minmax(188px, 1fr))`, gridTemplateRows: `auto repeat(${rows}, auto)` }}>
+        {/* Un cadre qui défile doit pouvoir être atteint au clavier (les flèches le font défiler) —
+            seulement quand il est borné, c'est-à-dire en mode compact. */}
+        <div
+          ref={scroller}
+          className="lq-skilltree__scroll"
+          onKeyDown={onZoomKey}
+          {...(compact ? { tabIndex: 0, role: "region", "aria-label": "Arbre de compétences" } : {})}
+        >
+          <div ref={stage} className="lq-skilltree__stage">
+            <div
+              ref={grid}
+              className="lq-skilltree__grid"
+              style={{
+                gridTemplateColumns: `repeat(${branches.length}, minmax(188px, 1fr))`,
+                gridTemplateRows: `auto repeat(${rows}, auto)`,
+                // Mis à l'échelle, l'arbre se pose sur la largeur du cadre divisée par le zoom : réduit,
+                // il se déploie comme dans un cadre plus large ; agrandi, il déborde et le cadre défile.
+                ...(zoom !== 1 ? { position: "absolute", top: 0, left: 0, boxSizing: "border-box", width: viewW ? viewW / zoom : undefined, transform: `scale(${zoom})`, transformOrigin: "0 0" } : {}),
+              }}
+            >
             <svg className="lq-skilltree__links" width={size.w} height={size.h} aria-hidden="true">
               {links.map((l) => (
                 <path
@@ -251,6 +402,7 @@ export function SkillTree({ nodes, branches: branchesProp, selectedId: selectedP
                 );
               })
             )}
+            </div>
           </div>
         </div>
         {renderDetail && selected && <aside className="lq-skilltree__detail">{renderDetail(selected)}</aside>}

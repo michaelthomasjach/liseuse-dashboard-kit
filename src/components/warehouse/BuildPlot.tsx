@@ -1,16 +1,18 @@
 import { useMemo, useRef, type ReactNode } from "react";
 import { Builder, type P3 } from "./three/builder";
 import { rng } from "./three/random";
-import { Parts, Solo, WarehouseScene, frameBounds, useBuilt } from "./three/scene";
+import { Parts, Solo, WarehouseScene, frameBounds, resolveSceneQuality, useBuilt, useSceneQuality } from "./three/scene";
 import { useSimClock } from "./three/time";
-import { Road } from "./Road";
+import { ROAD_SURFACE, Road, roadSize, type RoadDriveway } from "./Road";
 import { Buildings } from "./Building";
 import { Trees } from "./Tree";
 import { Fence } from "./Fence";
 import { StreetLight } from "./StreetLight";
 import { Car } from "./Car";
 import { ForSaleSign } from "./ForSaleSign";
-import { generatePlot, lockedFences, plotInside, plotOutline, trafficCars, type PlotCar, type PlotLayout, type PlotRect, type PlotShape } from "./plot";
+import { SlidingGate } from "./SlidingGate";
+import { layGates, type PlannerGate } from "./accessRoad";
+import { PLOT_STREET, generatePlot, lockedFences, perimeterFenceRuns, plotInside, plotOutline, plotSideFrame, trafficCars, type PlotCar, type PlotDriveway, type PlotFenceRun, type PlotLayout, type PlotRect, type PlotShape, type PlotTile } from "./plot";
 
 /**
  * Le terrain à bâtir, et tout ce qui l'entoure — le décor d'une partie.
@@ -54,6 +56,37 @@ export interface BuildPlotProps {
   lightExclusions?: PlotRect[];
   /** De même pour les arbres du décor — ceux d'alignement de la rue et ceux des parcelles voisines. */
   treeExclusions?: PlotRect[];
+  /**
+   * Des **raccordements** à la rue (voir `PlotDriveway`, et `accessRoadDriveways` pour les tirer des
+   * voies d'accès d'un plan) : le trottoir côté terrain s'y ouvre en bateau, l'enrobé court du bout
+   * de la voie jusqu'à la chaussée, et les candélabres qui s'y trouvaient ne sont pas plantés.
+   */
+  driveways?: PlotDriveway[];
+  /**
+   * Une **clôture de pourtour** : tout le bord constructible — le rectangle du terrain moins ses
+   * échancrures et ses parcelles à vendre — est clos d'une clôture grillagée sur poteaux. Elle
+   * remplace, sur les bords qu'elles partagent, les clôtures des échancrures et des parcelles à
+   * vendre, et suit le bord quand une parcelle est achetée. Voir `fenceOpenings`.
+   */
+  perimeterFence?: boolean;
+  /**
+   * Là où la clôture de pourtour s'interrompt : des polygones convexes, en cases — l'emprise des voies
+   * d'accès, élargie d'un rien (voir `accessRoadOpenings`).
+   */
+  fenceOpenings?: { x: number; y: number }[][];
+  /**
+   * Des **portails** dans la clôture de pourtour (voir `PlannerGate`) : sur un côté qui longe la rue,
+   * un portail coulissant motorisé, la clôture ouverte sur sa largeur, et la rue raccordée jusqu'à
+   * lui — trottoir abaissé, enrobé de la chaussée jusqu'un peu dans le terrain. Un portail hors d'un
+   * côté sur rue n'est pas dessiné.
+   */
+  gates?: PlannerGate[];
+  /**
+   * La qualité de rendu : en `"low"`, un décor allégé — un voisin et un arbre sur deux, une seule
+   * voiture par sens. Défaut : `"auto"`, la qualité de la scène où le terrain est posé (voir
+   * `resolveSceneQuality`).
+   */
+  quality?: "auto" | "high" | "low";
   cellSize?: number;
   className?: string;
   children?: ReactNode;
@@ -216,42 +249,129 @@ export function BuildPlot(props: BuildPlotProps) {
   );
 }
 
-function BuildPlotBody({ layout, traffic = true, grid = true, night = 0, groundStyle = "site", lightExclusions, treeExclusions, children }: BuildPlotProps) {
+/**
+ * Les bateaux d'une tuile de la rue : chaque raccordement dont l'ouverture tombe sur l'un de ses
+ * trottoirs, ramené dans le repère de la tuile — le long de ses `x`, du côté `0` ou `1`.
+ */
+function tileDriveways(t: PlotTile, plot: PlotLayout, driveways: PlotDriveway[]): RoadDriveway[] | undefined {
+  if ((t.kind ?? "straight") !== "straight" || driveways.length === 0) return undefined;
+  const { length: L, width: W } = roadSize(t);
+  const sw = PLOT_STREET.sidewalk;
+  const th = ((t.rotation ?? 0) * Math.PI) / 180;
+  const c = Math.cos(th);
+  const s = Math.sin(th);
+  const o = t.origin ?? { x: 0, y: 0 };
+  // La tuile tourne autour de son centre : on défait la rotation autour de lui.
+  const local = (p: { x: number; y: number }) => {
+    const dx = p.x - o.x - L / 2;
+    const dy = p.y - o.y - W / 2;
+    return { x: L / 2 + dx * c + dy * s, y: W / 2 - dx * s + dy * c };
+  };
+  const out: RoadDriveway[] = [];
+  for (const d of driveways) {
+    const f = plotSideFrame(plot, d.side);
+    const a = local(f.at(d.from, plot.margin + sw / 2));
+    const b = local(f.at(d.to, plot.margin + sw / 2));
+    const near = (y: number, target: number) => Math.abs(y - target) < 0.3;
+    const side = near(a.y, sw / 2) && near(b.y, sw / 2) ? 0 : near(a.y, W - sw / 2) && near(b.y, W - sw / 2) ? 1 : null;
+    if (side === null) continue;
+    const from = Math.max(0, Math.min(a.x, b.x));
+    const to = Math.min(L, Math.max(a.x, b.x));
+    if (to - from > 0.05) out.push({ side, from, to });
+  }
+  return out.length ? out : undefined;
+}
+
+/** L'enrobé des raccordements : du bout de chaque voie d'accès jusqu'à la chaussée. */
+function buildAprons(driveways: PlotDriveway[]) {
+  const b = new Builder();
+  // Un rien sous la chaussée de la rue, qu'il chevauche au droit du trottoir ouvert : même matière,
+  // même teinte, et c'est la rue qui l'emporte là où ils se recouvrent.
+  for (const d of driveways) b.prism("asphalt", d.apron, -0.04, ROAD_SURFACE - 0.001, false);
+  return b.build();
+}
+
+/** Des tronçons de clôture, d'un point à l'autre : les échancrures, les parcelles à vendre, ou tout
+ *  le pourtour. */
+function FenceRuns({ runs, prefix }: { runs: PlotFenceRun[]; prefix: string }) {
+  return (
+    <>
+      {runs.map((f, i) => {
+        const L = Math.hypot(f.x1 - f.x0, f.y1 - f.y0);
+        const mx = (f.x0 + f.x1) / 2;
+        const my = (f.y0 + f.y1) / 2;
+        const rot = (Math.atan2(f.y1 - f.y0, f.x1 - f.x0) * 180) / Math.PI;
+        return <Fence key={`${prefix}${i}`} kind="mesh" length={L} origin={{ x: mx - L / 2, y: my }} rotation={rot} />;
+      })}
+    </>
+  );
+}
+
+function BuildPlotBody({ layout, traffic = true, grid = true, night = 0, groundStyle = "site", lightExclusions, treeExclusions, driveways, perimeterFence = false, fenceOpenings, gates, quality, children }: BuildPlotProps) {
   const plot = layout as PlotLayout;
+  // La qualité demandée, sinon celle de la scène où le terrain est posé.
+  const scene = useSceneQuality();
+  const lite = (quality === undefined || quality === "auto" ? scene : resolveSceneQuality(quality)) === "low";
   const ground = useBuilt(() => buildGround(plot, grid, groundStyle), [plot, grid, groundStyle]);
+  const gateKey = JSON.stringify(gates ?? []);
+  const openKey = JSON.stringify(fenceOpenings ?? []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const laid = useMemo(() => layGates(plot, gates ?? [], fenceOpenings), [plot, gateKey, openKey]);
+  const driveKey = JSON.stringify(driveways ?? []);
+  // Les raccordements des voies d'accès, et ceux des portails.
+  const drives = useMemo(() => [...(driveways ?? []), ...laid.map((g) => g.layout.driveway)], [driveKey, laid]); // eslint-disable-line react-hooks/exhaustive-deps
+  const aprons = useBuilt(() => buildAprons(drives), [drives]);
+  // Au droit d'un bateau, pas de candélabre : on le planterait au milieu de l'entrée.
+  const driveRects = useMemo<PlotRect[]>(
+    () =>
+      drives.map((d) => {
+        const f = plotSideFrame(plot, d.side);
+        const p = f.at(d.from - 0.8, 0);
+        const q = f.at(d.to + 0.8, plot.margin + PLOT_STREET.sidewalk + 0.3);
+        return { x: Math.min(p.x, q.x), y: Math.min(p.y, q.y), width: Math.abs(q.x - p.x), depth: Math.abs(q.y - p.y) };
+      }),
+    [drives, plot]
+  );
   // Les candélabres et les arbres qu'une manœuvre accrocherait ne sont pas plantés.
   const lightKey = JSON.stringify(lightExclusions ?? []);
   const treeKey = JSON.stringify(treeExclusions ?? []);
-  const lights = useMemo(() => plot.lights.filter((l) => !inRects(lightExclusions, l.x, l.y)), [plot, lightKey]); // eslint-disable-line react-hooks/exhaustive-deps
-  const trees = useMemo(() => plot.trees.filter((t) => !inRects(treeExclusions, t.x, t.y)), [plot, treeKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const lights = useMemo(() => plot.lights.filter((l) => !inRects(lightExclusions, l.x, l.y) && !inRects(driveRects, l.x, l.y)), [plot, lightKey, driveRects]); // eslint-disable-line react-hooks/exhaustive-deps
+  // En qualité basse, un arbre sur deux : l'alignement reste lisible, à moitié prix.
+  const trees = useMemo(() => plot.trees.filter((t, i) => !inRects(treeExclusions, t.x, t.y) && (!lite || i % 2 === 0)), [plot, treeKey, lite]); // eslint-disable-line react-hooks/exhaustive-deps
+  // De même, un voisin sur deux : le décor de la rue reste habité, mais plus clairsemé.
+  const neighbors = useMemo(() => (lite ? plot.neighbors.filter((_, i) => i % 2 === 0) : plot.neighbors), [plot, lite]);
   // Les parcelles à vendre : closes du côté de ce qu'on possède, et leur panneau.
   const lockFences = useMemo(() => lockedFences(plot), [plot]);
-  const cars = useMemo(() => (traffic === false ? [] : traffic === true ? plot.cars : trafficCars(plot, traffic)), [plot, traffic]);
+  // Le pourtour remplace les clôtures des échancrures et des parcelles à vendre : elles courent sur
+  // les mêmes bords, et deux clôtures l'une sur l'autre se verraient.
+  const perimeter = useMemo(() => (perimeterFence ? perimeterFenceRuns(plot, [...(fenceOpenings ?? []), ...laid.map((g) => g.layout.opening)]) : null), [plot, perimeterFence, openKey, laid]); // eslint-disable-line react-hooks/exhaustive-deps
+  const all = useMemo(() => (traffic === false ? [] : traffic === true ? plot.cars : trafficCars(plot, traffic)), [plot, traffic]);
+  // En qualité basse, une voiture par sens, pas davantage : chacune est une trentaine d'objets à
+  // dessiner et une animation de plus, pour un décor qu'on regarde à peine.
+  const cars = useMemo(() => (lite ? [all.find((c) => !c.reverse), all.find((c) => c.reverse)].filter((c): c is PlotCar => !!c) : all), [all, lite]);
   return (
     <>
       <Parts built={ground} />
       {plot.roads.map((t, i) => (
-        <Road key={`r${i}`} {...t} />
+        <Road key={`r${i}`} {...t} driveways={tileDriveways(t, plot, drives)} />
       ))}
-      <Buildings buildings={plot.neighbors} />
+      {drives.length > 0 && <Parts built={aprons} shadows={false} />}
+      <Buildings buildings={neighbors} />
       <Trees trees={trees} />
       {lights.map((l) => (
         <StreetLight key={`l${l.x},${l.y}`} kind="street" origin={{ x: l.x, y: l.y }} rotation={l.rotation} glow={night} />
       ))}
-      {plot.fences.map((f, i) => {
-        const L = Math.hypot(f.x1 - f.x0, f.y1 - f.y0);
-        const mx = (f.x0 + f.x1) / 2;
-        const my = (f.y0 + f.y1) / 2;
-        const rot = (Math.atan2(f.y1 - f.y0, f.x1 - f.x0) * 180) / Math.PI;
-        return <Fence key={`f${i}`} kind="mesh" length={L} origin={{ x: mx - L / 2, y: my }} rotation={rot} />;
-      })}
-      {lockFences.map((f, i) => {
-        const L = Math.hypot(f.x1 - f.x0, f.y1 - f.y0);
-        const mx = (f.x0 + f.x1) / 2;
-        const my = (f.y0 + f.y1) / 2;
-        const rot = (Math.atan2(f.y1 - f.y0, f.x1 - f.x0) * 180) / Math.PI;
-        return <Fence key={`lf${i}`} kind="mesh" length={L} origin={{ x: mx - L / 2, y: my }} rotation={rot} />;
-      })}
+      {laid.map(({ gate, layout: g }) => (
+        <SlidingGate key={`gate-${gate.id}`} length={g.slide.length} origin={g.slide.origin} rotation={g.slide.rotation} open={gate.open ?? 1} />
+      ))}
+      {perimeter ? (
+        <FenceRuns runs={perimeter} prefix="pf" />
+      ) : (
+        <>
+          <FenceRuns runs={plot.fences} prefix="f" />
+          <FenceRuns runs={lockFences} prefix="lf" />
+        </>
+      )}
       {(plot.locked ?? []).map((a) => (
         <ForSaleSign key={`sale-${a.id}`} x={a.x + a.width / 2} y={a.y + a.depth / 2} label={a.label} />
       ))}
@@ -285,11 +405,11 @@ function StreetCar({ car, plot }: { car: PlotCar; plot: PlotLayout }) {
 }
 
 /** Une scène toute prête : le terrain et son décor, et ce qu'on y pose. */
-export function PlotScene({ seed = 1, shape, layout, cellSize = 10, traffic, grid, night, groundStyle, lightExclusions, treeExclusions, className, children }: BuildPlotProps) {
+export function PlotScene({ seed = 1, shape, layout, cellSize = 10, traffic, grid, night, groundStyle, lightExclusions, treeExclusions, driveways, perimeterFence, fenceOpenings, gates, quality, className, children }: BuildPlotProps) {
   const plot = useMemo(() => layout ?? generatePlot(seed, { shape }), [layout, seed, shape]);
   return (
-    <WarehouseScene bounds={frameBounds(plot.frame)} cellSize={cellSize} className={className} ariaLabel="Terrain à bâtir">
-      <BuildPlotBody layout={plot} traffic={traffic} grid={grid} night={night} groundStyle={groundStyle} lightExclusions={lightExclusions} treeExclusions={treeExclusions}>
+    <WarehouseScene bounds={frameBounds(plot.frame)} cellSize={cellSize} quality={quality} className={className} ariaLabel="Terrain à bâtir">
+      <BuildPlotBody layout={plot} traffic={traffic} grid={grid} night={night} groundStyle={groundStyle} lightExclusions={lightExclusions} treeExclusions={treeExclusions} driveways={driveways} perimeterFence={perimeterFence} fenceOpenings={fenceOpenings} gates={gates}>
         {children}
       </BuildPlotBody>
     </WarehouseScene>

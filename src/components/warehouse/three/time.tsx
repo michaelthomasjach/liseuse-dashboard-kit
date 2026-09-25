@@ -54,16 +54,31 @@ export function SimClockProvider({ speed = 1, paused = false, children }: { spee
     t.current += Math.min(delta, 0.1) * speedRef.current;
   }, -100);
 
-  // Tant qu'il reste un inscrit, redessiner à chaque image.
+  // Tant qu'il reste un inscrit, redessiner à chaque image. La boucle s'arrête avec le dernier
+  // inscrit — une scène au repos ne réveille plus le navigateur à chaque image pour rien — et
+  // repart avec le premier qui revient.
+  const raf = useRef(0);
+  const loop = useRef<() => void>(() => undefined);
+  loop.current = () => {
+    raf.current = 0;
+    if (count.current <= 0) return;
+    if (!pausedRef.current && !reduced) invalidate();
+    raf.current = requestAnimationFrame(() => loop.current());
+  };
+  const wake = useRef(() => {
+    if (raf.current === 0 && count.current > 0) raf.current = requestAnimationFrame(() => loop.current());
+  }).current;
   useEffect(() => {
-    let raf = 0;
-    const loop = () => {
-      if (count.current > 0 && !pausedRef.current && !reduced) invalidate();
-      raf = requestAnimationFrame(loop);
+    wake();
+    return () => {
+      cancelAnimationFrame(raf.current);
+      raf.current = 0;
     };
-    raf = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(raf);
-  }, [invalidate, reduced]);
+  }, [invalidate, reduced, wake]);
+  // Une reprise après une pause : la toile attend une première image pour s'y remettre.
+  useEffect(() => {
+    if (!paused) invalidate();
+  }, [paused, invalidate]);
 
   const value = useRef<SimClock>({
     t,
@@ -73,6 +88,7 @@ export function SimClockProvider({ speed = 1, paused = false, children }: { spee
     enlist: () => {
       count.current += 1;
       invalidate();
+      wake();
       return () => {
         count.current -= 1;
       };
@@ -100,10 +116,15 @@ export function useAnimated(active = true) {
  *  C'est la seule façon pour un module de bouger : lire `t`, en déduire sa pose, la poser. Rien
  *  n'est accumulé d'une image à l'autre, si bien qu'une pose ne dépend que de l'instant — la
  *  condition pour que deux modules calés sur le même itinéraire ne puissent jamais se désaccorder.
+ *
+ *  `passive` : un mouvement **d'agrément** — la couronne d'un arbre dans le vent — qui s'anime tant
+ *  que la scène se redessine pour autre chose, mais ne la tient pas éveillée à lui seul. Sans cela, un
+ *  arbre posé suffirait à redessiner toute la scène à chaque image, pour toujours ; avec, une scène où
+ *  plus rien ne travaille s'endort, et l'arbre s'arrête là où il en était.
  */
-export function useSimFrame(cb: (t: number) => void, active = true) {
+export function useSimFrame(cb: (t: number) => void, active = true, opts?: { passive?: boolean }) {
   const clock = useSimClock();
-  useAnimated(active);
+  useAnimated(active && !opts?.passive);
   const ref = useRef(cb);
   ref.current = cb;
   useFrame(() => {

@@ -66,3 +66,6 @@ export type { LegendRowProps } from "./LegendRow";
 
 export { PeriodTable } from "./PeriodTable";
 export type { PeriodTableProps, PeriodTableColumn, PeriodTableRow, PeriodTableCell } from "./PeriodTable";
+
+export { Tooltip } from "./Tooltip";
+export type { TooltipProps, TooltipPlacement } from "./Tooltip";

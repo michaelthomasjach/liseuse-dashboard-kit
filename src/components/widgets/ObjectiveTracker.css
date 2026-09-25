@@ -280,11 +280,74 @@
   white-space: nowrap;
 }
 
+/* --- Au doigt, sur un téléphone ----------------------------------------------------------------- */
+
+/* Les longs mots (un nom d'article, une adresse) passent à la ligne plutôt que d'élargir la carte :
+   à 360 px, elle ne doit jamais faire déborder la page. */
+.lq-objectives__title,
+.lq-objectives__subtitle,
+.lq-objectives__content {
+  overflow-wrap: anywhere;
+}
+
+/* Un doigt, ou un petit écran (presque toujours tactile) : chaque bouton devient une cible de 44 px —
+   le chevron et la croix de l'en-tête, le bouton d'action de l'étape en cours. Le texte des étapes
+   grossit d'un cran : la carte se lit à bout de bras, pas penché sur un bureau. */
+@media (pointer: coarse), (max-width: 640px) {
+  .lq-objectives__head {
+    gap: var(--lq-space-1);
+    padding: var(--lq-space-1) var(--lq-space-1) var(--lq-space-1) var(--lq-space-3);
+  }
+
+  .lq-objectives__icon-btn {
+    width: 44px;
+    height: 44px;
+  }
+
+  .lq-objectives__icon-btn svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .lq-objectives__title {
+    font-size: var(--lq-text-md);
+  }
+
+  .lq-objectives__step {
+    padding: var(--lq-space-2);
+  }
+
+  .lq-objectives__mark {
+    width: 18px;
+    height: 18px;
+  }
+
+  .lq-objectives__content {
+    font-size: var(--lq-text-md);
+    line-height: 1.4;
+  }
+
+  .lq-objectives__hint {
+    font-size: var(--lq-text-sm);
+  }
+
+  .lq-objectives__action {
+    min-height: 44px;
+    padding: 0 var(--lq-space-4);
+    font-size: var(--lq-text-sm);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .lq-objectives__step--flash,
   .lq-objectives__step--flash .lq-objectives__mark,
   .lq-objectives__done,
   .lq-objectives__done-badge {
     animation: none;
+  }
+  .lq-objectives__fold svg,
+  .lq-objectives__fill,
+  .lq-objectives__step {
+    transition: none;
   }
 }

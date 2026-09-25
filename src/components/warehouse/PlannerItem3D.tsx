@@ -1,3 +1,4 @@
+import { FloorSlab, FreightLift, Stairs } from "./FloorItems";
 import { memo } from "react";
 import { DockWall, StandardWall } from "./BuildingWalls";
 import { Fence } from "./Fence";
@@ -344,7 +345,8 @@ function PlannerItem3DBody({ item, mounts, roofs = true, night = 0, support }: P
     case "truck":
       return lv === 1 ? <Car kind="van" tone="light" origin={origin} rotation={rotation} /> : <SemiTruck origin={origin} rotation={rotation} />;
     case "container":
-      return <ShippingContainer size={lv === 1 ? "20" : "40"} stack={lv === 3 ? 2 : 1} tone={hash(p.id) % 5} origin={origin} rotation={rotation} />;
+      // Une pile se fait élément par élément (`stackLevel`) ; le niveau 3 garde sa pile de deux d'autrefois.
+      return <ShippingContainer size={lv === 1 ? "20" : "40"} stack={lv === 3 && !p.stackLevel ? 2 : 1} tone={hash(p.id) % 5} origin={origin} rotation={rotation} />;
     case "worker":
       return <Worker origin={center} rotation={rotation} />;
     case "tree":
@@ -392,6 +394,12 @@ function PlannerItem3DBody({ item, mounts, roofs = true, night = 0, support }: P
       return <Office workstations={lv === 1 ? 4 : 8} meetingRoom={lv === 3} length={s.length} width={s.width} origin={origin} rotation={rotation} />;
     case "truckBay":
       return <TruckBay bays={Math.round(s.width / TRUCK_BAY_WIDTH)} length={s.length} bayWidth={TRUCK_BAY_WIDTH} origin={origin} rotation={rotation} />;
+    case "floorSlab":
+      return <FloorSlab length={s.length} width={s.width} guard={lv >= 2} origin={origin} rotation={rotation} />;
+    case "stairs":
+      return <Stairs length={s.length} width={s.width} landing={lv >= 2} origin={origin} rotation={rotation} />;
+    case "freightLift":
+      return <FreightLift length={s.length} width={s.width} origin={origin} rotation={rotation} />;
     case "roof":
       return roofs ? <Roof kind={(["deck", "skylight", "cold"] as const)[lv - 1]} length={s.length} width={s.width} height={PLANNER_WALL_TOP} origin={origin} rotation={rotation} /> : null;
   }

@@ -1136,3 +1136,29 @@
 .lq-planner__fps[style*="bottom"] {
   bottom: calc(var(--lq-planner-palette-height, 0px) + 8px) !important;
 }
+
+/* Le choix de l'étage : un groupe de boutons comme les autres, le prochain étage en pointillé. */
+.lq-planner__floors button {
+  min-width: 34px;
+  font-variant-numeric: tabular-nums;
+}
+.lq-planner__toolbar .lq-planner__floors .lq-planner__floor-new:not(.is-on) {
+  color: var(--lq-color-text-muted);
+  background: repeating-linear-gradient(135deg, transparent 0 4px, color-mix(in srgb, var(--lq-color-text) 6%, transparent) 4px 6px);
+}
+
+/* Le niveau d'une pile, au-dessus du fantôme : « Niveau 2/4 ». */
+.lq-planner__stack-tag rect {
+  fill: var(--lq-color-panel);
+  stroke: var(--lq-color-accent);
+  stroke-width: 1.5;
+}
+.lq-planner__stack-tag text {
+  fill: var(--lq-color-text);
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--lq-font-family);
+}
+.lq-planner__stack-tag.is-invalid rect {
+  stroke: var(--lq-color-danger);
+}

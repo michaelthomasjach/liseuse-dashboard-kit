@@ -5,6 +5,7 @@ import { WarehouseScene, frameBounds, warehouseSceneFrames, type SceneQuality } 
 import { FpsMeter, type FpsMeterProps } from "../widgets/FpsMeter";
 import { SnapshotStudio, cachedSnapshot, type SnapshotJob } from "./three/snapshot";
 import { BuildPlot, type PlotGroundStyle, type SceneryToggles } from "./BuildPlot";
+import { STACKABLE, elevationOf, floorElevation, floorOf, placementProblem, removalProblem, removalSet, stackInfo, stackOnto, topFloor } from "./placement";
 import { PlannerZones3D, type PlannerZone } from "./PlannerZones";
 import { GATE_WIDTH, accessRoadDriveways, accessRoadOpenings, layGates, type PlannerGate } from "./accessRoad";
 import { PLANNER_WALL_TOP, PlannerItem3D, rooftopSupport } from "./PlannerItem3D";
@@ -216,6 +217,15 @@ export interface WarehousePlannerProps {
    * bas à droite, la cadence des images réellement dessinées par la scène), ou ses réglages.
    */
   fpsMeter?: boolean | FpsMeterProps;
+  /**
+   * L'étage qu'on édite (0 : le rez-de-chaussée). Ce qu'on pose y va ; ce qui est au-dessus est
+   * masqué, comme une toiture qu'on retire ; la vue se cale à sa hauteur. Contrôlé si donné ; sinon
+   * l'éditeur le retient (voir `placement.ts` pour les règles des étages).
+   */
+  activeFloor?: number;
+  onActiveFloorChange?: (floor: number) => void;
+  /** Le sélecteur d'étage dans la barre d'outils. Défaut : dès qu'un étage existe, ou que `activeFloor` est donné. */
+  floorPicker?: boolean;
   /**
    * L'entrée de palette en main (par son `id`), `null` pour les mains vides. Contrôlée si
    * `onActiveEntryIdChange` est donné avec elle : l'application peut ainsi mettre un élément en
@@ -429,7 +439,7 @@ type P = { x: number; y: number };
 type Entry =
   | { id: string; label: string; group: string; type: "draw"; kind: PlannerLinearKind; mode: DrawMode }
   | { id: string; label: string; group: string; type: "place"; kind: PlannerPointKind }
-  | { id: string; label: string; group: string; type: "area"; kind: "roof" }
+  | { id: string; label: string; group: string; type: "area"; kind: "roof" | "floorSlab" }
   | { id: string; label: string; group: string; type: "piece"; kind: PlannerKind; length?: number; level?: number; meta?: ReactNode; disabled?: boolean; description?: string };
 
 /** Le point du bord d'une emprise où sort la demi-droite de son centre vers `p`. */
@@ -469,6 +479,9 @@ const ENTRIES: Entry[] = [
   { id: "window", label: "Fenêtre", group: "Murs", type: "place", kind: "window" },
   { id: "bay", label: "Baie vitrée", group: "Murs", type: "place", kind: "bay" },
   { id: "roof", label: "Toiture", group: "Murs", type: "area", kind: "roof" },
+  { id: "floorSlab", label: "Dalle d'étage", group: "Murs", type: "area", kind: "floorSlab" },
+  { id: "stairs", label: "Escalier", group: "Murs", type: "place", kind: "stairs" },
+  { id: "freightLift", label: "Monte-charge", group: "Murs", type: "place", kind: "freightLift" },
   { id: "roofSolar", label: "Panneaux en toiture", group: "Murs", type: "place", kind: "roofSolar" },
   { id: "hvac", label: "Climatiseur de toiture", group: "Murs", type: "place", kind: "hvac" },
   { id: "coldRoom", label: "Chambre froide", group: "Stockage", type: "place", kind: "coldRoom" },
@@ -644,19 +657,19 @@ const ZOOM_MAX = 6;
 /** Le cap qui met les `x` à droite et les `y` en bas de l'écran, en vue de dessus. */
 const TOP_YAW = -45;
 
-/** La toiture tracée d'un coin à l'autre, ou rien si le rectangle est trop mince. */
-function roofBetween(a: P, b: P): PlannerPoint | null {
+/** La toiture — ou la dalle d'étage — tracée d'un coin à l'autre, ou rien si le rectangle est trop mince. */
+function roofBetween(a: P, b: P, kind: "roof" | "floorSlab" = "roof"): PlannerPoint | null {
   const length = Math.abs(b.x - a.x);
   const width = Math.abs(b.y - a.y);
   if (length < 1 || width < 1) return null;
-  return { id: "draft-roof", kind: "roof", level: 1, x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, rotation: 0, size: { length, width } };
+  return { id: `draft-${kind}`, kind, level: 1, x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, rotation: 0, size: { length, width } };
 }
 
 /** Ce qu'une entrée pose quand on la lâche sur le terrain sans la tracer. */
 function dropped(entry: Entry, x: number, y: number): PlannerItem[] {
   if (entry.type === "piece") return [pieceItem(entry, x, y)];
   if (entry.type === "place") return [createItem(entry.kind, x, y)];
-  if (entry.type === "area") return [{ ...createItem("roof", x, y), size: { length: 8, width: 6 } } as PlannerItem];
+  if (entry.type === "area") return [{ ...createItem(entry.kind, x, y), size: { length: 8, width: 6 } } as PlannerItem];
   const cx = Math.round(x);
   const cy = Math.round(y);
   if (entry.mode === "room") return commitDraft(draftWalls(entry.kind, "room", { x: cx - 5, y: cy - 4 }, { x: cx + 5, y: cy + 4 }));
@@ -766,6 +779,9 @@ export function WarehousePlanner({
   sceneChildren,
   scenery,
   fpsMeter,
+  activeFloor: activeFloorProp,
+  onActiveFloorChange,
+  floorPicker,
   roofs: roofsProp,
   onRoofsChange,
   lockedAreas,
@@ -945,6 +961,17 @@ export function WarehousePlanner({
   // Une projection qui n'est plus proposée cède la place à la première qui l'est.
   const projection = projections.includes(chosenProjection) ? chosenProjection : (projections[0] ?? chosenProjection);
   const [query, setQuery] = useState("");
+  // --- L'étage qu'on édite ------------------------------------------------------------------------
+  const [ownFloor, setOwnFloor] = useState(0);
+  const floor = Math.max(0, Math.round(activeFloorProp ?? ownFloor));
+  const setFloor = (n: number) => {
+    const next = Math.max(0, Math.round(n));
+    setOwnFloor(next);
+    if (next !== floor) onActiveFloorChange?.(next);
+  };
+  const elevation = floorElevation(floor);
+  /** Ce qu'on crée va à l'étage qu'on édite. */
+  const onFloor = <T extends PlannerItem>(it: T): T => (floor > 0 ? { ...it, floor } : it);
   // Ce qu'on s'apprête à poser sur un toit ne se pose pas sur un toit masqué : on les montre.
   const showRoofs = roofsWanted || (!!tool && (isRooftop(tool) || tool.kind === "roof"));
   /**
@@ -952,7 +979,8 @@ export function WarehousePlanner({
    * toits affichés, ce qui est dessus passe devant tout le reste — c'est ce qu'on voit d'abord.
    */
   const pick = (p: P): PlannerItem | null => {
-    const all = itemsRef.current;
+    // Dans une pile, c'est le dessus qu'on prend : on le trie devant.
+    const all = itemsRef.current.filter((it) => floorOf(it) === floor).sort((a, b) => elevationOf(b) - elevationOf(a));
     if (!showRoofs) return hitTest(all.filter((it) => !isRooftop(it) && it.kind !== "roof"), p);
     return hitTest(all.filter(isRooftop), p) ?? hitTest(all.filter((it) => !isRooftop(it)), p);
   };
@@ -1032,9 +1060,10 @@ export function WarehousePlanner({
   const projectorFor = (cx: number, cy: number, zoom: number) =>
     viewProjector({ yaw: camYaw, tilt: camTilt, scale: cellSize * zoom, width: size.width, height: size.height, center: { x: cx, y: cy }, projection });
   const proj = projectorFor(view.cx, view.cy, view.zoom);
-  const toScreen = (x: number, y: number, z = 0) => proj.toScreen(x, y, z);
-  /** Le point du sol sous un pixel ; au-dessus de l'horizon, le centre de la vue. */
-  const toWorld = (sx: number, sy: number) => proj.toGround(sx, sy) ?? { x: view.cx, y: view.cy };
+  // À l'étage, le « sol » de la main et des tracés est le plancher de l'étage édité.
+  const toScreen = (x: number, y: number, z = 0) => proj.toScreen(x, y, z + elevation);
+  /** Le point du plancher sous un pixel ; au-dessus de l'horizon, le centre de la vue. */
+  const toWorld = (sx: number, sy: number) => proj.toGround(sx, sy, elevation) ?? { x: view.cx, y: view.cy };
   const local = (e: { clientX: number; clientY: number }) => {
     const r = stage.current?.getBoundingClientRect();
     return { x: e.clientX - (r?.left ?? 0), y: e.clientY - (r?.top ?? 0) };
@@ -1049,12 +1078,18 @@ export function WarehousePlanner({
    *  ou `null` s'il le peut. */
   const problemOf = (item: PlannerItem, entryId: string | null = null): string | null => {
     if (!fitsPlot(item, plot)) return "Hors du terrain constructible.";
+    const layered = placementProblem(item, itemsRef.current.filter((it) => it.id !== item.id));
+    if (layered) return layered.message;
     return validate?.(item, itemsRef.current.filter((it) => it.id !== item.id), { entryId }) ?? null;
   };
 
   /** Poser ce qu'une entrée pose au point `(x, y)`, ou au plus près qui tienne. */
   const place = (entry: Entry, x: number, y: number) => {
-    const base = dropped(entry, x, y);
+    // À l'étage édité ; un empilable lâché sur une pile s'y cale.
+    const base = dropped(entry, x, y).map((it) => {
+      const lifted = onFloor(it);
+      return !isLinear(lifted) && STACKABLE[lifted.kind] ? (stackOnto(lifted, { x, y }, itemsRef.current) ?? lifted) : lifted;
+    });
     for (let r = 0; r <= 12; r += 0.5) {
       const steps = r === 0 ? 1 : Math.ceil(r * 8);
       for (let k = 0; k < steps; k += 1) {
@@ -1077,8 +1112,10 @@ export function WarehousePlanner({
   /** L'élément que l'outil en main poserait en `(x, y)`, calé et tourné. */
   const armedItem = (x: number, y: number): PlannerItem | null => {
     if (!placing) return null;
-    const base = placing.type === "piece" ? pieceItem(placing, x, y) : createItem(placing.kind, x, y);
-    return rotateTo(base, placeRot);
+    const base = onFloor(rotateTo(placing.type === "piece" ? pieceItem(placing, x, y) : createItem(placing.kind, x, y), placeRot));
+    // Un empilable lâché sur une pile se cale dessus, au niveau suivant.
+    if (!isLinear(base) && STACKABLE[base.kind]) return stackOnto(base, { x, y }, itemsRef.current) ?? base;
+    return base;
   };
   const areaTool = tool?.type === "area" ? tool : null;
   /** L'élément à poser, sous le curseur, calé sur la grille : ce que le clic posera, exactement.
@@ -1089,9 +1126,10 @@ export function WarehousePlanner({
   const ghostProblem = ghost ? problemOf(ghost, placing?.id ?? null) : null;
   const ghostOk = !!ghost && ghostProblem === null;
   /** La toiture en cours de tracé : le rectangle entre le coin de départ et le curseur. */
-  const areaDraft = areaTool && start && cursor ? roofBetween(start, cursor) : null;
+  const rawArea = areaTool && start && cursor ? roofBetween(start, cursor, areaTool.kind) : null;
+  const areaDraft = rawArea ? onFloor(rawArea) : null;
   const areaOk = areaDraft ? fitsPlot(areaDraft, plot) : false;
-  const draft: PlannerLinear[] = drawing && start && cursor ? draftWalls(drawing.kind, drawing.mode, start, cursor) : [];
+  const draft: PlannerLinear[] = drawing && start && cursor ? draftWalls(drawing.kind, drawing.mode, start, cursor).map(onFloor) : [];
   const draftOk = draft.every((w) => fitsPlot(w, plot));
 
   const pickTool = (entry: Entry | null) => {
@@ -1108,7 +1146,7 @@ export function WarehousePlanner({
       setCursor(q);
       return;
     }
-    const walls = draftWalls(drawing.kind, drawing.mode, start, q);
+    const walls = draftWalls(drawing.kind, drawing.mode, start, q).map(onFloor);
     if (!walls.length) return;
     const wallProblem = walls.map((w) => problemOf(w, drawing.id)).find((m) => m !== null);
     if (wallProblem) {
@@ -1129,14 +1167,15 @@ export function WarehousePlanner({
       setCursor(q);
       return;
     }
-    const roof = roofBetween(start, q);
-    if (!roof) return;
+    const raw = roofBetween(start, q, areaTool?.kind ?? "roof");
+    if (!raw) return;
+    const roof = onFloor(raw);
     const roofProblem = problemOf(roof, areaTool?.id ?? null);
     if (roofProblem) {
       flash(roofProblem);
       return;
     }
-    const placedRoof = { ...roof, id: createItem("roof", 0, 0).id };
+    const placedRoof = { ...roof, id: createItem(roof.kind, 0, 0).id };
     setItems([...itemsRef.current, placedRoof]);
     onEdit?.({ type: "add", items: [placedRoof], entryId: areaTool?.id ?? "roof" });
     setStart(null);
@@ -1663,9 +1702,16 @@ export function WarehousePlanner({
   const selected = items.find((it) => it.id === selectedId) ?? null;
   const remove = () => {
     if (!selected || readOnly) return;
-    setItems(itemsRef.current.filter((it) => it.id !== selected.id));
+    const refused = removalProblem(selected, itemsRef.current);
+    if (refused) {
+      flash(refused.message);
+      return;
+    }
+    const gone = removalSet(selected, itemsRef.current);
+    const ids = new Set(gone.map((it) => it.id));
+    setItems(itemsRef.current.filter((it) => !ids.has(it.id)));
     setSelectedId(null);
-    onEdit?.({ type: "remove", items: [selected] });
+    onEdit?.({ type: "remove", items: gone });
   };
   const turn = (dir: 1 | -1 = 1) => selected && !WALL_MOUNTED.includes(selected.kind) && commit(selected, rotateQuarter(selected, dir));
   const setOption = (patch: { storage?: StorageClass; passage?: boolean }) => selected && commit(selected, { ...selected, ...patch } as PlannerItem);
@@ -2171,7 +2217,7 @@ export function WarehousePlanner({
               quality={quality}
               bounds={frameBounds(plot.frame)}
               cellSize={cellSize}
-              viewport={{ width: size.width, height: size.height, center: { x: view.cx, y: view.cy }, zoom: view.zoom }}
+              viewport={{ width: size.width, height: size.height, center: { x: view.cx, y: view.cy, z: elevation }, zoom: view.zoom }}
               lazy={false}
               style={{ position: "absolute", inset: 0 }}
               ariaLabel="Terrain et construction"
@@ -2191,26 +2237,41 @@ export function WarehousePlanner({
                 scenery={scenery}
               />
               {zones && zones.length > 0 && <PlannerZones3D zones={zones} selectedId={selectedZoneId} />}
-              {items.map((it) => (
-                <PlannerItem3D
-                  key={it.id}
-                  item={it}
-                  roofs={showRoofs}
-                  night={night}
-                  // Un équipement de toiture repose sur ce qu'il y a dessous — toit, chambre froide, ou sa
-                  // propre ossature : jamais dans le vide.
-                  support={isRooftop(it) ? rooftopSupport(it, items) : undefined}
-                  // Un mur porte les ouvertures accrochées à lui — et celle qu'on s'apprête à poser.
-                  mounts={isLinear(it) && (it.kind === "wall" || it.kind === "dock") ? wallMounts(it, ghost && mountedGhost ? [...items, ghost] : items) : undefined}
-                />
-              ))}
+              {items
+                .filter((it) => floorOf(it) <= floor)
+                .map((it) => {
+                  // Les ouvertures d'un mur et l'appui d'un équipement de toiture se cherchent à son étage.
+                  const level = items.filter((o) => floorOf(o) === floorOf(it));
+                  return (
+                    <Elevated key={it.id} z={elevationOf(it)}>
+                      <PlannerItem3D
+                        item={it}
+                        roofs={showRoofs}
+                        night={night}
+                        // Un équipement de toiture repose sur ce qu'il y a dessous — toit, chambre froide, ou sa
+                        // propre ossature : jamais dans le vide.
+                        support={isRooftop(it) ? rooftopSupport(it, level) : undefined}
+                        // Un mur porte les ouvertures accrochées à lui — et celle qu'on s'apprête à poser.
+                        mounts={isLinear(it) && (it.kind === "wall" || it.kind === "dock") ? wallMounts(it, ghost && mountedGhost && floorOf(ghost) === floorOf(it) ? [...level, ghost] : level) : undefined}
+                      />
+                    </Elevated>
+                  );
+                })}
               {/* Le tracé en cours, déjà en volume : on voit le mur avant de le poser. */}
               {ghost && !mountedGhost && (
-                <PlannerItem3D key={`ghost-${ghost.kind}-${placeRot}`} item={{ ...ghost, id: `ghost-${ghost.kind}` }} support={isRooftop(ghost) ? rooftopSupport({ ...ghost, id: `ghost-${ghost.kind}` }, items) : undefined} />
+                <Elevated z={elevationOf(ghost)}>
+                  <PlannerItem3D key={`ghost-${ghost.kind}-${placeRot}`} item={{ ...ghost, id: `ghost-${ghost.kind}` }} support={isRooftop(ghost) ? rooftopSupport({ ...ghost, id: `ghost-${ghost.kind}` }, items.filter((o) => floorOf(o) === floorOf(ghost))) : undefined} />
+                </Elevated>
               )}
-              {areaDraft && <PlannerItem3D key={`roof-${areaDraft.x}-${areaDraft.y}-${areaDraft.size?.length}-${areaDraft.size?.width}`} item={areaDraft} />}
+              {areaDraft && (
+                <Elevated z={elevationOf(areaDraft)}>
+                  <PlannerItem3D key={`roof-${areaDraft.x}-${areaDraft.y}-${areaDraft.size?.length}-${areaDraft.size?.width}`} item={areaDraft} />
+                </Elevated>
+              )}
               {draft.map((w) => (
-                <PlannerItem3D key={`${w.id}:${w.x0},${w.y0},${w.x1},${w.y1}`} item={w} />
+                <Elevated key={`${w.id}:${w.x0},${w.y0},${w.x1},${w.y1}`} z={elevationOf(w)}>
+                  <PlannerItem3D item={w} />
+                </Elevated>
               ))}
               {sceneChildren}
             </WarehouseScene>
@@ -2232,6 +2293,17 @@ export function WarehousePlanner({
               {anchor && <circle className="lq-planner__anchor" cx={anchor.x} cy={anchor.y} r={5} />}
               {(ghost ?? rawGhost) && outline((ghost ?? rawGhost) as PlannerItem, ["lq-planner__outline", "lq-planner__outline--draft", !ghostOk && "lq-planner__outline--invalid"].filter(Boolean).join(" "), "ghost")}
               {areaDraft && outline(areaDraft, ["lq-planner__outline", "lq-planner__outline--draft", !areaOk && "lq-planner__outline--invalid"].filter(Boolean).join(" "), "area")}
+              {ghost && !isLinear(ghost) && STACKABLE[ghost.kind] && (() => {
+                const info = stackInfo(ghost);
+                if (!info || info.level < 2) return null;
+                const q = toScreen(ghost.x, ghost.y, elevationOf(ghost) - elevation + (STACKABLE[ghost.kind]?.height ?? 1) + 0.3);
+                return (
+                  <g className={["lq-planner__stack-tag", !ghostOk && "is-invalid"].filter(Boolean).join(" ")} transform={`translate(${q.x.toFixed(1)} ${q.y.toFixed(1)})`}>
+                    <rect x={-38} y={-24} width={76} height={20} rx={10} />
+                    <text x={0} y={-10} textAnchor="middle">{`Niveau ${info.level}/${info.max}`}</text>
+                  </g>
+                );
+              })()}
               {cur && cell && (
                 <g className="lq-planner__cursor">
                   <polygon points={cell.map((q) => `${q.x.toFixed(1)},${q.y.toFixed(1)}`).join(" ")} />
@@ -2279,6 +2351,9 @@ export function WarehousePlanner({
           })()}
 
           <div className="lq-planner__toolbar" onPointerDown={(e) => e.stopPropagation()}>
+            {(floorPicker ?? (activeFloorProp !== undefined || items.some((it) => it.kind === "floorSlab" || floorOf(it) > 0))) && (
+              <FloorPicker floors={Math.max(topFloor(items), floor) + 1} value={floor} onChange={setFloor} />
+            )}
             <div className="lq-planner__switch" role="group" aria-label="Vue">
               <button type="button" className={!mode3d ? "is-on" : undefined} aria-pressed={!mode3d} onClick={() => setMode3d(false)}>
                 Dessus
@@ -2424,6 +2499,38 @@ export function WarehousePlanner({
           </span>
         </footer>}
       </div>
+    </div>
+  );
+}
+
+/** Un élément élevé à sa hauteur : son étage, sa place dans une pile. */
+function Elevated({ z, children }: { z: number; children: ReactNode }) {
+  return z === 0 ? <>{children}</> : <group position={[0, 0, z]}>{children}</group>;
+}
+
+/**
+ * Le choix de l'étage qu'on édite : le rez-de-chaussée, les étages qui existent, et un de plus pour
+ * commencer à bâtir au-dessus. Une petite pile de boutons, du plus haut au plus bas — comme les
+ * étages eux-mêmes.
+ */
+export function FloorPicker({ floors, value, onChange, labels }: { floors: number; value: number; onChange: (floor: number) => void; labels?: (floor: number) => string }) {
+  const name = labels ?? ((f: number) => (f === 0 ? "RDC" : `${f}`));
+  const list = Array.from({ length: Math.max(1, floors) + 1 }, (_, i) => i).reverse();
+  return (
+    <div className="lq-planner__switch lq-planner__floors" role="radiogroup" aria-label="Étage">
+      {list.map((f) => (
+        <button
+          key={f}
+          type="button"
+          role="radio"
+          aria-checked={f === value}
+          className={[f === value && "is-on", f === list[0] && "lq-planner__floor-new"].filter(Boolean).join(" ")}
+          onClick={() => onChange(f)}
+          title={f === 0 ? "Rez-de-chaussée" : f === list[0] ? `Étage ${f} (nouveau)` : `Étage ${f}`}
+        >
+          {f === list[0] && f > 0 ? `+${f}` : name(f)}
+        </button>
+      ))}
     </div>
   );
 }

@@ -113,7 +113,10 @@ export { BuildPlot, PlotScene, DEFAULT_SCENERY, SCENERY_OPTIONS } from "./BuildP
 export type { BuildPlotProps, PlotGroundStyle, SceneryToggles } from "./BuildPlot";
 export { PLOT_SHAPES, generatePlot, plotArea, plotInside, plotOutline } from "./plot";
 export type { PlotCar, PlotLayout, PlotRect, PlotShape, PlotTile } from "./plot";
-export { WarehousePlanner } from "./WarehousePlanner";
+export { WarehousePlanner, FloorPicker } from "./WarehousePlanner";
+export { FLOOR_HEIGHT, SLAB_THICKNESS, SLAB_REACH, CONTAINER_HEIGHT, STACKABLE, floorOf, stackLevelOf, floorElevation, elevationOf, sameFloor, slabsAt, onSlab, slabSupported, stackAt, stackOnto, stackInfo, placementProblem, removalSet, removalProblem, topFloor } from "./placement";
+export type { PlacementCode, PlacementProblem } from "./placement";
+export { FloorSlab, Stairs, FreightLift } from "./FloorItems";
 export type { PlannerEdit, PlannerLink, PlannerOverlayApi, PlannerPaletteEntry, WarehousePlannerProps } from "./WarehousePlanner";
 export { PLANNER_TOOLS, PLANNER_LABEL, createItem, fitsPlot, footprintOf as plannerFootprint, hitTest, isLinear } from "./plannerModel";
 export type { Footprint as PlannerFootprint, PlannerItem, PlannerKind, PlannerLinear, PlannerLinearKind, PlannerPoint, PlannerPointKind, PlannerTool } from "./plannerModel";

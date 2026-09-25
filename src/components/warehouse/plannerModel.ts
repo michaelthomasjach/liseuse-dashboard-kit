@@ -60,7 +60,10 @@ export type PlannerPointKind =
   | "hvac"
   | "coldRoom"
   | "truckBay"
-  | "office";
+  | "office"
+  | "floorSlab"
+  | "stairs"
+  | "freightLift";
 
 /** Les éléments qu'on pose **sur un mur** : ils s'y accrochent et y percent leur ouverture. */
 export const WALL_MOUNTED: PlannerKind[] = ["door", "window", "bay"];
@@ -99,6 +102,8 @@ export interface PlannerLinear {
    * rangée de 0,55 case, contre un mur.
    */
   depth?: "single" | "double";
+  /** L'étage (0 : le rez-de-chaussée ; voir `placement.ts`). */
+  floor?: number;
   /**
    * Le remplissage, de 0 à 1, que l'application pilote : les places occupées d'un parking (`parking`
    * — les voitures entrent et sortent en roulant quand il change), la hauteur des piles d'une zone de
@@ -122,6 +127,10 @@ export interface PlannerPoint {
   storage?: StorageClass;
   /** Étagère : hissée sur des pieds, un passage dessous. */
   passage?: boolean;
+  /** L'étage (0 : le rez-de-chaussée ; voir `placement.ts`). */
+  floor?: number;
+  /** Dans une pile (un conteneur sur un autre) : son rang, 0 au sol (voir `STACKABLE`). */
+  stackLevel?: number;
   /**
    * Le remplissage, de 0 à 1, que l'application pilote : les places occupées d'un parking (`parking`
    * — les voitures entrent et sortent en roulant quand il change), la hauteur des piles d'une zone de
@@ -186,6 +195,9 @@ export const PLANNER_TOOLS: PlannerTool[] = [
   { kind: "delta", label: "Robot delta", group: "Manutention" },
   { kind: "palletizer", label: "Palettiseur", group: "Manutention" },
   { kind: "roof", label: "Toiture", group: "Bâtiment" },
+  { kind: "floorSlab", label: "Dalle d'étage", group: "Bâtiment" },
+  { kind: "stairs", label: "Escalier", group: "Bâtiment" },
+  { kind: "freightLift", label: "Monte-charge", group: "Bâtiment" },
   { kind: "door", label: "Porte", group: "Bâtiment" },
   { kind: "window", label: "Fenêtre", group: "Bâtiment" },
   { kind: "bay", label: "Baie vitrée", group: "Bâtiment" },
@@ -239,6 +251,9 @@ export const POINT_SIZE: Record<PlannerPointKind, { length: number; width: numbe
   coldRoom: { length: 6, width: 4 },
   office: { length: 8, width: 4 },
   truckBay: { length: 10.5, width: 2.4 },
+  floorSlab: { length: 8, width: 6 },
+  stairs: { length: 4.2, width: 1.4 },
+  freightLift: { length: 2, width: 2 },
 };
 
 /**
@@ -318,6 +333,9 @@ export const TIERS: Record<PlannerKind, string[]> = {
   coldRoom: ["Chambre froide positive", "Chambre froide négative"],
   office: ["Open space 4 postes", "Open space 8 postes", "Bureaux et salle de réunion"],
   truckBay: ["1 place camion", "2 places camion", "3 places camion"],
+  floorSlab: ["Dalle béton", "Dalle béton avec garde-corps"],
+  stairs: ["Escalier droit", "Escalier avec palier"],
+  freightLift: ["Monte-charge 1 t", "Monte-charge 3 t"],
   accessRoad: ["Voie simple", "Voie double", "Voie double avec trottoir"],
 };
 
@@ -360,6 +378,8 @@ export function sizeOf(item: PlannerPoint): { length: number; width: number } {
   if (item.kind === "hvac") return { length: HVAC_LENGTH[lv - 1], width: 1 };
   if (item.kind === "truckBay") return { length: TRUCK_BAY_LENGTH, width: TRUCK_BAY_WIDTH * lv };
   if (item.kind === "roof") return item.size ?? POINT_SIZE.roof;
+  if (item.kind === "floorSlab") return item.size ?? POINT_SIZE.floorSlab;
+  if (item.kind === "freightLift" && lv === 2) return { length: 3, width: 2.4 };
   if (item.kind === "tollBooth") return tollBoothSize({ lanes: lv });
   if (item.kind === "transformer") return transformerSize((["pad", "kiosk", "substation", "gridStation"] as const)[lv - 1]);
   if (item.kind === "consolidator") return robotCellSize({ kind: "gantry", slots: [4, 6, 8][lv - 1] });

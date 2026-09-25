@@ -558,3 +558,13 @@
   border-radius: 0;
   background: var(--lq-color-panel);
 }
+
+/* --- Les étages ------------------------------------------------------------------------------------ */
+
+/* La dalle d'un étage : un béton plus clair que le sol, sa rive plus sombre. */
+.lq-iso__solid--slab {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-text) 14%, var(--lq-color-bg));
+}
+.lq-iso__solid--slab-edge {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-text) 45%, var(--lq-color-bg));
+}

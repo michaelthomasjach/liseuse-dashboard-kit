@@ -47,7 +47,7 @@ declare global {
 }
 
 const TRUCK = semiTruckGeometry();
-const DISC_R = TRUCK.width / 2 + 0.15;
+const DISC_R = TRUCK.width / 2 + 0.06;
 const TRAILER_U0 = -TRUCK.kingpin + DISC_R * 0.6;
 
 /**

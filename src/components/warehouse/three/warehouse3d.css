@@ -531,3 +531,30 @@
     transition: none;
   }
 }
+
+/* Une étiquette posée sur la scène : le nom d'un engin choisi, la part d'une route. */
+.lq-scene-tag {
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding: 2px 7px;
+  border: 1px solid var(--lq-color-border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--lq-color-panel) 90%, transparent);
+  color: var(--lq-color-text);
+  font-family: var(--lq-font-family);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  will-change: transform;
+  pointer-events: none;
+}
+.lq-scene-tag.is-strong {
+  border: 1.5px solid var(--lq-color-accent);
+  font-size: 12px;
+  font-weight: 700;
+}
+.lq-root[data-lq-palette="eink"] .lq-scene-tag {
+  border-radius: 0;
+  background: var(--lq-color-panel);
+}

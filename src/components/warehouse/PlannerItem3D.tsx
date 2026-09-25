@@ -257,7 +257,7 @@ function PlannerItem3DBody({ item, mounts, roofs = true, night = 0, support }: P
           <PalletRack
             bays={bays}
             levels={lv + 2}
-            double={lv === 3}
+            double={item.depth !== "single"}
             seed={hash(item.id)}
             storage={item.storage}
             fill={item.fill}

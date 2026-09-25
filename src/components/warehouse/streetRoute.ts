@@ -183,21 +183,36 @@ function keepRight(pts: Pt[], d: number): Pt[] {
   out.push(seg[seg.length - 1].b);
   // Un semi qui tourne à droite, près du trottoir, élargit son virage : il mord sur l'autre voie
   // plutôt que sur le trottoir (sa remorque coupe le virage). Le sommet est poussé vers l'extérieur.
-  for (let i = 1; i < seg.length; i += 1) {
+  // Le détour ne vaut qu'au coin : on garde la voie jusqu'à quelques cases avant, et dès après.
+  const res: Pt[] = [out[0]];
+  for (let i = 1; i < out.length - 1; i += 1) {
     const t0 = seg[i - 1].t;
     const t1 = seg[i].t;
     const cross = t0.x * t1.y - t0.y * t1.x;
-    if (cross > -0.3) continue;
+    if (cross > -0.3) {
+      res.push(out[i]);
+      continue;
+    }
     const bx = t0.x - t1.x;
     const by = t0.y - t1.y;
     const l = Math.hypot(bx, by) || 1;
-    out[i] = { x: out[i].x + (bx / l) * RIGHT_TURN_SWING, y: out[i].y + (by / l) * RIGHT_TURN_SWING };
+    const lin = Math.hypot(out[i].x - out[i - 1].x, out[i].y - out[i - 1].y);
+    const lout = Math.hypot(out[i + 1].x - out[i].x, out[i + 1].y - out[i].y);
+    const a = Math.min(SWING_REACH, lin * 0.45);
+    const b = Math.min(SWING_REACH, lout * 0.45);
+    res.push({ x: out[i].x - t0.x * a, y: out[i].y - t0.y * a });
+    res.push({ x: out[i].x + (bx / l) * RIGHT_TURN_SWING, y: out[i].y + (by / l) * RIGHT_TURN_SWING });
+    res.push({ x: out[i].x + t1.x * b, y: out[i].y + t1.y * b });
   }
-  return out;
+  res.push(out[out.length - 1]);
+  return res;
 }
 
+/** Sur combien de cases avant et après le coin le camion s'écarte pour tourner. */
+const SWING_REACH = 5;
+
 /** De combien un semi élargit un virage à droite, en cases. */
-const RIGHT_TURN_SWING = 2.8;
+const RIGHT_TURN_SWING = 1.6;
 
 /**
  * Le trajet par les rues entre le bord de la carte et `target` (le point de la rue en face d'un
@@ -228,9 +243,26 @@ export function streetRoute(plot: PlotLayout, target: Pt | { entry: Pt }, opts: 
     }
     center = pick.pts;
   }
-  const inbound = [...keepRight(center, lane).slice(0, -1), goal];
+  // Le camion reste dans sa voie jusqu'à quelques cases du portail, et ne la quitte qu'au dernier
+  // moment pour tourner vers lui — il ne roule pas à contresens sur tout le dernier tronçon.
+  const inLane = keepRight(center, lane);
+  const inbound = [...inLane.slice(0, -1), pullBack(inLane, CROSS), goal];
   if (opts.direction !== "out") return inbound;
   // Le départ : le même chemin à rebours, dans l'autre voie, depuis le portail.
   const back = keepRight([...center].reverse(), lane);
-  return [goal, ...back.slice(1)];
+  const ahead = pullBack([...back].reverse(), CROSS);
+  return [goal, ahead, ...back.slice(1)];
+}
+
+/** La longueur sur laquelle on change de voie pour entrer au portail ou en sortir, en cases. */
+const CROSS = 5;
+
+/** Le dernier point d'une polyligne, reculé de `d` le long de son dernier tronçon (sans le dépasser). */
+function pullBack(pts: Pt[], d: number): Pt {
+  const b = pts[pts.length - 1];
+  const a = pts[pts.length - 2] ?? b;
+  const l = Math.hypot(b.x - a.x, b.y - a.y);
+  if (l < 1e-6) return b;
+  const k = Math.min(d, l * 0.8) / l;
+  return { x: b.x - (b.x - a.x) * k, y: b.y - (b.y - a.y) * k };
 }

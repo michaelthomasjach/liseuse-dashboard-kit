@@ -92,7 +92,14 @@ export interface PlannerLinear {
   /** Rack : la classe de stockage de l'élément (voir `storageClass.ts`). */
   storage?: StorageClass;
   /** Rack : un passage sous le rack, au milieu. */
-  passage?: boolean;  /**
+  passage?: boolean;
+  /**
+   * Rack à palettes : **double** (défaut) — deux rangées adossées, reliées par des entretoises, des
+   * palettes sur les deux faces, 1,2 case de profondeur comme une étagère — ou `"single"`, une seule
+   * rangée de 0,55 case, contre un mur.
+   */
+  depth?: "single" | "double";
+  /**
    * Le remplissage, de 0 à 1, que l'application pilote : les places occupées d'un parking (`parking`
    * — les voitures entrent et sortent en roulant quand il change), la hauteur des piles d'une zone de
    * stockage (`zone`), les emplacements occupés d'un rack (`palletRack`). Absent : l'aspect par défaut.
@@ -114,7 +121,8 @@ export interface PlannerPoint {
   /** Étagère : la classe de stockage de l'élément. */
   storage?: StorageClass;
   /** Étagère : hissée sur des pieds, un passage dessous. */
-  passage?: boolean;  /**
+  passage?: boolean;
+  /**
    * Le remplissage, de 0 à 1, que l'application pilote : les places occupées d'un parking (`parking`
    * — les voitures entrent et sortent en roulant quand il change), la hauteur des piles d'une zone de
    * stockage (`zone`), les emplacements occupés d'un rack (`palletRack`). Absent : l'aspect par défaut.
@@ -192,7 +200,7 @@ export const PLANNER_TOOLS: PlannerTool[] = [
 export const PLANNER_LABEL: Record<PlannerKind, string> = Object.fromEntries(PLANNER_TOOLS.map((t) => [t.kind, t.label])) as Record<PlannerKind, string>;
 
 /** L'épaisseur d'un élément linéaire, en travers de son segment, en cases. */
-export const LINEAR_THICKNESS: Record<PlannerLinearKind, number> = { wall: 0.3, dock: 0.3, fence: 0.1, conveyor: 1.6, palletRack: 0.55, rail: 1.8, picker: 1.8, monorail: 1.2, monoPicker: 1.2, powerLine: 1.2, gate: 0.4, lowWall: 0.2, accessRoad: 2.2 };
+export const LINEAR_THICKNESS: Record<PlannerLinearKind, number> = { wall: 0.3, dock: 0.3, fence: 0.1, conveyor: 1.6, palletRack: 1.2, rail: 1.8, picker: 1.8, monorail: 1.2, monoPicker: 1.2, powerLine: 1.2, gate: 0.4, lowWall: 0.2, accessRoad: 2.2 };
 
 /** L'emprise d'un élément ponctuel, avant rotation : longueur (le long de son cap) et largeur. */
 export const POINT_SIZE: Record<PlannerPointKind, { length: number; width: number }> = {
@@ -269,7 +277,7 @@ export const TIERS: Record<PlannerKind, string[]> = {
   conveyor: ["Tapis nu", "Tapis à rives", "Tapis contrôlé (portique scanner)"],
   conveyorCorner: ["Angle nu", "Angle à rives"],
   conveyorTee: ["Aiguillage nu", "Aiguillage à rives"],
-  palletRack: ["Rack 3 niveaux", "Rack 4 niveaux", "Rack double, 5 niveaux"],
+  palletRack: ["Rack 3 niveaux", "Rack 4 niveaux", "Rack 5 niveaux"],
   rail: ["Rail double", "Monorail"],
   railCorner: ["Virage de rail double", "Virage de monorail"],
   picker: ["Picker sur rail double", "Picker sur monorail"],
@@ -371,7 +379,8 @@ export const ACCESS_ROAD_WIDTHS = [2.2, 3.6, 4.6];
 export function thicknessOf(item: PlannerLinear): number {
   const lv = levelOf(item);
   if (item.kind === "rail" || item.kind === "picker") return lv >= 2 ? 1.2 : 1.8;
-  if (item.kind === "palletRack") return lv >= 3 ? 1.2 : 0.55;
+  // Un rack à palettes est double par défaut, à tous les niveaux : la même profondeur qu'une étagère.
+  if (item.kind === "palletRack") return item.depth === "single" ? 0.55 : 1.2;
   if (item.kind === "powerLine") return powerLineWidth((["wood", "concrete", "pylon"] as const)[lv - 1]);
   if (item.kind === "accessRoad") return ACCESS_ROAD_WIDTHS[lv - 1];
   return LINEAR_THICKNESS[item.kind];

@@ -57,3 +57,6 @@ export type { AlertMarkerProps, AlertMarkerStackProps, AlertSeverity, AlertStack
 
 export { FpsMeter, useFps, createFpsSource } from "./FpsMeter";
 export type { FpsMeterProps, FpsMeterPosition, FpsReading, FpsSource, UseFpsOptions } from "./FpsMeter";
+
+export { AllocationSlider, allocate } from "./AllocationSlider";
+export type { AllocationSliderProps, AllocationItem } from "./AllocationSlider";

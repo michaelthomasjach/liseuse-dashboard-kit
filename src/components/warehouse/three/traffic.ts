@@ -61,13 +61,20 @@ export interface TrafficAgent {
   waited: number;
   /** Ne pas le compter (un camion hors du site). */
   ghost?: boolean;
+  /** Un camion à quai : son chargeur — ou un transporteur de flotte — vient à son cul, et y entre ;
+   *  les engins ne le comptent pas comme un obstacle (il est derrière le mur de quai). */
+  docked?: boolean;
   /** Un groupe qui travaille ensemble — un quai, ses camions et son chargeur : ils ne se bloquent pas
    *  entre eux (le chargeur vient **au cul** du camion qu'il sert). */
   group?: string;
   /** Celui qui l'arrête, relevé par `freeAhead`. */
   blocker?: TrafficAgent | null;
-  /** Il recule pour débloquer une impasse, encore tant de secondes. */
+  /** Il recule pour débloquer une impasse, depuis tant de secondes. */
   backing?: number;
+  /** Celui qu'il laisse passer : il ne repart que quand l'autre ne le voit plus devant lui. */
+  yieldTo?: TrafficAgent | null;
+  /** Depuis combien de temps il le laisse passer. */
+  yielded?: number;
 }
 
 /** `a` passe-t-il après `b` ? Chargé avant vide, puis l'ordre des noms. */
@@ -146,7 +153,7 @@ export class TrafficRegistry {
     let free = Infinity;
     self.blocker = null;
     for (const other of this.agents) {
-      if (other === self || other.ghost || (self.group !== undefined && other.group === self.group)) continue;
+      if (other === self || other.ghost || (self.group !== undefined && other.group === self.group) || (other.docked && self.kind === "vehicle")) continue;
       const lane = self.body.radius + other.body.radius;
       let hit = Infinity;
       for (const d of other.body.discs) {
@@ -202,6 +209,36 @@ export class TrafficRegistry {
       }
     }
     return best && { agent: best.agent, need: best.need };
+  }
+
+  /** À quelle distance, dans le couloir de `self` et devant lui, se trouve `other` — `Infinity` s'il
+   *  n'y est pas. Sans rien noter : pour savoir si l'on gêne encore quelqu'un. */
+  hitDistance(self: TrafficAgent, other: TrafficAgent, reach = 4): number {
+    const d0 = self.body.discs;
+    if (!d0.length) return Infinity;
+    const cx = Math.cos(self.motion);
+    const cy = Math.sin(self.motion);
+    let head = d0[0];
+    let best = -Infinity;
+    for (const d of d0) {
+      const a = d.x * cx + d.y * cy;
+      if (a > best) {
+        best = a;
+        head = d;
+      }
+    }
+    const lane = self.body.radius + other.body.radius;
+    let hit = Infinity;
+    for (const d of other.body.discs) {
+      const dx = d.x - head.x;
+      const dy = d.y - head.y;
+      const along = dx * cx + dy * cy;
+      if (along < -self.body.radius * 0.5 || along > reach + lane) continue;
+      const side = Math.abs(-dx * cy + dy * cx);
+      if (side >= lane) continue;
+      hit = Math.min(hit, along - Math.sqrt(Math.max(0, lane * lane - side * side)));
+    }
+    return hit;
   }
 
   /** `self` doit-il laisser passer `other`, qu'il a dans son couloir ? */

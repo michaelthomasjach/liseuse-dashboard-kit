@@ -362,6 +362,16 @@ function yardFit(lane: DockLane, bounds: YardRect[], openings: YardOpening[], en
 }
 
 /**
+ * Où un engin vient charger ou décharger chaque place d'un quai : `door`, contre l'arrière du camion
+ * à quai ; `apron`, un peu en retrait, dans l'axe de la place — là où un transporteur de flotte
+ * s'approche avant d'entrer. Pour une tâche de `PlannerTransporter` : `{ from: stock, to: door }`
+ * (expédition) ou `{ from: door, to: stock }` (réception).
+ */
+export function dockLoadingPoints(bay: DockBay): { door: Pt; apron: Pt }[] {
+  return planDock(bay).lanes.map((l) => ({ door: l.dock, apron: l.apron }));
+}
+
+/**
  * Le quai a-t-il la place de faire manœuvrer ses camions ? `null` si oui ; sinon le problème, en
  * français, pour refuser ou prévenir : `NO_ROOM` (la cour est trop petite), `NO_ACCESS` (aucun
  * portail n'y mène). `needed` : le pavé que la manœuvre balaie, à peu près.

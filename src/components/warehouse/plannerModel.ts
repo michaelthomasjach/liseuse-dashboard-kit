@@ -92,7 +92,12 @@ export interface PlannerLinear {
   /** Rack : la classe de stockage de l'élément (voir `storageClass.ts`). */
   storage?: StorageClass;
   /** Rack : un passage sous le rack, au milieu. */
-  passage?: boolean;
+  passage?: boolean;  /**
+   * Le remplissage, de 0 à 1, que l'application pilote : les places occupées d'un parking (`parking`
+   * — les voitures entrent et sortent en roulant quand il change), la hauteur des piles d'une zone de
+   * stockage (`zone`), les emplacements occupés d'un rack (`palletRack`). Absent : l'aspect par défaut.
+   */
+  fill?: number;
 }
 
 export interface PlannerPoint {
@@ -109,7 +114,12 @@ export interface PlannerPoint {
   /** Étagère : la classe de stockage de l'élément. */
   storage?: StorageClass;
   /** Étagère : hissée sur des pieds, un passage dessous. */
-  passage?: boolean;
+  passage?: boolean;  /**
+   * Le remplissage, de 0 à 1, que l'application pilote : les places occupées d'un parking (`parking`
+   * — les voitures entrent et sortent en roulant quand il change), la hauteur des piles d'une zone de
+   * stockage (`zone`), les emplacements occupés d'un rack (`palletRack`). Absent : l'aspect par défaut.
+   */
+  fill?: number;
 }
 
 export type PlannerItem = PlannerLinear | PlannerPoint;

@@ -247,7 +247,7 @@ function WallBody(props: WallProps) {
     }
     if (from < L) b.box("wall", from, L, 0, D, sole, top);
     // La couvertine, qui court au-dessus de tout et donne au mur son arête franche.
-    b.box("wall", 0, L, -0.035, D + 0.035, top - 0.07, top);
+    b.box("wall-cap", 0, L, -0.035, D + 0.035, top - 0.07, top);
     // Le bardage : les joints horizontaux des panneaux, tous les 60 cm, hors des baies.
     if (cladding) {
       const joints: [[number, number, number], [number, number, number]][] = [];
@@ -282,25 +282,25 @@ function WallBody(props: WallProps) {
       const mid = D / 2;
       const zt = Math.min(h.z, top);
       // L'huisserie ou le dormant : deux montants, une traverse haute, et une basse hors porte.
-      b.box("paint-dark", h.x0, h.x0 + f, mid - 0.04, mid + 0.04, h.z0, zt);
-      b.box("paint-dark", h.x1 - f, h.x1, mid - 0.04, mid + 0.04, h.z0, zt);
-      b.box("paint-dark", h.x0, h.x1, mid - 0.04, mid + 0.04, zt - f, zt);
-      if (h.kind !== "door") b.box("paint-dark", h.x0, h.x1, mid - 0.04, mid + 0.04, h.z0, h.z0 + f);
+      b.box("frame", h.x0, h.x0 + f, mid - 0.05, mid + 0.05, h.z0, zt);
+      b.box("frame", h.x1 - f, h.x1, mid - 0.05, mid + 0.05, h.z0, zt);
+      b.box("frame", h.x0, h.x1, mid - 0.05, mid + 0.05, zt - f, zt);
+      if (h.kind !== "door") b.box("frame", h.x0, h.x1, mid - 0.05, mid + 0.05, h.z0, h.z0 + f);
       if (h.kind === "door") {
         // Le vantail plein, son oculus, sa poignée de chaque côté.
-        b.box("paint-light", h.x0 + f, h.x1 - f, mid - 0.02, mid + 0.02, h.z0, zt - f);
+        b.box("door-leaf", h.x0 + f, h.x1 - f, mid - 0.02, mid + 0.02, h.z0, zt - f);
         for (const y of [mid - 0.021, mid + 0.021]) {
           b.faceY("lq-building__window", y, (h.x0 + h.x1) / 2 - 0.08, (h.x0 + h.x1) / 2 + 0.08, h.z0 + (zt - h.z0) * 0.6, h.z0 + (zt - h.z0) * 0.85, true);
         }
         b.box("chrome", h.x1 - f - 0.1, h.x1 - f - 0.04, mid - 0.06, mid + 0.06, h.z0 + 0.48, h.z0 + 0.51, false);
       } else {
-        b.box("glass", h.x0 + f, h.x1 - f, mid - 0.008, mid + 0.008, h.z0 + f, zt - f, false);
+        b.box("glass-tint", h.x0 + f, h.x1 - f, mid - 0.008, mid + 0.008, h.z0 + f, zt - f, false);
         // Les montants : un meneau pour une fenêtre, un tous les 60 cm pour une baie, et l'imposte.
         const step = h.kind === "bay" ? 0.6 : (h.x1 - h.x0) / 2;
-        for (let x = h.x0 + step; x < h.x1 - 0.1; x += step) b.box("paint-dark", x - 0.02, x + 0.02, mid - 0.03, mid + 0.03, h.z0, zt);
+        for (let x = h.x0 + step; x < h.x1 - 0.1; x += step) b.box("frame", x - 0.02, x + 0.02, mid - 0.03, mid + 0.03, h.z0, zt);
         if (h.kind === "bay") {
           const zi = h.z0 + (zt - h.z0) * 0.8;
-          b.box("paint-dark", h.x0, h.x1, mid - 0.03, mid + 0.03, zi - 0.02, zi + 0.02);
+          b.box("frame", h.x0, h.x1, mid - 0.03, mid + 0.03, zi - 0.02, zi + 0.02);
         } else {
           // L'appui de fenêtre, en saillie des deux côtés.
           b.box("kerb", h.x0 - 0.04, h.x1 + 0.04, -0.06, D + 0.06, h.z0 - 0.04, h.z0);
@@ -340,7 +340,11 @@ function WallBody(props: WallProps) {
       const lz1 = z - 0.01;
       const leafY = D / 2;
       if (lz1 - lz0 > 0.02) {
-        b.box("paint-light", px0, px1, leafY - 0.02, leafY + 0.02, lz0, lz1);
+        b.box("dock-leaf", px0, px1, leafY - 0.02, leafY + 0.02, lz0, lz1);
+        // La bande de sécurité au bas du tablier : jaune, en léger relief — elle se voit de loin et
+        // dit où la porte s'arrête.
+        const band = Math.min(0.16, (lz1 - lz0) * 0.3);
+        b.box("safety", px0, px1, leafY - 0.028, leafY + 0.028, lz0, lz0 + band);
         const n = Math.max(1, Math.round((lz1 - lz0) / 0.22));
         const segs: [[number, number, number], [number, number, number]][] = [];
         for (let i = 1; i < n; i += 1) {
@@ -359,7 +363,9 @@ function WallBody(props: WallProps) {
       // Le niveleur : une tôle au seuil, qui franchit le jeu entre le quai et le plancher de la
       // remorque.
       const [ly0, ly1] = span(nose);
-      b.box("steel", px0, px1, Math.min(ly0, face), Math.max(ly1, face), h.z0 - 0.02, h.z0 + 0.005);
+      b.box("leveller", px0, px1, Math.min(ly0, face), Math.max(ly1, face), h.z0 - 0.02, h.z0 + 0.005);
+      // Ses deux rives peintes en jaune, comme sur un vrai quai.
+      for (const ex of [px0, px1 - 0.06]) b.box("safety", ex, ex + 0.06, Math.min(ly0, face), Math.max(ly1, face), h.z0 + 0.005, h.z0 + 0.012);
       // Les butoirs, sur le nez du quai.
       const bw = BUMPER_W_MM * MM;
       const bh = BUMPER_H_MM * MM;

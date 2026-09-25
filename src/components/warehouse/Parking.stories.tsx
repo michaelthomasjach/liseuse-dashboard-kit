@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react";
 import { Parking } from "./Parking";
 
@@ -33,4 +34,31 @@ export const Occupation: Story = {
       ))}
     </div>
   ),
+};
+
+/**
+ * Un parking d'employés qui vit : `fill` suit le nombre de personnes présentes — l'équipe du matin
+ * arrive, celle de nuit est réduite. Les voitures entrent en roulant (elles longent l'allée puis
+ * reculent dans leur place) et sortent de même ; monter `fill` n'ajoute que des voitures, celles
+ * qui sont là restent, et le même `seed` donne toujours les mêmes places.
+ */
+export const Dynamique: Story = {
+  name: "Qui se remplit selon les présents",
+  render: function Render() {
+    const [present, setPresent] = useState(6);
+    const staff = 16;
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 12, alignItems: "flex-start" }}>
+        <label style={{ display: "inline-flex", gap: 8, alignItems: "center", fontSize: 13 }}>
+          Employés présents : <strong>{present}</strong> / {staff}
+          <input type="range" min={0} max={staff} value={present} onChange={(e) => setPresent(Number(e.target.value))} />
+        </label>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button type="button" onClick={() => setPresent(14)}>Journée</button>
+          <button type="button" onClick={() => setPresent(3)}>Nuit</button>
+        </div>
+        <Parking bays={8} rows={2} fill={present / staff} seed={5} shadows cellSize={34} />
+      </div>
+    );
+  },
 };

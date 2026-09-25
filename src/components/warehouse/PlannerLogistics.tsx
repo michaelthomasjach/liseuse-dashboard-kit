@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import type { Group } from "three";
+import { useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
+import { Color, MeshBasicMaterial, Vector3, type Group } from "three";
 import { Builder } from "./three/builder";
 import { Parts, Solo, useBuilt, type Bounds } from "./three/scene";
 import { useSimFrame } from "./three/time";
@@ -12,6 +13,7 @@ import { Worker } from "./Worker";
 import { Amr } from "./Amr";
 import { SemiTruck, semiTruckGeometry } from "./SemiTruck";
 import { TRUCK_BAY_LENGTH, TRUCK_BAY_WIDTH } from "./plannerModel";
+import { parseCss } from "./three/palette";
 
 /**
  * La logistique **qui bouge** sur le plan : des engins qui font la navette, des camions qui
@@ -343,6 +345,41 @@ export interface PlannerDockTrafficProps {
   electric?: boolean;
   /** Un camion est à quai (`arrive`) ou s'en va (`depart`), à la place `slot`. */
   onTruck?: (e: { kind: "arrive" | "depart"; slot: number }) => void;
+  /**
+   * La place dont le camion est choisi, sur ce quai. Contrôlé si donné (`null` : aucun) ; sinon, le
+   * quai retient lui-même le dernier camion touché.
+   */
+  selectedSlot?: number | null;
+  /**
+   * Un camion a été touché — cliqué, tapoté, tracteur ou remorque : ce qu'il contient. Toucher le
+   * camion déjà choisi le relâche (`null`), et un camion choisi qui quitte le site aussi.
+   */
+  onTruckSelect?: (truck: DockTruckInfo | null) => void;
+  /** Le camion choisi a changé de charge ou de phase — seulement quand cela change, pas à chaque image. */
+  onSelectedTruckChange?: (truck: DockTruckInfo) => void;
+  /** L'unité de la jauge : « 18 / 24 colis ». Défaut : `"colis"`. */
+  unit?: string;
+  /**
+   * La jauge de remplissage, posée au-dessus du camion et qui le suit : pour le camion choisi
+   * (`"selected"`, défaut), pour tout camion à quai en plus, en petit (`"always"`), ou jamais (`"none"`).
+   */
+  fillLabel?: "selected" | "always" | "none";
+}
+
+/** Où en est un camion : il arrive, recule à quai, y attend, ou s'en va. */
+export type DockTruckPhase = "arriving" | "docking" | "docked" | "departing";
+
+/** Ce qu'on sait d'un camion du quai, pour la jauge et pour l'application. */
+export interface DockTruckInfo {
+  /** Sa place sur le parking, à partir de 0. */
+  slot: number;
+  mode: "ship" | "receive";
+  /** Ce qu'il contient, en colis (ou dans l'unité de l'application). */
+  load: number;
+  capacity: number;
+  /** Son remplissage, de 0 à 1. Un camion qui part plein (expédition) : 1 ; vide (réception) : 0. */
+  fill: number;
+  phase: DockTruckPhase;
 }
 
 interface Slot {
@@ -356,6 +393,7 @@ interface Slot {
   /** Ce qu'il contient, et ce que le chargeur a déjà promis d'y mettre ou d'en tirer. */
   loaded: number;
   reserved: number;
+  phase: DockTruckPhase;
 }
 
 interface TruckView {
@@ -413,7 +451,32 @@ const REVERSE_SPEED = 1.3;
 /** La conduite d'un semi : un grand rayon, des départs posés, et un tracteur qui ne pivote pas vite. */
 const TRUCK_STYLE: Partial<MoverStyle> = { radius: 4.5, accel: 0.6, lateral: 0.8, yawRate: 0.45, spin: 0.3 };
 
-function DockBody({ bay, mode, count, capacity = 24, staging, entry, via, loader, batch = 6, paused = false, roadSpeed = 1, electric = false, onTruck }: PlannerDockTrafficProps) {
+/** La marge autour d'un camion où le toucher le choisit encore : large au doigt, juste à la souris. */
+const HIT_PAD_FINE = 0.6;
+const HIT_PAD_COARSE = 2.2;
+/** Un volume qu'on ne voit pas mais qu'on touche : la zone de prise d'un camion. */
+const HIT_MATERIAL = new MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, colorWrite: false });
+
+function DockBody({
+  bay,
+  mode,
+  count,
+  capacity = 24,
+  staging,
+  entry,
+  via,
+  loader,
+  batch = 6,
+  paused = false,
+  roadSpeed = 1,
+  electric = false,
+  onTruck,
+  selectedSlot,
+  onTruckSelect,
+  onSelectedTruckChange,
+  unit = "colis",
+  fillLabel = "selected",
+}: PlannerDockTrafficProps) {
   const roadRef = useRef(roadSpeed);
   roadRef.current = Math.max(0.05, roadSpeed);
   const forward = () => FORWARD_SPEED * roadRef.current;
@@ -439,6 +502,7 @@ function DockBody({ bay, mode, count, capacity = 24, staging, entry, via, loader
       leaving: false,
       loaded: mode === "ship" ? 0 : cap,
       reserved: 0,
+      phase: "docked" as DockTruckPhase,
     }));
     const first = plan.lanes[0].apron;
     const home = Math.atan2(first.y - staging.y, first.x - staging.x);
@@ -474,9 +538,93 @@ function DockBody({ bay, mode, count, capacity = 24, staging, entry, via, loader
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paused, engine]);
 
+  // --- Le camion choisi -----------------------------------------------------------------------------
+  const invalidate = useThree((s) => s.invalidate);
+  const gl = useThree((s) => s.gl);
+  const [ownSelected, setOwnSelected] = useState<number | null>(null);
+  const selected = selectedSlot !== undefined ? selectedSlot : ownSelected;
+  const selRef = useRef(selected);
+  selRef.current = selected;
+  const selectRef = useRef(onTruckSelect);
+  selectRef.current = onTruckSelect;
+  const changeRef = useRef(onSelectedTruckChange);
+  changeRef.current = onSelectedTruckChange;
+  /** Ce qu'on dit d'un camion : sa charge, son remplissage, sa phase. */
+  const infoOf = (sl: Slot): DockTruckInfo => {
+    const departing = sl.phase === "departing";
+    const load = departing ? (mode === "ship" ? cap : 0) : Math.max(0, Math.min(cap, Math.round(sl.loaded)));
+    return { slot: sl.i, mode, load, capacity: cap, fill: departing ? (mode === "ship" ? 1 : 0) : load / cap, phase: sl.phase };
+  };
+  const infoKey = (sl: Slot) => {
+    const i = infoOf(sl);
+    return `${i.load}|${i.phase}`;
+  };
+  /** La dernière charge et la dernière phase annoncées du camion choisi — on n'annonce que ce qui change. */
+  const lastKey = useRef<string | null>(null);
+  useEffect(() => {
+    const sl = selected !== null ? engine.slots[selected] : undefined;
+    lastKey.current = sl ? infoKey(sl) : null;
+    invalidate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected, engine]);
+  const release = () => {
+    setOwnSelected(null);
+    selectRef.current?.(null);
+  };
+  const pick = (i: number) => {
+    const sl = engine.slots[i];
+    if (!sl || !sl.present) return;
+    if (selRef.current === i) {
+      release();
+      return;
+    }
+    setOwnSelected(i);
+    selectRef.current?.(infoOf(sl));
+  };
+  const coarse = typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(pointer: coarse)").matches;
+  const pad = coarse ? HIT_PAD_COARSE : HIT_PAD_FINE;
+  /** Les gestes sur un camion ne regardent que lui : le plan autour ne doit ni relâcher sa propre
+   *  sélection, ni commencer un glisser. On arrête donc l'événement du navigateur lui-même, avant
+   *  qu'il n'atteigne les gestionnaires de `WarehousePlanner`. */
+  const hitHandlers = (i: number) => ({
+    onPointerDown: (e: ThreeEvent<PointerEvent>) => {
+      e.stopPropagation();
+      e.nativeEvent.stopPropagation();
+    },
+    onClick: (e: ThreeEvent<MouseEvent>) => {
+      e.stopPropagation();
+      e.nativeEvent.stopPropagation();
+      pick(i);
+    },
+    onPointerOver: (e: ThreeEvent<PointerEvent>) => {
+      e.stopPropagation();
+      gl.domElement.style.cursor = "pointer";
+    },
+    onPointerOut: () => {
+      gl.domElement.style.cursor = "";
+    },
+  });
+  useEffect(() => () => void (gl.domElement.style.cursor = ""), [gl]);
+  // La couleur du liseré au sol : l'accent du thème, lu dans le conteneur de la toile.
+  const accent = useMemo(() => {
+    const host = gl.domElement.parentElement ?? document.body;
+    const probe = document.createElement("span");
+    probe.style.cssText = "position:absolute;width:0;height:0;overflow:hidden;pointer-events:none;color:var(--lq-color-accent, #6c87c9)";
+    host.appendChild(probe);
+    const c = parseCss(getComputedStyle(probe).color)?.color ?? new Color("#6c87c9");
+    probe.remove();
+    return c;
+  }, [gl]);
+  const ringMaterial = useMemo(
+    () => new MeshBasicMaterial({ color: accent, transparent: true, opacity: 0.95, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }),
+    [accent]
+  );
+  useEffect(() => () => ringMaterial.dispose(), [ringMaterial]);
+
   const depart = (sl: Slot) => {
     sl.docked = false;
     sl.leaving = true;
+    sl.phase = "departing";
     onTruckRef.current?.({ kind: "depart", slot: sl.i });
     const lane = engine.plan.lanes[sl.i];
     sl.mover.push(
@@ -490,6 +638,8 @@ function DockBody({ bay, mode, count, capacity = 24, staging, entry, via, loader
         done: () => {
           sl.present = false;
           sl.leaving = false;
+          // Le camion choisi a quitté le site : il n'y a plus rien à montrer.
+          if (selRef.current === sl.i) release();
         },
       }
     );
@@ -501,11 +651,20 @@ function DockBody({ bay, mode, count, capacity = 24, staging, entry, via, loader
     sl.docked = false;
     sl.loaded = mode === "ship" ? 0 : cap;
     sl.reserved = 0;
+    sl.phase = "arriving";
     const a = lane.approach;
     sl.mover.place(a.x[0], a.y[0], a.heading[0], a.trailer?.[0] ?? a.heading[0]);
     sl.mover.push(
       // Il arrive de la rue déjà lancé, et s'arrête au-delà de la place.
-      { kind: "track", track: a, speed: forward, startSpeed: FORWARD_SPEED },
+      {
+        kind: "track",
+        track: a,
+        speed: forward,
+        startSpeed: FORWARD_SPEED,
+        done: () => {
+          sl.phase = "docking";
+        },
+      },
       { kind: "wait", secs: 0.8 },
       {
         kind: "track",
@@ -513,6 +672,7 @@ function DockBody({ bay, mode, count, capacity = 24, staging, entry, via, loader
         speed: backward,
         done: () => {
           sl.docked = true;
+          sl.phase = "docked";
           onTruckRef.current?.({ kind: "arrive", slot: sl.i });
         },
       }
@@ -636,6 +796,16 @@ function DockBody({ bay, mode, count, capacity = 24, staging, entry, via, loader
         same = p.present === sl.present && p.docked === sl.docked && p.cartons === cartonsOf(sl) && p.rolling === (sl.mover.moving ? shownSpeed(sl.mover.speed) : 0);
       }
       if (!same) setTrucks((trucksShown.current = engine.slots.map(truckViewOf)));
+      // Le camion choisi : sa charge ou sa phase a-t-elle changé depuis la dernière annonce ?
+      const sel = selRef.current;
+      const chosen = sel !== null ? engine.slots[sel] : undefined;
+      if (chosen && chosen.present) {
+        const k = infoKey(chosen);
+        if (k !== lastKey.current) {
+          lastKey.current = k;
+          changeRef.current?.(infoOf(chosen));
+        }
+      }
       const busy = engine.loader.busy || engine.slots.some((sl) => sl.mover.busy || !sl.present);
       if (!busy) {
         clock.reset();
@@ -644,6 +814,87 @@ function DockBody({ bay, mode, count, capacity = 24, staging, entry, via, loader
     },
     awake && !paused
   );
+
+  // --- La jauge de remplissage ---------------------------------------------------------------------
+  // Des étiquettes du document, posées par-dessus la toile et recalées à chaque image dessinée sur
+  // le point au-dessus de la remorque : aucun rendu React pendant que le camion roule, seulement une
+  // transformation CSS. Leur contenu n'est réécrit que quand la charge change.
+  const labelHost = useRef<HTMLDivElement | null>(null);
+  const labels = useRef<{ el: HTMLDivElement; fill: HTMLSpanElement; pct: HTMLSpanElement; count: HTMLSpanElement; key: string }[]>([]);
+  useEffect(() => {
+    const parent = gl.domElement.parentElement;
+    if (!parent) return;
+    const host = document.createElement("div");
+    host.className = "lq-dock-gauges";
+    host.setAttribute("aria-live", "polite");
+    parent.appendChild(host);
+    labelHost.current = host;
+    return () => {
+      host.remove();
+      labelHost.current = null;
+      labels.current = [];
+    };
+  }, [gl]);
+  const labelFor = (i: number) => {
+    const have = labels.current[i];
+    if (have) return have;
+    const host = labelHost.current;
+    if (!host) return null;
+    const el = document.createElement("div");
+    el.className = "lq-dock-gauge";
+    const head = document.createElement("div");
+    head.className = "lq-dock-gauge__head";
+    const pct = document.createElement("span");
+    pct.className = "lq-dock-gauge__pct";
+    const cnt = document.createElement("span");
+    cnt.className = "lq-dock-gauge__count";
+    head.append(pct, cnt);
+    const bar = document.createElement("div");
+    bar.className = "lq-dock-gauge__bar";
+    const fill = document.createElement("span");
+    bar.append(fill);
+    el.append(head, bar);
+    host.append(el);
+    return (labels.current[i] = { el, fill, pct, count: cnt, key: "" });
+  };
+  const anchor = useMemo(() => new Vector3(), []);
+  useFrame((state) => {
+    if (!labelHost.current) return;
+    const sel = selRef.current;
+    const { width, height } = state.size;
+    engine.slots.forEach((sl, i) => {
+      const isSel = sel === i;
+      const show = sl.present && fillLabel !== "none" && (isSel || (fillLabel === "always" && sl.docked));
+      const existing = labels.current[i];
+      if (!show) {
+        if (existing) existing.el.style.display = "none";
+        return;
+      }
+      const lab = labelFor(i);
+      const rg = trailerGroups.current[i];
+      if (!lab || !rg) return;
+      const info = infoOf(sl);
+      const key = `${info.load}|${info.phase}|${isSel ? 1 : 0}|${unit}`;
+      if (key !== lab.key) {
+        lab.key = key;
+        const level = info.fill >= 0.999 ? "full" : info.fill >= 0.75 ? "high" : info.fill >= 0.34 ? "mid" : "low";
+        lab.el.className = ["lq-dock-gauge", isSel ? "is-selected" : "is-compact", `lq-dock-gauge--${mode}`].join(" ");
+        lab.el.dataset.level = level;
+        lab.fill.style.width = `${Math.round(info.fill * 100)}%`;
+        lab.pct.textContent = `${Math.round(info.fill * 100)} %`;
+        lab.count.textContent = isSel ? `${info.load} / ${info.capacity} ${unit}` : "";
+        lab.el.setAttribute("aria-label", `Camion place ${i + 1} : ${info.load} sur ${info.capacity} ${unit}, ${Math.round(info.fill * 100)} %`);
+      }
+      // Le point de la jauge : au-dessus du milieu de la remorque, dans le repère de la sellette.
+      rg.updateWorldMatrix(true, false);
+      anchor.set(TRUCK.trailer / 2 - TRUCK.kingpin, 0, TRUCK.trailerTop + 0.6);
+      rg.localToWorld(anchor);
+      anchor.project(state.camera);
+      const behind = anchor.z > 1;
+      lab.el.style.display = behind ? "none" : "";
+      lab.el.style.transform = `translate(${((anchor.x + 1) / 2) * width}px, ${((1 - anchor.y) / 2) * height}px) translate(-50%, -100%)`;
+    });
+  });
 
   // Les deux véhicules d'un semi, chacun dans le repère de la sellette : le kit les pose par le coin
   // de leur emprise commune, on les recale pour que la sellette soit à l'origine.
@@ -657,9 +908,17 @@ function DockBody({ bay, mode, count, capacity = 24, staging, entry, via, loader
           <group key={`${key}-${i}`}>
             <group ref={(el) => (tractorGroups.current[i] = el)}>
               <SemiTruck vehicle="tractor" origin={hitch} rotation={0} rolling={v.rolling} variant={variant} />
+              <mesh material={HIT_MATERIAL} position={[(TRUCK.tractor0 + TRUCK.cab1) / 2 - TRUCK.kingpin, 0, TRUCK.cabTop / 2]} {...hitHandlers(i)}>
+                <boxGeometry args={[TRUCK.cab1 - TRUCK.tractor0 + pad, TRUCK.width + pad, TRUCK.cabTop + pad]} />
+              </mesh>
+              {selected === i && <GroundRing x0={TRUCK.tractor0 - TRUCK.kingpin} x1={TRUCK.cab1 - TRUCK.kingpin} half={TRUCK.width / 2} material={ringMaterial} />}
             </group>
             <group ref={(el) => (trailerGroups.current[i] = el)}>
               <SemiTruck vehicle="trailer" origin={hitch} rotation={0} doorsOpen={v.docked} load={Array.from({ length: v.cartons }, () => "carton" as const)} rolling={v.rolling} variant={variant} />
+              <mesh material={HIT_MATERIAL} position={[TRUCK.trailer / 2 - TRUCK.kingpin, 0, TRUCK.trailerTop / 2]} {...hitHandlers(i)}>
+                <boxGeometry args={[TRUCK.trailer + pad, TRUCK.width + pad, TRUCK.trailerTop + pad]} />
+              </mesh>
+              {selected === i && <GroundRing x0={-TRUCK.kingpin} x1={TRUCK.trailer - TRUCK.kingpin} half={TRUCK.width / 2} material={ringMaterial} />}
             </group>
           </group>
         );
@@ -667,6 +926,32 @@ function DockBody({ bay, mode, count, capacity = 24, staging, entry, via, loader
       <group ref={loaderGroup}>
         <Hauler vehicle={vehicle} load="carton" batch={size} view={loaderView} />
       </group>
+    </group>
+  );
+}
+
+/** Le liseré au sol d'un camion choisi : un cadre plat, un peu plus large que le véhicule, dans la
+ *  couleur d'accent — il se voit de jour comme de nuit (une matière qui ne prend pas la lumière). */
+function GroundRing({ x0, x1, half, material }: { x0: number; x1: number; half: number; material: MeshBasicMaterial }) {
+  const m = 0.45;
+  const t = 0.22;
+  const a = x0 - m;
+  const b = x1 + m;
+  const h = half + m;
+  const z = 0.03;
+  const bars: [number, number, number, number][] = [
+    [(a + b) / 2, h, b - a + t, t],
+    [(a + b) / 2, -h, b - a + t, t],
+    [a, 0, t, 2 * h],
+    [b, 0, t, 2 * h],
+  ];
+  return (
+    <group>
+      {bars.map(([x, y, w, d], k) => (
+        <mesh key={k} position={[x, y, z]} material={material} renderOrder={2}>
+          <planeGeometry args={[w, d]} />
+        </mesh>
+      ))}
     </group>
   );
 }

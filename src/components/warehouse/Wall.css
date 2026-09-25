@@ -6,11 +6,44 @@
   overflow: visible;
 }
 
-/* Le béton d'un mur : un peu plus clair que la dalle, parce qu'il est debout et qu'il prend la
-   lumière, et assez proche d'elle pour que les deux se lisent comme le même bâtiment. */
-/* Un mur est presque du papier : il se détache du sol (béton gris) et des toitures. */
+/* Le bardage d'un mur : un gris moyen-clair tiré vers le bleu acier, pas du papier. Assez sombre
+   pour que ce qui est posé dessus (portes, fenêtres, portes de quai) s'en détache ; d'une autre
+   teinte que la dalle (grise, neutre) et que les toitures, pour que les trois ne se confondent pas.
+   Les faces de côté prennent l'ombre du modèle de lumière : le mur a un volume, pas un aplat. */
 .lq-iso__solid--wall {
-  --lq-iso-face: color-mix(in srgb, var(--lq-color-text) 3%, var(--lq-color-bg));
+  --lq-iso-face: color-mix(in srgb, color-mix(in srgb, var(--lq-color-sky) 30%, var(--lq-color-text)) 32%, var(--lq-color-bg));
+}
+
+/* La couvertine : une tôle sombre qui court au sommet du mur — l'arête franche qui dessine le
+   bâtiment de loin. */
+.lq-iso__solid--wall-cap {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-text) 62%, var(--lq-color-bg));
+}
+
+/* Huisseries, dormants, meneaux : une menuiserie sombre, qui cerne chaque ouverture. */
+.lq-iso__solid--frame {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-text) 74%, var(--lq-color-bg));
+}
+
+/* Le vantail d'une porte de local : une tôle laquée, dans l'accent du thème. */
+.lq-iso__solid--door-leaf {
+  --lq-iso-face: color-mix(in srgb, color-mix(in srgb, var(--lq-color-accent) 75%, var(--lq-color-text)) 62%, var(--lq-color-bg));
+}
+
+/* Le vitrage : teinté, bleu-vert sombre — une fenêtre se lit comme un trou vitré, pas comme un
+   panneau clair de plus. */
+.lq-iso__solid--glass-tint {
+  --lq-iso-face: color-mix(in srgb, color-mix(in srgb, var(--lq-color-sky) 55%, var(--lq-color-text)) 55%, var(--lq-color-bg));
+}
+
+/* Le tablier sectionnel d'une porte de quai : bleu industriel, franc, avec sa bande jaune en bas. */
+.lq-iso__solid--dock-leaf {
+  --lq-iso-face: color-mix(in srgb, color-mix(in srgb, var(--lq-color-accent) 70%, var(--lq-color-sky)) 72%, var(--lq-color-text) 28%);
+}
+
+/* Le niveleur : une tôle larmée, gris acier plus sombre que le quai. */
+.lq-iso__solid--leveller {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-text) 40%, var(--lq-color-bg));
 }
 
 /* Le joint d'étanchéité qui encadre une porte de quai : un bourrelet de toile sombre, contre lequel
@@ -52,4 +85,19 @@
   stroke: color-mix(in srgb, var(--lq-color-text) 62%, transparent);
   stroke-width: 1;
   vector-effect: non-scaling-stroke;
+}
+
+/* E-ink : les teintes retombent sur l'encre ; on garde des gris bien étagés pour que le tablier,
+   le vantail et le vitrage se lisent chacun contre le bardage. */
+.lq-root[data-lq-palette="eink"] .lq-iso__solid--wall {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-text) 18%, var(--lq-color-bg));
+}
+.lq-root[data-lq-palette="eink"] .lq-iso__solid--dock-leaf {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-text) 46%, var(--lq-color-bg));
+}
+.lq-root[data-lq-palette="eink"] .lq-iso__solid--door-leaf {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-text) 55%, var(--lq-color-bg));
+}
+.lq-root[data-lq-palette="eink"] .lq-iso__solid--glass-tint {
+  --lq-iso-face: color-mix(in srgb, var(--lq-color-text) 66%, var(--lq-color-bg));
 }

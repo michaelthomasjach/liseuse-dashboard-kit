@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent, type KeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { IsoCamera, type IsoProjection } from "./isoCamera";
 import { viewProjector } from "./three/camera";
-import { WarehouseScene, frameBounds, type SceneQuality } from "./three/scene";
+import { WarehouseScene, frameBounds, warehouseSceneFrames, type SceneQuality } from "./three/scene";
+import { FpsMeter, type FpsMeterProps } from "../widgets/FpsMeter";
 import { SnapshotStudio, cachedSnapshot, type SnapshotJob } from "./three/snapshot";
-import { BuildPlot, type PlotGroundStyle } from "./BuildPlot";
+import { BuildPlot, type PlotGroundStyle, type SceneryToggles } from "./BuildPlot";
 import { PlannerZones3D, type PlannerZone } from "./PlannerZones";
 import { GATE_WIDTH, accessRoadDriveways, accessRoadOpenings, layGates, type PlannerGate } from "./accessRoad";
 import { PLANNER_WALL_TOP, PlannerItem3D, rooftopSupport } from "./PlannerItem3D";
@@ -204,6 +205,17 @@ export interface WarehousePlannerProps {
   renderOverlay?: (api: PlannerOverlayApi) => ReactNode;
   /** Des modules 3D de plus, posés dans la scène avec les éléments du plan. */
   sceneChildren?: ReactNode;
+  /**
+   * Le décor autour du terrain, élément par élément — bâtiments de la ville, circulation, arbres,
+   * candélabres… (voir `SceneryToggles` et `SCENERY_OPTIONS`). Un élément éteint n'est ni monté ni
+   * animé. Défaut : tout.
+   */
+  scenery?: Partial<SceneryToggles>;
+  /**
+   * Un compteur d'images en surimpression, dans un coin de la vue : `true` pour celui par défaut (en
+   * bas à droite, la cadence des images réellement dessinées par la scène), ou ses réglages.
+   */
+  fpsMeter?: boolean | FpsMeterProps;
   /**
    * L'entrée de palette en main (par son `id`), `null` pour les mains vides. Contrôlée si
    * `onActiveEntryIdChange` est donné avec elle : l'application peut ainsi mettre un élément en
@@ -752,6 +764,8 @@ export function WarehousePlanner({
   focus,
   renderOverlay,
   sceneChildren,
+  scenery,
+  fpsMeter,
   roofs: roofsProp,
   onRoofsChange,
   lockedAreas,
@@ -2174,6 +2188,7 @@ export function WarehousePlanner({
                 fenceOpenings={roadOpenings}
                 gates={gates}
                 quality={quality}
+                scenery={scenery}
               />
               {zones && zones.length > 0 && <PlannerZones3D zones={zones} selectedId={selectedZoneId} />}
               {items.map((it) => (
@@ -2200,6 +2215,7 @@ export function WarehousePlanner({
               {sceneChildren}
             </WarehouseScene>
           </IsoCamera>
+          {fpsMeter && <FpsMeter source={warehouseSceneFrames} label="Scène" {...(fpsMeter === true ? {} : fpsMeter)} className={["lq-planner__fps", fpsMeter !== true && fpsMeter.className].filter(Boolean).join(" ")} />}
           {renderOverlay && (
             <div className="lq-planner__app-overlay">
               {renderOverlay({ toScreen, width: size.width, height: size.height, scale: cellSize * view.zoom, view: mode3d ? "3d" : "top", items })}

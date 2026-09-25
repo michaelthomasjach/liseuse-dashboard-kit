@@ -2,12 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react";
 import { WarehousePlanner } from "./WarehousePlanner";
 import { generatePlot } from "./plot";
+import { SCENERY_OPTIONS, type SceneryToggles } from "./BuildPlot";
 import type { PlannerItem } from "./plannerModel";
 import type { PlannerEdit, PlannerLink, PlannerPaletteEntry } from "./WarehousePlanner";
 import { dockTrafficClearance } from "./dockManeuver";
 import { semiTruckGeometry } from "./SemiTruck";
 import { dockDoorCenters } from "./BuildingWalls";
-import { PlannerDockTraffic, PlannerShuttle } from "./PlannerLogistics";
+import { PlannerDockTraffic, PlannerShuttle, type DockTruckInfo } from "./PlannerLogistics";
 import { accessRoadRoute, gateEntry, type PlannerGate } from "./accessRoad";
 import type { PlannerZone } from "./PlannerZones";
 import { DemandMeters, IconDock } from "../widgets";
@@ -785,4 +786,203 @@ export const BandeauTelephone: Story = {
   ...BandeauDePalette,
   name: "Palette en bandeau, au téléphone",
   globals: { viewport: { value: "mobile2", isRotated: false } },
+};
+
+/* --- Camions sélectionnables ---------------------------------------------------------------------- */
+
+const DOCK_ITEMS: PlannerItem[] = [
+  { id: "south", kind: "wall", level: 2, x0: 16, y0: 8, x1: 40, y1: 8 },
+  { id: "east", kind: "dock", level: 2, x0: 40, y0: 8, x1: 40, y1: 32 },
+  { id: "north", kind: "wall", level: 2, x0: 40, y0: 32, x1: 16, y1: 32 },
+  { id: "west", kind: "dock", level: 2, x0: 16, y0: 32, x1: 16, y1: 8 },
+  { id: "rack1", kind: "palletRack", level: 2, x0: 19, y0: 12, x1: 30, y1: 12 },
+  { id: "rack2", kind: "palletRack", level: 2, x0: 19, y0: 16, x1: 30, y1: 16 },
+  { id: "ship", kind: "truckBay", level: 3, x: 45.55, y: 20, rotation: 180 },
+  { id: "recv", kind: "truckBay", level: 2, x: 10.45, y: 20, rotation: 0 },
+];
+
+function TruckPicking({ fillLabel }: { fillLabel: "selected" | "always" }) {
+  const [items, setItems] = useState<PlannerItem[]>(DOCK_ITEMS);
+  const [shipped, setShipped] = useState(0);
+  const [received, setReceived] = useState(0);
+  const [night, setNight] = useState(0);
+  const [plannerSel, setPlannerSel] = useState<string | null>("rack1");
+  // Un seul camion choisi dans la scène : la place, et le quai où elle est.
+  const [chosen, setChosen] = useState<{ bay: "ship" | "recv"; slot: number } | null>(null);
+  const [info, setInfo] = useState<DockTruckInfo | null>(null);
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      setShipped((n) => n + 2);
+      setReceived((n) => n + 1);
+    }, 1200);
+    return () => window.clearInterval(id);
+  }, []);
+  const bayOf = (id: string) => {
+    const it = items.find((i) => i.id === id);
+    return it && !("x0" in it) ? { x: it.x, y: it.y, rotation: it.rotation, bays: it.level ?? 1 } : null;
+  };
+  const ship = bayOf("ship");
+  const recv = bayOf("recv");
+  const clearance = [ship, recv].flatMap((b) => (b ? dockTrafficClearance(b) : []));
+  const selectOn = (bay: "ship" | "recv") => (t: DockTruckInfo | null) => {
+    setChosen(t ? { bay, slot: t.slot } : null);
+    setInfo(t);
+  };
+  const phase: Record<DockTruckInfo["phase"], string> = { arriving: "arrive", docking: "se met à quai", docked: "à quai", departing: "repart" };
+  return (
+    <div style={{ ...frame, display: "flex", gap: 12, flexWrap: "wrap" }}>
+      <div style={{ flex: "1 1 360px", minWidth: 0, height: "100%", minHeight: 420 }}>
+        <WarehousePlanner
+          seed={5}
+          shape="rect"
+          plotSize={{ width: 60, depth: 40 }}
+          items={items}
+          onItemsChange={setItems}
+          selectedId={plannerSel}
+          onSelectedIdChange={setPlannerSel}
+          night={night}
+          groundStyle="clean"
+          lightExclusions={clearance}
+          treeExclusions={clearance}
+          defaultView="3d"
+          defaultZoom={1.4}
+          height="100%"
+          paletteLayout="bottom"
+          sceneChildren={
+            <>
+              {ship && (
+                <PlannerDockTraffic
+                  bay={ship}
+                  mode="ship"
+                  count={shipped}
+                  capacity={18}
+                  staging={{ x: 36, y: 20 }}
+                  selectedSlot={chosen?.bay === "ship" ? chosen.slot : null}
+                  onTruckSelect={selectOn("ship")}
+                  onSelectedTruckChange={setInfo}
+                  fillLabel={fillLabel}
+                />
+              )}
+              {recv && (
+                <PlannerDockTraffic
+                  bay={recv}
+                  mode="receive"
+                  count={received}
+                  capacity={12}
+                  unit="palettes"
+                  staging={{ x: 20, y: 22 }}
+                  selectedSlot={chosen?.bay === "recv" ? chosen.slot : null}
+                  onTruckSelect={selectOn("recv")}
+                  onSelectedTruckChange={setInfo}
+                  fillLabel={fillLabel}
+                />
+              )}
+            </>
+          }
+        />
+      </div>
+      <aside data-testid="truck-readout" style={{ flex: "0 1 240px", minWidth: 200, fontSize: 13, display: "flex", flexDirection: "column", gap: 8 }}>
+        <strong>Camion choisi</strong>
+        {info ? (
+          <>
+            <span>
+              {info.mode === "ship" ? "Expédition" : "Réception"} · place {info.slot + 1} · {phase[info.phase]}
+            </span>
+            <span>
+              Remplissage : <strong>{Math.round(info.fill * 100)} %</strong> ({info.load} / {info.capacity})
+            </span>
+          </>
+        ) : (
+          <span style={{ opacity: 0.7 }}>Touchez un camion pour voir son remplissage.</span>
+        )}
+        <span data-testid="planner-selection" style={{ opacity: 0.7 }}>
+          Élément choisi sur le plan : {plannerSel ?? "aucun"}
+        </span>
+        <label style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
+          Nuit
+          <input type="range" min={0} max={1} step={0.05} value={night} onChange={(e) => setNight(Number(e.target.value))} />
+        </label>
+      </aside>
+    </div>
+  );
+}
+
+/**
+ * Toucher un camion — tracteur ou remorque — le choisit : un liseré au sol l'entoure et une jauge
+ * le suit, avec son remplissage (« 12 / 18 colis »). Un quai d'expédition (les camions se
+ * remplissent) et un quai de réception (ils se vident, en palettes). Le plan garde sa propre
+ * sélection (le rack) : toucher un camion ne la relâche pas et ne déplace rien.
+ */
+export const CamionsSelectionnables: Story = {
+  name: "Camions : remplissage au toucher",
+  render: () => <TruckPicking fillLabel="selected" />,
+};
+
+/** `fillLabel="always"` : une petite jauge sur chaque camion à quai, la grande sur celui qu'on choisit. */
+export const CamionsJaugesPermanentes: Story = {
+  name: "Camions : jauges permanentes",
+  render: () => <TruckPicking fillLabel="always" />,
+};
+
+/* --- Façades : le contraste des murs et de ce qui y est posé ---------------------------------------- */
+
+/**
+ * Un petit bâtiment vu de près, pour juger le contraste des façades : un mur de quai et ses portes
+ * sectionnelles (tablier bleu, bande jaune, butoirs, niveleurs), une porte de local, une fenêtre et
+ * une baie vitrée sur le mur voisin. Le bardage est d'un gris moyen, distinct de la dalle et des
+ * toits ; menuiseries et couvertine sombres cernent chaque ouverture. « Nuit » pour la voir éclairée.
+ */
+export const Facades: Story = {
+  name: "Façades : contraste des murs",
+  render: function Render() {
+    const [items, setItems] = useState<PlannerItem[]>(() => [
+      { id: "dock", kind: "dock", level: 2, x0: 10, y0: 14, x1: 28, y1: 14 },
+      { id: "front", kind: "wall", level: 2, x0: 28, y0: 14, x1: 40, y1: 14 },
+      { id: "east", kind: "wall", level: 2, x0: 40, y0: 14, x1: 40, y1: 30 },
+      { id: "north", kind: "wall", level: 2, x0: 40, y0: 30, x1: 10, y1: 30 },
+      { id: "west", kind: "wall", level: 2, x0: 10, y0: 30, x1: 10, y1: 14 },
+      { id: "door1", kind: "door", x: 37, y: 14, rotation: 0 },
+      { id: "win1", kind: "window", x: 33.5, y: 14, rotation: 0 },
+      { id: "bay1", kind: "bay", level: 2, x: 30.5, y: 14, rotation: 0 },
+    ]);
+    const [night, setNight] = useState(0);
+    return (
+      <div style={{ ...frame, display: "flex", flexDirection: "column", gap: 8 }}>
+        <label style={{ display: "inline-flex", gap: 6, alignItems: "center", fontSize: 13 }}>
+          Nuit
+          <input type="range" min={0} max={1} step={0.05} value={night} onChange={(e) => setNight(Number(e.target.value))} />
+        </label>
+        <WarehousePlanner seed={3} shape="rect" plotSize={{ width: 50, depth: 36 }} items={items} onItemsChange={setItems} night={night} groundStyle="clean" defaultView="3d" defaultOrbit={{ yaw: 200, tilt: 24 }} defaultZoom={3.2} height="100%" />
+      </div>
+    );
+  },
+};
+
+/* --- Décor réglable et compteur d'images --------------------------------------------------------- */
+
+/**
+ * Le décor autour du terrain, élément par élément, depuis `SCENERY_OPTIONS` — l'écran de
+ * paramètres d'un jeu se construit de la même façon. Un élément décoché n'est ni monté ni animé.
+ * Le compteur d'images (`fpsMeter`), en bas à droite, dit ce que cela change.
+ */
+export const DecorReglable: Story = {
+  name: "Décor réglable et compteur d'images",
+  render: function Render() {
+    const [items, setItems] = useState<PlannerItem[]>(DOCK_ITEMS);
+    const [scenery, setScenery] = useState<Partial<SceneryToggles>>({});
+    return (
+      <div style={{ ...frame, display: "flex", flexDirection: "column", gap: 8 }}>
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", fontSize: 13 }}>
+          {SCENERY_OPTIONS.map((o) => (
+            <label key={o.key} title={o.description} style={{ display: "inline-flex", gap: 4, alignItems: "center" }}>
+              <input type="checkbox" checked={scenery[o.key] !== false} onChange={(e) => setScenery((s) => ({ ...s, [o.key]: e.target.checked }))} />
+              {o.label}
+              <small style={{ opacity: 0.6 }}>({o.costHint === "high" ? "coûteux" : o.costHint === "medium" ? "moyen" : "léger"})</small>
+            </label>
+          ))}
+        </div>
+        <WarehousePlanner seed={5} shape="rect" plotSize={{ width: 60, depth: 40 }} items={items} onItemsChange={setItems} scenery={scenery} fpsMeter defaultView="3d" height="100%" />
+      </div>
+    );
+  },
 };

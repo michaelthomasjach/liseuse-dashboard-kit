@@ -6,6 +6,7 @@ import { IsoCamera, useIsoCamera, useIsoProjection, useIsoZoom } from "../isoCam
 import { PERSPECTIVE_FOV, cameraBasis, heading, perspectiveDistance, type Projection } from "./camera";
 import { PaletteContext, createPalette, usePalette, type Palette } from "./palette";
 import { SimClockProvider } from "./time";
+import { createFpsSource } from "../../widgets/FpsMeter";
 import type { Built } from "./builder";
 // Toutes les matières du kit, pour qu'un module posé seul — un bâtiment, un conteneur — trouve
 // celles qu'il emprunte aux autres (le verre du camion, le béton du mur, l'acier des racks).
@@ -369,6 +370,7 @@ export function WarehouseScene({ bounds, quality: qualityProp = "auto", cellSize
         >
           <Rig yaw={cam.yaw} tilt={cam.tilt} scale={scale} target={target} span={span} height={height} projection={projection} quality={quality} />
           <ShadowCadence every={quality === "low" ? 3 : 1} />
+          <FrameTap />
           <SimClockProvider speed={speed} paused={paused}>
             <SceneQualityContext.Provider value={quality}>
             <InScene.Provider value={true}>
@@ -387,6 +389,21 @@ export function WarehouseScene({ bounds, quality: qualityProp = "auto", cellSize
       )}
     </div>
   );
+}
+
+/**
+ * L'horloge des scènes d'entrepôt, pour un `FpsMeter` : la durée de chaque image **réellement
+ * dessinée**. Une scène au repos ne dessine rien et n'annonce donc rien. Personne n'écoute : rien
+ * n'est calculé.
+ */
+export const warehouseSceneFrames = createFpsSource();
+
+function FrameTap() {
+  useFrame((_, delta) => {
+    // Le premier pas après un réveil mesure le sommeil, pas le rendu : on l'écarte.
+    if (warehouseSceneFrames.listening && delta < 0.25) warehouseSceneFrames.emit(delta * 1000);
+  });
+  return null;
 }
 
 /**

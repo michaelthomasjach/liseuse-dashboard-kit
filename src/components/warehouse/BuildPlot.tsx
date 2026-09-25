@@ -25,6 +25,41 @@ import { PLOT_STREET, generatePlot, lockedFences, perimeterFenceRuns, plotInside
  * `children` sont posés **sur** le terrain, dans la même scène : c'est là que va l'entrepôt.
  */
 
+/**
+ * Le décor autour du terrain, élément par élément. Chacun est affiché par défaut ; l'éteindre
+ * **supprime le travail** — rien n'est monté, rien n'est animé —, pas seulement l'affichage. Les
+ * rues elles-mêmes restent toujours : les camions y roulent.
+ */
+export interface SceneryToggles {
+  /** Les bâtiments de la ville autour du terrain. */
+  buildings: boolean;
+  /** Les voitures qui circulent dans les rues (la densité reste réglée par `traffic`). */
+  traffic: boolean;
+  /** Les voitures garées devant les bâtiments de la ville (pas le parking du joueur). */
+  parkedCars: boolean;
+  /** Les arbres d'alignement des rues. */
+  trees: boolean;
+  /** Les candélabres des rues. */
+  streetLights: boolean;
+  /** Les passages piétons peints sur la chaussée. */
+  crosswalks: boolean;
+  /** Le grain du sol : touffes d'herbe, joints de dalle, taches, regards. */
+  groundDetail: boolean;
+}
+
+export const DEFAULT_SCENERY: SceneryToggles = { buildings: true, traffic: true, parkedCars: true, trees: true, streetLights: true, crosswalks: true, groundDetail: true };
+
+/** Les réglages du décor, dans l'ordre d'un écran de paramètres, avec ce qu'ils coûtent à peu près. */
+export const SCENERY_OPTIONS: { key: keyof SceneryToggles; label: string; description: string; costHint: "low" | "medium" | "high" }[] = [
+  { key: "buildings", label: "Bâtiments de la ville", description: "Les maisons, immeubles et ateliers autour du terrain.", costHint: "high" },
+  { key: "traffic", label: "Circulation", description: "Les voitures qui roulent dans les rues. Seuls les camions du quai et les employés circulent alors.", costHint: "high" },
+  { key: "trees", label: "Arbres des rues", description: "Les arbres d'alignement le long des trottoirs.", costHint: "medium" },
+  { key: "streetLights", label: "Candélabres", description: "L'éclairage public des rues, et sa lumière la nuit.", costHint: "medium" },
+  { key: "parkedCars", label: "Voitures garées en ville", description: "Les voitures garées devant les bâtiments voisins (pas le parking de l'entrepôt).", costHint: "low" },
+  { key: "groundDetail", label: "Détails du sol", description: "Touffes d'herbe, joints de dalle, taches et regards.", costHint: "low" },
+  { key: "crosswalks", label: "Passages piétons", description: "Le marquage des passages piétons sur la chaussée.", costHint: "low" },
+];
+
 export interface BuildPlotProps {
   /** La graine du terrain. */
   seed?: number;
@@ -87,6 +122,8 @@ export interface BuildPlotProps {
    * `resolveSceneQuality`).
    */
   quality?: "auto" | "high" | "low";
+  /** Le décor à montrer, élément par élément (voir `SceneryToggles`). Défaut : tout. */
+  scenery?: Partial<SceneryToggles>;
   cellSize?: number;
   className?: string;
   children?: ReactNode;
@@ -101,7 +138,7 @@ export function inRects(rects: PlotRect[] | undefined, x: number, y: number): bo
 }
 
 /** Le sol du terrain, sa grille de points et son pointillé, en un maillage. */
-function buildGround(plot: PlotLayout, grid: boolean, style: PlotGroundStyle = "site") {
+function buildGround(plot: PlotLayout, grid: boolean, style: PlotGroundStyle = "site", detail = true) {
   const clean = style === "clean";
   const b = new Builder();
   const f = plot.frame;
@@ -120,7 +157,7 @@ function buildGround(plot: PlotLayout, grid: boolean, style: PlotGroundStyle = "
       x = x1;
     }
   }
-  addGroundDetail(b, plot, clean);
+  if (detail) addGroundDetail(b, plot, clean);
   if (clean) {
     // Un sol d'entrepôt : uni, et seulement de grands carreaux de résine, tous les quatre cases, en
     // traits à peine plus soutenus que lui.
@@ -307,12 +344,13 @@ function FenceRuns({ runs, prefix }: { runs: PlotFenceRun[]; prefix: string }) {
   );
 }
 
-function BuildPlotBody({ layout, traffic = true, grid = true, night = 0, groundStyle = "site", lightExclusions, treeExclusions, driveways, perimeterFence = false, fenceOpenings, gates, quality, children }: BuildPlotProps) {
+function BuildPlotBody({ layout, traffic = true, grid = true, night = 0, groundStyle = "site", lightExclusions, treeExclusions, driveways, perimeterFence = false, fenceOpenings, gates, quality, scenery, children }: BuildPlotProps) {
   const plot = layout as PlotLayout;
+  const show = { ...DEFAULT_SCENERY, ...scenery };
   // La qualité demandée, sinon celle de la scène où le terrain est posé.
   const scene = useSceneQuality();
   const lite = (quality === undefined || quality === "auto" ? scene : resolveSceneQuality(quality)) === "low";
-  const ground = useBuilt(() => buildGround(plot, grid, groundStyle), [plot, grid, groundStyle]);
+  const ground = useBuilt(() => buildGround(plot, grid, groundStyle, show.groundDetail), [plot, grid, groundStyle, show.groundDetail]);
   const gateKey = JSON.stringify(gates ?? []);
   const openKey = JSON.stringify(fenceOpenings ?? []);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -345,7 +383,7 @@ function BuildPlotBody({ layout, traffic = true, grid = true, night = 0, groundS
   // Le pourtour remplace les clôtures des échancrures et des parcelles à vendre : elles courent sur
   // les mêmes bords, et deux clôtures l'une sur l'autre se verraient.
   const perimeter = useMemo(() => (perimeterFence ? perimeterFenceRuns(plot, [...(fenceOpenings ?? []), ...laid.map((g) => g.layout.opening)]) : null), [plot, perimeterFence, openKey, laid]); // eslint-disable-line react-hooks/exhaustive-deps
-  const all = useMemo(() => (traffic === false ? [] : traffic === true ? plot.cars : trafficCars(plot, traffic)), [plot, traffic]);
+  const all = useMemo(() => (traffic === false || !show.traffic ? [] : traffic === true ? plot.cars : trafficCars(plot, traffic)), [plot, traffic, show.traffic]);
   // En qualité basse, une voiture par sens, pas davantage : chacune est une trentaine d'objets à
   // dessiner et une animation de plus, pour un décor qu'on regarde à peine.
   const cars = useMemo(() => (lite ? [all.find((c) => !c.reverse), all.find((c) => c.reverse)].filter((c): c is PlotCar => !!c) : all), [all, lite]);
@@ -353,12 +391,12 @@ function BuildPlotBody({ layout, traffic = true, grid = true, night = 0, groundS
     <>
       <Parts built={ground} />
       {plot.roads.map((t, i) => (
-        <Road key={`r${i}`} {...t} driveways={tileDriveways(t, plot, drives)} />
+        <Road key={`r${i}`} {...t} crosswalk={show.crosswalks ? t.crosswalk : undefined} driveways={tileDriveways(t, plot, drives)} />
       ))}
       {drives.length > 0 && <Parts built={aprons} shadows={false} />}
-      <Buildings buildings={neighbors} />
-      <Trees trees={trees} />
-      {lights.map((l) => (
+      {show.buildings && <Buildings buildings={neighbors} cars={show.parkedCars} />}
+      {show.trees && <Trees trees={trees} />}
+      {show.streetLights && lights.map((l) => (
         <StreetLight key={`l${l.x},${l.y}`} kind="street" origin={{ x: l.x, y: l.y }} rotation={l.rotation} glow={night} />
       ))}
       {laid.map(({ gate, layout: g }) => (

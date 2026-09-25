@@ -1,0 +1,85 @@
+/* Le compteur d'images : une petite pastille translucide, dans un coin, qui ne capte aucun geste.
+   Sa couleur dit l'état — vert, ambre, rouge — et, en e-ink, c'est l'épaisseur du bord qui le dit. */
+
+.lq-fps {
+  --lq-fps-color: var(--lq-color-up, var(--lq-color-green));
+  position: absolute;
+  z-index: 20;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border: 1px solid color-mix(in srgb, var(--lq-fps-color) 55%, var(--lq-color-border));
+  border-left: 3px solid var(--lq-fps-color);
+  border-radius: var(--lq-radius-sm, 4px);
+  background: color-mix(in srgb, var(--lq-color-panel) 82%, transparent);
+  backdrop-filter: blur(4px);
+  color: var(--lq-color-text);
+  font-family: var(--lq-font-family);
+  font-size: 11px;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+}
+.lq-fps[data-level="warn"] {
+  --lq-fps-color: var(--lq-color-warning, var(--lq-color-amber));
+}
+.lq-fps[data-level="critical"] {
+  --lq-fps-color: var(--lq-color-danger);
+}
+.lq-fps[data-level="idle"] {
+  --lq-fps-color: var(--lq-color-text-muted);
+}
+.lq-fps__label {
+  color: var(--lq-color-text-muted);
+  font-weight: 600;
+}
+.lq-fps__value {
+  min-width: 3ch;
+  font-weight: 700;
+  font-size: 12px;
+  color: var(--lq-color-text);
+}
+.lq-fps__value small {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--lq-color-text-muted);
+}
+.lq-fps__detail {
+  color: var(--lq-color-text-muted);
+}
+.lq-fps__graph {
+  display: block;
+  overflow: visible;
+}
+.lq-fps__graph polyline {
+  fill: none;
+  stroke: var(--lq-fps-color);
+  stroke-width: 1.4;
+  stroke-linejoin: round;
+}
+.lq-fps__floor {
+  stroke: color-mix(in srgb, var(--lq-color-text) 22%, transparent);
+  stroke-width: 1;
+  stroke-dasharray: 2 2;
+}
+.lq-fps--compact {
+  gap: 4px;
+  padding: 2px 6px;
+}
+
+/* E-ink : pas de couleur — un bord gauche qui s'épaissit à mesure que ça rame. */
+.lq-root[data-lq-palette="eink"] .lq-fps {
+  --lq-fps-color: var(--lq-color-text) !important;
+  border-radius: 0;
+  background: var(--lq-color-panel);
+  backdrop-filter: none;
+}
+.lq-root[data-lq-palette="eink"] .lq-fps[data-level="warn"] {
+  border-left-width: 5px;
+}
+.lq-root[data-lq-palette="eink"] .lq-fps[data-level="critical"] {
+  border-left-width: 8px;
+}

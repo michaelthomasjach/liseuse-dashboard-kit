@@ -80,7 +80,7 @@ export { ISO_HEIGHT, ISO_TRANSFORM, projectIso, unprojectIso } from "./warehouse
 export { DockWall, StandardWall, wallPlacement, dockDoorCenters } from "./BuildingWalls";
 export type { DockWallProps, StandardWallProps } from "./BuildingWalls";
 
-export { WarehouseScene, frameBounds } from "./three/scene";
+export { WarehouseScene, frameBounds, warehouseSceneFrames } from "./three/scene";
 export type { Bounds, WarehouseSceneProps } from "./three/scene";
 export { makeRoute, sampleRoute } from "./three/transport";
 export type { Route, RoutePose } from "./three/transport";
@@ -109,8 +109,8 @@ export { PalletRack, palletRackSlot } from "./PalletRack";
 export type { PalletRackProps } from "./PalletRack";
 export { BUILDING_KINDS, BUILDING_LABEL, Building, Buildings, addBuilding, lotSize } from "./Building";
 export type { BuildingKind, BuildingProps, BuildingSpec } from "./Building";
-export { BuildPlot, PlotScene } from "./BuildPlot";
-export type { BuildPlotProps, PlotGroundStyle } from "./BuildPlot";
+export { BuildPlot, PlotScene, DEFAULT_SCENERY, SCENERY_OPTIONS } from "./BuildPlot";
+export type { BuildPlotProps, PlotGroundStyle, SceneryToggles } from "./BuildPlot";
 export { PLOT_SHAPES, generatePlot, plotArea, plotInside, plotOutline } from "./plot";
 export type { PlotCar, PlotLayout, PlotRect, PlotShape, PlotTile } from "./plot";
 export { WarehousePlanner } from "./WarehousePlanner";
@@ -165,7 +165,7 @@ export type { TruckBayProps } from "./TruckBay";
 export { PalletJack, PalletJackBody, addHaul, PALLET_JACK_LENGTH, PALLET_JACK_WIDTH } from "./PalletJack";
 export type { PalletJackProps, HaulLoad } from "./PalletJack";
 export { PlannerShuttle, PlannerDockTraffic } from "./PlannerLogistics";
-export type { PlannerShuttleProps, PlannerDockTrafficProps, ShuttleVehicle } from "./PlannerLogistics";
+export type { PlannerShuttleProps, PlannerDockTrafficProps, ShuttleVehicle, DockTruckInfo, DockTruckPhase } from "./PlannerLogistics";
 export { dockTrafficClearance } from "./dockManeuver";
 export type { DockClearanceOptions } from "./dockManeuver";
 export { Office } from "./Office";

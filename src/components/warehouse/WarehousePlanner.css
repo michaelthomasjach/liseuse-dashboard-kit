@@ -1131,3 +1131,8 @@
     height: 44px;
   }
 }
+
+/* Le compteur d'images, en bas : au-dessus de la palette en bandeau quand elle est là. */
+.lq-planner__fps[style*="bottom"] {
+  bottom: calc(var(--lq-planner-palette-height, 0px) + 8px) !important;
+}

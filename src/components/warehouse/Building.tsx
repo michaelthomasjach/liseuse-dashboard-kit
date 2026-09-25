@@ -3,7 +3,7 @@ import { Builder, type P2, type P3 } from "./three/builder";
 import { Parts, Solo, frameBounds, placed, useBuilt } from "./three/scene";
 import { rng } from "./three/random";
 import { addTree } from "./Tree";
-import { addCar } from "./Car";
+import { addCar, type CarKind, type CarTone } from "./Car";
 import { addCondenser } from "./Roof";
 
 /**
@@ -152,9 +152,15 @@ function door(b: Builder, y: number, cx: number, z0 = 0, w = 0.5, h = 1.05) {
 }
 
 /** Un bâtiment entier, dans un constructeur, sur sa parcelle. */
-export function addBuilding(b: Builder, kind: BuildingKind, seed = 1): void {
+export function addBuilding(b: Builder, kind: BuildingKind, seed = 1, opts: { cars?: boolean } = {}): void {
   const r = rng(seed * 7 + BUILDING_KINDS.indexOf(kind) * 131);
   const pick = <T,>(list: T[]) => list[Math.floor(r() * list.length)];
+  // Une voiture garée : tirée comme avant — le reste du bâtiment ne change pas —, dessinée ou non.
+  const parkCar = (m: Matrix4, kinds: CarKind[], tones: CarTone[]) => {
+    const k = pick(kinds);
+    const t = pick(tones);
+    if (opts.cars !== false) b.within(m, () => addCar(b, k, t, { wheels: true }));
+  };
   const lot = LOT[kind];
   const wall = pick(WALLS);
   const roof = pick(ROOFS);
@@ -206,7 +212,7 @@ export function addBuilding(b: Builder, kind: BuildingKind, seed = 1): void {
     b.box(wall, g0, g1, y0 + 0.8, y1 - 0.4, 0, H * 0.85);
     b.box("paint-dark", g0 - 0.05, g1 + 0.1, y0 + 0.7, y1 - 0.3, H * 0.85, H * 0.85 + 0.08);
     b.faceY("lq-building__garage", y0 + 0.8 + F, g0 + 0.25, g1 - 0.25, 0, H * 0.7, true);
-    b.within(new Matrix4().makeTranslation(lot.width - 1.1, 0.35, 0).multiply(new Matrix4().makeRotationZ(Math.PI / 2)), () => addCar(b, pick(["sedan", "hatch"] as const), pick(["light", "dark", "warm", "cool", "accent"] as const), { wheels: true }));
+    parkCar(new Matrix4().makeTranslation(lot.width - 1.1, 0.35, 0).multiply(new Matrix4().makeRotationZ(Math.PI / 2)), ["sedan", "hatch"], ["light", "dark", "warm", "cool", "accent"]);
     addTree(b, { x: 2, y: lot.depth - 1, kind: pick(["round", "conifer"] as const), height: 2.5 + r() * 1.2, seed: seed + 5 });
     return;
   }
@@ -278,7 +284,7 @@ export function addBuilding(b: Builder, kind: BuildingKind, seed = 1): void {
     }
     for (const i of [0, 2]) {
       if (r() < 0.25) continue;
-      b.within(new Matrix4().makeTranslation(3.9 + i * 1.3, 0.3, 0).multiply(new Matrix4().makeRotationZ(Math.PI / 2)), () => addCar(b, pick(["sedan", "hatch", "van"] as const), pick(["light", "dark", "warm", "cool", "accent"] as const), { wheels: true }));
+      parkCar(new Matrix4().makeTranslation(3.9 + i * 1.3, 0.3, 0).multiply(new Matrix4().makeRotationZ(Math.PI / 2)), ["sedan", "hatch", "van"], ["light", "dark", "warm", "cool", "accent"]);
     }
     return;
   }
@@ -385,27 +391,27 @@ export interface BuildingSpec {
 }
 
 /** Tout un quartier en un seul maillage — des dizaines de bâtiments au prix d'un. */
-export function Buildings({ buildings, frame, cellSize = 16, className }: { buildings: BuildingSpec[]; frame?: BuildingProps["frame"]; cellSize?: number; className?: string }) {
+export function Buildings({ buildings, frame, cellSize = 16, className, cars = true }: { buildings: BuildingSpec[]; frame?: BuildingProps["frame"]; cellSize?: number; className?: string; /** Les voitures garées devant. */ cars?: boolean }) {
   const boxes = buildings.map((s) => placed(s.origin, s.rotation ?? 0, { x0: 0, x1: LOT[s.kind].width, y0: 0, y1: LOT[s.kind].depth, z0: 0, z1: 1 }).bounds);
   const bounds = boxes.length
     ? { x0: Math.min(...boxes.map((q) => q.x0)), x1: Math.max(...boxes.map((q) => q.x1)), y0: Math.min(...boxes.map((q) => q.y0)), y1: Math.max(...boxes.map((q) => q.y1)), z0: 0, z1: 9 }
     : { x0: 0, x1: 1, y0: 0, y1: 1, z0: 0, z1: 1 };
   return (
     <Solo bounds={frame ? frameBounds(frame) : bounds} cellSize={cellSize} className={className} ariaLabel="Quartier">
-      <BuildingsBody buildings={buildings} />
+      <BuildingsBody buildings={buildings} cars={cars} />
     </Solo>
   );
 }
 
-function BuildingsBody({ buildings }: { buildings: BuildingSpec[] }) {
+function BuildingsBody({ buildings, cars = true }: { buildings: BuildingSpec[]; cars?: boolean }) {
   const built = useBuilt(() => {
     const b = new Builder();
     for (const s of buildings) {
       const lot = LOT[s.kind];
       const { pose } = placed(s.origin, s.rotation ?? 0, { x0: 0, x1: lot.width, y0: 0, y1: lot.depth, z0: 0, z1: 1 });
-      b.within(pose, () => addBuilding(b, s.kind, s.seed ?? 1));
+      b.within(pose, () => addBuilding(b, s.kind, s.seed ?? 1, { cars }));
     }
     return b.build();
-  }, [JSON.stringify(buildings)]);
+  }, [JSON.stringify(buildings), cars]);
   return <Parts built={built} />;
 }

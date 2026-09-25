@@ -54,3 +54,6 @@ export type { DemandMetersProps, DemandMeter } from "./DemandMeters";
 
 export { AlertMarker, AlertMarkerStack } from "./AlertMarker";
 export type { AlertMarkerProps, AlertMarkerStackProps, AlertSeverity, AlertStackCorner } from "./AlertMarker";
+
+export { FpsMeter, useFps, createFpsSource } from "./FpsMeter";
+export type { FpsMeterProps, FpsMeterPosition, FpsReading, FpsSource, UseFpsOptions } from "./FpsMeter";

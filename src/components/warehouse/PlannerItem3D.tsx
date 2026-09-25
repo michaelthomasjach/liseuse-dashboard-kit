@@ -260,6 +260,7 @@ function PlannerItem3DBody({ item, mounts, roofs = true, night = 0, support }: P
             double={lv === 3}
             seed={hash(item.id)}
             storage={item.storage}
+            fill={item.fill}
             passage={item.passage && bays >= 3 ? { from: mid, to: mid + 1, clearance: 2.2 } : undefined}
             origin={{ x: mx - La / 2, y: my - T / 2 }}
             rotation={rotation}
@@ -328,7 +329,7 @@ function PlannerItem3DBody({ item, mounts, roofs = true, night = 0, support }: P
     case "monorailCorner":
       return <Monorail kind="corner" radius={2} origin={origin} rotation={rotation} />;
     case "zone":
-      return <StorageZone columns={3} rows={2} fill={[0, 1, 3][lv - 1]} origin={origin} rotation={rotation} />;
+      return <StorageZone columns={3} rows={2} fill={p.fill !== undefined ? Math.round(Math.max(0, Math.min(1, p.fill)) * 3) : [0, 1, 3][lv - 1]} origin={origin} rotation={rotation} />;
     case "forklift":
       return (
         <>
@@ -355,7 +356,7 @@ function PlannerItem3DBody({ item, mounts, roofs = true, night = 0, support }: P
     case "light":
       return <StreetLight kind={(["bollard", "street", "flood"] as const)[lv - 1]} origin={center} rotation={rotation} glow={night} />;
     case "parking":
-      return <Parking bays={6} rows={1} fill={0.7} seed={hash(p.id)} canopy={(["none", "roof", "solar"] as const)[lv - 1]} origin={origin} rotation={rotation} />;
+      return <Parking bays={6} rows={1} fill={p.fill ?? 0.7} seed={hash(p.id)} canopy={(["none", "roof", "solar"] as const)[lv - 1]} origin={origin} rotation={rotation} />;
     case "solar":
       return <SolarArray {...SOLAR_TIERS[lv - 1]} origin={origin} rotation={rotation} />;
     case "shrub":

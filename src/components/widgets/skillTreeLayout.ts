@@ -23,21 +23,23 @@ import type { SkillTreeBranch, SkillTreeNode } from "./SkillTree";
  *
  * Chaque branche a une direction, en degrés, de −80 (à gauche) à +80 (à droite), 0 étant tout droit
  * vers le haut : celle qu'elle donne (`angle`), ou, à défaut, une part égale de l'éventail −70…+70
- * selon sa place dans la liste. Un nœud de branche se pose ainsi :
+ * selon sa place dans la liste. Elle possède autour de cette direction un **secteur** : de la
+ * bissectrice avec sa voisine de gauche à celle avec sa voisine de droite (aux extrémités, autant de
+ * place vers l'extérieur, sans passer ±88°).
  *
- * - sa **hauteur** vient de son rang : le plus petit rang des branches forme la première rangée
- *   au-dessus de la couronne (1,3 rangée plus haut), chaque rang suivant une rangée plus haut (`ROW_H`). Les branches très
- *   inclinées retombent un peu (jusqu'à quatre dixièmes de rang pour ±80°) — l'arbre prend une cime en dôme
- *   plutôt qu'un sommet plat ;
- * - son **écart à l'axe** vient de la direction et du rang : `sin(angle) × REACH × √rang`. La
- *   racine carrée fait que la branche s'écarte vite près de la couronne puis monte de plus en plus
- *   droit, comme un vrai membre qui cherche la lumière ;
- * - plusieurs nœuds d'une même branche au même rang s'écartent de côté, en rameaux.
+ * Les nœuds se posent sur des **anneaux** centrés sur la couronne, un anneau par rang distinct des
+ * branches, du plus petit (le plus près) au plus grand : un rang, c'est une distance à la couronne.
+ * Sur un anneau, les nœuds se suivent dans l'ordre des angles de leurs branches, puis, dans une
+ * branche, en rameaux régulièrement répartis dans son secteur — les choix exclusifs d'une même
+ * branche côte à côte, et un nœud dont le rival est dans la branche voisine poussé vers le bord qui
+ * lui fait face, pour que le « ou » reste court.
  *
- * Une passe de **poussée** sépare ensuite ce qui se chevauche : deux boîtes qui se recouvrent sont
- * écartées à l'horizontale (ou, si elles ne se touchent que d'un rien en hauteur, à la verticale),
- * moitié chacune, les nœuds du tronc restant fixes. Quelques dizaines de passes suffisent aux arbres
- * d'un jeu (une trentaine de nœuds).
+ * On écarte ensuite les voisins d'un anneau qui se touchent, sans jamais les faire changer d'ordre ;
+ * si l'un d'eux sort alors de son secteur, l'anneau grandit (un rang chargé s'éloigne de la
+ * couronne au lieu de déborder chez les voisins), d'un tiers au plus. Ce qui ne tient toujours pas
+ * est ramené dans son secteur, et une dernière passe règle les contacts restants — entre deux
+ * anneaux, contre le tronc, entre rameaux serrés — en éloignant le nœud le plus extérieur **le long
+ * de son rayon** : il change de distance, jamais de secteur. Rien ne traverse la couronne.
  */
 
 /** La largeur d'un nœud (pastille et étiquette), en unités du plan. */
@@ -50,8 +52,10 @@ export const TREE_DOT_R = 22;
 const BOX_BELOW = TREE_NODE_H - TREE_DOT_R - 4;
 /** La hauteur d'une rangée : l'écart vertical entre deux rangs. */
 const ROW_H = 124;
-/** L'écart à l'axe d'une branche couchée, au premier rang. */
-const REACH = 210;
+/** Le rayon minimal du premier anneau, autour de la couronne. */
+const RING0 = 190;
+/** L'angle au-delà duquel aucun secteur ne s'étend : une branche ne tombe jamais à l'horizontale. */
+const MAX_ANGLE = 88;
 /** L'écart minimal entre deux boîtes voisines ; plus large entre deux choix exclusifs, pour le « ou ». */
 const GAP = 18;
 const GAP_FORK = 46;
@@ -141,7 +145,6 @@ function rootPath(x0: number, y0: number, x1: number, y1: number, angle: number)
 
 export function layoutTree(nodes: SkillTreeNode[], branches: SkillTreeBranch[]): TreeLayout {
   const angles = branchAngles(branches);
-  const branchIndex = new Map(branches.map((b, i) => [b.id, i]));
   const byId = new Map(nodes.map((n) => [n.id, n]));
   const trunkNodes = nodes.filter((n) => n.trunk);
   const limbNodes = nodes.filter((n) => !n.trunk);
@@ -169,56 +172,134 @@ export function layoutTree(nodes: SkillTreeNode[], branches: SkillTreeBranch[]):
   const crownY = trunkTop - ROW_H * 0.72;
   const groundY = TREE_DOT_R + 40 + (trunkNodes.length ? BOX_BELOW - TREE_DOT_R : 0);
 
-  // --- Les branches : la hauteur par le rang, l'écart par la direction.
-  const minTier = limbNodes.length ? Math.min(...limbNodes.map((n) => rank(n.tier))) : 0;
-  const groups = new Map<string, SkillTreeNode[]>();
-  for (const n of limbNodes) {
-    const k = `${n.branch}|${rank(n.tier)}`;
-    groups.set(k, [...(groups.get(k) ?? []), n]);
-  }
-  for (const list of groups.values()) {
-    const n0 = list[0];
-    const angle = angles.get(n0.branch) ?? 0;
-    const s = Math.sin((angle * Math.PI) / 180);
-    const k = rank(n0.tier) - minTier + 1;
-    const x = s * REACH * Math.sqrt(k);
-    const y = crownY - (k + 0.3) * ROW_H + Math.abs(s) * ROW_H * 0.4;
-    const offs = spread(list);
-    list.forEach((n, j) => placed.set(n.id, { n, x: x + offs[j], y: y + (j % 2 ? -12 : 0), fixed: false, angle }));
+  // --- Les branches : des anneaux autour de la couronne, un par rang, et un secteur par branche.
+  //
+  // Chaque branche possède un secteur angulaire : de la bissectrice avec sa voisine de gauche à celle
+  // avec sa voisine de droite (aux extrémités, autant de place de l'autre côté, sans dépasser ±88°).
+  // Un nœud n'en sort jamais, et l'ordre des branches sur un anneau est celui de leurs angles : rien
+  // ne passe d'un côté à l'autre de la couronne.
+  const sorted = branches.filter((b) => limbNodes.some((n) => n.branch === b.id)).sort((a, b) => (angles.get(a.id) ?? 0) - (angles.get(b.id) ?? 0));
+  const sector = new Map<string, { lo: number; hi: number; mid: number; rank: number }>();
+  sorted.forEach((b, i) => {
+    const a = angles.get(b.id) ?? 0;
+    const prev = i > 0 ? angles.get(sorted[i - 1].id) ?? 0 : undefined;
+    const next = i < sorted.length - 1 ? angles.get(sorted[i + 1].id) ?? 0 : undefined;
+    const half = Math.min(prev !== undefined ? (a - prev) / 2 : Infinity, next !== undefined ? (next - a) / 2 : Infinity, 30);
+    const lo = prev !== undefined ? (prev + a) / 2 : Math.max(-MAX_ANGLE, a - (Number.isFinite(half) ? half : 30));
+    const hi = next !== undefined ? (a + next) / 2 : Math.min(MAX_ANGLE, a + (Number.isFinite(half) ? half : 30));
+    sector.set(b.id, { lo, hi, mid: a, rank: i });
+  });
+
+  /** L'écart tangentiel qu'il faut entre deux voisins d'un anneau, autour de l'angle `m` (radians) :
+   *  deux boîtes ne se touchent plus dès qu'elles sont séparées en largeur **ou** en hauteur ; le long
+   *  d'un anneau presque horizontal (en haut), c'est la largeur qui compte ; sur les flancs, presque
+   *  verticaux, la hauteur. */
+  const tangential = (m: number, fork: boolean) =>
+    Math.min((TREE_NODE_W + (fork ? GAP_FORK : GAP)) / Math.max(1e-3, Math.abs(Math.cos(m))), (TREE_NODE_H + GAP) / Math.max(1e-3, Math.abs(Math.sin(m))));
+  /** Et l'écart radial entre deux anneaux, pour une branche d'angle `m` : la même règle, de travers. */
+  const radial = (m: number) =>
+    Math.min((TREE_NODE_W + GAP) / Math.max(1e-3, Math.abs(Math.sin(m))), (TREE_NODE_H + GAP) / Math.max(1e-3, Math.abs(Math.cos(m))));
+
+  const exclusivePartners = (n: SkillTreeNode) => (n.exclusiveGroup ? nodes.filter((m) => m.id !== n.id && m.exclusiveGroup === n.exclusiveGroup) : []);
+
+  const ringTiers = [...new Set(limbNodes.map((n) => rank(n.tier)))].sort((a, b) => a - b);
+  const ringStep = Math.max(...sorted.map((b) => radial(((angles.get(b.id) ?? 0) * Math.PI) / 180)), TREE_NODE_H + GAP);
+  let radius = RING0 - ringStep;
+  const polar = new Map<string, { r: number; a: number }>();
+
+  for (const tier of ringTiers) {
+    // L'anneau : ses nœuds dans l'ordre des branches, et dans une branche, dans un ordre qui garde
+    // les choix exclusifs côte à côte — et qui pousse vers le bord un nœud dont le rival est dans la
+    // branche voisine, pour que le « ou » reste court.
+    type Item = { n: SkillTreeNode; want: number; lo: number; hi: number };
+    const ring: Item[] = [];
+    for (const b of sorted) {
+      const s = sector.get(b.id)!;
+      const own = limbNodes.filter((n) => n.branch === b.id && rank(n.tier) === tier);
+      if (!own.length) continue;
+      const side = (n: SkillTreeNode) => {
+        // −1 : son rival est dans une branche à gauche ; +1 : à droite ; 0 : dans la sienne, ou aucun.
+        const other = exclusivePartners(n).find((m) => !m.trunk && m.branch !== n.branch);
+        if (!other) return 0;
+        return Math.sign((angles.get(other.branch) ?? 0) - s.mid);
+      };
+      const groupKey = new Map<string, number>();
+      own.forEach((n, i) => {
+        const g = n.exclusiveGroup;
+        if (g && !groupKey.has(g)) groupKey.set(g, i);
+      });
+      const list = own
+        .map((n, i) => ({ n, i, side: side(n), g: n.exclusiveGroup ? groupKey.get(n.exclusiveGroup)! : i }))
+        .sort((p, q) => p.side - q.side || p.g - q.g || p.i - q.i);
+      const m = list.length;
+      list.forEach(({ n, side: sd }, j) => {
+        let want = m === 1 ? s.mid : s.lo + ((s.hi - s.lo) * (j + 1)) / (m + 1);
+        if (m === 1 && sd !== 0) want = s.mid + 0.7 * ((sd < 0 ? s.lo : s.hi) - s.mid);
+        ring.push({ n, want: (want * Math.PI) / 180, lo: (s.lo * Math.PI) / 180, hi: (s.hi * Math.PI) / 180 });
+      });
+    }
+
+    // Le rayon : au moins un pas plus loin que l'anneau précédent ; puis, tant que les nœuds ne
+    // tiennent pas chacun dans son secteur une fois écartés, un anneau plus grand — un rang chargé
+    // prend de la place en s'éloignant, pas en débordant chez les voisins. L'anneau ne grandit que
+    // d'un tiers au plus : au-delà, les nœuds sont ramenés dans leur secteur, et ceux qui s'y
+    // touchent encore s'étagent vers l'extérieur (la passe suivante), en rameaux.
+    radius = Math.max(RING0, radius + ringStep);
+    const maxRadius = radius * 1.35;
+    let pos = ring.map((it) => it.want);
+    for (let attempt = 0; attempt < 60 && radius <= maxRadius; attempt++) {
+      pos = ring.map((it) => it.want);
+      for (let pass = 0; pass < 400; pass++) {
+        let moved = false;
+        for (let i = 0; i + 1 < ring.length; i++) {
+          const need = tangential((pos[i] + pos[i + 1]) / 2, sameFork(ring[i].n, ring[i + 1].n)) / radius;
+          const gap = pos[i + 1] - pos[i];
+          if (gap < need - 1e-6) {
+            const d = (need - gap) / 2;
+            pos[i] -= d;
+            pos[i + 1] += d;
+            moved = true;
+          }
+        }
+        if (!moved) break;
+      }
+      const tol = 1e-3;
+      if (ring.every((it, i) => pos[i] >= it.lo - tol && pos[i] <= it.hi + tol)) break;
+      radius = Math.min(maxRadius + 1, radius * 1.05);
+    }
+    radius = Math.min(radius, maxRadius);
+    ring.forEach((it, i) => polar.set(it.n.id, { r: radius, a: Math.max(it.lo, Math.min(it.hi, pos[i])) }));
   }
 
-  // --- La poussée : on écarte ce qui se chevauche, jusqu'au repos (ou presque).
+  const toXY = (r: number, a: number) => ({ x: r * Math.sin(a), y: crownY - r * Math.cos(a) });
+  for (const n of limbNodes) {
+    const q = polar.get(n.id)!;
+    const { x, y } = toXY(q.r, q.a);
+    placed.set(n.id, { n, x, y, fixed: false, angle: (q.a * 180) / Math.PI });
+  }
+
+  // --- Ce qui se touche encore (deux anneaux en diagonale, un nœud contre le tronc) : le nœud le plus
+  // loin de la couronne s'éloigne encore, le long de son rayon — il ne change jamais de secteur.
   const all = [...placed.values()];
-  const order = (p: P) => (p.n.trunk ? -1 : branchIndex.get(p.n.branch) ?? 0);
-  for (let pass = 0; pass < 160; pass++) {
+  const overlaps = (a: P, b: P) =>
+    Math.abs(b.x - a.x) < TREE_NODE_W + (sameFork(a.n, b.n) ? GAP_FORK : GAP) - 0.5 && Math.abs(b.y - a.y) < TREE_NODE_H + 8 - 0.5;
+  for (let pass = 0; pass < 400; pass++) {
     let moved = false;
     for (let i = 0; i < all.length; i++)
       for (let j = i + 1; j < all.length; j++) {
         const a = all[i];
         const b = all[j];
         if (a.fixed && b.fixed) continue;
-        const dx = b.x - a.x;
-        const dy = b.y - a.y;
-        const ox = TREE_NODE_W + (sameFork(a.n, b.n) ? GAP_FORK : GAP) - Math.abs(dx);
-        const oy = TREE_NODE_H + 8 - Math.abs(dy);
-        if (ox <= 0.5 || oy <= 0.5) continue;
+        if (!overlaps(a, b)) continue;
+        const ra = a.fixed ? -1 : polar.get(a.n.id)!.r;
+        const rb = b.fixed ? -1 : polar.get(b.n.id)!.r;
+        const out = rb > ra || (rb === ra && Math.abs(b.angle) >= Math.abs(a.angle)) ? b : a;
+        const q = polar.get(out.n.id)!;
+        q.r += 8;
+        const xy = toXY(q.r, q.a);
+        out.x = xy.x;
+        out.y = xy.y;
         moved = true;
-        // À peine un recouvrement en hauteur : on décale verticalement, c'est moins coûteux.
-        const vertical = oy < 18 && oy < ox;
-        const amount = (vertical ? oy : ox) + 0.5;
-        const dir =
-          (vertical ? dy : dx) !== 0
-            ? Math.sign(vertical ? dy : dx)
-            : Math.sign(b.angle - a.angle) || Math.sign(order(b) - order(a)) || 1;
-        const wa = a.fixed ? 0 : b.fixed ? 1 : 0.5;
-        const wb = 1 - wa;
-        if (vertical) {
-          a.y -= dir * amount * wa;
-          b.y += dir * amount * wb;
-        } else {
-          a.x -= dir * amount * wa;
-          b.x += dir * amount * wb;
-        }
       }
     if (!moved) break;
   }
@@ -234,7 +315,7 @@ export function layoutTree(nodes: SkillTreeNode[], branches: SkillTreeBranch[]):
           : "bare";
   const limbs: TreeLimb[] = [];
   const vines: TreeVine[] = [];
-  const widthAt = (n: SkillTreeNode) => Math.max(2.5, 13 - 2.3 * (rank(n.tier) - minTier));
+  const widthAt = (n: SkillTreeNode) => Math.max(2.5, 13 - 2.3 * Math.max(0, ringTiers.indexOf(rank(n.tier))));
 
   for (const p of all.filter((q) => q.n.trunk && Math.abs(q.x) > 1)) {
     // Un nœud du tronc écarté de l'axe : un rameau court le rattache au fût.
@@ -272,12 +353,10 @@ export function layoutTree(nodes: SkillTreeNode[], branches: SkillTreeBranch[]):
         limbs.push({ id: `${r.id}->${n.id}`, d: limbPath(q.x, q.y, p.x, p.y), width: widthAt(r), state: stateOf(n, r), branch: n.branch });
       }
     } else {
-      // Une racine de branche : elle part de la couronne — ou du choix du tronc dont elle dépend,
-      // s'il est écarté de l'axe.
+      // Une racine de branche : elle part toujours de la couronne, dans sa direction. Le nœud du
+      // tronc dont elle dépend est dans le fût : c'est le tronc lui-même qui porte ce lien.
       const tr = reqs.filter((r) => r.trunk).map((r) => placed.get(r.id)!).sort((a, b) => a.y - b.y)[0];
-      const from = tr && Math.abs(tr.x) > 1 ? { x: tr.x, y: tr.y } : { x: 0, y: crownY };
-      const d = from.x === 0 ? rootPath(0, crownY, p.x, p.y, p.angle) : limbPath(from.x, from.y, p.x, p.y);
-      limbs.push({ id: `root->${n.id}`, d, width: 14, state: stateOf(n, tr?.n), branch: n.branch });
+      limbs.push({ id: `root->${n.id}`, d: rootPath(0, crownY, p.x, p.y, p.angle), width: 14, state: stateOf(n, tr?.n), branch: n.branch });
     }
     for (const r of reqs) {
       const isLimb = own.includes(r) || (r.trunk && !own.length);
@@ -310,11 +389,16 @@ export function layoutTree(nodes: SkillTreeNode[], branches: SkillTreeBranch[]):
     }
   }
 
-  // --- Les noms des branches, au-dessus de leur plus haut nœud.
+  // --- Les noms des branches, au-delà de leur nœud le plus éloigné, dans le prolongement de son rayon.
   const labels: TreeLabel[] = [];
   for (const b of branches) {
-    const tip = all.filter((p) => !p.n.trunk && p.n.branch === b.id).sort((a, c) => a.y - c.y || Math.abs(c.x) - Math.abs(a.x))[0];
-    if (tip) labels.push({ branch: b.id, x: tip.x, y: tip.y - TREE_DOT_R - 30 });
+    const tip = all.filter((p) => !p.n.trunk && p.n.branch === b.id).sort((a, c) => polar.get(c.n.id)!.r - polar.get(a.n.id)!.r)[0];
+    if (!tip) continue;
+    const q = polar.get(tip.n.id)!;
+    const a = q.a;
+    // Au-dessus de la pastille quand la branche monte ; sur un flanc, de côté, à hauteur de pastille.
+    const lift = TREE_DOT_R + 30;
+    labels.push({ branch: b.id, x: tip.x + Math.sin(a) * (TREE_NODE_W / 2 + 56), y: tip.y - Math.cos(a) * lift });
   }
 
   // --- Le cadre : tout ce qui est posé, plus une marge ; on ramène le coin haut-gauche à (0, 0).
@@ -329,7 +413,11 @@ export function layoutTree(nodes: SkillTreeNode[], branches: SkillTreeBranch[]):
     minY = Math.min(minY, p.y - TREE_DOT_R - 4);
     maxY = Math.max(maxY, p.y + BOX_BELOW);
   }
-  for (const l of labels) minY = Math.min(minY, l.y - 14);
+  for (const l of labels) {
+    minY = Math.min(minY, l.y - 14);
+    minX = Math.min(minX, l.x - 70);
+    maxX = Math.max(maxX, l.x + 70);
+  }
   const ox = PAD - minX;
   const oy = PAD - minY;
   const X = (x: number) => x + ox;

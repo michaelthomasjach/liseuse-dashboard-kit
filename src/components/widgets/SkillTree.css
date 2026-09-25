@@ -720,6 +720,27 @@
   border: 0;
   background: none;
 }
+/* Un arbre plus haut que large : le détail suit le défilement de la page, à côté de l'arbre, au lieu
+   de rester tout en haut quand on choisit un nœud du bas. */
+.lq-skilltree--tree .lq-skilltree__detail {
+  position: sticky;
+  top: var(--lq-space-3);
+  align-self: flex-start;
+  max-height: calc(100vh - 2 * var(--lq-space-3));
+  overflow-y: auto;
+}
+.lq-skilltree--tree.lq-skilltree--compact .lq-skilltree__detail {
+  position: static;
+  max-height: none;
+}
+.lq-skilltree__detail-empty {
+  margin: 0;
+  padding: var(--lq-space-3);
+  border: 1px dashed var(--lq-color-border);
+  border-radius: var(--lq-radius-md);
+  font-size: var(--lq-text-sm);
+  color: var(--lq-color-text-muted);
+}
 .lq-skilltree__detail--inline .lq-skilltree__inline {
   padding: var(--lq-space-3);
   font-size: var(--lq-text-sm);

@@ -28,3 +28,16 @@ export const Bare: Story = {
     </Panel>
   ),
 };
+
+/** Une méta longue dans une carte étroite (un téléphone) : elle passe sous le titre et s'y replie. */
+export const LongMeta: Story = {
+  name: "Méta longue, carte étroite",
+  render: () => (
+    <div style={{ maxWidth: 340 }}>
+      <Panel title="Entrepôt de Lyon" meta="3 alertes · 12 commandes en attente · mis à jour à 14 h 32">
+        <PanelRow label="Quai 1" value="Ouvert" />
+        <PanelRow label="Quai 2" value="Fermé" />
+      </Panel>
+    </div>
+  ),
+};

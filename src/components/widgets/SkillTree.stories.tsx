@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react";
 import { SkillTree, type SkillTreeBranch, type SkillTreeNode } from "./SkillTree";
-import { BatteryIcon, GaugeIcon, PieChartIcon, SolarPanelIcon } from "../icons";
+import { BatteryIcon, GaugeIcon, PieChartIcon, SnowflakeIcon, SolarPanelIcon, TreeIcon, TruckIcon } from "../icons";
 
 /**
  * L'arbre de compétences d'un jeu de gestion d'entrepôt : trois branches, des nœuds par rang, des
@@ -196,19 +196,19 @@ const TREE_OWNED = ["t-site", "t-b2c", "l-transpal", "l-chariot", "l-racks", "e-
 
 /** L'état de chaque nœud, déduit de ce qui est acquis : un choix exclusif pris ferme ses voisins, et
  *  ce qui dépend d'un nœud fermé se ferme à son tour — la branche se fane. */
-function treeStates(owned: string[], researching: string | null, progress: number): SkillTreeNode[] {
+function treeStates(owned: string[], researching: string | null, progress: number, base: TreeBase[] = TREE_BASE): SkillTreeNode[] {
   const closed = new Set<string>();
-  for (const n of TREE_BASE)
-    if (n.exclusiveGroup && !owned.includes(n.id) && TREE_BASE.some((m) => m.exclusiveGroup === n.exclusiveGroup && owned.includes(m.id))) closed.add(n.id);
+  for (const n of base)
+    if (n.exclusiveGroup && !owned.includes(n.id) && base.some((m) => m.exclusiveGroup === n.exclusiveGroup && owned.includes(m.id))) closed.add(n.id);
   for (let changed = true; changed; ) {
     changed = false;
-    for (const n of TREE_BASE)
+    for (const n of base)
       if (!closed.has(n.id) && !owned.includes(n.id) && (n.requires ?? []).some((r) => closed.has(r))) {
         closed.add(n.id);
         changed = true;
       }
   }
-  return TREE_BASE.map((n) => ({
+  return base.map((n) => ({
     ...n,
     state: owned.includes(n.id)
       ? "unlocked"
@@ -284,6 +284,109 @@ export const EnArbreMobile: Story = {
     return (
       <div style={{ width: "100%", maxWidth: 390 }}>
         <SkillTree layout="tree" nodes={nodes} branches={TREE_BRANCHES} selectedId={selected} onSelect={setSelected} />
+      </div>
+    );
+  },
+};
+
+/* --- Un arbre dense : sept branches, un tronc à trois étages ----------------------------------- */
+
+const DENSE_BRANCHES: SkillTreeBranch[] = [
+  { id: "cold", label: "Froid", icon: <SnowflakeIcon size={16} />, color: "#6fa8d6", angle: -76 },
+  { id: "hazard", label: "Matières dangereuses", color: "#c97c7c", angle: -52 },
+  { id: "export", label: "Export", color: "#9c88c9", angle: -27 },
+  { id: "web", label: "Web", icon: <PieChartIcon size={16} />, color: "#6c87c9", angle: 0 },
+  { id: "brand", label: "Marque", color: "#d6a05c", angle: 27 },
+  { id: "green", label: "Vert", icon: <TreeIcon size={16} />, color: "#6faf82", angle: 52 },
+  { id: "supply", label: "Approvisionnement", icon: <TruckIcon size={16} />, color: "#5fa8b5", angle: 76 },
+];
+
+const DENSE_BASE: TreeBase[] = [
+  // Le tronc : le site, cinq spécialités, puis le choix de clientèle.
+  { id: "website", label: "Site internet", branch: "tronc", trunk: true, tier: 0, points: 1 },
+  { id: "spec_cold", label: "Spécialité froid", branch: "tronc", trunk: true, tier: 1, points: 1, requires: ["website"] },
+  { id: "spec_hazard", label: "Spécialité danger", branch: "tronc", trunk: true, tier: 1, points: 1, requires: ["website"] },
+  { id: "spec_export", label: "Spécialité export", branch: "tronc", trunk: true, tier: 1, points: 1, requires: ["website"] },
+  { id: "spec_web", label: "Spécialité web", branch: "tronc", trunk: true, tier: 1, points: 1, requires: ["website"] },
+  { id: "spec_green", label: "Spécialité verte", branch: "tronc", trunk: true, tier: 1, points: 1, requires: ["website"] },
+  { id: "b2c", label: "Vendre aux particuliers (B2C)", branch: "tronc", trunk: true, tier: 2, points: 1, requires: ["website"], exclusiveGroup: "clientele" },
+  { id: "b2b", label: "Vendre aux entreprises (B2B)", branch: "tronc", trunk: true, tier: 2, points: 1, requires: ["website"], exclusiveGroup: "clientele" },
+  // Froid.
+  { id: "cold_room", label: "Chambre froide", branch: "cold", tier: 0, points: 1, requires: ["spec_cold"] },
+  { id: "frozen", label: "Surgelés", branch: "cold", tier: 1, points: 2, requires: ["cold_room"], exclusiveGroup: "frozen_seveso" },
+  { id: "pharma", label: "Pharmacie", branch: "cold", tier: 2, points: 3, requires: ["frozen", "chemicals"], description: "Hybride : le froid et les produits chimiques." },
+  // Matières dangereuses.
+  { id: "hazard_storage", label: "Stockage sécurisé", branch: "hazard", tier: 0, points: 1, requires: ["spec_hazard"] },
+  { id: "chemicals", label: "Produits chimiques", branch: "hazard", tier: 1, points: 2, requires: ["hazard_storage"] },
+  { id: "seveso", label: "Site Seveso", branch: "hazard", tier: 2, points: 3, requires: ["chemicals"], exclusiveGroup: "frozen_seveso" },
+  // Export.
+  { id: "export_docs", label: "Documents d'export", branch: "export", tier: 0, points: 1, requires: ["spec_export"] },
+  { id: "translate_all", label: "Site traduit", branch: "export", tier: 1, points: 2, requires: ["export_docs"] },
+  { id: "export_eu", label: "Export Europe", branch: "export", tier: 1, points: 2, requires: ["export_docs"] },
+  { id: "export_world", label: "Export monde", branch: "export", tier: 2, points: 3, requires: ["export_eu"] },
+  { id: "export_ads", label: "Publicité à l'étranger", branch: "export", tier: 2, points: 3, requires: ["export_eu", "seo"], description: "Hybride : l'export et le référencement." },
+  { id: "customs", label: "Dédouanement", branch: "export", tier: 3, points: 4, requires: ["export_world"] },
+  // Web.
+  { id: "eshop", label: "Boutique en ligne", branch: "web", tier: 0, points: 1, requires: ["spec_web"] },
+  { id: "seo", label: "Référencement", branch: "web", tier: 0, points: 1, requires: ["spec_web"] },
+  { id: "paid_ads", label: "Publicité payante", branch: "web", tier: 0, points: 1, requires: ["spec_web"] },
+  { id: "seo_pro", label: "Référencement pro", branch: "web", tier: 1, points: 2, requires: ["seo"] },
+  { id: "mobile_app", label: "Application mobile", branch: "web", tier: 1, points: 2, requires: ["eshop", "b2c"], exclusiveGroup: "canal" },
+  { id: "marketplaces", label: "Places de marché", branch: "web", tier: 1, points: 2, requires: ["eshop"], exclusiveGroup: "canal" },
+  // Marque.
+  { id: "brand_identity", label: "Identité de marque", branch: "brand", tier: 0, points: 1, requires: ["website"] },
+  { id: "reviews", label: "Avis clients", branch: "brand", tier: 1, points: 2, requires: ["brand_identity"] },
+  { id: "ads", label: "Campagnes", branch: "brand", tier: 1, points: 2, requires: ["brand_identity"] },
+  { id: "trade_accounts", label: "Comptes professionnels", branch: "brand", tier: 1, points: 2, requires: ["brand_identity", "b2b"] },
+  { id: "loyalty", label: "Fidélité", branch: "brand", tier: 2, points: 3, requires: ["reviews"] },
+  { id: "eco_label", label: "Écolabel", branch: "brand", tier: 2, points: 3, requires: ["brand_identity", "green_contract"], description: "Hybride : la marque et le contrat vert." },
+  { id: "premium", label: "Gamme premium", branch: "brand", tier: 3, points: 4, requires: ["loyalty"] },
+  // Vert.
+  { id: "green_contract", label: "Contrat vert", branch: "green", tier: 0, points: 1, requires: ["spec_green"] },
+  { id: "resale", label: "Seconde main", branch: "green", tier: 1, points: 2, requires: ["green_contract"] },
+  { id: "energy_audit", label: "Audit énergétique", branch: "green", tier: 1, points: 2, requires: ["green_contract"] },
+  { id: "predictive", label: "Maintenance prédictive", branch: "green", tier: 2, points: 3, requires: ["energy_audit"] },
+  // Approvisionnement.
+  { id: "suppliers", label: "Réseau fournisseurs", branch: "supply", tier: 0, points: 1, requires: ["website"] },
+  { id: "quiet_delivery", label: "Livraison silencieuse", branch: "supply", tier: 1, points: 2, requires: ["suppliers"] },
+];
+
+const DENSE_OWNED = ["website", "spec_cold", "spec_web", "spec_green", "b2c", "cold_room", "frozen", "eshop", "seo", "mobile_app", "brand_identity", "green_contract"];
+
+/**
+ * Un arbre dense, tiré des données d'un vrai jeu : sept branches de −76° à +76°, un tronc à trois
+ * étages (le site, cinq spécialités, le choix B2C / B2B), un premier anneau chargé (trois racines
+ * pour le web) et des carrefours à cheval sur deux branches (surgelés / Seveso). Chaque nœud reste
+ * dans le secteur de sa branche : un anneau trop chargé s'éloigne de la couronne au lieu de
+ * déborder chez les voisins.
+ */
+export const EnArbreDense: Story = {
+  name: "Arbre dense (7 branches)",
+  render: function Render() {
+    const [owned, setOwned] = useState<string[]>(DENSE_OWNED);
+    const [points, setPoints] = useState(8);
+    const [selected, setSelected] = useState<string | null>("export_ads");
+    const nodes = useMemo(() => treeStates(owned, owned.includes("chemicals") ? null : "chemicals", 0.35, DENSE_BASE), [owned]);
+    return (
+      <div style={{ maxWidth: 1780 }}>
+        <SkillTree
+          layout="tree"
+          nodes={nodes}
+          branches={DENSE_BRANCHES}
+          selectedId={selected}
+          onSelect={setSelected}
+          header={
+            <span>
+              Points disponibles : <strong>{points}</strong>
+            </span>
+          }
+          canUnlock={(n) => (n.points ?? 0) <= points}
+          onUnlock={(id) => {
+            const n = DENSE_BASE.find((b) => b.id === id);
+            setPoints((p) => p - (n?.points ?? 0));
+            setOwned((o) => [...o, id]);
+          }}
+        />
       </div>
     );
   },

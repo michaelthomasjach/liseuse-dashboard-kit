@@ -154,8 +154,8 @@ const pts = (n: number) => `${n} pt${Math.abs(n) > 1 ? "s" : ""}`;
 /** Les crans du zoom, de la vue d'ensemble au gros plan. */
 const ZOOMS = [0.5, 0.625, 0.75, 0.875, 1, 1.25, 1.5];
 /** En arbre, les crans sont relatifs à la vue d'ensemble (l'arbre entier dans la largeur du cadre) :
- *  on ne réduit pas en deçà, on agrandit jusqu'à quatre fois — sans dépasser 150 % de la taille réelle. */
-const TREE_ZOOMS = [1, 1.5, 2, 2.5, 3, 4];
+ *  on ne réduit pas en deçà, on agrandit jusqu'à huit fois (un arbre dense sur un téléphone part de 17 %) — sans dépasser 150 % de la taille réelle. */
+const TREE_ZOOMS = [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8];
 const TREE_MAX_SCALE = 1.5;
 /** En deçà de cette largeur (celle du composant), l'arbre passe en mode compact : zoom et cadre borné. */
 const COMPACT_PX = 640;
@@ -208,22 +208,32 @@ export function SkillTree({
   const stage = useRef<HTMLDivElement>(null);
   const [compact, setCompact] = useState(false);
   const [viewW, setViewW] = useState(0);
+  const [viewH, setViewH] = useState(0);
   useLayoutEffect(() => {
     const r = root.current;
     const sc = scroller.current;
     if (!r || !sc) return;
     const measure = () => {
-      setCompact(r.getBoundingClientRect().width <= COMPACT_PX);
+      const isCompact = r.getBoundingClientRect().width <= COMPACT_PX;
+      setCompact(isCompact);
       // La largeur utile du cadre : sans ses marges internes, là où la scène se pose.
       const cs = getComputedStyle(sc);
       setViewW(sc.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0));
+      // La hauteur qu'on s'autorise pour un arbre plus haut que large : celle du cadre borné en mode
+      // compact (70 % de l'écran), sinon 85 % de l'écran — l'arbre entier reste visible d'un coup d'œil.
+      const vh = typeof window !== "undefined" ? window.innerHeight : 0;
+      setViewH(vh ? vh * (isCompact ? 0.7 : 0.85) - (parseFloat(cs.paddingTop) || 0) - (parseFloat(cs.paddingBottom) || 0) : 0);
     };
     measure();
-    if (typeof ResizeObserver === "undefined") return;
+    window.addEventListener("resize", measure);
+    if (typeof ResizeObserver === "undefined") return () => window.removeEventListener("resize", measure);
     const ro = new ResizeObserver(measure);
     ro.observe(r);
     ro.observe(sc);
-    return () => ro.disconnect();
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", measure);
+    };
   }, []);
   const showZoom = zoomControls === "auto" ? compact : zoomControls;
   const [zoomState, setZoom] = useState(1);
@@ -232,7 +242,11 @@ export function SkillTree({
   // qui la fait tenir dans la largeur du cadre, que le zoom multiplie. Les crans permis dépendent de
   // cette vue d'ensemble : un arbre qui tient déjà à 100 % ne s'agrandit guère.
   const tree = useMemo(() => (isTree ? layoutTree(nodes, branches) : null), [isTree, nodes, branches]);
-  const fit = tree && viewW > 0 ? Math.min(1, viewW / tree.width) : 1;
+  // La vue d'ensemble tient dans la largeur du cadre et, pour un arbre plus haut que large, aussi dans
+  // la hauteur qu'on lui accorde (jamais sous 240 px, pour qu'un écran bas ne l'écrase pas) : un arbre
+  // étroit et haut ne se déploie pas sur trois écrans quand le cadre est large.
+  const tall = !!tree && tree.height > tree.width && viewH > 0;
+  const fit = tree && viewW > 0 ? Math.min(1, viewW / tree.width, tall ? Math.max(240, viewH) / tree.height : 1) : 1;
   const zooms = isTree ? TREE_ZOOMS.filter((z) => z === 1 || fit * z <= TREE_MAX_SCALE + 1e-6) : ZOOMS;
   // Sans les boutons, pas de zoom : on ne laisse pas un arbre réduit sans moyen de le remettre. Et un
   // cran devenu hors d'atteinte (le cadre s'est élargi) retombe sur le plus grand permis.
@@ -571,7 +585,13 @@ export function SkillTree({
           )}
         </div>
         {renderDetail && selected && <aside className="lq-skilltree__detail">{renderDetail(selected)}</aside>}
-        {isTree && !renderDetail && selected && <aside className="lq-skilltree__detail lq-skilltree__detail--inline">{inlineDetail(selected)}</aside>}
+        {/* En arbre, le détail par défaut a toujours sa place, même vide : sans cela, choisir un nœud
+            rétrécirait le cadre, et l'arbre entier changerait d'échelle sous le doigt. */}
+        {isTree && !renderDetail && (
+          <aside className="lq-skilltree__detail lq-skilltree__detail--inline">
+            {selected ? inlineDetail(selected) : <p className="lq-skilltree__detail-empty">Choisissez une compétence pour voir son détail.</p>}
+          </aside>
+        )}
       </div>
     </div>
   );

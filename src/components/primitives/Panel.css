@@ -20,17 +20,24 @@
   padding: 0;
 }
 
+/* L'en-tête : le titre à gauche, la méta à droite tant qu'ils tiennent sur une ligne. Dans une carte
+   étroite (un téléphone), la méta passe sous le titre, et un texte trop long s'y replie au lieu de
+   déborder de la carte. */
 .lq-panel__header {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
-  gap: var(--lq-space-3);
+  column-gap: var(--lq-space-3);
+  row-gap: var(--lq-space-1);
   padding-bottom: var(--lq-space-3);
   margin-bottom: var(--lq-space-2);
   border-bottom: 1px solid var(--lq-color-border-subtle);
 }
 
 .lq-panel__title {
+  min-width: 0;
+  overflow-wrap: anywhere;
   margin: 0;
   font-size: 0.8rem;
   font-weight: 700;
@@ -40,9 +47,11 @@
 }
 
 .lq-panel__meta {
+  flex: 0 1 auto;
+  min-width: 0;
   font-size: 0.8rem;
   color: var(--lq-color-text-muted);
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .lq-panel__body {

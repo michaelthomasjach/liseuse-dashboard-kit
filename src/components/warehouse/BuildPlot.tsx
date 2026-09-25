@@ -1,8 +1,9 @@
-import { useMemo, useRef, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Builder, type P3 } from "./three/builder";
 import { rng } from "./three/random";
 import { Parts, Solo, WarehouseScene, frameBounds, resolveSceneQuality, useBuilt, useSceneQuality } from "./three/scene";
 import { useSimClock } from "./three/time";
+import { useTraffic } from "./three/traffic";
 import { ROAD_SURFACE, Road, roadSize, type RoadDriveway } from "./Road";
 import { Buildings } from "./Building";
 import { Trees } from "./Tree";
@@ -400,7 +401,11 @@ function BuildPlotBody({ layout, traffic = true, grid = true, night = 0, groundS
         <StreetLight key={`l${l.x},${l.y}`} kind="street" origin={{ x: l.x, y: l.y }} rotation={l.rotation} glow={night} />
       ))}
       {laid.map(({ gate, layout: g }) => (
-        <SlidingGate key={`gate-${gate.id}`} length={g.slide.length} origin={g.slide.origin} rotation={g.slide.rotation} open={gate.open ?? 1} />
+        gate.open === "auto" ? (
+          <AutoGate key={`gate-${gate.id}`} x={gate.x} y={gate.y} length={g.slide.length} origin={g.slide.origin} rotation={g.slide.rotation} />
+        ) : (
+          <SlidingGate key={`gate-${gate.id}`} length={g.slide.length} origin={g.slide.origin} rotation={g.slide.rotation} open={gate.open ?? 1} />
+        )
       ))}
       {perimeter ? (
         <FenceRuns runs={perimeter} prefix="pf" />
@@ -420,6 +425,18 @@ function BuildPlotBody({ layout, traffic = true, grid = true, night = 0, groundS
       {children}
     </>
   );
+}
+
+/**
+ * Un portail qui s'ouvre tout seul : il se déclare à la circulation de la scène, qui le prévient
+ * quand un camion entre dans son rayon (une longueur de semi) et quand le dernier en sort. Rien ne
+ * tourne tant que personne n'approche.
+ */
+function AutoGate({ x, y, length, origin, rotation }: { x: number; y: number; length: number; origin: { x: number; y: number }; rotation: number }) {
+  const traffic = useTraffic();
+  const [open, setOpen] = useState(0);
+  useEffect(() => traffic.addGate(x, y, 19, (o) => setOpen(o ? 1 : 0)), [traffic, x, y]);
+  return <SlidingGate length={length} origin={origin} rotation={rotation} open={open} />;
 }
 
 /**

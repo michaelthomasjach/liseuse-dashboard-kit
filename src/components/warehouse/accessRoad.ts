@@ -166,8 +166,11 @@ export interface PlannerGate {
   y: number;
   /** La largeur de l'ouverture, en cases. Défaut : 3. */
   width?: number;
-  /** L'ouverture du vantail, de 0 (fermé) à 1 (ouvert, défaut). */
-  open?: number;
+  /**
+   * L'ouverture du vantail, de 0 (fermé) à 1 (ouvert, défaut) — ou `"auto"` : fermé, il s'ouvre quand
+   * un camion (`PlannerDockTraffic`) approche, et se referme derrière lui.
+   */
+  open?: number | "auto";
 }
 
 /** Où un portail est posé, et tout ce qui en découle. */

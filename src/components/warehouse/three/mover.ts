@@ -32,6 +32,8 @@ export { angleDelta };
 
 export type MoverTask =
   | { kind: "wait"; secs: number; done?: () => void }
+  /** Attendre qu'une condition soit remplie — une zone accordée, une voie libre. Relue à chaque pas. */
+  | { kind: "until"; test: () => boolean; done?: () => void }
   /** Tourner sur place — un robot, un piéton : en douceur, départ et arrivée amortis. */
   | { kind: "turn"; to: number; done?: () => void }
   | {
@@ -92,6 +94,32 @@ export class Mover {
   moving = false;
   /** La vitesse signée du moment, en cases par seconde : négative en marche arrière. */
   speed = 0;
+  /**
+   * La part de son allure qu'il garde, de 0 (arrêté) à 1 : ce que la circulation lui laisse (voir
+   * `traffic.ts`). Elle freine ou relance le parcours sans rien retracer — le chemin reste le même.
+   */
+  throttle = 1;
+  /**
+   * Un écart de côté, en cases, à droite du cap (négatif : à gauche) : l'engin **serre sa droite**
+   * pour en croiser un autre, sans quitter son trajet. Il ne change que sa pose montrée et celle que
+   * voit la circulation.
+   */
+  side = 0;
+  /** La pose montrée : la pose sur le trajet, décalée de `side`. */
+  get shownX(): number {
+    return this.x + Math.sin(this.heading) * this.side;
+  }
+  get shownY(): number {
+    return this.y - Math.cos(this.heading) * this.side;
+  }
+  /** Le trajet en cours se fait en marche arrière (un semi qui recule à quai). */
+  get reversingTrack(): boolean {
+    return this.run?.track.reverse === true;
+  }
+  /** Le sens de la marche : en marche arrière sur un trajet qui le dit, ou quand il recule pour dégager. */
+  get reversing(): boolean {
+    return (this.run?.track.reverse === true) !== this.throttle < 0;
+  }
   style: MoverStyle;
   private tasks: MoverTask[] = [];
   private elapsed = 0;
@@ -152,6 +180,11 @@ export class Mover {
 
   /** Exécuter la tâche en cours pendant `dt` ; ce qui reste de `dt` si elle s'achève, sinon 0. */
   private exec(task: MoverTask, dt: number): number {
+    if (task.kind === "until") {
+      this.moving = false;
+      this.speed = 0;
+      return task.test() ? this.finish(task, dt) : 0;
+    }
     if (task.kind === "wait") {
       this.moving = false;
       this.speed = 0;
@@ -183,7 +216,8 @@ export class Mover {
     if (!this.run) this.run = this.start(task);
     const r = this.run;
     const v = speedOf(task.speed);
-    r.tau += dt * (v / r.nominal);
+    // Un frein négatif fait reculer l'engin sur son propre chemin — pour dégager une impasse.
+    r.tau = Math.max(0, r.tau + dt * Math.max(-0.5, Math.min(1, this.throttle)) * (v / r.nominal));
     const total = r.times[r.times.length - 1] ?? 0;
     const s = distanceAt(r.track, r.times, r.tau);
     const ds = s - r.s;
@@ -196,7 +230,7 @@ export class Mover {
     const maxTurn = this.style.yawRate * 1.5 * dt + 1e-4;
     this.heading += Math.max(-maxTurn, Math.min(maxTurn, angleDelta(this.heading, p.heading)));
     if (p.trailer !== undefined) this.trailer += Math.max(-maxTurn, Math.min(maxTurn, angleDelta(this.trailer, p.trailer)));
-    this.moving = true;
+    this.moving = Math.abs(ds) > 1e-6 || this.throttle > 0.02;
     this.speed = (dt > 0 ? ds / dt : 0) * (r.track.reverse ? -1 : 1);
     if (r.tau < total && s < r.track.length - 1e-6) return 0;
     const spare = (r.tau - total) * (r.nominal / Math.max(0.05, v));

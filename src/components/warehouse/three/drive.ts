@@ -512,3 +512,28 @@ export function distanceAt(track: Track, times: number[], t: number): number {
   const u = (t - times[lo]) / (times[hi] - times[lo] || 1);
   return track.s[lo] + (track.s[hi] - track.s[lo]) * u;
 }
+
+/**
+ * Un morceau de trajet, de l'abscisse `s0` à `s1` : pour arrêter un engin en route (attendre qu'une
+ * zone se libère) puis le faire repartir d'où il est, sur le même chemin. Les abscisses repartent de 0.
+ */
+export function sliceTrack(track: Track, s0: number, s1: number): Track {
+  const n = track.s.length;
+  let i0 = 0;
+  while (i0 < n - 1 && track.s[i0] < s0) i0 += 1;
+  let i1 = n - 1;
+  while (i1 > i0 && track.s[i1] > s1) i1 -= 1;
+  const cut = <T,>(a: T[]) => a.slice(i0, i1 + 1);
+  const base = track.s[i0];
+  const s = cut(track.s).map((v) => v - base);
+  return {
+    s,
+    x: cut(track.x),
+    y: cut(track.y),
+    heading: cut(track.heading),
+    trailer: track.trailer ? cut(track.trailer) : undefined,
+    turn: cut(track.turn),
+    reverse: track.reverse,
+    length: s[s.length - 1] ?? 0,
+  };
+}

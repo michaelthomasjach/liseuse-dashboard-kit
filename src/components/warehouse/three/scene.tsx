@@ -6,6 +6,7 @@ import { IsoCamera, useIsoCamera, useIsoProjection, useIsoZoom } from "../isoCam
 import { PERSPECTIVE_FOV, cameraBasis, heading, perspectiveDistance, type Projection } from "./camera";
 import { PaletteContext, createPalette, usePalette, type Palette } from "./palette";
 import { SimClockProvider } from "./time";
+import { TrafficContext, TrafficRegistry } from "./traffic";
 import { createFpsSource } from "../../widgets/FpsMeter";
 import type { Built } from "./builder";
 // Toutes les matières du kit, pour qu'un module posé seul — un bâtiment, un conteneur — trouve
@@ -311,6 +312,8 @@ export function WarehouseScene({ bounds, quality: qualityProp = "auto", cellSize
   const width = viewport ? viewport.width : Math.ceil(box.width * grow + padding * 2);
   const height = viewport ? viewport.height : Math.ceil(box.height * grow + padding * 2);
   const host = useRef<HTMLDivElement>(null);
+  // La circulation de la scène : tous les engins qui y roulent s'y croisent (voir `traffic.ts`).
+  const traffic = useMemo(() => new TrafficRegistry(), []);
   const [palette, setPalette] = useState<Palette | null>(null);
   const [visible, setVisible] = useState(false);
 
@@ -376,10 +379,12 @@ export function WarehouseScene({ bounds, quality: qualityProp = "auto", cellSize
             <InScene.Provider value={true}>
               <PaletteContext.Provider value={palette}>
                 <IsoCamera yaw={cam.yaw} tilt={cam.tilt} zoom={zoom} projection={projection}>
-                  <group matrixAutoUpdate={false} matrix={MIRROR}>
-                    {catcher && <ShadowCatcher bounds={bounds} />}
-                    {children}
-                  </group>
+                  <TrafficContext.Provider value={traffic}>
+                    <group matrixAutoUpdate={false} matrix={MIRROR}>
+                      {catcher && <ShadowCatcher bounds={bounds} />}
+                      {children}
+                    </group>
+                  </TrafficContext.Provider>
                 </IsoCamera>
               </PaletteContext.Provider>
             </InScene.Provider>

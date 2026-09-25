@@ -166,8 +166,12 @@ export { PalletJack, PalletJackBody, addHaul, PALLET_JACK_LENGTH, PALLET_JACK_WI
 export type { PalletJackProps, HaulLoad } from "./PalletJack";
 export { PlannerShuttle, PlannerDockTraffic } from "./PlannerLogistics";
 export type { PlannerShuttleProps, PlannerDockTrafficProps, ShuttleVehicle, DockTruckInfo, DockTruckPhase } from "./PlannerLogistics";
-export { dockTrafficClearance } from "./dockManeuver";
-export type { DockClearanceOptions } from "./dockManeuver";
+export { dockTrafficClearance, dockYardProblem } from "./dockManeuver";
+export type { DockClearanceOptions, DockPlanOptions, DockYardProblem, YardOpening, YardRect } from "./dockManeuver";
+export { planAisleRoute, plannerObstacles, insideObstacle, VEHICLE_CLEARANCE } from "./aisleRoute";
+export type { AisleObstacle, AisleRouteOptions } from "./aisleRoute";
+export { streetRoute, streetNetwork } from "./streetRoute";
+export type { StreetRouteOptions } from "./streetRoute";
 export { Office } from "./Office";
 export type { OfficeProps } from "./Office";
 export { AccessRoad, accessRoadWidth, ROAD_SURFACE } from "./Road";

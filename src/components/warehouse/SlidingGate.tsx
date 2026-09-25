@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Group } from "three";
 import { Builder, type P3 } from "./three/builder";
 import { Parts, Solo, frameBounds, placed, useBuilt } from "./three/scene";
@@ -72,6 +72,31 @@ function SlidingGateBody({ length = 4, height = 1, open = 0, cycle, rotation = 0
     return b.build();
   }, [L, height]);
   const slide = useRef<Group>(null);
+  // Un `open` qui change : le vantail glisse jusqu'à sa nouvelle place, au pas d'un vrai moteur
+  // (environ trois secondes pour une course entière), au lieu de sauter.
+  const target = Math.max(0, Math.min(1, open));
+  const shown = useRef(target);
+  const [moving, setMoving] = useState(false);
+  useEffect(() => {
+    if (Math.abs(shown.current - target) > 1e-3) setMoving(true);
+  }, [target]);
+  const last = useRef<number | null>(null);
+  useSimFrame(
+    (t) => {
+      const g = slide.current;
+      const dt = last.current === null ? 0 : Math.min(0.25, t - last.current);
+      last.current = t;
+      const step = dt / 3;
+      const d = target - shown.current;
+      shown.current = Math.abs(d) <= step ? target : shown.current + Math.sign(d) * step;
+      if (g) g.position.x = -shown.current * L;
+      if (shown.current === target) {
+        last.current = null;
+        setMoving(false);
+      }
+    },
+    moving && !cycle
+  );
   useSimFrame(
     (t) => {
       const g = slide.current;
@@ -87,7 +112,7 @@ function SlidingGateBody({ length = 4, height = 1, open = 0, cycle, rotation = 0
   return (
     <group matrixAutoUpdate={false} matrix={pose}>
       <Parts built={fixed} />
-      <group ref={slide} position={[-Math.max(0, Math.min(1, open)) * L, 0, 0]}>
+      <group ref={slide} position={[-shown.current * L, 0, 0]}>
         <Parts built={leaf} />
       </group>
     </group>

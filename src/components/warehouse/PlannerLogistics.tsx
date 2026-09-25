@@ -5,7 +5,8 @@ import { Builder } from "./three/builder";
 import { Parts, Solo, useBuilt, type Bounds } from "./three/scene";
 import { useSimFrame } from "./three/time";
 import { Mover, type MoverStyle, type MoverTask } from "./three/mover";
-import { planDock } from "./dockManeuver";
+import { planDock, sweptZone, type DockYardProblem, type YardOpening, type YardRect } from "./dockManeuver";
+import { sliceTrack } from "./three/drive";
 import { addGood } from "./three/goods";
 import { PALLET_JACK_LENGTH, PALLET_JACK_WIDTH, PalletJackBody, addHaul, type HaulLoad } from "./PalletJack";
 import { Forklift } from "./Forklift";
@@ -14,6 +15,8 @@ import { Amr } from "./Amr";
 import { SemiTruck, semiTruckGeometry } from "./SemiTruck";
 import { TRUCK_BAY_LENGTH, TRUCK_BAY_WIDTH } from "./plannerModel";
 import { parseCss } from "./three/palette";
+import { insideObstacle, planAisleRoute, VEHICLE_CLEARANCE, type AisleObstacle } from "./aisleRoute";
+import { throttleFor, useTraffic, yieldsBefore, type TrafficAgent, type TrafficRegistry } from "./three/traffic";
 
 /**
  * La logistique **qui bouge** sur le plan : des engins qui font la navette, des camions qui
@@ -169,6 +172,15 @@ export interface PlannerShuttleProps {
   paused?: boolean;
   /** Un nom, pour l'accessibilité et le débogage de la scène. */
   label?: string;
+  /**
+   * Ce qui barre le passage : les emprises des racks, étagères, murs… (centre, `width` le long de
+   * l'axe, `depth` en travers, `rotation` en degrés — voir `plannerObstacles`). Donnés, l'engin
+   * **contourne** par les allées (`planAisleRoute`), au milieu, en gardant sa droite si l'allée le
+   * permet ; sans eux, il va tout droit comme avant.
+   */
+  obstacles?: AisleObstacle[];
+  /** Garder sa droite de tant de cases dans les allées assez larges. Défaut : la demi-largeur de l'engin. */
+  lane?: number;
 }
 
 /**
@@ -208,16 +220,118 @@ export function PlannerShuttle(props: PlannerShuttleProps) {
   );
 }
 
-function ShuttleBody({ vehicle = "palletJack", from, to, via, trips, batch = 6, speed = 2.2, dwell = 1, load = "carton", paused = false, label }: PlannerShuttleProps) {
+/**
+ * Le trajet d'un point à l'autre par une suite de points de passage : par les allées si l'on connaît
+ * les obstacles, tout droit sinon. Rendu sans le point de départ, comme `MoverTask.go` l'attend.
+ */
+export function shuttleLegs(points: Pt[], obstacles: AisleObstacle[] | undefined, clearance: number, lane: number): Pt[] {
+  if (!obstacles || !obstacles.length) return points.slice(1);
+  const out: Pt[] = [];
+  for (let i = 0; i + 1 < points.length; i += 1) out.push(...planAisleRoute(points[i], points[i + 1], obstacles, { clearance, lane }).slice(1));
+  return out;
+}
+
+/** La forme d'un engin pour la circulation : des disques le long de son axe (voir `traffic.ts`). */
+const BODY: Record<ShuttleVehicle, { at: number[]; radius: number }> = {
+  palletJack: { at: [-0.45, 0.45], radius: 0.45 },
+  forklift: { at: [-0.8, 0, 0.8], radius: 0.6 },
+  worker: { at: [0], radius: 0.35 },
+  amr: { at: [-0.3, 0.3], radius: 0.6 },
+};
+
+/** Inscrire un engin dans la circulation de la scène, et le tenir à jour. */
+function useTrafficAgent(id: string, vehicle: ShuttleVehicle) {
+  const traffic = useTraffic();
+  const agent = useMemo<TrafficAgent>(() => ({ id, kind: "vehicle", body: { discs: BODY[vehicle].at.map(() => ({ x: 0, y: 0 })), radius: BODY[vehicle].radius }, motion: 0, priority: 0, waiting: false, waited: 0 }), [id, vehicle]);
+  useEffect(() => traffic.add(agent), [traffic, agent]);
+  return { traffic, agent };
+}
+
+/**
+ * Un pas de circulation pour un engin : relire sa place dans la scène, puis combien il peut
+ * avancer, et le freiner d'autant — avant qu'il ne bouge. `loaded` : il porte (il passe avant).
+ */
+export function trafficStep(traffic: TrafficRegistry, agent: TrafficAgent, m: Mover, vehicle: ShuttleVehicle, loaded: boolean, dt: number, obstacles?: AisleObstacle[]) {
+  const b = BODY[vehicle];
+  agent.motion = m.heading + (m.reversing ? Math.PI : 0);
+  agent.priority = loaded ? 1 : 0;
+  // Croiser : quelqu'un vient en face dans notre couloir — on serre sa droite de la moitié de ce
+  // qu'il manque, si la place le permet (jamais dans un obstacle) ; sinon on reste, et la priorité
+  // décidera qui attend.
+  if (dt > 0) {
+    const meet = m.moving || m.busy ? traffic.oncoming(agent, 4) : null;
+    // Tant que l'autre est à notre hauteur, on garde l'écart pris ; on ne se rabat qu'une fois passé.
+    let want = meet ? Math.max(-0.9, Math.min(0.9, m.side + meet.need / 2)) : 0;
+    if (want !== 0 && obstacles?.length && sideBlocked(m, b, want, obstacles)) want = m.side;
+    m.side += (want - m.side) * Math.min(1, dt * 2.5);
+    if (Math.abs(m.side) < 1e-3 && !meet) m.side = 0;
+  }
+  const c = Math.cos(m.heading);
+  const s = Math.sin(m.heading);
+  const x = m.shownX;
+  const y = m.shownY;
+  b.at.forEach((u, i) => {
+    agent.body.discs[i].x = x + u * c;
+    agent.body.discs[i].y = y + u * s;
+  });
+  if ((agent.backing ?? 0) > 0) {
+    // Il recule sur son chemin pour laisser passer celui qui le bloquait — tant que rien n'est
+    // derrière lui, et pas plus d'un temps.
+    agent.backing = (agent.backing ?? 0) - dt;
+    // Il regarde derrière lui : à l'opposé du sens où son trajet le mène.
+    agent.motion = m.heading + (m.reversingTrack ? 0 : Math.PI);
+    const behind = traffic.freeAhead(agent, 2);
+    m.throttle = behind < 0.3 ? 0 : -0.45;
+    agent.waiting = false;
+    agent.waited = 0;
+    if (agent.backing <= 0 || behind < 0.3) {
+      agent.backing = 0;
+      m.throttle = 0;
+    }
+    return;
+  }
+  const free = traffic.freeAhead(agent, 3);
+  const target = throttleFor(free, 0.2, 1.4);
+  // On freine franchement, on repart doucement.
+  m.throttle = target < m.throttle ? target : m.throttle + (target - m.throttle) * Math.min(1, dt * 3);
+  const stuck = m.busy && m.throttle < 0.05 && free !== Infinity;
+  agent.waiting = stuck;
+  agent.waited = stuck ? agent.waited + dt : 0;
+  // Une impasse : lui et celui qui le bloque s'attendent l'un l'autre. Le moins prioritaire recule
+  // un peu sur son chemin ; l'autre passe.
+  const bl = agent.blocker;
+  if (stuck && agent.waited > 2 && bl && bl.waiting && bl.blocker === agent && yieldsBefore(agent, bl)) agent.backing = 1.8;
+}
+
+/** L'engin décalé de `side` toucherait-il un obstacle ? */
+function sideBlocked(m: Mover, b: { at: number[]; radius: number }, side: number, obstacles: AisleObstacle[]): boolean {
+  const c = Math.cos(m.heading);
+  const s = Math.sin(m.heading);
+  const x = m.x + s * side;
+  const y = m.y - c * side;
+  return b.at.some((u) => insideObstacle({ x: x + u * c, y: y + u * s }, obstacles, b.radius * 0.7));
+}
+
+let shuttleSeq = 0;
+
+function ShuttleBody({ vehicle = "palletJack", from, to, via, trips, batch = 6, speed = 2.2, dwell = 1, load = "carton", paused = false, label, obstacles, lane }: PlannerShuttleProps) {
   const size = Math.max(1, Math.round(batch));
-  const key = JSON.stringify([vehicle, from.x, from.y, to.x, to.y, (via ?? []).map((p) => [p.x, p.y])]);
+  const clearance = VEHICLE_CLEARANCE[vehicle];
+  const laneOffset = lane ?? BODY[vehicle].radius + 0.08;
+  const obstacleKey = JSON.stringify(obstacles ?? []);
+  const key = JSON.stringify([vehicle, from.x, from.y, to.x, to.y, (via ?? []).map((p) => [p.x, p.y]), obstacleKey, laneOffset]);
   const tripsRef = useRef(trips);
   tripsRef.current = trips;
+  const [id] = useState(() => `${label ?? vehicle}#${++shuttleSeq}`);
+  const { traffic, agent } = useTrafficAgent(id, vehicle);
   const engine = useMemo(() => {
-    const first = (via ?? [])[0] ?? to;
+    // L'aller et le retour, chacun par les allées et sur sa droite : ils ne se croisent pas de face.
+    const go = shuttleLegs([from, ...(via ?? []), to], obstacles, clearance, laneOffset);
+    const back = shuttleLegs([to, ...[...(via ?? [])].reverse(), from], obstacles, clearance, laneOffset);
+    const first = go[0] ?? to;
     const face = Math.atan2(first.y - from.y, first.x - from.x);
     // Ce que le compteur dit au montage est déjà fait : on ne rejoue pas l'histoire.
-    return { mover: new Mover(from.x, from.y, face, STYLES[vehicle]), go: [...(via ?? []), to], back: [...[...(via ?? [])].reverse(), from], face, claimed: tripsRef.current, carry: 0 };
+    return { mover: new Mover(from.x, from.y, face, STYLES[vehicle]), go, back, face, claimed: tripsRef.current, carry: 0 };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
   const [view, setView] = useState<HaulerView>({ carry: 0, moving: false, speed: 0 });
@@ -270,15 +384,18 @@ function ShuttleBody({ vehicle = "palletJack", from, to, via, trips, batch = 6, 
   const sync = () => {
     const g = group.current;
     if (!g) return;
-    g.position.set(engine.mover.x, engine.mover.y, 0);
+    g.position.set(engine.mover.shownX, engine.mover.shownY, 0);
     g.rotation.set(0, 0, engine.mover.heading);
   };
   useLayoutEffect(sync);
+  // Au montage, l'engin est déjà quelque part : les autres doivent le voir, même s'il dort.
+  useLayoutEffect(() => trafficStep(traffic, agent, engine.mover, vehicle, false, 0), [traffic, agent, engine, vehicle]);
 
   useSimFrame(
     (t) => {
       const dt = clock.tick(t);
       schedule();
+      trafficStep(traffic, agent, engine.mover, vehicle, engine.carry > 0, dt, obstacles);
       engine.mover.step(dt);
       schedule();
       sync();
@@ -345,6 +462,28 @@ export interface PlannerDockTrafficProps {
   electric?: boolean;
   /** Un camion est à quai (`arrive`) ou s'en va (`depart`), à la place `slot`. */
   onTruck?: (e: { kind: "arrive" | "depart"; slot: number }) => void;
+  /**
+   * La route **avant** `entry` : par les rues, depuis le bord de la carte (`streetRoute(plot, gate)`).
+   * Chaque nouveau camion y apparaît, roule dans sa voie, tourne aux carrefours, passe le portail et
+   * vient à quai. Les camions déjà à quai au montage y restent.
+   */
+  approach?: Pt[];
+  /** La route **après** la sortie, jusqu'au bord de la carte (`streetRoute(plot, gate, { direction: "out" })`), où le camion disparaît. */
+  leave?: Pt[];
+  /** Une sortie à part (cour à sens unique) : le point de la rue où l'on sort. Défaut : `entry`. */
+  exit?: Pt;
+  /** Les points de passage vers la sortie, dans l'ordre de la marche. Défaut : `via` à rebours. */
+  exitVia?: Pt[];
+  /**
+   * Le terrain clos (un ou plusieurs rectangles) : les camions n'en sortent **que par les ouvertures**
+   * (`openings`) ; la manœuvre prend la variante qui tient dedans. Une place où rien ne tient ne reçoit
+   * pas de camion, et `onYardProblem` le dit (voir `dockYardProblem`).
+   */
+  bounds?: YardRect[];
+  /** Les portails de la clôture : leur milieu, leur largeur, leur côté. */
+  openings?: YardOpening[];
+  /** Une place ne peut pas recevoir de camion : pourquoi, en français. */
+  onYardProblem?: (e: { slot: number; problem: DockYardProblem }) => void;
   /**
    * La place dont le camion est choisi, sur ce quai. Contrôlé si donné (`null` : aucun) ; sinon, le
    * quai retient lui-même le dernier camion touché.
@@ -446,6 +585,10 @@ export function PlannerDockTraffic(props: PlannerDockTrafficProps) {
 }
 
 const TRUCK = semiTruckGeometry();
+/** Un semi pour la circulation : des disques le long du tracteur et de la remorque. */
+const TRUCK_DISC_R = TRUCK.width / 2 + 0.15;
+const TRAILER_DISCS = Array.from({ length: 6 }, (_, k) => -TRUCK.kingpin + TRUCK_DISC_R * 0.6 + (k * (TRUCK.trailer - TRUCK_DISC_R * 1.2)) / 5);
+const TRACTOR_DISCS = [TRUCK.tractor0 - TRUCK.kingpin + TRUCK_DISC_R * 0.6, TRUCK.cab1 - TRUCK.kingpin - TRUCK_DISC_R * 0.6];
 const FORWARD_SPEED = 3.2;
 const REVERSE_SPEED = 1.3;
 /** La conduite d'un semi : un grand rayon, des départs posés, et un tracteur qui ne pivote pas vite. */
@@ -456,6 +599,8 @@ const HIT_PAD_FINE = 0.6;
 const HIT_PAD_COARSE = 2.2;
 /** Un volume qu'on ne voit pas mais qu'on touche : la zone de prise d'un camion. */
 const HIT_MATERIAL = new MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, colorWrite: false });
+
+let dockSeq = 0;
 
 function DockBody({
   bay,
@@ -476,7 +621,16 @@ function DockBody({
   onSelectedTruckChange,
   unit = "colis",
   fillLabel = "selected",
+  approach,
+  leave,
+  exit,
+  exitVia,
+  bounds,
+  openings,
+  onYardProblem,
 }: PlannerDockTrafficProps) {
+  const traffic = useTraffic();
+  const [dockId] = useState(() => `dock${++dockSeq}`);
   const roadRef = useRef(roadSpeed);
   roadRef.current = Math.max(0.05, roadSpeed);
   const forward = () => FORWARD_SPEED * roadRef.current;
@@ -489,10 +643,12 @@ function DockBody({
   countRef.current = count;
   const onTruckRef = useRef(onTruck);
   onTruckRef.current = onTruck;
-  const key = JSON.stringify([bay.x, bay.y, bay.rotation, bays, mode, cap, size, staging.x, staging.y, entry?.x, entry?.y, via ?? [], vehicle]);
+  const key = JSON.stringify([bay.x, bay.y, bay.rotation, bays, mode, cap, size, staging.x, staging.y, entry?.x, entry?.y, via ?? [], vehicle, approach ?? [], leave ?? [], exit ?? null, exitVia ?? null, bounds ?? null, openings ?? null]);
+  const yardRef = useRef(onYardProblem);
+  yardRef.current = onYardProblem;
 
   const engine = useMemo(() => {
-    const plan = planDock({ ...bay, bays }, entry, via);
+    const plan = planDock({ ...bay, bays }, entry, via, { approach, leave, exit, exitVia, bounds, openings });
     // Au montage : chaque place a son camion à quai.
     const slots: Slot[] = plan.lanes.map((lane, i) => ({
       i,
@@ -506,9 +662,42 @@ function DockBody({
     }));
     const first = plan.lanes[0].apron;
     const home = Math.atan2(first.y - staging.y, first.x - staging.x);
-    return { plan, slots, loader: new Mover(staging.x, staging.y, home, STYLES[vehicle]), home, carry: 0, claimed: countRef.current, cursor: 0 };
+    // Les zones que balaie chaque place : l'arrivée (de l'attente au quai) et le départ (du quai à la
+    // sortie). Un seul camion à la fois là où elles se recouvrent — voir `traffic.ts`.
+    const zones = plan.lanes.map((lane) => ({
+      arrive: sweptZone(lane.approach, lane.hold, lane.approach.length),
+      reverse: sweptZone(lane.reverse, 0, lane.reverse.length),
+      depart: sweptZone(lane.depart, 0, lane.clear),
+    }));
+    const arriveZones = zones.map((z) => ({ boxes: [...z.arrive.boxes, ...z.reverse.boxes], aabb: { x0: Math.min(z.arrive.aabb.x0, z.reverse.aabb.x0), y0: Math.min(z.arrive.aabb.y0, z.reverse.aabb.y0), x1: Math.max(z.arrive.aabb.x1, z.reverse.aabb.x1), y1: Math.max(z.arrive.aabb.y1, z.reverse.aabb.y1) } }));
+    // Chaque camion dans la circulation de la scène.
+    const agents: TrafficAgent[] = slots.map((sl) => ({
+      id: `${dockId}:${sl.i}`,
+      kind: "truck",
+      body: { discs: [...TRACTOR_DISCS, ...TRAILER_DISCS].map(() => ({ x: 0, y: 0 })), radius: TRUCK_DISC_R },
+      motion: 0,
+      priority: 2,
+      waiting: false,
+      waited: 0,
+      group: dockId,
+    }));
+    const loaderAgent: TrafficAgent = { id: `${dockId}:loader`, group: dockId, kind: "vehicle", body: { discs: BODY[vehicle].at.map(() => ({ x: 0, y: 0 })), radius: BODY[vehicle].radius }, motion: 0, priority: 0, waiting: false, waited: 0 };
+    return { plan, slots, loader: new Mover(staging.x, staging.y, home, STYLES[vehicle]), home, carry: 0, claimed: countRef.current, cursor: 0, zones, arriveZones, agents, loaderAgent, now: 0 };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
+  useEffect(() => {
+    const off = [...engine.agents.map((a) => traffic.add(a)), traffic.add(engine.loaderAgent)];
+    engine.slots.forEach((sl) => truckStep(sl, 0));
+    trafficStep(traffic, engine.loaderAgent, engine.loader, vehicle, false, 0);
+    return () => off.forEach((f) => f());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [engine, traffic]);
+  // Une place où la manœuvre ne tient pas : on le dit, une fois.
+  useEffect(() => {
+    engine.plan.lanes.forEach((lane, i) => {
+      if (lane.blocked) yardRef.current?.({ slot: i, problem: lane.blocked });
+    });
+  }, [engine]);
 
   const [awake, setAwake] = useState(false);
   const [loaderView, setLoaderView] = useState<HaulerView>({ carry: 0, moving: false, speed: 0 });
@@ -627,40 +816,70 @@ function DockBody({
     sl.phase = "departing";
     onTruckRef.current?.({ kind: "depart", slot: sl.i });
     const lane = engine.plan.lanes[sl.i];
+    const owner = engine.agents[sl.i].id;
+    const gone = () => {
+      sl.present = false;
+      sl.leaving = false;
+      traffic.release(owner);
+      // Le camion choisi a quitté le site : il n'y a plus rien à montrer.
+      if (selRef.current === sl.i) release();
+    };
+    const tail = lane.depart.length - lane.clear;
     sl.mover.push(
+      // Il ne quitte le quai que la cour libre : un camion qui manœuvre devant lui passe d'abord.
+      { kind: "until", test: () => traffic.reserve(owner, engine.zones[sl.i].depart, engine.now) },
       { kind: "wait", secs: 0.8 },
       {
         kind: "track",
-        track: lane.depart,
+        track: tail > 0.5 ? sliceTrack(lane.depart, 0, lane.clear) : lane.depart,
         speed: forward,
         // Il quitte le site en roulant : pas de freinage devant le point où il disparaît.
         endSpeed: FORWARD_SPEED,
-        done: () => {
-          sl.present = false;
-          sl.leaving = false;
-          // Le camion choisi a quitté le site : il n'y a plus rien à montrer.
-          if (selRef.current === sl.i) release();
-        },
-      }
+        done: tail > 0.5 ? () => traffic.release(owner) : gone,
+      },
+      ...(tail > 0.5 ? [{ kind: "track" as const, track: sliceTrack(lane.depart, lane.clear, lane.depart.length), speed: forward, startSpeed: FORWARD_SPEED, endSpeed: FORWARD_SPEED, done: gone }] : [])
     );
+  };
+
+  /** Peut-on faire apparaître un camion au début de l'approche : personne dessus, aucune cour tenue ? */
+  const spawnFree = (i: number) => {
+    const a = engine.plan.lanes[i].approach;
+    const here = { x: a.x[0], y: a.y[0] };
+    for (const other of traffic.agents) {
+      if (other.ghost || other === engine.agents[i]) continue;
+      for (const d of other.body.discs) if (Math.hypot(d.x - here.x, d.y - here.y) < TRUCK.length + 3) return false;
+    }
+    return traffic.zoneFree(sweptZone(a, 0, Math.min(a.length, TRUCK.length + 2)), engine.agents[i].id);
   };
 
   const spawn = (sl: Slot) => {
     const lane = engine.plan.lanes[sl.i];
+    // Une place où la manœuvre ne tient pas ne reçoit pas de camion.
+    if (lane.blocked) return;
+    if (!spawnFree(sl.i)) return;
     sl.present = true;
     sl.docked = false;
     sl.loaded = mode === "ship" ? 0 : cap;
     sl.reserved = 0;
     sl.phase = "arriving";
     const a = lane.approach;
+    const owner = engine.agents[sl.i].id;
     sl.mover.place(a.x[0], a.y[0], a.heading[0], a.trailer?.[0] ?? a.heading[0]);
+    const hold = lane.hold;
     sl.mover.push(
-      // Il arrive de la rue déjà lancé, et s'arrête au-delà de la place.
+      // Il arrive de la rue déjà lancé, et s'arrête avant la cour s'il le faut : un camion qui y
+      // manœuvre, ou un autre qui attendait avant lui, passe d'abord.
+      ...(hold > 0.5
+        ? [
+            { kind: "track" as const, track: sliceTrack(a, 0, hold), speed: forward, startSpeed: FORWARD_SPEED, endSpeed: 0 },
+            { kind: "until" as const, test: () => traffic.reserve(owner, engine.arriveZones[sl.i], engine.now) },
+          ]
+        : [{ kind: "until" as const, test: () => traffic.reserve(owner, engine.arriveZones[sl.i], engine.now) }]),
       {
         kind: "track",
-        track: a,
+        track: hold > 0.5 ? sliceTrack(a, hold, a.length) : a,
         speed: forward,
-        startSpeed: FORWARD_SPEED,
+        startSpeed: hold > 0.5 ? 0 : FORWARD_SPEED,
         done: () => {
           sl.phase = "docking";
         },
@@ -673,6 +892,7 @@ function DockBody({
         done: () => {
           sl.docked = true;
           sl.phase = "docked";
+          traffic.release(owner);
           onTruckRef.current?.({ kind: "arrive", slot: sl.i });
         },
       }
@@ -769,16 +989,50 @@ function DockBody({
     });
     const lg = loaderGroup.current;
     if (lg) {
-      lg.position.set(engine.loader.x, engine.loader.y, 0);
+      lg.position.set(engine.loader.shownX, engine.loader.shownY, 0);
       lg.rotation.set(0, 0, engine.loader.heading);
     }
   };
   useLayoutEffect(sync);
 
+  /** Un camion dans la circulation : sa chenille de disques, où il va, ce qu'il a devant lui. */
+  function truckStep(sl: Slot, dt: number) {
+    const ag = engine.agents[sl.i];
+    const m = sl.mover;
+    ag.ghost = !sl.present;
+    if (!sl.present) return;
+    const ct = Math.cos(m.heading);
+    const st = Math.sin(m.heading);
+    const cr = Math.cos(m.trailer);
+    const sr = Math.sin(m.trailer);
+    TRACTOR_DISCS.forEach((u, k) => {
+      ag.body.discs[k].x = m.x + u * ct;
+      ag.body.discs[k].y = m.y + u * st;
+    });
+    TRAILER_DISCS.forEach((u, k) => {
+      ag.body.discs[TRACTOR_DISCS.length + k].x = m.x + u * cr;
+      ag.body.discs[TRACTOR_DISCS.length + k].y = m.y + u * sr;
+    });
+    // En marche arrière, c'est derrière la remorque qu'il faut regarder ; dans la cour qu'il tient,
+    // il manœuvre sans attendre (la zone est à lui seul).
+    ag.motion = m.reversing ? m.trailer + Math.PI : m.heading;
+    if (dt > 0 && m.busy && !m.reversing) {
+      const free = traffic.freeAhead(ag, 12);
+      const target = throttleFor(free, 1.2, 6);
+      m.throttle = target < m.throttle ? target : m.throttle + (target - m.throttle) * Math.min(1, dt * 1.5);
+      ag.waiting = m.throttle < 0.05 && free !== Infinity;
+      ag.waited = ag.waiting ? ag.waited + dt : 0;
+    } else m.throttle = 1;
+    traffic.sense(ag.id, m.x, m.y);
+  }
+
   useSimFrame(
     (t) => {
       const dt = clock.tick(t);
+      engine.now = t;
       schedule();
+      for (const sl of engine.slots) truckStep(sl, dt);
+      trafficStep(traffic, engine.loaderAgent, engine.loader, vehicle, engine.carry > 0, dt);
       for (const sl of engine.slots) sl.mover.step(dt);
       engine.loader.step(dt);
       schedule();
@@ -806,7 +1060,8 @@ function DockBody({
           changeRef.current?.(infoOf(chosen));
         }
       }
-      const busy = engine.loader.busy || engine.slots.some((sl) => sl.mover.busy || !sl.present);
+      // Une place sans manœuvre possible n'attend pas de camion : elle ne tient pas la scène éveillée.
+      const busy = engine.loader.busy || engine.slots.some((sl) => sl.mover.busy || (!sl.present && !engine.plan.lanes[sl.i].blocked));
       if (!busy) {
         clock.reset();
         setAwake(false);

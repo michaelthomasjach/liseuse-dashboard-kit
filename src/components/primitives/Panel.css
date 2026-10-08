@@ -104,3 +104,113 @@
   text-align: right;
   min-width: 3ch;
 }
+
+/* ---- Panel repliable (collapsible, ou piloté par PanelCollapse) ---------------------------------- */
+
+/* L'en-tête centre le bouton sur toute sa hauteur, que le titre et la méta tiennent sur une ligne ou deux. */
+.lq-panel--collapsible > .lq-panel__header {
+  flex-wrap: nowrap;
+  align-items: center;
+  cursor: pointer;
+  transition:
+    padding-bottom 260ms ease,
+    margin-bottom 260ms ease,
+    border-color 260ms ease;
+}
+
+.lq-panel__heading {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  column-gap: var(--lq-space-3);
+  row-gap: var(--lq-space-1);
+  min-width: 0;
+}
+
+.lq-panel--collapsible.is-closed > .lq-panel__header {
+  padding-bottom: 0;
+  margin-bottom: 0;
+  border-bottom-color: transparent;
+}
+
+.lq-panel__toggle {
+  position: relative;
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--lq-color-border);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--lq-color-text);
+  cursor: pointer;
+  transition: border-color 150ms ease, background-color 150ms ease;
+}
+
+.lq-panel__toggle:hover {
+  border-color: var(--lq-color-text);
+}
+
+.lq-panel__toggle:focus-visible {
+  outline: 2px solid var(--lq-color-text);
+  outline-offset: 2px;
+}
+
+/* « + » dessiné en deux barres : ouvert, la barre verticale pivote et se couche, le + devient −. */
+.lq-panel__toggle-icon,
+.lq-panel__toggle-icon::before {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 10px;
+  height: 1.5px;
+  border-radius: 1px;
+  background: currentColor;
+  transform: translate(-50%, -50%);
+}
+
+.lq-panel__toggle-icon::before {
+  content: "";
+  transform: translate(-50%, -50%) rotate(90deg);
+  transition: transform 260ms ease;
+}
+
+.lq-panel--collapsible.is-open .lq-panel__toggle-icon::before {
+  transform: translate(-50%, -50%) rotate(0deg);
+}
+
+.lq-panel__collapse {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 260ms ease;
+}
+
+.lq-panel--collapsible.is-closed > .lq-panel__collapse {
+  grid-template-rows: 0fr;
+}
+
+.lq-panel__collapse-inner {
+  min-height: 0;
+  overflow: hidden;
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 220ms ease,
+    transform 260ms ease;
+}
+
+.lq-panel--collapsible.is-closed .lq-panel__collapse-inner {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lq-panel--collapsible > .lq-panel__header,
+  .lq-panel__collapse,
+  .lq-panel__collapse-inner,
+  .lq-panel__toggle-icon::before {
+    transition: none;
+  }
+}

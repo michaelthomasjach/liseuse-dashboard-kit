@@ -123,7 +123,7 @@ Toute zone scrollable sous `.lq-root` reçoit automatiquement un ascenseur fin e
 - Icônes de jeu de gestion : `BuildingWarehouseIcon`, `ClipboardListIcon`, `PackageIcon`, `BoxesIcon`, `BoltIcon`, `BriefcaseIcon`, `SkillTreeIcon`, `BarChartIcon`, `BookOpenIcon`, `ArrowPathIcon` (tracer un flux), `SquareDashedIcon` (tracer une zone), `HouseRoofIcon`, `ParkingIcon`, `TruckIcon`, `RoadIcon`, `SnowflakeIcon`, `RobotIcon`, `TreeIcon`, `ConveyorIcon`, `ForkliftIcon`, `CartIcon` — avec `GaugeIcon`, `HelpIcon`, `RefreshIcon`, `SolarPanelIcon`, `SettingsIcon` déjà présentes
 
 **Primitives** — brique de base réutilisable dans n'importe quel écran
-- `Panel`, `PanelRow` — carte de section avec titre/meta et lignes label/valeur
+- `Panel`, `PanelRow` — carte de section avec titre/meta et lignes label/valeur ; `collapsible` (bouton +/− centré dans l'en-tête, ouverture animée, état contrôlé `open` / `onOpenChange` ou `defaultOpen`) et `PanelCollapse` pour rendre repliable une carte toute faite (accordéon)
 - `Toggle` — interrupteur on/off
 - `LevelGauge` — jauge segmentée (niveau volet, luminosité, volume, batterie…)
 - `Button`, `IconButton` — actions discrètes / boutons carrés à icône

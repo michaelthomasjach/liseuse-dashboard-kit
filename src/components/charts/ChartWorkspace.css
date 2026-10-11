@@ -1041,9 +1041,11 @@
   /* Top and bottom, like the charts and the panel beside it. Without them the rail ran edge to
      edge of the row while everything else sat inside its own 1px box, and the eye read the strip
      as something bolted on rather than as the last column of one instrument. Its left border comes
-     from the adjacency rule just below, so only these two are set here. */
+     from the adjacency rule just below. The right one closes the box: the rail is always the
+     workspace's last column, and without it the instrument's outer frame stopped open on that side. */
   border-top: 1px solid var(--lq-color-border-subtle);
   border-bottom: 1px solid var(--lq-color-border-subtle);
+  border-right: 1px solid var(--lq-color-border-subtle);
 }
 
 /* Open instead: the panel itself has no border of its own anymore (see above), so this is the

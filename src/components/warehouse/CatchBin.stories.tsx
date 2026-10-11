@@ -3,7 +3,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { CatchBin } from "./CatchBin";
 import { Conveyor } from "./Conveyor";
 import { Scene, layer, type SceneUnit } from "./sceneStory";
-import { NumberField } from "../forms";
+import { InputNumber } from "../forms";
 
 const meta: Meta<typeof CatchBin> = {
   title: "Warehouse/Bac récupérateur",
@@ -141,7 +141,7 @@ export const Atelier: Story = {
   render: function Render() {
     const [b, setB] = useState({ width: 3, depth: 2.4, height: 1.1, count: 11, seed: 7, rotation: 0 });
     const field = (label: string, key: keyof typeof b, min: number, max: number, step: number) => (
-      <NumberField
+      <InputNumber
         label={label}
         size="small"
         value={b[key]}

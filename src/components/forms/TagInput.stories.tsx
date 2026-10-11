@@ -3,7 +3,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { TagInput } from "./TagInput";
 
 const meta: Meta<typeof TagInput> = {
-  title: "Forms/TagInput",
+  title: "Forms/Input/TagInput",
   component: TagInput,
 };
 export default meta;

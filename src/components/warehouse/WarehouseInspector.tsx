@@ -1,7 +1,7 @@
 import type { RefObject } from "react";
 import { Popover } from "../forms/Popover";
-import { NumberField } from "../forms/NumberField";
-import { TextField } from "../forms/TextField";
+import { InputNumber } from "../forms/InputNumber";
+import { Input } from "../forms/Input";
 import { ArrowRightIcon, RefreshIcon, TrashIcon } from "../icons";
 import { WAREHOUSE_KINDS, clampSlots, isConveyor, rotateItem, type WarehouseItem } from "./warehouseModel";
 import { flowHeading } from "./conveyorFlow";
@@ -83,7 +83,7 @@ export function WarehouseInspector({ item, anchorRef, onChange, onDelete, onClos
         </div>
       </div>
 
-      <TextField
+      <Input
         size="small"
         label="Libellé"
         value={item.label ?? ""}
@@ -94,7 +94,7 @@ export function WarehouseInspector({ item, anchorRef, onChange, onDelete, onClos
         {/* "Longueur" and "Largeur" rather than width/height: these are the item's own sides, and
             once it is turned a quarter, its length is the plan's vertical. Calling them width and
             height would make the panel disagree with the screen every other rotation. */}
-        <NumberField
+        <InputNumber
           size="small"
           label="Longueur"
           min={1}
@@ -102,7 +102,7 @@ export function WarehouseInspector({ item, anchorRef, onChange, onDelete, onClos
           value={item.width}
           onChange={(value) => patch({ width: size(value), bays: item.bays === undefined ? undefined : size(value) })}
         />
-        <NumberField
+        <InputNumber
           size="small"
           label="Largeur"
           min={1}
@@ -114,7 +114,7 @@ export function WarehouseInspector({ item, anchorRef, onChange, onDelete, onClos
 
       {preset.storage && (
         <div className="lq-wh__inspector-row">
-          <NumberField
+          <InputNumber
             size="small"
             label="Racks"
             min={1}
@@ -124,7 +124,7 @@ export function WarehouseInspector({ item, anchorRef, onChange, onDelete, onClos
             // a drawing of nothing real, and so is one whose bays outnumber the cells it covers.
             onChange={(value) => patch({ bays: size(value), width: size(value) })}
           />
-          <NumberField
+          <InputNumber
             size="small"
             label="Niveaux"
             min={1}

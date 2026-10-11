@@ -1,5 +1,5 @@
 import { Checkbox } from "../../../forms/Checkbox";
-import { NumberField } from "../../../forms/NumberField";
+import { InputNumber } from "../../../forms/InputNumber";
 import { Select } from "../../../forms/Select";
 import type { Indicator } from "../interfaces/Indicator.interface";
 import { indicatorCatalogEntry, isFundamentalKind, defaultIndicatorColor } from "../indicatorCatalog";
@@ -23,7 +23,7 @@ export function IndicatorSettingsInputs({ indicatorDraft, setIndicatorDraft }: I
   return (
     <>
       {indicatorCatalogEntry(indicatorDraft).hasPeriod && (
-        <NumberField
+        <InputNumber
           label="Période"
           min={1}
           max={500}
@@ -33,7 +33,7 @@ export function IndicatorSettingsInputs({ indicatorDraft, setIndicatorDraft }: I
         />
       )}
       {indicatorCatalogEntry(indicatorDraft).hasStdDev && (
-        <NumberField
+        <InputNumber
           label="Écart-type (bandes)"
           min={0.5}
           max={5}
@@ -44,7 +44,7 @@ export function IndicatorSettingsInputs({ indicatorDraft, setIndicatorDraft }: I
       )}
       {indicatorDraft.kind === "macd" && (
         <div className="lq-chart__edit-drawing-row">
-          <NumberField
+          <InputNumber
             label="Rapide"
             min={1}
             max={200}
@@ -52,7 +52,7 @@ export function IndicatorSettingsInputs({ indicatorDraft, setIndicatorDraft }: I
             value={indicatorDraft.fastPeriod ?? 12}
             onChange={(v) => setIndicatorDraft({ ...indicatorDraft, fastPeriod: v === "" ? indicatorDraft.fastPeriod : v })}
           />
-          <NumberField
+          <InputNumber
             label="Lent"
             min={1}
             max={400}
@@ -60,7 +60,7 @@ export function IndicatorSettingsInputs({ indicatorDraft, setIndicatorDraft }: I
             value={indicatorDraft.slowPeriod ?? 26}
             onChange={(v) => setIndicatorDraft({ ...indicatorDraft, slowPeriod: v === "" ? indicatorDraft.slowPeriod : v })}
           />
-          <NumberField
+          <InputNumber
             label="Signal"
             min={1}
             max={200}
@@ -71,7 +71,7 @@ export function IndicatorSettingsInputs({ indicatorDraft, setIndicatorDraft }: I
         </div>
       )}
       {indicatorDraft.kind === "zigzag" && (
-        <NumberField
+        <InputNumber
           label="Déviation (%)"
           min={0.5}
           max={50}
@@ -81,7 +81,7 @@ export function IndicatorSettingsInputs({ indicatorDraft, setIndicatorDraft }: I
         />
       )}
       {indicatorDraft.kind === "supertrend" && (
-        <NumberField
+        <InputNumber
           label="Multiplicateur (× ATR)"
           min={0.5}
           max={10}
@@ -92,7 +92,7 @@ export function IndicatorSettingsInputs({ indicatorDraft, setIndicatorDraft }: I
       )}
       {indicatorDraft.kind === "chandelierExit" && (
         <>
-          <NumberField
+          <InputNumber
             label="Multiplicateur ATR"
             min={0.5}
             max={10}
@@ -109,7 +109,7 @@ export function IndicatorSettingsInputs({ indicatorDraft, setIndicatorDraft }: I
       )}
       {indicatorDraft.kind === "parabolicSar" && (
         <div className="lq-chart__edit-drawing-row">
-          <NumberField
+          <InputNumber
             label="Pas"
             min={0.01}
             max={1}
@@ -117,7 +117,7 @@ export function IndicatorSettingsInputs({ indicatorDraft, setIndicatorDraft }: I
             value={indicatorDraft.sarStep ?? 0.02}
             onChange={(v) => setIndicatorDraft({ ...indicatorDraft, sarStep: v === "" ? indicatorDraft.sarStep : v })}
           />
-          <NumberField
+          <InputNumber
             label="Max"
             min={0.05}
             max={1}
@@ -128,7 +128,7 @@ export function IndicatorSettingsInputs({ indicatorDraft, setIndicatorDraft }: I
         </div>
       )}
       {indicatorDraft.kind === "gaps" && (
-        <NumberField
+        <InputNumber
           label="Écart minimum (%)"
           min={0}
           max={20}
@@ -163,7 +163,7 @@ export function IndicatorSettingsInputs({ indicatorDraft, setIndicatorDraft }: I
         </div>
       )}
       {indicatorDraft.kind === "supportResistance" && (
-        <NumberField
+        <InputNumber
           label="Nombre de niveaux"
           min={1}
           max={20}
@@ -199,7 +199,7 @@ export function IndicatorSettingsInputs({ indicatorDraft, setIndicatorDraft }: I
       )}
       {indicatorDraft.kind === "ichimoku" && (
         <div className="lq-chart__edit-drawing-row">
-          <NumberField
+          <InputNumber
             label="Conversion"
             min={1}
             max={100}
@@ -207,7 +207,7 @@ export function IndicatorSettingsInputs({ indicatorDraft, setIndicatorDraft }: I
             value={indicatorDraft.ichimokuConversionPeriod ?? 9}
             onChange={(v) => setIndicatorDraft({ ...indicatorDraft, ichimokuConversionPeriod: v === "" ? indicatorDraft.ichimokuConversionPeriod : v })}
           />
-          <NumberField
+          <InputNumber
             label="Base"
             min={1}
             max={200}
@@ -215,7 +215,7 @@ export function IndicatorSettingsInputs({ indicatorDraft, setIndicatorDraft }: I
             value={indicatorDraft.ichimokuBasePeriod ?? 26}
             onChange={(v) => setIndicatorDraft({ ...indicatorDraft, ichimokuBasePeriod: v === "" ? indicatorDraft.ichimokuBasePeriod : v })}
           />
-          <NumberField
+          <InputNumber
             label="Span B"
             min={1}
             max={300}
@@ -223,7 +223,7 @@ export function IndicatorSettingsInputs({ indicatorDraft, setIndicatorDraft }: I
             value={indicatorDraft.ichimokuSpanPeriod ?? 52}
             onChange={(v) => setIndicatorDraft({ ...indicatorDraft, ichimokuSpanPeriod: v === "" ? indicatorDraft.ichimokuSpanPeriod : v })}
           />
-          <NumberField
+          <InputNumber
             label="Déplacement"
             min={1}
             max={200}
@@ -236,7 +236,7 @@ export function IndicatorSettingsInputs({ indicatorDraft, setIndicatorDraft }: I
       {indicatorDraft.kind === "tpo" && (
         <>
           <div className="lq-chart__edit-drawing-row">
-            <NumberField
+            <InputNumber
               label="Taille du bloc (min)"
               min={1}
               max={1440}
@@ -244,7 +244,7 @@ export function IndicatorSettingsInputs({ indicatorDraft, setIndicatorDraft }: I
               value={indicatorDraft.tpoBlockMinutes ?? 30}
               onChange={(v) => setIndicatorDraft({ ...indicatorDraft, tpoBlockMinutes: v === "" ? indicatorDraft.tpoBlockMinutes : v })}
             />
-            <NumberField
+            <InputNumber
               label="Lignes de prix"
               min={5}
               max={100}
@@ -254,7 +254,7 @@ export function IndicatorSettingsInputs({ indicatorDraft, setIndicatorDraft }: I
             />
           </div>
           <div className="lq-chart__edit-drawing-row">
-            <NumberField
+            <InputNumber
               label="Zone de valeur (%)"
               min={1}
               max={100}
@@ -276,7 +276,7 @@ export function IndicatorSettingsInputs({ indicatorDraft, setIndicatorDraft }: I
       )}
       {indicatorDraft.kind === "rsi" && (
         <div className="lq-chart__edit-drawing-row">
-          <NumberField
+          <InputNumber
             label="Seuil de surachat"
             min={50}
             max={99}
@@ -284,7 +284,7 @@ export function IndicatorSettingsInputs({ indicatorDraft, setIndicatorDraft }: I
             value={indicatorDraft.rsiOverbought ?? 70}
             onChange={(v) => setIndicatorDraft({ ...indicatorDraft, rsiOverbought: v === "" ? indicatorDraft.rsiOverbought : v })}
           />
-          <NumberField
+          <InputNumber
             label="Seuil de survente"
             min={1}
             max={50}
@@ -296,7 +296,7 @@ export function IndicatorSettingsInputs({ indicatorDraft, setIndicatorDraft }: I
       )}
       {indicatorDraft.kind === "chop" && (
         <div className="lq-chart__edit-drawing-row">
-          <NumberField
+          <InputNumber
             label="Seuil haut (marché indécis)"
             min={50}
             max={99}
@@ -304,7 +304,7 @@ export function IndicatorSettingsInputs({ indicatorDraft, setIndicatorDraft }: I
             value={indicatorDraft.chopUpperThreshold ?? 61.8}
             onChange={(v) => setIndicatorDraft({ ...indicatorDraft, chopUpperThreshold: v === "" ? indicatorDraft.chopUpperThreshold : v })}
           />
-          <NumberField
+          <InputNumber
             label="Seuil bas (marché directionnel)"
             min={1}
             max={50}
@@ -315,7 +315,7 @@ export function IndicatorSettingsInputs({ indicatorDraft, setIndicatorDraft }: I
         </div>
       )}
       {indicatorDraft.kind === "adx" && (
-        <NumberField
+        <InputNumber
           label="Seuil de tendance forte"
           min={5}
           max={60}
@@ -325,7 +325,7 @@ export function IndicatorSettingsInputs({ indicatorDraft, setIndicatorDraft }: I
         />
       )}
       {indicatorDraft.kind === "correlation" && (
-        <NumberField
+        <InputNumber
           label="Seuil de corrélation forte"
           min={0.1}
           max={1}
@@ -379,7 +379,7 @@ export function IndicatorSettingsInputs({ indicatorDraft, setIndicatorDraft }: I
               />
               <p className="lq-chart__indicator-projection-note">{METHOD_NOTES[indicatorDraft.projectionMethod ?? DEFAULT_PROJECTION.method]}</p>
               <div className="lq-chart__edit-drawing-row">
-                <NumberField
+                <InputNumber
                   label="Bougies projetées"
                   min={1}
                   max={200}
@@ -387,7 +387,7 @@ export function IndicatorSettingsInputs({ indicatorDraft, setIndicatorDraft }: I
                   value={indicatorDraft.projectionBars ?? DEFAULT_PROJECTION.bars}
                   onChange={(v) => setIndicatorDraft({ ...indicatorDraft, projectionBars: v === "" ? undefined : v })}
                 />
-                <NumberField
+                <InputNumber
                   label="Historique utilisé"
                   min={2}
                   max={500}
@@ -398,7 +398,7 @@ export function IndicatorSettingsInputs({ indicatorDraft, setIndicatorDraft }: I
               </div>
               {indicatorDraft.projectionMethod !== "flat" && (
                 <>
-                  <NumberField
+                  <InputNumber
                     label="Amortissement de la tendance"
                     min={0}
                     max={1}
@@ -565,7 +565,7 @@ export function IndicatorSettingsStyle({ indicatorDraft, setIndicatorDraft, indi
       )}
       {indicatorDraft.kind === "tpo" && (
         <>
-          <NumberField
+          <InputNumber
             label="Opacité (%)"
             min={10}
             max={100}

@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ChevronLeftIcon, SearchIcon } from "../icons";
-import { TextField } from "../forms/TextField";
+import { Input } from "../forms/Input";
 import { ChipGroup } from "../forms/Chip";
 import "./KnowledgeBase.css";
 
@@ -280,7 +280,7 @@ export function KnowledgeBase({
     <div ref={rootRef} className={["lq-kb", narrow && "lq-kb--narrow", single && "lq-kb--reading", className].filter(Boolean).join(" ")}>
       <div className="lq-kb__layout">
         <aside className="lq-kb__index" hidden={single}>
-          <TextField
+          <Input
             type="search"
             placeholder={placeholder}
             value={query}

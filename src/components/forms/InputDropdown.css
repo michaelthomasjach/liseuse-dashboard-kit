@@ -1,0 +1,78 @@
+.lq-input-dropdown {
+  width: 100%;
+}
+
+.lq-input-dropdown .lq-field__control {
+  cursor: text;
+}
+
+.lq-input-dropdown .lq-select__chevron {
+  color: var(--lq-color-text-muted);
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.lq-input-dropdown__clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  border: none;
+  border-radius: var(--lq-radius-sm);
+  background: none;
+  color: var(--lq-color-text-muted);
+  cursor: pointer;
+}
+
+.lq-input-dropdown__clear:hover {
+  color: var(--lq-color-text);
+  background-color: var(--lq-color-hover);
+}
+
+.lq-input-dropdown__option.is-active {
+  background-color: var(--lq-color-hover);
+}
+
+.lq-input-dropdown__option.is-disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.lq-input-dropdown__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.lq-input-dropdown__text > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lq-input-dropdown__desc {
+  font-size: 0.75rem;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-input-dropdown__mark {
+  padding: 0;
+  background: none;
+  color: inherit;
+  font-weight: 800;
+}
+
+.lq-input-dropdown__group {
+  padding: var(--lq-space-2) var(--lq-space-3) 2px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-input-dropdown__status {
+  padding: var(--lq-space-2) var(--lq-space-3);
+  font-size: 0.82rem;
+  color: var(--lq-color-text-muted);
+}

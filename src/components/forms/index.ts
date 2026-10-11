@@ -4,8 +4,8 @@ export type { PopoverProps } from "./Popover";
 export { Select } from "./Select";
 export type { SelectProps, SelectOption } from "./Select";
 
-export { TextField } from "./TextField";
-export type { TextFieldProps } from "./TextField";
+export { Input } from "./Input";
+export type { InputProps } from "./Input";
 
 export { MaskedInput } from "./MaskedInput";
 export type { MaskedInputProps } from "./MaskedInput";
@@ -19,11 +19,11 @@ export type { CreditCardInputProps } from "./CreditCardInput";
 export { DateInput } from "./DateInput";
 export type { DateInputProps } from "./DateInput";
 
-export { NumberField } from "./NumberField";
-export type { NumberFieldProps } from "./NumberField";
+export { InputNumber } from "./InputNumber";
+export type { InputNumberProps } from "./InputNumber";
 
-export { PasswordField } from "./PasswordField";
-export type { PasswordFieldProps } from "./PasswordField";
+export { InputPassword } from "./InputPassword";
+export type { InputPasswordProps } from "./InputPassword";
 
 export { DatePicker } from "./DatePicker";
 export type { DatePickerProps } from "./DatePicker";
@@ -59,3 +59,27 @@ export type { PopoverPlacement } from "./internal/usePopoverPosition";
 
 export { WysiwygEditor, WYSIWYG_DEFAULT_TOOLBAR } from "./WysiwygEditor";
 export type { WysiwygEditorProps, WysiwygTool, WysiwygBlock } from "./WysiwygEditor";
+
+export { InputDropdown } from "./InputDropdown";
+export type { InputDropdownProps, InputDropdownOption } from "./InputDropdown";
+
+// Anciens noms (avant le renommage « XxxField » → « InputXxx ») : conservés pour ne rien casser chez les
+// applications existantes. À remplacer par Input, InputNumber et InputPassword.
+import { Input } from "./Input";
+import { InputNumber } from "./InputNumber";
+import { InputPassword } from "./InputPassword";
+import type { InputProps } from "./Input";
+import type { InputNumberProps } from "./InputNumber";
+import type { InputPasswordProps } from "./InputPassword";
+/** @deprecated Renommé `Input`. */
+export const TextField = Input;
+/** @deprecated Renommé `InputProps`. */
+export type TextFieldProps = InputProps;
+/** @deprecated Renommé `InputNumber`. */
+export const NumberField = InputNumber;
+/** @deprecated Renommé `InputNumberProps`. */
+export type NumberFieldProps = InputNumberProps;
+/** @deprecated Renommé `InputPassword`. */
+export const PasswordField = InputPassword;
+/** @deprecated Renommé `InputPasswordProps`. */
+export type PasswordFieldProps = InputPasswordProps;

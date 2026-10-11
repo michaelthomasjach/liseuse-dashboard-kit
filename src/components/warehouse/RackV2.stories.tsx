@@ -4,7 +4,7 @@ import { RackV2 } from "./RackV2";
 import { RackItem } from "./RackItem";
 import { RACK_ITEM_KINDS, RACK_ITEM_LABEL } from "./rackItems";
 import type { RackV2Slot } from "./RackV2";
-import { NumberField } from "../forms";
+import { InputNumber } from "../forms";
 
 const meta: Meta<typeof RackV2> = {
   title: "Warehouse/Étagère V2",
@@ -81,7 +81,7 @@ export const Portions: Story = {
       <div style={{ display: "flex", flexDirection: "column", gap: 20, padding: 32, alignItems: "flex-start" }}>
         <div style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap" }}>
           <div style={{ width: 150 }}>
-            <NumberField
+            <InputNumber
               label="Portions"
               size="small"
               value={slots}
@@ -134,7 +134,7 @@ export const Atelier: Story = {
       onChange: (next: number) => void,
       { min, max, step }: { min: number; max: number; step: number }
     ) => (
-      <NumberField
+      <InputNumber
         label={label}
         size="small"
         value={value}

@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { Panel } from "../components/primitives/Panel";
-import { TextField } from "../components/forms/TextField";
-import { PasswordField } from "../components/forms/PasswordField";
-import { NumberField } from "../components/forms/NumberField";
+import { Input } from "../components/forms/Input";
+import { InputPassword } from "../components/forms/InputPassword";
+import { InputNumber } from "../components/forms/InputNumber";
 import { Select } from "../components/forms/Select";
 import { DatePicker } from "../components/forms/DatePicker";
 import { RangeSlider } from "../components/forms/RangeSlider";
@@ -26,13 +26,13 @@ export function FormsShowcase() {
   return (
     <Panel title="Nouvel ordre" meta="Formulaires">
       <div className="lqx-form-grid">
-        <TextField
+        <Input
           label="Symbole"
           value={symbol}
           onChange={(e) => setSymbol(e.target.value)}
           leadingIcon={<SearchIcon size={16} />}
         />
-        <NumberField label="Quantité" value={quantity} onChange={setQuantity} min={0} step={1} suffix="titres" />
+        <InputNumber label="Quantité" value={quantity} onChange={setQuantity} min={0} step={1} suffix="titres" />
         <Select
           label="Compte"
           value={account}
@@ -44,7 +44,7 @@ export function FormsShowcase() {
           ]}
         />
         <DatePicker label="Date d'exécution" value={date} onChange={setDate} />
-        <PasswordField label="Code de validation" value={password} onChange={(e) => setPassword(e.target.value)} />
+        <InputPassword label="Code de validation" value={password} onChange={(e) => setPassword(e.target.value)} />
         <TagInput label="Étiquettes" value={tags} onChange={setTags} />
         <div className="lqx-form-grid__wide">
           <RangeSlider

@@ -1,7 +1,7 @@
 import { Modal } from "../../../primitives/Modal";
 import { Tabs } from "../../../primitives/Tabs";
-import { TextField } from "../../../forms/TextField";
-import { NumberField } from "../../../forms/NumberField";
+import { Input } from "../../../forms/Input";
+import { InputNumber } from "../../../forms/InputNumber";
 import { Checkbox } from "../../../forms/Checkbox";
 import { Select } from "../../../forms/Select";
 import type { TrendLineDrawing } from "../interfaces/TrendLineDrawing.interface";
@@ -105,7 +105,7 @@ export function DrawingEditModal({
               drift apart and break that invariant, so it gets one field instead of the usual
               two. */}
           {draft.lineType === "horizontal" && (
-            <NumberField
+            <InputNumber
               label={valueAxisLabel(draft.valueAxis)}
               step={0.01}
               value={draft.y1}
@@ -144,7 +144,7 @@ export function DrawingEditModal({
                   }}
                 />
               </div>
-              <NumberField
+              <InputNumber
                 label={valueAxisLabel(draft.valueAxis)}
                 step={0.01}
                 value={draft.y1}
@@ -175,7 +175,7 @@ export function DrawingEditModal({
                     onChange={(e) => setDraft({ ...draft, x1: fromDateInputValue(e.target.value, draft.x1) })}
                   />
                 </div>
-                <NumberField
+                <InputNumber
                   label="Prix début"
                   step={0.01}
                   value={draft.y1}
@@ -192,7 +192,7 @@ export function DrawingEditModal({
                     onChange={(e) => setDraft({ ...draft, x2: fromDateInputValue(e.target.value, draft.x2) })}
                   />
                 </div>
-                <NumberField
+                <InputNumber
                   label="Prix fin"
                   step={0.01}
                   value={draft.y2}
@@ -202,7 +202,7 @@ export function DrawingEditModal({
             </>
           )}
           {draft.lineType === "channel" && (
-            <NumberField
+            <InputNumber
               label="Décalage (ligne 2)"
               step={0.01}
               value={draft.channelOffset ?? 0}
@@ -238,7 +238,7 @@ export function DrawingEditModal({
                       onChange={(e) => setPointField({ x: fromDateInputValue(e.target.value, point.x) })}
                     />
                   </div>
-                  <NumberField
+                  <InputNumber
                     label={`Prix (${label})`}
                     step={0.01}
                     value={point.y}
@@ -276,7 +276,7 @@ export function DrawingEditModal({
                       onChange={(e) => setPointField({ x: fromDateInputValue(e.target.value, point.x) })}
                     />
                   </div>
-                  <NumberField
+                  <InputNumber
                     label={`Prix (${label})`}
                     step={0.01}
                     value={point.y}
@@ -290,7 +290,7 @@ export function DrawingEditModal({
 
       {editModalTab === "text" && draft.lineType !== "symbolOverlay" && (
         <>
-          <TextField
+          <Input
             label="Texte"
             placeholder="Étiquette (optionnel)"
             value={draft.text ?? ""}
@@ -302,7 +302,7 @@ export function DrawingEditModal({
             label="Aligner le texte avec la ligne"
           />
           <div className="lq-chart__edit-drawing-row">
-            <NumberField
+            <InputNumber
               label="Taille du texte"
               min={8}
               max={48}
@@ -382,7 +382,7 @@ export function DrawingEditModal({
       {editModalTab === "style" && (
         <>
           <div className="lq-chart__edit-drawing-row">
-            <NumberField
+            <InputNumber
               label="Épaisseur"
               min={1}
               max={8}
@@ -551,7 +551,7 @@ export function DrawingEditModal({
           )}
           {draft.lineType === "table" && (
             <div className="lq-chart__edit-drawing-row">
-              <NumberField
+              <InputNumber
                 label="Lignes"
                 min={1}
                 max={20}
@@ -559,7 +559,7 @@ export function DrawingEditModal({
                 value={draft.tableRows ?? TABLE_DEFAULT_ROWS}
                 onChange={(v) => setDraft({ ...draft, tableRows: v === "" ? TABLE_DEFAULT_ROWS : v })}
               />
-              <NumberField
+              <InputNumber
                 label="Colonnes"
                 min={1}
                 max={20}

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { shortcutLabel } from "../../internal/platformShortcut";
 import { Modal } from "../../../primitives/Modal";
 import { DropdownPanel } from "../../../primitives/DropdownPanel";
-import { TextField } from "../../../forms/TextField";
+import { Input } from "../../../forms/Input";
 import { SaveIcon, PlusIcon, FolderIcon, CheckIcon, TrashIcon } from "../../../icons";
 import type { ChartTemplate } from "../interfaces/ChartTemplate.interface";
 
@@ -251,7 +251,7 @@ export function TemplateControls({ templates, activeTemplateId, isDirty, onSave,
             </div>
           }
         >
-          <TextField
+          <Input
             label="Nom du modèle"
             value={nameValue}
             onChange={(e) => setNameValue(e.target.value)}

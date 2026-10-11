@@ -24,7 +24,7 @@ export interface ScriptParam {
   description?: string;
   /** `type: "number"` only — the declaration's own `{ min, max }` option, both optional and
    *  independent (either, both, or neither may be set). Threaded straight into the settings form's
-   *  `NumberField` (its own stepper buttons and typed/pasted values all clamp to this range) —
+   *  `InputNumber` (its own stepper buttons and typed/pasted values all clamp to this range) —
    *  see `checkDefault`'s own doc for why the *default* is validated against these too, not just
    *  values entered afterward. */
   min?: number;

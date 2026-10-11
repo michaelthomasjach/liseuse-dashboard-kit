@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { Modal } from "../../../primitives/Modal";
 import { Popover } from "../../../forms/Popover";
 import { Select } from "../../../forms/Select";
-import { TextField } from "../../../forms/TextField";
+import { Input } from "../../../forms/Input";
 import { Checkbox } from "../../../forms/Checkbox";
 import { DatePicker } from "../../../forms/DatePicker";
 import {
@@ -348,7 +348,7 @@ export function AlertCreateModal({
           )}
         </div>
 
-        <TextField
+        <Input
           label="Message"
           value={message}
           onChange={(e) => {

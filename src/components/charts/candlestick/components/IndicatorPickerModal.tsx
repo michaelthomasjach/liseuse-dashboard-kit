@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Modal } from "../../../primitives/Modal";
-import { TextField } from "../../../forms/TextField";
+import { Input } from "../../../forms/Input";
 import {
   SearchIcon, TrashIcon, InfoIcon, OverlayBadgeIcon, PaneBadgeIcon, CheckIcon, CodeIcon,
   TrendLineIcon, StarIcon, ChevronLeftIcon, ChevronRightIcon,
@@ -180,7 +180,7 @@ export function IndicatorPickerModal({
           someone asks otherwise. */}
       <div className="lq-chart__modal-split lq-chart__modal-split--stack-mobile">
         <div className="lq-chart__modal-split-sidebar">
-          <TextField
+          <Input
             placeholder="Rechercher un indicateur…"
             value={indicatorSearchQuery}
             onChange={(e) => setIndicatorSearchQuery(e.target.value)}

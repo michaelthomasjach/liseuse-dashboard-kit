@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react";
 import { StorageZone } from "./StorageZone";
-import { NumberField } from "../forms";
+import { InputNumber } from "../forms";
 
 const meta: Meta<typeof StorageZone> = {
   title: "Warehouse/Zone de stockage",
@@ -67,7 +67,7 @@ export const Atelier: Story = {
   render: function Render() {
     const [z, setZ] = useState({ columns: 5, rows: 4, fill: 3, gap: 0.35, rotation: 0 });
     const field = (label: string, key: keyof typeof z, min: number, max: number, step: number) => (
-      <NumberField
+      <InputNumber
         label={label}
         size="small"
         value={z[key]}

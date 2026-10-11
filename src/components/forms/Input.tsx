@@ -2,7 +2,7 @@ import { forwardRef, useId, type InputHTMLAttributes, type ReactNode } from "rea
 import { ErrorIcon } from "../icons";
 import "./field.css";
 
-export interface TextFieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "size"> {
+export interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "size"> {
   label?: string;
   error?: string;
   helperText?: string;
@@ -15,7 +15,7 @@ export interface TextFieldProps extends Omit<InputHTMLAttributes<HTMLInputElemen
 
 /** Base text input: label, leading/trailing icon slots, and an error state that
  *  every other form control in this library (Select, MaskedInput, DatePicker) shares visually. */
-export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(function TextField(
+export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
   { label, error, helperText, leadingIcon, trailingIcon, className, containerClassName, id, disabled, size = "normal", ...rest },
   ref
 ) {

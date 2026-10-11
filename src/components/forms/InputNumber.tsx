@@ -1,8 +1,8 @@
 import { forwardRef, useEffect, useRef, useState } from "react";
-import { TextField, type TextFieldProps } from "./TextField";
-import "./NumberField.css";
+import { Input, type InputProps } from "./Input";
+import "./InputNumber.css";
 
-export interface NumberFieldProps extends Omit<TextFieldProps, "type" | "onChange" | "value"> {
+export interface InputNumberProps extends Omit<InputProps, "type" | "onChange" | "value"> {
   value: number | "";
   onChange: (value: number | "") => void;
   min?: number;
@@ -13,7 +13,7 @@ export interface NumberFieldProps extends Omit<TextFieldProps, "type" | "onChang
   suffix?: string;
 }
 
-// Every +/-, on every NumberField anywhere in this library, adds/subtracts `step` in plain
+// Every +/-, on every InputNumber anywhere in this library, adds/subtracts `step` in plain
 // floating point — a handful of clicks on a step like 0.1 routinely lands on something like
 // 2.5000000000000004 rather than 2.5 (a textbook IEEE754 rounding artifact, not anything specific
 // to this field). Rounding to 4 decimals, the same precision this library's own drawing price
@@ -58,7 +58,7 @@ function normalizeDecimal(raw: string): string {
  *  the outside. Rendering as text and parsing by hand (see normalizeDecimal) sidesteps it
  *  entirely — what's typed is what's shown, "." and "," both parse, and the displayed value is
  *  never at the mercy of whatever locale the browser happens to be running under. */
-export const NumberField = forwardRef<HTMLInputElement, NumberFieldProps>(function NumberField(
+export const InputNumber = forwardRef<HTMLInputElement, InputNumberProps>(function InputNumber(
   { value, onChange, min, max, step = 1, prefix, suffix, leadingIcon, trailingIcon, onFocus, onBlur, ...rest },
   ref
 ) {
@@ -91,7 +91,7 @@ export const NumberField = forwardRef<HTMLInputElement, NumberFieldProps>(functi
   const displayValue = draft ?? formatted;
 
   return (
-    <TextField
+    <Input
       ref={ref}
       type="text"
       inputMode="decimal"

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Popover } from "../../forms/Popover";
 import { Checkbox } from "../../forms/Checkbox";
-import { TextField } from "../../forms/TextField";
+import { Input } from "../../forms/Input";
 import { Modal } from "../../primitives/Modal";
 import { SymbolSearchModal } from "../candlestick/components/SymbolSearchModal";
 import { WatchlistExposureModal } from "./WatchlistExposureModal";
@@ -827,7 +827,7 @@ function NameModal({ title, placeholder, onSubmit, onClose }: { title: string; p
         </div>
       }
     >
-      <TextField
+      <Input
         label="Nom"
         placeholder={placeholder}
         value={value}

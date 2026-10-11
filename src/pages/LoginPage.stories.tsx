@@ -1,8 +1,8 @@
 import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react";
 import { LoginPage } from "./LoginPage";
-import { TextField } from "../components/forms/TextField";
-import { PasswordField } from "../components/forms/PasswordField";
+import { Input } from "../components/forms/Input";
+import { InputPassword } from "../components/forms/InputPassword";
 import { Button } from "../components/primitives/Button";
 import { UserIcon } from "../components/icons";
 
@@ -42,8 +42,8 @@ export const Default: Story = {
         subtitle="Connectez-vous à votre espace."
         footer={<span>Pas de compte ? Contactez votre conseiller.</span>}
       >
-        <TextField label="Email" type="email" placeholder="vous@exemple.com" leadingIcon={<UserIcon size={16} />} value={email} onChange={(e) => setEmail(e.target.value)} />
-        <PasswordField label="Mot de passe" value={password} onChange={(e) => setPassword(e.target.value)} />
+        <Input label="Email" type="email" placeholder="vous@exemple.com" leadingIcon={<UserIcon size={16} />} value={email} onChange={(e) => setEmail(e.target.value)} />
+        <InputPassword label="Mot de passe" value={password} onChange={(e) => setPassword(e.target.value)} />
         <Button block selected>
           Se connecter
         </Button>

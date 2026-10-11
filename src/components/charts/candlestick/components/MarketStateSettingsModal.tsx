@@ -42,7 +42,7 @@ const AXIS_LABELS: { axis: MarketStateAxis; label: string; note: string }[] = [
   { axis: "volatility", label: "Volatilité", note: "À 0 par défaut : elle amplifie autant un bon signal qu'un mauvais." },
 ];
 
-function NumberField({
+function InputNumber({
   label,
   value,
   min,
@@ -147,7 +147,7 @@ export function MarketStateSettingsModal({ open, onClose, settings, onChange, so
         <section className="lq-ms-settings__section">
           <h4 className="lq-ms-settings__title">Lecture</h4>
           <div className="lq-ms-settings__fields">
-            <NumberField
+            <InputNumber
               label="Fenêtre"
               value={settings.lookback}
               min={20}
@@ -156,7 +156,7 @@ export function MarketStateSettingsModal({ open, onClose, settings, onChange, so
               hint="Barres sur lesquelles « haut pour cet instrument » est jugé."
               onChange={(lookback) => onChange({ ...settings, lookback })}
             />
-            <NumberField
+            <InputNumber
               label="Bande neutre"
               value={settings.neutralBand}
               min={0}
@@ -164,7 +164,7 @@ export function MarketStateSettingsModal({ open, onClose, settings, onChange, so
               hint="Écart au milieu en deçà duquel le signal n'a pas de camp."
               onChange={(neutralBand) => onChange({ ...settings, neutralBand })}
             />
-            <NumberField
+            <InputNumber
               label="Lissage des zones"
               value={settings.bandSmoothing}
               min={1}
@@ -183,7 +183,7 @@ export function MarketStateSettingsModal({ open, onClose, settings, onChange, so
           </p>
           <div className="lq-ms-settings__fields">
             {AXIS_LABELS.map(({ axis, label, note }) => (
-              <NumberField
+              <InputNumber
                 key={axis}
                 label={label}
                 value={settings.axisWeights[axis] ?? 0}

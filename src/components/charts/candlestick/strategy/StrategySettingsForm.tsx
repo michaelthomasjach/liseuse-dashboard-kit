@@ -1,4 +1,4 @@
-import { NumberField } from "../../../forms/NumberField";
+import { InputNumber } from "../../../forms/InputNumber";
 import { Select } from "../../../forms/Select";
 import type { StrategySettings } from "../interfaces/StrategySettings.interface";
 
@@ -27,14 +27,14 @@ export function StrategySettingsForm({ settings, onChange }: StrategySettingsFor
       <section className="lq-strategy__settings-group">
         <h4 className="lq-strategy__settings-title">Général</h4>
         <div className="lq-strategy__settings-grid">
-          <NumberField label="Capital initial" value={settings.initialCapital} min={0} step={100} onChange={num("initialCapital")} />
+          <InputNumber label="Capital initial" value={settings.initialCapital} min={0} step={100} onChange={num("initialCapital")} />
           <Select
             label="Devise du compte"
             value={settings.currency}
             options={CURRENCIES.map((c) => ({ value: c, label: c }))}
             onChange={(v) => set("currency", v)}
           />
-          <NumberField label="Taille d'ordre" value={settings.orderSize} min={0} step={1} onChange={num("orderSize")} />
+          <InputNumber label="Taille d'ordre" value={settings.orderSize} min={0} step={1} onChange={num("orderSize")} />
           <Select
             label="Unité de taille"
             value={settings.orderSizeUnit}
@@ -46,7 +46,7 @@ export function StrategySettingsForm({ settings, onChange }: StrategySettingsFor
             onChange={(v) => set("orderSizeUnit", v as StrategySettings["orderSizeUnit"])}
             helperText="En contrats, dans la devise du compte, ou en pourcentage de l'équité courante — la seule des trois qui compose."
           />
-          <NumberField
+          <InputNumber
             label="Pyramiding"
             value={settings.pyramiding}
             min={1}
@@ -81,16 +81,16 @@ export function StrategySettingsForm({ settings, onChange }: StrategySettingsFor
             ]}
             onChange={(v) => set("commissionKind", v as StrategySettings["commissionKind"])}
           />
-          <NumberField
+          <InputNumber
             label={settings.commissionKind === "percent" ? "Commission (%)" : `Commission (${settings.currency})`}
             value={settings.commissionValue}
             min={0}
             step={0.01}
             onChange={num("commissionValue")}
           />
-          <NumberField label="Levier long" value={settings.leverageLong} min={1} step={1} onChange={num("leverageLong")} />
-          <NumberField label="Levier short" value={settings.leverageShort} min={1} step={1} onChange={num("leverageShort")} />
-          <NumberField
+          <InputNumber label="Levier long" value={settings.leverageLong} min={1} step={1} onChange={num("leverageLong")} />
+          <InputNumber label="Levier short" value={settings.leverageShort} min={1} step={1} onChange={num("leverageShort")} />
+          <InputNumber
             label="Slippage (ticks)"
             value={settings.slippageTicks}
             min={0}
@@ -98,7 +98,7 @@ export function StrategySettingsForm({ settings, onChange }: StrategySettingsFor
             onChange={num("slippageTicks")}
             helperText="Toujours défavorable : un achat est rempli au-dessus du prix vu, une vente en dessous."
           />
-          <NumberField
+          <InputNumber
             label="Taille du tick"
             value={settings.tickSize}
             min={0}

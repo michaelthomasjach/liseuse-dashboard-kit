@@ -1,5 +1,5 @@
 import { Modal } from "../../../primitives/Modal";
-import { TextField } from "../../../forms/TextField";
+import { Input } from "../../../forms/Input";
 import { SearchIcon, CloseIcon, RefreshIcon, CheckIcon, PlusIcon, StarIcon } from "../../../icons";
 import type { SymbolSearchCategory } from "../interfaces/SymbolSearchCategory.interface";
 import type { SymbolSearchResult } from "../interfaces/SymbolSearchResult.interface";
@@ -64,7 +64,7 @@ export function SymbolSearchModal({
           the left, results on the right, each scrolling on its own. */}
       <div className="lq-chart__modal-split">
         <div className="lq-chart__modal-split-sidebar">
-          <TextField
+          <Input
             placeholder="Rechercher un symbole…"
             value={symbolSearchQuery}
             onChange={(e) => setSymbolSearchQuery(e.target.value)}

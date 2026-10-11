@@ -1,13 +1,13 @@
 import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react";
-import { PasswordField } from "./PasswordField";
+import { InputPassword } from "./InputPassword";
 
-const meta: Meta<typeof PasswordField> = {
-  title: "Forms/PasswordField",
-  component: PasswordField,
+const meta: Meta<typeof InputPassword> = {
+  title: "Forms/Input/InputPassword",
+  component: InputPassword,
 };
 export default meta;
-type Story = StoryObj<typeof PasswordField>;
+type Story = StoryObj<typeof InputPassword>;
 
 // Pre-filled on purpose: a native `placeholder` is always shown in clear text by the
 // browser (it's never masked, even under type="password"), so toggling visibility on an
@@ -18,7 +18,7 @@ export const Default: Story = {
     const [value, setValue] = useState("MonMotDePasse123");
     return (
       <div style={{ maxWidth: 280 }}>
-        <PasswordField label="Mot de passe" value={value} onChange={(e) => setValue(e.target.value)} />
+        <InputPassword label="Mot de passe" value={value} onChange={(e) => setValue(e.target.value)} />
       </div>
     );
   },
@@ -29,7 +29,7 @@ export const Empty: Story = {
     const [value, setValue] = useState("");
     return (
       <div style={{ maxWidth: 280 }}>
-        <PasswordField label="Mot de passe" value={value} onChange={(e) => setValue(e.target.value)} placeholder="Tapez pour voir le bascule…" />
+        <InputPassword label="Mot de passe" value={value} onChange={(e) => setValue(e.target.value)} placeholder="Tapez pour voir le bascule…" />
       </div>
     );
   },
@@ -41,8 +41,8 @@ export const Sizes: Story = {
     const [value, setValue] = useState("MonMotDePasse123");
     return (
       <div style={{ maxWidth: 280, display: "flex", flexDirection: "column", gap: 16 }}>
-        <PasswordField size="small" label="Small" value={value} onChange={(e) => setValue(e.target.value)} />
-        <PasswordField label="Normal (défaut)" value={value} onChange={(e) => setValue(e.target.value)} />
+        <InputPassword size="small" label="Small" value={value} onChange={(e) => setValue(e.target.value)} />
+        <InputPassword label="Normal (défaut)" value={value} onChange={(e) => setValue(e.target.value)} />
       </div>
     );
   },

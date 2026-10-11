@@ -8,7 +8,7 @@ import { DetachedWindow } from "../../components/DetachedWindow";
 import { ScriptFileTabs } from "./ScriptFileTabs";
 import { Popover } from "../../../../forms/Popover";
 import { Modal } from "../../../../primitives/Modal";
-import { TextField } from "../../../../forms/TextField";
+import { Input } from "../../../../forms/Input";
 import {
   PlayIcon,
   PauseIcon,
@@ -891,7 +891,7 @@ export function hello() {
             </div>
           }
         >
-          <TextField
+          <Input
             label="Nom du fichier"
             value={fileNameValue}
             onChange={(e) => setFileNameValue(e.target.value)}
@@ -973,7 +973,7 @@ export function hello() {
             </div>
           }
         >
-          <TextField
+          <Input
             label="Nom du script"
             value={nameValue}
             onChange={(e) => setNameValue(e.target.value)}

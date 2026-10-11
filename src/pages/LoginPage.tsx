@@ -7,7 +7,7 @@ export interface LoginPageProps {
   logo?: ReactNode;
   title?: string;
   subtitle?: string;
-  /** The actual form — TextField/PasswordField/Button etc. Left fully to the consumer. */
+  /** The actual form — Input/InputPassword/Button etc. Left fully to the consumer. */
   children: ReactNode;
   footer?: ReactNode;
   className?: string;

@@ -3,7 +3,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { Rail } from "./Rail";
 import { useIsoCamera } from "./isoCamera";
 import { footprint, useFrameBox } from "./sceneStory";
-import { NumberField } from "../forms";
+import { InputNumber } from "../forms";
 import { railCircuit } from "./railCircuit";
 
 const meta: Meta<typeof Rail> = {
@@ -128,7 +128,7 @@ export const Atelier: Story = {
       onChange: (next: number) => void,
       { min, max, step }: { min: number; max: number; step: number }
     ) => (
-      <NumberField
+      <InputNumber
         label={label}
         size="small"
         value={value}

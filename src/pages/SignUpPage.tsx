@@ -7,7 +7,7 @@ export interface SignUpPageProps {
   logo?: ReactNode;
   title?: string;
   subtitle?: string;
-  /** The actual form — TextField/PasswordField/Checkbox/Button etc. Left fully to the consumer. */
+  /** The actual form — Input/InputPassword/Checkbox/Button etc. Left fully to the consumer. */
   children: ReactNode;
   /** Terms-of-service checkbox or similar, rendered between the form and the footer. */
   terms?: ReactNode;

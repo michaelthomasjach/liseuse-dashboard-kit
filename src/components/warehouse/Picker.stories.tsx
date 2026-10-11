@@ -6,7 +6,7 @@ import { RackV2 } from "./RackV2";
 import { Conveyor } from "./Conveyor";
 import { useIsoCamera } from "./isoCamera";
 import { Scene as SceneView, footprint, layer, useFrameBox, type SceneUnit } from "./sceneStory";
-import { NumberField } from "../forms";
+import { InputNumber } from "../forms";
 import { railCircuit, type CircuitPiece } from "./railCircuit";
 
 const meta: Meta<typeof Picker> = {
@@ -349,7 +349,7 @@ export const Atelier: Story = {
       onChange: (next: number) => void,
       { min, max, step }: { min: number; max: number; step: number }
     ) => (
-      <NumberField
+      <InputNumber
         label={label}
         size="small"
         value={value}

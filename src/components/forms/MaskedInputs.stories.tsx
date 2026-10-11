@@ -6,7 +6,7 @@ import { CreditCardInput } from "./CreditCardInput";
 import { DateInput } from "./DateInput";
 
 const meta: Meta = {
-  title: "Forms/Masked inputs",
+  title: "Forms/Input/Masked inputs",
 };
 export default meta;
 type Story = StoryObj;

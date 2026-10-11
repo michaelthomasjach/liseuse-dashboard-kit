@@ -1,8 +1,8 @@
 import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react";
 import { SignUpPage } from "./SignUpPage";
-import { TextField } from "../components/forms/TextField";
-import { PasswordField } from "../components/forms/PasswordField";
+import { Input } from "../components/forms/Input";
+import { InputPassword } from "../components/forms/InputPassword";
 import { PhoneInput } from "../components/forms/PhoneInput";
 import { Checkbox } from "../components/forms/Checkbox";
 import { Button } from "../components/primitives/Button";
@@ -55,10 +55,10 @@ export const Default: Story = {
         }
         footer={<span>Déjà un compte ? Connectez-vous.</span>}
       >
-        <TextField label="Nom complet" placeholder="Jane Doe" leadingIcon={<UserIcon size={16} />} value={name} onChange={(e) => setName(e.target.value)} />
-        <TextField label="Email" type="email" placeholder="vous@exemple.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+        <Input label="Nom complet" placeholder="Jane Doe" leadingIcon={<UserIcon size={16} />} value={name} onChange={(e) => setName(e.target.value)} />
+        <Input label="Email" type="email" placeholder="vous@exemple.com" value={email} onChange={(e) => setEmail(e.target.value)} />
         <PhoneInput label="Téléphone" value={phone} onChange={setPhone} />
-        <PasswordField label="Mot de passe" value={password} onChange={(e) => setPassword(e.target.value)} />
+        <InputPassword label="Mot de passe" value={password} onChange={(e) => setPassword(e.target.value)} />
         <Button block selected disabled={!acceptedTerms}>
           Créer mon compte
         </Button>

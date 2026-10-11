@@ -1,17 +1,17 @@
 import { forwardRef, useState } from "react";
-import { TextField, type TextFieldProps } from "./TextField";
+import { Input, type InputProps } from "./Input";
 import { EyeIcon, EyeOffIcon, LockIcon } from "../icons";
 
-export type PasswordFieldProps = Omit<TextFieldProps, "type" | "trailingIcon">;
+export type InputPasswordProps = Omit<InputProps, "type" | "trailingIcon">;
 
-/** TextField preconfigured for passwords: masked by default, with a show/hide toggle. */
-export const PasswordField = forwardRef<HTMLInputElement, PasswordFieldProps>(function PasswordField(
+/** Input preconfigured for passwords: masked by default, with a show/hide toggle. */
+export const InputPassword = forwardRef<HTMLInputElement, InputPasswordProps>(function InputPassword(
   { leadingIcon = <LockIcon size={16} />, disabled, ...rest },
   ref
 ) {
   const [visible, setVisible] = useState(false);
   return (
-    <TextField
+    <Input
       ref={ref}
       type={visible ? "text" : "password"}
       leadingIcon={leadingIcon}

@@ -1,8 +1,8 @@
 import { useRef, type ChangeEvent } from "react";
-import { TextField, type TextFieldProps } from "./TextField";
+import { Input, type InputProps } from "./Input";
 import { applyMask, caretIndexForDigitCount, countSlots, digitsOnly } from "./internal/maskEngine";
 
-export interface MaskedInputProps extends Omit<TextFieldProps, "value" | "onChange" | "ref"> {
+export interface MaskedInputProps extends Omit<InputProps, "value" | "onChange" | "ref"> {
   /** Pattern where `#` is a digit slot, e.g. "## ## ## ## ##" or "##/##/####". */
   mask: string;
   /** Character shown for not-yet-typed slots. Default "_". */
@@ -30,7 +30,7 @@ export function MaskedInput({ mask, maskChar = "_", value, onChange, ...textFiel
   }
 
   return (
-    <TextField
+    <Input
       ref={inputRef}
       value={display}
       onChange={handleChange}

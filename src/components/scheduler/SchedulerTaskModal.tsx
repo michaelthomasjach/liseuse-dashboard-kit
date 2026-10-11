@@ -2,8 +2,8 @@ import { Modal } from "../primitives/Modal";
 import { Button } from "../primitives/Button";
 import { SegmentedControl } from "../primitives/SegmentedControl";
 import { Select } from "../forms/Select";
-import { TextField } from "../forms/TextField";
-import { NumberField } from "../forms/NumberField";
+import { Input } from "../forms/Input";
+import { InputNumber } from "../forms/InputNumber";
 import { DateTimePicker } from "../forms/DateTimePicker";
 import { PlusIcon, TrashIcon } from "../icons";
 import {
@@ -80,7 +80,7 @@ export function SchedulerTaskModal({ task, resources, onChange, onDelete, onClos
       }
     >
       <div className="lq-sched-modal">
-        <TextField size="small" label="Titre" value={task.label} onChange={(event) => patch({ label: event.target.value })} />
+        <Input size="small" label="Titre" value={task.label} onChange={(event) => patch({ label: event.target.value })} />
 
         <label className="lq-field lq-sched-modal__description">
           <span className="lq-field__label">Description</span>
@@ -181,13 +181,13 @@ export function SchedulerTaskModal({ task, resources, onChange, onDelete, onClos
             <ul className="lq-sched-modal__step-list">
               {steps.map((step) => (
                 <li key={step.id} className="lq-sched-modal__step">
-                  <TextField
+                  <Input
                     size="small"
                     value={step.label}
                     aria-label="Nom de l'étape"
                     onChange={(event) => setStep(step.id, { label: event.target.value })}
                   />
-                  <NumberField
+                  <InputNumber
                     size="small"
                     value={step.minutes}
                     min={1}

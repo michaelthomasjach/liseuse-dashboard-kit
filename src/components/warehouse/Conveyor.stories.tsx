@@ -3,7 +3,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { Conveyor, conveyorTrack, type ConveyorProps } from "./Conveyor";
 import { Cargo } from "./Cargo";
 import { SceneBox } from "./sceneStory";
-import { NumberField } from "../forms";
+import { InputNumber } from "../forms";
 
 const meta: Meta<typeof Conveyor> = {
   title: "Warehouse/Tapis roulant",
@@ -142,7 +142,7 @@ export const Atelier: Story = {
       onChange: (next: number) => void,
       { min, max, step }: { min: number; max: number; step: number }
     ) => (
-      <NumberField
+      <InputNumber
         label={label}
         size="small"
         value={value}

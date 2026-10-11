@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { TextField } from "../../../../forms/TextField";
-import { NumberField } from "../../../../forms/NumberField";
+import { Input } from "../../../../forms/Input";
+import { InputNumber } from "../../../../forms/InputNumber";
 import { TagInput } from "../../../../forms/TagInput";
 import { Checkbox } from "../../../../forms/Checkbox";
 import type { ScriptParam, ScriptParamValue } from "../../interfaces/ScriptParam.interface";
@@ -76,7 +76,7 @@ export function ScriptParamsFields({ params, values, onChange }: ScriptParamsFie
 
         if (param.type === "number") {
           return (
-            <NumberField
+            <InputNumber
               key={param.name}
               label={param.name}
               helperText={param.description}
@@ -118,7 +118,7 @@ export function ScriptParamsFields({ params, values, onChange }: ScriptParamsFie
 
         if (param.type === "string") {
           return (
-            <TextField
+            <Input
               key={param.name}
               label={param.name}
               helperText={param.description}

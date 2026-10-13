@@ -20,15 +20,18 @@ export interface SidebarLayoutProps {
   header?: ReactNode;
   children: ReactNode;
   className?: string;
+  /** Keeps `header` pinned to the top of the viewport while the page scrolls (opaque background), and on
+   *  narrow screens the mobile bar (menu button + logo) too. Default false. */
+  stickyHeader?: boolean;
 }
 
 /** App shell with a persistent left sidebar on desktop that collapses to an
  *  off-canvas drawer (hamburger-triggered) below the tablet breakpoint. */
-export function SidebarLayout({ logo, navItems, footer, header, children, className }: SidebarLayoutProps) {
+export function SidebarLayout({ logo, navItems, footer, header, children, className, stickyHeader = false }: SidebarLayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div className={["lq-sidebar-layout", className].filter(Boolean).join(" ")}>
+    <div className={["lq-sidebar-layout", stickyHeader && "lq-sidebar-layout--sticky-header", className].filter(Boolean).join(" ")}>
       <aside className={["lq-sidebar-layout__sidebar", mobileOpen && "lq-sidebar-layout__sidebar--open"].filter(Boolean).join(" ")}>
         <div className="lq-sidebar-layout__logo">{logo}</div>
         <nav className="lq-sidebar-layout__nav">

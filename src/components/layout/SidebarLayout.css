@@ -151,3 +151,29 @@
 .lq-root[data-lq-palette="eink"] .lq-sidebar-layout__menu-button {
   border-radius: 0;
 }
+
+/* stickyHeader: the header (and on narrow screens the mobile bar above it) stays visible while scrolling. */
+.lq-sidebar-layout--sticky-header {
+  --lq-sidebar-topbar-height: 0px;
+}
+
+.lq-sidebar-layout--sticky-header .lq-sidebar-layout__header {
+  position: sticky;
+  top: var(--lq-sidebar-topbar-height);
+  z-index: 900;
+  background-color: var(--lq-color-bg);
+}
+
+@media (max-width: 900px) {
+  .lq-sidebar-layout--sticky-header {
+    --lq-sidebar-topbar-height: 57px;
+  }
+
+  .lq-sidebar-layout--sticky-header .lq-sidebar-layout__topbar {
+    position: sticky;
+    top: 0;
+    z-index: 901;
+    min-height: var(--lq-sidebar-topbar-height);
+    background-color: var(--lq-color-bg);
+  }
+}

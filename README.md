@@ -318,7 +318,7 @@ Une ligne de tendance classique (pas "étendue", pas les autres types à géomé
 - `MarketMoversWidget` — carte à onglets Hausses/Baisses
 
 **Layouts** — responsive, s'effondrent en menu mobile sous ~900px
-- `SidebarLayout` — sidebar fixe desktop → tiroir hors-écran (hamburger) sur mobile
+- `SidebarLayout` — sidebar fixe desktop → tiroir hors-écran (hamburger) sur mobile ; `stickyHeader` garde l'en-tête affiché en haut de l'écran pendant le défilement (et la barre du menu sur mobile)
 - `HeaderLayout` — nav horizontale sticky → tiroir déroulant sur mobile
 
 **Pages**

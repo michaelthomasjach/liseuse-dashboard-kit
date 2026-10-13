@@ -48,3 +48,19 @@ export const Dashboard: Story = {
     </SidebarLayout>
   ),
 };
+
+/** En-tête fixe : il reste affiché en haut de l'écran pendant le défilement (et la barre du menu sur mobile). */
+export const StickyHeader: Story = {
+  render: () => (
+    <SidebarLayout
+      stickyHeader
+      logo={<strong>Finance Kit</strong>}
+      navItems={[{ id: "overview", label: "Vue d'ensemble", icon: <HomeIcon size={18} />, active: true }]}
+      header={<div style={{ padding: "12px 0", borderBottom: "1px solid var(--lq-color-border-subtle)" }}>En-tête fixe : faites défiler la page</div>}
+    >
+      {Array.from({ length: 60 }, (_, i) => (
+        <p key={i}>Ligne {i + 1}</p>
+      ))}
+    </SidebarLayout>
+  ),
+};

@@ -157,11 +157,20 @@
   --lq-sidebar-topbar-height: 0px;
 }
 
+/* Elevated bar: a shade apart from the page (the panel colour, slightly see-through with a blur, so the content
+   reads as passing *under* it) and a shadow along its bottom edge. */
 .lq-sidebar-layout--sticky-header .lq-sidebar-layout__header {
   position: sticky;
   top: var(--lq-sidebar-topbar-height);
   z-index: 900;
-  background-color: var(--lq-color-bg);
+  background-color: color-mix(in srgb, var(--lq-color-panel) 92%, transparent);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  box-shadow: var(--lq-sticky-header-shadow, 0 8px 18px -10px rgba(0, 0, 0, 0.55), 0 1px 0 var(--lq-color-border-subtle));
+}
+
+.lq-root[data-lq-surface="light"] .lq-sidebar-layout--sticky-header .lq-sidebar-layout__header {
+  --lq-sticky-header-shadow: 0 8px 18px -10px rgba(17, 17, 17, 0.28), 0 1px 0 var(--lq-color-border-subtle);
 }
 
 @media (max-width: 900px) {
@@ -174,6 +183,6 @@
     top: 0;
     z-index: 901;
     min-height: var(--lq-sidebar-topbar-height);
-    background-color: var(--lq-color-bg);
+    background-color: var(--lq-color-panel);
   }
 }

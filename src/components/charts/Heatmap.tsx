@@ -14,8 +14,10 @@ export interface HeatmapTile {
   value: number;
   /** Drives the tile's own color via `colorScale`/`colorDomain` — often a *different* metric
    *  than `value` (e.g. % change vs. market cap, the classic stock-heatmap pairing), so kept
-   *  separate rather than reusing `value` for both. */
-  colorValue: number;
+   *  separate rather than reusing `value` for both. `null` = no reading yet (an earnings report not
+   *  published, a quote not traded): the tile is drawn in a flat neutral grey instead of a faint up
+   *  tint, so "unknown" never reads as "slightly positive". */
+  colorValue: number | null;
   /** The company's logo, as a URL — whatever the market-data provider serves alongside the quote.
    *  Drawn as a 20px disc above the label. A URL that fails to load (offline, blocked, 404 for a
    *  ticker the provider does not know) falls back to `logoColor` rather than leaving a hole. */
@@ -105,7 +107,11 @@ interface GroupBounds {
 // at paint time), and degrades gracefully under the E-ink palette, where colorUp/colorDown are
 // the same color — magnitude still reads as intensity there even with no hue to distinguish
 // gains from losses by.
-function tileColor(colorValue: number, domain: [number, number]): string {
+/** Flat grey of a tile with no reading (`colorValue: null`). */
+const NEUTRAL_TILE = "color-mix(in srgb, var(--lq-color-text-muted) 22%, var(--lq-color-panel))";
+
+function tileColor(colorValue: number | null, domain: [number, number]): string {
+  if (colorValue === null) return NEUTRAL_TILE;
   const [lo, hi] = domain;
   const clamped = Math.max(lo, Math.min(hi, colorValue));
   const span = Math.max(Math.abs(lo), Math.abs(hi), 1e-6);
@@ -129,8 +135,8 @@ function tileColor(colorValue: number, domain: [number, number]): string {
 /** Resolves `--lq-color-up`/`--lq-color-down`/`--lq-color-panel` as they currently stand on this
  *  chart's own element, and mixes them the way `tileColor` does. Re-read after every render rather
  *  than once, because a palette or surface switch changes all three without unmounting anything. */
-function useTileMixer(el: HTMLElement | null): (colorValue: number, domain: [number, number]) => string {
-  const [tokens, setTokens] = useState<{ up: string; down: string; panel: string } | null>(null);
+function useTileMixer(el: HTMLElement | null): (colorValue: number | null, domain: [number, number]) => string {
+  const [tokens, setTokens] = useState<{ up: string; down: string; panel: string; muted: string } | null>(null);
 
   useLayoutEffect(() => {
     if (el === null) return;
@@ -141,9 +147,10 @@ function useTileMixer(el: HTMLElement | null): (colorValue: number, domain: [num
         up: cs.getPropertyValue("--lq-color-up").trim(),
         down: cs.getPropertyValue("--lq-color-down").trim(),
         panel: cs.getPropertyValue("--lq-color-panel").trim(),
+        muted: cs.getPropertyValue("--lq-color-text-muted").trim(),
       };
       setTokens((prev) =>
-        prev !== null && prev.up === next.up && prev.down === next.down && prev.panel === next.panel ? prev : next
+        prev !== null && prev.up === next.up && prev.down === next.down && prev.panel === next.panel && prev.muted === next.muted ? prev : next
       );
     }
     read();
@@ -159,6 +166,11 @@ function useTileMixer(el: HTMLElement | null): (colorValue: number, domain: [num
 
   return (colorValue, domain) => {
     if (tokens === null) return "var(--lq-color-text)";
+    if (colorValue === null) {
+      const grey = d3.color(tokens.muted);
+      const panel = d3.color(tokens.panel);
+      return grey && panel ? labelColorOn(d3.rgb(d3.interpolateRgb(panel, grey)(0.22))) : "var(--lq-color-text)";
+    }
     const [lo, hi] = domain;
     const clamped = Math.max(lo, Math.min(hi, colorValue));
     const span = Math.max(Math.abs(lo), Math.abs(hi), 1e-6);
@@ -380,7 +392,7 @@ export function Heatmap({ groups, width = 900, height = 560, colorDomain = [-3, 
             (hovered.node.tile.tooltip ?? (
               <>
                 <strong>{hovered.node.tile.label}</strong>
-                <span>{hovered.node.tile.formattedValue ?? hovered.node.tile.colorValue.toFixed(2)}</span>
+                <span>{hovered.node.tile.formattedValue ?? hovered.node.tile.colorValue?.toFixed(2) ?? "—"}</span>
               </>
             ))
           ) : (
@@ -436,7 +448,7 @@ function HeatmapTileContent({
         {tile.label}
       </text>
       <text x={cx} y={showLogo ? cy + 16 : cy + 10} className="lq-heatmap__tile-value">
-        {tile.formattedValue ?? tile.colorValue.toFixed(2)}
+        {tile.formattedValue ?? tile.colorValue?.toFixed(2) ?? "—"}
       </text>
     </g>
   );

@@ -102,3 +102,23 @@ export const StockHeatmap: Story = {
 export const Compact: Story = {
   render: () => <Heatmap groups={SAMPLE_GROUPS} width={640} height={400} />,
 };
+
+/** Saison de résultats : tant qu'une société n'a pas publié, `colorValue: null` la garde en gris neutre ;
+ *  une fois publiée, la surprise par rapport au consensus la colore (vert au-dessus, rouge en dessous). */
+export const PendingValues: Story = {
+  render: () => (
+    <Heatmap
+      width={900}
+      height={480}
+      colorDomain={[-15, 15]}
+      groups={SAMPLE_GROUPS.map((g, gi) => ({
+        ...g,
+        tiles: g.tiles.map((t, ti) =>
+          (gi + ti) % 3 === 0
+            ? { ...t, colorValue: null, formattedValue: "à venir" }
+            : { ...t, colorValue: t.colorValue === null ? null : t.colorValue * 4, formattedValue: undefined },
+        ),
+      }))}
+    />
+  ),
+};

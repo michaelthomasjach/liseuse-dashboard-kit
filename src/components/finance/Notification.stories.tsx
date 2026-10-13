@@ -211,3 +211,34 @@ export const NewsAlerts: Story = {
     </NotificationProvider>
   ),
 };
+
+/** Carte cliquable : un clic n'importe où (sauf la croix et les actions) mène à l'élément concerné puis ferme la carte.
+ *  Survoler la carte met le compte à rebours en pause ; il reprend là où il s'était arrêté. */
+export const Clickable: StoryObj = {
+  render: () => {
+    function Demo() {
+      const { notify } = useNotification();
+      return (
+        <button
+          type="button"
+          onClick={() =>
+            notify({
+              tone: "warning",
+              title: "Alerte : Brent ±1 %",
+              description: "Brent à 106,28 $ : +1,5 % sur la séance. Cliquer pour ouvrir l'alerte.",
+              autoDismissMs: 8000,
+              onClick: () => window.alert("Ouverture de l'alerte"),
+            })
+          }
+        >
+          Notification cliquable
+        </button>
+      );
+    }
+    return (
+      <NotificationProvider>
+        <Demo />
+      </NotificationProvider>
+    );
+  },
+};

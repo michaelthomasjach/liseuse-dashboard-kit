@@ -297,3 +297,17 @@
     animation: none;
   }
 }
+
+/* Clickable card (`onClick`): the whole card leads somewhere. */
+.lq-notification-card[data-clickable] {
+  cursor: pointer;
+}
+
+.lq-notification-card[data-clickable]:hover {
+  border-color: var(--lq-color-text);
+}
+
+.lq-notification-card[data-clickable]:focus-visible {
+  outline: 2px solid var(--lq-color-text);
+  outline-offset: 2px;
+}

@@ -5,6 +5,7 @@ import {
   useEffect,
   useRef,
   useState,
+  type KeyboardEvent,
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
@@ -42,6 +43,10 @@ export interface NotificationCardConfig {
   autoDismissMs?: number;
   /** Countdown progress bar while auto-dismissing. Default true whenever `autoDismissMs` is set. */
   showProgress?: boolean;
+  /** Makes the whole card clickable (e.g. "take me to the alert/article this is about"): called on a
+   *  click or Enter/Space anywhere on the card except its close button and `actions`, then the card
+   *  closes. */
+  onClick?: () => void;
 }
 
 export interface NotificationSourceProps {
@@ -91,12 +96,23 @@ function useAutoDismiss(autoDismissMs: number | undefined, onClose: () => void) 
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
 
-  const start = useCallback((duration: number) => {
+  const durationRef = useRef(autoDismissMs ?? 0);
+
+  const arm = useCallback((duration: number) => {
     remainingRef.current = duration;
     startedAtRef.current = Date.now();
     timerRef.current = setTimeout(() => onCloseRef.current(), duration);
-    setGeneration((g) => g + 1);
   }, []);
+
+  /** A fresh countdown: new progress bar (new `key`) over the full duration. */
+  const start = useCallback(
+    (duration: number) => {
+      durationRef.current = duration;
+      arm(duration);
+      setGeneration((g) => g + 1);
+    },
+    [arm]
+  );
 
   useEffect(() => {
     if (!autoDismissMs) return;
@@ -111,13 +127,15 @@ function useAutoDismiss(autoDismissMs: number | undefined, onClose: () => void) 
     setPaused(true);
   }
 
+  /** Picks up exactly where `pause` stopped: same progress bar (its CSS animation simply resumes from
+   *  the paused frame) and a timer armed for the time that was left — not a restart from full. */
   function resume() {
     if (!autoDismissMs || !paused) return;
     setPaused(false);
-    start(Math.max(300, remainingRef.current));
+    arm(Math.max(300, remainingRef.current));
   }
 
-  return { paused, generation, durationAtStart: remainingRef.current, pause, resume };
+  return { paused, generation, durationAtStart: durationRef.current, pause, resume };
 }
 
 /** The visual card shared by the standalone `Notification` and the `NotificationProvider` stacks. */
@@ -131,6 +149,7 @@ function NotificationCard({
   dismissible = true,
   autoDismissMs,
   showProgress = true,
+  onClick,
   onClose,
   bar = false,
   className,
@@ -146,6 +165,23 @@ function NotificationCard({
       role="status"
       onPointerEnter={pause}
       onPointerLeave={resume}
+      {...(onClick
+        ? {
+            "data-clickable": "",
+            tabIndex: 0,
+            onClick: () => {
+              onClick();
+              onClose();
+            },
+            onKeyDown: (e: KeyboardEvent<HTMLDivElement>) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onClick();
+                onClose();
+              }
+            },
+          }
+        : {})}
     >
       {resolvedIcon && <span className="lq-notification-card__icon">{resolvedIcon}</span>}
       <div className="lq-notification-card__body">
@@ -156,13 +192,25 @@ function NotificationCard({
         {description && <div className="lq-notification-card__description">{description}</div>}
         {(actions || meta) && (
           <div className="lq-notification-card__footer">
-            {actions && <div className="lq-notification-card__actions">{actions}</div>}
+            {actions && (
+              <div className="lq-notification-card__actions" onClick={(e) => e.stopPropagation()}>
+                {actions}
+              </div>
+            )}
             {meta && <span className="lq-notification-card__meta">{meta}</span>}
           </div>
         )}
       </div>
       {dismissible && (
-        <button type="button" className="lq-notification-card__close" onClick={onClose} aria-label="Fermer">
+        <button
+          type="button"
+          className="lq-notification-card__close"
+          onClick={(e) => {
+            e.stopPropagation();
+            onClose();
+          }}
+          aria-label="Fermer"
+        >
           <CloseIcon size={14} />
         </button>
       )}

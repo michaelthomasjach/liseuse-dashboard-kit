@@ -131,7 +131,7 @@ Toute zone scrollable sous `.lq-root` reçoit automatiquement un ascenseur fin e
 - `ColorSwatchButton` — case à cocher couleur (dégradée en gris sous la palette e-ink)
 - `Modal` — panneau de détail centré ; `size="fullscreen"` pour une variante qui occupe la quasi-totalité de l'écran (96vw × 92vh) au lieu de la petite boîte centrée par défaut. Le padding vit sur un wrapper interne (`.lq-modal__inner`), pas sur `.lq-modal` lui-même : c'est `.lq-modal` qui porte `overflow-y: auto`, et une scrollbar sur une boîte *déjà paddée* mange dans le padding de ce côté-là au lieu de s'afficher à côté — le padding gauche restait entier pendant que le droit semblait disparaître. Garder `.lq-modal` sans padding fait apparaître la scrollbar au ras de sa bordure, en dehors de la boîte du wrapper, donc son padding reste symétrique que la scrollbar soit visible ou non
 - `FieldGroup` — label + rangée de contrôles
-- `SegmentedControl` — sélecteur exclusif (ex: le switch Palette/Surface/Typo de la maquette)
+- `SegmentedControl` — sélecteur exclusif (ex: le switch Palette/Surface/Typo de la maquette) ; `labelPosition="top"` place le libellé au-dessus et donne aux options la hauteur d'un `Input` (barres de filtres)
 - `Tabs` — navigation par onglets, horizontale ou verticale (`orientation`)
 - `Jumbotron` — bannière promo/hero (eyebrow, titre, description, actions, media ou image de fond avec `imageFilter="grayscale"`)
 - `TreeView` — arbre expand/collapse récursif, avec glisser-déposer optionnel (`onMove`) pour réorganiser/reparenter — voir l'utilitaire `moveTreeNode`

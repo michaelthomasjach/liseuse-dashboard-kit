@@ -43,3 +43,24 @@
   background-color: var(--lq-color-fill);
   color: var(--lq-color-accent-contrast);
 }
+
+/* Label above, input height: lines up with Input / InputDropdown in a form or filter bar. */
+.lq-segmented--top {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.lq-segmented--top .lq-segmented__label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--lq-color-text);
+}
+
+.lq-segmented--top .lq-segmented__option {
+  min-height: 40px;
+  padding-top: 0;
+  padding-bottom: 0;
+}

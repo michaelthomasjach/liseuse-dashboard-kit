@@ -1,3 +1,4 @@
+import { Input } from "../forms/Input";
 import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react";
 import { SegmentedControl } from "./SegmentedControl";
@@ -42,6 +43,29 @@ export const Typo: Story = {
           { value: "ibm-plex-sans", label: "IBM Plex Sans" },
         ]}
       />
+    );
+  },
+};
+
+/** Dans une barre de filtres : libellé au-dessus et hauteur d'un `Input`, alignés avec les champs voisins. */
+export const LabelOnTop: Story = {
+  render: () => {
+    const [v, setV] = useState("14");
+    return (
+      <div style={{ display: "flex", gap: 20, alignItems: "flex-end" }}>
+        <Input label="Société" placeholder="Symbole ou nom…" />
+        <SegmentedControl
+          labelPosition="top"
+          label="Horizon"
+          options={[
+            { value: "7", label: "7 j" },
+            { value: "14", label: "14 j" },
+            { value: "28", label: "4 sem." },
+          ]}
+          value={v}
+          onChange={setV}
+        />
+      </div>
     );
   },
 };

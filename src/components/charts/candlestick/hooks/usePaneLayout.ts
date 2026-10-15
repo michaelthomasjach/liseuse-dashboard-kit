@@ -138,6 +138,10 @@ export interface UsePaneLayoutArgs {
    *  appears (see the effect below), never as an ongoing constraint: this sets how a docked pane
    *  *opens*, and past that its fold state is the user's. */
   dockedPanesStartFolded?: boolean | null;
+  /** Starting height of an expanded sub-pane, as a fraction of the plot's own bounded height (see
+   *  `CandlestickChartProps.defaultPaneHeightFraction`). Clamped to the resize bounds; default
+   *  DEFAULT_PANE_HEIGHT_FRACTION. */
+  defaultPaneHeightFraction?: number;
   /** Called just before an indicator is removed, with its id, and returning every id that should
    *  go with it. The one seam through which "removing this also removes that" is expressed, so it
    *  holds for every path in this hook that removes an indicator — the legend, a pane header, a
@@ -167,7 +171,12 @@ export function usePaneLayout({
   extraIndicators: rawExtraIndicators = [],
   dockedPanesStartFolded = null,
   beforeRemoveIndicator,
+  defaultPaneHeightFraction,
 }: UsePaneLayoutArgs) {
+  const defaultFraction =
+    defaultPaneHeightFraction !== undefined && Number.isFinite(defaultPaneHeightFraction)
+      ? Math.min(MAX_PANE_HEIGHT_FRACTION, Math.max(MIN_PANE_HEIGHT_FRACTION, defaultPaneHeightFraction))
+      : DEFAULT_PANE_HEIGHT_FRACTION;
   const [indicators, setIndicators] = useState<Indicator[]>(defaultIndicators ?? []);
   const [indicatorPickerOpen, setIndicatorPickerOpen] = useState(false);
   const [indicatorSearchQuery, setIndicatorSearchQuery] = useState("");
@@ -585,7 +594,7 @@ export function usePaneLayout({
   }
 
   function paneHeightFraction(key: string): number {
-    return paneHeightFractions[key] ?? DEFAULT_PANE_HEIGHT_FRACTION;
+    return paneHeightFractions[key] ?? defaultFraction;
   }
 
   // Drag-to-resize a sub-pane via its own top divider: grow/shrink that one pane's height
@@ -700,7 +709,7 @@ export function usePaneLayout({
       return { ownPaneIndicators: [], indicatorPaneHeights: [], indicatorPaneTops: [], volumeTop: 0, allPanesOrder: ["volume"] };
     }
     const heights = owned.map((ind) =>
-      ind.paneCollapsed ? SUB_PANE_COLLAPSED_HEIGHT : Math.round(plotBoundedHeight * (paneHeightFractions[ind.id] ?? DEFAULT_PANE_HEIGHT_FRACTION))
+      ind.paneCollapsed ? SUB_PANE_COLLAPSED_HEIGHT : Math.round(plotBoundedHeight * (paneHeightFractions[ind.id] ?? defaultFraction))
     );
     const insertAt = Math.min(Math.max(0, volumePaneOrder), owned.length);
     let cursor = 0; // relative to right after price
@@ -722,7 +731,7 @@ export function usePaneLayout({
       order.push("volume");
     }
     return { ownPaneIndicators: owned, indicatorPaneHeights: heights, indicatorPaneTops: tops, volumeTop: vTop, allPanesOrder: order };
-  }, [indicators, extraIndicators, paneHeightFractions, plotBoundedHeight, volumeVisible, volumeHeight, volumePaneOrder, fullscreenPaneId]);
+  }, [indicators, extraIndicators, paneHeightFractions, defaultFraction, plotBoundedHeight, volumeVisible, volumeHeight, volumePaneOrder, fullscreenPaneId]);
   const indicatorPanesTotalHeight = indicatorPaneHeights.reduce((sum, h) => sum + h, 0);
 
   const priceHeight = Math.max(0, plotBoundedHeight - volumeHeight - indicatorPanesTotalHeight);

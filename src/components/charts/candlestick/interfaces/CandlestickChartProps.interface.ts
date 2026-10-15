@@ -169,6 +169,11 @@ export interface CandlestickChartProps {
    *  as an initial zoom/pan — the user can still zoom/pan freely afterward). `undefined`/0/a
    *  value ≥ `data.length` shows the whole dataset, same as before this prop existed. Default 500. */
   initialVisibleCandles?: number;
+  /** Starting height of every expanded sub-pane (volume, and each "own"-pane indicator such as
+   *  RSI/MACD), as a fraction of the plot's own bounded height — before any manual resize, which
+   *  still works as usual. Clamped to the drag-to-resize bounds (0.08–0.6). Default 0.22. Lower it
+   *  to give the price pane more room when several sub-panes are shown at once. */
+  defaultPaneHeightFraction?: number;
   /** When true, the price axis continuously auto-fits to the min/max of whatever candles are
    *  currently visible on the X axis (recalculated on every pan/zoom), instead of a single
    *  static domain sized to the whole dataset — until the user manually zooms/pans the Y axis

@@ -970,3 +970,25 @@ export const AllFeatures: Story = {
     );
   },
 };
+
+const COMPACT_PANES_DATASET = generateCandles(300, 180, 12);
+
+/** Volume, RSI et MACD ouverts d'emblée, chacun à 12 % de la hauteur au lieu de 22 % : le prix garde la plus grande part. */
+export const CompactPanes: Story = {
+  name: "Sous-panneaux compacts (defaultPaneHeightFraction)",
+  render: () => (
+    <div style={{ height: 640 }}>
+      <CandlestickChart
+        data={COMPACT_PANES_DATASET}
+        symbol="DEMO"
+        height={640}
+        showVolume
+        defaultPaneHeightFraction={0.12}
+        defaultIndicators={[
+          { id: "rsi", kind: "rsi", period: 14 },
+          { id: "macd", kind: "macd", period: 26, fastPeriod: 12, slowPeriod: 26, signalPeriod: 9 },
+        ]}
+      />
+    </div>
+  ),
+};

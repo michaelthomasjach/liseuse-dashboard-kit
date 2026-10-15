@@ -136,6 +136,7 @@ export function CandlestickChart({
   defaultTemplates,
   onTemplatesChange,
   initialVisibleCandles = 500,
+  defaultPaneHeightFraction,
   YAutoScaling = true,
   onYAutoScalingChange,
   timeframes,
@@ -561,6 +562,7 @@ export function CandlestickChart({
     extraIndicators: openScriptChartIndicators,
     dockedPanesStartFolded,
     beforeRemoveIndicator,
+    defaultPaneHeightFraction,
   });
   // Which chart placements each script actually produced — "price" for a plot.overlay, "own" for a
   // plot.pane — so the picker can badge a row with both when a script draws both. Read off the raw

@@ -1,3 +1,4 @@
+import type { ChartHeaderAction } from "../interfaces/ChartHeaderAction.interface";
 import type { RefObject, Dispatch, SetStateAction } from "react";
 import { Popover } from "../../../forms/Popover";
 import {
@@ -23,6 +24,8 @@ import type { BarRangeOption, BarRangeValue } from "../hooks/useBarRangeSelectio
 import { TemplateControls } from "./TemplateControls";
 
 export interface ChartHeaderProps {
+  /** App-defined top-bar buttons (see `ChartHeaderAction`). */
+  headerActions?: ChartHeaderAction[];
   timeframes: TimeframeEntry[] | undefined;
   timeframe: string | undefined;
   onTimeframeChange: ((value: string) => void) | undefined;
@@ -94,6 +97,7 @@ export interface ChartHeaderProps {
  *  live here too — moved to ToolsRail's own rail and ChartWorkspace's own side-rail respectively,
  *  see each of those for why.) */
 export function ChartHeader({
+  headerActions,
   timeframes,
   timeframe,
   onTimeframeChange,
@@ -378,6 +382,32 @@ export function ChartHeader({
           itself along with the thing it opens would leave no way back. Chevron direction points
           toward how the panel would move if toggled (right = collapse toward/off the edge, left =
           it's already collapsed, clicking brings it back open). */}
+      {headerActions && headerActions.length > 0 && (
+        <div className="lq-chart__header-actions" role="group" aria-label="Actions de l'application">
+          {headerActions.map((a) => (
+            <button
+              key={a.id}
+              type="button"
+              className={[
+                "lq-chart__icon-button",
+                "lq-chart__header-action",
+                a.active && "lq-chart__icon-button--active",
+                a.busy && "lq-chart__header-action--busy",
+              ]
+                .filter(Boolean)
+                .join(" ")}
+              onClick={a.onClick}
+              disabled={a.disabled}
+              aria-pressed={a.active ?? false}
+              aria-busy={a.busy ?? false}
+              title={a.title ?? a.label}
+            >
+              {a.icon}
+              <span>{a.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
       {sidePanel && (
         <button
           type="button"

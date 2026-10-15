@@ -132,7 +132,7 @@ export function CandlestickChart({
   alerts, onCreateAlert, onUpdateAlert, onDeleteAlert, alertSoundOptions, onPlaySound,
   showIndicators = false,
   defaultIndicators,
-  onIndicatorsChange, customIndicators, customTools, overlayDrawings, overlayInteractions, futureBars: futureBarsProp,
+  onIndicatorsChange, customIndicators, customTools, overlayDrawings, overlayInteractions, headerActions, futureBars: futureBarsProp,
   showTemplates = false,
   defaultTemplates,
   onTemplatesChange,
@@ -1397,6 +1397,7 @@ export function CandlestickChart({
       <div ref={mainRef} className="lq-chart__main">
       {showHeader && !seasonalityOpen && (
         <ChartHeader
+          headerActions={headerActions}
           timeframes={timeframes}
           timeframe={timeframe}
           onTimeframeChange={onTimeframeChange}

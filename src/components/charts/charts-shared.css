@@ -420,6 +420,44 @@
   padding: 5px;
 }
 
+/* App-defined tools in the rail (customTools): the same 26 px square as every other rail button, whatever the
+   app put inside (a text badge, a wider icon) — the content is scaled down to fit, never the button widened. */
+.lq-chart__tools-rail .lq-chart__custom-tool {
+  width: 26px;
+  min-width: 26px;
+  height: 26px;
+  padding: 0;
+  overflow: hidden;
+}
+.lq-chart__tools-rail .lq-chart__custom-tool > * {
+  max-width: 20px;
+  max-height: 20px;
+}
+
+/* App-defined top-bar buttons (headerActions): text buttons grouped after the built-in pickers. */
+.lq-chart__header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding-left: 6px;
+  margin-left: 2px;
+  border-left: 1px solid var(--lq-color-border-subtle);
+}
+.lq-chart__header-action {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.lq-chart__header-action--busy {
+  animation: lq-header-action-pulse 1s ease-in-out infinite;
+}
+@keyframes lq-header-action-pulse {
+  50% { opacity: 0.45; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lq-chart__header-action--busy { animation: none; text-decoration: underline dotted; }
+}
+
 /* A bigger tap target on a coarse (touch) pointer — same icon size, just more padding around it.
    Shared by the drawing-tools rail, the header, and SeasonalityView's own rail (all reuse this
    one class), so this single rule covers every icon button in the chart at once. */

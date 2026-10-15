@@ -1127,3 +1127,38 @@ export const InteractiveOverlays: Story = {
     );
   },
 };
+
+/** Boutons de l'application dans la barre du haut (`headerActions`) : par exemple un modèle de prévision par bouton,
+ *  avec son état (actif, calcul en cours). */
+export const HeaderActions: Story = {
+  name: "Boutons de la barre du haut (headerActions)",
+  render: () => {
+    const [active, setActive] = useState<string | null>(null);
+    const [busy, setBusy] = useState<string | null>(null);
+    const run = (id: string) => {
+      setBusy(id);
+      setTimeout(() => {
+        setBusy(null);
+        setActive((a) => (a === id ? null : id));
+      }, 900);
+    };
+    return (
+      <div style={{ height: 560 }}>
+        <CandlestickChart
+          data={LOCKED_ZONE_DATASET}
+          symbol="DEMO"
+          height={520}
+          drawingTools
+          headerActions={["LSTM", "GRU", "RF"].map((id) => ({
+            id,
+            label: id,
+            title: `Lancer le modèle ${id}`,
+            active: active === id,
+            busy: busy === id,
+            onClick: () => run(id),
+          }))}
+        />
+      </div>
+    );
+  },
+};

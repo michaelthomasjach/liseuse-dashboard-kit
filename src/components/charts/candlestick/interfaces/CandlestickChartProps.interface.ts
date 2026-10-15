@@ -7,6 +7,7 @@ import type { Indicator } from "./Indicator.interface";
 import type { CustomIndicatorDef } from "./CustomIndicatorDef.interface";
 import type { ChartCustomTool } from "./ChartCustomTool.interface";
 import type { OverlayDrawingInteraction } from "./OverlayDrawingInteraction.interface";
+import type { ChartHeaderAction } from "./ChartHeaderAction.interface";
 import type { ChartTemplate } from "./ChartTemplate.interface";
 import type { TimeframeEntry } from "./TimeframeEntry.interface";
 import type { ChartDisplayMode } from "./ChartDisplayMode.interface";
@@ -153,6 +154,9 @@ export interface CandlestickChartProps {
    *  the move or the delete, the app updates `overlayDrawings`. Unlisted overlay drawings stay invisible to the
    *  pointer. */
   overlayInteractions?: OverlayDrawingInteraction[];
+  /** App-defined buttons in the top bar (see `ChartHeaderAction`), after the built-in pickers — e.g. one per
+   *  forecasting model the app can run on this chart. */
+  headerActions?: ChartHeaderAction[];
   /** Empty candle slots kept to the right of the last candle, as part of the plot (not somewhere to pan to) —
    *  room for an app's own projection into the future (e.g. `overlayDrawings` extending past the last date, which
    *  are positioned by extrapolating the average candle spacing). Combined with any projecting indicator's own

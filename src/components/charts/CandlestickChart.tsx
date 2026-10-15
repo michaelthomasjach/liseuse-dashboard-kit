@@ -131,7 +131,7 @@ export function CandlestickChart({
   alerts, onCreateAlert, onUpdateAlert, onDeleteAlert, alertSoundOptions, onPlaySound,
   showIndicators = false,
   defaultIndicators,
-  onIndicatorsChange, customIndicators, customTools, overlayDrawings,
+  onIndicatorsChange, customIndicators, customTools, overlayDrawings, futureBars: futureBarsProp,
   showTemplates = false,
   defaultTemplates,
   onTemplatesChange,
@@ -719,7 +719,7 @@ export function CandlestickChart({
   } = useZoomAndScales({
     data,
     dims,
-    futureBars: projectionRoom,
+    futureBars: Math.max(projectionRoom, futureBarsProp !== undefined && futureBarsProp > 0 ? Math.round(futureBarsProp) : 0),
     plotBoundedHeight,
     priceHeight,
     volumeHeight,

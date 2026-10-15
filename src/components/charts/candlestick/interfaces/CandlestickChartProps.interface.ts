@@ -148,6 +148,11 @@ export interface CandlestickChartProps {
    *  part of the user's own drawings, never reported by `onDrawingsChange`, and invisible to the pointer. For levels
    *  the app computes (a stop, a target, a zone…) that must follow live data without resetting zoom/pan. */
   overlayDrawings?: TrendLineDrawing[];
+  /** Empty candle slots kept to the right of the last candle, as part of the plot (not somewhere to pan to) —
+   *  room for an app's own projection into the future (e.g. `overlayDrawings` extending past the last date, which
+   *  are positioned by extrapolating the average candle spacing). Combined with any projecting indicator's own
+   *  room (the larger wins). Default 0. */
+  futureBars?: number;
   /** Shows a Save button plus a templates dropdown at the right edge of the header — captures
    *  the *indicator/pane* layout (which indicators, their own settings, pane order, pane
    *  height, the Volume pane's own position/collapse state), not drawings or display/timeframe

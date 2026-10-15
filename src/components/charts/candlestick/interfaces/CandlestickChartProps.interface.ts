@@ -6,6 +6,7 @@ import type { TrendLineDrawing, OverlayDataPoint } from "./TrendLineDrawing.inte
 import type { Indicator } from "./Indicator.interface";
 import type { CustomIndicatorDef } from "./CustomIndicatorDef.interface";
 import type { ChartCustomTool } from "./ChartCustomTool.interface";
+import type { OverlayDrawingInteraction } from "./OverlayDrawingInteraction.interface";
 import type { ChartTemplate } from "./ChartTemplate.interface";
 import type { TimeframeEntry } from "./TimeframeEntry.interface";
 import type { ChartDisplayMode } from "./ChartDisplayMode.interface";
@@ -148,6 +149,10 @@ export interface CandlestickChartProps {
    *  part of the user's own drawings, never reported by `onDrawingsChange`, and invisible to the pointer. For levels
    *  the app computes (a stop, a target, a zone…) that must follow live data without resetting zoom/pan. */
   overlayDrawings?: TrendLineDrawing[];
+  /** Overlay drawings the user may drag vertically and/or delete (see `OverlayDrawingInteraction`): the chart reports
+   *  the move or the delete, the app updates `overlayDrawings`. Unlisted overlay drawings stay invisible to the
+   *  pointer. */
+  overlayInteractions?: OverlayDrawingInteraction[];
   /** Empty candle slots kept to the right of the last candle, as part of the plot (not somewhere to pan to) —
    *  room for an app's own projection into the future (e.g. `overlayDrawings` extending past the last date, which
    *  are positioned by extrapolating the average candle spacing). Combined with any projecting indicator's own

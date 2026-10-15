@@ -12,6 +12,13 @@ export interface ChartCustomTool {
   icon: ReactNode;
   /** Optional free text appended to the tooltip (what clicking the chart will set). */
   description?: string;
-  /** Called with the clicked point (magnet snapping applies, same as the drawing tools). */
-  onPlace: (point: { price: number; date: Date }) => void;
+  /** Called with the clicked point (magnet snapping applies, same as the drawing tools). Not called by a
+   *  `points: 2` tool — see `onPlaceRange`. */
+  onPlace?: (point: { price: number; date: Date }) => void;
+  /** 2: the tool takes two clicks (a dashed guide marks the first one until the second) and reports both to
+   *  `onPlaceRange` — e.g. a zone whose bounds are the two clicked prices, in whichever order they were picked.
+   *  Default 1. */
+  points?: 1 | 2;
+  /** Called with both clicks of a `points: 2` tool, in click order. */
+  onPlaceRange?: (first: { price: number; date: Date }, second: { price: number; date: Date }) => void;
 }

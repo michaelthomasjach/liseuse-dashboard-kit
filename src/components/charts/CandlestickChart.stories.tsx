@@ -1054,3 +1054,55 @@ export const CustomTools: Story = {
     );
   },
 };
+
+/** Niveaux de l'application déplaçables et supprimables (`overlayInteractions`) et zone créée en deux clics
+ *  (`customTools` avec `points: 2`) : glisser une ligne ou la zone (verticalement), cliquer pour « Supprimer ». */
+export const InteractiveOverlays: Story = {
+  name: "Niveaux déplaçables et zone en deux clics (overlayInteractions)",
+  render: () => {
+    const data = LOCKED_ZONE_DATASET;
+    const first = data[0]?.date ?? new Date();
+    const last = data.at(-1)?.date ?? new Date();
+    const close = data.at(-1)?.close ?? 100;
+    const [target, setTarget] = useState<number | null>(close * 1.04);
+    const [stop, setStop] = useState<number | null>(close * 0.97);
+    const [zone, setZone] = useState<{ lo: number; hi: number } | null>({ lo: close * 0.98, hi: close * 0.99 });
+    const line = (id: string, y: number, color: string, text: string) => ({ id, lineType: "horizontal" as const, x1: first, x2: last, y1: y, y2: y, color, strokeWidth: 2, text });
+    const drawings = [
+      ...(target !== null ? [line("target", target, "#46b06a", `Objectif ${target.toFixed(2)}`)] : []),
+      ...(stop !== null ? [line("stop", stop, "#e0a03f", `Stop ${stop.toFixed(2)}`)] : []),
+      ...(zone
+        ? [{ id: "zone", lineType: "rectangle" as const, x1: first, x2: last, y1: zone.hi, y2: zone.lo, color: "#ef5350", fillColor: "#ef5350", extend: "right" as const, text: "Zone d'invalidation" }]
+        : []),
+    ];
+    return (
+      <div style={{ height: 560 }}>
+        <p style={{ margin: "0 0 8px", font: "13px sans-serif" }}>
+          Objectif {target?.toFixed(2) ?? "—"} · stop {stop?.toFixed(2) ?? "—"} · zone {zone ? `${zone.lo.toFixed(2)} – ${zone.hi.toFixed(2)}` : "—"}
+        </p>
+        <CandlestickChart
+          data={data}
+          symbol="DEMO"
+          height={520}
+          drawingTools
+          overlayDrawings={drawings}
+          overlayInteractions={[
+            { id: "target", label: "Objectif", onMove: (d) => setTarget((v) => (v === null ? v : v + d)), onDelete: () => setTarget(null) },
+            { id: "stop", label: "Stop", onMove: (d) => setStop((v) => (v === null ? v : v + d)), onDelete: () => setStop(null) },
+            { id: "zone", label: "Zone d'invalidation", onMove: (d) => setZone((z) => (z ? { lo: z.lo + d, hi: z.hi + d } : z)), onDelete: () => setZone(null) },
+          ]}
+          customTools={[
+            {
+              id: "zone",
+              label: "Zone d'invalidation",
+              description: "deux clics : les deux bornes, dans n'importe quel ordre",
+              icon: <span style={{ font: "700 10px/1 sans-serif", color: "#ef5350" }}>Z</span>,
+              points: 2,
+              onPlaceRange: (a, b) => setZone({ lo: Math.min(a.price, b.price), hi: Math.max(a.price, b.price) }),
+            },
+          ]}
+        />
+      </div>
+    );
+  },
+};

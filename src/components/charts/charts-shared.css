@@ -3522,3 +3522,25 @@
   cursor: progress;
   opacity: 0.7;
 }
+
+/* App-owned overlay drawings made grabbable (OverlayInteractionLayer): a thin strip along a level line, the whole
+   body of a zone. Transparent — the drawing itself is still painted on the canvas underneath. */
+.lq-overlay-layer { position: absolute; pointer-events: none; z-index: 3; }
+.lq-overlay-hit { position: absolute; pointer-events: auto; cursor: pointer; touch-action: none; outline: none; }
+.lq-overlay-hit.is-movable { cursor: ns-resize; }
+.lq-overlay-hit--area { background: transparent; }
+.lq-overlay-hit:focus-visible { box-shadow: 0 0 0 1px var(--lq-color-accent); }
+.lq-overlay-hit--area.is-selected { box-shadow: inset 0 0 0 1px var(--lq-color-text); }
+.lq-overlay-bubble {
+  position: absolute; transform: translate(-50%, -100%); pointer-events: auto; z-index: 4;
+  display: flex; align-items: center; gap: 8px; padding: 5px 8px; white-space: nowrap;
+  font-size: 12px; color: var(--lq-color-text); background: var(--lq-color-panel);
+  border: 1px solid var(--lq-color-border); border-radius: 6px; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+}
+.lq-overlay-bubble__title { font-weight: 600; }
+.lq-overlay-bubble__hint { opacity: 0.7; }
+.lq-overlay-bubble__delete {
+  border: 1px solid var(--lq-color-down); background: transparent; color: var(--lq-color-down); border-radius: 4px; padding: 2px 8px;
+  font: inherit; cursor: pointer; transition: background-color 0.15s ease, color 0.15s ease;
+}
+.lq-overlay-bubble__delete:hover, .lq-overlay-bubble__delete:focus-visible { background: var(--lq-color-down); color: #fff; }

@@ -58,6 +58,7 @@ import { PaneHeaders } from "./candlestick/components/PaneHeaders";
 import { ChartPlotOverlays } from "./candlestick/components/ChartPlotOverlays";
 import { ScriptTableOverlay } from "./candlestick/components/ScriptTableOverlay";
 import { ScriptLabelOverlay } from "./candlestick/components/ScriptLabelOverlay";
+import { OverlayInteractionLayer } from "./candlestick/components/OverlayInteractionLayer";
 import { FloatingDrawingToolbar } from "./candlestick/components/FloatingDrawingToolbar";
 import { ChartModals } from "./candlestick/components/ChartModals";
 import { ChartEventTooltip } from "./EventTooltip";
@@ -131,7 +132,7 @@ export function CandlestickChart({
   alerts, onCreateAlert, onUpdateAlert, onDeleteAlert, alertSoundOptions, onPlaySound,
   showIndicators = false,
   defaultIndicators,
-  onIndicatorsChange, customIndicators, customTools, overlayDrawings, futureBars: futureBarsProp,
+  onIndicatorsChange, customIndicators, customTools, overlayDrawings, overlayInteractions, futureBars: futureBarsProp,
   showTemplates = false,
   defaultTemplates,
   onTemplatesChange,
@@ -568,6 +569,34 @@ export function CandlestickChart({
   // App-defined tools (see ChartCustomTool): one armed at a time, disarmed by placing, Escape or its own button.
   const [activeCustomToolId, setActiveCustomToolId] = useState<string | null>(null);
   const activeCustomTool = customTools?.find((t) => t.id === activeCustomToolId) ?? null;
+  // First click of a two-click tool (`points: 2`), kept until the second one; dropped when the tool changes.
+  const [customToolFirst, setCustomToolFirst] = useState<{ price: number; date: Date } | null>(null);
+  useEffect(() => setCustomToolFirst(null), [activeCustomToolId]);
+  // Overlay drawings the user drags or selects (see OverlayDrawingInteraction): the live shift while dragging, and
+  // the one whose « Supprimer » bubble is open.
+  const [overlayDrag, setOverlayDrag] = useState<{ id: string; delta: number } | null>(null);
+  const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null);
+  const shownOverlayDrawings = useMemo(() => {
+    const list = (overlayDrawings ?? []).map((d) => {
+      const shift = overlayDrag?.id === d.id ? overlayDrag.delta : 0;
+      const selected = selectedOverlayId === d.id;
+      if (!shift && !selected) return d;
+      return { ...d, y1: d.y1 + shift, y2: d.y2 + shift, ...(selected ? { strokeWidth: (d.strokeWidth ?? 1.5) + 1 } : {}) };
+    });
+    if (customToolFirst && overlayDrawings !== undefined)
+      list.push({
+        id: "__custom-tool-first",
+        lineType: "horizontal",
+        x1: customToolFirst.date,
+        x2: customToolFirst.date,
+        y1: customToolFirst.price,
+        y2: customToolFirst.price,
+        lineStyle: "dashed",
+        strokeWidth: 1,
+        text: "1er point — cliquez le second",
+      });
+    return list;
+  }, [overlayDrawings, overlayDrag, selectedOverlayId, customToolFirst]);
   useEffect(() => {
     if (!activeCustomToolId) return;
     const onKey = (e: KeyboardEvent) => {
@@ -605,9 +634,9 @@ export function CandlestickChart({
     () => [
       ...visibleDrawings,
       ...scriptingState.scriptDrawings.filter((d) => !closedStrategyPrefixes.some((prefix) => d.id.startsWith(prefix))),
-      ...(overlayDrawings ?? []),
+      ...shownOverlayDrawings,
     ],
-    [visibleDrawings, scriptingState.scriptDrawings, closedStrategyPrefixes, overlayDrawings],
+    [visibleDrawings, scriptingState.scriptDrawings, closedStrategyPrefixes, shownOverlayDrawings],
   );
 
   const {
@@ -1003,11 +1032,20 @@ export function CandlestickChart({
     maxXZoom,
     setXTransformAnimated, setTextEntry, setEditingCell,
   });
-  // An armed custom tool takes the next plot click (instead of the drawing tools), reports it, then disarms.
+  // An armed custom tool takes the next plot click (instead of the drawing tools), reports it, then disarms. A
+  // two-click tool keeps the first point (shown as a dashed guide) and reports both on the second click.
   const handleArmedOverlayClick = activeCustomTool
     ? (e: React.MouseEvent<SVGRectElement>) => {
         const point = toDataPoint(e);
-        activeCustomTool.onPlace({ price: point.y, date: point.x });
+        const placed = { price: point.y, date: point.x };
+        if (activeCustomTool.points === 2) {
+          if (!customToolFirst) {
+            setCustomToolFirst(placed);
+            return;
+          }
+          activeCustomTool.onPlaceRange?.(customToolFirst, placed);
+          setCustomToolFirst(null);
+        } else activeCustomTool.onPlace?.(placed);
         setActiveCustomToolId(null);
       }
     : handleOverlayClick;
@@ -1499,6 +1537,20 @@ export function CandlestickChart({
           />
         )}
         {priceHeight > 0 && scriptingState.scriptTables.length > 0 && <ScriptTableOverlay tables={scriptingState.scriptTables} />}
+        {priceHeight > 0 && overlayInteractions && overlayInteractions.length > 0 && !activeCustomTool && !activeTool && (
+          <OverlayInteractionLayer
+            drawings={overlayDrawings ?? []}
+            interactions={overlayInteractions}
+            dims={dims}
+            priceHeight={priceHeight}
+            zoomedPriceScale={zoomedPriceScale}
+            zoomedXScale={zoomedXScale}
+            indexForDate={indexForDate}
+            onPreview={setOverlayDrag}
+            selectedId={selectedOverlayId}
+            onSelect={setSelectedOverlayId}
+          />
+        )}
         {priceHeight > 0 && scriptingState.scriptLabels.length > 0 && (
           <ScriptLabelOverlay
             labels={scriptingState.scriptLabels}

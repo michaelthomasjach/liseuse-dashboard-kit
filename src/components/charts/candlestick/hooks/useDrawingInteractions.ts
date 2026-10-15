@@ -469,6 +469,7 @@ export function useDrawingInteractions({
       let closestDist = hitDistance;
       const hitTestCtx: HitTestContext = { dims, plotBoundedHeight, priceHeight, zoomedXScale, zoomedPriceScale, indexForDate, pixelYForDrawing, overlayProjections, data };
       for (const dr of visibleDrawings) {
+        if (dr.locked) continue; // verrouillé : ni survol, ni glisser, ni édition
         const d = distanceToDrawing(dr, mouseX, mouseY, hitTestCtx);
         if (d < closestDist) {
           closestDist = d;

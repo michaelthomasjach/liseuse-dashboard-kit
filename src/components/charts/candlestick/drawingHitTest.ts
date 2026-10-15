@@ -1,4 +1,5 @@
 import type { ScaleLinear } from "d3";
+import { rectangleXs } from "./drawingFills";
 import type { TrendLineDrawing } from "./interfaces/TrendLineDrawing.interface";
 import type { Candle } from "./interfaces/Candle.interface";
 import { FIBONACCI_LEVELS, FIBONACCI_EXTENSION_LEVELS } from "./drawingCatalog";
@@ -87,9 +88,8 @@ export function distanceToDrawing(dr: TrendLineDrawing, mouseX: number, mouseY: 
     return minSegmentDist;
   }
   if (dr.lineType === "rectangle") {
-    const rx1 = zoomedXScale(indexForDate(dr.x1) + 0.5);
+    const [rx1, rx2] = rectangleXs(zoomedXScale(indexForDate(dr.x1) + 0.5), zoomedXScale(indexForDate(dr.x2) + 0.5), dr.extend, dims.boundedWidth);
     const ry1 = zoomedPriceScale(dr.y1);
-    const rx2 = zoomedXScale(indexForDate(dr.x2) + 0.5);
     const ry2 = zoomedPriceScale(dr.y2);
     return Math.min(
       distanceToSegment(mouseX, mouseY, rx1, ry1, rx2, ry1),

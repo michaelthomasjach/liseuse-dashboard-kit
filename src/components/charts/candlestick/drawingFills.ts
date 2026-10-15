@@ -52,3 +52,11 @@ export function fillColorField(dr: Pick<TrendLineDrawing, "lineType">): "fillCol
 export function shapeFill(dr: TrendLineDrawing, fallback: string): string {
   return dr.fillColor ?? fallback;
 }
+
+/** Pixel X of a rectangle's two sides, with `extend` pinning the matching side(s) to the plot's own edge (0 on the
+ *  left, `boundedWidth` on the right) — shared by the renderer and the hit test so both see the same shape. */
+export function rectangleXs(x1: number, x2: number, extend: TrendLineDrawing["extend"], boundedWidth: number): [number, number] {
+  const left = Math.min(x1, x2);
+  const right = Math.max(x1, x2);
+  return [extend === "left" || extend === "both" ? 0 : left, extend === "right" || extend === "both" ? boundedWidth : right];
+}

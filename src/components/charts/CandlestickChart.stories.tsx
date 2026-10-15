@@ -992,3 +992,36 @@ export const CompactPanes: Story = {
     </div>
   ),
 };
+
+const LOCKED_ZONE_DATASET = generateCandles(200, 180, 21);
+const LOCKED_ZONE_PRICES = LOCKED_ZONE_DATASET.map((c) => c.close);
+
+/** Zone verrouillée (`locked`) collée au bord droit (`extend: "right"`) : elle suit le zoom et le défilement, et ne se déplace pas à la souris. */
+export const LockedZoneToRightEdge: Story = {
+  name: "Zone verrouillée collée à droite (locked, extend)",
+  render: () => (
+    <div style={{ height: 520 }}>
+      <CandlestickChart
+        data={LOCKED_ZONE_DATASET}
+        symbol="DEMO"
+        height={520}
+        drawingTools
+        defaultDrawings={[
+          {
+            id: "zone",
+            lineType: "rectangle",
+            x1: (LOCKED_ZONE_DATASET[120] as (typeof LOCKED_ZONE_DATASET)[number]).date,
+            x2: (LOCKED_ZONE_DATASET.at(-1) as (typeof LOCKED_ZONE_DATASET)[number]).date,
+            y1: Math.max(...LOCKED_ZONE_PRICES.slice(-40)),
+            y2: Math.min(...LOCKED_ZONE_PRICES.slice(-40)),
+            color: "#ef5350",
+            fillColor: "#ef5350",
+            extend: "right",
+            locked: true,
+            text: "Zone verrouillée",
+          },
+        ]}
+      />
+    </div>
+  ),
+};

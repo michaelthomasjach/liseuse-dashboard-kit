@@ -40,7 +40,9 @@ export interface TrendLineDrawing {
    *  tab, not only ones drawn with the dedicated tool — rendering falls back to `lineType ===
    *  "extended" ? "both" : "none"` when this itself is unset, for the same saved-before-this-
    *  field-existed reason as `dashed`/`lineStyle` above. Only meaningful for a free two-point
-   *  line (no lineType, or "extended"); ignored by every other lineType. */
+   *  line (no lineType, or "extended") — and for a "rectangle", whose matching side then sticks to
+   *  the plot's own edge at every zoom/pan (e.g. a zone that always reaches the right of the chart);
+   *  ignored by every other lineType. */
   extend?: "none" | "left" | "right" | "both";
   /** Arrowhead at whichever endpoint sits further left/right *on screen* (not tied to which one
    *  is x1/y1 vs x2/y2 — a line drawn right-to-left still gets "arrowLeft" at its visual left
@@ -351,4 +353,8 @@ export interface TrendLineDrawing {
    *  own legend entry exposes a toggle for it today, though nothing stops another drawing type
    *  from using it later. Default false (visible). */
   hidden?: boolean;
+  /** Locked: still drawn, but invisible to the pointer — no hover, drag, resize, edit modal or
+   *  keyboard delete. For a drawing the app positions itself (e.g. kept in sync with form fields),
+   *  which the user must change through the app rather than on the chart. Default false. */
+  locked?: boolean;
 }

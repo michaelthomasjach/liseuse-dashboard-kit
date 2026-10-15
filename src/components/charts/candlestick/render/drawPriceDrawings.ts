@@ -19,7 +19,7 @@ import {
   rangeForecastMaxMin,
 } from "../drawingGeometry";
 import { lineDashArray, drawDrawingText, drawArrowhead } from "../drawingRender";
-import { FILL_ALPHA, PALE_GREEN, PALE_NEUTRAL, PALE_RED } from "../drawingFills";
+import { FILL_ALPHA, PALE_GREEN, PALE_NEUTRAL, PALE_RED, rectangleXs } from "../drawingFills";
 import { defaultIndicatorColor } from "../indicatorCatalog";
 import { drawPitchforkDrawings } from "./drawPitchfork";
 import { drawRangeForecastDrawings } from "./drawRangeForecast";
@@ -319,9 +319,8 @@ export function drawPriceDrawings(ctx: CanvasRenderingContext2D, params: RenderC
     for (const dr of visibleDrawings) {
       if (dr.lineType !== "rectangle") continue;
       const lineColor = dr.color ?? colorAccent;
-      const rx1 = zoomedXScale(indexForDate(dr.x1) + 0.5);
+      const [rx1, rx2] = rectangleXs(zoomedXScale(indexForDate(dr.x1) + 0.5), zoomedXScale(indexForDate(dr.x2) + 0.5), dr.extend, dims.boundedWidth);
       const ry1 = zoomedPriceScale(dr.y1);
-      const rx2 = zoomedXScale(indexForDate(dr.x2) + 0.5);
       const ry2 = zoomedPriceScale(dr.y2);
       const rectX = Math.min(rx1, rx2);
       const rectY = Math.min(ry1, ry2);

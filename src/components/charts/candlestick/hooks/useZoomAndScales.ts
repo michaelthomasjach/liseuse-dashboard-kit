@@ -518,12 +518,14 @@ export function useZoomAndScales({
       if (!count || count <= 0 || dims.boundedWidth <= 0 || data.length === 0) return null;
       const start = Math.max(0, data.length - Math.min(count, data.length));
       const x0 = xScale(start);
-      const x1 = xScale(data.length);
+      // The room kept on the right (futureBars: a projection) belongs to the opening view too — otherwise it starts
+      // exactly where the last candle ends and the projection drawn there is off screen until the user pans.
+      const x1 = xScale(data.length + Math.max(0, futureBars));
       if (x1 - x0 <= 0) return null;
       const k = Math.min(maxXZoom, Math.max(1, dims.boundedWidth / (x1 - x0)));
       return new d3.ZoomTransform(k, -k * x0, 0);
     },
-    [dims.boundedWidth, data.length, xScale, maxXZoom]
+    [dims.boundedWidth, data.length, xScale, maxXZoom, futureBars]
   );
 
   // The scope the chart opened at, kept as the *intent* (how many candles) rather than the pixel

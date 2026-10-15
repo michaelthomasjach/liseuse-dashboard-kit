@@ -58,7 +58,7 @@ import { PaneHeaders } from "./candlestick/components/PaneHeaders";
 import { ChartPlotOverlays } from "./candlestick/components/ChartPlotOverlays";
 import { ScriptTableOverlay } from "./candlestick/components/ScriptTableOverlay";
 import { ScriptLabelOverlay } from "./candlestick/components/ScriptLabelOverlay";
-import { OverlayInteractionLayer } from "./candlestick/components/OverlayInteractionLayer";
+import { OverlayInteractionLayer, type OverlayDragPart } from "./candlestick/components/OverlayInteractionLayer";
 import { FloatingDrawingToolbar } from "./candlestick/components/FloatingDrawingToolbar";
 import { ChartModals } from "./candlestick/components/ChartModals";
 import { ChartEventTooltip } from "./EventTooltip";
@@ -574,14 +574,23 @@ export function CandlestickChart({
   useEffect(() => setCustomToolFirst(null), [activeCustomToolId]);
   // Overlay drawings the user drags or selects (see OverlayDrawingInteraction): the live shift while dragging, and
   // the one whose « Supprimer » bubble is open.
-  const [overlayDrag, setOverlayDrag] = useState<{ id: string; delta: number } | null>(null);
+  const [overlayDrag, setOverlayDrag] = useState<{ id: string; delta: number; part: OverlayDragPart } | null>(null);
   const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null);
   const shownOverlayDrawings = useMemo(() => {
     const list = (overlayDrawings ?? []).map((d) => {
-      const shift = overlayDrag?.id === d.id ? overlayDrag.delta : 0;
+      const drag = overlayDrag?.id === d.id ? overlayDrag : null;
       const selected = selectedOverlayId === d.id;
-      if (!shift && !selected) return d;
-      return { ...d, y1: d.y1 + shift, y2: d.y2 + shift, ...(selected ? { strokeWidth: (d.strokeWidth ?? 1.5) + 1 } : {}) };
+      if (!drag && !selected) return d;
+      // A whole drawing shifts both prices; a zone edge only the higher ("high") or the lower ("low") one.
+      const hiIsY1 = d.y1 >= d.y2;
+      const moves = (isY1: boolean) => !drag ? false : drag.part === "body" || (drag.part === "high") === (isY1 === hiIsY1);
+      const dy = drag?.delta ?? 0;
+      return {
+        ...d,
+        y1: d.y1 + (moves(true) ? dy : 0),
+        y2: d.y2 + (moves(false) ? dy : 0),
+        ...(selected ? { strokeWidth: (d.strokeWidth ?? 1.5) + 1 } : {}),
+      };
     });
     if (customToolFirst && overlayDrawings !== undefined)
       list.push({

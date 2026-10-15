@@ -1089,7 +1089,19 @@ export const InteractiveOverlays: Story = {
           overlayInteractions={[
             { id: "target", label: "Objectif", onMove: (d) => setTarget((v) => (v === null ? v : v + d)), onDelete: () => setTarget(null) },
             { id: "stop", label: "Stop", onMove: (d) => setStop((v) => (v === null ? v : v + d)), onDelete: () => setStop(null) },
-            { id: "zone", label: "Zone d'invalidation", onMove: (d) => setZone((z) => (z ? { lo: z.lo + d, hi: z.hi + d } : z)), onDelete: () => setZone(null) },
+            {
+              id: "zone",
+              label: "Zone d'invalidation",
+              onMove: (d) => setZone((z) => (z ? { lo: z.lo + d, hi: z.hi + d } : z)),
+              onResize: (edge, d) =>
+                setZone((z) => {
+                  if (!z) return z;
+                  const lo = edge === "low" ? z.lo + d : z.lo;
+                  const hi = edge === "high" ? z.hi + d : z.hi;
+                  return { lo: Math.min(lo, hi), hi: Math.max(lo, hi) };
+                }),
+              onDelete: () => setZone(null),
+            },
           ]}
           customTools={[
             {

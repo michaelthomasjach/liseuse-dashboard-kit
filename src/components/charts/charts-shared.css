@@ -3529,6 +3529,11 @@
 .lq-overlay-hit { position: absolute; pointer-events: auto; cursor: pointer; touch-action: none; outline: none; }
 .lq-overlay-hit.is-movable { cursor: ns-resize; }
 .lq-overlay-hit--area { background: transparent; }
+/* Zone : le milieu déplace le tout, les bords redimensionnent (au-dessus du milieu, curseur de redimensionnement). */
+.lq-overlay-hit--area.is-movable { cursor: move; }
+.lq-overlay-hit--edge { z-index: 1; }
+.lq-overlay-hit--edge.is-movable { cursor: row-resize; }
+.lq-overlay-hit--edge:hover { background: linear-gradient(to bottom, transparent 40%, color-mix(in srgb, var(--lq-color-text) 45%, transparent) 40% 60%, transparent 60%); }
 .lq-overlay-hit:focus-visible { box-shadow: 0 0 0 1px var(--lq-color-accent); }
 .lq-overlay-hit--area.is-selected { box-shadow: inset 0 0 0 1px var(--lq-color-text); }
 .lq-overlay-bubble {

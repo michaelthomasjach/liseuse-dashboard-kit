@@ -131,7 +131,7 @@ export function CandlestickChart({
   alerts, onCreateAlert, onUpdateAlert, onDeleteAlert, alertSoundOptions, onPlaySound,
   showIndicators = false,
   defaultIndicators,
-  onIndicatorsChange, customIndicators, customTools,
+  onIndicatorsChange, customIndicators, customTools, overlayDrawings,
   showTemplates = false,
   defaultTemplates,
   onTemplatesChange,
@@ -605,8 +605,9 @@ export function CandlestickChart({
     () => [
       ...visibleDrawings,
       ...scriptingState.scriptDrawings.filter((d) => !closedStrategyPrefixes.some((prefix) => d.id.startsWith(prefix))),
+      ...(overlayDrawings ?? []),
     ],
-    [visibleDrawings, scriptingState.scriptDrawings, closedStrategyPrefixes],
+    [visibleDrawings, scriptingState.scriptDrawings, closedStrategyPrefixes, overlayDrawings],
   );
 
   const {

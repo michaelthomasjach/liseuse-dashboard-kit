@@ -144,6 +144,10 @@ export interface CandlestickChartProps {
   /** App-defined tools appended to the tools rail (see `ChartCustomTool`): one click arms a tool, the next click on
    *  the chart reports its price/date to that tool's `onPlace`. Requires `drawingTools`. */
   customTools?: ChartCustomTool[];
+  /** App-owned drawings, render-only and always in sync with this prop (no remount needed when they change): never
+   *  part of the user's own drawings, never reported by `onDrawingsChange`, and invisible to the pointer. For levels
+   *  the app computes (a stop, a target, a zone…) that must follow live data without resetting zoom/pan. */
+  overlayDrawings?: TrendLineDrawing[];
   /** Shows a Save button plus a templates dropdown at the right edge of the header — captures
    *  the *indicator/pane* layout (which indicators, their own settings, pane order, pane
    *  height, the Volume pane's own position/collapse state), not drawings or display/timeframe

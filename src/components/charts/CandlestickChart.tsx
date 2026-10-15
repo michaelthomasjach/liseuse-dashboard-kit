@@ -678,6 +678,25 @@ export function CandlestickChart({
     () => Math.min(replayState.active && replayState.cutoffIndex !== null ? replayState.cutoffIndex : data.length - 1, data.length - 1),
     [data.length, replayState.active, replayState.cutoffIndex],
   );
+  // Random replay: a past instant drawn uniformly, leaving at least 50 candles (or 20 % of the history) before it for
+  // indicators to settle and at least 20 (or 5 %) after it to replay; the view is then framed around it at the
+  // current zoom, the cutoff about three quarters of the way across.
+  const startRandomReplay = () => {
+    const n = data.length;
+    if (n < 2) return;
+    const lo = Math.min(n - 2, Math.max(50, Math.floor(n * 0.2)));
+    const hi = Math.max(lo, n - 1 - Math.max(20, Math.floor(n * 0.05)));
+    const index = lo + Math.floor(Math.random() * (hi - lo + 1));
+    replayState.startAt(index);
+    const span = Math.max(30, visibleRange.end - visibleRange.start);
+    const x0 = xScale(Math.max(0, index - span * 0.75));
+    const x1 = xScale(Math.min(n, index + span * 0.25));
+    if (x1 - x0 > 0) {
+      const k = Math.min(maxXZoom, Math.max(1, dims.boundedWidth / (x1 - x0)));
+      setXTransformAnimated(new d3.ZoomTransform(k, -k * x0, 0));
+      setYManuallyAdjusted(false);
+    }
+  };
   // Replay cutoff reported to the app (see `onReplayChange`): the date of the last revealed candle, or null outside a
   // replay. Keyed on the time value so a re-render with the same cutoff never re-reports it.
   const replayCutoffTime =
@@ -1440,6 +1459,7 @@ export function CandlestickChart({
           onReplayTogglePlay={replayState.togglePlay}
           onReplaySpeedChange={replayState.setSpeed}
           onReplayQuit={replayState.quit}
+          onReplayRandom={startRandomReplay}
           replayDateValue={toDayInputValue(replayState.cutoffIndex !== null ? data[replayState.cutoffIndex]?.date : undefined)}
           replayDateMin={toDayInputValue(data[0]?.date)}
           replayDateMax={toDayInputValue(data[data.length - 1]?.date)}

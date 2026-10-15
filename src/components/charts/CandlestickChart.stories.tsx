@@ -1173,7 +1173,7 @@ export const ReplayCutoff: Story = {
     return (
       <div style={{ height: 560 }}>
         <p style={{ margin: "0 0 8px", font: "13px sans-serif" }}>
-          {cutoff ? `Replay au ${cutoff.toLocaleString("fr-FR")} — dernière clôture ${visible.at(-1)?.close.toFixed(2)}` : "Pas de replay en cours (bouton Replay de la barre du haut)."}
+          {cutoff ? `Replay au ${cutoff.toLocaleString("fr-FR")} — dernière clôture ${visible.at(-1)?.close.toFixed(2)}` : "Pas de replay en cours : bouton Replay (point choisi) ou Au hasard (instant tiré au hasard) de la barre du haut."}
         </p>
         <CandlestickChart data={LOCKED_ZONE_DATASET} symbol="DEMO" height={520} replay onReplayChange={setCutoff} />
       </div>

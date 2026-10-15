@@ -83,6 +83,14 @@ export function useReplayState({ dataLength }: UseReplayStateArgs) {
     };
   }
 
+  /** Starts the replay straight at `index` (no pointer pick) — e.g. a random instant chosen by the chart. */
+  function startAt(index: number) {
+    setArmed(false);
+    setPreviewIndex(null);
+    setPlaying(false);
+    setCutoffIndex(Math.min(dataLength - 1, Math.max(0, index)));
+  }
+
   function togglePlay() {
     setPlaying((p) => !p);
   }
@@ -162,6 +170,7 @@ export function useReplayState({ dataLength }: UseReplayStateArgs) {
     setSpeedOpen,
     speedAnchorRef,
     toggleArm,
+    startAt,
     handlePointerMove,
     handleClick,
     togglePlay,

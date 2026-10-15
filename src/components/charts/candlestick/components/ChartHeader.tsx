@@ -63,6 +63,8 @@ export interface ChartHeaderProps {
   onReplayTogglePlay: () => void;
   onReplaySpeedChange: (speed: number) => void;
   onReplayQuit: () => void;
+  /** Starts the replay at a random past instant (no cursor placed by hand: no anchoring bias). */
+  onReplayRandom: () => void;
   /** The replay cutoff as an `<input type="date">` value, and the bounds of the data behind it —
    *  see `toDayInputValue`. Empty while no cutoff is set. */
   replayDateValue: string;
@@ -135,6 +137,7 @@ export function ChartHeader({
   onReplayTogglePlay,
   onReplaySpeedChange,
   onReplayQuit,
+  onReplayRandom,
   replayDateValue,
   replayDateMin,
   replayDateMax,
@@ -366,6 +369,25 @@ export function ChartHeader({
             <span className="lq-chart__timeframe-trigger-label">Replay</span>
           </button>
         ))}
+      {replay && !replayActive && !replayArmed && (
+        <button
+          type="button"
+          className="lq-chart__timeframe-trigger lq-chart__replay-random"
+          onClick={onReplayRandom}
+          aria-label="Replay au hasard"
+          title="Démarrer le replay à un instant tiré au hasard dans le passé (sans choisir le point soi-même : pas de biais)"
+        >
+          <svg width={14} height={14} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.4} aria-hidden="true">
+            <rect x={2} y={2} width={12} height={12} rx={2.5} />
+            <circle cx={5.5} cy={5.5} r={0.9} fill="currentColor" stroke="none" />
+            <circle cx={10.5} cy={10.5} r={0.9} fill="currentColor" stroke="none" />
+            <circle cx={10.5} cy={5.5} r={0.9} fill="currentColor" stroke="none" />
+            <circle cx={5.5} cy={10.5} r={0.9} fill="currentColor" stroke="none" />
+            <circle cx={8} cy={8} r={0.9} fill="currentColor" stroke="none" />
+          </svg>
+          <span className="lq-chart__timeframe-trigger-label">Au hasard</span>
+        </button>
+      )}
       {fullscreenToggle && (
         <button
           type="button"

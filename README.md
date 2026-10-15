@@ -320,6 +320,7 @@ Une ligne de tendance classique (pas "étendue", pas les autres types à géomé
 
 **Layouts** — responsive, s'effondrent en menu mobile sous ~900px
 - `SidebarLayout` — sidebar fixe desktop → tiroir hors-écran (hamburger) sur mobile ; `stickyHeader` garde l'en-tête affiché en haut de l'écran pendant le défilement (et la barre du menu sur mobile), sur un fond légèrement distinct de la page et avec une ombre portée : le contenu passe dessous
+  - `--lq-sticky-header-z-index` (variable CSS, 900 par défaut) : z-index de l'en-tête collant ; l'augmenter fait passer l'en-tête au-dessus des menus et infobulles des graphiques, mais aussi des modales (3000) et notifications (2000).
 - `HeaderLayout` — nav horizontale sticky → tiroir déroulant sur mobile
 
 **Pages**

@@ -162,7 +162,8 @@
 .lq-sidebar-layout--sticky-header .lq-sidebar-layout__header {
   position: sticky;
   top: var(--lq-sidebar-topbar-height);
-  z-index: 900;
+  /* Réglable par l'application (ex. passer au-dessus des menus et infobulles des graphiques). */
+  z-index: var(--lq-sticky-header-z-index, 900);
   background-color: color-mix(in srgb, var(--lq-color-panel) 92%, transparent);
   -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
@@ -181,7 +182,7 @@
   .lq-sidebar-layout--sticky-header .lq-sidebar-layout__topbar {
     position: sticky;
     top: 0;
-    z-index: 901;
+    z-index: calc(var(--lq-sticky-header-z-index, 900) + 1);
     min-height: var(--lq-sidebar-topbar-height);
     background-color: var(--lq-color-panel);
   }

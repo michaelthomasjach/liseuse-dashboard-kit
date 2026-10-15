@@ -14,6 +14,11 @@ export interface OverlayDrawingInteraction {
    *  bound alone — called once on drop with which edge ("high" = the higher price, "low" = the lower one) and its
    *  shift in price units. The body keeps `onMove`. A bound dragged past the other is the app's to reorder. */
   onResize?: (edge: "high" | "low", deltaPrice: number) => void;
+  /** Live drag: called while the pointer moves (at most once per animation frame) with the part being dragged and
+   *  its current shift in price units, then with `null` once the drag ends or is cancelled (after `onMove` /
+   *  `onResize` on a drop). When set, the chart does not shift the drawing itself — the app redraws it from this
+   *  shift, so everything tied to the level (its label, values computed from it) follows the pointer. */
+  onDrag?: (part: "body" | "high" | "low", deltaPrice: number | null) => void;
   /** Shows « Supprimer » in the selection bubble (and the Delete key while selected). */
   onDelete?: () => void;
 }

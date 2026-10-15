@@ -58,7 +58,28 @@ export function OverlayInteractionLayer({
   selectedId,
   onSelect,
 }: OverlayInteractionLayerProps) {
-  const drag = useRef<{ key: string; startY: number; moved: boolean; delta: number } | null>(null);
+  // startPrice: the dragged part's price at press time — with a live `onDrag` the app moves the drawing under the
+  // pointer, so the shift is always measured from where the drag started, never from the redrawn position.
+  const drag = useRef<{ key: string; startY: number; startPrice: number; moved: boolean; delta: number } | null>(null);
+  // Live reports to the app (`onDrag`), coalesced to one per animation frame.
+  const frame = useRef<number | null>(null);
+  const pending = useRef<(() => void) | null>(null);
+  const flushLater = (fn: () => void) => {
+    pending.current = fn;
+    if (frame.current !== null) return;
+    frame.current = requestAnimationFrame(() => {
+      frame.current = null;
+      const f = pending.current;
+      pending.current = null;
+      f?.();
+    });
+  };
+  const cancelFrame = () => {
+    if (frame.current !== null) cancelAnimationFrame(frame.current);
+    frame.current = null;
+    pending.current = null;
+  };
+  useEffect(() => cancelFrame, []);
   const [bubbleAt, setBubbleAt] = useState<{ x: number; y: number } | null>(null);
   const plotHeight = Math.max(0, priceHeight - dims.margin.top);
 
@@ -151,7 +172,7 @@ export function OverlayInteractionLayer({
             e.stopPropagation();
             e.preventDefault();
             e.currentTarget.setPointerCapture(e.pointerId);
-            drag.current = { key: h.key, startY: e.clientY, moved: false, delta: 0 };
+            drag.current = { key: h.key, startY: e.clientY, startPrice: h.price, moved: false, delta: 0 };
           }}
           onPointerMove={(e) => {
             const d = drag.current;
@@ -160,8 +181,11 @@ export function OverlayInteractionLayer({
             if (!canDrag(h)) return;
             if (!d.moved && Math.abs(e.clientY - d.startY) < DRAG_THRESHOLD) return;
             d.moved = true;
-            d.delta = zoomedPriceScale.invert(zoomedPriceScale(h.price) + (e.clientY - d.startY)) - h.price;
-            onPreview({ id: h.it.id, delta: d.delta, part: h.part });
+            d.delta = zoomedPriceScale.invert(zoomedPriceScale(d.startPrice) + (e.clientY - d.startY)) - d.startPrice;
+            const delta = d.delta;
+            // The app redraws the level itself when it follows the drag live; otherwise the chart shifts it.
+            if (h.it.onDrag) flushLater(() => h.it.onDrag?.(h.part, delta));
+            else onPreview({ id: h.it.id, delta, part: h.part });
           }}
           onPointerUp={(e) => {
             const d = drag.current;
@@ -169,8 +193,10 @@ export function OverlayInteractionLayer({
             if (!d || d.key !== h.key) return;
             e.stopPropagation();
             if (d.moved && canDrag(h)) {
+              cancelFrame();
               if (h.part === "body") h.it.onMove?.(d.delta);
               else h.it.onResize?.(h.part, d.delta);
+              h.it.onDrag?.(h.part, null);
               onPreview(null);
               return;
             }
@@ -179,7 +205,10 @@ export function OverlayInteractionLayer({
             onSelect(h.it.id === selectedId ? null : h.it.id);
           }}
           onPointerCancel={() => {
+            const d = drag.current;
             drag.current = null;
+            cancelFrame();
+            if (d?.moved) h.it.onDrag?.(h.part, null);
             onPreview(null);
           }}
           onMouseDown={(e) => e.stopPropagation()}

@@ -1067,9 +1067,12 @@ export const InteractiveOverlays: Story = {
     const [target, setTarget] = useState<number | null>(close * 1.04);
     const [stop, setStop] = useState<number | null>(close * 0.97);
     const [zone, setZone] = useState<{ lo: number; hi: number } | null>({ lo: close * 0.98, hi: close * 0.99 });
+    // Glissement en cours de l'objectif, suivi en direct : la ligne et son libellé suivent le pointeur.
+    const [targetDrag, setTargetDrag] = useState<number | null>(null);
+    const shownTarget = target === null ? null : target + (targetDrag ?? 0);
     const line = (id: string, y: number, color: string, text: string) => ({ id, lineType: "horizontal" as const, x1: first, x2: last, y1: y, y2: y, color, strokeWidth: 2, text });
     const drawings = [
-      ...(target !== null ? [line("target", target, "#46b06a", `Objectif ${target.toFixed(2)}`)] : []),
+      ...(shownTarget !== null ? [line("target", shownTarget, "#46b06a", `Objectif ${shownTarget.toFixed(2)}`)] : []),
       ...(stop !== null ? [line("stop", stop, "#e0a03f", `Stop ${stop.toFixed(2)}`)] : []),
       ...(zone
         ? [{ id: "zone", lineType: "rectangle" as const, x1: first, x2: last, y1: zone.hi, y2: zone.lo, color: "#ef5350", fillColor: "#ef5350", extend: "right" as const, text: "Zone d'invalidation" }]
@@ -1087,7 +1090,13 @@ export const InteractiveOverlays: Story = {
           drawingTools
           overlayDrawings={drawings}
           overlayInteractions={[
-            { id: "target", label: "Objectif", onMove: (d) => setTarget((v) => (v === null ? v : v + d)), onDelete: () => setTarget(null) },
+            {
+              id: "target",
+              label: "Objectif",
+              onMove: (d) => setTarget((v) => (v === null ? v : v + d)),
+              onDrag: (_part, d) => setTargetDrag(d),
+              onDelete: () => setTarget(null),
+            },
             { id: "stop", label: "Stop", onMove: (d) => setStop((v) => (v === null ? v : v + d)), onDelete: () => setStop(null) },
             {
               id: "zone",

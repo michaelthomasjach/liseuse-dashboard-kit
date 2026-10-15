@@ -1025,3 +1025,32 @@ export const LockedZoneToRightEdge: Story = {
     </div>
   ),
 };
+
+/** Outils de l'application dans la barre de gauche (`customTools`) : un clic arme l'outil, le clic suivant sur le graphique renvoie le prix et la date. */
+export const CustomTools: Story = {
+  name: "Outils personnalisés (customTools)",
+  render: () => {
+    const [levels, setLevels] = useState<Record<string, number>>({});
+    const tool = (id: string, label: string, badge: string, color: string) => ({
+      id,
+      label,
+      description: "cliquez ensuite sur le graphique",
+      icon: <span style={{ font: "700 10px/1 sans-serif", color }}>{badge}</span>,
+      onPlace: ({ price }: { price: number }) => setLevels((l) => ({ ...l, [id]: price })),
+    });
+    return (
+      <div style={{ height: 560 }}>
+        <p style={{ margin: "0 0 8px", font: "13px sans-serif" }}>
+          {Object.keys(levels).length ? Object.entries(levels).map(([k, v]) => `${k} : ${v.toFixed(2)}`).join(" · ") : "Choisissez un outil à gauche, puis cliquez sur le graphique."}
+        </p>
+        <CandlestickChart
+          data={LOCKED_ZONE_DATASET}
+          symbol="DEMO"
+          height={520}
+          drawingTools
+          customTools={[tool("entrée", "Prix d'entrée", "E", "#5b8def"), tool("stop", "Stop", "S", "#e0573f"), tool("objectif", "Objectif", "O", "#46b06a")]}
+        />
+      </div>
+    );
+  },
+};

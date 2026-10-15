@@ -5,6 +5,7 @@ import type { Candle } from "./Candle.interface";
 import type { TrendLineDrawing, OverlayDataPoint } from "./TrendLineDrawing.interface";
 import type { Indicator } from "./Indicator.interface";
 import type { CustomIndicatorDef } from "./CustomIndicatorDef.interface";
+import type { ChartCustomTool } from "./ChartCustomTool.interface";
 import type { ChartTemplate } from "./ChartTemplate.interface";
 import type { TimeframeEntry } from "./TimeframeEntry.interface";
 import type { ChartDisplayMode } from "./ChartDisplayMode.interface";
@@ -140,6 +141,9 @@ export interface CandlestickChartProps {
    *  — see `CustomIndicatorDef`'s own doc for the full shape (`{ id, label, section, type: "overlay"
    *  | "own", draw: "line" | "area" | "histogram", data: [{ date, value }] }`). */
   customIndicators?: CustomIndicatorDef[];
+  /** App-defined tools appended to the tools rail (see `ChartCustomTool`): one click arms a tool, the next click on
+   *  the chart reports its price/date to that tool's `onPlace`. Requires `drawingTools`. */
+  customTools?: ChartCustomTool[];
   /** Shows a Save button plus a templates dropdown at the right edge of the header — captures
    *  the *indicator/pane* layout (which indicators, their own settings, pane order, pane
    *  height, the Volume pane's own position/collapse state), not drawings or display/timeframe

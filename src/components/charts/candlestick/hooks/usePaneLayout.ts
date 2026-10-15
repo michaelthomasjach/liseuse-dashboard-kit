@@ -142,6 +142,10 @@ export interface UsePaneLayoutArgs {
    *  `CandlestickChartProps.defaultPaneHeightFraction`). Clamped to the resize bounds; default
    *  DEFAULT_PANE_HEIGHT_FRACTION. */
   defaultPaneHeightFraction?: number;
+  /** The chart's own `customIndicators` catalog. An added custom indicator whose `customData.id` matches a def here
+   *  reads that def's *current* `data`/`profile` (its own style settings are kept), so an app streaming new candles
+   *  can extend its custom series by updating this prop — no remount, no reset of zoom/pan. */
+  liveCustomIndicators?: CustomIndicatorDef[];
   /** Called just before an indicator is removed, with its id, and returning every id that should
    *  go with it. The one seam through which "removing this also removes that" is expressed, so it
    *  holds for every path in this hook that removes an indicator — the legend, a pane header, a
@@ -172,12 +176,27 @@ export function usePaneLayout({
   dockedPanesStartFolded = null,
   beforeRemoveIndicator,
   defaultPaneHeightFraction,
+  liveCustomIndicators,
 }: UsePaneLayoutArgs) {
   const defaultFraction =
     defaultPaneHeightFraction !== undefined && Number.isFinite(defaultPaneHeightFraction)
       ? Math.min(MAX_PANE_HEIGHT_FRACTION, Math.max(MIN_PANE_HEIGHT_FRACTION, defaultPaneHeightFraction))
       : DEFAULT_PANE_HEIGHT_FRACTION;
-  const [indicators, setIndicators] = useState<Indicator[]>(defaultIndicators ?? []);
+  const [storedIndicators, setIndicators] = useState<Indicator[]>(defaultIndicators ?? []);
+  // Séries personnalisées en direct : données (et profil) relues dans le catalogue `customIndicators` courant ; le
+  // style choisi par l'utilisateur (couleur, épaisseur…) reste celui de l'indicateur ajouté.
+  const indicators = useMemo(() => {
+    if (!liveCustomIndicators?.length) return storedIndicators;
+    const byId = new Map(liveCustomIndicators.map((d) => [d.id, d]));
+    let changed = false;
+    const out = storedIndicators.map((ind) => {
+      const live = ind.customData ? byId.get(ind.customData.id) : undefined;
+      if (!live || !ind.customData || (live.data === ind.customData.data && live.profile === ind.customData.profile)) return ind;
+      changed = true;
+      return { ...ind, customData: { ...ind.customData, data: live.data, profile: live.profile } };
+    });
+    return changed ? out : storedIndicators;
+  }, [storedIndicators, liveCustomIndicators]);
   const [indicatorPickerOpen, setIndicatorPickerOpen] = useState(false);
   const [indicatorSearchQuery, setIndicatorSearchQuery] = useState("");
   // Which indicator's own "how this works" info modal is open (see INDICATOR_DESCRIPTIONS) — "volume"

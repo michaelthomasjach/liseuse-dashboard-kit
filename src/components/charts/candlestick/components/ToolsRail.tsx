@@ -1,4 +1,5 @@
 import { Fragment, useRef, useState } from "react";
+import type { ChartCustomTool } from "../interfaces/ChartCustomTool.interface";
 import type { RefObject, Dispatch, SetStateAction } from "react";
 import { Popover } from "../../../forms/Popover";
 import { Checkbox } from "../../../forms/Checkbox";
@@ -31,6 +32,10 @@ export interface ToolsRailProps {
   activeTool: DrawingToolType | null;
   handleToolClick: (tool: DrawingToolType) => void;
   handleSelectToolType: (type: DrawingToolType) => void;
+  /** App-defined tools (see ChartCustomTool), rendered after the drawing categories. */
+  customTools?: ChartCustomTool[];
+  activeCustomToolId?: string | null;
+  onCustomToolClick?: (id: string) => void;
   menuAnchorRefFor: (categoryId: string) => RefObject<HTMLButtonElement>;
   magnetActive: boolean;
   setMagnetActive: Dispatch<SetStateAction<boolean>>;
@@ -89,6 +94,9 @@ export function ToolsRail({
   activeTool,
   handleToolClick,
   handleSelectToolType,
+  customTools,
+  activeCustomToolId,
+  onCustomToolClick,
   menuAnchorRefFor,
   magnetActive,
   setMagnetActive,
@@ -293,6 +301,24 @@ export function ToolsRail({
             Figures chartistes/Projections/Mesure) and the persistent modifier toggles below —
             unconditional (always sits right here) rather than tied to whichever category happens
             to render last, so it can't silently disappear if the category list itself changes. */}
+        {customTools && customTools.length > 0 && (
+          <>
+            <div className="lq-chart__tool-separator" aria-hidden="true" />
+            {customTools.map((tool) => (
+              <button
+                key={tool.id}
+                type="button"
+                className={["lq-chart__icon-button", "lq-chart__custom-tool", activeCustomToolId === tool.id && "lq-chart__icon-button--active"].filter(Boolean).join(" ")}
+                onClick={() => onCustomToolClick?.(tool.id)}
+                aria-label={tool.label}
+                aria-pressed={activeCustomToolId === tool.id}
+                title={tool.description ? `${tool.label} — ${tool.description}` : tool.label}
+              >
+                {tool.icon}
+              </button>
+            ))}
+          </>
+        )}
         <div className="lq-chart__tool-separator" aria-hidden="true" />
         {/* Moved out of the drawing-tool categories above (see the filter on that map) — doesn't
             add a drawing to the chart the way every other category does, which reads closer to a

@@ -131,7 +131,7 @@ export function CandlestickChart({
   alerts, onCreateAlert, onUpdateAlert, onDeleteAlert, alertSoundOptions, onPlaySound,
   showIndicators = false,
   defaultIndicators,
-  onIndicatorsChange, customIndicators,
+  onIndicatorsChange, customIndicators, customTools,
   showTemplates = false,
   defaultTemplates,
   onTemplatesChange,
@@ -563,7 +563,19 @@ export function CandlestickChart({
     dockedPanesStartFolded,
     beforeRemoveIndicator,
     defaultPaneHeightFraction,
+    liveCustomIndicators: customIndicators,
   });
+  // App-defined tools (see ChartCustomTool): one armed at a time, disarmed by placing, Escape or its own button.
+  const [activeCustomToolId, setActiveCustomToolId] = useState<string | null>(null);
+  const activeCustomTool = customTools?.find((t) => t.id === activeCustomToolId) ?? null;
+  useEffect(() => {
+    if (!activeCustomToolId) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setActiveCustomToolId(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [activeCustomToolId]);
   // Which chart placements each script actually produced — "price" for a plot.overlay, "own" for a
   // plot.pane — so the picker can badge a row with both when a script draws both. Read off the raw
   // list, not the filtered one above: a closed strategy's row still has to say what it will bring
@@ -896,6 +908,7 @@ export function CandlestickChart({
   });
 
   const {
+    toDataPoint,
     handleOverlayClick,
     handleOverlayDoubleClick,
     handleEndpointPointerDown,
@@ -989,6 +1002,14 @@ export function CandlestickChart({
     maxXZoom,
     setXTransformAnimated, setTextEntry, setEditingCell,
   });
+  // An armed custom tool takes the next plot click (instead of the drawing tools), reports it, then disarms.
+  const handleArmedOverlayClick = activeCustomTool
+    ? (e: React.MouseEvent<SVGRectElement>) => {
+        const point = toDataPoint(e);
+        activeCustomTool.onPlace({ price: point.y, date: point.x });
+        setActiveCustomToolId(null);
+      }
+    : handleOverlayClick;
 
   useRenderCandlestickChart({
     canvasRef,
@@ -1286,8 +1307,17 @@ export function CandlestickChart({
       openToolMenu={openToolMenu}
       setOpenToolMenu={setOpenToolMenu}
       activeTool={activeTool}
-      handleToolClick={handleToolClick}
+      handleToolClick={(tool) => {
+        setActiveCustomToolId(null);
+        handleToolClick(tool);
+      }}
       handleSelectToolType={handleSelectToolType}
+      customTools={customTools}
+      activeCustomToolId={activeCustomToolId}
+      onCustomToolClick={(id) => {
+        if (activeTool) cancelDrawingTool();
+        setActiveCustomToolId((cur) => (cur === id ? null : id));
+      }}
       menuAnchorRefFor={menuAnchorRefFor}
       magnetActive={magnetActive}
       setMagnetActive={setMagnetActive}
@@ -1607,7 +1637,7 @@ export function CandlestickChart({
                 : handlePointerMove
           }
           handleOverlayPointerUp={replayState.armed || placementActive ? noopPointerHandler : handleOverlayPointerUp}
-          handleOverlayClick={replayState.armed ? replayState.handleClick(zoomedXScale) : placementActive ? noopPointerHandler : handleOverlayClick}
+          handleOverlayClick={replayState.armed ? replayState.handleClick(zoomedXScale) : placementActive ? noopPointerHandler : handleArmedOverlayClick}
           /* Routed away like the other three while placing. The tap-to-stage / tap-to-confirm
               rhythm lands inside the browser's own double-tap window, so dblclick fires on every
               placement. For every tool but one that is harmless (the handler returns early while a

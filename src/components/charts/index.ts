@@ -114,3 +114,4 @@ export type { ChartMargin, ChartDimensions } from "./internal/useChartDimensions
 
 export { SankeyChart } from "./SankeyChart";
 export type { SankeyChartProps, SankeyNodeDatum, SankeyLinkDatum } from "./SankeyChart";
+export type { ChartCustomTool } from "./candlestick/interfaces/ChartCustomTool.interface";

@@ -126,6 +126,7 @@ export function CandlestickChart({
   onSettingsOpenChange,
   seasonality = false,
   replay = false,
+  onReplayChange,
   drawingTools = false,
   defaultDrawings,
   onDrawingsChange,
@@ -677,6 +678,15 @@ export function CandlestickChart({
     () => Math.min(replayState.active && replayState.cutoffIndex !== null ? replayState.cutoffIndex : data.length - 1, data.length - 1),
     [data.length, replayState.active, replayState.cutoffIndex],
   );
+  // Replay cutoff reported to the app (see `onReplayChange`): the date of the last revealed candle, or null outside a
+  // replay. Keyed on the time value so a re-render with the same cutoff never re-reports it.
+  const replayCutoffTime =
+    replayState.active && replayState.cutoffIndex !== null ? (data[Math.min(replayState.cutoffIndex, data.length - 1)]?.date.getTime() ?? null) : null;
+  const onReplayChangeRef = useRef(onReplayChange);
+  onReplayChangeRef.current = onReplayChange;
+  useEffect(() => {
+    onReplayChangeRef.current?.(replayCutoffTime === null ? null : new Date(replayCutoffTime));
+  }, [replayCutoffTime]);
 
   // The closing price marked permanently on the price axis (see ChartHoverBadges' own `lastClose`).
   // Under replay it is the last *revealed* candle's close, not the dataset's: the replay hides the

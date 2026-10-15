@@ -95,6 +95,11 @@ export interface CandlestickChartProps {
    *  candle at a time. See `useReplayState.ts`'s own doc for why this is a pure visual cover
    *  rather than a `data` truncation. Default false. */
   replay?: boolean;
+  /** Called whenever the replay cutoff changes — on the click that sets it, on every step (arrow keys, Lecture) and
+   *  with `null` when the replay ends — with the date of the last candle still visible. Lets the app recompute
+   *  everything it derives from the candles (signals, statistics, panels outside the chart) as of that instant,
+   *  while `data` itself stays complete (the replay is a visual cover over the chart). */
+  onReplayChange?: (cutoff: Date | null) => void;
   /** Shows a left-docked toolbar for drawing annotations directly on the chart (currently: trend line). Default false. */
   drawingTools?: boolean;
   /** Uncontrolled initial set of trend-line drawings. */

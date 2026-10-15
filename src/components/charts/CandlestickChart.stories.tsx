@@ -1162,3 +1162,21 @@ export const HeaderActions: Story = {
     );
   },
 };
+
+/** Replay suivi par l'application (`onReplayChange`) : la date de la dernière bougie visible est remontée à chaque pas,
+ *  pour recalculer ce qui est affiché hors du graphique à cet instant. */
+export const ReplayCutoff: Story = {
+  name: "Replay suivi par l'application (onReplayChange)",
+  render: () => {
+    const [cutoff, setCutoff] = useState<Date | null>(null);
+    const visible = cutoff ? LOCKED_ZONE_DATASET.filter((c) => c.date.getTime() <= cutoff.getTime()) : LOCKED_ZONE_DATASET;
+    return (
+      <div style={{ height: 560 }}>
+        <p style={{ margin: "0 0 8px", font: "13px sans-serif" }}>
+          {cutoff ? `Replay au ${cutoff.toLocaleString("fr-FR")} — dernière clôture ${visible.at(-1)?.close.toFixed(2)}` : "Pas de replay en cours (bouton Replay de la barre du haut)."}
+        </p>
+        <CandlestickChart data={LOCKED_ZONE_DATASET} symbol="DEMO" height={520} replay onReplayChange={setCutoff} />
+      </div>
+    );
+  },
+};

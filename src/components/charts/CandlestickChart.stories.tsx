@@ -1182,7 +1182,7 @@ export const ReplayCutoff: Story = {
           replay
           onReplayChange={setCutoff}
           futureBars={20}
-          // Flèche de prévision partant de l'instant du replay : visible par-dessus le futur masqué (showOverReplay).
+          // Flèche de prévision partant de l'instant du replay : les dessins restent visibles dans le futur masqué.
           overlayDrawings={
             cutoff && visible.at(-1)
               ? [
@@ -1196,7 +1196,6 @@ export const ReplayCutoff: Story = {
                     strokeWidth: 2,
                     arrowRight: true,
                     text: "Prévision depuis l'instant du replay",
-                    showOverReplay: true,
                   },
                 ]
               : []

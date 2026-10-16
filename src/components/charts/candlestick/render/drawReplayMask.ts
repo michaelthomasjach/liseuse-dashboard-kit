@@ -6,7 +6,8 @@ import { drawHatchLines } from "./drawFutureZone";
 /** Replay mode's own "cover" — see CandlestickChartProps.replay and useReplayState's own doc.
  *  While armed (choosing where to cut), a translucent preview follows the pointer
  *  (`replayPreviewIndex`); once committed (`replayCutoffIndex`), the same rectangle turns fully
- *  opaque, erasing every candle/drawing/indicator past that point without touching the data or
+ *  opaque, erasing every candle and indicator past that point (drawings are repainted on top of it, see
+ *  renderChart.ts — they may extend into the hidden future) without touching the data or
  *  scale that positions what's still visible — see useReplayState's own doc for why slicing `data`
  *  itself isn't used instead (it would also re-fit the X domain, snapping every surviving candle
  *  to a new pixel position instead of leaving them exactly where the user was already looking).

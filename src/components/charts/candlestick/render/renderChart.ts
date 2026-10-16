@@ -62,34 +62,16 @@ export function renderCandlestickChart(canvas: HTMLCanvasElement, wrapper: HTMLE
   // it would be a curtain across the very thing it exists to give context to.
   drawScriptHeatmaps(ctx, params);
   drawPriceCandles(ctx, params, style);
-  drawPriceDrawings(ctx, params, style);
+  // Replay : les dessins sont peints APRÈS le masque (plus bas), pour rester visibles dans le futur masqué.
+  if (!params.replayActive) drawPriceDrawings(ctx, params, style);
   drawVolumeAndPanes(ctx, params, style);
   // After the panes and the price lines, so a projection is always drawn over the series it
   // continues rather than under it — and before the replay mask, which is allowed to cover it.
   drawIndicatorProjections(ctx, params, style);
   drawReplayMask(ctx, params, style);
-  // Drawings flagged `showOverReplay` (a projection from the replay instant) are repainted above the cover — only
-  // them: no in-progress tool preview, measurement, live-price line or comparison series in this second pass.
-  if (params.replayActive) {
-    const over = params.visibleDrawings.filter((d) => d.showOverReplay && !d.hidden);
-    if (over.length)
-      drawPriceDrawings(
-        ctx,
-        {
-          ...params,
-          visibleDrawings: over,
-          hoveredDrawingId: null,
-          activeTool: null,
-          pendingPoint: null,
-          previewPoint: null,
-          pendingSecondPoint: null,
-          pendingExtraPoints: [],
-          brushPreview: null,
-          measurePoints: null,
-          livePrice: false,
-          symbolOverlays: [],
-        },
-        style,
-      );
-  }
+  // Replay : le masque ne cache que ce qui dérive des bougies (bougies, volume, indicateurs et leurs projections) —
+  // ce qui ne peut pas exister après l'instant du replay. Les dessins (lignes, canaux, textes, prévisions…), eux,
+  // sont repeints par-dessus et restent visibles dans le futur, y compris pendant leur tracé ; seule la ligne du
+  // dernier cours réel reste masquée (elle trahirait le futur).
+  if (params.replayActive) drawPriceDrawings(ctx, { ...params, livePrice: false }, style);
 }

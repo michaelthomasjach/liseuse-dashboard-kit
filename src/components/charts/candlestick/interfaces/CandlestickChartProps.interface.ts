@@ -93,7 +93,9 @@ export interface CandlestickChartProps {
    *  (candles, volume, indicators) without moving anything still visible — and swaps the button
    *  for Lecture/Pause/Vitesse/Quitter le replay controls to step through the hidden history one
    *  candle at a time. See `useReplayState.ts`'s own doc for why this is a pure visual cover
-   *  rather than a `data` truncation. A second button, « Au hasard », starts the replay at a random past instant
+   *  rather than a `data` truncation. Only what derives from the candles (candles, volume, indicators) is hidden
+   *  past the cutoff: drawings — the user's own and `overlayDrawings` — stay visible over it, and can be drawn there.
+   *  A second button, « Au hasard », starts the replay at a random past instant
    *  (enough history before it for indicators, enough after it to replay) — no cutoff picked by hand, so no
    *  anchoring bias. Default false. */
   replay?: boolean;

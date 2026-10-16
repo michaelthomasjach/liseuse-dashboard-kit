@@ -358,4 +358,8 @@ export interface TrendLineDrawing {
    *  accident. Set from that same padlock. For a drawing the app positions itself and the user must not touch at
    *  all, pass it through `overlayDrawings` instead. Default false. */
   locked?: boolean;
+  /** Drawn above the replay cover too: during a replay, everything right of the cutoff is hidden, but a drawing that
+   *  *projects from* the replay instant (a forecast arrow, a target) has to stay visible over that hidden future.
+   *  Default false. */
+  showOverReplay?: boolean;
 }

@@ -1175,7 +1175,33 @@ export const ReplayCutoff: Story = {
         <p style={{ margin: "0 0 8px", font: "13px sans-serif" }}>
           {cutoff ? `Replay au ${cutoff.toLocaleString("fr-FR")} — dernière clôture ${visible.at(-1)?.close.toFixed(2)}` : "Pas de replay en cours : bouton Replay (point choisi) ou Au hasard (instant tiré au hasard) de la barre du haut."}
         </p>
-        <CandlestickChart data={LOCKED_ZONE_DATASET} symbol="DEMO" height={520} replay onReplayChange={setCutoff} />
+        <CandlestickChart
+          data={LOCKED_ZONE_DATASET}
+          symbol="DEMO"
+          height={520}
+          replay
+          onReplayChange={setCutoff}
+          futureBars={20}
+          // Flèche de prévision partant de l'instant du replay : visible par-dessus le futur masqué (showOverReplay).
+          overlayDrawings={
+            cutoff && visible.at(-1)
+              ? [
+                  {
+                    id: "forecast",
+                    x1: cutoff,
+                    y1: (visible.at(-1) as (typeof visible)[number]).close,
+                    x2: new Date(cutoff.getTime() + 10 * 86_400_000),
+                    y2: (visible.at(-1) as (typeof visible)[number]).close * 1.02,
+                    color: "#46b06a",
+                    strokeWidth: 2,
+                    arrowRight: true,
+                    text: "Prévision depuis l'instant du replay",
+                    showOverReplay: true,
+                  },
+                ]
+              : []
+          }
+        />
       </div>
     );
   },

@@ -68,4 +68,28 @@ export function renderCandlestickChart(canvas: HTMLCanvasElement, wrapper: HTMLE
   // continues rather than under it — and before the replay mask, which is allowed to cover it.
   drawIndicatorProjections(ctx, params, style);
   drawReplayMask(ctx, params, style);
+  // Drawings flagged `showOverReplay` (a projection from the replay instant) are repainted above the cover — only
+  // them: no in-progress tool preview, measurement, live-price line or comparison series in this second pass.
+  if (params.replayActive) {
+    const over = params.visibleDrawings.filter((d) => d.showOverReplay && !d.hidden);
+    if (over.length)
+      drawPriceDrawings(
+        ctx,
+        {
+          ...params,
+          visibleDrawings: over,
+          hoveredDrawingId: null,
+          activeTool: null,
+          pendingPoint: null,
+          previewPoint: null,
+          pendingSecondPoint: null,
+          pendingExtraPoints: [],
+          brushPreview: null,
+          measurePoints: null,
+          livePrice: false,
+          symbolOverlays: [],
+        },
+        style,
+      );
+  }
 }

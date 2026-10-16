@@ -1798,6 +1798,12 @@ export function CandlestickChart({
             // with nothing drawn yet, where there is nothing to delete. Same commit path the
             // Delete key takes (see useDrawingState), and the selection is cleared with it so the
             // toolbar doesn't linger over a drawing that no longer exists.
+            locked={drawings.find((d) => d.id === selectedDrawingId)?.locked ?? false}
+            onToggleLock={
+              selectedDrawingId !== null
+                ? () => commitDrawings(drawings.map((d) => (d.id === selectedDrawingId ? { ...d, locked: !d.locked } : d)))
+                : undefined
+            }
             onDelete={
               selectedDrawingId !== null
                 ? () => {

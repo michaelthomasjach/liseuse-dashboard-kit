@@ -353,8 +353,9 @@ export interface TrendLineDrawing {
    *  own legend entry exposes a toggle for it today, though nothing stops another drawing type
    *  from using it later. Default false (visible). */
   hidden?: boolean;
-  /** Locked: still drawn, but invisible to the pointer — no hover, drag, resize, edit modal or
-   *  keyboard delete. For a drawing the app positions itself (e.g. kept in sync with form fields),
-   *  which the user must change through the app rather than on the chart. Default false. */
+  /** Locked: drawn and still selectable — the floating toolbar's padlock unlocks it, and it can still be deleted or
+   *  edited from its modal — but never moved by the pointer (no body drag, no handle drag), so it can't be shifted by
+   *  accident. Set from that same padlock. For a drawing the app positions itself and the user must not touch at
+   *  all, pass it through `overlayDrawings` instead. Default false. */
   locked?: boolean;
 }

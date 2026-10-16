@@ -347,7 +347,7 @@ export function useDrawingInteractions({
       // Still stops propagation while locked — otherwise the blocked click would bubble up to
       // the overlay underneath and start a whole-body drag instead, defeating the lock entirely.
       e.stopPropagation();
-      if (drawingsLocked) return;
+      if (drawingsLocked || drawings.find((d) => d.id === drawingId)?.locked) return;
       e.currentTarget.setPointerCapture(e.pointerId);
       dragEndpointRef.current = { id: drawingId, pointIndex };
     };
@@ -469,7 +469,8 @@ export function useDrawingInteractions({
       let closestDist = hitDistance;
       const hitTestCtx: HitTestContext = { dims, plotBoundedHeight, priceHeight, zoomedXScale, zoomedPriceScale, indexForDate, pixelYForDrawing, overlayProjections, data };
       for (const dr of visibleDrawings) {
-        if (dr.locked) continue; // verrouillé : ni survol, ni glisser, ni édition
+        // Verrouillé : toujours survolable et sélectionnable (pour le déverrouiller, le supprimer ou l'éditer au
+        // double-clic), mais plus jamais déplacé — voir handleOverlayPointerDown et handleEndpointPointerDown.
         const d = distanceToDrawing(dr, mouseX, mouseY, hitTestCtx);
         if (d < closestDist) {
           closestDist = d;
@@ -666,6 +667,8 @@ export function useDrawingInteractions({
       // for a whole-body drag to shift (see the lineType's own doc comment), and falling through
       // to Y-pan here would have the same hit-testing-drifts-under-you problem "locked" avoids.
       if (dr && dr.lineType === "symbolOverlay") return;
+      // This one drawing is locked: same absorbing as the global lock above — the click still selects it.
+      if (dr?.locked) return;
       if (dr) {
         e.currentTarget.setPointerCapture(e.pointerId);
         dragLineRef.current = { id: dr.id, startClientX: e.clientX, startClientY: e.clientY, orig: dr };

@@ -1180,3 +1180,32 @@ export const ReplayCutoff: Story = {
     );
   },
 };
+
+/** Verrouiller un dessin : sélectionnez une ligne, puis le cadenas de sa barre flottante — elle ne bouge plus au
+ *  glisser (corps et poignées), mais reste sélectionnable pour la déverrouiller. La seconde ligne démarre verrouillée. */
+export const LockedDrawing: Story = {
+  name: "Dessin verrouillé (cadenas de la barre flottante)",
+  render: () => {
+    const data = LOCKED_ZONE_DATASET;
+    const a = data[Math.floor(data.length * 0.3)];
+    const b = data[Math.floor(data.length * 0.8)];
+    return (
+      <div style={{ height: 560 }}>
+        <CandlestickChart
+          data={data}
+          symbol="DEMO"
+          height={520}
+          drawingTools
+          defaultDrawings={
+            a && b
+              ? [
+                  { id: "free", x1: a.date, y1: a.low, x2: b.date, y2: b.high, color: "#5b8def", text: "Libre" },
+                  { id: "locked", x1: a.date, y1: a.high, x2: b.date, y2: b.low, color: "#e0573f", text: "Verrouillée", locked: true },
+                ]
+              : []
+          }
+        />
+      </div>
+    );
+  },
+};

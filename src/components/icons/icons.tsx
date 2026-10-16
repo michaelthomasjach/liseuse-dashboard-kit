@@ -239,6 +239,15 @@ export const LockIcon = (props: AnimatedIconProps) => (
   </IconBase>
 );
 
+/** LockIcon's open counterpart — the shackle lifted and swung clear of the body on the right, for an "unlock" /
+ *  "unlocked" state next to LockIcon. */
+export const UnlockIcon = (props: AnimatedIconProps) => (
+  <IconBase motion="tilt" {...props}>
+    <rect x="5" y="10.5" width="14" height="9.5" rx="1.5" />
+    <path d="M7.5 10.5V7.5a4.5 4.5 0 0 1 8.6-1.9" />
+  </IconBase>
+);
+
 /** Six small dots in a 2x3 grid — the standard drag-handle affordance, filled rather than the
  *  usual stroke-only outline (overridden per-shape since IconBase's own `fill="none"` is just a
  *  default, not a hard constraint) since a handle this small reads far better solid. */

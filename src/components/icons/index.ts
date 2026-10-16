@@ -31,6 +31,7 @@ export {
   EyeOffIcon,
   UserIcon,
   LockIcon,
+  UnlockIcon,
   GripIcon,
   LayersIcon,
   OverlayBadgeIcon,

@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import type { RefObject } from "react";
 import { Popover } from "../../../forms/Popover";
-import { GripIcon, PencilIcon, TextIcon, HorizontalLineIcon, AlarmClockIcon, TrashIcon } from "../../../icons";
+import { GripIcon, PencilIcon, TextIcon, HorizontalLineIcon, AlarmClockIcon, TrashIcon, LockIcon, UnlockIcon } from "../../../icons";
 
 const STROKE_WIDTH_OPTIONS = [1, 2, 3, 4];
 
@@ -27,6 +27,10 @@ export interface FloatingDrawingToolbarProps {
    *  a selected drawing — there is nothing to delete yet, and a trash button that did nothing
    *  would be worse than none — so the button renders only when this is passed. */
   onDelete?: () => void;
+  /** The selected drawing is locked (can't be dragged by its body or its handles). */
+  locked?: boolean;
+  /** Locks / unlocks the selected drawing. Like `onDelete`, only passed while a drawing is selected. */
+  onToggleLock?: () => void;
 }
 
 /** The small floating, draggable toolbar that appears the moment a drawing tool becomes active or
@@ -49,6 +53,8 @@ export function FloatingDrawingToolbar({
   onOpenAlert,
   hasAlert,
   onDelete,
+  locked,
+  onToggleLock,
 }: FloatingDrawingToolbarProps) {
   const [strokeMenuOpen, setStrokeMenuOpen] = useState(false);
   const strokeButtonRef = useRef<HTMLButtonElement>(null);
@@ -134,6 +140,21 @@ export function FloatingDrawingToolbar({
           would otherwise sit among, and at the far end where a thumb reaching for the bell won't
           land on it by a few pixels. Same action the Delete key already performs on a hovered
           drawing — this is that action for a finger, which has no Delete key. */}
+      {onToggleLock && (
+        <>
+          <span className="lq-chart__floating-toolbar-divider" aria-hidden="true" />
+          <button
+            type="button"
+            className={["lq-chart__icon-button", locked && "lq-chart__icon-button--active"].filter(Boolean).join(" ")}
+            onClick={onToggleLock}
+            aria-pressed={locked ?? false}
+            aria-label={locked ? "Déverrouiller ce dessin" : "Verrouiller ce dessin"}
+            title={locked ? "Déverrouiller ce dessin (il pourra de nouveau être déplacé)" : "Verrouiller ce dessin (il ne pourra plus être déplacé par erreur)"}
+          >
+            {locked ? <LockIcon size={14} /> : <UnlockIcon size={14} />}
+          </button>
+        </>
+      )}
       {onDelete && (
         <>
           <span className="lq-chart__floating-toolbar-divider" aria-hidden="true" />

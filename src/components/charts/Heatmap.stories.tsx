@@ -40,6 +40,8 @@ const SAMPLE_GROUPS: HeatmapGroup[] = [
   {
     id: "tech",
     label: "Technologie",
+    // Trait de couleur avant le nom du secteur (lien avec une courbe par secteur).
+    color: "#5b8def",
     tiles: [
       tile("aapl", "AAPL", 3400, 0.8),
       tile("msft", "MSFT", 3100, -0.4),
@@ -54,6 +56,8 @@ const SAMPLE_GROUPS: HeatmapGroup[] = [
   {
     id: "finance",
     label: "Finance",
+    // Trait de couleur avant le nom du secteur (lien avec une courbe par secteur).
+    color: "#e0a03f",
     tiles: [
       tile("jpm", "JPM", 640, 0.3),
       tile("v", "V", 560, 1.4),
@@ -66,6 +70,8 @@ const SAMPLE_GROUPS: HeatmapGroup[] = [
   {
     id: "health",
     label: "Santé",
+    // Trait de couleur avant le nom du secteur (lien avec une courbe par secteur).
+    color: "#b05bd6",
     tiles: [
       tile("lly", "LLY", 780, 3.4),
       tile("unh", "UNH", 480, -2.3),

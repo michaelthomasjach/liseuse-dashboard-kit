@@ -40,6 +40,9 @@ export interface HeatmapTile {
 export interface HeatmapGroup {
   id: string;
   label: string;
+  /** Optional legend color: a 15 px horizontal stroke drawn before the group's label — to tie the group to the same
+   *  series in a companion chart (e.g. one line per sector above the heatmap). */
+  color?: string;
   tiles: HeatmapTile[];
 }
 
@@ -389,12 +392,19 @@ export function Heatmap({ groups, width = 900, height = 560, colorDomain = [-3, 
                 y1: node.y1 * transform.k + transform.y,
               };
               if (box.x1 < 0 || box.y1 < 0 || box.x0 > width || box.y0 > height) return null;
-              if (node.isGroup && node.group)
+              if (node.isGroup && node.group) {
+                const mid = (box.y0 + box.y1) / 2;
+                const swatch = node.group.color !== undefined && box.x1 - box.x0 > 60;
+                const textX = box.x0 + (swatch ? 27 : 6);
                 return box.x1 - box.x0 > 40 ? (
-                  <text key={node.id} className="lq-heatmap__group-label" x={box.x0 + 6} y={(box.y0 + box.y1) / 2}>
-                    {fitText(node.group.label, box.x1 - box.x0 - 12, 6.5)}
-                  </text>
+                  <g key={node.id}>
+                    {swatch && <line className="lq-heatmap__group-swatch" x1={box.x0 + 6} x2={box.x0 + 21} y1={mid} y2={mid} stroke={node.group.color} />}
+                    <text className="lq-heatmap__group-label" x={textX} y={mid}>
+                      {fitText(node.group.label, box.x1 - textX - 6, 6.5)}
+                    </text>
+                  </g>
                 ) : null;
+              }
               return node.tile ? (
                 <HeatmapTileContent
                   key={node.id}

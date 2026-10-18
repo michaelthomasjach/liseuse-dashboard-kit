@@ -64,3 +64,27 @@ export const StickyHeader: Story = {
     </SidebarLayout>
   ),
 };
+
+/** Sous-menu : un groupe repliable (ouvert quand l'une de ses pages est active). */
+export const WithSubmenu: Story = {
+  render: () => (
+    <SidebarLayout
+      logo={<strong>Finance Kit</strong>}
+      navItems={[
+        { id: "overview", label: "Vue d'ensemble", icon: <HomeIcon size={18} /> },
+        {
+          id: "trading",
+          label: "Trading",
+          icon: <HomeIcon size={18} />,
+          children: [
+            { id: "journal", label: "Journal de trading", active: true },
+            { id: "lab", label: "Laboratoire de prévision" },
+          ],
+        },
+      ]}
+    >
+      <p>Contenu</p>
+    </SidebarLayout>
+  ),
+};
+

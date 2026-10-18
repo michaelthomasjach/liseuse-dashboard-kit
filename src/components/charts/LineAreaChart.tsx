@@ -141,6 +141,13 @@ export interface LineAreaChartProps {
    *  value and its own toggle button (see SeasonalityView's own rail) — same "caller decides, this
    *  chart just renders accordingly" shape as `axisHoverLabels`. Default false. */
   measureActive?: boolean;
+  /** Called with the hovered X (a series' own X value) when the pointer moves over the plot, and with
+   *  `null` when it leaves — pass it to sibling charts' `syncedHoverX` to sync their crosshairs. */
+  onHoverChange?: (x: Date | number | null) => void;
+  /** Shows the crosshair, points and tooltip at this X as if hovered (snapped to the nearest X of this
+   *  chart's own data; nothing outside the data's range) — another chart's hover, typically. The
+   *  chart's own hover takes over while the pointer is on it. */
+  syncedHoverX?: Date | number | null;
   margin?: Partial<ChartMargin>;
   className?: string;
 }
@@ -177,6 +184,8 @@ export const LineAreaChart = forwardRef<LineAreaChartHandle, LineAreaChartProps>
   xDomainPadding,
   fillBetween,
   measureActive = false,
+  onHoverChange,
+  syncedHoverX = null,
   margin,
   className,
 }, handleRef) {
@@ -192,7 +201,7 @@ export const LineAreaChart = forwardRef<LineAreaChartHandle, LineAreaChartProps>
   // `anchorX` independently (see closestPointInSeries), and the X-axis label/tooltip title reads
   // `anchorX` directly rather than any one series' own point, so it always names whatever's
   // actually under the cursor even where a particular series has no data of its own.
-  const [hover, setHover] = useState<{ index: number; mouseX: number; anchorX: Date | number } | null>(null);
+  const [localHover, setHover] = useState<{ index: number; mouseX: number; anchorX: Date | number } | null>(null);
   // Raw pixel cursor position, tracked independently of `hover` above (which snaps to the nearest
   // *data point*) — the ruler measures between any two points on the plot itself, not points
   // necessarily lying on a series' own line, so it needs the cursor's own unsnapped position.
@@ -254,6 +263,26 @@ export const LineAreaChart = forwardRef<LineAreaChartHandle, LineAreaChartProps>
   }, [dataExtent, xType, dims.boundedWidth, xDomainPadding?.start, xDomainPadding?.end]);
 
   const zoomedXScale = transform.rescaleX(xScale as unknown as d3.ScaleLinear<number, number>);
+
+  // Our own hover reported to the caller (sync of sibling charts), keyed on the X value itself.
+  const localKey = localHover ? +localHover.anchorX : null;
+  useEffect(() => {
+    onHoverChange?.(localHover ? localHover.anchorX : null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [localKey]);
+  // Another chart's hover (`syncedHoverX`) drawn here as ours, snapped to our own nearest X within the data's range.
+  const syncedHover = (() => {
+    if (localHover || syncedHoverX === null || allXValues.length === 0) return null;
+    const target = +syncedHoverX;
+    const first = +(allXValues[0] as Date | number);
+    const last = +(allXValues[allXValues.length - 1] as Date | number);
+    if (target < first || target > last) return null;
+    let index = 0;
+    for (let i = 1; i < allXValues.length; i++) if (Math.abs(+(allXValues[i] as Date | number) - target) < Math.abs(+(allXValues[index] as Date | number) - target)) index = i;
+    const anchorX = allXValues[index] as Date | number;
+    return { index, mouseX: zoomedXScale(anchorX as never), anchorX };
+  })();
+  const hover = localHover ?? syncedHover;
 
   const yScale = useMemo(() => {
     const allY = visibleSeries.flatMap((s) => s.data.map((d) => d.y));

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react";
 import { LineAreaChart } from "./LineAreaChart";
 import { generateSeries } from "../../test-data/financeSampleData";
@@ -57,3 +58,18 @@ export const InANarrowCard: Story = {
     </div>
   ),
 };
+
+function SyncedDemo() {
+  const [x, setX] = useState<Date | number | null>(null);
+  const a = generateSeries(120, 100);
+  const b = generateSeries(120, 50);
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, padding: 16 }}>
+      <LineAreaChart series={[{ id: "a", label: "Série A", data: a }]} height={220} onHoverChange={setX} syncedHoverX={x} />
+      <LineAreaChart series={[{ id: "b", label: "Série B", data: b }]} height={220} onHoverChange={setX} syncedHoverX={x} />
+    </div>
+  );
+}
+
+/** Survol synchronisé : survoler un graphique affiche la même date et ses valeurs sur l'autre. */
+export const SyncedHover: Story = { render: () => <SyncedDemo /> };

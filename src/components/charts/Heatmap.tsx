@@ -29,6 +29,9 @@ export interface HeatmapTile {
    *  read for sizing/coloring (see `value`/`colorValue` for those). Falls back to `colorValue`
    *  itself, fixed to 2 decimals, when omitted. */
   formattedValue?: string;
+  /** Extra lines (company name, report date…) shown under the value once the tile is big enough *on screen* —
+   *  typically after zooming into a sector; as many as fit, in order. */
+  details?: string[];
   /** Rendered as-is in the hover/press tooltip — full caller control (compose, don't configure),
    *  falling back to a plain label/value line when omitted. */
   tooltip?: ReactNode;
@@ -342,9 +345,6 @@ export function Heatmap({ groups, width = 900, height = 560, colorDomain = [-3, 
                   onPointerMove={(e) => showTooltip(node, e)}
                 >
                   <rect x={node.x0} y={node.y0} width={node.x1 - node.x0} height={node.y1 - node.y0} />
-                  <text x={node.x0 + 6} y={node.y0 + (node.y1 - node.y0) / 2}>
-                    {node.group.label}
-                  </text>
                 </g>
               ) : (
                 node.tile && (
@@ -362,12 +362,6 @@ export function Heatmap({ groups, width = 900, height = 560, colorDomain = [-3, 
                       height={Math.max(0, node.y1 - node.y0)}
                       fill={tileColor(node.tile.colorValue, colorDomain)}
                     />
-                    <HeatmapTileContent
-                      node={node}
-                      labelColor={labelColorFor(node.tile.colorValue, colorDomain)}
-                      logoBroken={brokenLogos.has(node.tile.id)}
-                      onLogoError={markLogoBroken}
-                    />
                   </g>
                 )
               )
@@ -382,6 +376,36 @@ export function Heatmap({ groups, width = 900, height = 560, colorDomain = [-3, 
                 pointerEvents="none"
               />
             )}
+          </g>
+          {/* Texts and logos sit OUTSIDE the zoomed group, at each node's on-screen position: zooming enlarges the
+              tiles, never the type — fixed pixel sizes, and more of each tile's content appears as it grows on
+              screen (logo alone first, then name, value, detail lines). */}
+          <g pointerEvents="none">
+            {nodes.map((node) => {
+              const box = {
+                x0: node.x0 * transform.k + transform.x,
+                y0: node.y0 * transform.k + transform.y,
+                x1: node.x1 * transform.k + transform.x,
+                y1: node.y1 * transform.k + transform.y,
+              };
+              if (box.x1 < 0 || box.y1 < 0 || box.x0 > width || box.y0 > height) return null;
+              if (node.isGroup && node.group)
+                return box.x1 - box.x0 > 40 ? (
+                  <text key={node.id} className="lq-heatmap__group-label" x={box.x0 + 6} y={(box.y0 + box.y1) / 2}>
+                    {fitText(node.group.label, box.x1 - box.x0 - 12, 6.5)}
+                  </text>
+                ) : null;
+              return node.tile ? (
+                <HeatmapTileContent
+                  key={node.id}
+                  tile={node.tile}
+                  box={box}
+                  labelColor={labelColorFor(node.tile.colorValue, colorDomain)}
+                  logoBroken={brokenLogos.has(node.tile.id)}
+                  onLogoError={markLogoBroken}
+                />
+              ) : null;
+            })}
           </g>
         </g>
       </svg>
@@ -404,52 +428,86 @@ export function Heatmap({ groups, width = 900, height = 560, colorDomain = [-3, 
   );
 }
 
-// Split out purely so the label/value text sizing can bail out early on a tile too small to hold
-// it (see MIN_LABEL_WIDTH/HEIGHT below) without cluttering the main render loop above with that
-// same two-line check for every single tile.
-const MIN_LABEL_WIDTH = 40;
-const MIN_LABEL_HEIGHT = 28;
+/** Text cut to roughly fit `maxPx` (average glyph width `charPx`), with an ellipsis. */
+function fitText(text: string, maxPx: number, charPx: number): string {
+  const max = Math.floor(maxPx / charPx);
+  if (max <= 1) return "";
+  return text.length <= max ? text : `${text.slice(0, Math.max(1, max - 1))}…`;
+}
+
+// Fixed on-screen sizes (px) — the tile's content never scales with the zoom, it just gets more room.
+const LOGO = 20;
+const LINE_LABEL = 14;
+const LINE_VALUE = 13;
+const LINE_DETAIL = 13;
+const PAD = 4;
+
+/** A tile's content laid out in *screen* pixels: the logo as soon as it fits, then the label, the value and as many
+ *  `details` lines as the tile's on-screen height allows — all vertically centred, each line cut to the width. */
 function HeatmapTileContent({
-  node,
+  tile,
+  box,
   labelColor,
   logoBroken,
   onLogoError,
 }: {
-  node: PositionedNode;
+  tile: HeatmapTile;
+  box: { x0: number; y0: number; x1: number; y1: number };
   labelColor: string;
   logoBroken: boolean;
   onLogoError: (id: string) => void;
 }) {
-  const tile = node.tile;
-  if (!tile) return null;
-  const w = node.x1 - node.x0;
-  const h = node.y1 - node.y0;
-  if (w < MIN_LABEL_WIDTH || h < MIN_LABEL_HEIGHT) return null;
-  const cx = node.x0 + w / 2;
-  const cy = node.y0 + h / 2;
-  const showLogo = h > MIN_LABEL_HEIGHT * 1.6;
+  const w = box.x1 - box.x0;
+  const h = box.y1 - box.y0;
+  const logo = Math.min(LOGO, w - 2 * PAD, h - 2 * PAD);
+  if (logo < 12) return null;
+  const cx = box.x0 + w / 2;
+  const room = h - 2 * PAD;
+  const value = tile.formattedValue ?? tile.colorValue?.toFixed(2) ?? "—";
+  // What fits, in order of importance: logo, then label (needs ~44 px wide), value, detail lines (~80 px wide).
+  const lines: { text: string; cls: string; height: number }[] = [];
+  let used = logo;
+  if (w >= 44 && used + LINE_LABEL <= room) {
+    lines.push({ text: fitText(tile.label, w - 2 * PAD, 7), cls: "lq-heatmap__tile-label", height: LINE_LABEL });
+    used += LINE_LABEL;
+    if (used + LINE_VALUE <= room) {
+      lines.push({ text: fitText(value, w - 2 * PAD, 6.2), cls: "lq-heatmap__tile-value", height: LINE_VALUE });
+      used += LINE_VALUE;
+    }
+    if (w >= 80)
+      for (const d of tile.details ?? []) {
+        if (used + LINE_DETAIL > room) break;
+        lines.push({ text: fitText(d, w - 2 * PAD, 6), cls: "lq-heatmap__tile-detail", height: LINE_DETAIL });
+        used += LINE_DETAIL;
+      }
+  }
+  let y = box.y0 + (h - used) / 2;
+  const logoY = y;
+  y += logo;
   return (
-    <g className="lq-heatmap__tile-content" pointerEvents="none" fill={labelColor}>
-      {showLogo &&
-        (tile.logoUrl !== undefined && !logoBroken ? (
-          <image
-            href={tile.logoUrl}
-            x={cx - 10}
-            y={cy - h / 4 - 10}
-            width={20}
-            height={20}
-            clipPath="circle(10px)"
-            onError={() => onLogoError(tile.id)}
-          />
-        ) : (
-          <circle cx={cx} cy={cy - h / 4} r={10} fill={tile.logoColor ?? "var(--lq-color-text-muted)"} />
-        ))}
-      <text x={cx} y={showLogo ? cy + 2 : cy - 6} className="lq-heatmap__tile-label">
-        {tile.label}
-      </text>
-      <text x={cx} y={showLogo ? cy + 16 : cy + 10} className="lq-heatmap__tile-value">
-        {tile.formattedValue ?? tile.colorValue?.toFixed(2) ?? "—"}
-      </text>
+    <g className="lq-heatmap__tile-content" fill={labelColor}>
+      {tile.logoUrl !== undefined && !logoBroken ? (
+        <image
+          href={tile.logoUrl}
+          x={cx - logo / 2}
+          y={logoY}
+          width={logo}
+          height={logo}
+          clipPath={`circle(${logo / 2}px)`}
+          onError={() => onLogoError(tile.id)}
+        />
+      ) : (
+        <circle cx={cx} cy={logoY + logo / 2} r={logo / 2} fill={tile.logoColor ?? "var(--lq-color-text-muted)"} />
+      )}
+      {lines.map((l, i) => {
+        const ty = y + l.height / 2 + 1;
+        y += l.height;
+        return (
+          <text key={i} x={cx} y={ty} className={l.cls}>
+            {l.text}
+          </text>
+        );
+      })}
     </g>
   );
 }

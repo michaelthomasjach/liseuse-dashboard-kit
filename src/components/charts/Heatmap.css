@@ -84,8 +84,23 @@
    `useTileMixer`/`labelColorOn` in Heatmap.tsx). A flat `var(--lq-color-text)` was legible on a
    pale tile and invisible on a saturated one. */
 .lq-heatmap__tile-label,
-.lq-heatmap__tile-value {
+.lq-heatmap__tile-value,
+.lq-heatmap__tile-detail {
   text-anchor: middle;
+  dominant-baseline: middle;
+}
+
+/* Sector names, drawn at their on-screen position (fixed size, whatever the zoom). */
+.lq-heatmap__group-label {
+  fill: var(--lq-color-text);
+  font-size: 11px;
+  font-weight: 600;
+  dominant-baseline: middle;
+}
+
+.lq-heatmap__tile-detail {
+  font-size: 10px;
+  opacity: 0.8;
 }
 
 .lq-heatmap__tile-label {

@@ -21,6 +21,8 @@ function tile(id: string, label: string, marketCapB: number, changePct: number) 
     logoUrl: COMPANY_LOGOS[label],
     logoColor: COMPANY_BRAND[label],
     formattedValue: `${changePct >= 0 ? "+" : ""}${changePct.toFixed(2)} %`,
+    // Lignes montrées quand la tuile est assez grande à l'écran (zoom sur un secteur).
+    details: [`${marketCapB.toFixed(1)} Md$`, "publication le 28 oct."],
     tooltip: (
       <>
         <strong>{label}</strong>

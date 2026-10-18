@@ -20,6 +20,13 @@
   display: flex;
 }
 
+/* A chart whose legend sits directly under its plot (LineAreaChart, BarChart…): plot then legend,
+   stacked. In the default row the legend landed *beside* the plot, squeezed into a narrow column
+   as tall as the chart, its items pushed out of view — an empty band under the X axis. */
+.lq-chart:has(> .lq-chart__legend) {
+  flex-direction: column;
+}
+
 /* For a chart embedded inside another `.lq-chart` that already provides the outer border (see
    LineAreaChart's own `embedded` prop, used by SeasonalityView) — without this the two borders
    would stack into a visibly thicker double line. */

@@ -445,15 +445,20 @@ function fitText(text: string, maxPx: number, charPx: number): string {
   return text.length <= max ? text : `${text.slice(0, Math.max(1, max - 1))}…`;
 }
 
-// Fixed on-screen sizes (px) — the tile's content never scales with the zoom, it just gets more room.
-const LOGO = 20;
+// Fixed on-screen text sizes (px) — the type never scales with the zoom; the logo does, with the tile.
 const LINE_LABEL = 14;
 const LINE_VALUE = 13;
 const LINE_DETAIL = 13;
-const PAD = 4;
+const PAD = 3;
+const LOGO_MIN = 10;
+const LOGO_MAX = 44;
 
-/** A tile's content laid out in *screen* pixels: the logo as soon as it fits, then the label, the value and as many
- *  `details` lines as the tile's on-screen height allows — all vertically centred, each line cut to the width. */
+/**
+ * A tile's content, laid out in *screen* pixels, the way TradingView's heatmap does it: nothing when the tile is too
+ * small, the logo alone as soon as it fits, then the value, then the ticker, then the `details` lines — each step
+ * appearing as the tile grows on screen (zooming into a sector). The logo grows with the tile (up to 44 px); the text
+ * keeps a fixed size. Everything is clipped to the tile, so nothing spills onto a neighbour.
+ */
 function HeatmapTileContent({
   tile,
   box,
@@ -469,55 +474,55 @@ function HeatmapTileContent({
 }) {
   const w = box.x1 - box.x0;
   const h = box.y1 - box.y0;
-  const logo = Math.min(LOGO, w - 2 * PAD, h - 2 * PAD);
-  if (logo < 12) return null;
-  const cx = box.x0 + w / 2;
-  const room = h - 2 * PAD;
+  const inner = Math.min(w, h) - 2 * PAD;
+  if (inner < LOGO_MIN) return null;
   const value = tile.formattedValue ?? tile.colorValue?.toFixed(2) ?? "—";
-  // What fits, in order of importance: logo, then label (needs ~44 px wide), value, detail lines (~80 px wide).
+  // Logo : proportionnel à la tuile, borné.
+  let logo = Math.max(LOGO_MIN, Math.min(LOGO_MAX, Math.round(Math.min(w, h) * 0.32), inner));
+  const room = h - 2 * PAD;
   const lines: { text: string; cls: string; height: number }[] = [];
-  let used = logo;
-  if (w >= 44 && used + LINE_LABEL <= room) {
-    lines.push({ text: fitText(tile.label, w - 2 * PAD, 7), cls: "lq-heatmap__tile-label", height: LINE_LABEL });
-    used += LINE_LABEL;
-    if (used + LINE_VALUE <= room) {
-      lines.push({ text: fitText(value, w - 2 * PAD, 6.2), cls: "lq-heatmap__tile-value", height: LINE_VALUE });
-      used += LINE_VALUE;
-    }
-    if (w >= 80)
-      for (const d of tile.details ?? []) {
-        if (used + LINE_DETAIL > room) break;
-        lines.push({ text: fitText(d, w - 2 * PAD, 6), cls: "lq-heatmap__tile-detail", height: LINE_DETAIL });
-        used += LINE_DETAIL;
+  const fits = (extra: number) => logo + extra + 2 <= room;
+  // Valeur d'abord, puis ticker au-dessus d'elle, puis détails — chacun seulement s'il tient en hauteur et en largeur.
+  if (w >= 30 && fits(LINE_VALUE)) {
+    lines.push({ text: fitText(value, w - 2 * PAD, 6.2), cls: "lq-heatmap__tile-value", height: LINE_VALUE });
+    if (w >= 34 && fits(LINE_VALUE + LINE_LABEL)) {
+      lines.unshift({ text: fitText(tile.label, w - 2 * PAD, 7), cls: "lq-heatmap__tile-label", height: LINE_LABEL });
+      if (w >= 80) {
+        let used = LINE_VALUE + LINE_LABEL;
+        for (const d of tile.details ?? []) {
+          if (!fits(used + LINE_DETAIL)) break;
+          lines.push({ text: fitText(d, w - 2 * PAD, 6), cls: "lq-heatmap__tile-detail", height: LINE_DETAIL });
+          used += LINE_DETAIL;
+        }
       }
+    }
+  } else {
+    // Logo seul : il prend la place disponible (sans dépasser la borne).
+    logo = Math.max(LOGO_MIN, Math.min(inner, 16, logo));
   }
-  let y = box.y0 + (h - used) / 2;
+  const used = logo + (lines.length ? 2 : 0) + lines.reduce((s, l) => s + l.height, 0);
+  const cx = w / 2;
+  let y = (h - used) / 2;
   const logoY = y;
-  y += logo;
+  y += logo + (lines.length ? 2 : 0);
   return (
-    <g className="lq-heatmap__tile-content" fill={labelColor}>
-      {tile.logoUrl !== undefined && !logoBroken ? (
-        <image
-          href={tile.logoUrl}
-          x={cx - logo / 2}
-          y={logoY}
-          width={logo}
-          height={logo}
-          clipPath={`circle(${logo / 2}px)`}
-          onError={() => onLogoError(tile.id)}
-        />
-      ) : (
-        <circle cx={cx} cy={logoY + logo / 2} r={logo / 2} fill={tile.logoColor ?? "var(--lq-color-text-muted)"} />
-      )}
-      {lines.map((l, i) => {
-        const ty = y + l.height / 2 + 1;
-        y += l.height;
-        return (
-          <text key={i} x={cx} y={ty} className={l.cls}>
-            {l.text}
-          </text>
-        );
-      })}
-    </g>
+    <svg x={box.x0} y={box.y0} width={w} height={h} overflow="hidden" className="lq-heatmap__tile-content">
+      <g fill={labelColor}>
+        {tile.logoUrl !== undefined && !logoBroken ? (
+          <image href={tile.logoUrl} x={cx - logo / 2} y={logoY} width={logo} height={logo} clipPath={`circle(${logo / 2}px)`} onError={() => onLogoError(tile.id)} />
+        ) : (
+          <circle cx={cx} cy={logoY + logo / 2} r={logo / 2} fill={tile.logoColor ?? "var(--lq-color-text-muted)"} />
+        )}
+        {lines.map((l, i) => {
+          const ty = y + l.height / 2 + 1;
+          y += l.height;
+          return (
+            <text key={i} x={cx} y={ty} className={l.cls}>
+              {l.text}
+            </text>
+          );
+        })}
+      </g>
+    </svg>
   );
 }

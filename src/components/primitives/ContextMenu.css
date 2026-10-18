@@ -1,0 +1,64 @@
+/* Generic right-click menu (portal, fixed to the viewport). Same look as the chart's own menu. */
+.lq-context-menu {
+  position: fixed;
+  z-index: 1300;
+  min-width: 200px;
+  padding: 4px;
+  border: 1px solid var(--lq-color-border);
+  border-radius: var(--lq-radius-sm, 0);
+  background-color: var(--lq-color-panel);
+  color: var(--lq-color-text);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 22%);
+  font-family: var(--lq-font-family, inherit);
+  font-size: var(--lq-text-sm);
+  user-select: none;
+}
+
+.lq-context-menu__item {
+  display: flex;
+  align-items: center;
+  gap: var(--lq-space-2);
+  width: 100%;
+  padding: 6px var(--lq-space-2);
+  border: 0;
+  border-radius: var(--lq-radius-sm, 0);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color var(--lq-transition-fast);
+}
+
+.lq-context-menu__item:hover:not(:disabled),
+.lq-context-menu__item:focus-visible {
+  background-color: var(--lq-color-hover);
+  outline: none;
+}
+
+.lq-context-menu__item:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.lq-context-menu__icon {
+  display: inline-flex;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-context-menu__label {
+  flex: 1;
+}
+
+.lq-context-menu__hint {
+  margin-left: var(--lq-space-4);
+  color: var(--lq-color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.lq-context-menu__separator {
+  height: 1px;
+  margin: 4px 2px;
+  background-color: var(--lq-color-border-subtle);
+}

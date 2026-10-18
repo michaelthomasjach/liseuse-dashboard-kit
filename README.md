@@ -125,6 +125,7 @@ Toute zone scrollable sous `.lq-root` reçoit automatiquement un ascenseur fin e
 **Primitives** — brique de base réutilisable dans n'importe quel écran
 - `Panel`, `PanelRow` — carte de section avec titre/meta et lignes label/valeur ; `collapsible` (bouton +/− centré dans l'en-tête, ouverture animée, état contrôlé `open` / `onOpenChange` ou `defaultOpen`) et `PanelCollapse` pour rendre repliable une carte toute faite (accordéon)
 - `Toggle` — interrupteur on/off
+- `ContextMenu` — menu du clic droit générique (portail en `position: fixed`, retourné au bord de l'écran, Échap / clic extérieur pour fermer, flèches haut/bas) : commandes avec icône, indication à droite, état désactivé et séparateurs
 - `LevelGauge` — jauge segmentée (niveau volet, luminosité, volume, batterie…)
 - `Button`, `IconButton` — actions discrètes / boutons carrés à icône
 - `Tooltip` — infobulle générique au survol et au focus clavier (pas au tapotement), rendue dans un portail en `position: fixed` (jamais rognée par un `overflow: hidden`), retournée et bornée à l'écran, thème recopié au-delà du portail ; `role="tooltip"` et `aria-describedby`

@@ -445,19 +445,23 @@ function fitText(text: string, maxPx: number, charPx: number): string {
   return text.length <= max ? text : `${text.slice(0, Math.max(1, max - 1))}…`;
 }
 
-// Fixed on-screen text sizes (px) — the type never scales with the zoom; the logo does, with the tile.
-const LINE_LABEL = 14;
-const LINE_VALUE = 13;
-const LINE_DETAIL = 13;
+// Sizes follow the tile's on-screen size, between a floor and a ceiling (px): small tile → small type, big tile → big
+// type, never past either bound. The logo follows the same rule.
+const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 const PAD = 3;
 const LOGO_MIN = 10;
-const LOGO_MAX = 44;
+const LOGO_MAX = 56;
+const LABEL_FONT: [number, number] = [9, 22];
+const VALUE_FONT: [number, number] = [8, 19];
+const DETAIL_FONT: [number, number] = [8, 13];
+/** Average glyph width relative to the font size (bold-ish sans-serif), to cut a line to the tile's width. */
+const GLYPH = 0.62;
 
 /**
  * A tile's content, laid out in *screen* pixels, the way TradingView's heatmap does it: nothing when the tile is too
  * small, the logo alone as soon as it fits, then the value, then the ticker, then the `details` lines — each step
- * appearing as the tile grows on screen (zooming into a sector). The logo grows with the tile (up to 44 px); the text
- * keeps a fixed size. Everything is clipped to the tile, so nothing spills onto a neighbour.
+ * appearing as the tile grows on screen (zooming into a sector). Logo and type scale with the tile, within bounds
+ * (see LABEL_FONT…); everything is clipped to the tile, so nothing spills onto a neighbour.
  */
 function HeatmapTileContent({
   tile,
@@ -474,31 +478,37 @@ function HeatmapTileContent({
 }) {
   const w = box.x1 - box.x0;
   const h = box.y1 - box.y0;
-  const inner = Math.min(w, h) - 2 * PAD;
+  const side = Math.min(w, h);
+  const inner = side - 2 * PAD;
   if (inner < LOGO_MIN) return null;
   const value = tile.formattedValue ?? tile.colorValue?.toFixed(2) ?? "—";
-  // Logo : proportionnel à la tuile, borné.
-  let logo = Math.max(LOGO_MIN, Math.min(LOGO_MAX, Math.round(Math.min(w, h) * 0.32), inner));
+  const labelFont = clamp(side * 0.13, ...LABEL_FONT);
+  const valueFont = clamp(side * 0.11, ...VALUE_FONT);
+  const detailFont = clamp(side * 0.08, ...DETAIL_FONT);
+  const lh = (font: number) => Math.round(font * 1.25);
+  let logo = clamp(Math.round(side * 0.32), LOGO_MIN, Math.min(LOGO_MAX, inner));
   const room = h - 2 * PAD;
-  const lines: { text: string; cls: string; height: number }[] = [];
+  const width = w - 2 * PAD;
+  const lines: { text: string; cls: string; font: number; height: number }[] = [];
   const fits = (extra: number) => logo + extra + 2 <= room;
+  const line = (text: string, cls: string, font: number) => ({ text: fitText(text, width, font * GLYPH), cls, font, height: lh(font) });
   // Valeur d'abord, puis ticker au-dessus d'elle, puis détails — chacun seulement s'il tient en hauteur et en largeur.
-  if (w >= 30 && fits(LINE_VALUE)) {
-    lines.push({ text: fitText(value, w - 2 * PAD, 6.2), cls: "lq-heatmap__tile-value", height: LINE_VALUE });
-    if (w >= 34 && fits(LINE_VALUE + LINE_LABEL)) {
-      lines.unshift({ text: fitText(tile.label, w - 2 * PAD, 7), cls: "lq-heatmap__tile-label", height: LINE_LABEL });
-      if (w >= 80) {
-        let used = LINE_VALUE + LINE_LABEL;
+  if (width >= 4 * valueFont * GLYPH && fits(lh(valueFont))) {
+    lines.push(line(value, "lq-heatmap__tile-value", valueFont));
+    if (fits(lh(valueFont) + lh(labelFont))) {
+      lines.unshift(line(tile.label, "lq-heatmap__tile-label", labelFont));
+      if (width >= 12 * detailFont * GLYPH) {
+        let used = lh(valueFont) + lh(labelFont);
         for (const d of tile.details ?? []) {
-          if (!fits(used + LINE_DETAIL)) break;
-          lines.push({ text: fitText(d, w - 2 * PAD, 6), cls: "lq-heatmap__tile-detail", height: LINE_DETAIL });
-          used += LINE_DETAIL;
+          if (!fits(used + lh(detailFont))) break;
+          lines.push(line(d, "lq-heatmap__tile-detail", detailFont));
+          used += lh(detailFont);
         }
       }
     }
   } else {
-    // Logo seul : il prend la place disponible (sans dépasser la borne).
-    logo = Math.max(LOGO_MIN, Math.min(inner, 16, logo));
+    // Logo seul : petit, centré.
+    logo = clamp(Math.min(inner, 16), LOGO_MIN, logo);
   }
   const used = logo + (lines.length ? 2 : 0) + lines.reduce((s, l) => s + l.height, 0);
   const cx = w / 2;
@@ -517,7 +527,7 @@ function HeatmapTileContent({
           const ty = y + l.height / 2 + 1;
           y += l.height;
           return (
-            <text key={i} x={cx} y={ty} className={l.cls}>
+            <text key={i} x={cx} y={ty} className={l.cls} style={{ fontSize: l.font }}>
               {l.text}
             </text>
           );

@@ -53,7 +53,7 @@ export { Chip, ChipGroup } from "./Chip";
 export type { ChipProps, ChipGroupProps, ChipGroupOption, ChipGroupSingleProps, ChipGroupMultipleProps } from "./Chip";
 
 export { TagInput } from "./TagInput";
-export type { TagInputProps } from "./TagInput";
+export type { TagInputProps, TagInputSuggestion } from "./TagInput";
 
 export type { PopoverPlacement } from "./internal/usePopoverPosition";
 

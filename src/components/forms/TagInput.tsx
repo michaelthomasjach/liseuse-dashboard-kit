@@ -1,8 +1,16 @@
-import { useRef, useState, type KeyboardEvent } from "react";
+import { useId, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { Tag } from "./Tag";
 import { ErrorIcon } from "../icons";
 import "./field.css";
 import "./TagInput.css";
+
+/** A pickable value for `TagInput.suggestions`: `value` goes into `value[]`, `label` is what the tag and the list show. */
+export interface TagInputSuggestion {
+  value: string;
+  label: string;
+  /** Second, muted line in the suggestion list (e.g. "États-Unis · 500 sociétés"). */
+  description?: string;
+}
 
 export interface TagInputProps {
   value: string[];
@@ -18,10 +26,22 @@ export interface TagInputProps {
   className?: string;
   /** Control min-height/padding/font-size. Default "normal" (40px). */
   size?: "small" | "normal";
+  /** Values to pick from: a list opens under the field while it has focus, filtered by what is typed (label or
+   *  description), navigable with ↑/↓ and Enter, or by clicking. Tags show the suggestion's `label`. */
+  suggestions?: TagInputSuggestion[];
+  /** Only values from `suggestions` can be added (free text is ignored). Default false. */
+  restrictToSuggestions?: boolean;
 }
 
-/** Free-form tag/chip input: type and press comma or Enter to add a tag, Backspace on an
- *  empty field to drop the last one, or click a tag's × to remove it directly. */
+const fold = (s: string) =>
+  s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "");
+
+/** Tag/chip input: type and press comma or Enter to add a tag, Backspace on an empty field to drop the last one, or
+ *  click a tag's × to remove it directly. With `suggestions`, a filtered list of pickable values opens under the
+ *  field (multi-selection from a known list, e.g. stock indices). */
 export function TagInput({
   value,
   onChange,
@@ -34,27 +54,63 @@ export function TagInput({
   maxTags,
   className,
   size = "normal",
+  suggestions,
+  restrictToSuggestions = false,
 }: TagInputProps) {
   const [inputValue, setInputValue] = useState("");
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const listId = useId();
   const atMax = maxTags !== undefined && value.length >= maxTags;
+  const labelOf = (v: string) => suggestions?.find((s) => s.value === v)?.label ?? v;
 
-  function commitTag() {
-    const trimmed = inputValue.trim();
-    if (!trimmed) return;
-    if (preventDuplicates && value.includes(trimmed)) {
+  const matches = useMemo(() => {
+    if (!suggestions) return [];
+    const q = fold(inputValue.trim());
+    return suggestions.filter((s) => !value.includes(s.value) && (!q || fold(s.label).includes(q) || fold(s.description ?? "").includes(q)));
+  }, [suggestions, inputValue, value]);
+
+  function add(v: string) {
+    if (preventDuplicates && value.includes(v)) {
       setInputValue("");
       return;
     }
     if (maxTags !== undefined && value.length >= maxTags) return;
-    onChange([...value, trimmed]);
+    onChange([...value, v]);
     setInputValue("");
+    setActive(0);
+  }
+
+  function commitTag() {
+    const trimmed = inputValue.trim();
+    if (!trimmed) return;
+    // Texte saisi qui correspond exactement à une suggestion : c'est elle qu'on ajoute.
+    const exact = suggestions?.find((s) => fold(s.label) === fold(trimmed) || s.value === trimmed);
+    if (exact) return add(exact.value);
+    if (restrictToSuggestions) {
+      setInputValue("");
+      return;
+    }
+    add(trimmed);
   }
 
   function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
+    const listShown = open && matches.length > 0;
+    if (listShown && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
+      e.preventDefault();
+      setActive((i) => (e.key === "ArrowDown" ? (i + 1) % matches.length : (i - 1 + matches.length) % matches.length));
+      return;
+    }
+    if (e.key === "Escape") {
+      setOpen(false);
+      return;
+    }
     if (e.key === "," || e.key === "Enter") {
       e.preventDefault();
-      commitTag();
+      const pick = listShown ? matches[Math.min(active, matches.length - 1)] : undefined;
+      if (pick && (inputValue.trim() || e.key === "Enter")) add(pick.value);
+      else commitTag();
       return;
     }
     if (e.key === "Backspace" && inputValue === "" && value.length > 0) {
@@ -62,8 +118,10 @@ export function TagInput({
     }
   }
 
+  const showList = Boolean(suggestions) && open && !disabled && !atMax && matches.length > 0;
+
   return (
-    <div className={["lq-field", className].filter(Boolean).join(" ")}>
+    <div className={["lq-field", "lq-tag-input-field", className].filter(Boolean).join(" ")}>
       {label && <span className="lq-field__label">{label}</span>}
       <div
         className={[
@@ -79,20 +137,53 @@ export function TagInput({
       >
         {value.map((tag, i) => (
           <Tag key={`${tag}-${i}`} onRemove={disabled ? undefined : () => onChange(value.filter((_, idx) => idx !== i))}>
-            {tag}
+            {labelOf(tag)}
           </Tag>
         ))}
         <input
           ref={inputRef}
           className="lq-tag-input__field"
           value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
+          onChange={(e) => {
+            setInputValue(e.target.value);
+            setActive(0);
+            setOpen(true);
+          }}
+          onFocus={() => setOpen(true)}
           onKeyDown={handleKeyDown}
-          onBlur={commitTag}
+          onBlur={() => {
+            setOpen(false);
+            commitTag();
+          }}
           placeholder={value.length === 0 ? placeholder : undefined}
           disabled={disabled || atMax}
+          role={suggestions ? "combobox" : undefined}
+          aria-expanded={suggestions ? showList : undefined}
+          aria-controls={suggestions ? listId : undefined}
+          aria-autocomplete={suggestions ? "list" : undefined}
         />
       </div>
+      {showList && (
+        <ul className="lq-tag-input__list" id={listId} role="listbox">
+          {matches.map((s, i) => (
+            <li
+              key={s.value}
+              role="option"
+              aria-selected={i === active}
+              className={["lq-tag-input__option", i === active && "is-active"].filter(Boolean).join(" ")}
+              // mousedown (pas click) : le champ ne perd pas le focus avant l'ajout.
+              onMouseDown={(e) => {
+                e.preventDefault();
+                add(s.value);
+              }}
+              onMouseEnter={() => setActive(i)}
+            >
+              <span className="lq-tag-input__option-label">{s.label}</span>
+              {s.description && <span className="lq-tag-input__option-desc">{s.description}</span>}
+            </li>
+          ))}
+        </ul>
+      )}
       {error ? (
         <span className="lq-field__error">
           <ErrorIcon size={14} />

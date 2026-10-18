@@ -39,3 +39,48 @@
 .lq-tag-input__field:disabled {
   cursor: not-allowed;
 }
+
+/* Suggestions list (TagInput.suggestions): opens under the field while it has focus. */
+.lq-tag-input-field {
+  position: relative;
+}
+
+.lq-tag-input__list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  max-height: 260px;
+  overflow-y: auto;
+  margin: 4px 0 0;
+  padding: 4px;
+  list-style: none;
+  background: var(--lq-color-panel);
+  border: 1px solid var(--lq-color-border);
+  border-radius: 6px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
+}
+
+.lq-tag-input__option {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.lq-tag-input__option.is-active {
+  background: var(--lq-color-hover);
+}
+
+.lq-tag-input__option-label {
+  font-size: 13px;
+  color: var(--lq-color-text);
+}
+
+.lq-tag-input__option-desc {
+  font-size: 11px;
+  color: var(--lq-color-text-muted);
+}

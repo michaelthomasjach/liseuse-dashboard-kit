@@ -2,3 +2,19 @@
   transition: opacity var(--lq-transition-fast);
   cursor: pointer;
 }
+
+/* Error bars (BarDatum.error / errors) and value labels (showValueLabels). */
+.lq-bar-chart__error line {
+  stroke: var(--lq-color-text);
+  stroke-width: 1.5;
+  opacity: 0.85;
+  pointer-events: none;
+}
+
+.lq-bar-chart__value {
+  fill: var(--lq-color-text);
+  font-size: 12px;
+  font-weight: 700;
+  pointer-events: none;
+}
+

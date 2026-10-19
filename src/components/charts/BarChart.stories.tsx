@@ -76,3 +76,25 @@ export const MultiSeriesHorizontal: Story = {
     </div>
   ),
 };
+
+/** Barres d'incertitude et valeurs : impact estimé avec une bande d'incertitude ±50 %. */
+export const WithErrorBars: Story = {
+  render: () => (
+    <BarChart
+      height={300}
+      showValueLabels
+      formatValue={(v) => `${v > 0 ? "+" : ""}${Math.round(v)}`}
+      series={[
+        { id: "2a", label: "2 ans" },
+        { id: "10a", label: "10 ans" },
+        { id: "30a", label: "30 ans" },
+      ]}
+      data={[
+        { id: "fr", label: "France", values: { "2a": 22, "10a": 16, "30a": 12 }, errors: { "2a": [11, 33], "10a": [8, 24], "30a": [6, 18] } },
+        { id: "de", label: "Allemagne", values: { "2a": 20, "10a": 13, "30a": 9 }, errors: { "2a": [10, 30], "10a": [6.5, 19.5], "30a": [4.5, 13.5] } },
+        { id: "it", label: "Italie", values: { "2a": 24, "10a": 19, "30a": 15 }, errors: { "2a": [12, 36], "10a": [9.5, 28.5], "30a": [7.5, 22.5] } },
+      ]}
+    />
+  ),
+};
+

@@ -34,6 +34,11 @@ export interface BarDatum {
   /** Single-series color override — ignored in multi-series mode, where color is a per-*series*
    *  concept instead (see `BarSeriesDef.color`). */
   color?: string;
+  /** Uncertainty range of the single-series value, `[low, high]` — drawn as a vertical error bar
+   *  (whisker with caps) over the bar. */
+  error?: [number, number];
+  /** Same, per series (multi-series mode), keyed by `BarSeriesDef.id`. */
+  errors?: Record<string, [number, number]>;
 }
 
 export interface BarChartProps {
@@ -64,6 +69,9 @@ export interface BarChartProps {
   /** Highlight positive/negative bars using the theme's up/down colors instead of a single accent.
    *  Single-series mode only — multi-series bars are always colored by their own series instead. */
   colorByValue?: boolean;
+  /** Writes each bar's value just past its end (above an error bar when there is one), formatted
+   *  with `formatValue`. Default false. */
+  showValueLabels?: boolean;
 }
 
 const MAX_CATEGORY_TICKS = 24;
@@ -86,6 +94,7 @@ export function BarChart({
   embedded = false,
   className,
   colorByValue = false,
+  showValueLabels = false,
 }: BarChartProps) {
   const clipId = useId();
   const defaultMargin =
@@ -123,20 +132,25 @@ export function BarChart({
   // draws nothing rather than a zero-height bar) in multi-series mode — the one place both render
   // branches below read from, so vertical/horizontal orientation don't each need their own copy
   // of this branching.
-  function barsFor(d: BarDatum): { key: string; seriesId?: string; value: number; color: string }[] {
+  function barsFor(d: BarDatum): { key: string; seriesId?: string; value: number; color: string; error?: [number, number] }[] {
     if (series) {
       if (!d.values) return [];
       const values = d.values;
+      const errs = d.errors;
       // `series.indexOf(s)` (this series' own stable position in the *full*, unfiltered list),
       // not its position within `visibleSeries` — hiding an earlier series shifts every later
       // one's own index within the filtered array, which would otherwise silently reassign it a
       // different color than the one still shown for it in the legend (which colors off the same
       // stable full-array index — see its own render below).
       return visibleSeries
-        .map((s) => (values[s.id] !== undefined ? { key: `${d.id}:${s.id}`, seriesId: s.id, value: values[s.id], color: seriesColor(s, series.indexOf(s)) } : null))
-        .filter((b): b is { key: string; seriesId: string; value: number; color: string } => b !== null);
+        .map((s) =>
+          values[s.id] !== undefined
+            ? { key: `${d.id}:${s.id}`, seriesId: s.id, value: values[s.id] as number, color: seriesColor(s, series.indexOf(s)), ...(errs?.[s.id] ? { error: errs[s.id] } : {}) }
+            : null,
+        )
+        .filter((b): b is { key: string; seriesId: string; value: number; color: string; error?: [number, number] } => b !== null);
     }
-    return d.value !== undefined ? [{ key: d.id, value: d.value, color: colorFor(d) }] : [];
+    return d.value !== undefined ? [{ key: d.id, value: d.value, color: colorFor(d), ...(d.error ? { error: d.error } : {}) }] : [];
   }
 
   const indexScale = useMemo(() => d3.scaleLinear().domain([0, Math.max(1, data.length)]).range([0, catSize]), [data.length, catSize]);
@@ -146,6 +160,11 @@ export function BarChart({
     const values = series
       ? data.flatMap((d) => visibleSeries.map((s) => d.values?.[s.id]).filter((v): v is number => v !== undefined))
       : data.map((d) => d.value ?? 0);
+    // Error bars widen the axis so their whiskers are never cut off.
+    for (const d of data) {
+      if (d.error) values.push(...d.error);
+      if (series && d.errors) for (const s of visibleSeries) if (d.errors[s.id]) values.push(...(d.errors[s.id] as [number, number]));
+    }
     const [min, max] = d3.extent(values) as [number, number];
     const domain = [Math.min(0, min ?? 0), Math.max(0, max ?? 0)];
     return d3
@@ -318,18 +337,36 @@ export function BarChart({
                 if (orientation === "vertical") {
                   const y = bar.value >= 0 ? zoomedValueScale(bar.value) : zeroline;
                   const barHeight = Math.abs(zoomedValueScale(bar.value) - zeroline);
+                  const cx = offset + barThickness / 2;
+                  const cap = Math.min(10, barThickness * 0.35);
+                  const eLow = bar.error ? zoomedValueScale(Math.min(...bar.error)) : null;
+                  const eHigh = bar.error ? zoomedValueScale(Math.max(...bar.error)) : null;
+                  const labelY = Math.min(y, eHigh ?? y) - 6;
                   return (
-                    <rect
-                      key={bar.key}
-                      x={offset}
-                      y={y}
-                      width={barThickness}
-                      height={barHeight}
-                      fill={bar.color}
-                      opacity={isHover ? 0.75 : 1}
-                      onPointerEnter={() => setHover({ catId: d.id, seriesId: bar.seriesId })}
-                      onPointerLeave={() => setHover(null)}
-                    />
+                    <g key={bar.key}>
+                      <rect
+                        x={offset}
+                        y={y}
+                        width={barThickness}
+                        height={barHeight}
+                        fill={bar.color}
+                        opacity={isHover ? 0.75 : 1}
+                        onPointerEnter={() => setHover({ catId: d.id, seriesId: bar.seriesId })}
+                        onPointerLeave={() => setHover(null)}
+                      />
+                      {eLow !== null && eHigh !== null && (
+                        <g className="lq-bar-chart__error" aria-hidden="true">
+                          <line x1={cx} x2={cx} y1={eLow} y2={eHigh} />
+                          <line x1={cx - cap} x2={cx + cap} y1={eHigh} y2={eHigh} />
+                          <line x1={cx - cap} x2={cx + cap} y1={eLow} y2={eLow} />
+                        </g>
+                      )}
+                      {showValueLabels && (
+                        <text className="lq-bar-chart__value" x={cx} y={labelY} textAnchor="middle">
+                          {formatValue ? formatValue(bar.value) : bar.value}
+                        </text>
+                      )}
+                    </g>
                   );
                 }
                 const x = bar.value >= 0 ? zeroline : zoomedValueScale(bar.value);

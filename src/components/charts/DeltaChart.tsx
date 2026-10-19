@@ -236,9 +236,12 @@ export function DeltaChart({
             {showConnectors &&
               visible.map(({ bar, i }, idx) => {
                 const next = visible[idx + 1];
-                if (!next || next.bar.item.isTotal) return null;
-                const x1 = zoomedIndexScale(i + 1);
-                const x2 = zoomedIndexScale(next.i);
+                if (!next) return null;
+                // From the right edge of this bar to the left edge of the next one, at the running total after it
+                // (a subtotal bar starts from that same level, so the bridge runs into it too).
+                const x1 = zoomedIndexScale(i + 0.5) + barThickness / 2;
+                const x2 = zoomedIndexScale(next.i + 0.5) - barThickness / 2;
+                if (x2 <= x1) return null;
                 const y = zoomedValueScale(bar.cumulativeAfter);
                 return <line key={bar.item.id} className="lq-delta-chart__connector" x1={x1} x2={x2} y1={y} y2={y} />;
               })}

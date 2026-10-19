@@ -73,3 +73,25 @@ function SyncedDemo() {
 
 /** Survol synchronisé : survoler un graphique affiche la même date et ses valeurs sur l'autre. */
 export const SyncedHover: Story = { render: () => <SyncedDemo /> };
+
+/** Fourchette de scénarios : trajectoire centrale, bande pessimiste / optimiste, trajectoire avant le choc en pointillés, axe Y masqué. */
+export const ScenarioBand: Story = {
+  render: () => {
+    const before = Array.from({ length: 36 }, (_, i) => ({ x: i, y: 100 + Math.sin(i / 2) * 2 }));
+    const after = before.map((p) => (p.x < 10 ? p : { x: p.x, y: 100 + Math.min(20, (p.x - 10) * 4) + Math.sin(p.x) * 1.5 }));
+    const band = after.filter((p) => p.x >= 10).map((p) => ({ x: p.x, low: p.y - (p.x - 10) * 0.6, high: p.y + (p.x - 10) * 0.7 }));
+    return (
+      <LineAreaChart
+        height={320}
+        xType="linear"
+        showYAxis={false}
+        margin={{ left: 12 }}
+        series={[
+          { id: "before", label: "Avant le choc", data: before, dashed: true, color: "#8a93a6" },
+          { id: "after", label: "Après le choc", data: after, band, color: "#f2a33a", strokeWidth: 2.5 },
+        ]}
+      />
+    );
+  },
+};
+

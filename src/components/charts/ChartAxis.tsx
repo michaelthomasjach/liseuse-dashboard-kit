@@ -22,6 +22,8 @@ export interface ChartAxisProps<Domain extends d3.AxisDomain = d3.AxisDomain> {
   grid?: boolean;
   /** Length of grid lines (usually the plot's bounded width/height). Required when `grid` is true. */
   gridLength?: number;
+  /** Extra class on the axis group (e.g. `lq-chart__axis--hidden`: grid lines only, no labels or axis line). */
+  className?: string;
 }
 
 /**
@@ -41,6 +43,7 @@ export function ChartAxis<Domain extends d3.AxisDomain = d3.AxisDomain>({
   domainExtent,
   grid = false,
   gridLength = 0,
+  className,
 }: ChartAxisProps<Domain>) {
   const ref = useRef<SVGGElement>(null);
 
@@ -125,5 +128,5 @@ export function ChartAxis<Domain extends d3.AxisDomain = d3.AxisDomain>({
     }
   });
 
-  return <g ref={ref} className="lq-chart-axis" transform={transform} />;
+  return <g ref={ref} className={["lq-chart-axis", className].filter(Boolean).join(" ")} transform={transform} />;
 }

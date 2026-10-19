@@ -3594,3 +3594,11 @@
   font: inherit; cursor: pointer; transition: background-color 0.15s ease, color 0.15s ease;
 }
 .lq-overlay-bubble__delete:hover, .lq-overlay-bubble__delete:focus-visible { background: var(--lq-color-down); color: #fff; }
+
+/* Hidden Y axis (LineAreaChart showYAxis={false}): keep the grid lines, drop the labels, ticks and axis line. */
+.lq-chart__axis--hidden text,
+.lq-chart__axis--hidden .lq-chart-axis__domain,
+.lq-chart__axis--hidden .lq-chart-axis__tick-line {
+  display: none;
+}
+

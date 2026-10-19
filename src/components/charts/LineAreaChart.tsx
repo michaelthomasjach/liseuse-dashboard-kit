@@ -41,6 +41,14 @@ export interface ChartSeries {
    *  regardless of sign) — this one fills toward the reference line specifically, in one of two
    *  colors depending on which side of it the curve currently sits on. */
   fillSignedAtReference?: { positiveColor: string; negativeColor: string };
+  /** Range of scenarios around the line: a band from `low` to `high` at each X, filled with the
+   *  series color (translucent), drawn under the line — e.g. a pessimistic/optimistic fan around a
+   *  central path. Its bounds count in the Y domain. */
+  band?: { x: Date | number; low: number; high: number }[];
+  /** Fill opacity of `band`. Default 0.18. */
+  bandOpacity?: number;
+  /** Dashed line (e.g. a "before the shock" / counterfactual path). */
+  dashed?: boolean;
   data: ChartPoint[];
 }
 
@@ -72,6 +80,9 @@ export interface LineAreaChartProps {
    *  "right" to match `CandlestickChart`'s own price-axis convention when embedding this as a
    *  sub-chart alongside it (see SeasonalityView). */
   yAxisOrientation?: "left" | "right";
+  /** Shows the Y axis (values and axis line). `false` keeps only the horizontal grid lines — pair
+   *  it with a smaller `margin.left`. Default true. */
+  showYAxis?: boolean;
   /** Drops this chart's own border/background chrome — for embedding inside another `.lq-chart`
    *  that already provides it (see SeasonalityView), so the two don't stack into a visible
    *  double border. Default false (a standalone LineAreaChart keeps its own border). */
@@ -171,6 +182,7 @@ export const LineAreaChart = forwardRef<LineAreaChartHandle, LineAreaChartProps>
   showLegend = true,
   fullscreenToggle = true,
   yAxisOrientation = "left",
+  showYAxis = true,
   embedded = false,
   referenceLineY,
   showZoomReset = true,
@@ -285,7 +297,7 @@ export const LineAreaChart = forwardRef<LineAreaChartHandle, LineAreaChartProps>
   const hover = localHover ?? syncedHover;
 
   const yScale = useMemo(() => {
-    const allY = visibleSeries.flatMap((s) => s.data.map((d) => d.y));
+    const allY = visibleSeries.flatMap((s) => [...s.data.map((d) => d.y), ...(s.band ?? []).flatMap((b) => [b.low, b.high])]);
     const [min, max] = d3.extent(allY) as [number, number];
     const pad = (max - min) * 0.1 || 1;
     return d3
@@ -355,6 +367,13 @@ export const LineAreaChart = forwardRef<LineAreaChartHandle, LineAreaChartProps>
     .line<ChartPoint>()
     .x((d) => zoomedXScale(d.x as never))
     .y((d) => zoomedYScale(d.y))
+    .curve(curveFactory);
+
+  const bandGen = d3
+    .area<{ x: Date | number; low: number; high: number }>()
+    .x((d) => zoomedXScale(d.x as never))
+    .y0((d) => zoomedYScale(d.low))
+    .y1((d) => zoomedYScale(d.high))
     .curve(curveFactory);
 
   const areaGen = d3
@@ -501,6 +520,7 @@ export const LineAreaChart = forwardRef<LineAreaChartHandle, LineAreaChartProps>
         </defs>
         <g transform={`translate(${dims.margin.left}, ${dims.margin.top})`}>
           <ChartAxis
+            className={showYAxis ? undefined : "lq-chart__axis--hidden"}
             scale={zoomedYScale}
             orientation={yAxisOrientation}
             transform={yAxisOrientation === "right" ? `translate(${dims.boundedWidth}, 0)` : undefined}
@@ -596,6 +616,9 @@ export const LineAreaChart = forwardRef<LineAreaChartHandle, LineAreaChartProps>
               const fillArea = s.area ?? area;
               return (
                 <g key={s.id}>
+                  {s.band && s.band.length > 1 && (
+                    <path className="lq-chart__band" d={bandGen(s.band) ?? undefined} fill={color} fillOpacity={s.bandOpacity ?? 0.18} stroke="none" />
+                  )}
                   {fillArea && <path d={areaGen(s.data) ?? undefined} fill={color} fillOpacity={0.12} stroke="none" />}
                   {s.fillSignedAtReference &&
                     referenceLineY !== undefined &&
@@ -608,7 +631,7 @@ export const LineAreaChart = forwardRef<LineAreaChartHandle, LineAreaChartProps>
                         stroke="none"
                       />
                     ))}
-                  <path d={lineGen(s.data) ?? undefined} fill="none" stroke={color} strokeWidth={s.strokeWidth ?? 2} />
+                  <path d={lineGen(s.data) ?? undefined} fill="none" stroke={color} strokeWidth={s.strokeWidth ?? 2} strokeDasharray={s.dashed ? "5 4" : undefined} />
                   {s.endDot &&
                     s.data.length > 0 &&
                     (() => {

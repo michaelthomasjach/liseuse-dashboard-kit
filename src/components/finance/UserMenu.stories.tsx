@@ -3,7 +3,7 @@ import { UserMenu } from "./UserMenu";
 import { UserIcon, SettingsIcon, LogoutIcon, BellIcon, CreditCardIcon, LockIcon } from "../icons";
 
 const meta: Meta<typeof UserMenu> = {
-  title: "Finance/UserMenu",
+  title: "Layouts/UserMenu",
   component: UserMenu,
 };
 export default meta;

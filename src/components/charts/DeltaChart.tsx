@@ -28,6 +28,9 @@ export interface DeltaChartProps {
   formatValue?: (value: number) => string;
   /** Dashed bridging lines between consecutive bars. Default true. */
   showConnectors?: boolean;
+  /** Shows the value axis (labels and axis line). `false` keeps only the grid (hover tooltip still gives each
+   *  amount). Default true. */
+  showValueAxis?: boolean;
   showLegend?: boolean;
   /** Pan/zoom the categorical axis — same drag/wheel/axis-rescale conventions as
    *  `CandlestickChart` and `LineAreaChart`, useful once there are many steps. Default true. */
@@ -74,6 +77,7 @@ export function DeltaChart({
   height = 340,
   formatValue,
   showConnectors = true,
+  showValueAxis = true,
   showLegend = true,
   zoomable = true,
   fullscreenToggle = true,
@@ -219,7 +223,7 @@ export function DeltaChart({
           </clipPath>
         </defs>
         <g transform={`translate(${dims.margin.left}, ${dims.margin.top})`}>
-          <ChartAxis scale={zoomedValueScale} orientation="left" grid gridLength={dims.boundedWidth} tickFormat={(v) => fmt(Number(v))} />
+          <ChartAxis className={showValueAxis ? undefined : "lq-chart__axis--hidden"} scale={zoomedValueScale} orientation="left" grid gridLength={dims.boundedWidth} tickFormat={(v) => fmt(Number(v))} />
           <ChartAxis
             scale={zoomedIndexScale}
             orientation="bottom"

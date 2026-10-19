@@ -92,16 +92,54 @@
   transform: rotate(180deg);
 }
 
+/* Sub-items hang off a vertical bar that starts under the group's icon, each with a short tick before its own icon. */
 .lq-sidebar-layout__group-items {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  margin: 2px 0 4px;
+  gap: 0;
+  margin: 2px 0 4px calc(var(--lq-space-3) + 8px);
 }
 
 .lq-sidebar-layout__nav-item--nested {
-  padding-left: calc(var(--lq-space-3) + 14px);
-  font-size: 0.84rem;
+  position: relative;
+  gap: var(--lq-space-2);
+  padding: 6px var(--lq-space-2) 6px 18px;
+  font-size: 0.78rem;
+}
+
+.lq-sidebar-layout__nav-item--nested svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Vertical bar (down to the last item's tick) and the tick itself. */
+.lq-sidebar-layout__nav-item--nested::before,
+.lq-sidebar-layout__nav-item--nested::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  background: var(--lq-sidebar-tree, color-mix(in srgb, var(--lq-color-text-muted) 55%, transparent));
+  pointer-events: none;
+}
+
+.lq-sidebar-layout__nav-item--nested::before {
+  top: 0;
+  bottom: 0;
+  width: 1px;
+}
+
+.lq-sidebar-layout__nav-item--nested:last-child::before {
+  bottom: 50%;
+}
+
+.lq-sidebar-layout__nav-item--nested::after {
+  top: 50%;
+  width: 10px;
+  height: 1px;
+}
+
+.lq-sidebar-layout__nav-item--nested.lq-sidebar-layout__nav-item--active::after {
+  background: var(--lq-color-accent);
 }
 
 .lq-sidebar-layout__footer {

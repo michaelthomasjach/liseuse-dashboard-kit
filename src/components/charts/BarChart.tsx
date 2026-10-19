@@ -72,6 +72,9 @@ export interface BarChartProps {
   /** Writes each bar's value just past its end (above an error bar when there is one), formatted
    *  with `formatValue`. Default false. */
   showValueLabels?: boolean;
+  /** Shows the value axis (labels and axis line). `false` keeps only the grid; values stay readable in the hover
+   *  tooltip — pair it with a smaller `margin` on that side. Default true. */
+  showValueAxis?: boolean;
 }
 
 const MAX_CATEGORY_TICKS = 24;
@@ -95,6 +98,7 @@ export function BarChart({
   className,
   colorByValue = false,
   showValueLabels = false,
+  showValueAxis = true,
 }: BarChartProps) {
   const clipId = useId();
   const defaultMargin =
@@ -316,7 +320,7 @@ export function BarChart({
         <g transform={`translate(${dims.margin.left}, ${dims.margin.top})`}>
           {orientation === "vertical" ? (
             <>
-              <ChartAxis scale={zoomedValueScale} orientation="left" grid={showGrid} gridLength={dims.boundedWidth} tickFormat={formatValue ? (v) => formatValue(Number(v)) : undefined} />
+              <ChartAxis className={showValueAxis ? undefined : "lq-chart__axis--hidden"} scale={zoomedValueScale} orientation="left" grid={showGrid} gridLength={dims.boundedWidth} tickFormat={formatValue ? (v) => formatValue(Number(v)) : undefined} />
               <ChartAxis
                 scale={zoomedIndexScale}
                 orientation="bottom"
@@ -327,7 +331,7 @@ export function BarChart({
             </>
           ) : (
             <>
-              <ChartAxis scale={zoomedValueScale} orientation="bottom" transform={`translate(0, ${dims.boundedHeight})`} grid={showGrid} gridLength={dims.boundedHeight} tickFormat={formatValue ? (v) => formatValue(Number(v)) : undefined} />
+              <ChartAxis className={showValueAxis ? undefined : "lq-chart__axis--hidden"} scale={zoomedValueScale} orientation="bottom" transform={`translate(0, ${dims.boundedHeight})`} grid={showGrid} gridLength={dims.boundedHeight} tickFormat={formatValue ? (v) => formatValue(Number(v)) : undefined} />
               <ChartAxis scale={zoomedIndexScale} orientation="left" tickValues={catTickValues} tickFormat={catTickFormat} />
             </>
           )}

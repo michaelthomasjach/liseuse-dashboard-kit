@@ -5,7 +5,7 @@ import { Button } from "../primitives/Button";
 import { FileIcon } from "../icons";
 
 const meta: Meta = {
-  title: "Finance/Notification",
+  title: "Feedback/Notification",
   parameters: { layout: "fullscreen" },
 };
 export default meta;

@@ -167,12 +167,19 @@ export function BarChart({
     }
     const [min, max] = d3.extent(values) as [number, number];
     const domain = [Math.min(0, min ?? 0), Math.max(0, max ?? 0)];
+    // Room for the value labels (and an error bar's cap) past the tallest bar: ~22 px of the axis.
+    if (showValueLabels && valSize > 0) {
+      const span = domain[1] - domain[0] || 1;
+      const pad = (span * 22) / Math.max(40, valSize - 22);
+      if (domain[1] > 0) domain[1] += pad;
+      if (domain[0] < 0) domain[0] -= pad;
+    }
     return d3
       .scaleLinear()
       .domain(domain)
       .nice()
       .range(orientation === "vertical" ? [valSize, 0] : [0, valSize]);
-  }, [data, series, visibleSeries, orientation, valSize]);
+  }, [data, series, visibleSeries, orientation, valSize, showValueLabels]);
   const zoomedValueScale = valAxis === "y" ? valTransform.rescaleY(valueScale) : valTransform.rescaleX(valueScale);
 
   const { ref: zoomRef, reset: resetCat, setTransform: setCatTransformViaZoom } = useD3Zoom<SVGRectElement>({

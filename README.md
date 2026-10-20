@@ -118,6 +118,7 @@ Toute zone scrollable sous `.lq-root` reçoit automatiquement un ascenseur fin e
 - `LqThemeProvider`, `useLqTheme`
 
 **Icônes**
+- `ClockOffIcon` : horloge barrée (« heure non communiquée » d'un événement annoncé sans heure)
 - Set d'icônes SVG (`SunIcon`, `MoonIcon`, `PartlyCloudyIcon`, `CloudRainIcon`, `WindIcon`, `CloudIcon`, etc.) — voir la story "Foundations/Animated Icons"
 - Certaines icônes météo acceptent une prop `animated` (boucle idle discrète) : soleil qui tourne lentement, lune qui respire (échelle/opacité), petit soleil du "partiellement nuageux" qui tourne (le nuage reste fixe), gouttes de pluie qui tombent en cascade décalée, vent qui ondule légèrement. Désactivé automatiquement sous la palette e-ink et `prefers-reduced-motion` (comme les autres animations décoratives)
 - Icônes de jeu de gestion : `BuildingWarehouseIcon`, `ClipboardListIcon`, `PackageIcon`, `BoxesIcon`, `BoltIcon`, `BriefcaseIcon`, `SkillTreeIcon`, `BarChartIcon`, `BookOpenIcon`, `ArrowPathIcon` (tracer un flux), `SquareDashedIcon` (tracer une zone), `HouseRoofIcon`, `ParkingIcon`, `TruckIcon`, `RoadIcon`, `SnowflakeIcon`, `RobotIcon`, `TreeIcon`, `ConveyorIcon`, `ForkliftIcon`, `CartIcon` — avec `GaugeIcon`, `HelpIcon`, `RefreshIcon`, `SolarPanelIcon`, `SettingsIcon` déjà présentes

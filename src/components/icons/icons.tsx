@@ -371,6 +371,15 @@ export const PlugIcon = (props: AnimatedIconProps) => (
  *  Shakes rather than rings: a ring is a bell's own motion (see `lq-icon-ring`, which swings from
  *  the top edge the way a hung bell does), and reusing it here would put back through movement the
  *  confusion the shape was changed to remove. */
+/** A clock struck through — "time not given" (an event announced without an hour). */
+export const ClockOffIcon = (props: AnimatedIconProps) => (
+  <IconBase motion="blink" {...props}>
+    <circle cx="12" cy="12" r="8.5" />
+    <path d="M12 7.5V12l2.5 1.5" />
+    <path d="M3.5 3.5l17 17" />
+  </IconBase>
+);
+
 export const AlarmClockIcon = (props: AnimatedIconProps) => (
   <IconBase motion="shake" {...props}>
     <circle cx="12" cy="13.5" r="7.5" />

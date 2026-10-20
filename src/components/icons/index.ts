@@ -44,6 +44,7 @@ export {
   ArrowDownIcon,
   MenuIcon,
   AlarmClockIcon,
+  ClockOffIcon,
   PlugIcon,
   BellIcon,
   WatchlistIcon,

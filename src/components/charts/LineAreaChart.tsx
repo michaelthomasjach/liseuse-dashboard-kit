@@ -1,5 +1,6 @@
 import { forwardRef, useCallback, useEffect, useId, useImperativeHandle, useMemo, useState } from "react";
 import * as d3 from "d3";
+import { useAxisLabelWidth } from "./internal/useAxisLabelWidth";
 import { useChartDimensions, type ChartMargin } from "./internal/useChartDimensions";
 import { useD3Zoom } from "./internal/useD3Zoom";
 import { useAxisDragRescale } from "./internal/useAxisDragRescale";
@@ -83,6 +84,9 @@ export interface LineAreaChartProps {
   /** Shows the Y axis (values and axis line). `false` keeps only the horizontal grid lines — pair
    *  it with a smaller `margin.left`. Default true. */
   showYAxis?: boolean;
+  /** Hides the vertical (Y) axis *line* while keeping its value labels and grid; the X axis line then runs on to
+   *  the SVG's own edge on the axis side (left, or right with `yAxisOrientation="right"`) (under the labels), as on a borderless card. Default false. */
+  hideYAxisLine?: boolean;
   /** Drops this chart's own border/background chrome — for embedding inside another `.lq-chart`
    *  that already provides it (see SeasonalityView), so the two don't stack into a visible
    *  double border. Default false (a standalone LineAreaChart keeps its own border). */
@@ -183,6 +187,7 @@ export const LineAreaChart = forwardRef<LineAreaChartHandle, LineAreaChartProps>
   fullscreenToggle = true,
   yAxisOrientation = "left",
   showYAxis = true,
+  hideYAxisLine = false,
   embedded = false,
   referenceLineY,
   showZoomReset = true,
@@ -232,7 +237,12 @@ export const LineAreaChart = forwardRef<LineAreaChartHandle, LineAreaChartProps>
   }, [measureActive]);
 
   const { isFullscreen, toggle: toggleFullscreen } = useFullscreen();
-  const [ref, dims] = useChartDimensions(margin, { height: isFullscreen ? undefined : height });
+  // Y axis margin fitted to its labels once drawn (no fixed reserve beside them); an explicit margin on that side wins.
+  const [yAxisRef, yLabelWidth] = useAxisLabelWidth();
+  const side = yAxisOrientation === "right" ? "right" : "left";
+  const fitted: Partial<ChartMargin> = { ...margin };
+  if (fitted[side] === undefined && yLabelWidth !== null) fitted[side] = yLabelWidth;
+  const [ref, dims] = useChartDimensions(fitted, { height: isFullscreen ? undefined : height });
 
   const visibleSeries = series.filter((s) => !hiddenIds.has(s.id));
 
@@ -519,16 +529,22 @@ export const LineAreaChart = forwardRef<LineAreaChartHandle, LineAreaChartProps>
           )}
         </defs>
         <g transform={`translate(${dims.margin.left}, ${dims.margin.top})`}>
-          <ChartAxis
-            className={showYAxis ? undefined : "lq-chart__axis--hidden"}
-            scale={zoomedYScale}
-            orientation={yAxisOrientation}
-            transform={yAxisOrientation === "right" ? `translate(${dims.boundedWidth}, 0)` : undefined}
-            grid={showGrid}
-            gridLength={dims.boundedWidth}
-            tickFormat={formatY ? (v) => formatY(Number(v)) : undefined}
-            ticks={yTicks}
-          />
+          <g ref={yAxisRef}>
+            <ChartAxis
+              className={[showYAxis ? null : "lq-chart__axis--hidden", hideYAxisLine ? "lq-chart__axis--no-line" : null].filter(Boolean).join(" ") || undefined}
+              scale={zoomedYScale}
+              orientation={yAxisOrientation}
+              transform={yAxisOrientation === "right" ? `translate(${dims.boundedWidth}, 0)` : undefined}
+              grid={showGrid}
+              gridLength={dims.boundedWidth}
+              tickFormat={formatY ? (v) => formatY(Number(v)) : undefined}
+              ticks={yTicks}
+            />
+          </g>
+          {/* Y axis line hidden: the X axis line runs on under the labels to the SVG's edge on the axis side. */}
+          {hideYAxisLine && yAxisOrientation !== "right" && (
+            <line className="lq-chart__axis-line-extension" x1={-dims.margin.left} x2={0} y1={dims.boundedHeight} y2={dims.boundedHeight} />
+          )}
           {/* d3's own X-axis domain line only spans its scale's range ([0, boundedWidth]) — with
               the Y axis moved into a right-side margin column, that left it short of the chart's
               actual right edge, same gap CandlestickChart's own axis-line-extension already

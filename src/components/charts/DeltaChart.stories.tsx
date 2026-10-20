@@ -46,3 +46,24 @@ export const RevenueBridge: Story = {
     </div>
   ),
 };
+
+export const HiddenYAxisLine: Story = {
+  name: "Sans ligne d'axe Y (hideYAxisLine)",
+  args: { hideYAxisLine: true },
+  argTypes: { hideYAxisLine: { control: "boolean" } },
+  render: (args) => (
+    <div style={{ maxWidth: 700 }}>
+      <DeltaChart
+        {...args}
+        formatValue={(v) => `${v.toFixed(1)} M€`}
+        items={[
+          { id: "start", label: "T1", value: 42.0, isTotal: true },
+          { id: "new", label: "Nouveaux clients", value: 8.4 },
+          { id: "churn", label: "Attrition", value: -3.1 },
+          { id: "upsell", label: "Upsell", value: 2.6 },
+          { id: "end", label: "T2", value: 49.9, isTotal: true },
+        ]}
+      />
+    </div>
+  ),
+};

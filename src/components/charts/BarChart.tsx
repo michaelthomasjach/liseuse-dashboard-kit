@@ -1,5 +1,6 @@
 import { useId, useMemo, useState } from "react";
 import * as d3 from "d3";
+import { useAxisLabelWidth } from "./internal/useAxisLabelWidth";
 import { useChartDimensions, type ChartMargin } from "./internal/useChartDimensions";
 import { useD3Zoom } from "./internal/useD3Zoom";
 import { useAxisDragRescale } from "./internal/useAxisDragRescale";
@@ -75,6 +76,9 @@ export interface BarChartProps {
   /** Shows the value axis (labels and axis line). `false` keeps only the grid; values stay readable in the hover
    *  tooltip — pair it with a smaller `margin` on that side. Default true. */
   showValueAxis?: boolean;
+  /** Hides the vertical (Y) axis *line* while keeping its value labels and grid; the X axis line then runs on to
+   *  the SVG's own left edge (under the labels), as on a borderless card. Default false. */
+  hideYAxisLine?: boolean;
 }
 
 const MAX_CATEGORY_TICKS = 24;
@@ -99,6 +103,7 @@ export function BarChart({
   colorByValue = false,
   showValueLabels = false,
   showValueAxis = true,
+  hideYAxisLine = false,
 }: BarChartProps) {
   const clipId = useId();
   const defaultMargin =
@@ -106,7 +111,12 @@ export function BarChart({
       ? { top: 8, right: 24, bottom: 24, left: 96 }
       : { top: 8, right: 8, bottom: 32, left: 48 };
   const { isFullscreen, toggle: toggleFullscreen } = useFullscreen();
-  const [ref, dims] = useChartDimensions(margin ?? defaultMargin, { height: isFullscreen ? undefined : height });
+  // Left margin fitted to the Y axis labels once drawn (no fixed reserve beside them); an explicit `margin.left` wins.
+  const [yAxisRef, yLabelWidth] = useAxisLabelWidth();
+  const [ref, dims] = useChartDimensions(
+    { ...defaultMargin, ...margin, left: margin?.left ?? yLabelWidth ?? defaultMargin.left },
+    { height: isFullscreen ? undefined : height },
+  );
   // `seriesId` set in multi-series mode (one category id alone isn't enough to identify which of
   // its own several bars is hovered) — a structured pair rather than a joined string key, so
   // neither id needs escaping/parsing back apart regardless of what characters a caller's own ids
@@ -320,7 +330,18 @@ export function BarChart({
         <g transform={`translate(${dims.margin.left}, ${dims.margin.top})`}>
           {orientation === "vertical" ? (
             <>
-              <ChartAxis className={showValueAxis ? undefined : "lq-chart__axis--hidden"} scale={zoomedValueScale} orientation="left" grid={showGrid} gridLength={dims.boundedWidth} tickFormat={formatValue ? (v) => formatValue(Number(v)) : undefined} />
+              <g ref={yAxisRef}>
+                <ChartAxis
+                  className={[showValueAxis ? null : "lq-chart__axis--hidden", hideYAxisLine ? "lq-chart__axis--no-line" : null].filter(Boolean).join(" ") || undefined}
+                  scale={zoomedValueScale}
+                  orientation="left"
+                  grid={showGrid}
+                  gridLength={dims.boundedWidth}
+                  tickFormat={formatValue ? (v) => formatValue(Number(v)) : undefined}
+                />
+              </g>
+          {/* Y axis line hidden: the X axis line runs on under the labels to the SVG's left edge. */}
+          {hideYAxisLine && <line className="lq-chart__axis-line-extension" x1={-dims.margin.left} x2={0} y1={dims.boundedHeight} y2={dims.boundedHeight} />}
               <ChartAxis
                 scale={zoomedIndexScale}
                 orientation="bottom"
@@ -332,7 +353,17 @@ export function BarChart({
           ) : (
             <>
               <ChartAxis className={showValueAxis ? undefined : "lq-chart__axis--hidden"} scale={zoomedValueScale} orientation="bottom" transform={`translate(0, ${dims.boundedHeight})`} grid={showGrid} gridLength={dims.boundedHeight} tickFormat={formatValue ? (v) => formatValue(Number(v)) : undefined} />
-              <ChartAxis scale={zoomedIndexScale} orientation="left" tickValues={catTickValues} tickFormat={catTickFormat} />
+              <g ref={yAxisRef}>
+                <ChartAxis
+                  className={hideYAxisLine ? "lq-chart__axis--no-line" : undefined}
+                  scale={zoomedIndexScale}
+                  orientation="left"
+                  tickValues={catTickValues}
+                  tickFormat={catTickFormat}
+                />
+              </g>
+          {/* Y axis line hidden: the X axis line runs on under the labels to the SVG's left edge. */}
+          {hideYAxisLine && <line className="lq-chart__axis-line-extension" x1={-dims.margin.left} x2={0} y1={dims.boundedHeight} y2={dims.boundedHeight} />}
             </>
           )}
 

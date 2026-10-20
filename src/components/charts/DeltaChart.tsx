@@ -1,5 +1,6 @@
 import { useId, useMemo, useState } from "react";
 import * as d3 from "d3";
+import { useAxisLabelWidth } from "./internal/useAxisLabelWidth";
 import { useChartDimensions, type ChartMargin } from "./internal/useChartDimensions";
 import { useD3Zoom } from "./internal/useD3Zoom";
 import { useAxisDragRescale } from "./internal/useAxisDragRescale";
@@ -31,6 +32,9 @@ export interface DeltaChartProps {
   /** Shows the value axis (labels and axis line). `false` keeps only the grid (hover tooltip still gives each
    *  amount). Default true. */
   showValueAxis?: boolean;
+  /** Hides the vertical (Y) axis *line* while keeping its value labels and grid; the X axis line then runs on to
+   *  the SVG's own left edge (under the labels), as on a borderless card. Default false. */
+  hideYAxisLine?: boolean;
   showLegend?: boolean;
   /** Pan/zoom the categorical axis — same drag/wheel/axis-rescale conventions as
    *  `CandlestickChart` and `LineAreaChart`, useful once there are many steps. Default true. */
@@ -78,6 +82,7 @@ export function DeltaChart({
   formatValue,
   showConnectors = true,
   showValueAxis = true,
+  hideYAxisLine = false,
   showLegend = true,
   zoomable = true,
   fullscreenToggle = true,
@@ -87,7 +92,12 @@ export function DeltaChart({
 }: DeltaChartProps) {
   const clipId = useId();
   const { isFullscreen, toggle: toggleFullscreen } = useFullscreen();
-  const [ref, dims] = useChartDimensions(margin ?? DEFAULT_MARGIN, { height: isFullscreen ? undefined : height });
+  // Left margin fitted to the Y axis labels once drawn (no fixed reserve beside them); an explicit `margin.left` wins.
+  const [yAxisRef, yLabelWidth] = useAxisLabelWidth();
+  const [ref, dims] = useChartDimensions(
+    { ...DEFAULT_MARGIN, ...margin, left: margin?.left ?? yLabelWidth ?? DEFAULT_MARGIN.left },
+    { height: isFullscreen ? undefined : height },
+  );
   const [hoverId, setHoverId] = useState<string | null>(null);
   const [catTransform, setCatTransform] = useState<d3.ZoomTransform>(d3.zoomIdentity);
   const [valTransform, setValTransform] = useState<d3.ZoomTransform>(d3.zoomIdentity);
@@ -223,7 +233,18 @@ export function DeltaChart({
           </clipPath>
         </defs>
         <g transform={`translate(${dims.margin.left}, ${dims.margin.top})`}>
-          <ChartAxis className={showValueAxis ? undefined : "lq-chart__axis--hidden"} scale={zoomedValueScale} orientation="left" grid gridLength={dims.boundedWidth} tickFormat={(v) => fmt(Number(v))} />
+          <g ref={yAxisRef}>
+            <ChartAxis
+              className={[showValueAxis ? null : "lq-chart__axis--hidden", hideYAxisLine ? "lq-chart__axis--no-line" : null].filter(Boolean).join(" ") || undefined}
+              scale={zoomedValueScale}
+              orientation="left"
+              grid
+              gridLength={dims.boundedWidth}
+              tickFormat={(v) => fmt(Number(v))}
+            />
+          </g>
+          {/* Y axis line hidden: the X axis line runs on under the labels to the SVG's left edge. */}
+          {hideYAxisLine && <line className="lq-chart__axis-line-extension" x1={-dims.margin.left} x2={0} y1={dims.boundedHeight} y2={dims.boundedHeight} />}
           <ChartAxis
             scale={zoomedIndexScale}
             orientation="bottom"

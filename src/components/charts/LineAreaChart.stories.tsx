@@ -95,3 +95,11 @@ export const ScenarioBand: Story = {
   },
 };
 
+export const HiddenYAxisLine: Story = {
+  name: "Sans ligne d'axe Y (hideYAxisLine)",
+  args: { hideYAxisLine: true },
+  argTypes: { hideYAxisLine: { control: "boolean" } },
+  render: (args) => (
+    <LineAreaChart {...args} series={[{ id: "portfolio", label: "Portefeuille", data: generateSeries(180, 42000, 7) }]} area formatY={formatEUR} formatX={formatDate} />
+  ),
+};

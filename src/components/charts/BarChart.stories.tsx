@@ -98,3 +98,9 @@ export const WithErrorBars: Story = {
   ),
 };
 
+export const HiddenYAxisLine: Story = {
+  name: "Sans ligne d'axe Y (hideYAxisLine)",
+  args: { hideYAxisLine: true },
+  argTypes: { hideYAxisLine: { control: "boolean" } },
+  render: (args) => <BarChart {...args} data={MONTHLY_RETURN} colorByValue formatValue={(v) => `${v.toFixed(1)} %`} />,
+};

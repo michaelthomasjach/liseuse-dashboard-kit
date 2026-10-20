@@ -4,7 +4,9 @@
   /* border-box, not the browser default content-box: with width:100% a border would otherwise
      add its own 2px on top of that 100%, overflowing the parent by that much. */
   box-sizing: border-box;
-  border: 1px solid var(--lq-color-border-subtle);
+  /* No outer border: a chart sits flush in whatever card or page holds it; the caller adds its own
+     border and spacing if it wants a framed chart. */
+  border: none;
   /* A synced crosshair badge (see CandlestickChartProps.syncedHoverDate/syncedHoverPrice) is
      positioned from wherever that panel's own axis puts it, same as a real hover's — right at
      the panel's own edge, it can otherwise render a few px past its box and bleed into whatever
@@ -3602,3 +3604,7 @@
   display: none;
 }
 
+/* `hideYAxisLine`: the Y axis line goes, its labels and grid stay. */
+.lq-chart__axis--no-line .lq-chart-axis__domain {
+  display: none;
+}

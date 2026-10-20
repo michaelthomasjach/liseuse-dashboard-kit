@@ -541,10 +541,6 @@ export const LineAreaChart = forwardRef<LineAreaChartHandle, LineAreaChartProps>
               ticks={yTicks}
             />
           </g>
-          {/* Y axis line hidden: the X axis line runs on under the labels to the SVG's edge on the axis side. */}
-          {hideYAxisLine && yAxisOrientation !== "right" && (
-            <line className="lq-chart__axis-line-extension" x1={-dims.margin.left} x2={0} y1={dims.boundedHeight} y2={dims.boundedHeight} />
-          )}
           {/* d3's own X-axis domain line only spans its scale's range ([0, boundedWidth]) — with
               the Y axis moved into a right-side margin column, that left it short of the chart's
               actual right edge, same gap CandlestickChart's own axis-line-extension already
@@ -558,10 +554,13 @@ export const LineAreaChart = forwardRef<LineAreaChartHandle, LineAreaChartProps>
               y2={dims.boundedHeight}
             />
           )}
+          {/* Y axis line hidden: d3's own X axis line runs on under the labels to the SVG's left edge
+              (same path, stroke and half-pixel offset as the rest of the line). */}
           <ChartAxis
             scale={zoomedXScale}
             orientation="bottom"
             transform={`translate(0, ${dims.boundedHeight})`}
+            domainExtent={hideYAxisLine && yAxisOrientation !== "right" ? [-dims.margin.left, dims.boundedWidth] : undefined}
             tickFormat={
               xTickFormat || formatX
                 ? (v) => (xTickFormat ?? formatX!)(xType === "time" ? (v as Date) : Number(v))

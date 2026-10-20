@@ -197,14 +197,21 @@
    nothing inside a panel can escape its own box to out-stack a sibling regardless of how high that
    inner value is. */
 .lq-chart-workspace__grid > .lq-chart {
+  /* Charts no longer draw an outer border of their own (charts-shared.css): a workspace panel draws its right and
+     bottom edges here, so the bottom line under the date axis and every interior divider stay in place. */
   border-left: none;
   border-top: none;
+  border-right: 1px solid var(--lq-color-border-subtle);
+  border-bottom: 1px solid var(--lq-color-border-subtle);
   isolation: isolate;
 }
 
-/* The docked side panel keeps its own base `border-left` (see charts-shared.css) here too: charts no longer draw an
-   outer border of their own, so this line is the only separation between the right-most chart (its price axis) and
-   the watchlist / symbol detail column. */
+/* The right-most grid panel's own right border already separates it from the docked side panel: the panel's base
+   `border-left` (see charts-shared.css) on top of that would double up into a 2px line. Left as-is for
+   CandlestickChart's standalone `sidePanel` usage, where it's the only border in that spot. */
+.lq-chart-workspace .lq-chart__side-panel {
+  border-left: none;
+}
 
 /* Top and bottom, so the column is bounded the way every chart panel beside it is. Without them
    the watchlist and the symbol detail ran edge to edge of the row while the charts sat inside

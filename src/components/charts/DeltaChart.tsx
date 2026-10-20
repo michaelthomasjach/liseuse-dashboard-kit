@@ -243,12 +243,13 @@ export function DeltaChart({
               tickFormat={(v) => fmt(Number(v))}
             />
           </g>
-          {/* Y axis line hidden: the X axis line runs on under the labels to the SVG's left edge. */}
-          {hideYAxisLine && <line className="lq-chart__axis-line-extension" x1={-dims.margin.left} x2={0} y1={dims.boundedHeight} y2={dims.boundedHeight} />}
+          {/* Y axis line hidden: d3's own X axis line runs on under the labels to the SVG's left edge
+              (same path, stroke and half-pixel offset as the rest of the line). */}
           <ChartAxis
             scale={zoomedIndexScale}
             orientation="bottom"
             transform={`translate(0, ${dims.boundedHeight})`}
+            domainExtent={hideYAxisLine ? [-dims.margin.left, dims.boundedWidth] : undefined}
             tickValues={catTickValues}
             tickFormat={catTickFormat}
           />

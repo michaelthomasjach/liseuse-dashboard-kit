@@ -202,15 +202,9 @@
   isolation: isolate;
 }
 
-/* Overrides the docked side panel's own base `border-left` (see charts-shared.css) specifically
-   in this context — each grid panel is its own separately-bordered `.lq-chart` (CandlestickChart's
-   own base style), so the grid's own right-most panel already contributes a right border right
-   there; the panel's own left border on top of that doubled up into a visibly thicker line than
-   every other divider in the workspace (2px instead of 1px). Left as-is for CandlestickChart's
-   own standalone `sidePanel` usage, where it's the *only* border in that spot. */
-.lq-chart-workspace .lq-chart__side-panel {
-  border-left: none;
-}
+/* The docked side panel keeps its own base `border-left` (see charts-shared.css) here too: charts no longer draw an
+   outer border of their own, so this line is the only separation between the right-most chart (its price axis) and
+   the watchlist / symbol detail column. */
 
 /* Top and bottom, so the column is bounded the way every chart panel beside it is. Without them
    the watchlist and the symbol detail ran edge to edge of the row while the charts sat inside

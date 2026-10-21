@@ -158,12 +158,16 @@ export function ChartHoverBadges({
       if (!entry) continue;
       // The indicator's own defining series (MACD line, RSI…) at the hovered bar — the same reading
       // its axis annotation would give with the hovered bar as the cutoff.
-      const main = [...indicatorAxisAnnotations(ind, entry.values, hoverIndex, undefined).y].sort((a, b) => b.priority - a.priority)[0];
+      // A histogram is the gap between two lines, not the indicator's reading: the MACD line wins over it.
+      const labels = [...indicatorAxisAnnotations(ind, entry.values, hoverIndex, undefined).y].sort((a, b) => b.priority - a.priority);
+      const main = labels.find((l) => !/hist/i.test(l.label ?? "")) ?? labels[0];
       if (!main) continue;
       const { scale, offset } = paneScaleAndOffset(ind.id);
       const y = scale(main.at);
       if (!inRange(scale, y)) continue;
-      synced.push({ key: ind.id, top: offset + y, text: `${main.label ? `${main.label} ` : ""}${main.text ?? formatCompactNumber(main.at)}` });
+      // A script series key ("macd", "signal") reads as a name: short ones upper-cased, others capitalised.
+      const name = main.label ? (main.label.length <= 4 ? main.label.toUpperCase() : main.label.charAt(0).toUpperCase() + main.label.slice(1)) : "";
+      synced.push({ key: ind.id, top: offset + y, text: `${name ? `${name} ` : ""}${main.text ?? formatCompactNumber(main.at)}` });
     }
   }
   // Where the last close sits on the current scale — `null` once it is scrolled or zoomed out of

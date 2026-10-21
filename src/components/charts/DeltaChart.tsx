@@ -35,6 +35,12 @@ export interface DeltaChartProps {
   /** Hides the vertical (Y) axis *line* while keeping its value labels and grid; the X axis line then runs on to
    *  the SVG's own left edge (under the labels), as on a borderless card. Default false. */
   hideYAxisLine?: boolean;
+  /** Shows the vertical (Y) axis *line*. `false` hides only that line — values and grid stay, the X axis line is left
+   *  as is (see `extendXAxisLine` to run it on). Default true. */
+  showYAxisLine?: boolean;
+  /** Runs the X axis line on past the Y axis, under its value labels, to the SVG's own left edge — with or without the
+   *  Y axis line. Default false. */
+  extendXAxisLine?: boolean;
   showLegend?: boolean;
   /** Pan/zoom the categorical axis — same drag/wheel/axis-rescale conventions as
    *  `CandlestickChart` and `LineAreaChart`, useful once there are many steps. Default true. */
@@ -83,6 +89,8 @@ export function DeltaChart({
   showConnectors = true,
   showValueAxis = true,
   hideYAxisLine = false,
+  showYAxisLine = true,
+  extendXAxisLine = false,
   showLegend = true,
   zoomable = true,
   fullscreenToggle = true,
@@ -90,6 +98,9 @@ export function DeltaChart({
   embedded = false,
   className,
 }: DeltaChartProps) {
+  // `hideYAxisLine` is the shorthand for both: Y axis line hidden and X axis line run on to the left edge.
+  const yAxisLineHidden = hideYAxisLine || !showYAxisLine;
+  const xAxisLineExtended = hideYAxisLine || extendXAxisLine;
   const clipId = useId();
   const { isFullscreen, toggle: toggleFullscreen } = useFullscreen();
   // Left margin fitted to the Y axis labels once drawn (no fixed reserve beside them); an explicit `margin.left` wins.
@@ -235,7 +246,7 @@ export function DeltaChart({
         <g transform={`translate(${dims.margin.left}, ${dims.margin.top})`}>
           <g ref={yAxisRef}>
             <ChartAxis
-              className={[showValueAxis ? null : "lq-chart__axis--hidden", hideYAxisLine ? "lq-chart__axis--no-line" : null].filter(Boolean).join(" ") || undefined}
+              className={[showValueAxis ? null : "lq-chart__axis--hidden", yAxisLineHidden ? "lq-chart__axis--no-line" : null].filter(Boolean).join(" ") || undefined}
               scale={zoomedValueScale}
               orientation="left"
               grid
@@ -249,7 +260,7 @@ export function DeltaChart({
             scale={zoomedIndexScale}
             orientation="bottom"
             transform={`translate(0, ${dims.boundedHeight})`}
-            domainExtent={hideYAxisLine ? [-dims.margin.left, dims.boundedWidth] : undefined}
+            domainExtent={xAxisLineExtended ? [-dims.margin.left, dims.boundedWidth] : undefined}
             tickValues={catTickValues}
             tickFormat={catTickFormat}
           />

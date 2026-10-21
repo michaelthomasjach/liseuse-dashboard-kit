@@ -87,6 +87,12 @@ export interface LineAreaChartProps {
   /** Hides the vertical (Y) axis *line* while keeping its value labels and grid; the X axis line then runs on to
    *  the SVG's own edge on the axis side (left, or right with `yAxisOrientation="right"`) (under the labels), as on a borderless card. Default false. */
   hideYAxisLine?: boolean;
+  /** Shows the vertical (Y) axis *line*. `false` hides only that line — values and grid stay, the X axis line is left
+   *  as is (see `extendXAxisLine` to run it on). Default true. */
+  showYAxisLine?: boolean;
+  /** Runs the X axis line on past the Y axis, under its value labels, to the SVG's own left edge (left Y axis only) — with or without the
+   *  Y axis line. Default false. */
+  extendXAxisLine?: boolean;
   /** Drops this chart's own border/background chrome — for embedding inside another `.lq-chart`
    *  that already provides it (see SeasonalityView), so the two don't stack into a visible
    *  double border. Default false (a standalone LineAreaChart keeps its own border). */
@@ -188,6 +194,8 @@ export const LineAreaChart = forwardRef<LineAreaChartHandle, LineAreaChartProps>
   yAxisOrientation = "left",
   showYAxis = true,
   hideYAxisLine = false,
+  showYAxisLine = true,
+  extendXAxisLine = false,
   embedded = false,
   referenceLineY,
   showZoomReset = true,
@@ -207,6 +215,9 @@ export const LineAreaChart = forwardRef<LineAreaChartHandle, LineAreaChartProps>
   className,
 }, handleRef) {
   const clipId = useId();
+  // `hideYAxisLine` is the shorthand for both: Y axis line hidden and X axis line run on to the left edge.
+  const yAxisLineHidden = hideYAxisLine || !showYAxisLine;
+  const xAxisLineExtended = hideYAxisLine || extendXAxisLine;
   const hatchId = useId();
   const [transform, setTransform] = useState<d3.ZoomTransform>(d3.zoomIdentity);
   const [yTransform, setYTransform] = useState<d3.ZoomTransform>(d3.zoomIdentity);
@@ -531,7 +542,7 @@ export const LineAreaChart = forwardRef<LineAreaChartHandle, LineAreaChartProps>
         <g transform={`translate(${dims.margin.left}, ${dims.margin.top})`}>
           <g ref={yAxisRef}>
             <ChartAxis
-              className={[showYAxis ? null : "lq-chart__axis--hidden", hideYAxisLine ? "lq-chart__axis--no-line" : null].filter(Boolean).join(" ") || undefined}
+              className={[showYAxis ? null : "lq-chart__axis--hidden", yAxisLineHidden ? "lq-chart__axis--no-line" : null].filter(Boolean).join(" ") || undefined}
               scale={zoomedYScale}
               orientation={yAxisOrientation}
               transform={yAxisOrientation === "right" ? `translate(${dims.boundedWidth}, 0)` : undefined}
@@ -560,7 +571,7 @@ export const LineAreaChart = forwardRef<LineAreaChartHandle, LineAreaChartProps>
             scale={zoomedXScale}
             orientation="bottom"
             transform={`translate(0, ${dims.boundedHeight})`}
-            domainExtent={hideYAxisLine && yAxisOrientation !== "right" ? [-dims.margin.left, dims.boundedWidth] : undefined}
+            domainExtent={xAxisLineExtended && yAxisOrientation !== "right" ? [-dims.margin.left, dims.boundedWidth] : undefined}
             tickFormat={
               xTickFormat || formatX
                 ? (v) => (xTickFormat ?? formatX!)(xType === "time" ? (v as Date) : Number(v))

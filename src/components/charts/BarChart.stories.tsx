@@ -99,8 +99,26 @@ export const WithErrorBars: Story = {
 };
 
 export const HiddenYAxisLine: Story = {
-  name: "Sans ligne d'axe Y (hideYAxisLine)",
+  name: "Sans ligne d'axe Y, axe X prolongé (hideYAxisLine)",
   args: { hideYAxisLine: true },
   argTypes: { hideYAxisLine: { control: "boolean" } },
   render: (args) => <BarChart {...args} data={MONTHLY_RETURN} colorByValue formatValue={(v) => `${v.toFixed(1)} %`} />,
+};
+
+const AXIS_CONTROLS = { showYAxisLine: { control: "boolean" }, extendXAxisLine: { control: "boolean" }, hideYAxisLine: { control: "boolean" } } as const;
+
+/** Ligne de l'axe Y masquée, valeurs et grille gardées ; l'axe X n'est pas prolongé. */
+export const YAxisLineOnlyHidden: Story = {
+  name: "Ligne d'axe Y masquée seule (showYAxisLine={false})",
+  args: { showYAxisLine: false },
+  argTypes: AXIS_CONTROLS,
+  render: HiddenYAxisLine.render,
+};
+
+/** Axe Y gardé, ligne de l'axe X prolongée sous ses valeurs jusqu'au bord gauche. */
+export const ExtendedXAxisLine: Story = {
+  name: "Axe X prolongé à gauche (extendXAxisLine)",
+  args: { extendXAxisLine: true },
+  argTypes: AXIS_CONTROLS,
+  render: HiddenYAxisLine.render,
 };

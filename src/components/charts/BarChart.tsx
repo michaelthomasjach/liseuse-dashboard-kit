@@ -79,6 +79,12 @@ export interface BarChartProps {
   /** Hides the vertical (Y) axis *line* while keeping its value labels and grid; the X axis line then runs on to
    *  the SVG's own left edge (under the labels), as on a borderless card. Default false. */
   hideYAxisLine?: boolean;
+  /** Shows the vertical (Y) axis *line*. `false` hides only that line — values and grid stay, the X axis line is left
+   *  as is (see `extendXAxisLine` to run it on). Default true. */
+  showYAxisLine?: boolean;
+  /** Runs the X axis line on past the Y axis, under its value labels, to the SVG's own left edge — with or without the
+   *  Y axis line. Default false. */
+  extendXAxisLine?: boolean;
 }
 
 const MAX_CATEGORY_TICKS = 24;
@@ -104,7 +110,12 @@ export function BarChart({
   showValueLabels = false,
   showValueAxis = true,
   hideYAxisLine = false,
+  showYAxisLine = true,
+  extendXAxisLine = false,
 }: BarChartProps) {
+  // `hideYAxisLine` is the shorthand for both: Y axis line hidden and X axis line run on to the left edge.
+  const yAxisLineHidden = hideYAxisLine || !showYAxisLine;
+  const xAxisLineExtended = hideYAxisLine || extendXAxisLine;
   const clipId = useId();
   const defaultMargin =
     orientation === "horizontal"
@@ -332,7 +343,7 @@ export function BarChart({
             <>
               <g ref={yAxisRef}>
                 <ChartAxis
-                  className={[showValueAxis ? null : "lq-chart__axis--hidden", hideYAxisLine ? "lq-chart__axis--no-line" : null].filter(Boolean).join(" ") || undefined}
+                  className={[showValueAxis ? null : "lq-chart__axis--hidden", yAxisLineHidden ? "lq-chart__axis--no-line" : null].filter(Boolean).join(" ") || undefined}
                   scale={zoomedValueScale}
                   orientation="left"
                   grid={showGrid}
@@ -346,17 +357,17 @@ export function BarChart({
                 scale={zoomedIndexScale}
                 orientation="bottom"
                 transform={`translate(0, ${dims.boundedHeight})`}
-                domainExtent={hideYAxisLine ? [-dims.margin.left, dims.boundedWidth] : undefined}
+                domainExtent={xAxisLineExtended ? [-dims.margin.left, dims.boundedWidth] : undefined}
                 tickValues={catTickValues}
                 tickFormat={catTickFormat}
               />
             </>
           ) : (
             <>
-              <ChartAxis className={showValueAxis ? undefined : "lq-chart__axis--hidden"} scale={zoomedValueScale} orientation="bottom" transform={`translate(0, ${dims.boundedHeight})`} domainExtent={hideYAxisLine ? [-dims.margin.left, dims.boundedWidth] : undefined} grid={showGrid} gridLength={dims.boundedHeight} tickFormat={formatValue ? (v) => formatValue(Number(v)) : undefined} />
+              <ChartAxis className={showValueAxis ? undefined : "lq-chart__axis--hidden"} scale={zoomedValueScale} orientation="bottom" transform={`translate(0, ${dims.boundedHeight})`} domainExtent={xAxisLineExtended ? [-dims.margin.left, dims.boundedWidth] : undefined} grid={showGrid} gridLength={dims.boundedHeight} tickFormat={formatValue ? (v) => formatValue(Number(v)) : undefined} />
               <g ref={yAxisRef}>
                 <ChartAxis
-                  className={hideYAxisLine ? "lq-chart__axis--no-line" : undefined}
+                  className={yAxisLineHidden ? "lq-chart__axis--no-line" : undefined}
                   scale={zoomedIndexScale}
                   orientation="left"
                   tickValues={catTickValues}

@@ -1047,6 +1047,9 @@
   border-top: 1px solid var(--lq-color-border-subtle);
   border-bottom: 1px solid var(--lq-color-border-subtle);
   border-right: 1px solid var(--lq-color-border-subtle);
+  /* Same background as the chart's own toolbars (header, left tool rail): without one the rail showed whatever the
+     host page painted behind the workspace. */
+  background-color: var(--lq-color-bg);
 }
 
 /* Open instead: the panel itself has no border of its own anymore (see above), so this is the

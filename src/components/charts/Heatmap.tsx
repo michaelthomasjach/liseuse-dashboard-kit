@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import * as d3 from "d3";
 import { useD3Zoom } from "./internal/useD3Zoom";
 import { labelColorOn } from "./internal/labelContrast";
-import { ChevronRightIcon } from "../icons";
+import { ChevronRightIcon, ZoomOutIcon } from "../icons";
 import "./charts-shared.css";
 import "./Heatmap.css";
 
@@ -322,8 +322,8 @@ export function Heatmap({ groups, width = 900, height = 560, colorDomain = [-3, 
       )}
       {isZoomed && (
         <div className="lq-chart__toolbar">
-          <button type="button" className="lq-chart__reset-button" onClick={resetZoom}>
-            Réinitialiser le zoom
+          <button type="button" className="lq-chart__icon-button" onClick={resetZoom} aria-label="Réinitialiser le zoom" title="Réinitialiser le zoom">
+            <ZoomOutIcon size={14} />
           </button>
         </div>
       )}

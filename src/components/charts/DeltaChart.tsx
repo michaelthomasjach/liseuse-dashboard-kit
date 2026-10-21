@@ -8,7 +8,7 @@ import { useAxisWheelZoom } from "./internal/useAxisWheelZoom";
 import { useFullscreen } from "./internal/useFullscreen";
 import { ChartAxis } from "./ChartAxis";
 import { ChartTooltip } from "./ChartTooltip";
-import { MaximizeIcon, MinimizeIcon } from "../icons";
+import { MaximizeIcon, MinimizeIcon, ZoomOutIcon } from "../icons";
 import "./charts-shared.css";
 import "./DeltaChart.css";
 
@@ -211,8 +211,8 @@ export function DeltaChart({
     <div ref={ref} className={wrapperClass}>
       <div className="lq-chart__toolbar">
         {zoomable && isZoomed && (
-          <button type="button" className="lq-chart__reset-button" onClick={resetZoom}>
-            Réinitialiser le zoom
+          <button type="button" className="lq-chart__icon-button" onClick={resetZoom} aria-label="Réinitialiser le zoom" title="Réinitialiser le zoom">
+            <ZoomOutIcon size={14} />
           </button>
         )}
         {fullscreenToggle && (

@@ -14,7 +14,7 @@ import {
   type SankeyLaidOutNode,
 } from "./internal/sankeyLayout";
 import { ChartTooltip } from "./ChartTooltip";
-import { ChevronRightIcon, MaximizeIcon, MinimizeIcon } from "../icons";
+import { ChevronRightIcon, MaximizeIcon, MinimizeIcon, ZoomOutIcon } from "../icons";
 import "./charts-shared.css";
 import "./SankeyChart.css";
 
@@ -321,8 +321,8 @@ export function SankeyChart({
           </nav>
         )}
         {zoomable && isZoomed && (
-          <button type="button" className="lq-chart__reset-button" onClick={clearFocus}>
-            Réinitialiser le zoom
+          <button type="button" className="lq-chart__icon-button" onClick={clearFocus} aria-label="Réinitialiser le zoom" title="Réinitialiser le zoom">
+            <ZoomOutIcon size={14} />
           </button>
         )}
         {fullscreenToggle && (

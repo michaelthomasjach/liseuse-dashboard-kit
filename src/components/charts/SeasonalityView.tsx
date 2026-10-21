@@ -7,7 +7,7 @@ import { Popover } from "../forms/Popover";
 import { Checkbox } from "../forms/Checkbox";
 import { DropdownPanel } from "../primitives/DropdownPanel";
 import { Modal } from "../primitives/Modal";
-import { ChevronLeftIcon, ChevronDownIcon, CalendarIcon, EyeIcon, EyeOffIcon, SettingsIcon, TrashIcon, MeasureIcon, AverageLineIcon } from "../icons";
+import { ChevronLeftIcon, ChevronDownIcon, CalendarIcon, EyeIcon, EyeOffIcon, SettingsIcon, TrashIcon, MeasureIcon, AverageLineIcon, ZoomOutIcon } from "../icons";
 import { DEFAULT_MARGIN, TOOLS_RAIL_WIDTH, PRICE_AXIS_WIDTH_MOBILE, TOOLS_RAIL_HEIGHT_MOBILE } from "./candlestick/constants";
 import "./charts-shared.css";
 
@@ -365,8 +365,8 @@ export function SeasonalityView({ data, symbol, onBack, showHeader = true, heigh
               the chart without a chance to report itself back to `isZoomed=false`, which would
               otherwise leave a dead button in the header with nothing left for it to reset. */}
           {isZoomed && result.buckets.length > 1 && (
-            <button type="button" className="lq-chart__reset-button" onClick={() => lineChartRef.current?.resetZoom()}>
-              Réinitialiser le zoom
+            <button type="button" className="lq-chart__icon-button" onClick={() => lineChartRef.current?.resetZoom()} aria-label="Réinitialiser le zoom" title="Réinitialiser le zoom">
+              <ZoomOutIcon size={14} />
             </button>
           )}
         </div>

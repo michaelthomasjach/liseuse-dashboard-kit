@@ -1662,6 +1662,7 @@ export function CandlestickChart({
           onEditScript={onEditScript}
         />
         <ChartPlotOverlays
+          indicatorValues={indicatorValues}
           closePulse={
             closePulse === null || lastRevealedIndex < 0
               ? null

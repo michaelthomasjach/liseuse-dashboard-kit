@@ -5,6 +5,9 @@ import { ChartEventTooltip } from "../../EventTooltip";
 import type { Candle } from "../interfaces/Candle.interface";
 import type { TrendLineDrawing } from "../interfaces/TrendLineDrawing.interface";
 import type { ChartEvent } from "../interfaces/ChartEvent.interface";
+import type { Indicator } from "../interfaces/Indicator.interface";
+import type { IndicatorValue } from "../interfaces/IndicatorValue.interface";
+import { indicatorAxisAnnotations } from "../axisAnnotations";
 import { CROSSHAIR_ADD_INSET, LIVE_COUNTDOWN_OFFSET } from "../constants";
 import { EVENT_MARKER_OFFSET, EVENT_MARKER_RADIUS, EVENT_TOOLTIP_WIDTH, EVENT_TOOLTIP_GAP } from "../eventsCatalog";
 import { formatCountdown, formatCompactNumber } from "../formatting";
@@ -67,6 +70,17 @@ export interface ChartHoverBadgesProps {
   plotHeight: number;
   setEventModalOpen: Dispatch<SetStateAction<boolean>>;
   setActiveEventStack: Dispatch<SetStateAction<{ i: number; events: ChartEvent[] } | null>>;
+  /** "Own"-pane indicators (RSI/MACD/…), top to bottom — for the synced value badges below. */
+  ownPaneIndicators: Indicator[];
+  /** Every indicator's computed values over the full data, to read a pane's value at the hovered bar. */
+  indicatorValues: { indicator: Indicator; values: (IndicatorValue | null)[] }[];
+}
+
+/** One value badge per pane the pointer is *not* over, at the hovered bar. */
+interface SyncedBadge {
+  key: string;
+  top: number;
+  text: string;
 }
 
 /** Every plain-DOM badge anchored to the plot's axes: the hover price/volume/date "+" badges
@@ -117,7 +131,41 @@ export function ChartHoverBadges({
   plotHeight,
   setEventModalOpen,
   setActiveEventStack,
+  ownPaneIndicators,
+  indicatorValues,
 }: ChartHoverBadgesProps) {
+  // Crosshair synced across panes: hovering any pane at a given bar also badges the *other* panes'
+  // own value at that same bar on their Y axis — the close on the price axis while the pointer is
+  // in MACD, MACD's value while it is on the candles, and so on. The pane under the pointer keeps
+  // its own cursor badge (with its "+"), so it is skipped here.
+  const synced: SyncedBadge[] = [];
+  if (hovered && hoverIndex !== null) {
+    const inRange = (scale: d3.ScaleLinear<number, number>, y: number) => {
+      const [a, b] = scale.range();
+      return Number.isFinite(y) && y >= Math.min(a, b) && y <= Math.max(a, b);
+    };
+    if (hoverY === null) {
+      const y = zoomedPriceScale(hovered.close);
+      if (y >= 0 && y <= priceHeight) synced.push({ key: "price", top: y, text: priceAxisFmt(hovered.close) });
+    }
+    if (volumeVisible && hoverVolumeY === null && typeof hovered.volume === "number") {
+      const y = zoomedVolumeScale(hovered.volume);
+      if (inRange(zoomedVolumeScale, y)) synced.push({ key: "volume", top: priceHeight + volumeTop + y, text: vFmt(hovered.volume) });
+    }
+    for (const ind of ownPaneIndicators) {
+      if (ind.id === hoverIndicatorPaneId) continue;
+      const entry = indicatorValues.find((e) => e.indicator.id === ind.id);
+      if (!entry) continue;
+      // The indicator's own defining series (MACD line, RSI…) at the hovered bar — the same reading
+      // its axis annotation would give with the hovered bar as the cutoff.
+      const main = [...indicatorAxisAnnotations(ind, entry.values, hoverIndex, undefined).y].sort((a, b) => b.priority - a.priority)[0];
+      if (!main) continue;
+      const { scale, offset } = paneScaleAndOffset(ind.id);
+      const y = scale(main.at);
+      if (!inRange(scale, y)) continue;
+      synced.push({ key: ind.id, top: offset + y, text: `${main.label ? `${main.label} ` : ""}${main.text ?? formatCompactNumber(main.at)}` });
+    }
+  }
   // Where the last close sits on the current scale — `null` once it is scrolled or zoomed out of
   // the visible price range. Hidden rather than clamped to an edge: the number would stay right
   // while its position became a lie, and a badge on a price axis is read as *a height* first.
@@ -199,6 +247,15 @@ export function ChartHoverBadges({
             </div>
           );
         })()}
+      {synced.map((b) => (
+        <div
+          key={`synced-${b.key}`}
+          className="lq-chart__axis-value lq-chart__axis-value--y lq-chart__axis-value--synced"
+          style={{ top: dims.margin.top + b.top, left: dims.margin.left + dims.boundedWidth, minWidth: dims.margin.right }}
+        >
+          <span className="lq-chart__axis-value-text">{b.text}</span>
+        </div>
+      ))}
       {hovered && (
         <>
           <div

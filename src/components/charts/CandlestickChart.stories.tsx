@@ -53,7 +53,12 @@ const ALL_FEATURES_DATASET = generateCandles(600, 180, 66);
 // timeframe.
 const ALL_FEATURES_TIMEFRAME_DATA = generateCandlesByTimeframe(180, 66);
 const ALL_FEATURES_EVENTS: ChartEvent[] = [
-  { date: ALL_FEATURES_DATASET[80].date, kind: "earnings", label: "Résultats T1 : BPA 1.42$ (attendu 1.35$)" },
+  {
+    date: ALL_FEATURES_DATASET[80].date,
+    kind: "earnings",
+    label: "Résultats T1 : BPA 1.42$ (attendu 1.35$)",
+    details: ["Surprise : +5,2 % sur le consensus", "Chiffre d'affaires : +8,1 % sur un an", "Réaction du marché : +3,4 % en 15 minutes"],
+  },
   { date: ALL_FEATURES_DATASET[180].date, kind: "earnings", label: "Résultats T2 : BPA 1.51$ (attendu 1.48$)" },
   // Same date as the T2 earnings above, on purpose — two events sharing a candle index render as
   // a single "stack" marker instead of overlapping.

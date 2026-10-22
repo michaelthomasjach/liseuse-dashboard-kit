@@ -64,6 +64,13 @@ export function ChartEventTooltip({ events, mode, onClose, onExpand, left = 0, b
           onClick={onExpand}
         >
           <h4 className="lq-chart-event-tooltip__title">{event.label}</h4>
+          {event.details && event.details.length > 0 && (
+            <ul className="lq-chart-event-tooltip__details">
+              {event.details.map((line, j) => (
+                <li key={j}>{line}</li>
+              ))}
+            </ul>
+          )}
           <div className="lq-chart-event-tooltip__date">{dFmt(event.date)}</div>
         </article>
       ))}

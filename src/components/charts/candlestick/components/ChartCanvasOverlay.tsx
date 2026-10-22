@@ -667,7 +667,7 @@ export function ChartCanvasOverlay({
               const underPointer = hoverIndex === stack.i;
               const title = stacked
                 ? `${stack.events.length} évènements — cliquer pour les afficher`
-                : `${dFmt(stack.events[0].date)} — ${stack.events[0].label}`;
+                : [`${dFmt(stack.events[0].date)} — ${stack.events[0].label}`, ...(stack.events[0].details ?? [])].join("\n");
               return (
                 <g
                   key={stack.i}

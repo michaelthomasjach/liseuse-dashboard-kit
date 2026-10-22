@@ -8,6 +8,9 @@ export interface ChartEvent {
   kind: string;
   /** Shown in the badge's tooltip, alongside the date. */
   label: string;
+  /** Further lines under the label — a short news-style summary (figures, verdict, reaction…),
+   *  listed in the event card and appended to the badge's hover tooltip. */
+  details?: string[];
   /** 1-2 characters drawn inside the badge instead of `kind`'s own first letter. */
   symbol?: string;
   color?: string;

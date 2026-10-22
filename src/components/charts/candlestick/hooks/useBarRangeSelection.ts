@@ -34,28 +34,46 @@ const RANGE_DAYS: Partial<Record<BarRangeValue, number>> = {
   "5Y": 365 * 5,
 };
 
-// `timeframe` is a freeform caller-supplied string (see TimeframeOption.interface) — this only
-// recognizes the "<n><unit>" shape this library's own stories already use (1m/5m/15m minutes,
-// 1h/4h hours, 1d days, 1w weeks, 1M months — case-sensitive: lowercase m is minutes, uppercase
-// M is months). Anything else (or no timeframe at all) means the bars-per-day is unknowable, so
-// callers should treat a `null` return as "can't compute a range for this timeframe."
-function barsPerDayForTimeframe(value: string | undefined): number | null {
+// `timeframe` is a freeform caller-supplied string (see TimeframeOption.interface). Recognised:
+// "<n><unit>" with the short units this library's own stories use (1m/5m/15m minutes, 1h/4h hours,
+// 1d days, 1w weeks, 1M months — case-sensitive: lowercase m is minutes, uppercase M is months) and
+// the spelled-out ones apps commonly send ("5min", "1hour", "4hour", "1day", "1week", "1month").
+// Anything else (or no timeframe at all) means the bars-per-day is unknowable, so callers should
+// treat a `null` return as "can't compute a range for this timeframe."
+export function barsPerDayForTimeframe(value: string | undefined): number | null {
   if (!value) return null;
-  const match = value.trim().match(/^(\d+)(m|min|h|d|w|M)$/);
+  const match = value.trim().match(/^(\d+)\s*([a-zA-Z]+)$/);
   if (!match) return null;
   const n = Number(match[1]);
   if (!n || n <= 0) return null;
-  switch (match[2]) {
+  const unit = match[2] as string;
+  // "M" alone is a month; every other spelling is case-insensitive.
+  if (unit === "M") return 1 / (30 * n);
+  switch (unit.toLowerCase()) {
     case "m":
     case "min":
+    case "mins":
+    case "minute":
+    case "minutes":
       return (24 * 60) / n;
     case "h":
+    case "hr":
+    case "hour":
+    case "hours":
       return 24 / n;
     case "d":
+    case "day":
+    case "days":
       return 1 / n;
     case "w":
+    case "wk":
+    case "week":
+    case "weeks":
       return 1 / (7 * n);
-    case "M":
+    case "mo":
+    case "mon":
+    case "month":
+    case "months":
       return 1 / (30 * n);
     default:
       return null;

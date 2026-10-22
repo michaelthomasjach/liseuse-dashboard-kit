@@ -14,6 +14,7 @@ import {
   PauseIcon,
   PrevTrackIcon,
   CloseIcon,
+  PlusIcon,
 } from "../../../icons";
 import type { ChartDisplayMode } from "../interfaces/ChartDisplayMode.interface";
 import type { TimeframeEntry } from "../interfaces/TimeframeEntry.interface";
@@ -26,6 +27,8 @@ import { TemplateControls } from "./TemplateControls";
 export interface ChartHeaderProps {
   /** App-defined top-bar buttons (see `ChartHeaderAction`). */
   headerActions?: ChartHeaderAction[];
+  /** Ouvre la recherche pour ajouter un symbole au graphique ; bouton absent sans elle (pas de `onAddSymbolOverlay`). */
+  onAddSymbol?: () => void;
   timeframes: TimeframeEntry[] | undefined;
   timeframe: string | undefined;
   onTimeframeChange: ((value: string) => void) | undefined;
@@ -100,6 +103,7 @@ export interface ChartHeaderProps {
  *  see each of those for why.) */
 export function ChartHeader({
   headerActions,
+  onAddSymbol,
   timeframes,
   timeframe,
   onTimeframeChange,
@@ -165,6 +169,12 @@ export function ChartHeader({
   const replayMenuAnchorRef = useRef<HTMLButtonElement>(null);
   return (
     <div className="lq-chart__header">
+      {onAddSymbol && (
+        <button type="button" className="lq-chart__timeframe-trigger lq-chart__add-symbol" onClick={onAddSymbol} aria-label="Ajouter un symbole" title="Ajouter un symbole au graphique (comparaison)">
+          <PlusIcon size={14} />
+          <span className="lq-chart__timeframe-trigger-label">Symbole</span>
+        </button>
+      )}
       {timeframes && timeframes.length > 0 && (
         <>
           <button ref={tfAnchorRef} type="button" className="lq-chart__timeframe-trigger" onClick={() => setTfOpen((o) => !o)}>

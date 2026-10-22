@@ -13,7 +13,19 @@ export interface UseSymbolSearchStateArgs {
  *  drawings themselves): this hook is purely the modal's own UI state, the drawings hook is what a
  *  row's "+" button actually commits. */
 export function useSymbolSearchState({ defaultFavoriteSymbolIds, onFavoriteSymbolIdsChange, onSymbolSearchChange }: UseSymbolSearchStateArgs) {
-  const [symbolSearchOpen, setSymbolSearchOpen] = useState(false);
+  const [symbolSearchOpen, setSymbolSearchOpenState] = useState(false);
+  // "select" : un résultat remplace le symbole (onSymbolSelect) ; "add" : il s'ajoute au graphique
+  // (onAddSymbolOverlay) — bouton « + Symbole » de l'en-tête et entrée du menu contextuel.
+  const [symbolSearchMode, setSymbolSearchMode] = useState<"select" | "add">("select");
+  const setSymbolSearchOpen = (open: boolean) => {
+    setSymbolSearchOpenState(open);
+    if (!open) setSymbolSearchMode("select");
+  };
+  /** Ouvre la fenêtre de recherche dans le mode demandé. */
+  const openSymbolSearch = (mode: "select" | "add") => {
+    setSymbolSearchMode(mode);
+    setSymbolSearchOpenState(true);
+  };
   const [symbolSearchQuery, setSymbolSearchQuery] = useState("");
   const [symbolSearchCategory, setSymbolSearchCategory] = useState<SymbolSearchCategory>("all");
   const [favoriteSymbolIds, setFavoriteSymbolIds] = useState<string[]>(defaultFavoriteSymbolIds ?? []);
@@ -48,6 +60,8 @@ export function useSymbolSearchState({ defaultFavoriteSymbolIds, onFavoriteSymbo
   return {
     symbolSearchOpen,
     setSymbolSearchOpen,
+    symbolSearchMode,
+    openSymbolSearch,
     symbolSearchQuery,
     setSymbolSearchQuery,
     symbolSearchCategory,

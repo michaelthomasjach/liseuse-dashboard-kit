@@ -29,6 +29,8 @@ export interface BuildChartContextMenuArgs {
   formatPrice: (v: number) => string;
   formatDate: (d: Date) => string;
   openIndicatorPicker: () => void;
+  /** Ouvre la recherche pour ajouter un symbole au graphique ; entrée absente sans elle. */
+  openAddSymbol?: () => void;
   resetZoom: () => void;
   fullscreenToggle: boolean;
   isFullscreen: boolean;
@@ -56,6 +58,7 @@ export function buildChartContextMenu({
   formatPrice,
   formatDate,
   openIndicatorPicker,
+  openAddSymbol,
   resetZoom,
   fullscreenToggle,
   isFullscreen,
@@ -115,6 +118,7 @@ export function buildChartContextMenu({
       onSelect: () => void (candle && navigator.clipboard?.writeText(formatDate(candle.date))),
     },
     { separator: true },
+    ...(openAddSymbol ? [{ label: "Ajouter un symbole…", onSelect: openAddSymbol }] : []),
     { label: "Ajouter un indicateur…", onSelect: openIndicatorPicker },
     { separator: true },
     { label: "Réinitialiser le zoom", hint: "Espace", onSelect: resetZoom },

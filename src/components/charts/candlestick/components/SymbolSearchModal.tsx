@@ -14,6 +14,8 @@ export interface SymbolSearchModalProps {
   title?: string;
   symbolSearchOpen: boolean;
   setSymbolSearchOpen: (open: boolean) => void;
+  /** "add" : un clic sur un résultat l'ajoute au graphique (comparaison) au lieu de changer de symbole. */
+  symbolSearchMode?: "select" | "add";
   symbolSearchQuery: string;
   setSymbolSearchQuery: (query: string) => void;
   symbolSearchCategory: SymbolSearchCategory;
@@ -43,6 +45,7 @@ export function SymbolSearchModal({
   title = "Symbol search",
   symbolSearchOpen,
   setSymbolSearchOpen,
+  symbolSearchMode = "select",
   symbolSearchQuery,
   setSymbolSearchQuery,
   symbolSearchCategory,
@@ -58,8 +61,9 @@ export function SymbolSearchModal({
   removeSymbolOverlay,
 }: SymbolSearchModalProps) {
   if (!symbolSearchOpen) return null;
+  const adding = symbolSearchMode === "add" && Boolean(onAddSymbolOverlay);
   return (
-    <Modal open onClose={() => setSymbolSearchOpen(false)} title={title} footer={null} size="wide">
+    <Modal open onClose={() => setSymbolSearchOpen(false)} title={adding ? "Ajouter un symbole" : title} footer={null} size="wide">
       {/* Left/right split (see .lq-chart__modal-split's own doc) — search + category filters on
           the left, results on the right, each scrolling on its own. */}
       <div className="lq-chart__modal-split">
@@ -119,9 +123,13 @@ export function SymbolSearchModal({
                     type="button"
                     className="lq-chart__symbol-search-row-main"
                     onClick={() => {
-                      onSymbolSelect?.(result);
+                      if (adding) {
+                        if (isOverlayActive) removeSymbolOverlay(result.ticker);
+                        else handleAddSymbolOverlay(result);
+                      } else onSymbolSelect?.(result);
                       setSymbolSearchOpen(false);
                     }}
+                    title={adding ? (isOverlayActive ? `Retirer ${result.ticker} du graphique` : `Ajouter ${result.ticker} au graphique`) : undefined}
                   >
                     <span
                       className="lq-chart__symbol-search-logo"

@@ -303,7 +303,7 @@ export function CandlestickChart({
   // Swaps the whole chart body for SeasonalityView — its own flag, not folded into
   // `chartDisplayMode`: its x-axis shares no meaningful relationship with candle/line/Renko's.
   const [seasonalityOpen, setSeasonalityOpen] = useState(false);
-  const { symbolSearchOpen, setSymbolSearchOpen, symbolSearchQuery, setSymbolSearchQuery, symbolSearchCategory, setSymbolSearchCategory, favoriteSymbolIds, toggleFavoriteSymbol } =
+  const { symbolSearchOpen, setSymbolSearchOpen, symbolSearchMode, openSymbolSearch, symbolSearchQuery, setSymbolSearchQuery, symbolSearchCategory, setSymbolSearchCategory, favoriteSymbolIds, toggleFavoriteSymbol } =
     useSymbolSearchState({ defaultFavoriteSymbolIds, onFavoriteSymbolIdsChange, onSymbolSearchChange });
   // Tickers whose "+" is currently awaiting onAddSymbolOverlay — a Set (not one at a time) since
   // comparing against AAPL shouldn't block also comparing against GOOGL mid-fetch. Just drives
@@ -1419,6 +1419,7 @@ export function CandlestickChart({
     formatPrice: priceAxisFmt,
     formatDate: dFmt,
     openIndicatorPicker: () => setIndicatorPickerOpen(true),
+    ...(onAddSymbolOverlay ? { openAddSymbol: () => openSymbolSearch("add") } : {}),
     resetZoom: () => resetZoom(),
     fullscreenToggle,
     isFullscreen,
@@ -1503,6 +1504,7 @@ export function CandlestickChart({
       {showHeader && !seasonalityOpen && (
         <ChartHeader
           headerActions={headerActions}
+          {...(onAddSymbolOverlay ? { onAddSymbol: () => openSymbolSearch("add") } : {})}
           timeframes={timeframes}
           timeframe={timeframe}
           onTimeframeChange={onTimeframeChange}
@@ -2057,6 +2059,7 @@ export function CandlestickChart({
         setVolumeDownColorOverride={setVolumeDownColorOverride}
         symbolSearchOpen={symbolSearchOpen}
         setSymbolSearchOpen={setSymbolSearchOpen}
+        symbolSearchMode={symbolSearchMode}
         symbolSearchQuery={symbolSearchQuery}
         setSymbolSearchQuery={setSymbolSearchQuery}
         symbolSearchCategory={symbolSearchCategory}

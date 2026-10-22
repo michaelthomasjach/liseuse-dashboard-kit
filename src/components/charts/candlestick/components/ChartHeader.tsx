@@ -1,5 +1,5 @@
 import type { ChartHeaderAction } from "../interfaces/ChartHeaderAction.interface";
-import type { RefObject, Dispatch, SetStateAction } from "react";
+import { useRef, useState, type RefObject, type Dispatch, type SetStateAction } from "react";
 import { Popover } from "../../../forms/Popover";
 import {
   ChevronDownIcon,
@@ -160,6 +160,9 @@ export function ChartHeader({
   isLinked,
   onLinkClick,
 }: ChartHeaderProps) {
+  // Menu du bouton « Replay » : choisir le point de départ sur le graphique, ou partir d'un instant tiré au hasard.
+  const [replayMenuOpen, setReplayMenuOpen] = useState(false);
+  const replayMenuAnchorRef = useRef<HTMLButtonElement>(null);
   return (
     <div className="lq-chart__header">
       {timeframes && timeframes.length > 0 && (
@@ -358,36 +361,67 @@ export function ChartHeader({
             </button>
           </>
         ) : (
-          <button
-            type="button"
-            className={["lq-chart__timeframe-trigger", replayArmed && "lq-chart__replay-trigger--armed"].filter(Boolean).join(" ")}
-            onClick={onReplayTriggerClick}
-            aria-label="Replay"
-            title={replayArmed ? "Cliquez sur la chart pour choisir le point de départ" : "Rejouer l'historique bougie par bougie"}
-          >
-            <PrevTrackIcon size={14} />
-            <span className="lq-chart__timeframe-trigger-label">Replay</span>
-          </button>
+          <>
+            {/* Au repos, « Replay » ouvre ses options (point de départ choisi sur le graphique, ou tiré au hasard) ;
+                pendant le choix du point, il l'annule comme avant. */}
+            <button
+              ref={replayMenuAnchorRef}
+              type="button"
+              className={["lq-chart__timeframe-trigger", replayArmed && "lq-chart__replay-trigger--armed"].filter(Boolean).join(" ")}
+              onClick={() => (replayArmed ? onReplayTriggerClick() : setReplayMenuOpen((o) => !o))}
+              aria-label="Replay"
+              aria-haspopup={replayArmed ? undefined : "menu"}
+              aria-expanded={replayArmed ? undefined : replayMenuOpen}
+              title={replayArmed ? "Cliquez sur la chart pour choisir le point de départ (ou ici pour annuler)" : "Rejouer l'historique bougie par bougie"}
+            >
+              <PrevTrackIcon size={14} />
+              <span className="lq-chart__timeframe-trigger-label">Replay</span>
+              {!replayArmed && <ChevronDownIcon size={12} />}
+            </button>
+            <Popover open={replayMenuOpen && !replayArmed} onClose={() => setReplayMenuOpen(false)} anchorRef={replayMenuAnchorRef} placement="bottom">
+              <div className="lq-chart__timeframe-menu" role="menu">
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="lq-chart__timeframe-option lq-chart__replay-option"
+                  onClick={() => {
+                    setReplayMenuOpen(false);
+                    onReplayTriggerClick();
+                  }}
+                >
+                  <PrevTrackIcon size={14} />
+                  <span>
+                    Choisir le point de départ
+                    <small>Cliquez ensuite sur le graphique</small>
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="lq-chart__timeframe-option lq-chart__replay-option"
+                  title="Démarrer le replay à un instant tiré au hasard dans le passé (sans choisir le point soi-même : pas de biais)"
+                  onClick={() => {
+                    setReplayMenuOpen(false);
+                    onReplayRandom();
+                  }}
+                >
+                  <svg width={14} height={14} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.4} aria-hidden="true">
+                    <rect x={2} y={2} width={12} height={12} rx={2.5} />
+                    <circle cx={5.5} cy={5.5} r={0.9} fill="currentColor" stroke="none" />
+                    <circle cx={10.5} cy={10.5} r={0.9} fill="currentColor" stroke="none" />
+                    <circle cx={10.5} cy={5.5} r={0.9} fill="currentColor" stroke="none" />
+                    <circle cx={5.5} cy={10.5} r={0.9} fill="currentColor" stroke="none" />
+                    <circle cx={8} cy={8} r={0.9} fill="currentColor" stroke="none" />
+                  </svg>
+                  <span>
+                    Au hasard
+                    <small>Un instant du passé tiré au hasard, sans biais</small>
+                  </span>
+                </button>
+              </div>
+            </Popover>
+          </>
         ))}
-      {replay && !replayActive && !replayArmed && (
-        <button
-          type="button"
-          className="lq-chart__timeframe-trigger lq-chart__replay-random"
-          onClick={onReplayRandom}
-          aria-label="Replay au hasard"
-          title="Démarrer le replay à un instant tiré au hasard dans le passé (sans choisir le point soi-même : pas de biais)"
-        >
-          <svg width={14} height={14} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.4} aria-hidden="true">
-            <rect x={2} y={2} width={12} height={12} rx={2.5} />
-            <circle cx={5.5} cy={5.5} r={0.9} fill="currentColor" stroke="none" />
-            <circle cx={10.5} cy={10.5} r={0.9} fill="currentColor" stroke="none" />
-            <circle cx={10.5} cy={5.5} r={0.9} fill="currentColor" stroke="none" />
-            <circle cx={5.5} cy={10.5} r={0.9} fill="currentColor" stroke="none" />
-            <circle cx={8} cy={8} r={0.9} fill="currentColor" stroke="none" />
-          </svg>
-          <span className="lq-chart__timeframe-trigger-label">Au hasard</span>
-        </button>
-      )}
       {fullscreenToggle && (
         <button
           type="button"

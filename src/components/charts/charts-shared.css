@@ -3686,3 +3686,21 @@
   padding-top: 6px;
   border-top: 1px solid var(--lq-color-border-subtle);
 }
+
+/* Options du menu « Replay » : icône, intitulé et précision sur deux lignes. */
+.lq-chart__replay-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 220px;
+}
+.lq-chart__replay-option > svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.lq-chart__replay-option small {
+  display: block;
+  margin-top: 1px;
+  font-size: 0.72rem;
+  color: var(--lq-color-text-muted);
+}

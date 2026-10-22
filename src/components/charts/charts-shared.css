@@ -328,15 +328,21 @@
   pointer-events: none;
 }
 
-/* Crosshair over the plot (it lines up with the crosshair lines and the axis badges), the closed
-   hand only while the button is held to pan. */
+/* Cursor over the plot: crosshair on empty space (it lines up with the crosshair lines and the
+   axis badges), pointer over something clickable — a drawing, an indicator line, a candle (set by
+   useDrawingInteractions' hover pass) — and the closed hand while the button is held to drag the
+   chart or a drawing. A drawing or zoom tool keeps its own cursor throughout. */
 .lq-chart__overlay {
   fill: transparent;
   cursor: crosshair;
   touch-action: none;
 }
 
-.lq-chart__overlay:active {
+.lq-chart__overlay--pointer {
+  cursor: pointer;
+}
+
+.lq-chart__overlay:not(.lq-chart__overlay--drawing):not(.lq-chart__overlay--zooming):active {
   cursor: grabbing;
 }
 
@@ -1154,7 +1160,7 @@
   fill: transparent;
   stroke: transparent;
   stroke-width: 0;
-  cursor: grab;
+  cursor: pointer;
   touch-action: none;
 }
 

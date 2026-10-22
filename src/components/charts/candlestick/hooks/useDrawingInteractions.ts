@@ -236,6 +236,10 @@ export function useDrawingInteractions({
   // d'animation, sans l'évènement) suit la même contrainte d'angle que le clic.
   const shiftHeldRef = useRef(false);
   const hoverFrameRef = useRef<number | null>(null);
+  // The plot's own element, as last seen by handlePointerMove — updateHoverState runs a frame later
+  // (no event in hand) and sets the pointer cursor on it directly, without a re-render per move.
+  const overlayElRef = useRef<SVGRectElement | null>(null);
+
   function scheduleHoverUpdate(x: number, y: number, hitDistance: number) {
     pendingHoverRef.current = { x, y, hitDistance };
     if (hoverFrameRef.current !== null) return;
@@ -496,7 +500,12 @@ export function useDrawingInteractions({
         const p = snapAngle({ x: zoomedXScale(indexForDate(anchor.x) + 0.5), y: zoomedPriceScale(anchor.y) }, { x: mouseX, y: mouseY });
         setPreviewPoint({ x: dateForIndex(zoomedXScale.invert(p.x)), y: zoomedPriceScale.invert(p.y) });
       } else setPreviewPoint({ x: dateForIndex(zoomedXScale.invert(mouseX)), y: zoomedPriceScale.invert(mouseY) });
-    } else if (!activeTool && visibleDrawings.length > 0) {
+    }
+    // What the pointer is over, for the cursor: a drawing, an indicator line or a candle get the
+    // pointer (they react to a click), empty plot space keeps the crosshair.
+    let overDrawing = false;
+    let overIndicator = false;
+    if (!activeTool && visibleDrawings.length > 0) {
       let closestId: string | null = null;
       let closestDist = hitDistance;
       const hitTestCtx: HitTestContext = { dims, plotBoundedHeight, priceHeight, zoomedXScale, zoomedPriceScale, indexForDate, pixelYForDrawing, overlayProjections, data };
@@ -510,6 +519,7 @@ export function useDrawingInteractions({
         }
       }
       updateHoveredDrawingId(closestId);
+      overDrawing = closestId !== null;
     }
 
     // Which indicator line the pointer is on, recorded for the click handler to read. Kept in a
@@ -530,10 +540,25 @@ export function useDrawingInteractions({
         hoveredIndicatorIdRef.current = closestId;
         onHoveredIndicatorChange(closestId);
       }
+      overIndicator = closestId !== null;
     }
+
+    // A candle: within its column (most of the bar's width, at least a few pixels on a dense
+    // chart) and between its high and low, give or take two pixels.
+    let overCandle = false;
+    const bar = data[index];
+    if (!activeTool && bar && mouseY <= priceHeight && index <= lastRevealedIndex) {
+      const step = Math.abs(zoomedXScale(index + 1) - zoomedXScale(index));
+      const cx = zoomedXScale(index + 0.5);
+      const top = zoomedPriceScale(bar.high);
+      const bottom = zoomedPriceScale(bar.low);
+      overCandle = Math.abs(mouseX - cx) <= Math.max(2.5, step * 0.4) && mouseY >= Math.min(top, bottom) - 2 && mouseY <= Math.max(top, bottom) + 2;
+    }
+    overlayElRef.current?.classList.toggle("lq-chart__overlay--pointer", !activeTool && (overDrawing || overIndicator || overCandle));
   }
 
   function handlePointerMove(e: React.PointerEvent<SVGRectElement>) {
+    overlayElRef.current = e.currentTarget;
     shiftHeldRef.current = e.shiftKey;
     if (data.length === 0) return;
     const rect = e.currentTarget.getBoundingClientRect();

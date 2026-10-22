@@ -43,6 +43,9 @@ export type { AnalogClockProps } from "./AnalogClock";
 export { KnowledgeBase, searchKnowledge, foldText, queryTerms } from "./KnowledgeBase";
 export type { KnowledgeBaseProps, KnowledgeEntry, KnowledgeHit } from "./KnowledgeBase";
 
+export { KanbanBoard } from "./KanbanBoard";
+export type { KanbanBoardProps, KanbanColumn, KanbanCard, KanbanMove } from "./KanbanBoard";
+
 export { ObjectiveTracker } from "./ObjectiveTracker";
 export type { ObjectiveTrackerProps, Objective, ObjectiveState } from "./ObjectiveTracker";
 

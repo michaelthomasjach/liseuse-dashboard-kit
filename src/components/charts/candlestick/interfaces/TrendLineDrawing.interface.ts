@@ -99,6 +99,9 @@ export interface TrendLineDrawing {
    *  modal's own "Couleur de fond" control writes whichever of the two applies to the tool at
    *  hand, so there is one control and not two. */
   fillColor?: string;
+  /** "channel"/"disjointChannel" only — the dashed median line halfway between the two lines.
+   *  Unset (default) draws it; `false` hides it. */
+  channelMedian?: boolean;
   /** "longPosition"/"shortPosition" only — the two bands' own fills, reward and risk.
    *
    *  They default to a pale green and a pale red *independently of the palette*, rather than to

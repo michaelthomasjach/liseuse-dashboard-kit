@@ -209,6 +209,13 @@ export function DrawingEditModal({
               onChange={(v) => setDraft({ ...draft, channelOffset: v === "" ? draft.channelOffset : round4(v) })}
             />
           )}
+          {(draft.lineType === "channel" || draft.lineType === "disjointChannel") && (
+            <Checkbox
+              checked={draft.channelMedian !== false}
+              onChange={(on) => setDraft({ ...draft, channelMedian: on })}
+              label="Ligne médiane"
+            />
+          )}
           {/* "disjointChannel"/"fibonacciExtension"/"elliottCorrection"/"elliottImpulse" — a
               date+price row per point (x1/y1, x2/y2, then extraPoints), generic over however
               many that tool needs instead of a fixed "Début"/"Fin" pair. */}

@@ -186,6 +186,9 @@ export function drawPriceDrawings(ctx: CanvasRenderingContext2D, params: RenderC
         ctx.moveTo(x1, y1 + offsetPx);
         ctx.lineTo(x2, y2 + offsetPx);
         ctx.stroke();
+        // Median line, halfway between the two: the level price tends to come back to inside a
+        // channel. Dashed so it never reads as a third boundary. Off only if asked (`channelMedian: false`).
+        if (dr.channelMedian !== false) strokeMedian(ctx, x1, y1 + offsetPx / 2, x2, y2 + offsetPx / 2);
       }
 
       // "disjointChannel"'s line 2 is just its own two stored, independently-draggable points
@@ -214,6 +217,8 @@ export function drawPriceDrawings(ctx: CanvasRenderingContext2D, params: RenderC
         ctx.moveTo(p3x, p3y);
         ctx.lineTo(p4x, p4y);
         ctx.stroke();
+        // Median: through the middles of each end (x1/y1 with p4, x2/y2 with p3).
+        if (dr.channelMedian !== false) strokeMedian(ctx, (x1 + p4x) / 2, (y1 + p4y) / 2, (x2 + p3x) / 2, (y2 + p3y) / 2);
       }
 
       // "fibonacci" slices y1 (0%) to y2 (100%) into the standard retracement ratios, each its
@@ -587,6 +592,13 @@ export function drawPriceDrawings(ctx: CanvasRenderingContext2D, params: RenderC
         ctx.moveTo(x1, y1 + offsetPx);
         ctx.lineTo(x2, y2 + offsetPx);
         ctx.stroke();
+        ctx.save();
+        ctx.setLineDash([2, 5]);
+        ctx.beginPath();
+        ctx.moveTo(x1, y1 + offsetPx / 2);
+        ctx.lineTo(x2, y2 + offsetPx / 2);
+        ctx.stroke();
+        ctx.restore();
       } else if (activeTool === "disjointChannel" && pendingSecondPoint) {
         // Same 3rd-click offset preview as "channel" above, but line 2 is the point-2-centered
         // mirror of line 1 (opposite slope) rather than a parallel copy — matches the commit
@@ -945,4 +957,16 @@ export function drawPriceDrawings(ctx: CanvasRenderingContext2D, params: RenderC
     }
 
     ctx.restore(); // end price-section clip
+}
+
+/** A channel's median line: dashed, slightly fainter than its two boundaries, same colour and width. */
+function strokeMedian(ctx: CanvasRenderingContext2D, ax: number, ay: number, bx: number, by: number): void {
+  ctx.save();
+  ctx.setLineDash([6, 4]);
+  ctx.globalAlpha *= 0.8;
+  ctx.beginPath();
+  ctx.moveTo(ax, ay);
+  ctx.lineTo(bx, by);
+  ctx.stroke();
+  ctx.restore();
 }

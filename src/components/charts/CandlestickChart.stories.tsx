@@ -1234,3 +1234,31 @@ export const LockedDrawing: Story = {
     );
   },
 };
+
+/** Canal : ligne médiane pointillée à mi-chemin des deux bords (masquable dans les paramètres du dessin). */
+export const ChannelMedian: Story = {
+  name: "Canal avec ligne médiane",
+  render: () => {
+    const data = LOCKED_ZONE_DATASET;
+    const a = data[Math.floor(data.length * 0.35)];
+    const b = data[Math.floor(data.length * 0.85)];
+    return (
+      <div style={{ height: 560 }}>
+        <CandlestickChart
+          data={data}
+          symbol="DEMO"
+          height={520}
+          drawingTools
+          defaultDrawings={
+            a && b
+              ? [
+                  { id: "chan", lineType: "channel", x1: a.date, y1: a.low, x2: b.date, y2: b.low, channelOffset: (a.high - a.low) * 4, color: "#5b8def" },
+                  { id: "chan-nomedian", lineType: "channel", x1: a.date, y1: a.high * 1.04, x2: b.date, y2: b.high * 1.04, channelOffset: (a.high - a.low) * 2, color: "#e0573f", channelMedian: false, text: "Sans médiane" },
+                ]
+              : []
+          }
+        />
+      </div>
+    );
+  },
+};

@@ -3402,6 +3402,9 @@
   position: absolute;
   overflow: visible;
   pointer-events: none;
+  /* Clipped on its right edge only, the price axis' side: a marker on the last bars must slide
+     under the axis, never over its labels. The other edges keep room for a fanned-out stack. */
+  clip-path: inset(-200px 0 -200px -200px);
 }
 
 .lq-chart__events-layer .lq-chart__event-marker {

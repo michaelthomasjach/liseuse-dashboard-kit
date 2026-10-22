@@ -529,7 +529,9 @@ export function ChartWorkspace({
   // height would run well past the screen regardless of what the caller asked for), and now also
   // the default for a single row (1/2 panels) since that's the more common case in practice: a
   // workspace that's the main content of its own page, same as any other panel count.
-  const fillHeight = panelHeight === undefined || rows > 1;
+  // Whole-workspace fullscreen too: the fixed `panelHeight` is meant for the page, not for a box that now covers the
+  // viewport — keeping it left the panels at their page height in the top part of an otherwise empty fullscreen box.
+  const fillHeight = workspaceFullscreen || panelHeight === undefined || rows > 1;
 
   return (
     // A flex row of up to two children — `.lq-chart-workspace__grid` (the actual panel grid) and,

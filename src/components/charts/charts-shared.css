@@ -328,9 +328,11 @@
   pointer-events: none;
 }
 
+/* Crosshair over the plot (it lines up with the crosshair lines and the axis badges), the closed
+   hand only while the button is held to pan. */
 .lq-chart__overlay {
   fill: transparent;
-  cursor: grab;
+  cursor: crosshair;
   touch-action: none;
 }
 

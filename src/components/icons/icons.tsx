@@ -380,6 +380,14 @@ export const ClockOffIcon = (props: AnimatedIconProps) => (
   </IconBase>
 );
 
+/** A circle struck through — "not given / none" (a figure that is not published this period). */
+export const BanIcon = (props: AnimatedIconProps) => (
+  <IconBase motion="blink" {...props}>
+    <circle cx="12" cy="12" r="8.5" />
+    <path d="M6 6l12 12" />
+  </IconBase>
+);
+
 export const AlarmClockIcon = (props: AnimatedIconProps) => (
   <IconBase motion="shake" {...props}>
     <circle cx="12" cy="13.5" r="7.5" />

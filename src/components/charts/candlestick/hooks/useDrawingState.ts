@@ -404,6 +404,29 @@ export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAdd
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [hoveredDrawingId, editingId, drawings, onDrawingsChange]);
 
+  // Delete/Backspace also removes the measure tool's measurement — it isn't a `drawings` entry, so
+  // the handler above never saw it and only Escape or switching tools could clear it. A hovered
+  // drawing still wins (that handler deletes it; this one stands down), and a measurement still
+  // being placed (first point down, tool active) is cancelled the same way Escape would.
+  useEffect(() => {
+    const placingMeasure = activeTool === "measure" && pendingPoint !== null;
+    if ((!measurePoints && !placingMeasure) || editingId) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key !== "Delete" && e.key !== "Backspace") return;
+      const active = document.activeElement;
+      const isEditableFocused = active instanceof HTMLElement && (active.tagName === "INPUT" || active.tagName === "TEXTAREA" || active.isContentEditable);
+      if (isEditableFocused || hoveredDrawingIdRef.current) return;
+      e.preventDefault();
+      setMeasurePoints(null);
+      measureBodyHoveredRef.current = false;
+      dragMeasureRef.current = null;
+      dragMeasureBodyRef.current = null;
+      if (placingMeasure) cancelDrawingTool();
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [measurePoints, activeTool, pendingPoint, editingId]);
+
   // Ctrl/Cmd+C over a hovered drawing copies it (copiedDrawingRef, not state — never read during
   // render, same reasoning usePaneLayout's own copiedIndicatorRef isn't); Ctrl/Cmd+V pastes a
   // duplicate (new id, everything else — geometry, style, text — unchanged) appended to

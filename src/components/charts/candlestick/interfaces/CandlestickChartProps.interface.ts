@@ -110,6 +110,11 @@ export interface CandlestickChartProps {
   defaultDrawings?: TrendLineDrawing[];
   /** Fires whenever a drawing is added, moved, or edited. */
   onDrawingsChange?: (drawings: TrendLineDrawing[]) => void;
+  /** Hides every user drawing (same as the eye button of the tools rail) without deleting any — controlled from
+   *  outside when set: a product can tie it to its own "show my drawings" switch. The eye button still works and
+   *  reports through `onDrawingsHiddenChange`. Overlay drawings (`overlayDrawings`) are not affected. */
+  drawingsHidden?: boolean;
+  onDrawingsHiddenChange?: (hidden: boolean) => void;
   /** Every alert attached to a drawing (via `drawingId`) or an indicator directly (`drawingId`
    *  null, `conditionIndicatorId` set — see `ChartAlertDraft`'s own doc) — entirely caller-owned,
    *  same stance as `drawings`/`indicators`, this library never stores, evaluates, or fires one

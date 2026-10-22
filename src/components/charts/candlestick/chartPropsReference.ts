@@ -82,6 +82,8 @@ export const CHART_PROPS_REFERENCE: ChartPropSection[] = [
     props: [
       { name: "drawingTools", type: "boolean", required: false, doc: "Shows a left-docked toolbar for drawing annotations directly on the chart (currently: trend line). Default false." },
       { name: "defaultDrawings", type: "TrendLineDrawing[]", required: false, doc: "Uncontrolled initial set of trend-line drawings." },
+      { name: "drawingsHidden", type: "boolean", required: false, doc: "Hides every user drawing without deleting any (the tools rail's eye button), controlled from outside when set. Overlay drawings are not affected." },
+      { name: "onDrawingsHiddenChange", type: "(hidden: boolean) => void", required: false, doc: "Fired when the drawings are hidden or shown again, from the eye button or from `drawingsHidden`." },
       { name: "onDrawingsChange", type: "(drawings: TrendLineDrawing[]) => void", required: false, doc: "Fires whenever a drawing is added, moved, or edited." },
     ],
   },

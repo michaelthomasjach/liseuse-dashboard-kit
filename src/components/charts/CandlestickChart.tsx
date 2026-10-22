@@ -131,6 +131,8 @@ export function CandlestickChart({
   drawingTools = false,
   defaultDrawings,
   onDrawingsChange,
+  drawingsHidden: drawingsHiddenProp,
+  onDrawingsHiddenChange,
   alerts, onCreateAlert, onUpdateAlert, onDeleteAlert, alertSoundOptions, onPlaySound,
   showIndicators = false,
   defaultIndicators,
@@ -254,6 +256,20 @@ export function CandlestickChart({
     deleteEditingDrawing,
     duplicateEditingDrawing,
   } = useDrawingState({ data, defaultDrawings, onDrawingsChange, onAddSymbolOverlay, timeframe, styleForNew: drawingStyles.activeStyleFor });
+  // Masquage des dessins piloté par l'application (prop `drawingsHidden`), sinon par le bouton œil seul.
+  useEffect(() => {
+    if (drawingsHiddenProp !== undefined) setDrawingsHidden(drawingsHiddenProp);
+  }, [drawingsHiddenProp, setDrawingsHidden]);
+  const onDrawingsHiddenChangeRef = useRef(onDrawingsHiddenChange);
+  onDrawingsHiddenChangeRef.current = onDrawingsHiddenChange;
+  const firstHiddenReport = useRef(true);
+  useEffect(() => {
+    if (firstHiddenReport.current) {
+      firstHiddenReport.current = false;
+      return;
+    }
+    onDrawingsHiddenChangeRef.current?.(drawingsHidden);
+  }, [drawingsHidden]);
   // Verrou d'angle des dessins (bouton « 45° » de la barre flottante) : Maj maintenue, pour le doigt.
   const [angleLock, setAngleLock] = useState(false);
   // Étiquette d'unité de temps des dessins : le libellé de la liste `timeframes`, sinon la valeur brute.

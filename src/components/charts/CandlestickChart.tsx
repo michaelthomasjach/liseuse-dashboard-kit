@@ -111,6 +111,9 @@ const noopPointerHandler = () => {};
  *  search, and everything else documented on its own props below. Usable standalone, but a few
  *  features (multi-panel layouts, workspace-wide fullscreen, linked panes, the shared watchlist/
  *  alerts side panel) only exist at the `ChartWorkspace` level — use it alongside this component. */
+/** The chart Ctrl+Z / Ctrl+Y act on when the pointer is over none of them: the one last clicked. */
+let lastUsedChart: object | null = null;
+
 export function CandlestickChart({
   data,
   width,
@@ -255,6 +258,8 @@ export function CandlestickChart({
     saveEditModal,
     deleteEditingDrawing,
     duplicateEditingDrawing,
+    undoDrawings,
+    redoDrawings,
   } = useDrawingState({ data, defaultDrawings, onDrawingsChange, onAddSymbolOverlay, timeframe, styleForNew: drawingStyles.activeStyleFor });
   // Masquage des dessins piloté par l'application (prop `drawingsHidden`), sinon par le bouton œil seul.
   useEffect(() => {
@@ -644,6 +649,38 @@ export function CandlestickChart({
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  // Ctrl+Z / Cmd+Z undoes the last change to the drawings, Ctrl+Y / Ctrl+Shift+Z (Cmd+Shift+Z) redoes
+  // it. Only for this chart when several share a page: the one under the pointer or holding focus,
+  // else the one last clicked (so it still works once the pointer has left the plot). Skipped while
+  // typing in a field, where Ctrl+Z belongs to the field.
+  const chartToken = useRef({});
+  useEffect(() => {
+    const root = mainRef.current;
+    if (!root) return;
+    const mark = () => {
+      lastUsedChart = chartToken.current;
+    };
+    root.addEventListener("pointerdown", mark);
+    return () => root.removeEventListener("pointerdown", mark);
+  });
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+      const key = e.key.toLowerCase();
+      const isUndo = key === "z" && !e.shiftKey;
+      const isRedo = key === "y" || (key === "z" && e.shiftKey);
+      if (!isUndo && !isRedo) return;
+      const active = document.activeElement;
+      if (active instanceof HTMLElement && (active.tagName === "INPUT" || active.tagName === "TEXTAREA" || active.tagName === "SELECT" || active.isContentEditable)) return;
+      const root = mainRef.current;
+      if (!root) return;
+      const focused = root.matches(":hover") || root.contains(active);
+      if (!focused && lastUsedChart !== chartToken.current) return;
+      if (isUndo ? undoDrawings() : redoDrawings()) e.preventDefault();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [undoDrawings, redoDrawings]);
   useEffect(() => {
     if (!activeCustomToolId) return;
     const onKey = (e: KeyboardEvent) => {

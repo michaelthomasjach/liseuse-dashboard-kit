@@ -25,6 +25,11 @@ export interface UseDrawingStateArgs {
     | undefined;
 }
 
+/** Changes closer together than this (ms) form one undo step — a drag commits on every frame. */
+const UNDO_COALESCE_MS = 400;
+/** Undo steps kept per chart. */
+const UNDO_LIMIT = 100;
+
 /** Every drawing (trend lines, shapes, symbol-comparison overlays…) — state, tool selection,
  *  CRUD, and the small keyboard shortcuts (Escape to cancel/finalize, Delete to remove the
  *  hovered one) that act on them. Pointer-driven placement/dragging lives in
@@ -60,6 +65,54 @@ export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAdd
   // several tool calls in one pass, where the second would otherwise throw away the first.
   const drawingsRef = useRef(drawings);
   drawingsRef.current = drawings;
+
+  // Undo / redo (Ctrl+Z, Ctrl+Y or Ctrl+Shift+Z — see CandlestickChart's keydown effect): every
+  // change to `drawings` goes through `emitDrawings`, which keeps the list as it stood *before* the
+  // change. A drag commits on every pointermove, so changes arriving less than UNDO_COALESCE_MS
+  // after the previous one are folded into the same step — one Ctrl+Z puts a dragged line back
+  // where the drag started, not one frame earlier. A fresh change clears the redo stack, as in any
+  // editor. Refs, not state: nothing here is ever read during render.
+  const undoStack = useRef<TrendLineDrawing[][]>([]);
+  const redoStack = useRef<TrendLineDrawing[][]>([]);
+  const lastChangeAt = useRef(0);
+  const emitDrawings = useCallback(
+    (next: TrendLineDrawing[]) => {
+      const now = Date.now();
+      if (now - lastChangeAt.current > UNDO_COALESCE_MS) {
+        undoStack.current.push(drawingsRef.current);
+        if (undoStack.current.length > UNDO_LIMIT) undoStack.current.shift();
+      }
+      lastChangeAt.current = now;
+      redoStack.current = [];
+      drawingsRef.current = next;
+      setDrawings(next);
+      onDrawingsChange?.(next);
+    },
+    [onDrawingsChange]
+  );
+  /** Restores the previous list; false when there's nothing left to undo. */
+  const undoDrawings = useCallback(() => {
+    const prev = undoStack.current.pop();
+    if (!prev) return false;
+    redoStack.current.push(drawingsRef.current);
+    // The next change after an undo always starts its own step.
+    lastChangeAt.current = 0;
+    drawingsRef.current = prev;
+    setDrawings(prev);
+    onDrawingsChange?.(prev);
+    return true;
+  }, [onDrawingsChange]);
+  /** Re-applies the last undone change; false when there's nothing to redo. */
+  const redoDrawings = useCallback(() => {
+    const next = redoStack.current.pop();
+    if (!next) return false;
+    undoStack.current.push(drawingsRef.current);
+    lastChangeAt.current = 0;
+    drawingsRef.current = next;
+    setDrawings(next);
+    onDrawingsChange?.(next);
+    return true;
+  }, [onDrawingsChange]);
   const [activeTool, setActiveTool] = useState<DrawingToolType | null>(null);
   // Which tool each category's own rail button currently represents — stays selected across
   // draws, independent of whether drawing is actually active right now, and independent of the
@@ -205,12 +258,9 @@ export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAdd
   // not just when `onDrawingsChange` itself changes.
   const commitDrawings = useCallback(
     (nextRaw: TrendLineDrawing[]) => {
-      const next = stampTimeframe(drawingsRef.current, nextRaw);
-      drawingsRef.current = next;
-      setDrawings(next);
-      onDrawingsChange?.(next);
+      emitDrawings(stampTimeframe(drawingsRef.current, nextRaw));
     },
-    [onDrawingsChange]
+    [emitDrawings]
   );
 
   /** The list as it stands right now — what a caller building `next` from the current drawings
@@ -306,10 +356,8 @@ export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAdd
         ...(timeframeRef.current ? { timeframe: timeframeRef.current } : {}),
       },
     ];
-    drawingsRef.current = next;
-    setDrawings(next);
-    onDrawingsChange?.(next);
-  }, [activeTool, pendingPoint, pendingExtraPoints, drawings, defaultDrawingStyle, onDrawingsChange]);
+    emitDrawings(next);
+  }, [activeTool, pendingPoint, pendingExtraPoints, drawings, defaultDrawingStyle, emitDrawings]);
 
   function handleToolClick(tool: DrawingToolType) {
     // Picking any tool (including re-picking "text"/"comment" itself) while a previous live
@@ -395,14 +443,12 @@ export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAdd
       const isEditableFocused = active instanceof HTMLElement && (active.tagName === "INPUT" || active.tagName === "TEXTAREA" || active.isContentEditable);
       if (isEditableFocused) return;
       e.preventDefault();
-      const next = drawings.filter((d) => d.id !== hoveredDrawingId);
-      setDrawings(next);
-      onDrawingsChange?.(next);
+      emitDrawings(drawings.filter((d) => d.id !== hoveredDrawingId));
       setHoveredDrawingId(null);
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [hoveredDrawingId, editingId, drawings, onDrawingsChange]);
+  }, [hoveredDrawingId, editingId, drawings, emitDrawings]);
 
   // Delete/Backspace also removes the measure tool's measurement — it isn't a `drawings` entry, so
   // the handler above never saw it and only Escape or switching tools could clear it. A hovered
@@ -557,6 +603,8 @@ export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAdd
   return {
     drawings,
     setDrawings,
+    undoDrawings,
+    redoDrawings,
     activeTool,
     setActiveTool,
     selectedToolByCategory,

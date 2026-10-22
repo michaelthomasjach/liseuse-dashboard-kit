@@ -76,7 +76,10 @@ export interface ChartHoverBadgesProps {
   indicatorValues: { indicator: Indicator; values: (IndicatorValue | null)[] }[];
 }
 
-/** One value badge per pane the pointer is *not* over, at the hovered bar. */
+/** Minimum vertical distance (px) between two synced badges of the same pane — about one badge height. */
+const SYNCED_BADGE_GAP = 17;
+
+/** One value badge per line of each pane (and the price/volume ones the pointer is not over), at the hovered bar. */
 interface SyncedBadge {
   key: string;
   top: number;
@@ -152,22 +155,26 @@ export function ChartHoverBadges({
       const y = zoomedVolumeScale(hovered.volume);
       if (inRange(zoomedVolumeScale, y)) synced.push({ key: "volume", top: priceHeight + volumeTop + y, text: vFmt(hovered.volume) });
     }
+    // Every "own" pane — the hovered one included — badges each of its lines (MACD and signal,
+    // ADX and both DIs, every series of a script pane…) at the hovered bar, value only: the pane
+    // already says what it is. A histogram is the gap between two lines, not a line: skipped.
     for (const ind of ownPaneIndicators) {
-      if (ind.id === hoverIndicatorPaneId) continue;
       const entry = indicatorValues.find((e) => e.indicator.id === ind.id);
       if (!entry) continue;
-      // The indicator's own defining series (MACD line, RSI…) at the hovered bar — the same reading
-      // its axis annotation would give with the hovered bar as the cutoff.
-      // A histogram is the gap between two lines, not the indicator's reading: the MACD line wins over it.
-      const labels = [...indicatorAxisAnnotations(ind, entry.values, hoverIndex, undefined).y].sort((a, b) => b.priority - a.priority);
-      const main = labels.find((l) => !/hist/i.test(l.label ?? "")) ?? labels[0];
-      if (!main) continue;
       const { scale, offset } = paneScaleAndOffset(ind.id);
-      const y = scale(main.at);
-      if (!inRange(scale, y)) continue;
-      // A script series key ("macd", "signal") reads as a name: short ones upper-cased, others capitalised.
-      const name = main.label ? (main.label.length <= 4 ? main.label.toUpperCase() : main.label.charAt(0).toUpperCase() + main.label.slice(1)) : "";
-      synced.push({ key: ind.id, top: offset + y, text: `${name ? `${name} ` : ""}${main.text ?? formatCompactNumber(main.at)}` });
+      const lines = indicatorAxisAnnotations(ind, entry.values, hoverIndex, undefined)
+        .y.filter((l) => !/hist/i.test(l.label ?? "") && !/hist/i.test(l.key))
+        .map((l) => ({ l, y: scale(l.at) }))
+        .filter(({ y }) => inRange(scale, y))
+        .sort((a, b) => a.y - b.y);
+      // Two lines close together would print their badges on top of each other: each is pushed
+      // just below the previous one (the values stay exact, only the badge moves).
+      let last = -Infinity;
+      for (const { l, y } of lines) {
+        const top = Math.max(y, last + SYNCED_BADGE_GAP);
+        last = top;
+        synced.push({ key: `${ind.id}-${l.key}`, top: offset + top, text: l.text ?? formatCompactNumber(l.at) });
+      }
     }
   }
   // Where the last close sits on the current scale — `null` once it is scrolled or zoomed out of

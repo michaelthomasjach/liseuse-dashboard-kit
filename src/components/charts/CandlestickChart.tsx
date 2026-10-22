@@ -607,6 +607,20 @@ export function CandlestickChart({
       });
     return list;
   }, [overlayDrawings, overlayDrag, selectedOverlayId, customToolFirst]);
+  // Ctrl+Espace (⌘+Espace sur Mac) : ouvre la liste des indicateurs, comme le bouton de l'en-tête.
+  // Seulement le graphique sous le pointeur ou qui a le focus — une page en affiche parfois plusieurs.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey || (e.code !== "Space" && e.key !== " ")) return;
+      const root = mainRef.current;
+      if (!root || !(root.matches(":hover") || root.contains(document.activeElement))) return;
+      e.preventDefault();
+      setIndicatorPickerOpen(true);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   useEffect(() => {
     if (!activeCustomToolId) return;
     const onKey = (e: KeyboardEvent) => {

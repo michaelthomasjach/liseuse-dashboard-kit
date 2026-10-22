@@ -1,4 +1,6 @@
-.lq-chart rect {
+/* The bars only: a bare `.lq-chart rect` leaked onto every chart once BarChart was loaded,
+   turning the axis-drag strips (ns-/ew-resize) and the plot overlay (grab) into a pointer. */
+.lq-bar-chart__bar {
   transition: opacity var(--lq-transition-fast);
   cursor: pointer;
 }

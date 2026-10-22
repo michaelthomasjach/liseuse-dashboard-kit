@@ -397,6 +397,7 @@ export function BarChart({
                   return (
                     <g key={bar.key}>
                       <rect
+                        className="lq-bar-chart__bar"
                         x={offset}
                         y={y}
                         width={barThickness}
@@ -426,6 +427,7 @@ export function BarChart({
                 return (
                   <rect
                     key={bar.key}
+                    className="lq-bar-chart__bar"
                     x={x}
                     y={offset}
                     width={barWidth}

@@ -92,7 +92,7 @@ export type {
 export { MatrixChart } from "./MatrixChart";
 export type { MatrixChartProps, MatrixCell, MatrixCellDetail, MatrixAxisEntry } from "./MatrixChart";
 
-export { Heatmap } from "./Heatmap";
+export { Heatmap, heatmapTileColor, useHeatmapLabelColor } from "./Heatmap";
 export type { HeatmapProps, HeatmapGroup, HeatmapTile } from "./Heatmap";
 
 export { AlertsPanel } from "./AlertsPanel";

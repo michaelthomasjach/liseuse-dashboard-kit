@@ -116,6 +116,12 @@ interface GroupBounds {
 /** Flat grey of a tile with no reading (`colorValue: null`). */
 const NEUTRAL_TILE = "color-mix(in srgb, var(--lq-color-text-muted) 22%, var(--lq-color-panel))";
 
+/** A tile's fill for `colorValue` on `domain` — exported so a table or list beside the heatmap can
+ *  tint its rows with exactly the same color (same up/down tokens, same 15–85 % intensity ramp). */
+export function heatmapTileColor(colorValue: number | null, domain: [number, number]): string {
+  return tileColor(colorValue, domain);
+}
+
 function tileColor(colorValue: number | null, domain: [number, number]): string {
   if (colorValue === null) return NEUTRAL_TILE;
   const [lo, hi] = domain;
@@ -141,6 +147,12 @@ function tileColor(colorValue: number | null, domain: [number, number]): string 
 /** Resolves `--lq-color-up`/`--lq-color-down`/`--lq-color-panel` as they currently stand on this
  *  chart's own element, and mixes them the way `tileColor` does. Re-read after every render rather
  *  than once, because a palette or surface switch changes all three without unmounting anything. */
+/** Readable text color on a `heatmapTileColor` fill, resolved from the theme tokens of `el`
+ *  (the same contrast decision the heatmap makes for its own tile labels). */
+export function useHeatmapLabelColor(el: HTMLElement | null): (colorValue: number | null, domain: [number, number]) => string {
+  return useTileMixer(el);
+}
+
 function useTileMixer(el: HTMLElement | null): (colorValue: number | null, domain: [number, number]) => string {
   const [tokens, setTokens] = useState<{ up: string; down: string; panel: string; muted: string } | null>(null);
 

@@ -53,10 +53,16 @@ export default defineConfig({
       // the names were chosen for in the first place: they are still content-hash-free, so each
       // build overwrites the previous one instead of `dist/` growing without bound (see the
       // chunkFileNames note that used to live here, and emptyOutDir's own caveat above).
+      //
+      // The ES build keeps one file per source module (`preserveModules`): a consumer's bundler then only pulls the
+      // modules it actually imports. As a single file, the whole library (charts, globe, scheduler, warehouse…)
+      // landed in every consumer's first page — about 840 KB gzipped for an app using a fraction of it — because
+      // module-level code in one file can't be dropped piecemeal. The CJS build stays a single file.
       output: ["es", "cjs"].map((format) => ({
         format: format as "es" | "cjs",
-        entryFileNames: `liseuse-dashboard-kit.${format}.js`,
+        entryFileNames: format === "es" ? "es/[name].js" : `liseuse-dashboard-kit.${format}.js`,
         chunkFileNames: `${format}/[name].js`,
+        ...(format === "es" ? { preserveModules: true, preserveModulesRoot: "src" } : {}),
         globals: {
           react: "React",
           "react-dom": "ReactDOM",

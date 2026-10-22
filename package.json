@@ -14,12 +14,12 @@
     "access": "public"
   },
   "main": "./dist/liseuse-dashboard-kit.cjs.js",
-  "module": "./dist/liseuse-dashboard-kit.es.js",
+  "module": "./dist/es/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/liseuse-dashboard-kit.es.js",
+      "import": "./dist/es/index.js",
       "require": "./dist/liseuse-dashboard-kit.cjs.js"
     },
     "./style.css": "./dist/style.css"

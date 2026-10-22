@@ -8,6 +8,7 @@ import type { DrawingToolType } from "../interfaces/DrawingToolType.interface";
 import type { SymbolSearchResult } from "../interfaces/SymbolSearchResult.interface";
 import { DRAWING_TOOL_CATEGORIES, categoryOfTool } from "../drawingCatalog";
 import { EMPTY_DRAWINGS, DEFAULT_DRAWING_COLOR } from "../constants";
+import { toolKeyOf, withStyle, type DrawingStyle } from "../drawingStylePresets";
 import { defaultIndicatorColor } from "../indicatorCatalog";
 import { offsetDrawingUp } from "../drawingGeometry";
 
@@ -17,6 +18,8 @@ export interface UseDrawingStateArgs {
   onDrawingsChange: ((drawings: TrendLineDrawing[]) => void) | undefined;
   /** Unité de temps affichée : posée sur chaque nouveau dessin (voir `TrendLineDrawing.timeframe`). */
   timeframe?: string;
+  /** Style enregistré actif d'un outil (« types de lignes ») : appliqué à chaque nouveau dessin de cet outil. */
+  styleForNew?: (tool: string) => DrawingStyle | null;
   onAddSymbolOverlay:
     | ((result: SymbolSearchResult) => OverlayDataPoint[] | Promise<OverlayDataPoint[]>)
     | undefined;
@@ -27,7 +30,9 @@ export interface UseDrawingStateArgs {
  *  hovered one) that act on them. Pointer-driven placement/dragging lives in
  *  `useDrawingInteractions` instead (it needs the zoom/pane scales this hook doesn't), which takes
  *  this hook's full return value as its own input. */
-export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAddSymbolOverlay, timeframe }: UseDrawingStateArgs) {
+export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAddSymbolOverlay, timeframe, styleForNew }: UseDrawingStateArgs) {
+  const styleForNewRef = useRef(styleForNew);
+  styleForNewRef.current = styleForNew;
   // Lu au moment du tracé (pas à la création du callback) : un changement d'unité de temps ne
   // recrée pas commitDrawings, dont l'identité stable compte pour les écouteurs clavier.
   const timeframeRef = useRef(timeframe);
@@ -35,9 +40,15 @@ export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAdd
   /** Les dessins absents de `prev` (donc tout juste tracés) reçoivent l'unité de temps courante. */
   const stampTimeframe = (prev: TrendLineDrawing[], next: TrendLineDrawing[]): TrendLineDrawing[] => {
     const tf = timeframeRef.current;
-    if (!tf) return next;
     const known = new Set(prev.map((d) => d.id));
-    return next.map((d) => (known.has(d.id) || d.timeframe || d.lineType === "symbolOverlay" ? d : { ...d, timeframe: tf }));
+    // Un dessin tout juste tracé (pas une copie, qui garde son unité de temps et son style) : le
+    // style enregistré actif de son outil, puis l'unité de temps courante.
+    return next.map((d) => {
+      if (known.has(d.id) || d.timeframe || d.lineType === "symbolOverlay") return d;
+      const style = styleForNewRef.current?.(toolKeyOf(d)) ?? null;
+      const styled = style ? withStyle(d, style) : d;
+      return tf ? { ...styled, timeframe: tf } : styled;
+    });
   };
   const [drawings, setDrawings] = useState<TrendLineDrawing[]>(defaultDrawings ?? []);
   // Kept in sync every render *and* on every commit — handleAddSymbolOverlay's own async

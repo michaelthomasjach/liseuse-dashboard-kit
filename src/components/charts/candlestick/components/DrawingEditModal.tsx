@@ -13,6 +13,8 @@ import { contrastingTextColor, toDateInputValue, fromDateInputValue } from "../f
 import { fillColorField, PALE_GREEN, PALE_NEUTRAL, PALE_RED } from "../drawingFills";
 import { CHART_DISPLAY_MODES } from "../chartModes";
 import { TABLE_DEFAULT_ROWS, TABLE_DEFAULT_COLS } from "../constants";
+import { styleOf, toolKeyOf, withStyle, type DrawingStylesApi } from "../drawingStylePresets";
+import { SaveStyleField } from "./DrawingStylesMenu";
 
 // Same catalog the main chart's own display-mode menu offers (see ChartHeader).
 const OVERLAY_DISPLAY_MODE_OPTIONS = CHART_DISPLAY_MODES.map((m) => ({ value: m.mode, label: m.label }));
@@ -31,6 +33,8 @@ export interface DrawingEditModalProps {
    *  canvas (see useDefaultDrawingColor) — seeds the color pickers below so they show what's
    *  really drawn instead of a color that only matches one particular theme. */
   defaultColor: string;
+  /** Styles enregistrés (« types de lignes ») : choisir, appliquer au brouillon, enregistrer. */
+  drawingStyles?: DrawingStylesApi;
 }
 
 /** The "Modifier la ligne" / "Paramètres — <symbol>" modal opened by double-clicking a drawing —
@@ -48,6 +52,7 @@ export function DrawingEditModal({
   duplicateEditingDrawing,
   valueAxisLabel,
   defaultColor,
+  drawingStyles,
 }: DrawingEditModalProps) {
   if (!draft) return null;
   // Which field this tool's background actually lives in — null where it has none.
@@ -395,6 +400,20 @@ export function DrawingEditModal({
 
       {editModalTab === "style" && (
         <>
+          {drawingStyles && draft && (
+            <div className="lq-chart__edit-drawing-row">
+              <Select
+                label="Style enregistré"
+                value={drawingStyles.activeFor(toolKeyOf(draft)) ?? ""}
+                options={[{ value: "", label: "Défaut" }, ...drawingStyles.presetsFor(toolKeyOf(draft)).map((p) => ({ value: p.id, label: p.name }))]}
+                onChange={(v) => setDraft(withStyle(draft, drawingStyles.select(toolKeyOf(draft), v || null)))}
+              />
+              <SaveStyleField
+                placeholder={`Style ${drawingStyles.presetsFor(toolKeyOf(draft)).length + 1}`}
+                onSave={(name) => drawingStyles.saveNew(toolKeyOf(draft), name, styleOf(draft))}
+              />
+            </div>
+          )}
           <div className="lq-chart__edit-drawing-row">
             <InputNumber
               label="Épaisseur"

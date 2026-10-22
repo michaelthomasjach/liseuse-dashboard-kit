@@ -96,6 +96,7 @@ import { ChartContextMenu } from "./candlestick/components/ChartContextMenu";
 import { buildChartContextMenu } from "./candlestick/buildChartContextMenu";
 import { CHART_DISPLAY_MODES } from "./candlestick/chartModes";
 import { findTimeframeLabel, flattenTimeframeValues } from "./candlestick/timeframes";
+import { styleOf, toolKeyOf, useDrawingStylePresets, withStyle } from "./candlestick/drawingStylePresets";
 import { DEFAULT_MARGIN, MOBILE_LAYOUT_BREAKPOINT, NARROW_EMBED_BREAKPOINT, PRICE_AXIS_WIDTH_MOBILE, SUB_PANE_COLLAPSED_HEIGHT, TOOLS_RAIL_HEIGHT_MOBILE, TOOLS_RAIL_WIDTH } from "./candlestick/constants";
 import { formatPercentFromReference, computeOhlcReadout, toDayInputValue, candleIndexForDay } from "./candlestick/formatting";
 import { supportsProjection, projectionSettingsOf } from "./candlestick/indicatorProjection";
@@ -175,6 +176,8 @@ export function CandlestickChart({
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   const hovered = hoverIndex !== null ? data[hoverIndex] : null;
 
+  // Styles de dessin enregistrés (« types de lignes »), gardés dans ce navigateur : voir drawingStylePresets.
+  const drawingStyles = useDrawingStylePresets();
   const {
     drawings,
     activeTool,
@@ -250,7 +253,7 @@ export function CandlestickChart({
     saveEditModal,
     deleteEditingDrawing,
     duplicateEditingDrawing,
-  } = useDrawingState({ data, defaultDrawings, onDrawingsChange, onAddSymbolOverlay, timeframe });
+  } = useDrawingState({ data, defaultDrawings, onDrawingsChange, onAddSymbolOverlay, timeframe, styleForNew: drawingStyles.activeStyleFor });
   // Verrou d'angle des dessins (bouton « 45° » de la barre flottante) : Maj maintenue, pour le doigt.
   const [angleLock, setAngleLock] = useState(false);
   // Étiquette d'unité de temps des dessins : le libellé de la liste `timeframes`, sinon la valeur brute.
@@ -1825,6 +1828,28 @@ export function CandlestickChart({
               const sel = drawings.find((d) => d.id === selectedDrawingId);
               return sel?.timeframe ? { text: drawingTimeframeLabel(sel.timeframe), shown: !sel.timeframeLabelHidden } : undefined;
             })()}
+            styles={(() => {
+              const sel = drawings.find((d) => d.id === selectedDrawingId) ?? null;
+              const tool = sel ? toolKeyOf(sel) : activeTool;
+              if (!tool) return undefined;
+              return {
+                presets: drawingStyles.presetsFor(tool).map((p) => ({ id: p.id, name: p.name })),
+                activeId: drawingStyles.activeFor(tool),
+                canSave: sel !== null,
+                onSelect: (id: string | null) => {
+                  const style = drawingStyles.select(tool, id);
+                  if (sel) commitDrawings(drawings.map((d) => (d.id === sel.id ? withStyle(d, style) : d)));
+                },
+                onSave: (name: string) => {
+                  if (sel) drawingStyles.saveNew(tool, name, styleOf(sel));
+                },
+                onOverwrite: (id: string) => {
+                  if (sel) drawingStyles.overwrite(id, styleOf(sel));
+                },
+                onRename: drawingStyles.rename,
+                onDelete: drawingStyles.remove,
+              };
+            })()}
             onToggleTimeframeLabel={() =>
               commitDrawings(drawings.map((d) => (d.id === selectedDrawingId ? { ...d, timeframeLabelHidden: !d.timeframeLabelHidden } : d)))
             }
@@ -1919,6 +1944,7 @@ export function CandlestickChart({
         duplicateEditingDrawing={duplicateEditingDrawing}
         valueAxisLabel={valueAxisLabel}
         defaultColor={defaultDrawingColor}
+        drawingStyles={drawingStyles}
         codeViewer={codeViewer}
         indicatorPickerOpen={indicatorPickerOpen} setIndicatorPickerOpen={setIndicatorPickerOpen}
         infoKind={infoKind} setInfoKind={setInfoKind}

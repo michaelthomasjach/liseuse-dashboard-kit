@@ -3623,3 +3623,58 @@
   font-weight: 700;
   white-space: nowrap;
 }
+
+/* Styles de dessin enregistrés (« types de lignes ») : menu de la barre flottante et paramètres. */
+.lq-chart__styles-menu {
+  min-width: 260px;
+  max-width: 320px;
+}
+.lq-chart__styles-menu-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.lq-chart__styles-menu-row > .lq-chart__tool-menu-option {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lq-chart__styles-menu-check {
+  display: inline-flex;
+  width: 14px;
+  margin-right: 6px;
+}
+.lq-chart__styles-menu-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 26px;
+  padding: 0 6px;
+  border: 1px solid var(--lq-color-border);
+  background: var(--lq-color-panel);
+  color: var(--lq-color-text);
+  font: inherit;
+  font-size: 0.78rem;
+}
+.lq-chart__styles-menu-action {
+  flex: none;
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid var(--lq-color-border);
+  background: var(--lq-color-panel);
+  color: var(--lq-color-text);
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.lq-chart__styles-menu-action:hover {
+  background: var(--lq-color-fill);
+  color: var(--lq-color-accent-contrast);
+}
+.lq-chart__styles-menu-save {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--lq-color-border-subtle);
+}

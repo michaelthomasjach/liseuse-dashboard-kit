@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import type { RefObject } from "react";
 import { Popover } from "../../../forms/Popover";
+import { DrawingStylesMenu, type DrawingStylesMenuProps } from "./DrawingStylesMenu";
 import { GripIcon, PencilIcon, TextIcon, HorizontalLineIcon, AlarmClockIcon, TrashIcon, LockIcon, UnlockIcon } from "../../../icons";
 
 const STROKE_WIDTH_OPTIONS = [1, 2, 3, 4];
@@ -39,6 +40,8 @@ export interface FloatingDrawingToolbarProps {
    *  absente si le dessin n'en a pas. */
   timeframeLabel?: { text: string; shown: boolean };
   onToggleTimeframeLabel?: () => void;
+  /** Styles enregistrés de l'outil (« types de lignes ») : menu « Style » de la barre. */
+  styles?: DrawingStylesMenuProps;
 }
 
 /** The small floating, draggable toolbar that appears the moment a drawing tool becomes active or
@@ -67,6 +70,7 @@ export function FloatingDrawingToolbar({
   onToggleAngleLock,
   timeframeLabel,
   onToggleTimeframeLabel,
+  styles,
 }: FloatingDrawingToolbarProps) {
   const [strokeMenuOpen, setStrokeMenuOpen] = useState(false);
   const strokeButtonRef = useRef<HTMLButtonElement>(null);
@@ -138,6 +142,7 @@ export function FloatingDrawingToolbar({
           <div className="lq-chart__floating-toolbar-divider" aria-hidden="true" />
         </>
       )}
+      {styles && showStyleControls && <DrawingStylesMenu {...styles} />}
       {onToggleAngleLock && (
         <button
           type="button"

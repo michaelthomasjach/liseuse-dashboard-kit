@@ -99,6 +99,12 @@ export interface TrendLineDrawing {
    *  modal's own "Couleur de fond" control writes whichever of the two applies to the tool at
    *  hand, so there is one control and not two. */
   fillColor?: string;
+  /** Unité de temps du graphique au moment du tracé (valeur du `timeframe` du graphique, ex. « 1week »),
+   *  posée automatiquement à la création. Affichée en étiquette discrète au bout gauche du dessin
+   *  (« 1 semaine »), pour savoir sur quelle échelle il a été tracé. Absente : pas d'étiquette. */
+  timeframe?: string;
+  /** Masque l'étiquette d'unité de temps (barre flottante du dessin, ou ses paramètres). */
+  timeframeLabelHidden?: boolean;
   /** "channel"/"disjointChannel" only — the dashed median line halfway between the two lines.
    *  Unset (default) draws it; `false` hides it. */
   channelMedian?: boolean;

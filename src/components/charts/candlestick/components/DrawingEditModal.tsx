@@ -209,6 +209,13 @@ export function DrawingEditModal({
               onChange={(v) => setDraft({ ...draft, channelOffset: v === "" ? draft.channelOffset : round4(v) })}
             />
           )}
+          {draft.timeframe && (
+            <Checkbox
+              checked={!draft.timeframeLabelHidden}
+              onChange={(on) => setDraft({ ...draft, timeframeLabelHidden: !on })}
+              label={`Étiquette d'unité de temps (tracé en ${draft.timeframe})`}
+            />
+          )}
           {(draft.lineType === "channel" || draft.lineType === "disjointChannel") && (
             <Checkbox
               checked={draft.channelMedian !== false}

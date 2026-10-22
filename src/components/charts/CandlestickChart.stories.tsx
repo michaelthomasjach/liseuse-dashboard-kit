@@ -1262,3 +1262,40 @@ export const ChannelMedian: Story = {
     );
   },
 };
+
+/**
+ * Étiquette d'unité de temps : chaque dessin retient l'unité de temps affichée quand il a été tracé
+ * (« 1 semaine », « 1 jour »…), affichée à son bout gauche. Masquable depuis la barre flottante du
+ * dessin ou ses paramètres. Maj maintenue (ou le bouton « 45° » de la barre flottante) bloque le
+ * tracé à 0°, 45° ou 90°.
+ */
+export const DrawingTimeframeLabels: Story = {
+  name: "Dessins : étiquette d'unité de temps, angle bloqué (Maj / 45°)",
+  render: () => {
+    const data = LOCKED_ZONE_DATASET;
+    const a = data[Math.floor(data.length * 0.3)];
+    const b = data[Math.floor(data.length * 0.75)];
+    const c = data[Math.floor(data.length * 0.55)];
+    return (
+      <div style={{ height: 560 }}>
+        <CandlestickChart
+          data={data}
+          symbol="DEMO"
+          height={520}
+          drawingTools
+          timeframes={[{ group: "Jours", options: [{ label: "1 jour", value: "1day" }, { label: "1 semaine", value: "1week" }] }]}
+          timeframe="1day"
+          defaultDrawings={
+            a && b && c
+              ? [
+                  { id: "w", lineType: "channel", x1: a.date, y1: a.low, x2: b.date, y2: b.low, channelOffset: (a.high - a.low) * 4, color: "#5b8def", timeframe: "1week" },
+                  { id: "d", x1: c.date, y1: c.high * 1.02, x2: b.date, y2: b.high * 1.05, color: "#e0573f", timeframe: "1day" },
+                  { id: "hidden", lineType: "horizontal", x1: a.date, y1: a.high * 1.08, x2: a.date, y2: a.high * 1.08, color: "#3ea377", timeframe: "1day", timeframeLabelHidden: true },
+                ]
+              : []
+          }
+        />
+      </div>
+    );
+  },
+};

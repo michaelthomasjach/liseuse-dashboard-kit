@@ -3613,3 +3613,13 @@
 .lq-chart__axis--no-line .lq-chart-axis__domain {
   display: none;
 }
+
+/* Barre flottante d'un dessin : boutons à libellé court (« 45° », unité de temps du dessin). */
+.lq-chart__icon-button.lq-chart__floating-toolbar-text {
+  width: auto;
+  min-width: 28px;
+  padding: 0 6px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  white-space: nowrap;
+}

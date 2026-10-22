@@ -31,6 +31,14 @@ export interface FloatingDrawingToolbarProps {
   locked?: boolean;
   /** Locks / unlocks the selected drawing. Like `onDelete`, only passed while a drawing is selected. */
   onToggleLock?: () => void;
+  /** Verrou d'angle (0°, 45°, 90°) pour tracer et déplacer les points — l'équivalent de Maj, pour le
+   *  doigt qui n'a pas de touche Maj. Le bouton n'apparaît que si `onToggleAngleLock` est passé. */
+  angleLock?: boolean;
+  onToggleAngleLock?: () => void;
+  /** Étiquette d'unité de temps du dessin sélectionné (« 1 semaine ») et si elle est affichée ;
+   *  absente si le dessin n'en a pas. */
+  timeframeLabel?: { text: string; shown: boolean };
+  onToggleTimeframeLabel?: () => void;
 }
 
 /** The small floating, draggable toolbar that appears the moment a drawing tool becomes active or
@@ -55,6 +63,10 @@ export function FloatingDrawingToolbar({
   onDelete,
   locked,
   onToggleLock,
+  angleLock,
+  onToggleAngleLock,
+  timeframeLabel,
+  onToggleTimeframeLabel,
 }: FloatingDrawingToolbarProps) {
   const [strokeMenuOpen, setStrokeMenuOpen] = useState(false);
   const strokeButtonRef = useRef<HTMLButtonElement>(null);
@@ -125,6 +137,30 @@ export function FloatingDrawingToolbar({
           </Popover>
           <div className="lq-chart__floating-toolbar-divider" aria-hidden="true" />
         </>
+      )}
+      {onToggleAngleLock && (
+        <button
+          type="button"
+          className={["lq-chart__icon-button", "lq-chart__floating-toolbar-text", angleLock && "lq-chart__icon-button--active"].filter(Boolean).join(" ")}
+          onClick={onToggleAngleLock}
+          aria-pressed={angleLock ?? false}
+          aria-label={angleLock ? "Débloquer l'angle du tracé" : "Bloquer l'angle du tracé à 0°, 45° ou 90°"}
+          title={angleLock ? "Angle libre (le verrou est actif : 0°, 45°, 90°)" : "Bloquer l'angle à 0°, 45° ou 90° (comme Maj maintenue)"}
+        >
+          45°
+        </button>
+      )}
+      {timeframeLabel && onToggleTimeframeLabel && (
+        <button
+          type="button"
+          className={["lq-chart__icon-button", "lq-chart__floating-toolbar-text", timeframeLabel.shown && "lq-chart__icon-button--active"].filter(Boolean).join(" ")}
+          onClick={onToggleTimeframeLabel}
+          aria-pressed={timeframeLabel.shown}
+          aria-label={timeframeLabel.shown ? `Masquer l'étiquette « ${timeframeLabel.text} »` : `Afficher l'étiquette « ${timeframeLabel.text} »`}
+          title={timeframeLabel.shown ? `Tracé en ${timeframeLabel.text} — masquer l'étiquette` : `Tracé en ${timeframeLabel.text} — afficher l'étiquette`}
+        >
+          {timeframeLabel.text}
+        </button>
       )}
       <button
         type="button"

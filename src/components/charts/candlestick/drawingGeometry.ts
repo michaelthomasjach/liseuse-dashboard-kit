@@ -11,6 +11,23 @@ import type { DataPoint } from "./interfaces/DataPoint.interface";
  *  same x1→x2→extraPoints order as every other tool would jump straight from the start to the end
  *  and then zigzag back through the middle samples — this returns x1→extraPoints→x2 for brush
  *  specifically so callers can keep walking the result pairwise without knowing the difference. */
+/**
+ * Contraint un point (pixels) à 0°, 45° ou 90° autour d'une ancre (et leurs multiples) : l'angle du
+ * segment ancre → point est arrondi au multiple de 45° le plus proche, la longueur projetée sur cette
+ * direction. Pixels d'écran, pas prix : 45° est un angle *vu*, quelle que soit l'échelle des prix.
+ */
+export function snapAngle(anchor: { x: number; y: number }, p: { x: number; y: number }): { x: number; y: number } {
+  const dx = p.x - anchor.x;
+  const dy = p.y - anchor.y;
+  if (dx === 0 && dy === 0) return p;
+  const step = Math.PI / 4;
+  const a = Math.round(Math.atan2(dy, dx) / step) * step;
+  const cos = Math.round(Math.cos(a) * 1e9) / 1e9;
+  const sin = Math.round(Math.sin(a) * 1e9) / 1e9;
+  const t = dx * cos + dy * sin;
+  return { x: anchor.x + t * cos, y: anchor.y + t * sin };
+}
+
 export function allPointsOf(dr: TrendLineDrawing): DataPoint[] {
   if (dr.lineType === "brush") return [{ x: dr.x1, y: dr.y1 }, ...(dr.extraPoints ?? []), { x: dr.x2, y: dr.y2 }];
   return [{ x: dr.x1, y: dr.y1 }, { x: dr.x2, y: dr.y2 }, ...(dr.extraPoints ?? [])];

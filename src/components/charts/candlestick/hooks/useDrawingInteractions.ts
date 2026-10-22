@@ -8,7 +8,7 @@ import type { DataPoint } from "../interfaces/DataPoint.interface";
 import type { DrawingToolType } from "../interfaces/DrawingToolType.interface";
 import type { TextEntryState } from "../interfaces/TextEntryState.interface";
 import type { EditingCellState } from "../interfaces/EditingCellState.interface";
-import { round4, tableCellIndexAt } from "../drawingGeometry";
+import { allPointsOf, round4, snapAngle, tableCellIndexAt } from "../drawingGeometry";
 import { distanceToDrawing } from "../drawingHitTest";
 import { distanceToIndicator } from "../indicatorHitTest";
 import type { HitTestContext } from "../drawingHitTest";
@@ -58,6 +58,8 @@ export interface UseDrawingInteractionsArgs {
   measurePoints: { p1: DataPoint; p2: DataPoint } | null;
   setMeasurePoints: (v: { p1: DataPoint; p2: DataPoint } | null | ((prev: { p1: DataPoint; p2: DataPoint } | null) => { p1: DataPoint; p2: DataPoint } | null)) => void;
   drawingsLocked: boolean;
+  /** Verrou d'angle (bouton de la barre flottante, pour l'écran tactile) : comme Maj maintenue. */
+  angleLock: boolean;
   visibleDrawings: TrendLineDrawing[];
   setBrushPreview: (v: DataPoint[] | null) => void;
   brushPointsRef: MutableRef<DataPoint[]>;
@@ -163,6 +165,7 @@ export function useDrawingInteractions({
   measurePoints,
   setMeasurePoints,
   drawingsLocked,
+  angleLock,
   visibleDrawings,
   setBrushPreview,
   brushPointsRef,
@@ -229,6 +232,9 @@ export function useDrawingInteractions({
    *  through here — they return earlier in handlePointerMove — so nothing that needs to track the
    *  pointer exactly is delayed. */
   const pendingHoverRef = useRef<{ x: number; y: number; hitDistance: number } | null>(null);
+  // Maj maintenue au dernier mouvement du pointeur : l'aperçu du tracé (calculé dans une image
+  // d'animation, sans l'évènement) suit la même contrainte d'angle que le clic.
+  const shiftHeldRef = useRef(false);
   const hoverFrameRef = useRef<number | null>(null);
   function scheduleHoverUpdate(x: number, y: number, hitDistance: number) {
     pendingHoverRef.current = { x, y, hitDistance };
@@ -247,8 +253,26 @@ export function useDrawingInteractions({
     []
   );
 
-  function toDataPoint(e: { clientX: number; clientY: number }): DataPoint {
+  /** Point d'ancrage du segment en cours de tracé (le dernier point posé), pour la contrainte d'angle.
+   *  Aucun pour le 3ᵉ clic d'un canal : il fixe un écart, pas une direction. */
+  function placementAnchor(): DataPoint | null {
+    if (!activeTool) return null;
+    if ((activeTool === "channel" || activeTool === "disjointChannel") && pendingSecondPoint) return null;
+    return pendingExtraPoints[pendingExtraPoints.length - 1] ?? pendingSecondPoint ?? pendingPoint ?? null;
+  }
+
+  /** Position du pointeur → point du graphique. Maj maintenue (ou verrou d'angle) avec une ancre :
+   *  le segment est bloqué à 0°, 45° ou 90° (sans aimant, qui le décalerait de l'angle). */
+  function toDataPoint(e: { clientX: number; clientY: number; shiftKey?: boolean }, anchor?: DataPoint | null): DataPoint {
     const rect = zoomRef.current!.getBoundingClientRect();
+    const a = anchor === undefined ? placementAnchor() : anchor;
+    if (a && (e.shiftKey || angleLock)) {
+      const p = snapAngle(
+        { x: zoomedXScale(indexForDate(a.x) + 0.5), y: zoomedPriceScale(a.y) },
+        { x: e.clientX - rect.left, y: e.clientY - rect.top },
+      );
+      return { x: dateForIndex(zoomedXScale.invert(p.x)), y: round4(zoomedPriceScale.invert(p.y)) };
+    }
     const rawIndex = zoomedXScale.invert(e.clientX - rect.left);
     const rawY = zoomedPriceScale.invert(e.clientY - rect.top);
     return { x: dateForIndex(rawIndex), y: round4(magnetSnapPrice(rawIndex, rawY)) };
@@ -369,7 +393,11 @@ export function useDrawingInteractions({
   function handleEndpointPointerMove(e: React.PointerEvent<SVGCircleElement>) {
     const drag = dragEndpointRef.current;
     if (!drag) return;
-    const point = toDataPoint(e);
+    // Ancre de la contrainte d'angle : le point voisin de celui qu'on déplace.
+    const dragged = drawings.find((d) => d.id === drag.id);
+    const pts = dragged ? allPointsOf(dragged) : [];
+    const neighbour = drag.pointIndex === 0 ? pts[1] : pts[drag.pointIndex - 1];
+    const point = toDataPoint(e, neighbour ?? null);
     commitDrawings(
       drawings.map((d) => {
         if (d.id !== drag.id) return d;
@@ -463,7 +491,11 @@ export function useDrawingInteractions({
     }
 
     if (activeTool && pendingPoint) {
-      setPreviewPoint({ x: dateForIndex(zoomedXScale.invert(mouseX)), y: zoomedPriceScale.invert(mouseY) });
+      const anchor = placementAnchor();
+      if (anchor && (shiftHeldRef.current || angleLock)) {
+        const p = snapAngle({ x: zoomedXScale(indexForDate(anchor.x) + 0.5), y: zoomedPriceScale(anchor.y) }, { x: mouseX, y: mouseY });
+        setPreviewPoint({ x: dateForIndex(zoomedXScale.invert(p.x)), y: zoomedPriceScale.invert(p.y) });
+      } else setPreviewPoint({ x: dateForIndex(zoomedXScale.invert(mouseX)), y: zoomedPriceScale.invert(mouseY) });
     } else if (!activeTool && visibleDrawings.length > 0) {
       let closestId: string | null = null;
       let closestDist = hitDistance;
@@ -502,6 +534,7 @@ export function useDrawingInteractions({
   }
 
   function handlePointerMove(e: React.PointerEvent<SVGRectElement>) {
+    shiftHeldRef.current = e.shiftKey;
     if (data.length === 0) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;

@@ -250,7 +250,11 @@ export function CandlestickChart({
     saveEditModal,
     deleteEditingDrawing,
     duplicateEditingDrawing,
-  } = useDrawingState({ data, defaultDrawings, onDrawingsChange, onAddSymbolOverlay });
+  } = useDrawingState({ data, defaultDrawings, onDrawingsChange, onAddSymbolOverlay, timeframe });
+  // Verrou d'angle des dessins (bouton « 45° » de la barre flottante) : Maj maintenue, pour le doigt.
+  const [angleLock, setAngleLock] = useState(false);
+  // Étiquette d'unité de temps des dessins : le libellé de la liste `timeframes`, sinon la valeur brute.
+  const drawingTimeframeLabel = useCallback((tf: string) => findTimeframeLabel(timeframes, tf) ?? tf, [timeframes]);
 
   const [tfOpen, setTfOpen] = useState(false);
   const {
@@ -1006,6 +1010,7 @@ export function CandlestickChart({
     handleOverlayPointerDown,
     handleOverlayPointerUp,
   } = useDrawingInteractions({
+    angleLock,
     data,
     indicatorValues,
     lastRevealedIndex,
@@ -1143,6 +1148,7 @@ export function CandlestickChart({
     hoverIndex: effectiveHoverIndex,
     visibleDrawings: combinedVisibleDrawings,
     hoveredDrawingId,
+    drawingTimeframeLabel,
     activeTool,
     pendingPoint,
     previewPoint,
@@ -1813,6 +1819,15 @@ export function CandlestickChart({
             // with nothing drawn yet, where there is nothing to delete. Same commit path the
             // Delete key takes (see useDrawingState), and the selection is cleared with it so the
             // toolbar doesn't linger over a drawing that no longer exists.
+            angleLock={angleLock}
+            onToggleAngleLock={() => setAngleLock((v) => !v)}
+            timeframeLabel={(() => {
+              const sel = drawings.find((d) => d.id === selectedDrawingId);
+              return sel?.timeframe ? { text: drawingTimeframeLabel(sel.timeframe), shown: !sel.timeframeLabelHidden } : undefined;
+            })()}
+            onToggleTimeframeLabel={() =>
+              commitDrawings(drawings.map((d) => (d.id === selectedDrawingId ? { ...d, timeframeLabelHidden: !d.timeframeLabelHidden } : d)))
+            }
             locked={drawings.find((d) => d.id === selectedDrawingId)?.locked ?? false}
             onToggleLock={
               selectedDrawingId !== null

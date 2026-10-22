@@ -69,6 +69,8 @@ export interface RenderCandlestickChartParams {
   hoverIndex: number | null;
   visibleDrawings: TrendLineDrawing[];
   hoveredDrawingId: string | null;
+  /** Libellé d'une unité de temps de dessin (« 1week » → « 1 semaine »), d'après la liste `timeframes`. */
+  drawingTimeframeLabel: (timeframe: string) => string;
   activeTool: DrawingToolType | null;
   pendingPoint: DataPoint | null;
   previewPoint: DataPoint | null;

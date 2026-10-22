@@ -15,6 +15,8 @@ export interface UseDrawingStateArgs {
   data: Candle[];
   defaultDrawings: TrendLineDrawing[] | undefined;
   onDrawingsChange: ((drawings: TrendLineDrawing[]) => void) | undefined;
+  /** Unité de temps affichée : posée sur chaque nouveau dessin (voir `TrendLineDrawing.timeframe`). */
+  timeframe?: string;
   onAddSymbolOverlay:
     | ((result: SymbolSearchResult) => OverlayDataPoint[] | Promise<OverlayDataPoint[]>)
     | undefined;
@@ -25,7 +27,18 @@ export interface UseDrawingStateArgs {
  *  hovered one) that act on them. Pointer-driven placement/dragging lives in
  *  `useDrawingInteractions` instead (it needs the zoom/pane scales this hook doesn't), which takes
  *  this hook's full return value as its own input. */
-export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAddSymbolOverlay }: UseDrawingStateArgs) {
+export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAddSymbolOverlay, timeframe }: UseDrawingStateArgs) {
+  // Lu au moment du tracé (pas à la création du callback) : un changement d'unité de temps ne
+  // recrée pas commitDrawings, dont l'identité stable compte pour les écouteurs clavier.
+  const timeframeRef = useRef(timeframe);
+  timeframeRef.current = timeframe;
+  /** Les dessins absents de `prev` (donc tout juste tracés) reçoivent l'unité de temps courante. */
+  const stampTimeframe = (prev: TrendLineDrawing[], next: TrendLineDrawing[]): TrendLineDrawing[] => {
+    const tf = timeframeRef.current;
+    if (!tf) return next;
+    const known = new Set(prev.map((d) => d.id));
+    return next.map((d) => (known.has(d.id) || d.timeframe || d.lineType === "symbolOverlay" ? d : { ...d, timeframe: tf }));
+  };
   const [drawings, setDrawings] = useState<TrendLineDrawing[]>(defaultDrawings ?? []);
   // Kept in sync every render *and* on every commit — handleAddSymbolOverlay's own async
   // resolution reads this instead of the plain `drawings` closure variable specifically so two
@@ -180,7 +193,8 @@ export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAdd
   // (crosshair hover, zoom/pan… none of which this function's own behavior actually depends on),
   // not just when `onDrawingsChange` itself changes.
   const commitDrawings = useCallback(
-    (next: TrendLineDrawing[]) => {
+    (nextRaw: TrendLineDrawing[]) => {
+      const next = stampTimeframe(drawingsRef.current, nextRaw);
       drawingsRef.current = next;
       setDrawings(next);
       onDrawingsChange?.(next);
@@ -278,8 +292,10 @@ export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAdd
         y2: points[1].y,
         lineType: "elbowArrow",
         extraPoints: points.slice(2),
+        ...(timeframeRef.current ? { timeframe: timeframeRef.current } : {}),
       },
     ];
+    drawingsRef.current = next;
     setDrawings(next);
     onDrawingsChange?.(next);
   }, [activeTool, pendingPoint, pendingExtraPoints, drawings, defaultDrawingStyle, onDrawingsChange]);

@@ -62,6 +62,7 @@ export function drawPriceDrawings(ctx: CanvasRenderingContext2D, params: RenderC
     symbolOverlays,
     indexForDate,
     candleWidth,
+    drawingTimeframeLabel,
   } = params;
   const { colorUp, colorDown, colorBg, colorAccent, fontFamily } = style;
 
@@ -956,7 +957,59 @@ export function drawPriceDrawings(ctx: CanvasRenderingContext2D, params: RenderC
       }
     }
 
+    drawTimeframeLabels(ctx, params, style, drawingTimeframeLabel);
+
     ctx.restore(); // end price-section clip
+}
+
+/**
+ * Étiquette d'unité de temps de chaque dessin du panneau des prix : petit cartouche de la couleur du
+ * dessin, au bout gauche (point le plus à gauche ; bord gauche pour une horizontale, haut du panneau
+ * pour une verticale). Un seul passage pour tous les types de dessin, quel que soit leur propre tracé.
+ */
+function drawTimeframeLabels(
+  ctx: CanvasRenderingContext2D,
+  params: RenderCandlestickChartParams,
+  style: ChartCanvasStyle,
+  labelOf: (tf: string) => string,
+) {
+  const { visibleDrawings, zoomedXScale, zoomedPriceScale, indexForDate, dims, priceHeight } = params;
+  ctx.save();
+  ctx.setLineDash([]);
+  ctx.font = `600 10px ${style.fontFamily}`;
+  ctx.textBaseline = "middle";
+  for (const dr of visibleDrawings) {
+    if (!dr.timeframe || dr.timeframeLabelHidden || dr.lineType === "symbolOverlay") continue;
+    if (dr.valueAxis && dr.valueAxis !== "price") continue;
+    let x: number;
+    let y: number;
+    if (dr.lineType === "horizontal") {
+      x = 4;
+      y = zoomedPriceScale(dr.y1);
+    } else if (dr.lineType === "vertical") {
+      x = zoomedXScale(indexForDate(dr.x1) + 0.5) + 4;
+      y = 10;
+    } else {
+      const pts = allPointsOf(dr).map((p) => ({ x: zoomedXScale(indexForDate(p.x) + 0.5), y: zoomedPriceScale(p.y) }));
+      const left = pts.reduce((a, b) => (b.x < a.x ? b : a));
+      x = left.x;
+      y = left.y;
+    }
+    const text = labelOf(dr.timeframe);
+    const w = ctx.measureText(text).width + 8;
+    const h = 14;
+    // Au-dessus et à gauche du point d'ancrage, gardé dans le panneau.
+    const bx = Math.max(0, Math.min(dims.boundedWidth - w, x - w - 4));
+    const by = Math.max(0, Math.min(priceHeight - h, y - h - 4));
+    if (!Number.isFinite(bx) || !Number.isFinite(by)) continue;
+    ctx.globalAlpha = 0.85;
+    ctx.fillStyle = dr.color ?? style.colorAccent;
+    ctx.fillRect(bx, by, w, h);
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = style.colorBg;
+    ctx.fillText(text, bx + 4, by + h / 2 + 0.5);
+  }
+  ctx.restore();
 }
 
 /** A channel's median line: dashed, slightly fainter than its two boundaries, same colour and width. */

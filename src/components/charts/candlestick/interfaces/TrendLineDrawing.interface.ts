@@ -357,6 +357,12 @@ export interface TrendLineDrawing {
    *  distinct from each other by outline color. Falls back to "line" if `overlayData` turns out
    *  not to actually carry open/high/low (see its own doc). */
   overlayDisplayMode?: ChartDisplayMode;
+  /** Colour of a compared symbol's rising bars (close ≥ open: candle, bar, Heikin Ashi candle,
+   *  Renko / Line Break brick) in every `overlayDisplayMode` besides "line" — same role as the main
+   *  series' own up colour. Unset: the main series' up colour (its override, else the theme's). */
+  overlayUpColor?: string;
+  /** Same as `overlayUpColor`, for falling bars (close < open). */
+  overlayDownColor?: string;
   /** Hides a drawing without deleting it — like an indicator's own `hidden`, but generic here
    *  since (unlike indicators) most drawing types have never needed one: only "symbolOverlay"'s
    *  own legend entry exposes a toggle for it today, though nothing stops another drawing type

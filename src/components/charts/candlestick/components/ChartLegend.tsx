@@ -7,6 +7,7 @@ import type { Candle } from "../interfaces/Candle.interface";
 import type { Indicator } from "../interfaces/Indicator.interface";
 import type { OverlayDataPoint, TrendLineDrawing } from "../interfaces/TrendLineDrawing.interface";
 import { CHART_DISPLAY_MODES, type ChartDisplayModeDef } from "../chartModes";
+import { Modal } from "../../../primitives/Modal";
 
 /** How many entries the legend carries before it offers to fold. Below this, a control to hide the
  *  list is more chrome than the list itself. */
@@ -101,6 +102,9 @@ export interface ChartLegendProps {
   setDraft: Dispatch<SetStateAction<TrendLineDrawing | null>>;
   setEditModalTab: (tab: "coords" | "text" | "style") => void;
   removeSymbolOverlay: (ticker: string) => void;
+  /** Clic sur le nom d'un symbole comparé : recherche d'un autre symbole pour le remplacer (absent : nom
+   *  non cliquable, l'application ne fournit pas de données à comparer). */
+  onReplaceOverlaySymbol?: (drawingId: string) => void;
 }
 
 /** Symbol/chart-type label + live OHLC readout, then the indicator legend right below it — one
@@ -149,8 +153,13 @@ export function ChartLegend({
   setDraft,
   setEditModalTab,
   removeSymbolOverlay,
+  onReplaceOverlaySymbol,
 }: ChartLegendProps) {
   const lineModeEntry = CHART_DISPLAY_MODES.find((m) => m.mode === "line")!;
+  // Symbole comparé dont la fenêtre « Mode d'affichage » est ouverte (clic sur son mode dans la légende).
+  const [modeFor, setModeFor] = useState<string | null>(null);
+  const modeDrawing = modeFor ? symbolOverlays.find((d) => d.id === modeFor) : undefined;
+  const modeHasOHLC = (modeDrawing?.overlayData?.length ?? 0) > 0 && modeDrawing!.overlayData!.every((p) => p.open !== undefined && p.high !== undefined && p.low !== undefined);
   // Folded state lives here, not on the chart: it is a way of looking at this list, not a fact
   // about the chart, and nothing outside this component has any use for it.
   const [legendFolded, setLegendFolded] = useState(false);
@@ -285,9 +294,38 @@ export function ChartLegend({
             <span
               className={["lq-chart__indicator-legend-label", "lq-chart__overlay-legend-quote", dr.hidden && "lq-chart__indicator-legend-label--hidden"].filter(Boolean).join(" ")}
             >
-              <span className="lq-chart__symbol-info-name lq-chart__overlay-legend-name">{drawingLabel(dr)}</span>
+              {/* Nom : un clic ouvre la recherche pour remplacer ce symbole ; mode : un clic ouvre le choix du
+                  mode d'affichage. Un double-clic ne remonte pas à la ligne (il ouvrirait aussi ses
+                  paramètres par-dessus). */}
+              {onReplaceOverlaySymbol ? (
+                <button
+                  type="button"
+                  className="lq-chart__symbol-info-name lq-chart__symbol-info-name--clickable lq-chart__overlay-legend-name"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onReplaceOverlaySymbol(dr.id);
+                  }}
+                  onDoubleClick={(e) => e.stopPropagation()}
+                  title={`Remplacer ${drawingLabel(dr)} par un autre symbole`}
+                >
+                  {drawingLabel(dr)}
+                </button>
+              ) : (
+                <span className="lq-chart__symbol-info-name lq-chart__overlay-legend-name">{drawingLabel(dr)}</span>
+              )}
               <span className="lq-chart__symbol-info-sep">·</span>
-              <span className="lq-chart__symbol-info-name">{(quote?.hasOHLC ? overlayModeEntry : lineModeEntry).label}</span>
+              <button
+                type="button"
+                className="lq-chart__symbol-info-name lq-chart__symbol-info-name--clickable"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setModeFor(dr.id);
+                }}
+                onDoubleClick={(e) => e.stopPropagation()}
+                title="Changer le mode d'affichage"
+              >
+                {(quote?.hasOHLC ? overlayModeEntry : lineModeEntry).label}
+              </button>
               {quote && (
                 <span className={["lq-chart__symbol-info-ohlc", quote.delta >= 0 ? "lq-chart__symbol-info-ohlc--up" : "lq-chart__symbol-info-ohlc--down"].join(" ")}>
                   {quote.hasOHLC && !mobile && (
@@ -452,6 +490,37 @@ export function ChartLegend({
         })}
       </div>
       </>
+      )}
+      {/* Mode d'affichage d'un symbole comparé : mêmes options et même présentation que celui de la série
+          principale (paramètres du graphique). Sans cours d'ouverture, plus haut et plus bas, seule la
+          ligne de clôture peut être tracée. Un clic en dehors de la fenêtre la ferme. */}
+      {modeDrawing && (
+        <Modal open onClose={() => setModeFor(null)} title={`Mode d'affichage — ${drawingLabel(modeDrawing)}`} footer={null}>
+          <div className="lq-chart__display-mode-menu">
+            {CHART_DISPLAY_MODES.map((entry) => {
+              const current = (modeDrawing.overlayDisplayMode ?? "line") === entry.mode;
+              const disabled = entry.mode !== "line" && !modeHasOHLC;
+              return (
+                <button
+                  key={entry.mode}
+                  type="button"
+                  className={["lq-chart__display-mode-option", current && "lq-chart__display-mode-option--selected"].filter(Boolean).join(" ")}
+                  aria-pressed={current}
+                  disabled={disabled}
+                  title={disabled ? "Ce symbole n'a que des cours de clôture : seule la ligne de clôture peut être tracée" : undefined}
+                  onClick={() => {
+                    commitDrawings(drawings.map((d) => (d.id === modeDrawing.id ? { ...d, overlayDisplayMode: entry.mode } : d)));
+                    setModeFor(null);
+                  }}
+                >
+                  <entry.icon size={15} />
+                  {entry.label}
+                </button>
+              );
+            })}
+          </div>
+          {!modeHasOHLC && <p className="lq-chart__settings-hint">Ce symbole n'a que des cours de clôture : seule la ligne de clôture peut être tracée.</p>}
+        </Modal>
       )}
     </div>
   );

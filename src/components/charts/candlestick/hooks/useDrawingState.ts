@@ -319,6 +319,37 @@ export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAdd
     }
   }
 
+  /**
+   * Remplace le symbole d'une comparaison par un autre (clic sur son nom dans la légende) : même
+   * dessin (même id, couleur, mode d'affichage, couleurs des bougies, visibilité), nouvelles données.
+   * Même chargement que l'ajout (onAddSymbolOverlay, indicateur de chargement par symbole) ; sans
+   * données, rien ne change.
+   */
+  async function handleReplaceSymbolOverlay(drawingId: string, result: SymbolSearchResult) {
+    if (!onAddSymbolOverlay || addingOverlaySymbols.has(result.ticker)) return;
+    setAddingOverlaySymbols((prev) => new Set(prev).add(result.ticker));
+    try {
+      const overlayData = await onAddSymbolOverlay(result);
+      if (!overlayData || overlayData.length === 0) return;
+      const sorted = [...overlayData].sort((a, b) => a.date.getTime() - b.date.getTime());
+      const first = sorted[0];
+      const last = sorted[sorted.length - 1];
+      commitDrawings(
+        drawingsRef.current.map((d) =>
+          d.id === drawingId && d.lineType === "symbolOverlay"
+            ? { ...d, x1: first.date, y1: first.value, x2: last.date, y2: last.value, overlaySymbol: result.ticker, overlaySymbolName: result.name, overlayData: sorted }
+            : d,
+        ),
+      );
+    } finally {
+      setAddingOverlaySymbols((prev) => {
+        const next = new Set(prev);
+        next.delete(result.ticker);
+        return next;
+      });
+    }
+  }
+
   function cancelDrawingTool() {
     setActiveTool(null);
     setPendingPoint(null);
@@ -679,6 +710,7 @@ export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAdd
     currentDrawings,
     removeSymbolOverlay,
     handleAddSymbolOverlay,
+    handleReplaceSymbolOverlay,
     cancelDrawingTool,
     finalizeElbowArrow,
     handleToolClick,

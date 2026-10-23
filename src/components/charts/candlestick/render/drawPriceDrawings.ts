@@ -63,6 +63,8 @@ export function drawPriceDrawings(ctx: CanvasRenderingContext2D, params: RenderC
     indexForDate,
     candleWidth,
     drawingTimeframeLabel,
+    upColorOverride,
+    downColorOverride,
   } = params;
   const { colorUp, colorDown, colorBg, colorAccent, fontFamily } = style;
 
@@ -864,31 +866,45 @@ export function drawPriceDrawings(ctx: CanvasRenderingContext2D, params: RenderC
       const visiblePoints = points.filter((p) => p.i >= windowStart && p.i <= windowEnd);
       if (visiblePoints.length < 2) continue;
       const color = dr.color ?? defaultIndicatorColor(symbolOverlays.indexOf(dr));
+      // Bars, candles and bricks of a compared symbol: rising ones in the up colour, falling ones in
+      // the down colour (its own, else the main series' — see overlayUpColor), like the main series
+      // — one single outline colour used to make every bar look the same whatever its direction.
+      // Bodies are filled but translucent, outline and wick opaque, so the compared symbol still
+      // reads as a second series laid over the main one's solid candles.
+      const upCol = dr.overlayUpColor ?? upColorOverride ?? colorUp;
+      const downCol = dr.overlayDownColor ?? downColorOverride ?? colorDown;
+      const barLineWidth = 1 + (hoveredDrawingId === dr.id ? 1 : 0);
+      const candleAt = (cx: number, open: number, close: number, high: number, low: number) => {
+        const c = close >= open ? upCol : downCol;
+        const bodyTop = zoomedPriceScale(Math.max(open, close));
+        const bodyH = Math.max(1, zoomedPriceScale(Math.min(open, close)) - bodyTop);
+        ctx.strokeStyle = c;
+        ctx.beginPath();
+        ctx.moveTo(cx, zoomedPriceScale(high));
+        ctx.lineTo(cx, zoomedPriceScale(low));
+        ctx.stroke();
+        ctx.globalAlpha = 0.45;
+        ctx.fillStyle = c;
+        ctx.fillRect(cx - candleWidth / 2, bodyTop, candleWidth, bodyH);
+        ctx.globalAlpha = 1;
+        ctx.strokeRect(cx - candleWidth / 2, bodyTop, candleWidth, bodyH);
+      };
 
       if (dr.overlayDisplayMode === "heikinAshi" && haPoints) {
         ctx.save();
-        ctx.strokeStyle = color;
-        ctx.lineWidth = (dr.strokeWidth ?? 1.5) + (hoveredDrawingId === dr.id ? 1 : 0);
+        ctx.lineWidth = barLineWidth;
         for (const p of haPoints) {
           if (p.i < windowStart || p.i > windowEnd) continue;
-          const cx = zoomedXScale(p.i + 0.5);
-          const bodyTop = zoomedPriceScale(Math.max(p.open, p.price));
-          const bodyBottom = zoomedPriceScale(Math.min(p.open, p.price));
-          ctx.beginPath();
-          ctx.moveTo(cx, zoomedPriceScale(p.high));
-          ctx.lineTo(cx, zoomedPriceScale(p.low));
-          ctx.stroke();
-          ctx.strokeRect(cx - candleWidth / 2, bodyTop, candleWidth, Math.max(1, bodyBottom - bodyTop));
+          candleAt(zoomedXScale(p.i + 0.5), p.open, p.price, p.high, p.low);
         }
         ctx.restore();
       } else if ((dr.overlayDisplayMode === "renko" || dr.overlayDisplayMode === "lineBreak") && bricks) {
         // Same geometry as the main series' own renko/lineBreak rendering (see drawPriceCandles)
         // — bricks positioned on the existing index-based X scale, one slot's worth of overlap
-        // trimmed off whichever brick shares a boundary with the previous one — just hollow and
-        // in the overlay's own color instead of filled with the theme's up/down hue.
+        // trimmed off whichever brick shares a boundary with the previous one — in the up / down
+        // colours, translucent like the candles above.
         ctx.save();
-        ctx.strokeStyle = color;
-        ctx.lineWidth = (dr.strokeWidth ?? 1.5) + (hoveredDrawingId === dr.id ? 1 : 0);
+        ctx.lineWidth = barLineWidth;
         for (let bi = 0; bi < bricks.length; bi++) {
           const brick = bricks[bi];
           if (brick.endIndex < windowStart || brick.startIndex > windowEnd) continue;
@@ -900,19 +916,23 @@ export function drawPriceDrawings(ctx: CanvasRenderingContext2D, params: RenderC
           const top = zoomedPriceScale(Math.max(brick.open, brick.close));
           const bottom = zoomedPriceScale(Math.min(brick.open, brick.close));
           const inset = Math.min(1.5, (x2 - x1) / 4);
+          const c = brick.close >= brick.open ? upCol : downCol;
+          ctx.strokeStyle = c;
+          ctx.globalAlpha = 0.45;
+          ctx.fillStyle = c;
+          ctx.fillRect(x1 + inset, top, Math.max(1, x2 - x1 - inset * 2), Math.max(1, bottom - top));
+          ctx.globalAlpha = 1;
           ctx.strokeRect(x1 + inset, top, Math.max(1, x2 - x1 - inset * 2), Math.max(1, bottom - top));
         }
         ctx.restore();
       } else if (dr.overlayDisplayMode === "bar" && visiblePoints.every((p) => p.open !== undefined && p.high !== undefined && p.low !== undefined)) {
-        // OHLC bars, same notation as the main series' own "bar" mode — and the one shape here
-        // that needs no hollow/filled convention to stay distinct, since a bar has no body to
-        // fill. In the overlay's own colour like every other non-line shape above.
+        // OHLC bars, same notation as the main series' own "bar" mode, in the up / down colours.
         ctx.save();
-        ctx.strokeStyle = color;
-        ctx.lineWidth = (dr.strokeWidth ?? 1.5) + (hoveredDrawingId === dr.id ? 1 : 0);
+        ctx.lineWidth = barLineWidth + 0.5;
         const tick = Math.max(1, candleWidth / 2);
         for (const p of visiblePoints) {
           const cx = zoomedXScale(p.i + 0.5);
+          ctx.strokeStyle = p.price >= p.open! ? upCol : downCol;
           ctx.beginPath();
           ctx.moveTo(cx, zoomedPriceScale(p.high!));
           ctx.lineTo(cx, zoomedPriceScale(p.low!));
@@ -927,18 +947,8 @@ export function drawPriceDrawings(ctx: CanvasRenderingContext2D, params: RenderC
         ctx.restore();
       } else if (dr.overlayDisplayMode === "candle" && visiblePoints.every((p) => p.open !== undefined && p.high !== undefined && p.low !== undefined)) {
         ctx.save();
-        ctx.strokeStyle = color;
-        ctx.lineWidth = (dr.strokeWidth ?? 1.5) + (hoveredDrawingId === dr.id ? 1 : 0);
-        for (const p of visiblePoints) {
-          const cx = zoomedXScale(p.i + 0.5);
-          const bodyTop = zoomedPriceScale(Math.max(p.open!, p.price));
-          const bodyBottom = zoomedPriceScale(Math.min(p.open!, p.price));
-          ctx.beginPath();
-          ctx.moveTo(cx, zoomedPriceScale(p.high!));
-          ctx.lineTo(cx, zoomedPriceScale(p.low!));
-          ctx.stroke();
-          ctx.strokeRect(cx - candleWidth / 2, bodyTop, candleWidth, Math.max(1, bodyBottom - bodyTop));
-        }
+        ctx.lineWidth = barLineWidth;
+        for (const p of visiblePoints) candleAt(zoomedXScale(p.i + 0.5), p.open!, p.price, p.high!, p.low!);
         ctx.restore();
       } else {
         ctx.save();

@@ -27,6 +27,7 @@ import { useHoverSync } from "./candlestick/hooks/useHoverSync";
 import { usePaneDragReorder } from "./candlestick/hooks/usePaneDragReorder";
 import { useThemePaletteTick } from "./candlestick/hooks/useThemePaletteTick";
 import { useDefaultDrawingColor } from "./candlestick/hooks/useDefaultDrawingColor";
+import { useThemeCandleColors } from "./candlestick/hooks/useThemeCandleColors";
 import { useAddLineHandlers } from "./candlestick/hooks/useAddLineHandlers";
 import { useZoomAndScales } from "./candlestick/hooks/useZoomAndScales";
 import { useBarRangeSelection } from "./candlestick/hooks/useBarRangeSelection";
@@ -250,6 +251,7 @@ export function CandlestickChart({
     currentDrawings,
     removeSymbolOverlay,
     handleAddSymbolOverlay,
+    handleReplaceSymbolOverlay,
     cancelDrawingTool,
     finalizeElbowArrow,
     handleToolClick,
@@ -304,7 +306,7 @@ export function CandlestickChart({
   // Swaps the whole chart body for SeasonalityView — its own flag, not folded into
   // `chartDisplayMode`: its x-axis shares no meaningful relationship with candle/line/Renko's.
   const [seasonalityOpen, setSeasonalityOpen] = useState(false);
-  const { symbolSearchOpen, setSymbolSearchOpen, symbolSearchMode, openSymbolSearch, symbolSearchQuery, setSymbolSearchQuery, symbolSearchCategory, setSymbolSearchCategory, favoriteSymbolIds, toggleFavoriteSymbol } =
+  const { symbolSearchOpen, setSymbolSearchOpen, symbolSearchMode, symbolSearchReplaceId, openSymbolSearch, symbolSearchQuery, setSymbolSearchQuery, symbolSearchCategory, setSymbolSearchCategory, favoriteSymbolIds, toggleFavoriteSymbol } =
     useSymbolSearchState({ defaultFavoriteSymbolIds, onFavoriteSymbolIdsChange, onSymbolSearchChange });
   // Tickers whose "+" is currently awaiting onAddSymbolOverlay — a Set (not one at a time) since
   // comparing against AAPL shouldn't block also comparing against GOOGL mid-fetch. Just drives
@@ -514,6 +516,9 @@ export function CandlestickChart({
 
   const themeTick = useThemePaletteTick(ref);
   const defaultDrawingColor = useDefaultDrawingColor(ref, themeTick);
+  // Couleurs de hausse et de baisse de la série principale (personnalisées, sinon du thème) : par défaut
+  // celles des bougies d'un symbole comparé, montrées dans ses paramètres.
+  const themeCandleColors = useThemeCandleColors(ref, themeTick);
 
   const {
     showFloatingToolbar, showToolbarStyleControls,
@@ -1654,6 +1659,7 @@ export function CandlestickChart({
             setDraft={setDraft}
             setEditModalTab={setEditModalTab}
             removeSymbolOverlay={removeSymbolOverlay} onOpenIndicatorInfo={setInfoKind}
+            {...(onAddSymbolOverlay ? { onReplaceOverlaySymbol: (id: string) => openSymbolSearch("replace", id) } : {})}
           />
         )}
         {priceHeight > 0 && scriptingState.scriptTables.length > 0 && <ScriptTableOverlay tables={scriptingState.scriptTables} />}
@@ -2001,6 +2007,8 @@ export function CandlestickChart({
         duplicateEditingDrawing={duplicateEditingDrawing}
         valueAxisLabel={valueAxisLabel}
         defaultColor={defaultDrawingColor}
+        defaultUpColor={upColorOverride ?? themeCandleColors.up}
+        defaultDownColor={downColorOverride ?? themeCandleColors.down}
         drawingStyles={drawingStyles}
         codeViewer={codeViewer}
         indicatorPickerOpen={indicatorPickerOpen} setIndicatorPickerOpen={setIndicatorPickerOpen}
@@ -2075,6 +2083,8 @@ export function CandlestickChart({
         addingOverlaySymbols={addingOverlaySymbols}
         handleAddSymbolOverlay={handleAddSymbolOverlay}
         removeSymbolOverlay={removeSymbolOverlay}
+        replaceOverlay={symbolSearchReplaceId ? (symbolOverlays.find((d) => d.id === symbolSearchReplaceId) ?? null) : null}
+        handleReplaceSymbolOverlay={handleReplaceSymbolOverlay}
         symbol={symbol} timeframe={timeframe}
         {...alertFlow.modalProps}
         overlayIndicators={overlayIndicators} indicatorLabel={indicatorLabel}

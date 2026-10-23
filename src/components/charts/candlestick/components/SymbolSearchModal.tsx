@@ -15,8 +15,12 @@ export interface SymbolSearchModalProps {
   title?: string;
   symbolSearchOpen: boolean;
   setSymbolSearchOpen: (open: boolean) => void;
-  /** "add" : un clic sur un résultat l'ajoute au graphique (comparaison) au lieu de changer de symbole. */
-  symbolSearchMode?: "select" | "add";
+  /** "add" : un clic sur un résultat l'ajoute au graphique (comparaison) au lieu de changer de symbole ;
+   *  "replace" : il remplace le symbole comparé `replaceOverlay`. */
+  symbolSearchMode?: "select" | "add" | "replace";
+  /** Symbole comparé à remplacer (mode « replace »). */
+  replaceOverlay?: TrendLineDrawing | null;
+  handleReplaceSymbolOverlay?: (drawingId: string, result: SymbolSearchResult) => void;
   symbolSearchQuery: string;
   setSymbolSearchQuery: (query: string) => void;
   symbolSearchCategory: SymbolSearchCategory;
@@ -60,6 +64,8 @@ export function SymbolSearchModal({
   addingOverlaySymbols,
   handleAddSymbolOverlay,
   removeSymbolOverlay,
+  replaceOverlay,
+  handleReplaceSymbolOverlay,
 }: SymbolSearchModalProps) {
   // Mode « add » : la fenêtre reste ouverte pendant le chargement du symbole choisi (pastille de chargement sur sa
   // ligne), puis se ferme dès qu'il est sur le graphique ; en cas d'échec elle reste ouverte pour réessayer.
@@ -75,8 +81,16 @@ export function SymbolSearchModal({
   }, [symbolSearchOpen]);
   if (!symbolSearchOpen) return null;
   const adding = symbolSearchMode === "add" && Boolean(onAddSymbolOverlay);
+  const replacing = symbolSearchMode === "replace" && Boolean(onAddSymbolOverlay && replaceOverlay && handleReplaceSymbolOverlay);
+  const replacedLabel = replaceOverlay ? [replaceOverlay.overlaySymbol, replaceOverlay.overlaySymbolName].filter(Boolean).join(" · ") : "";
   return (
-    <Modal open onClose={() => setSymbolSearchOpen(false)} title={adding ? "Ajouter un symbole" : title} footer={null} size="wide">
+    <Modal
+      open
+      onClose={() => setSymbolSearchOpen(false)}
+      title={replacing ? `Remplacer ${replacedLabel}` : adding ? "Ajouter un symbole" : title}
+      footer={null}
+      size="wide"
+    >
       {/* Left/right split (see .lq-chart__modal-split's own doc) — search + category filters on
           the left, results on the right, each scrolling on its own. */}
       <div className="lq-chart__modal-split">
@@ -136,6 +150,17 @@ export function SymbolSearchModal({
                     type="button"
                     className="lq-chart__symbol-search-row-main"
                     onClick={() => {
+                      if (replacing && replaceOverlay && handleReplaceSymbolOverlay) {
+                        if (isOverlayLoading) return;
+                        // Le même symbole, ou un symbole déjà comparé : rien à remplacer.
+                        if (isOverlayActive) {
+                          setSymbolSearchOpen(false);
+                          return;
+                        }
+                        setPendingAdd(result.ticker);
+                        handleReplaceSymbolOverlay(replaceOverlay.id, result);
+                        return;
+                      }
                       if (adding) {
                         if (isOverlayLoading) return;
                         if (isOverlayActive) {
@@ -150,7 +175,17 @@ export function SymbolSearchModal({
                       onSymbolSelect?.(result);
                       setSymbolSearchOpen(false);
                     }}
-                    title={adding ? (isOverlayActive ? `Retirer ${result.ticker} du graphique` : `Ajouter ${result.ticker} au graphique`) : undefined}
+                    title={
+                      replacing
+                        ? isOverlayActive
+                          ? `${result.ticker} est déjà sur le graphique`
+                          : `Remplacer ${replaceOverlay?.overlaySymbol ?? ""} par ${result.ticker}`
+                        : adding
+                          ? isOverlayActive
+                            ? `Retirer ${result.ticker} du graphique`
+                            : `Ajouter ${result.ticker} au graphique`
+                          : undefined
+                    }
                   >
                     <span
                       className="lq-chart__symbol-search-logo"
@@ -161,7 +196,7 @@ export function SymbolSearchModal({
                     <span className="lq-chart__symbol-search-ticker">{result.ticker}</span>
                     <span className="lq-chart__symbol-search-name">{result.name}</span>
                     <span className="lq-chart__symbol-search-source">
-                      {adding && isOverlayLoading ? <RefreshIcon size={14} className="lq-chart__symbol-search-overlay-spinner" aria-label="Chargement…" /> : result.source}
+                      {(adding || replacing) && isOverlayLoading ? <RefreshIcon size={14} className="lq-chart__symbol-search-overlay-spinner" aria-label="Chargement…" /> : result.source}
                     </span>
                   </button>
                   {/* Compare against the main symbol — hover-revealed like the favorite star,
@@ -172,7 +207,7 @@ export function SymbolSearchModal({
                       itself, which returning the data instead lets the chart do here. Only
                       rendered when the caller actually supports it (onAddSymbolOverlay set) —
                       a "+" that silently did nothing would be worse than no button at all. */}
-                  {onAddSymbolOverlay && (
+                  {onAddSymbolOverlay && !replacing && (
                     <button
                       type="button"
                       className={[

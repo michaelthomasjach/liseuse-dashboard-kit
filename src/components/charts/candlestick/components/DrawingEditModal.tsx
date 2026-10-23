@@ -33,6 +33,10 @@ export interface DrawingEditModalProps {
    *  canvas (see useDefaultDrawingColor) — seeds the color pickers below so they show what's
    *  really drawn instead of a color that only matches one particular theme. */
   defaultColor: string;
+  /** Couleurs de hausse et de baisse réellement tracées pour la série principale (sa couleur
+   *  personnalisée, sinon celle du thème) : valeurs par défaut des bougies d'un symbole comparé. */
+  defaultUpColor?: string;
+  defaultDownColor?: string;
   /** Styles enregistrés (« types de lignes ») : choisir, appliquer au brouillon, enregistrer. */
   drawingStyles?: DrawingStylesApi;
 }
@@ -53,6 +57,8 @@ export function DrawingEditModal({
   valueAxisLabel,
   defaultColor,
   drawingStyles,
+  defaultUpColor,
+  defaultDownColor,
 }: DrawingEditModalProps) {
   if (!draft) return null;
   // Which field this tool's background actually lives in — null where it has none.
@@ -617,6 +623,30 @@ export function DrawingEditModal({
                   onChange={(v) => setDraft({ ...draft, overlayDisplayMode: v })}
                   options={OVERLAY_DISPLAY_MODE_OPTIONS}
                 />
+              )}
+              {/* Bougies, barres et briques : une couleur pour la hausse, une pour la baisse, comme la
+                  série principale (par défaut, les siennes). */}
+              {hasOverlayOHLC && (draft.overlayDisplayMode ?? "line") !== "line" && (
+                <div className="lq-chart__edit-drawing-row">
+                  <div className="lq-field">
+                    <label className="lq-field__label">Bougies haussières</label>
+                    <input
+                      type="color"
+                      className="lq-chart__color-input"
+                      value={draft.overlayUpColor ?? defaultUpColor ?? "#26a69a"}
+                      onChange={(e) => setDraft({ ...draft, overlayUpColor: e.target.value })}
+                    />
+                  </div>
+                  <div className="lq-field">
+                    <label className="lq-field__label">Bougies baissières</label>
+                    <input
+                      type="color"
+                      className="lq-chart__color-input"
+                      value={draft.overlayDownColor ?? defaultDownColor ?? "#ef5350"}
+                      onChange={(e) => setDraft({ ...draft, overlayDownColor: e.target.value })}
+                    />
+                  </div>
+                </div>
               )}
               <Checkbox
                 checked={!draft.hidden}

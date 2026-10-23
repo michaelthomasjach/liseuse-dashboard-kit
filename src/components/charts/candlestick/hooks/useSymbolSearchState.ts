@@ -15,15 +15,21 @@ export interface UseSymbolSearchStateArgs {
 export function useSymbolSearchState({ defaultFavoriteSymbolIds, onFavoriteSymbolIdsChange, onSymbolSearchChange }: UseSymbolSearchStateArgs) {
   const [symbolSearchOpen, setSymbolSearchOpenState] = useState(false);
   // "select" : un résultat remplace le symbole (onSymbolSelect) ; "add" : il s'ajoute au graphique
-  // (onAddSymbolOverlay) — bouton « + Symbole » de l'en-tête et entrée du menu contextuel.
-  const [symbolSearchMode, setSymbolSearchMode] = useState<"select" | "add">("select");
+  // (onAddSymbolOverlay) — bouton « + Symbole » de l'en-tête et entrée du menu contextuel ;
+  // "replace" : il remplace un symbole comparé (clic sur son nom dans la légende), dont l'id est gardé.
+  const [symbolSearchMode, setSymbolSearchMode] = useState<"select" | "add" | "replace">("select");
+  const [symbolSearchReplaceId, setSymbolSearchReplaceId] = useState<string | null>(null);
   const setSymbolSearchOpen = (open: boolean) => {
     setSymbolSearchOpenState(open);
-    if (!open) setSymbolSearchMode("select");
+    if (!open) {
+      setSymbolSearchMode("select");
+      setSymbolSearchReplaceId(null);
+    }
   };
-  /** Ouvre la fenêtre de recherche dans le mode demandé. */
-  const openSymbolSearch = (mode: "select" | "add") => {
+  /** Ouvre la fenêtre de recherche dans le mode demandé (« replace » : avec le dessin à remplacer). */
+  const openSymbolSearch = (mode: "select" | "add" | "replace", replaceId: string | null = null) => {
     setSymbolSearchMode(mode);
+    setSymbolSearchReplaceId(mode === "replace" ? replaceId : null);
     setSymbolSearchOpenState(true);
   };
   const [symbolSearchQuery, setSymbolSearchQuery] = useState("");
@@ -61,6 +67,7 @@ export function useSymbolSearchState({ defaultFavoriteSymbolIds, onFavoriteSymbo
     symbolSearchOpen,
     setSymbolSearchOpen,
     symbolSearchMode,
+    symbolSearchReplaceId,
     openSymbolSearch,
     symbolSearchQuery,
     setSymbolSearchQuery,

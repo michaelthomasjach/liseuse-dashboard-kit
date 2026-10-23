@@ -2132,6 +2132,19 @@
   opacity: 0.5;
 }
 
+/* A compared symbol's row: the main symbol row's own pieces (name, separator, mode, OHLC) laid out
+   the same way, inside a legend row so it keeps the eye/trash/gear actions. */
+.lq-chart__overlay-legend-quote {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+/* The name in the overlay's own colour (inherited from the row), not the main symbol's text colour. */
+.lq-chart__overlay-legend-name {
+  color: inherit;
+}
+
 .lq-chart__indicator-legend-actions {
   display: flex;
   align-items: center;

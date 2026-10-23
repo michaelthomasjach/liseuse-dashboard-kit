@@ -1,16 +1,42 @@
 import type { IndicatorInfoTarget } from "../interfaces/IndicatorInfoTarget.interface";
 import { infoTargetFor, scriptIdFromIndicatorId } from "../scripting/scriptOutputToCustomIndicatorDef";
 import type { Dispatch, SetStateAction } from "react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ActivityIcon, CodeIcon, EyeIcon, EyeOffIcon, TrashIcon, SettingsIcon, AlarmClockIcon, InfoIcon, ChevronDownIcon, ChevronRightIcon } from "../../../icons";
 import type { Candle } from "../interfaces/Candle.interface";
 import type { Indicator } from "../interfaces/Indicator.interface";
-import type { TrendLineDrawing } from "../interfaces/TrendLineDrawing.interface";
-import type { ChartDisplayModeDef } from "../chartModes";
+import type { OverlayDataPoint, TrendLineDrawing } from "../interfaces/TrendLineDrawing.interface";
+import { CHART_DISPLAY_MODES, type ChartDisplayModeDef } from "../chartModes";
 
 /** How many entries the legend carries before it offers to fold. Below this, a control to hide the
  *  list is more chrome than the list itself. */
 const LEGEND_FOLD_THRESHOLD = 3;
+
+/** A comparison overlay's own quote at `at` (the hovered candle, else the last one): its last point
+ *  on or before that date — the overlay keeps its own trading hours, so an exact date match is the
+ *  exception, not the rule — and the move from the point before it, in the overlay's *own* price
+ *  units, not the rebased ones the plot uses. Null when the overlay's history starts after `at`.
+ *  `series` must be sorted by date (see `sortedOverlaySeries` in ChartLegend). */
+function overlayQuoteAt(series: OverlayDataPoint[], at: Date) {
+  const t = at.getTime();
+  let lo = 0;
+  let hi = series.length - 1;
+  let found = -1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    if (series[mid].date.getTime() <= t) {
+      found = mid;
+      lo = mid + 1;
+    } else hi = mid - 1;
+  }
+  if (found < 0) return null;
+  const point = series[found];
+  const prevClose = found > 0 ? series[found - 1].value : (point.open ?? point.value);
+  const delta = point.value - prevClose;
+  const deltaPct = prevClose !== 0 ? (delta / prevClose) * 100 : 0;
+  const hasOHLC = point.open !== undefined && point.high !== undefined && point.low !== undefined;
+  return { point, hasOHLC, delta, deltaPct, sign: delta >= 0 ? "+" : "" };
+}
 
 export interface ChartLegendProps {
   dims: { margin: { top: number; left: number } };
@@ -124,10 +150,18 @@ export function ChartLegend({
   setEditModalTab,
   removeSymbolOverlay,
 }: ChartLegendProps) {
+  const lineModeEntry = CHART_DISPLAY_MODES.find((m) => m.mode === "line")!;
   // Folded state lives here, not on the chart: it is a way of looking at this list, not a fact
   // about the chart, and nothing outside this component has any use for it.
   const [legendFolded, setLegendFolded] = useState(false);
-  const legendNames = [...overlayIndicators.map((ind) => indicatorLabel(ind)), ...symbolOverlays.map((dr) => drawingLabel(dr))];
+  // Compared symbols first, indicators after: a symbol is a series of its own, on the same footing
+  // as the main one right above, and an indicator added afterwards must not end up between them.
+  const legendNames = [...symbolOverlays.map((dr) => drawingLabel(dr)), ...overlayIndicators.map((ind) => indicatorLabel(ind))];
+  // Each overlay's series sorted once per change of the overlays, not on every hover move.
+  const sortedOverlaySeries = useMemo(
+    () => new Map(symbolOverlays.map((dr) => [dr.id, [...(dr.overlayData ?? [])].sort((a, b) => a.date.getTime() - b.date.getTime())])),
+    [symbolOverlays],
+  );
   const legendEntryCount = legendNames.length;
   return (
     <div
@@ -218,6 +252,88 @@ export function ChartLegend({
         </button>
       )}
       <div className={["lq-chart__indicator-legend", legendFolded && "lq-chart__indicator-legend--folded"].filter(Boolean).join(" ")}>
+        {/* Symbol-comparison overlays (see onAddSymbolOverlay) — same legend, same hover-
+            revealed eye/trash/gear actions as a price-overlay indicator's own entry above,
+            but wired to the drawing this one actually is: the gear/double-click open its
+            edit modal (Style tab only, see there), the eye toggles its own `hidden` field,
+            the trash removes it from `drawings` directly (no confirmation round-trip through
+            the app needed, unlike adding one — removing never needs new data). Hovering it
+            also sets `hoveredDrawingId`, the same state a mouse actually over its line on the
+            canvas would — so the line highlights while its legend entry is hovered, and
+            Suppr/Retour arrière removes it from here too, exactly like hovering the line
+            itself would. */}
+        {symbolOverlays.map((dr) => {
+          const quote = overlayQuoteAt(sortedOverlaySeries.get(dr.id) ?? [], ohlcCandle.date);
+          const overlayModeEntry = CHART_DISPLAY_MODES.find((m) => m.mode === (dr.overlayDisplayMode ?? "line")) ?? lineModeEntry;
+          return (
+          <div
+            key={dr.id}
+            className="lq-chart__indicator-legend-item"
+            style={{ color: dr.color ?? defaultIndicatorColor(symbolOverlays.indexOf(dr)) }}
+            onDoubleClick={() => {
+              setEditingId(dr.id);
+              setDraft(dr);
+              setEditModalTab("style");
+            }}
+            onMouseEnter={() => setHoveredDrawingId(dr.id)}
+            onMouseLeave={() => setHoveredDrawingId((id) => (id === dr.id ? null : id))}
+          >
+            {/* Same readout as the main symbol's row above — name · display mode · O H L C and the
+                move from the previous point, in the overlay's own prices, up/down coloured — so a
+                compared symbol reads as a second quote, not as an indicator. The name keeps the
+                overlay's own colour: it is what ties the row to its line on the plot. */}
+            <span
+              className={["lq-chart__indicator-legend-label", "lq-chart__overlay-legend-quote", dr.hidden && "lq-chart__indicator-legend-label--hidden"].filter(Boolean).join(" ")}
+            >
+              <span className="lq-chart__symbol-info-name lq-chart__overlay-legend-name">{drawingLabel(dr)}</span>
+              <span className="lq-chart__symbol-info-sep">·</span>
+              <span className="lq-chart__symbol-info-name">{(quote?.hasOHLC ? overlayModeEntry : lineModeEntry).label}</span>
+              {quote && (
+                <span className={["lq-chart__symbol-info-ohlc", quote.delta >= 0 ? "lq-chart__symbol-info-ohlc--up" : "lq-chart__symbol-info-ohlc--down"].join(" ")}>
+                  {quote.hasOHLC && !mobile && (
+                    <>
+                      O {pFmt(quote.point.open!)} H {pFmt(quote.point.high!)} L {pFmt(quote.point.low!)} C{" "}
+                    </>
+                  )}
+                  {pFmt(quote.point.value)} {quote.sign}
+                  {pFmt(quote.delta)} ({quote.sign}
+                  {quote.deltaPct.toFixed(2)}%)
+                </span>
+              )}
+            </span>
+            <div className="lq-chart__indicator-legend-actions">
+              <button
+                type="button"
+                className="lq-chart__indicator-legend-action"
+                onClick={() => commitDrawings(drawings.map((d) => (d.id === dr.id ? { ...d, hidden: !d.hidden } : d)))}
+                aria-label={dr.hidden ? `Afficher ${drawingLabel(dr)}` : `Masquer ${drawingLabel(dr)}`}
+              >
+                {dr.hidden ? <EyeOffIcon size={11} /> : <EyeIcon size={11} />}
+              </button>
+              <button
+                type="button"
+                className="lq-chart__indicator-legend-action"
+                onClick={() => removeSymbolOverlay(dr.overlaySymbol ?? "")}
+                aria-label={`Supprimer ${drawingLabel(dr)}`}
+              >
+                <TrashIcon size={11} />
+              </button>
+              <button
+                type="button"
+                className="lq-chart__indicator-legend-action"
+                onClick={() => {
+                  setEditingId(dr.id);
+                  setDraft(dr);
+                  setEditModalTab("style");
+                }}
+                aria-label={`Paramètres ${drawingLabel(dr)}`}
+              >
+                <SettingsIcon size={11} />
+              </button>
+            </div>
+          </div>
+          );
+        })}
         {overlayIndicators.map((indicator) => {
           // The *full* indicators array's own index, not this filtered map's — the canvas
           // draw effect cycles defaultIndicatorColor off that same full-array position (see
@@ -334,64 +450,6 @@ export function ChartLegend({
           </div>
           );
         })}
-        {/* Symbol-comparison overlays (see onAddSymbolOverlay) — same legend, same hover-
-            revealed eye/trash/gear actions as a price-overlay indicator's own entry above,
-            but wired to the drawing this one actually is: the gear/double-click open its
-            edit modal (Style tab only, see there), the eye toggles its own `hidden` field,
-            the trash removes it from `drawings` directly (no confirmation round-trip through
-            the app needed, unlike adding one — removing never needs new data). Hovering it
-            also sets `hoveredDrawingId`, the same state a mouse actually over its line on the
-            canvas would — so the line highlights while its legend entry is hovered, and
-            Suppr/Retour arrière removes it from here too, exactly like hovering the line
-            itself would. */}
-        {symbolOverlays.map((dr) => (
-          <div
-            key={dr.id}
-            className="lq-chart__indicator-legend-item"
-            style={{ color: dr.color ?? defaultIndicatorColor(symbolOverlays.indexOf(dr)) }}
-            onDoubleClick={() => {
-              setEditingId(dr.id);
-              setDraft(dr);
-              setEditModalTab("style");
-            }}
-            onMouseEnter={() => setHoveredDrawingId(dr.id)}
-            onMouseLeave={() => setHoveredDrawingId((id) => (id === dr.id ? null : id))}
-          >
-            <span className={["lq-chart__indicator-legend-label", dr.hidden && "lq-chart__indicator-legend-label--hidden"].filter(Boolean).join(" ")}>
-              {drawingLabel(dr)}
-            </span>
-            <div className="lq-chart__indicator-legend-actions">
-              <button
-                type="button"
-                className="lq-chart__indicator-legend-action"
-                onClick={() => commitDrawings(drawings.map((d) => (d.id === dr.id ? { ...d, hidden: !d.hidden } : d)))}
-                aria-label={dr.hidden ? `Afficher ${drawingLabel(dr)}` : `Masquer ${drawingLabel(dr)}`}
-              >
-                {dr.hidden ? <EyeOffIcon size={11} /> : <EyeIcon size={11} />}
-              </button>
-              <button
-                type="button"
-                className="lq-chart__indicator-legend-action"
-                onClick={() => removeSymbolOverlay(dr.overlaySymbol ?? "")}
-                aria-label={`Supprimer ${drawingLabel(dr)}`}
-              >
-                <TrashIcon size={11} />
-              </button>
-              <button
-                type="button"
-                className="lq-chart__indicator-legend-action"
-                onClick={() => {
-                  setEditingId(dr.id);
-                  setDraft(dr);
-                  setEditModalTab("style");
-                }}
-                aria-label={`Paramètres ${drawingLabel(dr)}`}
-              >
-                <SettingsIcon size={11} />
-              </button>
-            </div>
-          </div>
-        ))}
       </div>
       </>
       )}

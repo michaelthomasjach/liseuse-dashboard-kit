@@ -433,17 +433,23 @@ export function DrawingEditModal({
               />
             </div>
           </div>
-          <Select
-            label="Style de trait"
-            value={draft.lineStyle ?? (draft.dashed ? "dashed" : "solid")}
-            onChange={(v) => setDraft({ ...draft, lineStyle: v, dashed: undefined })}
-            options={[
-              { value: "solid", label: "Continu" },
-              { value: "dashed", label: "Tirets" },
-              { value: "dotted", label: "Pointillés" },
-              { value: "dashdot", label: "Tiret-point" },
-            ]}
-          />
+          {/* A compared symbol only strokes its own close line in "Ligne de clôture" mode (or when it
+              has no OHLC to draw anything else) — in candles/bars/Heikin Ashi/Renko/Line Break the
+              line style changes nothing (see drawPriceDrawings.ts's symbolOverlay branches), so the
+              field isn't offered there. */}
+          {(draft.lineType !== "symbolOverlay" || !hasOverlayOHLC || (draft.overlayDisplayMode ?? "line") === "line") && (
+            <Select
+              label="Style de trait"
+              value={draft.lineStyle ?? (draft.dashed ? "dashed" : "solid")}
+              onChange={(v) => setDraft({ ...draft, lineStyle: v, dashed: undefined })}
+              options={[
+                { value: "solid", label: "Continu" },
+                { value: "dashed", label: "Tirets" },
+                { value: "dotted", label: "Pointillés" },
+                { value: "dashdot", label: "Tiret-point" },
+              ]}
+            />
+          )}
           {/* "extend" only applies to a plain 2-point line — the other line types (channel,
               fibonacci, elliott, disjoint channel, horizontal/ray/vertical) each draw
               themselves with their own fixed geometry and don't read this field (see the

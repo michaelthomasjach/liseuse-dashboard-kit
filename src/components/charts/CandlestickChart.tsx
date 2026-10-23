@@ -144,6 +144,7 @@ export function CandlestickChart({
   defaultTemplates,
   onTemplatesChange,
   initialVisibleCandles = 500,
+  viewResetKey,
   defaultPaneHeightFraction,
   YAutoScaling = true,
   onYAutoScalingChange,
@@ -873,6 +874,7 @@ export function CandlestickChart({
     yAutoScalingState,
     zoomable,
     initialVisibleCandles,
+    viewResetKey,
     replayActive: replayState.active,
     replayCutoffIndex: replayState.cutoffIndex,
   });

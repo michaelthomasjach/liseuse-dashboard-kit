@@ -205,6 +205,12 @@ export interface CandlestickChartProps {
    *  as an initial zoom/pan — the user can still zoom/pan freely afterward). `undefined`/0/a
    *  value ≥ `data.length` shows the whole dataset, same as before this prop existed. Default 500. */
   initialVisibleCandles?: number;
+  /** Re-applies the initial view (`initialVisibleCandles`, Y axis back to auto-fit) whenever this value
+   *  changes — for a host that swaps `data` in place (timeframe or symbol switch) instead of remounting
+   *  the chart, which would also drop fullscreen, drawings, indicators and panel sizes. Pass a value
+   *  that changes together with the new `data` (e.g. `${symbol}|${timeframe}` once it has loaded).
+   *  Undefined: the initial view is applied only once, at mount, as before this prop existed. */
+  viewResetKey?: string | number;
   /** Starting height of every expanded sub-pane (volume, and each "own"-pane indicator such as
    *  RSI/MACD), as a fraction of the plot's own bounded height — before any manual resize, which
    *  still works as usual. Clamped to the drag-to-resize bounds (0.08–0.6). Default 0.22. Lower it

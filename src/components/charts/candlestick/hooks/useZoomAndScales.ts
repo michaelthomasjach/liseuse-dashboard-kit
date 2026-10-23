@@ -73,6 +73,8 @@ export interface UseZoomAndScalesArgs {
   yAutoScalingState: boolean;
   zoomable: boolean;
   initialVisibleCandles: number | undefined;
+  /** See CandlestickChartProps.viewResetKey: a change re-applies the initial view to the new data. */
+  viewResetKey?: string | number;
   /** Whether replay is currently active (a cutoff has been chosen — see useReplayState.ts's own
    *  `active`) and, if so, its `cutoffIndex` — the last candle actually revealed, everything past
    *  it still sitting in `data` but painted over by drawReplayMask.ts. `YAutoScaling`'s own auto-fit
@@ -112,6 +114,7 @@ export function useZoomAndScales({
   yAutoScalingState,
   zoomable,
   initialVisibleCandles,
+  viewResetKey,
   replayActive,
   replayCutoffIndex,
 }: UseZoomAndScalesArgs) {
@@ -546,6 +549,21 @@ export function useZoomAndScales({
   // above is attached) — not on every resize, which would otherwise keep yanking the user back
   // to the last-N-candles view whenever the window changes size.
   const initialViewAppliedRef = useRef(false);
+  // `viewResetKey` changed (the host swapped `data` in place — a timeframe or symbol switch): the
+  // current transform is pixel math against the *previous* dataset and would now frame an arbitrary
+  // stretch of the new one, so start over from the whole dataset and let the effect below apply the
+  // initial scope again — exactly what a remount would have done, minus losing everything else.
+  // Declared before that effect so it runs first in the same commit.
+  const viewResetKeyRef = useRef(viewResetKey);
+  useEffect(() => {
+    if (viewResetKeyRef.current === viewResetKey) return;
+    viewResetKeyRef.current = viewResetKey;
+    initialViewAppliedRef.current = false;
+    initialVisibleCountRef.current = null;
+    setXTransformViaZoom(d3.zoomIdentity);
+    setYTransform(d3.zoomIdentity);
+    setYManuallyAdjusted(false);
+  }, [viewResetKey, setXTransformViaZoom]);
   useEffect(() => {
     if (initialViewAppliedRef.current) return;
     if (dims.boundedWidth <= 0 || data.length === 0) return;
@@ -556,7 +574,7 @@ export function useZoomAndScales({
     if (!t) return;
     initialVisibleCountRef.current = initialVisibleCandles;
     setXTransformViaZoom(t);
-  }, [dims.boundedWidth, data.length, initialVisibleCandles, transformForVisibleCount, setXTransformViaZoom]);
+  }, [dims.boundedWidth, data.length, initialVisibleCandles, transformForVisibleCount, setXTransformViaZoom, viewResetKey]);
 
   // Preserves whatever candle range was actually visible across a *width* change — e.g. dragging
   // ChartWorkspace's own watchlist panel wider/narrower shrinks/grows this chart's own

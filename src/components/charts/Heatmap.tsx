@@ -1,5 +1,6 @@
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
+import { createPortal } from "react-dom";
 import * as d3 from "d3";
 import { useD3Zoom } from "./internal/useD3Zoom";
 import { labelColorOn } from "./internal/labelContrast";
@@ -213,7 +214,28 @@ function useTileMixer(el: HTMLElement | null): (colorValue: number | null, domai
  *  for that. */
 export function Heatmap({ groups, width = 900, height = 560, colorDomain = [-3, 3], onTileClick, className }: HeatmapProps) {
   const [focusedGroupId, setFocusedGroupId] = useState<string | null>(null);
+  // Pointer position in viewport coordinates: the tooltip is portalled to <body> and placed `fixed`
+  // (see the layout effect below), so no ancestor's overflow or transform can clip or shift it.
   const [hovered, setHovered] = useState<{ node: PositionedNode; x: number; y: number } | null>(null);
+  const tooltipRef = useRef<HTMLDivElement | null>(null);
+  // Centred above the pointer by default, then pushed back inside the viewport once its real size is
+  // known: a tile at the far left or right of the map used to open a tooltip half off-screen, with
+  // the very lines it was there to show cut off. No room above → below the pointer instead.
+  useLayoutEffect(() => {
+    const el = tooltipRef.current;
+    if (!el || !hovered) return;
+    const margin = 8;
+    const gap = 12;
+    const { width: w, height: h } = el.getBoundingClientRect();
+    const vw = document.documentElement.clientWidth;
+    const vh = document.documentElement.clientHeight;
+    const left = Math.max(margin, Math.min(hovered.x - w / 2, vw - w - margin));
+    let top = hovered.y - h - gap;
+    if (top < margin) top = Math.min(hovered.y + gap + 8, vh - h - margin);
+    el.style.left = `${left}px`;
+    el.style.top = `${Math.max(margin, top)}px`;
+    el.style.visibility = "visible";
+  }, [hovered]);
   const [hoveredGroupId, setHoveredGroupId] = useState<string | null>(null);
   /* Tiles whose `logoUrl` did not load. Kept here rather than in each tile because the tiles are
      re-created on every layout pass (the treemap recomputes on resize, hover and drill-down), so
@@ -306,9 +328,7 @@ export function Heatmap({ groups, width = 900, height = 560, colorDomain = [-3, 
   }
 
   function showTooltip(node: PositionedNode, e: React.PointerEvent) {
-    const rect = wrapperRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    setHovered({ node, x: e.clientX - rect.left, y: e.clientY - rect.top });
+    setHovered({ node, x: e.clientX, y: e.clientY });
     setHoveredGroupId(node.isGroup ? node.id : (node.groupId ?? null));
   }
 
@@ -432,8 +452,8 @@ export function Heatmap({ groups, width = 900, height = 560, colorDomain = [-3, 
         </g>
       </svg>
 
-      {hovered && (
-        <div className="lq-heatmap__tooltip" style={{ left: hovered.x, top: hovered.y }}>
+      {hovered && createPortal(
+        <div className="lq-heatmap__tooltip" ref={tooltipRef} style={{ left: hovered.x, top: hovered.y, visibility: "hidden" }}>
           {hovered.node.tile ? (
             (hovered.node.tile.tooltip ?? (
               <>
@@ -444,7 +464,8 @@ export function Heatmap({ groups, width = 900, height = 560, colorDomain = [-3, 
           ) : (
             <strong>{hovered.node.group?.label}</strong>
           )}
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

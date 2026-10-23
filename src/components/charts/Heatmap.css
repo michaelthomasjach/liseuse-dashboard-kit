@@ -119,10 +119,13 @@
   opacity: 0.85;
 }
 
+/* Portalled to <body> and placed in viewport coordinates by Heatmap (kept inside the screen there), so
+   `fixed` and above any modal or fullscreen layer the map itself may sit in. Long lines wrap rather
+   than run past the screen edge. */
 .lq-heatmap__tooltip {
-  position: absolute;
-  z-index: 5;
-  transform: translate(-50%, -100%) translateY(-8px);
+  position: fixed;
+  z-index: 10200;
+  max-width: min(460px, calc(100vw - 16px));
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -132,7 +135,8 @@
   border-radius: var(--lq-radius-sm);
   font-size: 0.78rem;
   color: var(--lq-color-text);
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
   pointer-events: none;
   box-shadow: 0 4px 12px rgb(0 0 0 / 0.15);
 }

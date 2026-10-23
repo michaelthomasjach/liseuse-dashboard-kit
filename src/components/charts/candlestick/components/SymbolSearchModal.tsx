@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Modal } from "../../../primitives/Modal";
 import { Input } from "../../../forms/Input";
 import { SearchIcon, CloseIcon, RefreshIcon, CheckIcon, PlusIcon, StarIcon } from "../../../icons";
@@ -60,6 +61,18 @@ export function SymbolSearchModal({
   handleAddSymbolOverlay,
   removeSymbolOverlay,
 }: SymbolSearchModalProps) {
+  // Mode « add » : la fenêtre reste ouverte pendant le chargement du symbole choisi (pastille de chargement sur sa
+  // ligne), puis se ferme dès qu'il est sur le graphique ; en cas d'échec elle reste ouverte pour réessayer.
+  const [pendingAdd, setPendingAdd] = useState<string | null>(null);
+  useEffect(() => {
+    if (!pendingAdd || addingOverlaySymbols.has(pendingAdd)) return;
+    const added = symbolOverlays.some((d) => d.overlaySymbol === pendingAdd);
+    setPendingAdd(null);
+    if (added) setSymbolSearchOpen(false);
+  }, [pendingAdd, addingOverlaySymbols, symbolOverlays, setSymbolSearchOpen]);
+  useEffect(() => {
+    if (!symbolSearchOpen) setPendingAdd(null);
+  }, [symbolSearchOpen]);
   if (!symbolSearchOpen) return null;
   const adding = symbolSearchMode === "add" && Boolean(onAddSymbolOverlay);
   return (
@@ -124,9 +137,17 @@ export function SymbolSearchModal({
                     className="lq-chart__symbol-search-row-main"
                     onClick={() => {
                       if (adding) {
-                        if (isOverlayActive) removeSymbolOverlay(result.ticker);
-                        else handleAddSymbolOverlay(result);
-                      } else onSymbolSelect?.(result);
+                        if (isOverlayLoading) return;
+                        if (isOverlayActive) {
+                          removeSymbolOverlay(result.ticker);
+                          setSymbolSearchOpen(false);
+                        } else {
+                          setPendingAdd(result.ticker);
+                          handleAddSymbolOverlay(result);
+                        }
+                        return;
+                      }
+                      onSymbolSelect?.(result);
                       setSymbolSearchOpen(false);
                     }}
                     title={adding ? (isOverlayActive ? `Retirer ${result.ticker} du graphique` : `Ajouter ${result.ticker} au graphique`) : undefined}
@@ -139,7 +160,9 @@ export function SymbolSearchModal({
                     </span>
                     <span className="lq-chart__symbol-search-ticker">{result.ticker}</span>
                     <span className="lq-chart__symbol-search-name">{result.name}</span>
-                    <span className="lq-chart__symbol-search-source">{result.source}</span>
+                    <span className="lq-chart__symbol-search-source">
+                      {adding && isOverlayLoading ? <RefreshIcon size={14} className="lq-chart__symbol-search-overlay-spinner" aria-label="Chargement…" /> : result.source}
+                    </span>
                   </button>
                   {/* Compare against the main symbol — hover-revealed like the favorite star,
                       but stays visible once active too, same reasoning. Turns into a checkmark

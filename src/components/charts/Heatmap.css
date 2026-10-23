@@ -125,6 +125,9 @@
 .lq-heatmap__tooltip {
   position: fixed;
   z-index: 10200;
+  /* Its natural width (up to the cap), not whatever is left between the pointer and the screen edge:
+     it is measured at the pointer before being moved back inside the screen. */
+  width: max-content;
   max-width: min(460px, calc(100vw - 16px));
   display: flex;
   flex-direction: column;

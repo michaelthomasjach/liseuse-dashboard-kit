@@ -5,6 +5,7 @@ import * as d3 from "d3";
 import { useD3Zoom } from "./internal/useD3Zoom";
 import { labelColorOn } from "./internal/labelContrast";
 import { ChevronRightIcon, ZoomOutIcon } from "../icons";
+import { LqThemeProvider, useLqTheme } from "../../theme";
 import "./charts-shared.css";
 import "./Heatmap.css";
 
@@ -218,6 +219,8 @@ export function Heatmap({ groups, width = 900, height = 560, colorDomain = [-3, 
   // (see the layout effect below), so no ancestor's overflow or transform can clip or shift it.
   const [hovered, setHovered] = useState<{ node: PositionedNode; x: number; y: number } | null>(null);
   const tooltipRef = useRef<HTMLDivElement | null>(null);
+  // Out in <body> the tooltip is outside the host's theme scope: re-provide it, same as Popover.
+  const theme = useLqTheme();
   // Centred above the pointer by default, then pushed back inside the viewport once its real size is
   // known: a tile at the far left or right of the map used to open a tooltip half off-screen, with
   // the very lines it was there to show cut off. No room above → below the pointer instead.
@@ -453,6 +456,7 @@ export function Heatmap({ groups, width = 900, height = 560, colorDomain = [-3, 
       </svg>
 
       {hovered && createPortal(
+        <LqThemeProvider palette={theme.palette} surface={theme.surface} font={theme.font} style={{ display: "contents" }}>
         <div className="lq-heatmap__tooltip" ref={tooltipRef} style={{ left: hovered.x, top: hovered.y, visibility: "hidden" }}>
           {hovered.node.tile ? (
             (hovered.node.tile.tooltip ?? (
@@ -464,7 +468,8 @@ export function Heatmap({ groups, width = 900, height = 560, colorDomain = [-3, 
           ) : (
             <strong>{hovered.node.group?.label}</strong>
           )}
-        </div>,
+        </div>
+        </LqThemeProvider>,
         document.body,
       )}
     </div>

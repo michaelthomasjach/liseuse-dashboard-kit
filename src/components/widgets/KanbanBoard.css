@@ -83,8 +83,10 @@
 .lq-kanban__card:hover { border-color: color-mix(in srgb, var(--lq-color-text) 40%, transparent); }
 .lq-kanban__card--dragging { opacity: 0.4; }
 
-.lq-kanban__cardhead { display: flex; align-items: center; justify-content: space-between; gap: var(--lq-space-2); }
-.lq-kanban__meta { color: var(--lq-color-text-muted); font-size: var(--lq-text-xs); white-space: nowrap; }
+.lq-kanban__cardhead { display: flex; flex-wrap: wrap; align-items: center; gap: 4px var(--lq-space-2); }
+/* Étiquette et pastilles à gauche, date à droite. */
+.lq-kanban__meta { margin-left: auto; color: var(--lq-color-text-muted); font-size: var(--lq-text-xs); white-space: nowrap; }
+.lq-kanban__badge { display: inline-flex; cursor: help; }
 .lq-kanban__cardtitle { margin: 6px 0 0; font-size: var(--lq-text-sm); font-weight: 700; line-height: 1.3; }
 .lq-kanban__desc {
   display: -webkit-box;

@@ -1,5 +1,5 @@
 import { useState, type DragEvent, type ReactNode } from "react";
-import { Badge } from "../finance/Badge";
+import { Badge, type BadgeTone } from "../finance/Badge";
 import "./KanbanBoard.css";
 
 /**
@@ -37,6 +37,8 @@ export interface KanbanCard {
   description?: string;
   /** Étiquette (rubrique, équipe…). */
   tag?: string;
+  /** Pastilles supplémentaires après l'étiquette (durée de réalisation, priorité…), avec leur bulle d'aide. */
+  badges?: { label: string; tone?: BadgeTone; title?: string }[];
   /** Texte discret en haut à droite de la carte (« livré le 22 oct. 2026 »). */
   meta?: ReactNode;
   /** Intertitre de la colonne : posé au-dessus de la première carte de chaque groupe. */
@@ -170,9 +172,14 @@ export function KanbanBoard({
                         if (!isOver || over.index !== index) setOver({ columnId: col.id, index });
                       }}
                     >
-                      {(card.tag || card.meta) && (
+                      {(card.tag || card.badges?.length || card.meta) && (
                         <div className="lq-kanban__cardhead">
                           {card.tag && <Badge tone="neutral">{card.tag}</Badge>}
+                          {card.badges?.map((b) => (
+                            <span key={b.label} title={b.title} className="lq-kanban__badge">
+                              <Badge tone={b.tone ?? "neutral"}>{b.label}</Badge>
+                            </span>
+                          ))}
                           {card.meta && <span className="lq-kanban__meta">{card.meta}</span>}
                         </div>
                       )}

@@ -71,6 +71,7 @@
   cursor: pointer;
 }
 
+.lq-tag-input__option--create .lq-tag-input__option-label { font-style: italic; }
 .lq-tag-input__option.is-active {
   background: var(--lq-color-hover);
 }

@@ -31,6 +31,9 @@ export interface TagInputProps {
   suggestions?: TagInputSuggestion[];
   /** Only values from `suggestions` can be added (free text is ignored). Default false. */
   restrictToSuggestions?: boolean;
+  /** With `suggestions` and free text allowed: label of the last list entry that adds what was typed as a new tag
+   *  (Enter on it, or click). Default `(text) => \`Ajouter « ${text} »\``. */
+  createLabel?: (text: string) => string;
 }
 
 const fold = (s: string) =>
@@ -56,6 +59,7 @@ export function TagInput({
   size = "normal",
   suggestions,
   restrictToSuggestions = false,
+  createLabel = (text) => `Ajouter « ${text} »`,
 }: TagInputProps) {
   const [inputValue, setInputValue] = useState("");
   const [open, setOpen] = useState(false);
@@ -70,6 +74,11 @@ export function TagInput({
     const q = fold(inputValue.trim());
     return suggestions.filter((s) => !value.includes(s.value) && (!q || fold(s.label).includes(q) || fold(s.description ?? "").includes(q)));
   }, [suggestions, inputValue, value]);
+  // Saisie libre permise : une dernière entrée « Ajouter « … » » quand le texte ne correspond exactement à aucune suggestion.
+  const typed = inputValue.trim();
+  const canCreate =
+    Boolean(suggestions) && !restrictToSuggestions && typed !== "" && !(preventDuplicates && value.includes(typed)) && !suggestions?.some((s) => fold(s.label) === fold(typed) || s.value === typed);
+  const count = matches.length + (canCreate ? 1 : 0);
 
   function add(v: string) {
     if (preventDuplicates && value.includes(v)) {
@@ -96,10 +105,10 @@ export function TagInput({
   }
 
   function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
-    const listShown = open && matches.length > 0;
+    const listShown = open && count > 0;
     if (listShown && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
       e.preventDefault();
-      setActive((i) => (e.key === "ArrowDown" ? (i + 1) % matches.length : (i - 1 + matches.length) % matches.length));
+      setActive((i) => (e.key === "ArrowDown" ? (i + 1) % count : (i - 1 + count) % count));
       return;
     }
     if (e.key === "Escape") {
@@ -108,7 +117,9 @@ export function TagInput({
     }
     if (e.key === "," || e.key === "Enter") {
       e.preventDefault();
-      const pick = listShown ? matches[Math.min(active, matches.length - 1)] : undefined;
+      const idx = Math.min(active, count - 1);
+      if (listShown && canCreate && idx === matches.length) return add(typed);
+      const pick = listShown ? matches[idx] : undefined;
       if (pick && (inputValue.trim() || e.key === "Enter")) add(pick.value);
       else commitTag();
       return;
@@ -118,7 +129,7 @@ export function TagInput({
     }
   }
 
-  const showList = Boolean(suggestions) && open && !disabled && !atMax && matches.length > 0;
+  const showList = Boolean(suggestions) && open && !disabled && !atMax && count > 0;
 
   return (
     <div className={["lq-field", "lq-tag-input-field", className].filter(Boolean).join(" ")}>
@@ -182,6 +193,20 @@ export function TagInput({
               {s.description && <span className="lq-tag-input__option-desc">{s.description}</span>}
             </li>
           ))}
+          {canCreate && (
+            <li
+              role="option"
+              aria-selected={active === matches.length}
+              className={["lq-tag-input__option", "lq-tag-input__option--create", active === matches.length && "is-active"].filter(Boolean).join(" ")}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                add(typed);
+              }}
+              onMouseEnter={() => setActive(matches.length)}
+            >
+              <span className="lq-tag-input__option-label">{createLabel(typed)}</span>
+            </li>
+          )}
         </ul>
       )}
       {error ? (

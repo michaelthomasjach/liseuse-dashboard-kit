@@ -62,6 +62,33 @@ export const Sizes: Story = {
   },
 };
 
+/** Suggestions + saisie libre : choisir dans la liste (clic, ↑/↓ et Entrée) ou taper un nouvel indice et valider
+ *  par Entrée (entrée « Ajouter « … » » en fin de liste). */
+export const WithSuggestionsAndFreeText: Story = {
+  name: "Suggestions + saisie libre",
+  render: () => {
+    const [value, setValue] = useState<string[]>(["sp500", "FTSE MIB"]);
+    return (
+      <div style={{ maxWidth: 420 }}>
+        <TagInput
+          label="Indices"
+          placeholder="Choisir ou saisir un indice…"
+          helperText="Choisissez dans la liste, ou tapez un nouvel indice puis Entrée."
+          value={value}
+          onChange={setValue}
+          suggestions={[
+            { value: "sp500", label: "S&P 500", description: "États-Unis · 500 sociétés" },
+            { value: "ndx", label: "Nasdaq-100", description: "États-Unis · 100 sociétés" },
+            { value: "dji", label: "Dow Jones", description: "États-Unis · 30 sociétés" },
+            { value: "cac40", label: "CAC 40", description: "France · 40 sociétés" },
+            { value: "dax", label: "DAX", description: "Allemagne · 40 sociétés" },
+          ]}
+        />
+      </div>
+    );
+  },
+};
+
 /** Choix multiple dans une liste connue (`suggestions` + `restrictToSuggestions`) : filtrée à la saisie, ↑/↓ et Entrée. */
 export const WithSuggestions: Story = {
   name: "Avec suggestions (choix multiple d'indices)",

@@ -1,0 +1,72 @@
+/*
+ * Tons pleins — une surface remplie d'une couleur du thème, et tout ce qu'elle contient passé en
+ * contraste. Posé par `data-lq-tone` (voir tone.ts) ; partagé par Card, LiveTile et DotMap.
+ *
+ * Deux temps, et c'est voulu. L'élément marqué calcule son couple remplissage / encre à partir des
+ * variables dont il hérite ; ce sont ses enfants qui redéfinissent la palette (`--lq-color-text`,
+ * `--lq-color-panel`…) sur ce couple. La redéfinir sur l'élément lui-même ferait un cycle — le
+ * remplissage du ton « accent » se lit dans `--lq-color-accent`, qu'on veut justement faire pointer
+ * sur l'encre — et un cycle invalide d'un coup toutes les variables qui y prennent part. Un cran plus
+ * bas, les valeurs héritées sont déjà calculées : plus de cycle, et tout composant du kit posé dans la
+ * surface (sparkline, ligne de panneau, barre de progression, bouton) suit sans rien savoir du ton.
+ *
+ * Variables optionnelles (voir la fin de tokens.css) : `--lq-tone-<ton>` pour le remplissage,
+ * `--lq-tone-<ton>-text` pour l'encre d'un ton, `--lq-tone-text` pour l'encre de tous. À défaut, le
+ * remplissage reprend la couleur du thème du même nom et l'encre `--lq-color-accent-contrast` — blanc
+ * sur la palette couleur claire, sombre sur la sombre, dont les couleurs sont claires.
+ */
+
+[data-lq-tone="accent"] {
+  --lq-tone-fill: var(--lq-tone-accent, var(--lq-color-accent));
+  --lq-tone-ink: var(--lq-tone-accent-text, var(--lq-tone-text, var(--lq-color-accent-contrast)));
+}
+
+[data-lq-tone="success"] {
+  --lq-tone-fill: var(--lq-tone-success, var(--lq-color-green));
+  --lq-tone-ink: var(--lq-tone-success-text, var(--lq-tone-text, var(--lq-color-accent-contrast)));
+}
+
+[data-lq-tone="info"] {
+  --lq-tone-fill: var(--lq-tone-info, var(--lq-color-info));
+  --lq-tone-ink: var(--lq-tone-info-text, var(--lq-tone-text, var(--lq-color-accent-contrast)));
+}
+
+[data-lq-tone="danger"] {
+  --lq-tone-fill: var(--lq-tone-danger, var(--lq-color-danger));
+  --lq-tone-ink: var(--lq-tone-danger-text, var(--lq-tone-text, var(--lq-color-accent-contrast)));
+}
+
+[data-lq-tone="warning"] {
+  --lq-tone-fill: var(--lq-tone-warning, var(--lq-color-warning));
+  --lq-tone-ink: var(--lq-tone-warning-text, var(--lq-tone-text, var(--lq-color-accent-contrast)));
+}
+
+/* Le gris des tuiles météo : le texte atténué du thème, assez soutenu pour porter du blanc. */
+[data-lq-tone="dark"] {
+  --lq-tone-fill: var(--lq-tone-dark, var(--lq-color-text-muted));
+  --lq-tone-ink: var(--lq-tone-dark-text, var(--lq-tone-text, var(--lq-color-accent-contrast)));
+}
+
+[data-lq-tone] {
+  background-color: var(--lq-tone-fill);
+  color: var(--lq-tone-ink);
+}
+
+/* Le contenu lit la palette ordinaire : on la refait ici, sur l'encre et le remplissage. L'accent
+   devient l'encre (une courbe, une barre pleine restent visibles sur le fond) et le contraste de
+   l'accent devient le remplissage (le texte d'un bouton plein reste lisible). */
+[data-lq-tone] > * {
+  --lq-color-bg: var(--lq-tone-fill);
+  --lq-color-panel: var(--lq-tone-fill);
+  --lq-color-panel-border: transparent;
+  --lq-color-text: var(--lq-tone-ink);
+  --lq-color-text-muted: color-mix(in srgb, var(--lq-tone-ink) 76%, transparent);
+  --lq-color-border: color-mix(in srgb, var(--lq-tone-ink) 45%, transparent);
+  --lq-color-border-subtle: color-mix(in srgb, var(--lq-tone-ink) 22%, transparent);
+  --lq-color-accent: var(--lq-tone-ink);
+  --lq-color-accent-contrast: var(--lq-tone-fill);
+  --lq-color-fill: var(--lq-tone-ink);
+  --lq-color-fill-track: color-mix(in srgb, var(--lq-tone-ink) 25%, transparent);
+  --lq-color-hover: color-mix(in srgb, var(--lq-tone-ink) 12%, transparent);
+  --lq-color-focus-ring: var(--lq-tone-ink);
+}

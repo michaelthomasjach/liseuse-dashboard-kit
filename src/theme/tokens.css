@@ -305,6 +305,19 @@
  *                      Testimonial (falls back to --lq-color-border-subtle); `transparent` lets
  *                      the panel shadow alone detach the surface.
  *
+ *   Tones              the filled surfaces — Card `tone`, LiveTile `tone`, DotMap `tone` (see
+ *                      components/primitives/tone.css). Fill: --lq-tone-accent · -success · -info ·
+ *                      -danger · -warning · -dark (fall back to --lq-color-accent, -green, -info,
+ *                      -danger, -warning, -text-muted). Ink on the fill: --lq-tone-text for all of
+ *                      them, --lq-tone-<tone>-text for one (fall back to --lq-color-accent-contrast).
+ *
+ *   Live tile          --lq-tile-padding (--lq-space-5) · --lq-tile-title-size (--lq-text-h3)
+ *                      --lq-tile-title-weight (600)
+ *
+ *   Dot map            --lq-dot-map-bg (panel, or the tone fill) · --lq-dot-map-dot (text at 30 %,
+ *                      70 % on a tone) · --lq-dot-map-marker (the page text color)
+ *                      --lq-dot-map-marker-ring (2px, the outline that detaches a marker on a tone)
+ *
  *   Regions            `data-lq-region="sidebar"` marks SidebarLayout's sidebar. A theme can
  *                      redefine any color token under `[data-lq-region="sidebar"]` to give the
  *                      sidebar its own palette (a dark rail on a light page) — the logo, the nav

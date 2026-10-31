@@ -1,0 +1,194 @@
+/* `--lq-dot-map-ink` est pris ici, hors de la surface colorée : c'est la couleur du texte de la page,
+   que le ton ne redéfinit pas. Les repères la portent, si bien qu'ils tranchent à la fois sur le fond
+   rempli et sur les points passés en contraste. */
+.lq-dot-map {
+  --lq-dot-map-ink: var(--lq-color-text);
+  position: relative;
+  width: 100%;
+}
+
+.lq-dot-map__surface {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background-color: var(--lq-dot-map-bg, var(--lq-color-panel));
+}
+
+.lq-dot-map__surface[data-lq-tone] {
+  background-color: var(--lq-dot-map-bg, var(--lq-tone-fill));
+}
+
+.lq-dot-map__svg {
+  display: block;
+}
+
+.lq-dot-map__dots {
+  fill: none;
+  stroke: var(--lq-dot-map-dot, color-mix(in srgb, var(--lq-color-text) 30%, transparent));
+}
+
+.lq-dot-map__surface[data-lq-tone] .lq-dot-map__dots {
+  stroke: var(--lq-dot-map-dot, color-mix(in srgb, var(--lq-color-text) 70%, transparent));
+}
+
+/* ---------------------------------------------------------------- */
+/* Repères                                                           */
+/* ---------------------------------------------------------------- */
+
+.lq-dot-map__marker {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  color: var(--lq-dot-map-marker, var(--lq-dot-map-ink));
+  background: none;
+  border: none;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  cursor: pointer;
+}
+
+.lq-dot-map__marker:focus-visible {
+  outline: 2px solid var(--lq-dot-map-marker, var(--lq-dot-map-ink));
+  outline-offset: 1px;
+}
+
+.lq-dot-map__marker-dot {
+  position: relative;
+  width: 12px;
+  height: 12px;
+  background-color: currentColor;
+  border-radius: 50%;
+  transition: transform var(--lq-transition-fast);
+}
+
+/* Sur un ton, un liseré de l'encre détache le repère du fond — indispensable quand le remplissage et
+   le texte de la page se confondent, comme sur la palette e-ink où tous les tons sont noirs. */
+.lq-dot-map__surface[data-lq-tone] .lq-dot-map__marker-dot {
+  box-shadow: 0 0 0 var(--lq-dot-map-marker-ring, 2px) var(--lq-color-text);
+}
+
+.lq-dot-map__marker:hover .lq-dot-map__marker-dot,
+.lq-dot-map__marker--selected .lq-dot-map__marker-dot {
+  transform: scale(1.25);
+}
+
+/* Le halo : un anneau de la couleur du repère qui s'élargit en s'effaçant. */
+.lq-dot-map__marker--pulse .lq-dot-map__marker-dot::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background-color: currentColor;
+  border-radius: 50%;
+  animation: lq-dot-map-pulse 1.8s ease-out infinite;
+}
+
+@keyframes lq-dot-map-pulse {
+  from {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(2.6);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lq-dot-map__marker--pulse .lq-dot-map__marker-dot::after {
+    animation: none;
+    opacity: 0;
+  }
+}
+
+/* ---------------------------------------------------------------- */
+/* Infobulle — au-dessus du repère, ou dessous près du bord haut     */
+/* ---------------------------------------------------------------- */
+
+.lq-dot-map__tooltip {
+  position: absolute;
+  z-index: 2;
+  min-width: 120px;
+  max-width: 240px;
+  padding: var(--lq-space-2) var(--lq-space-3);
+  font-size: var(--lq-text-sm);
+  color: var(--lq-color-text);
+  background-color: var(--lq-color-panel);
+  border-radius: var(--lq-radius-sm);
+  box-shadow: var(--lq-shadow-modal);
+  transform: translate(-50%, calc(-100% - 20px));
+  animation: lq-dot-map-tooltip-in 140ms ease-out;
+}
+
+.lq-dot-map__tooltip--below {
+  transform: translate(-50%, 20px);
+}
+
+/* La flèche, un carré tourné sous la bulle (ou au-dessus quand elle passe dessous). */
+.lq-dot-map__tooltip::after {
+  position: absolute;
+  left: 50%;
+  bottom: -5px;
+  width: 10px;
+  height: 10px;
+  content: "";
+  background-color: inherit;
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.lq-dot-map__tooltip--below::after {
+  top: -5px;
+  bottom: auto;
+}
+
+.lq-root[data-lq-palette="eink"] .lq-dot-map__tooltip {
+  border: 1px solid var(--lq-color-border);
+}
+
+@keyframes lq-dot-map-tooltip-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.lq-dot-map__tooltip-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--lq-space-2);
+}
+
+.lq-dot-map__tooltip-title {
+  font-weight: var(--lq-font-weight-semibold, 600);
+}
+
+.lq-dot-map__tooltip-details {
+  margin-top: var(--lq-space-1);
+  color: var(--lq-color-text-muted);
+}
+
+.lq-dot-map__tooltip-close {
+  display: inline-flex;
+  flex-shrink: 0;
+  padding: 0;
+  margin: calc(var(--lq-space-1) / 2) calc(var(--lq-space-1) * -1) 0 0;
+  color: var(--lq-color-text);
+  background: none;
+  border: none;
+  opacity: 0.5;
+  cursor: pointer;
+}
+
+.lq-dot-map__tooltip-close:hover,
+.lq-dot-map__tooltip-close:focus-visible {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lq-dot-map__tooltip {
+    animation: none;
+  }
+}

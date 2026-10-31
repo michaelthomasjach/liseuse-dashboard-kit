@@ -1,0 +1,327 @@
+.lq-notification-menu {
+  display: inline-flex;
+}
+
+.lq-notification-menu__trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  color: var(--lq-color-text);
+  background: none;
+  border: none;
+  border-radius: var(--lq-radius-md);
+  cursor: pointer;
+  transition: background-color var(--lq-transition-fast);
+}
+
+.lq-notification-menu__trigger:hover,
+.lq-notification-menu__trigger[aria-expanded="true"] {
+  background-color: var(--lq-color-hover);
+}
+
+.lq-notification-menu__trigger:focus-visible {
+  outline: 2px solid var(--lq-color-focus-ring);
+  outline-offset: 1px;
+}
+
+/* La pastille s'accroche au coin de l'icône, pas du bouton : elle reste au même endroit quelle que
+   soit la taille de zone cliquable qu'un thème donne au déclencheur. */
+.lq-notification-menu__trigger-icon {
+  position: relative;
+  display: inline-flex;
+}
+
+.lq-notification-menu__badge {
+  position: absolute;
+  box-sizing: content-box;
+  color: var(--lq-color-accent-contrast);
+  background-color: var(--lq-color-danger);
+  border: 2px solid var(--lq-color-panel);
+}
+
+.lq-notification-menu__badge--dot {
+  top: -5px;
+  right: -7px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.lq-notification-menu__badge--count {
+  top: -8px;
+  right: -10px;
+  min-width: 10px;
+  height: 14px;
+  padding: 0 calc(var(--lq-space-1) - 1px);
+  font-size: 0.62rem;
+  font-weight: var(--lq-font-weight-bold, 700);
+  line-height: 14px;
+  text-align: center;
+  border-radius: var(--lq-radius-pill);
+}
+
+/* ---------------------------------------------------------------- */
+/* Panneau                                                           */
+/* ---------------------------------------------------------------- */
+
+.lq-notification-menu__panel {
+  display: flex;
+  flex-direction: column;
+  max-width: calc(100vw - 2 * var(--lq-space-2));
+  overflow: hidden;
+  color: var(--lq-color-text);
+  border-radius: inherit;
+  outline: none;
+}
+
+.lq-notification-menu__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--lq-space-3);
+  padding: var(--lq-space-3) var(--lq-space-4) var(--lq-space-3) var(--lq-space-5);
+  border-bottom: 1px solid var(--lq-color-border-subtle);
+}
+
+.lq-notification-menu__title {
+  font-size: var(--lq-caption-size, 0.95rem);
+  font-weight: var(--lq-caption-weight, var(--lq-font-weight-bold, 700));
+  letter-spacing: var(--lq-caption-tracking, normal);
+  text-transform: var(--lq-caption-transform, none);
+}
+
+.lq-notification-menu__count {
+  font-size: var(--lq-text-xs);
+  color: var(--lq-color-text-muted);
+  white-space: nowrap;
+}
+
+.lq-notification-menu__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* Une ligne : la zone principale, avec son filet en retrait à gauche, et la colonne du point à droite,
+   teintée tant que la notification n'est pas lue. */
+.lq-notification-menu__item {
+  display: flex;
+  align-items: stretch;
+  padding-left: var(--lq-space-5);
+  transition: background-color var(--lq-transition-fast);
+}
+
+.lq-notification-menu__item:hover {
+  background-color: var(--lq-color-hover);
+}
+
+.lq-notification-menu__main {
+  display: flex;
+  flex: 1;
+  align-items: flex-start;
+  gap: var(--lq-space-3);
+  min-width: 0;
+  padding: var(--lq-space-3) var(--lq-space-3) var(--lq-space-3) 0;
+  font-family: inherit;
+  font-size: var(--lq-row-font-size, 0.875rem);
+  text-align: left;
+  color: var(--lq-color-text);
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--lq-color-border-subtle);
+}
+
+.lq-notification-menu__item:last-child .lq-notification-menu__main {
+  border-bottom-color: transparent;
+}
+
+button.lq-notification-menu__main {
+  cursor: pointer;
+}
+
+.lq-notification-menu__main:focus-visible,
+.lq-notification-menu__mark:focus-visible {
+  outline: 2px solid var(--lq-color-focus-ring);
+  outline-offset: -2px;
+}
+
+.lq-notification-menu__lead {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  height: 1.45em;
+}
+
+.lq-notification-menu__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: calc(var(--lq-space-1) / 2);
+  min-width: 0;
+}
+
+.lq-notification-menu__line {
+  display: flex;
+  align-items: baseline;
+  gap: var(--lq-space-2);
+  min-width: 0;
+  line-height: 1.45;
+}
+
+.lq-notification-menu__item-title {
+  font-weight: var(--lq-font-weight-medium, 500);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lq-notification-menu__item--unread .lq-notification-menu__item-title {
+  font-weight: var(--lq-font-weight-semibold, 600);
+}
+
+.lq-notification-menu__meta {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  font-weight: var(--lq-font-weight-medium, 500);
+}
+
+.lq-notification-menu__text {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--lq-color-text-muted);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.lq-notification-menu__time {
+  flex-shrink: 0;
+  font-size: 0.7rem;
+  line-height: calc(1.45 * var(--lq-row-font-size, 0.875rem));
+  color: var(--lq-color-text-muted);
+  white-space: nowrap;
+}
+
+/* Le ton colore le titre, son complément et l'icône — le texte reste dans la couleur atténuée. */
+.lq-notification-menu__item--accent .lq-notification-menu__line,
+.lq-notification-menu__item--accent .lq-notification-menu__lead {
+  color: var(--lq-color-accent);
+}
+
+.lq-notification-menu__item--success .lq-notification-menu__line,
+.lq-notification-menu__item--success .lq-notification-menu__lead {
+  color: var(--lq-color-up);
+}
+
+.lq-notification-menu__item--info .lq-notification-menu__line,
+.lq-notification-menu__item--info .lq-notification-menu__lead {
+  color: var(--lq-color-info);
+}
+
+.lq-notification-menu__item--warning .lq-notification-menu__line,
+.lq-notification-menu__item--warning .lq-notification-menu__lead {
+  color: var(--lq-color-warning);
+}
+
+.lq-notification-menu__item--danger .lq-notification-menu__line,
+.lq-notification-menu__item--danger .lq-notification-menu__lead {
+  color: var(--lq-color-danger);
+}
+
+.lq-notification-menu__mark {
+  display: flex;
+  flex-shrink: 0;
+  align-items: flex-start;
+  justify-content: center;
+  width: var(--lq-space-5);
+  padding: calc(var(--lq-space-3) + 0.45em) 0 0;
+  font-size: var(--lq-row-font-size, 0.875rem);
+  background: none;
+  border: none;
+}
+
+button.lq-notification-menu__mark {
+  cursor: pointer;
+}
+
+.lq-notification-menu__item--unread .lq-notification-menu__mark {
+  background-color: color-mix(in srgb, var(--lq-color-accent) 14%, transparent);
+}
+
+.lq-notification-menu__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: color-mix(in srgb, var(--lq-color-text-muted) 45%, transparent);
+  transition: transform var(--lq-transition-fast);
+}
+
+.lq-notification-menu__item--unread .lq-notification-menu__dot {
+  background-color: var(--lq-color-accent);
+}
+
+button.lq-notification-menu__mark:hover .lq-notification-menu__dot {
+  transform: scale(1.5);
+}
+
+.lq-notification-menu__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--lq-space-2);
+  padding: var(--lq-space-6) var(--lq-space-4);
+  font-size: var(--lq-text-sm);
+  color: var(--lq-color-text-muted);
+}
+
+.lq-notification-menu__footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--lq-space-4);
+  padding: var(--lq-space-2) var(--lq-space-4);
+  font-size: 0.8rem;
+  border-top: 1px solid var(--lq-color-border-subtle);
+}
+
+.lq-notification-menu__footer a {
+  font-weight: var(--lq-font-weight-medium, 500);
+  color: var(--lq-color-accent);
+  text-decoration: none;
+}
+
+.lq-notification-menu__footer a:hover {
+  text-decoration: underline;
+}
+
+.lq-notification-menu__mark-all {
+  padding: var(--lq-space-1) var(--lq-space-2);
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: var(--lq-font-weight-medium, 500);
+  color: var(--lq-color-text-muted);
+  background: none;
+  border: none;
+  border-radius: var(--lq-radius-sm);
+  cursor: pointer;
+}
+
+.lq-notification-menu__mark-all:hover {
+  color: var(--lq-color-text);
+  background-color: var(--lq-color-hover);
+}
+
+.lq-notification-menu__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

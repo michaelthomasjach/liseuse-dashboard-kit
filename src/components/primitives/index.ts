@@ -3,6 +3,7 @@ export type { PanelCollapseProps, PanelProps, PanelRowProps } from "./Panel";
 
 export { Card } from "./Card";
 export type { CardProps } from "./Card";
+export type { SurfaceTone } from "./tone";
 
 export { Toggle } from "./Toggle";
 export type { ToggleProps } from "./Toggle";

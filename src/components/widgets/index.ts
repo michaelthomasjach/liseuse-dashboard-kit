@@ -63,3 +63,6 @@ export type { FpsMeterProps, FpsMeterPosition, FpsReading, FpsSource, UseFpsOpti
 
 export { AllocationSlider, allocate } from "./AllocationSlider";
 export type { AllocationSliderProps, AllocationItem } from "./AllocationSlider";
+
+export { LiveTile } from "./LiveTile";
+export type { LiveTileProps, LiveTileFace } from "./LiveTile";

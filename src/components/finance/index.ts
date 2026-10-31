@@ -42,3 +42,6 @@ export type {
 
 export { UserMenu } from "./UserMenu";
 export type { UserMenuProps, UserMenuItem } from "./UserMenu";
+
+export { NotificationMenu } from "./NotificationMenu";
+export type { NotificationMenuProps, NotificationMenuItem, NotificationMenuTone } from "./NotificationMenu";

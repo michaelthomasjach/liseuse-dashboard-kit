@@ -196,3 +196,144 @@
 .lq-root[data-lq-palette="eink"] .lq-card__collapse {
   transition: none;
 }
+
+/* ---------------------------------------------------------------- */
+/* Contrôles d'en-tête : `controls` et le cercle « rafraîchir ».     */
+/* ---------------------------------------------------------------- */
+
+.lq-card--anchored {
+  position: relative;
+}
+
+.lq-card__controls {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lq-space-2);
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+/* Sans titre, l'en-tête ne garde que ses contrôles : ils se posent dans le coin, par-dessus le corps,
+   au lieu de réserver une bande vide au-dessus du contenu. */
+.lq-card__header--controls-only {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 1;
+  width: auto;
+}
+
+/* Avec des contrôles, une carte dépliable garde sa bascule sur la seule partie gauche (un bouton ne
+   peut pas en contenir d'autres) ; elle reprend l'allure de l'en-tête interactif. */
+.lq-card__toggle {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lq-space-3);
+  min-width: 0;
+  padding: 0;
+  font-family: inherit;
+  text-align: left;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+/* Un simple anneau, discret au repos : il ne doit pas rivaliser avec le titre. */
+.lq-card__refresh {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  color: var(--lq-color-text);
+  background: none;
+  border: none;
+  border-radius: var(--lq-radius-sm);
+  opacity: 0.4;
+  cursor: pointer;
+  transition: opacity var(--lq-transition-fast);
+}
+
+.lq-card__refresh:hover,
+.lq-card__refresh:focus-visible {
+  opacity: 0.8;
+}
+
+.lq-card__refresh:focus-visible {
+  outline: 2px solid var(--lq-color-focus-ring);
+  outline-offset: 1px;
+}
+
+.lq-card__refresh[aria-disabled="true"] {
+  cursor: default;
+}
+
+.lq-card__refresh-ring {
+  width: 14px;
+  height: 14px;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+}
+
+.lq-card--refreshing .lq-card__refresh-ring {
+  border-top-color: transparent;
+  animation: lq-card-spin 800ms linear infinite;
+}
+
+@keyframes lq-card-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Le voile de rafraîchissement : le contenu reste deviné dessous, le temps que les données
+   reviennent. */
+.lq-card__loading {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: color-mix(in srgb, var(--lq-color-panel) 80%, transparent);
+  animation: lq-card-loading-in 400ms ease;
+}
+
+@keyframes lq-card-loading-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lq-card--refreshing .lq-card__refresh-ring {
+    animation-duration: 3s;
+  }
+
+  .lq-card__loading {
+    animation: none;
+  }
+}
+
+/* ---------------------------------------------------------------- */
+/* Tons pleins — voir tone.css. Le sélecteur à deux classes passe    */
+/* devant `.lq-card` et ses variantes sans dépendre de l'ordre des   */
+/* feuilles.                                                         */
+/* ---------------------------------------------------------------- */
+
+.lq-card[data-lq-tone] {
+  background-color: var(--lq-tone-fill);
+  border-color: var(--lq-tone-fill);
+  color: var(--lq-tone-ink);
+}
+
+/* Sur un aplat, le filet entre en-tête et corps alourdit plus qu'il ne sépare : la couleur suffit à
+   tenir la tuile. */
+.lq-card[data-lq-tone] .lq-card__body--divided {
+  border-top-color: transparent;
+  padding-top: 0;
+}

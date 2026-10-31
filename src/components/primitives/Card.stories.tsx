@@ -3,6 +3,9 @@ import { Card } from "./Card";
 import { Highlight } from "./Highlight";
 import { PanelRow } from "./Panel";
 import { Sparkline } from "../charts/Sparkline";
+import { IconButton } from "./IconButton";
+import { MoreHorizontalIcon } from "../icons";
+import type { SurfaceTone } from "./tone";
 
 const meta: Meta<typeof Card> = {
   title: "Primitives/Card",
@@ -96,6 +99,88 @@ export const HighlightTile: Story = {
           <Sparkline data={[142, 148, 145, 151, 157, 154, 162, 168, 165, 172, 178, 175, 183, 188, 191]} width={220} height={36} area />
         </div>
       </Highlight>
+    </div>
+  ),
+};
+
+const TONES: { tone: SurfaceTone; title: string; value: string; note: string }[] = [
+  { tone: "default", title: "Ventes de la semaine", value: "14 000 €", note: "Sans ton : la carte ordinaire" },
+  { tone: "accent", title: "Ventes de la semaine", value: "23 000 €", note: "65 % de moins que le mois dernier" },
+  { tone: "success", title: "Ventes de la semaine", value: "14 000 €", note: "60 % au-dessus" },
+  { tone: "info", title: "Nouveaux comptes", value: "312", note: "+18 cette semaine" },
+  { tone: "danger", title: "Incidents ouverts", value: "7", note: "3 critiques" },
+  { tone: "warning", title: "Charge serveur", value: "82 %", note: "Seuil d'alerte à 90 %" },
+  { tone: "dark", title: "Aujourd'hui", value: "30°", note: "Ressenti pluvieux" },
+];
+
+const TREND = [12, 14, 13, 17, 16, 19, 18, 22, 21, 25];
+
+/** Chaque ton remplit la carte de la couleur du thème du même nom ; la sparkline posée dedans passe en
+ *  contraste d'elle-même, parce que la carte redéfinit l'accent pour ses enfants. */
+export const Tones: Story = {
+  name: "tone — tuiles pleines",
+  render: () => (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 16, maxWidth: 1040 }}>
+      {TONES.map((t) => (
+        <Card key={t.tone} tone={t.tone} title={t.title} meta={t.tone} onRefresh={() => {}}>
+          <div style={{ fontSize: "1.75rem", fontWeight: 600 }}>{t.value}</div>
+          <div style={{ fontSize: "0.8rem", color: "var(--lq-color-text-muted)", marginTop: 4 }}>{t.note}</div>
+          <div style={{ marginTop: 12 }}>
+            <Sparkline data={TREND} width={200} height={36} area />
+          </div>
+        </Card>
+      ))}
+    </div>
+  ),
+};
+
+/** Le petit cercle de l'en-tête : la fonction rend une promesse, la carte se voile jusqu'à ce qu'elle
+ *  soit tenue (ici 1,6 s). */
+export const Refresh: Story = {
+  name: "onRefresh — rafraîchir (promesse)",
+  render: () => (
+    <div style={{ maxWidth: 400 }}>
+      <Card title="Chiffre d'affaires" onRefresh={() => new Promise((resolve) => setTimeout(resolve, 1600))}>
+        <PanelRow label="Webarch" value="2 563" />
+        <PanelRow label="Pages" value="1 204" />
+      </Card>
+    </div>
+  ),
+};
+
+/** `refreshing` contrôlé : le voile et l'anneau qui tourne, figés pour la capture. */
+export const Refreshing: Story = {
+  name: "refreshing — en cours (contrôlé)",
+  render: () => (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 320px))", gap: 16 }}>
+      <Card title="Chiffre d'affaires" onRefresh={() => {}} refreshing>
+        <PanelRow label="Webarch" value="2 563" />
+        <PanelRow label="Pages" value="1 204" />
+      </Card>
+      <Card title="Ventes de la semaine" tone="success" onRefresh={() => {}} refreshing>
+        <div style={{ fontSize: "1.75rem", fontWeight: 600 }}>14 000 €</div>
+      </Card>
+    </div>
+  ),
+};
+
+/** `controls` à côté du cercle ; sans titre, l'en-tête se réduit à ses contrôles, posés dans le coin. */
+export const Controls: Story = {
+  name: "controls — en-tête et coin",
+  render: () => (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 300px))", gap: 16 }}>
+      <Card title="Tableau du jour" controls={<IconButton size="sm" icon={<MoreHorizontalIcon size={16} />} ariaLabel="Plus d'options" />} onRefresh={() => {}}>
+        <PanelRow label="Pages Extended" value="1 000 €" />
+        <PanelRow label="Pages Support" value="12 €" />
+      </Card>
+      <Card onRefresh={() => {}}>
+        <div style={{ fontSize: "1.5rem", fontWeight: 600 }}>Sans titre</div>
+        <div style={{ fontSize: "0.85rem", color: "var(--lq-color-text-muted)" }}>Le cercle se pose dans le coin.</div>
+      </Card>
+      <Card title="Détail" expandable defaultOpen onRefresh={() => {}}>
+        <PanelRow label="Type" value="Marché" />
+        <PanelRow label="Frais" value="1,99 €" />
+      </Card>
     </div>
   ),
 };

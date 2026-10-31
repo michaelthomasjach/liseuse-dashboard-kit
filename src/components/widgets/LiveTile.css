@@ -1,0 +1,123 @@
+.lq-live-tile {
+  position: relative;
+  overflow: hidden;
+  color: var(--lq-color-text);
+  background-color: var(--lq-color-panel);
+  border-radius: var(--lq-radius-lg);
+  box-shadow: var(--lq-shadow-panel);
+}
+
+/* Le ton remplit la tuile (voir tone.css) ; deux classes pour passer devant la règle ci-dessus sans
+   dépendre de l'ordre des feuilles. */
+.lq-live-tile[data-lq-tone] {
+  background-color: var(--lq-tone-fill);
+  color: var(--lq-tone-ink);
+}
+
+.lq-live-tile__faces {
+  position: absolute;
+  inset: 0;
+}
+
+/* Une face attend sous la tuile, invisible — `visibility` la retire aussi de l'ordre de tabulation et
+   de l'arbre d'accessibilité. Celle qui sort garde `visible` le temps de son animation (voir
+   LiveTile.tsx), puis retombe ici. */
+.lq-live-tile__face {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  transform: translateY(100%);
+  visibility: hidden;
+}
+
+.lq-live-tile__face--current {
+  transform: none;
+  visibility: visible;
+}
+
+/* Le voile d'une face à image : transparent en haut, de la couleur du fond en bas, sous le texte. */
+.lq-live-tile__scrim {
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(to bottom, transparent 30%, color-mix(in srgb, var(--lq-color-panel) 82%, transparent));
+  pointer-events: none;
+}
+
+.lq-live-tile__content {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: var(--lq-tile-padding, var(--lq-space-5));
+}
+
+.lq-live-tile__content--bottom {
+  justify-content: flex-end;
+}
+
+.lq-live-tile__content--top {
+  justify-content: flex-start;
+}
+
+.lq-live-tile__tag {
+  display: inline-block;
+  margin-bottom: var(--lq-space-2);
+  padding: calc(var(--lq-space-1) - 1px) var(--lq-space-1);
+  font-family: var(--lq-label-font, inherit);
+  font-size: var(--lq-label-size, 0.72rem);
+  font-weight: var(--lq-label-weight, 600);
+  letter-spacing: var(--lq-label-tracking, 0.08em);
+  line-height: 1.4;
+  text-transform: uppercase;
+  border-radius: var(--lq-radius-sm);
+}
+
+.lq-live-tile__tag--soft {
+  color: var(--lq-color-text);
+  background-color: color-mix(in srgb, var(--lq-color-text) 30%, transparent);
+}
+
+.lq-live-tile__tag--solid {
+  color: var(--lq-color-accent-contrast);
+  background-color: var(--lq-color-text);
+}
+
+.lq-live-tile__eyebrow {
+  margin-bottom: var(--lq-space-1);
+  font-size: var(--lq-text-xs);
+  color: var(--lq-color-text-muted);
+}
+
+.lq-live-tile__title {
+  font-size: var(--lq-tile-title-size, var(--lq-text-h3));
+  font-weight: var(--lq-tile-title-weight, var(--lq-font-weight-semibold, 600));
+  line-height: var(--lq-line-height-heading);
+  letter-spacing: -0.01em;
+  color: var(--lq-color-text);
+}
+
+.lq-live-tile__subtitle {
+  margin-top: var(--lq-space-2);
+  font-size: var(--lq-text-md);
+  color: var(--lq-color-text-muted);
+}
+
+.lq-live-tile__footer {
+  align-self: stretch;
+  margin-top: var(--lq-space-4);
+}
+
+/* Au-dessus des faces : les contrôles ne glissent pas avec elles. */
+.lq-live-tile__controls {
+  position: absolute;
+  top: var(--lq-space-3);
+  right: var(--lq-space-3);
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--lq-space-2);
+}

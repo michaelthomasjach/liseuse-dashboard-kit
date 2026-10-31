@@ -1,6 +1,6 @@
 {
   "name": "@michaelthomasjach/liseuse-dashboard-kit",
-  "version": "0.179.0",
+  "version": "0.179.1",
   "description": "React component library for e-ink / tablet home dashboards and finance apps — interactive D3 charts, forms, layouts and pages. Light & dark surface, e-ink and color palettes.",
   "type": "module",
   "license": "UNLICENSED",
@@ -36,7 +36,6 @@
     "prepublishOnly": "npm run build",
     "typecheck": "tsc --noEmit",
     "check-sankey": "node scripts/checkSankeyLayout.mjs",
-    "check-paint": "node scripts/checkPaintOrder.mjs",
     "lint": "eslint .",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
@@ -56,7 +55,6 @@
     "@types/d3": "^7.4.3",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
-    "@types/three": "^0.170.0",
     "@types/topojson-client": "^3.1.5",
     "@vitejs/plugin-react": "^4.3.4",
     "d3": "^7.9.0",
@@ -83,9 +81,7 @@
     "@codemirror/view": "^6.43.9",
     "@lezer/highlight": "^1.2.3",
     "@lezer/javascript": "^1.5.4",
-    "@react-three/fiber": "^8.18.0",
     "technicalindicators": "^3.1.0",
-    "three": "^0.170.0",
     "topojson-client": "^3.1.0",
     "world-atlas": "^2.0.2"
   }

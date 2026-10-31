@@ -8,10 +8,9 @@ import "./FpsMeter.css";
  * ## Ce qu'il mesure
  *
  * Par défaut, la cadence de la **page** : une seule boucle `requestAnimationFrame` note l'écart
- * entre deux images. Avec `source`, celle d'une autre horloge — celle des scènes d'entrepôt
- * (`warehouseSceneFrames`), qui ne comptent que les images **réellement dessinées** : une scène au
- * repos ne redessine rien, et le compteur le dit (« au repos ») au lieu d'afficher 60 i/s qui ne
- * mesureraient que le navigateur.
+ * entre deux images. Avec `source`, celle d'une autre horloge — une scène qui n'émet que les
+ * images **réellement dessinées**. L'intérêt est là : une scène au repos ne redessine rien, et le
+ * compteur le dit (« au repos ») au lieu d'afficher 60 i/s qui ne mesureraient que le navigateur.
  *
  * Toutes les `sampleMs` (500 ms par défaut), il résume la fenêtre écoulée : la cadence moyenne, la
  * plus basse (celle de l'image la plus lente) et la durée moyenne d'une image. Rien n'est rendu
@@ -132,7 +131,7 @@ export interface FpsMeterProps {
   showGraph?: boolean;
   /** Seulement la cadence, sans le minimum ni la durée d'image. */
   compact?: boolean;
-  /** L'horloge mesurée. Défaut : la page. `warehouseSceneFrames` : les images des scènes d'entrepôt. */
+  /** L'horloge mesurée. Défaut : la page — sinon une source à soi (`createFpsSource()`). */
   source?: FpsSource;
   /** Un mot devant la mesure : « Scène », « Page ». */
   label?: string;

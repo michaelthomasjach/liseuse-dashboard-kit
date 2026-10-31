@@ -5,7 +5,7 @@ import { StatCard } from "../finance/StatCard";
 import { LineAreaChart } from "../charts/LineAreaChart";
 import { Breadcrumbs } from "../finance/Breadcrumbs";
 import { generateSeries } from "../../test-data/financeSampleData";
-import { HomeIcon, SettingsIcon, LogoutIcon, UserIcon } from "../icons";
+import { HomeIcon, SettingsIcon, LogoutIcon, UserIcon, BarChartIcon, TableIcon } from "../icons";
 
 const meta: Meta<typeof SidebarLayout> = {
   title: "Layouts/SidebarLayout",
@@ -88,3 +88,37 @@ export const WithSubmenu: Story = {
   ),
 };
 
+
+/** Le rail : barre fixée à la fenêtre, réduite à sa colonne d'icônes, qui s'ouvre au survol et
+ *  s'épingle par l'anneau de son en-tête. Les sous-entrées s'y affichent par leur initiale. */
+export const Rail: Story = {
+  render: () => (
+    <SidebarLayout
+      variant="rail"
+      stickyHeader
+      logo={<strong>Finance Kit</strong>}
+      navItems={[
+        { id: "overview", label: "Vue d'ensemble", details: "3 alertes", icon: <HomeIcon size={18} />, active: true },
+        {
+          id: "markets",
+          label: "Marchés",
+          icon: <BarChartIcon size={18} />,
+          children: [
+            { id: "equities", label: "Actions" },
+            { id: "bonds", label: "Obligations" },
+            { id: "fx", label: "Devises", abbr: "fx" },
+          ],
+        },
+        { id: "reports", label: "Rapports", icon: <TableIcon size={18} /> },
+        { id: "settings", label: "Paramètres", icon: <SettingsIcon size={18} /> },
+      ]}
+      header={<Breadcrumbs items={[{ id: "home", label: "Accueil" }, { id: "overview", label: "Vue d'ensemble" }]} />}
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        {Array.from({ length: 12 }, (_, i) => (
+          <StatCard key={i} label={`Indicateur ${i + 1}`} value={`${(i + 1) * 1200} €`} delta={i % 3 === 0 ? -1.2 : 2.4} />
+        ))}
+      </div>
+    </SidebarLayout>
+  ),
+};

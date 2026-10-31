@@ -265,3 +265,267 @@
     background-color: var(--lq-color-panel);
   }
 }
+
+/* ---- variant="rail" ----
+ *
+ * La barre est fixée à la fenêtre et plus large que ce qu'on en voit : réduite, elle est décalée
+ * vers la gauche de tout sauf sa dernière colonne, celle des vignettes — d'où les vignettes à
+ * droite de chaque entrée, et non à gauche. Survolée, focalisée ou épinglée, elle revient à zéro et
+ * passe par-dessus le contenu ; épinglée, c'est le contenu qui se décale.
+ *
+ * Mesures réglables par un thème, toutes optionnelles :
+ *   --lq-sidebar-rail-width (70px) · --lq-sidebar-open-width (280px) · --lq-sidebar-head-height (60px)
+ *   --lq-sidebar-head-bg · --lq-sidebar-head-border · --lq-sidebar-sub-bg
+ *   --lq-sidebar-font-size (0.875rem) · --lq-sidebar-sub-font-size (0.8125rem)
+ *   --lq-header-bg · --lq-header-shadow   (la barre haute posée à côté du rail)
+ */
+
+.lq-sidebar-layout--rail {
+  --lq-rail-width: var(--lq-sidebar-rail-width, 70px);
+  --lq-rail-open-width: var(--lq-sidebar-open-width, 280px);
+  --lq-rail-head-height: var(--lq-sidebar-head-height, 60px);
+  --lq-rail-ease: 400ms cubic-bezier(0.05, 0.74, 0.27, 0.99);
+}
+
+.lq-sidebar-layout__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lq-space-3);
+  flex-shrink: 0;
+  height: var(--lq-rail-head-height);
+  padding: 0 20px 0 30px;
+  background-color: var(--lq-sidebar-head-bg, var(--lq-color-panel));
+  border-bottom: 1px solid var(--lq-sidebar-head-border, var(--lq-color-border-subtle));
+}
+
+.lq-sidebar-layout--rail .lq-sidebar-layout__logo {
+  min-height: 0;
+  padding: 0;
+}
+
+.lq-sidebar-layout__pin {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  color: var(--lq-color-text-muted);
+  background: none;
+  border: none;
+  border-radius: var(--lq-radius-md);
+  cursor: pointer;
+  transition: color var(--lq-transition-fast), opacity var(--lq-transition-base);
+}
+
+.lq-sidebar-layout__pin:hover,
+.lq-sidebar-layout__pin[aria-pressed="true"] {
+  color: var(--lq-color-text);
+}
+
+/* Le témoin d'épinglage : un anneau, plein quand la barre tient ouverte. Un repère de carte se
+   lirait « localisation » ; l'anneau qui se remplit dit seulement « actif ». */
+.lq-sidebar-layout__pin-mark {
+  width: 12px;
+  height: 12px;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  transition: background-color var(--lq-transition-fast);
+}
+
+.lq-sidebar-layout__pin[aria-pressed="true"] .lq-sidebar-layout__pin-mark {
+  background-color: currentColor;
+}
+
+.lq-sidebar-layout--rail .lq-sidebar-layout__sidebar {
+  padding: 0;
+  gap: 0;
+  border-right: none;
+}
+
+.lq-sidebar-layout--rail .lq-sidebar-layout__nav {
+  gap: 0;
+  padding: 20px 0 var(--lq-space-4);
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.lq-sidebar-layout--rail .lq-sidebar-layout__nav-item {
+  gap: 0;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 0 0 32px;
+  font-family: inherit;
+  font-size: var(--lq-sidebar-font-size, 0.875rem);
+  font-weight: var(--lq-font-weight-medium, 500);
+  line-height: 28px;
+  text-align: left;
+  color: var(--lq-color-text-muted);
+  background: none;
+  border: none;
+  border-radius: 0;
+  transition: color var(--lq-transition-fast);
+}
+
+.lq-sidebar-layout--rail .lq-sidebar-layout__nav-item:hover,
+.lq-sidebar-layout--rail .lq-sidebar-layout__nav-item--active,
+.lq-sidebar-layout--rail .lq-sidebar-layout__group-head--active {
+  color: var(--lq-color-text);
+  background: none;
+}
+
+.lq-sidebar-layout--rail .lq-sidebar-layout__nav-item--active {
+  font-weight: var(--lq-font-weight-medium, 500);
+}
+
+.lq-sidebar-layout__item-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.lq-sidebar-layout__item-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lq-sidebar-layout__item-details {
+  margin-top: -4px;
+  margin-bottom: 4px;
+  font-size: 0.75rem;
+  line-height: 16px;
+  opacity: 0.4;
+}
+
+/* Fermé, le chevron pointe vers la gauche — vers le libellé qu'il déplie ; ouvert, vers le bas. */
+.lq-sidebar-layout--rail .lq-sidebar-layout__group-chevron {
+  padding: 0 var(--lq-space-3);
+  transform: rotate(90deg);
+}
+
+.lq-sidebar-layout--rail .lq-sidebar-layout__group--open .lq-sidebar-layout__group-chevron {
+  transform: none;
+}
+
+/* La vignette, centrée dans la colonne du rail. */
+.lq-sidebar-layout__thumb {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  margin-right: calc((var(--lq-rail-width) - 40px) / 2);
+  transition: transform var(--lq-rail-ease);
+}
+
+.lq-sidebar-layout__thumb svg {
+  width: 20px;
+  height: 20px;
+}
+
+.lq-sidebar-layout--rail .lq-sidebar-layout__group-items {
+  margin: 0 0 10px;
+  padding: 18px 0 10px;
+  background-color: var(--lq-sidebar-sub-bg, var(--lq-color-hover));
+}
+
+.lq-sidebar-layout--rail .lq-sidebar-layout__nav-item--nested {
+  min-height: 41px;
+  margin-top: 1px;
+  padding-left: 40px;
+  font-size: var(--lq-sidebar-sub-font-size, 0.8125rem);
+  line-height: 24px;
+}
+
+.lq-sidebar-layout--rail .lq-sidebar-layout__nav-item--nested::before,
+.lq-sidebar-layout--rail .lq-sidebar-layout__nav-item--nested::after {
+  display: none;
+}
+
+/* Les vignettes de sous-entrée portent des initiales sur un pavé de la couleur de la barre. */
+.lq-sidebar-layout--rail .lq-sidebar-layout__nav-item--nested .lq-sidebar-layout__thumb {
+  width: 30px;
+  height: 30px;
+  margin-right: calc((var(--lq-rail-width) - 30px) / 2);
+  font-size: 0.875rem;
+  font-weight: var(--lq-font-weight-bold, 700);
+  line-height: 30px;
+  background-color: var(--lq-color-panel);
+}
+
+.lq-sidebar-layout--rail .lq-sidebar-layout__footer {
+  padding: var(--lq-space-3) var(--lq-space-4);
+}
+
+/* La barre haute posée à côté du rail : pleine, à la hauteur de l'en-tête de la barre, un filet
+   dessous et pas d'ombre. */
+.lq-sidebar-layout--rail .lq-sidebar-layout__header {
+  display: flex;
+  align-items: center;
+  min-height: var(--lq-rail-head-height);
+  padding: 0 var(--lq-space-5);
+  background-color: var(--lq-header-bg, var(--lq-color-panel));
+  border-bottom: 1px solid var(--lq-color-border-subtle);
+}
+
+.lq-sidebar-layout--rail.lq-sidebar-layout--sticky-header .lq-sidebar-layout__header {
+  background-color: var(--lq-header-bg, var(--lq-color-panel));
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow: var(--lq-header-shadow, none);
+}
+
+@media (min-width: 901px) {
+  .lq-sidebar-layout--rail .lq-sidebar-layout__sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: var(--lq-sidebar-z-index, 1000);
+    width: var(--lq-rail-open-width);
+    transform: translateX(calc(var(--lq-rail-width) - var(--lq-rail-open-width)));
+    transition: transform var(--lq-rail-ease);
+  }
+
+  .lq-sidebar-layout--rail .lq-sidebar-layout__sidebar:hover,
+  .lq-sidebar-layout--rail .lq-sidebar-layout__sidebar:focus-within,
+  .lq-sidebar-layout--rail.lq-sidebar-layout--pinned .lq-sidebar-layout__sidebar {
+    transform: none;
+  }
+
+  /* Ouverte, les vignettes glissent d'un cran vers les libellés. */
+  .lq-sidebar-layout--rail .lq-sidebar-layout__sidebar:hover .lq-sidebar-layout__thumb,
+  .lq-sidebar-layout--rail .lq-sidebar-layout__sidebar:focus-within .lq-sidebar-layout__thumb,
+  .lq-sidebar-layout--rail.lq-sidebar-layout--pinned .lq-sidebar-layout__thumb {
+    transform: translateX(-14px);
+  }
+
+  /* Réduite, l'épingle et le logo n'ont rien à faire dans la colonne visible. */
+  .lq-sidebar-layout--rail .lq-sidebar-layout__head > * {
+    opacity: 0;
+    transition: opacity var(--lq-transition-base);
+  }
+
+  .lq-sidebar-layout--rail .lq-sidebar-layout__sidebar:hover .lq-sidebar-layout__head > *,
+  .lq-sidebar-layout--rail .lq-sidebar-layout__sidebar:focus-within .lq-sidebar-layout__head > *,
+  .lq-sidebar-layout--rail.lq-sidebar-layout--pinned .lq-sidebar-layout__head > * {
+    opacity: 1;
+  }
+
+  .lq-sidebar-layout--rail .lq-sidebar-layout__main {
+    margin-left: var(--lq-rail-width);
+    transition: margin-left var(--lq-rail-ease);
+  }
+
+  .lq-sidebar-layout--rail.lq-sidebar-layout--pinned .lq-sidebar-layout__main {
+    margin-left: var(--lq-rail-open-width);
+  }
+}
+
+@media (max-width: 900px) {
+  .lq-sidebar-layout--rail .lq-sidebar-layout__pin {
+    display: none;
+  }
+}

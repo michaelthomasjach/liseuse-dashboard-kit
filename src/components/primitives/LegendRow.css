@@ -20,14 +20,14 @@
 .lq-legend-row__label {
   flex: 1;
   min-width: 0;
-  font-size: 0.9rem;
+  font-size: var(--lq-row-font-size, 0.9rem);
   font-weight: var(--lq-font-weight-semibold, 600);
   color: var(--lq-color-text);
 }
 
 .lq-legend-row__value {
   flex-shrink: 0;
-  font-size: 0.9rem;
+  font-size: var(--lq-row-font-size, 0.9rem);
   font-weight: var(--lq-font-weight-semibold, 600);
   color: var(--lq-color-text);
 }

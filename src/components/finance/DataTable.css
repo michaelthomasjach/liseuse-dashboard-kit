@@ -6,7 +6,7 @@
 .lq-data-table table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.88rem;
+  font-size: var(--lq-row-font-size, 0.88rem);
 }
 
 .lq-data-table th {

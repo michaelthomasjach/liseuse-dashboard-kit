@@ -285,6 +285,21 @@
  *
  *   Controls           --lq-control-border-width (1.5px)   outlined buttons, inputs, swatches
  *                      --lq-button-padding-y · --lq-button-padding-x · --lq-button-font-size
+ *                      --lq-control-height (40px) · --lq-control-padding-x · --lq-control-font-size
+ *                      --lq-control-color   the typed value in text fields and date triggers
+ *
+ *   Fields             --lq-field-gap (6px, between label, control, helper) · --lq-field-label-size
+ *                      --lq-field-helper-offset (0px, added above helper and error text)
+ *                      --lq-field-label-weight
+ *
+ *   Sidebar (rail)     SidebarLayout variant="rail" — --lq-sidebar-rail-width (70px),
+ *                      --lq-sidebar-open-width (280px), --lq-sidebar-head-height (60px),
+ *                      --lq-sidebar-head-bg, --lq-sidebar-head-border, --lq-sidebar-sub-bg,
+ *                      --lq-sidebar-font-size, --lq-sidebar-sub-font-size, --lq-sidebar-z-index,
+ *                      and for the top bar beside it --lq-header-bg, --lq-header-shadow.
+ *
+ *   Rows               --lq-row-font-size   the lines of data under a header: PanelRow label
+ *                      and value, DataTable cells, LegendRow (fall back to 0.95 / 0.88 / 0.9rem)
  *
  *   Surfaces           --lq-color-panel-border   the 1px outline of Card / Panel / TabbedCard /
  *                      Testimonial (falls back to --lq-color-border-subtle); `transparent` lets

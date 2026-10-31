@@ -70,7 +70,7 @@
 .lq-tour__title {
   margin: 0 0 var(--lq-space-1);
   font-size: var(--lq-text-sm);
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   color: var(--lq-color-text);
 }
 
@@ -109,7 +109,7 @@
   background-color: var(--lq-color-accent);
   font: inherit;
   font-size: var(--lq-text-xs);
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
   color: var(--lq-color-bg);
   cursor: pointer;
 }

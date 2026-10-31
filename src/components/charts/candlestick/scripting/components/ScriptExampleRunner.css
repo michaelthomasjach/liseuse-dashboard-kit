@@ -72,7 +72,7 @@
 }
 
 .lq-script-example__result-symbol {
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   font-size: var(--lq-text-xs);
   letter-spacing: 0.04em;
   flex: 0 0 auto;

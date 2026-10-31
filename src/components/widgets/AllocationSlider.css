@@ -26,7 +26,7 @@
   background: var(--lq-alloc-color);
   color: var(--lq-color-accent-contrast, #fff);
   font-size: 11px;
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   font-variant-numeric: tabular-nums;
   transition: width 160ms ease;
 }
@@ -77,12 +77,12 @@
 }
 .lq-alloc__value {
   font-variant-numeric: tabular-nums;
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   text-align: right;
   white-space: nowrap;
 }
 .lq-alloc__value small {
-  font-weight: 500;
+  font-weight: var(--lq-font-weight-medium, 500);
   color: var(--lq-color-text-muted);
 }
 

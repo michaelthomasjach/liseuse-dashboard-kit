@@ -14,7 +14,7 @@
 }
 
 .lq-script-error-panel__title {
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
   letter-spacing: 0.04em;
 }
 

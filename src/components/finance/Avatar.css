@@ -6,7 +6,7 @@
   border-radius: 50%;
   background-color: var(--lq-color-fill-track);
   color: var(--lq-color-text);
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   overflow: hidden;
   border: 1px solid var(--lq-color-border-subtle);
 }

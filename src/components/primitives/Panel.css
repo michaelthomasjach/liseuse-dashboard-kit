@@ -2,7 +2,7 @@
   display: flex;
   flex-direction: column;
   background-color: var(--lq-color-panel);
-  border: 1px solid var(--lq-color-border-subtle);
+  border: 1px solid var(--lq-color-panel-border, var(--lq-color-border-subtle));
   border-radius: var(--lq-radius-lg);
   box-shadow: var(--lq-shadow-panel);
   padding: var(--lq-space-4) var(--lq-space-5);
@@ -39,9 +39,10 @@
   min-width: 0;
   overflow-wrap: anywhere;
   margin: 0;
-  font-size: 0.8rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  font-size: var(--lq-label-size, 0.8rem);
+  font-weight: var(--lq-label-weight, 700);
+  letter-spacing: var(--lq-label-tracking, 0.08em);
+  font-family: var(--lq-label-font, inherit);
   text-transform: uppercase;
   color: var(--lq-color-text);
 }
@@ -99,7 +100,7 @@
 
 .lq-panel-row__value {
   font-size: 0.95rem;
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
   color: var(--lq-color-text);
   text-align: right;
   min-width: 3ch;

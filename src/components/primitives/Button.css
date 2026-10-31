@@ -3,13 +3,13 @@
   align-items: center;
   justify-content: center;
   gap: var(--lq-space-2);
-  padding: var(--lq-space-3) var(--lq-space-4);
+  padding: var(--lq-button-padding-y, var(--lq-space-3)) var(--lq-button-padding-x, var(--lq-space-4));
   font-family: inherit;
-  font-size: 0.9rem;
-  font-weight: 600;
+  font-size: var(--lq-button-font-size, 0.9rem);
+  font-weight: var(--lq-font-weight-semibold, 600);
   color: var(--lq-color-text);
   background-color: var(--lq-color-panel);
-  border: 1.5px solid var(--lq-color-border);
+  border: var(--lq-control-border-width, 1.5px) solid var(--lq-color-border);
   border-radius: var(--lq-radius-md);
   cursor: pointer;
   transition: background-color var(--lq-transition-fast), color var(--lq-transition-fast), border-color var(--lq-transition-fast), transform 120ms ease;

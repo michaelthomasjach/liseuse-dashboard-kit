@@ -17,10 +17,11 @@
 
 .lq-broker__title {
   margin: 0 0 var(--lq-space-1);
-  font-size: var(--lq-text-xs);
-  font-weight: 600;
+  font-size: var(--lq-label-size, var(--lq-text-xs));
+  font-weight: var(--lq-label-weight, 600);
+  font-family: var(--lq-label-font, inherit);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: var(--lq-label-tracking, 0.08em);
   color: var(--lq-color-text-muted);
 }
 
@@ -87,7 +88,7 @@
 }
 
 .lq-broker__limit-label {
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
 }
 
 .lq-broker__limit-what {
@@ -132,7 +133,7 @@
 .lq-broker__environment--live.lq-broker__environment--current {
   border-color: var(--lq-color-down);
   color: var(--lq-color-down);
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
 }
 
 .lq-broker__acknowledge {
@@ -180,7 +181,7 @@
   background: none;
   color: var(--lq-color-text);
   font: inherit;
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   cursor: pointer;
 }
 
@@ -235,7 +236,7 @@
 }
 
 .lq-broker__risk {
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
 }
 
 .lq-broker__epic {
@@ -245,7 +246,7 @@
 
 .lq-broker__live-word {
   color: var(--lq-color-down);
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
 }
 
 .lq-broker__send--live {
@@ -284,7 +285,7 @@
 .lq-broker-panel__title {
   margin-right: auto;
   font-size: 0.68rem;
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   letter-spacing: 0.12em;
   color: var(--lq-color-text-muted);
 }
@@ -328,7 +329,7 @@
   background: none;
   color: inherit;
   font: inherit;
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   cursor: pointer;
 }
 
@@ -351,7 +352,7 @@
 }
 
 .lq-broker-panel__broker {
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
 }
 
 .lq-broker-panel__env {
@@ -363,7 +364,7 @@
 .lq-broker-panel__env--live {
   border-color: var(--lq-color-down);
   color: var(--lq-color-down);
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
 }
 
 .lq-broker-panel__disconnect {
@@ -407,7 +408,7 @@
 
 .lq-broker-panel__mode--current {
   border-color: var(--lq-color-text);
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
 }
 
 .lq-broker-panel__arm {
@@ -416,7 +417,7 @@
   background: none;
   color: var(--lq-color-text);
   font: inherit;
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   cursor: pointer;
 }
 
@@ -430,7 +431,7 @@
 
 .lq-broker__countdown {
   font-variant-numeric: tabular-nums;
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
 }
 
 .lq-broker-panel__actions {
@@ -517,10 +518,11 @@
 
 .lq-broker-help__title {
   margin: 0 0 var(--lq-space-1);
-  font-size: var(--lq-text-xs);
-  font-weight: 600;
+  font-size: var(--lq-label-size, var(--lq-text-xs));
+  font-weight: var(--lq-label-weight, 600);
+  font-family: var(--lq-label-font, inherit);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: var(--lq-label-tracking, 0.08em);
   color: var(--lq-color-text-muted);
 }
 
@@ -553,7 +555,7 @@
 
 .lq-broker-help__box-title {
   font-size: 11px;
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   fill: var(--lq-color-text);
   font-family: var(--lq-font-mono, ui-monospace, monospace);
 }

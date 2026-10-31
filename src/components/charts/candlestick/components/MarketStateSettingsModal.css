@@ -15,10 +15,11 @@
 
 .lq-ms-settings__title {
   margin: 0 0 var(--lq-space-1);
-  font-size: var(--lq-text-xs);
-  font-weight: 600;
+  font-size: var(--lq-label-size, var(--lq-text-xs));
+  font-weight: var(--lq-label-weight, 600);
+  font-family: var(--lq-label-font, inherit);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: var(--lq-label-tracking, 0.08em);
   color: var(--lq-color-text-muted);
 }
 
@@ -41,7 +42,7 @@
 }
 
 .lq-ms-settings__field-label {
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
 }
 
 .lq-ms-settings__field-hint {
@@ -72,7 +73,7 @@
 }
 
 .lq-ms-settings__group-label {
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
   margin-bottom: var(--lq-space-1);
 }
 
@@ -96,7 +97,7 @@
 
 .lq-ms-settings__table th {
   text-align: left;
-  font-weight: 500;
+  font-weight: var(--lq-font-weight-medium, 500);
   color: var(--lq-color-text-muted);
   padding-bottom: 4px;
 }
@@ -118,7 +119,7 @@
    changing a threshold and watching a row change camp is a single glance, which is the whole
    reason the current score sits in this table at all. */
 .lq-ms-settings__reads {
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
 }
 
 .lq-ms-settings__reads--long {

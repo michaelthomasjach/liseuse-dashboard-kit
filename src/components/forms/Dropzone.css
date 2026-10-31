@@ -41,7 +41,7 @@
 
 .lq-dropzone__label {
   font-size: 0.88rem;
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
   color: var(--lq-color-text);
 }
 

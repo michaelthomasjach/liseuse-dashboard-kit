@@ -39,7 +39,7 @@
   gap: var(--lq-space-3);
   padding: var(--lq-space-2) var(--lq-space-3);
   font-size: 0.88rem;
-  font-weight: 500;
+  font-weight: var(--lq-font-weight-medium, 500);
   color: var(--lq-color-text-muted);
   text-decoration: none;
   border-radius: var(--lq-radius-md);
@@ -57,7 +57,7 @@
 .lq-sidebar-layout__nav-item--active {
   background-color: var(--lq-color-hover);
   color: var(--lq-color-text);
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
 }
 
 .lq-sidebar-layout__nav-item svg {

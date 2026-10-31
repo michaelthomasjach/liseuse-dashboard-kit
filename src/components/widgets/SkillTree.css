@@ -77,7 +77,7 @@
   padding: var(--lq-space-2) var(--lq-space-3);
   border-bottom: 3px solid var(--lq-skill-color);
   font-size: var(--lq-text-sm);
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   letter-spacing: 0.02em;
   color: var(--lq-color-text);
 }
@@ -109,7 +109,7 @@
   width: 100%;
   min-height: 54px;
   padding: var(--lq-space-2) var(--lq-space-3);
-  border: 1.5px solid var(--lq-color-border);
+  border: var(--lq-control-border-width, 1.5px) solid var(--lq-color-border);
   border-radius: var(--lq-radius-md);
   background: var(--lq-color-panel);
   color: var(--lq-color-text);
@@ -159,7 +159,7 @@
 
 .lq-skilltree__label {
   font-size: var(--lq-text-sm);
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
   line-height: 1.25;
 }
 
@@ -176,7 +176,7 @@
   background: color-mix(in srgb, var(--lq-skill-color) 16%, var(--lq-color-panel));
   color: var(--lq-color-text);
   font-size: var(--lq-text-xs);
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -278,7 +278,7 @@
   color: var(--lq-color-text);
 }
 .lq-skilltree__owned {
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
   color: var(--lq-color-text);
 }
 
@@ -291,7 +291,7 @@
   color: var(--lq-color-accent-contrast, #fff);
   font: inherit;
   font-size: var(--lq-text-xs);
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   cursor: pointer;
 }
 .lq-skilltree__unlock:disabled {
@@ -363,7 +363,7 @@
   color: var(--lq-color-text);
   font: inherit;
   font-size: var(--lq-text-sm);
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
   font-variant-numeric: tabular-nums;
   cursor: pointer;
 }
@@ -531,12 +531,12 @@
   min-width: 26px;
   height: 20px;
   padding: 0 5px;
-  border: 1.5px solid var(--lq-color-text-muted);
+  border: var(--lq-control-border-width, 1.5px) solid var(--lq-color-text-muted);
   border-radius: 999px;
   background: var(--lq-color-panel);
   color: var(--lq-color-text);
   font-size: 11px;
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   font-style: italic;
   line-height: 1;
   pointer-events: none;
@@ -554,7 +554,7 @@
   border-bottom: 3px solid var(--lq-skill-color);
   background: color-mix(in srgb, var(--lq-color-bg) 85%, transparent);
   font-size: var(--lq-text-sm);
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   letter-spacing: 0.02em;
   white-space: nowrap;
   color: var(--lq-color-text);
@@ -619,12 +619,12 @@
   min-width: 18px;
   height: 18px;
   padding: 0 4px;
-  border: 1.5px solid var(--lq-skill-color);
+  border: var(--lq-control-border-width, 1.5px) solid var(--lq-skill-color);
   border-radius: 999px;
   background: var(--lq-color-panel);
   color: var(--lq-color-text);
   font-size: 10px;
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   line-height: 15px;
   text-align: center;
   font-variant-numeric: tabular-nums;
@@ -637,7 +637,7 @@
   border-radius: 6px;
   background: color-mix(in srgb, var(--lq-color-bg) 88%, transparent);
   font-size: var(--lq-text-xs);
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
   line-height: 1.25;
   text-align: center;
   overflow: hidden;
@@ -746,7 +746,7 @@
   font-size: var(--lq-text-sm);
 }
 .lq-skilltree__inline-title {
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   color: var(--lq-color-text);
 }
 .lq-skilltree__inline-effect {

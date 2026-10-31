@@ -14,7 +14,7 @@
   display: flex;
   justify-content: space-between;
   font-size: 0.8rem;
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
   color: var(--lq-color-text);
   font-variant-numeric: tabular-nums;
 }
@@ -30,7 +30,7 @@
 .lq-root[data-lq-palette="eink"] .lq-range-slider__track {
   border-radius: 0;
   background-color: transparent;
-  border-bottom: 1.5px solid var(--lq-color-border);
+  border-bottom: var(--lq-control-border-width, 1.5px) solid var(--lq-color-border);
   height: 0;
 }
 
@@ -105,7 +105,7 @@
   width: 12px;
   height: 12px;
   background-color: var(--lq-color-bg);
-  border: 1.5px solid var(--lq-color-text);
+  border: var(--lq-control-border-width, 1.5px) solid var(--lq-color-text);
 }
 
 .lq-range-slider__thumb:active {

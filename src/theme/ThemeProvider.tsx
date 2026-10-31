@@ -20,6 +20,18 @@ const FONT_VARS: Record<LqFont, string> = {
 
 const LqThemeContext = createContext<LqThemeContextValue | null>(null);
 
+/**
+ * La `className` du fournisseur englobant, transmise aux fournisseurs imbriqués.
+ *
+ * Une dizaine de composants (Modal, Popover, Tooltip, ContextMenu, GuidedTour, les notifications…)
+ * rendent leur contenu dans un portail vers `document.body` et l'enveloppent d'un nouveau
+ * `LqThemeProvider` pour qu'il garde palette, surface et police. Sans ce contexte, ce nouveau
+ * `.lq-root` perdait la classe qu'une application pose sur le sien — et avec elle tout thème qui
+ * redéfinit les variables sous `.ma-classe.lq-root` : la modale retombait sur les valeurs du kit.
+ * Les portails React conservent le contexte, donc c'est ici, et nulle part ailleurs, que ça se règle.
+ */
+const LqThemeClassContext = createContext<string | undefined>(undefined);
+
 export interface LqThemeProviderProps {
   /** Rendering surface: raw e-ink / monochrome tablet, or a backlit color tablet. Default "eink". */
   palette?: LqPalette;
@@ -31,6 +43,8 @@ export interface LqThemeProviderProps {
   onPaletteChange?: (palette: LqPalette) => void;
   onSurfaceChange?: (surface: LqSurface) => void;
   onFontChange?: (font: LqFont) => void;
+  /** Classe ajoutée à `.lq-root`. Omise sur un fournisseur imbriqué, elle est reprise du fournisseur
+   *  englobant — c'est ce qui fait suivre un thème d'application jusque dans les portails. */
   className?: string;
   style?: CSSProperties;
   children: ReactNode;
@@ -54,6 +68,9 @@ export function LqThemeProvider({
   const [paletteState, setPaletteState] = useState<LqPalette>(paletteProp ?? "eink");
   const [surfaceState, setSurfaceState] = useState<LqSurface>(surfaceProp ?? "light");
   const [fontState, setFontState] = useState<LqFont>(fontProp ?? "manrope");
+
+  const inheritedClassName = useContext(LqThemeClassContext);
+  const rootClassName = className ?? inheritedClassName;
 
   const palette = paletteProp ?? paletteState;
   const surface = surfaceProp ?? surfaceState;
@@ -82,15 +99,17 @@ export function LqThemeProvider({
 
   return (
     <LqThemeContext.Provider value={value}>
-      <div
-        className={["lq-root", className].filter(Boolean).join(" ")}
-        data-lq-palette={palette}
-        data-lq-surface={surface}
-        data-lq-font={font}
-        style={{ ...style, ["--lq-font-family" as string]: FONT_VARS[font] }}
-      >
-        {children}
-      </div>
+      <LqThemeClassContext.Provider value={rootClassName}>
+        <div
+          className={["lq-root", rootClassName].filter(Boolean).join(" ")}
+          data-lq-palette={palette}
+          data-lq-surface={surface}
+          data-lq-font={font}
+          style={{ ...style, ["--lq-font-family" as string]: FONT_VARS[font] }}
+        >
+          {children}
+        </div>
+      </LqThemeClassContext.Provider>
     </LqThemeContext.Provider>
   );
 }

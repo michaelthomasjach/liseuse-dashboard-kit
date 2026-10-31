@@ -47,7 +47,7 @@
   background-color: color-mix(in srgb, var(--lq-color-danger) 16%, transparent);
   color: var(--lq-color-danger);
   font-size: 0.68rem;
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
 }
 
 /* Four panes: a corner, a header, a resource column and the board. Only the board really scrolls;
@@ -72,9 +72,10 @@
   border-right: 1px solid var(--lq-color-border);
   border-bottom: 1px solid var(--lq-color-border);
   background-color: var(--lq-color-panel);
-  font-size: 0.62rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  font-size: var(--lq-label-size, 0.62rem);
+  font-weight: var(--lq-label-weight, 700);
+  letter-spacing: var(--lq-label-tracking, 0.06em);
+  font-family: var(--lq-label-font, inherit);
   text-transform: uppercase;
   color: var(--lq-color-text-muted);
 }
@@ -111,7 +112,7 @@
 .lq-sched__tick--major {
   border-left-color: var(--lq-color-border);
   color: var(--lq-color-text);
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
 }
 
 .lq-sched__aside {
@@ -133,7 +134,7 @@
 
 .lq-sched__resource-name {
   font-size: 0.76rem;
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -228,7 +229,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
 }
 
 .lq-sched__task-time {

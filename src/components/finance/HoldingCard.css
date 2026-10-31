@@ -34,7 +34,7 @@
 
 .lq-holding-card__symbol {
   font-size: 0.9rem;
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   color: var(--lq-color-text);
 }
 
@@ -60,7 +60,7 @@
 
 .lq-holding-card__price {
   font-size: 0.9rem;
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   color: var(--lq-color-text);
   font-variant-numeric: tabular-nums;
 }

@@ -34,7 +34,7 @@
   padding: 6px 10px;
   background-color: var(--lq-color-panel);
   border-bottom: 1px solid var(--lq-color-border-subtle);
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
   color: var(--lq-color-text-muted);
   white-space: nowrap;
 }
@@ -105,7 +105,7 @@
 }
 
 .lq-table__row--parent .lq-table__label {
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
 }
 
 .lq-table__row[data-depth="1"] .lq-table__cell {
@@ -130,7 +130,7 @@
 /* A total, not a line item. */
 .lq-table__row--emphasis .lq-table__cell {
   background-color: var(--lq-color-hover);
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
 }
 
 .lq-table__row:hover .lq-table__cell {

@@ -261,3 +261,37 @@
   --lq-color-rose: var(--lq-color-text);
   --lq-color-violet: var(--lq-color-text);
 }
+
+/*
+ * Optional theming tokens — declared NOWHERE in this file, on purpose.
+ *
+ * Each one is read with its own fallback at the point of use (`var(--lq-label-size, 0.72rem)`), and
+ * that fallback is the value the component had before the token existed. So the kit renders exactly
+ * as it always did; a theme that wants another typographic voice sets the token on its `.lq-root`
+ * and every site follows at once. Declaring them here would have forced one value on sites that
+ * deliberately differ (a table header at 0.72rem, a panel title at 0.8rem).
+ *
+ *   Weights            --lq-font-weight-medium (500) · -semibold (600) · -bold (700) · -heavy (800)
+ *                      --lq-font-weight-heading   Heading h1–h6 (falls back to 700)
+ *
+ *   Labels             the small upper-case titles: table headers, panel titles, group labels,
+ *                      eyebrows, section titles in modals and side panels.
+ *                      --lq-label-font · --lq-label-size · --lq-label-weight · --lq-label-tracking
+ *
+ *   Captions           titles the kit sets in sentence case but a theme may want as labels:
+ *                      Card title, Tabs tab, StatCard label.
+ *                      --lq-caption-font · --lq-caption-size · --lq-caption-weight
+ *                      --lq-caption-tracking · --lq-caption-transform
+ *
+ *   Controls           --lq-control-border-width (1.5px)   outlined buttons, inputs, swatches
+ *                      --lq-button-padding-y · --lq-button-padding-x · --lq-button-font-size
+ *
+ *   Surfaces           --lq-color-panel-border   the 1px outline of Card / Panel / TabbedCard /
+ *                      Testimonial (falls back to --lq-color-border-subtle); `transparent` lets
+ *                      the panel shadow alone detach the surface.
+ *
+ *   Regions            `data-lq-region="sidebar"` marks SidebarLayout's sidebar. A theme can
+ *                      redefine any color token under `[data-lq-region="sidebar"]` to give the
+ *                      sidebar its own palette (a dark rail on a light page) — the logo, the nav
+ *                      and whatever sits in the footer all follow, because they read the same tokens.
+ */

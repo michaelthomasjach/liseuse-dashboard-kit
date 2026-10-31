@@ -9,7 +9,7 @@
 
 .lq-field__label {
   font-size: 0.8rem;
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
   color: var(--lq-color-text);
 }
 
@@ -21,7 +21,7 @@
   min-height: 40px;
   padding: 0 var(--lq-space-3);
   background-color: var(--lq-color-panel);
-  border: 1.5px solid var(--lq-color-border);
+  border: var(--lq-control-border-width, 1.5px) solid var(--lq-color-border);
   border-radius: var(--lq-radius-md);
   transition: border-color var(--lq-transition-fast), box-shadow var(--lq-transition-fast);
 }

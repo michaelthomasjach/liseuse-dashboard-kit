@@ -47,9 +47,10 @@
 .lq-script-keywords__group-title {
   display: block;
   margin-bottom: var(--lq-space-1);
-  font-size: var(--lq-text-xs);
-  font-weight: 700;
-  letter-spacing: 0.03em;
+  font-size: var(--lq-label-size, var(--lq-text-xs));
+  font-weight: var(--lq-label-weight, 700);
+  letter-spacing: var(--lq-label-tracking, 0.03em);
+  font-family: var(--lq-label-font, inherit);
   text-transform: uppercase;
   color: var(--lq-color-text-muted);
 }
@@ -83,7 +84,7 @@
 .lq-script-keywords__item-label {
   font-family: var(--lq-font-mono);
   font-size: var(--lq-text-xs);
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
   color: var(--lq-color-accent);
 }
 

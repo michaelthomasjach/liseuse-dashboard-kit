@@ -112,7 +112,7 @@
   padding: 6px 4px;
   font-family: inherit;
   font-size: 0.65rem;
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
   color: var(--lq-color-text-muted);
   background: none;
   border: none;
@@ -443,7 +443,7 @@
 .lq-chart-workspace__side-panel-title {
   padding: 4px 0;
   font-size: 0.69rem;
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   color: var(--lq-color-text);
 }
 
@@ -517,11 +517,12 @@
    divider) matches the gap below them, before the first section or row. */
 .lq-chart-workspace__watchlist-row--header {
   margin-top: var(--lq-space-1);
-  font-size: 0.598rem;
-  font-weight: 700;
+  font-size: var(--lq-label-size, 0.598rem);
+  font-weight: var(--lq-label-weight, 700);
   color: var(--lq-color-text-muted);
+  font-family: var(--lq-label-font, inherit);
   text-transform: uppercase;
-  letter-spacing: 0.02em;
+  letter-spacing: var(--lq-label-tracking, 0.02em);
 }
 
 .lq-chart-workspace__watchlist-row--header:hover {
@@ -725,7 +726,7 @@
   border-radius: var(--lq-radius-sm);
   overflow: hidden;
   font-size: 0.46rem;
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   color: #fff;
 }
 
@@ -747,7 +748,7 @@
      aligned either way. */
   flex: 1 1 0;
   min-width: 62px;
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -967,12 +968,12 @@
   flex: 1 1 auto;
   min-width: 0;
   padding: 6px 4px;
-  font-family: inherit;
-  font-size: 0.626rem;
-  font-weight: 700;
+  font-family: var(--lq-label-font, inherit);
+  font-size: var(--lq-label-size, 0.626rem);
+  font-weight: var(--lq-label-weight, 700);
   color: var(--lq-color-text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.02em;
+  letter-spacing: var(--lq-label-tracking, 0.02em);
   text-align: left;
   background: none;
   border: none;
@@ -1008,7 +1009,7 @@
   margin-top: var(--lq-space-2);
   font-family: inherit;
   font-size: 0.644rem;
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
   color: var(--lq-color-text-muted);
   background: none;
   border: 1px dashed var(--lq-color-border-subtle);
@@ -1084,7 +1085,7 @@
 .lq-chart-workspace__help-item-title {
   margin: 0 0 var(--lq-space-1);
   font-size: 0.85rem;
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
 }
 
 /* The kit's own version, last line of the help modal. Deliberately quiet — it is a fact to look up
@@ -1199,7 +1200,7 @@
   align-items: center;
   justify-content: space-between;
   font-size: 0.85rem;
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   color: var(--lq-color-text);
 }
 
@@ -1255,7 +1256,7 @@
 .lq-watchlist-exposure__section-title {
   margin: 0;
   font-size: 0.782rem;
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   color: var(--lq-color-text);
 }
 
@@ -1290,7 +1291,7 @@
 
 .lq-chart-workspace__symbol-profile-ticker {
   font-size: 0.828rem;
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   color: var(--lq-color-text);
 }
 
@@ -1306,7 +1307,7 @@
   flex-shrink: 0;
   padding: 2px 6px;
   font-size: 0.626rem;
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
   color: var(--lq-color-text-muted);
   white-space: nowrap;
   background-color: var(--lq-color-hover);
@@ -1362,7 +1363,7 @@
   padding: 4px 7px;
   font-family: inherit;
   font-size: 0.626rem;
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
   font-variant-numeric: tabular-nums;
   color: var(--lq-color-text-muted);
   background: none;
@@ -1411,7 +1412,7 @@
 
 .lq-chart-workspace__symbol-profile-price {
   font-size: 1.196rem;
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   color: var(--lq-color-text);
   font-variant-numeric: tabular-nums;
 }
@@ -1460,9 +1461,10 @@
 }
 
 .lq-chart-workspace__symbol-profile-section-title {
-  font-size: 0.662rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
+  font-size: var(--lq-label-size, 0.662rem);
+  font-weight: var(--lq-label-weight, 700);
+  letter-spacing: var(--lq-label-tracking, 0.04em);
+  font-family: var(--lq-label-font, inherit);
   text-transform: uppercase;
   color: var(--lq-color-text-muted);
 }
@@ -1483,9 +1485,10 @@
 }
 
 .lq-chart-workspace__symbol-profile-performance-label {
-  font-size: 0.626rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
+  font-size: var(--lq-label-size, 0.626rem);
+  font-weight: var(--lq-label-weight, 600);
+  letter-spacing: var(--lq-label-tracking, 0.04em);
+  font-family: var(--lq-label-font, inherit);
   text-transform: uppercase;
   color: var(--lq-color-text-muted);
 }
@@ -1527,7 +1530,7 @@
   align-self: flex-start;
   padding: 0;
   font-size: 0.662rem;
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
   color: var(--lq-color-accent);
   cursor: pointer;
   background: none;
@@ -1553,7 +1556,7 @@
 }
 
 .lq-chart-workspace__symbol-profile-stat-value {
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
   color: var(--lq-color-text);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -1569,7 +1572,7 @@
 .lq-chart-workspace__symbol-profile-earnings-badge {
   padding: 1px 7px;
   font-size: 0.662rem;
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   color: var(--lq-color-text);
   background-color: var(--lq-color-hover);
   border-radius: 999px;
@@ -1732,7 +1735,7 @@
 
 .lq-chart-workspace__lock-hold-label {
   font-size: 0.75rem;
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
   white-space: nowrap;
 }
 
@@ -1810,7 +1813,7 @@
   color: var(--lq-color-text);
   font: inherit;
   font-size: 0.718rem;
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
   cursor: pointer;
 }
 
@@ -1985,7 +1988,7 @@
   background-color: var(--lq-color-hover);
   font: inherit;
   font-size: var(--lq-text-sm);
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
   color: var(--lq-color-text);
   cursor: pointer;
 }

@@ -3,7 +3,7 @@
   align-items: center;
   gap: 2px;
   font-size: 0.85rem;
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   font-variant-numeric: tabular-nums;
 }
 

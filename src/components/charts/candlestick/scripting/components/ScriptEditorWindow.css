@@ -35,7 +35,7 @@
 
 .lq-script-window__title {
   font-size: var(--lq-text-md);
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   color: var(--lq-color-text);
   overflow: hidden;
   text-overflow: ellipsis;

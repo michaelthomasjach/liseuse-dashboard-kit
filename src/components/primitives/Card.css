@@ -1,6 +1,6 @@
 .lq-card {
   background-color: var(--lq-color-panel);
-  border: 1px solid var(--lq-color-border-subtle);
+  border: 1px solid var(--lq-color-panel-border, var(--lq-color-border-subtle));
   border-radius: var(--lq-radius-lg);
   box-shadow: var(--lq-shadow-panel);
   overflow: hidden;
@@ -45,9 +45,10 @@
 }
 
 .lq-card--highlight .lq-card__title {
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
+  font-size: var(--lq-label-size, 0.72rem);
+  font-weight: var(--lq-label-weight, 600);
+  letter-spacing: var(--lq-label-tracking, 0.08em);
+  font-family: var(--lq-label-font, inherit);
   text-transform: uppercase;
   color: var(--lq-color-text-muted);
 }
@@ -93,8 +94,11 @@
 }
 
 .lq-card__title {
-  font-size: 0.95rem;
-  font-weight: 700;
+  font-family: var(--lq-caption-font, inherit);
+  font-size: var(--lq-caption-size, 0.95rem);
+  font-weight: var(--lq-caption-weight, var(--lq-font-weight-bold, 700));
+  letter-spacing: var(--lq-caption-tracking, normal);
+  text-transform: var(--lq-caption-transform, none);
   color: var(--lq-color-text);
 }
 

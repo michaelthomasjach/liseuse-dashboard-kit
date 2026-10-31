@@ -71,7 +71,7 @@
   gap: 5px;
   min-width: 0;
   font-size: var(--lq-text-xs);
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   line-height: 1.2;
 }
 

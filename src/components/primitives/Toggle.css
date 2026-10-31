@@ -14,7 +14,7 @@
      shape — it's the one place a rounded "physical toggle" silhouette reads
      more clearly than a square one. */
   border-radius: 999px;
-  border: 1.5px solid var(--lq-color-border);
+  border: var(--lq-control-border-width, 1.5px) solid var(--lq-color-border);
   background-color: var(--lq-color-fill-track);
   cursor: pointer;
   flex-shrink: 0;

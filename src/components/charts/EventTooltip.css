@@ -40,7 +40,7 @@
 }
 
 .lq-chart-event-tooltip__header-title {
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -109,7 +109,7 @@
 .lq-chart-event-tooltip__title {
   margin: 0 0 4px;
   font-size: 0.85rem;
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
 }
 
 .lq-chart-event-tooltip__details {

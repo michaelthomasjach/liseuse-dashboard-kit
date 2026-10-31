@@ -44,7 +44,7 @@
 
 .lq-market-state__title {
   font-size: 0.68rem;
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   letter-spacing: 0.12em;
   color: var(--lq-color-text-muted);
 }
@@ -103,13 +103,13 @@
 }
 
 .lq-market-state__label {
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   letter-spacing: 0.06em;
   color: var(--lq-color-text-muted);
 }
 
 .lq-market-state__value {
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
 }
 
 /* Sits under the text, spanning the two content columns — a background, not a fourth column, so
@@ -177,12 +177,12 @@
 
 .lq-market-state__part-label {
   font-size: 0.68rem;
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
 }
 
 .lq-market-state__part-score {
   font-size: 0.68rem;
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
 }
 
 .lq-market-state__part-weight {
@@ -217,7 +217,7 @@
   color: var(--lq-color-text);
   font: inherit;
   font-size: 0.72rem;
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   letter-spacing: 0.06em;
   text-align: left;
   cursor: pointer;
@@ -433,7 +433,7 @@
 
 .lq-market-state__stance-value {
   font-size: 0.9rem;
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   font-variant-numeric: tabular-nums;
   line-height: 1;
 }

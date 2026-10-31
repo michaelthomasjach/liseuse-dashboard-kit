@@ -22,10 +22,11 @@
    job is to be scanned past, not read — which is exactly why they are small and quiet. */
 .lq-info-text__heading {
   margin: var(--lq-space-3) 0 var(--lq-space-1);
-  font-size: var(--lq-text-xs);
-  font-weight: 600;
+  font-size: var(--lq-label-size, var(--lq-text-xs));
+  font-weight: var(--lq-label-weight, 600);
+  font-family: var(--lq-label-font, inherit);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: var(--lq-label-tracking, 0.08em);
   color: var(--lq-color-text-muted);
 }
 
@@ -57,5 +58,5 @@
 }
 
 .lq-info-text strong {
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
 }

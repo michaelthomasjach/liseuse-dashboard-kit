@@ -33,7 +33,7 @@
 
 .lq-heatmap__breadcrumb span {
   color: var(--lq-color-text);
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
 }
 
 .lq-heatmap__group-header {
@@ -51,7 +51,7 @@
 .lq-heatmap__group-header text {
   fill: var(--lq-color-text);
   font-size: 11px;
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
   dominant-baseline: middle;
 }
 
@@ -100,7 +100,7 @@
 .lq-heatmap__group-label {
   fill: var(--lq-color-text);
   font-size: 11px;
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
   dominant-baseline: middle;
 }
 
@@ -111,7 +111,7 @@
 
 .lq-heatmap__tile-label {
   font-size: 11px;
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
 }
 
 .lq-heatmap__tile-value {

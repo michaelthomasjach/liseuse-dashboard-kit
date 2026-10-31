@@ -242,7 +242,7 @@
   height: 16px;
   padding: 0 3px;
   font-size: 0.6rem;
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   color: var(--lq-color-accent-contrast);
   background-color: var(--lq-color-accent);
   border-radius: var(--lq-radius-pill);

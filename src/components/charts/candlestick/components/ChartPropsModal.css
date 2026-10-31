@@ -66,9 +66,10 @@
 
 .lq-chart-props__section-title {
   margin: 0 0 var(--lq-space-2);
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  font-size: var(--lq-label-size, 0.7rem);
+  font-weight: var(--lq-label-weight, 700);
+  letter-spacing: var(--lq-label-tracking, 0.06em);
+  font-family: var(--lq-label-font, inherit);
   text-transform: uppercase;
   color: var(--lq-color-text-muted);
 }
@@ -100,7 +101,7 @@
 .lq-chart-props__name {
   font-family: var(--lq-font-mono, ui-monospace, monospace);
   font-size: 0.85rem;
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   color: var(--lq-color-text);
 }
 
@@ -109,9 +110,10 @@
   border-radius: 999px;
   background-color: var(--lq-color-accent);
   color: var(--lq-color-accent-contrast);
-  font-size: 0.6rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
+  font-size: var(--lq-label-size, 0.6rem);
+  font-weight: var(--lq-label-weight, 700);
+  letter-spacing: var(--lq-label-tracking, 0.04em);
+  font-family: var(--lq-label-font, inherit);
   text-transform: uppercase;
 }
 

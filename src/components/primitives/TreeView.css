@@ -107,7 +107,7 @@
 }
 
 .lq-tree__row--selected .lq-tree__label {
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
 }
 
 .lq-tree__label:disabled {

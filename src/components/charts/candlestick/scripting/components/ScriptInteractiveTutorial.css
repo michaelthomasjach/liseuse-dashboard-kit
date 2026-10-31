@@ -38,7 +38,7 @@
 
 .lq-script-tutorial__track-tab--active {
   color: var(--lq-color-accent);
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
   border-bottom-color: var(--lq-color-accent);
 }
 
@@ -72,7 +72,7 @@
   border-color: var(--lq-color-accent);
   background: var(--lq-color-accent);
   color: var(--lq-color-accent-contrast);
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
 }
 
 .lq-script-tutorial__step-title {

@@ -8,7 +8,7 @@
   padding: var(--lq-space-3) var(--lq-space-3) var(--lq-space-2);
   border-bottom: 1px solid var(--lq-color-border-subtle);
   font-size: 0.85rem;
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   color: var(--lq-color-text);
 }
 
@@ -58,7 +58,7 @@
 .lq-dropdown-panel__option--selected {
   background-color: var(--lq-color-fill);
   color: var(--lq-color-accent-contrast);
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
 }
 
 /* Without this, hovering the selected option loses its own contrast-matched background to
@@ -81,7 +81,7 @@
   padding: 4px 8px;
   font-family: inherit;
   font-size: 0.75rem;
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
   color: var(--lq-color-text-muted);
   background-color: var(--lq-color-bg);
   border: 1px solid var(--lq-color-border-subtle);

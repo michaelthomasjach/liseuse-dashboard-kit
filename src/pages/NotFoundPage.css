@@ -17,7 +17,7 @@
 
 .lq-not-found-page__code {
   font-size: clamp(3.5rem, 12vw, 6rem);
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   line-height: 1;
   color: var(--lq-color-text);
   font-variant-numeric: tabular-nums;

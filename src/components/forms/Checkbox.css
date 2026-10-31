@@ -29,7 +29,7 @@
   width: 18px;
   height: 18px;
   flex-shrink: 0;
-  border: 1.5px solid var(--lq-color-border);
+  border: var(--lq-control-border-width, 1.5px) solid var(--lq-color-border);
   border-radius: var(--lq-radius-sm);
   background-color: var(--lq-color-panel);
   transition: background-color 150ms ease, border-color 150ms ease, transform 120ms ease;

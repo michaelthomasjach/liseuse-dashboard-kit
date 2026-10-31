@@ -26,7 +26,7 @@
 .lq-gauge-chart__band-label {
   fill: var(--lq-color-text-muted);
   font-size: 0.7rem;
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
 }
 
 .lq-gauge-chart__readout {
@@ -38,7 +38,7 @@
 
 .lq-gauge-chart__value-text {
   font-size: 1.6rem;
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   color: var(--lq-color-text);
   font-variant-numeric: tabular-nums;
 }

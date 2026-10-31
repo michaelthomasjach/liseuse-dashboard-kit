@@ -72,7 +72,7 @@
 
 .lq-sankey__crumb--current {
   color: var(--lq-color-text);
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
 }
 
 .lq-sankey__ribbon {
@@ -124,13 +124,13 @@
    ruban clair. */
 .lq-sankey__label {
   font-size: 0.72rem;
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
   fill: var(--lq-sankey-label-color);
 }
 
 .lq-sankey__ribbon-label {
   font-size: 0.66rem;
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   fill: var(--lq-sankey-label-color);
 }
 

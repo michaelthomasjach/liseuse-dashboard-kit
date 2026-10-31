@@ -151,7 +151,7 @@
 
 .lq-meter__channel-label {
   font-size: 0.68rem;
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   color: var(--lq-color-text-muted);
 }
 
@@ -165,7 +165,7 @@
 
 .lq-meter__channel-value--clip {
   color: var(--lq-color-danger);
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
 }
 
 .lq-meter__scale {

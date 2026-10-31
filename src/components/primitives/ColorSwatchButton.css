@@ -5,10 +5,10 @@
   padding: var(--lq-space-2) var(--lq-space-3);
   font-family: inherit;
   font-size: 0.9rem;
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
   color: var(--lq-color-text);
   background-color: var(--lq-color-panel);
-  border: 1.5px solid var(--lq-color-border);
+  border: var(--lq-control-border-width, 1.5px) solid var(--lq-color-border);
   border-radius: var(--lq-radius-md);
   cursor: pointer;
 }

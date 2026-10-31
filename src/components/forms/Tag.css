@@ -4,7 +4,7 @@
   gap: 4px;
   padding: 3px 6px 3px 8px;
   font-size: 0.78rem;
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
   color: var(--lq-color-text);
   background-color: var(--lq-color-hover);
   border: 1px solid var(--lq-color-border-subtle);

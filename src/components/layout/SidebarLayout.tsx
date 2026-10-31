@@ -35,7 +35,10 @@ export function SidebarLayout({ logo, navItems, footer, header, children, classN
 
   return (
     <div className={["lq-sidebar-layout", stickyHeader && "lq-sidebar-layout--sticky-header", className].filter(Boolean).join(" ")}>
-      <aside className={["lq-sidebar-layout__sidebar", mobileOpen && "lq-sidebar-layout__sidebar--open"].filter(Boolean).join(" ")}>
+      <aside
+        className={["lq-sidebar-layout__sidebar", mobileOpen && "lq-sidebar-layout__sidebar--open"].filter(Boolean).join(" ")}
+        data-lq-region="sidebar"
+      >
         <div className="lq-sidebar-layout__logo">{logo}</div>
         <nav className="lq-sidebar-layout__nav">
           {navItems.map((item) =>

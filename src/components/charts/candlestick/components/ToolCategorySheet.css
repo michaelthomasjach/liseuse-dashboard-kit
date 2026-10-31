@@ -61,10 +61,11 @@
 .lq-chart__tool-sheet-header {
   flex-shrink: 0;
   padding: var(--lq-space-1) var(--lq-space-4) var(--lq-space-2);
-  font-size: 0.7rem;
-  font-weight: 700;
+  font-size: var(--lq-label-size, 0.7rem);
+  font-weight: var(--lq-label-weight, 700);
+  font-family: var(--lq-label-font, inherit);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--lq-label-tracking, 0.04em);
   color: var(--lq-color-text-muted);
 }
 
@@ -106,7 +107,7 @@
 
 .lq-chart__tool-sheet-option--selected {
   color: var(--lq-color-accent);
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
 }
 
 .lq-chart__tool-sheet-info {

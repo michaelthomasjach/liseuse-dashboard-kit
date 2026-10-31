@@ -95,7 +95,7 @@
 .lq-modal__title {
   margin: 0;
   font-size: 1.3rem;
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   color: var(--lq-color-text);
 }
 
@@ -134,10 +134,10 @@
   padding: var(--lq-space-3);
   font-family: inherit;
   font-size: 0.95rem;
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   color: var(--lq-color-accent-contrast);
   background-color: var(--lq-color-fill);
-  border: 1.5px solid var(--lq-color-fill);
+  border: var(--lq-control-border-width, 1.5px) solid var(--lq-color-fill);
   border-radius: var(--lq-radius-md);
   cursor: pointer;
 }

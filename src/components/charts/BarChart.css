@@ -16,7 +16,7 @@
 .lq-bar-chart__value {
   fill: var(--lq-color-text);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   pointer-events: none;
 }
 

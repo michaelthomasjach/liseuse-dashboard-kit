@@ -5,16 +5,17 @@
 }
 
 .lq-segmented__label {
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  font-size: var(--lq-label-size, 0.7rem);
+  font-weight: var(--lq-label-weight, 700);
+  letter-spacing: var(--lq-label-tracking, 0.08em);
+  font-family: var(--lq-label-font, inherit);
   text-transform: uppercase;
   color: var(--lq-color-text-muted);
 }
 
 .lq-segmented__options {
   display: inline-flex;
-  border: 1.5px solid var(--lq-color-border);
+  border: var(--lq-control-border-width, 1.5px) solid var(--lq-color-border);
   border-radius: var(--lq-radius-md);
   overflow: hidden;
 }
@@ -27,11 +28,11 @@
   padding: var(--lq-space-2) var(--lq-space-4);
   font-family: inherit;
   font-size: 0.85rem;
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
   color: var(--lq-color-text);
   background-color: var(--lq-color-panel);
   border: none;
-  border-right: 1.5px solid var(--lq-color-border);
+  border-right: var(--lq-control-border-width, 1.5px) solid var(--lq-color-border);
   cursor: pointer;
 }
 
@@ -53,7 +54,7 @@
 
 .lq-segmented--top .lq-segmented__label {
   font-size: 0.8rem;
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
   letter-spacing: normal;
   text-transform: none;
   color: var(--lq-color-text);

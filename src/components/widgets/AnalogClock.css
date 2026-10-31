@@ -58,7 +58,7 @@
   align-items: center;
   gap: 4px;
   font-size: var(--lq-text-sm);
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
 }
 
 .lq-analog-clock__sky {

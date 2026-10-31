@@ -15,7 +15,7 @@
 .lq-report-panel__title {
   margin: 0;
   font-size: var(--lq-text-sm);
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
   color: var(--lq-color-text);
 }
 

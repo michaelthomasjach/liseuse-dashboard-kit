@@ -48,7 +48,7 @@
   align-items: center;
   gap: 6px;
   font-size: var(--lq-text-sm);
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
   color: var(--lq-color-text);
 }
 
@@ -258,7 +258,7 @@
 
 /* The mention menu is the slash menu with one column fewer — a mention has a kind, not a group. */
 .lq-ai__menu--mentions .lq-ai__menu-label {
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
 }
 
 .lq-ai__input:focus-visible {
@@ -350,8 +350,9 @@
 }
 
 .lq-ai__menu-group {
-  font-size: 9px;
-  letter-spacing: 0.04em;
+  font-size: var(--lq-label-size, 9px);
+  letter-spacing: var(--lq-label-tracking, 0.04em);
+  font-family: var(--lq-label-font, inherit);
   text-transform: uppercase;
   color: var(--lq-color-text-muted);
 }
@@ -380,7 +381,7 @@
 
 .lq-ai__report-title {
   font-size: var(--lq-text-sm);
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
   color: var(--lq-color-text);
 }
 

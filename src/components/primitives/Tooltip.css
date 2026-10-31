@@ -15,7 +15,7 @@
   padding: 5px 9px;
   font-family: var(--lq-font-family, ui-sans-serif, system-ui, sans-serif);
   font-size: var(--lq-text-xs, 0.72rem);
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
   line-height: 1.35;
   color: var(--lq-color-panel, Canvas);
   background: var(--lq-color-text, CanvasText);

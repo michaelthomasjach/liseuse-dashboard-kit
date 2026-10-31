@@ -28,7 +28,7 @@
 
 .lq-objectives__title {
   font-size: var(--lq-text-sm);
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
 }
 
 .lq-objectives__subtitle {
@@ -39,7 +39,7 @@
 .lq-objectives__count {
   flex-shrink: 0;
   font-size: var(--lq-text-xs);
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   font-variant-numeric: tabular-nums;
   color: var(--lq-color-text-muted);
 }
@@ -133,7 +133,7 @@
   height: 16px;
   margin-top: 1px;
   color: var(--lq-color-accent-contrast);
-  border: 1.5px solid var(--lq-color-border);
+  border: var(--lq-control-border-width, 1.5px) solid var(--lq-color-border);
   border-radius: 999px;
 }
 
@@ -147,7 +147,7 @@
 }
 
 .lq-objectives__step-title {
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
 }
 
 /* Faite : cochée, en retrait, barrée. */
@@ -204,7 +204,7 @@
   padding: 3px 10px;
   font: inherit;
   font-size: var(--lq-text-xs);
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
   color: var(--lq-color-accent-contrast);
   cursor: pointer;
   background: var(--lq-color-accent);
@@ -268,7 +268,7 @@
 
 .lq-objectives__done-text {
   font-size: var(--lq-text-lg);
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
 }
 
 .lq-objectives__sr {

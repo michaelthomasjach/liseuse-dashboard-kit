@@ -34,17 +34,17 @@
 }
 .lq-fps__label {
   color: var(--lq-color-text-muted);
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
 }
 .lq-fps__value {
   min-width: 3ch;
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   font-size: 12px;
   color: var(--lq-color-text);
 }
 .lq-fps__value small {
   font-size: 10px;
-  font-weight: 500;
+  font-weight: var(--lq-font-weight-medium, 500);
   color: var(--lq-color-text-muted);
 }
 .lq-fps__detail {

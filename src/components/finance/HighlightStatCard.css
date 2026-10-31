@@ -1,7 +1,7 @@
 .lq-highlight-stat-card__value {
   margin-top: 2px;
   font-size: 1.75rem;
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   color: var(--lq-color-text);
   font-variant-numeric: tabular-nums;
   line-height: 1.15;

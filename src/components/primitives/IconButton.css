@@ -4,7 +4,7 @@
   justify-content: center;
   color: var(--lq-color-text);
   background-color: var(--lq-color-panel);
-  border: 1.5px solid var(--lq-color-border);
+  border: var(--lq-control-border-width, 1.5px) solid var(--lq-color-border);
   border-radius: var(--lq-radius-md);
   cursor: pointer;
   flex-shrink: 0;

@@ -11,9 +11,10 @@
 
 .lq-data-table th {
   padding: var(--lq-space-2) var(--lq-space-3);
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
+  font-size: var(--lq-label-size, 0.72rem);
+  font-weight: var(--lq-label-weight, 700);
+  letter-spacing: var(--lq-label-tracking, 0.04em);
+  font-family: var(--lq-label-font, inherit);
   text-transform: uppercase;
   color: var(--lq-color-text-muted);
   border-bottom: 1px solid var(--lq-color-border);

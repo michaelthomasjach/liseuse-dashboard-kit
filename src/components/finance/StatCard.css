@@ -13,13 +13,17 @@
 }
 
 .lq-stat-card__label {
-  font-size: 0.78rem;
+  font-family: var(--lq-caption-font, inherit);
+  font-size: var(--lq-caption-size, 0.78rem);
+  font-weight: var(--lq-caption-weight, inherit);
+  letter-spacing: var(--lq-caption-tracking, normal);
+  text-transform: var(--lq-caption-transform, none);
   color: var(--lq-color-text-muted);
 }
 
 .lq-stat-card__value {
   font-size: 1.6rem;
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   color: var(--lq-color-text);
   font-variant-numeric: tabular-nums;
   line-height: 1.15;

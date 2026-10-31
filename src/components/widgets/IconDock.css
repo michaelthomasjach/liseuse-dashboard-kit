@@ -134,7 +134,7 @@
   height: 16px;
   padding: 0 4px;
   font-size: 10px;
-  font-weight: 800;
+  font-weight: var(--lq-font-weight-heavy, 800);
   line-height: 16px;
   font-variant-numeric: tabular-nums;
   text-align: center;

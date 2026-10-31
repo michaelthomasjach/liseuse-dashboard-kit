@@ -1,6 +1,6 @@
 .lq-heading {
   margin: 0;
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-heading, 700);
   line-height: var(--lq-line-height-heading);
   color: var(--lq-color-text);
   letter-spacing: -0.01em;
@@ -28,9 +28,10 @@
 }
 
 .lq-heading--h6 {
-  font-size: var(--lq-text-h6);
-  font-weight: 700;
-  letter-spacing: 0.04em;
+  font-size: var(--lq-label-size, var(--lq-text-h6));
+  font-weight: var(--lq-label-weight, 700);
+  letter-spacing: var(--lq-label-tracking, 0.04em);
+  font-family: var(--lq-label-font, inherit);
   text-transform: uppercase;
 }
 
@@ -48,9 +49,10 @@
 
 .lq-heading-row__meta {
   flex-shrink: 0;
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
+  font-size: var(--lq-label-size, 0.75rem);
+  font-weight: var(--lq-label-weight, 600);
+  letter-spacing: var(--lq-label-tracking, 0.06em);
+  font-family: var(--lq-label-font, inherit);
   text-transform: uppercase;
   color: var(--lq-color-text-muted);
 }

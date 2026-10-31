@@ -41,7 +41,7 @@
 .lq-login-page__heading h1 {
   margin: 0 0 4px;
   font-size: 1.5rem;
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   color: var(--lq-color-text);
 }
 

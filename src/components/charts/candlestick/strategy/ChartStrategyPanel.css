@@ -41,7 +41,7 @@
 
 .lq-strategy__title {
   font-size: 0.78rem;
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -49,7 +49,7 @@
 
 .lq-strategy__headline {
   font-size: 0.78rem;
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   font-variant-numeric: tabular-nums;
 }
 
@@ -98,7 +98,7 @@
 .lq-strategy__tab--active {
   color: var(--lq-color-text);
   background-color: var(--lq-color-hover);
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
 }
 
 .lq-strategy__body {
@@ -319,7 +319,7 @@
 }
 
 .lq-strategy__ribbon-readout-index {
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
   color: var(--lq-color-text);
 }
 
@@ -347,7 +347,7 @@
 
 .lq-strategy__metric-value {
   font-size: 0.85rem;
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   font-variant-numeric: tabular-nums;
 }
 
@@ -381,10 +381,11 @@
 
 .lq-strategy__settings-title {
   margin: 0 0 var(--lq-space-2);
-  font-size: 0.72rem;
-  font-weight: 700;
+  font-size: var(--lq-label-size, 0.72rem);
+  font-weight: var(--lq-label-weight, 700);
+  font-family: var(--lq-label-font, inherit);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--lq-label-tracking, 0.04em);
   color: var(--lq-color-text-muted);
 }
 
@@ -412,7 +413,7 @@
 }
 
 .lq-strategy__trades-row--header {
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   color: var(--lq-color-text-muted);
   position: sticky;
   top: 0;
@@ -676,10 +677,11 @@
 }
 
 .lq-strategy__robustness-label {
-  font-size: 0.7rem;
-  font-weight: 700;
+  font-size: var(--lq-label-size, 0.7rem);
+  font-weight: var(--lq-label-weight, 700);
+  font-family: var(--lq-label-font, inherit);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: var(--lq-label-tracking, 0.08em);
   color: var(--lq-color-text-muted);
 }
 
@@ -708,7 +710,7 @@
 
 .lq-strategy__robustness-score {
   font-size: 0.95rem;
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   font-variant-numeric: tabular-nums;
 }
 
@@ -745,12 +747,12 @@
 }
 
 .lq-strategy__robustness-item-label {
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
 }
 
 .lq-strategy__robustness-item-score {
   font-variant-numeric: tabular-nums;
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
 }
 
 .lq-strategy__robustness-item-detail {
@@ -963,7 +965,7 @@
 .lq-strategy__crosshair-badge-text {
   fill: var(--lq-color-accent-contrast);
   font-size: 0.65rem;
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   font-variant-numeric: tabular-nums;
 }
 
@@ -977,10 +979,11 @@
 
 .lq-strategy__ai-title {
   margin: 0;
-  font-size: 0.72rem;
-  font-weight: 600;
+  font-size: var(--lq-label-size, 0.72rem);
+  font-weight: var(--lq-label-weight, 600);
+  font-family: var(--lq-label-font, inherit);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: var(--lq-label-tracking, 0.08em);
   color: var(--lq-color-text-muted);
 }
 

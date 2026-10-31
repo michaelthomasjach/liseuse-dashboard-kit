@@ -129,13 +129,13 @@
   padding: 0 4px;
   font-family: var(--lq-font-family);
   font-size: 10px;
-  font-weight: 800;
+  font-weight: var(--lq-font-weight-heavy, 800);
   line-height: 17px;
   font-variant-numeric: tabular-nums;
   text-align: center;
   color: var(--lq-color-panel);
   background: var(--lq-color-text);
-  border: 1.5px solid var(--am-ring);
+  border: var(--lq-control-border-width, 1.5px) solid var(--am-ring);
   border-radius: 999px;
 }
 
@@ -273,7 +273,7 @@
   height: 24px;
   padding: 0 8px;
   font-size: var(--lq-text-xs);
-  font-weight: 800;
+  font-weight: var(--lq-font-weight-heavy, 800);
   font-variant-numeric: tabular-nums;
   color: var(--lq-color-text);
   background: color-mix(in srgb, var(--lq-color-panel) 85%, transparent);

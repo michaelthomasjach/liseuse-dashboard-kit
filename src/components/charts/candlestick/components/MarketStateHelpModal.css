@@ -32,10 +32,11 @@
 
 .lq-ms-help__title {
   margin: 0 0 var(--lq-space-1);
-  font-size: var(--lq-text-xs);
-  font-weight: 600;
+  font-size: var(--lq-label-size, var(--lq-text-xs));
+  font-weight: var(--lq-label-weight, 600);
+  font-family: var(--lq-label-font, inherit);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: var(--lq-label-tracking, 0.08em);
   color: var(--lq-color-text-muted);
 }
 
@@ -66,7 +67,7 @@
 
 .lq-ms-help__box-title {
   font-size: 11px;
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   fill: var(--lq-color-text);
   font-family: var(--lq-font-mono, ui-monospace, monospace);
 }
@@ -118,7 +119,7 @@
 
 .lq-ms-help__axis dt {
   font-family: var(--lq-font-mono, ui-monospace, monospace);
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   letter-spacing: 0.06em;
 }
 

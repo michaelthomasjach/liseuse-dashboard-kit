@@ -53,9 +53,11 @@
   align-items: center;
   gap: var(--lq-space-2);
   padding: var(--lq-space-2) 2px var(--lq-space-3);
-  font-family: inherit;
-  font-size: 0.88rem;
-  font-weight: 600;
+  font-family: var(--lq-caption-font, inherit);
+  font-size: var(--lq-caption-size, 0.88rem);
+  font-weight: var(--lq-caption-weight, var(--lq-font-weight-semibold, 600));
+  letter-spacing: var(--lq-caption-tracking, normal);
+  text-transform: var(--lq-caption-transform, none);
   color: var(--lq-color-text-muted);
   background: none;
   border: none;

@@ -4,7 +4,7 @@
   gap: 4px;
   padding: 2px 9px;
   font-size: 0.72rem;
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   letter-spacing: 0.02em;
   border-radius: var(--lq-radius-pill);
   border: 1px solid transparent;

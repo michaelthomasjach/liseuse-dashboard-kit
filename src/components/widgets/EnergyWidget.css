@@ -40,7 +40,7 @@
 
 .lq-energy-row__value {
   font-size: 1.15rem;
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   color: var(--lq-color-text);
   white-space: nowrap;
 }

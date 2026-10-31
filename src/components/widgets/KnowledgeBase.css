@@ -80,7 +80,7 @@
 }
 
 .lq-kb__hit-title {
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   font-size: var(--lq-text-sm);
 }
 
@@ -91,8 +91,9 @@
 
 .lq-kb__hit-cat,
 .lq-kb__cat {
-  font-size: 10px;
-  letter-spacing: 0.06em;
+  font-size: var(--lq-label-size, 10px);
+  letter-spacing: var(--lq-label-tracking, 0.06em);
+  font-family: var(--lq-label-font, inherit);
   text-transform: uppercase;
   color: var(--lq-color-accent);
 }
@@ -124,7 +125,7 @@
 }
 
 .lq-kb__summary {
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   line-height: 1.45;
 }
 
@@ -155,7 +156,7 @@
 .lq-kb__tips-title,
 .lq-kb__related-title {
   font-size: var(--lq-text-xs);
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   color: var(--lq-color-text-muted);
 }
 
@@ -249,7 +250,7 @@
   padding: 0 var(--lq-space-3) 0 var(--lq-space-2);
   font: inherit;
   font-size: var(--lq-text-sm);
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   color: var(--lq-color-text);
   cursor: pointer;
   background: var(--lq-color-panel);

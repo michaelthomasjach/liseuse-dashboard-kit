@@ -12,7 +12,7 @@
 
 .lq-script-xy-chart__title {
   font-size: 0.72rem;
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
   color: var(--lq-color-text);
 }
 

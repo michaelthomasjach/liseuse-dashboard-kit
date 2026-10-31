@@ -11,7 +11,7 @@
 .lq-testimonial--card {
   padding: var(--lq-space-5);
   background-color: var(--lq-color-panel);
-  border: 1px solid var(--lq-color-border-subtle);
+  border: 1px solid var(--lq-color-panel-border, var(--lq-color-border-subtle));
   border-radius: var(--lq-radius-lg);
   box-shadow: var(--lq-shadow-panel);
 }
@@ -46,7 +46,7 @@
 .lq-testimonial__mark {
   font-size: 2.5rem;
   line-height: 1;
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   color: var(--lq-color-accent);
 }
 
@@ -87,7 +87,7 @@
   background-color: var(--lq-color-fill-track);
   border: 1px solid var(--lq-color-border-subtle);
   font-size: 0.8rem;
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   color: var(--lq-color-text);
   overflow: hidden;
 }
@@ -106,7 +106,7 @@
 
 .lq-testimonial__name {
   font-size: 0.88rem;
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   color: var(--lq-color-text);
 }
 
@@ -122,7 +122,7 @@
 .lq-testimonial__mark-word {
   background-color: color-mix(in srgb, var(--lq-color-accent) 18%, transparent);
   color: inherit;
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   padding: 0 0.15em;
   border-radius: var(--lq-radius-sm);
 }

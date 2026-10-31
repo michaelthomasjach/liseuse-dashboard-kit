@@ -11,7 +11,7 @@
   flex-direction: column;
   width: 100%;
   background-color: var(--lq-color-panel);
-  border: 1.5px solid var(--lq-color-border);
+  border: var(--lq-control-border-width, 1.5px) solid var(--lq-color-border);
   border-radius: var(--lq-radius-md);
   transition: border-color var(--lq-transition-fast), box-shadow var(--lq-transition-fast);
   overflow: hidden;

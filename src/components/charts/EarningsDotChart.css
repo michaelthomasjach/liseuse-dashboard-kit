@@ -58,7 +58,7 @@
 
 .lq-earnings-dot-chart__quarter--selected .lq-earnings-dot-chart__date-label {
   fill: var(--lq-color-text);
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
 }
 
 /* Height is reserved whether or not a quarter is selected, so picking one never shifts the
@@ -75,7 +75,7 @@
 }
 
 .lq-earnings-dot-chart__readout-date {
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   color: var(--lq-color-text);
 }
 
@@ -91,12 +91,12 @@
 
 .lq-earnings-dot-chart__surprise--up {
   color: var(--lq-color-up);
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
 }
 
 .lq-earnings-dot-chart__surprise--down {
   color: var(--lq-color-down);
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
 }
 
 /* The hovered quarter's own ground. Mixed from the text token rather than set as a grey, so it
@@ -112,5 +112,5 @@
    band agree about which quarter is being asked about. */
 .lq-earnings-dot-chart__quarter--hovered .lq-earnings-dot-chart__date-label {
   fill: var(--lq-color-text);
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
 }

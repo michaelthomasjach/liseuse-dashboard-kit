@@ -27,7 +27,7 @@
 
 .lq-weather__temp {
   font-size: 2.4rem;
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   line-height: 1.1;
   color: var(--lq-color-text);
 }
@@ -44,7 +44,7 @@
   gap: var(--lq-space-3);
   margin-top: var(--lq-space-1);
   font-size: 0.9rem;
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
   color: var(--lq-color-text-muted);
 }
 
@@ -66,9 +66,9 @@
   gap: var(--lq-space-2);
   padding: var(--lq-space-2) var(--lq-space-3);
   font-size: 0.85rem;
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
   color: var(--lq-color-text);
-  border: 1.5px solid var(--lq-color-border);
+  border: var(--lq-control-border-width, 1.5px) solid var(--lq-color-border);
   border-radius: var(--lq-radius-md);
 }
 
@@ -91,9 +91,10 @@
 }
 
 .lq-weather__forecast-title {
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  font-size: var(--lq-label-size, 0.7rem);
+  font-weight: var(--lq-label-weight, 700);
+  letter-spacing: var(--lq-label-tracking, 0.08em);
+  font-family: var(--lq-label-font, inherit);
   text-transform: uppercase;
   color: var(--lq-color-text-muted);
 }
@@ -114,7 +115,7 @@
 
 .lq-weather__forecast-label {
   font-size: 0.78rem;
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
   color: var(--lq-color-text-muted);
 }
 
@@ -129,7 +130,7 @@
 
 .lq-weather__forecast-max {
   font-size: 0.85rem;
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   color: var(--lq-color-text);
 }
 

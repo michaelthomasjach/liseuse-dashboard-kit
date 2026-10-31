@@ -67,9 +67,10 @@
 .lq-script-docs__nav-group-label {
   margin-top: var(--lq-space-3);
   padding: 0 var(--lq-space-2);
-  font-size: var(--lq-text-xs);
-  font-weight: 700;
-  letter-spacing: 0.04em;
+  font-size: var(--lq-label-size, var(--lq-text-xs));
+  font-weight: var(--lq-label-weight, 700);
+  letter-spacing: var(--lq-label-tracking, 0.04em);
+  font-family: var(--lq-label-font, inherit);
   text-transform: uppercase;
   color: var(--lq-color-text-muted);
 }
@@ -124,7 +125,7 @@
    --nav-item--active below, one level deeper. */
 .lq-script-docs__nav-subitem--active {
   color: var(--lq-color-accent);
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
 }
 
 /* A <button>, not an <a> (see ScriptDocumentationModal.tsx's own doc on why) — the reset
@@ -181,7 +182,7 @@
    neighboring item. */
 .lq-script-docs__nav-item--active {
   color: var(--lq-color-text);
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
   border-left-color: var(--lq-color-accent);
   background-color: var(--lq-color-hover);
 }
@@ -194,7 +195,7 @@
    section is the one actually in view — the two aren't mutually exclusive. */
 .lq-script-docs__nav-item--tutorial {
   color: var(--lq-color-accent);
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   border-left-color: var(--lq-color-accent);
   background-color: color-mix(in srgb, var(--lq-color-accent) 10%, transparent);
 }
@@ -240,7 +241,7 @@
   margin: 0 0 var(--lq-space-3);
   padding-top: var(--lq-space-3);
   font-size: var(--lq-text-h3);
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   color: var(--lq-color-text);
   scroll-margin-top: var(--lq-space-3);
 }
@@ -298,7 +299,7 @@
   padding-top: var(--lq-space-4);
   border-top: 1px solid var(--lq-color-border-subtle);
   font-size: var(--lq-text-md);
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
   color: var(--lq-color-text);
 }
 

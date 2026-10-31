@@ -31,7 +31,7 @@
 
 .lq-header-layout__nav-item {
   font-size: 0.88rem;
-  font-weight: 500;
+  font-weight: var(--lq-font-weight-medium, 500);
   color: var(--lq-color-text-muted);
   text-decoration: none;
   white-space: nowrap;
@@ -43,7 +43,7 @@
 
 .lq-header-layout__nav-item--active {
   color: var(--lq-color-text);
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
 }
 
 .lq-header-layout__actions {

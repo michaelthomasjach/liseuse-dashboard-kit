@@ -33,9 +33,9 @@
 }
 
 .lq-text--medium {
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
 }
 
 .lq-text--bold {
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
 }

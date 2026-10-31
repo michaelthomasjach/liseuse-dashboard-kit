@@ -7,7 +7,7 @@
 
 .lq-portfolio-summary__value {
   font-size: 2rem;
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   color: var(--lq-color-text);
   font-variant-numeric: tabular-nums;
 }

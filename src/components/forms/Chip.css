@@ -31,7 +31,7 @@
   color: var(--lq-color-accent);
   background: color-mix(in srgb, var(--lq-color-accent) 10%, var(--lq-color-panel));
   border-color: var(--lq-color-accent);
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
 }
 
 .lq-chip:disabled {

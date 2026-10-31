@@ -16,7 +16,7 @@
 
 .lq-balance__label {
   font-size: 0.8rem;
-  font-weight: 600;
+  font-weight: var(--lq-font-weight-semibold, 600);
   color: var(--lq-color-text);
 }
 
@@ -37,7 +37,7 @@
   min-width: 1.2em;
   text-align: center;
   font-size: 0.75rem;
-  font-weight: 700;
+  font-weight: var(--lq-font-weight-bold, 700);
   color: var(--lq-color-text-muted);
 }
 

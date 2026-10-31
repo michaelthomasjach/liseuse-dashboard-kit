@@ -1,6 +1,11 @@
 .lq-date-picker__trigger {
   cursor: pointer;
   text-align: left;
+  /* Un <button> ne reprend ni la police ni la couleur de la page : sans ces trois lignes, la valeur
+     s'affichait en Arial 13 px noir — invisible sur la surface sombre. */
+  font-family: inherit;
+  font-size: var(--lq-control-font-size, 0.9rem);
+  color: var(--lq-control-color, var(--lq-color-text));
 }
 
 .lq-date-picker {

@@ -46,3 +46,23 @@ export const Sizes: Story = {
     </div>
   ),
 };
+
+/** Le libellé dans la boîte : il rétrécit au focus et une fois le champ rempli ; `required` pose
+ *  l'astérisque dans le coin. */
+export const LabelInside: Story = {
+  render: () => (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10, maxWidth: 480 }}>
+      <Input labelPosition="inside" label="Projet" required />
+      <div style={{ display: "flex", gap: 10 }}>
+        <div style={{ flex: 1 }}>
+          <Input labelPosition="inside" label="Prénom" required />
+        </div>
+        <div style={{ flex: 1 }}>
+          <Input labelPosition="inside" label="Nom" />
+        </div>
+      </div>
+      <Input labelPosition="inside" label="Courriel" placeholder="ex. : nom@exemple.fr" required />
+      <Input labelPosition="inside" label="Désactivé" placeholder="Rien à saisir ici" disabled />
+    </div>
+  ),
+};

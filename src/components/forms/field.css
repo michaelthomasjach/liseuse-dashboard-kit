@@ -4,12 +4,12 @@
 .lq-field {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--lq-field-gap, 6px);
 }
 
 .lq-field__label {
-  font-size: 0.8rem;
-  font-weight: var(--lq-font-weight-semibold, 600);
+  font-size: var(--lq-field-label-size, 0.8rem);
+  font-weight: var(--lq-field-label-weight, var(--lq-font-weight-semibold, 600));
   color: var(--lq-color-text);
 }
 
@@ -18,8 +18,8 @@
   align-items: center;
   gap: var(--lq-space-2);
   width: 100%;
-  min-height: 40px;
-  padding: 0 var(--lq-space-3);
+  min-height: var(--lq-control-height, 40px);
+  padding: 0 var(--lq-control-padding-x, var(--lq-space-3));
   background-color: var(--lq-color-panel);
   border: var(--lq-control-border-width, 1.5px) solid var(--lq-color-border);
   border-radius: var(--lq-radius-md);
@@ -67,8 +67,8 @@
   outline: none;
   background: transparent;
   font-family: inherit;
-  font-size: 0.9rem;
-  color: var(--lq-color-text);
+  font-size: var(--lq-control-font-size, 0.9rem);
+  color: var(--lq-control-color, var(--lq-color-text));
 }
 
 .lq-field__input--small {
@@ -104,6 +104,9 @@
 .lq-field__helper {
   font-size: 0.75rem;
   color: var(--lq-color-text-muted);
+  /* L'écart propre à l'aide, en plus de celui du champ : un thème peut coller le libellé au champ
+     (--lq-field-gap: 0) sans coller l'aide dessous. */
+  margin-top: var(--lq-field-helper-offset, 0px);
   /* Helper text is usually one short line, but a script parameter's own `new Variable(..., {
      description })` can be several paragraphs (see scriptExamples.ts's own RECALC_EVERY, which has
      to explain a real cost trade-off) — pre-line renders the `\n\n` between them while still
@@ -117,6 +120,91 @@
   display: flex;
   align-items: center;
   gap: 4px;
+  margin-top: var(--lq-field-helper-offset, 0px);
   font-size: 0.75rem;
   color: var(--lq-color-danger);
+}
+
+/* ---- labelPosition="inside" ----
+ * Le libellé dans la boîte : 14 px au repos, 12 px et atténué dès que le champ a le focus ou une
+ * valeur. Au focus, le filet prend l'accent, sans halo. */
+
+.lq-field__control--inset {
+  position: relative;
+  align-items: stretch;
+  min-height: var(--lq-inset-height, 52px);
+  padding: 5px 9px 4px;
+  cursor: text;
+  transition: border-color var(--lq-transition-fast), background-color 200ms;
+}
+
+.lq-field__control--inset:focus-within {
+  border-color: var(--lq-color-accent);
+  box-shadow: none;
+}
+
+.lq-field__control--inset.lq-field__control--error:focus-within {
+  border-color: var(--lq-color-danger);
+  box-shadow: none;
+}
+
+.lq-field__control--inset .lq-field__icon {
+  align-self: center;
+}
+
+.lq-field__inset {
+  display: flex;
+  flex-direction: column-reverse;
+  justify-content: flex-end;
+  flex: 1;
+  min-width: 0;
+}
+
+.lq-field__inset-label {
+  font-size: var(--lq-inset-label-size, 0.875rem);
+  line-height: 20px;
+  color: var(--lq-color-text);
+  cursor: inherit;
+  transition: font-size 150ms cubic-bezier(0.4, 0, 0.2, 1), opacity 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.lq-field__inset .lq-field__input {
+  height: 25px;
+  margin-top: -4px;
+  padding: 0;
+  line-height: 16px;
+}
+
+.lq-field__inset .lq-field__input:focus + .lq-field__inset-label {
+  font-size: var(--lq-inset-label-size-small, 0.75rem);
+  opacity: 0.67;
+}
+
+.lq-field__inset .lq-field__input:not(:focus):not(:placeholder-shown) + .lq-field__inset-label {
+  font-size: var(--lq-inset-label-size-small, 0.75rem);
+  opacity: 0.5;
+}
+
+.lq-field__required {
+  position: absolute;
+  top: 2px;
+  right: 10px;
+  font-size: 1.25rem;
+  line-height: 30px;
+  color: var(--lq-color-danger);
+}
+
+/* Désactivé : la boîte se teinte au lieu de pâlir en bloc, et seuls ses textes s'estompent. */
+.lq-field__control--inset.lq-field__control--disabled {
+  opacity: 1;
+  background-color: color-mix(in srgb, var(--lq-color-text) 2%, var(--lq-color-panel));
+}
+
+.lq-field__control--inset.lq-field__control--disabled .lq-field__inset-label {
+  opacity: 0.57;
+}
+
+.lq-field__control--inset.lq-field__control--disabled .lq-field__input {
+  opacity: 0.4;
+  cursor: not-allowed;
 }

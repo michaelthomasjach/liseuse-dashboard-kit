@@ -73,6 +73,15 @@
   pointer-events: none;
 }
 
+.lq-progress-bar__inside--split {
+  text-shadow: none;
+}
+
+.lq-progress-bar__inside--on-fill {
+  color: var(--lq-color-accent-contrast);
+  text-shadow: none;
+}
+
 .lq-root[data-lq-palette="eink"] .lq-progress-bar__track {
   border-radius: 0;
   border: 1px solid var(--lq-color-border);

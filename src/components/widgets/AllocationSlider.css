@@ -14,7 +14,8 @@
   display: flex;
   height: 22px;
   overflow: hidden;
-  border: 1px solid var(--lq-color-border);
+  /* Réglable par un thème (`none` pour une barre sans filet, les segments suffisant à la dessiner). */
+  border: var(--lq-alloc-bar-border, 1px solid var(--lq-color-border));
   border-radius: var(--lq-radius-sm, 4px);
   background: var(--lq-color-fill-track);
 }

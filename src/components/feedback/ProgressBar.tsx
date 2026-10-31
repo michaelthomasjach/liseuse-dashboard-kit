@@ -110,6 +110,9 @@ export function ProgressBar({
     return items.length > 0 ? <div className={`lq-progress-bar__slot lq-progress-bar__slot--${position}`}>{items}</div> : null;
   }
 
+  // Sur une barre pleine et déterminée, le libellé intérieur se découpe sur le remplissage ; ailleurs
+  // (segments, indéterminée) il n'y a pas de frontière unique, et le halo reste la solution.
+  const splitLabel = !segments?.length && !indeterminate;
   const insideItems = [labelPosition === "inside" ? labelNode : null, valuePosition === "inside" ? valueNode : null].filter(Boolean);
 
   return (
@@ -150,7 +153,20 @@ export function ProgressBar({
               style={indeterminate ? undefined : { width: `${clamped}%` }}
             />
           )}
-          {insideItems.length > 0 && <div className="lq-progress-bar__inside">{insideItems}</div>}
+          {insideItems.length > 0 &&
+            (splitLabel ? (
+              // Le libellé deux fois : en couleur de texte sur toute la piste, et en contraste sur la
+              // seule partie remplie (découpée à sa largeur). Chaque moitié est lisible sur son fond,
+              // sans halo autour des lettres.
+              <>
+                <div className="lq-progress-bar__inside lq-progress-bar__inside--split">{insideItems}</div>
+                <div className="lq-progress-bar__inside lq-progress-bar__inside--on-fill" style={{ clipPath: `inset(0 ${100 - clamped}% 0 0)` }} aria-hidden="true">
+                  {insideItems}
+                </div>
+              </>
+            ) : (
+              <div className="lq-progress-bar__inside">{insideItems}</div>
+            ))}
         </div>
         {edgeSlot("right")}
       </div>

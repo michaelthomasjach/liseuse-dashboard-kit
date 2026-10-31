@@ -298,6 +298,8 @@
  *                      --lq-sidebar-font-size, --lq-sidebar-sub-font-size, --lq-sidebar-z-index,
  *                      and for the top bar beside it --lq-header-bg, --lq-header-shadow.
  *
+ *   Widgets            --lq-alloc-bar-border (1px solid --lq-color-border) around AllocationSlider's bar
+ *
  *   Rows               --lq-row-font-size   the lines of data under a header: PanelRow label
  *                      and value, DataTable cells, LegendRow (fall back to 0.95 / 0.88 / 0.9rem)
  *

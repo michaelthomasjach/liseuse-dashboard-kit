@@ -184,6 +184,11 @@
   padding: var(--lq-space-3);
   border-left: 1px solid var(--lq-color-border-subtle);
   width: 116px;
+  /* La colonne ne compte pas dans la hauteur du panneau : c'est le calendrier qui la fixe, et la
+     colonne s'y étire (align-items: stretch). Sans cela, la liste des heures — 48 options au pas de
+     30 min — imposait sa propre hauteur au panneau entier : 1 400 px, le bouton « Valider » hors de
+     l'écran et le calendrier poussé avec. */
+  contain: size;
 }
 
 /* Precise entry: type any time here (e.g. "9:07"), even off the list's step grid. */
@@ -211,6 +216,8 @@
 .lq-date-picker__time-list {
   flex: 1;
   min-height: 0;
+  /* Filet de sécurité là où `contain` manquerait : une dizaine d'heures visibles, le reste défile. */
+  max-height: var(--lq-time-list-max-height, 300px);
   overflow-y: auto;
   border: 1px solid var(--lq-color-border-subtle);
 }

@@ -290,7 +290,7 @@
   position: absolute;
   top: 0;
   bottom: 0;
-  width: 8px;
+  width: 10px;
   cursor: ew-resize;
 }
 
@@ -304,6 +304,40 @@
 
 .lq-sched__task:hover .lq-sched__grip {
   background-color: color-mix(in srgb, var(--lq-color-text) 18%, transparent);
+}
+
+/* La marque de la poignée : un trait debout au ras de chaque bout, dans l'épaisseur du bloc.
+
+   Sans elle, étirer une tâche était une fonction qu'il fallait déjà connaître pour la trouver : la
+   zone de saisie n'existait que sous le curseur, et seulement en visant juste. Une barre, c'est le
+   geste rendu visible — on voit par où tirer avant d'avoir essayé.
+
+   Elle sort au survol **et sur le bloc sélectionné**, parce que ce ne sont pas les mêmes moments :
+   le survol est celui où la main cherche, la sélection celui où on vient de désigner ce bloc-là
+   pour le régler. C'est un trait et non une teinte : sous e-ink la couleur tombe, un trait reste. */
+.lq-sched__grip::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  width: 2px;
+  border-radius: 1px;
+  background-color: color-mix(in srgb, var(--lq-color-text) 55%, transparent);
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.lq-sched__grip--start::after {
+  left: 2px;
+}
+
+.lq-sched__grip--end::after {
+  right: 2px;
+}
+
+.lq-sched__task:hover .lq-sched__grip::after,
+.lq-sched__task--selected .lq-sched__grip::after {
+  opacity: 1;
 }
 
 /* ---- patterns ---- */

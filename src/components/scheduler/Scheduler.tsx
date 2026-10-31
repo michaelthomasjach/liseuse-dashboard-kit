@@ -55,10 +55,16 @@ export interface SchedulerProps {
 
 const MIN_PX_PER_HOUR = 6;
 const MAX_PX_PER_HOUR = 600;
-/** Grab zone at each end of a block. Below this the block is too short to carry handles and is
- *  moved only, never resized — which is better than a block you cannot pick up at all. */
-const HANDLE_PX = 8;
-const MIN_RESIZABLE_PX = 28;
+/**
+ * Grab zone at each end of a block, and the width below which a block stops carrying handles and
+ * is moved only — which is better than a block you cannot pick up at all.
+ *
+ * Ten pixels rather than eight: a grip is aimed at, not swept into, and the two pixels are the
+ * difference between a target you hit and one you hunt for. The floor rises with it, so a block
+ * that keeps its handles always keeps a dozen pixels in the middle that still move it.
+ */
+const HANDLE_PX = 10;
+const MIN_RESIZABLE_PX = 32;
 
 type Drag =
   | { kind: "move"; id: string; grabOffset: number; startTime: number; endTime: number; resourceId: string }

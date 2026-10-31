@@ -21,6 +21,8 @@ export type { ColorSwatchButtonProps } from "./ColorSwatchButton";
 
 export { Modal } from "./Modal";
 export type { ModalProps } from "./Modal";
+export { SearchOverlay } from "./SearchOverlay";
+export type { SearchOverlayProps, SearchOverlaySection, SearchOverlayResult } from "./SearchOverlay";
 
 export { FieldGroup } from "./FieldGroup";
 export type { FieldGroupProps } from "./FieldGroup";

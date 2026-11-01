@@ -64,6 +64,14 @@
   padding-top: var(--lq-space-3);
 }
 
+/* Une Sparkline posée directement dans la tuile en prend toute la largeur, comme dans
+   HighlightStatCard : sa prop `width` ne fixe plus que son repère de dessin (preserveAspectRatio="none").
+   Sans cela, une courbe de 200 px restait collée à gauche d'une tuile de 260 px sous un filet pleine largeur. */
+.lq-card--highlight .lq-card__body > .lq-sparkline {
+  display: block;
+  width: 100%;
+}
+
 .lq-card__header {
   display: flex;
   align-items: center;

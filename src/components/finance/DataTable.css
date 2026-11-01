@@ -1,7 +1,7 @@
 /* Variables optionnelles (jamais déclarées dans tokens.css, lues avec leur repli) :
    --lq-table-cell-padding-y / -x, --lq-table-condensed-padding-y, --lq-table-stripe-bg,
    --lq-table-hover-bg, --lq-table-selected-bg, --lq-table-head-color, --lq-table-head-padding-y / -x,
-   --lq-table-page-border, --lq-table-page-font-size, --lq-table-page-current-bg / -color / -weight. */
+   --lq-table-page-border, --lq-table-page-bg, --lq-table-page-font-size, --lq-table-page-current-bg / -color / -weight. */
 
 .lq-data-table {
   width: 100%;
@@ -281,6 +281,7 @@
   padding: 0 var(--lq-space-2);
   font-size: var(--lq-table-page-font-size, var(--lq-control-font-size, var(--lq-text-sm)));
   font-variant-numeric: tabular-nums;
+  background-color: var(--lq-table-page-bg, var(--lq-color-panel));
   border: var(--lq-table-page-border, var(--lq-control-border-width, 1px) solid var(--lq-color-border));
 }
 

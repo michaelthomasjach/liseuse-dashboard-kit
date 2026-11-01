@@ -308,7 +308,7 @@
  *                      at 55 %) · --lq-table-hover-bg (--lq-color-hover) · --lq-table-selected-bg
  *                      (accent at 9 %) · --lq-table-head-color (text-muted) · --lq-table-head-padding-y
  *                      (--lq-space-2) / -x (cell padding) · pagination: --lq-table-page-border (control
- *                      border) · --lq-table-page-font-size · --lq-table-page-current-bg (--lq-color-fill)
+ *                      border) · --lq-table-page-bg (panel) · --lq-table-page-font-size · --lq-table-page-current-bg (--lq-color-fill)
  *                      / -color (accent-contrast) / -weight (inherit)
  *
  *   Surfaces           --lq-color-panel-border   the 1px outline of Card / Panel / TabbedCard /

@@ -1,4 +1,5 @@
 import { forwardRef, useId, type InputHTMLAttributes, type ReactNode } from "react";
+import { useFieldLabelPosition } from "../../theme/ThemeProvider";
 import { ErrorIcon } from "../icons";
 import { IconBase } from "../icons/IconBase";
 import "./field.css";
@@ -28,7 +29,8 @@ export interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 
   /** Control height/padding/font-size. Default "normal" (40px). */
   size?: "small" | "normal";
   /**
-   * `"above"` (défaut) : le libellé au-dessus du champ.
+   * `"above"` : le libellé au-dessus du champ. Sans valeur, le champ suit le thème
+   * (`LqThemeProvider fieldLabelPosition`), et à défaut `"above"`.
    *
    * `"inside"` : le libellé dans la boîte, au-dessus de la saisie. Il rétrécit quand le champ prend
    * le focus ou contient une valeur, et un champ `required` porte un astérisque dans son coin.
@@ -41,11 +43,12 @@ export interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 
 /** Base text input: label, leading/trailing icon slots, and an error state that
  *  every other form control in this library (Select, MaskedInput, DatePicker) shares visually. */
 export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
-  { label, error, success, helperText, leadingIcon, trailingIcon, className, containerClassName, id, disabled, size = "normal", labelPosition = "above", ...rest },
+  { label, error, success, helperText, leadingIcon, trailingIcon, className, containerClassName, id, disabled, size = "normal", labelPosition: ownLabelPosition, ...rest },
   ref
 ) {
   const autoId = useId();
   const inputId = id ?? autoId;
+  const labelPosition = useFieldLabelPosition(ownLabelPosition);
   const inside = labelPosition === "inside" && Boolean(label);
   // L'erreur prime : un champ ne peut pas être à la fois refusé et validé.
   const successState = !error && Boolean(success);

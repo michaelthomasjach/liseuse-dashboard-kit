@@ -229,7 +229,7 @@ Une ligne de tendance classique (pas "étendue", pas les autres types à géomé
 - `Popover` — moteur de positionnement générique (flip vertical bas/haut + décalage horizontal gauche/droite selon l'espace dispo), portalé dans `document.body` **avec réapplication du thème actif** (palette/surface/police) sur le portail, donc stylé correctement même en dehors de l'arbre `.lq-root` ; ferme au clic extérieur/Échap
 - `Select` — dropdown construit sur `Popover`
 - `InputDropdown` — champ de saisie + liste déroulante (combobox) : la liste se filtre à mesure qu'on tape (sans tenir compte de la casse ni des accents, sur le libellé, la description et la valeur), texte trouvé mis en gras, groupes, description sur deux lignes, ↑ ↓ Entrée Échap, bouton d'effacement (`onClear`) ; `filter={false}` + `onInputChange` + `loading` pour une recherche côté serveur
-- `Input` — champ texte de base (label, icônes, erreur, texte d'aide)
+- `Input` — champ texte de base (label, icônes, erreur, texte d'aide) ; `labelPosition="inside"` met le libellé dans la boîte (aussi sur `InputNumber`, `InputPassword`, `Textarea`, `InputDropdown`, `Select`), et `LqThemeProvider fieldLabelPosition="inside"` en fait le défaut de tout un sous-arbre
 - `MaskedInput` — moteur de masque générique (`#` = chiffre, tout le reste est littéral), caractère de masque configurable (`maskChar`)
 - `PhoneInput`, `CreditCardInput`, `DateInput` — masques prêts à l'emploi construits sur `MaskedInput`
 - `InputNumber` — champ numérique avec préfixe/suffixe (€, %) et steppers

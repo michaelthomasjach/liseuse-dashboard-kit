@@ -8,6 +8,7 @@ import {
   type ChangeEvent,
   type TextareaHTMLAttributes,
 } from "react";
+import { useFieldLabelPosition } from "../../theme/ThemeProvider";
 import { ErrorIcon } from "../icons";
 import { IconBase } from "../icons/IconBase";
 import "./field.css";
@@ -28,8 +29,8 @@ export interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElemen
   success?: string | boolean;
   helperText?: string;
   containerClassName?: string;
-  /** `"above"` (défaut) : libellé au-dessus. `"inside"` : dans la boîte, réduit dès que le champ a le
-   *  focus ou une valeur — la même mécanique qu'`Input`. */
+  /** `"above"` : libellé au-dessus. `"inside"` : dans la boîte, réduit dès que le champ a le
+   *  focus ou une valeur — la même mécanique qu'`Input`. Sans valeur : celle du thème, sinon `"above"`. */
   labelPosition?: "above" | "inside";
   /** Hauteur de départ, en lignes. Défaut 3 (`minRows` quand `autoResize`). */
   rows?: number;
@@ -65,7 +66,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function 
     containerClassName,
     id,
     disabled,
-    labelPosition = "above",
+    labelPosition: ownLabelPosition,
     rows,
     autoResize = false,
     minRows,
@@ -83,6 +84,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function 
 ) {
   const autoId = useId();
   const fieldId = id ?? autoId;
+  const labelPosition = useFieldLabelPosition(ownLabelPosition);
   const inside = labelPosition === "inside" && Boolean(label);
   const successState = !error && Boolean(success);
   const successText = !error && typeof success === "string" && success ? success : undefined;

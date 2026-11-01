@@ -1,5 +1,6 @@
 import { useId, useRef, useState, type KeyboardEvent } from "react";
 import { rovingTarget } from "../../internal/rovingFocus";
+import { useFieldLabelPosition, type LqFieldLabelPosition } from "../../theme/ThemeProvider";
 import { Popover } from "./Popover";
 import { ChevronDownIcon, CheckIcon, ErrorIcon } from "../icons";
 import "./field.css";
@@ -25,6 +26,9 @@ export interface SelectProps<T extends string = string> {
   className?: string;
   /** Control height/padding/font-size. Default "normal" (40px). */
   size?: "small" | "normal";
+  /** `"above"` : libellé au-dessus du champ ; `"inside"` : dans la boîte, en petit au-dessus de la
+   *  valeur. Sans valeur : celle du thème (`LqThemeProvider fieldLabelPosition`), sinon `"above"`. */
+  labelPosition?: LqFieldLabelPosition;
 }
 
 /** Adapted dropdown select: opens below the trigger by default, flips above
@@ -48,7 +52,9 @@ export function Select<T extends string = string>({
   ariaLabel,
   className,
   size = "normal",
+  labelPosition: ownLabelPosition,
 }: SelectProps<T>) {
+  const inside = useFieldLabelPosition(ownLabelPosition) === "inside" && Boolean(label);
   const [open, setOpen] = useState(false);
   const anchorRef = useRef<HTMLButtonElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
@@ -105,7 +111,7 @@ export function Select<T extends string = string>({
 
   return (
     <div className={["lq-field", "lq-select", className].filter(Boolean).join(" ")}>
-      {label && <span className="lq-field__label">{label}</span>}
+      {label && !inside && <span className="lq-field__label">{label}</span>}
       <button
         ref={anchorRef}
         type="button"
@@ -115,6 +121,7 @@ export function Select<T extends string = string>({
           size === "small" && "lq-field__control--small",
           error && "lq-field__control--error",
           disabled && "lq-field__control--disabled",
+          inside && "lq-field__control--inset",
         ]
           .filter(Boolean)
           .join(" ")}
@@ -127,9 +134,20 @@ export function Select<T extends string = string>({
         onClick={() => setOpen((o) => !o)}
         onKeyDown={onTriggerKeyDown}
       >
-        <span className={selected ? "lq-select__value" : "lq-select__placeholder"}>
-          {selected ? selected.label : placeholder}
-        </span>
+        {inside ? (
+          <span className="lq-field__inset lq-field__inset--fixed">
+            <span className={selected ? "lq-select__value" : "lq-select__placeholder"}>
+              {selected ? selected.label : placeholder}
+            </span>
+            <span className="lq-field__inset-label" aria-hidden="true">
+              {label}
+            </span>
+          </span>
+        ) : (
+          <span className={selected ? "lq-select__value" : "lq-select__placeholder"}>
+            {selected ? selected.label : placeholder}
+          </span>
+        )}
         <ChevronDownIcon size={16} className={open ? "lq-select__chevron lq-select__chevron--open" : "lq-select__chevron"} />
       </button>
       {error ? (

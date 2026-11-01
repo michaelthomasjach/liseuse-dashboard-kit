@@ -209,6 +209,29 @@
   opacity: 0.5;
 }
 
+/* Listes (`Select`, `InputDropdown`) : la boîte montre toujours une valeur ou une invite, le
+   libellé reste donc en petit au-dessus, sans s'agrandir. */
+.lq-field__inset--fixed .lq-field__inset-label {
+  font-size: var(--lq-inset-label-size-small, 0.75rem);
+  opacity: 0.67;
+}
+
+.lq-field__inset--fixed .lq-select__value,
+.lq-field__inset--fixed .lq-select__placeholder {
+  height: 25px;
+  margin-top: -4px;
+  line-height: 25px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.lq-field__control--inset .lq-select__chevron,
+.lq-field__control--inset .lq-input-dropdown__clear {
+  align-self: center;
+}
+
 .lq-field__required {
   position: absolute;
   top: 2px;

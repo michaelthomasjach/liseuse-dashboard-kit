@@ -1,4 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { useFieldLabelPosition, type LqFieldLabelPosition } from "../../theme/ThemeProvider";
 import { Popover } from "./Popover";
 import { CheckIcon, ChevronDownIcon, CloseIcon, ErrorIcon } from "../icons";
 import "./field.css";
@@ -43,6 +44,10 @@ export interface InputDropdownProps<T extends string = string> {
   onClear?: () => void;
   /** Caps how many options are rendered after filtering (long lists stay fast). Default 200. */
   maxResults?: number;
+  /** `"above"` : libellé au-dessus du champ ; `"inside"` : dans la boîte, en petit au-dessus de la
+   *  saisie (il ne s'agrandit pas : la boîte montre déjà la valeur ou l'invite). Sans valeur : celle
+   *  du thème (`LqThemeProvider fieldLabelPosition`), sinon `"above"`. */
+  labelPosition?: LqFieldLabelPosition;
   /** Leading icon inside the control (e.g. a magnifier). */
   leadingIcon?: ReactNode;
 }
@@ -96,6 +101,7 @@ export function InputDropdown<T extends string = string>({
   onClear,
   maxResults = 200,
   leadingIcon,
+  labelPosition: ownLabelPosition,
 }: InputDropdownProps<T>) {
   const id = useId();
   const listId = `${id}-list`;
@@ -169,11 +175,42 @@ export function InputDropdown<T extends string = string>({
   };
 
   const text = typing ? query : (selected?.label ?? "");
+  const inside = useFieldLabelPosition(ownLabelPosition) === "inside" && Boolean(label);
+  const input = (
+    <input
+      ref={inputRef}
+      id={id}
+      className={["lq-field__input", size === "small" && "lq-field__input--small"].filter(Boolean).join(" ")}
+      role="combobox"
+      aria-expanded={open}
+      aria-controls={listId}
+      aria-autocomplete="list"
+      aria-activedescendant={open && visible[active] ? `${id}-opt-${active}` : undefined}
+      aria-label={label ? undefined : ariaLabel}
+      aria-invalid={Boolean(error)}
+      autoComplete="off"
+      spellCheck={false}
+      disabled={disabled}
+      placeholder={selected && !typing ? selected.label : placeholder}
+      value={text}
+      onFocus={(e) => {
+        setOpen(true);
+        e.currentTarget.select();
+      }}
+      onChange={(e) => {
+        setTyping(true);
+        setQuery(e.target.value);
+        setOpen(true);
+        onInputChange?.(e.target.value);
+      }}
+      onKeyDown={onKeyDown}
+    />
+  );
   let lastGroup: string | undefined;
 
   return (
     <div className={["lq-field", "lq-input-dropdown", className].filter(Boolean).join(" ")}>
-      {label && (
+      {label && !inside && (
         <label htmlFor={id} className="lq-field__label">
           {label}
         </label>
@@ -185,6 +222,7 @@ export function InputDropdown<T extends string = string>({
           size === "small" && "lq-field__control--small",
           error && "lq-field__control--error",
           disabled && "lq-field__control--disabled",
+          inside && "lq-field__control--inset",
         ]
           .filter(Boolean)
           .join(" ")}
@@ -195,34 +233,16 @@ export function InputDropdown<T extends string = string>({
         }}
       >
         {leadingIcon && <span className="lq-field__icon">{leadingIcon}</span>}
-        <input
-          ref={inputRef}
-          id={id}
-          className={["lq-field__input", size === "small" && "lq-field__input--small"].filter(Boolean).join(" ")}
-          role="combobox"
-          aria-expanded={open}
-          aria-controls={listId}
-          aria-autocomplete="list"
-          aria-activedescendant={open && visible[active] ? `${id}-opt-${active}` : undefined}
-          aria-label={label ? undefined : ariaLabel}
-          aria-invalid={Boolean(error)}
-          autoComplete="off"
-          spellCheck={false}
-          disabled={disabled}
-          placeholder={selected && !typing ? selected.label : placeholder}
-          value={text}
-          onFocus={(e) => {
-            setOpen(true);
-            e.currentTarget.select();
-          }}
-          onChange={(e) => {
-            setTyping(true);
-            setQuery(e.target.value);
-            setOpen(true);
-            onInputChange?.(e.target.value);
-          }}
-          onKeyDown={onKeyDown}
-        />
+        {inside ? (
+          <span className="lq-field__inset lq-field__inset--fixed">
+            {input}
+            <label htmlFor={id} className="lq-field__inset-label">
+              {label}
+            </label>
+          </span>
+        ) : (
+          input
+        )}
         {onClear && selected && !disabled && (
           <button
             type="button"

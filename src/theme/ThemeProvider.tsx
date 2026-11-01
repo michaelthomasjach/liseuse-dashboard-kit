@@ -32,6 +32,16 @@ const LqThemeContext = createContext<LqThemeContextValue | null>(null);
  */
 const LqThemeClassContext = createContext<string | undefined>(undefined);
 
+/** Où les champs posent leur libellé, au-dessus de la boîte ou dans la boîte. */
+export type LqFieldLabelPosition = "above" | "inside";
+
+/**
+ * La position de libellé par défaut des champs du sous-arbre (`Input`, `InputNumber`,
+ * `InputPassword`, `Textarea`, `InputDropdown`, `Select`). Un champ qui reçoit `labelPosition` garde
+ * la sienne. Comme la classe, elle est reprise par les fournisseurs imbriqués (portails).
+ */
+const LqFieldLabelContext = createContext<LqFieldLabelPosition | undefined>(undefined);
+
 export interface LqThemeProviderProps {
   /** Rendering surface: raw e-ink / monochrome tablet, or a backlit color tablet. Default "eink". */
   palette?: LqPalette;
@@ -46,6 +56,13 @@ export interface LqThemeProviderProps {
   /** Classe ajoutée à `.lq-root`. Omise sur un fournisseur imbriqué, elle est reprise du fournisseur
    *  englobant — c'est ce qui fait suivre un thème d'application jusque dans les portails. */
   className?: string;
+  /**
+   * Position par défaut du libellé des champs du sous-arbre : `"above"` (défaut) ou `"inside"`.
+   * C'est un choix d'anatomie qui appartient au thème — un thème d'administration met ses libellés
+   * dans la boîte — sans qu'une application ait à le répéter sur chaque champ. Omise sur un
+   * fournisseur imbriqué, elle est reprise du fournisseur englobant.
+   */
+  fieldLabelPosition?: LqFieldLabelPosition;
   style?: CSSProperties;
   children: ReactNode;
 }
@@ -62,9 +79,12 @@ export function LqThemeProvider({
   onSurfaceChange,
   onFontChange,
   className,
+  fieldLabelPosition,
   style,
   children,
 }: LqThemeProviderProps) {
+  const inheritedFieldLabel = useContext(LqFieldLabelContext);
+  const fieldLabel = fieldLabelPosition ?? inheritedFieldLabel;
   const [paletteState, setPaletteState] = useState<LqPalette>(paletteProp ?? "eink");
   const [surfaceState, setSurfaceState] = useState<LqSurface>(surfaceProp ?? "light");
   const [fontState, setFontState] = useState<LqFont>(fontProp ?? "manrope");
@@ -100,6 +120,7 @@ export function LqThemeProvider({
   return (
     <LqThemeContext.Provider value={value}>
       <LqThemeClassContext.Provider value={rootClassName}>
+        <LqFieldLabelContext.Provider value={fieldLabel}>
         <div
           className={["lq-root", rootClassName].filter(Boolean).join(" ")}
           data-lq-palette={palette}
@@ -109,6 +130,7 @@ export function LqThemeProvider({
         >
           {children}
         </div>
+        </LqFieldLabelContext.Provider>
       </LqThemeClassContext.Provider>
     </LqThemeContext.Provider>
   );
@@ -122,6 +144,13 @@ export function useLqTheme(): LqThemeContextValue {
     throw new Error("useLqTheme must be used within an <LqThemeProvider>");
   }
   return ctx;
+}
+
+/** Position de libellé d'un champ : la sienne si elle est donnée, sinon celle du thème, sinon `"above"`. */
+// eslint-disable-next-line react-refresh/only-export-components -- hook colocated with its provider on purpose
+export function useFieldLabelPosition(own?: LqFieldLabelPosition): LqFieldLabelPosition {
+  const themed = useContext(LqFieldLabelContext);
+  return own ?? themed ?? "above";
 }
 
 /** Le thème du moment, ou `null` hors d'un `LqThemeProvider` — pour ce qui s'affiche aussi sans. */

@@ -1,6 +1,20 @@
+/* Variables optionnelles (jamais déclarées dans tokens.css, lues avec leur repli) :
+   --lq-table-cell-padding-y / -x, --lq-table-condensed-padding-y, --lq-table-stripe-bg,
+   --lq-table-hover-bg, --lq-table-selected-bg, --lq-table-head-color, --lq-table-head-padding-y / -x,
+   --lq-table-page-border, --lq-table-page-font-size, --lq-table-page-current-bg / -color / -weight. */
+
 .lq-data-table {
   width: 100%;
+  min-width: 0;
+}
+
+.lq-data-table__scroll {
+  width: 100%;
   overflow-x: auto;
+}
+
+.lq-data-table__scroll--fixed {
+  overflow-y: auto;
 }
 
 .lq-data-table table {
@@ -10,15 +24,25 @@
 }
 
 .lq-data-table th {
-  padding: var(--lq-space-2) var(--lq-space-3);
+  padding: var(--lq-table-head-padding-y, var(--lq-space-2)) var(--lq-table-head-padding-x, var(--lq-table-cell-padding-x, var(--lq-space-3)));
   font-size: var(--lq-label-size, 0.72rem);
   font-weight: var(--lq-label-weight, 700);
   letter-spacing: var(--lq-label-tracking, 0.04em);
   font-family: var(--lq-label-font, inherit);
   text-transform: uppercase;
-  color: var(--lq-color-text-muted);
+  color: var(--lq-table-head-color, var(--lq-color-text-muted));
   border-bottom: 1px solid var(--lq-color-border);
   white-space: nowrap;
+}
+
+/* En-tête figé : collé en haut de la zone qui défile, sur le fond du panneau pour masquer les
+   lignes qui passent dessous. Sans `maxHeight`, la zone ne défile pas et cela ne change rien. */
+.lq-data-table__scroll--fixed th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background-color: var(--lq-color-panel);
+  box-shadow: inset 0 -1px 0 var(--lq-color-border);
 }
 
 .lq-data-table__header {
@@ -42,7 +66,7 @@
 }
 
 .lq-data-table td {
-  padding: var(--lq-space-3);
+  padding: var(--lq-table-cell-padding-y, var(--lq-space-3)) var(--lq-table-cell-padding-x, var(--lq-space-3));
   color: var(--lq-color-text);
   border-bottom: 1px solid var(--lq-color-border-subtle);
   font-variant-numeric: tabular-nums;
@@ -52,16 +76,233 @@
   border-bottom: none;
 }
 
+/* ---- variantes ---- */
+
+.lq-data-table--condensed td {
+  padding-top: var(--lq-table-condensed-padding-y, var(--lq-space-1));
+  padding-bottom: var(--lq-table-condensed-padding-y, var(--lq-space-1));
+}
+
+.lq-data-table--condensed th {
+  padding-top: var(--lq-space-1);
+  padding-bottom: var(--lq-space-1);
+}
+
+.lq-data-table--striped .lq-data-table__row--even td {
+  background-color: var(--lq-table-stripe-bg, color-mix(in srgb, var(--lq-color-hover) 55%, transparent));
+}
+
+.lq-data-table--hover tbody tr:not(.lq-data-table__detail):hover td,
+.lq-data-table__row--interactive:hover td {
+  background-color: var(--lq-table-hover-bg, var(--lq-color-hover));
+}
+
+.lq-data-table--bordered .lq-data-table__scroll {
+  border: 1px solid var(--lq-color-border);
+}
+
+.lq-data-table--bordered th + th,
+.lq-data-table--bordered td + td {
+  border-left: 1px solid var(--lq-color-border-subtle);
+}
+
+.lq-data-table--bordered tbody tr:last-child td {
+  border-bottom: none;
+}
+
 .lq-data-table__row--interactive {
   cursor: pointer;
 }
 
-.lq-data-table__row--interactive:hover td {
-  background-color: var(--lq-color-hover);
+.lq-data-table__row--selected td {
+  background-color: var(--lq-table-selected-bg, color-mix(in srgb, var(--lq-color-accent) 9%, transparent));
+}
+
+.lq-data-table__row--open td {
+  border-bottom-color: transparent;
 }
 
 .lq-data-table__empty {
   text-align: center;
   color: var(--lq-color-text-muted);
   padding: var(--lq-space-6) var(--lq-space-3);
+}
+
+/* ---- colonnes de contrôle : chevron et case ---- */
+
+.lq-data-table th.lq-data-table__control,
+.lq-data-table td.lq-data-table__control {
+  width: 1%;
+  padding-right: 0;
+  white-space: nowrap;
+}
+
+.lq-data-table__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+.lq-data-table__expander {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  color: var(--lq-color-text-muted);
+  background: none;
+  border: none;
+  border-radius: var(--lq-radius-sm);
+  cursor: pointer;
+  transition: transform var(--lq-transition-base, 150ms ease), color 150ms ease;
+}
+
+.lq-data-table__expander:hover {
+  color: var(--lq-color-text);
+}
+
+.lq-data-table__expander--open {
+  transform: rotate(90deg);
+}
+
+.lq-data-table__detail td {
+  padding-top: 0;
+  color: var(--lq-color-text-muted);
+}
+
+/* ---- barre d'outils ---- */
+
+.lq-data-table__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lq-space-3);
+  margin-bottom: var(--lq-space-3);
+}
+
+.lq-data-table__toolbar-start,
+.lq-data-table__toolbar-end {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--lq-space-2);
+}
+
+.lq-data-table__selected {
+  font-size: var(--lq-text-sm);
+  color: var(--lq-color-text-muted);
+}
+
+.lq-data-table__search {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lq-space-2);
+  height: var(--lq-control-height, 32px);
+  padding: 0 var(--lq-control-padding-x, var(--lq-space-3));
+  color: var(--lq-color-text-muted);
+  background-color: var(--lq-color-panel);
+  border: var(--lq-control-border-width, 1px) solid var(--lq-color-border);
+  border-radius: var(--lq-radius-sm);
+}
+
+.lq-data-table__search:focus-within {
+  border-color: var(--lq-color-focus-ring);
+}
+
+.lq-data-table__search input {
+  width: 180px;
+  padding: 0;
+  font: inherit;
+  font-size: var(--lq-control-font-size, var(--lq-text-sm));
+  color: var(--lq-color-text);
+  background: none;
+  border: none;
+  outline: none;
+}
+
+.lq-data-table__tool,
+.lq-data-table__page {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--lq-space-1);
+  height: var(--lq-control-height, 32px);
+  padding: 0 var(--lq-space-3);
+  font: inherit;
+  font-size: var(--lq-control-font-size, var(--lq-text-sm));
+  color: var(--lq-color-text);
+  background-color: var(--lq-color-panel);
+  border: var(--lq-control-border-width, 1px) solid var(--lq-color-border);
+  border-radius: var(--lq-button-radius, var(--lq-radius-sm));
+  cursor: pointer;
+}
+
+.lq-data-table__tool:hover,
+.lq-data-table__page:hover:not(:disabled):not(.lq-data-table__page--current) {
+  background-color: var(--lq-color-hover);
+}
+
+.lq-data-table__picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lq-space-2);
+  padding: var(--lq-space-1) 0;
+}
+
+/* ---- pied : intervalle et pages ---- */
+
+.lq-data-table__footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lq-space-3);
+  margin-top: var(--lq-space-3);
+}
+
+.lq-data-table__range {
+  font-size: var(--lq-text-sm);
+  color: var(--lq-color-text-muted);
+}
+
+.lq-data-table__pages {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lq-space-1);
+}
+
+.lq-data-table__page {
+  min-width: var(--lq-control-height, 32px);
+  padding: 0 var(--lq-space-2);
+  font-size: var(--lq-table-page-font-size, var(--lq-control-font-size, var(--lq-text-sm)));
+  font-variant-numeric: tabular-nums;
+  border: var(--lq-table-page-border, var(--lq-control-border-width, 1px) solid var(--lq-color-border));
+}
+
+.lq-data-table__page:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.lq-data-table__page--current {
+  font-weight: var(--lq-table-page-current-weight, inherit);
+  color: var(--lq-table-page-current-color, var(--lq-color-accent-contrast));
+  background-color: var(--lq-table-page-current-bg, var(--lq-color-fill));
+  border-color: var(--lq-table-page-current-bg, var(--lq-color-fill));
+}
+
+.lq-data-table__gap {
+  padding: 0 var(--lq-space-1);
+  color: var(--lq-color-text-muted);
+}
+
+.lq-root[data-lq-palette="eink"] .lq-data-table__search,
+.lq-root[data-lq-palette="eink"] .lq-data-table__tool,
+.lq-root[data-lq-palette="eink"] .lq-data-table__page {
+  border-radius: 0;
 }

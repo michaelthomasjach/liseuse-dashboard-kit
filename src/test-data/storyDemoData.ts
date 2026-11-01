@@ -38,6 +38,24 @@ export const ORDERS: DemoOrder[] = [
   { id: "C-4828", client: "Ferme du Pré", produit: "Licence poste", quantite: 2, montant: 720, statut: "payée", date: "2026-10-25" },
 ];
 
+/** 57 commandes, pour ce qui a besoin de volume — la pagination de `DataTable` (six pages de dix),
+ *  sa recherche, son en-tête figé. Tirées des huit premières par rotation : fixes d'un chargement à
+ *  l'autre. */
+export const ORDERS_LONG: DemoOrder[] = Array.from({ length: 57 }, (_, i) => {
+  const base = ORDERS[(i * 5) % ORDERS.length];
+  const quantite = 1 + ((i * 7) % 24);
+  const unit = base.montant / base.quantite;
+  const day = 28 - Math.floor(i / 3);
+  return {
+    ...base,
+    id: `C-${4821 + i}`,
+    quantite,
+    montant: Math.round(quantite * unit),
+    statut: i % 7 === 3 ? "annulée" : i % 4 === 1 ? "en attente" : "payée",
+    date: day > 0 ? `2026-10-${String(day).padStart(2, "0")}` : `2026-09-${30 + day}`,
+  };
+});
+
 /** Le ton de `Badge` qui dit un statut de commande. */
 export function statutTone(statut: DemoOrder["statut"]): "up" | "down" | "warning" {
   return statut === "payée" ? "up" : statut === "annulée" ? "down" : "warning";

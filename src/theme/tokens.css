@@ -303,6 +303,14 @@
  *   Rows               --lq-row-font-size   the lines of data under a header: PanelRow label
  *                      and value, DataTable cells, LegendRow (fall back to 0.95 / 0.88 / 0.9rem)
  *
+ *   Tables             DataTable: --lq-table-cell-padding-y / -x (--lq-space-3) ·
+ *                      --lq-table-condensed-padding-y (--lq-space-1) · --lq-table-stripe-bg (hover
+ *                      at 55 %) · --lq-table-hover-bg (--lq-color-hover) · --lq-table-selected-bg
+ *                      (accent at 9 %) · --lq-table-head-color (text-muted) · --lq-table-head-padding-y
+ *                      (--lq-space-2) / -x (cell padding) · pagination: --lq-table-page-border (control
+ *                      border) · --lq-table-page-font-size · --lq-table-page-current-bg (--lq-color-fill)
+ *                      / -color (accent-contrast) / -weight (inherit)
+ *
  *   Surfaces           --lq-color-panel-border   the 1px outline of Card / Panel / TabbedCard /
  *                      Testimonial (falls back to --lq-color-border-subtle); `transparent` lets
  *                      the panel shadow alone detach the surface.

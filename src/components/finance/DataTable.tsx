@@ -346,7 +346,7 @@ export function DataTable<T>({
                     checked={allSelected}
                     indeterminate={selectedInView > 0 && !allSelected}
                     onChange={toggleAll}
-                    label={<span className="lq-data-table__sr">{labels.selectAll}</span>}
+                    label={<span className="lq-visually-hidden">{labels.selectAll}</span>}
                   />
                 </th>
               )}
@@ -451,7 +451,7 @@ export function DataTable<T>({
                         <Checkbox
                           checked={Boolean(isSelected)}
                           onChange={() => toggleRow(key)}
-                          label={<span className="lq-data-table__sr">{labels.selectRow}</span>}
+                          label={<span className="lq-visually-hidden">{labels.selectRow}</span>}
                         />
                       </td>
                     )}

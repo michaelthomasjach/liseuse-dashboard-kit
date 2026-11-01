@@ -82,6 +82,7 @@
 }
 
 .lq-search-overlay__section-title {
+  font-family: var(--lq-heading-font, inherit);
   margin: 0 0 var(--lq-space-3);
   font-size: 0.875rem;
   font-weight: var(--lq-font-weight-semibold, 600);

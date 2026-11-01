@@ -22,6 +22,7 @@
 }
 
 .lq-stat-card__value {
+  font-family: var(--lq-heading-font, inherit);
   font-size: 1.6rem;
   font-weight: var(--lq-font-weight-bold, 700);
   color: var(--lq-color-text);

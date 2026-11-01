@@ -122,8 +122,7 @@
 }
 
 /* Libellés de l'entrée active seulement : les autres sortent de la vue, pas de l'arbre d'accessibilité. */
-.lq-bottom-nav--active-labels .lq-bottom-nav__item:not(.lq-bottom-nav__item--active) .lq-bottom-nav__label,
-.lq-bottom-nav__sr {
+.lq-bottom-nav--active-labels .lq-bottom-nav__item:not(.lq-bottom-nav__item--active) .lq-bottom-nav__label {
   position: absolute;
   width: 1px;
   height: 1px;

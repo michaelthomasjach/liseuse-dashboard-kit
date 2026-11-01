@@ -85,6 +85,7 @@
 }
 
 .lq-lightbox__title {
+  font-family: var(--lq-heading-font, inherit);
   font-size: var(--lq-text-md);
   font-weight: var(--lq-font-weight-bold, 700);
   color: var(--lq-color-text);

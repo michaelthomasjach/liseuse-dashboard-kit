@@ -1,14 +1,17 @@
+/* --lq-heading-font : la police des titres d'un thème (h1–h5 ici, et les titres des composants :
+   Modal, pages, grandes valeurs de StatCard… — liste dans tokens.css). h6 suit --lq-label-font. */
 .lq-heading {
+  font-family: var(--lq-heading-font, inherit);
   margin: 0;
   font-weight: var(--lq-font-weight-heading, 700);
   line-height: var(--lq-line-height-heading);
   color: var(--lq-color-text);
-  letter-spacing: -0.01em;
+  letter-spacing: var(--lq-heading-tracking, -0.01em);
 }
 
 .lq-heading--h1 {
   font-size: var(--lq-text-h1);
-  letter-spacing: -0.02em;
+  letter-spacing: var(--lq-heading-tracking, -0.02em);
 }
 
 .lq-heading--h2 {

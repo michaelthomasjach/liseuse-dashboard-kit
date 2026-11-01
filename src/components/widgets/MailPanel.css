@@ -30,17 +30,6 @@
   border-right: 1px solid var(--lq-color-border-subtle);
 }
 
-/* Texte pour les lecteurs d'écran seulement. */
-.lq-mail__sr {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-}
-
 /* Les retours (« Dossiers », « Retour ») n'existent qu'en colonne unique. */
 .lq-mail__back {
   display: none;
@@ -198,6 +187,7 @@
 }
 
 .lq-mail__folder-name {
+  font-family: var(--lq-heading-font, inherit);
   margin: 0;
   font-size: var(--lq-text-h5);
   font-weight: var(--lq-font-weight-heading, var(--lq-font-weight-bold, 700));
@@ -449,6 +439,7 @@
 
 .lq-mail__action.lq-button {
   padding: var(--lq-space-1) var(--lq-space-3);
+  min-height: 0;
   font-size: var(--lq-text-sm);
 }
 
@@ -461,6 +452,7 @@
 }
 
 .lq-mail__message-subject {
+  font-family: var(--lq-heading-font, inherit);
   margin: 0;
   font-size: var(--lq-text-h4);
   font-weight: var(--lq-font-weight-heading, var(--lq-font-weight-bold, 700));

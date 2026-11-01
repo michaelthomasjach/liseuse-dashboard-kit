@@ -113,6 +113,7 @@
 }
 
 .lq-quickview__title {
+  font-family: var(--lq-heading-font, inherit);
   flex: 1 1 0;
   min-width: 0;
   margin: 0;

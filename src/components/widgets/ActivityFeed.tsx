@@ -248,7 +248,7 @@ function Post({
             onClick={() => onLike?.(post.id, !liked)}
           >
             <HeartIcon filled={liked} />
-            <span className={compact ? "lq-activity__sr" : undefined}>{labels.like}</span>
+            <span className={compact ? "lq-visually-hidden" : undefined}>{labels.like}</span>
             {likes > 0 ? <span className="lq-activity__count">{format(likes)}</span> : null}
           </button>
           <button
@@ -259,13 +259,13 @@ function Post({
             onClick={onToggleComments}
           >
             <CommentIcon size={16} />
-            <span className={compact ? "lq-activity__sr" : undefined}>{labels.comment}</span>
+            <span className={compact ? "lq-visually-hidden" : undefined}>{labels.comment}</span>
             {commentCount > 0 ? <span className="lq-activity__count">{format(commentCount)}</span> : null}
           </button>
           {onShare ? (
             <button type="button" className="lq-activity__action-btn" onClick={() => onShare(post.id)}>
               <ShareIcon />
-              <span className={compact ? "lq-activity__sr" : undefined}>{labels.share}</span>
+              <span className={compact ? "lq-visually-hidden" : undefined}>{labels.share}</span>
               {post.shares ? <span className="lq-activity__count">{format(post.shares)}</span> : null}
             </button>
           ) : null}

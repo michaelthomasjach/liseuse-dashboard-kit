@@ -210,17 +210,3 @@
   vertical-align: middle;
 }
 
-/* Defined here as well as in the script editor so the table is self-contained: a consumer that
-   never loads the editor's stylesheet still gets a caption that reads to a screen reader and to
-   nobody else. */
-.lq-visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}

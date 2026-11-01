@@ -80,6 +80,7 @@
 }
 
 .lq-kb__hit-title {
+  font-family: var(--lq-heading-font, inherit);
   font-weight: var(--lq-font-weight-bold, 700);
   font-size: var(--lq-text-sm);
 }
@@ -119,6 +120,7 @@
 }
 
 .lq-kb__title {
+  font-family: var(--lq-heading-font, inherit);
   margin: 0;
   font-size: var(--lq-text-h4);
   line-height: 1.2;

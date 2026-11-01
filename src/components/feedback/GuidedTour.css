@@ -113,6 +113,7 @@
 }
 
 .lq-gtour__title {
+  font-family: var(--lq-heading-font, inherit);
   margin: 0 0 var(--lq-space-2, 8px);
   font-size: var(--lq-text-lg, 1.05rem);
   font-weight: var(--lq-font-weight-bold, 700);

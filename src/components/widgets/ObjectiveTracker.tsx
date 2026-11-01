@@ -135,7 +135,7 @@ export function ObjectiveTracker({ title, subtitle, objectives, collapsed, onCol
                   <div className="lq-objectives__content">
                     <span className="lq-objectives__step-title">
                       {o.title}
-                      {o.state === "done" && <span className="lq-objectives__sr"> (fait)</span>}
+                      {o.state === "done" && <span className="lq-visually-hidden"> (fait)</span>}
                     </span>
                     {current && o.description && <span className="lq-objectives__desc">{o.description}</span>}
                     {current && o.hint && <span className="lq-objectives__hint">{o.hint}</span>}

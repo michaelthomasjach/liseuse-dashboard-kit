@@ -119,7 +119,7 @@ export function ServerErrorPage({
             <button type="button" className="lq-server-error-page__copy" onClick={copy} aria-label={copied ? copiedLabel : copyLabel} title={copied ? copiedLabel : copyLabel}>
               {copied ? <CheckIcon size={14} /> : <CopyIcon size={14} />}
             </button>
-            <span className="lq-server-error-page__live" role="status">
+            <span className="lq-visually-hidden" role="status">
               {copied ? copiedLabel : ""}
             </span>
           </div>

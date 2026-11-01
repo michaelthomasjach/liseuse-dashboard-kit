@@ -85,7 +85,7 @@
 
 .lq-invoice-page__title {
   margin: 0;
-  font-family: var(--lq-invoice-title-font, inherit);
+  font-family: var(--lq-invoice-title-font, var(--lq-heading-font, inherit));
   font-size: var(--lq-invoice-title-size, var(--lq-text-h2));
   font-weight: var(--lq-invoice-title-weight, var(--lq-font-weight-bold, 700));
   letter-spacing: var(--lq-invoice-title-tracking, 0.08em);

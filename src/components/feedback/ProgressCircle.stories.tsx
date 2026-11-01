@@ -39,6 +39,7 @@ export const WithValue: Story = {
       <ProgressCircle value={38} size="lg" showValue />
       <ProgressCircle value={100} size="lg" showValue tone="success" />
       <ProgressCircle value={72} size={64} showValue formatValue={(v) => `${Math.round((v / 100) * 50)}/50`} label="Fichiers envoyés" />
+      <ProgressCircle value={64} size={120} thickness={10} showValue formatValue={() => "218 / 340"} label="Lignes rapprochées" />
     </div>
   ),
 };

@@ -317,11 +317,3 @@ button.lq-notification-menu__mark:hover .lq-notification-menu__dot {
   background-color: var(--lq-color-hover);
 }
 
-.lq-notification-menu__sr {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-}

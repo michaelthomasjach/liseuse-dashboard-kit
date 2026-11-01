@@ -66,16 +66,21 @@
   stroke: var(--lq-progress-circle-arc);
 }
 
+/* Le chiffre, centré dans une boîte que ProgressCircle.tsx borne à la corde de l'anneau
+   (`max-width`) : ce qui n'y tient pas se coupe d'une ellipse au lieu de mordre sur le trait. */
 .lq-progress-circle__value {
   position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
   color: var(--lq-color-text);
   font-weight: var(--lq-font-weight-semibold, 600);
   font-variant-numeric: tabular-nums;
-  line-height: 1;
+  /* 1.2 et non 1 : la boîte coupe ce qui déborde, une barre oblique ou un « g » compris. */
+  line-height: 1.2;
   white-space: nowrap;
 }
 

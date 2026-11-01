@@ -38,6 +38,7 @@
 }
 
 .lq-music__title {
+  font-family: var(--lq-heading-font, inherit);
   font-size: 0.95rem;
   font-weight: var(--lq-font-weight-bold, 700);
   color: var(--lq-color-text);

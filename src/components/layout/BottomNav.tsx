@@ -92,7 +92,7 @@ export function BottomNav({
                 )}
               </span>
               <span className="lq-bottom-nav__label">{item.label}</span>
-              {showBadge && <span className="lq-bottom-nav__sr">, {srBadge}</span>}
+              {showBadge && <span className="lq-visually-hidden">, {srBadge}</span>}
             </>
           );
           return (

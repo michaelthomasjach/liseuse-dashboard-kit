@@ -269,6 +269,7 @@
 }
 
 .lq-notes-panel__title-input {
+  font-family: var(--lq-heading-font, inherit);
   font-size: var(--lq-text-h4);
   font-weight: var(--lq-font-weight-heading, var(--lq-font-weight-bold, 700));
   line-height: 1.25;

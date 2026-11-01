@@ -22,6 +22,8 @@ export interface LockScreenPageProps {
   unlocking?: boolean;
   unlockLabel?: string;
   passwordLabel?: string;
+  /** Défaut « Votre mot de passe ». Court à dessein : le champ fait moins de 300 px de large, un
+   *  texte plus long y était rogné. */
   passwordPlaceholder?: string;
   /** Ajoute le lien « Ce n'est pas vous ? » : un bouton s'il y a `onSwitchUser`, sinon un lien vers
    *  `switchUserHref`. */
@@ -52,7 +54,7 @@ export function LockScreenPage({
   unlocking,
   unlockLabel = "Déverrouiller",
   passwordLabel = "Mot de passe",
-  passwordPlaceholder = "Mot de passe pour déverrouiller",
+  passwordPlaceholder = "Votre mot de passe",
   onSwitchUser,
   switchUserHref,
   switchUserLabel = "Ce n'est pas vous ?",
@@ -124,10 +126,6 @@ export function LockScreenPage({
             error={error}
             readOnly={busy}
           />
-          {/* Le champ montre déjà l'erreur ; cette annonce la fait lire sans déplacer le focus. */}
-          <span className="lq-lock-screen-page__sr-only" role="alert">
-            {error ?? ""}
-          </span>
           <Button type="submit" block selected aria-disabled={busy || undefined} icon={<UnlockIcon size={16} />}>
             {unlockLabel}
           </Button>

@@ -2,8 +2,10 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState, type CSSPrope
 import { Button } from "../primitives/Button";
 import { SegmentedControl } from "../primitives/SegmentedControl";
 import { Popover } from "../forms/Popover";
+import { Modal } from "../primitives/Modal";
 import { ChevronLeftIcon, ChevronRightIcon, PlusIcon } from "../icons";
 import "./MonthCalendar.css";
+import "./MonthCalendarEvent.css";
 
 /** Les tons d'un événement — les mêmes couleurs du thème que les tons pleins de `Card`. */
 export type CalendarEventTone = "accent" | "success" | "info" | "danger" | "warning" | "neutral";
@@ -44,6 +46,17 @@ export interface MonthCalendarLabels {
   create: string;
   noEvents: string;
   allDay: string;
+  /** Le bouton qui ferme la fiche d'un événement. */
+  close: string;
+  /** Le bouton de suppression de la fiche, quand `onEventDelete` est fourni. */
+  deleteEvent: string;
+  /** Les intitulés de la fiche d'un événement. */
+  when: string;
+  time: string;
+  /** « Toute la journée », dans la fiche. */
+  allDayLong: string;
+  /** Un événement sur plusieurs jours, dans la fiche. */
+  range: (from: string, to: string) => string;
 }
 
 export interface MonthCalendarProps {
@@ -69,8 +82,16 @@ export interface MonthCalendarProps {
   onSelectedDateChange?: (date: Date) => void;
   /** Un clic (ou Entrée) sur un jour. La sélection suit, que ce rappel soit fourni ou non. */
   onDayClick?: (date: Date) => void;
-  /** Un clic sur un événement. */
+  /** Un clic sur un événement. Appelé en plus de l'ouverture de sa fiche (voir `showEventDetails`). */
   onEventClick?: (event: CalendarEvent) => void;
+  /** Un clic sur un événement ouvre sa **fiche** dans une modale : titre, date, horaire, description.
+   *  Défaut : vrai. `false` : seul `onEventClick` est appelé, à l'application d'afficher ce qu'elle veut. */
+  showEventDetails?: boolean;
+  /** Un contenu libre ajouté sous la fiche d'un événement (participants, lieu, lien…). */
+  renderEventDetails?: (event: CalendarEvent) => ReactNode;
+  /** Avec lui, la fiche porte un bouton « Supprimer l'événement » qui l'appelle puis se ferme. Un clic
+   *  sur l'événement ne supprime jamais rien de lui-même. */
+  onEventDelete?: (event: CalendarEvent) => void;
   /** Création : un double-clic sur un jour, le « + » qui apparaît au survol d'une case, ou le
    *  bouton de la liste d'un jour. Sans lui, rien de tout cela n'est proposé. */
   onCreate?: (date: Date) => void;
@@ -95,6 +116,12 @@ const DEFAULT_LABELS: MonthCalendarLabels = {
   create: "Nouvel événement",
   noEvents: "Aucun événement",
   allDay: "Journée",
+  close: "Fermer",
+  deleteEvent: "Supprimer l'événement",
+  when: "Date",
+  time: "Horaire",
+  allDayLong: "Toute la journée",
+  range: (from, to) => `Du ${from} au ${to}`,
 };
 
 /* ------------------------------------------------------------------ dates */
@@ -261,6 +288,9 @@ export function MonthCalendar({
   onSelectedDateChange,
   onDayClick,
   onEventClick,
+  showEventDetails = true,
+  renderEventDetails,
+  onEventDelete,
   onCreate,
   maxEventsPerDay = 3,
   labels: labelsProp,
@@ -285,6 +315,18 @@ export function MonthCalendar({
   const titleId = useId();
 
   const items = useMemo(() => events.map(normalize).sort(compareEvents), [events]);
+
+  /** L'événement dont la fiche est ouverte. On garde son id, et on relit l'événement dans `events` :
+   *  la fiche suit ainsi une modification faite ailleurs, et se ferme si l'événement disparaît. */
+  const [detailId, setDetailId] = useState<string | null>(null);
+  const detail = detailId !== null ? (events.find((e) => e.id === detailId) ?? null) : null;
+  const handleEventClick = useCallback(
+    (event: CalendarEvent) => {
+      onEventClick?.(event);
+      if (showEventDetails) setDetailId(event.id);
+    },
+    [onEventClick, showEventDetails],
+  );
 
   const setDate = useCallback(
     (d: Date) => {
@@ -428,10 +470,10 @@ export function MonthCalendar({
           {/* Des `Button` et non des `IconButton` : ils prennent ainsi la hauteur exacte du bouton
               « Aujourd'hui », quelle que soit celle que le thème donne aux boutons. */}
           <Button className="lq-month-calendar__step" icon={<ChevronLeftIcon size={16} />} aria-label={labels.previous} title={labels.previous} onClick={() => step(-1)}>
-            <span className="lq-month-calendar__sr">{labels.previous}</span>
+            <span className="lq-visually-hidden">{labels.previous}</span>
           </Button>
           <Button className="lq-month-calendar__step" icon={<ChevronRightIcon size={16} />} aria-label={labels.next} title={labels.next} onClick={() => step(1)}>
-            <span className="lq-month-calendar__sr">{labels.next}</span>
+            <span className="lq-visually-hidden">{labels.next}</span>
           </Button>
           <Button
             onClick={() => {
@@ -525,7 +567,7 @@ export function MonthCalendar({
                         <span className="lq-month-calendar__day-number" aria-hidden="true">
                           {day.getDate()}
                         </span>
-                        <span className="lq-month-calendar__sr">{fullFmt.format(day)}</span>
+                        <span className="lq-visually-hidden">{fullFmt.format(day)}</span>
                         {onCreate && (
                           <button
                             type="button"
@@ -548,7 +590,7 @@ export function MonthCalendar({
                           key={s.item.event.id}
                           segment={s}
                           timeFmt={timeFmt}
-                          onClick={onEventClick}
+                          onClick={handleEventClick}
                         />
                       ))}
                       {more > 0 && (
@@ -608,7 +650,7 @@ export function MonthCalendar({
                   {list.length === 0 ? (
                     <span className="lq-month-calendar__agenda-empty">{labels.noEvents}</span>
                   ) : (
-                    list.map((it) => <EventRow key={it.event.id} item={it} day={day} timeFmt={timeFmt} allDayLabel={labels.allDay} onClick={onEventClick} />)
+                    list.map((it) => <EventRow key={it.event.id} item={it} day={day} timeFmt={timeFmt} allDayLabel={labels.allDay} onClick={handleEventClick} />)
                   )}
                   {onCreate && (
                     <button type="button" className="lq-month-calendar__agenda-create" onClick={() => onCreate(day)} aria-label={`${labels.create} — ${fullFmt.format(day)}`}>
@@ -632,8 +674,8 @@ export function MonthCalendar({
             labels={labels}
             timeFmt={timeFmt}
             onEventClick={(ev) => {
-              onEventClick?.(ev);
               closeDayList();
+              handleEventClick(ev);
             }}
             onCreate={
               onCreate
@@ -646,6 +688,73 @@ export function MonthCalendar({
           />
         )}
       </Popover>
+
+      <Modal
+        open={detail !== null}
+        onClose={() => setDetailId(null)}
+        title={detail?.title}
+        closeLabel={labels.close}
+        footer={
+          detail && onEventDelete ? (
+            <div className="lq-mc-event__footer">
+              <Button
+                tone="danger"
+                variant="outline"
+                onClick={() => {
+                  onEventDelete(detail);
+                  setDetailId(null);
+                }}
+              >
+                {labels.deleteEvent}
+              </Button>
+              <Button onClick={() => setDetailId(null)}>{labels.close}</Button>
+            </div>
+          ) : undefined
+        }
+      >
+        {detail && <EventDetails event={detail} labels={labels} fullFmt={fullFmt} timeFmt={timeFmt} extra={renderEventDetails?.(detail)} />}
+      </Modal>
+    </div>
+  );
+}
+
+/** La fiche d'un événement : sa couleur, sa date (ou ses dates), son horaire, sa description. */
+function EventDetails({
+  event,
+  labels,
+  fullFmt,
+  timeFmt,
+  extra,
+}: {
+  event: CalendarEvent;
+  labels: MonthCalendarLabels;
+  fullFmt: Intl.DateTimeFormat;
+  timeFmt: Intl.DateTimeFormat;
+  extra?: ReactNode;
+}) {
+  const it = normalize(event);
+  const date =
+    it.days > 1 ? labels.range(fullFmt.format(it.start), fullFmt.format(it.end)) : capitalize(fullFmt.format(it.start));
+  const time = it.allDay
+    ? labels.allDayLong
+    : it.end.getTime() > it.start.getTime()
+      ? `${timeFmt.format(it.start)} – ${timeFmt.format(it.end)}`
+      : timeFmt.format(it.start);
+  return (
+    <div className="lq-mc-event" style={toneStyle(event)}>
+      <span className="lq-mc-event__swatch" aria-hidden="true" />
+      <dl className="lq-mc-event__facts">
+        <div>
+          <dt>{labels.when}</dt>
+          <dd>{date}</dd>
+        </div>
+        <div>
+          <dt>{labels.time}</dt>
+          <dd>{time}</dd>
+        </div>
+      </dl>
+      {event.description && <p className="lq-mc-event__description">{event.description}</p>}
+      {extra && <div className="lq-mc-event__extra">{extra}</div>}
     </div>
   );
 }

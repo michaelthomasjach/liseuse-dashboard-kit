@@ -51,6 +51,8 @@ export interface MatrixChartProps {
   negativeColor?: string;
   /** Prints the value inside each cell. */
   showValues?: boolean;
+  /** Default: two decimals, negatives with a true minus (U+2212, "−0.42") rather than the hyphen
+   *  `toFixed` writes, which is narrower than the digits and misaligns a column of cells. */
   formatValue?: (value: number) => string;
   /** Wheel to zoom, drag to pan, double-click to reset. Off leaves the matrix fixed — the right
    *  choice when it already fits, since a grid that moves under an accidental scroll is worse
@@ -158,7 +160,7 @@ export function MatrixChart({
   positiveColor = "var(--lq-color-up)",
   negativeColor = "var(--lq-color-down)",
   showValues = true,
-  formatValue = (v) => v.toFixed(2),
+  formatValue = (v) => v.toFixed(2).replace("-", "−"),
   zoomable = true,
   height = 360,
   rowLabelWidth,

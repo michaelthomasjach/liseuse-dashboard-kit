@@ -17,3 +17,14 @@ export const UpAndDown: Story = {
     </div>
   ),
 };
+
+export const Locale: Story = {
+  render: () => (
+    <div style={{ display: "flex", gap: 16 }}>
+      <PriceChangeTag value={2.4} />
+      <PriceChangeTag value={-1.1} />
+      <PriceChangeTag value={2.4} locale="en-US" />
+      <PriceChangeTag value={-1.1} locale="en-US" />
+    </div>
+  ),
+};

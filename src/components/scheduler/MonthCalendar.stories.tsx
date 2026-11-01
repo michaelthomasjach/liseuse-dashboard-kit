@@ -26,7 +26,7 @@ export const BusyDays: Story = {
   render: () => <MonthCalendar events={CALENDAR_BUSY_EVENTS} today={CALENDAR_TODAY} maxEventsPerDay={3} />,
 };
 
-/** Double-clic sur un jour, ou le « + » au survol : un événement se crée. Un clic sur un événement le retire. */
+/** Double-clic sur un jour, ou le « + » au survol : un événement se crée. Un clic sur un événement ouvre sa fiche, d’où on peut le supprimer (`onEventDelete`). */
 export const CreateEvents: Story = {
   render: function Render() {
     const [events, setEvents] = useState<CalendarEvent[]>(CALENDAR_EVENTS.slice(0, 6));
@@ -44,7 +44,7 @@ export const CreateEvents: Story = {
               { id: `n${list.length}-${d.getTime()}`, title: "Nouvel événement", start: d, allDay: true, tone: "success" },
             ])
           }
-          onEventClick={(ev) => setEvents((list) => list.filter((e) => e.id !== ev.id))}
+          onEventDelete={(ev) => setEvents((list) => list.filter((e) => e.id !== ev.id))}
         />
         <p style={{ fontSize: 12, opacity: 0.75, margin: 0 }}>
           {selected ? `Jour sélectionné : ${selected.toLocaleDateString("fr-FR", { dateStyle: "full" })}` : "Cliquez un jour."} Flèches,

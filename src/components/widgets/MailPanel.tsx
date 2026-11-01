@@ -520,7 +520,7 @@ export function MailPanel({
                 indeterminate={checkedCount > 0 && !allChecked}
                 onChange={toggleAll}
                 disabled={visible.length === 0}
-                label={<span className={checkedCount ? undefined : "lq-mail__sr"}>{checkedCount ? L.selected(checkedCount) : L.selectAll}</span>}
+                label={<span className={checkedCount ? undefined : "lq-visually-hidden"}>{checkedCount ? L.selected(checkedCount) : L.selectAll}</span>}
               />
               {checkedCount > 0 && (
                 <div className="lq-mail__bulk-actions" role="toolbar" aria-label={L.selected(checkedCount)}>
@@ -561,7 +561,7 @@ export function MailPanel({
                       className="lq-mail__check"
                       checked={isChecked}
                       onChange={(on) => toggleChecked(m.id, on)}
-                      label={<span className="lq-mail__sr">{m.subject}</span>}
+                      label={<span className="lq-visually-hidden">{m.subject}</span>}
                     />
                     <button
                       type="button"
@@ -575,7 +575,7 @@ export function MailPanel({
                         <span className="lq-mail__from">
                           {m.unread && <span className="lq-mail__dot" aria-hidden="true" />}
                           {m.from.name}
-                          {m.unread && <span className="lq-mail__sr">, {L.unread}</span>}
+                          {m.unread && <span className="lq-visually-hidden">, {L.unread}</span>}
                         </span>
                         <time className="lq-mail__date" dateTime={isoOf(m.date)}>
                           {fmt(m.date, "list")}
@@ -586,7 +586,7 @@ export function MailPanel({
                         {m.attachments && m.attachments.length > 0 && (
                           <span className="lq-mail__clip" title={L.attachments(m.attachments.length)}>
                             <PaperclipIcon size={14} />
-                            <span className="lq-mail__sr">{L.attachments(m.attachments.length)}</span>
+                            <span className="lq-visually-hidden">{L.attachments(m.attachments.length)}</span>
                           </span>
                         )}
                       </span>

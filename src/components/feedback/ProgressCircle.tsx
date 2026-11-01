@@ -19,8 +19,9 @@ export interface ProgressCircleProps {
    *  dans les mêmes variables (`--lq-tone-<ton>`). `"default"` prend la couleur de remplissage du
    *  thème, celle de `ProgressBar`. */
   tone?: SurfaceTone;
-  /** Affiche la valeur au centre. Ignoré en mode indéterminé. Prévoir au moins 40 px de diamètre :
-   *  en dessous, le chiffre ne tient pas dans l'anneau. */
+  /** Affiche la valeur au centre. Ignoré en mode indéterminé. La taille du texte suit le diamètre
+   *  intérieur de l'anneau et sa longueur, et ce qui déborde encore finit en ellipse. Prévoir au
+   *  moins 40 px de diamètre : en dessous, le chiffre devient illisible. */
   showValue?: boolean;
   /** Met en forme la valeur du centre (défaut : l'entier suivi de « % »). Une chaîne rendue sert
    *  aussi de `aria-valuetext`. */
@@ -94,10 +95,26 @@ export function ProgressCircle({ value, size = "md", thickness, tone = "default"
         />
       </svg>
       {showValue && !indeterminate && (
-        <span className="lq-progress-circle__value" style={{ fontSize: Math.max(10, Math.round((px - 2 * stroke) * 0.28)) }} aria-hidden="true">
+        <span className="lq-progress-circle__value" style={valueStyle(px, stroke, formatted)} aria-hidden="true">
           {formatted}
         </span>
       )}
     </span>
   );
+}
+
+/** Taille et largeur du chiffre central, tirées du diamètre *intérieur* de l'anneau. La boîte du
+ *  texte est la corde du cercle intérieur à mi-hauteur de ligne ; la taille part de 28 % du diamètre
+ *  (l'ancienne, que « 62 % » garde) et descend jusqu'à ce que le texte tienne dans la corde, à 0,6 em
+ *  par caractère — la chasse d'un chiffre tabulaire en demi-gras, un peu large pour une espace. Un
+ *  nœud React dont on ne connaît pas la longueur est compté pour quatre caractères ; s'il déborde
+ *  malgré tout, la boîte le coupe d'une ellipse au lieu de le laisser mordre sur l'anneau. */
+function valueStyle(px: number, stroke: number, formatted: ReactNode) {
+  const r = Math.max(0, px / 2 - stroke);
+  const chars = typeof formatted === "string" || typeof formatted === "number" ? Math.max(1, String(formatted).length) : 4;
+  // La corde à mi-hauteur d'une ligne de 1,2 em, moins un pixel de chaque côté pour ne pas toucher le trait.
+  const chord = (size: number) => 2 * Math.sqrt(Math.max(0, r * r - (0.6 * size) ** 2)) - 2;
+  let fontSize = Math.max(8, Math.round(2 * r * 0.28));
+  while (fontSize > 8 && chars * 0.6 * fontSize > chord(fontSize)) fontSize -= 1;
+  return { fontSize, maxWidth: Math.max(0, chord(fontSize)) };
 }

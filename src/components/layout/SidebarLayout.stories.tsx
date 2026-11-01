@@ -175,3 +175,36 @@ export const RailInFrame: Story = {
     </div>
   ),
 };
+
+/** Une coquille classique dans le contenu d'une coquille à rail — la maquette d'un écran dans une
+ *  application qui a déjà son rail. Les règles du rail sont bornées à leur coquille : la barre
+ *  imbriquée garde son logo, ses marges, ses libellés et son en-tête ordinaires. */
+export const NestedInRail: Story = {
+  render: () => (
+    <SidebarLayout
+      variant="rail"
+      stickyHeader
+      logo={<strong>Finance Kit</strong>}
+      navItems={[
+        { id: "overview", label: "Vue d'ensemble", icon: <HomeIcon size={18} />, active: true },
+        { id: "reports", label: "Rapports", icon: <TableIcon size={18} /> },
+      ]}
+      header={<Breadcrumbs items={[{ id: "home", label: "Accueil" }, { id: "overview", label: "Vue d'ensemble" }]} />}
+    >
+      <div style={{ width: 960, height: 420, border: "1px solid var(--lq-color-border)", overflow: "auto" }}>
+        <SidebarLayout
+          fullHeight={false}
+          logo={<strong>Aperçu</strong>}
+          navItems={[
+            { id: "overview", label: "Vue d'ensemble", icon: <HomeIcon size={18} />, active: true },
+            { id: "markets", label: "Marchés", icon: <BarChartIcon size={18} />, children: [{ id: "equities", label: "Actions" }, { id: "bonds", label: "Obligations" }] },
+            { id: "settings", label: "Paramètres", icon: <SettingsIcon size={18} /> },
+          ]}
+          header={<Breadcrumbs items={[{ id: "home", label: "Accueil" }, { id: "preview", label: "Aperçu" }]} />}
+        >
+          <StatCard label="Valeur totale" value="42 380 €" delta={3.4} />
+        </SidebarLayout>
+      </div>
+    </SidebarLayout>
+  ),
+};

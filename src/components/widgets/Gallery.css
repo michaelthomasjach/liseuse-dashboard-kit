@@ -142,6 +142,7 @@ button.lq-gallery__tile:hover .lq-gallery__image {
 }
 
 .lq-gallery__title {
+  font-family: var(--lq-heading-font, inherit);
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;

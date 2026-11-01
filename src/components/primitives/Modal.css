@@ -99,6 +99,7 @@
 }
 
 .lq-modal__title {
+  font-family: var(--lq-heading-font, inherit);
   margin: 0;
   font-size: 1.3rem;
   font-weight: var(--lq-font-weight-bold, 700);

@@ -80,3 +80,28 @@ export const InFrame: Story = {
     );
   },
 };
+
+/** Un cadre large (1100 × 640) : l'image reste, et elle **couvre** sa colonne sans en dicter la
+ *  hauteur — c'est le panneau qui la donne, la page tient dans les 640 px du cadre. */
+export const InWideFrame: Story = {
+  name: "Dans un cadre large",
+  render: () => (
+    <div style={{ padding: 24 }}>
+      <div style={{ width: 1100, height: 640, border: "1px solid var(--lq-color-border)", overflow: "auto" }}>
+        <LoginPage
+          fullHeight={false}
+          imageSrc={PLACEHOLDER_IMAGE}
+          logo={<strong style={{ fontSize: "1.1rem" }}>Finance Kit</strong>}
+          title="Bon retour"
+          subtitle="Connectez-vous à votre espace."
+        >
+          <Input label="Email" type="email" placeholder="vous@exemple.com" />
+          <InputPassword label="Mot de passe" />
+          <Button block selected>
+            Se connecter
+          </Button>
+        </LoginPage>
+      </div>
+    </div>
+  ),
+};

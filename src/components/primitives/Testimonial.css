@@ -105,6 +105,7 @@
 }
 
 .lq-testimonial__name {
+  font-family: var(--lq-heading-font, inherit);
   font-size: 0.88rem;
   font-weight: var(--lq-font-weight-bold, 700);
   color: var(--lq-color-text);

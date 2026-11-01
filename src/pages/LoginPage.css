@@ -17,7 +17,12 @@
   overflow: hidden;
 }
 
+/* L'image est sortie du flux : elle couvre sa colonne sans en dicter la hauteur. Dans le flux, son
+   ratio (1200×1400 par exemple) fixait la hauteur de la page, et fullHeight={false} débordait de
+   son cadre. C'est le panneau qui donne la hauteur, la colonne s'étire sur lui. */
 .lq-login-page__image img {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -46,6 +51,7 @@
 }
 
 .lq-login-page__heading h1 {
+  font-family: var(--lq-heading-font, inherit);
   margin: 0 0 4px;
   font-size: 1.5rem;
   font-weight: var(--lq-font-weight-bold, 700);

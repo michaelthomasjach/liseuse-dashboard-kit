@@ -27,6 +27,7 @@
 }
 
 .lq-objectives__title {
+  font-family: var(--lq-heading-font, inherit);
   font-size: var(--lq-text-sm);
   font-weight: var(--lq-font-weight-bold, 700);
 }
@@ -269,15 +270,6 @@
 .lq-objectives__done-text {
   font-size: var(--lq-text-lg);
   font-weight: var(--lq-font-weight-bold, 700);
-}
-
-.lq-objectives__sr {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
 }
 
 /* --- Au doigt, sur un téléphone ----------------------------------------------------------------- */

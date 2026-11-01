@@ -33,6 +33,7 @@
 }
 
 .lq-server-error-page__code {
+  font-family: var(--lq-heading-font, inherit);
   margin: 0;
   font-size: var(--lq-error-code-size, clamp(3.5rem, 18cqi, 6rem));
   font-weight: var(--lq-error-code-weight, var(--lq-font-weight-bold, 700));
@@ -42,6 +43,7 @@
 }
 
 .lq-server-error-page__title {
+  font-family: var(--lq-heading-font, inherit);
   margin: 0;
   font-size: var(--lq-error-title-size, var(--lq-text-h3));
   font-weight: var(--lq-error-title-weight, var(--lq-font-weight-semibold, 600));
@@ -115,16 +117,6 @@
 .lq-server-error-page__copy:focus-visible {
   outline: 2px solid var(--lq-color-focus-ring);
   outline-offset: 1px;
-}
-
-/* Annonce « Copié » aux lecteurs d'écran, invisible à l'œil (l'icône change déjà). */
-.lq-server-error-page__live {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
 }
 
 .lq-server-error-page__footer {

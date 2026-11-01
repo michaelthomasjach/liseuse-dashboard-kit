@@ -199,6 +199,7 @@
 }
 
 .lq-notification-card__title {
+  font-family: var(--lq-heading-font, inherit);
   font-size: 0.85rem;
   color: var(--lq-color-text);
 }

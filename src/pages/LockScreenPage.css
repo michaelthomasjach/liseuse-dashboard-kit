@@ -37,6 +37,7 @@
 }
 
 .lq-lock-screen-page__time {
+  font-family: var(--lq-heading-font, inherit);
   font-size: var(--lq-lock-screen-time-size, 3.5rem);
   font-weight: var(--lq-lock-screen-time-weight, var(--lq-font-weight-light, 300));
   line-height: 1;
@@ -64,6 +65,7 @@
 }
 
 .lq-lock-screen-page__name {
+  font-family: var(--lq-heading-font, inherit);
   margin: 0;
   font-size: var(--lq-lock-screen-name-size, var(--lq-text-h3));
   font-weight: var(--lq-lock-screen-name-weight, var(--lq-font-weight-semibold, 600));
@@ -108,15 +110,6 @@
   font-size: var(--lq-text-sm);
   text-align: center;
   color: var(--lq-color-text-muted);
-}
-
-.lq-lock-screen-page__sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
 }
 
 .lq-root[data-lq-palette="eink"] .lq-lock-screen-page__switch {

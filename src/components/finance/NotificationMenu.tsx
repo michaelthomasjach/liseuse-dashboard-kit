@@ -226,7 +226,7 @@ function NotificationRow({
         {item.text && <span className="lq-notification-menu__text">{item.text}</span>}
       </span>
       {item.time && <span className="lq-notification-menu__time">{item.time}</span>}
-      {item.unread && <span className="lq-notification-menu__sr">(non lue)</span>}
+      {item.unread && <span className="lq-visually-hidden">(non lue)</span>}
     </>
   );
 

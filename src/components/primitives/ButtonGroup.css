@@ -127,6 +127,7 @@
 
 .lq-button-group--sm > .lq-button {
   padding: var(--lq-space-1) var(--lq-space-3);
+  min-height: 0;
   font-size: var(--lq-text-sm);
 }
 

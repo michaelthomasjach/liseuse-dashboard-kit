@@ -93,6 +93,7 @@
 }
 
 .lq-live-tile__title {
+  font-family: var(--lq-heading-font, inherit);
   font-size: var(--lq-tile-title-size, var(--lq-text-h3));
   font-weight: var(--lq-tile-title-weight, var(--lq-font-weight-semibold, 600));
   line-height: var(--lq-line-height-heading);

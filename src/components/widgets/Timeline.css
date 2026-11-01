@@ -252,6 +252,7 @@
 }
 
 .lq-timeline__title {
+  font-family: var(--lq-heading-font, inherit);
   margin-top: 2px;
   font-size: var(--lq-text-md);
   font-weight: var(--lq-font-weight-semibold, 600);

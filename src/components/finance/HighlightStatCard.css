@@ -1,4 +1,5 @@
 .lq-highlight-stat-card__value {
+  font-family: var(--lq-heading-font, inherit);
   margin-top: 2px;
   font-size: 1.75rem;
   font-weight: var(--lq-font-weight-bold, 700);

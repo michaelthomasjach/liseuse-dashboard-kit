@@ -401,7 +401,7 @@ export function ChatPanel({
         {!mine && <span className="lq-chat-panel__row-face">{endsGroup && active && <Avatar name={active.name} src={active.avatarSrc} size={28} />}</span>}
         <div className="lq-chat-panel__stack">
           <div className="lq-chat-panel__bubble">
-            <span className="lq-chat-panel__sr">{mine ? "Vous" : active?.name}, {timeLabel(d, locale)} : </span>
+            <span className="lq-visually-hidden">{mine ? "Vous" : active?.name}, {timeLabel(d, locale)} : </span>
             {msg.text}
           </div>
           {endsGroup && (
@@ -410,7 +410,7 @@ export function ChatPanel({
               {mine && msg.status && (
                 <span className={`lq-chat-panel__status lq-chat-panel__status--${msg.status}`} title={STATUS_TEXT[msg.status]}>
                   <StatusGlyph status={msg.status} />
-                  <span className="lq-chat-panel__sr">{STATUS_TEXT[msg.status]}</span>
+                  <span className="lq-visually-hidden">{STATUS_TEXT[msg.status]}</span>
                 </span>
               )}
             </span>
@@ -477,7 +477,7 @@ export function ChatPanel({
                     )}
                   </span>
                 </span>
-                {c.status && <span className="lq-chat-panel__sr">{PRESENCE_TEXT[c.status]}</span>}
+                {c.status && <span className="lq-visually-hidden">{PRESENCE_TEXT[c.status]}</span>}
               </button>
             );
           })}
@@ -509,7 +509,7 @@ export function ChatPanel({
                     <Avatar name={active.name} src={active.avatarSrc} size={28} />
                   </span>
                   <div className="lq-chat-panel__bubble lq-chat-panel__typing" role="status">
-                    <span className="lq-chat-panel__sr">{active.name} écrit…</span>
+                    <span className="lq-visually-hidden">{active.name} écrit…</span>
                     <span className="lq-chat-panel__dot" aria-hidden="true" />
                     <span className="lq-chat-panel__dot" aria-hidden="true" />
                     <span className="lq-chat-panel__dot" aria-hidden="true" />
@@ -535,7 +535,7 @@ export function ChatPanel({
                 onChange={(e) => setDraft((d) => ({ ...d, [active.id]: e.target.value }))}
                 onKeyDown={onComposerKey}
               />
-              <span id={hintId} className="lq-chat-panel__sr">
+              <span id={hintId} className="lq-visually-hidden">
                 Entrée pour envoyer, Maj+Entrée pour aller à la ligne.
               </span>
               <IconButton type="submit" className="lq-chat-panel__send" icon={<SendGlyph />} ariaLabel={sendLabel} title={sendLabel} disabled={!text.trim()} />

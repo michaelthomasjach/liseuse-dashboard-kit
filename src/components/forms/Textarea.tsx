@@ -158,8 +158,10 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function 
     />
   );
 
+  // role="alert", comme sur Input : l'erreur est annoncée quand elle apparaît, aria-describedby ne la
+  // relit qu'au focus.
   const message = error ? (
-    <span id={`${fieldId}-error`} className="lq-field__error">
+    <span id={`${fieldId}-error`} className="lq-field__error" role="alert">
       <ErrorIcon size={14} />
       {error}
     </span>

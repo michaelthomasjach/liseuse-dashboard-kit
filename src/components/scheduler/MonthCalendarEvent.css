@@ -1,0 +1,66 @@
+/* La fiche d'un événement de MonthCalendar, rendue dans une Modal — donc dans un portail, hors de
+   `.lq-month-calendar` : les couleurs de ton y sont redéclarées pour que `--lq-mc-event` s'y résolve. */
+
+.lq-mc-event {
+  --lq-mc-tone-accent: var(--lq-color-accent);
+  --lq-mc-tone-success: var(--lq-color-green);
+  --lq-mc-tone-info: var(--lq-color-info);
+  --lq-mc-tone-danger: var(--lq-color-danger);
+  --lq-mc-tone-warning: var(--lq-color-warning);
+  --lq-mc-tone-neutral: var(--lq-color-text-muted);
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--lq-space-3);
+  min-width: min(360px, 100%);
+}
+
+/* Un filet de la couleur de l'événement, comme la pastille de la grille. */
+.lq-mc-event__swatch {
+  display: block;
+  width: 48px;
+  height: 4px;
+  background-color: var(--lq-mc-event);
+}
+
+.lq-mc-event__facts {
+  display: grid;
+  gap: var(--lq-space-2);
+  margin: 0;
+}
+
+.lq-mc-event__facts > div {
+  display: grid;
+  grid-template-columns: 6rem 1fr;
+  gap: var(--lq-space-3);
+}
+
+.lq-mc-event__facts dt {
+  font-family: var(--lq-label-font, inherit);
+  font-size: var(--lq-label-size, 0.72rem);
+  font-weight: var(--lq-label-weight, 700);
+  letter-spacing: var(--lq-label-tracking, 0.04em);
+  text-transform: uppercase;
+  color: var(--lq-color-text-muted);
+  padding-top: 0.15em;
+}
+
+.lq-mc-event__facts dd {
+  margin: 0;
+  color: var(--lq-color-text);
+}
+
+.lq-mc-event__description {
+  margin: 0;
+  padding-top: var(--lq-space-3);
+  border-top: 1px solid var(--lq-color-border-subtle);
+  color: var(--lq-color-text);
+  white-space: pre-line;
+}
+
+.lq-mc-event__footer {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--lq-space-2);
+  width: 100%;
+}

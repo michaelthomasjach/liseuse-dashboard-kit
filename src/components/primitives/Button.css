@@ -3,7 +3,18 @@
   align-items: center;
   justify-content: center;
   gap: var(--lq-space-2);
-  padding: var(--lq-button-padding-y, var(--lq-space-3)) var(--lq-button-padding-x, var(--lq-space-4));
+  /* Hauteur alignée sur IconButton et les champs : --lq-control-height (40 px). Sans
+     --lq-button-padding-y, la marge verticale s'en déduit (une ligne et deux filets ôtés ; elle était
+     de 12 px fixes et le bouton faisait ~45 px), et min-height rattrape l'arrondi de la ligne.
+     Ce plancher ne vaut que dans ce cas : --lq-button-fit vaut 1 sans --lq-button-padding-y, et la
+     marge réglée sinon — une longueur fois une longueur, la déclaration est alors invalide et
+     min-height reste à sa valeur initiale. Un thème qui règle sa marge (la couche « minimal » : 6 px,
+     boutons de 31 px pour des contrôles de 32) garde ainsi son rendu au pixel près, une barre
+     d'outils compacte aussi. --lq-button-min-height impose un plancher dans tous les cas. */
+  --lq-button-fit: var(--lq-button-padding-y, 1);
+  padding: var(--lq-button-padding-y, calc((var(--lq-control-height, 40px) - 1lh - 2 * var(--lq-control-border-width, 1.5px)) / 2))
+    var(--lq-button-padding-x, var(--lq-space-4));
+  min-height: var(--lq-button-min-height, calc(var(--lq-control-height, 40px) * var(--lq-button-fit)));
   font-family: inherit;
   font-size: var(--lq-button-font-size, 0.9rem);
   font-weight: var(--lq-font-weight-semibold, 600);

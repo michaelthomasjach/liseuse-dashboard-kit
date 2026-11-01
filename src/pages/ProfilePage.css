@@ -104,6 +104,7 @@
 }
 
 .lq-profile-page__name {
+  font-family: var(--lq-heading-font, inherit);
   margin: 0;
   font-size: var(--lq-profile-name-size, var(--lq-text-h3));
   font-weight: var(--lq-profile-name-weight, var(--lq-font-weight-bold, 700));

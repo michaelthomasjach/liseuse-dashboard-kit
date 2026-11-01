@@ -290,7 +290,7 @@
 
 /* Elevated bar: a shade apart from the page (the panel colour, slightly see-through with a blur, so the content
    reads as passing *under* it) and a shadow along its bottom edge. */
-.lq-sidebar-layout--sticky-header .lq-sidebar-layout__header {
+.lq-sidebar-layout--sticky-header > :where(.lq-sidebar-layout__main) > .lq-sidebar-layout__header {
   position: sticky;
   top: var(--lq-sidebar-topbar-height);
   /* Réglable par l'application (ex. passer au-dessus des menus et infobulles des graphiques). */
@@ -301,7 +301,7 @@
   box-shadow: var(--lq-sticky-header-shadow, 0 8px 18px -10px rgba(0, 0, 0, 0.55), 0 1px 0 var(--lq-color-border-subtle));
 }
 
-.lq-root[data-lq-surface="light"] .lq-sidebar-layout--sticky-header .lq-sidebar-layout__header {
+.lq-root[data-lq-surface="light"] .lq-sidebar-layout--sticky-header > :where(.lq-sidebar-layout__main) > .lq-sidebar-layout__header {
   --lq-sticky-header-shadow: 0 8px 18px -10px rgba(17, 17, 17, 0.28), 0 1px 0 var(--lq-color-border-subtle);
 }
 
@@ -310,7 +310,7 @@
     --lq-sidebar-topbar-height: 57px;
   }
 
-  .lq-sidebar-layout--sticky-header .lq-sidebar-layout__topbar:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)) {
+  .lq-sidebar-layout--sticky-header > :where(.lq-sidebar-layout__main) > .lq-sidebar-layout__topbar:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)) {
     position: sticky;
     top: 0;
     z-index: calc(var(--lq-sticky-header-z-index, 900) + 1);
@@ -326,7 +326,7 @@
     --lq-sidebar-topbar-height: 57px;
   }
 
-  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--sticky-header .lq-sidebar-layout__topbar {
+  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--sticky-header > :where(.lq-sidebar-layout__main) > .lq-sidebar-layout__topbar {
     position: sticky;
     top: 0;
     z-index: calc(var(--lq-sticky-header-z-index, 900) + 1);
@@ -347,6 +347,11 @@
  *   --lq-sidebar-head-bg · --lq-sidebar-head-border · --lq-sidebar-sub-bg
  *   --lq-sidebar-font-size (0.875rem) · --lq-sidebar-sub-font-size (0.8125rem)
  *   --lq-header-bg · --lq-header-shadow   (la barre haute posée à côté du rail)
+ *
+ * Chaque règle est bornée à la coquille qui porte la variante : `> .lq-sidebar-layout__sidebar`,
+ * `> :where(.lq-sidebar-layout__main) > …`. Écrites en descendants, elles fuyaient dans une
+ * SidebarLayout imbriquée dans le contenu (une maquette d'écran dans une page qui a un rail). Les
+ * `:where()` gardent la spécificité d'avant, qu'un thème a pu viser. Même bornage pour stickyHeader.
  */
 
 .lq-sidebar-layout--rail {
@@ -368,7 +373,7 @@
   border-bottom: 1px solid var(--lq-sidebar-head-border, var(--lq-color-border-subtle));
 }
 
-.lq-sidebar-layout--rail .lq-sidebar-layout__logo {
+.lq-sidebar-layout--rail > :where(.lq-sidebar-layout__sidebar, .lq-sidebar-layout__main > .lq-sidebar-layout__topbar) .lq-sidebar-layout__logo {
   min-height: 0;
   padding: 0;
 }
@@ -407,20 +412,20 @@
   background-color: currentColor;
 }
 
-.lq-sidebar-layout--rail .lq-sidebar-layout__sidebar {
+.lq-sidebar-layout--rail > .lq-sidebar-layout__sidebar {
   padding: 0;
   gap: 0;
   border-right: none;
 }
 
-.lq-sidebar-layout--rail .lq-sidebar-layout__nav {
+.lq-sidebar-layout--rail > :where(.lq-sidebar-layout__sidebar) .lq-sidebar-layout__nav {
   gap: 0;
   padding: 20px 0 var(--lq-space-4);
   overflow-x: hidden;
   overflow-y: auto;
 }
 
-.lq-sidebar-layout--rail .lq-sidebar-layout__nav-item {
+.lq-sidebar-layout--rail > :where(.lq-sidebar-layout__sidebar) .lq-sidebar-layout__nav-item {
   gap: 0;
   width: 100%;
   min-height: 44px;
@@ -437,14 +442,14 @@
   transition: color var(--lq-transition-fast);
 }
 
-.lq-sidebar-layout--rail .lq-sidebar-layout__nav-item:hover,
-.lq-sidebar-layout--rail .lq-sidebar-layout__nav-item--active,
-.lq-sidebar-layout--rail .lq-sidebar-layout__group-head--active {
+.lq-sidebar-layout--rail > :where(.lq-sidebar-layout__sidebar) .lq-sidebar-layout__nav-item:hover,
+.lq-sidebar-layout--rail > :where(.lq-sidebar-layout__sidebar) .lq-sidebar-layout__nav-item--active,
+.lq-sidebar-layout--rail > :where(.lq-sidebar-layout__sidebar) .lq-sidebar-layout__group-head--active {
   color: var(--lq-color-text);
   background: none;
 }
 
-.lq-sidebar-layout--rail .lq-sidebar-layout__nav-item--active {
+.lq-sidebar-layout--rail > :where(.lq-sidebar-layout__sidebar) .lq-sidebar-layout__nav-item--active {
   font-weight: var(--lq-font-weight-medium, 500);
 }
 
@@ -470,12 +475,12 @@
 }
 
 /* Fermé, le chevron pointe vers la gauche — vers le libellé qu'il déplie ; ouvert, vers le bas. */
-.lq-sidebar-layout--rail .lq-sidebar-layout__group-chevron {
+.lq-sidebar-layout--rail > :where(.lq-sidebar-layout__sidebar) .lq-sidebar-layout__group-chevron {
   padding: 0 var(--lq-space-3);
   transform: rotate(90deg);
 }
 
-.lq-sidebar-layout--rail .lq-sidebar-layout__group--open .lq-sidebar-layout__group-chevron {
+.lq-sidebar-layout--rail > :where(.lq-sidebar-layout__sidebar) .lq-sidebar-layout__group--open .lq-sidebar-layout__group-chevron {
   transform: none;
 }
 
@@ -496,13 +501,13 @@
   height: 20px;
 }
 
-.lq-sidebar-layout--rail .lq-sidebar-layout__group-items {
+.lq-sidebar-layout--rail > :where(.lq-sidebar-layout__sidebar) .lq-sidebar-layout__group-items {
   margin: 0 0 10px;
   padding: 18px 0 10px;
   background-color: var(--lq-sidebar-sub-bg, var(--lq-color-hover));
 }
 
-.lq-sidebar-layout--rail .lq-sidebar-layout__nav-item--nested {
+.lq-sidebar-layout--rail > :where(.lq-sidebar-layout__sidebar) .lq-sidebar-layout__nav-item--nested {
   min-height: 41px;
   margin-top: 1px;
   padding-left: 40px;
@@ -510,13 +515,13 @@
   line-height: 24px;
 }
 
-.lq-sidebar-layout--rail .lq-sidebar-layout__nav-item--nested::before,
-.lq-sidebar-layout--rail .lq-sidebar-layout__nav-item--nested::after {
+.lq-sidebar-layout--rail > :where(.lq-sidebar-layout__sidebar) .lq-sidebar-layout__nav-item--nested::before,
+.lq-sidebar-layout--rail > :where(.lq-sidebar-layout__sidebar) .lq-sidebar-layout__nav-item--nested::after {
   display: none;
 }
 
 /* Les vignettes de sous-entrée portent des initiales sur un pavé de la couleur de la barre. */
-.lq-sidebar-layout--rail .lq-sidebar-layout__nav-item--nested .lq-sidebar-layout__thumb {
+.lq-sidebar-layout--rail > :where(.lq-sidebar-layout__sidebar) .lq-sidebar-layout__nav-item--nested .lq-sidebar-layout__thumb {
   width: 30px;
   height: 30px;
   margin-right: calc((var(--lq-rail-width) - 30px) / 2);
@@ -526,13 +531,13 @@
   background-color: var(--lq-color-panel);
 }
 
-.lq-sidebar-layout--rail .lq-sidebar-layout__footer {
+.lq-sidebar-layout--rail > :where(.lq-sidebar-layout__sidebar) .lq-sidebar-layout__footer {
   padding: var(--lq-space-3) var(--lq-space-4);
 }
 
 /* La barre haute posée à côté du rail : pleine, à la hauteur de l'en-tête de la barre, un filet
    dessous et pas d'ombre. */
-.lq-sidebar-layout--rail .lq-sidebar-layout__header {
+.lq-sidebar-layout--rail > :where(.lq-sidebar-layout__main) > .lq-sidebar-layout__header {
   display: flex;
   align-items: center;
   min-height: var(--lq-rail-head-height);
@@ -541,7 +546,7 @@
   border-bottom: 1px solid var(--lq-color-border-subtle);
 }
 
-.lq-sidebar-layout--rail.lq-sidebar-layout--sticky-header .lq-sidebar-layout__header {
+.lq-sidebar-layout--rail.lq-sidebar-layout--sticky-header > :where(.lq-sidebar-layout__main) > .lq-sidebar-layout__header {
   background-color: var(--lq-header-bg, var(--lq-color-panel));
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
@@ -549,7 +554,7 @@
 }
 
 @media (min-width: 901px) {
-  .lq-sidebar-layout--rail .lq-sidebar-layout__sidebar:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)) {
+  .lq-sidebar-layout--rail > .lq-sidebar-layout__sidebar:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)) {
     position: fixed;
     inset: 0 auto 0 0;
     z-index: var(--lq-sidebar-z-index, 1000);
@@ -558,37 +563,48 @@
     transition: transform var(--lq-rail-ease);
   }
 
-  .lq-sidebar-layout--rail .lq-sidebar-layout__sidebar:hover:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)),
-  .lq-sidebar-layout--rail .lq-sidebar-layout__sidebar:focus-within:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)),
-  .lq-sidebar-layout--rail.lq-sidebar-layout--pinned .lq-sidebar-layout__sidebar:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)) {
+  .lq-sidebar-layout--rail > .lq-sidebar-layout__sidebar:hover:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)),
+  .lq-sidebar-layout--rail > .lq-sidebar-layout__sidebar:focus-within:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)),
+  .lq-sidebar-layout--rail.lq-sidebar-layout--pinned > .lq-sidebar-layout__sidebar:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)) {
     transform: none;
   }
 
   /* Ouverte, les vignettes glissent d'un cran vers les libellés. */
-  .lq-sidebar-layout--rail .lq-sidebar-layout__sidebar:hover .lq-sidebar-layout__thumb:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)),
-  .lq-sidebar-layout--rail .lq-sidebar-layout__sidebar:focus-within .lq-sidebar-layout__thumb:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)),
-  .lq-sidebar-layout--rail.lq-sidebar-layout--pinned .lq-sidebar-layout__thumb:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)) {
+  .lq-sidebar-layout--rail > .lq-sidebar-layout__sidebar:hover .lq-sidebar-layout__thumb:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)),
+  .lq-sidebar-layout--rail > .lq-sidebar-layout__sidebar:focus-within .lq-sidebar-layout__thumb:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)),
+  .lq-sidebar-layout--rail.lq-sidebar-layout--pinned > :where(.lq-sidebar-layout__sidebar) .lq-sidebar-layout__thumb:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)) {
     transform: translateX(-14px);
   }
 
-  /* Réduite, l'épingle et le logo n'ont rien à faire dans la colonne visible. */
-  .lq-sidebar-layout--rail .lq-sidebar-layout__head > *:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)) {
+  /* Réduite, l'épingle, le logo, les libellés et les chevrons n'ont rien à faire dans la colonne
+     visible : un libellé long dans une police large (« Pages et mises en page » en Space Mono)
+     débordait dans la bande des vignettes. Opacité seule, pas `visibility: hidden` : le libellé
+     reste le nom accessible du lien, la vignette étant aria-hidden. */
+  .lq-sidebar-layout--rail > :where(.lq-sidebar-layout__sidebar) .lq-sidebar-layout__head > *:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)),
+  .lq-sidebar-layout--rail > :where(.lq-sidebar-layout__sidebar) .lq-sidebar-layout__item-text:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)),
+  .lq-sidebar-layout--rail > :where(.lq-sidebar-layout__sidebar) .lq-sidebar-layout__group-chevron:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)) {
     opacity: 0;
     transition: opacity var(--lq-transition-base);
   }
 
-  .lq-sidebar-layout--rail .lq-sidebar-layout__sidebar:hover .lq-sidebar-layout__head > *:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)),
-  .lq-sidebar-layout--rail .lq-sidebar-layout__sidebar:focus-within .lq-sidebar-layout__head > *:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)),
-  .lq-sidebar-layout--rail.lq-sidebar-layout--pinned .lq-sidebar-layout__head > *:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)) {
+  .lq-sidebar-layout--rail > .lq-sidebar-layout__sidebar:hover .lq-sidebar-layout__head > *:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)),
+  .lq-sidebar-layout--rail > .lq-sidebar-layout__sidebar:hover .lq-sidebar-layout__item-text:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)),
+  .lq-sidebar-layout--rail > .lq-sidebar-layout__sidebar:hover .lq-sidebar-layout__group-chevron:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)),
+  .lq-sidebar-layout--rail > .lq-sidebar-layout__sidebar:focus-within .lq-sidebar-layout__head > *:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)),
+  .lq-sidebar-layout--rail > .lq-sidebar-layout__sidebar:focus-within .lq-sidebar-layout__item-text:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)),
+  .lq-sidebar-layout--rail > .lq-sidebar-layout__sidebar:focus-within .lq-sidebar-layout__group-chevron:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)),
+  .lq-sidebar-layout--rail.lq-sidebar-layout--pinned > :where(.lq-sidebar-layout__sidebar) .lq-sidebar-layout__head > *:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)),
+  .lq-sidebar-layout--rail.lq-sidebar-layout--pinned > :where(.lq-sidebar-layout__sidebar) .lq-sidebar-layout__item-text:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)),
+  .lq-sidebar-layout--rail.lq-sidebar-layout--pinned > :where(.lq-sidebar-layout__sidebar) .lq-sidebar-layout__group-chevron:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)) {
     opacity: 1;
   }
 
-  .lq-sidebar-layout--rail .lq-sidebar-layout__main:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)) {
+  .lq-sidebar-layout--rail > .lq-sidebar-layout__main:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)) {
     margin-left: var(--lq-rail-width);
     transition: margin-left var(--lq-rail-ease);
   }
 
-  .lq-sidebar-layout--rail.lq-sidebar-layout--pinned .lq-sidebar-layout__main:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)) {
+  .lq-sidebar-layout--rail.lq-sidebar-layout--pinned > .lq-sidebar-layout__main:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)) {
     margin-left: var(--lq-rail-open-width);
   }
 }
@@ -596,7 +612,7 @@
 /* fullHeight={false} : les mêmes règles, selon la largeur de la coquille et non de la fenêtre ;
    ce qui était fixé à la fenêtre l'est à la coquille. */
 @container (min-width: 901px) {
-  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail .lq-sidebar-layout__sidebar {
+  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail > .lq-sidebar-layout__sidebar {
     position: absolute;
     inset: 0 auto 0 0;
     z-index: var(--lq-sidebar-z-index, 1000);
@@ -605,43 +621,68 @@
     transition: transform var(--lq-rail-ease);
   }
 
-  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail .lq-sidebar-layout__sidebar:hover,
-  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail .lq-sidebar-layout__sidebar:focus-within,
-  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail.lq-sidebar-layout--pinned .lq-sidebar-layout__sidebar {
+  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail > .lq-sidebar-layout__sidebar:hover,
+  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail > .lq-sidebar-layout__sidebar:focus-within,
+  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail.lq-sidebar-layout--pinned > .lq-sidebar-layout__sidebar {
     transform: none;
   }
 
   /* Ouverte, les vignettes glissent d'un cran vers les libellés. */
-  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail .lq-sidebar-layout__sidebar:hover .lq-sidebar-layout__thumb,
-  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail .lq-sidebar-layout__sidebar:focus-within .lq-sidebar-layout__thumb,
-  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail.lq-sidebar-layout--pinned .lq-sidebar-layout__thumb {
+  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail > .lq-sidebar-layout__sidebar:hover .lq-sidebar-layout__thumb,
+  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail > .lq-sidebar-layout__sidebar:focus-within .lq-sidebar-layout__thumb,
+  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail.lq-sidebar-layout--pinned > :where(.lq-sidebar-layout__sidebar) .lq-sidebar-layout__thumb {
     transform: translateX(-14px);
   }
 
-  /* Réduite, l'épingle et le logo n'ont rien à faire dans la colonne visible. */
-  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail .lq-sidebar-layout__head > * {
+  /* Réduite, l'épingle, le logo, les libellés et les chevrons n'ont rien à faire dans la colonne
+     visible : un libellé long dans une police large (« Pages et mises en page » en Space Mono)
+     débordait dans la bande des vignettes. Opacité seule, pas `visibility: hidden` : le libellé
+     reste le nom accessible du lien, la vignette étant aria-hidden. */
+  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail > :where(.lq-sidebar-layout__sidebar) .lq-sidebar-layout__head > *,
+  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail > :where(.lq-sidebar-layout__sidebar) .lq-sidebar-layout__item-text,
+  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail > :where(.lq-sidebar-layout__sidebar) .lq-sidebar-layout__group-chevron {
     opacity: 0;
     transition: opacity var(--lq-transition-base);
   }
 
-  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail .lq-sidebar-layout__sidebar:hover .lq-sidebar-layout__head > *,
-  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail .lq-sidebar-layout__sidebar:focus-within .lq-sidebar-layout__head > *,
-  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail.lq-sidebar-layout--pinned .lq-sidebar-layout__head > * {
+  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail > .lq-sidebar-layout__sidebar:hover .lq-sidebar-layout__head > *,
+  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail > .lq-sidebar-layout__sidebar:hover .lq-sidebar-layout__item-text,
+  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail > .lq-sidebar-layout__sidebar:hover .lq-sidebar-layout__group-chevron,
+  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail > .lq-sidebar-layout__sidebar:focus-within .lq-sidebar-layout__head > *,
+  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail > .lq-sidebar-layout__sidebar:focus-within .lq-sidebar-layout__item-text,
+  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail > .lq-sidebar-layout__sidebar:focus-within .lq-sidebar-layout__group-chevron,
+  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail.lq-sidebar-layout--pinned > :where(.lq-sidebar-layout__sidebar) .lq-sidebar-layout__head > *,
+  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail.lq-sidebar-layout--pinned > :where(.lq-sidebar-layout__sidebar) .lq-sidebar-layout__item-text,
+  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail.lq-sidebar-layout--pinned > :where(.lq-sidebar-layout__sidebar) .lq-sidebar-layout__group-chevron {
     opacity: 1;
   }
 
-  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail .lq-sidebar-layout__main {
+  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail > .lq-sidebar-layout__main {
     margin-left: var(--lq-rail-width);
     transition: margin-left var(--lq-rail-ease);
   }
 
-  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail.lq-sidebar-layout--pinned .lq-sidebar-layout__main {
+  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail.lq-sidebar-layout--pinned > .lq-sidebar-layout__main {
     margin-left: var(--lq-rail-open-width);
   }
 }
 
+/* E-ink et mouvement réduit : le rail s'ouvre, s'épingle et décale le contenu d'un coup, libellés,
+   vignettes et en-tête compris — un écran e-ink ne sait pas rafraîchir un glissement. */
+.lq-root[data-lq-palette="eink"] .lq-sidebar-layout--rail > :is(.lq-sidebar-layout__sidebar, .lq-sidebar-layout__main),
+.lq-root[data-lq-palette="eink"] .lq-sidebar-layout--rail > :where(.lq-sidebar-layout__sidebar) :is(.lq-sidebar-layout__head > *, .lq-sidebar-layout__item-text, .lq-sidebar-layout__group-chevron, .lq-sidebar-layout__thumb) {
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lq-sidebar-layout--rail > :is(.lq-sidebar-layout__sidebar, .lq-sidebar-layout__main),
+  .lq-sidebar-layout--rail > :where(.lq-sidebar-layout__sidebar) :is(.lq-sidebar-layout__head > *, .lq-sidebar-layout__item-text, .lq-sidebar-layout__group-chevron, .lq-sidebar-layout__thumb) {
+    transition: none;
+  }
+}
+
 @media (max-width: 900px) {
-  .lq-sidebar-layout--rail .lq-sidebar-layout__pin:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)) {
+  .lq-sidebar-layout--rail > :where(.lq-sidebar-layout__sidebar) .lq-sidebar-layout__pin:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)) {
     display: none;
   }
 }
@@ -649,7 +690,7 @@
 /* fullHeight={false} : les mêmes règles, selon la largeur de la coquille et non de la fenêtre ;
    ce qui était fixé à la fenêtre l'est à la coquille. */
 @container (max-width: 900px) {
-  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail .lq-sidebar-layout__pin {
+  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail > :where(.lq-sidebar-layout__sidebar) .lq-sidebar-layout__pin {
     display: none;
   }
 }

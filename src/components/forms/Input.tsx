@@ -107,8 +107,12 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
           </span>
         )}
       </div>
+      {/* role="alert" : l'erreur qui apparaît (ou change) sous le champ focalisé est lue sans
+          déplacer le focus. Le champ la référence aussi par aria-describedby, qui ne la relit qu'à
+          la prise de focus : une annonce par événement, pas deux. Un appelant n'ajoute donc pas sa
+          propre annonce de la même erreur. */}
       {error ? (
-        <span id={`${inputId}-error`} className="lq-field__error">
+        <span id={`${inputId}-error`} className="lq-field__error" role="alert">
           <ErrorIcon size={14} />
           {error}
         </span>

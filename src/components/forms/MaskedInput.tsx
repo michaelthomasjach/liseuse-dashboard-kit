@@ -1,6 +1,6 @@
 import { useRef, type ChangeEvent } from "react";
 import { Input, type InputProps } from "./Input";
-import { applyMask, caretIndexForDigitCount, countSlots, digitsOnly } from "./internal/maskEngine";
+import { applyMask, caretIndexForDigitCount, countSlots, digitsOnly, slotDigits } from "./internal/maskEngine";
 
 export interface MaskedInputProps extends Omit<InputProps, "value" | "onChange" | "ref"> {
   /** Pattern where `#` is a digit slot, e.g. "## ## ## ## ##" or "##/##/####". */
@@ -21,7 +21,8 @@ export function MaskedInput({ mask, maskChar = "_", value, onChange, ...textFiel
   const display = applyMask(digits, mask, maskChar);
 
   function handleChange(e: ChangeEvent<HTMLInputElement>) {
-    const rawDigits = digitsOnly(e.target.value, totalSlots);
+    // `slotDigits` et non `digitsOnly` : un chiffre littéral du motif (« +33 ») n'est pas une saisie.
+    const rawDigits = slotDigits(e.target.value, mask, maskChar, totalSlots);
     onChange(rawDigits);
     const caret = caretIndexForDigitCount(mask, rawDigits.length);
     requestAnimationFrame(() => {

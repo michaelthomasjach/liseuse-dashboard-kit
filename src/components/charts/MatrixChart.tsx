@@ -57,13 +57,21 @@ export interface MatrixChartProps {
    *  than one that cannot move at all. */
   zoomable?: boolean;
   height?: number;
+  /** Width of the row-label gutter, in pixels. Left out, it is measured from the longest row label
+   *  once rendered (never more than 40 % of the chart) — a fixed 78 px cut "Euro Stoxx 50" down
+   *  to "uro Stoxx 50". */
+  rowLabelWidth?: number;
   /** Replaces the built-in detail panel. */
   renderDetail?: (cell: MatrixCell, row: MatrixAxisEntry, column: MatrixAxisEntry) => ReactNode;
   onCellClick?: (cell: MatrixCell) => void;
   className?: string;
 }
 
-const ROW_LABEL_WIDTH = 78;
+/** Gutter used before the labels have been measured, and the floor afterwards. */
+const MIN_ROW_LABEL_WIDTH = 48;
+const DEFAULT_ROW_LABEL_WIDTH = 78;
+/** Space between the end of a row label and the first cell. */
+const ROW_LABEL_GAP = 10;
 const COLUMN_HEADER_HEIGHT = 28;
 /** Joins a row id and a column id into one Map key. A NUL can't occur in an id that came from
  *  JSON or from a template literal, which a dash or a colon easily could — and two different
@@ -153,6 +161,7 @@ export function MatrixChart({
   formatValue = (v) => v.toFixed(2),
   zoomable = true,
   height = 360,
+  rowLabelWidth,
   renderDetail,
   onCellClick,
   className,
@@ -195,7 +204,28 @@ export function MatrixChart({
     return map;
   }, [cells]);
 
-  const gridWidth = Math.max(0, width - ROW_LABEL_WIDTH);
+  // The gutter follows the longest row label: measured on the rendered <text> nodes, so whatever
+  // font the theme gives `.lq-matrix-chart__axis-label` is the one accounted for.
+  const rowLabelsRef = useRef<SVGGElement | null>(null);
+  const [measuredLabelWidth, setMeasuredLabelWidth] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    if (rowLabelWidth !== undefined) return;
+    const group = rowLabelsRef.current;
+    if (group === null) return;
+    let longest = 0;
+    for (const node of Array.from(group.querySelectorAll("text"))) {
+      longest = Math.max(longest, node.getComputedTextLength());
+    }
+    const next = Math.ceil(longest) + ROW_LABEL_GAP + 4;
+    setMeasuredLabelWidth((previous) => (previous === next ? previous : next));
+  }, [rows, rowLabelWidth, width]);
+  const rowGutter =
+    rowLabelWidth ??
+    (measuredLabelWidth === null
+      ? DEFAULT_ROW_LABEL_WIDTH
+      : Math.min(Math.max(MIN_ROW_LABEL_WIDTH, measuredLabelWidth), Math.max(MIN_ROW_LABEL_WIDTH, Math.round(width * 0.4))));
+
+  const gridWidth = Math.max(0, width - rowGutter);
   const gridHeight = Math.max(0, height - COLUMN_HEADER_HEIGHT);
   const cellWidth = columns.length > 0 ? Math.max(MIN_CELL, gridWidth / columns.length) : 0;
   const cellHeight = rows.length > 0 ? Math.max(MIN_CELL, gridHeight / rows.length) : 0;
@@ -268,7 +298,7 @@ export function MatrixChart({
             <rect x={0} y={0} width={gridWidth} height={COLUMN_HEADER_HEIGHT} />
           </clipPath>
           <clipPath id={rowsClip}>
-            <rect x={0} y={0} width={ROW_LABEL_WIDTH} height={gridHeight} />
+            <rect x={0} y={0} width={rowGutter} height={gridHeight} />
           </clipPath>
           <clipPath id={gridClip}>
             <rect x={0} y={0} width={gridWidth} height={gridHeight} />
@@ -278,7 +308,7 @@ export function MatrixChart({
         {/* The headers stay outside the zoomed group and are only translated along it. They are the
             grid's own frame of reference, and a label that scrolls away from the cells it names is
             worse than one that stays legible while the cells move under it. */}
-        <g transform={"translate(" + ROW_LABEL_WIDTH + ", 0)"} clipPath={"url(#" + columnsClip + ")"}>
+        <g transform={"translate(" + rowGutter + ", 0)"} clipPath={"url(#" + columnsClip + ")"}>
           {columns.map((column, i) => (
             <text
               key={column.id}
@@ -292,12 +322,12 @@ export function MatrixChart({
           ))}
         </g>
 
-        <g transform={"translate(0, " + COLUMN_HEADER_HEIGHT + ")"} clipPath={"url(#" + rowsClip + ")"}>
+        <g ref={rowLabelsRef} transform={"translate(0, " + COLUMN_HEADER_HEIGHT + ")"} clipPath={"url(#" + rowsClip + ")"}>
           {rows.map((row, i) => (
             <text
               key={row.id}
               className="lq-matrix-chart__axis-label"
-              x={ROW_LABEL_WIDTH - 10}
+              x={rowGutter - ROW_LABEL_GAP}
               y={transform.applyY(i * cellHeight + cellHeight / 2) + 4}
               textAnchor="end"
             >
@@ -306,7 +336,7 @@ export function MatrixChart({
           ))}
         </g>
 
-        <g transform={"translate(" + ROW_LABEL_WIDTH + ", " + COLUMN_HEADER_HEIGHT + ")"}>
+        <g transform={"translate(" + rowGutter + ", " + COLUMN_HEADER_HEIGHT + ")"}>
           <g clipPath={"url(#" + gridClip + ")"} ref={zoomRef} onDoubleClick={resetZoom}>
             {/* A target for the wheel where no cell is painted. A `<g>` only receives events where
                 its children draw, and d3-zoom listens on the element itself — so without this the

@@ -51,3 +51,32 @@ export const Default: Story = {
     );
   },
 };
+
+/** `fullHeight={false}` : la page remplit son cadre et bascule selon **sa** largeur (ici 760 px,
+ *  sous le seuil de 900 : l'image disparaît) ; `onSubmit` fait du bloc un vrai formulaire. */
+export const InFrame: Story = {
+  name: "Dans un cadre",
+  render: () => {
+    const [sent, setSent] = useState(false);
+    return (
+      <div style={{ padding: 24 }}>
+        <div style={{ width: 760, height: 520, border: "1px solid var(--lq-color-border)", overflow: "auto" }}>
+          <LoginPage
+            fullHeight={false}
+            imageSrc={PLACEHOLDER_IMAGE}
+            logo={<strong style={{ fontSize: "1.1rem" }}>Finance Kit</strong>}
+            title="Bon retour"
+            subtitle={sent ? "Formulaire envoyé." : "Entrée dans un champ envoie le formulaire."}
+            onSubmit={() => setSent(true)}
+          >
+            <Input label="Email" type="email" placeholder="vous@exemple.com" />
+            <InputPassword label="Mot de passe" />
+            <Button type="submit" block selected>
+              Se connecter
+            </Button>
+          </LoginPage>
+        </div>
+      </div>
+    );
+  },
+};

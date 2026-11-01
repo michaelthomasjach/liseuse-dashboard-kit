@@ -13,6 +13,10 @@
 .lq-table {
   overflow-x: auto;
   width: 100%;
+  /* Son propre fond : la colonne figée et l'en-tête prennent déjà --lq-color-panel (ils doivent
+     masquer ce qui défile dessous) ; sans fond ici, le reste des cellules montrait celui de la
+     page, et le tableau se lisait en deux tons. */
+  background-color: var(--lq-color-panel);
 }
 
 .lq-table table {

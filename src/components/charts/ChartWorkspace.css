@@ -150,15 +150,16 @@
    trading app would rather than shrinking every panel down to a sliver. Only the *columns*
    collapse; gridTemplateRows (see ChartWorkspace.tsx, set inline whenever fillHeight) is
    untouched, so a 2-row layout (4/6/8 panels) still gets its own 100vh split, now stacked
-   1-per-row-share top to bottom instead of 2-per-row-share side by side. */
-@media (max-width: 1500px) {
-  .lq-chart-workspace__grid {
-    grid-template-columns: 1fr;
-    /* One explicit row per *panel* (not the original `rows`, always ≤2 — see
-       --lq-workspace-panels' own doc in ChartWorkspace.tsx) so a 4/6/8-panel workspace's 100vh
-       budget splits evenly across every stacked panel instead of just the first 2. */
-    grid-template-rows: repeat(var(--lq-workspace-panels), 1fr);
-  }
+   1-per-row-share top to bottom instead of 2-per-row-share side by side.
+   Keyed on the `--mobile` class rather than a media query on the window: the class follows the
+   `layout` prop, so a workspace pinned to `layout="desktop"` keeps its columns on a 1366 px laptop
+   (with `layout="auto"` the class is set below the same 1500 px the query used). */
+.lq-chart-workspace--mobile .lq-chart-workspace__grid {
+  grid-template-columns: 1fr;
+  /* One explicit row per *panel* (not the original `rows`, always ≤2 — see
+     --lq-workspace-panels' own doc in ChartWorkspace.tsx) so a 4/6/8-panel workspace's 100vh
+     budget splits evenly across every stacked panel instead of just the first 2. */
+  grid-template-rows: repeat(var(--lq-workspace-panels), 1fr);
 }
 
 /* Each panel is a plain grid cell — CandlestickChart itself already fills 100% of whatever

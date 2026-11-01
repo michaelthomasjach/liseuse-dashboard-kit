@@ -1,0 +1,195 @@
+/* Panneau latéral glissant (Quickview) : voile optionnel, panneau collé à un bord sur toute la
+   hauteur, barre de tête (titre, onglets, croix), corps qui défile seul, pied fixe.
+
+   Échelle des couches : au-dessus de la barre latérale ouverte sur mobile (1100), sous un menu
+   contextuel (1300), une modale (3000) ou un popover (3050) — qu'on peut donc ouvrir depuis le
+   panneau sans qu'ils passent dessous. */
+
+.lq-quickview__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--lq-quickview-z-index, 1200);
+  background-color: var(--lq-color-overlay);
+  animation: lq-quickview-fade 200ms ease both;
+}
+
+.lq-quickview__backdrop--closing {
+  animation: lq-quickview-fade 220ms ease reverse both;
+}
+
+.lq-quickview {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  z-index: var(--lq-quickview-z-index, 1200);
+  display: flex;
+  flex-direction: column;
+  width: var(--lq-quickview-width, 320px);
+  max-width: 100vw;
+  color: var(--lq-color-text);
+  background-color: var(--lq-color-panel);
+  box-shadow: var(--lq-quickview-shadow, var(--lq-shadow-modal));
+  outline: none;
+}
+
+.lq-quickview--right {
+  right: 0;
+  border-left: 1px solid var(--lq-color-panel-border, var(--lq-color-border));
+  animation: lq-quickview-in-right 260ms cubic-bezier(0.05, 0.74, 0.27, 0.99) both;
+}
+
+.lq-quickview--left {
+  left: 0;
+  border-right: 1px solid var(--lq-color-panel-border, var(--lq-color-border));
+  animation: lq-quickview-in-left 260ms cubic-bezier(0.05, 0.74, 0.27, 0.99) both;
+}
+
+.lq-quickview--right.lq-quickview--closing {
+  animation: lq-quickview-out-right 220ms ease-in both;
+}
+
+.lq-quickview--left.lq-quickview--closing {
+  animation: lq-quickview-out-left 220ms ease-in both;
+}
+
+@keyframes lq-quickview-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes lq-quickview-in-right {
+  from { transform: translateX(100%); }
+  to { transform: none; }
+}
+@keyframes lq-quickview-in-left {
+  from { transform: translateX(-100%); }
+  to { transform: none; }
+}
+@keyframes lq-quickview-out-right {
+  from { transform: none; }
+  to { transform: translateX(100%); }
+}
+@keyframes lq-quickview-out-left {
+  from { transform: none; }
+  to { transform: translateX(-100%); }
+}
+
+/* E-ink : le panneau est là ou il n'y est pas — un rafraîchissement d'encre ne suit pas un glissé. */
+.lq-root[data-lq-palette="eink"] .lq-quickview,
+.lq-root[data-lq-palette="eink"] .lq-quickview__backdrop {
+  animation: none;
+  box-shadow: none;
+}
+
+.lq-root[data-lq-palette="eink"] .lq-quickview--right {
+  border-left: 2px solid var(--lq-color-text);
+}
+
+.lq-root[data-lq-palette="eink"] .lq-quickview--left {
+  border-right: 2px solid var(--lq-color-text);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lq-quickview,
+  .lq-quickview__backdrop {
+    animation: none;
+  }
+}
+
+/* --- Tête -------------------------------------------------------------------------------------- */
+
+/* La région `quickview-head` : un thème y redéfinit les couleurs (panneau, texte, atténué, accent)
+   pour une barre d'un autre ton que le corps. Le fond lit `--lq-color-panel` *dans* la région. */
+.lq-quickview__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--lq-space-3);
+  flex-shrink: 0;
+  min-height: var(--lq-quickview-head-height, 48px);
+  padding: 0 var(--lq-space-2) 0 var(--lq-space-4);
+  color: var(--lq-color-text);
+  background-color: var(--lq-color-panel);
+  border-bottom: 1px solid var(--lq-color-border-subtle);
+}
+
+.lq-quickview__title {
+  flex: 1 1 0;
+  min-width: 0;
+  margin: 0;
+  padding: var(--lq-space-3) 0;
+  font-size: var(--lq-text-h5);
+  font-weight: var(--lq-font-weight-heading, var(--lq-font-weight-bold, 700));
+  line-height: var(--lq-line-height-heading, 1.25);
+  overflow-wrap: anywhere;
+}
+
+/* Les onglets prennent la place restante à côté de la croix ; sous un titre, ils passent sur leur
+   propre ligne, de toute la largeur. Leur filet se confond avec celui de la tête. */
+.lq-quickview__tabs {
+  flex: 1 1 0;
+  min-width: 0;
+  align-self: stretch;
+  align-items: flex-end;
+  border-bottom: none;
+}
+
+.lq-quickview__title ~ .lq-quickview__tabs {
+  order: 3;
+  flex-basis: 100%;
+}
+
+.lq-quickview__close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  order: 2;
+  width: 32px;
+  height: 32px;
+  margin-left: auto;
+  padding: 0;
+  color: var(--lq-color-text-muted);
+  background: none;
+  border: none;
+  border-radius: var(--lq-radius-sm);
+  cursor: pointer;
+}
+
+.lq-quickview__close:hover {
+  color: var(--lq-color-text);
+  background-color: var(--lq-color-hover);
+}
+
+.lq-quickview__close:focus-visible {
+  outline: 2px solid var(--lq-color-focus-ring);
+  outline-offset: -2px;
+}
+
+/* --- Corps et pied ----------------------------------------------------------------------------- */
+
+.lq-quickview__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--lq-space-3);
+  padding: var(--lq-quickview-padding, var(--lq-space-4));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.lq-quickview__footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--lq-space-2);
+  flex-shrink: 0;
+  padding: var(--lq-space-3) var(--lq-quickview-padding, var(--lq-space-4));
+  border-top: 1px solid var(--lq-color-border-subtle);
+}
+
+@media (pointer: coarse) {
+  .lq-quickview__close {
+    width: 44px;
+    height: 44px;
+  }
+}

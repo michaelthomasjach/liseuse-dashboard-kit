@@ -15,3 +15,7 @@ export type { GuidedTourProps, GuidedTourStep, GuidedTourLabels, GuidedTourPlace
 
 export { AlertList } from "./AlertList";
 export type { AlertListProps, AlertListItem, AlertLevel } from "./AlertList";
+
+export { ProgressCircle } from "./ProgressCircle";
+export type { ProgressCircleProps } from "./ProgressCircle";
+export type { ProgressCircleSize } from "./ProgressCircle";

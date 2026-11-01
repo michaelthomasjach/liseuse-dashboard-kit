@@ -1,31 +1,6 @@
 import { useId, type CSSProperties, type ReactNode } from "react";
 import "./AllocationSlider.css";
 
-/**
- * Partager un temps — ou tout ce qui se compte en pour cent — entre plusieurs postes : le temps d'un
- * chariot entre déchargement, rangement et approvisionnement ; un budget entre des lignes.
- *
- * ## La lecture
- *
- *  En haut, **une barre** qui fait au plus 100 % : un segment par poste, dans sa couleur, puis ce
- *  qui reste « Libre ». En dessous, **une ligne par poste** : son nom, un curseur qu'on fait glisser,
- *  sa valeur. La barre dit l'ensemble d'un coup d'œil ; les lignes se règlent une à une.
- *
- * ## La règle
- *
- *  Monter un poste prend d'abord sur ce qui est libre. Au-delà :
- *  - `mode="cap"` (défaut) : le poste s'arrête à ce qui était libre — rien n'est pris aux autres ;
- *  - `mode="steal"` : il prend aux autres, à proportion de ce qu'ils ont.
- *
- *  Baisser un poste rend sa part à « Libre ». Les valeurs vont de `step` en `step` (5 par défaut).
- *
- * ## Au clavier et au doigt
- *
- *  Chaque curseur est un vrai curseur du navigateur : flèches (± `step`), Page haut / bas (± 10 ×
- *  `step`), Début / Fin ; il annonce sa valeur et ce qui reste. Au doigt, la zone de prise fait 44 px
- *  de haut.
- */
-
 export interface AllocationItem {
   id: string;
   label: ReactNode;
@@ -93,6 +68,30 @@ export function allocate(values: Record<string, number>, ids: string[], id: stri
   return next;
 }
 
+/**
+ * Partager un temps — ou tout ce qui se compte en pour cent — entre plusieurs postes : le temps d'un
+ * chariot entre déchargement, rangement et approvisionnement ; un budget entre des lignes.
+ *
+ * ## La lecture
+ *
+ *  En haut, **une barre** qui fait au plus 100 % : un segment par poste, dans sa couleur, puis ce
+ *  qui reste « Libre ». En dessous, **une ligne par poste** : son nom, un curseur qu'on fait glisser,
+ *  sa valeur. La barre dit l'ensemble d'un coup d'œil ; les lignes se règlent une à une.
+ *
+ * ## La règle
+ *
+ *  Monter un poste prend d'abord sur ce qui est libre. Au-delà :
+ *  - `mode="cap"` (défaut) : le poste s'arrête à ce qui était libre — rien n'est pris aux autres ;
+ *  - `mode="steal"` : il prend aux autres, à proportion de ce qu'ils ont.
+ *
+ *  Baisser un poste rend sa part à « Libre ». Les valeurs vont de `step` en `step` (5 par défaut).
+ *
+ * ## Au clavier et au doigt
+ *
+ *  Chaque curseur est un vrai curseur du navigateur : flèches (± `step`), Page haut / bas (± 10 ×
+ *  `step`), Début / Fin ; il annonce sa valeur et ce qui reste. Au doigt, la zone de prise fait 44 px
+ *  de haut.
+ */
 export function AllocationSlider({ items, values, onChange, max = 100, step = 5, unallocatedLabel = "Libre", mode = "cap", disabled = false, unit = "%", className, ariaLabel }: AllocationSliderProps) {
   const base = useId();
   const ids = items.map((i) => i.id);

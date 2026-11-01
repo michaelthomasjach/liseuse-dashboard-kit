@@ -53,15 +53,16 @@
 }
 
 .lq-segmented--top .lq-segmented__label {
-  font-size: 0.8rem;
-  font-weight: var(--lq-font-weight-semibold, 600);
+  /* Les variables du libellé d'un champ : au-dessus, il se lit comme celui de l'Input voisin. */
+  font-size: var(--lq-field-label-size, 0.8rem);
+  font-weight: var(--lq-field-label-weight, var(--lq-font-weight-semibold, 600));
   letter-spacing: normal;
   text-transform: none;
   color: var(--lq-color-text);
 }
 
 .lq-segmented--top .lq-segmented__option {
-  min-height: 40px;
+  min-height: var(--lq-control-height, 40px);
   padding-top: 0;
   padding-bottom: 0;
 }

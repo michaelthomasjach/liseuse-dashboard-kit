@@ -36,3 +36,25 @@ export const Dashboard: Story = {
     </HeaderLayout>
   ),
 };
+
+/** `fullHeight={false}` : la coquille remplit son cadre et replie son menu selon **sa** largeur
+ *  (640 px, sous le seuil de 860) — quelle que soit celle de la fenêtre. */
+export const InFrame: Story = {
+  render: () => (
+    <div style={{ padding: 24 }}>
+      <div style={{ width: 640, height: 420, border: "1px solid var(--lq-color-border)", overflow: "auto" }}>
+        <HeaderLayout
+          fullHeight={false}
+          logo={<strong>Finance Kit</strong>}
+          navItems={[
+            { id: "overview", label: "Vue d'ensemble", active: true },
+            { id: "markets", label: "Marchés" },
+            { id: "orders", label: "Ordres" },
+          ]}
+        >
+          <DonutChart data={SAMPLE_ALLOCATION} formatValue={(v) => `${v} %`} />
+        </HeaderLayout>
+      </div>
+    </div>
+  ),
+};

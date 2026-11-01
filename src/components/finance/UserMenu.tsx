@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { rovingTarget } from "../../internal/rovingFocus";
 import { Popover } from "../forms/Popover";
 import { Avatar } from "./Avatar";
 import { ChevronDownIcon, ChevronRightIcon } from "../icons";
@@ -23,14 +24,48 @@ export interface UserMenuProps {
   className?: string;
 }
 
-/** Avatar + name trigger opening an adaptive dropdown menu — the usual header/sidebar account switcher. */
+/** Les entrées d'un menu, sans celles de ses sous-menus. */
+function menuItemsOf(menu: HTMLElement): HTMLElement[] {
+  return Array.from(menu.querySelectorAll<HTMLElement>(':scope > li > [role="menuitem"]'));
+}
+
+/** ↑ ↓ Début Fin dans le menu qui contient le focus (motif « menu » de l'APG). */
+function onMenuKeyDown(e: KeyboardEvent<HTMLUListElement>) {
+  const active = document.activeElement as HTMLElement | null;
+  if (active?.closest('[role="menu"]') !== e.currentTarget) return;
+  const items = menuItemsOf(e.currentTarget);
+  const target = rovingTarget(e.key, items.indexOf(active), items.length, "vertical");
+  if (target === null) return;
+  e.preventDefault();
+  items[target]?.focus();
+}
+
+/** Avatar + name trigger opening an adaptive dropdown menu — the usual header/sidebar account switcher.
+ *
+ *  Clavier : ↓, Entrée ou Espace sur le déclencheur ouvrent le menu et y mettent le focus ; ↑ ↓
+ *  circulent (en bouclant), Début / Fin vont aux extrémités, → (ou Entrée) ouvre un sous-menu et
+ *  entre dedans, ← ou Échap en ressortent ; Échap au premier niveau et Tab referment le menu, et le
+ *  focus revient au déclencheur. */
 export function UserMenu({ name, subtitle, avatarSrc, items, placement = "bottom", className }: UserMenuProps) {
   const [open, setOpen] = useState(false);
   const anchorRef = useRef<HTMLButtonElement>(null);
 
   return (
     <div className={["lq-user-menu", className].filter(Boolean).join(" ")}>
-      <button ref={anchorRef} type="button" className="lq-user-menu__trigger" onClick={() => setOpen((o) => !o)} aria-haspopup="menu" aria-expanded={open}>
+      <button
+        ref={anchorRef}
+        type="button"
+        className="lq-user-menu__trigger"
+        onClick={() => setOpen((o) => !o)}
+        onKeyDown={(e) => {
+          if (e.key === "ArrowDown" && !open) {
+            e.preventDefault();
+            setOpen(true);
+          }
+        }}
+        aria-haspopup="menu"
+        aria-expanded={open}
+      >
         <Avatar name={name} src={avatarSrc} size={32} />
         <span className="lq-user-menu__identity">
           <span className="lq-user-menu__name">{name}</span>
@@ -39,8 +74,27 @@ export function UserMenu({ name, subtitle, avatarSrc, items, placement = "bottom
         <ChevronDownIcon size={16} />
       </button>
 
-      <Popover open={open} onClose={() => setOpen(false)} anchorRef={anchorRef} placement={placement}>
-        <ul className="lq-user-menu__list" role="menu">
+      <Popover
+        open={open}
+        onClose={() => setOpen(false)}
+        anchorRef={anchorRef}
+        placement={placement}
+        initialFocus={(panel) => panel.querySelector<HTMLElement>('[role="menuitem"]')}
+      >
+        <ul
+          className="lq-user-menu__list"
+          role="menu"
+          aria-label={name}
+          onKeyDown={(e) => {
+            if (e.key === "Tab") {
+              // Le menu vit en fin de document : rendre la main au déclencheur, d'où Tab repart.
+              anchorRef.current?.focus();
+              setOpen(false);
+              return;
+            }
+            onMenuKeyDown(e);
+          }}
+        >
           {items.map((item) => (
             <UserMenuRow key={item.id} item={item} onSelect={() => setOpen(false)} />
           ))}
@@ -54,10 +108,20 @@ function UserMenuRow({ item, onSelect }: { item: UserMenuItem; onSelect: () => v
   const [submenuOpen, setSubmenuOpen] = useState(false);
   const [openLeft, setOpenLeft] = useState(false);
   const rowRef = useRef<HTMLLIElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const submenuRef = useRef<HTMLUListElement>(null);
+  const [enterSubmenu, setEnterSubmenu] = useState(false);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const hasChildren = Boolean(item.children && item.children.length > 0);
 
   useEffect(() => () => clearTimeout(closeTimerRef.current), []);
+
+  // Ouvert au clavier : le focus entre dans le sous-menu dès qu'il est rendu.
+  useEffect(() => {
+    if (!submenuOpen || !enterSubmenu) return;
+    setEnterSubmenu(false);
+    submenuRef.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
+  }, [submenuOpen, enterSubmenu]);
 
   function cancelClose() {
     clearTimeout(closeTimerRef.current);
@@ -87,8 +151,21 @@ function UserMenuRow({ item, onSelect }: { item: UserMenuItem; onSelect: () => v
       onMouseLeave={hasChildren ? scheduleClose : undefined}
     >
       <button
+        ref={buttonRef}
         type="button"
         role="menuitem"
+        tabIndex={-1}
+        onKeyDown={
+          hasChildren
+            ? (e) => {
+                if (e.key === "ArrowRight" || e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  openSubmenu();
+                  setEnterSubmenu(true);
+                }
+              }
+            : undefined
+        }
         aria-haspopup={hasChildren ? "menu" : undefined}
         aria-expanded={hasChildren ? submenuOpen : undefined}
         className={["lq-user-menu__item", item.danger && "lq-user-menu__item--danger"].filter(Boolean).join(" ")}
@@ -109,10 +186,26 @@ function UserMenuRow({ item, onSelect }: { item: UserMenuItem; onSelect: () => v
 
       {hasChildren && submenuOpen && (
         <ul
+          ref={submenuRef}
           className={["lq-user-menu__list", "lq-user-menu__submenu", openLeft && "lq-user-menu__submenu--left"]
             .filter(Boolean)
             .join(" ")}
           role="menu"
+          aria-label={item.label}
+          onKeyDown={(e) => {
+            if (e.key === "ArrowLeft" || e.key === "Escape") {
+              // Ressortir d'un cran seulement : ni le menu parent ni le Popover ne voient la touche.
+              e.preventDefault();
+              e.stopPropagation();
+              cancelClose();
+              setSubmenuOpen(false);
+              buttonRef.current?.focus();
+              return;
+            }
+            onMenuKeyDown(e);
+            // Déjà traité ici : le menu parent n'a pas à recommencer.
+            if (e.defaultPrevented) e.stopPropagation();
+          }}
           onMouseEnter={cancelClose}
           onMouseLeave={scheduleClose}
         >

@@ -1,0 +1,202 @@
+/*
+ * BottomNav — la barre de navigation basse d'une application mobile.
+ *
+ * Variables optionnelles (lues avec leur repli, jamais déclarées dans tokens.css) :
+ *   --lq-bottom-nav-height          hauteur utile, hors zone sûre (56px)
+ *   --lq-bottom-nav-bg              fond (--lq-color-panel)
+ *   --lq-bottom-nav-border          filet du haut (1px solid --lq-color-border-subtle)
+ *   --lq-bottom-nav-shadow          ombre portée vers le haut (none)
+ *   --lq-bottom-nav-color           icônes et libellés au repos (--lq-color-text-muted)
+ *   --lq-bottom-nav-active-color    l'entrée active (--lq-color-accent)
+ *   --lq-bottom-nav-indicator-bg    la pilule derrière l'icône active (accent à 14 %)
+ *   --lq-bottom-nav-label-size      taille des libellés (0.7rem)
+ *   --lq-bottom-nav-badge-bg        fond de la pastille (--lq-color-danger)
+ *   --lq-bottom-nav-badge-text      chiffre de la pastille (--lq-color-accent-contrast)
+ *   --lq-bottom-nav-z-index         en position fixe (900, sous les modales et popovers)
+ */
+
+.lq-bottom-nav {
+  width: 100%;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  color: var(--lq-bottom-nav-color, var(--lq-color-text-muted));
+  background-color: var(--lq-bottom-nav-bg, var(--lq-color-panel));
+  border-top: var(--lq-bottom-nav-border, 1px solid var(--lq-color-border-subtle));
+  box-shadow: var(--lq-bottom-nav-shadow, none);
+  font-family: inherit;
+}
+
+.lq-bottom-nav--fixed {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: var(--lq-bottom-nav-z-index, 900);
+}
+
+.lq-bottom-nav__list {
+  display: flex;
+  align-items: stretch;
+  height: var(--lq-bottom-nav-height, 56px);
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 0;
+  list-style: none;
+}
+
+.lq-bottom-nav__cell {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+}
+
+.lq-bottom-nav__item {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 4px 2px;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  text-decoration: none;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+}
+
+.lq-bottom-nav__item:focus-visible .lq-bottom-nav__icon {
+  box-shadow: 0 0 0 2px var(--lq-color-focus-ring);
+}
+
+.lq-bottom-nav__item:hover:not(:disabled):not([aria-disabled="true"]) {
+  color: var(--lq-color-text);
+}
+
+.lq-bottom-nav__item:disabled,
+.lq-bottom-nav__item[aria-disabled="true"] {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.lq-bottom-nav__icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 28px;
+  border-radius: 999px;
+  transition: background-color var(--lq-transition-fast), color var(--lq-transition-fast);
+}
+
+.lq-bottom-nav__icon > svg {
+  width: 22px;
+  height: 22px;
+}
+
+.lq-bottom-nav__label {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--lq-bottom-nav-label-size, 0.7rem);
+  font-weight: var(--lq-font-weight-medium, 500);
+  line-height: 1.2;
+}
+
+.lq-bottom-nav__item--active {
+  color: var(--lq-bottom-nav-active-color, var(--lq-color-accent));
+}
+
+.lq-bottom-nav__item--active .lq-bottom-nav__icon {
+  background-color: var(--lq-bottom-nav-indicator-bg, color-mix(in srgb, var(--lq-color-accent) 14%, transparent));
+}
+
+.lq-bottom-nav__item--active .lq-bottom-nav__label {
+  font-weight: var(--lq-font-weight-bold, 700);
+}
+
+/* Libellés de l'entrée active seulement : les autres sortent de la vue, pas de l'arbre d'accessibilité. */
+.lq-bottom-nav--active-labels .lq-bottom-nav__item:not(.lq-bottom-nav__item--active) .lq-bottom-nav__label,
+.lq-bottom-nav__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.lq-bottom-nav__badge {
+  position: absolute;
+  top: -3px;
+  left: calc(50% + 6px);
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.62rem;
+  font-weight: var(--lq-font-weight-bold, 700);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--lq-bottom-nav-badge-text, var(--lq-color-accent-contrast));
+  background-color: var(--lq-bottom-nav-badge-bg, var(--lq-color-danger));
+  border: 1.5px solid var(--lq-bottom-nav-bg, var(--lq-color-panel));
+  border-radius: 999px;
+  box-sizing: content-box;
+}
+
+.lq-bottom-nav__badge--dot {
+  top: 0;
+  left: calc(50% + 8px);
+  min-width: 8px;
+  width: 8px;
+  height: 8px;
+  padding: 0;
+}
+
+/* ------------------------------------------------------------------ e-ink */
+
+.lq-root[data-lq-palette="eink"] .lq-bottom-nav {
+  color: var(--lq-color-text);
+  border-top-color: var(--lq-color-border);
+  box-shadow: none;
+}
+
+.lq-root[data-lq-palette="eink"] .lq-bottom-nav__icon {
+  border-radius: 0;
+  transition: none;
+}
+
+/* L'active en négatif : aplat noir, icône claire. Sur papier, c'est le seul contraste qui se lit. */
+.lq-root[data-lq-palette="eink"] .lq-bottom-nav__item--active {
+  color: var(--lq-color-text);
+}
+
+.lq-root[data-lq-palette="eink"] .lq-bottom-nav__item--active .lq-bottom-nav__icon {
+  color: var(--lq-color-accent-contrast);
+  background-color: var(--lq-color-text);
+}
+
+.lq-root[data-lq-palette="eink"] .lq-bottom-nav__badge {
+  color: var(--lq-color-accent-contrast);
+  background-color: var(--lq-color-text);
+  border-color: var(--lq-color-panel);
+  border-radius: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lq-bottom-nav__icon {
+    transition: none;
+  }
+}

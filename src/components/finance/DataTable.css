@@ -49,20 +49,52 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  /* Au milieu de la ligne et non sur la ligne de base : en `--end` (flèche devant le libellé), la
+     ligne de base d'un inline-flex serait celle de la flèche, vide, et l'en-tête descendrait. */
+  vertical-align: middle;
 }
 
 .lq-data-table__sortable {
-  cursor: pointer;
   user-select: none;
 }
 
-.lq-data-table__sortable:hover {
+/* Le bouton de tri reprend tout du <th> : il ne doit se voir qu'au survol et au focus. */
+.lq-data-table__sort {
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  text-align: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.lq-data-table__sort:hover {
   color: var(--lq-color-text);
+}
+
+.lq-data-table__sort:focus-visible {
+  outline: 2px solid var(--lq-color-focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--lq-radius-sm);
+}
+
+/* Colonne alignée à droite : la flèche passe à gauche du libellé, qui reste au ras des chiffres. */
+.lq-data-table__sort--end {
+  flex-direction: row-reverse;
 }
 
 .lq-data-table__sort-icon {
   display: inline-flex;
   width: 14px;
+}
+
+.lq-data-table__row--interactive:focus-visible {
+  outline: 2px solid var(--lq-color-focus-ring);
+  outline-offset: -2px;
 }
 
 .lq-data-table td {

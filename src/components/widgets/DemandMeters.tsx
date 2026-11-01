@@ -2,6 +2,28 @@ import type { CSSProperties, ReactNode } from "react";
 import { Tooltip } from "../primitives/Tooltip";
 import "./DemandMeters.css";
 
+export interface DemandMeter {
+  id: string;
+  /** Nom court : le nom accessible de la jauge, et son libellé visible hors mode compact. */
+  label: string;
+  icon?: ReactNode;
+  /** Fraction remplie : 0 à 1, au-delà = débordement. */
+  value: number;
+  /** Défaut : `"neutral"`. */
+  tone?: "neutral" | "good" | "warning" | "critical";
+  /** Contenu de l'infobulle. */
+  detail?: ReactNode;
+}
+
+export interface DemandMetersProps {
+  meters: DemandMeter[];
+  /** Sens de remplissage des barres. Défaut : `"horizontal"`. */
+  orientation?: "horizontal" | "vertical";
+  /** Noms masqués (restent le nom accessible et l'infobulle), barres resserrées. */
+  compact?: boolean;
+  className?: string;
+}
+
 /**
  * Les **jauges de demande** — la rangée de petites barres qu'un jeu de gestion garde en bas de
  * l'écran, par-dessus la scène, pour dire d'un coup d'œil ce qui manque : de la place au stock, des
@@ -42,29 +64,6 @@ import "./DemandMeters.css";
  * En orientation horizontale, les jauges passent à la ligne quand la place manque ; `compact`
  * masque les noms (il faut alors une icône), resserre les barres et en tient cinq ou six sur 360 px.
  */
-
-export interface DemandMeter {
-  id: string;
-  /** Nom court : le nom accessible de la jauge, et son libellé visible hors mode compact. */
-  label: string;
-  icon?: ReactNode;
-  /** Fraction remplie : 0 à 1, au-delà = débordement. */
-  value: number;
-  /** Défaut : `"neutral"`. */
-  tone?: "neutral" | "good" | "warning" | "critical";
-  /** Contenu de l'infobulle. */
-  detail?: ReactNode;
-}
-
-export interface DemandMetersProps {
-  meters: DemandMeter[];
-  /** Sens de remplissage des barres. Défaut : `"horizontal"`. */
-  orientation?: "horizontal" | "vertical";
-  /** Noms masqués (restent le nom accessible et l'infobulle), barres resserrées. */
-  compact?: boolean;
-  className?: string;
-}
-
 export function DemandMeters({ meters, orientation = "horizontal", compact, className }: DemandMetersProps) {
   return (
     <div

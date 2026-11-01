@@ -8,6 +8,7 @@ export interface WatchlistItem extends Omit<HoldingCardProps, "onClick"> {
 }
 
 export interface WatchlistWidgetProps {
+  /** Default « Liste de surveillance » (it was the English "Watchlist"). */
   title?: ReactNode;
   items: WatchlistItem[];
   onSelect?: (id: string) => void;
@@ -16,7 +17,7 @@ export interface WatchlistWidgetProps {
 }
 
 /** Ready-to-drop watchlist: a titled card stacking `HoldingCard` rows. */
-export function WatchlistWidget({ title = "Watchlist", items, onSelect, emptyMessage = "Aucun actif suivi", className }: WatchlistWidgetProps) {
+export function WatchlistWidget({ title = "Liste de surveillance", items, onSelect, emptyMessage = "Aucun actif suivi", className }: WatchlistWidgetProps) {
   return (
     <Panel title={title} meta={`${items.length} actif${items.length > 1 ? "s" : ""}`} className={className}>
       {items.length === 0 ? (

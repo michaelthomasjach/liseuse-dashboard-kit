@@ -37,6 +37,18 @@ export const WithError: Story = {
   ),
 };
 
+/** Le pendant de l'erreur : filet, anneau de focus, message et icône en `--lq-color-up`. Avec
+ *  `success` à `true`, seul le filet se colore et le texte d'aide reste en place. */
+export const Success: Story = {
+  name: "Succès",
+  render: () => (
+    <div style={{ maxWidth: 280, display: "flex", flexDirection: "column", gap: 16 }}>
+      <Input label="Identifiant" defaultValue="m.lemoine" success="Identifiant disponible" />
+      <Input label="IBAN" defaultValue="FR76 3000 6000 0112 3456 7890 189" success helperText="Vérifié auprès de la banque" />
+    </div>
+  ),
+};
+
 export const Sizes: Story = {
   name: "Tailles (small / normal)",
   render: () => (

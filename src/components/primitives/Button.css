@@ -91,3 +91,134 @@
     transform: none;
   }
 }
+
+/* --- Tons et formes ----------------------------------------------------------------------------- */
+
+/* Le couple remplissage / encre d'un ton, lu dans les mêmes variables que les surfaces pleines
+   (`tone.css`) : `--lq-tone-<ton>` et `--lq-tone-<ton>-text`, puis `--lq-tone-text`, à défaut la
+   couleur du thème du même nom et `--lq-color-accent-contrast`. `primary` est le ton `accent`. */
+.lq-button--tone-primary {
+  --lq-button-fill: var(--lq-tone-accent, var(--lq-color-accent));
+  --lq-button-ink: var(--lq-tone-accent-text, var(--lq-tone-text, var(--lq-color-accent-contrast)));
+}
+.lq-button--tone-success {
+  --lq-button-fill: var(--lq-tone-success, var(--lq-color-green));
+  --lq-button-ink: var(--lq-tone-success-text, var(--lq-tone-text, var(--lq-color-accent-contrast)));
+}
+.lq-button--tone-info {
+  --lq-button-fill: var(--lq-tone-info, var(--lq-color-info));
+  --lq-button-ink: var(--lq-tone-info-text, var(--lq-tone-text, var(--lq-color-accent-contrast)));
+}
+.lq-button--tone-danger {
+  --lq-button-fill: var(--lq-tone-danger, var(--lq-color-danger));
+  --lq-button-ink: var(--lq-tone-danger-text, var(--lq-tone-text, var(--lq-color-accent-contrast)));
+}
+.lq-button--tone-warning {
+  --lq-button-fill: var(--lq-tone-warning, var(--lq-color-warning));
+  --lq-button-ink: var(--lq-tone-warning-text, var(--lq-tone-text, var(--lq-color-accent-contrast)));
+}
+
+/* E-ink : une seule encre. Un bouton à ton y est plein et noir — c'est l'action qu'on remarque. */
+.lq-root[data-lq-palette="eink"] .lq-button--toned {
+  --lq-button-fill: var(--lq-color-text);
+  --lq-button-ink: var(--lq-color-bg);
+}
+
+/* Plein (défaut) : fond et bordure du ton, encre en contraste. */
+.lq-button--toned {
+  color: var(--lq-button-ink);
+  background-color: var(--lq-button-fill);
+  border-color: var(--lq-button-fill);
+}
+
+/* Bordé : fond transparent, bordure et texte du ton (la bordure ordinaire sans ton). */
+.lq-button--outline {
+  background-color: transparent;
+}
+.lq-button--outline.lq-button--toned {
+  color: var(--lq-button-fill);
+  border-color: var(--lq-button-fill);
+}
+
+/* Fantôme : ni fond ni bordure, un fond léger au survol. */
+.lq-button--ghost {
+  background-color: transparent;
+  border-color: transparent;
+}
+.lq-button--ghost.lq-button--toned {
+  color: var(--lq-button-fill);
+  border-color: transparent;
+}
+.lq-button--ghost:hover:not(:disabled) {
+  opacity: 1;
+  background-color: var(--lq-color-hover);
+}
+.lq-button--ghost.lq-button--toned:hover:not(:disabled) {
+  background-color: color-mix(in srgb, var(--lq-button-fill) 12%, transparent);
+}
+
+/* Lien : un texte cliquable, souligné au survol ; la marge latérale réduite au minimum. */
+.lq-button--link {
+  padding-left: var(--lq-space-1);
+  padding-right: var(--lq-space-1);
+  background-color: transparent;
+  border-color: transparent;
+}
+.lq-button--link.lq-button--toned {
+  color: var(--lq-button-fill);
+  border-color: transparent;
+}
+.lq-button--link:hover:not(:disabled) {
+  opacity: 1;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Choisi (`selected`) l'emporte sur le ton et la forme : c'est un état, il doit se voir. */
+.lq-button.lq-button--selected {
+  color: var(--lq-color-accent-contrast);
+  background-color: var(--lq-color-fill);
+  border-color: var(--lq-color-fill);
+}
+
+/* --- Occupé ------------------------------------------------------------------------------------- */
+
+.lq-button--loading {
+  cursor: progress;
+}
+.lq-button--loading:hover {
+  opacity: 1;
+}
+.lq-button--loading:not(:disabled):active {
+  transform: none;
+}
+.lq-button--loading:hover .lq-button__icon {
+  transform: none;
+}
+
+/* Sans icône, le libellé garde sa place (largeur stable) et le spinner se pose au centre. */
+.lq-button--loading-overlay {
+  position: relative;
+}
+.lq-button--loading-overlay .lq-button__label {
+  visibility: hidden;
+}
+.lq-button--loading-overlay > .lq-button__spinner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  margin: -8px 0 0 -8px;
+}
+
+/* Le spinner prend l'encre du bouton, quel que soit son ton. */
+.lq-button .lq-button__spinner .lq-spinner__arc {
+  stroke: currentColor;
+}
+.lq-button .lq-button__spinner .lq-spinner__track {
+  stroke: color-mix(in srgb, currentColor 25%, transparent);
+}
+
+.lq-button:focus-visible {
+  outline: 2px solid var(--lq-color-focus-ring);
+  outline-offset: 2px;
+}

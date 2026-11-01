@@ -95,6 +95,11 @@
   background-color: var(--lq-color-overlay);
 }
 
+/* Le dialogue ne prend le focus lui-même que faute de contrôle (carte sans croix ni action). */
+.lq-notification-modal:focus {
+  outline: none;
+}
+
 /* ---------------------------------------------------------------- */
 /* The card itself.                                                  */
 /* ---------------------------------------------------------------- */

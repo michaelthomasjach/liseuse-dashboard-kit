@@ -9,6 +9,9 @@ export interface NotFoundPageProps {
   onAction?: () => void;
   actionHref?: string;
   illustration?: ReactNode;
+  /** Vrai (défaut) : au moins toute la hauteur de la fenêtre. Faux : remplit son conteneur
+   *  (`min-height: 100%`), et la taille du code suit sa largeur, pas celle de la fenêtre. */
+  fullHeight?: boolean;
   className?: string;
 }
 
@@ -20,12 +23,14 @@ export function NotFoundPage({
   onAction,
   actionHref = "/",
   illustration,
+  fullHeight = true,
   className,
 }: NotFoundPageProps) {
   return (
-    <div className={["lq-not-found-page", className].filter(Boolean).join(" ")}>
+    <div className={["lq-not-found-page", !fullHeight && "lq-not-found-page--contained", className].filter(Boolean).join(" ")}>
       {illustration && <div className="lq-not-found-page__illustration">{illustration}</div>}
-      <span className="lq-not-found-page__code">{title}</span>
+      {/* Le titre de la page : un <h1>, pour qu'un lecteur d'écran sache d'emblée où il est tombé. */}
+      <h1 className="lq-not-found-page__code">{title}</h1>
       <p className="lq-not-found-page__message">{message}</p>
       {onAction ? (
         <Button onClick={onAction}>{actionLabel}</Button>

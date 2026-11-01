@@ -12,8 +12,9 @@ export interface CarouselProps {
   /** Controlled current slide — pass alongside `onIndexChange` to own navigation yourself. */
   index?: number;
   onIndexChange?: (index: number) => void;
-  /** Auto-advances to the next slide every this many ms, pausing while hovered. Omit (default) or
-   *  0 to disable. */
+  /** Auto-advances to the next slide every this many ms, pausing while hovered or while keyboard
+   *  focus is inside the carousel. Never runs when the user asks for reduced motion
+   *  (`prefers-reduced-motion: reduce`). Omit (default) or 0 to disable. */
   autoplayInterval?: number;
   /** Shows the previous/next arrow buttons. Default true. Both wrap around at either end. */
   arrows?: boolean;
@@ -21,7 +22,24 @@ export interface CarouselProps {
   dots?: boolean;
   /** Fixed height in px for the slide viewport. Default 320. */
   height?: number;
+  /** Nom accessible du carrousel (ex. « Annonces »), annoncé avec son rôle. */
+  ariaLabel?: string;
   className?: string;
+}
+
+/** Vrai quand le système demande moins d'animations ; suit le réglage s'il change en cours de route. */
+function usePrefersReducedMotion() {
+  const query = "(prefers-reduced-motion: reduce)";
+  const [reduced, setReduced] = useState(() => typeof window !== "undefined" && !!window.matchMedia?.(query).matches);
+  useEffect(() => {
+    const mql = window.matchMedia?.(query);
+    if (!mql) return;
+    const onChange = () => setReduced(mql.matches);
+    onChange();
+    mql.addEventListener("change", onChange);
+    return () => mql.removeEventListener("change", onChange);
+  }, []);
+  return reduced;
 }
 
 /** Full-bleed slideshow — one slide visible at a time, arrows and dots to navigate between them,
@@ -36,12 +54,15 @@ export function Carousel({
   arrows = true,
   dots = true,
   height = 320,
+  ariaLabel,
   className,
 }: CarouselProps) {
   const slides = Children.toArray(children);
   const [internalIndex, setInternalIndex] = useState(Math.min(defaultIndex, Math.max(0, slides.length - 1)));
   const activeIndex = Math.min(index ?? internalIndex, Math.max(0, slides.length - 1));
   const [hovered, setHovered] = useState(false);
+  const [focusWithin, setFocusWithin] = useState(false);
+  const reducedMotion = usePrefersReducedMotion();
 
   function goTo(next: number) {
     const wrapped = ((next % slides.length) + slides.length) % slides.length;
@@ -60,23 +81,42 @@ export function Carousel({
   activeIndexRef.current = activeIndex;
 
   useEffect(() => {
-    if (!autoplayInterval || hovered || slides.length < 2) return;
+    if (!autoplayInterval || hovered || focusWithin || reducedMotion || slides.length < 2) return;
     const id = setInterval(() => goToRef.current(activeIndexRef.current + 1), autoplayInterval);
     return () => clearInterval(id);
-  }, [autoplayInterval, hovered, slides.length]);
+  }, [autoplayInterval, hovered, focusWithin, reducedMotion, slides.length]);
 
   if (slides.length === 0) return null;
 
   return (
     <div
-      className={["lq-carousel", className].filter(Boolean).join(" ")}
+      className={["lq-carousel", arrows && slides.length > 1 && "lq-carousel--arrows", className].filter(Boolean).join(" ")}
       style={{ height }}
+      role="region"
+      aria-roledescription="carrousel"
+      aria-label={ariaLabel}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      // La lecture auto s'arrête tant que le clavier est dans le carrousel : une diapositive ne
+      // doit pas défiler sous un bouton qu'on s'apprête à activer.
+      onFocus={() => setFocusWithin(true)}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setFocusWithin(false);
+      }}
     >
       <div className="lq-carousel__track" style={{ transform: `translateX(-${activeIndex * 100}%)` }}>
         {slides.map((slide, i) => (
-          <div className="lq-carousel__slide" key={i} aria-hidden={i !== activeIndex}>
+          <div
+            className="lq-carousel__slide"
+            key={i}
+            role="group"
+            aria-roledescription="diapositive"
+            aria-label={`${i + 1} sur ${slides.length}`}
+            aria-hidden={i !== activeIndex}
+            // Une diapositive cachée garde ses boutons hors de l'ordre de tabulation. `inert` en
+            // chaîne vide : React 18 ne connaît pas l'attribut et refuserait un booléen.
+            {...((i !== activeIndex ? { inert: "" } : {}) as Record<string, string>)}
+          >
             {slide}
           </div>
         ))}

@@ -1,0 +1,408 @@
+/*
+ * ActivityFeed — un fil de publications.
+ *
+ * Une publication est une grille. En cartes, la colonne principale s'efface (`display: contents`)
+ * et chacun de ses morceaux prend sa propre rangée : l'avatar et l'en-tête côte à côte, puis le
+ * texte, l'image (à fond perdu), les réactions et les commentaires sur toute la largeur. En liste,
+ * la même grille devient avatar / contenu / vignette.
+ *
+ * Variables optionnelles (jamais déclarées dans tokens.css) :
+ *   --lq-activity-gap            entre deux cartes (--lq-space-4)
+ *   --lq-activity-padding        retrait intérieur d'une carte (--lq-space-4)
+ *   --lq-activity-liked          couleur du cœur enfoncé (--lq-color-rose)
+ *   --lq-activity-comments-bg    fond de la zone des commentaires (texte à 3 % sur le panneau)
+ *   --lq-activity-bubble-bg      fond d'une bulle de commentaire (texte à 6 % sur le panneau)
+ *   --lq-activity-name-weight    graisse du nom de l'auteur (--lq-font-weight-semibold, 600)
+ *   --lq-activity-media-ratio    proportions de l'image en cartes (16 / 9)
+ */
+
+.lq-activity {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lq-activity-gap, var(--lq-space-4));
+  color: var(--lq-color-text);
+}
+
+.lq-activity__empty {
+  margin: 0;
+  padding: var(--lq-space-4);
+  font-size: var(--lq-text-sm);
+  color: var(--lq-color-text-muted);
+}
+
+/* ---- publication ---- */
+
+.lq-activity__post {
+  --_pad: var(--lq-activity-padding, var(--lq-space-4));
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: var(--lq-space-3);
+  min-width: 0;
+}
+
+.lq-activity__post:focus-visible {
+  outline: 2px solid var(--lq-color-focus-ring);
+  outline-offset: 2px;
+}
+
+.lq-activity--cards .lq-activity__post {
+  grid-template-areas:
+    "avatar head"
+    "text text"
+    "media media"
+    "actions actions"
+    "comments comments";
+  padding: var(--_pad) var(--_pad) 0;
+  background: var(--lq-color-panel);
+  border: 1px solid var(--lq-color-panel-border, var(--lq-color-border-subtle));
+  border-radius: var(--lq-radius-md);
+  box-shadow: var(--lq-shadow-panel);
+  overflow: hidden;
+}
+
+.lq-activity--cards .lq-activity__main {
+  display: contents;
+}
+
+.lq-activity__avatar {
+  grid-area: avatar;
+}
+
+.lq-activity__head {
+  grid-area: head;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  font-size: var(--lq-text-sm);
+  line-height: 1.4;
+}
+
+.lq-activity__name {
+  font-weight: var(--lq-activity-name-weight, var(--lq-font-weight-semibold, 600));
+}
+
+.lq-activity__action,
+.lq-activity__target {
+  color: var(--lq-color-text-muted);
+}
+
+.lq-activity__time {
+  font-size: var(--lq-text-xs);
+  color: var(--lq-color-text-muted);
+}
+
+.lq-activity__text {
+  grid-area: text;
+  font-size: var(--lq-text-md);
+  line-height: var(--lq-line-height-body);
+  overflow-wrap: anywhere;
+}
+
+.lq-activity--cards .lq-activity__text {
+  margin-top: var(--lq-space-3);
+}
+
+.lq-activity__text > :first-child {
+  margin-top: 0;
+}
+
+.lq-activity__text > :last-child {
+  margin-bottom: 0;
+}
+
+.lq-activity__media {
+  grid-area: media;
+  margin: var(--lq-space-3) calc(-1 * var(--_pad)) 0;
+  background: var(--lq-color-fill-track);
+}
+
+.lq-activity__media img {
+  display: block;
+  width: 100%;
+  aspect-ratio: var(--lq-activity-media-ratio, 16 / 9);
+  object-fit: cover;
+}
+
+/* ---- réactions ---- */
+
+.lq-activity__actions {
+  grid-area: actions;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--lq-space-1);
+}
+
+.lq-activity--cards .lq-activity__actions {
+  margin: var(--lq-space-2) calc(-1 * var(--lq-space-2)) 0;
+  padding: var(--lq-space-1) 0 var(--lq-space-2);
+}
+
+.lq-activity__action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 var(--lq-space-2);
+  font: inherit;
+  font-size: var(--lq-text-sm);
+  font-weight: var(--lq-font-weight-medium, 500);
+  color: var(--lq-color-text-muted);
+  background: none;
+  border: 0;
+  border-radius: var(--lq-radius-sm);
+  cursor: pointer;
+  transition: background-color var(--lq-transition-fast), color var(--lq-transition-fast);
+}
+
+.lq-activity__action-btn:hover:not(:disabled) {
+  color: var(--lq-color-text);
+  background: var(--lq-color-hover);
+}
+
+.lq-activity__action-btn:focus-visible {
+  outline: 2px solid var(--lq-color-focus-ring);
+  outline-offset: 1px;
+}
+
+.lq-activity__action-btn:disabled {
+  cursor: default;
+}
+
+.lq-activity__action-btn svg {
+  flex-shrink: 0;
+}
+
+.lq-activity__action-btn[aria-expanded="true"] {
+  color: var(--lq-color-text);
+}
+
+.lq-activity__like[aria-pressed="true"] {
+  color: var(--lq-color-text);
+}
+
+.lq-activity__like[aria-pressed="true"] .lq-activity__heart {
+  color: var(--lq-activity-liked, var(--lq-color-rose));
+}
+
+.lq-activity__like[aria-pressed="true"] .lq-activity__heart {
+  animation: lq-activity-pop 320ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes lq-activity-pop {
+  0% {
+    transform: scale(0.6);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.lq-activity__count {
+  font-variant-numeric: tabular-nums;
+}
+
+.lq-activity__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+/* ---- commentaires ---- */
+
+.lq-activity__comments {
+  grid-area: comments;
+}
+
+.lq-activity__comments[hidden] {
+  display: none;
+}
+
+.lq-activity--cards .lq-activity__comments {
+  margin: 0 calc(-1 * var(--_pad));
+  padding: var(--lq-space-3) var(--_pad);
+  background: var(--lq-activity-comments-bg, color-mix(in srgb, var(--lq-color-text) 3%, var(--lq-color-panel)));
+  border-top: 1px solid var(--lq-color-border-subtle);
+}
+
+.lq-activity__comment-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lq-space-2);
+  margin: 0 0 var(--lq-space-3);
+  padding: 0;
+  list-style: none;
+}
+
+.lq-activity__comment {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--lq-space-2);
+}
+
+.lq-activity__bubble {
+  min-width: 0;
+  padding: 6px 10px;
+  font-size: var(--lq-text-sm);
+  line-height: 1.45;
+  background: var(--lq-activity-bubble-bg, color-mix(in srgb, var(--lq-color-text) 6%, var(--lq-color-panel)));
+  border-radius: var(--lq-radius-md);
+  overflow-wrap: anywhere;
+}
+
+.lq-activity__comment-name {
+  font-weight: var(--lq-activity-name-weight, var(--lq-font-weight-semibold, 600));
+}
+
+.lq-activity__comment-time {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--lq-text-xs);
+  color: var(--lq-color-text-muted);
+}
+
+.lq-activity__no-comments {
+  margin: 0 0 var(--lq-space-3);
+  font-size: var(--lq-text-sm);
+  color: var(--lq-color-text-muted);
+}
+
+.lq-activity__composer {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--lq-space-2);
+}
+
+/* Le champ grandit vers le haut : l'avatar et le bouton restent sur sa dernière ligne. */
+.lq-activity__composer > .lq-avatar {
+  margin-bottom: calc((var(--lq-control-height, 40px) - 28px) / 2);
+}
+
+/* Une ligne de saisie fait exactement la hauteur d'un contrôle, celle du bouton « Publier ». */
+.lq-activity__composer .lq-textarea__input {
+  padding-top: max(2px, calc((var(--lq-control-height, 40px) - 2 * var(--lq-control-border-width, 1.5px) - 1.5em) / 2));
+  padding-bottom: max(2px, calc((var(--lq-control-height, 40px) - 2 * var(--lq-control-border-width, 1.5px) - 1.5em) / 2));
+  line-height: 1.5;
+}
+
+.lq-activity__composer-field {
+  flex: 1;
+  min-width: 0;
+}
+
+.lq-activity__composer .lq-activity__send {
+  flex-shrink: 0;
+  height: var(--lq-control-height, 40px);
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+/* ---- liste compacte ---- */
+
+.lq-activity--list {
+  gap: 0;
+}
+
+.lq-activity--list .lq-activity__post {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas: "avatar main thumb";
+  padding: var(--lq-space-3) 0;
+  border-bottom: 1px solid var(--lq-color-border-subtle);
+}
+
+.lq-activity--list .lq-activity__post:last-child {
+  border-bottom: 0;
+}
+
+.lq-activity--list .lq-activity__main {
+  grid-area: main;
+  min-width: 0;
+}
+
+.lq-activity--list .lq-activity__head {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: flex-start;
+  column-gap: var(--lq-space-2);
+}
+
+.lq-activity--list .lq-activity__text {
+  display: -webkit-box;
+  margin-top: 2px;
+  font-size: var(--lq-text-sm);
+  line-height: 1.5;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.lq-activity--list .lq-activity__actions {
+  margin: var(--lq-space-1) calc(-1 * var(--lq-space-1)) 0;
+  gap: 0;
+}
+
+.lq-activity--list .lq-activity__action-btn {
+  min-height: 26px;
+  padding: 0 var(--lq-space-1);
+  font-size: var(--lq-text-xs);
+}
+
+.lq-activity--list .lq-activity__comments {
+  margin-top: var(--lq-space-2);
+}
+
+.lq-activity__thumb {
+  grid-area: thumb;
+}
+
+.lq-activity--list .lq-activity__media {
+  width: 64px;
+  margin: 0;
+  overflow: hidden;
+  border-radius: var(--lq-radius-sm);
+}
+
+.lq-activity--list .lq-activity__media img {
+  aspect-ratio: 1;
+}
+
+/* ---- e-ink : des filets, pas d'ombre, pas de mouvement, images en gris ---- */
+
+.lq-root[data-lq-palette="eink"] .lq-activity--cards .lq-activity__post {
+  border-color: var(--lq-color-border);
+  box-shadow: none;
+}
+
+.lq-root[data-lq-palette="eink"] .lq-activity__media img {
+  filter: grayscale(1) contrast(1.1);
+}
+
+.lq-root[data-lq-palette="eink"] .lq-activity__action-btn {
+  transition: none;
+}
+
+.lq-root[data-lq-palette="eink"] .lq-activity__like[aria-pressed="true"] .lq-activity__heart {
+  color: var(--lq-color-text);
+  animation: none;
+}
+
+.lq-root[data-lq-palette="eink"] .lq-activity--cards .lq-activity__comments {
+  background: none;
+  border-top-color: var(--lq-color-border);
+}
+
+.lq-root[data-lq-palette="eink"] .lq-activity__bubble {
+  background: none;
+  border: 1px solid var(--lq-color-border-subtle);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lq-activity__like[aria-pressed="true"] .lq-activity__heart {
+    animation: none;
+  }
+}

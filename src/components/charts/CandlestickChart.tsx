@@ -98,6 +98,7 @@ import { buildChartContextMenu } from "./candlestick/buildChartContextMenu";
 import { CHART_DISPLAY_MODES } from "./candlestick/chartModes";
 import { findTimeframeLabel, flattenTimeframeValues } from "./candlestick/timeframes";
 import { styleOf, toolKeyOf, useDrawingStylePresets, withStyle } from "./candlestick/drawingStylePresets";
+import { dayMonthYearFormat } from "./internal/dateFormat";
 import { DEFAULT_MARGIN, MOBILE_LAYOUT_BREAKPOINT, NARROW_EMBED_BREAKPOINT, PRICE_AXIS_WIDTH_MOBILE, SUB_PANE_COLLAPSED_HEIGHT, TOOLS_RAIL_HEIGHT_MOBILE, TOOLS_RAIL_WIDTH } from "./candlestick/constants";
 import { formatPercentFromReference, computeOhlcReadout, toDayInputValue, candleIndexForDay } from "./candlestick/formatting";
 import { supportsProjection, projectionSettingsOf } from "./candlestick/indicatorProjection";
@@ -122,6 +123,7 @@ export function CandlestickChart({
   zoomable = true,
   showVolume = true,
   formatDate,
+  locale,
   formatPrice,
   formatVolume,
   fullscreenToggle = true,
@@ -174,6 +176,7 @@ export function CandlestickChart({
   isLinked = false,
   onLinkClick,
   fillHeight = false,
+  layout = "auto",
   sidePanel, defaultSidePanelOpen, onSidePanelOpenChange,
   scripts, onScriptsChange, onScriptAlert, quantData, ai, aiOpen: aiOpenProp, onAiOpenChange, onEditScript, onCreateScript, onDeleteScript, onCreateStrategyFromIndicator, onScriptRunOutput, lastCandleOpen = false,
   margin,
@@ -349,12 +352,29 @@ export function CandlestickChart({
   // Both read as "not yet measured" at 0 rather than as "narrow".
   const viewportWidth = useViewportWidth();
   const isNarrowLayout =
-    layoutOverride === null
-      ? (viewportWidth > 0 && viewportWidth < MOBILE_LAYOUT_BREAKPOINT) || (rawDims.width > 0 && rawDims.width < NARROW_EMBED_BREAKPOINT)
-      : layoutOverride === "mobile";
+    layoutOverride !== null
+      ? layoutOverride === "mobile"
+      : layout !== "auto"
+        ? layout === "mobile"
+        : (viewportWidth > 0 && viewportWidth < MOBILE_LAYOUT_BREAKPOINT) || (rawDims.width > 0 && rawDims.width < NARROW_EMBED_BREAKPOINT);
   const isMobileRail = drawingTools && isNarrowLayout;
-  // Clamped, never widened — a caller that already asked for a narrower gutter than this keeps it.
-  const narrowAxisRight = Math.min(rawDims.margin.right, PRICE_AXIS_WIDTH_MOBILE);
+  // Clamped, never widened past the caller's own gutter — a caller that already asked for a
+  // narrower one keeps it. Within that, wide enough for the widest price label: a flat 44 px fitted
+  // "60,00" but cut four-digit prices ("1 234,56") down to their last characters. Estimated from
+  // the label's length (the axis figures are tabular, ~6.5 px a character at the axis' 0.7rem) plus
+  // the tick and its gap, so it costs no measurement pass.
+  const widestPriceLabel = useMemo(() => {
+    const fmt = formatPrice ?? ((v: number) => v.toFixed(2));
+    let high = -Infinity;
+    let low = Infinity;
+    for (const candle of data) {
+      if (candle.high > high) high = candle.high;
+      if (candle.low < low) low = candle.low;
+    }
+    if (!Number.isFinite(high)) return 0;
+    return Math.max(fmt(high).length, fmt(low).length);
+  }, [data, formatPrice]);
+  const narrowAxisRight = Math.min(rawDims.margin.right, Math.max(PRICE_AXIS_WIDTH_MOBILE, Math.ceil(widestPriceLabel * 6.5 + 10)));
   // `null` (not `false`) until the wrapper has actually been measured — see usePaneLayout's own
   // `dockedPanesStartFolded` doc, which reads that as "decide nothing yet" rather than "this is a
   // desktop", so a pane present at width 0 isn't permanently written off as already handled.
@@ -1360,7 +1380,9 @@ export function CandlestickChart({
     );
   }
 
-  const dFmt = formatDate ?? d3.timeFormat("%d %b %Y");
+  // French by default ("01 juin 2026"), like every other text of the kit — d3's `%d %b %Y` only
+  // knows English month names. Cached per locale, so `dFmt` stays the same function across renders.
+  const dFmt = formatDate ?? dayMonthYearFormat(locale);
   const pFmt = formatPrice ?? ((v: number) => v.toFixed(2));
   const vFmt = formatVolume ?? ((v: number) => d3.format(".2s")(v));
   // Every price-axis-pinned badge reads through this instead of `pFmt` directly, so they always

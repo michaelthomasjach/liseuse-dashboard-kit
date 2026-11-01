@@ -11,6 +11,7 @@ import { ChartTooltip } from "./ChartTooltip";
 import { CHART_PALETTE } from "./internal/palette";
 import { splitAtReference, splitBetweenSeries } from "./internal/areaFillSegments";
 import { MaximizeIcon, MinimizeIcon, ZoomOutIcon } from "../icons";
+import { dayMonthYearFormat, timeTickFormat } from "./internal/dateFormat";
 import "./charts-shared.css";
 import "./LineAreaChart.css";
 
@@ -73,6 +74,10 @@ export interface LineAreaChartProps {
   zoomable?: boolean;
   formatX?: (x: Date | number) => string;
   formatY?: (y: number) => string;
+  /** BCP 47 locale of the default date labels on a time axis (ticks, hover, tooltip) when neither
+   *  `formatX` nor `xTickFormat` is given. Default `"fr-FR"` — the axis used d3's English month
+   *  names before. */
+  locale?: string;
   showGrid?: boolean;
   showLegend?: boolean;
   /** Shows a fullscreen toggle button in the toolbar. Default true. */
@@ -188,6 +193,7 @@ export const LineAreaChart = forwardRef<LineAreaChartHandle, LineAreaChartProps>
   zoomable = true,
   formatX,
   formatY,
+  locale,
   showGrid = true,
   showLegend = true,
   fullscreenToggle = true,
@@ -575,7 +581,9 @@ export const LineAreaChart = forwardRef<LineAreaChartHandle, LineAreaChartProps>
             tickFormat={
               xTickFormat || formatX
                 ? (v) => (xTickFormat ?? formatX!)(xType === "time" ? (v as Date) : Number(v))
-                : undefined
+                : xType === "time"
+                  ? (v) => timeTickFormat(locale)(v as Date)
+                  : undefined
             }
             ticks={xTicks}
             tickValues={xTickValues}
@@ -826,7 +834,7 @@ export const LineAreaChart = forwardRef<LineAreaChartHandle, LineAreaChartProps>
             const formattedX = formatX
               ? formatX(hover.anchorX)
               : xType === "time"
-                ? d3.timeFormat("%d %b %Y")(hover.anchorX as Date)
+                ? dayMonthYearFormat(locale)(hover.anchorX as Date)
                 : String(hover.anchorX);
             return (
               <>
@@ -893,7 +901,7 @@ export const LineAreaChart = forwardRef<LineAreaChartHandle, LineAreaChartProps>
                   {formatX
                     ? formatX(hover.anchorX)
                     : xType === "time"
-                      ? d3.timeFormat("%d %b %Y")(hover.anchorX as Date)
+                      ? dayMonthYearFormat(locale)(hover.anchorX as Date)
                       : String(hover.anchorX)}
                 </div>
                 {hoverPoint.map(({ series: s, color, point }) => (
@@ -933,7 +941,7 @@ export const LineAreaChart = forwardRef<LineAreaChartHandle, LineAreaChartProps>
           const colorVar = `var(${up ? "--lq-color-up" : "--lq-color-down"})`;
           const delta = end.y - measureStart.y;
           const formatPoint = (x: Date | number) =>
-            formatX ? formatX(x) : xType === "time" ? d3.timeFormat("%d %b %Y")(x as Date) : String(x);
+            formatX ? formatX(x) : xType === "time" ? dayMonthYearFormat(locale)(x as Date) : String(x);
           return (
             <div
               className="lq-chart__measure-stats"

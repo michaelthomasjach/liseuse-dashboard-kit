@@ -1,5 +1,5 @@
-import { useState, type ReactNode } from "react";
-import { ChevronDownIcon } from "../icons";
+import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
+import { ChevronDownIcon, MaximizeIcon, MinimizeIcon } from "../icons";
 import { Spinner } from "../feedback/Spinner";
 import { toneAttribute, type SurfaceTone } from "./tone";
 import "./Card.css";
@@ -56,7 +56,31 @@ export interface CardProps {
   refreshing?: boolean;
   /** Libellé du bouton de rafraîchissement. Défaut : « Rafraîchir ». */
   refreshLabel?: string;
+  /**
+   * Ajoute à droite de l'en-tête un bouton « plein écran » : la carte se détache de la page et la
+   * couvre entière (position fixe, au-dessus de la barre latérale et de la barre haute), son corps
+   * défilant à l'intérieur. Échap ou le même bouton la rendent à sa place. Pendant ce temps, la page
+   * ne défile plus, le focus est gardé dans la carte (exposée en `role="dialog"`), et une réserve
+   * invisible de sa hauteur tient sa place dans la grille pour que rien ne saute autour. Le focus
+   * revient au bouton à la sortie.
+   *
+   * Non contrôlé par défaut ; `maximized` + `onMaximizedChange` pour le piloter du dehors.
+   *
+   * Limite : `position: fixed` se rapporte au premier ancêtre qui porte un `transform`, un `filter`
+   * ou un `contain` — dans un tel conteneur, la carte ne couvre que lui.
+   */
+  maximizable?: boolean;
+  /** Plein écran contrôlé. Le fournir suffit à afficher le bouton, même sans `maximizable`. */
+  maximized?: boolean;
+  onMaximizedChange?: (maximized: boolean) => void;
+  /** Libellé du bouton pour entrer en plein écran. Défaut : « Plein écran ». */
+  maximizeLabel?: string;
+  /** Libellé du bouton pour en sortir. Défaut : « Quitter le plein écran ». */
+  restoreLabel?: string;
 }
+
+const FOCUSABLE =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"]), [contenteditable="true"]';
 
 /** The bordered card primitive — a plain always-visible card by default, a collapsible "show
  *  more" card when `expandable` is on (`ExpandableCard`'s own doc), or a quiet KPI-tile card when
@@ -81,15 +105,107 @@ export function Card({
   onRefresh,
   refreshing,
   refreshLabel = "Rafraîchir",
+  maximizable = false,
+  maximized,
+  onMaximizedChange,
+  maximizeLabel = "Plein écran",
+  restoreLabel = "Quitter le plein écran",
 }: CardProps) {
   const [internalOpen, setInternalOpen] = useState(defaultOpen);
   const [pendingRefresh, setPendingRefresh] = useState(false);
   const isOpen = expandable ? (open ?? internalOpen) : true;
   const hasHeading = Boolean(title || meta);
   const refreshable = onRefresh !== undefined || refreshing !== undefined;
-  const hasControls = Boolean(controls) || onRefresh !== undefined;
+  const canMaximize = maximizable || maximized !== undefined;
+  const hasControls = Boolean(controls) || onRefresh !== undefined || canMaximize;
   const hasHeader = hasHeading || hasControls;
   const isRefreshing = refreshing ?? pendingRefresh;
+
+  const [internalMaximized, setInternalMaximized] = useState(false);
+  const isMaximized = canMaximize && (maximized ?? internalMaximized);
+  const isControlledMaximized = maximized !== undefined;
+  const sectionRef = useRef<HTMLElement>(null);
+  const maximizeButtonRef = useRef<HTMLButtonElement>(null);
+  // La hauteur de la carte à sa place, relevée tant qu'elle y est : c'est celle de la réserve qui la
+  // remplace dans la grille pendant le plein écran. Relevée aussi au clic, juste avant de partir.
+  const restingHeight = useRef<number | null>(null);
+  // `onMaximizedChange` est souvent une flèche neuve à chaque rendu : lue par une référence, pour que
+  // l'effet ci-dessous ne se défasse et ne se refasse pas à chaque rendu.
+  const onMaximizedChangeRef = useRef(onMaximizedChange);
+  onMaximizedChangeRef.current = onMaximizedChange;
+
+  const [placeholderHeight, setPlaceholderHeight] = useState<number | null>(null);
+
+  function setMaximized(next: boolean) {
+    if (next && sectionRef.current) restingHeight.current = sectionRef.current.getBoundingClientRect().height;
+    if (!isControlledMaximized) setInternalMaximized(next);
+    onMaximizedChangeRef.current?.(next);
+  }
+
+  // Avant l'affichage : relevé de la hauteur tant que la carte est à sa place, report sur la réserve
+  // dès qu'elle la quitte (un `maximized` contrôlé passe à `true` sans passer par le bouton).
+  useLayoutEffect(() => {
+    if (canMaximize && !isMaximized && sectionRef.current) restingHeight.current = sectionRef.current.getBoundingClientRect().height;
+  });
+  useLayoutEffect(() => {
+    if (isMaximized) setPlaceholderHeight(restingHeight.current);
+  }, [isMaximized]);
+
+  useEffect(() => {
+    if (!isMaximized) return;
+    const section = sectionRef.current;
+    // Le bouton est le même nœud dans les deux états : le garder d'ici vaut pour la sortie.
+    const button = maximizeButtonRef.current;
+    const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    // Le focus entre dans la carte (sur elle-même, pour que le lecteur d'écran annonce le dialogue
+    // par son titre), sauf s'il y est déjà — le bouton qu'on vient de presser, typiquement.
+    if (section && !section.contains(document.activeElement)) section.focus({ preventScroll: true });
+
+    // Échap au niveau de la fenêtre, mais seulement si l'événement vient de la carte ou de nulle part :
+    // une modale ou un menu ouverts depuis la carte vivent dans un portail, hors de son DOM, et leur
+    // propre Échap ne doit fermer qu'eux.
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key !== "Escape" || e.defaultPrevented) return;
+      const target = e.target instanceof Node ? e.target : null;
+      if (target && target !== document.body && !section?.contains(target)) return;
+      e.preventDefault();
+      if (!isControlledMaximized) setInternalMaximized(false);
+      onMaximizedChangeRef.current?.(false);
+    }
+    window.addEventListener("keydown", onKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = previousOverflow;
+      // Retour à ce qui avait le focus avant (le bouton de la carte, ou celui qui l'a agrandie du
+      // dehors), à défaut au bouton de la carte.
+      const back = previouslyFocused && previouslyFocused !== document.body && previouslyFocused.isConnected ? previouslyFocused : button;
+      if (back && back.isConnected) back.focus({ preventScroll: true });
+    };
+  }, [isMaximized, isControlledMaximized]);
+
+  // Le focus reste dans la carte : Tab au dernier élément repart au premier, Maj+Tab l'inverse.
+  function trapFocus(e: ReactKeyboardEvent<HTMLElement>) {
+    const section = sectionRef.current;
+    if (!isMaximized || e.key !== "Tab" || !section) return;
+    const items = Array.from(section.querySelectorAll<HTMLElement>(FOCUSABLE)).filter((el) => el.getClientRects().length > 0);
+    if (items.length === 0) {
+      e.preventDefault();
+      return;
+    }
+    const first = items[0];
+    const last = items[items.length - 1];
+    const active = document.activeElement;
+    if (e.shiftKey && (active === first || active === section)) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && active === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  }
 
   function toggle() {
     if (!expandable) return;
@@ -134,6 +250,19 @@ export function Card({
           <span className="lq-card__refresh-ring" aria-hidden="true" />
         </button>
       )}
+      {canMaximize && (
+        <button
+          ref={maximizeButtonRef}
+          type="button"
+          className="lq-card__maximize"
+          onClick={() => setMaximized(!isMaximized)}
+          aria-pressed={isMaximized}
+          aria-label={isMaximized ? restoreLabel : maximizeLabel}
+          title={isMaximized ? restoreLabel : maximizeLabel}
+        >
+          {isMaximized ? <MinimizeIcon size={16} aria-hidden="true" /> : <MaximizeIcon size={16} aria-hidden="true" />}
+        </button>
+      )}
     </span>
   );
 
@@ -168,20 +297,27 @@ export function Card({
     }
   }
 
-  return (
+  const card = (
     <section
+      ref={sectionRef}
       className={[
         "lq-card",
         bare && "lq-card--bare",
         highlight && "lq-card--highlight",
         (refreshable || (hasControls && !hasHeading)) && "lq-card--anchored",
         isRefreshing && "lq-card--refreshing",
+        isMaximized && "lq-card--maximized",
         className,
       ]
         .filter(Boolean)
         .join(" ")}
       data-lq-tone={toneAttribute(tone)}
       aria-busy={refreshable ? isRefreshing : undefined}
+      role={isMaximized ? "dialog" : undefined}
+      aria-modal={isMaximized || undefined}
+      aria-label={isMaximized ? (typeof title === "string" ? title : maximizeLabel) : undefined}
+      tabIndex={isMaximized ? -1 : undefined}
+      onKeyDown={canMaximize ? trapFocus : undefined}
     >
       {header}
 
@@ -207,5 +343,23 @@ export function Card({
         </div>
       )}
     </section>
+  );
+
+  if (!canMaximize) return card;
+  // La réserve : invisible, de la hauteur de la carte et avec les classes de l'appelant (un
+  // `grid-column` posé par lui y reste), elle garde la case pendant que la carte couvre l'écran.
+  // Toujours au même rang dans le fragment, présente ou non : la carte garde sa place dans l'arbre
+  // React, et son contenu son état, en entrant et en sortant du plein écran.
+  return (
+    <>
+      {isMaximized && (
+        <div
+          className={["lq-card-placeholder", className].filter(Boolean).join(" ")}
+          style={placeholderHeight !== null ? { height: placeholderHeight } : undefined}
+          aria-hidden="true"
+        />
+      )}
+      {card}
+    </>
   );
 }

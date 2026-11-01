@@ -1,0 +1,257 @@
+/* La visionneuse occupe tout l'écran, au-dessus des modales (3000) : on l'ouvre souvent depuis
+   l'une d'elles — une fiche produit et ses photos — et elle doit passer devant. */
+.lq-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 3100;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  color: var(--lq-color-text);
+  background-color: var(--lq-lightbox-backdrop, var(--lq-color-bg));
+  font-family: var(--lq-font-family);
+  outline: none;
+}
+
+.lq-lightbox__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lq-space-3);
+  padding: var(--lq-space-3) var(--lq-space-4);
+  padding-top: max(var(--lq-space-3), env(safe-area-inset-top, 0px));
+}
+
+.lq-lightbox__counter {
+  font-size: var(--lq-text-sm);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--lq-label-tracking, 0.04em);
+  color: var(--lq-color-text-muted);
+}
+
+.lq-lightbox__stage {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--lq-space-3);
+  min-height: 0;
+  padding: 0 var(--lq-space-4);
+  /* Le balayage horizontal est à nous ; le pincement et le défilement vertical restent au navigateur. */
+  touch-action: pan-y pinch-zoom;
+}
+
+/* Une grille plutôt qu'un flex : les pourcentages de `max-height` d'un élément de grille se
+   rapportent à sa zone, dont la hauteur est connue — l'image tient alors dans la place qui reste
+   sous la légende, en gardant ses proportions, sans une ligne de calcul. */
+.lq-lightbox__figure {
+  display: grid;
+  grid-template-rows: minmax(0, max-content);
+  grid-auto-rows: auto;
+  justify-items: center;
+  align-items: center;
+  align-content: center;
+  gap: var(--lq-space-3);
+  align-self: stretch;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding-bottom: var(--lq-space-2);
+  /* Les clics à côté de l'image traversent la figure et atteignent la scène, qui ferme. */
+  pointer-events: none;
+}
+
+.lq-lightbox__image {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: var(--lq-lightbox-radius, var(--lq-radius-sm));
+  box-shadow: var(--lq-shadow-modal);
+  user-select: none;
+  pointer-events: auto;
+}
+
+.lq-lightbox__caption {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  max-width: 70ch;
+  text-align: center;
+  pointer-events: auto;
+}
+
+.lq-lightbox__title {
+  font-size: var(--lq-text-md);
+  font-weight: var(--lq-font-weight-bold, 700);
+  color: var(--lq-color-text);
+}
+
+.lq-lightbox__text {
+  font-size: var(--lq-text-sm);
+  line-height: var(--lq-line-height-body);
+  color: var(--lq-color-text-muted);
+}
+
+/* --- Boutons ----------------------------------------------------------------------------------- */
+
+.lq-lightbox__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 0;
+  color: var(--lq-color-text);
+  background-color: var(--lq-lightbox-button-bg, color-mix(in srgb, var(--lq-color-panel) 70%, transparent));
+  border: 1px solid var(--lq-color-border-subtle);
+  border-radius: var(--lq-lightbox-button-radius, var(--lq-radius-pill));
+  cursor: pointer;
+  transition: background-color var(--lq-transition-fast), border-color var(--lq-transition-fast);
+}
+
+.lq-lightbox__button:hover:not(:disabled) {
+  background-color: var(--lq-color-panel);
+  border-color: var(--lq-color-border);
+}
+
+.lq-lightbox__button:focus-visible,
+.lq-lightbox__thumb:focus-visible {
+  outline: 2px solid var(--lq-color-focus-ring);
+  outline-offset: 2px;
+}
+
+.lq-lightbox__button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.lq-lightbox__close {
+  width: 40px;
+  height: 40px;
+}
+
+.lq-lightbox__nav {
+  width: 48px;
+  height: 48px;
+  pointer-events: auto;
+}
+
+.lq-lightbox__nav[hidden] {
+  display: none;
+}
+
+/* --- Vignettes ---------------------------------------------------------------------------------- */
+
+.lq-lightbox__strip {
+  display: flex;
+  gap: var(--lq-space-2);
+  max-width: 100%;
+  margin: 0 auto;
+  padding: var(--lq-space-3) var(--lq-space-4);
+  padding-bottom: max(var(--lq-space-3), env(safe-area-inset-bottom, 0px));
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.lq-lightbox__thumb {
+  flex: 0 0 auto;
+  width: var(--lq-lightbox-thumb-size, 64px);
+  height: var(--lq-lightbox-thumb-size, 64px);
+  padding: 0;
+  overflow: hidden;
+  background: none;
+  border: 2px solid transparent;
+  border-radius: var(--lq-radius-sm);
+  opacity: 0.55;
+  cursor: pointer;
+  transition: opacity var(--lq-transition-fast), border-color var(--lq-transition-fast);
+}
+
+.lq-lightbox__thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.lq-lightbox__thumb:hover {
+  opacity: 0.85;
+}
+
+.lq-lightbox__thumb--active {
+  opacity: 1;
+  border-color: var(--lq-color-accent);
+}
+
+/* --- Petits écrans : les flèches passent sur l'image ------------------------------------------- */
+
+@media (max-width: 640px) {
+  .lq-lightbox__stage {
+    padding: 0;
+  }
+
+  .lq-lightbox__nav {
+    position: absolute;
+    top: 50%;
+    z-index: 1;
+    transform: translateY(-50%);
+  }
+
+  .lq-lightbox__nav--prev {
+    left: var(--lq-space-2);
+  }
+
+  .lq-lightbox__nav--next {
+    right: var(--lq-space-2);
+  }
+
+  .lq-lightbox__image {
+    border-radius: 0;
+  }
+}
+
+/* --- E-ink : fond plein, traits nets, rien ne bouge ------------------------------------------- */
+
+.lq-root[data-lq-palette="eink"] .lq-lightbox {
+  background-color: var(--lq-color-bg);
+}
+
+.lq-root[data-lq-palette="eink"] .lq-lightbox__image {
+  border: 1px solid var(--lq-color-border);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.lq-root[data-lq-palette="eink"] .lq-lightbox__button {
+  background-color: var(--lq-color-panel);
+  border: 1.5px solid var(--lq-color-border);
+  border-radius: 0;
+  transition: none;
+}
+
+.lq-root[data-lq-palette="eink"] .lq-lightbox__counter {
+  color: var(--lq-color-text);
+}
+
+.lq-root[data-lq-palette="eink"] .lq-lightbox__thumb {
+  border-radius: 0;
+  border-color: var(--lq-color-border-subtle);
+  opacity: 1;
+  transition: none;
+}
+
+.lq-root[data-lq-palette="eink"] .lq-lightbox__thumb--active {
+  border-color: var(--lq-color-border);
+  outline: 2px solid var(--lq-color-border);
+  outline-offset: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lq-lightbox__button,
+  .lq-lightbox__thumb {
+    transition: none;
+  }
+}

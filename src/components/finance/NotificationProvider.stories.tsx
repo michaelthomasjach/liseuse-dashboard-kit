@@ -114,7 +114,7 @@ const meta = {
           "",
           "### À savoir",
           "",
-          "- `autoDismissMs: 0` fait apparaître un « 0 » parasite dans la carte (la condition d'affichage de la barre de progression rend la valeur) : défaut du kit, visible dans les stories à notifications persistantes ci-dessous.",
+          "- `autoDismissMs: 0` garde la carte jusqu'à ce qu'on la ferme (pas de barre de progression).",
           "- Dans la file, une **barre** n'est pas centrée : elle s'aligne à gauche sur 720 px, alors que la barre d'une `Notification` autonome est centrée (défaut du kit).",
           "- Une barre et le coin du même bord se **chevauchent** : rien ne décale les piles de coin quand une barre est affichée.",
           "",
@@ -226,7 +226,7 @@ export const SixPositions: Story = {
     docs: {
       story: { inline: false, iframeHeight: "460px" },
       description: {
-        story: "Les quatre coins et les deux bords, chacun avec sa pile. On y voit les trois défauts décrits plus haut : le « 0 » parasite des cartes persistantes (`autoDismissMs: 0`), les barres alignées à gauche au lieu d'être centrées, et les barres qui recouvrent les coins gauches.",
+        story: "Les quatre coins et les deux bords, chacun avec sa pile. On y voit deux défauts décrits plus haut : les barres alignées à gauche au lieu d'être centrées, et les barres qui recouvrent les coins gauches.",
       },
     },
   },

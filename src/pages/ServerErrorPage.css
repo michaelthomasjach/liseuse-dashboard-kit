@@ -1,0 +1,155 @@
+/* Remplit son conteneur (et non la fenêtre) : la page tient dans un cadre, une zone de contenu ou
+   une story. `--full-height` la rend à la fenêtre entière quand elle est seule. */
+.lq-server-error-page {
+  container-type: inline-size;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-height: 100%;
+  padding: var(--lq-space-6);
+  text-align: center;
+  color: var(--lq-color-text);
+  background-color: var(--lq-color-bg);
+}
+
+.lq-server-error-page--full-height {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.lq-server-error-page__inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--lq-space-3);
+  max-width: 34rem;
+}
+
+.lq-server-error-page__illustration {
+  display: flex;
+  color: var(--lq-color-text-muted);
+  margin-bottom: var(--lq-space-2);
+}
+
+.lq-server-error-page__code {
+  margin: 0;
+  font-size: var(--lq-error-code-size, clamp(3.5rem, 18cqi, 6rem));
+  font-weight: var(--lq-error-code-weight, var(--lq-font-weight-bold, 700));
+  letter-spacing: var(--lq-error-code-tracking, normal);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.lq-server-error-page__title {
+  margin: 0;
+  font-size: var(--lq-error-title-size, var(--lq-text-h3));
+  font-weight: var(--lq-error-title-weight, var(--lq-font-weight-semibold, 600));
+  line-height: var(--lq-line-height-heading);
+}
+
+.lq-server-error-page__message {
+  margin: 0;
+  max-width: 44ch;
+  color: var(--lq-color-text-muted);
+  line-height: var(--lq-line-height-body);
+}
+
+.lq-server-error-page__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--lq-space-3);
+  margin-top: var(--lq-space-3);
+}
+
+.lq-server-error-page__actions a.lq-button {
+  text-decoration: none;
+}
+
+.lq-server-error-page__actions .lq-button[aria-disabled="true"] {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.lq-server-error-page__incident {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--lq-space-2);
+  margin-top: var(--lq-space-4);
+  padding: var(--lq-space-2) var(--lq-space-3);
+  font-size: var(--lq-text-sm);
+  color: var(--lq-color-text-muted);
+  border: 1px dashed var(--lq-color-border);
+  border-radius: var(--lq-radius-md);
+}
+
+.lq-server-error-page__incident-id {
+  font-family: var(--lq-font-mono);
+  color: var(--lq-color-text);
+  user-select: all;
+}
+
+.lq-server-error-page__copy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  color: var(--lq-color-text-muted);
+  background: none;
+  border: none;
+  border-radius: var(--lq-radius-sm);
+  cursor: pointer;
+  transition: color var(--lq-transition-fast), background-color var(--lq-transition-fast);
+}
+
+.lq-server-error-page__copy:hover {
+  color: var(--lq-color-text);
+  background-color: var(--lq-color-hover);
+}
+
+.lq-server-error-page__copy:focus-visible {
+  outline: 2px solid var(--lq-color-focus-ring);
+  outline-offset: 1px;
+}
+
+/* Annonce « Copié » aux lecteurs d'écran, invisible à l'œil (l'icône change déjà). */
+.lq-server-error-page__live {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.lq-server-error-page__footer {
+  margin-top: var(--lq-space-4);
+  font-size: var(--lq-text-sm);
+  color: var(--lq-color-text-muted);
+}
+
+.lq-server-error-page__footer a {
+  color: var(--lq-color-accent);
+}
+
+.lq-root[data-lq-palette="eink"] .lq-server-error-page__incident,
+.lq-root[data-lq-palette="eink"] .lq-server-error-page__copy {
+  border-radius: 0;
+}
+
+.lq-root[data-lq-palette="eink"] .lq-server-error-page__incident {
+  border-color: var(--lq-color-text);
+}
+
+.lq-root[data-lq-palette="eink"] .lq-server-error-page__footer a {
+  color: var(--lq-color-text);
+}
+
+.lq-root[data-lq-palette="eink"] .lq-server-error-page__copy {
+  transition: none;
+}

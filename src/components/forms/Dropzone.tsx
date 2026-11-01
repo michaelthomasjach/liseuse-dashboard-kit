@@ -1,17 +1,28 @@
-import { useId, useRef, useState, type DragEvent } from "react";
+import { useId, useRef, useState, type DragEvent, type ReactNode } from "react";
 import { UploadCloudIcon, FileIcon, TrashIcon, ErrorIcon } from "../icons";
 import "./field.css";
 import "./Dropzone.css";
 
 export interface DropzoneProps {
   onFilesSelected: (files: File[]) => void;
-  /** Native `accept` attribute, e.g. "image/*,.pdf". */
+  /** Native `accept` attribute, e.g. "image/*,.pdf". Also checked on drag-and-drop, which the
+   *  browser doesn't filter: a dropped file that doesn't match is set aside with a message. */
   accept?: string;
   multiple?: boolean;
+  /** Files heavier than this are set aside with a message instead of being passed on. */
   maxSizeMB?: number;
   disabled?: boolean;
   label?: string;
   hint?: string;
+  /** Texte principal de la zone. Défaut « Cliquez ou glissez un fichier ». */
+  dropLabel?: ReactNode;
+  /** Texte de la zone pendant qu'un fichier la survole. Défaut « Déposez pour importer ». */
+  dragActiveLabel?: ReactNode;
+  /** Message affiché sous la zone pour les fichiers écartés (trop lourds, d'un type refusé). Par
+   *  défaut une phrase en français qui les nomme. Un `error` passé par l'appelant passe devant. */
+  formatRejection?: (rejected: { file: File; reason: "size" | "type" }[]) => ReactNode;
+  /** Appelé avec les fichiers écartés, en plus du message. */
+  onFilesRejected?: (rejected: { file: File; reason: "size" | "type" }[]) => void;
   error?: string;
   /** Currently selected files, rendered as a removable list below the drop area. Fully controlled by the caller. */
   files?: File[];
@@ -19,10 +30,44 @@ export interface DropzoneProps {
   className?: string;
 }
 
+const MB = 1024 * 1024;
+
+/** Tailles à la française : « 1,2 Mo », « 340 Ko ». */
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} o`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} Ko`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`;
+  if (bytes < MB) return `${Math.round(bytes / 1024).toLocaleString("fr-FR")} Ko`;
+  return `${(bytes / MB).toLocaleString("fr-FR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} Mo`;
+}
+
+/** Le contrôle de l'attribut `accept` que le navigateur ne fait qu'au sélecteur de fichiers :
+ *  extensions (`.pdf`), familles (`image/*`) et types exacts (`application/pdf`). */
+function matchesAccept(file: File, accept: string | undefined): boolean {
+  if (!accept) return true;
+  const name = file.name.toLowerCase();
+  const type = file.type.toLowerCase();
+  return accept
+    .split(",")
+    .map((t) => t.trim().toLowerCase())
+    .filter(Boolean)
+    .some((token) => {
+      if (token.startsWith(".")) return name.endsWith(token);
+      if (token.endsWith("/*")) return type.startsWith(token.slice(0, -1));
+      return type === token;
+    });
+}
+
+function defaultRejection(rejected: { file: File; reason: "size" | "type" }[], maxSizeMB: number | undefined): string {
+  const names = (reason: "size" | "type") =>
+    rejected
+      .filter((r) => r.reason === reason)
+      .map((r) => `« ${r.file.name} »`)
+      .join(", ");
+  const parts: string[] = [];
+  const tooBig = names("size");
+  const wrongType = names("type");
+  if (tooBig) parts.push(`Trop lourd (plus de ${(maxSizeMB ?? 0).toLocaleString("fr-FR")} Mo) : ${tooBig}.`);
+  if (wrongType) parts.push(`Type de fichier non accepté : ${wrongType}.`);
+  return parts.join(" ");
 }
 
 /** Drag-and-drop file upload zone with click-to-browse fallback and an optional selected-files list. */
@@ -34,6 +79,10 @@ export function Dropzone({
   disabled,
   label = "Glissez-déposez vos fichiers ici",
   hint,
+  dropLabel = "Cliquez ou glissez un fichier",
+  dragActiveLabel = "Déposez pour importer",
+  formatRejection,
+  onFilesRejected,
   error,
   files,
   onRemoveFile,
@@ -42,12 +91,20 @@ export function Dropzone({
   const [isDragging, setIsDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const inputId = useId();
+  const [rejection, setRejection] = useState<ReactNode>(null);
 
   function acceptFiles(list: FileList | null) {
     if (!list) return;
-    let picked = Array.from(list);
-    if (maxSizeMB) picked = picked.filter((f) => f.size <= maxSizeMB * 1024 * 1024);
+    const rejected: { file: File; reason: "size" | "type" }[] = [];
+    let picked = Array.from(list).filter((file) => {
+      if (!matchesAccept(file, accept)) rejected.push({ file, reason: "type" });
+      else if (maxSizeMB && file.size > maxSizeMB * MB) rejected.push({ file, reason: "size" });
+      else return true;
+      return false;
+    });
     if (!multiple) picked = picked.slice(0, 1);
+    setRejection(rejected.length > 0 ? (formatRejection ?? ((r) => defaultRejection(r, maxSizeMB)))(rejected) : null);
+    if (rejected.length > 0) onFilesRejected?.(rejected);
     if (picked.length > 0) onFilesSelected(picked);
   }
 
@@ -91,7 +148,7 @@ export function Dropzone({
         }}
       >
         <UploadCloudIcon size={28} className="lq-dropzone__icon" />
-        <span className="lq-dropzone__label">{isDragging ? "Déposez pour importer" : "Cliquez ou glissez un fichier"}</span>
+        <span className="lq-dropzone__label">{isDragging ? dragActiveLabel : dropLabel}</span>
         {hint && <span className="lq-dropzone__hint">{hint}</span>}
         <input
           ref={inputRef}
@@ -101,14 +158,19 @@ export function Dropzone({
           accept={accept}
           multiple={multiple}
           disabled={disabled}
-          onChange={(e) => acceptFiles(e.target.files)}
+          onChange={(e) => {
+            acceptFiles(e.target.files);
+            // Vidé à chaque fois : sinon re-choisir le même fichier (après l'avoir retiré de la
+            // liste) ne déclenche aucun `change`.
+            e.target.value = "";
+          }}
         />
       </div>
 
-      {error && (
-        <span className="lq-field__error">
+      {(error || rejection) && (
+        <span className="lq-field__error" role="alert">
           <ErrorIcon size={14} />
-          {error}
+          {error || rejection}
         </span>
       )}
 

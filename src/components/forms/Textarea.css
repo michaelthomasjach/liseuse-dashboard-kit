@@ -1,0 +1,63 @@
+/*
+ * Textarea — le cadre et les textes viennent de field.css (`lq-field*`), comme pour Input ; ce
+ * fichier ne règle que ce qu'une saisie sur plusieurs lignes change : la boîte s'étire au lieu de
+ * centrer une ligne, la zone a un retrait vertical, et un pied porte l'aide et le compteur.
+ *
+ * Variables optionnelles (jamais déclarées dans tokens.css) :
+ *   --lq-textarea-padding-y     retrait haut et bas de la saisie (--lq-space-2)
+ *   --lq-textarea-line-height   interligne de la saisie (1.5)
+ *   --lq-textarea-count-size    taille du compteur (0.75rem, celle de l'aide)
+ */
+
+.lq-textarea__control {
+  align-items: stretch;
+  padding-right: 0;
+}
+
+.lq-textarea__input {
+  display: block;
+  width: 100%;
+  min-height: 0;
+  margin: 0;
+  padding: var(--lq-textarea-padding-y, var(--lq-space-2)) var(--lq-control-padding-x, var(--lq-space-3)) var(--lq-textarea-padding-y, var(--lq-space-2)) 0;
+  line-height: var(--lq-textarea-line-height, 1.5);
+  resize: vertical;
+}
+
+.lq-textarea__input--fixed {
+  resize: none;
+}
+
+/* Libellé dans la boîte : field.css fixe la saisie d'Input à 25 px de haut ; une zone de texte garde
+   sa hauteur en lignes. */
+.lq-field__inset .lq-field__input.lq-textarea__input {
+  height: auto;
+  margin-top: 0;
+  padding-top: 2px;
+  line-height: var(--lq-textarea-line-height, 1.5);
+}
+
+.lq-textarea__foot {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--lq-space-3);
+}
+
+.lq-textarea__count {
+  flex-shrink: 0;
+  margin-top: var(--lq-field-helper-offset, 0px);
+  margin-left: auto;
+  font-size: var(--lq-textarea-count-size, 0.75rem);
+  font-variant-numeric: tabular-nums;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-textarea__count--limit {
+  color: var(--lq-color-danger);
+  font-weight: var(--lq-font-weight-semibold, 600);
+}
+
+.lq-field__control--disabled .lq-textarea__input {
+  cursor: not-allowed;
+}

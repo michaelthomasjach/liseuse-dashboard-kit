@@ -1,0 +1,141 @@
+/*
+ * Boutons accolés. Le groupe ne dessine rien lui-même : il soude les `Button` / `IconButton` qu'il
+ * contient — angles à zéro sauf aux deux extrémités, et chaque bouton recule de l'épaisseur d'un
+ * filet pour que deux bordures voisines n'en fassent qu'une. Le bouton survolé, focalisé ou enfoncé
+ * passe au-dessus de ses voisins : sa bordure entière reste visible.
+ *
+ * Variables optionnelles (non déclarées dans tokens.css) :
+ *   --lq-button-group-selected-bg      fond du bouton enfoncé (repli : --lq-color-fill)
+ *   --lq-button-group-selected-color   son texte (repli : --lq-color-accent-contrast)
+ *   --lq-button-group-selected-border  sa bordure (repli : --lq-color-fill)
+ */
+
+.lq-button-group {
+  --lq-button-group-seam: var(--lq-control-border-width, 1.5px);
+  display: inline-flex;
+  align-items: stretch;
+  vertical-align: middle;
+}
+
+.lq-button-group--vertical {
+  flex-direction: column;
+}
+
+.lq-button-group--block {
+  display: flex;
+  width: 100%;
+}
+
+.lq-button-group--block.lq-button-group--horizontal > * {
+  flex: 1 1 0;
+}
+
+.lq-button-group > :nth-child(n) {
+  position: relative;
+  margin: 0;
+  border-radius: 0;
+}
+
+/* Un groupe se lit d'un bloc : pas de tassement au clic, il ferait trembler les voisins. */
+.lq-button-group > .lq-button:not(:disabled):active,
+.lq-button-group > .lq-icon-button:not(:disabled):active {
+  transform: none;
+}
+
+.lq-button-group > :hover,
+.lq-button-group > :focus-visible,
+.lq-button-group > [aria-pressed="true"] {
+  z-index: 1;
+}
+
+.lq-button-group > :focus-visible {
+  z-index: 2;
+  outline: 2px solid var(--lq-color-focus-ring);
+  outline-offset: 1px;
+}
+
+/* -- les coutures ----------------------------------------------------
+   Spécificité (0,2,0) pour la remise à zéro ci-dessus, (0,3,0) pour les coins : elles battent les
+   règles des boutons eux-mêmes sans dépendre de l'ordre des feuilles dans le bundle. */
+
+.lq-button-group--horizontal > * + * {
+  margin-left: calc(-1 * var(--lq-button-group-seam));
+}
+
+.lq-button-group--vertical > * + * {
+  margin-top: calc(-1 * var(--lq-button-group-seam));
+}
+
+.lq-button-group.lq-button-group--horizontal > :first-child {
+  border-start-start-radius: var(--lq-radius-md);
+  border-end-start-radius: var(--lq-radius-md);
+}
+
+.lq-button-group.lq-button-group--horizontal > :last-child {
+  border-start-end-radius: var(--lq-radius-md);
+  border-end-end-radius: var(--lq-radius-md);
+}
+
+.lq-button-group.lq-button-group--vertical > :first-child {
+  border-start-start-radius: var(--lq-radius-md);
+  border-start-end-radius: var(--lq-radius-md);
+}
+
+.lq-button-group.lq-button-group--vertical > :last-child {
+  border-end-start-radius: var(--lq-radius-md);
+  border-end-end-radius: var(--lq-radius-md);
+}
+
+.lq-root[data-lq-palette="eink"] .lq-button-group > :nth-child(n) {
+  border-radius: 0;
+}
+
+/* Empilés, les boutons prennent la largeur du plus large et alignent leur libellé à gauche. */
+.lq-button-group--vertical > .lq-button {
+  justify-content: flex-start;
+}
+
+/* -- les boutons à icône seule ---------------------------------------- */
+
+/* Dans un groupe, l'IconButton perd sa taille fixe pour un minimum — la hauteur d'un contrôle
+   (`--lq-control-height`, 40 px dans le kit : le côté d'un IconButton isolé ; 12 px de moins en
+   `sm`) : un groupe d'icônes a la taille d'un IconButton, et un bouton à icône accolé à un `Button`
+   à libellé prend la hauteur de celui-ci (l'étirement du flex) au lieu d'en dépasser. */
+.lq-button-group > .lq-icon-button {
+  width: auto;
+  height: auto;
+  min-width: var(--lq-control-height, 40px);
+  min-height: var(--lq-control-height, 40px);
+  padding: 0 var(--lq-space-1);
+}
+
+.lq-button-group > .lq-icon-button svg {
+  width: 1.15em;
+  height: 1.15em;
+  font-size: var(--lq-button-font-size, 0.9rem);
+}
+
+/* -- l'état enfoncé --------------------------------------------------- */
+
+.lq-button-group > .lq-button-group__item--pressed {
+  background-color: var(--lq-button-group-selected-bg, var(--lq-color-fill));
+  color: var(--lq-button-group-selected-color, var(--lq-color-accent-contrast));
+  border-color: var(--lq-button-group-selected-border, var(--lq-color-fill));
+}
+
+/* -- densité ------------------------------------------------------------ */
+
+.lq-button-group--sm > .lq-button {
+  padding: var(--lq-space-1) var(--lq-space-3);
+  font-size: var(--lq-text-sm);
+}
+
+.lq-button-group--sm > .lq-icon-button {
+  min-width: calc(var(--lq-control-height, 40px) - 12px);
+  min-height: calc(var(--lq-control-height, 40px) - 12px);
+  padding: 0 var(--lq-space-1);
+}
+
+.lq-button-group--sm > .lq-icon-button svg {
+  font-size: var(--lq-text-sm);
+}

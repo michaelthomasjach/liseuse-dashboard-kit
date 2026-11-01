@@ -83,3 +83,12 @@ export type NumberFieldProps = InputNumberProps;
 export const PasswordField = InputPassword;
 /** @deprecated Renommé `InputPasswordProps`. */
 export type PasswordFieldProps = InputPasswordProps;
+
+export { Radio, RadioGroup } from "./RadioGroup";
+export type { RadioProps, RadioGroupProps, RadioOption } from "./RadioGroup";
+
+export { Slider } from "./Slider";
+export type { SliderProps, SliderMark } from "./Slider";
+
+export { Textarea } from "./Textarea";
+export type { TextareaProps } from "./Textarea";

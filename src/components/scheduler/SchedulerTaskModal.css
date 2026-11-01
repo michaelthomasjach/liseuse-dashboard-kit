@@ -107,7 +107,12 @@
   cursor: pointer;
 }
 
-.lq-sched-modal__step-remove:hover {
+.lq-sched-modal__step-remove:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.lq-sched-modal__step-remove:not(:disabled):hover {
   border-color: var(--lq-color-danger);
   color: var(--lq-color-danger);
 }

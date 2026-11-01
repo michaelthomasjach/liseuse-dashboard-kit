@@ -69,21 +69,24 @@ export const AlertTriangleIcon = (props: AnimatedIconProps) => (
   </IconBase>
 );
 
+// Sunrise and sunset share the half sun on its horizon and differ by the arrow above it — up for
+// the morning, down for the evening. They used to be the same drawing (only the stroke order of
+// the vertical ray differed), so "Matin" and "Soirée" were indistinguishable side by side.
 export const SunriseIcon = (props: AnimatedIconProps) => (
   <IconBase motion="bob" {...props}>
-    <path d="M12 3v5" />
-    <path d="M5.5 11.5 7.6 9.4M18.5 11.5l-2.1-2.1" />
-    <circle cx="12" cy="15" r="3.6" />
-    <path d="M3 19.5h18M2 15.5h2M20 15.5h2" />
+    <path d="M12 9V2.5M9 5.5l3-3 3 3" />
+    <path d="M4.6 12.6l1.5 1.5M19.4 12.6l-1.5 1.5" />
+    <path d="M7 18a5 5 0 0 1 10 0" />
+    <path d="M2.5 18h19M8 21.5h8" />
   </IconBase>
 );
 
 export const SunsetIcon = (props: AnimatedIconProps) => (
   <IconBase motion="bob" {...props}>
-    <path d="M12 8V3" />
-    <path d="M5.5 11.5 7.6 9.4M18.5 11.5l-2.1-2.1" />
-    <circle cx="12" cy="15" r="3.6" />
-    <path d="M3 19.5h18M2 15.5h2M20 15.5h2" />
+    <path d="M12 2.5V9M9 6l3 3 3-3" />
+    <path d="M4.6 12.6l1.5 1.5M19.4 12.6l-1.5 1.5" />
+    <path d="M7 18a5 5 0 0 1 10 0" />
+    <path d="M2.5 18h19M8 21.5h8" />
   </IconBase>
 );
 

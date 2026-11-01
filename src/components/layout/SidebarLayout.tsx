@@ -47,6 +47,12 @@ export interface SidebarLayoutProps {
   /** Variante `rail` : état initial de l'épingle quand `pinned` n'est pas fourni. Défaut : false. */
   defaultPinned?: boolean;
   onPinnedChange?: (pinned: boolean) => void;
+  /** Vrai (défaut) : la coquille occupe au moins toute la hauteur de la fenêtre, le tiroir et le
+   *  rail sont fixés à la fenêtre, et la bascule en tiroir suit la largeur de la fenêtre. Faux :
+   *  elle remplit son conteneur (`min-height: 100%`, parent de hauteur définie), tiroir et rail se
+   *  placent par rapport à elle, et la bascule suit **sa propre** largeur — pour un aperçu dans un
+   *  cadre ou une coquille imbriquée. */
+  fullHeight?: boolean;
 }
 
 /** App shell with a persistent left sidebar on desktop that collapses to an
@@ -63,6 +69,7 @@ export function SidebarLayout({
   pinned: pinnedProp,
   defaultPinned = false,
   onPinnedChange,
+  fullHeight = true,
 }: SidebarLayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [pinnedState, setPinnedState] = useState(defaultPinned);
@@ -81,6 +88,7 @@ export function SidebarLayout({
         stickyHeader && "lq-sidebar-layout--sticky-header",
         rail && "lq-sidebar-layout--rail",
         pinned && "lq-sidebar-layout--pinned",
+        !fullHeight && "lq-sidebar-layout--contained",
         className,
       ]
         .filter(Boolean)
@@ -128,6 +136,7 @@ export function SidebarLayout({
             className="lq-sidebar-layout__menu-button"
             onClick={() => setMobileOpen((o) => !o)}
             aria-label={mobileOpen ? "Fermer le menu" : "Ouvrir le menu"}
+            aria-expanded={mobileOpen}
           >
             {mobileOpen ? <CloseIcon size={20} /> : <MenuIcon size={20} />}
           </button>

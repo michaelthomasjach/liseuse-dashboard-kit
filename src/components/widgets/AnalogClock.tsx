@@ -2,23 +2,6 @@ import type { ReactNode } from "react";
 import { MoonIcon, SunIcon } from "../icons";
 import "./AnalogClock.css";
 
-/**
- * Une petite horloge à aiguilles — l'heure d'une simulation, d'une partie, d'un fuseau.
- *
- * ## Des secondes, et rien d'autre
- *
- * Un jeu ne compte pas en dates : il compte des secondes depuis le début de la partie. L'horloge
- * prend donc un nombre de secondes, **l'heure du jour ou le temps absolu** — elle en garde le reste
- * modulo 86 400 — et en tire ses deux aiguilles. La petite fait le tour en douze heures, la grande
- * en une ; les douze graduations disent les heures, les quatre plus longues les quarts.
- *
- * À côté du cadran, en option : l'heure en chiffres (`showDigital`), un soleil ou une lune selon
- * `night`, le jour de la partie (`day`) et une légende (`caption`) — le trafic, la météo, ce que
- * l'application veut dire du moment.
- *
- * Tout vient des jetons du thème : le cadran est un panneau, les aiguilles sont à l'accent, et la
- * palette e-ink les ramène à l'encre.
- */
 export interface AnalogClockProps {
   /** L'heure, en secondes : l'heure du jour, ou un temps absolu dont on garde le reste modulo 86 400. */
   seconds: number;
@@ -39,6 +22,23 @@ export interface AnalogClockProps {
 
 const pad = (n: number) => String(Math.floor(n)).padStart(2, "0");
 
+/**
+ * Une petite horloge à aiguilles — l'heure d'une simulation, d'une partie, d'un fuseau.
+ *
+ * ## Des secondes, et rien d'autre
+ *
+ * Un jeu ne compte pas en dates : il compte des secondes depuis le début de la partie. L'horloge
+ * prend donc un nombre de secondes, **l'heure du jour ou le temps absolu** — elle en garde le reste
+ * modulo 86 400 — et en tire ses deux aiguilles. La petite fait le tour en douze heures, la grande
+ * en une ; les douze graduations disent les heures, les quatre plus longues les quarts.
+ *
+ * À côté du cadran, en option : l'heure en chiffres (`showDigital`), un soleil ou une lune selon
+ * `night`, le jour de la partie (`day`) et une légende (`caption`) — le trafic, la météo, ce que
+ * l'application veut dire du moment.
+ *
+ * Tout vient des jetons du thème : le cadran est un panneau, les aiguilles sont à l'accent, et la
+ * palette e-ink les ramène à l'encre.
+ */
 export function AnalogClock({ seconds, size = 30, showDigital = true, day, caption, night, label, className }: AnalogClockProps) {
   const t = ((seconds % 86400) + 86400) % 86400;
   const hours = t / 3600;

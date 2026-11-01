@@ -1,8 +1,11 @@
 .lq-tag-input {
   flex-wrap: wrap;
   height: auto;
-  min-height: 40px;
-  padding: 6px 8px;
+  /* La hauteur des autres champs (--lq-control-height), pas 40 px en dur : un TagInput vide
+     s'aligne sur un Input voisin quand le thème resserre les contrôles. Padding vertical réduit à
+     3 px pour qu'une étiquette tienne dans 32 px sans faire grandir le champ. */
+  min-height: var(--lq-control-height, 40px);
+  padding: 3px 8px;
   gap: 6px;
   cursor: text;
 }
@@ -27,8 +30,8 @@
   outline: none;
   background: transparent;
   font-family: inherit;
-  font-size: 0.9rem;
-  color: var(--lq-color-text);
+  font-size: var(--lq-control-font-size, 0.9rem);
+  color: var(--lq-control-color, var(--lq-color-text));
   padding: 3px 2px;
 }
 

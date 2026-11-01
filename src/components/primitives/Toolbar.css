@@ -1,0 +1,115 @@
+/*
+ * Barre d'outils : deux zones (début, fin) poussées aux deux bords, des groupes séparés d'un filet.
+ *
+ * Variables optionnelles (non déclarées dans tokens.css) :
+ *   --lq-toolbar-bg        fond de la barre (repli : --lq-color-panel)
+ *   --lq-toolbar-border    son cadre complet (repli : filet --lq-color-border-subtle)
+ *   --lq-toolbar-padding   sa marge intérieure (repli : --lq-space-2, --lq-space-1 en compact)
+ *   --lq-toolbar-gap       l'écart entre deux contrôles (repli : --lq-space-2, --lq-space-1 en compact)
+ *   --lq-toolbar-separator la couleur des filets entre groupes (repli : --lq-color-border-subtle)
+ */
+
+.lq-toolbar {
+  --lq-toolbar-space: var(--lq-toolbar-gap, var(--lq-space-2));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--lq-toolbar-space);
+  padding: var(--lq-toolbar-padding, var(--lq-space-2));
+  background-color: var(--lq-toolbar-bg, var(--lq-color-panel));
+  border: var(--lq-toolbar-border, var(--lq-control-border-width, 1.5px) solid var(--lq-color-border-subtle));
+  border-radius: var(--lq-radius-md);
+  color: var(--lq-color-text);
+}
+
+.lq-root[data-lq-palette="eink"] .lq-toolbar {
+  border-radius: 0;
+  border-color: var(--lq-color-border);
+}
+
+.lq-toolbar.lq-toolbar--plain {
+  padding: 0;
+  background-color: transparent;
+  border: none;
+}
+
+.lq-toolbar--vertical {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  width: max-content;
+}
+
+.lq-toolbar__zone,
+.lq-toolbar__group {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--lq-toolbar-space);
+  min-width: 0;
+}
+
+.lq-toolbar--vertical .lq-toolbar__zone,
+.lq-toolbar--vertical .lq-toolbar__group {
+  flex-direction: column;
+  flex-wrap: nowrap;
+}
+
+.lq-toolbar__zone--end {
+  margin-left: auto;
+}
+
+.lq-toolbar--vertical .lq-toolbar__zone--end {
+  margin-left: 0;
+  margin-top: auto;
+}
+
+/* Le filet : une ligne de la hauteur des contrôles, un écart de part et d'autre en plus du `gap`. */
+.lq-toolbar__separator {
+  flex: none;
+  align-self: stretch;
+  width: 1px;
+  min-height: 1.25em;
+  margin: 0 var(--lq-space-1);
+  background-color: var(--lq-toolbar-separator, var(--lq-color-border-subtle));
+}
+
+.lq-toolbar--vertical .lq-toolbar__separator {
+  width: auto;
+  height: 1px;
+  min-height: 0;
+  margin: var(--lq-space-1) 0;
+}
+
+.lq-root[data-lq-palette="eink"] .lq-toolbar__separator {
+  background-color: var(--lq-color-border);
+}
+
+.lq-toolbar :focus-visible {
+  outline: 2px solid var(--lq-color-focus-ring);
+  outline-offset: 1px;
+}
+
+/* -- densité compacte ---------------------------------------------------
+   Les boutons du kit posés dans la barre se resserrent avec elle : la marge des `Button` se lit
+   dans des variables qu'on raccourcit ici, et les `IconButton` passent à 32 px. Un thème garde la
+   main en redéfinissant les variables compactes. */
+.lq-toolbar--compact {
+  --lq-toolbar-space: var(--lq-toolbar-gap, var(--lq-space-1));
+  --lq-button-padding-y: var(--lq-toolbar-compact-button-padding-y, var(--lq-space-1));
+  --lq-button-padding-x: var(--lq-toolbar-compact-button-padding-x, var(--lq-space-3));
+  padding: var(--lq-toolbar-padding, var(--lq-space-1));
+  font-size: var(--lq-text-sm);
+}
+
+.lq-toolbar--compact .lq-icon-button--md:not(.lq-button-group > .lq-icon-button) {
+  width: var(--lq-toolbar-compact-icon-size, 32px);
+  height: var(--lq-toolbar-compact-icon-size, 32px);
+}
+
+/* Les icônes d'un ButtonGroup posé dans la barre suivent la même taille que les IconButton isolés. */
+.lq-toolbar--compact .lq-button-group > .lq-icon-button {
+  min-width: var(--lq-toolbar-compact-icon-size, 32px);
+  min-height: var(--lq-toolbar-compact-icon-size, 32px);
+}

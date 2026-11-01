@@ -22,13 +22,14 @@ export const Grid: Story = {
   render: () => {
     const [selected, setSelected] = useState("amber");
     return (
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", maxWidth: 340 }}>
+      <div role="radiogroup" aria-label="Couleur" style={{ display: "flex", gap: 8, flexWrap: "wrap", maxWidth: 340 }}>
         {OPTIONS.map((opt) => (
           <ColorSwatchButton
             key={opt.id}
             label={opt.label}
             color={opt.color}
             selected={opt.id === selected}
+            exclusive
             onClick={() => setSelected(opt.id)}
           />
         ))}

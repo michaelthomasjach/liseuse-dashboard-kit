@@ -48,6 +48,15 @@
 
 .lq-alert-marker--warning {
   --am-color: var(--lq-color-amber);
+  /* L'encre claire de l'accent sur un ambre clair tombait à ~1,4:1. Une variable de contraste propre
+     au ton, que le thème peut poser ; à défaut, l'encre foncée de la surface : le texte en clair, le
+     fond en sombre. (L'e-ink a sa propre règle plus bas : pastille claire, encre du texte.) */
+  --am-ink: var(--lq-color-warning-contrast, var(--am-warning-ink));
+  --am-warning-ink: var(--lq-color-text);
+}
+
+.lq-root[data-lq-surface="dark"] .lq-alert-marker--warning {
+  --am-warning-ink: var(--lq-color-bg);
 }
 
 /* Le doigt demande 40 px : la zone cliquable s'étend par un pseudo-élément, sans toucher à la taille
@@ -137,6 +146,18 @@
   background: var(--lq-color-text);
   border: var(--lq-control-border-width, 1.5px) solid var(--am-ring);
   border-radius: 999px;
+}
+
+/* En `sm`, une bulle plus petite et repoussée vers l'extérieur : à 17 px, « 99+ » couvrait presque
+   toute la pastille de 24 px (le compte y est aussi plafonné à « 9+ »). */
+.lq-alert-marker--sm .lq-alert-marker__count {
+  top: -6px;
+  right: -9px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  font-size: 8.5px;
+  line-height: 14px;
 }
 
 /* L'ombre au sol, sur le point d'ancrage : elle reste au sol quand l'épingle saute, et se resserre. */

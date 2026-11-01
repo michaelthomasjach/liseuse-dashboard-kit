@@ -7,7 +7,10 @@
   inset: 0;
   z-index: 2400;
   pointer-events: none;
-  background: color-mix(in srgb, var(--lq-color-text, #12141a) 18%, transparent);
+  /* Tiré du voile du thème et non de --lq-color-text : en surface sombre le texte est clair, et
+     le voile éclaircissait l'écran au lieu de l'assombrir. La moitié de --lq-color-overlay (le voile
+     des modales) : la visite reste plus légère qu'un dialogue. */
+  background: color-mix(in srgb, var(--lq-color-overlay, rgba(17, 17, 17, 0.35)) 50%, transparent);
   animation: lq-gtour-fade 200ms ease both;
 }
 
@@ -20,7 +23,7 @@
   /* Un projecteur doux : l'écran s'assombrit à peine autour de la cible, sans rien bloquer. */
   box-shadow:
     0 0 0 4px color-mix(in srgb, var(--lq-color-accent, #6c87c9) 22%, transparent),
-    0 0 0 9999px color-mix(in srgb, var(--lq-color-text, #12141a) 10%, transparent);
+    0 0 0 9999px color-mix(in srgb, var(--lq-color-overlay, rgba(17, 17, 17, 0.35)) 30%, transparent);
   transition:
     top 260ms ease,
     left 260ms ease,

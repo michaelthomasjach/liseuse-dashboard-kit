@@ -1,0 +1,499 @@
+/* La messagerie remplit son conteneur : deux colonnes, la liste et le fil, qui défilent chacune de
+   leur côté. Rien ne défile dans la page. */
+.lq-chat-panel {
+  display: grid;
+  grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  color: var(--lq-color-text);
+  background: var(--lq-color-panel);
+  border: 1px solid var(--lq-color-panel-border, var(--lq-color-border-subtle));
+  border-radius: var(--lq-radius-md);
+  box-shadow: var(--lq-shadow-panel);
+}
+
+.lq-chat-panel--narrow {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* L'attribut `hidden` cède devant un `display` d'auteur : on le redit. */
+.lq-chat-panel__contacts[hidden],
+.lq-chat-panel__thread[hidden] {
+  display: none;
+}
+
+.lq-chat-panel__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* --- La liste ------------------------------------------------------------------------------------ */
+
+.lq-chat-panel__contacts {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  border-right: 1px solid var(--lq-color-border-subtle);
+}
+
+.lq-chat-panel--narrow .lq-chat-panel__contacts {
+  border-right: 0;
+}
+
+.lq-chat-panel__contacts-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lq-space-2);
+  padding: var(--lq-space-3);
+  border-bottom: 1px solid var(--lq-color-border-subtle);
+}
+
+.lq-chat-panel__title {
+  margin: 0;
+  font-family: var(--lq-label-font, inherit);
+  font-size: var(--lq-label-size, 0.72rem);
+  font-weight: var(--lq-label-weight, var(--lq-font-weight-bold, 700));
+  letter-spacing: var(--lq-label-tracking, 0.06em);
+  text-transform: uppercase;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-chat-panel__list {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.lq-chat-panel__contact {
+  display: flex;
+  align-items: center;
+  gap: var(--lq-space-3);
+  width: 100%;
+  min-height: 56px;
+  padding: var(--lq-space-2) var(--lq-space-3);
+  font: inherit;
+  text-align: left;
+  color: var(--lq-color-text);
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--lq-color-border-subtle);
+  border-left: 3px solid transparent;
+}
+
+.lq-chat-panel__contact:hover {
+  background: var(--lq-color-hover);
+}
+
+.lq-chat-panel__contact--on {
+  background: color-mix(in srgb, var(--lq-color-accent) 8%, var(--lq-color-panel));
+  border-left-color: var(--lq-color-accent);
+}
+
+.lq-chat-panel__contact:focus-visible,
+.lq-chat-panel__back:focus-visible,
+.lq-chat-panel__log:focus-visible {
+  outline: 2px solid var(--lq-color-focus-ring);
+  outline-offset: -2px;
+}
+
+.lq-chat-panel__face {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+/* La présence : pleine en ligne, un anneau quand on est absent — lisible aussi en noir et blanc. */
+.lq-chat-panel__presence {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--lq-color-panel);
+  border-radius: 50%;
+  box-sizing: content-box;
+}
+
+.lq-chat-panel__presence--online {
+  background: var(--lq-color-green);
+}
+
+.lq-chat-panel__presence--away {
+  background: var(--lq-color-panel);
+  box-shadow: inset 0 0 0 2px var(--lq-color-amber);
+}
+
+.lq-chat-panel__contact-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 2px;
+  min-width: 0;
+}
+
+.lq-chat-panel__contact-line {
+  display: flex;
+  align-items: baseline;
+  gap: var(--lq-space-2);
+  min-width: 0;
+}
+
+.lq-chat-panel__contact-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--lq-text-sm);
+  font-weight: var(--lq-font-weight-semibold, 600);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.lq-chat-panel__contact-time {
+  flex-shrink: 0;
+  font-size: var(--lq-text-xs);
+  color: var(--lq-color-text-muted);
+}
+
+.lq-chat-panel__contact-preview {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--lq-text-xs);
+  color: var(--lq-color-text-muted);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.lq-chat-panel__contact-preview--typing {
+  font-style: italic;
+  color: var(--lq-color-accent);
+}
+
+.lq-chat-panel__contact--unread .lq-chat-panel__contact-name,
+.lq-chat-panel__contact--unread .lq-chat-panel__contact-preview {
+  font-weight: var(--lq-font-weight-bold, 700);
+  color: var(--lq-color-text);
+}
+
+.lq-chat-panel__unread {
+  flex-shrink: 0;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  box-sizing: border-box;
+  font-size: 0.68rem;
+  font-weight: var(--lq-font-weight-bold, 700);
+  line-height: 18px;
+  text-align: center;
+  color: var(--lq-color-accent-contrast);
+  background: var(--lq-color-accent);
+  border-radius: var(--lq-radius-pill);
+}
+
+.lq-chat-panel__empty {
+  margin: 0;
+  padding: var(--lq-space-4) var(--lq-space-3);
+  font-size: var(--lq-text-sm);
+  color: var(--lq-color-text-muted);
+}
+
+.lq-chat-panel__empty--thread {
+  margin: auto;
+  text-align: center;
+}
+
+/* --- Le fil -------------------------------------------------------------------------------------- */
+
+.lq-chat-panel__thread {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.lq-chat-panel__thread-head {
+  display: flex;
+  align-items: center;
+  gap: var(--lq-space-3);
+  min-height: 56px;
+  padding: var(--lq-space-2) var(--lq-space-3);
+  border-bottom: 1px solid var(--lq-color-border-subtle);
+}
+
+.lq-chat-panel__thread-who {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.lq-chat-panel__thread-name {
+  overflow: hidden;
+  font-weight: var(--lq-font-weight-semibold, 600);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.lq-chat-panel__thread-status {
+  font-size: var(--lq-text-xs);
+  color: var(--lq-color-text-muted);
+}
+
+.lq-chat-panel__back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lq-space-1);
+  min-height: 40px;
+  padding: 0 var(--lq-space-2);
+  font: inherit;
+  font-size: var(--lq-text-sm);
+  font-weight: var(--lq-font-weight-bold, 700);
+  color: var(--lq-color-text);
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--lq-color-border);
+  border-radius: var(--lq-radius-md);
+}
+
+.lq-chat-panel__back:hover {
+  border-color: var(--lq-color-accent);
+}
+
+.lq-chat-panel__log {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  padding: var(--lq-space-3) var(--lq-space-4);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.lq-chat-panel__day {
+  display: flex;
+  align-items: center;
+  gap: var(--lq-space-3);
+  margin: var(--lq-space-3) 0 var(--lq-space-2);
+  font-family: var(--lq-label-font, inherit);
+  font-size: var(--lq-label-size, 0.72rem);
+  font-weight: var(--lq-label-weight, inherit);
+  letter-spacing: var(--lq-label-tracking, 0.06em);
+  text-transform: uppercase;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-chat-panel__day::before,
+.lq-chat-panel__day::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--lq-color-border-subtle);
+}
+
+.lq-chat-panel__row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--lq-space-2);
+  margin-top: 2px;
+}
+
+.lq-chat-panel__row--first {
+  margin-top: var(--lq-space-3);
+}
+
+.lq-chat-panel__row--mine {
+  justify-content: flex-end;
+}
+
+.lq-chat-panel__row-face {
+  display: inline-flex;
+  flex-shrink: 0;
+  width: 28px;
+}
+
+.lq-chat-panel__stack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: min(75%, 560px);
+  min-width: 0;
+}
+
+.lq-chat-panel__row--mine .lq-chat-panel__stack {
+  align-items: flex-end;
+}
+
+.lq-chat-panel__row--theirs .lq-chat-panel__stack {
+  align-items: flex-start;
+}
+
+.lq-chat-panel__bubble {
+  padding: var(--lq-chat-bubble-padding, var(--lq-space-2) var(--lq-space-3));
+  font-size: var(--lq-chat-bubble-font-size, var(--lq-text-sm));
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  border-radius: var(--lq-chat-bubble-radius, var(--lq-radius-lg));
+}
+
+.lq-chat-panel__row--mine .lq-chat-panel__bubble {
+  color: var(--lq-chat-bubble-mine-color, var(--lq-color-accent-contrast));
+  background: var(--lq-chat-bubble-mine-bg, var(--lq-color-accent));
+  border: 1px solid var(--lq-chat-bubble-mine-border, var(--lq-color-accent));
+}
+
+.lq-chat-panel__row--theirs .lq-chat-panel__bubble {
+  color: var(--lq-chat-bubble-theirs-color, var(--lq-color-text));
+  background: var(--lq-chat-bubble-theirs-bg, color-mix(in srgb, var(--lq-color-text) 5%, var(--lq-color-panel)));
+  border: 1px solid var(--lq-chat-bubble-theirs-border, var(--lq-color-border-subtle));
+}
+
+.lq-chat-panel__meta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lq-space-1);
+  font-size: var(--lq-text-xs);
+  color: var(--lq-color-text-muted);
+}
+
+.lq-chat-panel__status {
+  display: inline-flex;
+}
+
+.lq-chat-panel__status svg {
+  width: 16px;
+  height: 14px;
+}
+
+.lq-chat-panel__status--read {
+  color: var(--lq-color-accent);
+}
+
+/* Trois points qui s'allument l'un après l'autre. */
+.lq-chat-panel__typing {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 1.45em;
+}
+
+.lq-chat-panel__dot {
+  width: 6px;
+  height: 6px;
+  background: var(--lq-color-text-muted);
+  border-radius: 50%;
+  animation: lq-chat-panel-blink 1.2s infinite ease-in-out both;
+}
+
+.lq-chat-panel__dot:nth-child(3) {
+  animation-delay: 0.2s;
+}
+
+.lq-chat-panel__dot:nth-child(4) {
+  animation-delay: 0.4s;
+}
+
+@keyframes lq-chat-panel-blink {
+  0%,
+  80%,
+  100% {
+    opacity: 0.3;
+  }
+  40% {
+    opacity: 1;
+  }
+}
+
+/* --- La saisie ----------------------------------------------------------------------------------- */
+
+.lq-chat-panel__composer {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--lq-space-2);
+  padding: var(--lq-space-3);
+  border-top: 1px solid var(--lq-color-border-subtle);
+}
+
+.lq-chat-panel__input {
+  flex: 1;
+  min-width: 0;
+  min-height: var(--lq-control-height, 40px);
+  max-height: calc(6 * 1.45em + 2 * var(--lq-space-2) + 2px);
+  box-sizing: border-box;
+  padding: var(--lq-space-2) var(--lq-control-padding-x, var(--lq-space-3));
+  font: inherit;
+  font-size: var(--lq-control-font-size, var(--lq-text-sm));
+  line-height: 1.45;
+  color: var(--lq-control-color, var(--lq-color-text));
+  resize: none;
+  background: var(--lq-color-panel);
+  border: var(--lq-control-border-width, 1.5px) solid var(--lq-color-border);
+  border-radius: var(--lq-radius-md);
+}
+
+.lq-chat-panel__input::placeholder {
+  color: var(--lq-color-text-muted);
+}
+
+.lq-chat-panel__input:focus-visible {
+  outline: 2px solid var(--lq-color-focus-ring);
+  outline-offset: 1px;
+}
+
+.lq-chat-panel__send {
+  color: var(--lq-color-accent-contrast);
+  background: var(--lq-color-accent);
+  border-color: var(--lq-color-accent);
+}
+
+.lq-chat-panel__send:focus-visible {
+  outline: 2px solid var(--lq-color-focus-ring);
+  outline-offset: 2px;
+}
+
+/* Au doigt, des cibles de 44 px. */
+@media (pointer: coarse) {
+  .lq-chat-panel__back {
+    min-height: 44px;
+  }
+}
+
+/* --- E-ink et mouvement réduit ------------------------------------------------------------------- */
+
+.lq-root[data-lq-palette="eink"] .lq-chat-panel__presence,
+.lq-root[data-lq-palette="eink"] .lq-chat-panel__dot {
+  border-radius: 0;
+}
+
+.lq-root[data-lq-palette="eink"] .lq-chat-panel__dot {
+  animation: none;
+  background: var(--lq-color-text);
+}
+
+.lq-root[data-lq-palette="eink"] .lq-chat-panel__contact--on {
+  background: transparent;
+}
+
+/* Sur le papier, la bulle reçue n'a pas de teinte : le fond de la page et un trait. */
+.lq-root[data-lq-palette="eink"] .lq-chat-panel__row--theirs .lq-chat-panel__bubble {
+  background: var(--lq-chat-bubble-theirs-bg, var(--lq-color-panel));
+  border-color: var(--lq-chat-bubble-theirs-border, var(--lq-color-text));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lq-chat-panel__dot {
+    animation: none;
+    opacity: 0.7;
+  }
+}

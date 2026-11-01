@@ -23,7 +23,9 @@ const meta = {
           "",
           "**Comportement** — tout ce qui n'est pas un chiffre est ignoré, à la frappe comme au collage, et la saisie s'arrête quand toutes les cases sont pleines ; le curseur se replace juste après le dernier chiffre. Sur mobile, le clavier numérique s'ouvre (`inputMode=\"numeric\"`). Le champ ne vérifie pas que le motif est complet : c'est à l'appelant de le faire et de passer `error`.",
           "",
-          "**Deux pièges** — un littéral ne doit pas contenir de chiffre (`+33 …` serait relu comme une saisie : écrivez `+## …`). Et le champ n'est jamais vide, puisque le motif s'affiche : `placeholder` ne se voit pas, et un libellé intégré (`labelPosition=\"inside\"`) reste en position réduite.",
+          "**Littéraux chiffrés** — un motif peut écrire ses propres chiffres (`+33 # ## ## ## ##`) : le champ les reconnaît à leur place et ne les relit pas comme une saisie (story « Indicatif pays »).",
+          "",
+          "**Un piège** — le champ n'est jamais vide, puisque le motif s'affiche : `placeholder` ne se voit pas, et un libellé intégré (`labelPosition=\"inside\"`) reste en position réduite.",
           "",
           "**Anatomie** — c'est un `Input` : libellé, icônes de tête et de queue, texte d'aide, erreur, `size`, `labelPosition`, et tous les attributs d'un `<input>`.",
           "",
@@ -112,4 +114,17 @@ export const Small: Story = {
 export const Disabled: Story = {
   name: "Désactivé",
   args: { label: "IBAN enregistré", disabled: true, helperText: "Modifiable par l'administrateur seulement." },
+};
+
+export const CountryCode: Story = {
+  name: "Indicatif pays",
+  args: { label: "Mobile", mask: "+33 # ## ## ## ##", value: "612345678", helperText: "Sans le zéro initial." },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "Le « 33 » appartient au motif : il s'affiche sans être stocké, et taper un chiffre remplit la case suivante au lieu de repousser l'indicatif. La valeur stockée ne contient que les neuf chiffres saisis.",
+      },
+    },
+  },
 };

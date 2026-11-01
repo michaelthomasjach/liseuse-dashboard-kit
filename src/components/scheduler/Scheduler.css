@@ -232,6 +232,16 @@
   font-weight: var(--lq-font-weight-semibold, 600);
 }
 
+/* Un bloc témoin, invisible, d'où le composant lit la police du nom et de la durée pour décider si
+   la durée tient à côté du nom. */
+.lq-sched__font-probe {
+  position: absolute;
+  visibility: hidden;
+  pointer-events: none;
+  left: 0;
+  top: 0;
+}
+
 .lq-sched__task-time {
   flex-shrink: 0;
   font-variant-numeric: tabular-nums;

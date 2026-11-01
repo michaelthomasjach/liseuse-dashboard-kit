@@ -15,6 +15,23 @@
   transition: transform 400ms ease;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .lq-carousel__track {
+    transition: none;
+  }
+}
+
+/* Place réservée aux flèches de chaque côté : largeur d'un IconButton md (40 px) plus sa marge au
+   bord, de part et d'autre. Un contenu de diapositive qui pose son texte contre le bord gauche
+   (un Jumbotron sans image, typiquement) s'en écarte d'autant au lieu de passer sous la flèche. */
+.lq-carousel--arrows {
+  --lq-carousel-arrow-gutter: calc(var(--lq-icon-button-size, var(--lq-control-height, 40px)) + 2 * var(--lq-space-3));
+}
+
+.lq-carousel--arrows .lq-carousel__slide > .lq-jumbotron {
+  padding-inline: max(var(--lq-space-6), var(--lq-carousel-arrow-gutter));
+}
+
 .lq-carousel__slide {
   flex: 0 0 100%;
   width: 100%;
@@ -37,7 +54,7 @@
      too (a scale, for the press-down feedback), and since `transform` is a single property, that
      rule would otherwise *replace* this one entirely on mousedown rather than combine with it,
      snapping the button uncentered right as it's clicked. */
-  margin-top: -20px;
+  margin-top: calc(var(--lq-icon-button-size, var(--lq-control-height, 40px)) / -2);
   z-index: 1;
   background-color: var(--lq-color-panel);
   opacity: 0.9;
@@ -68,6 +85,8 @@
   border: none;
   border-radius: 999px;
   background-color: var(--lq-color-overlay);
+  /* Un liseré de la couleur du panneau détache le point d'une photo comme d'un fond uni. */
+  box-shadow: 0 0 0 1px var(--lq-color-panel);
   cursor: pointer;
   transition: background-color var(--lq-transition-fast), transform var(--lq-transition-fast);
 }
@@ -81,6 +100,7 @@
 }
 
 .lq-carousel__dot--active {
-  background-color: var(--lq-color-bg);
+  /* --lq-color-fill et non --lq-color-bg : le fond de page disparaissait sur un panneau clair. */
+  background-color: var(--lq-color-fill);
   transform: scale(1.3);
 }

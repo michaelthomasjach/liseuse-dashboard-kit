@@ -26,3 +26,20 @@ export const RiskScore: Story = {
     </div>
   ),
 };
+
+export const BandLabels: Story = {
+  render: () => (
+    <div style={{ maxWidth: 320 }}>
+      <GaugeCard
+        title="Score de risque"
+        value={58}
+        showBandLabels
+        thresholds={[
+          { upTo: 33, color: "var(--lq-color-up)", label: "Faible" },
+          { upTo: 66, color: "var(--lq-color-warning)", label: "Modéré" },
+          { upTo: 100, color: "var(--lq-color-down)", label: "Élevé" },
+        ]}
+      />
+    </div>
+  ),
+};

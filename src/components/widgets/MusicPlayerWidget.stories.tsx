@@ -37,3 +37,25 @@ export const Default: Story = {
     );
   },
 };
+
+export const AdjustableVolume: Story = {
+  render: () => {
+    const [isPlaying, setIsPlaying] = useState(true);
+    const [volume, setVolume] = useState(35);
+    const [muted, setMuted] = useState(false);
+    return (
+      <div style={{ maxWidth: 320 }}>
+        <MusicPlayerWidget
+          title="La Javanaise"
+          artist="Serge Gainsbourg · Confidentiel"
+          isPlaying={isPlaying}
+          onPlayPause={() => setIsPlaying((p) => !p)}
+          volume={volume}
+          onVolumeChange={setVolume}
+          muted={muted}
+          onMuteChange={setMuted}
+        />
+      </div>
+    );
+  },
+};

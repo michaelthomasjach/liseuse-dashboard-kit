@@ -34,7 +34,9 @@ export interface SeasonalityBucket {
   label: string;
   /** Plain arithmetic mean of `occurrences[].value` — deliberately not configurable (weighting is
    *  a listed future extension, see `SeasonalityOccurrence`'s own doc comment) so this stays a
-   *  pure, obvious "average of what's there" today. */
+   *  pure, obvious "average of what's there" today. One exception, "day" only: a year that has
+   *  already finished counts at its year-end value in the ordinals past its last session, so the
+   *  tail of December is not averaged over a different set of years (see `computeSeasonality`). */
   average: number;
   occurrences: SeasonalityOccurrence[];
 }
@@ -163,6 +165,10 @@ export function computeSeasonality(
   const bucketCount = bucketCountFor(granularity);
   const occurrencesByBucket: SeasonalityOccurrence[][] = Array.from({ length: bucketCount }, () => []);
   const contributingYears = new Set<number>();
+  // "day" only: where each finished year's sessions stop, and the value it stopped at — see the
+  // carry-forward in the averaging loop below.
+  const latestYear = Math.max(...byYear.keys());
+  const finishedYearEnds: { lastIndex: number; value: number }[] = [];
 
   for (const [year, candles] of byYear) {
     if (candles.length === 0) continue;
@@ -180,6 +186,11 @@ export function computeSeasonality(
         occurrencesByBucket[idx].push({ year, value: ((candle.close / reference) - 1) * 100 });
       });
       contributingYears.add(year);
+      const last = candles[candles.length - 1];
+      const finished = year < latestYear || (last.date.getUTCMonth() === 11 && last.date.getUTCDate() >= 24);
+      if (finished) {
+        finishedYearEnds.push({ lastIndex: Math.min(candles.length - 1, DAY_BUCKET_COUNT - 1), value: ((last.close / reference) - 1) * 100 });
+      }
       continue;
     }
 
@@ -207,7 +218,21 @@ export function computeSeasonality(
   for (let idx = 0; idx < bucketCount; idx++) {
     const occurrences = occurrencesByBucket[idx];
     if (occurrences.length === 0) continue;
-    const average = occurrences.reduce((sum, o) => sum + o.value, 0) / occurrences.length;
+    // Years do not all have the same number of sessions (252, 253, sometimes 251). On a plain mean
+    // the last bucket or two were averaged over the few years that happened to have an extra
+    // session — a different set of years from the bucket before — and the line plunged or jumped
+    // on the last session of December. A year that has *finished* stays at its year-end value for
+    // the remaining ordinals, so every bucket averages over the same finished years. `occurrences`
+    // keeps only real sessions: each year's own line still stops where its data does.
+    let sum = occurrences.reduce((total, o) => total + o.value, 0);
+    let count = occurrences.length;
+    for (const end of finishedYearEnds) {
+      if (end.lastIndex < idx) {
+        sum += end.value;
+        count += 1;
+      }
+    }
+    const average = sum / count;
     buckets.push({ index: idx, label: bucketLabel(idx, granularity), average, occurrences });
   }
 

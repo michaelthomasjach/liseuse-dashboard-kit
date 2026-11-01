@@ -17,6 +17,11 @@
   cursor: pointer;
 }
 
+.lq-holding-card--interactive:focus-visible {
+  outline: 2px solid var(--lq-color-focus-ring);
+  outline-offset: 2px;
+}
+
 .lq-holding-card--interactive:hover {
   background-color: var(--lq-color-hover);
 }
@@ -56,6 +61,9 @@
   align-items: flex-end;
   gap: 2px;
   flex-shrink: 0;
+  /* A common minimum, so cards stacked in a column keep their figures in one column whatever the
+     length of each price — they used to step left and right from card to card. */
+  min-width: var(--lq-holding-figures-width, 6.5rem);
 }
 
 .lq-holding-card__price {
@@ -67,6 +75,9 @@
 
 .lq-holding-card__quantity {
   flex-shrink: 0;
+  min-width: var(--lq-holding-quantity-width, 4.5rem);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
   font-size: 0.75rem;
   color: var(--lq-color-text-muted);
   padding-left: var(--lq-space-2);

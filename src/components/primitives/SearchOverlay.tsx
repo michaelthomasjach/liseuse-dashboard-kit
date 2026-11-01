@@ -135,9 +135,9 @@ export function SearchOverlay({
             <section key={section.id} className="lq-search-overlay__section">
               <h2 className="lq-search-overlay__section-title">{section.title}</h2>
               <ul className="lq-search-overlay__results">
-                {section.results.map((r) => (
-                  <li key={r.id}>
-                    <button type="button" className="lq-search-overlay__result" onClick={r.onSelect}>
+                {section.results.map((r) => {
+                  const content = (
+                    <>
                       <span
                         className="lq-search-overlay__avatar"
                         style={r.avatarColor ? { backgroundColor: r.avatarColor } : undefined}
@@ -149,9 +149,23 @@ export function SearchOverlay({
                         <span className="lq-search-overlay__label">{r.label}</span>
                         {r.details && <span className="lq-search-overlay__details">{r.details}</span>}
                       </span>
-                    </button>
-                  </li>
-                ))}
+                    </>
+                  );
+                  // Un bouton seulement s'il fait quelque chose : sans `onSelect`, un résultat est
+                  // une simple ligne d'information, qu'on ne doit pas tabuler ni annoncer comme
+                  // activable.
+                  return (
+                    <li key={r.id}>
+                      {r.onSelect ? (
+                        <button type="button" className="lq-search-overlay__result" onClick={r.onSelect}>
+                          {content}
+                        </button>
+                      ) : (
+                        <div className="lq-search-overlay__result lq-search-overlay__result--static">{content}</div>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             </section>
           ))}

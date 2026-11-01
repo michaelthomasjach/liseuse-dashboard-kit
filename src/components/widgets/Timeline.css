@@ -1,0 +1,451 @@
+/*
+ * Timeline — un fil vertical, des jalons, une entrée par jalon.
+ *
+ * Le fil est tiré une seule fois, sur le cadre (`__frame::before`), et non entrée par entrée : il
+ * passe ainsi sans coupure sous les intitulés de jour, et les jalons, posés au-dessus de lui, le
+ * masquent là où ils sont. La variante alternée n'est qu'une autre grille sur les mêmes éléments,
+ * appliquée par une requête de conteneur : sous 640 px de large, la frise retombe d'elle-même sur la
+ * grille à gauche, quelle que soit la largeur de la fenêtre.
+ *
+ * Variables optionnelles (jamais déclarées dans tokens.css) :
+ *   --lq-timeline-line           couleur du fil (--lq-color-border-subtle)
+ *   --lq-timeline-line-width     épaisseur du fil (2px)
+ *   --lq-timeline-marker-size    diamètre d'un jalon à icône (32px)
+ *   --lq-timeline-dot-size       diamètre d'un jalon point (12px ; 8px en compact via
+ *                                --lq-timeline-compact-dot-size)
+ *   --lq-timeline-dot-color      point sans ton (--lq-color-text-muted à 55 %)
+ *   --lq-timeline-marker-border  le liseré qui détache le jalon du fil (2px solid --lq-color-panel)
+ *   --lq-timeline-gap            entre le fil et le contenu (--lq-space-4)
+ *   --lq-timeline-item-gap       entre deux entrées (--lq-space-5 ; --lq-space-3 en compact)
+ *   --lq-timeline-date-size      taille de la date (--lq-text-xs)
+ */
+
+.lq-timeline {
+  --_marker: var(--lq-timeline-marker-size, 32px);
+  --_dot: var(--lq-timeline-dot-size, 12px);
+  --_line: var(--lq-timeline-line-width, 2px);
+  --_gap: var(--lq-timeline-gap, var(--lq-space-4));
+  --_rail: var(--_marker);
+  --_meta-line: calc(var(--lq-text-sm) * 1.5);
+
+  container: lq-timeline / inline-size;
+  color: var(--lq-color-text);
+}
+
+.lq-timeline--compact {
+  --_dot: var(--lq-timeline-compact-dot-size, 8px);
+  --_rail: 16px;
+  --_gap: var(--lq-space-2);
+}
+
+.lq-timeline__frame {
+  position: relative;
+}
+
+.lq-timeline__frame::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--_rail) / 2 - var(--_line) / 2);
+  width: var(--_line);
+  background: var(--lq-timeline-line, var(--lq-color-border-subtle));
+}
+
+.lq-timeline__empty {
+  position: relative;
+  margin: 0;
+  padding: var(--lq-space-2) 0 var(--lq-space-2) calc(var(--_rail) + var(--_gap));
+  font-size: var(--lq-text-sm);
+  color: var(--lq-color-text-muted);
+}
+
+/* ---- intitulé de jour ---- */
+
+.lq-timeline__day {
+  position: relative;
+  margin: 0 0 var(--lq-space-4);
+  padding-left: calc(var(--_rail) + var(--_gap));
+  font: inherit;
+  line-height: 1;
+}
+
+.lq-timeline__group + .lq-timeline__group .lq-timeline__day {
+  margin-top: var(--lq-space-2);
+}
+
+.lq-timeline__day-label {
+  display: inline-block;
+  padding: 4px var(--lq-space-2);
+  font-family: var(--lq-label-font, inherit);
+  font-size: var(--lq-label-size, var(--lq-text-xs));
+  font-weight: var(--lq-label-weight, var(--lq-font-weight-bold, 700));
+  letter-spacing: var(--lq-label-tracking, 0.06em);
+  text-transform: uppercase;
+  color: var(--lq-color-text-muted);
+  background: var(--lq-color-panel);
+  border: 1px solid var(--lq-color-border-subtle);
+  border-radius: var(--lq-radius-sm);
+}
+
+.lq-timeline--compact .lq-timeline__day {
+  margin-bottom: var(--lq-space-2);
+}
+
+.lq-timeline--compact .lq-timeline__day-label {
+  padding: 0;
+  background: none;
+  border: 0;
+}
+
+/* ---- entrées ---- */
+
+.lq-timeline__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lq-timeline__item {
+  display: grid;
+  grid-template-columns: var(--_rail) minmax(0, 1fr);
+  grid-template-areas: "rail body";
+  column-gap: var(--_gap);
+  padding-bottom: var(--lq-timeline-item-gap, var(--lq-space-5));
+}
+
+.lq-timeline--compact .lq-timeline__item {
+  padding-bottom: var(--lq-timeline-item-gap, var(--lq-space-3));
+}
+
+.lq-timeline__group:last-child .lq-timeline__item:last-child {
+  padding-bottom: 0;
+}
+
+.lq-timeline__aside {
+  display: none;
+  grid-area: aside;
+}
+
+.lq-timeline__rail {
+  grid-area: rail;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.lq-timeline__body {
+  grid-area: body;
+  min-width: 0;
+}
+
+/* Le point s'aligne sur la ligne de la date ; la pastille à icône, plus haute, descend la date
+   jusqu'à son milieu. */
+.lq-timeline__item:has(.lq-timeline__marker--icon) .lq-timeline__body,
+.lq-timeline__item:has(.lq-timeline__marker--icon) .lq-timeline__aside {
+  padding-top: max(0px, calc((var(--_marker) - var(--_meta-line)) / 2));
+}
+
+/* ---- jalons ---- */
+
+.lq-timeline__marker {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: var(--lq-timeline-marker-border, 2px solid var(--lq-color-panel));
+  box-sizing: content-box;
+}
+
+.lq-timeline__marker--dot {
+  width: var(--_dot);
+  height: var(--_dot);
+  margin-top: calc((var(--_meta-line) - var(--_dot)) / 2 - 2px);
+}
+
+.lq-timeline__marker--dot:not([data-lq-tone]) {
+  background: var(--lq-timeline-dot-color, color-mix(in srgb, var(--lq-color-text-muted) 55%, transparent));
+}
+
+.lq-timeline__marker--icon {
+  width: calc(var(--_marker) - 4px);
+  height: calc(var(--_marker) - 4px);
+}
+
+.lq-timeline__marker--icon:not([data-lq-tone]) {
+  color: var(--lq-color-text-muted);
+  background: var(--lq-color-panel);
+  box-shadow: inset 0 0 0 1px var(--lq-color-border-subtle);
+}
+
+.lq-timeline__marker-icon {
+  display: inline-flex;
+  color: inherit;
+}
+
+.lq-timeline__marker-icon svg {
+  width: calc(var(--_marker) * 0.5);
+  height: calc(var(--_marker) * 0.5);
+}
+
+/* L'entrée en cours : un anneau qui respire autour du jalon. */
+.lq-timeline__item--current .lq-timeline__marker {
+  --_ring: color-mix(in srgb, var(--lq-tone-fill, var(--lq-color-accent)) 30%, transparent);
+  box-shadow: 0 0 0 4px var(--_ring);
+  animation: lq-timeline-pulse 1.8s ease-in-out infinite;
+}
+
+.lq-timeline__item--current .lq-timeline__marker--dot:not([data-lq-tone]) {
+  background: var(--lq-color-accent);
+}
+
+@keyframes lq-timeline-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 3px var(--_ring);
+  }
+  50% {
+    box-shadow: 0 0 0 7px color-mix(in srgb, var(--lq-tone-fill, var(--lq-color-accent)) 8%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lq-timeline__item--current .lq-timeline__marker {
+    animation: none;
+  }
+}
+
+/* ---- contenu ---- */
+
+.lq-timeline__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px var(--lq-space-2);
+  min-height: var(--_meta-line);
+  font-size: var(--lq-text-sm);
+  line-height: 1.5;
+}
+
+.lq-timeline__date {
+  font-size: var(--lq-timeline-date-size, var(--lq-text-xs));
+  color: var(--lq-color-text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.lq-timeline__author {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.lq-timeline__author-name {
+  font-weight: var(--lq-font-weight-medium, 500);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lq-timeline__title {
+  margin-top: 2px;
+  font-size: var(--lq-text-md);
+  font-weight: var(--lq-font-weight-semibold, 600);
+  line-height: var(--lq-line-height-heading);
+}
+
+.lq-timeline__content {
+  margin-top: var(--lq-space-1);
+  font-size: var(--lq-text-sm);
+  line-height: var(--lq-line-height-body);
+  overflow-wrap: anywhere;
+}
+
+.lq-timeline__content > :first-child {
+  margin-top: 0;
+}
+
+.lq-timeline__content > :last-child {
+  margin-bottom: 0;
+}
+
+/* ---- surface de carte ---- */
+
+.lq-timeline--boxed .lq-timeline__body {
+  padding: var(--lq-space-3) var(--lq-space-4);
+  background: var(--lq-color-panel);
+  border: 1px solid var(--lq-color-panel-border, var(--lq-color-border-subtle));
+  border-radius: var(--lq-radius-md);
+  box-shadow: var(--lq-shadow-panel);
+}
+
+/* Dans une carte, le haut du contenu a déjà son retrait : on ne le pousse plus vers le milieu de la
+   pastille, on aligne la pastille sur la première ligne de la carte. */
+.lq-timeline--boxed .lq-timeline__item:has(.lq-timeline__marker--icon) .lq-timeline__body {
+  padding-top: var(--lq-space-3);
+}
+
+.lq-timeline--boxed .lq-timeline__rail {
+  padding-top: max(0px, calc(var(--lq-space-3) + (var(--_meta-line) - var(--_marker)) / 2));
+}
+
+.lq-timeline--boxed .lq-timeline__item:has(.lq-timeline__marker--dot) .lq-timeline__rail,
+.lq-timeline--boxed .lq-timeline__item .lq-timeline__aside {
+  padding-top: var(--lq-space-3);
+}
+
+/* ---- compacte : date et titre sur une ligne ---- */
+
+.lq-timeline--compact .lq-timeline__body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: var(--lq-space-2);
+}
+
+.lq-timeline--compact .lq-timeline__meta {
+  display: contents;
+}
+
+.lq-timeline--compact .lq-timeline__title {
+  order: -1;
+  margin: 0;
+  font-size: var(--lq-text-sm);
+  line-height: 1.5;
+}
+
+.lq-timeline--compact .lq-timeline__date {
+  order: -2;
+}
+
+/* En compact, l'auteur n'est plus qu'un nom atténué, sans avatar : il ferait sauter la ligne. */
+.lq-timeline--compact .lq-timeline__author-name {
+  font-size: var(--lq-text-xs);
+  font-weight: inherit;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-timeline--compact .lq-timeline__current {
+  padding: 0 6px;
+  font-size: var(--lq-text-xs);
+}
+
+.lq-timeline--compact .lq-timeline__content {
+  flex-basis: 100%;
+  margin-top: 0;
+  font-size: var(--lq-text-xs);
+  color: var(--lq-color-text-muted);
+}
+
+/* ---- alternée, à partir de 640 px de conteneur ---- */
+
+@container lq-timeline (min-width: 640px) {
+  .lq-timeline--alternate .lq-timeline__frame::before {
+    left: calc(50% - var(--_line) / 2);
+  }
+
+  .lq-timeline--alternate .lq-timeline__day {
+    padding-left: 0;
+    text-align: center;
+  }
+
+  .lq-timeline--alternate .lq-timeline__item {
+    grid-template-columns: minmax(0, 1fr) var(--_rail) minmax(0, 1fr);
+    column-gap: var(--lq-space-5);
+  }
+
+  .lq-timeline--alternate .lq-timeline__item--end {
+    grid-template-areas: "aside rail body";
+  }
+
+  .lq-timeline--alternate .lq-timeline__item--start {
+    grid-template-areas: "body rail aside";
+  }
+
+  .lq-timeline--alternate .lq-timeline__aside {
+    display: block;
+    font-size: var(--lq-timeline-date-size, var(--lq-text-xs));
+    line-height: var(--_meta-line);
+    color: var(--lq-color-text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .lq-timeline--alternate .lq-timeline__item--end .lq-timeline__aside {
+    text-align: right;
+  }
+
+  /* La date passe de l'autre côté du fil ; celle de l'entrée reste pour les lecteurs d'écran. */
+  .lq-timeline--alternate .lq-timeline__meta .lq-timeline__date {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+
+  /* Sans auteur ni étiquette, la ligne de méta ne porte plus que cette date cachée : elle s'efface. */
+  .lq-timeline--alternate .lq-timeline__meta--date-only {
+    min-height: 0;
+  }
+
+  .lq-timeline--alternate .lq-timeline__meta--date-only + .lq-timeline__title {
+    margin-top: 0;
+  }
+
+  .lq-timeline--alternate:not(.lq-timeline--boxed) .lq-timeline__item--start .lq-timeline__body {
+    text-align: right;
+  }
+
+  .lq-timeline--alternate:not(.lq-timeline--boxed) .lq-timeline__item--start .lq-timeline__meta {
+    justify-content: flex-end;
+  }
+}
+
+/* ---- e-ink : des filets noirs, pas de mouvement ---- */
+
+.lq-root[data-lq-palette="eink"] .lq-timeline__frame::before {
+  width: 1px;
+  left: calc(var(--_rail) / 2 - 0.5px);
+  background: var(--lq-color-border);
+}
+
+@container lq-timeline (min-width: 640px) {
+  .lq-root[data-lq-palette="eink"] .lq-timeline--alternate .lq-timeline__frame::before {
+    left: calc(50% - 0.5px);
+  }
+}
+
+.lq-root[data-lq-palette="eink"] .lq-timeline__marker--dot:not([data-lq-tone]) {
+  background: var(--lq-color-panel);
+  box-shadow: inset 0 0 0 1.5px var(--lq-color-text);
+}
+
+.lq-root[data-lq-palette="eink"] .lq-timeline__marker--icon:not([data-lq-tone]) {
+  color: var(--lq-color-text);
+  box-shadow: inset 0 0 0 1px var(--lq-color-text);
+}
+
+.lq-root[data-lq-palette="eink"] .lq-timeline__item--current .lq-timeline__marker {
+  animation: none;
+  box-shadow: 0 0 0 3px var(--lq-color-panel), 0 0 0 4px var(--lq-color-text);
+}
+
+.lq-root[data-lq-palette="eink"] .lq-timeline__item--current .lq-timeline__marker--dot:not([data-lq-tone]) {
+  background: var(--lq-color-text);
+}
+
+.lq-root[data-lq-palette="eink"] .lq-timeline__day-label {
+  border-color: var(--lq-color-text);
+  color: var(--lq-color-text);
+}
+
+.lq-root[data-lq-palette="eink"] .lq-timeline--boxed .lq-timeline__body {
+  border-color: var(--lq-color-border);
+  box-shadow: none;
+}

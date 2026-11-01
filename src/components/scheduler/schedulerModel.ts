@@ -166,14 +166,11 @@ export interface SchedulerTick {
 }
 
 export function buildTicks(from: number, to: number, stepMinutes: number, locale = "fr-FR"): SchedulerTick[] {
-  const step = stepMinutes * MINUTE;
   const dayLabel = new Intl.DateTimeFormat(locale, { weekday: "short", day: "numeric", month: "short" });
   const timeLabel = new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit" });
 
   const ticks: SchedulerTick[] = [];
-  // Started from a whole multiple of the step rather than from `from`, so the gridlines sit on
-  // round times whatever window happens to be shown.
-  for (let time = Math.ceil(from / step) * step; time <= to; time += step) {
+  const push = (time: number) => {
     const date = new Date(time);
     const midnight = date.getHours() === 0 && date.getMinutes() === 0;
     ticks.push({
@@ -181,6 +178,26 @@ export function buildTicks(from: number, to: number, stepMinutes: number, locale
       major: midnight,
       label: midnight || stepMinutes >= 1440 ? dayLabel.format(date) : timeLabel.format(date),
     });
+  };
+
+  // Laid out from *local* midnight, day by day. Rounding to a whole multiple of the step since the
+  // epoch (as before) put the gridlines on round UTC times — 01:00 and 13:00 in Paris on a 12 h
+  // step — so no tick ever fell on local midnight and the week view never showed a date. Walking
+  // the calendar day by day also keeps them on round times across a daylight-saving change.
+  const start = new Date(from);
+  start.setHours(0, 0, 0, 0);
+  if (stepMinutes >= 1440) {
+    const days = Math.max(1, Math.round(stepMinutes / 1440));
+    for (const day = start; day.getTime() <= to; day.setDate(day.getDate() + days)) {
+      if (day.getTime() >= from) push(day.getTime());
+    }
+    return ticks;
+  }
+  for (const day = start; day.getTime() <= to; day.setDate(day.getDate() + 1)) {
+    for (let minutes = 0; minutes < 1440; minutes += stepMinutes) {
+      const tick = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 0, minutes).getTime();
+      if (tick >= from && tick <= to) push(tick);
+    }
   }
   return ticks;
 }

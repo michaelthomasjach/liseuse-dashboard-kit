@@ -1,4 +1,4 @@
-import { Children, cloneElement, type ReactElement, type ReactNode, useEffect, useState } from "react";
+import { Children, cloneElement, type ReactElement, type ReactNode, useCallback, useEffect, useState } from "react";
 import { DetachedWindow } from "./candlestick/components/DetachedWindow";
 import type { CandlestickChartProps } from "./candlestick/interfaces/CandlestickChartProps.interface";
 import type { SymbolSearchCategory } from "./candlestick/interfaces/SymbolSearchCategory.interface";
@@ -412,6 +412,8 @@ export function ChartWorkspace({
   // this width, the side rail (watchlist/alerts/scripting/split-screen/fullscreen icons) is
   // replaced by a second, scrollable topbar — see isMobileWorkspace's own usages below.
   const [workspaceRef] = useChartDimensions();
+  // The tour looks its targets up inside this workspace only (see WorkspaceTour's `scope`).
+  const tourScope = useCallback(() => workspaceRef.current, [workspaceRef]);
   // The window's width, not the workspace's own box — the touch layout is a property of the
   // screen in hand (see MOBILE_LAYOUT_BREAKPOINT's own doc). The wrapper is still measured for its
   // ref alone; nothing here reads its size any more.
@@ -672,6 +674,11 @@ export function ChartWorkspace({
             // for exactly this (see its own doc) that doesn't have that collision.
             height: panelHeight,
             fillHeight,
+            // A pinned workspace layout pins every panel's too — without it, each chart still asked
+            // the window and went to its touch layout (bottom rail, assistant as a full-screen
+            // sheet) under 1500 px, inside a workspace drawn as a desktop. A panel's own `layout`
+            // wins.
+            layout: child.props.layout ?? (layout === "auto" ? undefined : layout),
             className:
               [
                 child.props.className,
@@ -1086,7 +1093,7 @@ export function ChartWorkspace({
           setTourOpen(true);
         }}
       />
-      <WorkspaceTour open={tourOpen} steps={WORKSPACE_TOUR_STEPS} onClose={() => setTourOpen(false)} />
+      <WorkspaceTour open={tourOpen} steps={WORKSPACE_TOUR_STEPS} onClose={() => setTourOpen(false)} scope={tourScope} />
 
       <LinkGroupsModal
         open={linkModalOpen}

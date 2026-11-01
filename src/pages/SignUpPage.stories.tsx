@@ -66,3 +66,36 @@ export const Default: Story = {
     );
   },
 };
+
+/** `fullHeight={false}` dans un cadre, et `onSubmit` : la case des conditions est dans le même
+ *  `<form>` que le bouton, `required` bloque l'envoi tant qu'elle n'est pas cochée. */
+export const InFrame: Story = {
+  name: "Dans un cadre",
+  render: () => {
+    const [sent, setSent] = useState(false);
+    return (
+      <div style={{ padding: 24 }}>
+        <div style={{ width: 760, height: 520, border: "1px solid var(--lq-color-border)", overflow: "auto" }}>
+          <SignUpPage
+            fullHeight={false}
+            imageSrc={PLACEHOLDER_IMAGE}
+            title="Créer un compte"
+            subtitle={sent ? "Formulaire envoyé." : "Quelques informations pour commencer."}
+            onSubmit={() => setSent(true)}
+            terms={
+              <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <input type="checkbox" required /> J'accepte les conditions générales
+              </label>
+            }
+          >
+            <Input label="Nom complet" placeholder="Jane Doe" />
+            <Input label="Email" type="email" placeholder="vous@exemple.com" />
+            <Button type="submit" block selected>
+              Créer mon compte
+            </Button>
+          </SignUpPage>
+        </div>
+      </div>
+    );
+  },
+};

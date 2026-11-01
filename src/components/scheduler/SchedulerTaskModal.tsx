@@ -54,8 +54,13 @@ const PATTERNS: { value: SchedulerTaskPattern; label: string }[] = [
  * The one thing this dialog will not let you express is a task whose parts do not add up to the
  * task. Segment lengths are the authority once a task has segments (see `SchedulerTask.subtasks`),
  * so editing one moves the task's end rather than leaving a discrepancy to be noticed later.
+ *
+ * A `locked` task keeps the promise the board makes for it — neither moved nor resized — here too:
+ * start, end, resource and the steps' lengths are read-only, and it cannot be deleted. What it is
+ * (title, description, state, stripes, step names) stays editable.
  */
 export function SchedulerTaskModal({ task, resources, onChange, onDelete, onClose, snapMinutes, locale = "fr-FR" }: SchedulerTaskModalProps) {
+  const locked = task.locked === true;
   const patch = (next: Partial<SchedulerTask>) => onChange(normaliseTask({ ...task, ...next }));
   const steps = task.subtasks ?? [];
 
@@ -70,7 +75,7 @@ export function SchedulerTaskModal({ task, resources, onChange, onDelete, onClos
       title={task.label || "Tâche"}
       footer={
         <div className="lq-sched-modal__footer">
-          <Button onClick={onDelete}>
+          <Button onClick={onDelete} disabled={locked}>
             <TrashIcon size={14} /> Supprimer
           </Button>
           <Button selected onClick={onClose}>
@@ -99,6 +104,7 @@ export function SchedulerTaskModal({ task, resources, onChange, onDelete, onClos
             label="Début"
             value={new Date(task.start)}
             minuteStep={snapMinutes}
+            disabled={locked}
             onChange={(date) => {
               // Moving the start moves the whole task: its length is a property of the work, not
               // of where it happens to sit. Pulling the end back is what the grip and the fields
@@ -113,7 +119,7 @@ export function SchedulerTaskModal({ task, resources, onChange, onDelete, onClos
             value={new Date(task.end)}
             minuteStep={snapMinutes}
             minDate={new Date(task.start + snapMinutes * MINUTE)}
-            disabled={steps.length > 0}
+            disabled={locked || steps.length > 0}
             onChange={(date) => patch({ end: Math.max(task.start + snapMinutes * MINUTE, date.getTime()) })}
           />
         </div>
@@ -121,6 +127,7 @@ export function SchedulerTaskModal({ task, resources, onChange, onDelete, onClos
         <p className="lq-sched-modal__duration">
           Durée : <strong>{formatDuration(task.end - task.start)}</strong>
           {steps.length > 0 && " — fixée par la somme des étapes"}
+          {locked && " — tâche verrouillée : horaires et ressource figés"}
         </p>
 
         <div className="lq-sched-modal__row">
@@ -129,6 +136,7 @@ export function SchedulerTaskModal({ task, resources, onChange, onDelete, onClos
             label="Ressource"
             options={resources.map((resource) => ({ value: resource.id, label: resource.label }))}
             value={task.resourceId}
+            disabled={locked}
             onChange={(resourceId) => patch({ resourceId })}
           />
           <Select
@@ -153,9 +161,12 @@ export function SchedulerTaskModal({ task, resources, onChange, onDelete, onClos
           <header className="lq-sched-modal__steps-head">
             <span className="lq-field__label">Étapes</span>
             {steps.length === 0 ? (
-              <Button onClick={() => onChange(segmentTask(task, 2))}>Segmenter</Button>
+              <Button onClick={() => onChange(segmentTask(task, 2))} disabled={locked}>
+                Segmenter
+              </Button>
             ) : (
               <Button
+                disabled={locked}
                 onClick={() =>
                   patch({
                     subtasks: [
@@ -193,6 +204,7 @@ export function SchedulerTaskModal({ task, resources, onChange, onDelete, onClos
                     min={1}
                     step={snapMinutes}
                     suffix="min"
+                    disabled={locked}
                     aria-label="Durée de l'étape"
                     onChange={(value) => setStep(step.id, { minutes: value === "" ? 1 : Math.max(1, Math.round(value)) })}
                   />
@@ -206,6 +218,7 @@ export function SchedulerTaskModal({ task, resources, onChange, onDelete, onClos
                   <button
                     type="button"
                     className="lq-sched-modal__step-remove"
+                    disabled={locked}
                     aria-label={`Retirer ${step.label}`}
                     onClick={() => {
                       const rest = steps.filter((other) => other.id !== step.id);

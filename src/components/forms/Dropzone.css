@@ -61,7 +61,10 @@
 
 .lq-dropzone__files {
   list-style: none;
-  margin: 0;
+  /* Son propre écart avec la zone (--lq-dropzone-list-gap, --lq-space-2 par défaut), quel que soit
+     celui du champ : la marge complète le --lq-field-gap déjà posé par le flex parent. Un thème
+     qui colle libellé et champ (--lq-field-gap: 0) ne colle donc plus la liste à la zone. */
+  margin: max(0px, calc(var(--lq-dropzone-list-gap, var(--lq-space-2)) - var(--lq-field-gap, 6px))) 0 0;
   padding: 0;
   display: flex;
   flex-direction: column;

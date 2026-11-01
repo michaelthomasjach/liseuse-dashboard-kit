@@ -19,6 +19,10 @@ export interface WorkspaceTourProps {
   open: boolean;
   steps: WorkspaceTourStep[];
   onClose: () => void;
+  /** Where the selectors are looked up — the workspace's own root. Without it the whole document
+   *  was searched, so on a page holding two workspaces (or any other chart) the tour could point at
+   *  someone else's header. Returns null until mounted, in which case the document is used. */
+  scope?: () => ParentNode | null;
 }
 
 /** Where the card sits relative to the thing it describes, and where the spotlight goes. */
@@ -85,7 +89,8 @@ function place(target: DOMRect, cardHeight: number): Placement {
  *  A step whose target is not in the document is skipped rather than shown against nothing: a
  *  workspace with no watchlist has no watchlist to point at, and pointing at the middle of the
  *  screen and claiming otherwise would be worse than saying nothing. */
-export function WorkspaceTour({ open, steps, onClose }: WorkspaceTourProps) {
+export function WorkspaceTour({ open, steps, onClose, scope }: WorkspaceTourProps) {
+  const find = useCallback((selector: string) => (scope?.() ?? document).querySelector(selector), [scope]);
   const [index, setIndex] = useState(0);
   const [placement, setPlacement] = useState<Placement | null>(null);
   const [card, setCard] = useState<HTMLDivElement | null>(null);
@@ -104,7 +109,7 @@ export function WorkspaceTour({ open, steps, onClose }: WorkspaceTourProps) {
       return;
     }
     setIndex(0);
-    const resolve = () => steps.filter((step) => document.querySelector(step.selector) !== null);
+    const resolve = () => steps.filter((step) => find(step.selector) !== null);
     // Settled means "stopped growing", not "found something". The rail exists on the first frame
     // while the chart and its tool column arrive later, so taking the first non-empty answer gave a
     // two-step tour of a four-step workspace — it pointed at the side rail and the help button and
@@ -125,16 +130,16 @@ export function WorkspaceTour({ open, steps, onClose }: WorkspaceTourProps) {
       if (settle()) window.clearInterval(timer);
     }, TARGET_POLL_MS);
     return () => window.clearInterval(timer);
-  }, [open, steps]);
+  }, [open, steps, find]);
 
   const step = live[index] ?? null;
 
   const reposition = useCallback(() => {
     if (step === null || card === null) return;
-    const target = document.querySelector(step.selector);
+    const target = find(step.selector);
     if (target === null) return;
     setPlacement(place(target.getBoundingClientRect(), card.offsetHeight));
-  }, [step, card]);
+  }, [step, card, find]);
 
   // Before paint, so the card never appears at its previous step's position first.
   useLayoutEffect(reposition, [reposition]);

@@ -1,3 +1,10 @@
+/* Optional theme variables (never declared in tokens.css, read with their fallback):
+   --lq-tree-row-height (30px) · --lq-tree-indent (18px, per level) · --lq-tree-font-size (0.86rem)
+   --lq-tree-compact-row-height (24px) · --lq-tree-compact-font-size (0.8rem)
+   --lq-tree-icon-color (text-muted) · --lq-tree-folder-color (the icon color)
+   --lq-tree-folder-weight (inherit, parent nodes' label)
+   --lq-tree-guide-color (--lq-color-border-subtle) · --lq-tree-match-bg (accent at 22 %) */
+
 .lq-tree,
 .lq-tree ul {
   list-style: none;
@@ -5,10 +12,16 @@
   padding: 0;
 }
 
+.lq-tree__item {
+  outline: none;
+}
+
 .lq-tree__row {
   position: relative;
   display: flex;
   align-items: center;
+  min-height: var(--lq-tree-row-height, 30px);
+  padding-left: calc(var(--lq-tree-depth, 0) * var(--lq-tree-indent, 18px) + 8px);
   border-radius: var(--lq-radius-sm);
 }
 
@@ -22,6 +35,16 @@
 
 .lq-tree__row--selected {
   background-color: var(--lq-color-hover);
+}
+
+/* Focus sits on the treeitem (roving tabindex); the ring is drawn on its own row, not around the
+   whole subtree the <li> contains. */
+.lq-tree__item:focus-visible > .lq-tree__row {
+  box-shadow: inset 0 0 0 2px var(--lq-color-focus-ring);
+}
+
+.lq-root[data-lq-palette="eink"] .lq-tree__item:focus-visible > .lq-tree__row {
+  box-shadow: inset 0 0 0 2px var(--lq-color-text);
 }
 
 .lq-tree__row--disabled {
@@ -70,9 +93,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  align-self: stretch;
   width: 22px;
-  height: 30px;
   flex-shrink: 0;
+  padding: 0;
   background: none;
   border: none;
   color: var(--lq-color-text-muted);
@@ -91,14 +115,21 @@
   transform: rotate(90deg);
 }
 
+.lq-tree__check {
+  display: inline-flex;
+  flex-shrink: 0;
+  margin-right: 2px;
+}
+
 .lq-tree__label {
   display: flex;
   align-items: center;
   gap: 6px;
   flex: 1;
-  padding: 6px 8px 6px 2px;
+  min-width: 0;
+  padding: 4px 8px 4px 2px;
   font-family: inherit;
-  font-size: 0.86rem;
+  font-size: var(--lq-tree-font-size, 0.86rem);
   text-align: left;
   color: var(--lq-color-text);
   background: none;
@@ -106,7 +137,16 @@
   cursor: pointer;
 }
 
-.lq-tree__row--selected .lq-tree__label {
+.lq-tree__check + .lq-tree__label {
+  padding-left: 4px;
+}
+
+.lq-tree__item[aria-expanded] > .lq-tree__row .lq-tree__label {
+  font-weight: var(--lq-tree-folder-weight, inherit);
+}
+
+.lq-tree__row--selected .lq-tree__label,
+.lq-tree__item[aria-expanded] > .lq-tree__row--selected .lq-tree__label {
   font-weight: var(--lq-font-weight-bold, 700);
 }
 
@@ -114,7 +154,101 @@
   cursor: not-allowed;
 }
 
+.lq-tree__icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--lq-tree-icon-color, var(--lq-color-text-muted));
+}
+
+.lq-tree__item[aria-expanded] > .lq-tree__row .lq-tree__icon {
+  color: var(--lq-tree-folder-color, var(--lq-tree-icon-color, var(--lq-color-text-muted)));
+}
+
 .lq-tree__label svg {
   flex-shrink: 0;
+}
+
+.lq-tree__text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Filter ─────────────────────────────────────────────────────────────────────────────────── */
+
+.lq-tree__match {
+  padding: 0;
+  color: inherit;
+  font-weight: var(--lq-font-weight-bold, 700);
+  background-color: var(--lq-tree-match-bg, color-mix(in srgb, var(--lq-color-accent) 22%, transparent));
+  border-radius: 2px;
+}
+
+.lq-root[data-lq-palette="eink"] .lq-tree__match {
+  background: none;
+  border-radius: 0;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+
+.lq-tree__empty {
+  margin: 0;
+  padding: var(--lq-space-2) var(--lq-space-3);
+  font-size: var(--lq-tree-font-size, 0.86rem);
   color: var(--lq-color-text-muted);
+}
+
+/* ── Lazy loading ───────────────────────────────────────────────────────────────────────────── */
+
+.lq-tree__note {
+  padding: 2px 8px 4px calc((var(--lq-tree-depth, 0)) * var(--lq-tree-indent, 18px) + 8px + 22px);
+  font-size: 0.78rem;
+  color: var(--lq-color-danger);
+}
+
+.lq-root[data-lq-palette="eink"] .lq-tree__note {
+  color: var(--lq-color-text);
+  font-style: italic;
+}
+
+/* ── Guide lines ────────────────────────────────────────────────────────────────────────────── */
+
+/* One vertical line per open parent, under the middle of its chevron (8px gutter + half of the
+   22px toggle), from its first child down to its last. */
+.lq-tree--guides .lq-tree__group {
+  position: relative;
+}
+
+.lq-tree--guides .lq-tree__group::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--lq-tree-depth, 0) * var(--lq-tree-indent, 18px) + 8px + 11px);
+  width: 1px;
+  background-color: var(--lq-tree-guide-color, var(--lq-color-border-subtle));
+  pointer-events: none;
+}
+
+.lq-root[data-lq-palette="eink"] .lq-tree--guides .lq-tree__group::before {
+  background-color: var(--lq-color-border);
+}
+
+/* ── Compact density ────────────────────────────────────────────────────────────────────────── */
+
+.lq-tree--compact .lq-tree__row {
+  min-height: var(--lq-tree-compact-row-height, 24px);
+}
+
+.lq-tree--compact .lq-tree__label {
+  padding-top: 2px;
+  padding-bottom: 2px;
+  font-size: var(--lq-tree-compact-font-size, 0.8rem);
+}
+
+.lq-tree--compact .lq-tree__check .lq-checkbox__box {
+  width: 15px;
+  height: 15px;
 }

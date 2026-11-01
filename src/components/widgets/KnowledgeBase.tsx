@@ -4,40 +4,6 @@ import { Input } from "../forms/Input";
 import { ChipGroup } from "../forms/Chip";
 import "./KnowledgeBase.css";
 
-/**
- * Une **base de connaissances** : un glossaire, une encyclopédie, le guide d'un jeu — des entrées
- * qu'on cherche, qu'on lit, et qui renvoient les unes aux autres.
- *
- * ## La lecture
- *
- * Deux colonnes. À gauche, le champ de recherche, les catégories en puces, et la liste des entrées
- * trouvées — titre, résumé, catégorie ; à droite, l'entrée ouverte : son résumé, ses paragraphes, ses
- * astuces dans un encadré, et « Voir aussi », des boutons vers les entrées liées. Les mots cherchés
- * sont surlignés partout où ils apparaissent.
- *
- * ## Dans un cadre étroit
- *
- * Deux colonnes n'ont pas de sens sous 640 px : la base passe alors à **une vue à la fois**, comme
- * une application de téléphone. D'abord la liste, sur toute la largeur ; toucher une entrée l'ouvre à
- * la place de la liste, avec un bouton « Retour » en tête pour y revenir (le focus retrouve alors
- * l'entrée qu'on vient de lire). C'est la largeur **du composant** qui décide, mesurée par un
- * `ResizeObserver`, et non celle de l'écran : la base bascule aussi bien sur un téléphone que dans
- * une modale ou une colonne étroite d'un grand écran. Une entrée ouverte par l'application
- * (`selectedId`) s'affiche directement.
- *
- * ## Une recherche qui pardonne
- *
- * `searchKnowledge` ne demande pas l'orthographe exacte : elle ignore les accents et la casse,
- * reconnaît un **début de mot** (« trans » trouve « transformateur »), et tolère **une faute de
- * frappe** dans les mots de cinq lettres et plus (« tranformateur »). Chaque mot de la requête doit se
- * trouver quelque part ; le classement fait passer le titre avant les mots-clés, et les mots-clés
- * avant le texte.
- *
- * L'entrée ouverte et la requête peuvent être tenues par l'application (`selectedId`/`onSelect`,
- * `query`/`onQueryChange`) — pour ouvrir le guide sur l'entrée qui explique ce que le joueur regarde.
- * Si l'entrée ouverte sort des résultats d'une recherche, c'est la première trouvée qui s'affiche.
- */
-
 export interface KnowledgeEntry {
   id: string;
   title: string;
@@ -186,6 +152,39 @@ function highlight(text: ReactNode | string, terms: string[]): ReactNode {
 /** En deçà de cette largeur (celle du composant), une seule vue à la fois : la liste, ou l'entrée. */
 const NARROW_PX = 640;
 
+/**
+ * Une **base de connaissances** : un glossaire, une encyclopédie, le guide d'un jeu — des entrées
+ * qu'on cherche, qu'on lit, et qui renvoient les unes aux autres.
+ *
+ * ## La lecture
+ *
+ * Deux colonnes. À gauche, le champ de recherche, les catégories en puces, et la liste des entrées
+ * trouvées — titre, résumé, catégorie ; à droite, l'entrée ouverte : son résumé, ses paragraphes, ses
+ * astuces dans un encadré, et « Voir aussi », des boutons vers les entrées liées. Les mots cherchés
+ * sont surlignés partout où ils apparaissent.
+ *
+ * ## Dans un cadre étroit
+ *
+ * Deux colonnes n'ont pas de sens sous 640 px : la base passe alors à **une vue à la fois**, comme
+ * une application de téléphone. D'abord la liste, sur toute la largeur ; toucher une entrée l'ouvre à
+ * la place de la liste, avec un bouton « Retour » en tête pour y revenir (le focus retrouve alors
+ * l'entrée qu'on vient de lire). C'est la largeur **du composant** qui décide, mesurée par un
+ * `ResizeObserver`, et non celle de l'écran : la base bascule aussi bien sur un téléphone que dans
+ * une modale ou une colonne étroite d'un grand écran. Une entrée ouverte par l'application
+ * (`selectedId`) s'affiche directement.
+ *
+ * ## Une recherche qui pardonne
+ *
+ * `searchKnowledge` ne demande pas l'orthographe exacte : elle ignore les accents et la casse,
+ * reconnaît un **début de mot** (« trans » trouve « transformateur »), et tolère **une faute de
+ * frappe** dans les mots de cinq lettres et plus (« tranformateur »). Chaque mot de la requête doit se
+ * trouver quelque part ; le classement fait passer le titre avant les mots-clés, et les mots-clés
+ * avant le texte.
+ *
+ * L'entrée ouverte et la requête peuvent être tenues par l'application (`selectedId`/`onSelect`,
+ * `query`/`onQueryChange`) — pour ouvrir le guide sur l'entrée qui explique ce que le joueur regarde.
+ * Si l'entrée ouverte sort des résultats d'une recherche, c'est la première trouvée qui s'affiche.
+ */
 export function KnowledgeBase({
   entries,
   categories,

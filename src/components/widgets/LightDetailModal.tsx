@@ -76,6 +76,7 @@ export function LightDetailModal({
               label={opt.label}
               color={opt.color}
               selected={opt.id === color}
+              exclusive
               onClick={() => onColorChange?.(opt.id)}
             />
           ))}

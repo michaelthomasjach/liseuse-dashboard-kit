@@ -6,6 +6,16 @@
   cursor: pointer;
   justify-content: space-between;
   text-align: left;
+  /* Un <button> ne reprend pas la police de son parent : sans ces lignes, Arial 13,33 px. La taille
+     reste celle de field.css en `size="small"` (0.8rem), d'où le :not() plus bas. */
+  font-family: inherit;
+  font-weight: inherit;
+  letter-spacing: inherit;
+  line-height: inherit;
+}
+
+.lq-select__trigger:not(.lq-field__control--small) {
+  font-size: var(--lq-control-font-size, 0.9rem);
 }
 
 .lq-select__trigger svg {
@@ -22,7 +32,7 @@
 }
 
 .lq-select__value {
-  color: var(--lq-color-text);
+  color: var(--lq-control-color, var(--lq-color-text));
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -50,7 +60,7 @@
   width: 100%;
   padding: var(--lq-space-2) var(--lq-space-3);
   font-family: inherit;
-  font-size: 0.88rem;
+  font-size: var(--lq-control-font-size, 0.88rem);
   text-align: left;
   color: var(--lq-color-text);
   background: none;
@@ -59,8 +69,14 @@
   cursor: pointer;
 }
 
-.lq-select__option:hover {
+.lq-select__option:hover,
+.lq-select__option:focus-visible {
   background-color: var(--lq-color-hover);
+}
+
+.lq-select__option:focus-visible {
+  outline: 2px solid var(--lq-color-focus-ring);
+  outline-offset: -2px;
 }
 
 .lq-select__option:disabled {

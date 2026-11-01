@@ -1,4 +1,5 @@
-import type { CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { observeElementSize } from "../../internal/observeElementSize";
 import "./LevelMeter.css";
 
 export interface LevelMeterChannel {
@@ -42,10 +43,24 @@ export interface LevelMeterProps {
   thickness?: number;
   /** Bar length in px. Default 140 vertical / 100 % of the container horizontal. */
   length?: number;
+  /** Locale of the figures (read-out, scale). Default `"fr-FR"`: "−14,0", with a true minus sign. */
+  locale?: string;
+  /** Replaces the default formatting of the read-out and of the accessible value — one decimal in
+   *  `locale`. The scale keeps whole numbers in `locale`. */
+  formatValue?: (value: number) => string;
   className?: string;
 }
 
 const DEFAULT_TICKS = [0, -3, -6, -12, -18, -24, -36, -48, -60];
+
+/** Smallest distance kept between two scale figures, in ems of the scale's own font: one line of
+ *  text when stacked (vertical), a figure's width side by side (horizontal). */
+const TICK_GAP_EM = { vertical: 1.25, horizontal: 3 };
+
+/** `formatter`'s output with a true minus sign (U+2212) — `Intl` writes a hyphen in most locales. */
+function withMinus(formatter: Intl.NumberFormat, value: number): string {
+  return formatter.format(value).replace(/^-/, "−");
+}
 
 /** Signal level meters — one bar per channel, with held peaks, a hot zone, a clip light and an
  *  optional dB scale.
@@ -66,8 +81,34 @@ export function LevelMeter({
   showValue = false,
   thickness,
   length,
+  locale = "fr-FR",
+  formatValue,
   className,
 }: LevelMeterProps) {
+  const formatters = useMemo(
+    () => ({
+      value: new Intl.NumberFormat(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 }),
+      tick: new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }),
+    }),
+    [locale],
+  );
+  const fmt = formatValue ?? ((value: number) => withMinus(formatters.value, value));
+
+  // The scale's drawn length and font size, so figures that would overlap can be dropped — on a
+  // 150 px meter 0, −3 and −6 sat within 15 px of each other and printed on top of one another.
+  const scaleRef = useRef<HTMLDivElement>(null);
+  const [scaleBox, setScaleBox] = useState<{ length: number; fontPx: number } | null>(null);
+  useEffect(() => {
+    const el = scaleRef.current;
+    if (el === null) return;
+    const read = () => {
+      const rect = el.getBoundingClientRect();
+      const next = { length: orientation === "vertical" ? rect.height : rect.width, fontPx: parseFloat(getComputedStyle(el).fontSize) || 10 };
+      setScaleBox((current) => (current !== null && current.length === next.length && current.fontPx === next.fontPx ? current : next));
+    };
+    read();
+    return observeElementSize(el, read);
+  }, [orientation, showScale]);
   const [floor, ceiling] = range;
   const span = ceiling - floor || 1;
   const ratioOf = (level: number) => Math.min(1, Math.max(0, (level - floor) / span));
@@ -76,7 +117,20 @@ export function LevelMeter({
   if (thickness !== undefined) style["--lq-meter-thickness"] = `${thickness}px`;
   if (length !== undefined) style["--lq-meter-length"] = `${length}px`;
 
-  const ticks = DEFAULT_TICKS.filter((tick) => tick <= ceiling && tick >= floor);
+  const inRange = DEFAULT_TICKS.filter((tick) => tick <= ceiling && tick >= floor);
+  // From the top of the scale down, a figure is kept only if it clears the last one kept.
+  const ticks: number[] = [];
+  if (scaleBox === null || scaleBox.length <= 0) ticks.push(...inRange);
+  else {
+    const minGap = TICK_GAP_EM[orientation] * scaleBox.fontPx;
+    let lastAt: number | null = null;
+    for (const tick of inRange) {
+      const at = ratioOf(tick) * scaleBox.length;
+      if (lastAt !== null && Math.abs(lastAt - at) < minGap) continue;
+      ticks.push(tick);
+      lastAt = at;
+    }
+  }
 
   /** Which zone a point along the bar falls in. Taken on the level the block *represents*, not on
    *  the channel's current value, so the hot and clip bands sit at fixed heights on the scale the
@@ -89,10 +143,10 @@ export function LevelMeter({
       style={style as CSSProperties}
     >
       {showScale && (
-        <div className="lq-meter__scale" aria-hidden="true">
+        <div ref={scaleRef} className="lq-meter__scale" aria-hidden="true">
           {ticks.map((tick) => (
             <span key={tick} className="lq-meter__tick" style={{ [orientation === "vertical" ? "bottom" : "left"]: `${ratioOf(tick) * 100}%` } as CSSProperties}>
-              {tick}
+              {withMinus(formatters.tick, tick)}
             </span>
           ))}
         </div>
@@ -111,7 +165,7 @@ export function LevelMeter({
                 aria-valuemin={floor}
                 aria-valuemax={ceiling}
                 aria-valuenow={Math.min(ceiling, Math.max(floor, channel.value))}
-                aria-valuetext={`${channel.value.toFixed(1)} ${unit}`.trim()}
+                aria-valuetext={`${fmt(channel.value)} ${unit}`.trim()}
               >
                 {segments > 0 ? (
                   Array.from({ length: segments }, (_, i) => {
@@ -146,7 +200,7 @@ export function LevelMeter({
               {channel.label && <span className="lq-meter__channel-label">{channel.label}</span>}
               {showValue && (
                 <span className={["lq-meter__channel-value", clipping && "lq-meter__channel-value--clip"].filter(Boolean).join(" ")}>
-                  {channel.value <= floor ? "−∞" : channel.value.toFixed(1)}
+                  {channel.value <= floor ? "−∞" : fmt(channel.value)}
                 </span>
               )}
             </div>

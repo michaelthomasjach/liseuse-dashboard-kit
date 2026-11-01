@@ -355,13 +355,22 @@ export function DataTable<T>({
                   key={col.id}
                   style={{ width: col.width, textAlign: col.align ?? "left" }}
                   className={col.sortValue ? "lq-data-table__sortable" : undefined}
-                  onClick={() => toggleSort(col)}
                   aria-sort={sort?.id === col.id ? (sort.dir === "asc" ? "ascending" : "descending") : undefined}
                 >
-                  <span className="lq-data-table__header">
-                    {col.header}
-                    {col.sortValue && (
-                      <span className="lq-data-table__sort-icon">
+                  {col.sortValue ? (
+                    // Un vrai bouton dans le <th> : focalisable, activable à Entrée et Espace, et
+                    // annoncé comme tel — un <th onClick> ne l'était pas. Aligné à droite, la flèche
+                    // passe devant le libellé : la place qu'elle réserve ne décale plus le texte de
+                    // l'en-tête par rapport aux chiffres de la colonne.
+                    <button
+                      type="button"
+                      className={["lq-data-table__header", "lq-data-table__sort", col.align === "right" && "lq-data-table__sort--end"]
+                        .filter(Boolean)
+                        .join(" ")}
+                      onClick={() => toggleSort(col)}
+                    >
+                      {col.header}
+                      <span className="lq-data-table__sort-icon" aria-hidden="true">
                         {sort?.id === col.id ? (
                           sort.dir === "asc" ? (
                             <ChevronUpIcon size={14} />
@@ -370,8 +379,10 @@ export function DataTable<T>({
                           )
                         ) : null}
                       </span>
-                    )}
-                  </span>
+                    </button>
+                  ) : (
+                    <span className="lq-data-table__header">{col.header}</span>
+                  )}
                 </th>
               ))}
             </tr>
@@ -403,6 +414,19 @@ export function DataTable<T>({
                       .filter(Boolean)
                       .join(" ") || undefined}
                     onClick={() => onRowClick?.(row)}
+                    // Ligne cliquable : atteignable au clavier, Entrée l'active comme un clic. Seule
+                    // la ligne elle-même réagit — pas une case ou un bouton qu'elle contient.
+                    tabIndex={onRowClick ? 0 : undefined}
+                    onKeyDown={
+                      onRowClick
+                        ? (e) => {
+                            if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) {
+                              e.preventDefault();
+                              onRowClick(row);
+                            }
+                          }
+                        : undefined
+                    }
                   >
                     {expandable && (
                       <td className="lq-data-table__control">

@@ -1,0 +1,142 @@
+/*
+ * Cercle de progression — voir ProgressCircle.tsx.
+ *
+ * L'arc est un seul cercle SVG dont on ne montre qu'une longueur de trait (`stroke-dasharray` /
+ * `stroke-dashoffset`), tourné d'un quart pour partir de midi. Ses couleurs suivent les tons pleins
+ * de `tone.css` et lisent les mêmes variables optionnelles (`--lq-tone-<ton>`) : un thème qui règle
+ * le vert de ses tuiles règle du même coup celui de ses cercles.
+ *
+ * Variables optionnelles (jamais déclarées dans tokens.css) :
+ *   --lq-progress-circle-color   l'arc du ton « default » (repli : --lq-color-fill)
+ *   --lq-progress-circle-track   l'anneau de fond (repli : --lq-color-fill-track)
+ */
+
+.lq-progress-circle {
+  --lq-progress-circle-arc: var(--lq-progress-circle-color, var(--lq-color-fill));
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+}
+
+.lq-progress-circle--accent {
+  --lq-progress-circle-arc: var(--lq-tone-accent, var(--lq-color-accent));
+}
+
+.lq-progress-circle--success {
+  --lq-progress-circle-arc: var(--lq-tone-success, var(--lq-color-green));
+}
+
+.lq-progress-circle--info {
+  --lq-progress-circle-arc: var(--lq-tone-info, var(--lq-color-info));
+}
+
+.lq-progress-circle--danger {
+  --lq-progress-circle-arc: var(--lq-tone-danger, var(--lq-color-danger));
+}
+
+.lq-progress-circle--warning {
+  --lq-progress-circle-arc: var(--lq-tone-warning, var(--lq-color-warning));
+}
+
+.lq-progress-circle--dark {
+  --lq-progress-circle-arc: var(--lq-tone-dark, var(--lq-color-text-muted));
+}
+
+.lq-progress-circle__svg {
+  display: block;
+  /* Le zéro du cercle SVG est à trois heures ; une progression se lit depuis midi. */
+  transform: rotate(-90deg);
+}
+
+.lq-progress-circle__track {
+  stroke: var(--lq-progress-circle-track, var(--lq-color-fill-track));
+}
+
+.lq-progress-circle__arc {
+  stroke: var(--lq-progress-circle-arc);
+  /* Même mouvement que la barre : la valeur voyage jusqu'au nouveau chiffre plutôt que d'y sauter. */
+  transition: stroke-dashoffset 420ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.lq-progress-circle__dashes {
+  display: none;
+  stroke: var(--lq-progress-circle-arc);
+}
+
+.lq-progress-circle__value {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--lq-color-text);
+  font-weight: var(--lq-font-weight-semibold, 600);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* L'indéterminé : un arc d'un gros quart qui fait le tour, au rythme du `Spinner`. */
+.lq-progress-circle--indeterminate .lq-progress-circle__svg {
+  animation: lq-progress-circle-spin 900ms linear infinite;
+}
+
+@keyframes lq-progress-circle-spin {
+  from {
+    transform: rotate(-90deg);
+  }
+  to {
+    transform: rotate(270deg);
+  }
+}
+
+/* E-ink : pas de piste grise (elle s'efface sur l'écran et sur la surface sombre, où la piste du
+   thème est la couleur du fond), un filet d'un pixel dans la couleur des bordures à la place ; l'arc
+   garde toute son épaisseur et ses bouts carrés, comme la barre. */
+.lq-root[data-lq-palette="eink"] .lq-progress-circle__track {
+  stroke: var(--lq-color-border);
+  stroke-width: 1px;
+}
+
+.lq-root[data-lq-palette="eink"] .lq-progress-circle__arc {
+  stroke-linecap: butt;
+}
+
+/*
+ * L'indéterminé immobile — en e-ink, dont l'écran ne sait pas rafraîchir un arc qui tourne, et sous
+ * `prefers-reduced-motion`. Un arc arrêté se lirait comme une valeur (« un quart ») : il disparaît, et
+ * l'anneau entier passe en tirets réguliers, qui disent « en cours, durée inconnue » sans qu'aucun
+ * chiffre puisse y être lu.
+ */
+.lq-root[data-lq-palette="eink"] .lq-progress-circle--indeterminate .lq-progress-circle__svg {
+  animation: none;
+}
+
+.lq-root[data-lq-palette="eink"] .lq-progress-circle--indeterminate .lq-progress-circle__arc {
+  display: none;
+}
+
+.lq-root[data-lq-palette="eink"] .lq-progress-circle--indeterminate .lq-progress-circle__dashes {
+  display: inline;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lq-progress-circle--indeterminate .lq-progress-circle__svg {
+    animation: none;
+  }
+
+  .lq-progress-circle--indeterminate .lq-progress-circle__arc {
+    display: none;
+  }
+
+  .lq-progress-circle--indeterminate .lq-progress-circle__dashes {
+    display: inline;
+  }
+
+  .lq-progress-circle__arc {
+    transition: none;
+  }
+}

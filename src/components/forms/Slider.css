@@ -1,0 +1,385 @@
+/*
+ * Slider — curseur à une valeur, et le socle de RangeSlider, qui lit cette même feuille (piste,
+ * poignées, bulle, graduations, tons) et n'ajoute dans la sienne que ce qui lui est propre.
+ *
+ * Piste de 4 px, poignée ronde de 18 px cerclée de la couleur du remplissage, orientation
+ * verticale, graduations, bulle de valeur et tons.
+ *
+ * La position vit dans une seule variable, `--lq-slider-pos` (posée en style sur la racine) : le
+ * remplissage, la poignée et la bulle la lisent tous, ils ne peuvent pas se désaligner.
+ *
+ * Variables optionnelles (jamais déclarées dans tokens.css, repli = valeur du kit) :
+ *   --lq-slider-track-size (4px)            épaisseur de la piste
+ *   --lq-slider-track-bg (--lq-color-fill-track)
+ *   --lq-slider-track-radius (--lq-radius-pill)
+ *   --lq-slider-thumb-size (18px)
+ *   --lq-slider-thumb-bg (--lq-color-accent-contrast)
+ *   --lq-slider-thumb-border (2px solid <couleur du ton>)
+ *   --lq-slider-thumb-shadow (none)
+ *   --lq-slider-bubble-bg (--lq-color-text) · --lq-slider-bubble-color (--lq-color-bg)
+ *   --lq-slider-bubble-size (0.75rem) · --lq-slider-bubble-radius (--lq-radius-sm)
+ *   --lq-slider-mark-size (0.72rem) · --lq-slider-mark-color (--lq-color-text-muted)
+ *   --lq-slider-tick-color (--lq-color-border)
+ */
+
+.lq-slider {
+  --lq-slider-color: var(--lq-color-fill);
+  --lq-slider-thumb: var(--lq-slider-thumb-size, 18px);
+  --lq-slider-track: var(--lq-slider-track-size, 4px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--lq-field-gap, 6px);
+  min-width: 0;
+}
+
+.lq-slider[data-tone="success"] {
+  --lq-slider-color: var(--lq-color-green);
+}
+
+.lq-slider[data-tone="info"] {
+  --lq-slider-color: var(--lq-color-info);
+}
+
+.lq-slider[data-tone="danger"] {
+  --lq-slider-color: var(--lq-color-danger);
+}
+
+.lq-slider[data-tone="warning"] {
+  --lq-slider-color: var(--lq-color-warning);
+}
+
+.lq-slider--disabled {
+  opacity: 0.5;
+}
+
+.lq-slider--disabled .lq-slider__control {
+  cursor: not-allowed;
+}
+
+/* ---- Zone de geste : la piste, avec de quoi loger la demi-poignée à chaque bout ---- */
+
+.lq-slider__control {
+  position: relative;
+  padding: calc(var(--lq-slider-thumb) / 2);
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* La bulle permanente prend sa place au-dessus de la piste au lieu de mordre sur le libellé. */
+.lq-slider[data-orientation="horizontal"][data-show-value="always"] .lq-slider__control {
+  padding-top: calc(var(--lq-slider-thumb) / 2 + 30px);
+}
+
+.lq-slider__track {
+  position: relative;
+  background-color: var(--lq-slider-track-bg, var(--lq-color-fill-track));
+  border-radius: var(--lq-slider-track-radius, var(--lq-radius-pill));
+}
+
+.lq-slider__fill {
+  position: absolute;
+  background-color: var(--lq-slider-color);
+  border-radius: inherit;
+}
+
+.lq-slider__thumb {
+  position: absolute;
+  width: var(--lq-slider-thumb);
+  height: var(--lq-slider-thumb);
+  background-color: var(--lq-slider-thumb-bg, var(--lq-color-accent-contrast));
+  border: var(--lq-slider-thumb-border, 2px solid var(--lq-slider-color));
+  border-radius: 50%;
+  box-shadow: var(--lq-slider-thumb-shadow, none);
+  cursor: grab;
+  outline: none;
+}
+
+.lq-slider[data-dragging] .lq-slider__thumb,
+.lq-slider[data-dragging] .lq-slider__control {
+  cursor: grabbing;
+}
+
+.lq-slider--disabled .lq-slider__thumb {
+  cursor: not-allowed;
+}
+
+.lq-slider__thumb:focus-visible {
+  box-shadow:
+    var(--lq-slider-thumb-shadow, 0 0 #0000),
+    0 0 0 3px color-mix(in srgb, var(--lq-color-focus-ring) 30%, transparent);
+}
+
+/* ---- Horizontal ---- */
+
+.lq-slider[data-orientation="horizontal"] .lq-slider__track {
+  width: 100%;
+  height: var(--lq-slider-track);
+}
+
+/* `--lq-slider-start` reste à 0 pour Slider ; RangeSlider le pose sur sa bande, avec sa propre
+   `--lq-slider-pos`, pour la faire partir de la poignée basse. */
+.lq-slider[data-orientation="horizontal"] .lq-slider__fill {
+  left: var(--lq-slider-start, 0%);
+  top: 0;
+  bottom: 0;
+  width: calc(var(--lq-slider-pos) - var(--lq-slider-start, 0%));
+}
+
+.lq-slider[data-orientation="horizontal"] .lq-slider__thumb {
+  left: var(--lq-slider-pos);
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* ---- Vertical : le minimum en bas, la longueur réglée par `height` ---- */
+
+.lq-slider[data-orientation="vertical"] {
+  display: inline-flex;
+  align-items: flex-start;
+}
+
+.lq-slider[data-orientation="vertical"] .lq-slider__control {
+  display: flex;
+  align-items: stretch;
+  gap: var(--lq-space-2);
+  height: calc(var(--lq-slider-length, 160px) + var(--lq-slider-thumb));
+}
+
+/* La bulle permanente sort à gauche de la poignée : on lui réserve sa largeur. */
+.lq-slider[data-orientation="vertical"][data-show-value="always"] .lq-slider__control {
+  padding-left: calc(var(--lq-slider-thumb) / 2 + 52px);
+}
+
+.lq-slider[data-orientation="vertical"] .lq-slider__track {
+  width: var(--lq-slider-track);
+  flex: none;
+}
+
+.lq-slider[data-orientation="vertical"] .lq-slider__fill {
+  left: 0;
+  right: 0;
+  bottom: var(--lq-slider-start, 0%);
+  height: calc(var(--lq-slider-pos) - var(--lq-slider-start, 0%));
+}
+
+.lq-slider[data-orientation="vertical"] .lq-slider__thumb {
+  bottom: var(--lq-slider-pos);
+  left: 50%;
+  transform: translate(-50%, 50%);
+}
+
+/* ---- Bulle de valeur ---- */
+
+.lq-slider__bubble {
+  position: absolute;
+  padding: 2px 6px;
+  background-color: var(--lq-slider-bubble-bg, var(--lq-color-text));
+  color: var(--lq-slider-bubble-color, var(--lq-color-bg));
+  border-radius: var(--lq-slider-bubble-radius, var(--lq-radius-sm));
+  font-size: var(--lq-slider-bubble-size, 0.75rem);
+  font-weight: var(--lq-font-weight-semibold, 600);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.4;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity var(--lq-transition-fast),
+    visibility var(--lq-transition-fast);
+}
+
+/* La pointe : un carré tourné, de la couleur de la bulle. */
+.lq-slider__bubble::after {
+  content: "";
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background-color: inherit;
+}
+
+.lq-slider[data-orientation="horizontal"] .lq-slider__bubble {
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.lq-slider[data-orientation="horizontal"] .lq-slider__bubble::after {
+  top: 100%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.lq-slider[data-orientation="vertical"] .lq-slider__bubble {
+  right: calc(100% + 8px);
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.lq-slider[data-orientation="vertical"] .lq-slider__bubble::after {
+  left: 100%;
+  top: 50%;
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.lq-slider[data-show-value="always"] .lq-slider__bubble,
+.lq-slider[data-show-value="auto"]:not(.lq-slider--disabled) .lq-slider__thumb:hover .lq-slider__bubble,
+.lq-slider[data-show-value="auto"] .lq-slider__thumb:focus-visible .lq-slider__bubble,
+.lq-slider[data-show-value="auto"][data-dragging] .lq-slider__bubble {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* ---- Graduations ---- */
+
+.lq-slider__marks {
+  position: relative;
+}
+
+.lq-slider[data-orientation="horizontal"] .lq-slider__marks {
+  height: 6px;
+  margin-top: calc(var(--lq-slider-thumb) / 2 - var(--lq-slider-track) / 2 + 2px);
+}
+
+.lq-slider[data-orientation="horizontal"][data-mark-labels] .lq-slider__marks {
+  height: calc(6px + 4px + 1.3em);
+  font-size: var(--lq-slider-mark-size, 0.72rem);
+}
+
+.lq-slider[data-orientation="vertical"] .lq-slider__marks {
+  width: 6px;
+  margin-left: calc(var(--lq-slider-thumb) / 2 - var(--lq-slider-track) / 2 - var(--lq-space-2) + 2px);
+}
+
+.lq-slider[data-orientation="vertical"][data-mark-labels] .lq-slider__marks {
+  width: auto;
+  min-width: 6px;
+  font-size: var(--lq-slider-mark-size, 0.72rem);
+}
+
+.lq-slider__mark {
+  position: absolute;
+  display: flex;
+  align-items: center;
+}
+
+/* Le trait de la graduation. */
+.lq-slider__mark::before {
+  content: "";
+  flex: none;
+  background-color: var(--lq-slider-tick-color, var(--lq-color-border));
+}
+
+.lq-slider__mark--active::before {
+  background-color: var(--lq-slider-color);
+}
+
+.lq-slider[data-orientation="horizontal"] .lq-slider__mark {
+  top: 0;
+  left: var(--lq-slider-mark-pos);
+  flex-direction: column;
+  gap: 4px;
+  transform: translateX(-50%);
+}
+
+.lq-slider[data-orientation="horizontal"] .lq-slider__mark::before {
+  width: 1px;
+  height: 6px;
+}
+
+/* Aux deux bouts, le libellé centré déborderait du composant : il s'aligne sur son bord, et le
+   trait reste au droit de la graduation. */
+.lq-slider[data-orientation="horizontal"] .lq-slider__mark--start {
+  align-items: flex-start;
+  transform: translateX(calc(var(--lq-slider-thumb) / -2));
+}
+
+.lq-slider[data-orientation="horizontal"] .lq-slider__mark--start::before {
+  margin-left: calc(var(--lq-slider-thumb) / 2 - 0.5px);
+}
+
+.lq-slider[data-orientation="horizontal"] .lq-slider__mark--end {
+  align-items: flex-end;
+  transform: translateX(calc(-100% + var(--lq-slider-thumb) / 2));
+}
+
+.lq-slider[data-orientation="horizontal"] .lq-slider__mark--end::before {
+  margin-right: calc(var(--lq-slider-thumb) / 2 - 0.5px);
+}
+
+.lq-slider[data-orientation="vertical"] .lq-slider__mark {
+  left: 0;
+  bottom: var(--lq-slider-mark-pos);
+  flex-direction: row;
+  gap: 6px;
+  transform: translateY(50%);
+}
+
+.lq-slider[data-orientation="vertical"] .lq-slider__mark::before {
+  width: 6px;
+  height: 1px;
+}
+
+.lq-slider__mark-label {
+  color: var(--lq-slider-mark-color, var(--lq-color-text-muted));
+  font-variant-numeric: tabular-nums;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.lq-slider__mark--active .lq-slider__mark-label {
+  color: var(--lq-color-text);
+}
+
+/* ---- E-ink : filet au lieu de piste, poignée carrée, pas de fondu ---- */
+
+.lq-root[data-lq-palette="eink"] .lq-slider {
+  --lq-slider-color: var(--lq-color-text);
+  --lq-slider-thumb: 12px;
+}
+
+.lq-root[data-lq-palette="eink"] .lq-slider__track {
+  background-color: var(--lq-color-border-subtle);
+  border-radius: 0;
+}
+
+.lq-root[data-lq-palette="eink"] .lq-slider[data-orientation="horizontal"] .lq-slider__track {
+  height: 2px;
+}
+
+.lq-root[data-lq-palette="eink"] .lq-slider[data-orientation="vertical"] .lq-slider__track {
+  width: 2px;
+}
+
+.lq-root[data-lq-palette="eink"] .lq-slider__thumb {
+  border-radius: 0;
+  background-color: var(--lq-color-bg);
+  border: var(--lq-control-border-width, 1.5px) solid var(--lq-color-text);
+}
+
+.lq-root[data-lq-palette="eink"] .lq-slider__thumb:focus-visible {
+  box-shadow: none;
+  outline: 2px solid var(--lq-color-text);
+  outline-offset: 2px;
+}
+
+.lq-root[data-lq-palette="eink"] .lq-slider__bubble {
+  border-radius: 0;
+  transition: none;
+}
+
+.lq-root[data-lq-palette="eink"] .lq-slider__mark::before {
+  background-color: var(--lq-color-text-muted);
+}
+
+.lq-root[data-lq-palette="eink"] .lq-slider__mark--active::before {
+  background-color: var(--lq-color-text);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lq-slider__bubble {
+    transition: none;
+  }
+}

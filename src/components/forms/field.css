@@ -43,6 +43,16 @@
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--lq-color-danger) 25%, transparent);
 }
 
+/* Succès : le pendant exact de l'erreur, en `--lq-color-up` (vert en couleur, la couleur du texte
+   en e-ink — le message et son icône y portent alors seuls l'information). */
+.lq-field__control--success {
+  border-color: var(--lq-color-up);
+}
+
+.lq-field__control--success:focus-within {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--lq-color-up) 25%, transparent);
+}
+
 .lq-field__control--disabled {
   opacity: 0.5;
   cursor: not-allowed;
@@ -125,6 +135,15 @@
   color: var(--lq-color-danger);
 }
 
+.lq-field__success {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: var(--lq-field-helper-offset, 0px);
+  font-size: 0.75rem;
+  color: var(--lq-color-up);
+}
+
 /* ---- labelPosition="inside" ----
  * Le libellé dans la boîte : 14 px au repos, 12 px et atténué dès que le champ a le focus ou une
  * valeur. Au focus, le filet prend l'accent, sans halo. */
@@ -145,6 +164,11 @@
 
 .lq-field__control--inset.lq-field__control--error:focus-within {
   border-color: var(--lq-color-danger);
+  box-shadow: none;
+}
+
+.lq-field__control--inset.lq-field__control--success:focus-within {
+  border-color: var(--lq-color-up);
   box-shadow: none;
 }
 

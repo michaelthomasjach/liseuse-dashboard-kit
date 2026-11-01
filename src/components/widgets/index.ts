@@ -66,3 +66,32 @@ export type { AllocationSliderProps, AllocationItem } from "./AllocationSlider";
 
 export { LiveTile } from "./LiveTile";
 export type { LiveTileProps, LiveTileFace } from "./LiveTile";
+
+export { Timeline } from "./Timeline";
+export type { TimelineProps, TimelineEntry } from "./Timeline";
+
+export { ActivityFeed } from "./ActivityFeed";
+export type { ActivityFeedProps, ActivityPost } from "./ActivityFeed";
+
+export { Gallery } from "./Gallery";
+export type { GalleryProps, GalleryImage } from "./Gallery";
+
+export { Lightbox } from "./Lightbox";
+export type { LightboxProps, LightboxImage } from "./Lightbox";
+
+export { ChatPanel } from "./ChatPanel";
+export type { ChatPanelProps, ChatContact, ChatMessage } from "./ChatPanel";
+
+export { MailPanel } from "./MailPanel";
+export type { MailPanelProps, MailMessage, MailFolder } from "./MailPanel";
+
+export { NotesPanel } from "./NotesPanel";
+export type { NotesPanelProps, Note } from "./NotesPanel";
+
+export { Quickview } from "./Quickview";
+export type { QuickviewProps } from "./Quickview";
+export type { ActivityPerson, ActivityComment, ActivityFeedLabels } from "./ActivityFeed";
+export type { LightboxLabels } from "./Lightbox";
+export type { ChatPresence, ChatMessageStatus } from "./ChatPanel";
+export type { MailFolderRole, MailPerson, MailAttachment, MailPanelLabels } from "./MailPanel";
+export type { QuickviewTab } from "./Quickview";

@@ -1,0 +1,282 @@
+/*
+ * Bouton rond flottant et son « speed dial ».
+ *
+ * Le remplissage vient des tons pleins (`data-lq-tone`, voir tone.css) : un FAB `tone="success"` suit
+ * la même couleur qu'une Card du même ton. Le composant ne pose que la forme, l'ombre et le dépli.
+ *
+ * Variables optionnelles (non déclarées dans tokens.css) :
+ *   --lq-fab-size           diamètre du bouton principal (repli : 56 px, 40 px en `sm`)
+ *   --lq-fab-action-size    diamètre d'une action secondaire (repli : 40 px)
+ *   --lq-fab-radius         rayon des boutons (repli : 50 % — rond ; carré en e-ink)
+ *   --lq-fab-shadow         ombre des boutons (repli : --lq-shadow-modal)
+ *   --lq-fab-z-index        plan de la position fixe (repli : 50)
+ *   --lq-fab-label-bg       fond de l'étiquette d'une action (repli : --lq-color-panel)
+ *   --lq-fab-label-color    son texte (repli : --lq-color-text)
+ */
+
+.lq-fab {
+  --lq-fab-main: var(--lq-fab-size, 56px);
+  --lq-fab-small: var(--lq-fab-action-size, 40px);
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--lq-space-3);
+  pointer-events: none;
+}
+
+.lq-fab > * {
+  pointer-events: auto;
+}
+
+.lq-fab--sm {
+  --lq-fab-main: var(--lq-fab-size, 40px);
+  --lq-fab-small: var(--lq-fab-action-size, 32px);
+}
+
+.lq-fab--fixed {
+  position: fixed;
+  z-index: var(--lq-fab-z-index, 50);
+}
+
+.lq-fab--absolute {
+  position: absolute;
+  z-index: var(--lq-fab-z-index, 50);
+}
+
+.lq-fab--static {
+  position: relative;
+}
+
+/* En haut, le bouton passe avant ses actions, qui se déplient vers le bas. */
+.lq-fab--top {
+  flex-direction: column-reverse;
+}
+
+.lq-fab--left {
+  align-items: flex-start;
+}
+
+/* Un FAB statique dans le flux, sous un autre contenu, déplie ses actions par-dessus ce contenu
+   au lieu de le repousser. */
+.lq-fab--static .lq-fab__actions {
+  position: absolute;
+  right: 0;
+}
+
+.lq-fab--static.lq-fab--left .lq-fab__actions {
+  right: auto;
+  left: 0;
+}
+
+.lq-fab--static.lq-fab--bottom .lq-fab__actions {
+  bottom: calc(100% + var(--lq-space-3));
+}
+
+.lq-fab--static.lq-fab--top .lq-fab__actions {
+  top: calc(100% + var(--lq-space-3));
+}
+
+/* -- le bouton principal ------------------------------------------------ */
+
+.lq-fab__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--lq-fab-main);
+  height: var(--lq-fab-main);
+  padding: 0;
+  font: inherit;
+  color: var(--lq-color-text);
+  background-color: var(--lq-color-panel);
+  border: var(--lq-control-border-width, 1.5px) solid var(--lq-color-border);
+  border-radius: var(--lq-fab-radius, 50%);
+  box-shadow: var(--lq-fab-shadow, var(--lq-shadow-modal));
+  cursor: pointer;
+  transition: transform 120ms ease, opacity var(--lq-transition-fast);
+}
+
+/* Avec un ton, la bordure prend la couleur du remplissage : un disque plein, sans liseré. */
+.lq-fab__button[data-lq-tone] {
+  background-color: var(--lq-tone-fill);
+  color: var(--lq-tone-ink);
+  border-color: var(--lq-tone-fill);
+}
+
+.lq-fab__button:hover {
+  opacity: 0.9;
+}
+
+.lq-fab__button:not(:disabled):active {
+  transform: scale(0.94);
+}
+
+.lq-fab__button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.lq-fab__button:focus-visible,
+.lq-fab__action-button:focus-visible {
+  outline: 2px solid var(--lq-color-focus-ring);
+  outline-offset: 2px;
+}
+
+.lq-fab__icon {
+  display: inline-flex;
+  width: 42%;
+  height: 42%;
+  transition: transform var(--lq-transition-base);
+}
+
+.lq-fab__icon > svg {
+  width: 100%;
+  height: 100%;
+}
+
+.lq-fab--open .lq-fab__button--rotates .lq-fab__icon {
+  transform: rotate(45deg);
+}
+
+/* -- le speed dial ---------------------------------------------------------
+   Dans le DOM, les actions vont du bouton vers l'extérieur ; en bas, la colonne est renversée pour
+   que la première soit la plus proche du bouton. Chaque petit bouton est centré sur l'axe du grand. */
+
+.lq-fab__actions {
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: flex-end;
+  gap: var(--lq-space-2);
+  margin: 0;
+  padding: 0 calc((var(--lq-fab-main) - var(--lq-fab-small)) / 2);
+  list-style: none;
+  animation: lq-fab-unfold 160ms ease-out;
+}
+
+.lq-fab__actions[hidden] {
+  display: none;
+}
+
+.lq-fab--top .lq-fab__actions {
+  flex-direction: column;
+}
+
+.lq-fab--left .lq-fab__actions {
+  align-items: flex-start;
+}
+
+.lq-fab__action {
+  display: flex;
+  align-items: center;
+  gap: var(--lq-space-3);
+}
+
+.lq-fab--left .lq-fab__action {
+  flex-direction: row-reverse;
+}
+
+.lq-fab__action-label {
+  padding: var(--lq-space-1) var(--lq-space-2);
+  font-size: var(--lq-text-sm);
+  font-weight: var(--lq-font-weight-semibold, 600);
+  white-space: nowrap;
+  color: var(--lq-fab-label-color, var(--lq-color-text));
+  background-color: var(--lq-fab-label-bg, var(--lq-color-panel));
+  border-radius: var(--lq-radius-sm);
+  box-shadow: var(--lq-shadow-panel);
+}
+
+.lq-fab__action-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: var(--lq-fab-small);
+  height: var(--lq-fab-small);
+  padding: 0;
+  color: var(--lq-color-text);
+  background-color: var(--lq-color-panel);
+  border: var(--lq-control-border-width, 1.5px) solid var(--lq-color-border-subtle);
+  border-radius: var(--lq-fab-radius, 50%);
+  box-shadow: var(--lq-fab-shadow, var(--lq-shadow-modal));
+  cursor: pointer;
+  transition: background-color var(--lq-transition-fast);
+}
+
+.lq-fab__action-button:hover {
+  background-color: var(--lq-color-hover);
+}
+
+.lq-fab__action-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.lq-fab__action-button > svg {
+  width: 45%;
+  height: 45%;
+}
+
+@keyframes lq-fab-unfold {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.lq-fab--top .lq-fab__actions {
+  animation-name: lq-fab-unfold-down;
+}
+
+@keyframes lq-fab-unfold-down {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* -- e-ink : carré, sans ombre ni mouvement, tout détaché par un filet plein -- */
+
+.lq-root[data-lq-palette="eink"] .lq-fab__button,
+.lq-root[data-lq-palette="eink"] .lq-fab__action-button {
+  border-radius: 0;
+  border-color: var(--lq-color-border);
+  transition: none;
+}
+
+.lq-root[data-lq-palette="eink"] .lq-fab__action-label {
+  border: 1px solid var(--lq-color-border);
+  border-radius: 0;
+}
+
+.lq-root[data-lq-palette="eink"] .lq-fab__actions,
+.lq-root[data-lq-palette="eink"] .lq-fab__icon {
+  animation: none;
+  transition: none;
+}
+
+.lq-root[data-lq-palette="eink"] .lq-fab__button:not(:disabled):active {
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lq-fab__actions {
+    animation: none;
+  }
+
+  .lq-fab__icon,
+  .lq-fab__button {
+    transition: none;
+  }
+
+  .lq-fab__button:not(:disabled):active {
+    transform: none;
+  }
+}

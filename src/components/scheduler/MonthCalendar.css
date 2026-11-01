@@ -1,0 +1,610 @@
+/*
+ * MonthCalendar — la grille du mois et l'agenda de la semaine.
+ *
+ * Les barres d'événements vivent dans la case de leur premier jour (pour qu'un lecteur d'écran les
+ * lise avec ce jour) et débordent à droite sur les cases suivantes : `--lq-mc-span` jours de large,
+ * au couloir `--lq-mc-lane`. Les cases sont positionnées sans `z-index`, les barres à `z-index: 1` :
+ * elles passent ainsi au-dessus du fond des cases voisines, peintes après elles dans le DOM.
+ *
+ * Variables optionnelles (lues avec leur repli, jamais déclarées dans tokens.css) :
+ *   --lq-calendar-line            filets de la grille (--lq-color-border-subtle)
+ *   --lq-calendar-cell-padding    marge intérieure d'une case (--lq-space-1)
+ *   --lq-calendar-lane-height     hauteur d'un couloir d'événement (22px)
+ *   --lq-calendar-event-radius    coins d'une pastille (--lq-radius-sm)
+ *   --lq-calendar-event-mix       part de la couleur de l'événement dans son fond (18 %)
+ *   --lq-calendar-event-bar       liseré coloré à gauche d'une pastille (3px)
+ *   --lq-calendar-event-font-size taille du texte des pastilles (0.75rem)
+ *   --lq-calendar-today-bg        fond de la case d'aujourd'hui (transparent)
+ *   --lq-calendar-today-marker    pastille ronde du numéro d'aujourd'hui (--lq-color-accent)
+ *   --lq-calendar-today-marker-text  son chiffre (--lq-color-accent-contrast)
+ *   --lq-calendar-selected-bg     fond du jour sélectionné (accent à 8 %)
+ *   --lq-calendar-outside-bg      fond des jours hors du mois (fond de page à 50 %)
+ */
+
+/* Les tons, aussi sur la liste d'un jour : elle est rendue dans un portail, hors du calendrier. */
+.lq-month-calendar,
+.lq-month-calendar__popover {
+  --lq-mc-tone-accent: var(--lq-color-accent);
+  --lq-mc-tone-success: var(--lq-color-green);
+  --lq-mc-tone-info: var(--lq-color-info);
+  --lq-mc-tone-danger: var(--lq-color-danger);
+  --lq-mc-tone-warning: var(--lq-color-warning);
+  --lq-mc-tone-neutral: var(--lq-color-text-muted);
+}
+
+.lq-month-calendar {
+  --lq-mc-line: var(--lq-calendar-line, var(--lq-color-border-subtle));
+  --lq-mc-pad: var(--lq-calendar-cell-padding, var(--lq-space-1));
+  --lq-mc-lane-h: var(--lq-calendar-lane-height, 22px);
+  --lq-mc-head-h: 28px;
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--lq-space-3);
+  width: 100%;
+  min-width: 0;
+  container: lq-month-calendar / inline-size;
+  color: var(--lq-color-text);
+  font-family: inherit;
+}
+
+.lq-month-calendar__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ------------------------------------------------------------------ barre */
+
+.lq-month-calendar__toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--lq-space-2) var(--lq-space-4);
+}
+
+.lq-month-calendar__nav,
+.lq-month-calendar__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--lq-space-2);
+}
+
+.lq-month-calendar__actions {
+  margin-left: auto;
+}
+
+/* Les flèches : des boutons du kit, resserrés à l'horizontale pour tomber presque carrés. */
+.lq-month-calendar__step {
+  position: relative;
+  padding-left: var(--lq-button-padding-y, var(--lq-space-3));
+  padding-right: var(--lq-button-padding-y, var(--lq-space-3));
+}
+
+.lq-month-calendar__title {
+  margin: 0;
+  font-size: var(--lq-text-h5);
+  font-weight: var(--lq-font-weight-heading, var(--lq-font-weight-bold, 700));
+  line-height: var(--lq-line-height-heading);
+  color: var(--lq-color-text);
+}
+
+/* ------------------------------------------------------------------ grille du mois */
+
+.lq-month-calendar__grid {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--lq-color-panel);
+  border: 1px solid var(--lq-mc-line);
+  border-radius: var(--lq-radius-md);
+  overflow: hidden;
+}
+
+.lq-month-calendar__head,
+.lq-month-calendar__week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.lq-month-calendar__weekday {
+  padding: var(--lq-space-2) var(--lq-mc-pad);
+  font-family: var(--lq-label-font, inherit);
+  font-size: var(--lq-label-size, 0.72rem);
+  font-weight: var(--lq-label-weight, var(--lq-font-weight-semibold, 600));
+  letter-spacing: var(--lq-label-tracking, 0.06em);
+  text-transform: uppercase;
+  color: var(--lq-color-text-muted);
+  text-align: center;
+  border-bottom: 1px solid var(--lq-mc-line);
+}
+
+.lq-month-calendar__week + .lq-month-calendar__week {
+  border-top: 1px solid var(--lq-mc-line);
+}
+
+.lq-month-calendar__day {
+  position: relative;
+  min-width: 0;
+  min-height: calc(var(--lq-mc-head-h) + var(--lq-mc-lanes) * var(--lq-mc-lane-h) + 2 * var(--lq-mc-pad));
+  padding: var(--lq-mc-pad);
+  border-right: 1px solid var(--lq-mc-line);
+  cursor: pointer;
+  outline: none;
+  transition: background-color var(--lq-transition-fast);
+}
+
+.lq-month-calendar__day:last-child {
+  border-right: 0;
+}
+
+.lq-month-calendar__day:hover {
+  background-color: var(--lq-color-hover);
+}
+
+.lq-month-calendar__day:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--lq-color-focus-ring);
+}
+
+.lq-month-calendar__day--outside {
+  background-color: var(--lq-calendar-outside-bg, color-mix(in srgb, var(--lq-color-bg) 50%, transparent));
+}
+
+.lq-month-calendar__day--today {
+  background-color: var(--lq-calendar-today-bg, transparent);
+}
+
+.lq-month-calendar__day--selected,
+.lq-month-calendar__day--selected:hover {
+  background-color: var(--lq-calendar-selected-bg, color-mix(in srgb, var(--lq-color-accent) 8%, transparent));
+}
+
+.lq-month-calendar__day-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--lq-mc-head-h);
+  padding: 0 2px;
+}
+
+.lq-month-calendar__day-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 4px;
+  font-size: 0.8rem;
+  font-weight: var(--lq-font-weight-medium, 500);
+  font-variant-numeric: tabular-nums;
+  color: var(--lq-color-text);
+  border-radius: 999px;
+}
+
+.lq-month-calendar__day--outside .lq-month-calendar__day-number {
+  color: var(--lq-color-text-muted);
+  opacity: 0.6;
+}
+
+.lq-month-calendar__day--today .lq-month-calendar__day-number,
+.lq-month-calendar__agenda-day--today .lq-month-calendar__day-number {
+  color: var(--lq-calendar-today-marker-text, var(--lq-color-accent-contrast));
+  background-color: var(--lq-calendar-today-marker, var(--lq-color-accent));
+  font-weight: var(--lq-font-weight-bold, 700);
+  opacity: 1;
+}
+
+.lq-month-calendar__create {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  color: var(--lq-color-text-muted);
+  background: none;
+  border: 1px solid var(--lq-color-border-subtle);
+  border-radius: var(--lq-radius-sm);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--lq-transition-fast);
+}
+
+.lq-month-calendar__day:hover .lq-month-calendar__create,
+.lq-month-calendar__day:focus-visible .lq-month-calendar__create {
+  opacity: 1;
+}
+
+.lq-month-calendar__create:hover {
+  color: var(--lq-color-text);
+  border-color: var(--lq-color-border);
+}
+
+/* Une pastille : `--lq-mc-span` cases de large à partir de la sienne, filets compris. */
+.lq-month-calendar__event,
+.lq-month-calendar__more {
+  position: absolute;
+  z-index: 1;
+  top: calc(var(--lq-mc-pad) + var(--lq-mc-head-h) + var(--lq-mc-lane) * var(--lq-mc-lane-h));
+  left: var(--lq-mc-pad);
+  height: calc(var(--lq-mc-lane-h) - 2px);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  font-family: inherit;
+  font-size: var(--lq-calendar-event-font-size, 0.75rem);
+  line-height: 1;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.lq-month-calendar__event {
+  width: calc(var(--lq-mc-span) * 100% + (var(--lq-mc-span) - 1) * 1px - 2 * var(--lq-mc-pad));
+  padding: 0 6px;
+  color: var(--lq-color-text);
+  background-color: color-mix(in srgb, var(--lq-mc-event) var(--lq-calendar-event-mix, 18%), var(--lq-color-panel));
+  border: 0;
+  border-left: var(--lq-calendar-event-bar, 3px) solid var(--lq-mc-event);
+  border-radius: var(--lq-calendar-event-radius, var(--lq-radius-sm));
+  overflow: hidden;
+}
+
+.lq-month-calendar__event:hover {
+  background-color: color-mix(in srgb, var(--lq-mc-event) calc(var(--lq-calendar-event-mix, 18%) + 12%), var(--lq-color-panel));
+}
+
+.lq-month-calendar__event:focus-visible,
+.lq-month-calendar__more:focus-visible {
+  outline: 2px solid var(--lq-color-focus-ring);
+  outline-offset: 1px;
+}
+
+/* La barre vient de la semaine d'avant : elle part du bord de la case, sans liseré ni coin. */
+.lq-month-calendar__event--from-before {
+  left: 0;
+  width: calc(var(--lq-mc-span) * 100% + (var(--lq-mc-span) - 1) * 1px - var(--lq-mc-pad));
+  border-left-width: 0;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  padding-left: calc(var(--lq-mc-pad) + 6px);
+}
+
+/* Elle continue la semaine suivante : elle touche le bord droit. */
+.lq-month-calendar__event--to-after {
+  width: calc(var(--lq-mc-span) * 100% + var(--lq-mc-span) * 1px - var(--lq-mc-pad));
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.lq-month-calendar__event--from-before.lq-month-calendar__event--to-after {
+  width: calc(var(--lq-mc-span) * 100% + var(--lq-mc-span) * 1px);
+}
+
+.lq-month-calendar__event-time {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-month-calendar__event-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: var(--lq-font-weight-medium, 500);
+}
+
+.lq-month-calendar__more {
+  right: var(--lq-mc-pad);
+  padding: 0 6px;
+  color: var(--lq-color-text-muted);
+  font-weight: var(--lq-font-weight-semibold, 600);
+  background: none;
+  border: 0;
+  border-radius: var(--lq-radius-sm);
+}
+
+.lq-month-calendar__more:hover {
+  color: var(--lq-color-text);
+  background-color: var(--lq-color-hover);
+}
+
+/* ------------------------------------------------------------------ agenda de la semaine */
+
+.lq-month-calendar__agenda {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  background-color: var(--lq-color-panel);
+  border: 1px solid var(--lq-mc-line);
+  border-radius: var(--lq-radius-md);
+}
+
+.lq-month-calendar__agenda-day {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  gap: var(--lq-space-3);
+  padding: var(--lq-space-3);
+}
+
+.lq-month-calendar__agenda-day + .lq-month-calendar__agenda-day {
+  border-top: 1px solid var(--lq-mc-line);
+}
+
+.lq-month-calendar__agenda-day--today {
+  background-color: var(--lq-calendar-today-bg, transparent);
+}
+
+.lq-month-calendar__agenda-day--selected {
+  background-color: var(--lq-calendar-selected-bg, color-mix(in srgb, var(--lq-color-accent) 8%, transparent));
+}
+
+.lq-month-calendar__agenda-date {
+  display: flex;
+  align-items: center;
+  align-self: start;
+  gap: var(--lq-space-2);
+  padding: 2px;
+  font-family: inherit;
+  color: var(--lq-color-text);
+  background: none;
+  border: 0;
+  border-radius: var(--lq-radius-sm);
+  cursor: pointer;
+}
+
+.lq-month-calendar__agenda-date:focus-visible {
+  outline: 2px solid var(--lq-color-focus-ring);
+  outline-offset: 1px;
+}
+
+.lq-month-calendar__agenda-weekday {
+  min-width: 2.6em;
+  font-family: var(--lq-label-font, inherit);
+  font-size: var(--lq-label-size, 0.72rem);
+  font-weight: var(--lq-label-weight, var(--lq-font-weight-semibold, 600));
+  letter-spacing: var(--lq-label-tracking, 0.06em);
+  text-transform: uppercase;
+  text-align: left;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-month-calendar__agenda-events {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.lq-month-calendar__agenda-empty {
+  padding: 6px 0;
+  font-size: 0.82rem;
+  color: var(--lq-color-text-muted);
+}
+
+/* Une ligne d'événement : agenda de la semaine et liste d'un jour. */
+.lq-month-calendar__row {
+  display: grid;
+  grid-template-columns: 8px 6.5em minmax(0, 1fr);
+  align-items: baseline;
+  gap: var(--lq-space-2);
+  width: 100%;
+  padding: 6px var(--lq-space-2);
+  font-family: inherit;
+  font-size: 0.85rem;
+  text-align: left;
+  color: var(--lq-color-text);
+  background: none;
+  border: 0;
+  border-radius: var(--lq-radius-sm);
+  cursor: pointer;
+}
+
+.lq-month-calendar__row:hover {
+  background-color: var(--lq-color-hover);
+}
+
+.lq-month-calendar__row:focus-visible {
+  outline: 2px solid var(--lq-color-focus-ring);
+  outline-offset: -2px;
+}
+
+.lq-month-calendar__row-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background-color: var(--lq-mc-event);
+  /* Sur la première ligne, même quand une description allonge la ligne. */
+  align-self: start;
+  margin-top: 0.4em;
+}
+
+.lq-month-calendar__row-time {
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--lq-color-text-muted);
+  white-space: nowrap;
+}
+
+.lq-month-calendar__row-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.lq-month-calendar__row-title {
+  font-weight: var(--lq-font-weight-medium, 500);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lq-month-calendar__row-description {
+  font-size: 0.78rem;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-month-calendar__agenda-create {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 6px;
+  margin-top: 2px;
+  padding: 4px var(--lq-space-2);
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: var(--lq-font-weight-medium, 500);
+  color: var(--lq-color-text-muted);
+  background: none;
+  border: 1px dashed var(--lq-color-border-subtle);
+  border-radius: var(--lq-radius-sm);
+  cursor: pointer;
+}
+
+.lq-month-calendar__agenda-create:hover {
+  color: var(--lq-color-text);
+  border-color: var(--lq-color-border);
+}
+
+.lq-month-calendar__agenda-create:focus-visible {
+  outline: 2px solid var(--lq-color-focus-ring);
+  outline-offset: 1px;
+}
+
+/* ------------------------------------------------------------------ liste d'un jour */
+
+.lq-month-calendar__day-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 300px;
+  max-width: calc(100vw - 24px);
+  max-height: 360px;
+  overflow-y: auto;
+  padding: var(--lq-space-2);
+  color: var(--lq-color-text);
+}
+
+.lq-month-calendar__day-list-title {
+  padding: 4px var(--lq-space-2) var(--lq-space-2);
+  font-family: var(--lq-label-font, inherit);
+  font-size: var(--lq-label-size, 0.72rem);
+  font-weight: var(--lq-label-weight, var(--lq-font-weight-semibold, 600));
+  letter-spacing: var(--lq-label-tracking, 0.06em);
+  text-transform: uppercase;
+  color: var(--lq-color-text-muted);
+}
+
+/* ------------------------------------------------------------------ étroit (la largeur du calendrier, pas de la fenêtre) */
+
+@container lq-month-calendar (max-width: 640px) {
+  .lq-month-calendar__actions {
+    margin-left: 0;
+  }
+
+  .lq-month-calendar__event-time {
+    display: none;
+  }
+
+  .lq-month-calendar__agenda-day {
+    grid-template-columns: 64px minmax(0, 1fr);
+  }
+
+  .lq-month-calendar__row {
+    grid-template-columns: 8px minmax(0, 1fr);
+  }
+
+  .lq-month-calendar__row-time {
+    grid-column: 2;
+  }
+
+  .lq-month-calendar__row-body {
+    grid-column: 2;
+  }
+}
+
+/* ------------------------------------------------------------------ e-ink */
+
+.lq-root[data-lq-palette="eink"] .lq-month-calendar__grid,
+.lq-root[data-lq-palette="eink"] .lq-month-calendar__agenda {
+  border-color: var(--lq-color-border);
+  border-radius: 0;
+}
+
+.lq-root[data-lq-palette="eink"] .lq-month-calendar__day,
+.lq-root[data-lq-palette="eink"] .lq-month-calendar__create,
+.lq-root[data-lq-palette="eink"] .lq-month-calendar__event,
+.lq-root[data-lq-palette="eink"] .lq-month-calendar__more,
+.lq-root[data-lq-palette="eink"] .lq-month-calendar__row {
+  transition: none;
+}
+
+/* Hors du mois : pas de teinte de fond, le chiffre seul s'efface. */
+.lq-root[data-lq-palette="eink"] .lq-month-calendar__day--outside,
+.lq-root[data-lq-palette="eink"] .lq-month-calendar__day--today {
+  background-color: transparent;
+}
+
+.lq-root[data-lq-palette="eink"] .lq-month-calendar__day--selected,
+.lq-root[data-lq-palette="eink"] .lq-month-calendar__agenda-day--selected {
+  background-color: transparent;
+  box-shadow: inset 0 0 0 2px var(--lq-color-text);
+}
+
+.lq-root[data-lq-palette="eink"] .lq-month-calendar__day-number {
+  border-radius: 0;
+}
+
+/* Les pastilles en filet : un cadre noir, le texte noir, aucun aplat gris. */
+.lq-root[data-lq-palette="eink"] .lq-month-calendar__event {
+  color: var(--lq-color-text);
+  background-color: var(--lq-color-panel);
+  border: 1px solid var(--lq-color-text);
+  border-left-width: 3px;
+  border-radius: 0;
+}
+
+.lq-root[data-lq-palette="eink"] .lq-month-calendar__event--from-before {
+  border-left-width: 0;
+}
+
+.lq-root[data-lq-palette="eink"] .lq-month-calendar__event--to-after {
+  border-right-width: 0;
+}
+
+.lq-root[data-lq-palette="eink"] .lq-month-calendar__event:hover {
+  background-color: var(--lq-color-hover);
+}
+
+.lq-root[data-lq-palette="eink"] .lq-month-calendar__event-time,
+.lq-root[data-lq-palette="eink"] .lq-month-calendar__more {
+  color: var(--lq-color-text);
+}
+
+.lq-root[data-lq-palette="eink"] .lq-month-calendar__row-dot {
+  border-radius: 0;
+  background-color: var(--lq-color-text);
+}
+
+.lq-root[data-lq-palette="eink"] .lq-month-calendar__create,
+.lq-root[data-lq-palette="eink"] .lq-month-calendar__agenda-create,
+.lq-root[data-lq-palette="eink"] .lq-month-calendar__more,
+.lq-root[data-lq-palette="eink"] .lq-month-calendar__row {
+  border-radius: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lq-month-calendar__day,
+  .lq-month-calendar__create {
+    transition: none;
+  }
+}

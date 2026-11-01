@@ -1,9 +1,11 @@
+import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react";
 import { Card } from "./Card";
 import { Highlight } from "./Highlight";
 import { PanelRow } from "./Panel";
 import { Sparkline } from "../charts/Sparkline";
 import { IconButton } from "./IconButton";
+import { Button } from "./Button";
 import { MoreHorizontalIcon } from "../icons";
 import type { SurfaceTone } from "./tone";
 
@@ -183,4 +185,57 @@ export const Controls: Story = {
       </Card>
     </div>
   ),
+};
+
+const SALES = [
+  { label: "Pages Extended", value: "1 000 €" },
+  { label: "Pages Support", value: "12 €" },
+  { label: "Webarch", value: "2 563 €" },
+  { label: "Licence équipe", value: "4 800 €" },
+  { label: "Licence poste", value: "320 €" },
+  { label: "Module analytique", value: "1 450 €" },
+];
+
+/** Le bouton de l'en-tête détache la carte et la pose sur toute la fenêtre ; Échap ou le même
+ *  bouton la rendent à sa place, dans la grille, sans que ses voisines aient bougé. */
+export const Maximizable: Story = {
+  name: "maximizable — plein écran",
+  render: () => (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 320px))", gap: 16 }}>
+      <Card title="Ventes du jour" meta="6 produits" maximizable onRefresh={() => {}}>
+        {SALES.map((s) => (
+          <PanelRow key={s.label} label={s.label} value={s.value} />
+        ))}
+      </Card>
+      <Card title="Tendance" maximizable controls={<IconButton size="sm" icon={<MoreHorizontalIcon size={16} />} ariaLabel="Plus d'options" />}>
+        <Sparkline data={TREND} width={260} height={60} area />
+      </Card>
+      <Card tone="accent" maximizable>
+        <div style={{ fontSize: "1.75rem", fontWeight: 600 }}>23 000 €</div>
+        <div style={{ fontSize: "0.8rem", color: "var(--lq-color-text-muted)", marginTop: 4 }}>Sans titre : le bouton se pose dans le coin.</div>
+      </Card>
+    </div>
+  ),
+};
+
+/** `maximized` contrôlé, ouvert d'emblée : la carte couvre le cadre de la story. Le bouton, Échap et
+ *  le bouton extérieur passent tous par `onMaximizedChange`. */
+export const MaximizedControlled: Story = {
+  name: "maximized — contrôlé",
+  render: function Render() {
+    const [maximized, setMaximized] = useState(true);
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 400 }}>
+        <div>
+          <Button onClick={() => setMaximized(true)}>Agrandir depuis l'extérieur</Button>
+        </div>
+        <Card title="Détail de l'ordre" meta="Exécuté" maximized={maximized} onMaximizedChange={setMaximized} footer={<span style={{ fontSize: 12, opacity: 0.7 }}>Échap pour revenir</span>}>
+          <PanelRow label="Type" value="Marché" />
+          <PanelRow label="Frais" value="1,99 €" />
+          <PanelRow label="Compte" value="PEA" />
+          <PanelRow label="Date" value="11/06/2026 09:34" />
+        </Card>
+      </div>
+    );
+  },
 };

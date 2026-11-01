@@ -69,8 +69,14 @@
   transition: background-color var(--lq-transition-fast);
 }
 
-.lq-user-menu__item:hover {
+.lq-user-menu__item:hover,
+.lq-user-menu__item:focus-visible {
   background-color: var(--lq-color-hover);
+}
+
+.lq-user-menu__item:focus-visible {
+  outline: 2px solid var(--lq-color-focus-ring);
+  outline-offset: -2px;
 }
 
 .lq-user-menu__item:hover .lq-user-menu__submenu-caret {

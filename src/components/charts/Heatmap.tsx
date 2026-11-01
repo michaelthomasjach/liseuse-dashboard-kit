@@ -1,8 +1,9 @@
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 import * as d3 from "d3";
 import { useD3Zoom } from "./internal/useD3Zoom";
+import { observeElementSize } from "../../internal/observeElementSize";
 import { labelColorOn } from "./internal/labelContrast";
 import { ChevronRightIcon, ZoomOutIcon } from "../icons";
 import { LqThemeProvider, useLqTheme } from "../../theme";
@@ -50,6 +51,8 @@ export interface HeatmapGroup {
 
 export interface HeatmapProps {
   groups: HeatmapGroup[];
+  /** Fixed width in pixels. Left out, the heatmap fills its container's width and follows it when
+   *  it resizes (it used to default to a fixed 900 px). */
   width?: number;
   height?: number;
   /** [min, max] `colorValue` mapped to the fullest down/up color — anything past either end
@@ -213,7 +216,7 @@ function useTileMixer(el: HTMLElement | null): (colorValue: number | null, domai
  *  every other zoomable chart in this library already shares — wheel-to-zoom already zooms
  *  toward the cursor by construction (d3-zoom's own default behavior), nothing extra needed here
  *  for that. */
-export function Heatmap({ groups, width = 900, height = 560, colorDomain = [-3, 3], onTileClick, className }: HeatmapProps) {
+export function Heatmap({ groups, width: widthProp, height = 560, colorDomain = [-3, 3], onTileClick, className }: HeatmapProps) {
   const [focusedGroupId, setFocusedGroupId] = useState<string | null>(null);
   // Pointer position in viewport coordinates: the tooltip is portalled to <body> and placed `fixed`
   // (see the layout effect below), so no ancestor's overflow or transform can clip or shift it.
@@ -256,6 +259,13 @@ export function Heatmap({ groups, width = 900, height = 560, colorDomain = [-3, 
     setWrapperEl(node);
   }, []);
   const labelColorFor = useTileMixer(wrapperEl);
+  const [measuredWidth, setMeasuredWidth] = useState(0);
+  useEffect(() => {
+    if (wrapperEl === null || widthProp !== undefined) return;
+    setMeasuredWidth(Math.round(wrapperEl.clientWidth));
+    return observeElementSize(wrapperEl, (entry) => setMeasuredWidth(Math.round(entry.contentRect.width)));
+  }, [wrapperEl, widthProp]);
+  const width = widthProp ?? measuredWidth;
   const [transform, setTransform] = useState(d3.zoomIdentity);
 
   const focusedGroup = groups.find((g) => g.id === focusedGroupId) ?? null;
@@ -345,7 +355,7 @@ export function Heatmap({ groups, width = 900, height = 560, colorDomain = [-3, 
   const isZoomed = transform.k !== 1 || transform.x !== 0 || transform.y !== 0;
 
   return (
-    <div className={["lq-heatmap", className].filter(Boolean).join(" ")} ref={attachWrapper} style={{ width, height }}>
+    <div className={["lq-heatmap", className].filter(Boolean).join(" ")} ref={attachWrapper} style={{ width: widthProp ?? "100%", height }}>
       {focusedGroup && (
         <div className="lq-heatmap__breadcrumb">
           <button type="button" onClick={closeGroup}>

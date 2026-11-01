@@ -74,3 +74,34 @@
   flex: 1;
   justify-content: space-between;
 }
+
+/* Réglable (onVolumeChange) : la jauge devient un curseur — cliquer ou glisser le long des barres,
+   flèches au clavier. L'enveloppe prend la place que prenait la jauge seule. */
+.lq-music__slider {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+  touch-action: none;
+  border-radius: var(--lq-radius-sm);
+}
+
+.lq-music__slider:focus-visible {
+  outline: 2px solid var(--lq-color-focus-ring);
+  outline-offset: 3px;
+}
+
+.lq-music__slider-gauge {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+}
+
+.lq-music__slider-gauge .lq-gauge {
+  flex: 1;
+}
+
+/* Muet : le niveau reste lisible, atténué — c'est celui que le son retrouvera. */
+.lq-music__volume--muted .lq-gauge__bars {
+  opacity: 0.4;
+}

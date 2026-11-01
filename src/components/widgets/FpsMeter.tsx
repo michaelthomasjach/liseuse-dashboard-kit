@@ -1,29 +1,6 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import "./FpsMeter.css";
 
-/**
- * Un compteur d'images par seconde, posé en surimpression dans un coin : de quoi voir, en jouant,
- * si la simulation tient le rythme.
- *
- * ## Ce qu'il mesure
- *
- * Par défaut, la cadence de la **page** : une seule boucle `requestAnimationFrame` note l'écart
- * entre deux images. Avec `source`, celle d'une autre horloge — une scène qui n'émet que les
- * images **réellement dessinées**. L'intérêt est là : une scène au repos ne redessine rien, et le
- * compteur le dit (« au repos ») au lieu d'afficher 60 i/s qui ne mesureraient que le navigateur.
- *
- * Toutes les `sampleMs` (500 ms par défaut), il résume la fenêtre écoulée : la cadence moyenne, la
- * plus basse (celle de l'image la plus lente) et la durée moyenne d'une image. Rien n'est rendu
- * par React entre deux résumés : la mesure elle-même ne coûte presque rien.
- *
- * ## La lecture
- *
- * Vert au-dessus de 50 i/s, ambre au-dessus de 30, rouge en dessous. Une petite courbe garde les
- * 60 derniers résumés (`showGraph`). La pastille ne capte aucun geste (`pointer-events: none`) :
- * on clique à travers. Son conteneur doit être positionné (`position: relative`), comme pour
- * n'importe quelle surimpression.
- */
-
 /** Une horloge qu'on peut écouter : elle annonce la durée de chaque image, en millisecondes. */
 export interface FpsSource {
   subscribe(listener: (frameMs: number) => void): () => void;
@@ -135,12 +112,36 @@ export interface FpsMeterProps {
   source?: FpsSource;
   /** Un mot devant la mesure : « Scène », « Page ». */
   label?: string;
+  /** La langue des nombres. Défaut : `"fr-FR"` (« 16,7 ms »). */
+  locale?: string;
   className?: string;
 }
 
 const level = (fps: number) => (fps >= 50 ? "good" : fps >= 30 ? "warn" : "critical");
 
-export function FpsMeter({ position = "bottom-right", offset = { x: 8, y: 8 }, sampleMs = 500, showGraph = true, compact = false, source, label, className }: FpsMeterProps) {
+/**
+ * Un compteur d'images par seconde, posé en surimpression dans un coin : de quoi voir, en jouant,
+ * si la simulation tient le rythme.
+ *
+ * ## Ce qu'il mesure
+ *
+ * Par défaut, la cadence de la **page** : une seule boucle `requestAnimationFrame` note l'écart
+ * entre deux images. Avec `source`, celle d'une autre horloge — une scène qui n'émet que les
+ * images **réellement dessinées**. L'intérêt est là : une scène au repos ne redessine rien, et le
+ * compteur le dit (« au repos ») au lieu d'afficher 60 i/s qui ne mesureraient que le navigateur.
+ *
+ * Toutes les `sampleMs` (500 ms par défaut), il résume la fenêtre écoulée : la cadence moyenne, la
+ * plus basse (celle de l'image la plus lente) et la durée moyenne d'une image. Rien n'est rendu
+ * par React entre deux résumés : la mesure elle-même ne coûte presque rien.
+ *
+ * ## La lecture
+ *
+ * Vert au-dessus de 50 i/s, ambre au-dessus de 30, rouge en dessous. Une petite courbe garde les
+ * 60 derniers résumés (`showGraph`). La pastille ne capte aucun geste (`pointer-events: none`) :
+ * on clique à travers. Son conteneur doit être positionné (`position: relative`), comme pour
+ * n'importe quelle surimpression.
+ */
+export function FpsMeter({ position = "bottom-right", offset = { x: 8, y: 8 }, sampleMs = 500, showGraph = true, compact = false, source, label, locale = "fr-FR", className }: FpsMeterProps) {
   const r = useFps({ sampleMs, source });
   const [v, h] = position.split("-") as ["top" | "bottom", "left" | "right"];
   const style: CSSProperties = { [v]: offset.y, [h]: offset.x };
@@ -158,7 +159,7 @@ export function FpsMeter({ position = "bottom-right", offset = { x: 8, y: 8 }, s
       </span>
       {!compact && !r.idle && (
         <span className="lq-fps__detail">
-          min {Math.round(r.min)} · {r.ms.toFixed(1)} ms
+          min {Math.round(r.min)} · {r.ms.toLocaleString(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} ms
         </span>
       )}
       {showGraph && (

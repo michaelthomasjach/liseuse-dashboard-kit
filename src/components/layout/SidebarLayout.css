@@ -4,6 +4,16 @@
   background-color: var(--lq-color-bg);
 }
 
+/* fullHeight={false} : la coquille remplit son parent au lieu de la fenêtre, et ses bascules suivent
+   sa propre largeur (requêtes de conteneur). Le tiroir et le rail, fixés à la fenêtre en plein
+   écran, se positionnent ici par rapport à elle — et ne débordent pas du cadre. */
+.lq-sidebar-layout--contained {
+  position: relative;
+  min-height: 100%;
+  container-type: inline-size;
+  overflow: clip;
+}
+
 .lq-sidebar-layout__sidebar {
   display: flex;
   flex-direction: column;
@@ -172,7 +182,7 @@
 }
 
 @media (max-width: 900px) {
-  .lq-sidebar-layout__sidebar {
+  .lq-sidebar-layout__sidebar:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)) {
     position: fixed;
     inset: 0 auto 0 0;
     z-index: 1100;
@@ -181,11 +191,11 @@
     box-shadow: var(--lq-shadow-modal);
   }
 
-  .lq-sidebar-layout__sidebar--open {
+  .lq-sidebar-layout__sidebar--open:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)) {
     transform: translateX(0);
   }
 
-  .lq-sidebar-layout__scrim {
+  .lq-sidebar-layout__scrim:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)) {
     display: block;
     position: fixed;
     inset: 0;
@@ -193,7 +203,7 @@
     z-index: 1050;
   }
 
-  .lq-sidebar-layout__topbar {
+  .lq-sidebar-layout__topbar:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)) {
     display: flex;
     align-items: center;
     gap: var(--lq-space-3);
@@ -201,12 +211,55 @@
     border-bottom: 1px solid var(--lq-color-border-subtle);
   }
 
-  .lq-sidebar-layout__logo--mobile {
+  .lq-sidebar-layout__logo--mobile:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)) {
     display: flex;
   }
 
-  .lq-sidebar-layout__header,
-  .lq-sidebar-layout__content {
+  .lq-sidebar-layout__header:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)),
+  .lq-sidebar-layout__content:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)) {
+    padding-left: var(--lq-space-4);
+    padding-right: var(--lq-space-4);
+  }
+}
+
+/* fullHeight={false} : les mêmes règles, selon la largeur de la coquille et non de la fenêtre ;
+   ce qui était fixé à la fenêtre l'est à la coquille. */
+@container (max-width: 900px) {
+  :where(.lq-sidebar-layout--contained) .lq-sidebar-layout__sidebar {
+    position: absolute;
+    inset: 0 auto 0 0;
+    z-index: 1100;
+    transform: translateX(-100%);
+    transition: transform var(--lq-transition-base);
+    box-shadow: var(--lq-shadow-modal);
+  }
+
+  :where(.lq-sidebar-layout--contained) .lq-sidebar-layout__sidebar--open {
+    transform: translateX(0);
+  }
+
+  :where(.lq-sidebar-layout--contained) .lq-sidebar-layout__scrim {
+    display: block;
+    position: absolute;
+    inset: 0;
+    background-color: var(--lq-color-overlay);
+    z-index: 1050;
+  }
+
+  :where(.lq-sidebar-layout--contained) .lq-sidebar-layout__topbar {
+    display: flex;
+    align-items: center;
+    gap: var(--lq-space-3);
+    padding: var(--lq-space-3) var(--lq-space-4);
+    border-bottom: 1px solid var(--lq-color-border-subtle);
+  }
+
+  :where(.lq-sidebar-layout--contained) .lq-sidebar-layout__logo--mobile {
+    display: flex;
+  }
+
+  :where(.lq-sidebar-layout--contained) .lq-sidebar-layout__header,
+  :where(.lq-sidebar-layout--contained) .lq-sidebar-layout__content {
     padding-left: var(--lq-space-4);
     padding-right: var(--lq-space-4);
   }
@@ -253,11 +306,27 @@
 }
 
 @media (max-width: 900px) {
-  .lq-sidebar-layout--sticky-header {
+  .lq-sidebar-layout--sticky-header:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)) {
     --lq-sidebar-topbar-height: 57px;
   }
 
-  .lq-sidebar-layout--sticky-header .lq-sidebar-layout__topbar {
+  .lq-sidebar-layout--sticky-header .lq-sidebar-layout__topbar:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)) {
+    position: sticky;
+    top: 0;
+    z-index: calc(var(--lq-sticky-header-z-index, 900) + 1);
+    min-height: var(--lq-sidebar-topbar-height);
+    background-color: var(--lq-color-panel);
+  }
+}
+
+/* fullHeight={false} : les mêmes règles, selon la largeur de la coquille et non de la fenêtre ;
+   ce qui était fixé à la fenêtre l'est à la coquille. */
+@container (max-width: 900px) {
+  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--sticky-header > * {
+    --lq-sidebar-topbar-height: 57px;
+  }
+
+  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--sticky-header .lq-sidebar-layout__topbar {
     position: sticky;
     top: 0;
     z-index: calc(var(--lq-sticky-header-z-index, 900) + 1);
@@ -480,7 +549,7 @@
 }
 
 @media (min-width: 901px) {
-  .lq-sidebar-layout--rail .lq-sidebar-layout__sidebar {
+  .lq-sidebar-layout--rail .lq-sidebar-layout__sidebar:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)) {
     position: fixed;
     inset: 0 auto 0 0;
     z-index: var(--lq-sidebar-z-index, 1000);
@@ -489,43 +558,98 @@
     transition: transform var(--lq-rail-ease);
   }
 
-  .lq-sidebar-layout--rail .lq-sidebar-layout__sidebar:hover,
-  .lq-sidebar-layout--rail .lq-sidebar-layout__sidebar:focus-within,
-  .lq-sidebar-layout--rail.lq-sidebar-layout--pinned .lq-sidebar-layout__sidebar {
+  .lq-sidebar-layout--rail .lq-sidebar-layout__sidebar:hover:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)),
+  .lq-sidebar-layout--rail .lq-sidebar-layout__sidebar:focus-within:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)),
+  .lq-sidebar-layout--rail.lq-sidebar-layout--pinned .lq-sidebar-layout__sidebar:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)) {
     transform: none;
   }
 
   /* Ouverte, les vignettes glissent d'un cran vers les libellés. */
-  .lq-sidebar-layout--rail .lq-sidebar-layout__sidebar:hover .lq-sidebar-layout__thumb,
-  .lq-sidebar-layout--rail .lq-sidebar-layout__sidebar:focus-within .lq-sidebar-layout__thumb,
-  .lq-sidebar-layout--rail.lq-sidebar-layout--pinned .lq-sidebar-layout__thumb {
+  .lq-sidebar-layout--rail .lq-sidebar-layout__sidebar:hover .lq-sidebar-layout__thumb:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)),
+  .lq-sidebar-layout--rail .lq-sidebar-layout__sidebar:focus-within .lq-sidebar-layout__thumb:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)),
+  .lq-sidebar-layout--rail.lq-sidebar-layout--pinned .lq-sidebar-layout__thumb:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)) {
     transform: translateX(-14px);
   }
 
   /* Réduite, l'épingle et le logo n'ont rien à faire dans la colonne visible. */
-  .lq-sidebar-layout--rail .lq-sidebar-layout__head > * {
+  .lq-sidebar-layout--rail .lq-sidebar-layout__head > *:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)) {
     opacity: 0;
     transition: opacity var(--lq-transition-base);
   }
 
-  .lq-sidebar-layout--rail .lq-sidebar-layout__sidebar:hover .lq-sidebar-layout__head > *,
-  .lq-sidebar-layout--rail .lq-sidebar-layout__sidebar:focus-within .lq-sidebar-layout__head > *,
-  .lq-sidebar-layout--rail.lq-sidebar-layout--pinned .lq-sidebar-layout__head > * {
+  .lq-sidebar-layout--rail .lq-sidebar-layout__sidebar:hover .lq-sidebar-layout__head > *:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)),
+  .lq-sidebar-layout--rail .lq-sidebar-layout__sidebar:focus-within .lq-sidebar-layout__head > *:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)),
+  .lq-sidebar-layout--rail.lq-sidebar-layout--pinned .lq-sidebar-layout__head > *:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)) {
     opacity: 1;
   }
 
-  .lq-sidebar-layout--rail .lq-sidebar-layout__main {
+  .lq-sidebar-layout--rail .lq-sidebar-layout__main:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)) {
     margin-left: var(--lq-rail-width);
     transition: margin-left var(--lq-rail-ease);
   }
 
-  .lq-sidebar-layout--rail.lq-sidebar-layout--pinned .lq-sidebar-layout__main {
+  .lq-sidebar-layout--rail.lq-sidebar-layout--pinned .lq-sidebar-layout__main:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)) {
+    margin-left: var(--lq-rail-open-width);
+  }
+}
+
+/* fullHeight={false} : les mêmes règles, selon la largeur de la coquille et non de la fenêtre ;
+   ce qui était fixé à la fenêtre l'est à la coquille. */
+@container (min-width: 901px) {
+  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail .lq-sidebar-layout__sidebar {
+    position: absolute;
+    inset: 0 auto 0 0;
+    z-index: var(--lq-sidebar-z-index, 1000);
+    width: var(--lq-rail-open-width);
+    transform: translateX(calc(var(--lq-rail-width) - var(--lq-rail-open-width)));
+    transition: transform var(--lq-rail-ease);
+  }
+
+  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail .lq-sidebar-layout__sidebar:hover,
+  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail .lq-sidebar-layout__sidebar:focus-within,
+  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail.lq-sidebar-layout--pinned .lq-sidebar-layout__sidebar {
+    transform: none;
+  }
+
+  /* Ouverte, les vignettes glissent d'un cran vers les libellés. */
+  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail .lq-sidebar-layout__sidebar:hover .lq-sidebar-layout__thumb,
+  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail .lq-sidebar-layout__sidebar:focus-within .lq-sidebar-layout__thumb,
+  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail.lq-sidebar-layout--pinned .lq-sidebar-layout__thumb {
+    transform: translateX(-14px);
+  }
+
+  /* Réduite, l'épingle et le logo n'ont rien à faire dans la colonne visible. */
+  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail .lq-sidebar-layout__head > * {
+    opacity: 0;
+    transition: opacity var(--lq-transition-base);
+  }
+
+  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail .lq-sidebar-layout__sidebar:hover .lq-sidebar-layout__head > *,
+  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail .lq-sidebar-layout__sidebar:focus-within .lq-sidebar-layout__head > *,
+  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail.lq-sidebar-layout--pinned .lq-sidebar-layout__head > * {
+    opacity: 1;
+  }
+
+  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail .lq-sidebar-layout__main {
+    margin-left: var(--lq-rail-width);
+    transition: margin-left var(--lq-rail-ease);
+  }
+
+  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail.lq-sidebar-layout--pinned .lq-sidebar-layout__main {
     margin-left: var(--lq-rail-open-width);
   }
 }
 
 @media (max-width: 900px) {
-  .lq-sidebar-layout--rail .lq-sidebar-layout__pin {
+  .lq-sidebar-layout--rail .lq-sidebar-layout__pin:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)) {
+    display: none;
+  }
+}
+
+/* fullHeight={false} : les mêmes règles, selon la largeur de la coquille et non de la fenêtre ;
+   ce qui était fixé à la fenêtre l'est à la coquille. */
+@container (max-width: 900px) {
+  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail .lq-sidebar-layout__pin {
     display: none;
   }
 }

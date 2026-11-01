@@ -23,3 +23,15 @@ export const CustomMessage: Story = {
     />
   ),
 };
+
+/** `fullHeight={false}` : la page prend la hauteur de son cadre et s'y centre, au lieu d'imposer
+ *  celle de la fenêtre ; la taille du code suit la largeur du cadre. */
+export const InFrame: Story = {
+  render: () => (
+    <div style={{ padding: 24 }}>
+      <div style={{ width: 420, height: 360, border: "1px solid var(--lq-color-border)" }}>
+        <NotFoundPage fullHeight={false} />
+      </div>
+    </div>
+  ),
+};

@@ -2,37 +2,6 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { CheckIcon, ChevronDownIcon, CloseIcon } from "../icons";
 import "./ObjectiveTracker.css";
 
-/**
- * Le **suivi des objectifs** d'un jeu — les « quêtes » d'une prise en main : ce qui est fait, ce
- * qu'on fait maintenant, ce qui vient après.
- *
- * ## Une carte qui flotte
- *
- * Le composant est une petite carte ; l'application la place où elle veut — en bas à gauche du plan,
- * par-dessus la scène. En tête : le titre, « 3 / 7 », une barre d'avancement fine, un chevron qui
- * replie la carte sur sa tête (et, si l'application le permet, une croix pour la fermer). Dessous, les
- * étapes :
- *
- * - **faites** : cochées, en retrait, barrées ;
- * - **en cours** : la seule mise en avant — un liseré à l'accent, sa description, un indice, et au
- *   besoin un bouton qui mène au geste à faire ;
- * - **à venir** : estompées, réduites à leur titre — on voit le chemin sans être noyé.
- *
- * Quand une étape passe à « faite », sa ligne s'illumine un instant : le joueur voit ce qu'il vient
- * d'accomplir. Toutes faites, la carte le fête : « Terminé ! ».
- *
- * La liste est une vraie liste ordonnée ; l'étape en cours porte `aria-current="step"`, et le compte
- * est annoncé poliment quand il change.
- *
- * ## Sur un téléphone
- *
- * La carte garde sa largeur de 300 px mais ne dépasse jamais son conteneur, et les mots trop longs
- * passent à la ligne plutôt que de la faire déborder. Sous un doigt (ou sous 640 px de large), chaque
- * bouton — le chevron, la croix, l'action de l'étape en cours — devient une cible de 44 px, et le
- * texte grossit d'un cran. Pour la poser en bas d'un écran de téléphone, l'application peut lui
- * donner toute la largeur (`className` avec `width: 100%`).
- */
-
 export type ObjectiveState = "done" | "current" | "todo";
 
 export interface Objective {
@@ -63,6 +32,36 @@ export interface ObjectiveTrackerProps {
 /** Combien de temps une étape tout juste faite reste illuminée, en millisecondes. */
 const FLASH_MS = 1400;
 
+/**
+ * Le **suivi des objectifs** d'un jeu — les « quêtes » d'une prise en main : ce qui est fait, ce
+ * qu'on fait maintenant, ce qui vient après.
+ *
+ * ## Une carte qui flotte
+ *
+ * Le composant est une petite carte ; l'application la place où elle veut — en bas à gauche du plan,
+ * par-dessus la scène. En tête : le titre, « 3 / 7 », une barre d'avancement fine, un chevron qui
+ * replie la carte sur sa tête (et, si l'application le permet, une croix pour la fermer). Dessous, les
+ * étapes :
+ *
+ * - **faites** : cochées, en retrait, barrées ;
+ * - **en cours** : la seule mise en avant — un liseré à l'accent, sa description, un indice, et au
+ *   besoin un bouton qui mène au geste à faire ;
+ * - **à venir** : estompées, réduites à leur titre — on voit le chemin sans être noyé.
+ *
+ * Quand une étape passe à « faite », sa ligne s'illumine un instant : le joueur voit ce qu'il vient
+ * d'accomplir. Toutes faites, la carte le fête : « Terminé ! ».
+ *
+ * La liste est une vraie liste ordonnée ; l'étape en cours porte `aria-current="step"`, et le compte
+ * est annoncé poliment quand il change.
+ *
+ * ## Sur un téléphone
+ *
+ * La carte garde sa largeur de 300 px mais ne dépasse jamais son conteneur, et les mots trop longs
+ * passent à la ligne plutôt que de la faire déborder. Sous un doigt (ou sous 640 px de large), chaque
+ * bouton — le chevron, la croix, l'action de l'étape en cours — devient une cible de 44 px, et le
+ * texte grossit d'un cran. Pour la poser en bas d'un écran de téléphone, l'application peut lui
+ * donner toute la largeur (`className` avec `width: 100%`).
+ */
 export function ObjectiveTracker({ title, subtitle, objectives, collapsed, onCollapsedChange, onDismiss, doneText = "Terminé !", className }: ObjectiveTrackerProps) {
   const [ownCollapsed, setOwnCollapsed] = useState(false);
   const folded = collapsed ?? ownCollapsed;

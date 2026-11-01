@@ -142,7 +142,11 @@
   line-height: 26px;
 }
 
-.lq-search-overlay__result:hover .lq-search-overlay__label {
+.lq-search-overlay__result--static {
+  cursor: default;
+}
+
+.lq-search-overlay__result:not(.lq-search-overlay__result--static):hover .lq-search-overlay__label {
   color: var(--lq-color-accent);
 }
 

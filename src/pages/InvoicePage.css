@@ -1,0 +1,359 @@
+/* Remplit son conteneur, pas la fenêtre — voir ServerErrorPage.css. */
+.lq-invoice-page {
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: var(--lq-space-4);
+  box-sizing: border-box;
+  min-height: 100%;
+  padding: var(--lq-space-5);
+  color: var(--lq-color-text);
+  background-color: var(--lq-color-bg);
+}
+
+.lq-invoice-page--full-height {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.lq-invoice-page__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lq-space-3);
+  width: 100%;
+  max-width: var(--lq-invoice-max-width, 960px);
+  margin: 0 auto;
+}
+
+.lq-invoice-page__toolbar-start,
+.lq-invoice-page__toolbar-end {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--lq-space-2);
+}
+
+/* La feuille. */
+.lq-invoice-page__sheet {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: var(--lq-invoice-max-width, 960px);
+  margin: 0 auto;
+  padding: var(--lq-invoice-sheet-padding, var(--lq-space-6));
+  background-color: var(--lq-color-panel);
+  border: 1px solid var(--lq-color-panel-border, var(--lq-color-border-subtle));
+  border-radius: var(--lq-radius-lg);
+  box-shadow: var(--lq-shadow-panel);
+}
+
+:where(.lq-invoice-page) p {
+  margin: 0;
+}
+
+.lq-invoice-page__head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--lq-space-5);
+}
+
+.lq-invoice-page__logo {
+  display: flex;
+  margin-bottom: var(--lq-space-3);
+}
+
+.lq-invoice-page__party-name {
+  font-weight: var(--lq-font-weight-semibold, 600);
+}
+
+.lq-invoice-page__party-line {
+  color: var(--lq-color-text-muted);
+  font-size: var(--lq-text-md);
+  line-height: var(--lq-line-height-body);
+}
+
+.lq-invoice-page__heading {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--lq-space-2);
+  margin-left: auto;
+}
+
+.lq-invoice-page__title {
+  margin: 0;
+  font-family: var(--lq-invoice-title-font, inherit);
+  font-size: var(--lq-invoice-title-size, var(--lq-text-h2));
+  font-weight: var(--lq-invoice-title-weight, var(--lq-font-weight-bold, 700));
+  letter-spacing: var(--lq-invoice-title-tracking, 0.08em);
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.lq-invoice-page__caption {
+  margin-bottom: var(--lq-space-1);
+  font-family: var(--lq-label-font, inherit);
+  font-size: var(--lq-label-size, 0.72rem);
+  font-weight: var(--lq-label-weight, 700);
+  letter-spacing: var(--lq-label-tracking, 0.04em);
+  text-transform: uppercase;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-invoice-page__parties {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: var(--lq-space-5);
+  margin-top: var(--lq-space-6);
+}
+
+.lq-invoice-page__client-name {
+  font-size: var(--lq-text-h5);
+  font-weight: var(--lq-font-weight-semibold, 600);
+  margin-bottom: var(--lq-space-1);
+}
+
+.lq-invoice-page__refs {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: var(--lq-space-1) var(--lq-space-5);
+  margin: 0 0 0 auto;
+}
+
+/* Les paires restent groupées dans le DOM (un `<div>` par terme), mais s'alignent sur une seule grille. */
+.lq-invoice-page__refs > div {
+  display: contents;
+}
+
+.lq-invoice-page__refs dt {
+  font-family: var(--lq-label-font, inherit);
+  font-size: var(--lq-label-size, 0.72rem);
+  font-weight: var(--lq-label-weight, 700);
+  letter-spacing: var(--lq-label-tracking, 0.04em);
+  text-transform: uppercase;
+  color: var(--lq-color-text-muted);
+  align-self: center;
+}
+
+.lq-invoice-page__refs dd {
+  margin: 0;
+  min-width: 6.5rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Lignes. */
+.lq-invoice-page__table-wrap {
+  margin-top: var(--lq-space-6);
+  overflow-x: auto;
+}
+
+.lq-invoice-page__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--lq-row-font-size, 0.9rem);
+}
+
+.lq-invoice-page__table th {
+  padding: var(--lq-space-2) var(--lq-space-3);
+  font-family: var(--lq-label-font, inherit);
+  font-size: var(--lq-label-size, 0.72rem);
+  font-weight: var(--lq-label-weight, 700);
+  letter-spacing: var(--lq-label-tracking, 0.04em);
+  text-transform: uppercase;
+  text-align: left;
+  color: var(--lq-color-text-muted);
+  border-bottom: 1px solid var(--lq-color-border);
+  white-space: nowrap;
+}
+
+.lq-invoice-page__table td {
+  padding: var(--lq-invoice-cell-padding-y, var(--lq-space-3)) var(--lq-space-3);
+  vertical-align: top;
+  border-bottom: 1px solid var(--lq-color-border-subtle);
+}
+
+.lq-invoice-page__table th:first-child,
+.lq-invoice-page__table td:first-child {
+  padding-left: 0;
+}
+
+.lq-invoice-page__table th:last-child,
+.lq-invoice-page__table td:last-child {
+  padding-right: 0;
+}
+
+.lq-invoice-page__table .lq-invoice-page__num {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.lq-invoice-page__table td:first-child {
+  min-width: 10rem;
+}
+
+.lq-invoice-page__line-title {
+  display: block;
+  color: var(--lq-color-text);
+}
+
+.lq-invoice-page__line-detail {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--lq-text-sm);
+  color: var(--lq-color-text-muted);
+}
+
+/* Notes et totaux. */
+.lq-invoice-page__summary {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--lq-space-5);
+  margin-top: var(--lq-space-5);
+}
+
+.lq-invoice-page__notes {
+  flex: 1 1 16rem;
+  max-width: 28rem;
+  font-size: var(--lq-text-md);
+  color: var(--lq-color-text-muted);
+  line-height: var(--lq-line-height-body);
+}
+
+.lq-invoice-page__totals {
+  flex: 0 1 20rem;
+  display: grid;
+  margin: 0 0 0 auto;
+}
+
+.lq-invoice-page__totals > div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--lq-space-5);
+  padding: var(--lq-space-2) 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.lq-invoice-page__totals dt {
+  color: var(--lq-color-text-muted);
+}
+
+.lq-invoice-page__totals dd {
+  margin: 0;
+  white-space: nowrap;
+}
+
+.lq-invoice-page__totals .lq-invoice-page__grand-total {
+  margin-top: var(--lq-space-2);
+  padding: var(--lq-space-3) var(--lq-space-3);
+  font-size: var(--lq-text-lg);
+  font-weight: var(--lq-font-weight-bold, 700);
+  color: var(--lq-invoice-total-color, var(--lq-color-accent-contrast));
+  background-color: var(--lq-invoice-total-bg, var(--lq-color-fill));
+  border-radius: var(--lq-radius-md);
+}
+
+.lq-invoice-page__totals .lq-invoice-page__grand-total dt {
+  color: inherit;
+}
+
+.lq-invoice-page__terms {
+  margin-top: var(--lq-space-6);
+  padding-top: var(--lq-space-4);
+  font-size: var(--lq-text-sm);
+  color: var(--lq-color-text-muted);
+  line-height: var(--lq-line-height-body);
+  border-top: 1px solid var(--lq-color-border-subtle);
+}
+
+/* Écran étroit (la largeur du conteneur, pas de la fenêtre) : marges réduites, références à gauche. */
+@container (max-width: 560px) {
+  .lq-invoice-page__sheet {
+    padding: var(--lq-space-4);
+  }
+
+  .lq-invoice-page__heading {
+    align-items: flex-start;
+    margin-left: 0;
+  }
+
+  .lq-invoice-page__refs {
+    margin-left: 0;
+  }
+
+  .lq-invoice-page__refs dd {
+    text-align: left;
+  }
+
+  .lq-invoice-page__totals {
+    flex-basis: 100%;
+  }
+}
+
+.lq-root[data-lq-palette="eink"] .lq-invoice-page__sheet {
+  border-radius: 0;
+  border-color: var(--lq-color-text);
+}
+
+.lq-root[data-lq-palette="eink"] .lq-invoice-page__totals .lq-invoice-page__grand-total {
+  border-radius: 0;
+}
+
+.lq-root[data-lq-palette="eink"] .lq-invoice-page__table th {
+  border-bottom-color: var(--lq-color-text);
+}
+
+/* Impression : la feuille seule, à l'encre sur papier blanc, quelle que soit la surface à l'écran.
+   Les couleurs sont redéfinies ici en dur — c'est le papier, pas le thème. */
+@media print {
+  .lq-invoice-page {
+    --lq-color-bg: #fff;
+    --lq-color-panel: #fff;
+    --lq-color-text: #111;
+    --lq-color-text-muted: #555;
+    --lq-color-border: #999;
+    --lq-color-border-subtle: #ccc;
+    --lq-color-fill: #eee;
+    --lq-color-accent-contrast: #111;
+    --lq-invoice-total-bg: #eee;
+    --lq-invoice-total-color: #111;
+    min-height: 0;
+    padding: 0;
+    background: #fff;
+  }
+
+  .lq-invoice-page__toolbar {
+    display: none;
+  }
+
+  .lq-invoice-page__sheet {
+    max-width: none;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .lq-invoice-page__table-wrap {
+    overflow: visible;
+  }
+
+  .lq-invoice-page__table tr,
+  .lq-invoice-page__summary,
+  .lq-invoice-page__terms {
+    break-inside: avoid;
+  }
+
+  .lq-invoice-page__grand-total {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+}

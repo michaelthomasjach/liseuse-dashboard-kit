@@ -2,23 +2,6 @@ import { useState, type DragEvent, type ReactNode } from "react";
 import { Badge, type BadgeTone } from "../finance/Badge";
 import "./KanbanBoard.css";
 
-/**
- * Un **tableau Kanban** : des colonnes (« À faire », « En cours », « Terminé »…) et des cartes qu'on fait avancer de
- * l'une à l'autre.
- *
- * ## Ce que fait le composant, et ce qu'il laisse à l'application
- *
- * Il dessine les colonnes et les cartes, gère le glisser-déposer (avec le repère d'insertion entre deux cartes) et
- * les flèches ← → qui font passer une carte à la colonne voisine — au clavier comme à la souris. Il ne garde **aucun
- * état métier** : il reçoit les cartes déjà triées, et signale chaque déplacement par `onMove` (colonne d'arrivée et
- * place dans la colonne). C'est à l'application d'enregistrer le changement et de renvoyer les cartes.
- *
- * ## Colonnes triées par date
- *
- * Une colonne `sortable: false` (typiquement « Terminé », rangée par date de livraison) accepte les cartes, mais la
- * place où on les lâche n'a pas de sens : pas de repère d'insertion, `index` vaut 0. Les cartes d'une colonne peuvent
- * porter un `group` (« jeudi 22 octobre ») : un intertitre est posé à chaque changement de groupe.
- */
 export interface KanbanColumn {
   id: string;
   title: string;
@@ -71,6 +54,23 @@ export interface KanbanBoardProps {
 
 type Over = { columnId: string; index: number } | null;
 
+/**
+ * Un **tableau Kanban** : des colonnes (« À faire », « En cours », « Terminé »…) et des cartes qu'on fait avancer de
+ * l'une à l'autre.
+ *
+ * ## Ce que fait le composant, et ce qu'il laisse à l'application
+ *
+ * Il dessine les colonnes et les cartes, gère le glisser-déposer (avec le repère d'insertion entre deux cartes) et
+ * les flèches ← → qui font passer une carte à la colonne voisine — au clavier comme à la souris. Il ne garde **aucun
+ * état métier** : il reçoit les cartes déjà triées, et signale chaque déplacement par `onMove` (colonne d'arrivée et
+ * place dans la colonne). C'est à l'application d'enregistrer le changement et de renvoyer les cartes.
+ *
+ * ## Colonnes triées par date
+ *
+ * Une colonne `sortable: false` (typiquement « Terminé », rangée par date de livraison) accepte les cartes, mais la
+ * place où on les lâche n'a pas de sens : pas de repère d'insertion, `index` vaut 0. Les cartes d'une colonne peuvent
+ * porter un `group` (« jeudi 22 octobre ») : un intertitre est posé à chaque changement de groupe.
+ */
 export function KanbanBoard({
   columns,
   cards,

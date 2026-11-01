@@ -74,8 +74,12 @@ export function WorldExposureMap({ data, width = 480, height = 260, formatValue,
     if (!continent) return "var(--lq-color-panel)";
     const value = totals[continent];
     if (value <= 0) return "var(--lq-color-panel)";
-    const t = value / maxTotal;
-    const percent = Math.round(15 + t * 70);
+    // Square-root ramp with a 30 % floor: on a linear 15→85 % ramp the smallest shares sat a few
+    // points of accent away from the panel, which is invisible on the dark surface (the panel is
+    // already dark, so 15 % of accent barely lifts it). The floor keeps every non-zero region
+    // visibly tinted, the root spreads the low end where most regions live.
+    const t = Math.sqrt(value / maxTotal);
+    const percent = Math.round(30 + t * 60);
     return `color-mix(in srgb, var(--lq-color-accent) ${percent}%, var(--lq-color-panel))`;
   }
 
@@ -97,11 +101,13 @@ export function WorldExposureMap({ data, width = 480, height = 260, formatValue,
         aria-label="Carte d'exposition par région"
         onPointerLeave={() => setHovered(null)}
       >
-        {countryFeatures.map((f) => {
+        {countryFeatures.map((f, i) => {
           const continent = f.id !== undefined ? COUNTRY_CONTINENT[String(f.id)] : undefined;
           return (
             <path
-              key={String(f.id)}
+              // Three world-atlas features (Kosovo, N. Cyprus, Somaliland) carry no `id`; keying on
+              // it alone gave three "undefined" keys and a React warning on every render.
+              key={f.id !== undefined ? String(f.id) : `${f.properties?.name ?? "sans-id"}-${i}`}
               d={pathGen(f) ?? undefined}
               // `continent !== undefined` guards the comparison below on its own, not just as an
               // optimization — without it, a country absent from COUNTRY_CONTINENT (Kosovo, N.

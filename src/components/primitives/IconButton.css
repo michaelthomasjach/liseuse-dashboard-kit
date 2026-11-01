@@ -8,6 +8,10 @@
   border-radius: var(--lq-radius-md);
   cursor: pointer;
   flex-shrink: 0;
+  /* Le <button> natif garde son padding (1px 6px) : sans remise à zéro, l'icône à 55 % se calcule
+     sur une boîte rétrécie (14 px au lieu de 22 en md). */
+  padding: 0;
+  box-sizing: border-box;
   transition: background-color var(--lq-transition-fast), color var(--lq-transition-fast), transform 120ms ease;
 }
 
@@ -37,8 +41,10 @@
 }
 
 .lq-icon-button--md {
-  width: 40px;
-  height: 40px;
+  /* La hauteur des contrôles du thème (Button, champs) : côte à côte, un IconButton et un Button
+     s'alignent. --lq-icon-button-size permet de l'en détacher. */
+  width: var(--lq-icon-button-size, var(--lq-control-height, 40px));
+  height: var(--lq-icon-button-size, var(--lq-control-height, 40px));
 }
 
 .lq-icon-button--sm {

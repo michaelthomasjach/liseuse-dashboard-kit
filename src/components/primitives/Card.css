@@ -241,8 +241,10 @@
   cursor: pointer;
 }
 
-/* Un simple anneau, discret au repos : il ne doit pas rivaliser avec le titre. */
-.lq-card__refresh {
+/* Un simple anneau, discret au repos : il ne doit pas rivaliser avec le titre. Le bouton plein écran
+   partage son allure. */
+.lq-card__refresh,
+.lq-card__maximize {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -259,11 +261,14 @@
 }
 
 .lq-card__refresh:hover,
-.lq-card__refresh:focus-visible {
+.lq-card__refresh:focus-visible,
+.lq-card__maximize:hover,
+.lq-card__maximize:focus-visible {
   opacity: 0.8;
 }
 
-.lq-card__refresh:focus-visible {
+.lq-card__refresh:focus-visible,
+.lq-card__maximize:focus-visible {
   outline: 2px solid var(--lq-color-focus-ring);
   outline-offset: 1px;
 }
@@ -315,6 +320,88 @@
   }
 
   .lq-card__loading {
+    animation: none;
+  }
+}
+
+/* ---------------------------------------------------------------- */
+/* Plein écran (`maximizable`). Le sélecteur à deux classes passe    */
+/* devant `--anchored`, `--bare` et `--highlight` ; placé avant les  */
+/* tons, qui gardent leur aplat en plein écran.                      */
+/*                                                                  */
+/* Variables optionnelles (jamais déclarées dans tokens.css) :      */
+/*   --lq-card-maximized-inset    écart au bord de la fenêtre (0)    */
+/*   --lq-card-maximized-z-index  1200 : au-dessus de la barre       */
+/*     latérale (1000-1100) et de la barre haute (900), sous les      */
+/*     menus (1300), les modales (3000) et les popovers (3050) qu'on  */
+/*     ouvrirait depuis la carte                                      */
+/*   --lq-card-maximized-radius   0                                   */
+/*   --lq-card-maximized-shadow   --lq-shadow-modal                   */
+/* ---------------------------------------------------------------- */
+
+.lq-card.lq-card--maximized {
+  position: fixed;
+  inset: var(--lq-card-maximized-inset, 0);
+  z-index: var(--lq-card-maximized-z-index, 1200);
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  max-width: none;
+  max-height: none;
+  background-color: var(--lq-color-panel);
+  border: 1px solid var(--lq-color-panel-border, var(--lq-color-border-subtle));
+  border-radius: var(--lq-card-maximized-radius, 0);
+  box-shadow: var(--lq-card-maximized-shadow, var(--lq-shadow-modal));
+  overflow: hidden;
+  animation: lq-card-maximize-in 150ms ease;
+}
+
+.lq-card.lq-card--maximized:focus {
+  outline: none;
+}
+
+/* L'en-tête reste en haut ; le corps prend le reste et défile seul. */
+.lq-card--maximized > .lq-card__header {
+  flex-shrink: 0;
+}
+
+.lq-card--maximized > .lq-card__body,
+.lq-card--maximized > .lq-card__collapse {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+.lq-card--maximized > .lq-card__footer {
+  flex-shrink: 0;
+}
+
+/* Une tuile `highlight` n'a ni fond ni marges latérales : en plein écran, elle reprend celles d'une
+   carte ordinaire. */
+.lq-card--highlight.lq-card--maximized .lq-card__header,
+.lq-card--highlight.lq-card--maximized .lq-card__body,
+.lq-card--highlight.lq-card--maximized .lq-card__summary {
+  padding-left: var(--lq-space-5);
+  padding-right: var(--lq-space-5);
+}
+
+.lq-card-placeholder {
+  visibility: hidden;
+}
+
+@keyframes lq-card-maximize-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.lq-root[data-lq-palette="eink"] .lq-card.lq-card--maximized {
+  border-color: var(--lq-color-border);
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lq-card.lq-card--maximized {
     animation: none;
   }
 }

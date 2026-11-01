@@ -4,6 +4,13 @@
   background-color: var(--lq-color-bg);
 }
 
+/* fullHeight={false} : remplit son parent et bascule selon sa propre largeur (requêtes de conteneur
+   plus bas), pas selon celle de la fenêtre. */
+.lq-login-page--contained {
+  min-height: 100%;
+  container-type: inline-size;
+}
+
 .lq-login-page__image {
   flex: 3;
   position: relative;
@@ -51,10 +58,19 @@
   color: var(--lq-color-text-muted);
 }
 
-.lq-login-page__form {
+.lq-login-page__form,
+.lq-login-page__form > form {
   display: flex;
   flex-direction: column;
   gap: var(--lq-space-4);
+}
+
+/* SignUpPage avec onSubmit : le <form> enveloppe champs et conditions, au même écart que le reste
+   du panneau. */
+.lq-login-page__form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lq-space-5);
 }
 
 .lq-login-page__terms {
@@ -69,11 +85,23 @@
 }
 
 @media (max-width: 900px) {
-  .lq-login-page__image {
+  .lq-login-page__image:where(:not(.lq-login-page--contained, .lq-login-page--contained *)) {
     display: none;
   }
 
-  .lq-login-page__panel {
+  .lq-login-page__panel:where(:not(.lq-login-page--contained, .lq-login-page--contained *)) {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+/* fullHeight={false} : les mêmes règles, selon la largeur du composant et non de la fenêtre. */
+@container (max-width: 900px) {
+  :where(.lq-login-page--contained) .lq-login-page__image {
+    display: none;
+  }
+
+  :where(.lq-login-page--contained) .lq-login-page__panel {
     flex: 1;
     min-width: 0;
   }

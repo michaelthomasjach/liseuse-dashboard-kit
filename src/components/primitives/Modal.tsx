@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { CloseIcon } from "../icons";
 import { LqThemeProvider, useLqTheme } from "../../theme";
+import { useFocusTrap } from "../../internal/useFocusTrap";
 import "./Modal.css";
 
 export interface ModalProps {
@@ -11,6 +12,7 @@ export interface ModalProps {
   children?: ReactNode;
   /** Defaults to a full-width "Fermer" button; pass null to omit, or your own footer. */
   footer?: ReactNode | null;
+  /** Texte du bouton de pied par défaut **et** nom accessible de la croix d'en-tête. Défaut « Fermer ». */
   closeLabel?: string;
   /** `"default"` is the small centered dialog; `"wide"` is a fixed, roomier size (not viewport-
    *  relative like fullscreen) for content with its own internal layout that needs stable side-by-
@@ -35,11 +37,19 @@ export interface ModalProps {
  *  défiler le contenu — la croix de fermeture, agrandie à la taille d'un doigt, ne quitte jamais
  *  l'écran. Le glisser-déposer de l'en-tête n'a plus de sens quand la modale remplit l'écran : la
  *  feuille de style y neutralise le décalage (voir Modal.css). Tout cela tient dans une requête
- *  média, sans une ligne de JavaScript : l'API ne change pas. */
+ *  média, sans une ligne de JavaScript : l'API ne change pas.
+ *
+ *  Focus : à l'ouverture il entre dans la modale (sur un élément `autoFocus`/`data-autofocus` s'il y
+ *  en a un, sinon sur le premier contrôle hors croix d'en-tête, sinon sur la modale elle-même), Tab
+ *  et Maj+Tab y bouclent tant qu'elle est ouverte, et il revient à l'élément qui l'avait (le bouton
+ *  d'ouverture) à la fermeture. Échap ferme. */
 export function Modal({ open, onClose, title, children, footer, closeLabel = "Fermer", size = "default", headerActions }: ModalProps) {
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const dragRef = useRef<{ startClientX: number; startClientY: number; startOffsetX: number; startOffsetY: number } | null>(null);
   const theme = useLqTheme();
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  useFocusTrap(dialogRef, open);
 
   useEffect(() => {
     if (!open) return;
@@ -103,9 +113,11 @@ export function Modal({ open, onClose, title, children, footer, closeLabel = "Fe
         <div
           className={["lq-modal", size === "wide" && "lq-modal--wide", size === "fullscreen" && "lq-modal--fullscreen", title && "lq-modal--titled"].filter(Boolean).join(" ")}
           style={offset.x || offset.y ? { transform: `translate(${offset.x}px, ${offset.y}px)` } : undefined}
+          ref={dialogRef}
+          tabIndex={-1}
           role="dialog"
           aria-modal="true"
-          aria-label={typeof title === "string" ? title : undefined}
+          aria-labelledby={title ? titleId : undefined}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Padding lives here, not on .lq-modal itself: .lq-modal is the element with
@@ -117,7 +129,9 @@ export function Modal({ open, onClose, title, children, footer, closeLabel = "Fe
           <div className="lq-modal__inner">
             {title && (
               <header className="lq-modal__header lq-modal__header--draggable" onPointerDown={onHeaderPointerDown}>
-                <h2 className="lq-modal__title">{title}</h2>
+                <h2 className="lq-modal__title" id={titleId}>
+                  {title}
+                </h2>
                 {headerActions}
                 {/* Own pointerdown never reaches the header's drag handler above — otherwise a
                     plain click here would first arm a (zero-distance, harmless) drag before the
@@ -128,7 +142,8 @@ export function Modal({ open, onClose, title, children, footer, closeLabel = "Fe
                   className="lq-modal__close-icon"
                   onPointerDown={(e) => e.stopPropagation()}
                   onClick={onClose}
-                  aria-label="Fermer"
+                  aria-label={closeLabel}
+                  data-lq-initial-focus="skip"
                 >
                   <CloseIcon size={16} />
                 </button>

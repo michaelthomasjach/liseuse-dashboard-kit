@@ -38,7 +38,6 @@ export function useWorkspaceSidePanelState({
   defaultVisibleColumnIds,
   isMobileWorkspace,
   viewportWidth,
-  mobileBreakpoint,
   panel,
   onSidePanelTabChange,
   onActiveWatchlistChange,
@@ -56,7 +55,9 @@ export function useWorkspaceSidePanelState({
   useEffect(() => {
     if (mobileDefaultAppliedRef.current || viewportWidth <= 0) return;
     mobileDefaultAppliedRef.current = true;
-    if (viewportWidth < mobileBreakpoint) panel.commitOpen(false);
+    // `isMobileWorkspace`, not the window against the breakpoint: a workspace pinned to
+    // `layout="desktop"` on a 1366 px laptop is a desktop, and its panel stays open.
+    if (isMobileWorkspace) panel.commitOpen(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewportWidth]);
 

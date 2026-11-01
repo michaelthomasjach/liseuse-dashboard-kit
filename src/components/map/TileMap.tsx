@@ -12,37 +12,6 @@ import {
 import { badgeAnchor, distanceToPath, type ScreenPoint } from "./routeGeometry";
 import "./TileMap.css";
 
-/**
- * A navigable world map: drag to pan, wheel or buttons to zoom, raster tiles from an
- * OpenStreetMap-compatible provider.
- *
- * Drawn on a canvas by hand rather than by pulling in Leaflet or MapLibre. Two reasons, and the
- * second is the one that decided it. A map library is 40 kB at its smallest and 800 kB for the
- * vector ones, which is a lot of weight in a component kit where `d3` is already a peer dependency
- * precisely so that consumers who want no charts carry none. And this library already hand-rolls
- * its heavy renderers — the globe is raw WebGL, the network is Canvas 2D — so a map that arrives
- * with its own DOM tree, its own event model and its own CSS would be the one component that does
- * not behave like the rest.
- *
- * What that costs is real and worth stating: no vector styling, no rotation, no tilt, no geocoding,
- * no GeoJSON layers. This pans, zooms and puts markers on a raster basemap. When a consumer needs
- * more than that, a map library is the right answer and this component is not.
- *
- * ## Attribution is not decoration
- *
- * OpenStreetMap data is ODbL: displaying it *requires* crediting the contributors, which is why the
- * credit is rendered by the component rather than left to the consumer to remember. `attribution`
- * can be changed to match a different provider; it cannot be emptied away, because the one thing
- * this component must not do is make it easy to publish someone's data without saying whose it is.
- *
- * ## Choosing a provider
- *
- * The default points at openstreetmap.org's own tiles, which answer without a key and are fine for
- * development and for the low volumes a dashboard produces. Their usage policy forbids heavy or
- * commercial use, so a production deployment should pass its own `tileUrl` — any
- * `{z}/{x}/{y}` raster endpoint works, including a self-hosted one.
- */
-
 export interface TileMapMarker {
   id: string;
   lon: number;
@@ -128,6 +97,12 @@ export interface TileMapProps {
   ariaLabel?: string;
 }
 
+/** The basemap on the dark surface: OSM tiles are drawn for a light page, and a white map in a
+ *  dark dashboard is a hole in it. Inverted and hue-rotated back so water stays blue-ish, then
+ *  toned down so it sits under the annotations rather than glaring. Overridable through
+ *  `--lq-tilemap-dark-filter`. */
+const DARK_TILE_FILTER = "invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.88) saturate(0.6)";
+
 const DEFAULT_TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const DEFAULT_ATTRIBUTION = "© OpenStreetMap";
 
@@ -150,6 +125,45 @@ interface Camera {
   lat: number;
   zoom: number;
 }
+
+/**
+ * A navigable world map: drag to pan, wheel or buttons to zoom, raster tiles from an
+ * OpenStreetMap-compatible provider.
+ *
+ * Drawn on a canvas by hand rather than by pulling in Leaflet or MapLibre. Two reasons, and the
+ * second is the one that decided it. A map library is 40 kB at its smallest and 800 kB for the
+ * vector ones, which is a lot of weight in a component kit where `d3` is already a peer dependency
+ * precisely so that consumers who want no charts carry none. And this library already hand-rolls
+ * its heavy renderers — the globe is raw WebGL, the network is Canvas 2D — so a map that arrives
+ * with its own DOM tree, its own event model and its own CSS would be the one component that does
+ * not behave like the rest.
+ *
+ * What that costs is real and worth stating: no vector styling, no rotation, no tilt, no geocoding,
+ * no GeoJSON layers. This pans, zooms and puts markers on a raster basemap. When a consumer needs
+ * more than that, a map library is the right answer and this component is not.
+ *
+ * ## Attribution is not decoration
+ *
+ * OpenStreetMap data is ODbL: displaying it *requires* crediting the contributors, which is why the
+ * credit is rendered by the component rather than left to the consumer to remember. `attribution`
+ * can be changed to match a different provider; it cannot be emptied away, because the one thing
+ * this component must not do is make it easy to publish someone's data without saying whose it is.
+ *
+ * ## Choosing a provider
+ *
+ * The default points at openstreetmap.org's own tiles, which answer without a key and are fine for
+ * development and for the low volumes a dashboard produces. Their usage policy forbids heavy or
+ * commercial use, so a production deployment should pass its own `tileUrl` — any
+ * `{z}/{x}/{y}` raster endpoint works, including a self-hosted one.
+ *
+ * ## Theme
+ *
+ * Markers without a `color` take `--lq-color-accent`; a `color` written as `var(--lq-…)` is resolved
+ * against the page before it reaches the canvas (a canvas cannot read CSS variables). Labels use
+ * the theme's font. On the dark surface the basemap is inverted to a dark map — the filter is
+ * `--lq-tilemap-dark-filter` when set, and `tileFilter` overrides it like any other.
+ */
+export const TileMap = memo(TileMapImpl);
 
 function TileMapImpl({
   width: widthProp,
@@ -194,6 +208,11 @@ function TileMapImpl({
    * that the theme is a coat of paint.
    */
   const [palette, setPalette] = useState<"eink" | "color">("color");
+  /** The surface in force, observed alongside the palette — the basemap is darkened on "dark". */
+  const [surface, setSurface] = useState<"light" | "dark">("light");
+  /** A hidden element whose computed `color` turns any CSS colour — `var(--lq-…)` included — into
+   *  a value the canvas understands. */
+  const colorProbeRef = useRef<HTMLSpanElement>(null);
 
   /**
    * Whatever the container gives us, for each dimension not pinned by a prop.
@@ -296,7 +315,8 @@ function TileMapImpl({
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, width, height);
 
-    const filter = tileFilter ?? (palette === "eink" ? EINK_TILE_FILTER : "none");
+    const darkFilter = getComputedStyle(canvas).getPropertyValue("--lq-tilemap-dark-filter").trim() || DARK_TILE_FILTER;
+    const filter = tileFilter ?? (palette === "eink" ? EINK_TILE_FILTER : surface === "dark" ? darkFilter : "none");
     ctx.filter = filter;
 
     // Tiles only exist at whole zoom levels, so the nearest level is fetched and scaled. Rounding
@@ -356,6 +376,19 @@ function TileMapImpl({
     const mutedColour = token("--lq-color-text-muted", "#6b6b6b");
     const textColour = token("--lq-color-text", "#1b1a17");
     const contrastColour = token("--lq-color-accent-contrast", "#ffffff");
+    // The theme's own font for every label painted on the canvas (it used to be a fixed system-ui).
+    const fontFamily = style.fontFamily || "system-ui, sans-serif";
+    const font = (weight: number, size: number) => `${weight} ${size}px ${fontFamily}`;
+    /** A consumer colour as the canvas can use it: `var(--lq-…)`, `color-mix()` and the like are
+     *  resolved through the probe's computed style (the canvas would silently ignore them). */
+    const probe = colorProbeRef.current;
+    const resolve = (value: string | undefined, fallback: string) => {
+      if (!value) return fallback;
+      if (!value.includes("(") || /^(rgb|hsl)a?\(/i.test(value) || probe === null) return value;
+      probe.style.color = "";
+      probe.style.color = value;
+      return getComputedStyle(probe).color || fallback;
+    };
 
     const drawn = routes.map((route) => ({
       route,
@@ -383,7 +416,7 @@ function TileMapImpl({
       ctx.lineWidth = thickness + 4;
       ctx.stroke();
 
-      ctx.strokeStyle = chosen ? route.color ?? accentColour : mutedColour;
+      ctx.strokeStyle = chosen ? resolve(route.color, accentColour) : mutedColour;
       ctx.globalAlpha = chosen ? 1 : hovered ? 0.92 : 0.66;
       ctx.lineWidth = thickness;
       ctx.stroke();
@@ -397,9 +430,9 @@ function TileMapImpl({
       const at = badgeAnchor(points, width, height);
       if (at === null) continue;
 
-      ctx.font = "700 12px system-ui, sans-serif";
+      ctx.font = font(700, 12);
       const labelWidth = route.label ? ctx.measureText(route.label).width : 0;
-      ctx.font = "500 10px system-ui, sans-serif";
+      ctx.font = font(500, 10);
       const viaWidth = route.via ? ctx.measureText(route.via).width : 0;
       const boxWidth = Math.max(labelWidth, viaWidth) + 16;
       const boxHeight = route.label && route.via ? 34 : 22;
@@ -409,7 +442,7 @@ function TileMapImpl({
       ctx.beginPath();
       if (typeof ctx.roundRect === "function") ctx.roundRect(x0, y0, boxWidth, boxHeight, 4);
       else ctx.rect(x0, y0, boxWidth, boxHeight);
-      ctx.fillStyle = chosen ? route.color ?? accentColour : casingColour;
+      ctx.fillStyle = chosen ? resolve(route.color, accentColour) : casingColour;
       ctx.fill();
       ctx.lineWidth = 1;
       ctx.strokeStyle = chosen ? casingColour : mutedColour;
@@ -419,11 +452,11 @@ function TileMapImpl({
       ctx.textBaseline = "middle";
       ctx.fillStyle = chosen ? contrastColour : textColour;
       if (route.label) {
-        ctx.font = "700 12px system-ui, sans-serif";
+        ctx.font = font(700, 12);
         ctx.fillText(route.label, at.x, route.via ? y0 + 12 : at.y);
       }
       if (route.via) {
-        ctx.font = "500 10px system-ui, sans-serif";
+        ctx.font = font(500, 10);
         ctx.globalAlpha = chosen ? 0.85 : 0.7;
         ctx.fillText(route.via, at.x, route.label ? y0 + 25 : at.y);
         ctx.globalAlpha = 1;
@@ -440,7 +473,8 @@ function TileMapImpl({
       const isHovered = hovered === marker.id;
       ctx.beginPath();
       ctx.arc(x, y, isHovered ? 7 : 5, 0, Math.PI * 2);
-      ctx.fillStyle = marker.color ?? "#2f5d86";
+      // The theme's accent by default — it was a fixed #2f5d86 that no theme could reach.
+      ctx.fillStyle = resolve(marker.color, accentColour);
       ctx.fill();
       // A ring in the page colour, so a marker keeps an edge whatever it lands on.
       ctx.lineWidth = 2;
@@ -448,7 +482,7 @@ function TileMapImpl({
       ctx.stroke();
 
       if (marker.label && (isHovered || markers.length <= 12)) {
-        ctx.font = "600 11px system-ui, sans-serif";
+        ctx.font = font(600, 11);
         ctx.textBaseline = "middle";
         const text = marker.label;
         const w = ctx.measureText(text).width;
@@ -605,11 +639,14 @@ function TileMapImpl({
 
   useEffect(() => {
     const root = rootRef.current?.closest<HTMLElement>(".lq-root");
-    const read = () => setPalette(root?.dataset.lqPalette === "eink" ? "eink" : "color");
+    const read = () => {
+      setPalette(root?.dataset.lqPalette === "eink" ? "eink" : "color");
+      setSurface(root?.dataset.lqSurface === "dark" ? "dark" : "light");
+    };
     read();
     if (!root) return;
     const observer = new MutationObserver(read);
-    observer.observe(root, { attributes: true, attributeFilter: ["data-lq-palette"] });
+    observer.observe(root, { attributes: true, attributeFilter: ["data-lq-palette", "data-lq-surface"] });
     return () => observer.disconnect();
   }, []);
 
@@ -658,6 +695,7 @@ function TileMapImpl({
       {/* Rendered by the component, not left to the consumer: OpenStreetMap data is ODbL and
           crediting it is a condition of showing it, not a nicety. */}
       <p className="lq-tilemap__attribution">{attribution}</p>
+      <span ref={colorProbeRef} aria-hidden="true" style={{ display: "none" }} />
     </div>
   );
 }
@@ -670,4 +708,3 @@ function unproject(x: number, y: number, camera: Camera, width: number, height: 
   return { lon, lat: clampLatitude(tileYToLat(tileY, camera.zoom)) };
 }
 
-export const TileMap = memo(TileMapImpl);

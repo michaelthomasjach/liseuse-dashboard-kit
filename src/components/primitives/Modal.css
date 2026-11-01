@@ -25,6 +25,12 @@
   box-shadow: var(--lq-shadow-modal);
 }
 
+/* La modale ne reçoit le focus (tabIndex -1) que faute d'un contrôle à focaliser : le dialogue
+   entier n'a pas à s'entourer d'un anneau pour autant. */
+.lq-modal:focus {
+  outline: none;
+}
+
 .lq-root[data-lq-palette="eink"] .lq-modal {
   border-radius: 0;
 }

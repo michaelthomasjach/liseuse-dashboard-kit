@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import {
   HOUR,
   MINUTE,
@@ -15,6 +15,27 @@ import {
 } from "./schedulerModel";
 import { SchedulerTaskModal } from "./SchedulerTaskModal";
 import "./Scheduler.css";
+
+/** Horizontal room a block spends on its own chrome: 7 px of padding and a 1 px border on each
+ *  side, and the 6 px gap between the name and the duration. */
+const TASK_CHROME_PX = 7 * 2 + 1 * 2 + 6;
+
+let measureContext: CanvasRenderingContext2D | null | undefined;
+/** Width of `text` in `font` (a computed CSS font), through one shared off-screen canvas. */
+function textWidth(text: string, font: string): number {
+  if (measureContext === undefined) {
+    measureContext = typeof document === "undefined" ? null : document.createElement("canvas").getContext("2d");
+  }
+  if (measureContext === null) return 0;
+  measureContext.font = font;
+  return measureContext.measureText(text).width;
+}
+
+/** An element's computed font, in the shorthand a canvas accepts. */
+function fontOf(el: Element): string {
+  const cs = getComputedStyle(el);
+  return `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+}
 
 export interface SchedulerProps {
   resources: SchedulerResource[];
@@ -295,6 +316,21 @@ export function Scheduler({
   }
 
   const rowHeightOf = (lanes: number) => lanes * laneHeight + 6;
+
+  // The fonts the theme gives a block's name and duration, read off a hidden sample block — what
+  // decides whether the duration fits beside the name (see the block below).
+  const fontProbeRef = useRef<HTMLDivElement>(null);
+  const [taskFonts, setTaskFonts] = useState<{ label: string; time: string } | null>(null);
+  // Every render, so a theme switch is picked up; the state only changes when the fonts did.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useLayoutEffect(() => {
+    const probe = fontProbeRef.current;
+    const label = probe?.querySelector(".lq-sched__task-label");
+    const time = probe?.querySelector(".lq-sched__task-time");
+    if (!label || !time) return;
+    const next = { label: fontOf(label), time: fontOf(time) };
+    setTaskFonts((current) => (current !== null && current.label === next.label && current.time === next.time ? current : next));
+  });
   const openTask = tasks.find((task) => task.id === openTaskId) ?? null;
 
   return (
@@ -312,7 +348,15 @@ export function Scheduler({
             {clashing.size} tâche{clashing.size > 1 ? "s" : ""} en conflit
           </span>
         )}
-        <span className="lq-sched__hint">Ctrl + molette pour zoomer</span>
+        {/* Says what the wheel actually does: with `wheelZoom` it zooms on its own and `Maj` scrolls,
+            without it the wheel scrolls and `Ctrl` zooms — the hint used to give the second
+            sentence in both cases. */}
+        <span className="lq-sched__hint">{wheelZoom ? "Molette pour zoomer · Maj + molette pour défiler" : "Ctrl + molette pour zoomer"}</span>
+      </div>
+
+      <div ref={fontProbeRef} className="lq-sched__task lq-sched__font-probe" aria-hidden="true">
+        <span className="lq-sched__task-label">x</span>
+        <span className="lq-sched__task-time">x</span>
       </div>
 
       <div className="lq-sched__grid" style={{ gridTemplateColumns: `${resourceWidth}px minmax(0, 1fr)` }}>
@@ -493,7 +537,13 @@ export function Scheduler({
                       )}
                       {resizable && <span className="lq-sched__grip lq-sched__grip--start" />}
                       <span className="lq-sched__task-label">{task.label}</span>
-                      {width > 72 && <span className="lq-sched__task-time">{formatDuration(task.end - task.start)}</span>}
+                      {/* The duration only once the name fits beside it: shown from a fixed 72 px, it
+                          took the room the name needed and left a single letter of it. */}
+                      {taskFonts !== null &&
+                        width - TASK_CHROME_PX >=
+                          textWidth(task.label, taskFonts.label) + textWidth(formatDuration(task.end - task.start), taskFonts.time) && (
+                          <span className="lq-sched__task-time">{formatDuration(task.end - task.start)}</span>
+                        )}
                       {resizable && <span className="lq-sched__grip lq-sched__grip--end" />}
                     </div>
                   );

@@ -1,0 +1,214 @@
+.lq-gallery {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lq-space-4);
+  min-width: 0;
+}
+
+.lq-gallery__filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--lq-space-3);
+}
+
+.lq-gallery__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lq-gallery__empty {
+  margin: 0;
+  padding: var(--lq-space-5) 0;
+  text-align: center;
+  font-size: var(--lq-text-sm);
+  color: var(--lq-color-text-muted);
+}
+
+/* --- Grille ------------------------------------------------------------------------------------ */
+
+.lq-gallery--grid .lq-gallery__list {
+  display: grid;
+  gap: var(--lq-gallery-gap, var(--lq-space-3));
+  /* Les cases larges ou hautes laissent des trous ; `dense` y remonte les petites qui suivent. */
+  grid-auto-flow: dense;
+}
+
+/* Avant la première mesure seulement : chaque case porte sa proportion. Une fois la largeur connue,
+   la hauteur des rangées est fixée en ligne et les cases s'y étirent. */
+.lq-gallery--grid .lq-gallery__list:not(.lq-gallery__list--measured) .lq-gallery__item {
+  aspect-ratio: var(--lq-gallery-ratio, 4 / 3);
+}
+
+.lq-gallery--grid .lq-gallery__item {
+  min-width: 0;
+  min-height: 0;
+}
+
+.lq-gallery--grid .lq-gallery__tile,
+.lq-gallery--grid .lq-gallery__image {
+  width: 100%;
+  height: 100%;
+}
+
+.lq-gallery--grid .lq-gallery__image {
+  object-fit: cover;
+}
+
+/* --- Maçonnerie ------------------------------------------------------------------------------- */
+
+.lq-gallery--masonry .lq-gallery__list {
+  column-gap: var(--lq-gallery-gap, var(--lq-space-3));
+}
+
+.lq-gallery--masonry .lq-gallery__item {
+  break-inside: avoid;
+  margin-bottom: var(--lq-gallery-gap, var(--lq-space-3));
+}
+
+.lq-gallery--masonry .lq-gallery__tile {
+  width: 100%;
+  height: 100%;
+}
+
+.lq-gallery--masonry .lq-gallery__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* --- La case ----------------------------------------------------------------------------------- */
+
+.lq-gallery__tile {
+  box-sizing: border-box;
+  position: relative;
+  display: block;
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  background-color: var(--lq-color-fill-track);
+  border: none;
+  border-radius: var(--lq-gallery-radius, var(--lq-radius-md));
+}
+
+button.lq-gallery__tile {
+  cursor: zoom-in;
+}
+
+button.lq-gallery__tile:focus-visible {
+  outline: 2px solid var(--lq-color-focus-ring);
+  outline-offset: 2px;
+}
+
+.lq-gallery__image {
+  display: block;
+  transition: transform var(--lq-transition-base);
+}
+
+button.lq-gallery__tile:hover .lq-gallery__image {
+  transform: scale(1.03);
+}
+
+/* Le voile : un dégradé vers la couleur du panneau, comme celui de `LiveTile` — il suit la surface
+   claire ou sombre. Un thème qui veut le bandeau noir et le texte blanc des galeries photo règle
+   `--lq-gallery-scrim` et `--lq-gallery-caption-color`. */
+.lq-gallery__overlay {
+  position: absolute;
+  inset: auto 0 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--lq-gallery-caption-padding, var(--lq-space-5) var(--lq-space-4) var(--lq-space-3));
+  color: var(--lq-gallery-caption-color, var(--lq-color-text));
+  background-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    var(--lq-gallery-scrim, color-mix(in srgb, var(--lq-color-panel) 88%, transparent)) 75%
+  );
+  pointer-events: none;
+  transition: opacity var(--lq-transition-base);
+}
+
+.lq-gallery__heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--lq-space-3);
+  min-width: 0;
+}
+
+.lq-gallery__title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--lq-gallery-title-size, var(--lq-text-md));
+  font-weight: var(--lq-gallery-title-weight, var(--lq-font-weight-bold, 700));
+}
+
+.lq-gallery__meta {
+  flex-shrink: 0;
+  font-family: var(--lq-gallery-meta-font, inherit);
+  font-size: var(--lq-gallery-meta-size, var(--lq-text-md));
+  font-weight: var(--lq-gallery-title-weight, var(--lq-font-weight-bold, 700));
+  font-variant-numeric: tabular-nums;
+}
+
+.lq-gallery__subtitle {
+  font-size: var(--lq-text-xs);
+  opacity: 0.8;
+}
+
+/* Au survol seulement — mais toujours quand on ne peut pas survoler (un doigt), et dès qu'une case
+   reçoit le focus au clavier, sans quoi son titre ne se lirait jamais. */
+@media (hover: hover) {
+  .lq-gallery--overlay-hover .lq-gallery__overlay {
+    opacity: 0;
+  }
+  .lq-gallery--overlay-hover .lq-gallery__tile:hover .lq-gallery__overlay,
+  .lq-gallery--overlay-hover .lq-gallery__tile:focus-visible .lq-gallery__overlay {
+    opacity: 1;
+  }
+}
+
+/* --- E-ink : un bandeau plein sous un filet, pas de dégradé, rien ne bouge --------------------- */
+
+.lq-root[data-lq-palette="eink"] .lq-gallery__tile {
+  border-radius: 0;
+  border: 1px solid var(--lq-color-border);
+}
+
+.lq-root[data-lq-palette="eink"] .lq-gallery__image,
+.lq-root[data-lq-palette="eink"] .lq-gallery__overlay {
+  transition: none;
+}
+
+.lq-root[data-lq-palette="eink"] button.lq-gallery__tile:hover .lq-gallery__image {
+  transform: none;
+}
+
+.lq-root[data-lq-palette="eink"] .lq-gallery__overlay {
+  padding: var(--lq-space-2) var(--lq-space-3);
+  color: var(--lq-color-text);
+  background: var(--lq-color-panel);
+  border-top: 1.5px solid var(--lq-color-border);
+}
+
+.lq-root[data-lq-palette="eink"] .lq-gallery__subtitle {
+  opacity: 1;
+  color: var(--lq-color-text-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lq-gallery__image,
+  .lq-gallery__overlay {
+    transition: none;
+  }
+  button.lq-gallery__tile:hover .lq-gallery__image {
+    transform: none;
+  }
+}

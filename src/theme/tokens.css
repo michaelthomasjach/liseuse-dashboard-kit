@@ -328,6 +328,72 @@
  *                      70 % on a tone) · --lq-dot-map-marker (the page text color)
  *                      --lq-dot-map-marker-ring (2px, the outline that detaches a marker on a tone)
  *
+ *   Radio              RadioGroup: --lq-radio-size · -border-color · -checked-border-width ·
+ *                      -dot-size · -label-gap · -gap · -gap-inline · -label-size ·
+ *                      -description-size · -disabled-opacity
+ *
+ *   Slider             Slider, RangeSlider: --lq-slider-track-size · -track-bg · -track-radius ·
+ *                      -thumb-size · -thumb-bg · -thumb-border · -thumb-shadow · -bubble-bg ·
+ *                      -bubble-color · -bubble-size · -bubble-radius · -mark-size · -mark-color ·
+ *                      -tick-color
+ *
+ *   Textarea           --lq-textarea-padding-y · -line-height · -count-size
+ *
+ *   Tree               TreeView: --lq-tree-row-height · -indent · -font-size · -compact-row-height
+ *                      · -compact-font-size · -icon-color · -folder-color · -folder-weight ·
+ *                      -guide-color · -match-bg
+ *
+ *   Buttons            --lq-icon-button-size (--lq-control-height) · ButtonGroup:
+ *                      --lq-button-group-selected-bg / -border / -color · Toolbar: --lq-toolbar-bg
+ *                      · -border · -padding · -gap · -separator · -compact-* ·
+ *                      FloatingActionButton: --lq-fab-size · -action-size · -radius · -shadow ·
+ *                      -z-index · -label-bg · -label-color
+ *
+ *   Progress           ProgressCircle: --lq-progress-circle-color (--lq-color-fill) · -track
+ *                      (--lq-color-fill-track)
+ *
+ *   Card               maximizable: --lq-card-maximized-inset · -z-index (1200) · -radius · -shadow
+ *
+ *   Timeline           --lq-timeline-line · -line-width · -marker-size · -dot-size ·
+ *                      -compact-dot-size · -dot-color · -marker-border · -gap · -item-gap ·
+ *                      -date-size
+ *
+ *   Activity           ActivityFeed: --lq-activity-gap · -padding · -liked · -comments-bg ·
+ *                      -bubble-bg · -name-weight · -media-ratio
+ *
+ *   Gallery            --lq-gallery-gap · -radius · -ratio · -scrim · -caption-color ·
+ *                      -caption-padding · -title-size · -title-weight · -meta-font · -meta-size ·
+ *                      Lightbox: --lq-lightbox-backdrop · -radius · -button-bg · -button-radius ·
+ *                      -thumb-size
+ *
+ *   Chat / notes       ChatPanel: --lq-chat-bubble-mine-bg / -color / -border · -theirs-bg / -color
+ *                      / -border · -radius · -padding · -font-size · NotesPanel: --lq-notes-paper ·
+ *                      -body-size
+ *
+ *   Mail               MailPanel: --lq-mail-folders-width · -list-width · -folders-bg · -list-bg ·
+ *                      -reader-bg · -folder-size · -folder-radius · -folder-active-bg ·
+ *                      -folder-active-color · -open-bg · -checked-bg · -star-color
+ *
+ *   Quickview          --lq-quickview-width · -head-height · -padding · -shadow · -z-index (1200) ;
+ *                      its head bar is `data-lq-region="quickview-head"`
+ *
+ *   Calendar           MonthCalendar: --lq-calendar-line · -cell-padding · -lane-height ·
+ *                      -event-radius · -event-mix · -event-bar · -event-font-size · -today-bg ·
+ *                      -today-marker · -today-marker-text · -selected-bg · -outside-bg
+ *
+ *   Bottom nav         --lq-bottom-nav-height · -bg · -border · -shadow · -color · -active-color ·
+ *                      -indicator-bg · -label-size · -badge-bg · -badge-text · -z-index
+ *
+ *   Pages              ServerErrorPage: --lq-error-code-size / -weight / -tracking · -title-size /
+ *                      -weight · LockScreenPage: --lq-lock-screen-width · -time-size / -weight ·
+ *                      -name-size / -weight · InvoicePage: --lq-invoice-max-width · -sheet-padding
+ *                      · -title-font / -size / -weight / -tracking · -cell-padding-y · -total-bg /
+ *                      -color · ProfilePage: --lq-profile-banner-height / -bg · -avatar-overlap ·
+ *                      -name-size / -weight · -aside-width
+ *
+ *   Misc               --lq-color-warning-contrast (ink on a warning fill) · --lq-dropzone-list-gap
+ *                      · --lq-holding-figures-width / -quantity-width · --lq-tilemap-dark-filter
+ *
  *   Regions            `data-lq-region="sidebar"` marks SidebarLayout's sidebar. A theme can
  *                      redefine any color token under `[data-lq-region="sidebar"]` to give the
  *                      sidebar its own palette (a dark rail on a light page) — the logo, the nav

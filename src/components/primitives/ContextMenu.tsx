@@ -9,7 +9,9 @@ export type ContextMenuItem =
   | { separator: true }
   | {
       separator?: false;
-      /** Stable key, and the accessible name. */
+      /** Stable React key; defaults to the row's position, so two rows may share a label. */
+      id?: string;
+      /** The accessible name. */
       label: string;
       onSelect: () => void;
       /** Greyed and unclickable, so the menu keeps the same shape from one right-click to the next. */
@@ -96,7 +98,7 @@ export function ContextMenu({ x, y, items, onClose, ariaLabel = "Menu contextuel
           <div key={`sep-${i}`} className="lq-context-menu__separator" role="separator" />
         ) : (
           <button
-            key={item.label}
+            key={item.id ?? `item-${i}`}
             type="button"
             role="menuitem"
             className="lq-context-menu__item"

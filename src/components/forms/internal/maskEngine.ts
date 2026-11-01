@@ -15,6 +15,34 @@ export function digitsOnly(value: string, maxLength: number): string {
   return value.replace(/\D/g, "").slice(0, maxLength);
 }
 
+/**
+ * Les chiffres **saisis** d'un texte édité dans un champ masqué — sans les chiffres que le motif
+ * écrit lui-même. `digitsOnly` relisait le « 33 » de « +33 ## … » comme une saisie, et chaque
+ * frappe repoussait l'indicatif dans les cases. On aligne donc le texte sur le motif, caractère par
+ * caractère : un caractère égal au littéral attendu à cet endroit est ce littéral ; un chiffre
+ * ailleurs occupe la case suivante ; un caractère de remplissage (`maskChar`) est une case vide.
+ * L'alignement résiste à une insertion ou une suppression au milieu, puisqu'il ne dépend que de
+ * l'ordre des caractères, pas de leurs positions.
+ */
+export function slotDigits(typed: string, mask: string, maskChar: string, maxLength: number): string {
+  let out = "";
+  let mi = 0;
+  for (const c of typed) {
+    if (mi < mask.length && mask[mi] !== "#" && c === mask[mi]) {
+      mi++;
+      continue;
+    }
+    if (c >= "0" && c <= "9") {
+      out += c;
+      const next = mask.indexOf("#", mi);
+      mi = next === -1 ? mask.length : next + 1;
+    } else if (c === maskChar && mi < mask.length && mask[mi] === "#") {
+      mi++;
+    }
+  }
+  return out.slice(0, maxLength);
+}
+
 export function applyMask(digits: string, mask: string, maskChar: string): string {
   let out = "";
   let di = 0;

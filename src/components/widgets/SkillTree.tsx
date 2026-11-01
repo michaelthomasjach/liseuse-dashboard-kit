@@ -4,69 +4,6 @@ import { layoutTree, TREE_DOT_R, TREE_NODE_W } from "./skillTreeLayout";
 import "./SkillTree.css";
 
 /**
- * L'arbre de compétences d'un jeu de gestion — ce qu'on recherche, dans quel ordre, et ce que cela
- * rapporte.
- *
- * ## La lecture
- *
- * Une **colonne par branche** (logistique, énergie, commerce…), coiffée de son nom, de son icône et
- * de sa couleur ; dans chaque colonne, les nœuds **par rang** (`tier`), du plus accessible en haut au
- * plus lointain en bas. Des traits relient chaque prérequis à ce qu'il ouvre — droits dans une même
- * branche, en courbe quand ils passent d'une branche à l'autre — et **s'allument** quand le
- * prérequis est acquis : on voit d'un coup d'œil par où l'arbre s'ouvre.
- *
- * ## Les états
- *
- * - `locked` : hors de portée — grisé, un cadenas ;
- * - `available` : on peut le prendre — son bord bat doucement, c'est là que l'œil doit aller ;
- * - `researching` : en cours — une jauge dit où il en est (`progress`, de 0 à 1) ;
- * - `unlocked` : acquis — plein, coché.
- *
- * Un nœud choisi montre son détail : celui de l'application (`renderDetail`), ou, à défaut, sa
- * description et — s'il est disponible et que l'application sait débloquer (`onUnlock`) — un bouton
- * « Débloquer (2 pts) », que `canUnlock` peut griser (pas assez de points).
- *
- * Trop large pour son conteneur, l'arbre défile à l'horizontale, dans son cadre.
- *
- * ## Sur un téléphone
- *
- * Dans un cadre de 640 px ou moins (la largeur du composant, pas celle de l'écran), le cadre défile
- * dans les deux sens — au doigt, par le défilement natif du navigateur, sans rien intercepter — et sa
- * hauteur est bornée à l'écran, pour que la page reste accessible autour. Trois boutons s'ajoutent
- * au-dessus : « − », la taille courante (qui ramène à 100 %), « + ». C'est un zoom sans pincement :
- * l'arbre est mis à l'échelle d'un bloc (`transform: scale`), traits compris, et une scène autour
- * réserve la taille de l'arbre mis à l'échelle, de sorte que le défilement couvre exactement l'arbre.
- * Le point au centre du cadre reste au centre d'un zoom à l'autre. Au clavier, dans l'arbre, `+`,
- * `-` et `0` font la même chose ; les nœuds restent des boutons qu'on atteint par Tab.
- *
- * `zoomControls` force les boutons (`true`) ou les retire (`false`) ; par défaut (`"auto"`), ils
- * n'apparaissent que dans un cadre étroit.
- *
- * ## En arbre
- *
- * Avec `layout="tree"`, l'arbre cesse d'être un tableau pour devenir un arbre. Au pied, un **tronc**
- * épais et évasé porte les nœuds `trunk`, empilés sur l'axe du bas vers le haut ; un premier choix
- * — deux nœuds du même rang — s'écarte de part et d'autre du fût. De son sommet partent les
- * **branches**, chacune dans sa direction (`angle`, de −80° à gauche à +80° à droite, ou une part
- * égale de l'éventail), en membres courbes qui s'amincissent en montant ; leurs nœuds s'y posent par
- * rang, en pastilles rondes, et ceux d'un même rang s'écartent en rameaux. Une passe de poussée
- * évite qu'une branche ne recouvre sa voisine (voir `skillTreeLayout.ts` pour les règles exactes).
- *
- * Un prérequis pris dans une **autre branche** se dessine en **liane** : un trait courbe, pointillé,
- * semé de feuilles, qui court d'une branche à l'autre — c'est ainsi que se lisent les compétences
- * hybrides. Les nœuds d'un même `exclusiveGroup` sont des **carrefours** : un petit « ou » se pose
- * entre eux, et quand l'un est pris, l'application passe les autres à l'état `closed` — ils se
- * **fanent** (grisés, éteints) et leur membre meurt. Ce qui est acquis, au contraire, vit : son
- * membre prend la couleur de sa branche et sa pastille rayonne.
- *
- * L'arbre entier tient dans la largeur de son cadre, mis à l'échelle ; dans un cadre étroit, les
- * boutons de zoom l'agrandissent à partir de cette vue d'ensemble et le cadre défile. Le détail par
- * défaut, qui ne peut plus se glisser sous le nœud, se pose à côté de l'arbre. Au clavier, les nœuds
- * se suivent dans l'ordre du tronc, puis branche après branche ; les tracés sont cachés aux
- * technologies d'assistance.
- */
-
-/**
  * `closed` : un choix écarté — son voisin d'un carrefour exclusif a été pris. Il reste fermé
  * jusqu'à ce que l'application remette l'arbre à zéro.
  */
@@ -162,6 +99,68 @@ const COMPACT_PX = 640;
 
 type Link = { id: string; d: string; lit: boolean; done: boolean; color?: string; cross: boolean };
 
+/**
+ * L'arbre de compétences d'un jeu de gestion — ce qu'on recherche, dans quel ordre, et ce que cela
+ * rapporte.
+ *
+ * ## La lecture
+ *
+ * Une **colonne par branche** (logistique, énergie, commerce…), coiffée de son nom, de son icône et
+ * de sa couleur ; dans chaque colonne, les nœuds **par rang** (`tier`), du plus accessible en haut au
+ * plus lointain en bas. Des traits relient chaque prérequis à ce qu'il ouvre — droits dans une même
+ * branche, en courbe quand ils passent d'une branche à l'autre — et **s'allument** quand le
+ * prérequis est acquis : on voit d'un coup d'œil par où l'arbre s'ouvre.
+ *
+ * ## Les états
+ *
+ * - `locked` : hors de portée — grisé, un cadenas ;
+ * - `available` : on peut le prendre — son bord bat doucement, c'est là que l'œil doit aller ;
+ * - `researching` : en cours — une jauge dit où il en est (`progress`, de 0 à 1) ;
+ * - `unlocked` : acquis — plein, coché.
+ *
+ * Un nœud choisi montre son détail : celui de l'application (`renderDetail`), ou, à défaut, sa
+ * description et — s'il est disponible et que l'application sait débloquer (`onUnlock`) — un bouton
+ * « Débloquer (2 pts) », que `canUnlock` peut griser (pas assez de points).
+ *
+ * Trop large pour son conteneur, l'arbre défile à l'horizontale, dans son cadre.
+ *
+ * ## Sur un téléphone
+ *
+ * Dans un cadre de 640 px ou moins (la largeur du composant, pas celle de l'écran), le cadre défile
+ * dans les deux sens — au doigt, par le défilement natif du navigateur, sans rien intercepter — et sa
+ * hauteur est bornée à l'écran, pour que la page reste accessible autour. Trois boutons s'ajoutent
+ * au-dessus : « − », la taille courante (qui ramène à 100 %), « + ». C'est un zoom sans pincement :
+ * l'arbre est mis à l'échelle d'un bloc (`transform: scale`), traits compris, et une scène autour
+ * réserve la taille de l'arbre mis à l'échelle, de sorte que le défilement couvre exactement l'arbre.
+ * Le point au centre du cadre reste au centre d'un zoom à l'autre. Au clavier, dans l'arbre, `+`,
+ * `-` et `0` font la même chose ; les nœuds restent des boutons qu'on atteint par Tab.
+ *
+ * `zoomControls` force les boutons (`true`) ou les retire (`false`) ; par défaut (`"auto"`), ils
+ * n'apparaissent que dans un cadre étroit.
+ *
+ * ## En arbre
+ *
+ * Avec `layout="tree"`, l'arbre cesse d'être un tableau pour devenir un arbre. Au pied, un **tronc**
+ * épais et évasé porte les nœuds `trunk`, empilés sur l'axe du bas vers le haut ; un premier choix
+ * — deux nœuds du même rang — s'écarte de part et d'autre du fût. De son sommet partent les
+ * **branches**, chacune dans sa direction (`angle`, de −80° à gauche à +80° à droite, ou une part
+ * égale de l'éventail), en membres courbes qui s'amincissent en montant ; leurs nœuds s'y posent par
+ * rang, en pastilles rondes, et ceux d'un même rang s'écartent en rameaux. Une passe de poussée
+ * évite qu'une branche ne recouvre sa voisine (voir `skillTreeLayout.ts` pour les règles exactes).
+ *
+ * Un prérequis pris dans une **autre branche** se dessine en **liane** : un trait courbe, pointillé,
+ * semé de feuilles, qui court d'une branche à l'autre — c'est ainsi que se lisent les compétences
+ * hybrides. Les nœuds d'un même `exclusiveGroup` sont des **carrefours** : un petit « ou » se pose
+ * entre eux, et quand l'un est pris, l'application passe les autres à l'état `closed` — ils se
+ * **fanent** (grisés, éteints) et leur membre meurt. Ce qui est acquis, au contraire, vit : son
+ * membre prend la couleur de sa branche et sa pastille rayonne.
+ *
+ * L'arbre entier tient dans la largeur de son cadre, mis à l'échelle ; dans un cadre étroit, les
+ * boutons de zoom l'agrandissent à partir de cette vue d'ensemble et le cadre défile. Le détail par
+ * défaut, qui ne peut plus se glisser sous le nœud, se pose à côté de l'arbre. Au clavier, les nœuds
+ * se suivent dans l'ordre du tronc, puis branche après branche ; les tracés sont cachés aux
+ * technologies d'assistance.
+ */
 export function SkillTree({
   nodes,
   branches: branchesProp,

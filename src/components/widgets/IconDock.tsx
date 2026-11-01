@@ -2,6 +2,39 @@ import { useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { Tooltip } from "../primitives/Tooltip";
 import "./IconDock.css";
 
+export interface IconDockItem {
+  id: string;
+  icon: ReactNode;
+  /** Nom du bouton : son infobulle et son nom accessible. */
+  label: string;
+  /** Pastille : `true`/`""` = un point, un nombre ou un texte = une pastille chiffrée, `0`/rien = aucune. */
+  badge?: ReactNode;
+  active?: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+}
+
+export interface IconDockProps {
+  items: IconDockItem[];
+  /** Défaut : `"horizontal"`. */
+  orientation?: "horizontal" | "vertical";
+  /** `sm` 36 px, `md` 44 px, `lg` 52 px. Défaut : `"md"`. */
+  size?: "sm" | "md" | "lg";
+  /** Ruban horizontal qui défile au lieu de s'étaler (automatique sous 640 px pour un dock horizontal). */
+  compact?: boolean;
+  className?: string;
+  /** Nom de la barre d'outils. Défaut : « Barre d'outils ». */
+  "aria-label"?: string;
+}
+
+type BadgeKind = "none" | "dot" | "count";
+
+function badgeKind(badge: ReactNode): BadgeKind {
+  if (badge === true || badge === "") return "dot";
+  if (badge === undefined || badge === null || badge === false || badge === 0) return "none";
+  return "count";
+}
+
 /**
  * Le **dock d'icônes** — une petite barre d'outils flottante, à la manière des jeux de gestion et de
  * city-builders : une rangée de boutons carrés aux coins arrondis, posée sur un panneau translucide
@@ -48,40 +81,6 @@ import "./IconDock.css";
  * téléphone. Les pastilles sont dessinées *dans* le bouton, pas à cheval sur son bord, pour ne pas
  * être rognées par ce défilement.
  */
-
-export interface IconDockItem {
-  id: string;
-  icon: ReactNode;
-  /** Nom du bouton : son infobulle et son nom accessible. */
-  label: string;
-  /** Pastille : `true`/`""` = un point, un nombre ou un texte = une pastille chiffrée, `0`/rien = aucune. */
-  badge?: ReactNode;
-  active?: boolean;
-  disabled?: boolean;
-  onClick: () => void;
-}
-
-export interface IconDockProps {
-  items: IconDockItem[];
-  /** Défaut : `"horizontal"`. */
-  orientation?: "horizontal" | "vertical";
-  /** `sm` 36 px, `md` 44 px, `lg` 52 px. Défaut : `"md"`. */
-  size?: "sm" | "md" | "lg";
-  /** Ruban horizontal qui défile au lieu de s'étaler (automatique sous 640 px pour un dock horizontal). */
-  compact?: boolean;
-  className?: string;
-  /** Nom de la barre d'outils. Défaut : « Barre d'outils ». */
-  "aria-label"?: string;
-}
-
-type BadgeKind = "none" | "dot" | "count";
-
-function badgeKind(badge: ReactNode): BadgeKind {
-  if (badge === true || badge === "") return "dot";
-  if (badge === undefined || badge === null || badge === false || badge === 0) return "none";
-  return "count";
-}
-
 export function IconDock({ items, orientation = "horizontal", size = "md", compact, className, "aria-label": ariaLabel = "Barre d'outils" }: IconDockProps) {
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
   refs.current.length = items.length;

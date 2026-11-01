@@ -66,6 +66,8 @@ export interface SankeyChartProps {
 }
 
 const DEFAULT_MARGIN: Partial<ChartMargin> = { top: 14, right: 14, bottom: 14, left: 14 };
+/** Top margin kept free for the floating toolbar when it is shown. */
+const TOOLBAR_RESERVE = 40;
 
 /** A node has to be at least this tall *on screen* before its label is drawn. Zooming in raises
  *  every node's on-screen height, so labels appear progressively rather than all at once — which is
@@ -122,7 +124,13 @@ export function SankeyChart({
 }: SankeyChartProps) {
   const clipId = useId();
   const { isFullscreen, toggle: toggleFullscreen } = useFullscreen();
-  const [ref, dims] = useChartDimensions(margin ?? DEFAULT_MARGIN, { height: isFullscreen ? undefined : height });
+  // The toolbar floats over the plot's top-right corner, which is exactly where the first node of
+  // the last column puts its label. With the fullscreen button always there, the default top margin
+  // clears the toolbar's row (8 px inset + 28 px button) instead of letting it sit on that label.
+  const [ref, dims] = useChartDimensions(
+    margin ?? { ...DEFAULT_MARGIN, ...(fullscreenToggle ? { top: TOOLBAR_RESERVE } : null) },
+    { height: isFullscreen ? undefined : height },
+  );
 
   const [transform, setTransform] = useState<d3.ZoomTransform>(d3.zoomIdentity);
   const [hover, setHover] = useState<Hover | null>(null);

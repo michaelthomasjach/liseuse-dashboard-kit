@@ -122,3 +122,56 @@ export const Rail: Story = {
     </SidebarLayout>
   ),
 };
+
+/** `fullHeight={false}` : la coquille remplit son cadre ; sous 900 px de **sa** largeur, la barre
+ *  devient un tiroir qui s'ouvre dans le cadre, pas sur toute la fenêtre. */
+export const InFrame: Story = {
+  render: () => (
+    <div style={{ padding: 24 }}>
+      <div style={{ width: 720, height: 460, border: "1px solid var(--lq-color-border)", overflow: "auto" }}>
+        <SidebarLayout
+          fullHeight={false}
+          logo={<strong>Finance Kit</strong>}
+          navItems={[
+            { id: "overview", label: "Vue d'ensemble", icon: <HomeIcon size={18} />, active: true },
+            { id: "reports", label: "Rapports", icon: <TableIcon size={18} /> },
+            { id: "settings", label: "Paramètres", icon: <SettingsIcon size={18} /> },
+          ]}
+          header={<Breadcrumbs items={[{ id: "home", label: "Accueil" }, { id: "overview", label: "Vue d'ensemble" }]} />}
+        >
+          <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+            <div style={{ width: 220 }}>
+              <StatCard label="Valeur totale" value="42 380 €" delta={3.4} />
+            </div>
+            <div style={{ width: 220 }}>
+              <StatCard label="P&L du jour" value="− 214 €" delta={-1.2} />
+            </div>
+          </div>
+        </SidebarLayout>
+      </div>
+    </div>
+  ),
+};
+
+/** Le rail dans un cadre assez large (1000 px) : fixé à la coquille et non à la fenêtre. */
+export const RailInFrame: Story = {
+  render: () => (
+    <div style={{ padding: 24 }}>
+      <div style={{ width: 1000, height: 460, border: "1px solid var(--lq-color-border)", overflow: "auto" }}>
+        <SidebarLayout
+          variant="rail"
+          fullHeight={false}
+          logo={<strong>Finance Kit</strong>}
+          navItems={[
+            { id: "overview", label: "Vue d'ensemble", icon: <HomeIcon size={18} />, active: true },
+            { id: "reports", label: "Rapports", icon: <TableIcon size={18} /> },
+            { id: "settings", label: "Paramètres", icon: <SettingsIcon size={18} /> },
+          ]}
+          header={<Breadcrumbs items={[{ id: "home", label: "Accueil" }, { id: "overview", label: "Vue d'ensemble" }]} />}
+        >
+          <StatCard label="Valeur totale" value="42 380 €" delta={3.4} />
+        </SidebarLayout>
+      </div>
+    </div>
+  ),
+};

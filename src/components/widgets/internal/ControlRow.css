@@ -1,0 +1,5 @@
+/* La liste ne pose aucune boîte : les rangées restent les enfants directs du panneau pour la mise en
+   page, l'enveloppe ne sert qu'à mesurer ensemble les mots d'état (voir ControlList). */
+.lq-control-list {
+  display: contents;
+}

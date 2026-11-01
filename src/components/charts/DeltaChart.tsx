@@ -1,4 +1,4 @@
-import { useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import * as d3 from "d3";
 import { useAxisLabelWidth } from "./internal/useAxisLabelWidth";
 import { useChartDimensions, type ChartMargin } from "./internal/useChartDimensions";
@@ -78,6 +78,35 @@ function computeBars(items: DeltaChartItem[]): ComputedBar[] {
 
 const DEFAULT_MARGIN: Partial<ChartMargin> = { top: 16, right: 16, bottom: 32, left: 64 };
 const MAX_CATEGORY_TICKS = 24;
+/** Breathing room kept between two neighbouring category labels. */
+const CATEGORY_LABEL_GAP = 6;
+
+let measureContext: CanvasRenderingContext2D | null | undefined;
+/** Width of `text` in `font`, through one shared off-screen canvas — measuring before d3 draws the
+ *  label is what lets it be shortened *before* the axis decides which labels overflow. */
+function measureText(text: string, font: string): number | null {
+  if (measureContext === undefined) {
+    measureContext = typeof document === "undefined" ? null : document.createElement("canvas").getContext("2d");
+  }
+  if (measureContext === null) return null;
+  measureContext.font = font;
+  return measureContext.measureText(text).width;
+}
+
+/** `label` shortened with an ellipsis until it fits `maxWidth`; unchanged when it already does. */
+function fitLabel(label: string, maxWidth: number, font: string): string {
+  const full = measureText(label, font);
+  if (full === null || full <= maxWidth) return label;
+  let lo = 0;
+  let hi = label.length;
+  while (lo < hi) {
+    const mid = Math.ceil((lo + hi) / 2);
+    const width = measureText(label.slice(0, mid).trimEnd() + "…", font) ?? 0;
+    if (width <= maxWidth) lo = mid;
+    else hi = mid - 1;
+  }
+  return lo === 0 ? "…" : label.slice(0, lo).trimEnd() + "…";
+}
 
 /** Waterfall / bridge chart: shows how a sequence of signed additions and subtractions build up to
  *  one or more totals — e.g. capital structure (market cap + debt + minority interest − cash = enterprise value).
@@ -110,6 +139,9 @@ export function DeltaChart({
     { height: isFullscreen ? undefined : height },
   );
   const [hoverId, setHoverId] = useState<string | null>(null);
+  const catAxisGroupRef = useRef<SVGGElement | null>(null);
+  /** The category labels' computed font, read off the first drawn label (null until then). */
+  const [labelFont, setLabelFont] = useState<string | null>(null);
   const [catTransform, setCatTransform] = useState<d3.ZoomTransform>(d3.zoomIdentity);
   const [valTransform, setValTransform] = useState<d3.ZoomTransform>(d3.zoomIdentity);
 
@@ -202,7 +234,43 @@ export function DeltaChart({
 
   const tickStep = Math.max(1, Math.ceil(visible.length / MAX_CATEGORY_TICKS));
   const catTickValues = visible.filter((_, k) => k % tickStep === 0).map((v) => v.i + 0.5);
-  const catTickFormat = (v: number) => labelFor(items[Math.round(v - 0.5)]?.id ?? "");
+  // Each label gets the width of the slots it stands for and no more: a long category name used to
+  // run into its neighbours. Shortened with an ellipsis, the full name stays in a <title> (below)
+  // and in the hover tooltip.
+  const labelSlot = (zoomedIndexScale(1) - zoomedIndexScale(0)) * tickStep - CATEGORY_LABEL_GAP;
+  const fullCatLabel = (v: number) => labelFor(items[Math.round(v - 0.5)]?.id ?? "");
+  const catTickFormat = (v: number) => {
+    const label = fullCatLabel(v);
+    return labelFont === null ? label : fitLabel(label, Math.max(0, labelSlot), labelFont);
+  };
+
+  // Runs after ChartAxis's own effect (a child's effects run first), so the tick <text> nodes are
+  // there: reads the font the theme actually gives them, and hangs the full name on every label
+  // that had to be shortened. d3 rewrites each label's text on every render, which drops the
+  // <title> along with it, hence no dependency list. The font is only set when it changed, so the
+  // re-render it causes settles at once.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const group = catAxisGroupRef.current;
+    if (group === null) return;
+    const texts = Array.from(group.querySelectorAll<SVGTextElement>(".tick text"));
+    if (texts.length > 0) {
+      const cs = getComputedStyle(texts[0]);
+      const font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+      if (font !== labelFont) setLabelFont(font);
+    }
+    for (const text of texts) {
+      const value = (text.parentNode as (Node & { __data__?: unknown }) | null)?.__data__;
+      if (typeof value !== "number") continue;
+      const full = fullCatLabel(value);
+      text.querySelector("title")?.remove();
+      if (text.textContent !== full) {
+        const title = document.createElementNS("http://www.w3.org/2000/svg", "title");
+        title.textContent = full;
+        text.appendChild(title);
+      }
+    }
+  });
 
   const wrapperClass = ["lq-chart", isFullscreen && "lq-chart--fullscreen", embedded && "lq-chart--embedded", className].filter(Boolean).join(" ");
 
@@ -256,14 +324,16 @@ export function DeltaChart({
           </g>
           {/* Y axis line hidden: d3's own X axis line runs on under the labels to the SVG's left edge
               (same path, stroke and half-pixel offset as the rest of the line). */}
-          <ChartAxis
-            scale={zoomedIndexScale}
-            orientation="bottom"
-            transform={`translate(0, ${dims.boundedHeight})`}
-            domainExtent={xAxisLineExtended ? [-dims.margin.left, dims.boundedWidth] : undefined}
-            tickValues={catTickValues}
-            tickFormat={catTickFormat}
-          />
+          <g ref={catAxisGroupRef}>
+            <ChartAxis
+              scale={zoomedIndexScale}
+              orientation="bottom"
+              transform={`translate(0, ${dims.boundedHeight})`}
+              domainExtent={xAxisLineExtended ? [-dims.margin.left, dims.boundedWidth] : undefined}
+              tickValues={catTickValues}
+              tickFormat={catTickFormat}
+            />
+          </g>
 
           <rect ref={zoomRef} className="lq-chart__overlay" width={dims.boundedWidth} height={dims.boundedHeight} />
 

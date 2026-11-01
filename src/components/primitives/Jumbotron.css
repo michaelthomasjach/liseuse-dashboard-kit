@@ -105,6 +105,17 @@
   opacity: 0.9;
 }
 
+/* Sur une photo, titre et sur-titre suivent le contraste du contenu (posé plus haut) au lieu de
+   garder les couleurs de panneau — sombres sur le voile en surface claire. */
+.lq-jumbotron--has-image .lq-jumbotron__title,
+.lq-jumbotron--has-image .lq-jumbotron__eyebrow {
+  color: inherit;
+}
+
+.lq-jumbotron--has-image .lq-jumbotron__eyebrow {
+  opacity: 0.85;
+}
+
 .lq-jumbotron__actions {
   display: flex;
   gap: var(--lq-space-3);

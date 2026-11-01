@@ -10,17 +10,27 @@
   background-color: var(--lq-color-bg);
 }
 
+.lq-not-found-page--contained {
+  min-height: 100%;
+  container-type: inline-size;
+}
+
 .lq-not-found-page__illustration {
   color: var(--lq-color-text-muted);
   margin-bottom: var(--lq-space-2);
 }
 
 .lq-not-found-page__code {
+  margin: 0;
   font-size: clamp(3.5rem, 12vw, 6rem);
   font-weight: var(--lq-font-weight-bold, 700);
   line-height: 1;
   color: var(--lq-color-text);
   font-variant-numeric: tabular-nums;
+}
+
+.lq-not-found-page--contained .lq-not-found-page__code {
+  font-size: clamp(3.5rem, 12cqi, 6rem);
 }
 
 .lq-not-found-page__message {

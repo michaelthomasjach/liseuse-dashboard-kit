@@ -11,6 +11,7 @@ import {
 import { createPortal } from "react-dom";
 import { CloseIcon, CheckIcon, ErrorIcon, AlertTriangleIcon, InfoIcon } from "../icons";
 import { LqThemeProvider, useLqTheme } from "../../theme";
+import { useFocusTrap } from "../../internal/useFocusTrap";
 import "./Notification.css";
 
 export type NotificationVariant = "corner" | "bar" | "modal";
@@ -152,8 +153,9 @@ function NotificationCard({
   onClick,
   onClose,
   bar = false,
+  inDialog = false,
   className,
-}: NotificationCardConfig & { onClose: () => void; bar?: boolean; className?: string }) {
+}: NotificationCardConfig & { onClose: () => void; bar?: boolean; inDialog?: boolean; className?: string }) {
   const { paused, generation, durationAtStart, pause, resume } = useAutoDismiss(autoDismissMs, onClose);
   const resolvedIcon = icon ?? TONE_ICON[tone];
 
@@ -162,7 +164,9 @@ function NotificationCard({
       className={["lq-notification-card", `lq-notification-card--${tone}`, bar && "lq-notification-card--bar", className]
         .filter(Boolean)
         .join(" ")}
-      role="status"
+      // Dans une modale, c'est le dialogue qui porte le rôle ; une région « status » imbriquée y
+      // ferait annoncer le contenu deux fois.
+      role={inDialog ? undefined : "status"}
       onPointerEnter={pause}
       onPointerLeave={resume}
       {...(onClick
@@ -214,13 +218,46 @@ function NotificationCard({
           <CloseIcon size={14} />
         </button>
       )}
-      {autoDismissMs && showProgress && (
+      {/* `!!` : avec `autoDismissMs: 0`, un simple `&&` rendrait le « 0 » lui-même. */}
+      {!!autoDismissMs && showProgress && (
         <span
           key={generation}
           className="lq-notification-card__progress"
           style={{ animationDuration: `${durationAtStart}ms`, animationPlayState: paused ? "paused" : "running" }}
         />
       )}
+    </div>
+  );
+}
+
+/** Variante « modal » : un vrai dialogue — `role="dialog"`, `aria-modal`, focus piégé à
+ *  l'intérieur puis rendu à l'élément d'origine, Échap et clic sur le voile ferment. */
+function NotificationModal({ onClose, className, card }: { onClose: () => void; className?: string; card: NotificationCardConfig }) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(dialogRef, true);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  useEffect(() => {
+    const onKeyDown = (e: globalThis.KeyboardEvent) => {
+      if (e.key === "Escape") onCloseRef.current();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+  const label = typeof card.title === "string" ? card.title : undefined;
+  return (
+    <div className="lq-notification-modal-overlay" onClick={onClose}>
+      <div
+        ref={dialogRef}
+        className="lq-notification-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label={label ?? "Notification"}
+        tabIndex={-1}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <NotificationCard {...card} onClose={onClose} inDialog className={className} />
+      </div>
     </div>
   );
 }
@@ -234,13 +271,7 @@ export function Notification({ open, onClose, variant = "corner", corner = "bott
   if (!open) return null;
 
   if (variant === "modal") {
-    return (
-      <div className="lq-notification-modal-overlay" onClick={onClose}>
-        <div onClick={(e) => e.stopPropagation()}>
-          <NotificationCard {...card} onClose={onClose} className={className} />
-        </div>
-      </div>
-    );
+    return <NotificationModal card={card} onClose={onClose} className={className} />;
   }
 
   if (variant === "bar") {
@@ -331,11 +362,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
           })}
 
           {modals.map((n) => (
-            <div key={n.id} className="lq-notification-modal-overlay" onClick={() => dismiss(n.id)}>
-              <div onClick={(e) => e.stopPropagation()}>
-                <NotificationCard {...n} onClose={() => dismiss(n.id)} />
-              </div>
-            </div>
+            <NotificationModal key={n.id} card={n} onClose={() => dismiss(n.id)} />
           ))}
         </LqThemeProvider>,
         document.body

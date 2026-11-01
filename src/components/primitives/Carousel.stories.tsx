@@ -76,3 +76,18 @@ export const SimpleContent: Story = {
     </div>
   ),
 };
+
+/** Des Jumbotron sans image : leur texte commence au bord gauche, là où se pose la flèche
+ *  « précédent » — le carrousel leur réserve la place des flèches de chaque côté. */
+export const TextSlides: Story = {
+  name: "Diapositives de texte",
+  render: () => (
+    <div style={{ padding: 24, maxWidth: 720 }}>
+      <Carousel height={220} ariaLabel="Annonces">
+        <Jumbotron eyebrow="Nouveau" title="Alertes de prix personnalisées" description="Soyez notifié dès qu'un titre atteint votre seuil." />
+        <Jumbotron eyebrow="Rappel" title="Clôture trimestrielle le 31" description="Vérifiez vos ordres en attente avant la fin du trimestre." />
+        <Jumbotron eyebrow="Résultats" title="Saison des résultats T3" description="Consultez le calendrier des publications de vos titres suivis." />
+      </Carousel>
+    </div>
+  ),
+};

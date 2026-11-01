@@ -8,12 +8,15 @@ export interface CheckboxProps {
   /** Visual "some but not all" state (e.g. a parent row for a partially-selected group). Doesn't affect `checked`. */
   indeterminate?: boolean;
   disabled?: boolean;
+  /** Nom accessible quand la case n'a pas de `label` visible (une case de sélection de ligne dans
+   *  un tableau, par exemple) — sans lui, un lecteur d'écran n'annonce que « case à cocher ». */
+  ariaLabel?: string;
   className?: string;
 }
 
 /** Checkbox with an animated checkmark draw-in. The native input stays in the DOM
  *  (visually hidden) so keyboard nav, focus rings and form semantics all work as expected. */
-export function Checkbox({ checked, onChange, label, indeterminate = false, disabled, className }: CheckboxProps) {
+export function Checkbox({ checked, onChange, label, indeterminate = false, disabled, ariaLabel, className }: CheckboxProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -28,6 +31,7 @@ export function Checkbox({ checked, onChange, label, indeterminate = false, disa
         className="lq-checkbox__input"
         checked={checked}
         disabled={disabled}
+        aria-label={ariaLabel}
         onChange={(e) => onChange?.(e.target.checked)}
       />
       <span className={["lq-checkbox__box", (checked || indeterminate) && "lq-checkbox__box--checked"].filter(Boolean).join(" ")}>

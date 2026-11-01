@@ -46,14 +46,22 @@ export interface CandlestickChartProps {
    *  320px measurement floor, same as `fullscreenToggle`'s own mechanism would in that situation.
    *  Default false. */
   fillHeight?: boolean;
+  /** Which layout to use, when the screen is not the right thing to ask. `"auto"` (default) takes
+   *  the touch layout below a 1500 px window or a 640 px box; `"desktop"` and `"mobile"` pin one or
+   *  the other whatever the window — for a chart shown inside a mock-up or a documentation frame.
+   *  `ChartWorkspace` passes its own `layout` down to every panel. The settings modal's
+   *  "Mise en page" toggle still wins once used. */
+  layout?: "auto" | "desktop" | "mobile";
   /** Enables wheel zoom, horizontal drag-to-pan and the zoom shortcuts on the plot. Default false — a
    *  thumbnail or a demo chart usually has nothing to explore. */
   zoomable?: boolean;
   /** Shows the volume pane under the candles. Default false. */
   showVolume?: boolean;
   /** Formats a date everywhere a human reads one: the date axis, the hover badge, a drawing's own labels.
-   *  Defaults to a short localized format. */
+   *  Defaults to day, short month and year in `locale` ("01 juin 2026"). */
   formatDate?: (d: Date) => string;
+  /** BCP 47 locale of the default date format (when `formatDate` is not given). Default `"fr-FR"`. */
+  locale?: string;
   /** Formats a price everywhere one is read: the price axis, the header, drawing labels. Defaults to two
    *  decimals. */
   formatPrice?: (v: number) => string;

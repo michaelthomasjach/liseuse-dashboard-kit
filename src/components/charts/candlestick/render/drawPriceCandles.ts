@@ -67,6 +67,7 @@ export function drawPriceCandles(ctx: CanvasRenderingContext2D, params: RenderCa
   const { dims, priceHeight, zoomedPriceScale, zoomedXScale, chartDisplayMode, visible, heikinAshiCandles, candleWidth, tpoOverlays, visibleIndicators, hovered, hoverY, data, visibleRange, renkoBricks, lineBreakBricks, overlayProjections } =
     params;
   const { colorUp, colorDown, colorBg, colorText, colorMuted, colorAccent, colorGrid, fontFamily, isEink } = style;
+  const { colorCandleUp, colorCandleDown, wickWidth } = style;
 
     // Everything in price space (gridlines, candles, drawings, the price hover line) is clipped
     // to the price section's own rectangle — without this, panning/zooming the price axis could
@@ -82,8 +83,8 @@ export function drawPriceCandles(ctx: CanvasRenderingContext2D, params: RenderCa
     // instead of the SVG (which paints on top of the canvas) covering them.
     ctx.save();
     ctx.strokeStyle = colorGrid;
-    ctx.lineWidth = 1;
-    ctx.setLineDash([2, 3]);
+    ctx.lineWidth = style.gridWidth;
+    ctx.setLineDash(style.gridDash);
     for (const tick of zoomedPriceScale.ticks(5)) {
       const y = snapPixel(zoomedPriceScale(tick));
       ctx.beginPath();
@@ -152,7 +153,7 @@ export function drawPriceCandles(ctx: CanvasRenderingContext2D, params: RenderCa
         const brick = bricks[bi];
         if (brick.endIndex < rangeStart || brick.startIndex > rangeEnd) continue;
         const up = brick.direction > 0;
-        const hueColor = up ? colorUp : colorDown;
+        const hueColor = up ? colorCandleUp : colorCandleDown;
         // A brick's own `startIndex` is set to the *previous* brick's `endIndex` (see
         // computeRenkoBricks/computeLineBreakBricks) — both bricks legitimately claim that same
         // candle when it's the one that confirmed the earlier brick AND kicked off this one, so
@@ -192,11 +193,11 @@ export function drawPriceCandles(ctx: CanvasRenderingContext2D, params: RenderCa
         // earn their keep the ticks are what still distinguishes one bar from the next, and a tick
         // rounded away to nothing turns the whole thing into a bare range line.
         const tick = Math.max(1, candleWidth / 2);
-        ctx.lineWidth = 1;
+        ctx.lineWidth = wickWidth;
         // E-ink has one ink and cannot code direction by hue — but a bar already says its
         // direction by where its two ticks sit, which is exactly why this notation survives on
         // paper. So it simply draws in the text colour there rather than inventing a fallback.
-        ctx.strokeStyle = isEink ? colorText : up ? colorUp : colorDown;
+        ctx.strokeStyle = isEink ? colorText : up ? colorCandleUp : colorCandleDown;
         ctx.beginPath();
         ctx.moveTo(cx, zoomedPriceScale(d.high));
         ctx.lineTo(cx, zoomedPriceScale(d.low));
@@ -219,14 +220,15 @@ export function drawPriceCandles(ctx: CanvasRenderingContext2D, params: RenderCa
         const bodyTop = zoomedPriceScale(Math.max(d.open, d.close));
         const bodyBottom = zoomedPriceScale(Math.min(d.open, d.close));
         const bodyHeight = Math.max(1, bodyBottom - bodyTop);
-        const hueColor = up ? colorUp : colorDown;
+        const hueColor = up ? colorCandleUp : colorCandleDown;
 
-        ctx.lineWidth = 1;
+        ctx.lineWidth = wickWidth;
         ctx.strokeStyle = isEink ? colorText : hueColor;
         ctx.beginPath();
         ctx.moveTo(cx, zoomedPriceScale(d.high));
         ctx.lineTo(cx, zoomedPriceScale(d.low));
         ctx.stroke();
+        ctx.lineWidth = 1;
 
         // E-ink can't code up/down by hue, so it falls back to the standard hollow/filled OHLC convention.
         ctx.fillStyle = isEink ? (up ? colorBg : colorText) : hueColor;

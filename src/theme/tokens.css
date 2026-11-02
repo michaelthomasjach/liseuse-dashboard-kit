@@ -412,7 +412,7 @@
  *                      -name-size / -weight · -aside-width
  *
  *   Charts             SVG presentation attributes cannot read var(), so these live in the charts'
- *                      CSS (or inline `style`). Not read by CandlestickChart's canvas, ChartWorkspace,
+ *                      CSS (or inline `style`). CandlestickChart's canvas reads its own set (below); not read by ChartWorkspace,
  *                      SeasonalityView, EarningsDotChart, WorldExposureMap — except through the
  *                      shared ChartAxis and legend rules they also use.
  *                      Series: --lq-chart-line-width (LineAreaChart 2px, Sparkline 1.5px; a series'
@@ -442,6 +442,15 @@
  *                      --lq-sankey-ribbon-opacity) · --lq-chart-node-radius (0)
  *                      Heatmap, MatrixChart: --lq-chart-tile-gap-color (--lq-color-bg) ·
  *                      -tile-gap-width (1) — the hairline between tiles
+ *                      CandlestickChart (canvas, read once per paint by readChartCanvasStyle; the
+ *                      upColor / downColor props still win): --lq-chart-candle-up / -candle-down
+ *                      (--lq-color-up / -down; candles, OHLC bars, bricks, volume — not indicators) ·
+ *                      -candle-wick-width (1; wicks and OHLC bars) · --lq-chart-volume-opacity
+ *                      (0.55; e-ink keeps its own) · its gridlines follow --lq-chart-grid-color /
+ *                      -grid-width / -grid-dash like ChartAxis'
+ *                      Chart title (symbol and plot type, .lq-chart__symbol-info-name):
+ *                      --lq-chart-title-font (inherit) · -title-size (0.75rem) · -title-weight (bold)
+ *                      · -title-tracking · -title-transform (inherited; as a button normal / none)
  *
  *   Misc               --lq-color-warning-contrast (ink on a warning fill) · --lq-dropzone-list-gap
  *                      · --lq-holding-figures-width / -quantity-width · --lq-tilemap-dark-filter

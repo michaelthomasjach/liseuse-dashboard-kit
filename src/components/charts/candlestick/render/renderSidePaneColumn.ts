@@ -1,5 +1,5 @@
 import type { SidePaneColumnRenderParams } from "../interfaces/SidePaneColumnRenderParams.interface";
-import type { ChartCanvasStyle } from "../interfaces/ChartCanvasStyle.interface";
+import { readChartCanvasStyle } from "./readChartCanvasStyle";
 import { snapPixel } from "../drawingGeometry";
 import { drawOwnPaneIndicatorSeries } from "./drawOwnPaneIndicatorSeries";
 import { computeProfileBoxValueScale, drawPaneProfile } from "./drawPaneProfile";
@@ -41,18 +41,7 @@ export function renderSidePaneColumn(canvas: HTMLCanvasElement, wrapper: HTMLEle
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, columnWidth, plotBoundedHeight);
 
-  const computed = getComputedStyle(wrapper);
-  const style: ChartCanvasStyle = {
-    colorUp: computed.getPropertyValue("--lq-color-up").trim(),
-    colorDown: computed.getPropertyValue("--lq-color-down").trim(),
-    colorBg: computed.getPropertyValue("--lq-color-bg").trim(),
-    colorText: computed.getPropertyValue("--lq-color-text").trim(),
-    colorMuted: computed.getPropertyValue("--lq-color-text-muted").trim(),
-    colorAccent: computed.getPropertyValue("--lq-color-accent").trim(),
-    colorGrid: computed.getPropertyValue("--lq-color-border-subtle").trim(),
-    fontFamily: computed.getPropertyValue("--lq-font-family").trim() || "sans-serif",
-    isEink: wrapper.closest('[data-lq-palette="eink"]') !== null,
-  };
+  const style = readChartCanvasStyle(wrapper);
 
   // Counts panes actually painted, which is what "is this the first one?" has to mean for the
   // divider below — a plain index would be wrong the moment the pane above is folded away.

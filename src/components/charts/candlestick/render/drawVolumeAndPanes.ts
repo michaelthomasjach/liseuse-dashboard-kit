@@ -39,7 +39,7 @@ export function drawVolumeAndPanes(ctx: CanvasRenderingContext2D, params: Render
     zoomedOwnPaneScales,
     indicators,
   } = params;
-  const { colorUp, colorDown, colorText, colorMuted, colorAccent, colorGrid, fontFamily, isEink } = style;
+  const { colorText, colorMuted, colorAccent, colorGrid, fontFamily, isEink } = style;
 
 
     // volumeHeight is 0 whenever some *other* pane is fullscreened (see usePaneLayout's own
@@ -73,13 +73,13 @@ export function drawVolumeAndPanes(ctx: CanvasRenderingContext2D, params: Render
         // Falls back to whichever of colorUp/colorDown is already in effect (theme or its own
         // override) — only actually diverges from the candles' own colors once set from the
         // volume pane's own settings modal (see the gear icon in its header below).
-        const volColorUp = volumeUpColorOverride ?? colorUp;
-        const volColorDown = volumeDownColorOverride ?? colorDown;
+        const volColorUp = volumeUpColorOverride ?? style.colorCandleUp;
+        const volColorDown = volumeDownColorOverride ?? style.colorCandleDown;
         for (const { d, i } of visible) {
           const cx = zoomedXScale(i + 0.5);
           const up = d.close >= d.open;
           const barHeight = Math.max(0, volumeHeight - zoomedVolumeScale(d.volume ?? 0));
-          ctx.globalAlpha = isEink ? (up ? 0.15 : 0.35) : 0.55;
+          ctx.globalAlpha = isEink ? (up ? 0.15 : 0.35) : style.volumeOpacity;
           ctx.fillStyle = isEink ? colorText : up ? volColorUp : volColorDown;
           ctx.fillRect(cx - candleWidth / 2, volumeHeight - barHeight, candleWidth, barHeight);
         }

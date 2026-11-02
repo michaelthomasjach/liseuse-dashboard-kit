@@ -1,5 +1,5 @@
 import type { RenderCandlestickChartParams } from "../interfaces/RenderCandlestickChartParams.interface";
-import type { ChartCanvasStyle } from "../interfaces/ChartCanvasStyle.interface";
+import { readChartCanvasStyle } from "./readChartCanvasStyle";
 import { drawFutureZone, drawPastZone } from "./drawFutureZone";
 import { drawScriptHeatmaps } from "./drawScriptHeatmaps";
 import { drawPriceCandles } from "./drawPriceCandles";
@@ -43,18 +43,7 @@ export function renderCandlestickChart(canvas: HTMLCanvasElement, wrapper: HTMLE
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, dims.boundedWidth, plotBoundedHeight);
 
-  const computed = getComputedStyle(wrapper);
-  const style: ChartCanvasStyle = {
-    colorUp: upColorOverride ?? computed.getPropertyValue("--lq-color-up").trim(),
-    colorDown: downColorOverride ?? computed.getPropertyValue("--lq-color-down").trim(),
-    colorBg: computed.getPropertyValue("--lq-color-bg").trim(),
-    colorText: computed.getPropertyValue("--lq-color-text").trim(),
-    colorMuted: computed.getPropertyValue("--lq-color-text-muted").trim(),
-    colorAccent: computed.getPropertyValue("--lq-color-accent").trim(),
-    colorGrid: computed.getPropertyValue("--lq-color-border-subtle").trim(),
-    fontFamily: computed.getPropertyValue("--lq-font-family").trim() || "sans-serif",
-    isEink: wrapper.closest('[data-lq-palette="eink"]') !== null,
-  };
+  const style = readChartCanvasStyle(wrapper, upColorOverride, downColorOverride);
 
   drawFutureZone(ctx, params, style);
   drawPastZone(ctx, params, style);

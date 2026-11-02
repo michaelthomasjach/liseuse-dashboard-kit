@@ -2005,9 +2005,14 @@ button.lq-chart__legend-item {
   flex-basis: 100%;
 }
 
+/* Le titre du graphique (symbole et type de tracé) : --lq-chart-title-* (optionnelles) le règlent ;
+   repli sur ce qu'il était. */
 .lq-chart__symbol-info-name {
-  font-size: 0.75rem;
-  font-weight: var(--lq-font-weight-bold, 700);
+  font-family: var(--lq-chart-title-font, inherit);
+  font-size: var(--lq-chart-title-size, 0.75rem);
+  font-weight: var(--lq-chart-title-weight, var(--lq-font-weight-bold, 700));
+  letter-spacing: var(--lq-chart-title-tracking, inherit);
+  text-transform: var(--lq-chart-title-transform, inherit);
   color: var(--lq-color-text);
 }
 
@@ -2015,7 +2020,10 @@ button.lq-chart__legend-item {
    not just plain text — a plain <span> (symbol name without `symbolSearch`) never gets this,
    it's only ever applied to the two <button>s. */
 .lq-chart__symbol-info-name--clickable {
-  font-family: inherit;
+  /* Un <button> n'hérite ni de l'espacement ni de la casse : replis sur ses valeurs propres. */
+  font-family: var(--lq-chart-title-font, inherit);
+  letter-spacing: var(--lq-chart-title-tracking, normal);
+  text-transform: var(--lq-chart-title-transform, none);
   background: none;
   border: none;
   border-radius: var(--lq-radius-sm);

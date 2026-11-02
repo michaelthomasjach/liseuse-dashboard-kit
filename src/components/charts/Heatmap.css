@@ -70,8 +70,8 @@
 }
 
 .lq-heatmap__tile rect {
-  stroke: var(--lq-color-bg);
-  stroke-width: 1;
+  stroke: var(--lq-chart-tile-gap-color, var(--lq-color-bg));
+  stroke-width: var(--lq-chart-tile-gap-width, 1);
   transition: opacity var(--lq-transition-base);
 }
 

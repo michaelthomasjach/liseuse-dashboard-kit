@@ -3,5 +3,15 @@
   border: none;
   padding: 0;
   cursor: pointer;
-  font-family: inherit;
+  font-family: var(--lq-chart-legend-font, inherit);
+}
+
+/* A series' line and its area. Optional tokens (see the end of src/theme/tokens.css); the
+   fallbacks are the values these had as SVG attributes. */
+.lq-chart__line {
+  stroke-width: var(--lq-chart-line-width, 2px);
+}
+
+.lq-chart__area {
+  fill-opacity: var(--lq-chart-area-opacity, 0.12);
 }

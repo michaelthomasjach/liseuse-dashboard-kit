@@ -1,6 +1,8 @@
 /* The bars only: a bare `.lq-chart rect` leaked onto every chart once BarChart was loaded,
    turning the axis-drag strips (ns-/ew-resize) and the plot overlay (grab) into a pointer. */
 .lq-bar-chart__bar {
+  /* `rx` as a CSS property: the attribute cannot read a token. 0 is what no `rx` attribute gave. */
+  rx: var(--lq-chart-bar-radius, 0);
   transition: opacity var(--lq-transition-fast);
   cursor: pointer;
 }

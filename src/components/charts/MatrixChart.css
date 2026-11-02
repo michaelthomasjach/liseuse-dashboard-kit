@@ -9,11 +9,16 @@
   display: block;
 }
 
+/* The row and column headers are axis labels: they take the --lq-chart-axis-* tokens, with this
+   chart's own fallbacks. The row gutter is measured on the rendered text, so a theme's font is
+   accounted for. */
 .lq-matrix-chart__axis-label {
-  fill: var(--lq-color-text-muted);
-  font-size: 11px;
-  font-weight: var(--lq-font-weight-semibold, 600);
-  letter-spacing: 0.02em;
+  fill: var(--lq-chart-axis-color, var(--lq-color-text-muted));
+  font-family: var(--lq-chart-axis-font, inherit);
+  font-size: var(--lq-chart-axis-size, 11px);
+  font-weight: var(--lq-chart-axis-weight, var(--lq-font-weight-semibold, 600));
+  letter-spacing: var(--lq-chart-axis-tracking, 0.02em);
+  text-transform: var(--lq-chart-axis-transform, inherit);
 }
 
 /* Every cell keeps a hairline of the page's own background between it and its neighbours, so two
@@ -21,8 +26,8 @@
    rather than as gridlines underneath: the cells are translucent, and anything drawn under them
    would show through and muddy the colour the opacity is supposed to be saying. */
 .lq-matrix-chart__cell rect {
-  stroke: var(--lq-color-bg);
-  stroke-width: 1;
+  stroke: var(--lq-chart-tile-gap-color, var(--lq-color-bg));
+  stroke-width: var(--lq-chart-tile-gap-width, 1);
   cursor: pointer;
   transition: stroke var(--lq-transition-fast);
 }

@@ -6,16 +6,16 @@
 }
 
 .lq-gauge-chart__track {
-  fill: var(--lq-color-fill-track);
+  fill: var(--lq-chart-gauge-track, var(--lq-color-fill-track));
 }
 
 .lq-gauge-chart__value {
-  fill: var(--lq-color-accent);
+  fill: var(--lq-chart-gauge-fill, var(--lq-color-accent));
 }
 
 .lq-gauge-chart__needle {
   stroke: var(--lq-color-text);
-  stroke-width: 2;
+  stroke-width: var(--lq-chart-gauge-needle-width, 2);
   transition: transform 300ms ease;
 }
 
@@ -37,7 +37,7 @@
 }
 
 .lq-gauge-chart__value-text {
-  font-family: var(--lq-heading-font, inherit);
+  font-family: var(--lq-chart-value-font, var(--lq-heading-font, inherit));
   font-size: 1.6rem;
   font-weight: var(--lq-font-weight-bold, 700);
   color: var(--lq-color-text);

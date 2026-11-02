@@ -1,7 +1,7 @@
 .lq-sankey {
   /* How solid a ribbon is at rest. Low enough that overlapping ribbons still read as two, high
      enough that a single one reads as a real quantity rather than a wash. */
-  --lq-sankey-ribbon-opacity: 0.45;
+  --lq-sankey-ribbon-opacity: var(--lq-chart-link-opacity, 0.45);
   --lq-sankey-ribbon-hover-opacity: 0.78;
   /* What "off the current branch" looks like. Dim rather than hidden: a branch is only legible as
      part of something, and removing the rest would turn a zoom into a different diagram. */
@@ -97,6 +97,7 @@
   vector-effect: non-scaling-stroke;
   stroke: var(--lq-color-panel);
   stroke-width: 0;
+  rx: var(--lq-chart-node-radius, 0);
   transition: stroke-width var(--lq-transition-fast), opacity var(--lq-transition-fast);
 }
 
@@ -147,7 +148,7 @@
    get a hairline of the background colour between them to keep the edges of each ribbon readable,
    and a little more solidity, since a 45 % wash of a single ink is a grey with no edges at all. */
 .lq-root[data-lq-palette="eink"] .lq-sankey {
-  --lq-sankey-ribbon-opacity: 0.6;
+  --lq-sankey-ribbon-opacity: var(--lq-chart-link-opacity, 0.6);
   --lq-sankey-ribbon-hover-opacity: 0.9;
   --lq-sankey-dim-opacity: 0.15;
 }

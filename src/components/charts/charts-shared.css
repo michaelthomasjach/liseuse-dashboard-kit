@@ -497,10 +497,15 @@
   touch-action: none;
 }
 
-.lq-chart__price-volume-divider,
-.lq-chart__axis-line-extension {
+.lq-chart__price-volume-divider {
   stroke: var(--lq-color-border-subtle);
   stroke-width: 1;
+}
+
+/* Continues the X axis domain line (ChartAxis.css), so it takes the same optional tokens. */
+.lq-chart__axis-line-extension {
+  stroke: var(--lq-chart-domain-color, var(--lq-color-border-subtle));
+  stroke-width: var(--lq-chart-domain-width, 1);
 }
 
 /* A meaningful reference threshold (e.g. LineAreaChart's own `referenceLineY`, SeasonalityView's
@@ -648,14 +653,30 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.78rem;
+  font-size: var(--lq-chart-legend-size, 0.78rem);
   color: var(--lq-color-text-muted);
 }
 
+/* A legend item is a <button> where it toggles a series (LineAreaChart, BarChart) and a plain
+   element elsewhere (DeltaChart, DonutChart, WorldExposureMap). Font, tracking and case used to be
+   left to the cascade, which gives a button the user agent's values and anything else its parent's
+   — so the fallback has to differ by element to change nothing. The button's font is reset in
+   LineAreaChart.css, which reads --lq-chart-legend-font there. */
+.lq-chart__legend-item:not(button) {
+  font-family: var(--lq-chart-legend-font, inherit);
+  letter-spacing: var(--lq-chart-legend-tracking, inherit);
+  text-transform: var(--lq-chart-legend-transform, inherit);
+}
+
+button.lq-chart__legend-item {
+  letter-spacing: var(--lq-chart-legend-tracking, normal);
+  text-transform: var(--lq-chart-legend-transform, none);
+}
+
 .lq-chart__legend-swatch {
-  width: 10px;
-  height: 10px;
-  border-radius: 2px;
+  width: var(--lq-chart-legend-swatch-size, 10px);
+  height: var(--lq-chart-legend-swatch-size, 10px);
+  border-radius: var(--lq-chart-legend-swatch-radius, 2px);
   flex-shrink: 0;
 }
 

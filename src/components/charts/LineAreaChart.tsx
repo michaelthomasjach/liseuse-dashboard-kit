@@ -653,7 +653,10 @@ export const LineAreaChart = forwardRef<LineAreaChartHandle, LineAreaChartProps>
                   {s.band && s.band.length > 1 && (
                     <path className="lq-chart__band" d={bandGen(s.band) ?? undefined} fill={color} fillOpacity={s.bandOpacity ?? 0.18} stroke="none" />
                   )}
-                  {fillArea && <path d={areaGen(s.data) ?? undefined} fill={color} fillOpacity={0.12} stroke="none" />}
+                  {/* Opacity and line width in CSS (LineAreaChart.css), not as presentation attributes:
+                      an attribute cannot read the optional --lq-chart-area-opacity / -line-width
+                      tokens. A series' own `strokeWidth` still wins, through `style`. */}
+                  {fillArea && <path className="lq-chart__area" d={areaGen(s.data) ?? undefined} fill={color} stroke="none" />}
                   {s.fillSignedAtReference &&
                     referenceLineY !== undefined &&
                     splitAtReference(s.data, referenceLineY).map((segment, i) => (
@@ -665,7 +668,14 @@ export const LineAreaChart = forwardRef<LineAreaChartHandle, LineAreaChartProps>
                         stroke="none"
                       />
                     ))}
-                  <path d={lineGen(s.data) ?? undefined} fill="none" stroke={color} strokeWidth={s.strokeWidth ?? 2} strokeDasharray={s.dashed ? "5 4" : undefined} />
+                  <path
+                    className="lq-chart__line"
+                    d={lineGen(s.data) ?? undefined}
+                    fill="none"
+                    stroke={color}
+                    style={s.strokeWidth === undefined ? undefined : { strokeWidth: `${s.strokeWidth}px` }}
+                    strokeDasharray={s.dashed ? "5 4" : undefined}
+                  />
                   {s.endDot &&
                     s.data.length > 0 &&
                     (() => {

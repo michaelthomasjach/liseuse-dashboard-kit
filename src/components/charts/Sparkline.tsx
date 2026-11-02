@@ -11,6 +11,7 @@ export interface SparklineProps {
   area?: boolean;
   /** Colors the line using the up/down theme tokens based on the first/last value delta. */
   colorByTrend?: boolean;
+  /** Line thickness in px. Left out, it follows the theme's `--lq-chart-line-width`, else 1.5. */
   strokeWidth?: number;
   className?: string;
 }
@@ -23,7 +24,7 @@ export function Sparkline({
   color,
   area = false,
   colorByTrend = false,
-  strokeWidth = 1.5,
+  strokeWidth,
   className,
 }: SparklineProps) {
   const clipId = useId();
@@ -69,10 +70,24 @@ export function Sparkline({
           <clipPath id={clipId}>
             <path d={path.area} />
           </clipPath>
-          <rect width={width} height={height} fill={resolvedColor} opacity={0.12} clipPath={`url(#${clipId})`} />
+          {/* Opacity and line width through `style`, not presentation attributes: an attribute
+              cannot read the optional --lq-chart-area-opacity / --lq-chart-line-width tokens. */}
+          <rect
+            width={width}
+            height={height}
+            fill={resolvedColor}
+            style={{ opacity: "var(--lq-chart-area-opacity, 0.12)" }}
+            clipPath={`url(#${clipId})`}
+          />
         </>
       )}
-      <path d={path.line} fill="none" stroke={resolvedColor} strokeWidth={strokeWidth} vectorEffect="non-scaling-stroke" />
+      <path
+        d={path.line}
+        fill="none"
+        stroke={resolvedColor}
+        style={{ strokeWidth: strokeWidth === undefined ? "var(--lq-chart-line-width, 1.5px)" : `${strokeWidth}px` }}
+        vectorEffect="non-scaling-stroke"
+      />
     </svg>
   );
 }

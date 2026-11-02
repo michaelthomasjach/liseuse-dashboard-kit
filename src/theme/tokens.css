@@ -411,6 +411,38 @@
  *                      -color · ProfilePage: --lq-profile-banner-height / -bg · -avatar-overlap ·
  *                      -name-size / -weight · -aside-width
  *
+ *   Charts             SVG presentation attributes cannot read var(), so these live in the charts'
+ *                      CSS (or inline `style`). Not read by CandlestickChart's canvas, ChartWorkspace,
+ *                      SeasonalityView, EarningsDotChart, WorldExposureMap — except through the
+ *                      shared ChartAxis and legend rules they also use.
+ *                      Series: --lq-chart-line-width (LineAreaChart 2px, Sparkline 1.5px; a series'
+ *                      or a Sparkline's own `strokeWidth` prop still wins) · --lq-chart-area-opacity
+ *                      (0.12; LineAreaChart `area`, Sparkline `area`)
+ *                      Grid (ChartAxis `grid`): --lq-chart-grid-color (--lq-color-border-subtle) ·
+ *                      -grid-width (1px) · -grid-dash (2 3; `none` = solid)
+ *                      Tick labels (ChartAxis; MatrixChart row/column headers, own fallbacks in
+ *                      brackets): --lq-chart-axis-color (text-muted) · -axis-font (--lq-font-family
+ *                      [inherit]) · -axis-size (0.7rem [11px]) · -axis-weight (inherit [600]) ·
+ *                      -axis-tracking (inherit [0.02em]) · -axis-transform (inherit)
+ *                      Baseline: --lq-chart-domain-color · -domain-width (1px) — ChartAxis domain line
+ *                      and its extension (border-subtle), DeltaChart zero line (--lq-color-border);
+ *                      tick marks take the colour only
+ *                      Bars: --lq-chart-bar-radius (0; BarChart, DeltaChart — a CSS `rx`)
+ *                      Legends (.lq-chart__legend: LineAreaChart, BarChart, DeltaChart, DonutChart,
+ *                      WorldExposureMap): --lq-chart-legend-font (inherit) · -legend-size (0.78rem) ·
+ *                      -legend-tracking · -legend-transform (inherited; a toggle button's normal /
+ *                      none) · -legend-swatch-size (10px) · -legend-swatch-radius (2px)
+ *                      DonutChart: --lq-chart-slice-gap-color (--lq-color-panel, e-ink --lq-color-bg)
+ *                      · -slice-gap-width (2, e-ink 1.5)
+ *                      GaugeChart: --lq-chart-gauge-track (--lq-color-fill-track) · -gauge-fill
+ *                      (--lq-color-accent) · -gauge-needle-width (2)
+ *                      Big centre figures (DonutChart, GaugeChart): --lq-chart-value-font
+ *                      (--lq-heading-font, inherit)
+ *                      SankeyChart: --lq-chart-link-opacity (0.45, e-ink 0.6; feeds
+ *                      --lq-sankey-ribbon-opacity) · --lq-chart-node-radius (0)
+ *                      Heatmap, MatrixChart: --lq-chart-tile-gap-color (--lq-color-bg) ·
+ *                      -tile-gap-width (1) — the hairline between tiles
+ *
  *   Misc               --lq-color-warning-contrast (ink on a warning fill) · --lq-dropzone-list-gap
  *                      · --lq-holding-figures-width / -quantity-width · --lq-tilemap-dark-filter
  *

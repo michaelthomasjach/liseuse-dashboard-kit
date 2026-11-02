@@ -1,6 +1,7 @@
+/* The baseline: it takes the axis domain-line tokens, with its own (slightly darker) fallback. */
 .lq-delta-chart__zero-line {
-  stroke: var(--lq-color-border);
-  stroke-width: 1;
+  stroke: var(--lq-chart-domain-color, var(--lq-color-border));
+  stroke-width: var(--lq-chart-domain-width, 1);
 }
 
 .lq-delta-chart__connector {
@@ -10,6 +11,7 @@
 }
 
 .lq-delta-chart__bar {
+  rx: var(--lq-chart-bar-radius, 0);
   cursor: pointer;
   transition: opacity var(--lq-transition-fast);
   transform-box: fill-box;

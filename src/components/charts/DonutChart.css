@@ -28,15 +28,15 @@
 }
 
 .lq-donut-chart__slice {
-  stroke: var(--lq-color-panel);
-  stroke-width: 2;
+  stroke: var(--lq-chart-slice-gap-color, var(--lq-color-panel));
+  stroke-width: var(--lq-chart-slice-gap-width, 2);
   cursor: pointer;
   transition: opacity var(--lq-transition-fast);
 }
 
 .lq-root[data-lq-palette="eink"] .lq-donut-chart__slice {
-  stroke: var(--lq-color-bg);
-  stroke-width: 1.5;
+  stroke: var(--lq-chart-slice-gap-color, var(--lq-color-bg));
+  stroke-width: var(--lq-chart-slice-gap-width, 1.5);
 }
 
 .lq-donut-chart__center {
@@ -51,7 +51,7 @@
 }
 
 .lq-donut-chart__center-value {
-  font-family: var(--lq-heading-font, inherit);
+  font-family: var(--lq-chart-value-font, var(--lq-heading-font, inherit));
   font-size: 1.3rem;
   font-weight: var(--lq-font-weight-bold, 700);
   color: var(--lq-color-text);

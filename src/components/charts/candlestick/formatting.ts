@@ -38,10 +38,17 @@ export function capitalize(text: string): string {
  *  starts — ceil(ms / 1000) rather than floor. Negative/zero clamps to "00:00" rather than
  *  going negative, since nothing here forces a new candle to actually arrive on schedule. */
 export function formatCountdown(ms: number): string {
+  // Sous l'heure « MM:SS » ; au-delà « H:MM:SS » ; au-delà d'un jour « 2 j 16:06:28 » — une bougie journalière
+  // affichait sinon « 3846:28 », des minutes qu'on ne pouvait pas lire comme telles.
   const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
-  const m = Math.floor(totalSeconds / 60);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const d = Math.floor(totalSeconds / 86_400);
+  const h = Math.floor((totalSeconds % 86_400) / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
   const s = totalSeconds % 60;
-  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  if (totalSeconds < 3600) return `${pad(m)}:${pad(s)}`;
+  if (d === 0) return `${h}:${pad(m)}:${pad(s)}`;
+  return `${d} j ${pad(h)}:${pad(m)}:${pad(s)}`;
 }
 
 /** A raw price (or "equivalent price", see `overlayProjections`) reinterpreted as a % change from

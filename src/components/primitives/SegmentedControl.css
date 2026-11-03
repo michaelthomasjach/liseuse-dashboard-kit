@@ -49,7 +49,7 @@
 .lq-segmented--top {
   flex-direction: column;
   align-items: flex-start;
-  gap: 6px;
+  gap: 3px;
 }
 
 .lq-segmented--top .lq-segmented__label {

@@ -133,7 +133,7 @@ Toute zone scrollable sous `.lq-root` reçoit automatiquement un ascenseur fin e
 - `ColorSwatchButton` — case à cocher couleur (dégradée en gris sous la palette e-ink)
 - `Modal` — panneau de détail centré ; `size="fullscreen"` pour une variante qui occupe la quasi-totalité de l'écran (96vw × 92vh) au lieu de la petite boîte centrée par défaut. Le padding vit sur un wrapper interne (`.lq-modal__inner`), pas sur `.lq-modal` lui-même : c'est `.lq-modal` qui porte `overflow-y: auto`, et une scrollbar sur une boîte *déjà paddée* mange dans le padding de ce côté-là au lieu de s'afficher à côté — le padding gauche restait entier pendant que le droit semblait disparaître. Garder `.lq-modal` sans padding fait apparaître la scrollbar au ras de sa bordure, en dehors de la boîte du wrapper, donc son padding reste symétrique que la scrollbar soit visible ou non
 - `FieldGroup` — label + rangée de contrôles
-- `SegmentedControl` — sélecteur exclusif (ex: le switch Palette/Surface/Typo de la maquette) ; `labelPosition="top"` place le libellé au-dessus et donne aux options la hauteur d'un `Input` (barres de filtres)
+- `SegmentedControl` — sélecteur exclusif (ex: le switch Palette/Surface/Typo de la maquette) ; `labelPosition="top"` place le libellé au-dessus et donne aux options la hauteur d'un `Input` (barres de filtres), à 3 px sous le libellé
 - `Tabs` — navigation par onglets, horizontale ou verticale (`orientation`)
 - `Jumbotron` — bannière promo/hero (eyebrow, titre, description, actions, media ou image de fond avec `imageFilter="grayscale"`)
 - `TreeView` — arbre expand/collapse récursif, avec glisser-déposer optionnel (`onMove`) pour réorganiser/reparenter — voir l'utilitaire `moveTreeNode`
@@ -289,7 +289,7 @@ Une ligne de tendance classique (pas "étendue", pas les autres types à géomé
 - `MarketMoversWidget` — carte à onglets Hausses/Baisses
 
 **Layouts** — responsive, s'effondrent en menu mobile sous ~900px
-- `SidebarLayout` — sidebar fixe desktop → tiroir hors-écran (hamburger) sur mobile ; `stickyHeader` garde l'en-tête affiché en haut de l'écran pendant le défilement (et la barre du menu sur mobile), sur un fond légèrement distinct de la page et avec une ombre portée : le contenu passe dessous ; sous-menus : `children` d'un élément du menu, groupe repliable ouvert quand l'une de ses pages est active, entrées accrochées à une barre verticale par un petit tiret (couleur `--lq-sidebar-tree`)
+- `SidebarLayout` — sidebar fixe desktop → tiroir hors-écran (hamburger) sur mobile ; `stickyHeader` garde l'en-tête affiché en haut de l'écran pendant le défilement (et la barre du menu sur mobile), sur un fond légèrement distinct de la page et avec une ombre portée : le contenu passe dessous ; sous-menus : `children` d'un élément du menu, groupe repliable ouvert quand l'une de ses pages est active, entrées accrochées à une barre verticale par un petit tiret (couleur `--lq-sidebar-tree`) ; variante `rail` : le témoin d'épinglage est un anneau qui rebondit de temps en temps tant que la barre n'est pas épinglée, plein une fois épinglée
   - `--lq-sticky-header-z-index` (variable CSS, 900 par défaut) : z-index de l'en-tête collant ; l'augmenter fait passer l'en-tête au-dessus des menus et infobulles des graphiques, mais aussi des modales (3000) et notifications (2000).
 - `HeaderLayout` — nav horizontale sticky → tiroir déroulant sur mobile
 

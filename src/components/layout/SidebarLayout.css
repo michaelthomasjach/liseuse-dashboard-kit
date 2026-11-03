@@ -412,16 +412,15 @@
   background-color: currentColor;
 }
 
-/* Non épinglée, l'anneau rebondit de temps en temps pour inviter au clic ; plein (épinglée), il se tient tranquille. */
+/* Non épinglée, l'anneau respire (il gonfle et s'éclaire lentement, puis revient) pour inviter au clic ; plein
+   (épinglée), il se tient tranquille. */
 .lq-sidebar-layout__pin[aria-pressed="false"] .lq-sidebar-layout__pin-mark {
-  animation: lq-pin-bounce 2.4s ease-in-out infinite;
+  animation: lq-pin-breathe 3s ease-in-out infinite;
 }
 
-@keyframes lq-pin-bounce {
-  0%, 40%, 100% { transform: translateY(0); }
-  10% { transform: translateY(-5px); }
-  20% { transform: translateY(0); }
-  28% { transform: translateY(-2px); }
+@keyframes lq-pin-breathe {
+  0%, 100% { transform: scale(0.85); opacity: 0.55; }
+  50% { transform: scale(1.15); opacity: 1; }
 }
 
 @media (prefers-reduced-motion: reduce) {

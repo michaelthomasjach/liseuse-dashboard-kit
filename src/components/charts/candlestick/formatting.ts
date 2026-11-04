@@ -34,6 +34,33 @@ export function capitalize(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
+/** Temps restant avant la fin de la bougie en cours. Bougies intrajournalières : date de la dernière bougie + l'écart
+ *  entre les deux dernières. À partir du jour, la bougie suit le calendrier local : une bougie journalière se termine
+ *  à minuit (à 11:05, il reste 12:55), une hebdomadaire le lundi suivant à 0 h, une mensuelle le 1er du mois suivant.
+ *  Ajouter l'écart donnait « demain à l'heure d'ouverture » (21:53 restantes à 11:05 pour le CAC 40, daté de 9 h)
+ *  et, après un week-end, un écart de trois jours. */
+export function candleRemainingMs(lastDate: Date, prevDate: Date | null, now: number): number | null {
+  if (!prevDate) return null;
+  const gap = lastDate.getTime() - prevDate.getTime();
+  if (gap <= 0) return null;
+  const HOUR = 3_600_000;
+  if (gap < 20 * HOUR) return lastDate.getTime() + gap - now;
+  const today = new Date(now);
+  let end: Date;
+  if (gap < 5 * 24 * HOUR) {
+    // Jour (y compris le saut d'un week-end ou d'un jour férié entre deux séances).
+    end = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+  } else if (gap < 20 * 24 * HOUR) {
+    // Semaine : jusqu'au lundi suivant, 0 h.
+    const daysToMonday = ((8 - today.getDay()) % 7) || 7;
+    end = new Date(today.getFullYear(), today.getMonth(), today.getDate() + daysToMonday);
+  } else {
+    // Mois (ou plus) : jusqu'au 1er du mois suivant, 0 h.
+    end = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+  }
+  return end.getTime() - now;
+}
+
 /** MM:SS, rounded up so a fresh 5-minute candle reads "05:00" (not "04:59") the instant it
  *  starts — ceil(ms / 1000) rather than floor. Negative/zero clamps to "00:00" rather than
  *  going negative, since nothing here forces a new candle to actually arrive on schedule. */

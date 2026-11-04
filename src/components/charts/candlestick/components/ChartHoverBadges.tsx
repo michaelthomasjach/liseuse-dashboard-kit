@@ -10,7 +10,7 @@ import type { IndicatorValue } from "../interfaces/IndicatorValue.interface";
 import { indicatorAxisAnnotations } from "../axisAnnotations";
 import { CROSSHAIR_ADD_INSET, LIVE_COUNTDOWN_OFFSET } from "../constants";
 import { EVENT_MARKER_OFFSET, EVENT_MARKER_RADIUS, EVENT_TOOLTIP_WIDTH, EVENT_TOOLTIP_GAP } from "../eventsCatalog";
-import { formatCountdown, formatCompactNumber } from "../formatting";
+import { candleRemainingMs, formatCountdown, formatCompactNumber } from "../formatting";
 
 export interface ChartHoverBadgesProps {
   hoverY: number | null;
@@ -304,8 +304,7 @@ export function ChartHoverBadges({
           const prevCandle = data.length > 1 ? data[data.length - 2] : null;
           const up = prevCandle ? lastCandle.close >= prevCandle.close : true;
           const y = dims.margin.top + clampToPriceAxis(zoomedPriceScale(lastCandle.close));
-          const intervalMs = prevCandle ? lastCandle.date.getTime() - prevCandle.date.getTime() : null;
-          const remainingMs = intervalMs ? lastCandle.date.getTime() + intervalMs - now : null;
+          const remainingMs = candleRemainingMs(lastCandle.date, prevCandle?.date ?? null, now);
           return (
             <>
               <div

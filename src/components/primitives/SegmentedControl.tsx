@@ -5,10 +5,16 @@ import "./SegmentedControl.css";
 export interface SegmentedControlOption<T extends string> {
   value: T;
   label: string;
+  /** Nom accessible de l'option quand le libellé visible ne suffit pas (une flèche « ↑ » → « Sens long »). */
+  ariaLabel?: string;
+  /** Infobulle native de l'option. */
+  title?: string;
 }
 
 export interface SegmentedControlProps<T extends string> {
   label?: string;
+  /** Nom accessible du groupe sans libellé visible (sinon `label` le nomme). */
+  ariaLabel?: string;
   options: SegmentedControlOption<T>[];
   value: T;
   onChange: (value: T) => void;
@@ -26,6 +32,7 @@ export interface SegmentedControlProps<T extends string> {
  *  choisissent l'option voisine en bouclant, Début et Fin les extrémités. */
 export function SegmentedControl<T extends string>({
   label,
+  ariaLabel,
   options,
   value,
   onChange,
@@ -47,13 +54,15 @@ export function SegmentedControl<T extends string>({
   return (
     <div className={["lq-segmented", labelPosition === "top" ? "lq-segmented--top" : null, className].filter(Boolean).join(" ")}>
       {label && <span className="lq-segmented__label">{label}</span>}
-      <div ref={groupRef} className="lq-segmented__options" role="radiogroup" aria-label={label} onKeyDown={onKeyDown}>
+      <div ref={groupRef} className="lq-segmented__options" role="radiogroup" aria-label={label ?? ariaLabel} onKeyDown={onKeyDown}>
         {options.map((opt) => (
           <button
             key={opt.value}
             type="button"
             role="radio"
             aria-checked={opt.value === value}
+            aria-label={opt.ariaLabel}
+            title={opt.title}
             tabIndex={opt.value === tabStop ? 0 : -1}
             className={
               opt.value === value ? "lq-segmented__option lq-segmented__option--active" : "lq-segmented__option"

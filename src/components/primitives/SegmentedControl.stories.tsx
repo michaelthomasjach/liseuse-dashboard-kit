@@ -47,6 +47,26 @@ export const Typo: Story = {
   },
 };
 
+/** Options réduites à un symbole : chacune garde un nom accessible (`ariaLabel`) et une infobulle (`title`) ; le
+ *  groupe, sans libellé visible, est nommé par `ariaLabel`. */
+export const IconOptions: Story = {
+  render: () => {
+    const [side, setSide] = useState("auto");
+    return (
+      <SegmentedControl
+        ariaLabel="Sens du trade"
+        value={side}
+        onChange={setSide}
+        options={[
+          { value: "long", label: "↑", ariaLabel: "Sens long", title: "Sens long" },
+          { value: "short", label: "↓", ariaLabel: "Sens short", title: "Sens short" },
+          { value: "auto", label: "Auto", ariaLabel: "Sens automatique", title: "Le système choisit le sens" },
+        ]}
+      />
+    );
+  },
+};
+
 /** Dans une barre de filtres : libellé au-dessus et hauteur d'un `Input`, alignés avec les champs voisins. */
 export const LabelOnTop: Story = {
   render: () => {

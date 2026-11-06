@@ -381,6 +381,92 @@ export const AI_TOOLS: AiTool[] = [
       return { content: `${rows.length} bougies\n${rows.join("\n")}`.slice(0, 20000) };
     },
   },
+  {
+    definition: {
+      name: "marquer_des_seances",
+      description:
+        "Pose une épingle sur chaque séance (bougie) donnée, avec un court texte : par exemple les pires séances renvoyées par une statistique, pour les montrer sur le graphique. Une date sans bougie est signalée.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          seances: {
+            type: "array",
+            description: "Les séances à marquer, 30 au plus.",
+            items: {
+              type: "object",
+              properties: {
+                date: { type: "string", description: DATE_DOC },
+                texte: { type: "string", description: "Court texte de l'épingle, par exemple « −12,3 % ». Facultatif." },
+              },
+              required: ["date"],
+            },
+          },
+          couleur: { type: "string", description: "Couleur CSS, facultative. Par défaut : rouge pour un texte négatif, vert pour un positif." },
+        },
+        required: ["seances"],
+        additionalProperties: false,
+      },
+    },
+    run: (input, chart) => {
+      const raw = Array.isArray(input.seances) ? input.seances.slice(0, 30) : [];
+      if (raw.length === 0) return { content: "Aucune séance à marquer.", isError: true };
+      if (chart.data.length === 0) return { content: "Le graphique n'a aucune bougie.", isError: true };
+      const dayOf = (d: Date) => d.toISOString().slice(0, 10);
+      // A date the model wrote names a calendar day, whatever hour the host stamps its daily bars
+      // with: match on the day first, then the nearest bar within three days (a holiday, a time zone)
+      // or within one bar's own span on a coarser timeframe (a session falls inside its weekly bar).
+      const byDay = new Map(chart.data.map((c) => [dayOf(c.date), c]));
+      const spacing = chart.data.length > 1 ? (chart.data[chart.data.length - 1].date.getTime() - chart.data[0].date.getTime()) / (chart.data.length - 1) : 0;
+      const tolerance = Math.max(3 * 86_400_000, Math.min(31 * 86_400_000, spacing * 1.05));
+      const color = str(input, "couleur");
+      const added: string[] = [];
+      const missing: string[] = [];
+      const next = [...chart.drawings()];
+      for (const item of raw) {
+        const entry = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
+        const date = parseDate(str(entry, "date"));
+        if (!date) {
+          missing.push(String(entry.date ?? "?"));
+          continue;
+        }
+        let candle = byDay.get(dayOf(date));
+        if (!candle) {
+          const near = chart.data.reduce((best, c) => (Math.abs(c.date.getTime() - date.getTime()) < Math.abs(best.date.getTime() - date.getTime()) ? c : best));
+          if (Math.abs(near.date.getTime() - date.getTime()) <= tolerance) candle = near;
+        }
+        if (!candle) {
+          missing.push(dayOf(date));
+          continue;
+        }
+        const text = str(entry, "texte")?.slice(0, 40);
+        const down = text !== undefined && /^\s*[−-]/.test(text);
+        const up = text !== undefined && /^\s*\+/.test(text);
+        // A drop is pinned on the bar's low, a rise on its high: the pin points at the move itself.
+        const price = down ? candle.low : candle.high;
+        const pinColor = color ?? (down ? "#d64545" : up ? "#2e9d5b" : undefined);
+        next.push({
+          id: chart.nextDrawingId(),
+          x1: candle.date,
+          y1: price,
+          x2: candle.date,
+          y2: price,
+          lineType: "pin",
+          ...(text ? { text } : {}),
+          ...(pinColor ? { color: pinColor } : {}),
+        });
+        added.push(dayOf(candle.date));
+      }
+      if (added.length) chart.commitDrawings(next);
+      const first = dayOf(chart.data[0].date);
+      const last = dayOf(chart.data[chart.data.length - 1].date);
+      return {
+        content:
+          `${added.length} séance(s) marquée(s)${added.length ? ` : ${added.join(", ")}` : ""}.` +
+          (missing.length ? ` Hors du graphique (il couvre ${first} → ${last}) : ${missing.join(", ")}.` : ""),
+        ...(added.length === 0 ? { isError: true } : {}),
+      };
+    },
+  },
 ];
 
 /** The tools, filtered to what this chart can actually do. A lever the host did not wire up is not

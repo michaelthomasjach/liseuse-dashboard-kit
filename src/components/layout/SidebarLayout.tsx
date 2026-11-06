@@ -243,13 +243,17 @@ function NavGroup({ item, onNavigate, rail = false }: { item: SidebarNavItem; on
           </>
         )}
       </button>
-      {expanded && (
-        <div className="lq-sidebar-layout__group-items" role="group" aria-label={item.label}>
-          {item.children?.map((c) => (
-            <NavLink key={c.id} item={c} rail={rail} onNavigate={onNavigate} nested />
-          ))}
+      {/* Toujours rendu pour que le sous-menu se déplie et se replie en douceur ; replié, il est inerte (ni clavier,
+          ni lecteur d'écran). */}
+      <div className="lq-sidebar-layout__group-fold" {...(expanded ? {} : { inert: "", "aria-hidden": true })}>
+        <div className="lq-sidebar-layout__group-clip">
+          <div className="lq-sidebar-layout__group-items" role="group" aria-label={item.label}>
+            {item.children?.map((c) => (
+              <NavLink key={c.id} item={c} rail={rail} onNavigate={onNavigate} nested />
+            ))}
+          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }

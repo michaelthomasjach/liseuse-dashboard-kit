@@ -102,6 +102,52 @@
   transform: rotate(180deg);
 }
 
+/* Ouverture du sous-menu : il se déplie (hauteur animée par la ligne de grille 0fr → 1fr), ses entrées apparaissent
+   l'une après l'autre en glissant légèrement ; il se replie d'un seul mouvement. */
+.lq-sidebar-layout__group-fold {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 260ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.lq-sidebar-layout__group--open > .lq-sidebar-layout__group-fold {
+  grid-template-rows: 1fr;
+}
+
+.lq-sidebar-layout__group-clip {
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Sélecteurs appuyés : la variante rail redéfinit la transition des entrées (couleur) avec plus de poids. */
+.lq-sidebar-layout__group-fold .lq-sidebar-layout__group-items > .lq-sidebar-layout__nav-item {
+  opacity: 0;
+  transform: translateX(-8px);
+  transition: color var(--lq-transition-fast), opacity 160ms ease, transform 160ms ease;
+}
+
+.lq-sidebar-layout__group--open > .lq-sidebar-layout__group-fold .lq-sidebar-layout__group-items > .lq-sidebar-layout__nav-item {
+  opacity: 1;
+  transform: none;
+  transition: color var(--lq-transition-fast), opacity 240ms ease, transform 280ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.lq-sidebar-layout__group--open > .lq-sidebar-layout__group-fold .lq-sidebar-layout__group-items > .lq-sidebar-layout__nav-item:nth-child(1) { transition-delay: 0ms, 60ms, 60ms; }
+.lq-sidebar-layout__group--open > .lq-sidebar-layout__group-fold .lq-sidebar-layout__group-items > .lq-sidebar-layout__nav-item:nth-child(2) { transition-delay: 0ms, 100ms, 100ms; }
+.lq-sidebar-layout__group--open > .lq-sidebar-layout__group-fold .lq-sidebar-layout__group-items > .lq-sidebar-layout__nav-item:nth-child(3) { transition-delay: 0ms, 140ms, 140ms; }
+.lq-sidebar-layout__group--open > .lq-sidebar-layout__group-fold .lq-sidebar-layout__group-items > .lq-sidebar-layout__nav-item:nth-child(4) { transition-delay: 0ms, 180ms, 180ms; }
+.lq-sidebar-layout__group--open > .lq-sidebar-layout__group-fold .lq-sidebar-layout__group-items > .lq-sidebar-layout__nav-item:nth-child(5) { transition-delay: 0ms, 220ms, 220ms; }
+.lq-sidebar-layout__group--open > .lq-sidebar-layout__group-fold .lq-sidebar-layout__group-items > .lq-sidebar-layout__nav-item:nth-child(n + 6) { transition-delay: 0ms, 260ms, 260ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  .lq-sidebar-layout__group-fold,
+  .lq-sidebar-layout__group-fold .lq-sidebar-layout__group-items > .lq-sidebar-layout__nav-item,
+  .lq-sidebar-layout__group--open > .lq-sidebar-layout__group-fold .lq-sidebar-layout__group-items > .lq-sidebar-layout__nav-item {
+    transform: none;
+    transition: none;
+  }
+}
+
 /* Sub-items hang off a vertical bar that starts under the group's icon, each with a short tick before its own icon. */
 .lq-sidebar-layout__group-items {
   display: flex;

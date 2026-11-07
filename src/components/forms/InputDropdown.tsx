@@ -16,10 +16,25 @@ export interface InputDropdownOption<T extends string = string> {
   disabled?: boolean;
 }
 
-export interface InputDropdownProps<T extends string = string> {
-  options: InputDropdownOption<T>[];
+interface InputDropdownSingle<T extends string> {
+  /** One value (default). */
+  multiple?: false;
   value: T | null;
   onChange: (value: T, option: InputDropdownOption<T>) => void;
+}
+
+interface InputDropdownMultiple<T extends string> {
+  /** Several values: a click (or Enter) ticks or unticks an option, the list stays open and the
+   *  typed search is kept, so several options can be picked in a row. The field shows how many are
+   *  selected and their labels. */
+  multiple: true;
+  value: T[];
+  /** Whole new selection, and the option just ticked or unticked. */
+  onChange: (values: T[], option: InputDropdownOption<T>) => void;
+}
+
+interface InputDropdownBaseProps<T extends string = string> {
+  options: InputDropdownOption<T>[];
   label?: string;
   placeholder?: string;
   placement?: "bottom" | "top";
@@ -52,6 +67,8 @@ export interface InputDropdownProps<T extends string = string> {
   leadingIcon?: ReactNode;
 }
 
+export type InputDropdownProps<T extends string = string> = InputDropdownBaseProps<T> & (InputDropdownSingle<T> | InputDropdownMultiple<T>);
+
 const fold = (s: string): string => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
 const defaultFilter = <T extends string>(o: InputDropdownOption<T>, q: string): boolean => {
@@ -79,12 +96,12 @@ function Highlight({ text, query }: { text: string; query: string }) {
  * arrow keys move through them, Enter picks, Escape closes and restores the current value. Built on
  * the same `Popover` and field styles as `Select`, so the two read as one family. For a server-side
  * search, pass `filter={false}`, run the query from `onInputChange` and feed the results back
- * through `options` (with `loading` while it runs).
+ * through `options` (with `loading` while it runs). With `multiple`, `value` is an array and each
+ * pick ticks or unticks an option without closing the list.
  */
-export function InputDropdown<T extends string = string>({
+export function InputDropdown<T extends string = string>(props: InputDropdownProps<T>) {
+  const {
   options,
-  value,
-  onChange,
   label,
   placeholder = "Rechercher…",
   placement = "bottom",
@@ -102,13 +119,20 @@ export function InputDropdown<T extends string = string>({
   maxResults = 200,
   leadingIcon,
   labelPosition: ownLabelPosition,
-}: InputDropdownProps<T>) {
+  } = props;
+  const multiple = props.multiple === true;
+  const values: T[] = props.multiple === true ? props.value : props.value === null ? [] : [props.value];
+  const value = values[0] ?? null;
+  const isSelected = (v: T): boolean => values.includes(v);
   const id = useId();
   const listId = `${id}-list`;
   const anchorRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
-  const selected = options.find((o) => o.value === value) ?? null;
+  const selected = multiple ? null : (options.find((o) => o.value === value) ?? null);
+  // Plusieurs valeurs : le champ résume la sélection (« 3 sélectionnés · A, B, C »).
+  const chosen = multiple ? options.filter((o) => values.includes(o.value)) : [];
+  const summary = multiple && chosen.length ? `${chosen.length} sélectionné${chosen.length > 1 ? "s" : ""} · ${chosen.map((o) => o.label).join(", ")}` : "";
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [typing, setTyping] = useState(false);
@@ -122,10 +146,10 @@ export function InputDropdown<T extends string = string>({
   // L'option active reste sur la sélection à l'ouverture, sinon sur la première option disponible.
   useEffect(() => {
     if (!open) return;
-    const sel = visible.findIndex((o) => o.value === value);
+    const sel = multiple ? -1 : visible.findIndex((o) => o.value === value);
     const first = visible.findIndex((o) => !o.disabled);
     setActive(!typing && sel >= 0 ? sel : Math.max(0, first));
-  }, [open, visible, value, typing]);
+  }, [open, visible, value, typing, multiple]);
 
   useEffect(() => {
     if (!open) return;
@@ -140,7 +164,12 @@ export function InputDropdown<T extends string = string>({
 
   const pick = (o: InputDropdownOption<T>): void => {
     if (o.disabled) return;
-    onChange(o.value, o);
+    if (props.multiple === true) {
+      // Coche ou décoche, la liste reste ouverte (la recherche tapée aussi).
+      props.onChange(isSelected(o.value) ? values.filter((v) => v !== o.value) : [...values, o.value], o);
+      return;
+    }
+    props.onChange(o.value, o);
     close();
   };
 
@@ -174,7 +203,7 @@ export function InputDropdown<T extends string = string>({
     }
   };
 
-  const text = typing ? query : (selected?.label ?? "");
+  const text = typing ? query : multiple ? summary : (selected?.label ?? "");
   const inside = useFieldLabelPosition(ownLabelPosition) === "inside" && Boolean(label);
   const input = (
     <input
@@ -191,7 +220,7 @@ export function InputDropdown<T extends string = string>({
       autoComplete="off"
       spellCheck={false}
       disabled={disabled}
-      placeholder={selected && !typing ? selected.label : placeholder}
+      placeholder={selected && !typing ? selected.label : multiple && summary && !typing ? summary : placeholder}
       value={text}
       onFocus={(e) => {
         setOpen(true);
@@ -243,7 +272,7 @@ export function InputDropdown<T extends string = string>({
         ) : (
           input
         )}
-        {onClear && selected && !disabled && (
+        {onClear && (selected || (multiple && values.length > 0)) && !disabled && (
           <button
             type="button"
             className="lq-input-dropdown__clear"
@@ -269,7 +298,14 @@ export function InputDropdown<T extends string = string>({
       ) : null}
 
       <Popover open={open} onClose={close} anchorRef={anchorRef} placement={placement} matchAnchorWidth>
-        <ul ref={listRef} id={listId} className="lq-select__list lq-input-dropdown__list" role="listbox" aria-label={label ?? ariaLabel}>
+        <ul
+          ref={listRef}
+          id={listId}
+          className="lq-select__list lq-input-dropdown__list"
+          role="listbox"
+          aria-label={label ?? ariaLabel}
+          aria-multiselectable={multiple || undefined}
+        >
           {loading && <li className="lq-input-dropdown__status">Recherche…</li>}
           {!loading && visible.length === 0 && <li className="lq-input-dropdown__status">{emptyMessage}</li>}
           {visible.map((o, i) => {
@@ -286,7 +322,7 @@ export function InputDropdown<T extends string = string>({
                 id={`${id}-opt-${i}`}
                 data-index={i}
                 role="option"
-                aria-selected={o.value === value}
+                aria-selected={isSelected(o.value)}
                 aria-disabled={o.disabled || undefined}
                 className={["lq-select__option", "lq-input-dropdown__option", i === active && "is-active", o.disabled && "is-disabled"].filter(Boolean).join(" ")}
                 // Garde le focus dans le champ : le clic choisit sans fermer le clavier.
@@ -304,7 +340,7 @@ export function InputDropdown<T extends string = string>({
                     </span>
                   )}
                 </span>
-                {o.value === value && <CheckIcon size={16} />}
+                {isSelected(o.value) && <CheckIcon size={16} />}
               </li>,
             ];
           })}

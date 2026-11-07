@@ -105,6 +105,26 @@ export const ServerSearch: Story = {
   },
 };
 
+export const Multiple: Story = {
+  name: "Choix multiple",
+  render: () => {
+    const [values, setValues] = useState<string[]>(["FR", "DE"]);
+    return (
+      <div style={{ maxWidth: 360 }}>
+        <InputDropdown
+          multiple
+          label="Pays"
+          placeholder="Choisir un ou plusieurs pays"
+          options={COUNTRIES}
+          value={values}
+          onChange={setValues}
+          onClear={() => setValues([])}
+        />
+      </div>
+    );
+  },
+};
+
 export const Sizes: Story = {
   name: "Tailles (small / normal)",
   render: () => {

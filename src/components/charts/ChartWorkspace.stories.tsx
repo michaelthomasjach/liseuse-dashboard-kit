@@ -2,7 +2,7 @@ import { useState } from "react";
 import { SAMPLE_BROKERS } from "../../test-data/sampleBrokers";
 import { AAPL_FINANCIALS } from "../../test-data/symbolFinancialsSample";
 import type { Meta, StoryObj } from "@storybook/react";
-import { ChartWorkspace } from "./ChartWorkspace";
+import { ChartWorkspace, type ChartWorkspaceGridLayoutId } from "./ChartWorkspace";
 import { CandlestickChart } from "./CandlestickChart";
 import { generateCandles } from "../../test-data/financeSampleData";
 import type { ChartWorkspaceWatchlist } from "./workspace/ChartWorkspaceWatchlist.interface";
@@ -39,9 +39,9 @@ export const EightPanels: Story = {
           `defaultPanels={8}` — huit graphiques pré-configurés en enfants ; AAPL et MSFT (panneaux 1 et 2) sont
           liés par défaut (`defaultLinkGroups`) : survoler l'une des deux affiche le crosshair sur l'autre, à la
           date la plus proche dans <em>ses propres</em> données (longueurs et plages différentes entre les huit
-          séries, exprès). Chaque panneau a sa propre icône grille (écran divisé, 2/4/6/8) et icône chaîne
-          (gestion des groupes) dans son en-tête — cliquer la grille change la disposition pour l'espace de
-          travail entier, quel que soit le panneau depuis lequel on clique.
+          séries, exprès). L'icône chaîne de chaque en-tête gère les groupes ; le bouton « Disposition des
+          fenêtres » du rail de droite (il montre la disposition courante) change la grille de tout l'espace
+          de travail : de 1 à 8 fenêtres, côte à côte, empilées ou une grande à côté de plusieurs petites.
         </p>
         <ChartWorkspace brokers={SAMPLE_BROKERS} defaultPanels={8} defaultLinkGroups={groups} onLinkGroupsChange={setGroups}>
           <CandlestickChart data={DATASETS.AAPL} symbol="AAPL" zoomable />
@@ -72,6 +72,62 @@ export const TwoPanels: Story = {
       </ChartWorkspace>
     </div>
   ),
+};
+
+/** Le menu « Disposition des fenêtres » du rail de droite, ouvert sur une disposition qui n'est pas
+ *  une simple grille : 1 grande fenêtre à gauche, 2 empilées à droite. Le menu montre une ligne par
+ *  nombre de fenêtres (1 à 8) et une icône par disposition, dessinée depuis la même définition que la
+ *  grille. Huit graphiques en enfants : la disposition choisie prend les N premiers. */
+export const GridLayouts: Story = {
+  name: "Dispositions des fenêtres (menu à icônes)",
+  render: () => (
+    <div style={{ margin: -32 }}>
+      <ChartWorkspace brokers={SAMPLE_BROKERS} defaultGridLayout="3-big-left">
+        {Object.entries(DATASETS).map(([symbol, data]) => (
+          <CandlestickChart key={symbol} data={data} symbol={symbol} zoomable />
+        ))}
+      </ChartWorkspace>
+    </div>
+  ),
+};
+
+const GRID_LAYOUT_STORAGE_KEY = "lq-story-workspace-grid-layout";
+
+/** La disposition tenue par l'hôte (`gridLayout` + `onGridLayoutChange`) et retrouvée au
+ *  rechargement : l'espace de travail ne mémorise rien lui-même, c'est l'hôte qui garde le choix —
+ *  ici dans localStorage — et le lui rend. Recharger la page après avoir choisi une disposition la
+ *  rouvre telle quelle. */
+export const RememberedGridLayout: Story = {
+  name: "Disposition contrôlée et mémorisée",
+  render: function RememberedGridLayoutStory() {
+    const [layout, setLayout] = useState<ChartWorkspaceGridLayoutId>(() => {
+      try {
+        return (window.localStorage.getItem(GRID_LAYOUT_STORAGE_KEY) as ChartWorkspaceGridLayoutId | null) ?? "5-big-left";
+      } catch {
+        return "5-big-left";
+      }
+    });
+    return (
+      <div style={{ margin: -32 }}>
+        <ChartWorkspace
+          brokers={SAMPLE_BROKERS}
+          gridLayout={layout}
+          onGridLayoutChange={(id) => {
+            setLayout(id);
+            try {
+              window.localStorage.setItem(GRID_LAYOUT_STORAGE_KEY, id);
+            } catch {
+              // Rien à mémoriser si le navigateur refuse : la disposition reste celle de la session.
+            }
+          }}
+        >
+          {Object.entries(DATASETS).map(([symbol, data]) => (
+            <CandlestickChart key={symbol} data={data} symbol={symbol} zoomable />
+          ))}
+        </ChartWorkspace>
+      </div>
+    );
+  },
 };
 
 const SYMBOL_PROFILE_WATCHLISTS: ChartWorkspaceWatchlist[] = [

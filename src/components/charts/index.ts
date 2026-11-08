@@ -47,10 +47,15 @@ export type {
   ChartWorkspaceWatchlistColumn,
   ChartWorkspaceWatchlistRow,
   ChartWorkspaceSidePanelTab,
+  ChartWorkspaceGridArea,
+  ChartWorkspaceGridLayout,
+  ChartWorkspaceGridLayoutId,
+  ChartWorkspacePanelCount,
   WatchlistEarningsRow,
   WatchlistDividendRow,
   WatchlistNewsItem,
 } from "./ChartWorkspace";
+export { CHART_WORKSPACE_GRID_LAYOUTS } from "./workspace/gridLayouts";
 export type {
   SymbolProfile,
   SymbolProfilePerformancePoint,

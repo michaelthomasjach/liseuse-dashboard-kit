@@ -5,7 +5,11 @@ import { Modal } from "../../primitives/Modal";
  *  naturally (layout, then focus, then protection) rather than the order their own buttons sit in
  *  the rail. */
 const HELP_ITEMS: { title: string; description: string }[] = [
-  { title: "Écran divisé", description: "Affiche 1, 2, 4, 6 ou 8 graphiques à la fois, répartis en grille." },
+  {
+    title: "Disposition des fenêtres",
+    description:
+      "Affiche de 1 à 8 graphiques à la fois, côte à côte, les uns au-dessus des autres, ou un grand à côté de plusieurs petits : choisissez la disposition dans la liste à icônes du rail.",
+  },
   {
     title: "Focus fenêtre active",
     description: "Une fois plusieurs graphiques affichés, agrandit celui survolé pour qu'il occupe toute la grille — les autres restent ouverts en dessous, juste masqués. Recliquer restaure la disposition.",

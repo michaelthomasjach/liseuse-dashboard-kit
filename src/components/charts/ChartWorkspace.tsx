@@ -38,7 +38,16 @@ import { useFullscreen } from "./internal/useFullscreen";
 import { useChartDimensions } from "./internal/useChartDimensions";
 import { MOBILE_LAYOUT_BREAKPOINT } from "./candlestick/constants";
 import { useViewportWidth } from "./internal/useViewportWidth";
+import {
+  gridAreaValue,
+  resolveGridLayout,
+  type ChartWorkspaceGridLayout,
+  type ChartWorkspaceGridLayoutId,
+  type ChartWorkspacePanelCount,
+} from "./workspace/gridLayouts";
 import "./ChartWorkspace.css";
+
+export type { ChartWorkspaceGridArea, ChartWorkspaceGridLayout, ChartWorkspaceGridLayoutId, ChartWorkspacePanelCount } from "./workspace/gridLayouts";
 
 
 
@@ -61,9 +70,6 @@ import { BrokerPanel } from "./candlestick/broker/components/BrokerPanel";
 import { useBrokerState } from "./candlestick/broker/useBrokerState";
 import { Modal } from "../primitives/Modal";
 
-const GRID_COLUMNS: Record<1 | 2 | 4 | 6 | 8, number> = { 1: 1, 2: 2, 4: 2, 6: 3, 8: 4 };
-const GRID_ROWS: Record<1 | 2 | 4 | 6 | 8, number> = { 1: 1, 2: 1, 4: 2, 6: 2, 8: 2 };
-
 /** A stable empty list, so a workspace given no brokers does not hand `useBrokerState` a fresh
  *  array on every render and re-run everything that depends on it. */
 const EMPTY_BROKER_ADAPTERS: BrokerAdapter[] = [];
@@ -73,15 +79,34 @@ const EMPTY_BROKER_ADAPTERS: BrokerAdapter[] = [];
 const WORKSPACE_TOUR_SEEN_KEY = "lq-workspace-tour-seen";
 
 export interface ChartWorkspaceProps {
-  /** Uncontrolled initial panel count — also picks the grid: 1 is a plain single chart (no grid
-   *  chrome), 2 is a single row, 4/6/8 wrap into two rows (2/3/4 columns respectively). Owned
-   *  internally from here on (same uncontrolled pattern as everywhere else in this library): the
-   *  right-edge rail's own "Écran divisé" button lets the user change it live — including going
+  /** Uncontrolled initial panel count, for a caller that only cares how many panels there are —
+   *  the grid is that count's default layout (`DEFAULT_GRID_LAYOUT_BY_PANELS`): 1 is a plain single
+   *  chart, 2 and 3 a single row, 4/6/8 two rows of 2/3/4 columns (the grids this workspace always
+   *  had for those counts), 5 is 2 above 3, 7 is 3 above 4. `defaultGridLayout` wins when both are
+   *  given. Owned internally from here on (same uncontrolled pattern as everywhere else in this
+   *  library): the right-edge rail's own layout menu lets the user change it live — including going
    *  from 1 up to a split view and back — same as the chain-link button does for groups. Default
    *  1. */
-  defaultPanels?: 1 | 2 | 4 | 6 | 8;
-  /** Fires whenever the panel count changes via the rail's own "Écran divisé" menu. */
-  onPanelsChange?: (panels: 1 | 2 | 4 | 6 | 8) => void;
+  defaultPanels?: ChartWorkspacePanelCount;
+  /** Fires whenever the panel count changes via the rail's own layout menu — only when the *count*
+   *  changes; switching between two layouts of the same count fires `onGridLayoutChange` alone. */
+  onPanelsChange?: (panels: ChartWorkspacePanelCount) => void;
+  /** Controlled layout: how many panels, and where each one goes (side by side, stacked, one large
+   *  beside several small…) — an id from `CHART_WORKSPACE_GRID_LAYOUTS`, e.g. `"3-big-left"`. Set
+   *  it to drive the layout from outside (and update it from `onGridLayoutChange`); leave it out for
+   *  the usual uncontrolled behaviour (`defaultGridLayout`/`defaultPanels`). An id that names no
+   *  layout falls back to the default layout for `defaultPanels`.
+   *
+   *  Named `gridLayout` rather than `layout`, which already exists and means something else (the
+   *  desktop/mobile switch below). */
+  gridLayout?: ChartWorkspaceGridLayoutId;
+  /** Uncontrolled initial layout (see `gridLayout`) — wins over `defaultPanels`. The workspace
+   *  remembers nothing on its own; to bring the reader's choice back on the next visit, keep what
+   *  `onGridLayoutChange` reports (localStorage, an account preference…) and hand it back here. An
+   *  id that names no layout (an older saved value, say) falls back to `defaultPanels`. */
+  defaultGridLayout?: ChartWorkspaceGridLayoutId;
+  /** Fires whenever the reader picks another layout in the rail's own layout menu. */
+  onGridLayoutChange?: (layout: ChartWorkspaceGridLayoutId) => void;
   /** A single pre-configured `<CandlestickChart {...allTheOptions} />` — the same "compose, don't
    *  configure" shape as everywhere else a caller hands this library a data source of their own,
    *  `ChartWorkspace` only adds layout and cross-chart sync on top. Every panel gets its own
@@ -98,8 +123,10 @@ export interface ChartWorkspaceProps {
    *  (default) to instead fill 100% of the viewport height, splitting that budget evenly across
    *  however many rows the current panel count needs (a plain CSS grid fraction per row) — the
    *  usual choice for a workspace that's the main content of its own page. Always filled this way
-   *  once the grid wraps into two rows (4/6/8 panels) regardless of this prop: stacking two rows'
-   *  worth of a height meant for *one* row would run well past the screen. */
+   *  once the layout has more than one row (2×2, stacked panels, one large above several…)
+   *  regardless of this prop: stacking several rows' worth of a height meant for *one* row would
+   *  run well past the screen, and a panel spanning two rows has to be exactly as tall as the two
+   *  beside it. */
   panelHeight?: number;
   /** Uncontrolled initial link groups — each a plain array of panel indices (0-based). */
   defaultLinkGroups?: number[][];
@@ -112,7 +139,7 @@ export interface ChartWorkspaceProps {
    *  single standalone chart used outside a workspace entirely): a single `children` template
    *  gets cloned into every panel here (see `panelElements` below), so a docked panel set on that
    *  template would render once *per panel* instead of once for the whole workspace — a watchlist
-   *  duplicated 2/4/6/8 times over instead of shown once beside the whole grid.
+   *  duplicated up to 8 times over instead of shown once beside the whole grid.
    *  `CandlestickChart.sidePanel` is stripped from every cloned panel below for exactly that
    *  reason; set it here instead. More than one list gets a clickable name + caret in the panel's
    *  own header that opens a dropdown of every list to switch between (see
@@ -253,7 +280,8 @@ export interface ChartWorkspaceProps {
   className?: string;
 }
 
-/** A split-screen grid of `CandlestickChart`s (1/2/4/6/8 panels) whose crosshairs can be synced
+/** A split-screen grid of `CandlestickChart`s (1 to 8 panels, side by side, stacked or a mix of
+ *  both — see `gridLayout`) whose crosshairs can be synced
  *  across whichever ones the user links together — hovering a candle on any panel in a group
  *  draws the same crosshair (vertical line, date badge, OHLC readout, plus the horizontal price
  *  line/badge) on every other panel in that group, each axis translated to that panel's own
@@ -266,6 +294,9 @@ export interface ChartWorkspaceProps {
 export function ChartWorkspace({
   defaultPanels = 1,
   onPanelsChange,
+  gridLayout,
+  defaultGridLayout,
+  onGridLayoutChange,
   children,
   panelHeight,
   defaultLinkGroups,
@@ -304,14 +335,21 @@ export function ChartWorkspace({
   onScriptAlert,
   className,
 }: ChartWorkspaceProps) {
-  const [panels, setPanels] = useState(defaultPanels);
+  // The layout is the one piece of state here; the panel count is read off it rather than kept
+  // beside it, so the two can never disagree. Uncontrolled by default (seeded once from
+  // `defaultGridLayout`, else `defaultPanels`' own default layout), controlled while `gridLayout`
+  // is set — the own state still follows every pick, so dropping `gridLayout` later carries on
+  // from the last layout shown rather than jumping back to the seed.
+  const [ownGridLayoutId, setOwnGridLayoutId] = useState<ChartWorkspaceGridLayoutId>(() => resolveGridLayout(defaultGridLayout, defaultPanels).id);
+  const currentGridLayout = resolveGridLayout(gridLayout ?? ownGridLayoutId, defaultPanels);
+  const panels = currentGridLayout.panels;
   const { groups, linkPanels, unlinkGroup } = useLinkGroups({ defaultLinkGroups, onLinkGroupsChange });
   // `groups` clamped to the current panel count, without touching the underlying committed state
   // — same "recompute from source rather than mutate" pattern `effectiveFocusedPanelIndex` below
   // already uses: a group involving a panel index the workspace no longer has recovers
   // automatically if it grows back to include that index again, instead of permanently losing
   // that membership the moment it briefly shrinks (reducing the panel count is always reachable
-  // via the rail's own "Écran divisé" menu, no gate on it). Each group's own *membership* is
+  // via the rail's own layout menu, no gate on it). Each group's own *membership* is
   // filtered here, not the groups array itself sliced down — a group's position in this array
   // still matches unlinkGroup's own index into the *real* array below, so LinkGroupsModal can
   // still dissolve the right one; it just skips rendering any group left with fewer than 2 real
@@ -487,9 +525,11 @@ export function ChartWorkspace({
       onWatchlistRowClick,
     });
 
-  function handlePanelsChange(next: 1 | 2 | 4 | 6 | 8) {
-    setPanels(next);
-    onPanelsChange?.(next);
+  function handleGridLayoutChange(next: ChartWorkspaceGridLayout) {
+    if (next.id === currentGridLayout.id) return;
+    setOwnGridLayoutId(next.id);
+    onGridLayoutChange?.(next.id);
+    if (next.panels !== panels) onPanelsChange?.(next.panels);
   }
 
   // A single child is a *template*, repeated to fill every panel — each still becomes its own
@@ -524,13 +564,20 @@ export function ChartWorkspace({
     change: currentProfileChange,
     changePercent: currentProfileChangePercent,
   } = currentSymbolProfile(effectiveFocusedPanelIndex, panelElements, resolvedSymbol, symbolProfiles);
-  const columns = GRID_COLUMNS[panels];
-  const rows = GRID_ROWS[panels];
+  const { columns, rows } = currentGridLayout;
+  // Where each panel goes, as one custom property per panel on the grid (`--lq-workspace-area-1`
+  // for the first, and so on) — read by the `:nth-child` rules in ChartWorkspace.css rather than
+  // set on each panel: a panel is a `CandlestickChart`, which takes no `style`, and an inline
+  // `grid-area` would beat the mobile rule that has to stack every panel in one column.
+  const gridAreaProperties = Object.fromEntries(
+    currentGridLayout.areas.map((area, i) => [`--lq-workspace-area-${i + 1}`, gridAreaValue(area)])
+  );
   // Fills 100% of the viewport height whenever the caller hasn't opted into a fixed `panelHeight`
-  // — always true once the grid wraps into two rows (stacking two rows' worth of a single-row
-  // height would run well past the screen regardless of what the caller asked for), and now also
-  // the default for a single row (1/2 panels) since that's the more common case in practice: a
-  // workspace that's the main content of its own page, same as any other panel count.
+  // — always true once the layout has more than one row (stacking several rows' worth of a
+  // single-row height would run well past the screen regardless of what the caller asked for, and
+  // a panel spanning two rows must match the two beside it), and now also the default for a single
+  // row since that's the more common case in practice: a workspace that's the main content of its
+  // own page, same as any other layout.
   // Whole-workspace fullscreen too: the fixed `panelHeight` is meant for the page, not for a box that now covers the
   // viewport — keeping it left the panels at their page height in the top part of an otherwise empty fullscreen box.
   const fillHeight = workspaceFullscreen || panelHeight === undefined || rows > 1;
@@ -630,7 +677,10 @@ export function ChartWorkspace({
       )}
       <div className="lq-chart-workspace__row">
       <div
-        className={["lq-chart-workspace__grid", lockHold.locked && "lq-chart-workspace__grid--locked"].filter(Boolean).join(" ")}
+        className={["lq-chart-workspace__grid", fillHeight && "lq-chart-workspace__grid--fill", lockHold.locked && "lq-chart-workspace__grid--locked"]
+          .filter(Boolean)
+          .join(" ")}
+        data-grid-layout={currentGridLayout.id}
         onPointerDown={lockHold.start}
         onPointerMove={lockHold.track}
         onPointerUp={lockHold.end}
@@ -640,21 +690,23 @@ export function ChartWorkspace({
           // How far through the hold we are, for the fade below — see LOCK_HOLD_MS. Zero (and so
           // no fade at all) whenever nothing is being held.
           ["--lq-lock-hold" as string]: lockHold.progress,
-          // Custom properties, not gridTemplateColumns/gridTemplateRows directly — an inline style
-          // always wins the cascade over a stylesheet rule, which would leave .lq-chart-workspace's
-          // own narrow-viewport media query (see ChartWorkspace.css) unable to ever override it.
-          // The actual `grid-template-columns: repeat(var(--lq-workspace-columns), 1fr)` lives in
-          // that stylesheet instead, where the media query can win normally; `--lq-workspace-
-          // panels` is the *panel* count (not `rows`, which is always ≤2 by GRID_ROWS above) so
-          // that same media query can give a collapsed single column one explicit row per panel,
-          // stacked, instead of splitting only 2 rows' worth of height across up to 4 of them.
+          // Custom properties, not gridTemplateColumns/gridTemplateRows/gridArea directly — an
+          // inline style always wins the cascade over a stylesheet rule, which would leave
+          // `.lq-chart-workspace--mobile`'s own single-column rule (see ChartWorkspace.css) unable
+          // to ever override it. The actual `grid-template-columns: repeat(var(--lq-workspace-
+          // columns), 1fr)` (and, under `--fill`, the matching rows) lives in that stylesheet
+          // instead, where the mobile rule can win normally; `--lq-workspace-panels` is the *panel*
+          // count (not `rows`, which a side-by-side layout keeps at 1) so that same rule can give a
+          // collapsed single column one explicit row per panel, stacked, instead of splitting only
+          // the layout's own rows' worth of height across every panel.
           ["--lq-workspace-columns" as string]: columns,
+          // `--fill` splits the row's own height evenly between the rows (a panel spanning two of
+          // them gets both shares), and each panel below gets `fillHeight` (see CandlestickChart's
+          // own useChartDimensions doc) so it measures and fills its own area's actual height via
+          // ResizeObserver rather than a hardcoded pixel figure.
+          ["--lq-workspace-rows" as string]: rows,
           ["--lq-workspace-panels" as string]: panels,
-          // gridTemplateRows splits the row's own height evenly between the rows, and each panel
-          // below gets `height: undefined` (see CandlestickChart's own useChartDimensions doc) so
-          // it measures and fills its own row's actual share via ResizeObserver rather than a
-          // hardcoded pixel figure.
-          ...(fillHeight ? { gridTemplateRows: `repeat(${rows}, 1fr)` } : {}),
+          ...gridAreaProperties,
         }}
       >
         {panelElements.map((child, i) =>
@@ -987,8 +1039,8 @@ export function ChartWorkspace({
               ? { connected: broker.session === null ? 0 : 1, onOpen: () => setBrokerModalOpen(true) }
               : undefined
           }
-          panels={panels}
-          onPanelsChange={handlePanelsChange}
+          gridLayout={currentGridLayout}
+          onGridLayoutChange={handleGridLayoutChange}
           workspaceFullscreen={workspaceFullscreen}
           onToggleWorkspaceFullscreen={toggleWorkspaceFullscreen}
           onOpenHelp={() => setHelpOpen(true)}

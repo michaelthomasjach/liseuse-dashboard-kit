@@ -145,21 +145,64 @@
   border-left: 1px solid var(--lq-color-border-subtle);
 }
 
-/* A split-screen workspace (2/4/6/8 panels) squeezed into a narrow phone viewport leaves each
-   panel too small to read at all — stack them into a single column instead, same as a mobile
-   trading app would rather than shrinking every panel down to a sliver. Only the *columns*
-   collapse; gridTemplateRows (see ChartWorkspace.tsx, set inline whenever fillHeight) is
-   untouched, so a 2-row layout (4/6/8 panels) still gets its own 100vh split, now stacked
-   1-per-row-share top to bottom instead of 2-per-row-share side by side.
+/* `fillHeight` (see ChartWorkspace.tsx): the layout's rows share the workspace's height evenly,
+   and a panel spanning two rows gets both shares. Without it (a fixed `panelHeight`, only ever on a
+   single-row layout) the rows are left implicit and size to the panels themselves. */
+.lq-chart-workspace__grid--fill {
+  grid-template-rows: repeat(var(--lq-workspace-rows), 1fr);
+}
+
+/* Where each panel goes in the current layout — its own `--lq-workspace-area-N`, set on the grid
+   by ChartWorkspace.tsx from the layout's definition (`row / column / span rows / span columns`,
+   see workspace/gridLayouts.ts). Panels are the grid's first children, in order, so the Nth child
+   is panel N; `.lq-chart` keeps the lock overlay and the hold gauge (absolutely positioned
+   siblings after the panels) out of it, since a grid area would become their containing block.
+   Read here rather than set inline on each panel so the mobile rule below can still undo it. */
+.lq-chart-workspace__grid > .lq-chart:nth-child(1) {
+  grid-area: var(--lq-workspace-area-1, auto);
+}
+.lq-chart-workspace__grid > .lq-chart:nth-child(2) {
+  grid-area: var(--lq-workspace-area-2, auto);
+}
+.lq-chart-workspace__grid > .lq-chart:nth-child(3) {
+  grid-area: var(--lq-workspace-area-3, auto);
+}
+.lq-chart-workspace__grid > .lq-chart:nth-child(4) {
+  grid-area: var(--lq-workspace-area-4, auto);
+}
+.lq-chart-workspace__grid > .lq-chart:nth-child(5) {
+  grid-area: var(--lq-workspace-area-5, auto);
+}
+.lq-chart-workspace__grid > .lq-chart:nth-child(6) {
+  grid-area: var(--lq-workspace-area-6, auto);
+}
+.lq-chart-workspace__grid > .lq-chart:nth-child(7) {
+  grid-area: var(--lq-workspace-area-7, auto);
+}
+.lq-chart-workspace__grid > .lq-chart:nth-child(8) {
+  grid-area: var(--lq-workspace-area-8, auto);
+}
+
+/* A split-screen workspace squeezed into a narrow phone viewport leaves each panel too small to
+   read at all — stack them into a single column instead, same as a mobile trading app would rather
+   than shrinking every panel down to a sliver. Whatever the layout (side by side, stacked, one
+   large beside several small), every panel drops its own place in it and takes one full-width row,
+   in panel order.
    Keyed on the `--mobile` class rather than a media query on the window: the class follows the
    `layout` prop, so a workspace pinned to `layout="desktop"` keeps its columns on a 1366 px laptop
    (with `layout="auto"` the class is set below the same 1500 px the query used). */
 .lq-chart-workspace--mobile .lq-chart-workspace__grid {
   grid-template-columns: 1fr;
-  /* One explicit row per *panel* (not the original `rows`, always ≤2 — see
-     --lq-workspace-panels' own doc in ChartWorkspace.tsx) so a 4/6/8-panel workspace's 100vh
-     budget splits evenly across every stacked panel instead of just the first 2. */
+  /* One explicit row per *panel* (not the layout's own `rows`, 1 for side by side — see
+     --lq-workspace-panels' own doc in ChartWorkspace.tsx) so the workspace's 100vh budget splits
+     evenly across every stacked panel instead of just the layout's own rows' worth. More specific
+     than `.lq-chart-workspace__grid--fill` above, so it wins over it. */
   grid-template-rows: repeat(var(--lq-workspace-panels), 1fr);
+}
+
+/* `:nth-child(n)` only to outrank the per-panel placement rules above (one more pseudo-class). */
+.lq-chart-workspace--mobile .lq-chart-workspace__grid > .lq-chart:nth-child(n) {
+  grid-area: auto;
 }
 
 /* Each panel is a plain grid cell — CandlestickChart itself already fills 100% of whatever
@@ -1077,6 +1120,74 @@
   margin-top: auto;
 }
 
+/* The rail's layout menu (see workspace/WorkspaceLayoutMenu.tsx) — TradingView's own layout menu
+   is the reference: one row per panel count, the count on the left, then one icon per layout.
+   Same panel, hover and selected colours as the chart's other dropdowns
+   (`.lq-chart__display-mode-menu`/`-option`), icons instead of text. */
+.lq-chart-workspace__layout-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--lq-space-2);
+}
+
+.lq-chart-workspace__layout-menu-row {
+  display: flex;
+  align-items: center;
+  gap: var(--lq-space-2);
+}
+
+.lq-chart-workspace__layout-menu-count {
+  flex: 0 0 auto;
+  min-width: 1.25em;
+  font-size: 0.8rem;
+  font-weight: var(--lq-font-weight-semibold, 600);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--lq-color-text-muted);
+}
+
+/* Wraps rather than widening the menu past the screen, should a row ever outgrow it. */
+.lq-chart-workspace__layout-menu-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  max-width: min(420px, calc(100vw - 64px));
+}
+
+.lq-chart-workspace__layout-option {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  color: var(--lq-color-text-muted);
+  background: none;
+  border: none;
+  border-radius: var(--lq-radius-sm);
+  cursor: pointer;
+}
+
+.lq-chart-workspace__layout-option:hover {
+  color: var(--lq-color-text);
+  background-color: var(--lq-color-hover);
+}
+
+.lq-chart-workspace__layout-option--selected,
+.lq-chart-workspace__layout-option--selected:hover {
+  color: var(--lq-color-accent-contrast);
+  background-color: var(--lq-color-fill);
+}
+
+.lq-chart-workspace__layout-option:focus-visible {
+  outline: 2px solid var(--lq-color-focus-ring);
+  outline-offset: 1px;
+}
+
+.lq-chart-workspace__layout-icon {
+  display: block;
+  flex: 0 0 auto;
+}
+
 .lq-chart-workspace__help-list {
   display: flex;
   flex-direction: column;
@@ -1120,6 +1231,15 @@
   z-index: 10;
   border-left: 1px solid var(--lq-color-border);
   border-top: 1px solid var(--lq-color-border);
+}
+
+/* An absolutely positioned grid item placed in a grid area takes that *area* as its containing
+   block — the focused panel would only cover its own cell. Dropping its placement (`auto`) gives
+   the grid's own box back as the containing block, which is what `inset: 0` above means. The
+   other panels keep their explicit places, so nothing shifts underneath. `:nth-child(n)` outranks
+   the per-panel placement rules. */
+.lq-chart-workspace__grid > .lq-chart-workspace__panel--focused.lq-chart--fullscreen:nth-child(n) {
+  grid-area: auto;
 }
 
 /* Item 20: a locked workspace (triple-click to unlock, quadruple-click-or-more to lock — see

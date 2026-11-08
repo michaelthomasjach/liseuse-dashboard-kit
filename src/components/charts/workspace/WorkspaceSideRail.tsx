@@ -1,18 +1,7 @@
-import { useRef, useState } from "react";
-import { Popover } from "../../forms/Popover";
-import { WatchlistIcon, AlarmClockIcon, GridIcon, MaximizeIcon, MinimizeIcon, HelpIcon, CodeIcon, SparkleIcon, PlugIcon } from "../../icons";
+import { WatchlistIcon, AlarmClockIcon, MaximizeIcon, MinimizeIcon, HelpIcon, CodeIcon, SparkleIcon, PlugIcon } from "../../icons";
 import type { ChartWorkspaceSidePanelTab } from "./useWorkspaceSidePanelState";
-
-// Moved here from CandlestickChart's own ChartHeader (see this file's own git history) — laying
-// out multiple panels is a workspace-wide concern, not a per-chart one, so the control for it
-// belongs on the workspace's own rail rather than duplicated/hidden inside each panel's header.
-const SPLIT_SCREEN_OPTIONS: { value: 1 | 2 | 4 | 6 | 8; label: string }[] = [
-  { value: 1, label: "1 fenêtre" },
-  { value: 2, label: "2 panneaux" },
-  { value: 4, label: "4 panneaux" },
-  { value: 6, label: "6 panneaux" },
-  { value: 8, label: "8 panneaux" },
-];
+import type { ChartWorkspaceGridLayout } from "./gridLayouts";
+import { WorkspaceLayoutMenu } from "./WorkspaceLayoutMenu";
 
 export interface WorkspaceSideRailProps {
   hasWatchlists: boolean;
@@ -26,8 +15,9 @@ export interface WorkspaceSideRailProps {
   /** Undefined when the workspace was given no `brokers` — the button then doesn't exist either.
    *  `connected` is only the count, which is all the rail needs to read as active. */
   broker?: { connected: number; onOpen: () => void };
-  panels: 1 | 2 | 4 | 6 | 8;
-  onPanelsChange: (panels: 1 | 2 | 4 | 6 | 8) => void;
+  /** The grid's current layout, and what picking another one in the layout menu calls. */
+  gridLayout: ChartWorkspaceGridLayout;
+  onGridLayoutChange: (layout: ChartWorkspaceGridLayout) => void;
   workspaceFullscreen: boolean;
   onToggleWorkspaceFullscreen: () => void;
   onOpenHelp: () => void;
@@ -48,15 +38,12 @@ export function WorkspaceSideRail({
   scripting,
   assistant,
   broker,
-  panels,
-  onPanelsChange,
+  gridLayout,
+  onGridLayoutChange,
   workspaceFullscreen,
   onToggleWorkspaceFullscreen,
   onOpenHelp,
 }: WorkspaceSideRailProps) {
-  const [splitScreenMenuOpen, setSplitScreenMenuOpen] = useState(false);
-  const splitScreenTriggerRef = useRef<HTMLButtonElement>(null);
-
   return (
     <div className="lq-chart-workspace__side-rail">
       {hasWatchlists && (
@@ -124,35 +111,13 @@ export function WorkspaceSideRail({
           <PlugIcon size={16} />
         </button>
       )}
-      <button
-        ref={splitScreenTriggerRef}
-        type="button"
-        className={["lq-chart__icon-button", splitScreenMenuOpen && "lq-chart__icon-button--active"].filter(Boolean).join(" ")}
-        onClick={() => setSplitScreenMenuOpen((o) => !o)}
-        aria-label="Écran divisé"
-        title="Écran divisé"
-      >
-        <GridIcon size={16} />
-      </button>
-      <Popover open={splitScreenMenuOpen} onClose={() => setSplitScreenMenuOpen(false)} anchorRef={splitScreenTriggerRef} placement="bottom">
-        <div className="lq-chart__display-mode-menu">
-          {SPLIT_SCREEN_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              type="button"
-              className={["lq-chart__display-mode-option", opt.value === panels && "lq-chart__display-mode-option--selected"].filter(Boolean).join(" ")}
-              onClick={() => {
-                onPanelsChange(opt.value);
-                setSplitScreenMenuOpen(false);
-              }}
-            >
-              <GridIcon size={15} />
-              {opt.label}
-            </button>
-          ))}
-        </div>
-      </Popover>
-      {/* The whole workspace, not just one panel — always visible, same as split-screen right
+      {/* Moved here from CandlestickChart's own ChartHeader (see this file's own git history) —
+          laying out multiple panels is a workspace-wide concern, not a per-chart one, so the
+          control for it belongs on the workspace's own rail rather than duplicated/hidden inside
+          each panel's header. It used to pick a panel count only (1/2/4/6/8); it now picks a whole
+          layout — how many panels, and where each one goes — see WorkspaceLayoutMenu. */}
+      <WorkspaceLayoutMenu layout={gridLayout} onLayoutChange={onGridLayoutChange} />
+      {/* The whole workspace, not just one panel — always visible, same as the layout menu right
           above it, with no panel-count precondition. */}
       <button
         type="button"

@@ -11,6 +11,7 @@ import {
 import { useFieldLabelPosition } from "../../theme/ThemeProvider";
 import { ErrorIcon } from "../icons";
 import { IconBase } from "../icons/IconBase";
+import { DictationButton } from "./Dictation";
 import "./field.css";
 import "./Textarea.css";
 
@@ -44,6 +45,8 @@ export interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElemen
   showCount?: boolean;
   /** Poignée de redimensionnement : `"vertical"` (défaut) ou `"none"`. Toujours `"none"` avec `autoResize`. */
   resize?: "none" | "vertical";
+  /** Bouton micro en bas à droite : dicter au lieu d'écrire (voir `Input`). */
+  dictation?: boolean | { lang?: string };
 }
 
 function lengthOf(value: TextareaHTMLAttributes<HTMLTextAreaElement>["value"]): number {
@@ -78,6 +81,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function 
     defaultValue,
     onChange,
     style,
+    dictation,
     ...rest
   },
   ref
@@ -207,6 +211,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function 
         ) : (
           textarea
         )}
+        {dictation && <DictationButton field={innerRef} disabled={disabled} {...(typeof dictation === "object" && dictation.lang ? { lang: dictation.lang } : {})} />}
         {inside && rest.required && (
           <span className="lq-field__required" aria-hidden="true">
             *

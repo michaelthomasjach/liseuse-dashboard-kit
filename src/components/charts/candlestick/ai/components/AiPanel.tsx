@@ -5,6 +5,7 @@ import type { AiSend } from "../interfaces/AiMessage.interface";
 import type { AiAssistant } from "../useAiAssistant";
 import { filterSlashCommands, slashCommandsFor, slashQueryAt, type SlashCommand } from "../slashCommands";
 import { filterMentions, mentionQueryAt, mentionSegments, type Mentionable } from "../mentions";
+import { DictationButton } from "../../../../forms/Dictation";
 import "./AiPanel.css";
 import type { ScriptReport } from "../../scripting/interfaces/ScriptReport.interface";
 import { ReportPrintWindow } from "../../scripting/components/ReportPrintWindow";
@@ -474,6 +475,8 @@ export function AiPanel({
         </div>
         <div className="lq-ai__composer-actions">
           <span className="lq-ai__composer-hint">Entrée pour envoyer · Maj+Entrée pour un retour à la ligne</span>
+          <span className="lq-ai__composer-end">
+          <DictationButton field={inputRef} disabled={send === null || busy} />
           {busy ? (
             <button type="button" className="lq-ai__send" onClick={stop}>
               Arrêter
@@ -483,6 +486,7 @@ export function AiPanel({
               Envoyer
             </button>
           )}
+          </span>
         </div>
       </div>
     </aside>

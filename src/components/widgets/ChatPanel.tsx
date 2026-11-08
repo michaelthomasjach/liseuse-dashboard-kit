@@ -1,3 +1,4 @@
+import { DictationButton } from "../forms/Dictation";
 import {
   useEffect,
   useId,
@@ -538,6 +539,7 @@ export function ChatPanel({
               <span id={hintId} className="lq-visually-hidden">
                 Entrée pour envoyer, Maj+Entrée pour aller à la ligne.
               </span>
+              <DictationButton field={inputRef} />
               <IconButton type="submit" className="lq-chat-panel__send" icon={<SendGlyph />} ariaLabel={sendLabel} title={sendLabel} disabled={!text.trim()} />
             </form>
           </>

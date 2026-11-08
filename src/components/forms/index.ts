@@ -5,6 +5,8 @@ export { Select } from "./Select";
 export type { SelectProps, SelectOption } from "./Select";
 
 export { Input } from "./Input";
+export { DictationButton, useDictation, speechRecognition } from "./Dictation";
+export type { DictationButtonProps, DictationOptions, DictationState } from "./Dictation";
 export type { InputProps } from "./Input";
 
 export { MaskedInput } from "./MaskedInput";

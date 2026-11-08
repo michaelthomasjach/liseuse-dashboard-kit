@@ -17,6 +17,7 @@ export {
   PrevTrackIcon,
   NextTrackIcon,
   SpeakerIcon,
+  MicIcon,
   SolarPanelIcon,
   BatteryIcon,
   GridPlugIcon,

@@ -273,6 +273,12 @@
   gap: var(--lq-space-2);
 }
 
+.lq-ai__composer-end {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lq-space-1, 4px);
+}
+
 .lq-ai__composer-hint {
   font-size: 10px;
   color: var(--lq-color-text-muted);

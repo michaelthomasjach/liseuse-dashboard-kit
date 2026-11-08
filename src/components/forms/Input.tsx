@@ -1,7 +1,8 @@
-import { forwardRef, useId, type InputHTMLAttributes, type ReactNode } from "react";
+import { forwardRef, useCallback, useId, useRef, type InputHTMLAttributes, type ReactNode } from "react";
 import { useFieldLabelPosition } from "../../theme/ThemeProvider";
 import { ErrorIcon } from "../icons";
 import { IconBase } from "../icons/IconBase";
+import { DictationButton } from "./Dictation";
 import "./field.css";
 
 /** Pendant de `ErrorIcon` pour l'état de succès : même cercle, une coche au lieu du point
@@ -38,14 +39,28 @@ export interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 
    * que libre, sans état React.
    */
   labelPosition?: "above" | "inside";
+  /**
+   * Bouton micro au bout du champ : dicter au lieu d'écrire (reconnaissance vocale du navigateur, texte écrit en direct
+   * dans le champ). `true` : en français ; `{ lang }` pour une autre langue. Invisible sans reconnaissance vocale.
+   */
+  dictation?: boolean | { lang?: string };
 }
 
 /** Base text input: label, leading/trailing icon slots, and an error state that
  *  every other form control in this library (Select, MaskedInput, DatePicker) shares visually. */
 export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
-  { label, error, success, helperText, leadingIcon, trailingIcon, className, containerClassName, id, disabled, size = "normal", labelPosition: ownLabelPosition, ...rest },
+  { label, error, success, helperText, leadingIcon, trailingIcon, className, containerClassName, id, disabled, size = "normal", labelPosition: ownLabelPosition, dictation, ...rest },
   ref
 ) {
+  const own = useRef<HTMLInputElement | null>(null);
+  const setRefs = useCallback(
+    (node: HTMLInputElement | null) => {
+      own.current = node;
+      if (typeof ref === "function") ref(node);
+      else if (ref) ref.current = node;
+    },
+    [ref]
+  );
   const autoId = useId();
   const inputId = id ?? autoId;
   const labelPosition = useFieldLabelPosition(ownLabelPosition);
@@ -56,7 +71,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
 
   const input = (
     <input
-      ref={ref}
+      ref={setRefs}
       id={inputId}
       className={["lq-field__input", size === "small" && "lq-field__input--small", className].filter(Boolean).join(" ")}
       disabled={disabled}
@@ -104,6 +119,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
           input
         )}
         {trailingIcon && <span className="lq-field__icon">{trailingIcon}</span>}
+        {dictation && <DictationButton field={own} disabled={disabled} {...(typeof dictation === "object" && dictation.lang ? { lang: dictation.lang } : {})} />}
         {inside && rest.required && (
           <span className="lq-field__required" aria-hidden="true">
             *

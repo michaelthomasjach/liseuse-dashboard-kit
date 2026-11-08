@@ -139,6 +139,15 @@ export const NextTrackIcon = (props: AnimatedIconProps) => (
   </IconBase>
 );
 
+/** Micro — la capsule sur son pied : dicter au lieu d'écrire. */
+export const MicIcon = (props: AnimatedIconProps) => (
+  <IconBase motion="pulse" {...props}>
+    <rect x="9" y="3" width="6" height="11" rx="3" />
+    <path d="M5.5 11a6.5 6.5 0 0 0 13 0" />
+    <path d="M12 17.5V21M8.5 21h7" />
+  </IconBase>
+);
+
 export const SpeakerIcon = (props: AnimatedIconProps) => (
   <IconBase motion="pulse" {...props}>
     <path d="M4 9.5h3.2L12 5.8v12.4l-4.8-3.7H4z" />

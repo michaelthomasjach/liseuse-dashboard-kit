@@ -1,0 +1,69 @@
+/* Bouton micro des champs de texte (dictée). Discret au repos, il bat pendant l'écoute. */
+.lq-dictation {
+  position: relative;
+  flex: 0 0 auto;
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  margin: 0 2px;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--lq-color-text-muted);
+  cursor: pointer;
+  transition: color var(--lq-transition-base, 150ms), background-color var(--lq-transition-base, 150ms);
+}
+.lq-dictation:hover:not(:disabled) {
+  color: var(--lq-color-text);
+  background: var(--lq-color-hover);
+}
+.lq-dictation:focus-visible {
+  outline: 2px solid var(--lq-color-focus-ring, var(--lq-color-accent));
+  outline-offset: 1px;
+}
+.lq-dictation:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.lq-dictation--on {
+  color: #fff;
+  background: var(--lq-color-down, #d9473f);
+}
+.lq-dictation--on:hover:not(:disabled) {
+  color: #fff;
+  background: var(--lq-color-down, #d9473f);
+}
+.lq-dictation--on::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  border: 2px solid var(--lq-color-down, #d9473f);
+  animation: lq-dictation-pulse 1.4s ease-out infinite;
+  pointer-events: none;
+}
+.lq-dictation--error:not(.lq-dictation--on) {
+  color: var(--lq-color-warning, #c98a14);
+}
+@keyframes lq-dictation-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(1.55);
+    opacity: 0;
+  }
+}
+/* Dans une zone de texte : en bas à droite, au-dessus du texte. */
+.lq-textarea__control .lq-dictation {
+  align-self: flex-end;
+  margin: 0 4px 4px 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .lq-dictation--on::after {
+    animation: none;
+  }
+}

@@ -51,6 +51,13 @@ export interface ChartSeries {
   bandOpacity?: number;
   /** Dashed line (e.g. a "before the shock" / counterfactual path). */
   dashed?: boolean;
+  /** Draws the line solid up to this X and dashed after it — one series for a history followed by
+   *  its projection (one legend entry, hidden together). Ignored when `dashed` is set. */
+  dashedFrom?: Date | number;
+  /** Y scale this series is drawn against: "primary" (default, the main Y axis) or "secondary" — a
+   *  second Y axis on the opposite side (see `LineAreaChartProps.secondaryYAxis`), for a series in
+   *  another unit (a yield in % beside a price in $). Each axis fits its own series' range. */
+  yAxis?: "primary" | "secondary";
   data: ChartPoint[];
 }
 
@@ -86,6 +93,12 @@ export interface LineAreaChartProps {
    *  "right" to match `CandlestickChart`'s own price-axis convention when embedding this as a
    *  sub-chart alongside it (see SeasonalityView). */
   yAxisOrientation?: "left" | "right";
+  /** Second Y axis, on the side opposite the main one, for the series marked `yAxis: "secondary"`:
+   *  its own domain and labels (no grid — the main axis keeps it). `inverted` puts its highest
+   *  values at the bottom (e.g. a real yield read against gold, which tends to move the other way).
+   *  Y zoom and drag rescale both axes together; `referenceLineY` and the ruler stay on the main
+   *  axis. Only drawn when at least one series uses it. */
+  secondaryYAxis?: { formatY?: (y: number) => string; ticks?: number; inverted?: boolean };
   /** Shows the Y axis (values and axis line). `false` keeps only the horizontal grid lines — pair
    *  it with a smaller `margin.left`. Default true. */
   showYAxis?: boolean;
@@ -198,6 +211,7 @@ export const LineAreaChart = forwardRef<LineAreaChartHandle, LineAreaChartProps>
   showLegend = true,
   fullscreenToggle = true,
   yAxisOrientation = "left",
+  secondaryYAxis,
   showYAxis = true,
   hideYAxisLine = false,
   showYAxisLine = true,
@@ -256,12 +270,19 @@ export const LineAreaChart = forwardRef<LineAreaChartHandle, LineAreaChartProps>
   const { isFullscreen, toggle: toggleFullscreen } = useFullscreen();
   // Y axis margin fitted to its labels once drawn (no fixed reserve beside them); an explicit margin on that side wins.
   const [yAxisRef, yLabelWidth] = useAxisLabelWidth();
+  const [y2AxisRef, y2LabelWidth] = useAxisLabelWidth();
   const side = yAxisOrientation === "right" ? "right" : "left";
+  // The secondary axis, when any series uses it, sits on the other side with its own fitted margin.
+  const side2 = side === "right" ? "left" : "right";
+  const hasSecondary = series.some((s) => s.yAxis === "secondary");
   const fitted: Partial<ChartMargin> = { ...margin };
   if (fitted[side] === undefined && yLabelWidth !== null) fitted[side] = yLabelWidth;
+  if (hasSecondary && fitted[side2] === undefined && y2LabelWidth !== null) fitted[side2] = y2LabelWidth;
   const [ref, dims] = useChartDimensions(fitted, { height: isFullscreen ? undefined : height });
 
   const visibleSeries = series.filter((s) => !hiddenIds.has(s.id));
+  const isSecondary = (s: ChartSeries): boolean => hasSecondary && s.yAxis === "secondary";
+  const formatFor = (s: ChartSeries): ((y: number) => string) | undefined => (isSecondary(s) ? secondaryYAxis?.formatY : formatY);
 
   // Every unique X across every visible series, sorted — what the crosshair itself snaps to (see
   // handlePointerMove), instead of just one series' own data. A single reference series only
@@ -323,18 +344,32 @@ export const LineAreaChart = forwardRef<LineAreaChartHandle, LineAreaChartProps>
   })();
   const hover = localHover ?? syncedHover;
 
-  const yScale = useMemo(() => {
-    const allY = visibleSeries.flatMap((s) => [...s.data.map((d) => d.y), ...(s.band ?? []).flatMap((b) => [b.low, b.high])]);
-    const [min, max] = d3.extent(allY) as [number, number];
-    const pad = (max - min) * 0.1 || 1;
+  // One scale per Y axis, each fitted to its own visible series (and their bands).
+  const fitYScale = (list: ChartSeries[], inverted: boolean) => {
+    const allY = list.flatMap((s) => [...s.data.map((d) => d.y), ...(s.band ?? []).flatMap((b) => [b.low, b.high])]);
+    const [min, max] = d3.extent(allY) as [number | undefined, number | undefined];
+    const domain: [number, number] = min === undefined || max === undefined ? [0, 1] : [min - ((max - min) * 0.1 || 1), max + ((max - min) * 0.1 || 1)];
     return d3
       .scaleLinear()
-      .domain([min - pad, max + pad])
-      .range([dims.boundedHeight, 0])
+      .domain(domain)
+      .range(inverted ? [0, dims.boundedHeight] : [dims.boundedHeight, 0])
       .nice();
-  }, [visibleSeries, dims.boundedHeight]);
+  };
+  const secondaryInverted = secondaryYAxis?.inverted ?? false;
+  const yScale = useMemo(
+    () => fitYScale(hasSecondary ? visibleSeries.filter((s) => s.yAxis !== "secondary") : visibleSeries, false),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [visibleSeries, hasSecondary, dims.boundedHeight],
+  );
+  const y2Scale = useMemo(
+    () => fitYScale(visibleSeries.filter((s) => s.yAxis === "secondary"), secondaryInverted),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [visibleSeries, secondaryInverted, dims.boundedHeight],
+  );
 
   const zoomedYScale = yTransform.rescaleY(yScale);
+  const zoomedY2Scale = yTransform.rescaleY(y2Scale);
+  const scaleFor = (s: ChartSeries) => (isSecondary(s) ? zoomedY2Scale : zoomedYScale);
 
   const { ref: zoomRef, reset: resetX, setTransform: setXTransformViaZoom } = useD3Zoom<SVGRectElement>({
     width: dims.boundedWidth,
@@ -390,37 +425,43 @@ export const LineAreaChart = forwardRef<LineAreaChartHandle, LineAreaChartProps>
 
   const curveFactory = curveType === "linear" ? d3.curveLinear : d3.curveMonotoneX;
 
-  const lineGen = d3
-    .line<ChartPoint>()
-    .x((d) => zoomedXScale(d.x as never))
-    .y((d) => zoomedYScale(d.y))
-    .curve(curveFactory);
+  // Each generator is built for the Y scale of the series it draws (main or secondary axis).
+  type YScale = typeof zoomedYScale;
+  const lineGen = (y: YScale) =>
+    d3
+      .line<ChartPoint>()
+      .x((d) => zoomedXScale(d.x as never))
+      .y((d) => y(d.y))
+      .curve(curveFactory);
 
-  const bandGen = d3
-    .area<{ x: Date | number; low: number; high: number }>()
-    .x((d) => zoomedXScale(d.x as never))
-    .y0((d) => zoomedYScale(d.low))
-    .y1((d) => zoomedYScale(d.high))
-    .curve(curveFactory);
+  const bandGen = (y: YScale) =>
+    d3
+      .area<{ x: Date | number; low: number; high: number }>()
+      .x((d) => zoomedXScale(d.x as never))
+      .y0((d) => y(d.low))
+      .y1((d) => y(d.high))
+      .curve(curveFactory);
 
-  const areaGen = d3
-    .area<ChartPoint>()
-    .x((d) => zoomedXScale(d.x as never))
-    .y0(dims.boundedHeight)
-    .y1((d) => zoomedYScale(d.y))
-    .curve(curveFactory);
+  const areaGen = (y: YScale) =>
+    d3
+      .area<ChartPoint>()
+      .x((d) => zoomedXScale(d.x as never))
+      .y0(dims.boundedHeight)
+      .y1((d) => y(d.y))
+      .curve(curveFactory);
 
   // Toward `referenceLineY` (not the plot's own bottom edge like `areaGen` above) — used by
   // `fillSignedAtReference`'s own per-segment fills. `curveLinear`, not `curveMonotoneX` like
   // every other generator here: each segment is only ever a handful of points bounded by an
   // exact interpolated crossing (see splitAtReference's own doc on why linear is close enough
   // and avoids kinks a re-started monotone curve would introduce right at that boundary).
-  const referenceAreaGen = d3
-    .area<ChartPoint>()
-    .x((d) => zoomedXScale(d.x as never))
-    .y0(() => zoomedYScale(referenceLineY ?? 0))
-    .y1((d) => zoomedYScale(d.y))
-    .curve(d3.curveLinear);
+  const referenceAreaGen = (y: YScale) =>
+    d3
+      .area<ChartPoint>()
+      .x((d) => zoomedXScale(d.x as never))
+      .y0(() => y(referenceLineY ?? 0))
+      .y1((d) => y(d.y))
+      .curve(d3.curveLinear);
 
   // Between two series' own values directly (not a fixed reference) — used by `fillBetween`'s
   // own per-segment fills. Same curveLinear reasoning as referenceAreaGen above.
@@ -558,11 +599,23 @@ export const LineAreaChart = forwardRef<LineAreaChartHandle, LineAreaChartProps>
               ticks={yTicks}
             />
           </g>
+          {hasSecondary && (
+            <g ref={y2AxisRef}>
+              <ChartAxis
+                className={[showYAxis ? null : "lq-chart__axis--hidden", yAxisLineHidden ? "lq-chart__axis--no-line" : null].filter(Boolean).join(" ") || undefined}
+                scale={zoomedY2Scale}
+                orientation={side2}
+                transform={side2 === "right" ? `translate(${dims.boundedWidth}, 0)` : undefined}
+                tickFormat={secondaryYAxis?.formatY ? (v) => secondaryYAxis.formatY!(Number(v)) : undefined}
+                ticks={secondaryYAxis?.ticks ?? yTicks}
+              />
+            </g>
+          )}
           {/* d3's own X-axis domain line only spans its scale's range ([0, boundedWidth]) — with
               the Y axis moved into a right-side margin column, that left it short of the chart's
               actual right edge, same gap CandlestickChart's own axis-line-extension already
-              fixes for its date axis. */}
-          {yAxisOrientation === "right" && (
+              fixes for its date axis. Same with a secondary axis on the right whose line is hidden. */}
+          {(yAxisOrientation === "right" || (hasSecondary && side2 === "right" && xAxisLineExtended)) && (
             <line
               className="lq-chart__axis-line-extension"
               x1={dims.boundedWidth}
@@ -648,34 +701,48 @@ export const LineAreaChart = forwardRef<LineAreaChartHandle, LineAreaChartProps>
               // Same stable-full-array-index reasoning as hoverPoint's own doc above.
               const color = colorFor(s, series.indexOf(s));
               const fillArea = s.area ?? area;
+              const y = scaleFor(s);
               return (
                 <g key={s.id}>
                   {s.band && s.band.length > 1 && (
-                    <path className="lq-chart__band" d={bandGen(s.band) ?? undefined} fill={color} fillOpacity={s.bandOpacity ?? 0.18} stroke="none" />
+                    <path className="lq-chart__band" d={bandGen(y)(s.band) ?? undefined} fill={color} fillOpacity={s.bandOpacity ?? 0.18} stroke="none" />
                   )}
                   {/* Opacity and line width in CSS (LineAreaChart.css), not as presentation attributes:
                       an attribute cannot read the optional --lq-chart-area-opacity / -line-width
                       tokens. A series' own `strokeWidth` still wins, through `style`. */}
-                  {fillArea && <path className="lq-chart__area" d={areaGen(s.data) ?? undefined} fill={color} stroke="none" />}
+                  {fillArea && <path className="lq-chart__area" d={areaGen(y)(s.data) ?? undefined} fill={color} stroke="none" />}
                   {s.fillSignedAtReference &&
                     referenceLineY !== undefined &&
                     splitAtReference(s.data, referenceLineY).map((segment, i) => (
                       <path
                         key={i}
-                        d={referenceAreaGen(segment.points) ?? undefined}
+                        d={referenceAreaGen(y)(segment.points) ?? undefined}
                         fill={segment.positive ? s.fillSignedAtReference!.positiveColor : s.fillSignedAtReference!.negativeColor}
                         fillOpacity={0.25}
                         stroke="none"
                       />
                     ))}
-                  <path
-                    className="lq-chart__line"
-                    d={lineGen(s.data) ?? undefined}
-                    fill="none"
-                    stroke={color}
-                    style={s.strokeWidth === undefined ? undefined : { strokeWidth: `${s.strokeWidth}px` }}
-                    strokeDasharray={s.dashed ? "5 4" : undefined}
-                  />
+                  {(() => {
+                    const style = s.strokeWidth === undefined ? undefined : { strokeWidth: `${s.strokeWidth}px` };
+                    if (s.dashed || s.dashedFrom === undefined) {
+                      return (
+                        <path className="lq-chart__line" d={lineGen(y)(s.data) ?? undefined} fill="none" stroke={color} style={style} strokeDasharray={s.dashed ? "5 4" : undefined} />
+                      );
+                    }
+                    // Solid up to `dashedFrom`, dashed after; the dashed part starts on the last solid point so the two join.
+                    const from = +s.dashedFrom;
+                    const solid = s.data.filter((d) => +d.x <= from);
+                    const rest = s.data.filter((d) => +d.x > from);
+                    const dashedPart = solid.length && rest.length ? [solid[solid.length - 1], ...rest] : rest;
+                    return (
+                      <>
+                        {solid.length > 0 && <path className="lq-chart__line" d={lineGen(y)(solid) ?? undefined} fill="none" stroke={color} style={style} />}
+                        {dashedPart.length > 0 && (
+                          <path className="lq-chart__line" d={lineGen(y)(dashedPart) ?? undefined} fill="none" stroke={color} style={style} strokeDasharray="5 4" />
+                        )}
+                      </>
+                    );
+                  })()}
                   {s.endDot &&
                     s.data.length > 0 &&
                     (() => {
@@ -684,7 +751,7 @@ export const LineAreaChart = forwardRef<LineAreaChartHandle, LineAreaChartProps>
                         <circle
                           className="lq-chart__dot lq-chart__dot--end"
                           cx={zoomedXScale(last.x as never)}
-                          cy={zoomedYScale(last.y)}
+                          cy={y(last.y)}
                           r={5}
                           fill={color}
                         />
@@ -723,8 +790,8 @@ export const LineAreaChart = forwardRef<LineAreaChartHandle, LineAreaChartProps>
                             className="lq-chart__crosshair-line"
                             x1={0}
                             x2={dims.boundedWidth}
-                            y1={zoomedYScale(point.y)}
-                            y2={zoomedYScale(point.y)}
+                            y1={scaleFor(s)(point.y)}
+                            y2={scaleFor(s)(point.y)}
                             // A plain `stroke` attribute loses to the class's own stylesheet rule
                             // (SVG presentation attributes sit below any stylesheet in the cascade,
                             // even a class selector) — `style` doesn't.
@@ -738,7 +805,7 @@ export const LineAreaChart = forwardRef<LineAreaChartHandle, LineAreaChartProps>
                           key={s.id}
                           className="lq-chart__dot"
                           cx={zoomedXScale(point.x as never)}
-                          cy={zoomedYScale(point.y)}
+                          cy={scaleFor(s)(point.y)}
                           r={4}
                           fill={color}
                         />
@@ -817,6 +884,19 @@ export const LineAreaChart = forwardRef<LineAreaChartHandle, LineAreaChartProps>
             onPointerUp={yAxisDrag.onPointerUp}
             onDoubleClick={resetYAxis}
           />
+          {hasSecondary && (
+            <rect
+              className="lq-chart__axis-drag lq-chart__axis-drag--y"
+              x={side2 === "right" ? dims.boundedWidth : -dims.margin.left}
+              y={0}
+              width={side2 === "right" ? dims.margin.right : dims.margin.left}
+              height={dims.boundedHeight}
+              onPointerDown={yAxisDrag.onPointerDown}
+              onPointerMove={yAxisDrag.onPointerMove}
+              onPointerUp={yAxisDrag.onPointerUp}
+              onDoubleClick={resetYAxis}
+            />
+          )}
           <rect
             ref={xAxisWheelRef}
             className="lq-chart__axis-drag lq-chart__axis-drag--x"
@@ -860,7 +940,8 @@ export const LineAreaChart = forwardRef<LineAreaChartHandle, LineAreaChartProps>
                       // reach this far back/forward — an in-progress year, say — simply doesn't
                       // count toward it, same "gaps are omitted, not zeroed" reading every other
                       // per-series lookup in this file already gives a missing point).
-                      const values = hoverPoint.flatMap(({ point }) => (point ? [point.y] : []));
+                      // Main-axis series only: an average across two units means nothing.
+                      const values = hoverPoint.flatMap(({ series: s, point }) => (point && !isSecondary(s) ? [point.y] : []));
                       if (values.length === 0) return null;
                       const avgY = values.reduce((sum, y) => sum + y, 0) / values.length;
                       return (
@@ -877,23 +958,27 @@ export const LineAreaChart = forwardRef<LineAreaChartHandle, LineAreaChartProps>
                         </div>
                       );
                     })()
-                  : hoverPoint.map(({ series: s, color, point }) =>
-                      point ? (
+                  : hoverPoint.map(({ series: s, color, point }) => {
+                      if (!point) return null;
+                      // Each badge on the side of the axis its series is read against.
+                      const onRight = (isSecondary(s) ? side2 : side) === "right";
+                      const format = formatFor(s);
+                      return (
                         <div
                           key={s.id}
                           className="lq-chart__axis-value lq-chart__axis-value--y"
                           style={{
-                            top: dims.margin.top + zoomedYScale(point.y),
+                            top: dims.margin.top + scaleFor(s)(point.y),
                             backgroundColor: color,
-                            ...(yAxisOrientation === "right"
+                            ...(onRight
                               ? { left: dims.margin.left + dims.boundedWidth, minWidth: dims.margin.right }
                               : { left: 0, width: dims.margin.left, justifyContent: "flex-end" }),
                           }}
                         >
-                          <span className="lq-chart__axis-value-text">{formatY ? formatY(point.y) : point.y}</span>
+                          <span className="lq-chart__axis-value-text">{format ? format(point.y) : point.y}</span>
                         </div>
-                      ) : null
-                    )}
+                      );
+                    })}
               </>
             );
           })()
@@ -917,7 +1002,7 @@ export const LineAreaChart = forwardRef<LineAreaChartHandle, LineAreaChartProps>
                 {hoverPoint.map(({ series: s, color, point }) => (
                   <div key={s.id} className="lq-chart-tooltip__row">
                     <span className="lq-chart-tooltip__swatch" style={{ backgroundColor: color }} />
-                    {s.label ?? s.id}: <strong>{point ? (formatY ? formatY(point.y) : point.y) : "—"}</strong>
+                    {s.label ?? s.id}: <strong>{point ? (formatFor(s) ? formatFor(s)!(point.y) : point.y) : "—"}</strong>
                   </div>
                 ))}
               </ChartTooltip>

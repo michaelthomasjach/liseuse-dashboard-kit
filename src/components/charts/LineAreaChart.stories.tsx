@@ -121,3 +121,27 @@ export const ExtendedXAxisLine: Story = {
   argTypes: AXIS_CONTROLS,
   render: HiddenYAxisLine.render,
 };
+
+/** Deux unités sur un même graphique : l'or en dollars (axe de gauche), le taux réel en % sur un second axe, inversé (axe de droite). */
+export const SecondaryYAxis: Story = {
+  name: "Second axe Y (yAxis: \"secondary\", secondaryYAxis)",
+  args: { secondaryYAxis: { inverted: true, formatY: (v: number) => `${v.toFixed(1).replace(".", ",")} %` } },
+  render: (args) => {
+    const start = Date.UTC(2024, 0, 1);
+    const weeks = Array.from({ length: 104 }, (_, i) => new Date(start + i * 7 * 86_400_000));
+    const real = weeks.map((x, i) => ({ x, y: 2.2 - i * 0.012 + Math.sin(i / 6) * 0.25 }));
+    const gold = weeks.map((x, i) => ({ x, y: 2050 + i * 9 + Math.sin(i / 6) * 60 }));
+    return (
+      <LineAreaChart
+        {...args}
+        height={320}
+        formatX={formatDate}
+        formatY={(v) => `${Math.round(v).toLocaleString("fr-FR")} $`}
+        series={[
+          { id: "gold", label: "Or ($ l'once)", data: gold, color: "#b8952b" },
+          { id: "real", label: "Taux réel 10 ans (%, échelle de droite inversée)", data: real, color: "#2f9e72", yAxis: "secondary" },
+        ]}
+      />
+    );
+  },
+};

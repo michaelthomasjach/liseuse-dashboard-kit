@@ -3,7 +3,8 @@ import { rectangleXs } from "./drawingFills";
 import type { TrendLineDrawing } from "./interfaces/TrendLineDrawing.interface";
 import type { Candle } from "./interfaces/Candle.interface";
 import { FIBONACCI_LEVELS, FIBONACCI_EXTENSION_LEVELS } from "./drawingCatalog";
-import { allPointsOf, arrowMarkerExtent, distanceToSegment, effectiveExtendOf, extendSegmentToEdges, forecastCurvePoints } from "./drawingGeometry";
+import { allPointsOf, arrowMarkerExtent, distanceToSegment, effectiveExtendOf, extendSegmentToEdges, forecastCurvePoints, isOffsetPriceLabel, priceLabelText } from "./drawingGeometry";
+import { calloutLabelBox } from "./drawingRender";
 import { pitchforkLines } from "./pitchforkGeometry";
 import type { PitchforkVariant } from "./pitchforkGeometry";
 
@@ -181,14 +182,24 @@ export function distanceToDrawing(dr: TrendLineDrawing, mouseX: number, mouseY: 
     const clampedY = Math.min(Math.max(mouseY, top), bottom);
     return Math.min(lineDist, Math.hypot(mouseX - clampedX, mouseY - clampedY));
   }
+  if (dr.lineType === "priceLabel" && isOffsetPriceLabel(dr)) {
+    // Two-click label: its box (centred on x2/y2), the leader line, or the anchor dot all count.
+    const ax = zoomedXScale(indexForDate(dr.x1) + 0.5);
+    const ay = zoomedPriceScale(dr.y1);
+    const lx = zoomedXScale(indexForDate(dr.x2) + 0.5);
+    const ly = zoomedPriceScale(dr.y2);
+    const box = calloutLabelBox(lx, ly, priceLabelText(dr), dr.textSize ?? 11);
+    const clampedX = Math.min(Math.max(mouseX, box.left), box.left + box.width);
+    const clampedY = Math.min(Math.max(mouseY, box.top), box.top + box.height);
+    return Math.min(Math.hypot(mouseX - clampedX, mouseY - clampedY), distanceToSegment(mouseX, mouseY, ax, ay, lx, ly));
+  }
   if (dr.lineType === "priceLabel") {
-    // Same bubble shape as "comment" below (both go through drawSpeechBubble) — estimated from a
-    // fixed length instead of dr.text.length, since this tool never sets dr.text at all (its own
-    // bubble always shows a live-computed price string, see drawPriceLabel.ts).
+    // Same bubble shape as "comment" below (both go through drawSpeechBubble) — estimated from the
+    // shown string's length (see priceLabelText: the price, unless the drawing carries a text).
     const x = zoomedXScale(indexForDate(dr.x1) + 0.5);
     const y = zoomedPriceScale(dr.y1);
     const size = dr.textSize ?? 11;
-    const boxWidth = dr.y1.toFixed(2).length * size * 0.55 + 20;
+    const boxWidth = priceLabelText(dr).length * size * 0.55 + 20;
     const top = y - 8 - size - 14;
     const bottom = y - 8;
     const clampedX = Math.min(Math.max(mouseX, x), x + boxWidth);

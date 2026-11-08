@@ -14,6 +14,7 @@ import { ChevronLeftIcon, SearchIcon } from "../icons";
 import { Input } from "../forms/Input";
 import { Avatar } from "../finance/Avatar";
 import { IconButton } from "../primitives/IconButton";
+import { Button } from "../primitives/Button";
 import "./ChatPanel.css";
 
 /**
@@ -108,6 +109,12 @@ export interface ChatPanelProps {
   /** L'indication dans la zone de saisie. Défaut : « Écrire un message… ». */
   placeholder?: string;
   sendLabel?: string;
+  /**
+   * La zone de saisie. `inline` (défaut) : un champ d'une ligne qui grandit avec le texte, le micro et le bouton
+   * d'envoi à sa droite. `stacked` : une zone de texte de plusieurs lignes avec le micro dans son coin bas droit,
+   * et sous elle un bouton « Envoyer » sur toute la largeur — pour un panneau latéral étroit.
+   */
+  composerLayout?: "inline" | "stacked";
   backLabel?: string;
   /** Ce qu'affiche une conversation sans message. */
   emptyThreadText?: ReactNode;
@@ -217,6 +224,7 @@ export function ChatPanel({
   searchPlaceholder = "Rechercher un contact…",
   placeholder = "Écrire un message…",
   sendLabel = "Envoyer",
+  composerLayout = "inline",
   backLabel = "Retour",
   emptyThreadText = "Aucun message pour l'instant. Écrivez le premier.",
   emptyListText = "Personne ne correspond.",
@@ -519,28 +527,55 @@ export function ChatPanel({
               )}
             </div>
             <form
-              className="lq-chat-panel__composer"
+              className={["lq-chat-panel__composer", composerLayout === "stacked" && "lq-chat-panel__composer--stacked"].filter(Boolean).join(" ")}
               onSubmit={(e) => {
                 e.preventDefault();
                 send();
               }}
             >
-              <textarea
-                ref={inputRef}
-                className="lq-chat-panel__input"
-                rows={1}
-                value={text}
-                placeholder={placeholder}
-                aria-label={`Message à ${active.name}`}
-                aria-describedby={hintId}
-                onChange={(e) => setDraft((d) => ({ ...d, [active.id]: e.target.value }))}
-                onKeyDown={onComposerKey}
-              />
-              <span id={hintId} className="lq-visually-hidden">
-                Entrée pour envoyer, Maj+Entrée pour aller à la ligne.
-              </span>
-              <DictationButton field={inputRef} />
-              <IconButton type="submit" className="lq-chat-panel__send" icon={<SendGlyph />} ariaLabel={sendLabel} title={sendLabel} disabled={!text.trim()} />
+              {(() => {
+                const input = (
+                  <textarea
+                    ref={inputRef}
+                    className="lq-chat-panel__input"
+                    rows={composerLayout === "stacked" ? 3 : 1}
+                    value={text}
+                    placeholder={placeholder}
+                    aria-label={`Message à ${active.name}`}
+                    aria-describedby={hintId}
+                    onChange={(e) => setDraft((d) => ({ ...d, [active.id]: e.target.value }))}
+                    onKeyDown={onComposerKey}
+                  />
+                );
+                const hint = (
+                  <span id={hintId} className="lq-visually-hidden">
+                    Entrée pour envoyer, Maj+Entrée pour aller à la ligne.
+                  </span>
+                );
+                if (composerLayout === "stacked") {
+                  return (
+                    <>
+                      {/* Le micro dans le coin bas droit de la zone de texte, l'envoi dessous sur toute la largeur. */}
+                      <div className="lq-chat-panel__field">
+                        {input}
+                        <DictationButton field={inputRef} className="lq-chat-panel__mic" />
+                      </div>
+                      {hint}
+                      <Button type="submit" tone="primary" block className="lq-chat-panel__send-wide" disabled={!text.trim()}>
+                        {sendLabel}
+                      </Button>
+                    </>
+                  );
+                }
+                return (
+                  <>
+                    {input}
+                    {hint}
+                    <DictationButton field={inputRef} />
+                    <IconButton type="submit" className="lq-chat-panel__send" icon={<SendGlyph />} ariaLabel={sendLabel} title={sendLabel} disabled={!text.trim()} />
+                  </>
+                );
+              })()}
             </form>
           </>
         ) : (

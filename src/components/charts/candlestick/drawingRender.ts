@@ -183,6 +183,42 @@ export function drawSpeechBubble(
   ctx.restore();
 }
 
+/** Box of a two-click "priceLabel" label, centred on its point (see `drawCalloutLabel`): estimated from the
+ *  character count where no canvas is at hand (hit-testing), measured when drawing. */
+export function calloutLabelBox(x: number, y: number, text: string, size: number, measuredWidth?: number) {
+  const width = (measuredWidth ?? text.length * size * 0.55) + BUBBLE_PAD_X * 2;
+  const height = size + BUBBLE_PAD_Y * 2;
+  return { left: x - width / 2, top: y - height / 2, width, height };
+}
+
+/** A rounded label box centred on (x, y) — the far end of a two-click "priceLabel", whose leader line comes in
+ *  from its anchor underneath it. */
+export function drawCalloutLabel(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  text: string,
+  bg: string,
+  fg: string,
+  fontFamily: string,
+  size: number,
+  bold: boolean,
+  italic: boolean
+) {
+  ctx.save();
+  ctx.font = `${italic ? "italic" : "normal"} ${bold ? 600 : 400} ${size}px ${fontFamily}`;
+  const box = calloutLabelBox(x, y, text, size, ctx.measureText(text).width);
+  ctx.fillStyle = bg;
+  ctx.beginPath();
+  ctx.roundRect(box.left, box.top, box.width, box.height, Math.min(BUBBLE_RADIUS, box.height / 2));
+  ctx.fill();
+  ctx.fillStyle = fg;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
 /** A small rounded, filled "badge" label — unlike every other drawing type's plain `fillText`
  *  (see drawDrawingText above), used where a annotation needs to read as a standalone marker
  *  rather than plain text floating next to the line: "rangeForecast"'s own Current/Max/Avg/Min

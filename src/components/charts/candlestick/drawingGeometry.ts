@@ -1,6 +1,19 @@
 import type { TrendLineDrawing } from "./interfaces/TrendLineDrawing.interface";
 import type { DataPoint } from "./interfaces/DataPoint.interface";
 
+/** A "priceLabel" placed in two clicks: its anchor (x1/y1, the price shown) and its label (x2/y2) are apart,
+ *  joined by a leader line. One whose two points coincide is the original single-click marker (bubble on the
+ *  point itself), still drawn and handled as such. */
+export function isOffsetPriceLabel(dr: TrendLineDrawing): boolean {
+  return dr.lineType === "priceLabel" && (dr.x2.getTime() !== dr.x1.getTime() || dr.y2 !== dr.y1);
+}
+
+/** What a "priceLabel" shows: its own `text` when one was given (an app labelling a move, say « −9,67 % »),
+ *  otherwise the anchor's price, recomputed from `y1` on every render. */
+export function priceLabelText(dr: TrendLineDrawing): string {
+  return dr.text?.trim() ? dr.text : dr.y1.toFixed(2);
+}
+
 /** All of a drawing's points in path order — the shape every multi-point tool's rendering/
  *  hit-testing/dragging works off of instead of the named fields directly. For every *clicked*
  *  multi-point tool (fibonacciExtension, elliott*, disjointChannel, elbowArrow) that's x1/y1,

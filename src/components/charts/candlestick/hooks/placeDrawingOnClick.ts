@@ -161,10 +161,10 @@ export function placeDrawingOnClick(e: React.MouseEvent<SVGRectElement>, ctx: Dr
     }
     // Arrow markers are single-point, like horizontal/vertical — x2/y2 just mirrors x1/y1 (kept
     // in sync by both the generic whole-body drag and a dedicated single-handle case, see
-    // handleEndpointPointerMove). "pin"/"flagMark"/"priceLabel" share this same shape, so they
-    // share this branch too. (Explicit `||`, not array.includes — `lineType: activeTool` below
-    // needs it actually narrowed.)
-    if (activeTool === "arrowUp" || activeTool === "arrowDown" || activeTool === "pin" || activeTool === "flagMark" || activeTool === "priceLabel") {
+    // handleEndpointPointerMove). "pin"/"flagMark" share this same shape, so they share this branch
+    // too. "priceLabel" is placed in two clicks (anchor, then label) by the generic flow at the end.
+    // (Explicit `||`, not array.includes — `lineType: activeTool` below needs it actually narrowed.)
+    if (activeTool === "arrowUp" || activeTool === "arrowDown" || activeTool === "pin" || activeTool === "flagMark") {
       commitDrawings([
         ...drawings,
         { id: `drawing-${drawingIdRef.current++}`, ...defaultDrawingStyle, x1: point.x, y1: point.y, x2: point.x, y2: point.y, lineType: activeTool },
@@ -451,8 +451,8 @@ export function placeDrawingOnClick(e: React.MouseEvent<SVGRectElement>, ctx: Dr
       return;
     }
 
-    // "trendline", "extended", "fibonacci", "rectangle", "zones", "forecast" and "table" all
-    // share the same 2-click flow — they only differ in how they're drawn (see the canvas draw
+    // "trendline", "extended", "fibonacci", "rectangle", "zones", "forecast", "priceLabel" (anchor, then
+    // where its label goes) and "table" all share the same 2-click flow — they only differ in how they're drawn (see the canvas draw
     // effect) and, for "rectangle"/"zones", hit-tested, not in how they're placed. "arrowLine" is
     // the same flow again but stays lineType-less like a plain trend line, just with arrowRight
     // preset.
@@ -468,7 +468,7 @@ export function placeDrawingOnClick(e: React.MouseEvent<SVGRectElement>, ctx: Dr
       y1: pendingPoint.y,
       x2: point.x,
       y2: point.y,
-      ...(activeTool === "extended" || activeTool === "fibonacci" || activeTool === "rectangle" || activeTool === "zones" || activeTool === "forecast"
+      ...(activeTool === "extended" || activeTool === "fibonacci" || activeTool === "rectangle" || activeTool === "zones" || activeTool === "forecast" || activeTool === "priceLabel"
         ? { lineType: activeTool }
         : {}),
       ...(activeTool === "arrowLine" ? { arrowRight: true } : {}),

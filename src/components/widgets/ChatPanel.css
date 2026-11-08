@@ -450,6 +450,36 @@
   outline-offset: 2px;
 }
 
+/* Saisie empilée (composerLayout="stacked") : zone de texte de plusieurs lignes, micro dans son coin bas droit,
+   bouton d'envoi dessous sur toute la largeur. */
+.lq-chat-panel__composer--stacked {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.lq-chat-panel__field {
+  position: relative;
+  display: flex;
+  min-width: 0;
+}
+
+.lq-chat-panel__composer--stacked .lq-chat-panel__input {
+  min-height: calc(3 * 1.45em + 2 * var(--lq-space-2) + 4px);
+  max-height: calc(10 * 1.45em + 2 * var(--lq-space-2) + 2px);
+  /* Place gardée pour le micro : le texte ne passe jamais dessous. */
+  padding-right: calc(var(--lq-control-padding-x, var(--lq-space-3)) + 30px);
+}
+
+.lq-chat-panel__mic {
+  position: absolute;
+  right: var(--lq-space-2);
+  bottom: var(--lq-space-2);
+}
+
+.lq-chat-panel__send-wide {
+  width: 100%;
+}
+
 /* Au doigt, des cibles de 44 px. */
 @media (pointer: coarse) {
   .lq-chat-panel__back {

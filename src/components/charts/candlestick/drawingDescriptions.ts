@@ -651,9 +651,11 @@ C'est ce qui distingue le panneau du texte simple ou de la note : **le lien est 
 
 La mise en forme du texte se règle dans la fenêtre d'édition.`,
 
-  priceLabel: `**Un seul clic pose une bulle affichant le prix du point désigné.**
+  priceLabel: `**Deux clics : le premier pose le point d'origine, le second l'endroit où s'affiche l'étiquette.**
 
-Il n'y a **rien à saisir** : le contenu de la bulle est le prix lui-même, relu à chaque affichage à partir de la position réelle du repère. Déplacer la bulle met donc la valeur à jour instantanément.
+Une ligne relie le point à son étiquette, qui affiche le prix du point d'origine. Il n'y a **rien à saisir** : ce prix est relu à chaque affichage à partir de la position réelle du point. Déplacer le point met donc la valeur à jour instantanément ; déplacer l'étiquette l'écarte simplement des autres.
+
+Poser l'étiquette à l'écart évite que les valeurs de points proches **se superposent**.
 
 ## À quoi ça sert
 

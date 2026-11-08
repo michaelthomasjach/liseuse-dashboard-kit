@@ -1,6 +1,6 @@
 import type { ScaleLinear } from "d3";
 import type { TrendLineDrawing } from "../interfaces/TrendLineDrawing.interface";
-import { round4 } from "../drawingGeometry";
+import { isOffsetPriceLabel, round4 } from "../drawingGeometry";
 
 // Same shape as useDrawingInteractions' own local MutableRef — duplicated rather than imported
 // to avoid a needless cross-file type dependency for something this small.
@@ -65,7 +65,7 @@ export function useAxisHandleDrag({
       commitDrawings(drawings.map((d) => (d.id === drag.id ? { ...d, x1: dateValue, x2: dateValue } : d)));
     } else if (
       dr.lineType === "ray" ||
-      ["arrowUp", "arrowDown", "pin", "flagMark", "text", "comment", "signpost", "priceLabel"].includes(dr.lineType ?? "")
+      (["arrowUp", "arrowDown", "pin", "flagMark", "text", "comment", "signpost", "priceLabel"].includes(dr.lineType ?? "") && !isOffsetPriceLabel(dr))
     ) {
       // Both a ray's anchor and every single-point marker above have both degrees of freedom,
       // unlike horizontal/vertical's single axis — none of them are ever one of the pane-aware

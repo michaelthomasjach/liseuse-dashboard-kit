@@ -7,7 +7,7 @@ import type { TrendLineDrawing } from "../interfaces/TrendLineDrawing.interface"
 import type { DataPoint } from "../interfaces/DataPoint.interface";
 import type { DrawingToolType } from "../interfaces/DrawingToolType.interface";
 import type { ChartEvent } from "../interfaces/ChartEvent.interface";
-import { allPointsOf, snapPixel } from "../drawingGeometry";
+import { allPointsOf, isOffsetPriceLabel, snapPixel } from "../drawingGeometry";
 import { isFundamentalKind, formatFundamentalValue } from "../indicatorCatalog";
 import { AXIS_HANDLE_FRACTION_X, AXIS_HANDLE_FRACTION_Y } from "../constants";
 import { EVENT_MARKER_OFFSET, EVENT_MARKER_RADIUS, EVENT_STACK_OFFSET, MAX_STACKED_EVENT_MARKERS } from "../eventsCatalog";
@@ -539,7 +539,7 @@ export function ChartCanvasOverlay({
               // falling through to the generic per-point loop below, which would otherwise draw
               // two overlapping handles at the same pixel (x1/y1 and x2/y2 both resolve to the
               // same point).
-              if (["arrowUp", "arrowDown", "text", "comment", "pin", "flagMark", "signpost", "priceLabel"].includes(dr.lineType ?? "")) {
+              if (["arrowUp", "arrowDown", "text", "comment", "pin", "flagMark", "signpost", "priceLabel"].includes(dr.lineType ?? "") && !isOffsetPriceLabel(dr)) {
                 return (
                   <DrawingHandle
                     key={dr.id}

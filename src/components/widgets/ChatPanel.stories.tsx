@@ -117,3 +117,13 @@ export const Narrow: Story = {
     </div>
   ),
 };
+
+/** Panneau latéral étroit : zone de texte de plusieurs lignes, micro dans son coin, « Envoyer » sur toute la largeur. */
+export const StackedComposer: Story = {
+  name: "Saisie empilée (composerLayout=\"stacked\")",
+  render: () => (
+    <div style={{ width: 320, height: 560 }}>
+      <ChatPanel contacts={CONTACTS.slice(0, 1)} messages={MESSAGES} now={NOW} composerLayout="stacked" />
+    </div>
+  ),
+};

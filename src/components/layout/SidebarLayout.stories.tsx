@@ -97,6 +97,7 @@ export const Rail: Story = {
       variant="rail"
       stickyHeader
       logo={<strong>Finance Kit</strong>}
+      railLogo={<strong aria-hidden="true">FK</strong>}
       navItems={[
         { id: "overview", label: "Vue d'ensemble", details: "3 alertes", icon: <HomeIcon size={18} />, active: true },
         {

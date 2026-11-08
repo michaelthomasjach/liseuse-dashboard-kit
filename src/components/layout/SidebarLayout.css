@@ -755,3 +755,58 @@
     display: none;
   }
 }
+
+/* Marque compacte (`railLogo`) : centrée dans la colonne visible de la barre réduite, à la place du logo, qui ne s'y
+   voit pas ; elle s'efface quand la barre s'ouvre. Hors du rail (tiroir mobile), elle n'existe pas. */
+.lq-sidebar-layout__rail-logo {
+  display: none;
+}
+@media (min-width: 901px) {
+  .lq-sidebar-layout--rail > :where(.lq-sidebar-layout__sidebar:not(.lq-sidebar-layout--contained *)) .lq-sidebar-layout__head {
+    position: relative;
+  }
+  .lq-sidebar-layout--rail > :where(.lq-sidebar-layout__sidebar:not(.lq-sidebar-layout--contained *)) .lq-sidebar-layout__head > .lq-sidebar-layout__rail-logo {
+    position: absolute;
+    top: 0;
+    right: 0;
+    display: grid;
+    place-items: center;
+    width: var(--lq-rail-width);
+    height: 100%;
+    opacity: 1;
+    pointer-events: none;
+    transition: opacity var(--lq-transition-base);
+  }
+  .lq-sidebar-layout--rail > .lq-sidebar-layout__sidebar:hover .lq-sidebar-layout__head > .lq-sidebar-layout__rail-logo,
+  .lq-sidebar-layout--rail > .lq-sidebar-layout__sidebar:has(:focus-visible) .lq-sidebar-layout__head > .lq-sidebar-layout__rail-logo,
+  .lq-sidebar-layout--rail.lq-sidebar-layout--pinned > .lq-sidebar-layout__sidebar .lq-sidebar-layout__head > .lq-sidebar-layout__rail-logo {
+    opacity: 0;
+  }
+}
+@container (min-width: 901px) {
+  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail > .lq-sidebar-layout__sidebar .lq-sidebar-layout__head {
+    position: relative;
+  }
+  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail > .lq-sidebar-layout__sidebar .lq-sidebar-layout__head > .lq-sidebar-layout__rail-logo {
+    position: absolute;
+    top: 0;
+    right: 0;
+    display: grid;
+    place-items: center;
+    width: var(--lq-rail-width);
+    height: 100%;
+    opacity: 1;
+    pointer-events: none;
+    transition: opacity var(--lq-transition-base);
+  }
+  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail > .lq-sidebar-layout__sidebar:hover .lq-sidebar-layout__head > .lq-sidebar-layout__rail-logo,
+  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail > .lq-sidebar-layout__sidebar:has(:focus-visible) .lq-sidebar-layout__head > .lq-sidebar-layout__rail-logo,
+  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail.lq-sidebar-layout--pinned > .lq-sidebar-layout__sidebar .lq-sidebar-layout__head > .lq-sidebar-layout__rail-logo {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lq-sidebar-layout__rail-logo {
+    transition: none !important;
+  }
+}

@@ -21,6 +21,9 @@ export interface SidebarNavItem {
 
 export interface SidebarLayoutProps {
   logo?: ReactNode;
+  /** Variante `rail` : marque compacte (l'icône du logo, sans son nom), montrée en tête de la colonne visible quand la
+   *  barre est réduite — sinon ce coin reste vide. Elle s'efface quand la barre s'ouvre et que `logo` apparaît. */
+  railLogo?: ReactNode;
   navItems: SidebarNavItem[];
   /** Rendered pinned to the bottom of the sidebar — typically a `UserMenu`. */
   footer?: ReactNode;
@@ -59,6 +62,7 @@ export interface SidebarLayoutProps {
  *  off-canvas drawer (hamburger-triggered) below the tablet breakpoint. */
 export function SidebarLayout({
   logo,
+  railLogo,
   navItems,
   footer,
   header,
@@ -101,6 +105,11 @@ export function SidebarLayout({
         {rail ? (
           <div className="lq-sidebar-layout__head">
             <div className="lq-sidebar-layout__logo">{logo}</div>
+            {railLogo && (
+              <div className="lq-sidebar-layout__rail-logo" aria-hidden="true">
+                {railLogo}
+              </div>
+            )}
             <button
               type="button"
               className="lq-sidebar-layout__pin"

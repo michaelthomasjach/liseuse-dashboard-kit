@@ -23,6 +23,22 @@ export const Default: Story = {
   ),
 };
 
+export const CustomTrigger: Story = {
+  name: "Déclencheur personnalisé",
+  render: () => (
+    <UserMenu
+      name="Michael Jach"
+      triggerLabel="Compte · Michael Jach"
+      trigger={<UserIcon size={20} />}
+      triggerClassName="story-icon-trigger"
+      items={[
+        { id: "settings", label: "Paramètres", icon: <SettingsIcon size={16} /> },
+        { id: "logout", label: "Se déconnecter", icon: <LogoutIcon size={16} />, danger: true },
+      ]}
+    />
+  ),
+};
+
 export const WithSubmenu: Story = {
   name: "Avec sous-menu",
   render: () => (

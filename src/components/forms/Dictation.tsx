@@ -49,6 +49,9 @@ function writeValue(el: Field, value: string): void {
   el.dispatchEvent(new Event("input", { bubbles: true }));
 }
 
+/** Texte de départ suivi d'une espace, pour que la dictée ne colle pas au dernier mot. */
+const withSpace = (text: string): string => (text && !/\s$/.test(text) ? `${text} ` : text);
+
 export interface DictationOptions {
   /** Langue de la reconnaissance (BCP 47). Défaut `"fr-FR"`. */
   lang?: string;
@@ -81,6 +84,8 @@ export function useDictation(field: RefObject<Field | null>, { lang = "fr-FR" }:
   // Texte du champ au départ de la dictée, et ce qui a déjà été dicté pour de bon.
   const base = useRef("");
   const finalText = useRef("");
+  // Dernière valeur écrite par la dictée : si le champ n'y est plus, l'utilisateur l'a modifié entre-temps.
+  const written = useRef("");
 
   const stop = useCallback(() => {
     rec.current?.stop();
@@ -101,21 +106,30 @@ export function useDictation(field: RefObject<Field | null>, { lang = "fr-FR" }:
     r.continuous = true;
     r.interimResults = true;
     const start = el.value;
-    base.current = start && !/\s$/.test(start) ? `${start} ` : start;
+    base.current = withSpace(start);
     finalText.current = "";
+    written.current = start;
     r.onresult = (e) => {
+      const target = field.current;
+      if (!target) return;
+      // Le champ a été modifié pendant l'écoute (texte effacé ou retouché) : la dictée repart de ce qu'il contient
+      // maintenant, sans réécrire ce qu'elle avait déjà dicté.
+      if (target.value !== written.current) {
+        base.current = withSpace(target.value);
+        finalText.current = "";
+      }
       let interim = "";
       for (let i = e.resultIndex; i < e.results.length; i++) {
         const res = e.results[i] as SpeechResult;
         if (res.isFinal) finalText.current += res[0].transcript;
         else interim += res[0].transcript;
       }
-      const target = field.current;
-      if (!target) return;
       const spoken = `${finalText.current}${interim}`.replace(/\s+/g, " ").trimStart();
       // Première lettre en capitale quand la dictée commence le champ.
       const text = base.current.trim() ? spoken : spoken.charAt(0).toUpperCase() + spoken.slice(1);
-      writeValue(target, `${base.current}${text}`);
+      const value = `${base.current}${text}`;
+      written.current = value;
+      writeValue(target, value);
     };
     r.onerror = (e) => setError(ERRORS[e.error] ?? (e.error === "aborted" ? null : "La dictée s'est interrompue."));
     r.onend = () => {

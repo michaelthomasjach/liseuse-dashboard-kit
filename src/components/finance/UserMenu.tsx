@@ -22,6 +22,13 @@ export interface UserMenuProps {
   items: UserMenuItem[];
   placement?: "bottom" | "top";
   className?: string;
+  /** Contenu du déclencheur à la place de l'avatar, du nom et du chevron (une barre d'en-tête n'y met souvent que
+   *  l'avatar, ou sa propre photo). Le menu, son clavier et ses entrées restent les mêmes. */
+  trigger?: ReactNode;
+  /** Nom accessible (et infobulle) du déclencheur ; utile avec `trigger`, quand le nom n'y est pas écrit. */
+  triggerLabel?: string;
+  /** Classe ajoutée au déclencheur (bouton). */
+  triggerClassName?: string;
 }
 
 /** Les entrées d'un menu, sans celles de ses sous-menus. */
@@ -46,7 +53,7 @@ function onMenuKeyDown(e: KeyboardEvent<HTMLUListElement>) {
  *  circulent (en bouclant), Début / Fin vont aux extrémités, → (ou Entrée) ouvre un sous-menu et
  *  entre dedans, ← ou Échap en ressortent ; Échap au premier niveau et Tab referment le menu, et le
  *  focus revient au déclencheur. */
-export function UserMenu({ name, subtitle, avatarSrc, items, placement = "bottom", className }: UserMenuProps) {
+export function UserMenu({ name, subtitle, avatarSrc, items, placement = "bottom", className, trigger, triggerLabel, triggerClassName }: UserMenuProps) {
   const [open, setOpen] = useState(false);
   const anchorRef = useRef<HTMLButtonElement>(null);
 
@@ -55,7 +62,9 @@ export function UserMenu({ name, subtitle, avatarSrc, items, placement = "bottom
       <button
         ref={anchorRef}
         type="button"
-        className="lq-user-menu__trigger"
+        className={["lq-user-menu__trigger", trigger !== undefined && "lq-user-menu__trigger--custom", triggerClassName].filter(Boolean).join(" ")}
+        aria-label={triggerLabel}
+        title={triggerLabel}
         onClick={() => setOpen((o) => !o)}
         onKeyDown={(e) => {
           if (e.key === "ArrowDown" && !open) {
@@ -66,12 +75,18 @@ export function UserMenu({ name, subtitle, avatarSrc, items, placement = "bottom
         aria-haspopup="menu"
         aria-expanded={open}
       >
-        <Avatar name={name} src={avatarSrc} size={32} />
-        <span className="lq-user-menu__identity">
-          <span className="lq-user-menu__name">{name}</span>
-          {subtitle && <span className="lq-user-menu__subtitle">{subtitle}</span>}
-        </span>
-        <ChevronDownIcon size={16} />
+        {trigger !== undefined ? (
+          trigger
+        ) : (
+          <>
+            <Avatar name={name} src={avatarSrc} size={32} />
+            <span className="lq-user-menu__identity">
+              <span className="lq-user-menu__name">{name}</span>
+              {subtitle && <span className="lq-user-menu__subtitle">{subtitle}</span>}
+            </span>
+            <ChevronDownIcon size={16} />
+          </>
+        )}
       </button>
 
       <Popover

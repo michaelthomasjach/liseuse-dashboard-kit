@@ -18,6 +18,13 @@
   border-radius: 0;
 }
 
+/* Déclencheur personnalisé (`trigger`) : sans marge ni fond imposés, aux couleurs de son contenu. */
+.lq-user-menu__trigger--custom {
+  padding: 0;
+  max-width: none;
+  color: inherit;
+}
+
 .lq-user-menu__identity {
   display: flex;
   flex-direction: column;
@@ -40,7 +47,7 @@
   color: var(--lq-color-text-muted);
 }
 
-.lq-user-menu__trigger svg:last-child {
+.lq-user-menu__trigger:not(.lq-user-menu__trigger--custom) svg:last-child {
   color: var(--lq-color-text-muted);
   flex-shrink: 0;
 }

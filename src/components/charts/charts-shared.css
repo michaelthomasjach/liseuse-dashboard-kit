@@ -3162,6 +3162,25 @@ button.lq-chart__legend-item {
   border-color: var(--lq-color-border);
 }
 
+/* Armed replay's own instruction, on the plot (see CandlestickChart): the chart does not pan while a
+   cutoff is being chosen, so it says what it is waiting for. Accent pill like the armed trigger,
+   centred low in the price pane (position set inline); never takes the pointer, the click it asks
+   for goes to the plot. */
+.lq-chart__replay-hint {
+  position: absolute;
+  z-index: 4;
+  transform: translateX(-50%);
+  max-width: 90%;
+  padding: 4px 10px;
+  font-size: 0.72rem;
+  line-height: 1.3;
+  text-align: center;
+  color: var(--lq-color-accent-contrast);
+  background-color: var(--lq-color-accent);
+  border-radius: var(--lq-radius-sm);
+  pointer-events: none;
+}
+
 /* The touch-placement marker (see useMobilePointPlacement) — the dot is the position being placed,
    the dashed cross is what lets it be lined up against a candle and a price across the whole plot
    rather than judged by eye next to a fingertip. Accent-coloured so it reads as "in progress",

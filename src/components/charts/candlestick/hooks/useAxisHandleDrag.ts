@@ -1,6 +1,8 @@
+import { useRef } from "react";
 import type { ScaleLinear } from "d3";
 import type { TrendLineDrawing } from "../interfaces/TrendLineDrawing.interface";
 import { isOffsetPriceLabel, round4 } from "../drawingGeometry";
+import { CLICK_DRAG_THRESHOLD } from "../constants";
 
 // Same shape as useDrawingInteractions' own local MutableRef — duplicated rather than imported
 // to avoid a needless cross-file type dependency for something this small.
@@ -18,6 +20,9 @@ export interface UseAxisHandleDragArgs {
   zoomedPriceScale: ScaleLinear<number, number>;
   dateForIndex: (rawIndex: number) => Date;
   paneScaleAndOffset: (valueAxis: string | undefined) => { scale: ScaleLinear<number, number>; offset: number };
+  /** A plain click on the handle (under CLICK_DRAG_THRESHOLD) selects its drawing, like a click on its body. */
+  setSelectedDrawingId: (id: string | null) => void;
+  setSelectedIndicatorId: (id: string | null) => void;
 }
 
 /** The single-handle drag every axis-constrained/single-point drawing type shares — pulled out of
@@ -33,7 +38,12 @@ export function useAxisHandleDrag({
   zoomedPriceScale,
   dateForIndex,
   paneScaleAndOffset,
+  setSelectedDrawingId,
+  setSelectedIndicatorId,
 }: UseAxisHandleDragArgs) {
+  // Click or drag (see useDrawingInteractions' endpointPressRef): nothing moves until the press
+  // travels CLICK_DRAG_THRESHOLD, and a press that never does selects the drawing on release.
+  const pressRef = useRef<{ id: string; startClientX: number; startClientY: number; moved: boolean } | null>(null);
   // Single-handle drag for an axis-constrained line: sets its value directly from the pointer's
   // absolute position (like the two-endpoint drag elsewhere), but along one axis only — a
   // "horizontal" line's handle only ever changes y1/y2 (kept equal), a "vertical" line's handle
@@ -42,13 +52,20 @@ export function useAxisHandleDrag({
     return (e: React.PointerEvent<SVGCircleElement>) => {
       // Still stops propagation while locked — same reasoning as handleEndpointPointerDown.
       e.stopPropagation();
-      if (drawingsLocked) return;
       e.currentTarget.setPointerCapture(e.pointerId);
+      pressRef.current = { id: drawingId, startClientX: e.clientX, startClientY: e.clientY, moved: false };
+      // Locked — every drawing, or this one (its own padlock used to be ignored here): selectable, never dragged.
+      if (drawingsLocked || drawings.find((d) => d.id === drawingId)?.locked) return;
       dragAxisRef.current = { id: drawingId };
     };
   }
 
   function handleAxisHandlePointerMove(e: React.PointerEvent<SVGCircleElement>) {
+    const press = pressRef.current;
+    if (press && !press.moved) {
+      if (Math.hypot(e.clientX - press.startClientX, e.clientY - press.startClientY) < CLICK_DRAG_THRESHOLD) return;
+      press.moved = true;
+    }
     const drag = dragAxisRef.current;
     if (!drag) return;
     const dr = drawings.find((d) => d.id === drag.id);
@@ -90,8 +107,14 @@ export function useAxisHandleDrag({
   }
 
   function handleAxisHandlePointerUp(e: React.PointerEvent<SVGCircleElement>) {
+    const press = pressRef.current;
+    pressRef.current = null;
     dragAxisRef.current = null;
     if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+    if (press && !press.moved) {
+      setSelectedDrawingId(press.id);
+      setSelectedIndicatorId(null);
+    }
   }
 
   return { handleAxisHandlePointerDown, handleAxisHandlePointerMove, handleAxisHandlePointerUp };

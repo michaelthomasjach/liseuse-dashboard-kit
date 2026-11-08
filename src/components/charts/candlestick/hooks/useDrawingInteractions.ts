@@ -244,6 +244,12 @@ export function useDrawingInteractions({
   // moindre pixel de tremblement recalait les dates du dessin sur les bougies affichées : un dessin
   // tracé en 5 minutes et cliqué sur le graphique journalier sautait sur la bougie du jour suivant.
   const dragLineMovedRef = useRef(false);
+  // Same click-or-drag split for a press on one of a drawing's point handles (ChartCanvasOverlay):
+  // under CLICK_DRAG_THRESHOLD it selects the drawing and moves nothing. Before, a handle press
+  // never selected anything, and the smallest jitter re-snapped the point onto the candles on
+  // screen (a 5-minute ray's anchor jumped to a daily candle). Locked drawings get the click,
+  // never the drag. useAxisHandleDrag does the same for single-handle drawings.
+  const endpointPressRef = useRef<{ id: string; startClientX: number; startClientY: number; moved: boolean } | null>(null);
   const hoverFrameRef = useRef<number | null>(null);
   // The plot's own element, as last seen by handlePointerMove — updateHoverState runs a frame later
   // (no event in hand) and sets the pointer cursor on it directly, without a re-render per move.
@@ -384,8 +390,9 @@ export function useDrawingInteractions({
       // Still stops propagation while locked — otherwise the blocked click would bubble up to
       // the overlay underneath and start a whole-body drag instead, defeating the lock entirely.
       e.stopPropagation();
-      if (drawingsLocked || drawings.find((d) => d.id === drawingId)?.locked) return;
       e.currentTarget.setPointerCapture(e.pointerId);
+      endpointPressRef.current = { id: drawingId, startClientX: e.clientX, startClientY: e.clientY, moved: false };
+      if (drawingsLocked || drawings.find((d) => d.id === drawingId)?.locked) return;
       dragEndpointRef.current = { id: drawingId, pointIndex };
     };
   }
@@ -404,6 +411,11 @@ export function useDrawingInteractions({
   }
 
   function handleEndpointPointerMove(e: React.PointerEvent<SVGCircleElement>) {
+    const press = endpointPressRef.current;
+    if (press && !press.moved) {
+      if (Math.hypot(e.clientX - press.startClientX, e.clientY - press.startClientY) < CLICK_DRAG_THRESHOLD) return;
+      press.moved = true;
+    }
     const drag = dragEndpointRef.current;
     if (!drag) return;
     // Ancre de la contrainte d'angle : le point voisin de celui qu'on déplace.
@@ -424,8 +436,14 @@ export function useDrawingInteractions({
   }
 
   function handleEndpointPointerUp(e: React.PointerEvent<SVGCircleElement>) {
+    const press = endpointPressRef.current;
+    endpointPressRef.current = null;
     dragEndpointRef.current = null;
     if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+    if (press && !press.moved) {
+      setSelectedDrawingId(press.id);
+      setSelectedIndicatorId(null);
+    }
   }
 
   // Redefines one of the measure tool's two completed points by dragging its handle — same
@@ -461,6 +479,8 @@ export function useDrawingInteractions({
     zoomedPriceScale,
     dateForIndex,
     paneScaleAndOffset,
+    setSelectedDrawingId,
+    setSelectedIndicatorId,
   });
 
   // The crosshair/quick-add-badge/nearest-drawing computation shared between plain hover

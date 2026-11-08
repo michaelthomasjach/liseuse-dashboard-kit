@@ -770,7 +770,7 @@ export function CandlestickChart({
   // Called before useZoomAndScales specifically so `replayState.armed` exists in time to suspend
   // its own pan/zoom while a cutoff is being chosen — see useReplayState.ts's own doc on why
   // `zoomedXScale` itself can't be a hook argument here (the reverse dependency).
-  const replayState = useReplayState({ dataLength: data.length });
+  const replayState = useReplayState({ dataLength: data.length, containerRef: mainRef });
   // The last bar the user can actually see. Under replay that is the cutoff, not the end of the
   // data — every feature that reports "the current value" of anything reads this one definition,
   // so none of them can quietly leak a number computed from candles the replay is hiding.
@@ -883,6 +883,7 @@ export function CandlestickChart({
     resetYAxis,
     candleWidth,
     dateTickValues,
+    replayFollowSuspended,
   } = useZoomAndScales({
     data,
     dims,
@@ -902,6 +903,7 @@ export function CandlestickChart({
     viewResetKey,
     replayActive: replayState.active,
     replayCutoffIndex: replayState.cutoffIndex,
+    replayFollowKey: replayState.followKey,
   });
 
   const { effectiveHoverIndex, effectiveHovered, effectiveHoverY } = useHoverSync({ data, hoverIndex, indexForDate, dateForIndex, syncedHoverDate, onHoverDateChange, hoverY, zoomedPriceScale, clampToPriceAxis, syncedHoverPrice, onHoverPriceChange });
@@ -1566,6 +1568,8 @@ export function CandlestickChart({
           onReplayTogglePlay={replayState.togglePlay}
           onReplaySpeedChange={replayState.setSpeed}
           onReplayQuit={replayState.quit}
+          replayFollowSuspended={replayFollowSuspended}
+          onReplayFollow={replayState.follow}
           onReplayRandom={startRandomReplay}
           replayDateValue={toDayInputValue(replayState.cutoffIndex !== null ? data[replayState.cutoffIndex]?.date : undefined)}
           replayDateMin={toDayInputValue(data[0]?.date)}
@@ -1575,7 +1579,7 @@ export function CandlestickChart({
             // rather than jumping to one end of the history.
             if (!value) return;
             const index = candleIndexForDay(data, value);
-            if (index !== null) replayState.setCutoffIndex(index);
+            if (index !== null) replayState.jumpTo(index);
           }}
           fullscreenToggle={fullscreenToggle}
           toggleFullscreen={toggleFullscreen}
@@ -1685,7 +1689,10 @@ export function CandlestickChart({
           />
         )}
         {priceHeight > 0 && scriptingState.scriptTables.length > 0 && <ScriptTableOverlay tables={scriptingState.scriptTables} />}
-        {priceHeight > 0 && overlayInteractions && overlayInteractions.length > 0 && !activeCustomTool && !activeTool && (
+        {/* Not while a replay cutoff is being chosen: the host's grab strips sit above the plot and
+            took the click meant for the cutoff (opening a level's bubble instead), leaving the chart
+            armed — and armed, it cannot be panned. The choice owns the plot until it is made. */}
+        {priceHeight > 0 && overlayInteractions && overlayInteractions.length > 0 && !activeCustomTool && !activeTool && !replayState.armed && (
           <OverlayInteractionLayer
             drawings={overlayDrawings ?? []}
             interactions={overlayInteractions}
@@ -1698,6 +1705,18 @@ export function CandlestickChart({
             selectedId={selectedOverlayId}
             onSelect={setSelectedOverlayId}
           />
+        )}
+        {/* Armed replay says so on the plot itself: the chart stops panning while a cutoff is being
+            chosen, and the trigger's colour alone did not tell anyone why. Low in the price pane,
+            clear of the legend at the top and of the event markers along the bottom edge. */}
+        {replayState.armed && (
+          <div
+            className="lq-chart__replay-hint"
+            role="status"
+            style={{ top: Math.max(dims.margin.top + 8, priceHeight - 72), left: dims.margin.left + dims.boundedWidth / 2 }}
+          >
+            Cliquez sur le graphique pour choisir le point de départ du replay · Échap pour annuler
+          </div>
         )}
         {priceHeight > 0 && scriptingState.scriptLabels.length > 0 && (
           <ScriptLabelOverlay

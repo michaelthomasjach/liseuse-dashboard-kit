@@ -86,6 +86,9 @@ export interface UseZoomAndScalesArgs {
    *  the fit exactly as before. */
   replayActive: boolean;
   replayCutoffIndex: number | null;
+  /** Bumped by useReplayState on every explicit replay move (Lecture, a step, a date, a new start,
+   *  « Suivre »): the auto-follow below, suspended by the user's own pan/zoom, resumes on it. */
+  replayFollowKey: number;
 }
 
 /** The chart's whole coordinate system: X/Y transforms (pan/zoom), the index-based X scale and
@@ -117,6 +120,7 @@ export function useZoomAndScales({
   viewResetKey,
   replayActive,
   replayCutoffIndex,
+  replayFollowKey,
 }: UseZoomAndScalesArgs) {
   const [transform, setTransform] = useState<d3.ZoomTransform>(d3.zoomIdentity);
   // Mirrors `transform` for the replay auto-follow effect below, which deliberately does NOT list
@@ -462,6 +466,20 @@ export function useZoomAndScales({
     return new d3.ZoomTransform(t.k, tx, t.y);
   }
 
+  // Replay auto-follow (see the effect further down), and whether the user has taken the view away
+  // from it. A pan or zoom of their own during a replay suspends it — the next revealed candle no
+  // longer drags the view back to the cutoff, which is what made a drag into the past during
+  // playback snap back on every tick, as if the chart could not be moved. It resumes on any
+  // explicit replay move (`replayFollowKey`), « Suivre » included. State as well as ref: the header
+  // shows « Suivre » only while it is suspended.
+  const replayFollowRef = useRef(true);
+  const [replayFollowSuspended, setReplayFollowSuspended] = useState(false);
+  function suspendReplayFollow() {
+    if (!replayActive || !replayFollowRef.current) return;
+    replayFollowRef.current = false;
+    setReplayFollowSuspended(true);
+  }
+
   const {
     ref: zoomRef,
     reset: resetX,
@@ -480,6 +498,7 @@ export function useZoomAndScales({
     filter: (event: Event) =>
       (!replayArmed || event.type === "wheel") && !placementActive && hoveredDrawingIdRef.current === null && !measureBodyHoveredRef.current,
     constrain: constrainXPan,
+    onUserZoom: suspendReplayFollow,
   });
 
   // Replay's own auto-follow: each newly-revealed candle (`replayCutoffIndex`, advanced by
@@ -494,8 +513,22 @@ export function useZoomAndScales({
   // transform via transformRef rather than depending on `transform`/`zoomedXScale` themselves, so
   // a manual pan while replay is merely paused (reviewing already-revealed history) never gets
   // silently snapped back forward on its own; only an actual new reveal does.
+  //
+  // Skipped while the user has taken the view (see replayFollowRef); an explicit replay move bumps
+  // `replayFollowKey`, which hands the view back to the follow and brings the cutoff into view now.
+  const replayFollowKeyRef = useRef(replayFollowKey);
   useEffect(() => {
-    if (!replayActive || replayCutoffIndex === null) return;
+    if (replayFollowKeyRef.current !== replayFollowKey) {
+      replayFollowKeyRef.current = replayFollowKey;
+      replayFollowRef.current = true;
+      setReplayFollowSuspended(false);
+    }
+    if (!replayActive) {
+      replayFollowRef.current = true;
+      setReplayFollowSuspended(false);
+      return;
+    }
+    if (replayCutoffIndex === null || !replayFollowRef.current) return;
     const current = transformRef.current;
     const [, i1] = current.rescaleX(xScale).domain();
     const revealedEdge = replayCutoffIndex + 1;
@@ -508,7 +541,7 @@ export function useZoomAndScales({
     ]);
     setXTransformViaZoom(next);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [replayActive, replayCutoffIndex]);
+  }, [replayActive, replayCutoffIndex, replayFollowKey]);
 
   // The transform that shows exactly the last `count` candles, flush against the right edge —
   // shared by the initial-view effect below, `resetZoom` (reset targets this chart's own
@@ -611,7 +644,11 @@ export function useZoomAndScales({
     axis: "x",
     size: dims.boundedWidth,
     transform,
-    onChange: setXTransformViaZoom,
+    // The date axis strip is the user moving the view too — same suspension as a plot gesture.
+    onChange: (t) => {
+      suspendReplayFollow();
+      setXTransformViaZoom(t);
+    },
     scaleExtent: [1, maxXZoom],
   });
   // Wraps setYTransform for the axis's own drag/wheel controls specifically — these are always
@@ -634,7 +671,10 @@ export function useZoomAndScales({
   const xAxisWheelRef = useAxisWheelZoom<SVGRectElement>({
     axis: "x",
     transform,
-    onChange: setXTransformViaZoom,
+    onChange: (t) => {
+      suspendReplayFollow();
+      setXTransformViaZoom(t);
+    },
     enabled: zoomable,
     scaleExtent: [1, maxXZoom],
     size: dims.boundedWidth,
@@ -785,5 +825,6 @@ export function useZoomAndScales({
     zoomedSlotCount,
     candleWidth,
     dateTickValues,
+    replayFollowSuspended,
   };
 }

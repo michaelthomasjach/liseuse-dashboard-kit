@@ -66,6 +66,10 @@ export interface ChartHeaderProps {
   onReplayTogglePlay: () => void;
   onReplaySpeedChange: (speed: number) => void;
   onReplayQuit: () => void;
+  /** The user panned or zoomed away during a replay, so the view no longer follows the cutoff:
+   *  shows « Suivre », which hands it back (see useZoomAndScales' replay auto-follow). */
+  replayFollowSuspended?: boolean;
+  onReplayFollow?: () => void;
   /** Starts the replay at a random past instant (no cursor placed by hand: no anchoring bias). */
   onReplayRandom: () => void;
   /** The replay cutoff as an `<input type="date">` value, and the bounds of the data behind it —
@@ -141,6 +145,8 @@ export function ChartHeader({
   onReplayTogglePlay,
   onReplaySpeedChange,
   onReplayQuit,
+  replayFollowSuspended = false,
+  onReplayFollow,
   onReplayRandom,
   replayDateValue,
   replayDateMin,
@@ -319,6 +325,17 @@ export function ChartHeader({
             >
               {replayPlaying ? <PauseIcon size={14} /> : <PlayIcon size={14} />}
             </button>
+            {replayFollowSuspended && onReplayFollow && (
+              <button
+                type="button"
+                className="lq-chart__timeframe-trigger"
+                onClick={onReplayFollow}
+                aria-label="Suivre la lecture"
+                title="Revenir sur la dernière bougie révélée et la suivre pendant la lecture"
+              >
+                <span className="lq-chart__timeframe-trigger-label">Suivre</span>
+              </button>
+            )}
             <button
               ref={replaySpeedAnchorRef}
               type="button"

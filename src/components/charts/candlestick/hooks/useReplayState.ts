@@ -1,11 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import type * as React from "react";
+import type { RefObject } from "react";
 import type { ScaleLinear } from "d3";
 
 export interface UseReplayStateArgs {
   /** `data.length` — the auto-advance timer's own stopping point (see the effect below) and the
    *  clamp on a pointer position resolved past the last real candle. */
   dataLength: number;
+  /** The chart's own element (header and plot): while a cutoff is being chosen, a press anywhere
+   *  outside it abandons the choice, the way Escape does — see the effect below. */
+  containerRef?: RefObject<HTMLElement | null>;
 }
 
 const SPEED_INTERVAL_MS = 600;
@@ -29,7 +33,7 @@ const SPEED_INTERVAL_MS = 600;
  *  `armed` circularly dependent on each other within the same render. `handlePointerMove`/
  *  `handleClick` below take it as a plain call-time argument instead — curried at the JSX call
  *  site, once `useZoomAndScales` has already run. */
-export function useReplayState({ dataLength }: UseReplayStateArgs) {
+export function useReplayState({ dataLength, containerRef }: UseReplayStateArgs) {
   const [armed, setArmed] = useState(false);
   // Non-null is what "replay is active" means — no separate boolean to keep in sync with it.
   const [cutoffIndex, setCutoffIndex] = useState<number | null>(null);
@@ -41,6 +45,11 @@ export function useReplayState({ dataLength }: UseReplayStateArgs) {
   // useChartDisplayMode.ts already sets for its own displayModeOpen/displayModeAnchorRef.
   const [speedOpen, setSpeedOpen] = useState(false);
   const speedAnchorRef = useRef<HTMLButtonElement>(null);
+  // Bumped on every explicit move of the replay — a new start, Lecture, a step, a date, « Suivre ».
+  // useZoomAndScales' auto-follow, suspended once the user pans or zooms during a replay, resumes
+  // on it (see `replayFollowKey` there).
+  const [followKey, setFollowKey] = useState(0);
+  const refollow = () => setFollowKey((k) => k + 1);
   const active = cutoffIndex !== null;
 
   // Same pixel->index formula as useDrawingInteractions.ts's own updateHoverState (mouseX relative
@@ -55,14 +64,30 @@ export function useReplayState({ dataLength }: UseReplayStateArgs) {
 
   // Click Replay again while still choosing a cutoff to back out of it — same "click the active
   // one again to cancel" convention the rail's own tools/toggles already use.
-  function toggleArm() {
-    if (armed) {
-      setArmed(false);
-      setPreviewIndex(null);
-    } else {
-      setArmed(true);
-    }
+  function disarm() {
+    setArmed(false);
+    setPreviewIndex(null);
   }
+
+  function toggleArm() {
+    if (armed) disarm();
+    else setArmed(true);
+  }
+
+  // Choosing a cutoff owns the plot (pan suspended, see useZoomAndScales' filter) — so it must never
+  // outlive the user's attention. A press outside the chart abandons it, like Escape: before this,
+  // a click that missed (or landed elsewhere on the page) left the chart armed, unable to pan, with
+  // nothing but the trigger's colour to say why. Capture phase, so nothing on the page can swallow it.
+  useEffect(() => {
+    if (!armed || !containerRef) return;
+    function onPointerDown(e: PointerEvent) {
+      const root = containerRef?.current;
+      if (root && e.target instanceof Node && root.contains(e.target)) return;
+      disarm();
+    }
+    window.addEventListener("pointerdown", onPointerDown, true);
+    return () => window.removeEventListener("pointerdown", onPointerDown, true);
+  }, [armed, containerRef]);
 
   // Curried on `zoomedXScale` (see this hook's own doc on why it isn't a plain hook argument) —
   // called at the ChartCanvasOverlay JSX call site as `replayState.handlePointerMove(zoomedXScale)`,
@@ -80,6 +105,7 @@ export function useReplayState({ dataLength }: UseReplayStateArgs) {
       setCutoffIndex(indexFromEvent(e, zoomedXScale));
       setArmed(false);
       setPreviewIndex(null);
+      refollow();
     };
   }
 
@@ -89,9 +115,23 @@ export function useReplayState({ dataLength }: UseReplayStateArgs) {
     setPreviewIndex(null);
     setPlaying(false);
     setCutoffIndex(Math.min(dataLength - 1, Math.max(0, index)));
+    refollow();
+  }
+
+  /** Moves an active replay's cutoff to `index` (the date picker) and brings it into view. */
+  function jumpTo(index: number) {
+    setCutoffIndex(Math.min(dataLength - 1, Math.max(0, index)));
+    refollow();
+  }
+
+  /** « Suivre » : hands the view back to the auto-follow after the user panned away from the cutoff. */
+  function follow() {
+    refollow();
   }
 
   function togglePlay() {
+    // Starting (or restarting) playback is an explicit "show me the replay": the view follows again.
+    if (!playing) refollow();
     setPlaying((p) => !p);
   }
 
@@ -124,6 +164,7 @@ export function useReplayState({ dataLength }: UseReplayStateArgs) {
       e.preventDefault();
       // Stepping by hand takes over from the clock, the way touching any transport control does.
       setPlaying(false);
+      refollow();
       setCutoffIndex((i) => {
         if (i === null) return i;
         const next = i + (e.key === "ArrowRight" ? 1 : -1);
@@ -171,6 +212,9 @@ export function useReplayState({ dataLength }: UseReplayStateArgs) {
     speedAnchorRef,
     toggleArm,
     startAt,
+    jumpTo,
+    followKey,
+    follow,
     handlePointerMove,
     handleClick,
     togglePlay,

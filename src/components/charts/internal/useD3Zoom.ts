@@ -18,6 +18,10 @@ export interface UseD3ZoomOptions {
    *  zoom level, which a fixed translateExtent can't express (it clamps in constant world units,
    *  not as a fraction of the current viewport). Read fresh on every event, same as `filter`. */
   constrain?: (transform: d3.ZoomTransform, extent: [[number, number], [number, number]], translateExtent: [[number, number], [number, number]]) => d3.ZoomTransform;
+  /** Called on every zoom/pan the *user* makes on the element (drag, wheel, pinch) — never for a
+   *  transform applied through `setTransform`/`setTransformAnimated`/`reset`. Lets the caller tell
+   *  "the user took the view" apart from its own programmatic moves. Read fresh, like `filter`. */
+  onUserZoom?: () => void;
 }
 
 export interface UseD3ZoomResult<T extends Element> {
@@ -45,6 +49,7 @@ export function useD3Zoom<T extends Element>({
   onZoom,
   filter,
   constrain,
+  onUserZoom,
 }: UseD3ZoomOptions): UseD3ZoomResult<T> {
   const behaviorRef = useRef<d3.ZoomBehavior<T, unknown> | null>(null);
   const onZoomRef = useRef(onZoom);
@@ -62,6 +67,8 @@ export function useD3Zoom<T extends Element>({
   filterRef.current = filter;
   const constrainRef = useRef(constrain);
   constrainRef.current = constrain;
+  const onUserZoomRef = useRef(onUserZoom);
+  onUserZoomRef.current = onUserZoom;
   const [scaleMin, scaleMax] = scaleExtent;
 
   // A plain `useRef` never tells this hook when its *element* gets swapped for a new one — e.g.
@@ -109,7 +116,12 @@ export function useD3Zoom<T extends Element>({
         const defaultOk = (!event.ctrlKey || event.type === "wheel") && !event.button;
         return defaultOk && (filterRef.current ? filterRef.current(event) : true);
       })
-      .on("zoom", (event: d3.D3ZoomEvent<T, unknown>) => emitZoom(event.transform));
+      .on("zoom", (event: d3.D3ZoomEvent<T, unknown>) => {
+        // d3-zoom only attaches a `sourceEvent` to zooms driven by real input; a `zoom.transform`
+        // call (setTransform & co.) arrives with none.
+        if (event.sourceEvent) onUserZoomRef.current?.();
+        emitZoom(event.transform);
+      });
 
     // Captures d3-zoom's own default translateExtent-based constrain function before
     // (optionally) overriding it below, so a caller-supplied `constrain` can still be swapped in

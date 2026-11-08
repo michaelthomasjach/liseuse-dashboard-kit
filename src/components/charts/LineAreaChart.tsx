@@ -49,6 +49,9 @@ export interface ChartSeries {
   band?: { x: Date | number; low: number; high: number }[];
   /** Fill opacity of `band`. Default 0.18. */
   bandOpacity?: number;
+  /** Fill color of `band`, when it is not a range around this line but a gap of its own — e.g. the
+   *  area between a yield curve and an inflation curve, in red. Defaults to the series color. */
+  bandColor?: string;
   /** Dashed line (e.g. a "before the shock" / counterfactual path). */
   dashed?: boolean;
   /** Draws the line solid up to this X and dashed after it — one series for a history followed by
@@ -58,6 +61,14 @@ export interface ChartSeries {
    *  second Y axis on the opposite side (see `LineAreaChartProps.secondaryYAxis`), for a series in
    *  another unit (a yield in % beside a price in $). Each axis fits its own series' range. */
   yAxis?: "primary" | "secondary";
+  /** Reads this series on hover (tooltip row, dot, badge) only while the hovered X falls within its
+   *  own X range, instead of repeating its nearest end — e.g. a price history that stops where its
+   *  projection begins, or a projection that starts at "today": outside its dates it has no value. */
+  hoverWithinRange?: boolean;
+  /** No hover reading at or before this X — for a projection whose first point only repeats the
+   *  last observed value it starts from (joined to the history line), which would read as a
+   *  forecast in the tooltip. */
+  hoverAfter?: Date | number;
   data: ChartPoint[];
 }
 
@@ -549,8 +560,21 @@ export const LineAreaChart = forwardRef<LineAreaChartHandle, LineAreaChartProps>
   // its position within `visibleSeries` — hiding an earlier series shifts every later one's own
   // index within the filtered array, silently reassigning it a different color than the one still
   // shown for it in the legend below (which colors off the same stable full-array index).
+  // A series that asks not to be read at this X (`hoverAfter`, `hoverWithinRange`) has no row at all,
+  // rather than a "—" row.
+  function readsAt(s: ChartSeries, xValue: Date | number): boolean {
+    if (s.hoverAfter !== undefined && +xValue <= +s.hoverAfter) return false;
+    if (s.hoverWithinRange && s.data.length > 0) {
+      const first = +s.data[0].x;
+      const last = +s.data[s.data.length - 1].x;
+      if (+xValue < Math.min(first, last) || +xValue > Math.max(first, last)) return false;
+    }
+    return true;
+  }
   const hoverPoint = hover
-    ? visibleSeries.map((s) => ({ series: s, color: colorFor(s, series.indexOf(s)), point: closestPointInSeries(s.data, hover.anchorX) }))
+    ? visibleSeries
+        .filter((s) => readsAt(s, hover.anchorX))
+        .map((s) => ({ series: s, color: colorFor(s, series.indexOf(s)), point: closestPointInSeries(s.data, hover.anchorX) }))
     : null;
 
   return (
@@ -705,7 +729,7 @@ export const LineAreaChart = forwardRef<LineAreaChartHandle, LineAreaChartProps>
               return (
                 <g key={s.id}>
                   {s.band && s.band.length > 1 && (
-                    <path className="lq-chart__band" d={bandGen(y)(s.band) ?? undefined} fill={color} fillOpacity={s.bandOpacity ?? 0.18} stroke="none" />
+                    <path className="lq-chart__band" d={bandGen(y)(s.band) ?? undefined} fill={s.bandColor ?? color} fillOpacity={s.bandOpacity ?? 0.18} stroke="none" />
                   )}
                   {/* Opacity and line width in CSS (LineAreaChart.css), not as presentation attributes:
                       an attribute cannot read the optional --lq-chart-area-opacity / -line-width

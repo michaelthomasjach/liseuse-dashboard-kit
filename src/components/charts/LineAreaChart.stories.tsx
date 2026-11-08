@@ -145,3 +145,59 @@ export const SecondaryYAxis: Story = {
     );
   },
 };
+
+/** Historique puis projection : au survol, chaque série n'est lue que sur ses propres dates (hoverWithinRange), et la
+ *  projection pas à son point de départ, qui ne fait que reprendre le dernier cours (hoverAfter). */
+export const HoverWithinRange: Story = {
+  name: "Lecture au survol bornée aux dates de la série (hoverWithinRange, hoverAfter)",
+  render: (args) => {
+    const start = Date.UTC(2025, 0, 1);
+    const week = 7 * 86_400_000;
+    const history = Array.from({ length: 60 }, (_, i) => ({ x: new Date(start + i * week), y: 2600 + i * 22 + Math.sin(i / 5) * 80 }));
+    const last = history[history.length - 1]!;
+    const projection = Array.from({ length: 27 }, (_, i) => ({ x: new Date(+last.x + i * 2 * week), y: last.y * (1 - 0.0006 * i) }));
+    return (
+      <LineAreaChart
+        {...args}
+        height={300}
+        formatX={formatDate}
+        formatY={(v) => `${Math.round(v).toLocaleString("fr-FR")} $`}
+        series={[
+          { id: "gold", label: "Or", data: history, color: "#b8952b", hoverWithinRange: true },
+          { id: "proj", label: "Projection", data: projection, color: "#b8952b", dashed: true, hoverWithinRange: true, hoverAfter: last.x },
+        ]}
+      />
+    );
+  },
+};
+
+/** Écart entre deux courbes coloré à part (bandColor) : courbe des taux et courbe d'inflation, l'écart en rouge. */
+export const BandColor: Story = {
+  name: "Bande d'écart colorée (bandColor)",
+  render: (args) => {
+    const years = [0, 2, 5, 10, 30];
+    const nominal = [3.9, 3.6, 3.8, 4.1, 4.7];
+    const inflation = [2.9, 2.6, 2.3, 2.25, 2.25];
+    return (
+      <LineAreaChart
+        {...args}
+        height={240}
+        xType="linear"
+        area={false}
+        formatY={(v) => `${v.toFixed(2).replace(".", ",")} %`}
+        series={[
+          {
+            id: "nominal",
+            label: "Taux nominaux",
+            color: "#7c6cf0",
+            data: years.map((x, i) => ({ x, y: nominal[i]! })),
+            band: years.map((x, i) => ({ x, low: Math.min(nominal[i]!, inflation[i]!), high: Math.max(nominal[i]!, inflation[i]!) })),
+            bandColor: "#d9573f",
+            bandOpacity: 0.22,
+          },
+          { id: "inflation", label: "Inflation", color: "#d9a03f", data: years.map((x, i) => ({ x, y: inflation[i]! })) },
+        ]}
+      />
+    );
+  },
+};

@@ -484,6 +484,30 @@
   padding: 20px 0 var(--lq-space-4);
   overflow-x: hidden;
   overflow-y: auto;
+  /* Barre de défilement fine, invisible tant que le pointeur n'est pas sur le menu (sa place reste réservée : rien ne
+     bouge quand elle apparaît). */
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+.lq-sidebar-layout--rail > :where(.lq-sidebar-layout__sidebar) .lq-sidebar-layout__nav:hover,
+.lq-sidebar-layout--rail > :where(.lq-sidebar-layout__sidebar) .lq-sidebar-layout__nav:focus-within {
+  scrollbar-color: color-mix(in srgb, var(--lq-color-text) 30%, transparent) transparent;
+}
+
+/* Navigateurs sans scrollbar-color (Safari) : même barre fine, révélée au survol. */
+.lq-sidebar-layout--rail > :where(.lq-sidebar-layout__sidebar) .lq-sidebar-layout__nav::-webkit-scrollbar {
+  width: 6px;
+}
+
+.lq-sidebar-layout--rail > :where(.lq-sidebar-layout__sidebar) .lq-sidebar-layout__nav::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 3px;
+}
+
+.lq-sidebar-layout--rail > :where(.lq-sidebar-layout__sidebar) .lq-sidebar-layout__nav:hover::-webkit-scrollbar-thumb,
+.lq-sidebar-layout--rail > :where(.lq-sidebar-layout__sidebar) .lq-sidebar-layout__nav:focus-within::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--lq-color-text) 30%, transparent);
 }
 
 .lq-sidebar-layout--rail > :where(.lq-sidebar-layout__sidebar) .lq-sidebar-layout__nav-item {

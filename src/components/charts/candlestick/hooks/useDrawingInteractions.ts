@@ -235,6 +235,15 @@ export function useDrawingInteractions({
   // Maj maintenue au dernier mouvement du pointeur : l'aperçu du tracé (calculé dans une image
   // d'animation, sans l'évènement) suit la même contrainte d'angle que le clic.
   const shiftHeldRef = useRef(false);
+  // Appui sur un dessin verrouillé (tous les dessins, ou celui-là) : ni glisser ni pan de l'axe Y,
+  // mais un simple clic le sélectionne quand même au relâché (handleOverlayPointerUp). Sans ça, rien
+  // ne le sélectionnait jamais : plus de barre flottante, donc plus de cadenas pour le déverrouiller.
+  const lockedPressRef = useRef<{ id: string; startClientX: number; startClientY: number } | null>(null);
+  // Le glisser du corps d'un dessin n'a commencé qu'une fois CLICK_DRAG_THRESHOLD franchi : en
+  // dessous, l'appui reste un clic (sélection au relâché), qui ne doit rien réécrire. Avant, le
+  // moindre pixel de tremblement recalait les dates du dessin sur les bougies affichées : un dessin
+  // tracé en 5 minutes et cliqué sur le graphique journalier sautait sur la bougie du jour suivant.
+  const dragLineMovedRef = useRef(false);
   const hoverFrameRef = useRef<number | null>(null);
   // The plot's own element, as last seen by handlePointerMove — updateHoverState runs a frame later
   // (no event in hand) and sets the pointer cursor on it directly, without a re-render per move.
@@ -603,6 +612,9 @@ export function useDrawingInteractions({
       const drag = dragLineRef.current;
       const dxPixels = e.clientX - drag.startClientX;
       const dyPixels = e.clientY - drag.startClientY;
+      // Encore un clic (voir dragLineMovedRef) : rien n'est déplacé tant que le seuil n'est pas franchi.
+      if (!dragLineMovedRef.current && Math.hypot(dxPixels, dyPixels) < CLICK_DRAG_THRESHOLD) return;
+      dragLineMovedRef.current = true;
       if (drag.orig.lineType === "horizontal") {
         // Dragging the body moves it exactly like its single handle would — only the
         // perpendicular axis (here, whichever pane it's anchored to) can change.
@@ -689,6 +701,8 @@ export function useDrawingInteractions({
   // capture, so d3-zoom's own gesture (handling X) is completely unaffected by this running
   // alongside it for Y.
   function handleOverlayPointerDown(e: React.PointerEvent<SVGRectElement>) {
+    // A press whose release never reached this overlay (cancelled touch) must not select later.
+    lockedPressRef.current = null;
     // Brush is the one drawing tool that places points by dragging instead of clicking — starts
     // capturing here instead of falling through to the click-based tools' shared handleOverlayClick.
     if (activeTool === "brush") {
@@ -715,20 +729,24 @@ export function useDrawingInteractions({
     }
     const hoveredId = e.pointerType === "touch" ? hoveredDrawingIdRef.current : hoveredDrawingId;
     if (hoveredId) {
-      // Locked: absorb the gesture instead of dragging the line OR falling through to Y-pan —
-      // otherwise panning would shift the price scale under the (unmoved) line, breaking hit
-      // testing at the original screen position. The drawing stays selectable/deletable/editable
-      // (all driven by hover/double-click, untouched here), just not draggable.
-      if (drawingsLocked) return;
       const dr = drawings.find((d) => d.id === hoveredId);
-      // Data-driven, same reasoning "locked" absorbs the gesture above — there's no coordinate
+      // Data-driven, same reasoning "locked" absorbs the gesture below — there's no coordinate
       // for a whole-body drag to shift (see the lineType's own doc comment), and falling through
       // to Y-pan here would have the same hit-testing-drifts-under-you problem "locked" avoids.
       if (dr && dr.lineType === "symbolOverlay") return;
-      // This one drawing is locked: same absorbing as the global lock above — the click still selects it.
-      if (dr?.locked) return;
+      // Locked (every drawing, or this one): absorb the gesture instead of dragging the line OR
+      // falling through to Y-pan — otherwise panning would shift the price scale under the
+      // (unmoved) line, breaking hit testing at the original screen position. The press is still
+      // recorded (lockedPressRef) so that a plain click selects it in handleOverlayPointerUp: the
+      // drawing stays selectable/deletable/editable, just not draggable.
+      if (drawingsLocked || dr?.locked) {
+        e.currentTarget.setPointerCapture(e.pointerId);
+        lockedPressRef.current = { id: hoveredId, startClientX: e.clientX, startClientY: e.clientY };
+        return;
+      }
       if (dr) {
         e.currentTarget.setPointerCapture(e.pointerId);
+        dragLineMovedRef.current = false;
         dragLineRef.current = { id: dr.id, startClientX: e.clientX, startClientY: e.clientY, orig: dr };
         return;
       }
@@ -815,6 +833,17 @@ export function useDrawingInteractions({
     if (dragMeasureBodyRef.current) {
       dragMeasureBodyRef.current = null;
       if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+      return;
+    }
+    // Locked drawing pressed (see handleOverlayPointerDown): nothing moved, a plain click selects it.
+    const lockedPress = lockedPressRef.current;
+    if (lockedPress) {
+      lockedPressRef.current = null;
+      if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+      if (Math.hypot(e.clientX - lockedPress.startClientX, e.clientY - lockedPress.startClientY) < CLICK_DRAG_THRESHOLD) {
+        setSelectedDrawingId(lockedPress.id);
+        setSelectedIndicatorId(null);
+      }
       return;
     }
     if (!dragLineRef.current) return;

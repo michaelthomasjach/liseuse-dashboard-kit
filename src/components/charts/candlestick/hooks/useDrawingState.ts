@@ -30,6 +30,16 @@ const UNDO_COALESCE_MS = 400;
 /** Undo steps kept per chart. */
 const UNDO_LIMIT = 100;
 
+/** Premier numéro libre pour `drawing-N` : un de plus que le plus grand déjà pris par les dessins chargés. */
+function nextDrawingIndex(list: TrendLineDrawing[]): number {
+  let next = 0;
+  for (const d of list) {
+    const m = /^drawing-(\d+)$/.exec(d.id);
+    if (m) next = Math.max(next, Number(m[1]) + 1);
+  }
+  return next;
+}
+
 /** Every drawing (trend lines, shapes, symbol-comparison overlays…) — state, tool selection,
  *  CRUD, and the small keyboard shortcuts (Escape to cancel/finalize, Delete to remove the
  *  hovered one) that act on them. Pointer-driven placement/dragging lives in
@@ -232,7 +242,12 @@ export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAdd
   // native listener attached to the same element fires before this file's React handler could
   // set anything from inside that same pointerdown.
   const measureBodyHoveredRef = useRef(false);
-  const drawingIdRef = useRef(0);
+  // Repart après les ids des dessins chargés (defaultDrawings), pas de 0 : à chaque montage (page
+  // rechargée), le premier dessin tracé reprenait l'id d'un dessin déjà là. Deux dessins de même id :
+  // le clic sélectionnait l'autre (ou rien s'il était verrouillé), et le nouveau ne recevait ni son
+  // unité de temps ni son style enregistré (stampTimeframe le croyait déjà connu).
+  const [firstDrawingIndex] = useState(() => nextDrawingIndex(defaultDrawings ?? []));
+  const drawingIdRef = useRef(firstDrawingIndex);
 
   // Mirrors hoveredDrawingId so useD3Zoom's filter (a plain callback, run outside React) can
   // read it synchronously at pointerdown time, without re-attaching the zoom behavior on

@@ -147,6 +147,19 @@ export function useWorkspaceSidePanelState({
     if (!panel.open) panel.commitOpen(true);
   }
 
+  /** Opens the panel on the symbol list, whatever it was showing, and never closes it — unlike
+   *  `toggleTab`, which closes the panel when its tab is already open. For a chart's own symbol
+   *  name (see ChartWorkspace's `onSymbolClick`): clicking it asks for the list, so a list already
+   *  open must stay open. Also drops the mobile details page, which would cover the list. */
+  function openWatchlist() {
+    setMobileProfileTicker(null);
+    if (activeTab !== "watchlist") {
+      setActiveTab("watchlist");
+      onSidePanelTabChange?.("watchlist");
+    }
+    if (!panel.open) panel.commitOpen(true);
+  }
+
   function changeVisibleColumns(ids: Set<string>) {
     setVisibleColumnIds(ids);
     onVisibleColumnsChange?.(Array.from(ids));
@@ -159,6 +172,7 @@ export function useWorkspaceSidePanelState({
     selectWatchlist,
     selectWatchlistTab,
     toggleTab,
+    openWatchlist,
     addSymbolRequestId,
     requestAddSymbol: () => setAddSymbolRequestId((n) => n + 1),
     mobileProfileTicker,

@@ -257,6 +257,19 @@
   border-left: none;
 }
 
+/* The docked panel follows the grid's height, it never sets it. With a fixed `panelHeight` (a single
+   row, not `--fill`) the row is as tall as its tallest child, and a long watchlist or a symbol's
+   profile (whose charts size themselves to the room they were last given — a whole screen, after a
+   stacked layout) made the panel that child: the row grew past the chart, the chart kept its fixed
+   height, and a blank band was left under the date axis and the drawing tools, inside the frame.
+   `contain: size` takes the panel's content out of the row's height; `align-items: stretch` still
+   gives it the row's full height, and its own `overflow: auto` scrolls whatever does not fit. Its
+   width is untouched: it comes from `flex-basis` and `min-width`, not from its content. Not for
+   the mobile page, which is positioned over the row rather than docked in it. */
+.lq-chart-workspace__row > .lq-chart__side-panel:not(.lq-chart__side-panel--fullscreen) {
+  contain: size;
+}
+
 /* Top and bottom, so the column is bounded the way every chart panel beside it is. Without them
    the watchlist and the symbol detail ran edge to edge of the row while the charts sat inside
    their own 1px box, and the eye read that as two different things bolted together rather than
@@ -1109,6 +1122,24 @@
    border so it doesn't nudge the panel's own layout by even a pixel while toggling on/off. */
 .lq-chart-workspace__panel--selected {
   box-shadow: inset 0 0 0 2px var(--lq-color-accent);
+}
+
+/* While one panel waits for a symbol from the list (its symbol name was clicked — see
+   ChartWorkspace's `symbolTargetPanel`), every other panel fades back, so it reads at a glance
+   which chart the pick is for. Faded, not hidden: still legible, still live, still clickable. The
+   transition sits on every panel, not just the faded ones, so coming back is as soft as going. */
+.lq-chart-workspace__grid > .lq-chart {
+  transition: opacity 200ms ease;
+}
+
+.lq-chart-workspace__panel--dimmed {
+  opacity: 0.4;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lq-chart-workspace__grid > .lq-chart {
+    transition: none;
+  }
 }
 
 /* Item 21 — pins the "?" button to the rail's own bottom edge regardless of how many of the

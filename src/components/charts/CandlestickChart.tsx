@@ -175,6 +175,8 @@ export function CandlestickChart({
   linkable = false,
   isLinked = false,
   onLinkClick,
+  onSymbolClick,
+  symbolClickActive = false,
   fillHeight = false,
   layout = "auto",
   sidePanel, defaultSidePanelOpen, onSidePanelOpenChange,
@@ -1655,6 +1657,8 @@ export function CandlestickChart({
             dims={dims}
             symbol={symbol}
             symbolSearch={symbolSearch}
+            onSymbolClick={onSymbolClick}
+            symbolClickActive={symbolClickActive}
             setSymbolSearchOpen={setSymbolSearchOpen}
             setSettingsOpen={setSettingsOpen}
             currentModeEntry={currentModeEntry}

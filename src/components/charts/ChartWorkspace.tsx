@@ -183,6 +183,14 @@ export interface ChartWorkspaceProps {
    *  What "opens in the candle chart" means in a multi-panel workspace (which panel gets it) is
    *  entirely up to whatever this does with it. */
   onWatchlistRowClick?: (row: ChartWorkspaceWatchlistRow, watchlistId: string) => void;
+  /** Fires whenever one panel is given a symbol of its own — a watchlist row sent to it (after its
+   *  symbol name was clicked, or through the "which window" dialog), or its own symbol search — with
+   *  that panel's index (0 = "Fenêtre 1") and the ticker. The workspace only relabels the panel
+   *  (`symbol`); its `data` is still whatever the caller passes. A caller showing different data per
+   *  panel keeps one symbol per panel from this, and renders one child per panel from it (see the
+   *  "Choisir le symbole d'une fenêtre" story). `onWatchlistRowClick` still fires for row clicks, but
+   *  cannot say which panel the row went to. */
+  onPanelSymbolChange?: (panelIndex: number, symbol: string) => void;
   /** Fires from the watchlist dropdown's own "Nouvelle liste" button once a name is entered —
    *  the caller owns `watchlists` itself (see its own doc), so this only reports the chosen name;
    *  appending a new entry (and picking its own `id`) is entirely up to whatever this does.
@@ -311,6 +319,7 @@ export function ChartWorkspace({
   onWatchlistSymbolSearchChange,
   onAddWatchlistSymbol,
   onWatchlistRowClick,
+  onPanelSymbolChange,
   onCreateWatchlist,
   onCreateWatchlistSection,
   onRemoveWatchlistSymbol,
@@ -466,6 +475,7 @@ export function ChartWorkspace({
     selectWatchlist,
     selectWatchlistTab,
     toggleTab,
+    openWatchlist,
     addSymbolRequestId,
     requestAddSymbol,
     mobileProfileTicker,
@@ -516,6 +526,52 @@ export function ChartWorkspace({
     setSelectedPanels([]);
   }
 
+  // The panel whose symbol name was clicked, waiting for a symbol from the list: the next row
+  // clicked goes there (no "which window" question), and every other panel fades meanwhile so it
+  // reads at a glance which chart the pick is for. Only ever set with two panels or more — with one,
+  // the name simply opens the list and a row already goes to that panel.
+  const [symbolTargetPanel, setSymbolTargetPanel] = useState<number | null>(null);
+  // The wait only holds while the list it is waiting on is on screen: closing the panel, switching it
+  // to the alerts tab, or dropping that panel from the layout ends it. Derived here, so a render never
+  // shows a stale wait; the effect below then forgets it, so reopening the list later does not
+  // bring back a fade nobody asked for again.
+  const activeSymbolTarget =
+    symbolTargetPanel !== null && symbolTargetPanel < panels && hasWatchlists && sidePanelState.open && activeTab === "watchlist"
+      ? symbolTargetPanel
+      : null;
+  useEffect(() => {
+    if (symbolTargetPanel !== null && activeSymbolTarget === null) setSymbolTargetPanel(null);
+  }, [symbolTargetPanel, activeSymbolTarget]);
+  // Échap ends the wait too — the list stays open, only the fade and the routing go.
+  useEffect(() => {
+    if (activeSymbolTarget === null) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSymbolTargetPanel(null);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [activeSymbolTarget]);
+  const clearSymbolTarget = useCallback(() => setSymbolTargetPanel(null), []);
+  /** A panel's own symbol name, clicked: the list opens (never closes — see `openWatchlist`) and,
+   *  with several panels, this one becomes the one waiting for a symbol. */
+  function pickSymbolFor(panelIndex: number) {
+    if (panels >= 2) setSymbolTargetPanel(panelIndex);
+    openWatchlist();
+  }
+  /** Pressing anywhere in *another* panel ends the wait: that click is about working on that chart
+   *  (zooming, drawing), and leaving the fade on over it would get in the way. Its symbol name is the
+   *  exception, and needs nothing here: the click that follows makes it the new target. Presses in the
+   *  waiting panel itself, in the list, or in anything portalled out of a panel (a menu, a modal —
+   *  React still bubbles those through here, but their DOM target is not under the grid) change
+   *  nothing. */
+  function endSymbolTargetFromGrid(e: React.PointerEvent<HTMLDivElement>) {
+    if (activeSymbolTarget === null) return;
+    let node = e.target as Element | null;
+    while (node && node.parentElement !== e.currentTarget) node = node.parentElement;
+    if (!node || !node.classList.contains("lq-chart")) return;
+    if (Array.prototype.indexOf.call(e.currentTarget.children, node) !== activeSymbolTarget) setSymbolTargetPanel(null);
+  }
+
   const { resolvedSymbol, setPanelSymbol, pendingRow: pendingSymbolRow, handleRowClick: handleWatchlistRowClick, confirmTarget: confirmSymbolTarget, closeTargetModal: closeSymbolTargetModal } =
     useWorkspaceSymbolRouting({
       panels,
@@ -523,6 +579,9 @@ export function ChartWorkspace({
       showMobileProfile: setMobileProfileTicker,
       clearPanelHighlights: () => setSelectedPanels([]),
       onWatchlistRowClick,
+      targetPanel: activeSymbolTarget,
+      onTargetApplied: clearSymbolTarget,
+      onPanelSymbolChange,
     });
 
   function handleGridLayoutChange(next: ChartWorkspaceGridLayout) {
@@ -563,7 +622,7 @@ export function ChartWorkspace({
     price: currentProfilePrice,
     change: currentProfileChange,
     changePercent: currentProfileChangePercent,
-  } = currentSymbolProfile(effectiveFocusedPanelIndex, panelElements, resolvedSymbol, symbolProfiles);
+  } = currentSymbolProfile(effectiveFocusedPanelIndex ?? activeSymbolTarget, panelElements, resolvedSymbol, symbolProfiles);
   const { columns, rows } = currentGridLayout;
   // Where each panel goes, as one custom property per panel on the grid (`--lq-workspace-area-1`
   // for the first, and so on) — read by the `:nth-child` rules in ChartWorkspace.css rather than
@@ -681,7 +740,10 @@ export function ChartWorkspace({
           .filter(Boolean)
           .join(" ")}
         data-grid-layout={currentGridLayout.id}
-        onPointerDown={lockHold.start}
+        onPointerDown={(e) => {
+          endSymbolTargetFromGrid(e);
+          lockHold.start(e);
+        }}
         onPointerMove={lockHold.track}
         onPointerUp={lockHold.end}
         onPointerCancel={lockHold.end}
@@ -736,6 +798,7 @@ export function ChartWorkspace({
                 child.props.className,
                 selectedPanels.includes(i) && "lq-chart-workspace__panel--selected",
                 effectiveFocusedPanelIndex === i && "lq-chart-workspace__panel--focused",
+                activeSymbolTarget !== null && activeSymbolTarget !== i && "lq-chart-workspace__panel--dimmed",
               ]
                 .filter(Boolean)
                 .join(" ") || undefined,
@@ -784,6 +847,17 @@ export function ChartWorkspace({
             linkable: panels >= 2,
             isLinked: effectiveGroupIndexOfPanel(i) !== null,
             onLinkClick: () => setLinkModalOpen(true),
+            // The symbol name opens the workspace's own list on this panel (see `pickSymbolFor`) —
+            // only once there is a list to open; without one the name keeps whatever the template
+            // child asked for (`symbolSearch`'s double-click, or plain text). A template's own
+            // `onSymbolClick` still hears the click.
+            onSymbolClick: hasWatchlists
+              ? () => {
+                  pickSymbolFor(i);
+                  child.props.onSymbolClick?.();
+                }
+              : child.props.onSymbolClick,
+            symbolClickActive: activeSymbolTarget === i || !!child.props.symbolClickActive,
             // `ChartWorkspace`'s own `watchlists`/`alerts` (above) are the single source of truth
             // once a chart is composed into a workspace — a docked panel is a "whole view" concept,
             // not a per-panel one, so a template child that also set its *own*

@@ -206,6 +206,48 @@ export const SymbolProfileWorkspace: Story = {
   ),
 };
 
+const PICK_WATCHLISTS: ChartWorkspaceWatchlist[] = [
+  {
+    id: "wl-pick",
+    name: "Liste de surveillance",
+    columns: [{ id: "last", label: "Dernier" }],
+    rows: Object.entries(DATASETS).map(([ticker, data]) => ({
+      id: `r-${ticker}`,
+      ticker,
+      values: { last: data[data.length - 1].close.toFixed(2).replace(".", ",") },
+    })),
+  },
+];
+
+/** Cliquer le nom du symbole d'une fenêtre (en haut à gauche du tracé) ouvre la liste de
+ *  surveillance pour cette fenêtre-là : les autres s'estompent, et le symbole cliqué ensuite dans la
+ *  liste va dans la fenêtre visée, sans passer par la question « quelle fenêtre ». Échap, la
+ *  fermeture du panneau ou un clic dans une autre fenêtre abandonnent. L'hôte tient un symbole par
+ *  fenêtre grâce à `onPanelSymbolChange`, et donne à chacune les données de son symbole. */
+export const PickPanelSymbol: Story = {
+  name: "Choisir le symbole d'une fenêtre (clic sur son nom)",
+  render: function PickPanelSymbolStory() {
+    const [symbols, setSymbols] = useState<string[]>(["AAPL", "MSFT", "NVDA"]);
+    return (
+      <div style={{ margin: -32 }}>
+        <ChartWorkspace
+          brokers={SAMPLE_BROKERS}
+          defaultGridLayout="3-big-left"
+          watchlists={PICK_WATCHLISTS}
+          symbolProfiles={SYMBOL_PROFILES}
+          onPanelSymbolChange={(panelIndex, symbol) =>
+            setSymbols((prev) => prev.map((s, i) => (i === panelIndex && symbol in DATASETS ? symbol : s)))
+          }
+        >
+          {symbols.map((symbol, i) => (
+            <CandlestickChart key={i} data={DATASETS[symbol]} symbol={symbol} zoomable drawingTools />
+          ))}
+        </ChartWorkspace>
+      </div>
+    );
+  },
+};
+
 export const ScriptingWorkspace: Story = {
   name: "Scripts partagés (2 panneaux)",
   render: () => (
@@ -244,4 +286,31 @@ export const LateWatchlists: Story = {
       </div>
     );
   },
+};
+
+/** Un espace de travail posé dans une page, à hauteur fixe (`panelHeight={620}`), comme sur la page
+ *  d'un symbole de macro-rates : liste de surveillance, alertes et outils de dessin. Une disposition
+ *  sur plusieurs lignes passe la zone en pleine hauteur d'écran ; revenir à une seule ligne doit lui
+ *  rendre ses 620 px, graphique et colonne d'outils compris, sans bande vide sous l'axe des dates. */
+export const FixedPanelHeight: Story = {
+  name: "Hauteur fixe (panelHeight) et retour à une seule ligne",
+  render: () => (
+    <div>
+      <p style={{ fontSize: 13, opacity: 0.7, marginBottom: 8 }}>
+        `panelHeight={620}` : passer à 2 fenêtres empilées, à la grille 2 × 2 ou à « 1 à gauche, 2 empilées », puis
+        revenir à 1 fenêtre. La fenêtre unique et sa colonne d'outils reprennent toute la hauteur du cadre.
+      </p>
+      <ChartWorkspace
+        brokers={SAMPLE_BROKERS}
+        defaultPanels={1}
+        panelHeight={620}
+        watchlists={SYMBOL_PROFILE_WATCHLISTS}
+        symbolProfiles={SYMBOL_PROFILES}
+        alerts={<p style={{ padding: 12, fontSize: 13 }}>Aucune alerte.</p>}
+      >
+        <CandlestickChart data={DATASETS.AAPL} symbol="AAPL" zoomable drawingTools showIndicators />
+      </ChartWorkspace>
+      <p style={{ fontSize: 13, opacity: 0.7, marginTop: 8 }}>Suite de la page, sous l'espace de travail.</p>
+    </div>
+  ),
 };

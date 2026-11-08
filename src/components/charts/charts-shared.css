@@ -2036,6 +2036,52 @@ button.lq-chart__legend-item {
   background-color: var(--lq-color-hover);
 }
 
+.lq-chart__symbol-info-name--clickable:focus-visible {
+  outline: 2px solid var(--lq-color-focus-ring);
+  outline-offset: 1px;
+}
+
+/* The symbol name as a host-driven button (`onSymbolClick`, see ChartLegend): the name, then a small
+   cursor icon that slides in on hover or keyboard focus — "this can be clicked" — and stays while
+   the name is pressed (`--active`). Collapsed to nothing at rest, so the legend reads exactly as
+   before until the pointer gets there. */
+.lq-chart__symbol-info-name--pick {
+  display: inline-flex;
+  align-items: center;
+}
+
+.lq-chart__symbol-info-pick-icon {
+  flex: 0 0 auto;
+  width: 0;
+  margin-left: 0;
+  opacity: 0;
+  transition:
+    width 120ms ease,
+    margin-left 120ms ease,
+    opacity 120ms ease;
+}
+
+.lq-chart__symbol-info-name--pick:hover .lq-chart__symbol-info-pick-icon,
+.lq-chart__symbol-info-name--pick:focus-visible .lq-chart__symbol-info-pick-icon,
+.lq-chart__symbol-info-name--active .lq-chart__symbol-info-pick-icon {
+  width: 11px;
+  margin-left: 4px;
+  opacity: 1;
+}
+
+/* Pressed: the same filled look a selected option has in the chart's menus. */
+.lq-chart__symbol-info-name--active,
+.lq-chart__symbol-info-name--active:hover {
+  color: var(--lq-color-accent-contrast);
+  background-color: var(--lq-color-fill);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lq-chart__symbol-info-pick-icon {
+    transition: none;
+  }
+}
+
 .lq-chart__symbol-info-sep {
   font-size: 0.75rem;
   color: var(--lq-color-text-muted);

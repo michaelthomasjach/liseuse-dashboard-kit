@@ -365,6 +365,18 @@ export interface CandlestickChartProps {
    *  app decides what \"linked\" means, the same way `isLinked` is the app's own answer rather than
    *  internal state. */
   onLinkClick?: () => void;
+  /** Rend le nom du symbole, en haut à gauche du tracé, cliquable pour un hôte qui choisit le
+   *  symbole lui-même : fond au survol (comme le libellé du mode d'affichage à côté), petite icône de
+   *  curseur, vrai bouton (« Changer le symbole de cette fenêtre (AAPL) ») activable au clavier.
+   *  Appelée à chaque clic ; un double-clic, fait de deux clics, l'appelle donc deux fois — une
+   *  action idempotente (ouvrir une liste, viser ce graphique) s'en accommode. `ChartWorkspace` s'en
+   *  sert pour ouvrir sa liste de symboles sur cette fenêtre-là. Prend le pas sur le double-clic de
+   *  `symbolSearch`. Absent (défaut) : le nom garde son comportement habituel, texte simple sans
+   *  `symbolSearch`. Sans effet si `symbol` est absent. */
+  onSymbolClick?: () => void;
+  /** Montre le nom du symbole enfoncé (voir `onSymbolClick`) — tant que l'hôte attend un symbole
+   *  pour ce graphique-ci, par exemple. Purement visuel. Défaut false. */
+  symbolClickActive?: boolean;
   /** Content for a collapsible, resizable panel docked to the chart's own right edge, sharing the
    *  same outer bordered widget rather than floating separately — a watchlist, an order ticket,
    *  notes, anything the caller wants alongside the chart (same "structure only, bring your own

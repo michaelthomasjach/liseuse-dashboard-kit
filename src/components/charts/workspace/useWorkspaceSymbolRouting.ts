@@ -12,6 +12,13 @@ export interface UseWorkspaceSymbolRoutingArgs {
   /** Clears the panel highlights the target modal drives. */
   clearPanelHighlights: () => void;
   onWatchlistRowClick?: (row: ChartWorkspaceWatchlistRow, watchlistId: string) => void;
+  /** The panel the reader asked to change the symbol of, by clicking its symbol name — a row click
+   *  goes straight there instead of asking "which window". Null when no panel is waiting. */
+  targetPanel: number | null;
+  /** Called once a row has been applied to `targetPanel`: the wait is over. */
+  onTargetApplied: () => void;
+  /** Reports every symbol given to a panel individually — see ChartWorkspace's own prop. */
+  onPanelSymbolChange?: (panelIndex: number, symbol: string) => void;
 }
 
 /** Which symbol each panel is showing, and where a watchlist row click ends up.
@@ -26,6 +33,9 @@ export function useWorkspaceSymbolRouting({
   showMobileProfile,
   clearPanelHighlights,
   onWatchlistRowClick,
+  targetPanel,
+  onTargetApplied,
+  onPanelSymbolChange,
 }: UseWorkspaceSymbolRoutingArgs) {
   const [symbolByPanel, setSymbolByPanel] = useState<Record<number, string | undefined>>({});
   // The watchlist row awaiting a "which window(s)" answer from SymbolTargetModal — non-null is
@@ -52,9 +62,13 @@ export function useWorkspaceSymbolRouting({
   );
 
   /** Assigns a symbol to specific panels — the path a panel's own symbol search takes. */
-  const setPanelSymbol = useCallback((panelIndex: number, ticker: string) => {
-    setSymbolByPanel((prev) => ({ ...prev, [panelIndex]: ticker }));
-  }, []);
+  const setPanelSymbol = useCallback(
+    (panelIndex: number, ticker: string) => {
+      setSymbolByPanel((prev) => ({ ...prev, [panelIndex]: ticker }));
+      onPanelSymbolChange?.(panelIndex, ticker);
+    },
+    [onPanelSymbolChange],
+  );
 
   /** Routes a watchlist row click: with only one panel there's no ambiguity, so it's applied right
    *  away (same immediate feel clicking a result in a panel's own symbol search already has); with
@@ -67,10 +81,19 @@ export function useWorkspaceSymbolRouting({
       // and a modal landing on top of the page that just opened would be two answers to one tap.
       // The ticker still goes to the primary panel, so switching to the Graphique page afterwards
       // shows what was tapped rather than the previous symbol.
+      // The panel whose symbol name was clicked, when there is one, rather than the primary one.
       if (isMobileWorkspace) {
         showMobileProfile(row.ticker);
-        setPanelSymbol(0, row.ticker);
+        setPanelSymbol(targetPanel ?? 0, row.ticker);
         onWatchlistRowClick?.(row, watchlistId);
+        if (targetPanel !== null) onTargetApplied();
+        return;
+      }
+      // A panel is waiting for this very choice (its symbol name was clicked): no question to ask.
+      if (targetPanel !== null) {
+        setPanelSymbol(targetPanel, row.ticker);
+        onWatchlistRowClick?.(row, watchlistId);
+        onTargetApplied();
         return;
       }
       if (panels >= 2) {
@@ -80,7 +103,7 @@ export function useWorkspaceSymbolRouting({
       setPanelSymbol(0, row.ticker);
       onWatchlistRowClick?.(row, watchlistId);
     },
-    [isMobileWorkspace, panels, showMobileProfile, setPanelSymbol, onWatchlistRowClick],
+    [isMobileWorkspace, panels, showMobileProfile, setPanelSymbol, onWatchlistRowClick, targetPanel, onTargetApplied],
   );
 
   const closeTargetModal = useCallback(() => {
@@ -97,10 +120,11 @@ export function useWorkspaceSymbolRouting({
         for (const i of panelIndices) next[i] = row.ticker;
         return next;
       });
+      for (const i of panelIndices) onPanelSymbolChange?.(i, row.ticker);
       onWatchlistRowClick?.(row, watchlistId);
       closeTargetModal();
     },
-    [pendingRow, onWatchlistRowClick, closeTargetModal],
+    [pendingRow, onWatchlistRowClick, closeTargetModal, onPanelSymbolChange],
   );
 
   return { resolvedSymbol, setPanelSymbol, pendingRow, handleRowClick, confirmTarget, closeTargetModal };

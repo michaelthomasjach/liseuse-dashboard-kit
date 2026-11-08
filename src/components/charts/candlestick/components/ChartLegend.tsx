@@ -2,7 +2,7 @@ import type { IndicatorInfoTarget } from "../interfaces/IndicatorInfoTarget.inte
 import { infoTargetFor, scriptIdFromIndicatorId } from "../scripting/scriptOutputToCustomIndicatorDef";
 import type { Dispatch, SetStateAction } from "react";
 import { useMemo, useState } from "react";
-import { ActivityIcon, CodeIcon, EyeIcon, EyeOffIcon, TrashIcon, SettingsIcon, AlarmClockIcon, InfoIcon, ChevronDownIcon, ChevronRightIcon } from "../../../icons";
+import { ActivityIcon, CodeIcon, EyeIcon, EyeOffIcon, TrashIcon, SettingsIcon, AlarmClockIcon, InfoIcon, ChevronDownIcon, ChevronRightIcon, CursorArrowIcon } from "../../../icons";
 import type { Candle } from "../interfaces/Candle.interface";
 import type { Indicator } from "../interfaces/Indicator.interface";
 import type { OverlayDataPoint, TrendLineDrawing } from "../interfaces/TrendLineDrawing.interface";
@@ -46,6 +46,10 @@ export interface ChartLegendProps {
   priceHeight: number;
   symbol: string | undefined;
   symbolSearch: boolean;
+  /** Voir `CandlestickChartProps.onSymbolClick` : le nom devient un bouton qui appelle l'hôte. */
+  onSymbolClick?: () => void;
+  /** Voir `CandlestickChartProps.symbolClickActive`. */
+  symbolClickActive: boolean;
   setSymbolSearchOpen: (open: boolean) => void;
   setSettingsOpen: (open: boolean) => void;
   currentModeEntry: ChartDisplayModeDef;
@@ -117,6 +121,8 @@ export function ChartLegend({
   priceHeight,
   symbol,
   symbolSearch,
+  onSymbolClick,
+  symbolClickActive,
   setSymbolSearchOpen,
   setSettingsOpen,
   currentModeEntry,
@@ -188,8 +194,32 @@ export function ChartLegend({
             on click, covering the full viewport once open, so a single click that opened it
             would leave the *second* click of the same double-click gesture landing on that
             overlay instead of this button, closing the modal again immediately. */}
+        {/* An host that picks the symbol itself (`onSymbolClick`, see ChartWorkspace) comes first:
+            a single click is enough here, since what it opens is not a modal whose overlay would
+            catch the second click of a double-click (see just below) — a double-click is two
+            clicks, both harmless. The double-click itself stops here, so it never reaches the
+            plot underneath. The cursor icon only shows on hover, focus, or while pressed. */}
         {symbol &&
-          (symbolSearch ? (
+          (onSymbolClick ? (
+            <button
+              type="button"
+              className={[
+                "lq-chart__symbol-info-name",
+                "lq-chart__symbol-info-name--clickable",
+                "lq-chart__symbol-info-name--pick",
+                symbolClickActive && "lq-chart__symbol-info-name--active",
+              ]
+                .filter(Boolean)
+                .join(" ")}
+              onClick={onSymbolClick}
+              onDoubleClick={(e) => e.stopPropagation()}
+              aria-label={`Changer le symbole de cette fenêtre (${symbol})`}
+              title="Changer le symbole de cette fenêtre"
+            >
+              <span>{symbol}</span>
+              <CursorArrowIcon size={11} className="lq-chart__symbol-info-pick-icon" aria-hidden="true" />
+            </button>
+          ) : symbolSearch ? (
             <button
               type="button"
               className="lq-chart__symbol-info-name lq-chart__symbol-info-name--clickable"

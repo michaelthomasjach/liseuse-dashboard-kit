@@ -625,14 +625,14 @@
   }
 
   .lq-sidebar-layout--rail > .lq-sidebar-layout__sidebar:hover:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)),
-  .lq-sidebar-layout--rail > .lq-sidebar-layout__sidebar:focus-within:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)),
+  .lq-sidebar-layout--rail > .lq-sidebar-layout__sidebar:has(:focus-visible):where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)),
   .lq-sidebar-layout--rail.lq-sidebar-layout--pinned > .lq-sidebar-layout__sidebar:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)) {
     transform: none;
   }
 
   /* Ouverte, les vignettes glissent d'un cran vers les libellés. */
   .lq-sidebar-layout--rail > .lq-sidebar-layout__sidebar:hover .lq-sidebar-layout__thumb:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)),
-  .lq-sidebar-layout--rail > .lq-sidebar-layout__sidebar:focus-within .lq-sidebar-layout__thumb:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)),
+  .lq-sidebar-layout--rail > .lq-sidebar-layout__sidebar:has(:focus-visible) .lq-sidebar-layout__thumb:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)),
   .lq-sidebar-layout--rail.lq-sidebar-layout--pinned > :where(.lq-sidebar-layout__sidebar) .lq-sidebar-layout__thumb:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)) {
     transform: translateX(-14px);
   }
@@ -651,9 +651,9 @@
   .lq-sidebar-layout--rail > .lq-sidebar-layout__sidebar:hover .lq-sidebar-layout__head > *:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)),
   .lq-sidebar-layout--rail > .lq-sidebar-layout__sidebar:hover .lq-sidebar-layout__item-text:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)),
   .lq-sidebar-layout--rail > .lq-sidebar-layout__sidebar:hover .lq-sidebar-layout__group-chevron:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)),
-  .lq-sidebar-layout--rail > .lq-sidebar-layout__sidebar:focus-within .lq-sidebar-layout__head > *:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)),
-  .lq-sidebar-layout--rail > .lq-sidebar-layout__sidebar:focus-within .lq-sidebar-layout__item-text:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)),
-  .lq-sidebar-layout--rail > .lq-sidebar-layout__sidebar:focus-within .lq-sidebar-layout__group-chevron:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)),
+  .lq-sidebar-layout--rail > .lq-sidebar-layout__sidebar:has(:focus-visible) .lq-sidebar-layout__head > *:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)),
+  .lq-sidebar-layout--rail > .lq-sidebar-layout__sidebar:has(:focus-visible) .lq-sidebar-layout__item-text:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)),
+  .lq-sidebar-layout--rail > .lq-sidebar-layout__sidebar:has(:focus-visible) .lq-sidebar-layout__group-chevron:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)),
   .lq-sidebar-layout--rail.lq-sidebar-layout--pinned > :where(.lq-sidebar-layout__sidebar) .lq-sidebar-layout__head > *:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)),
   .lq-sidebar-layout--rail.lq-sidebar-layout--pinned > :where(.lq-sidebar-layout__sidebar) .lq-sidebar-layout__item-text:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)),
   .lq-sidebar-layout--rail.lq-sidebar-layout--pinned > :where(.lq-sidebar-layout__sidebar) .lq-sidebar-layout__group-chevron:where(:not(.lq-sidebar-layout--contained, .lq-sidebar-layout--contained *)) {
@@ -683,14 +683,14 @@
   }
 
   :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail > .lq-sidebar-layout__sidebar:hover,
-  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail > .lq-sidebar-layout__sidebar:focus-within,
+  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail > .lq-sidebar-layout__sidebar:has(:focus-visible),
   :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail.lq-sidebar-layout--pinned > .lq-sidebar-layout__sidebar {
     transform: none;
   }
 
   /* Ouverte, les vignettes glissent d'un cran vers les libellés. */
   :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail > .lq-sidebar-layout__sidebar:hover .lq-sidebar-layout__thumb,
-  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail > .lq-sidebar-layout__sidebar:focus-within .lq-sidebar-layout__thumb,
+  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail > .lq-sidebar-layout__sidebar:has(:focus-visible) .lq-sidebar-layout__thumb,
   :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail.lq-sidebar-layout--pinned > :where(.lq-sidebar-layout__sidebar) .lq-sidebar-layout__thumb {
     transform: translateX(-14px);
   }
@@ -709,9 +709,9 @@
   :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail > .lq-sidebar-layout__sidebar:hover .lq-sidebar-layout__head > *,
   :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail > .lq-sidebar-layout__sidebar:hover .lq-sidebar-layout__item-text,
   :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail > .lq-sidebar-layout__sidebar:hover .lq-sidebar-layout__group-chevron,
-  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail > .lq-sidebar-layout__sidebar:focus-within .lq-sidebar-layout__head > *,
-  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail > .lq-sidebar-layout__sidebar:focus-within .lq-sidebar-layout__item-text,
-  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail > .lq-sidebar-layout__sidebar:focus-within .lq-sidebar-layout__group-chevron,
+  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail > .lq-sidebar-layout__sidebar:has(:focus-visible) .lq-sidebar-layout__head > *,
+  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail > .lq-sidebar-layout__sidebar:has(:focus-visible) .lq-sidebar-layout__item-text,
+  :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail > .lq-sidebar-layout__sidebar:has(:focus-visible) .lq-sidebar-layout__group-chevron,
   :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail.lq-sidebar-layout--pinned > :where(.lq-sidebar-layout__sidebar) .lq-sidebar-layout__head > *,
   :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail.lq-sidebar-layout--pinned > :where(.lq-sidebar-layout__sidebar) .lq-sidebar-layout__item-text,
   :where(.lq-sidebar-layout--contained).lq-sidebar-layout--rail.lq-sidebar-layout--pinned > :where(.lq-sidebar-layout__sidebar) .lq-sidebar-layout__group-chevron {

@@ -5,9 +5,11 @@ import type { SymbolSearchCategory } from "./candlestick/interfaces/SymbolSearch
 import type { SymbolSearchResult } from "./candlestick/interfaces/SymbolSearchResult.interface";
 import type { ScriptDef } from "./candlestick/interfaces/ScriptDef.interface";
 import type { ScriptAlertEvent } from "./candlestick/interfaces/ScriptAlertEvent.interface";
+import type { ChartVisibleRange } from "./candlestick/interfaces/ChartVisibleRange.interface";
 import { useLinkGroups } from "./workspace/useLinkGroups";
 import { useWorkspaceLockHold } from "./workspace/useWorkspaceLockHold";
 import { usePanelCrosshairSync } from "./workspace/usePanelCrosshairSync";
+import { usePanelVisibleRangeSync } from "./workspace/usePanelVisibleRangeSync";
 import { useWorkspaceSymbolRouting } from "./workspace/useWorkspaceSymbolRouting";
 import { useWorkspaceSidePanelState } from "./workspace/useWorkspaceSidePanelState";
 import { LinkGroupsModal } from "./workspace/LinkGroupsModal";
@@ -295,7 +297,11 @@ export interface ChartWorkspaceProps {
  *  line/badge) on every other panel in that group, each axis translated to that panel's own
  *  scale (nearest candle by date on X, the same price re-projected through that panel's own
  *  price scale on Y) rather than a raw shared index/pixel, so panels showing different symbols,
- *  zoom levels, or ranges still line up correctly. Grouping itself happens through the
+ *  zoom levels, or ranges still line up correctly. Le groupe partage aussi sa fenêtre visible :
+ *  déplacer ou zoomer un panneau (glisser, molette, axe des dates, remise à zéro…) cale à chaque
+ *  image les autres panneaux du groupe sur la même plage de dates, chacun sur ses propres bougies,
+ *  et leur axe des prix s'ajuste aux bougies affichées (voir `usePanelVisibleRangeSync` et
+ *  `CandlestickChart.syncedVisibleRange`). Grouping itself happens through the
  *  chain-link button each panel's own header gets (`CandlestickChart.linkable`, wired here) —
  *  opens one shared "Graphiques liés" modal (see `LinkGroupsModal`) regardless of which panel's
  *  button was clicked, since the groups themselves are workspace-wide, not per-panel. */
@@ -374,6 +380,12 @@ export function ChartWorkspace({
   // Kept beside the groups it reads rather than with the rest of the per-panel state below,
   // because "which panels see each other's crosshair" *is* the grouping — see the hook's own doc.
   const { reportHoverDate, reportHoverPrice, syncedDateForPanel, syncedPriceForPanel } = usePanelCrosshairSync({
+    groups: effectiveGroups,
+    groupIndexOfPanel: effectiveGroupIndexOfPanel,
+  });
+  // Mêmes groupes, pour la fenêtre visible : déplacer ou zoomer un panneau lié cale les autres
+  // panneaux de son groupe sur la même plage de dates — voir le doc du hook.
+  const { reportVisibleRange, syncedRangeForPanel } = usePanelVisibleRangeSync({
     groups: effectiveGroups,
     groupIndexOfPanel: effectiveGroupIndexOfPanel,
   });
@@ -842,6 +854,18 @@ export function ChartWorkspace({
             onHoverDateChange: (date: Date | null) => reportHoverDate(i, date),
             syncedHoverPrice: syncedPriceForPanel(i),
             onHoverPriceChange: (price: number | null) => reportHoverPrice(i, price),
+            // La fenêtre visible du groupe : un panneau lié suit les déplacements et zooms des autres
+            // panneaux de son groupe. Le rappel n'est branché que pour un panneau lié (ou dont le
+            // modèle écoute lui-même) : un panneau seul n'a personne à entraîner, et garde son
+            // comportement de toujours. Celui du modèle est encore appelé, comme pour `timeframe`.
+            syncedVisibleRange: syncedRangeForPanel(i),
+            onVisibleRangeChange:
+              effectiveGroupIndexOfPanel(i) !== null || child.props.onVisibleRangeChange
+                ? (range: ChartVisibleRange) => {
+                    reportVisibleRange(i, range);
+                    child.props.onVisibleRangeChange?.(range);
+                  }
+                : undefined,
             // Linking only means anything once there's at least one *other* panel to link with —
             // shown regardless in a single-chart workspace, the button had nothing to actually do.
             linkable: panels >= 2,

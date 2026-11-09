@@ -8,8 +8,10 @@ import type { ChartDimensions } from "../../internal/useChartDimensions";
 import type { Candle } from "../interfaces/Candle.interface";
 import type { TrendLineDrawing } from "../interfaces/TrendLineDrawing.interface";
 import type { DrawingToolType } from "../interfaces/DrawingToolType.interface";
+import type { ChartVisibleRange } from "../interfaces/ChartVisibleRange.interface";
 import { MAX_EMPTY_FRACTION, AXIS_BADGE_HALF_HEIGHT, MAX_DATE_TICKS, MIN_DATE_TICK_SPACING_PX } from "../constants";
 import { computeHeikinAshiCandles, computeRenkoBrickSize, computeRenkoBricks, computeLineBreakBricks, type PriceBrick } from "../chartModes";
+import { transformForVisibleRange, visibleRangeOfDomain } from "../visibleRangeSync";
 
 /** Candle indices (offset .5 to land mid-slot, matching every candle's own cx) a date axis
  *  should actually draw a tick at — thinned to at most MAX_DATE_TICKS regardless of how many
@@ -89,6 +91,16 @@ export interface UseZoomAndScalesArgs {
   /** Bumped by useReplayState on every explicit replay move (Lecture, a step, a date, a new start,
    *  « Suivre »): the auto-follow below, suspended by the user's own pan/zoom, resumes on it. */
   replayFollowKey: number;
+  /** Voir CandlestickChartProps.syncedVisibleRange : la plage qu'un graphique lié vient de montrer,
+   *  que celui-ci reproduit (en suiveur) dès qu'elle change. */
+  syncedVisibleRange: ChartVisibleRange | null | undefined;
+  /** Voir CandlestickChartProps.onVisibleRangeChange : appelé pour chaque changement de la fenêtre
+   *  visible venu d'un geste de l'utilisateur sur ce graphique, jamais pour un changement appliqué
+   *  par programme (vue initiale, redimensionnement, replay, synchronisation reçue). */
+  onVisibleRangeChange: ((range: ChartVisibleRange) => void) | undefined;
+  /** Remet chaque sous-panneau (volume, indicateurs) sur son échelle automatique — appelé quand ce
+   *  graphique suit la plage d'un autre, pour que leurs valeurs restent visibles comme les prix. */
+  resetSubPaneYAxes: () => void;
 }
 
 /** The chart's whole coordinate system: X/Y transforms (pan/zoom), the index-based X scale and
@@ -121,6 +133,9 @@ export function useZoomAndScales({
   replayActive,
   replayCutoffIndex,
   replayFollowKey,
+  syncedVisibleRange,
+  onVisibleRangeChange,
+  resetSubPaneYAxes,
 }: UseZoomAndScalesArgs) {
   const [transform, setTransform] = useState<d3.ZoomTransform>(d3.zoomIdentity);
   // Mirrors `transform` for the replay auto-follow effect below, which deliberately does NOT list
@@ -133,6 +148,12 @@ export function useZoomAndScales({
   // or the Y component of the 2D plot-drag) — while true, `YAutoScaling` stops overwriting their
   // adjustment. Cleared by resetZoom/resetYAxis, which re-engages auto-fit.
   const [yManuallyAdjusted, setYManuallyAdjusted] = useState(false);
+  // Vrai tant que ce graphique suit la plage d'un graphique lié (voir l'effet de synchronisation plus
+  // bas) : l'axe des prix s'ajuste alors aux bougies visibles même si `YAutoScaling` est coupé, pour
+  // que le prix reste à l'écran quoi que le meneur fasse. Retombe au premier geste de l'utilisateur
+  // sur ce graphique-ci (il redevient maître de sa vue, avec son comportement habituel) ou à la remise
+  // à zéro de l'axe des prix. Un réglage manuel de l'axe (`yManuallyAdjusted`) l'emporte toujours.
+  const [syncFit, setSyncFit] = useState(false);
 
   // Positions candles by INDEX, not by literal calendar time — each candle i occupies the slot
   // [i, i+1], centered at i+0.5. A real d3.scaleTime() (mapping actual elapsed time to pixels)
@@ -364,9 +385,11 @@ export function useZoomAndScales({
   // same reasoning MACD's own pane never respects YAutoScaling either. Manual Y-axis
   // dragging/wheel is effectively a no-op for as long as any overlay is present, since this
   // effect immediately recomputes over it on the next render.
+  // `syncFit` (ce graphique suit un graphique lié) force l'ajustement même avec `YAutoScaling` coupé ;
+  // un réglage manuel fait depuis reste respecté.
   useEffect(() => {
     if (data.length === 0) return;
-    if (!compareMode && (!yAutoScalingState || yManuallyAdjusted)) return;
+    if (!compareMode && (yManuallyAdjusted || (!yAutoScalingState && !syncFit))) return;
     // Replay reveals candles [0, cutoffIndex] — everything past that is still in `data` (see
     // useReplayState.ts's own doc on why it never slices `data`) but painted over by
     // drawReplayMask.ts, so it shouldn't count toward what the visible price window fits to.
@@ -420,6 +443,7 @@ export function useZoomAndScales({
   }, [
     yAutoScalingState,
     yManuallyAdjusted,
+    syncFit,
     data,
     visibleRange.start,
     visibleRange.end,
@@ -480,6 +504,49 @@ export function useZoomAndScales({
     setReplayFollowSuspended(true);
   }
 
+  // Vrai le temps d'un `setXTransformSilently` (plus bas) : la transformation qui arrive alors dans
+  // `handleZoom` vient du graphique lui-même (vue initiale, redimensionnement, replay) ou d'une
+  // synchronisation reçue, pas d'un geste de l'utilisateur, et ne doit pas être annoncée. Un drapeau
+  // suffit : `setXTransformViaZoom` rappelle `onZoom` de façon synchrone, avant de rendre la main.
+  const silentZoomRef = useRef(false);
+  const onVisibleRangeChangeRef = useRef(onVisibleRangeChange);
+  onVisibleRangeChangeRef.current = onVisibleRangeChange;
+  const lastReportedRangeRef = useRef<{ start: number; end: number } | null>(null);
+  // La dernière transformation passée par `handleZoom`, quelle qu'en soit l'origine.
+  const lastZoomRef = useRef<d3.ZoomTransform>(d3.zoomIdentity);
+
+  // Toute nouvelle transformation X passe par ici (geste sur le tracé, axe des dates, molette,
+  // remise à zéro animée, nombre de bougies, zoom sur une zone, replay au hasard…). Hors
+  // `setXTransformSilently`, c'est l'utilisateur qui vient de déplacer la vue : ce graphique mène.
+  // Il cesse alors de suivre un graphique lié (`syncFit`) et annonce sa nouvelle plage de dates à
+  // chaque image, sans attendre la fin du geste, pour que ceux qui le suivent glissent avec lui.
+  function handleZoom(t: d3.ZoomTransform) {
+    const previous = lastZoomRef.current;
+    lastZoomRef.current = t;
+    setTransform(t);
+    if (silentZoomRef.current) {
+      // La vue a bougé sans ce graphique : son prochain geste doit être annoncé même s'il le ramène
+      // exactement sur la dernière plage qu'il avait annoncée (une remise à zéro, par exemple).
+      lastReportedRangeRef.current = null;
+      return;
+    }
+    // Un glisser purement vertical (dans un sous-panneau, ou sur le prix) passe aussi par d3-zoom,
+    // qui rappelle `onZoom` à chaque mouvement sans rien changer en X : ce n'est pas un déplacement
+    // de la plage de dates, ni une raison de cesser de suivre le groupe.
+    if (t.k === previous.k && t.x === previous.x) return;
+    if (syncFit) setSyncFit(false);
+    const report = onVisibleRangeChangeRef.current;
+    if (!report) return;
+    const range = visibleRangeOfDomain(data, t.rescaleX(xScale).domain());
+    if (!range) return;
+    const start = range.start.getTime();
+    const end = range.end.getTime();
+    const last = lastReportedRangeRef.current;
+    if (last && last.start === start && last.end === end) return;
+    lastReportedRangeRef.current = { start, end };
+    report(range);
+  }
+
   const {
     ref: zoomRef,
     reset: resetX,
@@ -490,7 +557,7 @@ export function useZoomAndScales({
     height: plotBoundedHeight,
     enabled: zoomable && activeTool === null,
     scaleExtent: [1, maxXZoom],
-    onZoom: setTransform,
+    onZoom: handleZoom,
     // Wheel-zoom stays allowed even while `replayArmed` (confirmed bug report: "le scroll out/in
     // ne fonctionne pas" — zooming in to precisely target a candle before clicking its own cutoff
     // is exactly when it's most useful) — only a *drag* is rejected then, which is the actual
@@ -500,6 +567,21 @@ export function useZoomAndScales({
     constrain: constrainXPan,
     onUserZoom: suspendReplayFollow,
   });
+
+  // `setXTransformViaZoom` pour les changements de vue qui ne viennent pas d'un geste de
+  // l'utilisateur : ils ne sont pas annoncés aux graphiques liés (voir `handleZoom`). Une plage reçue
+  // d'un graphique lié passe par ici, ce qui interdit qu'elle soit renvoyée au groupe en écho.
+  const setXTransformSilently = useCallback(
+    (t: d3.ZoomTransform) => {
+      silentZoomRef.current = true;
+      try {
+        setXTransformViaZoom(t);
+      } finally {
+        silentZoomRef.current = false;
+      }
+    },
+    [setXTransformViaZoom]
+  );
 
   // Replay's own auto-follow: each newly-revealed candle (`replayCutoffIndex`, advanced by
   // useReplayState.ts's own play interval) that would land at or past the currently visible
@@ -539,7 +621,8 @@ export function useZoomAndScales({
       [0, 0],
       [dims.boundedWidth, plotBoundedHeight],
     ]);
-    setXTransformViaZoom(next);
+    // Silencieux : c'est la lecture qui avance, pas l'utilisateur qui déplace la vue.
+    setXTransformSilently(next);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [replayActive, replayCutoffIndex, replayFollowKey]);
 
@@ -593,10 +676,10 @@ export function useZoomAndScales({
     viewResetKeyRef.current = viewResetKey;
     initialViewAppliedRef.current = false;
     initialVisibleCountRef.current = null;
-    setXTransformViaZoom(d3.zoomIdentity);
+    setXTransformSilently(d3.zoomIdentity);
     setYTransform(d3.zoomIdentity);
     setYManuallyAdjusted(false);
-  }, [viewResetKey, setXTransformViaZoom]);
+  }, [viewResetKey, setXTransformSilently]);
   useEffect(() => {
     if (initialViewAppliedRef.current) return;
     if (dims.boundedWidth <= 0 || data.length === 0) return;
@@ -606,8 +689,8 @@ export function useZoomAndScales({
     const t = transformForVisibleCount(initialVisibleCandles);
     if (!t) return;
     initialVisibleCountRef.current = initialVisibleCandles;
-    setXTransformViaZoom(t);
-  }, [dims.boundedWidth, data.length, initialVisibleCandles, transformForVisibleCount, setXTransformViaZoom, viewResetKey]);
+    setXTransformSilently(t);
+  }, [dims.boundedWidth, data.length, initialVisibleCandles, transformForVisibleCount, setXTransformSilently, viewResetKey]);
 
   // Preserves whatever candle range was actually visible across a *width* change — e.g. dragging
   // ChartWorkspace's own watchlist panel wider/narrower shrinks/grows this chart's own
@@ -637,8 +720,49 @@ export function useZoomAndScales({
     const x1 = xScale(i1);
     if (x1 - x0 <= 0) return;
     const k = Math.min(maxXZoom, Math.max(1, dims.boundedWidth / (x1 - x0)));
-    setXTransformViaZoom(new d3.ZoomTransform(k, -k * x0, 0));
-  }, [dims.boundedWidth, data.length, xScale, maxXZoom, transform, setXTransformViaZoom]);
+    // Silencieux : la plage de dates ne change pas, seule la largeur qui la montre.
+    setXTransformSilently(new d3.ZoomTransform(k, -k * x0, 0));
+  }, [dims.boundedWidth, data.length, xScale, maxXZoom, transform, setXTransformSilently]);
+
+  // Synchronisation reçue d'un graphique lié (voir CandlestickChartProps.syncedVisibleRange) : chaque
+  // nouvelle plage est reproduite ici, calée par date sur les bougies de ce graphique (voir
+  // `transformForVisibleRange` pour ce qui se passe quand ses données ne couvrent pas la plage), puis
+  // l'axe des prix et ceux des sous-panneaux reviennent en ajustement automatique sur les bougies
+  // visibles — réglage manuel compris, et même `YAutoScaling` coupé (`syncFit`) — pour que le prix
+  // reste toujours à l'écran. Appliquée en silence : jamais renvoyée au groupe.
+  //
+  // Déclaré après la vue initiale et le maintien de largeur pour passer après eux dans le même
+  // commit : un graphique monté (ou rechargé par `viewResetKey`) au milieu d'un groupe déjà déplacé
+  // rejoint la plage du groupe au lieu de garder sa vue de départ. Volontairement relancé seulement
+  // quand la plage change, quand le graphique devient affichable ou quand ses données sont
+  // remplacées (`viewResetKey`) — pas à chaque nouvelle bougie ou nouvelle largeur, que les effets
+  // ci-dessus gèrent déjà sans changer les dates montrées.
+  const syncStartMs = syncedVisibleRange ? syncedVisibleRange.start.getTime() : null;
+  const syncEndMs = syncedVisibleRange ? syncedVisibleRange.end.getTime() : null;
+  const syncReady = data.length > 0 && dims.boundedWidth > 0;
+  const resetSubPaneYAxesRef = useRef(resetSubPaneYAxes);
+  resetSubPaneYAxesRef.current = resetSubPaneYAxes;
+  useEffect(() => {
+    if (syncStartMs === null || syncEndMs === null || !syncReady) return;
+    const next = transformForVisibleRange({
+      data,
+      range: { start: new Date(syncStartMs), end: new Date(syncEndMs) },
+      xScale,
+      width: dims.boundedWidth,
+      maxZoom: maxXZoom,
+      constrain: (t) =>
+        constrainXPan(t, [
+          [0, 0],
+          [dims.boundedWidth, plotBoundedHeight],
+        ]),
+    });
+    if (!next) return;
+    setXTransformSilently(next);
+    setYManuallyAdjusted(false);
+    setSyncFit(true);
+    resetSubPaneYAxesRef.current();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [syncStartMs, syncEndMs, syncReady, viewResetKey]);
 
   const xAxisDrag = useAxisDragRescale({
     axis: "x",
@@ -718,6 +842,7 @@ export function useZoomAndScales({
     setXTransformAnimated(target);
     setYTransform(d3.zoomIdentity);
     setYManuallyAdjusted(false);
+    setSyncFit(false);
   }
 
   // Space bar — same effect as clicking the "loupe -" toolbar button, the way a video player's own
@@ -747,6 +872,7 @@ export function useZoomAndScales({
   function resetYAxis() {
     setYTransform(d3.zoomIdentity);
     setYManuallyAdjusted(false);
+    setSyncFit(false);
   }
 
   // Every candle fills up to 80% of the space actually available to it at the current zoom — with

@@ -87,7 +87,7 @@ export type {
   TimeframeGroup,
   TimeframeEntry,
   CandlestickChartProps, ChartAlert, ChartAlertDraft, ChartAlertCrossing,
-  ScriptDef, ScriptAlertEvent,
+  ScriptDef, ScriptAlertEvent, ChartVisibleRange,
 } from "./CandlestickChart.types";
 
 import { drawingLabel } from "./candlestick/drawingCatalog";
@@ -172,6 +172,7 @@ export function CandlestickChart({
   syncedHoverDate,
   onHoverDateChange,
   syncedHoverPrice, onHoverPriceChange,
+  syncedVisibleRange, onVisibleRangeChange,
   linkable = false,
   isLinked = false,
   onLinkClick,
@@ -593,7 +594,7 @@ export function CandlestickChart({
     handlePaneYAxisPointerDown,
     handlePaneYAxisPointerMove,
     handlePaneYAxisPointerUp,
-    resetPaneYAxis,
+    resetPaneYAxis, resetAllPaneYAxes,
     commitIndicators,
     loadIndicatorLayout,
     addIndicator, addCustomIndicator, appendIndicator,
@@ -906,6 +907,9 @@ export function CandlestickChart({
     replayActive: replayState.active,
     replayCutoffIndex: replayState.cutoffIndex,
     replayFollowKey: replayState.followKey,
+    syncedVisibleRange,
+    onVisibleRangeChange,
+    resetSubPaneYAxes: resetAllPaneYAxes,
   });
 
   const { effectiveHoverIndex, effectiveHovered, effectiveHoverY } = useHoverSync({ data, hoverIndex, indexForDate, dateForIndex, syncedHoverDate, onHoverDateChange, hoverY, zoomedPriceScale, clampToPriceAxis, syncedHoverPrice, onHoverPriceChange });

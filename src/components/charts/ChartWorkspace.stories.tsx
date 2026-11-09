@@ -4,7 +4,7 @@ import { AAPL_FINANCIALS } from "../../test-data/symbolFinancialsSample";
 import type { Meta, StoryObj } from "@storybook/react";
 import { ChartWorkspace, type ChartWorkspaceGridLayoutId } from "./ChartWorkspace";
 import { CandlestickChart } from "./CandlestickChart";
-import { generateCandles } from "../../test-data/financeSampleData";
+import { generateCandles, generateCandlesByTimeframe } from "../../test-data/financeSampleData";
 import type { ChartWorkspaceWatchlist } from "./workspace/ChartWorkspaceWatchlist.interface";
 import type { SymbolProfile } from "./workspace/SymbolProfile.interface";
 
@@ -56,6 +56,43 @@ export const EightPanels: Story = {
       </div>
     );
   },
+};
+
+// Une série hebdomadaire sur une dizaine d'années, à lier avec des séries journalières d'un an et
+// demi : la synchronisation doit se faire par date, pas par numéro de bougie, et un graphique doit
+// savoir quoi faire d'une plage qui déborde de son historique.
+const NVDA_WEEKLY = generateCandlesByTimeframe(120, 42)["1w"];
+
+/** Trois graphiques liés de symboles, d'unités de temps et d'historiques différents : déplacer ou
+ *  zoomer l'un (glisser, molette, axe des dates, Espace…) montre aussitôt la même période sur les
+ *  deux autres, image par image pendant le geste, chacun calé sur ses propres bougies, et l'échelle
+ *  des prix de chacun s'ajuste aux bougies affichées — y compris sur MSFT, dont l'ajustement
+ *  automatique est coupé (`YAutoScaling={false}`), et sur le RSI d'AAPL. Le graphique qu'on manipule
+ *  garde son comportement habituel. Dézoomer NVDA (hebdo, dix ans) au-delà de l'historique des deux
+ *  autres les montre en entier, sans les vider. */
+export const LinkedVisibleRange: Story = {
+  name: "Graphiques liés : même période affichée (3 symboles)",
+  render: () => (
+    <div>
+      <p style={{ fontSize: 13, opacity: 0.7, marginBottom: 8 }}>
+        AAPL (journalier, 400 bougies, RSI), MSFT (journalier, 320 bougies, ajustement vertical coupé) et NVDA
+        (hebdomadaire, une dizaine d'années) sont liés : glisser ou zoomer l'un déplace les deux autres sur les mêmes
+        dates. Délier un graphique (icône chaîne) le rend indépendant.
+      </p>
+      <ChartWorkspace brokers={SAMPLE_BROKERS} defaultPanels={3} panelHeight={520} defaultLinkGroups={[[0, 1, 2]]}>
+        <CandlestickChart
+          data={DATASETS.AAPL}
+          symbol="AAPL"
+          zoomable
+          showIndicators
+          defaultIndicators={[{ id: "i-0", kind: "rsi", period: 14 }]}
+          initialVisibleCandles={120}
+        />
+        <CandlestickChart data={DATASETS.MSFT} symbol="MSFT" zoomable YAutoScaling={false} initialVisibleCandles={120} />
+        <CandlestickChart data={NVDA_WEEKLY} symbol="NVDA · hebdo" zoomable initialVisibleCandles={60} />
+      </ChartWorkspace>
+    </div>
+  ),
 };
 
 export const TwoPanels: Story = {

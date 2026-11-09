@@ -371,6 +371,13 @@ export function usePaneLayout({
     });
   }
 
+  /** `resetPaneYAxis` pour tous les sous-panneaux à la fois : chacun revient sur son échelle
+   *  automatique. Appelé quand le graphique suit la plage d'un graphique lié (voir useZoomAndScales),
+   *  à chaque image d'un glisser : l'état n'est remplacé que s'il y avait un réglage à défaire. */
+  function resetAllPaneYAxes() {
+    setPaneYTransform((prev) => (Object.keys(prev).length === 0 ? prev : {}));
+  }
+
   // useCallback (not a plain function like most of this file's own helpers) specifically because
   // it's a dependency of the copy/paste keydown effect below — without a stable identity, that
   // effect would tear down and re-add its own `window` listener on every render of this hook
@@ -824,6 +831,7 @@ export function usePaneLayout({
     handlePaneYAxisPointerMove,
     handlePaneYAxisPointerUp,
     resetPaneYAxis,
+    resetAllPaneYAxes,
     commitIndicators,
     loadIndicatorLayout,
     addIndicator,

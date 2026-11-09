@@ -134,6 +134,13 @@ export function useD3Zoom<T extends Element>({
     behaviorRef.current = behavior;
     const selection = d3.select(el);
     selection.call(behavior);
+    // d3-zoom garde sa transformation sur l'élément (`__zoom`) et repart de là au geste suivant. Une
+    // transformation appliquée pendant que le comportement était détaché (outil de dessin actif :
+    // `setTransform` retombe alors sur `emitZoom`) ou avant un remontage de l'élément ne l'a pas
+    // mise à jour, et le premier glisser ramènerait la vue d'avant. On la recale donc sur la
+    // dernière transformation émise — par exemple un graphique lié qui a suivi un autre pendant
+    // qu'un outil était armé.
+    selection.property("__zoom", lastTransformRef.current);
 
     return () => {
       selection.on(".zoom", null);

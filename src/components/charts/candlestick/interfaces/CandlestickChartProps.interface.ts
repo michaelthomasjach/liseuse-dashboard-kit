@@ -18,6 +18,7 @@ import type { SymbolSearchCategory } from "./SymbolSearchCategory.interface";
 import type { ChartAlertDraft, ChartAlert } from "./ChartAlertDraft.interface";
 import type { ScriptDef } from "./ScriptDef.interface";
 import type { ScriptAlertEvent } from "./ScriptAlertEvent.interface";
+import type { ChartVisibleRange } from "./ChartVisibleRange.interface";
 import type { AiSend, AiServerTool } from "../ai/interfaces/AiMessage.interface";
 import type { ScriptRunOutput } from "../scripting/interfaces/ScriptRunOutput.interface";
 
@@ -352,6 +353,30 @@ export interface CandlestickChartProps {
    *  at the cursor's Y position, or `null` once it leaves. This is what a `ChartWorkspace` reads
    *  to compute `syncedHoverPrice` for every other chart in the same link group. */
   onHoverPriceChange?: (price: number | null) => void;
+  /** Une plage de dates imposée de l'extérieur — par exemple par `ChartWorkspace`, quand un autre
+   *  graphique du même groupe lié vient d'être déplacé ou zoomé. À chaque nouvelle valeur, ce
+   *  graphique montre la même plage : ses propres bougies les plus proches de `start` au bord gauche
+   *  et de `end` au bord droit, calées par date et non par index (symboles, unités de temps et
+   *  historiques peuvent différer). Il ne sort pas pour autant des limites de ses propres gestes :
+   *  une plage plus large que tout son historique le montre en entier, une plage hors de ses données
+   *  l'arrête au bord le plus proche, ses dernières (ou premières) bougies restant à l'écran. Son axe
+   *  des prix s'ajuste alors aux bougies visibles, même réglé à la main et même `YAutoScaling`
+   *  coupé, et ses sous-panneaux (volume, indicateurs) reviennent sur leur échelle automatique : le
+   *  prix reste toujours visible. Ce réglage tient jusqu'au prochain geste de l'utilisateur sur ce
+   *  graphique-ci. Une plage reçue ainsi n'est jamais renvoyée par `onVisibleRangeChange`. Seul le
+   *  changement de valeur compte (les dates, pas l'objet) ; `null`/absent ne déplace rien — pour un
+   *  graphique hors de tout groupe, ou celui avec lequel l'utilisateur interagit. */
+  syncedVisibleRange?: ChartVisibleRange | null;
+  /** Appelée à chaque changement de la plage de dates visible venu d'un geste de l'utilisateur sur
+   *  ce graphique : glisser ou molette dans le tracé, glisser ou molette sur l'axe des dates,
+   *  remise à zéro du zoom (bouton, Espace, double-clic, menu contextuel), plage choisie dans
+   *  l'en-tête (1D… All), zoom sur une zone, replay au hasard — à chaque image pendant un glisser ou une
+   *  animation, sans attendre la fin du geste. `range` donne les instants aux bords gauche et droit
+   *  du tracé (interpolés entre deux bougies, voir `ChartVisibleRange`). Jamais appelée pour ce que
+   *  le graphique fait de lui-même (vue initiale, redimensionnement, données remplacées, avance du
+   *  replay) ni pour une plage reçue par `syncedVisibleRange`. C'est ce que lit `ChartWorkspace`
+   *  pour calculer `syncedVisibleRange` des autres graphiques du même groupe lié. */
+  onVisibleRangeChange?: (range: ChartVisibleRange) => void;
   /** Shows a chain-link button in the header (top right, alongside Save/templates if those are
    *  also on) — click reports back via `onLinkClick` rather than doing anything on its own, since
    *  linking charts together is inherently a multi-chart concept this component has no way to

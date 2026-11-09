@@ -15,7 +15,11 @@ const HELP_ITEMS: { title: string; description: string }[] = [
     description: "Une fois plusieurs graphiques affichés, agrandit celui survolé pour qu'il occupe toute la grille — les autres restent ouverts en dessous, juste masqués. Recliquer restaure la disposition.",
   },
   { title: "Plein écran de l'espace de travail", description: "Fait passer l'ensemble de l'espace de travail (grille, liste de surveillance et alertes comprises) en plein écran." },
-  { title: "Graphiques liés", description: "Synchronise le curseur (survol) entre plusieurs graphiques d'un même groupe." },
+  {
+    title: "Graphiques liés",
+    description:
+      "Synchronise le curseur (survol) entre plusieurs graphiques d'un même groupe, et leur période affichée : déplacer ou zoomer l'un d'eux montre les mêmes dates sur les autres, dont l'échelle des prix s'ajuste pour garder les cours visibles.",
+  },
   {
     title: "Éditeur de script",
     description:

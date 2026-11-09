@@ -39,7 +39,13 @@ const GROUPS = [
     "Recherche de symbole",
     ["symbolSearch", "symbolSearchResults", "onSymbolSearchChange", "onSymbolSelect", "onAddSymbolOverlay", "defaultFavoriteSymbolIds", "onFavoriteSymbolIdsChange"],
   ],
-  ["Synchronisation entre graphiques", ["syncedHoverDate", "onHoverDateChange", "syncedHoverPrice", "onHoverPriceChange", "linkable", "isLinked", "onLinkClick"]],
+  [
+    "Synchronisation entre graphiques",
+    [
+      "syncedHoverDate", "onHoverDateChange", "syncedHoverPrice", "onHoverPriceChange", "syncedVisibleRange", "onVisibleRangeChange",
+      "linkable", "isLinked", "onLinkClick",
+    ],
+  ],
   ["Panneau latéral", ["sidePanel", "defaultSidePanelOpen", "onSidePanelOpenChange"]],
   [
     "Scripts",

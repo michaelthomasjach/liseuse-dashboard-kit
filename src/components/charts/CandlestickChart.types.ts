@@ -22,3 +22,4 @@ export type { CandlestickChartProps } from "./candlestick/interfaces/Candlestick
 export type { ChartAlert, ChartAlertDraft, ChartAlertCrossing } from "./candlestick/interfaces/ChartAlertDraft.interface";
 export type { ScriptDef } from "./candlestick/interfaces/ScriptDef.interface";
 export type { ScriptAlertEvent } from "./candlestick/interfaces/ScriptAlertEvent.interface";
+export type { ChartVisibleRange } from "./candlestick/interfaces/ChartVisibleRange.interface";

@@ -24,6 +24,7 @@ export type {
   ChartAlertCrossing,
   ScriptDef,
   ScriptAlertEvent,
+  ChartVisibleRange,
 } from "./CandlestickChart";
 
 export { ChartEventTooltip } from "./EventTooltip";

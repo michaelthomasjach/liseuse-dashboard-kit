@@ -103,6 +103,13 @@ import { DEFAULT_MARGIN, MOBILE_LAYOUT_BREAKPOINT, NARROW_EMBED_BREAKPOINT, PRIC
 import { formatPercentFromReference, computeOhlcReadout, toDayInputValue, candleIndexForDay } from "./candlestick/formatting";
 import { supportsProjection, projectionSettingsOf } from "./candlestick/indicatorProjection";
 import { bindDepthToBars, packDepth } from "./candlestick/marketDepth";
+import { stableMemo } from "./candlestick/stableMemo";
+
+// Subtrees that show nothing about the cursor: memoized so a mouse move (which re-renders this
+// chart for its crosshair) no longer re-renders them too — see stableMemo.
+const StableToolsRail = stableMemo(ToolsRail);
+const StableChartHeader = stableMemo(ChartHeader);
+const StableChartModals = stableMemo(ChartModals);
 
 /** Stands in for the plot's own pointer-down/up handlers while replay is armed — see where it is
  *  passed below. A module-level constant rather than an inline arrow so the overlay isn't handed a
@@ -318,6 +325,7 @@ export function CandlestickChart({
   // comparing against AAPL shouldn't block also comparing against GOOGL mid-fetch. Just drives
   // each row's own spinner.
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const crosshairCanvasRef = useRef<HTMLCanvasElement>(null);
   const tfAnchorRef = useRef<HTMLButtonElement>(null);
   const { menuAnchorRefFor } = useDrawingToolMenuAnchors();
   const { isFullscreen, toggle: toggleFullscreen } = useFullscreen(
@@ -401,14 +409,21 @@ export function CandlestickChart({
       : rawDims.margin;
   // Gated on `isNarrowLayout`, not `isMobileRail`: the price axis narrows on this layout whether or
   // not there are drawing tools, so a drawing-tools-less phone chart needs the recomputation too.
-  const dims: ChartDimensions = isNarrowLayout
-    ? {
-        ...rawDims,
-        boundedWidth: Math.max(0, rawDims.width - resolvedMargin.left - resolvedMargin.right),
-        boundedHeight: Math.max(0, rawDims.height - resolvedMargin.top - resolvedMargin.bottom),
-        margin: resolvedMargin,
-      }
-    : rawDims;
+  // Memoized on the numbers it is made of: `dims` is a dependency of most memos and of the canvas
+  // draw, and a fresh object per render (every mouse move) recomputed all of them for nothing.
+  const { top: rmTop, right: rmRight, bottom: rmBottom, left: rmLeft } = resolvedMargin;
+  const dims: ChartDimensions = useMemo(
+    () =>
+      !isNarrowLayout
+        ? rawDims
+        : {
+            ...rawDims,
+            boundedWidth: Math.max(0, rawDims.width - rmLeft - rmRight),
+            boundedHeight: Math.max(0, rawDims.height - rmTop - rmBottom),
+            margin: { top: rmTop, right: rmRight, bottom: rmBottom, left: rmLeft },
+          },
+    [rawDims, isNarrowLayout, rmTop, rmRight, rmBottom, rmLeft],
+  );
 
   const { scriptingState, scriptChartIndicators } = useChartScripting({ scripts, onScriptsChange });
 
@@ -740,6 +755,9 @@ export function CandlestickChart({
   // `dismissedScriptIndicators` doc), so the legend and the overlay list drop them too rather than
   // still listing a pane that is no longer drawn anywhere.
   const combinedIndicators = useMemo(() => [...indicators, ...activeScriptIndicators], [indicators, activeScriptIndicators]);
+  // Memoized, and declared here above the early return below (hooks cannot follow it): a prop of
+  // the memoized modals and of the legend.
+  const overlayIndicators = useMemo(() => combinedIndicators.filter((ind) => indicatorCatalogEntry(ind).pane === "price"), [combinedIndicators]);
   // Render-only concat — script signals stay out of the *interactive* `visibleDrawings` every
   // pointer-handler in useDrawingInteractions below still reads (they're read-only in v1, no
   // select/drag/double-click-edit), only the canvas draw pass (ChartPlotOverlays) sees this one.
@@ -1200,6 +1218,7 @@ export function CandlestickChart({
 
   useRenderCandlestickChart({
     canvasRef,
+    crosshairCanvasRef,
     wrapperRef: ref,
     themeTick,
     dims,
@@ -1469,7 +1488,6 @@ export function CandlestickChart({
   const currentModeEntry = CHART_DISPLAY_MODES.find((m) => m.mode === chartDisplayMode) ?? CHART_DISPLAY_MODES[0];
   // The top-left legend's own indicators — price overlays only, `ownPaneIndicators` (RSI/CHOP/
   // MACD) already have their own pane header and don't belong here too.
-  const overlayIndicators = combinedIndicators.filter((ind) => indicatorCatalogEntry(ind).pane === "price");
 
   const { candle: ohlcCandle, delta: ohlcDelta, deltaPct: ohlcDeltaPct, sign: ohlcSign } = computeOhlcReadout(data, effectiveHoverIndex);
 
@@ -1489,7 +1507,7 @@ export function CandlestickChart({
   // reservation is already made by the docked column too, through its own `marginBottom`, so there
   // is real empty space under it for the rail to run through.
   const toolsRail = (
-    <ToolsRail
+    <StableToolsRail
       drawingTools={drawingTools}
       dims={dims}
       plotHeight={plotHeight}
@@ -1539,7 +1557,7 @@ export function CandlestickChart({
     >
       <div ref={mainRef} className="lq-chart__main">
       {showHeader && !seasonalityOpen && (
-        <ChartHeader
+        <StableChartHeader
           headerActions={headerActions}
           {...(onAddSymbolOverlay ? { onAddSymbol: () => openSymbolSearch("add") } : {})}
           timeframes={timeframes}
@@ -1815,6 +1833,7 @@ export function CandlestickChart({
           upColorOverride={upColorOverride}
           downColorOverride={downColorOverride}
           canvasRef={canvasRef}
+          crosshairCanvasRef={crosshairCanvasRef}
           dims={dims}
           plotBoundedHeight={plotBoundedHeight}
           plotHeight={plotHeight}
@@ -2044,7 +2063,7 @@ export function CandlestickChart({
         onAlert={onScriptAlert}
       />
 
-      <ChartModals
+      <StableChartModals
         {...correlationSetup}
         draft={draft}
         setDraft={setDraft}

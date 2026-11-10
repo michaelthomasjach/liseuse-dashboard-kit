@@ -1,10 +1,13 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import type { RefObject } from "react";
-import { renderCandlestickChart } from "../render/renderChart";
+import { HOVER_PARAM_KEYS, renderCandlestickChart, renderCrosshair } from "../render/renderChart";
 import type { RenderCandlestickChartParams } from "../interfaces/RenderCandlestickChartParams.interface";
+import type { ChartCanvasStyle } from "../interfaces/ChartCanvasStyle.interface";
 
 export interface UseRenderCandlestickChartArgs extends RenderCandlestickChartParams {
   canvasRef: RefObject<HTMLCanvasElement>;
+  /** The thin canvas stacked over `canvasRef` that carries only the hover crosshair. */
+  crosshairCanvasRef: RefObject<HTMLCanvasElement>;
   wrapperRef: RefObject<HTMLDivElement>;
   /** Forces a re-render on theme/palette change even though nothing here reads it directly —
    *  renderCandlestickChart pulls its own colors straight off the DOM's CSS custom properties at
@@ -13,21 +16,36 @@ export interface UseRenderCandlestickChartArgs extends RenderCandlestickChartPar
   themeTick: number;
 }
 
-/** CandlestickChart's own single "draw everything" effect — split out purely to keep that file
- *  under its own 1000-line cap (the params list plus its own deps array was ~85 lines on its own),
- *  not because this has a life of its own beyond that one call. `RenderCandlestickChartParams` is
- *  already the single source of truth for what `renderCandlestickChart` itself needs, so this
- *  hook's own args just extend it rather than redeclaring a second, parallel field list. */
-export function useRenderCandlestickChart({ canvasRef, wrapperRef, themeTick, ...params }: UseRenderCandlestickChartArgs) {
+const HOVER_KEYS = new Set<string>(HOVER_PARAM_KEYS);
+
+/** CandlestickChart's canvas painting, in two layers.
+ *
+ *  The main canvas (candles, volume, panes, drawings…) is repainted only when something it shows
+ *  changes: its effect depends on every param *except* the six hover fields. The crosshair goes on
+ *  its own canvas above, repainted on every hover: a handful of dashed lines. Before this split a
+ *  mouse move repainted everything, every candle and every pane, up to sixty times a second.
+ *
+ *  `params`' own keys are a fixed set (RenderCandlestickChartParams' own shape never changes
+ *  between renders), so the value lists below are same-length arrays every call — valid (if
+ *  eslint-illegible) dependency lists covering every one of their fields at once. */
+export function useRenderCandlestickChart({ canvasRef, crosshairCanvasRef, wrapperRef, themeTick, ...params }: UseRenderCandlestickChartArgs) {
+  const styleRef = useRef<ChartCanvasStyle | null>(null);
+  const entries = Object.entries(params);
+  const baseDeps = entries.filter(([k]) => !HOVER_KEYS.has(k)).map(([, v]) => v);
+
   useEffect(() => {
     const canvas = canvasRef.current;
     const wrapper = wrapperRef.current;
     if (!canvas || !wrapper) return;
-    renderCandlestickChart(canvas, wrapper, params);
-    // `params`' own keys are a fixed set (RenderCandlestickChartParams' own shape never changes
-    // between renders), so Object.values(params) is a same-length array every call — a valid (if
-    // eslint-illegible) dependency list covering every one of its fields at once; `themeTick` is
-    // listed separately since it isn't one of `params`' own fields (see its own doc above).
+    styleRef.current = renderCandlestickChart(canvas, wrapper, params);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canvasRef, wrapperRef, themeTick, ...Object.values(params)]);
+  }, [canvasRef, wrapperRef, themeTick, ...baseDeps]);
+
+  // After the main canvas' effect (declaration order), so the colours it just read are current.
+  useEffect(() => {
+    const canvas = crosshairCanvasRef.current;
+    if (!canvas) return;
+    renderCrosshair(canvas, params, styleRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [crosshairCanvasRef, themeTick, ...entries.map(([, v]) => v)]);
 }

@@ -123,6 +123,13 @@
   max-width: 560px;
   border-left: 1px solid var(--lq-color-border-subtle);
   overflow: auto;
+  /* Layout containment: the chart beside it changes something in the page on every mouse move
+     (crosshair badges, readouts), and Chrome then re-walks every uncontained element of the
+     document to pre-paint and paint it — a long watchlist made each move several times dearer.
+     Contained, the panel is skipped while it has not changed itself. No clipping (no paint
+     containment); its menus and tooltips render in portals, so the containing block it becomes for
+     fixed descendants changes nothing. */
+  contain: layout style;
 }
 
 /* The mobile form of the same panel (see ChartSidePanel's own `fullscreen`): out of the flex row

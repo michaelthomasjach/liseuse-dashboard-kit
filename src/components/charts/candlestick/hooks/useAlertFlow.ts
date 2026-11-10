@@ -1,4 +1,7 @@
 import { useState } from "react";
+
+/** Shared empty list (a fresh `[]` per render defeated the memoized modals that receive it). */
+const NO_ALERTS: never[] = [];
 import type { ChartAlert } from "../interfaces/ChartAlertDraft.interface";
 
 /** Describes whatever a bell icon (the drawing toolbar's own, or an indicator's own legend row)
@@ -59,7 +62,7 @@ export function useAlertFlow(alerts: ChartAlert[], selectedDrawingId: string | n
     setEditingAlert(null);
   }
 
-  const currentTargetAlerts = target ? alertsFor(target) : [];
+  const currentTargetAlerts = target ? alertsFor(target) : NO_ALERTS;
 
   return {
     target,

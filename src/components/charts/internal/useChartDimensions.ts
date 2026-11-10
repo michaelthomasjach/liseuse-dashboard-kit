@@ -62,7 +62,14 @@ export function useChartDimensions(
     Object.defineProperty(callbackRef, "current", { get: () => objRef.current, enumerable: true });
     return callbackRef as unknown as RefObject<HTMLDivElement>;
   }, []);
-  const resolvedMargin: ChartMargin = { ...DEFAULT_MARGIN, ...margin };
+  const mTop = margin.top ?? DEFAULT_MARGIN.top;
+  const mRight = margin.right ?? DEFAULT_MARGIN.right;
+  const mBottom = margin.bottom ?? DEFAULT_MARGIN.bottom;
+  const mLeft = margin.left ?? DEFAULT_MARGIN.left;
+  // Same object for as long as the four numbers hold: callers list `dims` (and its margin) as a
+  // memo/effect dependency, and a fresh object on every render — a chart re-renders on every mouse
+  // move — recomputed everything downstream of it each time.
+  const resolvedMargin: ChartMargin = useMemo(() => ({ top: mTop, right: mRight, bottom: mBottom, left: mLeft }), [mTop, mRight, mBottom, mLeft]);
   const [size, setSize] = useState({ width: options.width ?? 0, height: options.height ?? 320 });
 
   // Re-measures synchronously (before paint) whenever a fixed width/height/aspectRatio is added,
@@ -93,17 +100,16 @@ export function useChartDimensions(
     });
   }, [node, options.width, options.height, options.aspectRatio]);
 
-  const boundedWidth = Math.max(0, size.width - resolvedMargin.left - resolvedMargin.right);
-  const boundedHeight = Math.max(0, size.height - resolvedMargin.top - resolvedMargin.bottom);
-
-  return [
-    ref,
-    {
+  const dims = useMemo<ChartDimensions>(
+    () => ({
       width: size.width,
       height: size.height,
-      boundedWidth,
-      boundedHeight,
+      boundedWidth: Math.max(0, size.width - resolvedMargin.left - resolvedMargin.right),
+      boundedHeight: Math.max(0, size.height - resolvedMargin.top - resolvedMargin.bottom),
       margin: resolvedMargin,
-    },
-  ];
+    }),
+    [size.width, size.height, resolvedMargin],
+  );
+
+  return [ref, dims];
 }

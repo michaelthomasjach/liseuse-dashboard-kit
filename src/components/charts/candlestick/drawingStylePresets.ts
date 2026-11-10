@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { TrendLineDrawing } from "./interfaces/TrendLineDrawing.interface";
 
 /**
@@ -160,5 +160,10 @@ export function useDrawingStylePresets(): DrawingStylesApi {
       return { presets: s.presets.filter((p) => p.id !== id), active };
     });
   }, []);
-  return { presetsFor, activeFor, activeStyleFor, select, saveNew, overwrite, rename, remove };
+  // One object for as long as its functions hold: it is a prop of the chart's modals, memoized
+  // so they skip the re-render a mouse move triggers.
+  return useMemo(
+    () => ({ presetsFor, activeFor, activeStyleFor, select, saveNew, overwrite, rename, remove }),
+    [presetsFor, activeFor, activeStyleFor, select, saveNew, overwrite, rename, remove],
+  );
 }

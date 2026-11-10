@@ -26,6 +26,15 @@ export interface ChartAxisProps<Domain extends d3.AxisDomain = d3.AxisDomain> {
   className?: string;
 }
 
+/** Bumped once web fonts finish loading: label widths change then, so an axis whose ticks did not
+ *  move still has to re-measure which edge labels overflow (part of its draw signature below). */
+let fontsGeneration = 0;
+if (typeof document !== "undefined" && document.fonts) {
+  document.fonts.addEventListener?.("loadingdone", () => {
+    fontsGeneration++;
+  });
+}
+
 /**
  * Thin React wrapper around d3-axis: d3 owns the tick DOM inside a single
  * `<g>`, React owns everything else. This is the one place components in
@@ -46,10 +55,34 @@ export function ChartAxis<Domain extends d3.AxisDomain = d3.AxisDomain>({
   className,
 }: ChartAxisProps<Domain>) {
   const ref = useRef<SVGGElement>(null);
+  const drawnRef = useRef<string | null>(null);
 
   useEffect(() => {
     const g = ref.current;
     if (!g) return;
+
+    // Skip the rebuild when nothing it draws has changed. The parent hands over a fresh scale and
+    // tickFormat closure on every render — a chart re-renders on every mouse move for its
+    // crosshair — and the work below is far from free: d3 rewrites every tick, then each label is
+    // measured (getScreenCTM, getBoundingClientRect), which forces a synchronous layout of the
+    // whole page right after those writes. Eight axes (price, dates, volume, panes) did that on
+    // every move. The signature is what actually ends up on screen: tick positions, their labels,
+    // the range and every option; same signature, same DOM.
+    const values = (tickValues ?? (("ticks" in scale && typeof scale.ticks === "function" ? (scale.ticks as (n: number) => Domain[])(ticks) : scale.domain()) as Domain[])) as Domain[];
+    const fmt = tickFormat ?? ("tickFormat" in scale && typeof scale.tickFormat === "function" ? (scale.tickFormat as (n: number) => (v: Domain) => string)(ticks) : (v: Domain) => String(v));
+    const signature = [
+      orientation,
+      transform ?? "",
+      ticks,
+      tickSizeOuter,
+      grid ? gridLength : "-",
+      domainExtent ? domainExtent.join(",") : "",
+      (scale.range() as unknown as number[]).join(","),
+      fontsGeneration,
+      values.map((v, i) => `${scale(v) ?? ""}:${fmt(v, i)}`).join("|"),
+    ].join(";");
+    if (drawnRef.current === signature && g.childNodes.length > 0) return;
+    drawnRef.current = signature;
 
     const axis =
       orientation === "bottom" ? d3.axisBottom<Domain>(scale) : orientation === "right" ? d3.axisRight<Domain>(scale) : d3.axisLeft<Domain>(scale);

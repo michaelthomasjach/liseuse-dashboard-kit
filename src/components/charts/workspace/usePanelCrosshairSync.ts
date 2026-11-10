@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 export interface UsePanelCrosshairSyncArgs {
   /** Link groups already clamped to the live panel count, each a list of panel indices. */
@@ -18,7 +18,14 @@ export function usePanelCrosshairSync({ groups, groupIndexOfPanel }: UsePanelCro
   const [hoverByPanel, setHoverByPanel] = useState<Record<number, Date | null>>({});
   const [priceByPanel, setPriceByPanel] = useState<Record<number, number | null>>({});
 
-  const reportHoverDate = useCallback((panelIndex: number, date: Date | null) => {
+  // A panel in no group has nobody to show its crosshair to: storing its hover would only re-render
+  // the whole workspace — and, through it, the chart itself a second time — on every mouse move.
+  // Read through a ref so the two callbacks below stay stable.
+  const groupOfRef = useRef(groupIndexOfPanel);
+  groupOfRef.current = groupIndexOfPanel;
+
+  const reportHoverDate = useCallback((panelIndex: number, rawDate: Date | null) => {
+    const date = groupOfRef.current(panelIndex) === null ? null : rawDate;
     setHoverByPanel((prev) => {
       const current = prev[panelIndex] ?? null;
       // Bails out on an unchanged value rather than always spreading a fresh object — `date` is a
@@ -29,8 +36,9 @@ export function usePanelCrosshairSync({ groups, groupIndexOfPanel }: UsePanelCro
     });
   }, []);
 
-  const reportHoverPrice = useCallback((panelIndex: number, price: number | null) => {
-    setPriceByPanel((prev) => (prev[panelIndex] === price ? prev : { ...prev, [panelIndex]: price }));
+  const reportHoverPrice = useCallback((panelIndex: number, rawPrice: number | null) => {
+    const price = groupOfRef.current(panelIndex) === null ? null : rawPrice;
+    setPriceByPanel((prev) => ((prev[panelIndex] ?? null) === price ? prev : { ...prev, [panelIndex]: price }));
   }, []);
 
   /** The synced date a given panel should render its own crosshair at: whichever *other* panel in

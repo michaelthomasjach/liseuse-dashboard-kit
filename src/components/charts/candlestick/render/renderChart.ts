@@ -7,6 +7,22 @@ import { drawPriceDrawings } from "./drawPriceDrawings";
 import { drawVolumeAndPanes } from "./drawVolumeAndPanes";
 import { drawIndicatorProjections } from "./drawIndicatorProjections";
 import { drawReplayMask } from "./drawReplayMask";
+import type { ChartCanvasStyle } from "../interfaces/ChartCanvasStyle.interface";
+
+/** The six fields that follow the mouse. The main canvas is painted without them; the crosshair
+ *  they describe goes on its own thin canvas above it (`renderCrosshair`), so moving the mouse
+ *  repaints a few dashed lines instead of every candle, pane and drawing. */
+export const HOVER_PARAM_KEYS = ["hovered", "hoverY", "hoverVolumeY", "hoverIndicatorPaneId", "hoverIndicatorPaneY", "hoverIndex"] as const;
+const NO_HOVER = { hovered: null, hoverY: null, hoverVolumeY: null, hoverIndicatorPaneId: null, hoverIndicatorPaneY: null, hoverIndex: null };
+
+/** Sizes a canvas backing store to its CSS box, only when it actually changed: assigning
+ *  `width`/`height` reallocates and clears the whole bitmap even with an identical value. */
+function fitCanvas(canvas: HTMLCanvasElement, width: number, height: number, dpr: number) {
+  const w = Math.round(width * dpr);
+  const h = Math.round(height * dpr);
+  if (canvas.width !== w) canvas.width = w;
+  if (canvas.height !== h) canvas.height = h;
+}
 
 export type { RenderCandlestickChartParams } from "../interfaces/RenderCandlestickChartParams.interface";
 
@@ -31,15 +47,24 @@ export type { RenderCandlestickChartParams } from "../interfaces/RenderCandlesti
  *  always flowed as one function — the three clip-sharing phases share one canvas
  *  `save()`/`clip()`/`restore()` stack across the (synchronous, always same-order) calls below,
  *  not three independent ones. */
-export function renderCandlestickChart(canvas: HTMLCanvasElement, wrapper: HTMLElement, params: RenderCandlestickChartParams) {
+export function renderCandlestickChart(canvas: HTMLCanvasElement, wrapper: HTMLElement, withHover: RenderCandlestickChartParams): ChartCanvasStyle | null {
+  // Never the crosshair here: see HOVER_PARAM_KEYS.
+  const params: RenderCandlestickChartParams = { ...withHover, ...NO_HOVER };
   const { dims, plotBoundedHeight, upColorOverride, downColorOverride } = params;
-  if (dims.boundedWidth <= 0 || plotBoundedHeight <= 0) return;
+  if (dims.boundedWidth <= 0 || plotBoundedHeight <= 0) return null;
 
   const dpr = window.devicePixelRatio || 1;
-  canvas.width = dims.boundedWidth * dpr;
-  canvas.height = plotBoundedHeight * dpr;
+  fitCanvas(canvas, dims.boundedWidth, plotBoundedHeight, dpr);
   const ctx = canvas.getContext("2d");
-  if (!ctx) return;
+  if (!ctx) return null;
+  // A context keeps its state across draws now that the bitmap is no longer reset by a size
+  // assignment each time: start every pass from a clean state, as before.
+  if (typeof (ctx as { reset?: () => void }).reset === "function") (ctx as { reset: () => void }).reset();
+  else {
+    // Older engines: re-assigning the width is the documented way to reset a context's state.
+    const w = canvas.width;
+    canvas.width = w;
+  }
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, dims.boundedWidth, plotBoundedHeight);
 
@@ -63,4 +88,57 @@ export function renderCandlestickChart(canvas: HTMLCanvasElement, wrapper: HTMLE
   // sont repeints par-dessus et restent visibles dans le futur, y compris pendant leur tracé ; seule la ligne du
   // dernier cours réel reste masquée (elle trahirait le futur).
   if (params.replayActive) drawPriceDrawings(ctx, { ...params, livePrice: false }, style);
+  return style;
+}
+
+/** The hover crosshair, alone on its own canvas stacked over the main one: the vertical line
+ *  through the hovered candle across every section, and the horizontal line in whichever section
+ *  the cursor is in (price, volume or one pane), each clipped to that section, exactly where the
+ *  main canvas used to draw them. Above everything, the replay mask included (which used to paint
+ *  the same lines over itself for that very reason). */
+export function renderCrosshair(canvas: HTMLCanvasElement, params: RenderCandlestickChartParams, style: ChartCanvasStyle | null) {
+  const { dims, plotBoundedHeight, hovered, hoverIndex, hoverY, hoverVolumeY, hoverIndicatorPaneId, hoverIndicatorPaneY } = params;
+  if (dims.boundedWidth <= 0 || plotBoundedHeight <= 0) return;
+  const dpr = window.devicePixelRatio || 1;
+  fitCanvas(canvas, dims.boundedWidth, plotBoundedHeight, dpr);
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, dims.boundedWidth, plotBoundedHeight);
+  if (!hovered || !style) return;
+
+  ctx.save();
+  ctx.strokeStyle = style.colorMuted;
+  ctx.lineWidth = 1;
+  ctx.setLineDash([3, 3]);
+  const hline = (top: number, height: number, y: number) => {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, top, dims.boundedWidth, height);
+    ctx.clip();
+    ctx.beginPath();
+    ctx.moveTo(0, top + y);
+    ctx.lineTo(dims.boundedWidth, top + y);
+    ctx.stroke();
+    ctx.restore();
+  };
+  if (hoverY !== null) hline(0, params.priceHeight, hoverY);
+  if (hoverVolumeY !== null && params.volumeVisible && params.volumeHeight > 0 && !params.volumeCollapsed) {
+    hline(params.priceHeight + params.volumeTop, params.volumeHeight, hoverVolumeY);
+  }
+  if (hoverIndicatorPaneId !== null && hoverIndicatorPaneY !== null) {
+    const idx = params.ownPaneIndicators.findIndex((ind) => ind.id === hoverIndicatorPaneId);
+    const ind = params.ownPaneIndicators[idx];
+    if (ind && !ind.paneCollapsed && params.zoomedOwnPaneScales[ind.id]) {
+      hline(params.priceHeight + params.indicatorPaneTops[idx], params.indicatorPaneHeights[idx], hoverIndicatorPaneY);
+    }
+  }
+  if (hoverIndex !== null) {
+    const hx = params.zoomedXScale(hoverIndex + 0.5);
+    ctx.beginPath();
+    ctx.moveTo(hx, 0);
+    ctx.lineTo(hx, plotBoundedHeight);
+    ctx.stroke();
+  }
+  ctx.restore();
 }

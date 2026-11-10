@@ -56,6 +56,10 @@ export function ChartPropsModal({ open, onClose }: ChartPropsModalProps) {
   const total = useMemo(() => CHART_PROPS_REFERENCE.reduce((n, s) => n + s.props.length, 0), []);
   const shown = sections.reduce((n, s) => n + s.props.length, 0);
 
+  // Closed: nothing to build. The chart re-renders on every mouse move (its crosshair), and this
+  // modal's ~150 cards were built into JSX each time only for `Modal` to discard them.
+  if (!open) return null;
+
   return (
     <Modal open={open} onClose={onClose} title="Props du graphique" size="fullscreen" footer={null}>
       <div className="lq-chart-props">

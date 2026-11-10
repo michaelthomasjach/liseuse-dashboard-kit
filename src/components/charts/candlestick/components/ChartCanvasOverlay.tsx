@@ -39,6 +39,8 @@ interface AxisDragHandlers {
 
 export interface ChartCanvasOverlayProps {
   canvasRef: RefObject<HTMLCanvasElement>;
+  /** The hover crosshair's own canvas, stacked right over `canvasRef` (see useRenderCandlestickChart). */
+  crosshairCanvasRef: RefObject<HTMLCanvasElement>;
   dims: { margin: { top: number; left: number; right: number; bottom: number }; boundedWidth: number; width: number | undefined };
   plotBoundedHeight: number;
   plotHeight: number;
@@ -178,6 +180,7 @@ function AxisHintIcon({ orientation, cx, cy }: { orientation: "x" | "y"; cx: num
  *  useDrawingInteractions/useChartEvents. */
 export function ChartCanvasOverlay({
   canvasRef,
+  crosshairCanvasRef,
   dims,
   plotBoundedHeight,
   plotHeight,
@@ -257,6 +260,17 @@ export function ChartCanvasOverlay({
       <canvas
         ref={canvasRef}
         className="lq-chart__canvas"
+        style={{
+          left: dims.margin.left,
+          top: dims.margin.top,
+          width: dims.boundedWidth,
+          height: plotBoundedHeight,
+        }}
+      />
+      <canvas
+        ref={crosshairCanvasRef}
+        className="lq-chart__canvas lq-chart__canvas--crosshair"
+        aria-hidden="true"
         style={{
           left: dims.margin.left,
           top: dims.margin.top,

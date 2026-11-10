@@ -29,6 +29,17 @@ export interface IndicatorHitTestContext {
   data: Candle[];
 }
 
+/** Last `indicatorSeries` result per values array: the hit test runs on every pointer move, while
+ *  an indicator's values and the visible window only change on new data, zoom or pan. */
+const seriesCache = new WeakMap<(IndicatorValue | null)[], { from: number; to: number; data: Candle[]; series: SeriesPoint[][] }>();
+function cachedIndicatorSeries(values: (IndicatorValue | null)[], from: number, to: number, data: Candle[]): SeriesPoint[][] {
+  const hit = seriesCache.get(values);
+  if (hit && hit.from === from && hit.to === to && hit.data === data) return hit.series;
+  const series = indicatorSeries(values, from, to, data);
+  seriesCache.set(values, { from, to, data, series });
+  return series;
+}
+
 /** Every polyline an indicator actually draws, in (index, value) space, restricted to `[from,
  *  to]`. The window matters: this runs on every pointer move, and a five-year series would
  *  otherwise walk tens of thousands of points to answer a question about the few hundred bars
@@ -178,7 +189,7 @@ export function distanceToIndicator(
   // still tested along the part of it that is visible.
   const from = ctx.zoomedXScale.invert(0) - 1;
   const to = Math.min(ctx.lastIndex, ctx.zoomedXScale.invert(ctx.dims.boundedWidth) + 1);
-  const series = indicatorSeries(values, from, to, ctx.data);
+  const series = cachedIndicatorSeries(values, from, to, ctx.data);
 
   let best = Infinity;
   for (const run of series) {

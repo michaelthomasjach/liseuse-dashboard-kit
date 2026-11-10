@@ -177,7 +177,9 @@ export function useZoomAndScales({
     [data.length, futureBars, dims.boundedWidth]
   );
 
-  const zoomedXScale = transform.rescaleX(xScale);
+  // Memoized: a fresh scale per render (every mouse move) cascaded into every memo keyed on it —
+  // visible range, visible candles, pane scales, indicator points — and into the canvas redraw.
+  const zoomedXScale = useMemo(() => transform.rescaleX(xScale), [transform, xScale]);
 
   // Bridges the index-space scale above and the Date-based coordinates drawings/indicators are
   // actually stored in (a real Date is meaningful to consumers of the public API in a way a raw
@@ -359,7 +361,7 @@ export function useZoomAndScales({
     return d3.scaleLinear().domain([min - pad, max + pad]).range([priceHeight, 0]);
   }, [data, priceHeight]);
 
-  const zoomedPriceScale = yTransform.rescaleY(priceScale);
+  const zoomedPriceScale = useMemo(() => yTransform.rescaleY(priceScale), [yTransform, priceScale]);
 
   // Permanent price-axis badges (live price, indicator values, horizontal/ray drawing lines)
   // are positioned from a *value*, not from the mouse — unlike the hover badge, which can never

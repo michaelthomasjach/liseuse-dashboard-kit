@@ -8,7 +8,13 @@ import type { DataPoint } from "../interfaces/DataPoint.interface";
 import type { DrawingToolType } from "../interfaces/DrawingToolType.interface";
 import type { ChartEvent } from "../interfaces/ChartEvent.interface";
 import { allPointsOf, isOffsetPriceLabel, snapPixel } from "../drawingGeometry";
-import { isFundamentalKind, formatFundamentalValue } from "../indicatorCatalog";
+import { paneValueFormatter } from "../indicatorCatalog";
+
+/** A pane axis' tick format, when the pane has its own (see `paneValueFormatter`). */
+const paneAxisFormat = (ind: Indicator): ((v: d3.NumberValue) => string) | undefined => {
+  const f = paneValueFormatter(ind);
+  return f ? (v) => f(Number(v)) : undefined;
+};
 import { AXIS_HANDLE_FRACTION_X, AXIS_HANDLE_FRACTION_Y } from "../constants";
 import { EVENT_MARKER_OFFSET, EVENT_MARKER_RADIUS, EVENT_STACK_OFFSET, MAX_STACKED_EVENT_MARKERS } from "../eventsCatalog";
 import type { TextEntryState } from "../interfaces/TextEntryState.interface";
@@ -343,9 +349,7 @@ export function ChartCanvasOverlay({
                       orientation="right"
                       transform={`translate(${dims.boundedWidth}, 0)`}
                       ticks={3}
-                      tickFormat={
-                        isFundamentalKind(ind.kind) ? (v) => formatFundamentalValue(ind.kind, Number(v), ind.fundamentalDisplayMode) : undefined
-                      }
+                      tickFormat={paneAxisFormat(ind)}
                     />
                     <rect
                       className="lq-chart__axis-drag lq-chart__axis-drag--y"

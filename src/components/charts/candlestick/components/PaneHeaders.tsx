@@ -6,7 +6,7 @@ import { ChevronDownIcon, ChevronUpIcon, SettingsIcon, TrashIcon, GripIcon, Info
 import type { Candle } from "../interfaces/Candle.interface";
 import type { Indicator } from "../interfaces/Indicator.interface";
 import type { IndicatorValue } from "../interfaces/IndicatorValue.interface";
-import { isFundamentalKind, formatFundamentalValue } from "../indicatorCatalog";
+import { paneValueFormatter } from "../indicatorCatalog";
 
 export interface PaneHeadersProps {
   volumeVisible: boolean;
@@ -331,9 +331,7 @@ export function PaneHeaders({
                 return (
                   <span className="lq-chart__symbol-info-ohlc">
                     {typeof value === "number"
-                      ? isFundamentalKind(ind.kind)
-                        ? formatFundamentalValue(ind.kind, value, ind.fundamentalDisplayMode)
-                        : value.toFixed(2)
+                      ? (paneValueFormatter(ind) ?? ((v: number) => v.toFixed(2)))(value)
                       : "macd" in value
                         ? `MACD ${value.macd.toFixed(2)} · Signal ${value.signal !== null ? value.signal.toFixed(2) : "–"} · Hist ${
                             value.histogram !== null ? value.histogram.toFixed(2) : "–"
@@ -349,7 +347,7 @@ export function PaneHeaders({
                                 .map((entry) => {
                                   const sub = value.multi[entry.key];
                                   if (sub === null) return null;
-                                  const text = typeof sub === "number" ? sub.toFixed(2) : `${sub.upper.toFixed(2)}/${sub.lower.toFixed(2)}`;
+                                  const text = typeof sub === "number" ? (paneValueFormatter(ind) ?? ((v: number) => v.toFixed(2)))(sub) : `${sub.upper.toFixed(2)}/${sub.lower.toFixed(2)}`;
                                   return `${entry.label} ${text}`;
                                 })
                                 .filter((s): s is string => s !== null)

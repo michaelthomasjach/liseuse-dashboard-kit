@@ -14,6 +14,7 @@ import type { Indicator } from "../interfaces/Indicator.interface";
 import type { IndicatorInfoTarget } from "../interfaces/IndicatorInfoTarget.interface";
 import type { IndicatorValue } from "../interfaces/IndicatorValue.interface";
 import { SUB_PANE_COLLAPSED_HEIGHT, SIDE_DOCK_COLLAPSED_WIDTH } from "../constants";
+import { paneValueFormatter } from "../indicatorCatalog";
 
 export interface ChartSidePaneColumnProps {
   side: DockSide;
@@ -326,7 +327,7 @@ export function ChartSidePaneColumn({
                   orientation={side === "right" ? "right" : "left"}
                   transform={`translate(${priceAxisX}, 0)`}
                   ticks={3}
-                  tickFormat={priceAxisFmt}
+                  tickFormat={(v) => (isProfile ? priceAxisFmt : (paneValueFormatter(ind) ?? priceAxisFmt))(Number(v))}
                   domainExtent={isProfile ? [plotBoundedHeight, 0] : [paneHeights[idx], 0]}
                 />
               </g>

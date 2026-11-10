@@ -85,8 +85,9 @@ export interface CustomIndicatorDef {
    *  own (the discriminant lives on a sibling field), so `computeCustomIndicatorValues` checks
    *  `draw` at runtime before reading any of the three shapes. */
   data: CustomIndicatorDataPoint[] | CustomIndicatorBandDataPoint[] | CustomIndicatorMultiDataPoint[];
-  /** Formats the value in badges/legend/pane-axis ticks. Default: 2 decimals. Meaningless for
-   *  `draw: "band"` (a band has no single value to format). */
+  /** Formats the value in badges/legend/pane-axis ticks. Default: 2 decimals. For `draw: "multi"`
+   *  it formats every series of the pane (they share its one axis). Meaningless for `draw: "band"`
+   *  (a band has no single value to format). */
   formatValue?: (value: number) => string;
   color?: string;
   /** Stroke width in px for `line`/`area`'s own outline/`band`'s own upper-lower lines. Default 1.5
@@ -99,7 +100,7 @@ export interface CustomIndicatorDef {
   lineStyle?: "solid" | "dashed" | "dotted";
   /** Only meaningful for `draw: "multi"` — one entry per key of `CustomIndicatorMultiDataPoint.values`,
    *  in call order, describing how to draw and style that one series on its own (this def's own
-   *  top-level `color`/`lineWidth`/`lineStyle`/`formatValue` are meaningless here, since a "multi"
+   *  top-level `color`/`lineWidth`/`lineStyle` are meaningless here (`formatValue` still applies, to every series), since a "multi"
    *  pane has no single value/style of its own — every one of those lives per-entry instead). */
   multiSeries?: {
     key: string;

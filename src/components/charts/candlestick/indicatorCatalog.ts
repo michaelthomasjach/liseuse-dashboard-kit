@@ -30,6 +30,15 @@ export function isFundamentalKind(kind: IndicatorKind): boolean {
  *  "yoyChange" (see `Indicator.fundamentalDisplayMode`'s own doc) overrides every kind's own
  *  normal unit with a plain percentage instead — the value at that point is already a % change,
  *  not money/a ratio, regardless of what the underlying metric itself is normally read in. */
+/** How one pane's own values read — its axis ticks, its header readout, its hover badges: a
+ *  fundamental's own unit, else the caller's `CustomIndicatorDef.formatValue` (shared by every
+ *  series of a `draw: "multi"` pane, which all live on the one axis), else null — each call site
+ *  then keeps its own default. */
+export function paneValueFormatter(ind: Indicator): ((value: number) => string) | null {
+  if (isFundamentalKind(ind.kind)) return (v) => formatFundamentalValue(ind.kind, v, ind.fundamentalDisplayMode);
+  return ind.customData?.formatValue ?? null;
+}
+
 export function formatFundamentalValue(kind: IndicatorKind, value: number, displayMode: "value" | "yoyChange" = "value"): string {
   if (displayMode === "yoyChange") return `${value >= 0 ? "+" : ""}${value.toFixed(1)}%`;
   switch (kind) {

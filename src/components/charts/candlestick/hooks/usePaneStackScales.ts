@@ -32,6 +32,15 @@ export interface UsePaneStackScalesArgs {
  *  calls instead. See `useIndicatorPaneScales.ts`'s own doc on `ownPaneScales` for what "auto-fit"
  *  means per indicator kind — unchanged here, just parametrized by which stack's own indicators/
  *  heights/transform to run it over. */
+/** Margin above and below a fitted pane's visible values: four tenths of their spread on each side,
+ *  so the lines keep to the middle of the pane (a little over half its height) — clear of its header at the top and of
+ *  the next pane at the bottom — instead of touching both edges. A flat series (a quarterly figure
+ *  that holds over the whole window) has no spread: a tenth of its own size then, so the line sits
+ *  in the middle of the pane on a readable scale, rather than ±1 around 18 billion. */
+export function paneFitPad(lo: number, hi: number): number {
+  return (hi - lo) * 0.4 || Math.abs(hi) * 0.1 || 1;
+}
+
 export function usePaneStackScales({
   ownPaneIndicators,
   indicatorPaneHeights,
@@ -66,8 +75,12 @@ export function usePaneStackScales({
           i: number;
           value: { multi: Record<string, number | IndicatorBand | null> };
         }[];
-        let lo = 0;
-        let hi = 0;
+        // Fitted to the visible values, like a single-series pane: zero is kept only when a series
+        // is drawn from it (bars, areas). Starting at 0 unconditionally pinned a line of positive
+        // values (a free cash flow of 18 B$) to the top of its pane over an empty band down to 0.
+        const fromZero = (ind.customData.multiSeries ?? []).some((s) => s.draw === "histogram" || s.draw === "area");
+        let lo = fromZero ? 0 : Infinity;
+        let hi = fromZero ? 0 : -Infinity;
         for (const p of points) {
           for (const sub of Object.values(p.value.multi)) {
             if (sub === null) continue;
@@ -80,7 +93,11 @@ export function usePaneStackScales({
             }
           }
         }
-        const pad = (hi - lo) * 0.1 || 1;
+        if (!isFinite(lo) || !isFinite(hi)) {
+          lo = 0;
+          hi = 1;
+        }
+        const pad = paneFitPad(lo, hi);
         scales[ind.id] = d3.scaleLinear().domain([lo - pad, hi + pad]).range([height, headerReserve]);
       } else {
         const points = (visibleIndicators.find((v) => v.indicator.id === ind.id)?.points ?? []) as { i: number; value: number }[];
@@ -94,7 +111,7 @@ export function usePaneStackScales({
           lo = 0;
           hi = 1;
         }
-        const pad = (hi - lo) * 0.1 || 1;
+        const pad = paneFitPad(lo, hi);
         scales[ind.id] = d3.scaleLinear().domain([lo - pad, hi + pad]).range([height, headerReserve]);
       }
     });

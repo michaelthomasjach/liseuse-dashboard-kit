@@ -52,6 +52,27 @@ function writeValue(el: Field, value: string): void {
 /** Texte de départ suivi d'une espace, pour que la dictée ne colle pas au dernier mot. */
 const withSpace = (text: string): string => (text && !/\s$/.test(text) ? `${text} ` : text);
 
+const comparable = (t: string): string => t.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+
+/**
+ * Texte dicté, reconstruit à chaque événement à partir de tous les résultats depuis `from` (et non ajouté au fur et à
+ * mesure). Chrome sur Android, en dictée continue, marque définitif chaque état de la phrase en cours (« est-ce »,
+ * puis « est-ce que », puis « est-ce que tu »…), chacun contenant les précédents : ajoutés bout à bout, ils
+ * dupliquaient le texte. Un résultat qui reprend le précédent le remplace donc ; les autres (ordinateur : chaque
+ * résultat ne contient que la suite) sont mis bout à bout, séparés d'une espace.
+ */
+export function dictatedText(results: ArrayLike<{ 0: { transcript: string } }>, from = 0): string {
+  const parts: string[] = [];
+  for (let i = from; i < results.length; i++) {
+    const t = (results[i]?.[0]?.transcript ?? "").replace(/\s+/g, " ").trim();
+    if (!t) continue;
+    const last = parts[parts.length - 1];
+    if (last !== undefined && comparable(t).startsWith(comparable(last))) parts[parts.length - 1] = t;
+    else parts.push(t);
+  }
+  return parts.join(" ");
+}
+
 export interface DictationOptions {
   /** Langue de la reconnaissance (BCP 47). Défaut `"fr-FR"`. */
   lang?: string;
@@ -81,9 +102,9 @@ export function useDictation(field: RefObject<Field | null>, { lang = "fr-FR" }:
   const [listening, setListening] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const rec = useRef<Recognition | null>(null);
-  // Texte du champ au départ de la dictée, et ce qui a déjà été dicté pour de bon.
+  // Texte du champ au départ de la dictée, et premier résultat de la reconnaissance qui compte (après une retouche).
   const base = useRef("");
-  const finalText = useRef("");
+  const fromIndex = useRef(0);
   // Dernière valeur écrite par la dictée : si le champ n'y est plus, l'utilisateur l'a modifié entre-temps.
   const written = useRef("");
 
@@ -107,7 +128,7 @@ export function useDictation(field: RefObject<Field | null>, { lang = "fr-FR" }:
     r.interimResults = true;
     const start = el.value;
     base.current = withSpace(start);
-    finalText.current = "";
+    fromIndex.current = 0;
     written.current = start;
     r.onresult = (e) => {
       const target = field.current;
@@ -116,15 +137,9 @@ export function useDictation(field: RefObject<Field | null>, { lang = "fr-FR" }:
       // maintenant, sans réécrire ce qu'elle avait déjà dicté.
       if (target.value !== written.current) {
         base.current = withSpace(target.value);
-        finalText.current = "";
+        fromIndex.current = e.resultIndex;
       }
-      let interim = "";
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const res = e.results[i] as SpeechResult;
-        if (res.isFinal) finalText.current += res[0].transcript;
-        else interim += res[0].transcript;
-      }
-      const spoken = `${finalText.current}${interim}`.replace(/\s+/g, " ").trimStart();
+      const spoken = dictatedText(e.results, fromIndex.current);
       // Première lettre en capitale quand la dictée commence le champ.
       const text = base.current.trim() ? spoken : spoken.charAt(0).toUpperCase() + spoken.slice(1);
       const value = `${base.current}${text}`;

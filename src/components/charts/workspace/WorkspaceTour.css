@@ -3,7 +3,7 @@
    reading and click the thing being described should be able to, without closing anything. */
 .lq-tour__ring {
   position: fixed;
-  z-index: 2400;
+  z-index: 100000;
   pointer-events: none;
   border: 2px solid var(--lq-color-accent);
   border-radius: var(--lq-radius-md);
@@ -21,7 +21,7 @@
 
 .lq-tour__card {
   position: fixed;
-  z-index: 2401;
+  z-index: 100001;
   width: 300px;
   box-sizing: border-box;
   padding: var(--lq-space-3);

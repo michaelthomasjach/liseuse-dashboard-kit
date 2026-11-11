@@ -5,7 +5,7 @@
 .lq-gtour__backdrop {
   position: fixed;
   inset: 0;
-  z-index: 2400;
+  z-index: 100000;
   pointer-events: none;
   /* Tiré du voile du thème et non de --lq-color-text : en surface sombre le texte est clair, et
      le voile éclaircissait l'écran au lieu de l'assombrir. La moitié de --lq-color-overlay (le voile
@@ -16,7 +16,7 @@
 
 .lq-gtour__ring {
   position: fixed;
-  z-index: 2400;
+  z-index: 100000;
   pointer-events: none;
   border: 2px solid var(--lq-color-accent, #6c87c9);
   border-radius: var(--lq-radius-md, 8px);
@@ -33,7 +33,7 @@
 
 .lq-gtour__card {
   position: fixed;
-  z-index: 2401;
+  z-index: 100001;
   width: 340px;
   max-width: calc(100vw - 24px);
   box-sizing: border-box;

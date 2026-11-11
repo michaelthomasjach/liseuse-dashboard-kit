@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { CloseIcon } from "../../icons";
+import { LqThemeProvider, useLqThemeOptional } from "../../../theme/ThemeProvider";
 import "./WorkspaceTour.css";
 
 export interface WorkspaceTourStep {
@@ -91,6 +93,9 @@ function place(target: DOMRect, cardHeight: number): Placement {
  *  screen and claiming otherwise would be worse than saying nothing. */
 export function WorkspaceTour({ open, steps, onClose, scope }: WorkspaceTourProps) {
   const find = useCallback((selector: string) => (scope?.() ?? document).querySelector(selector), [scope]);
+  // Rendue dans le corps du document (comme GuidedTour), avec le thème de l'espace : sinon un
+  // ancêtre qui crée un contexte d'empilement (transform, contain, z-index) la plafonne sous ses voisins.
+  const theme = useLqThemeOptional();
   const [index, setIndex] = useState(0);
   const [placement, setPlacement] = useState<Placement | null>(null);
   const [card, setCard] = useState<HTMLDivElement | null>(null);
@@ -166,7 +171,7 @@ export function WorkspaceTour({ open, steps, onClose, scope }: WorkspaceTourProp
   if (!open || step === null) return null;
   const last = index === live.length - 1;
 
-  return (
+  const content = (
     <>
       {/* The ring, not a spotlight cut out of a dark overlay: darkening the workspace to explain
           the workspace makes every step harder to read than the thing it describes. */}
@@ -204,5 +209,16 @@ export function WorkspaceTour({ open, steps, onClose, scope }: WorkspaceTourProp
         </div>
       </div>
     </>
+  );
+
+  return createPortal(
+    theme ? (
+      <LqThemeProvider palette={theme.palette} surface={theme.surface} font={theme.font} style={{ display: "contents" }}>
+        {content}
+      </LqThemeProvider>
+    ) : (
+      content
+    ),
+    document.body
   );
 }

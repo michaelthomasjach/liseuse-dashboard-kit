@@ -13,6 +13,10 @@
  * Options : --throttles 1,4,6  --steps 400  --heavy (page lourde seule)  --trace (temps par type
  * d'événement Chrome)  --profile (points chauds JS ; lisible sur la Storybook de dev : --url
  * http://localhost:6006)  --css "<règle>" (essai d'une règle CSS injectée avant la mesure).
+ *
+ * --pan : glisser au doigt au lieu du survol, sur un téléphone émulé (412 × 915, densité 3, tactile) —
+ * des allers-retours horizontaux sur les bougies, comme on parcourt l'historique. --dpr 2 pour un
+ * téléphone moins dense ; --width/--height pour un autre écran.
  */
 const { spawn } = require("node:child_process");
 const fs = require("node:fs");
@@ -57,7 +61,7 @@ async function waitForHttp(url, timeoutMs) {
   }
 }
 
-async function connect(port, width, height) {
+async function connect(port, width, height, mobile = null) {
   const version = await (await waitForHttp(`http://127.0.0.1:${port}/json/version`, 20_000)).json();
   const ws = new WebSocket(version.webSocketDebuggerUrl);
   await new Promise((resolve, reject) => {
@@ -87,8 +91,11 @@ async function connect(port, width, height) {
   const page = (method, params) => send(method, params, sessionId);
   await page("Page.enable");
   await page("Runtime.enable");
+  // Visite guidée de l'espace de travail déjà vue : sa bulle couvrirait le graphique et capterait le doigt.
+  await page("Page.addScriptToEvaluateOnNewDocument", { source: "try { localStorage.setItem('lq-workspace-tour-seen', '1'); } catch {}" });
   await page("Performance.enable", { timeDomain: "timeTicks" });
-  await page("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile: false });
+  await page("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: mobile?.dpr ?? 1, mobile: Boolean(mobile) });
+  if (mobile) await page("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 5 });
   const on = (fn) => {
     listeners.add(fn);
     return () => listeners.delete(fn);
@@ -155,11 +162,11 @@ async function waitForChart(page, timeoutMs = 60_000) {
   }
 }
 
-const COLLECTOR = `(() => {
+const collector = (move) => `(() => {
   const s = (window.__bench = { frames: [], moves: 0, lat: [], pending: [], long: [], running: true });
-  addEventListener('mousemove', (e) => { s.moves++; s.pending.push(e.timeStamp); }, { capture: true, passive: true });
+  addEventListener('${move}', (e) => { s.moves++; s.pending.push(e.timeStamp); }, { capture: true, passive: true });
   // Fin du traitement de chaque mouvement (après les gestionnaires du graphique) : coût propre de l'événement.
-  addEventListener('mousemove', (e) => { s.handled = (s.handled ?? []); s.handled.push(performance.now() - e.timeStamp); }, { passive: true });
+  addEventListener('${move}', (e) => { s.handled = (s.handled ?? []); s.handled.push(performance.now() - e.timeStamp); }, { passive: true });
   try { new PerformanceObserver((l) => { for (const e of l.getEntries()) s.long.push(e.duration); }).observe({ type: 'longtask' }); } catch {}
   const tick = (t) => {
     s.frames.push(t);
@@ -195,28 +202,46 @@ function sweepPath(rect, steps) {
   return pts;
 }
 
+/** Glisser au doigt : allers-retours horizontaux au milieu des bougies, doigt posé tout du long. */
+function panPath(rect, steps) {
+  const pts = [];
+  const left = rect.x + rect.width * 0.15;
+  const right = rect.x + rect.width * 0.75;
+  const y = Math.round(rect.y + Math.min(rect.height * 0.3, 160));
+  for (let i = 0; i < steps; i++) {
+    const u = (i % 100) / 99;
+    const x = Math.floor(i / 100) % 2 === 0 ? left + u * (right - left) : right - u * (right - left);
+    pts.push({ x: Math.round(x), y });
+  }
+  return pts;
+}
+
 async function runScenario(conn, baseUrl, storyId, sc, opts) {
   const { page } = conn;
   const url = opts.site
     ? opts.site
     : storyId
     ? `${baseUrl}/iframe.html?id=${storyId}&viewMode=story&args=panes:${sc.panes};workspace:!${sc.workspace};page:!${Boolean(sc.page)}`
-    : `${baseUrl}/index.html?panes=${sc.panes}&workspace=${sc.workspace ? 1 : 0}&page=${sc.page ? 1 : 0}`;
+    : `${baseUrl}/index.html?panes=${sc.panes}&workspace=${sc.workspace ? 1 : 0}&page=${sc.page ? 1 : 0}${arg("candles") ? `&candles=${arg("candles")}` : ""}`;
   await page("Emulation.setCPUThrottlingRate", { rate: 1 });
   await page("Page.navigate", { url });
   await sleep(500);
   const rect = await waitForChart(page);
   await sleep(800);
-  const pts = sweepPath(rect, opts.steps);
+  const pts = opts.pan ? panPath(rect, opts.steps) : sweepPath(rect, opts.steps);
+  const touch = (type, p) => page("Input.dispatchTouchEvent", { type, touchPoints: type === "touchEnd" ? [] : [{ x: p.x, y: p.y, id: 1 }] });
+  const move = (p) => (opts.pan ? touch("touchMove", p) : page("Input.dispatchMouseEvent", { type: "mouseMoved", x: p.x, y: p.y }));
   await page("Emulation.setCPUThrottlingRate", { rate: sc.throttle });
   // Échauffement (JIT, caches) hors mesure.
+  if (opts.pan) await touch("touchStart", pts[0]);
   for (const p of pts.slice(0, 40)) {
-    await page("Input.dispatchMouseEvent", { type: "mouseMoved", x: p.x, y: p.y });
+    await move(p);
     await sleep(opts.gap);
   }
+  if (opts.pan) await touch("touchEnd", pts[39]);
   if (opts.css) await evaluate(page, `(() => { const st = document.createElement('style'); st.textContent = ${JSON.stringify(String(opts.css))}; document.head.appendChild(st); return true; })()`);
   if (opts.js) await evaluate(page, String(opts.js));
-  await evaluate(page, COLLECTOR);
+  await evaluate(page, collector(opts.pan ? "touchmove" : "mousemove"));
   if (opts.profile) {
     await page("Profiler.enable");
     await page("Profiler.setSamplingInterval", { interval: 200 });
@@ -225,10 +250,12 @@ async function runScenario(conn, baseUrl, storyId, sc, opts) {
   const before = await metricsOf(page);
   const t0 = Date.now();
   const sweep = async () => {
+    if (opts.pan) await touch("touchStart", pts[0]);
     for (const p of pts) {
-      await page("Input.dispatchMouseEvent", { type: "mouseMoved", x: p.x, y: p.y });
+      await move(p);
       await sleep(opts.gap);
     }
+    if (opts.pan) await touch("touchEnd", pts[pts.length - 1]);
     await sleep(300);
   };
   const trace = opts.trace ? await traced(conn, sweep) : (await sweep(), null);
@@ -285,7 +312,8 @@ function inclusive(profile, top = Number(arg("top") ?? 40)) {
     const seen = new Set();
     for (let cur = id; cur !== undefined; cur = parent.get(cur)) {
       const f = byId.get(cur).callFrame;
-      if (!/\/src\/|getScreenCTM|getBoundingClientRect|getComputedStyle|commitRoot|renderRootSync|performSyncWorkOnRoot/.test(f.url + f.functionName)) continue;
+      // --all : toutes les fonctions du paquet (page autonome construite avec --minify false).
+      if (!(arg("all") ? /\/assets\//.test(f.url) && f.functionName : /\/src\/|getScreenCTM|getBoundingClientRect|getComputedStyle|commitRoot|renderRootSync|performSyncWorkOnRoot/.test(f.url + f.functionName))) continue;
       const key = `${f.functionName || "(anonyme)"}  ${path.basename((f.url || "").split("?")[0])}:${f.lineNumber + 1}`;
       if (seen.has(key)) continue;
       seen.add(key);
@@ -293,6 +321,25 @@ function inclusive(profile, top = Number(arg("top") ?? 40)) {
     }
   });
   return [...tot.entries()].sort((a, b) => b[1] - a[1]).slice(0, top).map(([k, ms]) => `${ms.toFixed(1).padStart(8)} ms  ${k}`);
+}
+
+/** Qui appelle une fonction native coûteuse (getScreenCTM…) : temps par chaîne d'appelants. */
+function callers(profile, fn, depth = 4) {
+  const byId = new Map(profile.nodes.map((n) => [n.id, n]));
+  const parent = new Map();
+  for (const n of profile.nodes) for (const c of n.children ?? []) parent.set(c, n.id);
+  const tot = new Map();
+  profile.samples.forEach((id, i) => {
+    if (byId.get(id).callFrame.functionName !== fn) return;
+    const chain = [];
+    for (let cur = parent.get(id); cur !== undefined && chain.length < depth; cur = parent.get(cur)) {
+      const f = byId.get(cur).callFrame;
+      chain.push(`${f.functionName || "(anonyme)"}:${f.lineNumber + 1}`);
+    }
+    const key = chain.join(" < ");
+    tot.set(key, (tot.get(key) ?? 0) + (profile.timeDeltas[i] ?? 0) / 1000);
+  });
+  return [...tot.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10).map(([k, ms]) => `${ms.toFixed(1).padStart(8)} ms  ${k}`);
 }
 
 async function main() {
@@ -327,15 +374,19 @@ async function main() {
   };
   process.on("exit", cleanup);
 
-  const conn = await connect(cdpPort, 1600, Number(arg("height") ?? 1500));
+  const pan = Boolean(arg("pan"));
+  const conn = pan
+    ? await connect(cdpPort, Number(arg("width") ?? 412), Number(arg("height") ?? 915), { dpr: Number(arg("dpr") ?? 3) })
+    : await connect(cdpPort, 1600, Number(arg("height") ?? 1500));
   const { page, close } = conn;
-  const opts = { steps: Number(arg("steps") ?? 400), gap: Number(arg("gap") ?? 8), profile: Boolean(arg("profile")), trace: Boolean(arg("trace")), css: arg("css"), js: arg("js"), site: arg("site"), before: arg("before") };
+  const opts = { steps: Number(arg("steps") ?? 400), gap: Number(arg("gap") ?? 8), profile: Boolean(arg("profile")), trace: Boolean(arg("trace")), css: arg("css"), js: arg("js"), site: arg("site"), before: arg("before"), pan };
   const throttles = String(arg("throttles") ?? "1,4,6").split(",").map(Number);
   const scenarios = [];
   for (const throttle of throttles) {
     scenarios.push({ name: "5 panneaux, espace de travail", panes: 5, workspace: true, throttle });
     if (!opts.profile && !opts.trace) scenarios.push({ name: "sans panneau, espace de travail", panes: 0, workspace: true, throttle });
-    if (!opts.profile) scenarios.push({ name: "5 panneaux, page lourde", panes: 5, workspace: true, page: true, throttle });
+    // La page lourde (trois colonnes) n'a pas de sens sur un téléphone.
+    if (!opts.profile && !opts.pan) scenarios.push({ name: "5 panneaux, page lourde", panes: 5, workspace: true, page: true, throttle });
   }
   if (arg("heavy")) scenarios.splice(0, scenarios.length, ...throttles.map((throttle) => ({ name: "5 panneaux, page lourde", panes: 5, workspace: true, page: true, throttle })));
   const results = [];
@@ -347,6 +398,7 @@ async function main() {
     );
     if (trace) console.log(trace.map(([k, ms]) => `${(ms / r.moves).toFixed(2).padStart(8)} ms/mvt  ${k}`).join("\n"));
     if (profile) console.log(hotspots(profile).join("\n") + "\n--- inclusif ---\n" + inclusive(profile).join("\n"));
+    if (profile && arg("callers")) console.log(`--- appelants de ${arg("callers")} ---\n` + callers(profile, String(arg("callers"))).join("\n"));
   }
   close();
   cleanup();

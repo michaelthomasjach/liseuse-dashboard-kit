@@ -984,13 +984,18 @@ function drawTimeframeLabels(
   labelOf: (tf: string) => string,
 ) {
   const { visibleDrawings, zoomedXScale, zoomedPriceScale, indexForDate, dims, priceHeight } = params;
+  const labelled = visibleDrawings.filter(
+    (dr) => dr.timeframe && !dr.timeframeLabelHidden && dr.lineType !== "symbolOverlay" && (!dr.valueAxis || dr.valueAxis === "price"),
+  );
+  // Rien à écrire : surtout ne pas régler la police. Affecter `ctx.font` relance la résolution de la
+  // police à chaque image, et c'était, sans aucune étiquette, l'une des plus grosses dépenses d'un repeint.
+  if (labelled.length === 0) return;
   ctx.save();
   ctx.setLineDash([]);
   ctx.font = `600 10px ${style.fontFamily}`;
   ctx.textBaseline = "middle";
-  for (const dr of visibleDrawings) {
-    if (!dr.timeframe || dr.timeframeLabelHidden || dr.lineType === "symbolOverlay") continue;
-    if (dr.valueAxis && dr.valueAxis !== "price") continue;
+  for (const dr of labelled) {
+    if (!dr.timeframe) continue;
     let x: number;
     let y: number;
     if (dr.lineType === "horizontal") {

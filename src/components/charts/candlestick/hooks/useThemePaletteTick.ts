@@ -14,7 +14,10 @@ export function useThemePaletteTick(ref: RefObject<HTMLDivElement>): number {
     const root = el?.closest(".lq-root");
     if (!root) return;
     const observer = new MutationObserver(() => setThemeTick((t) => t + 1));
-    observer.observe(root, { attributes: true, attributeFilter: ["data-lq-palette", "data-lq-surface"] });
+    // Tout ce qui, sur la racine du thème, peut changer les variables CSS lues par le canvas : la
+    // palette et la surface, mais aussi la police, une classe de thème d'application (`.mon-theme.lq-root`)
+    // ou des variables posées en style. Le canvas ne relit ses couleurs qu'à ce signal.
+    observer.observe(root, { attributes: true, attributeFilter: ["data-lq-palette", "data-lq-surface", "data-lq-font", "class", "style"] });
     return () => observer.disconnect();
   }, [ref]);
 

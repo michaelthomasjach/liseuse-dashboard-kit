@@ -110,6 +110,10 @@ import { stableMemo } from "./candlestick/stableMemo";
 const StableToolsRail = stableMemo(ToolsRail);
 const StableChartHeader = stableMemo(ChartHeader);
 const StableChartModals = stableMemo(ChartModals);
+const DEFAULT_VOLUME_FORMAT = d3.format(".2s");
+// En-têtes des panneaux : rien n'y bouge pendant un glisser (seulement au survol), mais ils étaient
+// recalculés à chaque image avec toutes leurs icônes. `vFmt` est appelé pendant le rendu : gardé tel quel.
+const StablePaneHeaders = stableMemo(PaneHeaders, { raw: ["vFmt", "indicatorLabel"] });
 
 /** Stands in for the plot's own pointer-down/up handlers while replay is armed — see where it is
  *  passed below. A module-level constant rather than an inline arrow so the overlay isn't handed a
@@ -1413,7 +1417,9 @@ export function CandlestickChart({
   // knows English month names. Cached per locale, so `dFmt` stays the same function across renders.
   const dFmt = formatDate ?? dayMonthYearFormat(locale);
   const pFmt = formatPrice ?? ((v: number) => v.toFixed(2));
-  const vFmt = formatVolume ?? ((v: number) => d3.format(".2s")(v));
+  // Même identité d'un rendu à l'autre : passé tel quel aux en-têtes de panneau mémoïsés
+  // (StablePaneHeaders). Et un seul formateur d3, au lieu d'un nouveau à chaque valeur affichée.
+  const vFmt = formatVolume ?? DEFAULT_VOLUME_FORMAT;
   // Every price-axis-pinned badge reads through this instead of `pFmt` directly, so they always
   // agree with the axis right beside them (same compareMode check as its own tickFormat).
   const priceAxisFmt = (v: number) => (compareMode ? formatPercentFromReference(v, overlayProjections[0]?.mainReference ?? v) : pFmt(v));
@@ -1790,7 +1796,7 @@ export function CandlestickChart({
           // because a declaration whose `var()` is undefined is simply dropped.
           themeSource={(ref.current?.closest(".lq-root") as HTMLElement | null) ?? ref.current}
         />
-        <PaneHeaders
+        <StablePaneHeaders
           volumeVisible={volumeVisible}
           dims={dims}
           priceHeight={priceHeight}

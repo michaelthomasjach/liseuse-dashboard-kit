@@ -75,13 +75,17 @@ export function drawVolumeAndPanes(ctx: CanvasRenderingContext2D, params: Render
         // volume pane's own settings modal (see the gear icon in its header below).
         const volColorUp = volumeUpColorOverride ?? style.colorCandleUp;
         const volColorDown = volumeDownColorOverride ?? style.colorCandleDown;
-        for (const { d, i } of visible) {
-          const cx = zoomedXScale(i + 0.5);
-          const up = d.close >= d.open;
-          const barHeight = Math.max(0, volumeHeight - zoomedVolumeScale(d.volume ?? 0));
+        // One filled path per direction instead of one fill (and one colour change) per bar.
+        for (const up of [true, false]) {
+          ctx.beginPath();
+          for (const { d, i } of visible) {
+            if (d.close >= d.open !== up) continue;
+            const barHeight = Math.max(0, volumeHeight - zoomedVolumeScale(d.volume ?? 0));
+            ctx.rect(zoomedXScale(i + 0.5) - candleWidth / 2, volumeHeight - barHeight, candleWidth, barHeight);
+          }
           ctx.globalAlpha = isEink ? (up ? 0.15 : 0.35) : style.volumeOpacity;
           ctx.fillStyle = isEink ? colorText : up ? volColorUp : volColorDown;
-          ctx.fillRect(cx - candleWidth / 2, volumeHeight - barHeight, candleWidth, barHeight);
+          ctx.fill();
         }
         ctx.globalAlpha = 1;
         if (hoverVolumeY !== null) {

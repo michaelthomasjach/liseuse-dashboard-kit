@@ -3,6 +3,7 @@ import type { RefObject } from "react";
 import { HOVER_PARAM_KEYS, renderCandlestickChart, renderCrosshair } from "../render/renderChart";
 import type { RenderCandlestickChartParams } from "../interfaces/RenderCandlestickChartParams.interface";
 import type { ChartCanvasStyle } from "../interfaces/ChartCanvasStyle.interface";
+import { readChartCanvasStyle } from "../render/readChartCanvasStyle";
 
 export interface UseRenderCandlestickChartArgs extends RenderCandlestickChartParams {
   canvasRef: RefObject<HTMLCanvasElement>;
@@ -30,6 +31,11 @@ const HOVER_KEYS = new Set<string>(HOVER_PARAM_KEYS);
  *  eslint-illegible) dependency lists covering every one of their fields at once. */
 export function useRenderCandlestickChart({ canvasRef, crosshairCanvasRef, wrapperRef, themeTick, ...params }: UseRenderCandlestickChartArgs) {
   const styleRef = useRef<ChartCanvasStyle | null>(null);
+  // Couleurs du thème lues sur le DOM une fois par thème, pas à chaque image : relire les variables
+  // CSS forçait un recalcul de style de la page à chaque repeint — en plein glisser, à chaque image.
+  // `themeTick` change dès que la palette, la surface, la police, la classe ou le style de la racine
+  // du thème changent (useThemePaletteTick).
+  const themeStyleRef = useRef<{ key: string; style: ChartCanvasStyle } | null>(null);
   const entries = Object.entries(params);
   const baseDeps = entries.filter(([k]) => !HOVER_KEYS.has(k)).map(([, v]) => v);
 
@@ -37,7 +43,9 @@ export function useRenderCandlestickChart({ canvasRef, crosshairCanvasRef, wrapp
     const canvas = canvasRef.current;
     const wrapper = wrapperRef.current;
     if (!canvas || !wrapper) return;
-    styleRef.current = renderCandlestickChart(canvas, wrapper, params);
+    const key = `${themeTick}|${params.upColorOverride ?? ""}|${params.downColorOverride ?? ""}`;
+    if (themeStyleRef.current?.key !== key) themeStyleRef.current = { key, style: readChartCanvasStyle(wrapper, params.upColorOverride, params.downColorOverride) };
+    styleRef.current = renderCandlestickChart(canvas, wrapper, params, themeStyleRef.current.style);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canvasRef, wrapperRef, themeTick, ...baseDeps]);
 

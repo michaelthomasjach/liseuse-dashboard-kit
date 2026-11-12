@@ -47,7 +47,8 @@ export type { RenderCandlestickChartParams } from "../interfaces/RenderCandlesti
  *  always flowed as one function — the three clip-sharing phases share one canvas
  *  `save()`/`clip()`/`restore()` stack across the (synchronous, always same-order) calls below,
  *  not three independent ones. */
-export function renderCandlestickChart(canvas: HTMLCanvasElement, wrapper: HTMLElement, withHover: RenderCandlestickChartParams): ChartCanvasStyle | null {
+/** `style` : couleurs déjà lues (voir useRenderCandlestickChart), sinon lues ici sur le DOM. */
+export function renderCandlestickChart(canvas: HTMLCanvasElement, wrapper: HTMLElement, withHover: RenderCandlestickChartParams, style?: ChartCanvasStyle): ChartCanvasStyle | null {
   // Never the crosshair here: see HOVER_PARAM_KEYS.
   const params: RenderCandlestickChartParams = { ...withHover, ...NO_HOVER };
   const { dims, plotBoundedHeight, upColorOverride, downColorOverride } = params;
@@ -68,7 +69,7 @@ export function renderCandlestickChart(canvas: HTMLCanvasElement, wrapper: HTMLE
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, dims.boundedWidth, plotBoundedHeight);
 
-  const style = readChartCanvasStyle(wrapper, upColorOverride, downColorOverride);
+  style ??= readChartCanvasStyle(wrapper, upColorOverride, downColorOverride);
 
   drawFutureZone(ctx, params, style);
   drawPastZone(ctx, params, style);

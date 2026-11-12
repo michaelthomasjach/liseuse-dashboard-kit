@@ -186,55 +186,74 @@ export function drawPriceCandles(ctx: CanvasRenderingContext2D, params: RenderCa
       // right. The oldest notation there is, and still the most honest at density — a bar carries
       // the same four numbers a candle does in about a third of the ink, so a screen that turns
       // into a wall of overlapping bodies stays readable as bars.
-      for (const { d, i } of visible) {
-        const cx = zoomedXScale(i + 0.5);
-        const up = d.close >= d.open;
-        // Half the candle's own width per side, floored at a pixel: at the zoom levels where bars
-        // earn their keep the ticks are what still distinguishes one bar from the next, and a tick
-        // rounded away to nothing turns the whole thing into a bare range line.
-        const tick = Math.max(1, candleWidth / 2);
-        ctx.lineWidth = wickWidth;
+      // Half the candle's own width per side, floored at a pixel: at the zoom levels where bars
+      // earn their keep the ticks are what still distinguishes one bar from the next, and a tick
+      // rounded away to nothing turns the whole thing into a bare range line.
+      const tick = Math.max(1, candleWidth / 2);
+      ctx.lineWidth = wickWidth;
+      // One path per direction, stroked once, rather than one stroke (and one colour change) per
+      // bar: the same pixels, a handful of draw calls instead of hundreds — what keeps a pan at
+      // full frame rate on a phone.
+      for (const side of [true, false]) {
+        ctx.beginPath();
+        for (const { d, i } of visible) {
+          if (d.close >= d.open !== side) continue;
+          const cx = zoomedXScale(i + 0.5);
+          ctx.moveTo(cx, zoomedPriceScale(d.high));
+          ctx.lineTo(cx, zoomedPriceScale(d.low));
+          const openY = zoomedPriceScale(d.open);
+          ctx.moveTo(cx - tick, openY);
+          ctx.lineTo(cx, openY);
+          const closeY = zoomedPriceScale(d.close);
+          ctx.moveTo(cx, closeY);
+          ctx.lineTo(cx + tick, closeY);
+        }
         // E-ink has one ink and cannot code direction by hue — but a bar already says its
         // direction by where its two ticks sit, which is exactly why this notation survives on
         // paper. So it simply draws in the text colour there rather than inventing a fallback.
-        ctx.strokeStyle = isEink ? colorText : up ? colorCandleUp : colorCandleDown;
-        ctx.beginPath();
-        ctx.moveTo(cx, zoomedPriceScale(d.high));
-        ctx.lineTo(cx, zoomedPriceScale(d.low));
-        const openY = zoomedPriceScale(d.open);
-        ctx.moveTo(cx - tick, openY);
-        ctx.lineTo(cx, openY);
-        const closeY = zoomedPriceScale(d.close);
-        ctx.moveTo(cx, closeY);
-        ctx.lineTo(cx + tick, closeY);
+        ctx.strokeStyle = isEink ? colorText : side ? colorCandleUp : colorCandleDown;
         ctx.stroke();
       }
     } else {
       // "candle"/"heikinAshi" (same candle body/wick drawing, just fed transformed OHLC values
       // that stay 1:1 with `data`'s own indices).
       const useHA = chartDisplayMode === "heikinAshi" && heikinAshiCandles;
-      for (const { d: rawD, i } of visible) {
-        const d = useHA ? heikinAshiCandles![i] : rawD;
-        const cx = zoomedXScale(i + 0.5);
-        const up = d.close >= d.open;
-        const bodyTop = zoomedPriceScale(Math.max(d.open, d.close));
-        const bodyBottom = zoomedPriceScale(Math.min(d.open, d.close));
-        const bodyHeight = Math.max(1, bodyBottom - bodyTop);
-        const hueColor = up ? colorCandleUp : colorCandleDown;
-
+      // Grouped by direction: every wick of one colour in a single path, then every body as
+      // rectangles of a single path filled and outlined once. Each body still covers its own wick,
+      // as when they were drawn candle by candle, but with four draw calls per direction instead of
+      // three per candle (and no colour change per candle) — the candles were the largest part of
+      // each repaint while panning.
+      for (const side of [true, false]) {
+        const hueColor = side ? colorCandleUp : colorCandleDown;
+        ctx.beginPath();
+        for (const { d: rawD, i } of visible) {
+          const d = useHA ? heikinAshiCandles![i] : rawD;
+          if (d.close >= d.open !== side) continue;
+          const cx = zoomedXScale(i + 0.5);
+          ctx.moveTo(cx, zoomedPriceScale(d.high));
+          ctx.lineTo(cx, zoomedPriceScale(d.low));
+        }
         ctx.lineWidth = wickWidth;
         ctx.strokeStyle = isEink ? colorText : hueColor;
-        ctx.beginPath();
-        ctx.moveTo(cx, zoomedPriceScale(d.high));
-        ctx.lineTo(cx, zoomedPriceScale(d.low));
         ctx.stroke();
+      }
+      for (const side of [true, false]) {
+        const hueColor = side ? colorCandleUp : colorCandleDown;
+        ctx.beginPath();
+        for (const { d: rawD, i } of visible) {
+          const d = useHA ? heikinAshiCandles![i] : rawD;
+          if (d.close >= d.open !== side) continue;
+          const cx = zoomedXScale(i + 0.5);
+          const bodyTop = zoomedPriceScale(Math.max(d.open, d.close));
+          const bodyBottom = zoomedPriceScale(Math.min(d.open, d.close));
+          ctx.rect(cx - candleWidth / 2, bodyTop, candleWidth, Math.max(1, bodyBottom - bodyTop));
+        }
         ctx.lineWidth = 1;
-
         // E-ink can't code up/down by hue, so it falls back to the standard hollow/filled OHLC convention.
-        ctx.fillStyle = isEink ? (up ? colorBg : colorText) : hueColor;
+        ctx.fillStyle = isEink ? (side ? colorBg : colorText) : hueColor;
         ctx.strokeStyle = isEink ? colorText : hueColor;
-        ctx.fillRect(cx - candleWidth / 2, bodyTop, candleWidth, bodyHeight);
-        ctx.strokeRect(cx - candleWidth / 2, bodyTop, candleWidth, bodyHeight);
+        ctx.fill();
+        ctx.stroke();
       }
     }
 

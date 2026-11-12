@@ -17,7 +17,10 @@ type AnyFn = (...args: unknown[]) => unknown;
  *  Only for components that call their function props from event handlers or effects, or whose
  *  render-time calls depend on nothing but their other props: a render-time call is not re-run
  *  when only the function's closure changed. */
-export function stableMemo<P extends object>(Component: ComponentType<P>): ComponentType<P> {
+export function stableMemo<P extends object>(Component: ComponentType<P>, options: { raw?: readonly (keyof P & string)[] } = {}): ComponentType<P> {
+  // Function props called during render (formatters…): passed as they are, so a new formatter does
+  // re-render the child — they must then keep their identity across renders (useMemo/useCallback).
+  const raw = new Set<string>(options.raw ?? []);
   const Inner = memo(Component) as unknown as ComponentType<P>;
   function Stable(props: P) {
     const latest = useRef(props);
@@ -26,7 +29,7 @@ export function stableMemo<P extends object>(Component: ComponentType<P>): Compo
     const next: Record<string, unknown> = {};
     for (const key of Object.keys(props)) {
       const value = (props as Record<string, unknown>)[key];
-      if (typeof value !== "function") {
+      if (typeof value !== "function" || raw.has(key)) {
         next[key] = value;
         continue;
       }

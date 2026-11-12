@@ -35,6 +35,45 @@ if (typeof document !== "undefined" && document.fonts) {
   });
 }
 
+/** What a label's width depends on, read once from its computed style. */
+interface LabelStyle {
+  font: string;
+  /** Font size in px: the height of a side axis label's line box. */
+  size: number;
+  letterSpacing: string;
+  textTransform: string;
+}
+
+function readLabelStyle(label: SVGTextElement): LabelStyle {
+  const cs = getComputedStyle(label);
+  const size = parseFloat(cs.fontSize) || 11;
+  // `font` is empty in some engines when a longhand is not representable in the shorthand.
+  const font = cs.font || `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+  return { font, size, letterSpacing: cs.letterSpacing, textTransform: cs.textTransform };
+}
+
+let measureContext: CanvasRenderingContext2D | null | undefined;
+const widthCache = new Map<string, number>();
+
+/** Rendered width of a label, measured on an offscreen canvas (no layout) and cached. */
+function labelWidth(text: string, style: LabelStyle): number {
+  const shown = style.textTransform === "uppercase" ? text.toUpperCase() : style.textTransform === "lowercase" ? text.toLowerCase() : text;
+  const key = `${style.font}|${style.letterSpacing}|${shown}`;
+  const cached = widthCache.get(key);
+  if (cached !== undefined) return cached;
+  if (measureContext === undefined) measureContext = typeof document !== "undefined" ? document.createElement("canvas").getContext("2d") : null;
+  let width = shown.length * style.size * 0.6;
+  if (measureContext) {
+    measureContext.font = style.font;
+    width = measureContext.measureText(shown).width;
+    const spacing = parseFloat(style.letterSpacing);
+    if (Number.isFinite(spacing)) width += spacing * shown.length;
+  }
+  if (widthCache.size > 4000) widthCache.clear();
+  widthCache.set(key, width);
+  return width;
+}
+
 /**
  * Thin React wrapper around d3-axis: d3 owns the tick DOM inside a single
  * `<g>`, React owns everything else. This is the one place components in
@@ -56,6 +95,7 @@ export function ChartAxis<Domain extends d3.AxisDomain = d3.AxisDomain>({
 }: ChartAxisProps<Domain>) {
   const ref = useRef<SVGGElement>(null);
   const drawnRef = useRef<string | null>(null);
+  const labelStyleRef = useRef<(LabelStyle & { key: string }) | null>(null);
 
   useEffect(() => {
     const g = ref.current;
@@ -118,47 +158,41 @@ export function ChartAxis<Domain extends d3.AxisDomain = d3.AxisDomain>({
     // A label is centered on its tick, so it can visually spill past the axis's own valid
     // range even while the tick itself stays inside it — most obviously the first/last tick,
     // sitting right at the domain's edge, whose label extends half its width/height past that
-    // edge. Hide any label whose own rendered extent falls outside `scale.range()` (converted
-    // to screen space via the axis group's CTM, since the range is expressed in the group's
-    // local coordinates). Judged purely against the axis's own bounds, tick by tick — not
-    // against neighboring labels: an earlier version hid labels based on collisions with their
-    // neighbors, which made hiding order-dependent and could hide labels that weren't actually
-    // overflowing anything.
-    const svg = g.ownerSVGElement;
-    const ctm = g.getScreenCTM();
-    if (svg && ctm) {
-      const horizontal = orientation === "bottom";
-      const [r0, r1] = scale.range() as unknown as [number, number];
-      const p1 = svg.createSVGPoint();
-      const p2 = svg.createSVGPoint();
-      if (horizontal) {
-        p1.x = r0;
-        p1.y = 0;
-        p2.x = r1;
-        p2.y = 0;
-      } else {
-        p1.x = 0;
-        p1.y = r0;
-        p2.x = 0;
-        p2.y = r1;
-      }
-      const s1 = p1.matrixTransform(ctm);
-      const s2 = p2.matrixTransform(ctm);
-      const zoneStart = horizontal ? Math.min(s1.x, s2.x) : Math.min(s1.y, s2.y);
-      const zoneEnd = horizontal ? Math.max(s1.x, s2.x) : Math.max(s1.y, s2.y);
-
-      selection.selectAll<SVGTextElement, unknown>(".tick text").each(function () {
-        // `visibility`, not `display: none` — a display:none element has an empty
-        // getBoundingClientRect() (all zeros), so once hidden it would measure as
-        // trivially overflowing forever (0 < zoneStart is almost always true) and could
-        // never be re-measured back into view on a later tick. visibility:hidden keeps
-        // the real box available to measure while still not painting it.
-        const rect = this.getBoundingClientRect();
-        const start = horizontal ? rect.left : rect.top;
-        const end = horizontal ? rect.right : rect.bottom;
-        this.style.visibility = start < zoneStart || end > zoneEnd ? "hidden" : "";
-      });
-    }
+    // edge. Hide any label whose own extent falls outside `scale.range()`. Judged purely against
+    // the axis's own bounds, tick by tick — not against neighboring labels: an earlier version hid
+    // labels based on collisions with their neighbors, which made hiding order-dependent and could
+    // hide labels that weren't actually overflowing anything.
+    //
+    // Computed, not measured. Reading each label's box (getBoundingClientRect) right after d3
+    // rewrote the ticks forced a synchronous layout of the whole page, once per axis: while
+    // panning, every axis moves on every frame, and those forced layouts were the largest single
+    // cost of a drag on a phone. The extent along the axis is the tick position plus the label's
+    // width (text measured on a canvas, cached) or its line box — no layout involved. The label
+    // font is read once per axis setup (style only, no layout), not on every frame.
+    const labels = selection.selectAll<SVGTextElement, Domain>(".tick text");
+    const first = labels.node();
+    if (!first) return;
+    const styleKey = [orientation, className ?? "", fontsGeneration].join(";");
+    if (labelStyleRef.current?.key !== styleKey) labelStyleRef.current = { key: styleKey, ...readLabelStyle(first) };
+    const style = labelStyleRef.current;
+    const horizontal = orientation === "bottom";
+    const [r0, r1] = scale.range() as unknown as [number, number];
+    const zoneStart = Math.min(r0, r1);
+    const zoneEnd = Math.max(r0, r1);
+    const band = "bandwidth" in scale && typeof scale.bandwidth === "function" ? (scale.bandwidth as () => number)() / 2 : 0;
+    labels.each(function (d) {
+      const at = (scale(d) ?? 0) + band;
+      const text = this.textContent ?? "";
+      // Bottom axis: centered on the tick (text-anchor middle). Side axes: d3 sets dy=0.32em, so
+      // the baseline sits 0.32em below the tick; the glyph box runs from the ascent above it to
+      // the descent below (≈ 0.94em and 0.24em for the UI fonts in use).
+      const [start, end] = horizontal
+        ? [at - labelWidth(text, style) / 2, at + labelWidth(text, style) / 2]
+        : [at + (0.32 - 0.94) * style.size, at + (0.32 + 0.24) * style.size];
+      // `visibility`, not `display: none`: a hidden label keeps its place for when it fits again.
+      const next = start < zoneStart || end > zoneEnd ? "hidden" : "";
+      if (this.style.visibility !== next) this.style.visibility = next;
+    });
   });
 
   return <g ref={ref} className={["lq-chart-axis", className].filter(Boolean).join(" ")} transform={transform} />;

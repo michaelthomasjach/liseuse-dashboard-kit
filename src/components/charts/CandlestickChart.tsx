@@ -332,6 +332,10 @@ export function CandlestickChart({
   // each row's own spinner.
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const crosshairCanvasRef = useRef<HTMLCanvasElement>(null);
+  // Doigt levé : le réticule (lignes verticale et horizontale) n'est plus dessiné. Le survol, lui, est gardé, pour
+  // que les pastilles de l'axe (prix, « + ») restent touchables juste après. Le prochain toucher ou mouvement de
+  // souris le fait revenir.
+  const [touchLifted, setTouchLifted] = useState(false);
   const tfAnchorRef = useRef<HTMLButtonElement>(null);
   const { menuAnchorRefFor } = useDrawingToolMenuAnchors();
   const { isFullscreen, toggle: toggleFullscreen } = useFullscreen(
@@ -1256,7 +1260,7 @@ export function CandlestickChart({
     indicators: combinedIndicators,
     overlayProjections,
     symbolOverlays,
-    hovered: effectiveHovered,
+    hovered: touchLifted ? null : effectiveHovered,
     hoverY: effectiveHoverY,
     hoverVolumeY,
     hoverIndicatorPaneId,
@@ -1654,11 +1658,26 @@ export function CandlestickChart({
       <div
         className="lq-chart__plot"
         style={{ width: dims.width, height: plotHeight }}
+        // Doigt levé (ou geste annulé par le navigateur) : plus de réticule, voir `touchLifted`.
+        onPointerUp={(e) => {
+          if (e.pointerType === "touch") setTouchLifted(true);
+        }}
+        onPointerCancel={(e) => {
+          if (e.pointerType === "touch") setTouchLifted(true);
+        }}
+        onPointerDownCapture={() => setTouchLifted(false)}
+        onPointerMoveCapture={(e) => {
+          if (e.pointerType !== "touch" && touchLifted) setTouchLifted(false);
+        }}
         onPointerLeave={(e) => {
           // Touch "leave" fires the instant a finger lifts — pin instead of clear (mouse still
           // clears normally) so the "+"/pane-action badges survive for a follow-up tap; the
-          // next tap elsewhere already recomputes this via handlePointerMove.
-          if (e.pointerType === "touch") return;
+          // next tap elsewhere already recomputes this via handlePointerMove. Only the crosshair
+          // lines go (touchLifted).
+          if (e.pointerType === "touch") {
+            setTouchLifted(true);
+            return;
+          }
           setHoverIndex(null);
           setHoverY(null);
           setHoverVolumeY(null);

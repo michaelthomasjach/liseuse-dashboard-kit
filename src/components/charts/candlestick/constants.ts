@@ -85,6 +85,10 @@ export const DEFAULT_PANE_HEIGHT_FRACTION = 0.22;
 /** Drag-to-resize bounds for a sub-pane, same fraction units as DEFAULT_PANE_HEIGHT_FRACTION. */
 export const MIN_PANE_HEIGHT_FRACTION = 0.08;
 export const MAX_PANE_HEIGHT_FRACTION = 0.6;
+/** Most of the plot's bounded height the bottom sub-panes (volume included) may take together. Past
+ *  it, every expanded pane shrinks by the same factor so price always keeps the rest: with a dozen
+ *  panes at their own 22% each, price used to be squeezed down to nothing. */
+export const MAX_SUB_PANES_TOTAL_FRACTION = 0.6;
 /** The `sidePanel` column's own default width (20%, see CandlestickChartProps.sidePanel) — a CSS
  *  flex-basis percentage, not a pixel value, so it always reads as "1/5 of the chart" regardless
  *  of container size with no JS measurement needed; only overridden once the user actually drags

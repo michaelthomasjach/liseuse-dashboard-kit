@@ -9,6 +9,7 @@ import {
   DEFAULT_PANE_HEIGHT_FRACTION,
   MIN_PANE_HEIGHT_FRACTION,
   MAX_PANE_HEIGHT_FRACTION,
+  MAX_SUB_PANES_TOTAL_FRACTION,
   SUB_PANE_COLLAPSED_HEIGHT,
 } from "../constants";
 
@@ -691,6 +692,26 @@ export function usePaneLayout({
   // its own fixed-height header strip instead of the usual proportional split. Fullscreened onto
   // some *other* pane, volume drops to zero regardless of its own collapsed/expanded state —
   // fullscreened onto itself, it claims the entire plot instead.
+  // Shared shrink factor of the expanded bottom panes (volume included): 1 while they fit within
+  // MAX_SUB_PANES_TOTAL_FRACTION of the plot, less once they don't, so price keeps at least the
+  // rest. Collapsed panes keep their fixed header strip; a fullscreened pane is never shrunk.
+  const subPanesSqueeze = useMemo(() => {
+    if (fullscreenPaneId !== null || plotBoundedHeight <= 0) return 1;
+    let expanded = 0;
+    let fixed = 0;
+    for (const ind of [...indicators, ...extraIndicators]) {
+      if (indicatorCatalogEntry(ind).pane !== "own" || indicatorDock(ind) !== "bottom") continue;
+      if (ind.paneCollapsed) fixed += SUB_PANE_COLLAPSED_HEIGHT;
+      else expanded += plotBoundedHeight * (paneHeightFractions[ind.id] ?? defaultFraction);
+    }
+    if (volumeVisible) {
+      if (volumeCollapsed) fixed += SUB_PANE_COLLAPSED_HEIGHT;
+      else expanded += plotBoundedHeight * (paneHeightFractions.volume ?? defaultFraction);
+    }
+    const room = plotBoundedHeight * MAX_SUB_PANES_TOTAL_FRACTION - fixed;
+    return expanded > room && expanded > 0 ? Math.max(0, room) / expanded : 1;
+  }, [indicators, extraIndicators, paneHeightFractions, defaultFraction, plotBoundedHeight, volumeVisible, volumeCollapsed, fullscreenPaneId]);
+
   const volumeHeight = !volumeVisible
     ? 0
     : fullscreenPaneId !== null
@@ -699,7 +720,7 @@ export function usePaneLayout({
         : 0
       : volumeCollapsed
         ? SUB_PANE_COLLAPSED_HEIGHT
-        : Math.round(plotBoundedHeight * paneHeightFraction("volume"));
+        : Math.round(plotBoundedHeight * paneHeightFraction("volume") * subPanesSqueeze);
 
   // "own"-pane indicators (RSI/CHOP/MACD) stack below price, in the order they were added,
   // interleaved with volume wherever `volumePaneOrder` currently places it — each sized/collapsed
@@ -735,7 +756,7 @@ export function usePaneLayout({
       return { ownPaneIndicators: [], indicatorPaneHeights: [], indicatorPaneTops: [], volumeTop: 0, allPanesOrder: ["volume"] };
     }
     const heights = owned.map((ind) =>
-      ind.paneCollapsed ? SUB_PANE_COLLAPSED_HEIGHT : Math.round(plotBoundedHeight * (paneHeightFractions[ind.id] ?? defaultFraction))
+      ind.paneCollapsed ? SUB_PANE_COLLAPSED_HEIGHT : Math.round(plotBoundedHeight * (paneHeightFractions[ind.id] ?? defaultFraction) * subPanesSqueeze)
     );
     const insertAt = Math.min(Math.max(0, volumePaneOrder), owned.length);
     let cursor = 0; // relative to right after price
@@ -757,7 +778,7 @@ export function usePaneLayout({
       order.push("volume");
     }
     return { ownPaneIndicators: owned, indicatorPaneHeights: heights, indicatorPaneTops: tops, volumeTop: vTop, allPanesOrder: order };
-  }, [indicators, extraIndicators, paneHeightFractions, defaultFraction, plotBoundedHeight, volumeVisible, volumeHeight, volumePaneOrder, fullscreenPaneId]);
+  }, [indicators, extraIndicators, paneHeightFractions, defaultFraction, plotBoundedHeight, volumeVisible, volumeHeight, volumePaneOrder, fullscreenPaneId, subPanesSqueeze]);
   const indicatorPanesTotalHeight = indicatorPaneHeights.reduce((sum, h) => sum + h, 0);
 
   const priceHeight = Math.max(0, plotBoundedHeight - volumeHeight - indicatorPanesTotalHeight);

@@ -89,6 +89,14 @@ export interface CandlestickChartProps {
   settingsOpen?: boolean;
   /** Fired whenever the chart-settings modal opens or closes, from any of the ways it can. */
   onSettingsOpenChange?: (open: boolean) => void;
+  /** Whether the enclosing workspace currently covers the viewport — pairs with
+   *  `onToggleWorkspaceFullscreen` below. */
+  workspaceFullscreen?: boolean;
+  /** Given by `ChartWorkspace` on its mobile layout only: the side rail that holds the workspace's
+   *  own fullscreen button is hidden there, so the bottom tools row carries the same button (same
+   *  action, same state) instead. A standalone chart leaves it unset and the row shows no such
+   *  button. */
+  onToggleWorkspaceFullscreen?: () => void;
   /** Shows a header button that swaps the whole chart body for `SeasonalityView` — the average
    *  cumulative return through a reference year, aggregated across `data`'s own historical years
    *  (see `computeSeasonality` in `internal/seasonality.ts`, kept independent of this component on

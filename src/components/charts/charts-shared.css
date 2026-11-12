@@ -847,8 +847,10 @@ button.lq-chart__legend-item {
    to spend on breathing room, this row has a phone's width and a dozen tools wanting it. */
 .lq-chart__tools-rail--horizontal .lq-chart__tools-rail-items {
   gap: 0;
-  padding-left: 0;
-  padding-right: 0;
+  /* A little air at both ends, so the first and last icons don't sit flush against the chart's
+     own edges. */
+  padding-left: 8px;
+  padding-right: 8px;
 }
 
 /* Borders off, and with them the rounded corners that only ever existed to soften those borders.

@@ -3,7 +3,7 @@ import type { ChartCustomTool } from "../interfaces/ChartCustomTool.interface";
 import type { RefObject, Dispatch, SetStateAction } from "react";
 import { Popover } from "../../../forms/Popover";
 import { Checkbox } from "../../../forms/Checkbox";
-import { ChevronDownIcon, MagnetIcon, EyeIcon, EyeOffIcon, LockIcon, BellIcon, LayersIcon, ZoomInIcon, ZoomOutIcon, InfoIcon, GaugeIcon } from "../../../icons";
+import { ChevronDownIcon, MagnetIcon, EyeIcon, EyeOffIcon, LockIcon, BellIcon, LayersIcon, ZoomInIcon, ZoomOutIcon, InfoIcon, GaugeIcon, MaximizeIcon, MinimizeIcon } from "../../../icons";
 import { ToolCategorySheet } from "./ToolCategorySheet";
 import type { DrawingToolType } from "../interfaces/DrawingToolType.interface";
 import { DRAWING_TOOL_CATEGORIES } from "../drawingCatalog";
@@ -62,6 +62,11 @@ export interface ToolsRailProps {
   setAiOpen: ((open: boolean) => void) | undefined;
   setMarketStateOpen: Dispatch<SetStateAction<boolean>>;
   onOpenToolInfo: (tool: DrawingToolType) => void;
+  /** See `CandlestickChartProps.workspaceFullscreen`. */
+  workspaceFullscreen?: boolean;
+  /** Only on the horizontal (mobile) row inside a workspace — see
+   *  `CandlestickChartProps.onToggleWorkspaceFullscreen`. Undefined: no button. */
+  onToggleWorkspaceFullscreen?: () => void;
 }
 
 /** The drawing-tools rail (`drawingTools` prop), left-docked and vertical by default or
@@ -117,7 +122,12 @@ export function ToolsRail({
   setAiOpen,
   setMarketStateOpen,
   onOpenToolInfo,
+  workspaceFullscreen = false,
+  onToggleWorkspaceFullscreen,
 }: ToolsRailProps) {
+  // Which trailing button carries the auto margin that pins the trailing group apart from the
+  // tools: only the first one may, or two auto margins would split the free space between them.
+  const trailingLead = onToggleWorkspaceFullscreen ? "fullscreen" : eventKinds.length > 0 ? "events" : "layers";
   const [eventsMenuOpen, setEventsMenuOpen] = useState(false);
 
   /** The tool the pointer has been resting on, and where its button is.
@@ -432,12 +442,27 @@ export function ToolsRail({
             same toggle. Pinned to the rail's own bottom edge (see
             .lq-chart__tools-rail-bottom-button), alongside "Dessins et indicateurs" right below
             it, rather than living inline with the magnet/hide/lock toggles above. */}
+        {/* The workspace's own fullscreen, on the mobile row only (the side rail that holds it
+            elsewhere is hidden there) — first of the trailing group, same action and state as the
+            side rail's button. */}
+        {onToggleWorkspaceFullscreen && (
+          <button
+            type="button"
+            className="lq-chart__icon-button lq-chart__tools-rail-bottom-button"
+            onClick={onToggleWorkspaceFullscreen}
+            aria-label={workspaceFullscreen ? "Quitter le plein écran de l'espace de travail" : "Plein écran de l'espace de travail"}
+            aria-pressed={workspaceFullscreen}
+            title={workspaceFullscreen ? "Quitter le plein écran de l'espace de travail" : "Plein écran de l'espace de travail"}
+          >
+            {workspaceFullscreen ? <MinimizeIcon size={14} /> : <MaximizeIcon size={14} />}
+          </button>
+        )}
         {eventKinds.length > 0 && (
           <>
             <button
               ref={eventsMenuAnchorRef}
               type="button"
-              className={["lq-chart__icon-button", "lq-chart__tools-rail-bottom-button", eventsMenuOpen && "lq-chart__icon-button--active"]
+              className={["lq-chart__icon-button", trailingLead === "events" && "lq-chart__tools-rail-bottom-button", eventsMenuOpen && "lq-chart__icon-button--active"]
                 .filter(Boolean)
                 .join(" ")}
               onClick={() => setEventsMenuOpen((o) => !o)}
@@ -480,7 +505,7 @@ export function ToolsRail({
           type="button"
           className={[
             "lq-chart__icon-button",
-            eventKinds.length === 0 && "lq-chart__tools-rail-bottom-button",
+            trailingLead === "layers" && "lq-chart__tools-rail-bottom-button",
             indicatorsManagerOpen && "lq-chart__icon-button--active",
           ]
             .filter(Boolean)

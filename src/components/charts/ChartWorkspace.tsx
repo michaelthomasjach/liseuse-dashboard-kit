@@ -686,7 +686,8 @@ export function ChartWorkspace({
       {/* Replaces the side rail's watchlist/alerts icons below a certain width (isMobileWorkspace)
           — every list's own full name instead of one icon + an in-panel dropdown to pick among
           them (not enough room to justify the extra step on a phone), plus the alert bell moved
-          in from the rail. scripting/split-screen/fullscreen simply have no mobile equivalent —
+          in from the rail. scripting/split-screen have no mobile equivalent (fullscreen moves to
+          each panel's bottom tools row, see onToggleWorkspaceFullscreen) —
           they just don't render anywhere on this layout. Native horizontal scroll (not a custom
           drag handler) for when the list names don't all fit — same finger-drag-for-free pattern
           `.lq-chart__header` and ToolsRail's own `--horizontal` variant already use.
@@ -826,6 +827,10 @@ export function ChartWorkspace({
             // see settingsPanelIndex's own doc.
             settingsOpen: settingsPanelIndex === i,
             onSettingsOpenChange: (open: boolean) => setSettingsPanelIndex(open ? i : null),
+            // The side rail (and its whole-workspace fullscreen button) is hidden on the mobile
+            // layout: each panel's bottom tools row carries that same button instead.
+            workspaceFullscreen,
+            onToggleWorkspaceFullscreen: isMobileWorkspace ? toggleWorkspaceFullscreen : undefined,
             // The workspace's own shared script list, filtered down to whichever scripts target
             // *this* panel — see panelScriptingProps for the whole set and why each one is shaped
             // the way it is.

@@ -138,6 +138,8 @@ export function CandlestickChart({
   onFullscreenChange,
   settingsOpen: settingsOpenProp,
   onSettingsOpenChange,
+  workspaceFullscreen = false,
+  onToggleWorkspaceFullscreen,
   seasonality = false,
   replay = false,
   onReplayChange,
@@ -1547,6 +1549,8 @@ export function CandlestickChart({
       aiOpen={ai && !aiControlled ? aiOpen : undefined}
       setAiOpen={ai && !aiControlled ? setAiOpen : undefined}
       onOpenToolInfo={setInfoTool}
+      workspaceFullscreen={workspaceFullscreen}
+      onToggleWorkspaceFullscreen={isMobileRail ? onToggleWorkspaceFullscreen : undefined}
     />
   );
 

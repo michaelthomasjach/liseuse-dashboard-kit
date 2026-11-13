@@ -164,3 +164,37 @@ export const Complete: StoryObj = {
     />
   ),
 };
+
+/** `onReorder` + `groups` : poignée en tête de ligne (souris, doigt, flèches du clavier) et sections ; une ligne passe
+ *  d'une section à l'autre, ou en tête d'une section vide en la déposant sur son en-tête. */
+export const Reorder: StoryObj = {
+  name: "onReorder + groups — glisser-déposer et sections",
+  render: function Render() {
+    const [order, setOrder] = useState<{ id: string; group: string }[]>(ORDERS.map((o, i) => ({ id: o.id, group: i % 2 ? "b" : "a" })));
+    const byId = new Map(ORDERS.map((o) => [o.id, o]));
+    const rows = order.map((o) => byId.get(o.id) as DemoOrder);
+    const groupOf = (r: DemoOrder) => order.find((o) => o.id === r.id)?.group ?? "a";
+    return (
+      <DataTable<DemoOrder>
+        {...orderTable}
+        rows={rows}
+        groups={[
+          { id: "a", header: "Section A" },
+          { id: "b", header: "Section B" },
+          { id: "c", header: "Section C (vide)" },
+        ]}
+        groupOf={groupOf}
+        onReorder={({ key, group, index }) =>
+          setOrder((prev) => {
+            const moved = { id: key, group: group ?? "a" };
+            const rest = prev.filter((o) => o.id !== key);
+            const inGroup = rest.filter((o) => o.group === moved.group);
+            const anchor = inGroup[index];
+            const at = anchor ? rest.indexOf(anchor) : inGroup.length ? rest.indexOf(inGroup[inGroup.length - 1]!) + 1 : rest.length;
+            return [...rest.slice(0, at), moved, ...rest.slice(at)];
+          })
+        }
+      />
+    );
+  },
+};

@@ -1,5 +1,5 @@
 import { Fragment, useMemo, useRef, useState, type ReactNode } from "react";
-import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, SearchIcon } from "../icons";
+import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, GripIcon, SearchIcon } from "../icons";
 import { Checkbox } from "../forms/Checkbox";
 import { DropdownPanel } from "../primitives/DropdownPanel";
 import "./DataTable.css";
@@ -35,6 +35,10 @@ export interface DataTableLabels {
   expand: string;
   /** Ex. « 3 sélectionnées ». */
   selected: (count: number) => string;
+  /** Poignée de glisser-déposer d'une ligne. */
+  move: string;
+  /** Poignée quand le réordonnancement est coupé (colonne triée, recherche en cours). */
+  moveOff: string;
 }
 
 const DEFAULT_LABELS: DataTableLabels = {
@@ -48,7 +52,25 @@ const DEFAULT_LABELS: DataTableLabels = {
   selectRow: "Sélectionner la ligne",
   expand: "Déplier la ligne",
   selected: (n) => `${n} sélectionnée${n > 1 ? "s" : ""}`,
+  move: "Déplacer la ligne : glisser, ou flèches haut et bas",
+  moveOff: "Retirez le tri et la recherche pour réordonner les lignes",
 };
+
+/** Ligne déposée : sa clé, son groupe d'arrivée (null sans `groups`) et sa place dans ce groupe (parmi les lignes
+ *  affichées du groupe, elle-même retirée : 0 = en tête). */
+export interface DataTableMove {
+  key: string;
+  group: string | null;
+  index: number;
+}
+
+/** Section du tableau : un en-tête pleine largeur, puis ses lignes. */
+export interface DataTableGroup {
+  id: string;
+  header: ReactNode;
+  /** Replié : l'en-tête seul (on peut encore y déposer une ligne, qui arrive en tête). */
+  collapsed?: boolean;
+}
 
 export interface DataTableProps<T> {
   columns: DataTableColumn<T>[];
@@ -98,6 +120,16 @@ export interface DataTableProps<T> {
 
   /** Textes de l'interface, en français par défaut. */
   labels?: Partial<DataTableLabels>;
+
+  /** Glisser-déposer des lignes : une poignée en tête de chaque ligne, à la souris, au doigt, ou au clavier (flèches
+   *  haut et bas sur la poignée ; elles franchissent les sections). Appelé au lâcher ; l'application range ses lignes
+   *  et rend le nouvel ordre dans `rows`. Coupé tant qu'une colonne est triée ou qu'une recherche filtre. */
+  onReorder?: (move: DataTableMove) => void;
+  /** Sections, dans cet ordre, chacune sous un en-tête pleine largeur, même vide (on peut y déposer une ligne). Les
+   *  lignes y gardent l'ordre de `rows` ; un tri de colonne trie à l'intérieur de chaque section. Sans pagination. */
+  groups?: DataTableGroup[];
+  /** Section d'une ligne (identifiant d'un des `groups`) ; inconnue : la première. */
+  groupOf?: (row: T) => string;
 }
 
 function cellText<T>(col: DataTableColumn<T>, row: T): string {
@@ -167,6 +199,9 @@ export function DataTable<T>({
   columnPicker,
   toolbar,
   labels: labelsProp,
+  onReorder,
+  groups,
+  groupOf,
 }: DataTableProps<T>) {
   const labels = { ...DEFAULT_LABELS, ...labelsProp };
   const [sort, setSort] = useState<{ id: string; dir: "asc" | "desc" } | null>(null);
@@ -201,6 +236,70 @@ export function DataTable<T>({
     });
     return copy;
   }, [filteredRows, sort, columns]);
+
+  const grouped = Boolean(groups?.length) && !pageSize;
+  // Section de chaque ligne : la première si elle n'est pas connue.
+  const groupIds = useMemo(() => new Set((groups ?? []).map((g) => g.id)), [groups]);
+  const sectionOf = (row: T): string | null => {
+    if (!grouped) return null;
+    const g = groupOf?.(row);
+    return g !== undefined && groupIds.has(g) ? g : (groups as DataTableGroup[])[0]!.id;
+  };
+  const canReorder = Boolean(onReorder) && !sort && !query.trim();
+  const [drag, setDrag] = useState<{ key: string; overKey: string | null; overGroup: string | null; after: boolean } | null>(null);
+  const tableRef = useRef<HTMLTableElement>(null);
+
+  /** Clés affichées d'une section (null : tout le tableau), dans l'ordre. */
+  const keysIn = (group: string | null): string[] =>
+    group !== null && (groups ?? []).find((g) => g.id === group)?.collapsed
+      ? []
+      : sortedRows.filter((r) => group === null || sectionOf(r) === group).map(rowKey);
+
+  /** Lâcher : la place visée (au-dessus ou au-dessous d'une ligne, ou en tête d'une section), si elle change quelque chose. */
+  function finishDrag(state: { key: string; overKey: string | null; overGroup: string | null; after: boolean }) {
+    setDrag(null);
+    if (!onReorder) return;
+    const moving = sortedRows.find((r) => rowKey(r) === state.key);
+    if (!moving) return;
+    let group: string | null;
+    let index: number;
+    if (state.overKey) {
+      const target = sortedRows.find((r) => rowKey(r) === state.overKey);
+      if (!target || state.overKey === state.key) return;
+      group = sectionOf(target);
+      const keys = keysIn(group).filter((k) => k !== state.key);
+      index = keys.indexOf(state.overKey) + (state.after ? 1 : 0);
+    } else if (state.overGroup) {
+      group = state.overGroup;
+      index = 0;
+    } else return;
+    const from = sectionOf(moving);
+    if (group === from && keysIn(from).indexOf(state.key) === index) return;
+    onReorder({ key: state.key, group, index });
+  }
+
+  /** Ligne ou en-tête de section sous le pointeur, pendant un glisser. */
+  function dropTarget(x: number, y: number): { overKey: string | null; overGroup: string | null; after: boolean } | null {
+    const el = document.elementFromPoint(x, y)?.closest<HTMLElement>("[data-dt-key], [data-dt-group]");
+    if (!el || !tableRef.current?.contains(el)) return null;
+    if (el.dataset.dtGroup !== undefined) return { overKey: null, overGroup: el.dataset.dtGroup, after: false };
+    const r = el.getBoundingClientRect();
+    return { overKey: el.dataset.dtKey ?? null, overGroup: null, after: y > r.top + r.height / 2 };
+  }
+
+  /** Clavier : une place plus haut ou plus bas ; au bord d'une section, en fin de la précédente ou en tête de la suivante. */
+  function moveByKey(key: string, row: T, step: -1 | 1) {
+    if (!onReorder) return;
+    const group = sectionOf(row);
+    const keys = keysIn(group);
+    const next = keys.indexOf(key) + step;
+    if (next >= 0 && next < keys.length) return onReorder({ key, group, index: next });
+    if (!grouped) return;
+    const ids = (groups as DataTableGroup[]).map((g) => g.id);
+    const other = ids[ids.indexOf(group as string) + step];
+    if (other === undefined) return;
+    onReorder({ key, group: other, index: step === 1 ? 0 : keysIn(other).length });
+  }
 
   const pageCount = pageSize ? Math.max(1, Math.ceil(sortedRows.length / pageSize)) : 1;
   // Une recherche peut réduire le nombre de pages sous la page courante : on retombe sur la dernière.
@@ -254,7 +353,7 @@ export function DataTable<T>({
   }
 
   const expandable = Boolean(renderExpanded);
-  const colSpan = visibleColumns.length + (selectable ? 1 : 0) + (expandable ? 1 : 0);
+  const colSpan = visibleColumns.length + (selectable ? 1 : 0) + (expandable ? 1 : 0) + (onReorder ? 1 : 0);
   const showToolbar = Boolean(toolbar || searchable || exportable || columnPicker);
 
   const rootClass = [
@@ -263,6 +362,7 @@ export function DataTable<T>({
     striped && "lq-data-table--striped",
     hover && "lq-data-table--hover",
     bordered && "lq-data-table--bordered",
+    drag && "lq-data-table--dragging",
     className,
   ]
     .filter(Boolean)
@@ -336,9 +436,10 @@ export function DataTable<T>({
         className={["lq-data-table__scroll", maxHeight !== undefined && "lq-data-table__scroll--fixed"].filter(Boolean).join(" ")}
         style={maxHeight !== undefined ? { maxHeight } : undefined}
       >
-        <table>
+        <table ref={tableRef}>
           <thead>
             <tr>
+              {onReorder && <th className="lq-data-table__control" aria-hidden="true" />}
               {expandable && <th className="lq-data-table__control" aria-hidden="true" />}
               {selectable && (
                 <th className="lq-data-table__control">
@@ -388,14 +489,33 @@ export function DataTable<T>({
             </tr>
           </thead>
           <tbody>
-            {pageRows.length === 0 && (
+            {pageRows.length === 0 && !grouped && (
               <tr>
                 <td colSpan={colSpan} className="lq-data-table__empty">
                   {emptyMessage}
                 </td>
               </tr>
             )}
-            {pageRows.map((row, index) => {
+            {(grouped
+              ? (groups as DataTableGroup[]).flatMap((g) => {
+                  const inGroup = g.collapsed ? [] : pageRows.filter((r) => sectionOf(r) === g.id);
+                  return [{ header: g } as const, ...inGroup.map((row, index) => ({ row, index }))];
+                })
+              : pageRows.map((row, index) => ({ row, index }))
+            ).map((item) => {
+              if ("header" in item) {
+                const g = item.header;
+                return (
+                  <tr
+                    key={`group:${g.id}`}
+                    className={["lq-data-table__group", drag?.overGroup === g.id && "lq-data-table__group--drop"].filter(Boolean).join(" ")}
+                    data-dt-group={g.id}
+                  >
+                    <td colSpan={colSpan}>{g.header}</td>
+                  </tr>
+                );
+              }
+              const { row, index } = item;
               const key = rowKey(row);
               const canExpand = expandable && (isExpandable ? isExpandable(row) : true);
               const isOpen = canExpand && expanded.has(key);
@@ -410,9 +530,12 @@ export function DataTable<T>({
                       // La rayure suit la ligne de données, pas le rang dans le DOM : une ligne dépliée
                       // ajoute un <tr> et décalerait sinon toutes les suivantes.
                       index % 2 === 1 && "lq-data-table__row--even",
+                      drag?.key === key && "lq-data-table__row--dragged",
+                      drag?.overKey === key && drag.key !== key && (drag.after ? "lq-data-table__row--drop-after" : "lq-data-table__row--drop-before"),
                     ]
                       .filter(Boolean)
                       .join(" ") || undefined}
+                    data-dt-key={key}
                     onClick={() => onRowClick?.(row)}
                     // Ligne cliquable : atteignable au clavier, Entrée l'active comme un clic. Seule
                     // la ligne elle-même réagit — pas une case ou un bouton qu'elle contient.
@@ -428,6 +551,41 @@ export function DataTable<T>({
                         : undefined
                     }
                   >
+                    {onReorder && (
+                      <td className="lq-data-table__control" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          className="lq-data-table__handle"
+                          aria-label={canReorder ? labels.move : labels.moveOff}
+                          title={canReorder ? labels.move : labels.moveOff}
+                          disabled={!canReorder}
+                          onPointerDown={(e) => {
+                            if (!canReorder || e.button !== 0) return;
+                            e.preventDefault();
+                            e.currentTarget.setPointerCapture?.(e.pointerId);
+                            setDrag({ key, overKey: null, overGroup: null, after: false });
+                          }}
+                          onPointerMove={(e) => {
+                            if (drag?.key !== key) return;
+                            const over = dropTarget(e.clientX, e.clientY);
+                            setDrag({ key, overKey: over?.overKey ?? null, overGroup: over?.overGroup ?? null, after: over?.after ?? false });
+                          }}
+                          onPointerUp={(e) => {
+                            if (drag?.key !== key) return;
+                            const over = dropTarget(e.clientX, e.clientY) ?? drag;
+                            finishDrag({ key, overKey: over.overKey, overGroup: over.overGroup, after: over.after });
+                          }}
+                          onPointerCancel={() => setDrag(null)}
+                          onKeyDown={(e) => {
+                            if (!canReorder || (e.key !== "ArrowUp" && e.key !== "ArrowDown")) return;
+                            e.preventDefault();
+                            moveByKey(key, row, e.key === "ArrowUp" ? -1 : 1);
+                          }}
+                        >
+                          <GripIcon size={14} />
+                        </button>
+                      </td>
+                    )}
                     {expandable && (
                       <td className="lq-data-table__control">
                         {canExpand && (

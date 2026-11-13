@@ -330,3 +330,68 @@
 .lq-root[data-lq-palette="eink"] .lq-data-table__page {
   border-radius: 0;
 }
+
+/* ---- glisser-déposer (onReorder) et sections (groups) ---- */
+
+.lq-data-table__handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 26px;
+  padding: 0;
+  color: var(--lq-color-text-muted);
+  background: none;
+  border: none;
+  border-radius: var(--lq-radius-sm);
+  cursor: grab;
+  /* Au doigt : le geste déplace la ligne au lieu de faire défiler la page. */
+  touch-action: none;
+}
+
+.lq-data-table__handle:hover:not(:disabled),
+.lq-data-table__handle:focus-visible {
+  color: var(--lq-color-text);
+  background: var(--lq-color-hover, rgb(0 0 0 / 6%));
+}
+
+.lq-data-table__handle:focus-visible {
+  outline: 2px solid var(--lq-color-accent);
+  outline-offset: 1px;
+}
+
+.lq-data-table__handle:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
+}
+
+.lq-data-table--dragging,
+.lq-data-table--dragging * {
+  cursor: grabbing !important;
+  user-select: none;
+}
+
+.lq-data-table__row--dragged td {
+  opacity: 0.45;
+}
+
+/* Trait d'arrivée : au-dessus ou au-dessous de la ligne survolée. */
+.lq-data-table__row--drop-before td {
+  box-shadow: inset 0 2px 0 var(--lq-color-accent);
+}
+
+.lq-data-table__row--drop-after td {
+  box-shadow: inset 0 -2px 0 var(--lq-color-accent);
+}
+
+.lq-data-table__group td {
+  padding-top: var(--lq-space-3);
+  padding-bottom: var(--lq-space-2);
+  font-weight: 600;
+  background: var(--lq-color-surface-sunken, var(--lq-color-panel));
+  border-bottom: 1px solid var(--lq-color-border);
+}
+
+.lq-data-table__group--drop td {
+  box-shadow: inset 0 0 0 2px var(--lq-color-accent);
+}

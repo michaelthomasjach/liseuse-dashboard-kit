@@ -26,7 +26,7 @@ export { Breadcrumbs } from "./Breadcrumbs";
 export type { BreadcrumbsProps, BreadcrumbItem } from "./Breadcrumbs";
 
 export { DataTable } from "./DataTable";
-export type { DataTableProps, DataTableColumn } from "./DataTable";
+export type { DataTableProps, DataTableColumn, DataTableMove, DataTableGroup } from "./DataTable";
 
 export { Notification, NotificationProvider, useNotification, NotificationSource } from "./Notification";
 export type {

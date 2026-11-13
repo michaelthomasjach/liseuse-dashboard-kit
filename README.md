@@ -281,7 +281,7 @@ Une ligne de tendance classique (pas "étendue", pas les autres types à géomé
 - `GaugeCard` — `GaugeChart` dans une carte titrée avec description
 - `Avatar` — image ou initiales
 - `Breadcrumbs` — fil d'ariane
-- `DataTable` — tableau triable, responsive (scroll horizontal)
+- `DataTable` — tableau triable, responsive (scroll horizontal) ; `onReorder` (glisser-déposer des lignes : souris, doigt, clavier) et `groups`/`groupOf` (sections)
 - `Notification` — popin (4 coins), barre sticky (haut/bas) ou modale ; auto-dismiss avec barre de progression (pause au survol) ou simple croix, selon les props. Utilisable seule (`open`/`onClose`) ou en file d'attente via `NotificationProvider` + `useNotification()` (empile correctement plusieurs popins/barres, thème réappliqué sur le portail comme `Popover`) ; `onClick` rend toute la carte cliquable ; le survol met le compte à rebours en pause, la reprise continue là où il s'était arrêté
 - `NotificationMenu` — la cloche d'une barre haute : pastille de non-lus (compteur ou point), panneau en `Popover` avec en-tête, lignes (icône ou avatar, titre et complément colorés par `tone`, texte sur deux lignes, horodatage, point non-lu qui bascule lu / non lu via `onToggleRead`), pied « Tout marquer comme lu » et état vide ; l'état lu / non lu reste à l'application
 - `UserMenu` — avatar + menu déroulant (construit sur `Popover`), items imbriqués via `children` pour des sous-menus en cascade (s'ouvrent à droite, ou à gauche s'il n'y a pas la place ; fermeture différée pour pouvoir traverser vers le sous-menu sans qu'il se ferme) ; `trigger` remplace le contenu du déclencheur (par exemple l'avatar seul d'une barre d'en-tête), avec `triggerLabel` pour son nom accessible et `triggerClassName`

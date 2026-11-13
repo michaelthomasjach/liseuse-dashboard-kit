@@ -41,6 +41,8 @@ export interface DataTableLabels {
   moveOff: string;
   /** Poignée de glisser-déposer d'une section. */
   moveGroup: string;
+  /** Zone de dépôt d'une section sans en-tête, vide, pendant un glisser. */
+  dropHere: string;
 }
 
 const DEFAULT_LABELS: DataTableLabels = {
@@ -57,6 +59,7 @@ const DEFAULT_LABELS: DataTableLabels = {
   move: "Déplacer la ligne : glisser, ou flèches haut et bas",
   moveOff: "Retirez le tri et la recherche pour réordonner les lignes",
   moveGroup: "Déplacer la section : glisser, ou flèches haut et bas",
+  dropHere: "Déposer ici",
 };
 
 /** Ligne déposée : sa clé, son groupe d'arrivée (null sans `groups`) et sa place dans ce groupe (parmi les lignes
@@ -70,7 +73,9 @@ export interface DataTableMove {
 /** Section du tableau : un en-tête pleine largeur, puis ses lignes. */
 export interface DataTableGroup {
   id: string;
-  header: ReactNode;
+  /** null : pas d'en-tête (lignes « hors section » en tête, par exemple) ; vide, une zone de dépôt apparaît pendant un
+   *  glisser, pour pouvoir y ramener une ligne. */
+  header: ReactNode | null;
   /** Replié : l'en-tête seul (on peut encore y déposer une ligne, qui arrive en tête). */
   collapsed?: boolean;
   /** Section à sa place, que `onReorderGroups` ne déplace pas (« sans catégorie » en tête…). */
@@ -529,7 +534,9 @@ export function DataTable<T>({
             {(grouped
               ? (groups as DataTableGroup[]).flatMap((g) => {
                   const inGroup = g.collapsed ? [] : pageRows.filter((r) => sectionOf(r) === g.id);
-                  return [{ header: g } as const, ...inGroup.map((row, index) => ({ row, index }))];
+                  // Sans en-tête : rien au-dessus de ses lignes ; vide, une zone de dépôt le temps d'un glisser.
+                  const showHeader = g.header !== null || (drag !== null && inGroup.length === 0);
+                  return [...(showHeader ? [{ header: g } as const] : []), ...inGroup.map((row, index) => ({ row, index }))];
                 })
               : pageRows.map((row, index) => ({ row, index }))
             ).map((item) => {
@@ -552,7 +559,9 @@ export function DataTable<T>({
                     data-dt-group={g.id}
                   >
                     <td colSpan={colSpan}>
-                      {movable ? (
+                      {g.header === null ? (
+                        <span className="lq-data-table__drop-hint">{labels.dropHere}</span>
+                      ) : movable ? (
                         <div className="lq-data-table__group-row">
                           <button
                             type="button"
@@ -608,6 +617,8 @@ export function DataTable<T>({
                       // ajoute un <tr> et décalerait sinon toutes les suivantes.
                       index % 2 === 1 && "lq-data-table__row--even",
                       drag?.key === key && "lq-data-table__row--dragged",
+                      // Ligne d'une section à en-tête : fond un peu plus soutenu, la section se lit d'un bloc.
+                      grouped && (groups ?? []).find((g) => g.id === sectionOf(row))?.header != null && "lq-data-table__row--grouped",
                       drag?.overKey === key && drag.key !== key && (drag.after ? "lq-data-table__row--drop-after" : "lq-data-table__row--drop-before"),
                     ]
                       .filter(Boolean)

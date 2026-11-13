@@ -418,3 +418,17 @@
 .lq-data-table__group--drop-after td {
   box-shadow: inset 0 -2px 0 var(--lq-color-accent);
 }
+
+.lq-data-table__drop-hint {
+  display: block;
+  font-weight: 400;
+  color: var(--lq-color-text-muted);
+  text-align: center;
+  border: 1px dashed var(--lq-color-border);
+  padding: var(--lq-space-1);
+}
+
+/* Lignes d'une section (à en-tête) : un fond légèrement plus soutenu que les lignes hors section. */
+.lq-data-table__row--grouped:not(:hover) td {
+  background: color-mix(in srgb, var(--lq-color-text) 4%, transparent);
+}

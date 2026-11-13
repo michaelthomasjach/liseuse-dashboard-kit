@@ -1,4 +1,4 @@
-import { Children, cloneElement, type ReactElement, type ReactNode, useCallback, useEffect, useState } from "react";
+import { Children, cloneElement, type ReactElement, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import type { SymbolSearchList } from "./candlestick/interfaces/SymbolSearchList.interface";
 import { DetachedWindow } from "./candlestick/components/DetachedWindow";
 import type { CandlestickChartProps } from "./candlestick/interfaces/CandlestickChartProps.interface";
@@ -412,18 +412,27 @@ export function ChartWorkspace({
   const workspaceScripting = useScriptingState({ defaultScripts, onScriptsChange });
   // Les listes du panneau de droite, proposées aussi dans la recherche de symbole de chaque fenêtre
   // (bouton du symbole affiché) : chaque liste avec tous ses symboles, sections comprises.
-  const workspaceSymbolLists: SymbolSearchList[] | undefined = watchlists?.map((list) => ({
-    id: list.id,
-    name: list.name,
-    symbols: [...list.rows, ...(list.sections ?? []).flatMap((section) => section.rows)].map((row) => ({
-      id: row.id,
-      ticker: row.ticker,
-      name: row.assetType ?? "",
-      category: "stocks" as const,
-      source: "",
-      ...(row.logoUrl ? { logoUrl: row.logoUrl } : {}),
-    })),
-  }));
+  // Recalculées seulement quand le contenu des listes change (noms, symboles, logos) : un hôte reconstruit
+  // souvent `watchlists` à chaque cours reçu, et un tableau neuf redessinerait les fenêtres du graphique.
+  const symbolListsSignature = JSON.stringify(
+    watchlists?.map((list) => [list.id, list.name, [...list.rows, ...(list.sections ?? []).flatMap((section) => section.rows)].map((row) => [row.id, row.ticker, row.assetType ?? "", row.logoUrl ?? ""])]) ?? null,
+  );
+  const workspaceSymbolLists: SymbolSearchList[] | undefined = useMemo(
+    () =>
+      (JSON.parse(symbolListsSignature) as [string, string, [string, string, string, string][]][] | null)?.map(([id, name, rows]) => ({
+        id,
+        name,
+        symbols: rows.map(([rowId, ticker, assetType, logoUrl]) => ({
+          id: rowId,
+          ticker,
+          name: assetType,
+          category: "stocks" as const,
+          source: "",
+          ...(logoUrl ? { logoUrl } : {}),
+        })),
+      })),
+    [symbolListsSignature],
+  );
   // Une seule fenêtre : aucun choix à faire, chaque script lui revient dès sa création. Sans cible, un
   // script n'est envoyé à aucune fenêtre — il ne tourne pas et n'apparaît pas dans « Mes scripts » de
   // la liste des indicateurs tant que personne n'a cliqué « Exécuter » (exigence : « quand je crée un

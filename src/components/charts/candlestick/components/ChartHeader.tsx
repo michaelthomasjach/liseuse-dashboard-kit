@@ -30,7 +30,10 @@ export interface ChartHeaderProps {
   /** Bouton du symbole affiché, en tête de la barre : son nom, et un clic ouvre la recherche pour en
    *  changer (catégories et listes de l'utilisateur). Absent sans `onSymbolSelect`. Ajouter un symbole
    *  de comparaison passe par le menu du clic droit sur le graphique. */
-  symbolButton?: { label: string; onClick: () => void };
+  /** Valeurs simples (pas un objet) : l'en-tête est mémorisé (`stableMemo`), un objet neuf à chaque
+   *  rendu du graphique le redessinerait à chaque mouvement de la souris. */
+  symbolButtonLabel?: string;
+  onSymbolButtonClick?: () => void;
   timeframes: TimeframeEntry[] | undefined;
   timeframe: string | undefined;
   onTimeframeChange: ((value: string) => void) | undefined;
@@ -109,7 +112,8 @@ export interface ChartHeaderProps {
  *  see each of those for why.) */
 export function ChartHeader({
   headerActions,
-  symbolButton,
+  symbolButtonLabel,
+  onSymbolButtonClick,
   timeframes,
   timeframe,
   onTimeframeChange,
@@ -177,16 +181,16 @@ export function ChartHeader({
   const replayMenuAnchorRef = useRef<HTMLButtonElement>(null);
   return (
     <div className="lq-chart__header">
-      {symbolButton && (
+      {onSymbolButtonClick && symbolButtonLabel !== undefined && (
         <button
           type="button"
           className="lq-chart__timeframe-trigger lq-chart__symbol-trigger"
-          onClick={symbolButton.onClick}
-          aria-label={`Symbole affiché : ${symbolButton.label}. Changer de symbole`}
+          onClick={onSymbolButtonClick}
+          aria-label={`Symbole affiché : ${symbolButtonLabel}. Changer de symbole`}
           title="Changer de symbole (le clic droit sur le graphique ajoute un symbole de comparaison)"
         >
           <SearchIcon size={14} />
-          <span className="lq-chart__timeframe-trigger-label">{symbolButton.label}</span>
+          <span className="lq-chart__timeframe-trigger-label">{symbolButtonLabel}</span>
           <ChevronDownIcon size={12} />
         </button>
       )}

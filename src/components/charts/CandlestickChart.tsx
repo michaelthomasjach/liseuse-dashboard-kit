@@ -1589,7 +1589,7 @@ export function CandlestickChart({
       {showHeader && !seasonalityOpen && (
         <StableChartHeader
           headerActions={headerActions}
-          {...(onSymbolSelect ? { symbolButton: { label: symbol ?? "Symbole", onClick: () => openSymbolSearch("select") } } : {})}
+          {...(onSymbolSelect ? { symbolButtonLabel: symbol ?? "Symbole", onSymbolButtonClick: () => openSymbolSearch("select") } : {})}
           timeframes={timeframes}
           timeframe={timeframe}
           onTimeframeChange={onTimeframeChange}

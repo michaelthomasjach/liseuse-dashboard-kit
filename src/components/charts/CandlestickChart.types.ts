@@ -7,6 +7,7 @@ export type { ChartEvent } from "./candlestick/interfaces/ChartEvent.interface";
 export type { FundamentalDataPoint } from "./candlestick/interfaces/FundamentalDataPoint.interface";
 export type { SymbolSearchCategory } from "./candlestick/interfaces/SymbolSearchCategory.interface";
 export type { SymbolSearchResult } from "./candlestick/interfaces/SymbolSearchResult.interface";
+export type { SymbolSearchList } from "./candlestick/interfaces/SymbolSearchList.interface";
 export type { TrendLineDrawing, OverlayDataPoint } from "./candlestick/interfaces/TrendLineDrawing.interface";
 export type { IndicatorKind } from "./candlestick/interfaces/IndicatorKind.interface";
 export type { IndicatorBand } from "./candlestick/interfaces/IndicatorBand.interface";

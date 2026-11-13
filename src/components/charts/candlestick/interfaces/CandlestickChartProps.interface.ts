@@ -1,4 +1,5 @@
 import type { DepthSnapshot, TapePrint } from "./MarketDepth.interface";
+import type { SymbolSearchList } from "./SymbolSearchList.interface";
 import type { ReactNode } from "react";
 import type { ChartMargin } from "../../internal/useChartDimensions";
 import type { Candle } from "./Candle.interface";
@@ -132,6 +133,14 @@ export interface CandlestickChartProps {
    *  reports through `onDrawingsHiddenChange`. Overlay drawings (`overlayDrawings`) are not affected. */
   drawingsHidden?: boolean;
   onDrawingsHiddenChange?: (hidden: boolean) => void;
+  /** Option de la barre d'outils de gauche « Dessins et indicateurs propres à l'unité de temps » :
+   *  active, un dessin ou un indicateur ajouté sur une unité de temps n'apparaît que sur celle-ci
+   *  (chacun retient la sienne à sa création, voir `TrendLineDrawing.timeframe` et
+   *  `Indicator.timeframe`) ; ceux sans unité (plus anciens, ou posés par l'hôte) restent partout.
+   *  Rien n'est supprimé : revenir sur l'unité les remontre. Valeur de départ (défaut false) ;
+   *  `onTimeframeScopedChange` annonce chaque bascule, pour que l'hôte la retienne. */
+  defaultTimeframeScoped?: boolean;
+  onTimeframeScopedChange?: (scoped: boolean) => void;
   /** Every alert attached to a drawing (via `drawingId`) or an indicator directly (`drawingId`
    *  null, `conditionIndicatorId` set — see `ChartAlertDraft`'s own doc) — entirely caller-owned,
    *  same stance as `drawings`/`indicators`, this library never stores, evaluates, or fires one
@@ -222,6 +231,14 @@ export interface CandlestickChartProps {
    *  as an initial zoom/pan — the user can still zoom/pan freely afterward). `undefined`/0/a
    *  value ≥ `data.length` shows the whole dataset, same as before this prop existed. Default 500. */
   initialVisibleCandles?: number;
+  /** Plage de dates à montrer à l'ouverture, à la place de `initialVisibleCandles` : pour un hôte qui
+   *  retrouve la vue où l'utilisateur avait laissé le graphique (enregistrée depuis
+   *  `onVisibleRangeChange`, par exemple après un rechargement de la page). Lue au moment où la vue
+   *  initiale s'applique — au montage, et de nouveau à chaque changement de `viewResetKey` (passer
+   *  alors la plage enregistrée pour le nouveau symbole ou la nouvelle unité de temps). Calée par date
+   *  sur les bougies, comme `syncedVisibleRange` ; une plage hors des données (ou absente) laisse
+   *  `initialVisibleCandles` s'appliquer. */
+  initialVisibleRange?: ChartVisibleRange | null;
   /** Re-applies the initial view (`initialVisibleCandles`, Y axis back to auto-fit) whenever this value
    *  changes — for a host that swaps `data` in place (timeframe or symbol switch) instead of remounting
    *  the chart, which would also drop fullscreen, drawings, indicators and panel sizes. Pass a value
@@ -296,6 +313,10 @@ export interface CandlestickChartProps {
    *  the "Favoris" pill, see `defaultFavoriteSymbolIds` — is entirely the caller's job: this is
    *  only what actually renders, driven by `onSymbolSearchChange`. */
   symbolSearchResults?: SymbolSearchResult[];
+  /** Listes de l'utilisateur proposées dans la recherche de symbole, sous les catégories (« Favoris »,
+   *  « Symboles surveillés »…) : en choisir une montre ses symboles. `ChartWorkspace` passe les siennes
+   *  (ses `watchlists`) à chaque fenêtre qui n'en a pas. */
+  symbolLists?: SymbolSearchList[];
   /** Fires whenever the search modal's query text or category pill changes (including once,
    *  right when the modal opens, with the query/category at their defaults) so the caller can
    *  fetch/filter and update `symbolSearchResults` accordingly. `category: "favorites"` asks

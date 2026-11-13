@@ -3,6 +3,7 @@ export type { ChartEvent } from "./ChartEvent.interface";
 export type { FundamentalDataPoint } from "./FundamentalDataPoint.interface";
 export type { SymbolSearchCategory } from "./SymbolSearchCategory.interface";
 export type { SymbolSearchResult } from "./SymbolSearchResult.interface";
+export type { SymbolSearchList } from "./SymbolSearchList.interface";
 export type { TrendLineDrawing } from "./TrendLineDrawing.interface";
 export type { DataPoint } from "./DataPoint.interface";
 export type { IndicatorKind } from "./IndicatorKind.interface";

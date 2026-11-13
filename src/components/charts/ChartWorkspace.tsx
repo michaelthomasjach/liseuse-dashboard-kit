@@ -1,4 +1,5 @@
 import { Children, cloneElement, type ReactElement, type ReactNode, useCallback, useEffect, useState } from "react";
+import type { SymbolSearchList } from "./candlestick/interfaces/SymbolSearchList.interface";
 import { DetachedWindow } from "./candlestick/components/DetachedWindow";
 import type { CandlestickChartProps } from "./candlestick/interfaces/CandlestickChartProps.interface";
 import type { SymbolSearchCategory } from "./candlestick/interfaces/SymbolSearchCategory.interface";
@@ -409,6 +410,33 @@ export function ChartWorkspace({
   // ChartWorkspaceProps.scripting's own doc for why this lives here rather than inside any one
   // panel. Uncontrolled at this level (nothing above ChartWorkspace itself needs to drive it).
   const workspaceScripting = useScriptingState({ defaultScripts, onScriptsChange });
+  // Les listes du panneau de droite, proposées aussi dans la recherche de symbole de chaque fenêtre
+  // (bouton du symbole affiché) : chaque liste avec tous ses symboles, sections comprises.
+  const workspaceSymbolLists: SymbolSearchList[] | undefined = watchlists?.map((list) => ({
+    id: list.id,
+    name: list.name,
+    symbols: [...list.rows, ...(list.sections ?? []).flatMap((section) => section.rows)].map((row) => ({
+      id: row.id,
+      ticker: row.ticker,
+      name: row.assetType ?? "",
+      category: "stocks" as const,
+      source: "",
+      ...(row.logoUrl ? { logoUrl: row.logoUrl } : {}),
+    })),
+  }));
+  // Une seule fenêtre : aucun choix à faire, chaque script lui revient dès sa création. Sans cible, un
+  // script n'est envoyé à aucune fenêtre — il ne tourne pas et n'apparaît pas dans « Mes scripts » de
+  // la liste des indicateurs tant que personne n'a cliqué « Exécuter » (exigence : « quand je crée un
+  // nouvel indicateur, il ne s'ajoute pas dans la liste des indicateurs »). Les scripts déjà gardés
+  // sans cible (créés avant ce changement) sont rattachés de la même façon, une fois.
+  const addWorkspaceScript = (name?: string, code?: string) =>
+    workspaceScripting.addScript(name, code, panels === 1 ? { targetPanelIndex: 0 } : undefined);
+  const untargetedScripts = panels === 1 && workspaceScripting.scripts.some((s) => s.targetPanelIndex === undefined);
+  useEffect(() => {
+    if (!untargetedScripts) return;
+    workspaceScripting.commitScripts(workspaceScripting.scripts.map((s) => (s.targetPanelIndex === undefined ? { ...s, targetPanelIndex: 0 } : s)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [untargetedScripts]);
   // Item 20: hold anywhere on the grid for LOCK_HOLD_MS to toggle the lock, in either direction.
 
   // The script editor torn off into a real browser window. Null means it is docked in the page.
@@ -806,6 +834,8 @@ export function ChartWorkspace({
             // sheet) under 1500 px, inside a workspace drawn as a desktop. A panel's own `layout`
             // wins.
             layout: child.props.layout ?? (layout === "auto" ? undefined : layout),
+            // Listes de l'utilisateur dans la recherche de symbole — celles de la fenêtre si elle en a.
+            symbolLists: child.props.symbolLists ?? workspaceSymbolLists,
             className:
               [
                 child.props.className,
@@ -1293,7 +1323,7 @@ export function ChartWorkspace({
             scripts={workspaceScripting.scripts}
             activeScriptId={workspaceScripting.activeScriptId}
             setActiveScriptId={workspaceScripting.setActiveScriptId}
-            addScript={workspaceScripting.addScript}
+            addScript={addWorkspaceScript}
             updateScript={workspaceScripting.updateScript}
             openScriptIds={workspaceScripting.openScriptIds}
             openScript={workspaceScripting.openScript}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Candle } from "../interfaces/Candle.interface";
 import type { TrendLineDrawing, OverlayDataPoint } from "../interfaces/TrendLineDrawing.interface";
 import type { DataPoint } from "../interfaces/DataPoint.interface";
@@ -18,6 +18,8 @@ export interface UseDrawingStateArgs {
   onDrawingsChange: ((drawings: TrendLineDrawing[]) => void) | undefined;
   /** Unité de temps affichée : posée sur chaque nouveau dessin (voir `TrendLineDrawing.timeframe`). */
   timeframe?: string;
+  /** Option « propres à l'unité de temps » : seuls les dessins de `timeframe` (et ceux sans unité) sont montrés. */
+  timeframeScoped?: boolean;
   /** Style enregistré actif d'un outil (« types de lignes ») : appliqué à chaque nouveau dessin de cet outil. */
   styleForNew?: (tool: string) => DrawingStyle | null;
   onAddSymbolOverlay:
@@ -45,7 +47,7 @@ function nextDrawingIndex(list: TrendLineDrawing[]): number {
  *  hovered one) that act on them. Pointer-driven placement/dragging lives in
  *  `useDrawingInteractions` instead (it needs the zoom/pane scales this hook doesn't), which takes
  *  this hook's full return value as its own input. */
-export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAddSymbolOverlay, timeframe, styleForNew }: UseDrawingStateArgs) {
+export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAddSymbolOverlay, timeframe, timeframeScoped = false, styleForNew }: UseDrawingStateArgs) {
   const styleForNewRef = useRef(styleForNew);
   styleForNewRef.current = styleForNew;
   // Lu au moment du tracé (pas à la création du callback) : un changement d'unité de temps ne
@@ -167,7 +169,13 @@ export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAdd
   // Every codepath that reads drawn shapes for rendering, hit-testing, or handles reads this
   // instead of `drawings` directly — hiding never mutates `drawings` itself (toggling back on
   // restores everything exactly as it was), it just makes that read empty in the meantime.
-  const visibleDrawings = drawingsHidden ? EMPTY_DRAWINGS : drawings;
+  // Option « propres à l'unité de temps » : un dessin tracé sur une autre unité est gardé mais pas
+  // montré ; les comparaisons de symboles et les dessins sans unité (plus anciens) restent partout.
+  const scopedDrawings = useMemo(
+    () => (timeframeScoped && timeframe ? drawings.filter((d) => !d.timeframe || d.timeframe === timeframe || d.lineType === "symbolOverlay") : drawings),
+    [drawings, timeframeScoped, timeframe],
+  );
+  const visibleDrawings = drawingsHidden ? EMPTY_DRAWINGS : scopedDrawings;
   // The measure tool's own last completed 2-click measurement (not a `drawings` entry — it's
   // ephemeral, cleared on Escape/tool switch instead of persisted). `pendingPoint`/`previewPoint`
   // still drive its live 1st-click-to-cursor preview, same as every other 2-point tool.

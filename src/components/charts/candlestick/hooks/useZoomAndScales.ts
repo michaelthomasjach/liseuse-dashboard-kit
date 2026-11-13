@@ -75,6 +75,8 @@ export interface UseZoomAndScalesArgs {
   yAutoScalingState: boolean;
   zoomable: boolean;
   initialVisibleCandles: number | undefined;
+  /** Voir CandlestickChartProps.initialVisibleRange : la vue de départ, par dates, si l'hôte en a une. */
+  initialVisibleRange?: ChartVisibleRange | null;
   /** See CandlestickChartProps.viewResetKey: a change re-applies the initial view to the new data. */
   viewResetKey?: string | number;
   /** Whether replay is currently active (a cutoff has been chosen — see useReplayState.ts's own
@@ -129,6 +131,7 @@ export function useZoomAndScales({
   yAutoScalingState,
   zoomable,
   initialVisibleCandles,
+  initialVisibleRange,
   viewResetKey,
   replayActive,
   replayCutoffIndex,
@@ -682,10 +685,39 @@ export function useZoomAndScales({
     setYTransform(d3.zoomIdentity);
     setYManuallyAdjusted(false);
   }, [viewResetKey, setXTransformSilently]);
+  // Lue au moment où la vue initiale s'applique (pas une dépendance : une nouvelle plage enregistrée
+  // par l'hôte à chaque geste ne doit pas ramener la vue en arrière).
+  const initialVisibleRangeRef = useRef(initialVisibleRange);
+  initialVisibleRangeRef.current = initialVisibleRange;
   useEffect(() => {
     if (initialViewAppliedRef.current) return;
     if (dims.boundedWidth <= 0 || data.length === 0) return;
     initialViewAppliedRef.current = true;
+    // Vue enregistrée par l'hôte (rechargement de la page, retour sur ce symbole) : ses dates d'abord.
+    const saved = initialVisibleRangeRef.current;
+    if (saved) {
+      const first = data[0]!.date.getTime();
+      const last = data[data.length - 1]!.date.getTime();
+      const inData = saved.end.getTime() >= first && saved.start.getTime() <= last && saved.end.getTime() > saved.start.getTime();
+      const restored = inData
+        ? transformForVisibleRange({
+            data,
+            range: saved,
+            xScale,
+            width: dims.boundedWidth,
+            maxZoom: maxXZoom,
+            constrain: (t) =>
+              constrainXPan(t, [
+                [0, 0],
+                [dims.boundedWidth, plotBoundedHeight],
+              ]),
+          })
+        : null;
+      if (restored) {
+        setXTransformSilently(restored);
+        return;
+      }
+    }
     if (!initialVisibleCandles || initialVisibleCandles <= 0 || initialVisibleCandles >= data.length) return;
 
     const t = transformForVisibleCount(initialVisibleCandles);

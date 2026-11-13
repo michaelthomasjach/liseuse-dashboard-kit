@@ -3825,3 +3825,42 @@ button.lq-chart__legend-item {
   font-size: 0.72rem;
   color: var(--lq-color-text-muted);
 }
+
+/* Listes de l'utilisateur dans la recherche de symbole (sous les catégories). */
+.lq-chart__symbol-search-lists {
+  margin-top: 0;
+}
+
+.lq-chart__symbol-search-lists-title {
+  padding: 0 2px;
+  font-size: 0.72rem;
+  font-weight: var(--lq-font-weight-semibold, 600);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-chart__symbol-search-lists .lq-chart__symbol-search-category {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lq-space-2);
+}
+
+.lq-chart__symbol-search-list-count {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.7;
+}
+
+/* Bouton du symbole affiché, en tête de la barre du haut : son nom ouvre la recherche. */
+.lq-chart__symbol-trigger {
+  gap: 6px;
+  max-width: 220px;
+}
+
+.lq-chart__symbol-trigger .lq-chart__timeframe-trigger-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: var(--lq-font-weight-semibold, 600);
+}

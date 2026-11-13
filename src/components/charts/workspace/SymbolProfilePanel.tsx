@@ -353,7 +353,13 @@ export function SymbolProfilePanel({
               {profile.keyStats.nextEarningsInDays !== undefined && (
                 <div className="lq-chart-workspace__symbol-profile-stat-row">
                   <span className="lq-chart-workspace__symbol-profile-stat-label">Prochain rapport de résultats</span>
-                  <span className="lq-chart-workspace__symbol-profile-stat-value">Dans {profile.keyStats.nextEarningsInDays} jours</span>
+                  <span className="lq-chart-workspace__symbol-profile-stat-value">
+                    {profile.keyStats.nextEarningsInDays <= 0
+                      ? "Aujourd'hui"
+                      : profile.keyStats.nextEarningsInDays === 1
+                        ? "Demain"
+                        : `Dans ${profile.keyStats.nextEarningsInDays} jours`}
+                  </span>
                 </div>
               )}
               {profile.keyStats.volume && (

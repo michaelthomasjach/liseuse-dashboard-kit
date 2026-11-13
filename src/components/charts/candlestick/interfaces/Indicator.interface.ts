@@ -217,6 +217,11 @@ export interface Indicator {
    *  IndicatorCatalogEntry) — a `pane: "own"` one uses `paneCollapsed` instead, same as the
    *  volume pane. Default false. */
   hidden?: boolean;
+  /** Unité de temps du graphique au moment de l'ajout (valeur de son `timeframe`, ex. « 1hour »), posée
+   *  automatiquement comme pour les dessins (`TrendLineDrawing.timeframe`). Avec l'option « propres à
+   *  l'unité de temps » (`timeframeScoped`), l'indicateur n'apparaît que sur cette unité ; sans
+   *  `timeframe` (ajouté avant cette option, ou par l'hôte), il apparaît partout. */
+  timeframe?: string;
   /** A `pane: "own"` indicator's pane, collapsed to a header-only strip — same mechanism/UI as
    *  the volume pane's own collapse. Default false (expanded). */
   paneCollapsed?: boolean;

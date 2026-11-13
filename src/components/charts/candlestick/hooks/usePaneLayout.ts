@@ -160,6 +160,11 @@ export interface UsePaneLayoutArgs {
    *  Side effects are expected here, not merely tolerated: `CandlestickChart` also withholds the
    *  removed indicator's script's own drawings from this. Must be referentially stable. */
   beforeRemoveIndicator?: (id: string) => string[];
+  /** Unité de temps affichée : posée sur chaque nouvel indicateur (voir `Indicator.timeframe`). */
+  timeframe?: string;
+  /** Option « propres à l'unité de temps » : les indicateurs d'une autre unité sont écartés (ni
+   *  tracés, ni panneau, ni légende) mais gardés dans la liste enregistrée. */
+  timeframeScoped?: boolean;
 }
 
 /** Technical indicators (state + CRUD) and the sub-pane layout system they (and volume) share:
@@ -178,6 +183,8 @@ export function usePaneLayout({
   beforeRemoveIndicator,
   defaultPaneHeightFraction,
   liveCustomIndicators,
+  timeframe,
+  timeframeScoped = false,
 }: UsePaneLayoutArgs) {
   const defaultFraction =
     defaultPaneHeightFraction !== undefined && Number.isFinite(defaultPaneHeightFraction)
@@ -186,7 +193,7 @@ export function usePaneLayout({
   const [storedIndicators, setIndicators] = useState<Indicator[]>(defaultIndicators ?? []);
   // Séries personnalisées en direct : données (et profil) relues dans le catalogue `customIndicators` courant ; le
   // style choisi par l'utilisateur (couleur, épaisseur…) reste celui de l'indicateur ajouté.
-  const indicators = useMemo(() => {
+  const allIndicators = useMemo(() => {
     if (!liveCustomIndicators?.length) return storedIndicators;
     const byId = new Map(liveCustomIndicators.map((d) => [d.id, d]));
     let changed = false;
@@ -198,6 +205,17 @@ export function usePaneLayout({
     });
     return changed ? out : storedIndicators;
   }, [storedIndicators, liveCustomIndicators]);
+  // Option « propres à l'unité de temps » : tout ce qui suit (tracé, panneaux, légende, fenêtres)
+  // ne voit que les indicateurs de l'unité affichée ; les autres attendent leur unité (voir
+  // `commitIndicators`, qui les remet dans la liste à chaque enregistrement).
+  const outOfScope = (list: Indicator[], tf: string | undefined, scoped: boolean) =>
+    scoped && tf ? list.filter((ind) => ind.timeframe !== undefined && ind.timeframe !== tf) : [];
+  const indicators = useMemo(() => {
+    const hidden = outOfScope(allIndicators, timeframe, timeframeScoped);
+    return hidden.length ? allIndicators.filter((ind) => !hidden.includes(ind)) : allIndicators;
+  }, [allIndicators, timeframe, timeframeScoped]);
+  const scopeRef = useRef({ all: storedIndicators, timeframe, timeframeScoped });
+  scopeRef.current = { all: storedIndicators, timeframe, timeframeScoped };
   const [indicatorPickerOpen, setIndicatorPickerOpen] = useState(false);
   const [indicatorSearchQuery, setIndicatorSearchQuery] = useState("");
   // Which indicator's own "how this works" info modal is open (see INDICATOR_DESCRIPTIONS) — "volume"
@@ -398,9 +416,18 @@ export function usePaneLayout({
 
   const commitIndicators = useCallback(
     (next: Indicator[]) => {
-      indicatorsRef.current = next;
-      setIndicators(next);
-      onIndicatorsChange?.(next);
+      const { all, timeframe: tf, timeframeScoped: scoped } = scopeRef.current;
+      // Nouvel indicateur : il retient l'unité de temps sur laquelle il a été ajouté.
+      const known = new Set(all.map((ind) => ind.id));
+      const stamped = tf ? next.map((ind) => (known.has(ind.id) || ind.timeframe ? ind : { ...ind, timeframe: tf })) : next;
+      // Ceux des autres unités (écartés de `next`, qui ne montre que l'unité affichée) restent enregistrés.
+      const ids = new Set(stamped.map((ind) => ind.id));
+      const kept = outOfScope(all, tf, scoped).filter((ind) => !ids.has(ind.id));
+      const full = kept.length ? [...stamped, ...kept] : stamped;
+      indicatorsRef.current = stamped;
+      scopeRef.current = { ...scopeRef.current, all: full };
+      setIndicators(full);
+      onIndicatorsChange?.(full);
     },
     [onIndicatorsChange]
   );

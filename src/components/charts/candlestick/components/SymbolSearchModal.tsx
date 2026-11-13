@@ -4,6 +4,7 @@ import { Input } from "../../../forms/Input";
 import { SearchIcon, CloseIcon, RefreshIcon, CheckIcon, PlusIcon, StarIcon } from "../../../icons";
 import type { SymbolSearchCategory } from "../interfaces/SymbolSearchCategory.interface";
 import type { SymbolSearchResult } from "../interfaces/SymbolSearchResult.interface";
+import type { SymbolSearchList } from "../interfaces/SymbolSearchList.interface";
 import type { TrendLineDrawing, OverlayDataPoint } from "../interfaces/TrendLineDrawing.interface";
 import { SYMBOL_SEARCH_CATEGORIES, defaultSymbolLogoColor } from "../symbolSearchCatalog";
 
@@ -26,6 +27,8 @@ export interface SymbolSearchModalProps {
   symbolSearchCategory: SymbolSearchCategory;
   setSymbolSearchCategory: (category: SymbolSearchCategory) => void;
   symbolSearchResults: SymbolSearchResult[] | undefined;
+  /** Listes de l'utilisateur, proposées sous les catégories (voir `CandlestickChartProps.symbolLists`). */
+  symbolLists?: SymbolSearchList[];
   /** The hover-revealed (always-visible once favorited) star button — omitted entirely, on both
    *  props at once, for a reuse of this modal with no favorites concept of its own. */
   favoriteSymbolIds?: string[];
@@ -56,6 +59,7 @@ export function SymbolSearchModal({
   symbolSearchCategory,
   setSymbolSearchCategory,
   symbolSearchResults,
+  symbolLists,
   favoriteSymbolIds,
   toggleFavoriteSymbol,
   onSymbolSelect,
@@ -76,10 +80,20 @@ export function SymbolSearchModal({
     setPendingAdd(null);
     if (added) setSymbolSearchOpen(false);
   }, [pendingAdd, addingOverlaySymbols, symbolOverlays, setSymbolSearchOpen]);
+  // Liste de l'utilisateur choisie à gauche (null : les résultats de l'hôte, par catégorie).
+  const [activeListId, setActiveListId] = useState<string | null>(null);
   useEffect(() => {
-    if (!symbolSearchOpen) setPendingAdd(null);
+    if (!symbolSearchOpen) {
+      setPendingAdd(null);
+      setActiveListId(null);
+    }
   }, [symbolSearchOpen]);
   if (!symbolSearchOpen) return null;
+  const activeList = activeListId ? (symbolLists?.find((l) => l.id === activeListId) ?? null) : null;
+  const needle = symbolSearchQuery.trim().toLowerCase();
+  const shownResults = activeList
+    ? activeList.symbols.filter((r) => !needle || r.ticker.toLowerCase().includes(needle) || r.name.toLowerCase().includes(needle))
+    : symbolSearchResults;
   const adding = symbolSearchMode === "add" && Boolean(onAddSymbolOverlay);
   const replacing = symbolSearchMode === "replace" && Boolean(onAddSymbolOverlay && replaceOverlay && handleReplaceSymbolOverlay);
   const replacedLabel = replaceOverlay ? [replaceOverlay.overlaySymbol, replaceOverlay.overlaySymbolName].filter(Boolean).join(" · ") : "";
@@ -118,29 +132,52 @@ export function SymbolSearchModal({
               the results at a time, same "active" visual convention as the timeframe/
               display-mode menus above. */}
           <div className="lq-chart__symbol-search-categories lq-chart__modal-filter-list--vertical">
-            {SYMBOL_SEARCH_CATEGORIES.map((cat) => (
+            {/* Avec les listes de l'utilisateur, sa liste « Favoris » remplace la catégorie du même nom. */}
+            {SYMBOL_SEARCH_CATEGORIES.filter((cat) => !(symbolLists?.length && cat.value === "favorites")).map((cat) => (
               <button
                 key={cat.value}
                 type="button"
                 className={[
                   "lq-chart__symbol-search-category",
-                  cat.value === symbolSearchCategory && "lq-chart__symbol-search-category--active",
+                  !activeList && cat.value === symbolSearchCategory && "lq-chart__symbol-search-category--active",
                 ]
                   .filter(Boolean)
                   .join(" ")}
-                onClick={() => setSymbolSearchCategory(cat.value)}
-                aria-pressed={cat.value === symbolSearchCategory}
+                onClick={() => {
+                  setActiveListId(null);
+                  setSymbolSearchCategory(cat.value);
+                }}
+                aria-pressed={!activeList && cat.value === symbolSearchCategory}
               >
                 {cat.label}
               </button>
             ))}
           </div>
+          {/* Listes de l'utilisateur (favoris, surveillance…) : une liste choisie remplace les
+              résultats par ses propres symboles, filtrés par le texte saisi. */}
+          {symbolLists && symbolLists.length > 0 && (
+            <div className="lq-chart__symbol-search-categories lq-chart__modal-filter-list--vertical lq-chart__symbol-search-lists" role="group" aria-label="Mes listes">
+              <span className="lq-chart__symbol-search-lists-title">Mes listes</span>
+              {symbolLists.map((list) => (
+                <button
+                  key={list.id}
+                  type="button"
+                  className={["lq-chart__symbol-search-category", list.id === activeListId && "lq-chart__symbol-search-category--active"].filter(Boolean).join(" ")}
+                  onClick={() => setActiveListId(list.id)}
+                  aria-pressed={list.id === activeListId}
+                >
+                  {list.name}
+                  <span className="lq-chart__symbol-search-list-count">{list.symbols.length}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         <div className="lq-chart__modal-split-content lq-chart__symbol-search-results">
-          {(symbolSearchResults ?? []).length === 0 ? (
-            <p className="lq-chart__symbol-search-empty">Aucun résultat.</p>
+          {(shownResults ?? []).length === 0 ? (
+            <p className="lq-chart__symbol-search-empty">{activeList ? (needle ? "Aucun symbole de cette liste ne correspond." : "Cette liste est vide.") : "Aucun résultat."}</p>
           ) : (
-            (symbolSearchResults ?? []).map((result, i) => {
+            (shownResults ?? []).map((result, i) => {
               const isFavorite = favoriteSymbolIds?.includes(result.id) ?? false;
               const isOverlayActive = symbolOverlays.some((d) => d.overlaySymbol === result.ticker);
               const isOverlayLoading = addingOverlaySymbols.has(result.ticker);

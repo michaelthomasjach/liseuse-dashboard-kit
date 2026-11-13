@@ -74,6 +74,7 @@ export type {
   FundamentalDataPoint,
   SymbolSearchCategory,
   SymbolSearchResult,
+  SymbolSearchList,
   TrendLineDrawing,
   OverlayDataPoint,
   IndicatorKind,
@@ -152,6 +153,8 @@ export function CandlestickChart({
   onDrawingsChange,
   drawingsHidden: drawingsHiddenProp,
   onDrawingsHiddenChange,
+  defaultTimeframeScoped = false,
+  onTimeframeScopedChange,
   alerts, onCreateAlert, onUpdateAlert, onDeleteAlert, alertSoundOptions, onPlaySound,
   showIndicators = false,
   defaultIndicators,
@@ -160,6 +163,7 @@ export function CandlestickChart({
   defaultTemplates,
   onTemplatesChange,
   initialVisibleCandles = 500,
+  initialVisibleRange,
   viewResetKey,
   defaultPaneHeightFraction,
   YAutoScaling = true,
@@ -176,6 +180,7 @@ export function CandlestickChart({
   tape,
   symbolSearch = false,
   symbolSearchResults,
+  symbolLists,
   onSymbolSearchChange,
   onSymbolSelect,
   onAddSymbolOverlay,
@@ -204,6 +209,13 @@ export function CandlestickChart({
 
   // Styles de dessin enregistrés (« types de lignes »), gardés dans ce navigateur : voir drawingStylePresets.
   const drawingStyles = useDrawingStylePresets();
+  // Option « dessins et indicateurs propres à l'unité de temps » (barre d'outils de gauche).
+  const [timeframeScoped, setTimeframeScoped] = useState(defaultTimeframeScoped);
+  const toggleTimeframeScoped = () => {
+    const next = !timeframeScoped;
+    setTimeframeScoped(next);
+    onTimeframeScopedChange?.(next);
+  };
   const {
     drawings,
     activeTool,
@@ -282,7 +294,7 @@ export function CandlestickChart({
     duplicateEditingDrawing,
     undoDrawings,
     redoDrawings,
-  } = useDrawingState({ data, defaultDrawings, onDrawingsChange, onAddSymbolOverlay, timeframe, styleForNew: drawingStyles.activeStyleFor });
+  } = useDrawingState({ data, defaultDrawings, onDrawingsChange, onAddSymbolOverlay, timeframe, timeframeScoped, styleForNew: drawingStyles.activeStyleFor });
   // Masquage des dessins piloté par l'application (prop `drawingsHidden`), sinon par le bouton œil seul.
   useEffect(() => {
     if (drawingsHiddenProp !== undefined) setDrawingsHidden(drawingsHiddenProp);
@@ -648,6 +660,8 @@ export function CandlestickChart({
     beforeRemoveIndicator,
     defaultPaneHeightFraction,
     liveCustomIndicators: customIndicators,
+    timeframe,
+    timeframeScoped,
   });
   // App-defined tools (see ChartCustomTool): one armed at a time, disarmed by placing, Escape or its own button.
   const [activeCustomToolId, setActiveCustomToolId] = useState<string | null>(null);
@@ -931,6 +945,7 @@ export function CandlestickChart({
     yAutoScalingState,
     zoomable,
     initialVisibleCandles,
+    initialVisibleRange,
     viewResetKey,
     replayActive: replayState.active,
     replayCutoffIndex: replayState.cutoffIndex,
@@ -1544,6 +1559,7 @@ export function CandlestickChart({
       setMagnetActive={setMagnetActive}
       drawingsHidden={drawingsHidden}
       setDrawingsHidden={setDrawingsHidden}
+      {...(timeframe ? { timeframeScoped, onToggleTimeframeScoped: toggleTimeframeScoped } : {})}
       drawingsLocked={drawingsLocked}
       setDrawingsLocked={setDrawingsLocked}
       zoomable={zoomable}
@@ -1573,7 +1589,7 @@ export function CandlestickChart({
       {showHeader && !seasonalityOpen && (
         <StableChartHeader
           headerActions={headerActions}
-          {...(onAddSymbolOverlay ? { onAddSymbol: () => openSymbolSearch("add") } : {})}
+          {...(onSymbolSelect ? { symbolButton: { label: symbol ?? "Symbole", onClick: () => openSymbolSearch("select") } } : {})}
           timeframes={timeframes}
           timeframe={timeframe}
           onTimeframeChange={onTimeframeChange}
@@ -2172,6 +2188,7 @@ export function CandlestickChart({
         symbolSearchCategory={symbolSearchCategory}
         setSymbolSearchCategory={setSymbolSearchCategory}
         symbolSearchResults={symbolSearchResults}
+        symbolLists={symbolLists}
         favoriteSymbolIds={favoriteSymbolIds}
         toggleFavoriteSymbol={toggleFavoriteSymbol}
         onSymbolSelect={onSymbolSelect}

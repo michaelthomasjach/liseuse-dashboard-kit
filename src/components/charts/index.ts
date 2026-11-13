@@ -25,6 +25,8 @@ export type {
   ScriptDef,
   ScriptAlertEvent,
   ChartVisibleRange,
+  SymbolSearchResult,
+  SymbolSearchList,
 } from "./CandlestickChart";
 
 export { ChartEventTooltip } from "./EventTooltip";

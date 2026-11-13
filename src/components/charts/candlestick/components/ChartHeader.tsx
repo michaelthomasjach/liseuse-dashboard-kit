@@ -14,7 +14,7 @@ import {
   PauseIcon,
   PrevTrackIcon,
   CloseIcon,
-  PlusIcon,
+  SearchIcon,
 } from "../../../icons";
 import type { ChartDisplayMode } from "../interfaces/ChartDisplayMode.interface";
 import type { TimeframeEntry } from "../interfaces/TimeframeEntry.interface";
@@ -27,8 +27,10 @@ import { TemplateControls } from "./TemplateControls";
 export interface ChartHeaderProps {
   /** App-defined top-bar buttons (see `ChartHeaderAction`). */
   headerActions?: ChartHeaderAction[];
-  /** Ouvre la recherche pour ajouter un symbole au graphique ; bouton absent sans elle (pas de `onAddSymbolOverlay`). */
-  onAddSymbol?: () => void;
+  /** Bouton du symbole affiché, en tête de la barre : son nom, et un clic ouvre la recherche pour en
+   *  changer (catégories et listes de l'utilisateur). Absent sans `onSymbolSelect`. Ajouter un symbole
+   *  de comparaison passe par le menu du clic droit sur le graphique. */
+  symbolButton?: { label: string; onClick: () => void };
   timeframes: TimeframeEntry[] | undefined;
   timeframe: string | undefined;
   onTimeframeChange: ((value: string) => void) | undefined;
@@ -107,7 +109,7 @@ export interface ChartHeaderProps {
  *  see each of those for why.) */
 export function ChartHeader({
   headerActions,
-  onAddSymbol,
+  symbolButton,
   timeframes,
   timeframe,
   onTimeframeChange,
@@ -175,10 +177,17 @@ export function ChartHeader({
   const replayMenuAnchorRef = useRef<HTMLButtonElement>(null);
   return (
     <div className="lq-chart__header">
-      {onAddSymbol && (
-        <button type="button" className="lq-chart__timeframe-trigger lq-chart__add-symbol" onClick={onAddSymbol} aria-label="Ajouter un symbole" title="Ajouter un symbole au graphique (comparaison)">
-          <PlusIcon size={14} />
-          <span className="lq-chart__timeframe-trigger-label">Symbole</span>
+      {symbolButton && (
+        <button
+          type="button"
+          className="lq-chart__timeframe-trigger lq-chart__symbol-trigger"
+          onClick={symbolButton.onClick}
+          aria-label={`Symbole affiché : ${symbolButton.label}. Changer de symbole`}
+          title="Changer de symbole (le clic droit sur le graphique ajoute un symbole de comparaison)"
+        >
+          <SearchIcon size={14} />
+          <span className="lq-chart__timeframe-trigger-label">{symbolButton.label}</span>
+          <ChevronDownIcon size={12} />
         </button>
       )}
       {timeframes && timeframes.length > 0 && (

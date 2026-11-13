@@ -3,7 +3,7 @@ import type { ChartCustomTool } from "../interfaces/ChartCustomTool.interface";
 import type { RefObject, Dispatch, SetStateAction } from "react";
 import { Popover } from "../../../forms/Popover";
 import { Checkbox } from "../../../forms/Checkbox";
-import { ChevronDownIcon, MagnetIcon, EyeIcon, EyeOffIcon, LockIcon, BellIcon, LayersIcon, ZoomInIcon, ZoomOutIcon, InfoIcon, GaugeIcon, MaximizeIcon, MinimizeIcon } from "../../../icons";
+import { ChevronDownIcon, MagnetIcon, EyeIcon, EyeOffIcon, AlarmClockIcon, LockIcon, BellIcon, LayersIcon, ZoomInIcon, ZoomOutIcon, InfoIcon, GaugeIcon, MaximizeIcon, MinimizeIcon } from "../../../icons";
 import { ToolCategorySheet } from "./ToolCategorySheet";
 import type { DrawingToolType } from "../interfaces/DrawingToolType.interface";
 import { DRAWING_TOOL_CATEGORIES } from "../drawingCatalog";
@@ -40,6 +40,9 @@ export interface ToolsRailProps {
   magnetActive: boolean;
   setMagnetActive: Dispatch<SetStateAction<boolean>>;
   drawingsHidden: boolean;
+  /** Option « propres à l'unité de temps » (bouton absent sans `onToggleTimeframeScoped`). */
+  timeframeScoped?: boolean;
+  onToggleTimeframeScoped?: () => void;
   setDrawingsHidden: Dispatch<SetStateAction<boolean>>;
   drawingsLocked: boolean;
   setDrawingsLocked: Dispatch<SetStateAction<boolean>>;
@@ -107,6 +110,8 @@ export function ToolsRail({
   setMagnetActive,
   drawingsHidden,
   setDrawingsHidden,
+  timeframeScoped = false,
+  onToggleTimeframeScoped,
   drawingsLocked,
   setDrawingsLocked,
   zoomable,
@@ -392,6 +397,24 @@ export function ToolsRail({
         >
           {drawingsHidden ? <EyeOffIcon size={14} /> : <EyeIcon size={14} />}
         </button>
+        {/* Dessins et indicateurs propres à l'unité de temps : chacun n'apparaît que sur l'unité où il
+            a été ajouté (rien n'est supprimé, revenir sur l'unité le remontre). */}
+        {onToggleTimeframeScoped && (
+          <button
+            type="button"
+            className={["lq-chart__icon-button", timeframeScoped && "lq-chart__icon-button--active"].filter(Boolean).join(" ")}
+            onClick={onToggleTimeframeScoped}
+            aria-label="Dessins et indicateurs propres à l'unité de temps"
+            aria-pressed={timeframeScoped}
+            title={
+              timeframeScoped
+                ? "Dessins et indicateurs propres à l'unité de temps : activé (chacun n'apparaît que sur l'unité où il a été ajouté)"
+                : "Dessins et indicateurs propres à l'unité de temps : désactivé (tous visibles sur chaque unité)"
+            }
+          >
+            <AlarmClockIcon size={14} />
+          </button>
+        )}
         {/* Blocks dragging (body, endpoints, and axis handles all check this before
             starting) without touching selectability — hover, Delete, and double-click to
             edit all keep working on a locked drawing, only click-and-drag is refused. */}

@@ -395,3 +395,26 @@
 .lq-data-table__group--drop td {
   box-shadow: inset 0 0 0 2px var(--lq-color-accent);
 }
+
+.lq-data-table__group-row {
+  display: flex;
+  align-items: center;
+  gap: var(--lq-space-2);
+}
+
+.lq-data-table__group-header {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.lq-data-table__group--dragged td {
+  opacity: 0.5;
+}
+
+.lq-data-table__group--drop-before td {
+  box-shadow: inset 0 2px 0 var(--lq-color-accent);
+}
+
+.lq-data-table__group--drop-after td {
+  box-shadow: inset 0 -2px 0 var(--lq-color-accent);
+}

@@ -168,9 +168,13 @@ export const Complete: StoryObj = {
 /** `onReorder` + `groups` : poignée en tête de ligne (souris, doigt, flèches du clavier) et sections ; une ligne passe
  *  d'une section à l'autre, ou en tête d'une section vide en la déposant sur son en-tête. */
 export const Reorder: StoryObj = {
-  name: "onReorder + groups — glisser-déposer et sections",
+  name: "onReorder + groups — glisser-déposer des lignes et des sections",
   render: function Render() {
     const [order, setOrder] = useState<{ id: string; group: string }[]>(ORDERS.map((o, i) => ({ id: o.id, group: i % 2 ? "b" : "a" })));
+    const [sections, setSections] = useState([
+      { id: "b", header: "Section B" },
+      { id: "c", header: "Section C (vide)" },
+    ]);
     const byId = new Map(ORDERS.map((o) => [o.id, o]));
     const rows = order.map((o) => byId.get(o.id) as DemoOrder);
     const groupOf = (r: DemoOrder) => order.find((o) => o.id === r.id)?.group ?? "a";
@@ -178,11 +182,14 @@ export const Reorder: StoryObj = {
       <DataTable<DemoOrder>
         {...orderTable}
         rows={rows}
-        groups={[
-          { id: "a", header: "Section A" },
-          { id: "b", header: "Section B" },
-          { id: "c", header: "Section C (vide)" },
-        ]}
+        groups={[{ id: "a", header: "Section A (fixe)", fixed: true }, ...sections]}
+        onReorderGroups={(id, index) =>
+          setSections((prev) => {
+            const moved = prev.find((g) => g.id === id)!;
+            const rest = prev.filter((g) => g.id !== id);
+            return [...rest.slice(0, index), moved, ...rest.slice(index)];
+          })
+        }
         groupOf={groupOf}
         onReorder={({ key, group, index }) =>
           setOrder((prev) => {

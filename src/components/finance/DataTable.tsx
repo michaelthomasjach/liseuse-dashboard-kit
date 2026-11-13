@@ -39,6 +39,8 @@ export interface DataTableLabels {
   move: string;
   /** Poignée quand le réordonnancement est coupé (colonne triée, recherche en cours). */
   moveOff: string;
+  /** Poignée de glisser-déposer d'une section. */
+  moveGroup: string;
 }
 
 const DEFAULT_LABELS: DataTableLabels = {
@@ -54,6 +56,7 @@ const DEFAULT_LABELS: DataTableLabels = {
   selected: (n) => `${n} sélectionnée${n > 1 ? "s" : ""}`,
   move: "Déplacer la ligne : glisser, ou flèches haut et bas",
   moveOff: "Retirez le tri et la recherche pour réordonner les lignes",
+  moveGroup: "Déplacer la section : glisser, ou flèches haut et bas",
 };
 
 /** Ligne déposée : sa clé, son groupe d'arrivée (null sans `groups`) et sa place dans ce groupe (parmi les lignes
@@ -70,6 +73,8 @@ export interface DataTableGroup {
   header: ReactNode;
   /** Replié : l'en-tête seul (on peut encore y déposer une ligne, qui arrive en tête). */
   collapsed?: boolean;
+  /** Section à sa place, que `onReorderGroups` ne déplace pas (« sans catégorie » en tête…). */
+  fixed?: boolean;
 }
 
 export interface DataTableProps<T> {
@@ -125,6 +130,9 @@ export interface DataTableProps<T> {
    *  haut et bas sur la poignée ; elles franchissent les sections). Appelé au lâcher ; l'application range ses lignes
    *  et rend le nouvel ordre dans `rows`. Coupé tant qu'une colonne est triée ou qu'une recherche filtre. */
   onReorder?: (move: DataTableMove) => void;
+  /** Glisser-déposer des sections : une poignée sur l'en-tête de chaque section non `fixed` (souris, doigt, flèches
+   *  haut et bas). Appelé au lâcher avec la section et sa nouvelle place parmi les sections non `fixed`. */
+  onReorderGroups?: (id: string, index: number) => void;
   /** Sections, dans cet ordre, chacune sous un en-tête pleine largeur, même vide (on peut y déposer une ligne). Les
    *  lignes y gardent l'ordre de `rows` ; un tri de colonne trie à l'intérieur de chaque section. Sans pagination. */
   groups?: DataTableGroup[];
@@ -200,6 +208,7 @@ export function DataTable<T>({
   toolbar,
   labels: labelsProp,
   onReorder,
+  onReorderGroups,
   groups,
   groupOf,
 }: DataTableProps<T>) {
@@ -247,6 +256,27 @@ export function DataTable<T>({
   };
   const canReorder = Boolean(onReorder) && !sort && !query.trim();
   const [drag, setDrag] = useState<{ key: string; overKey: string | null; overGroup: string | null; after: boolean } | null>(null);
+  // Section saisie par sa poignée, et la section visée (avant elle si l'on remonte, après si l'on descend).
+  const [groupDrag, setGroupDrag] = useState<{ id: string; over: string | null } | null>(null);
+  const movableGroups = (groups ?? []).filter((g) => !g.fixed).map((g) => g.id);
+
+  /** Section sous le pointeur (son en-tête ou une de ses lignes), si elle peut recevoir la section saisie. */
+  function groupTarget(x: number, y: number): string | null {
+    const el = document.elementFromPoint(x, y)?.closest<HTMLElement>("[data-dt-key], [data-dt-group]");
+    if (!el || !tableRef.current?.contains(el)) return null;
+    let id: string | null = el.dataset.dtGroup ?? null;
+    if (id === null && el.dataset.dtKey !== undefined) {
+      const row = sortedRows.find((r) => rowKey(r) === el.dataset.dtKey);
+      id = row ? sectionOf(row) : null;
+    }
+    return id !== null && movableGroups.includes(id) ? id : null;
+  }
+
+  function finishGroupDrag(id: string, over: string | null) {
+    setGroupDrag(null);
+    if (!onReorderGroups || over === null || over === id) return;
+    onReorderGroups(id, movableGroups.indexOf(over));
+  }
   const tableRef = useRef<HTMLTableElement>(null);
 
   /** Clés affichées d'une section (null : tout le tableau), dans l'ordre. */
@@ -362,7 +392,7 @@ export function DataTable<T>({
     striped && "lq-data-table--striped",
     hover && "lq-data-table--hover",
     bordered && "lq-data-table--bordered",
-    drag && "lq-data-table--dragging",
+    (drag || groupDrag) && "lq-data-table--dragging",
     className,
   ]
     .filter(Boolean)
@@ -505,13 +535,60 @@ export function DataTable<T>({
             ).map((item) => {
               if ("header" in item) {
                 const g = item.header;
+                const movable = Boolean(onReorderGroups) && !g.fixed;
+                const from = movableGroups.indexOf(groupDrag?.id ?? "");
+                const to = movableGroups.indexOf(g.id);
                 return (
                   <tr
                     key={`group:${g.id}`}
-                    className={["lq-data-table__group", drag?.overGroup === g.id && "lq-data-table__group--drop"].filter(Boolean).join(" ")}
+                    className={[
+                      "lq-data-table__group",
+                      drag?.overGroup === g.id && "lq-data-table__group--drop",
+                      groupDrag?.id === g.id && "lq-data-table__group--dragged",
+                      groupDrag && groupDrag.over === g.id && groupDrag.id !== g.id && (to > from ? "lq-data-table__group--drop-after" : "lq-data-table__group--drop-before"),
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
                     data-dt-group={g.id}
                   >
-                    <td colSpan={colSpan}>{g.header}</td>
+                    <td colSpan={colSpan}>
+                      {movable ? (
+                        <div className="lq-data-table__group-row">
+                          <button
+                            type="button"
+                            className="lq-data-table__handle"
+                            aria-label={labels.moveGroup}
+                            title={labels.moveGroup}
+                            onPointerDown={(e) => {
+                              if (e.button !== 0) return;
+                              e.preventDefault();
+                              e.currentTarget.setPointerCapture?.(e.pointerId);
+                              setGroupDrag({ id: g.id, over: null });
+                            }}
+                            onPointerMove={(e) => {
+                              if (groupDrag?.id !== g.id) return;
+                              setGroupDrag({ id: g.id, over: groupTarget(e.clientX, e.clientY) });
+                            }}
+                            onPointerUp={(e) => {
+                              if (groupDrag?.id !== g.id) return;
+                              finishGroupDrag(g.id, groupTarget(e.clientX, e.clientY) ?? groupDrag.over);
+                            }}
+                            onPointerCancel={() => setGroupDrag(null)}
+                            onKeyDown={(e) => {
+                              if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
+                              e.preventDefault();
+                              const next = to + (e.key === "ArrowUp" ? -1 : 1);
+                              if (next >= 0 && next < movableGroups.length) onReorderGroups?.(g.id, next);
+                            }}
+                          >
+                            <GripIcon size={14} />
+                          </button>
+                          <div className="lq-data-table__group-header">{g.header}</div>
+                        </div>
+                      ) : (
+                        g.header
+                      )}
+                    </td>
                   </tr>
                 );
               }

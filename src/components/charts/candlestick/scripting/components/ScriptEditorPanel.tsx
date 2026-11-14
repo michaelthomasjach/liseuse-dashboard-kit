@@ -38,7 +38,7 @@ import type { ScriptEditorCodeMirrorHandle } from "./ScriptEditorCodeMirror";
 import { ScriptGraphEditor } from "./ScriptGraphEditor";
 import "./ScriptEditorPanel.css";
 import { QuantResultsPanel } from "./QuantResultsPanel";
-import { analyzeScriptKind } from "../scriptKind";
+import { analyzeScriptKind, type ScriptKind } from "../scriptKind";
 import type { QuantSymbolResult } from "../interfaces/ScriptRunResult.interface";
 import { ReportPanel } from "./ReportPanel";
 
@@ -663,13 +663,22 @@ export function hello() {
                   <GridIcon size={12} /> No-code
                 </button>
               </div>
-              <button ref={runButtonRef} type="button" className="lq-script-editor-panel__toolbar-button" onClick={() => handleRunClick()}>
+              {/* Each button carries a modifier naming its action, so a theme can single one out —
+                  the main action filled, say, or the toolbar reordered — without counting
+                  children, which shift as soon as No-code hides two of them. No style of the kit
+                  reads them. */}
+              <button
+                ref={runButtonRef}
+                type="button"
+                className="lq-script-editor-panel__toolbar-button lq-script-editor-panel__toolbar-button--run"
+                onClick={() => handleRunClick()}
+              >
                 <PlayIcon size={13} /> Exécuter
               </button>
               {!graphMode && (
                 <button
                   type="button"
-                  className="lq-script-editor-panel__toolbar-button"
+                  className="lq-script-editor-panel__toolbar-button lq-script-editor-panel__toolbar-button--run-cell"
                   onClick={() => codeMirrorRef.current?.runCurrentCell()}
                   title="Exécute le code depuis le début jusqu'à la fin de la cellule (@block) où se trouve le curseur (Maj+Entrée)"
                 >
@@ -681,7 +690,7 @@ export function hello() {
               {!graphMode && (
                 <button
                   type="button"
-                  className="lq-script-editor-panel__toolbar-button"
+                  className="lq-script-editor-panel__toolbar-button lq-script-editor-panel__toolbar-button--search"
                   onClick={() => codeMirrorRef.current?.openSearch()}
                   title={`Rechercher et remplacer dans le script (${shortcutLabel("F")})`}
                 >
@@ -721,7 +730,7 @@ export function hello() {
               </Popover>
               <button
                 type="button"
-                className="lq-script-editor-panel__toolbar-button"
+                className="lq-script-editor-panel__toolbar-button lq-script-editor-panel__toolbar-button--stop"
                 onClick={() => stopScript(activeScript.id)}
                 disabled={!output?.running}
               >
@@ -729,7 +738,7 @@ export function hello() {
               </button>
               <button
                 type="button"
-                className="lq-script-editor-panel__toolbar-button"
+                className="lq-script-editor-panel__toolbar-button lq-script-editor-panel__toolbar-button--save"
                 onClick={handleSaveClick}
                 disabled={activeScript.named && !isDirty}
                 title={`Enregistrer (${shortcutLabel("S")})`}
@@ -741,7 +750,7 @@ export function hello() {
                   (which only ever prompts once, on a script's very first save). */}
               <button
                 type="button"
-                className="lq-script-editor-panel__toolbar-button"
+                className="lq-script-editor-panel__toolbar-button lq-script-editor-panel__toolbar-button--save-as"
                 onClick={handleSaveAsClick}
                 title="Enregistrer sous"
               >
@@ -749,13 +758,17 @@ export function hello() {
               </button>
               <button
                 type="button"
-                className="lq-script-editor-panel__toolbar-button"
+                className="lq-script-editor-panel__toolbar-button lq-script-editor-panel__toolbar-button--reset"
                 onClick={() => setScriptDraft(activeScript.id, null)}
                 disabled={!isDirty}
               >
                 <RefreshIcon size={13} /> Réinitialiser
               </button>
-              <button type="button" className="lq-script-editor-panel__toolbar-button" onClick={() => setFormatRequestId((n) => n + 1)}>
+              <button
+                type="button"
+                className="lq-script-editor-panel__toolbar-button lq-script-editor-panel__toolbar-button--format"
+                onClick={() => setFormatRequestId((n) => n + 1)}
+              >
                 Format
               </button>
               {output?.running && <span className="lq-script-editor-panel__status">Exécution…</span>}
@@ -870,6 +883,8 @@ export function hello() {
       ) : (
         <div className="lq-script-editor-panel__empty">Aucun script — cliquez sur « + » pour en créer un.</div>
       )}
+      {/* The script's kind is the entry's, not that of whichever module file is open. */}
+      {activeScript && <ScriptEditorStatusBar kind={analyzeScriptKind(draft).kind} output={output} />}
       <ScriptDocumentationModal open={docsOpen && docsWindow === null} onClose={() => setDocsOpen(false)} onRequestDetach={detachDocs} />
 
       {docsWindow !== null && (
@@ -1002,6 +1017,55 @@ export function hello() {
         </Modal>
       )}
     </ScriptEditorWindow>
+  );
+}
+
+/** « 1 courbe », « 3 courbes » — le singulier vaut aussi pour zéro, comme on l'écrit en français. */
+function countLabel(count: number, word: string): string {
+  return `${count} ${word}${count > 1 ? "s" : ""}`;
+}
+
+/** Ce que la barre d'état dit de la dernière exécution du script ouvert. */
+function describeLastRun(output: ScriptRunOutput | undefined, kind: ScriptKind): { tone: "idle" | "running" | "ok" | "error"; text: string } {
+  if (output?.running) return { tone: "running", text: "Exécution…" };
+  const result = output?.result;
+  if (!result) return { tone: "idle", text: "Pas encore exécuté" };
+  if (result.error) {
+    return { tone: "error", text: result.error.line !== undefined ? `Erreur ligne ${result.error.line}` : "Erreur à l'exécution" };
+  }
+  // Ce que l'exécution a produit, dans l'unité de ce genre de script : des courbes pour ce qui
+  // dessine, des symboles pour une analyse `@quant` ; un `@report` n'a qu'un document, rien à compter.
+  const produced =
+    kind === "quant"
+      ? countLabel(result.quant?.rows.length ?? 0, "symbole")
+      : kind === "report"
+        ? null
+        : countLabel(result.panes.reduce((total, pane) => total + pane.series.length, 0), "courbe");
+  return { tone: "ok", text: produced === null ? "Exécuté sans erreur" : `Exécuté sans erreur · ${produced}` };
+}
+
+/** La ligne d'état sous l'éditeur : le genre du script à gauche (`@indicator · JavaScript`), l'issue
+ *  de sa dernière exécution à droite (« Exécuté sans erreur · 3 courbes », « Erreur ligne 12 »).
+ *
+ *  Rendue toujours, montrée seulement si le thème la demande : `display` lit
+ *  `--lq-script-statusbar-display`, qui vaut `none` faute d'être posée. Le thème e-ink garde ainsi
+ *  exactement la mise en page qu'il avait — l'exécution en cours s'y lit déjà dans la barre d'outils,
+ *  l'erreur dans son propre panneau — et un thème qui veut cette ligne la pose d'une variable, sans
+ *  composant à envelopper. */
+function ScriptEditorStatusBar({ kind, output }: { kind: ScriptKind; output: ScriptRunOutput | undefined }) {
+  const run = describeLastRun(output, kind);
+  return (
+    <div className="lq-script-editor-panel__statusbar">
+      <span className="lq-script-editor-panel__statusbar-kind">@{kind} · JavaScript</span>
+      <span
+        className={`lq-script-editor-panel__statusbar-run lq-script-editor-panel__statusbar-run--${run.tone}`}
+        role="status"
+      >
+        {run.tone === "ok" && <CheckIcon size={12} />}
+        {run.tone === "error" && <CloseIcon size={11} />}
+        {run.text}
+      </span>
+    </div>
   );
 }
 

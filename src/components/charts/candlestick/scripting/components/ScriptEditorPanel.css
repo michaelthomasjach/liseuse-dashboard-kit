@@ -526,3 +526,41 @@
   background-color: var(--lq-color-fill);
   color: var(--lq-color-accent-contrast);
 }
+
+/* The status line under the editor (ScriptEditorStatusBar): the script's kind on the left, how its
+   last run went on the right. Off unless a theme sets `--lq-script-statusbar-display` (to `flex`):
+   the e-ink layout already says "running" in the toolbar and shows errors in their own panel, and
+   keeps exactly the height it had. */
+.lq-script-editor-panel__statusbar {
+  display: var(--lq-script-statusbar-display, none);
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lq-space-3);
+  flex-shrink: 0;
+  min-width: 0;
+  padding: var(--lq-space-1) var(--lq-space-3);
+  border-top: 1px solid var(--lq-color-border-subtle);
+  color: var(--lq-color-text-muted);
+  font-size: var(--lq-text-xs);
+  white-space: nowrap;
+}
+
+.lq-script-editor-panel__statusbar-kind {
+  font-family: var(--lq-font-mono);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lq-script-editor-panel__statusbar-run {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lq-space-1);
+}
+
+.lq-script-editor-panel__statusbar-run--ok {
+  color: var(--lq-color-up);
+}
+
+.lq-script-editor-panel__statusbar-run--error {
+  color: var(--lq-color-danger);
+}

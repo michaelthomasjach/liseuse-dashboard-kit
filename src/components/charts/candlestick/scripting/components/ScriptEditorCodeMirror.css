@@ -84,3 +84,26 @@
   border: 1px solid var(--lq-color-border-subtle);
   border-radius: var(--lq-radius-sm);
 }
+
+/* A line's leading directive (`@indicator`, `@description`, `@block`…; see `codeAdornments` in
+   ScriptEditorCodeMirror.tsx). Coloured only when a theme sets `--lq-code-directive`; without it
+   the word keeps the plain text colour it always had. */
+.lq-script-editor-codemirror .cm-lq-directive {
+  color: var(--lq-code-directive, inherit);
+}
+
+/* A swatch of the colour a `"#rrggbb"` literal names, drawn just before it. Off unless a theme sets
+   `--lq-code-color-swatch` (to `""`): with the default `content: none` no box is generated at all,
+   so the line lays out exactly as before. A pseudo-element of the mark rather than a widget, so
+   the swatch adds no position to the document and the caret steps over it as if it were not there. */
+.lq-script-editor-codemirror .cm-lq-color-literal::before {
+  content: var(--lq-code-color-swatch, none);
+  display: inline-block;
+  width: 0.75em;
+  height: 0.75em;
+  margin-right: 0.4em;
+  vertical-align: -0.04em;
+  background-color: var(--lq-swatch-color, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lq-color-text) 22%, transparent);
+  border-radius: var(--lq-code-color-swatch-radius, 0);
+}

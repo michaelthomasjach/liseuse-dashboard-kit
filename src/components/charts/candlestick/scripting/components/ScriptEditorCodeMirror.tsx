@@ -4,7 +4,7 @@ import { isBlockMarkerLine } from "../scriptBlocks";
 import { analyzeAiCalls, analyzeQuantPlotCalls, analyzeScriptKind } from "../scriptKind";
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { EditorState, StateEffect, StateField, type Text } from "@codemirror/state";
+import { EditorState, RangeSetBuilder, StateEffect, StateField, type Text } from "@codemirror/state";
 import {
   EditorView,
   keymap,
@@ -13,9 +13,11 @@ import {
   highlightActiveLineGutter,
   drawSelection,
   Decoration,
+  ViewPlugin,
   WidgetType,
   type DecorationSet,
   type KeyBinding,
+  type ViewUpdate,
 } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap, indentSelection, indentWithTab } from "@codemirror/commands";
 import { highlightSelectionMatches, openSearchPanel, search, searchKeymap } from "@codemirror/search";
@@ -157,6 +159,62 @@ const highlightStyle = HighlightStyle.define([
   { tag: tags.bool, color: "var(--lq-code-number)" },
   { tag: tags.null, color: "var(--lq-code-comment)" },
 ]);
+
+// Two hooks for a theme, as plain classes on the text — neither changes anything on its own:
+//  - `cm-lq-directive` on a line's leading `@word` (`@indicator`, `@description`, `@block`…). The
+//    JavaScript grammar reads them as stray decorators and tags only the `@`, so without this a
+//    theme has no handle to colour the whole word (`--lq-code-directive`, see the CSS).
+//  - `cm-lq-color-literal` on a string that is exactly a hex colour (`"#f59e0b"`), carrying that
+//    colour as `--lq-swatch-color`, so a theme can draw a swatch in front of it from CSS alone
+//    (`--lq-code-color-swatch`). Marks rather than widgets: a mark adds no position to the
+//    document, so the caret, selection and clicks behave exactly as they did without it.
+// Computed over the visible lines only, and again only when the text or the viewport changes.
+const DIRECTIVE_RE = /^[ \t]*(@[A-Za-z_]\w*)/;
+const COLOR_LITERAL_RE = /(["'`])#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4})\1/g;
+const directiveMark = Decoration.mark({ class: "cm-lq-directive" });
+
+function buildCodeAdornments(view: EditorView): DecorationSet {
+  const builder = new RangeSetBuilder<Decoration>();
+  const doc = view.state.doc;
+  let lastLine = 0;
+  for (const { from, to } of view.visibleRanges) {
+    for (let pos = from; pos <= to; ) {
+      const line = doc.lineAt(pos);
+      pos = line.to + 1;
+      // Two visible ranges can share a line; a range builder refuses anything out of order.
+      if (line.number <= lastLine) continue;
+      lastLine = line.number;
+      const directive = DIRECTIVE_RE.exec(line.text);
+      if (directive) {
+        const start = line.from + directive[0].length - directive[1].length;
+        builder.add(start, start + directive[1].length, directiveMark);
+      }
+      for (const match of line.text.matchAll(COLOR_LITERAL_RE)) {
+        const start = line.from + (match.index ?? 0);
+        const color = match[0].slice(1, -1);
+        builder.add(
+          start,
+          start + match[0].length,
+          Decoration.mark({ class: "cm-lq-color-literal", attributes: { style: `--lq-swatch-color: ${color}` } })
+        );
+      }
+    }
+  }
+  return builder.finish();
+}
+
+const codeAdornments = ViewPlugin.fromClass(
+  class {
+    decorations: DecorationSet;
+    constructor(view: EditorView) {
+      this.decorations = buildCodeAdornments(view);
+    }
+    update(update: ViewUpdate) {
+      if (update.docChanged || update.viewportChanged) this.decorations = buildCodeAdornments(update.view);
+    }
+  },
+  { decorations: (plugin) => plugin.decorations }
+);
 
 // A "cell" (exigence : mode Jupyter — voir ScriptEditorPanel.tsx's own "Exécuter la cellule"
 // button) is delimited by an `@block` line — see scriptBlocks.ts for the marker itself and why it
@@ -616,6 +674,7 @@ export const ScriptEditorCodeMirror = forwardRef<ScriptEditorCodeMirrorHandle, S
         closeBrackets(),
         javascript(),
         syntaxHighlighting(highlightStyle),
+        codeAdornments,
         autocompletion({ override: [apiCompletionSource] }),
         lintGutter(),
         cellOutputsField,

@@ -452,6 +452,15 @@
  *                      --lq-chart-title-font (inherit) · -title-size (0.75rem) · -title-weight (bold)
  *                      · -title-tracking · -title-transform (inherited; as a button normal / none)
  *
+ *   Script editor      --lq-code-directive (inherit) — the leading `@indicator` / `@description` /
+ *                      `@block` word of a line · --lq-code-color-swatch (none; `""` draws a swatch
+ *                      before every `"#rrggbb"` string, filled from --lq-swatch-color) ·
+ *                      --lq-code-color-swatch-radius (0) · --lq-script-statusbar-display (none;
+ *                      `flex` shows the status line under the editor: script kind, outcome of the
+ *                      last run). Every toolbar button also carries a modifier naming its action
+ *                      (`.lq-script-editor-panel__toolbar-button--run`, `--run-cell`, `--search`,
+ *                      `--stop`, `--save`, `--save-as`, `--reset`, `--format`).
+ *
  *   Misc               --lq-color-warning-contrast (ink on a warning fill) · --lq-dropzone-list-gap
  *                      · --lq-holding-figures-width / -quantity-width · --lq-tilemap-dark-filter
  *

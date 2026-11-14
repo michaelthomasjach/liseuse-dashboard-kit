@@ -16,6 +16,8 @@ export interface SymbolTargetModalProps {
   /** Same live-selection mirror as `LinkGroupsModal.onSelectedPanelsChange` — lets the workspace
    *  behind this modal highlight whichever panel(s) are currently checked. */
   onSelectedPanelsChange?: (panelIndices: number[]) => void;
+  /** La fenêtre active (dernière cliquée) : proposée en tête, « Fenêtre active (Fenêtre 2 — NVDA) ». */
+  activePanel?: number;
 }
 
 /** The "which window(s) should this open in" modal a watchlist row click opens once more than one
@@ -24,7 +26,7 @@ export interface SymbolTargetModalProps {
  *  checked, same shape as `LinkGroupsModal`'s own tree but without its groups concept (this is
  *  about picking destinations, not linking panels together) and requiring only one panel checked
  *  to validate, not two. */
-export function SymbolTargetModal({ open, onClose, panelCount, panelSymbols, onConfirm, onSelectedPanelsChange }: SymbolTargetModalProps) {
+export function SymbolTargetModal({ open, onClose, panelCount, panelSymbols, onConfirm, onSelectedPanelsChange, activePanel }: SymbolTargetModalProps) {
   const [selected, setSelected] = useState<Set<number>>(new Set());
 
   // Fresh selection every time the modal opens — same reasoning as LinkGroupsModal's own identical
@@ -49,6 +51,15 @@ export function SymbolTargetModal({ open, onClose, panelCount, panelSymbols, onC
 
   function toggleAll() {
     const next = allSelected ? new Set<number>() : new Set(Array.from({ length: panelCount }, (_, i) => i));
+    setSelected(next);
+    onSelectedPanelsChange?.([...next]);
+  }
+
+  const hasActive = activePanel !== undefined && activePanel >= 0 && activePanel < panelCount;
+  const onlyActive = hasActive && selected.size === 1 && selected.has(activePanel);
+  function toggleActive() {
+    if (!hasActive) return;
+    const next = onlyActive ? new Set<number>() : new Set([activePanel]);
     setSelected(next);
     onSelectedPanelsChange?.([...next]);
   }
@@ -84,6 +95,7 @@ export function SymbolTargetModal({ open, onClose, panelCount, panelSymbols, onC
       }
     >
       <div className="lq-link-groups__tree">
+        {hasActive && <Checkbox checked={onlyActive} onChange={toggleActive} label={`Fenêtre active (${panelLabel(activePanel)})`} />}
         <Checkbox checked={allSelected} onChange={toggleAll} label={allSelected ? "Aucune" : "Toutes"} />
         {Array.from({ length: panelCount }, (_, i) => i).map((panelIndex) => (
           <Checkbox key={panelIndex} checked={selected.has(panelIndex)} onChange={() => toggle(panelIndex)} label={panelLabel(panelIndex)} />

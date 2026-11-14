@@ -494,19 +494,39 @@ export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAdd
   // "Supprimer" button is the deliberate action there) or while a text input has focus (typing a
   // label in the Texte tab shouldn't delete the drawing out from under it).
   useEffect(() => {
-    if (!hoveredDrawingId || editingId) return;
+    const targetId = hoveredDrawingId ?? selectedDrawingId;
+    if (!targetId || editingId) return;
     function onKeyDown(e: KeyboardEvent) {
       if (e.key !== "Delete" && e.key !== "Backspace") return;
       const active = document.activeElement;
       const isEditableFocused = active instanceof HTMLElement && (active.tagName === "INPUT" || active.tagName === "TEXTAREA" || active.isContentEditable);
       if (isEditableFocused) return;
       e.preventDefault();
-      emitDrawings(drawings.filter((d) => d.id !== hoveredDrawingId));
-      setHoveredDrawingId(null);
+      emitDrawings(drawings.filter((d) => d.id !== targetId));
+      // Le ref aussi (pas seulement l'état) : le filtre de d3-zoom le lit, et un id resté là bloquait le
+      // déplacement dans le temps.
+      updateHoveredDrawingId(null);
+      // Le dessin supprimé n'est plus sélectionné : sa barre flottante disparaît avec lui.
+      if (selectedDrawingId === targetId) setSelectedDrawingId(null);
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [hoveredDrawingId, editingId, drawings, emitDrawings]);
+  }, [hoveredDrawingId, selectedDrawingId, editingId, drawings, emitDrawings]);
+
+  // Un dessin qui disparaît (Suppr, menu du clic droit, barre flottante, fenêtre de paramètres, effacement par
+  // l'assistant…) ne reste ni survolé ni sélectionné : sinon sa barre flottante restait affichée, et son id
+  // survolé bloquait le déplacement de la vue dans le temps.
+  // Seulement les ids qui étaient dans `drawings` et n'y sont plus : un dessin venu d'ailleurs (script, symbole
+  // superposé) n'y a jamais été, et reste sélectionnable.
+  const previousDrawingIdsRef = useRef<Set<string>>(new Set(drawings.map((d) => d.id)));
+  useEffect(() => {
+    const ids = new Set(drawings.map((d) => d.id));
+    const gone = (id: string | null) => id !== null && previousDrawingIdsRef.current.has(id) && !ids.has(id);
+    previousDrawingIdsRef.current = ids;
+    if (gone(hoveredDrawingIdRef.current)) updateHoveredDrawingId(null);
+    if (gone(selectedDrawingId)) setSelectedDrawingId(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drawings]);
 
   // Delete/Backspace also removes the measure tool's measurement — it isn't a `drawings` entry, so
   // the handler above never saw it and only Escape or switching tools could clear it. A hovered

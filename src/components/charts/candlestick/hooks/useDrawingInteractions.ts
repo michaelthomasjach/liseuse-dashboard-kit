@@ -549,6 +549,11 @@ export function useDrawingInteractions({
       }
       updateHoveredDrawingId(closestId);
       overDrawing = closestId !== null;
+    } else if (!activeTool) {
+      // Plus aucun dessin (le dernier vient d'être supprimé) : rien n'est survolé. Sans cette remise à zéro, l'id
+      // du dessin supprimé restait dans hoveredDrawingIdRef, que le filtre de d3-zoom lit pour laisser un glisser
+      // déplacer un dessin plutôt que la vue — et le déplacement dans le temps restait bloqué pour de bon.
+      updateHoveredDrawingId(null);
     }
 
     // Which indicator line the pointer is on, recorded for the click handler to read. Kept in a

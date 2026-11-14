@@ -3,6 +3,7 @@ import type { AiChartContext } from "./interfaces/AiChartContext.interface";
 import { indicatorCatalogEntry } from "../indicatorCatalog";
 import { analyzeScriptKind } from "../scripting/scriptKind";
 import { SCRIPTING_DOCS_TOOL } from "./scriptingDocs";
+import { findUiButton, highlightUiElement, listUiButtons } from "./uiHighlight";
 
 /** What running one tool produced: text handed straight back to the model. Plain prose rather than
  *  JSON wherever a sentence is clearer — the reader is a language model, and "SMA(20) ajoutée"
@@ -94,7 +95,7 @@ export const AI_TOOLS: AiTool[] = [
     definition: {
       name: "ajouter_un_indicateur",
       description:
-        "Ajoute un indicateur au graphique. Utiliser le « kind » exact renvoyé par lister_les_indicateurs_disponibles. Pour le volume, utiliser afficher_le_volume à la place.",
+        "Affiche un indicateur EXISTANT du catalogue, tel quel (par exemple « ajoute une SMA 50 », « affiche le RSI »). Utiliser le « kind » exact renvoyé par lister_les_indicateurs_disponibles. Pour le volume, utiliser afficher_le_volume. Ne pas l'utiliser quand on demande de faire, créer, coder, produire ou réaliser un indicateur, un système ou une stratégie (même s'il réunit des indicateurs existants) : dans ce cas, utiliser coder_un_indicateur puis ecrire_un_script.",
       inputSchema: {
         type: "object",
         properties: {
@@ -281,6 +282,149 @@ export const AI_TOOLS: AiTool[] = [
     },
     // Exécuté par l'assistant (useAiAssistant), qui charge le manuel : jamais par ce tableau.
     run: () => ({ content: "Documentation indisponible ici.", isError: true }),
+  },
+  {
+    definition: {
+      name: "coder_un_indicateur",
+      description:
+        "À appeler EN PREMIER dès qu'on demande de faire, créer, coder, développer, produire ou réaliser un indicateur, un système, un signal ou une stratégie — y compris un indicateur qui réunit des indicateurs existants (par exemple « un indicateur qui regroupe trois SMA 50, 100 et 200 »). Ouvre la fenêtre de développement (l'éditeur de script) sur un nouveau script vide, et renvoie son id. Ensuite : écrire le code complet avec ecrire_un_script en passant cet id, puis lire le résultat (lire_le_resultat_d_un_script) et corriger.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          nom: { type: "string", description: "Nom du script, court et parlant (« Trois SMA 50/100/200 »)." },
+          type: { type: "string", enum: ["indicateur", "strategie", "quant"], description: "indicateur (par défaut), strategie (prend des positions, backtest) ou quant (analyse sans dessin)." },
+        },
+        required: ["nom"],
+        additionalProperties: false,
+      },
+    },
+    run: (input, chart) => {
+      const name = str(input, "nom") ?? "Indicateur de l'assistant";
+      const type = str(input, "type");
+      const decorator = type === "strategie" ? "@strategy" : type === "quant" ? "@quant" : "@indicator";
+      const id = chart.addScript(name, `${decorator}\n// ${name} : en cours d'écriture par l'assistant.\n`);
+      chart.openScript?.(id);
+      return {
+        content: `Fenêtre de développement ouverte sur le script « ${name} » (id ${id}, ${decorator}). Écrivez maintenant le code complet avec ecrire_un_script et id « ${id} » (dans le langage de ce graphique, voir lire_la_documentation_du_scripting), puis lisez le résultat.`,
+      };
+    },
+  },
+  {
+    definition: {
+      name: "ouvrir_un_script",
+      description: "Ouvre un script existant dans la fenêtre de développement (l'éditeur), sur son onglet. L'id est donné par lire_le_graphique.",
+      inputSchema: { type: "object", properties: { id: { type: "string" } }, required: ["id"], additionalProperties: false },
+    },
+    run: (input, chart) => {
+      const id = str(input, "id");
+      const script = chart.scripts.find((s) => s.id === id);
+      if (!script || !id) return { content: "Script introuvable.", isError: true };
+      if (!chart.openScript) return { content: "L'éditeur de script n'est pas disponible ici.", isError: true };
+      chart.openScript(id);
+      return { content: `Script « ${script.name} » ouvert dans l'éditeur.` };
+    },
+  },
+  {
+    definition: {
+      name: "lancer_le_replay",
+      description:
+        "Rejoue l'historique bougie par bougie à partir d'une date (les bougies suivantes sont masquées), ou d'un instant tiré au hasard sans date. Dans un espace à plusieurs fenêtres, toutes les fenêtres ouvertes suivent la même date. L'utilisateur avance ensuite avec Lecture ou les flèches du clavier.",
+      inputSchema: {
+        type: "object",
+        properties: { date: { type: "string", description: "Date de départ (AAAA-MM-JJ ou JJ/MM/AAAA). Omettre pour un instant au hasard." } },
+        additionalProperties: false,
+      },
+    },
+    run: (input, chart) => {
+      if (!chart.startReplay) return { content: "Le replay n'est pas disponible sur ce graphique.", isError: true };
+      const raw = str(input, "date");
+      const at = raw ? parseDate(raw) : null;
+      if (raw && !at) return { content: `Date illisible : « ${raw} ».`, isError: true };
+      const start = chart.startReplay(at);
+      if (!start) return { content: "Pas assez de bougies pour un replay.", isError: true };
+      return { content: `Replay lancé au ${start.toISOString().slice(0, 10)}${at ? "" : " (instant tiré au hasard)"}. Lecture, flèches ← → pour avancer, Échap pour quitter.` };
+    },
+  },
+  {
+    definition: {
+      name: "quitter_le_replay",
+      description: "Arrête le replay en cours et révèle tout l'historique (dans toutes les fenêtres).",
+      inputSchema: { type: "object", properties: {}, additionalProperties: false },
+    },
+    run: (_input, chart) => {
+      if (!chart.quitReplay) return { content: "Le replay n'est pas disponible sur ce graphique.", isError: true };
+      const cutoff = chart.replayCutoff?.() ?? null;
+      chart.quitReplay();
+      return { content: cutoff ? "Replay arrêté." : "Aucun replay en cours." };
+    },
+  },
+  {
+    definition: {
+      name: "regler_le_filigrane",
+      description:
+        "Affiche ou masque le nom du symbole en fond du graphique (filigrane), et règle sa taille et son opacité. Un nom trop long est réduit automatiquement pour tenir dans le graphique.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          afficher: { type: "boolean" },
+          taille: { type: "number", description: "En % de la taille par défaut, de 30 à 150." },
+          opacite: { type: "number", description: "En %, de 2 à 40." },
+        },
+        additionalProperties: false,
+      },
+    },
+    run: (input, chart) => {
+      if (!chart.setWatermark || !chart.watermark) return { content: "Filigrane indisponible.", isError: true };
+      const size = num(input, "taille");
+      const opacity = num(input, "opacite");
+      const patch: Partial<{ visible: boolean; opacity: number; size: number }> = {};
+      if (typeof input.afficher === "boolean") patch.visible = input.afficher;
+      if (size !== undefined) patch.size = Math.min(150, Math.max(30, Math.round(size)));
+      if (opacity !== undefined) patch.opacity = Math.min(40, Math.max(2, opacity)) / 100;
+      if ((patch.size !== undefined || patch.opacity !== undefined) && patch.visible === undefined) patch.visible = true;
+      chart.setWatermark(patch);
+      const w = { ...chart.watermark(), ...patch };
+      return { content: w.visible ? `Filigrane affiché : taille ${w.size} %, opacité ${Math.round(w.opacity * 100)} %.` : "Filigrane masqué." };
+    },
+  },
+  {
+    definition: {
+      name: "lister_les_boutons_de_l_interface",
+      description:
+        "Les boutons visibles à l'écran, avec leur nom, leur infobulle et leur emplacement (en-tête du graphique, barre d'outils de gauche, barre de droite, légende…). Pour répondre à « où se trouve… », « comment faire pour… » : trouver le bouton, puis le montrer avec montrer_un_bouton.",
+      inputSchema: { type: "object", properties: {}, additionalProperties: false },
+    },
+    run: () => {
+      const buttons = listUiButtons();
+      if (buttons.length === 0) return { content: "Aucun bouton visible (interface indisponible ici).", isError: true };
+      const byZone = new Map<string, string[]>();
+      for (const b of buttons) byZone.set(b.zone, [...(byZone.get(b.zone) ?? []), b.title ? `${b.label} — ${b.title}` : b.label]);
+      return {
+        content:
+          [...byZone].map(([zone, labels]) => `${zone} :\n- ${labels.join("\n- ")}`).join("\n\n") +
+          "\n\nCertaines fonctions sont dans le clic droit du graphique (menu contextuel), dans les paramètres du graphique (roue dentée) ou dans un menu replié : dans ce cas, montrez le bouton qui y mène et expliquez la suite.",
+      };
+    },
+  },
+  {
+    definition: {
+      name: "montrer_un_bouton",
+      description:
+        "Met un bouton de l'interface en surbrillance (il pulse jusqu'à ce que l'utilisateur le survole ou le touche), pour lui montrer où se trouve une fonctionnalité. Passer le nom exact donné par lister_les_boutons_de_l_interface. Puis dire en une phrase où il est et à quoi il sert.",
+      inputSchema: {
+        type: "object",
+        properties: { nom: { type: "string", description: "Nom du bouton, tel que listé (par exemple « Replay », « Ajouter un indicateur »)." } },
+        required: ["nom"],
+        additionalProperties: false,
+      },
+    },
+    run: (input) => {
+      const name = str(input, "nom") ?? "";
+      const button = findUiButton(name);
+      if (!button) return { content: `Aucun bouton visible nommé « ${name} ». Appelez lister_les_boutons_de_l_interface.`, isError: true };
+      highlightUiElement(button.element);
+      return { content: `Bouton « ${button.label} » mis en surbrillance (${button.zone}). Il reprend son aspect dès que l'utilisateur le survole ou le touche.` };
+    },
   },
   {
     definition: {
@@ -500,6 +644,9 @@ export function availableAiTools(chart: AiChartContext): AiTool[] {
     if (tool.definition.name === "changer_l_unite_de_temps") return chart.setTimeframe !== undefined && chart.availableTimeframes.length > 0;
     if (tool.definition.name === "changer_de_symbole") return chart.setSymbol !== undefined;
     if (tool.definition.name === "lire_les_donnees_fondamentales") return (chart.fundamentals?.length ?? 0) > 0;
+    if (tool.definition.name === "lancer_le_replay" || tool.definition.name === "quitter_le_replay") return chart.startReplay !== undefined;
+    if (tool.definition.name === "regler_le_filigrane") return chart.setWatermark !== undefined && chart.symbol !== undefined;
+    if (tool.definition.name === "ouvrir_un_script") return chart.openScript !== undefined;
     return true;
   });
 }

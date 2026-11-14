@@ -1,5 +1,5 @@
 import type * as d3 from "d3";
-import { ATTACHABLE_KINDS } from "./attachedIndicators";
+import { ATTACHABLE_KINDS, VOLUME_PANE_ID } from "./attachedIndicators";
 import type { IndicatorKind } from "./interfaces/IndicatorKind.interface";
 import type { ChartContextMenuItem } from "./components/ChartContextMenu";
 import type { Candle } from "./interfaces/Candle.interface";
@@ -18,6 +18,8 @@ export interface ChartContextMenuAnchor {
   paneLabel?: string;
   /** La valeur de l'indicateur du panneau à la hauteur du clic (sur son échelle à lui). */
   paneValue?: number;
+  /** Clic droit sur le panneau Volume : pour y poser une moyenne. */
+  volumePane?: boolean;
   /** Clic droit sur la ligne d'un indicateur : son id et son nom, pour ouvrir ses paramètres. */
   indicatorId?: string;
   indicatorLabel?: string;
@@ -188,6 +190,13 @@ export function buildChartContextMenu({
             onSelect: () => openIndicatorPicker({ id: anchor.paneId as string, label: anchor.paneLabel ?? "ce panneau" }),
           },
         ]
+      : []),
+    // Sur le panneau Volume : une moyenne du volume, dessinée dans ce panneau.
+    ...(anchor.volumePane && addOnPane
+      ? ATTACHABLE_KINDS.map(({ kind, label }) => ({
+          label: `Ajouter une ${label} sur Volume`,
+          onSelect: () => addOnPane(kind, VOLUME_PANE_ID),
+        }))
       : []),
     // Sur le panneau d'un indicateur : une moyenne de sa série, dessinée dans ce panneau.
     ...(anchor.paneId && addOnPane

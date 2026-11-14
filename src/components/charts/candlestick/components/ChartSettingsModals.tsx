@@ -47,8 +47,8 @@ export interface ChartSettingsModalsProps {
   volumeDownColorOverride: string | undefined;
   setVolumeDownColorOverride: (color: string | undefined) => void;
   /** Nom du symbole en filigrane et son opacité ; `watermarkAvailable` : le graphique a un symbole à afficher. */
-  watermark: { visible: boolean; opacity: number };
-  setWatermark: (next: { visible: boolean; opacity: number }) => void;
+  watermark: { visible: boolean; opacity: number; size?: number };
+  setWatermark: (next: { visible: boolean; opacity: number; size?: number }) => void;
   watermarkAvailable: boolean;
   /** Ligne symbole · type · OHLC en haut à gauche, masquée. */
   symbolInfoHidden: boolean;
@@ -298,6 +298,20 @@ export function ChartSettingsModals({
                     value={Math.round(watermark.opacity * 100)}
                     onChange={(e) => setWatermark({ ...watermark, opacity: Number(e.target.value) / 100 })}
                     aria-label="Opacité du filigrane"
+                  />
+                </label>
+              )}
+              {watermark.visible && (
+                <label className="lq-chart__settings-opacity">
+                  <span>Taille : {Math.round(watermark.size ?? 100)} %</span>
+                  <input
+                    type="range"
+                    min={30}
+                    max={150}
+                    step={5}
+                    value={Math.round(watermark.size ?? 100)}
+                    onChange={(e) => setWatermark({ ...watermark, size: Number(e.target.value) })}
+                    aria-label="Taille du filigrane"
                   />
                 </label>
               )}

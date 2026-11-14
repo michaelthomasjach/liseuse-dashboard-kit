@@ -15,6 +15,7 @@ import type { IndicatorCandleMatch } from "../interfaces/IndicatorCandleMatch.in
 import { snapPixel } from "../drawingGeometry";
 import { drawPillLabel } from "../drawingRender";
 import { indicatorCatalogEntry, defaultIndicatorColor } from "../indicatorCatalog";
+import { drawIndicatorFills } from "./drawIndicatorFills";
 import { drawPatternRecognitionMatches } from "./drawPatternRecognition";
 import { drawCandleRecognitionMatches } from "./drawCandleRecognition";
 
@@ -362,6 +363,8 @@ export function drawPriceCandles(ctx: CanvasRenderingContext2D, params: RenderCa
       if (points.length === 0 || (points.length < 2 && !POINT_BASED_KINDS.has(indicator.kind))) return;
       const color = indicator.color ?? defaultIndicatorColor(index);
       ctx.save();
+      // Zones colorées (onglet Style) : sous la courbe, avant elle.
+      drawIndicatorFills(ctx, indicator, points, zoomedXScale, zoomedPriceScale, (i) => data[i]?.close);
       ctx.strokeStyle = color;
       ctx.setLineDash([]);
 

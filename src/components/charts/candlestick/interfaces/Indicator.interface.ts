@@ -2,6 +2,7 @@ import type { IndicatorKind } from "./IndicatorKind.interface";
 import type { CustomIndicatorDef } from "./CustomIndicatorDef.interface";
 import type { OverlayDataPoint } from "./TrendLineDrawing.interface";
 import type { IndicatorProjectionMethod } from "../indicatorProjection";
+import type { IndicatorFill } from "./IndicatorFill.interface";
 
 export interface Indicator {
   id: string;
@@ -247,4 +248,7 @@ export interface Indicator {
    *  the Style tab. Meaningless (ignored) for a `dock: "bottom"`/undocked pane, which already
    *  shares the main plot's own axes. */
   sideAxesVisible?: boolean;
+  /** Zones colorées entre la courbe et une référence (un niveau, ou le cours), réglées dans l'onglet Style : par
+   *  exemple un RSI vert au-dessus de 50 et rouge en dessous, ou une moyenne du volume remplie jusqu'à 0. */
+  fills?: IndicatorFill[];
 }

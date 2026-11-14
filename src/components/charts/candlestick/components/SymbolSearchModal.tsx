@@ -234,12 +234,7 @@ export function SymbolSearchModal({
                           : undefined
                     }
                   >
-                    <span
-                      className="lq-chart__symbol-search-logo"
-                      style={result.logoUrl ? undefined : { backgroundColor: result.logoColor ?? defaultSymbolLogoColor(i) }}
-                    >
-                      {result.logoUrl ? <img src={result.logoUrl} alt="" /> : result.ticker.slice(0, 2).toUpperCase()}
-                    </span>
+                    <SymbolSearchLogo result={result} fallbackColor={result.logoColor ?? defaultSymbolLogoColor(i)} />
                     <span className="lq-chart__symbol-search-ticker">{result.ticker}</span>
                     <span className="lq-chart__symbol-search-name">{result.name}</span>
                     <span className="lq-chart__symbol-search-source">
@@ -339,5 +334,18 @@ export function SymbolSearchModal({
         </Modal>
       )}
     </Modal>
+  );
+}
+
+/** Logo d'une ligne : l'image quand elle existe, sinon (absente ou introuvable) les initiales sur une pastille de
+ *  couleur — jamais une image cassée. */
+function SymbolSearchLogo({ result, fallbackColor }: { result: SymbolSearchResult; fallbackColor: string }) {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => setFailed(false), [result.logoUrl]);
+  const showImage = !!result.logoUrl && !failed;
+  return (
+    <span className="lq-chart__symbol-search-logo" style={showImage ? undefined : { backgroundColor: fallbackColor }}>
+      {showImage ? <img src={result.logoUrl} alt="" loading="lazy" onError={() => setFailed(true)} /> : result.ticker.slice(0, 2).toUpperCase()}
+    </span>
   );
 }

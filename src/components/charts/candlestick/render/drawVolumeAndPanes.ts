@@ -4,6 +4,8 @@ import type { ChartCanvasStyle } from "../interfaces/ChartCanvasStyle.interface"
 import { snapPixel } from "../drawingGeometry";
 import { lineDashArray, drawDrawingText } from "../drawingRender";
 import { drawOwnPaneIndicatorSeries } from "./drawOwnPaneIndicatorSeries";
+import { drawIndicatorFills } from "./drawIndicatorFills";
+import { VOLUME_PANE_ID } from "../attachedIndicators";
 
 /** Phase 3 of `renderCandlestickChart`, painted outside the price section's own clip: the volume
  *  pane's bars and any "horizontal"/"ray" drawing anchored to it, each "own"-pane indicator's
@@ -89,6 +91,22 @@ export function drawVolumeAndPanes(ctx: CanvasRenderingContext2D, params: Render
           ctx.fill();
         }
         ctx.globalAlpha = 1;
+        // Moyennes posées sur le volume (clic droit sur le panneau) : leurs zones colorées, puis leur ligne.
+        for (const attached of visibleIndicators) {
+          if (attached.indicator.sourceId !== VOLUME_PANE_ID || attached.indicator.hidden || attached.points.length < 2) continue;
+          drawIndicatorFills(ctx, attached.indicator, attached.points, zoomedXScale, zoomedVolumeScale);
+          ctx.strokeStyle = attached.indicator.color ?? defaultIndicatorColor(indicators.indexOf(attached.indicator));
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([]);
+          ctx.beginPath();
+          attached.points.forEach((p, k) => {
+            const x = zoomedXScale(p.i + 0.5);
+            const y = zoomedVolumeScale(p.value as number);
+            if (k === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+          });
+          ctx.stroke();
+        }
         if (hoverVolumeY !== null) {
           ctx.strokeStyle = colorMuted;
           ctx.lineWidth = 1;
@@ -168,6 +186,7 @@ export function drawVolumeAndPanes(ctx: CanvasRenderingContext2D, params: Render
       // Indicateurs posés sur ce panneau (une SMA du RSI…) : sur la même échelle, par-dessus sa série.
       for (const attached of visibleIndicators) {
         if (attached.indicator.sourceId !== ind.id || attached.indicator.hidden || attached.points.length < 2) continue;
+        drawIndicatorFills(ctx, attached.indicator, attached.points, zoomedXScale, scale);
         ctx.strokeStyle = attached.indicator.color ?? defaultIndicatorColor(indicators.indexOf(attached.indicator));
         ctx.lineWidth = 1.5;
         ctx.setLineDash([]);

@@ -1,4 +1,5 @@
 import { Checkbox } from "../../../forms/Checkbox";
+import { IndicatorFillsEditor } from "./IndicatorFillsEditor";
 import { InputNumber } from "../../../forms/InputNumber";
 import { Select } from "../../../forms/Select";
 import type { Indicator } from "../interfaces/Indicator.interface";
@@ -752,6 +753,7 @@ export function IndicatorSettingsStyle({ indicatorDraft, setIndicatorDraft, indi
           />
         </div>
       )}
+      <IndicatorFillsEditor indicator={indicatorDraft} onChange={(fills) => setIndicatorDraft({ ...indicatorDraft, fills })} />
     </>
   );
 }

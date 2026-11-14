@@ -14,6 +14,8 @@ export const ATTACHABLE_KINDS: { kind: IndicatorKind; label: string }[] = [
   { kind: "wma", label: "moyenne mobile pondérée (WMA)" },
 ];
 export const ATTACHED_DEFAULT_PERIOD = 14;
+/** `sourceId` d'une moyenne posée sur le panneau Volume (clic droit sur le volume). */
+export const VOLUME_PANE_ID = "volume";
 
 /** La valeur principale d'un point d'indicateur, celle sur laquelle une moyenne a un sens : le nombre lui-même, la
  *  ligne MACD, l'ADX, le milieu d'une bande, ou la première série d'un panneau à plusieurs séries. */
@@ -83,11 +85,14 @@ export function movingAverageOn(kind: IndicatorKind, period: number, series: (nu
 export function withAttachedValues(
   indicators: Indicator[],
   compute: (indicator: Indicator) => (IndicatorValue | null)[],
+  /** Volume de chaque bougie : la série d'une moyenne posée sur le panneau Volume (`sourceId: "volume"`). */
+  volumes?: (number | null)[],
 ): { indicator: Indicator; values: (IndicatorValue | null)[] }[] {
   const plain = new Map<string, (IndicatorValue | null)[]>();
   for (const ind of indicators) if (!ind.sourceId) plain.set(ind.id, compute(ind));
   return indicators.map((indicator) => {
     if (!indicator.sourceId) return { indicator, values: plain.get(indicator.id) ?? [] };
+    if (indicator.sourceId === VOLUME_PANE_ID) return { indicator, values: volumes ? movingAverageOn(indicator.kind, indicator.period, volumes) : [] };
     const source = plain.get(indicator.sourceId);
     if (!source) return { indicator, values: [] };
     return { indicator, values: movingAverageOn(indicator.kind, indicator.period, source.map(mainValue)) };

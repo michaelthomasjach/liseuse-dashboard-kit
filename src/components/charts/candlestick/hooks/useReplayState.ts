@@ -124,6 +124,17 @@ export function useReplayState({ dataLength, containerRef }: UseReplayStateArgs)
     refollow();
   }
 
+  /** Mirrors another chart's replay (ChartWorkspace: every open chart replays together): the cutoff
+   *  moves to `index`, this chart stops choosing and stops its own clock — only the chart the user
+   *  drives plays, the others follow its date. */
+  function mirrorAt(index: number) {
+    setArmed(false);
+    setPreviewIndex(null);
+    setPlaying(false);
+    setCutoffIndex(Math.min(dataLength - 1, Math.max(0, index)));
+    refollow();
+  }
+
   /** « Suivre » : hands the view back to the auto-follow after the user panned away from the cutoff. */
   function follow() {
     refollow();
@@ -212,6 +223,7 @@ export function useReplayState({ dataLength, containerRef }: UseReplayStateArgs)
     speedAnchorRef,
     toggleArm,
     startAt,
+    mirrorAt,
     jumpTo,
     followKey,
     follow,

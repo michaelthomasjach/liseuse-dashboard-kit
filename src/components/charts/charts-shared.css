@@ -785,6 +785,31 @@ button.lq-chart__legend-item {
      column would only ever be as tall as its own content and "pushed to the bottom" would have
      nowhere to push to. */
   height: 100%;
+  box-sizing: border-box;
+  /* Trop court pour tous les outils : la colonne défile. La barre n'apparaît qu'au survol (voir plus bas). */
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+}
+
+.lq-chart__tools-rail:not(.lq-chart__tools-rail--horizontal) .lq-chart__tools-rail-items::-webkit-scrollbar {
+  width: 4px;
+}
+.lq-chart__tools-rail:not(.lq-chart__tools-rail--horizontal) .lq-chart__tools-rail-items::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 2px;
+}
+.lq-chart__tools-rail:not(.lq-chart__tools-rail--horizontal) .lq-chart__tools-rail-items:hover::-webkit-scrollbar-thumb {
+  background: var(--lq-color-border);
+}
+@supports not selector(::-webkit-scrollbar) {
+  .lq-chart__tools-rail:not(.lq-chart__tools-rail--horizontal) .lq-chart__tools-rail-items {
+    scrollbar-width: none;
+  }
+  .lq-chart__tools-rail:not(.lq-chart__tools-rail--horizontal) .lq-chart__tools-rail-items:hover {
+    scrollbar-width: thin;
+    scrollbar-color: var(--lq-color-border) transparent;
+  }
 }
 
 /* Extra breathing room between rail items on a coarse (touch) pointer — every button already
@@ -4135,4 +4160,83 @@ button.lq-chart__legend-item {
   border: none;
   border-radius: var(--lq-radius-sm);
   cursor: pointer;
+}
+
+/* Un bouton que l'assistant montre (outil montrer_un_bouton) : surligné et pulsant jusqu'à ce qu'on le survole ou
+   le touche. Tracé à l'intérieur du bouton (ombre en retrait) pour ne pas être rogné par une barre qui défile. */
+.lq-ui-highlight {
+  position: relative;
+  z-index: 5;
+  box-shadow: inset 0 0 0 2px var(--lq-color-accent), 0 0 0 3px color-mix(in srgb, var(--lq-color-accent) 35%, transparent);
+  background-color: color-mix(in srgb, var(--lq-color-accent) 22%, transparent) !important;
+  animation: lq-ui-highlight-pulse 1.1s ease-in-out infinite;
+}
+@keyframes lq-ui-highlight-pulse {
+  50% {
+    box-shadow: inset 0 0 0 2px var(--lq-color-accent), 0 0 0 6px color-mix(in srgb, var(--lq-color-accent) 15%, transparent);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lq-ui-highlight {
+    animation: none;
+  }
+}
+
+/* Onglet Style d'un indicateur : zones colorées entre la courbe et une référence. */
+.lq-chart__fills {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lq-space-2, 8px);
+  margin-top: var(--lq-space-3, 12px);
+  padding-top: var(--lq-space-3, 12px);
+  border-top: 1px solid var(--lq-color-border-subtle);
+}
+.lq-chart__fills-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.lq-chart__fills-hint {
+  font-size: 0.8rem;
+  color: var(--lq-color-text-muted, var(--lq-color-muted));
+}
+.lq-chart__fill {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lq-space-2, 8px);
+  padding: var(--lq-space-2, 8px) var(--lq-space-3, 12px);
+  border: 1px solid var(--lq-color-border-subtle);
+  border-radius: var(--lq-radius-md, 6px);
+}
+.lq-chart__fill-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: var(--lq-font-weight-semibold, 600);
+  font-size: 0.85rem;
+}
+.lq-chart__fill-side {
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: var(--lq-space-2, 8px);
+  flex: 1 1 0;
+}
+.lq-chart__fill-remove,
+.lq-chart__fill-add {
+  border: 1px solid var(--lq-color-border-subtle);
+  background: transparent;
+  color: inherit;
+  border-radius: var(--lq-radius-sm, 4px);
+  padding: 4px 10px;
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.lq-chart__fill-remove:hover,
+.lq-chart__fill-add:hover {
+  border-color: var(--lq-color-accent);
+}
+.lq-chart__fill-add {
+  align-self: flex-start;
 }

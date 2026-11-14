@@ -80,9 +80,9 @@ export interface CandlestickChartProps {
    *  de droite en porte un pour tout l'espace de travail. */
   captureButton?: boolean;
   /** Nom du symbole en filigrane au fond du graphique, et son opacité (0–1). Réglable dans les paramètres du
-   *  graphique ; `onWatermarkChange` pour l'enregistrer. Défaut : masqué, opacité 0,08. */
-  defaultWatermark?: { visible: boolean; opacity: number };
-  onWatermarkChange?: (watermark: { visible: boolean; opacity: number }) => void;
+   *  graphique ; `onWatermarkChange` pour l'enregistrer. Défaut : masqué, opacité 0,08, taille 100 (% de la taille par défaut). */
+  defaultWatermark?: { visible: boolean; opacity: number; size?: number };
+  onWatermarkChange?: (watermark: { visible: boolean; opacity: number; size?: number }) => void;
   /** Ligne d'informations en haut à gauche (symbole, type de bougies, OHLC) masquée — clic droit « Masquer ces
    *  informations », réglage aussi dans les paramètres. `onSymbolInfoHiddenChange` pour l'enregistrer. */
   defaultSymbolInfoHidden?: boolean;
@@ -148,6 +148,12 @@ export interface CandlestickChartProps {
    *  everything it derives from the candles (signals, statistics, panels outside the chart) as of that instant,
    *  while `data` itself stays complete (the replay is a visual cover over the chart). */
   onReplayChange?: (cutoff: Date | null) => void;
+  /** Replay driven by another chart (ChartWorkspace: all open charts replay together). Each new `seq` moves this
+   *  chart's replay to the last candle at or before `time` (ms), or ends it when `time` is null. */
+  syncedReplay?: { time: number | null; seq: number };
+  /** Fires when the user moves this chart's replay (start, step, play, date, exit) — never for a move that only
+   *  mirrored `syncedReplay`. `time` is the last revealed candle's date in ms, or null once the replay ends. */
+  onReplaySync?: (time: number | null) => void;
   /** Shows a left-docked toolbar for drawing annotations directly on the chart (currently: trend line). Default false. */
   drawingTools?: boolean;
   /** Uncontrolled initial set of trend-line drawings. */
@@ -557,6 +563,9 @@ export interface CandlestickChartProps {
    *  puts the button on its own tools rail — the only rail it has. */
   aiOpen?: boolean;
   onAiOpenChange?: (open: boolean) => void;
+  /** Element the docked assistant is rendered into instead of beside the chart (ChartWorkspace: a full-height
+   *  column of the workspace, so the assistant spans every panel rather than the first one's height). */
+  aiPortalTarget?: HTMLElement | null;
   /** Fires when the user clicks the "</>" shortcut on a script-produced indicator's own pane
    *  header (see `PaneHeaders.tsx`) — this chart has no editor of its own to open (see `scripts`'s
    *  own doc), so jumping to that script's own tab is entirely up to whichever caller does own the

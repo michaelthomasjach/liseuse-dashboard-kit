@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { IndicatorKind } from "./candlestick/interfaces/IndicatorKind.interface";
 import type { Indicator } from "./candlestick/interfaces/Indicator.interface";
 import { INDICATOR_SCRIPT_SOURCES } from "./candlestick/indicatorScriptSources";
@@ -21,6 +22,7 @@ import { useStrategyPanelState } from "./candlestick/hooks/useStrategyPanelState
 import { useAiChartContext } from "./candlestick/ai/useAiChartContext";
 import { useAiAssistant } from "./candlestick/ai/useAiAssistant";
 import { AiHost, type AiView } from "./candlestick/ai/components/AiHost";
+import { ChartWatermark } from "./candlestick/components/ChartWatermark";
 import { strategyAiRequest, type StrategyAiPrompt } from "./candlestick/strategy/strategyAiPrompts";
 import { anthropicSend } from "./candlestick/ai/anthropicSend";
 import { useHoverSync } from "./candlestick/hooks/useHoverSync";
@@ -156,6 +158,8 @@ export function CandlestickChart({
   seasonality = false,
   replay = false,
   onReplayChange,
+  syncedReplay,
+  onReplaySync,
   drawingTools = false,
   defaultDrawings,
   onDrawingsChange,
@@ -220,7 +224,7 @@ export function CandlestickChart({
   fillHeight = false,
   layout = "auto",
   sidePanel, defaultSidePanelOpen, onSidePanelOpenChange,
-  scripts, onScriptsChange, onScriptAlert, quantData, ai, aiOpen: aiOpenProp, onAiOpenChange, onEditScript, onCreateScript, onDeleteScript, onCreateStrategyFromIndicator, onScriptRunOutput, lastCandleOpen = false,
+  scripts, onScriptsChange, onScriptAlert, quantData, ai, aiOpen: aiOpenProp, onAiOpenChange, aiPortalTarget, onEditScript, onCreateScript, onDeleteScript, onCreateStrategyFromIndicator, onScriptRunOutput, lastCandleOpen = false,
   margin,
   className,
 }: CandlestickChartProps) {
@@ -506,10 +510,11 @@ export function CandlestickChart({
   // Rappel de la zone visible de l'en-tête pour un zoom (renseigné une fois useBarRangeSelection appelé).
   const rangeXZoomRef = useRef<(() => void) | null>(null);
   // Filigrane du symbole et ligne d'informations : réglages du lecteur, rendus à l'application pour qu'elle les garde.
-  const [watermark, setWatermarkState] = useState(() => ({ visible: defaultWatermark?.visible ?? false, opacity: defaultWatermark?.opacity ?? 0.08 }));
-  const setWatermark = (next: { visible: boolean; opacity: number }) => {
-    setWatermarkState(next);
-    onWatermarkChange?.(next);
+  const [watermark, setWatermarkState] = useState(() => ({ visible: defaultWatermark?.visible ?? false, opacity: defaultWatermark?.opacity ?? 0.08, size: defaultWatermark?.size ?? 100 }));
+  const setWatermark = (next: { visible: boolean; opacity: number; size?: number }) => {
+    const full = { ...next, size: next.size ?? 100 };
+    setWatermarkState(full);
+    onWatermarkChange?.(full);
   };
   const [symbolInfoHidden, setSymbolInfoHiddenState] = useState(defaultSymbolInfoHidden);
   // Séparateurs de jours (rail de gauche) : réglages du lecteur, rendus à l'application.
@@ -555,6 +560,7 @@ export function CandlestickChart({
       // Sous les prix : le panneau d'indicateur cliqué, s'il y en a un (pour y poser une moyenne).
       ...(() => {
         if (plotY <= priceHeight) return {};
+        if (volumeVisible && !volumeCollapsed && plotY >= priceHeight + volumeTop && plotY < priceHeight + volumeTop + volumeHeight) return { volumePane: true };
         const at = ownPaneIndicators.findIndex((_, i) => plotY >= priceHeight + indicatorPaneTops[i] && plotY < priceHeight + indicatorPaneTops[i] + indicatorPaneHeights[i]);
         const pane = at >= 0 ? ownPaneIndicators[at] : undefined;
         if (!pane) return {};
@@ -859,6 +865,23 @@ export function CandlestickChart({
   // Render-only concat — script signals stay out of the *interactive* `visibleDrawings` every
   // pointer-handler in useDrawingInteractions below still reads (they're read-only in v1, no
   // select/drag/double-click-edit), only the canvas draw pass (ChartPlotOverlays) sees this one.
+  // Suppr (ou Retour arrière) sur un indicateur sélectionné : il est retiré, et sa sélection avec.
+  useEffect(() => {
+    if (selectedIndicatorId === null) return;
+    const id = selectedIndicatorId;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key !== "Delete" && e.key !== "Backspace") return;
+      const active = document.activeElement;
+      if (active instanceof HTMLElement && (active.tagName === "INPUT" || active.tagName === "TEXTAREA" || active.tagName === "SELECT" || active.isContentEditable)) return;
+      if (!indicators.some((i) => i.id === id)) return;
+      e.preventDefault();
+      removeIndicator(id);
+      setSelectedIndicatorId(null);
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [selectedIndicatorId, indicators, removeIndicator, setSelectedIndicatorId]);
+
   const combinedVisibleDrawings = useMemo(
     () => [
       ...visibleDrawings,
@@ -907,6 +930,11 @@ export function CandlestickChart({
     const hi = Math.max(lo, n - 1 - Math.max(20, Math.floor(n * 0.05)));
     const index = lo + Math.floor(Math.random() * (hi - lo + 1));
     replayState.startAt(index);
+    frameReplayAt(index);
+  };
+  /** Frames the view around a replay cutoff at the current zoom, the cutoff about three quarters of the way across. */
+  function frameReplayAt(index: number) {
+    const n = data.length;
     const span = Math.max(30, visibleRange.end - visibleRange.start);
     const x0 = xScale(Math.max(0, index - span * 0.75));
     const x1 = xScale(Math.min(n, index + span * 0.25));
@@ -915,7 +943,7 @@ export function CandlestickChart({
       setXTransformAnimated(new d3.ZoomTransform(k, -k * x0, 0));
       setYManuallyAdjusted(false);
     }
-  };
+  }
   // Replay cutoff reported to the app (see `onReplayChange`): the date of the last revealed candle, or null outside a
   // replay. Keyed on the time value so a re-render with the same cutoff never re-reports it.
   const replayCutoffTime =
@@ -924,6 +952,52 @@ export function CandlestickChart({
   onReplayChangeRef.current = onReplayChange;
   useEffect(() => {
     onReplayChangeRef.current?.(replayCutoffTime === null ? null : new Date(replayCutoffTime));
+  }, [replayCutoffTime]);
+  // Replay shared between the charts of a workspace. A move received from another chart (`syncedReplay`) is
+  // applied here and remembered in `mirroredReplayRef`, so the report effect below does not send it back.
+  const mirroredReplayRef = useRef<number | null | undefined>(undefined);
+  const lastReplaySeqRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!syncedReplay || syncedReplay.seq === lastReplaySeqRef.current) return;
+    lastReplaySeqRef.current = syncedReplay.seq;
+    const t = syncedReplay.time;
+    if (t === null) {
+      if (replayState.active || replayState.armed) {
+        mirroredReplayRef.current = null;
+        replayState.quit();
+      }
+      return;
+    }
+    if (data.length === 0) return;
+    let lo = 0;
+    let hi = data.length - 1;
+    let idx = 0;
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1;
+      if (data[mid].date.getTime() <= t) {
+        idx = mid;
+        lo = mid + 1;
+      } else hi = mid - 1;
+    }
+    const time = data[idx].date.getTime();
+    if (replayCutoffTime === time && !replayState.playing && !replayState.armed) return;
+    mirroredReplayRef.current = time;
+    replayState.mirrorAt(idx);
+    // Une date hors de la vue (un replay qui démarre ailleurs) : la vue s'y recadre. Pendant la lecture, la date
+    // avance d'une bougie à la fois et le suivi automatique suffit.
+    if (idx < visibleRange.start || idx > visibleRange.end) frameReplayAt(idx);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [syncedReplay?.seq]);
+  const onReplaySyncRef = useRef(onReplaySync);
+  onReplaySyncRef.current = onReplaySync;
+  const reportedReplayRef = useRef(replayCutoffTime);
+  useEffect(() => {
+    if (reportedReplayRef.current === replayCutoffTime) return;
+    reportedReplayRef.current = replayCutoffTime;
+    const mirrored = mirroredReplayRef.current;
+    mirroredReplayRef.current = undefined;
+    if (mirrored !== undefined && mirrored === replayCutoffTime) return;
+    onReplaySyncRef.current?.(replayCutoffTime);
   }, [replayCutoffTime]);
 
   // The closing price marked permanently on the price axis (see ChartHoverBadges' own `lastClose`).
@@ -1405,7 +1479,7 @@ export function CandlestickChart({
     onToolBridgeRef.current?.(createChartToolBridge(() => aiChartRef.current!));
     return () => onToolBridgeRef.current?.(null);
   }, [hasToolBridge]);
-  const aiChart = useAiChartContext({
+  const aiChartBase = useAiChartContext({
     symbol,
     timeframe,
     availableTimeframes: flattenTimeframeValues(timeframes),
@@ -1451,6 +1525,51 @@ export function CandlestickChart({
       : undefined,
     onEditScript,
   });
+  // Replay et filigrane pour l'assistant : lus au moment de l'appel (refs), pour garder `aiChart` stable.
+  const aiExtrasRef = useRef({ replayState, data, frameReplayAt, watermark, setWatermark, replayEnabled: replay });
+  aiExtrasRef.current = { replayState, data, frameReplayAt, watermark, setWatermark, replayEnabled: replay };
+  const aiChart = useMemo(
+    () => ({
+      ...aiChartBase,
+      ...(replay
+        ? {
+            startReplay: (at: Date | null) => {
+              const x = aiExtrasRef.current;
+              const n = x.data.length;
+              if (n < 2) return null;
+              let index: number;
+              if (at === null) {
+                const lo = Math.min(n - 2, Math.max(50, Math.floor(n * 0.2)));
+                const hi = Math.max(lo, n - 1 - Math.max(20, Math.floor(n * 0.05)));
+                index = lo + Math.floor(Math.random() * (hi - lo + 1));
+              } else {
+                const t = at.getTime();
+                index = 0;
+                for (let k = n - 1; k >= 0; k--)
+                  if (x.data[k].date.getTime() <= t) {
+                    index = k;
+                    break;
+                  }
+              }
+              x.replayState.startAt(index);
+              x.frameReplayAt(index);
+              return x.data[index].date;
+            },
+            quitReplay: () => aiExtrasRef.current.replayState.quit(),
+            replayCutoff: () => {
+              const x = aiExtrasRef.current;
+              return x.replayState.active && x.replayState.cutoffIndex !== null ? (x.data[Math.min(x.replayState.cutoffIndex, x.data.length - 1)]?.date ?? null) : null;
+            },
+          }
+        : {}),
+      watermark: () => aiExtrasRef.current.watermark,
+      setWatermark: (patch: Partial<{ visible: boolean; opacity: number; size: number }>) => {
+        const x = aiExtrasRef.current;
+        x.setWatermark({ ...x.watermark, ...patch });
+      },
+    }),
+    [aiChartBase, replay],
+  );
   aiChartRef.current = aiChart;
 
   // A second assistant, separate from the panel's own, for the strategy card's written-out
@@ -1833,13 +1952,15 @@ export function CandlestickChart({
         {!isMobileRail && toolsRail}
         {/* Filigrane : le nom du symbole au fond du panneau des prix, derrière le canevas (transparent) qui suit. */}
         {watermark.visible && symbol && priceHeight > 0 && (
-          <div
-            className="lq-chart__watermark"
-            aria-hidden="true"
-            style={{ left: dims.margin.left, top: dims.margin.top, width: dims.boundedWidth, height: priceHeight, opacity: watermark.opacity }}
-          >
-            <span style={{ fontSize: Math.max(24, Math.min(dims.boundedWidth / Math.max(4, symbol.length * 0.62), priceHeight * 0.32, 160)) }}>{symbol}</span>
-          </div>
+          <ChartWatermark
+            text={symbol}
+            left={dims.margin.left}
+            top={dims.margin.top}
+            width={dims.boundedWidth}
+            height={priceHeight}
+            opacity={watermark.opacity}
+            size={watermark.size}
+          />
         )}
         {/* Fixed to the plot's own top-left corner regardless of priceHeight — without this gate
             it would still render, and overlap, once a pane's own maximize button zeroes it out. */}
@@ -1854,7 +1975,7 @@ export function CandlestickChart({
             dims={dims}
             symbol={symbol}
             symbolSearch={symbolSearch}
-            onSymbolClick={onSymbolClick}
+            onSymbolClick={onSymbolClick ?? (onSymbolSelect ? () => openSymbolSearch("select") : undefined)}
             symbolClickActive={symbolClickActive}
             setSymbolSearchOpen={setSymbolSearchOpen}
             setSettingsOpen={setSettingsOpen}
@@ -2374,7 +2495,8 @@ export function CandlestickChart({
       {/* Outside `.lq-chart__main`, beside the docked side panel: the assistant is a column of the
           chart row, so flexbox hands the plot whatever width is left and every measurement
           downstream picks up the narrower box for free — the same arrangement `sidePanel` uses. */}
-      {ai && (
+      {ai && (() => {
+        const aiHost = (
         <AiHost
           panelProps={{
             open: aiOpen,
@@ -2394,7 +2516,9 @@ export function CandlestickChart({
           themeSource={mainRef.current?.closest(".lq-root") as HTMLElement | null}
           mobile={isNarrowLayout}
         />
-      )}
+        );
+        return aiPortalTarget && !isNarrowLayout && aiView === "docked" ? createPortal(aiHost, aiPortalTarget) : aiHost;
+      })()}
     </div>
   );
 }

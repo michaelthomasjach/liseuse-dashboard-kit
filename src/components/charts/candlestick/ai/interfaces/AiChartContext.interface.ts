@@ -51,4 +51,15 @@ export interface AiChartContext {
   /** Opens a script in the editor, so "j'ai écrit la stratégie" ends with it on screen rather
    *  than merely saved. */
   openScript: ((id: string) => void) | undefined;
+
+  /** Replay (quand le graphique le propose) : démarre à la dernière bougie à cette date ou avant (null : un instant
+   *  tiré au hasard) et renvoie la date retenue, ou null sans données. Dans un espace de travail, toutes les
+   *  fenêtres suivent. */
+  startReplay?: (at: Date | null) => Date | null;
+  quitReplay?: () => void;
+  /** Date de la dernière bougie révélée par le replay en cours, null hors replay. */
+  replayCutoff?: () => Date | null;
+  /** Filigrane du symbole (taille en % de la taille par défaut, opacité de 0 à 1). */
+  watermark?: () => { visible: boolean; opacity: number; size: number };
+  setWatermark?: (patch: Partial<{ visible: boolean; opacity: number; size: number }>) => void;
 }

@@ -1095,6 +1095,12 @@
   align-items: center;
   gap: 4px;
   flex: 0 0 auto;
+  /* Trop court pour tous ses boutons : il défile. La barre de défilement n'apparaît qu'au survol, et seulement
+     s'il y a quelque chose à faire défiler (voir aussi .lq-chart__tools-rail-items). */
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
   box-sizing: border-box;
   padding: 4px;
   /* Top and bottom, like the charts and the panel beside it. Without them the rail ran edge to
@@ -1120,8 +1126,42 @@
 /* Applied to a panel's own `.lq-chart` (see ChartWorkspace's cloneElement) while its checkbox is
    checked in the "Graphiques liés" modal — an inset ring rather than swapping the existing 1px
    border so it doesn't nudge the panel's own layout by even a pixel while toggling on/off. */
-.lq-chart-workspace__panel--selected {
-  box-shadow: inset 0 0 0 2px var(--lq-color-accent);
+/* Drawn by a pseudo-element above the panel's own content: an inset box-shadow sat *under* the header, the
+   plot and the axes (each paints its own background), so only a sliver along the bottom edge showed. This
+   one runs round the whole chart and lets every click through. */
+.lq-chart-workspace__panel--selected::after,
+.lq-chart-workspace__panel--active::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2000;
+  box-sizing: border-box;
+}
+
+.lq-chart-workspace__panel--selected::after {
+  border: 2px solid var(--lq-color-accent);
+}
+
+/* La fenêtre active (dernière cliquée) : un liseré discret, plus léger que la sélection ci-dessus. */
+.lq-chart-workspace__panel--active:not(.lq-chart-workspace__panel--selected)::after {
+  border: 1px solid color-mix(in srgb, var(--lq-color-accent) 55%, transparent);
+}
+
+/* Colonne pleine hauteur de l'assistant ancré (rempli par un portail, vide quand il est fermé). */
+.lq-chart-workspace__ai-slot {
+  display: flex;
+  flex: 0 0 auto;
+  min-height: 0;
+}
+.lq-chart-workspace__ai-slot:empty {
+  display: none;
+}
+.lq-chart-workspace__ai-slot > .lq-ai {
+  border-left: none;
+  border-top: 1px solid var(--lq-color-border-subtle);
+  border-bottom: 1px solid var(--lq-color-border-subtle);
+  box-sizing: border-box;
 }
 
 /* While one panel waits for a symbol from the list (its symbol name was clicked — see
@@ -2236,4 +2276,25 @@
 }
 .lq-chart-workspace__watchlist-section-avg--down {
   color: var(--lq-color-negative, #ef4444);
+}
+
+/* Barre de défilement des rails (outils à gauche, rail de droite) : invisible tant qu'on ne survole pas. */
+.lq-chart-workspace__side-rail::-webkit-scrollbar {
+  width: 4px;
+}
+.lq-chart-workspace__side-rail::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 2px;
+}
+.lq-chart-workspace__side-rail:hover::-webkit-scrollbar-thumb {
+  background: var(--lq-color-border);
+}
+@supports not selector(::-webkit-scrollbar) {
+  .lq-chart-workspace__side-rail {
+    scrollbar-width: none;
+  }
+  .lq-chart-workspace__side-rail:hover {
+    scrollbar-width: thin;
+    scrollbar-color: var(--lq-color-border) transparent;
+  }
 }

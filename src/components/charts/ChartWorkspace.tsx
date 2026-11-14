@@ -304,6 +304,10 @@ export interface ChartWorkspaceProps {
    *  Default false. */
   scripting?: boolean;
   defaultScripts?: ScriptDef[];
+  /** Demande d'ouverture venue de l'application (par exemple le clic sur la notification « Réponse de l'assistant
+   *  prête ») : chaque nouveau `seq` ouvre l'assistant (`assistant`) et, si `scriptId` existe, l'éditeur de script sur
+   *  cet onglet. Un script pas encore chargé est ouvert dès qu'il arrive. */
+  focusRequest?: { seq: number; assistant?: boolean; scriptId?: string | null };
   onScriptsChange?: (scripts: ScriptDef[]) => void;
   onScriptAlert?: (event: ScriptAlertEvent) => void;
   className?: string;
@@ -370,6 +374,7 @@ export function ChartWorkspace({
   brokers,
   brokerPnlToday,
   defaultScripts,
+  focusRequest,
   onScriptsChange,
   onScriptAlert,
   className,
@@ -429,10 +434,18 @@ export function ChartWorkspace({
   // Clamped against the current `panels` count at read time (just below) rather than reset via an
   // effect — simpler, and a panel count change can never leave it referencing a since-removed panel.
   const [focusedPanelIndex, setFocusedPanelIndex] = useState<number | null>(null);
+  // Colonne pleine hauteur où l'assistant ancré est rendu (voir plus bas).
+  const [aiSlot, setAiSlot] = useState<HTMLDivElement | null>(null);
   // One shared script list (and one shared editor) for the whole workspace — see
   // ChartWorkspaceProps.scripting's own doc for why this lives here rather than inside any one
   // panel. Uncontrolled at this level (nothing above ChartWorkspace itself needs to drive it).
   const workspaceScripting = useScriptingState({ defaultScripts, onScriptsChange });
+  useEffect(() => {
+    const id = pendingFocusScriptRef.current;
+    if (!id || !workspaceScripting.scripts.some((s) => s.id === id)) return;
+    pendingFocusScriptRef.current = null;
+    workspaceScripting.openScript(id);
+  });
   // Les listes du panneau de droite, proposées aussi dans la recherche de symbole de chaque fenêtre
   // (bouton du symbole affiché) : chaque liste avec tous ses symboles, sections comprises.
   // Recalculées seulement quand le contenu des listes change (noms, symboles, logos) : un hôte reconstruit
@@ -516,6 +529,21 @@ export function ChartWorkspace({
   // that opens it lives on the workspace's own rail, so the workspace is what knows whether it is
   // open — and one shared value means two panels can never both show an assistant.
   const [assistantOpen, setAssistantOpen] = useState(false);
+  // focusRequest : l'assistant tout de suite, le script dès qu'il est dans la liste.
+  const handledFocusSeqRef = useRef<number | null>(null);
+  const pendingFocusScriptRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!focusRequest || focusRequest.seq === handledFocusSeqRef.current) return;
+    handledFocusSeqRef.current = focusRequest.seq;
+    if (focusRequest.assistant && ai) setAssistantOpen(true);
+    pendingFocusScriptRef.current = focusRequest.scriptId ?? null;
+    const id = pendingFocusScriptRef.current;
+    if (id && workspaceScripting.scripts.some((s) => s.id === id)) {
+      pendingFocusScriptRef.current = null;
+      workspaceScripting.openScript(id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusRequest?.seq]);
 
   // One connection for the whole workspace, not one per panel: a broker is connected to an account,
   // and an account is not a chart. The hook owns the session, the accounts, the modes, the ceilings
@@ -564,7 +592,6 @@ export function ChartWorkspace({
     selectWatchlist,
     selectWatchlistTab,
     toggleTab,
-    openWatchlist,
     addSymbolRequestId,
     requestAddSymbol,
     mobileProfileTicker,
@@ -641,12 +668,22 @@ export function ChartWorkspace({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [activeSymbolTarget]);
   const clearSymbolTarget = useCallback(() => setSymbolTargetPanel(null), []);
-  /** A panel's own symbol name, clicked: the list opens (never closes — see `openWatchlist`) and,
-   *  with several panels, this one becomes the one waiting for a symbol. */
-  function pickSymbolFor(panelIndex: number) {
-    if (panels >= 2) setSymbolTargetPanel(panelIndex);
-    openWatchlist();
+
+  // La fenêtre active : la dernière sur laquelle on a cliqué. Un léger liseré l'entoure (dès deux fenêtres), et la
+  // fenêtre « Ouvrir dans » la propose directement (« Fenêtre active (…) »).
+  const [activePanel, setActivePanel] = useState(0);
+  const effectiveActivePanel = activePanel < panels ? activePanel : 0;
+  function panelIndexOfEvent(e: React.PointerEvent<HTMLDivElement>): number | null {
+    let node = e.target as Element | null;
+    while (node && node.parentElement !== e.currentTarget) node = node.parentElement;
+    if (!node || !node.classList.contains("lq-chart")) return null;
+    const index = Array.prototype.indexOf.call(e.currentTarget.children, node);
+    return index >= 0 ? index : null;
   }
+
+  // Replay partagé : quand on lance, fait avancer ou quitte le replay d'une fenêtre, toutes les autres suivent la
+  // même date (la dernière bougie à cette date ou avant, selon leur unité de temps).
+  const [replaySync, setReplaySync] = useState<{ source: number; time: number | null; seq: number } | null>(null);
   /** Pressing anywhere in *another* panel ends the wait: that click is about working on that chart
    *  (zooming, drawing), and leaving the fade on over it would get in the way. Its symbol name is the
    *  exception, and needs nothing here: the click that follows makes it the new target. Presses in the
@@ -855,6 +892,8 @@ export function ChartWorkspace({
         data-grid-layout={currentGridLayout.id}
         onPointerDown={(e) => {
           endSymbolTargetFromGrid(e);
+          const pressed = panelIndexOfEvent(e);
+          if (pressed !== null && pressed !== activePanel) setActivePanel(pressed);
           lockHold.start(e);
         }}
         onPointerMove={lockHold.track}
@@ -931,6 +970,7 @@ export function ChartWorkspace({
               [
                 child.props.className,
                 selectedPanels.includes(i) && "lq-chart-workspace__panel--selected",
+                panels >= 2 && effectiveActivePanel === i && "lq-chart-workspace__panel--active",
                 effectiveFocusedPanelIndex === i && "lq-chart-workspace__panel--focused",
                 activeSymbolTarget !== null && activeSymbolTarget !== i && "lq-chart-workspace__panel--dimmed",
               ]
@@ -964,7 +1004,7 @@ export function ChartWorkspace({
             // Le pont des outils, comme l'assistant : au seul graphique au premier plan.
             onToolBridge: onToolBridge && i === (effectiveFocusedPanelIndex ?? 0) ? onToolBridge : undefined,
             ...(ai && i === (effectiveFocusedPanelIndex ?? 0)
-              ? { ai, aiOpen: assistantOpen, onAiOpenChange: setAssistantOpen }
+              ? { ai, aiOpen: assistantOpen, onAiOpenChange: setAssistantOpen, aiPortalTarget: isMobileWorkspace ? undefined : aiSlot }
               : { ai: undefined }),
             timeframe: i in timeframeByPanel ? timeframeByPanel[i] : child.props.timeframe,
             onTimeframeChange: (value: string) => {
@@ -1005,12 +1045,14 @@ export function ChartWorkspace({
             // only once there is a list to open; without one the name keeps whatever the template
             // child asked for (`symbolSearch`'s double-click, or plain text). A template's own
             // `onSymbolClick` still hears the click.
-            onSymbolClick: hasWatchlists
-              ? () => {
-                  pickSymbolFor(i);
-                  child.props.onSymbolClick?.();
-                }
-              : child.props.onSymbolClick,
+            // Le nom du symbole (légende) ouvre la recherche de symbole de cette fenêtre : le symbole choisi s'applique
+            // à cette fenêtre (voir `onSymbolSelect` ci-dessus). Sans `onSymbolClick` du modèle, le graphique le fait.
+            onSymbolClick: child.props.onSymbolClick,
+            syncedReplay: panels >= 2 && replaySync && replaySync.source !== i ? { time: replaySync.time, seq: replaySync.seq } : undefined,
+            onReplaySync:
+              panels >= 2
+                ? (time: number | null) => setReplaySync((prev) => ({ source: i, time, seq: (prev?.seq ?? 0) + 1 }))
+                : undefined,
             symbolClickActive: activeSymbolTarget === i || !!child.props.symbolClickActive,
             // `ChartWorkspace`'s own `watchlists`/`alerts` (above) are the single source of truth
             // once a chart is composed into a workspace — a docked panel is a "whole view" concept,
@@ -1048,6 +1090,10 @@ export function ChartWorkspace({
           </div>
         )}
       </div>
+
+      {/* L'assistant, quand il est ancré : une colonne de toute la hauteur, à droite des fenêtres (voir
+          `CandlestickChartProps.aiPortalTarget`), au lieu de la seule hauteur de la première fenêtre. */}
+      {ai && !isMobileWorkspace && <div ref={setAiSlot} className="lq-chart-workspace__ai-slot" />}
 
       {(hasWatchlists || hasAlerts) && sidePanelState.open && (
         <ChartSidePanel
@@ -1397,6 +1443,7 @@ export function ChartWorkspace({
         panelSymbols={panelElements.map((child, i) => resolvedSymbol(i, child))}
         onConfirm={confirmSymbolTarget}
         onSelectedPanelsChange={setSelectedPanels}
+        activePanel={effectiveActivePanel}
       />
 
       {scripting &&

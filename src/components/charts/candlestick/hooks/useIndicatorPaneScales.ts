@@ -52,7 +52,7 @@ export function useIndicatorPaneScales({
   // Expensive (O(data.length) per indicator) — recomputed only when the data or the indicator
   // list itself changes, never on pan/zoom (which would otherwise redo this every frame).
   const indicatorValues = useMemo(
-    () => withAttachedValues(indicators, (indicator) => computeIndicatorValues(data, indicator, fundamentals)),
+    () => withAttachedValues(indicators, (indicator) => computeIndicatorValues(data, indicator, fundamentals), data.map((d) => d.volume ?? null)),
     [data, indicators, fundamentals]
   );
 

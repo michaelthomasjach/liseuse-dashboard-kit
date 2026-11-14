@@ -135,8 +135,12 @@
   max-width: 92%;
 }
 
+/* La réponse : le même fond que la question, assombri, et un filet — on distingue d'un coup d'œil qui parle, sans
+   couleur vive à côté du graphique. Assombri par un voile noir léger posé sur ce fond (pas le texte) : un cran plus foncé en thème clair comme sombre. */
 .lq-ai__message--assistant {
-  background-color: color-mix(in srgb, var(--lq-color-text) 3.5%, transparent);
+  background-color: var(--lq-color-hover);
+  background-image: linear-gradient(rgb(0 0 0 / 8%), rgb(0 0 0 / 8%));
+  border: 1px solid var(--lq-color-border-subtle);
   color: var(--lq-color-text);
 }
 

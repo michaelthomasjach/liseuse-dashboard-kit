@@ -3,7 +3,7 @@ import type { ChartCustomTool } from "../interfaces/ChartCustomTool.interface";
 import type { RefObject, Dispatch, SetStateAction } from "react";
 import { Popover } from "../../../forms/Popover";
 import { Checkbox } from "../../../forms/Checkbox";
-import { ChevronDownIcon, MagnetIcon, EyeIcon, EyeOffIcon, TimeframeLayersIcon, LockIcon, BellIcon, LayersIcon, ZoomInIcon, ZoomOutIcon, InfoIcon, GaugeIcon, MaximizeIcon, MinimizeIcon } from "../../../icons";
+import { ChevronDownIcon, MagnetIcon, EyeIcon, EyeOffIcon, TimeframeLayersIcon, DaySeparatorsIcon, LockIcon, BellIcon, LayersIcon, ZoomInIcon, ZoomOutIcon, InfoIcon, GaugeIcon, MaximizeIcon, MinimizeIcon } from "../../../icons";
 import { ToolCategorySheet } from "./ToolCategorySheet";
 import type { DrawingToolType } from "../interfaces/DrawingToolType.interface";
 import { DRAWING_TOOL_CATEGORIES } from "../drawingCatalog";
@@ -43,6 +43,10 @@ export interface ToolsRailProps {
   /** Option « propres à l'unité de temps » (bouton absent sans `onToggleTimeframeScoped`). */
   timeframeScoped?: boolean;
   onToggleTimeframeScoped?: () => void;
+  /** Séparateurs de jours : allumés, la bascule (clic) et leurs réglages (clic droit). Absents : pas de bouton. */
+  daySeparatorsEnabled?: boolean;
+  onToggleDaySeparators?: () => void;
+  onOpenDaySeparatorsSettings?: () => void;
   setDrawingsHidden: Dispatch<SetStateAction<boolean>>;
   drawingsLocked: boolean;
   setDrawingsLocked: Dispatch<SetStateAction<boolean>>;
@@ -112,6 +116,9 @@ export function ToolsRail({
   setDrawingsHidden,
   timeframeScoped = false,
   onToggleTimeframeScoped,
+  daySeparatorsEnabled = false,
+  onToggleDaySeparators,
+  onOpenDaySeparatorsSettings,
   drawingsLocked,
   setDrawingsLocked,
   zoomable,
@@ -217,6 +224,25 @@ export function ToolsRail({
           const menuOpen = openToolMenu === category.id;
           return (
             <Fragment key={category.id}>
+              {/* Séparateurs de jours, juste au-dessus de l'outil Texte : clic pour les afficher, clic droit pour leurs
+                  réglages (placement du nom du jour, couleurs, style des traits, opacité). */}
+              {category.id === "textNotes" && onToggleDaySeparators && (
+                <button
+                  type="button"
+                  className={["lq-chart__icon-button", daySeparatorsEnabled && "lq-chart__icon-button--active"].filter(Boolean).join(" ")}
+                  onClick={onToggleDaySeparators}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onOpenDaySeparatorsSettings?.();
+                  }}
+                  aria-pressed={daySeparatorsEnabled}
+                  aria-label="Séparateurs de jours"
+                  title="Séparateurs de jours (clic droit : réglages)"
+                >
+                  <DaySeparatorsIcon size={14} />
+                </button>
+              )}
               <div className="lq-chart__tool-group">
               {/* Two different jobs behind one button, by layout. Vertical rail: it *is* the tool
                   — click activates whatever the category currently represents, and the chevron

@@ -137,6 +137,8 @@ export { CHART_AI_TOOL_DEFINITIONS } from "./candlestick/ai/aiTools";
 // Pont des outils du graphique pour un pilote extérieur (ex. serveur MCP), et boutons d'application du rail.
 export type { ChartToolBridge } from "./candlestick/ai/chartToolBridge";
 export type { WorkspaceRailAction } from "./workspace/WorkspaceSideRail";
+export type { DaySeparatorSettings } from "./candlestick/daySeparators";
+export { DEFAULT_DAY_SEPARATORS } from "./candlestick/daySeparators";
 // Conversations de l'assistant, gardées par l'application (CandlestickChartProps.ai.conversations).
 export type { AiConversation, AiConversationStore } from "./candlestick/ai/useAiAssistant";
 export { captureChartBlob, captureChartCanvas, captureFileName } from "./candlestick/captureChart";

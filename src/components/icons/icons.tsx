@@ -568,6 +568,16 @@ export const TimeframeLayersIcon = (props: AnimatedIconProps) => (
 );
 
 /** Model Context Protocol : trois boucles entrelacées, à la manière de son logo. */
+/** Séparateurs de jours : deux traits verticaux en tirets et une étiquette entre eux. */
+export const DaySeparatorsIcon = (props: AnimatedIconProps) => (
+  <IconBase motion="pulse" {...props}>
+    <path d="M5 3.5v17" strokeDasharray="2.5 2" />
+    <path d="M19 3.5v17" strokeDasharray="2.5 2" />
+    <path d="M8.5 7h7" />
+    <path d="M10 10.5h4" />
+  </IconBase>
+);
+
 export const McpIcon = (props: AnimatedIconProps) => (
   <IconBase motion="pulse" {...props}>
     <path d="M4 11.5 11 4.5a2.8 2.8 0 0 1 4 4L9 14.5" />

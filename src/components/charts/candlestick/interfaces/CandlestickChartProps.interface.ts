@@ -86,6 +86,9 @@ export interface CandlestickChartProps {
   /** Ligne d'informations en haut à gauche (symbole, type de bougies, OHLC) masquée — clic droit « Masquer ces
    *  informations », réglage aussi dans les paramètres. `onSymbolInfoHiddenChange` pour l'enregistrer. */
   defaultSymbolInfoHidden?: boolean;
+  /** Séparateurs de jours (outil du rail de gauche) et leurs réglages ; `onDaySeparatorsChange` pour les garder. */
+  defaultDaySeparators?: Partial<import("../daySeparators").DaySeparatorSettings>;
+  onDaySeparatorsChange?: (settings: import("../daySeparators").DaySeparatorSettings) => void;
   onSymbolInfoHiddenChange?: (hidden: boolean) => void;
   /** Reçoit le pont des outils de l'assistant de ce graphique (définitions + exécution), pour un autre pilote que
    *  l'assistant intégré — un serveur MCP par exemple —, puis `null` au démontage. Voir `ChartToolBridge`. Dans un

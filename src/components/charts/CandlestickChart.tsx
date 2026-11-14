@@ -98,6 +98,8 @@ import { ChartContextMenu } from "./candlestick/components/ChartContextMenu";
 import { buildChartContextMenu, type ChartContextMenuAnchor } from "./candlestick/buildChartContextMenu";
 import { runChartCapture } from "./candlestick/captureChart";
 import { createChartToolBridge } from "./candlestick/ai/chartToolBridge";
+import { DEFAULT_DAY_SEPARATORS, type DaySeparatorSettings } from "./candlestick/daySeparators";
+import { DaySeparatorsModal } from "./candlestick/components/DaySeparatorsModal";
 import { playAlertSound } from "./candlestick/alertSounds";
 import type { ChartCaptureAction } from "./candlestick/components/ChartHeader";
 import { ATTACHED_DEFAULT_PERIOD } from "./candlestick/attachedIndicators";
@@ -186,6 +188,8 @@ export function CandlestickChart({
   onWatermarkChange,
   defaultSymbolInfoHidden = false,
   onSymbolInfoHiddenChange,
+  defaultDaySeparators,
+  onDaySeparatorsChange,
   onToolBridge,
   events,
   fundamentals,
@@ -506,6 +510,13 @@ export function CandlestickChart({
     onWatermarkChange?.(next);
   };
   const [symbolInfoHidden, setSymbolInfoHiddenState] = useState(defaultSymbolInfoHidden);
+  // Séparateurs de jours (rail de gauche) : réglages du lecteur, rendus à l'application.
+  const [daySeparators, setDaySeparatorsState] = useState<DaySeparatorSettings>(() => ({ ...DEFAULT_DAY_SEPARATORS, ...defaultDaySeparators }));
+  const setDaySeparators = (next: DaySeparatorSettings) => {
+    setDaySeparatorsState(next);
+    onDaySeparatorsChange?.(next);
+  };
+  const [daySeparatorsSettingsOpen, setDaySeparatorsSettingsOpen] = useState(false);
   const setSymbolInfoHidden = (hidden: boolean) => {
     setSymbolInfoHiddenState(hidden);
     onSymbolInfoHiddenChange?.(hidden);
@@ -1311,6 +1322,7 @@ export function CandlestickChart({
     wrapperRef: ref,
     themeTick,
     selectedIndicatorId,
+    daySeparators,
     dims,
     plotBoundedHeight,
     visible,
@@ -1660,6 +1672,9 @@ export function CandlestickChart({
       drawingsHidden={drawingsHidden}
       setDrawingsHidden={setDrawingsHidden}
       {...(timeframe ? { timeframeScoped, onToggleTimeframeScoped: toggleTimeframeScoped } : {})}
+      daySeparatorsEnabled={daySeparators.enabled}
+      onToggleDaySeparators={() => setDaySeparators({ ...daySeparators, enabled: !daySeparators.enabled })}
+      onOpenDaySeparatorsSettings={() => setDaySeparatorsSettingsOpen(true)}
       drawingsLocked={drawingsLocked}
       setDrawingsLocked={setDrawingsLocked}
       zoomable={zoomable}
@@ -2179,6 +2194,7 @@ export function CandlestickChart({
 
       {isMobileRail && !seasonalityOpen && toolsRail}
 
+      <DaySeparatorsModal open={daySeparatorsSettingsOpen} onClose={() => setDaySeparatorsSettingsOpen(false)} settings={daySeparators} onChange={setDaySeparators} />
       {captureToast !== null && (
         <div className="lq-chart__capture-toast" role="status">
           {captureToast}

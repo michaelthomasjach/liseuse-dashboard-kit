@@ -71,6 +71,7 @@ export {
   MoreHorizontalIcon,
   CameraIcon,
   McpIcon,
+  DaySeparatorsIcon,
   TimeframeLayersIcon,
   CopyIcon,
   CursorArrowIcon,

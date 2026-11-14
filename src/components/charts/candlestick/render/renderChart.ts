@@ -1,3 +1,4 @@
+import { drawDaySeparators } from "../daySeparators";
 import type { RenderCandlestickChartParams } from "../interfaces/RenderCandlestickChartParams.interface";
 import { drawSelectedIndicatorMarkers } from "./drawSelectedIndicatorMarkers";
 import { readChartCanvasStyle } from "./readChartCanvasStyle";
@@ -74,6 +75,8 @@ export function renderCandlestickChart(canvas: HTMLCanvasElement, wrapper: HTMLE
 
   drawFutureZone(ctx, params, style);
   drawPastZone(ctx, params, style);
+  // Séparateurs de jours : un fond, sous les bougies.
+  drawDaySeparators(ctx, params, style);
   // Before the candles: a liquidity field is a background the price moves over. Drawn after them
   // it would be a curtain across the very thing it exists to give context to.
   drawScriptHeatmaps(ctx, params);

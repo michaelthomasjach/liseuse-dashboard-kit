@@ -44,6 +44,8 @@ export interface RenderCandlestickChartParams {
   indicatorPaneHeights: number[];
   /** L'indicateur sélectionné par un clic : des cercles à intervalle régulier sur sa ligne. */
   selectedIndicatorId?: string | null;
+  /** Séparateurs de jours (outil du rail de gauche), voir daySeparators.ts. */
+  daySeparators?: import("../daySeparators").DaySeparatorSettings | null;
   indicatorPaneTops: number[];
   zoomedOwnPaneScales: Record<string, ScaleLinear<number, number>>;
   indicators: Indicator[];

@@ -4073,3 +4073,14 @@ button.lq-chart__legend-item {
   flex: 1;
   accent-color: var(--lq-color-accent);
 }
+
+/* Réglages des séparateurs de jours. */
+.lq-chart__day-sep {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lq-space-3);
+}
+.lq-chart__day-sep .lq-chart__edit-drawing-row > * {
+  flex: 1;
+  min-width: 0;
+}

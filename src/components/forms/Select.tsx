@@ -1,4 +1,4 @@
-import { useId, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import { rovingTarget } from "../../internal/rovingFocus";
 import { useFieldLabelPosition, type LqFieldLabelPosition } from "../../theme/ThemeProvider";
 import { Popover } from "./Popover";
@@ -10,6 +10,9 @@ export interface SelectOption<T extends string = string> {
   value: T;
   label: string;
   disabled?: boolean;
+  /** Groupe de l'option : un intitulé s'affiche dans la liste à chaque changement de groupe (options d'un même
+   *  groupe à la suite). */
+  group?: string;
 }
 
 export interface SelectProps<T extends string = string> {
@@ -29,6 +32,11 @@ export interface SelectProps<T extends string = string> {
   /** `"above"` : libellé au-dessus du champ ; `"inside"` : dans la boîte, en petit au-dessus de la
    *  valeur. Sans valeur : celle du thème (`LqThemeProvider fieldLabelPosition`), sinon `"above"`. */
   labelPosition?: LqFieldLabelPosition;
+  /** Appelé quand le pointeur (ou le focus clavier) reste sur une option `previewDelayMs` sans la choisir : de quoi
+   *  l'essayer avant de la prendre (ex. écouter un son). */
+  onOptionPreview?: (value: T) => void;
+  /** Délai avant `onOptionPreview`, en millisecondes. Défaut 1000. */
+  previewDelayMs?: number;
 }
 
 /** Adapted dropdown select: opens below the trigger by default, flips above
@@ -53,7 +61,24 @@ export function Select<T extends string = string>({
   className,
   size = "normal",
   labelPosition: ownLabelPosition,
+  onOptionPreview,
+  previewDelayMs = 1000,
 }: SelectProps<T>) {
+  // Aperçu d'une option après un temps d'arrêt dessus (voir `onOptionPreview`).
+  const previewTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancelPreview = () => {
+    if (previewTimer.current) clearTimeout(previewTimer.current);
+    previewTimer.current = null;
+  };
+  const schedulePreview = (v: T) => {
+    if (!onOptionPreview) return;
+    cancelPreview();
+    previewTimer.current = setTimeout(() => {
+      previewTimer.current = null;
+      onOptionPreview(v);
+    }, previewDelayMs);
+  };
+  useEffect(() => cancelPreview, []);
   const inside = useFieldLabelPosition(ownLabelPosition) === "inside" && Boolean(label);
   const [open, setOpen] = useState(false);
   const anchorRef = useRef<HTMLButtonElement>(null);
@@ -171,8 +196,13 @@ export function Select<T extends string = string>({
         }
       >
         <ul ref={listRef} id={listId} className="lq-select__list" role="listbox" aria-label={ariaLabel ?? label} onKeyDown={onListKeyDown}>
-          {options.map((opt) => (
+          {options.map((opt, i) => (
             <li key={opt.value} role="presentation">
+              {opt.group && opt.group !== options[i - 1]?.group && (
+                <div className="lq-select__group" aria-hidden="true">
+                  {opt.group}
+                </div>
+              )}
               <button
                 type="button"
                 role="option"
@@ -180,7 +210,12 @@ export function Select<T extends string = string>({
                 disabled={opt.disabled}
                 tabIndex={-1}
                 className="lq-select__option"
+                onPointerEnter={() => schedulePreview(opt.value)}
+                onPointerLeave={cancelPreview}
+                onFocus={() => schedulePreview(opt.value)}
+                onBlur={cancelPreview}
                 onClick={() => {
+                  cancelPreview();
                   onChange(opt.value);
                   setOpen(false);
                 }}

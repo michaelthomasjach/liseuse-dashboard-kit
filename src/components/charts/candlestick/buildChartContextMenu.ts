@@ -101,17 +101,6 @@ export function buildChartContextMenu({
           { label: "Supprimer le dessin", onSelect: () => commitDrawings(drawings.filter((d) => d.id !== targetDrawing.id)) },
           { separator: true },
         ] as ChartContextMenuItem[])),
-    // Sur la ligne d'un indicateur : ses paramètres (période, couleurs, style…), sans passer par sa légende.
-    ...(anchor.indicatorId && openIndicatorSettings
-      ? ([
-          {
-            label: "Paramètres de l'indicateur…",
-            hint: anchor.indicatorLabel,
-            onSelect: () => openIndicatorSettings(anchor.indicatorId as string),
-          },
-          { separator: true },
-        ] as ChartContextMenuItem[])
-      : []),
     {
       label: "Ligne horizontale ici",
       hint: formatPrice(anchor.price),
@@ -191,6 +180,15 @@ export function buildChartContextMenu({
     // Also reachable from the tools rail — but that rail only exists when `drawingTools` is on,
     // and the readout has nothing to do with drawing. This is the way in that always works.
     { label: marketStateOpen ? "Masquer l'état du marché" : "État du marché", onSelect: toggleMarketState },
+    // Sur la ligne d'un indicateur : ses paramètres (période, couleurs, style…), juste avant ceux du graphique.
+    ...(anchor.indicatorId && openIndicatorSettings
+      ? ([
+          {
+            label: anchor.indicatorLabel ? `Paramètres de l'indicateur ${anchor.indicatorLabel}…` : "Paramètres de l'indicateur…",
+            onSelect: () => openIndicatorSettings(anchor.indicatorId as string),
+          },
+        ] as ChartContextMenuItem[])
+      : []),
     { label: "Paramètres du graphique…", onSelect: openSettings },
   ];
 }

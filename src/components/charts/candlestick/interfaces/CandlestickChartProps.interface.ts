@@ -76,6 +76,9 @@ export interface CandlestickChartProps {
   formatVolume?: (v: number) => string;
   /** Shows a fullscreen toggle button in the header ("Focus fenêtre active"). Default true. */
   fullscreenToggle?: boolean;
+  /** Bouton appareil photo dans l'en-tête (capture du graphique). Défaut true ; `ChartWorkspace` le retire, son rail
+   *  de droite en porte un pour tout l'espace de travail. */
+  captureButton?: boolean;
   /** Controls the fullscreen toggle from outside instead of it managing its own state — pairs with
    *  `onFullscreenChange` below. `ChartWorkspace` sets both so only one panel can be "focused" at a
    *  time (all its panels share one piece of state, so focusing a new one supersedes whichever had
@@ -168,7 +171,7 @@ export interface CandlestickChartProps {
   onDeleteAlert?: (id: string) => void;
   /** Options for the alert modal's own "Son" (sound) picker — this library ships no audio assets,
    *  so it's purely a label picker, never actually played. Defaults to a small built-in list. */
-  alertSoundOptions?: { value: string; label: string }[];
+  alertSoundOptions?: { value: string; label: string; group?: string }[];
   /** Plays the given sound option's own value — the create-alert modal's "Son" field shows a
    *  play button next to it only while this is provided (the library ships no audio assets of
    *  its own, see AlertCreateModal's own doc, so there's nothing to play without it). */

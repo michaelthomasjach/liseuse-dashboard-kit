@@ -96,7 +96,7 @@ import { indicatorCatalogEntry, indicatorLabel, defaultIndicatorColor } from "./
 import { drawingAxisAnnotations, indicatorAxisAnnotations } from "./candlestick/axisAnnotations";
 import { ChartContextMenu } from "./candlestick/components/ChartContextMenu";
 import { buildChartContextMenu, type ChartContextMenuAnchor } from "./candlestick/buildChartContextMenu";
-import { captureChartBlob, captureFileName } from "./candlestick/captureChart";
+import { runChartCapture } from "./candlestick/captureChart";
 import { playAlertSound } from "./candlestick/alertSounds";
 import type { ChartCaptureAction } from "./candlestick/components/ChartHeader";
 import { ATTACHED_DEFAULT_PERIOD } from "./candlestick/attachedIndicators";
@@ -180,6 +180,7 @@ export function CandlestickChart({
   defaultChartDisplayMode,
   onChartDisplayModeChange, renkoAtrPeriod = 14,
   symbol,
+  captureButton = true,
   events,
   fundamentals,
   depth,
@@ -1568,42 +1569,7 @@ export function CandlestickChart({
   async function handleCapture(action: ChartCaptureAction) {
     const root = ref.current;
     if (!root) return;
-    const caption = [symbol, currentTimeframeLabel, new Date().toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })].filter(Boolean).join(" · ");
-    const name = captureFileName(symbol, currentTimeframeLabel ?? undefined);
-    const download = (blob: Blob) => {
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = name;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 10_000);
-    };
-    let blob: Blob;
-    try {
-      blob = await captureChartBlob(root, { caption });
-    } catch {
-      setCaptureToast("Capture impossible");
-      return;
-    }
-    if (action === "download") {
-      download(blob);
-      setCaptureToast("Image téléchargée");
-    } else if (action === "open") {
-      const url = URL.createObjectURL(blob);
-      window.open(url, "_blank");
-      setTimeout(() => URL.revokeObjectURL(url), 60_000);
-    } else {
-      try {
-        if (typeof ClipboardItem === "undefined" || !navigator.clipboard?.write) throw new Error("clipboard");
-        await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
-        setCaptureToast("Image copiée dans le presse-papiers");
-      } catch {
-        download(blob);
-        setCaptureToast("Copie refusée par le navigateur : l'image a été téléchargée");
-      }
-    }
+    setCaptureToast(await runChartCapture(root, action, { symbol, timeframe: currentTimeframeLabel ?? undefined }));
   }
   const currentModeEntry = CHART_DISPLAY_MODES.find((m) => m.mode === chartDisplayMode) ?? CHART_DISPLAY_MODES[0];
   // The top-left legend's own indicators — price overlays only, `ownPaneIndicators` (RSI/CHOP/
@@ -1745,7 +1711,7 @@ export function CandlestickChart({
           linkable={linkable}
           isLinked={isLinked}
           onLinkClick={onLinkClick}
-          onCapture={(action) => void handleCapture(action)}
+          {...(captureButton ? { onCapture: (action: ChartCaptureAction) => void handleCapture(action) } : {})}
         />
       )}
 

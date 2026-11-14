@@ -169,3 +169,55 @@ export function captureFileName(symbol?: string, timeframe?: string): string {
   const clean = (s?: string) => (s ?? "").replace(/[^\p{L}\p{N}]+/gu, "").slice(0, 40);
   return ["graphique", clean(symbol), clean(timeframe), stamp].filter(Boolean).join("-") + ".png";
 }
+
+export type ChartCaptureActionKind = "download" | "copy" | "open";
+
+/**
+ * L'action complète du bouton appareil photo : capture de `root`, puis téléchargement, copie dans le presse-papiers
+ * (téléchargement si le navigateur refuse) ou ouverture dans un nouvel onglet. Rend le message à afficher.
+ */
+export async function runChartCapture(root: HTMLElement, action: ChartCaptureActionKind, info: { symbol?: string; timeframe?: string } = {}): Promise<string> {
+  const caption = [info.symbol, info.timeframe, new Date().toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })].filter(Boolean).join(" · ");
+  const name = captureFileName(info.symbol, info.timeframe);
+  const download = (blob: Blob) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  };
+  let blob: Blob;
+  try {
+    blob = await captureChartBlob(root, { caption });
+  } catch {
+    return "Capture impossible";
+  }
+  if (action === "download") {
+    download(blob);
+    return "Image téléchargée";
+  }
+  if (action === "open") {
+    const url = URL.createObjectURL(blob);
+    window.open(url, "_blank");
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    return "Image ouverte dans un nouvel onglet";
+  }
+  try {
+    if (typeof ClipboardItem === "undefined" || !navigator.clipboard?.write) throw new Error("clipboard");
+    await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+    return "Image copiée dans le presse-papiers";
+  } catch {
+    download(blob);
+    return "Copie refusée par le navigateur : l'image a été téléchargée";
+  }
+}
+
+/** Les trois actions du menu de l'appareil photo, dans l'ordre. */
+export const CHART_CAPTURE_ACTIONS: { action: ChartCaptureActionKind; label: string }[] = [
+  { action: "download", label: "Télécharger l'image" },
+  { action: "copy", label: "Copier l'image" },
+  { action: "open", label: "Ouvrir l'image dans un nouvel onglet" },
+];

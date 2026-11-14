@@ -88,3 +88,16 @@
   color: var(--lq-color-accent);
   flex-shrink: 0;
 }
+
+/* Intitulé d'un groupe d'options (SelectOption.group). */
+.lq-select__group {
+  padding: var(--lq-space-2) var(--lq-space-3) 2px;
+  font-size: 0.7rem;
+  font-weight: var(--lq-font-weight-semibold, 600);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--lq-color-text-muted);
+}
+li:first-child > .lq-select__group {
+  padding-top: var(--lq-space-1, 4px);
+}

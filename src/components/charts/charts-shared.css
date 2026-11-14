@@ -4031,3 +4031,10 @@ button.lq-chart__legend-item {
   margin-top: 0;
   margin-left: auto;
 }
+
+/* Le bouton ▶ du son a la hauteur du champ à sa gauche, y compris quand son libellé est dans la boîte. */
+.lq-alert-modal__sound-row:has(.lq-field__control--inset) .lq-alert-modal__play-button {
+  align-self: stretch;
+  min-height: 0;
+  height: auto;
+}

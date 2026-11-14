@@ -2188,3 +2188,31 @@
   background-color: var(--lq-color-fill);
   opacity: 1;
 }
+
+/* Message après une capture depuis le rail de l'espace de travail : au-dessus des graphiques. */
+.lq-chart-workspace__row {
+  position: relative;
+}
+.lq-chart-workspace__capture-toast {
+  top: 12px;
+  z-index: 60;
+}
+
+/* Chargement (ChartWorkspace.loadingLabel) : graphiques masqués, indicateur au centre de la grille. */
+.lq-chart-workspace__grid--loading {
+  visibility: hidden;
+}
+.lq-chart-workspace__loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  z-index: 5;
+  font-size: 0.9rem;
+  color: var(--lq-color-text);
+  /* La grille est masquée (visibility) ; l'indicateur, lui, reste visible. */
+  visibility: visible;
+  pointer-events: none;
+}

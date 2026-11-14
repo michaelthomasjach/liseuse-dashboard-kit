@@ -1,4 +1,6 @@
-import { Children, cloneElement, type ReactElement, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import { Children, cloneElement, type ReactElement, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { runChartCapture, type ChartCaptureActionKind } from "./candlestick/captureChart";
+import { Spinner } from "../feedback/Spinner";
 import type { SymbolSearchList } from "./candlestick/interfaces/SymbolSearchList.interface";
 import { DetachedWindow } from "./candlestick/components/DetachedWindow";
 import type { CandlestickChartProps } from "./candlestick/interfaces/CandlestickChartProps.interface";
@@ -161,6 +163,12 @@ export interface ChartWorkspaceProps {
    *  width says nothing about the box the workspace is actually in, and a 1366px laptop would
    *  otherwise render the phone layout in a picture of a desktop. */
   layout?: "auto" | "desktop" | "mobile";
+  /** Bouton plein écran du rail de droite. Défaut true ; à retirer quand la page affiche déjà l'espace de travail en
+   *  grand. */
+  fullscreenButton?: boolean;
+  /** Chargement en cours (ex. un autre symbole) : les graphiques sont masqués et ce texte s'affiche avec un indicateur,
+   *  au centre de leur zone — plutôt qu'un graphique vide marqué « Aucune donnée ». */
+  loadingLabel?: string;
   watchlists?: ChartWorkspaceWatchlist[];
   /** Uncontrolled initial pick among `watchlists` (by id) — defaults to the first one. */
   defaultActiveWatchlistId?: string;
@@ -321,6 +329,8 @@ export function ChartWorkspace({
   defaultLinkGroups,
   onLinkGroupsChange,
   layout = "auto",
+  fullscreenButton = true,
+  loadingLabel,
   watchlists,
   defaultActiveWatchlistId,
   onActiveWatchlistChange,
@@ -653,6 +663,23 @@ export function ChartWorkspace({
   const rawChildren = Children.toArray(children) as ReactElement<CandlestickChartProps>[];
   const panelElements = rawChildren.length === 1 ? Array.from({ length: panels }, () => rawChildren[0]) : rawChildren.slice(0, panels);
   const effectiveFocusedPanelIndex = focusedPanelIndex !== null && focusedPanelIndex < panels ? focusedPanelIndex : null;
+  // Appareil photo du rail : le graphique au premier plan (celui mis en avant, sinon le premier), avec son symbole.
+  const gridRef = useRef<HTMLDivElement>(null);
+  const [captureToast, setCaptureToast] = useState<string | null>(null);
+  useEffect(() => {
+    if (captureToast === null) return;
+    const t = setTimeout(() => setCaptureToast(null), 2600);
+    return () => clearTimeout(t);
+  }, [captureToast]);
+  async function captureFrontPanel(action: ChartCaptureActionKind) {
+    const index = effectiveFocusedPanelIndex ?? 0;
+    const roots = Array.from(gridRef.current?.querySelectorAll<HTMLElement>(".lq-chart__plot-column") ?? []);
+    const root = roots[index] ?? roots[0];
+    if (!root) return;
+    const child = panelElements[index] as ReactElement<{ symbol?: string; timeframe?: string }> | undefined;
+    const timeframe = index in timeframeByPanel ? timeframeByPanel[index] : child?.props.timeframe;
+    setCaptureToast(await runChartCapture(root, action, { symbol: child?.props.symbol, timeframe }));
+  }
   // Which panel currently has its chart-settings modal open, or null. Held here rather than inside
   // each chart for the same reason `focusedPanelIndex` above is: one shared piece of state means
   // two panels cannot both open the modal at once, and it gives the mobile toolbar's own
@@ -790,8 +817,14 @@ export function ChartWorkspace({
         </div>
       )}
       <div className="lq-chart-workspace__row">
+      {captureToast !== null && (
+        <div className="lq-chart__capture-toast lq-chart-workspace__capture-toast" role="status">
+          {captureToast}
+        </div>
+      )}
       <div
-        className={["lq-chart-workspace__grid", fillHeight && "lq-chart-workspace__grid--fill", lockHold.locked && "lq-chart-workspace__grid--locked"]
+        ref={gridRef}
+        className={["lq-chart-workspace__grid", fillHeight && "lq-chart-workspace__grid--fill", lockHold.locked && "lq-chart-workspace__grid--locked", loadingLabel && "lq-chart-workspace__grid--loading"]
           .filter(Boolean)
           .join(" ")}
         data-grid-layout={currentGridLayout.id}
@@ -826,6 +859,13 @@ export function ChartWorkspace({
           ...gridAreaProperties,
         }}
       >
+        {/* Chargement : au centre de la grille, visible alors qu'elle est masquée (voir loadingLabel). */}
+        {loadingLabel && (
+          <div className="lq-chart-workspace__loading" role="status" aria-live="polite">
+            <Spinner size={22} label={loadingLabel} />
+            <span>{loadingLabel}</span>
+          </div>
+        )}
         {panelElements.map((child, i) =>
           cloneElement(child, {
             // Always the panel index, never `child.key` — panels don't reorder, so it's already a
@@ -877,6 +917,8 @@ export function ChartWorkspace({
             // panel's own toggle through the single focusedPanelIndex above instead of each panel
             // managing its own independent viewport-covering state (see useFullscreen's own doc).
             fullscreenToggle: panels >= 2,
+            // L'appareil photo est sur le rail de l'espace de travail, pas dans l'en-tête de chaque graphique.
+            captureButton: false,
             isFullscreen: effectiveFocusedPanelIndex === i,
             onFullscreenChange: (value: boolean) => setFocusedPanelIndex(value ? i : null),
             // Same controlled-pair shape as the two lines above, for the chart-settings modal —
@@ -1203,6 +1245,8 @@ export function ChartWorkspace({
           onGridLayoutChange={handleGridLayoutChange}
           workspaceFullscreen={workspaceFullscreen}
           onToggleWorkspaceFullscreen={toggleWorkspaceFullscreen}
+          showFullscreenButton={fullscreenButton}
+          onCapture={(action) => void captureFrontPanel(action)}
           onOpenHelp={() => setHelpOpen(true)}
         />
       )}

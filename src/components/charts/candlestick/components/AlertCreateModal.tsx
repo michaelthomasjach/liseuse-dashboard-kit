@@ -161,7 +161,7 @@ export interface AlertCreateModalProps {
   indicatorLabel: (indicator: Indicator) => string;
   /** This library ships no audio assets — purely a label picker, no playback. Default a small
    *  built-in list. */
-  soundOptions?: { value: string; label: string }[];
+  soundOptions?: { value: string; label: string; group?: string }[];
   /** Plays the currently selected sound — shows a play button next to "Son" only while provided
    *  (see CandlestickChartProps.onPlaySound's own doc for why: no callback, nothing to play). */
   onPlaySound?: (value: string) => void;
@@ -360,7 +360,10 @@ export function AlertCreateModal({
             setSound(v);
             // On entend le son au moment de le choisir ; le bouton ▶ le rejoue.
             onPlaySound?.(v);
-          }} />
+          }}
+          // Une seconde sur un son de la liste : il se joue, pour l'entendre avant de le choisir.
+          onOptionPreview={onPlaySound}
+          />
           {onPlaySound && (
             <button
               type="button"

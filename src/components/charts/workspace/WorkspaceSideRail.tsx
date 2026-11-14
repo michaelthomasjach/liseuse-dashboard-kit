@@ -1,4 +1,7 @@
-import { WatchlistIcon, AlarmClockIcon, MaximizeIcon, MinimizeIcon, HelpIcon, CodeIcon, SparkleIcon, PlugIcon } from "../../icons";
+import { useRef, useState } from "react";
+import { WatchlistIcon, AlarmClockIcon, MaximizeIcon, MinimizeIcon, HelpIcon, CodeIcon, SparkleIcon, PlugIcon, CameraIcon } from "../../icons";
+import { Popover } from "../../forms/Popover";
+import { CHART_CAPTURE_ACTIONS, type ChartCaptureActionKind } from "../candlestick/captureChart";
 import type { ChartWorkspaceSidePanelTab } from "./useWorkspaceSidePanelState";
 import type { ChartWorkspaceGridLayout } from "./gridLayouts";
 import { WorkspaceLayoutMenu } from "./WorkspaceLayoutMenu";
@@ -20,6 +23,10 @@ export interface WorkspaceSideRailProps {
   onGridLayoutChange: (layout: ChartWorkspaceGridLayout) => void;
   workspaceFullscreen: boolean;
   onToggleWorkspaceFullscreen: () => void;
+  /** Bouton plein écran de l'espace de travail ; absent quand la page l'affiche déjà en grand. Défaut true. */
+  showFullscreenButton?: boolean;
+  /** Appareil photo : capture du graphique au premier plan (télécharger, copier, ouvrir). */
+  onCapture?: (action: ChartCaptureActionKind) => void;
   onOpenHelp: () => void;
 }
 
@@ -42,8 +49,12 @@ export function WorkspaceSideRail({
   onGridLayoutChange,
   workspaceFullscreen,
   onToggleWorkspaceFullscreen,
+  showFullscreenButton = true,
+  onCapture,
   onOpenHelp,
 }: WorkspaceSideRailProps) {
+  const [captureOpen, setCaptureOpen] = useState(false);
+  const captureRef = useRef<HTMLButtonElement>(null);
   return (
     <div className="lq-chart-workspace__side-rail">
       {hasWatchlists && (
@@ -119,15 +130,53 @@ export function WorkspaceSideRail({
       <WorkspaceLayoutMenu layout={gridLayout} onLayoutChange={onGridLayoutChange} />
       {/* The whole workspace, not just one panel — always visible, same as the layout menu right
           above it, with no panel-count precondition. */}
-      <button
-        type="button"
-        className="lq-chart__icon-button"
-        onClick={onToggleWorkspaceFullscreen}
-        aria-label={workspaceFullscreen ? "Quitter le plein écran de l'espace de travail" : "Plein écran de l'espace de travail"}
-        title={workspaceFullscreen ? "Quitter le plein écran de l'espace de travail" : "Plein écran de l'espace de travail"}
-      >
-        {workspaceFullscreen ? <MinimizeIcon size={16} /> : <MaximizeIcon size={16} />}
-      </button>
+      {showFullscreenButton && (
+        <button
+          type="button"
+          className="lq-chart__icon-button"
+          onClick={onToggleWorkspaceFullscreen}
+          aria-label={workspaceFullscreen ? "Quitter le plein écran de l'espace de travail" : "Plein écran de l'espace de travail"}
+          title={workspaceFullscreen ? "Quitter le plein écran de l'espace de travail" : "Plein écran de l'espace de travail"}
+        >
+          {workspaceFullscreen ? <MinimizeIcon size={16} /> : <MaximizeIcon size={16} />}
+        </button>
+      )}
+      {/* Capture du graphique au premier plan — un seul bouton pour l'espace de travail, comme le plein écran,
+          plutôt qu'un dans l'en-tête de chaque graphique. */}
+      {onCapture && (
+        <>
+          <button
+            ref={captureRef}
+            type="button"
+            className={["lq-chart__icon-button", captureOpen && "lq-chart__icon-button--active"].filter(Boolean).join(" ")}
+            onClick={() => setCaptureOpen((o) => !o)}
+            aria-label="Capturer le graphique"
+            aria-haspopup="menu"
+            aria-expanded={captureOpen}
+            title="Capturer le graphique"
+          >
+            <CameraIcon size={16} />
+          </button>
+          <Popover open={captureOpen} onClose={() => setCaptureOpen(false)} anchorRef={captureRef} placement="bottom">
+            <div className="lq-chart__timeframe-menu" role="menu">
+              {CHART_CAPTURE_ACTIONS.map(({ action, label }) => (
+                <button
+                  key={action}
+                  type="button"
+                  role="menuitem"
+                  className="lq-chart__timeframe-option"
+                  onClick={() => {
+                    setCaptureOpen(false);
+                    onCapture(action);
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </Popover>
+        </>
+      )}
       {/* Pinned to the rail's own bottom edge (`margin-top: auto` inside a column flex that
           already stretches to the workspace's full height, see .lq-chart-workspace__side-rail)
           rather than just sitting last after whichever of the buttons above happened to render,

@@ -2349,3 +2349,17 @@
     background-color: var(--lq-color-panel, var(--lq-color-bg));
   }
 }
+
+/* L'assistant entre les fenêtres et le panneau des listes (ou le rail) : un trait le sépare de ce qui suit, que le
+   panneau des listes ne trace pas lui-même dans l'espace de travail. */
+.lq-chart-workspace__ai-slot:not(:empty) + .lq-chart__side-panel,
+.lq-chart-workspace__ai-slot:not(:empty) + .lq-chart-workspace__side-rail {
+  border-left: 1px solid var(--lq-color-border-subtle);
+}
+
+/* Avec l'assistant ouvert, ce sont les fenêtres des graphiques qui cèdent la place : le panneau des listes et
+   l'assistant gardent leur largeur (sinon les colonnes de la liste étaient tronquées). */
+.lq-chart-workspace .lq-chart__side-panel,
+.lq-chart-workspace__ai-slot {
+  flex-shrink: 0;
+}

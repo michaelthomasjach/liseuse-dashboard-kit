@@ -2514,10 +2514,13 @@ export function CandlestickChart({
           setDetachedWindow={setDetachedAiWindow}
           onRequestDetach={detachAiPanel}
           themeSource={mainRef.current?.closest(".lq-root") as HTMLElement | null}
-          mobile={isNarrowLayout}
+          // Dans un espace de travail sur ordinateur (aiPortalTarget), jamais le volet mobile : une fenêtre étroite (deux
+          // côte à côte, l'assistant ouvert) faisait basculer l'assistant hors de sa colonne, qui se vidait, rendait leur
+          // largeur aux fenêtres… et l'affichage oscillait.
+          mobile={isNarrowLayout && !aiPortalTarget}
         />
         );
-        return aiPortalTarget && !isNarrowLayout && aiView === "docked" ? createPortal(aiHost, aiPortalTarget) : aiHost;
+        return aiPortalTarget && aiView === "docked" ? createPortal(aiHost, aiPortalTarget) : aiHost;
       })()}
     </div>
   );

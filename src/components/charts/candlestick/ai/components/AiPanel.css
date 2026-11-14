@@ -686,3 +686,13 @@
   border-radius: 2px;
   background-color: currentColor;
 }
+
+/* En-tête de la même hauteur que la barre du haut des graphiques et du panneau des listes (40 px, filet compris) :
+   les trois filets du bas s'alignent. */
+.lq-ai__header {
+  flex: none;
+  height: 40px;
+  box-sizing: border-box;
+  padding-top: 0;
+  padding-bottom: 0;
+}

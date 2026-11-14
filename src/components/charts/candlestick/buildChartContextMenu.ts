@@ -99,6 +99,8 @@ export function buildChartContextMenu({
   if (anchor === null) return [];
   const candle = data[Math.max(0, Math.min(data.length - 1, anchor.index))] ?? null;
 
+  // Clic droit sur le panneau d'un indicateur ou sur le volume (pas sur les prix).
+  const inSubPane = Boolean(anchor.paneId || anchor.volumePane);
   return [
     // Object commands first, and only when the click actually landed on one — a menu whose top
     // item changes meaning depending on where you clicked is exactly what a context menu is for.
@@ -180,8 +182,10 @@ export function buildChartContextMenu({
         { separator: true },
       ] as ChartContextMenuItem[];
     })(),
-    ...(openAddSymbol ? [{ label: "Ajouter un symbole…", onSelect: openAddSymbol }] : []),
-    { label: "Ajouter un indicateur…", onSelect: () => openIndicatorPicker() },
+    // Le menu suit la zone cliquée : sur les prix, ce qui concerne le graphique principal ; sur le panneau d'un
+    // indicateur ou le volume, ce qui concerne ce panneau seulement.
+    ...(!inSubPane && openAddSymbol ? [{ label: "Ajouter un symbole…", onSelect: openAddSymbol }] : []),
+    ...(!inSubPane ? [{ label: "Ajouter un indicateur…", onSelect: () => openIndicatorPicker() }] : []),
     // Le catalogue limité à ce qui se calcule sur les valeurs du panneau cliqué, posé sur lui.
     ...(anchor.paneId && addOnPane
       ? [
@@ -198,13 +202,7 @@ export function buildChartContextMenu({
           onSelect: () => addOnPane(kind, VOLUME_PANE_ID),
         }))
       : []),
-    // Sur le panneau d'un indicateur : une moyenne de sa série, dessinée dans ce panneau.
-    ...(anchor.paneId && addOnPane
-      ? ATTACHABLE_KINDS.map(({ kind, label }) => ({
-          label: `Ajouter une ${label} sur ${anchor.paneLabel ?? "ce panneau"}`,
-          onSelect: () => addOnPane(kind, anchor.paneId as string),
-        }))
-      : []),
+    // (Les moyennes sur le panneau d'un indicateur passent par « Ajouter un indicateur sur … », qui les propose.)
     { separator: true },
     { label: "Réinitialiser le zoom", hint: "Espace", onSelect: resetZoom },
     ...(fullscreenToggle
@@ -213,9 +211,9 @@ export function buildChartContextMenu({
     { separator: true },
     // Also reachable from the tools rail — but that rail only exists when `drawingTools` is on,
     // and the readout has nothing to do with drawing. This is the way in that always works.
-    { label: marketStateOpen ? "Masquer l'état du marché" : "État du marché", onSelect: toggleMarketState },
+    ...(!inSubPane ? [{ label: marketStateOpen ? "Masquer l'état du marché" : "État du marché", onSelect: toggleMarketState }] : []),
     // La légende en haut à gauche : nom du symbole, type de bougies, ouverture / plus haut / plus bas / clôture.
-    ...(toggleSymbolInfo ? [{ label: symbolInfoHidden ? "Afficher la légende du symbole (OHLC)" : "Masquer la légende du symbole (OHLC)", onSelect: toggleSymbolInfo }] : []),
+    ...(!inSubPane && toggleSymbolInfo ? [{ label: symbolInfoHidden ? "Afficher la légende du symbole (OHLC)" : "Masquer la légende du symbole (OHLC)", onSelect: toggleSymbolInfo }] : []),
     // Sur la ligne d'un indicateur : ses paramètres (période, couleurs, style…), juste avant ceux du graphique.
     ...(anchor.indicatorId && openIndicatorSettings
       ? ([

@@ -570,7 +570,12 @@ export function CandlestickChart({
       })(),
       // Sur la ligne d'un indicateur (celle sous le pointeur, sinon la sélectionnée) : de quoi ouvrir ses paramètres.
       ...(() => {
-        const id = hoveredIndicatorId ?? selectedIndicatorId;
+        // Celui sous le pointeur ; à défaut le sélectionné, mais seulement s'il est tracé dans la zone cliquée (un RSI
+        // sélectionné ne doit pas devenir la cible d'un clic droit sur les prix).
+        const zone = plotY <= priceHeight ? "price" : null;
+        const selected = selectedIndicatorId === null ? undefined : indicators.find((i) => i.id === selectedIndicatorId);
+        const selectedInZone = selected && (zone === "price" ? indicatorCatalogEntry(selected).pane === "price" : indicatorCatalogEntry(selected).pane !== "price");
+        const id = hoveredIndicatorId ?? (selectedInZone ? selectedIndicatorId : null);
         const target = id === null ? undefined : indicators.find((i) => i.id === id);
         return target ? { indicatorId: target.id, indicatorLabel: indicatorLabel(target) } : {};
       })(),

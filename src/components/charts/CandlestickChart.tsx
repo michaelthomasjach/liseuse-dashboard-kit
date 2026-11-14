@@ -154,6 +154,8 @@ export function CandlestickChart({
   drawingsHidden: drawingsHiddenProp,
   onDrawingsHiddenChange,
   defaultTimeframeScoped = false,
+  defaultVolumePaneState,
+  onVolumePaneStateChange,
   onTimeframeScopedChange,
   alerts, onCreateAlert, onUpdateAlert, onDeleteAlert, alertSoundOptions, onPlaySound,
   showIndicators = false,
@@ -664,6 +666,8 @@ export function CandlestickChart({
     liveCustomIndicators: customIndicators,
     timeframe,
     timeframeScoped,
+    defaultVolumePaneState,
+    onVolumePaneStateChange,
   });
   // App-defined tools (see ChartCustomTool): one armed at a time, disarmed by placing, Escape or its own button.
   const [activeCustomToolId, setActiveCustomToolId] = useState<string | null>(null);

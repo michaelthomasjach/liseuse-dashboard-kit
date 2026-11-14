@@ -222,6 +222,10 @@ export interface Indicator {
    *  l'unité de temps » (`timeframeScoped`), l'indicateur n'apparaît que sur cette unité ; sans
    *  `timeframe` (ajouté avant cette option, ou par l'hôte), il apparaît partout. */
   timeframe?: string;
+  /** Couleur choisie pour chaque élément tracé d'un indicateur à plusieurs séries (`customData.draw: "multi"`, un
+   *  script qui trace plusieurs lignes, barres, bandes… dans le même panneau), par clé de série
+   *  (`customData.multiSeries[].key`) ; remplace la couleur écrite dans le code. Réglée dans l'onglet Style. */
+  seriesColors?: Record<string, string>;
   /** A `pane: "own"` indicator's pane, collapsed to a header-only strip — same mechanism/UI as
    *  the volume pane's own collapse. Default false (expanded). */
   paneCollapsed?: boolean;

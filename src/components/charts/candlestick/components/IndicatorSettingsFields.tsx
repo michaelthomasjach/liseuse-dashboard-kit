@@ -646,7 +646,26 @@ export function IndicatorSettingsStyle({ indicatorDraft, setIndicatorDraft, indi
           represent a trend flip or a multi-stop gradient anyway. ADX *does* read it (for
           its own ADX line only — +DI/-DI have their own pair above), so it's deliberately
           not excluded here. */}
-      {indicatorDraft.kind !== "supertrend" &&
+      {/* Plusieurs éléments tracés dans le même panneau (lignes, barres, bandes, points d'un script) : une couleur
+          par élément, sous le nom que le code lui donne. */}
+      {indicatorDraft.customData?.draw === "multi" && (indicatorDraft.customData.multiSeries?.length ?? 0) > 0 && (
+        <div className="lq-chart__edit-drawing-row lq-chart__series-colors">
+          {(indicatorDraft.customData.multiSeries ?? []).map((series, i) => (
+            <div className="lq-field" key={series.key}>
+              <label className="lq-field__label">{series.label || `Série ${i + 1}`}</label>
+              <input
+                type="color"
+                className="lq-chart__color-input"
+                value={indicatorDraft.seriesColors?.[series.key] ?? series.color ?? defaultIndicatorColor(i)}
+                onChange={(e) => setIndicatorDraft({ ...indicatorDraft, seriesColors: { ...indicatorDraft.seriesColors, [series.key]: e.target.value } })}
+                aria-label={`Couleur de ${series.label || `la série ${i + 1}`}`}
+              />
+            </div>
+          ))}
+        </div>
+      )}
+      {indicatorDraft.customData?.draw !== "multi" &&
+        indicatorDraft.kind !== "supertrend" &&
         indicatorDraft.kind !== "parabolicSar" &&
         indicatorDraft.kind !== "chandelierExit" &&
         indicatorDraft.kind !== "supportResistance" &&

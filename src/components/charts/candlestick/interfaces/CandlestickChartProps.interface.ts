@@ -59,6 +59,11 @@ export interface CandlestickChartProps {
   zoomable?: boolean;
   /** Shows the volume pane under the candles. Default false. */
   showVolume?: boolean;
+  /** Avec `showVolume` : l'état du panneau de volume à l'ouverture — affiché (défaut), replié, ou masqué (le volume
+   *  reste disponible : « Ajouter un indicateur » le remet). `onVolumePaneStateChange` annonce chaque changement
+   *  (indicateurs, en-tête du panneau, assistant), pour que l'hôte retienne le choix de l'utilisateur. */
+  defaultVolumePaneState?: "expanded" | "collapsed" | "hidden";
+  onVolumePaneStateChange?: (state: "expanded" | "collapsed" | "hidden") => void;
   /** Formats a date everywhere a human reads one: the date axis, the hover badge, a drawing's own labels.
    *  Defaults to day, short month and year in `locale` ("01 juin 2026"). */
   formatDate?: (d: Date) => string;

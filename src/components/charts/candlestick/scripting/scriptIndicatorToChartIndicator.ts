@@ -12,5 +12,8 @@ import type { CustomIndicatorDef } from "../interfaces/CustomIndicatorDef.interf
  *  counter-based CRUD array, so there's no id collision to avoid the way there would be for a
  *  user-added one. */
 export function scriptIndicatorToChartIndicator(def: CustomIndicatorDef): Indicator {
-  return { id: def.id, kind: "custom", period: 0, customData: def };
+  // La couleur écrite dans le code ({ color: … }) : le dessin lit `indicator.color`, pas celle de la définition ; sans
+  // elle, un script à une seule série était toujours tracé dans la couleur par défaut. Une couleur choisie dans
+  // l'onglet Style passe par-dessus (voir `withScriptOverride`).
+  return { id: def.id, kind: "custom", period: 0, customData: def, ...(def.color ? { color: def.color } : {}) };
 }

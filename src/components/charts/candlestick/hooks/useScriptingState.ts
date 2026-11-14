@@ -68,7 +68,8 @@ export interface UseScriptingStateArgs {
 const MAX_SAVED_QUANT_RUNS = 20;
 
 export function useScriptingState({ defaultScripts, onScriptsChange, controlledEditorOpen, controlledScripts }: UseScriptingStateArgs) {
-  const [internalScripts, setInternalScripts] = useState<ScriptDef[]>(defaultScripts ?? []);
+  // Scripts gardés avant la numérotation des noms en double : numérotés dès le chargement.
+  const [internalScripts, setInternalScripts] = useState<ScriptDef[]>(() => withUniqueNames(defaultScripts ?? []));
   const scripts = controlledScripts?.scripts ?? internalScripts;
   const [internalEditorOpen, setInternalEditorOpen] = useState(false);
   const editorOpen = controlledEditorOpen?.editorOpen ?? internalEditorOpen;
@@ -127,7 +128,7 @@ export function useScriptingState({ defaultScripts, onScriptsChange, controlledE
   // (see that file's own per-panel `scripts` filter) and so never runs.
   function addScript(name = "Nouveau script", code = "", rest?: Partial<Omit<ScriptDef, "id" | "name" | "code">>): string {
     const id = `script-${scriptIdRef.current++}`;
-    commitScripts([...scriptsRef.current, { id, name, code, enabled: true, ...rest }]);
+    commitScripts([...scriptsRef.current, { id, name: uniqueScriptName(name, scriptsRef.current), code, enabled: true, ...rest }]);
     setRawOpenScriptIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
     setActiveScriptId(id);
     setEditorOpen(true);
@@ -135,8 +136,10 @@ export function useScriptingState({ defaultScripts, onScriptsChange, controlledE
   }
 
   function updateScript(id: string, patch: Partial<Omit<ScriptDef, "id">>) {
+    // Renommé (« Enregistrer sous », premier enregistrement) : un nom déjà pris reçoit son numéro.
+    const named = patch.name !== undefined ? { ...patch, name: uniqueScriptName(patch.name, scriptsRef.current, id) } : patch;
     commitScripts(
-      scriptsRef.current.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+      scriptsRef.current.map((s) => (s.id === id ? { ...s, ...named } : s)));
   }
 
   /** Keeps a `@quant` run on its own script, newest first — see `ScriptDef.quantRuns`.
@@ -387,4 +390,32 @@ export function useScriptingState({ defaultScripts, onScriptsChange, controlledE
     scriptHeatmaps,
     runningScriptIds,
   };
+}
+
+/**
+ * Un nom de script qui n'est pas déjà pris : « RSI », puis « RSI (2) », « RSI (3) »… — plusieurs scripts du même nom
+ * seraient impossibles à distinguer dans les onglets, la recherche et « Mes scripts ». Un nom qui porte déjà un numéro
+ * (« RSI (2) ») repart de sa base. `exceptId` : le script renommé lui-même, qui peut garder son propre nom.
+ */
+export function uniqueScriptName(name: string, scripts: { id: string; name: string }[], exceptId?: string): string {
+  const wanted = name.trim() || "Nouveau script";
+  const taken = new Set(scripts.filter((s) => s.id !== exceptId).map((s) => s.name.trim().toLowerCase()));
+  if (!taken.has(wanted.toLowerCase())) return wanted;
+  const base = wanted.replace(/\s*\(\d+\)$/, "");
+  for (let n = 2; ; n++) {
+    const candidate = `${base} (${n})`;
+    if (!taken.has(candidate.toLowerCase())) return candidate;
+  }
+}
+
+/** Les scripts, chacun avec un nom distinct (les doublons numérotés dans l'ordre de la liste). */
+function withUniqueNames(scripts: ScriptDef[]): ScriptDef[] {
+  const out: ScriptDef[] = [];
+  let changed = false;
+  for (const s of scripts) {
+    const name = uniqueScriptName(s.name, out);
+    if (name !== s.name) changed = true;
+    out.push(name === s.name ? s : { ...s, name });
+  }
+  return changed ? out : scripts;
 }

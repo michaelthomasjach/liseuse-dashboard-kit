@@ -53,7 +53,18 @@ function withSideCollapsed(ind: Indicator, collapsed: Record<string, boolean>): 
 function withScriptOverride(ind: Indicator, overrides: Record<string, Partial<Indicator>>): Indicator {
   const override = overrides[ind.id];
   if (!override) return ind;
-  return { ...ind, ...override, id: ind.id, kind: ind.kind, customData: ind.customData };
+  return withSeriesColors({ ...ind, ...override, id: ind.id, kind: ind.kind, customData: ind.customData });
+}
+
+/** Couleurs choisies dans l'onglet Style pour chaque série d'un indicateur à plusieurs séries
+ *  (`Indicator.seriesColors`), reportées sur `customData.multiSeries` : tout ce qui dessine ou légende ces séries
+ *  lit déjà leur couleur là, rien d'autre n'a à les connaître. */
+export function withSeriesColors(ind: Indicator): Indicator {
+  const colors = ind.seriesColors;
+  const series = ind.customData?.multiSeries;
+  if (!colors || !series || !ind.customData) return ind;
+  if (!series.some((s) => colors[s.key] && colors[s.key] !== s.color)) return ind;
+  return { ...ind, customData: { ...ind.customData, multiSeries: series.map((s) => (colors[s.key] ? { ...s, color: colors[s.key] } : s)) } };
 }
 
 /** Which box a docked pane belongs to. Two panes docked to the same side under the *same name*
@@ -165,6 +176,9 @@ export interface UsePaneLayoutArgs {
   /** Option « propres à l'unité de temps » : les indicateurs d'une autre unité sont écartés (ni
    *  tracés, ni panneau, ni légende) mais gardés dans la liste enregistrée. */
   timeframeScoped?: boolean;
+  /** Voir `CandlestickChartProps.defaultVolumePaneState` / `onVolumePaneStateChange`. */
+  defaultVolumePaneState?: "expanded" | "collapsed" | "hidden";
+  onVolumePaneStateChange?: (state: "expanded" | "collapsed" | "hidden") => void;
 }
 
 /** Technical indicators (state + CRUD) and the sub-pane layout system they (and volume) share:
@@ -185,6 +199,8 @@ export function usePaneLayout({
   liveCustomIndicators,
   timeframe,
   timeframeScoped = false,
+  defaultVolumePaneState = "expanded",
+  onVolumePaneStateChange,
 }: UsePaneLayoutArgs) {
   const defaultFraction =
     defaultPaneHeightFraction !== undefined && Number.isFinite(defaultPaneHeightFraction)
@@ -212,7 +228,8 @@ export function usePaneLayout({
     scoped && tf ? list.filter((ind) => ind.timeframe !== undefined && ind.timeframe !== tf) : [];
   const indicators = useMemo(() => {
     const hidden = outOfScope(allIndicators, timeframe, timeframeScoped);
-    return hidden.length ? allIndicators.filter((ind) => !hidden.includes(ind)) : allIndicators;
+    const shown = hidden.length ? allIndicators.filter((ind) => !hidden.includes(ind)) : allIndicators;
+    return shown.some((ind) => ind.seriesColors) ? shown.map(withSeriesColors) : shown;
   }, [allIndicators, timeframe, timeframeScoped]);
   const scopeRef = useRef({ all: storedIndicators, timeframe, timeframeScoped });
   scopeRef.current = { all: storedIndicators, timeframe, timeframeScoped };
@@ -254,7 +271,17 @@ export function usePaneLayout({
   // the `showVolume` prop rather than replacing it: `showVolume` is the caller's own on/off
   // switch, this is the user's in-session view preference once it's on. Not lifted to a prop —
   // no request for the app to control or persist it, same as the other UI-only toggles here.
-  const [volumePaneState, setVolumePaneState] = useState<"expanded" | "collapsed" | "hidden">("expanded");
+  const [volumePaneState, setVolumePaneStateRaw] = useState<"expanded" | "collapsed" | "hidden">(defaultVolumePaneState);
+  // Chaque changement annoncé à l'hôte (qui retient le choix), quel que soit le chemin qui l'a fait.
+  const onVolumePaneStateChangeRef = useRef(onVolumePaneStateChange);
+  onVolumePaneStateChangeRef.current = onVolumePaneStateChange;
+  const setVolumePaneState = useCallback((next: "expanded" | "collapsed" | "hidden" | ((prev: "expanded" | "collapsed" | "hidden") => "expanded" | "collapsed" | "hidden")) => {
+    setVolumePaneStateRaw((prev) => {
+      const value = typeof next === "function" ? next(prev) : next;
+      if (value !== prev) queueMicrotask(() => onVolumePaneStateChangeRef.current?.(value));
+      return value;
+    });
+  }, []);
   // Manually-resized sub-pane heights (volume, or an "own"-pane indicator, keyed by "volume" or
   // the indicator's own id), as a fraction of the plot's own bounded height — set by dragging a
   // pane's own top divider (see startPaneResize). Missing entries fall back to

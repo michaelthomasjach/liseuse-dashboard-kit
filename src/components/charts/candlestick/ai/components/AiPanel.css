@@ -522,3 +522,13 @@
   outline: 2px solid var(--lq-color-focus-ring);
   outline-offset: 1px;
 }
+
+/* Avancement d'une question : secondes écoulées et étape. */
+.lq-ai__busy-time {
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--lq-font-weight-semibold, 600);
+  font-style: normal;
+}
+.lq-ai__busy-step {
+  font-style: normal;
+}

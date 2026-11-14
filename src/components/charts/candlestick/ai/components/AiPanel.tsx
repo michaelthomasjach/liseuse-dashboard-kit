@@ -348,7 +348,7 @@ export function AiPanel({
             </span>
           </div>
         ))}
-        {busy && <p className="lq-ai__busy">L'assistant travaille…</p>}
+        {busy && <AiBusy progress={assistant.progress} />}
       </div>
 
       {openReport !== null && (
@@ -518,5 +518,21 @@ export function AiPanel({
         </div>
       </div>
     </aside>
+  );
+}
+
+/** « L'assistant travaille… 12 s · Réflexion (tour 2) » : le temps écoulé, mis à jour chaque seconde, et l'étape. */
+function AiBusy({ progress }: { progress: import("../useAiAssistant").AiProgress | null }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const seconds = progress ? Math.max(0, Math.floor((now - progress.startedAt) / 1000)) : 0;
+  return (
+    <p className="lq-ai__busy" role="status" aria-live="polite">
+      L'assistant travaille… <span className="lq-ai__busy-time">{seconds} s</span>
+      {progress?.step && <span className="lq-ai__busy-step"> · {progress.step}</span>}
+    </p>
   );
 }

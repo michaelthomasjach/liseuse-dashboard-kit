@@ -39,6 +39,34 @@ export interface AiConversationStore {
   onChange: (conversations: AiConversation[], activeId: string | null) => void;
 }
 
+/** Avancement d'une question : début (ms) et étape lisible (« Réflexion (tour 2) », « Écriture du script »…). */
+export interface AiProgress {
+  startedAt: number;
+  step: string;
+}
+
+/** Nom lisible d'un outil pour l'étape affichée. */
+const TOOL_STEPS: Record<string, string> = {
+  lire_le_graphique: "Lecture du graphique",
+  lister_les_indicateurs_disponibles: "Liste des indicateurs",
+  ajouter_un_indicateur: "Ajout d'un indicateur",
+  retirer_un_indicateur: "Retrait d'un indicateur",
+  afficher_le_volume: "Volume",
+  changer_l_unite_de_temps: "Changement d'unité de temps",
+  changer_de_symbole: "Changement de symbole",
+  tracer_une_ligne_horizontale: "Tracé d'une ligne",
+  tracer_un_canal: "Tracé d'un canal",
+  effacer_les_dessins: "Effacement des dessins",
+  lire_un_script: "Lecture d'un script",
+  ecrire_un_script: "Écriture du script",
+  lire_le_resultat_d_un_script: "Lecture du résultat du script",
+  lire_les_donnees_fondamentales: "Lecture des données fondamentales",
+  lire_les_prix: "Lecture des prix",
+  marquer_des_seances: "Marquage des séances",
+  lire_la_documentation_du_scripting: "Lecture de la documentation",
+};
+const toolStep = (name: string): string => TOOL_STEPS[name] ?? name.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
+
 const MAX_CONVERSATIONS = 30;
 const MAX_HISTORY = 40;
 const MAX_TRANSCRIPT = 200;
@@ -95,6 +123,8 @@ export interface AiAssistant {
   activeConversationId: string | null;
   /** Une conversation neuve (l'actuelle reste dans la liste). */
   newConversation: () => void;
+  /** Pendant une question : depuis quand l'assistant travaille, et l'étape en cours (affichées dans le panneau). */
+  progress: AiProgress | null;
   selectConversation: (id: string) => void;
 }
 
@@ -112,6 +142,8 @@ export function useAiAssistant({ chart, send, serverTools, conversations: store 
   const [activeId, setActiveId] = useState<string>(() => initialActive?.id ?? makeId());
   const [transcript, setTranscript] = useState<AiTranscriptEntry[]>(() => initialActive?.transcript ?? []);
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState<AiProgress | null>(null);
+  const step = (s: string) => setProgress((p) => (p ? { ...p, step: s } : { startedAt: Date.now(), step: s }));
   const storeRef = useRef(store);
   storeRef.current = store;
   /** Une question a été posée depuis le dernier enregistrement (choisir une conversation ne la ré-enregistre pas). */
@@ -129,6 +161,7 @@ export function useAiAssistant({ chart, send, serverTools, conversations: store 
     abortRef.current?.abort();
     abortRef.current = null;
     setBusy(false);
+    setProgress(null);
   }, []);
 
   /** Rend la liste à l'application (à enregistrer). */
@@ -198,6 +231,7 @@ export function useAiAssistant({ chart, send, serverTools, conversations: store 
       const controller = new AbortController();
       abortRef.current = controller;
       setBusy(true);
+      setProgress({ startedAt: Date.now(), step: "Préparation" });
       dirtyRef.current = true;
 
       setTranscript((prev) => [...prev, { id: makeId(), role: "user", text }]);
@@ -246,6 +280,7 @@ export function useAiAssistant({ chart, send, serverTools, conversations: store 
             serverTools,
           };
 
+          step(round === 0 ? "Réflexion" : `Réflexion (tour ${round + 1})`);
           const answer: AiContentBlock[] = [];
           const entryId = makeId();
           let streamed = "";
@@ -255,6 +290,7 @@ export function useAiAssistant({ chart, send, serverTools, conversations: store 
           for await (const event of send(request, controller.signal)) {
             if (controller.signal.aborted) return;
             if (event.type === "text_delta") {
+              if (!streamed) step("Rédaction de la réponse");
               streamed += event.text;
               // One transcript entry per assistant turn, rewritten as it streams — a new entry per
               // fragment would make the list re-key on every token.
@@ -264,6 +300,7 @@ export function useAiAssistant({ chart, send, serverTools, conversations: store 
                 return [...prev, { id: entryId, role: "assistant", text: streamed }];
               });
             } else if (event.type === "tool_use") {
+              step(`Préparation : ${toolStep(event.name).toLowerCase()}`);
               answer.push({ type: "tool_use", id: event.id, name: event.name, input: event.input });
             } else if (event.type === "done") {
               stopReason = event.stopReason;
@@ -289,6 +326,7 @@ export function useAiAssistant({ chart, send, serverTools, conversations: store 
           // at a time would leave the others unanswered.
           const results: AiContentBlock[] = [];
           for (const call of calls) {
+            step(toolStep(call.name));
             // Correction du script qu'il vient de créer : le même onglet, pas un nouveau fichier.
             const input: Record<string, unknown> =
               call.name === "ecrire_un_script" && createdId !== null && typeof call.input.id !== "string" && chartRef.current.scripts.some((s) => s.id === createdId)
@@ -322,6 +360,7 @@ export function useAiAssistant({ chart, send, serverTools, conversations: store 
         if (abortRef.current === controller) {
           abortRef.current = null;
           setBusy(false);
+          setProgress(null);
         }
       }
     },
@@ -338,5 +377,6 @@ export function useAiAssistant({ chart, send, serverTools, conversations: store 
     activeConversationId: transcript.length > 0 || conversations.some((c) => c.id === activeId) ? activeId : null,
     newConversation,
     selectConversation,
+    progress,
   };
 }

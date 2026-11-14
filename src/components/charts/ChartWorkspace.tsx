@@ -307,6 +307,9 @@ export interface ChartWorkspaceProps {
   /** Relance de la visite guidée par l'application (un lien « Relancer la visite guidée ») : chaque nouvelle valeur
    *  l'ouvre, même déjà vue. */
   tourRequest?: number;
+  /** Message de l'application posé sur la zone des graphiques (ex. « Historique disponible jusqu'au… »), centré sur
+   *  elle et non sur toute la largeur (liste, assistant, rail). Le contenu garde son propre style. */
+  notice?: ReactNode;
   /** Demande d'ouverture venue de l'application (par exemple le clic sur la notification « Réponse de l'assistant
    *  prête ») : chaque nouveau `seq` ouvre l'assistant (`assistant`) et, si `scriptId` existe, l'éditeur de script sur
    *  cet onglet. Un script pas encore chargé est ouvert dès qu'il arrive. */
@@ -379,6 +382,7 @@ export function ChartWorkspace({
   defaultScripts,
   focusRequest,
   tourRequest,
+  notice,
   onScriptsChange,
   onScriptAlert,
   className,
@@ -1096,6 +1100,8 @@ export function ChartWorkspace({
             onSidePanelOpenChange: undefined,
           })
         )}
+        {/* Message de l'application, centré sur la zone des graphiques. */}
+        {notice && <div className="lq-chart-workspace__notice">{notice}</div>}
         {/* Blocks every panel underneath from receiving pointer input at all while locked (the
             actual point of "locking") — the triple-click that lifts it still reaches
             handleGridClick above regardless, since blocking a *descendant* from being the click's

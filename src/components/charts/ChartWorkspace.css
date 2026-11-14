@@ -2363,3 +2363,17 @@
 .lq-chart-workspace__ai-slot {
   flex-shrink: 0;
 }
+
+/* Message de l'application (prop notice) : une bande sans hauteur en haut de la zone des graphiques, qui sert de
+   repère au contenu (centré sur cette zone, pas sur la page). Ne capte aucun clic. */
+.lq-chart-workspace__notice {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 0;
+  z-index: 1500;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}

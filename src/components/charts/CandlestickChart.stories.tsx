@@ -380,7 +380,8 @@ const DEMO_QUOTES: Record<string, LiveQuote> = Object.fromEntries(
  *  — and patching one of them by hand is how they end up disagreeing. */
 function atQuote(row: ChartWorkspaceWatchlistRow, quote: LiveQuote | undefined): ChartWorkspaceWatchlistRow {
   if (quote === undefined) return row;
-  return watchlistRow(row.id, row.ticker, quote.price, quote.change, row.assetType, row.sector, row.region);
+  // La ligne garde ce que l'utilisateur lui a donné (nom choisi…) ; seuls le cours et la variation changent.
+  return { ...row, ...watchlistRow(row.id, row.ticker, quote.price, quote.change, row.assetType, row.sector, row.region) };
 }
 
 function watchlistsAtQuotes(lists: ChartWorkspaceWatchlist[], quotes: Record<string, LiveQuote>): ChartWorkspaceWatchlist[] {
@@ -820,6 +821,17 @@ export const AllFeatures: Story = {
     // Already past WatchlistPanel's own confirmation modal by the time this fires (see
     // ChartWorkspaceProps.onRemoveWatchlistSection's own doc) — nothing left to do here but
     // actually drop the section and whatever rows it still had.
+    // Double-clic sur un nom (ou clic droit « Renommer le symbole ») : le nom choisi devient le libellé de la ligne ;
+    // un nom vide revient au ticker.
+    function handleRenameWatchlistRow(watchlistId: string, rowId: string, name: string) {
+      const rename = (rows: ChartWorkspaceWatchlist["rows"]) => rows.map((r) => (r.id === rowId ? { ...r, label: name || undefined } : r));
+      setWatchlists((prev) =>
+        prev.map((list) =>
+          list.id !== watchlistId ? list : { ...list, rows: rename(list.rows), sections: list.sections?.map((section) => ({ ...section, rows: rename(section.rows) })) },
+        ),
+      );
+    }
+
     function handleRemoveWatchlistSection(watchlistId: string, sectionId: string) {
       setWatchlists((prev) => prev.map((w) => (w.id === watchlistId ? { ...w, sections: w.sections?.filter((s) => s.id !== sectionId) } : w)));
     }
@@ -919,6 +931,7 @@ export const AllFeatures: Story = {
           onCreateWatchlist={handleCreateWatchlist}
           onCreateWatchlistSection={handleCreateWatchlistSection}
           onRemoveWatchlistSymbol={handleRemoveWatchlistSymbol}
+          onRenameWatchlistRow={handleRenameWatchlistRow}
           onRemoveWatchlistSection={handleRemoveWatchlistSection}
           onMoveWatchlistRow={handleMoveWatchlistRow}
           onReorderWatchlistSections={handleReorderWatchlistSections}

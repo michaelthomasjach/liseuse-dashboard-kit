@@ -2221,3 +2221,19 @@
 .lq-chart-workspace__rail-actions-start {
   margin-top: auto;
 }
+
+/* Moyenne des variations d'une section, à droite de son en-tête. */
+.lq-chart-workspace__watchlist-section-avg {
+  margin-left: auto;
+  padding-right: 6px;
+  font-size: 0.72rem;
+  font-weight: var(--lq-font-weight-semibold, 600);
+  font-variant-numeric: tabular-nums;
+  color: var(--lq-color-text-muted);
+}
+.lq-chart-workspace__watchlist-section-avg--up {
+  color: var(--lq-color-positive, #22c55e);
+}
+.lq-chart-workspace__watchlist-section-avg--down {
+  color: var(--lq-color-negative, #ef4444);
+}

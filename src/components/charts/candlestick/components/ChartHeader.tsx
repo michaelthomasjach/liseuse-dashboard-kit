@@ -256,7 +256,7 @@ export function ChartHeader({
             </div>
           </Popover>
           <button ref={rangeAnchorRef} type="button" className="lq-chart__timeframe-trigger" onClick={() => setRangeOpen((o) => !o)}>
-            <span className="lq-chart__timeframe-trigger-label">{selectedRange ?? "Plage"}</span>
+            <span className="lq-chart__timeframe-trigger-label">{`Zone visible - ${selectedRange ?? "Custom"}`}</span>
             <ChevronDownIcon size={12} />
           </button>
           <Popover open={rangeOpen} onClose={() => setRangeOpen(() => false)} anchorRef={rangeAnchorRef} placement="bottom">

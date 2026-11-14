@@ -105,6 +105,9 @@ export interface TrendLineDrawing {
   timeframe?: string;
   /** Masque l'étiquette d'unité de temps (barre flottante du dessin, ou ses paramètres). */
   timeframeLabelHidden?: boolean;
+  /** Visible seulement sur l'unité de temps où il a été tracé (`timeframe`), même quand le réglage général du rail
+   *  (« par unité de temps ») est éteint. */
+  timeframeOnly?: boolean;
   /** "channel"/"disjointChannel" only — the dashed median line halfway between the two lines.
    *  Unset (default) draws it; `false` hides it. */
   channelMedian?: boolean;

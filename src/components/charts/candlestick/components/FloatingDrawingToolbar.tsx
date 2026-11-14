@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import type { RefObject } from "react";
 import { Popover } from "../../../forms/Popover";
 import { DrawingStylesMenu, type DrawingStylesMenuProps } from "./DrawingStylesMenu";
-import { GripIcon, PencilIcon, TextIcon, HorizontalLineIcon, AlarmClockIcon, TrashIcon, LockIcon, UnlockIcon } from "../../../icons";
+import { GripIcon, PencilIcon, TextIcon, HorizontalLineIcon, AlarmClockIcon, TimeframeLayersIcon, TrashIcon, LockIcon, UnlockIcon } from "../../../icons";
 
 const STROKE_WIDTH_OPTIONS = [1, 2, 3, 4];
 
@@ -39,6 +39,9 @@ export interface FloatingDrawingToolbarProps {
   /** Étiquette d'unité de temps du dessin sélectionné (« 1 semaine ») et si elle est affichée ;
    *  absente si le dessin n'en a pas. */
   timeframeLabel?: { text: string; shown: boolean };
+  /** Dessin visible seulement sur son unité de temps, et la bascule (absente : pas de bouton). */
+  timeframeOnly?: boolean;
+  onToggleTimeframeOnly?: () => void;
   onToggleTimeframeLabel?: () => void;
   /** Styles enregistrés de l'outil (« types de lignes ») : menu « Style » de la barre. */
   styles?: DrawingStylesMenuProps;
@@ -69,6 +72,8 @@ export function FloatingDrawingToolbar({
   angleLock,
   onToggleAngleLock,
   timeframeLabel,
+  timeframeOnly,
+  onToggleTimeframeOnly,
   onToggleTimeframeLabel,
   styles,
 }: FloatingDrawingToolbarProps) {
@@ -165,6 +170,19 @@ export function FloatingDrawingToolbar({
           title={timeframeLabel.shown ? `Tracé en ${timeframeLabel.text} — masquer l'étiquette` : `Tracé en ${timeframeLabel.text} — afficher l'étiquette`}
         >
           {timeframeLabel.text}
+        </button>
+      )}
+      {/* Juste après l'étiquette de son unité : ce dessin n'apparaît que sur elle. */}
+      {timeframeLabel && onToggleTimeframeOnly && (
+        <button
+          type="button"
+          className={["lq-chart__icon-button", timeframeOnly && "lq-chart__icon-button--active"].filter(Boolean).join(" ")}
+          onClick={onToggleTimeframeOnly}
+          aria-pressed={timeframeOnly ?? false}
+          aria-label={timeframeOnly ? `Afficher sur toutes les unités de temps` : `Masquer sur les autres unités de temps que ${timeframeLabel.text}`}
+          title={timeframeOnly ? `Visible seulement en ${timeframeLabel.text} — afficher partout` : `Masquer sur les autres unités de temps que ${timeframeLabel.text}`}
+        >
+          <TimeframeLayersIcon size={14} />
         </button>
       )}
       <button

@@ -182,6 +182,10 @@ export function CandlestickChart({
   onChartDisplayModeChange, renkoAtrPeriod = 14,
   symbol,
   captureButton = true,
+  defaultWatermark,
+  onWatermarkChange,
+  defaultSymbolInfoHidden = false,
+  onSymbolInfoHiddenChange,
   onToolBridge,
   events,
   fundamentals,
@@ -493,6 +497,19 @@ export function CandlestickChart({
   // hover state when a command runs — by then the pointer has moved onto the menu itself.
   const [contextMenu, setContextMenu] = useState<ChartContextMenuAnchor | null>(null);
   // Le petit message après une capture (« Image copiée… »), effacé de lui-même.
+  // Rappel de la zone visible de l'en-tête pour un zoom (renseigné une fois useBarRangeSelection appelé).
+  const rangeXZoomRef = useRef<(() => void) | null>(null);
+  // Filigrane du symbole et ligne d'informations : réglages du lecteur, rendus à l'application pour qu'elle les garde.
+  const [watermark, setWatermarkState] = useState(() => ({ visible: defaultWatermark?.visible ?? false, opacity: defaultWatermark?.opacity ?? 0.08 }));
+  const setWatermark = (next: { visible: boolean; opacity: number }) => {
+    setWatermarkState(next);
+    onWatermarkChange?.(next);
+  };
+  const [symbolInfoHidden, setSymbolInfoHiddenState] = useState(defaultSymbolInfoHidden);
+  const setSymbolInfoHidden = (hidden: boolean) => {
+    setSymbolInfoHiddenState(hidden);
+    onSymbolInfoHiddenChange?.(hidden);
+  };
   const [captureToast, setCaptureToast] = useState<string | null>(null);
   useEffect(() => {
     if (captureToast === null) return;
@@ -996,12 +1013,15 @@ export function CandlestickChart({
     replayFollowKey: replayState.followKey,
     syncedVisibleRange,
     onVisibleRangeChange,
+    // Zone visible choisie dans l'en-tête : un zoom à la main la fait repasser en « Custom ».
+    onXZoom: () => rangeXZoomRef.current?.(),
     resetSubPaneYAxes: resetAllPaneYAxes,
   });
 
   const { effectiveHoverIndex, effectiveHovered, effectiveHoverY } = useHoverSync({ data, hoverIndex, indexForDate, dateForIndex, syncedHoverDate, onHoverDateChange, hoverY, zoomedPriceScale, clampToPriceAxis, syncedHoverPrice, onHoverPriceChange });
 
   const barRangeState = useBarRangeSelection({ data, timeframe, setVisibleCandleCount });
+  rangeXZoomRef.current = barRangeState.noteXZoom;
 
   usePaneDragReorder({
     draggingPaneId,
@@ -1552,7 +1572,13 @@ export function CandlestickChart({
     drawings,
     targetDrawing: contextMenuDrawing,
     commitDrawings,
-    setEditingDrawingId: setEditingId,
+    // Comme le double-clic sur le dessin : la fenêtre a besoin du brouillon, pas seulement de l'identifiant.
+    setEditingDrawingId: (id: string) => {
+      const dr = drawings.find((d) => d.id === id);
+      if (!dr) return;
+      setEditingId(id);
+      setDraft(dr);
+    },
     nextDrawingId: () => `drawing-${drawingIdRef.current++}`,
     priceScale,
     formatPrice: priceAxisFmt,
@@ -1574,6 +1600,8 @@ export function CandlestickChart({
     marketStateOpen,
     toggleMarketState: () => setMarketStateOpen((open) => !open),
     openSettings: () => setSettingsOpen(true),
+    symbolInfoHidden,
+    toggleSymbolInfo: () => setSymbolInfoHidden(!symbolInfoHidden),
   });
   const currentTimeframeLabel = findTimeframeLabel(timeframes, timeframe);
 
@@ -1785,10 +1813,21 @@ export function CandlestickChart({
             `width: 100%` of this column instead of any measured figure — see isMobileRail above
             and `.lq-chart__tools-rail--horizontal`'s own rule.) */}
         {!isMobileRail && toolsRail}
+        {/* Filigrane : le nom du symbole au fond du panneau des prix, derrière le canevas (transparent) qui suit. */}
+        {watermark.visible && symbol && priceHeight > 0 && (
+          <div
+            className="lq-chart__watermark"
+            aria-hidden="true"
+            style={{ left: dims.margin.left, top: dims.margin.top, width: dims.boundedWidth, height: priceHeight, opacity: watermark.opacity }}
+          >
+            <span style={{ fontSize: Math.max(24, Math.min(dims.boundedWidth / Math.max(4, symbol.length * 0.62), priceHeight * 0.32, 160)) }}>{symbol}</span>
+          </div>
+        )}
         {/* Fixed to the plot's own top-left corner regardless of priceHeight — without this gate
             it would still render, and overlap, once a pane's own maximize button zeroes it out. */}
         {priceHeight > 0 && (
           <ChartLegend
+            symbolInfoHidden={symbolInfoHidden}
             strategyScriptIds={strategyScriptIds}
             onOpenIndicatorCode={openIndicatorCode}
             hasIndicatorCode={hasIndicatorCode}
@@ -2102,6 +2141,10 @@ export function CandlestickChart({
             onToggleTimeframeLabel={() =>
               commitDrawings(drawings.map((d) => (d.id === selectedDrawingId ? { ...d, timeframeLabelHidden: !d.timeframeLabelHidden } : d)))
             }
+            timeframeOnly={drawings.find((d) => d.id === selectedDrawingId)?.timeframeOnly ?? false}
+            onToggleTimeframeOnly={() =>
+              commitDrawings(drawings.map((d) => (d.id === selectedDrawingId ? { ...d, timeframeOnly: !d.timeframeOnly } : d)))
+            }
             locked={drawings.find((d) => d.id === selectedDrawingId)?.locked ?? false}
             onToggleLock={
               selectedDrawingId !== null
@@ -2240,6 +2283,9 @@ export function CandlestickChart({
         pickerTargetPane={indicatorPickerOpen ? pickerTargetPane : null}
         addOnPane={addIndicatorOnPane}
         settingsOpen={settingsOpen} setSettingsOpen={setSettingsOpen}
+        watermark={watermark} setWatermark={setWatermark} watermarkAvailable={Boolean(symbol)}
+        timeframeLabelOf={drawingTimeframeLabel}
+        symbolInfoHidden={symbolInfoHidden} setSymbolInfoHidden={setSymbolInfoHidden}
         mobileLayout={isNarrowLayout} layoutOverride={layoutOverride} setLayoutOverride={setLayoutOverride}
         chartDisplayMode={chartDisplayMode} setChartDisplayMode={setChartDisplayMode} onChartDisplayModeChange={onChartDisplayModeChange}
         closePulseVisible={closePulseVisible} setClosePulseVisible={setClosePulseVisible}

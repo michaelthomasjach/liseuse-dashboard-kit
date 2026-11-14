@@ -4,6 +4,7 @@ import type { IndicatorKind } from "./interfaces/IndicatorKind.interface";
 import type { ChartContextMenuItem } from "./components/ChartContextMenu";
 import type { Candle } from "./interfaces/Candle.interface";
 import type { TrendLineDrawing } from "./interfaces/TrendLineDrawing.interface";
+import { drawingNoun } from "./drawingCatalog";
 
 /** Where the right-click landed, in both coordinate spaces the menu needs. */
 export interface ChartContextMenuAnchor {
@@ -56,6 +57,9 @@ export interface BuildChartContextMenuArgs {
   marketStateOpen: boolean;
   toggleMarketState: () => void;
   openSettings: () => void;
+  /** Ligne d'informations (symbole, OHLC) masquée, et la bascule. */
+  symbolInfoHidden?: boolean;
+  toggleSymbolInfo?: () => void;
 }
 
 /** What the chart's right-click menu offers, top to bottom.
@@ -87,6 +91,8 @@ export function buildChartContextMenu({
   marketStateOpen,
   toggleMarketState,
   openSettings,
+  symbolInfoHidden,
+  toggleSymbolInfo,
 }: BuildChartContextMenuArgs): ChartContextMenuItem[] {
   if (anchor === null) return [];
   const candle = data[Math.max(0, Math.min(data.length - 1, anchor.index))] ?? null;
@@ -96,11 +102,30 @@ export function buildChartContextMenu({
     // item changes meaning depending on where you clicked is exactly what a context menu is for.
     ...(targetDrawing === null
       ? []
-      : ([
-          { label: "Modifier le dessin…", onSelect: () => setEditingDrawingId(targetDrawing.id) },
-          { label: "Supprimer le dessin", onSelect: () => commitDrawings(drawings.filter((d) => d.id !== targetDrawing.id)) },
-          { separator: true },
-        ] as ChartContextMenuItem[])),
+      : (() => {
+          // Le dessin nommé par ce qu'il est : « la ligne », « le rectangle »…
+          const noun = drawingNoun(targetDrawing);
+          const patch = (p: Partial<TrendLineDrawing>) => commitDrawings(drawings.map((d) => (d.id === targetDrawing.id ? { ...d, ...p } : d)));
+          return [
+            { label: `Paramètres ${noun.of}…`, onSelect: () => setEditingDrawingId(targetDrawing.id) },
+            {
+              label: targetDrawing.locked ? `Déverrouiller ${noun.the}` : `Verrouiller ${noun.the}`,
+              onSelect: () => patch({ locked: !targetDrawing.locked }),
+            },
+            ...(targetDrawing.timeframe && targetDrawing.lineType !== "symbolOverlay"
+              ? [
+                  {
+                    label: targetDrawing.timeframeOnly
+                      ? `Afficher ${noun.the} sur toutes les unités de temps`
+                      : `Masquer ${noun.the} sur les autres unités de temps`,
+                    onSelect: () => patch({ timeframeOnly: !targetDrawing.timeframeOnly }),
+                  },
+                ]
+              : []),
+            { label: `Supprimer ${noun.the}`, onSelect: () => commitDrawings(drawings.filter((d) => d.id !== targetDrawing.id)) },
+            { separator: true },
+          ] as ChartContextMenuItem[];
+        })()),
     {
       label: "Ligne horizontale ici",
       hint: formatPrice(anchor.price),
@@ -180,6 +205,8 @@ export function buildChartContextMenu({
     // Also reachable from the tools rail — but that rail only exists when `drawingTools` is on,
     // and the readout has nothing to do with drawing. This is the way in that always works.
     { label: marketStateOpen ? "Masquer l'état du marché" : "État du marché", onSelect: toggleMarketState },
+    // La ligne symbole · type · OHLC en haut à gauche.
+    ...(toggleSymbolInfo ? [{ label: symbolInfoHidden ? "Afficher ces informations" : "Masquer ces informations", onSelect: toggleSymbolInfo }] : []),
     // Sur la ligne d'un indicateur : ses paramètres (période, couleurs, style…), juste avant ceux du graphique.
     ...(anchor.indicatorId && openIndicatorSettings
       ? ([

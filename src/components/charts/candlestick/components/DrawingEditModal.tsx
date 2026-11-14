@@ -4,10 +4,11 @@ import { Input } from "../../../forms/Input";
 import { InputNumber } from "../../../forms/InputNumber";
 import { Checkbox } from "../../../forms/Checkbox";
 import { Select } from "../../../forms/Select";
+import { DatePicker } from "../../../forms/DatePicker";
 import type { TrendLineDrawing } from "../interfaces/TrendLineDrawing.interface";
 import type { DataPoint } from "../interfaces/DataPoint.interface";
 import type { DrawingToolType } from "../interfaces/DrawingToolType.interface";
-import { drawingLabel, MULTI_POINT_TOOLS } from "../drawingCatalog";
+import { drawingLabel, drawingNoun, MULTI_POINT_TOOLS } from "../drawingCatalog";
 import { allPointsOf, round4, effectiveExtendOf } from "../drawingGeometry";
 import { contrastingTextColor, toDateInputValue, fromDateInputValue } from "../formatting";
 import { fillColorField, PALE_GREEN, PALE_NEUTRAL, PALE_RED } from "../drawingFills";
@@ -19,7 +20,16 @@ import { SaveStyleField } from "./DrawingStylesMenu";
 // Same catalog the main chart's own display-mode menu offers (see ChartHeader).
 const OVERLAY_DISPLAY_MODE_OPTIONS = CHART_DISPLAY_MODES.map((m) => ({ value: m.mode, label: m.label }));
 
+/** Le jour choisi dans le calendrier, à l'heure du point d'origine (un dessin intrajournalier garde sa bougie). */
+function keepTimeOf(picked: Date, original: Date): Date {
+  const next = new Date(picked);
+  next.setHours(original.getHours(), original.getMinutes(), original.getSeconds(), original.getMilliseconds());
+  return next;
+}
+
 export interface DrawingEditModalProps {
+  /** Nom affiché d'une unité de temps (« 1hour » → « 1 heure »). */
+  timeframeLabelOf?: (timeframe: string) => string;
   draft: TrendLineDrawing | null;
   setDraft: (d: TrendLineDrawing) => void;
   editModalTab: "coords" | "text" | "style";
@@ -47,6 +57,7 @@ export interface DrawingEditModalProps {
  *  and writes `draft` directly, nothing here touches `drawings` itself until `saveEditModal`. */
 export function DrawingEditModal({
   draft,
+  timeframeLabelOf,
   setDraft,
   editModalTab,
   setEditModalTab,
@@ -73,7 +84,7 @@ export function DrawingEditModal({
     <Modal
       open
       onClose={closeEditModal}
-      title={draft.lineType === "symbolOverlay" ? `Paramètres — ${drawingLabel(draft)}` : "Modifier la ligne"}
+      title={draft.lineType === "symbolOverlay" ? `Paramètres — ${drawingLabel(draft)}` : `Modifier ${drawingNoun(draft).the}`}
       footer={
         <div className="lq-chart__edit-drawing-footer">
           <button type="button" className="lq-chart__reset-button" onClick={deleteEditingDrawing}>
@@ -124,18 +135,10 @@ export function DrawingEditModal({
             />
           )}
           {draft.lineType === "vertical" && (
-            <div className="lq-field">
-              <label className="lq-field__label">Date</label>
-              <input
-                type="date"
-                className="lq-chart__date-input"
-                value={toDateInputValue(draft.x1)}
-                onChange={(e) => {
-                  const next = fromDateInputValue(e.target.value, draft.x1);
+            <DatePicker label="Date" value={draft.x1} onChange={(picked: Date) => {
+                  const next = keepTimeOf(picked, draft.x1);
                   setDraft({ ...draft, x1: next, x2: next });
-                }}
-              />
-            </div>
+                }} />
           )}
           {/* A ray keeps both its degrees of freedom (unlike horizontal/vertical), so it gets
               both fields — still just one of each, since x2/y2 always mirror x1/y1. Arrow
@@ -143,18 +146,10 @@ export function DrawingEditModal({
               price-anchored). */}
           {(draft.lineType === "ray" || draft.lineType === "arrowUp" || draft.lineType === "arrowDown") && (
             <div className="lq-chart__edit-drawing-row">
-              <div className="lq-field">
-                <label className="lq-field__label">Date</label>
-                <input
-                  type="date"
-                  className="lq-chart__date-input"
-                  value={toDateInputValue(draft.x1)}
-                  onChange={(e) => {
-                    const next = fromDateInputValue(e.target.value, draft.x1);
+              <DatePicker label="Date" value={draft.x1} onChange={(picked: Date) => {
+                    const next = keepTimeOf(picked, draft.x1);
                     setDraft({ ...draft, x1: next, x2: next });
-                  }}
-                />
-              </div>
+                  }} />
               <InputNumber
                 label={valueAxisLabel(draft.valueAxis)}
                 step={0.01}
@@ -177,15 +172,7 @@ export function DrawingEditModal({
             draft.lineType === "zones") && (
             <>
               <div className="lq-chart__edit-drawing-row">
-                <div className="lq-field">
-                  <label className="lq-field__label">Début</label>
-                  <input
-                    type="date"
-                    className="lq-chart__date-input"
-                    value={toDateInputValue(draft.x1)}
-                    onChange={(e) => setDraft({ ...draft, x1: fromDateInputValue(e.target.value, draft.x1) })}
-                  />
-                </div>
+                <DatePicker label="Début" value={draft.x1} onChange={(picked: Date) => setDraft({ ...draft, x1: keepTimeOf(picked, draft.x1) })} />
                 <InputNumber
                   label="Prix début"
                   step={0.01}
@@ -194,15 +181,7 @@ export function DrawingEditModal({
                 />
               </div>
               <div className="lq-chart__edit-drawing-row">
-                <div className="lq-field">
-                  <label className="lq-field__label">Fin</label>
-                  <input
-                    type="date"
-                    className="lq-chart__date-input"
-                    value={toDateInputValue(draft.x2)}
-                    onChange={(e) => setDraft({ ...draft, x2: fromDateInputValue(e.target.value, draft.x2) })}
-                  />
-                </div>
+                <DatePicker label="Fin" value={draft.x2} onChange={(picked: Date) => setDraft({ ...draft, x2: keepTimeOf(picked, draft.x2) })} />
                 <InputNumber
                   label="Prix fin"
                   step={0.01}
@@ -224,7 +203,7 @@ export function DrawingEditModal({
             <Checkbox
               checked={!draft.timeframeLabelHidden}
               onChange={(on) => setDraft({ ...draft, timeframeLabelHidden: !on })}
-              label={`Étiquette d'unité de temps (tracé en ${draft.timeframe})`}
+              label={`Étiquette d'unité de temps (tracé en ${timeframeLabelOf ? timeframeLabelOf(draft.timeframe) : draft.timeframe})`}
             />
           )}
           {(draft.lineType === "channel" || draft.lineType === "disjointChannel") && (
@@ -321,11 +300,18 @@ export function DrawingEditModal({
             value={draft.text ?? ""}
             onChange={(e) => setDraft({ ...draft, text: e.target.value })}
           />
-          <Checkbox
-            checked={draft.textAlignWithLine ?? false}
-            onChange={(textAlignWithLine) => setDraft({ ...draft, textAlignWithLine })}
-            label="Aligner le texte avec la ligne"
-          />
+          {/* Seulement pour une ligne qui peut être inclinée : un rectangle, une ligne horizontale ou verticale sont toujours
+              droits, le texte l'est déjà. */}
+          {(draft.lineType === undefined ||
+            draft.lineType === "extended" ||
+            draft.lineType === "channel" ||
+            draft.lineType === "disjointChannel") && (
+            <Checkbox
+              checked={draft.textAlignWithLine ?? false}
+              onChange={(textAlignWithLine) => setDraft({ ...draft, textAlignWithLine })}
+              label={`Aligner le texte avec ${drawingNoun(draft).the}`}
+            />
+          )}
           <div className="lq-chart__edit-drawing-row">
             <InputNumber
               label="Taille du texte"

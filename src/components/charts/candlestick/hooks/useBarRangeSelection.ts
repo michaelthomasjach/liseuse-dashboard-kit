@@ -108,7 +108,11 @@ export function useBarRangeSelection({ data, timeframe, setVisibleCandleCount }:
   const [selectedRange, setSelectedRange] = useState<BarRangeValue | null>(null);
   const rangeAnchorRef = useRef<HTMLButtonElement>(null);
 
+  // Instant du dernier choix de plage : le zoom qu'il provoque ne doit pas le défaire (voir noteXZoom).
+  const appliedAtRef = useRef(0);
+
   function applyRange(range: BarRangeValue) {
+    appliedAtRef.current = performance.now();
     setSelectedRange(range);
     setRangeOpen(false);
     if (data.length === 0) return;
@@ -136,12 +140,20 @@ export function useBarRangeSelection({ data, timeframe, setVisibleCandleCount }:
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeframe]);
 
+  /** Un zoom ou un déplacement de la plage de dates : hors de celui que vient de provoquer le choix d'une plage, la
+   *  zone visible n'est plus celle choisie — « Custom ». */
+  function noteXZoom() {
+    if (performance.now() - appliedAtRef.current < 1000) return;
+    setSelectedRange((current) => (current === null ? current : null));
+  }
+
   return {
     rangeOpen,
     setRangeOpen,
     rangeAnchorRef,
     selectedRange,
     applyRange,
+    noteXZoom,
     barRangeOptions: BAR_RANGE_OPTIONS,
   };
 }

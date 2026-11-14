@@ -68,6 +68,8 @@ export interface ChartWorkspaceWatchlistRow {
    *  every column by the price would paint that variation green. A column declaring no numeric
    *  `sortValue` falls back to this; with neither, that figure simply never flashes. */
   price?: number;
+  /** Variation de la séance en %, quand l'appelant l'a : sert à la moyenne affichée sur l'en-tête de chaque section. */
+  changePct?: number;
 }
 
 /** A named sub-group of rows within one list (see `ChartWorkspaceWatchlist.sections`) — e.g.

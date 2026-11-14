@@ -279,3 +279,34 @@ export function drawingToolMeta(dr: TrendLineDrawing): { label: string; icon: ty
 export function drawingLabel(dr: TrendLineDrawing): string {
   return dr.text || drawingToolMeta(dr).label;
 }
+
+/** Nom court d'un dessin avec son article, pour les libellés (« Supprimer la ligne », « Paramètres du rectangle »). */
+const DRAWING_NOUNS: Record<string, string> = {
+  trendline: "la ligne", extended: "la ligne", horizontal: "la ligne", ray: "la ligne", vertical: "la ligne", arrowLine: "la ligne",
+  channel: "le canal", disjointChannel: "le canal",
+  pitchfork: "le pitchfork", schiffPitchfork: "le pitchfork", modifiedSchiffPitchfork: "le pitchfork", insidePitchfork: "le pitchfork",
+  rectangle: "le rectangle", zones: "la zone",
+  elbowArrow: "la flèche", arrowUp: "la flèche", arrowDown: "la flèche", brush: "le tracé",
+  fibonacci: "le Fibonacci", fibonacciExtension: "le Fibonacci",
+  elliottImpulse: "la vague", elliottCorrection: "la vague", headShoulders: "la figure", cupHandle: "la figure",
+  forecast: "la projection", rangeForecast: "la projection", longPosition: "la position", shortPosition: "la position",
+  text: "le texte", comment: "le commentaire", note: "la note", priceNote: "la note", pin: "l'épingle", flagMark: "la marque",
+  signpost: "le panneau", priceLabel: "l'étiquette", table: "le tableau", symbolOverlay: "le symbole",
+};
+
+export interface DrawingNoun {
+  /** « la ligne », « le rectangle », « l'étiquette ». */
+  the: string;
+  /** « de la ligne », « du rectangle », « de l'étiquette ». */
+  of: string;
+  /** « ligne », « rectangle ». */
+  bare: string;
+}
+
+export function drawingNoun(dr: Pick<TrendLineDrawing, "lineType" | "arrowLeft" | "arrowRight">): DrawingNoun {
+  const type = dr.lineType ?? (dr.arrowLeft || dr.arrowRight ? "arrowLine" : "trendline");
+  const the = DRAWING_NOUNS[type] ?? "le dessin";
+  const of = the.startsWith("le ") ? `du ${the.slice(3)}` : `de ${the}`;
+  const bare = the.replace(/^(le |la |l')/, "");
+  return { the, of, bare };
+}

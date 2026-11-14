@@ -451,13 +451,12 @@ export function ToolsRail({
             it, rather than living inline with the magnet/hide/lock toggles above. */}
         {/* Dessins et indicateurs propres à l'unité de temps : chacun n'apparaît que sur l'unité où il
             a été ajouté (rien n'est supprimé, revenir sur l'unité le remontre). En tête du groupe du bas,
-            sous un trait de séparation : c'est un réglage d'affichage, pas un outil de dessin. */}
+            au-dessus d'un trait qui le sépare des autres : c'est un réglage d'affichage, pas un outil de dessin. */}
         {onToggleTimeframeScoped && (
           <>
-            <div className="lq-chart__tool-separator lq-chart__tools-rail-bottom-button" aria-hidden="true" />
             <button
               type="button"
-              className={["lq-chart__icon-button", timeframeScoped && "lq-chart__icon-button--active"].filter(Boolean).join(" ")}
+              className={["lq-chart__icon-button lq-chart__tools-rail-bottom-button", timeframeScoped && "lq-chart__icon-button--active"].filter(Boolean).join(" ")}
               onClick={onToggleTimeframeScoped}
               aria-label="Masquer les dessins et indicateurs des autres unités de temps"
               aria-pressed={timeframeScoped}
@@ -469,6 +468,7 @@ export function ToolsRail({
             >
               <TimeframeLayersIcon size={14} />
             </button>
+            <div className="lq-chart__tool-separator" aria-hidden="true" />
           </>
         )}
         {/* The workspace's own fullscreen, on the mobile row only (the side rail that holds it

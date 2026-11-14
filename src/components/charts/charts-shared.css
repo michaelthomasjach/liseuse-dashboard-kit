@@ -4038,3 +4038,38 @@ button.lq-chart__legend-item {
   min-height: 0;
   height: auto;
 }
+
+/* Filigrane : le nom du symbole au fond du panneau des prix (opacité réglée dans les paramètres du graphique). */
+.lq-chart__watermark {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+}
+.lq-chart__watermark span {
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  white-space: nowrap;
+  color: var(--lq-color-text);
+}
+
+/* Paramètres du graphique : onglets, curseur d'opacité du filigrane. */
+.lq-chart__settings-tabs {
+  margin-bottom: var(--lq-space-3);
+}
+.lq-chart__settings-opacity {
+  display: flex;
+  align-items: center;
+  gap: var(--lq-space-2);
+  margin-top: var(--lq-space-2);
+  font-size: var(--lq-text-sm);
+  color: var(--lq-color-text-muted);
+}
+.lq-chart__settings-opacity input[type="range"] {
+  flex: 1;
+  accent-color: var(--lq-color-accent);
+}

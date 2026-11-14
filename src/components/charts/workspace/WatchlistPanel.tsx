@@ -118,6 +118,8 @@ export function WatchlistPanel({
 }: WatchlistPanelProps) {
   // Ligne en cours de renommage (double-clic sur son nom) et texte saisi.
   const [renaming, setRenaming] = useState<{ rowId: string; draft: string } | null>(null);
+  // Symbole dont la corbeille a été cliquée : retiré seulement après confirmation.
+  const [confirmDeleteRow, setConfirmDeleteRow] = useState<{ row: ChartWorkspaceWatchlistRow; sectionId: string | null } | null>(null);
   const renameClickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => {
     if (renameClickTimer.current) clearTimeout(renameClickTimer.current);
@@ -558,7 +560,7 @@ export function WatchlistPanel({
           <button
             type="button"
             className="lq-chart-workspace__watchlist-delete"
-            onClick={() => onRemoveRow(activeWatchlist.id, row.id, sectionId)}
+            onClick={() => setConfirmDeleteRow({ row, sectionId })}
             aria-label={`Supprimer ${row.ticker}`}
             title="Supprimer"
           >
@@ -612,6 +614,27 @@ export function WatchlistPanel({
             {collapsed ? <ChevronRightIcon size={12} /> : <ChevronDownIcon size={12} />}
             {section.name}
           </button>
+          {/* Moyenne des variations du jour des symboles de la section (ceux qui en ont une), visible même repliée. */}
+          {(() => {
+            const changes = section.rows.map((r) => r.changePct).filter((v): v is number => typeof v === "number" && Number.isFinite(v));
+            if (changes.length === 0) return null;
+            const avg = changes.reduce((a, b) => a + b, 0) / changes.length;
+            return (
+              <span
+                className={[
+                  "lq-chart-workspace__watchlist-section-avg",
+                  avg > 0 && "lq-chart-workspace__watchlist-section-avg--up",
+                  avg < 0 && "lq-chart-workspace__watchlist-section-avg--down",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+                title={`Variation moyenne de ${changes.length} symbole${changes.length > 1 ? "s" : ""}`}
+              >
+                {avg > 0 ? "+" : avg < 0 ? "−" : ""}
+                {Math.abs(avg).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} %
+              </span>
+            );
+          })()}
           {onRemoveSection && (
             <button
               type="button"
@@ -845,6 +868,35 @@ export function WatchlistPanel({
           onClose={() => setNameModal(null)}
           onSubmit={(name) => (nameModal === "list" ? onCreateWatchlist?.(name) : onCreateSection?.(activeWatchlist.id, name))}
         />
+      )}
+
+      {confirmDeleteRow && (
+        <Modal
+          open
+          onClose={() => setConfirmDeleteRow(null)}
+          title="Retirer le symbole ?"
+          footer={
+            <div className="lq-chart__edit-drawing-footer">
+              <button type="button" className="lq-chart__reset-button" onClick={() => setConfirmDeleteRow(null)}>
+                Annuler
+              </button>
+              <button
+                type="button"
+                className="lq-chart__confirm-button"
+                onClick={() => {
+                  onRemoveRow?.(activeWatchlist.id, confirmDeleteRow.row.id, confirmDeleteRow.sectionId);
+                  setConfirmDeleteRow(null);
+                }}
+              >
+                Retirer
+              </button>
+            </div>
+          }
+        >
+          <p className="lq-chart__indicator-picker-empty">
+            Retirer « {confirmDeleteRow.row.label ?? confirmDeleteRow.row.ticker} » de la liste « {activeWatchlist.name} » ?
+          </p>
+        </Modal>
       )}
 
       {confirmDeleteSection && (

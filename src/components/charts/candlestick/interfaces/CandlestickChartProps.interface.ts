@@ -79,6 +79,14 @@ export interface CandlestickChartProps {
   /** Bouton appareil photo dans l'en-tête (capture du graphique). Défaut true ; `ChartWorkspace` le retire, son rail
    *  de droite en porte un pour tout l'espace de travail. */
   captureButton?: boolean;
+  /** Nom du symbole en filigrane au fond du graphique, et son opacité (0–1). Réglable dans les paramètres du
+   *  graphique ; `onWatermarkChange` pour l'enregistrer. Défaut : masqué, opacité 0,08. */
+  defaultWatermark?: { visible: boolean; opacity: number };
+  onWatermarkChange?: (watermark: { visible: boolean; opacity: number }) => void;
+  /** Ligne d'informations en haut à gauche (symbole, type de bougies, OHLC) masquée — clic droit « Masquer ces
+   *  informations », réglage aussi dans les paramètres. `onSymbolInfoHiddenChange` pour l'enregistrer. */
+  defaultSymbolInfoHidden?: boolean;
+  onSymbolInfoHiddenChange?: (hidden: boolean) => void;
   /** Reçoit le pont des outils de l'assistant de ce graphique (définitions + exécution), pour un autre pilote que
    *  l'assistant intégré — un serveur MCP par exemple —, puis `null` au démontage. Voir `ChartToolBridge`. Dans un
    *  `ChartWorkspace`, passez-le à l'espace de travail : il le donne au graphique au premier plan. */

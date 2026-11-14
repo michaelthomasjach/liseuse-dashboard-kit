@@ -4,6 +4,7 @@ import { ChartPropsModal } from "./ChartPropsModal";
 import { CodeIcon } from "../../../icons";
 import { Checkbox } from "../../../forms/Checkbox";
 import { Toggle } from "../../../primitives/Toggle";
+import { Tabs } from "../../../primitives/Tabs";
 import { capitalize } from "../formatting";
 import { CHART_DISPLAY_MODES } from "../chartModes";
 import type { ChartDisplayMode } from "../interfaces/ChartDisplayMode.interface";
@@ -45,7 +46,16 @@ export interface ChartSettingsModalsProps {
   setVolumeUpColorOverride: (color: string | undefined) => void;
   volumeDownColorOverride: string | undefined;
   setVolumeDownColorOverride: (color: string | undefined) => void;
+  /** Nom du symbole en filigrane et son opacité ; `watermarkAvailable` : le graphique a un symbole à afficher. */
+  watermark: { visible: boolean; opacity: number };
+  setWatermark: (next: { visible: boolean; opacity: number }) => void;
+  watermarkAvailable: boolean;
+  /** Ligne symbole · type · OHLC en haut à gauche, masquée. */
+  symbolInfoHidden: boolean;
+  setSymbolInfoHidden: (hidden: boolean) => void;
 }
+
+type SettingsTab = "bougies" | "affichage" | "evenements" | "integration";
 
 /** The two small "chart settings" modals — up/down candle colors + YAutoScaling toggle + per-kind
  *  event visibility (double-click the symbol/chart-type label to open), and its volume-pane
@@ -82,7 +92,14 @@ export function ChartSettingsModals({
   setVolumeUpColorOverride,
   volumeDownColorOverride,
   setVolumeDownColorOverride,
+  watermark,
+  setWatermark,
+  watermarkAvailable,
+  symbolInfoHidden,
+  setSymbolInfoHidden,
 }: ChartSettingsModalsProps) {
+  // Onglets de la fenêtre des paramètres : les réglages rangés par thème plutôt qu'en une longue colonne.
+  const [tab, setTab] = useState<SettingsTab>("bougies");
   // What "no override" actually renders as, read fresh off the live theme rather than hardcoded
   // — the swatch shown when a field is unset used to be a fixed "#26a69a"/"#ef5350" regardless of
   // the active theme/palette, which could (and, in E-ink, always did) disagree with the color the
@@ -113,6 +130,19 @@ export function ChartSettingsModals({
     <div ref={wrapperRef} style={{ display: "contents" }}>
       {settingsOpen && (
         <Modal open onClose={() => setSettingsOpen(false)} title="Paramètres du graphique">
+          <Tabs
+            className="lq-chart__settings-tabs"
+            items={[
+              { id: "bougies", label: "Bougies" },
+              { id: "affichage", label: "Affichage" },
+              ...(eventKinds.length > 0 ? [{ id: "evenements", label: "Événements" }] : []),
+              { id: "integration", label: "Intégration" },
+            ]}
+            value={tab === "evenements" && eventKinds.length === 0 ? "bougies" : tab}
+            onChange={(id) => setTab(id as SettingsTab)}
+          />
+          {tab === "bougies" && (
+          <>
           {/* Same options/labels/icons as the header's own "Mode d'affichage" popover (see
               ChartHeader.tsx) — this is a second, always-reachable entry point to the exact same
               state rather than a separate concept, so it stays in lockstep with whatever the
@@ -159,27 +189,6 @@ export function ChartSettingsModals({
             </div>
           )}
 
-          {/* A manual override on the automatic width rule. Here rather than in the header because
-              it is a "how this chart is laid out" setting — the same family as the candle style
-              above it — and not something anyone flips often enough to earn a permanent button.
-              The reset appears only once the toggle has been used: before that, automatic IS the
-              state, and an always-visible "back to automatic" would be noise. */}
-          <div className="lq-field">
-            <label className="lq-field__label">Mise en page</label>
-            <div className="lq-chart__settings-layout-row">
-              <Toggle
-                checked={mobileLayout}
-                onChange={() => setLayoutOverride(mobileLayout ? "desktop" : "mobile")}
-                ariaLabel="Mise en page tactile (mobile)"
-              />
-              <span className="lq-chart__settings-layout-label">{mobileLayout ? "Tactile (mobile)" : "Bureau"}</span>
-            </div>
-            {layoutOverride !== null && (
-              <button type="button" className="lq-chart__settings-layout-reset" onClick={() => setLayoutOverride(null)}>
-                Revenir au choix automatique (selon la largeur)
-              </button>
-            )}
-          </div>
           {theme.isEink && (
             <p className="lq-chart__settings-eink-note">
               La palette E-ink affiche les bougies en creux ou plein plutôt qu'en couleur — les couleurs ci-dessous ne changent rien à leur apparence tant que cette palette est active.
@@ -219,6 +228,31 @@ export function ChartSettingsModals({
               Réinitialiser aux couleurs du thème
             </button>
           )}
+          </>
+          )}
+          {tab === "affichage" && (
+          <>
+          {/* A manual override on the automatic width rule. Here rather than in the header because
+              it is a "how this chart is laid out" setting — the same family as the candle style
+              above it — and not something anyone flips often enough to earn a permanent button.
+              The reset appears only once the toggle has been used: before that, automatic IS the
+              state, and an always-visible "back to automatic" would be noise. */}
+          <div className="lq-field">
+            <label className="lq-field__label">Mise en page</label>
+            <div className="lq-chart__settings-layout-row">
+              <Toggle
+                checked={mobileLayout}
+                onChange={() => setLayoutOverride(mobileLayout ? "desktop" : "mobile")}
+                ariaLabel="Mise en page tactile (mobile)"
+              />
+              <span className="lq-chart__settings-layout-label">{mobileLayout ? "Tactile (mobile)" : "Bureau"}</span>
+            </div>
+            {layoutOverride !== null && (
+              <button type="button" className="lq-chart__settings-layout-reset" onClick={() => setLayoutOverride(null)}>
+                Revenir au choix automatique (selon la largeur)
+              </button>
+            )}
+          </div>
           <Checkbox
             checked={yAutoScalingState}
             onChange={(checked) => {
@@ -237,7 +271,41 @@ export function ChartSettingsModals({
             onChange={setFutureZoneVisible}
             label="Zone rayée après la dernière bougie"
           />
-          {eventKinds.length > 0 && (
+          <Checkbox
+            checked={!symbolInfoHidden}
+            onChange={(checked) => setSymbolInfoHidden(!checked)}
+            label="Informations du symbole en haut à gauche (nom, bougies, OHLC)"
+          />
+          {watermarkAvailable && (
+            <div className="lq-field">
+              <label className="lq-field__label">Filigrane</label>
+              <div className="lq-chart__settings-layout-row">
+                <Toggle
+                  checked={watermark.visible}
+                  onChange={() => setWatermark({ ...watermark, visible: !watermark.visible })}
+                  ariaLabel="Nom du symbole en filigrane"
+                />
+                <span className="lq-chart__settings-layout-label">Nom du symbole en fond de graphique</span>
+              </div>
+              {watermark.visible && (
+                <label className="lq-chart__settings-opacity">
+                  <span>Opacité : {Math.round(watermark.opacity * 100)} %</span>
+                  <input
+                    type="range"
+                    min={2}
+                    max={40}
+                    step={1}
+                    value={Math.round(watermark.opacity * 100)}
+                    onChange={(e) => setWatermark({ ...watermark, opacity: Number(e.target.value) / 100 })}
+                    aria-label="Opacité du filigrane"
+                  />
+                </label>
+              )}
+            </div>
+          )}
+          </>
+          )}
+          {tab === "evenements" && eventKinds.length > 0 && (
             <div className="lq-chart__settings-events">
               <span className="lq-field__label">Événements</span>
               {eventKinds.map((kind) => (
@@ -257,6 +325,7 @@ export function ChartSettingsModals({
               ))}
             </div>
           )}
+          {tab === "integration" && (
           <div className="lq-field">
             <label className="lq-field__label">Intégration</label>
             <button type="button" className="lq-chart__reset-button lq-chart__props-button" onClick={() => setPropsOpen(true)}>
@@ -266,6 +335,7 @@ export function ChartSettingsModals({
               La liste complète de ce que l&apos;application peut passer à ce graphique, avec les types et les valeurs par défaut.
             </p>
           </div>
+          )}
 
         </Modal>
       )}

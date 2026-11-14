@@ -172,7 +172,11 @@ export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAdd
   // Option « propres à l'unité de temps » : un dessin tracé sur une autre unité est gardé mais pas
   // montré ; les comparaisons de symboles et les dessins sans unité (plus anciens) restent partout.
   const scopedDrawings = useMemo(
-    () => (timeframeScoped && timeframe ? drawings.filter((d) => !d.timeframe || d.timeframe === timeframe || d.lineType === "symbolOverlay") : drawings),
+    // Masqués hors de leur unité de temps : tous quand le réglage général est allumé, sinon ceux réglés un par un.
+    () =>
+      timeframe
+        ? drawings.filter((d) => !d.timeframe || d.timeframe === timeframe || d.lineType === "symbolOverlay" || (!timeframeScoped && !d.timeframeOnly))
+        : drawings,
     [drawings, timeframeScoped, timeframe],
   );
   const visibleDrawings = drawingsHidden ? EMPTY_DRAWINGS : scopedDrawings;

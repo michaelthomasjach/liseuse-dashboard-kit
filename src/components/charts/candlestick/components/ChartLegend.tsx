@@ -72,6 +72,8 @@ export interface ChartLegendProps {
   /** Which indicator is hovered right now, from *either* surface — this legend, or the line itself
    *  on the plot (see `useDrawingInteractions`' own `onHoveredIndicatorChange`). One piece of state
    *  for one fact, so pointing at a curve and pointing at its name light up the same row. */
+  /** Ligne symbole · type · OHLC masquée (clic droit « Masquer ces informations »). */
+  symbolInfoHidden?: boolean;
   hoveredIndicatorId: string | null;
   indicatorLabel: (indicator: Indicator) => string;
   toggleIndicatorHidden: (id: string) => void;
@@ -138,6 +140,7 @@ export function ChartLegend({
   defaultIndicatorColor,
   openIndicatorSettings,
   setHoveredIndicatorId,
+  symbolInfoHidden = false,
   hoveredIndicatorId,
   indicatorLabel,
   toggleIndicatorHidden,
@@ -186,7 +189,7 @@ export function ChartLegend({
       // max-height so the "half" lives in the stylesheet with the rest of the rule.
       style={{ top: dims.margin.top + 6, left: dims.margin.left + 6, ["--lq-chart-price-height" as string]: `${priceHeight}px` }}
     >
-      <div className={["lq-chart__symbol-info", mobile && "lq-chart__symbol-info--stacked"].filter(Boolean).join(" ")}>
+      <div className={["lq-chart__symbol-info", mobile && "lq-chart__symbol-info--stacked"].filter(Boolean).join(" ")} hidden={symbolInfoHidden}>
         {/* Its own hoverable zone (background on hover) only once `symbolSearch` opts in —
             otherwise `symbol` still renders, just as inert text, same as before this
             existed. Double-click only (not single), matching the chart-type label right

@@ -100,6 +100,8 @@ export interface UseZoomAndScalesArgs {
    *  visible venu d'un geste de l'utilisateur sur ce graphique, jamais pour un changement appliqué
    *  par programme (vue initiale, redimensionnement, replay, synchronisation reçue). */
   onVisibleRangeChange: ((range: ChartVisibleRange) => void) | undefined;
+  /** Chaque déplacement de la plage de dates mené par ce graphique (geste, molette, nombre de bougies…). */
+  onXZoom?: () => void;
   /** Remet chaque sous-panneau (volume, indicateurs) sur son échelle automatique — appelé quand ce
    *  graphique suit la plage d'un autre, pour que leurs valeurs restent visibles comme les prix. */
   resetSubPaneYAxes: () => void;
@@ -138,6 +140,7 @@ export function useZoomAndScales({
   replayFollowKey,
   syncedVisibleRange,
   onVisibleRangeChange,
+  onXZoom,
   resetSubPaneYAxes,
 }: UseZoomAndScalesArgs) {
   const [transform, setTransform] = useState<d3.ZoomTransform>(d3.zoomIdentity);
@@ -516,6 +519,8 @@ export function useZoomAndScales({
   const silentZoomRef = useRef(false);
   const onVisibleRangeChangeRef = useRef(onVisibleRangeChange);
   onVisibleRangeChangeRef.current = onVisibleRangeChange;
+  const onXZoomRef = useRef(onXZoom);
+  onXZoomRef.current = onXZoom;
   const lastReportedRangeRef = useRef<{ start: number; end: number } | null>(null);
   // La dernière transformation passée par `handleZoom`, quelle qu'en soit l'origine.
   const lastZoomRef = useRef<d3.ZoomTransform>(d3.zoomIdentity);
@@ -539,6 +544,7 @@ export function useZoomAndScales({
     // qui rappelle `onZoom` à chaque mouvement sans rien changer en X : ce n'est pas un déplacement
     // de la plage de dates, ni une raison de cesser de suivre le groupe.
     if (t.k === previous.k && t.x === previous.x) return;
+    onXZoomRef.current?.();
     if (syncFit) setSyncFit(false);
     const report = onVisibleRangeChangeRef.current;
     if (!report) return;

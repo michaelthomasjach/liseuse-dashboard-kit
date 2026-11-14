@@ -2338,16 +2338,9 @@
   flex: none;
   width: 18px;
 }
-@media (hover: hover) and (pointer: fine) {
-  .lq-chart-workspace__watchlist-section-header > .lq-chart-workspace__watchlist-grip {
-    position: absolute;
-    left: 0;
-    top: 50%;
-    height: 18px;
-    transform: translateY(-50%);
-    z-index: 1;
-    background-color: var(--lq-color-panel, var(--lq-color-bg));
-  }
+/* Pas de poignée sur l'en-tête d'une sous-liste : elle cacherait le chevron qui l'ouvre ; l'en-tête entier se fait glisser. */
+.lq-chart-workspace__watchlist-section-header > .lq-chart-workspace__watchlist-grip {
+  display: none;
 }
 
 /* L'assistant entre les fenêtres et le panneau des listes (ou le rail) : un trait le sépare de ce qui suit, que le

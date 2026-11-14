@@ -540,7 +540,7 @@
   background-image: none;
   color: var(--lq-color-accent-contrast, #fff);
   border: none;
-  border-radius: 14px;
+  border-radius: var(--lq-radius-md);
   padding: 10px 14px;
   max-width: 88%;
 }
@@ -633,9 +633,9 @@
   border-radius: 50%;
   border: 2px solid color-mix(in srgb, var(--lq-color-accent) 22%, transparent);
   border-top-color: var(--lq-color-accent);
-  animation: lq-ai-spin 0.9s linear infinite;
+  animation: lq-ai-step-spin 0.9s linear infinite;
 }
-@keyframes lq-ai-spin {
+@keyframes lq-ai-step-spin {
   to {
     transform: rotate(360deg);
   }
@@ -645,10 +645,10 @@
     animation: none;
   }
 }
-/* Zone de saisie : arrondie, la dictée et la flèche d'envoi à l'intérieur, en bas à droite. */
+/* Zone de saisie : angles du thème, la dictée et la flèche d'envoi à l'intérieur, en bas à droite. */
 .lq-ai__highlight,
 .lq-ai__input {
-  border-radius: 12px;
+  border-radius: var(--lq-radius-sm);
   padding-right: 76px;
 }
 .lq-ai__composer-inline {

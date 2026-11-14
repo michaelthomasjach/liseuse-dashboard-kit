@@ -16,6 +16,11 @@
   inset: 8px;
 }
 
+/* Éditeur de script flottant légèrement transparent : le graphique reste deviné derrière. */
+.lq-script-window:has(> .lq-script-editor-panel__tabs):not(.lq-script-window--detached) {
+  opacity: var(--lq-script-window-opacity, 0.95);
+}
+
 .lq-script-window__header {
   display: flex;
   align-items: center;

@@ -587,7 +587,9 @@ export function useDrawingInteractions({
   }
 
   function handlePointerMove(e: React.PointerEvent<SVGRectElement>) {
-    overlayElRef.current = e.currentTarget;
+    // Pose d'un point au doigt (useMobilePointPlacement) : un faux évènement dont `currentTarget` n'est pas un élément —
+    // le garder ici faisait planter le survol suivant (`classList` absent).
+    if (e.currentTarget instanceof Element) overlayElRef.current = e.currentTarget;
     shiftHeldRef.current = e.shiftKey;
     if (data.length === 0) return;
     const rect = e.currentTarget.getBoundingClientRect();

@@ -4084,3 +4084,22 @@ button.lq-chart__legend-item {
   flex: 1;
   min-width: 0;
 }
+
+/* Barre flottante d'un dessin au doigt : le navigateur ne reprend pas le geste (défilement) pendant qu'on la déplace —
+   sinon le glisser était annulé aussitôt. Et sur un écran étroit, ses boutons passent à la ligne au lieu de la rendre
+   plus large que le graphique (où elle restait plaquée contre un bord). */
+.lq-chart__floating-toolbar {
+  touch-action: none;
+  max-width: calc(100% - 8px);
+  flex-wrap: wrap;
+}
+.lq-chart__floating-toolbar-grip {
+  touch-action: none;
+}
+@media (pointer: coarse) {
+  .lq-chart__floating-toolbar-grip {
+    min-width: 32px;
+    min-height: 32px;
+    opacity: 0.8;
+  }
+}

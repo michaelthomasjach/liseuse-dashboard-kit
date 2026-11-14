@@ -81,7 +81,8 @@ export function FloatingDrawingToolbar({
   const strokeButtonRef = useRef<HTMLButtonElement>(null);
 
   return (
-    <div ref={toolbarRef} className="lq-chart__floating-toolbar" style={{ left: position.x, top: position.y }}>
+    // Le fond de la barre se prend aussi pour la déplacer (au doigt, la petite poignée est difficile à viser).
+    <div ref={toolbarRef} className="lq-chart__floating-toolbar" style={{ left: position.x, top: position.y }} onPointerDown={startDrag}>
       {/* 6 dots across 2 columns (GripIcon), at reduced opacity until hovered — press-and-hold
           drags the whole toolbar via useFloatingToolbarPosition.startDrag. */}
       <button type="button" className="lq-chart__floating-toolbar-grip" onPointerDown={startDrag} aria-label="Déplacer la barre d'outils" title="Glisser pour déplacer">

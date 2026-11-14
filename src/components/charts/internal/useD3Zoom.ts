@@ -134,6 +134,22 @@ export function useD3Zoom<T extends Element>({
     behaviorRef.current = behavior;
     const selection = d3.select(el);
     selection.call(behavior);
+    // Molette horizontale (deuxième molette d'une souris, glisser à deux doigts d'un pavé tactile) : déplacement dans
+    // le temps, pas un zoom — d3-zoom ne lit que `deltaY`. Le reste (molette verticale : zoom) est laissé à d3-zoom.
+    const zoomWheel = selection.on("wheel.zoom") as ((this: T, event: WheelEvent, d: unknown) => void) | undefined;
+    selection.on("wheel.zoom", function (this: T, event: WheelEvent, d: unknown) {
+      const horizontal = Math.abs(event.deltaX) > Math.abs(event.deltaY);
+      if (!horizontal || event.ctrlKey || (filterRef.current && !filterRef.current(event))) {
+        zoomWheel?.call(this, event, d);
+        return;
+      }
+      event.preventDefault();
+      // Lignes ou pages (Firefox) ramenées en pixels ; vers la droite = plus récent.
+      const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? width : 1;
+      const k = d3.zoomTransform(this as unknown as Element).k;
+      onUserZoomRef.current?.();
+      behavior.translateBy(selection, (-event.deltaX * unit) / k, 0);
+    });
     // d3-zoom garde sa transformation sur l'élément (`__zoom`) et repart de là au geste suivant. Une
     // transformation appliquée pendant que le comportement était détaché (outil de dessin actif :
     // `setTransform` retombe alors sur `emitZoom`) ou avant un remontage de l'élément ne l'a pas

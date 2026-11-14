@@ -7,6 +7,7 @@ import type { IndicatorADXPoint } from "../interfaces/IndicatorADXPoint.interfac
 import type { IndicatorBand } from "../interfaces/IndicatorBand.interface";
 import { defaultIndicatorColor, isFundamentalKind } from "../indicatorCatalog";
 import { applyLineStyle } from "./drawPriceCandles";
+import { strokeCrossColoredLine } from "./strokeCrossColoredLine";
 
 /** One "own"-pane indicator's own series (RSI/CHOP/MACD/ADX/correlation/a fundamental/a
  *  `plot.pane`-produced custom line/area/histogram/band/multi pane), drawn into whatever clipped
@@ -125,14 +126,27 @@ export function drawOwnPaneIndicatorSeries(
     ctx.strokeStyle = color;
     ctx.lineWidth = 1.5;
     ctx.setLineDash([]);
-    ctx.beginPath();
-    macdPoints.forEach((p, k) => {
-      const x = zoomedXScale(p.i + 0.5);
-      const y = scale(p.value.macd);
-      if (k === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    });
-    ctx.stroke();
+    if (ind.macdCrossColors) {
+      // Couleur selon la position face au signal : elle change à chaque croisement.
+      strokeCrossColoredLine(
+        ctx,
+        macdPoints.map((p) => ({
+          x: zoomedXScale(p.i + 0.5),
+          y: scale(p.value.macd),
+          above: p.value.signal === null ? null : p.value.macd >= p.value.signal,
+        })),
+        { above: ind.macdLineAboveColor ?? colorUp, below: ind.macdLineBelowColor ?? colorDown, base: color },
+      );
+    } else {
+      ctx.beginPath();
+      macdPoints.forEach((p, k) => {
+        const x = zoomedXScale(p.i + 0.5);
+        const y = scale(p.value.macd);
+        if (k === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+    }
 
     ctx.strokeStyle = style.colorMuted;
     ctx.lineWidth = 1;
@@ -318,14 +332,28 @@ export function drawOwnPaneIndicatorSeries(
         ctx.strokeStyle = seriesColor;
         ctx.lineWidth = subEntry.lineWidth ?? 1.5;
         applyLineStyle(ctx, subEntry.lineStyle);
-        ctx.beginPath();
-        seriesPoints.forEach((p, k) => {
-          const x = zoomedXScale(p.i + 0.5);
-          const y = scale(p.value.multi[subEntry.key] as number);
-          if (k === 0) ctx.moveTo(x, y);
-          else ctx.lineTo(x, y);
-        });
-        ctx.stroke();
+        const cross = ind.seriesCross?.[subEntry.key];
+        if (cross) {
+          // Couleur selon la position face à une autre série du panneau : elle change à chaque croisement.
+          strokeCrossColoredLine(
+            ctx,
+            seriesPoints.map((p) => {
+              const v = p.value.multi[subEntry.key] as number;
+              const ref = p.value.multi[cross.versus];
+              return { x: zoomedXScale(p.i + 0.5), y: scale(v), above: typeof ref === "number" ? v >= ref : null };
+            }),
+            { above: cross.above, below: cross.below, base: seriesColor },
+          );
+        } else {
+          ctx.beginPath();
+          seriesPoints.forEach((p, k) => {
+            const x = zoomedXScale(p.i + 0.5);
+            const y = scale(p.value.multi[subEntry.key] as number);
+            if (k === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+          });
+          ctx.stroke();
+        }
       }
     });
   } else {

@@ -204,6 +204,8 @@ Une ligne de tendance classique (pas "étendue", pas les autres types à géomé
 
 `defaultVolumePaneState` (`"expanded"` par défaut, `"collapsed"`, `"hidden"`) : état du panneau de volume à l'ouverture, avec `showVolume` ; masqué, le volume reste ajoutable depuis « Ajouter un indicateur ». `onVolumePaneStateChange` annonce chaque changement pour que l'hôte retienne le choix.
 
+Couleur au croisement : la MACD peut changer de couleur quand elle croise son signal (`macdCrossColors`, `macdLineAboveColor`, `macdLineBelowColor`), et chaque ligne d'un indicateur à plusieurs séries quand elle croise une autre série (`Indicator.seriesCross`) — réglé dans l'onglet Style. La molette horizontale (deuxième molette, pavé tactile) déplace la vue dans le temps ; la verticale zoome toujours.
+
 Indicateurs de script : la couleur écrite dans le code est appliquée (elle était ignorée pour un panneau à une seule série) ; un panneau à plusieurs séries (lignes, barres, bandes, points) propose une couleur par élément dans l'onglet Style (`Indicator.seriesColors`). Scripts : un nom déjà pris reçoit un numéro (« RSI (2) »), y compris pour les scripts gardés en double.
 
 Listes de `ChartWorkspace` : avec `onRenameWatchlistRow`, un double-clic sur le nom d'une ligne ouvre un champ (enregistré en perdant le focus ou avec Entrée, Échap abandonne ; vide : retour au ticker) ; le nom choisi revient dans `ChartWorkspaceWatchlistRow.label`, le ticker restant en infobulle.

@@ -467,6 +467,38 @@ export function IndicatorSettingsStyle({ indicatorDraft, setIndicatorDraft, indi
           )}
         </>
       )}
+      {/* MACD : couleur de la ligne selon sa position face au signal (change à chaque croisement). */}
+      {indicatorDraft.kind === "macd" && (
+        <>
+          <Checkbox
+            label="Changer la couleur de la MACD quand elle croise le signal"
+            checked={indicatorDraft.macdCrossColors ?? false}
+            onChange={(checked) => setIndicatorDraft({ ...indicatorDraft, macdCrossColors: checked })}
+          />
+          {indicatorDraft.macdCrossColors && (
+            <div className="lq-chart__edit-drawing-row">
+              <div className="lq-field">
+                <label className="lq-field__label">MACD au-dessus du signal</label>
+                <input
+                  type="color"
+                  className="lq-chart__color-input"
+                  value={indicatorDraft.macdLineAboveColor ?? "#26a69a"}
+                  onChange={(e) => setIndicatorDraft({ ...indicatorDraft, macdLineAboveColor: e.target.value })}
+                />
+              </div>
+              <div className="lq-field">
+                <label className="lq-field__label">MACD sous le signal</label>
+                <input
+                  type="color"
+                  className="lq-chart__color-input"
+                  value={indicatorDraft.macdLineBelowColor ?? "#ef5350"}
+                  onChange={(e) => setIndicatorDraft({ ...indicatorDraft, macdLineBelowColor: e.target.value })}
+                />
+              </div>
+            </div>
+          )}
+        </>
+      )}
       {indicatorDraft.kind === "zigzag" && (
         <Checkbox
           label="Afficher les labels HH / HL / LH / LL"
@@ -650,18 +682,58 @@ export function IndicatorSettingsStyle({ indicatorDraft, setIndicatorDraft, indi
           par élément, sous le nom que le code lui donne. */}
       {indicatorDraft.customData?.draw === "multi" && (indicatorDraft.customData.multiSeries?.length ?? 0) > 0 && (
         <div className="lq-chart__edit-drawing-row lq-chart__series-colors">
-          {(indicatorDraft.customData.multiSeries ?? []).map((series, i) => (
-            <div className="lq-field" key={series.key}>
-              <label className="lq-field__label">{series.label || `Série ${i + 1}`}</label>
-              <input
-                type="color"
-                className="lq-chart__color-input"
-                value={indicatorDraft.seriesColors?.[series.key] ?? series.color ?? defaultIndicatorColor(i)}
-                onChange={(e) => setIndicatorDraft({ ...indicatorDraft, seriesColors: { ...indicatorDraft.seriesColors, [series.key]: e.target.value } })}
-                aria-label={`Couleur de ${series.label || `la série ${i + 1}`}`}
-              />
-            </div>
-          ))}
+          {(indicatorDraft.customData.multiSeries ?? []).map((series, i) => {
+            const others = (indicatorDraft.customData?.multiSeries ?? []).filter((o) => o.key !== series.key && o.draw !== "band");
+            const cross = indicatorDraft.seriesCross?.[series.key];
+            const setCross = (next: { versus: string; above: string; below: string } | null) => {
+              const all = { ...indicatorDraft.seriesCross };
+              if (next) all[series.key] = next;
+              else delete all[series.key];
+              setIndicatorDraft({ ...indicatorDraft, seriesCross: all });
+            };
+            return (
+              <div className="lq-chart__series-color" key={series.key}>
+                <div className="lq-field">
+                  <label className="lq-field__label">{series.label || `Série ${i + 1}`}</label>
+                  <input
+                    type="color"
+                    className="lq-chart__color-input"
+                    value={indicatorDraft.seriesColors?.[series.key] ?? series.color ?? defaultIndicatorColor(i)}
+                    onChange={(e) => setIndicatorDraft({ ...indicatorDraft, seriesColors: { ...indicatorDraft.seriesColors, [series.key]: e.target.value } })}
+                    aria-label={`Couleur de ${series.label || `la série ${i + 1}`}`}
+                  />
+                </div>
+                {/* Une ligne peut changer de couleur quand elle croise une autre série du même indicateur. */}
+                {series.draw === "line" && others.length > 0 && (
+                  <>
+                    <Checkbox
+                      label="Changer de couleur au croisement"
+                      checked={cross !== undefined}
+                      onChange={(checked) => setCross(checked ? { versus: others[0]!.key, above: "#26a69a", below: "#ef5350" } : null)}
+                    />
+                    {cross && (
+                      <>
+                        <Select
+                          label="Série croisée"
+                          value={cross.versus}
+                          onChange={(v) => setCross({ ...cross, versus: v })}
+                          options={others.map((o) => ({ value: o.key, label: o.label || o.key }))}
+                        />
+                        <div className="lq-field">
+                          <label className="lq-field__label">Au-dessus</label>
+                          <input type="color" className="lq-chart__color-input" value={cross.above} onChange={(e) => setCross({ ...cross, above: e.target.value })} />
+                        </div>
+                        <div className="lq-field">
+                          <label className="lq-field__label">En dessous</label>
+                          <input type="color" className="lq-chart__color-input" value={cross.below} onChange={(e) => setCross({ ...cross, below: e.target.value })} />
+                        </div>
+                      </>
+                    )}
+                  </>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
       {indicatorDraft.customData?.draw !== "multi" &&

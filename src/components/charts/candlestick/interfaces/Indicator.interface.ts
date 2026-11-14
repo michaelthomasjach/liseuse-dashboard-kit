@@ -226,6 +226,15 @@ export interface Indicator {
    *  script qui trace plusieurs lignes, barres, bandes… dans le même panneau), par clé de série
    *  (`customData.multiSeries[].key`) ; remplace la couleur écrite dans le code. Réglée dans l'onglet Style. */
   seriesColors?: Record<string, string>;
+  /** Couleur d'une ligne selon sa position face à une autre série du même indicateur, par clé de série
+   *  (`customData.multiSeries[].key`) : `above` quand elle est au-dessus de la série `versus`, `below` en dessous — sa
+   *  couleur change donc à chaque croisement (deux moyennes, une ligne et son signal…). Réglée dans l'onglet Style. */
+  seriesCross?: Record<string, { versus: string; above: string; below: string }>;
+  /** MACD : la ligne MACD prend `macdLineAboveColor` au-dessus de sa ligne de signal et `macdLineBelowColor` en
+   *  dessous (sa couleur change à chaque croisement). Absent : une seule couleur. */
+  macdCrossColors?: boolean;
+  macdLineAboveColor?: string;
+  macdLineBelowColor?: string;
   /** A `pane: "own"` indicator's pane, collapsed to a header-only strip — same mechanism/UI as
    *  the volume pane's own collapse. Default false (expanded). */
   paneCollapsed?: boolean;

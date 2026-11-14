@@ -1,4 +1,5 @@
 import type { RenderCandlestickChartParams } from "../interfaces/RenderCandlestickChartParams.interface";
+import { strokeCrossColoredLine } from "./strokeCrossColoredLine";
 import type { ChartCanvasStyle } from "../interfaces/ChartCanvasStyle.interface";
 import { heatmapReplacesPrice } from "./drawScriptHeatmaps";
 import type { IndicatorBand } from "../interfaces/IndicatorBand.interface";
@@ -815,14 +816,28 @@ export function drawPriceCandles(ctx: CanvasRenderingContext2D, params: RenderCa
             ctx.strokeStyle = seriesColor;
             ctx.lineWidth = entry.lineWidth ?? 1.5;
             applyLineStyle(ctx, entry.lineStyle);
-            ctx.beginPath();
-            seriesPoints.forEach((p, k) => {
-              const x = zoomedXScale(p.i + 0.5);
-              const y = zoomedPriceScale(p.value.multi[entry.key] as number);
-              if (k === 0) ctx.moveTo(x, y);
-              else ctx.lineTo(x, y);
-            });
-            ctx.stroke();
+            const cross = indicator.seriesCross?.[entry.key];
+            if (cross) {
+              // Couleur selon la position face à une autre série (deux moyennes…) : elle change à chaque croisement.
+              strokeCrossColoredLine(
+                ctx,
+                seriesPoints.map((p) => {
+                  const v = p.value.multi[entry.key] as number;
+                  const ref = p.value.multi[cross.versus];
+                  return { x: zoomedXScale(p.i + 0.5), y: zoomedPriceScale(v), above: typeof ref === "number" ? v >= ref : null };
+                }),
+                { above: cross.above, below: cross.below, base: seriesColor },
+              );
+            } else {
+              ctx.beginPath();
+              seriesPoints.forEach((p, k) => {
+                const x = zoomedXScale(p.i + 0.5);
+                const y = zoomedPriceScale(p.value.multi[entry.key] as number);
+                if (k === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+              });
+              ctx.stroke();
+            }
           }
         });
       } else {

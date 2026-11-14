@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { AiChartContext } from "./interfaces/AiChartContext.interface";
 import type { AiContentBlock, AiMessage, AiSend, AiServerTool } from "./interfaces/AiMessage.interface";
 import { availableAiTools, runAiTool } from "./aiTools";
@@ -17,6 +17,50 @@ export interface UseAiAssistantArgs {
   chart: AiChartContext;
   send: AiSend | null;
   serverTools: AiServerTool[];
+  /** Conversations gardées par l'application (voir `AiConversationStore`) ; sans elles, une seule conversation, perdue
+   *  quand le graphique se démonte. */
+  conversations?: AiConversationStore;
+}
+
+/** Une conversation de l'assistant : ce qui s'affiche et ce que le modèle relit. */
+export interface AiConversation {
+  id: string;
+  /** Début de la première question de l'utilisateur. */
+  title: string;
+  updatedAt: string;
+  transcript: AiTranscriptEntry[];
+  history: AiMessage[];
+}
+
+/** Conversations tenues par l'application : lues au montage, rendues à chaque changement (à enregistrer). */
+export interface AiConversationStore {
+  initial: AiConversation[];
+  activeId?: string | null;
+  onChange: (conversations: AiConversation[], activeId: string | null) => void;
+}
+
+const MAX_CONVERSATIONS = 30;
+const MAX_HISTORY = 40;
+const MAX_TRANSCRIPT = 200;
+const MAX_BLOCK_TEXT = 6_000;
+
+/** Titre d'une conversation : le début de sa première question. */
+function titleOf(transcript: AiTranscriptEntry[]): string {
+  const first = transcript.find((e) => e.role === "user")?.text.replace(/\s+/g, " ").trim() ?? "";
+  return first.length > 48 ? `${first.slice(0, 47)}…` : first || "Nouvelle conversation";
+}
+
+const cut = (s: string) => (s.length > MAX_BLOCK_TEXT ? `${s.slice(0, MAX_BLOCK_TEXT)}…` : s);
+
+/** Ce qui est gardé d'une conversation : les derniers messages, textes bornés ; elle recommence toujours par une
+ *  question (un résultat d'outil sans son appel serait refusé par le modèle). */
+function pruned(history: AiMessage[]): AiMessage[] {
+  let kept = history.slice(-MAX_HISTORY);
+  while (kept.length && !(kept[0].role === "user" && kept[0].content.some((b) => b.type === "text"))) kept = kept.slice(1);
+  return kept.map((m) => ({
+    ...m,
+    content: m.content.map((b) => (b.type === "text" ? { ...b, text: cut(b.text) } : b.type === "tool_result" ? { ...b, content: cut(b.content) } : b)),
+  }));
 }
 
 /** One entry of the transcript, as the panel renders it. Distinct from `AiMessage`, which is what
@@ -32,7 +76,8 @@ export interface AiTranscriptEntry {
 }
 
 let nextId = 0;
-const makeId = () => `ai-${++nextId}`;
+// Unique d'une page à l'autre : des conversations enregistrées reviennent avec leurs identifiants.
+const makeId = () => `ai-${Date.now().toString(36)}-${(++nextId).toString(36)}`;
 
 /** One live conversation: what has been said, whether a turn is in flight, and the three things
  *  that can be done to it. Named rather than inferred because it travels as a prop — the panel that
@@ -43,7 +88,14 @@ export interface AiAssistant {
   busy: boolean;
   ask: (question: string) => Promise<void>;
   stop: () => void;
+  /** Efface la conversation en cours (retirée de la liste). */
   reset: () => void;
+  /** Conversations enregistrées, la plus récente d'abord, et celle affichée. */
+  conversations: AiConversation[];
+  activeConversationId: string | null;
+  /** Une conversation neuve (l'actuelle reste dans la liste). */
+  newConversation: () => void;
+  selectConversation: (id: string) => void;
 }
 
 /** Runs the conversation: sends a turn, executes whatever tools the model asks for, sends the
@@ -53,12 +105,20 @@ export interface AiAssistant {
  *  of this chart, not of the provider: a caller who routes the model through their own backend gets
  *  the same tools, executed in the same browser, against the same chart. The transport's only job
  *  is to turn a request into a stream of events. */
-export function useAiAssistant({ chart, send, serverTools }: UseAiAssistantArgs): AiAssistant {
-  const [transcript, setTranscript] = useState<AiTranscriptEntry[]>([]);
+export function useAiAssistant({ chart, send, serverTools, conversations: store }: UseAiAssistantArgs): AiAssistant {
+  // Conversations : celles de l'application au montage ; la conversation affichée est reprise telle quelle.
+  const [conversations, setConversations] = useState<AiConversation[]>(() => store?.initial ?? []);
+  const initialActive = store?.initial.find((c) => c.id === store.activeId) ?? null;
+  const [activeId, setActiveId] = useState<string>(() => initialActive?.id ?? makeId());
+  const [transcript, setTranscript] = useState<AiTranscriptEntry[]>(() => initialActive?.transcript ?? []);
   const [busy, setBusy] = useState(false);
+  const storeRef = useRef(store);
+  storeRef.current = store;
+  /** Une question a été posée depuis le dernier enregistrement (choisir une conversation ne la ré-enregistre pas). */
+  const dirtyRef = useRef(false);
   /** The conversation as the model sees it — kept in a ref, not state: it changes several times
    *  within one `ask` (once per tool round) and nothing renders from it directly. */
-  const historyRef = useRef<AiMessage[]>([]);
+  const historyRef = useRef<AiMessage[]>(initialActive?.history ?? []);
   const abortRef = useRef<AbortController | null>(null);
   /** The chart, always current. `ask` runs across many awaits, and the chart it acts on at the end
    *  must be the one on screen then, not the one captured when the question was asked. */
@@ -71,11 +131,63 @@ export function useAiAssistant({ chart, send, serverTools }: UseAiAssistantArgs)
     setBusy(false);
   }, []);
 
+  /** Rend la liste à l'application (à enregistrer). */
+  const publish = useCallback((list: AiConversation[], active: string | null) => {
+    setConversations(list);
+    storeRef.current?.onChange(list, active);
+  }, []);
+
+  // Chaque réponse terminée : la conversation affichée est enregistrée (en tête de liste), nommée par sa première question.
+  useEffect(() => {
+    if (busy || !dirtyRef.current || transcript.length === 0) return;
+    dirtyRef.current = false;
+    setConversations((prev) => {
+      const current: AiConversation = {
+        id: activeId,
+        title: titleOf(transcript),
+        updatedAt: new Date().toISOString(),
+        transcript: transcript.slice(-MAX_TRANSCRIPT).map((e) => ({ ...e, text: cut(e.text) })),
+        history: pruned(historyRef.current),
+      };
+      const next = [current, ...prev.filter((c) => c.id !== activeId)].slice(0, MAX_CONVERSATIONS);
+      storeRef.current?.onChange(next, activeId);
+      return next;
+    });
+  }, [busy, transcript, activeId]);
+
   const reset = useCallback(() => {
     stop();
     historyRef.current = [];
     setTranscript([]);
-  }, [stop]);
+    const fresh = makeId();
+    setActiveId(fresh);
+    publish(
+      conversations.filter((c) => c.id !== activeId),
+      fresh,
+    );
+  }, [stop, publish, conversations, activeId]);
+
+  const newConversation = useCallback(() => {
+    stop();
+    historyRef.current = [];
+    setTranscript([]);
+    const fresh = makeId();
+    setActiveId(fresh);
+    storeRef.current?.onChange(conversations, fresh);
+  }, [stop, conversations]);
+
+  const selectConversation = useCallback(
+    (id: string) => {
+      const c = conversations.find((x) => x.id === id);
+      if (!c || id === activeId) return;
+      stop();
+      historyRef.current = c.history;
+      setTranscript(c.transcript);
+      setActiveId(id);
+      storeRef.current?.onChange(conversations, id);
+    },
+    [conversations, activeId, stop],
+  );
 
   const ask = useCallback(
     async (question: string) => {
@@ -86,6 +198,7 @@ export function useAiAssistant({ chart, send, serverTools }: UseAiAssistantArgs)
       const controller = new AbortController();
       abortRef.current = controller;
       setBusy(true);
+      dirtyRef.current = true;
 
       setTranscript((prev) => [...prev, { id: makeId(), role: "user", text }]);
       historyRef.current = [...historyRef.current, { role: "user", content: [{ type: "text", text }] }];
@@ -215,5 +328,15 @@ export function useAiAssistant({ chart, send, serverTools }: UseAiAssistantArgs)
     [send, serverTools],
   );
 
-  return { transcript, busy, ask, stop, reset };
+  return {
+    transcript,
+    busy,
+    ask,
+    stop,
+    reset,
+    conversations,
+    activeConversationId: transcript.length > 0 || conversations.some((c) => c.id === activeId) ? activeId : null,
+    newConversation,
+    selectConversation,
+  };
 }

@@ -79,6 +79,10 @@ export interface CandlestickChartProps {
   /** Bouton appareil photo dans l'en-tête (capture du graphique). Défaut true ; `ChartWorkspace` le retire, son rail
    *  de droite en porte un pour tout l'espace de travail. */
   captureButton?: boolean;
+  /** Reçoit le pont des outils de l'assistant de ce graphique (définitions + exécution), pour un autre pilote que
+   *  l'assistant intégré — un serveur MCP par exemple —, puis `null` au démontage. Voir `ChartToolBridge`. Dans un
+   *  `ChartWorkspace`, passez-le à l'espace de travail : il le donne au graphique au premier plan. */
+  onToolBridge?: (bridge: import("../ai/chartToolBridge").ChartToolBridge | null) => void;
   /** Controls the fullscreen toggle from outside instead of it managing its own state — pairs with
    *  `onFullscreenChange` below. `ChartWorkspace` sets both so only one panel can be "focused" at a
    *  time (all its panels share one piece of state, so focusing a new one supersedes whichever had
@@ -514,6 +518,9 @@ export interface CandlestickChartProps {
    *  undone the same way. */
   ai?: {
     send?: AiSend;
+    /** Conversations gardées par l'application (historique, nouvelle conversation, choix dans l'en-tête) — voir
+     *  `AiConversationStore`. Sans elles, une seule conversation, perdue au démontage du graphique. */
+    conversations?: import("../ai/useAiAssistant").AiConversationStore;
     apiKey?: string;
     model?: string;
     /** For a gateway or proxy speaking the Anthropic protocol. `apiKey` only. */

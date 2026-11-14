@@ -97,6 +97,7 @@ import { drawingAxisAnnotations, indicatorAxisAnnotations } from "./candlestick/
 import { ChartContextMenu } from "./candlestick/components/ChartContextMenu";
 import { buildChartContextMenu, type ChartContextMenuAnchor } from "./candlestick/buildChartContextMenu";
 import { runChartCapture } from "./candlestick/captureChart";
+import { createChartToolBridge } from "./candlestick/ai/chartToolBridge";
 import { playAlertSound } from "./candlestick/alertSounds";
 import type { ChartCaptureAction } from "./candlestick/components/ChartHeader";
 import { ATTACHED_DEFAULT_PERIOD } from "./candlestick/attachedIndicators";
@@ -181,6 +182,7 @@ export function CandlestickChart({
   onChartDisplayModeChange, renkoAtrPeriod = 14,
   symbol,
   captureButton = true,
+  onToolBridge,
   events,
   fundamentals,
   depth,
@@ -1358,6 +1360,16 @@ export function CandlestickChart({
   // Everything the assistant may read and every lever it may pull, gathered in one place — see
   // `useAiChartContext`. Built regardless of whether `ai` is set: it is a plain memo over values
   // this component already holds, and branching on a prop would put a hook behind a condition.
+  // Pont des outils pour un pilote extérieur (onToolBridge) : il lit toujours la dernière version du contexte.
+  const aiChartRef = useRef<ReturnType<typeof useAiChartContext> | null>(null);
+  const onToolBridgeRef = useRef(onToolBridge);
+  onToolBridgeRef.current = onToolBridge;
+  const hasToolBridge = onToolBridge !== undefined;
+  useEffect(() => {
+    if (!hasToolBridge) return;
+    onToolBridgeRef.current?.(createChartToolBridge(() => aiChartRef.current!));
+    return () => onToolBridgeRef.current?.(null);
+  }, [hasToolBridge]);
   const aiChart = useAiChartContext({
     symbol,
     timeframe,
@@ -1404,6 +1416,7 @@ export function CandlestickChart({
       : undefined,
     onEditScript,
   });
+  aiChartRef.current = aiChart;
 
   // A second assistant, separate from the panel's own, for the strategy card's written-out
   // questions. Separate on purpose rather than shared: a backtest review is a one-shot question
@@ -1414,7 +1427,7 @@ export function CandlestickChart({
   // The panel's own conversation, owned here rather than inside the panel: the panel is unmounted
   // and remounted as it moves between the dock, a floating window and a torn-off browser window,
   // and a transcript held down there would be discarded on every move.
-  const assistant = useAiAssistant({ chart: aiChart, send: aiSend ?? null, serverTools: ai?.serverTools ?? [] });
+  const assistant = useAiAssistant({ chart: aiChart, send: aiSend ?? null, serverTools: ai?.serverTools ?? [], conversations: ai?.conversations });
   const [aiDraft, setAiDraft] = useState("");
   /** Which of the strategy panel's written-out questions is in flight, so its own chip can say so.
    *  The answer itself lives in the assistant's transcript like any other. */

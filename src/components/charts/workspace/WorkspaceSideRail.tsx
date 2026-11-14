@@ -1,10 +1,20 @@
-import { useRef, useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { WatchlistIcon, AlarmClockIcon, MaximizeIcon, MinimizeIcon, HelpIcon, CodeIcon, SparkleIcon, PlugIcon, CameraIcon } from "../../icons";
 import { Popover } from "../../forms/Popover";
 import { CHART_CAPTURE_ACTIONS, type ChartCaptureActionKind } from "../candlestick/captureChart";
 import type { ChartWorkspaceSidePanelTab } from "./useWorkspaceSidePanelState";
 import type { ChartWorkspaceGridLayout } from "./gridLayouts";
 import { WorkspaceLayoutMenu } from "./WorkspaceLayoutMenu";
+
+/** Un bouton de l'application dans le rail de droite (au-dessus de l'aide). */
+export interface WorkspaceRailAction {
+  id: string;
+  label: string;
+  icon: ReactNode;
+  onClick: () => void;
+  /** Allumé (ex. connexion active). */
+  active?: boolean;
+}
 
 export interface WorkspaceSideRailProps {
   hasWatchlists: boolean;
@@ -27,6 +37,8 @@ export interface WorkspaceSideRailProps {
   showFullscreenButton?: boolean;
   /** Appareil photo : capture du graphique au premier plan (télécharger, copier, ouvrir). */
   onCapture?: (action: ChartCaptureActionKind) => void;
+  /** Boutons de l'application, juste au-dessus de l'aide. */
+  actions?: WorkspaceRailAction[];
   onOpenHelp: () => void;
 }
 
@@ -51,6 +63,7 @@ export function WorkspaceSideRail({
   onToggleWorkspaceFullscreen,
   showFullscreenButton = true,
   onCapture,
+  actions,
   onOpenHelp,
 }: WorkspaceSideRailProps) {
   const [captureOpen, setCaptureOpen] = useState(false);
@@ -181,7 +194,26 @@ export function WorkspaceSideRail({
           already stretches to the workspace's full height, see .lq-chart-workspace__side-rail)
           rather than just sitting last after whichever of the buttons above happened to render,
           so it stays in the same spot regardless of how many of them are showing. */}
-      <button type="button" className="lq-chart__icon-button lq-chart-workspace__help-button" onClick={onOpenHelp} aria-label="Aide" title="Aide">
+      {/* Boutons de l'application : collés au-dessus de l'aide, en bas du rail (le premier porte la marge qui les y pousse). */}
+      {actions?.map((a, i) => (
+        <button
+          key={a.id}
+          type="button"
+          className={["lq-chart__icon-button", i === 0 && "lq-chart-workspace__rail-actions-start", a.active && "lq-chart__icon-button--active"].filter(Boolean).join(" ")}
+          onClick={a.onClick}
+          aria-label={a.label}
+          title={a.label}
+        >
+          {a.icon}
+        </button>
+      ))}
+      <button
+        type="button"
+        className={["lq-chart__icon-button", !actions?.length && "lq-chart-workspace__help-button"].filter(Boolean).join(" ")}
+        onClick={onOpenHelp}
+        aria-label="Aide"
+        title="Aide"
+      >
         <HelpIcon size={16} />
       </button>
     </div>

@@ -567,6 +567,15 @@ export const TimeframeLayersIcon = (props: AnimatedIconProps) => (
   </IconBase>
 );
 
+/** Model Context Protocol : trois boucles entrelacées, à la manière de son logo. */
+export const McpIcon = (props: AnimatedIconProps) => (
+  <IconBase motion="pulse" {...props}>
+    <path d="M4 11.5 11 4.5a2.8 2.8 0 0 1 4 4L9 14.5" />
+    <path d="M9.6 9.4 14.6 4.4a2.8 2.8 0 0 1 4 4l-6.8 6.8a.9.9 0 0 0 0 1.3l1.4 1.4" />
+    <path d="M13.4 6.6 8 12a2.8 2.8 0 0 0 4 4l5.4-5.4" />
+  </IconBase>
+);
+
 export const CameraIcon = (props: AnimatedIconProps) => (
   <IconBase motion="pulse" {...props}>
     <path d="M4.5 7.5h3l1.6-2.5h5.8l1.6 2.5h3A1.5 1.5 0 0 1 21 9v9a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18V9a1.5 1.5 0 0 1 1.5-1.5Z" strokeLinejoin="round" />

@@ -134,6 +134,11 @@ export { playAlertSound, ALERT_SOUND_OPTIONS } from "./candlestick/alertSounds";
 // Les outils que l'assistant du graphique offre au modèle (nom, description, paramètres), pour les lister ailleurs
 // (ex. une page d'administration) sans dupliquer leur définition.
 export { CHART_AI_TOOL_DEFINITIONS } from "./candlestick/ai/aiTools";
+// Pont des outils du graphique pour un pilote extérieur (ex. serveur MCP), et boutons d'application du rail.
+export type { ChartToolBridge } from "./candlestick/ai/chartToolBridge";
+export type { WorkspaceRailAction } from "./workspace/WorkspaceSideRail";
+// Conversations de l'assistant, gardées par l'application (CandlestickChartProps.ai.conversations).
+export type { AiConversation, AiConversationStore } from "./candlestick/ai/useAiAssistant";
 export { captureChartBlob, captureChartCanvas, captureFileName } from "./candlestick/captureChart";
 export type { ChartCaptureOptions } from "./candlestick/captureChart";
 export type { ScriptDocumentationModalProps } from "./candlestick/scripting/components/ScriptDocumentationModal";

@@ -2216,3 +2216,8 @@
   visibility: visible;
   pointer-events: none;
 }
+
+/* Boutons de l'application dans le rail (railActions) : poussés en bas, juste au-dessus de l'aide. */
+.lq-chart-workspace__rail-actions-start {
+  margin-top: auto;
+}

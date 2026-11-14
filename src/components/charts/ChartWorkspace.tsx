@@ -1,6 +1,7 @@
 import { Children, cloneElement, type ReactElement, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { runChartCapture, type ChartCaptureActionKind } from "./candlestick/captureChart";
 import { Spinner } from "../feedback/Spinner";
+import type { WorkspaceRailAction } from "./workspace/WorkspaceSideRail";
 import type { SymbolSearchList } from "./candlestick/interfaces/SymbolSearchList.interface";
 import { DetachedWindow } from "./candlestick/components/DetachedWindow";
 import type { CandlestickChartProps } from "./candlestick/interfaces/CandlestickChartProps.interface";
@@ -169,6 +170,11 @@ export interface ChartWorkspaceProps {
   /** Chargement en cours (ex. un autre symbole) : les graphiques sont masqués et ce texte s'affiche avec un indicateur,
    *  au centre de leur zone — plutôt qu'un graphique vide marqué « Aucune donnée ». */
   loadingLabel?: string;
+  /** Pont des outils du graphique au premier plan (celui mis en avant, sinon le premier) — voir
+   *  `CandlestickChartProps.onToolBridge`. Rappelé avec le nouveau pont quand le premier plan change. */
+  onToolBridge?: (bridge: import("./candlestick/ai/chartToolBridge").ChartToolBridge | null) => void;
+  /** Boutons de l'application dans le rail de droite, juste au-dessus de l'aide (ex. une connexion MCP). */
+  railActions?: WorkspaceRailAction[];
   watchlists?: ChartWorkspaceWatchlist[];
   /** Uncontrolled initial pick among `watchlists` (by id) — defaults to the first one. */
   defaultActiveWatchlistId?: string;
@@ -331,6 +337,8 @@ export function ChartWorkspace({
   layout = "auto",
   fullscreenButton = true,
   loadingLabel,
+  onToolBridge,
+  railActions,
   watchlists,
   defaultActiveWatchlistId,
   onActiveWatchlistChange,
@@ -936,6 +944,8 @@ export function ChartWorkspace({
             // The assistant belongs to the workspace, and is rendered by whichever panel is in
             // front — the focused one, else the first. Every other panel is handed `ai: undefined`
             // so there is exactly one assistant on screen, pointed at the chart being looked at.
+            // Le pont des outils, comme l'assistant : au seul graphique au premier plan.
+            onToolBridge: onToolBridge && i === (effectiveFocusedPanelIndex ?? 0) ? onToolBridge : undefined,
             ...(ai && i === (effectiveFocusedPanelIndex ?? 0)
               ? { ai, aiOpen: assistantOpen, onAiOpenChange: setAssistantOpen }
               : { ai: undefined }),
@@ -1247,6 +1257,7 @@ export function ChartWorkspace({
           onToggleWorkspaceFullscreen={toggleWorkspaceFullscreen}
           showFullscreenButton={fullscreenButton}
           onCapture={(action) => void captureFrontPanel(action)}
+          actions={railActions}
           onOpenHelp={() => setHelpOpen(true)}
         />
       )}

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CloseIcon, DetachWindowIcon, MaximizeIcon, SparkleIcon } from "../../../../icons";
+import { CloseIcon, DetachWindowIcon, MaximizeIcon, PlusIcon, SparkleIcon } from "../../../../icons";
 import type { AiChartContext } from "../interfaces/AiChartContext.interface";
 import type { AiSend } from "../interfaces/AiMessage.interface";
 import type { AiAssistant } from "../useAiAssistant";
@@ -62,7 +62,7 @@ export function AiPanel({
   onRequestDetach,
   chrome = "full",
 }: AiPanelProps) {
-  const { transcript, busy, ask, stop, reset } = assistant;
+  const { transcript, busy, ask, stop, reset, conversations, activeConversationId, newConversation, selectConversation } = assistant;
   const setDraft = onDraftChange;
   const [menuIndex, setMenuIndex] = useState(0);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
@@ -217,9 +217,37 @@ export function AiPanel({
         <span className="lq-ai__title">
           <SparkleIcon size={13} /> Assistant
         </span>
+        {/* Nouvelle conversation, à droite du titre : l'actuelle reste dans la liste. */}
+        <button
+          type="button"
+          className="lq-ai__header-button lq-ai__new-conversation"
+          onClick={newConversation}
+          disabled={transcript.length === 0}
+          aria-label="Nouvelle conversation"
+          title="Nouvelle conversation"
+        >
+          <PlusIcon size={13} />
+        </button>
+        {/* Les conversations enregistrées, nommées par leur première question. */}
+        {conversations.length > 0 && (
+          <select
+            className="lq-ai__conversation-select"
+            value={activeConversationId ?? ""}
+            onChange={(e) => (e.target.value ? selectConversation(e.target.value) : newConversation())}
+            aria-label="Conversation"
+            title="Changer de conversation"
+          >
+            {activeConversationId === null && <option value="">Nouvelle conversation</option>}
+            {conversations.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.title}
+              </option>
+            ))}
+          </select>
+        )}
         <span className="lq-ai__header-actions">
           {transcript.length > 0 && (
-            <button type="button" className="lq-ai__header-button" onClick={reset} title="Effacer la conversation">
+            <button type="button" className="lq-ai__header-button" onClick={reset} title="Effacer cette conversation (retirée de la liste)">
               Effacer
             </button>
           )}

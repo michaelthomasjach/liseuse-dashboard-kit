@@ -96,7 +96,7 @@ export function IndicatorFillsEditor({ indicator, onChange }: { indicator: Indic
               {fill.aboveColor && (
                 <input
                   type="color"
-                  className="lq-chart__color-input"
+                  className="lq-chart__fill-swatch"
                   value={fill.aboveColor}
                   onChange={(e) => update(fill.id, { aboveColor: e.target.value })}
                   aria-label="Couleur au-dessus"
@@ -112,7 +112,7 @@ export function IndicatorFillsEditor({ indicator, onChange }: { indicator: Indic
               {fill.belowColor && (
                 <input
                   type="color"
-                  className="lq-chart__color-input"
+                  className="lq-chart__fill-swatch"
                   value={fill.belowColor}
                   onChange={(e) => update(fill.id, { belowColor: e.target.value })}
                   aria-label="Couleur en dessous"

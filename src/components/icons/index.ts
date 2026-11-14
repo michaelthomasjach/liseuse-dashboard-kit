@@ -69,6 +69,7 @@ export {
   ArrowRightIcon,
   PlusIcon,
   MoreHorizontalIcon,
+  CameraIcon,
   CopyIcon,
   CursorArrowIcon,
   TrendLineIcon,

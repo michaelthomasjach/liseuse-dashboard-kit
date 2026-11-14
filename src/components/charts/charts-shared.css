@@ -4001,3 +4001,21 @@ button.lq-chart__legend-item {
 .lq-chart__pane-attached-remove:hover {
   color: var(--lq-color-text);
 }
+
+/* Message bref après une capture du graphique (bouton appareil photo de l'en-tête). */
+.lq-chart__capture-toast {
+  position: absolute;
+  top: 44px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;
+  padding: 6px 12px;
+  font-size: 0.75rem;
+  font-weight: var(--lq-font-weight-semibold, 600);
+  color: var(--lq-color-text);
+  background: var(--lq-color-panel);
+  border: 1px solid var(--lq-color-border-subtle);
+  border-radius: var(--lq-radius-sm);
+  box-shadow: 0 4px 14px rgb(0 0 0 / 18%);
+  pointer-events: none;
+}

@@ -20,6 +20,9 @@ export interface ChartAlertDraft {
    *  "RSI(14) crosses above 70", with no drawn line involved at all). */
   conditionIndicatorId: string;
   crossing: ChartAlertCrossing;
+  /** Le niveau comparé quand l'alerte n'est attachée à aucun dessin (`drawingId` null) : « le prix croise 0,3120 »,
+   *  « RSI(14) passe au-dessus de 70 ». Absent pour une alerte sur un dessin, dont la ligne fait le niveau. */
+  value?: number;
   trigger: "onlyOnce" | "oncePerBar" | "oncePerBarClose" | "oncePerMinute";
   sound: string;
   message: string;

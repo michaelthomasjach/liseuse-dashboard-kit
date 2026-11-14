@@ -2165,4 +2165,26 @@
   border: 1px solid var(--lq-color-accent);
   border-radius: var(--lq-radius-sm, 3px);
   outline: none;
+  text-transform: uppercase;
+}
+
+/* L'icône de réglages d'une ligne (ex. composition d'un symbole personnalisé) : discrète, nette au survol. */
+.lq-chart-workspace__watchlist-row-settings {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-left: 4px;
+  color: var(--lq-color-text-muted);
+  border-radius: var(--lq-radius-sm, 3px);
+  cursor: pointer;
+  opacity: 0.7;
+}
+.lq-chart-workspace__watchlist-row-settings:hover,
+.lq-chart-workspace__watchlist-row-settings:focus-visible {
+  color: var(--lq-color-text);
+  background-color: var(--lq-color-fill);
+  opacity: 1;
 }

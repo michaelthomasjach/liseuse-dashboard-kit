@@ -15,6 +15,7 @@ import {
   PrevTrackIcon,
   CloseIcon,
   SearchIcon,
+  CameraIcon,
 } from "../../../icons";
 import type { ChartDisplayMode } from "../interfaces/ChartDisplayMode.interface";
 import type { TimeframeEntry } from "../interfaces/TimeframeEntry.interface";
@@ -102,7 +103,17 @@ export interface ChartHeaderProps {
   linkable: boolean;
   isLinked: boolean;
   onLinkClick: (() => void) | undefined;
+  /** Bouton appareil photo : capture du graphique (télécharger, copier, ouvrir). Absent sans lui. */
+  onCapture?: (action: ChartCaptureAction) => void;
 }
+
+export type ChartCaptureAction = "download" | "copy" | "open";
+
+const CAPTURE_ACTIONS: { action: ChartCaptureAction; label: string }[] = [
+  { action: "download", label: "Télécharger l'image" },
+  { action: "copy", label: "Copier l'image" },
+  { action: "open", label: "Ouvrir l'image dans un nouvel onglet" },
+];
 
 /** The chart's main (non-seasonality) header: timeframe picker, display-mode picker, "add
  *  indicator" button, the seasonality-mode entry point, and the fullscreen toggle — everything
@@ -175,7 +186,11 @@ export function ChartHeader({
   linkable,
   isLinked,
   onLinkClick,
+  onCapture,
 }: ChartHeaderProps) {
+  // Menu de l'appareil photo, comme sur TradingView : télécharger, copier, ou ouvrir la capture.
+  const [captureMenuOpen, setCaptureMenuOpen] = useState(false);
+  const captureAnchorRef = useRef<HTMLButtonElement>(null);
   // Menu du bouton « Replay » : choisir le point de départ sur le graphique, ou partir d'un instant tiré au hasard.
   const [replayMenuOpen, setReplayMenuOpen] = useState(false);
   const replayMenuAnchorRef = useRef<HTMLButtonElement>(null);
@@ -518,8 +533,42 @@ export function ChartHeader({
           .lq-chart__header-right's own CSS comment — so the link button and TemplateControls
           land flush together at the bar's far right edge instead of each fighting the other for
           the same leftover space. */}
-      {(linkable || showTemplates) && (
+      {(linkable || showTemplates || onCapture) && (
         <div className="lq-chart__header-right">
+          {onCapture && (
+            <>
+              <button
+                ref={captureAnchorRef}
+                type="button"
+                className={["lq-chart__icon-button", captureMenuOpen && "lq-chart__icon-button--active"].filter(Boolean).join(" ")}
+                onClick={() => setCaptureMenuOpen((o) => !o)}
+                aria-label="Capturer le graphique"
+                aria-haspopup="menu"
+                aria-expanded={captureMenuOpen}
+                title="Capturer le graphique"
+              >
+                <CameraIcon size={14} />
+              </button>
+              <Popover open={captureMenuOpen} onClose={() => setCaptureMenuOpen(false)} anchorRef={captureAnchorRef} placement="bottom">
+                <div className="lq-chart__timeframe-menu" role="menu">
+                  {CAPTURE_ACTIONS.map(({ action, label }) => (
+                    <button
+                      key={action}
+                      type="button"
+                      role="menuitem"
+                      className="lq-chart__timeframe-option"
+                      onClick={() => {
+                        setCaptureMenuOpen(false);
+                        onCapture(action);
+                      }}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </Popover>
+            </>
+          )}
           {linkable && (
             <button
               type="button"

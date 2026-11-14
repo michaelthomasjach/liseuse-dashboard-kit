@@ -129,5 +129,9 @@ export type { ChartHeaderAction } from "./candlestick/interfaces/ChartHeaderActi
 // Documentation du langage de script : la page complète (rendue sans fenêtre avec `detached`) et le manuel en texte
 // (Markdown), pour une application qui veut les publier sur ses propres pages.
 export { ScriptDocumentationModal } from "./candlestick/scripting/components/ScriptDocumentationModal";
+// Sons des alertes (synthétisés) et capture d'un graphique en PNG, réutilisables par l'application.
+export { playAlertSound, ALERT_SOUND_OPTIONS } from "./candlestick/alertSounds";
+export { captureChartBlob, captureChartCanvas, captureFileName } from "./candlestick/captureChart";
+export type { ChartCaptureOptions } from "./candlestick/captureChart";
 export type { ScriptDocumentationModalProps } from "./candlestick/scripting/components/ScriptDocumentationModal";
 export { loadScriptingPrompt } from "./candlestick/scripting/loadScriptingPrompt";

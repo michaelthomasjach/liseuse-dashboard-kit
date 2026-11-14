@@ -16,6 +16,7 @@ import {
   PlusIcon,
   MoreHorizontalIcon,
   GripIcon,
+  SettingsIcon,
   TrashIcon,
   PieChartIcon,
   ArrowUpIcon,
@@ -470,7 +471,8 @@ export function WatchlistPanel({
                 maxLength={40}
                 aria-label={`Nouveau nom de ${row.ticker}`}
                 onFocus={(e) => e.currentTarget.select()}
-                onChange={(e) => setRenaming({ rowId: row.id, draft: e.target.value })}
+                // Les noms de symboles s'écrivent en majuscules, comme les tickers.
+                onChange={(e) => setRenaming({ rowId: row.id, draft: e.target.value.toUpperCase() })}
                 onPointerDown={(e) => e.stopPropagation()}
                 onClick={(e) => e.stopPropagation()}
                 onKeyDown={(e) => {
@@ -497,6 +499,30 @@ export function WatchlistPanel({
                 title={row.marketOpen ? "Marché ouvert" : "Marché fermé"}
                 aria-label={row.marketOpen ? "Marché ouvert" : "Marché fermé"}
               />
+            )}
+            {/* Réglages propres à la ligne (ex. la composition d'un symbole personnalisé), quand l'application en a.
+                Pas un <button> : la ligne en est déjà un. */}
+            {row.onSettings && renaming?.rowId !== row.id && (
+              <span
+                role="button"
+                tabIndex={0}
+                className="lq-chart-workspace__watchlist-row-settings"
+                title={row.settingsLabel ?? "Réglages"}
+                aria-label={row.settingsLabel ?? `Réglages de ${row.label ?? row.ticker}`}
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  row.onSettings?.();
+                }}
+                onKeyDown={(e) => {
+                  if (e.key !== "Enter" && e.key !== " ") return;
+                  e.preventDefault();
+                  e.stopPropagation();
+                  row.onSettings?.();
+                }}
+              >
+                <SettingsIcon size={12} />
+              </span>
             )}
           </span>
           {/* Each figure reacts on its own, not the row behind it and not in step with its

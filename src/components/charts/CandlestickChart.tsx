@@ -96,6 +96,9 @@ import { indicatorCatalogEntry, indicatorLabel, defaultIndicatorColor } from "./
 import { drawingAxisAnnotations, indicatorAxisAnnotations } from "./candlestick/axisAnnotations";
 import { ChartContextMenu } from "./candlestick/components/ChartContextMenu";
 import { buildChartContextMenu, type ChartContextMenuAnchor } from "./candlestick/buildChartContextMenu";
+import { captureChartBlob, captureFileName } from "./candlestick/captureChart";
+import { playAlertSound } from "./candlestick/alertSounds";
+import type { ChartCaptureAction } from "./candlestick/components/ChartHeader";
 import { ATTACHED_DEFAULT_PERIOD } from "./candlestick/attachedIndicators";
 import { CHART_DISPLAY_MODES } from "./candlestick/chartModes";
 import { findTimeframeLabel, flattenTimeframeValues } from "./candlestick/timeframes";
@@ -486,6 +489,13 @@ export function CandlestickChart({
   // scales (to say what the commands will act on). Captured at click time rather than read from
   // hover state when a command runs — by then the pointer has moved onto the menu itself.
   const [contextMenu, setContextMenu] = useState<ChartContextMenuAnchor | null>(null);
+  // Le petit message après une capture (« Image copiée… »), effacé de lui-même.
+  const [captureToast, setCaptureToast] = useState<string | null>(null);
+  useEffect(() => {
+    if (captureToast === null) return;
+    const t = setTimeout(() => setCaptureToast(null), 2600);
+    return () => clearTimeout(t);
+  }, [captureToast]);
   const mainRef = useRef<HTMLDivElement | null>(null);
 
   function handlePlotContextMenu(e: React.MouseEvent<HTMLDivElement>) {
@@ -514,7 +524,10 @@ export function CandlestickChart({
         if (plotY <= priceHeight) return {};
         const at = ownPaneIndicators.findIndex((_, i) => plotY >= priceHeight + indicatorPaneTops[i] && plotY < priceHeight + indicatorPaneTops[i] + indicatorPaneHeights[i]);
         const pane = at >= 0 ? ownPaneIndicators[at] : undefined;
-        return pane ? { paneId: pane.id, paneLabel: indicatorLabel(pane) } : {};
+        if (!pane) return {};
+        const paneScale = zoomedOwnPaneScales[pane.id];
+        const paneValue = paneScale ? paneScale.invert(plotY - priceHeight - indicatorPaneTops[at]) : undefined;
+        return { paneId: pane.id, paneLabel: indicatorLabel(pane), paneValue };
       })(),
       // Sur la ligne d'un indicateur (celle sous le pointeur, sinon la sélectionnée) : de quoi ouvrir ses paramètres.
       ...(() => {
@@ -1538,6 +1551,7 @@ export function CandlestickChart({
     },
     addOnPane: addIndicatorOnPane,
     openIndicatorSettings,
+    ...(onCreateAlert ? { openIndicatorAlert: (id: string, label: string, value: number | undefined) => alertFlow.openForIndicator(id, label, value) } : {}),
     ...(onAddSymbolOverlay ? { openAddSymbol: () => openSymbolSearch("add") } : {}),
     resetZoom: () => resetZoom(),
     fullscreenToggle,
@@ -1548,6 +1562,49 @@ export function CandlestickChart({
     openSettings: () => setSettingsOpen(true),
   });
   const currentTimeframeLabel = findTimeframeLabel(timeframes, timeframe);
+
+  /** Bouton appareil photo de l'en-tête : le graphique (tracé, axes, légendes) en PNG, avec en bas le symbole,
+   *  l'intervalle et l'heure. Copier retombe sur un téléchargement quand le navigateur refuse le presse-papiers. */
+  async function handleCapture(action: ChartCaptureAction) {
+    const root = ref.current;
+    if (!root) return;
+    const caption = [symbol, currentTimeframeLabel, new Date().toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })].filter(Boolean).join(" · ");
+    const name = captureFileName(symbol, currentTimeframeLabel ?? undefined);
+    const download = (blob: Blob) => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    };
+    let blob: Blob;
+    try {
+      blob = await captureChartBlob(root, { caption });
+    } catch {
+      setCaptureToast("Capture impossible");
+      return;
+    }
+    if (action === "download") {
+      download(blob);
+      setCaptureToast("Image téléchargée");
+    } else if (action === "open") {
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank");
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } else {
+      try {
+        if (typeof ClipboardItem === "undefined" || !navigator.clipboard?.write) throw new Error("clipboard");
+        await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+        setCaptureToast("Image copiée dans le presse-papiers");
+      } catch {
+        download(blob);
+        setCaptureToast("Copie refusée par le navigateur : l'image a été téléchargée");
+      }
+    }
+  }
   const currentModeEntry = CHART_DISPLAY_MODES.find((m) => m.mode === chartDisplayMode) ?? CHART_DISPLAY_MODES[0];
   // The top-left legend's own indicators — price overlays only, `ownPaneIndicators` (RSI/CHOP/
   // MACD) already have their own pane header and don't belong here too.
@@ -1688,6 +1745,7 @@ export function CandlestickChart({
           linkable={linkable}
           isLinked={isLinked}
           onLinkClick={onLinkClick}
+          onCapture={(action) => void handleCapture(action)}
         />
       )}
 
@@ -2099,6 +2157,11 @@ export function CandlestickChart({
 
       {isMobileRail && !seasonalityOpen && toolsRail}
 
+      {captureToast !== null && (
+        <div className="lq-chart__capture-toast" role="status">
+          {captureToast}
+        </div>
+      )}
       {contextMenu !== null && (
         <ChartContextMenu
           x={contextMenu.menuX}
@@ -2241,8 +2304,8 @@ export function CandlestickChart({
         handleReplaceSymbolOverlay={handleReplaceSymbolOverlay}
         symbol={symbol} timeframe={timeframe}
         {...alertFlow.modalProps}
-        overlayIndicators={overlayIndicators} indicatorLabel={indicatorLabel}
-        soundOptions={alertSoundOptions} onCreate={onCreateAlert} onPlaySound={onPlaySound} onSave={onUpdateAlert} onDeleteAlert={onDeleteAlert}
+        overlayIndicators={overlayIndicators} paneIndicators={ownPaneIndicators} indicatorLabel={indicatorLabel}
+        soundOptions={alertSoundOptions} onCreate={onCreateAlert} onPlaySound={onPlaySound ?? playAlertSound} onSave={onUpdateAlert} onDeleteAlert={onDeleteAlert}
       />
       </div>
 

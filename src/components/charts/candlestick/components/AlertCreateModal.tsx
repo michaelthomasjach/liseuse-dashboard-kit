@@ -1,3 +1,4 @@
+import { ALERT_SOUND_OPTIONS } from "../alertSounds";
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { Modal } from "../../../primitives/Modal";
@@ -23,13 +24,15 @@ import type { Indicator } from "../interfaces/Indicator.interface";
 import type { ChartAlertCrossing, ChartAlertDraft, ChartAlert } from "../interfaces/ChartAlertDraft.interface";
 import { FIBONACCI_LEVELS, FIBONACCI_EXTENSION_LEVELS } from "../drawingCatalog";
 
-const DEFAULT_SOUND_OPTIONS = [
-  { value: "none", label: "Aucun" },
-  { value: "bell", label: "Cloche" },
-  { value: "chime", label: "Carillon" },
-  { value: "ding", label: "Ding" },
-  { value: "alert", label: "Alerte" },
-];
+// Les sons par défaut sont ceux que `playAlertSound` sait jouer (voir alertSounds.ts).
+const DEFAULT_SOUND_OPTIONS = ALERT_SOUND_OPTIONS;
+
+/** Un niveau lisible dans le champ « Valeur » : 5 chiffres significatifs au moins, sans zéros inutiles. */
+function formatLevel(v: number): string {
+  const abs = Math.abs(v);
+  const decimals = abs >= 1000 ? 2 : abs >= 1 ? 4 : 5;
+  return String(Number(v.toFixed(decimals)));
+}
 
 const LINE_CROSSING_OPTIONS: { value: Exclude<ChartAlertCrossing, { kind: "fibLevel" }>["kind"]; label: string; icon: typeof CrossingIcon }[] = [
   { value: "crossing", label: "Croisement", icon: CrossingIcon },
@@ -148,6 +151,10 @@ export interface AlertCreateModalProps {
    *  entry point setting it up front instead of leaving it at "Prix". Ignored while
    *  `editingAlert` is set (that alert's own value wins instead). */
   initialConditionIndicatorId?: string;
+  /** Alerte sans dessin : le niveau proposé dans le champ « Valeur » (ex. la valeur à l'endroit du clic droit). */
+  initialValue?: number;
+  /** Indicateurs affichés dans leur propre panneau (RSI, MACD…), proposés eux aussi comme condition. */
+  paneIndicators?: Indicator[];
   /** Indicators currently shown as an overlay on the price chart (pane: "price") — see
    *  indicatorCatalogEntry's own doc — alongside a synthetic "Prix" entry, always first. */
   overlayIndicators: Indicator[];
@@ -183,6 +190,8 @@ export function AlertCreateModal({
   fibonacciExtension,
   targetLabel,
   initialConditionIndicatorId,
+  initialValue,
+  paneIndicators,
   overlayIndicators,
   indicatorLabel,
   soundOptions = DEFAULT_SOUND_OPTIONS,
@@ -200,6 +209,10 @@ export function AlertCreateModal({
   const [trigger, setTrigger] = useState<ChartAlertDraft["trigger"]>("onlyOnce");
   const [sound, setSound] = useState(soundOptions[0]?.value ?? "none");
   const [message, setMessage] = useState("");
+  // Alerte sans dessin : le niveau comparé, saisi comme texte (virgule ou point décimal acceptés).
+  const [valueText, setValueText] = useState("");
+  const parsedValue = Number(valueText.replace(",", ".").replace(/\s+/g, ""));
+  const hasValue = valueText.trim() !== "" && Number.isFinite(parsedValue);
   const [hasExpiration, setHasExpiration] = useState(false);
   const [expiresAt, setExpiresAt] = useState<Date | null>(null);
   // Stops the message field's own auto-templating (see the effect below) once the user has typed
@@ -220,6 +233,7 @@ export function AlertCreateModal({
       setMessage(editingAlert.message);
       setHasExpiration(editingAlert.expiresAt !== null);
       setExpiresAt(editingAlert.expiresAt);
+      setValueText(editingAlert.value !== undefined ? formatLevel(editingAlert.value) : "");
       messageCustomizedRef.current = true;
     } else {
       setConditionIndicatorId(initialConditionIndicatorId ?? "price");
@@ -228,6 +242,7 @@ export function AlertCreateModal({
       setSound(soundOptions[0]?.value ?? "none");
       setHasExpiration(false);
       setExpiresAt(null);
+      setValueText(initialValue !== undefined && Number.isFinite(initialValue) ? formatLevel(initialValue) : "");
       messageCustomizedRef.current = false;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -235,14 +250,16 @@ export function AlertCreateModal({
 
   useEffect(() => {
     if (messageCustomizedRef.current) return;
-    setMessage([symbol, timeframe, `${crossingLabel(crossing)} sur ${targetLabel}`].filter(Boolean).join(", "));
-  }, [symbol, timeframe, crossing, targetLabel]);
+    const level = drawingId === null && hasValue ? ` à ${valueText.trim()}` : "";
+    setMessage([symbol, timeframe, `${crossingLabel(crossing)} sur ${targetLabel}${level}`].filter(Boolean).join(", "));
+  }, [symbol, timeframe, crossing, targetLabel, drawingId, hasValue, valueText]);
 
   if (!open) return null;
 
   const conditionOptions = [
     { value: "price", label: "Prix" },
     ...overlayIndicators.map((ind) => ({ value: ind.id, label: indicatorLabel(ind) })),
+    ...(paneIndicators ?? []).map((ind) => ({ value: ind.id, label: indicatorLabel(ind) })),
   ];
 
   function buildDraft(): ChartAlertDraft {
@@ -250,6 +267,7 @@ export function AlertCreateModal({
       drawingId,
       conditionIndicatorId,
       crossing,
+      ...(drawingId === null && hasValue ? { value: parsedValue } : {}),
       trigger,
       sound,
       message,
@@ -317,6 +335,11 @@ export function AlertCreateModal({
           />
         )}
 
+        {/* Sans dessin, pas de ligne pour donner le niveau : il se saisit ici. */}
+        {drawingId === null && !isFibonacciTarget && (
+          <Input label="Valeur" inputMode="decimal" value={valueText} onChange={(e) => setValueText(e.target.value)} placeholder="Niveau à surveiller" />
+        )}
+
         <IconDropdown
           label="Déclenchement"
           value={trigger}
@@ -333,7 +356,11 @@ export function AlertCreateModal({
         />
 
         <div className="lq-alert-modal__sound-row">
-          <Select className="lq-alert-modal__sound-select" label="Son" options={soundOptions} value={sound} onChange={setSound} />
+          <Select className="lq-alert-modal__sound-select" label="Son" options={soundOptions} value={sound} onChange={(v) => {
+            setSound(v);
+            // On entend le son au moment de le choisir ; le bouton ▶ le rejoue.
+            onPlaySound?.(v);
+          }} />
           {onPlaySound && (
             <button
               type="button"

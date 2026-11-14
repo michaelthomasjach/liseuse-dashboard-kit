@@ -15,6 +15,8 @@ export interface ChartContextMenuAnchor {
   /** Clic droit sur le panneau d'un indicateur (RSI, MACD…) : son id et son nom, pour y poser une moyenne. */
   paneId?: string;
   paneLabel?: string;
+  /** La valeur de l'indicateur du panneau à la hauteur du clic (sur son échelle à lui). */
+  paneValue?: number;
   /** Clic droit sur la ligne d'un indicateur : son id et son nom, pour ouvrir ses paramètres. */
   indicatorId?: string;
   indicatorLabel?: string;
@@ -42,6 +44,9 @@ export interface BuildChartContextMenuArgs {
   addOnPane?: (kind: IndicatorKind, paneId: string) => void;
   /** Ouvre les paramètres de l'indicateur du clic droit (`anchor.indicatorId`). */
   openIndicatorSettings?: (id: string) => void;
+  /** Ouvre la création d'une alerte sur un indicateur (celui du panneau cliqué, ou la ligne sous le pointeur), au
+   *  niveau du clic ; « price » comme id : une alerte sur le prix. */
+  openIndicatorAlert?: (id: string, label: string, value: number | undefined) => void;
   /** Ouvre la recherche pour ajouter un symbole au graphique ; entrée absente sans elle. */
   openAddSymbol?: () => void;
   resetZoom: () => void;
@@ -73,6 +78,7 @@ export function buildChartContextMenu({
   openIndicatorPicker,
   addOnPane,
   openIndicatorSettings,
+  openIndicatorAlert,
   openAddSymbol,
   resetZoom,
   fullscreenToggle,
@@ -144,6 +150,20 @@ export function buildChartContextMenu({
       onSelect: () => void (candle && navigator.clipboard?.writeText(formatDate(candle.date))),
     },
     { separator: true },
+    // Une alerte au niveau du clic : sur l'indicateur du panneau cliqué (RSI, MACD…), sur la ligne d'indicateur
+    // sous le pointeur, ou sinon sur le prix — comme « Ajouter une alerte » de TradingView.
+    ...(() => {
+      if (!openIndicatorAlert) return [];
+      const target = anchor.paneId
+        ? { id: anchor.paneId, label: anchor.paneLabel ?? "ce panneau", value: anchor.paneValue, hint: anchor.paneLabel }
+        : anchor.indicatorId
+          ? { id: anchor.indicatorId, label: anchor.indicatorLabel ?? "cet indicateur", value: anchor.price, hint: anchor.indicatorLabel }
+          : { id: "price", label: "Prix", value: anchor.price, hint: formatPrice(anchor.price) };
+      return [
+        { label: "Ajouter une alerte", hint: target.hint, onSelect: () => openIndicatorAlert(target.id, target.label, target.value) },
+        { separator: true },
+      ] as ChartContextMenuItem[];
+    })(),
     ...(openAddSymbol ? [{ label: "Ajouter un symbole…", onSelect: openAddSymbol }] : []),
     { label: "Ajouter un indicateur…", onSelect: () => openIndicatorPicker() },
     // Le catalogue limité à ce qui se calcule sur les valeurs du panneau cliqué, posé sur lui.

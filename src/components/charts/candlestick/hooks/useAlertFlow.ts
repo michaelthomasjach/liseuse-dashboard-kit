@@ -15,6 +15,8 @@ export interface AlertTarget {
   fibonacciExtension: boolean;
   targetLabel: string;
   conditionIndicatorId?: string;
+  /** Niveau proposé d'office (alerte sans dessin) : la valeur à l'endroit du clic droit. */
+  initialValue?: number;
 }
 
 /** Everything needed to drive the create/view/edit/delete flow for alerts on drawings and
@@ -45,8 +47,8 @@ export function useAlertFlow(alerts: ChartAlert[], selectedDrawingId: string | n
   }
   // Convenience wrapper for an indicator's own legend-row bell — the one caller that has no
   // drawing at all, just an id and a label, rather than the full AlertTarget shape.
-  function openForIndicator(indicatorId: string, label: string) {
-    openFor({ drawingId: null, isFibonacciTarget: false, fibonacciExtension: false, targetLabel: label, conditionIndicatorId: indicatorId });
+  function openForIndicator(indicatorId: string, label: string, initialValue?: number) {
+    openFor({ drawingId: null, isFibonacciTarget: false, fibonacciExtension: false, targetLabel: label, conditionIndicatorId: indicatorId, initialValue });
   }
   function openCreateForCurrentTarget() {
     setEditingAlert(null);
@@ -78,6 +80,7 @@ export function useAlertFlow(alerts: ChartAlert[], selectedDrawingId: string | n
       fibonacciExtension: target?.fibonacciExtension ?? false,
       targetLabel: target?.targetLabel ?? "",
       initialConditionIndicatorId: target?.conditionIndicatorId,
+      initialValue: target?.initialValue,
       editingAlert,
       alertListOpen: mode === "list",
       onCloseAlertList: close,

@@ -557,6 +557,13 @@ export const MoreHorizontalIcon = (props: AnimatedIconProps) => (
   </IconBase>
 );
 
+export const CameraIcon = (props: AnimatedIconProps) => (
+  <IconBase motion="pulse" {...props}>
+    <path d="M4.5 7.5h3l1.6-2.5h5.8l1.6 2.5h3A1.5 1.5 0 0 1 21 9v9a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18V9a1.5 1.5 0 0 1 1.5-1.5Z" strokeLinejoin="round" />
+    <circle cx="12" cy="13" r="3.5" />
+  </IconBase>
+);
+
 export const CopyIcon = (props: AnimatedIconProps) => (
   <IconBase motion="flip" {...props}>
     <rect x="8.5" y="8.5" width="12" height="12" />

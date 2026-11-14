@@ -125,3 +125,9 @@ export type { SankeyChartProps, SankeyNodeDatum, SankeyLinkDatum } from "./Sanke
 export type { ChartCustomTool } from "./candlestick/interfaces/ChartCustomTool.interface";
 export type { OverlayDrawingInteraction } from "./candlestick/interfaces/OverlayDrawingInteraction.interface";
 export type { ChartHeaderAction } from "./candlestick/interfaces/ChartHeaderAction.interface";
+
+// Documentation du langage de script : la page complète (rendue sans fenêtre avec `detached`) et le manuel en texte
+// (Markdown), pour une application qui veut les publier sur ses propres pages.
+export { ScriptDocumentationModal } from "./candlestick/scripting/components/ScriptDocumentationModal";
+export type { ScriptDocumentationModalProps } from "./candlestick/scripting/components/ScriptDocumentationModal";
+export { loadScriptingPrompt } from "./candlestick/scripting/loadScriptingPrompt";

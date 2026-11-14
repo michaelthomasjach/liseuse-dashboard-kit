@@ -204,6 +204,8 @@ Une ligne de tendance classique (pas "étendue", pas les autres types à géomé
 
 `defaultVolumePaneState` (`"expanded"` par défaut, `"collapsed"`, `"hidden"`) : état du panneau de volume à l'ouverture, avec `showVolume` ; masqué, le volume reste ajoutable depuis « Ajouter un indicateur ». `onVolumePaneStateChange` annonce chaque changement pour que l'hôte retienne le choix.
 
+Documentation du langage de script exportée : `ScriptDocumentationModal` (avec `detached`, la documentation complète en pleine page, sans fenêtre) et `loadScriptingPrompt()` (le manuel en Markdown), pour la publier sur les pages de l'application.
+
 Indicateur sur un panneau : un clic droit sur le panneau d'un indicateur (RSI, MACD…) propose d'y poser une moyenne (SMA, EMA, WMA), calculée sur la série de ce panneau (`Indicator.sourceId`), dessinée dans ce panneau et légendée dans son en-tête ; elle part avec le panneau. Un indicateur sélectionné d'un clic montre des cercles à intervalle régulier sur sa ligne.
 
 Couleur au croisement : la MACD peut changer de couleur quand elle croise son signal (`macdCrossColors`, `macdLineAboveColor`, `macdLineBelowColor`), et chaque ligne d'un indicateur à plusieurs séries quand elle croise une autre série (`Indicator.seriesCross`) — réglé dans l'onglet Style. La molette horizontale (deuxième molette, pavé tactile) déplace la vue dans le temps ; la verticale zoome toujours.

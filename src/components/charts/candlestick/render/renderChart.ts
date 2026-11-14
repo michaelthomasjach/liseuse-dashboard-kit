@@ -1,3 +1,4 @@
+import { drawPriceAlertLines } from "./drawPriceAlertLines";
 import { drawDaySeparators } from "../daySeparators";
 import type { RenderCandlestickChartParams } from "../interfaces/RenderCandlestickChartParams.interface";
 import { drawSelectedIndicatorMarkers } from "./drawSelectedIndicatorMarkers";
@@ -83,6 +84,8 @@ export function renderCandlestickChart(canvas: HTMLCanvasElement, wrapper: HTMLE
   drawPriceCandles(ctx, params, style);
   // Replay : les dessins sont peints APRÈS le masque (plus bas), pour rester visibles dans le futur masqué.
   if (!params.replayActive) drawPriceDrawings(ctx, params, style);
+  // Alertes de prix de l'application : au-dessus des bougies et des dessins.
+  drawPriceAlertLines(ctx, params, style);
   drawVolumeAndPanes(ctx, params, style);
   // After the panes and the price lines, so a projection is always drawn over the series it
   // continues rather than under it — and before the replay mask, which is allowed to cover it.

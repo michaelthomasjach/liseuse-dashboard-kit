@@ -87,6 +87,9 @@ export interface CandlestickChartProps {
    *  informations », réglage aussi dans les paramètres. `onSymbolInfoHiddenChange` pour l'enregistrer. */
   defaultSymbolInfoHidden?: boolean;
   /** Séparateurs de jours (outil du rail de gauche) et leurs réglages ; `onDaySeparatorsChange` pour les garder. */
+  /** Alertes de prix tenues par l'application (ex. surveillées par un serveur) : lignes pointillées avec leur libellé,
+   *  distinctes des dessins et sans poignée. */
+  priceAlertLines?: import("../render/drawPriceAlertLines").PriceAlertLine[];
   defaultDaySeparators?: Partial<import("../daySeparators").DaySeparatorSettings>;
   onDaySeparatorsChange?: (settings: import("../daySeparators").DaySeparatorSettings) => void;
   onSymbolInfoHiddenChange?: (hidden: boolean) => void;

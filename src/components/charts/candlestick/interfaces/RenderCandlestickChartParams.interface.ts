@@ -46,6 +46,8 @@ export interface RenderCandlestickChartParams {
   selectedIndicatorId?: string | null;
   /** Séparateurs de jours (outil du rail de gauche), voir daySeparators.ts. */
   daySeparators?: import("../daySeparators").DaySeparatorSettings | null;
+  /** Alertes de prix de l'application, en lignes pointillées (voir drawPriceAlertLines). */
+  priceAlertLines?: import("../render/drawPriceAlertLines").PriceAlertLine[];
   indicatorPaneTops: number[];
   zoomedOwnPaneScales: Record<string, ScaleLinear<number, number>>;
   indicators: Indicator[];

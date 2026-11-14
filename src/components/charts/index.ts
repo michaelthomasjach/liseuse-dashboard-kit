@@ -139,6 +139,7 @@ export type { ChartToolBridge } from "./candlestick/ai/chartToolBridge";
 export type { WorkspaceRailAction } from "./workspace/WorkspaceSideRail";
 export type { DaySeparatorSettings } from "./candlestick/daySeparators";
 export { DEFAULT_DAY_SEPARATORS } from "./candlestick/daySeparators";
+export type { PriceAlertLine } from "./candlestick/render/drawPriceAlertLines";
 // Conversations de l'assistant, gardées par l'application (CandlestickChartProps.ai.conversations).
 export type { AiConversation, AiConversationStore } from "./candlestick/ai/useAiAssistant";
 export { captureChartBlob, captureChartCanvas, captureFileName } from "./candlestick/captureChart";

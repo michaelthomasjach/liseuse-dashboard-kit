@@ -3864,3 +3864,43 @@ button.lq-chart__legend-item {
   white-space: nowrap;
   font-weight: var(--lq-font-weight-semibold, 600);
 }
+
+/* « Ajouter à une liste » (étoile d'un résultat de la recherche de symbole). */
+.lq-chart__symbol-list-picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lq-space-1, 4px);
+  min-width: 280px;
+}
+
+.lq-chart__symbol-list-picker-row {
+  display: flex;
+  align-items: center;
+  gap: var(--lq-space-2);
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 0.85rem;
+  text-align: left;
+  color: var(--lq-color-text);
+  background-color: var(--lq-color-hover);
+  border: 1px solid transparent;
+  border-radius: var(--lq-radius-sm, 3px);
+  cursor: pointer;
+}
+
+.lq-chart__symbol-list-picker-row:hover {
+  border-color: var(--lq-color-border);
+}
+
+.lq-chart__symbol-list-picker-row--in {
+  border-color: var(--lq-color-accent);
+}
+
+.lq-chart__symbol-list-picker-check {
+  display: inline-flex;
+  color: var(--lq-color-accent);
+}
+
+.lq-chart__symbol-list-picker-name {
+  flex: 1;
+}

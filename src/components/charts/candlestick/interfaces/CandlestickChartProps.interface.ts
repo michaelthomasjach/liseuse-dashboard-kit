@@ -317,6 +317,11 @@ export interface CandlestickChartProps {
    *  « Symboles surveillés »…) : en choisir une montre ses symboles. `ChartWorkspace` passe les siennes
    *  (ses `watchlists`) à chaque fenêtre qui n'en a pas. */
   symbolLists?: SymbolSearchList[];
+  /** Ajout et retrait d'un symbole dans une des `symbolLists`, depuis la recherche : l'étoile d'un résultat ouvre
+   *  alors « Ajouter à une liste » (chaque liste, cochée si elle contient déjà le symbole) au lieu des favoris propres
+   *  au graphique. `ChartWorkspace` les relie à ses `onAddWatchlistSymbol` / `onRemoveWatchlistSymbol`. */
+  onAddToSymbolList?: (listId: string, result: SymbolSearchResult) => void;
+  onRemoveFromSymbolList?: (listId: string, result: SymbolSearchResult) => void;
   /** Fires whenever the search modal's query text or category pill changes (including once,
    *  right when the modal opens, with the query/category at their defaults) so the caller can
    *  fetch/filter and update `symbolSearchResults` accordingly. `category: "favorites"` asks

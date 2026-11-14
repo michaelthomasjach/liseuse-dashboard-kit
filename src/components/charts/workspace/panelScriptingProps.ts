@@ -31,13 +31,24 @@ export function panelScriptingProps(
   scripting: WorkspaceScripting,
   onScriptAlert?: (event: ScriptAlertEvent) => void,
 ): PanelScriptingProps {
+  const subset = scripting.scripts.filter((s) => s.targetPanelIndex === panelIndex);
+  const handedIds = new Set(subset.map((s) => s.id));
   return {
-    scripts: scripting.scripts.filter((s) => s.targetPanelIndex === panelIndex),
+    scripts: subset,
     // A panel-local change (toggling a script's own enabled state from this panel's "Mes scripts"
     // picker row, say) reports back as just its own subset — every other panel's scripts have to
     // survive it untouched.
+    //
+    // Read against the list as it stands *now* (`currentScripts`), not this render's: a script
+    // created for this panel since (the assistant's `ecrire_un_script` creates a script and runs it
+    // in the same call) is not in the subset the panel holds yet, and replacing the panel's share
+    // with that stale subset deleted the script the assistant had just written. Those newer scripts
+    // are kept; only the ones the panel was actually handed are its to change or drop.
     onScriptsChange: (updatedSubset: ScriptDef[]) => {
-      scripting.commitScripts([...scripting.scripts.filter((s) => s.targetPanelIndex !== panelIndex), ...updatedSubset]);
+      const current = scripting.currentScripts();
+      const updatedIds = new Set(updatedSubset.map((s) => s.id));
+      const newer = current.filter((s) => s.targetPanelIndex === panelIndex && !handedIds.has(s.id) && !updatedIds.has(s.id));
+      scripting.commitScripts([...current.filter((s) => s.targetPanelIndex !== panelIndex), ...updatedSubset, ...newer]);
     },
     onScriptAlert,
     // The pane header's own "</>" shortcut (see PaneHeaders.tsx) on a script-produced indicator —

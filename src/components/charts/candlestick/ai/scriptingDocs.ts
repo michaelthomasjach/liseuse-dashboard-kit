@@ -45,22 +45,35 @@ export function answerScriptingDocs(manual: string | null, input: Record<string,
   }
 
   if (search) {
+    // Passages qui citent le terme ; sinon ceux qui contiennent le plus de ses mots (« rsi panneau séparé »).
     const want = fold(search);
-    const paragraphs = manual.split(/\n{2,}/);
-    const hits: string[] = [];
+    const words = [...new Set(want.split(/[^a-z0-9_.@]+/).filter((w) => w.length >= 3))];
+    const paragraphs: { text: string; at: number }[] = [];
     let offset = 0;
-    let size = 0;
-    for (const p of paragraphs) {
-      if (fold(p).includes(want)) {
-        const where = [...sections].reverse().find((s) => s.start <= offset);
-        const chunk = `[${where?.title ?? "Manuel"}]\n${p}`;
-        if (size + chunk.length > MAX_SEARCH) break;
-        hits.push(chunk);
-        size += chunk.length;
-      }
+    for (const p of manual.split(/\n{2,}/)) {
+      paragraphs.push({ text: p, at: offset });
       offset += p.length + 2;
     }
-    return hits.length ? { content: hits.join("\n\n") } : { content: `« ${search} » n'apparaît pas dans la documentation.`, isError: true };
+    const scored = paragraphs
+      .map((p) => {
+        const f = fold(p.text);
+        const score = f.includes(want) ? 1000 : words.filter((w) => f.includes(w)).length;
+        return { ...p, score };
+      })
+      .filter((p) => p.score > 0 && (p.score >= 1000 || words.length <= 1 || p.score >= Math.min(2, words.length)))
+      .sort((a, b) => b.score - a.score || a.at - b.at);
+    const hits: string[] = [];
+    let size = 0;
+    for (const p of scored) {
+      const where = [...sections].reverse().find((s) => s.start <= p.at);
+      const chunk = `[${where?.title ?? "Manuel"}]\n${p.text}`;
+      if (size + chunk.length > MAX_SEARCH) break;
+      hits.push(chunk);
+      size += chunk.length;
+    }
+    return hits.length
+      ? { content: hits.join("\n\n") }
+      : { content: `Rien sur « ${search} » dans la documentation. Demandez le sommaire (sans argument) ou une section par son titre.`, isError: true };
   }
 
   // Sommaire : les règles du début (avant le premier titre), puis les titres, indentés.

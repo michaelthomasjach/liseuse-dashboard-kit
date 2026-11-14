@@ -845,6 +845,18 @@ export function ChartWorkspace({
             layout: child.props.layout ?? (layout === "auto" ? undefined : layout),
             // Listes de l'utilisateur dans la recherche de symbole — celles de la fenêtre si elle en a.
             symbolLists: child.props.symbolLists ?? workspaceSymbolLists,
+            // L'étoile de la recherche range le symbole dans une liste du panneau de droite.
+            onAddToSymbolList: child.props.onAddToSymbolList ?? (onAddWatchlistSymbol ? (listId: string, result: SymbolSearchResult) => onAddWatchlistSymbol(listId, result) : undefined),
+            onRemoveFromSymbolList:
+              child.props.onRemoveFromSymbolList ??
+              (onRemoveWatchlistSymbol
+                ? (listId: string, result: SymbolSearchResult) => {
+                    const list = watchlists?.find((l) => l.id === listId);
+                    const inSection = list?.sections?.find((sec) => sec.rows.some((r) => r.ticker === result.ticker));
+                    const row = [...(list?.rows ?? []), ...(inSection?.rows ?? [])].find((r) => r.ticker === result.ticker);
+                    if (row) onRemoveWatchlistSymbol(listId, row.id, inSection?.id ?? null);
+                  }
+                : undefined),
             className:
               [
                 child.props.className,

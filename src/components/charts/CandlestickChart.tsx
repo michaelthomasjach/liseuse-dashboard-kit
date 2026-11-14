@@ -181,6 +181,8 @@ export function CandlestickChart({
   symbolSearch = false,
   symbolSearchResults,
   symbolLists,
+  onAddToSymbolList,
+  onRemoveFromSymbolList,
   onSymbolSearchChange,
   onSymbolSelect,
   onAddSymbolOverlay,
@@ -2189,6 +2191,8 @@ export function CandlestickChart({
         setSymbolSearchCategory={setSymbolSearchCategory}
         symbolSearchResults={symbolSearchResults}
         symbolLists={symbolLists}
+        onAddToSymbolList={onAddToSymbolList}
+        onRemoveFromSymbolList={onRemoveFromSymbolList}
         favoriteSymbolIds={favoriteSymbolIds}
         toggleFavoriteSymbol={toggleFavoriteSymbol}
         onSymbolSelect={onSymbolSelect}

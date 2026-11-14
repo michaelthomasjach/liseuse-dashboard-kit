@@ -29,6 +29,9 @@ export interface SymbolSearchModalProps {
   symbolSearchResults: SymbolSearchResult[] | undefined;
   /** Listes de l'utilisateur, proposées sous les catégories (voir `CandlestickChartProps.symbolLists`). */
   symbolLists?: SymbolSearchList[];
+  /** Voir `CandlestickChartProps.onAddToSymbolList` : l'étoile ouvre alors le choix de la liste. */
+  onAddToSymbolList?: (listId: string, result: SymbolSearchResult) => void;
+  onRemoveFromSymbolList?: (listId: string, result: SymbolSearchResult) => void;
   /** The hover-revealed (always-visible once favorited) star button — omitted entirely, on both
    *  props at once, for a reuse of this modal with no favorites concept of its own. */
   favoriteSymbolIds?: string[];
@@ -50,7 +53,7 @@ export interface SymbolSearchModalProps {
  *  own hover-revealed "+" (a checkmark once active, a spinner while the caller's promise is in
  *  flight). */
 export function SymbolSearchModal({
-  title = "Symbol search",
+  title = "Rechercher un symbole",
   symbolSearchOpen,
   setSymbolSearchOpen,
   symbolSearchMode = "select",
@@ -60,6 +63,8 @@ export function SymbolSearchModal({
   setSymbolSearchCategory,
   symbolSearchResults,
   symbolLists,
+  onAddToSymbolList,
+  onRemoveFromSymbolList,
   favoriteSymbolIds,
   toggleFavoriteSymbol,
   onSymbolSelect,
@@ -82,12 +87,17 @@ export function SymbolSearchModal({
   }, [pendingAdd, addingOverlaySymbols, symbolOverlays, setSymbolSearchOpen]);
   // Liste de l'utilisateur choisie à gauche (null : les résultats de l'hôte, par catégorie).
   const [activeListId, setActiveListId] = useState<string | null>(null);
+  // Résultat dont on choisit la liste (étoile), quand l'hôte fournit ses listes et leur ajout.
+  const [listPickerFor, setListPickerFor] = useState<SymbolSearchResult | null>(null);
   useEffect(() => {
     if (!symbolSearchOpen) {
       setPendingAdd(null);
       setActiveListId(null);
+      setListPickerFor(null);
     }
   }, [symbolSearchOpen]);
+  const listsEnabled = Boolean(symbolLists?.length && onAddToSymbolList);
+  const listsOf = (ticker: string) => (symbolLists ?? []).filter((l) => l.symbols.some((s) => s.ticker === ticker));
   if (!symbolSearchOpen) return null;
   const activeList = activeListId ? (symbolLists?.find((l) => l.id === activeListId) ?? null) : null;
   const needle = symbolSearchQuery.trim().toLowerCase();
@@ -272,7 +282,19 @@ export function SymbolSearchModal({
                       can actually be told apart from a glance, not just while hovering. Only
                       rendered when the caller actually supports favorites (both props set) — same
                       "no half-working button" reasoning as onAddSymbolOverlay's own "+" above. */}
-                  {favoriteSymbolIds && toggleFavoriteSymbol && (
+                  {/* Listes de l'hôte : l'étoile ouvre le choix de la liste (pleine si le symbole est déjà rangé). */}
+                  {listsEnabled && (
+                    <button
+                      type="button"
+                      className={["lq-chart__symbol-search-favorite", listsOf(result.ticker).length > 0 && "lq-chart__symbol-search-favorite--active"].filter(Boolean).join(" ")}
+                      onClick={() => setListPickerFor(result)}
+                      aria-label={`Ajouter ${result.ticker} à une liste`}
+                      title={listsOf(result.ticker).length > 0 ? `Dans : ${listsOf(result.ticker).map((l) => l.name).join(", ")}` : "Ajouter à une liste (favoris, surveillance…)"}
+                    >
+                      <StarIcon size={14} fill={listsOf(result.ticker).length > 0 ? "currentColor" : "none"} />
+                    </button>
+                  )}
+                  {!listsEnabled && favoriteSymbolIds && toggleFavoriteSymbol && (
                   <button
                     type="button"
                     className={[
@@ -293,6 +315,29 @@ export function SymbolSearchModal({
           )}
         </div>
       </div>
+      {listPickerFor && (
+        <Modal open onClose={() => setListPickerFor(null)} title={`Ajouter ${listPickerFor.ticker} à une liste`} footer={null}>
+          <div className="lq-chart__symbol-list-picker" role="group" aria-label="Listes">
+            {(symbolLists ?? []).map((list) => {
+              const inList = list.symbols.some((s) => s.ticker === listPickerFor.ticker);
+              return (
+                <button
+                  key={list.id}
+                  type="button"
+                  className={["lq-chart__symbol-list-picker-row", inList && "lq-chart__symbol-list-picker-row--in"].filter(Boolean).join(" ")}
+                  aria-pressed={inList}
+                  onClick={() => (inList ? onRemoveFromSymbolList?.(list.id, listPickerFor) : onAddToSymbolList?.(list.id, listPickerFor))}
+                  disabled={inList && !onRemoveFromSymbolList}
+                >
+                  <span className="lq-chart__symbol-list-picker-check">{inList ? <CheckIcon size={14} /> : <PlusIcon size={14} />}</span>
+                  <span className="lq-chart__symbol-list-picker-name">{list.name}</span>
+                  <span className="lq-chart__symbol-search-list-count">{list.symbols.length}</span>
+                </button>
+              );
+            })}
+          </div>
+        </Modal>
+      )}
     </Modal>
   );
 }

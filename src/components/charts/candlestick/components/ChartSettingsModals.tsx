@@ -274,7 +274,7 @@ export function ChartSettingsModals({
           <Checkbox
             checked={!symbolInfoHidden}
             onChange={(checked) => setSymbolInfoHidden(!checked)}
-            label="Informations du symbole en haut à gauche (nom, bougies, OHLC)"
+            label="Légende du symbole en haut à gauche (nom, type de bougies, OHLC)"
           />
           {watermarkAvailable && (
             <div className="lq-field">

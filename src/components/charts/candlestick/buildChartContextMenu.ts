@@ -205,8 +205,8 @@ export function buildChartContextMenu({
     // Also reachable from the tools rail — but that rail only exists when `drawingTools` is on,
     // and the readout has nothing to do with drawing. This is the way in that always works.
     { label: marketStateOpen ? "Masquer l'état du marché" : "État du marché", onSelect: toggleMarketState },
-    // La ligne symbole · type · OHLC en haut à gauche.
-    ...(toggleSymbolInfo ? [{ label: symbolInfoHidden ? "Afficher ces informations" : "Masquer ces informations", onSelect: toggleSymbolInfo }] : []),
+    // La légende en haut à gauche : nom du symbole, type de bougies, ouverture / plus haut / plus bas / clôture.
+    ...(toggleSymbolInfo ? [{ label: symbolInfoHidden ? "Afficher la légende du symbole (OHLC)" : "Masquer la légende du symbole (OHLC)", onSelect: toggleSymbolInfo }] : []),
     // Sur la ligne d'un indicateur : ses paramètres (période, couleurs, style…), juste avant ceux du graphique.
     ...(anchor.indicatorId && openIndicatorSettings
       ? ([

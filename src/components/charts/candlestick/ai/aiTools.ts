@@ -492,6 +492,9 @@ export const AI_TOOLS: AiTool[] = [
 /** The tools, filtered to what this chart can actually do. A lever the host did not wire up is not
  *  offered at all — a model told it may change the timeframe, that then fails every time, spends
  *  the user's turn learning what the schema could have said up front. */
+/** Définitions seules (nom, description, paramètres) de tous les outils de l'assistant. */
+export const CHART_AI_TOOL_DEFINITIONS: AiToolDefinition[] = AI_TOOLS.map((t) => t.definition);
+
 export function availableAiTools(chart: AiChartContext): AiTool[] {
   return AI_TOOLS.filter((tool) => {
     if (tool.definition.name === "changer_l_unite_de_temps") return chart.setTimeframe !== undefined && chart.availableTimeframes.length > 0;

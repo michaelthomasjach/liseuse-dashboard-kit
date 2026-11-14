@@ -131,6 +131,9 @@ export type { ChartHeaderAction } from "./candlestick/interfaces/ChartHeaderActi
 export { ScriptDocumentationModal } from "./candlestick/scripting/components/ScriptDocumentationModal";
 // Sons des alertes (synthétisés) et capture d'un graphique en PNG, réutilisables par l'application.
 export { playAlertSound, ALERT_SOUND_OPTIONS } from "./candlestick/alertSounds";
+// Les outils que l'assistant du graphique offre au modèle (nom, description, paramètres), pour les lister ailleurs
+// (ex. une page d'administration) sans dupliquer leur définition.
+export { CHART_AI_TOOL_DEFINITIONS } from "./candlestick/ai/aiTools";
 export { captureChartBlob, captureChartCanvas, captureFileName } from "./candlestick/captureChart";
 export type { ChartCaptureOptions } from "./candlestick/captureChart";
 export type { ScriptDocumentationModalProps } from "./candlestick/scripting/components/ScriptDocumentationModal";

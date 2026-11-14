@@ -541,6 +541,23 @@ export function ChartWorkspace({
     layout === "auto" ? viewportWidth > 0 && viewportWidth < MOBILE_LAYOUT_BREAKPOINT : layout === "mobile";
   const hasWatchlists = !!watchlists && watchlists.length > 0;
   const hasAlerts = alerts !== undefined;
+  // Passage en mise en page mobile (fenêtre rétrécie) : le panneau de droite (listes, alertes) se ferme, il couvrirait
+  // le graphique ; revenu sur grand écran, il se rouvre s'il a été fermé ainsi. Ni l'un ni l'autre n'est enregistré
+  // comme un choix de l'utilisateur.
+  const wasMobileRef = useRef(isMobileWorkspace);
+  const autoClosedRef = useRef(false);
+  useEffect(() => {
+    if (isMobileWorkspace === wasMobileRef.current) return;
+    wasMobileRef.current = isMobileWorkspace;
+    if (isMobileWorkspace && sidePanelState.open) {
+      autoClosedRef.current = true;
+      sidePanelState.setOpenTransient(false);
+    } else if (!isMobileWorkspace && autoClosedRef.current) {
+      autoClosedRef.current = false;
+      sidePanelState.setOpenTransient(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMobileWorkspace]);
   const {
     activeTab,
     activeWatchlistId,

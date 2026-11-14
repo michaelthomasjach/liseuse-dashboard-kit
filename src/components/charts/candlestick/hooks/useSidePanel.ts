@@ -52,5 +52,11 @@ export function useSidePanel({ defaultSidePanelOpen, onSidePanelOpenChange }: Us
     window.addEventListener("pointerup", onUp);
   }
 
-  return { open, commitOpen, widthPx, panelRef, startResize };
+  /** Ouvre ou ferme sans prévenir l'appelant (rien d'enregistré) : un changement imposé par la mise en page, pas un
+   *  choix de l'utilisateur. */
+  function setOpenTransient(next: boolean) {
+    setOpen(next);
+  }
+
+  return { open, commitOpen, setOpenTransient, widthPx, panelRef, startResize };
 }

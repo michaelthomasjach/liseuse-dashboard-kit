@@ -35,6 +35,11 @@ export function useWorkspaceLockHold() {
   const start = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
       if (holdRef.current) return;
+      // Seulement un appui sur le graphique lui-même : ni sur une barre (en-tête, barre du haut mobile — son appui long
+      // sert à quitter une page plein écran), ni sur une barre d'outils, un bouton ou un champ.
+      const target = e.target instanceof Element ? e.target : null;
+      if (!target?.closest(".lq-chart__plot-column")) return;
+      if (target.closest(".lq-chart__header, .lq-chart-workspace__mobile-topbar, .lq-chart__tools-rail, button, input, textarea, select, [role=menu]")) return;
       // A drawing tool being active anywhere in the workspace disables the gesture outright: with a
       // tool armed, a press on the plot is the first point of a drawing, and it must not also arm a
       // lock. Read off the DOM rather than through props — `.lq-chart__overlay--drawing` is the

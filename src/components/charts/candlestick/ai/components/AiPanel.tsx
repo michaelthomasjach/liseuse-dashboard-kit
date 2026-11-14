@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CloseIcon, DetachWindowIcon, MaximizeIcon, PlusIcon, SparkleIcon } from "../../../../icons";
+import { ArrowUpIcon, CloseIcon, DetachWindowIcon, MaximizeIcon, PlusIcon, SparkleIcon } from "../../../../icons";
+import { toolStep, type AiTranscriptEntry } from "../useAiAssistant";
 import type { AiChartContext } from "../interfaces/AiChartContext.interface";
 import type { AiSend } from "../interfaces/AiMessage.interface";
 import type { AiAssistant } from "../useAiAssistant";
@@ -310,21 +311,15 @@ export function AiPanel({
             <p className="lq-ai__intro-hint">Tapez / pour viser un script, un symbole ou une commande.</p>
           </div>
         )}
-        {transcript.map((entry) =>
-          entry.role === "tool" ? (
-            <details key={entry.id} className={["lq-ai__tool", entry.isError && "lq-ai__tool--error"].filter(Boolean).join(" ")}>
-              <summary>{entry.isError ? `${entry.toolName} — échec` : entry.toolName}</summary>
-              <pre>{entry.text}</pre>
-            </details>
-          ) : (
-            <div
-              key={entry.id}
-              className={["lq-ai__message", `lq-ai__message--${entry.role}`, entry.isError && "lq-ai__message--error"]
-                .filter(Boolean)
-                .join(" ")}
-            >
-              {entry.text}
+        {/* Une question : une bulle violette à droite. Une réponse : sans fond, l'étoile de l'assistant à gauche, et
+            chacune de ses actions en étape cochée (l'étape en cours tourne, avec ses secondes). */}
+        {groupTurns(transcript).map((turn, t, turns) =>
+          turn.kind === "user" ? (
+            <div key={turn.entry.id} className="lq-ai__message lq-ai__message--user">
+              {turn.entry.text}
             </div>
+          ) : (
+            <AiTurn key={turn.entries[0]?.id ?? `turn-${t}`} entries={turn.entries} running={busy && t === turns.length - 1 ? assistant.progress : null} />
           ),
         )}
         {/* Any report a script has produced, offered here rather than only in the editor: the
@@ -348,7 +343,6 @@ export function AiPanel({
             </span>
           </div>
         ))}
-        {busy && <AiBusy progress={assistant.progress} />}
       </div>
 
       {openReport !== null && (
@@ -500,20 +494,25 @@ export function AiPanel({
             if (el) el.scrollTop = (e.target as HTMLTextAreaElement).scrollTop;
           }}
           />
-        </div>
-        <div className="lq-ai__composer-actions">
-          <span className="lq-ai__composer-hint">Entrée pour envoyer · Maj+Entrée pour un retour à la ligne</span>
-          <span className="lq-ai__composer-end">
-          <DictationButton field={inputRef} disabled={send === null || busy} />
-          {busy ? (
-            <button type="button" className="lq-ai__send" onClick={stop}>
-              Arrêter
-            </button>
-          ) : (
-            <button type="button" className="lq-ai__send" onClick={submit} disabled={send === null || draft.trim() === ""}>
-              Envoyer
-            </button>
-          )}
+          {/* Dans la zone de saisie, en bas à droite : la dictée et la flèche d'envoi (un carré pour arrêter). */}
+          <span className="lq-ai__composer-inline">
+            <DictationButton field={inputRef} disabled={send === null || busy} />
+            {busy ? (
+              <button type="button" className="lq-ai__send lq-ai__send--stop" onClick={stop} aria-label="Arrêter" title="Arrêter">
+                <span className="lq-ai__send-stop" aria-hidden="true" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="lq-ai__send"
+                onClick={submit}
+                disabled={send === null || draft.trim() === ""}
+                aria-label="Envoyer"
+                title="Envoyer (Entrée) · Maj+Entrée : retour à la ligne"
+              >
+                <ArrowUpIcon size={14} />
+              </button>
+            )}
           </span>
         </div>
       </div>
@@ -530,9 +529,85 @@ function AiBusy({ progress }: { progress: import("../useAiAssistant").AiProgress
   }, []);
   const seconds = progress ? Math.max(0, Math.floor((now - progress.startedAt) / 1000)) : 0;
   return (
-    <p className="lq-ai__busy" role="status" aria-live="polite">
-      L'assistant travaille… <span className="lq-ai__busy-time">{seconds} s</span>
-      {progress?.step && <span className="lq-ai__busy-step"> · {progress.step}</span>}
-    </p>
+    <li className="lq-ai__step lq-ai__step--running" role="status" aria-live="polite">
+      <span className="lq-ai__step-spinner" aria-hidden="true" />
+      <span>
+        {progress?.step ?? "L'assistant travaille"}
+        <span className="lq-ai__busy-time"> · {seconds} s</span>
+      </span>
+    </li>
+  );
+}
+
+type AiTurnGroup = { kind: "user"; entry: AiTranscriptEntry } | { kind: "assistant"; entries: AiTranscriptEntry[] };
+
+/** Le fil en tours de parole : chaque question seule, puis tout ce que l'assistant a fait et dit jusqu'à la suivante. */
+function groupTurns(transcript: AiTranscriptEntry[]): AiTurnGroup[] {
+  const turns: AiTurnGroup[] = [];
+  for (const entry of transcript) {
+    if (entry.role === "user") {
+      turns.push({ kind: "user", entry });
+      continue;
+    }
+    const last = turns[turns.length - 1];
+    if (last && last.kind === "assistant") last.entries.push(entry);
+    else turns.push({ kind: "assistant", entries: [entry] });
+  }
+  return turns;
+}
+
+/** Une réponse de l'assistant : son étoile, ses textes, et ses actions en étapes cochées (l'étape en cours tourne). */
+function AiTurn({ entries, running }: { entries: AiTranscriptEntry[]; running: import("../useAiAssistant").AiProgress | null }) {
+  // Les étapes qui se suivent forment une liste ; un texte entre deux coupe la liste.
+  const blocks: ({ kind: "text"; entry: AiTranscriptEntry } | { kind: "steps"; entries: AiTranscriptEntry[] })[] = [];
+  for (const entry of entries) {
+    if (entry.role === "tool") {
+      const last = blocks[blocks.length - 1];
+      if (last && last.kind === "steps") last.entries.push(entry);
+      else blocks.push({ kind: "steps", entries: [entry] });
+    } else blocks.push({ kind: "text", entry });
+  }
+  // L'étape en cours s'ajoute à la dernière liste (ou en ouvre une).
+  if (running && (blocks.length === 0 || blocks[blocks.length - 1].kind === "text")) blocks.push({ kind: "steps", entries: [] });
+  return (
+    <div className="lq-ai__turn">
+      <span className="lq-ai__avatar" aria-hidden="true">
+        <SparkleIcon size={13} />
+      </span>
+      <div className="lq-ai__turn-body">
+        {blocks.map((block, b) =>
+          block.kind === "text" ? (
+            <div key={block.entry.id} className={["lq-ai__message", "lq-ai__message--assistant", block.entry.isError && "lq-ai__message--error"].filter(Boolean).join(" ")}>
+              {block.entry.text}
+            </div>
+          ) : (
+            <ul key={`steps-${b}`} className="lq-ai__steps">
+              {block.entries.map((step) => (
+                <li key={step.id} className={["lq-ai__step", step.isError && "lq-ai__step--error"].filter(Boolean).join(" ")}>
+                  <details>
+                    <summary>
+                      <span className="lq-ai__step-mark" aria-hidden="true">
+                        {step.isError ? "×" : <StepCheck />}
+                      </span>
+                      <span>{step.isError ? `${toolStep(step.toolName ?? "")} : échec` : toolStep(step.toolName ?? "")}</span>
+                    </summary>
+                    <pre>{step.text}</pre>
+                  </details>
+                </li>
+              ))}
+              {running && b === blocks.length - 1 && <AiBusy progress={running} />}
+            </ul>
+          ),
+        )}
+      </div>
+    </div>
+  );
+}
+
+function StepCheck() {
+  return (
+    <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+      <path d="M2.5 6.2 5 8.6 9.5 3.6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   );
 }

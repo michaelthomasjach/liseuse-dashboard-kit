@@ -532,3 +532,157 @@
 .lq-ai__busy-step {
   font-style: normal;
 }
+
+/* ── Fil de l'assistant (version « vidéo ») ─────────────────────────────────────────────────────────────────────
+   Question : bulle violette à droite. Réponse : sans fond, l'étoile dans un rond à gauche. Actions : étapes cochées. */
+.lq-ai__message--user {
+  background-color: var(--lq-color-accent);
+  background-image: none;
+  color: var(--lq-color-accent-contrast, #fff);
+  border: none;
+  border-radius: 14px;
+  padding: 10px 14px;
+  max-width: 88%;
+}
+.lq-ai__turn {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.lq-ai__avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  color: var(--lq-color-accent);
+  background-color: color-mix(in srgb, var(--lq-color-accent) 12%, transparent);
+}
+.lq-ai__turn-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  flex: 1 1 auto;
+  padding-top: 3px;
+}
+.lq-ai__turn .lq-ai__message--assistant {
+  background: none;
+  border: none;
+  padding: 0;
+}
+.lq-ai__steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: var(--lq-text-sm);
+}
+.lq-ai__step summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  list-style: none;
+}
+.lq-ai__step summary::-webkit-details-marker {
+  display: none;
+}
+.lq-ai__step pre {
+  margin: 6px 0 0 26px;
+  font-size: var(--lq-text-xs);
+  color: var(--lq-color-text-muted);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.lq-ai__step-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  color: #fff;
+  background-color: var(--lq-color-positive, #1f9d55);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+}
+.lq-ai__step--error .lq-ai__step-mark {
+  background-color: var(--lq-color-negative, #d64545);
+}
+.lq-ai__step--error summary {
+  color: var(--lq-color-negative, #d64545);
+}
+.lq-ai__step--running {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--lq-color-text-muted);
+}
+.lq-ai__step-spinner {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin: 1px;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--lq-color-accent) 22%, transparent);
+  border-top-color: var(--lq-color-accent);
+  animation: lq-ai-spin 0.9s linear infinite;
+}
+@keyframes lq-ai-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lq-ai__step-spinner {
+    animation: none;
+  }
+}
+/* Zone de saisie : arrondie, la dictée et la flèche d'envoi à l'intérieur, en bas à droite. */
+.lq-ai__highlight,
+.lq-ai__input {
+  border-radius: 12px;
+  padding-right: 76px;
+}
+.lq-ai__composer-inline {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.lq-ai__send {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  color: var(--lq-color-accent-contrast, #fff);
+  background-color: var(--lq-color-accent);
+}
+.lq-ai__send:disabled {
+  opacity: 1;
+  color: var(--lq-color-accent);
+  background-color: color-mix(in srgb, var(--lq-color-accent) 14%, transparent);
+}
+.lq-ai__send:not(:disabled):hover {
+  background-color: color-mix(in srgb, var(--lq-color-accent) 85%, black);
+}
+.lq-ai__send-stop {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background-color: currentColor;
+}

@@ -72,7 +72,7 @@ const TOOL_STEPS: Record<string, string> = {
   marquer_des_seances: "Marquage des séances",
   lire_la_documentation_du_scripting: "Lecture de la documentation",
 };
-const toolStep = (name: string): string => TOOL_STEPS[name] ?? name.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
+export const toolStep = (name: string): string => TOOL_STEPS[name] ?? name.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
 
 const MAX_CONVERSATIONS = 30;
 const MAX_HISTORY = 40;

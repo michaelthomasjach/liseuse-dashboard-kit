@@ -1157,11 +1157,12 @@ export const CodeIcon = (props: AnimatedIconProps) => (
  *  at", and the sparkle is what the whole industry has settled on for that. */
 export const SparkleIcon = (props: AnimatedIconProps) => (
   <IconBase motion="beat" {...props}>
-    {/* Les deux étoiles recentrées dans le carré de 24 (leur ensemble penchait à droite). */}
-    <g transform="translate(-1.7 0.45)">
-      <path d="M12 3.5c.6 3.1 1.8 4.3 4.9 4.9-3.1.6-4.3 1.8-4.9 4.9-.6-3.1-1.8-4.3-4.9-4.9 3.1-.6 4.3-1.8 4.9-4.9Z" />
-      <path d="M17.5 14c.35 1.75 1.05 2.45 2.8 2.8-1.75.35-2.45 1.05-2.8 2.8-.35-1.75-1.05-2.45-2.8-2.8 1.75-.35 2.45-1.05 2.8-2.8Z" />
-    </g>
+    {/* L'étoile à quatre branches de l'assistant, pleine. */}
+    <path
+      d="M12 2.5c.75 4.6 2.4 6.75 7.5 9.5-5.1 2.75-6.75 4.9-7.5 9.5-.75-4.6-2.4-6.75-7.5-9.5 5.1-2.75 6.75-4.9 7.5-9.5Z"
+      fill="currentColor"
+      stroke="none"
+    />
   </IconBase>
 );
 

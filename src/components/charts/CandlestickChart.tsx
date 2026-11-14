@@ -98,6 +98,7 @@ import { ChartContextMenu } from "./candlestick/components/ChartContextMenu";
 import { buildChartContextMenu, type ChartContextMenuAnchor } from "./candlestick/buildChartContextMenu";
 import { runChartCapture } from "./candlestick/captureChart";
 import { createChartToolBridge } from "./candlestick/ai/chartToolBridge";
+import { toolMetaForType } from "./candlestick/drawingCatalog";
 import { DEFAULT_DAY_SEPARATORS, type DaySeparatorSettings } from "./candlestick/daySeparators";
 import { DaySeparatorsModal } from "./candlestick/components/DaySeparatorsModal";
 import { playAlertSound } from "./candlestick/alertSounds";
@@ -2197,6 +2198,18 @@ export function CandlestickChart({
       {isMobileRail && !seasonalityOpen && toolsRail}
 
       <DaySeparatorsModal open={daySeparatorsSettingsOpen} onClose={() => setDaySeparatorsSettingsOpen(false)} settings={daySeparators} onChange={setDaySeparators} />
+      {/* Mobile, outil de dessin armé : le zoom et le défilement dans le temps sont coupés (le doigt place les points).
+          Sans repère visible, on pouvait croire le graphique bloqué ; la bannière le dit et permet d'en sortir. */}
+      {placementActive && activeTool && (
+        <div className="lq-chart__placement-banner" role="status">
+          <span>
+            <strong>{toolMetaForType(activeTool).label}</strong> : touchez le graphique pour placer le point
+          </span>
+          <button type="button" className="lq-chart__placement-cancel" onClick={() => cancelDrawingTool()}>
+            Annuler
+          </button>
+        </div>
+      )}
       {captureToast !== null && (
         <div className="lq-chart__capture-toast" role="status">
           {captureToast}

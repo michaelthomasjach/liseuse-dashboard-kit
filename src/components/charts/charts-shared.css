@@ -4103,3 +4103,36 @@ button.lq-chart__legend-item {
     opacity: 0.8;
   }
 }
+
+/* Mobile : un outil de dessin armé (pose au doigt), et la sortie. */
+.lq-chart__placement-banner {
+  position: absolute;
+  top: 44px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 45;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: max-content;
+  max-width: calc(100% - 16px);
+  padding: 6px 6px 6px 12px;
+  font-size: 0.78rem;
+  color: var(--lq-color-text);
+  background: var(--lq-color-panel);
+  border: 1px solid var(--lq-color-accent);
+  border-radius: var(--lq-radius-sm);
+  box-shadow: 0 4px 14px rgb(0 0 0 / 18%);
+}
+.lq-chart__placement-cancel {
+  flex: none;
+  min-height: 32px;
+  padding: 0 12px;
+  font: inherit;
+  font-weight: var(--lq-font-weight-semibold, 600);
+  color: var(--lq-color-accent-contrast);
+  background: var(--lq-color-accent);
+  border: none;
+  border-radius: var(--lq-radius-sm);
+  cursor: pointer;
+}

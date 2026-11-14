@@ -133,6 +133,16 @@ export function useD3Zoom<T extends Element>({
 
     behaviorRef.current = behavior;
     const selection = d3.select(el);
+    // d3-zoom garde le geste en cours sur l'élément (`__zooming`, avec les doigts posés). Un comportement rattaché en
+    // plein toucher (la hauteur du graphique change quand la barre d'adresse d'un mobile apparaît ou disparaît) ou un
+    // toucher dont la fin s'est perdue laissait ce geste orphelin : chaque nouveau doigt devenait le « deuxième » d'un
+    // pincement figé, et ni le zoom ni le déplacement dans le temps ne répondaient plus — le glisser vertical, géré à
+    // part, si. Le geste repart donc de zéro au rattachement, et à chaque nouveau toucher à un seul doigt.
+    delete (el as unknown as { __zooming?: unknown }).__zooming;
+    const freshTouch = (event: TouchEvent) => {
+      if (event.touches.length === 1) delete (el as unknown as { __zooming?: unknown }).__zooming;
+    };
+    el.addEventListener("touchstart", freshTouch as EventListener, { capture: true, passive: true });
     selection.call(behavior);
     // Molette horizontale (deuxième molette d'une souris, glisser à deux doigts d'un pavé tactile) : déplacement dans
     // le temps, pas un zoom — d3-zoom ne lit que `deltaY`. Le reste (molette verticale : zoom) est laissé à d3-zoom.
@@ -159,7 +169,9 @@ export function useD3Zoom<T extends Element>({
     selection.property("__zoom", lastTransformRef.current);
 
     return () => {
+      el.removeEventListener("touchstart", freshTouch as EventListener, { capture: true });
       selection.on(".zoom", null);
+      delete (el as unknown as { __zooming?: unknown }).__zooming;
       behaviorRef.current = null;
     };
   }, [enabled, width, height, scaleMin, scaleMax, mountTick, ref]);

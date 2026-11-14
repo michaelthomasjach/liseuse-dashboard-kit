@@ -2298,3 +2298,54 @@
     scrollbar-color: var(--lq-color-border) transparent;
   }
 }
+
+/* Panneau des listes : enveloppe sans boîte (le menu du clic droit s'y accroche), couche du menu au-dessus de tout. */
+.lq-chart-workspace__watchlist-panel {
+  display: contents;
+}
+.lq-chart-workspace__watchlist-menu-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  pointer-events: none;
+}
+.lq-chart-workspace__watchlist-menu-layer .lq-chart__context-menu {
+  pointer-events: auto;
+}
+/* Nom de la ligne tronqué seul : l'icône de composition (ou de réglages) reste visible à sa droite. */
+.lq-chart-workspace__watchlist-ticker:has(.lq-chart-workspace__watchlist-ticker-text) {
+  display: flex;
+  align-items: center;
+}
+.lq-chart-workspace__watchlist-ticker-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lq-chart-workspace__watchlist-row-settings {
+  opacity: 1;
+}
+/* Sous-listes : le chevron occupe la colonne des logos, leur nom s'aligne sur celui des symboles (18 px + 8 px). */
+.lq-chart-workspace__watchlist-section-header {
+  position: relative;
+}
+.lq-chart-workspace__watchlist-section-toggle {
+  gap: var(--lq-space-2);
+  padding-left: 0;
+}
+.lq-chart-workspace__watchlist-section-toggle > svg {
+  flex: none;
+  width: 18px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .lq-chart-workspace__watchlist-section-header > .lq-chart-workspace__watchlist-grip {
+    position: absolute;
+    left: 0;
+    top: 50%;
+    height: 18px;
+    transform: translateY(-50%);
+    z-index: 1;
+    background-color: var(--lq-color-panel, var(--lq-color-bg));
+  }
+}

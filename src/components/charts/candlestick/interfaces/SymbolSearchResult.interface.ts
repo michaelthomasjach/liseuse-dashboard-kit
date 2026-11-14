@@ -13,4 +13,8 @@ export interface SymbolSearchResult {
    *  from a small palette) showing the ticker's first 1-2 letters instead. */
   logoUrl?: string;
   logoColor?: string;
+  /** Une icône à droite du nom qui appelle ceci (ex. la composition d'un symbole personnalisé), sans choisir la ligne. */
+  onInfo?: () => void;
+  /** Infobulle de cette icône. */
+  infoLabel?: string;
 }

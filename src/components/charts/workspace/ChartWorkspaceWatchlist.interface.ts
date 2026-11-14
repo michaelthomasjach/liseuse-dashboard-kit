@@ -33,6 +33,10 @@ export interface ChartWorkspaceWatchlistRow {
   onSettings?: () => void;
   /** Infobulle de cette icône (« Réglages » par défaut). */
   settingsLabel?: string;
+  /** Icône à la place de la roue dentée (ex. une icône de composition). */
+  settingsIcon?: ReactNode;
+  /** Nom complet du symbole (« CAC 40 », « Apple Inc. ») : montré avec le ticker dans la recherche de symbole. */
+  name?: string;
   /** Rendered content per optional column (see `ChartWorkspaceWatchlist.columns`), keyed by
    *  column id — whatever the caller wants shown there for this row (a formatted price, a
    *  colored % change, …). A column with no entry here for a given row simply renders blank. */

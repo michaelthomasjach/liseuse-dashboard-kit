@@ -4,6 +4,7 @@ import { Checkbox } from "../../forms/Checkbox";
 import { Input } from "../../forms/Input";
 import { Modal } from "../../primitives/Modal";
 import { SymbolSearchModal } from "../candlestick/components/SymbolSearchModal";
+import { ChartContextMenu, type ChartContextMenuItem } from "../candlestick/components/ChartContextMenu";
 import { WatchlistExposureModal } from "./WatchlistExposureModal";
 import type { WatchlistEarningsRow, WatchlistDividendRow, WatchlistNewsItem } from "./WatchlistExposureModal";
 import { useSymbolSearchState } from "../candlestick/hooks/useSymbolSearchState";
@@ -54,6 +55,8 @@ export interface WatchlistPanelProps {
   onMoveRow: ((watchlistId: string, rowId: string, fromSectionId: string | null, toSectionId: string | null, toIndex: number) => void) | undefined;
   onRemoveSection: ((watchlistId: string, sectionId: string) => void) | undefined;
   onReorderSections: ((watchlistId: string, orderedSectionIds: string[]) => void) | undefined;
+  /** Ferme le panneau (entrée « Fermer le panneau » du clic droit). */
+  onClosePanel?: () => void;
   /** Passed straight through to the "Répartition" modal's own "Résultats"/"Dividendes"/
    *  "Actualités" tabs — see WatchlistExposureModal's own doc, this panel never reads them
    *  itself. */
@@ -110,6 +113,7 @@ export function WatchlistPanel({
   onMoveRow,
   onRemoveSection,
   onReorderSections,
+  onClosePanel,
   earnings,
   dividends,
   mobile,
@@ -118,6 +122,8 @@ export function WatchlistPanel({
 }: WatchlistPanelProps) {
   // Ligne en cours de renommage (double-clic sur son nom) et texte saisi.
   const [renaming, setRenaming] = useState<{ rowId: string; draft: string } | null>(null);
+  // Menu du clic droit (à la place de celui du navigateur) : sur un symbole, ou sur le reste du panneau.
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; rowId: string | null; sectionId: string | null } | null>(null);
   // Symbole dont la corbeille a été cliquée : retiré seulement après confirmation.
   const [confirmDeleteRow, setConfirmDeleteRow] = useState<{ row: ChartWorkspaceWatchlistRow; sectionId: string | null } | null>(null);
   const renameClickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -491,7 +497,7 @@ export function WatchlistPanel({
                 }}
               />
             ) : (
-              (row.label ?? row.ticker)
+              <span className="lq-chart-workspace__watchlist-ticker-text">{row.label ?? row.ticker}</span>
             )}
             {/* Open or closed, beside the name. Absent when the caller does not track it — see
                 `marketOpen`: stating "closed" for an unknown would be wrong every weekday. */}
@@ -523,7 +529,7 @@ export function WatchlistPanel({
                   row.onSettings?.();
                 }}
               >
-                <SettingsIcon size={12} />
+                {row.settingsIcon ?? <SettingsIcon size={12} />}
               </span>
             )}
           </span>
@@ -671,8 +677,76 @@ export function WatchlistPanel({
     return nodes;
   }
 
+  // Clic droit : le menu du panneau plutôt que celui du navigateur.
+  function openContextMenu(e: React.MouseEvent) {
+    const target = e.target as Element | null;
+    // Dans un champ (recherche, renommage) : le menu du navigateur (copier, coller).
+    if (target?.closest("input, textarea, [contenteditable='true']")) return;
+    e.preventDefault();
+    const rowEl = target?.closest<HTMLElement>("[data-watchlist-row-id]");
+    const rowId = rowEl?.dataset.watchlistRowId ?? null;
+    const sectionEl = target?.closest<HTMLElement>("[data-watchlist-section-id]");
+    const inSection = rowId ? (activeWatchlist.sections ?? []).find((s) => s.rows.some((r) => r.id === rowId)) : undefined;
+    setContextMenu({ x: e.clientX, y: e.clientY, rowId, sectionId: inSection?.id ?? (rowId ? null : (sectionEl?.dataset.watchlistSectionId ?? null)) });
+  }
+
+  function contextMenuItems(): ChartContextMenuItem[] {
+    if (!contextMenu) return [];
+    const items: ChartContextMenuItem[] = [];
+    const sections = activeWatchlist.sections ?? [];
+    const row = contextMenu.rowId
+      ? [...activeWatchlist.rows, ...sections.flatMap((s) => s.rows)].find((r) => r.id === contextMenu.rowId)
+      : undefined;
+    if (row) {
+      const name = row.label ?? row.ticker;
+      if (onRenameRow) items.push({ label: "Renommer le symbole", onSelect: () => setRenaming({ rowId: row.id, draft: name }) });
+      if (row.onSettings) items.push({ label: row.settingsLabel ?? "Réglages du symbole", onSelect: () => row.onSettings?.() });
+      if (onMoveRow) {
+        const targets = sections.filter((s) => s.id !== contextMenu.sectionId);
+        if (targets.length > 0 || contextMenu.sectionId !== null) items.push({ separator: true });
+        for (const s of targets) {
+          items.push({ label: `Déplacer dans « ${s.name} »`, onSelect: () => onMoveRow(activeWatchlist.id, row.id, contextMenu.sectionId, s.id, s.rows.length) });
+        }
+        if (contextMenu.sectionId !== null) {
+          items.push({ label: "Sortir de la sous-liste", onSelect: () => onMoveRow(activeWatchlist.id, row.id, contextMenu.sectionId, null, activeWatchlist.rows.length) });
+        }
+      }
+      if (onRemoveRow) {
+        items.push({ separator: true });
+        items.push({ label: "Supprimer le symbole de la liste", onSelect: () => setConfirmDeleteRow({ row, sectionId: contextMenu.sectionId }) });
+      }
+    } else if (contextMenu.sectionId) {
+      const section = sections.find((s) => s.id === contextMenu.sectionId);
+      if (section && onRemoveSection) items.push({ label: `Supprimer la sous-liste « ${section.name} »`, onSelect: () => requestRemoveSection(section) });
+    }
+    const creation: ChartContextMenuItem[] = [
+      ...(onCreateSection ? [{ label: "Créer une nouvelle sous-liste", onSelect: () => setNameModal("section") }] : []),
+      ...(onCreateWatchlist ? [{ label: "Créer une nouvelle liste", onSelect: () => setNameModal("list") }] : []),
+    ];
+    if (creation.length) {
+      if (items.length) items.push({ separator: true });
+      items.push(...creation);
+    }
+    if (onClosePanel) {
+      if (items.length) items.push({ separator: true });
+      items.push({ label: "Fermer le panneau", onSelect: onClosePanel });
+    }
+    return items;
+  }
+
   return (
-    <>
+    <div className="lq-chart-workspace__watchlist-panel" onContextMenu={openContextMenu}>
+      {contextMenu && (
+        <div className="lq-chart-workspace__watchlist-menu-layer">
+          <ChartContextMenu
+            x={contextMenu.x}
+            y={contextMenu.y}
+            bounds={{ width: window.innerWidth, height: window.innerHeight }}
+            items={contextMenuItems()}
+            onClose={() => setContextMenu(null)}
+          />
+        </div>
+      )}
       {!mobile && (
         <div className="lq-chart-workspace__side-panel-header">
           <button
@@ -928,7 +1002,7 @@ export function WatchlistPanel({
           </p>
         </Modal>
       )}
-    </>
+    </div>
   );
 }
 

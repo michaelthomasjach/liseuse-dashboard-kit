@@ -455,20 +455,40 @@ export function ChartWorkspace({
   // Recalculées seulement quand le contenu des listes change (noms, symboles, logos) : un hôte reconstruit
   // souvent `watchlists` à chaque cours reçu, et un tableau neuf redessinerait les fenêtres du graphique.
   const symbolListsSignature = JSON.stringify(
-    watchlists?.map((list) => [list.id, list.name, [...list.rows, ...(list.sections ?? []).flatMap((section) => section.rows)].map((row) => [row.id, row.ticker, row.assetType ?? "", row.logoUrl ?? ""])]) ?? null,
+    watchlists?.map((list) => [
+      list.id,
+      list.name,
+      [...list.rows, ...(list.sections ?? []).flatMap((section) => section.rows)].map((row) => [
+        row.id,
+        row.ticker,
+        row.assetType ?? "",
+        row.logoUrl ?? "",
+        row.label || row.name || "",
+        row.onSettings ? (row.settingsLabel ?? "Réglages") : "",
+      ]),
+    ]) ?? null,
+  );
+  // Les actions des lignes (composition d'un symbole personnalisé…) : des fonctions, hors de la signature ; relues au clic.
+  const rowSettingsRef = useRef(new Map<string, () => void>());
+  rowSettingsRef.current = new Map(
+    (watchlists ?? []).flatMap((list) =>
+      [...list.rows, ...(list.sections ?? []).flatMap((section) => section.rows)].flatMap((row) => (row.onSettings ? [[row.id, row.onSettings] as const] : [])),
+    ),
   );
   const workspaceSymbolLists: SymbolSearchList[] | undefined = useMemo(
     () =>
-      (JSON.parse(symbolListsSignature) as [string, string, [string, string, string, string][]][] | null)?.map(([id, name, rows]) => ({
+      (JSON.parse(symbolListsSignature) as [string, string, [string, string, string, string, string, string][]][] | null)?.map(([id, name, rows]) => ({
         id,
         name,
-        symbols: rows.map(([rowId, ticker, assetType, logoUrl]) => ({
+        // « CAC 40 - ^FCHI » : le nom (celui choisi par l'utilisateur, sinon le nom complet), le type à droite.
+        symbols: rows.map(([rowId, ticker, assetType, logoUrl, rowName, settingsLabel]) => ({
           id: rowId,
           ticker,
-          name: assetType,
+          name: rowName,
           category: "stocks" as const,
-          source: "",
+          source: assetType,
           ...(logoUrl ? { logoUrl } : {}),
+          ...(settingsLabel ? { onInfo: () => rowSettingsRef.current.get(rowId)?.(), infoLabel: settingsLabel } : {}),
         })),
       })),
     [symbolListsSignature],
@@ -1133,6 +1153,7 @@ export function ChartWorkspace({
                   onMoveRow={onMoveWatchlistRow}
                   onRemoveSection={onRemoveWatchlistSection}
                   onReorderSections={onReorderWatchlistSections}
+                  onClosePanel={isMobileWorkspace ? undefined : () => toggleTab("watchlist")}
                   earnings={watchlistEarnings}
                   dividends={watchlistDividends}
                   news={watchlistNews}

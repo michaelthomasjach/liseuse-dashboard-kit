@@ -93,7 +93,22 @@ export function useFocusTrap(ref: RefObject<HTMLElement | null>, active: boolean
       // l'utilisateur a cliqué ailleurs entre-temps, on ne le lui reprend pas.
       const current = document.activeElement;
       const lost = !current || current === document.body || root.contains(current) || !current.isConnected;
-      if (returnTo && returnTo.isConnected && lost) returnTo.focus({ preventScroll: true });
+      if (returnTo && returnTo.isConnected && lost) {
+        returnTo.focus({ preventScroll: true });
+        // Focus rendu par le dialogue, pas amené par l'utilisateur : pas de contour clavier (un bouton entouré de noir
+        // après Échap). Le contour revient dès la prochaine touche Tab.
+        returnTo.setAttribute("data-lq-focus-restored", "");
+        const clear = () => {
+          returnTo.removeAttribute("data-lq-focus-restored");
+          returnTo.removeEventListener("blur", clear);
+          window.removeEventListener("keydown", onTab, true);
+        };
+        const onTab = (e: KeyboardEvent) => {
+          if (e.key === "Tab") clear();
+        };
+        returnTo.addEventListener("blur", clear);
+        window.addEventListener("keydown", onTab, true);
+      }
     };
   }, [active, ref]);
 }

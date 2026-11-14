@@ -474,3 +474,10 @@
  *                      sidebar its own palette (a dark rail on a light page) — the logo, the nav
  *                      and whatever sits in the footer all follow, because they read the same tokens.
  */
+
+/* Focus rendu par un dialogue à sa fermeture (voir useFocusTrap) : pas de contour tant qu'on ne navigue pas au clavier. */
+[data-lq-focus-restored]:focus,
+[data-lq-focus-restored]:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}

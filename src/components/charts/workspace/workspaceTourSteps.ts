@@ -51,9 +51,9 @@ export const WORKSPACE_TOUR_STEPS: WorkspaceTourStep[] = [
     body: "Jusqu'à huit fenêtres côte à côte. Liez-les pour qu'elles suivent le même curseur et la même période ; la dernière fenêtre cliquée est entourée d'un liseré.",
   },
   {
-    selector: '.lq-chart-workspace__side-rail [aria-label^="Claude (MCP)"]',
-    title: "Claude relié à votre compte",
-    body: "Connectez Claude (MCP) : il lit vos données, pilote ce graphique et gère vos alertes de prix, depuis sa propre conversation.",
+    selector: '.lq-chart-workspace__side-rail [aria-label*="(MCP)"]',
+    title: "Votre IA reliée à votre compte",
+    body: "Connectez Claude, ChatGPT ou un autre assistant (MCP) : il lit vos données, pilote ce graphique et gère vos alertes de prix, depuis sa propre conversation.",
   },
   {
     selector: ".lq-chart-workspace__help-button",

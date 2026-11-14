@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Modal } from "../../../primitives/Modal";
 import { Input } from "../../../forms/Input";
-import { SearchIcon, CloseIcon, RefreshIcon, CheckIcon, PlusIcon, StarIcon } from "../../../icons";
+import { SearchIcon, CloseIcon, RefreshIcon, CheckIcon, PlusIcon, StarIcon, LayersIcon } from "../../../icons";
 import type { SymbolSearchCategory } from "../interfaces/SymbolSearchCategory.interface";
 import type { SymbolSearchResult } from "../interfaces/SymbolSearchResult.interface";
 import type { SymbolSearchList } from "../interfaces/SymbolSearchList.interface";
@@ -235,8 +235,32 @@ export function SymbolSearchModal({
                     }
                   >
                     <SymbolSearchLogo result={result} fallbackColor={result.logoColor ?? defaultSymbolLogoColor(i)} />
-                    <span className="lq-chart__symbol-search-ticker">{result.ticker}</span>
-                    <span className="lq-chart__symbol-search-name">{result.name}</span>
+                    {/* « CAC 40 - ^FCHI » : le nom d'abord, le ticker ensuite ; le ticker seul quand le nom n'apprend rien. */}
+                    <span className="lq-chart__symbol-search-ticker">
+                      {result.name && result.name !== result.ticker ? `${result.name} - ${result.ticker}` : result.ticker}
+                    </span>
+                    {result.onInfo && (
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        className="lq-chart__symbol-search-info"
+                        title={result.infoLabel ?? "Détails"}
+                        aria-label={result.infoLabel ?? `Détails de ${result.ticker}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          result.onInfo?.();
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key !== "Enter" && e.key !== " ") return;
+                          e.preventDefault();
+                          e.stopPropagation();
+                          result.onInfo?.();
+                        }}
+                      >
+                        <LayersIcon size={13} />
+                      </span>
+                    )}
+                    <span className="lq-chart__symbol-search-name" />
                     <span className="lq-chart__symbol-search-source">
                       {(adding || replacing) && isOverlayLoading ? <RefreshIcon size={14} className="lq-chart__symbol-search-overlay-spinner" aria-label="Chargement…" /> : result.source}
                     </span>

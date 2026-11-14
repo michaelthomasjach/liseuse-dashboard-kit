@@ -96,6 +96,9 @@ export function useAiAssistant({ chart, send, serverTools }: UseAiAssistantArgs)
       // Un script a-t-il été enregistré par l'outil pendant cette question ? Sinon, celui que le modèle aurait écrit
       // dans sa réponse est enregistré à sa place (voir `keepScriptFromAnswer`).
       let scriptSaved = false;
+      /** Script créé pendant cette question : une nouvelle écriture sans « id » (le modèle qui corrige son code) le
+       *  remplace au lieu d'ouvrir un onglet de plus. */
+      let createdId: string | null = null;
       /** Code d'un script laissé dans la réponse écrite au lieu de passer par `ecrire_un_script` : enregistré dans un
        *  nouvel onglet de l'éditeur, ouvert et exécuté — jamais perdu, et jamais « affiché » seulement en paroles. */
       const keepScriptFromAnswer = (answerText: string) => {
@@ -107,6 +110,7 @@ export function useAiAssistant({ chart, send, serverTools }: UseAiAssistantArgs)
         chart.runScript(id);
         chart.openScript?.(id);
         scriptSaved = true;
+        createdId = id;
         setTranscript((prev) => [
           ...prev,
           {
@@ -172,9 +176,17 @@ export function useAiAssistant({ chart, send, serverTools }: UseAiAssistantArgs)
           // at a time would leave the others unanswered.
           const results: AiContentBlock[] = [];
           for (const call of calls) {
+            // Correction du script qu'il vient de créer : le même onglet, pas un nouveau fichier.
+            const input: Record<string, unknown> =
+              call.name === "ecrire_un_script" && createdId !== null && typeof call.input.id !== "string" && chartRef.current.scripts.some((s) => s.id === createdId)
+                ? { ...call.input, id: createdId }
+                : call.input;
             // La documentation est servie ici, où le manuel est chargé ; tout autre outil agit sur le graphique.
-            const outcome = call.name === SCRIPTING_DOCS_TOOL ? answerScriptingDocs(manual, call.input) : runAiTool(call.name, call.input, chartRef.current);
-            if (call.name === "ecrire_un_script" && !outcome.isError) scriptSaved = true;
+            const outcome = call.name === SCRIPTING_DOCS_TOOL ? answerScriptingDocs(manual, input) : runAiTool(call.name, input, chartRef.current);
+            if (call.name === "ecrire_un_script" && !outcome.isError) {
+              scriptSaved = true;
+              createdId = typeof input.id === "string" ? input.id : (/\(id ([^)\s]+)\)/.exec(outcome.content)?.[1] ?? createdId);
+            }
             results.push({ type: "tool_result", toolUseId: call.id, content: outcome.content, isError: outcome.isError });
             setTranscript((prev) => [
               ...prev,

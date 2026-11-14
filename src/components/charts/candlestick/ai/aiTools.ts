@@ -286,7 +286,7 @@ export const AI_TOOLS: AiTool[] = [
     definition: {
       name: "ecrire_un_script",
       description:
-        "Crée un script dans un nouvel onglet de l'éditeur (qui s'ouvre) et l'exécute, ou remplace le code d'un script existant (avec « id »). Le code doit être écrit dans le langage de scripting de ce graphique (voir lire_la_documentation_du_scripting). Déclarez @indicator, @strategy, @quant ou @report sur la première ligne. Pour un rapport d'entreprise, écrivez un @report : il produit un document que l'utilisateur peut lire et exporter en PDF.",
+        "Crée un script dans un nouvel onglet de l'éditeur (qui s'ouvre) et l'exécute, ou remplace le code d'un script existant (avec « id ») — pour corriger un script que vous venez d'écrire, passez toujours son id. Le code doit être écrit dans le langage de scripting de ce graphique (voir lire_la_documentation_du_scripting). Déclarez @indicator, @strategy, @quant ou @report sur la première ligne. Pour un rapport d'entreprise, écrivez un @report : il produit un document que l'utilisateur peut lire et exporter en PDF.",
       inputSchema: {
         type: "object",
         properties: {
@@ -316,7 +316,9 @@ export const AI_TOOLS: AiTool[] = [
       const id = chart.addScript(name, code);
       if (run) chart.runScript(id);
       chart.openScript?.(id);
-      return { content: `Script « ${name} » créé (id ${id})${run ? " et exécuté" : ""}, et ouvert dans l'éditeur.` };
+      return {
+        content: `Script « ${name} » créé (id ${id})${run ? " et exécuté" : ""}, et ouvert dans l'éditeur. Pour le corriger, rappelez ecrire_un_script avec id « ${id} » : ne créez pas un nouveau script.`,
+      };
     },
   },
   {

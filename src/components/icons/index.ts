@@ -70,6 +70,7 @@ export {
   PlusIcon,
   MoreHorizontalIcon,
   CameraIcon,
+  TimeframeLayersIcon,
   CopyIcon,
   CursorArrowIcon,
   TrendLineIcon,

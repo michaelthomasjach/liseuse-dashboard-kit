@@ -557,6 +557,16 @@ export const MoreHorizontalIcon = (props: AnimatedIconProps) => (
   </IconBase>
 );
 
+/** Calques (dessins, indicateurs) liés à une unité de temps : deux plans empilés et une petite horloge. */
+export const TimeframeLayersIcon = (props: AnimatedIconProps) => (
+  <IconBase motion="tilt" {...props}>
+    <path d="M2.5 8 10 4.5 17.5 8 10 11.5Z" strokeLinejoin="round" />
+    <path d="M2.5 12 10 15.5l1.5-.7" strokeLinejoin="round" />
+    <circle cx="17.5" cy="16.5" r="4.5" />
+    <path d="M17.5 14.2v2.3l1.6 1" />
+  </IconBase>
+);
+
 export const CameraIcon = (props: AnimatedIconProps) => (
   <IconBase motion="pulse" {...props}>
     <path d="M4.5 7.5h3l1.6-2.5h5.8l1.6 2.5h3A1.5 1.5 0 0 1 21 9v9a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18V9a1.5 1.5 0 0 1 1.5-1.5Z" strokeLinejoin="round" />

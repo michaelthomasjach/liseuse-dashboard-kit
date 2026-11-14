@@ -4019,3 +4019,13 @@ button.lq-chart__legend-item {
   box-shadow: 0 4px 14px rgb(0 0 0 / 18%);
   pointer-events: none;
 }
+
+/* Le trait qui ouvre le groupe du bas du rail (réglage « par unité de temps ») : il porte la marge qui pousse le
+   groupe en bas, que sa propre règle `margin` écraserait sinon. */
+.lq-chart__tool-separator.lq-chart__tools-rail-bottom-button {
+  margin-top: auto;
+}
+.lq-chart__tools-rail--horizontal .lq-chart__tool-separator.lq-chart__tools-rail-bottom-button {
+  margin-top: 0;
+  margin-left: auto;
+}

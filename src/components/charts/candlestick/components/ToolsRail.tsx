@@ -3,7 +3,7 @@ import type { ChartCustomTool } from "../interfaces/ChartCustomTool.interface";
 import type { RefObject, Dispatch, SetStateAction } from "react";
 import { Popover } from "../../../forms/Popover";
 import { Checkbox } from "../../../forms/Checkbox";
-import { ChevronDownIcon, MagnetIcon, EyeIcon, EyeOffIcon, AlarmClockIcon, LockIcon, BellIcon, LayersIcon, ZoomInIcon, ZoomOutIcon, InfoIcon, GaugeIcon, MaximizeIcon, MinimizeIcon } from "../../../icons";
+import { ChevronDownIcon, MagnetIcon, EyeIcon, EyeOffIcon, TimeframeLayersIcon, LockIcon, BellIcon, LayersIcon, ZoomInIcon, ZoomOutIcon, InfoIcon, GaugeIcon, MaximizeIcon, MinimizeIcon } from "../../../icons";
 import { ToolCategorySheet } from "./ToolCategorySheet";
 import type { DrawingToolType } from "../interfaces/DrawingToolType.interface";
 import { DRAWING_TOOL_CATEGORIES } from "../drawingCatalog";
@@ -132,7 +132,9 @@ export function ToolsRail({
 }: ToolsRailProps) {
   // Which trailing button carries the auto margin that pins the trailing group apart from the
   // tools: only the first one may, or two auto margins would split the free space between them.
-  const trailingLead = onToggleWorkspaceFullscreen ? "fullscreen" : eventKinds.length > 0 ? "events" : "layers";
+  // Le premier bouton du groupe du bas porte la marge qui pousse tout le groupe en bas du rail ; le réglage
+  // « par unité de temps », quand il existe, ouvre ce groupe (son trait de séparation porte alors la marge).
+  const trailingLead = onToggleTimeframeScoped ? "scope" : onToggleWorkspaceFullscreen ? "fullscreen" : eventKinds.length > 0 ? "events" : "layers";
   const [eventsMenuOpen, setEventsMenuOpen] = useState(false);
 
   /** The tool the pointer has been resting on, and where its button is.
@@ -397,24 +399,6 @@ export function ToolsRail({
         >
           {drawingsHidden ? <EyeOffIcon size={14} /> : <EyeIcon size={14} />}
         </button>
-        {/* Dessins et indicateurs propres à l'unité de temps : chacun n'apparaît que sur l'unité où il
-            a été ajouté (rien n'est supprimé, revenir sur l'unité le remontre). */}
-        {onToggleTimeframeScoped && (
-          <button
-            type="button"
-            className={["lq-chart__icon-button", timeframeScoped && "lq-chart__icon-button--active"].filter(Boolean).join(" ")}
-            onClick={onToggleTimeframeScoped}
-            aria-label="Dessins et indicateurs propres à l'unité de temps"
-            aria-pressed={timeframeScoped}
-            title={
-              timeframeScoped
-                ? "Dessins et indicateurs propres à l'unité de temps : activé (chacun n'apparaît que sur l'unité où il a été ajouté)"
-                : "Dessins et indicateurs propres à l'unité de temps : désactivé (tous visibles sur chaque unité)"
-            }
-          >
-            <AlarmClockIcon size={14} />
-          </button>
-        )}
         {/* Blocks dragging (body, endpoints, and axis handles all check this before
             starting) without touching selectability — hover, Delete, and double-click to
             edit all keep working on a locked drawing, only click-and-drag is refused. */}
@@ -465,13 +449,35 @@ export function ToolsRail({
             same toggle. Pinned to the rail's own bottom edge (see
             .lq-chart__tools-rail-bottom-button), alongside "Dessins et indicateurs" right below
             it, rather than living inline with the magnet/hide/lock toggles above. */}
+        {/* Dessins et indicateurs propres à l'unité de temps : chacun n'apparaît que sur l'unité où il
+            a été ajouté (rien n'est supprimé, revenir sur l'unité le remontre). En tête du groupe du bas,
+            sous un trait de séparation : c'est un réglage d'affichage, pas un outil de dessin. */}
+        {onToggleTimeframeScoped && (
+          <>
+            <div className="lq-chart__tool-separator lq-chart__tools-rail-bottom-button" aria-hidden="true" />
+            <button
+              type="button"
+              className={["lq-chart__icon-button", timeframeScoped && "lq-chart__icon-button--active"].filter(Boolean).join(" ")}
+              onClick={onToggleTimeframeScoped}
+              aria-label="Masquer les dessins et indicateurs des autres unités de temps"
+              aria-pressed={timeframeScoped}
+              title={
+                timeframeScoped
+                  ? "Affichage par unité de temps : activé (chaque dessin et indicateur n'apparaît que sur l'unité où il a été ajouté)"
+                  : "Affichage par unité de temps : désactivé (dessins et indicateurs visibles sur chaque unité)"
+              }
+            >
+              <TimeframeLayersIcon size={14} />
+            </button>
+          </>
+        )}
         {/* The workspace's own fullscreen, on the mobile row only (the side rail that holds it
             elsewhere is hidden there) — first of the trailing group, same action and state as the
             side rail's button. */}
         {onToggleWorkspaceFullscreen && (
           <button
             type="button"
-            className="lq-chart__icon-button lq-chart__tools-rail-bottom-button"
+            className={["lq-chart__icon-button", trailingLead === "fullscreen" && "lq-chart__tools-rail-bottom-button"].filter(Boolean).join(" ")}
             onClick={onToggleWorkspaceFullscreen}
             aria-label={workspaceFullscreen ? "Quitter le plein écran de l'espace de travail" : "Plein écran de l'espace de travail"}
             aria-pressed={workspaceFullscreen}

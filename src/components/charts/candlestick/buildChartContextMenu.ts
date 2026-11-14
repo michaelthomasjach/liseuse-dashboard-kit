@@ -15,6 +15,9 @@ export interface ChartContextMenuAnchor {
   /** Clic droit sur le panneau d'un indicateur (RSI, MACD…) : son id et son nom, pour y poser une moyenne. */
   paneId?: string;
   paneLabel?: string;
+  /** Clic droit sur la ligne d'un indicateur : son id et son nom, pour ouvrir ses paramètres. */
+  indicatorId?: string;
+  indicatorLabel?: string;
 }
 
 export interface BuildChartContextMenuArgs {
@@ -33,9 +36,12 @@ export interface BuildChartContextMenuArgs {
   /** Same formatting the price axis itself uses, percent mode included. */
   formatPrice: (v: number) => string;
   formatDate: (d: Date) => string;
-  openIndicatorPicker: () => void;
+  /** Ouvre le catalogue des indicateurs ; depuis le panneau d'un indicateur, il cible ce panneau. */
+  openIndicatorPicker: (pane?: { id: string; label: string }) => void;
   /** Pose une moyenne (SMA, EMA, WMA) sur le panneau du clic droit (`anchor.paneId`). */
   addOnPane?: (kind: IndicatorKind, paneId: string) => void;
+  /** Ouvre les paramètres de l'indicateur du clic droit (`anchor.indicatorId`). */
+  openIndicatorSettings?: (id: string) => void;
   /** Ouvre la recherche pour ajouter un symbole au graphique ; entrée absente sans elle. */
   openAddSymbol?: () => void;
   resetZoom: () => void;
@@ -66,6 +72,7 @@ export function buildChartContextMenu({
   formatDate,
   openIndicatorPicker,
   addOnPane,
+  openIndicatorSettings,
   openAddSymbol,
   resetZoom,
   fullscreenToggle,
@@ -88,6 +95,17 @@ export function buildChartContextMenu({
           { label: "Supprimer le dessin", onSelect: () => commitDrawings(drawings.filter((d) => d.id !== targetDrawing.id)) },
           { separator: true },
         ] as ChartContextMenuItem[])),
+    // Sur la ligne d'un indicateur : ses paramètres (période, couleurs, style…), sans passer par sa légende.
+    ...(anchor.indicatorId && openIndicatorSettings
+      ? ([
+          {
+            label: "Paramètres de l'indicateur…",
+            hint: anchor.indicatorLabel,
+            onSelect: () => openIndicatorSettings(anchor.indicatorId as string),
+          },
+          { separator: true },
+        ] as ChartContextMenuItem[])
+      : []),
     {
       label: "Ligne horizontale ici",
       hint: formatPrice(anchor.price),
@@ -127,7 +145,16 @@ export function buildChartContextMenu({
     },
     { separator: true },
     ...(openAddSymbol ? [{ label: "Ajouter un symbole…", onSelect: openAddSymbol }] : []),
-    { label: "Ajouter un indicateur…", onSelect: openIndicatorPicker },
+    { label: "Ajouter un indicateur…", onSelect: () => openIndicatorPicker() },
+    // Le catalogue limité à ce qui se calcule sur les valeurs du panneau cliqué, posé sur lui.
+    ...(anchor.paneId && addOnPane
+      ? [
+          {
+            label: `Ajouter un indicateur sur ${anchor.paneLabel ?? "ce panneau"}…`,
+            onSelect: () => openIndicatorPicker({ id: anchor.paneId as string, label: anchor.paneLabel ?? "ce panneau" }),
+          },
+        ]
+      : []),
     // Sur le panneau d'un indicateur : une moyenne de sa série, dessinée dans ce panneau.
     ...(anchor.paneId && addOnPane
       ? ATTACHABLE_KINDS.map(({ kind, label }) => ({

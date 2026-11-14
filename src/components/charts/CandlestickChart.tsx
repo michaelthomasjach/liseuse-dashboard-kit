@@ -95,7 +95,7 @@ import { drawingLabel } from "./candlestick/drawingCatalog";
 import { indicatorCatalogEntry, indicatorLabel, defaultIndicatorColor } from "./candlestick/indicatorCatalog";
 import { drawingAxisAnnotations, indicatorAxisAnnotations } from "./candlestick/axisAnnotations";
 import { ChartContextMenu } from "./candlestick/components/ChartContextMenu";
-import { buildChartContextMenu } from "./candlestick/buildChartContextMenu";
+import { buildChartContextMenu, type ChartContextMenuAnchor } from "./candlestick/buildChartContextMenu";
 import { ATTACHED_DEFAULT_PERIOD } from "./candlestick/attachedIndicators";
 import { CHART_DISPLAY_MODES } from "./candlestick/chartModes";
 import { findTimeframeLabel, flattenTimeframeValues } from "./candlestick/timeframes";
@@ -485,7 +485,7 @@ export function CandlestickChart({
   // the chart's own positioned root (to place the menu), `price`/`index` against the plot's own
   // scales (to say what the commands will act on). Captured at click time rather than read from
   // hover state when a command runs — by then the pointer has moved onto the menu itself.
-  const [contextMenu, setContextMenu] = useState<{ menuX: number; menuY: number; price: number; index: number; bounds: { width: number; height: number }; paneId?: string; paneLabel?: string } | null>(null);
+  const [contextMenu, setContextMenu] = useState<ChartContextMenuAnchor | null>(null);
   const mainRef = useRef<HTMLDivElement | null>(null);
 
   function handlePlotContextMenu(e: React.MouseEvent<HTMLDivElement>) {
@@ -515,6 +515,12 @@ export function CandlestickChart({
         const at = ownPaneIndicators.findIndex((_, i) => plotY >= priceHeight + indicatorPaneTops[i] && plotY < priceHeight + indicatorPaneTops[i] + indicatorPaneHeights[i]);
         const pane = at >= 0 ? ownPaneIndicators[at] : undefined;
         return pane ? { paneId: pane.id, paneLabel: indicatorLabel(pane) } : {};
+      })(),
+      // Sur la ligne d'un indicateur (celle sous le pointeur, sinon la sélectionnée) : de quoi ouvrir ses paramètres.
+      ...(() => {
+        const id = hoveredIndicatorId ?? selectedIndicatorId;
+        const target = id === null ? undefined : indicators.find((i) => i.id === id);
+        return target ? { indicatorId: target.id, indicatorLabel: indicatorLabel(target) } : {};
       })(),
     });
   }
@@ -677,6 +683,13 @@ export function CandlestickChart({
     defaultVolumePaneState,
     onVolumePaneStateChange,
   });
+  // Le panneau visé par le catalogue des indicateurs quand il est ouvert depuis son clic droit ; oublié à la
+  // fermeture, pour que les autres façons de l'ouvrir (en-tête, raccourci) retrouvent le catalogue complet.
+  const [pickerTargetPane, setPickerTargetPane] = useState<{ id: string; label: string } | null>(null);
+  useEffect(() => {
+    if (!indicatorPickerOpen) setPickerTargetPane(null);
+  }, [indicatorPickerOpen]);
+  const addIndicatorOnPane = (kind: IndicatorKind, paneId: string) => appendIndicator({ kind, period: ATTACHED_DEFAULT_PERIOD, sourceId: paneId });
   // App-defined tools (see ChartCustomTool): one armed at a time, disarmed by placing, Escape or its own button.
   const [activeCustomToolId, setActiveCustomToolId] = useState<string | null>(null);
   const activeCustomTool = customTools?.find((t) => t.id === activeCustomToolId) ?? null;
@@ -1517,8 +1530,14 @@ export function CandlestickChart({
     priceScale,
     formatPrice: priceAxisFmt,
     formatDate: dFmt,
-    openIndicatorPicker: () => setIndicatorPickerOpen(true),
-    addOnPane: (kind, paneId) => appendIndicator({ kind, period: ATTACHED_DEFAULT_PERIOD, sourceId: paneId }),
+    openIndicatorPicker: (pane) => {
+      setPickerTargetPane(pane ?? null);
+      // La recherche gardée d'une ouverture à l'autre filtrerait les quelques moyennes proposées sur un panneau.
+      if (pane) setIndicatorSearchQuery("");
+      setIndicatorPickerOpen(true);
+    },
+    addOnPane: addIndicatorOnPane,
+    openIndicatorSettings,
     ...(onAddSymbolOverlay ? { openAddSymbol: () => openSymbolSearch("add") } : {}),
     resetZoom: () => resetZoom(),
     fullscreenToggle,
@@ -2176,6 +2195,8 @@ export function CandlestickChart({
         closeIndicatorSettings={closeIndicatorSettings}
         deleteEditingIndicator={deleteEditingIndicator}
         saveIndicatorSettings={saveIndicatorSettings}
+        pickerTargetPane={indicatorPickerOpen ? pickerTargetPane : null}
+        addOnPane={addIndicatorOnPane}
         settingsOpen={settingsOpen} setSettingsOpen={setSettingsOpen}
         mobileLayout={isNarrowLayout} layoutOverride={layoutOverride} setLayoutOverride={setLayoutOverride}
         chartDisplayMode={chartDisplayMode} setChartDisplayMode={setChartDisplayMode} onChartDisplayModeChange={onChartDisplayModeChange}

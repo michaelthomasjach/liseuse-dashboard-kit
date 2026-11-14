@@ -558,7 +558,7 @@ export function ToolsRail({
         {setAiOpen !== undefined && (
           <button
             type="button"
-            className={["lq-chart__icon-button", aiOpen && "lq-chart__icon-button--active"].filter(Boolean).join(" ")}
+            className={["lq-chart__icon-button lq-chart__ai-button", aiOpen && "lq-chart__icon-button--active"].filter(Boolean).join(" ")}
             onClick={() => setAiOpen(!aiOpen)}
             aria-label="Assistant"
             aria-pressed={aiOpen === true}

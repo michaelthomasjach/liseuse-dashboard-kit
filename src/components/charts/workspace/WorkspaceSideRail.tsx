@@ -87,7 +87,7 @@ export function WorkspaceSideRail({
       {assistant && (
         <button
           type="button"
-          className={["lq-chart__icon-button", assistant.open && "lq-chart__icon-button--active"].filter(Boolean).join(" ")}
+          className={["lq-chart__icon-button lq-chart__ai-button", assistant.open && "lq-chart__icon-button--active"].filter(Boolean).join(" ")}
           onClick={() => assistant.setOpen(!assistant.open)}
           aria-label="Assistant"
           aria-pressed={assistant.open}

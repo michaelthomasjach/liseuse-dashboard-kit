@@ -120,6 +120,9 @@ export interface IndicatorModalsProps {
   closeIndicatorSettings: () => void;
   deleteEditingIndicator: () => void;
   saveIndicatorSettings: () => void;
+  /** Le panneau visé quand le catalogue est ouvert depuis son clic droit — voir IndicatorPickerModal. */
+  pickerTargetPane?: { id: string; label: string } | null;
+  addOnPane?: (kind: IndicatorKind, paneId: string) => void;
 }
 
 /** The indicator-related modals other than the picker itself (see IndicatorPickerModal): "Dessins
@@ -174,6 +177,8 @@ export function IndicatorModals({
   closeIndicatorSettings,
   deleteEditingIndicator,
   saveIndicatorSettings,
+  pickerTargetPane,
+  addOnPane,
 }: IndicatorModalsProps) {
   const [confirmDeleteAllOpen, setConfirmDeleteAllOpen] = useState(false);
   // Set when the user clicks a picker row for an indicator that's already on the chart — instead
@@ -245,6 +250,8 @@ export function IndicatorModals({
         onCreateStrategyFromIndicator={onCreateStrategyFromIndicator}
         onDuplicate={setDuplicatePrompt}
         onRequestDeleteScript={setScriptToDelete}
+        targetPane={pickerTargetPane}
+        addOnPane={addOnPane}
       />
 
       {duplicatePrompt && (

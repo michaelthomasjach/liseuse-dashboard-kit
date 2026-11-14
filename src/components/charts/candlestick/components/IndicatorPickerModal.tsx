@@ -7,6 +7,7 @@ import {
 } from "../../../icons";
 import { INDICATOR_CATALOG, type IndicatorCatalogEntry } from "../indicatorCatalog";
 import { INDICATOR_SCRIPT_SOURCES } from "../indicatorScriptSources";
+import { ATTACHABLE_KINDS } from "../attachedIndicators";
 import { analyzeScriptKind } from "../scripting/scriptKind";
 import type { IndicatorInfoTarget } from "../interfaces/IndicatorInfoTarget.interface";
 import type { Indicator } from "../interfaces/Indicator.interface";
@@ -86,6 +87,11 @@ export interface IndicatorPickerModalProps {
   /** Raised by a script row's trash button — deleting a script is irreversible, so the caller
    *  puts a confirmation in front of it rather than acting on the click itself. */
   onRequestDeleteScript: (script: { id: string; name: string }) => void;
+  /** Ouvert depuis le clic droit sur le panneau d'un indicateur (RSI, MACD…) : le catalogue se limite aux
+   *  indicateurs calculables sur les valeurs de ce panneau, et chacun y est posé (pas sur les prix). */
+  targetPane?: { id: string; label: string } | null;
+  /** Pose un indicateur sur `targetPane`, calculé sur ses valeurs. */
+  addOnPane?: (kind: IndicatorKind, paneId: string) => void;
 }
 
 /** "Ajouter un indicateur" — search, category filters, and the catalog itself.
@@ -120,7 +126,10 @@ export function IndicatorPickerModal({
   onCreateStrategyFromIndicator,
   onDuplicate,
   onRequestDeleteScript,
+  targetPane,
+  addOnPane,
 }: IndicatorPickerModalProps) {
+  const onPane = targetPane && addOnPane ? { ...targetPane, add: addOnPane } : null;
   // A second, independent filter alongside the search box — `null` ("Toutes") shows every
   // category. Local state (unlike `indicatorSearchQuery`, lifted to the caller): nothing outside
   // this modal ever needs to read or reset it.
@@ -170,7 +179,7 @@ export function IndicatorPickerModal({
     // footer={null}: without it, Modal's own default footer would add a redundant full-width
     // "Fermer" button below a catalog that's mostly single-click rows already — the header's
     // own close icon (always present alongside `title`) stays the one way out.
-    <Modal open onClose={() => onClose()} title="Ajouter un indicateur" size="wide" footer={null}>
+    <Modal open onClose={() => onClose()} title={onPane ? `Ajouter un indicateur sur ${onPane.label}` : "Ajouter un indicateur"} size="wide" footer={null}>
       {/* Left/right split (see .lq-chart__modal-split's own doc) — search + category filters
           on the left, the catalog itself on the right, each scrolling on its own. The
           `--stack-mobile` modifier turns that into three stacked bands on a narrow viewport:
@@ -276,7 +285,7 @@ export function IndicatorPickerModal({
             const query = indicatorSearchQuery.trim().toLowerCase();
             // Volume has no category of its own (see its own doc below), so it only ever shows
             // up under "Toutes", not under any specific category filter.
-            const showVolumeOption = showVolume && categoryFilter === null && "volume".includes(query);
+            const showVolumeOption = !onPane && showVolume && categoryFilter === null && "volume".includes(query);
             // Built-in and custom entries merged into one tagged list before grouping, so a
             // custom indicator's own `section` slots it in alongside the built-in categories
             // exactly like any other — each entry keeps a reference to whichever of
@@ -338,20 +347,38 @@ export function IndicatorPickerModal({
                *  built-in (this library has no source for one to import). */
               canBecomeStrategy?: boolean;
             };
-            const builtinOptions: PickerOption[] = INDICATOR_CATALOG.filter(
+            // Depuis un panneau : seules les moyennes se calculent sur ses valeurs ; « déjà affiché » ne compte que
+            // celles posées sur ce panneau-là (une SMA sur les prix n'est pas la même chose qu'une SMA sur le RSI).
+            const builtinOptions: PickerOption[] = (onPane ? INDICATOR_CATALOG.filter((entry) => ATTACHABLE_KINDS.some((k) => k.kind === entry.kind)) : INDICATOR_CATALOG).filter(
               (entry) => entry.label.toLowerCase().includes(query) || entry.shortLabel.toLowerCase().includes(query)
-            ).map((entry) => ({
-              key: entry.kind,
-              label: entry.label,
-              category: entry.category,
-              pane: entry.pane as "price" | "own",
-              onSelect: () => (entry.kind === "correlation" ? openCorrelationSetup() : addIndicator(entry)),
-              descriptionKind: entry.kind,
-              codeTarget: INDICATOR_SCRIPT_SOURCES[entry.kind] ? entry.kind : undefined,
-              presentCount: indicators.filter((ind) => ind.kind === entry.kind).length,
-              onRemoveExisting: () => commitIndicators(indicators.filter((ind) => ind.kind !== entry.kind)),
-            }));
-            const customOptions: PickerOption[] = (customIndicators ?? [])
+            ).map((entry) =>
+              onPane
+                ? {
+                    key: entry.kind,
+                    label: entry.label,
+                    category: entry.category,
+                    pane: "own" as const,
+                    onSelect: () => {
+                      onPane.add(entry.kind, onPane.id);
+                      onClose();
+                    },
+                    descriptionKind: entry.kind,
+                    presentCount: indicators.filter((ind) => ind.kind === entry.kind && ind.sourceId === onPane.id).length,
+                    onRemoveExisting: () => commitIndicators(indicators.filter((ind) => !(ind.kind === entry.kind && ind.sourceId === onPane.id))),
+                  }
+                : {
+                    key: entry.kind,
+                    label: entry.label,
+                    category: entry.category,
+                    pane: entry.pane as "price" | "own",
+                    onSelect: () => (entry.kind === "correlation" ? openCorrelationSetup() : addIndicator(entry)),
+                    descriptionKind: entry.kind,
+                    codeTarget: INDICATOR_SCRIPT_SOURCES[entry.kind] ? entry.kind : undefined,
+                    presentCount: indicators.filter((ind) => ind.kind === entry.kind && ind.sourceId === undefined).length,
+                    onRemoveExisting: () => commitIndicators(indicators.filter((ind) => !(ind.kind === entry.kind && ind.sourceId === undefined))),
+                  }
+            );
+            const customOptions: PickerOption[] = onPane ? [] : (customIndicators ?? [])
               .filter((def) => def.label.toLowerCase().includes(query) || (def.shortLabel ?? "").toLowerCase().includes(query))
               .map((def) => ({
                 key: def.id,
@@ -362,7 +389,7 @@ export function IndicatorPickerModal({
                 presentCount: indicators.filter((ind) => ind.customData?.id === def.id).length,
                 onRemoveExisting: () => commitIndicators(indicators.filter((ind) => ind.customData?.id !== def.id)),
               }));
-            const scriptOptions: PickerOption[] = scripts
+            const scriptOptions: PickerOption[] = onPane ? [] : scripts
               .filter((s) => s.name.toLowerCase().includes(query))
               .map((s) => ({
                 key: s.id,

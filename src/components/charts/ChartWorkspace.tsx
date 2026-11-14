@@ -304,6 +304,9 @@ export interface ChartWorkspaceProps {
    *  Default false. */
   scripting?: boolean;
   defaultScripts?: ScriptDef[];
+  /** Relance de la visite guidée par l'application (un lien « Relancer la visite guidée ») : chaque nouvelle valeur
+   *  l'ouvre, même déjà vue. */
+  tourRequest?: number;
   /** Demande d'ouverture venue de l'application (par exemple le clic sur la notification « Réponse de l'assistant
    *  prête ») : chaque nouveau `seq` ouvre l'assistant (`assistant`) et, si `scriptId` existe, l'éditeur de script sur
    *  cet onglet. Un script pas encore chargé est ouvert dès qu'il arrive. */
@@ -375,6 +378,7 @@ export function ChartWorkspace({
   brokerPnlToday,
   defaultScripts,
   focusRequest,
+  tourRequest,
   onScriptsChange,
   onScriptAlert,
   className,
@@ -516,6 +520,13 @@ export function ChartWorkspace({
       return false;
     }
   });
+  // Relance demandée par l'application : chaque nouvelle valeur rouvre la visite.
+  const handledTourRequestRef = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    if (tourRequest === undefined || tourRequest === handledTourRequestRef.current) return;
+    handledTourRequestRef.current = tourRequest;
+    setTourOpen(true);
+  }, [tourRequest]);
   useEffect(() => {
     if (!tourOpen) return;
     try {

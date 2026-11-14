@@ -130,6 +130,11 @@ export function EarningsDotChart({
     const plotWidth = width - margin.left - margin.right;
     return { x: xScale, y: yScale, ticks: yScale.ticks(4), columnWidth: points.length > 0 ? plotWidth / points.length : plotWidth };
   }, [points, width, height, margin.bottom, margin.left, margin.right, margin.top]);
+  // Dates trop serrées pour toutes tenir (étiquettes de 9 px, ~5,4 px par caractère) : une sur deux, sur trois…,
+  // en partant de la plus récente ; celle du trimestre survolé ou choisi reste toujours affichée.
+  const longest = Math.max(0, ...points.map((p) => p.date.length));
+  const labelStep = Math.max(1, Math.ceil((longest * 5.4 + 8) / Math.max(1, columnWidth)));
+  const showLabel = (i: number) => (points.length - 1 - i) % labelStep === 0 || i === hovered || i === selected;
 
   if (points.length === 0) return null;
 
@@ -208,9 +213,11 @@ export function EarningsDotChart({
           {p.actualEps !== undefined && (
             <circle cx={x(i)} cy={y(p.actualEps)} r={4 * scale} className="lq-earnings-dot-chart__point lq-earnings-dot-chart__point--actual" />
           )}
-          <text x={x(i)} y={height - 2 * scale} className="lq-earnings-dot-chart__date-label" textAnchor="middle">
-            {p.date}
-          </text>
+          {showLabel(i) && (
+            <text x={x(i)} y={height - 2 * scale} className="lq-earnings-dot-chart__date-label" textAnchor="middle">
+              {p.date}
+            </text>
+          )}
         </g>
       ))}
       </svg>

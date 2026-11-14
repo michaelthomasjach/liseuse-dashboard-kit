@@ -2,6 +2,7 @@ import type { AiToolDefinition } from "./interfaces/AiMessage.interface";
 import type { AiChartContext } from "./interfaces/AiChartContext.interface";
 import { indicatorCatalogEntry } from "../indicatorCatalog";
 import { analyzeScriptKind } from "../scripting/scriptKind";
+import { SCRIPTING_DOCS_TOOL } from "./scriptingDocs";
 
 /** What running one tool produced: text handed straight back to the model. Plain prose rather than
  *  JSON wherever a sentence is clearer — the reader is a language model, and "SMA(20) ajoutée"
@@ -266,9 +267,26 @@ export const AI_TOOLS: AiTool[] = [
   },
   {
     definition: {
+      name: SCRIPTING_DOCS_TOOL,
+      description:
+        "La documentation du langage de scripting de ce graphique (le seul langage que les scripts acceptent ; ce n'est ni du Pine Script ni du JavaScript libre). Sans argument : les règles et le sommaire. Avec « section » : le texte d'une section (ex. « plot.* », « market.* », « @indicator »). Avec « recherche » : les passages qui citent un terme (ex. « ta.rsi »). Consultez-la avant d'écrire ou de convertir un script.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          section: { type: "string", description: "Titre (ou morceau de titre) d'une section du sommaire." },
+          recherche: { type: "string", description: "Un terme à chercher dans toute la documentation." },
+        },
+        additionalProperties: false,
+      },
+    },
+    // Exécuté par l'assistant (useAiAssistant), qui charge le manuel : jamais par ce tableau.
+    run: () => ({ content: "Documentation indisponible ici.", isError: true }),
+  },
+  {
+    definition: {
       name: "ecrire_un_script",
       description:
-        "Crée un script, ou remplace le code d'un script existant. Le code doit être écrit dans le langage de scripting de ce graphique, dont le manuel complet vous a été fourni. Déclarez @indicator, @strategy, @quant ou @report sur la première ligne. Pour un rapport d'entreprise, écrivez un @report : il produit un document que l'utilisateur peut lire et exporter en PDF.",
+        "Crée un script dans un nouvel onglet de l'éditeur (qui s'ouvre) et l'exécute, ou remplace le code d'un script existant (avec « id »). Le code doit être écrit dans le langage de scripting de ce graphique (voir lire_la_documentation_du_scripting). Déclarez @indicator, @strategy, @quant ou @report sur la première ligne. Pour un rapport d'entreprise, écrivez un @report : il produit un document que l'utilisateur peut lire et exporter en PDF.",
       inputSchema: {
         type: "object",
         properties: {

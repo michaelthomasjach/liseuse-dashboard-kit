@@ -4,6 +4,7 @@ import type { AiContentBlock, AiMessage, AiSend, AiServerTool } from "./interfac
 import { availableAiTools, runAiTool } from "./aiTools";
 import { buildAiSystemPrompt } from "./aiSystemPrompt";
 import { loadScriptingPrompt } from "../scripting/loadScriptingPrompt";
+import { answerScriptingDocs, SCRIPTING_DOCS_TOOL, scriptInAnswer } from "./scriptingDocs";
 
 /** How many times a single question may bounce between the model and the tools before the loop
  *  gives up. Generous — "lis le graphique, ajoute trois indicateurs, écris la stratégie, exécute-la,
@@ -92,6 +93,30 @@ export function useAiAssistant({ chart, send, serverTools }: UseAiAssistantArgs)
       // The manual is only fetched once per session and only when the assistant is actually used —
       // 107KB of prose that a consumer who never opens this panel should not download.
       const manual = await loadScriptingPrompt().catch(() => null);
+      // Un script a-t-il été enregistré par l'outil pendant cette question ? Sinon, celui que le modèle aurait écrit
+      // dans sa réponse est enregistré à sa place (voir `keepScriptFromAnswer`).
+      let scriptSaved = false;
+      /** Code d'un script laissé dans la réponse écrite au lieu de passer par `ecrire_un_script` : enregistré dans un
+       *  nouvel onglet de l'éditeur, ouvert et exécuté — jamais perdu, et jamais « affiché » seulement en paroles. */
+      const keepScriptFromAnswer = (answerText: string) => {
+        if (scriptSaved) return;
+        const found = scriptInAnswer(answerText);
+        if (!found) return;
+        const chart = chartRef.current;
+        const id = chart.addScript(found.name, found.code);
+        chart.runScript(id);
+        chart.openScript?.(id);
+        scriptSaved = true;
+        setTranscript((prev) => [
+          ...prev,
+          {
+            id: makeId(),
+            role: "tool",
+            toolName: "ecrire_un_script",
+            text: `Code de la réponse enregistré dans un nouvel onglet de l'éditeur (« ${found.name} ») et exécuté.`,
+          },
+        ]);
+      };
 
       try {
         for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
@@ -137,14 +162,19 @@ export function useAiAssistant({ chart, send, serverTools }: UseAiAssistantArgs)
           historyRef.current = [...historyRef.current, { role: "assistant", content: answer }];
 
           const calls = answer.filter((block): block is Extract<AiContentBlock, { type: "tool_use" }> => block.type === "tool_use");
-          if (stopReason !== "tool_use" || calls.length === 0) return;
+          if (stopReason !== "tool_use" || calls.length === 0) {
+            keepScriptFromAnswer(streamed);
+            return;
+          }
 
           // Every call the model made in this turn, run in order, and *all* their results sent back
           // in one user message — the protocol requires one result per call, and sending them one
           // at a time would leave the others unanswered.
           const results: AiContentBlock[] = [];
           for (const call of calls) {
-            const outcome = runAiTool(call.name, call.input, chartRef.current);
+            // La documentation est servie ici, où le manuel est chargé ; tout autre outil agit sur le graphique.
+            const outcome = call.name === SCRIPTING_DOCS_TOOL ? answerScriptingDocs(manual, call.input) : runAiTool(call.name, call.input, chartRef.current);
+            if (call.name === "ecrire_un_script" && !outcome.isError) scriptSaved = true;
             results.push({ type: "tool_result", toolUseId: call.id, content: outcome.content, isError: outcome.isError });
             setTranscript((prev) => [
               ...prev,

@@ -416,7 +416,9 @@ export function SymbolProfilePanel({
             <EarningsDotChart
               points={profile.earnings}
               highlightOnHover
-              {...(layout === "expanded" ? { height: 340, scale: 2, fill: true } : {})}
+              // Mesuré aussi dans le panneau : un dessin de 260 px étiré à la largeur du panneau grossissait
+              // ses dates jusqu'à les faire se chevaucher.
+              {...(layout === "expanded" ? { height: 340, scale: 2, fill: true } : { fill: true })}
             />
             {/* Under the chart rather than in the header: the header's own icons are for people who
                 already know what they do, and this is the one action a reader arrives at by reading

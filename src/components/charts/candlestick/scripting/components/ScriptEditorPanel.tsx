@@ -20,12 +20,14 @@ import {
   EyeIcon,
   EyeOffIcon,
   HelpIcon,
+  FileIcon,
   ChevronDownIcon,
   CheckIcon,
   CodeIcon,
   GridIcon,
 } from "../../../../icons";
 import type { Candle } from "../../interfaces/Candle.interface";
+import { loadScriptingPrompt } from "../loadScriptingPrompt";
 import type { ScriptDef, ScriptFile } from "../../interfaces/ScriptDef.interface";
 import type { ScriptDraft } from "../../hooks/useScriptingState";
 import type { ScriptRunOutput } from "../interfaces/ScriptRunOutput.interface";
@@ -489,16 +491,29 @@ export function hello() {
       onClose={onClose}
       title="Éditeur de script"
       headerActions={
-        <button
-          type="button"
-          className="lq-script-window__header-button"
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={() => setDocsOpen(true)}
-          aria-label="Documentation"
-          title="Documentation"
-        >
-          <HelpIcon size={14} />
-        </button>
+        <>
+          <button
+            type="button"
+            className="lq-script-window__header-button"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={() => setDocsOpen(true)}
+            aria-label="Documentation"
+            title="Documentation"
+          >
+            <HelpIcon size={14} />
+          </button>
+          {/* Le manuel complet du langage, en texte : à relire hors du graphique ou à donner à une IA. */}
+          <button
+            type="button"
+            className="lq-script-window__header-button"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={() => void exportScriptingDocs()}
+            aria-label="Exporter la documentation (texte)"
+            title="Exporter la documentation du langage de script (fichier texte)"
+          >
+            <FileIcon size={14} />
+          </button>
+        </>
       }
       toolbar={
         <>
@@ -988,4 +1003,18 @@ export function hello() {
       )}
     </ScriptEditorWindow>
   );
+}
+
+/** Télécharge le manuel du langage de script (le même texte que celui donné à l'assistant) en fichier texte. */
+async function exportScriptingDocs(): Promise<void> {
+  const text = await loadScriptingPrompt().catch(() => null);
+  if (!text) return;
+  const url = URL.createObjectURL(new Blob([text], { type: "text/plain;charset=utf-8" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "documentation-langage-de-script.txt";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

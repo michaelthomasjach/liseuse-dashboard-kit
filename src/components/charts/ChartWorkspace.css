@@ -2152,3 +2152,17 @@
 .lq-root[data-lq-palette="eink"] .lq-chart-workspace__help-tour {
   border-radius: 0;
 }
+
+/* Renommage d'une ligne (double-clic sur son nom) : le champ prend la place du nom, sans agrandir la ligne. */
+.lq-chart-workspace__watchlist-rename {
+  width: 100%;
+  min-width: 0;
+  padding: 1px 4px;
+  font: inherit;
+  font-weight: var(--lq-font-weight-semibold, 600);
+  color: var(--lq-color-text);
+  background-color: var(--lq-color-panel);
+  border: 1px solid var(--lq-color-accent);
+  border-radius: var(--lq-radius-sm, 3px);
+  outline: none;
+}

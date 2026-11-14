@@ -48,6 +48,8 @@ export interface WatchlistPanelProps {
   onCreateWatchlist: ((name: string) => void) | undefined;
   onCreateSection: ((watchlistId: string, name: string) => void) | undefined;
   onRemoveRow: ((watchlistId: string, rowId: string, sectionId: string | null) => void) | undefined;
+  /** Voir `ChartWorkspaceProps.onRenameWatchlistRow` : double-clic sur le nom d'une ligne pour le renommer. */
+  onRenameRow?: ((watchlistId: string, rowId: string, name: string) => void) | undefined;
   onMoveRow: ((watchlistId: string, rowId: string, fromSectionId: string | null, toSectionId: string | null, toIndex: number) => void) | undefined;
   onRemoveSection: ((watchlistId: string, sectionId: string) => void) | undefined;
   onReorderSections: ((watchlistId: string, orderedSectionIds: string[]) => void) | undefined;
@@ -103,6 +105,7 @@ export function WatchlistPanel({
   onCreateWatchlist,
   onCreateSection,
   onRemoveRow,
+  onRenameRow,
   onMoveRow,
   onRemoveSection,
   onReorderSections,
@@ -112,6 +115,12 @@ export function WatchlistPanel({
   addSymbolRequestId,
   news,
 }: WatchlistPanelProps) {
+  // Ligne en cours de renommage (double-clic sur son nom) et texte saisi.
+  const [renaming, setRenaming] = useState<{ rowId: string; draft: string } | null>(null);
+  const renameClickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (renameClickTimer.current) clearTimeout(renameClickTimer.current);
+  }, []);
   const activeWatchlist = watchlists.find((w) => w.id === activeWatchlistId) ?? watchlists[0];
   const [watchlistMenuOpen, setWatchlistMenuOpen] = useState(false);
   const watchlistTriggerRef = useRef<HTMLButtonElement>(null);
@@ -407,11 +416,30 @@ export function WatchlistPanel({
         style={draggingRowId === row.id ? { transform: `translateY(${dragOffsetY}px)` } : undefined}
         {...watchlistRowProps(row.id)}
       >
-        <button
-          type="button"
-          className="lq-chart-workspace__watchlist-row-main"
+        {/* Pendant le renommage, la ligne n'est plus un bouton : un champ ne peut pas vivre dans un bouton (le clic
+            n'y entre pas partout, Espace et Entrée y déclencheraient la ligne). */}
+        <RowMain
+          renaming={renaming?.rowId === row.id}
           onPointerDown={(e) => startDrag(row.id, sectionId, e)}
-          onClick={() => onRowClick?.(row, activeWatchlist.id)}
+          onClick={(e) => {
+            // Sur le nom, quand il se renomme : le symbole n'est choisi qu'après un court délai, pour qu'un double-clic
+            // (renommer) ne change pas d'abord le graphique — ce qui reconstruirait la liste sous le second clic.
+            const onName = Boolean(onRenameRow && document.elementFromPoint(e.clientX, e.clientY)?.closest(".lq-chart-workspace__watchlist-ticker"));
+            if (renameClickTimer.current) clearTimeout(renameClickTimer.current);
+            renameClickTimer.current = null;
+            if (!onName) {
+              onRowClick?.(row, activeWatchlist.id);
+              return;
+            }
+            if (e.detail >= 2) {
+              setRenaming({ rowId: row.id, draft: row.label ?? row.ticker });
+              return;
+            }
+            renameClickTimer.current = setTimeout(() => {
+              renameClickTimer.current = null;
+              onRowClick?.(row, activeWatchlist.id);
+            }, 250);
+          }}
         >
           {/* Purely decorative — the button above already starts the same drag from anywhere on
               the row (see onPointerDown), same "grip has no handler of its own, the press just
@@ -430,8 +458,37 @@ export function WatchlistPanel({
           >
             {row.logoUrl ? <img src={row.logoUrl} alt="" /> : row.ticker.slice(0, 2).toUpperCase()}
           </span>
-          <span className="lq-chart-workspace__watchlist-ticker">
-            {row.ticker}
+          <span
+            className="lq-chart-workspace__watchlist-ticker"
+            title={row.label ? row.ticker : onRenameRow ? "Double-clic pour renommer" : undefined}
+          >
+            {renaming?.rowId === row.id ? (
+              <input
+                className="lq-chart-workspace__watchlist-rename"
+                value={renaming.draft}
+                autoFocus
+                maxLength={40}
+                aria-label={`Nouveau nom de ${row.ticker}`}
+                onFocus={(e) => e.currentTarget.select()}
+                onChange={(e) => setRenaming({ rowId: row.id, draft: e.target.value })}
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => e.stopPropagation()}
+                onKeyDown={(e) => {
+                  e.stopPropagation();
+                  if (e.key === "Enter") e.currentTarget.blur();
+                  if (e.key === "Escape") setRenaming(null);
+                }}
+                onBlur={() => {
+                  const name = renaming.draft.trim();
+                  setRenaming(null);
+                  // Inchangé : rien à enregistrer ; le ticker lui-même (ou vide) : retour au ticker.
+                  if (name === (row.label ?? row.ticker)) return;
+                  onRenameRow?.(activeWatchlist.id, row.id, name === row.ticker ? "" : name);
+                }}
+              />
+            ) : (
+              (row.label ?? row.ticker)
+            )}
             {/* Open or closed, beside the name. Absent when the caller does not track it — see
                 `marketOpen`: stating "closed" for an unknown would be wrong every weekday. */}
             {row.marketOpen !== undefined && (
@@ -470,7 +527,7 @@ export function WatchlistPanel({
               </span>
             );
           })}
-        </button>
+        </RowMain>
         {onRemoveRow && (
           <button
             type="button"
@@ -838,5 +895,25 @@ function NameModal({ title, placeholder, onSubmit, onClose }: { title: string; p
         }}
       />
     </Modal>
+  );
+}
+
+/** Partie cliquable d'une ligne : un bouton, ou un simple bloc pendant le renommage (le champ ne peut pas être dans un bouton). */
+function RowMain({
+  renaming,
+  onPointerDown,
+  onClick,
+  children,
+}: {
+  renaming: boolean;
+  onPointerDown: (e: React.PointerEvent<HTMLElement>) => void;
+  onClick: (e: React.MouseEvent<HTMLElement>) => void;
+  children: React.ReactNode;
+}) {
+  if (renaming) return <div className="lq-chart-workspace__watchlist-row-main">{children}</div>;
+  return (
+    <button type="button" className="lq-chart-workspace__watchlist-row-main" onPointerDown={onPointerDown} onClick={onClick}>
+      {children}
+    </button>
   );
 }

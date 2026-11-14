@@ -208,6 +208,10 @@ export interface ChartWorkspaceProps {
    *  being removed isn't inside any of that list's own `sections`. Omitting this hides the trash
    *  button entirely (no half-working delete affordance). */
   onRemoveWatchlistSymbol?: (watchlistId: string, rowId: string, sectionId: string | null) => void;
+  /** Renommer une ligne : un double-clic sur son nom ouvre un champ, enregistré quand il perd le focus (ou avec
+   *  Entrée ; Échap abandonne). `name` vide : revenir au ticker. L'application garde le nom et le rend dans
+   *  `ChartWorkspaceWatchlistRow.label`. Absent : pas de renommage. */
+  onRenameWatchlistRow?: (watchlistId: string, rowId: string, name: string) => void;
   /** Fires from a section's own hover-revealed trash button, already past a confirmation modal
    *  whenever that section actually contains rows (an empty one is removed immediately — nothing
    *  a confirmation would protect). Omitting this hides the trash button entirely. */
@@ -330,6 +334,7 @@ export function ChartWorkspace({
   onCreateWatchlist,
   onCreateWatchlistSection,
   onRemoveWatchlistSymbol,
+  onRenameWatchlistRow,
   onRemoveWatchlistSection,
   onMoveWatchlistRow,
   onReorderWatchlistSections,
@@ -998,6 +1003,7 @@ export function ChartWorkspace({
                   onCreateWatchlist={onCreateWatchlist}
                   onCreateSection={onCreateWatchlistSection}
                   onRemoveRow={onRemoveWatchlistSymbol}
+                  onRenameRow={onRenameWatchlistRow}
                   onMoveRow={onMoveWatchlistRow}
                   onRemoveSection={onRemoveWatchlistSection}
                   onReorderSections={onReorderWatchlistSections}

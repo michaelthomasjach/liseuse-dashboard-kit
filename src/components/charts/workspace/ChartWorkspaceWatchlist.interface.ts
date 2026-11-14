@@ -26,6 +26,9 @@ export interface ChartWorkspaceWatchlistColumn {
 export interface ChartWorkspaceWatchlistRow {
   id: string;
   ticker: string;
+  /** Nom affiché à la place du ticker (un nom choisi par l'utilisateur, voir `onRenameWatchlistRow`) ; le ticker
+   *  reste en infobulle, pour la recherche et le tri. */
+  label?: string;
   /** Rendered content per optional column (see `ChartWorkspaceWatchlist.columns`), keyed by
    *  column id — whatever the caller wants shown there for this row (a formatted price, a
    *  colored % change, …). A column with no entry here for a given row simply renders blank. */

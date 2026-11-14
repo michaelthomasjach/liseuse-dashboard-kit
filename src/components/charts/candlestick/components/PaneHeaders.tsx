@@ -1,4 +1,5 @@
 import type { IndicatorInfoTarget } from "../interfaces/IndicatorInfoTarget.interface";
+import { defaultIndicatorColor } from "../indicatorCatalog";
 import { scriptIdFromIndicatorId, infoTargetFor } from "../scripting/scriptOutputToCustomIndicatorDef";
 import type { Dispatch, SetStateAction } from "react";
 import type * as React from "react";
@@ -356,6 +357,34 @@ export function PaneHeaders({
                   </span>
                 );
               })()}
+            {/* Moyennes posées sur ce panneau (clic droit) : leur nom, leur valeur au survol ; un clic ouvre leurs
+                réglages, la croix les retire. */}
+            {!ind.paneCollapsed &&
+              indicators
+                .filter((attached) => attached.sourceId === ind.id)
+                .map((attached) => {
+                  const values = indicatorValues.find((v) => v.indicator.id === attached.id)?.values;
+                  const value = values?.[hoverIndex !== null ? hoverIndex : data.length - 1];
+                  const color = attached.color ?? defaultIndicatorColor(indicators.indexOf(attached));
+                  return (
+                    <span key={attached.id} className={["lq-chart__pane-attached", attached.hidden && "lq-chart__pane-attached--hidden"].filter(Boolean).join(" ")}>
+                      <span className="lq-chart__pane-attached-swatch" style={{ backgroundColor: color }} aria-hidden="true" />
+                      <button type="button" className="lq-chart__pane-attached-label" onClick={() => openIndicatorSettings(attached.id)} title="Réglages">
+                        {indicatorLabel(attached)}
+                      </button>
+                      {typeof value === "number" && <span className="lq-chart__pane-attached-value">{value.toFixed(2)}</span>}
+                      <button
+                        type="button"
+                        className="lq-chart__pane-attached-remove"
+                        onClick={() => removeIndicator(attached.id)}
+                        aria-label={`Retirer ${indicatorLabel(attached)}`}
+                        title="Retirer"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  );
+                })}
             {!ind.paneCollapsed && (
               <div className="lq-chart__pane-header-actions lq-chart__pane-header-actions--visible">
                 <button

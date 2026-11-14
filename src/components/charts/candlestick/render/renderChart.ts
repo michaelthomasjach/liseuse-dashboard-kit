@@ -1,4 +1,5 @@
 import type { RenderCandlestickChartParams } from "../interfaces/RenderCandlestickChartParams.interface";
+import { drawSelectedIndicatorMarkers } from "./drawSelectedIndicatorMarkers";
 import { readChartCanvasStyle } from "./readChartCanvasStyle";
 import { drawFutureZone, drawPastZone } from "./drawFutureZone";
 import { drawScriptHeatmaps } from "./drawScriptHeatmaps";
@@ -83,6 +84,8 @@ export function renderCandlestickChart(canvas: HTMLCanvasElement, wrapper: HTMLE
   // After the panes and the price lines, so a projection is always drawn over the series it
   // continues rather than under it — and before the replay mask, which is allowed to cover it.
   drawIndicatorProjections(ctx, params, style);
+  // L'indicateur sélectionné : ses cercles par-dessus sa ligne et sa projection.
+  drawSelectedIndicatorMarkers(ctx, params, style);
   drawReplayMask(ctx, params, style);
   // Replay : le masque ne cache que ce qui dérive des bougies (bougies, volume, indicateurs et leurs projections) —
   // ce qui ne peut pas exister après l'instant du replay. Les dessins (lignes, canaux, textes, prévisions…), eux,

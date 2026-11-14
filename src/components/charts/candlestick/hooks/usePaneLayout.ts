@@ -592,7 +592,8 @@ export function usePaneLayout({
    *  and put the first one back. One call, one commit. */
   function removeIndicators(ids: string[]) {
     if (ids.length === 0) return;
-    const idSet = new Set(ids);
+    // Les indicateurs posés sur un panneau retiré partent avec lui (ils n'ont plus de série sur quoi se calculer).
+    const idSet = new Set([...ids, ...indicators.filter((i) => i.sourceId !== undefined && ids.includes(i.sourceId)).map((i) => i.id)]);
     // A script-produced indicator isn't in the CRUD list at all, so filtering that list would be a
     // no-op (which is exactly what the trash button used to be for those). Record it as dismissed
     // instead — see `dismissedScriptIndicators`' own doc: the pane goes, the script stays.

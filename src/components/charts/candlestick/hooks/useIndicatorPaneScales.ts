@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { withAttachedValues } from "../attachedIndicators";
 import * as d3 from "d3";
 import type { Candle } from "../interfaces/Candle.interface";
 import type { FundamentalDataPoint } from "../interfaces/FundamentalDataPoint.interface";
@@ -51,7 +52,7 @@ export function useIndicatorPaneScales({
   // Expensive (O(data.length) per indicator) — recomputed only when the data or the indicator
   // list itself changes, never on pan/zoom (which would otherwise redo this every frame).
   const indicatorValues = useMemo(
-    () => indicators.map((indicator) => ({ indicator, values: computeIndicatorValues(data, indicator, fundamentals) })),
+    () => withAttachedValues(indicators, (indicator) => computeIndicatorValues(data, indicator, fundamentals)),
     [data, indicators, fundamentals]
   );
 

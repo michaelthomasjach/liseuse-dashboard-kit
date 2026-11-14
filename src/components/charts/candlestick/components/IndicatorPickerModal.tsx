@@ -344,7 +344,7 @@ export function IndicatorPickerModal({
               key: entry.kind,
               label: entry.label,
               category: entry.category,
-              pane: entry.pane,
+              pane: entry.pane as "price" | "own",
               onSelect: () => (entry.kind === "correlation" ? openCorrelationSetup() : addIndicator(entry)),
               descriptionKind: entry.kind,
               codeTarget: INDICATOR_SCRIPT_SOURCES[entry.kind] ? entry.kind : undefined,

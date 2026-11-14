@@ -3904,3 +3904,50 @@ button.lq-chart__legend-item {
 .lq-chart__symbol-list-picker-name {
   flex: 1;
 }
+
+/* Moyennes posées sur le panneau d'un indicateur (clic droit), dans l'en-tête de ce panneau. */
+.lq-chart__pane-attached {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 10px;
+  font-size: 0.72rem;
+  pointer-events: auto;
+}
+
+.lq-chart__pane-attached--hidden {
+  opacity: 0.5;
+}
+
+.lq-chart__pane-attached-swatch {
+  width: 8px;
+  height: 2px;
+  border-radius: 1px;
+}
+
+.lq-chart__pane-attached-label,
+.lq-chart__pane-attached-remove {
+  padding: 0 2px;
+  font: inherit;
+  color: var(--lq-color-text);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.lq-chart__pane-attached-label:hover {
+  text-decoration: underline;
+}
+
+.lq-chart__pane-attached-value {
+  color: var(--lq-color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.lq-chart__pane-attached-remove {
+  color: var(--lq-color-text-muted);
+}
+
+.lq-chart__pane-attached-remove:hover {
+  color: var(--lq-color-text);
+}

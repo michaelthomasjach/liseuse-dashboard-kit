@@ -226,6 +226,10 @@ export interface Indicator {
    *  script qui trace plusieurs lignes, barres, bandes… dans le même panneau), par clé de série
    *  (`customData.multiSeries[].key`) ; remplace la couleur écrite dans le code. Réglée dans l'onglet Style. */
   seriesColors?: Record<string, string>;
+  /** Indicateur posé sur le panneau d'un autre (clic droit sur ce panneau) : l'id de cet indicateur. Calculé sur la
+   *  série de ce panneau au lieu des prix, dessiné dans ce panneau et légendé dans son en-tête (voir
+   *  `attachedIndicators.ts`). Seules les moyennes (SMA, EMA, WMA) s'y posent. */
+  sourceId?: string;
   /** Couleur d'une ligne selon sa position face à une autre série du même indicateur, par clé de série
    *  (`customData.multiSeries[].key`) : `above` quand elle est au-dessus de la série `versus`, `below` en dessous — sa
    *  couleur change donc à chaque croisement (deux moyennes, une ligne et son signal…). Réglée dans l'onglet Style. */

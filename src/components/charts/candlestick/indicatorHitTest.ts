@@ -182,7 +182,7 @@ export function distanceToIndicator(
 ): number {
   if (indicator.hidden || values.length === 0) return Infinity;
   const entry = indicatorCatalogEntry(indicator);
-  const valueAxis = entry.pane === "own" ? indicator.id : "price";
+  const valueAxis = entry.pane === "own" ? indicator.id : entry.pane === "attached" ? (indicator.sourceId ?? "price") : "price";
   const { scale, offset } = ctx.paneScaleAndOffset(valueAxis);
 
   // Only the bars actually on screen, widened by one so a segment entering from off-screen is

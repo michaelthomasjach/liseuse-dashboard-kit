@@ -66,7 +66,8 @@ export interface IndicatorCatalogEntry {
   /** "price": overlaid on the price section, in the top-left legend (SMA/EMA/WMA/VWAP/Bollinger).
    *  "own": gets its own sub-pane below price/volume, with a pane header instead of a legend
    *  entry — an oscillator like RSI/CHOP/MACD isn't on the same scale as price at all. */
-  pane: "price" | "own";
+  /** « attached » : posé sur le panneau d'un autre indicateur (`Indicator.sourceId`). */
+  pane: "price" | "own" | "attached";
   /** Grouping shown in the picker modal — purely a display grouping, doesn't affect anything
    *  about how the indicator itself behaves. Every built-in entry uses one of "Moyennes
    *  mobiles"/"Volatilité"/"Momentum"/"Tendance"/"Structure"/"Fondamentaux" — a plain `string`
@@ -422,6 +423,8 @@ export const INDICATOR_CATALOG: IndicatorCatalogEntry[] = [
 // label/category — see the doc on `Indicator.customData` for why "custom" itself is never looked
 // up by kind.
 export function indicatorCatalogEntry(indicator: Indicator | IndicatorKind): IndicatorCatalogEntry {
+  // Posé sur le panneau d'un autre : ni sur les prix, ni dans un panneau à lui.
+  if (typeof indicator !== "string" && indicator.sourceId) return { ...indicatorCatalogEntry(indicator.kind), pane: "attached" };
   if (typeof indicator !== "string" && indicator.customData) {
     const def = indicator.customData;
     return {

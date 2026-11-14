@@ -96,6 +96,7 @@ import { indicatorCatalogEntry, indicatorLabel, defaultIndicatorColor } from "./
 import { drawingAxisAnnotations, indicatorAxisAnnotations } from "./candlestick/axisAnnotations";
 import { ChartContextMenu } from "./candlestick/components/ChartContextMenu";
 import { buildChartContextMenu } from "./candlestick/buildChartContextMenu";
+import { ATTACHED_DEFAULT_PERIOD } from "./candlestick/attachedIndicators";
 import { CHART_DISPLAY_MODES } from "./candlestick/chartModes";
 import { findTimeframeLabel, flattenTimeframeValues } from "./candlestick/timeframes";
 import { styleOf, toolKeyOf, useDrawingStylePresets, withStyle } from "./candlestick/drawingStylePresets";
@@ -484,7 +485,7 @@ export function CandlestickChart({
   // the chart's own positioned root (to place the menu), `price`/`index` against the plot's own
   // scales (to say what the commands will act on). Captured at click time rather than read from
   // hover state when a command runs — by then the pointer has moved onto the menu itself.
-  const [contextMenu, setContextMenu] = useState<{ menuX: number; menuY: number; price: number; index: number; bounds: { width: number; height: number } } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ menuX: number; menuY: number; price: number; index: number; bounds: { width: number; height: number }; paneId?: string; paneLabel?: string } | null>(null);
   const mainRef = useRef<HTMLDivElement | null>(null);
 
   function handlePlotContextMenu(e: React.MouseEvent<HTMLDivElement>) {
@@ -508,6 +509,13 @@ export function CandlestickChart({
       // here rather than reconstructed from `dims` — `dims` describes the plot alone, and this
       // root also holds the header, the docked columns and the strategy tester.
       bounds: { width: mainRect.width, height: mainRect.height },
+      // Sous les prix : le panneau d'indicateur cliqué, s'il y en a un (pour y poser une moyenne).
+      ...(() => {
+        if (plotY <= priceHeight) return {};
+        const at = ownPaneIndicators.findIndex((_, i) => plotY >= priceHeight + indicatorPaneTops[i] && plotY < priceHeight + indicatorPaneTops[i] + indicatorPaneHeights[i]);
+        const pane = at >= 0 ? ownPaneIndicators[at] : undefined;
+        return pane ? { paneId: pane.id, paneLabel: indicatorLabel(pane) } : {};
+      })(),
     });
   }
 
@@ -772,7 +780,8 @@ export function CandlestickChart({
     for (const ind of scriptChartIndicators) {
       const scriptId = scriptIdFromIndicatorId(ind.customData?.id ?? ind.id);
       if (scriptId === null) continue;
-      const pane = indicatorCatalogEntry(ind).pane;
+      // Un indicateur de script n'est jamais posé sur un autre panneau (« attached ») : prix ou panneau à lui.
+      const pane = indicatorCatalogEntry(ind).pane as "price" | "own";
       const seen = placements[scriptId] ?? (placements[scriptId] = []);
       if (!seen.includes(pane)) seen.push(pane);
     }
@@ -1252,6 +1261,7 @@ export function CandlestickChart({
     crosshairCanvasRef,
     wrapperRef: ref,
     themeTick,
+    selectedIndicatorId,
     dims,
     plotBoundedHeight,
     visible,
@@ -1508,6 +1518,7 @@ export function CandlestickChart({
     formatPrice: priceAxisFmt,
     formatDate: dFmt,
     openIndicatorPicker: () => setIndicatorPickerOpen(true),
+    addOnPane: (kind, paneId) => appendIndicator({ kind, period: ATTACHED_DEFAULT_PERIOD, sourceId: paneId }),
     ...(onAddSymbolOverlay ? { openAddSymbol: () => openSymbolSearch("add") } : {}),
     resetZoom: () => resetZoom(),
     fullscreenToggle,

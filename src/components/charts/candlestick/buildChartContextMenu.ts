@@ -1,4 +1,6 @@
 import type * as d3 from "d3";
+import { ATTACHABLE_KINDS } from "./attachedIndicators";
+import type { IndicatorKind } from "./interfaces/IndicatorKind.interface";
 import type { ChartContextMenuItem } from "./components/ChartContextMenu";
 import type { Candle } from "./interfaces/Candle.interface";
 import type { TrendLineDrawing } from "./interfaces/TrendLineDrawing.interface";
@@ -10,6 +12,9 @@ export interface ChartContextMenuAnchor {
   price: number;
   index: number;
   bounds: { width: number; height: number };
+  /** Clic droit sur le panneau d'un indicateur (RSI, MACD…) : son id et son nom, pour y poser une moyenne. */
+  paneId?: string;
+  paneLabel?: string;
 }
 
 export interface BuildChartContextMenuArgs {
@@ -29,6 +34,8 @@ export interface BuildChartContextMenuArgs {
   formatPrice: (v: number) => string;
   formatDate: (d: Date) => string;
   openIndicatorPicker: () => void;
+  /** Pose une moyenne (SMA, EMA, WMA) sur le panneau du clic droit (`anchor.paneId`). */
+  addOnPane?: (kind: IndicatorKind, paneId: string) => void;
   /** Ouvre la recherche pour ajouter un symbole au graphique ; entrée absente sans elle. */
   openAddSymbol?: () => void;
   resetZoom: () => void;
@@ -58,6 +65,7 @@ export function buildChartContextMenu({
   formatPrice,
   formatDate,
   openIndicatorPicker,
+  addOnPane,
   openAddSymbol,
   resetZoom,
   fullscreenToggle,
@@ -120,6 +128,13 @@ export function buildChartContextMenu({
     { separator: true },
     ...(openAddSymbol ? [{ label: "Ajouter un symbole…", onSelect: openAddSymbol }] : []),
     { label: "Ajouter un indicateur…", onSelect: openIndicatorPicker },
+    // Sur le panneau d'un indicateur : une moyenne de sa série, dessinée dans ce panneau.
+    ...(anchor.paneId && addOnPane
+      ? ATTACHABLE_KINDS.map(({ kind, label }) => ({
+          label: `Ajouter une ${label} sur ${anchor.paneLabel ?? "ce panneau"}`,
+          onSelect: () => addOnPane(kind, anchor.paneId as string),
+        }))
+      : []),
     { separator: true },
     { label: "Réinitialiser le zoom", hint: "Espace", onSelect: resetZoom },
     ...(fullscreenToggle

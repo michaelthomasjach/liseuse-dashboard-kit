@@ -1,4 +1,5 @@
 import type { RenderCandlestickChartParams } from "../interfaces/RenderCandlestickChartParams.interface";
+import { defaultIndicatorColor } from "../indicatorCatalog";
 import type { ChartCanvasStyle } from "../interfaces/ChartCanvasStyle.interface";
 import { snapPixel } from "../drawingGeometry";
 import { lineDashArray, drawDrawingText } from "../drawingRender";
@@ -164,6 +165,21 @@ export function drawVolumeAndPanes(ctx: CanvasRenderingContext2D, params: Render
       }
 
       drawOwnPaneIndicatorSeries(ctx, ind, points, zoomedXScale, candleWidth, dims.boundedWidth, indicators, scale, style);
+      // Indicateurs posés sur ce panneau (une SMA du RSI…) : sur la même échelle, par-dessus sa série.
+      for (const attached of visibleIndicators) {
+        if (attached.indicator.sourceId !== ind.id || attached.indicator.hidden || attached.points.length < 2) continue;
+        ctx.strokeStyle = attached.indicator.color ?? defaultIndicatorColor(indicators.indexOf(attached.indicator));
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([]);
+        ctx.beginPath();
+        attached.points.forEach((p, k) => {
+          const x = zoomedXScale(p.i + 0.5);
+          const y = scale(p.value as number);
+          if (k === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+      }
 
       if (hoverIndicatorPaneId === ind.id && hoverIndicatorPaneY !== null) {
         ctx.strokeStyle = colorMuted;

@@ -42,6 +42,8 @@ export interface RenderCandlestickChartParams {
   priceHeight: number;
   ownPaneIndicators: Indicator[];
   indicatorPaneHeights: number[];
+  /** L'indicateur sélectionné par un clic : des cercles à intervalle régulier sur sa ligne. */
+  selectedIndicatorId?: string | null;
   indicatorPaneTops: number[];
   zoomedOwnPaneScales: Record<string, ScaleLinear<number, number>>;
   indicators: Indicator[];

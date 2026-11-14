@@ -331,7 +331,7 @@ export function indicatorAxisAnnotations(
   // An own-pane indicator's numbers belong on that pane's own scale, addressed by its id —
   // exactly the vocabulary a drawing's `valueAxis` already uses, so the renderer needs no second
   // resolution path for indicators.
-  const valueAxis = entry.pane === "own" ? indicator.id : "price";
+  const valueAxis = entry.pane === "own" ? indicator.id : entry.pane === "attached" ? (indicator.sourceId ?? "price") : "price";
   const base: Omit<AxisAnnotations, "y" | "x"> = { valueAxis, color };
   const empty = { ...base, y: [], x: [] };
   if (values.length === 0) return empty;

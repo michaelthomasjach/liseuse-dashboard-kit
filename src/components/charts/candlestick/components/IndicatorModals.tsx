@@ -175,8 +175,6 @@ export function IndicatorModals({
   indicatorDraft,
   setIndicatorDraft,
   closeIndicatorSettings,
-  deleteEditingIndicator,
-  saveIndicatorSettings,
   pickerTargetPane,
   addOnPane,
 }: IndicatorModalsProps) {
@@ -552,16 +550,8 @@ export function IndicatorModals({
           open
           onClose={closeIndicatorSettings}
           title={`Paramètres — ${indicatorLabel(indicatorDraft)}`}
-          footer={
-            <div className="lq-chart__edit-drawing-footer">
-              <button type="button" className="lq-chart__reset-button" onClick={deleteEditingIndicator}>
-                Supprimer
-              </button>
-              <button type="button" className="lq-chart__confirm-button" onClick={saveIndicatorSettings}>
-                Enregistrer
-              </button>
-            </div>
-          }
+          // Plus de boutons : chaque réglage s'applique et s'enregistre aussitôt (voir usePaneLayout).
+          footer={null}
         >
           <Tabs
             items={[

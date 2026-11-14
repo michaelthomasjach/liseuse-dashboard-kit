@@ -536,8 +536,19 @@ export function usePaneLayout({
     const indicator = indicators.find((i) => i.id === id) ?? extraIndicators.find((i) => i.id === id);
     if (!indicator) return;
     setEditingIndicatorId(id);
+    appliedDraftRef.current = indicator;
     setIndicatorDraft(indicator);
   }
+
+  // Paramètres appliqués au fil de l'eau : chaque changement de la fenêtre est enregistré aussitôt (plus de bouton
+  // « Enregistrer »). La version ouverte telle quelle n'est pas réécrite.
+  const appliedDraftRef = useRef<Indicator | null>(null);
+  useEffect(() => {
+    if (!editingIndicatorId || !indicatorDraft || indicatorDraft === appliedDraftRef.current) return;
+    appliedDraftRef.current = indicatorDraft;
+    applyIndicatorDraft(editingIndicatorId, indicatorDraft);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [indicatorDraft, editingIndicatorId]);
 
   function closeIndicatorSettings() {
     setEditingIndicatorId(null);
@@ -546,6 +557,11 @@ export function usePaneLayout({
 
   function saveIndicatorSettings() {
     if (!editingIndicatorId || !indicatorDraft) return;
+    applyIndicatorDraft(editingIndicatorId, indicatorDraft);
+    closeIndicatorSettings();
+  }
+
+  function applyIndicatorDraft(editingIndicatorId: string, indicatorDraft: Indicator) {
     if (indicators.some((i) => i.id === editingIndicatorId)) {
       commitIndicators(indicators.map((i) => (i.id === editingIndicatorId ? indicatorDraft : i)));
     } else {
@@ -558,7 +574,6 @@ export function usePaneLayout({
       delete presentation.customData;
       setScriptIndicatorOverrides((prev) => ({ ...prev, [editingIndicatorId]: presentation }));
     }
-    closeIndicatorSettings();
   }
 
   function deleteEditingIndicator() {

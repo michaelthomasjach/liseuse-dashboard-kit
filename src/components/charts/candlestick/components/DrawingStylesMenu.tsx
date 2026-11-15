@@ -1,9 +1,11 @@
 import { useRef, useState } from "react";
 import { Popover } from "../../../forms/Popover";
-import { CheckIcon, PencilIcon, TrashIcon } from "../../../icons";
+import { BrushIcon, CheckIcon, PencilIcon, TrashIcon } from "../../../icons";
 
 /** Ce que la barre flottante sait des styles enregistrés de l'outil courant. */
 export interface DrawingStylesMenuProps {
+  /** Bouton carré à icône seule (barre flottante verticale) ; le style actif reste dans l'infobulle. */
+  compact?: boolean;
   /** Styles enregistrés pour l'outil du dessin (ou de l'outil armé). */
   presets: { id: string; name: string }[];
   /** Style actif (null : « Défaut »). */
@@ -42,7 +44,7 @@ export function SaveStyleField({ placeholder, onSave }: { placeholder: string; o
  * outil (un clic l'applique au dessin sélectionné et le garde pour les prochains tracés), avec
  * écraser / renommer / supprimer par ligne, et l'enregistrement du style du dessin sous un nom.
  */
-export function DrawingStylesMenu({ presets, activeId, canSave, onSelect, onSave, onOverwrite, onRename, onDelete }: DrawingStylesMenuProps) {
+export function DrawingStylesMenu({ compact, presets, activeId, canSave, onSelect, onSave, onOverwrite, onRename, onDelete }: DrawingStylesMenuProps) {
   const anchorRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
@@ -60,7 +62,7 @@ export function DrawingStylesMenu({ presets, activeId, canSave, onSelect, onSave
         aria-label={`Styles enregistrés (actif : ${activeName})`}
         title={`Styles enregistrés — actif : ${activeName}`}
       >
-        Style · {activeName}
+        {compact ? <BrushIcon size={14} /> : <>Style · {activeName}</>}
       </button>
       <Popover open={open} onClose={() => setOpen(false)} anchorRef={anchorRef} placement="bottom">
         <div className="lq-chart__tool-menu lq-chart__styles-menu" role="menu" aria-label="Styles enregistrés">

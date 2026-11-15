@@ -6,6 +6,16 @@ import { GripIcon, PencilIcon, TextIcon, HorizontalLineIcon, AlarmClockIcon, Tim
 
 const STROKE_WIDTH_OPTIONS = [1, 2, 3, 4];
 
+/** Unité de temps abrégée pour un bouton carré (barre verticale) : « 1 jour » → « 1J », « 4 heures » → « 4H »,
+ *  « 15 minutes » → « 15m », « 1 semaine » → « 1S », « 1 mois » → « 1M », « 1 an » → « 1A ». */
+function shortTimeframe(text: string): string {
+  const m = /^(\d+)\s*([a-zA-Zéû]+)/.exec(text.trim());
+  if (!m) return text.slice(0, 3);
+  const unit = m[2].toLowerCase();
+  const short = unit.startsWith("min") ? "m" : unit.startsWith("h") ? "H" : unit.startsWith("j") || unit.startsWith("d") ? "J" : unit.startsWith("s") || unit.startsWith("w") ? "S" : unit.startsWith("mo") ? "M" : unit.startsWith("a") || unit.startsWith("y") ? "A" : unit.slice(0, 1).toUpperCase();
+  return `${m[1]}${short}`;
+}
+
 export interface FloatingDrawingToolbarProps {
   /** Placement dans le graphique (left/top, ou le bord qui la tient quand elle est accrochée). */
   style: CSSProperties;
@@ -82,6 +92,8 @@ export function FloatingDrawingToolbar({
   styles,
 }: FloatingDrawingToolbarProps) {
   const [strokeMenuOpen, setStrokeMenuOpen] = useState(false);
+  // Accrochée à gauche ou à droite : boutons carrés, libellés abrégés (le texte complet reste dans l'infobulle).
+  const compact = orientation === "vertical";
   const strokeButtonRef = useRef<HTMLButtonElement>(null);
 
   return (
@@ -132,10 +144,14 @@ export function FloatingDrawingToolbar({
             onClick={() => setStrokeMenuOpen((o) => !o)}
             aria-label="Épaisseur du trait"
             aria-pressed={strokeMenuOpen}
-            title="Épaisseur du trait"
+            title={`Épaisseur du trait : ${strokeWidth}px`}
           >
-            <HorizontalLineIcon size={14} />
-            <span>{strokeWidth}px</span>
+            {compact ? <span>{strokeWidth}</span> : (
+              <>
+                <HorizontalLineIcon size={14} />
+                <span>{strokeWidth}px</span>
+              </>
+            )}
           </button>
           <Popover open={strokeMenuOpen} onClose={() => setStrokeMenuOpen(false)} anchorRef={strokeButtonRef} placement="bottom">
             <div className="lq-chart__tool-menu">
@@ -157,7 +173,7 @@ export function FloatingDrawingToolbar({
           <div className="lq-chart__floating-toolbar-divider" aria-hidden="true" />
         </>
       )}
-      {styles && showStyleControls && <DrawingStylesMenu {...styles} />}
+      {styles && showStyleControls && <DrawingStylesMenu {...styles} compact={compact} />}
       {onToggleAngleLock && (
         <button
           type="button"
@@ -179,7 +195,7 @@ export function FloatingDrawingToolbar({
           aria-label={timeframeLabel.shown ? `Masquer l'étiquette « ${timeframeLabel.text} »` : `Afficher l'étiquette « ${timeframeLabel.text} »`}
           title={timeframeLabel.shown ? `Tracé en ${timeframeLabel.text} — masquer l'étiquette` : `Tracé en ${timeframeLabel.text} — afficher l'étiquette`}
         >
-          {timeframeLabel.text}
+          {compact ? shortTimeframe(timeframeLabel.text) : timeframeLabel.text}
         </button>
       )}
       {/* Juste après l'étiquette de son unité : ce dessin n'apparaît que sur elle. */}

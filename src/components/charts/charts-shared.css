@@ -4167,15 +4167,32 @@ button.lq-chart__legend-item {
   height: 1px;
   margin: 0 2px;
 }
-/* Boutons à libellé (« Style · Défaut », « 1 jour ») : sur deux lignes plutôt qu'une barre élargie. */
-.lq-chart__floating-toolbar--vertical .lq-chart__icon-button.lq-chart__floating-toolbar-text {
-  max-width: 52px;
-  height: auto;
+/* Boutons carrés, tous de la même taille (libellés abrégés par FloatingDrawingToolbar). */
+.lq-chart__floating-toolbar--vertical .lq-chart__icon-button,
+.lq-chart__floating-toolbar--vertical .lq-chart__icon-button.lq-chart__floating-toolbar-text,
+.lq-chart__floating-toolbar--vertical .lq-chart__floating-toolbar-swatch,
+.lq-chart__floating-toolbar--vertical .lq-chart__floating-toolbar-grip {
+  box-sizing: border-box;
+  flex: none;
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
   min-height: 28px;
-  padding: 3px 4px;
-  white-space: normal;
-  line-height: 1.15;
-  text-align: center;
+  padding: 0;
+  justify-content: center;
+  white-space: nowrap;
+  font-size: 0.65rem;
+}
+@media (pointer: coarse) {
+  .lq-chart__floating-toolbar--vertical .lq-chart__icon-button,
+  .lq-chart__floating-toolbar--vertical .lq-chart__icon-button.lq-chart__floating-toolbar-text,
+  .lq-chart__floating-toolbar--vertical .lq-chart__floating-toolbar-swatch,
+  .lq-chart__floating-toolbar--vertical .lq-chart__floating-toolbar-grip {
+    width: 36px;
+    min-width: 36px;
+    height: 36px;
+    min-height: 36px;
+  }
 }
 @media (pointer: coarse) {
   .lq-chart__floating-toolbar-grip {

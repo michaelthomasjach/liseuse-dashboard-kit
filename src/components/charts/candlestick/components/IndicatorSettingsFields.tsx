@@ -1,5 +1,5 @@
 import { Checkbox } from "../../../forms/Checkbox";
-import { IndicatorFillsEditor } from "./IndicatorFillsEditor";
+import { IndicatorStyleRulesEditor } from "./IndicatorStyleRulesEditor";
 import { InputNumber } from "../../../forms/InputNumber";
 import { Select } from "../../../forms/Select";
 import type { Indicator } from "../interfaces/Indicator.interface";
@@ -753,7 +753,12 @@ export function IndicatorSettingsStyle({ indicatorDraft, setIndicatorDraft, indi
           />
         </div>
       )}
-      <IndicatorFillsEditor indicator={indicatorDraft} onChange={(fills) => setIndicatorDraft({ ...indicatorDraft, fills })} />
+      {/* Couleurs conditionnelles : écrites au nouveau format, l'ancien (`fills`, converti à la lecture) est retiré. */}
+      <IndicatorStyleRulesEditor
+        indicator={indicatorDraft}
+        indicators={indicators}
+        onChange={(styleRules) => setIndicatorDraft({ ...indicatorDraft, styleRules, fills: undefined })}
+      />
     </>
   );
 }

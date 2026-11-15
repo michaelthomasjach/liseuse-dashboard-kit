@@ -1745,19 +1745,51 @@ button.lq-chart__legend-item {
   min-width: 0;
 }
 
+/* Sélecteur de couleur des réglages (indicateurs, graphique, dessins, scripts) : une pastille compacte, fine bordure,
+   coins arrondis de 4 px quel que soit le thème (--lq-color-swatch-radius pour les changer) ; clic : le sélecteur du système. */
 .lq-chart__color-input {
-  width: 100%;
-  height: 38px;
-  padding: 3px;
-  background-color: var(--lq-color-bg);
+  -webkit-appearance: none;
+  appearance: none;
+  flex: none;
+  box-sizing: border-box;
+  width: 28px;
+  height: 20px;
+  padding: 0;
+  overflow: hidden;
+  background: none;
   border: 1px solid var(--lq-color-border-subtle);
-  border-radius: var(--lq-radius-sm);
+  border-radius: var(--lq-color-swatch-radius, 4px);
   cursor: pointer;
+}
+.lq-chart__color-input::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+.lq-chart__color-input::-webkit-color-swatch {
+  border: none;
+  border-radius: 0;
+}
+.lq-chart__color-input::-moz-color-swatch {
+  border: none;
+  border-radius: 0;
+}
+.lq-chart__color-input:hover {
+  border-color: var(--lq-color-text-muted);
+}
+.lq-chart__color-input:focus-visible {
+  outline: 2px solid var(--lq-color-accent);
+  outline-offset: 2px;
 }
 
 .lq-chart__color-input:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* Un champ « libellé + pastille » : la pastille se range à droite de son libellé au lieu d'en dessous. */
+.lq-field:has(> .lq-field__label + .lq-chart__color-input:last-child) {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--lq-space-2, 8px);
 }
 
 /* "note"/"priceNote" only, while their own live text entry is open — mirrors the dashed preview
@@ -4182,65 +4214,6 @@ button.lq-chart__legend-item {
   }
 }
 
-/* Onglet Style d'un indicateur : zones colorées entre la courbe et une référence. */
-.lq-chart__fills {
-  display: flex;
-  flex-direction: column;
-  gap: var(--lq-space-2, 8px);
-  margin-top: var(--lq-space-3, 12px);
-  padding-top: var(--lq-space-3, 12px);
-  border-top: 1px solid var(--lq-color-border-subtle);
-}
-.lq-chart__fills-head {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.lq-chart__fills-hint {
-  font-size: 0.8rem;
-  color: var(--lq-color-text-muted, var(--lq-color-muted));
-}
-.lq-chart__fill {
-  display: flex;
-  flex-direction: column;
-  gap: var(--lq-space-2, 8px);
-  padding: var(--lq-space-2, 8px) var(--lq-space-3, 12px);
-  border: 1px solid var(--lq-color-border-subtle);
-  border-radius: var(--lq-radius-md, 6px);
-}
-.lq-chart__fill-title {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-weight: var(--lq-font-weight-semibold, 600);
-  font-size: 0.85rem;
-}
-.lq-chart__fill-side {
-  white-space: nowrap;
-  display: flex;
-  align-items: center;
-  gap: var(--lq-space-2, 8px);
-  flex: 1 1 0;
-}
-.lq-chart__fill-remove,
-.lq-chart__fill-add {
-  border: 1px solid var(--lq-color-border-subtle);
-  background: transparent;
-  color: inherit;
-  border-radius: var(--lq-radius-sm, 4px);
-  padding: 4px 10px;
-  font: inherit;
-  font-size: 0.8rem;
-  cursor: pointer;
-}
-.lq-chart__fill-remove:hover,
-.lq-chart__fill-add:hover {
-  border-color: var(--lq-color-accent);
-}
-.lq-chart__fill-add {
-  align-self: flex-start;
-}
-
 /* Recherche de symbole : icône de composition (symbole personnalisé) à droite du nom. */
 .lq-chart__symbol-search-info {
   display: inline-flex;
@@ -4260,41 +4233,154 @@ button.lq-chart__legend-item {
   background-color: var(--lq-color-fill);
 }
 
-/* Zones colorées : pastille de couleur compacte et arrondie, collée à son libellé (clic : sélecteur de couleur). */
-.lq-chart__fill-side {
-  flex: 0 1 auto;
-  gap: 8px;
-  margin-right: var(--lq-space-4, 16px);
-}
-.lq-chart__fill-swatch {
-  -webkit-appearance: none;
-  appearance: none;
-  flex: none;
-  width: 30px;
-  height: 20px;
-  padding: 0;
-  border: none;
-  border-radius: 6px;
-  background: none;
-  cursor: pointer;
-}
-.lq-chart__fill-swatch::-webkit-color-swatch-wrapper {
-  padding: 0;
-}
-.lq-chart__fill-swatch::-webkit-color-swatch {
-  border: none;
-  border-radius: 6px;
-}
-.lq-chart__fill-swatch::-moz-color-swatch {
-  border: none;
-  border-radius: 6px;
-}
-.lq-chart__fill-swatch:focus-visible {
-  outline: 2px solid var(--lq-color-accent);
-  outline-offset: 2px;
-}
-
 /* « Masquer la légende du symbole (OHLC) » : l'attribut hidden doit l'emporter sur le display: flex de la ligne. */
 .lq-chart__symbol-info[hidden] {
   display: none;
+}
+
+/* Onglet Style d'un indicateur : couleurs conditionnelles. Chaque règle est une phrase faite de menus, qui passe à la
+   ligne dans la fenêtre plutôt que de la faire défiler en largeur. */
+.lq-chart__rules {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lq-space-2, 8px);
+  margin-top: var(--lq-space-3, 12px);
+  padding-top: var(--lq-space-3, 12px);
+  border-top: 1px solid var(--lq-color-border-subtle);
+  min-width: 0;
+}
+.lq-chart__rules-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.lq-chart__rules-hint {
+  font-size: 0.8rem;
+  color: var(--lq-color-text-muted, var(--lq-color-muted));
+}
+.lq-chart__rule {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lq-space-2, 8px);
+  min-width: 0;
+  padding: var(--lq-space-2, 8px) var(--lq-space-3, 12px);
+  border: 1px solid var(--lq-color-border-subtle);
+  border-radius: var(--lq-radius-md, 6px);
+}
+.lq-chart__rule--disabled .lq-chart__rule-sentence,
+.lq-chart__rule--disabled .lq-chart__rule-opacity {
+  opacity: 0.5;
+}
+.lq-chart__rule-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lq-space-2, 8px);
+  font-weight: var(--lq-font-weight-semibold, 600);
+  font-size: 0.85rem;
+}
+.lq-chart__rule-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.lq-chart__rule-sentence {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 0.85rem;
+}
+.lq-chart__rule-word {
+  flex: none;
+  color: var(--lq-color-text-muted, var(--lq-color-muted));
+}
+.lq-chart__rule-pick {
+  min-width: 0;
+}
+.lq-chart__rule-pick--series {
+  flex: 1 1 130px;
+  max-width: 100%;
+}
+.lq-chart__rule-pick--value-kind {
+  flex: 0 0 112px;
+}
+.lq-chart__rule-pick--number {
+  flex: 0 0 84px;
+}
+.lq-chart__rule-pick--effect {
+  flex: 1 1 170px;
+}
+/* Un mot et son menu (« est [condition] », « et [borne] »), un menu et son champ de valeur : ils restent ensemble
+   quand la phrase passe à la ligne. */
+.lq-chart__rule-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+}
+.lq-chart__rule-pick--condition {
+  flex: 0 1 auto;
+}
+.lq-chart__rule-pick--condition > .lq-chart__rule-pick {
+  flex: 0 1 150px;
+  width: 150px;
+}
+.lq-chart__rule-operand {
+  flex: 1 1 140px;
+}
+.lq-chart__rule-operand--value {
+  flex: 0 1 auto;
+}
+.lq-chart__rule-group:has(> .lq-chart__rule-operand) {
+  flex: 1 1 auto;
+}
+.lq-chart__rule-group:has(> .lq-chart__rule-operand--value) {
+  flex: 0 1 auto;
+}
+.lq-chart__rule-else {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.lq-chart__rule-opacity {
+  margin-top: 0;
+}
+.lq-chart__rule-button,
+.lq-chart__rule-icon {
+  border: 1px solid var(--lq-color-border-subtle);
+  background: transparent;
+  color: inherit;
+  border-radius: var(--lq-radius-sm, 4px);
+  padding: 3px 10px;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: var(--lq-font-weight-normal, 400);
+  cursor: pointer;
+}
+.lq-chart__rule-icon {
+  min-width: 26px;
+  padding: 3px 6px;
+  line-height: 1.2;
+}
+.lq-chart__rule-button:hover:not(:disabled),
+.lq-chart__rule-icon:hover:not(:disabled) {
+  border-color: var(--lq-color-accent);
+}
+.lq-chart__rule-icon:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.lq-chart__rule-button--add {
+  font-weight: var(--lq-font-weight-semibold, 600);
+}
+.lq-chart__rules-actions,
+.lq-chart__rules-templates {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
 }

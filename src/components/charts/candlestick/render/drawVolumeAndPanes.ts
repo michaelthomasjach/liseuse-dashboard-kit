@@ -4,7 +4,7 @@ import type { ChartCanvasStyle } from "../interfaces/ChartCanvasStyle.interface"
 import { snapPixel } from "../drawingGeometry";
 import { lineDashArray, drawDrawingText } from "../drawingRender";
 import { drawOwnPaneIndicatorSeries } from "./drawOwnPaneIndicatorSeries";
-import { drawIndicatorFills } from "./drawIndicatorFills";
+import { drawIndicatorStyleRules, type StyleRulePane } from "./drawIndicatorStyleRules";
 import { VOLUME_PANE_ID } from "../attachedIndicators";
 
 /** Phase 3 of `renderCandlestickChart`, painted outside the price section's own clip: the volume
@@ -41,6 +41,7 @@ export function drawVolumeAndPanes(ctx: CanvasRenderingContext2D, params: Render
     indicatorPaneTops,
     zoomedOwnPaneScales,
     indicators,
+    data,
   } = params;
   const { colorText, colorMuted, colorAccent, colorGrid, fontFamily, isEink } = style;
 
@@ -91,10 +92,20 @@ export function drawVolumeAndPanes(ctx: CanvasRenderingContext2D, params: Render
           ctx.fill();
         }
         ctx.globalAlpha = 1;
-        // Moyennes posées sur le volume (clic droit sur le panneau) : leurs zones colorées, puis leur ligne.
+        // Moyennes posées sur le volume (clic droit sur le panneau) : leurs couleurs conditionnelles sous les lignes, les
+        // lignes, puis les segments recolorés et les croisements par-dessus.
+        const volumeRulePane: StyleRulePane = {
+          members: visibleIndicators.filter((v) => v.indicator.sourceId === VOLUME_PANE_ID),
+          xAt: zoomedXScale,
+          yAt: zoomedVolumeScale,
+          volumeAt: (i) => data[i]?.volume,
+          candleWidth,
+          height: volumeHeight,
+          ringColor: style.colorBg,
+        };
+        drawIndicatorStyleRules(ctx, volumeRulePane, "under");
         for (const attached of visibleIndicators) {
           if (attached.indicator.sourceId !== VOLUME_PANE_ID || attached.indicator.hidden || attached.points.length < 2) continue;
-          drawIndicatorFills(ctx, attached.indicator, attached.points, zoomedXScale, zoomedVolumeScale);
           ctx.strokeStyle = attached.indicator.color ?? defaultIndicatorColor(indicators.indexOf(attached.indicator));
           ctx.lineWidth = 1.5;
           ctx.setLineDash([]);
@@ -107,6 +118,7 @@ export function drawVolumeAndPanes(ctx: CanvasRenderingContext2D, params: Render
           });
           ctx.stroke();
         }
+        drawIndicatorStyleRules(ctx, volumeRulePane, "over");
         if (hoverVolumeY !== null) {
           ctx.strokeStyle = colorMuted;
           ctx.lineWidth = 1;
@@ -182,11 +194,22 @@ export function drawVolumeAndPanes(ctx: CanvasRenderingContext2D, params: Render
         return;
       }
 
+      // Couleurs conditionnelles (onglet Style) de l'indicateur et de ceux posés dessus : elles peuvent citer les courbes
+      // des uns et des autres (remplir entre le RSI et sa SMA…). Remplissages et fonds sous les courbes, segments
+      // recolorés et croisements par-dessus.
+      const rulePane: StyleRulePane = {
+        members: [...(entry ? [entry] : []), ...visibleIndicators.filter((v) => v.indicator.sourceId === ind.id)],
+        xAt: zoomedXScale,
+        yAt: scale,
+        candleWidth,
+        height: paneHeight,
+        ringColor: style.colorBg,
+      };
+      drawIndicatorStyleRules(ctx, rulePane, "under");
       drawOwnPaneIndicatorSeries(ctx, ind, points, zoomedXScale, candleWidth, dims.boundedWidth, indicators, scale, style);
       // Indicateurs posés sur ce panneau (une SMA du RSI…) : sur la même échelle, par-dessus sa série.
       for (const attached of visibleIndicators) {
         if (attached.indicator.sourceId !== ind.id || attached.indicator.hidden || attached.points.length < 2) continue;
-        drawIndicatorFills(ctx, attached.indicator, attached.points, zoomedXScale, scale);
         ctx.strokeStyle = attached.indicator.color ?? defaultIndicatorColor(indicators.indexOf(attached.indicator));
         ctx.lineWidth = 1.5;
         ctx.setLineDash([]);
@@ -199,6 +222,7 @@ export function drawVolumeAndPanes(ctx: CanvasRenderingContext2D, params: Render
         });
         ctx.stroke();
       }
+      drawIndicatorStyleRules(ctx, rulePane, "over");
 
       if (hoverIndicatorPaneId === ind.id && hoverIndicatorPaneY !== null) {
         ctx.strokeStyle = colorMuted;

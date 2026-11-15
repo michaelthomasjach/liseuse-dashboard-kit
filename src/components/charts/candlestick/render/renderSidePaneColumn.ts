@@ -2,6 +2,7 @@ import type { SidePaneColumnRenderParams } from "../interfaces/SidePaneColumnRen
 import { readChartCanvasStyle } from "./readChartCanvasStyle";
 import { snapPixel } from "../drawingGeometry";
 import { drawOwnPaneIndicatorSeries } from "./drawOwnPaneIndicatorSeries";
+import { drawIndicatorStyleRules, type StyleRulePane } from "./drawIndicatorStyleRules";
 import { computeProfileBoxValueScale, drawPaneProfile } from "./drawPaneProfile";
 
 /** Paints one `plot.pane(name, { dock: "left"|"right" })` script pane column — an inter-pane
@@ -125,7 +126,11 @@ export function renderSidePaneColumn(canvas: HTMLCanvasElement, wrapper: HTMLEle
     ctx.clip();
     ctx.translate(0, paneTop);
 
+    // Couleurs conditionnelles (onglet Style) : sous la série, puis les segments recolorés et les croisements dessus.
+    const rulePane: StyleRulePane = { members: entry ? [entry] : [], xAt: zoomedXScale, yAt: scale, candleWidth, height: paneHeight, ringColor: style.colorBg };
+    drawIndicatorStyleRules(ctx, rulePane, "under");
     drawOwnPaneIndicatorSeries(ctx, ind, points, zoomedXScale, candleWidth, columnWidth, indicators, scale, style);
+    drawIndicatorStyleRules(ctx, rulePane, "over");
 
     ctx.restore();
   });

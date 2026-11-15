@@ -15,7 +15,7 @@ import type { IndicatorCandleMatch } from "../interfaces/IndicatorCandleMatch.in
 import { snapPixel } from "../drawingGeometry";
 import { drawPillLabel } from "../drawingRender";
 import { indicatorCatalogEntry, defaultIndicatorColor } from "../indicatorCatalog";
-import { drawIndicatorFills } from "./drawIndicatorFills";
+import { drawIndicatorStyleRules, type StyleRulePane } from "./drawIndicatorStyleRules";
 import { drawPatternRecognitionMatches } from "./drawPatternRecognition";
 import { drawCandleRecognitionMatches } from "./drawCandleRecognition";
 
@@ -358,13 +358,24 @@ export function drawPriceCandles(ctx: CanvasRenderingContext2D, params: RenderCa
     // above (a session profile, not a value at a fixed index — see computeIndicatorValues' own
     // "tpo" case) and never reaches a branch below: computeIndicatorValues returns it an
     // all-null array, so `points` is always empty and the next line skips it here for free.
+    // Couleurs conditionnelles (onglet Style) des indicateurs tracés sur les prix : une règle peut citer n'importe
+    // quelle courbe du panneau (deux moyennes qui se croisent) ou le cours. Remplissages et fonds sous toutes les
+    // courbes, segments recolorés et croisements par-dessus (après la boucle).
+    const priceRulePane: StyleRulePane = {
+      members: visibleIndicators.filter((v) => !v.indicator.sourceId && indicatorCatalogEntry(v.indicator).pane === "price"),
+      xAt: zoomedXScale,
+      yAt: zoomedPriceScale,
+      closeAt: (i) => data[i]?.close,
+      candleWidth,
+      height: priceHeight,
+      ringColor: colorBg,
+    };
+    drawIndicatorStyleRules(ctx, priceRulePane, "under");
     visibleIndicators.forEach(({ indicator, points }, index) => {
       if (indicator.hidden || indicatorCatalogEntry(indicator).pane !== "price") return;
       if (points.length === 0 || (points.length < 2 && !POINT_BASED_KINDS.has(indicator.kind))) return;
       const color = indicator.color ?? defaultIndicatorColor(index);
       ctx.save();
-      // Zones colorées (onglet Style) : sous la courbe, avant elle.
-      drawIndicatorFills(ctx, indicator, points, zoomedXScale, zoomedPriceScale, (i) => data[i]?.close);
       ctx.strokeStyle = color;
       ctx.setLineDash([]);
 
@@ -891,6 +902,7 @@ export function drawPriceCandles(ctx: CanvasRenderingContext2D, params: RenderCa
       }
       ctx.restore();
     });
+    drawIndicatorStyleRules(ctx, priceRulePane, "over");
 
     if (hovered && hoverY !== null) {
       ctx.save();

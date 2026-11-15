@@ -8,7 +8,6 @@ import type { IndicatorBand } from "../interfaces/IndicatorBand.interface";
 import { defaultIndicatorColor, isFundamentalKind } from "../indicatorCatalog";
 import { applyLineStyle } from "./drawPriceCandles";
 import { strokeCrossColoredLine } from "./strokeCrossColoredLine";
-import { drawIndicatorFills } from "./drawIndicatorFills";
 
 /** One "own"-pane indicator's own series (RSI/CHOP/MACD/ADX/correlation/a fundamental/a
  *  `plot.pane`-produced custom line/area/histogram/band/multi pane), drawn into whatever clipped
@@ -35,8 +34,8 @@ export function drawOwnPaneIndicatorSeries(
 ) {
   const { colorUp, colorDown, colorText, colorGrid, isEink } = style;
   const color = ind.color ?? defaultIndicatorColor(indicators.indexOf(ind));
-  // Zones colorées (onglet Style) : sous la courbe et ses niveaux.
-  drawIndicatorFills(ctx, ind, points, zoomedXScale, scale);
+  // Les couleurs conditionnelles (onglet Style) sont peintes par l'appelant, qui connaît aussi les indicateurs posés sur
+  // ce panneau (voir drawIndicatorStyleRules).
 
   if (ind.kind === "rsi" || ind.kind === "chop") {
     // Reference levels are user-adjustable (rsiOverbought/rsiOversold, chopUpperThreshold/

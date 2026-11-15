@@ -190,10 +190,10 @@ export function CandlestickChart({
   onYAutoScalingChange,
   defaultAppearance,
   onAppearanceChange,
-  timeframes,
   candleColorRules: candleColorRulesProp,
   onCandleColorRulesChange,
   showCandleColorRules = true,
+  timeframes,
   timeframe,
   onTimeframeChange,
   defaultChartDisplayMode,
@@ -388,16 +388,16 @@ export function CandlestickChart({
     yAutoScalingState, setYAutoScalingState,
     futureZoneVisible, setFutureZoneVisible,
     pastZoneVisible, setPastZoneVisible,
-    now,
     candleColorRules, setCandleColorRules,
+    now,
   } = useChartAppearance({
     YAutoScaling,
     livePrice,
     defaultAppearance,
     onAppearanceChange,
-    // Same shape and same condition as `useFullscreen`'s own controlled argument below: the pair
     candleColorRules: candleColorRulesProp,
     onCandleColorRulesChange,
+    // Same shape and same condition as `useFullscreen`'s own controlled argument below: the pair
     // only takes over once a caller has supplied the callback to report changes back through.
     controlledSettings: onSettingsOpenChange ? { open: settingsOpenProp ?? false, onChange: onSettingsOpenChange } : undefined,
   });
@@ -1305,7 +1305,6 @@ export function CandlestickChart({
   });
 
 
-  beforeRemoveIndicatorRef.current = (id: string) => {
   // Couleurs conditionnelles des bougies : règles des paramètres (si la section est permise) puis `plot.candleColor`
   // des scripts, calculées sur toutes les bougies une fois par changement de données ou de règles — jamais au glisser.
   const candleColors = useMemo(
@@ -1319,6 +1318,7 @@ export function CandlestickChart({
     [data, showCandleColorRules, candleColorRules, indicatorValues, scriptingState.scriptCandleColors],
   );
 
+  beforeRemoveIndicatorRef.current = (id: string) => {
     const { removeIds, withholdScriptId } = scriptPaneRemoval(id, indicatorValues.map((entry) => entry.indicator));
     // Withheld rather than deleted (see `useScriptingState`): the script keeps running, so
     // reopening the pane brings its drawings back.
@@ -1583,9 +1583,9 @@ export function CandlestickChart({
     visibleIndicators,
     indicatorProjections,
     scriptHeatmaps: scriptingState.scriptHeatmaps,
+    candleColors,
     indexForDate,
     futureZoneVisible,
-    candleColors,
     pastZoneVisible,
     replayArmed: replayState.armed,
     replayActive: replayState.active,
@@ -2649,10 +2649,10 @@ export function CandlestickChart({
         watermark={watermark} setWatermark={setWatermark} watermarkAvailable={Boolean(symbol)}
         timeframeLabelOf={drawingTimeframeLabel}
         symbolInfoHidden={symbolInfoHidden} setSymbolInfoHidden={setSymbolInfoHidden}
-        mobileLayout={isNarrowLayout} layoutOverride={layoutOverride} setLayoutOverride={setLayoutOverride}
-        chartDisplayMode={chartDisplayMode} setChartDisplayMode={setChartDisplayMode} onChartDisplayModeChange={onChartDisplayModeChange}
         candleColorRules={candleColorRules} setCandleColorRules={setCandleColorRules}
         showCandleColorRules={showCandleColorRules} candleRuleIndicators={combinedIndicators}
+        mobileLayout={isNarrowLayout} layoutOverride={layoutOverride} setLayoutOverride={setLayoutOverride}
+        chartDisplayMode={chartDisplayMode} setChartDisplayMode={setChartDisplayMode} onChartDisplayModeChange={onChartDisplayModeChange}
         closePulseVisible={closePulseVisible} setClosePulseVisible={setClosePulseVisible}
         upColorOverride={upColorOverride} setUpColorOverride={setUpColorOverride}
         downColorOverride={downColorOverride}

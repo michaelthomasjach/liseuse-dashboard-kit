@@ -139,10 +139,6 @@ export interface ScriptHeatmapOutput {
   bubbles?: { date: number; price: number; size: number; aggressor?: "buy" | "sell" }[];
 }
 
-export interface ScriptLabelOutput {
-  paneName: string;
-  paneType: "overlay" | "own";
-  name: string;
 /** Un appel à `plot.candleColor(couleur, options?)` : la couleur de la bougie en cours, gardée par date (le dernier
  *  appel sur une bougie l'emporte). `color: null` efface la couleur qu'un appel précédent du même script avait posée
  *  sur cette bougie. Voir `candleColorRules.ts` pour l'ordre de priorité face aux règles des paramètres du graphique. */
@@ -155,6 +151,10 @@ export interface ScriptCandleColorOutput {
   border?: string;
 }
 
+export interface ScriptLabelOutput {
+  paneName: string;
+  paneType: "overlay" | "own";
+  name: string;
   text: string;
   x: number;
   y: number;
@@ -257,12 +257,12 @@ export interface ScriptRunResult {
   labels: ScriptLabelOutput[];
   /** Heat fields this run drew — see `ScriptHeatmapOutput`. */
   heatmaps: ScriptHeatmapOutput[];
+  /** Couleurs de bougies posées par `plot.candleColor` — absent ou vide quand le script n'en pose pas. */
+  candleColors?: ScriptCandleColorOutput[];
   /** The backtest, for a `@strategy` script only (see `scriptKind.ts`). `null` for an indicator —
    *  which is the whole point of the decorator: nothing downstream has to guess whether a strategy
    *  pane belongs on screen, the presence of this answers it. */
   strategy: StrategyResult | null;
-  /** Couleurs de bougies posées par `plot.candleColor` — absent ou vide quand le script n'en pose pas. */
-  candleColors?: ScriptCandleColorOutput[];
   /** What a `@quant` analysis returned, per symbol. `null` for every other kind, and the same
    *  reasoning as `strategy` above: nothing downstream has to guess. */
   quant: QuantResult | null;

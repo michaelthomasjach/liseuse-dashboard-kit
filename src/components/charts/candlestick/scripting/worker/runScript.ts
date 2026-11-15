@@ -424,13 +424,13 @@ export async function runScript(snapshot: ScriptEngineSnapshot, ai: AiApi | null
         alerts: getAlerts(),
         labels,
         heatmaps,
+        candleColors,
         strategy: strategy?.getResult() ?? null,
         quant: null,
         report: null,
       };
     }
   }
-        candleColors,
   const { panes, drawings, table, xyCharts, labels, heatmaps, candleColors } = getPlotResult();
   // Entry/exit markers ride the same drawing channel every `plot.signal` already uses — the chart
   // needs no notion of a "strategy marker" to paint them.
@@ -444,9 +444,9 @@ export async function runScript(snapshot: ScriptEngineSnapshot, ai: AiApi | null
     alerts: getAlerts(),
     labels,
     heatmaps,
+    candleColors,
     strategy: strategy?.getResult() ?? null,
     quant: null,
     report: null,
   };
 }
-    candleColors,

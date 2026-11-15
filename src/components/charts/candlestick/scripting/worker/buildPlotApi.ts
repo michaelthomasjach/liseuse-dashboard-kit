@@ -230,16 +230,6 @@ export interface PlotApi {
    *  a cell's own output in the script editor's notebook mode. `x`/`y` must be the same length;
    *  both are silently truncated to `MAX_XY_POINTS` past that size rather than rejected. */
   xy(name: string, x: number[], y: number[], options?: PlotXYOptions): void;
-}
-
-// Same slug shape `scriptPaneToCustomIndicatorDef.ts` uses for a pane's own id — duplicated here
-// (rather than imported) since this file runs inside the worker, that one on the main thread; a
-// one-line pure function isn't worth a cross-thread-boundary import for.
-function slugify(name: string): string {
-  return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "series";
-}
-
-/** `plot.*`, closed over the current bar's own date/close (via the same kind of callback
   /** Colore la bougie en cours (l'équivalent de `barcolor` en Pine Script) : son corps en `color`, sa mèche et sa
    *  bordure dans la même couleur sauf `options.wick` / `options.border`. Le dernier appel sur une bougie l'emporte ;
    *  `null` efface la couleur posée plus tôt sur cette bougie. Une bougie que le script ne colore pas garde ses couleurs
@@ -252,6 +242,16 @@ export interface PlotCandleColorOptions {
   wick?: string;
   /** Couleur de la bordure du corps ; absente : celle du corps. */
   border?: string;
+}
+
+// Same slug shape `scriptPaneToCustomIndicatorDef.ts` uses for a pane's own id — duplicated here
+// (rather than imported) since this file runs inside the worker, that one on the main thread; a
+// one-line pure function isn't worth a cross-thread-boundary import for.
+function slugify(name: string): string {
+  return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "series";
+}
+
+/** `plot.*`, closed over the current bar's own date/close (via the same kind of callback
  *  `market.*`/`chart.*` use for "which bar is this") and a pair of accumulators mutated across
  *  the whole replay loop — `getResult()` reads them once, after the loop in runScript.ts has
  *  finished, not per bar. `plot.pane`/`plot.overlay` upsert into `panesByName` by their own name
@@ -285,6 +285,7 @@ export function buildPlotApi(
     xyCharts: ScriptXYChartOutput[];
     labels: ScriptLabelOutput[];
     heatmaps: ScriptHeatmapOutput[];
+    candleColors: ScriptCandleColorOutput[];
   };
 } {
   interface PaneEntry {
@@ -295,13 +296,15 @@ export function buildPlotApi(
     labelsByName: Map<string, ScriptLabelOutput>;
   }
   const panesByName = new Map<string, PaneEntry>();
-    candleColors: ScriptCandleColorOutput[];
   const drawings: ScriptDrawingOutput[] = [];
   /** Keyed by pane name *and* series name, since two panes may each hold one called "Liquidité"
    *  and they are not the same field. */
   const heatmapsByKey = new Map<string, ScriptHeatmapOutput>();
   let table: ScriptTableOutput | null = null;
   const xyChartsByName = new Map<string, ScriptXYChartOutput>();
+  /** Par date de bougie : le dernier appel sur une bougie remplace les précédents (le script est rejoué en entier à
+   *  chaque nouveau cours, et la dernière bougie peut être recalculée plusieurs fois). */
+  const candleColorsByDate = new Map<number, ScriptCandleColorOutput>();
 
   function makeHandle(paneEntry: PaneEntry): PaneSeriesHandle {
     function upsert(
@@ -313,9 +316,6 @@ export function buildPlotApi(
       let sub = paneEntry.subSeriesByName.get(name);
       if (!sub) {
         sub = {
-  /** Par date de bougie : le dernier appel sur une bougie remplace les précédents (le script est rejoué en entier à
-   *  chaque nouveau cours, et la dernière bougie peut être recalculée plusieurs fois). */
-  const candleColorsByDate = new Map<number, ScriptCandleColorOutput>();
           key: slugify(name),
           name,
           draw,
@@ -466,6 +466,20 @@ export function buildPlotApi(
         rows: rows.slice(0, MAX_TABLE_ROWS).map((row) => ({ cells: row.cells.map(truncateCell), color: row.color })),
       };
     },
+    candleColor: (color, options) => {
+      const date = getCurrentDate();
+      if (color === null || color === undefined || color === "") {
+        candleColorsByDate.set(date, { date, color: null });
+        return;
+      }
+      if (typeof color !== "string") return;
+      candleColorsByDate.set(date, {
+        date,
+        color: color.slice(0, 64),
+        wick: typeof options?.wick === "string" ? options.wick.slice(0, 64) : undefined,
+        border: typeof options?.border === "string" ? options.border.slice(0, 64) : undefined,
+      });
+    },
     xy: (name, x, y, options) => {
       xyChartsByName.set(name, {
         name,
@@ -481,20 +495,6 @@ export function buildPlotApi(
   };
 
   return {
-    candleColor: (color, options) => {
-      const date = getCurrentDate();
-      if (color === null || color === undefined || color === "") {
-        candleColorsByDate.set(date, { date, color: null });
-        return;
-      }
-      if (typeof color !== "string") return;
-      candleColorsByDate.set(date, {
-        date,
-        color: color.slice(0, 64),
-        wick: typeof options?.wick === "string" ? options.wick.slice(0, 64) : undefined,
-        border: typeof options?.border === "string" ? options.border.slice(0, 64) : undefined,
-      });
-    },
     api,
     getResult: () => ({
       panes: [...panesByName.values()].map((entry) => ({ name: entry.name, pane: entry.pane, dock: entry.dock, series: [...entry.subSeriesByName.values()] })),
@@ -503,7 +503,7 @@ export function buildPlotApi(
       xyCharts: [...xyChartsByName.values()],
       labels: [...panesByName.values()].flatMap((entry) => [...entry.labelsByName.values()]),
       heatmaps: [...heatmapsByKey.values()],
+      candleColors: [...candleColorsByDate.values()],
     }),
   };
 }
-      candleColors: [...candleColorsByDate.values()],

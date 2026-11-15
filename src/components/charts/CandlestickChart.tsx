@@ -405,6 +405,7 @@ export function CandlestickChart({
     volumeDownColorOverride, setVolumeDownColorOverride,
     volumeSettingsOpen, setVolumeSettingsOpen,
     yAutoScalingState, setYAutoScalingState,
+    priceScaleMode, setPriceScaleMode,
     futureZoneVisible, setFutureZoneVisible,
     pastZoneVisible, setPastZoneVisible,
     candleColorRules, setCandleColorRules,
@@ -1230,6 +1231,7 @@ export function CandlestickChart({
     setYTransform,
     setYManuallyAdjusted,
     priceYAuto,
+    percentReference,
     xScale, zoomedXScale,
     indexForDate, dateForIndex,
     visibleRange,
@@ -1269,6 +1271,7 @@ export function CandlestickChart({
     hoveredDrawingIdRef, measureBodyHoveredRef,
     dblClickTargetRef,
     yAutoScalingState,
+    priceScaleMode,
     zoomable,
     initialVisibleCandles,
     initialVisibleRange,
@@ -1983,7 +1986,13 @@ export function CandlestickChart({
   const vFmt = formatVolume ?? DEFAULT_VOLUME_FORMAT;
   // Every price-axis-pinned badge reads through this instead of `pFmt` directly, so they always
   // agree with the axis right beside them (same compareMode check as its own tickFormat).
-  const priceAxisFmt = (v: number) => (compareMode ? formatPercentFromReference(v, overlayProjections[0]?.mainReference ?? v) : pFmt(v));
+  // Échelle en % (Paramètres → Échelles) : même lecture, depuis la clôture de la première bougie visible.
+  const priceAxisFmt = (v: number) =>
+    compareMode
+      ? formatPercentFromReference(v, overlayProjections[0]?.mainReference ?? v)
+      : percentReference !== null
+        ? formatPercentFromReference(v, percentReference)
+        : pFmt(v);
 
   // Which drawing the menu's object commands will act on: the one under the pointer, or failing
   // that the selected one — the same precedence the floating toolbar uses.
@@ -2115,6 +2124,14 @@ export function CandlestickChart({
     ...(onCreateAlert ? { openIndicatorAlert: (id: string, label: string, value: number | undefined) => alertFlow.openForIndicator(id, label, value) } : {}),
     ...(onAddSymbolOverlay ? { openAddSymbol: () => openSymbolSearch("add") } : {}),
     resetZoom: () => resetZoom(),
+    priceScaleMode,
+    setPriceScaleMode,
+    priceAutoFit: yAutoScalingState,
+    setPriceAutoFit: (on: boolean) => {
+      setYAutoScalingState(on);
+      onYAutoScalingChange?.(on);
+      resetYAxis();
+    },
     fullscreenToggle,
     isFullscreen,
     toggleFullscreen: () => toggleFullscreen(),
@@ -2870,8 +2887,14 @@ export function CandlestickChart({
         downColorOverride={downColorOverride}
         setDownColorOverride={setDownColorOverride}
         yAutoScalingState={yAutoScalingState}
-        setYAutoScalingState={setYAutoScalingState}
+        setYAutoScalingState={(on: boolean) => {
+          setYAutoScalingState(on);
+          // Activé : repart tout de suite sur les bougies visibles, même après un réglage à la main.
+          resetYAxis();
+        }}
         onYAutoScalingChange={onYAutoScalingChange}
+        priceScaleMode={priceScaleMode}
+        setPriceScaleMode={setPriceScaleMode}
         futureZoneVisible={futureZoneVisible} setFutureZoneVisible={setFutureZoneVisible}
         pastZoneVisible={pastZoneVisible} setPastZoneVisible={setPastZoneVisible}
         eventKinds={eventKinds}

@@ -8,6 +8,7 @@ import { Tabs } from "../../../primitives/Tabs";
 import { capitalize } from "../formatting";
 import { CHART_DISPLAY_MODES } from "../chartModes";
 import type { ChartDisplayMode } from "../interfaces/ChartDisplayMode.interface";
+import type { PriceScaleMode } from "../interfaces/PriceScaleMode.interface";
 import type { CandleColorRule } from "../interfaces/CandleColorRule.interface";
 import type { Indicator } from "../interfaces/Indicator.interface";
 import { CandleColorRulesEditor } from "./CandleColorRulesEditor";
@@ -36,6 +37,9 @@ export interface ChartSettingsModalsProps {
   yAutoScalingState: boolean;
   setYAutoScalingState: (checked: boolean) => void;
   onYAutoScalingChange: ((value: boolean) => void) | undefined;
+  /** Échelle de l'axe des prix (section « Échelles ») : linéaire, logarithmique ou en %. */
+  priceScaleMode: PriceScaleMode;
+  setPriceScaleMode: (mode: PriceScaleMode) => void;
   futureZoneVisible: boolean;
   setFutureZoneVisible: (checked: boolean) => void;
   pastZoneVisible: boolean;
@@ -65,6 +69,13 @@ export interface ChartSettingsModalsProps {
   candleRuleIndicators: Indicator[];
 }
 
+/** Les échelles proposées pour l'axe des prix, dans l'ordre de la section « Échelles ». */
+const PRICE_SCALE_OPTIONS: { mode: PriceScaleMode; label: string; hint: string }[] = [
+  { mode: "linear", label: "Linéaire", hint: "L'écart de prix est proportionnel à la hauteur" },
+  { mode: "log", label: "Logarithmique", hint: "Une même variation en % a la même hauteur partout — utile sur un long historique" },
+  { mode: "percent", label: "Pourcentage", hint: "L'axe se lit en % de variation depuis la première bougie visible" },
+];
+
 type SettingsTab = "bougies" | "affichage" | "evenements" | "integration";
 
 /** The two small "chart settings" modals — up/down candle colors + YAutoScaling toggle + per-kind
@@ -89,6 +100,8 @@ export function ChartSettingsModals({
   yAutoScalingState,
   setYAutoScalingState,
   onYAutoScalingChange,
+  priceScaleMode,
+  setPriceScaleMode,
   futureZoneVisible,
   setFutureZoneVisible,
   pastZoneVisible,
@@ -270,14 +283,42 @@ export function ChartSettingsModals({
               </button>
             )}
           </div>
-          <Checkbox
-            checked={yAutoScalingState}
-            onChange={(checked) => {
-              setYAutoScalingState(checked);
-              onYAutoScalingChange?.(checked);
-            }}
-            label="Rescale automatique de l'axe des prix au zoom"
-          />
+          {/* ── Section « Échelles » : échelle de l'axe des prix + ajustement automatique. Bloc
+              autonome (rien d'autre n'en dépend dans cette fenêtre) : à déplacer tel quel si les
+              onglets sont réorganisés. Même réglage que le sous-menu « Échelle des prix » du clic
+              droit ; enregistré via `onAppearanceChange` (`priceScale`, `autoFit`). ── */}
+          <div className="lq-field lq-chart__settings-scales">
+            <label className="lq-field__label">Échelle de l'axe des prix</label>
+            <div className="lq-chart__display-mode-menu" role="radiogroup" aria-label="Échelle de l'axe des prix">
+              {PRICE_SCALE_OPTIONS.map((option) => (
+                <button
+                  key={option.mode}
+                  type="button"
+                  role="radio"
+                  aria-checked={option.mode === priceScaleMode}
+                  title={option.hint}
+                  className={["lq-chart__display-mode-option", option.mode === priceScaleMode && "lq-chart__display-mode-option--selected"]
+                    .filter(Boolean)
+                    .join(" ")}
+                  onClick={() => setPriceScaleMode(option.mode)}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+            <Checkbox
+              checked={yAutoScalingState}
+              onChange={(checked) => {
+                setYAutoScalingState(checked);
+                onYAutoScalingChange?.(checked);
+              }}
+              label="Ajuster automatiquement aux données visibles (auto fit)"
+            />
+            <p className="lq-chart__settings-hint">
+              En automatique, chaque axe Y suit les données visibles quand on se déplace dans le temps. Glisser
+              un axe le règle à la main (pastille « M ») ; un double-clic sur l'axe le rend à l'automatique.
+            </p>
+          </div>
           <Checkbox
             checked={pastZoneVisible}
             onChange={setPastZoneVisible}

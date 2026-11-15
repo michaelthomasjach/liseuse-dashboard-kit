@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { CandleColorRule } from "../interfaces/CandleColorRule.interface";
+import type { PriceScaleMode } from "../interfaces/PriceScaleMode.interface";
 
 /** Réglages d'apparence du graphique (fenêtres « Paramètres du graphique » et « Paramètres du
  *  panneau Volume ») qu'une application peut enregistrer : couleurs des bougies et du volume,
@@ -14,6 +15,10 @@ export interface ChartAppearanceSettings {
   futureZone?: boolean;
   /** Couleurs conditionnelles des bougies (onglet Bougies), dans leur ordre de priorité — voir `CandleColorRule`. */
   candleColorRules?: CandleColorRule[];
+  /** Échelle de l'axe des prix : linéaire (défaut), logarithmique ou en % — voir `PriceScaleMode`. */
+  priceScale?: PriceScaleMode;
+  /** Ajustement automatique de l'axe des prix aux bougies visibles (défaut : la prop `YAutoScaling`). */
+  autoFit?: boolean;
 }
 
 export interface UseChartAppearanceControlledSettings {
@@ -64,7 +69,9 @@ export function useChartAppearance({ YAutoScaling, livePrice, controlledSettings
   // Seeded from the `YAutoScaling` prop, then owned locally once the settings-modal checkbox can
   // change it — same uncontrolled pattern as `drawings`/`indicators`, not a live mirror of the
   // prop after mount.
-  const [yAutoScalingState, setYAutoScalingState] = useState(YAutoScaling);
+  // Le réglage enregistré par l'application (`defaultAppearance.autoFit`) l'emporte sur la prop.
+  const [yAutoScalingState, setYAutoScalingState] = useState(defaultAppearance?.autoFit ?? YAutoScaling);
+  const [priceScaleMode, setPriceScaleMode] = useState<PriceScaleMode>(defaultAppearance?.priceScale ?? "linear");
   // Whether the hatched "future"/"past" zones (past the last candle to the plot's own right edge,
   // and before the first candle to its left edge) are drawn — chart-settings toggles, not props,
   // same reasoning as yAutoScalingState above: purely a viewer preference, with no data of its own
@@ -111,8 +118,10 @@ export function useChartAppearance({ YAutoScaling, livePrice, controlledSettings
       pastZone: pastZoneVisible,
       futureZone: futureZoneVisible,
       candleColorRules: internalCandleColorRules,
+      priceScale: priceScaleMode,
+      autoFit: yAutoScalingState,
     });
-  }, [upColorOverride, downColorOverride, volumeUpColorOverride, volumeDownColorOverride, closePulseVisible, pastZoneVisible, futureZoneVisible, internalCandleColorRules]);
+  }, [upColorOverride, downColorOverride, volumeUpColorOverride, volumeDownColorOverride, closePulseVisible, pastZoneVisible, futureZoneVisible, internalCandleColorRules, priceScaleMode, yAutoScalingState]);
 
   // Ticks once a second, only while `livePrice` is on — its only job is giving the countdown
   // badge (a plain DOM element, not part of the canvas draw effect) a reason to re-render each
@@ -139,6 +148,8 @@ export function useChartAppearance({ YAutoScaling, livePrice, controlledSettings
     setVolumeSettingsOpen,
     yAutoScalingState,
     setYAutoScalingState,
+    priceScaleMode,
+    setPriceScaleMode,
     closePulseVisible,
     setClosePulseVisible,
     futureZoneVisible,

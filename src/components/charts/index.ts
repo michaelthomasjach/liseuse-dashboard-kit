@@ -167,6 +167,7 @@ export type { ChartAppearanceSettings } from "./candlestick/hooks/useChartAppear
 export type { CandleColorRule, CandleColorCondition, CandleColorMetric, CandleColorOperator } from "./candlestick/interfaces/CandleColorRule.interface";
 export { CANDLE_COLOR_RULE_TEMPLATES } from "./candlestick/candleColorRules";
 export type { ChartDisplayMode } from "./candlestick/interfaces/ChartDisplayMode.interface";
+export type { PriceScaleMode } from "./candlestick/interfaces/PriceScaleMode.interface";
 export { DEFAULT_DAY_SEPARATORS } from "./candlestick/daySeparators";
 export type { PriceAlertLine } from "./candlestick/render/drawPriceAlertLines";
 // Conversations de l'assistant, gardées par l'application (CandlestickChartProps.ai.conversations).

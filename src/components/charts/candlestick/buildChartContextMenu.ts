@@ -5,6 +5,10 @@ import type { ChartContextMenuItem, ChartMenuTarget } from "./components/ChartCo
 import type { Candle } from "./interfaces/Candle.interface";
 import type { TrendLineDrawing } from "./interfaces/TrendLineDrawing.interface";
 import { drawingNoun } from "./drawingCatalog";
+import type { PriceScaleMode } from "./interfaces/PriceScaleMode.interface";
+
+/** Libellés des échelles de l'axe des prix, dans l'ordre du menu. */
+const PRICE_SCALE_LABELS: Record<PriceScaleMode, string> = { linear: "Linéaire", log: "Logarithmique", percent: "Pourcentage" };
 
 /** Where the right-click landed, in both coordinate spaces the menu needs. */
 export interface ChartContextMenuAnchor {
@@ -59,6 +63,12 @@ export interface BuildChartContextMenuArgs {
   /** Ouvre la recherche pour ajouter un symbole au graphique ; entrée absente sans elle. */
   openAddSymbol?: () => void;
   resetZoom: () => void;
+  /** Échelle de l'axe des prix et ajustement automatique aux bougies visibles : sous-menu « Échelle des
+   *  prix » (clic droit sur la zone des prix ou son axe), le même réglage que Paramètres → Échelles. */
+  priceScaleMode?: PriceScaleMode;
+  setPriceScaleMode?: (mode: PriceScaleMode) => void;
+  priceAutoFit?: boolean;
+  setPriceAutoFit?: (on: boolean) => void;
   fullscreenToggle: boolean;
   isFullscreen: boolean;
   toggleFullscreen: () => void;
@@ -104,6 +114,10 @@ export function buildChartContextMenu({
   openIndicatorAlert,
   openAddSymbol,
   resetZoom,
+  priceScaleMode,
+  setPriceScaleMode,
+  priceAutoFit,
+  setPriceAutoFit,
   fullscreenToggle,
   isFullscreen,
   toggleFullscreen,
@@ -255,6 +269,29 @@ export function buildChartContextMenu({
     // (Les moyennes sur le panneau d'un indicateur passent par « Ajouter un indicateur sur … », qui les propose.)
     { separator: true },
     { label: "Réinitialiser le zoom", hint: "Espace", onSelect: resetZoom, target: onChart },
+    ...(!inSubPane && setPriceScaleMode && setPriceAutoFit
+      ? ([
+          {
+            label: "Échelle des prix",
+            hint: [priceAutoFit ? "Auto" : null, PRICE_SCALE_LABELS[priceScaleMode ?? "linear"]].filter(Boolean).join(" · "),
+            onSelect: () => {},
+            target: onPrice,
+            submenu: [
+              {
+                label: "Auto (ajuster aux données visibles)",
+                hint: priceAutoFit ? "✓" : undefined,
+                onSelect: () => setPriceAutoFit(!priceAutoFit),
+              },
+              { separator: true },
+              ...(Object.keys(PRICE_SCALE_LABELS) as PriceScaleMode[]).map((mode) => ({
+                label: PRICE_SCALE_LABELS[mode],
+                hint: (priceScaleMode ?? "linear") === mode ? "✓" : undefined,
+                onSelect: () => setPriceScaleMode(mode),
+              })),
+            ],
+          },
+        ] as ChartContextMenuItem[])
+      : []),
     ...(fullscreenToggle
       ? ([{ label: isFullscreen ? "Quitter le plein écran" : "Plein écran", onSelect: toggleFullscreen, target: onChart }] as ChartContextMenuItem[])
       : []),

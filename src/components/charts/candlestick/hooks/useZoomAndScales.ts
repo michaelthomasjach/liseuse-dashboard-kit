@@ -13,6 +13,31 @@ import { MAX_EMPTY_FRACTION, AXIS_BADGE_HALF_HEIGHT, MAX_DATE_TICKS, MIN_DATE_TI
 import { computeHeikinAshiCandles, computeRenkoBrickSize, computeRenkoBricks, computeLineBreakBricks, type PriceBrick } from "../chartModes";
 import { transformForVisibleRange, visibleRangeOfDomain } from "../visibleRangeSync";
 import { useFrozenDomains } from "./usePaneStackScales";
+import type { PriceScaleMode } from "../interfaces/PriceScaleMode.interface";
+
+/** Une échelle logarithmique propose jusqu'à neuf graduations par décade (1, 2, … 9 × 10ⁿ) : sur un
+ *  long historique, l'axe et la grille en devenaient illisibles. Ne garde alors que les 1-2-5 de
+ *  chaque décade, puis seulement les puissances de dix s'il en reste trop. En place sur l'échelle
+ *  zoomée, la dernière copie : l'axe (ChartAxis) et la grille du canevas lisent tous deux ses `ticks`. */
+function thinLogTicks(scale: d3.ScaleLinear<number, number>): d3.ScaleLinear<number, number> {
+  const base = scale.ticks.bind(scale);
+  scale.ticks = (count = 10) => {
+    // Moins d'une décade à l'écran : d3 n'y trouve que deux ou trois valeurs (80, 90, 100, 200),
+    // avec un grand vide entre 100 et 200. Des valeurs rondes à pas constant s'y lisent mieux — leur
+    // position reste logarithmique, seul le choix des valeurs change.
+    const [d0, d1] = scale.domain();
+    const lo = Math.min(d0, d1);
+    const hi = Math.max(d0, d1);
+    if (lo > 0 && hi / lo < 10) return d3.ticks(lo, hi, count);
+    const all = base(count);
+    if (all.length <= count * 2) return all;
+    const lead = (v: number) => Math.round(v / Math.pow(10, Math.floor(Math.log10(v) + 1e-9)));
+    const nice = all.filter((v) => [1, 2, 5].includes(lead(v)));
+    if (nice.length <= count * 2) return nice;
+    return all.filter((v) => lead(v) === 1);
+  };
+  return scale;
+}
 
 /** Candle indices (offset .5 to land mid-slot, matching every candle's own cx) a date axis
  *  should actually draw a tick at — thinned to at most MAX_DATE_TICKS regardless of how many
@@ -77,6 +102,9 @@ export interface UseZoomAndScalesArgs {
    *  margin, so it should not scale with the zoom. */
   futureBars: number;
   yAutoScalingState: boolean;
+  /** Échelle de l'axe des prix (voir PriceScaleMode). Seul `log` change l'échelle elle-même ; `percent`
+   *  ne change que la lecture de l'axe (CandlestickChart). Défaut `linear`. */
+  priceScaleMode?: PriceScaleMode;
   zoomable: boolean;
   initialVisibleCandles: number | undefined;
   /** Voir CandlestickChartProps.initialVisibleRange : la vue de départ, par dates, si l'hôte en a une. */
@@ -136,6 +164,7 @@ export function useZoomAndScales({
   dblClickTargetRef,
   futureBars,
   yAutoScalingState,
+  priceScaleMode = "linear",
   zoomable,
   initialVisibleCandles,
   initialVisibleRange,
@@ -367,16 +396,43 @@ export function useZoomAndScales({
   // stable base for `zoomedPriceScale` below. `YAutoScaling` doesn't change this scale itself;
   // instead a separate effect derives an equivalent `yTransform` that makes the *zoomed* scale
   // fit the currently visible candles, leaving this one untouched (see below).
+  //
+  // Logarithmique (`priceScaleMode === "log"`) : une d3.scaleLog, typée comme la linéaire qu'attend
+  // tout le reste du graphique — elle en a l'usage (appel, invert, domain, range, ticks, copy), et
+  // `ZoomTransform.rescaleY` agit en pixels, donc le zoom et le glisser de l'axe restent justes. Pas
+  // possible avec un plus bas nul ou négatif (une série qui n'est pas un cours) : linéaire alors.
+  const logPrice = priceScaleMode === "log" && data.length > 0 && (d3.min(data, (d) => d.low) ?? 0) > 0;
   const priceScale = useMemo(() => {
     const highs = data.map((d) => d.high);
     const lows = data.map((d) => d.low);
     const min = d3.min(lows) ?? 0;
     const max = d3.max(highs) ?? 1;
+    if (logPrice) {
+      const f = Math.pow(max / min, 0.08) || 1.01;
+      return d3.scaleLog().domain([min / f, max * f]).range([priceHeight, 0]) as unknown as d3.ScaleLinear<number, number>;
+    }
     const pad = (max - min) * 0.08 || 1;
     return d3.scaleLinear().domain([min - pad, max + pad]).range([priceHeight, 0]);
-  }, [data, priceHeight]);
+  }, [data, priceHeight, logPrice]);
 
-  const zoomedPriceScale = useMemo(() => yTransform.rescaleY(priceScale), [yTransform, priceScale]);
+  // Échelle en % : la référence est la clôture de la première bougie visible (comme sur les plateformes
+  // de marché), et les graduations tombent sur des % ronds (0 %, +2 %, +4 %…) au lieu de prix ronds
+  // relus en % (« +3.7 % »). La comparaison de symboles garde sa propre référence et ses graduations.
+  const percentReference =
+    priceScaleMode === "percent" && !compareMode && data.length > 0 ? data[Math.min(data.length - 1, Math.max(0, visibleRange.start))].close : null;
+  const zoomedPriceScale = useMemo(() => {
+    const zoomed = yTransform.rescaleY(priceScale);
+    if (logPrice) thinLogTicks(zoomed);
+    if (percentReference !== null && percentReference > 0) {
+      const ref = percentReference;
+      const pct = (v: number) => (v / ref - 1) * 100;
+      zoomed.ticks = (count = 10) => {
+        const [a, b] = zoomed.domain();
+        return d3.ticks(pct(Math.min(a, b)), pct(Math.max(a, b)), count).map((p) => ref * (1 + p / 100));
+      };
+    }
+    return zoomed;
+  }, [yTransform, priceScale, logPrice, percentReference]);
 
   // Permanent price-axis badges (live price, indicator values, horizontal/ray drawing lines)
   // are positioned from a *value*, not from the mouse — unlike the hover badge, which can never
@@ -449,9 +505,11 @@ export function useZoomAndScales({
     }
     const min = d3.min(lows) ?? 0;
     const max = d3.max(highs) ?? 1;
+    // Même marge de 8 %, mais en rapport sur une échelle log (elle y a alors la même hauteur en haut et en bas).
+    const logFactor = logPrice && min > 0 ? Math.pow(max / min, 0.08) || 1.01 : null;
     const pad = (max - min) * 0.08 || 1;
-    const targetMin = min - pad;
-    const targetMax = max + pad;
+    const targetMin = logFactor !== null ? min / logFactor : min - pad;
+    const targetMax = logFactor !== null ? max * logFactor : max + pad;
     const denom = priceScale(targetMin) - priceScale(targetMax);
     if (denom <= 0) return;
     const k = priceHeight / denom;
@@ -471,7 +529,21 @@ export function useZoomAndScales({
     replayActive,
     replayCutoffIndex,
     yFitNonce,
+    logPrice,
   ]);
+
+  // Changer d'échelle (linéaire ↔ log) rend sans objet le réglage manuel de l'axe, fait sur l'autre
+  // échelle : l'axe repart en automatique (ou sur tout l'historique si l'ajustement est coupé).
+  const logPriceMountedRef = useRef(false);
+  useEffect(() => {
+    if (!logPriceMountedRef.current) {
+      logPriceMountedRef.current = true;
+      return;
+    }
+    setYTransform(d3.zoomIdentity);
+    setYManuallyAdjusted(false);
+    setYFitNonce((n) => n + 1);
+  }, [logPrice]);
 
   // Vrai tant que l'axe des prix suit les bougies visibles (voir l'effet ci-dessus) : c'est le mode
   // « automatique » de cet axe, celui que le double-clic rétablit. Faux une fois réglé à la main, ou
@@ -1001,6 +1073,7 @@ export function useZoomAndScales({
     yManuallyAdjusted,
     setYManuallyAdjusted,
     priceYAuto,
+    percentReference,
     xScale,
     zoomedXScale,
     indexForDate,

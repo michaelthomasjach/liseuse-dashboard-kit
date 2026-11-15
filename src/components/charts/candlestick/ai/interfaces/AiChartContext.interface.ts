@@ -87,6 +87,9 @@ export interface AiChartContext {
   /** Capture de ce qui est affiché (même composition que le bouton appareil photo) : ce graphique, ou tout l'espace de
    *  travail qui le contient. Null quand il n'est pas à l'écran. Voir l'outil `capturer_le_graphique`. */
   capture?: (zone: AiCaptureZone) => Promise<AiChartCapture | null>;
+  /** Les leviers du contrôle complet (navigation, axes, panneaux, apparence, fenêtres de paramètres, clic droit…),
+   *  posés par `CandlestickChart` — voir `aiChartControls`. Absent : ces outils ne sont pas proposés. */
+  controls?: import("../aiChartControls").AiChartControls;
 }
 
 /** « graphique » : la fenêtre au premier plan ; « espace_de_travail » : toutes les fenêtres de l'espace de travail. */

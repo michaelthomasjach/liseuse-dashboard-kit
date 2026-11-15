@@ -766,6 +766,12 @@ const STORY_ASSISTANT: ChartWorkspaceProps["ai"] = REAL_KEY
   ? { apiKey: REAL_KEY, workspaceId: REAL_WORKSPACE, serverTools: ["web_search"], symbols: ["AAPL", "MSFT", "NVDA"] }
   : { send: scriptedAssistant, symbols: ["AAPL", "MSFT", "NVDA"] };
 
+/** Le pont des outils de l'assistant, exposé à la page de démo (`window.__lqChartToolBridge`) : un test (Playwright)
+ *  ou la console y appellent les mêmes outils qu'un serveur MCP — `definitions()` et `run(nom, entrée)`. */
+const exposeDemoToolBridge = (bridge: unknown) => {
+  (window as unknown as { __lqChartToolBridge?: unknown }).__lqChartToolBridge = bridge ?? undefined;
+};
+
 /** L'état du graphique de la démo, gardé le temps de l'onglet (`sessionStorage`) : un rechargement retrouve le
  *  graphique tel qu'on l'a laissé — indicateurs, scripts affichés, volume, panneaux, modèles, modèle actif et modèle
  *  au démarrage —, comme le ferait une application qui les garde sur le compte. Un nouvel onglet repart de la démo
@@ -938,6 +944,7 @@ export const AllFeatures: Story = {
           scripting
           brokers={SAMPLE_BROKERS}
           ai={STORY_ASSISTANT}
+          onToolBridge={exposeDemoToolBridge}
           watchlists={liveWatchlists}
           watchlistSymbolSearchResults={watchlistSearchResults}
           onWatchlistSymbolSearchChange={(query, category) => setWatchlistSearchResults(filterMockSymbols(query, category, []))}

@@ -39,4 +39,26 @@ export interface AiWorkspaceControls {
   runScript?: (id: string) => void;
   /** Change le code et/ou le nom d'un script de la liste commune. */
   updateScript?: (id: string, patch: { code?: string; name?: string }) => void;
+
+  /** Les dispositions de la grille (menu « Disposition des fenêtres »), et celle affichée. */
+  layouts?: () => { id: string; panels: number; label: string }[];
+  layoutId?: () => string;
+  /** Applique une disposition par son id ; false si elle n'existe pas. */
+  setLayout?: (id: string) => boolean;
+  /** Symbole et unité de temps d'une fenêtre (0 = fenêtre 1), comme sa recherche de symbole et son menu d'unités. */
+  setPanelSymbol?: (index: number, symbol: string) => void;
+  setPanelTimeframe?: (index: number, timeframe: string) => void;
+  /** La fenêtre sur laquelle agissent les outils (la fenêtre active, cadre mis en avant), et son changement. */
+  target?: () => number;
+  setTarget?: (index: number) => boolean;
+  /** Le contexte de l'assistant d'une fenêtre, null si elle n'est pas affichée. */
+  contextOf?: (index: number) => import("./AiChartContext.interface").AiChartContext | null;
+  /** Fenêtre agrandie à toute la grille (plein écran de la fenêtre), null sinon. */
+  focused?: () => number | null;
+  setFocused?: (index: number | null) => void;
+  /** Groupes de fenêtres liées (réticule et plage de dates partagés), par index. */
+  linkGroups?: () => number[][];
+  link?: (indices: number[]) => void;
+  /** Délie les groupes qui contiennent ces fenêtres (toutes : tous les groupes). */
+  unlink?: (indices?: number[]) => void;
 }

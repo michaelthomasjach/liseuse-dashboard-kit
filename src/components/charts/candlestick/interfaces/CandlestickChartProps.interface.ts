@@ -120,6 +120,10 @@ export interface CandlestickChartProps {
    *  peut faire de l'espace de travail — le découper en fenêtres et donner un symbole à chacune (outils
    *  `comparer_cote_a_cote` et `creer_un_indice_ratio`). Inutile de le passer soi-même. */
   aiWorkspace?: import("../ai/interfaces/AiWorkspaceControls.interface").AiWorkspaceControls;
+  /** Posé par `ChartWorkspace` sur chacune de ses fenêtres (usage interne) : reçoit de quoi lire le contexte de
+   *  l'assistant de cette fenêtre, puis `null` au démontage — les outils de l'assistant et du pont agissent ainsi sur
+   *  la fenêtre active, pas seulement sur celle au premier plan. */
+  onAiContext?: (get: (() => import("../ai/interfaces/AiChartContext.interface").AiChartContext) | null) => void;
   /** Controls the fullscreen toggle from outside instead of it managing its own state — pairs with
    *  `onFullscreenChange` below. `ChartWorkspace` sets both so only one panel can be "focused" at a
    *  time (all its panels share one piece of state, so focusing a new one supersedes whichever had

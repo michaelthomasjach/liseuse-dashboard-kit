@@ -111,6 +111,8 @@ import { ChartContextMenu } from "./candlestick/components/ChartContextMenu";
 import { buildChartContextMenu, type ChartContextMenuAnchor } from "./candlestick/buildChartContextMenu";
 import { captureChartCanvas, runChartCapture } from "./candlestick/captureChart";
 import { createChartToolBridge } from "./candlestick/ai/chartToolBridge";
+import { buildAiChartControls, type AiControlsState } from "./candlestick/ai/aiChartControls";
+import { forwardWorkspaceExtras } from "./candlestick/ai/workspaceTools";
 import { toolMetaForType } from "./candlestick/drawingCatalog";
 import { DEFAULT_DAY_SEPARATORS, type DaySeparatorSettings } from "./candlestick/daySeparators";
 import { DaySeparatorsModal } from "./candlestick/components/DaySeparatorsModal";
@@ -249,6 +251,7 @@ function CandlestickChartBody({
   loadSymbolCandles,
   ratioSymbol,
   aiWorkspace,
+  onAiContext,
   events,
   fundamentals,
   depth,
@@ -1844,6 +1847,55 @@ function CandlestickChartBody({
   const canLoadCandles = loadSymbolCandles !== undefined || onAddSymbolOverlay !== undefined;
   const hasRatioSymbol = ratioSymbol !== undefined;
   const hasAiWorkspace = aiWorkspace !== undefined;
+  // Leviers du contrôle complet par l'IA (navigation, axes, panneaux, apparence, fenêtres de paramètres, clic droit…) :
+  // l'état de ce rendu, relu par `buildAiChartControls` au moment de chaque appel d'outil.
+  const aiControlsRef = useRef<AiControlsState | null>(null);
+  aiControlsRef.current = {
+    plotElement: ref.current, chartRoot: mainRef.current, margin: { left: dims.margin.left, top: dims.margin.top }, dataLength: data.length,
+    xScale, zoomedXScale, maxXZoom, boundedWidth: dims.boundedWidth, setXTransformAnimated, resetZoom,
+    priceScaleMode, setPriceScaleMode, yAutoScaling: yAutoScalingState,
+    setYAutoScaling: (on) => {
+      setYAutoScalingState(on);
+      onYAutoScalingChange?.(on);
+      resetYAxis();
+    },
+    priceYAuto, priceHeight, zoomedPriceScale, yTransform, setYTransform, setYManuallyAdjusted, resetYAxis,
+    volumeVisible, volumeCollapsed, volumePaneState, setVolumePaneState, volumeOverlay, setVolumeOverlay, volumeLegendHidden, toggleVolumeLegend,
+    ownPaneIndicators, paneScaleAndOffset, paneYTransform, panPaneY, resetPaneYAxis, resetAllPaneYAxes, allPanesOrder,
+    reorderPanes: (order) => reorderPanesRef.current(order), fullscreenPaneId, togglePaneFullscreen, legendCollapsed, toggleLegendCollapsed,
+    indicators: combinedIndicators, indicatorLabel, patchIndicator, appendIndicator,
+    chartStyle, setChartStyle, advancedAppearance,
+    appearance: { upColor: upColorOverride, downColor: downColorOverride, volumeUpColor: volumeUpColorOverride, volumeDownColor: volumeDownColorOverride, closePulse: closePulseVisible, futureZone: futureZoneVisible, pastZone: pastZoneVisible },
+    setUpColor: setUpColorOverride, setDownColor: setDownColorOverride, setVolumeUpColor: setVolumeUpColorOverride, setVolumeDownColor: setVolumeDownColorOverride,
+    setClosePulse: setClosePulseVisible, setFutureZone: setFutureZoneVisible, setPastZone: setPastZoneVisible,
+    candleColorRules, setCandleColorRules: (rules) => setCandleColorRules(rules as typeof candleColorRules),
+    displayMode: chartDisplayMode, displayModes: CHART_DISPLAY_MODES.map((m) => ({ mode: m.mode, label: m.label })),
+    setDisplayMode: (mode) => {
+      setChartDisplayMode(mode as typeof chartDisplayMode);
+      onChartDisplayModeChange?.(mode as typeof chartDisplayMode);
+    },
+    templates: templates.map((t) => ({ id: t.id, name: t.name })), activeTemplateId: activeTemplateId ?? null, loadTemplate, saveTemplateAs,
+    drawingsHidden, setDrawingsHidden, drawingsLocked, setDrawingsLocked, drawings: currentDrawings,
+    editDrawing: (dr) => {
+      setEditingId(dr.id);
+      setDraft(dr);
+    },
+    alerts: alerts ?? [], onCreateAlert, onUpdateAlert, onDeleteAlert,
+    isFullscreen, toggleFullscreen: () => toggleFullscreen(), symbolInfoHidden, setSymbolInfoHidden, marketStateOpen, setMarketStateOpen,
+    undo: () => historyRef.current.undo(), redo: () => historyRef.current.redo(),
+    openSystemSettings: () => setSettingsOpen(true), openSymbolSettings: () => setPriceSettingsOpen(true), openVolumeSettings: () => setVolumeSettingsOpen(true),
+    openDaySeparators: () => setDaySeparatorsSettingsOpen(true), openIndicatorSettings,
+  };
+  // Chaque fenêtre d'un espace de travail donne son contexte à l'espace de travail, pour que les outils agissent sur la
+  // fenêtre active (voir `ChartWorkspace` et `resolveToolTarget`).
+  const onAiContextRef = useRef(onAiContext);
+  onAiContextRef.current = onAiContext;
+  const hasOnAiContext = onAiContext !== undefined;
+  useEffect(() => {
+    if (!hasOnAiContext) return;
+    onAiContextRef.current?.(() => aiChartRef.current!);
+    return () => onAiContextRef.current?.(null);
+  }, [hasOnAiContext]);
   const aiChart = useMemo(
     () => ({
       ...aiChartBase,
@@ -1905,6 +1957,7 @@ function CandlestickChartBody({
               showSymbols: (symbols: string[], arrangement: "cote_a_cote" | "empilees" | "grille") =>
                 aiExtrasRef.current.aiWorkspace?.showSymbols(symbols, arrangement) ?? { layoutLabel: "", timeframe: undefined },
               addPanel: (ticker: string) => aiExtrasRef.current.aiWorkspace?.addPanel(ticker) ?? null,
+              ...forwardWorkspaceExtras(() => aiExtrasRef.current.aiWorkspace),
             },
           }
         : {}),
@@ -1955,6 +2008,7 @@ function CandlestickChartBody({
         else aiScriptsRef.current.scriptingState.updateScript(id, { name, named: true });
       },
       customIndicatorDefs: () => aiScriptsRef.current.customIndicators ?? [],
+      controls: buildAiChartControls(() => aiControlsRef.current!),
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [aiChartBase, replay, canLoadCandles, hasRatioSymbol, hasAiWorkspace],

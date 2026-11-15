@@ -6,6 +6,12 @@ import { SCRIPTING_DOCS_TOOL } from "./scriptingDocs";
 import { findUiButton, highlightUiElement, listUiButtons } from "./uiHighlight";
 import { COMPARISON_TOOLS, comparisonToolAvailable } from "./comparisonTools";
 import { CAPTURE_TOOL, CAPTURE_TOOLS } from "./captureTool";
+import { DESCRIBE_TOOL, DESCRIBE_TOOL_NAME } from "./describeTool";
+import { CONTROL_TOOLS, controlToolAvailable } from "./controlTools";
+import { DRAWING_TOOLS } from "./drawingTools";
+import { UI_TOOLS, uiToolAvailable } from "./uiTools";
+import { WORKSPACE_TOOLS, workspaceToolAvailable } from "./workspaceTools";
+import { nextFrame as waitFrame } from "./uiControl";
 import type { ScriptDef } from "../interfaces/ScriptDef.interface";
 import type { Indicator } from "../interfaces/Indicator.interface";
 import { indicatorNameKey, placementProblem, plotPlacementOf, type IndicatorPlacement } from "../scripting/indicatorNameGuard";
@@ -207,38 +213,8 @@ function listExistingIndicators(chart: AiChartContext, filter: string | undefine
 }
 
 export const AI_TOOLS: AiTool[] = [
-  {
-    definition: {
-      name: "lire_le_graphique",
-      description:
-        "Ce que le graphique montre en ce moment : symbole, unité de temps, nombre de bougies, période couverte, dernier cours, indicateurs actifs (id, nom, emplacement), dessins, scripts (id, nom, type, emplacement). À appeler avant toute action dont la réponse dépend de l'état courant. Pour l'inventaire complet avant de créer un indicateur : lister_les_indicateurs_existants.",
-      inputSchema: { type: "object", properties: {}, additionalProperties: false },
-    },
-    run: (_input, chart) => {
-      const first = chart.data[0];
-      const last = chart.data[chart.data.length - 1];
-      const indicators = chart.indicators.map((i) => `${chart.indicatorLabel(i)} (id ${i.id}, ${placementOfIndicator(i)})`);
-      const scripts = allScripts(chart).map(
-        (s) => `${s.name} [${analyzeScriptKind(s.code).kind}] (id ${s.id}, ${placementOfScript(s.code)}${s.enabled === false ? ", désactivé" : ""})`,
-      );
-      return {
-        content: [
-          `Symbole : ${chart.symbol ?? "non renseigné"}`,
-          `Unité de temps : ${chart.timeframe ?? "non renseignée"} (disponibles : ${chart.availableTimeframes.join(", ") || "aucune"})`,
-          `Bougies : ${chart.data.length}${first && last ? ` du ${first.date.toISOString().slice(0, 10)} au ${last.date.toISOString().slice(0, 10)}` : ""}`,
-          last ? `Dernière clôture : ${last.close}` : "",
-          `Volume affiché : ${chart.volumeVisible ? "oui" : "non"}`,
-          `Indicateurs : ${indicators.join(" ; ") || "aucun"}`,
-          `Dessins : ${chart.drawings().length}`,
-          `Scripts : ${scripts.join(" ; ") || "aucun"}`,
-          `Données fondamentales : ${chart.fundamentals?.length ?? 0} points`,
-          chart.workspace ? `Fenêtres de l'espace de travail : ${describePanels(chart)}` : "",
-        ]
-          .filter(Boolean)
-          .join("\n"),
-      };
-    },
-  },
+  // État complet du graphique, par parties (voir describeTool).
+  DESCRIBE_TOOL,
   {
     definition: {
       name: "lister_les_indicateurs_disponibles",
@@ -267,30 +243,61 @@ export const AI_TOOLS: AiTool[] = [
     definition: {
       name: "ajouter_un_indicateur",
       description:
-        "Affiche un indicateur EXISTANT du catalogue, tel quel (par exemple « ajoute une SMA 50 », « affiche le RSI »). Utiliser le « kind » exact renvoyé par lister_les_indicateurs_disponibles. Pour le volume, utiliser afficher_le_volume. Ne pas l'utiliser quand on demande de faire, créer, coder, produire ou réaliser un indicateur, un système ou une stratégie (même s'il réunit des indicateurs existants) : dans ce cas, utiliser coder_un_indicateur puis ecrire_un_script — et jamais les deux pour une même demande.",
+        "Affiche un indicateur EXISTANT du catalogue, tel quel (par exemple « ajoute une SMA 50 », « affiche le RSI »), et rend son id (pour regler_indicateur, regler_panneau). Utiliser le « kind » exact renvoyé par lister_les_indicateurs_disponibles. « sur_le_panneau » pose une moyenne (sma, ema, wma) sur le panneau d'un autre indicateur ou du volume ; « sur_les_prix » dessine un indicateur de panneau directement sur le graphique des prix (overlay). Pour le volume lui-même, utiliser afficher_le_volume. Ne pas l'utiliser quand on demande de faire, créer, coder, produire ou réaliser un indicateur, un système ou une stratégie (même s'il réunit des indicateurs existants) : dans ce cas, utiliser coder_un_indicateur puis ecrire_un_script — et jamais les deux pour une même demande.",
       inputSchema: {
         type: "object",
         properties: {
           kind: { type: "string", description: "Identifiant technique de l'indicateur, par exemple sma, ema, rsi, macd." },
           period: { type: "number", description: "Période, quand l'indicateur en accepte une. Sinon sa valeur par défaut est utilisée." },
+          couleur: { type: "string", description: "Couleur CSS de la courbe, facultative." },
+          sur_le_panneau: { type: "string", description: "Facultatif : id du panneau d'un indicateur (ou « volume ») sur lequel poser la moyenne (sma, ema, wma seulement)." },
+          sur_les_prix: { type: "boolean", description: "Facultatif : un indicateur de panneau (RSI, MACD…) dessiné sur le graphique des prix plutôt que dans son panneau." },
         },
         required: ["kind"],
         additionalProperties: false,
       },
     },
-    run: (input, chart) => {
+    run: async (input, chart) => {
       const kind = str(input, "kind");
       const entry = chart.indicatorCatalog.find((e) => e.kind === kind);
       if (!entry) return { content: `Aucun indicateur « ${kind} ». Appelez lister_les_indicateurs_disponibles.`, isError: true };
       const period = num(input, "period");
-      chart.addIndicator(period !== undefined && entry.hasPeriod ? { ...entry, defaultPeriod: period } : entry);
-      return { content: `${entry.label}${period !== undefined && entry.hasPeriod ? ` (période ${period})` : ""} ajouté au graphique.` };
+      const color = str(input, "couleur");
+      const pane = str(input, "sur_le_panneau");
+      const onPrice = input.sur_les_prix === true;
+      const controls = chart.controls;
+      const before = new Set((controls?.indicators() ?? chart.indicators).map((i) => i.id));
+      const usedPeriod = period !== undefined && entry.hasPeriod ? period : entry.defaultPeriod;
+      if (pane || color || onPrice) {
+        if (!controls) return { content: "Ces options ne sont pas disponibles ici : ajoutez l'indicateur sans elles.", isError: true };
+        if (pane) {
+          if (!["sma", "ema", "wma"].includes(entry.kind)) return { content: "Seules les moyennes (sma, ema, wma) se posent sur le panneau d'un autre indicateur.", isError: true };
+          const target = pane === "volume" ? "volume" : controls.panes().find((p) => p.id === pane && p.kind === "indicateur")?.id;
+          if (!target) return { content: `Panneau « ${pane} » introuvable. Panneaux : ${controls.panes().filter((p) => p.kind !== "prix").map((p) => p.id).join(", ") || "aucun"}.`, isError: true };
+        }
+        controls.appendIndicator({
+          kind: entry.kind,
+          period: usedPeriod,
+          ...(entry.hasStdDev ? { stdDev: 2 } : {}),
+          ...(entry.kind === "macd" ? { fastPeriod: 12, slowPeriod: 26, signalPeriod: 9 } : {}),
+          ...(color ? { color } : {}),
+          ...(pane ? { sourceId: pane } : {}),
+          ...(onPrice && entry.pane === "own" ? { priceOverlay: true } : {}),
+        });
+      } else {
+        chart.addIndicator(period !== undefined && entry.hasPeriod ? { ...entry, defaultPeriod: period } : entry);
+      }
+      await waitFrame();
+      const added = (chart.controls?.indicators() ?? []).find((i) => !before.has(i.id));
+      return {
+        content: `${entry.label}${period !== undefined && entry.hasPeriod ? ` (période ${period})` : ""} ajouté au graphique${pane ? ` sur le panneau ${pane}` : onPrice ? " (sur les prix)" : ""}${added ? `, id « ${added.id} »` : ""}.`,
+      };
     },
   },
   {
     definition: {
       name: "retirer_un_indicateur",
-      description: "Retire un indicateur du graphique, par son id (voir lire_le_graphique).",
+      description: "Retire un indicateur du graphique, par son id (voir decrire_le_graphique).",
       inputSchema: { type: "object", properties: { id: { type: "string" } }, required: ["id"], additionalProperties: false },
     },
     run: (input, chart) => {
@@ -304,19 +311,29 @@ export const AI_TOOLS: AiTool[] = [
   {
     definition: {
       name: "afficher_le_volume",
-      description: "Affiche ou masque le panneau de volume sous les bougies.",
-      inputSchema: { type: "object", properties: { visible: { type: "boolean" } }, required: ["visible"], additionalProperties: false },
+      description: "Affiche ou masque le volume : dans son panneau sous les bougies, ou superposé en bas du graphique des prix (mode « sur_les_prix »).",
+      inputSchema: {
+        type: "object",
+        properties: {
+          visible: { type: "boolean", description: "Afficher (vrai) ou masquer (faux) le volume." },
+          mode: { type: "string", enum: ["panneau", "sur_les_prix"], description: "Facultatif : dans son panneau, ou superposé aux prix." },
+        },
+        required: ["visible"],
+        additionalProperties: false,
+      },
     },
     run: (input, chart) => {
       const visible = input.visible === true;
       chart.setVolumeVisible(visible);
-      return { content: visible ? "Volume affiché." : "Volume masqué." };
+      const mode = str(input, "mode");
+      if (visible && mode && chart.controls) chart.controls.setVolumeOverlay(mode === "sur_les_prix");
+      return { content: visible ? `Volume affiché${mode === "sur_les_prix" ? " sur les prix" : mode === "panneau" ? " dans son panneau" : ""}.` : "Volume masqué." };
     },
   },
   {
     definition: {
       name: "changer_l_unite_de_temps",
-      description: "Change l'unité de temps du graphique. La valeur doit être l'une de celles renvoyées par lire_le_graphique.",
+      description: "Change l'unité de temps du graphique. La valeur doit être l'une de celles renvoyées par decrire_le_graphique.",
       inputSchema: { type: "object", properties: { timeframe: { type: "string" } }, required: ["timeframe"], additionalProperties: false },
     },
     run: (input, chart) => {
@@ -341,36 +358,6 @@ export const AI_TOOLS: AiTool[] = [
       if (!symbol) return { content: "Aucun symbole fourni.", isError: true };
       chart.setSymbol(symbol.toUpperCase());
       return { content: `Symbole demandé : ${symbol.toUpperCase()}. C'est l'application qui fournit les données ; si elle n'en a pas pour ce symbole, le graphique ne changera pas.` };
-    },
-  },
-  {
-    definition: {
-      name: "tracer_une_ligne_horizontale",
-      description: "Trace une ligne horizontale à un prix donné, sur toute la largeur du graphique.",
-      inputSchema: {
-        type: "object",
-        properties: { prix: { type: "number" }, couleur: { type: "string", description: "Couleur CSS, facultative." } },
-        required: ["prix"],
-        additionalProperties: false,
-      },
-    },
-    run: (input, chart) => {
-      const price = num(input, "prix");
-      if (price === undefined) return { content: "Prix manquant.", isError: true };
-      if (chart.data.length === 0) return { content: "Le graphique n'a aucune bougie.", isError: true };
-      chart.commitDrawings([
-        ...chart.drawings(),
-        {
-          id: chart.nextDrawingId(),
-          x1: chart.data[0].date,
-          y1: price,
-          x2: chart.data[chart.data.length - 1].date,
-          y2: price,
-          lineType: "horizontal",
-          color: str(input, "couleur"),
-        },
-      ]);
-      return { content: `Ligne horizontale tracée à ${price}.` };
     },
   },
   {
@@ -411,18 +398,6 @@ export const AI_TOOLS: AiTool[] = [
       return {
         content: `Canal tracé sur ${span.count} bougies : haut ${span.high.toFixed(2)}, bas ${span.low.toFixed(2)}, du ${span.first.date.toISOString().slice(0, 10)} au ${span.last.date.toISOString().slice(0, 10)}.`,
       };
-    },
-  },
-  {
-    definition: {
-      name: "effacer_les_dessins",
-      description: "Efface tous les dessins du graphique.",
-      inputSchema: { type: "object", properties: {}, additionalProperties: false },
-    },
-    run: (_input, chart) => {
-      const count = chart.drawings().length;
-      chart.commitDrawings([]);
-      return { content: `${count} dessin(s) effacé(s).` };
     },
   },
   {
@@ -518,7 +493,7 @@ export const AI_TOOLS: AiTool[] = [
   {
     definition: {
       name: "ouvrir_un_script",
-      description: "Ouvre un script existant dans la fenêtre de développement (l'éditeur), sur son onglet. L'id est donné par lire_le_graphique.",
+      description: "Ouvre un script existant dans la fenêtre de développement (l'éditeur), sur son onglet. L'id est donné par decrire_le_graphique.",
       inputSchema: { type: "object", properties: { id: { type: "string" } }, required: ["id"], additionalProperties: false },
     },
     run: (input, chart) => {
@@ -685,7 +660,7 @@ export const AI_TOOLS: AiTool[] = [
       inputSchema: {
         type: "object",
         properties: {
-          id: { type: "string", description: "Id du script (lire_le_graphique ou lister_les_indicateurs_existants)." },
+          id: { type: "string", description: "Id du script (decrire_le_graphique ou lister_les_indicateurs_existants)." },
           code: { type: "string", description: "Le nouveau code complet. Omettre pour seulement renommer." },
           nom: { type: "string", description: "Nouveau nom, facultatif. Refusé s'il est déjà pris." },
           emplacement: { type: "string", enum: ["prix", "panneau"], description: PLACEMENT_DOC },
@@ -877,9 +852,40 @@ export const AI_TOOLS: AiTool[] = [
   },
   // Comparaisons entre symboles : côte à côte, performances, indice A / B (voir comparisonTools).
   ...COMPARISON_TOOLS,
+  // Contrôle complet du graphique : navigation, axes, apparence, indicateurs, panneaux, modèles, style conditionnel,
+  // type de graphique, comparaisons, alertes, affichage, annuler (controlTools) ; dessins (drawingTools) ; fenêtres de
+  // paramètres, interaction générique et clic droit (uiTools) ; fenêtres de l'espace de travail (workspaceTools).
+  ...CONTROL_TOOLS,
+  ...DRAWING_TOOLS,
+  ...UI_TOOLS,
+  ...WORKSPACE_TOOLS,
   // Capture d'écran du graphique, pour que le modèle vérifie ce qu'il vient de faire (voir captureTool).
   ...CAPTURE_TOOLS,
 ];
+
+/** Anciens noms, encore compris à l'exécution (conversations enregistrées, consignes d'une application) mais plus
+ *  annoncés : chacun est devenu un cas d'un outil plus général. */
+const TOOL_ALIASES: Record<string, (input: Record<string, unknown>) => { name: string; input: Record<string, unknown> }> = {
+  lire_le_graphique: () => ({ name: DESCRIBE_TOOL_NAME, input: {} }),
+  tracer_une_ligne_horizontale: (input) => ({
+    name: "dessiner",
+    input: { type: "ligne_horizontale", points: [{ prix: input.prix }], ...(typeof input.couleur === "string" ? { couleur: input.couleur } : {}) },
+  }),
+  effacer_les_dessins: () => ({ name: "gerer_les_dessins", input: { action: "tout_supprimer" } }),
+};
+
+/**
+ * Le graphique sur lequel les outils agissent : dans un espace de travail, la fenêtre active (gerer_les_fenetres,
+ * action « activer », ou un clic de l'utilisateur sur une fenêtre), avec les leviers de l'espace de travail ; sinon ce
+ * graphique.
+ */
+export function resolveToolTarget(chart: AiChartContext): AiChartContext {
+  const ws = chart.workspace;
+  if (!ws?.target || !ws.contextOf) return chart;
+  const target = ws.contextOf(ws.target());
+  if (!target || target === chart) return chart;
+  return { ...target, workspace: ws };
+}
 
 /** Les fenêtres de l'espace de travail en une ligne : « 1 : AAPL (1day) ; 2 : MSFT (1day) ». */
 export function describePanels(chart: AiChartContext): string {
@@ -892,10 +898,13 @@ export function describePanels(chart: AiChartContext): string {
 /** Définitions seules (nom, description, paramètres) de tous les outils de l'assistant. */
 export const CHART_AI_TOOL_DEFINITIONS: AiToolDefinition[] = AI_TOOLS.map((t) => t.definition);
 
-export function availableAiTools(chart: AiChartContext): AiTool[] {
+export function availableAiTools(chartIn: AiChartContext): AiTool[] {
+  const chart = resolveToolTarget(chartIn);
   return AI_TOOLS.filter((tool) => {
     const comparison = comparisonToolAvailable(tool.definition.name, chart);
     if (comparison !== undefined) return comparison;
+    const extra = controlToolAvailable(tool.definition.name, chart) ?? uiToolAvailable(tool.definition.name, chart) ?? workspaceToolAvailable(tool.definition.name, chart);
+    if (extra !== undefined) return extra;
     if (tool.definition.name === "changer_l_unite_de_temps") return chart.setTimeframe !== undefined && chart.availableTimeframes.length > 0;
     if (tool.definition.name === "changer_de_symbole") return chart.setSymbol !== undefined;
     if (tool.definition.name === "lire_les_donnees_fondamentales") return (chart.fundamentals?.length ?? 0) > 0;
@@ -909,9 +918,13 @@ export function availableAiTools(chart: AiChartContext): AiTool[] {
 
 /** Runs one tool call, never throwing: a tool that fails has to come back as a *result* the model
  *  can read and work around, not as an exception that ends the turn. */
-export async function runAiTool(name: string, input: Record<string, unknown>, chart: AiChartContext): Promise<AiToolOutcome> {
+export async function runAiTool(nameIn: string, inputIn: Record<string, unknown>, chartIn: AiChartContext): Promise<AiToolOutcome> {
+  const alias = TOOL_ALIASES[nameIn]?.(inputIn ?? {});
+  const name = alias?.name ?? nameIn;
+  const input = alias?.input ?? inputIn ?? {};
   const tool = AI_TOOLS.find((t) => t.definition.name === name);
-  if (!tool) return { content: `Outil inconnu : ${name}.`, isError: true };
+  if (!tool) return { content: `Outil inconnu : ${name}. Pour voir l'état du graphique : ${DESCRIBE_TOOL_NAME}.`, isError: true };
+  const chart = resolveToolTarget(chartIn);
   try {
     return await tool.run(input, chart);
   } catch (err) {

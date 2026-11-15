@@ -807,8 +807,14 @@ function ChartWorkspaceBody({
   // Outils de l'assistant au niveau de l'espace de travail (comparer_cote_a_cote, creer_un_indice_ratio), donnés au
   // graphique au premier plan avec l'assistant et le pont des outils : les gestes du menu « Disposition des fenêtres »
   // et du clic sur le nom d'une fenêtre, appliqués à l'état le plus récent (un outil s'exécute hors de tout rendu).
-  const aiWorkspaceStateRef = useRef({ panels, panelElements, resolvedSymbol, timeframeByPanel, handleGridLayoutChange, setPanelSymbol, workspaceScripting });
-  aiWorkspaceStateRef.current = { panels, panelElements, resolvedSymbol, timeframeByPanel, handleGridLayoutChange, setPanelSymbol, workspaceScripting };
+  // Le contexte de l'assistant de chaque fenêtre (posé par chacune, `onAiContext`), et la fenêtre visée par les outils :
+  // l'agrandie, sinon l'active (cadre mis en avant, choisie d'un clic ou par l'outil gerer_les_fenetres).
+  const aiPanelContextsRef = useRef(new Map<number, () => import("./candlestick/ai/interfaces/AiChartContext.interface").AiChartContext>());
+  const aiTargetRef = useRef<number | null>(null);
+  const aiWorkspaceStateRef = useRef({ panels, panelElements, resolvedSymbol, timeframeByPanel, handleGridLayoutChange, setPanelSymbol, workspaceScripting, currentGridLayout, activePanel: effectiveActivePanel, focused: effectiveFocusedPanelIndex, groups: effectiveGroups, linkPanels, unlinkGroup });
+  aiWorkspaceStateRef.current = { panels, panelElements, resolvedSymbol, timeframeByPanel, handleGridLayoutChange, setPanelSymbol, workspaceScripting, currentGridLayout, activePanel: effectiveActivePanel, focused: effectiveFocusedPanelIndex, groups: effectiveGroups, linkPanels, unlinkGroup };
+  // Un clic de l'utilisateur sur une fenêtre la rend active pour les outils aussi.
+  aiTargetRef.current = null;
   const aiWorkspace = useMemo<AiWorkspaceControls>(() => {
     type State = typeof aiWorkspaceStateRef.current;
     const timeframeOf = (s: State, i: number) => (i in s.timeframeByPanel ? s.timeframeByPanel[i] : s.panelElements[i]?.props.timeframe);
@@ -870,6 +876,44 @@ function ChartWorkspaceBody({
       updateScript: (id, patch) => {
         const scripting = aiWorkspaceStateRef.current.workspaceScripting;
         scripting.updateScript(id, patch.name !== undefined ? { ...patch, named: true } : patch);
+      },
+      // Contrôle complet par l'IA : disposition, symbole et unité de temps de chaque fenêtre, fenêtre active, fenêtre
+      // agrandie, groupes liés — les gestes du rail, de chaque en-tête et de la fenêtre « Graphiques liés ».
+      layouts: () => CHART_WORKSPACE_GRID_LAYOUTS.map((l) => ({ id: l.id, panels: l.panels, label: l.label })),
+      layoutId: () => aiWorkspaceStateRef.current.currentGridLayout.id,
+      setLayout: (id) => {
+        const layout = CHART_WORKSPACE_GRID_LAYOUTS.find((l) => l.id === id);
+        if (!layout) return false;
+        const s = aiWorkspaceStateRef.current;
+        s.handleGridLayoutChange(layout);
+        alignTimeframes(s, s.panels, layout.panels);
+        return true;
+      },
+      setPanelSymbol: (i, symbol) => aiWorkspaceStateRef.current.setPanelSymbol(i, symbol),
+      setPanelTimeframe: (i, timeframe) => {
+        setTimeframeByPanel((prev) => ({ ...prev, [i]: timeframe }));
+        aiWorkspaceStateRef.current.panelElements[i]?.props.onTimeframeChange?.(timeframe);
+      },
+      target: () => {
+        const s = aiWorkspaceStateRef.current;
+        const t = s.focused ?? aiTargetRef.current ?? s.activePanel;
+        return t < s.panels ? t : 0;
+      },
+      setTarget: (i) => {
+        if (i < 0 || i >= aiWorkspaceStateRef.current.panels) return false;
+        aiTargetRef.current = i;
+        setActivePanel(i);
+        return true;
+      },
+      contextOf: (i) => aiPanelContextsRef.current.get(i)?.() ?? null,
+      focused: () => aiWorkspaceStateRef.current.focused,
+      setFocused: (i) => setFocusedPanelIndex(i),
+      linkGroups: () => aiWorkspaceStateRef.current.groups.filter((g) => g.length >= 2),
+      link: (indices) => aiWorkspaceStateRef.current.linkPanels(indices),
+      unlink: (indices) => {
+        const s = aiWorkspaceStateRef.current;
+        // Du dernier au premier : retirer un groupe décale les suivants.
+        for (let g = s.groups.length - 1; g >= 0; g--) if (!indices || s.groups[g].some((i) => indices.includes(i))) s.unlinkGroup(g);
       },
     };
   }, []);
@@ -1163,6 +1207,11 @@ function ChartWorkspaceBody({
             // so there is exactly one assistant on screen, pointed at the chart being looked at.
             // Le pont des outils, comme l'assistant : au seul graphique au premier plan.
             onToolBridge: onToolBridge && i === (effectiveFocusedPanelIndex ?? 0) ? onToolBridge : undefined,
+            // Chaque fenêtre donne son contexte d'assistant : les outils agissent sur la fenêtre active.
+            onAiContext: onToolBridge || ai ? (get: (() => import("./candlestick/ai/interfaces/AiChartContext.interface").AiChartContext) | null) => {
+              if (get) aiPanelContextsRef.current.set(i, get);
+              else aiPanelContextsRef.current.delete(i);
+            } : undefined,
             // Et ce que l'assistant comme le pont peuvent faire de l'espace de travail (fenêtres, symbole de chacune).
             aiWorkspace: (onToolBridge || ai) && i === (effectiveFocusedPanelIndex ?? 0) ? aiWorkspace : undefined,
             ...(ai && i === (effectiveFocusedPanelIndex ?? 0)

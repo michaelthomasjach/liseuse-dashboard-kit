@@ -5,7 +5,11 @@ import type { ChartContextMenuItem, ChartMenuTarget } from "./components/ChartCo
 import type { Candle } from "./interfaces/Candle.interface";
 import type { TrendLineDrawing } from "./interfaces/TrendLineDrawing.interface";
 import { drawingNoun } from "./drawingCatalog";
+import { formatCompactNumber } from "./formatting";
 import type { PriceScaleMode } from "./interfaces/PriceScaleMode.interface";
+
+/** Longueur au-delà de laquelle le nom cité par une entrée du menu (symbole, panneau) est raccourci d'une ellipse. */
+const MENU_TARGET_MAX = 28;
 
 /** Libellés des échelles de l'axe des prix, dans l'ordre du menu. */
 const PRICE_SCALE_LABELS: Record<PriceScaleMode, string> = { linear: "Linéaire", log: "Logarithmique", percent: "Pourcentage" };
@@ -22,6 +26,8 @@ export interface ChartContextMenuAnchor {
   paneLabel?: string;
   /** La valeur de l'indicateur du panneau à la hauteur du clic (sur son échelle à lui). */
   paneValue?: number;
+  /** Clic droit sur le panneau Volume : le volume à la hauteur du clic (sur l'échelle du panneau). */
+  volumeValue?: number;
   /** Clic droit sur le panneau Volume : pour y poser une moyenne. */
   volumePane?: boolean;
   /** Clic droit sur la ligne d'un indicateur : son id et son nom, pour ouvrir ses paramètres. */
@@ -80,7 +86,8 @@ export interface BuildChartContextMenuArgs {
   openSettings: () => void;
   /** Paramètres du graphique : onglet du symbole (série principale), puis un onglet par indicateur tracé sur les prix. */
   openSymbolSettings?: () => void;
-  /** Le symbole affiché, pour l'intitulé « Paramètres du graphique (symbole)… ». */
+  /** Le nom du symbole affiché (nom complet s'il est connu, sinon le ticker) : la cible des entrées de la zone des prix,
+   *  « Ajouter un indicateur sur (QUALCOMM Incorporated)… », « Paramètres du graphique (…)… ». */
   symbolLabel?: string;
   /** Ligne d'informations (symbole, OHLC) masquée, et la bascule. */
   symbolInfoHidden?: boolean;
@@ -146,6 +153,9 @@ export function buildChartContextMenu({
   openAxisLabelColors,
 }: BuildChartContextMenuArgs): ChartContextMenuItem[] {
   if (anchor === null) return [];
+  // La cible d'une entrée, entre parenthèses : « Ajouter une alerte sur (Volume) ». Un nom long est raccourci.
+  const on = (name: string) => `(${name.length > MENU_TARGET_MAX ? `${name.slice(0, MENU_TARGET_MAX - 1).trimEnd()}…` : name})`;
+  const symbolTarget = on(symbolLabel?.trim() || "prix");
   const candle = data[Math.max(0, Math.min(data.length - 1, anchor.index))] ?? null;
 
   // Clic droit sur le panneau d'un indicateur ou sur le volume (pas sur les prix).
@@ -236,23 +246,26 @@ export function buildChartContextMenu({
       if (!openIndicatorAlert) return [];
       const target = anchor.paneId
         ? { id: anchor.paneId, label: anchor.paneLabel ?? "ce panneau", value: anchor.paneValue, hint: anchor.paneLabel }
+        : anchor.volumePane
+          ? { id: VOLUME_PANE_ID, label: "Volume", value: anchor.volumeValue, hint: undefined as string | undefined }
         : anchor.indicatorId
           ? { id: anchor.indicatorId, label: anchor.indicatorLabel ?? "cet indicateur", value: anchor.price, hint: anchor.indicatorLabel }
           : { id: "price", label: "Prix", value: anchor.price, hint: formatPrice(anchor.price) };
       return [
         {
-          label: "Ajouter une alerte",
-          hint: target.hint,
+          // La cible entre parenthèses : le symbole, le panneau cliqué ou la courbe sous le pointeur ; à droite le niveau.
+          label: `Ajouter une alerte sur ${target.id === "price" ? symbolTarget : on(target.label)}`,
+          hint: target.id === "price" ? target.hint : target.value !== undefined ? formatCompactNumber(target.value) : target.hint,
           onSelect: () => openIndicatorAlert(target.id, target.label, target.value),
-          target: anchor.paneId ? onZone : (onLine ?? onPrice),
+          target: anchor.paneId || anchor.volumePane ? onZone : (onLine ?? onPrice),
         },
         { separator: true },
       ] as ChartContextMenuItem[];
     })(),
     // Le menu suit la zone cliquée : sur les prix, ce qui concerne le graphique principal ; sur le panneau d'un
     // indicateur ou le volume, ce qui concerne ce panneau seulement.
-    ...(!inSubPane && openAddSymbol ? [{ label: "Ajouter un symbole…", onSelect: openAddSymbol, target: onPrice }] : []),
-    ...(!inSubPane ? [{ label: "Ajouter un indicateur…", onSelect: () => openIndicatorPicker(), target: onPrice }] : []),
+    ...(!inSubPane && openAddSymbol ? [{ label: `Ajouter un symbole sur ${symbolTarget}…`, onSelect: openAddSymbol, target: onPrice }] : []),
+    ...(!inSubPane ? [{ label: `Ajouter un indicateur sur ${symbolTarget}…`, onSelect: () => openIndicatorPicker(), target: onPrice }] : []),
     ...(!inSubPane && customToolbarItems?.length ? [{ separator: true } as ChartContextMenuItem, ...customToolbarItems] : []),
     // Sur un panneau (indicateur, script, volume) : d'abord ses paramètres, où que l'on clique dans le panneau.
     ...(anchor.paneId && openIndicatorSettings
@@ -269,7 +282,7 @@ export function buildChartContextMenu({
     ...(anchor.paneId && addOnPane
       ? [
           {
-            label: `Ajouter un indicateur sur ${anchor.paneLabel ?? "ce panneau"}…`,
+            label: `Ajouter un indicateur sur ${on(anchor.paneLabel ?? "ce panneau")}…`,
             onSelect: () => openIndicatorPicker({ id: anchor.paneId as string, label: anchor.paneLabel ?? "ce panneau" }),
             target: onZone,
           },
@@ -277,7 +290,7 @@ export function buildChartContextMenu({
       : []),
     // Sur le panneau Volume : le même catalogue limité, posé sur le volume (le choix se fait dans la fenêtre).
     ...(anchor.volumePane && addOnPane
-      ? [{ label: "Ajouter un indicateur sur Volume…", onSelect: () => openIndicatorPicker({ id: VOLUME_PANE_ID, label: "Volume" }), target: onZone }]
+      ? [{ label: `Ajouter un indicateur sur ${on("Volume")}…`, onSelect: () => openIndicatorPicker({ id: VOLUME_PANE_ID, label: "Volume" }), target: onZone }]
       : []),
     // (Les moyennes sur le panneau d'un indicateur passent par « Ajouter un indicateur sur … », qui les propose.)
     { separator: true },
@@ -368,7 +381,7 @@ export function buildChartContextMenu({
     // Sur la zone des prix seulement (sur un panneau, ceux du panneau, plus haut) : les paramètres du graphique — le
     // symbole et les indicateurs tracés sur les prix, en onglets —, puis les paramètres système (tout le graphique).
     ...(!inSubPane && openSymbolSettings
-      ? [{ label: `Paramètres du graphique (${symbolLabel?.trim() || "prix"})…`, onSelect: openSymbolSettings, target: onPrice }]
+      ? [{ label: `Paramètres du graphique ${symbolTarget}…`, onSelect: openSymbolSettings, target: onPrice }]
       : []),
     ...(!inSubPane ? [{ label: "Paramètres système…", onSelect: openSettings, target: onChart }] : []),
   ];

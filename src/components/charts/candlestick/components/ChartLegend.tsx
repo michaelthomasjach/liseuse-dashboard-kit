@@ -5,7 +5,7 @@ import { IndicatorHelpButton } from "./IndicatorHelp";
 import { infoTargetFor, scriptIdFromIndicatorId } from "../scripting/scriptOutputToCustomIndicatorDef";
 import type { Dispatch, SetStateAction } from "react";
 import { useMemo, useState } from "react";
-import { ActivityIcon, CodeIcon, EyeIcon, EyeOffIcon, TrashIcon, SettingsIcon, AlarmClockIcon, InfoIcon, ChevronDownIcon, ChevronUpIcon, CursorArrowIcon } from "../../../icons";
+import { ActivityIcon, CodeIcon, EyeIcon, EyeOffIcon, TrashIcon, SettingsIcon, AlarmClockIcon, InfoIcon, ChevronLeftIcon, ChevronRightIcon, CursorArrowIcon } from "../../../icons";
 import type { Candle } from "../interfaces/Candle.interface";
 import type { Indicator } from "../interfaces/Indicator.interface";
 import type { ChartStyleSettings } from "../chartStyle";
@@ -72,7 +72,7 @@ export interface ChartLegendProps {
   pFmt: (value: number) => string;
   showIndicators: boolean;
   overlayIndicators: Indicator[];
-  /** Liste des indicateurs repliée (chevron sous la liste) : il ne reste qu'un bouton « ˅ N » qui la redéplie ; le
+  /** Liste des indicateurs repliée (chevron « ‹ » sous la liste) : il ne reste qu'un bouton « › N » qui la redéplie ; le
    *  symbole et l'OHLC restent. Contrôlé par le graphique, qui le garde avec la disposition des panneaux. Absent : la
    *  légende le tient elle-même. */
   legendCollapsed?: boolean;
@@ -611,7 +611,7 @@ export function ChartLegend({
           title={legendFolded ? legendNames.join(" · ") : "Replier la liste des indicateurs"}
           data-legend-fold=""
         >
-          {legendFolded ? <ChevronDownIcon size={11} /> : <ChevronUpIcon size={11} />}
+          {legendFolded ? <ChevronRightIcon size={11} /> : <ChevronLeftIcon size={11} />}
           {legendFolded && <span>{legendEntryCount}</span>}
         </button>
       )}

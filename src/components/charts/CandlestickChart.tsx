@@ -224,6 +224,7 @@ function CandlestickChartBody({
   showCandleColorRules = true,
   showAreaFills = true,
   showPaneOverlay = true,
+  symbolName,
   advancedAppearance = true,
   hostColorScheme,
   onOpenIndicatorHelp,
@@ -694,7 +695,7 @@ function CandlestickChartBody({
       // Sous les prix : le panneau d'indicateur cliqué, s'il y en a un (pour y poser une moyenne).
       ...(() => {
         if (plotY <= priceHeight) return {};
-        if (volumeVisible && !volumeCollapsed && plotY >= priceHeight + volumeTop && plotY < priceHeight + volumeTop + volumeHeight) return { volumePane: true };
+        if (volumeVisible && !volumeCollapsed && plotY >= priceHeight + volumeTop && plotY < priceHeight + volumeTop + volumeHeight) return { volumePane: true, volumeValue: zoomedVolumeScale.invert(plotY - priceHeight - volumeTop) };
         const at = ownPaneIndicators.findIndex((_, i) => plotY >= priceHeight + indicatorPaneTops[i] && plotY < priceHeight + indicatorPaneTops[i] + indicatorPaneHeights[i]);
         const pane = at >= 0 ? ownPaneIndicators[at] : undefined;
         if (!pane) return {};
@@ -2189,6 +2190,9 @@ function CandlestickChartBody({
     return { rect, path, color };
   })();
 
+  // Le nom du symbole cité par le menu du clic droit : le nom complet s'il est connu (prop, résultats de recherche),
+  // sinon le ticker.
+  const symbolDisplayName = symbolName?.trim() || symbolSearchResults?.find((r) => r.ticker === symbol)?.name || symbol;
   const contextMenuItems = buildChartContextMenu({
     anchor: contextMenu,
     data,
@@ -2235,7 +2239,7 @@ function CandlestickChartBody({
     openScaleSettings: () => openSettingsAt("echelles"),
     ...(advancedAppearance ? { openAxisLabelColors: () => openSettingsAt("echelles", "etiquettes") } : {}),
     openSymbolSettings: () => setPriceSettingsOpen(true),
-    ...(symbol ? { symbolLabel: symbol } : {}),
+    ...(symbolDisplayName ? { symbolLabel: symbolDisplayName } : {}),
     symbolInfoHidden,
     toggleSymbolInfo: () => setSymbolInfoHidden(!symbolInfoHidden),
     customToolbarItems: customToolbars.menuItems,

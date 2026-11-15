@@ -1095,6 +1095,10 @@ function ChartWorkspaceBody({
             // for exactly this (see its own doc) that doesn't have that collision.
             height: panelHeight,
             fillHeight,
+            // Le nom complet du symbole de la fenêtre, pris dans les listes de surveillance (menu du clic droit).
+            ...(child.props.symbolName === undefined && child.props.symbol && watchlistNames.get(child.props.symbol)
+              ? { symbolName: watchlistNames.get(child.props.symbol) }
+              : {}),
             // A pinned workspace layout pins every panel's too — without it, each chart still asked
             // the window and went to its touch layout (bottom rail, assistant as a full-screen
             // sheet) under 1500 px, inside a workspace drawn as a desktop. A panel's own `layout`

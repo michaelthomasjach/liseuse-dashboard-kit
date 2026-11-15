@@ -258,6 +258,8 @@ export function AlertCreateModal({
 
   const conditionOptions = [
     { value: "price", label: "Prix" },
+    // Volume : une alerte posée depuis le clic droit sur le panneau Volume (« Ajouter une alerte sur (Volume) »).
+    ...(initialConditionIndicatorId === "volume" || editingAlert?.conditionIndicatorId === "volume" ? [{ value: "volume", label: "Volume" }] : []),
     ...overlayIndicators.map((ind) => ({ value: ind.id, label: indicatorLabel(ind) })),
     ...(paneIndicators ?? []).map((ind) => ({ value: ind.id, label: indicatorLabel(ind) })),
   ];

@@ -435,6 +435,10 @@ export interface CandlestickChartProps {
    *  bar colors, auto-rescale, event visibility). Omit to show just the chart-type label on its
    *  own (the settings modal is still reachable by double-clicking it). */
   symbol?: string;
+  /** Nom complet du symbole (« QUALCOMM Incorporated »), cité par le menu du clic droit : « Ajouter un indicateur sur
+   *  (QUALCOMM Incorporated)… ». Absent : celui trouvé dans `symbolSearchResults` (ou la liste de surveillance d'un
+   *  `ChartWorkspace`), sinon le ticker. */
+  symbolName?: string;
   /** Markers shown as small badges along the bottom of the price plot (earnings, dividends,
    *  product updates…) — each `kind` groups related events and can be shown/hidden independently
    *  from the chart-settings modal (double-click the symbol/chart-type label). Purely

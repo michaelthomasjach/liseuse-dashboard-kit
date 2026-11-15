@@ -5,7 +5,7 @@ import { defaultIndicatorColor } from "../indicatorCatalog";
 import { scriptIdFromIndicatorId, infoTargetFor } from "../scripting/scriptOutputToCustomIndicatorDef";
 import type { Dispatch, SetStateAction } from "react";
 import type * as React from "react";
-import { ChevronDownIcon, ChevronUpIcon, SettingsIcon, TrashIcon, GripIcon, InfoIcon, MaximizeIcon, MinimizeIcon, CodeIcon, EyeOffIcon } from "../../../icons";
+import { ChevronDownIcon, ChevronUpIcon, ChevronLeftIcon, ChevronRightIcon, SettingsIcon, TrashIcon, GripIcon, InfoIcon, MaximizeIcon, MinimizeIcon, CodeIcon, EyeOffIcon } from "../../../icons";
 import type { Candle } from "../interfaces/Candle.interface";
 import type { Indicator } from "../interfaces/Indicator.interface";
 import type { IndicatorValue } from "../interfaces/IndicatorValue.interface";
@@ -128,7 +128,7 @@ export function PaneHeaders({
         title={collapsed ? list.map((a) => indicatorLabel(a)).join(" · ") : "Replier la liste des indicateurs du panneau"}
         data-pane-legend-fold={sourceId}
       >
-        {collapsed ? <ChevronDownIcon size={11} /> : <ChevronUpIcon size={11} />}
+        {collapsed ? <ChevronRightIcon size={11} /> : <ChevronLeftIcon size={11} />}
         {collapsed && <span>{list.length}</span>}
       </button>
     );

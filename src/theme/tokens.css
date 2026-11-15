@@ -442,6 +442,8 @@
  *                      --lq-sankey-ribbon-opacity) · --lq-chart-node-radius (0)
  *                      Heatmap, MatrixChart: --lq-chart-tile-gap-color (--lq-color-bg) ·
  *                      -tile-gap-width (1) — the hairline between tiles
+ *                      CalendarHeatmap: --lq-chart-calendar-fill (--lq-color-accent; its `color`
+ *                      prop still wins) · -calendar-empty (text at 8%) · -calendar-cell-radius (2px)
  *                      CandlestickChart (canvas, read once per paint by readChartCanvasStyle; the
  *                      upColor / downColor props still win): --lq-chart-candle-up / -candle-down
  *                      (--lq-color-up / -down; candles, OHLC bars, bricks, volume — not indicators) ·

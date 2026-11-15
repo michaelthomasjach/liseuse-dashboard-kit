@@ -103,6 +103,9 @@ export type { MatrixChartProps, MatrixCell, MatrixCellDetail, MatrixAxisEntry } 
 export { Heatmap, heatmapTileColor, useHeatmapLabelColor } from "./Heatmap";
 export type { HeatmapProps, HeatmapGroup, HeatmapTile } from "./Heatmap";
 
+export { CalendarHeatmap, calendarLevel } from "./CalendarHeatmap";
+export type { CalendarHeatmapProps, CalendarHeatmapDatum } from "./CalendarHeatmap";
+
 export { AlertsPanel } from "./AlertsPanel";
 export type { AlertsPanelProps } from "./AlertsPanel";
 

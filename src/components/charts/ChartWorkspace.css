@@ -2224,8 +2224,9 @@
 }
 .lq-chart-workspace__watchlist-row-settings:hover,
 .lq-chart-workspace__watchlist-row-settings:focus-visible {
-  color: var(--lq-color-text);
-  background-color: var(--lq-color-fill);
+  /* Fond d'accent (violet dans le thème Minimal) : l'icône passe à sa couleur de contraste (blanc), sinon illisible. */
+  color: var(--lq-color-accent-contrast, #fff);
+  background-color: var(--lq-color-accent);
   opacity: 1;
 }
 

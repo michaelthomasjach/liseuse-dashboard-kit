@@ -2,10 +2,11 @@ import { ColorPicker } from "../../../forms/ColorPicker";
 import { Checkbox } from "../../../forms/Checkbox";
 import { InputNumber } from "../../../forms/InputNumber";
 import { Select, type SelectOption } from "../../../forms/Select";
-import { ArrowDownIcon, ArrowUpIcon, PlusIcon, TrashIcon } from "../../../icons";
+import { ArrowDownIcon, ArrowUpIcon, PlusIcon, SettingsIcon, TrashIcon } from "../../../icons";
 import { ActionMenu, CollapsibleSection } from "./IndicatorSettingsLayout";
 import { RuleIconPicker, RuleIconSettings } from "./RuleIconPicker";
 import type { Indicator } from "../interfaces/Indicator.interface";
+import { indicatorLabel } from "../indicatorCatalog";
 import type {
   IndicatorStyleRule,
   StyleRuleCondition,
@@ -20,6 +21,10 @@ import {
   defaultStyleRule,
   indicatorStyleRules,
   isCrossCondition,
+  linkedStyleRuleGroups,
+  styleRulesCountLabel,
+  type LinkedStyleRuleGroup,
+  type StyleRuleTarget,
   isRangeCondition,
   seriesRefKey,
   styleRuleTemplates,
@@ -75,12 +80,20 @@ export function IndicatorStyleRulesEditor({
   indicator,
   indicators,
   onChange,
+  onChangeOwnerRules,
+  onOpenIndicator,
 }: {
   indicator: Indicator;
   indicators: Indicator[];
   onChange: (rules: IndicatorStyleRule[]) => void;
+  /** Modifie les règles d'un AUTRE indicateur (son propriétaire) : sans elle, les « Règles liées » ne sont pas montrées. */
+  onChangeOwnerRules?: (ownerId: string, rules: IndicatorStyleRule[]) => void;
+  /** Ouvre les paramètres d'un indicateur (lien « Ouvrir SMA(50) » d'un groupe de règles liées). */
+  onOpenIndicator?: (id: string) => void;
 }) {
-  if (!supportsStyleRules(indicator)) return null;
+  const linked = onChangeOwnerRules ? linkedStyleRuleGroups({ kind: "indicator", id: indicator.id }, indicators) : [];
+  const linkedCount = linked.reduce((n, g) => n + g.rules.length, 0);
+  if (!supportsStyleRules(indicator) && linkedCount === 0) return null;
   const rules = indicatorStyleRules(indicator);
   const series = styleSeriesOptions(indicator, indicators);
   const templates = styleRuleTemplates(indicator, indicators);
@@ -101,8 +114,8 @@ export function IndicatorStyleRulesEditor({
   return (
     <CollapsibleSection
       title="Style conditionnel"
-      count={rules.length}
-      defaultOpen={rules.length > 0}
+      count={styleRulesCountLabel(rules.length, linkedCount)}
+      defaultOpen={rules.length + linkedCount > 0}
       help="Colorez l'espace entre deux courbes, une courbe ou le fond selon une condition, ou posez une icône sur la courbe là où elle est vraie (un croisement, un franchissement de seuil). Chaque règle se lit comme une phrase ; les règles se peignent dans l'ordre, la dernière passe par-dessus."
     >
       {rules.length === 0 && (
@@ -139,7 +152,97 @@ export function IndicatorStyleRulesEditor({
           {fromTemplate}
         </div>
       )}
+      {onChangeOwnerRules && <LinkedStyleRules groups={linked} indicators={indicators} onChangeOwnerRules={onChangeOwnerRules} onOpenIndicator={onOpenIndicator} />}
     </CollapsibleSection>
+  );
+}
+
+/**
+ * La rubrique « Style conditionnel » d'une série qui n'a pas de règles à elle — le cours (onglet du symbole) ou le volume
+ * (onglet Volume) — quand des indicateurs ont des règles qui la citent (« SMA(20) au-dessus du cours »). Rien sinon.
+ */
+export function LinkedStyleRulesSection({
+  target,
+  indicators,
+  onChangeOwnerRules,
+  onOpenIndicator,
+}: {
+  target: StyleRuleTarget;
+  indicators: Indicator[];
+  onChangeOwnerRules: (ownerId: string, rules: IndicatorStyleRule[]) => void;
+  onOpenIndicator?: (id: string) => void;
+}) {
+  const groups = linkedStyleRuleGroups(target, indicators);
+  const count = groups.reduce((n, g) => n + g.rules.length, 0);
+  if (count === 0) return null;
+  return (
+    <CollapsibleSection
+      title="Style conditionnel"
+      count={styleRulesCountLabel(0, count)}
+      defaultOpen
+      help="Les règles de style conditionnel des indicateurs qui citent cette série. Elles se modifient ici, et sont enregistrées avec l'indicateur qui les porte."
+    >
+      <LinkedStyleRules groups={groups} indicators={indicators} onChangeOwnerRules={onChangeOwnerRules} onOpenIndicator={onOpenIndicator} />
+    </CollapsibleSection>
+  );
+}
+
+/**
+ * « Règles liées » : les règles d'autres indicateurs qui citent la série réglée, regroupées par indicateur propriétaire
+ * (« Règles liées (définies sur SMA(50)) »). Elles se modifient sur place comme les siennes — chaque modification
+ * réécrit la liste du propriétaire, enregistrée avec lui —, s'activent, se désactivent ou se suppriment ; « Ouvrir
+ * SMA(50) » ouvre les paramètres du propriétaire. Leur ordre se règle chez lui (pas de flèches ici).
+ */
+function LinkedStyleRules({
+  groups,
+  indicators,
+  onChangeOwnerRules,
+  onOpenIndicator,
+}: {
+  groups: LinkedStyleRuleGroup[];
+  indicators: Indicator[];
+  onChangeOwnerRules: (ownerId: string, rules: IndicatorStyleRule[]) => void;
+  onOpenIndicator?: (id: string) => void;
+}) {
+  if (groups.length === 0) return null;
+  return (
+    <>
+      {groups.map(({ owner, allRules, rules }) => {
+        const name = indicatorLabel(owner);
+        const series = styleSeriesOptions(owner, indicators);
+        const write = (next: IndicatorStyleRule[]) => onChangeOwnerRules(owner.id, next);
+        return (
+          <div key={owner.id} className="lq-chart__linked-rules" role="group" aria-label={`Règles liées, définies sur ${name}`}>
+            <div className="lq-chart__linked-rules-head">
+              <span className="lq-chart__linked-rules-title">Règles liées (définies sur {name})</span>
+              {onOpenIndicator && (
+                <button type="button" className="lq-ind-settings__link lq-chart__linked-rules-open" onClick={() => onOpenIndicator(owner.id)}>
+                  <SettingsIcon size={13} />
+                  Ouvrir {name}
+                </button>
+              )}
+            </div>
+            {rules.map((rule) => {
+              const index = allRules.findIndex((r) => r.id === rule.id);
+              return (
+                <RuleRow
+                  key={rule.id}
+                  rule={rule}
+                  index={index}
+                  count={allRules.length}
+                  ownerId={owner.id}
+                  series={series}
+                  linkedTo={name}
+                  onPatch={(patch) => write(allRules.map((r) => (r.id === rule.id ? { ...r, ...patch } : r)))}
+                  onMove={() => {}}
+                  onRemove={() => write(allRules.filter((r) => r.id !== rule.id))}
+                />
+              );
+            })}
+          </div>
+        );
+      })}
+    </>
   );
 }
 
@@ -149,6 +252,7 @@ function RuleRow({
   count,
   ownerId,
   series,
+  linkedTo,
   onPatch,
   onMove,
   onRemove,
@@ -158,11 +262,14 @@ function RuleRow({
   count: number;
   ownerId: string;
   series: StyleSeriesOption[];
+  /** Règle liée : le nom de l'indicateur qui la porte (libellés, pas de flèches d'ordre). */
+  linkedTo?: string;
   onPatch: (patch: Partial<IndicatorStyleRule>) => void;
   onMove: (delta: number) => void;
   onRemove: () => void;
 }) {
   const n = index + 1;
+  const ref = linkedTo ? `la règle ${n} de ${linkedTo}` : `la règle ${n}`;
   const aKey = seriesRefKey(rule.a, ownerId);
   const aOption = series.find((s) => s.key === aKey);
   const aLabel = capitalize(aOption?.label ?? "la courbe");
@@ -202,15 +309,19 @@ function RuleRow({
   return (
     <div className={["lq-chart__rule", !enabled && "lq-chart__rule--disabled"].filter(Boolean).join(" ")}>
       <div className="lq-chart__rule-head">
-        <Checkbox label={`Règle ${n}`} checked={enabled} onChange={(checked) => onPatch({ enabled: checked })} ariaLabel={`Activer la règle ${n}`} />
+        <Checkbox label={`Règle ${n}`} checked={enabled} onChange={(checked) => onPatch({ enabled: checked })} ariaLabel={`Activer ${ref}`} />
         <span className="lq-chart__rule-tools">
-          <button type="button" className="lq-ind-settings__icon-button" onClick={() => onMove(-1)} disabled={index === 0} aria-label={`Monter la règle ${n}`} title="Monter">
-            <ArrowUpIcon size={14} />
-          </button>
-          <button type="button" className="lq-ind-settings__icon-button" onClick={() => onMove(1)} disabled={index === count - 1} aria-label={`Descendre la règle ${n}`} title="Descendre">
-            <ArrowDownIcon size={14} />
-          </button>
-          <button type="button" className="lq-ind-settings__icon-button" onClick={onRemove} aria-label={`Supprimer la règle ${n}`} title="Supprimer">
+          {!linkedTo && (
+            <>
+              <button type="button" className="lq-ind-settings__icon-button" onClick={() => onMove(-1)} disabled={index === 0} aria-label={`Monter ${ref}`} title="Monter">
+                <ArrowUpIcon size={14} />
+              </button>
+              <button type="button" className="lq-ind-settings__icon-button" onClick={() => onMove(1)} disabled={index === count - 1} aria-label={`Descendre ${ref}`} title="Descendre">
+                <ArrowDownIcon size={14} />
+              </button>
+            </>
+          )}
+          <button type="button" className="lq-ind-settings__icon-button" onClick={onRemove} aria-label={`Supprimer ${ref}`} title="Supprimer">
             <TrashIcon size={14} />
           </button>
         </span>
@@ -220,7 +331,7 @@ function RuleRow({
         <span className="lq-chart__rule-pick lq-chart__rule-pick--series">
           <Select
             size="small"
-            ariaLabel={`Courbe A de la règle ${n}`}
+            ariaLabel={`Courbe A de ${ref}`}
             value={aKey}
             options={aOptions}
             onChange={(key) => {
@@ -233,7 +344,7 @@ function RuleRow({
         <span className="lq-chart__rule-group lq-chart__rule-pick--condition">
           <span className="lq-chart__rule-word">est</span>
           <span className="lq-chart__rule-pick">
-            <Select size="small" ariaLabel={`Condition de la règle ${n}`} value={rule.condition} options={CONDITION_OPTIONS} onChange={setCondition} />
+            <Select size="small" ariaLabel={`Condition de ${ref}`} value={rule.condition} options={CONDITION_OPTIONS} onChange={setCondition} />
           </span>
         </span>
         <OperandPicker
@@ -241,7 +352,7 @@ function RuleRow({
           ownerId={ownerId}
           series={series}
           excludeKey={range ? undefined : aKey}
-          ariaLabel={range ? `Première borne de la règle ${n}` : `Référence de la règle ${n}`}
+          ariaLabel={range ? `Première borne de ${ref}` : `Référence de ${ref}`}
           onChange={(b) => onPatch({ b })}
         />
         {range && (
@@ -251,7 +362,7 @@ function RuleRow({
               operand={rule.c ?? { source: "value", value: 0 }}
               ownerId={ownerId}
               series={series}
-              ariaLabel={`Deuxième borne de la règle ${n}`}
+              ariaLabel={`Deuxième borne de ${ref}`}
               onChange={(c) => onPatch({ c })}
             />
           </span>
@@ -262,13 +373,13 @@ function RuleRow({
           →
         </span>
         <span className="lq-chart__rule-pick lq-chart__rule-pick--effect">
-          <Select size="small" ariaLabel={`Effet de la règle ${n}`} value={rule.effect} options={effects} onChange={setEffect} />
+          <Select size="small" ariaLabel={`Effet de ${ref}`} value={rule.effect} options={effects} onChange={setEffect} />
         </span>
         {isIcon && (
           <RuleIconPicker
             value={rule.icon?.name ?? "circle-filled"}
             color={rule.color}
-            ariaLabel={`Icône de la règle ${n}`}
+            ariaLabel={`Icône de ${ref}`}
             onChange={(name) => onPatch({ icon: { ...(rule.icon ?? defaultRuleIcon(rule.condition)), name } })}
           />
         )}
@@ -277,7 +388,7 @@ function RuleRow({
           className="lq-chart__color-input"
           value={rule.color}
           onChange={(color) => onPatch({ color })}
-          aria-label={`Couleur de la règle ${n}`}
+          aria-label={`Couleur de ${ref}`}
         />
         {!cross && !isIcon && (
           <span className="lq-chart__rule-else">
@@ -285,14 +396,14 @@ function RuleRow({
               label="sinon"
               checked={!!rule.elseColor}
               onChange={(checked) => onPatch({ elseColor: checked ? (rule.color === RULE_DOWN ? RULE_UP : RULE_DOWN) : null })}
-              ariaLabel={`Couleur quand la condition de la règle ${n} est fausse`}
+              ariaLabel={`Couleur quand la condition de ${ref} est fausse`}
             />
             {rule.elseColor && (
               <ColorPicker
                 className="lq-chart__color-input"
                 value={rule.elseColor}
                 onChange={(color) => onPatch({ elseColor: color })}
-                aria-label={`Couleur « sinon » de la règle ${n}`}
+                aria-label={`Couleur « sinon » de ${ref}`}
               />
             )}
           </span>
@@ -302,7 +413,7 @@ function RuleRow({
         <RuleIconSettings
           icon={rule.icon}
           onCurve
-          ariaPrefix={`règle ${n}`}
+          ariaPrefix={ref.replace(/^la /, "")}
           onChange={(patch) => onPatch({ icon: { ...(rule.icon ?? defaultRuleIcon(rule.condition)), ...patch } })}
         />
       )}
@@ -316,7 +427,7 @@ function RuleRow({
           step={5}
           value={opacity}
           onChange={(e) => onPatch({ opacity: Number(e.target.value) })}
-          aria-label={`Opacité de la règle ${n}`}
+          aria-label={`Opacité de ${ref}`}
         />
         <output className="lq-ind-settings__range-value">{opacity} %</output>
       </label>

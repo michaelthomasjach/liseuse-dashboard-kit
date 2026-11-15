@@ -22,6 +22,10 @@ export interface IndicatorSettingsFieldsProps {
   /** Rubrique « Zones remplies » (onglet Style). Faux : elle n'apparaît pas (fonctionnalité hors de l'offre, voir
    *  `CandlestickChartProps.showAreaFills`). Défaut vrai. */
   showAreaFills?: boolean;
+  /** « Règles liées » du style conditionnel : réécrit les règles d'un autre indicateur (voir IndicatorStyleRulesEditor). */
+  onChangeOwnerRules?: (ownerId: string, rules: NonNullable<Indicator["styleRules"]>) => void;
+  /** Ouvre les paramètres d'un autre indicateur (lien « Ouvrir SMA(50) »). */
+  onOpenIndicator?: (id: string) => void;
 }
 
 /** Couleurs « hausse / baisse » par défaut des indicateurs qui se colorent selon la tendance. */
@@ -397,7 +401,7 @@ function TraceRow({ name, visible, colors, sub = false, children }: TraceRowProp
 
 /** The settings modal's "Style" tab (see IndicatorModals.tsx) : « Tracé » (une ligne par élément tracé), « Valeurs »
  *  (format des nombres), « Affichage » (légende, libellés, filigrane), puis les couleurs conditionnelles, repliables. */
-export function IndicatorSettingsStyle({ indicatorDraft: d, setIndicatorDraft, indicators, showAreaFills = true }: IndicatorSettingsFieldsProps) {
+export function IndicatorSettingsStyle({ indicatorDraft: d, setIndicatorDraft, indicators, showAreaFills = true, onChangeOwnerRules, onOpenIndicator }: IndicatorSettingsFieldsProps) {
   const set = (patch: Partial<Indicator>) => setIndicatorDraft({ ...d, ...patch });
   const entry = indicatorCatalogEntry(d);
   const ownPane = entry.pane !== "price";
@@ -626,7 +630,13 @@ export function IndicatorSettingsStyle({ indicatorDraft: d, setIndicatorDraft, i
       )}
       {/* Style conditionnel : écrites au nouveau format, l'ancien (`fills`, converti à la lecture) est retiré. */}
       {d.customData?.draw !== "zones" && (
-        <IndicatorStyleRulesEditor indicator={d} indicators={indicators} onChange={(styleRules) => setIndicatorDraft({ ...d, styleRules, fills: undefined })} />
+        <IndicatorStyleRulesEditor
+          indicator={d}
+          indicators={indicators}
+          onChange={(styleRules) => setIndicatorDraft({ ...d, styleRules, fills: undefined })}
+          onChangeOwnerRules={onChangeOwnerRules}
+          onOpenIndicator={onOpenIndicator}
+        />
       )}
     </div>
   );

@@ -335,3 +335,46 @@ export function styleRuleTemplates(owner: Indicator, indicators: Indicator[]): S
   }
   return templates;
 }
+
+/** Ce qu'une règle d'un AUTRE indicateur peut viser, pour la montrer dans les paramètres de la cible (« Règles liées ») :
+ *  une courbe d'un indicateur, le cours de clôture (paramètres du symbole) ou le volume (paramètres du Volume). */
+export type StyleRuleTarget = { kind: "indicator"; id: string } | { kind: "close" } | { kind: "volume" };
+
+/** Vrai si la référence désigne la cible. Une référence d'indicateur sans `indicatorId` désigne l'indicateur qui porte
+ *  la règle : elle ne vise donc jamais un autre indicateur. */
+function refTargets(ref: StyleRuleOperand | undefined, target: StyleRuleTarget): boolean {
+  if (!ref) return false;
+  if (target.kind === "indicator") return ref.source === "indicator" && ref.indicatorId === target.id;
+  return ref.source === target.kind;
+}
+
+/** Les règles d'un indicateur propriétaire qui citent la cible (en courbe A, référence B ou borne C). */
+export interface LinkedStyleRuleGroup {
+  owner: Indicator;
+  /** Toutes les règles du propriétaire (pour réécrire sa liste) et, parmi elles, celles qui citent la cible. */
+  allRules: IndicatorStyleRule[];
+  rules: IndicatorStyleRule[];
+}
+
+/**
+ * « Règles liées » : les règles de style conditionnel des autres indicateurs qui citent la cible — la SMA(50) qui
+ * remplit entre elle et la SMA(20), vue depuis les paramètres de la SMA(20). Regroupées par indicateur propriétaire,
+ * dans l'ordre des indicateurs ; la cible elle-même est exclue (ses règles sont les siennes).
+ */
+export function linkedStyleRuleGroups(target: StyleRuleTarget, indicators: Indicator[]): LinkedStyleRuleGroup[] {
+  const groups: LinkedStyleRuleGroup[] = [];
+  for (const owner of indicators) {
+    if (target.kind === "indicator" && owner.id === target.id) continue;
+    const allRules = indicatorStyleRules(owner);
+    const rules = allRules.filter((r) => refTargets(r.a, target) || refTargets(r.b, target) || (isRangeCondition(r.condition) && refTargets(r.c, target)));
+    if (rules.length > 0) groups.push({ owner, allRules, rules });
+  }
+  return groups;
+}
+
+/** Le compteur de la rubrique « Style conditionnel » : « 2 », ou « 0 + 2 liées » quand d'autres indicateurs ont des
+ *  règles qui citent celui-ci. */
+export function styleRulesCountLabel(own: number, linked: number): string | number {
+  if (linked === 0) return own;
+  return `${own} + ${linked} ${linked > 1 ? "liées" : "liée"}`;
+}

@@ -854,6 +854,7 @@ function CandlestickChartBody({
     editingIndicatorId,
     indicatorDraft,
     setIndicatorDraft,
+    updateIndicatorStyleRules,
     hoveredIndicatorId,
     setHoveredIndicatorId,
     indicatorsManagerOpen,
@@ -3090,6 +3091,7 @@ function CandlestickChartBody({
         editingIndicatorId={editingIndicatorId}
         indicatorDraft={indicatorDraft}
         setIndicatorDraft={setIndicatorDraft}
+        updateIndicatorStyleRules={updateIndicatorStyleRules}
         closeIndicatorSettings={closeIndicatorSettings}
         deleteEditingIndicator={deleteEditingIndicator}
         saveIndicatorSettings={saveIndicatorSettings}

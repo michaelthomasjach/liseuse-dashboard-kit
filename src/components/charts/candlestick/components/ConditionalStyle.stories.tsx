@@ -116,3 +116,43 @@ export const CandleRules: Story = {
     );
   },
 };
+
+/** « Règles liées » : la SMA(50) porte deux règles qui citent la SMA(20). Les paramètres de la SMA(20) les montrent
+ *  sous les siennes (« 0 + 2 liées »), modifiables sur place : chaque modification réécrit les règles de la SMA(50),
+ *  visibles à droite dans son propre éditeur. */
+export const LinkedRules: Story = {
+  name: "Règles liées (définies sur un autre indicateur)",
+  render: () => {
+    const [sma20, setSma20] = useState<Indicator>({ id: "sma20", kind: "sma", period: 20 });
+    const [sma50, setSma50] = useState<Indicator>({
+      id: "sma50",
+      kind: "sma",
+      period: 50,
+      styleRules: [
+        { id: "l1", a: { source: "indicator" }, condition: "above", b: { source: "indicator", indicatorId: "sma20" }, effect: "fill", color: "#ef5350", elseColor: "#26a69a", opacity: 25 },
+        { id: "l2", a: { source: "indicator" }, condition: "crossUp", b: { source: "indicator", indicatorId: "sma20" }, effect: "icon", icon: { name: "rocket", size: 16, position: "below" }, color: "#26a69a" },
+      ],
+    });
+    const all = [sma20, sma50];
+    const [opened, setOpened] = useState<string | null>(null);
+    return (
+      <div style={{ display: "flex", gap: 24, alignItems: "flex-start" }}>
+        <div style={{ width: 460 }} className="lq-ind-settings">
+          <h4 style={{ margin: "0 0 8px" }}>Paramètres de SMA(20)</h4>
+          <IndicatorStyleRulesEditor
+            indicator={sma20}
+            indicators={all}
+            onChange={(styleRules) => setSma20({ ...sma20, styleRules })}
+            onChangeOwnerRules={(id, styleRules) => id === "sma50" && setSma50({ ...sma50, styleRules })}
+            onOpenIndicator={setOpened}
+          />
+          {opened && <p style={{ fontSize: 12 }}>« Ouvrir » demandé pour : {opened}</p>}
+        </div>
+        <div style={{ width: 460 }} className="lq-ind-settings">
+          <h4 style={{ margin: "0 0 8px" }}>Paramètres de SMA(50)</h4>
+          <IndicatorStyleRulesEditor indicator={sma50} indicators={all} onChange={(styleRules) => setSma50({ ...sma50, styleRules })} />
+        </div>
+      </div>
+    );
+  },
+};

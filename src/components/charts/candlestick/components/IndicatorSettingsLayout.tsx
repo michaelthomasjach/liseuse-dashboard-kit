@@ -43,7 +43,8 @@ export function CollapsibleSection({
 }: {
   title: string;
   help?: ReactNode;
-  count?: number;
+  /** Un nombre (affiché s'il est positif) ou un libellé (« 0 + 2 liées »). */
+  count?: number | string;
   defaultOpen?: boolean;
   children: ReactNode;
 }) {
@@ -55,7 +56,7 @@ export function CollapsibleSection({
         <button type="button" className="lq-ind-settings__section-toggle" aria-expanded={open} aria-controls={bodyId} onClick={() => setOpen((o) => !o)}>
           <ChevronDownIcon size={14} className="lq-ind-settings__section-chevron" />
           <span className="lq-ind-settings__section-title">{title}</span>
-          {count !== undefined && count > 0 && <span className="lq-ind-settings__count">{count}</span>}
+          {(typeof count === "string" ? count !== "" : count !== undefined && count > 0) && <span className="lq-ind-settings__count">{count}</span>}
         </button>
         {help && <HelpTip label={`Aide : ${title}`}>{help}</HelpTip>}
       </header>

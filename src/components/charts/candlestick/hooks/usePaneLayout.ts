@@ -683,6 +683,18 @@ export function usePaneLayout({
     }
   }
 
+  /** Réécrit les règles de style conditionnel d'un indicateur qui n'est pas forcément celui dont la fenêtre est ouverte
+   *  (« Règles liées » : la règle de la SMA(50) modifiée depuis les paramètres de la SMA(20)). Enregistrée avec lui,
+   *  comme toute modification de ses paramètres ; un indicateur de script garde la sienne à côté (voir
+   *  `scriptIndicatorOverrides`). */
+  function updateIndicatorStyleRules(id: string, styleRules: NonNullable<Indicator["styleRules"]>) {
+    if (indicators.some((i) => i.id === id)) {
+      commitIndicators(indicators.map((i) => (i.id === id ? { ...i, styleRules, fills: undefined } : i)));
+    } else if (extraIndicators.some((i) => i.id === id)) {
+      setScriptIndicatorOverrides((prev) => ({ ...prev, [id]: { ...prev[id], styleRules, fills: undefined } }));
+    }
+  }
+
   function deleteEditingIndicator() {
     if (!editingIndicatorId) return;
     // Through removeIndicator rather than filtering `indicators` here: that one already knows a
@@ -1042,6 +1054,7 @@ export function usePaneLayout({
     setEditingIndicatorId,
     indicatorDraft,
     setIndicatorDraft,
+    updateIndicatorStyleRules,
     hoveredIndicatorId,
     setHoveredIndicatorId,
     indicatorsManagerOpen,

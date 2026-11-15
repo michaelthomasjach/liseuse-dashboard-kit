@@ -4604,3 +4604,31 @@ button.lq-chart__legend-item {
 .lq-chart__overlay--drawing {
   touch-action: none;
 }
+
+/* Style conditionnel, « Règles liées » : les règles d'autres indicateurs qui citent la série réglée, regroupées par
+   indicateur propriétaire, avec le lien vers ses paramètres. */
+.lq-chart__linked-rules {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lq-space-2, 8px);
+  margin-top: var(--lq-space-2, 8px);
+  padding-top: var(--lq-space-2, 8px);
+  border-top: 1px dashed var(--lq-color-border-subtle);
+}
+.lq-chart__linked-rules-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lq-space-2, 8px);
+  font-size: 0.8rem;
+}
+.lq-chart__linked-rules-title {
+  color: var(--lq-color-text-muted, var(--lq-color-muted));
+  font-weight: var(--lq-font-weight-semibold, 600);
+}
+.lq-chart__linked-rules-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}

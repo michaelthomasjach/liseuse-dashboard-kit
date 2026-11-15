@@ -23,6 +23,7 @@ import { CodeBlock } from "../../../primitives/CodeBlock";
 import { INDICATOR_DIAGRAMS, VolumeDiagram } from "../diagrams/indicatorDiagramRegistry";
 import { drawingToolMeta, drawingLabel } from "../drawingCatalog";
 import { IndicatorSettingsInputs, IndicatorSettingsStyle } from "./IndicatorSettingsFields";
+import { LinkedStyleRulesSection } from "./IndicatorStyleRulesEditor";
 import { SettingsSection, differsFromDefaults, indicatorDefaults } from "./IndicatorSettingsLayout";
 import { IndicatorPickerModal } from "./IndicatorPickerModal";
 import { IndicatorHelpButton, useOpenIndicatorHelp } from "./IndicatorHelp";
@@ -171,6 +172,8 @@ export interface IndicatorModalsProps {
   editingIndicatorId: string | null;
   indicatorDraft: Indicator | null;
   setIndicatorDraft: (d: Indicator) => void;
+  /** Réécrit les règles de style conditionnel d'un autre indicateur (« Règles liées », voir usePaneLayout). */
+  updateIndicatorStyleRules?: (id: string, rules: NonNullable<Indicator["styleRules"]>) => void;
   closeIndicatorSettings: () => void;
   deleteEditingIndicator: () => void;
   saveIndicatorSettings: () => void;
@@ -255,6 +258,7 @@ export function IndicatorModals({
   editingIndicatorId,
   indicatorDraft,
   setIndicatorDraft,
+  updateIndicatorStyleRules,
   closeIndicatorSettings,
   pickerTargetPane,
   addOnPane,
@@ -761,7 +765,14 @@ export function IndicatorModals({
         {settingsTab === "inputs" && <IndicatorSettingsInputs indicatorDraft={draft} setIndicatorDraft={setIndicatorDraft} indicators={everyIndicator} leading={scriptParams} />}
 
         {settingsTab === "style" && (
-          <IndicatorSettingsStyle indicatorDraft={draft} setIndicatorDraft={setIndicatorDraft} indicators={everyIndicator} showAreaFills={showAreaFills} />
+          <IndicatorSettingsStyle
+            indicatorDraft={draft}
+            setIndicatorDraft={setIndicatorDraft}
+            indicators={everyIndicator}
+            showAreaFills={showAreaFills}
+            onChangeOwnerRules={updateIndicatorStyleRules}
+            onOpenIndicator={openIndicatorSettings}
+          />
         )}
       </Modal>
     );
@@ -904,7 +915,14 @@ export function IndicatorModals({
             </div>
             <div className="lq-pane-settings__group">
               <h3 className="lq-pane-settings__group-title">Style</h3>
-              <IndicatorSettingsStyle indicatorDraft={draft} setIndicatorDraft={setIndicatorDraft} indicators={editing.everyIndicator} showAreaFills={showAreaFills} />
+              <IndicatorSettingsStyle
+                indicatorDraft={draft}
+                setIndicatorDraft={setIndicatorDraft}
+                indicators={editing.everyIndicator}
+                showAreaFills={showAreaFills}
+                onChangeOwnerRules={updateIndicatorStyleRules}
+                onOpenIndicator={openIndicatorSettings}
+              />
             </div>
           </>
         ) : isPrice ? (
@@ -916,6 +934,12 @@ export function IndicatorModals({
             <div className="lq-pane-settings__group">
               <h3 className="lq-pane-settings__group-title">Style</h3>
               <ChartSymbolSettings {...symbolProps} part="style" />
+              {/* Les règles des indicateurs qui citent le cours (« SMA(20) au-dessus du cours »). */}
+              {updateIndicatorStyleRules && (
+                <div className="lq-ind-settings">
+                  <LinkedStyleRulesSection target={{ kind: "close" }} indicators={all} onChangeOwnerRules={updateIndicatorStyleRules} onOpenIndicator={openIndicatorSettings} />
+                </div>
+              )}
             </div>
           </>
         ) : (
@@ -929,6 +953,11 @@ export function IndicatorModals({
             setVolumeUpColorOverride={setVolumeUpColorOverride}
             volumeDownColorOverride={volumeDownColorOverride}
             setVolumeDownColorOverride={setVolumeDownColorOverride}
+            linkedRules={
+              updateIndicatorStyleRules && (
+                <LinkedStyleRulesSection target={{ kind: "volume" }} indicators={all} onChangeOwnerRules={updateIndicatorStyleRules} onOpenIndicator={openIndicatorSettings} />
+              )
+            }
           />
         )}
       </Modal>

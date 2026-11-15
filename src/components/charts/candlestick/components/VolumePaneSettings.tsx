@@ -1,8 +1,11 @@
+import type { ReactNode } from "react";
 import { ColorPicker } from "../../../forms/ColorPicker";
 import { Checkbox } from "../../../forms/Checkbox";
 import { SettingCheckRow, SettingsSection } from "./IndicatorSettingsLayout";
 
 export interface VolumePaneSettingsProps {
+  /** Sous le style : les règles de style conditionnel des indicateurs qui citent le volume (« Règles liées »). */
+  linkedRules?: ReactNode;
   /** Couleurs hausse / baisse que le graphique dessine vraiment quand rien n'est réglé (lues sur le thème), et la
    *  palette E-ink (barres en creux ou pleines, sans couleur). */
   theme: { up: string; down: string; isEink: boolean };
@@ -42,6 +45,7 @@ export function VolumePaneSettings({
   setVolumeDownColorOverride,
   overlay = false,
   setOverlay,
+  linkedRules,
 }: VolumePaneSettingsProps) {
   return (
     <>
@@ -99,6 +103,7 @@ export function VolumePaneSettings({
               </p>
             )}
           </SettingsSection>
+          {linkedRules}
         </div>
       </div>
     </>

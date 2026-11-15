@@ -40,5 +40,5 @@ export interface ChartCanvasStyle {
   /** Réticule ; absent : `colorMuted`, tirets « 3 3 », 1 px. */
   crosshair?: { color: string; dash: number[]; width: number };
   /** Ligne du dernier prix : forcée visible / masquée (absent : seulement en direct), tirets, couleur. */
-  lastPriceLine?: { visible?: boolean; dash: number[]; color?: string };
+  lastPriceLine?: { visible?: boolean; dash: number[]; color?: string; upColor?: string; downColor?: string };
 }

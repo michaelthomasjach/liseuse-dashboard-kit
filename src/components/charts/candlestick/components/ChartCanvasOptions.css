@@ -74,12 +74,26 @@
 
 /* Couleurs des étiquettes des axes (Paramètres système → Échelles et lignes → Étiquettes des axes, ou clic droit sur
    un axe). `!important` : le fond d'une étiquette de série est posé en ligne (couleur de la série). */
-.lq-chart__plot[data-lq-axis-labels~="series-label-bg"] :is(.lq-chart__axis-value--last, .lq-chart__axis-value--indicator) {
-  background-color: var(--lq-chart-series-label-bg) !important;
+/* Dernier cours et valeurs des indicateurs, en hausse et en baisse (un indicateur : par rapport à sa valeur précédente). */
+.lq-chart__plot[data-lq-axis-labels~="last-bg-up"] .lq-chart__axis-value--last-up {
+  background-color: var(--lq-chart-last-bg-up) !important;
 }
-.lq-chart__plot[data-lq-axis-labels~="series-label-text"] :is(.lq-chart__axis-value--last, .lq-chart__axis-value--indicator),
-.lq-chart__plot[data-lq-axis-labels~="series-label-text"] :is(.lq-chart__axis-value--last, .lq-chart__axis-value--indicator) .lq-chart__axis-value-text {
-  color: var(--lq-chart-series-label-text) !important;
+.lq-chart__plot[data-lq-axis-labels~="last-bg-down"] .lq-chart__axis-value--last-down {
+  background-color: var(--lq-chart-last-bg-down) !important;
+}
+.lq-chart__plot[data-lq-axis-labels~="series-bg-up"] .lq-chart__axis-value--indicator-up {
+  background-color: var(--lq-chart-series-bg-up) !important;
+}
+.lq-chart__plot[data-lq-axis-labels~="series-bg-down"] .lq-chart__axis-value--indicator-down {
+  background-color: var(--lq-chart-series-bg-down) !important;
+}
+.lq-chart__plot[data-lq-axis-labels~="series-text-up"] :is(.lq-chart__axis-value--last-up, .lq-chart__axis-value--indicator-up),
+.lq-chart__plot[data-lq-axis-labels~="series-text-up"] :is(.lq-chart__axis-value--last-up, .lq-chart__axis-value--indicator-up) .lq-chart__axis-value-text {
+  color: var(--lq-chart-series-text-up) !important;
+}
+.lq-chart__plot[data-lq-axis-labels~="series-text-down"] :is(.lq-chart__axis-value--last-down, .lq-chart__axis-value--indicator-down),
+.lq-chart__plot[data-lq-axis-labels~="series-text-down"] :is(.lq-chart__axis-value--last-down, .lq-chart__axis-value--indicator-down) .lq-chart__axis-value-text {
+  color: var(--lq-chart-series-text-down) !important;
 }
 .lq-chart__plot[data-lq-axis-labels~="cross-y-label-bg"]
   .lq-chart__axis-value--y:not(.lq-chart__axis-value--last, .lq-chart__axis-value--indicator, .lq-chart__axis-value--high-low, .lq-chart__axis-value--annotation) {

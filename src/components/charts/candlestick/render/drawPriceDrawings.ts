@@ -840,7 +840,8 @@ export function drawPriceDrawings(ctx: CanvasRenderingContext2D, params: RenderC
       const up = prevCandle ? lastCandle.close >= prevCandle.close : true;
       const y = snapPixel(zoomedPriceScale(lastCandle.close));
       ctx.save();
-      ctx.strokeStyle = lastLine?.color ?? (up ? colorUp : colorDown);
+      // Hausse / baisse réglées à part ; à défaut l'ancienne couleur unique, sinon celle de la bougie.
+      ctx.strokeStyle = (up ? lastLine?.upColor : lastLine?.downColor) ?? lastLine?.color ?? (up ? colorUp : colorDown);
       ctx.lineWidth = 1;
       ctx.setLineDash(lastLine?.dash ?? [3, 3]);
       ctx.beginPath();

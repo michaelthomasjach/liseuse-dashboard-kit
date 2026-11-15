@@ -57,9 +57,14 @@ export interface ChartStyleSettings {
   countdown?: boolean;
   /** Ligne horizontale du dernier prix. Absent : tracée seulement en direct (`livePrice`), comme avant. */
   lastPriceLine?: boolean;
-  /** Style et couleur de cette ligne. Défaut `dashed`, couleur de hausse / baisse. */
+  /** Style et couleur de cette ligne. Défaut `dashed`, couleur de hausse / baisse. `lastPriceLineColor` (réglage
+   *  d'avant) vaut pour les deux sens, sauf là où `lastPriceLineUpColor` / `lastPriceLineDownColor` sont posés. */
   lastPriceLineStyle?: ChartLineStyle;
   lastPriceLineColor?: string;
+  /** Couleur de la ligne du dernier prix (et, sans couleur d'étiquette personnalisée, de sa pastille) quand la dernière
+   *  bougie monte / baisse. Absent : la couleur de la bougie. */
+  lastPriceLineUpColor?: string;
+  lastPriceLineDownColor?: string;
   /** Jour de la semaine sur les étiquettes de temps. Défaut faux. */
   weekdayOnLabels?: boolean;
   dateFormat?: ChartDateFormat;
@@ -99,6 +104,10 @@ export interface ChartStyleSettings {
    *  texte. Absent : la couleur de la série en fond, le texte du thème. */
   seriesLabelBg?: string;
   seriesLabelText?: string;
+  /** Les mêmes quand la série baisse (dernier cours sous la clôture précédente, indicateur sous sa valeur précédente).
+   *  Absent : `seriesLabelBg` / `seriesLabelText`. */
+  seriesLabelBgDown?: string;
+  seriesLabelTextDown?: string;
   /** Étiquette du réticule sur l'axe des prix et des panneaux. Absent : la couleur d'accent du thème. */
   crosshairPriceLabelBg?: string;
   crosshairPriceLabelText?: string;
@@ -138,6 +147,8 @@ export const MODE_COLOR_KEYS = [
   "borderUpColor",
   "borderDownColor",
   "lastPriceLineColor",
+  "lastPriceLineUpColor",
+  "lastPriceLineDownColor",
   "backgroundType",
   "backgroundColor",
   "backgroundColor2",
@@ -150,6 +161,8 @@ export const MODE_COLOR_KEYS = [
   "watermarkColor",
   "seriesLabelBg",
   "seriesLabelText",
+  "seriesLabelBgDown",
+  "seriesLabelTextDown",
   "crosshairPriceLabelBg",
   "crosshairPriceLabelText",
   "crosshairTimeLabelBg",
@@ -380,6 +393,8 @@ export const CANVAS_STYLE_KEYS: (keyof ChartStyleSettings)[] = [
   "paneButtons",
   "seriesLabelBg",
   "seriesLabelText",
+  "seriesLabelBgDown",
+  "seriesLabelTextDown",
   "crosshairPriceLabelBg",
   "crosshairPriceLabelText",
   "crosshairTimeLabelBg",
@@ -396,20 +411,28 @@ export function effectiveChartStyle(style: ChartStyleSettings, advanced: boolean
   return next;
 }
 
-/** Couleurs des étiquettes des axes : réglage, variable CSS (`--lq-chart-…`) et jeton de `data-lq-axis-labels`. */
-const AXIS_LABEL_VARS: [ModeColorKey, string][] = [
-  ["seriesLabelBg", "series-label-bg"],
-  ["seriesLabelText", "series-label-text"],
-  ["crosshairPriceLabelBg", "cross-y-label-bg"],
-  ["crosshairPriceLabelText", "cross-y-label-text"],
-  ["crosshairTimeLabelBg", "cross-x-label-bg"],
-  ["crosshairTimeLabelText", "cross-x-label-text"],
-];
+/** Couleurs des étiquettes des axes, par jeton (`data-lq-axis-labels`, lu par ChartCanvasOptions.css) et variable CSS
+ *  (`--lq-chart-<jeton>`) : pastille du dernier cours, valeurs des indicateurs, en hausse et en baisse, puis réticule.
+ *  La pastille du dernier cours prend, à défaut d'une couleur d'étiquette, celle de la ligne du dernier prix. */
+function axisLabelColors(s: ChartStyleSettings): [string, string | undefined][] {
+  return [
+    ["last-bg-up", s.seriesLabelBg ?? s.lastPriceLineUpColor],
+    ["last-bg-down", s.seriesLabelBgDown ?? s.seriesLabelBg ?? s.lastPriceLineDownColor],
+    ["series-bg-up", s.seriesLabelBg],
+    ["series-bg-down", s.seriesLabelBgDown ?? s.seriesLabelBg],
+    ["series-text-up", s.seriesLabelText],
+    ["series-text-down", s.seriesLabelTextDown ?? s.seriesLabelText],
+    ["cross-y-label-bg", s.crosshairPriceLabelBg],
+    ["cross-y-label-text", s.crosshairPriceLabelText],
+    ["cross-x-label-bg", s.crosshairTimeLabelBg],
+    ["cross-x-label-text", s.crosshairTimeLabelText],
+  ];
+}
 
 /** Les couleurs d'étiquettes réglées, en jetons pour l'attribut `data-lq-axis-labels` de la zone du graphique (lu par
  *  ChartCanvasOptions.css) ; `undefined` quand aucune ne l'est. */
 export function axisLabelsAttribute(style: ChartStyleSettings): string | undefined {
-  const tokens = AXIS_LABEL_VARS.filter(([key]) => style[key]).map(([, name]) => name);
+  const tokens = axisLabelColors(style).filter(([, c]) => c).map(([name]) => name);
   return tokens.length > 0 ? tokens.join(" ") : undefined;
 }
 
@@ -430,7 +453,7 @@ export function chartStyleCssVars(style: ChartStyleSettings): CSSProperties {
   if (style.scaleLineColor) vars["--lq-chart-domain-color"] = style.scaleLineColor;
   if (style.paneSeparatorColor) vars["--lq-chart-pane-separator-color"] = style.paneSeparatorColor;
   if (style.watermarkColor) vars["--lq-chart-watermark-color"] = style.watermarkColor;
-  for (const [key, name] of AXIS_LABEL_VARS) if (style[key]) vars[`--lq-chart-${name}`] = style[key];
+  for (const [name, color] of axisLabelColors(style)) if (color) vars[`--lq-chart-${name}`] = color;
   // Mode imposé différent de celui du site : la zone du graphique prend les jetons de surface de ce mode, pour que la
   // légende, les en-têtes de panneaux et les axes restent lisibles sur son fond.
   const t = style.surfaceTokens;

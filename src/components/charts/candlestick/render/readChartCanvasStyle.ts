@@ -61,8 +61,14 @@ export function applyChartStyle(style: ChartCanvasStyle, chartStyle: ChartStyleS
         ? { color: s.crosshairColor ?? style.colorMuted, dash: lineDash(s.crosshairStyle, [3, 3]), width: s.crosshairWidth ?? 1 }
         : undefined,
     lastPriceLine:
-      s.lastPriceLine !== undefined || s.lastPriceLineStyle || s.lastPriceLineColor
-        ? { visible: s.lastPriceLine, dash: lineDash(s.lastPriceLineStyle, [3, 3]), color: s.lastPriceLineColor }
+      s.lastPriceLine !== undefined || s.lastPriceLineStyle || s.lastPriceLineColor || s.lastPriceLineUpColor || s.lastPriceLineDownColor
+        ? {
+            visible: s.lastPriceLine,
+            dash: lineDash(s.lastPriceLineStyle, [3, 3]),
+            color: s.lastPriceLineColor,
+            upColor: s.lastPriceLineUpColor,
+            downColor: s.lastPriceLineDownColor,
+          }
         : undefined,
   };
 }

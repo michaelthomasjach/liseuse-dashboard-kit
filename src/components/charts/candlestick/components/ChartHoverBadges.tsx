@@ -219,7 +219,7 @@ export function ChartHoverBadges({
   }
 
   // Dernière valeur de chaque indicateur sur son axe, dans sa couleur (réglage « Valeurs des indicateurs »).
-  const indicatorLabels: { key: string; top: number; text: string; color: string }[] = [];
+  const indicatorLabels: { key: string; top: number; text: string; color: string; direction: "up" | "down" }[] = [];
   if (chartStyle?.indicatorAxisLabels && data.length > 0) {
     const last = Math.min(data.length - 1, lastValueIndex ?? data.length - 1);
     indicatorValues.forEach(({ indicator: ind, values }, i) => {
@@ -228,13 +228,17 @@ export function ChartHoverBadges({
       if (pane === "price" ? !gutter.priceVisible : !gutter.panesVisible) return;
       const color = ind.color ?? defaultIndicatorColor(i);
       const ann = indicatorAxisAnnotations(ind, values, last, color);
+      // Hausse ou baisse d'une valeur : par rapport à la même valeur sur la bougie précédente (couleurs des étiquettes).
+      const prevAnn = last > 0 ? indicatorAxisAnnotations(ind, values, last - 1, color) : null;
       const { scale, offset } = paneScaleAndOffset(ann.valueAxis);
       const [a, b] = scale.range();
       for (const l of ann.y.filter((l) => !/hist/i.test(l.label ?? "") && !/hist/i.test(l.key)).slice(0, 3)) {
         const y = scale(l.at);
         if (!Number.isFinite(y) || y < Math.min(a, b) || y > Math.max(a, b)) continue;
         const fmt = ann.valueAxis === "price" ? priceAxisFmt : (paneValueFormatter(ind) ?? formatCompactNumber);
-        indicatorLabels.push({ key: `${ind.id}-${l.key}`, top: offset + y, text: l.text ?? fmt(l.at), color });
+        const prev = prevAnn?.y.find((p) => p.key === l.key)?.at;
+        const direction = prev === undefined || !Number.isFinite(prev) || l.at >= prev ? "up" : "down";
+        indicatorLabels.push({ key: `${ind.id}-${l.key}`, top: offset + y, text: l.text ?? fmt(l.at), color, direction });
       }
     });
   }
@@ -259,7 +263,7 @@ export function ChartHoverBadges({
       {indicatorLabels.map((b) => (
         <div
           key={`ind-${b.key}`}
-          className={"lq-chart__axis-value lq-chart__axis-value--y lq-chart__axis-value--indicator" + sideClass}
+          className={`lq-chart__axis-value lq-chart__axis-value--y lq-chart__axis-value--indicator lq-chart__axis-value--indicator-${b.direction}${sideClass}`}
           style={{ top: dims.margin.top + b.top, left: axisLeft, minWidth: gutter.width, backgroundColor: b.color }}
         >
           <span className="lq-chart__axis-value-text">{b.text}</span>

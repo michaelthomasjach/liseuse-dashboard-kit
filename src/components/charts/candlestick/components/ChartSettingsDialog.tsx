@@ -53,7 +53,7 @@ const TIME_FORMAT_OPTIONS: { value: ChartTimeFormat; label: string }[] = [
 
 const TEXT_SIZE_OPTIONS = ["10", "11", "12", "13", "14", "15", "16"].map((v) => ({ value: v, label: `${v} px` }));
 
-const AXIS_LABEL_KEYS = ["seriesLabelBg", "seriesLabelText", "crosshairPriceLabelBg", "crosshairPriceLabelText", "crosshairTimeLabelBg", "crosshairTimeLabelText"] as const;
+const AXIS_LABEL_KEYS = ["seriesLabelBg", "seriesLabelText", "seriesLabelBgDown", "seriesLabelTextDown", "crosshairPriceLabelBg", "crosshairPriceLabelText", "crosshairTimeLabelBg", "crosshairTimeLabelText"] as const;
 
 const COLOR_MODE_OPTIONS: { value: ChartColorMode | "auto"; label: string }[] = [
   { value: "light", label: "Jour" },
@@ -478,12 +478,14 @@ export function ChartSettingsDialog(props: ChartSettingsDialogProps) {
           </Row>
           <Row label="Ligne du dernier prix">
             {lineStyleSelect(chartStyle.lastPriceLineStyle ?? "dashed", (v) => set({ lastPriceLineStyle: v === "dashed" ? undefined : v }), "Style de la ligne du dernier prix", !lastLine)}
-            <ColorPicker
-              value={chartStyle.lastPriceLineColor ?? theme.up}
-              onChange={(c) => set({ lastPriceLineColor: c })}
+            {/* Hausse et baisse : par défaut la couleur de la bougie ; l'ancienne couleur unique vaut pour les deux sens. */}
+            <UpDownPickers
+              up={chartStyle.lastPriceLineUpColor ?? chartStyle.lastPriceLineColor ?? p.upColorOverride ?? theme.up}
+              down={chartStyle.lastPriceLineDownColor ?? chartStyle.lastPriceLineColor ?? p.downColorOverride ?? theme.down}
+              onUp={(c) => set({ lastPriceLineUpColor: c })}
+              onDown={(c) => set({ lastPriceLineDownColor: c })}
               disabled={!lastLine}
-              aria-label="Couleur de la ligne du dernier prix"
-              title={chartStyle.lastPriceLineColor ? undefined : "Couleur de hausse ou de baisse"}
+              label="Couleur de la ligne du dernier prix, bougies"
             />
             <Toggle
               checked={lastLine}
@@ -512,21 +514,33 @@ export function ChartSettingsDialog(props: ChartSettingsDialogProps) {
                   { value: "custom", label: "Personnalisée" },
                 ]}
                 value={chartStyle.seriesLabelBg ? "custom" : "series"}
-                onChange={(v) => set({ seriesLabelBg: v === "custom" ? (chartStyle.seriesLabelBg ?? themeColors.accent) : undefined })}
+                onChange={(v) =>
+                  set(
+                    v === "custom"
+                      ? { seriesLabelBg: chartStyle.seriesLabelBg ?? p.upColorOverride ?? theme.up, seriesLabelBgDown: chartStyle.seriesLabelBgDown ?? p.downColorOverride ?? theme.down }
+                      : { seriesLabelBg: undefined, seriesLabelBgDown: undefined },
+                  )
+                }
                 ariaLabel="Fond des étiquettes des séries"
               />
-              <ColorPicker
-                value={chartStyle.seriesLabelBg ?? theme.up}
-                onChange={(c) => set({ seriesLabelBg: c })}
+            </Row>
+            <Row label="Fond des valeurs" hint="En hausse / en baisse (un indicateur : par rapport à sa valeur précédente)" disabled={!chartStyle.seriesLabelBg}>
+              <UpDownPickers
+                up={chartStyle.seriesLabelBg ?? p.upColorOverride ?? theme.up}
+                down={chartStyle.seriesLabelBgDown ?? chartStyle.seriesLabelBg ?? p.downColorOverride ?? theme.down}
+                onUp={(c) => set({ seriesLabelBg: c })}
+                onDown={(c) => set({ seriesLabelBgDown: c, seriesLabelBg: chartStyle.seriesLabelBg ?? p.upColorOverride ?? theme.up })}
                 disabled={!chartStyle.seriesLabelBg}
-                aria-label="Couleur de fond des étiquettes des séries"
-                title="Fond"
+                label="Fond des étiquettes des séries"
               />
-              <ColorPicker
-                value={chartStyle.seriesLabelText ?? themeColors.accentContrast}
-                onChange={(c) => set({ seriesLabelText: c })}
-                aria-label="Couleur du texte des étiquettes des séries"
-                title="Texte"
+            </Row>
+            <Row label="Texte des valeurs" hint="En hausse / en baisse">
+              <UpDownPickers
+                up={chartStyle.seriesLabelText ?? themeColors.accentContrast}
+                down={chartStyle.seriesLabelTextDown ?? chartStyle.seriesLabelText ?? themeColors.accentContrast}
+                onUp={(c) => set({ seriesLabelText: c })}
+                onDown={(c) => set({ seriesLabelTextDown: c })}
+                label="Texte des étiquettes des séries"
               />
             </Row>
             <Row label="Réticule sur l'axe des prix" hint="Prix ou valeur survolé, fond et texte">

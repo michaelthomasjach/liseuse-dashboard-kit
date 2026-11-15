@@ -128,6 +128,7 @@ import { stableMemo } from "./candlestick/stableMemo";
 import { resolveIndicatorWatermark } from "./candlestick/indicatorWatermark";
 import { ChartMenuTargetHighlight } from "./candlestick/components/ChartMenuTargetHighlight";
 import type { ChartMenuTarget } from "./candlestick/components/ChartContextMenu";
+import { ColorPreferencesProvider } from "../forms/ColorPreferences";
 
 // Subtrees that show nothing about the cursor: memoized so a mouse move (which re-renders this
 // chart for its crosshair) no longer re-renders them too — see stableMemo.
@@ -156,7 +157,16 @@ const noopPointerHandler = () => {};
 /** The chart Ctrl+Z / Ctrl+Y act on when the pointer is over none of them: the one last clicked. */
 let lastUsedChart: object | null = null;
 
-export function CandlestickChart({
+export function CandlestickChart(props: CandlestickChartProps) {
+  // Couleurs récentes et jeux de couleurs, communs à tous les sélecteurs de couleur du graphique (voir `colorPreferences`).
+  return (
+    <ColorPreferencesProvider value={props.colorPreferences} onChange={props.onColorPreferencesChange}>
+      <CandlestickChartBody {...props} />
+    </ColorPreferencesProvider>
+  );
+}
+
+function CandlestickChartBody({
   data,
   width,
   height = 380,

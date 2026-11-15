@@ -26,7 +26,11 @@ function compute(anchor: DOMRect, panel: DOMRect, preferred: PopoverPlacement): 
     placement = "bottom";
   }
 
-  const top = placement === "bottom" ? anchor.bottom + GAP : anchor.top - panel.height - GAP;
+  let top = placement === "bottom" ? anchor.bottom + GAP : anchor.top - panel.height - GAP;
+  // Plus haut que la place d'un côté comme de l'autre : gardé dans la fenêtre (quitte à couvrir l'ancre) plutôt que
+  // coupé par le bord de l'écran.
+  if (top + panel.height + PADDING > viewportH) top = viewportH - panel.height - PADDING;
+  top = Math.max(PADDING, top);
 
   // Prefer left-aligning the panel to the anchor; flip to right-aligned if it would overflow,
   // then clamp inside the viewport either way (covers "opens on the right, or the left").

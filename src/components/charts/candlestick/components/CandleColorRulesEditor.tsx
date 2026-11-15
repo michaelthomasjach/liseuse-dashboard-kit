@@ -1,3 +1,4 @@
+import { ColorPicker } from "../../../forms/ColorPicker";
 import { Checkbox } from "../../../forms/Checkbox";
 import { InputNumber } from "../../../forms/InputNumber";
 import { Select, type SelectOption } from "../../../forms/Select";
@@ -190,31 +191,28 @@ function CandleRuleRow({
         </span>
         <span className="lq-chart__rule-group">
           <span className="lq-chart__rule-word">corps</span>
-          <input
-            type="color"
+          <ColorPicker
             className="lq-chart__color-input"
             value={rule.color}
-            onChange={(e) => onPatch({ color: e.target.value })}
+            onChange={(color) => onPatch({ color })}
             aria-label={`Couleur du corps, règle de bougies ${n}`}
           />
         </span>
         <span className="lq-chart__rule-group">
           <span className="lq-chart__rule-word">mèche</span>
-          <input
-            type="color"
+          <ColorPicker
             className="lq-chart__color-input"
             value={rule.wickColor || rule.color}
-            onChange={(e) => onPatch({ wickColor: e.target.value })}
+            onChange={(color) => onPatch({ wickColor: color })}
             aria-label={`Couleur de la mèche, règle de bougies ${n}`}
           />
         </span>
         <span className="lq-chart__rule-group">
           <span className="lq-chart__rule-word">bordure</span>
-          <input
-            type="color"
+          <ColorPicker
             className="lq-chart__color-input"
             value={rule.borderColor || rule.color}
-            onChange={(e) => onPatch({ borderColor: e.target.value })}
+            onChange={(color) => onPatch({ borderColor: color })}
             aria-label={`Couleur de la bordure, règle de bougies ${n}`}
           />
         </span>

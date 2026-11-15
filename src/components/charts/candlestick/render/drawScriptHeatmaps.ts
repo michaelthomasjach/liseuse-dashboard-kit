@@ -75,7 +75,8 @@ function sampleRamp(colors: string[]): Uint8ClampedArray {
 function parseColor(value: string): [number, number, number] {
   const hex = value.trim().replace("#", "");
   if (hex.length === 3) return [parseInt(hex[0] + hex[0], 16), parseInt(hex[1] + hex[1], 16), parseInt(hex[2] + hex[2], 16)];
-  if (hex.length === 6) return [parseInt(hex.slice(0, 2), 16), parseInt(hex.slice(2, 4), 16), parseInt(hex.slice(4, 6), 16)];
+  // #rrggbbaa (couleur du sélecteur avec transparence) : la teinte seule, la rampe ayant sa propre opacité.
+  if (hex.length === 6 || hex.length === 8) return [parseInt(hex.slice(0, 2), 16), parseInt(hex.slice(2, 4), 16), parseInt(hex.slice(4, 6), 16)];
   return [128, 128, 128];
 }
 

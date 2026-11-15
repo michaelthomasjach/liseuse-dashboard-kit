@@ -1,3 +1,4 @@
+import { ColorPicker } from "../../../../forms/ColorPicker";
 import { useEffect, useState } from "react";
 import { Input } from "../../../../forms/Input";
 import { InputNumber } from "../../../../forms/InputNumber";
@@ -94,11 +95,10 @@ export function ScriptParamsFields({ params, values, onChange }: ScriptParamsFie
           return (
             <div className="lq-field" key={param.name}>
               <label className="lq-field__label">{param.name}</label>
-              <input
-                type="color"
+              <ColorPicker
                 className="lq-chart__color-input"
                 value={typeof value === "string" ? value : "#000000"}
-                onChange={(e) => setDraft(param.name, e.target.value)}
+                onChange={(color) => setDraft(param.name, color)}
               />
               {/* The color input is hand-rolled rather than a `lq-field` component, so its helper
                   text has to be written out here to match what the other field types render. */}

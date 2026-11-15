@@ -1,3 +1,4 @@
+import { ColorPicker } from "../../../forms/ColorPicker";
 import { Checkbox } from "../../../forms/Checkbox";
 import { IndicatorStyleRulesEditor } from "./IndicatorStyleRulesEditor";
 import { IndicatorWatermarkField } from "./IndicatorWatermarkField";
@@ -471,20 +472,18 @@ export function IndicatorSettingsStyle({ indicatorDraft, setIndicatorDraft, indi
             <div className="lq-chart__edit-drawing-row">
               <div className="lq-field">
                 <label className="lq-field__label">Histogramme (hausse)</label>
-                <input
-                  type="color"
+                <ColorPicker
                   className="lq-chart__color-input"
                   value={indicatorDraft.macdHistogramUpColor ?? "#26a69a"}
-                  onChange={(e) => setIndicatorDraft({ ...indicatorDraft, macdHistogramUpColor: e.target.value })}
+                  onChange={(color) => setIndicatorDraft({ ...indicatorDraft, macdHistogramUpColor: color })}
                 />
               </div>
               <div className="lq-field">
                 <label className="lq-field__label">Histogramme (baisse)</label>
-                <input
-                  type="color"
+                <ColorPicker
                   className="lq-chart__color-input"
                   value={indicatorDraft.macdHistogramDownColor ?? "#ef5350"}
-                  onChange={(e) => setIndicatorDraft({ ...indicatorDraft, macdHistogramDownColor: e.target.value })}
+                  onChange={(color) => setIndicatorDraft({ ...indicatorDraft, macdHistogramDownColor: color })}
                 />
               </div>
             </div>
@@ -503,20 +502,18 @@ export function IndicatorSettingsStyle({ indicatorDraft, setIndicatorDraft, indi
             <div className="lq-chart__edit-drawing-row">
               <div className="lq-field">
                 <label className="lq-field__label">MACD au-dessus du signal</label>
-                <input
-                  type="color"
+                <ColorPicker
                   className="lq-chart__color-input"
                   value={indicatorDraft.macdLineAboveColor ?? "#26a69a"}
-                  onChange={(e) => setIndicatorDraft({ ...indicatorDraft, macdLineAboveColor: e.target.value })}
+                  onChange={(color) => setIndicatorDraft({ ...indicatorDraft, macdLineAboveColor: color })}
                 />
               </div>
               <div className="lq-field">
                 <label className="lq-field__label">MACD sous le signal</label>
-                <input
-                  type="color"
+                <ColorPicker
                   className="lq-chart__color-input"
                   value={indicatorDraft.macdLineBelowColor ?? "#ef5350"}
-                  onChange={(e) => setIndicatorDraft({ ...indicatorDraft, macdLineBelowColor: e.target.value })}
+                  onChange={(color) => setIndicatorDraft({ ...indicatorDraft, macdLineBelowColor: color })}
                 />
               </div>
             </div>
@@ -538,20 +535,18 @@ export function IndicatorSettingsStyle({ indicatorDraft, setIndicatorDraft, indi
         <div className="lq-chart__edit-drawing-row">
           <div className="lq-field">
             <label className="lq-field__label">Couleur (hausse)</label>
-            <input
-              type="color"
+            <ColorPicker
               className="lq-chart__color-input"
               value={indicatorDraft.supertrendUpColor ?? "#26a69a"}
-              onChange={(e) => setIndicatorDraft({ ...indicatorDraft, supertrendUpColor: e.target.value })}
+              onChange={(color) => setIndicatorDraft({ ...indicatorDraft, supertrendUpColor: color })}
             />
           </div>
           <div className="lq-field">
             <label className="lq-field__label">Couleur (baisse)</label>
-            <input
-              type="color"
+            <ColorPicker
               className="lq-chart__color-input"
               value={indicatorDraft.supertrendDownColor ?? "#ef5350"}
-              onChange={(e) => setIndicatorDraft({ ...indicatorDraft, supertrendDownColor: e.target.value })}
+              onChange={(color) => setIndicatorDraft({ ...indicatorDraft, supertrendDownColor: color })}
             />
           </div>
         </div>
@@ -560,20 +555,18 @@ export function IndicatorSettingsStyle({ indicatorDraft, setIndicatorDraft, indi
         <div className="lq-chart__edit-drawing-row">
           <div className="lq-field">
             <label className="lq-field__label">Couleur (hausse)</label>
-            <input
-              type="color"
+            <ColorPicker
               className="lq-chart__color-input"
               value={indicatorDraft.sarUpColor ?? "#26a69a"}
-              onChange={(e) => setIndicatorDraft({ ...indicatorDraft, sarUpColor: e.target.value })}
+              onChange={(color) => setIndicatorDraft({ ...indicatorDraft, sarUpColor: color })}
             />
           </div>
           <div className="lq-field">
             <label className="lq-field__label">Couleur (baisse)</label>
-            <input
-              type="color"
+            <ColorPicker
               className="lq-chart__color-input"
               value={indicatorDraft.sarDownColor ?? "#ef5350"}
-              onChange={(e) => setIndicatorDraft({ ...indicatorDraft, sarDownColor: e.target.value })}
+              onChange={(color) => setIndicatorDraft({ ...indicatorDraft, sarDownColor: color })}
             />
           </div>
         </div>
@@ -593,20 +586,18 @@ export function IndicatorSettingsStyle({ indicatorDraft, setIndicatorDraft, indi
           <div className="lq-chart__edit-drawing-row">
             <div className="lq-field">
               <label className="lq-field__label">Couleur (hausse)</label>
-              <input
-                type="color"
+              <ColorPicker
                 className="lq-chart__color-input"
                 value={indicatorDraft.chandelierUpColor ?? "#26a69a"}
-                onChange={(e) => setIndicatorDraft({ ...indicatorDraft, chandelierUpColor: e.target.value })}
+                onChange={(color) => setIndicatorDraft({ ...indicatorDraft, chandelierUpColor: color })}
               />
             </div>
             <div className="lq-field">
               <label className="lq-field__label">Couleur (baisse)</label>
-              <input
-                type="color"
+              <ColorPicker
                 className="lq-chart__color-input"
                 value={indicatorDraft.chandelierDownColor ?? "#ef5350"}
-                onChange={(e) => setIndicatorDraft({ ...indicatorDraft, chandelierDownColor: e.target.value })}
+                onChange={(color) => setIndicatorDraft({ ...indicatorDraft, chandelierDownColor: color })}
               />
             </div>
           </div>
@@ -649,20 +640,18 @@ export function IndicatorSettingsStyle({ indicatorDraft, setIndicatorDraft, indi
         <div className="lq-chart__edit-drawing-row">
           <div className="lq-field">
             <label className="lq-field__label">Couleur +DI</label>
-            <input
-              type="color"
+            <ColorPicker
               className="lq-chart__color-input"
               value={indicatorDraft.adxPlusColor ?? "#26a69a"}
-              onChange={(e) => setIndicatorDraft({ ...indicatorDraft, adxPlusColor: e.target.value })}
+              onChange={(color) => setIndicatorDraft({ ...indicatorDraft, adxPlusColor: color })}
             />
           </div>
           <div className="lq-field">
             <label className="lq-field__label">Couleur -DI</label>
-            <input
-              type="color"
+            <ColorPicker
               className="lq-chart__color-input"
               value={indicatorDraft.adxMinusColor ?? "#ef5350"}
-              onChange={(e) => setIndicatorDraft({ ...indicatorDraft, adxMinusColor: e.target.value })}
+              onChange={(color) => setIndicatorDraft({ ...indicatorDraft, adxMinusColor: color })}
             />
           </div>
         </div>
@@ -719,11 +708,10 @@ export function IndicatorSettingsStyle({ indicatorDraft, setIndicatorDraft, indi
               <div className="lq-chart__series-color" key={series.key}>
                 <div className="lq-field">
                   <label className="lq-field__label">{series.label || `Série ${i + 1}`}</label>
-                  <input
-                    type="color"
+                  <ColorPicker
                     className="lq-chart__color-input"
                     value={indicatorDraft.seriesColors?.[series.key] ?? series.color ?? defaultIndicatorColor(i)}
-                    onChange={(e) => setIndicatorDraft({ ...indicatorDraft, seriesColors: { ...indicatorDraft.seriesColors, [series.key]: e.target.value } })}
+                    onChange={(color) => setIndicatorDraft({ ...indicatorDraft, seriesColors: { ...indicatorDraft.seriesColors, [series.key]: color } })}
                     aria-label={`Couleur de ${series.label || `la série ${i + 1}`}`}
                   />
                 </div>
@@ -745,11 +733,11 @@ export function IndicatorSettingsStyle({ indicatorDraft, setIndicatorDraft, indi
                         />
                         <div className="lq-field">
                           <label className="lq-field__label">Au-dessus</label>
-                          <input type="color" className="lq-chart__color-input" value={cross.above} onChange={(e) => setCross({ ...cross, above: e.target.value })} />
+                          <ColorPicker className="lq-chart__color-input" value={cross.above} onChange={(color) => setCross({ ...cross, above: color })} />
                         </div>
                         <div className="lq-field">
                           <label className="lq-field__label">En dessous</label>
-                          <input type="color" className="lq-chart__color-input" value={cross.below} onChange={(e) => setCross({ ...cross, below: e.target.value })} />
+                          <ColorPicker className="lq-chart__color-input" value={cross.below} onChange={(color) => setCross({ ...cross, below: color })} />
                         </div>
                       </>
                     )}
@@ -768,11 +756,12 @@ export function IndicatorSettingsStyle({ indicatorDraft, setIndicatorDraft, indi
         indicatorDraft.kind !== "tpo" && (
         <div className="lq-field">
           <label className="lq-field__label">Couleur</label>
-          <input
-            type="color"
+          <ColorPicker
             className="lq-chart__color-input"
             value={indicatorDraft.color ?? defaultIndicatorColor(indicators.findIndex((i) => i.id === indicatorDraft.id))}
-            onChange={(e) => setIndicatorDraft({ ...indicatorDraft, color: e.target.value })}
+            onChange={(color) => setIndicatorDraft({ ...indicatorDraft, color })}
+            thickness={indicatorDraft.lineWidth}
+            onThicknessChange={(lineWidth) => setIndicatorDraft({ ...indicatorDraft, lineWidth })}
           />
         </div>
       )}

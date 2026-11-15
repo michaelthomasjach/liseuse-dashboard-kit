@@ -1742,7 +1742,8 @@ button.lq-chart__legend-item {
 }
 
 /* Sélecteur de couleur des réglages (indicateurs, graphique, dessins, scripts) : une pastille compacte, fine bordure,
-   coins arrondis de 4 px quel que soit le thème (--lq-color-swatch-radius pour les changer) ; clic : le sélecteur du système. */
+   coins arrondis de 4 px quel que soit le thème (--lq-color-swatch-radius pour les changer) ; clic : le ColorPicker du kit
+   (palette, récentes, jeux de couleurs, opacité). La couleur et son damier sont posés en style par le composant. */
 .lq-chart__color-input {
   -webkit-appearance: none;
   appearance: none;
@@ -1756,17 +1757,6 @@ button.lq-chart__legend-item {
   border: 1px solid var(--lq-color-border-subtle);
   border-radius: var(--lq-color-swatch-radius, 4px);
   cursor: pointer;
-}
-.lq-chart__color-input::-webkit-color-swatch-wrapper {
-  padding: 0;
-}
-.lq-chart__color-input::-webkit-color-swatch {
-  border: none;
-  border-radius: 0;
-}
-.lq-chart__color-input::-moz-color-swatch {
-  border: none;
-  border-radius: 0;
 }
 .lq-chart__color-input:hover {
   border-color: var(--lq-color-text-muted);
@@ -2049,11 +2039,8 @@ button.lq-chart__legend-item {
   background-color: var(--lq-color-border-subtle);
 }
 
-/* Icon + a thin color bar underneath representing the current color (line or text) — the bar
-   *is* a native `<input type="color">` (same "no bespoke color-picker component" convention
-   DrawingEditModal's own Style tab already established, just restyled from a full-width 38px box
-   down to a thin strip under the icon) wrapped in its own <label> so clicking either the icon or
-   the bar opens the browser's own picker. */
+/* Icône + une fine barre de la couleur courante (trait ou texte) : le tout est le bouton d'un ColorPicker, qui ouvre
+   le sélecteur de couleur du kit. */
 .lq-chart__floating-toolbar-swatch {
   display: flex;
   flex-direction: column;
@@ -2069,30 +2056,12 @@ button.lq-chart__legend-item {
 }
 
 .lq-chart__floating-toolbar-color-bar {
-  -webkit-appearance: none;
-  appearance: none;
+  display: block;
   width: 20px;
   height: 4px;
-  padding: 0;
-  background: none;
-  border: none;
-  border-radius: 2px;
-  cursor: pointer;
-}
-
-.lq-chart__floating-toolbar-color-bar::-webkit-color-swatch-wrapper {
-  padding: 0;
-}
-
-.lq-chart__floating-toolbar-color-bar::-webkit-color-swatch {
-  border: none;
   border-radius: 2px;
 }
 
-.lq-chart__floating-toolbar-color-bar::-moz-color-swatch {
-  border: none;
-  border-radius: 2px;
-}
 
 .lq-chart__symbol-info {
   display: flex;

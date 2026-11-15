@@ -1,3 +1,4 @@
+import { ColorPicker } from "../../../forms/ColorPicker";
 import { Checkbox } from "../../../forms/Checkbox";
 import { InputNumber } from "../../../forms/InputNumber";
 import { Select, type SelectOption } from "../../../forms/Select";
@@ -242,11 +243,10 @@ function RuleRow({
           <Select size="small" ariaLabel={`Effet de la règle ${n}`} value={rule.effect} options={effects} onChange={setEffect} />
         </span>
         <span className="lq-chart__rule-word">en</span>
-        <input
-          type="color"
+        <ColorPicker
           className="lq-chart__color-input"
           value={rule.color}
-          onChange={(e) => onPatch({ color: e.target.value })}
+          onChange={(color) => onPatch({ color })}
           aria-label={`Couleur de la règle ${n}`}
         />
         {!cross && (
@@ -258,11 +258,10 @@ function RuleRow({
               ariaLabel={`Couleur quand la condition de la règle ${n} est fausse`}
             />
             {rule.elseColor && (
-              <input
-                type="color"
+              <ColorPicker
                 className="lq-chart__color-input"
                 value={rule.elseColor}
-                onChange={(e) => onPatch({ elseColor: e.target.value })}
+                onChange={(color) => onPatch({ elseColor: color })}
                 aria-label={`Couleur « sinon » de la règle ${n}`}
               />
             )}

@@ -1,3 +1,4 @@
+import { ColorPicker } from "../../../forms/ColorPicker";
 import { Modal } from "../../../primitives/Modal";
 import { Toggle } from "../../../primitives/Toggle";
 import { Select } from "../../../forms/Select";
@@ -69,7 +70,7 @@ export function DaySeparatorsModal({
         <div className="lq-chart__edit-drawing-row">
           <div className="lq-field">
             <label className="lq-field__label">Couleur du texte</label>
-            <input type="color" className="lq-chart__color-input" value={settings.textColor} onChange={(e) => set({ textColor: e.target.value })} />
+            <ColorPicker className="lq-chart__color-input" value={settings.textColor} onChange={(color) => set({ textColor: color })} />
           </div>
           <InputNumber label="Taille du texte" min={8} max={32} step={1} value={settings.fontSize} onChange={(v) => v !== "" && set({ fontSize: v })} />
         </div>
@@ -78,7 +79,7 @@ export function DaySeparatorsModal({
         <div className="lq-chart__edit-drawing-row">
           <div className="lq-field">
             <label className="lq-field__label">Couleur des traits</label>
-            <input type="color" className="lq-chart__color-input" value={settings.lineColor} onChange={(e) => set({ lineColor: e.target.value })} />
+            <ColorPicker className="lq-chart__color-input" value={settings.lineColor} onChange={(color) => set({ lineColor: color })} />
           </div>
           <Select
             label="Style"

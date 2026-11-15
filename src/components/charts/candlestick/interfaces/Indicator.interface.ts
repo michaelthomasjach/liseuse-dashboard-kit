@@ -226,6 +226,10 @@ export interface Indicator {
    *  a single color can't represent a trend flip) and "supportResistance"/"tpo" (colored by
    *  their own rules, not a single indicator-wide color). */
   color?: string;
+  /** Épaisseur de la courbe principale en pixels (1 à 4, choisie dans le sélecteur de couleur des réglages). Absente :
+   *  celle de toujours (1,5 ; 1 pour les bords d'une bande). Lue par les courbes simples du prix, les bandes et les
+   *  courbes des panneaux propres (RSI, CHOP…). */
+  lineWidth?: number;
   /** When true, the indicator stays in the legend but its line isn't drawn — toggled from the
    *  legend's eye icon. Only meaningful for a `pane: "price"` indicator (see
    *  IndicatorCatalogEntry) — a `pane: "own"` one uses `paneCollapsed` instead, same as the

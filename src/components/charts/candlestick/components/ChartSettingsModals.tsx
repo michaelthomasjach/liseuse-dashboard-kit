@@ -1,3 +1,4 @@
+import { ColorPicker } from "../../../forms/ColorPicker";
 import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { Modal } from "../../../primitives/Modal";
 import { ChartPropsModal } from "./ChartPropsModal";
@@ -224,21 +225,19 @@ export function ChartSettingsModals({
           <div className="lq-chart__edit-drawing-row">
             <div className="lq-field">
               <label className="lq-field__label">Bougies haussières</label>
-              <input
-                type="color"
+              <ColorPicker
                 className="lq-chart__color-input"
                 value={upColorOverride ?? theme.up}
-                onChange={(e) => setUpColorOverride(e.target.value)}
+                onChange={(color) => setUpColorOverride(color)}
                 disabled={theme.isEink}
               />
             </div>
             <div className="lq-field">
               <label className="lq-field__label">Bougies baissières</label>
-              <input
-                type="color"
+              <ColorPicker
                 className="lq-chart__color-input"
                 value={downColorOverride ?? theme.down}
-                onChange={(e) => setDownColorOverride(e.target.value)}
+                onChange={(color) => setDownColorOverride(color)}
                 disabled={theme.isEink}
               />
             </div>
@@ -422,21 +421,19 @@ export function ChartSettingsModals({
           <div className="lq-chart__edit-drawing-row">
             <div className="lq-field">
               <label className="lq-field__label">Barres haussières</label>
-              <input
-                type="color"
+              <ColorPicker
                 className="lq-chart__color-input"
                 value={volumeUpColorOverride ?? upColorOverride ?? theme.up}
-                onChange={(e) => setVolumeUpColorOverride(e.target.value)}
+                onChange={(color) => setVolumeUpColorOverride(color)}
                 disabled={theme.isEink}
               />
             </div>
             <div className="lq-field">
               <label className="lq-field__label">Barres baissières</label>
-              <input
-                type="color"
+              <ColorPicker
                 className="lq-chart__color-input"
                 value={volumeDownColorOverride ?? downColorOverride ?? theme.down}
-                onChange={(e) => setVolumeDownColorOverride(e.target.value)}
+                onChange={(color) => setVolumeDownColorOverride(color)}
                 disabled={theme.isEink}
               />
             </div>

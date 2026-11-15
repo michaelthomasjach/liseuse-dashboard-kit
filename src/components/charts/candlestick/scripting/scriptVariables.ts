@@ -16,7 +16,7 @@ import type { ScriptParam, ScriptParamDiagnostic, ScriptParamType, ScriptParamVa
  *  defaults. */
 const VARIABLE_CTOR = "Variable";
 
-const HEX_COLOR_RE = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+const HEX_COLOR_RE = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
 
 function isNumberLiteral(node: SyntaxNode, code: string): boolean {
   if (node.name === "Number") return true;

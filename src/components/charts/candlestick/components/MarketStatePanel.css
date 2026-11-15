@@ -365,25 +365,15 @@
   cursor: pointer;
 }
 
-.lq-market-state__band-color input {
+/* Pastille du ColorPicker (la couleur et son damier sont posés en style par le composant). */
+.lq-market-state__band-swatch {
+  box-sizing: border-box;
   width: 34px;
   height: 16px;
   padding: 0;
   border: 1px solid var(--lq-color-border-subtle);
   border-radius: 3px;
-  background: none;
   cursor: pointer;
-}
-
-/* Chrome draws a colour input's swatch inset by a few px of its own chrome; zeroing that makes the
-   control read as the colour itself rather than as a button containing one. */
-.lq-market-state__band-color input::-webkit-color-swatch-wrapper {
-  padding: 0;
-}
-
-.lq-market-state__band-color input::-webkit-color-swatch {
-  border: none;
-  border-radius: 2px;
 }
 
 /* ── The three sides at once ──────────────────────────────────────────────────────────────────

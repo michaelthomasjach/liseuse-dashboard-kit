@@ -81,6 +81,7 @@ import { useBrokerState } from "./candlestick/broker/useBrokerState";
 import { Modal } from "../primitives/Modal";
 import { anthropicSend } from "./candlestick/ai/anthropicSend";
 import { askScriptDocsWithSend, type AskScriptDocs } from "./candlestick/scripting/docsSearch/scriptDocsAnswer";
+import { ColorPreferencesProvider, type ColorPreferences } from "../forms/ColorPreferences";
 
 /** A stable empty list, so a workspace given no brokers does not hand `useBrokerState` a fresh
  *  array on every render and re-run everything that depends on it. */
@@ -335,6 +336,12 @@ export interface ChartWorkspaceProps {
   onScriptsChange?: (scripts: ScriptDef[]) => void;
   onScriptAlert?: (event: ScriptAlertEvent) => void;
   className?: string;
+  /** Mémoire des sélecteurs de couleur (couleurs récentes, jeux de couleurs, jeu appliqué), partagée par tous les
+   *  graphiques de l'espace de travail — elle prime sur celle que chaque graphique recevrait. Voir
+   *  `CandlestickChart.colorPreferences`. */
+  colorPreferences?: Partial<ColorPreferences> | null;
+  /** Appelé à chaque changement de cette mémoire, avec l'ensemble à jour (à enregistrer sur le compte). */
+  onColorPreferencesChange?: (preferences: ColorPreferences) => void;
 }
 
 /** A split-screen grid of `CandlestickChart`s (1 to 8 panels, side by side, stacked or a mix of
@@ -352,7 +359,16 @@ export interface ChartWorkspaceProps {
  *  chain-link button each panel's own header gets (`CandlestickChart.linkable`, wired here) —
  *  opens one shared "Graphiques liés" modal (see `LinkGroupsModal`) regardless of which panel's
  *  button was clicked, since the groups themselves are workspace-wide, not per-panel. */
-export function ChartWorkspace({
+export function ChartWorkspace(props: ChartWorkspaceProps) {
+  // Couleurs récentes et jeux de couleurs : les mêmes dans tous les graphiques de l'espace de travail.
+  return (
+    <ColorPreferencesProvider value={props.colorPreferences} onChange={props.onColorPreferencesChange}>
+      <ChartWorkspaceBody {...props} />
+    </ColorPreferencesProvider>
+  );
+}
+
+function ChartWorkspaceBody({
   defaultPanels = 1,
   onPanelsChange,
   gridLayout,

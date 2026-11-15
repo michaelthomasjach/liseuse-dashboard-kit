@@ -759,7 +759,7 @@ export function drawPriceCandles(ctx: CanvasRenderingContext2D, params: RenderCa
         ctx.fill();
         ctx.globalAlpha = 1;
 
-        ctx.lineWidth = indicator.customData?.lineWidth ?? 1.5;
+        ctx.lineWidth = indicator.lineWidth ?? indicator.customData?.lineWidth ?? 1.5;
         applyLineStyle(ctx, indicator.customData?.lineStyle);
         ctx.beginPath();
         numericPoints.forEach((p, k) => {
@@ -770,7 +770,7 @@ export function drawPriceCandles(ctx: CanvasRenderingContext2D, params: RenderCa
         });
         ctx.stroke();
       } else if (typeof points[0].value === "number") {
-        ctx.lineWidth = indicator.customData?.lineWidth ?? 1.5;
+        ctx.lineWidth = indicator.lineWidth ?? indicator.customData?.lineWidth ?? 1.5;
         applyLineStyle(ctx, indicator.customData?.lineStyle);
         ctx.beginPath();
         points.forEach((p, k) => {
@@ -903,7 +903,7 @@ export function drawPriceCandles(ctx: CanvasRenderingContext2D, params: RenderCa
         ctx.fill();
         ctx.globalAlpha = 1;
 
-        const bandLineWidth = indicator.customData?.lineWidth ?? 1;
+        const bandLineWidth = indicator.lineWidth ?? indicator.customData?.lineWidth ?? 1;
         ctx.lineWidth = bandLineWidth;
         applyLineStyle(ctx, indicator.customData?.lineStyle);
         (["upper", "lower"] as const).forEach((key) => {

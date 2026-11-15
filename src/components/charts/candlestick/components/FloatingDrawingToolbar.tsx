@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import type { CSSProperties, RefObject } from "react";
 import { Popover } from "../../../forms/Popover";
+import { ColorPicker } from "../../../forms/ColorPicker";
 import { DrawingStylesMenu, type DrawingStylesMenuProps } from "./DrawingStylesMenu";
 import { GripIcon, PencilIcon, TextIcon, HorizontalLineIcon, AlarmClockIcon, TimeframeLayersIcon, TrashIcon, LockIcon, UnlockIcon } from "../../../icons";
 
@@ -112,30 +113,30 @@ export function FloatingDrawingToolbar({
       {showStyleControls && (
         <>
           <div className="lq-chart__floating-toolbar-divider" aria-hidden="true" />
-          {/* Each swatch's own color bar *is* a native color input (same convention
-              DrawingEditModal's own Style tab already uses, just restyled as a thin bar under the
-              icon instead of a full-width box) — clicking it opens the browser's own picker
-              directly, no bespoke color-picker component needed. */}
-          <label className="lq-chart__floating-toolbar-swatch" title="Couleur du trait">
+          {/* L'icône et, dessous, une fine barre de la couleur courante : le tout ouvre le sélecteur de couleur du kit
+              (palette, récentes, jeux de couleurs, opacité). */}
+          <ColorPicker
+            className="lq-chart__floating-toolbar-swatch"
+            swatchClassName="lq-chart__floating-toolbar-color-bar"
+            title="Couleur du trait"
+            aria-label="Couleur du trait"
+            value={color}
+            onChange={onColorChange}
+            thickness={strokeWidth}
+            onThicknessChange={onStrokeWidthChange}
+          >
             <PencilIcon size={14} />
-            <input
-              type="color"
-              className="lq-chart__floating-toolbar-color-bar"
-              value={color}
-              onChange={(e) => onColorChange(e.target.value)}
-              aria-label="Couleur du trait"
-            />
-          </label>
-          <label className="lq-chart__floating-toolbar-swatch" title="Couleur du texte">
+          </ColorPicker>
+          <ColorPicker
+            className="lq-chart__floating-toolbar-swatch"
+            swatchClassName="lq-chart__floating-toolbar-color-bar"
+            title="Couleur du texte"
+            aria-label="Couleur du texte"
+            value={textColor}
+            onChange={onTextColorChange}
+          >
             <TextIcon size={14} />
-            <input
-              type="color"
-              className="lq-chart__floating-toolbar-color-bar"
-              value={textColor}
-              onChange={(e) => onTextColorChange(e.target.value)}
-              aria-label="Couleur du texte"
-            />
-          </label>
+          </ColorPicker>
           <div className="lq-chart__floating-toolbar-divider" aria-hidden="true" />
           <button
             ref={strokeButtonRef}

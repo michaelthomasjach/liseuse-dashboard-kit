@@ -1,3 +1,4 @@
+import { ColorPicker } from "../forms/ColorPicker";
 import { useMemo, useRef, useState } from "react";
 import * as d3 from "d3";
 import type { Candle } from "./CandlestickChart";
@@ -659,11 +660,10 @@ export function SeasonalityView({ data, symbol, onBack, showHeader = true, heigh
         <Modal open onClose={() => setColorModalYear(null)} title={`Paramètres — ${colorModalYear}`} footer={null}>
           <div className="lq-field">
             <label className="lq-field__label">Couleur</label>
-            <input
-              type="color"
+            <ColorPicker
               className="lq-chart__color-input"
               value={displayColorForYear(colorModalYear)}
-              onChange={(e) => setYearColors((prev) => ({ ...prev, [colorModalYear]: e.target.value }))}
+              onChange={(color) => setYearColors((prev) => ({ ...prev, [colorModalYear]: color }))}
             />
           </div>
         </Modal>

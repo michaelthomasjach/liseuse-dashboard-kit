@@ -1,3 +1,4 @@
+import { ColorPicker } from "../../../forms/ColorPicker";
 import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { CloseIcon, ChevronDownIcon, DetachWindowIcon, SettingsIcon, HelpIcon } from "../../../icons";
 import { computeMarketState, type MarketStateAxis, type MarketStateDirection } from "../marketState";
@@ -365,10 +366,10 @@ export function MarketStatePanel({
         <div className="lq-market-state__band-colors">
           {MARKET_STATE_BAND_LABELS.map(({ direction, label }) => (
             <label key={direction} className="lq-market-state__band-color">
-              <input
-                type="color"
+              <ColorPicker
+                className="lq-market-state__band-swatch"
                 value={bandColors[direction]}
-                onChange={(e) => onBandColorsChange({ ...bandColors, [direction]: e.target.value })}
+                onChange={(color) => onBandColorsChange({ ...bandColors, [direction]: color })}
                 aria-label={`Couleur de la zone ${label}`}
               />
               <span>{label}</span>

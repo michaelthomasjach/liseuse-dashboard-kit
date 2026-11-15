@@ -94,3 +94,17 @@ export type { SliderProps, SliderMark } from "./Slider";
 
 export { Textarea } from "./Textarea";
 export type { TextareaProps } from "./Textarea";
+
+export { ColorPicker, COLOR_PICKER_BASE_PALETTE, colorSwatchBackground } from "./ColorPicker";
+export type { ColorPickerProps } from "./ColorPicker";
+export {
+  ColorPreferencesProvider,
+  useColorPreferences,
+  normalizeColorPreferences,
+  pushRecentColor,
+  EMPTY_COLOR_PREFERENCES,
+  MAX_RECENT_COLORS,
+} from "./ColorPreferences";
+export type { ColorPreferences, ColorSet, ColorPreferencesProviderProps, ColorPreferencesApi } from "./ColorPreferences";
+export { parseColor, formatHex, normalizeColor, colorAlpha, withAlpha } from "./colorUtils";
+export type { RgbaColor, HsvaColor } from "./colorUtils";

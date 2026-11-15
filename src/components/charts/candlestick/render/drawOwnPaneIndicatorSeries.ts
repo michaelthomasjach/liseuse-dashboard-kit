@@ -57,7 +57,7 @@ export function drawOwnPaneIndicatorSeries(
     ctx.restore();
 
     ctx.strokeStyle = color;
-    ctx.lineWidth = 1.5;
+    ctx.lineWidth = ind.lineWidth ?? 1.5;
     ctx.setLineDash([]);
     ctx.beginPath();
     points.forEach((p, k) => {
@@ -86,7 +86,7 @@ export function drawOwnPaneIndicatorSeries(
     ctx.restore();
 
     ctx.strokeStyle = color;
-    ctx.lineWidth = 1.5;
+    ctx.lineWidth = ind.lineWidth ?? 1.5;
     ctx.setLineDash([]);
     ctx.beginPath();
     points.forEach((p, k) => {
@@ -126,7 +126,7 @@ export function drawOwnPaneIndicatorSeries(
     }
 
     ctx.strokeStyle = color;
-    ctx.lineWidth = 1.5;
+    ctx.lineWidth = ind.lineWidth ?? 1.5;
     ctx.setLineDash([]);
     if (ind.macdCrossColors) {
       // Couleur selon la position face au signal : elle change à chaque croisement.
@@ -248,7 +248,7 @@ export function drawOwnPaneIndicatorSeries(
     ctx.globalAlpha = 1;
 
     ctx.strokeStyle = color;
-    ctx.lineWidth = 1.5;
+    ctx.lineWidth = ind.lineWidth ?? 1.5;
     ctx.setLineDash([]);
     ctx.beginPath();
     numericPoints.forEach((p, k) => {
@@ -385,7 +385,7 @@ export function drawOwnPaneIndicatorSeries(
     }
 
     ctx.strokeStyle = color;
-    ctx.lineWidth = 1.5;
+    ctx.lineWidth = ind.lineWidth ?? 1.5;
     ctx.setLineDash([]);
     ctx.beginPath();
     numericPoints.forEach((p, k) => {

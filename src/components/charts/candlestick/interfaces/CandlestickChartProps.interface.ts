@@ -357,6 +357,15 @@ export interface CandlestickChartProps {
    *  enregistrer (par compte, par exemple). */
   defaultAppearance?: import("../hooks/useChartAppearance").ChartAppearanceSettings;
   onAppearanceChange?: (settings: import("../hooks/useChartAppearance").ChartAppearanceSettings) => void;
+  /** Mémoire des sélecteurs de couleur du graphique (indicateurs, dessins, bougies, scripts…) : `recentColors` (les
+   *  12 dernières couleurs choisies, la plus récente d'abord), `colorSets` (jeux de couleurs nommés de l'utilisateur)
+   *  et `activeColorSetId` (jeu appliqué, affiché en tête de chaque sélecteur). Relue quand elle change ; absente, le
+   *  graphique garde cette mémoire le temps de la page. Dans un `ChartWorkspace` qui la reçoit, celle de l'espace de
+   *  travail prime et ses graphiques la partagent. */
+  colorPreferences?: Partial<import("../../../forms/ColorPreferences").ColorPreferences> | null;
+  /** Appelé à chaque changement de cette mémoire (couleur choisie, jeu créé, renommé, complété, supprimé ou
+   *  appliqué), avec l'ensemble à jour : de quoi l'enregistrer sur le compte et la rendre par `colorPreferences`. */
+  onColorPreferencesChange?: (preferences: import("../../../forms/ColorPreferences").ColorPreferences) => void;
   /** Couleurs conditionnelles des bougies, tenues par l'application (contrôlé) : la liste remplace
    *  `defaultAppearance.candleColorRules`, et chaque modification faite dans les paramètres du
    *  graphique passe par `onCandleColorRulesChange`. Absent : le graphique les tient lui-même (lues

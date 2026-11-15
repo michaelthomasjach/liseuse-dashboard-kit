@@ -14,7 +14,7 @@ export type { IndicatorBand } from "./candlestick/interfaces/IndicatorBand.inter
 export type { IndicatorMACD } from "./candlestick/interfaces/IndicatorMACD.interface";
 export type { Indicator } from "./candlestick/interfaces/Indicator.interface";
 export type { CustomIndicatorDef } from "./candlestick/interfaces/CustomIndicatorDef.interface";
-export type { ChartTemplate } from "./candlestick/interfaces/ChartTemplate.interface";
+export type { ChartTemplate, ChartTemplateSnapshot, ChartTemplateScript, ChartPaneLayout } from "./candlestick/interfaces/ChartTemplate.interface";
 export type { ChartDisplayMode } from "./candlestick/interfaces/ChartDisplayMode.interface";
 export type { TimeframeOption } from "./candlestick/interfaces/TimeframeOption.interface";
 export type { TimeframeGroup } from "./candlestick/interfaces/TimeframeGroup.interface";

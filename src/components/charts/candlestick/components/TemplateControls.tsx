@@ -3,12 +3,16 @@ import { shortcutLabel } from "../../internal/platformShortcut";
 import { Modal } from "../../../primitives/Modal";
 import { DropdownPanel } from "../../../primitives/DropdownPanel";
 import { Input } from "../../../forms/Input";
-import { SaveIcon, PlusIcon, FolderIcon, CheckIcon, TrashIcon } from "../../../icons";
+import { SaveIcon, PlusIcon, FolderIcon, CheckIcon, TrashIcon, StarIcon } from "../../../icons";
 import type { ChartTemplate } from "../interfaces/ChartTemplate.interface";
 
 export interface TemplateControlsProps {
   templates: ChartTemplate[];
   activeTemplateId: string | null;
+  /** Le « modèle au démarrage », ou `null`. */
+  startupTemplateId?: string | null;
+  /** Choisit (ou retire, si c'est déjà lui) le modèle au démarrage. Absent : le choix n'est pas proposé. */
+  onToggleStartupTemplate?: (id: string) => void;
   isDirty: boolean;
   onSave: (name?: string) => void;
   onSaveAs: (name: string) => void;
@@ -22,7 +26,7 @@ export interface TemplateControlsProps {
  *  into `useChartTemplates` (passed in as the on* props above); this component only owns the
  *  transient UI state — which modal/dropdown is open, the name field, and a pending load id
  *  waiting on a save-or-discard decision. */
-export function TemplateControls({ templates, activeTemplateId, isDirty, onSave, onSaveAs, onLoad, onDelete }: TemplateControlsProps) {
+export function TemplateControls({ templates, activeTemplateId, startupTemplateId = null, onToggleStartupTemplate, isDirty, onSave, onSaveAs, onLoad, onDelete }: TemplateControlsProps) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownAnchorRef = useRef<HTMLButtonElement>(null);
   // "name": the header Save button's own first-time-save prompt (submitting overwrites nothing —
@@ -165,6 +169,18 @@ export function TemplateControls({ templates, activeTemplateId, isDirty, onSave,
     }
   }
 
+  const activeTemplate = templates.find((t) => t.id === activeTemplateId) ?? null;
+  const startupTemplate = templates.find((t) => t.id === startupTemplateId) ?? null;
+  // Ce que dit l'icône « Enregistrer » : l'action, et — comme le point d'un fichier modifié dans un éditeur — ce qui
+  // n'est pas encore enregistré dans un modèle.
+  const saveAction = activeTemplate ? `Enregistrer le modèle « ${activeTemplate.name} » (${shortcutLabel("S")})` : `Enregistrer comme nouveau modèle (${shortcutLabel("S")})`;
+  const dirtyText = !isDirty
+    ? null
+    : activeTemplate
+      ? `Modifications non enregistrées dans le modèle « ${activeTemplate.name} »`
+      : "Ces indicateurs ne sont enregistrés dans aucun modèle";
+  const saveLabel = dirtyText ? `${dirtyText}. ${saveAction}` : saveAction;
+
   return (
     <>
       {/* Just a plain flex group here — pushing this to the header's own far right edge is
@@ -173,12 +189,14 @@ export function TemplateControls({ templates, activeTemplateId, isDirty, onSave,
       <div className="lq-chart__header-templates">
         <button
           type="button"
-          className="lq-chart__icon-button"
+          className={["lq-chart__icon-button", "lq-chart__template-save", dirtyText && "lq-chart__template-save--dirty"].filter(Boolean).join(" ")}
           onClick={handleSaveClick}
-          aria-label={activeTemplateId ? `Enregistrer le modèle (${shortcutLabel("S")})` : `Enregistrer comme nouveau modèle (${shortcutLabel("S")})`}
-          title={activeTemplateId ? `Enregistrer le modèle (${shortcutLabel("S")})` : `Enregistrer comme nouveau modèle (${shortcutLabel("S")})`}
+          aria-label={saveLabel}
+          title={saveLabel}
+          data-dirty={dirtyText ? "true" : undefined}
         >
           {justSaved ? <CheckIcon size={14} /> : <SaveIcon size={14} />}
+          {dirtyText && !justSaved && <span className="lq-chart__template-dirty-dot" aria-hidden="true" />}
         </button>
         {/* "Enregistrer sous" — always a new template, distinct from Save itself overwriting the
             active one. Same icon size as every other header button, not a smaller one — a
@@ -227,11 +245,34 @@ export function TemplateControls({ templates, activeTemplateId, isDirty, onSave,
                 {t.id === activeTemplateId && <CheckIcon size={12} />}
                 {t.name}
               </button>
+              {onToggleStartupTemplate && (
+                <button
+                  type="button"
+                  className={["lq-chart__template-row-startup", t.id === startupTemplateId && "lq-chart__template-row-startup--on"].filter(Boolean).join(" ")}
+                  onClick={() => onToggleStartupTemplate(t.id)}
+                  aria-pressed={t.id === startupTemplateId}
+                  aria-label={t.id === startupTemplateId ? `Ne plus ouvrir le graphique avec « ${t.name} »` : `Modèle au démarrage : « ${t.name} »`}
+                  title={t.id === startupTemplateId ? "Modèle au démarrage (cliquer pour le retirer)" : "Choisir comme modèle au démarrage"}
+                >
+                  <StarIcon size={12} />
+                </button>
+              )}
               <button type="button" className="lq-chart__template-row-delete" onClick={() => onDelete(t.id)} aria-label={`Supprimer ${t.name}`}>
                 <TrashIcon size={12} />
               </button>
             </div>
           ))
+        )}
+        {onToggleStartupTemplate && templates.length > 0 && (
+          <p className="lq-chart__template-startup">
+            Modèle au démarrage : <strong>{startupTemplate ? startupTemplate.name : "aucun"}</strong>
+            <br />
+            <span>
+              {startupTemplate
+                ? "Appliqué à l'ouverture d'un graphique que vous n'avez pas encore modifié ; les autres rouvrent tels que vous les avez laissés."
+                : "Choisissez-en un avec l'étoile. Sans lui, chaque graphique rouvre tel que vous l'avez laissé."}
+            </span>
+          </p>
         )}
       </DropdownPanel>
 

@@ -92,6 +92,9 @@ export type {
   Indicator,
   CustomIndicatorDef,
   ChartTemplate,
+  ChartTemplateSnapshot,
+  ChartTemplateScript,
+  ChartPaneLayout,
   ChartDisplayMode,
   TimeframeOption,
   TimeframeGroup,
@@ -187,6 +190,8 @@ export function CandlestickChart({
   showTemplates = false,
   defaultTemplates,
   onTemplatesChange,
+  defaultActiveTemplateId, onActiveTemplateChange, defaultStartupTemplateId, onStartupTemplateChange, applyStartupTemplate,
+  defaultPaneLayout, onPaneLayoutChange,
   initialVisibleCandles = 500,
   initialVisibleRange,
   viewResetKey,
@@ -799,6 +804,8 @@ export function CandlestickChart({
     timeframeScoped,
     defaultVolumePaneState,
     onVolumePaneStateChange,
+    defaultPaneLayout,
+    onPaneLayoutChange,
   });
   // Le panneau visé par le catalogue des indicateurs quand il est ouvert depuis son clic droit ; oublié à la
   // fermeture, pour que les autres façons de l'ouvrir (en-tête, raccourci) retrouvent le catalogue complet.
@@ -1018,22 +1025,36 @@ export function CandlestickChart({
     },
   };
 
+  // Les scripts posés sur le graphique, avec leurs entrées : ce qu'un modèle en retient.
+  const templateScripts = useMemo(
+    () => scriptingState.scripts.filter((s) => s.enabled !== false).map((s) => (s.paramValues && Object.keys(s.paramValues).length > 0 ? { id: s.id, paramValues: s.paramValues } : { id: s.id })),
+    [scriptingState.scripts],
+  );
   const {
     templates,
     activeTemplateId,
+    startupTemplateId,
     isDirty: templatesDirty,
     saveTemplate,
     saveTemplateAs,
     loadTemplate,
     deleteTemplate,
+    toggleStartupTemplate,
   } = useChartTemplates({
     defaultTemplates,
     onTemplatesChange,
+    defaultActiveTemplateId,
+    onActiveTemplateChange,
+    defaultStartupTemplateId,
+    onStartupTemplateChange,
+    applyStartupTemplate,
     indicators,
     volumePaneOrder,
     volumePaneState,
     paneHeightFractions,
+    activeScripts: templateScripts,
     loadIndicatorLayout,
+    applyActiveScripts: scriptingState.applyActiveScripts,
   });
 
   // Called before useZoomAndScales specifically so `replayState.armed` exists in time to suspend
@@ -1329,6 +1350,9 @@ export function CandlestickChart({
     // Withheld rather than deleted (see `useScriptingState`): the script keeps running, so
     // reopening the pane brings its drawings back.
     if (withholdScriptId !== null) scriptingState.withholdScriptOutput(withholdScriptId);
+    // Fermer le panneau d'un script le retire du graphique (il reste dans « Mes scripts ») : sans cela il tournait
+    // toujours, et revenait au rechargement suivant alors que l'utilisateur l'avait fermé.
+    if (withholdScriptId !== null) scriptingState.disableScript(withholdScriptId);
     return removeIds;
   };
 
@@ -2135,6 +2159,8 @@ export function CandlestickChart({
           showTemplates={showTemplates}
           templates={templates}
           activeTemplateId={activeTemplateId}
+          startupTemplateId={startupTemplateId}
+          onToggleStartupTemplate={toggleStartupTemplate}
           templatesDirty={templatesDirty}
           onSaveTemplate={saveTemplate}
           onSaveTemplateAs={saveTemplateAs}

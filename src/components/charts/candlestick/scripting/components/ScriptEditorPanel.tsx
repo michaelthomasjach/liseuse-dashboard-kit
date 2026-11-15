@@ -1,4 +1,5 @@
 import { analyzeScriptVariables } from "../scriptVariables";
+import { DEFAULT_SCRIPT_CODE } from "../constants";
 import { shortcutLabel } from "../../../internal/platformShortcut";
 import type { ScriptParam, ScriptParamValue } from "../../interfaces/ScriptParam.interface";
 import { ScriptParamsFields } from "./ScriptParamsFields";
@@ -97,11 +98,6 @@ export interface ScriptEditorPanelProps {
   askScriptDocsNotice?: import("react").ReactNode;
 }
 
-const DEFAULT_SCRIPT_CODE = `@indicator
-
-@block Cellule 1 — Affiche une série dans une panneau séparé
-plot.pane("Ma série").line("Ma série", market.close(0));
-`;
 
 /** The script editor's own host — a `ScriptEditorWindow` (a real floating/draggable/resizable/
  *  maximizable window, not a blocking modal — see that component's own doc for why) with a

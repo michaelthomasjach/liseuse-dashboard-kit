@@ -11,7 +11,7 @@ import type { ChartCustomTool } from "./ChartCustomTool.interface";
 import type { ChartCustomToolbar } from "./ChartCustomToolbar.interface";
 import type { OverlayDrawingInteraction } from "./OverlayDrawingInteraction.interface";
 import type { ChartHeaderAction } from "./ChartHeaderAction.interface";
-import type { ChartTemplate } from "./ChartTemplate.interface";
+import type { ChartPaneLayout, ChartTemplate } from "./ChartTemplate.interface";
 import type { TimeframeEntry } from "./TimeframeEntry.interface";
 import type { ChartDisplayMode } from "./ChartDisplayMode.interface";
 import type { ChartEvent } from "./ChartEvent.interface";
@@ -267,7 +267,8 @@ export interface CandlestickChartProps {
   futureBars?: number;
   /** Shows a Save button plus a templates dropdown at the right edge of the header — captures
    *  the *indicator/pane* layout (which indicators, their own settings, pane order, pane
-   *  height, the Volume pane's own position/collapse state), not drawings or display/timeframe
+   *  height, the Volume pane's own position/collapse state, and the scripts shown on the chart with their inputs —
+   *  applying one replaces exactly that state, removing whatever it does not hold), not drawings or display/timeframe
    *  settings, as a named, reloadable `ChartTemplate`. The Save button opens a "name this
    *  template" modal only the first time (no template active yet); every save after that
    *  overwrites the active one directly, no modal. Loading a different template while the
@@ -290,6 +291,26 @@ export interface CandlestickChartProps {
   defaultTemplates?: ChartTemplate[];
   /** Fires whenever a template is saved (new or overwritten) or deleted. */
   onTemplatesChange?: (templates: ChartTemplate[]) => void;
+  /** Le modèle que le graphique reflétait (rendu par `onActiveTemplateChange`), repris au chargement : l'icône
+   *  « Enregistrer » sait alors si l'état affiché diffère encore de ce modèle, et « Enregistrer » le réécrit sans
+   *  redemander de nom. Ignoré s'il n'est plus dans `defaultTemplates`. */
+  defaultActiveTemplateId?: string | null;
+  /** Appelé quand le modèle actif change (enregistré, appliqué, supprimé : `null`). */
+  onActiveTemplateChange?: (id: string | null) => void;
+  /** « Modèle au démarrage », choisi dans la liste des modèles : appliqué à l'ouverture du graphique quand
+   *  `applyStartupTemplate` le permet. Ignoré s'il n'est plus dans `defaultTemplates`. */
+  defaultStartupTemplateId?: string | null;
+  /** Appelé quand le modèle au démarrage est choisi ou retiré (`null`), ou quand ce modèle est supprimé. */
+  onStartupTemplateChange?: (id: string | null) => void;
+  /** Applique le modèle au démarrage au montage du graphique. Défaut `true`. Un hôte qui garde le dernier état du
+   *  graphique (indicateurs, scripts, volume, panneaux) passe `false` quand il a un état gardé pour ce graphique : ce
+   *  dernier état prime alors, et le modèle au démarrage ne sert qu'à un graphique jamais modifié. */
+  applyStartupTemplate?: boolean;
+  /** Ordre et hauteurs des panneaux à l'ouverture (rendus par `onPaneLayoutChange`) : le dernier état retrouvé au
+   *  rechargement, avec `defaultIndicators` et `defaultVolumePaneState`. */
+  defaultPaneLayout?: Partial<ChartPaneLayout>;
+  /** Appelé quand l'ordre ou la hauteur d'un panneau change (glisser, modèle, annulation). */
+  onPaneLayoutChange?: (layout: ChartPaneLayout) => void;
   /** How many of the most recent candles are visible when the chart first mounts (applied once,
    *  as an initial zoom/pan — the user can still zoom/pan freely afterward). `undefined`/0/a
    *  value ≥ `data.length` shows the whole dataset, same as before this prop existed. Default 500. */

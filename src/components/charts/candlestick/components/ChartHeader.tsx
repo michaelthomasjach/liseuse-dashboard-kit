@@ -95,6 +95,8 @@ export interface ChartHeaderProps {
   showTemplates: boolean;
   templates: ChartTemplate[];
   activeTemplateId: string | null;
+  startupTemplateId: string | null;
+  onToggleStartupTemplate: (id: string) => void;
   templatesDirty: boolean;
   onSaveTemplate: (name?: string) => void;
   onSaveTemplateAs: (name: string) => void;
@@ -178,6 +180,8 @@ export function ChartHeader({
   showTemplates,
   templates,
   activeTemplateId,
+  startupTemplateId,
+  onToggleStartupTemplate,
   templatesDirty,
   onSaveTemplate,
   onSaveTemplateAs,
@@ -585,6 +589,8 @@ export function ChartHeader({
             <TemplateControls
               templates={templates}
               activeTemplateId={activeTemplateId}
+              startupTemplateId={startupTemplateId}
+              onToggleStartupTemplate={onToggleStartupTemplate}
               isDirty={templatesDirty}
               onSave={onSaveTemplate}
               onSaveAs={onSaveTemplateAs}

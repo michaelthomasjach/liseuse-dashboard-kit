@@ -3182,6 +3182,66 @@ button.lq-chart__legend-item {
   opacity: 1;
 }
 
+/* Icône « Enregistrer » : un point quand l'état affiché n'est pas enregistré dans un modèle (comme un fichier modifié
+   dans un éditeur). */
+.lq-chart__template-save {
+  position: relative;
+}
+
+.lq-chart__template-dirty-dot {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: var(--lq-color-accent);
+  box-shadow: 0 0 0 1.5px var(--lq-color-panel);
+  pointer-events: none;
+}
+
+/* « Modèle au démarrage » : l'étoile de la ligne, pleine (couleur d'accent) pour le modèle choisi, discrète sinon. */
+.lq-chart__template-row-startup {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 2px;
+  color: var(--lq-color-text-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  opacity: 0.55;
+}
+
+.lq-chart__template-row-startup:hover,
+.lq-chart__template-row-startup:focus-visible {
+  opacity: 1;
+}
+
+.lq-chart__template-row-startup--on {
+  color: var(--lq-color-accent);
+  opacity: 1;
+}
+
+.lq-chart__template-row-startup--on svg {
+  fill: currentColor;
+}
+
+.lq-chart__template-startup {
+  margin: var(--lq-space-2) 0 0;
+  padding: var(--lq-space-2);
+  border-top: 1px solid var(--lq-color-border-subtle);
+  color: var(--lq-color-text);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.lq-chart__template-startup span {
+  color: var(--lq-color-text-muted);
+  font-size: 0.75rem;
+}
+
 .lq-chart__template-empty {
   margin: 0;
   padding: var(--lq-space-3) var(--lq-space-2);

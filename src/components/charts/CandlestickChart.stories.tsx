@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import { AAPL_FINANCIALS } from "../../test-data/symbolFinancialsSample";
 import type { ScriptDef } from "./candlestick/interfaces/ScriptDef.interface";
+import type { ChartPaneLayout, ChartTemplate } from "./candlestick/interfaces/ChartTemplate.interface";
+import type { Indicator as DemoIndicator } from "./candlestick/interfaces/Indicator.interface";
 import type { CandleColorRule } from "./candlestick/interfaces/CandleColorRule.interface";
 import type { ChartCustomToolbar } from "./candlestick/interfaces/ChartCustomToolbar.interface";
 import { SCRIPT_EXAMPLES } from "./candlestick/scripting/scriptExamples";
@@ -764,13 +766,43 @@ const STORY_ASSISTANT: ChartWorkspaceProps["ai"] = REAL_KEY
   ? { apiKey: REAL_KEY, workspaceId: REAL_WORKSPACE, serverTools: ["web_search"], symbols: ["AAPL", "MSFT", "NVDA"] }
   : { send: scriptedAssistant, symbols: ["AAPL", "MSFT", "NVDA"] };
 
+/** L'état du graphique de la démo, gardé le temps de l'onglet (`sessionStorage`) : un rechargement retrouve le
+ *  graphique tel qu'on l'a laissé — indicateurs, scripts affichés, volume, panneaux, modèles, modèle actif et modèle
+ *  au démarrage —, comme le ferait une application qui les garde sur le compte. Un nouvel onglet repart de la démo
+ *  d'origine, si bien qu'aucune copie ancienne des scripts d'exemple ne survit à une mise à jour. */
+const DEMO_STATE_PREFIX = "lq-demo:";
+function demoRead<T>(key: string, fallback: T): T {
+  try {
+    const raw = sessionStorage.getItem(DEMO_STATE_PREFIX + key);
+    return raw === null ? fallback : (JSON.parse(raw) as T);
+  } catch {
+    return fallback;
+  }
+}
+function demoWrite(key: string, value: unknown): void {
+  try {
+    sessionStorage.setItem(DEMO_STATE_PREFIX + key, JSON.stringify(value));
+  } catch {
+    // Stockage indisponible (navigation privée stricte) : la démo marche, sans mémoire.
+  }
+}
+
 export const AllFeatures: Story = {
   name: "Toutes les options",
   render: () => {
     const [timeframe, setTimeframe] = useState("1d");
     const [favorites, setFavorites] = useState<string[]>(["msft"]);
     const [results, setResults] = useState<SymbolSearchResult[]>(MOCK_SYMBOL_DB);
-    const [currentSymbol, setCurrentSymbol] = useState("MSFT");
+    const [currentSymbol, setCurrentSymbolState] = useState(() => demoRead("symbol", "MSFT"));
+    const setCurrentSymbol = (symbol: string) => {
+      setCurrentSymbolState(symbol);
+      demoWrite("symbol", symbol);
+    };
+    // Dernier état du graphique, lu une fois : sans état gardé, le modèle au démarrage (s'il y en a un) s'applique.
+    const [demoState] = useState(() => ({
+      indicators: demoRead<DemoIndicator[] | null>("indicators", null),
+      paneLayout: demoRead<ChartPaneLayout | null>("pane-layout", null),
+    }));
     const [displayMode, setDisplayMode] = useState<ChartDisplayMode>("candle");
     // Same "caller owns the data" stance as `watchlists`/`drawings`/`indicators` — the library
     // only ever hands back a `ChartAlertDraft` (via onCreateAlert/onUpdateAlert), assigning an id
@@ -942,7 +974,8 @@ export const AllFeatures: Story = {
           watchlistNews={DEMO_NEWS}
           symbolProfiles={SYMBOL_PROFILES}
           alerts={<AlertsPanel alerts={alerts} onDeleteAlert={handleDeleteAlert} />}
-          defaultScripts={DEBUG_SCRIPTS}
+          defaultScripts={demoRead<ScriptDef[]>("scripts", DEBUG_SCRIPTS)}
+          onScriptsChange={(list) => demoWrite("scripts", list)}
         >
           <CandlestickChart
             // BTCUSD swaps in the real 15-minute BTC/USDT klines (see btcRealSample.ts's own doc)
@@ -953,8 +986,14 @@ export const AllFeatures: Story = {
             symbol={currentSymbol}
             events={ALL_FEATURES_EVENTS}
             drawingTools
-            showVolume={false}
+            showVolume
+            defaultVolumePaneState={demoRead<"expanded" | "collapsed" | "hidden">("volume", "hidden")}
+            onVolumePaneStateChange={(v) => demoWrite("volume", v)}
             showIndicators
+            defaultIndicators={demoState.indicators ?? undefined}
+            onIndicatorsChange={(list) => demoWrite("indicators", list)}
+            defaultPaneLayout={demoState.paneLayout ?? undefined}
+            onPaneLayoutChange={(layout) => demoWrite("pane-layout", layout)}
             fundamentals={ALL_FEATURES_FUNDAMENTALS}
             depth={DEMO_DEPTH.depth}
             tape={DEMO_DEPTH.tape}
@@ -984,6 +1023,13 @@ export const AllFeatures: Story = {
             seasonality
             replay
             showTemplates
+            defaultTemplates={demoRead<ChartTemplate[]>("templates", [])}
+            onTemplatesChange={(list) => demoWrite("templates", list)}
+            defaultActiveTemplateId={demoRead<string | null>("active-template", null)}
+            onActiveTemplateChange={(id) => demoWrite("active-template", id)}
+            defaultStartupTemplateId={demoRead<string | null>("startup-template", null)}
+            onStartupTemplateChange={(id) => demoWrite("startup-template", id)}
+            applyStartupTemplate={demoState.indicators === null && demoState.paneLayout === null}
           />
         </ChartWorkspace>
       </div>

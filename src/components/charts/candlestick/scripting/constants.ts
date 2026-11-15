@@ -24,3 +24,11 @@ export const REALTIME_TICK_DEBOUNCE_MS = 300;
  *  halves every bar: after a hundred it is under 2^-100, which is far below the precision of the
  *  numbers being averaged. Anything more would only cost time. */
 export const HEIKIN_ASHI_WARMUP = 100;
+
+/** Le code d'un nouvel onglet de l'éditeur (« + »). Un exemple à modifier, pas un indicateur demandé : un script créé
+ *  ainsi n'est posé sur le graphique qu'au premier « Exécuter » (voir `useScriptingState.addScript`). */
+export const DEFAULT_SCRIPT_CODE = `@indicator
+
+@block Cellule 1 — Affiche une série dans une panneau séparé
+plot.pane("Ma série").line("Ma série", market.close(0));
+`;

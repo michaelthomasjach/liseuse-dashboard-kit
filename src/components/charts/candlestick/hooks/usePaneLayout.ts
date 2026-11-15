@@ -1,4 +1,5 @@
 import type { IndicatorInfoTarget } from "../interfaces/IndicatorInfoTarget.interface";
+import type { ChartPaneLayout } from "../interfaces/ChartTemplate.interface";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as d3 from "d3";
 import type { Indicator } from "../interfaces/Indicator.interface";
@@ -179,6 +180,9 @@ export interface UsePaneLayoutArgs {
   /** Voir `CandlestickChartProps.defaultVolumePaneState` / `onVolumePaneStateChange`. */
   defaultVolumePaneState?: "expanded" | "collapsed" | "hidden";
   onVolumePaneStateChange?: (state: "expanded" | "collapsed" | "hidden") => void;
+  /** Voir `CandlestickChartProps.defaultPaneLayout` / `onPaneLayoutChange`. */
+  defaultPaneLayout?: Partial<ChartPaneLayout>;
+  onPaneLayoutChange?: (layout: ChartPaneLayout) => void;
 }
 
 /** Technical indicators (state + CRUD) and the sub-pane layout system they (and volume) share:
@@ -201,6 +205,8 @@ export function usePaneLayout({
   timeframeScoped = false,
   defaultVolumePaneState = "expanded",
   onVolumePaneStateChange,
+  defaultPaneLayout,
+  onPaneLayoutChange,
 }: UsePaneLayoutArgs) {
   const defaultFraction =
     defaultPaneHeightFraction !== undefined && Number.isFinite(defaultPaneHeightFraction)
@@ -266,7 +272,7 @@ export function usePaneLayout({
   // added/removed/reordered around it. Volume used to be pinned here permanently; now it's just
   // this array's own starting position, changed by dragging its header's grip handle same as any
   // indicator's.
-  const [volumePaneOrder, setVolumePaneOrder] = useState(0);
+  const [volumePaneOrder, setVolumePaneOrder] = useState(defaultPaneLayout?.volumePaneOrder ?? 0);
   // Local view state for the volume pane's own header (name/collapse/remove), layered on top of
   // the `showVolume` prop rather than replacing it: `showVolume` is the caller's own on/off
   // switch, this is the user's in-session view preference once it's on. Not lifted to a prop —
@@ -286,7 +292,21 @@ export function usePaneLayout({
   // the indicator's own id), as a fraction of the plot's own bounded height — set by dragging a
   // pane's own top divider (see startPaneResize). Missing entries fall back to
   // DEFAULT_PANE_HEIGHT_FRACTION, same as before per-pane resize existed at all.
-  const [paneHeightFractions, setPaneHeightFractions] = useState<Record<string, number>>({});
+  const [paneHeightFractions, setPaneHeightFractions] = useState<Record<string, number>>(defaultPaneLayout?.paneHeightFractions ?? {});
+  // Ordre et hauteurs des panneaux annoncés à l'hôte à chaque changement (pas au montage), pour qu'il retrouve la
+  // disposition au rechargement — quel que soit le chemin qui l'a changée (glisser, modèle, Ctrl+Z).
+  const onPaneLayoutChangeRef = useRef(onPaneLayoutChange);
+  onPaneLayoutChangeRef.current = onPaneLayoutChange;
+  const paneLayoutReportedRef = useRef<string | null>(null);
+  useEffect(() => {
+    const key = JSON.stringify([volumePaneOrder, paneHeightFractions]);
+    if (paneLayoutReportedRef.current === null || paneLayoutReportedRef.current === key) {
+      paneLayoutReportedRef.current = key;
+      return;
+    }
+    paneLayoutReportedRef.current = key;
+    onPaneLayoutChangeRef.current?.({ volumePaneOrder, paneHeightFractions });
+  }, [volumePaneOrder, paneHeightFractions]);
   // Whether each *docked* pane is folded, keyed by pane id — deliberately its own UI state rather
   // than the `Indicator.paneCollapsed` field the bottom stack toggles through `commitIndicators`.
   // A docked pane is very often script-produced (`plot.pane(name, { dock })`), and those live in
@@ -303,6 +323,20 @@ export function usePaneLayout({
   // stays in the saved-scripts list (its other outputs, signals and drawings included, are
   // untouched); removing the *script* is the editor panel's own job, see ScriptEditorPanel.
   const [dismissedScriptIndicators, setDismissedScriptIndicators] = useState<Record<string, boolean>>({});
+  // Fermer le panneau d'un script retire le script du graphique (voir `CandlestickChart`'s own beforeRemoveIndicator) :
+  // ses sorties disparaissent alors d'elles-mêmes, et l'effacement est oublié — remis sur le graphique plus tard, le
+  // script revient en entier au lieu de rester caché par un ancien effacement.
+  const rawExtraIdsKey = rawExtraIndicators.map((ind) => ind.id).join("|");
+  useEffect(() => {
+    const present = new Set(rawExtraIdsKey ? rawExtraIdsKey.split("|") : []);
+    setDismissedScriptIndicators((prev) => {
+      const stale = Object.keys(prev).filter((id) => !present.has(id));
+      if (stale.length === 0) return prev;
+      const next = { ...prev };
+      for (const id of stale) delete next[id];
+      return next;
+    });
+  }, [rawExtraIdsKey]);
   // Settings-modal edits made to a script-produced indicator, by id. A script indicator is rebuilt
   // from scratch on every run (see `scriptIndicatorToChartIndicator` — `{id, kind, period,
   // customData}`, nothing carried over), so an edit written onto the indicator itself would be

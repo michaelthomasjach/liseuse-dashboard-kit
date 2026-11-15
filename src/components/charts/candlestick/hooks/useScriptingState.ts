@@ -1,6 +1,7 @@
 import type { StrategySettings } from "../interfaces/StrategySettings.interface";
 import type { ScriptParamValue } from "../interfaces/ScriptParam.interface";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { DEFAULT_SCRIPT_CODE } from "../scripting/constants";
 import type { ScriptDef, ScriptFile } from "../interfaces/ScriptDef.interface";
 
 /** One script's unsaved editor buffer — its entry code plus its extra files, exactly the two
@@ -69,7 +70,8 @@ const MAX_SAVED_QUANT_RUNS = 20;
 
 export function useScriptingState({ defaultScripts, onScriptsChange, controlledEditorOpen, controlledScripts }: UseScriptingStateArgs) {
   // Scripts gardés avant la numérotation des noms en double : numérotés dès le chargement.
-  const [internalScripts, setInternalScripts] = useState<ScriptDef[]>(() => withUniqueNames(defaultScripts ?? []));
+  // Et les onglets jamais exécutés restés « sur le graphique » par l'ancien comportement : retirés (voir `withoutPhantomScripts`).
+  const [internalScripts, setInternalScripts] = useState<ScriptDef[]>(() => withoutPhantomScripts(withUniqueNames(defaultScripts ?? [])));
   const scripts = controlledScripts?.scripts ?? internalScripts;
   const [internalEditorOpen, setInternalEditorOpen] = useState(false);
   const editorOpen = controlledEditorOpen?.editorOpen ?? internalEditorOpen;
@@ -126,9 +128,16 @@ export function useScriptingState({ defaultScripts, onScriptsChange, controlledE
   // exactly the same reason, for every *other* field a caller needs set at creation time — notably
   // `targetPanelIndex`, without which a `ChartWorkspace`-owned script is routed to no panel at all
   // (see that file's own per-panel `scripts` filter) and so never runs.
+  //
+  // Créé **hors du graphique** (`enabled: false`) : ouvrir un onglet, recevoir un script de l'assistant ou forker un
+  // indicateur n'affiche rien. Un script n'est posé sur le graphique que par un geste explicite — « Exécuter »
+  // (`runScript`, qui l'active), l'œil de son onglet ou sa ligne de « Mes scripts » (`toggleScriptEnabled`). Avant, il
+  // naissait actif : le « + » de l'éditeur posait le panneau d'exemple « Ma série » sur le graphique, gardé sur le
+  // compte et rouvert à chaque chargement sans que personne l'ait demandé. `rest.enabled` reste possible pour un
+  // appelant qui veut vraiment l'afficher d'emblée.
   function addScript(name = "Nouveau script", code = "", rest?: Partial<Omit<ScriptDef, "id" | "name" | "code">>): string {
-    const id = `script-${scriptIdRef.current++}`;
-    commitScripts([...scriptsRef.current, { id, name: uniqueScriptName(name, scriptsRef.current), code, enabled: true, ...rest }]);
+    const id = nextFreeId("script", scriptIdRef, scriptsRef.current);
+    commitScripts([...scriptsRef.current, { id, name: uniqueScriptName(name, scriptsRef.current), code, enabled: false, ...rest }]);
     setRawOpenScriptIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
     setActiveScriptId(id);
     setEditorOpen(true);
@@ -231,6 +240,39 @@ export function useScriptingState({ defaultScripts, onScriptsChange, controlledE
       scriptsRef.current.map((s) => (s.id === id ? { ...s, strategySettings: settings } : s)));
   }
 
+  /** Pose sur le graphique exactement les scripts d'un modèle (avec leurs entrées) et retire tous les autres — voir
+   *  `ChartTemplateSnapshot.scripts`. Un script déjà actif dont les entrées changent est relancé ; un script qui
+   *  n'existe plus est ignoré. */
+  function applyActiveScripts(entries: { id: string; paramValues?: Record<string, ScriptParamValue> }[]) {
+    const byId = new Map(entries.map((e) => [e.id, e]));
+    let changed = false;
+    const next = scriptsRef.current.map((s) => {
+      const entry = byId.get(s.id);
+      const wasOn = s.enabled !== false;
+      if (!entry) {
+        if (!wasOn) return s;
+        changed = true;
+        return { ...s, enabled: false };
+      }
+      const paramsChanged = entry.paramValues !== undefined && JSON.stringify(entry.paramValues) !== JSON.stringify(s.paramValues ?? {});
+      if (wasOn && !paramsChanged) return s;
+      changed = true;
+      return {
+        ...s,
+        enabled: true,
+        ...(paramsChanged ? { paramValues: entry.paramValues } : {}),
+        ...(wasOn && paramsChanged ? { runRequestId: (s.runRequestId ?? 0) + 1 } : {}),
+      };
+    });
+    if (changed) commitScripts(next);
+  }
+
+  /** Retire un script du graphique (sans le supprimer) : fermer son panneau. */
+  function disableScript(id: string) {
+    if (!scriptsRef.current.some((s) => s.id === id && s.enabled !== false)) return;
+    commitScripts(scriptsRef.current.map((s) => (s.id === id ? { ...s, enabled: false } : s)));
+  }
+
   function toggleScriptEnabled(id: string) {
     commitScripts(
       scriptsRef.current.map((s) => (s.id === id ? { ...s, enabled: s.enabled === false } : s)));
@@ -298,6 +340,13 @@ export function useScriptingState({ defaultScripts, onScriptsChange, controlledE
   // would put them straight back. Reopening the pane restores them, which is also what makes this
   // safe — nothing is lost, it is just not shown.
   const [withheldScriptIds, setWithheldScriptIds] = useState<string[]>([]);
+  // Un script retiré du graphique (désactivé) n'a plus rien de retenu : réactivé plus tard, il revient en entier.
+  const disabledIdsKey = scripts.filter((s) => s.enabled === false).map((s) => s.id).join("|");
+  useEffect(() => {
+    if (!disabledIdsKey) return;
+    const disabled = new Set(disabledIdsKey.split("|"));
+    setWithheldScriptIds((prev) => (prev.some((id) => disabled.has(id)) ? prev.filter((id) => !disabled.has(id)) : prev));
+  }, [disabledIdsKey]);
   const withholdScriptOutput = useCallback((id: string) => {
     setWithheldScriptIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
   }, []);
@@ -369,6 +418,8 @@ export function useScriptingState({ defaultScripts, onScriptsChange, controlledE
     updateScript,
     removeScript,
     toggleScriptEnabled,
+    applyActiveScripts,
+    disableScript,
     setStrategySettings,
     currentScripts,
     saveQuantRun,
@@ -422,4 +473,30 @@ function withUniqueNames(scripts: ScriptDef[]): ScriptDef[] {
     out.push(name === s.name ? s : { ...s, name });
   }
   return changed ? out : scripts;
+}
+
+/**
+ * Un identifiant `<préfixe>-<n>` libre. Le compteur repart de 0 à chaque chargement alors que les scripts (ou modèles)
+ * gardés portent déjà `script-0`, `script-1`… : sans ce saut, un script créé après un rechargement pouvait reprendre
+ * l'identifiant d'un script existant.
+ */
+export function nextFreeId(prefix: string, counter: { current: number }, existing: { id: string }[]): string {
+  const taken = new Set(existing.map((e) => e.id));
+  let id = `${prefix}-${counter.current++}`;
+  while (taken.has(id)) id = `${prefix}-${counter.current++}`;
+  return id;
+}
+
+/**
+ * Les onglets d'exemple restés « sur le graphique » par l'ancien comportement, remis hors du graphique au chargement.
+ *
+ * Avant, un nouvel onglet de l'éditeur naissait actif : son code d'exemple (`DEFAULT_SCRIPT_CODE`, le panneau « Ma
+ * série ») tournait aussitôt, était gardé tel quel sur le compte et réapparaissait à chaque chargement. Seuls sont
+ * visés les scripts jamais nommés, jamais exécutés (`runRequestId` absent) et dont le code est encore l'exemple tel
+ * quel (ou vide) : un script que l'utilisateur a écrit, nommé ou exécuté garde son état.
+ */
+export function withoutPhantomScripts(scripts: ScriptDef[]): ScriptDef[] {
+  const isPhantom = (s: ScriptDef) =>
+    s.enabled !== false && !s.named && s.runRequestId === undefined && (s.code === DEFAULT_SCRIPT_CODE || s.code.trim() === "");
+  return scripts.some(isPhantom) ? scripts.map((s) => (isPhantom(s) ? { ...s, enabled: false } : s)) : scripts;
 }

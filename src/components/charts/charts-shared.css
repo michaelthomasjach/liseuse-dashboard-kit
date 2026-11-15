@@ -4167,32 +4167,25 @@ button.lq-chart__legend-item {
   height: 1px;
   margin: 0 2px;
 }
-/* Boutons carrés, tous de la même taille (libellés abrégés par FloatingDrawingToolbar). */
+/* Boutons carrés : la hauteur reste celle de la barre horizontale (26 px, à la souris comme au
+   doigt), c'est la largeur qui diminue ; libellés abrégés par FloatingDrawingToolbar. La poignée
+   garde sa taille, déjà carrée. */
 .lq-chart__floating-toolbar--vertical .lq-chart__icon-button,
 .lq-chart__floating-toolbar--vertical .lq-chart__icon-button.lq-chart__floating-toolbar-text,
-.lq-chart__floating-toolbar--vertical .lq-chart__floating-toolbar-swatch,
-.lq-chart__floating-toolbar--vertical .lq-chart__floating-toolbar-grip {
+.lq-chart__floating-toolbar--vertical .lq-chart__floating-toolbar-swatch {
   box-sizing: border-box;
   flex: none;
-  width: 28px;
-  min-width: 28px;
-  height: 28px;
-  min-height: 28px;
+  width: 26px;
+  min-width: 26px;
+  height: 26px;
+  min-height: 26px;
   padding: 0;
   justify-content: center;
   white-space: nowrap;
-  font-size: 0.65rem;
+  font-size: 0.62rem;
 }
-@media (pointer: coarse) {
-  .lq-chart__floating-toolbar--vertical .lq-chart__icon-button,
-  .lq-chart__floating-toolbar--vertical .lq-chart__icon-button.lq-chart__floating-toolbar-text,
-  .lq-chart__floating-toolbar--vertical .lq-chart__floating-toolbar-swatch,
-  .lq-chart__floating-toolbar--vertical .lq-chart__floating-toolbar-grip {
-    width: 36px;
-    min-width: 36px;
-    height: 36px;
-    min-height: 36px;
-  }
+.lq-chart__floating-toolbar--vertical .lq-chart__floating-toolbar-swatch {
+  gap: 2px;
 }
 @media (pointer: coarse) {
   .lq-chart__floating-toolbar-grip {

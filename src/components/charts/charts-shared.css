@@ -466,7 +466,7 @@
 }
 /* Icône volontairement plus petite (13 px) que celles des autres boutons (16 px) : la case garde la même largeur que
    ses voisines, l'icône est centrée dedans. */
-.lq-chart__icon-button.lq-chart__ai-button {
+.lq-chart-workspace__side-rail .lq-chart__icon-button.lq-chart__ai-button {
   justify-content: center;
   min-width: calc(16px + 2 * 5px + 2px);
 }

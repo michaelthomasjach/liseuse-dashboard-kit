@@ -249,13 +249,27 @@ export function useScriptEngine(
     return worker;
   }
 
+  // Arrêt du worker remis au tick suivant, et annulé si le composant est remonté d'ici là.
+  // En StrictMode (développement), React démonte puis remonte aussitôt chaque composant neuf : le
+  // premier `run()` de ScriptRunner (lancé une seule fois, gardé par `hasRunOnceRef`) partait dans
+  // un worker que ce nettoyage tuait aussitôt, son délai de garde effacé avec lui — aucune réponse,
+  // aucune erreur, et « Exécution… » affiché pour toujours. Différé, le démontage simulé ne coupe
+  // plus rien ; un vrai démontage arrête toujours le worker, un tick plus tard.
+  const disposeRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    workerRef.current = new ScriptWorkerFactory();
+    if (disposeRef.current !== null) {
+      clearTimeout(disposeRef.current);
+      disposeRef.current = null;
+    }
+    if (workerRef.current === null) workerRef.current = new ScriptWorkerFactory();
     return () => {
-      clearPendingTimeout();
-      clearPendingDebounce();
-      workerRef.current?.terminate();
-      workerRef.current = null;
+      disposeRef.current = setTimeout(() => {
+        disposeRef.current = null;
+        clearPendingTimeout();
+        clearPendingDebounce();
+        workerRef.current?.terminate();
+        workerRef.current = null;
+      }, 0);
     };
     // Constructed once per hook instance — every run() call below reuses (or, after a
     // timeout/stop, replaces) this same ref rather than depending on it here.

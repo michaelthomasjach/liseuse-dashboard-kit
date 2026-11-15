@@ -7,6 +7,7 @@ import type { Candle } from "../interfaces/Candle.interface";
 import type { Indicator } from "../interfaces/Indicator.interface";
 import type { IndicatorValue } from "../interfaces/IndicatorValue.interface";
 import { paneValueFormatter } from "../indicatorCatalog";
+import { formatCompactNumber } from "../formatting";
 
 export interface SidePaneHeadersProps {
   /** Which side this column is docked to — decides which way the collapse chevron points (a pane
@@ -112,13 +113,13 @@ export function SidePaneHeaders({
                 return (
                   <span className="lq-chart__symbol-info-ohlc">
                     {typeof value === "number"
-                      ? (paneValueFormatter(ind) ?? ((v: number) => v.toFixed(2)))(value)
+                      ? (paneValueFormatter(ind) ?? formatCompactNumber)(value)
                       : "multi" in value
                         ? (ind.customData?.multiSeries ?? [])
                             .map((multiEntry) => {
                               const sub = value.multi[multiEntry.key];
                               if (sub === null) return null;
-                              const text = typeof sub === "number" ? (paneValueFormatter(ind) ?? ((v: number) => v.toFixed(2)))(sub) : `${sub.upper.toFixed(2)}/${sub.lower.toFixed(2)}`;
+                              const text = typeof sub === "number" ? (paneValueFormatter(ind) ?? formatCompactNumber)(sub) : `${formatCompactNumber(sub.upper)}/${formatCompactNumber(sub.lower)}`;
                               return `${multiEntry.label} ${text}`;
                             })
                             .filter((s): s is string => s !== null)

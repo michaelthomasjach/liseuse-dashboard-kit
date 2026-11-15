@@ -15,6 +15,7 @@ import type { IndicatorInfoTarget } from "../interfaces/IndicatorInfoTarget.inte
 import type { IndicatorValue } from "../interfaces/IndicatorValue.interface";
 import { SUB_PANE_COLLAPSED_HEIGHT, SIDE_DOCK_COLLAPSED_WIDTH } from "../constants";
 import { paneValueFormatter } from "../indicatorCatalog";
+import { compactAxisTickFormat, formatVolumeValue } from "../formatting";
 
 export interface ChartSidePaneColumnProps {
   side: DockSide;
@@ -182,11 +183,10 @@ export function ChartSidePaneColumn({
   // uses on its far-right edge.
   const priceAxisX = side === "right" ? columnWidth : axisWidth;
   const priceAxisFmt = (v: number) => Number(v).toFixed(2);
-  // Same compact SI-prefix format the main volume pane's own axis falls back to (CandlestickChart's
-  // `vFmt`) — a profile's own value has no inherent unit (whatever a script's kernel/weighting
-  // produces), so a generic magnitude format reads reasonably whether that's a raw density near 0
-  // or a summed weight in the thousands.
-  const profileValueFmt = (v: number) => d3.format(".2s")(v);
+  // Même format compact que l'axe du volume (`formatVolumeValue`, k / M / B, jamais le G de d3) — la valeur d'un
+  // profil n'a pas d'unité propre (densité proche de 0 ou poids cumulé dans les milliers), un format de grandeur
+  // générique se lit dans les deux cas.
+  const profileValueFmt = (v: d3.NumberValue) => formatVolumeValue(Number(v));
 
   // Whether the column's foot needs a rule drawn across it — see its own <line> below.
   const hasBottomAxis = paneIndicators.some(
@@ -327,7 +327,7 @@ export function ChartSidePaneColumn({
                   orientation={side === "right" ? "right" : "left"}
                   transform={`translate(${priceAxisX}, 0)`}
                   ticks={3}
-                  tickFormat={(v) => (isProfile ? priceAxisFmt : (paneValueFormatter(ind) ?? priceAxisFmt))(Number(v))}
+                  tickFormat={(v) => (isProfile ? priceAxisFmt : (paneValueFormatter(ind) ?? compactAxisTickFormat(scale, 3)))(Number(v))}
                   domainExtent={isProfile ? [plotBoundedHeight, 0] : [paneHeights[idx], 0]}
                 />
               </g>

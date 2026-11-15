@@ -1,3 +1,4 @@
+import type { ValueFormat } from "./ValueFormat.interface";
 export interface CustomIndicatorDataPoint {
   date: Date;
   value: number;
@@ -89,6 +90,9 @@ export interface CustomIndicatorDef {
    *  it formats every series of the pane (they share its one axis). Meaningless for `draw: "band"`
    *  (a band has no single value to format). */
   formatValue?: (value: number) => string;
+  /** Le même rôle que `formatValue`, en donnée (sérialisable) : ce qu'un script demande avec
+   *  `plot.pane(nom, { format })`. `formatValue` passe devant s'il est fourni. */
+  valueFormat?: ValueFormat;
   color?: string;
   /** Stroke width in px for `line`/`area`'s own outline/`band`'s own upper-lower lines. Default 1.5
    *  (matches every built-in line-shaped indicator's own hardcoded width). Meaningless for

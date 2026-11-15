@@ -1,4 +1,5 @@
 import type { Candle } from "./interfaces/Candle.interface";
+import type { ValueFormat, ValueFormatSpec } from "./interfaces/ValueFormat.interface";
 
 /** The live OHLC readout, top-left of the price plot — the hovered candle while hovering, the
  *  most recent one otherwise (so the readout is never blank). % is against the *previous*
@@ -88,24 +89,108 @@ export function formatPercentFromReference(value: number, reference: number): st
   return `${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%`;
 }
 
-/** Plain two-decimal number below 10 000 (i.e. 4 or fewer integer digits) — past that, truncated
- *  to two decimals with a K/M/B/T suffix (thousand/million/billion/trillion) instead of the raw
- *  digit string, e.g. 4522582677.17 → "4.52B". Used wherever a pane's own value (an own-pane
- *  indicator's hover/permanent axis badge, a fundamental's magnitude) could otherwise run long
- *  enough to overflow its badge. */
-export function formatCompactNumber(value: number): string {
+/** Le signe moins typographique (U+2212), celui des axes d3 : « −200M », « −12.50 ». */
+const MINUS = "−";
+
+/** Remplace le trait d'union d'un nombre négatif par le vrai signe moins, et retire celui d'un zéro arrondi
+ *  (« -0.00 » → « 0.00 »). */
+function withMinus(text: string): string {
+  if (!text.startsWith("-")) return text;
+  return /^-0*\.?0*$/.test(text) ? text.slice(1) : MINUS + text.slice(1);
+}
+
+/** Les unités de la notation compacte, de la plus grande à la plus petite : B pour les milliards (jamais le G du
+ *  préfixe SI de `d3.format("s")`). */
+const COMPACT_UNITS: [number, string][] = [
+  [1e12, "T"],
+  [1e9, "B"],
+  [1e6, "M"],
+  [1e3, "k"],
+];
+
+/** Seuil de la notation compacte : en dessous, le nombre s'écrit en entier (1000 reste « 1000 »). */
+export const COMPACT_THRESHOLD = 10_000;
+
+/**
+ * Le format de toutes les valeurs d'indicateur, de volume et de panneau (axes, en-têtes, badges) : le nombre tel
+ * quel sous 10 000 en valeur absolue (avec les décimales du contexte, `formatSmall`, deux par défaut), puis
+ * k / M / B / T à trois chiffres significatifs au plus, sans zéros finaux.
+ *   100 → « 100 » (selon `formatSmall`) · 12 345 → « 12.3k » · 100 000 → « 100k » · 999 999 → « 1M »
+ *   1 000 000 000 → « 1B » · 10 100 000 000 → « 10.1B » · −200 000 000 → « −200M »
+ * L'arrondi qui atteint 1000 passe à l'unité suivante (999 999 donne « 1M », pas « 1000k »).
+ */
+export function formatCompactNumber(value: number, formatSmall: (value: number) => string = (v) => v.toFixed(2)): string {
+  if (!Number.isFinite(value)) return String(value);
   const abs = Math.abs(value);
-  if (abs < 10_000) return value.toFixed(2);
-  const units: [number, string][] = [
-    [1_000_000_000_000, "T"],
-    [1_000_000_000, "B"],
-    [1_000_000, "M"],
-    [1_000, "K"],
-  ];
-  for (const [threshold, suffix] of units) {
-    if (abs >= threshold) return `${(value / threshold).toFixed(2)}${suffix}`;
+  if (abs < COMPACT_THRESHOLD) return withMinus(formatSmall(value));
+  let unit = COMPACT_UNITS.findIndex(([size]) => abs >= size);
+  let scaled = Number((abs / COMPACT_UNITS[unit][0]).toPrecision(3));
+  if (scaled >= 1000 && unit > 0) {
+    unit -= 1;
+    scaled = Number((abs / COMPACT_UNITS[unit][0]).toPrecision(3));
   }
-  return value.toFixed(2);
+  return `${value < 0 ? MINUS : ""}${scaled}${COMPACT_UNITS[unit][1]}`;
+}
+
+/** Un nombre sans zéros inutiles : deux décimales au plus à partir de 1, trois chiffres significatifs en dessous
+ *  (0.0035 reste lisible), 0 → « 0 ». La partie « petite » du format des volumes et des profils. */
+export function formatPlainNumber(value: number): string {
+  if (!Number.isFinite(value)) return String(value);
+  const abs = Math.abs(value);
+  if (abs === 0) return "0";
+  const text = abs >= 1 ? String(Number(abs.toFixed(2))) : String(Number(abs.toPrecision(3)));
+  return text === "0" ? "0" : (value < 0 ? MINUS : "") + text;
+}
+
+/** Le format par défaut d'un volume (axe, en-tête, badges du panneau Volume) : 100 → « 100 », 1000 → « 1000 »,
+ *  100 000 → « 100k », 1 000 000 000 → « 1B ». Remplace l'ancien `d3.format(".2s")` qui écrivait « 200G ». */
+export function formatVolumeValue(value: number): string {
+  return formatCompactNumber(value, formatPlainNumber);
+}
+
+/** Un format de valeurs (réglage d'un indicateur ou option d'un script, voir `ValueFormat`) lu sans planter sur une
+ *  donnée persistée ou envoyée par un script : tout ce qui n'est pas reconnu revient à "auto". */
+export function normalizeValueFormat(format: unknown): ValueFormat {
+  if (format === "integer" || format === "percent" || format === "raw" || format === "auto") return format;
+  if (format === "compact") return "auto";
+  if (format && typeof format === "object") {
+    const o = format as Record<string, unknown>;
+    const spec: ValueFormatSpec = {};
+    if (typeof o.decimals === "number" && Number.isFinite(o.decimals)) spec.decimals = Math.max(0, Math.min(10, Math.round(o.decimals)));
+    if (typeof o.compact === "boolean") spec.compact = o.compact;
+    if (typeof o.prefix === "string") spec.prefix = o.prefix.slice(0, 8);
+    if (typeof o.suffix === "string") spec.suffix = o.suffix.slice(0, 8);
+    return spec;
+  }
+  return "auto";
+}
+
+/** Écrit un nombre selon un `ValueFormat` (voir son doc pour chaque cas). */
+export function formatWithValueFormat(value: number, format: ValueFormat | undefined): string {
+  const f = normalizeValueFormat(format);
+  if (!Number.isFinite(value)) return String(value);
+  if (f === "auto") return formatCompactNumber(value);
+  if (f === "integer") return formatCompactNumber(value, (v) => Math.round(v).toFixed(0));
+  if (f === "percent") return `${withMinus(value.toFixed(2))}%`;
+  if (f === "raw") return withMinus(String(value));
+  const decimals = f.decimals ?? 2;
+  const body = f.compact === false ? withMinus(value.toFixed(decimals)) : formatCompactNumber(value, (v) => v.toFixed(decimals));
+  const negative = body.startsWith(MINUS);
+  return `${negative ? MINUS : ""}${f.prefix ?? ""}${negative ? body.slice(1) : body}${f.suffix ?? ""}`;
+}
+
+/** Le formateur d'un `ValueFormat` explicite, ou null pour "auto" / absent : chaque endroit garde alors son format
+ *  automatique (précision du pas pour un axe, deux décimales pour une légende), tous deux compacts dès 10 000. */
+export function valueFormatter(format: ValueFormat | undefined): ((value: number) => string) | null {
+  const f = normalizeValueFormat(format);
+  return f === "auto" ? null : (v) => formatWithValueFormat(v, f);
+}
+
+/** Les graduations d'un axe de panneau : la notation compacte à partir de 10 000, sinon la précision que d3 déduit
+ *  du pas entre graduations, sans séparateur de milliers (« 5000 », « 0.0012 », « 20 »). */
+export function compactAxisTickFormat(scale: { tickFormat: (count?: number, specifier?: string) => (v: number) => string }, ticks: number) {
+  const small = scale.tickFormat(ticks, "f");
+  return (value: number) => formatCompactNumber(value, small);
 }
 
 export function toDateInputValue(d: Date): string {

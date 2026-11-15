@@ -4,6 +4,7 @@ const SERIES_OPTIONS = [
   "options.color — couleur CSS de la courbe.",
   "options.lineWidth — épaisseur du trait, en pixels.",
   'options.lineStyle — "solid" (défaut), "dashed" ou "dotted".',
+  "options.format — le format des valeurs du panneau, comme options.format de plot.pane (les séries d'un panneau partagent son axe : le dernier format donné vaut pour tout le panneau).",
 ];
 
 export const PLOT_SECTION: ScriptReferenceSection = {
@@ -30,9 +31,14 @@ export const PLOT_SECTION: ScriptReferenceSection = {
         params: [
           "name — le nom du panneau, affiché dans son en-tête. C'est aussi son identité : même nom, même panneau.",
           'options.dock — où l\'accrocher : "bottom" (défaut) l\'empile sous les prix ; "left" ou "right" le place dans une colonne verticale à côté du graphique, ce qu\'il faut pour un profil.',
+          'options.format — comment l\'axe du panneau, ses badges de survol et la valeur dans sa légende écrivent les nombres. "auto" (défaut) : le nombre tel quel sous 10 000, puis k / M / B / T à trois chiffres au plus (100 → 100, 1000 → 1000, 10000 → 10k, 100000 → 100k, 1e9 → 1B, 10.1e9 → 10.1B). "integer" : pareil sans décimales. "percent" : la valeur est déjà un pourcentage, écrite 21.46%. "raw" : le nombre complet, sans abréviation. Ou un objet { decimals, compact, prefix, suffix } : { decimals: 4 } pour un MACD, { prefix: "$" } pour des montants, { compact: false, decimals: 0 } pour tout écrire en entier.',
         ],
         returns: "une poignée exposant line, area, histogram, dots, band, label et profile.",
-        example: `plot.pane("RSI").line("RSI", ta.rsi(market.series("close", 60), 14));`,
+        caveat:
+          "Le format choisi par le script n'est qu'un défaut : l'utilisateur peut le remplacer dans les réglages de l'indicateur (onglet Style, « Format des valeurs »). Pour écrire un nombre de la même façon dans un label, un tableau ou une alerte, voir format.*.",
+        example: `plot.pane("RSI").line("RSI", ta.rsi(market.series("close", 60), 14));
+plot.pane("Volume", { format: "integer" }).histogram("Volume", market.volume(0));
+plot.pane("Rendement", { format: "percent" }).line("Rendement", (market.close(0) / market.close(1) - 1) * 100);`,
       },
       {
         signature: "plot.overlay(name)",

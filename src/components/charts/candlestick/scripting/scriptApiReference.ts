@@ -16,6 +16,7 @@ import { COMPANY_SECTION, STATE_SECTION, BAR_SECTION, ALERT_SECTION } from "./ap
 import { BOOK_SECTION, TAPE_SECTION } from "./apiReference/bookTape";
 import { REPORT_SECTION, AI_SECTION } from "./apiReference/reportAi";
 import { MATH_SECTION } from "./apiReference/math";
+import { FORMAT_SECTION } from "./apiReference/format";
 import { TA_SECTION } from "./apiReference/ta";
 
 export const SCRIPT_API_REFERENCE: ScriptReferenceSection[] = [
@@ -314,6 +315,7 @@ if (AFFICHER_SIGNAUX) plot.signal("BUY");`
   BOOK_SECTION,
   TAPE_SECTION,
   MATH_SECTION,
+  FORMAT_SECTION,
   TA_SECTION,
   {
     id: "console",

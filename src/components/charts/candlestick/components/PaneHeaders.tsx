@@ -8,6 +8,7 @@ import type { Candle } from "../interfaces/Candle.interface";
 import type { Indicator } from "../interfaces/Indicator.interface";
 import type { IndicatorValue } from "../interfaces/IndicatorValue.interface";
 import { paneValueFormatter } from "../indicatorCatalog";
+import { formatCompactNumber } from "../formatting";
 
 export interface PaneHeadersProps {
   volumeVisible: boolean;
@@ -97,7 +98,9 @@ export function PaneHeaders({
                       <button type="button" className="lq-chart__pane-attached-label" onClick={() => openIndicatorSettings(attached.id)} title="Réglages">
                         {indicatorLabel(attached)}
                       </button>
-                      {typeof value === "number" && <span className="lq-chart__pane-attached-value">{value.toFixed(2)}</span>}
+                      {typeof value === "number" && (
+                        <span className="lq-chart__pane-attached-value">{(paneValueFormatter(attached) ?? (sourceId === "volume" ? vFmt : formatCompactNumber))(value)}</span>
+                      )}
                       <button
                         type="button"
                         className="lq-chart__pane-attached-remove"
@@ -362,13 +365,13 @@ export function PaneHeaders({
                 return (
                   <span className="lq-chart__symbol-info-ohlc">
                     {typeof value === "number"
-                      ? (paneValueFormatter(ind) ?? ((v: number) => v.toFixed(2)))(value)
+                      ? (paneValueFormatter(ind) ?? formatCompactNumber)(value)
                       : "macd" in value
-                        ? `MACD ${value.macd.toFixed(2)} · Signal ${value.signal !== null ? value.signal.toFixed(2) : "–"} · Hist ${
-                            value.histogram !== null ? value.histogram.toFixed(2) : "–"
+                        ? `MACD ${formatCompactNumber(value.macd)} · Signal ${value.signal !== null ? formatCompactNumber(value.signal) : "–"} · Hist ${
+                            value.histogram !== null ? formatCompactNumber(value.histogram) : "–"
                           }`
                         : "adx" in value
-                          ? `ADX ${value.adx.toFixed(2)} · +DI ${value.plusDI.toFixed(2)} · -DI ${value.minusDI.toFixed(2)}`
+                          ? `ADX ${formatCompactNumber(value.adx)} · +DI ${formatCompactNumber(value.plusDI)} · -DI ${formatCompactNumber(value.minusDI)}`
                           : "multi" in value
                             ? // A `plot.pane` with 2+ of its own series — one compact "label value"
                               // per series, in the same declared order as `multiSeries`, same spirit
@@ -378,7 +381,7 @@ export function PaneHeaders({
                                 .map((entry) => {
                                   const sub = value.multi[entry.key];
                                   if (sub === null) return null;
-                                  const text = typeof sub === "number" ? (paneValueFormatter(ind) ?? ((v: number) => v.toFixed(2)))(sub) : `${sub.upper.toFixed(2)}/${sub.lower.toFixed(2)}`;
+                                  const text = typeof sub === "number" ? (paneValueFormatter(ind) ?? formatCompactNumber)(sub) : `${formatCompactNumber(sub.upper)}/${formatCompactNumber(sub.lower)}`;
                                   return `${entry.label} ${text}`;
                                 })
                                 .filter((s): s is string => s !== null)

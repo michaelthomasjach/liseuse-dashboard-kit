@@ -9,11 +9,14 @@ import type { DrawingToolType } from "../interfaces/DrawingToolType.interface";
 import type { ChartEvent } from "../interfaces/ChartEvent.interface";
 import { allPointsOf, isOffsetPriceLabel, snapPixel } from "../drawingGeometry";
 import { paneValueFormatter } from "../indicatorCatalog";
+import { compactAxisTickFormat } from "../formatting";
 
-/** A pane axis' tick format, when the pane has its own (see `paneValueFormatter`). */
-const paneAxisFormat = (ind: Indicator): ((v: d3.NumberValue) => string) | undefined => {
-  const f = paneValueFormatter(ind);
-  return f ? (v) => f(Number(v)) : undefined;
+/** Graduations d'un axe de panneau : le format propre du panneau s'il en a un (voir `paneValueFormatter`), sinon le
+ *  format compact (k / M / B / T à partir de 10 000, précision du pas de d3 en dessous) — jamais « 200000000 » ni le
+ *  « 200G » du préfixe SI. */
+const paneAxisFormat = (ind: Indicator, scale: d3.ScaleLinear<number, number>): ((v: d3.NumberValue) => string) => {
+  const f = paneValueFormatter(ind) ?? compactAxisTickFormat(scale, 3);
+  return (v) => f(Number(v));
 };
 import { AXIS_HANDLE_FRACTION_X, AXIS_HANDLE_FRACTION_Y } from "../constants";
 import { EVENT_MARKER_OFFSET, EVENT_MARKER_RADIUS, EVENT_STACK_OFFSET, MAX_STACKED_EVENT_MARKERS } from "../eventsCatalog";
@@ -363,7 +366,7 @@ export function ChartCanvasOverlay({
                       orientation="right"
                       transform={`translate(${dims.boundedWidth}, 0)`}
                       ticks={3}
-                      tickFormat={paneAxisFormat(ind)}
+                      tickFormat={paneAxisFormat(ind, scale)}
                     />
                     <rect
                       className="lq-chart__axis-drag lq-chart__axis-drag--y"

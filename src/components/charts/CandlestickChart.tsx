@@ -115,7 +115,7 @@ import { findTimeframeLabel, flattenTimeframeValues } from "./candlestick/timefr
 import { styleOf, toolKeyOf, useDrawingStylePresets, withStyle } from "./candlestick/drawingStylePresets";
 import { dayMonthYearFormat } from "./internal/dateFormat";
 import { DEFAULT_MARGIN, MOBILE_LAYOUT_BREAKPOINT, NARROW_EMBED_BREAKPOINT, PRICE_AXIS_WIDTH_MOBILE, SUB_PANE_COLLAPSED_HEIGHT, TOOLS_RAIL_HEIGHT_MOBILE, TOOLS_RAIL_WIDTH } from "./candlestick/constants";
-import { formatPercentFromReference, computeOhlcReadout, toDayInputValue, candleIndexForDay } from "./candlestick/formatting";
+import { formatPercentFromReference, computeOhlcReadout, toDayInputValue, candleIndexForDay, formatVolumeValue } from "./candlestick/formatting";
 import { supportsProjection, projectionSettingsOf } from "./candlestick/indicatorProjection";
 import { bindDepthToBars, packDepth } from "./candlestick/marketDepth";
 import { stableMemo } from "./candlestick/stableMemo";
@@ -125,7 +125,8 @@ import { stableMemo } from "./candlestick/stableMemo";
 const StableToolsRail = stableMemo(ToolsRail);
 const StableChartHeader = stableMemo(ChartHeader);
 const StableChartModals = stableMemo(ChartModals);
-const DEFAULT_VOLUME_FORMAT = d3.format(".2s");
+// 100 → « 100 », 100 000 → « 100k », 1 000 000 000 → « 1B » (et non le « 1G » de d3.format(".2s")).
+const DEFAULT_VOLUME_FORMAT = formatVolumeValue;
 /** Ce qui fait une étape de Ctrl+Z dans la disposition : la liste des indicateurs et le panneau du volume fermé ou non. */
 const layoutShape = (s: ChartTemplateSnapshot): string => `${s.indicators.map((i) => i.id).join("|")}#${s.volumePaneState === "hidden"}`;
 // En-têtes des panneaux : rien n'y bouge pendant un glisser (seulement au survol), mais ils étaient

@@ -13,6 +13,7 @@ import { buildReportApi } from "./buildReportApi";
 import type { AiApi } from "./buildAiApi";
 import { mathApi } from "./mathLib";
 import { taApi } from "./taLib";
+import { formatApi } from "./formatLib";
 import { SCRIPT_MODULE_EXPORTS, SCRIPT_MODULE_REQUIRE, transformScriptModule } from "../scriptModules";
 
 // Captured at module-evaluation time — which, per ES module ordering, happens while
@@ -180,9 +181,10 @@ export async function runScript(snapshot: ScriptEngineSnapshot, ai: AiApi | null
         "console",
         "book",
         "tape",
+        "format",
         source
       ) as (...args: unknown[]) => void;
-      factory(exports, requireModule, market, chart, plot, state, alert, bar, company, mathApi, taApi, scriptConsole, book, tape);
+      factory(exports, requireModule, market, chart, plot, state, alert, bar, company, mathApi, taApi, scriptConsole, book, tape, formatApi);
     } finally {
       loading.delete(name);
     }
@@ -206,7 +208,8 @@ export async function runScript(snapshot: ScriptEngineSnapshot, ai: AiApi | null
     report: unknown,
     ai: unknown,
     book: unknown,
-    tape: unknown
+    tape: unknown,
+    format: unknown
     // `unknown` rather than `void`: on the quant path what the script returns *is* its output, and
     // on the async paths what comes back is a promise of it.
   ) => unknown;
@@ -263,6 +266,8 @@ export async function runScript(snapshot: ScriptEngineSnapshot, ai: AiApi | null
       // answer `available() === false` — which is what lets one script run against both.
       "book",
       "tape",
+      // `format.compact(v)` et ses voisins : écrire un nombre comme les axes du graphique (voir formatLib.ts).
+      "format",
       entry.code
     ) as CompiledScript;
   } catch (err) {
@@ -289,7 +294,7 @@ export async function runScript(snapshot: ScriptEngineSnapshot, ai: AiApi | null
   if (snapshot.report) {
     currentIndex = snapshot.ohlcv.length - 1;
     try {
-      await compiled(entryExports, requireModule, market, chart, quantPlot, state, alert, bar, company, mathApi, taApi, scriptConsole, undefined, reportApi, ai, book, tape);
+      await compiled(entryExports, requireModule, market, chart, quantPlot, state, alert, bar, company, mathApi, taApi, scriptConsole, undefined, reportApi, ai, book, tape, formatApi);
     } catch (err) {
       return {
         error: toScriptError(err),
@@ -378,6 +383,7 @@ export async function runScript(snapshot: ScriptEngineSnapshot, ai: AiApi | null
           // answering about the wrong instrument. `available()` says so.
           buildDepthApi(undefined, getCurrentIndex).book,
           buildDepthApi(undefined, getCurrentIndex).tape,
+          formatApi,
         );
         rows.push({ symbol, value });
       } catch (err) {
@@ -406,7 +412,7 @@ export async function runScript(snapshot: ScriptEngineSnapshot, ai: AiApi | null
   for (let i = 0; i <= snapshot.runUpToIndex; i++) {
     currentIndex = i;
     try {
-      compiled(entryExports, requireModule, market, chart, plot, state, alert, bar, company, mathApi, taApi, scriptConsole, strategy?.api, undefined, undefined, book, tape);
+      compiled(entryExports, requireModule, market, chart, plot, state, alert, bar, company, mathApi, taApi, scriptConsole, strategy?.api, undefined, undefined, book, tape, formatApi);
       // After the bar's own pass, never during it: an order placed mid-script fills once, at this
       // bar's own price, no matter how many times the script changed its mind (see settleBar).
       strategy?.settleBar(snapshot.ohlcv[i], i + 1 < snapshot.ohlcv.length ? snapshot.ohlcv[i + 1] : null);

@@ -1,3 +1,4 @@
+import type { ValueFormat } from "../../interfaces/ValueFormat.interface";
 import type { StrategyResult } from "../../interfaces/StrategyResult.interface";
 import type { ScriptReport } from "./ScriptReport.interface";
 /** A script error, with line/column when the engine can recover them — `new Function`-compiled
@@ -51,6 +52,9 @@ export interface ScriptPaneSeries {
    *  `"right"` docks it beside the chart instead, in its own resizable column. Never set on an
    *  `"overlay"` pane (the price section can't dock anywhere else). */
   dock?: "bottom" | "left" | "right";
+  /** Format des valeurs du panneau (axe, badges, légende), demandé par `plot.pane(nom, { format })` ou l'option
+   *  `format` d'une série — voir `ValueFormat`. Absent : automatique (k / M / B / T dès 10 000). */
+  format?: ValueFormat;
   series: ScriptPaneSubSeries[];
 }
 

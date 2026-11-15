@@ -98,7 +98,11 @@ export function usePaneStackScales({
           hi = 1;
         }
         const pad = paneFitPad(lo, hi);
-        scales[ind.id] = d3.scaleLinear().domain([lo - pad, hi + pad]).range([height, headerReserve]);
+        // Des barres partent de zéro : la marge ne passe pas de l'autre côté de zéro. Un volume (tout positif) gardait
+        // sinon un axe négatif de 40 % de sa hauteur (« −200G … 0 … 200G ») sous des barres qui n'y descendent jamais.
+        const bottom = fromZero && lo >= 0 ? 0 : lo - pad;
+        const top = fromZero && hi <= 0 ? 0 : hi + pad;
+        scales[ind.id] = d3.scaleLinear().domain([bottom, top]).range([height, headerReserve]);
       } else {
         const points = (visibleIndicators.find((v) => v.indicator.id === ind.id)?.points ?? []) as { i: number; value: number }[];
         let lo = Infinity;

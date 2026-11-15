@@ -1,6 +1,6 @@
 import type { IndicatorKind } from "./interfaces/IndicatorKind.interface";
 import type { Indicator } from "./interfaces/Indicator.interface";
-import { formatCompactNumber } from "./formatting";
+import { formatCompactNumber, valueFormatter } from "./formatting";
 
 /** The eight fundamental `IndicatorKind`s, in one place — `computeIndicatorValues` reads
  *  `fundamentals` through this, the picker/axis/hover-readout use it to pick a formatter (see
@@ -35,8 +35,11 @@ export function isFundamentalKind(kind: IndicatorKind): boolean {
  *  series of a `draw: "multi"` pane, which all live on the one axis), else null — each call site
  *  then keeps its own default. */
 export function paneValueFormatter(ind: Indicator): ((value: number) => string) | null {
+  // Le réglage de l'utilisateur (« Format des valeurs » dans les réglages de l'indicateur) passe devant tout le reste.
+  const own = valueFormatter(ind.valueFormat);
+  if (own) return own;
   if (isFundamentalKind(ind.kind)) return (v) => formatFundamentalValue(ind.kind, v, ind.fundamentalDisplayMode);
-  return ind.customData?.formatValue ?? null;
+  return ind.customData?.formatValue ?? valueFormatter(ind.customData?.valueFormat);
 }
 
 export function formatFundamentalValue(kind: IndicatorKind, value: number, displayMode: "value" | "yoyChange" = "value"): string {

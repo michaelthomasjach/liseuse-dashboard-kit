@@ -269,6 +269,36 @@ if (ouverture !== null && cloture !== null && ouverture !== 0) {
 }`,
   },
   {
+    id: "value-format",
+    title: "Unités des valeurs — k / M / B (option format, format.compact)",
+    description:
+      "Un volume se lit mieux en « 160M » qu'en « 160000000.00 ». L'option `format` de `plot.pane` règle l'écriture des valeurs du panneau — son axe, ses badges de survol et la valeur dans sa légende : 100 → 100, 1000 → 1000, 10000 → 10k, 100000 → 100k, 1e9 → 1B. `format.compact` écrit un nombre de la même façon dans un label ou un tableau. L'utilisateur peut toujours changer le format dans les réglages de l'indicateur (onglet Style) :",
+    code: `@indicator
+@description "Volume et sa moyenne sur 20 bougies, en k / M / B, avec le dernier volume dans un tableau."
+
+const volumes = market.series("volume", 20);
+const volume = market.volume(0);
+const moyenne = volumes.length === 20 ? math.mean(volumes) : null;
+
+// "integer" : sans décimales sous 10 000, puis 12.3k, 160M, 1.2B. Autres formats : "auto" (défaut, deux décimales
+// sous 10 000), "percent", "raw" (le nombre complet) ou { decimals: 4 }, { prefix: "$" }…
+const panneau = plot.pane("Volume (format)", { format: "integer" });
+panneau.histogram("Volume", volume, { color: "#8a8f98" });
+panneau.line("Moyenne 20", moyenne, { color: "#2962ff", lineWidth: 2 });
+
+// Le même format dans un texte du script.
+if (volume !== null && moyenne !== null) {
+  plot.table(
+    [
+      { cells: ["Volume", format.integer(volume)] },
+      { cells: ["Moyenne 20", format.compact(moyenne)] },
+      { cells: ["Écart", format.percent((volume / moyenne - 1) * 100, 1)] },
+    ],
+    { title: "Dernière bougie", position: "topRight" }
+  );
+}`,
+  },
+  {
     id: "volume-spike",
     title: "Détecteur de pic de volume",
     description: "Marque la bougie courante quand son volume dépasse la moyenne + 2 écarts-types des 20 dernières bougies :",

@@ -1,3 +1,5 @@
+import type { ValueFormat } from "../../interfaces/ValueFormat.interface";
+import { normalizeValueFormat } from "../../formatting";
 import type { ScriptCandleColorOutput, ScriptDrawingOutput, ScriptHeatmapOutput, ScriptLabelOutput, ScriptPaneSeries, ScriptPaneSubSeries, ScriptTableOutput, ScriptTableRow, ScriptXYChartOutput } from "../interfaces/ScriptRunResult.interface";
 
 /** Hard caps on `plot.table()`/`plot.xy()`'s own output — the `plot.*` calls whose size a script
@@ -24,6 +26,9 @@ export interface PlotSeriesOptions {
   lineWidth?: number;
   /** Default `"solid"`. */
   lineStyle?: "solid" | "dashed" | "dotted";
+  /** Format des valeurs du panneau — le même que `plot.pane(nom, { format })` : les séries d'un panneau partagent
+   *  son axe, donc ce format vaut pour tout le panneau (le dernier donné l'emporte). */
+  format?: ValueFormat;
 }
 /** `pane.profile`'s own options — `PlotSeriesOptions` minus `lineStyle` (a profile is always a
  *  solid stroke) plus the one thing only a profile has. */
@@ -197,6 +202,11 @@ export interface PlotPaneOptions {
    *  counterpart of that same rule); a later call naming an already-open pane can't move it to a
    *  different edge. */
   dock?: "bottom" | "left" | "right";
+  /** Format des valeurs du panneau : son axe, ses badges de survol et la valeur dans sa légende. "auto" (défaut) :
+   *  le nombre tel quel sous 10 000, puis k / M / B / T (12 345 → « 12.3k », 1e9 → « 1B ») ; "integer" : sans
+   *  décimales ; "percent" : la valeur est déjà en %, « 21.46% » ; "raw" : le nombre complet ; ou
+   *  `{ decimals, compact, prefix, suffix }`. L'utilisateur peut le remplacer dans les réglages de l'indicateur. */
+  format?: ValueFormat;
 }
 
 export interface PlotApi {
@@ -292,6 +302,7 @@ export function buildPlotApi(
     name: string;
     pane: ScriptPaneSeries["pane"];
     dock?: "bottom" | "left" | "right";
+    format?: ValueFormat;
     subSeriesByName: Map<string, ScriptPaneSubSeries>;
     labelsByName: Map<string, ScriptLabelOutput>;
   }
@@ -313,6 +324,8 @@ export function buildPlotApi(
       point: { date: number; value: number | null } | { date: number; upper: number | null; lower: number | null },
       options: PlotSeriesOptions | PlotBandOptions | undefined
     ) {
+      const format = (options as PlotSeriesOptions | undefined)?.format;
+      if (format !== undefined) paneEntry.format = normalizeValueFormat(format);
       let sub = paneEntry.subSeriesByName.get(name);
       if (!sub) {
         sub = {
@@ -424,17 +437,19 @@ export function buildPlotApi(
     };
   }
 
-  function getOrCreatePane(name: string, pane: ScriptPaneSeries["pane"], dock?: "bottom" | "left" | "right"): PaneSeriesHandle {
+  function getOrCreatePane(name: string, pane: ScriptPaneSeries["pane"], dock?: "bottom" | "left" | "right", format?: ValueFormat): PaneSeriesHandle {
     let entry = panesByName.get(name);
     if (!entry) {
       entry = { name, pane, dock, subSeriesByName: new Map(), labelsByName: new Map() };
       panesByName.set(name, entry);
     }
+    // Contrairement à `dock`, le format suit le dernier appel qui en donne un : il ne déplace rien.
+    if (format !== undefined) entry.format = normalizeValueFormat(format);
     return makeHandle(entry);
   }
 
   const api: PlotApi = {
-    pane: (name, options) => getOrCreatePane(name, "own", options?.dock),
+    pane: (name, options) => getOrCreatePane(name, "own", options?.dock, options?.format),
     overlay: (name) => getOrCreatePane(name, "overlay"),
     signal: (arg) => {
       const normalized: PlotSignalArg = typeof arg === "string" ? { type: arg } : arg;
@@ -497,7 +512,7 @@ export function buildPlotApi(
   return {
     api,
     getResult: () => ({
-      panes: [...panesByName.values()].map((entry) => ({ name: entry.name, pane: entry.pane, dock: entry.dock, series: [...entry.subSeriesByName.values()] })),
+      panes: [...panesByName.values()].map((entry) => ({ name: entry.name, pane: entry.pane, dock: entry.dock, format: entry.format, series: [...entry.subSeriesByName.values()] })),
       drawings,
       table,
       xyCharts: [...xyChartsByName.values()],

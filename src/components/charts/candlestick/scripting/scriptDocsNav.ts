@@ -78,6 +78,7 @@ const KEYWORD_NAMESPACE_SECTION: Record<string, string> = {
   state: "state",
   bar: "bar",
   math: "math",
+  format: "format",
   ta: "ta",
   console: "console",
   alert: "alert",

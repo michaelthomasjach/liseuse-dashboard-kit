@@ -4,7 +4,8 @@ import { InputNumber } from "../../../forms/InputNumber";
 import { Select } from "../../../forms/Select";
 import type { Indicator } from "../interfaces/Indicator.interface";
 import { indicatorCatalogEntry, isFundamentalKind, defaultIndicatorColor } from "../indicatorCatalog";
-import { toDateInputValue, fromDateInputValue } from "../formatting";
+import { toDateInputValue, fromDateInputValue, normalizeValueFormat, formatWithValueFormat } from "../formatting";
+import type { ValueFormat } from "../interfaces/ValueFormat.interface";
 import { supportsProjection, DEFAULT_PROJECTION, type IndicatorProjectionMethod } from "../indicatorProjection";
 
 export interface IndicatorSettingsFieldsProps {
@@ -753,12 +754,50 @@ export function IndicatorSettingsStyle({ indicatorDraft, setIndicatorDraft, indi
           />
         </div>
       )}
+      {indicatorCatalogEntry(indicatorDraft).pane !== "price" && <ValueFormatField indicatorDraft={indicatorDraft} setIndicatorDraft={setIndicatorDraft} />}
       {/* Couleurs conditionnelles : écrites au nouveau format, l'ancien (`fills`, converti à la lecture) est retiré. */}
       <IndicatorStyleRulesEditor
         indicator={indicatorDraft}
         indicators={indicators}
         onChange={(styleRules) => setIndicatorDraft({ ...indicatorDraft, styleRules, fills: undefined })}
       />
+    </>
+  );
+}
+
+type ValueFormatChoice = "auto" | "integer" | "decimals" | "percent" | "raw";
+
+/** « Format des valeurs » : comment l'axe du panneau, les badges de survol et la légende écrivent les valeurs de cet
+ *  indicateur (voir `ValueFormat`). Enregistré avec l'indicateur, donc sur le compte de l'utilisateur. */
+function ValueFormatField({ indicatorDraft, setIndicatorDraft }: Pick<IndicatorSettingsFieldsProps, "indicatorDraft" | "setIndicatorDraft">) {
+  const current = normalizeValueFormat(indicatorDraft.valueFormat);
+  const choice: ValueFormatChoice = typeof current === "object" ? "decimals" : current;
+  const decimals = typeof current === "object" ? (current.decimals ?? 2) : 2;
+  const set = (valueFormat: ValueFormat) => setIndicatorDraft({ ...indicatorDraft, valueFormat: valueFormat === "auto" ? undefined : valueFormat });
+  return (
+    <>
+      <Select<ValueFormatChoice>
+        label="Format des valeurs"
+        value={choice}
+        onChange={(v) => set(v === "decimals" ? { decimals } : v)}
+        options={[
+          { value: "auto", label: `Automatique (k / M / B) — ${formatWithValueFormat(12_345_678, "auto")}` },
+          { value: "integer", label: `Nombre entier — ${formatWithValueFormat(1234.56, "integer")}` },
+          { value: "decimals", label: "Décimales…" },
+          { value: "percent", label: `Pourcentage — ${formatWithValueFormat(21.5, "percent")}` },
+          { value: "raw", label: `Brut — ${formatWithValueFormat(12_345_678.9, "raw")}` },
+        ]}
+      />
+      {choice === "decimals" && (
+        <InputNumber
+          label="Décimales"
+          min={0}
+          max={10}
+          step={1}
+          value={decimals}
+          onChange={(v) => set({ decimals: v === "" ? 2 : v })}
+        />
+      )}
     </>
   );
 }

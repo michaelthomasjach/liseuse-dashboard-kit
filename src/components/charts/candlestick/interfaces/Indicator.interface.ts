@@ -4,6 +4,7 @@ import type { OverlayDataPoint } from "./TrendLineDrawing.interface";
 import type { IndicatorProjectionMethod } from "../indicatorProjection";
 import type { IndicatorFill } from "./IndicatorFill.interface";
 import type { IndicatorStyleRule } from "./IndicatorStyleRule.interface";
+import type { ValueFormat } from "./ValueFormat.interface";
 
 export interface Indicator {
   id: string;
@@ -164,6 +165,10 @@ export interface Indicator {
    *  P/E ratio in the tens) — something the raw "value" mode can't do at a glance. Default
    *  "value" (the original behavior, unchanged). */
   fundamentalDisplayMode?: "value" | "yoyChange";
+  /** Format des valeurs de l'indicateur — axe de son panneau, badges de survol, valeur dans sa légende (voir
+   *  `ValueFormat`). Absent ou "auto" : k / M / B / T à partir de 10 000. Passe devant le format d'un fondamental et
+   *  celui d'un script (`plot.pane(nom, { format })`). */
+  valueFormat?: ValueFormat;
   /** The eight fundamental kinds only — how the pane connects each reported point (see
    *  `drawVolumeAndPanes`'s own fundamentals block). "line" (default, prior behavior) draws a
    *  straight diagonal between consecutive reports, which reads smoothly but visually implies a

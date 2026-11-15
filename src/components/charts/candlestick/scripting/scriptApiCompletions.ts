@@ -159,7 +159,7 @@ export const SCRIPT_API_COMPLETIONS: ScriptApiCompletion[] = [
   {
     label: "plot.pane",
     type: "function",
-    detail: '(name, { dock? }) => handle — sub-pane dédié (bottom/left/right), dessiner via .line/.area/.histogram/.band/.label/.profile',
+    detail: '(name, { dock?, format? }) => handle — sub-pane dédié (bottom/left/right), format des valeurs "auto" (k / M / B) | "integer" | "percent" | "raw" | { decimals, prefix, suffix } ; dessiner via .line/.area/.histogram/.band/.label/.profile',
     apply: 'plot.pane("")',
   },
   {
@@ -215,6 +215,10 @@ export const SCRIPT_API_COMPLETIONS: ScriptApiCompletion[] = [
   { label: "tape.volumeAt", type: "function", detail: "(price, tolerance?) => number — volume EXÉCUTÉ au prix", apply: "tape.volumeAt(${price})" },
   { label: "tape.delta", type: "function", detail: "() => number — acheteur moins vendeur", apply: "tape.delta()" },
   { label: "tape.volume", type: "function", detail: "() => number", apply: "tape.volume()" },
+  { label: "format.compact", type: "function", detail: "(value, decimals?) => string — 100 → 100, 12345 → 12.3k, 1e9 → 1B", apply: "format.compact()" },
+  { label: "format.integer", type: "function", detail: "(value) => string — 1234.56 → 1235, 1.6e8 → 160M", apply: "format.integer()" },
+  { label: "format.percent", type: "function", detail: "(value, decimals?) => string — 21.456 → 21.46%", apply: "format.percent()" },
+  { label: "format.number", type: "function", detail: "(value, format?) => string — même format que plot.pane(nom, { format })", apply: "format.number(, )" },
   { label: "math.sma", type: "function", detail: "(values, period) => number | null", apply: "math.sma(, )" },
   { label: "math.ema", type: "function", detail: "(values, period) => number | null", apply: "math.ema(, )" },
   { label: "math.std", type: "function", detail: "(values) => number | null", apply: "math.std()" },

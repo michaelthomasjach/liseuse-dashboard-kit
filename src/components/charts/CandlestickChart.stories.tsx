@@ -1059,6 +1059,53 @@ export const CompactPanes: Story = {
   ),
 };
 
+/**
+ * Paramètres d'un panneau en onglets, et zones remplies (`Indicator.areaFills`). Le volume porte deux moyennes (SMA 14
+ * et SMA 50) : sous la SMA 14 jusqu'à 0 en bleu pâle, et entre les deux en vert quand la 14 passe au-dessus de la 50, en
+ * rouge en dessous. Le RSI porte une SMA, avec une zone entre les deux. Clic droit sur le volume → « Paramètres du
+ * panneau Volume » : un onglet « Volume » (couleurs des barres), puis un onglet par moyenne (période, couleur et
+ * épaisseur, zones remplies) — chaque réglage s'applique aussitôt.
+ */
+export const PaneSettingsAreaFills: Story = {
+  name: "Paramètres du panneau en onglets et zones remplies (areaFills)",
+  render: () => (
+    <div style={{ height: 640 }}>
+      <CandlestickChart
+        data={COMPACT_PANES_DATASET}
+        symbol="DEMO"
+        height={640}
+        showVolume
+        showIndicators
+        defaultPaneHeightFraction={0.2}
+        defaultIndicators={[
+          {
+            id: "vol-sma14",
+            kind: "sma",
+            period: 14,
+            sourceId: "volume",
+            color: "#2962ff",
+            lineWidth: 2,
+            areaFills: [
+              { id: "base", to: { source: "value", value: 0 }, aboveColor: "#2962ff1f", belowColor: "#2962ff1f" },
+              { id: "cross", to: { source: "indicator", indicatorId: "vol-sma50" }, aboveColor: "#26a69a59", belowColor: "#ef535059" },
+            ],
+          },
+          { id: "vol-sma50", kind: "sma", period: 50, sourceId: "volume", color: "#ff9800" },
+          { id: "rsi", kind: "rsi", period: 14 },
+          {
+            id: "rsi-sma",
+            kind: "sma",
+            period: 14,
+            sourceId: "rsi",
+            color: "#9c27b0",
+            areaFills: [{ id: "rsi-fill", to: { source: "indicator", indicatorId: "rsi" }, aboveColor: "#ef535040", belowColor: "#26a69a40" }],
+          },
+        ]}
+      />
+    </div>
+  ),
+};
+
 const LOCKED_ZONE_DATASET = generateCandles(200, 180, 21);
 const LOCKED_ZONE_PRICES = LOCKED_ZONE_DATASET.map((c) => c.close);
 

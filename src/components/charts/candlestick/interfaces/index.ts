@@ -12,6 +12,7 @@ export type { IndicatorMACD } from "./IndicatorMACD.interface";
 export type { IndicatorZigZagPoint } from "./IndicatorZigZagPoint.interface";
 export type { Indicator } from "./Indicator.interface";
 export type { CandleColorRule, CandleColorCondition, CandleColorMetric, CandleColorOperator, CandleColorOverride } from "./CandleColorRule.interface";
+export type { IndicatorAreaFill } from "./IndicatorAreaFill.interface";
 export type { IndicatorStyleRule, StyleRuleCondition, StyleRuleEffect, StyleRuleOperand, StyleRuleSeriesRef } from "./IndicatorStyleRule.interface";
 export type { ChartDisplayMode } from "./ChartDisplayMode.interface";
 export type { PriceScaleMode } from "./PriceScaleMode.interface";

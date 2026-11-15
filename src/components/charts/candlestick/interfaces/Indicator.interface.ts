@@ -4,6 +4,7 @@ import type { OverlayDataPoint } from "./TrendLineDrawing.interface";
 import type { IndicatorProjectionMethod } from "../indicatorProjection";
 import type { IndicatorFill } from "./IndicatorFill.interface";
 import type { IndicatorStyleRule } from "./IndicatorStyleRule.interface";
+import type { IndicatorAreaFill } from "./IndicatorAreaFill.interface";
 import type { ValueFormat } from "./ValueFormat.interface";
 import type { IndicatorWatermark } from "./IndicatorWatermark.interface";
 
@@ -283,4 +284,9 @@ export interface Indicator {
    *  dessus, deux moyennes sur les prix…), colorer une courbe selon sa position, colorer le fond, marquer les
    *  croisements. Voir `IndicatorStyleRule`. Présent (même vide), il l'emporte sur `fills`. */
   styleRules?: IndicatorStyleRule[];
+  /** Zones remplies (paramètres du panneau, rubrique Style, « Zones remplies ») : entre une ligne de l'indicateur et la
+   *  base 0 du panneau, ou une autre courbe du même panneau, d'une couleur au-dessus et d'une autre en dessous. Voir
+   *  `IndicatorAreaFill`. Absent : celles posées par le script (`customData.areaFills`, `pane.fillBetween`), sinon
+   *  aucune. Présent (même vide), il l'emporte sur celles du script. */
+  areaFills?: IndicatorAreaFill[];
 }

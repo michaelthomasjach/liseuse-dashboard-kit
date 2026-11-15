@@ -58,7 +58,20 @@ export interface ScriptPaneSeries {
   format?: ValueFormat;
   /** Filigrane du panneau, posé par `plot.pane(nom).watermark(texte, options)`. */
   watermark?: IndicatorWatermark;
+  /** Zones remplies posées par `plot.pane(nom).fillBetween(a, b, options)`. */
+  fills?: ScriptPaneFill[];
   series: ScriptPaneSubSeries[];
+}
+
+/** Une zone de `pane.fillBetween` : la série `a` (son nom) face à une autre série du panneau (son nom) ou à un niveau
+ *  (`b` nombre). `above` / `below` : couleur de chaque côté (`null` : rien ; absente : la couleur par défaut),
+ *  `opacity` : appliquée aux couleurs sans opacité propre. Convertie en `IndicatorAreaFill` avec le panneau. */
+export interface ScriptPaneFill {
+  a: string;
+  b: string | number;
+  above?: string | null;
+  below?: string | null;
+  opacity?: number;
 }
 
 /** One `plot.signal/point/horizontal/vertical` output — a single discrete marker at the bar it

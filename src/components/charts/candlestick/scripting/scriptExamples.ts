@@ -259,6 +259,23 @@ panneau.line("RSI", rsi, { color: "#7e57c2" });
 panneau.watermark("RSI " + periode, { opacity: 0.1, size: 90 });`,
   },
   {
+    id: "pane-fill-between",
+    title: "Zones remplies entre deux moyennes (pane.fillBetween)",
+    description:
+      "Deux moyennes du volume dans leur propre panneau, l'espace entre elles en vert quand la rapide passe au-dessus de la lente, en rouge en dessous, et la rapide remplie jusqu'à 0 en bleu pâle. Les zones se dessinent derrière les lignes ; l'utilisateur peut les modifier dans les paramètres du panneau (rubrique Style, « Zones remplies »).",
+    code: `@indicator
+const rapideN = new Variable("number", 14, { description: "Moyenne rapide" });
+const lenteN = new Variable("number", 50, { description: "Moyenne lente" });
+const volume = market.series("volume", 200);
+
+const panneau = plot.pane("Volume moyen");
+panneau.line("Rapide", ta.sma(volume, rapideN), { color: "#2962ff" });
+panneau.line("Lente", ta.sma(volume, lenteN), { color: "#ff9800" });
+// Sous la rapide jusqu'à la base du panneau, puis entre les deux moyennes.
+panneau.fillBetween("Rapide", 0, { color: "#2962ff", opacity: 0.08 });
+panneau.fillBetween("Rapide", "Lente", { above: "#26a69a", below: "#ef5350", opacity: 0.25 });`,
+  },
+  {
     id: "candle-color-threshold",
     title: "Bougies > +0,3 % en couleur (plot.candleColor)",
     description:

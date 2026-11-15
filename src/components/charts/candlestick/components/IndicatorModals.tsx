@@ -6,7 +6,7 @@ import { analyzeScriptVariables } from "../scripting/scriptVariables";
 import { scriptIdFromIndicatorId } from "../scripting/scriptOutputToCustomIndicatorDef";
 import { ScriptParamsFields } from "../scripting/components/ScriptParamsFields";
 import type { ScriptParamValue } from "../interfaces/ScriptParam.interface";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Modal } from "../../../primitives/Modal";
 import { InfoText } from "./InfoText";
 import { Tabs } from "../../../primitives/Tabs";
@@ -27,6 +27,8 @@ import { SettingsSection, differsFromDefaults, indicatorDefaults } from "./Indic
 import { IndicatorPickerModal } from "./IndicatorPickerModal";
 import { IndicatorHelpButton, useOpenIndicatorHelp } from "./IndicatorHelp";
 import { hasIndicatorHelp } from "../indicatorHelp";
+import { VolumePaneSettings } from "./VolumePaneSettings";
+import { VOLUME_PANE_ID } from "../attachedIndicators";
 
 export interface IndicatorModalsProps {
   indicatorPickerOpen: boolean;
@@ -117,6 +119,21 @@ export interface IndicatorModalsProps {
   openIndicatorSettings: (id: string) => void;
   removeIndicator: (id: string) => void;
   setVolumeSettingsOpen: (open: boolean) => void;
+  /** Paramètres du panneau Volume ouverts (onglet « Volume », ou celui d'une moyenne posée dessus). */
+  volumeSettingsOpen: boolean;
+  /** Couleurs des barres du volume (celles des bougies, `upColorOverride` / `downColorOverride`, tant qu'elles ne sont
+   *  pas réglées). */
+  volumeUpColorOverride: string | undefined;
+  setVolumeUpColorOverride: (color: string | undefined) => void;
+  volumeDownColorOverride: string | undefined;
+  setVolumeDownColorOverride: (color: string | undefined) => void;
+  upColorOverride: string | undefined;
+  downColorOverride: string | undefined;
+  /** Tous les indicateurs du graphique, scripts compris (`indicators` n'a que ceux de la liste) : les onglets des
+   *  paramètres d'un panneau, et les courbes qu'une zone remplie peut citer. */
+  candleRuleIndicators: Indicator[];
+  /** Rubrique « Zones remplies » de l'onglet Style — voir `CandlestickChartProps.showAreaFills`. Défaut vrai. */
+  showAreaFills?: boolean;
   editingIndicatorId: string | null;
   indicatorDraft: Indicator | null;
   setIndicatorDraft: (d: Indicator) => void;
@@ -174,6 +191,15 @@ export function IndicatorModals({
   openIndicatorSettings,
   removeIndicator,
   setVolumeSettingsOpen,
+  volumeSettingsOpen,
+  volumeUpColorOverride,
+  setVolumeUpColorOverride,
+  volumeDownColorOverride,
+  setVolumeDownColorOverride,
+  upColorOverride,
+  downColorOverride,
+  candleRuleIndicators,
+  showAreaFills = true,
   editingIndicatorId,
   indicatorDraft,
   setIndicatorDraft,
@@ -219,6 +245,21 @@ export function IndicatorModals({
   // split: `indicators` is already 100% overlay + own-pane, nothing hidden from the list. Doesn't
   // close indicatorsManagerOpen itself — same as removing the last item one at a time, the manager
   // just re-renders into its own empty state.
+  // Couleurs hausse / baisse que le graphique dessine vraiment (thème courant), pour l'onglet « Volume » : lues sur un
+  // repère rendu dans l'arbre du graphique, qui hérite de ses variables CSS (la fenêtre, elle, est rendue ailleurs).
+  const themeAnchorRef = useRef<HTMLSpanElement>(null);
+  const [volumeTheme, setVolumeTheme] = useState<{ up: string; down: string; isEink: boolean }>({ up: "#26a69a", down: "#ef5350", isEink: false });
+  useEffect(() => {
+    const el = themeAnchorRef.current;
+    if (!el || !volumeSettingsOpen) return;
+    const computed = getComputedStyle(el);
+    setVolumeTheme({
+      up: computed.getPropertyValue("--lq-color-up").trim() || "#26a69a",
+      down: computed.getPropertyValue("--lq-color-down").trim() || "#ef5350",
+      isEink: el.closest('[data-lq-palette="eink"]') !== null,
+    });
+  }, [volumeSettingsOpen]);
+
   function handleDeleteAll() {
     commitDrawings(drawings.filter((d) => !visibleDrawings.some((v) => v.id === d.id)));
     commitIndicators([]);
@@ -571,87 +612,218 @@ export function IndicatorModals({
         </Modal>
       )}
 
-      {editingIndicatorId &&
-        indicatorDraft &&
-        (() => {
-          // A script-produced pane's own parameters, read straight off the script that owns it — the same list the
-          // editor's own panel shows, backed by the same `ScriptDef.paramValues`, so editing here or there is the same edit.
-          const scriptId = scriptIdFromIndicatorId(indicatorDraft.customData?.id);
-          const script = scriptId === null ? undefined : scripts.find((s) => s.id === scriptId);
-          const params = script ? analyzeScriptVariables(script.runDraftCode ?? script.code).params : [];
-          const paramsDiffer = !!script && params.some((p) => script.paramValues?.[p.name] !== undefined && JSON.stringify(script.paramValues[p.name]) !== JSON.stringify(p.defaultValue));
-          const canReset = paramsDiffer || differsFromDefaults(indicatorDraft);
-          const resetAll = () => {
-            setIndicatorDraft(indicatorDefaults(indicatorDraft));
-            if (script) for (const p of params) if (script.paramValues?.[p.name] !== undefined) setScriptParamValue(script.id, p.name, p.defaultValue);
-          };
-          const host = indicatorDraft.sourceId ? [...indicators, ...ownPaneIndicators].find((i) => i.id === indicatorDraft.sourceId) : undefined;
-          const kindLabel = indicatorDraft.customData
-            ? script
-              ? "Indicateur scripté"
-              : "Indicateur personnalisé"
-            : (INDICATOR_CATALOG.find((entry) => entry.kind === indicatorDraft.kind)?.label ?? indicatorDraft.kind);
-          // « MACD(12,26,9) » n'a pas besoin du sous-titre « MACD » : le nom dit déjà le type.
-          const subtitle = indicatorLabel(indicatorDraft).startsWith(kindLabel) ? "Paramètres de l'indicateur" : kindLabel;
-          const where = indicatorDraft.sourceId ? `sur ${host ? indicatorLabel(host) : indicatorDraft.sourceId === "volume" ? "Volume" : "un panneau"}` : null;
-          return (
-            <Modal
-              open
-              onClose={closeIndicatorSettings}
-              className="lq-ind-settings-modal"
-              title={
-                <span className="lq-ind-settings__heading">
-                  <span className="lq-ind-settings__heading-name">{indicatorLabel(indicatorDraft)}</span>
-                  <span className="lq-ind-settings__heading-kind">{[subtitle, where].filter(Boolean).join(" · ")}</span>
-                </span>
-              }
-              closeLabel="Fermer les paramètres"
-              headerActions={indicatorDraft.customData ? undefined : <IndicatorHelpButton kind={indicatorDraft.kind} className="lq-modal__close-icon" />}
-              // Pas de bouton « Enregistrer » : chaque réglage s'applique et s'enregistre aussitôt (voir usePaneLayout).
-              footer={
-                <div className="lq-ind-settings__footer">
-                  <button type="button" className="lq-ind-settings__link" onClick={resetAll} disabled={!canReset}>
-                    Réinitialiser les valeurs par défaut
-                  </button>
-                  <button type="button" className="lq-ind-settings__button" onClick={closeIndicatorSettings}>
-                    Fermer
-                  </button>
-                </div>
-              }
-            >
-              <Tabs
-                items={[
-                  { id: "inputs", label: "Entrées" },
-                  { id: "style", label: "Style" },
-                ]}
-                value={settingsTab}
-                onChange={(id) => setSettingsTab(id as "inputs" | "style")}
-                className="lq-ind-settings__tabs"
-              />
+      {/* Repère dans l'arbre du graphique (la fenêtre, elle, est rendue ailleurs) : les couleurs du thème s'y lisent. */}
+      <span ref={themeAnchorRef} style={{ display: "contents" }} aria-hidden="true" />
 
-              {settingsTab === "inputs" && (
-                <IndicatorSettingsInputs
-                  indicatorDraft={indicatorDraft}
-                  setIndicatorDraft={setIndicatorDraft}
-                  indicators={indicators}
-                  leading={
-                    script && params.length > 0 ? (
-                      <SettingsSection title="Paramètres du script">
-                        <div className="lq-ind-settings__script-params">
-                          <ScriptParamsFields params={params} values={script.paramValues} onChange={(name, value) => setScriptParamValue(script.id, name, value)} />
-                        </div>
-                      </SettingsSection>
-                    ) : undefined
-                  }
-                />
-              )}
-
-              {settingsTab === "style" && (
-                <IndicatorSettingsStyle indicatorDraft={indicatorDraft} setIndicatorDraft={setIndicatorDraft} indicators={indicators} />
-              )}
-            </Modal>
-          );
-        })()}
+      {(() => {
+        // Les paramètres d'un panneau (Volume, RSI, MACD, script…) : un onglet par série, la principale d'abord puis
+        // chaque indicateur posé dessus. Un indicateur tracé sur les prix garde sa fenêtre à lui (Entrées / Style).
+        const draft = editingIndicatorId && indicatorDraft ? indicatorDraft : null;
+        const paneId = draft ? settingsPaneOf(draft) : volumeSettingsOpen ? VOLUME_PANE_ID : null;
+        if (draft && paneId === null) return renderIndicatorModal(draft);
+        if (paneId === null) return null;
+        return renderPaneModal(paneId, draft);
+      })()}
     </>
   );
+
+  /** Le panneau où un indicateur se règle : celui sur lequel il est posé, le sien (panneau séparé), ou aucun (prix). */
+  function settingsPaneOf(ind: Indicator): string | null {
+    if (ind.sourceId) return ind.sourceId;
+    return indicatorCatalogEntry(ind).pane === "price" ? null : ind.id;
+  }
+
+  /** Tous les indicateurs, scripts compris, la version en cours de réglage à la place de l'enregistrée. */
+  function everyIndicatorWith(draft: Indicator | null): Indicator[] {
+    const all = candleRuleIndicators.length > 0 ? candleRuleIndicators : [...indicators, ...ownPaneIndicators];
+    return draft ? all.map((i) => (i.id === draft.id ? draft : i)) : all;
+  }
+
+  /** Ce qui sert à régler un indicateur, partagé par sa fenêtre et par son onglet dans les paramètres du panneau. */
+  function indicatorEditing(draft: Indicator) {
+    // A script-produced pane's own parameters, read straight off the script that owns it — the same list the
+    // editor's own panel shows, backed by the same `ScriptDef.paramValues`, so editing here or there is the same edit.
+    const scriptId = scriptIdFromIndicatorId(draft.customData?.id);
+    const script = scriptId === null ? undefined : scripts.find((s) => s.id === scriptId);
+    const params = script ? analyzeScriptVariables(script.runDraftCode ?? script.code).params : [];
+    const paramsDiffer = !!script && params.some((p) => script.paramValues?.[p.name] !== undefined && JSON.stringify(script.paramValues[p.name]) !== JSON.stringify(p.defaultValue));
+    const canReset = paramsDiffer || differsFromDefaults(draft);
+    const resetAll = () => {
+      setIndicatorDraft(indicatorDefaults(draft));
+      if (script) for (const p of params) if (script.paramValues?.[p.name] !== undefined) setScriptParamValue(script.id, p.name, p.defaultValue);
+    };
+    const kindLabel = draft.customData ? (script ? "Indicateur scripté" : "Indicateur personnalisé") : (INDICATOR_CATALOG.find((entry) => entry.kind === draft.kind)?.label ?? draft.kind);
+    const scriptParams =
+      script && params.length > 0 ? (
+        <SettingsSection title="Paramètres du script">
+          <div className="lq-ind-settings__script-params">
+            <ScriptParamsFields params={params} values={script.paramValues} onChange={(name, value) => setScriptParamValue(script.id, name, value)} />
+          </div>
+        </SettingsSection>
+      ) : undefined;
+    const helpButton = draft.customData ? undefined : <IndicatorHelpButton kind={draft.kind} className="lq-modal__close-icon" />;
+    return { canReset, resetAll, kindLabel, scriptParams, everyIndicator: everyIndicatorWith(draft), helpButton };
+  }
+
+  function renderIndicatorModal(draft: Indicator) {
+    const { canReset, resetAll, kindLabel, scriptParams, everyIndicator, helpButton } = indicatorEditing(draft);
+    // « MACD(12,26,9) » n'a pas besoin du sous-titre « MACD » : le nom dit déjà le type.
+    const subtitle = indicatorLabel(draft).startsWith(kindLabel) ? "Paramètres de l'indicateur" : kindLabel;
+    return (
+      <Modal
+        open
+        onClose={closeIndicatorSettings}
+        className="lq-ind-settings-modal"
+        title={
+          <span className="lq-ind-settings__heading">
+            <span className="lq-ind-settings__heading-name">{indicatorLabel(draft)}</span>
+            <span className="lq-ind-settings__heading-kind">{subtitle}</span>
+          </span>
+        }
+        closeLabel="Fermer les paramètres"
+        headerActions={helpButton}
+        // Pas de bouton « Enregistrer » : chaque réglage s'applique et s'enregistre aussitôt (voir usePaneLayout).
+        footer={
+          <div className="lq-ind-settings__footer">
+            <button type="button" className="lq-ind-settings__link" onClick={resetAll} disabled={!canReset}>
+              Réinitialiser les valeurs par défaut
+            </button>
+            <button type="button" className="lq-ind-settings__button" onClick={closeIndicatorSettings}>
+              Fermer
+            </button>
+          </div>
+        }
+      >
+        <Tabs
+          items={[
+            { id: "inputs", label: "Entrées" },
+            { id: "style", label: "Style" },
+          ]}
+          value={settingsTab}
+          onChange={(id) => setSettingsTab(id as "inputs" | "style")}
+          className="lq-ind-settings__tabs"
+        />
+
+        {settingsTab === "inputs" && <IndicatorSettingsInputs indicatorDraft={draft} setIndicatorDraft={setIndicatorDraft} indicators={everyIndicator} leading={scriptParams} />}
+
+        {settingsTab === "style" && (
+          <IndicatorSettingsStyle indicatorDraft={draft} setIndicatorDraft={setIndicatorDraft} indicators={everyIndicator} showAreaFills={showAreaFills} />
+        )}
+      </Modal>
+    );
+  }
+
+  /** Les paramètres d'un panneau, en onglets : la série principale (le volume, ou l'indicateur du panneau), puis chaque
+   *  indicateur posé dessus, sous le nom de sa légende. Chaque onglet a ses rubriques « Paramètres » et « Style » ;
+   *  chaque réglage s'applique et s'enregistre aussitôt. Changer d'onglet, c'est régler une autre série du panneau. */
+  function renderPaneModal(paneId: string, draft: Indicator | null) {
+    const all = everyIndicatorWith(draft);
+    const isVolume = paneId === VOLUME_PANE_ID;
+    const host = isVolume ? undefined : all.find((i) => i.id === paneId);
+    const attached = all.filter((i) => i.sourceId === paneId);
+    const mainTab = isVolume ? { id: VOLUME_PANE_ID, label: "Volume" } : { id: paneId, label: host ? indicatorLabel(host) : "Panneau" };
+    const tabs = [mainTab, ...attached.map((i) => ({ id: i.id, label: indicatorLabel(i) }))];
+    const activeTab = draft ? draft.id : VOLUME_PANE_ID;
+    const close = () => {
+      closeIndicatorSettings();
+      setVolumeSettingsOpen(false);
+    };
+    const selectTab = (id: string) => {
+      if (id === activeTab) return;
+      if (id === VOLUME_PANE_ID) {
+        setVolumeSettingsOpen(true);
+        closeIndicatorSettings();
+        return;
+      }
+      // Sur le volume, la fenêtre reste ouverte d'un onglet à l'autre (le retour à l'onglet « Volume » la retrouve).
+      if (isVolume) setVolumeSettingsOpen(true);
+      openIndicatorSettings(id);
+    };
+    const editing = draft ? indicatorEditing(draft) : null;
+    const removable = draft?.sourceId ? draft : null;
+
+    return (
+      <Modal
+        open
+        onClose={close}
+        className="lq-ind-settings-modal lq-pane-settings-modal"
+        title={
+          <span className="lq-ind-settings__heading">
+            <span className="lq-ind-settings__heading-name">{mainTab.label}</span>
+            <span className="lq-ind-settings__heading-kind">Paramètres du panneau</span>
+          </span>
+        }
+        closeLabel="Fermer les paramètres du panneau"
+        headerActions={editing?.helpButton}
+        footer={
+          <div className="lq-ind-settings__footer">
+            {editing ? (
+              <span className="lq-pane-settings__footer-links">
+                <button type="button" className="lq-ind-settings__link" onClick={editing.resetAll} disabled={!editing.canReset}>
+                  Réinitialiser les valeurs par défaut
+                </button>
+                {removable && (
+                  <button
+                    type="button"
+                    className="lq-ind-settings__link"
+                    onClick={() => {
+                      removeIndicator(removable.id);
+                      selectTab(mainTab.id);
+                    }}
+                  >
+                    Retirer du panneau
+                  </button>
+                )}
+              </span>
+            ) : (
+              <button
+                type="button"
+                className="lq-ind-settings__link"
+                disabled={!volumeUpColorOverride && !volumeDownColorOverride}
+                onClick={() => {
+                  setVolumeUpColorOverride(undefined);
+                  setVolumeDownColorOverride(undefined);
+                }}
+              >
+                Réinitialiser aux couleurs des bougies
+              </button>
+            )}
+            <button type="button" className="lq-ind-settings__button" onClick={close}>
+              Fermer
+            </button>
+          </div>
+        }
+      >
+        <Tabs items={tabs} value={activeTab} onChange={selectTab} className="lq-ind-settings__tabs lq-pane-settings__tabs" />
+        {draft && editing ? (
+          <>
+            <div className="lq-pane-settings__group">
+              <h3 className="lq-pane-settings__group-title">Paramètres</h3>
+              <IndicatorSettingsInputs
+                indicatorDraft={draft}
+                setIndicatorDraft={setIndicatorDraft}
+                indicators={editing.everyIndicator}
+                leading={editing.scriptParams}
+                emptyText="Pas de paramètre de calcul."
+              />
+            </div>
+            <div className="lq-pane-settings__group">
+              <h3 className="lq-pane-settings__group-title">Style</h3>
+              <IndicatorSettingsStyle indicatorDraft={draft} setIndicatorDraft={setIndicatorDraft} indicators={editing.everyIndicator} showAreaFills={showAreaFills} />
+            </div>
+          </>
+        ) : (
+          <VolumePaneSettings
+            theme={volumeTheme}
+            upColorOverride={upColorOverride}
+            downColorOverride={downColorOverride}
+            volumeUpColorOverride={volumeUpColorOverride}
+            setVolumeUpColorOverride={setVolumeUpColorOverride}
+            volumeDownColorOverride={volumeDownColorOverride}
+            setVolumeDownColorOverride={setVolumeDownColorOverride}
+          />
+        )}
+      </Modal>
+    );
+  }
 }

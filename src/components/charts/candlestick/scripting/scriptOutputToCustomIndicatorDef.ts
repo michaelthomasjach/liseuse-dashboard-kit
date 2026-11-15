@@ -2,6 +2,46 @@ import type { Indicator } from "../interfaces/Indicator.interface";
 import type { IndicatorInfoTarget } from "../interfaces/IndicatorInfoTarget.interface";
 import type { CustomIndicatorDef, CustomIndicatorMultiDataPoint } from "../interfaces/CustomIndicatorDef.interface";
 import type { ScriptPaneSeries } from "./interfaces/ScriptRunResult.interface";
+import type { IndicatorAreaFill } from "../interfaces/IndicatorAreaFill.interface";
+import { colorAlpha, withAlpha } from "../../../forms/colorUtils";
+
+/** Couleurs par défaut d'une zone `fillBetween` sans couleur : vert au-dessus, rouge en dessous. */
+const FILL_UP = "#26a69a";
+const FILL_DOWN = "#ef5350";
+
+/** Les zones `pane.fillBetween` d'un panneau, dans le format des indicateurs : chaque série citée par son nom devient la
+ *  ligne correspondante (la clé de sa série quand le panneau en a plusieurs, sa ligne principale sinon). Une zone qui
+ *  cite une série absente du panneau est ignorée. */
+function scriptPaneAreaFills(pane: ScriptPaneSeries): IndicatorAreaFill[] | undefined {
+  if (!pane.fills || pane.fills.length === 0) return undefined;
+  const multi = pane.series.length > 1;
+  const fieldOf = (name: string): { ok: boolean; field?: string } => {
+    const series = pane.series.find((s) => s.name === name);
+    if (!series || series.draw === "band" || series.draw === "profile") return { ok: false };
+    return multi ? { ok: true, field: series.key } : { ok: true };
+  };
+  const tint = (color: string, opacity: number | undefined) => (colorAlpha(color) < 1 ? color : withAlpha(color, opacity ?? 0.25));
+  const fills: IndicatorAreaFill[] = [];
+  pane.fills.forEach((fill, k) => {
+    const a = fieldOf(fill.a);
+    if (!a.ok) return;
+    let to: IndicatorAreaFill["to"];
+    if (typeof fill.b === "number") to = { source: "value", value: fill.b };
+    else {
+      const b = fieldOf(fill.b);
+      if (!b.ok) return;
+      to = { source: "indicator", ...(b.field ? { field: b.field } : {}) };
+    }
+    fills.push({
+      id: `script-fill-${k}`,
+      ...(a.field ? { field: a.field } : {}),
+      to,
+      aboveColor: fill.above === null ? null : tint(fill.above ?? FILL_UP, fill.opacity),
+      belowColor: fill.below === null ? null : tint(fill.below ?? FILL_DOWN, fill.opacity),
+    });
+  });
+  return fills.length > 0 ? fills : undefined;
+}
 
 function slugify(name: string): string {
   return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "plot";
@@ -74,6 +114,7 @@ export function scriptPaneToCustomIndicatorDef(scriptId: string, pane: ScriptPan
       dock: pane.dock,
       valueFormat: pane.format,
       watermark: pane.watermark,
+      areaFills: scriptPaneAreaFills(pane),
       draw: "profile",
       data: [],
       profile: profileSeries.profile ?? [],
@@ -95,6 +136,7 @@ export function scriptPaneToCustomIndicatorDef(scriptId: string, pane: ScriptPan
         dock: pane.dock,
         valueFormat: pane.format,
         watermark: pane.watermark,
+        areaFills: scriptPaneAreaFills(pane),
         draw: "band",
         data: points.map((p) => ({ date: new Date(p.date), upper: p.upper, lower: p.lower })),
         color: series.color,
@@ -110,6 +152,7 @@ export function scriptPaneToCustomIndicatorDef(scriptId: string, pane: ScriptPan
       dock: pane.dock,
       valueFormat: pane.format,
       watermark: pane.watermark,
+      areaFills: scriptPaneAreaFills(pane),
       draw: series.draw,
       data: points.map((p) => ({ date: new Date(p.date), value: p.value })),
       color: series.color,
@@ -147,6 +190,7 @@ export function scriptPaneToCustomIndicatorDef(scriptId: string, pane: ScriptPan
     dock: pane.dock,
     valueFormat: pane.format,
     watermark: pane.watermark,
+    areaFills: scriptPaneAreaFills(pane),
     draw: "multi",
     data,
     // `draw` is narrowed here, not cast: the profile short-circuit above already returned for any

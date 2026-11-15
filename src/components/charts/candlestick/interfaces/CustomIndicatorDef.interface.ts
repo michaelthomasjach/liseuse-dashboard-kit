@@ -1,4 +1,5 @@
 import type { IndicatorWatermark } from "./IndicatorWatermark.interface";
+import type { IndicatorAreaFill } from "./IndicatorAreaFill.interface";
 import type { ValueFormat } from "./ValueFormat.interface";
 export interface CustomIndicatorDataPoint {
   date: Date;
@@ -116,6 +117,9 @@ export interface CustomIndicatorDef {
   /** Filigrane du panneau par défaut (celui d'un script : `plot.pane(nom).watermark(…)`). Le réglage de
    *  l'utilisateur (`Indicator.watermark`) passe devant. */
   watermark?: IndicatorWatermark;
+  /** Zones remplies par défaut (celles d'un script : `plot.pane(nom).fillBetween(…)`). Celles de l'utilisateur
+   *  (`Indicator.areaFills`) passent devant. */
+  areaFills?: IndicatorAreaFill[];
   color?: string;
   /** Stroke width in px for `line`/`area`'s own outline/`band`'s own upper-lower lines. Default 1.5
    *  (matches every built-in line-shaped indicator's own hardcoded width). Meaningless for

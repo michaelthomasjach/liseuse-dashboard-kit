@@ -116,7 +116,7 @@ export function drawVolumeAndPanes(ctx: CanvasRenderingContext2D, params: Render
         for (const attached of visibleIndicators) {
           if (attached.indicator.sourceId !== VOLUME_PANE_ID || attached.indicator.hidden || attached.points.length < 2) continue;
           ctx.strokeStyle = attached.indicator.color ?? defaultIndicatorColor(indicators.indexOf(attached.indicator));
-          ctx.lineWidth = 1.5;
+          ctx.lineWidth = attached.indicator.lineWidth ?? 1.5;
           ctx.setLineDash([]);
           ctx.beginPath();
           attached.points.forEach((p, k) => {
@@ -220,7 +220,7 @@ export function drawVolumeAndPanes(ctx: CanvasRenderingContext2D, params: Render
       for (const attached of visibleIndicators) {
         if (attached.indicator.sourceId !== ind.id || attached.indicator.hidden || attached.points.length < 2) continue;
         ctx.strokeStyle = attached.indicator.color ?? defaultIndicatorColor(indicators.indexOf(attached.indicator));
-        ctx.lineWidth = 1.5;
+        ctx.lineWidth = attached.indicator.lineWidth ?? 1.5;
         ctx.setLineDash([]);
         ctx.beginPath();
         attached.points.forEach((p, k) => {

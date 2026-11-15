@@ -1,6 +1,4 @@
-import { ColorPicker } from "../../../forms/ColorPicker";
 import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
-import { Modal } from "../../../primitives/Modal";
 import { ChartPropsModal } from "./ChartPropsModal";
 import type { ChartDisplayMode } from "../interfaces/ChartDisplayMode.interface";
 import type { PriceScaleMode } from "../interfaces/PriceScaleMode.interface";
@@ -44,12 +42,6 @@ export interface ChartSettingsModalsProps {
   eventKinds: string[];
   hiddenEventKinds: Set<string>;
   setHiddenEventKinds: Dispatch<SetStateAction<Set<string>>>;
-  volumeSettingsOpen: boolean;
-  setVolumeSettingsOpen: (open: boolean) => void;
-  volumeUpColorOverride: string | undefined;
-  setVolumeUpColorOverride: (color: string | undefined) => void;
-  volumeDownColorOverride: string | undefined;
-  setVolumeDownColorOverride: (color: string | undefined) => void;
   /** Nom du symbole en filigrane et son opacité ; `watermarkAvailable` : le graphique a un symbole à afficher. */
   watermark: { visible: boolean; opacity: number; size?: number };
   setWatermark: (next: { visible: boolean; opacity: number; size?: number }) => void;
@@ -75,10 +67,9 @@ export interface ChartSettingsModalsProps {
   livePrice: boolean;
 }
 
-/** The two small "chart settings" modals — up/down candle colors + YAutoScaling toggle + per-kind
- *  event visibility (double-click the symbol/chart-type label to open), and its volume-pane
- *  sibling (independent up/down bar colors, falling back to the candle colors above until
- *  overridden). */
+/** The "chart settings" modal — up/down candle colors + YAutoScaling toggle + per-kind event visibility
+ *  (double-click the symbol/chart-type label to open). Les paramètres du panneau Volume (onglets Volume / indicateurs
+ *  posés dessus) sont dans IndicatorModals, avec ceux des autres panneaux. */
 export function ChartSettingsModals({
   settingsOpen,
   mobileLayout,
@@ -106,12 +97,6 @@ export function ChartSettingsModals({
   eventKinds,
   hiddenEventKinds,
   setHiddenEventKinds,
-  volumeSettingsOpen,
-  setVolumeSettingsOpen,
-  volumeUpColorOverride,
-  setVolumeUpColorOverride,
-  volumeDownColorOverride,
-  setVolumeDownColorOverride,
   watermark,
   setWatermark,
   watermarkAvailable,
@@ -133,7 +118,7 @@ export function ChartSettingsModals({
   // the active theme/palette, which could (and, in E-ink, always did) disagree with the color the
   // chart itself was really drawing. `wrapperRef` sits on a `display: contents` node (renders no
   // box of its own, just lets its children lay out as if it weren't there) so it's always mounted
-  // — unlike the two modals below, which only exist in the DOM while their own `open` is true —
+  // — unlike the modal below, which only exists in the DOM while their own `open` is true —
   // and inherits the same CSS custom properties the canvas renderer itself reads via
   // getComputedStyle (see renderChart.ts's own identical technique).
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -147,7 +132,7 @@ export function ChartSettingsModals({
       down: computed.getPropertyValue("--lq-color-down").trim() || "#ef5350",
       isEink: el.closest('[data-lq-palette="eink"]') !== null,
     });
-  }, [settingsOpen, volumeSettingsOpen]);
+  }, [settingsOpen]);
 
   // The props reference, opened from the settings modal — the settings are what a reader can
   // change from inside the chart, and this is what the *host application* can change from outside
@@ -202,84 +187,6 @@ export function ChartSettingsModals({
           advancedAppearance={advancedAppearance}
           livePrice={livePrice}
         />
-      )}
-
-      {volumeSettingsOpen && (
-        // Même grille que les paramètres d'indicateur (voir IndicatorSettings.css) : sous-titre, section « Tracé » en
-        // tableau, pied « Réinitialiser » / « Fermer ».
-        <Modal
-          open
-          onClose={() => setVolumeSettingsOpen(false)}
-          className="lq-ind-settings-modal"
-          title={
-            <span className="lq-ind-settings__heading">
-              <span className="lq-ind-settings__heading-name">Volume</span>
-              <span className="lq-ind-settings__heading-kind">Paramètres du panneau</span>
-            </span>
-          }
-          footer={
-            <div className="lq-ind-settings__footer">
-              <button
-                type="button"
-                className="lq-ind-settings__link"
-                disabled={!volumeUpColorOverride && !volumeDownColorOverride}
-                onClick={() => {
-                  setVolumeUpColorOverride(undefined);
-                  setVolumeDownColorOverride(undefined);
-                }}
-              >
-                Réinitialiser aux couleurs des bougies
-              </button>
-              <button type="button" className="lq-ind-settings__button" onClick={() => setVolumeSettingsOpen(false)}>
-                Fermer
-              </button>
-            </div>
-          }
-        >
-          <div className="lq-ind-settings">
-            <section className="lq-ind-settings__section" aria-label="Tracé">
-              <header className="lq-ind-settings__section-head">
-                <h3 className="lq-ind-settings__section-title">Tracé</h3>
-              </header>
-              <div className="lq-ind-settings__trace" role="table" aria-label="Éléments tracés">
-                <div className="lq-ind-settings__trace-row" role="row">
-                  <span className="lq-ind-settings__trace-check" role="cell" />
-                  <span className="lq-ind-settings__trace-name" role="cell">
-                    Barres
-                  </span>
-                  <span className="lq-ind-settings__trace-colors" role="cell">
-                    <span className="lq-ind-settings__swatch">
-                      <span className="lq-ind-settings__swatch-label">Hausse</span>
-                      <ColorPicker
-                        className="lq-chart__color-input"
-                        value={volumeUpColorOverride ?? upColorOverride ?? theme.up}
-                        onChange={(color) => setVolumeUpColorOverride(color)}
-                        disabled={theme.isEink}
-                        aria-label="Couleur des barres haussières"
-                      />
-                    </span>
-                    <span className="lq-ind-settings__swatch">
-                      <span className="lq-ind-settings__swatch-label">Baisse</span>
-                      <ColorPicker
-                        className="lq-chart__color-input"
-                        value={volumeDownColorOverride ?? downColorOverride ?? theme.down}
-                        onChange={(color) => setVolumeDownColorOverride(color)}
-                        disabled={theme.isEink}
-                        aria-label="Couleur des barres baissières"
-                      />
-                    </span>
-                  </span>
-                </div>
-              </div>
-              {theme.isEink && (
-                <p className="lq-ind-settings__empty">
-                  En palette E-ink, les barres sont en creux ou pleines plutôt qu&apos;en couleur : ces couleurs ne changent rien tant
-                  qu&apos;elle est active.
-                </p>
-              )}
-            </section>
-          </div>
-        </Modal>
       )}
 
       <ChartPropsModal open={propsOpen} onClose={() => setPropsOpen(false)} />

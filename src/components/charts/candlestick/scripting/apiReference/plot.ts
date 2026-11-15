@@ -137,6 +137,28 @@ if (b !== null) plot.overlay("Bollinger").band("BB", b.upper, b.lower);`,
 plot.pane("RSI").watermark("RSI 14", { opacity: 0.1, size: 80 });`,
       },
       {
+        signature: "…​.fillBetween(a, b, options?)",
+        keywords: [".fillBetween", "fill between", "zone remplie", "remplir entre", "aire"],
+        purpose:
+          "Une zone remplie entre deux courbes du même panneau, ou entre une courbe et un niveau (0 : la base du panneau) — le « fill between » des plateformes de marché. Une couleur quand la courbe a est au-dessus de l'autre bord, une autre quand elle est en dessous, découpée au point exact des croisements, dessinée derrière les lignes.",
+        params: [
+          "a — le nom d'une série de ce panneau (line, area, histogram, dots).",
+          "b — le nom d'une autre série de ce panneau, ou un nombre : un niveau sur l'échelle du panneau (0 pour remplir sous la courbe jusqu'à la base).",
+          "options.above — la couleur quand a est au-dessus de b. null : rien de ce côté. Défaut : vert.",
+          "options.below — la couleur quand a est en dessous de b. null : rien de ce côté. Défaut : rouge.",
+          "options.color — une seule couleur pour les deux côtés (quand above / below ne sont pas donnés).",
+          "options.opacity — de 0 à 1, 0.25 par défaut ; appliquée aux couleurs qui n'ont pas déjà leur propre opacité (#rrggbbaa, rgba()).",
+        ],
+        returns: "rien.",
+        caveat:
+          "Le même couple (a, b) désigne la même zone : le dernier appel l'emporte (l'appeler à chaque barre ne coûte rien). Plusieurs zones par panneau sont possibles ; elles se peignent dans l'ordre des appels. Une série band ne peut pas être citée. L'utilisateur peut modifier, ajouter ou supprimer ces zones dans les paramètres du panneau (onglet de l'indicateur, rubrique Style, « Zones remplies ») : ses réglages remplacent alors ceux du script.",
+        example: `const close = market.series("close", 120);
+const rapide = plot.pane("Moyennes");
+rapide.line("SMA 14", ta.sma(close, 14), { color: "#2962ff" });
+rapide.line("SMA 50", ta.sma(close, 50), { color: "#ff9800" });
+rapide.fillBetween("SMA 14", "SMA 50", { above: "#26a69a", below: "#ef5350", opacity: 0.2 });`,
+      },
+      {
         signature: "…​.profile(name, values, prices, options?)",
         keywords: [".profile"],
         purpose:

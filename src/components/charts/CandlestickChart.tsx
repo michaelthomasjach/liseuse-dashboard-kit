@@ -221,6 +221,7 @@ function CandlestickChartBody({
   candleColorRules: candleColorRulesProp,
   onCandleColorRulesChange,
   showCandleColorRules = true,
+  showAreaFills = true,
   advancedAppearance = true,
   onOpenIndicatorHelp,
   timeframes,
@@ -2962,6 +2963,7 @@ function CandlestickChartBody({
         symbolInfoHidden={symbolInfoHidden} setSymbolInfoHidden={setSymbolInfoHidden}
         candleColorRules={candleColorRules} setCandleColorRules={setCandleColorRules}
         showCandleColorRules={showCandleColorRules} candleRuleIndicators={combinedIndicators}
+        showAreaFills={showAreaFills}
         chartStyle={chartStyle} setChartStyle={setChartStyle}
         styleTemplates={styleTemplates} setStyleTemplates={setStyleTemplates}
         advancedAppearance={advancedAppearance} livePrice={livePrice}

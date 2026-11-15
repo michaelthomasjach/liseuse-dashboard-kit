@@ -1,5 +1,6 @@
 import type { Indicator } from "./interfaces/Indicator.interface";
 import type { IndicatorFill } from "./interfaces/IndicatorFill.interface";
+import type { IndicatorAreaFill } from "./interfaces/IndicatorAreaFill.interface";
 import type { IndicatorValue } from "./interfaces/IndicatorValue.interface";
 import type {
   IndicatorStyleRule,
@@ -197,6 +198,39 @@ export function legacyFillToRule(fill: IndicatorFill): IndicatorStyleRule {
 export function indicatorStyleRules(indicator: Indicator): IndicatorStyleRule[] {
   if (indicator.styleRules) return indicator.styleRules;
   return (indicator.fills ?? []).map(legacyFillToRule);
+}
+
+/** Les zones remplies d'un indicateur : les siennes (`areaFills`, réglées dans les paramètres du panneau), sinon celles
+ *  de son script (`customData.areaFills`, `pane.fillBetween`). */
+export function indicatorAreaFills(indicator: Indicator): IndicatorAreaFill[] {
+  return indicator.areaFills ?? indicator.customData?.areaFills ?? [];
+}
+
+/** Une zone remplie dans le format des règles, que le rendu sait déjà peindre (découpée aux croisements, derrière les
+ *  lignes) : « [ligne] au-dessus de [bord] → remplir en [au-dessus], sinon en [en dessous] ». L'opacité est dans les
+ *  couleurs, la règle est donc pleine. Une zone sans aucune couleur ne peint rien. */
+export function areaFillToRule(fill: IndicatorAreaFill): IndicatorStyleRule | null {
+  const a: StyleRuleSeriesRef = { source: "indicator", ...(fill.field ? { field: fill.field } : {}) };
+  const base = { id: `area-${fill.id}`, enabled: fill.enabled, a, b: fill.to, effect: "fill" as const, opacity: 100 };
+  if (fill.aboveColor) return { ...base, condition: "above", color: fill.aboveColor, elseColor: fill.belowColor ?? null };
+  if (fill.belowColor) return { ...base, condition: "below", color: fill.belowColor };
+  return null;
+}
+
+/** Ce que le rendu peint pour un indicateur : ses zones remplies d'abord (sous tout le reste), puis ses règles de
+ *  couleur. */
+export function renderedStyleRules(indicator: Indicator): IndicatorStyleRule[] {
+  const fills = indicatorAreaFills(indicator);
+  const rules = indicatorStyleRules(indicator);
+  if (fills.length === 0) return rules;
+  return [...fills.map(areaFillToRule).filter((r): r is IndicatorStyleRule => r !== null), ...rules];
+}
+
+let areaFillCounter = 0;
+/** Un id de zone remplie, unique dans la session. */
+export function newAreaFillId(): string {
+  areaFillCounter += 1;
+  return `fill-${Date.now().toString(36)}-${areaFillCounter}`;
 }
 
 /** Une nouvelle règle, prête à lire : avec une autre courbe dans le panneau, « [l'indicateur] au-dessus de [l'autre]

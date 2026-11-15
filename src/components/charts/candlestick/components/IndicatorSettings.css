@@ -541,6 +541,41 @@
   height: 24px;
 }
 
+/* --- Paramètres d'un panneau (un onglet par série : Volume / RSI…, puis les indicateurs posés dessus) ------------ */
+
+.lq-pane-settings__tabs {
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+/* Deux rubriques par onglet, « Paramètres » puis « Style » : un titre plus marqué que celui des sections. */
+.lq-pane-settings__group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lq-space-2);
+  min-width: 0;
+}
+.lq-pane-settings__group + .lq-pane-settings__group {
+  padding-top: var(--lq-space-3);
+  border-top: 1px solid var(--lq-color-border);
+}
+.lq-pane-settings__group-title {
+  margin: 0;
+  font-size: var(--lq-text-md, 0.92rem);
+  font-weight: var(--lq-font-weight-semibold, 600);
+  color: var(--lq-color-text);
+}
+.lq-pane-settings__footer-links {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--lq-space-3);
+}
+/* Zones remplies : le nom de la courbe qui borde la zone, quand elle n'a qu'une ligne (pas de menu). */
+.lq-ind-settings .lq-chart__rule-word--strong {
+  font-weight: var(--lq-font-weight-semibold, 600);
+  color: var(--lq-color-text);
+}
+
 /* --- Téléphone, doigt ---------------------------------------------------------------------------------------------- */
 
 @media (max-width: 640px) {

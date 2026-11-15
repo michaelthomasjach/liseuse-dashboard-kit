@@ -378,6 +378,11 @@ export interface CandlestickChartProps {
    *  rien (une fonctionnalité hors de l'offre du compte, par exemple) ; les couleurs posées par un
    *  script (`plot.candleColor`) restent. Défaut vrai. */
   showCandleColorRules?: boolean;
+  /** Rubrique « Zones remplies » des paramètres d'un indicateur (onglet Style, et onglets des paramètres d'un
+   *  panneau) : remplir entre une courbe et la base 0 du panneau, ou entre deux courbes du même panneau. Faux : la
+   *  rubrique n'apparaît pas (fonctionnalité hors de l'offre du compte, par exemple) ; les zones déjà enregistrées
+   *  restent dessinées. Défaut vrai. */
+  showAreaFills?: boolean;
   /** Personnalisation avancée de l'apparence (paramètres du graphique) : section « Toile » (fond, grilles,
    *  séparateurs, réticule, texte et lignes des échelles, marges) et menu « Modèle » (modèles d'apparence). Faux : la
    *  section et le menu n'apparaissent pas, et les réglages de la Toile enregistrés ne s'appliquent pas (rendu du

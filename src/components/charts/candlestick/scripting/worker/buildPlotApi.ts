@@ -1,7 +1,7 @@
 import type { IndicatorWatermark } from "../../interfaces/IndicatorWatermark.interface";
 import type { ValueFormat } from "../../interfaces/ValueFormat.interface";
 import { normalizeValueFormat } from "../../formatting";
-import type { ScriptCandleColorOutput, ScriptDrawingOutput, ScriptHeatmapOutput, ScriptLabelOutput, ScriptPaneSeries, ScriptPaneSubSeries, ScriptTableOutput, ScriptTableRow, ScriptXYChartOutput } from "../interfaces/ScriptRunResult.interface";
+import type { ScriptCandleColorOutput, ScriptDrawingOutput, ScriptHeatmapOutput, ScriptLabelOutput, ScriptPaneFill, ScriptPaneSeries, ScriptPaneSubSeries, ScriptTableOutput, ScriptTableRow, ScriptXYChartOutput } from "../interfaces/ScriptRunResult.interface";
 
 /** Hard caps on `plot.table()`/`plot.xy()`'s own output — the `plot.*` calls whose size a script
  *  directly controls (an accidental `rows`/`x`/`y` from an unbounded loop or a huge literal array)
@@ -50,6 +50,15 @@ export interface PlotWatermarkOptions {
   size?: number;
   /** false : pas de filigrane. Défaut true. */
   visible?: boolean;
+}
+/** Les options de `pane.fillBetween` : la couleur quand la première courbe est au-dessus de l'autre bord (`above`),
+ *  celle quand elle est en dessous (`below`) — `null` : rien de ce côté —, ou une seule (`color`) pour les deux côtés.
+ *  `opacity` (0 à 1, défaut 0,25) s'applique aux couleurs qui n'ont pas déjà la leur (`#rrggbbaa`, `rgba()`). */
+export interface PlotFillBetweenOptions {
+  above?: string | null;
+  below?: string | null;
+  color?: string;
+  opacity?: number;
 }
 export interface PlotBandOptions {
   color?: string;
@@ -144,6 +153,12 @@ export interface PaneSeriesHandle {
    *  Le dernier appel l'emporte ; `{ visible: false }` le retire. Sans effet sur `plot.overlay` (le filigrane des
    *  prix est celui du symbole, réglé dans les paramètres du graphique). */
   watermark(text?: string, options?: PlotWatermarkOptions): void;
+  /** Zone remplie entre la série `a` du panneau et un autre bord : une autre série du panneau (par son nom), ou un
+   *  niveau (un nombre ; 0 = la base du panneau). Couleur `above` quand `a` est au-dessus, `below` en dessous, découpée
+   *  aux croisements et dessinée derrière les lignes — un « fill between ». Même couple (a, b) = même zone, remplacée
+   *  par le dernier appel ; l'utilisateur peut la changer dans les paramètres du panneau (onglet Style, « Zones
+   *  remplies »). Les séries `band` ne peuvent pas être citées. */
+  fillBetween(a: string, b: string | number, options?: PlotFillBetweenOptions): void;
   /** A time-by-price *heat field*: one call per bar, each carrying that bar's own column of
    *  (price, value) cells. Drawn as coloured rectangles under the candles — the liquidity-map
    *  shape, where a bright row that persists across many bars is a resting wall and a bright cell
@@ -317,6 +332,8 @@ export function buildPlotApi(
     dock?: "bottom" | "left" | "right";
     format?: ValueFormat;
     watermark?: IndicatorWatermark;
+    /** Zones de `fillBetween`, par couple (a, b) : le dernier appel l'emporte. */
+    fills: Map<string, ScriptPaneFill>;
     subSeriesByName: Map<string, ScriptPaneSubSeries>;
     labelsByName: Map<string, ScriptLabelOutput>;
   }
@@ -439,6 +456,16 @@ export function buildPlotApi(
           size: num(options?.size, 20, 200),
         };
       },
+      fillBetween: (a, b, options) => {
+        if (typeof a !== "string" || a.trim() === "") return;
+        const other = typeof b === "number" ? (Number.isFinite(b) ? b : null) : typeof b === "string" && b.trim() !== "" ? b : null;
+        if (other === null) return;
+        const color = (v: unknown) => (typeof v === "string" && v.trim() !== "" ? v.slice(0, 64) : undefined);
+        const single = color(options?.color);
+        const side = (v: unknown) => (v === null ? null : (color(v) ?? single ?? undefined));
+        const opacity = typeof options?.opacity === "number" && Number.isFinite(options.opacity) ? Math.min(1, Math.max(0, options.opacity)) : undefined;
+        paneEntry.fills.set(`${a}\u0000${String(other)}`, { a, b: other, above: side(options?.above), below: side(options?.below), opacity });
+      },
       label: (name, text, options) => {
         // Data anchoring wins when both coordinates are given; anything else keeps the original
         // box positioning, so an existing label call behaves exactly as before.
@@ -464,7 +491,7 @@ export function buildPlotApi(
   function getOrCreatePane(name: string, pane: ScriptPaneSeries["pane"], dock?: "bottom" | "left" | "right", format?: ValueFormat): PaneSeriesHandle {
     let entry = panesByName.get(name);
     if (!entry) {
-      entry = { name, pane, dock, subSeriesByName: new Map(), labelsByName: new Map() };
+      entry = { name, pane, dock, fills: new Map(), subSeriesByName: new Map(), labelsByName: new Map() };
       panesByName.set(name, entry);
     }
     // Contrairement à `dock`, le format suit le dernier appel qui en donne un : il ne déplace rien.
@@ -536,7 +563,7 @@ export function buildPlotApi(
   return {
     api,
     getResult: () => ({
-      panes: [...panesByName.values()].map((entry) => ({ name: entry.name, pane: entry.pane, dock: entry.dock, format: entry.format, watermark: entry.watermark, series: [...entry.subSeriesByName.values()] })),
+      panes: [...panesByName.values()].map((entry) => ({ name: entry.name, pane: entry.pane, dock: entry.dock, format: entry.format, watermark: entry.watermark, ...(entry.fills.size > 0 ? { fills: [...entry.fills.values()] } : {}), series: [...entry.subSeriesByName.values()] })),
       drawings,
       table,
       xyCharts: [...xyChartsByName.values()],

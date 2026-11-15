@@ -182,6 +182,12 @@ export const SCRIPT_API_COMPLETIONS: ScriptApiCompletion[] = [
     detail: "(texte?, { opacity?, size?, visible? }?) — pane.watermark, filigrane en fond du panneau (texte par défaut : son nom)",
     apply: '.watermark("")',
   },
+  {
+    label: ".fillBetween",
+    type: "function",
+    detail: "(a, b | niveau, { above?, below?, color?, opacity? }?) — pane.fillBetween, zone remplie entre deux séries du panneau (ou une série et 0), une couleur au-dessus, une autre en dessous",
+    apply: '.fillBetween("", "")',
+  },
   { label: "plot.signal", type: "function", detail: '("BUY"|"SELL" | {type,price?,color?,shape?})', apply: 'plot.signal("BUY")' },
   { label: "plot.point", type: "function", detail: "(value, options?)", apply: "plot.point()" },
   { label: "plot.horizontal", type: "function", detail: "(price, options?)", apply: "plot.horizontal()" },

@@ -2,6 +2,7 @@ import { useId, type ReactNode } from "react";
 import { ColorPicker } from "../../../forms/ColorPicker";
 import { Checkbox } from "../../../forms/Checkbox";
 import { IndicatorStyleRulesEditor } from "./IndicatorStyleRulesEditor";
+import { IndicatorAreaFillsEditor } from "./IndicatorAreaFillsEditor";
 import { IndicatorWatermarkField } from "./IndicatorWatermarkField";
 import { InputNumber } from "../../../forms/InputNumber";
 import { Select, type SelectOption } from "../../../forms/Select";
@@ -16,6 +17,9 @@ export interface IndicatorSettingsFieldsProps {
   indicatorDraft: Indicator;
   setIndicatorDraft: (d: Indicator) => void;
   indicators: Indicator[];
+  /** Rubrique « Zones remplies » (onglet Style). Faux : elle n'apparaît pas (fonctionnalité hors de l'offre, voir
+   *  `CandlestickChartProps.showAreaFills`). Défaut vrai. */
+  showAreaFills?: boolean;
 }
 
 /** Couleurs « hausse / baisse » par défaut des indicateurs qui se colorent selon la tendance. */
@@ -74,7 +78,7 @@ function SelectSetting<T extends string>({ label, value, options, onChange, hint
  *  reference thresholds, ADX's trend threshold, correlation's own "strongly correlated" cutoff, a fundamental's
  *  value/YoY display mode…), each gated on `indicatorDraft.kind`. Rangés en sections courtes : « Calcul », « Seuils »,
  *  « Projection ». `leading` : ce qui passe avant (les paramètres d'un script). */
-export function IndicatorSettingsInputs({ indicatorDraft: d, setIndicatorDraft, leading }: IndicatorSettingsFieldsProps & { leading?: ReactNode }) {
+export function IndicatorSettingsInputs({ indicatorDraft: d, setIndicatorDraft, leading, emptyText }: IndicatorSettingsFieldsProps & { leading?: ReactNode; emptyText?: ReactNode }) {
   const set = (patch: Partial<Indicator>) => setIndicatorDraft({ ...d, ...patch });
   const entry = indicatorCatalogEntry(d);
   const defaults = indicatorDefaults(d);
@@ -226,6 +230,7 @@ export function IndicatorSettingsInputs({ indicatorDraft: d, setIndicatorDraft, 
   return (
     <div className="lq-ind-settings">
       {leading}
+      {emptyText && !leading && calc.length === 0 && thresholds.length === 0 && !projection && <p className="lq-ind-settings__empty">{emptyText}</p>}
       {calc.length > 0 && <SettingsSection title="Calcul">{calc}</SettingsSection>}
       {thresholds.length > 0 && <SettingsSection title="Seuils">{thresholds}</SettingsSection>}
       {/* Projection. Last on purpose: it does not describe the indicator, it describes a guess about where the
@@ -356,7 +361,7 @@ function TraceRow({ name, visible, colors, sub = false, children }: TraceRowProp
 
 /** The settings modal's "Style" tab (see IndicatorModals.tsx) : « Tracé » (une ligne par élément tracé), « Valeurs »
  *  (format des nombres), « Affichage » (légende, libellés, filigrane), puis les couleurs conditionnelles, repliables. */
-export function IndicatorSettingsStyle({ indicatorDraft: d, setIndicatorDraft, indicators }: IndicatorSettingsFieldsProps) {
+export function IndicatorSettingsStyle({ indicatorDraft: d, setIndicatorDraft, indicators, showAreaFills = true }: IndicatorSettingsFieldsProps) {
   const set = (patch: Partial<Indicator>) => setIndicatorDraft({ ...d, ...patch });
   const entry = indicatorCatalogEntry(d);
   const ownPane = entry.pane !== "price";
@@ -554,6 +559,10 @@ export function IndicatorSettingsStyle({ indicatorDraft: d, setIndicatorDraft, i
         </SettingsSection>
       )}
       <SettingsSection title="Affichage">{display}</SettingsSection>
+      {/* Zones remplies : entre la courbe et la base 0, ou une autre courbe du panneau (un « fill between »). */}
+      {showAreaFills && d.customData?.draw !== "zones" && (
+        <IndicatorAreaFillsEditor indicator={d} indicators={indicators} onChange={(areaFills) => setIndicatorDraft({ ...d, areaFills })} />
+      )}
       {/* Couleurs conditionnelles : écrites au nouveau format, l'ancien (`fills`, converti à la lecture) est retiré. */}
       {d.customData?.draw !== "zones" && (
         <IndicatorStyleRulesEditor indicator={d} indicators={indicators} onChange={(styleRules) => setIndicatorDraft({ ...d, styleRules, fills: undefined })} />

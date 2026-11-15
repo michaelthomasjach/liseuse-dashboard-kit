@@ -1,7 +1,7 @@
 import type { Indicator } from "../interfaces/Indicator.interface";
 import type { IndicatorValue } from "../interfaces/IndicatorValue.interface";
 import type { IndicatorStyleRule, StyleRuleOperand } from "../interfaces/IndicatorStyleRule.interface";
-import { defaultRuleOpacity, indicatorStyleRules, isCrossCondition, isRangeCondition, seriesFieldValue } from "../styleRules";
+import { defaultRuleOpacity, renderedStyleRules, isCrossCondition, isRangeCondition, seriesFieldValue } from "../styleRules";
 
 /** Un indicateur du panneau et ses points visibles. */
 export interface StyleRuleMember {
@@ -41,7 +41,8 @@ export interface StyleRulePane {
 export function drawIndicatorStyleRules(ctx: CanvasRenderingContext2D, pane: StyleRulePane, layer: "under" | "over"): void {
   for (const member of pane.members) {
     if (member.indicator.hidden) continue;
-    const rules = indicatorStyleRules(member.indicator);
+    // Zones remplies (paramètres du panneau) d'abord : sous les remplissages des règles, et toutes sous les lignes.
+    const rules = renderedStyleRules(member.indicator);
     if (rules.length === 0) continue;
     for (const rule of rules) {
       if (rule.enabled === false) continue;

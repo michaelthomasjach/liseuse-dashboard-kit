@@ -45,6 +45,8 @@ export function applyChartStyle(style: ChartCanvasStyle, chartStyle: ChartStyleS
   return {
     ...style,
     colorBg: s.backgroundColor ?? style.colorBg,
+    // Mode jour / nuit imposé, différent de celui du site : les couleurs de texte et de grille de ce mode.
+    ...(s.surfaceTokens ? { colorText: s.surfaceTokens.text, colorMuted: s.surfaceTokens.muted, colorGrid: s.surfaceTokens.borderSubtle, colorAccent: s.surfaceTokens.accent } : {}),
     colorWickUp: s.wickUpColor,
     colorWickDown: s.wickDownColor,
     colorBorderUp: s.borderUpColor,

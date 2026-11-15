@@ -24,6 +24,7 @@ import { useAiChartContext } from "./candlestick/ai/useAiChartContext";
 import { useAiAssistant } from "./candlestick/ai/useAiAssistant";
 import { AiHost, type AiView } from "./candlestick/ai/components/AiHost";
 import { ChartWatermark } from "./candlestick/components/ChartWatermark";
+import { ChartNavigationButtons } from "./candlestick/components/ChartNavigationButtons";
 import { IndicatorHelpProvider } from "./candlestick/components/IndicatorHelp";
 import { strategyAiRequest, type StrategyAiPrompt } from "./candlestick/strategy/strategyAiPrompts";
 import { anthropicSend } from "./candlestick/ai/anthropicSend";
@@ -224,6 +225,7 @@ function CandlestickChartBody({
   showAreaFills = true,
   showPaneOverlay = true,
   advancedAppearance = true,
+  hostColorScheme,
   onOpenIndicatorHelp,
   timeframes,
   timeframe,
@@ -438,6 +440,7 @@ function CandlestickChartBody({
     onAppearanceChange,
     candleColorRules: candleColorRulesProp,
     onCandleColorRulesChange,
+    hostColorScheme,
     // Same shape and same condition as `useFullscreen`'s own controlled argument below: the pair
     // only takes over once a caller has supplied the callback to report changes back through.
     controlledSettings: onSettingsOpenChange ? { open: settingsOpenProp ?? false, onChange: onSettingsOpenChange } : undefined,
@@ -1312,7 +1315,7 @@ function CandlestickChartBody({
     xAxisWheelRef,
     yAxisWheelRef,
     isZoomed,
-    resetZoom, setVisibleCandleCount,
+    resetZoom, setVisibleCandleCount, zoomXBy, scrollXBy,
     resetYAxis,
     candleWidth,
     dateTickValues,
@@ -2426,6 +2429,7 @@ function CandlestickChartBody({
         className="lq-chart__plot"
         style={{ width: dims.width, height: plotHeight, ...plotStyleVars }}
         data-lq-custom-bg={appliedStyle.backgroundColor ? "" : undefined}
+        data-lq-pane-buttons={appliedStyle.paneButtons}
         // Doigt levé (ou geste annulé par le navigateur) : plus de réticule, voir `touchLifted`.
         onPointerUp={(e) => {
           if (e.pointerType === "touch") setTouchLifted(true);
@@ -2465,7 +2469,7 @@ function CandlestickChartBody({
             and `.lq-chart__tools-rail--horizontal`'s own rule.) */}
         {!isMobileRail && toolsRail}
         {/* Filigrane : le nom du symbole au fond du panneau des prix, derrière le canevas (transparent) qui suit. */}
-        {watermark.visible && symbol && priceHeight > 0 && (
+        {watermark.visible && symbol && priceHeight > 0 && (appliedStyle.watermarkVisibility !== "replay" || replayState.active) && (
           <ChartWatermark
             text={symbol}
             left={dims.margin.left}
@@ -2474,6 +2478,16 @@ function CandlestickChartBody({
             height={priceHeight}
             opacity={watermark.opacity}
             size={watermark.size}
+          />
+        )}
+        {priceHeight > 0 && (
+          <ChartNavigationButtons
+            visibility={appliedStyle.navigationButtons}
+            centerX={dims.margin.left + dims.boundedWidth / 2}
+            bottom={dims.margin.top + priceHeight}
+            zoomBy={zoomXBy}
+            scrollBy={scrollXBy}
+            reset={resetZoom}
           />
         )}
         {/* Filigrane de chaque panneau d'indicateur qui en a un (paramètres de l'indicateur, ou `pane.watermark` d'un

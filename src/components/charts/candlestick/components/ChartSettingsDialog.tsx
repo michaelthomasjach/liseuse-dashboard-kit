@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import { Modal } from "../../../primitives/Modal";
 import { Toggle } from "../../../primitives/Toggle";
+import { Checkbox } from "../../../forms/Checkbox";
 import { Button } from "../../../primitives/Button";
 import { Select } from "../../../forms/Select";
 import { ColorPicker } from "../../../forms/ColorPicker";
@@ -10,8 +11,8 @@ import { CHART_DISPLAY_MODES } from "../chartModes";
 import type { ChartDisplayMode } from "../interfaces/ChartDisplayMode.interface";
 import type { CandleColorRule } from "../interfaces/CandleColorRule.interface";
 import type { Indicator } from "../interfaces/Indicator.interface";
-import type { ChartDateFormat, ChartLineStyle, ChartStyleSettings, ChartStyleTemplate, ChartTimeFormat } from "../chartStyle";
-import { CANVAS_STYLE_KEYS } from "../chartStyle";
+import type { ChartButtonsVisibility, ChartColorMode, ChartDateFormat, ChartLineStyle, ChartStyleSettings, ChartStyleTemplate, ChartTimeFormat } from "../chartStyle";
+import { CANVAS_STYLE_KEYS, MODE_COLOR_KEYS, chartStyleMeta, templateStyle } from "../chartStyle";
 import { CandleColorRulesEditor } from "./CandleColorRulesEditor";
 import { hasCandleColorOverrides, resetCandleColors } from "../candleColorOverrides";
 import "./ChartSettingsDialog.css";
@@ -50,7 +51,39 @@ const TIME_FORMAT_OPTIONS: { value: ChartTimeFormat; label: string }[] = [
   { value: "12h", label: "12 heures (2:30 PM)" },
 ];
 
-const TEXT_SIZE_OPTIONS = ["9", "10", "11", "12", "13", "14", "16"].map((v) => ({ value: v, label: `${v} px` }));
+const TEXT_SIZE_OPTIONS = ["10", "11", "12", "13", "14", "15", "16"].map((v) => ({ value: v, label: `${v} px` }));
+
+const COLOR_MODE_OPTIONS: { value: ChartColorMode | "auto"; label: string }[] = [
+  { value: "light", label: "Jour" },
+  { value: "dark", label: "Nuit" },
+  { value: "auto", label: "Suivre le thème du site" },
+];
+
+const BUTTONS_VISIBILITY_OPTIONS: { value: ChartButtonsVisibility; label: string }[] = [
+  { value: "always", label: "Toujours visibles" },
+  { value: "hover", label: "Visibles au survol" },
+  { value: "hidden", label: "Masqués" },
+];
+
+const WATERMARK_OPTIONS: { value: "hidden" | "symbol" | "replay"; label: string }[] = [
+  { value: "hidden", label: "Masqué" },
+  { value: "symbol", label: "Symbole" },
+  { value: "replay", label: "Symbole en mode replay" },
+];
+
+/** `#rrggbb` et une opacité (0–1) en `#rrggbbaa` ; une autre écriture de couleur reste telle quelle. */
+function withAlpha(color: string, alpha: number): string {
+  const m = /^#([0-9a-f]{6})/i.exec(color.trim());
+  if (!m) return color;
+  return `#${m[1]}${Math.round(Math.max(0, Math.min(1, alpha)) * 255).toString(16).padStart(2, "0")}`;
+}
+
+/** `#rrggbb(aa)` en couleur opaque et opacité (1 sans canal alpha). */
+function splitAlpha(color: string): { hex: string; alpha: number } {
+  const m = /^#([0-9a-f]{6})([0-9a-f]{2})?$/i.exec(color.trim());
+  if (!m) return { hex: color, alpha: 1 };
+  return { hex: `#${m[1]}`, alpha: m[2] ? Math.round((parseInt(m[2], 16) / 255) * 100) / 100 : 1 };
+}
 
 export interface ChartSettingsDialogProps {
   onClose: () => void;
@@ -243,13 +276,12 @@ export function ChartSettingsDialog(props: ChartSettingsDialogProps) {
   };
 
   const cancel = () => {
-    props.setUpColorOverride(snapshot.up);
-    props.setDownColorOverride(snapshot.down);
+    if (props.upColorOverride !== snapshot.up) props.setUpColorOverride(snapshot.up);
+    if (props.downColorOverride !== snapshot.down) props.setDownColorOverride(snapshot.down);
     props.setClosePulseVisible(snapshot.closePulse);
     props.setFutureZoneVisible(snapshot.future);
     props.setPastZoneVisible(snapshot.past);
     if (props.candleColorRules !== snapshot.rules) props.setCandleColorRules(snapshot.rules);
-    setChartStyle(snapshot.style);
     props.setWatermark(snapshot.watermark);
     props.setSymbolInfoHidden(snapshot.symbolInfoHidden);
     if (props.chartDisplayMode !== snapshot.displayMode) {
@@ -263,6 +295,8 @@ export function ChartSettingsDialog(props: ChartSettingsDialogProps) {
     if (snapshot.priceScale && props.priceScaleMode !== snapshot.priceScale) props.setPriceScaleMode?.(snapshot.priceScale);
     props.setHiddenEventKinds(snapshot.hiddenEvents);
     props.setLayoutOverride(snapshot.layout);
+    // En dernier : l'objet enregistré à l'ouverture (couleurs par mode comprises) remplace tout ce qui précède.
+    setChartStyle(snapshot.style);
     onClose();
   };
 
@@ -501,8 +535,12 @@ export function ChartSettingsDialog(props: ChartSettingsDialogProps) {
     const vert = chartStyle.vertGridVisible ?? false;
     const horz = chartStyle.horzGridVisible ?? true;
     const gradient = chartStyle.backgroundType === "gradient";
-    const numberField = (key: "marginTop" | "marginBottom" | "marginRightBars", label: string, unit: string, def: number | undefined, max: number) => (
-      <Row label={label}>
+    const meta = chartStyleMeta(chartStyle);
+    const mode = meta?.mode ?? "light";
+    const host = meta?.host ?? "light";
+    const raw = meta?.raw ?? chartStyle;
+    const numberField = (key: "marginTop" | "marginBottom" | "marginRightBars", label: string, unit: string, def: number | undefined, max: number, hint?: string) => (
+      <Row label={label} hint={hint}>
         <span className="lq-chart-settings__number">
           <input
             type="number"
@@ -512,9 +550,9 @@ export function ChartSettingsDialog(props: ChartSettingsDialogProps) {
             value={chartStyle[key] ?? def ?? ""}
             placeholder={def === undefined ? "Auto" : undefined}
             onChange={(e) => {
-              const raw = e.target.value;
-              if (raw === "") return set({ [key]: undefined });
-              const n = Math.max(0, Math.min(max, Math.round(Number(raw))));
+              const value = e.target.value;
+              if (value === "") return set({ [key]: undefined });
+              const n = Math.max(0, Math.min(max, Math.round(Number(value))));
               set({ [key]: Number.isFinite(n) && n !== def ? n : undefined });
             }}
             aria-label={label}
@@ -523,13 +561,66 @@ export function ChartSettingsDialog(props: ChartSettingsDialogProps) {
         </span>
       </Row>
     );
-    const touched = CANVAS_STYLE_KEYS.some((k) => chartStyle[k] !== undefined);
+    const buttonsSelect = (key: "navigationButtons" | "paneButtons", def: ChartButtonsVisibility, label: string) => (
+      <Select<ChartButtonsVisibility>
+        size="small"
+        className="lq-chart-settings__select lq-chart-settings__select--wide"
+        options={BUTTONS_VISIBILITY_OPTIONS}
+        value={chartStyle[key] ?? def}
+        onChange={(v) => set({ [key]: v === def ? undefined : v })}
+        ariaLabel={label}
+      />
+    );
+    // Réglages de la toile posés (hors mode jour / nuit) : de quoi proposer « Revenir à la toile du thème ».
+    const touched = CANVAS_STYLE_KEYS.some((k) => k !== "colorMode" && k !== "surfaceTokens" && raw[k] !== undefined) || Boolean(raw.modeColors?.[mode] && Object.keys(raw.modeColors[mode]!).some((k) => k !== "upColor" && k !== "downColor"));
+    const modeTouched = (meta?.hasModeColors ?? false) || p.upColorOverride !== undefined || p.downColorOverride !== undefined;
+    const resetModeColors = () => {
+      set(Object.fromEntries(MODE_COLOR_KEYS.map((k) => [k, undefined])) as Partial<ChartStyleSettings>);
+      p.setUpColorOverride(undefined);
+      p.setDownColorOverride(undefined);
+    };
+    // Filigrane : masqué, toujours (le symbole) ou seulement pendant un replay ; couleur et opacité dans le sélecteur.
+    const watermarkMode: "hidden" | "symbol" | "replay" = !p.watermark.visible ? "hidden" : chartStyle.watermarkVisibility === "replay" ? "replay" : "symbol";
+    const watermarkColor = withAlpha(chartStyle.watermarkColor ?? tc.text, p.watermark.opacity);
+    const textSizes = TEXT_SIZE_OPTIONS.some((o) => o.value === String(chartStyle.scaleTextSize ?? ""))
+      ? TEXT_SIZE_OPTIONS
+      : chartStyle.scaleTextSize
+        ? [{ value: String(chartStyle.scaleTextSize), label: `${chartStyle.scaleTextSize} px` }, ...TEXT_SIZE_OPTIONS]
+        : TEXT_SIZE_OPTIONS;
     return (
       <>
         {advancedAppearance && (
-          <>
-            <Section title="Fond">
-              <Row label="Fond du graphique">
+          <Section title="Mode">
+            <Row label="Mode du graphique" hint={chartStyle.colorMode === undefined ? `Le site est en mode ${host === "dark" ? "nuit" : "jour"}` : undefined}>
+              <div className="lq-chart-settings__segmented" role="radiogroup" aria-label="Mode jour ou nuit du graphique">
+                {COLOR_MODE_OPTIONS.map((o) => {
+                  const active = (chartStyle.colorMode ?? "auto") === o.value;
+                  return (
+                    <button
+                      key={o.value}
+                      type="button"
+                      role="radio"
+                      aria-checked={active}
+                      className={["lq-chart-settings__segment", active && "lq-chart-settings__segment--active"].filter(Boolean).join(" ")}
+                      onClick={() => set({ colorMode: o.value === "auto" ? undefined : o.value })}
+                    >
+                      {o.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </Row>
+            <Row label={`Couleurs du mode ${mode === "dark" ? "nuit" : "jour"}`} hint="Enregistrées à part pour le jour et pour la nuit">
+              <button type="button" className="lq-chart-settings__link" onClick={resetModeColors} disabled={!modeTouched}>
+                Revenir aux couleurs par défaut
+              </button>
+            </Row>
+          </Section>
+        )}
+        <Section title="Styles de base du graphique">
+          {advancedAppearance && (
+            <>
+              <Row label="Fond">
                 <Select<"solid" | "gradient">
                   size="small"
                   className="lq-chart-settings__select"
@@ -543,29 +634,25 @@ export function ChartSettingsDialog(props: ChartSettingsDialogProps) {
                   }
                   ariaLabel="Type de fond"
                 />
-                <ColorPicker value={chartStyle.backgroundColor ?? tc.bg} onChange={(c) => set({ backgroundColor: c })} aria-label="Couleur du fond" />
+                <ColorPicker value={chartStyle.backgroundColor ?? tc.bg} onChange={(c) => set({ backgroundColor: c })} aria-label={gradient ? "Couleur du haut du dégradé" : "Couleur du fond"} />
                 {gradient && (
                   <ColorPicker value={chartStyle.backgroundColor2 ?? tc.bg} onChange={(c) => set({ backgroundColor2: c, backgroundColor: chartStyle.backgroundColor ?? tc.bg })} aria-label="Couleur du bas du dégradé" />
                 )}
               </Row>
-            </Section>
-            <Section title="Grille">
-              <Row label="Lignes verticales">
+              <Row label="Lignes de grille verticales">
                 {lineStyleSelect(chartStyle.vertGridStyle ?? "dashed", (v) => set({ vertGridStyle: v }), "Style de la grille verticale", !vert)}
                 <ColorPicker value={chartStyle.vertGridColor ?? tc.grid} onChange={(c) => set({ vertGridColor: c })} disabled={!vert} aria-label="Couleur de la grille verticale" />
-                <Toggle checked={vert} onChange={() => set({ vertGridVisible: vert ? undefined : true })} ariaLabel="Grille verticale" />
+                <Checkbox checked={vert} onChange={() => set({ vertGridVisible: vert ? undefined : true })} ariaLabel="Lignes de grille verticales" />
               </Row>
-              <Row label="Lignes horizontales">
+              <Row label="Lignes de grille horizontales">
                 {lineStyleSelect(chartStyle.horzGridStyle ?? "dashed", (v) => set({ horzGridStyle: v }), "Style de la grille horizontale", !horz)}
                 <ColorPicker value={chartStyle.horzGridColor ?? tc.grid} onChange={(c) => set({ horzGridColor: c })} disabled={!horz} aria-label="Couleur de la grille horizontale" />
-                <Toggle checked={horz} onChange={() => set({ horzGridVisible: horz ? false : undefined })} ariaLabel="Grille horizontale" />
+                <Checkbox checked={horz} onChange={() => set({ horzGridVisible: horz ? false : undefined })} ariaLabel="Lignes de grille horizontales" />
               </Row>
-              <Row label="Séparateurs des panneaux">
-                <ColorPicker value={chartStyle.paneSeparatorColor ?? tc.grid} onChange={(c) => set({ paneSeparatorColor: c })} aria-label="Couleur des séparateurs des panneaux" />
+              <Row label="Séparateurs de panneaux">
+                <ColorPicker value={chartStyle.paneSeparatorColor ?? tc.grid} onChange={(c) => set({ paneSeparatorColor: c })} aria-label="Couleur des séparateurs de panneaux" />
               </Row>
-            </Section>
-            <Section title="Réticule">
-              <Row label="Lignes du réticule" hint="Style, couleur et épaisseur">
+              <Row label="Réticule" hint="Style, couleur et épaisseur">
                 {lineStyleSelect(chartStyle.crosshairStyle ?? "dashed", (v) => set({ crosshairStyle: v }), "Style du réticule")}
                 <ColorPicker
                   value={chartStyle.crosshairColor ?? tc.muted}
@@ -575,52 +662,77 @@ export function ChartSettingsDialog(props: ChartSettingsDialogProps) {
                   aria-label="Couleur du réticule"
                 />
               </Row>
-            </Section>
+            </>
+          )}
+          {p.watermarkAvailable && (
+            <>
+              <Row label="Filigrane" hint="Le nom du symbole en fond du graphique">
+                <Select<"hidden" | "symbol" | "replay">
+                  size="small"
+                  className="lq-chart-settings__select lq-chart-settings__select--wide"
+                  options={WATERMARK_OPTIONS}
+                  value={watermarkMode}
+                  onChange={(v) => {
+                    if (v === "hidden") return p.setWatermark({ ...p.watermark, visible: false });
+                    if (!p.watermark.visible) p.setWatermark({ ...p.watermark, visible: true });
+                    set({ watermarkVisibility: v === "replay" ? "replay" : undefined });
+                  }}
+                  ariaLabel="Visibilité du filigrane"
+                />
+                <ColorPicker
+                  value={watermarkColor}
+                  onChange={(c) => {
+                    const { hex, alpha } = splitAlpha(c);
+                    p.setWatermark({ ...p.watermark, opacity: alpha });
+                    set({ watermarkColor: hex });
+                  }}
+                  disabled={watermarkMode === "hidden"}
+                  aria-label="Couleur et opacité du filigrane"
+                />
+              </Row>
+              {watermarkMode !== "hidden" && (
+                <Row label="Taille du filigrane">
+                  <span className="lq-chart-settings__range">
+                    <input type="range" min={30} max={150} step={5} value={Math.round(p.watermark.size ?? 100)} onChange={(e) => p.setWatermark({ ...p.watermark, size: Number(e.target.value) })} aria-label="Taille du filigrane" />
+                    <span>{Math.round(p.watermark.size ?? 100)} %</span>
+                  </span>
+                </Row>
+              )}
+            </>
+          )}
+        </Section>
+        {advancedAppearance && (
+          <>
             <Section title="Échelles">
               <Row label="Texte">
                 <Select<string>
                   size="small"
                   className="lq-chart-settings__select"
-                  options={[{ value: "", label: "Auto" }, ...TEXT_SIZE_OPTIONS]}
+                  options={[{ value: "", label: "Auto" }, ...textSizes]}
                   value={chartStyle.scaleTextSize ? String(chartStyle.scaleTextSize) : ""}
                   onChange={(v) => set({ scaleTextSize: v ? Number(v) : undefined })}
                   ariaLabel="Taille du texte des échelles"
                 />
                 <ColorPicker value={chartStyle.scaleTextColor ?? tc.muted} onChange={(c) => set({ scaleTextColor: c })} aria-label="Couleur du texte des échelles" />
               </Row>
-              <Row label="Lignes">
+              <Row label="Lignes" hint="Axes et graduations">
                 <ColorPicker value={chartStyle.scaleLineColor ?? tc.grid} onChange={(c) => set({ scaleLineColor: c })} aria-label="Couleur des lignes des échelles" />
+              </Row>
+            </Section>
+            <Section title="Boutons">
+              <Row label="Navigation" hint="Zoom et défilement en bas du graphique">
+                {buttonsSelect("navigationButtons", "hidden", "Boutons de navigation")}
+              </Row>
+              <Row label="Panneau" hint="Réglages, masquer, fermer des panneaux et indicateurs">
+                {buttonsSelect("paneButtons", "hover", "Boutons des panneaux")}
               </Row>
             </Section>
             <Section title="Marges">
               {numberField("marginTop", "Haut", "%", 8, 60)}
               {numberField("marginBottom", "Bas", "%", 8, 60)}
-              {numberField("marginRightBars", "Droite", "bougies", undefined, 200)}
+              {numberField("marginRightBars", "Droite", "barres", undefined, 200, "Espace vide après la dernière bougie")}
             </Section>
           </>
-        )}
-        {p.watermarkAvailable && (
-          <Section title="Filigrane">
-            <Row label="Nom du symbole en fond">
-              <Toggle checked={p.watermark.visible} onChange={() => p.setWatermark({ ...p.watermark, visible: !p.watermark.visible })} ariaLabel="Nom du symbole en filigrane" />
-            </Row>
-            {p.watermark.visible && (
-              <>
-                <Row label="Opacité">
-                  <span className="lq-chart-settings__range">
-                    <input type="range" min={2} max={40} step={1} value={Math.round(p.watermark.opacity * 100)} onChange={(e) => p.setWatermark({ ...p.watermark, opacity: Number(e.target.value) / 100 })} aria-label="Opacité du filigrane" />
-                    <span>{Math.round(p.watermark.opacity * 100)} %</span>
-                  </span>
-                </Row>
-                <Row label="Taille">
-                  <span className="lq-chart-settings__range">
-                    <input type="range" min={30} max={150} step={5} value={Math.round(p.watermark.size ?? 100)} onChange={(e) => p.setWatermark({ ...p.watermark, size: Number(e.target.value) })} aria-label="Taille du filigrane" />
-                    <span>{Math.round(p.watermark.size ?? 100)} %</span>
-                  </span>
-                </Row>
-              </>
-            )}
-          </Section>
         )}
         <Section title="Zones">
           <Row label="Zone rayée avant la première bougie">
@@ -635,7 +747,9 @@ export function ChartSettingsDialog(props: ChartSettingsDialogProps) {
             <button
               type="button"
               className="lq-chart-settings__link"
-              onClick={() => set(Object.fromEntries(CANVAS_STYLE_KEYS.map((k) => [k, undefined])) as Partial<ChartStyleSettings>)}
+              onClick={() =>
+                set(Object.fromEntries(CANVAS_STYLE_KEYS.filter((k) => k !== "colorMode").map((k) => [k, undefined])) as Partial<ChartStyleSettings>)
+              }
             >
               Revenir à la toile du thème
             </button>
@@ -849,7 +963,7 @@ function TemplateMenu(p: ChartSettingsDialogProps & { themeUp: string; themeDown
       name: trimmed,
       upColor: p.upColorOverride,
       downColor: p.downColorOverride,
-      style: p.chartStyle,
+      style: templateStyle(p.chartStyle),
     };
     p.setStyleTemplates(existing ? p.styleTemplates.map((t) => (t.id === existing.id ? template : t)) : [...p.styleTemplates, template]);
     setName("");
@@ -857,7 +971,8 @@ function TemplateMenu(p: ChartSettingsDialogProps & { themeUp: string; themeDown
     setOpen(false);
   };
   const apply = (t: ChartStyleTemplate | null) => {
-    p.setChartStyle(t?.style ?? {});
+    // Le mode jour / nuit choisi reste : un modèle porte l'apparence, appliquée au mode affiché.
+    p.setChartStyle({ ...templateStyle(t?.style ?? {}), colorMode: p.chartStyle.colorMode });
     p.setUpColorOverride(t?.upColor);
     p.setDownColorOverride(t?.downColor);
     setOpen(false);

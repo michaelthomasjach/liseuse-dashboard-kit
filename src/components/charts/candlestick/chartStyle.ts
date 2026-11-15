@@ -95,6 +95,237 @@ export interface ChartStyleSettings {
   marginBottom?: number;
   /** Marge à droite de la dernière bougie, en bougies. Absent : celle de l'application (`futureBars`). */
   marginRightBars?: number;
+  /** Filigrane (nom du symbole en fond) : toujours, quand il est activé (défaut), ou seulement pendant un replay. */
+  watermarkVisibility?: "always" | "replay";
+  /** Couleur du filigrane (son opacité reste celle du réglage du filigrane). Absent : la couleur du texte. */
+  watermarkColor?: string;
+  /** Boutons de navigation (zoom, défilement, remise à zéro) en bas du panneau des prix. Défaut `hidden`. */
+  navigationButtons?: ChartButtonsVisibility;
+  /** Boutons des en-têtes de panneaux et des lignes d'indicateurs (réglages, masquer, fermer…). Défaut `hover`. */
+  paneButtons?: ChartButtonsVisibility;
+
+  // ── Mode jour / nuit ──
+  /** Mode du graphique : jour, nuit, ou absent pour suivre le thème du site (`hostColorScheme`, sinon la surface
+   *  du thème du kit). Un mode différent de celui du site pose ses propres couleurs de toile par défaut. */
+  colorMode?: ChartColorMode;
+  /** Couleurs choisies dans chaque mode, enregistrées séparément pour le jour et pour la nuit : elles passent devant
+   *  les couleurs du même nom posées à la racine (réglages d'avant les modes, valables dans les deux). */
+  modeColors?: { light?: ChartModeColors; dark?: ChartModeColors };
+  /** @internal Jetons de surface du mode imposé (calculés, jamais enregistrés). */
+  surfaceTokens?: ChartSurfaceTokens;
+}
+
+/** Visibilité d'un groupe de boutons du graphique. */
+export type ChartButtonsVisibility = "always" | "hover" | "hidden";
+
+/** Mode jour (`light`) ou nuit (`dark`) du graphique. */
+export type ChartColorMode = "light" | "dark";
+
+/** Les réglages de couleur enregistrés par mode (jour / nuit). */
+export const MODE_COLOR_KEYS = [
+  "wickUpColor",
+  "wickDownColor",
+  "borderUpColor",
+  "borderDownColor",
+  "lastPriceLineColor",
+  "backgroundType",
+  "backgroundColor",
+  "backgroundColor2",
+  "vertGridColor",
+  "horzGridColor",
+  "paneSeparatorColor",
+  "crosshairColor",
+  "scaleTextColor",
+  "scaleLineColor",
+  "watermarkColor",
+] as const;
+export type ModeColorKey = (typeof MODE_COLOR_KEYS)[number];
+const MODE_COLOR_KEY_SET = new Set<string>(MODE_COLOR_KEYS);
+
+/** Les réglages de couleur propres à un mode, plus les couleurs du corps des bougies. */
+export type ChartModeColors = Partial<Pick<ChartStyleSettings, ModeColorKey>> & { upColor?: string; downColor?: string };
+
+/** Couleurs de surface d'un mode imposé, posées en variables CSS sur la zone du graphique. */
+export interface ChartSurfaceTokens {
+  bg: string;
+  panel: string;
+  text: string;
+  muted: string;
+  border: string;
+  borderSubtle: string;
+  hover: string;
+  /** Hausse et baisse (OHLC de la légende, pastilles) dans ce mode. */
+  up: string;
+  down: string;
+  /** Accent (réticule, pastilles) et texte posé dessus. */
+  accent: string;
+  accentContrast: string;
+}
+
+interface ModePreset {
+  style: Partial<ChartStyleSettings>;
+  tokens: ChartSurfaceTokens;
+}
+
+function modePreset(tokens: ChartSurfaceTokens, grid: string): ModePreset {
+  return {
+    tokens,
+    style: {
+      backgroundColor: tokens.bg,
+      horzGridColor: grid,
+      vertGridColor: grid,
+      paneSeparatorColor: tokens.border,
+      crosshairColor: tokens.muted,
+      scaleTextColor: tokens.muted,
+      scaleLineColor: tokens.border,
+    },
+  };
+}
+
+/** Couleurs par défaut d'un mode imposé, selon la palette du thème (couleur ou e-ink) : celles des surfaces claire et
+ *  sombre de tokens.css, pour qu'un graphique en mode nuit sur un site en jour ressemble au site en nuit. */
+const MODE_PRESETS: Record<"color" | "eink", Record<ChartColorMode, ModePreset>> = {
+  color: {
+    light: modePreset({ bg: "#ffffff", panel: "#ffffff", text: "#12141a", muted: "#656b78", border: "#dfe2e8", borderSubtle: "#ecedf1", hover: "rgba(108, 135, 201, 0.08)", up: "#6faf82", down: "#c97c7c", accent: "#6c87c9", accentContrast: "#ffffff" }, "#e8eaef"),
+    dark: modePreset({ bg: "#0f1420", panel: "#171d2b", text: "#f1f5f9", muted: "#8b93a7", border: "#2a3245", borderSubtle: "#232a3a", hover: "rgba(147, 169, 222, 0.12)", up: "#8fcb9e", down: "#e0a0a0", accent: "#93a9de", accentContrast: "#0f1420" }, "#232a3a"),
+  },
+  eink: {
+    light: modePreset({ bg: "#f1eee6", panel: "#f1eee6", text: "#111111", muted: "#55524a", border: "#111111", borderSubtle: "#c9c4b6", hover: "rgba(17, 17, 17, 0.06)", up: "#111111", down: "#111111", accent: "#111111", accentContrast: "#f1eee6" }, "#c9c4b6"),
+    dark: modePreset({ bg: "#0a0a0a", panel: "#0a0a0a", text: "#f5f5f2", muted: "#9c9a94", border: "#f5f5f2", borderSubtle: "#3a3a37", hover: "rgba(245, 245, 242, 0.08)", up: "#f5f5f2", down: "#f5f5f2", accent: "#f5f5f2", accentContrast: "#0a0a0a" }, "#3a3a37"),
+  },
+};
+
+/** Ce qu'un style résolu sait de son origine : l'objet enregistré, le mode affiché et celui du site. */
+export interface ChartStyleMeta {
+  raw: ChartStyleSettings;
+  mode: ChartColorMode;
+  host: ChartColorMode;
+  /** Le mode affiché a des couleurs à lui (ou des couleurs d'avant les modes s'y appliquent). */
+  hasModeColors: boolean;
+}
+
+const STYLE_META = new WeakMap<object, ChartStyleMeta>();
+
+/** L'origine d'un style rendu par `resolveChartStyle`, ou `undefined` pour un autre objet. */
+export function chartStyleMeta(style: ChartStyleSettings): ChartStyleMeta | undefined {
+  return STYLE_META.get(style);
+}
+
+function withoutUndefined<T extends object>(obj: T): T {
+  for (const key of Object.keys(obj) as (keyof T)[]) if (obj[key] === undefined) delete obj[key];
+  return obj;
+}
+
+/** Le style à appliquer dans le mode courant : couleurs par défaut du mode imposé (s'il diffère du site), puis les
+ *  réglages enregistrés, puis les couleurs propres au mode. `modeColors` n'y figure plus. */
+export function resolveChartStyle(raw: ChartStyleSettings, host: ChartColorMode, palette: "color" | "eink" = "color"): ChartStyleSettings {
+  const mode = raw.colorMode ?? host;
+  const rest: ChartStyleSettings = { ...raw };
+  delete rest.modeColors;
+  delete rest.surfaceTokens;
+  const forced = raw.colorMode !== undefined && raw.colorMode !== host ? MODE_PRESETS[palette][mode] : undefined;
+  const bucket: ChartModeColors = { ...raw.modeColors?.[mode] };
+  delete bucket.upColor;
+  delete bucket.downColor;
+  const style: ChartStyleSettings = withoutUndefined({ ...forced?.style, ...rest, ...bucket });
+  if (forced) style.surfaceTokens = forced.tokens;
+  const hasModeColors = Object.keys(raw.modeColors?.[mode] ?? {}).length > 0 || MODE_COLOR_KEYS.some((k) => rest[k] !== undefined);
+  STYLE_META.set(style, { raw, mode, host, hasModeColors });
+  return style;
+}
+
+/** Les couleurs d'avant les modes, recopiées dans les deux modes (sans écraser ce qu'un mode a déjà). */
+export function migrateLegacyColors(
+  buckets: ChartStyleSettings["modeColors"],
+  legacy: ChartModeColors,
+): { light: ChartModeColors; dark: ChartModeColors } {
+  return { light: { ...legacy, ...buckets?.light }, dark: { ...legacy, ...buckets?.dark } };
+}
+
+function cleanBuckets(buckets: ChartStyleSettings["modeColors"]): ChartStyleSettings["modeColors"] | undefined {
+  if (!buckets) return undefined;
+  const out: NonNullable<ChartStyleSettings["modeColors"]> = {};
+  for (const m of ["light", "dark"] as const) {
+    const kept = withoutUndefined({ ...buckets[m] });
+    if (Object.keys(kept).length > 0) out[m] = kept;
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
+/** Les couleurs posées à la racine (réglages d'avant les modes). */
+function legacyColorsOf(raw: ChartStyleSettings): ChartModeColors {
+  const legacy: Record<string, unknown> = {};
+  for (const k of MODE_COLOR_KEYS) if (raw[k] !== undefined) legacy[k] = raw[k];
+  return legacy as ChartModeColors;
+}
+
+/** L'objet à enregistrer après un changement fait sur le style résolu `next` (fenêtre des paramètres, modèle) :
+ *  les couleurs modifiées vont dans le mode courant, le reste à la racine. La première couleur modifiée recopie les
+ *  couleurs d'avant les modes dans les deux modes, pour que l'autre mode garde ce qu'il affichait. Un style rendu tel
+ *  quel par `resolveChartStyle` (« Annuler » de la fenêtre) rend son objet enregistré. */
+export function storeChartStyle(raw: ChartStyleSettings, next: ChartStyleSettings, host: ChartColorMode, palette: "color" | "eink" = "color"): ChartStyleSettings {
+  const meta = STYLE_META.get(next);
+  if (meta) return meta.raw;
+  const current = resolveChartStyle(raw, host, palette);
+  const mode = raw.colorMode ?? host;
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(next)) {
+    if (value === undefined || key === "surfaceTokens" || key === "modeColors" || MODE_COLOR_KEY_SET.has(key)) continue;
+    out[key] = value;
+  }
+  const changed = MODE_COLOR_KEYS.filter((k) => next[k] !== current[k]);
+  let legacy = legacyColorsOf(raw);
+  let buckets = raw.modeColors;
+  if (changed.length > 0) {
+    const migrated = migrateLegacyColors(raw.modeColors, legacy);
+    legacy = {};
+    const bucket: Record<string, unknown> = { ...migrated[mode] };
+    for (const k of changed) bucket[k] = next[k];
+    buckets = { ...migrated, [mode]: bucket as ChartModeColors };
+  }
+  Object.assign(out, legacy);
+  const cleaned = cleanBuckets(buckets);
+  if (cleaned) out.modeColors = cleaned;
+  return out as ChartStyleSettings;
+}
+
+/** L'objet enregistré avec une couleur du corps des bougies changée dans le mode `mode` (les couleurs d'avant les
+ *  modes passent dans les deux modes, comme pour `storeChartStyle`). */
+export function storeModeCandleColor(
+  raw: ChartStyleSettings,
+  mode: ChartColorMode,
+  key: "upColor" | "downColor",
+  color: string | undefined,
+  legacyCandles: { upColor?: string; downColor?: string } = {},
+): ChartStyleSettings {
+  const out: ChartStyleSettings = { ...raw };
+  for (const k of MODE_COLOR_KEYS) delete out[k];
+  const migrated = migrateLegacyColors(raw.modeColors, withoutUndefined({ ...legacyColorsOf(raw), ...legacyCandles }));
+  const cleaned = cleanBuckets({ ...migrated, [mode]: { ...migrated[mode], [key]: color } });
+  if (cleaned) out.modeColors = cleaned;
+  else delete out.modeColors;
+  return out;
+}
+
+/** L'objet enregistré une fois les couleurs du mode `mode` remises à zéro (bougies comprises) : les couleurs d'avant
+ *  les modes passent dans l'autre mode, qui garde ainsi son apparence. */
+export function resetModeColors(raw: ChartStyleSettings, mode: ChartColorMode, legacyCandles: { upColor?: string; downColor?: string } = {}): ChartStyleSettings {
+  const out: ChartStyleSettings = { ...raw };
+  for (const k of MODE_COLOR_KEYS) delete out[k];
+  const migrated = migrateLegacyColors(raw.modeColors, withoutUndefined({ ...legacyColorsOf(raw), ...legacyCandles }));
+  const cleaned = cleanBuckets({ ...migrated, [mode]: {} });
+  if (cleaned) out.modeColors = cleaned;
+  else delete out.modeColors;
+  return out;
+}
+
+/** Un style sans ce qui ne va pas dans un modèle d'apparence (mode du graphique, couleurs par mode, jetons calculés). */
+export function templateStyle(style: ChartStyleSettings): ChartStyleSettings {
+  const out: ChartStyleSettings = { ...style };
+  delete out.colorMode;
+  delete out.modeColors;
+  delete out.surfaceTokens;
+  return out;
 }
 
 /** Un modèle d'apparence enregistré (menu « Modèle » de la fenêtre des paramètres). */
@@ -129,6 +360,10 @@ export const CANVAS_STYLE_KEYS: (keyof ChartStyleSettings)[] = [
   "marginTop",
   "marginBottom",
   "marginRightBars",
+  "navigationButtons",
+  "paneButtons",
+  "colorMode",
+  "surfaceTokens",
 ];
 
 /** Le style effectivement appliqué : sans la personnalisation avancée, les réglages de la Toile sont ignorés. */
@@ -155,6 +390,26 @@ export function chartStyleCssVars(style: ChartStyleSettings): CSSProperties {
   if (style.scaleTextSize) vars["--lq-chart-axis-size"] = `${style.scaleTextSize}px`;
   if (style.scaleLineColor) vars["--lq-chart-domain-color"] = style.scaleLineColor;
   if (style.paneSeparatorColor) vars["--lq-chart-pane-separator-color"] = style.paneSeparatorColor;
+  if (style.watermarkColor) vars["--lq-chart-watermark-color"] = style.watermarkColor;
+  // Mode imposé différent de celui du site : la zone du graphique prend les jetons de surface de ce mode, pour que la
+  // légende, les en-têtes de panneaux et les axes restent lisibles sur son fond.
+  const t = style.surfaceTokens;
+  if (t) {
+    vars["--lq-color-bg"] = t.bg;
+    vars["--lq-color-panel"] = t.panel;
+    vars["--lq-color-text"] = t.text;
+    vars["--lq-color-text-muted"] = t.muted;
+    vars["--lq-color-border"] = t.border;
+    vars["--lq-color-border-subtle"] = t.borderSubtle;
+    vars["--lq-color-hover"] = t.hover;
+    vars["--lq-chart-grid-color"] = t.borderSubtle;
+    vars["--lq-color-up"] = t.up;
+    vars["--lq-color-down"] = t.down;
+    vars["--lq-color-accent"] = t.accent;
+    vars["--lq-color-accent-contrast"] = t.accentContrast;
+    vars["--lq-color-fill"] = t.accent;
+    vars.color = t.text;
+  }
   if (style.backgroundColor) {
     // Texte lisible sur ce fond pour la légende et les en-têtes de panneaux (voir ChartSettingsDialog.css).
     const dark = isDarkColor(style.backgroundType === "gradient" && style.backgroundColor2 ? mixHex(style.backgroundColor, style.backgroundColor2) : style.backgroundColor);

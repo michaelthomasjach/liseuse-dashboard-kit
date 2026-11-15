@@ -50,6 +50,30 @@ function backgroundOf(el: Element): string {
   return "#ffffff";
 }
 
+/** Le fond d'un élément (couleur unie, ou dégradé linéaire vertical à plusieurs couleurs) peint à sa place. */
+function paintBackground(ctx: CanvasRenderingContext2D, el: HTMLElement, box: DOMRect): void {
+  const cs = getComputedStyle(el);
+  const r = el.getBoundingClientRect();
+  if (r.width === 0 || r.height === 0) return;
+  const x = r.left - box.left;
+  const y = r.top - box.top;
+  const image = cs.backgroundImage;
+  if (image && image.startsWith("linear-gradient")) {
+    const colors = image.match(/rgba?\([^)]*\)|#[0-9a-f]{3,8}\b/gi) ?? [];
+    if (colors.length >= 2) {
+      const gradient = ctx.createLinearGradient(0, y, 0, y + r.height);
+      colors.forEach((c, i) => gradient.addColorStop(i / (colors.length - 1), c));
+      ctx.fillStyle = gradient;
+      ctx.fillRect(x, y, r.width, r.height);
+      return;
+    }
+  }
+  if (!transparent(cs.backgroundColor)) {
+    ctx.fillStyle = cs.backgroundColor;
+    ctx.fillRect(x, y, r.width, r.height);
+  }
+}
+
 async function svgImage(svg: SVGSVGElement): Promise<HTMLImageElement | null> {
   const r = svg.getBoundingClientRect();
   const clone = svg.cloneNode(true) as SVGSVGElement;
@@ -89,6 +113,11 @@ export async function captureChartCanvas(root: HTMLElement, options: ChartCaptur
   const background = options.background ?? backgroundOf(root);
   ctx.fillStyle = background;
   ctx.fillRect(0, 0, box.width, box.height + captionHeight);
+  // Fond choisi dans Paramètres système → Toile (uni ou dégradé), posé sur la zone du tracé : un grand fond, que la
+  // boucle ci-dessous ne reprend pas (elle ne garde que les petites pastilles).
+  if (!options.background) {
+    root.querySelectorAll<HTMLElement>("[data-lq-custom-bg]").forEach((el) => paintBackground(ctx, el, box));
+  }
 
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT);
   const svgs: { el: SVGSVGElement; order: number }[] = [];
@@ -134,7 +163,7 @@ export async function captureChartCanvas(root: HTMLElement, options: ChartCaptur
       }
       continue;
     }
-    if (el === root || el.closest("button, [role=menu], [role=dialog]")) continue;
+    if (el === root || el.closest("button, [role=menu], [role=dialog], .lq-chart__nav-buttons")) continue;
     const cs = getComputedStyle(el);
     if (!transparent(cs.backgroundColor) && visible(el, cs)) {
       const r = el.getBoundingClientRect();

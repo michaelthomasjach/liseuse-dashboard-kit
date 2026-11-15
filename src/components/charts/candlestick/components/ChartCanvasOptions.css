@@ -1,0 +1,73 @@
+/* Paramètres système → Toile : boutons de navigation, boutons des panneaux, couleur du filigrane. */
+
+/* Boutons de navigation, centrés en bas du panneau des prix. */
+.lq-chart__nav-buttons {
+  position: absolute;
+  z-index: 6;
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  transform: translate(-50%, calc(-100% - 10px));
+  background: var(--lq-color-panel);
+  border: 1px solid var(--lq-color-border-subtle);
+  border-radius: 6px;
+  box-shadow: var(--lq-shadow-panel);
+  transition: opacity 120ms ease;
+}
+
+.lq-chart__nav-buttons--hover {
+  opacity: 0;
+}
+
+.lq-chart__plot:hover .lq-chart__nav-buttons--hover,
+.lq-chart__nav-buttons--hover:focus-within {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .lq-chart__nav-buttons--hover {
+    opacity: 1;
+  }
+}
+
+.lq-chart__nav-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  color: var(--lq-color-text-muted);
+  background: none;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.lq-chart__nav-button:hover,
+.lq-chart__nav-button:focus-visible {
+  color: var(--lq-color-text);
+  background: var(--lq-color-hover);
+}
+
+[data-lq-palette="eink"] .lq-chart__nav-buttons {
+  border-color: var(--lq-color-border);
+  border-radius: 0;
+}
+
+/* Boutons des en-têtes de panneaux et des lignes d'indicateurs : toujours visibles, ou masqués (au survol : les
+   règles de charts-shared.css). */
+.lq-chart__plot[data-lq-pane-buttons="always"] .lq-chart__pane-header-actions,
+.lq-chart__plot[data-lq-pane-buttons="always"] .lq-chart__indicator-legend-action {
+  opacity: 1;
+}
+
+.lq-chart__plot[data-lq-pane-buttons="hidden"] .lq-chart__pane-header-actions,
+.lq-chart__plot[data-lq-pane-buttons="hidden"] .lq-chart__indicator-legend-actions {
+  display: none;
+}
+
+/* Couleur du filigrane (son opacité reste sur le conteneur). */
+.lq-chart__plot .lq-chart__watermark span {
+  color: var(--lq-chart-watermark-color, var(--lq-color-text));
+}

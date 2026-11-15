@@ -1027,6 +1027,26 @@ export function useZoomAndScales({
     if (t) setXTransformAnimated(t);
   }
 
+  /** Boutons de navigation : zoom en X d'un facteur (> 1 rapproche), le bord droit du tracé restant en place. */
+  function zoomXBy(factor: number) {
+    const current = transformRef.current;
+    const w = dims.boundedWidth;
+    if (w <= 0) return;
+    const k = Math.min(maxXZoom, Math.max(1, current.k * factor));
+    if (k === current.k) return;
+    const x = w - ((w - current.x) * k) / current.k;
+    setXTransformAnimated(constrainXPan(new d3.ZoomTransform(k, x, current.y), [[0, 0], [w, plotBoundedHeight]]));
+  }
+
+  /** Boutons de navigation : fait défiler la vue de `bars` bougies (positif : vers les plus récentes). */
+  function scrollXBy(bars: number) {
+    const current = transformRef.current;
+    const w = dims.boundedWidth;
+    if (w <= 0) return;
+    const dx = bars * current.k * (xScale(1) - xScale(0));
+    setXTransformAnimated(constrainXPan(new d3.ZoomTransform(current.k, current.x - dx, current.y), [[0, 0], [w, plotBoundedHeight]]));
+  }
+
   /** Double-clic sur l'axe des prix : le rend à l'automatique — il suit de nouveau les bougies
    *  visibles à chaque déplacement en X (et pas un simple recalage unique). `YAutoScaling` coupé, il
    *  revient sur l'échelle fixe de tout l'historique. */
@@ -1111,6 +1131,8 @@ export function useZoomAndScales({
     isZoomed,
     resetZoom,
     setVisibleCandleCount,
+    zoomXBy,
+    scrollXBy,
     resetYAxis,
     zoomedSlotCount,
     candleWidth,

@@ -1560,3 +1560,59 @@ export const CustomToolbars: Story = {
     );
   },
 };
+
+/** Paramètres système → Toile, façon plateforme de marché : fond en dégradé, grilles verticale et horizontale,
+ *  filigrane coloré, boutons de navigation toujours visibles, marges haut / bas / droite (en barres), et le « Mode »
+ *  du graphique (Jour, Nuit, « Suivre le thème du site »). Les boutons au-dessus simulent le sélecteur jour / nuit du
+ *  site (`hostColorScheme`) ; les couleurs choisies sont enregistrées à part pour chaque mode (`style.modeColors`),
+ *  ce qu'affiche le JSON remonté par `onAppearanceChange`. */
+export const CanvasAndDayNightMode: Story = {
+  name: "Toile et mode jour / nuit",
+  render: () => {
+    const data = useMemo(() => generateCandles(260), []);
+    const [host, setHost] = useState<"light" | "dark">("light");
+    const [saved, setSaved] = useState<unknown>(null);
+    return (
+      <div style={{ height: 680 }}>
+        <p style={{ margin: "0 0 8px", font: "13px sans-serif", display: "flex", gap: 8, alignItems: "center" }}>
+          Thème du site :
+          <button type="button" onClick={() => setHost("light")} aria-pressed={host === "light"}>
+            Jour
+          </button>
+          <button type="button" onClick={() => setHost("dark")} aria-pressed={host === "dark"}>
+            Nuit
+          </button>
+          — clic droit → « Paramètres système… » → Toile
+        </p>
+        <CandlestickChart
+          data={data}
+          symbol="DEMO"
+          height={520}
+          zoomable
+          hostColorScheme={host}
+          defaultWatermark={{ visible: true, opacity: 0.12 }}
+          defaultAppearance={{
+            style: {
+              backgroundType: "gradient",
+              backgroundColor: "#ffffff",
+              backgroundColor2: "#ffe7c2",
+              vertGridVisible: true,
+              vertGridColor: "#a9c0ff",
+              horzGridColor: "#a9c0ff",
+              vertGridStyle: "solid",
+              horzGridStyle: "solid",
+              watermarkColor: "#2962ff",
+              navigationButtons: "always",
+              paneButtons: "always",
+              marginTop: 15,
+              marginBottom: 15,
+              marginRightBars: 20,
+            },
+          }}
+          onAppearanceChange={(a) => setSaved(a.style)}
+        />
+        <pre style={{ font: "11px monospace", maxHeight: 120, overflow: "auto" }}>{saved ? JSON.stringify(saved) : "(aucun changement)"}</pre>
+      </div>
+    );
+  },
+};

@@ -392,6 +392,10 @@ export interface CandlestickChartProps {
    *  section et le menu n'apparaissent pas, et les réglages de la Toile enregistrés ne s'appliquent pas (rendu du
    *  thème) — une fonctionnalité hors de l'offre du compte, par exemple. Les autres sections restent. Défaut vrai. */
   advancedAppearance?: boolean;
+  /** Thème jour / nuit du site qui affiche le graphique. Le choix « Suivre le thème du site » des paramètres système
+   *  (section Toile, « Mode ») le suit, et les couleurs choisies sont enregistrées à part pour le jour et pour la nuit.
+   *  Absent : la surface du thème du kit (`data-lq-surface` de LqThemeProvider). */
+  hostColorScheme?: "light" | "dark";
   /** Bouton « ? » d'un indicateur intégré (sélecteur d'indicateurs, légende, en-tête de panneau,
    *  fenêtre de paramètres) : ouvre sa page d'aide (définition, formule, paramètres, lecture,
    *  limites, script équivalent). Fourni : l'application décide de la navigation (sa propre page,

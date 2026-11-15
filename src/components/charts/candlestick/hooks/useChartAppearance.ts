@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CandleColorRule } from "../interfaces/CandleColorRule.interface";
-import type { ChartStyleSettings, ChartStyleTemplate } from "../chartStyle";
+import type { ChartColorMode, ChartStyleSettings, ChartStyleTemplate } from "../chartStyle";
+import { migrateLegacyColors, resetModeColors, resolveChartStyle, storeChartStyle, storeModeCandleColor } from "../chartStyle";
+import { useHostColorScheme } from "./useHostColorScheme";
 import type { PriceScaleMode } from "../interfaces/PriceScaleMode.interface";
 
 /** Réglages d'apparence du graphique (fenêtres « Paramètres du graphique » et « Paramètres du
@@ -50,6 +52,8 @@ export interface UseChartAppearanceArgs {
    *  `defaultAppearance` et chaque modification passe par `onCandleColorRulesChange`. */
   candleColorRules?: CandleColorRule[];
   onCandleColorRulesChange?: (rules: CandleColorRule[]) => void;
+  /** Thème jour / nuit du site (prop `hostColorScheme` du graphique) ; absent : la surface du thème du kit. */
+  hostColorScheme?: ChartColorMode;
 }
 
 /** Chart-settings-modal state: up/down bar color overrides (candles and, independently, volume),
@@ -58,14 +62,14 @@ export interface UseChartAppearanceArgs {
  *  countdown badge (a plain DOM element, not part of the canvas draw effect) a reason to
  *  re-render. None of this reads or writes `drawings`/`indicators`/zoom state, so it's cheap to
  *  keep fully separate from every other concern in this file. */
-export function useChartAppearance({ YAutoScaling, livePrice, controlledSettings, defaultAppearance, onAppearanceChange, candleColorRules: candleColorRulesProp, onCandleColorRulesChange }: UseChartAppearanceArgs) {
+export function useChartAppearance({ YAutoScaling, livePrice, controlledSettings, defaultAppearance, onAppearanceChange, candleColorRules: candleColorRulesProp, onCandleColorRulesChange, hostColorScheme }: UseChartAppearanceArgs) {
   const [internalSettingsOpen, setInternalSettingsOpen] = useState(false);
   const settingsOpen = controlledSettings?.open ?? internalSettingsOpen;
   const setSettingsOpen: (open: boolean) => void = controlledSettings?.onChange ?? setInternalSettingsOpen;
   // Per-chart color overrides for up/down bars — `undefined` (the default) means "use the
   // theme's own --lq-color-up/--lq-color-down", same as before this modal existed.
-  const [upColorOverride, setUpColorOverride] = useState<string | undefined>(defaultAppearance?.upColor);
-  const [downColorOverride, setDownColorOverride] = useState<string | undefined>(defaultAppearance?.downColor);
+  // Couleurs du corps des bougies : enregistrées par mode jour / nuit dans `style.modeColors` (plus bas). Celles
+  // d'avant les modes (`upColor`, `downColor`) y sont recopiées au montage, dans les deux modes.
   // Same idea, scoped to the volume pane's own bars instead of the candles — `undefined` means
   // "mirror whichever of colorUp/colorDown above is currently in effect" (theme or its own
   // override), same as volume bars have always done, just now overridable independently.
@@ -96,8 +100,29 @@ export function useChartAppearance({ YAutoScaling, livePrice, controlledSettings
   const [internalCandleColorRules, setInternalCandleColorRules] = useState<CandleColorRule[]>(defaultAppearance?.candleColorRules ?? []);
   const candleColorRules = candleColorRulesProp ?? internalCandleColorRules;
   // Réglages avancés et modèles d'apparence (fenêtre des paramètres), lus au montage comme le reste.
-  const [chartStyle, setChartStyle] = useState<ChartStyleSettings>(defaultAppearance?.style ?? {});
+  // `rawStyle` est l'objet enregistré (couleurs par mode comprises) ; `chartStyle`, celui du mode affiché.
+  const [rawStyle, setRawStyle] = useState<ChartStyleSettings>(() => {
+    const style = defaultAppearance?.style ?? {};
+    const legacy: { upColor?: string; downColor?: string } = {};
+    if (defaultAppearance?.upColor) legacy.upColor = defaultAppearance.upColor;
+    if (defaultAppearance?.downColor) legacy.downColor = defaultAppearance.downColor;
+    return Object.keys(legacy).length > 0 ? { ...style, modeColors: migrateLegacyColors(style.modeColors, legacy) } : style;
+  });
   const [styleTemplates, setStyleTemplates] = useState<ChartStyleTemplate[]>(defaultAppearance?.styleTemplates ?? []);
+  const host = useHostColorScheme(hostColorScheme);
+  const colorMode: ChartColorMode = rawStyle.colorMode ?? host.scheme;
+  const chartStyle = useMemo(() => resolveChartStyle(rawStyle, host.scheme, host.palette), [rawStyle, host.scheme, host.palette]);
+  const setChartStyle = useCallback(
+    (next: ChartStyleSettings) => setRawStyle((raw) => storeChartStyle(raw, next, host.scheme, host.palette)),
+    [host.scheme, host.palette],
+  );
+  // Couleurs du corps des bougies : celles du mode affiché, enregistrées par mode.
+  const upColorOverride = rawStyle.modeColors?.[colorMode]?.upColor;
+  const downColorOverride = rawStyle.modeColors?.[colorMode]?.downColor;
+  const setUpColorOverride = (color: string | undefined) => setRawStyle((raw) => storeModeCandleColor(raw, colorMode, "upColor", color));
+  const setDownColorOverride = (color: string | undefined) => setRawStyle((raw) => storeModeCandleColor(raw, colorMode, "downColor", color));
+  /** « Revenir aux couleurs par défaut » : remet à zéro les couleurs du mode affiché, l'autre mode garde les siennes. */
+  const resetColorModeColors = () => setRawStyle((raw) => resetModeColors(raw, colorMode));
   const onCandleColorRulesChangeRef = useRef(onCandleColorRulesChange);
   onCandleColorRulesChangeRef.current = onCandleColorRulesChange;
   const controlledRules = candleColorRulesProp !== undefined;
@@ -119,8 +144,6 @@ export function useChartAppearance({ YAutoScaling, livePrice, controlledSettings
       return;
     }
     onAppearanceChangeRef.current?.({
-      upColor: upColorOverride,
-      downColor: downColorOverride,
       volumeUpColor: volumeUpColorOverride,
       volumeDownColor: volumeDownColorOverride,
       closePulse: closePulseVisible,
@@ -129,10 +152,10 @@ export function useChartAppearance({ YAutoScaling, livePrice, controlledSettings
       candleColorRules: internalCandleColorRules,
       priceScale: priceScaleMode,
       autoFit: yAutoScalingState,
-      style: chartStyle,
+      style: rawStyle,
       styleTemplates,
     });
-  }, [upColorOverride, downColorOverride, volumeUpColorOverride, volumeDownColorOverride, closePulseVisible, pastZoneVisible, futureZoneVisible, internalCandleColorRules, priceScaleMode, yAutoScalingState, chartStyle, styleTemplates]);
+  }, [volumeUpColorOverride, volumeDownColorOverride, closePulseVisible, pastZoneVisible, futureZoneVisible, internalCandleColorRules, priceScaleMode, yAutoScalingState, rawStyle, styleTemplates]);
 
   // Ticks once a second, only while `livePrice` is on — its only job is giving the countdown
   // badge (a plain DOM element, not part of the canvas draw effect) a reason to re-render each
@@ -170,6 +193,9 @@ export function useChartAppearance({ YAutoScaling, livePrice, controlledSettings
     candleColorRules,
     setCandleColorRules,
     chartStyle,
+    colorMode,
+    hostColorScheme: host.scheme,
+    resetColorModeColors,
     setChartStyle,
     styleTemplates,
     setStyleTemplates,

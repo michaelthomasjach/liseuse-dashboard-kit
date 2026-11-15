@@ -257,6 +257,13 @@
   text-decoration: underline;
 }
 
+.lq-chart-settings__link:disabled {
+  color: var(--lq-color-text-muted);
+  text-decoration: none;
+  cursor: default;
+  opacity: 0.6;
+}
+
 /* Pied : « Modèle ▾ » à gauche, Annuler / Valider à droite. */
 .lq-chart-settings__footer {
   display: flex;

@@ -265,9 +265,13 @@
   font-weight: var(--lq-font-weight-semibold, 600);
 }
 
+/* Focus discret : la bordure fine s'assombrit à peine, sans le cadre épais (2 px d'accent) qui faisait une bande noire
+   autour du champ. */
+.lq-ai__input:focus,
 .lq-ai__input:focus-visible {
-  outline: 2px solid var(--lq-color-accent);
-  outline-offset: -1px;
+  outline: none;
+  border-color: color-mix(in srgb, var(--lq-color-text) 28%, var(--lq-color-border-subtle));
+  box-shadow: none;
 }
 
 .lq-ai__composer-actions {

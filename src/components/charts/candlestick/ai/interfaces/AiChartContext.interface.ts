@@ -5,6 +5,8 @@ import type { TrendLineDrawing } from "../../interfaces/TrendLineDrawing.interfa
 import type { ScriptDef } from "../../interfaces/ScriptDef.interface";
 import type { ScriptRunOutput } from "../../scripting/interfaces/ScriptRunOutput.interface";
 import type { FundamentalDataPoint } from "../../interfaces/FundamentalDataPoint.interface";
+import type { OverlayDataPoint } from "../../interfaces/TrendLineDrawing.interface";
+import type { AiWorkspaceControls } from "./AiWorkspaceControls.interface";
 
 /** Everything the assistant can read from, and every lever it can pull.
  *
@@ -62,4 +64,16 @@ export interface AiChartContext {
   /** Filigrane du symbole (taille en % de la taille par défaut, opacité de 0 à 1). */
   watermark?: () => { visible: boolean; opacity: number; size: number };
   setWatermark?: (patch: Partial<{ visible: boolean; opacity: number; size: number }>) => void;
+
+  /** Bougies d'un autre symbole, dans l'unité de temps de ce graphique, demandées à l'application
+   *  (`loadSymbolCandles`, à défaut `onAddSymbolOverlay`). Absent : aucun moyen d'en obtenir — la bibliothèque n'a
+   *  pas de source de données. */
+  loadCandles?: (symbol: string) => Promise<Candle[]>;
+  /** Le symbole de l'application qui affiche « numérateur / dénominateur » (`ratioSymbol`), ou null s'il n'en a pas. */
+  ratioSymbol?: (numerator: string, denominator: string) => string | null;
+  /** Superpose une série au graphique avec la comparaison de symboles (axe en % depuis la première bougie visible),
+   *  comme le « + » de la recherche. Rend false si ce symbole est déjà superposé. */
+  addComparison?: (symbol: string, name: string, points: OverlayDataPoint[]) => boolean;
+  /** L'espace de travail qui contient ce graphique, quand il est au premier plan d'un `ChartWorkspace`. */
+  workspace?: AiWorkspaceControls;
 }

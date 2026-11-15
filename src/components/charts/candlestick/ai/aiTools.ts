@@ -4,6 +4,7 @@ import { indicatorCatalogEntry } from "../indicatorCatalog";
 import { analyzeScriptKind } from "../scripting/scriptKind";
 import { SCRIPTING_DOCS_TOOL } from "./scriptingDocs";
 import { findUiButton, highlightUiElement, listUiButtons } from "./uiHighlight";
+import { COMPARISON_TOOLS, comparisonToolAvailable } from "./comparisonTools";
 
 /** What running one tool produced: text handed straight back to the model. Plain prose rather than
  *  JSON wherever a sentence is clearer — the reader is a language model, and "SMA(20) ajoutée"
@@ -12,7 +13,10 @@ export type AiToolOutcome = { content: string; isError?: boolean };
 
 export interface AiTool {
   definition: AiToolDefinition;
-  run: (input: Record<string, unknown>, chart: AiChartContext) => AiToolOutcome;
+  /** La définition selon ce que ce graphique permet (ex. les seuls modes d'affichage possibles) ; `definition` sinon. */
+  definitionFor?: (chart: AiChartContext) => AiToolDefinition;
+  /** Synchrone pour agir sur le graphique ; une promesse pour un outil qui attend des données de l'application. */
+  run: (input: Record<string, unknown>, chart: AiChartContext) => AiToolOutcome | Promise<AiToolOutcome>;
 }
 
 const str = (input: Record<string, unknown>, key: string): string | undefined => {
@@ -75,6 +79,7 @@ export const AI_TOOLS: AiTool[] = [
           `Dessins : ${chart.drawings().length}`,
           `Scripts : ${scripts.join(" ; ") || "aucun"}`,
           `Données fondamentales : ${chart.fundamentals?.length ?? 0} points`,
+          chart.workspace ? `Fenêtres de l'espace de travail : ${describePanels(chart)}` : "",
         ]
           .filter(Boolean)
           .join("\n"),
@@ -631,7 +636,14 @@ export const AI_TOOLS: AiTool[] = [
       };
     },
   },
+  // Comparaisons entre symboles : côte à côte, performances, indice A / B (voir comparisonTools).
+  ...COMPARISON_TOOLS,
 ];
+
+/** Les fenêtres de l'espace de travail en une ligne : « 1 : AAPL (1day) ; 2 : MSFT (1day) ». */
+export function describePanels(chart: AiChartContext): string {
+  return (chart.workspace?.panels() ?? []).map((p) => `${p.index + 1} : ${p.symbol ?? "sans symbole"}${p.timeframe ? ` (${p.timeframe})` : ""}`).join(" ; ");
+}
 
 /** The tools, filtered to what this chart can actually do. A lever the host did not wire up is not
  *  offered at all — a model told it may change the timeframe, that then fails every time, spends
@@ -641,6 +653,8 @@ export const CHART_AI_TOOL_DEFINITIONS: AiToolDefinition[] = AI_TOOLS.map((t) =>
 
 export function availableAiTools(chart: AiChartContext): AiTool[] {
   return AI_TOOLS.filter((tool) => {
+    const comparison = comparisonToolAvailable(tool.definition.name, chart);
+    if (comparison !== undefined) return comparison;
     if (tool.definition.name === "changer_l_unite_de_temps") return chart.setTimeframe !== undefined && chart.availableTimeframes.length > 0;
     if (tool.definition.name === "changer_de_symbole") return chart.setSymbol !== undefined;
     if (tool.definition.name === "lire_les_donnees_fondamentales") return (chart.fundamentals?.length ?? 0) > 0;
@@ -648,16 +662,16 @@ export function availableAiTools(chart: AiChartContext): AiTool[] {
     if (tool.definition.name === "regler_le_filigrane") return chart.setWatermark !== undefined && chart.symbol !== undefined;
     if (tool.definition.name === "ouvrir_un_script") return chart.openScript !== undefined;
     return true;
-  });
+  }).map((tool) => (tool.definitionFor ? { ...tool, definition: tool.definitionFor(chart) } : tool));
 }
 
 /** Runs one tool call, never throwing: a tool that fails has to come back as a *result* the model
  *  can read and work around, not as an exception that ends the turn. */
-export function runAiTool(name: string, input: Record<string, unknown>, chart: AiChartContext): AiToolOutcome {
+export async function runAiTool(name: string, input: Record<string, unknown>, chart: AiChartContext): Promise<AiToolOutcome> {
   const tool = AI_TOOLS.find((t) => t.definition.name === name);
   if (!tool) return { content: `Outil inconnu : ${name}.`, isError: true };
   try {
-    return tool.run(input, chart);
+    return await tool.run(input, chart);
   } catch (err) {
     return { content: `L'outil « ${name} » a échoué : ${err instanceof Error ? err.message : String(err)}`, isError: true };
   }

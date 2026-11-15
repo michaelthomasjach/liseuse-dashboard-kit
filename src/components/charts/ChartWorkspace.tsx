@@ -44,7 +44,11 @@ import { useFullscreen } from "./internal/useFullscreen";
 import { useChartDimensions } from "./internal/useChartDimensions";
 import { MOBILE_LAYOUT_BREAKPOINT } from "./candlestick/constants";
 import { useViewportWidth } from "./internal/useViewportWidth";
+import type { AiWorkspaceControls } from "./candlestick/ai/interfaces/AiWorkspaceControls.interface";
 import {
+  CHART_WORKSPACE_GRID_LAYOUTS,
+  DEFAULT_GRID_LAYOUT_BY_PANELS,
+  gridLayoutLabel,
   gridAreaValue,
   resolveGridLayout,
   type ChartWorkspaceGridLayout,
@@ -171,7 +175,10 @@ export interface ChartWorkspaceProps {
    *  au centre de leur zone — plutôt qu'un graphique vide marqué « Aucune donnée ». */
   loadingLabel?: string;
   /** Pont des outils du graphique au premier plan (celui mis en avant, sinon le premier) — voir
-   *  `CandlestickChartProps.onToolBridge`. Rappelé avec le nouveau pont quand le premier plan change. */
+   *  `CandlestickChartProps.onToolBridge`. Rappelé avec le nouveau pont quand le premier plan change. Le pont (comme
+   *  l'assistant intégré) a aussi les outils de l'espace de travail : `comparer_cote_a_cote` (un symbole par fenêtre)
+   *  et l'affichage « nouvelle_fenetre » de `creer_un_indice_ratio` — voir `CandlestickChartProps.aiWorkspace` ; les
+   *  bougies de chaque fenêtre restent à l'application (`onPanelSymbolChange`). */
   onToolBridge?: (bridge: import("./candlestick/ai/chartToolBridge").ChartToolBridge | null) => void;
   /** Boutons de l'application dans le rail de droite, juste au-dessus de l'aide (ex. une connexion MCP). */
   railActions?: WorkspaceRailAction[];
@@ -760,6 +767,58 @@ export function ChartWorkspace({
   const rawChildren = Children.toArray(children) as ReactElement<CandlestickChartProps>[];
   const panelElements = rawChildren.length === 1 ? Array.from({ length: panels }, () => rawChildren[0]) : rawChildren.slice(0, panels);
   const effectiveFocusedPanelIndex = focusedPanelIndex !== null && focusedPanelIndex < panels ? focusedPanelIndex : null;
+  // Outils de l'assistant au niveau de l'espace de travail (comparer_cote_a_cote, creer_un_indice_ratio), donnés au
+  // graphique au premier plan avec l'assistant et le pont des outils : les gestes du menu « Disposition des fenêtres »
+  // et du clic sur le nom d'une fenêtre, appliqués à l'état le plus récent (un outil s'exécute hors de tout rendu).
+  const aiWorkspaceStateRef = useRef({ panels, panelElements, resolvedSymbol, timeframeByPanel, handleGridLayoutChange, setPanelSymbol });
+  aiWorkspaceStateRef.current = { panels, panelElements, resolvedSymbol, timeframeByPanel, handleGridLayoutChange, setPanelSymbol };
+  const aiWorkspace = useMemo<AiWorkspaceControls>(() => {
+    type State = typeof aiWorkspaceStateRef.current;
+    const timeframeOf = (s: State, i: number) => (i in s.timeframeByPanel ? s.timeframeByPanel[i] : s.panelElements[i]?.props.timeframe);
+    // Les fenêtres suivent l'unité de temps de la fenêtre 1 : celle du modèle quand la fenêtre 1 n'a pas la sienne
+    // (les autres reprennent alors celle du modèle, et la suivront), la sienne sinon.
+    const alignTimeframes = (s: State, from: number, to: number) => {
+      const own = 0 in s.timeframeByPanel;
+      const timeframe = timeframeOf(s, 0);
+      setTimeframeByPanel((prev) => {
+        const next = { ...prev };
+        for (let i = from; i < to; i++) {
+          if (own) next[i] = timeframe;
+          else delete next[i];
+        }
+        return next;
+      });
+      return timeframe;
+    };
+    return {
+      maxPanels: 8,
+      panels: () => {
+        const s = aiWorkspaceStateRef.current;
+        return Array.from({ length: s.panels }, (_, i) => ({ index: i, symbol: s.resolvedSymbol(i, s.panelElements[i]), timeframe: timeframeOf(s, i) }));
+      },
+      showSymbols: (symbols, arrangement) => {
+        const s = aiWorkspaceStateRef.current;
+        const count = Math.min(8, Math.max(1, symbols.length)) as ChartWorkspacePanelCount;
+        const candidates = CHART_WORKSPACE_GRID_LAYOUTS.filter((l) => l.panels === count);
+        const picked =
+          arrangement === "cote_a_cote" ? candidates.find((l) => l.rows === 1) : arrangement === "empilees" ? candidates.find((l) => l.columns === 1) : undefined;
+        const next = picked ?? resolveGridLayout(DEFAULT_GRID_LAYOUT_BY_PANELS[count], count);
+        s.handleGridLayoutChange(next);
+        symbols.slice(0, count).forEach((symbol, i) => s.setPanelSymbol(i, symbol));
+        const timeframe = alignTimeframes(s, 1, count);
+        return { layoutLabel: gridLayoutLabel(next), timeframe };
+      },
+      addPanel: (symbol) => {
+        const s = aiWorkspaceStateRef.current;
+        if (s.panels >= 8) return null;
+        const count = (s.panels + 1) as ChartWorkspacePanelCount;
+        s.handleGridLayoutChange(resolveGridLayout(DEFAULT_GRID_LAYOUT_BY_PANELS[count], count));
+        s.setPanelSymbol(count - 1, symbol);
+        alignTimeframes(s, count - 1, count);
+        return count - 1;
+      },
+    };
+  }, []);
   // Appareil photo du rail : le graphique au premier plan (celui mis en avant, sinon le premier), avec son symbole.
   const gridRef = useRef<HTMLDivElement>(null);
   const [captureToast, setCaptureToast] = useState<string | null>(null);
@@ -1038,6 +1097,8 @@ export function ChartWorkspace({
             // so there is exactly one assistant on screen, pointed at the chart being looked at.
             // Le pont des outils, comme l'assistant : au seul graphique au premier plan.
             onToolBridge: onToolBridge && i === (effectiveFocusedPanelIndex ?? 0) ? onToolBridge : undefined,
+            // Et ce que l'assistant comme le pont peuvent faire de l'espace de travail (fenêtres, symbole de chacune).
+            aiWorkspace: (onToolBridge || ai) && i === (effectiveFocusedPanelIndex ?? 0) ? aiWorkspace : undefined,
             ...(ai && i === (effectiveFocusedPanelIndex ?? 0)
               ? { ai, aiOpen: assistantOpen, onAiOpenChange: setAssistantOpen, aiPortalTarget: isMobileWorkspace ? undefined : aiSlot }
               : { ai: undefined }),

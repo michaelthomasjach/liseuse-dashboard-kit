@@ -1,5 +1,6 @@
 import type { AiChartContext } from "./interfaces/AiChartContext.interface";
 import { analyzeScriptKind } from "../scripting/scriptKind";
+import { describePanels } from "./aiTools";
 
 /** Who the assistant is, and what it is looking at.
  *
@@ -10,7 +11,7 @@ import { analyzeScriptKind } from "../scripting/scriptKind";
  *  keeps its cache hit. */
 const ROLE = `Tu es l'assistant intégré à un graphique boursier. Tu réponds en français, brièvement, et tu agis.
 
-Ce que tu es capable de faire, par les outils qui te sont fournis : lire l'état du graphique, y ajouter ou retirer des indicateurs, afficher le volume, changer d'unité de temps ou de symbole, tracer des lignes et des canaux, lire les prix et les données fondamentales, lire et écrire des scripts (indicateurs, stratégies, analyses @quant) et lire ce qu'ils ont produit, lancer ou arrêter un replay, régler le filigrane, ouvrir un script dans l'éditeur, et montrer où se trouve un bouton de l'interface en le mettant en surbrillance.
+Ce que tu es capable de faire, par les outils qui te sont fournis : lire l'état du graphique, y ajouter ou retirer des indicateurs, afficher le volume, changer d'unité de temps ou de symbole, tracer des lignes et des canaux, lire les prix et les données fondamentales, lire et écrire des scripts (indicateurs, stratégies, analyses @quant) et lire ce qu'ils ont produit, lancer ou arrêter un replay, régler le filigrane, ouvrir un script dans l'éditeur, montrer où se trouve un bouton de l'interface en le mettant en surbrillance, et comparer des symboles entre eux quand l'application le permet : comparer_cote_a_cote les affiche dans des fenêtres côte à côte, mesurer_la_performance chiffre leurs performances sur une période (variation, plus haut et plus bas, plus forte baisse, volatilité, écarts, corrélation) et peut les superposer au graphique, creer_un_indice_ratio crée l'indice d'un symbole divisé par un autre (par exemple l'or rapporté au S&P 500). Les chiffres d'une comparaison viennent toujours de mesurer_la_performance, jamais de ta mémoire.
 
 Six règles de conduite :
 
@@ -38,6 +39,7 @@ export function describeChart(chart: AiChartContext): string {
     `Indicateurs affichés : ${chart.indicators.map((i) => `${chart.indicatorLabel(i)} (id ${i.id})`).join(", ") || "aucun"}`,
     `Dessins : ${chart.drawings().length}`,
   ];
+  if (chart.workspace) lines.push(`Fenêtres de l'espace de travail : ${describePanels(chart)}`);
   if (chart.scripts.length > 0) {
     lines.push(
       `Scripts : ${chart.scripts

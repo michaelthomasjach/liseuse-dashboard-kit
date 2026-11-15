@@ -70,6 +70,8 @@ import { SeasonalityView } from "./SeasonalityView";
 import "./charts-shared.css";
 
 import type { CandlestickChartProps } from "./CandlestickChart.types";
+import type { Candle as AiCandle } from "./candlestick/interfaces/Candle.interface";
+import type { OverlayDataPoint as AiOverlayPoint } from "./candlestick/interfaces/TrendLineDrawing.interface";
 
 export type {
   Candle,
@@ -202,6 +204,9 @@ export function CandlestickChart({
   onDaySeparatorsChange,
   priceAlertLines,
   onToolBridge,
+  loadSymbolCandles,
+  ratioSymbol,
+  aiWorkspace,
   events,
   fundamentals,
   depth,
@@ -1635,8 +1640,13 @@ export function CandlestickChart({
     onEditScript,
   });
   // Replay et filigrane pour l'assistant : lus au moment de l'appel (refs), pour garder `aiChart` stable.
-  const aiExtrasRef = useRef({ replayState, data, frameReplayAt, watermark, setWatermark, replayEnabled: replay });
-  aiExtrasRef.current = { replayState, data, frameReplayAt, watermark, setWatermark, replayEnabled: replay };
+  const aiExtrasRef = useRef({ replayState, data, frameReplayAt, watermark, setWatermark, replayEnabled: replay, loadSymbolCandles, onAddSymbolOverlay, ratioSymbol, aiWorkspace, timeframe });
+  aiExtrasRef.current = { replayState, data, frameReplayAt, watermark, setWatermark, replayEnabled: replay, loadSymbolCandles, onAddSymbolOverlay, ratioSymbol, aiWorkspace, timeframe };
+  // Comparaisons entre symboles (voir comparisonTools) : présentes ou non selon ce que l'hôte fournit, mais lues au
+  // moment de l'appel pour garder `aiChart` stable quand l'hôte recrée ses fonctions à chaque rendu.
+  const canLoadCandles = loadSymbolCandles !== undefined || onAddSymbolOverlay !== undefined;
+  const hasRatioSymbol = ratioSymbol !== undefined;
+  const hasAiWorkspace = aiWorkspace !== undefined;
   const aiChart = useMemo(
     () => ({
       ...aiChartBase,
@@ -1676,8 +1686,59 @@ export function CandlestickChart({
         const x = aiExtrasRef.current;
         x.setWatermark({ ...x.watermark, ...patch });
       },
+      ...(canLoadCandles
+        ? {
+            // Les bougies d'un autre symbole, dans l'unité de temps de ce graphique : `loadSymbolCandles`, sinon la
+            // série que `onAddSymbolOverlay` donne pour la comparaison (le reste d'une recherche est inconnu ici).
+            loadCandles: async (ticker: string): Promise<AiCandle[]> => {
+              const x = aiExtrasRef.current;
+              if (x.loadSymbolCandles) return x.loadSymbolCandles(ticker, x.timeframe);
+              if (!x.onAddSymbolOverlay) return [];
+              const points = await x.onAddSymbolOverlay({ id: ticker, ticker, name: ticker, category: "stocks", source: "" });
+              return (points ?? []).map((p) => ({ date: p.date, open: p.open ?? p.value, high: p.high ?? Math.max(p.value, p.open ?? p.value), low: p.low ?? Math.min(p.value, p.open ?? p.value), close: p.value }));
+            },
+          }
+        : {}),
+      ...(hasRatioSymbol ? { ratioSymbol: (a: string, b: string) => aiExtrasRef.current.ratioSymbol?.(a, b) ?? null } : {}),
+      ...(hasAiWorkspace
+        ? {
+            workspace: {
+              panels: () => aiExtrasRef.current.aiWorkspace?.panels() ?? [],
+              maxPanels: aiWorkspace?.maxPanels ?? 8,
+              showSymbols: (symbols: string[], arrangement: "cote_a_cote" | "empilees" | "grille") =>
+                aiExtrasRef.current.aiWorkspace?.showSymbols(symbols, arrangement) ?? { layoutLabel: "", timeframe: undefined },
+              addPanel: (ticker: string) => aiExtrasRef.current.aiWorkspace?.addPanel(ticker) ?? null,
+            },
+          }
+        : {}),
+      // La comparaison de symboles du graphique (le « + » de la recherche) : même dessin `symbolOverlay`, même
+      // couleur suivante, ajouté aux dessins tels qu'ils sont à cet instant.
+      addComparison: (ticker: string, name: string, points: AiOverlayPoint[]) => {
+        const latest = currentDrawings();
+        if (points.length === 0 || latest.some((d) => d.lineType === "symbolOverlay" && d.overlaySymbol === ticker)) return false;
+        const sorted = [...points].sort((a, b) => a.date.getTime() - b.date.getTime());
+        const first = sorted[0];
+        const last = sorted[sorted.length - 1];
+        commitDrawings([
+          ...latest,
+          {
+            id: `drawing-${drawingIdRef.current++}`,
+            x1: first.date,
+            y1: first.value,
+            x2: last.date,
+            y2: last.value,
+            lineType: "symbolOverlay",
+            overlaySymbol: ticker,
+            ...(name && name !== ticker ? { overlaySymbolName: name } : {}),
+            overlayData: sorted,
+            color: defaultIndicatorColor(latest.filter((d) => d.lineType === "symbolOverlay").length),
+          },
+        ]);
+        return true;
+      },
     }),
-    [aiChartBase, replay],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [aiChartBase, replay, canLoadCandles, hasRatioSymbol, hasAiWorkspace],
   );
   aiChartRef.current = aiChart;
 

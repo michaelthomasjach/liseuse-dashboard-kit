@@ -97,6 +97,22 @@ export interface CandlestickChartProps {
    *  l'assistant intégré — un serveur MCP par exemple —, puis `null` au démontage. Voir `ChartToolBridge`. Dans un
    *  `ChartWorkspace`, passez-le à l'espace de travail : il le donne au graphique au premier plan. */
   onToolBridge?: (bridge: import("../ai/chartToolBridge").ChartToolBridge | null) => void;
+  /** Les bougies d'un autre symbole, pour les outils de comparaison de l'assistant (et du pont `onToolBridge`) :
+   *  `mesurer_la_performance` et `creer_un_indice_ratio`. Appelée avec le ticker demandé et l'unité de temps de ce
+   *  graphique ; rend les bougies, les plus anciennes d'abord (ou une promesse). La bibliothèque n'a pas de source de
+   *  données : sans cette prop, ces outils se rabattent sur `onAddSymbolOverlay` (clôtures et, s'il les fournit,
+   *  ouvertures, plus hauts et plus bas), et sans l'une ni l'autre ils ne sont pas proposés. */
+  loadSymbolCandles?: (symbol: string, timeframe: string | undefined) => Candle[] | Promise<Candle[]>;
+  /** Le symbole qui, chez l'application, affiche « numérateur / dénominateur » — un symbole personnalisé calculé par
+   *  elle, par exemple `(a, b) => \`${a}/${b}\``. Rend null quand elle ne sait pas le faire. Permet à l'outil
+   *  `creer_un_indice_ratio` d'ouvrir l'indice comme un vrai symbole (sur ce graphique via `onSymbolSelect`, ou dans
+   *  une fenêtre de plus d'un `ChartWorkspace`) ; sans elle, l'indice ne peut qu'être calculé ici et superposé
+   *  (comparaison de symboles, avec `loadSymbolCandles` ou `onAddSymbolOverlay`). */
+  ratioSymbol?: (numerator: string, denominator: string) => string | null;
+  /** Posé par `ChartWorkspace` sur son graphique au premier plan : ce que l'assistant (et le pont `onToolBridge`)
+   *  peut faire de l'espace de travail — le découper en fenêtres et donner un symbole à chacune (outils
+   *  `comparer_cote_a_cote` et `creer_un_indice_ratio`). Inutile de le passer soi-même. */
+  aiWorkspace?: import("../ai/interfaces/AiWorkspaceControls.interface").AiWorkspaceControls;
   /** Controls the fullscreen toggle from outside instead of it managing its own state — pairs with
    *  `onFullscreenChange` below. `ChartWorkspace` sets both so only one panel can be "focused" at a
    *  time (all its panels share one piece of state, so focusing a new one supersedes whichever had

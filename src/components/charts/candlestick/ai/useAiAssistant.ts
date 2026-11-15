@@ -71,6 +71,9 @@ const TOOL_STEPS: Record<string, string> = {
   lire_les_prix: "Lecture des prix",
   marquer_des_seances: "Marquage des séances",
   lire_la_documentation_du_scripting: "Lecture de la documentation",
+  comparer_cote_a_cote: "Comparaison côte à côte",
+  mesurer_la_performance: "Mesure des performances",
+  creer_un_indice_ratio: "Création de l'indice ratio",
 };
 export const toolStep = (name: string): string => TOOL_STEPS[name] ?? name.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
 
@@ -340,7 +343,9 @@ export function useAiAssistant({ chart, send, serverTools, conversations: store 
                 ? { ...call.input, id: createdId }
                 : call.input;
             // La documentation est servie ici, où le manuel est chargé ; tout autre outil agit sur le graphique.
-            const outcome = call.name === SCRIPTING_DOCS_TOOL ? answerScriptingDocs(manual, input) : runAiTool(call.name, input, chartRef.current);
+            // Attendu : certains outils demandent des bougies à l'application (comparaisons entre symboles).
+            const outcome = call.name === SCRIPTING_DOCS_TOOL ? answerScriptingDocs(manual, input) : await runAiTool(call.name, input, chartRef.current);
+            if (controller.signal.aborted) return;
             if (call.name === "ecrire_un_script" && !outcome.isError) {
               scriptSaved = true;
               createdId = typeof input.id === "string" ? input.id : (/\(id ([^)\s]+)\)/.exec(outcome.content)?.[1] ?? createdId);

@@ -24,6 +24,7 @@ import { useAiChartContext } from "./candlestick/ai/useAiChartContext";
 import { useAiAssistant } from "./candlestick/ai/useAiAssistant";
 import { AiHost, type AiView } from "./candlestick/ai/components/AiHost";
 import { ChartWatermark } from "./candlestick/components/ChartWatermark";
+import { IndicatorHelpProvider } from "./candlestick/components/IndicatorHelp";
 import { strategyAiRequest, type StrategyAiPrompt } from "./candlestick/strategy/strategyAiPrompts";
 import { anthropicSend } from "./candlestick/ai/anthropicSend";
 import { useHoverSync } from "./candlestick/hooks/useHoverSync";
@@ -197,6 +198,7 @@ export function CandlestickChart({
   candleColorRules: candleColorRulesProp,
   onCandleColorRulesChange,
   showCandleColorRules = true,
+  onOpenIndicatorHelp,
   timeframes,
   timeframe,
   onTimeframeChange,
@@ -2072,6 +2074,8 @@ export function CandlestickChart({
       className={["lq-chart", isFullscreen && "lq-chart--fullscreen", placementActive && "lq-chart--placing", className].filter(Boolean).join(" ")}
       style={{ width: isFullscreen ? undefined : width }}
     >
+      {/* Boutons « ? » des indicateurs : page d'aide de l'application, sinon fenêtre intégrée. */}
+      <IndicatorHelpProvider onOpenIndicatorHelp={onOpenIndicatorHelp}>
       <div ref={mainRef} className="lq-chart__main">
       {showHeader && !seasonalityOpen && (
         <StableChartHeader
@@ -2776,6 +2780,7 @@ export function CandlestickChart({
         );
         return aiPortalTarget && aiView === "docked" ? createPortal(aiHost, aiPortalTarget) : aiHost;
       })()}
+      </IndicatorHelpProvider>
     </div>
   );
 }

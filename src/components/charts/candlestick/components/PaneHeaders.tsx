@@ -1,4 +1,5 @@
 import type { IndicatorInfoTarget } from "../interfaces/IndicatorInfoTarget.interface";
+import { IndicatorHelpButton } from "./IndicatorHelp";
 import { defaultIndicatorColor } from "../indicatorCatalog";
 import { scriptIdFromIndicatorId, infoTargetFor } from "../scripting/scriptOutputToCustomIndicatorDef";
 import type { Dispatch, SetStateAction } from "react";
@@ -403,6 +404,7 @@ export function PaneHeaders({
                 >
                   <InfoIcon size={11} />
                 </button>
+                {!ind.customData && <IndicatorHelpButton kind={ind.kind} />}
                 {/* Script-produced indicator only (see scriptIdFromIndicator's own doc) — a
                     shortcut straight to the script that produced it, just left of its own
                     settings gear so the two "go somewhere else to configure this" actions sit

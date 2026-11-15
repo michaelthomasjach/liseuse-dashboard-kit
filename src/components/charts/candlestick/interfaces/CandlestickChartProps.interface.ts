@@ -5,6 +5,7 @@ import type { ChartMargin } from "../../internal/useChartDimensions";
 import type { Candle } from "./Candle.interface";
 import type { TrendLineDrawing, OverlayDataPoint } from "./TrendLineDrawing.interface";
 import type { Indicator } from "./Indicator.interface";
+import type { IndicatorKind } from "./IndicatorKind.interface";
 import type { CustomIndicatorDef } from "./CustomIndicatorDef.interface";
 import type { ChartCustomTool } from "./ChartCustomTool.interface";
 import type { ChartCustomToolbar } from "./ChartCustomToolbar.interface";
@@ -342,6 +343,11 @@ export interface CandlestickChartProps {
    *  rien (une fonctionnalité hors de l'offre du compte, par exemple) ; les couleurs posées par un
    *  script (`plot.candleColor`) restent. Défaut vrai. */
   showCandleColorRules?: boolean;
+  /** Bouton « ? » d'un indicateur intégré (sélecteur d'indicateurs, légende, en-tête de panneau,
+   *  fenêtre de paramètres) : ouvre sa page d'aide (définition, formule, paramètres, lecture,
+   *  limites, script équivalent). Fourni : l'application décide de la navigation (sa propre page,
+   *  un nouvel onglet) ; absent : la page s'ouvre dans une fenêtre du graphique. */
+  onOpenIndicatorHelp?: (kind: IndicatorKind) => void;
   /** Timeframe/interval options shown as a dropdown in the header — flat, or grouped (e.g. one
    *  group per "Minutes"/"Heures"/"Jours"), matching a typical trading-platform interval menu.
    *  This only renders the picker and reports the choice via `onTimeframeChange`; resampling

@@ -7,6 +7,7 @@ import {
 } from "../../../icons";
 import { INDICATOR_CATALOG, type IndicatorCatalogEntry } from "../indicatorCatalog";
 import { INDICATOR_SCRIPT_SOURCES } from "../indicatorScriptSources";
+import { IndicatorHelpButton } from "./IndicatorHelp";
 import { ATTACHABLE_KINDS } from "../attachedIndicators";
 import { analyzeScriptKind } from "../scripting/scriptKind";
 import type { IndicatorInfoTarget } from "../interfaces/IndicatorInfoTarget.interface";
@@ -631,6 +632,7 @@ export function IndicatorPickerModal({
                             <InfoIcon size={13} />
                           </button>
                         )}
+                        {option.descriptionKind && <IndicatorHelpButton kind={option.descriptionKind} />}
                       </div>
                     ))}
                   </div>

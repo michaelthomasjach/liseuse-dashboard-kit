@@ -1,4 +1,5 @@
 import type { IndicatorInfoTarget } from "../interfaces/IndicatorInfoTarget.interface";
+import { IndicatorHelpButton } from "./IndicatorHelp";
 import { scriptIdFromIndicatorId, infoTargetFor } from "../scripting/scriptOutputToCustomIndicatorDef";
 import type * as React from "react";
 import { ChevronLeftIcon, ChevronRightIcon, SettingsIcon, TrashIcon, InfoIcon, CodeIcon } from "../../../icons";
@@ -132,6 +133,7 @@ export function SidePaneHeaders({
                 <button type="button" className="lq-chart__pane-header-action" onClick={() => onOpenIndicatorInfo(infoTargetFor(ind))} aria-label={`À propos de ${indicatorLabel(ind)}`}>
                   <InfoIcon size={11} />
                 </button>
+                {!ind.customData && <IndicatorHelpButton kind={ind.kind} />}
                 {onEditScript &&
                   (() => {
                     const scriptId = scriptIdFromIndicatorId(ind.customData?.id);

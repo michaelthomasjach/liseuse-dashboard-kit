@@ -1,4 +1,5 @@
 import type { IndicatorInfoTarget } from "../interfaces/IndicatorInfoTarget.interface";
+import { IndicatorHelpButton } from "./IndicatorHelp";
 import { infoTargetFor, scriptIdFromIndicatorId } from "../scripting/scriptOutputToCustomIndicatorDef";
 import type { Dispatch, SetStateAction } from "react";
 import { useMemo, useState } from "react";
@@ -462,6 +463,7 @@ export function ChartLegend({
               >
                 <InfoIcon size={11} />
               </button>
+              {!indicator.customData && <IndicatorHelpButton kind={indicator.kind} className="lq-chart__indicator-legend-action" />}
               {/* Beside the "i", same pairing the indicator picker's own rows already use: one
                   button explains what the indicator does, the next shows how it is computed. */}
               {hasIndicatorCode(indicator) && (

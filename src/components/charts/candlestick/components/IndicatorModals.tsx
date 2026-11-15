@@ -24,6 +24,8 @@ import { INDICATOR_DIAGRAMS, VolumeDiagram } from "../diagrams/indicatorDiagramR
 import { drawingToolMeta, drawingLabel } from "../drawingCatalog";
 import { IndicatorSettingsInputs, IndicatorSettingsStyle } from "./IndicatorSettingsFields";
 import { IndicatorPickerModal } from "./IndicatorPickerModal";
+import { IndicatorHelpButton, useOpenIndicatorHelp } from "./IndicatorHelp";
+import { hasIndicatorHelp } from "../indicatorHelp";
 
 export interface IndicatorModalsProps {
   indicatorPickerOpen: boolean;
@@ -194,6 +196,8 @@ export function IndicatorModals({
   // in — an indicator's own legend row opens the same viewer — and two components cannot share one
   // component's local state.
   const { codeTarget, setCodeTarget } = codeViewer;
+  // Page d'aide complète d'un indicateur intégré (« ? ») : la fenêtre « À propos » y renvoie aussi.
+  const openIndicatorHelp = useOpenIndicatorHelp();
   // Which script the trash button is asking to delete, if any — deleting one is irreversible (its
   // code is gone with it), so unlike every other action in this picker it goes through a confirm
   // step rather than happening on the click itself. Holds the name too, so the modal can say what
@@ -317,7 +321,28 @@ export function IndicatorModals({
           // description keyed by IndicatorKind — it isn't one — so its diagram is named directly.
           const Diagram = infoKind === "volume" ? VolumeDiagram : INDICATOR_DIAGRAMS[infoKind];
           return (
-            <Modal open onClose={() => setInfoKind(null)} title={title} size="wide">
+            <Modal
+              open
+              onClose={() => setInfoKind(null)}
+              title={title}
+              size="wide"
+              footer={
+                openIndicatorHelp && infoKind !== "volume" && hasIndicatorHelp(infoKind) ? (
+                  <div className="lq-chart__edit-drawing-footer">
+                    <button
+                      type="button"
+                      className="lq-chart__confirm-button"
+                      onClick={() => {
+                        openIndicatorHelp(infoKind);
+                        setInfoKind(null);
+                      }}
+                    >
+                      Aide complète : formule et paramètres
+                    </button>
+                  </div>
+                ) : undefined
+              }
+            >
               {Diagram && <Diagram />}
               {description && <InfoText>{description}</InfoText>}
             </Modal>
@@ -550,6 +575,7 @@ export function IndicatorModals({
           open
           onClose={closeIndicatorSettings}
           title={`Paramètres — ${indicatorLabel(indicatorDraft)}`}
+          headerActions={indicatorDraft.customData ? undefined : <IndicatorHelpButton kind={indicatorDraft.kind} className="lq-modal__close-icon" />}
           // Plus de boutons : chaque réglage s'applique et s'enregistre aussitôt (voir usePaneLayout).
           footer={null}
         >

@@ -134,6 +134,12 @@ export type { ChartHeaderAction } from "./candlestick/interfaces/ChartHeaderActi
 // Documentation du langage de script : la page complète (rendue sans fenêtre avec `detached`) et le manuel en texte
 // (Markdown), pour une application qui veut les publier sur ses propres pages.
 export { ScriptDocumentationModal } from "./candlestick/scripting/components/ScriptDocumentationModal";
+export { IndicatorHelpArticle, IndicatorHelpIndex } from "./candlestick/components/IndicatorHelpArticle";
+export type { IndicatorHelpArticleProps, IndicatorHelpIndexProps } from "./candlestick/components/IndicatorHelpArticle";
+export { IndicatorHelpProvider, IndicatorHelpButton, useOpenIndicatorHelp } from "./candlestick/components/IndicatorHelp";
+export type { IndicatorHelpProviderProps, IndicatorHelpButtonProps } from "./candlestick/components/IndicatorHelp";
+export { INDICATOR_HELP_DETAILS, INDICATOR_HELP_KINDS, hasIndicatorHelp, indicatorHelpPage } from "./candlestick/indicatorHelp";
+export type { IndicatorHelpDetails, IndicatorHelpPage, IndicatorHelpParam } from "./candlestick/indicatorHelp";
 // « Demander à la documentation » : recherche locale dans la documentation du scripting, et réponse de l'IA de
 // l'application sur les seuls passages trouvés, vérifiée contre eux.
 export { ScriptDocsAsk } from "./candlestick/scripting/components/ScriptDocsAsk";

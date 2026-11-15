@@ -10,6 +10,7 @@ const PLOT_METHODS = [
   "vertical",
   "table",
   "xy",
+  "candleColor",
 ] as const;
 
 /** The `plot` a `@quant` analysis or a `@report` is handed: every method throws, naming what that

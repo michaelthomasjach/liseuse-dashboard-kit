@@ -208,6 +208,23 @@ plot.signal({ type: "SELL", price: market.high(0), text: "divergence" });`,
         returns: "rien.",
         example: `plot.xy("Rendement vs volume", volumes, rendements, { draw: "scatter" });`,
       },
+      {
+        signature: "plot.candleColor(color, options?)",
+        keywords: ["plot.candleColor", "candleColor", "barcolor", "couleur des bougies", "colorer les bougies"],
+        purpose:
+          "Colore la bougie EN COURS — l'équivalent de barcolor en Pine Script. C'est ainsi qu'un indicateur applique une règle métier aux bougies elles-mêmes : « une bougie qui a fait plus de 0,3 % en vert vif », « les bougies à fort volume en bleu ». Le script tourne une fois par bougie : un appel colore la bougie de ce passage, et une bougie qu'on ne colore pas garde ses couleurs habituelles. Le dernier appel sur une même bougie l'emporte, donc inutile de le protéger par bar.isNew() : la bougie en cours change de couleur en direct quand sa condition change.",
+        params: [
+          "color — la couleur CSS du corps (\"#00c853\", \"orange\", \"rgba(…)\"). null efface la couleur posée plus tôt sur cette bougie par ce même script.",
+          "options.wick — la couleur de la mèche ; absente : celle du corps.",
+          "options.border — la couleur de la bordure du corps ; absente : celle du corps.",
+        ],
+        returns: "rien.",
+        caveat:
+          "Priorité : les règles « Couleurs conditionnelles » des paramètres du graphique (onglet Bougies) passent devant le script — une bougie qu'une règle active colore garde la couleur de la règle. Entre deux scripts, le dernier ajouté l'emporte. S'applique aux modes Bougies, Heikin Ashi et Barres ; en mode Ligne, la bougie colorée devient un point de cette couleur sur la ligne ; Renko et Line Break ne sont pas concernés. Fermer le panneau du script (ou le désactiver) rend aux bougies leurs couleurs.",
+        example: `const variation = (market.close(0) - market.open(0)) / market.open(0) * 100;
+if (variation > 0.3) plot.candleColor("#00c853");
+else if (variation < -0.3) plot.candleColor("#d50000", { wick: "#7f0000" });`,
+      },
     ]),
     d("plotOverlay"),
     d("plotSignal"),

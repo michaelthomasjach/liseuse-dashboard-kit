@@ -153,6 +153,9 @@ export { encodeCapture, MAX_CAPTURE_BYTES, CAPTURE_TOOL } from "./candlestick/ai
 export type { WorkspaceRailAction } from "./workspace/WorkspaceSideRail";
 export type { DaySeparatorSettings } from "./candlestick/daySeparators";
 export type { ChartAppearanceSettings } from "./candlestick/hooks/useChartAppearance";
+// Couleurs conditionnelles des bougies (paramètres du graphique, prop `candleColorRules`).
+export type { CandleColorRule, CandleColorCondition, CandleColorMetric, CandleColorOperator } from "./candlestick/interfaces/CandleColorRule.interface";
+export { CANDLE_COLOR_RULE_TEMPLATES } from "./candlestick/candleColorRules";
 export type { ChartDisplayMode } from "./candlestick/interfaces/ChartDisplayMode.interface";
 export { DEFAULT_DAY_SEPARATORS } from "./candlestick/daySeparators";
 export type { PriceAlertLine } from "./candlestick/render/drawPriceAlertLines";

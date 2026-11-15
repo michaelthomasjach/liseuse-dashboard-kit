@@ -143,6 +143,18 @@ export interface ScriptLabelOutput {
   paneName: string;
   paneType: "overlay" | "own";
   name: string;
+/** Un appel à `plot.candleColor(couleur, options?)` : la couleur de la bougie en cours, gardée par date (le dernier
+ *  appel sur une bougie l'emporte). `color: null` efface la couleur qu'un appel précédent du même script avait posée
+ *  sur cette bougie. Voir `candleColorRules.ts` pour l'ordre de priorité face aux règles des paramètres du graphique. */
+export interface ScriptCandleColorOutput {
+  date: number;
+  color: string | null;
+  /** Couleur de la mèche ; absente : celle du corps. */
+  wick?: string;
+  /** Couleur de la bordure du corps ; absente : celle du corps. */
+  border?: string;
+}
+
   text: string;
   x: number;
   y: number;
@@ -249,6 +261,8 @@ export interface ScriptRunResult {
    *  which is the whole point of the decorator: nothing downstream has to guess whether a strategy
    *  pane belongs on screen, the presence of this answers it. */
   strategy: StrategyResult | null;
+  /** Couleurs de bougies posées par `plot.candleColor` — absent ou vide quand le script n'en pose pas. */
+  candleColors?: ScriptCandleColorOutput[];
   /** What a `@quant` analysis returned, per symbol. `null` for every other kind, and the same
    *  reasoning as `strategy` above: nothing downstream has to guess. */
   quant: QuantResult | null;

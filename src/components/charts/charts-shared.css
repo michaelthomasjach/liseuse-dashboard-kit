@@ -4316,6 +4316,14 @@ button.lq-chart__legend-item {
 .lq-chart__rule-pick--effect {
   flex: 1 1 170px;
 }
+/* Couleurs conditionnelles des bougies : « et / ou » entre deux conditions, et l'opérateur (>, <, entre). */
+.lq-chart__rule-pick--combine {
+  flex: 0 0 64px;
+}
+.lq-chart__rule-pick--operator {
+  flex: 0 0 84px;
+  width: 84px;
+}
 /* Un mot et son menu (« est [condition] », « et [borne] »), un menu et son champ de valeur : ils restent ensemble
    quand la phrase passe à la ligne. */
 .lq-chart__rule-group {

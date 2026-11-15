@@ -92,6 +92,9 @@ export interface RenderCandlestickChartParams {
   /** Liquidity fields a script drew — see `drawScriptHeatmaps`. Empty unless a script called
    *  `plot.overlay(...).heatmap(...)`, which is the normal case. */
   scriptHeatmaps: ScriptHeatmapOutput[];
+  /** Bougies recolorées (règles des paramètres du graphique et `plot.candleColor` des scripts), par index dans
+   *  `data` — voir `computeCandleColors`. `null` : aucune, le cas courant. */
+  candleColors: Map<number, import("./CandleColorRule.interface").CandleColorOverride> | null;
   indexForDate: (d: Date) => number;
   /** Draws a diagonal-hatched marker over the price pane's own "future" — from just past the last
    *  candle to the plot's right edge — see drawFutureZone.ts. A chart-settings toggle, not a

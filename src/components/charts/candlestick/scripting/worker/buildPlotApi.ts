@@ -1,4 +1,4 @@
-import type { ScriptDrawingOutput, ScriptHeatmapOutput, ScriptLabelOutput, ScriptPaneSeries, ScriptPaneSubSeries, ScriptTableOutput, ScriptTableRow, ScriptXYChartOutput } from "../interfaces/ScriptRunResult.interface";
+import type { ScriptCandleColorOutput, ScriptDrawingOutput, ScriptHeatmapOutput, ScriptLabelOutput, ScriptPaneSeries, ScriptPaneSubSeries, ScriptTableOutput, ScriptTableRow, ScriptXYChartOutput } from "../interfaces/ScriptRunResult.interface";
 
 /** Hard caps on `plot.table()`/`plot.xy()`'s own output — the `plot.*` calls whose size a script
  *  directly controls (an accidental `rows`/`x`/`y` from an unbounded loop or a huge literal array)
@@ -240,6 +240,18 @@ function slugify(name: string): string {
 }
 
 /** `plot.*`, closed over the current bar's own date/close (via the same kind of callback
+  /** Colore la bougie en cours (l'équivalent de `barcolor` en Pine Script) : son corps en `color`, sa mèche et sa
+   *  bordure dans la même couleur sauf `options.wick` / `options.border`. Le dernier appel sur une bougie l'emporte ;
+   *  `null` efface la couleur posée plus tôt sur cette bougie. Une bougie que le script ne colore pas garde ses couleurs
+   *  habituelles, et une règle active des paramètres du graphique passe devant le script (voir candleColorRules.ts). */
+  candleColor(color: string | null, options?: PlotCandleColorOptions): void;
+}
+
+export interface PlotCandleColorOptions {
+  /** Couleur de la mèche ; absente : celle du corps. */
+  wick?: string;
+  /** Couleur de la bordure du corps ; absente : celle du corps. */
+  border?: string;
  *  `market.*`/`chart.*` use for "which bar is this") and a pair of accumulators mutated across
  *  the whole replay loop — `getResult()` reads them once, after the loop in runScript.ts has
  *  finished, not per bar. `plot.pane`/`plot.overlay` upsert into `panesByName` by their own name
@@ -283,6 +295,7 @@ export function buildPlotApi(
     labelsByName: Map<string, ScriptLabelOutput>;
   }
   const panesByName = new Map<string, PaneEntry>();
+    candleColors: ScriptCandleColorOutput[];
   const drawings: ScriptDrawingOutput[] = [];
   /** Keyed by pane name *and* series name, since two panes may each hold one called "Liquidité"
    *  and they are not the same field. */
@@ -300,6 +313,9 @@ export function buildPlotApi(
       let sub = paneEntry.subSeriesByName.get(name);
       if (!sub) {
         sub = {
+  /** Par date de bougie : le dernier appel sur une bougie remplace les précédents (le script est rejoué en entier à
+   *  chaque nouveau cours, et la dernière bougie peut être recalculée plusieurs fois). */
+  const candleColorsByDate = new Map<number, ScriptCandleColorOutput>();
           key: slugify(name),
           name,
           draw,
@@ -465,6 +481,20 @@ export function buildPlotApi(
   };
 
   return {
+    candleColor: (color, options) => {
+      const date = getCurrentDate();
+      if (color === null || color === undefined || color === "") {
+        candleColorsByDate.set(date, { date, color: null });
+        return;
+      }
+      if (typeof color !== "string") return;
+      candleColorsByDate.set(date, {
+        date,
+        color: color.slice(0, 64),
+        wick: typeof options?.wick === "string" ? options.wick.slice(0, 64) : undefined,
+        border: typeof options?.border === "string" ? options.border.slice(0, 64) : undefined,
+      });
+    },
     api,
     getResult: () => ({
       panes: [...panesByName.values()].map((entry) => ({ name: entry.name, pane: entry.pane, dock: entry.dock, series: [...entry.subSeriesByName.values()] })),
@@ -476,3 +506,4 @@ export function buildPlotApi(
     }),
   };
 }
+      candleColors: [...candleColorsByDate.values()],

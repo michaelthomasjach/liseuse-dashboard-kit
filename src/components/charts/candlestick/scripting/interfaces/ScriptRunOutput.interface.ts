@@ -1,6 +1,6 @@
 import type { CustomIndicatorDef } from "../../interfaces/CustomIndicatorDef.interface";
 import type { TrendLineDrawing } from "../../interfaces/TrendLineDrawing.interface";
-import type { ScriptHeatmapOutput, ScriptLabelOutput, ScriptRunResult, ScriptTableOutput } from "./ScriptRunResult.interface";
+import type { ScriptCandleColorOutput, ScriptHeatmapOutput, ScriptLabelOutput, ScriptRunResult, ScriptTableOutput } from "./ScriptRunResult.interface";
 
 /** A `ScriptLabelOutput` with its own target pane already resolved to a real `CustomIndicatorDef`
  *  id — `paneId` is `scriptPaneIndicatorId(scriptId, paneName)` for `paneType === "own"` (the same
@@ -26,6 +26,8 @@ export interface ScriptRunOutput {
   table: ScriptTableOutput | null;
   labels: ResolvedScriptLabel[];
   heatmaps: ScriptHeatmapOutput[];
+  /** Couleurs de bougies posées par `plot.candleColor` (absent : aucune). */
+  candleColors?: ScriptCandleColorOutput[];
 }
 
 export const EMPTY_SCRIPT_RUN_OUTPUT: ScriptRunOutput = { result: null, running: false, indicators: [], drawings: [], table: null, labels: [], heatmaps: [] };

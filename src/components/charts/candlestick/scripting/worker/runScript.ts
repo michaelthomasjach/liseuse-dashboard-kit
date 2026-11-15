@@ -411,7 +411,7 @@ export async function runScript(snapshot: ScriptEngineSnapshot, ai: AiApi | null
       // bar's own price, no matter how many times the script changed its mind (see settleBar).
       strategy?.settleBar(snapshot.ohlcv[i], i + 1 < snapshot.ohlcv.length ? snapshot.ohlcv[i + 1] : null);
     } catch (err) {
-      const { panes, drawings, table, xyCharts, labels, heatmaps } = getPlotResult();
+      const { panes, drawings, table, xyCharts, labels, heatmaps, candleColors } = getPlotResult();
       // The partial backtest is kept, not discarded: a strategy that threw on bar 900 still traded
       // 899 bars, and seeing where its equity was when it broke is most of the debugging.
       return {
@@ -430,7 +430,8 @@ export async function runScript(snapshot: ScriptEngineSnapshot, ai: AiApi | null
       };
     }
   }
-  const { panes, drawings, table, xyCharts, labels, heatmaps } = getPlotResult();
+        candleColors,
+  const { panes, drawings, table, xyCharts, labels, heatmaps, candleColors } = getPlotResult();
   // Entry/exit markers ride the same drawing channel every `plot.signal` already uses — the chart
   // needs no notion of a "strategy marker" to paint them.
   return {
@@ -448,3 +449,4 @@ export async function runScript(snapshot: ScriptEngineSnapshot, ai: AiApi | null
     report: null,
   };
 }
+    candleColors,

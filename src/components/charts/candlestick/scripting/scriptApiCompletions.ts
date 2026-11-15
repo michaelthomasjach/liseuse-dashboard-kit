@@ -187,6 +187,12 @@ export const SCRIPT_API_COMPLETIONS: ScriptApiCompletion[] = [
     detail: '(name, x[], y[], options?) — graphique X/Y libre, mode notebook uniquement',
     apply: 'plot.xy("", [], [])',
   },
+  {
+    label: "plot.candleColor",
+    type: "function",
+    detail: "(couleur | null, { wick?, border? }?) — colore la bougie en cours (barcolor)",
+    apply: 'plot.candleColor("#00c853")',
+  },
   { label: "state.get", type: "function", detail: "(key, defaultValue?) => any", apply: 'state.get("", )' },
   { label: "state.set", type: "function", detail: "(key, value) => void", apply: 'state.set("", )' },
   { label: "alert", type: "function", detail: "(message) => void", apply: "alert()" },

@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { AAPL_FINANCIALS } from "../../test-data/symbolFinancialsSample";
 import type { ScriptDef } from "./candlestick/interfaces/ScriptDef.interface";
+import type { CandleColorRule } from "./candlestick/interfaces/CandleColorRule.interface";
 import { SCRIPT_EXAMPLES } from "./candlestick/scripting/scriptExamples";
 import type { Meta, StoryObj } from "@storybook/react";
 import {
@@ -1312,6 +1313,59 @@ export const DrawingTimeframeLabels: Story = {
                 ]
               : []
           }
+        />
+      </div>
+    );
+  },
+};
+
+/** Le script de l'exemple « Bougies > +0,3 % en couleur », pris tel quel dans SCRIPT_EXAMPLES (même source que la
+ *  documentation et l'éditeur). Allumé : la story montre ses bougies colorées dès l'ouverture. */
+const CANDLE_COLOR_SCRIPT: ScriptDef = {
+  id: "story-candle-color",
+  name: "Bougies > +0,3 % en couleur",
+  code: SCRIPT_EXAMPLES.find((example) => example.id === "candle-color-threshold")?.code ?? "",
+  named: true,
+  enabled: true,
+};
+
+/**
+ * Couleurs conditionnelles des bougies, de deux façons qui se combinent :
+ * - **Règles des paramètres du graphique** (double-clic sur la légende du symbole → onglet Bougies → « Couleurs
+ *   conditionnelles », ou prop `defaultAppearance.candleColorRules` / `candleColorRules`) : ici « Volume ×2 » en bleu
+ *   et « Doji » en gris. La première règle qui s'applique colore la bougie ; les modèles en un clic sont sous la liste.
+ * - **Un indicateur scripté** qui appelle `plot.candleColor(couleur)` : ici l'exemple de la documentation, bougies de
+ *   plus de +0,3 % en vert vif, de moins de −0,3 % en rouge.
+ * Une règle passe devant le script : une bougie à fort volume reste bleue même si elle a pris 0,3 %.
+ */
+export const CandleColorRules: Story = {
+  name: "Couleurs conditionnelles des bougies (règles et plot.candleColor)",
+  render: () => {
+    const [scripts, setScripts] = useState<ScriptDef[]>([CANDLE_COLOR_SCRIPT]);
+    const [rules, setRules] = useState<CandleColorRule[]>([
+      { id: "story-volume", name: "Volume ×2", conditions: [{ metric: "volume", operator: "gt", value: 2, period: 20 }], color: "#2962ff" },
+      { id: "story-doji", name: "Doji", conditions: [{ metric: "body", operator: "lt", value: 10 }], color: "#9e9e9e", wickColor: "#616161" },
+    ]);
+    const scriptOn = scripts[0]?.enabled !== false;
+    return (
+      <div style={{ height: 600 }}>
+        <p style={{ margin: "0 0 8px", font: "13px sans-serif" }}>
+          {rules.filter((r) => r.enabled !== false).length} règle(s) active(s) dans les paramètres du graphique (double-clic
+          sur la légende du symbole → Bougies) ; script « plot.candleColor » {scriptOn ? "allumé" : "éteint"}.{" "}
+          <button type="button" onClick={() => setScripts((prev) => prev.map((s) => ({ ...s, enabled: !scriptOn })))}>
+            {scriptOn ? "Éteindre le script" : "Allumer le script"}
+          </button>
+        </p>
+        <CandlestickChart
+          data={LOCKED_ZONE_DATASET}
+          symbol="DEMO"
+          height={540}
+          showVolume
+          showIndicators
+          scripts={scripts}
+          onScriptsChange={setScripts}
+          candleColorRules={rules}
+          onCandleColorRulesChange={setRules}
         />
       </div>
     );

@@ -316,6 +316,18 @@ export interface CandlestickChartProps {
    *  enregistrer (par compte, par exemple). */
   defaultAppearance?: import("../hooks/useChartAppearance").ChartAppearanceSettings;
   onAppearanceChange?: (settings: import("../hooks/useChartAppearance").ChartAppearanceSettings) => void;
+  /** Couleurs conditionnelles des bougies, tenues par l'application (contrôlé) : la liste remplace
+   *  `defaultAppearance.candleColorRules`, et chaque modification faite dans les paramètres du
+   *  graphique passe par `onCandleColorRulesChange`. Absent : le graphique les tient lui-même (lues
+   *  dans `defaultAppearance`, remontées par `onAppearanceChange`). La première règle qui s'applique
+   *  à une bougie la colore ; une règle passe devant `plot.candleColor` d'un script. */
+  candleColorRules?: import("./CandleColorRule.interface").CandleColorRule[];
+  onCandleColorRulesChange?: (rules: import("./CandleColorRule.interface").CandleColorRule[]) => void;
+  /** Section « Couleurs conditionnelles » de l'onglet Bougies (paramètres du graphique), et
+   *  application des règles enregistrées. Faux : la section n'apparaît pas et les règles ne colorent
+   *  rien (une fonctionnalité hors de l'offre du compte, par exemple) ; les couleurs posées par un
+   *  script (`plot.candleColor`) restent. Défaut vrai. */
+  showCandleColorRules?: boolean;
   /** Timeframe/interval options shown as a dropdown in the header — flat, or grouped (e.g. one
    *  group per "Minutes"/"Heures"/"Jours"), matching a typical trading-platform interval menu.
    *  This only renders the picker and reports the choice via `onTimeframeChange`; resampling

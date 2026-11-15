@@ -5,7 +5,7 @@ import type { Indicator } from "../../interfaces/Indicator.interface";
 import type { FundamentalDataPoint } from "../../interfaces/FundamentalDataPoint.interface";
 import type { CustomIndicatorDef } from "../../interfaces/CustomIndicatorDef.interface";
 import type { TrendLineDrawing } from "../../interfaces/TrendLineDrawing.interface";
-import type { ScriptHeatmapOutput, ScriptTableOutput } from "../interfaces/ScriptRunResult.interface";
+import type { ScriptCandleColorOutput, ScriptHeatmapOutput, ScriptTableOutput } from "../interfaces/ScriptRunResult.interface";
 import type { ScriptEngineSnapshot } from "../interfaces/ScriptEngineSnapshot.interface";
 import { stripScriptDescription } from "../scriptDescription";
 import { stripScriptBlocks } from "../scriptBlocks";
@@ -190,6 +190,7 @@ export function useScriptEngine(
   const [scriptTable, setScriptTable] = useState<ScriptTableOutput | null>(null);
   const [scriptLabels, setScriptLabels] = useState<ResolvedScriptLabel[]>([]);
   const [scriptHeatmaps, setScriptHeatmaps] = useState<ScriptHeatmapOutput[]>([]);
+  const [scriptCandleColors, setScriptCandleColors] = useState<ScriptCandleColorOutput[]>([]);
   /** The transport a script's own `ai.*` calls go through, always current: a run can be in flight
    *  across several renders, and the answer must be sent by whatever is configured *now*. */
   const aiRef = useRef(ai);
@@ -219,6 +220,8 @@ export function useScriptEngine(
     // Replaced wholesale, not merged: a run is the script's complete answer, and a field it stopped
     // drawing has to disappear rather than linger from the run before.
     setScriptHeatmaps(runResult.heatmaps);
+    // Remplacées en entier, comme les champs de chaleur : une bougie que le script ne colore plus reprend sa couleur.
+    setScriptCandleColors(runResult.candleColors ?? []);
   }
 
   function clearPendingTimeout() {
@@ -501,5 +504,5 @@ export function useScriptEngine(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, effectiveRunUpToIndex, running, debounceMs]);
 
-  return { result, running, scriptIndicators, scriptDrawings, scriptTable, scriptLabels, scriptHeatmaps, run, stop };
+  return { result, running, scriptIndicators, scriptDrawings, scriptTable, scriptLabels, scriptHeatmaps, scriptCandleColors, run, stop };
 }

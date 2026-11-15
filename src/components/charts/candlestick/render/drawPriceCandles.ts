@@ -1,4 +1,6 @@
 import type { RenderCandlestickChartParams } from "../interfaces/RenderCandlestickChartParams.interface";
+import type { Candle } from "../interfaces/Candle.interface";
+import type { CandleColorOverride } from "../interfaces/CandleColorRule.interface";
 import { strokeCrossColoredLine } from "./strokeCrossColoredLine";
 import type { ChartCanvasStyle } from "../interfaces/ChartCanvasStyle.interface";
 import { heatmapReplacesPrice } from "./drawScriptHeatmaps";
@@ -70,6 +72,9 @@ export function drawPriceCandles(ctx: CanvasRenderingContext2D, params: RenderCa
     params;
   const { colorUp, colorDown, colorBg, colorText, colorMuted, colorAccent, colorGrid, fontFamily, isEink } = style;
   const { colorCandleUp, colorCandleDown, wickWidth } = style;
+  // Bougies recolorées par une règle ou un script : sorties des passes groupées par sens, peintes ensuite une couleur à
+  // la fois (voir `drawRecoloredCandles`). Sans elles (le cas courant), rien ne change au chemin rapide.
+  const candleColors = params.candleColors;
 
     // Everything in price space (gridlines, candles, drawings, the price hover line) is clipped
     // to the price section's own rectangle — without this, panning/zooming the price axis could
@@ -143,6 +148,8 @@ export function drawPriceCandles(ctx: CanvasRenderingContext2D, params: RenderCa
           ctx.fill();
         }
         ctx.restore();
+        // Ligne de clôture : une bougie recolorée devient un point de sa couleur sur la ligne.
+        if (candleColors) drawRecoloredCloseDots(ctx, params, candleColors);
       }
     } else if (chartDisplayMode === "renko" || chartDisplayMode === "lineBreak") {
       // Bricks are positioned on the *existing* index-based X scale (see PriceBrick's own
@@ -200,6 +207,7 @@ export function drawPriceCandles(ctx: CanvasRenderingContext2D, params: RenderCa
         ctx.beginPath();
         for (const { d, i } of visible) {
           if (d.close >= d.open !== side) continue;
+          if (candleColors?.has(i)) continue;
           const cx = zoomedXScale(i + 0.5);
           ctx.moveTo(cx, zoomedPriceScale(d.high));
           ctx.lineTo(cx, zoomedPriceScale(d.low));
@@ -216,6 +224,7 @@ export function drawPriceCandles(ctx: CanvasRenderingContext2D, params: RenderCa
         ctx.strokeStyle = isEink ? colorText : side ? colorCandleUp : colorCandleDown;
         ctx.stroke();
       }
+      if (candleColors) drawRecoloredCandles(ctx, params, candleColors, "bar", null, wickWidth);
     } else {
       // "candle"/"heikinAshi" (same candle body/wick drawing, just fed transformed OHLC values
       // that stay 1:1 with `data`'s own indices).
@@ -230,7 +239,7 @@ export function drawPriceCandles(ctx: CanvasRenderingContext2D, params: RenderCa
         ctx.beginPath();
         for (const { d: rawD, i } of visible) {
           const d = useHA ? heikinAshiCandles![i] : rawD;
-          if (d.close >= d.open !== side) continue;
+          if (d.close >= d.open !== side || candleColors?.has(i)) continue;
           const cx = zoomedXScale(i + 0.5);
           ctx.moveTo(cx, zoomedPriceScale(d.high));
           ctx.lineTo(cx, zoomedPriceScale(d.low));
@@ -244,7 +253,7 @@ export function drawPriceCandles(ctx: CanvasRenderingContext2D, params: RenderCa
         ctx.beginPath();
         for (const { d: rawD, i } of visible) {
           const d = useHA ? heikinAshiCandles![i] : rawD;
-          if (d.close >= d.open !== side) continue;
+          if (d.close >= d.open !== side || candleColors?.has(i)) continue;
           const cx = zoomedXScale(i + 0.5);
           const bodyTop = zoomedPriceScale(Math.max(d.open, d.close));
           const bodyBottom = zoomedPriceScale(Math.min(d.open, d.close));
@@ -257,6 +266,7 @@ export function drawPriceCandles(ctx: CanvasRenderingContext2D, params: RenderCa
         ctx.fill();
         ctx.stroke();
       }
+      if (candleColors) drawRecoloredCandles(ctx, params, candleColors, "candle", useHA ? heikinAshiCandles : null, wickWidth);
     }
 
     // "tpo" is an overlay indicator (like S/R or Pivot Points), not a chartDisplayMode — drawn
@@ -915,4 +925,117 @@ export function drawPriceCandles(ctx: CanvasRenderingContext2D, params: RenderCa
       ctx.stroke();
       ctx.restore();
     }
+}
+
+/** Regroupe les bougies recolorées visibles par couleur : une couleur, un chemin, un tracé. */
+function groupByColor(
+  visible: RenderCandlestickChartParams["visible"],
+  colors: Map<number, CandleColorOverride>,
+  pick: (o: CandleColorOverride) => string,
+): Map<string, number[]> {
+  const groups = new Map<string, number[]>();
+  for (const { i } of visible) {
+    const o = colors.get(i);
+    if (!o) continue;
+    const key = pick(o);
+    const list = groups.get(key);
+    if (list) list.push(i);
+    else groups.set(key, [i]);
+  }
+  return groups;
+}
+
+/**
+ * Les bougies recolorées (règles des paramètres du graphique, `plot.candleColor`), peintes après les autres : mèches
+ * d'abord, puis corps remplis de leur couleur et bordés de la leur. En mode Barres, la barre entière prend la couleur
+ * du corps. `ohlc` : les bougies Heikin Ashi quand ce mode est actif — la condition a été lue sur la vraie bougie, la
+ * couleur se pose sur celle qu'on voit. Pas de cas E-ink à part : la couleur a été choisie exprès, elle s'affiche.
+ */
+function drawRecoloredCandles(
+  ctx: CanvasRenderingContext2D,
+  params: RenderCandlestickChartParams,
+  colors: Map<number, CandleColorOverride>,
+  mode: "candle" | "bar",
+  ohlc: Candle[] | null,
+  wickWidth: number,
+): void {
+  const { visible, data, zoomedXScale, zoomedPriceScale, candleWidth } = params;
+  const at = (i: number): Candle | undefined => (ohlc ? ohlc[i] : data[i]);
+  ctx.save();
+  if (mode === "bar") {
+    const tick = Math.max(1, candleWidth / 2);
+    ctx.lineWidth = wickWidth;
+    for (const [color, indices] of groupByColor(visible, colors, (o) => o.body)) {
+      ctx.beginPath();
+      for (const i of indices) {
+        const d = at(i);
+        if (!d) continue;
+        const cx = zoomedXScale(i + 0.5);
+        ctx.moveTo(cx, zoomedPriceScale(d.high));
+        ctx.lineTo(cx, zoomedPriceScale(d.low));
+        const openY = zoomedPriceScale(d.open);
+        ctx.moveTo(cx - tick, openY);
+        ctx.lineTo(cx, openY);
+        const closeY = zoomedPriceScale(d.close);
+        ctx.moveTo(cx, closeY);
+        ctx.lineTo(cx + tick, closeY);
+      }
+      ctx.strokeStyle = color;
+      ctx.stroke();
+    }
+    ctx.restore();
+    return;
+  }
+  ctx.lineWidth = wickWidth;
+  for (const [color, indices] of groupByColor(visible, colors, (o) => o.wick)) {
+    ctx.beginPath();
+    for (const i of indices) {
+      const d = at(i);
+      if (!d) continue;
+      const cx = zoomedXScale(i + 0.5);
+      ctx.moveTo(cx, zoomedPriceScale(d.high));
+      ctx.lineTo(cx, zoomedPriceScale(d.low));
+    }
+    ctx.strokeStyle = color;
+    ctx.stroke();
+  }
+  ctx.lineWidth = 1;
+  for (const [key, indices] of groupByColor(visible, colors, (o) => `${o.body}|${o.border}`)) {
+    const [fill, border] = key.split("|");
+    ctx.beginPath();
+    for (const i of indices) {
+      const d = at(i);
+      if (!d) continue;
+      const cx = zoomedXScale(i + 0.5);
+      const bodyTop = zoomedPriceScale(Math.max(d.open, d.close));
+      const bodyBottom = zoomedPriceScale(Math.min(d.open, d.close));
+      ctx.rect(cx - candleWidth / 2, bodyTop, candleWidth, Math.max(1, bodyBottom - bodyTop));
+    }
+    ctx.fillStyle = fill!;
+    ctx.strokeStyle = border!;
+    ctx.fill();
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/** Mode Ligne : un point de la couleur du corps sur la ligne de clôture, à chaque bougie recolorée. */
+function drawRecoloredCloseDots(ctx: CanvasRenderingContext2D, params: RenderCandlestickChartParams, colors: Map<number, CandleColorOverride>): void {
+  const { visible, data, zoomedXScale, zoomedPriceScale, candleWidth } = params;
+  const radius = Math.max(2, Math.min(4, candleWidth / 2));
+  ctx.save();
+  for (const [color, indices] of groupByColor(visible, colors, (o) => o.body)) {
+    ctx.beginPath();
+    for (const i of indices) {
+      const d = data[i];
+      if (!d) continue;
+      const x = zoomedXScale(i + 0.5);
+      const y = zoomedPriceScale(d.close);
+      ctx.moveTo(x + radius, y);
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+    }
+    ctx.fillStyle = color;
+    ctx.fill();
+  }
+  ctx.restore();
 }

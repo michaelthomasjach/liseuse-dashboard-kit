@@ -245,6 +245,30 @@ if (bb) {
 }`,
   },
   {
+    id: "candle-color-threshold",
+    title: "Bougies > +0,3 % en couleur (plot.candleColor)",
+    description:
+      "Applique une règle métier aux bougies elles-mêmes : celles qui ont pris plus de 0,3 % entre l'ouverture et la clôture passent en vert vif, celles qui en ont perdu plus de 0,3 % en rouge, les autres gardent leurs couleurs. `plot.candleColor` colore la bougie en cours ; le seuil et les couleurs se règlent dans les paramètres du script. Les règles « Couleurs conditionnelles » des paramètres du graphique, si vous en avez, passent devant :",
+    code: `@indicator
+@description "Bougies colorées selon leur variation : > +0,3 % en vert vif, < −0,3 % en rouge."
+
+// Seuils réglables depuis la fenêtre des paramètres du script.
+const SEUIL = new Variable("number", 0.3, { description: "Variation minimale, en %, entre l'ouverture et la clôture.", min: 0, max: 20 });
+const HAUSSE = new Variable("color", "#00c853", { description: "Couleur des bougies au-dessus du seuil." });
+const BAISSE = new Variable("color", "#d50000", { description: "Couleur des bougies en dessous de −seuil." });
+
+const ouverture = market.open(0);
+const cloture = market.close(0);
+if (ouverture !== null && cloture !== null && ouverture !== 0) {
+  const variation = ((cloture - ouverture) / ouverture) * 100;
+  // Appelé à chaque bougie, sans bar.isNew() : le dernier appel sur une bougie l'emporte, la bougie en cours
+  // change donc de couleur en direct quand sa variation franchit le seuil.
+  if (variation > SEUIL) plot.candleColor(HAUSSE);
+  else if (variation < -SEUIL) plot.candleColor(BAISSE, { wick: "#7f0000" });
+  // Sinon : rien, la bougie garde ses couleurs habituelles.
+}`,
+  },
+  {
     id: "volume-spike",
     title: "Détecteur de pic de volume",
     description: "Marque la bougie courante quand son volume dépasse la moyenne + 2 écarts-types des 20 dernières bougies :",

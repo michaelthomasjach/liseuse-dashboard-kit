@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { CandleColorRule } from "../interfaces/CandleColorRule.interface";
 
 /** Réglages d'apparence du graphique (fenêtres « Paramètres du graphique » et « Paramètres du
  *  panneau Volume ») qu'une application peut enregistrer : couleurs des bougies et du volume,
@@ -11,6 +12,8 @@ export interface ChartAppearanceSettings {
   closePulse?: boolean;
   pastZone?: boolean;
   futureZone?: boolean;
+  /** Couleurs conditionnelles des bougies (onglet Bougies), dans leur ordre de priorité — voir `CandleColorRule`. */
+  candleColorRules?: CandleColorRule[];
 }
 
 export interface UseChartAppearanceControlledSettings {
@@ -32,6 +35,10 @@ export interface UseChartAppearanceArgs {
   defaultAppearance?: ChartAppearanceSettings;
   /** Appelé à chaque changement d'un de ces réglages, avec l'ensemble à jour. */
   onAppearanceChange?: (settings: ChartAppearanceSettings) => void;
+  /** Règles de couleur des bougies tenues par l'application (prop `candleColorRules`) : elles remplacent celles de
+   *  `defaultAppearance` et chaque modification passe par `onCandleColorRulesChange`. */
+  candleColorRules?: CandleColorRule[];
+  onCandleColorRulesChange?: (rules: CandleColorRule[]) => void;
 }
 
 /** Chart-settings-modal state: up/down bar color overrides (candles and, independently, volume),
@@ -40,7 +47,7 @@ export interface UseChartAppearanceArgs {
  *  countdown badge (a plain DOM element, not part of the canvas draw effect) a reason to
  *  re-render. None of this reads or writes `drawings`/`indicators`/zoom state, so it's cheap to
  *  keep fully separate from every other concern in this file. */
-export function useChartAppearance({ YAutoScaling, livePrice, controlledSettings, defaultAppearance, onAppearanceChange }: UseChartAppearanceArgs) {
+export function useChartAppearance({ YAutoScaling, livePrice, controlledSettings, defaultAppearance, onAppearanceChange, candleColorRules: candleColorRulesProp, onCandleColorRulesChange }: UseChartAppearanceArgs) {
   const [internalSettingsOpen, setInternalSettingsOpen] = useState(false);
   const settingsOpen = controlledSettings?.open ?? internalSettingsOpen;
   const setSettingsOpen: (open: boolean) => void = controlledSettings?.onChange ?? setInternalSettingsOpen;
@@ -71,6 +78,20 @@ export function useChartAppearance({ YAutoScaling, livePrice, controlledSettings
   const [closePulseVisible, setClosePulseVisible] = useState(defaultAppearance?.closePulse ?? true);
   const [futureZoneVisible, setFutureZoneVisible] = useState(defaultAppearance?.futureZone ?? false);
   const [pastZoneVisible, setPastZoneVisible] = useState(defaultAppearance?.pastZone ?? false);
+  // Couleurs conditionnelles des bougies : tenues ici (lues au montage dans `defaultAppearance`), sauf quand
+  // l'application les tient elle-même par la prop `candleColorRules`.
+  const [internalCandleColorRules, setInternalCandleColorRules] = useState<CandleColorRule[]>(defaultAppearance?.candleColorRules ?? []);
+  const candleColorRules = candleColorRulesProp ?? internalCandleColorRules;
+  const onCandleColorRulesChangeRef = useRef(onCandleColorRulesChange);
+  onCandleColorRulesChangeRef.current = onCandleColorRulesChange;
+  const controlledRules = candleColorRulesProp !== undefined;
+  const setCandleColorRules = useCallback(
+    (rules: CandleColorRule[]) => {
+      if (!controlledRules) setInternalCandleColorRules(rules);
+      onCandleColorRulesChangeRef.current?.(rules);
+    },
+    [controlledRules],
+  );
 
   // Remonte chaque changement à l'application (pas le premier rendu : rien n'a encore changé).
   const onAppearanceChangeRef = useRef(onAppearanceChange);
@@ -89,8 +110,9 @@ export function useChartAppearance({ YAutoScaling, livePrice, controlledSettings
       closePulse: closePulseVisible,
       pastZone: pastZoneVisible,
       futureZone: futureZoneVisible,
+      candleColorRules: internalCandleColorRules,
     });
-  }, [upColorOverride, downColorOverride, volumeUpColorOverride, volumeDownColorOverride, closePulseVisible, pastZoneVisible, futureZoneVisible]);
+  }, [upColorOverride, downColorOverride, volumeUpColorOverride, volumeDownColorOverride, closePulseVisible, pastZoneVisible, futureZoneVisible, internalCandleColorRules]);
 
   // Ticks once a second, only while `livePrice` is on — its only job is giving the countdown
   // badge (a plain DOM element, not part of the canvas draw effect) a reason to re-render each
@@ -123,6 +145,8 @@ export function useChartAppearance({ YAutoScaling, livePrice, controlledSettings
     setFutureZoneVisible,
     pastZoneVisible,
     setPastZoneVisible,
+    candleColorRules,
+    setCandleColorRules,
     now,
   };
 }

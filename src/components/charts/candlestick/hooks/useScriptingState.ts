@@ -339,6 +339,9 @@ export function useScriptingState({ defaultScripts, onScriptsChange, controlledE
   // — closing a script has to take its liquidity field with it, the same way it takes its lines and
   // its tables. A heat field left behind would be the most visible orphan of the lot.
   const scriptHeatmaps = useMemo(() => plottableRunOutputs.flatMap((o) => o.heatmaps), [plottableRunOutputs]);
+  // Couleurs de bougies (`plot.candleColor`) : retirées avec le reste quand le panneau du script est fermé. Mises bout à
+  // bout dans l'ordre des scripts : appliquées dans cet ordre, le dernier script ajouté l'emporte sur une même bougie.
+  const scriptCandleColors = useMemo(() => plottableRunOutputs.flatMap((o) => o.candleColors ?? []), [plottableRunOutputs]);
   /** Which scripts are mid-run right now, by id.
    *
    *  Read off the raw outputs rather than the filtered ones: a script whose output is withheld is
@@ -388,6 +391,7 @@ export function useScriptingState({ defaultScripts, onScriptsChange, controlledE
     scriptTables,
     scriptLabels,
     scriptHeatmaps,
+    scriptCandleColors,
     runningScriptIds,
   };
 }

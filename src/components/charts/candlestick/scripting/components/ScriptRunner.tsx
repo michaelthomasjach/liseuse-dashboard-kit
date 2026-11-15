@@ -194,9 +194,10 @@ export function ScriptRunner({ script, data, indicators, fundamentals, lastCandl
       table: engine.scriptTable,
       labels: engine.scriptLabels,
       heatmaps: engine.scriptHeatmaps,
+      candleColors: engine.scriptCandleColors,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [script.id, engine.result, engine.running, engine.scriptIndicators, engine.scriptDrawings, engine.scriptTable, engine.scriptLabels, engine.scriptHeatmaps]);
+  }, [script.id, engine.result, engine.running, engine.scriptIndicators, engine.scriptDrawings, engine.scriptTable, engine.scriptLabels, engine.scriptHeatmaps, engine.scriptCandleColors]);
 
   useEffect(() => {
     if (!onAlert || !engine.result) return;

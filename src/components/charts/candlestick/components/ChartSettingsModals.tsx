@@ -8,6 +8,9 @@ import { Tabs } from "../../../primitives/Tabs";
 import { capitalize } from "../formatting";
 import { CHART_DISPLAY_MODES } from "../chartModes";
 import type { ChartDisplayMode } from "../interfaces/ChartDisplayMode.interface";
+import type { CandleColorRule } from "../interfaces/CandleColorRule.interface";
+import type { Indicator } from "../interfaces/Indicator.interface";
+import { CandleColorRulesEditor } from "./CandleColorRulesEditor";
 
 export interface ChartSettingsModalsProps {
   settingsOpen: boolean;
@@ -53,6 +56,13 @@ export interface ChartSettingsModalsProps {
   /** Ligne symbole · type · OHLC en haut à gauche, masquée. */
   symbolInfoHidden: boolean;
   setSymbolInfoHidden: (hidden: boolean) => void;
+  /** Couleurs conditionnelles des bougies (onglet Bougies) ; la section n'apparaît pas quand `showCandleColorRules`
+   *  est faux (fonctionnalité hors de l'offre, par exemple). */
+  candleColorRules: CandleColorRule[];
+  setCandleColorRules: (rules: CandleColorRule[]) => void;
+  showCandleColorRules: boolean;
+  /** Les indicateurs du graphique, pour « clôture au-dessus / en dessous de » une courbe. */
+  candleRuleIndicators: Indicator[];
 }
 
 type SettingsTab = "bougies" | "affichage" | "evenements" | "integration";
@@ -97,6 +107,10 @@ export function ChartSettingsModals({
   watermarkAvailable,
   symbolInfoHidden,
   setSymbolInfoHidden,
+  candleColorRules,
+  setCandleColorRules,
+  showCandleColorRules,
+  candleRuleIndicators,
 }: ChartSettingsModalsProps) {
   // Onglets de la fenêtre des paramètres : les réglages rangés par thème plutôt qu'en une longue colonne.
   const [tab, setTab] = useState<SettingsTab>("bougies");
@@ -227,6 +241,9 @@ export function ChartSettingsModals({
             >
               Réinitialiser aux couleurs du thème
             </button>
+          )}
+          {showCandleColorRules && (
+            <CandleColorRulesEditor rules={candleColorRules} indicators={candleRuleIndicators} onChange={setCandleColorRules} />
           )}
           </>
           )}

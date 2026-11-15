@@ -1,0 +1,413 @@
+/* « Paramètres du graphique » : navigation verticale + pages de réglages en lignes « libellé / contrôle ». */
+
+.lq-chart-settings {
+  display: grid;
+  grid-template-columns: 188px minmax(0, 1fr);
+  gap: 0;
+  height: 100%;
+  min-height: 0;
+  margin: calc(-1 * var(--lq-space-2, 8px)) 0;
+}
+
+.lq-chart-settings--mobile {
+  grid-template-columns: minmax(0, 1fr);
+  margin: 0;
+}
+
+.lq-chart-settings__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--lq-space-2, 8px) var(--lq-space-3, 12px) var(--lq-space-2, 8px) 0;
+  border-right: 1px solid var(--lq-color-border-subtle);
+  overflow-y: auto;
+}
+
+.lq-chart-settings--mobile .lq-chart-settings__nav {
+  padding: 0;
+  border-right: none;
+}
+
+.lq-chart-settings__nav-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lq-space-2, 8px);
+  width: 100%;
+  min-height: 34px;
+  padding: 6px 10px;
+  border: none;
+  border-radius: var(--lq-radius-sm, 6px);
+  background: none;
+  color: var(--lq-color-text);
+  font: inherit;
+  font-size: 0.86rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.lq-chart-settings__nav-item:hover {
+  background-color: var(--lq-color-hover, var(--lq-color-fill));
+}
+
+.lq-chart-settings__nav-item:focus-visible {
+  outline: 2px solid var(--lq-color-accent);
+  outline-offset: -2px;
+}
+
+.lq-chart-settings__nav-item--active,
+.lq-chart-settings__nav-item--active:hover {
+  background-color: color-mix(in srgb, var(--lq-color-text) 9%, transparent);
+  box-shadow: inset 3px 0 0 var(--lq-color-accent);
+  color: var(--lq-color-text);
+  font-weight: var(--lq-font-weight-semibold, 600);
+}
+
+.lq-chart-settings--mobile .lq-chart-settings__nav-item {
+  min-height: 48px;
+  border-bottom: 1px solid var(--lq-color-border-subtle);
+  border-radius: 0;
+  font-size: 0.95rem;
+}
+
+.lq-chart-settings__page {
+  min-width: 0;
+  min-height: 0;
+  padding: var(--lq-space-2, 8px) 0 var(--lq-space-2, 8px) var(--lq-space-4, 16px);
+  overflow-y: auto;
+}
+
+.lq-chart-settings--mobile .lq-chart-settings__page {
+  padding: 0;
+  overflow: visible;
+}
+
+.lq-chart-settings__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0 0 var(--lq-space-2, 8px);
+  padding: 6px 0;
+  border: none;
+  background: none;
+  color: var(--lq-color-text-muted);
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.lq-chart-settings__section + .lq-chart-settings__section {
+  margin-top: var(--lq-space-4, 16px);
+}
+
+/* Titres de section en petites capitales, comme une étiquette de groupe. */
+.lq-chart-settings__section-title {
+  margin: 0 0 4px;
+  font-size: 0.68rem;
+  font-weight: var(--lq-font-weight-semibold, 600);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-chart-settings__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lq-space-3, 12px);
+  min-height: 36px;
+  padding: 3px 0;
+}
+
+.lq-chart-settings__row--disabled .lq-chart-settings__label {
+  opacity: 0.5;
+}
+
+.lq-chart-settings__row--action {
+  justify-content: flex-end;
+  min-height: 28px;
+}
+
+.lq-chart-settings__label {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  font-size: 0.85rem;
+  color: var(--lq-color-text);
+}
+
+.lq-chart-settings__hint {
+  font-size: 0.72rem;
+  line-height: 1.3;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-chart-settings__control {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--lq-space-2, 8px);
+}
+
+.lq-chart-settings__pair {
+  display: inline-flex;
+  gap: 6px;
+}
+
+/* Les pastilles de couleur : 28 × 20, arrondies à 4 px (celles du sélecteur de couleur gardent leur allure). */
+.lq-chart-settings .lq-color-picker__swatch {
+  width: 28px;
+  height: 20px;
+  border-radius: 4px;
+}
+
+.lq-chart-settings__select {
+  width: 118px;
+}
+
+.lq-chart-settings__select--wide {
+  width: 168px;
+}
+
+.lq-chart-settings__segmented {
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid var(--lq-color-border-subtle);
+  border-radius: var(--lq-radius-sm, 6px);
+}
+
+.lq-chart-settings__segment {
+  padding: 3px 9px;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: var(--lq-color-text-muted);
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.lq-chart-settings__segment--active {
+  background-color: color-mix(in srgb, var(--lq-color-text) 12%, transparent);
+  color: var(--lq-color-text);
+  font-weight: var(--lq-font-weight-semibold, 600);
+}
+
+.lq-chart-settings__number {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-chart-settings__number input {
+  box-sizing: border-box;
+  width: 64px;
+  height: 28px;
+  padding: 0 6px;
+  border: 1px solid var(--lq-color-border);
+  border-radius: 4px;
+  background: var(--lq-color-bg);
+  color: var(--lq-color-text);
+  font: inherit;
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.lq-chart-settings__range {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-chart-settings__range input {
+  width: 140px;
+  accent-color: var(--lq-color-accent);
+}
+
+.lq-chart-settings__range span {
+  min-width: 38px;
+  text-align: right;
+}
+
+.lq-chart-settings__note {
+  margin: 4px 0;
+  font-size: 0.76rem;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-chart-settings__link {
+  padding: 2px 0;
+  border: none;
+  background: none;
+  color: var(--lq-color-accent);
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.lq-chart-settings__link:hover {
+  text-decoration: underline;
+}
+
+/* Pied : « Modèle ▾ » à gauche, Annuler / Valider à droite. */
+.lq-chart-settings__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lq-space-3, 12px);
+  width: 100%;
+}
+
+.lq-chart-settings__footer-actions {
+  display: flex;
+  gap: var(--lq-space-2, 8px);
+}
+
+.lq-chart-settings__templates {
+  position: relative;
+}
+
+.lq-chart-settings__menu {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  min-width: 230px;
+  max-height: 320px;
+  padding: 4px;
+  overflow-y: auto;
+  border: 1px solid var(--lq-color-border);
+  border-radius: var(--lq-radius-sm, 6px);
+  background: var(--lq-color-panel, var(--lq-color-bg));
+  box-shadow: 0 6px 24px rgb(0 0 0 / 0.16);
+}
+
+.lq-chart-settings__menu-item {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 4px 8px;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: var(--lq-color-text);
+  font: inherit;
+  font-size: 0.84rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.lq-chart-settings__menu-item:hover {
+  background-color: var(--lq-color-hover, var(--lq-color-fill));
+}
+
+.lq-chart-settings__menu-template {
+  display: flex;
+  align-items: center;
+}
+
+.lq-chart-settings__menu-delete {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: var(--lq-color-text-muted);
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.lq-chart-settings__menu-delete:hover {
+  background-color: var(--lq-color-hover, var(--lq-color-fill));
+  color: var(--lq-color-text);
+}
+
+.lq-chart-settings__menu-swatches {
+  display: inline-flex;
+  overflow: hidden;
+  border: 1px solid var(--lq-color-border-subtle);
+  border-radius: 3px;
+}
+
+.lq-chart-settings__menu-swatches span {
+  width: 8px;
+  height: 14px;
+}
+
+.lq-chart-settings__menu-sep {
+  height: 1px;
+  margin: 4px 0;
+  background: var(--lq-color-border-subtle);
+}
+
+.lq-chart-settings__menu-form {
+  display: flex;
+  gap: 6px;
+  padding: 4px;
+}
+
+.lq-chart-settings__menu-form input {
+  flex: 1;
+  min-width: 0;
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid var(--lq-color-border);
+  border-radius: 4px;
+  background: var(--lq-color-bg);
+  color: var(--lq-color-text);
+  font: inherit;
+  font-size: 0.84rem;
+}
+
+/* Rendu du graphique piloté par ces réglages (voir chartStyle.ts). */
+.lq-chart__plot .lq-chart__price-volume-divider {
+  stroke: var(--lq-chart-pane-separator-color, var(--lq-color-border-subtle));
+}
+
+/* Fond personnalisé : la légende et les en-têtes de panneaux passent sur une couleur de texte lisible sur ce fond. */
+.lq-chart__plot[data-lq-custom-bg] .lq-chart__plot-topleft,
+.lq-chart__plot[data-lq-custom-bg] .lq-chart__pane-header {
+  --lq-color-text: var(--lq-chart-on-bg-text);
+  --lq-color-text-muted: var(--lq-chart-on-bg-muted);
+}
+
+/* Échelle des prix à gauche : les pastilles collent au bord droit de la colonne, contre le tracé. */
+.lq-chart__axis-value--left-axis {
+  justify-content: flex-end;
+}
+
+.lq-chart__axis-value--high-low {
+  color: var(--lq-color-text);
+  background-color: var(--lq-color-panel, var(--lq-color-bg));
+  box-shadow: inset 0 0 0 1px var(--lq-color-border);
+}
+
+.lq-chart__axis-value--indicator {
+  color: #ffffff;
+}
+
+.lq-chart__indicator-legend-value {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 640px) {
+  .lq-chart-settings__row {
+    min-height: 44px;
+  }
+  .lq-chart-settings__select--wide {
+    width: 148px;
+  }
+}

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { CandleColorRule } from "../interfaces/CandleColorRule.interface";
+import type { ChartStyleSettings, ChartStyleTemplate } from "../chartStyle";
 import type { PriceScaleMode } from "../interfaces/PriceScaleMode.interface";
 
 /** Réglages d'apparence du graphique (fenêtres « Paramètres du graphique » et « Paramètres du
@@ -19,6 +20,11 @@ export interface ChartAppearanceSettings {
   priceScale?: PriceScaleMode;
   /** Ajustement automatique de l'axe des prix aux bougies visibles (défaut : la prop `YAutoScaling`). */
   autoFit?: boolean;
+  /** Réglages avancés (mèches et bordures, ligne d'état, échelles, toile) — voir `ChartStyleSettings`. Absent : le
+   *  rendu par défaut. */
+  style?: ChartStyleSettings;
+  /** Modèles d'apparence enregistrés depuis le menu « Modèle » des paramètres. */
+  styleTemplates?: ChartStyleTemplate[];
 }
 
 export interface UseChartAppearanceControlledSettings {
@@ -89,6 +95,9 @@ export function useChartAppearance({ YAutoScaling, livePrice, controlledSettings
   // l'application les tient elle-même par la prop `candleColorRules`.
   const [internalCandleColorRules, setInternalCandleColorRules] = useState<CandleColorRule[]>(defaultAppearance?.candleColorRules ?? []);
   const candleColorRules = candleColorRulesProp ?? internalCandleColorRules;
+  // Réglages avancés et modèles d'apparence (fenêtre des paramètres), lus au montage comme le reste.
+  const [chartStyle, setChartStyle] = useState<ChartStyleSettings>(defaultAppearance?.style ?? {});
+  const [styleTemplates, setStyleTemplates] = useState<ChartStyleTemplate[]>(defaultAppearance?.styleTemplates ?? []);
   const onCandleColorRulesChangeRef = useRef(onCandleColorRulesChange);
   onCandleColorRulesChangeRef.current = onCandleColorRulesChange;
   const controlledRules = candleColorRulesProp !== undefined;
@@ -120,8 +129,10 @@ export function useChartAppearance({ YAutoScaling, livePrice, controlledSettings
       candleColorRules: internalCandleColorRules,
       priceScale: priceScaleMode,
       autoFit: yAutoScalingState,
+      style: chartStyle,
+      styleTemplates,
     });
-  }, [upColorOverride, downColorOverride, volumeUpColorOverride, volumeDownColorOverride, closePulseVisible, pastZoneVisible, futureZoneVisible, internalCandleColorRules, priceScaleMode, yAutoScalingState]);
+  }, [upColorOverride, downColorOverride, volumeUpColorOverride, volumeDownColorOverride, closePulseVisible, pastZoneVisible, futureZoneVisible, internalCandleColorRules, priceScaleMode, yAutoScalingState, chartStyle, styleTemplates]);
 
   // Ticks once a second, only while `livePrice` is on — its only job is giving the countdown
   // badge (a plain DOM element, not part of the canvas draw effect) a reason to re-render each
@@ -158,6 +169,10 @@ export function useChartAppearance({ YAutoScaling, livePrice, controlledSettings
     setPastZoneVisible,
     candleColorRules,
     setCandleColorRules,
+    chartStyle,
+    setChartStyle,
+    styleTemplates,
+    setStyleTemplates,
     now,
   };
 }

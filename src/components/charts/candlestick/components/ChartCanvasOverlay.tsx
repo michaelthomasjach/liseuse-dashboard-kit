@@ -24,6 +24,7 @@ import type { TextEntryState } from "../interfaces/TextEntryState.interface";
 import type { EditingCellState } from "../interfaces/EditingCellState.interface";
 import { TABLE_DEFAULT_ROWS, TABLE_DEFAULT_COLS } from "../constants";
 import { tableCellRect } from "../drawingGeometry";
+import { defaultYAxisGutter, type ChartYAxisGutter } from "../chartStyle";
 
 // One per TextEntryState.tool — module-scope since it depends on nothing render-specific.
 const TEXT_ENTRY_PLACEHOLDERS: Record<TextEntryState["tool"], string> = {
@@ -41,6 +42,9 @@ interface AxisDragHandlers {
 }
 
 export interface ChartCanvasOverlayProps {
+  /** Colonne des axes Y (côté, largeur, axes visibles) — réglages « Échelles et lignes ». Absente : à droite, toute
+   *  la marge droite, tous les axes visibles. */
+  yGutter?: ChartYAxisGutter;
   canvasRef: RefObject<HTMLCanvasElement>;
   /** The hover crosshair's own canvas, stacked right over `canvasRef` (see useRenderCandlestickChart). */
   crosshairCanvasRef: RefObject<HTMLCanvasElement>;
@@ -271,7 +275,12 @@ export function ChartCanvasOverlay({
   setActiveEventStack,
   textEntry,
   editingCell,
+  yGutter,
 }: ChartCanvasOverlayProps) {
+  // Colonne des axes Y : à droite (défaut) ou à gauche du tracé, axes masquables (voir ChartYAxisGutter).
+  const gutter = yGutter ?? defaultYAxisGutter(dims);
+  const yAxisOrientation = gutter.side === "left" ? "left" : "right";
+  const yAxisTransform = gutter.side === "left" ? "translate(0, 0)" : `translate(${dims.boundedWidth}, 0)`;
   const editingCellDrawing = editingCell.entry ? visibleDrawings.find((d) => d.id === editingCell.entry!.drawingId) : undefined;
   const editingCellRect =
     editingCellDrawing && editingCell.entry
@@ -318,11 +327,13 @@ export function ChartCanvasOverlay({
           {/* priceHeight is 0 whenever a sub-pane is fullscreened (see usePaneLayout's own
               priceHeight formula) — without this, the axis would render its ticks against a
               degenerate zero-height scale, bunching every price label at the very top. */}
-          {priceHeight > 0 && (
+          {priceHeight > 0 && gutter.priceVisible && (
             <ChartAxis
               scale={zoomedPriceScale}
-              orientation="right"
-              transform={`translate(${dims.boundedWidth}, 0)`}
+              // Remonté au changement de côté : d3-axis ne pose l'ancrage du texte qu'à la création du groupe.
+              key={yAxisOrientation}
+              orientation={yAxisOrientation}
+              transform={yAxisTransform}
               tickFormat={(v) => priceAxisFmt(Number(v))}
             />
           )}
@@ -335,30 +346,31 @@ export function ChartCanvasOverlay({
             <>
               {!volumeCollapsed && (
                 <g transform={`translate(0, ${priceHeight + volumeTop})`}>
-                  <ChartAxis
+                  {gutter.panesVisible && <ChartAxis
                     scale={zoomedVolumeScale}
-                    orientation="right"
-                    transform={`translate(${dims.boundedWidth}, 0)`}
+                    key={yAxisOrientation}
+                    orientation={yAxisOrientation}
+                    transform={yAxisTransform}
                     ticks={2}
                     tickFormat={(v) => vFmt(Number(v))}
-                  />
+                  />}
                   {/* Drag (or double-click to reset) the volume pane's own axis to rescale just
                       this pane vertically — same convention as the price axis's own strip,
                       independent of it and of every other pane's own rescale. */}
                   <rect
                     className="lq-chart__axis-drag lq-chart__axis-drag--y"
-                    x={dims.boundedWidth}
+                    x={gutter.x}
                     y={0}
-                    width={dims.margin.right}
+                    width={gutter.width}
                     height={volumeHeight}
                     onPointerDown={handlePaneYAxisPointerDown("volume", volumeHeight)}
                     onPointerMove={handlePaneYAxisPointerMove}
                     onPointerUp={handlePaneYAxisPointerUp}
                     onDoubleClick={() => resetPaneYAxis("volume")}
                   />
-                  <AxisHintIcon orientation="y" cx={dims.boundedWidth + dims.margin.right / 2} cy={volumeHeight / 2} />
+                  <AxisHintIcon orientation="y" cx={gutter.x + gutter.width / 2} cy={volumeHeight / 2} />
                   {isYAxisManual("volume") && (
-                    <AxisManualBadge x={dims.boundedWidth + dims.margin.right - 9} y={volumeHeight - 9} onReset={() => resetPaneYAxis("volume")} />
+                    <AxisManualBadge x={gutter.x + gutter.width - 9} y={volumeHeight - 9} onReset={() => resetPaneYAxis("volume")} />
                   )}
                 </g>
               )}
@@ -369,8 +381,8 @@ export function ChartCanvasOverlay({
                   not always priceHeight, now that volume isn't necessarily right after price. */}
               <line
                 className="lq-chart__price-volume-divider"
-                x1={dims.boundedWidth}
-                x2={dims.boundedWidth + dims.margin.right}
+                x1={gutter.x}
+                x2={gutter.x + gutter.width}
                 y1={snapPixel(priceHeight + volumeTop)}
                 y2={snapPixel(priceHeight + volumeTop)}
               />
@@ -391,34 +403,35 @@ export function ChartCanvasOverlay({
               <g key={ind.id}>
                 {!ind.paneCollapsed && (
                   <g transform={`translate(0, ${paneTop})`}>
-                    <ChartAxis
+                    {gutter.panesVisible && <ChartAxis
                       scale={scale}
-                      orientation="right"
-                      transform={`translate(${dims.boundedWidth}, 0)`}
+                      key={yAxisOrientation}
+                      orientation={yAxisOrientation}
+                      transform={yAxisTransform}
                       ticks={3}
                       tickFormat={paneAxisFormat(ind, scale)}
-                    />
+                    />}
                     <rect
                       className="lq-chart__axis-drag lq-chart__axis-drag--y"
-                      x={dims.boundedWidth}
+                      x={gutter.x}
                       y={0}
-                      width={dims.margin.right}
+                      width={gutter.width}
                       height={paneHeight}
                       onPointerDown={handlePaneYAxisPointerDown(ind.id, paneHeight)}
                       onPointerMove={handlePaneYAxisPointerMove}
                       onPointerUp={handlePaneYAxisPointerUp}
                       onDoubleClick={() => resetPaneYAxis(ind.id)}
                     />
-                    <AxisHintIcon orientation="y" cx={dims.boundedWidth + dims.margin.right / 2} cy={paneHeight / 2} />
+                    <AxisHintIcon orientation="y" cx={gutter.x + gutter.width / 2} cy={paneHeight / 2} />
                     {isYAxisManual(ind.id) && (
-                      <AxisManualBadge x={dims.boundedWidth + dims.margin.right - 9} y={paneHeight - 9} onReset={() => resetPaneYAxis(ind.id)} />
+                      <AxisManualBadge x={gutter.x + gutter.width - 9} y={paneHeight - 9} onReset={() => resetPaneYAxis(ind.id)} />
                     )}
                   </g>
                 )}
                 <line
                   className="lq-chart__price-volume-divider"
-                  x1={dims.boundedWidth}
-                  x2={dims.boundedWidth + dims.margin.right}
+                  x1={gutter.x}
+                  x2={gutter.x + gutter.width}
                   y1={snapPixel(paneTop)}
                   y2={snapPixel(paneTop)}
                 />
@@ -426,25 +439,25 @@ export function ChartCanvasOverlay({
             );
           })}
 
-          <ChartAxis
+          {gutter.timeVisible && <ChartAxis
             scale={zoomedXScale}
             orientation="bottom"
             transform={`translate(0, ${plotBoundedHeight})`}
             tickValues={dateTickValues}
             tickFormat={dateTickFormat}
-          />
+          />}
           {/* The date axis's own domain line only spans [0, boundedWidth] — its own scale's
               range, i.e. the canvas/plot area — so it stopped short of the chart's actual
               right edge, leaving the price-axis label column above it without a matching
               line underneath. Same fix as the price/volume divider above: continue it across
               that column with a plain SVG line. */}
-          <line
+          {gutter.timeVisible && <line
             className="lq-chart__axis-line-extension"
-            x1={dims.boundedWidth}
-            x2={dims.boundedWidth + dims.margin.right}
+            x1={gutter.x}
+            x2={gutter.x + gutter.width}
             y1={snapPixel(plotBoundedHeight)}
             y2={snapPixel(plotBoundedHeight)}
-          />
+          />}
 
           {/* A ripple where the close line ends, fired by `useClosePulse` each time the price
               actually moves. Drawn here rather than on the canvas because it has to keep animating
@@ -503,18 +516,18 @@ export function ChartCanvasOverlay({
           <rect
             ref={yAxisWheelRef}
             className="lq-chart__axis-drag lq-chart__axis-drag--y"
-            x={dims.boundedWidth}
+            x={gutter.x}
             y={0}
-            width={dims.margin.right}
+            width={gutter.width}
             height={priceHeight}
             onPointerDown={yAxisDrag.onPointerDown}
             onPointerMove={yAxisDrag.onPointerMove}
             onPointerUp={yAxisDrag.onPointerUp}
             onDoubleClick={resetYAxis}
           />
-          <AxisHintIcon orientation="y" cx={dims.boundedWidth + dims.margin.right / 2} cy={priceHeight / 2} />
+          <AxisHintIcon orientation="y" cx={gutter.x + gutter.width / 2} cy={priceHeight / 2} />
           {priceHeight > 0 && isYAxisManual("price") && (
-            <AxisManualBadge x={dims.boundedWidth + dims.margin.right - 9} y={priceHeight - 9} onReset={resetYAxis} />
+            <AxisManualBadge x={gutter.x + gutter.width - 9} y={priceHeight - 9} onReset={resetYAxis} />
           )}
           <rect
             ref={xAxisWheelRef}

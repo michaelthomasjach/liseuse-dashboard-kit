@@ -2,17 +2,12 @@ import { ColorPicker } from "../../../forms/ColorPicker";
 import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { Modal } from "../../../primitives/Modal";
 import { ChartPropsModal } from "./ChartPropsModal";
-import { CodeIcon } from "../../../icons";
-import { Checkbox } from "../../../forms/Checkbox";
-import { Toggle } from "../../../primitives/Toggle";
-import { Tabs } from "../../../primitives/Tabs";
-import { capitalize } from "../formatting";
-import { CHART_DISPLAY_MODES } from "../chartModes";
 import type { ChartDisplayMode } from "../interfaces/ChartDisplayMode.interface";
 import type { PriceScaleMode } from "../interfaces/PriceScaleMode.interface";
 import type { CandleColorRule } from "../interfaces/CandleColorRule.interface";
 import type { Indicator } from "../interfaces/Indicator.interface";
-import { CandleColorRulesEditor } from "./CandleColorRulesEditor";
+import { ChartSettingsDialog } from "./ChartSettingsDialog";
+import type { ChartStyleSettings, ChartStyleTemplate } from "../chartStyle";
 import "./IndicatorSettings.css";
 
 export interface ChartSettingsModalsProps {
@@ -69,16 +64,16 @@ export interface ChartSettingsModalsProps {
   showCandleColorRules: boolean;
   /** Les indicateurs du graphique, pour « clôture au-dessus / en dessous de » une courbe. */
   candleRuleIndicators: Indicator[];
+  /** Réglages avancés (Symbole, Ligne d'état, Échelles et lignes, Toile) et modèles d'apparence — voir `ChartStyleSettings`. */
+  chartStyle: ChartStyleSettings;
+  setChartStyle: (style: ChartStyleSettings) => void;
+  styleTemplates: ChartStyleTemplate[];
+  setStyleTemplates: (templates: ChartStyleTemplate[]) => void;
+  /** Voir `CandlestickChartProps.advancedAppearance`. */
+  advancedAppearance: boolean;
+  /** Prix en direct (compte à rebours, ligne du dernier prix par défaut). */
+  livePrice: boolean;
 }
-
-/** Les échelles proposées pour l'axe des prix, dans l'ordre de la section « Échelles ». */
-const PRICE_SCALE_OPTIONS: { mode: PriceScaleMode; label: string; hint: string }[] = [
-  { mode: "linear", label: "Linéaire", hint: "L'écart de prix est proportionnel à la hauteur" },
-  { mode: "log", label: "Logarithmique", hint: "Une même variation en % a la même hauteur partout — utile sur un long historique" },
-  { mode: "percent", label: "Pourcentage", hint: "L'axe se lit en % de variation depuis la première bougie visible" },
-];
-
-type SettingsTab = "bougies" | "affichage" | "evenements" | "integration";
 
 /** The two small "chart settings" modals — up/down candle colors + YAutoScaling toggle + per-kind
  *  event visibility (double-click the symbol/chart-type label to open), and its volume-pane
@@ -126,9 +121,13 @@ export function ChartSettingsModals({
   setCandleColorRules,
   showCandleColorRules,
   candleRuleIndicators,
+  chartStyle,
+  setChartStyle,
+  styleTemplates,
+  setStyleTemplates,
+  advancedAppearance,
+  livePrice,
 }: ChartSettingsModalsProps) {
-  // Onglets de la fenêtre des paramètres : les réglages rangés par thème plutôt qu'en une longue colonne.
-  const [tab, setTab] = useState<SettingsTab>("bougies");
   // What "no override" actually renders as, read fresh off the live theme rather than hardcoded
   // — the swatch shown when a field is unset used to be a fixed "#26a69a"/"#ef5350" regardless of
   // the active theme/palette, which could (and, in E-ink, always did) disagree with the color the
@@ -158,258 +157,51 @@ export function ChartSettingsModals({
   return (
     <div ref={wrapperRef} style={{ display: "contents" }}>
       {settingsOpen && (
-        <Modal open onClose={() => setSettingsOpen(false)} title="Paramètres du graphique">
-          <Tabs
-            className="lq-chart__settings-tabs"
-            items={[
-              { id: "bougies", label: "Bougies" },
-              { id: "affichage", label: "Affichage" },
-              ...(eventKinds.length > 0 ? [{ id: "evenements", label: "Événements" }] : []),
-              { id: "integration", label: "Intégration" },
-            ]}
-            value={tab === "evenements" && eventKinds.length === 0 ? "bougies" : tab}
-            onChange={(id) => setTab(id as SettingsTab)}
-          />
-          {tab === "bougies" && (
-          <>
-          {/* Same options/labels/icons as the header's own "Mode d'affichage" popover (see
-              ChartHeader.tsx) — this is a second, always-reachable entry point to the exact same
-              state rather than a separate concept, so it stays in lockstep with whatever the
-              header shows without needing its own local state. */}
-          <div className="lq-field">
-            <label className="lq-field__label">Style de bougie</label>
-            <div className="lq-chart__display-mode-menu">
-              {CHART_DISPLAY_MODES.map((entry) => (
-                <button
-                  key={entry.mode}
-                  type="button"
-                  className={["lq-chart__display-mode-option", entry.mode === chartDisplayMode && "lq-chart__display-mode-option--selected"]
-                    .filter(Boolean)
-                    .join(" ")}
-                  onClick={() => {
-                    setChartDisplayMode(entry.mode);
-                    onChartDisplayModeChange?.(entry.mode);
-                  }}
-                >
-                  <entry.icon size={15} />
-                  {entry.label}
-                </button>
-              ))}
-            </div>
-          </div>
-          {/* Offered only where it applies. Every other mode draws bars, and a ripple pinned to
-              "the last point of the close line" has no point to sit on without one — a toggle for
-              something that cannot happen is worse than no toggle at all. */}
-          {chartDisplayMode === "line" && (
-            <div className="lq-field">
-              <label className="lq-field__label">Dernier cours</label>
-              <div className="lq-chart__settings-layout-row">
-                <Toggle
-                  checked={closePulseVisible}
-                  onChange={() => setClosePulseVisible(!closePulseVisible)}
-                  ariaLabel="Onde sur le dernier point de la ligne"
-                />
-                <span className="lq-chart__settings-layout-label">Onde à chaque nouveau cours</span>
-              </div>
-              <p className="lq-chart__settings-hint">
-                Une onde verte quand la clôture monte, rouge quand elle baisse. Visible seulement
-                quand le cours change : en direct ou pendant un replay.
-              </p>
-            </div>
-          )}
-
-          {theme.isEink && (
-            <p className="lq-chart__settings-eink-note">
-              La palette E-ink affiche les bougies en creux ou plein plutôt qu'en couleur — les couleurs ci-dessous ne changent rien à leur apparence tant que cette palette est active.
-            </p>
-          )}
-          <div className="lq-chart__edit-drawing-row">
-            <div className="lq-field">
-              <label className="lq-field__label">Bougies haussières</label>
-              <ColorPicker
-                className="lq-chart__color-input"
-                value={upColorOverride ?? theme.up}
-                onChange={(color) => setUpColorOverride(color)}
-                disabled={theme.isEink}
-              />
-            </div>
-            <div className="lq-field">
-              <label className="lq-field__label">Bougies baissières</label>
-              <ColorPicker
-                className="lq-chart__color-input"
-                value={downColorOverride ?? theme.down}
-                onChange={(color) => setDownColorOverride(color)}
-                disabled={theme.isEink}
-              />
-            </div>
-          </div>
-          {(upColorOverride || downColorOverride) && (
-            <button
-              type="button"
-              className="lq-chart__inline-reset"
-              onClick={() => {
-                setUpColorOverride(undefined);
-                setDownColorOverride(undefined);
-              }}
-            >
-              Réinitialiser aux couleurs du thème
-            </button>
-          )}
-          {showCandleColorRules && (
-            <CandleColorRulesEditor rules={candleColorRules} indicators={candleRuleIndicators} onChange={setCandleColorRules} />
-          )}
-          </>
-          )}
-          {tab === "affichage" && (
-          <>
-          {/* A manual override on the automatic width rule. Here rather than in the header because
-              it is a "how this chart is laid out" setting — the same family as the candle style
-              above it — and not something anyone flips often enough to earn a permanent button.
-              The reset appears only once the toggle has been used: before that, automatic IS the
-              state, and an always-visible "back to automatic" would be noise. */}
-          <div className="lq-field">
-            <label className="lq-field__label">Mise en page</label>
-            <div className="lq-chart__settings-layout-row">
-              <Toggle
-                checked={mobileLayout}
-                onChange={() => setLayoutOverride(mobileLayout ? "desktop" : "mobile")}
-                ariaLabel="Mise en page tactile (mobile)"
-              />
-              <span className="lq-chart__settings-layout-label">{mobileLayout ? "Tactile (mobile)" : "Bureau"}</span>
-            </div>
-            {layoutOverride !== null && (
-              <button type="button" className="lq-chart__settings-layout-reset" onClick={() => setLayoutOverride(null)}>
-                Revenir au choix automatique (selon la largeur)
-              </button>
-            )}
-          </div>
-          {/* ── Section « Échelles » : échelle de l'axe des prix + ajustement automatique. Bloc
-              autonome (rien d'autre n'en dépend dans cette fenêtre) : à déplacer tel quel si les
-              onglets sont réorganisés. Même réglage que le sous-menu « Échelle des prix » du clic
-              droit ; enregistré via `onAppearanceChange` (`priceScale`, `autoFit`). ── */}
-          <div className="lq-field lq-chart__settings-scales">
-            <label className="lq-field__label">Échelle de l'axe des prix</label>
-            <div className="lq-chart__display-mode-menu" role="radiogroup" aria-label="Échelle de l'axe des prix">
-              {PRICE_SCALE_OPTIONS.map((option) => (
-                <button
-                  key={option.mode}
-                  type="button"
-                  role="radio"
-                  aria-checked={option.mode === priceScaleMode}
-                  title={option.hint}
-                  className={["lq-chart__display-mode-option", option.mode === priceScaleMode && "lq-chart__display-mode-option--selected"]
-                    .filter(Boolean)
-                    .join(" ")}
-                  onClick={() => setPriceScaleMode(option.mode)}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-            <Checkbox
-              checked={yAutoScalingState}
-              onChange={(checked) => {
-                setYAutoScalingState(checked);
-                onYAutoScalingChange?.(checked);
-              }}
-              label="Ajuster automatiquement aux données visibles (auto fit)"
-            />
-            <p className="lq-chart__settings-hint">
-              En automatique, chaque axe Y suit les données visibles quand on se déplace dans le temps. Glisser
-              un axe le règle à la main (pastille « M ») ; un double-clic sur l'axe le rend à l'automatique.
-            </p>
-          </div>
-          <Checkbox
-            checked={pastZoneVisible}
-            onChange={setPastZoneVisible}
-            label="Zone rayée avant la première bougie"
-          />
-          <Checkbox
-            checked={futureZoneVisible}
-            onChange={setFutureZoneVisible}
-            label="Zone rayée après la dernière bougie"
-          />
-          <Checkbox
-            checked={!symbolInfoHidden}
-            onChange={(checked) => setSymbolInfoHidden(!checked)}
-            label="Légende du symbole en haut à gauche (nom, type de bougies, OHLC)"
-          />
-          {watermarkAvailable && (
-            <div className="lq-field">
-              <label className="lq-field__label">Filigrane</label>
-              <div className="lq-chart__settings-layout-row">
-                <Toggle
-                  checked={watermark.visible}
-                  onChange={() => setWatermark({ ...watermark, visible: !watermark.visible })}
-                  ariaLabel="Nom du symbole en filigrane"
-                />
-                <span className="lq-chart__settings-layout-label">Nom du symbole en fond de graphique</span>
-              </div>
-              {watermark.visible && (
-                <label className="lq-chart__settings-opacity">
-                  <span>Opacité : {Math.round(watermark.opacity * 100)} %</span>
-                  <input
-                    type="range"
-                    min={2}
-                    max={40}
-                    step={1}
-                    value={Math.round(watermark.opacity * 100)}
-                    onChange={(e) => setWatermark({ ...watermark, opacity: Number(e.target.value) / 100 })}
-                    aria-label="Opacité du filigrane"
-                  />
-                </label>
-              )}
-              {watermark.visible && (
-                <label className="lq-chart__settings-opacity">
-                  <span>Taille : {Math.round(watermark.size ?? 100)} %</span>
-                  <input
-                    type="range"
-                    min={30}
-                    max={150}
-                    step={5}
-                    value={Math.round(watermark.size ?? 100)}
-                    onChange={(e) => setWatermark({ ...watermark, size: Number(e.target.value) })}
-                    aria-label="Taille du filigrane"
-                  />
-                </label>
-              )}
-            </div>
-          )}
-          </>
-          )}
-          {tab === "evenements" && eventKinds.length > 0 && (
-            <div className="lq-chart__settings-events">
-              <span className="lq-field__label">Événements</span>
-              {eventKinds.map((kind) => (
-                <Checkbox
-                  key={kind}
-                  checked={!hiddenEventKinds.has(kind)}
-                  onChange={() =>
-                    setHiddenEventKinds((prev) => {
-                      const next = new Set(prev);
-                      if (next.has(kind)) next.delete(kind);
-                      else next.add(kind);
-                      return next;
-                    })
-                  }
-                  label={capitalize(kind)}
-                />
-              ))}
-            </div>
-          )}
-          {tab === "integration" && (
-          <div className="lq-field">
-            <label className="lq-field__label">Intégration</label>
-            <button type="button" className="lq-chart__reset-button lq-chart__props-button" onClick={() => setPropsOpen(true)}>
-              <CodeIcon size={13} /> Voir les props du graphique
-            </button>
-            <p className="lq-field__hint">
-              La liste complète de ce que l&apos;application peut passer à ce graphique, avec les types et les valeurs par défaut.
-            </p>
-          </div>
-          )}
-
-        </Modal>
+        <ChartSettingsDialog
+          onClose={() => setSettingsOpen(false)}
+          themeElement={wrapperRef.current}
+          theme={theme}
+          onOpenProps={() => setPropsOpen(true)}
+          mobileLayout={mobileLayout}
+          layoutOverride={layoutOverride}
+          setLayoutOverride={setLayoutOverride}
+          chartDisplayMode={chartDisplayMode}
+          setChartDisplayMode={setChartDisplayMode}
+          onChartDisplayModeChange={onChartDisplayModeChange}
+          closePulseVisible={closePulseVisible}
+          setClosePulseVisible={setClosePulseVisible}
+          upColorOverride={upColorOverride}
+          setUpColorOverride={setUpColorOverride}
+          downColorOverride={downColorOverride}
+          setDownColorOverride={setDownColorOverride}
+          yAutoScalingState={yAutoScalingState}
+          setYAutoScalingState={setYAutoScalingState}
+          onYAutoScalingChange={onYAutoScalingChange}
+          priceScaleMode={priceScaleMode}
+          setPriceScaleMode={setPriceScaleMode}
+          futureZoneVisible={futureZoneVisible}
+          setFutureZoneVisible={setFutureZoneVisible}
+          pastZoneVisible={pastZoneVisible}
+          setPastZoneVisible={setPastZoneVisible}
+          eventKinds={eventKinds}
+          hiddenEventKinds={hiddenEventKinds}
+          setHiddenEventKinds={setHiddenEventKinds}
+          watermark={watermark}
+          setWatermark={setWatermark}
+          watermarkAvailable={watermarkAvailable}
+          symbolInfoHidden={symbolInfoHidden}
+          setSymbolInfoHidden={setSymbolInfoHidden}
+          candleColorRules={candleColorRules}
+          setCandleColorRules={setCandleColorRules}
+          showCandleColorRules={showCandleColorRules}
+          candleRuleIndicators={candleRuleIndicators}
+          chartStyle={chartStyle}
+          setChartStyle={setChartStyle}
+          styleTemplates={styleTemplates}
+          setStyleTemplates={setStyleTemplates}
+          advancedAppearance={advancedAppearance}
+          livePrice={livePrice}
+        />
       )}
 
       {volumeSettingsOpen && (

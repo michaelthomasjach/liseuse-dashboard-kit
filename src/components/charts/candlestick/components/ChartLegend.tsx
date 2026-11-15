@@ -7,6 +7,7 @@ import { useMemo, useState } from "react";
 import { ActivityIcon, CodeIcon, EyeIcon, EyeOffIcon, TrashIcon, SettingsIcon, AlarmClockIcon, InfoIcon, ChevronDownIcon, ChevronRightIcon, CursorArrowIcon } from "../../../icons";
 import type { Candle } from "../interfaces/Candle.interface";
 import type { Indicator } from "../interfaces/Indicator.interface";
+import type { ChartStyleSettings } from "../chartStyle";
 import type { OverlayDataPoint, TrendLineDrawing } from "../interfaces/TrendLineDrawing.interface";
 import { CHART_DISPLAY_MODES, type ChartDisplayModeDef } from "../chartModes";
 import { Modal } from "../../../primitives/Modal";
@@ -42,6 +43,13 @@ function overlayQuoteAt(series: OverlayDataPoint[], at: Date) {
 }
 
 export interface ChartLegendProps {
+  /** Réglages « Ligne d'état » des paramètres (symbole, description, OHLC, variation, volume, valeurs et titres des
+   *  indicateurs). Absent : la légende d'avant ces réglages. */
+  statusLine?: ChartStyleSettings;
+  /** Formate le volume de la ligne d'état (`legendVolume`). */
+  vFmt?: (value: number) => string;
+  /** Valeur(s) d'un indicateur à la bougie de la légende, pour `legendIndicatorValues`. */
+  indicatorLegendValue?: (indicator: Indicator) => string | null;
   dims: { margin: { top: number; left: number } };
   /** The price plot's own height, which caps how tall the indicator list may grow (see
    *  `.lq-chart__indicator-legend`). */
@@ -145,6 +153,9 @@ export function ChartLegend({
   openIndicatorSettings,
   setHoveredIndicatorId,
   symbolInfoHidden = false,
+  statusLine,
+  vFmt,
+  indicatorLegendValue,
   hoveredIndicatorId,
   indicatorLabel,
   toggleIndicatorHidden,
@@ -186,6 +197,14 @@ export function ChartLegend({
     [symbolOverlays],
   );
   const legendEntryCount = legendNames.length;
+  // Ligne d'état : chaque partie masquable (réglages « Ligne d'état »), par défaut comme avant.
+  const showSymbol = statusLine?.legendSymbol !== false;
+  const showDescription = statusLine?.legendDescription !== false;
+  const showOhlc = statusLine?.legendOhlc !== false;
+  const showChange = statusLine?.legendChange !== false;
+  const showVolume = statusLine?.legendVolume === true && typeof ohlcCandle.volume === "number";
+  const showIndicatorValues = statusLine?.legendIndicatorValues === true && indicatorLegendValue !== undefined;
+  const showIndicatorTitles = statusLine?.legendIndicatorTitles !== false;
   return (
     <div
       className="lq-chart__plot-topleft"
@@ -207,7 +226,7 @@ export function ChartLegend({
             catch the second click of a double-click (see just below) — a double-click is two
             clicks, both harmless. The double-click itself stops here, so it never reaches the
             plot underneath. The cursor icon only shows on hover, focus, or while pressed. */}
-        {symbol &&
+        {symbol && showSymbol &&
           (onSymbolClick ? (
             <button
               type="button"
@@ -240,7 +259,8 @@ export function ChartLegend({
           ) : (
             <span className="lq-chart__symbol-info-name">{symbol}</span>
           ))}
-        {symbol && <span className="lq-chart__symbol-info-sep">·</span>}
+        {symbol && showSymbol && showDescription && <span className="lq-chart__symbol-info-sep">·</span>}
+        {showDescription && (
         <button
           type="button"
           className="lq-chart__symbol-info-name lq-chart__symbol-info-name--clickable"
@@ -249,6 +269,7 @@ export function ChartLegend({
         >
           {currentModeEntry.label}
         </button>
+        )}
         {/* Same element, same up/down colour and same tabular figures either way — only how much
             of the candle it spells out changes. The `--stacked` modifier on the row above is what
             actually breaks the line (a full-width flex basis, see charts-shared.css); this span
@@ -257,17 +278,28 @@ export function ChartLegend({
         <span className={["lq-chart__symbol-info-ohlc", ohlcDelta >= 0 ? "lq-chart__symbol-info-ohlc--up" : "lq-chart__symbol-info-ohlc--down"].join(" ")}>
           {mobile ? (
             <>
-              {pFmt(ohlcCandle.close)} {ohlcSign}
-              {pFmt(ohlcDelta)} ({ohlcSign}
-              {ohlcDeltaPct.toFixed(2)}%)
+              {showOhlc && <>{pFmt(ohlcCandle.close)} </>}
+              {showChange && (
+                <>
+                  {ohlcSign}
+                  {pFmt(ohlcDelta)} ({ohlcSign}
+                  {ohlcDeltaPct.toFixed(2)}%)
+                </>
+              )}
             </>
           ) : (
             <>
-              O {pFmt(ohlcCandle.open)} H {pFmt(ohlcCandle.high)} L {pFmt(ohlcCandle.low)} C {pFmt(ohlcCandle.close)} {ohlcSign}
-              {pFmt(ohlcDelta)} ({ohlcSign}
-              {ohlcDeltaPct.toFixed(2)}%)
+              {showOhlc && <>O {pFmt(ohlcCandle.open)} H {pFmt(ohlcCandle.high)} L {pFmt(ohlcCandle.low)} C {pFmt(ohlcCandle.close)} </>}
+              {showChange && (
+                <>
+                  {ohlcSign}
+                  {pFmt(ohlcDelta)} ({ohlcSign}
+                  {ohlcDeltaPct.toFixed(2)}%)
+                </>
+              )}
             </>
           )}
+          {showVolume && <> V {(vFmt ?? String)(ohlcCandle.volume!)}</>}
         </span>
       </div>
       {/* Price-overlay indicators (SMA/EMA/WMA/VWAP/Bollinger) only — "own"-pane ones
@@ -454,7 +486,11 @@ export function ChartLegend({
                 .filter(Boolean)
                 .join(" ")}
             >
-              {indicatorLabel(indicator)}
+              {showIndicatorTitles && indicatorLabel(indicator)}
+              {showIndicatorValues && (() => {
+                const value = indicatorLegendValue!(indicator);
+                return value ? <span className="lq-chart__indicator-legend-value">{showIndicatorTitles ? " " : ""}{value}</span> : null;
+              })()}
             </span>
             {/* Invisible until this item is hovered (see charts-shared.css) — double-click
                 the label itself opens the settings modal too, so the gear is a discoverable

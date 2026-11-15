@@ -11,6 +11,7 @@ import type { ChartDisplayMode } from "./ChartDisplayMode.interface";
 import type { DrawingToolType } from "./DrawingToolType.interface";
 import type { PriceBrick } from "../chartModes";
 import type { TpoOverlay } from "../hooks/useTpoOverlay";
+import type { ChartStyleSettings } from "../chartStyle";
 
 /** Every value `renderCandlestickChart` (and the drawPriceCandles/drawPriceDrawings/
  *  drawVolumeAndPanes phase functions it calls) needs to paint one frame — a plain data bag, not
@@ -111,4 +112,9 @@ export interface RenderCandlestickChartParams {
   replayActive: boolean;
   replayPreviewIndex: number | null;
   replayCutoffIndex: number | null;
+  /** Réglages de la fenêtre des paramètres (grilles, réticule, mèches, ligne du dernier prix…) — voir
+   *  `ChartStyleSettings`. Absent : rendu par défaut. */
+  chartStyle?: ChartStyleSettings;
+  /** Positions des dates de l'axe du temps, pour la grille verticale. */
+  dateTickValues?: number[];
 }

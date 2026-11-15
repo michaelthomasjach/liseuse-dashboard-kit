@@ -2,6 +2,7 @@ import type * as d3 from "d3";
 import type { AxisAnnotations, AxisLabel } from "../axisAnnotations";
 import { axisLabelBand, resolveAxisLabelCollisions } from "../axisAnnotations";
 import { formatCompactNumber } from "../formatting";
+import { defaultYAxisGutter, type ChartYAxisGutter } from "../chartStyle";
 
 /** Height of one axis badge, in px — font-size .7rem plus its own padding (see
  *  `.lq-chart__axis-value` in charts-shared.css). Used as the value axis' collision extent. */
@@ -26,6 +27,8 @@ export interface ChartAxisAnnotationsProps {
   vFmt: (value: number) => string;
   dFmt: (date: Date) => string;
   dateForIndex: (index: number) => Date;
+  /** Colonne des axes Y (côté, largeur, axes visibles) — voir ChartCanvasOverlay. */
+  yGutter?: ChartYAxisGutter;
 }
 
 /** The axis labels belonging to whichever drawing or indicator is currently selected: its prices
@@ -49,8 +52,13 @@ export function ChartAxisAnnotations({
   vFmt,
   dFmt,
   dateForIndex,
+  yGutter,
 }: ChartAxisAnnotationsProps) {
   if (annotations === null || (annotations.y.length === 0 && annotations.x.length === 0)) return null;
+  const gutter = yGutter ?? defaultYAxisGutter(dims);
+  // Axe masqué (réglages « Échelles et lignes ») : pas de pastilles dessus.
+  const yShown = annotations.valueAxis === "price" ? gutter.priceVisible : gutter.panesVisible;
+  const sideClass = gutter.side === "left" ? " lq-chart__axis-value--left-axis" : "";
 
   const { scale, offset } = paneScaleAndOffset(annotations.valueAxis);
   // The pane's own vertical bounds, read straight off its scale's range rather than passed in —
@@ -101,19 +109,19 @@ export function ChartAxisAnnotations({
 
   return (
     <>
-      {yBandPx !== null && (
+      {yBandPx !== null && yShown && (
         <div
           className="lq-chart__axis-band lq-chart__axis-band--y"
           style={{
             top: dims.margin.top + offset + Math.max(paneTop, yBandPx[0]),
             height: Math.max(0, Math.min(paneBottom, yBandPx[1]) - Math.max(paneTop, yBandPx[0])),
-            left: dims.margin.left + dims.boundedWidth,
-            width: dims.margin.right,
+            left: dims.margin.left + gutter.x,
+            width: gutter.width,
             backgroundColor: annotations.color,
           }}
         />
       )}
-      {xBandPx !== null && (
+      {xBandPx !== null && gutter.timeVisible && (
         <div
           className="lq-chart__axis-band lq-chart__axis-band--x"
           style={{
@@ -126,14 +134,14 @@ export function ChartAxisAnnotations({
         />
       )}
       {annotations.y.map((l, i) =>
-        !yVisible[i] ? null : (
+        !yVisible[i] || !yShown ? null : (
           <div
             key={l.key}
-            className="lq-chart__axis-value lq-chart__axis-value--y lq-chart__axis-value--annotation"
+            className={"lq-chart__axis-value lq-chart__axis-value--y lq-chart__axis-value--annotation" + sideClass}
             style={{
               top: dims.margin.top + offset + yPos[i],
-              left: dims.margin.left + dims.boundedWidth,
-              minWidth: dims.margin.right,
+              left: dims.margin.left + gutter.x,
+              minWidth: gutter.width,
               backgroundColor: annotations.color,
             }}
           >
@@ -142,7 +150,7 @@ export function ChartAxisAnnotations({
         ),
       )}
       {annotations.x.map((l, i) =>
-        !xVisible[i] ? null : (
+        !xVisible[i] || !gutter.timeVisible ? null : (
           <div
             key={l.key}
             className="lq-chart__axis-value lq-chart__axis-value--x lq-chart__axis-value--annotation"

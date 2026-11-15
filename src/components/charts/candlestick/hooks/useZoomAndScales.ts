@@ -137,6 +137,9 @@ export interface UseZoomAndScalesArgs {
   /** Remet chaque sous-panneau (volume, indicateurs) sur son échelle automatique — appelé quand ce
    *  graphique suit la plage d'un autre, pour que leurs valeurs restent visibles comme les prix. */
   resetSubPaneYAxes: () => void;
+  /** Marges au-dessus du plus haut et sous le plus bas visibles quand l'axe des prix s'ajuste aux bougies
+   *  (fractions de l'amplitude, réglage « Toile » des paramètres). Défaut 0,08 chacune. */
+  pricePadding?: { top: number; bottom: number };
 }
 
 /** The chart's whole coordinate system: X/Y transforms (pan/zoom), the index-based X scale and
@@ -176,6 +179,7 @@ export function useZoomAndScales({
   onVisibleRangeChange,
   onXZoom,
   resetSubPaneYAxes,
+  pricePadding,
 }: UseZoomAndScalesArgs) {
   const [transform, setTransform] = useState<d3.ZoomTransform>(d3.zoomIdentity);
   // Mirrors `transform` for the replay auto-follow effect below, which deliberately does NOT list
@@ -508,8 +512,13 @@ export function useZoomAndScales({
     // Même marge de 8 %, mais en rapport sur une échelle log (elle y a alors la même hauteur en haut et en bas).
     const logFactor = logPrice && min > 0 ? Math.pow(max / min, 0.08) || 1.01 : null;
     const pad = (max - min) * 0.08 || 1;
-    const targetMin = logFactor !== null ? min / logFactor : min - pad;
-    const targetMax = logFactor !== null ? max * logFactor : max + pad;
+    // Marges réglables (Toile → Marges) : sans réglage, les 8 % ci-dessus.
+    const padTop = pricePadding && max > min ? (max - min) * pricePadding.top : pad;
+    const padBottom = pricePadding && max > min ? (max - min) * pricePadding.bottom : pad;
+    const logTop = logFactor !== null && pricePadding ? Math.pow(max / min, pricePadding.top) : logFactor;
+    const logBottom = logFactor !== null && pricePadding ? Math.pow(max / min, pricePadding.bottom) : logFactor;
+    const targetMin = logBottom !== null ? min / logBottom : min - padBottom;
+    const targetMax = logTop !== null ? max * logTop : max + padTop;
     const denom = priceScale(targetMin) - priceScale(targetMax);
     if (denom <= 0) return;
     const k = priceHeight / denom;
@@ -530,6 +539,8 @@ export function useZoomAndScales({
     replayCutoffIndex,
     yFitNonce,
     logPrice,
+    pricePadding?.top,
+    pricePadding?.bottom,
   ]);
 
   // Changer d'échelle (linéaire ↔ log) rend sans objet le réglage manuel de l'axe, fait sur l'autre

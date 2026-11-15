@@ -57,7 +57,7 @@ export function drawVolumeAndPanes(ctx: CanvasRenderingContext2D, params: Render
       // indicator panes) — flush against both, no padding on either side (the line itself is the
       // only separation). Drawn even collapsed, separating it from the pane's own header strip.
       ctx.save();
-      ctx.strokeStyle = colorGrid;
+      ctx.strokeStyle = style.colorPaneSeparator ?? colorGrid;
       ctx.lineWidth = 1;
       ctx.beginPath();
       const dividerY = snapPixel(priceHeight + volumeTop);
@@ -176,7 +176,7 @@ export function drawVolumeAndPanes(ctx: CanvasRenderingContext2D, params: Render
       const paneHeight = indicatorPaneHeights[idx];
 
       ctx.save();
-      ctx.strokeStyle = colorGrid;
+      ctx.strokeStyle = style.colorPaneSeparator ?? colorGrid;
       ctx.lineWidth = 1;
       ctx.beginPath();
       const dividerY = snapPixel(paneTop);

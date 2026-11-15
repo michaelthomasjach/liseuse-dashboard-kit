@@ -80,10 +80,10 @@ export function drawReplayMask(ctx: CanvasRenderingContext2D, params: RenderCand
     if (replayActive && futureZoneVisible) drawHatchLines(ctx, dims.boundedWidth, plotBoundedHeight, style);
 
     if (replayActive) {
-      ctx.strokeStyle = colorGrid;
+      ctx.strokeStyle = style.colorGridH ?? colorGrid;
       ctx.lineWidth = 1;
-      ctx.setLineDash([2, 3]);
-      for (const tick of zoomedPriceScale.ticks(5)) {
+      ctx.setLineDash(style.gridDashH ?? [2, 3]);
+      for (const tick of style.horzGridVisible === false ? [] : zoomedPriceScale.ticks(5)) {
         const y = snapPixel(zoomedPriceScale(tick));
         ctx.beginPath();
         ctx.moveTo(maskLeft, y);

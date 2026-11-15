@@ -11,9 +11,17 @@ import { indicatorAxisAnnotations } from "../axisAnnotations";
 import { CROSSHAIR_ADD_INSET, LIVE_COUNTDOWN_OFFSET } from "../constants";
 import { EVENT_MARKER_OFFSET, EVENT_MARKER_RADIUS, EVENT_TOOLTIP_WIDTH, EVENT_TOOLTIP_GAP } from "../eventsCatalog";
 import { candleRemainingMs, formatCountdown, formatCompactNumber } from "../formatting";
-import { paneValueFormatter } from "../indicatorCatalog";
+import { paneValueFormatter, indicatorCatalogEntry, defaultIndicatorColor } from "../indicatorCatalog";
+import { defaultYAxisGutter, type ChartStyleSettings, type ChartYAxisGutter } from "../chartStyle";
 
 export interface ChartHoverBadgesProps {
+  /** Colonne des axes Y (côté, largeur, axes visibles) — voir ChartCanvasOverlay. */
+  yGutter?: ChartYAxisGutter;
+  /** Réglages « Échelles et lignes » : pastille du dernier prix, plus haut / plus bas, valeurs des indicateurs,
+   *  compte à rebours. */
+  chartStyle?: ChartStyleSettings;
+  /** Dernière bougie montrée (la dernière révélée pendant un replay), pour les valeurs des indicateurs sur l'axe. */
+  lastValueIndex?: number;
   hoverY: number | null;
   dims: { margin: { top: number; left: number; right: number }; boundedWidth: number; width: number };
   addPriceLine: () => void;
@@ -137,7 +145,13 @@ export function ChartHoverBadges({
   setActiveEventStack,
   ownPaneIndicators,
   indicatorValues,
+  yGutter,
+  chartStyle,
+  lastValueIndex,
 }: ChartHoverBadgesProps) {
+  const gutter = yGutter ?? defaultYAxisGutter(dims);
+  const axisLeft = dims.margin.left + gutter.x;
+  const sideClass = gutter.side === "left" ? " lq-chart__axis-value--left-axis" : "";
   // Crosshair synced across panes: hovering any pane at a given bar also badges the *other* panes'
   // own value at that same bar on their Y axis — the close on the price axis while the pointer is
   // in MACD, MACD's value while it is on the candles, and so on. The pane under the pointer keeps
@@ -148,18 +162,18 @@ export function ChartHoverBadges({
       const [a, b] = scale.range();
       return Number.isFinite(y) && y >= Math.min(a, b) && y <= Math.max(a, b);
     };
-    if (hoverY === null) {
+    if (hoverY === null && gutter.priceVisible) {
       const y = zoomedPriceScale(hovered.close);
       if (y >= 0 && y <= priceHeight) synced.push({ key: "price", top: y, text: priceAxisFmt(hovered.close) });
     }
-    if (volumeVisible && hoverVolumeY === null && typeof hovered.volume === "number") {
+    if (volumeVisible && gutter.panesVisible && hoverVolumeY === null && typeof hovered.volume === "number") {
       const y = zoomedVolumeScale(hovered.volume);
       if (inRange(zoomedVolumeScale, y)) synced.push({ key: "volume", top: priceHeight + volumeTop + y, text: vFmt(hovered.volume) });
     }
     // Every "own" pane — the hovered one included — badges each of its lines (MACD and signal,
     // ADX and both DIs, every series of a script pane…) at the hovered bar, value only: the pane
     // already says what it is. A histogram is the gap between two lines, not a line: skipped.
-    for (const ind of ownPaneIndicators) {
+    for (const ind of gutter.panesVisible ? ownPaneIndicators : []) {
       const entry = indicatorValues.find((e) => e.indicator.id === ind.id);
       if (!entry) continue;
       const { scale, offset } = paneScaleAndOffset(ind.id);
@@ -182,7 +196,48 @@ export function ChartHoverBadges({
   // the visible price range. Hidden rather than clamped to an edge: the number would stay right
   // while its position became a lie, and a badge on a price axis is read as *a height* first.
   const lastCloseY = lastClose === null ? null : zoomedPriceScale(lastClose.price);
-  const lastCloseVisible = lastCloseY !== null && lastCloseY >= 0 && lastCloseY <= priceHeight;
+  const lastCloseVisible = lastCloseY !== null && lastCloseY >= 0 && lastCloseY <= priceHeight && gutter.priceVisible && chartStyle?.lastPriceLabel !== false;
+
+  // Plus haut et plus bas des bougies visibles (réglage « Étiquettes : plus haut / plus bas »).
+  const highLow: { key: string; top: number; text: string }[] = [];
+  if (chartStyle?.highLowLabels && gutter.priceVisible && data.length > 0 && priceHeight > 0) {
+    const [d0, d1] = zoomedXScale.domain();
+    const from = Math.max(0, Math.floor(d0));
+    const to = Math.min(data.length - 1, lastValueIndex ?? data.length - 1, Math.ceil(d1) - 1);
+    let hi = -Infinity;
+    let lo = Infinity;
+    for (let i = from; i <= to; i++) {
+      if (data[i].high > hi) hi = data[i].high;
+      if (data[i].low < lo) lo = data[i].low;
+    }
+    if (Number.isFinite(hi)) {
+      for (const [key, v] of [["high", hi], ["low", lo]] as const) {
+        const y = zoomedPriceScale(v);
+        if (y >= 0 && y <= priceHeight) highLow.push({ key, top: y, text: `${key === "high" ? "H" : "B"} ${priceAxisFmt(v)}` });
+      }
+    }
+  }
+
+  // Dernière valeur de chaque indicateur sur son axe, dans sa couleur (réglage « Valeurs des indicateurs »).
+  const indicatorLabels: { key: string; top: number; text: string; color: string }[] = [];
+  if (chartStyle?.indicatorAxisLabels && data.length > 0) {
+    const last = Math.min(data.length - 1, lastValueIndex ?? data.length - 1);
+    indicatorValues.forEach(({ indicator: ind, values }, i) => {
+      if (ind.hidden || ind.paneCollapsed) return;
+      const pane = indicatorCatalogEntry(ind).pane;
+      if (pane === "price" ? !gutter.priceVisible : !gutter.panesVisible) return;
+      const color = ind.color ?? defaultIndicatorColor(i);
+      const ann = indicatorAxisAnnotations(ind, values, last, color);
+      const { scale, offset } = paneScaleAndOffset(ann.valueAxis);
+      const [a, b] = scale.range();
+      for (const l of ann.y.filter((l) => !/hist/i.test(l.label ?? "") && !/hist/i.test(l.key)).slice(0, 3)) {
+        const y = scale(l.at);
+        if (!Number.isFinite(y) || y < Math.min(a, b) || y > Math.max(a, b)) continue;
+        const fmt = ann.valueAxis === "price" ? priceAxisFmt : (paneValueFormatter(ind) ?? formatCompactNumber);
+        indicatorLabels.push({ key: `${ind.id}-${l.key}`, top: offset + y, text: l.text ?? fmt(l.at), color });
+      }
+    });
+  }
 
   return (
     <>
@@ -190,18 +245,36 @@ export function ChartHoverBadges({
           the hovered price is what the user is asking about right now. */}
       {lastClose !== null && lastCloseVisible && (
         <div
-          className={`lq-chart__axis-value lq-chart__axis-value--y lq-chart__axis-value--last lq-chart__axis-value--last-${lastClose.direction}`}
+          className={`lq-chart__axis-value lq-chart__axis-value--y lq-chart__axis-value--last lq-chart__axis-value--last-${lastClose.direction}${sideClass}`}
           style={{
             top: dims.margin.top + lastCloseY,
-            left: dims.margin.left + dims.boundedWidth,
-            minWidth: dims.margin.right,
+            left: axisLeft,
+            minWidth: gutter.width,
             backgroundColor: lastClose.direction === "up" ? upColorOverride : downColorOverride,
           }}
         >
           <span className="lq-chart__axis-value-text">{priceAxisFmt(lastClose.price)}</span>
         </div>
       )}
-      {hoverY !== null && (
+      {indicatorLabels.map((b) => (
+        <div
+          key={`ind-${b.key}`}
+          className={"lq-chart__axis-value lq-chart__axis-value--y lq-chart__axis-value--indicator" + sideClass}
+          style={{ top: dims.margin.top + b.top, left: axisLeft, minWidth: gutter.width, backgroundColor: b.color }}
+        >
+          <span className="lq-chart__axis-value-text">{b.text}</span>
+        </div>
+      ))}
+      {highLow.map((b) => (
+        <div
+          key={`hl-${b.key}`}
+          className={"lq-chart__axis-value lq-chart__axis-value--y lq-chart__axis-value--high-low" + sideClass}
+          style={{ top: dims.margin.top + b.top, left: axisLeft, minWidth: gutter.width }}
+        >
+          <span className="lq-chart__axis-value-text">{b.text}</span>
+        </div>
+      ))}
+      {hoverY !== null && gutter.priceVisible && (
         // The badge itself is pinned flush to the axis boundary so it never bleeds into the
         // chart — only the standalone "+" button (own square, own background) is allowed to
         // Flush to the axis boundary and at least as wide as the axis gutter itself (min-width,
@@ -211,8 +284,8 @@ export function ChartHoverBadges({
         // full height via align-items: stretch, no border-radius/height of its own) so it reads
         // as one integrated piece — never a separate element overlapping the chart.
         <div
-          className="lq-chart__axis-value lq-chart__axis-value--y"
-          style={{ top: dims.margin.top + hoverY, left: dims.margin.left + dims.boundedWidth, minWidth: dims.margin.right }}
+          className={"lq-chart__axis-value lq-chart__axis-value--y" + sideClass}
+          style={{ top: dims.margin.top + hoverY, left: axisLeft, minWidth: gutter.width }}
         >
           <button type="button" className="lq-chart__axis-value-add" onClick={addPriceLine} aria-label="Ajouter une ligne de prix horizontale">
             <PlusIcon size={9} />
@@ -220,13 +293,13 @@ export function ChartHoverBadges({
           <span className="lq-chart__axis-value-text">{priceAxisFmt(zoomedPriceScale.invert(hoverY))}</span>
         </div>
       )}
-      {hoverVolumeY !== null && (
+      {hoverVolumeY !== null && gutter.panesVisible && (
         <div
-          className="lq-chart__axis-value lq-chart__axis-value--y"
+          className={"lq-chart__axis-value lq-chart__axis-value--y" + sideClass}
           style={{
             top: dims.margin.top + priceHeight + volumeTop + hoverVolumeY,
-            left: dims.margin.left + dims.boundedWidth,
-            minWidth: dims.margin.right,
+            left: axisLeft,
+            minWidth: gutter.width,
           }}
         >
           <button type="button" className="lq-chart__axis-value-add" onClick={addVolumeLine} aria-label="Ajouter une ligne de volume horizontale">
@@ -241,15 +314,16 @@ export function ChartHoverBadges({
           needs that pane's own offset added back via paneScaleAndOffset. */}
       {hoverIndicatorPaneId !== null &&
         hoverIndicatorPaneY !== null &&
+        gutter.panesVisible &&
         (() => {
           const { scale, offset } = paneScaleAndOffset(hoverIndicatorPaneId);
           return (
             <div
-              className="lq-chart__axis-value lq-chart__axis-value--y"
+              className={"lq-chart__axis-value lq-chart__axis-value--y" + sideClass}
               style={{
                 top: dims.margin.top + offset + hoverIndicatorPaneY,
-                left: dims.margin.left + dims.boundedWidth,
-                minWidth: dims.margin.right,
+                left: axisLeft,
+                minWidth: gutter.width,
               }}
             >
               <button type="button" className="lq-chart__axis-value-add" onClick={addIndicatorPaneLine} aria-label="Ajouter une ligne horizontale">
@@ -265,20 +339,20 @@ export function ChartHoverBadges({
       {synced.map((b) => (
         <div
           key={`synced-${b.key}`}
-          className="lq-chart__axis-value lq-chart__axis-value--y lq-chart__axis-value--synced"
-          style={{ top: dims.margin.top + b.top, left: dims.margin.left + dims.boundedWidth, minWidth: dims.margin.right }}
+          className={"lq-chart__axis-value lq-chart__axis-value--y lq-chart__axis-value--synced" + sideClass}
+          style={{ top: dims.margin.top + b.top, left: axisLeft, minWidth: gutter.width }}
         >
           <span className="lq-chart__axis-value-text">{b.text}</span>
         </div>
       ))}
       {hovered && (
         <>
-          <div
+          {gutter.timeVisible && <div
             className="lq-chart__axis-value lq-chart__axis-value--x"
             style={{ left: dims.margin.left + zoomedXScale(hoverIndex! + 0.5), top: dims.margin.top + plotBoundedHeight }}
           >
             <span className="lq-chart__axis-value-text">{dFmt(hovered.date)}</span>
-          </div>
+          </div>}
           {/* A standalone square button (not englobed by the date badge below the plot, since
               that badge is unreachable — reaching it means leaving the interactive rect
               entirely). Anchored inside the plot instead, in line with the vertical
@@ -302,6 +376,7 @@ export function ChartHoverBadges({
           is inferred from the last two candles' own dates, not a separate prop. */}
       {livePrice &&
         priceHeight > 0 &&
+        gutter.priceVisible &&
         data.length > 0 &&
         (() => {
           const lastCandle = data[data.length - 1];
@@ -311,21 +386,21 @@ export function ChartHoverBadges({
           const remainingMs = candleRemainingMs(lastCandle.date, prevCandle?.date ?? null, now);
           return (
             <>
-              <div
-                className="lq-chart__axis-value lq-chart__axis-value--y"
+              {chartStyle?.lastPriceLabel !== false && <div
+                className={"lq-chart__axis-value lq-chart__axis-value--y" + sideClass}
                 style={{
                   top: y,
-                  left: dims.margin.left + dims.boundedWidth,
-                  minWidth: dims.margin.right,
+                  left: axisLeft,
+                  minWidth: gutter.width,
                   backgroundColor: `var(${up ? "--lq-color-up" : "--lq-color-down"})`,
                 }}
               >
                 <span className="lq-chart__axis-value-text">{priceAxisFmt(lastCandle.close)}</span>
-              </div>
-              {remainingMs !== null && (
+              </div>}
+              {remainingMs !== null && chartStyle?.countdown !== false && (
                 <div
                   className="lq-chart__live-countdown"
-                  style={{ top: y + LIVE_COUNTDOWN_OFFSET, left: dims.margin.left + dims.boundedWidth }}
+                  style={{ top: y + LIVE_COUNTDOWN_OFFSET, left: axisLeft }}
                 >
                   {formatCountdown(remainingMs)}
                 </div>
@@ -366,17 +441,18 @@ export function ChartHoverBadges({
           badge always has been (no report of that being an issue in practice). */}
       {visibleDrawings
         .filter((dr) => (dr.lineType === "horizontal" || dr.lineType === "ray") && (dr.valueAxis !== "volume" || volumeVisible) && dr.id !== selectedDrawingId)
+        .filter((dr) => (!dr.valueAxis || dr.valueAxis === "price" ? gutter.priceVisible : gutter.panesVisible))
         .map((dr) => {
           const isPrice = !dr.valueAxis || dr.valueAxis === "price";
           const y = isPrice ? clampToPriceAxis(pixelYForDrawing(dr)) : pixelYForDrawing(dr);
           return (
             <div
               key={dr.id}
-              className="lq-chart__axis-value lq-chart__axis-value--y"
+              className={"lq-chart__axis-value lq-chart__axis-value--y" + sideClass}
               style={{
                 top: dims.margin.top + y,
-                left: dims.margin.left + dims.boundedWidth,
-                minWidth: dims.margin.right,
+                left: axisLeft,
+                minWidth: gutter.width,
               }}
             >
               <span className="lq-chart__axis-value-text">{isPrice ? priceAxisFmt(dr.y1) : dr.valueAxis === "volume" ? vFmt(dr.y1) : formatCompactNumber(dr.y1)}</span>

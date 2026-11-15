@@ -831,15 +831,18 @@ export function drawPriceDrawings(ctx: CanvasRenderingContext2D, params: RenderC
     // Live last-close reference line — drawn last (on top of candles/indicators/TPO) so it's
     // never obscured. Its own Y-axis price badge and the countdown-to-next-candle badge below it
     // are plain DOM (not canvas), see the JSX further down — this is only the dashed line itself.
-    if (livePrice && data.length > 0) {
+    // Réglage « Ligne du dernier prix » (Échelles et lignes) : absent, en direct seulement, comme avant ; vrai, aussi
+    // hors direct (jamais pendant un replay, où elle trahirait le futur) ; faux, jamais. Tirets et couleur réglables.
+    const lastLine = style.lastPriceLine;
+    if ((lastLine?.visible ?? livePrice) && !params.replayActive && data.length > 0) {
       const lastCandle = data[data.length - 1];
       const prevCandle = data.length > 1 ? data[data.length - 2] : null;
       const up = prevCandle ? lastCandle.close >= prevCandle.close : true;
       const y = snapPixel(zoomedPriceScale(lastCandle.close));
       ctx.save();
-      ctx.strokeStyle = up ? colorUp : colorDown;
+      ctx.strokeStyle = lastLine?.color ?? (up ? colorUp : colorDown);
       ctx.lineWidth = 1;
-      ctx.setLineDash([3, 3]);
+      ctx.setLineDash(lastLine?.dash ?? [3, 3]);
       ctx.beginPath();
       ctx.moveTo(0, y);
       ctx.lineTo(dims.boundedWidth, y);

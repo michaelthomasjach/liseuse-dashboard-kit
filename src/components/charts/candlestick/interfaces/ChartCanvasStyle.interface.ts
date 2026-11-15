@@ -23,4 +23,22 @@ export interface ChartCanvasStyle {
   volumeOpacity: number;
   fontFamily: string;
   isEink: boolean;
+  /** Réglages de la fenêtre des paramètres (voir `ChartStyleSettings`), absents = rendu d'avant ces réglages. */
+  /** Mèches et bordures des bougies ; absentes : la couleur du corps. */
+  colorWickUp?: string;
+  colorWickDown?: string;
+  colorBorderUp?: string;
+  colorBorderDown?: string;
+  /** Grille horizontale du panneau des prix : masquée quand faux ; sa couleur et ses tirets. */
+  horzGridVisible?: boolean;
+  colorGridH?: string;
+  gridDashH?: number[];
+  /** Grille verticale (aux dates de l'axe du temps), sur toute la hauteur ; absente : pas de grille verticale. */
+  vertGrid?: { color: string; dash: number[] };
+  /** Séparateurs entre panneaux ; absent : `colorGrid`. */
+  colorPaneSeparator?: string;
+  /** Réticule ; absent : `colorMuted`, tirets « 3 3 », 1 px. */
+  crosshair?: { color: string; dash: number[]; width: number };
+  /** Ligne du dernier prix : forcée visible / masquée (absent : seulement en direct), tirets, couleur. */
+  lastPriceLine?: { visible?: boolean; dash: number[]; color?: string };
 }

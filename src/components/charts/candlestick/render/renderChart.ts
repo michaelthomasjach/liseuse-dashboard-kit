@@ -2,7 +2,7 @@ import { drawPriceAlertLines } from "./drawPriceAlertLines";
 import { drawDaySeparators } from "../daySeparators";
 import type { RenderCandlestickChartParams } from "../interfaces/RenderCandlestickChartParams.interface";
 import { drawSelectedIndicatorMarkers } from "./drawSelectedIndicatorMarkers";
-import { readChartCanvasStyle } from "./readChartCanvasStyle";
+import { applyChartStyle, readChartCanvasStyle } from "./readChartCanvasStyle";
 import { drawFutureZone, drawPastZone } from "./drawFutureZone";
 import { drawScriptHeatmaps } from "./drawScriptHeatmaps";
 import { drawPriceCandles } from "./drawPriceCandles";
@@ -72,12 +72,14 @@ export function renderCandlestickChart(canvas: HTMLCanvasElement, wrapper: HTMLE
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, dims.boundedWidth, plotBoundedHeight);
 
-  style ??= readChartCanvasStyle(wrapper, upColorOverride, downColorOverride);
+  style = applyChartStyle(style ?? readChartCanvasStyle(wrapper, upColorOverride, downColorOverride), params.chartStyle);
 
   drawFutureZone(ctx, params, style);
   drawPastZone(ctx, params, style);
   // Séparateurs de jours : un fond, sous les bougies.
   drawDaySeparators(ctx, params, style);
+  // Grille verticale (réglage « Toile ») : aux dates de l'axe du temps, sur toute la hauteur, sous les bougies.
+  drawVerticalGrid(ctx, params, style);
   // Before the candles: a liquidity field is a background the price moves over. Drawn after them
   // it would be a curtain across the very thing it exists to give context to.
   drawScriptHeatmaps(ctx, params);
@@ -118,9 +120,9 @@ export function renderCrosshair(canvas: HTMLCanvasElement, params: RenderCandles
   if (!hovered || !style) return;
 
   ctx.save();
-  ctx.strokeStyle = style.colorMuted;
-  ctx.lineWidth = 1;
-  ctx.setLineDash([3, 3]);
+  ctx.strokeStyle = style.crosshair?.color ?? style.colorMuted;
+  ctx.lineWidth = style.crosshair?.width ?? 1;
+  ctx.setLineDash(style.crosshair?.dash ?? [3, 3]);
   const hline = (top: number, height: number, y: number) => {
     ctx.save();
     ctx.beginPath();
@@ -150,5 +152,25 @@ export function renderCrosshair(canvas: HTMLCanvasElement, params: RenderCandles
     ctx.lineTo(hx, plotBoundedHeight);
     ctx.stroke();
   }
+  ctx.restore();
+}
+
+/** La grille verticale, quand elle est demandée (`style.vertGrid`) : une ligne à chaque date de l'axe du temps. */
+function drawVerticalGrid(ctx: CanvasRenderingContext2D, params: RenderCandlestickChartParams, style: ChartCanvasStyle) {
+  const ticks = params.dateTickValues;
+  if (!style.vertGrid || !ticks || ticks.length === 0) return;
+  const { dims, plotBoundedHeight, zoomedXScale } = params;
+  ctx.save();
+  ctx.strokeStyle = style.vertGrid.color;
+  ctx.lineWidth = style.gridWidth;
+  ctx.setLineDash(style.vertGrid.dash);
+  ctx.beginPath();
+  for (const t of ticks) {
+    const x = Math.round(zoomedXScale(t)) + 0.5;
+    if (x < 0 || x > dims.boundedWidth) continue;
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, plotBoundedHeight);
+  }
+  ctx.stroke();
   ctx.restore();
 }

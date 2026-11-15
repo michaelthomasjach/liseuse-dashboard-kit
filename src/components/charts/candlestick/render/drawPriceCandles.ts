@@ -92,10 +92,12 @@ export function drawPriceCandles(ctx: CanvasRenderingContext2D, params: RenderCa
     // Drawn first, underneath everything else — mirrors ChartAxis's own grid (same `ticks(5)`
     // the SVG price axis would otherwise use), kept on canvas so it stays behind the candles
     // instead of the SVG (which paints on top of the canvas) covering them.
+    // Masquable, recolorable et restylable depuis la Toile des paramètres (`horzGridVisible`, `colorGridH`, `gridDashH`).
+    if (style.horzGridVisible !== false) {
     ctx.save();
-    ctx.strokeStyle = colorGrid;
+    ctx.strokeStyle = style.colorGridH ?? colorGrid;
     ctx.lineWidth = style.gridWidth;
-    ctx.setLineDash(style.gridDash);
+    ctx.setLineDash(style.gridDashH ?? style.gridDash);
     for (const tick of zoomedPriceScale.ticks(5)) {
       const y = snapPixel(zoomedPriceScale(tick));
       ctx.beginPath();
@@ -104,6 +106,7 @@ export function drawPriceCandles(ctx: CanvasRenderingContext2D, params: RenderCa
       ctx.stroke();
     }
     ctx.restore();
+    }
 
     // Indicateurs de zones (bandes de temps fournies par l'application) : sous les bougies, comme un fond.
     drawIndicatorZones(ctx, params, style);
@@ -262,7 +265,7 @@ export function drawPriceCandles(ctx: CanvasRenderingContext2D, params: RenderCa
           ctx.lineTo(cx, zoomedPriceScale(d.low));
         }
         ctx.lineWidth = wickWidth;
-        ctx.strokeStyle = isEink ? colorText : hueColor;
+        ctx.strokeStyle = isEink ? colorText : ((side ? style.colorWickUp : style.colorWickDown) ?? hueColor);
         ctx.stroke();
       }
       for (const side of [true, false]) {
@@ -279,7 +282,7 @@ export function drawPriceCandles(ctx: CanvasRenderingContext2D, params: RenderCa
         ctx.lineWidth = 1;
         // E-ink can't code up/down by hue, so it falls back to the standard hollow/filled OHLC convention.
         ctx.fillStyle = isEink ? (side ? colorBg : colorText) : hueColor;
-        ctx.strokeStyle = isEink ? colorText : hueColor;
+        ctx.strokeStyle = isEink ? colorText : ((side ? style.colorBorderUp : style.colorBorderDown) ?? hueColor);
         ctx.fill();
         ctx.stroke();
       }

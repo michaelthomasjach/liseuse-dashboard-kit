@@ -120,6 +120,9 @@ import { CHART_DISPLAY_MODES } from "./candlestick/chartModes";
 import { findTimeframeLabel, flattenTimeframeValues } from "./candlestick/timeframes";
 import { styleOf, toolKeyOf, useDrawingStylePresets, withStyle } from "./candlestick/drawingStylePresets";
 import { dayMonthYearFormat } from "./internal/dateFormat";
+import { chartStyleCssVars, chartStyleDateFormatter, effectiveChartStyle, type ChartYAxisGutter } from "./candlestick/chartStyle";
+import { paneValueFormatter } from "./candlestick/indicatorCatalog";
+import { formatCompactNumber } from "./candlestick/formatting";
 import { DEFAULT_MARGIN, MOBILE_LAYOUT_BREAKPOINT, NARROW_EMBED_BREAKPOINT, PRICE_AXIS_WIDTH_MOBILE, SUB_PANE_COLLAPSED_HEIGHT, TOOLS_RAIL_HEIGHT_MOBILE, TOOLS_RAIL_WIDTH } from "./candlestick/constants";
 import { formatPercentFromReference, computeOhlcReadout, toDayInputValue, candleIndexForDay, formatVolumeValue } from "./candlestick/formatting";
 import { supportsProjection, projectionSettingsOf } from "./candlestick/indicatorProjection";
@@ -218,6 +221,7 @@ function CandlestickChartBody({
   candleColorRules: candleColorRulesProp,
   onCandleColorRulesChange,
   showCandleColorRules = true,
+  advancedAppearance = true,
   onOpenIndicatorHelp,
   timeframes,
   timeframe,
@@ -419,6 +423,8 @@ function CandlestickChartBody({
     futureZoneVisible, setFutureZoneVisible,
     pastZoneVisible, setPastZoneVisible,
     candleColorRules, setCandleColorRules,
+    chartStyle, setChartStyle,
+    styleTemplates, setStyleTemplates,
     now,
   } = useChartAppearance({
     YAutoScaling,
@@ -431,6 +437,8 @@ function CandlestickChartBody({
     // only takes over once a caller has supplied the callback to report changes back through.
     controlledSettings: onSettingsOpenChange ? { open: settingsOpenProp ?? false, onChange: onSettingsOpenChange } : undefined,
   });
+  // Réglages avancés appliqués (sans la personnalisation avancée de l'offre, ceux de la Toile sont ignorés).
+  const appliedStyle = useMemo(() => effectiveChartStyle(chartStyle, advancedAppearance), [chartStyle, advancedAppearance]);
   // Swaps the whole chart body for SeasonalityView — its own flag, not folded into
   // `chartDisplayMode`: its x-axis shares no meaningful relationship with candle/line/Renko's.
   const [seasonalityOpen, setSeasonalityOpen] = useState(false);
@@ -530,10 +538,21 @@ function CandlestickChartBody({
   // not there are drawing tools, so a drawing-tools-less phone chart needs the recomputation too.
   // Memoized on the numbers it is made of: `dims` is a dependency of most memos and of the canvas
   // draw, and a fresh object per render (every mouse move) recomputed all of them for nothing.
-  const { top: rmTop, right: rmRight, bottom: rmBottom, left: rmLeft } = resolvedMargin;
+  const { top: rmTop, right: rmRight0, bottom: rmBottom0, left: rmLeft0 } = resolvedMargin;
+  // Échelles et lignes (paramètres) : la colonne des axes Y passe à gauche ou disparaît quand tous les axes Y sont
+  // masqués ; l'axe du temps masqué rend sa hauteur au tracé.
+  const priceAxisShown = appliedStyle.priceAxisVisible !== false;
+  const paneAxesShown = appliedStyle.paneAxesVisible !== false;
+  const timeAxisShown = appliedStyle.timeAxisVisible !== false;
+  const yAxisWidth = priceAxisShown || paneAxesShown ? rmRight0 : 0;
+  const yAxisOnLeft = yAxisWidth > 0 && appliedStyle.priceAxisSide === "left";
+  const rmRight = yAxisOnLeft ? 0 : yAxisWidth;
+  const rmLeft = rmLeft0 + (yAxisOnLeft ? yAxisWidth : 0);
+  const rmBottom = timeAxisShown ? rmBottom0 : Math.max(0, rmBottom0 - (baseMargin.bottom ?? DEFAULT_MARGIN.bottom ?? 0));
+  const styledLayout = isNarrowLayout || rmRight !== rmRight0 || rmLeft !== rmLeft0 || rmBottom !== rmBottom0;
   const dims: ChartDimensions = useMemo(
     () =>
-      !isNarrowLayout
+      !styledLayout
         ? rawDims
         : {
             ...rawDims,
@@ -541,7 +560,31 @@ function CandlestickChartBody({
             boundedHeight: Math.max(0, rawDims.height - rmTop - rmBottom),
             margin: { top: rmTop, right: rmRight, bottom: rmBottom, left: rmLeft },
           },
-    [rawDims, isNarrowLayout, rmTop, rmRight, rmBottom, rmLeft],
+    [rawDims, styledLayout, rmTop, rmRight, rmBottom, rmLeft],
+  );
+  const yGutter: ChartYAxisGutter = useMemo(
+    () => ({
+      side: yAxisOnLeft ? "left" : "right",
+      width: yAxisWidth,
+      x: yAxisOnLeft ? -yAxisWidth : dims.boundedWidth,
+      priceVisible: priceAxisShown,
+      panesVisible: paneAxesShown,
+      timeVisible: timeAxisShown,
+    }),
+    [yAxisOnLeft, yAxisWidth, dims.boundedWidth, priceAxisShown, paneAxesShown, timeAxisShown],
+  );
+  // Le rail d'outils garde sa largeur quand l'échelle des prix passe à gauche (elle se loge entre lui et le tracé).
+  const railDims: ChartDimensions = useMemo(
+    () => (yAxisOnLeft ? { ...dims, margin: { ...dims.margin, left: dims.margin.left - yAxisWidth } } : dims),
+    [dims, yAxisOnLeft, yAxisWidth],
+  );
+  // Marges haut / bas de la Toile : fractions de l'amplitude, mémorisées pour garder la même identité.
+  const pricePadding = useMemo(
+    () =>
+      appliedStyle.marginTop === undefined && appliedStyle.marginBottom === undefined
+        ? undefined
+        : { top: (appliedStyle.marginTop ?? 8) / 100, bottom: (appliedStyle.marginBottom ?? 8) / 100 },
+    [appliedStyle.marginTop, appliedStyle.marginBottom],
   );
 
   const { scriptingState, scriptChartIndicators } = useChartScripting({ scripts, onScriptsChange });
@@ -1269,7 +1312,11 @@ function CandlestickChartBody({
   } = useZoomAndScales({
     data,
     dims,
-    futureBars: Math.max(projectionRoom, futureBarsProp !== undefined && futureBarsProp > 0 ? Math.round(futureBarsProp) : 0),
+    // Marge droite de la Toile (en bougies), à la place de celle de l'application quand elle est réglée.
+    futureBars: Math.max(projectionRoom, (() => {
+      const bars = appliedStyle.marginRightBars ?? futureBarsProp;
+      return bars !== undefined && bars > 0 ? Math.round(bars) : 0;
+    })()),
     plotBoundedHeight,
     priceHeight,
     volumeHeight,
@@ -1294,6 +1341,7 @@ function CandlestickChartBody({
     // Zone visible choisie dans l'en-tête : un zoom à la main la fait repasser en « Custom ».
     onXZoom: () => rangeXZoomRef.current?.(),
     resetSubPaneYAxes: resetAllPaneYAxes,
+    pricePadding,
   });
 
   // Mode de chaque axe Y, même règle pour tous les panneaux : automatique (il suit les données
@@ -1636,6 +1684,8 @@ function CandlestickChartBody({
     downColorOverride,
     volumeUpColorOverride,
     volumeDownColorOverride,
+    chartStyle: appliedStyle,
+    dateTickValues,
     volumeVisible,
     volumeCollapsed,
     zoomedVolumeScale,
@@ -1989,7 +2039,10 @@ function CandlestickChartBody({
 
   // French by default ("01 juin 2026"), like every other text of the kit — d3's `%d %b %Y` only
   // knows English month names. Cached per locale, so `dFmt` stays the same function across renders.
-  const dFmt = formatDate ?? dayMonthYearFormat(locale);
+  // Format des étiquettes de temps choisi dans les paramètres (jour de la semaine, date, heure), sinon celui d'avant.
+  const dFmtBase = formatDate ?? dayMonthYearFormat(locale);
+  const intradayCandles = data.length > 1 && data[data.length - 1].date.getTime() - data[data.length - 2].date.getTime() < 86_400_000;
+  const dFmt = chartStyleDateFormatter(appliedStyle, intradayCandles, dFmtBase) ?? dFmtBase;
   const pFmt = formatPrice ?? ((v: number) => v.toFixed(2));
   // Même identité d'un rendu à l'autre : passé tel quel aux en-têtes de panneau mémoïsés
   // (StablePaneHeaders). Et un seul formateur d3, au lieu d'un nouveau à chaque valeur affichée.
@@ -2169,6 +2222,18 @@ function CandlestickChartBody({
   // MACD) already have their own pane header and don't belong here too.
 
   const { candle: ohlcCandle, delta: ohlcDelta, deltaPct: ohlcDeltaPct, sign: ohlcSign } = computeOhlcReadout(data, effectiveHoverIndex);
+  // Ligne d'état : valeur(s) d'un indicateur à la bougie que montre la légende (réglage « Valeurs des indicateurs »).
+  const legendValueIndex = effectiveHoverIndex ?? data.length - 1;
+  const indicatorLegendValue = (indicator: Indicator): string | null => {
+    const entry = indicatorValues.find((e) => e.indicator.id === indicator.id);
+    if (!entry || legendValueIndex < 0) return null;
+    const ann = indicatorAxisAnnotations(indicator, entry.values, legendValueIndex, undefined);
+    const fmt = ann.valueAxis === "price" ? pFmt : (paneValueFormatter(indicator) ?? formatCompactNumber);
+    const labels = ann.y.filter((l) => !/hist/i.test(l.key)).slice(0, 3);
+    return labels.length > 0 ? labels.map((l) => l.text ?? fmt(l.at)).join(" ") : null;
+  };
+  // Toile : fond, texte et lignes des échelles, posés en variables CSS sur la zone du graphique.
+  const plotStyleVars = chartStyleCssVars(appliedStyle);
 
   // Touch placement for every drawing tool (see the hook's own doc). Only ever engaged on the
   // narrow layout and only with a tool selected — a chart being read keeps its ordinary pan,
@@ -2188,7 +2253,7 @@ function CandlestickChartBody({
   const toolsRail = (
     <StableToolsRail
       drawingTools={drawingTools}
-      dims={dims}
+      dims={railDims}
       plotHeight={plotHeight}
       horizontal={isMobileRail}
       selectedToolByCategory={selectedToolByCategory}
@@ -2333,7 +2398,8 @@ function CandlestickChartBody({
       ) : (
       <div
         className="lq-chart__plot"
-        style={{ width: dims.width, height: plotHeight }}
+        style={{ width: dims.width, height: plotHeight, ...plotStyleVars }}
+        data-lq-custom-bg={appliedStyle.backgroundColor ? "" : undefined}
         // Doigt levé (ou geste annulé par le navigateur) : plus de réticule, voir `touchLifted`.
         onPointerUp={(e) => {
           if (e.pointerType === "touch") setTouchLifted(true);
@@ -2408,6 +2474,9 @@ function CandlestickChartBody({
             it would still render, and overlap, once a pane's own maximize button zeroes it out. */}
         {priceHeight > 0 && (
           <ChartLegend
+            statusLine={appliedStyle}
+            vFmt={vFmt}
+            indicatorLegendValue={indicatorLegendValue}
             symbolInfoHidden={symbolInfoHidden}
             strategyScriptIds={strategyScriptIds}
             onOpenIndicatorCode={openIndicatorCode}
@@ -2557,6 +2626,9 @@ function CandlestickChartBody({
           onToggleVolumeLegend={toggleVolumeLegend}
         />
         <ChartPlotOverlays
+          yGutter={yGutter}
+          chartStyle={appliedStyle}
+          lastValueIndex={lastRevealedIndex >= 0 ? lastRevealedIndex : undefined}
           indicatorValues={indicatorValues}
           closePulse={
             closePulse === null || lastRevealedIndex < 0
@@ -2890,6 +2962,9 @@ function CandlestickChartBody({
         symbolInfoHidden={symbolInfoHidden} setSymbolInfoHidden={setSymbolInfoHidden}
         candleColorRules={candleColorRules} setCandleColorRules={setCandleColorRules}
         showCandleColorRules={showCandleColorRules} candleRuleIndicators={combinedIndicators}
+        chartStyle={chartStyle} setChartStyle={setChartStyle}
+        styleTemplates={styleTemplates} setStyleTemplates={setStyleTemplates}
+        advancedAppearance={advancedAppearance} livePrice={livePrice}
         mobileLayout={isNarrowLayout} layoutOverride={layoutOverride} setLayoutOverride={setLayoutOverride}
         chartDisplayMode={chartDisplayMode} setChartDisplayMode={setChartDisplayMode} onChartDisplayModeChange={onChartDisplayModeChange}
         closePulseVisible={closePulseVisible} setClosePulseVisible={setClosePulseVisible}

@@ -864,6 +864,7 @@ function CandlestickChartBody({
     removeIndicator,
     volumeVisible, volumeCollapsed,
     volumeOverlay, setVolumeOverlay, volumeOnPrice, priceOverlayIndicators,
+    legendCollapsed, toggleLegendCollapsed,
     startPaneResize, reorderPanesRef,
     ownPaneIndicators,
     indicatorPaneHeights, indicatorPaneTops,
@@ -2517,6 +2518,8 @@ function CandlestickChartBody({
             pFmt={pFmt}
             showIndicators={showIndicators}
             overlayIndicators={legendOverlayIndicators}
+            legendCollapsed={legendCollapsed.price === true}
+            onToggleLegendCollapsed={() => toggleLegendCollapsed("price")}
             indicators={combinedIndicators}
             volumeOverlay={
               volumeOnPrice
@@ -2656,6 +2659,8 @@ function CandlestickChartBody({
           onTogglePaneLegend={toggleIndicatorLegend}
           volumeLegendHidden={volumeLegendHidden}
           onToggleVolumeLegend={toggleVolumeLegend}
+          legendCollapsed={legendCollapsed}
+          onToggleLegendCollapsed={toggleLegendCollapsed}
         />
         <ChartPlotOverlays
           yGutter={yGutter}

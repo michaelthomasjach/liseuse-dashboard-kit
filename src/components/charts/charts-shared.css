@@ -2238,6 +2238,23 @@ button.lq-chart__legend-item {
   background-color: var(--lq-color-panel);
 }
 
+/* Déplié : un simple chevron sous la liste, discret tant qu'on ne le survole pas. Replié : « ˅ N », un petit bouton
+   bordé qui dit combien de lignes il cache. Même chose dans l'en-tête de chaque panneau. */
+.lq-chart__indicator-legend-fold:not(.lq-chart__indicator-legend-fold--folded) {
+  align-self: flex-start;
+  opacity: 0.55;
+}
+.lq-chart__indicator-legend-fold:not(.lq-chart__indicator-legend-fold--folded):hover,
+.lq-chart__indicator-legend-fold:focus-visible {
+  opacity: 1;
+}
+.lq-chart__indicator-legend-fold--folded {
+  align-self: flex-start;
+  border: 1px solid var(--lq-color-border-subtle);
+  background-color: var(--lq-color-panel);
+  font-variant-numeric: tabular-nums;
+}
+
 .lq-chart__indicator-legend-fold span {
   overflow: hidden;
   text-overflow: ellipsis;

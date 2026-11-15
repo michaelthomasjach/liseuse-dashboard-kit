@@ -335,20 +335,31 @@ export function usePaneLayout({
   // Volume sur le graphique des prix (paramètres du panneau Volume → « Afficher sur le graphique des prix ») : son
   // panneau disparaît, ses barres se dessinent en bas de la zone des prix. Gardé avec la disposition des panneaux.
   const [volumeOverlay, setVolumeOverlay] = useState<boolean>(defaultPaneLayout?.volumeOverlay === true);
+  // Listes d'indicateurs repliées dans les légendes (chevron), par zone : « price » (légende en haut à gauche),
+  // « volume », ou l'id de l'indicateur d'un panneau. Gardé avec la disposition des panneaux.
+  const [legendCollapsed, setLegendCollapsed] = useState<Record<string, boolean>>(defaultPaneLayout?.legendCollapsed ?? {});
+  const toggleLegendCollapsed = useCallback((paneId: string) => {
+    setLegendCollapsed((prev) => {
+      const next = { ...prev };
+      if (next[paneId]) delete next[paneId];
+      else next[paneId] = true;
+      return next;
+    });
+  }, []);
   // Ordre et hauteurs des panneaux annoncés à l'hôte à chaque changement (pas au montage), pour qu'il retrouve la
   // disposition au rechargement — quel que soit le chemin qui l'a changée (glisser, modèle, Ctrl+Z).
   const onPaneLayoutChangeRef = useRef(onPaneLayoutChange);
   onPaneLayoutChangeRef.current = onPaneLayoutChange;
   const paneLayoutReportedRef = useRef<string | null>(null);
   useEffect(() => {
-    const key = JSON.stringify([volumePaneOrder, paneHeightFractions, paneOrder, volumeOverlay]);
+    const key = JSON.stringify([volumePaneOrder, paneHeightFractions, paneOrder, volumeOverlay, legendCollapsed]);
     if (paneLayoutReportedRef.current === null || paneLayoutReportedRef.current === key) {
       paneLayoutReportedRef.current = key;
       return;
     }
     paneLayoutReportedRef.current = key;
-    onPaneLayoutChangeRef.current?.({ volumePaneOrder, paneHeightFractions, ...(paneOrder.length ? { paneOrder } : {}), ...(volumeOverlay ? { volumeOverlay } : {}) });
-  }, [volumePaneOrder, paneHeightFractions, paneOrder, volumeOverlay]);
+    onPaneLayoutChangeRef.current?.({ volumePaneOrder, paneHeightFractions, ...(paneOrder.length ? { paneOrder } : {}), ...(volumeOverlay ? { volumeOverlay } : {}), ...(Object.keys(legendCollapsed).length ? { legendCollapsed } : {}) });
+  }, [volumePaneOrder, paneHeightFractions, paneOrder, volumeOverlay, legendCollapsed]);
   // Whether each *docked* pane is folded, keyed by pane id — deliberately its own UI state rather
   // than the `Indicator.paneCollapsed` field the bottom stack toggles through `commitIndicators`.
   // A docked pane is very often script-produced (`plot.pane(name, { dock })`), and those live in
@@ -1066,6 +1077,8 @@ export function usePaneLayout({
     volumeOverlay,
     setVolumeOverlay,
     volumeOnPrice,
+    legendCollapsed,
+    toggleLegendCollapsed,
     priceOverlayIndicators,
     paneHeightFraction,
     startPaneResize,

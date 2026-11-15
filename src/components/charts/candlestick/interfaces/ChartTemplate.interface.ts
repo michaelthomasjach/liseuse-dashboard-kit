@@ -50,4 +50,7 @@ export interface ChartPaneLayout {
   /** Volume affiché sur le graphique des prix (barres en bas de la zone des prix, sur leur propre échelle) plutôt que
    *  dans son panneau. Absent : dans son panneau. */
   volumeOverlay?: boolean;
+  /** Listes d'indicateurs repliées dans les légendes (chevron) : « price » pour la légende en haut à gauche, « volume »
+   *  ou l'id de l'indicateur d'un panneau pour celle de ce panneau. Absent : tout déplié. */
+  legendCollapsed?: Record<string, boolean>;
 }

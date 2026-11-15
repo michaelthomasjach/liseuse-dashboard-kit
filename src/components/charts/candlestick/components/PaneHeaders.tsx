@@ -54,6 +54,10 @@ export interface PaneHeadersProps {
   /** Légende du panneau Volume masquée, et la bascule. */
   volumeLegendHidden?: boolean;
   onToggleVolumeLegend?: () => void;
+  /** Liste des indicateurs posés sur un panneau repliée (chevron), par panneau (« volume » ou l'id de l'indicateur du
+   *  panneau), et la bascule. Gardé avec la disposition des panneaux. */
+  legendCollapsed?: Record<string, boolean>;
+  onToggleLegendCollapsed?: (paneId: string) => void;
 }
 
 /** Header strip for the volume pane, then one more per "own"-pane indicator (RSI/CHOP/MACD) —
@@ -92,6 +96,8 @@ export function PaneHeaders({
   onTogglePaneLegend,
   volumeLegendHidden = false,
   onToggleVolumeLegend,
+  legendCollapsed,
+  onToggleLegendCollapsed,
 }: PaneHeadersProps) {
   /** Légende masquée : à la place du nom, de la valeur et des actions, une poignée discrète qui la réaffiche. */
   const legendHandle = (label: string, onShow: (() => void) | undefined) => (
@@ -107,10 +113,28 @@ export function PaneHeaders({
   );
   /** Moyennes posées sur un panneau (clic droit) : leur nom, leur valeur au survol ; un clic ouvre leurs réglages, la
    *  croix les retire. Pour les panneaux d'indicateur comme pour le volume. */
-  const attachedLegend = (sourceId: string) =>
-    indicators
-      .filter((attached) => attached.sourceId === sourceId)
-      .map((attached) => {
+  const attachedLegend = (sourceId: string) => {
+    const list = indicators.filter((attached) => attached.sourceId === sourceId);
+    if (list.length === 0) return null;
+    const collapsed = legendCollapsed?.[sourceId] === true;
+    // Replier la liste du panneau (comme celle des prix) : un chevron après elle ; repliée, « ˅ N » la redéplie.
+    const fold = onToggleLegendCollapsed && (
+      <button
+        type="button"
+        className={["lq-chart__indicator-legend-fold", "lq-chart__pane-legend-fold", collapsed && "lq-chart__indicator-legend-fold--folded"].filter(Boolean).join(" ")}
+        onClick={() => onToggleLegendCollapsed(sourceId)}
+        aria-expanded={!collapsed}
+        aria-label={collapsed ? `Déplier la liste des indicateurs du panneau (${list.length})` : "Replier la liste des indicateurs du panneau"}
+        title={collapsed ? list.map((a) => indicatorLabel(a)).join(" · ") : "Replier la liste des indicateurs du panneau"}
+        data-pane-legend-fold={sourceId}
+      >
+        {collapsed ? <ChevronDownIcon size={11} /> : <ChevronUpIcon size={11} />}
+        {collapsed && <span>{list.length}</span>}
+      </button>
+    );
+    if (collapsed && fold) return fold;
+    return [
+      ...list.map((attached) => {
                   const values = indicatorValues.find((v) => v.indicator.id === attached.id)?.values;
                   const value = values?.[hoverIndex !== null ? hoverIndex : data.length - 1];
                   const color = attached.color ?? defaultIndicatorColor(indicators.indexOf(attached));
@@ -134,7 +158,10 @@ export function PaneHeaders({
                       </button>
                     </span>
                   );
-                });
+                }),
+      fold ? <span key="fold">{fold}</span> : null,
+    ];
+  };
 
   return (
     <>

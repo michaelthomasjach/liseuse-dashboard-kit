@@ -5,17 +5,13 @@ import { IndicatorHelpButton } from "./IndicatorHelp";
 import { infoTargetFor, scriptIdFromIndicatorId } from "../scripting/scriptOutputToCustomIndicatorDef";
 import type { Dispatch, SetStateAction } from "react";
 import { useMemo, useState } from "react";
-import { ActivityIcon, CodeIcon, EyeIcon, EyeOffIcon, TrashIcon, SettingsIcon, AlarmClockIcon, InfoIcon, ChevronDownIcon, ChevronRightIcon, CursorArrowIcon } from "../../../icons";
+import { ActivityIcon, CodeIcon, EyeIcon, EyeOffIcon, TrashIcon, SettingsIcon, AlarmClockIcon, InfoIcon, ChevronDownIcon, ChevronUpIcon, CursorArrowIcon } from "../../../icons";
 import type { Candle } from "../interfaces/Candle.interface";
 import type { Indicator } from "../interfaces/Indicator.interface";
 import type { ChartStyleSettings } from "../chartStyle";
 import type { OverlayDataPoint, TrendLineDrawing } from "../interfaces/TrendLineDrawing.interface";
 import { CHART_DISPLAY_MODES, type ChartDisplayModeDef } from "../chartModes";
 import { Modal } from "../../../primitives/Modal";
-
-/** How many entries the legend carries before it offers to fold. Below this, a control to hide the
- *  list is more chrome than the list itself. */
-const LEGEND_FOLD_THRESHOLD = 3;
 
 /** A comparison overlay's own quote at `at` (the hovered candle, else the last one): its last point
  *  on or before that date — the overlay keeps its own trading hours, so an exact date match is the
@@ -76,6 +72,11 @@ export interface ChartLegendProps {
   pFmt: (value: number) => string;
   showIndicators: boolean;
   overlayIndicators: Indicator[];
+  /** Liste des indicateurs repliée (chevron sous la liste) : il ne reste qu'un bouton « ˅ N » qui la redéplie ; le
+   *  symbole et l'OHLC restent. Contrôlé par le graphique, qui le garde avec la disposition des panneaux. Absent : la
+   *  légende le tient elle-même. */
+  legendCollapsed?: boolean;
+  onToggleLegendCollapsed?: () => void;
   /** Volume affiché sur le graphique des prix : sa ligne dans la légende (nom, valeur, masquer, paramètres, retirer). */
   volumeOverlay?: { value: string | null; hidden: boolean; toggleHidden: () => void; openSettings: () => void; remove: () => void };
   indicators: Indicator[];
@@ -151,6 +152,8 @@ export function ChartLegend({
   pFmt,
   showIndicators,
   overlayIndicators,
+  legendCollapsed,
+  onToggleLegendCollapsed,
   volumeOverlay,
   indicators,
   defaultIndicatorColor,
@@ -189,9 +192,10 @@ export function ChartLegend({
   const [modeFor, setModeFor] = useState<string | null>(null);
   const modeDrawing = modeFor ? symbolOverlays.find((d) => d.id === modeFor) : undefined;
   const modeHasOHLC = (modeDrawing?.overlayData?.length ?? 0) > 0 && modeDrawing!.overlayData!.every((p) => p.open !== undefined && p.high !== undefined && p.low !== undefined);
-  // Folded state lives here, not on the chart: it is a way of looking at this list, not a fact
-  // about the chart, and nothing outside this component has any use for it.
-  const [legendFolded, setLegendFolded] = useState(false);
+  // Liste repliée : tenue par le graphique quand il la fournit (gardée avec la disposition), sinon ici.
+  const [ownFolded, setOwnFolded] = useState(false);
+  const legendFolded = legendCollapsed ?? ownFolded;
+  const toggleLegendFolded = onToggleLegendCollapsed ?? (() => setOwnFolded((folded) => !folded));
   // Compared symbols first, indicators after: a symbol is a series of its own, on the same footing
   // as the main one right above, and an indicator added afterwards must not end up between them.
   const legendNames = [...(volumeOverlay ? ["Volume"] : []), ...symbolOverlays.map((dr) => drawingLabel(dr)), ...overlayIndicators.map((ind) => indicatorLabel(ind))];
@@ -316,24 +320,6 @@ export function ChartLegend({
           `hidden` (see `Indicator.hidden`'s own doc comment). */}
       {((showIndicators && overlayIndicators.length > 0) || symbolOverlays.length > 0 || volumeOverlay) && (
       <>
-      {/* Past a handful of indicators the list is taller than the chart it annotates. The chevron
-          folds every row into one line — the names, separated by dots, nothing else — and the same
-          chevron unfolds it. Only offered once folding would actually buy something: with two rows
-          on screen, a control to hide them is more chrome than the rows themselves. */}
-      {legendEntryCount > LEGEND_FOLD_THRESHOLD && (
-        <button
-          type="button"
-          className="lq-chart__indicator-legend-fold"
-          onClick={() => setLegendFolded((folded) => !folded)}
-          aria-expanded={!legendFolded}
-          title={legendFolded ? "Déplier la liste des indicateurs" : "Replier la liste des indicateurs"}
-        >
-          {legendFolded ? <ChevronRightIcon size={11} /> : <ChevronDownIcon size={11} />}
-          <span>
-            {legendFolded ? legendNames.join(" · ") : `${legendEntryCount} indicateurs`}
-          </span>
-        </button>
-      )}
       <div className={["lq-chart__indicator-legend", legendFolded && "lq-chart__indicator-legend--folded"].filter(Boolean).join(" ")}>
         {/* Symbol-comparison overlays (see onAddSymbolOverlay) — same legend, same hover-
             revealed eye/trash/gear actions as a price-overlay indicator's own entry above,
@@ -613,6 +599,22 @@ export function ChartLegend({
           );
         })}
       </div>
+      {/* Replier la liste, comme sur les plateformes de marché : un chevron discret sous elle ; repliée, un bouton
+          « ˅ N » (le nombre de lignes masquées) la redéplie. Le symbole et l'OHLC, au-dessus, restent. */}
+      {legendEntryCount > 0 && (
+        <button
+          type="button"
+          className={["lq-chart__indicator-legend-fold", legendFolded && "lq-chart__indicator-legend-fold--folded"].filter(Boolean).join(" ")}
+          onClick={toggleLegendFolded}
+          aria-expanded={!legendFolded}
+          aria-label={legendFolded ? `Déplier la liste des indicateurs (${legendEntryCount})` : "Replier la liste des indicateurs"}
+          title={legendFolded ? legendNames.join(" · ") : "Replier la liste des indicateurs"}
+          data-legend-fold=""
+        >
+          {legendFolded ? <ChevronDownIcon size={11} /> : <ChevronUpIcon size={11} />}
+          {legendFolded && <span>{legendEntryCount}</span>}
+        </button>
+      )}
       </>
       )}
       {/* Mode d'affichage d'un symbole comparé : mêmes options et même présentation que celui de la série

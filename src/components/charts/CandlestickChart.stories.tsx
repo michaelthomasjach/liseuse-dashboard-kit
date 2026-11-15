@@ -1134,6 +1134,36 @@ export const PaneSeriesOnPrice: Story = {
   ),
 };
 
+/**
+ * Légendes repliables : sous la liste des indicateurs en haut à gauche, un chevron « ˄ » la replie ; il ne reste alors
+ * qu'un bouton « ˅ 3 » qui la redéplie (le symbole et l'OHLC restent). Même chose dans l'en-tête de chaque panneau
+ * (ici le volume et ses deux moyennes, replié d'emblée). L'état est gardé avec la disposition
+ * (`ChartPaneLayout.legendCollapsed`).
+ */
+export const CollapsibleLegends: Story = {
+  name: "Légendes repliables (legendCollapsed)",
+  render: () => (
+    <div style={{ height: 600 }}>
+      <CandlestickChart
+        data={COMPACT_PANES_DATASET}
+        symbol="DEMO"
+        height={600}
+        showVolume
+        showIndicators
+        defaultPaneLayout={{ volumePaneOrder: 0, paneHeightFractions: {}, legendCollapsed: { volume: true } }}
+        defaultIndicators={[
+          { id: "sma20", kind: "sma", period: 20 },
+          { id: "sma50", kind: "sma", period: 50 },
+          { id: "bb", kind: "bollinger", period: 20, stdDev: 2 },
+          { id: "vol-sma14", kind: "sma", period: 14, sourceId: "volume", color: "#2962ff" },
+          { id: "vol-sma50", kind: "sma", period: 50, sourceId: "volume", color: "#ff9800" },
+          { id: "rsi", kind: "rsi", period: 14 },
+        ]}
+      />
+    </div>
+  ),
+};
+
 const LOCKED_ZONE_DATASET = generateCandles(200, 180, 21);
 const LOCKED_ZONE_PRICES = LOCKED_ZONE_DATASET.map((c) => c.close);
 

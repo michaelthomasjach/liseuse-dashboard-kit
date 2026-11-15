@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { AAPL_FINANCIALS } from "../../test-data/symbolFinancialsSample";
 import type { ScriptDef } from "./candlestick/interfaces/ScriptDef.interface";
 import type { CandleColorRule } from "./candlestick/interfaces/CandleColorRule.interface";
+import type { ChartCustomToolbar } from "./candlestick/interfaces/ChartCustomToolbar.interface";
 import { SCRIPT_EXAMPLES } from "./candlestick/scripting/scriptExamples";
 import type { Meta, StoryObj } from "@storybook/react";
 import {
@@ -1366,6 +1367,42 @@ export const CandleColorRules: Story = {
           onScriptsChange={setScripts}
           candleColorRules={rules}
           onCandleColorRulesChange={setRules}
+        />
+      </div>
+    );
+  },
+};
+
+/** Barres d'outils personnalisées : deux barres de départ (une aimantée à gauche, verticale ; une en haut), une
+ *  troisième enregistrée mais fermée. Clic droit sur les prix → « Ajouter une toolbar personnalisée », ou
+ *  « Toolbars personnalisées » pour rouvrir, renommer ou supprimer une barre ; « + » d'une barre pour y poser des
+ *  outils, clic droit sur un outil pour le déplacer ou le retirer. La liste à jour est affichée au-dessus. */
+export const CustomToolbars: Story = {
+  render: () => {
+    const data = useMemo(() => generateCandles(260), []);
+    const [toolbars, setToolbars] = useState<ChartCustomToolbar[]>([
+      { id: "story-draw", name: "Dessin", tools: ["draw:trendline", "draw:horizontal", "draw:fibonacci", "draw:rectangle", "action:magnet", "draw:measure"], visible: true, dock: "left", x: 0, y: 60 },
+      { id: "story-view", name: "Affichage", tools: ["tf:1day", "tf:1week", "ind:rsi", "action:hideDrawings", "action:captureCopy"], visible: true, dock: "top", x: 220, y: 4 },
+      { id: "story-hidden", name: "Analyse (fermée)", tools: ["ind:macd", "action:marketState"], visible: false, dock: null, x: 300, y: 200 },
+    ]);
+    const [timeframe, setTimeframe] = useState("1day");
+    return (
+      <div style={{ height: 600 }}>
+        <p style={{ margin: "0 0 8px", font: "13px sans-serif" }}>
+          {toolbars.map((t) => `${t.name} (${t.tools.length} outil(s), ${t.visible ? "affichée" : "fermée"}${t.dock ? `, aimantée ${t.dock}` : ""})`).join(" · ")}
+        </p>
+        <CandlestickChart
+          data={data}
+          symbol="DEMO"
+          height={540}
+          drawingTools
+          showIndicators
+          zoomable
+          timeframes={[{ group: "Jours", options: [{ label: "1 jour", value: "1day" }, { label: "1 semaine", value: "1week" }] }]}
+          timeframe={timeframe}
+          onTimeframeChange={setTimeframe}
+          defaultCustomToolbars={toolbars}
+          onCustomToolbarsChange={setToolbars}
         />
       </div>
     );

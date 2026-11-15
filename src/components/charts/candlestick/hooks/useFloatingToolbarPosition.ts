@@ -16,6 +16,18 @@ export interface UseFloatingToolbarPositionArgs {
    *  tracé (pas sur la colonne d'outils à gauche, l'axe des prix à droite ou l'axe des dates en bas). */
   plotLeft?: number;
   plotBottom?: number;
+  /** Placement de départ (barre d'outils personnalisée retrouvée là où on l'avait laissée) ; absent :
+   *  centrée en haut du tracé. */
+  initialPlacement?: FloatingToolbarPlacement;
+  /** Appelé à la fin de chaque glisser avec le placement atteint, pour qu'il soit enregistré. */
+  onPlacementChange?: (placement: FloatingToolbarPlacement) => void;
+}
+
+/** Où se trouve une barre : le bord qui la tient (null : libre) et sa position dans le parent positionné. */
+export interface FloatingToolbarPlacement {
+  dock: FloatingToolbarDock | null;
+  x: number;
+  y: number;
 }
 
 const DEFAULT_TOP = 12;
@@ -32,12 +44,17 @@ const DOCK_INSET = 4;
  *  Aimantation : amenée près d'un bord (le pointeur à moins de `SNAP_ZONE` px), la barre s'y
  *  accroche. En haut et en bas elle reste horizontale et ne glisse plus que le long du bord ; à
  *  gauche et à droite elle passe à la verticale. On la décroche en l'éloignant du bord. */
-export function useFloatingToolbarPosition({ resetKey, plotWidth, plotLeft = 0, plotBottom = 0 }: UseFloatingToolbarPositionArgs) {
+export function useFloatingToolbarPosition({ resetKey, plotWidth, plotLeft = 0, plotBottom = 0, initialPlacement, onPlacementChange }: UseFloatingToolbarPositionArgs) {
   const plotRight = plotLeft + plotWidth;
-  const [position, setPosition] = useState({ x: plotWidth / 2, y: DEFAULT_TOP });
-  const [dock, setDock] = useState<FloatingToolbarDock | null>(null);
+  const [position, setPosition] = useState(() => (initialPlacement ? { x: initialPlacement.x, y: initialPlacement.y } : { x: plotWidth / 2, y: DEFAULT_TOP }));
+  const [dock, setDock] = useState<FloatingToolbarDock | null>(initialPlacement?.dock ?? null);
   const dockRef = useRef<FloatingToolbarDock | null>(null);
   dockRef.current = dock;
+  // Dernier placement rendu, lu à la fin d'un glisser (onPlacementChange).
+  const latestRef = useRef<FloatingToolbarPlacement>({ dock, ...position });
+  latestRef.current = { dock, ...position };
+  const onPlacementChangeRef = useRef(onPlacementChange);
+  onPlacementChangeRef.current = onPlacementChange;
   const toolbarRef = useRef<HTMLDivElement>(null);
   // Dernières tailles mesurées de la barre dans chaque orientation : au moment où elle change
   // d'orientation en plein glisser, la nouvelle n'est pas encore dessinée.
@@ -140,6 +157,8 @@ export function useFloatingToolbarPosition({ resetKey, plotWidth, plotLeft = 0, 
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onUp);
+      // Une image plus tard : le dernier déplacement est alors rendu (et le recalage d'orientation fait).
+      if (onPlacementChangeRef.current) requestAnimationFrame(() => onPlacementChangeRef.current?.(latestRef.current));
     };
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);

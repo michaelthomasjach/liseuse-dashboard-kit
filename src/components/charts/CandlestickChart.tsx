@@ -58,6 +58,8 @@ import { DEFAULT_STRATEGY_SETTINGS } from "./candlestick/interfaces/StrategySett
 import type { StrategySettings } from "./candlestick/interfaces/StrategySettings.interface";
 import { ChartSidePaneColumn } from "./candlestick/components/ChartSidePaneColumn";
 import { ToolsRail } from "./candlestick/components/ToolsRail";
+import { CustomToolbarsLayer } from "./candlestick/components/CustomToolbarsLayer";
+import { useCustomToolbars } from "./candlestick/hooks/useCustomToolbars";
 import { ChartLegend } from "./candlestick/components/ChartLegend";
 import { PaneHeaders } from "./candlestick/components/PaneHeaders";
 import { ChartPlotOverlays } from "./candlestick/components/ChartPlotOverlays";
@@ -179,6 +181,7 @@ export function CandlestickChart({
   alerts, onCreateAlert, onUpdateAlert, onDeleteAlert, alertSoundOptions, onPlaySound,
   showIndicators = false,
   defaultIndicators,
+  showCustomToolbars = true, defaultCustomToolbars, onCustomToolbarsChange,
   onIndicatorsChange, customIndicators, customTools, overlayDrawings, overlayInteractions, headerActions, futureBars: futureBarsProp,
   showTemplates = false,
   defaultTemplates,
@@ -1838,6 +1841,41 @@ export function CandlestickChart({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTool]);
 
+  // Barres d'outils personnalisées (clic droit → « Ajouter une toolbar personnalisée ») : leurs boutons refont les gestes
+  // du rail, de l'en-tête et du clic droit.
+  const customToolbars = useCustomToolbars({
+    enabled: showCustomToolbars,
+    defaultCustomToolbars,
+    onCustomToolbarsChange,
+    plotLeft: dims.margin.left,
+    plotWidth: dims.boundedWidth,
+    catalogContext: { timeframes, canChangeTimeframe: !!onTimeframeChange, favoriteIndicatorKinds: favoriteIndicatorIds, zoomable, replay, fullscreenToggle },
+    actions: {
+      activeTool,
+      toggleDrawingTool: (tool) => {
+        setActiveCustomToolId(null);
+        handleToolClick(tool);
+      },
+      magnetActive, toggleMagnet: () => setMagnetActive((v) => !v),
+      drawingsHidden, toggleDrawingsHidden: () => setDrawingsHidden((v) => !v),
+      drawingsLocked, toggleDrawingsLocked: () => setDrawingsLocked((v) => !v),
+      resetZoom: () => resetZoom(),
+      capture: (action) => void handleCapture(action),
+      replayOn: replayState.armed || replayState.active,
+      toggleReplay: () => (replayState.active ? replayState.quit() : replayState.toggleArm()),
+      openIndicatorPicker: () => {
+        setPickerTargetPane(null);
+        setIndicatorPickerOpen(true);
+      },
+      drawingsManagerOpen: indicatorsManagerOpen, toggleDrawingsManager: () => setIndicatorsManagerOpen((v) => !v),
+      marketStateOpen, toggleMarketState: () => setMarketStateOpen((v) => !v),
+      openSettings: () => setSettingsOpen(true),
+      isFullscreen, toggleFullscreen: () => toggleFullscreen(),
+      timeframe,
+      ...(onTimeframeChange ? { changeTimeframe: onTimeframeChange } : {}),
+      addIndicator,
+    },
+  });
   if (dims.width === 0 || data.length === 0) {
     return (
       <div className={["lq-chart", isFullscreen && "lq-chart--fullscreen", className].filter(Boolean).join(" ")} style={{ width: isFullscreen ? undefined : width, height: isFullscreen ? undefined : height }}>
@@ -1947,6 +1985,7 @@ export function CandlestickChart({
     openSettings: () => setSettingsOpen(true),
     symbolInfoHidden,
     toggleSymbolInfo: () => setSymbolInfoHidden(!symbolInfoHidden),
+    customToolbarItems: customToolbars.menuItems,
   });
   const currentTimeframeLabel = findTimeframeLabel(timeframes, timeframe);
 
@@ -2443,6 +2482,7 @@ export function CandlestickChart({
           activeEventStack={activeEventStack}
           eventModalOpen={eventModalOpen}
         />
+        <CustomToolbarsLayer {...customToolbars.layerProps} plotWidth={dims.boundedWidth} plotLeft={dims.margin.left} plotBottom={dims.margin.bottom} />
         {showFloatingToolbar && (
           <FloatingDrawingToolbar
             style={floatingToolbarStyle}

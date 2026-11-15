@@ -62,6 +62,9 @@ export interface BuildChartContextMenuArgs {
   /** Ligne d'informations (symbole, OHLC) masquée, et la bascule. */
   symbolInfoHidden?: boolean;
   toggleSymbolInfo?: () => void;
+  /** Barres d'outils personnalisées (« Ajouter une toolbar personnalisée », sous-menu des barres enregistrées) :
+   *  proposées sur la zone des prix seulement. */
+  customToolbarItems?: ChartContextMenuItem[];
 }
 
 /** What the chart's right-click menu offers, top to bottom.
@@ -95,6 +98,7 @@ export function buildChartContextMenu({
   openSettings,
   symbolInfoHidden,
   toggleSymbolInfo,
+  customToolbarItems,
 }: BuildChartContextMenuArgs): ChartContextMenuItem[] {
   if (anchor === null) return [];
   const candle = data[Math.max(0, Math.min(data.length - 1, anchor.index))] ?? null;
@@ -186,6 +190,7 @@ export function buildChartContextMenu({
     // indicateur ou le volume, ce qui concerne ce panneau seulement.
     ...(!inSubPane && openAddSymbol ? [{ label: "Ajouter un symbole…", onSelect: openAddSymbol }] : []),
     ...(!inSubPane ? [{ label: "Ajouter un indicateur…", onSelect: () => openIndicatorPicker() }] : []),
+    ...(!inSubPane && customToolbarItems?.length ? [{ separator: true } as ChartContextMenuItem, ...customToolbarItems] : []),
     // Le catalogue limité à ce qui se calcule sur les valeurs du panneau cliqué, posé sur lui.
     ...(anchor.paneId && addOnPane
       ? [

@@ -7,6 +7,7 @@ import type { TrendLineDrawing, OverlayDataPoint } from "./TrendLineDrawing.inte
 import type { Indicator } from "./Indicator.interface";
 import type { CustomIndicatorDef } from "./CustomIndicatorDef.interface";
 import type { ChartCustomTool } from "./ChartCustomTool.interface";
+import type { ChartCustomToolbar } from "./ChartCustomToolbar.interface";
 import type { OverlayDrawingInteraction } from "./OverlayDrawingInteraction.interface";
 import type { ChartHeaderAction } from "./ChartHeaderAction.interface";
 import type { ChartTemplate } from "./ChartTemplate.interface";
@@ -234,6 +235,19 @@ export interface CandlestickChartProps {
   /** App-defined tools appended to the tools rail (see `ChartCustomTool`): one click arms a tool, the next click on
    *  the chart reports its price/date to that tool's `onPlace`. Requires `drawingTools`. */
   customTools?: ChartCustomTool[];
+  /** Barres d'outils personnalisées (voir `ChartCustomToolbar`) : clic droit sur les prix → « Ajouter une toolbar
+   *  personnalisée ». Son « + » y pose des outils de dessin du rail et d'autres actions (aimant, masquer les dessins,
+   *  zoom, mesure, capture, replay, unités de temps, indicateurs — favoris d'abord…) ; clic droit sur un outil pour le
+   *  déplacer ou le retirer. Elle se déplace par sa poignée ou son fond et s'aimante aux bords du tracé (horizontale
+   *  en haut et en bas, verticale à gauche et à droite). Fermée par sa croix, elle reste enregistrée et se rouvre par
+   *  le sous-menu « Toolbars personnalisées » du clic droit (Afficher / Masquer, Renommer, Supprimer). Faux : ni barres
+   *  ni entrées de menu (fonction hors de l'offre du compte, par exemple). Défaut vrai. */
+  showCustomToolbars?: boolean;
+  /** Barres d'outils personnalisées de départ, lues au montage (non contrôlé). */
+  defaultCustomToolbars?: ChartCustomToolbar[];
+  /** Appelé à chaque changement des barres personnalisées (création, outils, placement en fin de glisser, nom,
+   *  affichage, suppression), avec la liste à jour : de quoi l'enregistrer et la rendre via `defaultCustomToolbars`. */
+  onCustomToolbarsChange?: (toolbars: ChartCustomToolbar[]) => void;
   /** App-owned drawings, render-only and always in sync with this prop (no remount needed when they change): never
    *  part of the user's own drawings, never reported by `onDrawingsChange`, and invisible to the pointer. For levels
    *  the app computes (a stop, a target, a zone…) that must follow live data without resetting zoom/pan. */

@@ -52,3 +52,34 @@
   margin: 4px 2px;
   background-color: var(--lq-color-border-subtle);
 }
+
+/* Sous-menu (« Toolbars personnalisées » → une barre → Afficher, Renommer, Supprimer) : à droite de sa ligne, ou à
+   gauche quand le menu est près du bord droit du graphique. */
+.lq-chart__context-menu-subwrap {
+  position: relative;
+}
+
+.lq-chart__context-menu-item--open {
+  background-color: var(--lq-color-hover);
+}
+
+.lq-chart__context-menu--sub {
+  top: -5px;
+  left: calc(100% + 2px);
+}
+
+.lq-chart__context-menu--sub-left {
+  left: auto;
+  right: calc(100% + 2px);
+}
+
+/* Écran étroit : le sous-menu s'ouvre sous sa ligne, dans le menu, au lieu de sortir de l'écran. */
+@media (max-width: 640px) {
+  .lq-chart__context-menu--sub,
+  .lq-chart__context-menu--sub-left {
+    position: static;
+    min-width: 0;
+    margin: 2px 0 2px 10px;
+    box-shadow: none;
+  }
+}

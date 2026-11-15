@@ -15,6 +15,8 @@ export type ChartContextMenuItem =
       disabled?: boolean;
       /** Right-aligned hint: a keyboard shortcut, or what the command will act on. */
       hint?: string;
+      /** Sous-menu : la ligne l'ouvre (survol, clic ou flèche droite) au lieu d'appeler `onSelect`. */
+      submenu?: ChartContextMenuItem[];
     };
 
 export interface ChartContextMenuProps {
@@ -76,16 +78,60 @@ export function ChartContextMenu({ x, y, bounds, items, onClose }: ChartContextM
       // Right-clicking the menu itself must not summon the browser's own on top of it.
       onContextMenu={(e) => e.preventDefault()}
     >
+      <ChartContextMenuList items={items} onClose={onClose} openLeft={pos.left + 2 * MENU_WIDTH_GUESS > bounds.width} />
+    </div>
+  );
+}
+
+/** Largeur supposée d'un menu, pour décider de quel côté s'ouvre un sous-menu sans attendre de le mesurer. */
+const MENU_WIDTH_GUESS = 220;
+
+/** Les lignes d'un menu ; une ligne à sous-menu ouvre le sien à côté d'elle (à gauche près du bord droit). */
+function ChartContextMenuList({ items, onClose, openLeft }: { items: ChartContextMenuItem[]; onClose: () => void; openLeft: boolean }) {
+  const [openIndex, setOpenIndex] = useState<number | null>(null);
+  return (
+    <>
       {items.map((item, i) =>
         item.separator ? (
           <div key={`sep-${i}`} className="lq-chart__context-menu-separator" role="separator" />
+        ) : item.submenu ? (
+          <div key={`${i}-${item.label}`} className="lq-chart__context-menu-subwrap" onPointerEnter={(e) => e.pointerType === "mouse" && setOpenIndex(i)}>
+            <button
+              type="button"
+              role="menuitem"
+              aria-haspopup="menu"
+              aria-expanded={openIndex === i}
+              className={["lq-chart__context-menu-item", openIndex === i && "lq-chart__context-menu-item--open"].filter(Boolean).join(" ")}
+              disabled={item.disabled}
+              onClick={() => setOpenIndex((o) => (o === i ? null : i))}
+              onKeyDown={(e) => {
+                if (e.key === "ArrowRight") setOpenIndex(i);
+                if (e.key === "ArrowLeft") setOpenIndex(null);
+              }}
+            >
+              <span>{item.label}</span>
+              <span className="lq-chart__context-menu-hint">
+                {item.hint !== undefined && `${item.hint} `}›
+              </span>
+            </button>
+            {openIndex === i && (
+              <div
+                className={["lq-chart__context-menu", "lq-chart__context-menu--sub", openLeft && "lq-chart__context-menu--sub-left"].filter(Boolean).join(" ")}
+                role="menu"
+                aria-label={item.label}
+              >
+                <ChartContextMenuList items={item.submenu} onClose={onClose} openLeft={openLeft} />
+              </div>
+            )}
+          </div>
         ) : (
           <button
-            key={item.label}
+            key={`${i}-${item.label}`}
             type="button"
             role="menuitem"
             className="lq-chart__context-menu-item"
             disabled={item.disabled}
+            onPointerEnter={(e) => e.pointerType === "mouse" && setOpenIndex(null)}
             onClick={() => {
               item.onSelect();
               onClose();
@@ -96,6 +142,6 @@ export function ChartContextMenu({ x, y, bounds, items, onClose }: ChartContextM
           </button>
         ),
       )}
-    </div>
+    </>
   );
 }

@@ -137,7 +137,9 @@ const StableChartModals = stableMemo(ChartModals);
 // 100 → « 100 », 100 000 → « 100k », 1 000 000 000 → « 1B » (et non le « 1G » de d3.format(".2s")).
 const DEFAULT_VOLUME_FORMAT = formatVolumeValue;
 /** Ce qui fait une étape de Ctrl+Z dans la disposition : la liste des indicateurs et le panneau du volume fermé ou non. */
-const layoutShape = (s: ChartTemplateSnapshot): string => `${s.indicators.map((i) => i.id).join("|")}#${s.volumePaneState === "hidden"}`;
+// L'ordre des panneaux aussi (volume et panneaux de scripts, déplacés par glisser), pour qu'un glisser s'annule.
+const layoutShape = (s: ChartTemplateSnapshot): string =>
+  `${s.indicators.map((i) => i.id).join("|")}#${s.volumePaneState === "hidden"}#${s.volumePaneOrder}#${(s.paneOrder ?? []).join("|")}`;
 // En-têtes des panneaux : rien n'y bouge pendant un glisser (seulement au survol), mais ils étaient
 // recalculés à chaque image avec toutes leurs icônes. `vFmt` est appelé pendant le rendu : gardé tel quel.
 const StablePaneHeaders = stableMemo(PaneHeaders, { raw: ["vFmt", "indicatorLabel"] });
@@ -782,6 +784,7 @@ export function CandlestickChart({
     draggingPaneId,
     setDraggingPaneId,
     volumePaneOrder,
+    paneOrder,
     volumePaneState,
     setVolumePaneState,
     paneHeightFractions,
@@ -989,7 +992,10 @@ export function CandlestickChart({
   // rouvert. Chaque étape garde la disposition d'avant (indicateurs avec leurs réglages, ordre et hauteur des panneaux) ;
   // un simple réglage (période, couleur, masquage) n'en crée pas. L'ordre avec les étapes des dessins est dans undoOrder.
   useEffect(() => {
-    const snap: ChartTemplateSnapshot = { indicators, volumePaneOrder, volumePaneState, paneHeightFractions };
+    const snap: ChartTemplateSnapshot = { indicators, volumePaneOrder, volumePaneState, paneHeightFractions, paneOrder };
+    // Un glisser de panneau passe d'un voisin à l'autre en plusieurs déplacements : une seule étape, à la fin du geste
+    // (la disposition d'avant le glisser reste la référence jusque-là).
+    if (draggingPaneId !== null) return;
     const prev = layoutPrev.current;
     layoutPrev.current = snap;
     if (layoutRestoring.current) {
@@ -1003,7 +1009,7 @@ export function CandlestickChart({
     undoOrder.current.push("layout");
     if (undoOrder.current.length > 200) undoOrder.current.shift();
     redoOrder.current = [];
-  }, [indicators, volumePaneOrder, volumePaneState, paneHeightFractions]);
+  }, [indicators, volumePaneOrder, volumePaneState, paneHeightFractions, paneOrder, draggingPaneId]);
   // Un autre symbole : les étapes de disposition de l'ancien ne s'appliquent plus.
   const historySymbol = useRef(symbol);
   useEffect(() => {

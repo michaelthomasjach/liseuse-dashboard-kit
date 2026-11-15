@@ -563,8 +563,10 @@ export function usePaneLayout({
     volumePaneOrder: number;
     volumePaneState: "expanded" | "collapsed" | "hidden";
     paneHeightFractions: Record<string, number>;
+    paneOrder?: string[];
   }) {
     commitIndicators(snapshot.indicators);
+    if (snapshot.paneOrder) setPaneOrder(snapshot.paneOrder);
     setVolumePaneOrder(snapshot.volumePaneOrder);
     setVolumePaneState(snapshot.volumePaneState);
     setPaneHeightFractions(snapshot.paneHeightFractions);
@@ -1021,6 +1023,7 @@ export function usePaneLayout({
     draggingPaneId,
     setDraggingPaneId,
     volumePaneOrder,
+    paneOrder,
     volumePaneState,
     setVolumePaneState,
     paneHeightFractions,

@@ -23,6 +23,9 @@ export interface ChartTemplateSnapshot {
   /** Keyed by "volume" or an indicator's own id — see `usePaneLayout`'s own `paneHeightFractions`
    *  doc. */
   paneHeightFractions: Record<string, number>;
+  /** Ordre des panneaux laissé par le dernier glisser — voir `ChartPaneLayout.paneOrder` (place des panneaux de
+   *  scripts). Absent : inchangé au chargement. */
+  paneOrder?: string[];
   /** Les scripts affichés sur le graphique (`ScriptDef.enabled`), avec leurs entrées. Appliquer le modèle affiche
    *  exactement ceux-là et retire les autres. Absent (modèle enregistré avant cette information) : aucun script. */
   scripts?: ChartTemplateScript[];

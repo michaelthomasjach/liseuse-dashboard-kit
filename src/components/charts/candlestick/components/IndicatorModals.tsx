@@ -23,6 +23,7 @@ import { CodeBlock } from "../../../primitives/CodeBlock";
 import { INDICATOR_DIAGRAMS, VolumeDiagram } from "../diagrams/indicatorDiagramRegistry";
 import { drawingToolMeta, drawingLabel } from "../drawingCatalog";
 import { IndicatorSettingsInputs, IndicatorSettingsStyle } from "./IndicatorSettingsFields";
+import { SettingsSection, differsFromDefaults, indicatorDefaults } from "./IndicatorSettingsLayout";
 import { IndicatorPickerModal } from "./IndicatorPickerModal";
 import { IndicatorHelpButton, useOpenIndicatorHelp } from "./IndicatorHelp";
 import { hasIndicatorHelp } from "../indicatorHelp";
@@ -570,56 +571,87 @@ export function IndicatorModals({
         </Modal>
       )}
 
-      {editingIndicatorId && indicatorDraft && (
-        <Modal
-          open
-          onClose={closeIndicatorSettings}
-          title={`Paramètres — ${indicatorLabel(indicatorDraft)}`}
-          headerActions={indicatorDraft.customData ? undefined : <IndicatorHelpButton kind={indicatorDraft.kind} className="lq-modal__close-icon" />}
-          // Plus de boutons : chaque réglage s'applique et s'enregistre aussitôt (voir usePaneLayout).
-          footer={null}
-        >
-          <Tabs
-            items={[
-              { id: "inputs", label: "Entrées" },
-              { id: "style", label: "Style" },
-            ]}
-            value={settingsTab}
-            onChange={(id) => setSettingsTab(id as "inputs" | "style")}
-            className="lq-chart__edit-drawing-tabs"
-          />
+      {editingIndicatorId &&
+        indicatorDraft &&
+        (() => {
+          // A script-produced pane's own parameters, read straight off the script that owns it — the same list the
+          // editor's own panel shows, backed by the same `ScriptDef.paramValues`, so editing here or there is the same edit.
+          const scriptId = scriptIdFromIndicatorId(indicatorDraft.customData?.id);
+          const script = scriptId === null ? undefined : scripts.find((s) => s.id === scriptId);
+          const params = script ? analyzeScriptVariables(script.runDraftCode ?? script.code).params : [];
+          const paramsDiffer = !!script && params.some((p) => script.paramValues?.[p.name] !== undefined && JSON.stringify(script.paramValues[p.name]) !== JSON.stringify(p.defaultValue));
+          const canReset = paramsDiffer || differsFromDefaults(indicatorDraft);
+          const resetAll = () => {
+            setIndicatorDraft(indicatorDefaults(indicatorDraft));
+            if (script) for (const p of params) if (script.paramValues?.[p.name] !== undefined) setScriptParamValue(script.id, p.name, p.defaultValue);
+          };
+          const host = indicatorDraft.sourceId ? [...indicators, ...ownPaneIndicators].find((i) => i.id === indicatorDraft.sourceId) : undefined;
+          const kindLabel = indicatorDraft.customData
+            ? script
+              ? "Indicateur scripté"
+              : "Indicateur personnalisé"
+            : (INDICATOR_CATALOG.find((entry) => entry.kind === indicatorDraft.kind)?.label ?? indicatorDraft.kind);
+          // « MACD(12,26,9) » n'a pas besoin du sous-titre « MACD » : le nom dit déjà le type.
+          const subtitle = indicatorLabel(indicatorDraft).startsWith(kindLabel) ? "Paramètres de l'indicateur" : kindLabel;
+          const where = indicatorDraft.sourceId ? `sur ${host ? indicatorLabel(host) : indicatorDraft.sourceId === "volume" ? "Volume" : "un panneau"}` : null;
+          return (
+            <Modal
+              open
+              onClose={closeIndicatorSettings}
+              className="lq-ind-settings-modal"
+              title={
+                <span className="lq-ind-settings__heading">
+                  <span className="lq-ind-settings__heading-name">{indicatorLabel(indicatorDraft)}</span>
+                  <span className="lq-ind-settings__heading-kind">{[subtitle, where].filter(Boolean).join(" · ")}</span>
+                </span>
+              }
+              closeLabel="Fermer les paramètres"
+              headerActions={indicatorDraft.customData ? undefined : <IndicatorHelpButton kind={indicatorDraft.kind} className="lq-modal__close-icon" />}
+              // Pas de bouton « Enregistrer » : chaque réglage s'applique et s'enregistre aussitôt (voir usePaneLayout).
+              footer={
+                <div className="lq-ind-settings__footer">
+                  <button type="button" className="lq-ind-settings__link" onClick={resetAll} disabled={!canReset}>
+                    Réinitialiser les valeurs par défaut
+                  </button>
+                  <button type="button" className="lq-ind-settings__button" onClick={closeIndicatorSettings}>
+                    Fermer
+                  </button>
+                </div>
+              }
+            >
+              <Tabs
+                items={[
+                  { id: "inputs", label: "Entrées" },
+                  { id: "style", label: "Style" },
+                ]}
+                value={settingsTab}
+                onChange={(id) => setSettingsTab(id as "inputs" | "style")}
+                className="lq-ind-settings__tabs"
+              />
 
-          {settingsTab === "inputs" && (
-            <>
-              {(() => {
-                // A script-produced pane's own parameters, read straight off the script that owns
-                // it — the same list the editor's own panel shows, backed by the same
-                // `ScriptDef.paramValues`, so editing here or there is the same edit.
-                const scriptId = scriptIdFromIndicatorId(indicatorDraft.customData?.id);
-                const script = scriptId === null ? undefined : scripts.find((s) => s.id === scriptId);
-                if (!script) return null;
-                const { params } = analyzeScriptVariables(script.runDraftCode ?? script.code);
-                if (params.length === 0) return null;
-                return (
-                  <section className="lq-chart__script-params">
-                    <h4 className="lq-chart__script-params-title">Paramètres du script</h4>
-                    <ScriptParamsFields
-                      params={params}
-                      values={script.paramValues}
-                      onChange={(name, value) => setScriptParamValue(script.id, name, value)}
-                    />
-                  </section>
-                );
-              })()}
-              <IndicatorSettingsInputs indicatorDraft={indicatorDraft} setIndicatorDraft={setIndicatorDraft} indicators={indicators} />
-            </>
-          )}
+              {settingsTab === "inputs" && (
+                <IndicatorSettingsInputs
+                  indicatorDraft={indicatorDraft}
+                  setIndicatorDraft={setIndicatorDraft}
+                  indicators={indicators}
+                  leading={
+                    script && params.length > 0 ? (
+                      <SettingsSection title="Paramètres du script">
+                        <div className="lq-ind-settings__script-params">
+                          <ScriptParamsFields params={params} values={script.paramValues} onChange={(name, value) => setScriptParamValue(script.id, name, value)} />
+                        </div>
+                      </SettingsSection>
+                    ) : undefined
+                  }
+                />
+              )}
 
-          {settingsTab === "style" && (
-            <IndicatorSettingsStyle indicatorDraft={indicatorDraft} setIndicatorDraft={setIndicatorDraft} indicators={indicators} />
-          )}
-        </Modal>
-      )}
+              {settingsTab === "style" && (
+                <IndicatorSettingsStyle indicatorDraft={indicatorDraft} setIndicatorDraft={setIndicatorDraft} indicators={indicators} />
+              )}
+            </Modal>
+          );
+        })()}
     </>
   );
 }

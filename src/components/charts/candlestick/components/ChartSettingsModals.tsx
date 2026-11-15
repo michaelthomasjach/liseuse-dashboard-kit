@@ -13,6 +13,7 @@ import type { PriceScaleMode } from "../interfaces/PriceScaleMode.interface";
 import type { CandleColorRule } from "../interfaces/CandleColorRule.interface";
 import type { Indicator } from "../interfaces/Indicator.interface";
 import { CandleColorRulesEditor } from "./CandleColorRulesEditor";
+import "./IndicatorSettings.css";
 
 export interface ChartSettingsModalsProps {
   settingsOpen: boolean;
@@ -412,44 +413,80 @@ export function ChartSettingsModals({
       )}
 
       {volumeSettingsOpen && (
-        <Modal open onClose={() => setVolumeSettingsOpen(false)} title="Paramètres du panneau Volume" footer={null}>
-          {theme.isEink && (
-            <p className="lq-chart__settings-eink-note">
-              La palette E-ink affiche les barres en creux ou plein plutôt qu'en couleur — les couleurs ci-dessous ne changent rien à leur apparence tant que cette palette est active.
-            </p>
-          )}
-          <div className="lq-chart__edit-drawing-row">
-            <div className="lq-field">
-              <label className="lq-field__label">Barres haussières</label>
-              <ColorPicker
-                className="lq-chart__color-input"
-                value={volumeUpColorOverride ?? upColorOverride ?? theme.up}
-                onChange={(color) => setVolumeUpColorOverride(color)}
-                disabled={theme.isEink}
-              />
+        // Même grille que les paramètres d'indicateur (voir IndicatorSettings.css) : sous-titre, section « Tracé » en
+        // tableau, pied « Réinitialiser » / « Fermer ».
+        <Modal
+          open
+          onClose={() => setVolumeSettingsOpen(false)}
+          className="lq-ind-settings-modal"
+          title={
+            <span className="lq-ind-settings__heading">
+              <span className="lq-ind-settings__heading-name">Volume</span>
+              <span className="lq-ind-settings__heading-kind">Paramètres du panneau</span>
+            </span>
+          }
+          footer={
+            <div className="lq-ind-settings__footer">
+              <button
+                type="button"
+                className="lq-ind-settings__link"
+                disabled={!volumeUpColorOverride && !volumeDownColorOverride}
+                onClick={() => {
+                  setVolumeUpColorOverride(undefined);
+                  setVolumeDownColorOverride(undefined);
+                }}
+              >
+                Réinitialiser aux couleurs des bougies
+              </button>
+              <button type="button" className="lq-ind-settings__button" onClick={() => setVolumeSettingsOpen(false)}>
+                Fermer
+              </button>
             </div>
-            <div className="lq-field">
-              <label className="lq-field__label">Barres baissières</label>
-              <ColorPicker
-                className="lq-chart__color-input"
-                value={volumeDownColorOverride ?? downColorOverride ?? theme.down}
-                onChange={(color) => setVolumeDownColorOverride(color)}
-                disabled={theme.isEink}
-              />
-            </div>
+          }
+        >
+          <div className="lq-ind-settings">
+            <section className="lq-ind-settings__section" aria-label="Tracé">
+              <header className="lq-ind-settings__section-head">
+                <h3 className="lq-ind-settings__section-title">Tracé</h3>
+              </header>
+              <div className="lq-ind-settings__trace" role="table" aria-label="Éléments tracés">
+                <div className="lq-ind-settings__trace-row" role="row">
+                  <span className="lq-ind-settings__trace-check" role="cell" />
+                  <span className="lq-ind-settings__trace-name" role="cell">
+                    Barres
+                  </span>
+                  <span className="lq-ind-settings__trace-colors" role="cell">
+                    <span className="lq-ind-settings__swatch">
+                      <span className="lq-ind-settings__swatch-label">Hausse</span>
+                      <ColorPicker
+                        className="lq-chart__color-input"
+                        value={volumeUpColorOverride ?? upColorOverride ?? theme.up}
+                        onChange={(color) => setVolumeUpColorOverride(color)}
+                        disabled={theme.isEink}
+                        aria-label="Couleur des barres haussières"
+                      />
+                    </span>
+                    <span className="lq-ind-settings__swatch">
+                      <span className="lq-ind-settings__swatch-label">Baisse</span>
+                      <ColorPicker
+                        className="lq-chart__color-input"
+                        value={volumeDownColorOverride ?? downColorOverride ?? theme.down}
+                        onChange={(color) => setVolumeDownColorOverride(color)}
+                        disabled={theme.isEink}
+                        aria-label="Couleur des barres baissières"
+                      />
+                    </span>
+                  </span>
+                </div>
+              </div>
+              {theme.isEink && (
+                <p className="lq-ind-settings__empty">
+                  En palette E-ink, les barres sont en creux ou pleines plutôt qu&apos;en couleur : ces couleurs ne changent rien tant
+                  qu&apos;elle est active.
+                </p>
+              )}
+            </section>
           </div>
-          {(volumeUpColorOverride || volumeDownColorOverride) && (
-            <button
-              type="button"
-              className="lq-chart__inline-reset"
-              onClick={() => {
-                setVolumeUpColorOverride(undefined);
-                setVolumeDownColorOverride(undefined);
-              }}
-            >
-              Réinitialiser aux couleurs des bougies
-            </button>
-          )}
         </Modal>
       )}
 

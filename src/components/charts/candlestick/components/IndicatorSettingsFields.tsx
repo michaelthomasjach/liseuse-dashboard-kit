@@ -1,14 +1,16 @@
+import { useId, type ReactNode } from "react";
 import { ColorPicker } from "../../../forms/ColorPicker";
 import { Checkbox } from "../../../forms/Checkbox";
 import { IndicatorStyleRulesEditor } from "./IndicatorStyleRulesEditor";
 import { IndicatorWatermarkField } from "./IndicatorWatermarkField";
 import { InputNumber } from "../../../forms/InputNumber";
-import { Select } from "../../../forms/Select";
+import { Select, type SelectOption } from "../../../forms/Select";
 import type { Indicator } from "../interfaces/Indicator.interface";
-import { indicatorCatalogEntry, isFundamentalKind, defaultIndicatorColor } from "../indicatorCatalog";
+import { indicatorCatalogEntry, indicatorLabel, isFundamentalKind, defaultIndicatorColor } from "../indicatorCatalog";
 import { toDateInputValue, fromDateInputValue, normalizeValueFormat, formatWithValueFormat } from "../formatting";
 import type { ValueFormat } from "../interfaces/ValueFormat.interface";
 import { supportsProjection, DEFAULT_PROJECTION, type IndicatorProjectionMethod } from "../indicatorProjection";
+import { DefaultValue, SettingCheckRow, SettingRow, SettingsSection, indicatorDefaults } from "./IndicatorSettingsLayout";
 
 export interface IndicatorSettingsFieldsProps {
   indicatorDraft: Indicator;
@@ -16,828 +18,579 @@ export interface IndicatorSettingsFieldsProps {
   indicators: Indicator[];
 }
 
-/** The settings modal's "Entrées" tab (see IndicatorModals.tsx) — period/stdDev plus every
- *  indicator's own bespoke inputs (MACD's three periods, ZigZag's deviation, Ichimoku's four
- *  periods, TPO's five settings, RSI/CHOP's own reference thresholds, ADX's trend threshold,
- *  correlation's own "strongly correlated" cutoff, a fundamental's value/YoY display mode…), each
- *  gated on `indicatorDraft.kind` exactly like the ones already here — extracted to its own file
- *  purely to keep IndicatorModals.tsx under this repo's 1000-line cap as more of these accumulate,
- *  not for any reason of its own. */
-export function IndicatorSettingsInputs({ indicatorDraft, setIndicatorDraft }: IndicatorSettingsFieldsProps) {
+/** Couleurs « hausse / baisse » par défaut des indicateurs qui se colorent selon la tendance. */
+const UP = "#26a69a";
+const DOWN = "#ef5350";
+
+/** Un réglage numérique : libellé à gauche, champ compact à droite (unité dans le champ), et la valeur par défaut
+ *  visible dès qu'on s'en écarte, qui la rétablit d'un clic. L'unité suit le champ. Un champ vidé ne change rien : c'est un état de saisie. */
+function NumberSetting({
+  label,
+  value,
+  def,
+  min,
+  max,
+  step = 1,
+  suffix,
+  hint,
+  onSet,
+}: {
+  label: string;
+  value: number | undefined;
+  def: number;
+  min?: number;
+  max?: number;
+  step?: number;
+  suffix?: string;
+  hint?: ReactNode;
+  onSet: (v: number) => void;
+}) {
+  const id = useId();
+  const current = value ?? def;
   return (
-    <>
-      {/* Indicateur de zones : fenêtre de temps élargie (ou rétrécie) autour de celle que fournit l'application. */}
-      {indicatorDraft.customData?.draw === "zones" && (
-        <div className="lq-chart__edit-drawing-row">
-          <InputNumber
-            label="Marge avant (heures)"
-            min={-168}
-            max={168}
-            step={1}
-            value={indicatorDraft.zonePadBeforeHours ?? 0}
-            onChange={(v) => setIndicatorDraft({ ...indicatorDraft, zonePadBeforeHours: v === "" || v === 0 ? undefined : v })}
-          />
-          <InputNumber
-            label="Marge après (heures)"
-            min={-168}
-            max={168}
-            step={1}
-            value={indicatorDraft.zonePadAfterHours ?? 0}
-            onChange={(v) => setIndicatorDraft({ ...indicatorDraft, zonePadAfterHours: v === "" || v === 0 ? undefined : v })}
-          />
-        </div>
-      )}
-      {indicatorCatalogEntry(indicatorDraft).hasPeriod && (
-        <InputNumber
-          label="Période"
-          min={1}
-          max={500}
-          step={1}
-          value={indicatorDraft.period}
-          onChange={(v) => setIndicatorDraft({ ...indicatorDraft, period: v === "" ? indicatorDraft.period : v })}
-        />
-      )}
-      {indicatorCatalogEntry(indicatorDraft).hasStdDev && (
-        <InputNumber
-          label="Écart-type (bandes)"
-          min={0.5}
-          max={5}
-          step={0.1}
-          value={indicatorDraft.stdDev ?? 2}
-          onChange={(v) => setIndicatorDraft({ ...indicatorDraft, stdDev: v === "" ? indicatorDraft.stdDev : v })}
-        />
-      )}
-      {indicatorDraft.kind === "macd" && (
-        <div className="lq-chart__edit-drawing-row">
-          <InputNumber
-            label="Rapide"
-            min={1}
-            max={200}
-            step={1}
-            value={indicatorDraft.fastPeriod ?? 12}
-            onChange={(v) => setIndicatorDraft({ ...indicatorDraft, fastPeriod: v === "" ? indicatorDraft.fastPeriod : v })}
-          />
-          <InputNumber
-            label="Lent"
-            min={1}
-            max={400}
-            step={1}
-            value={indicatorDraft.slowPeriod ?? 26}
-            onChange={(v) => setIndicatorDraft({ ...indicatorDraft, slowPeriod: v === "" ? indicatorDraft.slowPeriod : v })}
-          />
-          <InputNumber
-            label="Signal"
-            min={1}
-            max={200}
-            step={1}
-            value={indicatorDraft.signalPeriod ?? 9}
-            onChange={(v) => setIndicatorDraft({ ...indicatorDraft, signalPeriod: v === "" ? indicatorDraft.signalPeriod : v })}
-          />
-        </div>
-      )}
-      {indicatorDraft.kind === "zigzag" && (
-        <InputNumber
-          label="Déviation (%)"
-          min={0.5}
-          max={50}
-          step={0.5}
-          value={indicatorDraft.zigzagDeviation ?? 5}
-          onChange={(v) => setIndicatorDraft({ ...indicatorDraft, zigzagDeviation: v === "" ? indicatorDraft.zigzagDeviation : v })}
-        />
-      )}
-      {indicatorDraft.kind === "supertrend" && (
-        <InputNumber
-          label="Multiplicateur (× ATR)"
-          min={0.5}
-          max={10}
-          step={0.5}
-          value={indicatorDraft.supertrendMultiplier ?? 3}
-          onChange={(v) => setIndicatorDraft({ ...indicatorDraft, supertrendMultiplier: v === "" ? indicatorDraft.supertrendMultiplier : v })}
-        />
-      )}
-      {indicatorDraft.kind === "chandelierExit" && (
-        <>
-          <InputNumber
-            label="Multiplicateur ATR"
-            min={0.5}
-            max={10}
-            step={0.1}
-            value={indicatorDraft.chandelierMultiplier ?? 3}
-            onChange={(v) => setIndicatorDraft({ ...indicatorDraft, chandelierMultiplier: v === "" ? indicatorDraft.chandelierMultiplier : v })}
-          />
-          <Checkbox
-            label="Utiliser le prix de clôture pour les extrêmes"
-            checked={indicatorDraft.chandelierUseClose ?? true}
-            onChange={(checked) => setIndicatorDraft({ ...indicatorDraft, chandelierUseClose: checked })}
-          />
-        </>
-      )}
-      {indicatorDraft.kind === "parabolicSar" && (
-        <div className="lq-chart__edit-drawing-row">
-          <InputNumber
-            label="Pas"
-            min={0.01}
-            max={1}
-            step={0.01}
-            value={indicatorDraft.sarStep ?? 0.02}
-            onChange={(v) => setIndicatorDraft({ ...indicatorDraft, sarStep: v === "" ? indicatorDraft.sarStep : v })}
-          />
-          <InputNumber
-            label="Max"
-            min={0.05}
-            max={1}
-            step={0.05}
-            value={indicatorDraft.sarMax ?? 0.2}
-            onChange={(v) => setIndicatorDraft({ ...indicatorDraft, sarMax: v === "" ? indicatorDraft.sarMax : v })}
-          />
-        </div>
-      )}
-      {indicatorDraft.kind === "gaps" && (
-        <InputNumber
-          label="Écart minimum (%)"
-          min={0}
-          max={20}
-          step={0.1}
-          value={indicatorDraft.gapsMinPercent ?? 0.1}
-          onChange={(v) => setIndicatorDraft({ ...indicatorDraft, gapsMinPercent: v === "" ? indicatorDraft.gapsMinPercent : v })}
-        />
-      )}
-      {indicatorDraft.kind === "pivotPoints" && (
-        <div className="lq-chart__edit-drawing-row">
-          <Select
-            label="Type"
-            value={indicatorDraft.pivotType ?? "classic"}
-            onChange={(v) => setIndicatorDraft({ ...indicatorDraft, pivotType: v })}
-            options={[
-              { value: "classic", label: "Classic" },
-              { value: "fibonacci", label: "Fibonacci" },
-              { value: "woodie", label: "Woodie" },
-              { value: "camarilla", label: "Camarilla" },
-            ]}
-          />
-          <Select
-            label="Période de référence"
-            value={indicatorDraft.pivotPeriod ?? "weekly"}
-            onChange={(v) => setIndicatorDraft({ ...indicatorDraft, pivotPeriod: v })}
-            options={[
-              { value: "daily", label: "Journalière" },
-              { value: "weekly", label: "Hebdomadaire" },
-              { value: "monthly", label: "Mensuelle" },
-            ]}
-          />
-        </div>
-      )}
-      {indicatorDraft.kind === "supportResistance" && (
-        <InputNumber
-          label="Nombre de niveaux"
-          min={1}
-          max={20}
-          step={1}
-          value={indicatorDraft.srMaxLevels ?? 6}
-          onChange={(v) => setIndicatorDraft({ ...indicatorDraft, srMaxLevels: v === "" ? indicatorDraft.srMaxLevels : v })}
-        />
-      )}
-      {(indicatorDraft.kind === "patternRecognition" || indicatorDraft.kind === "candleRecognition") && (
-        <div className="lq-field">
-          <label className="lq-field__label">Date limite (par défaut : dernière bougie, actualisée chaque jour)</label>
-          <input
-            type="date"
-            className="lq-chart__date-input"
-            value={indicatorDraft.recognitionDateLimit ? toDateInputValue(indicatorDraft.recognitionDateLimit) : ""}
-            onChange={(e) =>
-              setIndicatorDraft({
-                ...indicatorDraft,
-                recognitionDateLimit: e.target.value ? fromDateInputValue(e.target.value, new Date()) : undefined,
-              })
-            }
-          />
-          {indicatorDraft.recognitionDateLimit && (
-            <button
-              type="button"
-              className="lq-chart__inline-reset"
-              onClick={() => setIndicatorDraft({ ...indicatorDraft, recognitionDateLimit: undefined })}
-            >
-              Revenir à la dernière bougie
-            </button>
-          )}
-        </div>
-      )}
-      {indicatorDraft.kind === "ichimoku" && (
-        <div className="lq-chart__edit-drawing-row">
-          <InputNumber
-            label="Conversion"
-            min={1}
-            max={100}
-            step={1}
-            value={indicatorDraft.ichimokuConversionPeriod ?? 9}
-            onChange={(v) => setIndicatorDraft({ ...indicatorDraft, ichimokuConversionPeriod: v === "" ? indicatorDraft.ichimokuConversionPeriod : v })}
-          />
-          <InputNumber
-            label="Base"
-            min={1}
-            max={200}
-            step={1}
-            value={indicatorDraft.ichimokuBasePeriod ?? 26}
-            onChange={(v) => setIndicatorDraft({ ...indicatorDraft, ichimokuBasePeriod: v === "" ? indicatorDraft.ichimokuBasePeriod : v })}
-          />
-          <InputNumber
-            label="Span B"
-            min={1}
-            max={300}
-            step={1}
-            value={indicatorDraft.ichimokuSpanPeriod ?? 52}
-            onChange={(v) => setIndicatorDraft({ ...indicatorDraft, ichimokuSpanPeriod: v === "" ? indicatorDraft.ichimokuSpanPeriod : v })}
-          />
-          <InputNumber
-            label="Déplacement"
-            min={1}
-            max={200}
-            step={1}
-            value={indicatorDraft.ichimokuDisplacement ?? 26}
-            onChange={(v) => setIndicatorDraft({ ...indicatorDraft, ichimokuDisplacement: v === "" ? indicatorDraft.ichimokuDisplacement : v })}
-          />
-        </div>
-      )}
-      {indicatorDraft.kind === "tpo" && (
-        <>
-          <div className="lq-chart__edit-drawing-row">
-            <InputNumber
-              label="Taille du bloc (min)"
-              min={1}
-              max={1440}
-              step={5}
-              value={indicatorDraft.tpoBlockMinutes ?? 30}
-              onChange={(v) => setIndicatorDraft({ ...indicatorDraft, tpoBlockMinutes: v === "" ? indicatorDraft.tpoBlockMinutes : v })}
-            />
-            <InputNumber
-              label="Lignes de prix"
-              min={5}
-              max={100}
-              step={1}
-              value={indicatorDraft.tpoRowCount ?? 24}
-              onChange={(v) => setIndicatorDraft({ ...indicatorDraft, tpoRowCount: v === "" ? indicatorDraft.tpoRowCount : v })}
-            />
-          </div>
-          <div className="lq-chart__edit-drawing-row">
-            <InputNumber
-              label="Zone de valeur (%)"
-              min={1}
-              max={100}
-              step={1}
-              value={indicatorDraft.tpoValueAreaPercent ?? 70}
-              onChange={(v) => setIndicatorDraft({ ...indicatorDraft, tpoValueAreaPercent: v === "" ? indicatorDraft.tpoValueAreaPercent : v })}
-            />
-            <Select
-              label="Étiquettes"
-              value={indicatorDraft.tpoLabelStyle ?? "letters"}
-              onChange={(v) => setIndicatorDraft({ ...indicatorDraft, tpoLabelStyle: v })}
-              options={[
-                { value: "letters", label: "Lettres" },
-                { value: "numbers", label: "Chiffres" },
-              ]}
-            />
-          </div>
-        </>
-      )}
-      {indicatorDraft.kind === "rsi" && (
-        <div className="lq-chart__edit-drawing-row">
-          <InputNumber
-            label="Seuil de surachat"
-            min={50}
-            max={99}
-            step={1}
-            value={indicatorDraft.rsiOverbought ?? 70}
-            onChange={(v) => setIndicatorDraft({ ...indicatorDraft, rsiOverbought: v === "" ? indicatorDraft.rsiOverbought : v })}
-          />
-          <InputNumber
-            label="Seuil de survente"
-            min={1}
-            max={50}
-            step={1}
-            value={indicatorDraft.rsiOversold ?? 30}
-            onChange={(v) => setIndicatorDraft({ ...indicatorDraft, rsiOversold: v === "" ? indicatorDraft.rsiOversold : v })}
-          />
-        </div>
-      )}
-      {indicatorDraft.kind === "chop" && (
-        <div className="lq-chart__edit-drawing-row">
-          <InputNumber
-            label="Seuil haut (marché indécis)"
-            min={50}
-            max={99}
-            step={0.1}
-            value={indicatorDraft.chopUpperThreshold ?? 61.8}
-            onChange={(v) => setIndicatorDraft({ ...indicatorDraft, chopUpperThreshold: v === "" ? indicatorDraft.chopUpperThreshold : v })}
-          />
-          <InputNumber
-            label="Seuil bas (marché directionnel)"
-            min={1}
-            max={50}
-            step={0.1}
-            value={indicatorDraft.chopLowerThreshold ?? 38.2}
-            onChange={(v) => setIndicatorDraft({ ...indicatorDraft, chopLowerThreshold: v === "" ? indicatorDraft.chopLowerThreshold : v })}
-          />
-        </div>
-      )}
-      {indicatorDraft.kind === "adx" && (
-        <InputNumber
-          label="Seuil de tendance forte"
-          min={5}
-          max={60}
-          step={1}
-          value={indicatorDraft.adxThreshold ?? 25}
-          onChange={(v) => setIndicatorDraft({ ...indicatorDraft, adxThreshold: v === "" ? indicatorDraft.adxThreshold : v })}
-        />
-      )}
-      {indicatorDraft.kind === "correlation" && (
-        <InputNumber
-          label="Seuil de corrélation forte"
-          min={0.1}
-          max={1}
-          step={0.05}
-          value={indicatorDraft.correlationStrongThreshold ?? 0.7}
-          onChange={(v) => setIndicatorDraft({ ...indicatorDraft, correlationStrongThreshold: v === "" ? indicatorDraft.correlationStrongThreshold : v })}
-        />
-      )}
-      {isFundamentalKind(indicatorDraft.kind) && (
-        <Select
-          label="Affichage"
-          value={indicatorDraft.fundamentalDisplayMode ?? "value"}
-          onChange={(v) => setIndicatorDraft({ ...indicatorDraft, fundamentalDisplayMode: v })}
-          options={[
-            { value: "value", label: "Valeur" },
-            { value: "yoyChange", label: "Variation sur 1 an (%)" },
-          ]}
-        />
-      )}
-
-      {/* Projection. Last in the tab on purpose: it is the one setting here that does not describe
-          the indicator, it describes a guess about where the indicator is going, and it should read
-          as an addition to the thing above rather than as one more of its parameters.
-
-          Only for the kinds whose values are a level that continues — see `supportsProjection`.
-          A pattern detector has no projection to offer, and a toggle there would be a promise the
-          maths cannot keep. */}
-      {supportsProjection(indicatorDraft) && (
-        <div className="lq-chart__indicator-projection">
-          <Checkbox
-            checked={indicatorDraft.projection === true}
-            onChange={(checked) => setIndicatorDraft({ ...indicatorDraft, projection: checked })}
-            label="Projection"
-          />
-          <p className="lq-chart__indicator-projection-note">
-            Prolonge les lignes de l&apos;indicateur au-delà de la dernière bougie, en pointillés. C&apos;est une
-            extrapolation de ses propres valeurs passées — pas une prévision de marché.
-          </p>
-          {indicatorDraft.projection === true && (
-            <>
-              <Select
-                label="Méthode"
-                value={indicatorDraft.projectionMethod ?? DEFAULT_PROJECTION.method}
-                onChange={(v) => setIndicatorDraft({ ...indicatorDraft, projectionMethod: v })}
-                options={[
-                  { value: "linear", label: "Régression linéaire" },
-                  { value: "drift", label: "Dérive (pas moyen)" },
-                  { value: "holt", label: "Lissage de Holt (tendance)" },
-                  { value: "flat", label: "Dernière valeur tenue" },
-                ]}
-              />
-              <p className="lq-chart__indicator-projection-note">{METHOD_NOTES[indicatorDraft.projectionMethod ?? DEFAULT_PROJECTION.method]}</p>
-              <div className="lq-chart__edit-drawing-row">
-                <InputNumber
-                  label="Bougies projetées"
-                  min={1}
-                  max={200}
-                  step={1}
-                  value={indicatorDraft.projectionBars ?? DEFAULT_PROJECTION.bars}
-                  onChange={(v) => setIndicatorDraft({ ...indicatorDraft, projectionBars: v === "" ? undefined : v })}
-                />
-                <InputNumber
-                  label="Historique utilisé"
-                  min={2}
-                  max={500}
-                  step={1}
-                  value={indicatorDraft.projectionLookback ?? DEFAULT_PROJECTION.lookback}
-                  onChange={(v) => setIndicatorDraft({ ...indicatorDraft, projectionLookback: v === "" ? undefined : v })}
-                />
-              </div>
-              {indicatorDraft.projectionMethod !== "flat" && (
-                <>
-                  <InputNumber
-                    label="Amortissement de la tendance"
-                    min={0}
-                    max={1}
-                    step={0.05}
-                    value={indicatorDraft.projectionDamping ?? DEFAULT_PROJECTION.damping}
-                    onChange={(v) => setIndicatorDraft({ ...indicatorDraft, projectionDamping: v === "" ? undefined : v })}
-                  />
-                  <p className="lq-chart__indicator-projection-note">
-                    1 garde toute la pente indéfiniment — c&apos;est ce qui envoie une extrapolation naïve hors du
-                    graphique au bout de vingt bougies. 0 l&apos;abandonne tout de suite. Entre les deux, la projection
-                    s&apos;aplatit progressivement.
-                  </p>
-                </>
-              )}
-            </>
-          )}
-        </div>
-      )}
-    </>
+    <SettingRow label={label} htmlFor={id} hint={hint} trailing={<DefaultValue value={current} defaultValue={def} onReset={() => onSet(def)} />}>
+      <span className="lq-ind-settings__number">
+        <InputNumber id={id} min={min} max={max} step={step} value={current} onChange={(v) => v !== "" && onSet(v)} />
+      </span>
+      {/* L'unité après le champ plutôt que dedans : tous les champs gardent leurs boutons + / − et la même largeur. */}
+      {suffix && <span className="lq-ind-settings__unit">{suffix}</span>}
+    </SettingRow>
   );
 }
 
-/** What each method actually reads, and where each one is wrong. Shown under the picker rather than
- *  behind a tooltip: choosing between four extrapolations is not a choice anyone can make from four
- *  names. */
+/** Un menu dans la grille : libellé à gauche, menu à droite. */
+function SelectSetting<T extends string>({ label, value, options, onChange, hint, wide }: { label: string; value: T; options: SelectOption<T>[]; onChange: (v: T) => void; hint?: ReactNode; wide?: boolean }) {
+  return (
+    <SettingRow label={label} hint={hint} wide={wide}>
+      <span className="lq-ind-settings__select">
+        <Select<T> ariaLabel={label} value={value} options={options} onChange={onChange} />
+      </span>
+    </SettingRow>
+  );
+}
+
+/** The settings modal's "Entrées" tab (see IndicatorModals.tsx) — period/stdDev plus every indicator's own bespoke
+ *  inputs (MACD's three periods, ZigZag's deviation, Ichimoku's four periods, TPO's five settings, RSI/CHOP's own
+ *  reference thresholds, ADX's trend threshold, correlation's own "strongly correlated" cutoff, a fundamental's
+ *  value/YoY display mode…), each gated on `indicatorDraft.kind`. Rangés en sections courtes : « Calcul », « Seuils »,
+ *  « Projection ». `leading` : ce qui passe avant (les paramètres d'un script). */
+export function IndicatorSettingsInputs({ indicatorDraft: d, setIndicatorDraft, leading }: IndicatorSettingsFieldsProps & { leading?: ReactNode }) {
+  const set = (patch: Partial<Indicator>) => setIndicatorDraft({ ...d, ...patch });
+  const entry = indicatorCatalogEntry(d);
+  const defaults = indicatorDefaults(d);
+
+  const calc: ReactNode[] = [];
+  // Indicateur de zones : fenêtre de temps élargie (ou rétrécie) autour de celle que fournit l'application.
+  if (d.customData?.draw === "zones") {
+    calc.push(
+      <NumberSetting key="zb" label="Marge avant" suffix="h" min={-168} max={168} value={d.zonePadBeforeHours} def={0} onSet={(v) => set({ zonePadBeforeHours: v === 0 ? undefined : v })} />,
+      <NumberSetting key="za" label="Marge après" suffix="h" min={-168} max={168} value={d.zonePadAfterHours} def={0} onSet={(v) => set({ zonePadAfterHours: v === 0 ? undefined : v })} />
+    );
+  }
+  if (entry.hasPeriod) {
+    calc.push(<NumberSetting key="period" label="Période" suffix="bougies" min={1} max={500} value={d.period} def={defaults.period} onSet={(v) => set({ period: v })} />);
+  }
+  if (entry.hasStdDev) {
+    calc.push(<NumberSetting key="std" label="Écart-type" suffix="σ" min={0.5} max={5} step={0.1} value={d.stdDev} def={2} onSet={(v) => set({ stdDev: v })} />);
+  }
+  if (d.kind === "macd") {
+    calc.push(
+      <NumberSetting key="fast" label="Moyenne rapide" suffix="bougies" min={1} max={200} value={d.fastPeriod} def={12} onSet={(v) => set({ fastPeriod: v })} />,
+      <NumberSetting key="slow" label="Moyenne lente" suffix="bougies" min={1} max={400} value={d.slowPeriod} def={26} onSet={(v) => set({ slowPeriod: v })} />,
+      <NumberSetting key="signal" label="Signal" suffix="bougies" min={1} max={200} value={d.signalPeriod} def={9} onSet={(v) => set({ signalPeriod: v })} />
+    );
+  }
+  if (d.kind === "zigzag") {
+    calc.push(<NumberSetting key="zz" label="Déviation" suffix="%" min={0.5} max={50} step={0.5} value={d.zigzagDeviation} def={5} onSet={(v) => set({ zigzagDeviation: v })} />);
+  }
+  if (d.kind === "supertrend") {
+    calc.push(<NumberSetting key="st" label="Multiplicateur" suffix="× ATR" min={0.5} max={10} step={0.5} value={d.supertrendMultiplier} def={3} onSet={(v) => set({ supertrendMultiplier: v })} />);
+  }
+  if (d.kind === "chandelierExit") {
+    calc.push(
+      <NumberSetting key="ce" label="Multiplicateur" suffix="× ATR" min={0.5} max={10} step={0.1} value={d.chandelierMultiplier} def={3} onSet={(v) => set({ chandelierMultiplier: v })} />,
+      <SettingCheckRow key="ceclose">
+        <Checkbox label="Extrêmes sur les clôtures" checked={d.chandelierUseClose ?? true} onChange={(checked) => set({ chandelierUseClose: checked })} />
+      </SettingCheckRow>
+    );
+  }
+  if (d.kind === "parabolicSar") {
+    calc.push(
+      <NumberSetting key="sarstep" label="Pas" min={0.01} max={1} step={0.01} value={d.sarStep} def={0.02} onSet={(v) => set({ sarStep: v })} />,
+      <NumberSetting key="sarmax" label="Maximum" min={0.05} max={1} step={0.05} value={d.sarMax} def={0.2} onSet={(v) => set({ sarMax: v })} />
+    );
+  }
+  if (d.kind === "gaps") {
+    calc.push(<NumberSetting key="gaps" label="Écart minimum" suffix="%" min={0} max={20} step={0.1} value={d.gapsMinPercent} def={0.1} onSet={(v) => set({ gapsMinPercent: v })} />);
+  }
+  if (d.kind === "pivotPoints") {
+    calc.push(
+      <SelectSetting
+        key="pivottype"
+        label="Type"
+        value={d.pivotType ?? "classic"}
+        onChange={(v) => set({ pivotType: v })}
+        options={[
+          { value: "classic", label: "Classic" },
+          { value: "fibonacci", label: "Fibonacci" },
+          { value: "woodie", label: "Woodie" },
+          { value: "camarilla", label: "Camarilla" },
+        ]}
+      />,
+      <SelectSetting
+        key="pivotperiod"
+        label="Période de référence"
+        value={d.pivotPeriod ?? "weekly"}
+        onChange={(v) => set({ pivotPeriod: v })}
+        options={[
+          { value: "daily", label: "Journalière" },
+          { value: "weekly", label: "Hebdomadaire" },
+          { value: "monthly", label: "Mensuelle" },
+        ]}
+      />
+    );
+  }
+  if (d.kind === "supportResistance") {
+    calc.push(<NumberSetting key="sr" label="Nombre de niveaux" min={1} max={20} value={d.srMaxLevels} def={6} onSet={(v) => set({ srMaxLevels: v })} />);
+  }
+  if (d.kind === "patternRecognition" || d.kind === "candleRecognition") {
+    calc.push(<RecognitionDateRow key="date" indicatorDraft={d} set={set} />);
+  }
+  if (d.kind === "ichimoku") {
+    calc.push(
+      <NumberSetting key="ic" label="Conversion" suffix="bougies" min={1} max={100} value={d.ichimokuConversionPeriod} def={9} onSet={(v) => set({ ichimokuConversionPeriod: v })} />,
+      <NumberSetting key="ib" label="Base" suffix="bougies" min={1} max={200} value={d.ichimokuBasePeriod} def={26} onSet={(v) => set({ ichimokuBasePeriod: v })} />,
+      <NumberSetting key="is" label="Span B" suffix="bougies" min={1} max={300} value={d.ichimokuSpanPeriod} def={52} onSet={(v) => set({ ichimokuSpanPeriod: v })} />,
+      <NumberSetting key="id" label="Déplacement" suffix="bougies" min={1} max={200} value={d.ichimokuDisplacement} def={26} onSet={(v) => set({ ichimokuDisplacement: v })} />
+    );
+  }
+  if (d.kind === "tpo") {
+    calc.push(
+      <NumberSetting key="tb" label="Taille du bloc" suffix="min" min={1} max={1440} step={5} value={d.tpoBlockMinutes} def={30} onSet={(v) => set({ tpoBlockMinutes: v })} />,
+      <NumberSetting key="tr" label="Lignes de prix" min={5} max={100} value={d.tpoRowCount} def={24} onSet={(v) => set({ tpoRowCount: v })} />,
+      <NumberSetting key="tv" label="Zone de valeur" suffix="%" min={1} max={100} value={d.tpoValueAreaPercent} def={70} onSet={(v) => set({ tpoValueAreaPercent: v })} />,
+      <SelectSetting
+        key="tl"
+        label="Étiquettes"
+        value={d.tpoLabelStyle ?? "letters"}
+        onChange={(v) => set({ tpoLabelStyle: v })}
+        options={[
+          { value: "letters", label: "Lettres" },
+          { value: "numbers", label: "Chiffres" },
+        ]}
+      />
+    );
+  }
+  if (isFundamentalKind(d.kind)) {
+    calc.push(
+      <SelectSetting
+        key="fund"
+        label="Valeur affichée"
+        value={d.fundamentalDisplayMode ?? "value"}
+        onChange={(v) => set({ fundamentalDisplayMode: v })}
+        options={[
+          { value: "value", label: "Valeur" },
+          { value: "yoyChange", label: "Variation sur 1 an (%)" },
+        ]}
+      />
+    );
+  }
+
+  const thresholds: ReactNode[] = [];
+  if (d.kind === "rsi") {
+    thresholds.push(
+      <NumberSetting key="ob" label="Surachat" min={50} max={99} value={d.rsiOverbought} def={70} onSet={(v) => set({ rsiOverbought: v })} />,
+      <NumberSetting key="os" label="Survente" min={1} max={50} value={d.rsiOversold} def={30} onSet={(v) => set({ rsiOversold: v })} />
+    );
+  }
+  if (d.kind === "chop") {
+    thresholds.push(
+      <NumberSetting key="cu" label="Haut (marché indécis)" min={50} max={99} step={0.1} value={d.chopUpperThreshold} def={61.8} onSet={(v) => set({ chopUpperThreshold: v })} />,
+      <NumberSetting key="cl" label="Bas (directionnel)" min={1} max={50} step={0.1} value={d.chopLowerThreshold} def={38.2} onSet={(v) => set({ chopLowerThreshold: v })} />
+    );
+  }
+  if (d.kind === "adx") {
+    thresholds.push(<NumberSetting key="adx" label="Tendance forte" min={5} max={60} value={d.adxThreshold} def={25} onSet={(v) => set({ adxThreshold: v })} />);
+  }
+  if (d.kind === "correlation") {
+    thresholds.push(
+      <NumberSetting key="corr" label="Corrélation forte" min={0.1} max={1} step={0.05} value={d.correlationStrongThreshold} def={0.7} onSet={(v) => set({ correlationStrongThreshold: v })} />
+    );
+  }
+
+  const projection = supportsProjection(d);
+  if (calc.length === 0 && thresholds.length === 0 && !projection && !leading) {
+    return <p className="lq-ind-settings__empty">Cet indicateur n&apos;a pas de paramètres de calcul.</p>;
+  }
+
+  return (
+    <div className="lq-ind-settings">
+      {leading}
+      {calc.length > 0 && <SettingsSection title="Calcul">{calc}</SettingsSection>}
+      {thresholds.length > 0 && <SettingsSection title="Seuils">{thresholds}</SettingsSection>}
+      {/* Projection. Last on purpose: it does not describe the indicator, it describes a guess about where the
+          indicator is going. Only for the kinds whose values are a level that continues — see `supportsProjection`. */}
+      {projection && <ProjectionSection indicatorDraft={d} set={set} />}
+    </div>
+  );
+}
+
+function RecognitionDateRow({ indicatorDraft: d, set }: { indicatorDraft: Indicator; set: (patch: Partial<Indicator>) => void }) {
+  const id = useId();
+  return (
+    <SettingRow
+      label="Date limite"
+      htmlFor={id}
+      hint={d.recognitionDateLimit ? undefined : "Par défaut : la dernière bougie, actualisée chaque jour."}
+      trailing={
+        d.recognitionDateLimit && (
+          <button type="button" className="lq-ind-settings__default" onClick={() => set({ recognitionDateLimit: undefined })}>
+            dernière bougie
+          </button>
+        )
+      }
+    >
+      <input
+        id={id}
+        type="date"
+        className="lq-chart__date-input lq-ind-settings__date"
+        value={d.recognitionDateLimit ? toDateInputValue(d.recognitionDateLimit) : ""}
+        onChange={(e) => set({ recognitionDateLimit: e.target.value ? fromDateInputValue(e.target.value, new Date()) : undefined })}
+      />
+    </SettingRow>
+  );
+}
+
+function ProjectionSection({ indicatorDraft: d, set }: { indicatorDraft: Indicator; set: (patch: Partial<Indicator>) => void }) {
+  const method = d.projectionMethod ?? DEFAULT_PROJECTION.method;
+  return (
+    <SettingsSection
+      title="Projection"
+      help="Prolonge les lignes de l'indicateur au-delà de la dernière bougie, en pointillés. C'est une extrapolation de ses propres valeurs passées, pas une prévision de marché."
+    >
+      <SettingCheckRow>
+        <Checkbox checked={d.projection === true} onChange={(checked) => set({ projection: checked })} label="Prolonger l'indicateur en pointillés" />
+      </SettingCheckRow>
+      {d.projection === true && (
+        <>
+          <SelectSetting<IndicatorProjectionMethod>
+            label="Méthode"
+            value={method}
+            onChange={(v) => set({ projectionMethod: v })}
+            hint={METHOD_NOTES[method]}
+            wide
+            options={[
+              { value: "linear", label: "Régression linéaire" },
+              { value: "drift", label: "Dérive (pas moyen)" },
+              { value: "holt", label: "Lissage de Holt (tendance)" },
+              { value: "flat", label: "Dernière valeur tenue" },
+            ]}
+          />
+          <NumberSetting label="Bougies projetées" min={1} max={200} value={d.projectionBars} def={DEFAULT_PROJECTION.bars} onSet={(v) => set({ projectionBars: v })} />
+          <NumberSetting label="Historique utilisé" suffix="bougies" min={2} max={500} value={d.projectionLookback} def={DEFAULT_PROJECTION.lookback} onSet={(v) => set({ projectionLookback: v })} />
+          {method !== "flat" && (
+            <NumberSetting
+              label="Amortissement"
+              min={0}
+              max={1}
+              step={0.05}
+              value={d.projectionDamping}
+              def={DEFAULT_PROJECTION.damping}
+              onSet={(v) => set({ projectionDamping: v })}
+              hint="1 garde toute la pente, 0 l'abandonne tout de suite ; entre les deux, la projection s'aplatit peu à peu."
+            />
+          )}
+        </>
+      )}
+    </SettingsSection>
+  );
+}
+
+/** What each method actually reads, and where each one is wrong. Shown under the picker rather than behind a
+ *  tooltip: choosing between four extrapolations is not a choice anyone can make from four names. */
 const METHOD_NOTES: Record<IndicatorProjectionMethod, string> = {
   linear: "Droite des moindres carrés sur l'historique retenu, prolongée. Suit bien une pente régulière, dépasse une courbe qui s'aplatit déjà.",
   drift: "Dernière valeur, plus le pas moyen de l'historique. Plus calme que la régression : ancrée sur le dernier point plutôt que sur une droite ajustée.",
-  holt: "Un niveau et une tendance remis à jour bougie après bougie, donc le passé récent pèse plus que le début de la fenêtre. À prendre quand la série a changé de régime.",
-  flat: "Tient la dernière valeur. Sur une série bornée qui revient vers sa moyenne (RSI, CHOP, ADX), « ça reste à peu près là » bat souvent une droite — et c'est la référence que les trois autres doivent battre.",
+  holt: "Un niveau et une tendance remis à jour bougie après bougie : le passé récent pèse plus. À prendre quand la série a changé de régime.",
+  flat: "Tient la dernière valeur. Sur une série bornée qui revient vers sa moyenne (RSI, CHOP, ADX), c'est souvent la meilleure référence.",
 };
 
-/** The settings modal's "Style" tab (see IndicatorModals.tsx) — colors and display toggles, same
- *  extraction reasoning as `IndicatorSettingsInputs` above. */
-export function IndicatorSettingsStyle({ indicatorDraft, setIndicatorDraft, indicators }: IndicatorSettingsFieldsProps) {
+/** Une ligne du tableau « Tracé » : case de visibilité (si l'élément peut se masquer), nom, pastille(s) de couleur. */
+interface TraceRowProps {
+  name: ReactNode;
+  visible?: { checked: boolean; onChange: (checked: boolean) => void };
+  colors: { label?: string; value: string; onChange: (color: string) => void; thickness?: number; onThicknessChange?: (width: number) => void }[];
+  /** Une ligne secondaire, en retrait (un réglage propre à cet élément : croisement…). */
+  sub?: boolean;
+  children?: ReactNode;
+}
+
+function TraceRow({ name, visible, colors, sub = false, children }: TraceRowProps) {
+  const text = typeof name === "string" ? name : "l'élément";
   return (
-    <>
-      {indicatorDraft.kind === "macd" && (
-        <>
-          <Checkbox
-            label="Afficher l'histogramme"
-            checked={indicatorDraft.macdShowHistogram ?? true}
-            onChange={(checked) => setIndicatorDraft({ ...indicatorDraft, macdShowHistogram: checked })}
-          />
-          {(indicatorDraft.macdShowHistogram ?? true) && (
-            <div className="lq-chart__edit-drawing-row">
-              <div className="lq-field">
-                <label className="lq-field__label">Histogramme (hausse)</label>
-                <ColorPicker
-                  className="lq-chart__color-input"
-                  value={indicatorDraft.macdHistogramUpColor ?? "#26a69a"}
-                  onChange={(color) => setIndicatorDraft({ ...indicatorDraft, macdHistogramUpColor: color })}
-                />
-              </div>
-              <div className="lq-field">
-                <label className="lq-field__label">Histogramme (baisse)</label>
-                <ColorPicker
-                  className="lq-chart__color-input"
-                  value={indicatorDraft.macdHistogramDownColor ?? "#ef5350"}
-                  onChange={(color) => setIndicatorDraft({ ...indicatorDraft, macdHistogramDownColor: color })}
-                />
-              </div>
-            </div>
-          )}
-        </>
-      )}
-      {/* MACD : couleur de la ligne selon sa position face au signal (change à chaque croisement). */}
-      {indicatorDraft.kind === "macd" && (
-        <>
-          <Checkbox
-            label="Changer la couleur de la MACD quand elle croise le signal"
-            checked={indicatorDraft.macdCrossColors ?? false}
-            onChange={(checked) => setIndicatorDraft({ ...indicatorDraft, macdCrossColors: checked })}
-          />
-          {indicatorDraft.macdCrossColors && (
-            <div className="lq-chart__edit-drawing-row">
-              <div className="lq-field">
-                <label className="lq-field__label">MACD au-dessus du signal</label>
-                <ColorPicker
-                  className="lq-chart__color-input"
-                  value={indicatorDraft.macdLineAboveColor ?? "#26a69a"}
-                  onChange={(color) => setIndicatorDraft({ ...indicatorDraft, macdLineAboveColor: color })}
-                />
-              </div>
-              <div className="lq-field">
-                <label className="lq-field__label">MACD sous le signal</label>
-                <ColorPicker
-                  className="lq-chart__color-input"
-                  value={indicatorDraft.macdLineBelowColor ?? "#ef5350"}
-                  onChange={(color) => setIndicatorDraft({ ...indicatorDraft, macdLineBelowColor: color })}
-                />
-              </div>
-            </div>
-          )}
-        </>
-      )}
-      {indicatorDraft.kind === "zigzag" && (
-        <Checkbox
-          label="Afficher les labels HH / HL / LH / LL"
-          checked={indicatorDraft.zigzagShowLabels ?? true}
-          onChange={(checked) => setIndicatorDraft({ ...indicatorDraft, zigzagShowLabels: checked })}
+    <div className={["lq-ind-settings__trace-row", sub && "lq-ind-settings__trace-row--sub"].filter(Boolean).join(" ")} role="row">
+      <span className="lq-ind-settings__trace-check" role="cell">
+        {visible && <Checkbox checked={visible.checked} onChange={visible.onChange} ariaLabel={`Afficher ${text}`} />}
+      </span>
+      <span className="lq-ind-settings__trace-name" role="cell">
+        {name}
+      </span>
+      <span className="lq-ind-settings__trace-colors" role="cell">
+        {children}
+        {colors.map((c, i) => (
+          <span className="lq-ind-settings__swatch" key={i}>
+            {c.label && <span className="lq-ind-settings__swatch-label">{c.label}</span>}
+            <ColorPicker
+              className="lq-chart__color-input"
+              value={c.value}
+              onChange={c.onChange}
+              thickness={c.thickness}
+              onThicknessChange={c.onThicknessChange}
+              aria-label={`Couleur ${c.label ? `${c.label.toLowerCase()} ` : ""}de ${text}`} />
+          </span>
+        ))}
+      </span>
+    </div>
+  );
+}
+
+/** The settings modal's "Style" tab (see IndicatorModals.tsx) : « Tracé » (une ligne par élément tracé), « Valeurs »
+ *  (format des nombres), « Affichage » (légende, libellés, filigrane), puis les couleurs conditionnelles, repliables. */
+export function IndicatorSettingsStyle({ indicatorDraft: d, setIndicatorDraft, indicators }: IndicatorSettingsFieldsProps) {
+  const set = (patch: Partial<Indicator>) => setIndicatorDraft({ ...d, ...patch });
+  const entry = indicatorCatalogEntry(d);
+  const ownPane = entry.pane !== "price";
+  const label = indicatorLabel(d);
+  const shown = { checked: d.hidden !== true, onChange: (checked: boolean) => set({ hidden: checked ? undefined : true }) };
+  const mainColor = d.color ?? defaultIndicatorColor(indicators.findIndex((i) => i.id === d.id));
+  const pair = (upKey: keyof Indicator, downKey: keyof Indicator) => [
+    { label: "Hausse", value: (d[upKey] as string | undefined) ?? UP, onChange: (c: string) => set({ [upKey]: c } as Partial<Indicator>) },
+    { label: "Baisse", value: (d[downKey] as string | undefined) ?? DOWN, onChange: (c: string) => set({ [downKey]: c } as Partial<Indicator>) },
+  ];
+  const multi = d.customData?.draw === "multi" ? (d.customData.multiSeries ?? []) : [];
+
+  // --- Tracé ---------------------------------------------------------------------------------------------------
+  const trace: ReactNode[] = [];
+  if (multi.length > 0) {
+    // Plusieurs éléments tracés dans le même panneau (lignes, barres, bandes, points d'un script) : une couleur par
+    // élément, sous le nom que le code lui donne ; une ligne peut changer de couleur quand elle croise une autre série.
+    multi.forEach((series, i) => {
+      const others = multi.filter((o) => o.key !== series.key && o.draw !== "band");
+      const cross = d.seriesCross?.[series.key];
+      const setCross = (next: { versus: string; above: string; below: string } | null) => {
+        const all = { ...d.seriesCross };
+        if (next) all[series.key] = next;
+        else delete all[series.key];
+        set({ seriesCross: all });
+      };
+      const name = series.label || `Série ${i + 1}`;
+      trace.push(
+        <TraceRow
+          key={series.key}
+          name={name}
+          visible={i === 0 ? shown : undefined}
+          colors={[{ value: d.seriesColors?.[series.key] ?? series.color ?? defaultIndicatorColor(i), onChange: (c) => set({ seriesColors: { ...d.seriesColors, [series.key]: c } }) }]}
         />
-      )}
-      {/* Supertrend/Parabolic SAR/Chandelier Exit each color themselves by trend (up/down),
-          not by a single indicator-wide color the way most others do — their own pair of
-          swatches here, defaulting to the chart's own up/down colors so leaving both unset
-          reproduces the exact behavior from before these fields existed. */}
-      {indicatorDraft.kind === "supertrend" && (
-        <div className="lq-chart__edit-drawing-row">
-          <div className="lq-field">
-            <label className="lq-field__label">Couleur (hausse)</label>
-            <ColorPicker
-              className="lq-chart__color-input"
-              value={indicatorDraft.supertrendUpColor ?? "#26a69a"}
-              onChange={(color) => setIndicatorDraft({ ...indicatorDraft, supertrendUpColor: color })}
-            />
-          </div>
-          <div className="lq-field">
-            <label className="lq-field__label">Couleur (baisse)</label>
-            <ColorPicker
-              className="lq-chart__color-input"
-              value={indicatorDraft.supertrendDownColor ?? "#ef5350"}
-              onChange={(color) => setIndicatorDraft({ ...indicatorDraft, supertrendDownColor: color })}
-            />
-          </div>
-        </div>
-      )}
-      {indicatorDraft.kind === "parabolicSar" && (
-        <div className="lq-chart__edit-drawing-row">
-          <div className="lq-field">
-            <label className="lq-field__label">Couleur (hausse)</label>
-            <ColorPicker
-              className="lq-chart__color-input"
-              value={indicatorDraft.sarUpColor ?? "#26a69a"}
-              onChange={(color) => setIndicatorDraft({ ...indicatorDraft, sarUpColor: color })}
-            />
-          </div>
-          <div className="lq-field">
-            <label className="lq-field__label">Couleur (baisse)</label>
-            <ColorPicker
-              className="lq-chart__color-input"
-              value={indicatorDraft.sarDownColor ?? "#ef5350"}
-              onChange={(color) => setIndicatorDraft({ ...indicatorDraft, sarDownColor: color })}
-            />
-          </div>
-        </div>
-      )}
-      {indicatorDraft.kind === "chandelierExit" && (
-        <>
-          <Checkbox
-            label="Afficher les labels Achat/Vente"
-            checked={indicatorDraft.chandelierShowLabels ?? true}
-            onChange={(checked) => setIndicatorDraft({ ...indicatorDraft, chandelierShowLabels: checked })}
-          />
-          <Checkbox
-            label="Surligner l'état (remplissage)"
-            checked={indicatorDraft.chandelierHighlightState ?? true}
-            onChange={(checked) => setIndicatorDraft({ ...indicatorDraft, chandelierHighlightState: checked })}
-          />
-          <div className="lq-chart__edit-drawing-row">
-            <div className="lq-field">
-              <label className="lq-field__label">Couleur (hausse)</label>
-              <ColorPicker
-                className="lq-chart__color-input"
-                value={indicatorDraft.chandelierUpColor ?? "#26a69a"}
-                onChange={(color) => setIndicatorDraft({ ...indicatorDraft, chandelierUpColor: color })}
+      );
+      if (series.draw === "line" && others.length > 0) {
+        trace.push(
+          <TraceRow
+            key={`${series.key}-cross`}
+            sub
+            name={
+              <Checkbox
+                label="Couleur au croisement"
+                checked={cross !== undefined}
+                onChange={(checked) => setCross(checked ? { versus: others[0]!.key, above: UP, below: DOWN } : null)}
               />
-            </div>
-            <div className="lq-field">
-              <label className="lq-field__label">Couleur (baisse)</label>
-              <ColorPicker
-                className="lq-chart__color-input"
-                value={indicatorDraft.chandelierDownColor ?? "#ef5350"}
-                onChange={(color) => setIndicatorDraft({ ...indicatorDraft, chandelierDownColor: color })}
-              />
-            </div>
-          </div>
-        </>
-      )}
-      {indicatorDraft.kind === "pivotPoints" && (
-        <Checkbox
-          label="Afficher uniquement le dernier pivot"
-          checked={indicatorDraft.pivotShowLastOnly ?? false}
-          onChange={(checked) => setIndicatorDraft({ ...indicatorDraft, pivotShowLastOnly: checked })}
-        />
-      )}
-      {indicatorDraft.kind === "tpo" && (
-        <>
-          <InputNumber
-            label="Opacité (%)"
-            min={10}
-            max={100}
-            step={5}
-            value={indicatorDraft.tpoOpacity ?? 100}
-            onChange={(v) => setIndicatorDraft({ ...indicatorDraft, tpoOpacity: v === "" ? indicatorDraft.tpoOpacity : v })}
-          />
-          <Checkbox
-            label="Séparer les blocs"
-            checked={indicatorDraft.tpoSplitByBlocks ?? true}
-            onChange={(checked) => setIndicatorDraft({ ...indicatorDraft, tpoSplitByBlocks: checked })}
-          />
-        </>
-      )}
-      {indicatorDraft.kind === "atr" && (
-        <Checkbox
-          label="Afficher en % du prix"
-          checked={indicatorDraft.atrAsPercent ?? false}
-          onChange={(checked) => setIndicatorDraft({ ...indicatorDraft, atrAsPercent: checked })}
-        />
-      )}
-      {/* +DI/-DI's own pair, independent of the ADX line's own generic swatch below (which stays
-          in effect for ADX — see that swatch's own doc for why it isn't excluded there). */}
-      {indicatorDraft.kind === "adx" && (
-        <div className="lq-chart__edit-drawing-row">
-          <div className="lq-field">
-            <label className="lq-field__label">Couleur +DI</label>
-            <ColorPicker
-              className="lq-chart__color-input"
-              value={indicatorDraft.adxPlusColor ?? "#26a69a"}
-              onChange={(color) => setIndicatorDraft({ ...indicatorDraft, adxPlusColor: color })}
-            />
-          </div>
-          <div className="lq-field">
-            <label className="lq-field__label">Couleur -DI</label>
-            <ColorPicker
-              className="lq-chart__color-input"
-              value={indicatorDraft.adxMinusColor ?? "#ef5350"}
-              onChange={(color) => setIndicatorDraft({ ...indicatorDraft, adxMinusColor: color })}
-            />
-          </div>
+            }
+            colors={
+              cross
+                ? [
+                    { label: "Au-dessus", value: cross.above, onChange: (c) => setCross({ ...cross, above: c }) },
+                    { label: "En dessous", value: cross.below, onChange: (c) => setCross({ ...cross, below: c }) },
+                  ]
+                : []
+            }
+          >
+            {cross && (
+              <span className="lq-ind-settings__trace-select">
+                <Select
+                  size="small"
+                  ariaLabel={`Série croisée par ${name}`}
+                  value={cross.versus}
+                  onChange={(v) => setCross({ ...cross, versus: v })}
+                  options={others.map((o) => ({ value: o.key, label: o.label || o.key }))}
+                />
+              </span>
+            )}
+          </TraceRow>
+        );
+      }
+    });
+  } else if (d.kind === "supertrend") {
+    trace.push(<TraceRow key="st" name="Tendance" visible={shown} colors={pair("supertrendUpColor", "supertrendDownColor")} />);
+  } else if (d.kind === "parabolicSar") {
+    trace.push(<TraceRow key="sar" name="Points" visible={shown} colors={pair("sarUpColor", "sarDownColor")} />);
+  } else if (d.kind === "chandelierExit") {
+    trace.push(<TraceRow key="ce" name="Stop" visible={shown} colors={pair("chandelierUpColor", "chandelierDownColor")} />);
+  } else if (d.kind === "supportResistance" || d.kind === "tpo") {
+    trace.push(
+      <TraceRow key="own" name={label} visible={shown} colors={[]}>
+        <span className="lq-ind-settings__muted">Couleurs propres à l&apos;indicateur</span>
+      </TraceRow>
+    );
+  } else {
+    // Une couleur pour tout l'indicateur. ADX la lit pour sa propre ligne (+DI/-DI ont leur paire ci-dessous).
+    trace.push(<TraceRow key="main" name={d.kind === "macd" ? "MACD" : d.kind === "adx" ? "ADX" : label} visible={shown} colors={[{ value: mainColor, onChange: (c) => set({ color: c }), thickness: d.lineWidth, onThicknessChange: (w) => set({ lineWidth: w }) }]} />);
+  }
+  if (d.kind === "macd") {
+    trace.push(
+      <TraceRow
+        key="hist"
+        name="Histogramme"
+        visible={{ checked: d.macdShowHistogram ?? true, onChange: (checked) => set({ macdShowHistogram: checked }) }}
+        colors={pair("macdHistogramUpColor", "macdHistogramDownColor")}
+      />,
+      // MACD : couleur de la ligne selon sa position face au signal (change à chaque croisement).
+      <TraceRow
+        key="cross"
+        sub
+        name={<Checkbox label="MACD selon le signal" checked={d.macdCrossColors ?? false} onChange={(checked) => set({ macdCrossColors: checked })} />}
+        colors={
+          d.macdCrossColors
+            ? [
+                { label: "Au-dessus", value: d.macdLineAboveColor ?? UP, onChange: (c) => set({ macdLineAboveColor: c }) },
+                { label: "En dessous", value: d.macdLineBelowColor ?? DOWN, onChange: (c) => set({ macdLineBelowColor: c }) },
+              ]
+            : []
+        }
+      />
+    );
+  }
+  if (d.kind === "adx") {
+    trace.push(
+      <TraceRow
+        key="di"
+        name="+DI / −DI"
+        colors={[
+          { label: "+DI", value: d.adxPlusColor ?? UP, onChange: (c) => set({ adxPlusColor: c }) },
+          { label: "−DI", value: d.adxMinusColor ?? DOWN, onChange: (c) => set({ adxMinusColor: c }) },
+        ]}
+      />
+    );
+  }
+
+  const traceSettings: ReactNode[] = [];
+  if (isFundamentalKind(d.kind)) {
+    traceSettings.push(
+      <SelectSetting
+        key="fstyle"
+        label="Type de tracé"
+        value={d.fundamentalChartStyle ?? "line"}
+        onChange={(v) => set({ fundamentalChartStyle: v })}
+        options={[
+          { value: "line", label: "Ligne" },
+          { value: "step", label: "Palier" },
+          { value: "area", label: "Aire" },
+        ]}
+      />
+    );
+  }
+  if (d.kind === "tpo") {
+    traceSettings.push(<NumberSetting key="tpoop" label="Opacité" suffix="%" min={10} max={100} step={5} value={d.tpoOpacity} def={100} onSet={(v) => set({ tpoOpacity: v })} />);
+  }
+  // Indicateur de zones : opacité du fond (la couleur est dans le tableau).
+  if (d.customData?.draw === "zones") {
+    traceSettings.push(<NumberSetting key="zop" label="Opacité du fond" suffix="%" min={0} max={100} value={d.zoneOpacity} def={12} onSet={(v) => set({ zoneOpacity: v })} />);
+  }
+
+  // --- Affichage -----------------------------------------------------------------------------------------------
+  const display: ReactNode[] = [
+    <SettingCheckRow key="legend">
+      <Checkbox label="Afficher dans la légende" checked={d.legendHidden !== true} onChange={(checked) => set({ legendHidden: checked ? undefined : true })} />
+    </SettingCheckRow>,
+  ];
+  const check = (key: string, text: string, checked: boolean, onChange: (checked: boolean) => void) =>
+    display.push(
+      <SettingCheckRow key={key}>
+        <Checkbox label={text} checked={checked} onChange={onChange} />
+      </SettingCheckRow>
+    );
+  if (d.kind === "zigzag") check("zz", "Libellés HH / HL / LH / LL", d.zigzagShowLabels ?? true, (c) => set({ zigzagShowLabels: c }));
+  if (d.kind === "chandelierExit") {
+    check("cel", "Libellés Achat / Vente", d.chandelierShowLabels ?? true, (c) => set({ chandelierShowLabels: c }));
+    check("ceh", "Surligner l'état (remplissage)", d.chandelierHighlightState ?? true, (c) => set({ chandelierHighlightState: c }));
+  }
+  if (d.kind === "pivotPoints") check("piv", "Dernier pivot seulement", d.pivotShowLastOnly ?? false, (c) => set({ pivotShowLastOnly: c }));
+  if (d.kind === "tpo") check("tpos", "Séparer les blocs", d.tpoSplitByBlocks ?? true, (c) => set({ tpoSplitByBlocks: c }));
+  if (d.customData?.draw === "zones") {
+    check("zl", "Libellé des zones", d.zoneShowLabels ?? true, (c) => set({ zoneShowLabels: c }));
+    check("zm", "Repères (ligne et date)", d.zoneShowMarkers ?? true, (c) => set({ zoneShowMarkers: c }));
+  }
+  // Only ever set on a script-produced pane docked beside the chart (see CustomIndicatorDef.dock).
+  if (d.customData?.dock === "left" || d.customData?.dock === "right") {
+    check("axes", "Axes (prix et dates)", d.sideAxesVisible ?? true, (c) => set({ sideAxesVisible: c }));
+  }
+  // Filigrane du panneau (pas sur les prix, dont le filigrane est le symbole) ni sur une moyenne posée sur un panneau.
+  if (ownPane && !d.sourceId) display.push(<IndicatorWatermarkField key="wm" indicatorDraft={d} setIndicatorDraft={setIndicatorDraft} />);
+
+  return (
+    <div className="lq-ind-settings">
+      <SettingsSection title="Tracé">
+        <div className="lq-ind-settings__trace" role="table" aria-label="Éléments tracés">
+          {trace}
         </div>
+        {traceSettings}
+      </SettingsSection>
+      {(ownPane || d.kind === "atr") && (
+        <SettingsSection title="Valeurs">
+          {ownPane && <ValueFormatField indicatorDraft={d} setIndicatorDraft={setIndicatorDraft} />}
+          {d.kind === "atr" && (
+            <SettingCheckRow>
+              <Checkbox label="En % du prix" checked={d.atrAsPercent ?? false} onChange={(checked) => set({ atrAsPercent: checked })} />
+            </SettingCheckRow>
+          )}
+        </SettingsSection>
       )}
-      {isFundamentalKind(indicatorDraft.kind) && (
-        <Select
-          label="Style"
-          value={indicatorDraft.fundamentalChartStyle ?? "line"}
-          onChange={(v) => setIndicatorDraft({ ...indicatorDraft, fundamentalChartStyle: v })}
-          options={[
-            { value: "line", label: "Ligne" },
-            { value: "step", label: "Palier" },
-            { value: "area", label: "Aire" },
-          ]}
-        />
-      )}
-      {/* Only ever set on a script-produced pane (see CustomIndicatorDef.dock's own doc) — a
-          built-in indicator has no UI to dock it beside the chart, so this never shows for one. */}
-      {(indicatorDraft.customData?.dock === "left" || indicatorDraft.customData?.dock === "right") && (
-        <Checkbox
-          label="Afficher les axes (prix et dates)"
-          checked={indicatorDraft.sideAxesVisible ?? true}
-          onChange={(checked) => setIndicatorDraft({ ...indicatorDraft, sideAxesVisible: checked })}
-        />
-      )}
-      {/* Support/Résistance colors each level by whether the last close currently sits
-          above or below it, and (besides its own "Séparer les blocs" toggle just above)
-          TPO colors its own blocks with a fixed multi-stop gradient — neither reads
-          `color` or has a bespoke swatch of its own, so the Style tab would otherwise be
-          empty for them; says so instead of just leaving a blank panel. */}
-      {(indicatorDraft.kind === "supportResistance" || indicatorDraft.kind === "tpo") && (
-        <p className="lq-chart__indicator-picker-empty">Cet indicateur utilise ses propres couleurs, non personnalisables pour l'instant.</p>
-      )}
-      {/* Every other kind: one indicator-wide color. Supertrend/Parabolic SAR/Chandelier
-          Exit/Support-Résistance/TPO are excluded — each already has its own bespoke
-          color UI (or none at all) above instead of a single swatch that couldn't
-          represent a trend flip or a multi-stop gradient anyway. ADX *does* read it (for
-          its own ADX line only — +DI/-DI have their own pair above), so it's deliberately
-          not excluded here. */}
-      {/* Plusieurs éléments tracés dans le même panneau (lignes, barres, bandes, points d'un script) : une couleur
-          par élément, sous le nom que le code lui donne. */}
-      {indicatorDraft.customData?.draw === "multi" && (indicatorDraft.customData.multiSeries?.length ?? 0) > 0 && (
-        <div className="lq-chart__edit-drawing-row lq-chart__series-colors">
-          {(indicatorDraft.customData.multiSeries ?? []).map((series, i) => {
-            const others = (indicatorDraft.customData?.multiSeries ?? []).filter((o) => o.key !== series.key && o.draw !== "band");
-            const cross = indicatorDraft.seriesCross?.[series.key];
-            const setCross = (next: { versus: string; above: string; below: string } | null) => {
-              const all = { ...indicatorDraft.seriesCross };
-              if (next) all[series.key] = next;
-              else delete all[series.key];
-              setIndicatorDraft({ ...indicatorDraft, seriesCross: all });
-            };
-            return (
-              <div className="lq-chart__series-color" key={series.key}>
-                <div className="lq-field">
-                  <label className="lq-field__label">{series.label || `Série ${i + 1}`}</label>
-                  <ColorPicker
-                    className="lq-chart__color-input"
-                    value={indicatorDraft.seriesColors?.[series.key] ?? series.color ?? defaultIndicatorColor(i)}
-                    onChange={(color) => setIndicatorDraft({ ...indicatorDraft, seriesColors: { ...indicatorDraft.seriesColors, [series.key]: color } })}
-                    aria-label={`Couleur de ${series.label || `la série ${i + 1}`}`}
-                  />
-                </div>
-                {/* Une ligne peut changer de couleur quand elle croise une autre série du même indicateur. */}
-                {series.draw === "line" && others.length > 0 && (
-                  <>
-                    <Checkbox
-                      label="Changer de couleur au croisement"
-                      checked={cross !== undefined}
-                      onChange={(checked) => setCross(checked ? { versus: others[0]!.key, above: "#26a69a", below: "#ef5350" } : null)}
-                    />
-                    {cross && (
-                      <>
-                        <Select
-                          label="Série croisée"
-                          value={cross.versus}
-                          onChange={(v) => setCross({ ...cross, versus: v })}
-                          options={others.map((o) => ({ value: o.key, label: o.label || o.key }))}
-                        />
-                        <div className="lq-field">
-                          <label className="lq-field__label">Au-dessus</label>
-                          <ColorPicker className="lq-chart__color-input" value={cross.above} onChange={(color) => setCross({ ...cross, above: color })} />
-                        </div>
-                        <div className="lq-field">
-                          <label className="lq-field__label">En dessous</label>
-                          <ColorPicker className="lq-chart__color-input" value={cross.below} onChange={(color) => setCross({ ...cross, below: color })} />
-                        </div>
-                      </>
-                    )}
-                  </>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-      {indicatorDraft.customData?.draw !== "multi" &&
-        indicatorDraft.kind !== "supertrend" &&
-        indicatorDraft.kind !== "parabolicSar" &&
-        indicatorDraft.kind !== "chandelierExit" &&
-        indicatorDraft.kind !== "supportResistance" &&
-        indicatorDraft.kind !== "tpo" && (
-        <div className="lq-field">
-          <label className="lq-field__label">Couleur</label>
-          <ColorPicker
-            className="lq-chart__color-input"
-            value={indicatorDraft.color ?? defaultIndicatorColor(indicators.findIndex((i) => i.id === indicatorDraft.id))}
-            onChange={(color) => setIndicatorDraft({ ...indicatorDraft, color })}
-            thickness={indicatorDraft.lineWidth}
-            onThicknessChange={(lineWidth) => setIndicatorDraft({ ...indicatorDraft, lineWidth })}
-          />
-        </div>
-      )}
-      {/* Indicateur de zones : opacité du fond, libellés, repères (la couleur est juste au-dessus). */}
-      {indicatorDraft.customData?.draw === "zones" && (
-        <>
-          <InputNumber
-            label="Opacité du fond (%)"
-            min={0}
-            max={100}
-            step={1}
-            value={indicatorDraft.zoneOpacity ?? 12}
-            onChange={(v) => setIndicatorDraft({ ...indicatorDraft, zoneOpacity: v === "" ? undefined : v })}
-          />
-          <Checkbox
-            label="Afficher le libellé des zones"
-            checked={indicatorDraft.zoneShowLabels ?? true}
-            onChange={(checked) => setIndicatorDraft({ ...indicatorDraft, zoneShowLabels: checked })}
-          />
-          <Checkbox
-            label="Afficher les repères (ligne et date)"
-            checked={indicatorDraft.zoneShowMarkers ?? true}
-            onChange={(checked) => setIndicatorDraft({ ...indicatorDraft, zoneShowMarkers: checked })}
-          />
-        </>
-      )}
-      {indicatorCatalogEntry(indicatorDraft).pane !== "price" && <ValueFormatField indicatorDraft={indicatorDraft} setIndicatorDraft={setIndicatorDraft} />}
-      {/* Filigrane du panneau (pas sur les prix, dont le filigrane est le symbole) ni sur une moyenne posée sur un panneau. */}
-      {indicatorCatalogEntry(indicatorDraft).pane !== "price" && !indicatorDraft.sourceId && (
-        <IndicatorWatermarkField indicatorDraft={indicatorDraft} setIndicatorDraft={setIndicatorDraft} />
-      )}
+      <SettingsSection title="Affichage">{display}</SettingsSection>
       {/* Couleurs conditionnelles : écrites au nouveau format, l'ancien (`fills`, converti à la lecture) est retiré. */}
-      {indicatorDraft.customData?.draw !== "zones" && (
-        <IndicatorStyleRulesEditor
-          indicator={indicatorDraft}
-          indicators={indicators}
-          onChange={(styleRules) => setIndicatorDraft({ ...indicatorDraft, styleRules, fills: undefined })}
-        />
+      {d.customData?.draw !== "zones" && (
+        <IndicatorStyleRulesEditor indicator={d} indicators={indicators} onChange={(styleRules) => setIndicatorDraft({ ...d, styleRules, fills: undefined })} />
       )}
-    </>
+    </div>
   );
 }
 
 type ValueFormatChoice = "auto" | "integer" | "decimals" | "percent" | "raw";
 
 /** « Format des valeurs » : comment l'axe du panneau, les badges de survol et la légende écrivent les valeurs de cet
- *  indicateur (voir `ValueFormat`). Enregistré avec l'indicateur, donc sur le compte de l'utilisateur. */
+ *  indicateur (voir `ValueFormat`), avec un aperçu à droite. Enregistré avec l'indicateur, donc sur le compte. */
 function ValueFormatField({ indicatorDraft, setIndicatorDraft }: Pick<IndicatorSettingsFieldsProps, "indicatorDraft" | "setIndicatorDraft">) {
   const current = normalizeValueFormat(indicatorDraft.valueFormat);
   const choice: ValueFormatChoice = typeof current === "object" ? "decimals" : current;
   const decimals = typeof current === "object" ? (current.decimals ?? 2) : 2;
   const set = (valueFormat: ValueFormat) => setIndicatorDraft({ ...indicatorDraft, valueFormat: valueFormat === "auto" ? undefined : valueFormat });
+  const sample = choice === "percent" ? 21.5 : choice === "integer" || choice === "decimals" ? 1234.5678 : 12_345_678.9;
   return (
     <>
-      <Select<ValueFormatChoice>
-        label="Format des valeurs"
-        value={choice}
-        onChange={(v) => set(v === "decimals" ? { decimals } : v)}
-        options={[
-          { value: "auto", label: `Automatique (k / M / B) — ${formatWithValueFormat(12_345_678, "auto")}` },
-          { value: "integer", label: `Nombre entier — ${formatWithValueFormat(1234.56, "integer")}` },
-          { value: "decimals", label: "Décimales…" },
-          { value: "percent", label: `Pourcentage — ${formatWithValueFormat(21.5, "percent")}` },
-          { value: "raw", label: `Brut — ${formatWithValueFormat(12_345_678.9, "raw")}` },
-        ]}
-      />
-      {choice === "decimals" && (
-        <InputNumber
-          label="Décimales"
-          min={0}
-          max={10}
-          step={1}
-          value={decimals}
-          onChange={(v) => set({ decimals: v === "" ? 2 : v })}
-        />
-      )}
+      <SettingRow label="Format" trailing={<output className="lq-ind-settings__preview" aria-label="Aperçu">{formatWithValueFormat(sample, current)}</output>}>
+        <span className="lq-ind-settings__select">
+          <Select<ValueFormatChoice>
+            ariaLabel="Format des valeurs"
+            value={choice}
+            onChange={(v) => set(v === "decimals" ? { decimals } : v)}
+            options={[
+              { value: "auto", label: "Automatique (k / M / B)" },
+              { value: "integer", label: "Nombre entier" },
+              { value: "decimals", label: "Décimales fixes" },
+              { value: "percent", label: "Pourcentage" },
+              { value: "raw", label: "Brut" },
+            ]}
+          />
+        </span>
+      </SettingRow>
+      {choice === "decimals" && <NumberSetting label="Précision" suffix="déc." min={0} max={10} value={decimals} def={2} onSet={(v) => set({ decimals: v })} />}
     </>
   );
 }

@@ -24,6 +24,8 @@ export interface ModalProps {
    *  to stop propagating or a click will first arm the header's drag — see the close button below,
    *  which does exactly that and for the same reason. */
   headerActions?: ReactNode;
+  /** Classe ajoutée à la boîte de dialogue (`.lq-modal`) : une largeur ou une mise en page propre à un usage. */
+  className?: string;
 }
 
 /** Centered dialog used for a row's detail view (e.g. the light color/temperature picker).
@@ -43,7 +45,7 @@ export interface ModalProps {
  *  en a un, sinon sur le premier contrôle hors croix d'en-tête, sinon sur la modale elle-même), Tab
  *  et Maj+Tab y bouclent tant qu'elle est ouverte, et il revient à l'élément qui l'avait (le bouton
  *  d'ouverture) à la fermeture. Échap ferme. */
-export function Modal({ open, onClose, title, children, footer, closeLabel = "Fermer", size = "default", headerActions }: ModalProps) {
+export function Modal({ open, onClose, title, children, footer, closeLabel = "Fermer", size = "default", headerActions, className }: ModalProps) {
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const dragRef = useRef<{ startClientX: number; startClientY: number; startOffsetX: number; startOffsetY: number } | null>(null);
   const theme = useLqTheme();
@@ -111,7 +113,7 @@ export function Modal({ open, onClose, title, children, footer, closeLabel = "Fe
     <LqThemeProvider palette={theme.palette} surface={theme.surface} font={theme.font} style={{ display: "contents" }}>
       <div className="lq-modal__overlay" onClick={onClose}>
         <div
-          className={["lq-modal", size === "wide" && "lq-modal--wide", size === "fullscreen" && "lq-modal--fullscreen", title && "lq-modal--titled"].filter(Boolean).join(" ")}
+          className={["lq-modal", size === "wide" && "lq-modal--wide", size === "fullscreen" && "lq-modal--fullscreen", title && "lq-modal--titled", className].filter(Boolean).join(" ")}
           style={offset.x || offset.y ? { transform: `translate(${offset.x}px, ${offset.y}px)` } : undefined}
           ref={dialogRef}
           tabIndex={-1}

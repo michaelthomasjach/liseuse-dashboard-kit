@@ -1,0 +1,612 @@
+/* Fenêtres de paramètres d'indicateur (intégrés, scriptés, posés sur un panneau, Volume).
+ *
+ * Une grille : chaque réglage sur une ligne « libellé à gauche (colonne fixe) / contrôle à droite », contrôles de
+ * 32 px, espacements pris dans l'échelle 4 / 8 / 12 / 16. Sections titrées et courtes. Sous 480 px de large, le
+ * libellé passe au-dessus de son contrôle et les cibles tactiles montent à 40 px. Tout passe par les jetons `--lq-*`,
+ * donc par le thème (e-ink, couleur, minimal ; clair et sombre). */
+
+/* --- La fenêtre ------------------------------------------------------------------------------------------------- */
+
+.lq-modal.lq-ind-settings-modal {
+  max-width: 500px;
+  --lq-ind-label-col: 152px;
+  --lq-ind-row-h: 32px;
+}
+
+.lq-ind-settings-modal .lq-modal__inner {
+  gap: var(--lq-space-3);
+  padding-bottom: 0;
+}
+
+/* Titre sobre : le nom de l'indicateur, et son type en sous-titre. */
+.lq-ind-settings__heading {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.lq-ind-settings__heading-name {
+  font-size: var(--lq-text-lg, 1.05rem);
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+.lq-ind-settings__heading-kind {
+  font-family: var(--lq-font-family, inherit);
+  font-size: var(--lq-text-sm, 0.8rem);
+  font-weight: var(--lq-font-weight-normal, 400);
+  color: var(--lq-color-text-muted);
+  overflow-wrap: anywhere;
+}
+.lq-ind-settings-modal .lq-modal__title {
+  font-size: var(--lq-text-lg, 1.05rem);
+  min-width: 0;
+  flex: 1;
+}
+.lq-ind-settings-modal .lq-modal__header {
+  align-items: flex-start;
+}
+.lq-ind-settings-modal .lq-modal__header .lq-modal__close-icon {
+  min-width: 28px;
+  min-height: 28px;
+}
+
+.lq-ind-settings__tabs {
+  margin: 0;
+}
+
+/* Pied discret, collé au bas de la fenêtre quand le contenu défile. */
+.lq-ind-settings-modal .lq-modal__footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  margin: 0 calc(var(--lq-space-5) * -1);
+  padding: var(--lq-space-3) var(--lq-space-5);
+  background-color: var(--lq-color-panel);
+  border-top: 1px solid var(--lq-color-border-subtle);
+}
+.lq-ind-settings__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lq-space-3);
+}
+
+/* --- Sections ---------------------------------------------------------------------------------------------------- */
+
+.lq-ind-settings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lq-space-4);
+  min-width: 0;
+  /* Contrôles compacts, de hauteur homogène. */
+  --lq-control-height: var(--lq-ind-row-h, 32px);
+}
+
+.lq-ind-settings__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lq-space-2);
+  min-width: 0;
+}
+.lq-ind-settings__section + .lq-ind-settings__section {
+  padding-top: var(--lq-space-4);
+  border-top: 1px solid var(--lq-color-border-subtle);
+}
+
+.lq-ind-settings__section-head {
+  display: flex;
+  align-items: center;
+  gap: var(--lq-space-1);
+  min-height: 20px;
+}
+.lq-ind-settings__section-title {
+  margin: 0;
+  font-size: var(--lq-text-xs, 0.72rem);
+  font-weight: var(--lq-font-weight-semibold, 600);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--lq-color-text-muted);
+}
+.lq-ind-settings__section-aside {
+  margin-left: auto;
+}
+
+/* Section repliable : tout le titre est le bouton. */
+.lq-ind-settings__section-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lq-space-1);
+  min-height: 24px;
+  padding: 0 var(--lq-space-1) 0 0;
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  border-radius: var(--lq-radius-sm);
+  cursor: pointer;
+}
+.lq-ind-settings__section-toggle:hover .lq-ind-settings__section-title {
+  color: var(--lq-color-text);
+}
+.lq-ind-settings__section-chevron {
+  color: var(--lq-color-text-muted);
+  transform: rotate(-90deg);
+  transition: transform var(--lq-transition-fast, 120ms);
+}
+.lq-ind-settings__section--open .lq-ind-settings__section-chevron {
+  transform: none;
+}
+.lq-ind-settings__count {
+  min-width: 18px;
+  padding: 0 5px;
+  font-size: var(--lq-text-xs, 0.72rem);
+  font-weight: var(--lq-font-weight-semibold, 600);
+  line-height: 18px;
+  text-align: center;
+  color: var(--lq-color-accent-contrast);
+  background-color: var(--lq-color-fill);
+  border-radius: var(--lq-radius-pill, 9px);
+}
+
+.lq-ind-settings__rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lq-space-2);
+  min-width: 0;
+}
+
+/* --- Lignes « libellé / contrôle » --------------------------------------------------------------------------------- */
+
+.lq-ind-settings__row {
+  display: grid;
+  grid-template-columns: var(--lq-ind-label-col, 152px) minmax(0, 1fr);
+  column-gap: var(--lq-space-3);
+  row-gap: var(--lq-space-1);
+  align-items: center;
+  min-height: var(--lq-ind-row-h, 32px);
+}
+.lq-ind-settings__label {
+  font-size: var(--lq-text-sm, 0.8rem);
+  font-weight: var(--lq-font-weight-normal, 400);
+  color: var(--lq-color-text);
+  line-height: 1.3;
+}
+.lq-ind-settings__control {
+  display: flex;
+  align-items: center;
+  gap: var(--lq-space-2);
+  min-width: 0;
+}
+.lq-ind-settings__hint {
+  grid-column: 2;
+  margin: 0;
+  font-size: var(--lq-text-xs, 0.72rem);
+  line-height: 1.4;
+  color: var(--lq-color-text-muted);
+}
+/* Une case qui se décrit elle-même : alignée sur la colonne des libellés, sur toute la largeur. */
+.lq-ind-settings__row--check {
+  grid-template-columns: minmax(0, 1fr);
+}
+.lq-ind-settings__row--check .lq-ind-settings__hint {
+  grid-column: 1;
+}
+.lq-ind-settings .lq-checkbox__label {
+  font-size: var(--lq-text-sm, 0.8rem);
+}
+
+/* Largeurs compactes : rien de pleine largeur sans raison. */
+.lq-ind-settings__number {
+  flex: 0 0 auto;
+  width: 104px;
+}
+.lq-ind-settings__unit {
+  flex: none;
+  min-width: 0;
+  font-size: var(--lq-text-sm, 0.8rem);
+  color: var(--lq-color-text-muted);
+  white-space: nowrap;
+}
+.lq-ind-settings__select {
+  flex: 0 1 220px;
+  min-width: 0;
+}
+.lq-ind-settings__row--wide .lq-ind-settings__select,
+.lq-ind-settings__row--wide .lq-ind-settings__control > .lq-field,
+.lq-ind-settings__row--wide .lq-ind-settings__range {
+  flex: 1 1 auto;
+}
+.lq-ind-settings__control > .lq-field {
+  min-width: 0;
+}
+.lq-ind-settings .lq-field__control {
+  min-height: var(--lq-ind-row-h, 32px);
+}
+.lq-ind-settings .lq-field__input {
+  font-size: var(--lq-text-md, 0.9rem);
+}
+.lq-ind-settings .lq-select__trigger {
+  font-size: var(--lq-text-md, 0.9rem);
+}
+.lq-ind-settings .lq-number-field__affix {
+  font-size: var(--lq-text-xs, 0.72rem);
+  white-space: nowrap;
+}
+.lq-ind-settings__date {
+  height: var(--lq-ind-row-h, 32px);
+  box-sizing: border-box;
+}
+
+/* Valeur par défaut d'un champ modifié : un lien discret qui la rétablit. */
+.lq-ind-settings__default,
+.lq-ind-settings__link {
+  padding: 0;
+  font: inherit;
+  font-size: var(--lq-text-xs, 0.72rem);
+  color: var(--lq-color-text-muted);
+  white-space: nowrap;
+  background: none;
+  border: none;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.lq-ind-settings__link {
+  font-size: var(--lq-text-sm, 0.8rem);
+}
+.lq-ind-settings__default:hover,
+.lq-ind-settings__link:hover:not(:disabled) {
+  color: var(--lq-color-text);
+}
+.lq-ind-settings__link:disabled {
+  opacity: 0.45;
+  text-decoration: none;
+  cursor: default;
+}
+
+/* Aperçu du format des valeurs, valeur d'un curseur. */
+.lq-ind-settings__preview,
+.lq-ind-settings__range-value {
+  flex: none;
+  min-width: 52px;
+  font-size: var(--lq-text-sm, 0.8rem);
+  font-variant-numeric: tabular-nums;
+  color: var(--lq-color-text-muted);
+  text-align: right;
+}
+.lq-ind-settings__preview {
+  padding: 2px 6px;
+  border: 1px dashed var(--lq-color-border-subtle);
+  border-radius: var(--lq-radius-sm);
+  text-align: center;
+}
+.lq-ind-settings__range {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: var(--lq-ind-row-h, 32px);
+  margin: 0;
+  accent-color: var(--lq-color-accent);
+}
+
+.lq-ind-settings__muted {
+  font-size: var(--lq-text-xs, 0.72rem);
+  color: var(--lq-color-text-muted);
+}
+.lq-ind-settings__empty {
+  margin: 0;
+  font-size: var(--lq-text-sm, 0.8rem);
+  color: var(--lq-color-text-muted);
+}
+
+/* --- Tableau « Tracé » ------------------------------------------------------------------------------------------- */
+
+.lq-ind-settings__trace {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.lq-ind-settings__trace-row {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: var(--lq-space-2);
+  min-height: var(--lq-ind-row-h, 32px);
+  padding: 2px 0;
+}
+.lq-ind-settings__trace-row + .lq-ind-settings__trace-row {
+  border-top: 1px solid color-mix(in srgb, var(--lq-color-border-subtle) 60%, transparent);
+}
+.lq-ind-settings__trace-row--sub {
+  grid-template-columns: 20px minmax(0, 1fr) auto;
+  border-top: none !important;
+}
+.lq-ind-settings__trace-row--sub .lq-ind-settings__trace-name {
+  padding-left: 0;
+}
+.lq-ind-settings__trace-check {
+  display: flex;
+  align-items: center;
+}
+.lq-ind-settings__trace-name {
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--lq-text-sm, 0.8rem);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lq-ind-settings__trace-colors {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--lq-space-3);
+  min-width: 0;
+}
+.lq-ind-settings__swatch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.lq-ind-settings__swatch-label {
+  font-size: var(--lq-text-xs, 0.72rem);
+  color: var(--lq-color-text-muted);
+  white-space: nowrap;
+}
+.lq-ind-settings__trace-select {
+  width: 128px;
+  min-width: 0;
+}
+
+/* --- Boutons, menus, aide ------------------------------------------------------------------------------------------ */
+
+.lq-ind-settings__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: var(--lq-ind-row-h, 32px);
+  padding: 0 var(--lq-space-3);
+  font: inherit;
+  font-size: var(--lq-text-sm, 0.8rem);
+  font-weight: var(--lq-font-weight-semibold, 600);
+  color: var(--lq-color-text);
+  white-space: nowrap;
+  background-color: transparent;
+  border: 1px solid var(--lq-color-border-subtle);
+  border-radius: var(--lq-radius-md);
+  cursor: pointer;
+}
+.lq-ind-settings__button:hover {
+  border-color: var(--lq-color-text-muted);
+  background-color: var(--lq-color-hover);
+}
+.lq-ind-settings__button--primary {
+  color: var(--lq-color-accent-contrast);
+  background-color: var(--lq-color-fill);
+  border-color: var(--lq-color-fill);
+}
+.lq-ind-settings__button--primary:hover {
+  background-color: var(--lq-color-fill);
+  border-color: var(--lq-color-fill);
+  opacity: 0.9;
+}
+.lq-ind-settings__icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  color: var(--lq-color-text-muted);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--lq-radius-sm);
+  cursor: pointer;
+}
+.lq-ind-settings__icon-button:hover:not(:disabled) {
+  color: var(--lq-color-text);
+  background-color: var(--lq-color-hover);
+}
+.lq-ind-settings__icon-button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+.lq-ind-settings__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--lq-space-2);
+}
+.lq-ind-settings__empty-state {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lq-space-3);
+  padding: var(--lq-space-3);
+  border: 1px dashed var(--lq-color-border-subtle);
+  border-radius: var(--lq-radius-md);
+}
+
+.lq-ind-settings__menu {
+  display: flex;
+  flex-direction: column;
+  padding: var(--lq-space-1) 0;
+}
+.lq-ind-settings__menu-item {
+  display: block;
+  width: 100%;
+  min-height: 32px;
+  padding: 6px var(--lq-space-3);
+  font: inherit;
+  font-size: var(--lq-text-sm, 0.8rem);
+  color: var(--lq-color-text);
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+.lq-ind-settings__menu-item:hover,
+.lq-ind-settings__menu-item:focus-visible {
+  background-color: var(--lq-color-hover);
+}
+
+.lq-ind-settings__help {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  color: var(--lq-color-text-muted);
+  background: none;
+  border: none;
+  border-radius: 50%;
+  cursor: help;
+}
+.lq-ind-settings__help:hover {
+  color: var(--lq-color-text);
+}
+.lq-ind-settings__help-text {
+  display: block;
+  max-width: 280px;
+  font-size: var(--lq-text-xs, 0.72rem);
+  line-height: 1.45;
+}
+.lq-ind-settings__help-text--panel {
+  margin: 0;
+  padding: var(--lq-space-3);
+  font-size: var(--lq-text-sm, 0.8rem);
+  color: var(--lq-color-text);
+}
+
+/* Focus visible partout, y compris sur les éléments faits main. */
+.lq-ind-settings-modal :is(.lq-ind-settings__button, .lq-ind-settings__icon-button, .lq-ind-settings__link, .lq-ind-settings__default, .lq-ind-settings__help, .lq-ind-settings__section-toggle, .lq-ind-settings__range):focus-visible {
+  outline: 2px solid var(--lq-color-focus-ring, var(--lq-color-accent));
+  outline-offset: 2px;
+}
+
+/* --- Paramètres d'un script : leurs champs (libellé au-dessus) remis dans la grille ---------------------------------- */
+
+.lq-ind-settings__script-params .lq-script-params {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lq-space-2);
+}
+.lq-ind-settings__script-params .lq-field:has(> .lq-field__label) {
+  display: grid;
+  grid-template-columns: var(--lq-ind-label-col, 152px) minmax(0, 1fr);
+  column-gap: var(--lq-space-3);
+  row-gap: var(--lq-space-1);
+  align-items: center;
+}
+.lq-ind-settings__script-params .lq-field:has(> .lq-field__label) > .lq-field__label {
+  grid-column: 1;
+  font-size: var(--lq-text-sm, 0.8rem);
+  font-weight: var(--lq-font-weight-normal, 400);
+  text-transform: none;
+  letter-spacing: normal;
+}
+.lq-ind-settings__script-params .lq-field:has(> .lq-field__label) > :not(.lq-field__label) {
+  grid-column: 2;
+  justify-self: start;
+}
+.lq-ind-settings__script-params .lq-field:has(> .lq-field__label) > .lq-field__control {
+  width: 104px;
+}
+.lq-ind-settings__script-params .lq-field__helper {
+  font-size: var(--lq-text-xs, 0.72rem);
+}
+
+/* --- Couleurs conditionnelles, dans la grille ------------------------------------------------------------------------ */
+
+.lq-ind-settings .lq-chart__rule {
+  gap: var(--lq-space-2);
+  padding: var(--lq-space-2) var(--lq-space-3) var(--lq-space-3);
+}
+.lq-ind-settings .lq-chart__rule-head {
+  font-size: var(--lq-text-sm, 0.8rem);
+}
+.lq-ind-settings .lq-chart__rule-tools {
+  gap: 0;
+}
+.lq-ind-settings .lq-chart__rule-sentence {
+  font-size: var(--lq-text-sm, 0.8rem);
+}
+.lq-ind-settings .lq-chart__rule-opacity {
+  display: flex;
+  align-items: center;
+  gap: var(--lq-space-2);
+  margin: 0;
+  font-size: var(--lq-text-sm, 0.8rem);
+}
+.lq-ind-settings .lq-chart__rule-opacity .lq-ind-settings__range {
+  height: 24px;
+}
+
+/* --- Téléphone, doigt ---------------------------------------------------------------------------------------------- */
+
+@media (max-width: 640px) {
+  /* Page entière : le pied reste en bas de l'écran même quand le contenu est court. */
+  .lq-ind-settings-modal .lq-modal__body {
+    flex: 1 0 auto;
+  }
+  .lq-ind-settings-modal .lq-modal__footer {
+    margin: 0 calc(var(--lq-modal-pad-right, var(--lq-space-4)) * -1) 0 calc(var(--lq-modal-pad-left, var(--lq-space-4)) * -1);
+    padding: var(--lq-space-3) var(--lq-modal-pad-right, var(--lq-space-4)) max(var(--lq-space-3), env(safe-area-inset-bottom, 0px))
+      var(--lq-modal-pad-left, var(--lq-space-4));
+  }
+}
+
+/* Sous ~480 px : le libellé au-dessus de son contrôle, cibles tactiles plus grandes. */
+@media (max-width: 480px) {
+  .lq-modal.lq-ind-settings-modal {
+    --lq-ind-row-h: 40px;
+  }
+  .lq-ind-settings__row,
+  .lq-ind-settings__script-params .lq-field:has(> .lq-field__label) {
+    grid-template-columns: minmax(0, 1fr);
+    min-height: 0;
+  }
+  .lq-ind-settings__row--check {
+    min-height: var(--lq-ind-row-h, 40px);
+  }
+  .lq-ind-settings__hint,
+  .lq-ind-settings__script-params .lq-field:has(> .lq-field__label) > :not(.lq-field__label) {
+    grid-column: 1;
+  }
+  .lq-ind-settings__number,
+  .lq-ind-settings__script-params .lq-field:has(> .lq-field__label) > .lq-field__control {
+    width: 140px;
+  }
+  .lq-ind-settings__select {
+    flex: 1 1 auto;
+  }
+  .lq-ind-settings__trace-row {
+    min-height: 44px;
+  }
+  .lq-ind-settings__icon-button,
+  .lq-ind-settings__help {
+    width: 36px;
+    height: 36px;
+  }
+  .lq-ind-settings__section-toggle {
+    min-height: 36px;
+  }
+  .lq-ind-settings__footer {
+    flex-wrap: wrap;
+  }
+}
+
+@media (pointer: coarse) {
+  .lq-modal.lq-ind-settings-modal {
+    --lq-ind-row-h: 40px;
+  }
+  .lq-ind-settings__icon-button,
+  .lq-ind-settings__help {
+    min-width: 36px;
+    min-height: 36px;
+  }
+}
+
+/* La valeur par défaut d'un champ modifié se range au bord droit, à la même place sur toutes les lignes. */
+.lq-ind-settings__control > .lq-ind-settings__default {
+  margin-left: auto;
+}

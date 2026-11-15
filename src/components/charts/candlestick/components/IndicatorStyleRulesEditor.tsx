@@ -2,6 +2,8 @@ import { ColorPicker } from "../../../forms/ColorPicker";
 import { Checkbox } from "../../../forms/Checkbox";
 import { InputNumber } from "../../../forms/InputNumber";
 import { Select, type SelectOption } from "../../../forms/Select";
+import { ArrowDownIcon, ArrowUpIcon, PlusIcon, TrashIcon } from "../../../icons";
+import { ActionMenu, CollapsibleSection } from "./IndicatorSettingsLayout";
 import type { Indicator } from "../interfaces/Indicator.interface";
 import type {
   IndicatorStyleRule,
@@ -82,15 +84,31 @@ export function IndicatorStyleRulesEditor({
     onChange(next);
   };
 
+  const add = () => onChange([...rules, defaultStyleRule(indicator, indicators)]);
+  const fromTemplate = (
+    <ActionMenu label="Partir d'un modèle" items={templates.map((t) => ({ id: t.id, label: t.label, onSelect: () => onChange([...rules, ...t.rules()]) }))} />
+  );
+
+  // Repliée tant qu'il n'y a pas de règle : la section se résume alors à son titre.
   return (
-    <section className="lq-chart__rules" aria-label="Couleurs conditionnelles">
-      <div className="lq-chart__rules-head">
-        <span className="lq-field__label">Couleurs conditionnelles</span>
-        <span className="lq-chart__rules-hint">
-          Colorez l'espace entre deux courbes, une courbe ou le fond selon une condition, ou marquez les croisements. Les
-          règles se peignent dans l'ordre : la dernière passe par-dessus.
-        </span>
-      </div>
+    <CollapsibleSection
+      title="Couleurs conditionnelles"
+      count={rules.length}
+      defaultOpen={rules.length > 0}
+      help="Colorez l'espace entre deux courbes, une courbe ou le fond selon une condition, ou marquez les croisements. Chaque règle se lit comme une phrase ; les règles se peignent dans l'ordre, la dernière passe par-dessus."
+    >
+      {rules.length === 0 && (
+        <div className="lq-ind-settings__empty-state">
+          <p className="lq-ind-settings__empty">Aucune règle. Colorez une zone, une courbe ou le fond selon une condition.</p>
+          <div className="lq-ind-settings__actions">
+            <button type="button" className="lq-ind-settings__button lq-ind-settings__button--primary" onClick={add}>
+              <PlusIcon size={14} />
+              Ajouter une règle
+            </button>
+            {fromTemplate}
+          </div>
+        </div>
+      )}
       {rules.map((rule, k) => (
         <RuleRow
           key={rule.id}
@@ -104,22 +122,16 @@ export function IndicatorStyleRulesEditor({
           onRemove={() => onChange(rules.filter((r) => r.id !== rule.id))}
         />
       ))}
-      <div className="lq-chart__rules-actions">
-        <button type="button" className="lq-chart__rule-button lq-chart__rule-button--add" onClick={() => onChange([...rules, defaultStyleRule(indicator, indicators)])}>
-          + Ajouter une règle
-        </button>
-      </div>
-      {templates.length > 0 && (
-        <div className="lq-chart__rules-templates">
-          <span className="lq-chart__rules-hint">Modèles :</span>
-          {templates.map((t) => (
-            <button key={t.id} type="button" className="lq-chart__rule-button" onClick={() => onChange([...rules, ...t.rules()])}>
-              {t.label}
-            </button>
-          ))}
+      {rules.length > 0 && (
+        <div className="lq-ind-settings__actions">
+          <button type="button" className="lq-ind-settings__button" onClick={add}>
+            <PlusIcon size={14} />
+            Ajouter une règle
+          </button>
+          {fromTemplate}
         </div>
       )}
-    </section>
+    </CollapsibleSection>
   );
 }
 
@@ -182,14 +194,14 @@ function RuleRow({
       <div className="lq-chart__rule-head">
         <Checkbox label={`Règle ${n}`} checked={enabled} onChange={(checked) => onPatch({ enabled: checked })} ariaLabel={`Activer la règle ${n}`} />
         <span className="lq-chart__rule-tools">
-          <button type="button" className="lq-chart__rule-icon" onClick={() => onMove(-1)} disabled={index === 0} aria-label={`Monter la règle ${n}`} title="Monter">
-            ↑
+          <button type="button" className="lq-ind-settings__icon-button" onClick={() => onMove(-1)} disabled={index === 0} aria-label={`Monter la règle ${n}`} title="Monter">
+            <ArrowUpIcon size={14} />
           </button>
-          <button type="button" className="lq-chart__rule-icon" onClick={() => onMove(1)} disabled={index === count - 1} aria-label={`Descendre la règle ${n}`} title="Descendre">
-            ↓
+          <button type="button" className="lq-ind-settings__icon-button" onClick={() => onMove(1)} disabled={index === count - 1} aria-label={`Descendre la règle ${n}`} title="Descendre">
+            <ArrowDownIcon size={14} />
           </button>
-          <button type="button" className="lq-chart__rule-button" onClick={onRemove} aria-label={`Supprimer la règle ${n}`}>
-            Supprimer
+          <button type="button" className="lq-ind-settings__icon-button" onClick={onRemove} aria-label={`Supprimer la règle ${n}`} title="Supprimer">
+            <TrashIcon size={14} />
           </button>
         </span>
       </div>
@@ -268,10 +280,11 @@ function RuleRow({
           </span>
         )}
       </div>
-      <label className="lq-chart__settings-opacity lq-chart__rule-opacity">
-        <span>Opacité : {opacity} %</span>
+      <label className="lq-chart__rule-opacity">
+        <span className="lq-chart__rule-word">Opacité</span>
         <input
           type="range"
+          className="lq-ind-settings__range"
           min={5}
           max={100}
           step={5}
@@ -279,6 +292,7 @@ function RuleRow({
           onChange={(e) => onPatch({ opacity: Number(e.target.value) })}
           aria-label={`Opacité de la règle ${n}`}
         />
+        <output className="lq-ind-settings__range-value">{opacity} %</output>
       </label>
     </div>
   );

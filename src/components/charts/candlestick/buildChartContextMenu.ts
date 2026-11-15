@@ -214,8 +214,18 @@ export function buildChartContextMenu({
     ...(!inSubPane ? [{ label: marketStateOpen ? "Masquer l'état du marché" : "État du marché", onSelect: toggleMarketState }] : []),
     // La légende en haut à gauche : nom du symbole, type de bougies, ouverture / plus haut / plus bas / clôture.
     ...(!inSubPane && toggleSymbolInfo ? [{ label: symbolInfoHidden ? "Afficher la légende du symbole (OHLC)" : "Masquer la légende du symbole (OHLC)", onSelect: toggleSymbolInfo }] : []),
-    // Sur la ligne d'un indicateur : ses paramètres (période, couleurs, style…), juste avant ceux du graphique.
-    ...(anchor.indicatorId && openIndicatorSettings
+    // Sur le panneau d'un indicateur (RSI, MACD…) : les paramètres de cet indicateur, où que l'on clique dans le panneau.
+    ...(anchor.paneId && openIndicatorSettings
+      ? ([
+          {
+            label: `Paramètres du ${anchor.paneLabel ?? "panneau"}…`,
+            onSelect: () => openIndicatorSettings(anchor.paneId as string),
+          },
+        ] as ChartContextMenuItem[])
+      : []),
+    // Sur la ligne d'un indicateur : ses paramètres (période, couleurs, style…), juste avant ceux du graphique
+    // (sauf l'indicateur du panneau lui-même, déjà proposé juste au-dessus).
+    ...(anchor.indicatorId && openIndicatorSettings && anchor.indicatorId !== anchor.paneId
       ? ([
           {
             label: anchor.indicatorLabel ? `Paramètres de l'indicateur ${anchor.indicatorLabel}…` : "Paramètres de l'indicateur…",

@@ -105,7 +105,7 @@ import { DEFAULT_DAY_SEPARATORS, type DaySeparatorSettings } from "./candlestick
 import { DaySeparatorsModal } from "./candlestick/components/DaySeparatorsModal";
 import { playAlertSound } from "./candlestick/alertSounds";
 import type { ChartCaptureAction } from "./candlestick/components/ChartHeader";
-import { ATTACHED_DEFAULT_PERIOD } from "./candlestick/attachedIndicators";
+import { ATTACHED_DEFAULT_PERIOD, VOLUME_PANE_ID } from "./candlestick/attachedIndicators";
 import { CHART_DISPLAY_MODES } from "./candlestick/chartModes";
 import { findTimeframeLabel, flattenTimeframeValues } from "./candlestick/timeframes";
 import { styleOf, toolKeyOf, useDrawingStylePresets, withStyle } from "./candlestick/drawingStylePresets";
@@ -572,9 +572,19 @@ export function CandlestickChart({
       ...(() => {
         // Celui sous le pointeur ; à défaut le sélectionné, mais seulement s'il est tracé dans la zone cliquée (un RSI
         // sélectionné ne doit pas devenir la cible d'un clic droit sur les prix).
-        const zone = plotY <= priceHeight ? "price" : null;
+        // Sous les prix, la zone est le panneau cliqué (son indicateur et ce qui est posé dessus), ou le volume.
+        const inVolume =
+          plotY > priceHeight && volumeVisible && !volumeCollapsed && plotY >= priceHeight + volumeTop && plotY < priceHeight + volumeTop + volumeHeight;
+        const paneAt = ownPaneIndicators.findIndex((_, i) => plotY >= priceHeight + indicatorPaneTops[i] && plotY < priceHeight + indicatorPaneTops[i] + indicatorPaneHeights[i]);
+        const paneId = plotY > priceHeight && !inVolume && paneAt >= 0 ? ownPaneIndicators[paneAt].id : null;
         const selected = selectedIndicatorId === null ? undefined : indicators.find((i) => i.id === selectedIndicatorId);
-        const selectedInZone = selected && (zone === "price" ? indicatorCatalogEntry(selected).pane === "price" : indicatorCatalogEntry(selected).pane !== "price");
+        const selectedInZone =
+          selected &&
+          (plotY <= priceHeight
+            ? indicatorCatalogEntry(selected).pane === "price" && !selected.sourceId
+            : inVolume
+              ? selected.sourceId === VOLUME_PANE_ID
+              : paneId !== null && (selected.id === paneId || selected.sourceId === paneId));
         const id = hoveredIndicatorId ?? (selectedInZone ? selectedIndicatorId : null);
         const target = id === null ? undefined : indicators.find((i) => i.id === id);
         return target ? { indicatorId: target.id, indicatorLabel: indicatorLabel(target) } : {};

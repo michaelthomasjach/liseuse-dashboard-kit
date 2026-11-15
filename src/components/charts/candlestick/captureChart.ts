@@ -27,6 +27,17 @@ function visible(el: Element, cs: CSSStyleDeclaration): boolean {
   return r.width > 0 && r.height > 0 && cs.visibility !== "hidden" && cs.display !== "none" && Number(cs.opacity) > 0;
 }
 
+/** Opacité réellement vue à l'écran : celle de l'élément multipliée par celles de ses parents jusqu'à `root` (le
+ *  filigrane met son opacité sur son conteneur, pas sur le texte : sans ce produit, il sortait opaque sur l'image). */
+function effectiveOpacity(el: Element, root: Element): number {
+  let o = 1;
+  for (let e: Element | null = el; e; e = e.parentElement) {
+    o *= Number(getComputedStyle(e).opacity);
+    if (e === root) break;
+  }
+  return Number.isFinite(o) ? Math.max(0, Math.min(1, o)) : 1;
+}
+
 function transparent(color: string): boolean {
   return color === "transparent" || /rgba?\([^)]*,\s*0\)$/.test(color.replace(/\s+/g, " ")) || color === "rgba(0, 0, 0, 0)";
 }
@@ -93,9 +104,11 @@ export async function captureChartCanvas(root: HTMLElement, options: ChartCaptur
       range.selectNodeContents(node);
       const rect = range.getClientRects()[0];
       if (!rect || rect.width === 0) continue;
+      const alpha = effectiveOpacity(parent, root);
+      if (alpha === 0) continue;
       ops.push(() => {
         ctx.save();
-        ctx.globalAlpha = Number(cs.opacity) || 1;
+        ctx.globalAlpha = alpha;
         ctx.font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
         ctx.fillStyle = cs.color;
         ctx.textBaseline = "middle";
@@ -127,9 +140,13 @@ export async function captureChartCanvas(root: HTMLElement, options: ChartCaptur
       const r = el.getBoundingClientRect();
       // Fonds des petites pastilles (étiquettes de prix, en-têtes) ; jamais un panneau entier qui masquerait le tracé.
       if (r.width * r.height < box.width * box.height * 0.2) {
+        const alpha = effectiveOpacity(el, root);
         ops.push(() => {
+          ctx.save();
+          ctx.globalAlpha = alpha;
           ctx.fillStyle = cs.backgroundColor;
           ctx.fillRect(r.left - box.left, r.top - box.top, r.width, r.height);
+          ctx.restore();
         });
       }
     }

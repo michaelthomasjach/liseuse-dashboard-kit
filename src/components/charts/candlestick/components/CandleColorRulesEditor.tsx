@@ -6,10 +6,12 @@ import type { Indicator } from "../interfaces/Indicator.interface";
 import type { RuleIcon } from "../interfaces/IndicatorStyleRule.interface";
 import { RULE_ICON_SIZE } from "../styleRules";
 import { RuleIconPicker, RuleIconSettings } from "./RuleIconPicker";
+import { ActionMenu } from "./IndicatorSettingsLayout";
 import type { CandleColorCondition, CandleColorMetric, CandleColorOperator, CandleColorRule } from "../interfaces/CandleColorRule.interface";
 import {
   CANDLE_COLOR_METRICS,
   CANDLE_COLOR_RULE_TEMPLATES,
+  applyCandleColorTemplate,
   candleSeriesKey,
   candleSeriesOptions,
   defaultCandleColorCondition,
@@ -61,8 +63,9 @@ function defaultsFor(metric: CandleColorMetric): Partial<CandleColorCondition> {
  * « Quand [mesure] [>, <, entre] [seuil] (et / ou …) → corps en [couleur], mèche en [couleur], bordure en [couleur] »,
  * et, si on le coche, « Ajouter une icône [icône] en [couleur] », avec sa taille et sa position (au-dessus ou en
  * dessous de la bougie) ; une règle à icône peut ne pas recolorer la bougie (« Colorer la bougie » décoché).
- * Les règles sont lues dans l'ordre : la première qui s'applique à une bougie la colore. Chaque modification
- * s'applique et s'enregistre aussitôt.
+ * Les règles sont lues dans l'ordre : la première qui s'applique à une bougie la colore. « + Ajouter une règle » crée
+ * une règle vide ; le menu « Partir d'un modèle » de chaque règle la préremplit (Forte hausse, Volume ×2, Doji…). Chaque
+ * modification s'applique et s'enregistre aussitôt.
  */
 export function CandleColorRulesEditor({
   rules,
@@ -111,14 +114,6 @@ export function CandleColorRulesEditor({
           + Ajouter une règle
         </button>
       </div>
-      <div className="lq-chart__rules-templates">
-        <span className="lq-chart__rules-hint">Modèles :</span>
-        {CANDLE_COLOR_RULE_TEMPLATES.map((t) => (
-          <button key={t.id} type="button" className="lq-chart__rule-button" onClick={() => onChange([...rules, t.rule()])}>
-            {t.label}
-          </button>
-        ))}
-      </div>
     </section>
   );
 }
@@ -159,6 +154,11 @@ function CandleRuleRow({
           ariaLabel={`Activer la règle de bougies ${n}`}
         />
         <span className="lq-chart__rule-tools">
+          {/* Modèle : remplit la condition et les couleurs de CETTE règle. */}
+          <ActionMenu
+            label="Partir d'un modèle"
+            items={CANDLE_COLOR_RULE_TEMPLATES.map((t) => ({ id: t.id, label: t.label, onSelect: () => onPatch(applyCandleColorTemplate(rule, t)) }))}
+          />
           <button type="button" className="lq-chart__rule-icon" onClick={() => onMove(-1)} disabled={index === 0} aria-label={`Monter la règle de bougies ${n}`} title="Monter (priorité plus haute)">
             ↑
           </button>
@@ -170,6 +170,9 @@ function CandleRuleRow({
           </button>
         </span>
       </div>
+      {conditions.length === 0 && (
+        <p className="lq-chart__rules-hint">Règle vide : partez d'un modèle (menu de la règle) ou ajoutez une condition.</p>
+      )}
       {conditions.map((cond, k) => (
         <ConditionSentence
           key={k}

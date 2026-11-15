@@ -96,9 +96,25 @@ export function newCandleColorRuleId(): string {
   return `candle-rule-${Date.now().toString(36)}-${ruleCounter}`;
 }
 
-/** Une nouvelle règle, prête à lire : « variation (clôture vs ouverture) > 0,3 % → orange ». */
+/** Une nouvelle règle, vide : sans condition, elle ne colore rien tant qu'on ne lui en a pas donné une (« + Condition »)
+ *  ou qu'on ne l'a pas préremplie avec un modèle (menu « Partir d'un modèle » de la règle, voir `applyCandleColorTemplate`). */
 export function defaultCandleColorRule(): CandleColorRule {
-  return { id: newCandleColorRuleId(), conditions: [{ metric: "changeOpen", operator: "gt", value: 0.3 }], color: "#f5a623" };
+  return { id: newCandleColorRuleId(), conditions: [], color: "#f5a623" };
+}
+
+/** Ce qu'un modèle remplace dans une règle existante : son nom, ses conditions et ses couleurs. La règle garde son id,
+ *  sa case « activée », son icône et son choix « Colorer la bougie ». */
+export function applyCandleColorTemplate(rule: CandleColorRule, template: CandleColorRuleTemplate): CandleColorRule {
+  const t = template.rule();
+  return {
+    ...rule,
+    name: t.name,
+    conditions: t.conditions,
+    combine: t.combine,
+    color: t.color,
+    wickColor: t.wickColor ?? null,
+    borderColor: t.borderColor ?? null,
+  };
 }
 
 /** Une nouvelle condition ajoutée à une règle. */
@@ -106,7 +122,7 @@ export function defaultCandleColorCondition(): CandleColorCondition {
   return { metric: "volume", operator: "gt", value: 2, period: 20 };
 }
 
-/** Un modèle de règle en un clic, proposé sous la liste. */
+/** Un modèle de règle, proposé dans le menu « Partir d'un modèle » de chaque règle : il en remplit la condition et les couleurs. */
 export interface CandleColorRuleTemplate {
   id: string;
   label: string;

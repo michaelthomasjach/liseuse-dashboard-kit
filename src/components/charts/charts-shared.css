@@ -4422,8 +4422,7 @@ button.lq-chart__legend-item {
 .lq-chart__rule-button--add {
   font-weight: var(--lq-font-weight-semibold, 600);
 }
-.lq-chart__rules-actions,
-.lq-chart__rules-templates {
+.lq-chart__rules-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;

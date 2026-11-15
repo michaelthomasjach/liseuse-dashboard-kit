@@ -420,11 +420,12 @@ const ENUM_FIELDS: Record<string, readonly string[]> = {
   fundamentalDisplayMode: ["value", "yoyChange"],
   fundamentalChartStyle: ["line", "step", "area"],
   projectionMethod: ["linear", "quadratic", "mean", "damped", "regression", "holt"],
+  expVolTimeframe: ["chart", "15m", "30m", "1h", "4h", "1d"],
 };
 const BOOLEAN_FIELDS = new Set([
   "macdShowHistogram", "zigzagShowLabels", "pivotShowLastOnly", "chandelierUseClose", "chandelierShowLabels", "chandelierHighlightState",
   "tpoSplitByBlocks", "atrAsPercent", "legendHidden", "projection", "hidden", "macdCrossColors", "zoneShowLabels", "zoneShowMarkers",
-  "paneCollapsed", "priceOverlay", "sideAxesVisible",
+  "paneCollapsed", "priceOverlay", "sideAxesVisible", "expVolShowLow", "expVolShowSma", "expVolShowLabels", "expVolShowMedian",
 ]);
 const OBJECT_FIELDS = new Set(["seriesColors", "watermark", "valueFormat", "seriesCross"]);
 const ARRAY_FIELDS = new Set(["fills", "styleRules", "areaFills"]);
@@ -433,7 +434,7 @@ const NUMBER_FIELDS = new Set([
   "ichimokuConversionPeriod", "ichimokuBasePeriod", "ichimokuSpanPeriod", "ichimokuDisplacement", "srMaxLevels", "chandelierMultiplier",
   "tpoBlockMinutes", "tpoRowCount", "tpoValueAreaPercent", "tpoOpacity", "rsiOverbought", "rsiOversold", "chopUpperThreshold", "chopLowerThreshold",
   "adxThreshold", "correlationStrongThreshold", "projectionBars", "projectionLookback", "projectionDamping", "lineWidth", "zoneOpacity",
-  "zonePadBeforeHours", "zonePadAfterHours",
+  "zonePadBeforeHours", "zonePadAfterHours", "expVolSmaPeriod", "expVolSessions",
 ]);
 /** Champs que l'outil ne change pas : identité, type, données calculées ailleurs. */
 const LOCKED_FIELDS = new Set(["id", "kind", "customData", "correlationData", "correlationSymbol", "correlationSymbolName", "sourceId", "timeframe"]);
@@ -445,6 +446,7 @@ export function indicatorFieldType(field: string): FieldType | null {
   if (OBJECT_FIELDS.has(field)) return "object";
   if (ARRAY_FIELDS.has(field)) return "array";
   if (field === "recognitionDateLimit") return "date";
+  if (field === "expVolTimeZone") return "string";
   if (/color$/i.test(field)) return "color";
   if (NUMBER_FIELDS.has(field)) return "number";
   return null;
@@ -462,6 +464,7 @@ const KIND_PREFIXES: Record<string, string[]> = {
   pivotPoints: ["pivot"],
   supportResistance: ["sr"],
   chandelierExit: ["chandelier"],
+  expectedVolatility: ["expVol"],
   tpo: ["tpo"],
   rsi: ["rsi"],
   chop: ["chop"],
@@ -475,7 +478,7 @@ const COMMON_FIELDS = ["period", "color", "lineWidth", "hidden", "legendHidden",
 
 export function settableFieldsFor(indicator: Indicator): string[] {
   const prefixes = KIND_PREFIXES[indicator.kind] ?? (/^fundamental|revenue|eps|pe|margin/i.test(indicator.kind) ? ["fundamental"] : []);
-  const all = [...NUMBER_FIELDS, ...BOOLEAN_FIELDS, ...Object.keys(ENUM_FIELDS), ...OBJECT_FIELDS, ...ARRAY_FIELDS, "recognitionDateLimit", "color", "macdHistogramUpColor", "macdHistogramDownColor", "supertrendUpColor", "supertrendDownColor", "sarUpColor", "sarDownColor", "chandelierUpColor", "chandelierDownColor", "adxPlusColor", "adxMinusColor", "macdLineAboveColor", "macdLineBelowColor"];
+  const all = [...NUMBER_FIELDS, ...BOOLEAN_FIELDS, ...Object.keys(ENUM_FIELDS), ...OBJECT_FIELDS, ...ARRAY_FIELDS, "recognitionDateLimit", "color", "macdHistogramUpColor", "macdHistogramDownColor", "supertrendUpColor", "supertrendDownColor", "sarUpColor", "sarDownColor", "chandelierUpColor", "chandelierDownColor", "adxPlusColor", "adxMinusColor", "macdLineAboveColor", "macdLineBelowColor", "expVolMedianColor", "expVolSmaColor", "expVolTimeZone"];
   const own = all.filter((f) => prefixes.some((p) => f.startsWith(p)));
   return [...new Set([...COMMON_FIELDS, ...own, ...Object.keys(indicator).filter((k) => indicatorFieldType(k) !== null)])];
 }

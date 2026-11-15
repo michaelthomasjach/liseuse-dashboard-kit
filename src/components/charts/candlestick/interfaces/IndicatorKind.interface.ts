@@ -27,6 +27,9 @@ export type IndicatorKind =
   | "supportResistance"
   | "adx"
   | "chandelierExit"
+  /** « Volatilité attendue du jour (ATR) » : ouverture de chaque période ± ATR et ± SMA de l'ATR, figés à
+   *  l'ouverture — voir `computeExpectedVolatilityValues` (expectedVolatility.ts). */
+  | "expectedVolatility"
   /** Time Price Opportunities / Market Profile — see `Indicator.tpoBlockMinutes` and
    *  `computeTPOSessionProfiles`'s own doc (in `chartModes.ts`) for the full mechanics. An
    *  overlay like S/R or Pivot Points, not a `chartDisplayMode` — it draws its own profile

@@ -24,6 +24,7 @@ import type { OverlayDataPoint } from "./interfaces/TrendLineDrawing.interface";
 import { isFundamentalKind } from "./indicatorCatalog";
 import { computePatternRecognitionValues } from "./patternRecognition";
 import { computeCandleRecognitionValues } from "./candleRecognition";
+import { computeExpectedVolatilityValues, EXPECTED_VOLATILITY_DEFAULTS } from "./expectedVolatility";
 
 /** Forward-fills a sparse, date-keyed series (quarterly reports, any other "one number per
  *  period" data) onto every candle — the most recent point on or before that candle's own date, a
@@ -894,6 +895,14 @@ export function computeIndicatorValues(
       return computePatternRecognitionValues(data, indicator.recognitionDateLimit);
     case "candleRecognition":
       return computeCandleRecognitionValues(data, indicator.recognitionDateLimit);
+    case "expectedVolatility":
+      return computeExpectedVolatilityValues(data, {
+        atrPeriod: period,
+        smaPeriod: indicator.expVolSmaPeriod ?? EXPECTED_VOLATILITY_DEFAULTS.smaPeriod,
+        timeframe: indicator.expVolTimeframe ?? EXPECTED_VOLATILITY_DEFAULTS.timeframe,
+        timeZone: indicator.expVolTimeZone || EXPECTED_VOLATILITY_DEFAULTS.timeZone,
+        sessions: indicator.expVolSessions ?? EXPECTED_VOLATILITY_DEFAULTS.sessions,
+      });
     case "pivotPoints":
       return computePivotPointsValues(data, indicator.pivotType ?? "classic", indicator.pivotPeriod ?? "weekly");
     case "supportResistance":

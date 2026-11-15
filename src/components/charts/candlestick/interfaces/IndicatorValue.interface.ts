@@ -10,6 +10,7 @@ import type { IndicatorChandelierPoint } from "./IndicatorChandelierPoint.interf
 import type { IndicatorSRLevel } from "./IndicatorSRLevel.interface";
 import type { IndicatorPatternMatch } from "./IndicatorPatternMatch.interface";
 import type { IndicatorCandleMatch } from "./IndicatorCandleMatch.interface";
+import type { IndicatorExpectedVolatilityPoint } from "./IndicatorExpectedVolatilityPoint.interface";
 
 /** A `plot.pane`/`plot.overlay` script pane with 2+ of its own named series (see
  *  `CustomIndicatorDef.multiSeries`'s own doc) — one bar's worth of every sub-series' own value,
@@ -45,4 +46,5 @@ export type IndicatorValue =
   | IndicatorSRLevel[]
   | IndicatorPatternMatch
   | IndicatorCandleMatch
+  | IndicatorExpectedVolatilityPoint
   | IndicatorMultiSeriesValue;

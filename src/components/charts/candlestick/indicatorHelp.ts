@@ -346,6 +346,31 @@ export const INDICATOR_HELP_DETAILS: Partial<Record<IndicatorKind, IndicatorHelp
     ],
     related: ["supertrend", "atr", "parabolicSar"],
   },
+  expectedVolatility: {
+    formula: [
+      "Période : un jour de 00:00 à 23:59 dans le fuseau choisi (« 1 jour »), une bougie de l'échelle choisie (15 min à 4 h), ou chaque bougie (échelle courante)",
+      "Bougies de l'échelle : O = 1ʳᵉ ouverture, H = plus haut, L = plus bas, C = dernière clôture des bougies de la période",
+      "TR(k) = H(k) − L(k) sur la 1ʳᵉ bougie, puis max(H(k) − L(k), |H(k) − C(k−1)|, |L(k) − C(k−1)|)",
+      "ATR(k) : moyenne simple des N premiers TR, puis ATR(k) = (ATR(k−1) × (N − 1) + TR(k)) / N (Wilder)",
+      "SMA(k) = moyenne simple des M derniers ATR",
+      "Pour la période k : A = ATR(k−1), S = SMA(k−1) (dernière bougie clôturée de l'échelle) ; O = ouverture de la période",
+      "Médiane = O ; haut / bas ATR = O ± A ; haut / bas SMA = O ± S",
+    ],
+    formulaNotes:
+      "Les valeurs sont **figées** pour toute la période. La période en cours est prolongée jusqu'à sa fin prévue (autant de bougies que les périodes complètes en comptent le plus souvent). Seules les N dernières périodes sont tracées ; hors « 1 jour », seule la dernière garde ses étiquettes. Porté du script Pine « Volatilité attendue du jour (ATR) ».",
+    params: [
+      { label: "Période de l'ATR", defaultValue: "9", range: "1 à 500", description: "N : lissage de Wilder de l'ATR, sur les bougies de l'échelle choisie.", tab: "Entrées" },
+      { label: "Période de la SMA de l'ATR", defaultValue: "14", range: "1 à 500", description: "M : nombre d'ATR moyennés.", tab: "Entrées" },
+      { label: "Échelle de temps de l'ATR (et durée des lignes)", defaultValue: "Échelle courante", description: "Échelle courante, 15 minutes, 30 minutes, 1 heure, 4 heures ou 1 jour. Une échelle qui n'est pas plus large que celle du graphique revient à l'échelle courante.", tab: "Entrées" },
+      { label: "Fuseau horaire de la journée (00:00 → 23:59)", defaultValue: "Europe/Paris", description: "Découpe des journées en « 1 jour ». Nom IANA ; un nom inconnu compte en UTC.", tab: "Entrées" },
+      { label: "Nombre de séances affichées", defaultValue: "5", range: "1 à 60", description: "Les N dernières périodes tracées.", tab: "Entrées" },
+      { label: "Couleurs ATR, SMA de l'ATR, médiane", defaultValue: "Orange, cyan, gris", description: "Une couleur par famille de lignes ; la SMA et la médiane se masquent depuis leur ligne.", tab: "Style" },
+      { label: "Épaisseur des lignes", defaultValue: "2", range: "1 à 5", description: "Toutes les lignes.", tab: "Style" },
+      { label: "Afficher aussi le bas attendu (ouverture − ATR)", defaultValue: "Oui", description: "Décoché : seuls les niveaux hauts (ATR et SMA) sont tracés.", tab: "Style" },
+      { label: "Afficher les étiquettes de valeur", defaultValue: "Oui", description: "« Volatilité attendue - … » au bout de chaque ligne.", tab: "Style" },
+    ],
+    related: ["atr", "bollinger", "pivotPoints", "supertrend"],
+  },
   correlation: {
     formula: [
       "B(t) = clôture du symbole de comparaison, reportée sur chaque bougie (dernière valeur connue)",

@@ -174,6 +174,18 @@ export const INDICATOR_CATALOG: IndicatorCatalogEntry[] = [
     pane: "own",
     category: "Volatilité",
   },
+  // « Vol. jour ATR », porté d'un script Pine : own value shape (IndicatorExpectedVolatilityPoint — horizontal
+  // levels per period) and own settings (expVol*); `period` is the ATR period, shown under its own label.
+  {
+    kind: "expectedVolatility",
+    label: "Volatilité attendue du jour (ATR)",
+    shortLabel: "Vol. jour ATR",
+    defaultPeriod: 9,
+    hasPeriod: false,
+    hasStdDev: false,
+    pane: "price",
+    category: "Volatilité",
+  },
   // Its own value shape (IndicatorSupertrendPoint) and its own settings (period doubles as the
   // ATR period, supertrendMultiplier instead of stdDev) — hasStdDev false the same reasoning as
   // every other non-Bollinger indicator here.
@@ -456,6 +468,7 @@ export function indicatorLabel(indicator: Indicator): string {
   if (indicator.kind === "gaps") return `${entry.shortLabel}(${indicator.gapsMinPercent ?? 0.1}%)`;
   if (indicator.kind === "correlation") return `${entry.shortLabel}(${indicator.correlationSymbol ?? "?"})`;
   if (indicator.kind === "tpo") return `${entry.shortLabel}(${indicator.tpoBlockMinutes ?? 30}min)`;
+  if (indicator.kind === "expectedVolatility") return `${entry.shortLabel}(${indicator.period},${indicator.expVolSmaPeriod ?? 14})`;
   if (indicator.kind === "pivotPoints") {
     const typeLabel = { classic: "Classic", fibonacci: "Fibonacci", woodie: "Woodie", camarilla: "Camarilla" }[indicator.pivotType ?? "classic"];
     const periodLabel = { daily: "J", weekly: "S", monthly: "M" }[indicator.pivotPeriod ?? "weekly"];

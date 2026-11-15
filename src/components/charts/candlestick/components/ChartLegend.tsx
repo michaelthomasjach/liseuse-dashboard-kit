@@ -501,7 +501,8 @@ export function ChartLegend({
                 .join(" ")}
             >
               {showIndicatorTitles && indicatorLabel(indicator)}
-              {(showIndicatorValues || (isPriceOverlay(indicator) && indicatorLegendValue)) && (() => {
+              {/* « Vol. jour ATR » : ATR et SMA toujours lisibles ici, ses lignes ne les écrivent qu'en étiquettes. */}
+              {(showIndicatorValues || ((isPriceOverlay(indicator) || indicator.kind === "expectedVolatility") && indicatorLegendValue)) && (() => {
                 const value = indicatorLegendValue!(indicator);
                 return value ? <span className="lq-chart__indicator-legend-value">{showIndicatorTitles ? " " : ""}{value}</span> : null;
               })()}

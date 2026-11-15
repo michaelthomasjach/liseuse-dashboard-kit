@@ -5,6 +5,8 @@ import { IndicatorStyleRulesEditor } from "./IndicatorStyleRulesEditor";
 import { IndicatorAreaFillsEditor } from "./IndicatorAreaFillsEditor";
 import { IndicatorWatermarkField } from "./IndicatorWatermarkField";
 import { InputNumber } from "../../../forms/InputNumber";
+import { Input } from "../../../forms/Input";
+import { EXPECTED_VOLATILITY_DEFAULTS as EV, EXPECTED_VOLATILITY_TIMEFRAMES } from "../expectedVolatility";
 import { Select, type SelectOption } from "../../../forms/Select";
 import type { Indicator } from "../interfaces/Indicator.interface";
 import { indicatorCatalogEntry, indicatorLabel, isFundamentalKind, defaultIndicatorColor } from "../indicatorCatalog";
@@ -69,6 +71,24 @@ function SelectSetting<T extends string>({ label, value, options, onChange, hint
       <span className="lq-ind-settings__select">
         <Select<T> ariaLabel={label} value={value} options={options} onChange={onChange} />
       </span>
+    </SettingRow>
+  );
+}
+
+/** Fuseaux proposés sous le champ « Fuseau horaire » (« Vol. jour ATR ») ; tout autre nom IANA s'y tape aussi. */
+const COMMON_TIME_ZONES = ["Europe/Paris", "Europe/London", "UTC", "America/New_York", "America/Chicago", "Asia/Tokyo", "Asia/Hong_Kong", "Australia/Sydney"];
+
+/** Le fuseau de la journée de « Vol. jour ATR » : un nom IANA libre, comme l'entrée texte du script Pine. */
+function TimeZoneSetting({ value, onSet }: { value: string | undefined; onSet: (v: string) => void }) {
+  const id = useId();
+  return (
+    <SettingRow label="Fuseau horaire de la journée (00:00 → 23:59)" htmlFor={id} hint="Nom IANA, par exemple Europe/Paris. Un nom inconnu compte en UTC." wide>
+      <Input id={id} size="small" list={`${id}-tz`} value={value ?? EV.timeZone} onChange={(e) => onSet(e.target.value)} />
+      <datalist id={`${id}-tz`}>
+        {COMMON_TIME_ZONES.map((tz) => (
+          <option key={tz} value={tz} />
+        ))}
+      </datalist>
     </SettingRow>
   );
 }
@@ -152,6 +172,22 @@ export function IndicatorSettingsInputs({ indicatorDraft: d, setIndicatorDraft, 
           { value: "monthly", label: "Mensuelle" },
         ]}
       />
+    );
+  }
+  if (d.kind === "expectedVolatility") {
+    calc.push(
+      <NumberSetting key="evatr" label="Période de l'ATR" suffix="bougies" min={1} max={500} value={d.period} def={EV.atrPeriod} onSet={(v) => set({ period: v })} />,
+      <NumberSetting key="evsma" label="Période de la SMA de l'ATR" suffix="bougies" min={1} max={500} value={d.expVolSmaPeriod} def={EV.smaPeriod} onSet={(v) => set({ expVolSmaPeriod: v })} />,
+      <SelectSetting
+        key="evtf"
+        label="Échelle de temps de l'ATR (et durée des lignes)"
+        value={d.expVolTimeframe ?? EV.timeframe}
+        onChange={(v) => set({ expVolTimeframe: v })}
+        options={EXPECTED_VOLATILITY_TIMEFRAMES}
+        wide
+      />,
+      <TimeZoneSetting key="evtz" value={d.expVolTimeZone} onSet={(v) => set({ expVolTimeZone: v })} />,
+      <NumberSetting key="evn" label="Nombre de séances affichées" min={1} max={60} value={d.expVolSessions} def={EV.sessions} onSet={(v) => set({ expVolSessions: v })} />
     );
   }
   if (d.kind === "supportResistance") {
@@ -439,6 +475,22 @@ export function IndicatorSettingsStyle({ indicatorDraft: d, setIndicatorDraft, i
     trace.push(<TraceRow key="sar" name="Points" visible={shown} colors={pair("sarUpColor", "sarDownColor")} />);
   } else if (d.kind === "chandelierExit") {
     trace.push(<TraceRow key="ce" name="Stop" visible={shown} colors={pair("chandelierUpColor", "chandelierDownColor")} />);
+  } else if (d.kind === "expectedVolatility") {
+    trace.push(
+      <TraceRow key="evatr" name="ATR (ouverture ± ATR)" visible={shown} colors={[{ value: mainColor, onChange: (c) => set({ color: c }) }]} />,
+      <TraceRow
+        key="evsma"
+        name="SMA de l'ATR"
+        visible={{ checked: d.expVolShowSma ?? EV.showSma, onChange: (checked) => set({ expVolShowSma: checked }) }}
+        colors={[{ value: d.expVolSmaColor ?? EV.smaColor, onChange: (c) => set({ expVolSmaColor: c }) }]}
+      />,
+      <TraceRow
+        key="evmed"
+        name="Ligne médiane (ouverture de la période)"
+        visible={{ checked: d.expVolShowMedian ?? EV.showMedian, onChange: (checked) => set({ expVolShowMedian: checked }) }}
+        colors={[{ value: d.expVolMedianColor ?? EV.medianColor, onChange: (c) => set({ expVolMedianColor: c }) }]}
+      />
+    );
   } else if (d.kind === "supportResistance" || d.kind === "tpo") {
     trace.push(
       <TraceRow key="own" name={label} visible={shown} colors={[]}>
@@ -502,6 +554,9 @@ export function IndicatorSettingsStyle({ indicatorDraft: d, setIndicatorDraft, i
       />
     );
   }
+  if (d.kind === "expectedVolatility") {
+    traceSettings.push(<NumberSetting key="evw" label="Épaisseur des lignes" suffix="px" min={1} max={5} value={d.lineWidth} def={EV.lineWidth} onSet={(v) => set({ lineWidth: v })} />);
+  }
   if (d.kind === "tpo") {
     traceSettings.push(<NumberSetting key="tpoop" label="Opacité" suffix="%" min={10} max={100} step={5} value={d.tpoOpacity} def={100} onSet={(v) => set({ tpoOpacity: v })} />);
   }
@@ -526,6 +581,10 @@ export function IndicatorSettingsStyle({ indicatorDraft: d, setIndicatorDraft, i
   if (d.kind === "chandelierExit") {
     check("cel", "Libellés Achat / Vente", d.chandelierShowLabels ?? true, (c) => set({ chandelierShowLabels: c }));
     check("ceh", "Surligner l'état (remplissage)", d.chandelierHighlightState ?? true, (c) => set({ chandelierHighlightState: c }));
+  }
+  if (d.kind === "expectedVolatility") {
+    check("evlow", "Afficher aussi le bas attendu (ouverture − ATR)", d.expVolShowLow ?? EV.showLow, (c) => set({ expVolShowLow: c }));
+    check("evlbl", "Afficher les étiquettes de valeur", d.expVolShowLabels ?? EV.showLabels, (c) => set({ expVolShowLabels: c }));
   }
   if (d.kind === "pivotPoints") check("piv", "Dernier pivot seulement", d.pivotShowLastOnly ?? false, (c) => set({ pivotShowLastOnly: c }));
   if (d.kind === "tpo") check("tpos", "Séparer les blocs", d.tpoSplitByBlocks ?? true, (c) => set({ tpoSplitByBlocks: c }));

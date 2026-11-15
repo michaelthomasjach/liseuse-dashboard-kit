@@ -5,6 +5,7 @@ import { ChevronDownIcon, HelpIcon } from "../../../icons";
 import type { Indicator } from "../interfaces/Indicator.interface";
 import { indicatorCatalogEntry } from "../indicatorCatalog";
 import { ATTACHED_DEFAULT_PERIOD } from "../attachedIndicators";
+import { EXPECTED_VOLATILITY_DEFAULTS } from "../expectedVolatility";
 import "./IndicatorSettings.css";
 
 /*
@@ -205,6 +206,7 @@ export function indicatorDefaults(ind: Indicator): Indicator {
   // Script ou indicateur fourni par l'application : la couleur de sa définition reste la sienne (voir
   // scriptIndicatorToChartIndicator, addCustomIndicator).
   if (ind.customData?.color) base.color = ind.customData.color;
+  if (ind.kind === "expectedVolatility") base.color = EXPECTED_VOLATILITY_DEFAULTS.atrColor;
   return base;
 }
 

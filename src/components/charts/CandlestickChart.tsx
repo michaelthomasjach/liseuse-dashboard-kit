@@ -2328,6 +2328,7 @@ function CandlestickChartBody({
     const entry = indicatorValues.find((e) => e.indicator.id === indicator.id);
     if (!entry || legendValueIndex < 0) return null;
     const ann = indicatorAxisAnnotations(indicator, entry.values, legendValueIndex, undefined);
+    if (ann.legend) return ann.legend;
     const fmt = ann.valueAxis === "price" ? pFmt : (paneValueFormatter(indicator) ?? formatCompactNumber);
     const labels = ann.y.filter((l) => !/hist/i.test(l.key)).slice(0, 3);
     return labels.length > 0 ? labels.map((l) => l.text ?? fmt(l.at)).join(" ") : null;

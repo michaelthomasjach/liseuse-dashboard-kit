@@ -509,6 +509,34 @@ Comme tout suiveur, il **sort prématurément dans les phases de respiration** d
 
 **22 périodes, multiplicateur 3** — une durée qui correspond à peu près à un mois de séances. Les étiquettes et le remplissage de la zone se règlent séparément.`,
 
+  expectedVolatility: `**Cet indicateur trace, pour chaque période, jusqu'où le prix peut raisonnablement aller depuis son ouverture**, d'après l'ATR.
+
+Au début de chaque période de l'échelle choisie — un jour de 00:00 à 23:59 dans le fuseau choisi, une heure, une bougie de 4 heures, ou chaque bougie en échelle courante — il pose des lignes horizontales sur toute la durée de la période :
+
+- la **médiane**, l'ouverture de la période, en pointillés ;
+- **ouverture ± ATR**, en trait plein ;
+- **ouverture ± SMA de l'ATR**, en tirets.
+
+L'ATR et sa moyenne sont ceux de la **dernière bougie clôturée** de l'échelle choisie : les lignes sont **figées** à l'ouverture et ne bougent plus pendant la période.
+
+## Comment il se lit
+
+La bande ouverture ± ATR est l'**amplitude habituelle** d'une période : un prix qui l'atteint a déjà fait « sa » journée (ou son heure), et la poursuite du mouvement devient moins probable qu'en début de période.
+
+La SMA de l'ATR lisse l'ATR lui-même : quand la bande ATR est nettement plus large que la bande SMA, la volatilité récente est **au-dessus de sa moyenne** ; plus étroite, le marché est plus calme que d'habitude.
+
+Chaque ligne porte une étiquette « Volatilité attendue - … » avec son niveau, et la légende donne l'ATR et sa SMA de la période survolée.
+
+## Ce qu'il ne dit pas
+
+**Aucune direction**, et aucune limite : un jour d'annonce peut dépasser deux ou trois ATR. Les niveaux décrivent l'amplitude passée, pas un objectif.
+
+Calculés sur l'historique chargé : l'ATR d'une échelle plus large demande assez de bougies pour s'amorcer (9 jours en « 1 jour » avec les réglages par défaut), rien n'est tracé avant.
+
+## Réglages
+
+**ATR 9, SMA 14, échelle courante, 5 séances**, comme le script Pine d'origine. L'échelle fixe à la fois l'ATR et la durée des lignes ; une échelle qui n'est pas plus large que celle du graphique revient à l'échelle courante. Bas attendu, SMA, médiane, étiquettes, couleurs et épaisseur se règlent séparément.`,
+
   correlation: `**Cet indicateur mesure à quel point deux instruments bougent ensemble**, sur une échelle de -1 à +1.
 
 - **+1** — ils montent et descendent exactement en même temps.

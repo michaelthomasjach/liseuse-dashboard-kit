@@ -8,6 +8,7 @@ import type { CustomIndicatorDef } from "../interfaces/CustomIndicatorDef.interf
 import type { IndicatorCatalogEntry } from "../indicatorCatalog";
 import { indicatorCatalogEntry } from "../indicatorCatalog";
 import { dedupeIndicatorIds, newIndicatorId } from "../indicatorIds";
+import { EXPECTED_VOLATILITY_DEFAULTS } from "../expectedVolatility";
 import {
   DEFAULT_PANE_HEIGHT_FRACTION,
   MIN_PANE_HEIGHT_FRACTION,
@@ -602,6 +603,8 @@ export function usePaneLayout({
         period: entry.defaultPeriod,
         stdDev: entry.hasStdDev ? 2 : undefined,
         ...(entry.kind === "macd" ? { fastPeriod: 12, slowPeriod: 26, signalPeriod: 9 } : {}),
+        // « Vol. jour ATR » : l'ATR en orange, comme le script Pine d'origine (légende comprise).
+        ...(entry.kind === "expectedVolatility" ? { color: EXPECTED_VOLATILITY_DEFAULTS.atrColor } : {}),
       },
     ]);
   }

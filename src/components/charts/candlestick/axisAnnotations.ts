@@ -13,7 +13,9 @@ import type { IndicatorZigZagPoint } from "./interfaces/IndicatorZigZagPoint.int
 import type { IndicatorGapPoint } from "./interfaces/IndicatorGapPoint.interface";
 import type { IndicatorPatternMatch } from "./interfaces/IndicatorPatternMatch.interface";
 import type { IndicatorCandleMatch } from "./interfaces/IndicatorCandleMatch.interface";
+import type { IndicatorExpectedVolatilityPoint } from "./interfaces/IndicatorExpectedVolatilityPoint.interface";
 import { indicatorCatalogEntry } from "./indicatorCatalog";
+import { formatCompactNumber, formatPlainNumber } from "./formatting";
 import { FIBONACCI_LEVELS, FIBONACCI_EXTENSION_LEVELS } from "./drawingCatalog";
 
 /** Priority tiers. When two labels would overlap on screen, the higher tier survives and the
@@ -58,6 +60,9 @@ export interface AxisAnnotations {
   /** The selection's own colour, so its labels read as belonging to it rather than to the
    *  theme's accent. Undefined falls back to the accent in CSS. */
   color?: string;
+  /** Texte de la légende, quand il n'est pas la suite des valeurs de `y` : « Vol. jour ATR » y montre l'ATR et sa
+   *  SMA (des écarts), alors que ses étiquettes d'axe sont des prix. */
+  legend?: string;
 }
 
 /** The span an axis' own shaded band should cover, or `null` when there is nothing to bracket.
@@ -279,6 +284,9 @@ function isPattern(v: IndicatorValue): v is IndicatorPatternMatch {
 function isCandleMatch(v: IndicatorValue): v is IndicatorCandleMatch {
   return typeof v === "object" && v !== null && !Array.isArray(v) && "spanIndex" in v;
 }
+function isExpectedVolatility(v: IndicatorValue): v is IndicatorExpectedVolatilityPoint {
+  return typeof v === "object" && v !== null && !Array.isArray(v) && "periodEnd" in v && "atr" in v;
+}
 function isMultiSeries(v: IndicatorValue): v is { multi: Record<string, number | IndicatorBand | null> } {
   return typeof v === "object" && v !== null && !Array.isArray(v) && "multi" in v;
 }
@@ -474,6 +482,23 @@ export function indicatorAxisAnnotations(
         label("pp-s3", v.s3, AXIS_LABEL_PRIORITY_DERIVED, "S3"),
       ]),
       x: compact([label("pp-xs", v.periodStart, AXIS_LABEL_PRIORITY_DEFINING), label("pp-xe", first.index, AXIS_LABEL_PRIORITY_DEFINING)]),
+    };
+  }
+
+  if (isExpectedVolatility(v)) {
+    // Les niveaux de la période de la bougie lue, bornés à cette période ; la légende donne l'ATR et sa SMA.
+    const fmt = (x: number) => formatCompactNumber(x, formatPlainNumber);
+    return {
+      ...base,
+      y: compact([
+        label("ev-o", v.open, AXIS_LABEL_PRIORITY_DEFINING, "Médiane"),
+        label("ev-ah", v.open + v.atr, AXIS_LABEL_PRIORITY_DEFINING, "Haut ATR"),
+        label("ev-al", v.open - v.atr, AXIS_LABEL_PRIORITY_DERIVED, "Bas ATR"),
+        v.sma === null ? null : label("ev-sh", v.open + v.sma, AXIS_LABEL_PRIORITY_DERIVED, "Haut SMA"),
+        v.sma === null ? null : label("ev-sl", v.open - v.sma, AXIS_LABEL_PRIORITY_DERIVED, "Bas SMA"),
+      ]),
+      x: compact([label("ev-xs", v.periodStart, AXIS_LABEL_PRIORITY_DEFINING), label("ev-xe", first.index, AXIS_LABEL_PRIORITY_DEFINING)]),
+      legend: `ATR ${fmt(v.atr)}${v.sma === null ? "" : ` · SMA ${fmt(v.sma)}`}`,
     };
   }
 

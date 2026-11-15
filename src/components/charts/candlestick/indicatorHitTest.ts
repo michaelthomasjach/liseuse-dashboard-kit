@@ -123,6 +123,11 @@ export function indicatorSeries(
       push("s1", i, v.s1);
       push("s2", i, v.s2);
       push("s3", i, v.s3);
+    } else if ("periodEnd" in v && "atr" in v) {
+      // « Vol. jour ATR » : la médiane et ses deux niveaux ATR, en paliers, sur les seules périodes tracées.
+      push("evOpen", i, v.drawn ? v.open : null);
+      push("evHigh", i, v.drawn ? v.open + v.atr : null);
+      push("evLow", i, v.drawn ? v.open - v.atr : null);
     } else if ("trend" in v && "value" in v) {
       push("supertrend", i, v.value);
     } else if ("price" in v && "kind" in v) {

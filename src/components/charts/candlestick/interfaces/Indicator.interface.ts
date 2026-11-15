@@ -126,6 +126,20 @@ export interface Indicator {
    *  already give the value area) — this scales *both* rather than replacing that relationship
    *  with a single flat alpha. Default 100 (fully opaque). */
   tpoOpacity?: number;
+  /** "expectedVolatility" only (« Vol. jour ATR ») — `period` est la période de l'ATR (9 par défaut) et `color` la
+   *  couleur de l'ATR. Ci-dessous : période de la SMA de l'ATR (14), échelle de l'ATR et durée des lignes (« chart » =
+   *  échelle courante), fuseau de la journée (« Europe/Paris »), nombre de séances tracées (5), éléments affichés
+   *  (tous oui par défaut) et couleurs de la médiane et de la SMA. Voir `EXPECTED_VOLATILITY_DEFAULTS`. */
+  expVolSmaPeriod?: number;
+  expVolTimeframe?: "chart" | "15m" | "30m" | "1h" | "4h" | "1d";
+  expVolTimeZone?: string;
+  expVolSessions?: number;
+  expVolShowLow?: boolean;
+  expVolShowSma?: boolean;
+  expVolShowLabels?: boolean;
+  expVolShowMedian?: boolean;
+  expVolMedianColor?: string;
+  expVolSmaColor?: string;
   /** "rsi" only — the two dashed reference levels drawn across its pane (see
    *  `drawVolumeAndPanes`'s own RSI/CHOP block). Defaults 70/30, the conventional overbought/
    *  oversold thresholds — some traders widen these to 80/20 for a stronger/less noisy signal, or

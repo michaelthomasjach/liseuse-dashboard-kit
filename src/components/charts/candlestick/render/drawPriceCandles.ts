@@ -24,13 +24,15 @@ import { drawPaneSeriesOnPrice, drawVolumeOnPrice } from "./drawPriceOverlaySeri
 import { drawPatternRecognitionMatches } from "./drawPatternRecognition";
 import { drawCandleRecognitionMatches } from "./drawCandleRecognition";
 import { drawIndicatorZones } from "./drawIndicatorZones";
+import { drawExpectedVolatility } from "./drawExpectedVolatility";
+import type { IndicatorExpectedVolatilityPoint } from "../interfaces/IndicatorExpectedVolatilityPoint.interface";
 
 // "gaps"/"parabolicSar"/"pivotPoints" are point-based (a rectangle, a dot, or a single flat
 // segment all render fine on their own) rather than line-shaped like every other indicator here,
 // so they're exempt from the "needs at least 2 points to draw anything" gate below.
 // "patternRecognition"/"candleRecognition" join them for the same reason — a match found (or not)
 // within their own recent window has nothing to do with how many points happen to be visible.
-const POINT_BASED_KINDS = new Set(["gaps", "parabolicSar", "pivotPoints", "supportResistance", "patternRecognition", "candleRecognition"]);
+const POINT_BASED_KINDS = new Set(["gaps", "parabolicSar", "pivotPoints", "supportResistance", "patternRecognition", "candleRecognition", "expectedVolatility"]);
 
 // A `CustomIndicatorDef.lineStyle` (script/caller-chosen) mapped to `ctx.setLineDash` — every
 // built-in indicator with a fixed dash style (Ichimoku's chikou span, pivot levels,
@@ -720,6 +722,8 @@ export function drawPriceCandles(ctx: CanvasRenderingContext2D, params: RenderCa
           ctx.fillText(`${level.price.toFixed(2)} ×${level.touchCount}`, x0 + 2, y - 2);
         }
         ctx.restore();
+      } else if (indicator.kind === "expectedVolatility") {
+        drawExpectedVolatility(ctx, points as { i: number; value: IndicatorExpectedVolatilityPoint }[], indicator, color, params, style);
       } else if (indicator.kind === "patternRecognition") {
         drawPatternRecognitionMatches(ctx, points as { i: number; value: IndicatorPatternMatch }[], params, style, color);
       } else if (indicator.kind === "candleRecognition") {

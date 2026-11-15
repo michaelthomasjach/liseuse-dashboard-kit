@@ -103,6 +103,9 @@ export interface RenderCandlestickChartParams {
   /** Bougies recolorées (règles des paramètres du graphique et `plot.candleColor` des scripts), par index dans
    *  `data` — voir `computeCandleColors`. `null` : aucune, le cas courant. */
   candleColors: Map<number, import("./CandleColorRule.interface").CandleColorOverride> | null;
+  /** Icônes posées au-dessus ou en dessous des bougies par les règles du style conditionnel des bougies — voir
+   *  `computeCandleIcons`. Absent ou `null` : aucune, le cas courant. */
+  candleIcons?: import("./CandleColorRule.interface").CandleIconMark[] | null;
   indexForDate: (d: Date) => number;
   /** Draws a diagonal-hatched marker over the price pane's own "future" — from just past the last
    *  candle to the plot's right edge — see drawFutureZone.ts. A chart-settings toggle, not a

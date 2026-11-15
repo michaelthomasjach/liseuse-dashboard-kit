@@ -18,6 +18,7 @@ import type { IndicatorCandleMatch } from "../interfaces/IndicatorCandleMatch.in
 import { snapPixel } from "../drawingGeometry";
 import { drawPillLabel } from "../drawingRender";
 import { indicatorCatalogEntry, defaultIndicatorColor } from "../indicatorCatalog";
+import { drawCandleIcons } from "./drawCandleIcons";
 import { drawIndicatorStyleRules, type StyleRulePane } from "./drawIndicatorStyleRules";
 import { drawPaneSeriesOnPrice, drawVolumeOnPrice } from "./drawPriceOverlaySeries";
 import { drawPatternRecognitionMatches } from "./drawPatternRecognition";
@@ -392,7 +393,7 @@ export function drawPriceCandles(ctx: CanvasRenderingContext2D, params: RenderCa
     // above (a session profile, not a value at a fixed index — see computeIndicatorValues' own
     // "tpo" case) and never reaches a branch below: computeIndicatorValues returns it an
     // all-null array, so `points` is always empty and the next line skips it here for free.
-    // Couleurs conditionnelles (onglet Style) des indicateurs tracés sur les prix : une règle peut citer n'importe
+    // Style conditionnel (onglet Style) des indicateurs tracés sur les prix : une règle peut citer n'importe
     // quelle courbe du panneau (deux moyennes qui se croisent) ou le cours. Remplissages et fonds sous toutes les
     // courbes, segments recolorés et croisements par-dessus (après la boucle).
     const priceRulePane: StyleRulePane = {
@@ -939,6 +940,8 @@ export function drawPriceCandles(ctx: CanvasRenderingContext2D, params: RenderCa
     // Séries de panneau affichées sur le graphique des prix (RSI, MACD, script…), chacune sur son échelle à elle.
     drawPaneSeriesOnPrice(ctx, params, style);
     drawIndicatorStyleRules(ctx, priceRulePane, "over");
+    // Icônes du style conditionnel des bougies : au-dessus des courbes, sous le réticule et les dessins.
+    if (params.candleIcons) drawCandleIcons(ctx, params, colorBg);
 
     if (hovered && hoverY !== null) {
       ctx.save();

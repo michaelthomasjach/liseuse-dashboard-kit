@@ -167,3 +167,8 @@ export {
   ForkliftIcon,
   CartIcon,
 } from "./icons";
+// Icônes repères des règles de style conditionnel et des marqueurs de script (option `icon`).
+export { MARKER_ICONS, MARKER_ICON_CATEGORIES, markerIconById, isMarkerIconId, searchMarkerIcons } from "./markerIcons";
+export { MarkerIcon } from "./MarkerIcon";
+export type { MarkerIconDef, MarkerIconCategory } from "./markerIcons";
+export type { MarkerIconProps } from "./MarkerIcon";

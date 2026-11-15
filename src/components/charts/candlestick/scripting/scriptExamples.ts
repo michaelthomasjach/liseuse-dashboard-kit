@@ -279,7 +279,7 @@ panneau.fillBetween("Rapide", "Lente", { above: "#26a69a", below: "#ef5350", opa
     id: "candle-color-threshold",
     title: "Bougies > +0,3 % en couleur (plot.candleColor)",
     description:
-      "Applique une règle métier aux bougies elles-mêmes : celles qui ont pris plus de 0,3 % entre l'ouverture et la clôture passent en vert vif, celles qui en ont perdu plus de 0,3 % en rouge, les autres gardent leurs couleurs. `plot.candleColor` colore la bougie en cours ; le seuil et les couleurs se règlent dans les paramètres du script. Les règles « Couleurs conditionnelles » des paramètres du graphique, si vous en avez, passent devant :",
+      "Applique une règle métier aux bougies elles-mêmes : celles qui ont pris plus de 0,3 % entre l'ouverture et la clôture passent en vert vif, celles qui en ont perdu plus de 0,3 % en rouge, les autres gardent leurs couleurs. `plot.candleColor` colore la bougie en cours ; le seuil et les couleurs se règlent dans les paramètres du script. Les règles « Style conditionnel » des paramètres du graphique, si vous en avez, passent devant :",
     code: `@indicator
 @description "Bougies colorées selon leur variation : > +0,3 % en vert vif, < −0,3 % en rouge."
 

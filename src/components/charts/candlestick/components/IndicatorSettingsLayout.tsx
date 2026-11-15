@@ -31,7 +31,7 @@ export function SettingsSection({ title, help, aside, children }: { title: strin
   );
 }
 
-/** Une section repliable (« Couleurs conditionnelles ») : son titre est un bouton, `count` dit ce qu'elle contient
+/** Une section repliable (« Style conditionnel ») : son titre est un bouton, `count` dit ce qu'elle contient
  *  quand elle est repliée. Ouverte au départ si `defaultOpen`. */
 export function CollapsibleSection({
   title,

@@ -4349,7 +4349,7 @@ button.lq-chart__legend-item {
 .lq-chart__rule-pick--effect {
   flex: 1 1 170px;
 }
-/* Couleurs conditionnelles des bougies : « et / ou » entre deux conditions, et l'opérateur (>, <, entre). */
+/* Style conditionnel des bougies : « et / ou » entre deux conditions, et l'opérateur (>, <, entre). */
 .lq-chart__rule-pick--combine {
   flex: 0 0 64px;
 }
@@ -4446,8 +4446,9 @@ button.lq-chart__legend-item {
   min-width: 0;
 }
 .lq-chart__rule-sentence--condition > .lq-chart__rule-pick--condition > .lq-chart__rule-pick {
-  flex: 0 1 116px;
-  width: 116px;
+  /* « Croise à la hausse » en entier : les deux courbes, de part et d'autre, rétrécissent avant elle. */
+  flex: 0 1 150px;
+  width: 150px;
   min-width: 0;
 }
 .lq-chart__rule-sentence--condition .lq-chart__rule-operand > * {
@@ -4474,4 +4475,121 @@ button.lq-chart__legend-item {
 .lq-chart__rule-sentence--condition .lq-chart__rule-operand--value .lq-chart__rule-pick--number {
   width: 56px;
   flex: 0 0 56px;
+}
+
+/* Les menus de la condition, un peu plus serrés que les autres, pour que « Quand EMA(20) est Croise à la hausse
+   SMA(20) » se lise en entier sur une ligne dans une fenêtre de paramètres de largeur normale. */
+.lq-chart__rule-sentence--condition .lq-select__trigger {
+  padding-left: 6px;
+  padding-right: 6px;
+  font-size: 13px;
+}
+
+/* Style conditionnel, « Ajouter une icône » : le bouton qui montre l'icône choisie (dans la couleur de la règle) et
+   ouvre la fenêtre de choix, la ligne taille / position, et la grille de la fenêtre. */
+.lq-chart__rule-icon-button {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--lq-color-border);
+  border-radius: var(--lq-radius-sm, 4px);
+  background: var(--lq-color-bg);
+  color: var(--lq-color-text);
+  cursor: pointer;
+}
+.lq-chart__rule-icon-button:hover {
+  background: var(--lq-color-hover);
+}
+.lq-chart__rule-icon-button:focus-visible {
+  outline: 2px solid var(--lq-color-accent);
+  outline-offset: 1px;
+}
+.lq-chart__rule-icon-preview {
+  display: inline-flex;
+}
+.lq-chart__rule-pick--position {
+  flex: 1 1 170px;
+}
+.lq-chart__rule-icon-settings .lq-chart__rule-pick--number {
+  flex: 0 0 64px;
+  width: 64px;
+}
+.lq-chart__rule-sentence--off .lq-chart__rule-group,
+.lq-chart__rule-sentence--off > .lq-chart__rule-button {
+  opacity: 0.45;
+}
+.lq-chart__icon-picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lq-space-3, 12px);
+  min-width: 0;
+}
+.lq-modal.lq-chart__icon-modal {
+  max-width: min(540px, 94vw);
+}
+.lq-chart__icon-categories {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.lq-chart__icon-category {
+  padding: 3px 10px;
+  border: 1px solid var(--lq-color-border-subtle);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--lq-color-text);
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.lq-chart__icon-category:hover {
+  background: var(--lq-color-hover);
+}
+.lq-chart__icon-category--active {
+  border-color: var(--lq-color-accent);
+  background: var(--lq-color-accent);
+  color: var(--lq-color-accent-contrast);
+}
+.lq-chart__icon-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+  gap: 6px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 2px;
+}
+.lq-chart__icon-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  padding: 0;
+  border: 1px solid var(--lq-color-border-subtle);
+  border-radius: var(--lq-radius-sm, 4px);
+  background: var(--lq-color-panel);
+  color: var(--lq-color-text);
+  cursor: pointer;
+}
+.lq-chart__icon-cell > span {
+  display: inline-flex;
+}
+.lq-chart__icon-cell:hover {
+  background: var(--lq-color-hover);
+}
+.lq-chart__icon-cell:focus-visible {
+  outline: 2px solid var(--lq-color-accent);
+  outline-offset: 1px;
+}
+.lq-chart__icon-cell--selected {
+  border-color: var(--lq-color-accent);
+  box-shadow: inset 0 0 0 1px var(--lq-color-accent);
+}
+.lq-chart__icon-empty {
+  margin: 0;
+  color: var(--lq-color-text-muted, var(--lq-color-muted));
+  font-size: 0.85rem;
 }

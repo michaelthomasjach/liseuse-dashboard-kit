@@ -4,6 +4,7 @@ import type { IndicatorAreaFill } from "./interfaces/IndicatorAreaFill.interface
 import type { IndicatorValue } from "./interfaces/IndicatorValue.interface";
 import type {
   IndicatorStyleRule,
+  RuleIcon,
   StyleRuleCondition,
   StyleRuleEffect,
   StyleRuleOperand,
@@ -13,7 +14,7 @@ import { indicatorCatalogEntry, indicatorLabel } from "./indicatorCatalog";
 import { VOLUME_PANE_ID, mainValue } from "./attachedIndicators";
 
 /**
- * Règles de couleur des indicateurs (onglet Style, « Couleurs conditionnelles ») : ce que l'éditeur et le rendu
+ * Règles de couleur des indicateurs (onglet Style, « Style conditionnel ») : ce que l'éditeur et le rendu
  * partagent — les courbes d'un panneau qu'une règle peut citer, la lecture d'une valeur, la conversion des anciennes
  * zones colorées, les modèles en un clic.
  */
@@ -27,6 +28,33 @@ export function defaultRuleOpacity(effect: StyleRuleEffect): number {
   if (effect === "fill") return 25;
   if (effect === "background") return 12;
   return 100;
+}
+
+/** Taille par défaut d'une icône de règle, en pixels CSS, et ses bornes. */
+export const RULE_ICON_SIZE = 14;
+export const RULE_ICON_MIN_SIZE = 8;
+export const RULE_ICON_MAX_SIZE = 40;
+
+/** L'icône proposée quand on choisit « Ajouter une icône » : un triangle sous la courbe qui croise à la hausse, au-dessus
+ *  de celle qui croise à la baisse, sinon une flèche vers le haut au-dessus du point. */
+export function defaultRuleIcon(condition: StyleRuleCondition): RuleIcon {
+  if (condition === "crossUp") return { name: "triangle-up", size: RULE_ICON_SIZE, position: "below" };
+  if (condition === "crossDown") return { name: "triangle-down", size: RULE_ICON_SIZE, position: "above" };
+  return { name: "arrow-up", size: RULE_ICON_SIZE, position: "above" };
+}
+
+/** L'icône d'une règle, complétée de ses défauts. */
+export function resolvedRuleIcon(icon: RuleIcon | null | undefined): Required<Omit<RuleIcon, "color">> & { color?: string } {
+  const size = Math.min(RULE_ICON_MAX_SIZE, Math.max(RULE_ICON_MIN_SIZE, icon?.size ?? RULE_ICON_SIZE));
+  return { name: icon?.name || "circle-filled", size, position: icon?.position ?? "above", ...(icon?.color ? { color: icon.color } : {}) };
+}
+
+/** L'ancien effet « marquer d'un point » (retiré du menu) lu comme une icône « Point » centrée sur la courbe, de la
+ *  taille de l'ancien point : même dessin, et la règle s'édite comme les autres. Les autres règles passent telles
+ *  quelles (même objet). */
+export function migrateStyleRule(rule: IndicatorStyleRule): IndicatorStyleRule {
+  if (rule.effect !== "marker") return rule;
+  return { ...rule, effect: "icon", icon: rule.icon ?? { name: "circle-filled", size: 10, position: "on" } };
 }
 
 /** Les croisements : un effet ponctuel, sans « sinon ». */
@@ -194,9 +222,9 @@ export function legacyFillToRule(fill: IndicatorFill): IndicatorStyleRule {
 
 /** Les règles de couleur d'un indicateur : `styleRules`, ou à défaut ses anciennes zones colorées converties (les
  *  réglages enregistrés avant les règles s'affichent à l'identique ; ils passent au nouveau format à la première
- *  modification dans l'onglet Style). */
+ *  modification dans l'onglet Style). Les règles « marquer d'un point » sont lues comme des icônes (`migrateStyleRule`). */
 export function indicatorStyleRules(indicator: Indicator): IndicatorStyleRule[] {
-  if (indicator.styleRules) return indicator.styleRules;
+  if (indicator.styleRules) return indicator.styleRules.some((r) => r.effect === "marker") ? indicator.styleRules.map(migrateStyleRule) : indicator.styleRules;
   return (indicator.fills ?? []).map(legacyFillToRule);
 }
 
@@ -299,8 +327,8 @@ export function styleRuleTemplates(owner: Indicator, indicators: Indicator[]): S
       id: "cross",
       label: "Croisements",
       rules: () => [
-        { id: newRuleId(), a, condition: "crossUp", b: other.ref, effect: "marker", color: RULE_UP, opacity: 100 },
-        { id: newRuleId(), a, condition: "crossDown", b: other.ref, effect: "marker", color: RULE_DOWN, opacity: 100 },
+        { id: newRuleId(), a, condition: "crossUp", b: other.ref, effect: "icon", icon: defaultRuleIcon("crossUp"), color: RULE_UP, opacity: 100 },
+        { id: newRuleId(), a, condition: "crossDown", b: other.ref, effect: "icon", icon: defaultRuleIcon("crossDown"), color: RULE_DOWN, opacity: 100 },
       ],
     });
   }

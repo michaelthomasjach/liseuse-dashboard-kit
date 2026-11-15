@@ -25,11 +25,32 @@ export type StyleRuleCondition = "above" | "below" | "gte" | "lte" | "crossUp" |
  *  - « line » : colore les segments de la courbe A où la condition est vraie ;
  *  - « background » : colore le fond du panneau sur ces bougies (pour un croisement : une bande fine sur la bougie
  *    du croisement) ;
- *  - « marker » : un point sur la courbe A, à l'endroit exact du croisement (croisements seulement). */
-export type StyleRuleEffect = "fill" | "line" | "background" | "marker";
+ *  - « icon » : une icône (voir `RuleIcon`) sur la courbe A, sur chaque bougie où la condition est vraie, ou à
+ *    l'endroit exact du croisement pour « croise » ;
+ *  - « marker » : ancien effet « marquer d'un point », retiré du menu ; une règle enregistrée avec lui est lue comme
+ *    « icon » avec l'icône « Point » posée sur la courbe (voir `indicatorStyleRules`), sans changer son dessin. */
+export type StyleRuleEffect = "fill" | "line" | "background" | "icon" | "marker";
+
+/** Où se pose l'icône : au-dessus du point de la courbe (de la bougie), en dessous, ou centrée dessus (courbes
+ *  seulement). */
+export type RuleIconPosition = "above" | "below" | "on";
+
+/** L'icône d'une règle (« Ajouter une icône ») : son nom dans le catalogue du kit (`MARKER_ICONS` : `"arrow-up"`,
+ *  `"triangle-down"`, `"rocket"`, `"circle-filled"`…), sa taille et sa position. */
+export interface RuleIcon {
+  /** Identifiant d'une icône de `MARKER_ICONS` ; inconnu : le point. */
+  name: string;
+  /** Taille en pixels CSS, de 8 à 40. Défaut 14. */
+  size?: number;
+  /** Défaut « above » (« on » pour une courbe migrée depuis « marquer d'un point »). */
+  position?: RuleIconPosition;
+  /** Couleur de l'icône (règles des bougies seulement ; une règle d'indicateur peint son icône en `color`).
+   *  Absente : la couleur de la règle. */
+  color?: string;
+}
 
 /**
- * Une règle de couleur d'un indicateur (onglet Style, « Couleurs conditionnelles ») ; se lit comme une phrase :
+ * Une règle de couleur d'un indicateur (onglet Style, « Style conditionnel ») ; se lit comme une phrase :
  * « Quand [a] est [condition] [b] (et [c]) → [effet] en [color] (sinon en [elseColor]), opacité [opacity] ».
  * Remplace les anciennes zones colorées (`IndicatorFill`), converties à la lecture par `indicatorStyleRules`.
  */
@@ -49,4 +70,6 @@ export interface IndicatorStyleRule {
   elseColor?: string | null;
   /** Opacité en %, de 0 à 100. Défaut selon l'effet (voir `defaultRuleOpacity`). */
   opacity?: number;
+  /** L'icône de l'effet « icon ». Absente : le point, au-dessus. */
+  icon?: RuleIcon;
 }

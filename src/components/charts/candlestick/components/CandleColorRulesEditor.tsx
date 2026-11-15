@@ -3,6 +3,9 @@ import { Checkbox } from "../../../forms/Checkbox";
 import { InputNumber } from "../../../forms/InputNumber";
 import { Select, type SelectOption } from "../../../forms/Select";
 import type { Indicator } from "../interfaces/Indicator.interface";
+import type { RuleIcon } from "../interfaces/IndicatorStyleRule.interface";
+import { RULE_ICON_SIZE } from "../styleRules";
+import { RuleIconPicker, RuleIconSettings } from "./RuleIconPicker";
 import type { CandleColorCondition, CandleColorMetric, CandleColorOperator, CandleColorRule } from "../interfaces/CandleColorRule.interface";
 import {
   CANDLE_COLOR_METRICS,
@@ -22,12 +25,12 @@ const METRIC_OPTIONS: SelectOption<CandleColorMetric>[] = CANDLE_COLOR_METRICS.m
 const OPERATOR_OPTIONS: SelectOption<CandleColorOperator>[] = [
   { value: "gt", label: ">" },
   { value: "lt", label: "<" },
-  { value: "between", label: "entre" },
+  { value: "between", label: "Entre" },
 ];
 
 const COMBINE_OPTIONS: SelectOption<"and" | "or">[] = [
-  { value: "and", label: "et" },
-  { value: "or", label: "ou" },
+  { value: "and", label: "Et" },
+  { value: "or", label: "Ou" },
 ];
 
 /** Le seuil le plus parlant quand on change de mesure (un seuil de variation ne veut rien dire pour le volume). */
@@ -53,9 +56,11 @@ function defaultsFor(metric: CandleColorMetric): Partial<CandleColorCondition> {
 }
 
 /**
- * Paramètres du graphique → Bougies : les couleurs conditionnelles des bougies (voir `CandleColorRule`). Même facture
+ * Paramètres du graphique → Bougies : le style conditionnel des bougies (voir `CandleColorRule`). Même facture
  * que l'éditeur des règles d'un indicateur (`IndicatorStyleRulesEditor`) : chaque règle se lit comme une phrase,
- * « Quand [mesure] [>, <, entre] [seuil] (et / ou …) → corps en [couleur], mèche en [couleur], bordure en [couleur] ».
+ * « Quand [mesure] [>, <, entre] [seuil] (et / ou …) → corps en [couleur], mèche en [couleur], bordure en [couleur] »,
+ * et, si on le coche, « Ajouter une icône [icône] en [couleur] », avec sa taille et sa position (au-dessus ou en
+ * dessous de la bougie) ; une règle à icône peut ne pas recolorer la bougie (« Colorer la bougie » décoché).
  * Les règles sont lues dans l'ordre : la première qui s'applique à une bougie la colore. Chaque modification
  * s'applique et s'enregistre aussitôt.
  */
@@ -79,12 +84,13 @@ export function CandleColorRulesEditor({
   };
 
   return (
-    <section className="lq-chart__rules lq-chart__candle-rules" aria-label="Couleurs conditionnelles des bougies">
+    <section className="lq-chart__rules lq-chart__candle-rules" aria-label="Style conditionnel des bougies">
       <div className="lq-chart__rules-head">
-        <span className="lq-field__label">Couleurs conditionnelles</span>
+        <span className="lq-field__label">Style conditionnel</span>
         <span className="lq-chart__rules-hint">
-          Colorez certaines bougies selon une condition (variation, amplitude, volume, position face à une moyenne…). Les
-          règles sont lues dans l'ordre : la première qui s'applique colore la bougie. Elles passent devant les couleurs
+          Colorez certaines bougies, ou posez une icône au-dessus ou en dessous, selon une condition (variation, amplitude,
+          volume, position face à une moyenne…). Les règles sont lues dans l'ordre : la première qui s'applique colore la
+          bougie ; chaque règle à icône pose la sienne. Elles passent devant les couleurs
           posées par un script (plot.candleColor).
         </span>
       </div>
@@ -139,6 +145,9 @@ function CandleRuleRow({
   const conditions = rule.conditions;
   const setCondition = (k: number, patch: Partial<CandleColorCondition>) =>
     onPatch({ conditions: conditions.map((c, j) => (j === k ? { ...c, ...patch } : c)) });
+  const icon = rule.icon ?? null;
+  const recolor = rule.recolor !== false || !icon;
+  const patchIcon = (patch: Partial<RuleIcon>) => onPatch({ icon: { name: "arrow-up", size: RULE_ICON_SIZE, position: "above", ...icon, ...patch } });
 
   return (
     <div className={["lq-chart__rule", !enabled && "lq-chart__rule--disabled"].filter(Boolean).join(" ")}>
@@ -185,10 +194,18 @@ function CandleRuleRow({
           + Condition
         </button>
       </div>
-      <div className="lq-chart__rule-sentence">
+      <div className={["lq-chart__rule-sentence", !recolor && "lq-chart__rule-sentence--off"].filter(Boolean).join(" ")}>
         <span className="lq-chart__rule-word" aria-hidden="true">
           →
         </span>
+        {icon && (
+          <Checkbox
+            label="Colorer la bougie"
+            checked={recolor}
+            onChange={(checked) => onPatch({ recolor: checked ? undefined : false })}
+            ariaLabel={`Recolorer les bougies, règle de bougies ${n}`}
+          />
+        )}
         <span className="lq-chart__rule-group">
           <span className="lq-chart__rule-word">corps</span>
           <ColorPicker
@@ -222,6 +239,30 @@ function CandleRuleRow({
           </button>
         )}
       </div>
+      <div className="lq-chart__rule-sentence">
+        <span className="lq-chart__rule-word" aria-hidden="true">
+          →
+        </span>
+        <Checkbox
+          label="Ajouter une icône"
+          checked={!!icon}
+          onChange={(checked) => onPatch(checked ? { icon: { name: "arrow-up", size: RULE_ICON_SIZE, position: "above", color: rule.color } } : { icon: null, recolor: undefined })}
+          ariaLabel={`Ajouter une icône, règle de bougies ${n}`}
+        />
+        {icon && (
+          <>
+            <RuleIconPicker value={icon.name} color={icon.color ?? rule.color} ariaLabel={`Icône de la règle de bougies ${n}`} onChange={(name) => patchIcon({ name })} />
+            <span className="lq-chart__rule-word">en</span>
+            <ColorPicker
+              className="lq-chart__color-input"
+              value={icon.color ?? rule.color}
+              onChange={(color) => patchIcon({ color })}
+              aria-label={`Couleur de l'icône, règle de bougies ${n}`}
+            />
+          </>
+        )}
+      </div>
+      {icon && <RuleIconSettings icon={icon} onCurve={false} ariaPrefix={`règle de bougies ${n}`} onChange={patchIcon} />}
     </div>
   );
 }
@@ -252,9 +293,9 @@ function ConditionSentence({
   const unit = CANDLE_COLOR_METRICS.find((m) => m.value === cond.metric)?.unit;
   const seriesKey = candleSeriesKey(cond.series);
   const seriesOptions: SelectOption[] = [
-    ...(seriesKey && !series.some((s) => s.key === seriesKey) ? [{ value: seriesKey, label: "(courbe retirée)" }] : []),
-    ...(series.length === 0 && !seriesKey ? [{ value: "", label: "(aucune courbe sur les prix)" }] : []),
-    ...series.map((s) => ({ value: s.key, label: s.label })),
+    ...(seriesKey && !series.some((s) => s.key === seriesKey) ? [{ value: seriesKey, label: "(Courbe retirée)" }] : []),
+    ...(series.length === 0 && !seriesKey ? [{ value: "", label: "(Aucune courbe sur les prix)" }] : []),
+    ...series.map((s) => ({ value: s.key, label: s.label.charAt(0).toUpperCase() + s.label.slice(1) })),
   ];
 
   const setMetric = (metric: CandleColorMetric) => {

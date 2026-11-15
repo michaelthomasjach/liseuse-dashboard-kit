@@ -515,7 +515,7 @@
   font-size: var(--lq-text-xs, 0.72rem);
 }
 
-/* --- Couleurs conditionnelles, dans la grille ------------------------------------------------------------------------ */
+/* --- Style conditionnel, dans la grille ------------------------------------------------------------------------ */
 
 .lq-ind-settings .lq-chart__rule {
   gap: var(--lq-space-2);

@@ -106,6 +106,9 @@ export interface PlotSignalArg {
   price?: number;
   color?: string;
   shape?: string;
+  /** Une icône repère du kit (`MARKER_ICONS` : `"rocket"`, `"star-filled"`, `"bell"`…) à la place de la flèche ou de
+   *  l'épingle ; inconnue, elle est ignorée. */
+  icon?: string;
   /** A short label rendered next to the marker — `type: "BUY"` alone only picks the arrow's own
    *  direction, this is what actually puts the word "BUY" on the chart next to it. */
   text?: string;
@@ -255,7 +258,7 @@ export interface PlotApi {
    *  first example in its spec) or the full options object; `price` defaults to the current
    *  bar's own close when omitted, via `getCurrentClose`. */
   signal(arg: string | PlotSignalArg): void;
-  point(value: number, options?: { color?: string; shape?: string; text?: string }): void;
+  point(value: number, options?: { color?: string; shape?: string; icon?: string; text?: string }): void;
   horizontal(price: number, options?: { color?: string }): void;
   vertical(options?: { color?: string }): void;
   /** A table overlay anchored to a corner of the price pane — neither a continuous series nor a
@@ -517,11 +520,12 @@ export function buildPlotApi(
         type: normalized.type,
         color: normalized.color,
         shape: normalized.shape,
+        icon: normalized.icon,
         text: normalized.text,
       });
     },
     point: (value, options) => {
-      drawings.push({ kind: "point", date: getCurrentDate(), price: value, color: options?.color, shape: options?.shape, text: options?.text });
+      drawings.push({ kind: "point", date: getCurrentDate(), price: value, color: options?.color, shape: options?.shape, icon: options?.icon, text: options?.text });
     },
     horizontal: (price, options) => {
       drawings.push({ kind: "horizontal", date: getCurrentDate(), price, color: options?.color });

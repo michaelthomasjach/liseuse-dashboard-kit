@@ -565,7 +565,7 @@ export function IndicatorSettingsStyle({ indicatorDraft: d, setIndicatorDraft, i
       {showAreaFills && (d.areaFills?.length ?? 0) > 0 && d.customData?.draw !== "zones" && (
         <IndicatorAreaFillsEditor indicator={d} indicators={indicators} onChange={(areaFills) => setIndicatorDraft({ ...d, areaFills })} />
       )}
-      {/* Couleurs conditionnelles : écrites au nouveau format, l'ancien (`fills`, converti à la lecture) est retiré. */}
+      {/* Style conditionnel : écrites au nouveau format, l'ancien (`fills`, converti à la lecture) est retiré. */}
       {d.customData?.draw !== "zones" && (
         <IndicatorStyleRulesEditor indicator={d} indicators={indicators} onChange={(styleRules) => setIndicatorDraft({ ...d, styleRules, fills: undefined })} />
       )}

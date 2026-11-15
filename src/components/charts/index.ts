@@ -163,8 +163,9 @@ export { encodeCapture, MAX_CAPTURE_BYTES, CAPTURE_TOOL } from "./candlestick/ai
 export type { WorkspaceRailAction } from "./workspace/WorkspaceSideRail";
 export type { DaySeparatorSettings } from "./candlestick/daySeparators";
 export type { ChartAppearanceSettings } from "./candlestick/hooks/useChartAppearance";
-// Couleurs conditionnelles des bougies (paramètres du graphique, prop `candleColorRules`).
-export type { CandleColorRule, CandleColorCondition, CandleColorMetric, CandleColorOperator } from "./candlestick/interfaces/CandleColorRule.interface";
+// Style conditionnel des bougies (paramètres du graphique, prop `candleColorRules`) et des indicateurs (icônes).
+export type { CandleColorRule, CandleColorCondition, CandleColorMetric, CandleColorOperator, CandleIconMark } from "./candlestick/interfaces/CandleColorRule.interface";
+export type { RuleIcon, RuleIconPosition } from "./candlestick/interfaces/IndicatorStyleRule.interface";
 export { CANDLE_COLOR_RULE_TEMPLATES } from "./candlestick/candleColorRules";
 export type { ChartDisplayMode } from "./candlestick/interfaces/ChartDisplayMode.interface";
 export type { PriceScaleMode } from "./candlestick/interfaces/PriceScaleMode.interface";

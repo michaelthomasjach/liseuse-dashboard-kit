@@ -36,7 +36,7 @@ import { useAddLineHandlers } from "./candlestick/hooks/useAddLineHandlers";
 import { useZoomAndScales } from "./candlestick/hooks/useZoomAndScales";
 import { useBarRangeSelection } from "./candlestick/hooks/useBarRangeSelection";
 import { useIndicatorPaneScales } from "./candlestick/hooks/useIndicatorPaneScales";
-import { computeCandleColors } from "./candlestick/candleColorRules";
+import { computeCandleColors, computeCandleIcons } from "./candlestick/candleColorRules";
 import { useDockedPaneColumnsState } from "./candlestick/hooks/useDockedPaneColumnsState";
 import { useDrawingState } from "./candlestick/hooks/useDrawingState";
 import { useDrawingInteractions } from "./candlestick/hooks/useDrawingInteractions";
@@ -1441,7 +1441,7 @@ function CandlestickChartBody({
   });
 
 
-  // Couleurs conditionnelles des bougies : règles des paramètres (si la section est permise) puis `plot.candleColor`
+  // Style conditionnel des bougies : règles des paramètres (si la section est permise) puis `plot.candleColor`
   // des scripts, calculées sur toutes les bougies une fois par changement de données ou de règles — jamais au glisser.
   const candleColors = useMemo(
     () =>
@@ -1452,6 +1452,12 @@ function CandlestickChartBody({
         scriptColors: scriptingState.scriptCandleColors,
       }),
     [data, showCandleColorRules, candleColorRules, indicatorValues, scriptingState.scriptCandleColors],
+  );
+
+  // Icônes du style conditionnel des bougies (« Ajouter une icône »), calculées de même une fois par changement.
+  const candleIcons = useMemo(
+    () => computeCandleIcons({ data, rules: showCandleColorRules ? candleColorRules : undefined, indicatorValues }),
+    [data, showCandleColorRules, candleColorRules, indicatorValues],
   );
 
   beforeRemoveIndicatorRef.current = (id: string) => {
@@ -1734,6 +1740,7 @@ function CandlestickChartBody({
     indicatorProjections,
     scriptHeatmaps: scriptingState.scriptHeatmaps,
     candleColors,
+    candleIcons,
     indexForDate,
     futureZoneVisible,
     pastZoneVisible,

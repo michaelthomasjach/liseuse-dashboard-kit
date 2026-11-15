@@ -1,5 +1,6 @@
 import type { TrendLineDrawing } from "../interfaces/TrendLineDrawing.interface";
 import type { ScriptDrawingOutput } from "./interfaces/ScriptRunResult.interface";
+import { isMarkerIconId } from "../../../icons/markerIcons";
 
 /** `shape` (see `PlotSignalArg`/`plot.point`'s own doc) is only trusted when it names one of
  *  these — an arbitrary string reaching `TrendLineDrawing.lineType` unchecked could name a
@@ -9,6 +10,8 @@ import type { ScriptDrawingOutput } from "./interfaces/ScriptRunResult.interface
 const VALID_MARKER_SHAPES = new Set(["arrowUp", "arrowDown", "pin", "flagMark", "priceLabel"]);
 
 function markerShape(d: ScriptDrawingOutput): TrendLineDrawing["lineType"] {
+  // Une icône se dessine à la place de l'épingle (voir drawMarkers.ts), qui en donne aussi la zone de clic.
+  if (isMarkerIconId(d.icon)) return "pin";
   if (d.shape && VALID_MARKER_SHAPES.has(d.shape)) return d.shape as TrendLineDrawing["lineType"];
   if (d.kind === "signal") return d.type === "SELL" ? "arrowDown" : "arrowUp";
   return "pin";
@@ -37,6 +40,7 @@ export function scriptDrawingToTrendLineDrawing(id: string, d: ScriptDrawingOutp
     color: d.color,
     text: d.text,
     markerSide: d.markerSide,
+    ...(isMarkerIconId(d.icon) ? { icon: d.icon } : {}),
     // A strategy fill's own label goes in a bubble tied to its bar (see TrendLineDrawing.textBubble),
     // not in a run of text drifting right across the candles that follow it. Only for fills:
     // `markerSide` is what a strategy sets and a hand-placed pin never has.

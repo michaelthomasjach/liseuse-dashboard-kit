@@ -95,6 +95,9 @@ export interface ScriptDrawingOutput {
    *  own drawing-tool names directly (`"arrowUp"`, `"pin"`, etc.) for a script author who wants
    *  more control than the BUY/SELL default gives. */
   shape?: string;
+  /** "signal"/"point" seulement : une icône repère du kit (`MARKER_ICONS`), dessinée à la place du marqueur ; un nom
+   *  inconnu est ignoré (voir scriptOutputToDrawings.ts). */
+  icon?: string;
   /** "signal"/"point" only — a short label rendered next to the marker (same `TrendLineDrawing.text`
    *  every hand-drawn arrow/pin already supports) — `plot.signal("BUY")`'s own arrow shape implies
    *  a *direction*, not a caption; this is how a script puts an actual word like "BUY" next to it. */

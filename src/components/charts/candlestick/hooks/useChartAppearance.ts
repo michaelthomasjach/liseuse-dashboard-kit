@@ -14,7 +14,7 @@ export interface ChartAppearanceSettings {
   closePulse?: boolean;
   pastZone?: boolean;
   futureZone?: boolean;
-  /** Couleurs conditionnelles des bougies (onglet Bougies), dans leur ordre de priorité — voir `CandleColorRule`. */
+  /** Style conditionnel des bougies (onglet Bougies), dans leur ordre de priorité — voir `CandleColorRule`. */
   candleColorRules?: CandleColorRule[];
   /** Échelle de l'axe des prix : linéaire (défaut), logarithmique ou en % — voir `PriceScaleMode`. */
   priceScale?: PriceScaleMode;
@@ -91,7 +91,7 @@ export function useChartAppearance({ YAutoScaling, livePrice, controlledSettings
   const [closePulseVisible, setClosePulseVisible] = useState(defaultAppearance?.closePulse ?? true);
   const [futureZoneVisible, setFutureZoneVisible] = useState(defaultAppearance?.futureZone ?? false);
   const [pastZoneVisible, setPastZoneVisible] = useState(defaultAppearance?.pastZone ?? false);
-  // Couleurs conditionnelles des bougies : tenues ici (lues au montage dans `defaultAppearance`), sauf quand
+  // Style conditionnel des bougies : tenues ici (lues au montage dans `defaultAppearance`), sauf quand
   // l'application les tient elle-même par la prop `candleColorRules`.
   const [internalCandleColorRules, setInternalCandleColorRules] = useState<CandleColorRule[]>(defaultAppearance?.candleColorRules ?? []);
   const candleColorRules = candleColorRulesProp ?? internalCandleColorRules;

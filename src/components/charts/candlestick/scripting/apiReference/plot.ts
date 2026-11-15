@@ -1,4 +1,8 @@
 import { fns, t, c, d, type ScriptReferenceSection } from "./blocks";
+import { MARKER_ICONS } from "../../../../icons/markerIcons";
+
+/** Les noms des icônes repères qu'accepte l'option `icon` de plot.signal / plot.point. */
+const MARKER_ICON_IDS = MARKER_ICONS.map((i) => `"${i.id}"`).join(", ");
 
 const SERIES_OPTIONS = [
   "options.color — couleur CSS de la courbe.",
@@ -199,17 +203,23 @@ plot.overlay("BOOKMAP").heatmap("Liquidité", cellules, { bucket: 0.05 });`,
         purpose:
           "Un marqueur à la barre en cours : c'est ainsi qu'un indicateur dit « ici ». La forme la plus courante d'annotation ponctuelle.",
         params: [
-          'arg — soit une chaîne courte ("BUY", "SELL", "achat"…), soit un objet { type, price, color, shape, text } pour choisir le prix d\'ancrage, la couleur, la forme et le libellé.',
+          'arg — soit une chaîne courte ("BUY", "SELL", "achat"…), soit un objet { type, price, color, shape, icon, text } pour choisir le prix d\'ancrage, la couleur, la forme et le libellé.',
+          `arg.icon — une icône repère du kit dessinée au-dessus du point à la place de la flèche : ${MARKER_ICON_IDS}. Un nom inconnu est ignoré (la flèche reste).`,
         ],
         returns: "rien.",
         example: `if (croisement) plot.signal("achat");
-plot.signal({ type: "SELL", price: market.high(0), text: "divergence" });`,
+plot.signal({ type: "SELL", price: market.high(0), text: "divergence" });
+plot.signal({ price: market.low(0), icon: "rocket", color: "#26a69a" });`,
       },
       {
         signature: "plot.point(value, options?)",
         keywords: ["plot.point"],
         purpose: "Un point à un prix choisi, à la barre en cours. Comme signal, mais quand c'est le NIVEAU qui compte plutôt que l'évènement.",
-        params: ["value — le prix auquel poser le point.", "options.color / options.shape / options.text — apparence et libellé."],
+        params: [
+          "value — le prix auquel poser le point.",
+          "options.color / options.shape / options.text — apparence et libellé.",
+          "options.icon — une icône repère du kit à la place de l'épingle (mêmes noms que pour plot.signal : \"rocket\", \"star-filled\", \"bell\", \"triangle-up\"…).",
+        ],
         returns: "rien.",
       },
       {
@@ -266,7 +276,7 @@ plot.signal({ type: "SELL", price: market.high(0), text: "divergence" });`,
         ],
         returns: "rien.",
         caveat:
-          "Priorité : les règles « Couleurs conditionnelles » des paramètres du graphique (onglet Bougies) passent devant le script — une bougie qu'une règle active colore garde la couleur de la règle. Entre deux scripts, le dernier ajouté l'emporte. S'applique aux modes Bougies, Heikin Ashi et Barres ; en mode Ligne, la bougie colorée devient un point de cette couleur sur la ligne ; Renko et Line Break ne sont pas concernés. Fermer le panneau du script (ou le désactiver) rend aux bougies leurs couleurs.",
+          "Priorité : les règles « Style conditionnel » des paramètres du graphique (onglet Bougies) passent devant le script — une bougie qu'une règle active colore garde la couleur de la règle. Entre deux scripts, le dernier ajouté l'emporte. S'applique aux modes Bougies, Heikin Ashi et Barres ; en mode Ligne, la bougie colorée devient un point de cette couleur sur la ligne ; Renko et Line Break ne sont pas concernés. Fermer le panneau du script (ou le désactiver) rend aux bougies leurs couleurs.",
         example: `const variation = (market.close(0) - market.open(0)) / market.open(0) * 100;
 if (variation > 0.3) plot.candleColor("#00c853");
 else if (variation < -0.3) plot.candleColor("#d50000", { wick: "#7f0000" });`,

@@ -2,6 +2,10 @@ import type { RenderCandlestickChartParams } from "../interfaces/RenderCandlesti
 import { drawSpeechBubble } from "../drawingRender";
 import { contrastingTextColor } from "../formatting";
 import type { ChartCanvasStyle } from "../interfaces/ChartCanvasStyle.interface";
+import { drawMarkerIcon } from "./drawMarkerIcon";
+
+/** Taille d'une icône repère posée par un script à la place de l'épingle (`TrendLineDrawing.icon`). */
+const PIN_ICON_SIZE = 18;
 
 // Fixed pixel sizes — unrelated to strokeWidth (see TrendLineDrawing.lineType's own doc), same
 // stance arrowUp/arrowDown's own fixed-size triangle already takes.
@@ -61,18 +65,23 @@ export function drawMarkerDrawings(ctx: CanvasRenderingContext2D, params: Render
 
     if (dr.lineType === "pin") {
       const cy = y - PIN_CIRCLE_OFFSET_Y;
-      const tipHalfWidth = PIN_CIRCLE_RADIUS * 0.6;
-      ctx.beginPath();
-      ctx.arc(x, cy, PIN_CIRCLE_RADIUS, 0, Math.PI * 2);
-      ctx.moveTo(x - tipHalfWidth, cy + PIN_CIRCLE_RADIUS * 0.55);
-      ctx.lineTo(x, y);
-      ctx.lineTo(x + tipHalfWidth, cy + PIN_CIRCLE_RADIUS * 0.55);
-      ctx.closePath();
-      ctx.fill();
-      ctx.beginPath();
-      ctx.arc(x, cy, PIN_INNER_DOT_RADIUS, 0, Math.PI * 2);
-      ctx.fillStyle = colorBg;
-      ctx.fill();
+      if (dr.icon) {
+        // Icône choisie par un script (`plot.signal({ icon })`) : à la place de la goutte, au même endroit.
+        drawMarkerIcon(ctx, dr.icon, x, y - PIN_ICON_SIZE / 2 - 4, PIN_ICON_SIZE, bodyColor, colorBg);
+      } else {
+        const tipHalfWidth = PIN_CIRCLE_RADIUS * 0.6;
+        ctx.beginPath();
+        ctx.arc(x, cy, PIN_CIRCLE_RADIUS, 0, Math.PI * 2);
+        ctx.moveTo(x - tipHalfWidth, cy + PIN_CIRCLE_RADIUS * 0.55);
+        ctx.lineTo(x, y);
+        ctx.lineTo(x + tipHalfWidth, cy + PIN_CIRCLE_RADIUS * 0.55);
+        ctx.closePath();
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(x, cy, PIN_INNER_DOT_RADIUS, 0, Math.PI * 2);
+        ctx.fillStyle = colorBg;
+        ctx.fill();
+      }
       // The label beside the badge — what turns a dot on the chart into "Achat 1 @ 412.88". Drawn
       // only when there is one, so a hand-placed pin (which has no text) is untouched. Offset past
       // the circle rather than centred in it: a fill's own description never fits inside a badge

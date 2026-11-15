@@ -4,6 +4,7 @@ import { InputNumber } from "../../../forms/InputNumber";
 import { Select, type SelectOption } from "../../../forms/Select";
 import { ArrowDownIcon, ArrowUpIcon, PlusIcon, TrashIcon } from "../../../icons";
 import { ActionMenu, CollapsibleSection } from "./IndicatorSettingsLayout";
+import { RuleIconPicker, RuleIconSettings } from "./RuleIconPicker";
 import type { Indicator } from "../interfaces/Indicator.interface";
 import type {
   IndicatorStyleRule,
@@ -14,6 +15,7 @@ import type {
 import {
   RULE_DOWN,
   RULE_UP,
+  defaultRuleIcon,
   defaultRuleOpacity,
   defaultStyleRule,
   indicatorStyleRules,
@@ -27,39 +29,45 @@ import {
 } from "../styleRules";
 
 const CONDITION_OPTIONS: SelectOption<StyleRuleCondition>[] = [
-  { value: "above", label: "au-dessus de" },
-  { value: "below", label: "en dessous de" },
+  { value: "above", label: "Au-dessus de" },
+  { value: "below", label: "En dessous de" },
   { value: "gte", label: "≥" },
   { value: "lte", label: "≤" },
-  { value: "crossUp", label: "croise à la hausse" },
-  { value: "crossDown", label: "croise à la baisse" },
-  { value: "between", label: "entre" },
-  { value: "outside", label: "hors de" },
+  { value: "crossUp", label: "Croise à la hausse" },
+  { value: "crossDown", label: "Croise à la baisse" },
+  { value: "between", label: "Entre" },
+  { value: "outside", label: "Hors de" },
 ];
 
 /** Valeur du menu « une valeur fixe » dans le choix d'une référence. */
 const VALUE_KEY = "value";
 
-/** Ce qu'une règle peut peindre selon sa condition : un croisement est ponctuel (un point, une bande sur la bougie),
- *  une comparaison dure (remplir, colorer la courbe, colorer le fond). */
+/** La première lettre en majuscule : chaque option des menus des règles commence par une majuscule. */
+const capitalize = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
+
+/** Ce qu'une règle peut peindre selon sa condition : un croisement est ponctuel (une icône, une bande sur la bougie),
+ *  une comparaison dure (remplir, colorer la courbe, colorer le fond, une icône sur chaque bougie où elle est vraie).
+ *  L'ancien « marquer d'un point » n'est plus proposé : ses règles arrivent ici converties en icône. */
 function effectOptions(condition: StyleRuleCondition, aLabel: string): SelectOption<StyleRuleEffect>[] {
   if (isCrossCondition(condition)) {
     return [
-      { value: "marker", label: "marquer d'un point" },
-      { value: "background", label: "bande sur la bougie" },
+      { value: "icon", label: "Ajouter une icône" },
+      { value: "background", label: "Bande sur la bougie" },
     ];
   }
   return [
-    { value: "fill", label: isRangeCondition(condition) ? "remplir la zone" : "remplir entre les deux" },
-    { value: "line", label: `colorer ${aLabel}` },
-    { value: "background", label: "colorer le fond" },
+    { value: "fill", label: isRangeCondition(condition) ? "Remplir la zone" : "Remplir entre les deux" },
+    { value: "line", label: `Colorer ${aLabel}` },
+    { value: "background", label: "Colorer le fond" },
+    { value: "icon", label: "Ajouter une icône" },
   ];
 }
 
 /**
- * Onglet Style : les couleurs conditionnelles d'un indicateur (voir `IndicatorStyleRule`). Chaque règle se lit comme
+ * Onglet Style : le style conditionnel d'un indicateur (voir `IndicatorStyleRule`). Chaque règle se lit comme
  * une phrase, de gauche à droite : « Quand [courbe A] est [condition] [courbe B | valeur] → [effet] en [couleur]
- * (sinon en [couleur]) », avec son opacité. Les courbes proposées sont toutes celles du panneau : les lignes de
+ * (sinon en [couleur]) », avec son opacité ; l'effet « Ajouter une icône » ajoute le choix de l'icône, sa taille et sa
+ * position. Les courbes proposées sont toutes celles du panneau : les lignes de
  * l'indicateur, celles des indicateurs posés dessus (la SMA d'un RSI), les autres courbes du panneau principal et le
  * cours pour un indicateur tracé sur les prix. Chaque modification s'applique et s'enregistre aussitôt.
  */
@@ -92,14 +100,14 @@ export function IndicatorStyleRulesEditor({
   // Repliée tant qu'il n'y a pas de règle : la section se résume alors à son titre.
   return (
     <CollapsibleSection
-      title="Couleurs conditionnelles"
+      title="Style conditionnel"
       count={rules.length}
       defaultOpen={rules.length > 0}
-      help="Colorez l'espace entre deux courbes, une courbe ou le fond selon une condition, ou marquez les croisements. Chaque règle se lit comme une phrase ; les règles se peignent dans l'ordre, la dernière passe par-dessus."
+      help="Colorez l'espace entre deux courbes, une courbe ou le fond selon une condition, ou posez une icône sur la courbe là où elle est vraie (un croisement, un franchissement de seuil). Chaque règle se lit comme une phrase ; les règles se peignent dans l'ordre, la dernière passe par-dessus."
     >
       {rules.length === 0 && (
         <div className="lq-ind-settings__empty-state">
-          <p className="lq-ind-settings__empty">Aucune règle. Colorez une zone, une courbe ou le fond selon une condition.</p>
+          <p className="lq-ind-settings__empty">Aucune règle. Colorez une zone, une courbe ou le fond, ou posez une icône, selon une condition.</p>
           <div className="lq-ind-settings__actions">
             <button type="button" className="lq-ind-settings__button lq-ind-settings__button--primary" onClick={add}>
               <PlusIcon size={14} />
@@ -157,25 +165,27 @@ function RuleRow({
   const n = index + 1;
   const aKey = seriesRefKey(rule.a, ownerId);
   const aOption = series.find((s) => s.key === aKey);
-  const aLabel = aOption?.label ?? "la courbe";
+  const aLabel = capitalize(aOption?.label ?? "la courbe");
   // Une courbe citée qui n'est plus dans le panneau (indicateur retiré) reste choisie, sous un nom qui le dit, plutôt
   // que d'être remplacée en silence.
-  const missing = (key: string): SelectOption[] => (series.some((s) => s.key === key) ? [] : [{ value: key, label: "(courbe retirée)" }]);
-  const aOptions: SelectOption[] = [...series.map((s) => ({ value: s.key, label: s.label })), ...missing(aKey)];
+  const missing = (key: string): SelectOption[] => (series.some((s) => s.key === key) ? [] : [{ value: key, label: "(Courbe retirée)" }]);
+  const aOptions: SelectOption[] = [...series.map((s) => ({ value: s.key, label: capitalize(s.label) })), ...missing(aKey)];
   const cross = isCrossCondition(rule.condition);
   const range = isRangeCondition(rule.condition);
   const effects = effectOptions(rule.condition, aLabel);
+  const isIcon = rule.effect === "icon";
   const enabled = rule.enabled !== false;
   const opacity = rule.opacity ?? defaultRuleOpacity(rule.effect);
 
   const setCondition = (condition: StyleRuleCondition) => {
     const patch: Partial<IndicatorStyleRule> = { condition };
-    // L'effet suit : un croisement se marque d'un point, une comparaison se remplit.
+    // L'effet suit : un croisement se marque d'une icône, une comparaison se remplit.
     const allowed = effectOptions(condition, aLabel).map((o) => o.value);
     if (!allowed.includes(rule.effect)) {
       const effect = allowed[0]!;
       patch.effect = effect;
       patch.opacity = defaultRuleOpacity(effect);
+      if (effect === "icon" && !rule.icon) patch.icon = defaultRuleIcon(condition);
     }
     // « entre » / « hors de » : une deuxième borne, au-dessus de la première si c'est une valeur.
     if (isRangeCondition(condition) && !rule.c) {
@@ -186,7 +196,7 @@ function RuleRow({
   const setEffect = (effect: StyleRuleEffect) => {
     // L'opacité suit l'effet tant qu'elle n'a pas été réglée à la main.
     const keepOpacity = rule.opacity !== undefined && rule.opacity !== defaultRuleOpacity(rule.effect);
-    onPatch({ effect, opacity: keepOpacity ? rule.opacity : defaultRuleOpacity(effect) });
+    onPatch({ effect, opacity: keepOpacity ? rule.opacity : defaultRuleOpacity(effect), ...(effect === "icon" && !rule.icon ? { icon: defaultRuleIcon(rule.condition) } : {}) });
   };
 
   return (
@@ -254,6 +264,14 @@ function RuleRow({
         <span className="lq-chart__rule-pick lq-chart__rule-pick--effect">
           <Select size="small" ariaLabel={`Effet de la règle ${n}`} value={rule.effect} options={effects} onChange={setEffect} />
         </span>
+        {isIcon && (
+          <RuleIconPicker
+            value={rule.icon?.name ?? "circle-filled"}
+            color={rule.color}
+            ariaLabel={`Icône de la règle ${n}`}
+            onChange={(name) => onPatch({ icon: { ...(rule.icon ?? defaultRuleIcon(rule.condition)), name } })}
+          />
+        )}
         <span className="lq-chart__rule-word">en</span>
         <ColorPicker
           className="lq-chart__color-input"
@@ -261,7 +279,7 @@ function RuleRow({
           onChange={(color) => onPatch({ color })}
           aria-label={`Couleur de la règle ${n}`}
         />
-        {!cross && (
+        {!cross && !isIcon && (
           <span className="lq-chart__rule-else">
             <Checkbox
               label="sinon"
@@ -280,6 +298,14 @@ function RuleRow({
           </span>
         )}
       </div>
+      {isIcon && (
+        <RuleIconSettings
+          icon={rule.icon}
+          onCurve
+          ariaPrefix={`règle ${n}`}
+          onChange={(patch) => onPatch({ icon: { ...(rule.icon ?? defaultRuleIcon(rule.condition)), ...patch } })}
+        />
+      )}
       <label className="lq-chart__rule-opacity">
         <span className="lq-chart__rule-word">Opacité</span>
         <input
@@ -318,9 +344,9 @@ function OperandPicker({
   const key = operand.source === "value" ? VALUE_KEY : seriesRefKey(operand, ownerId);
   const choices = series.filter((s) => s.key !== excludeKey);
   const options: SelectOption[] = [
-    { value: VALUE_KEY, label: "une valeur" },
-    ...choices.map((s) => ({ value: s.key, label: s.label })),
-    ...(key === VALUE_KEY || choices.some((s) => s.key === key) ? [] : [{ value: key, label: "(courbe retirée)" }]),
+    { value: VALUE_KEY, label: "Une valeur" },
+    ...choices.map((s) => ({ value: s.key, label: capitalize(s.label) })),
+    ...(key === VALUE_KEY || choices.some((s) => s.key === key) ? [] : [{ value: key, label: "(Courbe retirée)" }]),
   ];
   // Le menu et son champ de valeur restent ensemble quand la phrase passe à la ligne.
   return (

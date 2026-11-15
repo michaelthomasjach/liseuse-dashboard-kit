@@ -1,7 +1,8 @@
 import type { Indicator } from "../interfaces/Indicator.interface";
 import type { IndicatorValue } from "../interfaces/IndicatorValue.interface";
 import type { IndicatorStyleRule, StyleRuleOperand } from "../interfaces/IndicatorStyleRule.interface";
-import { defaultRuleOpacity, renderedStyleRules, isCrossCondition, isRangeCondition, seriesFieldValue } from "../styleRules";
+import { defaultRuleOpacity, renderedStyleRules, isCrossCondition, isRangeCondition, resolvedRuleIcon, seriesFieldValue } from "../styleRules";
+import { drawMarkerIcon, markerIconCenterY } from "./drawMarkerIcon";
 
 /** Un indicateur du panneau et ses points visibles. */
 export interface StyleRuleMember {
@@ -23,14 +24,14 @@ export interface StyleRulePane {
   candleWidth: number;
   /** Hauteur du panneau : un fond coloré le couvre de haut en bas. */
   height: number;
-  /** Couleur du fond du graphique : le liseré d'un point de croisement, pour qu'il se détache de la courbe. */
+  /** Couleur du fond du graphique : le liseré d'une icône, pour qu'elle se détache de la courbe. */
   ringColor?: string;
 }
 
 /**
- * Règles de couleur des indicateurs d'un panneau (onglet Style, « Couleurs conditionnelles », voir
+ * Règles de couleur des indicateurs d'un panneau (onglet Style, « Style conditionnel », voir
  * `IndicatorStyleRule`). En deux couches : « under » (remplissages, fonds) avant les courbes, « over » (segments
- * recolorés, points de croisement) après elles — une ligne recolorée est retracée par-dessus la sienne, un peu plus
+ * recolorés, icônes) après elles — une ligne recolorée est retracée par-dessus la sienne, un peu plus
  * épaisse, plutôt que d'apprendre à chaque tracé d'indicateur à se découper.
  *
  * Entre deux bougies voisines, toutes les courbes sont des segments : le passage d'une condition de vraie à fausse
@@ -108,7 +109,8 @@ function drawRule(ctx: CanvasRenderingContext2D, pane: StyleRulePane, owner: Sty
 
   ctx.save();
   ctx.globalAlpha = Math.min(100, Math.max(0, rule.opacity ?? defaultRuleOpacity(rule.effect))) / 100;
-  if (isCrossCondition(rule.condition)) drawCrossRule(ctx, pane, rule, indices, aAt, bAt);
+  if (rule.effect === "icon" || rule.effect === "marker") drawIconRule(ctx, pane, rule, indices, aAt, bAt, cAt);
+  else if (isCrossCondition(rule.condition)) drawCrossRule(ctx, pane, rule, indices, aAt, bAt);
   else drawStateRule(ctx, pane, rule, indices, aAt, bAt, cAt);
   ctx.restore();
 }
@@ -119,6 +121,27 @@ const lerp = (v0: number, v1: number, t: number) => v0 + (v1 - v0) * t;
 /** Points où `d` (une différence entre deux courbes) change de signe, en fraction du morceau, dans ]0, 1[. */
 function pushCrossing(ts: number[], d0: number, d1: number): void {
   if (d0 * d1 < 0) ts.push(d0 / (d0 - d1));
+}
+
+/** La condition d'une comparaison (pas d'un croisement), lue sur trois valeurs : A, la référence B et la deuxième borne
+ *  C (« entre » / « hors de »). */
+function stateHolds(rule: IndicatorStyleRule, a: number, b: number, c: number): boolean {
+  switch (rule.condition) {
+    case "above":
+      return a > b;
+    case "below":
+      return a < b;
+    case "gte":
+      return a >= b;
+    case "lte":
+      return a <= b;
+    case "between":
+      return a >= Math.min(b, c) && a <= Math.max(b, c);
+    case "outside":
+      return a < Math.min(b, c) || a > Math.max(b, c);
+    default:
+      return false;
+  }
 }
 
 function drawStateRule(
@@ -134,24 +157,7 @@ function drawStateRule(
   const no = new Path2D();
   const hasElse = !!rule.elseColor;
   const { xAt, yAt, height } = pane;
-  const cond = (a: number, b: number, c: number): boolean => {
-    switch (rule.condition) {
-      case "above":
-        return a > b;
-      case "below":
-        return a < b;
-      case "gte":
-        return a >= b;
-      case "lte":
-        return a <= b;
-      case "between":
-        return a >= Math.min(b, c) && a <= Math.max(b, c);
-      case "outside":
-        return a < Math.min(b, c) || a > Math.max(b, c);
-      default:
-        return false;
-    }
-  };
+  const cond = (a: number, b: number, c: number): boolean => stateHolds(rule, a, b, c);
   // Une ligne recolorée : chaque couleur en un seul tracé, repris sans trou d'un morceau au suivant.
   let lastYes: { x: number; y: number } | null = null;
   let lastNo: { x: number; y: number } | null = null;
@@ -256,15 +262,13 @@ function drawStateRule(
 }
 
 /**
- * Croisements : un effet ponctuel. « marker » pose un point plein, cerclé de la couleur du fond, à l'endroit exact où
- * A croise B (entre deux bougies, là où les deux segments se coupent) ; « background » peint une bande fine sur la
- * bougie où le croisement est acquis — un repère vertical qui se lit aussi dans les autres panneaux alignés.
+ * Croisements : un effet ponctuel. « background » peint une bande fine sur la bougie où le croisement est acquis — un
+ * repère vertical qui se lit aussi dans les autres panneaux alignés (l'icône passe par `drawIconRule`).
  */
 function drawCrossRule(ctx: CanvasRenderingContext2D, pane: StyleRulePane, rule: IndicatorStyleRule, indices: number[], aAt: Getter, bAt: Getter): void {
-  const { xAt, yAt, height, candleWidth } = pane;
+  const { xAt, height, candleWidth } = pane;
   const up = rule.condition === "crossUp";
   const marks = new Path2D();
-  const radius = 3.5;
   for (let k = 1; k < indices.length; k++) {
     const i0 = indices[k - 1]!;
     const i1 = indices[k]!;
@@ -278,22 +282,53 @@ function drawCrossRule(ctx: CanvasRenderingContext2D, pane: StyleRulePane, rule:
     const d1 = a1 - b1;
     const crossed = up ? d0 <= 0 && d1 > 0 : d0 >= 0 && d1 < 0;
     if (!crossed) continue;
-    if (rule.effect === "background") {
-      const w = Math.max(2, candleWidth);
-      marks.rect(xAt(i1 + 0.5) - w / 2, 0, w, height);
-      continue;
-    }
-    const t = d0 === d1 ? 0 : d0 / (d0 - d1);
-    const x = lerp(xAt(i0 + 0.5), xAt(i1 + 0.5), t);
-    const y = yAt(lerp(a0, a1, t));
-    marks.moveTo(x + radius, y);
-    marks.arc(x, y, radius, 0, Math.PI * 2);
+    const w = Math.max(2, candleWidth);
+    marks.rect(xAt(i1 + 0.5) - w / 2, 0, w, height);
   }
   ctx.fillStyle = rule.color;
-  if (rule.effect !== "background" && pane.ringColor) {
-    ctx.strokeStyle = pane.ringColor;
-    ctx.lineWidth = 1.5;
-    ctx.stroke(marks);
-  }
   ctx.fill(marks);
+}
+
+/**
+ * « Ajouter une icône » : l'icône de la règle (voir `RuleIcon`), dans sa couleur, posée sur la courbe A — au-dessus du
+ * point, en dessous ou centrée dessus. Pour une comparaison, sur chaque bougie où la condition est vraie ; pour un
+ * croisement, à l'endroit exact où A croise B (entre deux bougies, là où les deux segments se coupent). Cerclée de la
+ * couleur du fond pour se détacher de la courbe. L'ancien « marquer d'un point » arrive ici converti (icône « Point »
+ * centrée, voir `migrateStyleRule`).
+ */
+function drawIconRule(ctx: CanvasRenderingContext2D, pane: StyleRulePane, rule: IndicatorStyleRule, indices: number[], aAt: Getter, bAt: Getter, cAt: Getter | null): void {
+  const { xAt, yAt } = pane;
+  const icon = resolvedRuleIcon(rule.effect === "marker" ? (rule.icon ?? { name: "circle-filled", size: 10, position: "on" }) : rule.icon);
+  const put = (x: number, a: number) => {
+    const y = yAt(a);
+    drawMarkerIcon(ctx, icon.name, x, markerIconCenterY(icon.position, y, y, icon.size), icon.size, rule.color, pane.ringColor);
+  };
+  if (isCrossCondition(rule.condition)) {
+    const up = rule.condition === "crossUp";
+    for (let k = 1; k < indices.length; k++) {
+      const i0 = indices[k - 1]!;
+      const i1 = indices[k]!;
+      if (i1 - i0 !== 1) continue;
+      const a0 = aAt(i0);
+      const a1 = aAt(i1);
+      const b0 = bAt(i0);
+      const b1 = bAt(i1);
+      if (a0 === null || a1 === null || b0 === null || b1 === null) continue;
+      const d0 = a0 - b0;
+      const d1 = a1 - b1;
+      const crossed = up ? d0 <= 0 && d1 > 0 : d0 >= 0 && d1 < 0;
+      if (!crossed) continue;
+      const t = d0 === d1 ? 0 : d0 / (d0 - d1);
+      put(lerp(xAt(i0 + 0.5), xAt(i1 + 0.5), t), lerp(a0, a1, t));
+    }
+    return;
+  }
+  for (const i of indices) {
+    const a = aAt(i);
+    const b = bAt(i);
+    if (a === null || b === null) continue;
+    const c = cAt ? cAt(i) : b;
+    if (c === null) continue;
+    if (stateHolds(rule, a, b, c)) put(xAt(i + 0.5), a);
+  }
 }

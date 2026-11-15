@@ -1,4 +1,4 @@
-import type { StyleRuleSeriesRef } from "./IndicatorStyleRule.interface";
+import type { RuleIcon, StyleRuleSeriesRef } from "./IndicatorStyleRule.interface";
 
 /** Ce qu'une condition mesure sur une bougie.
  *  Mesures chiffrées (comparées par `operator` à `value`, et `value2` pour « entre ») :
@@ -47,7 +47,7 @@ export interface CandleColorCondition {
 }
 
 /**
- * Une règle de couleur des bougies (Paramètres du graphique → Bougies → « Couleurs conditionnelles ») ; se lit comme
+ * Une règle de couleur des bougies (Paramètres du graphique → Bougies → « Style conditionnel ») ; se lit comme
  * une phrase : « Quand [condition] (et / ou [condition]…) → corps en [color], mèche en [wickColor], bordure en
  * [borderColor] ». Les règles sont lues dans l'ordre de la liste : la première qui s'applique à une bougie la colore,
  * les suivantes ne la touchent plus. Les conditions sont lues sur les vraies bougies (OHLCV de `data`), y compris en
@@ -68,6 +68,21 @@ export interface CandleColorRule {
   wickColor?: string | null;
   /** Couleur de la bordure du corps ; absente : celle du corps. */
   borderColor?: string | null;
+  /** Faux : la règle ne recolore pas la bougie (elle ne fait que poser son icône). Défaut vrai. */
+  recolor?: boolean;
+  /** Une icône posée au-dessus ou en dessous de chaque bougie où la règle s'applique (« Ajouter une icône »), en
+   *  `icon.color` (à défaut la couleur du corps). Contrairement à la couleur, chaque règle pose son icône, même quand
+   *  une règle placée avant elle a déjà coloré la bougie. Absente ou null : pas d'icône. */
+  icon?: RuleIcon | null;
+}
+
+/** Une icône à poser sur une bougie (index dans `data`), calculée par `computeCandleIcons`. */
+export interface CandleIconMark {
+  index: number;
+  icon: string;
+  color: string;
+  size: number;
+  position: "above" | "below";
 }
 
 /** La couleur retenue pour une bougie, par une règle ou par un script (`plot.candleColor`). */

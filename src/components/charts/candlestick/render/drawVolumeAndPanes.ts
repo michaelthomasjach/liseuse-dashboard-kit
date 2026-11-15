@@ -203,7 +203,7 @@ export function drawVolumeAndPanes(ctx: CanvasRenderingContext2D, params: Render
         return;
       }
 
-      // Couleurs conditionnelles (onglet Style) de l'indicateur et de ceux posés dessus : elles peuvent citer les courbes
+      // Style conditionnel (onglet Style) de l'indicateur et de ceux posés dessus : elles peuvent citer les courbes
       // des uns et des autres (remplir entre le RSI et sa SMA…). Remplissages et fonds sous les courbes, segments
       // recolorés et croisements par-dessus.
       const rulePane: StyleRulePane = {

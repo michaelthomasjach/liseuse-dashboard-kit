@@ -1482,21 +1482,22 @@ const CANDLE_COLOR_SCRIPT: ScriptDef = {
 };
 
 /**
- * Couleurs conditionnelles des bougies, de deux façons qui se combinent :
- * - **Règles des paramètres du graphique** (double-clic sur la légende du symbole → onglet Bougies → « Couleurs
- *   conditionnelles », ou prop `defaultAppearance.candleColorRules` / `candleColorRules`) : ici « Volume ×2 » en bleu
- *   et « Doji » en gris. La première règle qui s'applique colore la bougie ; les modèles en un clic sont sous la liste.
+ * Style conditionnel des bougies, de deux façons qui se combinent :
+ * - **Règles des paramètres du graphique** (double-clic sur la légende du symbole → onglet Bougies → « Style
+ *   conditionnel », ou prop `defaultAppearance.candleColorRules` / `candleColorRules`) : ici « Volume ×2 » en bleu,
+ *   « Doji » en gris, et « Plus haut 20 » qui ne recolore pas mais pose une fusée au-dessus de la bougie. La première règle qui s'applique colore la bougie ; les modèles en un clic sont sous la liste.
  * - **Un indicateur scripté** qui appelle `plot.candleColor(couleur)` : ici l'exemple de la documentation, bougies de
  *   plus de +0,3 % en vert vif, de moins de −0,3 % en rouge.
  * Une règle passe devant le script : une bougie à fort volume reste bleue même si elle a pris 0,3 %.
  */
 export const CandleColorRules: Story = {
-  name: "Couleurs conditionnelles des bougies (règles et plot.candleColor)",
+  name: "Style conditionnel des bougies (règles et plot.candleColor)",
   render: () => {
     const [scripts, setScripts] = useState<ScriptDef[]>([CANDLE_COLOR_SCRIPT]);
     const [rules, setRules] = useState<CandleColorRule[]>([
       { id: "story-volume", name: "Volume ×2", conditions: [{ metric: "volume", operator: "gt", value: 2, period: 20 }], color: "#2962ff" },
       { id: "story-doji", name: "Doji", conditions: [{ metric: "body", operator: "lt", value: 10 }], color: "#9e9e9e", wickColor: "#616161" },
+      { id: "story-high", name: "Plus haut 20", conditions: [{ metric: "highest", period: 20 }], color: "#ff9800", recolor: false, icon: { name: "rocket", size: 16, position: "above", color: "#ff9800" } },
     ]);
     const scriptOn = scripts[0]?.enabled !== false;
     return (

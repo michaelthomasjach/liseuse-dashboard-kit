@@ -240,6 +240,9 @@ export interface TrendLineDrawing {
    *  `drawMarkers.ts` can colour it from the chart's own up/down palette instead of a hex the
    *  worker that produced it had no theme to choose from. Ignored by every hand-drawn tool. */
   markerSide?: "long" | "short" | "win" | "loss";
+  /** Épingle (« pin ») seulement : une icône repère du kit (`MARKER_ICONS`) dessinée à la place de la goutte, au-dessus
+   *  du point — posée par `plot.signal({ icon })` / `plot.point(prix, { icon })` d'un script. */
+  icon?: string;
   lineType?:
     | "horizontal"
     | "vertical"

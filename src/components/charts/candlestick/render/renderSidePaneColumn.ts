@@ -126,7 +126,7 @@ export function renderSidePaneColumn(canvas: HTMLCanvasElement, wrapper: HTMLEle
     ctx.clip();
     ctx.translate(0, paneTop);
 
-    // Couleurs conditionnelles (onglet Style) : sous la série, puis les segments recolorés et les croisements dessus.
+    // Style conditionnel (onglet Style) : sous la série, puis les segments recolorés et les croisements dessus.
     const rulePane: StyleRulePane = { members: entry ? [entry] : [], xAt: zoomedXScale, yAt: scale, candleWidth, height: paneHeight, ringColor: style.colorBg };
     drawIndicatorStyleRules(ctx, rulePane, "under");
     drawOwnPaneIndicatorSeries(ctx, ind, points, zoomedXScale, candleWidth, columnWidth, indicators, scale, style);

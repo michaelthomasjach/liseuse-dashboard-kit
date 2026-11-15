@@ -7,15 +7,16 @@ import type {
   CandleColorMetric,
   CandleColorOverride,
   CandleColorRule,
+  CandleIconMark,
 } from "./interfaces/CandleColorRule.interface";
 import type { ScriptCandleColorOutput } from "./scripting/interfaces/ScriptRunResult.interface";
 import { indicatorCatalogEntry, indicatorLabel } from "./indicatorCatalog";
-import { indicatorSeriesFields, seriesFieldValue } from "./styleRules";
+import { indicatorSeriesFields, resolvedRuleIcon, seriesFieldValue } from "./styleRules";
 
 /**
- * Couleurs conditionnelles des bougies (Paramètres du graphique → Bougies, et `plot.candleColor` d'un script) : ce que
+ * Style conditionnel des bougies (Paramètres du graphique → Bougies, et `plot.candleColor` d'un script) : ce que
  * l'éditeur et le rendu partagent — les mesures proposées, la lecture d'une condition sur une bougie, les modèles en un
- * clic et le calcul de la couleur de chaque bougie.
+ * clic, le calcul de la couleur de chaque bougie et celui des icônes posées sur les bougies (`computeCandleIcons`).
  *
  * Ordre de priorité, du plus fort au plus faible :
  *  1. les règles des paramètres du graphique, dans l'ordre de la liste (la première qui s'applique gagne) ;
@@ -45,18 +46,18 @@ export function metricUsesSeries(metric: CandleColorMetric): boolean {
 
 /** Libellés des mesures, dans l'ordre du menu. `unit` : ce que vaut le seuil. */
 export const CANDLE_COLOR_METRICS: { value: CandleColorMetric; label: string; unit?: string }[] = [
-  { value: "changeOpen", label: "variation (clôture vs ouverture)", unit: "%" },
-  { value: "changePrev", label: "variation (vs clôture précédente)", unit: "%" },
-  { value: "range", label: "amplitude (haut − bas)", unit: "%" },
-  { value: "body", label: "corps en % de l'amplitude", unit: "%" },
-  { value: "gap", label: "gap à l'ouverture", unit: "%" },
-  { value: "volume", label: "volume / moyenne", unit: "×" },
-  { value: "closeAbove", label: "clôture au-dessus de" },
-  { value: "closeBelow", label: "clôture en dessous de" },
-  { value: "highest", label: "plus haut des N bougies" },
-  { value: "lowest", label: "plus bas des N bougies" },
-  { value: "bullish", label: "bougie haussière" },
-  { value: "bearish", label: "bougie baissière" },
+  { value: "changeOpen", label: "Variation (clôture vs ouverture)", unit: "%" },
+  { value: "changePrev", label: "Variation (vs clôture précédente)", unit: "%" },
+  { value: "range", label: "Amplitude (haut − bas)", unit: "%" },
+  { value: "body", label: "Corps en % de l'amplitude", unit: "%" },
+  { value: "gap", label: "Gap à l'ouverture", unit: "%" },
+  { value: "volume", label: "Volume / moyenne", unit: "×" },
+  { value: "closeAbove", label: "Clôture au-dessus de" },
+  { value: "closeBelow", label: "Clôture en dessous de" },
+  { value: "highest", label: "Plus haut des N bougies" },
+  { value: "lowest", label: "Plus bas des N bougies" },
+  { value: "bullish", label: "Bougie haussière" },
+  { value: "bearish", label: "Bougie baissière" },
 ];
 
 /** Une courbe du panneau principal qu'une condition « clôture au-dessus / en dessous de » peut citer. */
@@ -234,6 +235,22 @@ function ruleHolds(rule: CandleColorRule, ctx: EvalContext, i: number): boolean 
   return rule.combine === "or" ? rule.conditions.some((c) => conditionHolds(c, ctx, i)) : rule.conditions.every((c) => conditionHolds(c, ctx, i));
 }
 
+/** Le contexte de lecture des conditions : sommes cumulées des volumes et valeurs complètes des indicateurs. */
+function buildEvalContext(data: Candle[], indicatorValues: { indicator: Indicator; values: (IndicatorValue | null)[] }[]): EvalContext {
+  const volumeSums = new Array<number>(data.length + 1);
+  const volumeCounts = new Array<number>(data.length + 1);
+  // Sommes décalées d'un cran : `volumeSums[i] - volumeSums[i - n]` est la somme des n bougies AVANT i.
+  volumeSums[0] = 0;
+  volumeCounts[0] = 0;
+  for (let i = 0; i < data.length; i++) {
+    const v = data[i]!.volume;
+    const ok = v !== undefined && Number.isFinite(v);
+    volumeSums[i + 1] = volumeSums[i]! + (ok ? v! : 0);
+    volumeCounts[i + 1] = volumeCounts[i]! + (ok ? 1 : 0);
+  }
+  return { data, volumeSums, volumeCounts, indicatorValues: new Map(indicatorValues.map((e) => [e.indicator.id, e.values])) };
+}
+
 function overrideOf(color: string, wick?: string | null, border?: string | null): CandleColorOverride {
   return { body: color, wick: wick || color, border: border || color };
 }
@@ -254,7 +271,7 @@ export function computeCandleColors({
   indicatorValues: { indicator: Indicator; values: (IndicatorValue | null)[] }[];
   scriptColors: ScriptCandleColorOutput[];
 }): Map<number, CandleColorOverride> | null {
-  const active = (rules ?? []).filter((r) => r.enabled !== false && r.conditions.length > 0 && typeof r.color === "string");
+  const active = (rules ?? []).filter((r) => r.enabled !== false && r.recolor !== false && r.conditions.length > 0 && typeof r.color === "string");
   if (active.length === 0 && scriptColors.length === 0) return null;
   const out = new Map<number, CandleColorOverride>();
 
@@ -270,23 +287,7 @@ export function computeCandleColors({
   }
 
   if (active.length > 0) {
-    const volumeSums = new Array<number>(data.length + 1);
-    const volumeCounts = new Array<number>(data.length + 1);
-    // Sommes décalées d'un cran : `volumeSums[i] - volumeSums[i - n]` est la somme des n bougies AVANT i.
-    volumeSums[0] = 0;
-    volumeCounts[0] = 0;
-    for (let i = 0; i < data.length; i++) {
-      const v = data[i]!.volume;
-      const ok = v !== undefined && Number.isFinite(v);
-      volumeSums[i + 1] = volumeSums[i]! + (ok ? v! : 0);
-      volumeCounts[i + 1] = volumeCounts[i]! + (ok ? 1 : 0);
-    }
-    const ctx: EvalContext = {
-      data,
-      volumeSums,
-      volumeCounts,
-      indicatorValues: new Map(indicatorValues.map((e) => [e.indicator.id, e.values])),
-    };
+    const ctx = buildEvalContext(data, indicatorValues);
     for (let i = 0; i < data.length; i++) {
       for (const rule of active) {
         if (ruleHolds(rule, ctx, i)) {
@@ -299,3 +300,31 @@ export function computeCandleColors({
   return out.size > 0 ? out : null;
 }
 
+/**
+ * Les icônes posées sur les bougies par les règles qui en ont une (« Ajouter une icône ») : une par règle et par bougie
+ * où elle s'applique — contrairement à la couleur, une règle placée avant ne les empêche pas. Plusieurs icônes du même
+ * côté d'une bougie s'empilent (voir le rendu). `null` quand aucune règle active n'a d'icône (le cas courant).
+ */
+export function computeCandleIcons({
+  data,
+  rules,
+  indicatorValues,
+}: {
+  data: Candle[];
+  rules: CandleColorRule[] | undefined;
+  indicatorValues: { indicator: Indicator; values: (IndicatorValue | null)[] }[];
+}): CandleIconMark[] | null {
+  const withIcon = (rules ?? []).filter((r) => r.enabled !== false && r.icon && r.conditions.length > 0);
+  if (withIcon.length === 0) return null;
+  const ctx = buildEvalContext(data, indicatorValues);
+  const out: CandleIconMark[] = [];
+  for (const rule of withIcon) {
+    const icon = resolvedRuleIcon(rule.icon);
+    const position = icon.position === "below" ? "below" : "above";
+    const color = icon.color ?? rule.color;
+    for (let i = 0; i < data.length; i++) {
+      if (ruleHolds(rule, ctx, i)) out.push({ index: i, icon: icon.name, color, size: icon.size, position });
+    }
+  }
+  return out.length > 0 ? out : null;
+}

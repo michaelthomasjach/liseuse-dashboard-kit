@@ -285,7 +285,7 @@ export interface Indicator {
    *  pour les réglages enregistrés avant `styleRules` : converti à la lecture (voir `indicatorStyleRules`), remplacé
    *  par `styleRules` à la première modification. Ne plus l'écrire. */
   fills?: IndicatorFill[];
-  /** Couleurs conditionnelles réglées dans l'onglet Style : remplir entre deux courbes (un RSI et la SMA posée
+  /** Style conditionnel réglées dans l'onglet Style : remplir entre deux courbes (un RSI et la SMA posée
    *  dessus, deux moyennes sur les prix…), colorer une courbe selon sa position, colorer le fond, marquer les
    *  croisements. Voir `IndicatorStyleRule`. Présent (même vide), il l'emporte sur `fills`. */
   styleRules?: IndicatorStyleRule[];

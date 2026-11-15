@@ -63,6 +63,8 @@ const TOOL_STEPS: Record<string, string> = {
   lire_un_script: "Lecture d'un script",
   ecrire_un_script: "Écriture du script",
   coder_un_indicateur: "Ouverture de la fenêtre de développement",
+  modifier_un_script: "Modification du script",
+  lister_les_indicateurs_existants: "Inventaire des indicateurs existants",
   lister_les_boutons_de_l_interface: "Recherche du bouton",
   montrer_un_bouton: "Mise en surbrillance du bouton",
   ouvrir_un_script: "Ouverture du script",

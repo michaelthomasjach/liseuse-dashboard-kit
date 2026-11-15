@@ -3,6 +3,7 @@ import type { Indicator } from "../../interfaces/Indicator.interface";
 import type { IndicatorCatalogEntry } from "../../indicatorCatalog";
 import type { TrendLineDrawing } from "../../interfaces/TrendLineDrawing.interface";
 import type { ScriptDef } from "../../interfaces/ScriptDef.interface";
+import type { CustomIndicatorDef } from "../../interfaces/CustomIndicatorDef.interface";
 import type { ScriptRunOutput } from "../../scripting/interfaces/ScriptRunOutput.interface";
 import type { FundamentalDataPoint } from "../../interfaces/FundamentalDataPoint.interface";
 import type { OverlayDataPoint } from "../../interfaces/TrendLineDrawing.interface";
@@ -47,6 +48,13 @@ export interface AiChartContext {
   addScript: (name: string, code: string) => string;
   updateScript: (id: string, code: string) => void;
   runScript: (id: string) => void;
+  /** Tous les scripts du compte, à jour dans le même appel d'outil — dans un `ChartWorkspace`, ceux de toutes les
+   *  fenêtres (`scripts` n'a que ceux de ce graphique). Absent : `scripts`. Sert à refuser un nom déjà pris. */
+  allScripts?: () => ScriptDef[];
+  /** Renomme un script (même id, même onglet). Le nom est vérifié avant par l'outil. */
+  renameScript?: (id: string, name: string) => void;
+  /** Indicateurs personnels fournis par l'application (`CandlestickChartProps.customIndicators`). */
+  customIndicatorDefs?: () => CustomIndicatorDef[];
 
   setTimeframe: ((timeframe: string) => void) | undefined;
   setSymbol: ((symbol: string) => void) | undefined;

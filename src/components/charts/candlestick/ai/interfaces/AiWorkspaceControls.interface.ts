@@ -1,3 +1,5 @@
+import type { ScriptDef } from "../../interfaces/ScriptDef.interface";
+
 /** Disposition demandée pour des fenêtres côte à côte : une seule ligne, une seule colonne, ou la grille par défaut
  *  du nombre de fenêtres (2 × 2 pour quatre…). */
 export type AiWorkspaceArrangement = "cote_a_cote" | "empilees" | "grille";
@@ -30,4 +32,11 @@ export interface AiWorkspaceControls {
   addPanel: (symbol: string) => number | null;
   /** Capture de tout l'espace de travail (toutes les fenêtres), null s'il n'est pas affiché. */
   capture?: () => Promise<HTMLCanvasElement | null>;
+  /** La liste commune des scripts (toutes les fenêtres), à jour dans le même appel d'outil. */
+  scripts?: () => ScriptDef[];
+  /** Exécute un script de la liste commune — y compris un script créé dans ce même appel, que la fenêtre ne connaît
+   *  pas encore (sa part de la liste date du dernier rendu). */
+  runScript?: (id: string) => void;
+  /** Change le code et/ou le nom d'un script de la liste commune. */
+  updateScript?: (id: string, patch: { code?: string; name?: string }) => void;
 }

@@ -77,6 +77,8 @@ function build({ reference, completions, examples }) {
       "- @indicator ou @strategy en première ligne dit ce qu'est le script. Sans l'un des deux, rien ne s'affiche.",
       "- Les paramètres réglables se déclarent avec new Variable(type, défaut). Ne les réaffecte jamais ailleurs.",
       "- Réponds toujours en français, et commente le code que tu écris.",
+      "- Un indicateur demandé = un seul script, tracé à un seul endroit : un seul plot.overlay(\"Nom\") (sur les prix : moyenne, bande, canal) OU un seul plot.pane(\"Nom\") (dans un panneau : oscillateur, score, volume), jamais les deux. Plusieurs courbes sont plusieurs séries du même handle (const p = plot.pane(\"Nom\"); p.line(\"A\", a); p.line(\"B\", b);). Certains exemples plus bas tracent aux deux endroits : ce sont des démonstrations de l'API, pas le modèle d'un indicateur demandé.",
+      "- Avant de créer un indicateur, vérifie qu'aucun indicateur, script ou panneau ne porte déjà ce nom (sans tenir compte de la casse, des accents ni des espaces ; outil lister_les_indicateurs_existants) : s'il existe, modifie-le (modifier_un_script) au lieu d'en créer un autre. Un nom déjà pris est refusé.",
     ].join("\n"),
   );
 

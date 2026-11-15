@@ -25,8 +25,14 @@ export const REALTIME_TICK_DEBOUNCE_MS = 300;
  *  numbers being averaged. Anything more would only cost time. */
 export const HEIKIN_ASHI_WARMUP = 100;
 
-/** Le code d'un nouvel onglet de l'éditeur (« + »). Un exemple à modifier, pas un indicateur demandé : un script créé
- *  ainsi n'est posé sur le graphique qu'au premier « Exécuter » (voir `useScriptingState.addScript`). */
+/** Le code d'un nouvel onglet de l'éditeur (« + ») : vide, la seule déclaration du type. Rien d'un exemple ne peut
+ *  rester dans un script écrit par-dessus (un panneau « Ma série » en plus de l'indicateur demandé). */
+export const NEW_SCRIPT_CODE = `@indicator
+
+`;
+
+/** L'ancien code d'un nouvel onglet (le panneau d'exemple « Ma série ») : gardé pour reconnaître, au chargement, les
+ *  onglets jamais touchés qui en sont restés là (voir `useScriptingState.withoutPhantomScripts`). */
 export const DEFAULT_SCRIPT_CODE = `@indicator
 
 @block Cellule 1 — Affiche une série dans une panneau séparé

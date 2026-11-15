@@ -6,6 +6,9 @@ import { SCRIPTING_DOCS_TOOL } from "./scriptingDocs";
 import { findUiButton, highlightUiElement, listUiButtons } from "./uiHighlight";
 import { COMPARISON_TOOLS, comparisonToolAvailable } from "./comparisonTools";
 import { CAPTURE_TOOL, CAPTURE_TOOLS } from "./captureTool";
+import type { ScriptDef } from "../interfaces/ScriptDef.interface";
+import type { Indicator } from "../interfaces/Indicator.interface";
+import { indicatorNameKey, placementProblem, plotPlacementOf, type IndicatorPlacement } from "../scripting/indicatorNameGuard";
 
 /** What running one tool produced: text handed straight back to the model. Plain prose rather than
  *  JSON wherever a sentence is clearer — the reader is a language model, and "SMA(20) ajoutée"
@@ -56,19 +59,168 @@ function spanBetween(chart: AiChartContext, from: Date, to: Date) {
 
 const DATE_DOC = "Date au format AAAA-MM-JJ ou JJ/MM/AAAA.";
 
+/** Tous les scripts du compte (toutes les fenêtres d'un espace de travail), à jour dans le même appel d'outil. */
+function allScripts(chart: AiChartContext): ScriptDef[] {
+  return chart.allScripts?.() ?? chart.scripts;
+}
+function findScript(chart: AiChartContext, id: string | undefined): ScriptDef | undefined {
+  return id === undefined ? undefined : allScripts(chart).find((s) => s.id === id);
+}
+/** L'id du script qui produit un indicateur (`script:<id>:<panneau>`), ou null pour un indicateur intégré. */
+function scriptIdOfIndicator(indicatorId: string): string | null {
+  return indicatorId.startsWith("script:") ? (indicatorId.split(":")[1] ?? null) : null;
+}
+const placementOfIndicator = (indicator: Indicator): string => {
+  const pane = indicatorCatalogEntry(indicator).pane;
+  return pane === "price" ? "sur les prix" : pane === "attached" ? "sur le panneau d'un autre indicateur" : "dans un panneau";
+};
+const placementOfScript = (code: string): string => {
+  const placement = plotPlacementOf(code);
+  return placement === "prix" ? "sur les prix" : placement === "panneau" ? "dans un panneau" : placement === "prix et panneau" ? "sur les prix ET dans un panneau" : "sans courbe";
+};
+
+/** Ce qui porte déjà un nom : un script, un indicateur affiché, un indicateur personnel de l'application ou du catalogue. */
+interface NameOwner {
+  what: "script" | "affiché" | "personnel" | "catalogue";
+  id: string;
+  label: string;
+  scriptId?: string;
+}
+
+/**
+ * Ce qui porte déjà ce nom (comparé sans casse, sans accents ni espaces), ou undefined. `exceptScriptId` : le script
+ * qu'on modifie, qui garde son propre nom et dont les courbes ne comptent pas.
+ */
+function findNameOwner(chart: AiChartContext, name: string, exceptScriptId?: string): NameOwner | undefined {
+  const key = indicatorNameKey(name);
+  if (key === "") return undefined;
+  for (const s of allScripts(chart)) {
+    if (s.id !== exceptScriptId && indicatorNameKey(s.name) === key) return { what: "script", id: s.id, label: s.name, scriptId: s.id };
+  }
+  for (const i of chart.indicators) {
+    const scriptId = scriptIdOfIndicator(i.id);
+    if (scriptId !== null && scriptId === exceptScriptId) continue;
+    const labels = [chart.indicatorLabel(i), i.customData?.label, i.customData?.shortLabel].filter((l): l is string => !!l);
+    if (labels.some((l) => indicatorNameKey(l) === key)) return { what: "affiché", id: i.id, label: chart.indicatorLabel(i), ...(scriptId ? { scriptId } : {}) };
+  }
+  for (const def of chart.customIndicatorDefs?.() ?? []) {
+    if ([def.label, def.shortLabel].some((l) => l && indicatorNameKey(l) === key)) return { what: "personnel", id: def.id, label: def.label };
+  }
+  for (const entry of chart.indicatorCatalog) {
+    if ([entry.label, entry.shortLabel, entry.kind].some((l) => indicatorNameKey(l) === key)) return { what: "catalogue", id: entry.kind, label: entry.label };
+  }
+  return undefined;
+}
+
+/** Le refus d'un nom déjà pris, avec ce qu'il faut faire à la place. */
+function nameTakenOutcome(name: string, owner: NameOwner, nothingDone = "Rien n'a été créé."): AiToolOutcome {
+  const fix =
+    owner.scriptId !== undefined
+      ? `modifie-le avec modifier_un_script (id « ${owner.scriptId} »)`
+      : owner.what === "catalogue"
+        ? `c'est un indicateur intégré : affiche-le avec ajouter_un_indicateur (kind « ${owner.id} »)`
+        : owner.what === "personnel"
+          ? "c'est un indicateur personnel fourni par l'application : affiche-le depuis « Ajouter un indicateur »"
+          : `il est déjà affiché : modifie-le ou retire-le (retirer_un_indicateur, id « ${owner.id} »)`;
+  const where = owner.what === "script" ? `script « ${owner.label} »` : owner.what === "affiché" ? `indicateur affiché « ${owner.label} »` : owner.what === "personnel" ? `indicateur personnel « ${owner.label} »` : `catalogue : « ${owner.label} »`;
+  return {
+    content: `Un indicateur nommé « ${name} » existe déjà (${where}, id ${owner.id}) : ${fix}, ou choisis un autre nom. ${nothingDone} Tout ce qui existe déjà : lister_les_indicateurs_existants.`,
+    isError: true,
+  };
+}
+
+const PLACEMENT_DOC =
+  "Où poser l'indicateur : « prix » (superposé aux bougies : moyenne, bande, canal) ou « panneau » (sous-panneau à lui : oscillateur, score, volume). Un indicateur = un seul emplacement. Omis : déduit du code, qui ne doit alors tracer qu'à un seul endroit.";
+const placementInput = (input: Record<string, unknown>): IndicatorPlacement | undefined => {
+  const value = str(input, "emplacement");
+  return value === "prix" || value === "panneau" ? value : undefined;
+};
+/** L'emplacement demandé à coder_un_indicateur, retenu pour les écritures suivantes du même script. */
+const requestedPlacement = new Map<string, IndicatorPlacement>();
+
+/**
+ * Remplace le code et/ou le nom d'un script existant (même id, même onglet) — ecrire_un_script avec id et
+ * modifier_un_script. Refuse un nom déjà pris et un indicateur posé à plusieurs endroits.
+ */
+function modifyScript(chart: AiChartContext, script: ScriptDef, input: Record<string, unknown>): AiToolOutcome {
+  const code = str(input, "code");
+  const newName = str(input, "nom")?.trim();
+  const placement = placementInput(input) ?? requestedPlacement.get(script.id);
+  const renamed = newName !== undefined && newName !== "" && newName !== script.name;
+  if (code === undefined && !renamed) return { content: "Rien à modifier : passez « code » et/ou « nom ».", isError: true };
+  if (renamed) {
+    const owner = findNameOwner(chart, newName, script.id);
+    if (owner) return nameTakenOutcome(newName, owner, `Script « ${script.name} » inchangé.`);
+    if (!chart.renameScript) return { content: "Renommer un script n'est pas possible ici.", isError: true };
+  }
+  if (code !== undefined && analyzeScriptKind(code).kind === "indicator") {
+    const problem = placementProblem(code, placement);
+    if (problem) return { content: `${problem} Script « ${script.name} » inchangé.`, isError: true };
+  }
+  if (placement) requestedPlacement.set(script.id, placement);
+  if (renamed) chart.renameScript?.(script.id, newName);
+  const run = input.executer !== false && code !== undefined;
+  if (code !== undefined) chart.updateScript(script.id, code);
+  if (run) chart.runScript(script.id);
+  chart.openScript?.(script.id);
+  const name = renamed ? newName : script.name;
+  return {
+    content: `Script « ${name} » (id ${script.id}) modifié${renamed ? ` (renommé, ancien nom « ${script.name} »)` : ""}${run ? " et exécuté" : ""}${code !== undefined ? `, ${placementOfScript(code)}` : ""}. Même id, même onglet : aucun nouvel indicateur créé.`,
+  };
+}
+
+/** L'inventaire des indicateurs : catalogue, indicateurs personnels de l'application, scripts du compte, affichés. */
+function listExistingIndicators(chart: AiChartContext, filter: string | undefined): string {
+  const key = filter ? indicatorNameKey(filter) : "";
+  const keep = (...names: (string | undefined)[]) => key === "" || names.some((n) => n !== undefined && indicatorNameKey(n).includes(key));
+  const catalog = chart.indicatorCatalog
+    .filter((e) => keep(e.kind, e.label, e.shortLabel, e.category))
+    .map((e) => `- ${e.kind} — ${e.label} (${e.category}, ${e.pane === "price" ? "sur les prix" : "dans un panneau"}${e.hasPeriod ? `, période par défaut ${e.defaultPeriod}` : ""})`);
+  const personal = (chart.customIndicatorDefs?.() ?? [])
+    .filter((d) => keep(d.id, d.label, d.shortLabel, d.section))
+    .map((d) => `- ${d.label} (id ${d.id}, ${d.section}, ${d.type === "overlay" ? "sur les prix" : "dans un panneau"})`);
+  const shownScriptIds = new Set(chart.indicators.map((i) => scriptIdOfIndicator(i.id)).filter((id): id is string => id !== null));
+  const scripts = allScripts(chart)
+    .filter((s) => keep(s.name, s.id))
+    .map((s) => {
+      const on = s.enabled !== false || shownScriptIds.has(s.id);
+      const panel = s.targetPanelIndex !== undefined && chart.workspace ? `, fenêtre ${s.targetPanelIndex + 1}` : "";
+      return `- « ${s.name} » (id ${s.id}, ${analyzeScriptKind(s.code).kind}, ${placementOfScript(s.code)}, ${on ? "sur le graphique" : "pas affiché"}${panel})`;
+    });
+  const shown = chart.indicators
+    .filter((i) => keep(chart.indicatorLabel(i), i.id, i.kind))
+    .map((i) => {
+      const scriptId = scriptIdOfIndicator(i.id);
+      return `- ${chart.indicatorLabel(i)} (id ${i.id}, ${placementOfIndicator(i)}${scriptId ? `, produit par le script ${scriptId}` : ""})`;
+    });
+  const section = (title: string, lines: string[]) => `${title} (${lines.length}) :\n${lines.join("\n") || "- aucun"}`;
+  return [
+    filter ? `Filtre : « ${filter} ».` : "",
+    section("Indicateurs intégrés (catalogue) — à afficher tels quels avec ajouter_un_indicateur", catalog),
+    section("Indicateurs personnels fournis par l'application", personal),
+    section("Scripts du compte (indicateurs, stratégies, analyses) — à modifier avec modifier_un_script, jamais à recréer", scripts),
+    section("Affichés sur le graphique en ce moment", shown),
+    "Avant de créer un indicateur : si l'un de ces noms correspond déjà (sans casse ni accents), modifiez-le au lieu d'en créer un autre. Un nom déjà pris est refusé.",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
 export const AI_TOOLS: AiTool[] = [
   {
     definition: {
       name: "lire_le_graphique",
       description:
-        "Ce que le graphique montre en ce moment : symbole, unité de temps, nombre de bougies, période couverte, dernier cours, indicateurs actifs, dessins, scripts. À appeler avant toute action dont la réponse dépend de l'état courant.",
+        "Ce que le graphique montre en ce moment : symbole, unité de temps, nombre de bougies, période couverte, dernier cours, indicateurs actifs (id, nom, emplacement), dessins, scripts (id, nom, type, emplacement). À appeler avant toute action dont la réponse dépend de l'état courant. Pour l'inventaire complet avant de créer un indicateur : lister_les_indicateurs_existants.",
       inputSchema: { type: "object", properties: {}, additionalProperties: false },
     },
     run: (_input, chart) => {
       const first = chart.data[0];
       const last = chart.data[chart.data.length - 1];
-      const indicators = chart.indicators.map((i) => `${chart.indicatorLabel(i)} (id ${i.id})`);
-      const scripts = chart.scripts.map((s) => `${s.name} [${analyzeScriptKind(s.code).kind}] (id ${s.id}${s.enabled === false ? ", désactivé" : ""})`);
+      const indicators = chart.indicators.map((i) => `${chart.indicatorLabel(i)} (id ${i.id}, ${placementOfIndicator(i)})`);
+      const scripts = allScripts(chart).map(
+        (s) => `${s.name} [${analyzeScriptKind(s.code).kind}] (id ${s.id}, ${placementOfScript(s.code)}${s.enabled === false ? ", désactivé" : ""})`,
+      );
       return {
         content: [
           `Symbole : ${chart.symbol ?? "non renseigné"}`,
@@ -90,7 +242,8 @@ export const AI_TOOLS: AiTool[] = [
   {
     definition: {
       name: "lister_les_indicateurs_disponibles",
-      description: "Le catalogue des indicateurs que ce graphique sait afficher, avec leur identifiant technique (kind) et leur catégorie.",
+      description:
+        "Le catalogue des indicateurs intégrés que ce graphique sait afficher, avec leur identifiant technique (kind) et leur catégorie. Pour savoir aussi quels indicateurs personnels et scripts existent déjà (avant d'en créer un) : lister_les_indicateurs_existants.",
       inputSchema: { type: "object", properties: {}, additionalProperties: false },
     },
     run: (_input, chart) => ({
@@ -99,9 +252,22 @@ export const AI_TOOLS: AiTool[] = [
   },
   {
     definition: {
+      name: "lister_les_indicateurs_existants",
+      description:
+        "À appeler AVANT de créer un indicateur, pour ne pas en faire un doublon. Renvoie en une fois : (a) les indicateurs intégrés du catalogue (kind, nom, catégorie, emplacement, période par défaut) ; (b) les indicateurs personnels de l'utilisateur : indicateurs fournis par l'application et TOUS ses scripts enregistrés (nom, id, type indicateur/stratégie/analyse, sur les prix ou dans un panneau, affiché ou non) ; (c) ce qui est affiché sur le graphique (id, nom, emplacement). Si un nom correspond déjà, modifiez l'existant (modifier_un_script) au lieu d'en créer un autre.",
+      inputSchema: {
+        type: "object",
+        properties: { filtre: { type: "string", description: "Facultatif : ne garder que les entrées dont le nom ou l'id contient ce texte (sans casse ni accents)." } },
+        additionalProperties: false,
+      },
+    },
+    run: (input, chart) => ({ content: listExistingIndicators(chart, str(input, "filtre")?.trim() || undefined) }),
+  },
+  {
+    definition: {
       name: "ajouter_un_indicateur",
       description:
-        "Affiche un indicateur EXISTANT du catalogue, tel quel (par exemple « ajoute une SMA 50 », « affiche le RSI »). Utiliser le « kind » exact renvoyé par lister_les_indicateurs_disponibles. Pour le volume, utiliser afficher_le_volume. Ne pas l'utiliser quand on demande de faire, créer, coder, produire ou réaliser un indicateur, un système ou une stratégie (même s'il réunit des indicateurs existants) : dans ce cas, utiliser coder_un_indicateur puis ecrire_un_script.",
+        "Affiche un indicateur EXISTANT du catalogue, tel quel (par exemple « ajoute une SMA 50 », « affiche le RSI »). Utiliser le « kind » exact renvoyé par lister_les_indicateurs_disponibles. Pour le volume, utiliser afficher_le_volume. Ne pas l'utiliser quand on demande de faire, créer, coder, produire ou réaliser un indicateur, un système ou une stratégie (même s'il réunit des indicateurs existants) : dans ce cas, utiliser coder_un_indicateur puis ecrire_un_script — et jamais les deux pour une même demande.",
       inputSchema: {
         type: "object",
         properties: {
@@ -266,7 +432,7 @@ export const AI_TOOLS: AiTool[] = [
       inputSchema: { type: "object", properties: { id: { type: "string" } }, required: ["id"], additionalProperties: false },
     },
     run: (input, chart) => {
-      const script = chart.scripts.find((s) => s.id === str(input, "id"));
+      const script = findScript(chart, str(input, "id"));
       if (!script) return { content: "Script introuvable.", isError: true };
       const files = (script.files ?? []).map((f) => `\n--- fichier ${f.name} ---\n${f.code}`).join("");
       return { content: `--- ${script.name} ---\n${script.code}${files}` };
@@ -313,25 +479,39 @@ export const AI_TOOLS: AiTool[] = [
     definition: {
       name: "coder_un_indicateur",
       description:
-        "À appeler EN PREMIER dès qu'on demande de faire, créer, coder, développer, produire ou réaliser un indicateur, un système, un signal ou une stratégie — y compris un indicateur qui réunit des indicateurs existants (par exemple « un indicateur qui regroupe trois SMA 50, 100 et 200 »). Ouvre la fenêtre de développement (l'éditeur de script) sur un nouveau script vide, et renvoie son id. Ensuite : écrire le code complet avec ecrire_un_script en passant cet id, puis lire le résultat (lire_le_resultat_d_un_script) et corriger.",
+        "À appeler UNE SEULE FOIS dès qu'on demande de faire, créer, coder, développer, produire ou réaliser un indicateur, un système, un signal ou une stratégie — y compris un indicateur qui réunit des indicateurs existants (par exemple « un indicateur qui regroupe trois SMA 50, 100 et 200 »). Une demande = un seul script, posé à un seul endroit. Vérifiez d'abord avec lister_les_indicateurs_existants qu'aucun indicateur ne porte déjà ce nom : un nom déjà pris (sans casse, accents ni espaces) est REFUSÉ, modifiez alors l'existant avec modifier_un_script. Ouvre la fenêtre de développement (l'éditeur de script) sur un nouveau script au code vide, et renvoie son id. Ensuite : écrire le code complet avec ecrire_un_script (ou modifier_un_script) en passant cet id — jamais sans id, ce qui créerait un second script —, puis lire le résultat (lire_le_resultat_d_un_script) et corriger dans le même script.",
       inputSchema: {
         type: "object",
         properties: {
-          nom: { type: "string", description: "Nom du script, court et parlant (« Trois SMA 50/100/200 »)." },
+          nom: { type: "string", description: "Nom du script, court et parlant (« Trois SMA 50/100/200 »). Doit être unique." },
           type: { type: "string", enum: ["indicateur", "strategie", "quant"], description: "indicateur (par défaut), strategie (prend des positions, backtest) ou quant (analyse sans dessin)." },
+          emplacement: { type: "string", enum: ["prix", "panneau"], description: PLACEMENT_DOC },
         },
         required: ["nom"],
         additionalProperties: false,
       },
     },
     run: (input, chart) => {
-      const name = str(input, "nom") ?? "Indicateur de l'assistant";
+      const name = str(input, "nom")?.trim() || "Indicateur de l'assistant";
       const type = str(input, "type");
       const decorator = type === "strategie" ? "@strategy" : type === "quant" ? "@quant" : "@indicator";
-      const id = chart.addScript(name, `${decorator}\n// ${name} : en cours d'écriture par l'assistant.\n`);
+      const owner = findNameOwner(chart, name);
+      if (owner) return nameTakenOutcome(name, owner);
+      const placement = placementInput(input);
+      // Un code vide (la seule déclaration du type) : rien d'un modèle d'exemple ne peut rester dans le script écrit ensuite.
+      const id = chart.addScript(name, `${decorator}\n`);
+      if (placement && decorator === "@indicator") requestedPlacement.set(id, placement);
       chart.openScript?.(id);
+      const where =
+        decorator !== "@indicator"
+          ? ""
+          : placement === "prix"
+            ? ` Emplacement : sur les prix — tracez avec un seul plot.overlay("${name}") (plusieurs courbes = plusieurs séries de ce même handle), sans plot.pane.`
+            : placement === "panneau"
+              ? ` Emplacement : dans un panneau — tracez avec un seul plot.pane("${name}") (plusieurs courbes = plusieurs séries de ce même handle), sans plot.overlay.`
+              : ` Tracez à un seul endroit : un seul plot.overlay("${name}") (sur les prix) OU un seul plot.pane("${name}") (panneau), pas les deux.`;
       return {
-        content: `Fenêtre de développement ouverte sur le script « ${name} » (id ${id}, ${decorator}). Écrivez maintenant le code complet avec ecrire_un_script et id « ${id} » (dans le langage de ce graphique, voir lire_la_documentation_du_scripting), puis lisez le résultat.`,
+        content: `Fenêtre de développement ouverte sur le script « ${name} » (id ${id}, ${decorator}, code vide).${where} Écrivez maintenant le code complet avec ecrire_un_script et id « ${id} » (dans le langage de ce graphique, voir lire_la_documentation_du_scripting), puis lisez le résultat. Ne rappelez pas coder_un_indicateur pour cette demande.`,
       };
     },
   },
@@ -343,7 +523,7 @@ export const AI_TOOLS: AiTool[] = [
     },
     run: (input, chart) => {
       const id = str(input, "id");
-      const script = chart.scripts.find((s) => s.id === id);
+      const script = findScript(chart, id);
       if (!script || !id) return { content: "Script introuvable.", isError: true };
       if (!chart.openScript) return { content: "L'éditeur de script n'est pas disponible ici.", isError: true };
       chart.openScript(id);
@@ -456,13 +636,14 @@ export const AI_TOOLS: AiTool[] = [
     definition: {
       name: "ecrire_un_script",
       description:
-        "Crée un script dans un nouvel onglet de l'éditeur (qui s'ouvre) et l'exécute, ou remplace le code d'un script existant (avec « id ») — pour corriger un script que vous venez d'écrire, passez toujours son id. Le code doit être écrit dans le langage de scripting de ce graphique (voir lire_la_documentation_du_scripting). Déclarez @indicator, @strategy, @quant ou @report sur la première ligne. Pour un rapport d'entreprise, écrivez un @report : il produit un document que l'utilisateur peut lire et exporter en PDF.",
+        "Crée un script dans un nouvel onglet de l'éditeur (qui s'ouvre) et l'exécute, ou remplace le code d'un script existant (avec « id ») — pour un script ouvert par coder_un_indicateur ou pour corriger un script que vous venez d'écrire, passez toujours son id. Sans id, le nom doit être unique : un nom déjà pris (sans casse, accents ni espaces) est REFUSÉ (voir lister_les_indicateurs_existants ; modifiez l'existant avec modifier_un_script). Un @indicator trace à un seul endroit : un seul plot.overlay(« Nom ») (sur les prix) OU un seul plot.pane(« Nom ») (panneau) — un code qui fait les deux, ou plusieurs overlays ou panneaux de noms différents, est refusé. Le code doit être écrit dans le langage de scripting de ce graphique (voir lire_la_documentation_du_scripting). Déclarez @indicator, @strategy, @quant ou @report sur la première ligne. Pour un rapport d'entreprise, écrivez un @report : il produit un document que l'utilisateur peut lire et exporter en PDF.",
       inputSchema: {
         type: "object",
         properties: {
-          nom: { type: "string" },
+          nom: { type: "string", description: "Nom du nouveau script (unique). Avec « id » : renomme le script (refusé si le nom est pris)." },
           code: { type: "string" },
           id: { type: "string", description: "Pour remplacer un script existant. Omettre pour en créer un." },
+          emplacement: { type: "string", enum: ["prix", "panneau"], description: PLACEMENT_DOC },
           executer: { type: "boolean", description: "Exécuter le script tout de suite. Vrai par défaut." },
         },
         required: ["code"],
@@ -475,20 +656,50 @@ export const AI_TOOLS: AiTool[] = [
       const existingId = str(input, "id");
       const run = input.executer !== false;
       if (existingId) {
-        const script = chart.scripts.find((s) => s.id === existingId);
-        if (!script) return { content: "Script introuvable.", isError: true };
-        chart.updateScript(existingId, code);
-        if (run) chart.runScript(existingId);
-        chart.openScript?.(existingId);
-        return { content: `Script « ${script.name} » mis à jour${run ? " et exécuté" : ""}.` };
+        const script = findScript(chart, existingId);
+        if (!script) return { content: `Script introuvable (id « ${existingId} »). Les scripts existants : lister_les_indicateurs_existants.`, isError: true };
+        return modifyScript(chart, script, input);
       }
-      const name = str(input, "nom") ?? "Script de l'assistant";
+      const name = str(input, "nom")?.trim() || "Script de l'assistant";
+      const owner = findNameOwner(chart, name);
+      if (owner) return nameTakenOutcome(name, owner);
+      const placement = placementInput(input);
+      if (analyzeScriptKind(code).kind === "indicator") {
+        const problem = placementProblem(code, placement);
+        if (problem) return { content: `${problem} Rien n'a été créé.`, isError: true };
+      }
       const id = chart.addScript(name, code);
+      if (placement) requestedPlacement.set(id, placement);
       if (run) chart.runScript(id);
       chart.openScript?.(id);
       return {
-        content: `Script « ${name} » créé (id ${id})${run ? " et exécuté" : ""}, et ouvert dans l'éditeur. Pour le corriger, rappelez ecrire_un_script avec id « ${id} » : ne créez pas un nouveau script.`,
+        content: `Script « ${name} » créé (id ${id})${run ? " et exécuté" : ""}, ${placementOfScript(code)}, et ouvert dans l'éditeur. Pour le corriger, rappelez ecrire_un_script ou modifier_un_script avec id « ${id} » : ne créez pas un nouveau script.`,
       };
+    },
+  },
+  {
+    definition: {
+      name: "modifier_un_script",
+      description:
+        "Modifie un script EXISTANT au lieu d'en créer un autre : remplace son code et/ou le renomme, en gardant son id et son onglet, puis l'exécute. C'est l'outil à utiliser quand un indicateur du même nom existe déjà (voir lister_les_indicateurs_existants), pour corriger un script ou pour changer ce qu'un indicateur affiche. Mêmes règles qu'ecrire_un_script : un @indicator trace à un seul endroit (un seul plot.overlay OU un seul plot.pane), un nouveau nom déjà pris est refusé.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          id: { type: "string", description: "Id du script (lire_le_graphique ou lister_les_indicateurs_existants)." },
+          code: { type: "string", description: "Le nouveau code complet. Omettre pour seulement renommer." },
+          nom: { type: "string", description: "Nouveau nom, facultatif. Refusé s'il est déjà pris." },
+          emplacement: { type: "string", enum: ["prix", "panneau"], description: PLACEMENT_DOC },
+          executer: { type: "boolean", description: "Exécuter le script après la modification du code. Vrai par défaut." },
+        },
+        required: ["id"],
+        additionalProperties: false,
+      },
+    },
+    run: (input, chart) => {
+      const id = str(input, "id");
+      const script = findScript(chart, id);
+      if (!script) return { content: `Script introuvable (id « ${id ?? ""} »). Les scripts existants : lister_les_indicateurs_existants.`, isError: true };
+      return modifyScript(chart, script, input);
     },
   },
   {
@@ -500,13 +711,20 @@ export const AI_TOOLS: AiTool[] = [
     },
     run: (input, chart) => {
       const id = str(input, "id");
-      const script = chart.scripts.find((s) => s.id === id);
+      const script = findScript(chart, id);
       if (!script) return { content: "Script introuvable.", isError: true };
       const output = id === undefined ? undefined : chart.runOutputs[id];
       const result = output?.result;
       if (!result) return { content: `« ${script.name} » n'a pas encore été exécuté.`, isError: true };
       const parts = [`--- ${script.name} ---`];
       if (result.error) parts.push(`Erreur : ${result.error.message}${result.error.line ? ` (ligne ${result.error.line})` : ""}`);
+      // Ce que le script a réellement posé : un indicateur demandé = un seul emplacement.
+      const placed = (result.panes ?? []).map((p) => `« ${p.name} » ${p.pane === "overlay" ? "sur les prix" : "dans un panneau"}`);
+      if (placed.length > 0) {
+        parts.push(
+          `Indicateurs posés : ${placed.join(", ")}${placed.length > 1 ? ` — ATTENTION : ${placed.length} indicateurs pour un seul script ; un indicateur demandé n'en pose qu'un (un seul plot.overlay OU un seul plot.pane), corrigez avec modifier_un_script.` : "."}`,
+        );
+      }
       if (result.logs.length > 0) parts.push(`Journal :\n${result.logs.slice(0, 40).join("\n")}`);
       if (result.strategy) parts.push(`Backtest :\n${JSON.stringify(result.strategy, null, 1).slice(0, 6000)}`);
       if (result.quant) parts.push(`Analyse @quant :\n${JSON.stringify(result.quant.rows, null, 1).slice(0, 6000)}`);

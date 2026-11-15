@@ -4,7 +4,13 @@ import { isBlockMarkerLine } from "../scriptBlocks";
 import { analyzeAiCalls, analyzeQuantPlotCalls, analyzeScriptKind } from "../scriptKind";
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { EditorState, RangeSetBuilder, StateEffect, StateField, type Text } from "@codemirror/state";
+import { Annotation, EditorState, RangeSetBuilder, StateEffect, StateField, type Text } from "@codemirror/state";
+
+/** Marque un remplacement du document venu de l'extérieur (`value` changé : autre onglet, script réécrit par
+ *  l'assistant, Réinitialiser). Il n'est pas renvoyé par `onChange` : le parent connaît déjà ce texte, et le lui
+ *  renvoyer créait un brouillon de ce texte, qui masquait ensuite la réécriture suivante du même script par l'assistant
+ *  (l'onglet restait sur l'ancien code, marqué « non enregistré »). */
+const externalValue = Annotation.define<boolean>();
 import {
   EditorView,
   keymap,
@@ -700,7 +706,7 @@ export const ScriptEditorCodeMirror = forwardRef<ScriptEditorCodeMirrorHandle, S
         ]),
         theme,
         EditorView.updateListener.of((update) => {
-          if (update.docChanged) onChangeRef.current(update.state.doc.toString());
+          if (update.docChanged && !update.transactions.some((tr) => tr.annotation(externalValue))) onChangeRef.current(update.state.doc.toString());
         }),
       ],
     });
@@ -725,7 +731,7 @@ export const ScriptEditorCodeMirror = forwardRef<ScriptEditorCodeMirrorHandle, S
   useEffect(() => {
     const view = viewRef.current;
     if (!view || view.state.doc.toString() === value) return;
-    view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: value } });
+    view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: value }, annotations: externalValue.of(true) });
   }, [value]);
 
   // Both diagnostic sources go through this one dispatch rather than a `linter()` extension

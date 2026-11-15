@@ -1,5 +1,6 @@
 import { analyzeScriptVariables } from "../scriptVariables";
-import { DEFAULT_SCRIPT_CODE } from "../constants";
+import { NEW_SCRIPT_CODE } from "../constants";
+import { indicatorNameKey } from "../indicatorNameGuard";
 import { shortcutLabel } from "../../../internal/platformShortcut";
 import type { ScriptParam, ScriptParamValue } from "../../interfaces/ScriptParam.interface";
 import { ScriptParamsFields } from "./ScriptParamsFields";
@@ -340,10 +341,11 @@ export function hello() {
     window.setTimeout(() => setJustSaved(false), 1200);
   }
 
-  // Case-sensitive on purpose — a script is really just a key in this list, matching every other
-  // exact-string-equality id/name check already used throughout this session's own work rather
-  // than inventing a normalization rule nothing else here follows.
-  const nameCollision = activeScript !== null && scripts.some((s) => s.id !== activeScript.id && s.name === nameValue.trim());
+  // Comparé sans casse, sans accents ni espaces (« Mon  INDICATEUR » = « mon indicateur ») — la même règle que les
+  // outils de l'assistant : deux scripts qu'on ne distingue pas à l'œil ne peuvent pas coexister.
+  const collidingScript =
+    activeScript !== null && nameValue.trim() !== "" ? scripts.find((s) => s.id !== activeScript.id && indicatorNameKey(s.name) === indicatorNameKey(nameValue)) : undefined;
+  const nameCollision = collidingScript !== undefined;
 
   function handleSaveAsClick() {
     if (!activeScript) return;
@@ -576,7 +578,7 @@ export function hello() {
             <button
               type="button"
               className="lq-script-editor-panel__add-tab"
-              onClick={() => addScript(`Script ${scripts.length + 1}`, DEFAULT_SCRIPT_CODE)}
+              onClick={() => addScript(`Script ${scripts.length + 1}`, NEW_SCRIPT_CODE)}
               aria-label="Nouveau script"
               title="Nouveau script"
             >
@@ -1018,7 +1020,7 @@ export function hello() {
             onChange={(e) => setNameValue(e.target.value)}
             placeholder="Ex. Momentum Score"
             autoFocus
-            error={nameCollision ? "Un script porte déjà ce nom." : undefined}
+            error={collidingScript ? `Un script nommé « ${collidingScript.name} » existe déjà : ouvrez-le pour le modifier, ou choisissez un autre nom.` : undefined}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !nameCollision) handleNameSubmit();
             }}

@@ -1713,11 +1713,14 @@ export function CandlestickChart({
     // created inside a workspace belongs to no panel and never runs. Falls back to this chart's own
     // list for a standalone chart, where there is only one panel and nothing to stamp.
     addScript: (name, code) => onCreateScript?.(name, code) ?? scriptingState.addScript(name, code, { named: true }),
-    updateScript: (id, code) => scriptingState.updateScript(id, { code }),
+    // Dans un espace de travail, par la liste commune : la part de cette fenêtre date du dernier rendu et ne contient
+    // pas encore un script que l'outil vient de créer — l'exécuter par elle ne faisait rien.
+    updateScript: (id, code) => (aiWorkspace?.updateScript ? aiWorkspace.updateScript(id, { code }) : scriptingState.updateScript(id, { code })),
     // Through `currentScripts()`, not the render's own `scripts`: the assistant creates a script
     // and runs it in one synchronous call, and reading the stale list here is what used to delete
     // the script it had just written (and revert the edit it had just made).
     runScript: (id) => {
+      if (aiWorkspace?.runScript) return aiWorkspace.runScript(id);
       const script = scriptingState.currentScripts().find((s) => s.id === id);
       scriptingState.runScript(id, script?.code ?? "", script?.files);
     },
@@ -1734,6 +1737,9 @@ export function CandlestickChart({
     onEditScript,
   });
   // Replay et filigrane pour l'assistant : lus au moment de l'appel (refs), pour garder `aiChart` stable.
+  // Scripts et indicateurs personnels pour les garde-fous de l'assistant (noms uniques), lus au moment de l'appel.
+  const aiScriptsRef = useRef({ scriptingState, customIndicators });
+  aiScriptsRef.current = { scriptingState, customIndicators };
   const aiExtrasRef = useRef({ replayState, data, frameReplayAt, watermark, setWatermark, replayEnabled: replay, loadSymbolCandles, onAddSymbolOverlay, ratioSymbol, aiWorkspace, timeframe });
   aiExtrasRef.current = { replayState, data, frameReplayAt, watermark, setWatermark, replayEnabled: replay, loadSymbolCandles, onAddSymbolOverlay, ratioSymbol, aiWorkspace, timeframe };
   // Capture pour l'assistant (capturer_le_graphique) : période visible et légende, lues au moment de l'appel.
@@ -1847,6 +1853,14 @@ export function CandlestickChart({
         ]);
         return true;
       },
+      // Tous les scripts du compte (la liste commune dans un espace de travail), pour refuser un nom déjà pris.
+      allScripts: () => aiExtrasRef.current.aiWorkspace?.scripts?.() ?? aiScriptsRef.current.scriptingState.currentScripts(),
+      renameScript: (id: string, name: string) => {
+        const ws = aiExtrasRef.current.aiWorkspace;
+        if (ws?.updateScript) ws.updateScript(id, { name });
+        else aiScriptsRef.current.scriptingState.updateScript(id, { name, named: true });
+      },
+      customIndicatorDefs: () => aiScriptsRef.current.customIndicators ?? [],
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [aiChartBase, replay, canLoadCandles, hasRatioSymbol, hasAiWorkspace],

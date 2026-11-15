@@ -783,8 +783,8 @@ export function ChartWorkspace({
   // Outils de l'assistant au niveau de l'espace de travail (comparer_cote_a_cote, creer_un_indice_ratio), donnés au
   // graphique au premier plan avec l'assistant et le pont des outils : les gestes du menu « Disposition des fenêtres »
   // et du clic sur le nom d'une fenêtre, appliqués à l'état le plus récent (un outil s'exécute hors de tout rendu).
-  const aiWorkspaceStateRef = useRef({ panels, panelElements, resolvedSymbol, timeframeByPanel, handleGridLayoutChange, setPanelSymbol });
-  aiWorkspaceStateRef.current = { panels, panelElements, resolvedSymbol, timeframeByPanel, handleGridLayoutChange, setPanelSymbol };
+  const aiWorkspaceStateRef = useRef({ panels, panelElements, resolvedSymbol, timeframeByPanel, handleGridLayoutChange, setPanelSymbol, workspaceScripting });
+  aiWorkspaceStateRef.current = { panels, panelElements, resolvedSymbol, timeframeByPanel, handleGridLayoutChange, setPanelSymbol, workspaceScripting };
   const aiWorkspace = useMemo<AiWorkspaceControls>(() => {
     type State = typeof aiWorkspaceStateRef.current;
     const timeframeOf = (s: State, i: number) => (i in s.timeframeByPanel ? s.timeframeByPanel[i] : s.panelElements[i]?.props.timeframe);
@@ -834,6 +834,18 @@ export function ChartWorkspace({
       capture: async () => {
         const grid = gridRef.current;
         return grid ? captureChartCanvas(grid) : null;
+      },
+      // Scripts de l'assistant sur la liste commune, lue dans le même appel d'outil : une fenêtre ne connaît un script
+      // créé par l'outil qu'au rendu suivant, et l'exécuter par elle ne faisait rien (le script restait hors du graphique).
+      scripts: () => aiWorkspaceStateRef.current.workspaceScripting.currentScripts(),
+      runScript: (id) => {
+        const scripting = aiWorkspaceStateRef.current.workspaceScripting;
+        const script = scripting.currentScripts().find((x) => x.id === id);
+        if (script) scripting.runScript(id, script.code, script.files);
+      },
+      updateScript: (id, patch) => {
+        const scripting = aiWorkspaceStateRef.current.workspaceScripting;
+        scripting.updateScript(id, patch.name !== undefined ? { ...patch, named: true } : patch);
       },
     };
   }, []);

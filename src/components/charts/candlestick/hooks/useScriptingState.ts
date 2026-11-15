@@ -2,6 +2,7 @@ import type { StrategySettings } from "../interfaces/StrategySettings.interface"
 import type { ScriptParamValue } from "../interfaces/ScriptParam.interface";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DEFAULT_SCRIPT_CODE } from "../scripting/constants";
+import { indicatorNameKey } from "../scripting/indicatorNameGuard";
 import type { ScriptDef, ScriptFile } from "../interfaces/ScriptDef.interface";
 
 /** One script's unsaved editor buffer — its entry code plus its extra files, exactly the two
@@ -454,12 +455,13 @@ export function useScriptingState({ defaultScripts, onScriptsChange, controlledE
  */
 export function uniqueScriptName(name: string, scripts: { id: string; name: string }[], exceptId?: string): string {
   const wanted = name.trim() || "Nouveau script";
-  const taken = new Set(scripts.filter((s) => s.id !== exceptId).map((s) => s.name.trim().toLowerCase()));
-  if (!taken.has(wanted.toLowerCase())) return wanted;
+  // Sans casse, sans accents ni espaces : la règle des outils de l'assistant et de « Enregistrer sous ».
+  const taken = new Set(scripts.filter((s) => s.id !== exceptId).map((s) => indicatorNameKey(s.name)));
+  if (!taken.has(indicatorNameKey(wanted))) return wanted;
   const base = wanted.replace(/\s*\(\d+\)$/, "");
   for (let n = 2; ; n++) {
     const candidate = `${base} (${n})`;
-    if (!taken.has(candidate.toLowerCase())) return candidate;
+    if (!taken.has(indicatorNameKey(candidate))) return candidate;
   }
 }
 

@@ -60,6 +60,10 @@ export interface ChartCanvasOverlayProps {
   handlePaneYAxisPointerMove: (e: React.PointerEvent) => void;
   handlePaneYAxisPointerUp: (e: React.PointerEvent) => void;
   resetPaneYAxis: (paneId: string) => void;
+  /** Vrai quand l'utilisateur a réglé à la main l'axe Y de ce panneau ("price", "volume" ou l'id
+   *  d'un indicateur) au lieu de le laisser suivre les données visibles : une pastille « M » le
+   *  signale alors sur l'axe. */
+  isYAxisManual: (paneId: string) => boolean;
   volumeHeight: number;
   ownPaneIndicators: Indicator[];
   indicatorPaneTops: number[];
@@ -176,6 +180,28 @@ function AxisHintIcon({ orientation, cx, cy }: { orientation: "x" | "y"; cx: num
   );
 }
 
+/** Pastille « M » discrète dans le coin bas de la colonne d'un axe Y réglé à la main : l'axe garde
+ *  alors son échelle quand on se déplace en X. Un clic (ou le double-clic sur l'axe lui-même) le rend
+ *  à l'automatique. Seulement affichée en mode manuel — rien n'encombre l'axe le reste du temps. */
+function AxisManualBadge({ x, y, onReset }: { x: number; y: number; onReset: () => void }) {
+  return (
+    <g
+      className="lq-chart__axis-manual"
+      transform={`translate(${x}, ${y})`}
+      role="button"
+      aria-label="Échelle manuelle — double-clic pour l'automatique"
+      onClick={onReset}
+      onDoubleClick={onReset}
+    >
+      <title>Échelle manuelle — double-clic pour l'automatique</title>
+      <rect className="lq-chart__axis-manual-bg" x={-7} y={-7} width={14} height={14} rx={3} />
+      <text className="lq-chart__axis-manual-text" textAnchor="middle" dominantBaseline="central">
+        M
+      </text>
+    </g>
+  );
+}
+
 /** The chart's canvas (candles/volume/indicators/drawings, all pixel-drawn — see the render
  *  effect) plus the SVG layer stacked on top of it: axes, the pan/zoom overlay rect, per-pane
  *  Y-axis drag/wheel strips, drawing/measure handles, and event markers. Purely presentational —
@@ -200,6 +226,7 @@ export function ChartCanvasOverlay({
   handlePaneYAxisPointerMove,
   handlePaneYAxisPointerUp,
   resetPaneYAxis,
+  isYAxisManual,
   volumeHeight,
   ownPaneIndicators,
   indicatorPaneTops,
@@ -330,6 +357,9 @@ export function ChartCanvasOverlay({
                     onDoubleClick={() => resetPaneYAxis("volume")}
                   />
                   <AxisHintIcon orientation="y" cx={dims.boundedWidth + dims.margin.right / 2} cy={volumeHeight / 2} />
+                  {isYAxisManual("volume") && (
+                    <AxisManualBadge x={dims.boundedWidth + dims.margin.right - 9} y={volumeHeight - 9} onReset={() => resetPaneYAxis("volume")} />
+                  )}
                 </g>
               )}
               {/* Continues the canvas-drawn divider above volume (which only covers
@@ -380,6 +410,9 @@ export function ChartCanvasOverlay({
                       onDoubleClick={() => resetPaneYAxis(ind.id)}
                     />
                     <AxisHintIcon orientation="y" cx={dims.boundedWidth + dims.margin.right / 2} cy={paneHeight / 2} />
+                    {isYAxisManual(ind.id) && (
+                      <AxisManualBadge x={dims.boundedWidth + dims.margin.right - 9} y={paneHeight - 9} onReset={() => resetPaneYAxis(ind.id)} />
+                    )}
                   </g>
                 )}
                 <line
@@ -480,6 +513,9 @@ export function ChartCanvasOverlay({
             onDoubleClick={resetYAxis}
           />
           <AxisHintIcon orientation="y" cx={dims.boundedWidth + dims.margin.right / 2} cy={priceHeight / 2} />
+          {priceHeight > 0 && isYAxisManual("price") && (
+            <AxisManualBadge x={dims.boundedWidth + dims.margin.right - 9} y={priceHeight - 9} onReset={resetYAxis} />
+          )}
           <rect
             ref={xAxisWheelRef}
             className="lq-chart__axis-drag lq-chart__axis-drag--x"

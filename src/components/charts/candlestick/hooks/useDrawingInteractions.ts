@@ -17,6 +17,10 @@ import { useAxisHandleDrag } from "./useAxisHandleDrag";
 import { placeDrawingOnClick } from "./placeDrawingOnClick";
 import { DRAWING_HIT_DISTANCE, CLICK_DRAG_THRESHOLD, TABLE_DEFAULT_ROWS, TABLE_DEFAULT_COLS, TABLE_BORDER_HIT_MARGIN } from "../constants";
 
+/** Distance verticale (px) qu'un glisser dans le corps du graphique doit parcourir — en restant
+ *  surtout vertical — avant de prendre la main sur un axe Y encore en automatique. */
+const Y_PAN_DEADZONE_PX = 24;
+
 /** Plain mutable ref shape (matches what `useRef` in another hook already returns) — used instead
  *  of React's own `RefObject<T>` because that type's `current` is only ever mutable when the ref
  *  is declared with `useRef` in *this* file; a same-shaped object merely passed through as a
@@ -120,6 +124,10 @@ export interface UseDrawingInteractionsArgs {
    *  the price. */
   getPaneYTransform: (paneId: string) => d3.ZoomTransform;
   panPaneY: (paneId: string, startTransform: d3.ZoomTransform, dy: number) => void;
+  /** Vrai quand l'axe Y de ce panneau ("price", "volume" ou l'id d'un indicateur) est en mode
+   *  automatique (il suit les données visibles en X). Un glisser dans le corps du graphique ne le
+   *  fait alors passer en manuel que s'il est franchement vertical — voir Y_PAN_DEADZONE_PX. */
+  isYAxisAuto: (paneId: string) => boolean;
   overlayProjections: { drawing: TrendLineDrawing; mainReference: number; points: { i: number; price: number }[] }[];
   /** The "zoomIn" tool's own math — see its own click-handling branch below. `xScale` is the base
    *  (unzoomed) index-domain scale (distinct from `zoomedXScale` above, already rescaled by
@@ -217,6 +225,7 @@ export function useDrawingInteractions({
   resolveValueAxisAtY,
   getPaneYTransform,
   panPaneY,
+  isYAxisAuto,
   overlayProjections,
   xScale,
   maxXZoom,
@@ -838,9 +847,21 @@ export function useDrawingInteractions({
     const paneAtStart = paneForGestureAtY(e.clientY - e.currentTarget.getBoundingClientRect().top);
     const onPrice = paneAtStart === "price";
     const startYTransform = onPrice ? yTransform : getPaneYTransform(paneAtStart);
+    const startClientX = e.clientX;
+    // Axe en automatique : le glisser ordinaire est un déplacement dans le temps, et le tremblement
+    // vertical de la main ne doit pas suffire à figer l'axe (avant, le moindre pixel — et même un
+    // mouvement purement horizontal — passait l'axe des prix en manuel au premier déplacement, et
+    // l'ajustement aux bougies visibles s'arrêtait aussitôt). Le geste ne prend la main sur l'axe Y
+    // qu'une fois franchement vertical, et repart alors de ce point, sans saut.
+    let yEngagedAt: number | null = isYAxisAuto(paneAtStart) ? null : startClientY;
     isPanningYRef.current = true;
     const onMove = (ev: PointerEvent) => {
-      const dy = ev.clientY - startClientY;
+      if (yEngagedAt === null) {
+        const rawDy = ev.clientY - startClientY;
+        if (Math.abs(rawDy) < Y_PAN_DEADZONE_PX || Math.abs(rawDy) < 2 * Math.abs(ev.clientX - startClientX)) return;
+        yEngagedAt = ev.clientY;
+      }
+      const dy = ev.clientY - yEngagedAt;
       if (!onPrice) {
         panPaneY(paneAtStart, startYTransform, dy);
         return;

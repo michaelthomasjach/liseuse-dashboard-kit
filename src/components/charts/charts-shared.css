@@ -594,6 +594,32 @@
   fill: none;
 }
 
+/* Pastille « M » d'un axe Y réglé à la main (voir AxisManualBadge dans ChartCanvasOverlay.tsx) :
+   discrète au repos, plus marquée au survol pour dire qu'un clic la rend à l'automatique. */
+.lq-chart__axis-manual {
+  cursor: pointer;
+  opacity: 0.75;
+  transition: opacity var(--lq-transition-base);
+}
+
+.lq-chart__axis-manual:hover {
+  opacity: 1;
+}
+
+.lq-chart__axis-manual-bg {
+  fill: var(--lq-color-panel);
+  stroke: var(--lq-color-border);
+  stroke-width: 1;
+}
+
+.lq-chart__axis-manual-text {
+  fill: var(--lq-color-text-muted);
+  font-size: 9px;
+  font-weight: 600;
+  pointer-events: none;
+  user-select: none;
+}
+
 .lq-chart--fullscreen {
   position: fixed;
   /* Inset *from* the viewport edge instead of `inset: 0` + its own `padding` — `.lq-chart` is

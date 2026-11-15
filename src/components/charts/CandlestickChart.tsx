@@ -1239,6 +1239,7 @@ export function CandlestickChart({
     setXTransformAnimated,
     xAxisDrag,
     yAxisDrag,
+    priceYAuto,
     xAxisWheelRef,
     yAxisWheelRef,
     isZoomed,
@@ -1292,6 +1293,14 @@ export function CandlestickChart({
     volumeHeight,
     priceHeight,
     zoomRef,
+  // Mode de chaque axe Y, même règle pour tous les panneaux : automatique (il suit les données
+  // visibles en X) tant que l'utilisateur ne l'a pas réglé à la main ; manuel ensuite, jusqu'au
+  // double-clic sur cet axe. "price" pour les prix, "volume", sinon l'id d'un panneau d'indicateur.
+  const isYAxisAuto = (paneId: string) => (paneId === "price" ? priceYAuto : !(paneId in paneYTransform));
+  // Pastille « M » : l'axe des prix n'est « manuel » que si l'automatique est possible (YAutoScaling) ;
+  // coupé, son échelle fixe sur tout l'historique est le réglage choisi, pas un écart à signaler.
+  const isYAxisManual = (paneId: string) => (paneId === "price" ? yAutoScalingState && !priceYAuto : paneId in paneYTransform);
+
     reorderPanesRef,
   });
 
@@ -1575,6 +1584,7 @@ export function CandlestickChart({
             setCustomToolFirst(placed);
             return;
           }
+    isYAxisAuto,
           activeCustomTool.onPlaceRange?.(customToolFirst, placed);
           setCustomToolFirst(null);
         } else activeCustomTool.onPlace?.(placed);
@@ -2565,6 +2575,7 @@ export function CandlestickChart({
           handlePointerMove={
             replayState.armed
               ? replayState.handlePointerMove(zoomedXScale)
+          isYAxisManual={isYAxisManual}
               : placementActive
                 ? noopPointerHandler
                 : handlePointerMove

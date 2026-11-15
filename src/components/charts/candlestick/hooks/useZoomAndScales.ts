@@ -12,6 +12,7 @@ import type { ChartVisibleRange } from "../interfaces/ChartVisibleRange.interfac
 import { MAX_EMPTY_FRACTION, AXIS_BADGE_HALF_HEIGHT, MAX_DATE_TICKS, MIN_DATE_TICK_SPACING_PX } from "../constants";
 import { computeHeikinAshiCandles, computeRenkoBrickSize, computeRenkoBricks, computeLineBreakBricks, type PriceBrick } from "../chartModes";
 import { transformForVisibleRange, visibleRangeOfDomain } from "../visibleRangeSync";
+import { useFrozenDomains } from "./usePaneStackScales";
 
 /** Candle indices (offset .5 to land mid-slot, matching every candle's own cx) a date axis
  *  should actually draw a tick at — thinned to at most MAX_DATE_TICKS regardless of how many
@@ -164,6 +165,10 @@ export function useZoomAndScales({
   // sur ce graphique-ci (il redevient maître de sa vue, avec son comportement habituel) ou à la remise
   // à zéro de l'axe des prix. Un réglage manuel de l'axe (`yManuallyAdjusted`) l'emporte toujours.
   const [syncFit, setSyncFit] = useState(false);
+  // Incrémenté par resetZoom/resetYAxis pour relancer l'ajustement automatique du prix même quand
+  // rien d'autre n'a changé (double-clic sur un axe déjà en automatique : sans lui, la remise à
+  // l'identité de `yTransform` restait affichée — tout l'historique — au lieu des bougies visibles).
+  const [yFitNonce, setYFitNonce] = useState(0);
 
   // Positions candles by INDEX, not by literal calendar time — each candle i occupies the slot
   // [i, i+1], centered at i+0.5. A real d3.scaleTime() (mapping actual elapsed time to pixels)
@@ -465,14 +470,33 @@ export function useZoomAndScales({
     overlayProjections,
     replayActive,
     replayCutoffIndex,
+    yFitNonce,
   ]);
+
+  // Vrai tant que l'axe des prix suit les bougies visibles (voir l'effet ci-dessus) : c'est le mode
+  // « automatique » de cet axe, celui que le double-clic rétablit. Faux une fois réglé à la main, ou
+  // quand `YAutoScaling` est coupé (l'axe garde alors l'échelle fixe de tout l'historique).
+  const priceYAuto = compareMode || (!yManuallyAdjusted && (yAutoScalingState || syncFit));
 
   // 10% headroom on top of the tallest bar, so it doesn't reach all the way up to the
   // price/volume divider — leaves a small visual gap between the bars and the line.
-  const volumeScale = useMemo(() => {
-    const max = d3.max(data, (d) => d.volume ?? 0) ?? 0;
-    return d3.scaleLinear().domain([0, (max || 1) * 1.1]).range([volumeHeight, 0]);
-  }, [data, volumeHeight]);
+  // Ajusté aux seules bougies visibles en X (de 0 au plus haut volume visible), comme l'axe des prix :
+  // calé sur tout l'historique, un seul jour de volume exceptionnel (une introduction, un
+  // fractionnement) écrasait toutes les barres du reste du graphique sous un axe jusqu'à « 1B ».
+  // Figé dès que l'utilisateur règle cet axe à la main (voir useFrozenDomains), rendu à
+  // l'automatique par le double-clic sur l'axe (resetPaneYAxis("volume")).
+  const volumeFitEnd = replayActive && replayCutoffIndex !== null ? Math.min(visibleRange.end, replayCutoffIndex + 1) : visibleRange.end;
+  const volumeAutoDomain = useMemo(() => {
+    let max = 0;
+    const end = Math.min(data.length, volumeFitEnd);
+    for (let i = Math.max(0, visibleRange.start); i < end; i++) {
+      const v = data[i].volume ?? 0;
+      if (v > max) max = v;
+    }
+    return { volume: [0, (max || 1) * 1.1] as [number, number] };
+  }, [data, visibleRange.start, volumeFitEnd]);
+  const volumeDomain = useFrozenDomains(volumeAutoDomain, paneYTransform).volume;
+  const volumeScale = useMemo(() => d3.scaleLinear().domain(volumeDomain).range([volumeHeight, 0]), [volumeDomain, volumeHeight]);
   // Manually rescaled view of volumeScale (see paneYTransform) — every rendering/hit-test/
   // drawing-placement site reads this instead of the base scale, same "zoomedX wraps X"
   // convention as zoomedPriceScale/priceScale; volumeScale itself stays the un-rescaled source of
@@ -893,6 +917,7 @@ export function useZoomAndScales({
     setYTransform(d3.zoomIdentity);
     setYManuallyAdjusted(false);
     setSyncFit(false);
+    setYFitNonce((n) => n + 1);
   }
 
   // Space bar — same effect as clicking the "loupe -" toolbar button, the way a video player's own
@@ -919,10 +944,14 @@ export function useZoomAndScales({
     if (t) setXTransformAnimated(t);
   }
 
+  /** Double-clic sur l'axe des prix : le rend à l'automatique — il suit de nouveau les bougies
+   *  visibles à chaque déplacement en X (et pas un simple recalage unique). `YAutoScaling` coupé, il
+   *  revient sur l'échelle fixe de tout l'historique. */
   function resetYAxis() {
     setYTransform(d3.zoomIdentity);
     setYManuallyAdjusted(false);
     setSyncFit(false);
+    setYFitNonce((n) => n + 1);
   }
 
   // Every candle fills up to 80% of the space actually available to it at the current zoom — with
@@ -971,6 +1000,7 @@ export function useZoomAndScales({
     setYTransform,
     yManuallyAdjusted,
     setYManuallyAdjusted,
+    priceYAuto,
     xScale,
     zoomedXScale,
     indexForDate,

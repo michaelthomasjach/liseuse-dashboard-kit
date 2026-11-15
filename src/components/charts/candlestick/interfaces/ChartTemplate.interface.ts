@@ -39,4 +39,7 @@ export interface ChartPaneLayout {
   volumePaneOrder: number;
   /** Voir `ChartTemplateSnapshot.paneHeightFractions`. */
   paneHeightFractions: Record<string, number>;
+  /** Ordre des panneaux du bas laissé par le dernier glisser (ids, « volume » compris) : il place les panneaux des
+   *  scripts, qui ne sont pas dans la liste des indicateurs. Absent : chaque panneau de script après les autres. */
+  paneOrder?: string[];
 }

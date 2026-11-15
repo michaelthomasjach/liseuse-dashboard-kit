@@ -1,5 +1,6 @@
 import { Checkbox } from "../../../forms/Checkbox";
 import { IndicatorStyleRulesEditor } from "./IndicatorStyleRulesEditor";
+import { IndicatorWatermarkField } from "./IndicatorWatermarkField";
 import { InputNumber } from "../../../forms/InputNumber";
 import { Select } from "../../../forms/Select";
 import type { Indicator } from "../interfaces/Indicator.interface";
@@ -755,6 +756,10 @@ export function IndicatorSettingsStyle({ indicatorDraft, setIndicatorDraft, indi
         </div>
       )}
       {indicatorCatalogEntry(indicatorDraft).pane !== "price" && <ValueFormatField indicatorDraft={indicatorDraft} setIndicatorDraft={setIndicatorDraft} />}
+      {/* Filigrane du panneau (pas sur les prix, dont le filigrane est le symbole) ni sur une moyenne posée sur un panneau. */}
+      {indicatorCatalogEntry(indicatorDraft).pane !== "price" && !indicatorDraft.sourceId && (
+        <IndicatorWatermarkField indicatorDraft={indicatorDraft} setIndicatorDraft={setIndicatorDraft} />
+      )}
       {/* Couleurs conditionnelles : écrites au nouveau format, l'ancien (`fills`, converti à la lecture) est retiré. */}
       <IndicatorStyleRulesEditor
         indicator={indicatorDraft}

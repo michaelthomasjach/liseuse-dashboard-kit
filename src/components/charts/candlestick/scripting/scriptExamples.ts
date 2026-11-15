@@ -245,6 +245,20 @@ if (bb) {
 }`,
   },
   {
+    id: "pane-watermark",
+    title: "Filigrane d'un panneau (pane.watermark)",
+    description:
+      "Un RSI dans son propre panneau, avec son nom en grand et pâle en fond — comme le symbole derrière les bougies. Le texte, l'opacité et la taille se règlent ici ; l'utilisateur peut les changer ensuite dans les paramètres de l'indicateur :",
+    code: `@indicator
+const periode = new Variable("number", 14, { description: "Période du RSI" });
+const rsi = ta.rsi(market.series("close", 100), periode);
+
+const panneau = plot.pane("RSI");
+panneau.line("RSI", rsi, { color: "#7e57c2" });
+// Le filigrane : le dernier appel l'emporte, l'appeler à chaque bougie ne coûte rien.
+panneau.watermark("RSI " + periode, { opacity: 0.1, size: 90 });`,
+  },
+  {
     id: "candle-color-threshold",
     title: "Bougies > +0,3 % en couleur (plot.candleColor)",
     description:

@@ -185,6 +185,35 @@ export interface UsePaneLayoutArgs {
   onPaneLayoutChange?: (layout: ChartPaneLayout) => void;
 }
 
+/** Ordre des panneaux du bas, de haut en bas (« volume » compris).
+ *
+ *  Les indicateurs ajoutés gardent l'ordre de `indicators` et le volume sa place `volumeIndex` parmi eux (-1 : pas de
+ *  volume) — ce que Ctrl+Z et les modèles restaurent. Les panneaux de scripts, absents de `indicators`, se placent
+ *  d'après `paneOrder` (le dernier ordre laissé par un glisser) : chacun juste après le panneau qui le précédait
+ *  dans cet ordre, en tête s'il n'y en avait aucun ; un panneau de script jamais déplacé va à la fin, comme avant. */
+export function orderBottomPanes(crudIds: string[], scriptIds: string[], volumeIndex: number, paneOrder: string[]): string[] {
+  const base = [...crudIds];
+  if (volumeIndex >= 0) base.splice(Math.min(volumeIndex, base.length), 0, "volume");
+  const baseSet = new Set(base);
+  const scriptSet = new Set(scriptIds);
+  const after = new Map<string | null, string[]>();
+  const placed = new Set<string>();
+  let anchor: string | null = null;
+  for (const id of paneOrder) {
+    if (baseSet.has(id)) anchor = id;
+    else if (scriptSet.has(id) && !placed.has(id)) {
+      placed.add(id);
+      const list = after.get(anchor) ?? [];
+      list.push(id);
+      after.set(anchor, list);
+    }
+  }
+  const out = [...(after.get(null) ?? [])];
+  for (const id of base) out.push(id, ...(after.get(id) ?? []));
+  for (const id of scriptIds) if (!placed.has(id)) out.push(id);
+  return out;
+}
+
 /** Technical indicators (state + CRUD) and the sub-pane layout system they (and volume) share:
  *  which pane sits where, its height, its own manual Y-rescale, and drag-to-resize/drag-to-reorder
  *  between panes. Kept as one hook since a pane's own layout is fundamentally indexed by
@@ -293,20 +322,26 @@ export function usePaneLayout({
   // pane's own top divider (see startPaneResize). Missing entries fall back to
   // DEFAULT_PANE_HEIGHT_FRACTION, same as before per-pane resize existed at all.
   const [paneHeightFractions, setPaneHeightFractions] = useState<Record<string, number>>(defaultPaneLayout?.paneHeightFractions ?? {});
+  // Ordre voulu de tous les panneaux du bas (volume, indicateurs ajoutés, panneaux de scripts), tel que laissé par le
+  // dernier glisser. Les panneaux d'un script (`extraIndicators`) ne sont pas dans `indicators` : sans cet ordre, ils
+  // restaient collés après tous les autres et leur poignée ne déplaçait rien. Il ne place que les panneaux de scripts,
+  // chacun juste après le panneau qui le précède dans cet ordre : les indicateurs ajoutés et le volume gardent leurs
+  // propres sources (`indicators`, `volumePaneOrder`), que Ctrl+Z et les modèles restaurent.
+  const [paneOrder, setPaneOrder] = useState<string[]>(defaultPaneLayout?.paneOrder ?? []);
   // Ordre et hauteurs des panneaux annoncés à l'hôte à chaque changement (pas au montage), pour qu'il retrouve la
   // disposition au rechargement — quel que soit le chemin qui l'a changée (glisser, modèle, Ctrl+Z).
   const onPaneLayoutChangeRef = useRef(onPaneLayoutChange);
   onPaneLayoutChangeRef.current = onPaneLayoutChange;
   const paneLayoutReportedRef = useRef<string | null>(null);
   useEffect(() => {
-    const key = JSON.stringify([volumePaneOrder, paneHeightFractions]);
+    const key = JSON.stringify([volumePaneOrder, paneHeightFractions, paneOrder]);
     if (paneLayoutReportedRef.current === null || paneLayoutReportedRef.current === key) {
       paneLayoutReportedRef.current = key;
       return;
     }
     paneLayoutReportedRef.current = key;
-    onPaneLayoutChangeRef.current?.({ volumePaneOrder, paneHeightFractions });
-  }, [volumePaneOrder, paneHeightFractions]);
+    onPaneLayoutChangeRef.current?.({ volumePaneOrder, paneHeightFractions, ...(paneOrder.length ? { paneOrder } : {}) });
+  }, [volumePaneOrder, paneHeightFractions, paneOrder]);
   // Whether each *docked* pane is folded, keyed by pane id — deliberately its own UI state rather
   // than the `Indicator.paneCollapsed` field the bottom stack toggles through `commitIndicators`.
   // A docked pane is very often script-produced (`plot.pane(name, { dock })`), and those live in
@@ -635,6 +670,18 @@ export function usePaneLayout({
     setScriptIndicatorOverrides((prev) => ({ ...prev, [id]: { ...prev[id], hidden: !current.hidden } }));
   }
 
+  /** Change quelques champs de présentation d'un indicateur (légende masquée, filigrane…) : dans la liste enregistrée
+   *  pour un indicateur ajouté, dans les réglages gardés à côté pour la sortie d'un script (voir
+   *  `scriptIndicatorOverrides`). */
+  function patchIndicator(id: string, patch: Partial<Indicator>) {
+    if (indicators.some((i) => i.id === id)) {
+      commitIndicators(indicators.map((i) => (i.id === id ? { ...i, ...patch } : i)));
+      return;
+    }
+    if (!extraIndicators.some((i) => i.id === id)) return;
+    setScriptIndicatorOverrides((prev) => ({ ...prev, [id]: { ...prev[id], ...patch } }));
+  }
+
   /** Removes several indicators at once. Not a loop over `removeIndicator` at the call site: the
    *  CRUD branch below commits a list derived from `indicators`, which doesn't change until the
    *  next render, so a second call in the same tick would compute its filter from the stale list
@@ -779,9 +826,15 @@ export function usePaneLayout({
   // `volumePaneOrder`'s own definition, since nothing else but volume and indicator ids ever
   // appears in this array.
   function reorderPanes(newOrder: string[]) {
-    const volumeIndex = newOrder.indexOf("volume");
+    // `volumePaneOrder` compte les panneaux hors scripts placés avant le volume (voir le calcul de l'ordre plus bas).
+    const scriptIds = new Set(extraIndicators.map((ind) => ind.id));
+    const volumeIndex = newOrder.filter((id) => !scriptIds.has(id)).indexOf("volume");
     if (volumeIndex !== -1) setVolumePaneOrder(volumeIndex);
-    reorderOwnPaneIndicators(newOrder.filter((id) => id !== "volume"));
+    setPaneOrder(newOrder);
+    const crudOrder = newOrder.filter((id) => id !== "volume" && !scriptIds.has(id));
+    const current = indicators.filter((ind) => indicatorCatalogEntry(ind).pane === "own" && indicatorDock(ind) === "bottom").map((ind) => ind.id);
+    // Seul un panneau de script a bougé : la liste des indicateurs ne change pas (pas d'étape Ctrl+Z vide).
+    if (crudOrder.join("|") !== current.join("|")) reorderOwnPaneIndicators(crudOrder);
   }
   // A plain (non-memoized) function closing over `indicators`, so the pane-reorder effect
   // shouldn't resubscribe its window listeners on literally every render just because this
@@ -839,7 +892,17 @@ export function usePaneLayout({
   // without this they'd be a fresh array/reference every render, which would make an "only these
   // deps" dependency array pointless (always "changed").
   const { ownPaneIndicators, indicatorPaneHeights, indicatorPaneTops, volumeTop, allPanesOrder } = useMemo(() => {
-    const owned = [...indicators, ...extraIndicators].filter((ind) => indicatorCatalogEntry(ind).pane === "own" && indicatorDock(ind) === "bottom");
+    const isBottomPane = (ind: Indicator) => indicatorCatalogEntry(ind).pane === "own" && indicatorDock(ind) === "bottom";
+    const crudPanes = indicators.filter(isBottomPane);
+    const scriptPanes = extraIndicators.filter(isBottomPane);
+    const byId = new Map([...crudPanes, ...scriptPanes].map((ind) => [ind.id, ind]));
+    const sequence = orderBottomPanes(
+      crudPanes.map((ind) => ind.id),
+      scriptPanes.map((ind) => ind.id),
+      volumeVisible ? volumePaneOrder : -1,
+      paneOrder
+    );
+    const owned = sequence.filter((id) => id !== "volume").map((id) => byId.get(id) as Indicator);
     // A fullscreened *indicator* pane (volume's own case is handled entirely by volumeHeight
     // above — it never needs to touch this array) is filtered down to just itself rather than
     // merely zeroed in place: every one of PaneHeaders/drawVolumeAndPanes/useIndicatorPaneScales
@@ -862,27 +925,22 @@ export function usePaneLayout({
     const heights = owned.map((ind) =>
       ind.paneCollapsed ? SUB_PANE_COLLAPSED_HEIGHT : Math.round(plotBoundedHeight * (paneHeightFractions[ind.id] ?? defaultFraction) * subPanesSqueeze)
     );
-    const insertAt = Math.min(Math.max(0, volumePaneOrder), owned.length);
     let cursor = 0; // relative to right after price
     let vTop = 0;
     const tops: number[] = [];
-    const order: string[] = [];
-    for (let i = 0; i < heights.length; i++) {
-      if (volumeVisible && i === insertAt) {
+    let i = 0;
+    for (const id of sequence) {
+      if (id === "volume") {
         vTop = cursor;
         cursor += volumeHeight;
-        order.push("volume");
+        continue;
       }
       tops.push(cursor);
-      order.push(owned[i].id);
-      cursor += heights[i];
+      cursor += heights[i++];
     }
-    if (volumeVisible && insertAt === heights.length) {
-      vTop = cursor;
-      order.push("volume");
-    }
+    const order = sequence;
     return { ownPaneIndicators: owned, indicatorPaneHeights: heights, indicatorPaneTops: tops, volumeTop: vTop, allPanesOrder: order };
-  }, [indicators, extraIndicators, paneHeightFractions, defaultFraction, plotBoundedHeight, volumeVisible, volumeHeight, volumePaneOrder, fullscreenPaneId, subPanesSqueeze]);
+  }, [indicators, extraIndicators, paneHeightFractions, defaultFraction, plotBoundedHeight, volumeVisible, volumeHeight, volumePaneOrder, paneOrder, fullscreenPaneId, subPanesSqueeze]);
   const indicatorPanesTotalHeight = indicatorPaneHeights.reduce((sum, h) => sum + h, 0);
 
   const priceHeight = Math.max(0, plotBoundedHeight - volumeHeight - indicatorPanesTotalHeight);
@@ -975,6 +1033,7 @@ export function usePaneLayout({
     startPaneResize,
     reorderPanes,
     reorderPanesRef,
+    patchIndicator,
     ownPaneIndicators,
     indicatorPaneHeights,
     indicatorPaneTops,

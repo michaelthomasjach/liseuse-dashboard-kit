@@ -120,6 +120,23 @@ if (b !== null) plot.overlay("Bollinger").band("BB", b.upper, b.lower);`,
         returns: "rien.",
       },
       {
+        signature: "…​.watermark(text?, options?)",
+        keywords: [".watermark", "filigrane"],
+        purpose:
+          "Un filigrane en fond du panneau : un grand texte pâle derrière les courbes, comme le nom du symbole derrière les bougies. Pratique pour reconnaître un panneau d'un coup d'œil, ou y écrire la source des données.",
+        params: [
+          "text — le texte écrit. Absent ou vide : le nom du panneau.",
+          "options.opacity — de 0.02 à 0.6 ; 0.08 par défaut, la même discrétion que le filigrane des prix.",
+          "options.size — la taille en % de la taille par défaut (100), de 20 à 200. Un texte trop long pour la largeur du panneau est réduit jusqu'à tenir.",
+          "options.visible — false retire le filigrane.",
+        ],
+        returns: "rien.",
+        caveat:
+          "Panneaux plot.pane() seulement : sur plot.overlay() l'appel ne fait rien, le filigrane des prix est celui du symbole (Paramètres du graphique). Le dernier appel l'emporte (l'appeler à chaque barre ne coûte rien). L'utilisateur peut le changer ou le masquer dans les paramètres de l'indicateur (onglet Style, « Filigrane »).",
+        example: `plot.pane("RSI").line("RSI", ta.rsi(market.series("close", 60), 14));
+plot.pane("RSI").watermark("RSI 14", { opacity: 0.1, size: 80 });`,
+      },
+      {
         signature: "…​.profile(name, values, prices, options?)",
         keywords: [".profile"],
         purpose:

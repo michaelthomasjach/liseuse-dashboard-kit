@@ -176,6 +176,12 @@ export const SCRIPT_API_COMPLETIONS: ScriptApiCompletion[] = [
     detail: "(name, texte, { x, y, unit?, rotation?, ... }) — pane.label/overlay.label, élément positionné librement",
     apply: '.label("", "", { x: 50, y: 50 })',
   },
+  {
+    label: ".watermark",
+    type: "function",
+    detail: "(texte?, { opacity?, size?, visible? }?) — pane.watermark, filigrane en fond du panneau (texte par défaut : son nom)",
+    apply: '.watermark("")',
+  },
   { label: "plot.signal", type: "function", detail: '("BUY"|"SELL" | {type,price?,color?,shape?})', apply: 'plot.signal("BUY")' },
   { label: "plot.point", type: "function", detail: "(value, options?)", apply: "plot.point()" },
   { label: "plot.horizontal", type: "function", detail: "(price, options?)", apply: "plot.horizontal()" },

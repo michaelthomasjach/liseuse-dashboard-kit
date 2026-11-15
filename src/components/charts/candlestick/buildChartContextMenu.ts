@@ -1,7 +1,7 @@
 import type * as d3 from "d3";
 import { VOLUME_PANE_ID } from "./attachedIndicators";
 import type { IndicatorKind } from "./interfaces/IndicatorKind.interface";
-import type { ChartContextMenuItem } from "./components/ChartContextMenu";
+import type { ChartContextMenuItem, ChartMenuTarget } from "./components/ChartContextMenu";
 import type { Candle } from "./interfaces/Candle.interface";
 import type { TrendLineDrawing } from "./interfaces/TrendLineDrawing.interface";
 import { drawingNoun } from "./drawingCatalog";
@@ -23,6 +23,9 @@ export interface ChartContextMenuAnchor {
   /** Clic droit sur la ligne d'un indicateur : son id et son nom, pour ouvrir ses paramètres. */
   indicatorId?: string;
   indicatorLabel?: string;
+  /** Légende de l'indicateur du panneau cliqué (`paneId`), et de celui de la ligne (`indicatorId`), masquée ou non. */
+  paneLegendHidden?: boolean;
+  indicatorLegendHidden?: boolean;
 }
 
 export interface BuildChartContextMenuArgs {
@@ -65,6 +68,13 @@ export interface BuildChartContextMenuArgs {
   /** Barres d'outils personnalisées (« Ajouter une toolbar personnalisée », sous-menu des barres enregistrées) :
    *  proposées sur la zone des prix seulement. */
   customToolbarItems?: ChartContextMenuItem[];
+  /** Ouvre les paramètres du panneau Volume (clic droit sur le volume). */
+  openVolumeSettings?: () => void;
+  /** Masque / réaffiche la légende d'un indicateur (`Indicator.legendHidden`) ; entrées absentes sans elle. */
+  toggleIndicatorLegend?: (id: string) => void;
+  /** Légende du panneau Volume masquée, et la bascule. */
+  volumeLegendHidden?: boolean;
+  toggleVolumeLegend?: () => void;
 }
 
 /** What the chart's right-click menu offers, top to bottom.
@@ -99,12 +109,25 @@ export function buildChartContextMenu({
   symbolInfoHidden,
   toggleSymbolInfo,
   customToolbarItems,
+  toggleIndicatorLegend,
+  openVolumeSettings,
+  volumeLegendHidden,
+  toggleVolumeLegend,
 }: BuildChartContextMenuArgs): ChartContextMenuItem[] {
   if (anchor === null) return [];
   const candle = data[Math.max(0, Math.min(data.length - 1, anchor.index))] ?? null;
 
   // Clic droit sur le panneau d'un indicateur ou sur le volume (pas sur les prix).
   const inSubPane = Boolean(anchor.paneId || anchor.volumePane);
+  // Ce que vise chaque entrée, entouré sur le graphique tant qu'elle est survolée (voir ChartContextMenu) : le panneau
+  // cliqué, celui des prix, le graphique entier, ou une courbe précise dans son panneau.
+  const zone = anchor.paneId ?? (anchor.volumePane ? "volume" : "price");
+  const onZone: ChartMenuTarget = { pane: zone };
+  const onPrice: ChartMenuTarget = { pane: "price" };
+  const onChart: ChartMenuTarget = { pane: "chart" };
+  const onLine: ChartMenuTarget | undefined = anchor.indicatorId ? { pane: zone, lineId: anchor.indicatorId } : undefined;
+  const t = (target: ChartMenuTarget | undefined, items: ChartContextMenuItem[]): ChartContextMenuItem[] =>
+    items.map((item) => (item.separator || item.target ? item : { ...item, target }));
   return [
     // Object commands first, and only when the click actually landed on one — a menu whose top
     // item changes meaning depending on where you clicked is exactly what a context menu is for.
@@ -114,7 +137,7 @@ export function buildChartContextMenu({
           // Le dessin nommé par ce qu'il est : « la ligne », « le rectangle »…
           const noun = drawingNoun(targetDrawing);
           const patch = (p: Partial<TrendLineDrawing>) => commitDrawings(drawings.map((d) => (d.id === targetDrawing.id ? { ...d, ...p } : d)));
-          return [
+          return t({ pane: zone, drawingId: targetDrawing.id }, [
             { label: `Paramètres ${noun.of}…`, onSelect: () => setEditingDrawingId(targetDrawing.id) },
             {
               label: targetDrawing.locked ? `Déverrouiller ${noun.the}` : `Verrouiller ${noun.the}`,
@@ -132,8 +155,9 @@ export function buildChartContextMenu({
               : []),
             { label: `Supprimer ${noun.the}`, onSelect: () => commitDrawings(drawings.filter((d) => d.id !== targetDrawing.id)) },
             { separator: true },
-          ] as ChartContextMenuItem[];
+          ] as ChartContextMenuItem[]);
         })()),
+    ...t(onPrice, [
     {
       label: "Ligne horizontale ici",
       hint: formatPrice(anchor.price),
@@ -163,14 +187,17 @@ export function buildChartContextMenu({
         ]);
       },
     },
+    ]),
     { separator: true },
     // Reading a number off a chart and retyping it is the small friction every trading tool has.
+    ...t(onPrice, [
     { label: "Copier le prix", onSelect: () => void navigator.clipboard?.writeText(formatPrice(anchor.price)) },
     {
       label: "Copier la date",
       disabled: candle === null,
       onSelect: () => void (candle && navigator.clipboard?.writeText(formatDate(candle.date))),
     },
+    ]),
     { separator: true },
     // Une alerte au niveau du clic : sur l'indicateur du panneau cliqué (RSI, MACD…), sur la ligne d'indicateur
     // sous le pointeur, ou sinon sur le prix — comme « Ajouter une alerte » de TradingView.
@@ -182,59 +209,95 @@ export function buildChartContextMenu({
           ? { id: anchor.indicatorId, label: anchor.indicatorLabel ?? "cet indicateur", value: anchor.price, hint: anchor.indicatorLabel }
           : { id: "price", label: "Prix", value: anchor.price, hint: formatPrice(anchor.price) };
       return [
-        { label: "Ajouter une alerte", hint: target.hint, onSelect: () => openIndicatorAlert(target.id, target.label, target.value) },
+        {
+          label: "Ajouter une alerte",
+          hint: target.hint,
+          onSelect: () => openIndicatorAlert(target.id, target.label, target.value),
+          target: anchor.paneId ? onZone : (onLine ?? onPrice),
+        },
         { separator: true },
       ] as ChartContextMenuItem[];
     })(),
     // Le menu suit la zone cliquée : sur les prix, ce qui concerne le graphique principal ; sur le panneau d'un
     // indicateur ou le volume, ce qui concerne ce panneau seulement.
-    ...(!inSubPane && openAddSymbol ? [{ label: "Ajouter un symbole…", onSelect: openAddSymbol }] : []),
-    ...(!inSubPane ? [{ label: "Ajouter un indicateur…", onSelect: () => openIndicatorPicker() }] : []),
+    ...(!inSubPane && openAddSymbol ? [{ label: "Ajouter un symbole…", onSelect: openAddSymbol, target: onPrice }] : []),
+    ...(!inSubPane ? [{ label: "Ajouter un indicateur…", onSelect: () => openIndicatorPicker(), target: onPrice }] : []),
     ...(!inSubPane && customToolbarItems?.length ? [{ separator: true } as ChartContextMenuItem, ...customToolbarItems] : []),
+    // Sur un panneau (indicateur, script, volume) : d'abord ses paramètres, où que l'on clique dans le panneau.
+    ...(anchor.paneId && openIndicatorSettings
+      ? ([
+          {
+            label: `Paramètres du ${anchor.paneLabel ?? "panneau"}…`,
+            onSelect: () => openIndicatorSettings(anchor.paneId as string),
+            target: onZone,
+          },
+        ] as ChartContextMenuItem[])
+      : []),
+    ...(anchor.volumePane && openVolumeSettings ? [{ label: "Paramètres du Volume…", onSelect: openVolumeSettings, target: onZone }] : []),
     // Le catalogue limité à ce qui se calcule sur les valeurs du panneau cliqué, posé sur lui.
     ...(anchor.paneId && addOnPane
       ? [
           {
             label: `Ajouter un indicateur sur ${anchor.paneLabel ?? "ce panneau"}…`,
             onSelect: () => openIndicatorPicker({ id: anchor.paneId as string, label: anchor.paneLabel ?? "ce panneau" }),
+            target: onZone,
           },
         ]
       : []),
     // Sur le panneau Volume : le même catalogue limité, posé sur le volume (le choix se fait dans la fenêtre).
     ...(anchor.volumePane && addOnPane
-      ? [{ label: "Ajouter un indicateur sur Volume…", onSelect: () => openIndicatorPicker({ id: VOLUME_PANE_ID, label: "Volume" }) }]
+      ? [{ label: "Ajouter un indicateur sur Volume…", onSelect: () => openIndicatorPicker({ id: VOLUME_PANE_ID, label: "Volume" }), target: onZone }]
       : []),
     // (Les moyennes sur le panneau d'un indicateur passent par « Ajouter un indicateur sur … », qui les propose.)
     { separator: true },
-    { label: "Réinitialiser le zoom", hint: "Espace", onSelect: resetZoom },
+    { label: "Réinitialiser le zoom", hint: "Espace", onSelect: resetZoom, target: onChart },
     ...(fullscreenToggle
-      ? ([{ label: isFullscreen ? "Quitter le plein écran" : "Plein écran", onSelect: toggleFullscreen }] as ChartContextMenuItem[])
+      ? ([{ label: isFullscreen ? "Quitter le plein écran" : "Plein écran", onSelect: toggleFullscreen, target: onChart }] as ChartContextMenuItem[])
       : []),
     { separator: true },
     // Also reachable from the tools rail — but that rail only exists when `drawingTools` is on,
     // and the readout has nothing to do with drawing. This is the way in that always works.
-    ...(!inSubPane ? [{ label: marketStateOpen ? "Masquer l'état du marché" : "État du marché", onSelect: toggleMarketState }] : []),
+    ...(!inSubPane ? [{ label: marketStateOpen ? "Masquer l'état du marché" : "État du marché", onSelect: toggleMarketState, target: onPrice }] : []),
     // La légende en haut à gauche : nom du symbole, type de bougies, ouverture / plus haut / plus bas / clôture.
-    ...(!inSubPane && toggleSymbolInfo ? [{ label: symbolInfoHidden ? "Afficher la légende du symbole (OHLC)" : "Masquer la légende du symbole (OHLC)", onSelect: toggleSymbolInfo }] : []),
-    // Sur le panneau d'un indicateur (RSI, MACD…) : les paramètres de cet indicateur, où que l'on clique dans le panneau.
-    ...(anchor.paneId && openIndicatorSettings
-      ? ([
+    ...(!inSubPane && toggleSymbolInfo
+      ? [{ label: symbolInfoHidden ? "Afficher la légende du symbole (OHLC)" : "Masquer la légende du symbole (OHLC)", onSelect: toggleSymbolInfo, target: onPrice }]
+      : []),
+    // La légende de ce que vise le clic, comme celle du symbole : le panneau d'un indicateur, le volume, et la courbe
+    // sous le pointeur (un indicateur sur les prix, ou posé sur le panneau). Masquée, elle se réduit à une poignée.
+    ...(anchor.paneId && toggleIndicatorLegend
+      ? [
           {
-            label: `Paramètres du ${anchor.paneLabel ?? "panneau"}…`,
-            onSelect: () => openIndicatorSettings(anchor.paneId as string),
+            label: `${anchor.paneLegendHidden ? "Afficher" : "Masquer"} la légende du ${anchor.paneLabel ?? "panneau"}`,
+            onSelect: () => toggleIndicatorLegend(anchor.paneId as string),
+            target: onZone,
           },
-        ] as ChartContextMenuItem[])
+        ]
+      : []),
+    ...(anchor.volumePane && toggleVolumeLegend
+      ? [{ label: `${volumeLegendHidden ? "Afficher" : "Masquer"} la légende du volume`, onSelect: toggleVolumeLegend, target: onZone }]
+      : []),
+    ...(anchor.indicatorId && anchor.indicatorId !== anchor.paneId && toggleIndicatorLegend
+      ? [
+          {
+            label: `${anchor.indicatorLegendHidden ? "Afficher" : "Masquer"} la légende du ${anchor.indicatorLabel ?? "l'indicateur"}`,
+            onSelect: () => toggleIndicatorLegend(anchor.indicatorId as string),
+            target: onLine,
+          },
+        ]
       : []),
     // Sur la ligne d'un indicateur : ses paramètres (période, couleurs, style…), juste avant ceux du graphique
     // (sauf l'indicateur du panneau lui-même, déjà proposé juste au-dessus).
     ...(anchor.indicatorId && openIndicatorSettings && anchor.indicatorId !== anchor.paneId
       ? ([
           {
-            label: anchor.indicatorLabel ? `Paramètres de l'indicateur ${anchor.indicatorLabel}…` : "Paramètres de l'indicateur…",
+            // « Paramètres du SMA(14)… », comme « Paramètres du RSI(14)… » juste au-dessus.
+            label: anchor.indicatorLabel ? `Paramètres du ${anchor.indicatorLabel}…` : "Paramètres de l'indicateur…",
             onSelect: () => openIndicatorSettings(anchor.indicatorId as string),
+            target: onLine,
           },
         ] as ChartContextMenuItem[])
       : []),
-    { label: "Paramètres du graphique…", onSelect: openSettings },
+    // Les paramètres du graphique sur la zone des prix seulement : sur un panneau, ceux du panneau (plus haut).
+    ...(!inSubPane ? [{ label: "Paramètres du graphique…", onSelect: openSettings, target: onChart }] : []),
   ];
 }

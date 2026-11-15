@@ -95,6 +95,11 @@ export interface CandlestickChartProps {
   defaultDaySeparators?: Partial<import("../daySeparators").DaySeparatorSettings>;
   onDaySeparatorsChange?: (settings: import("../daySeparators").DaySeparatorSettings) => void;
   onSymbolInfoHiddenChange?: (hidden: boolean) => void;
+  /** Légende du panneau Volume (nom, valeur) masquée — clic droit sur le volume « Masquer la légende du volume » ;
+   *  masquée, l'en-tête se réduit à une poignée qui la réaffiche. `onVolumeLegendHiddenChange` pour l'enregistrer. La
+   *  légende d'un indicateur, elle, est gardée avec l'indicateur (`Indicator.legendHidden`, via `onIndicatorsChange`). */
+  defaultVolumeLegendHidden?: boolean;
+  onVolumeLegendHiddenChange?: (hidden: boolean) => void;
   /** Reçoit le pont des outils de l'assistant de ce graphique (définitions + exécution), pour un autre pilote que
    *  l'assistant intégré — un serveur MCP par exemple —, puis `null` au démontage. Voir `ChartToolBridge`. Dans un
    *  `ChartWorkspace`, passez-le à l'espace de travail : il le donne au graphique au premier plan. */

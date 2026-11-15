@@ -1,0 +1,27 @@
+/* Légende d'un indicateur (ou du volume) masquée par le menu contextuel : il n'en reste qu'une poignée discrète, qui la
+   réaffiche au clic. Dans l'en-tête d'un panneau, après la poignée de glisser ; sur les prix, à la place de la ligne. */
+.lq-chart__pane-legend-handle,
+.lq-chart__indicator-legend-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 4px;
+  border: 1px solid transparent;
+  border-radius: var(--lq-radius-sm);
+  background: none;
+  color: var(--lq-color-text-muted);
+  opacity: 0.55;
+  cursor: pointer;
+  pointer-events: auto;
+}
+.lq-chart__indicator-legend-handle {
+  align-self: flex-start;
+  color: inherit;
+}
+.lq-chart__pane-legend-handle:hover,
+.lq-chart__pane-legend-handle:focus-visible,
+.lq-chart__indicator-legend-handle:hover,
+.lq-chart__indicator-legend-handle:focus-visible {
+  opacity: 1;
+  border-color: var(--lq-color-border-subtle);
+}

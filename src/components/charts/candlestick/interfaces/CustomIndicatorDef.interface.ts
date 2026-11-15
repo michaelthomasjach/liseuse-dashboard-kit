@@ -1,3 +1,4 @@
+import type { IndicatorWatermark } from "./IndicatorWatermark.interface";
 import type { ValueFormat } from "./ValueFormat.interface";
 export interface CustomIndicatorDataPoint {
   date: Date;
@@ -93,6 +94,9 @@ export interface CustomIndicatorDef {
   /** Le même rôle que `formatValue`, en donnée (sérialisable) : ce qu'un script demande avec
    *  `plot.pane(nom, { format })`. `formatValue` passe devant s'il est fourni. */
   valueFormat?: ValueFormat;
+  /** Filigrane du panneau par défaut (celui d'un script : `plot.pane(nom).watermark(…)`). Le réglage de
+   *  l'utilisateur (`Indicator.watermark`) passe devant. */
+  watermark?: IndicatorWatermark;
   color?: string;
   /** Stroke width in px for `line`/`area`'s own outline/`band`'s own upper-lower lines. Default 1.5
    *  (matches every built-in line-shaped indicator's own hardcoded width). Meaningless for

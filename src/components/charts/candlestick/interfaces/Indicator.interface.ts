@@ -5,6 +5,7 @@ import type { IndicatorProjectionMethod } from "../indicatorProjection";
 import type { IndicatorFill } from "./IndicatorFill.interface";
 import type { IndicatorStyleRule } from "./IndicatorStyleRule.interface";
 import type { ValueFormat } from "./ValueFormat.interface";
+import type { IndicatorWatermark } from "./IndicatorWatermark.interface";
 
 export interface Indicator {
   id: string;
@@ -169,6 +170,12 @@ export interface Indicator {
    *  `ValueFormat`). Absent ou "auto" : k / M / B / T à partir de 10 000. Passe devant le format d'un fondamental et
    *  celui d'un script (`plot.pane(nom, { format })`). */
   valueFormat?: ValueFormat;
+  /** Légende de l'indicateur masquée (menu contextuel « Masquer la légende du … ») : l'en-tête de son panneau, ou sa
+   *  ligne dans la légende des prix, se réduit à une poignée qui la réaffiche. */
+  legendHidden?: boolean;
+  /** Filigrane de son panneau (indicateurs en panneau séparé) — voir `IndicatorWatermark`. Absent : celui posé par
+   *  le script (`customData.watermark`), sinon aucun. */
+  watermark?: IndicatorWatermark;
   /** The eight fundamental kinds only — how the pane connects each reported point (see
    *  `drawVolumeAndPanes`'s own fundamentals block). "line" (default, prior behavior) draws a
    *  straight diagonal between consecutive reports, which reads smoothly but visually implies a

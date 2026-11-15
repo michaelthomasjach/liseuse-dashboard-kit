@@ -1,3 +1,4 @@
+import type { IndicatorWatermark } from "../../interfaces/IndicatorWatermark.interface";
 import type { ValueFormat } from "../../interfaces/ValueFormat.interface";
 import { normalizeValueFormat } from "../../formatting";
 import type { ScriptCandleColorOutput, ScriptDrawingOutput, ScriptHeatmapOutput, ScriptLabelOutput, ScriptPaneSeries, ScriptPaneSubSeries, ScriptTableOutput, ScriptTableRow, ScriptXYChartOutput } from "../interfaces/ScriptRunResult.interface";
@@ -41,6 +42,14 @@ export interface PlotProfileOptions {
    *  scale's top is `max(values)` by construction, so scaling the array can never move its own
    *  maximum off that edge. See `computeProfileValueScale`'s own doc. */
   headroom?: number;
+}
+export interface PlotWatermarkOptions {
+  /** De 0.02 à 0.6 ; défaut 0.08. */
+  opacity?: number;
+  /** En % de la taille par défaut (100), de 20 à 200. */
+  size?: number;
+  /** false : pas de filigrane. Défaut true. */
+  visible?: boolean;
 }
 export interface PlotBandOptions {
   color?: string;
@@ -131,6 +140,10 @@ export interface PaneSeriesHandle {
    *  value at all. See `PlotLabelOptions`'s own doc. "Latest call for this `name` wins," same
    *  upsert-by-name rule as every other method here. */
   label(name: string, text: string, options: PlotLabelOptions): void;
+  /** Filigrane du panneau : `text` en fond, comme le nom du symbole sur les prix (sans texte : le nom du panneau).
+   *  Le dernier appel l'emporte ; `{ visible: false }` le retire. Sans effet sur `plot.overlay` (le filigrane des
+   *  prix est celui du symbole, réglé dans les paramètres du graphique). */
+  watermark(text?: string, options?: PlotWatermarkOptions): void;
   /** A time-by-price *heat field*: one call per bar, each carrying that bar's own column of
    *  (price, value) cells. Drawn as coloured rectangles under the candles — the liquidity-map
    *  shape, where a bright row that persists across many bars is a resting wall and a bright cell
@@ -303,6 +316,7 @@ export function buildPlotApi(
     pane: ScriptPaneSeries["pane"];
     dock?: "bottom" | "left" | "right";
     format?: ValueFormat;
+    watermark?: IndicatorWatermark;
     subSeriesByName: Map<string, ScriptPaneSubSeries>;
     labelsByName: Map<string, ScriptLabelOutput>;
   }
@@ -415,6 +429,16 @@ export function buildPlotApi(
           profileHeadroom: options?.headroom,
         });
       },
+      watermark: (text, options) => {
+        if (paneEntry.pane !== "own") return;
+        const num = (v: unknown, min: number, max: number) => (typeof v === "number" && Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : undefined);
+        paneEntry.watermark = {
+          visible: options?.visible !== false,
+          text: typeof text === "string" && text.trim() !== "" ? text.slice(0, 80) : undefined,
+          opacity: num(options?.opacity, 0.02, 0.6),
+          size: num(options?.size, 20, 200),
+        };
+      },
       label: (name, text, options) => {
         // Data anchoring wins when both coordinates are given; anything else keeps the original
         // box positioning, so an existing label call behaves exactly as before.
@@ -512,7 +536,7 @@ export function buildPlotApi(
   return {
     api,
     getResult: () => ({
-      panes: [...panesByName.values()].map((entry) => ({ name: entry.name, pane: entry.pane, dock: entry.dock, format: entry.format, series: [...entry.subSeriesByName.values()] })),
+      panes: [...panesByName.values()].map((entry) => ({ name: entry.name, pane: entry.pane, dock: entry.dock, format: entry.format, watermark: entry.watermark, series: [...entry.subSeriesByName.values()] })),
       drawings,
       table,
       xyCharts: [...xyChartsByName.values()],

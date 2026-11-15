@@ -1,3 +1,4 @@
+import type { IndicatorWatermark } from "../../interfaces/IndicatorWatermark.interface";
 import type { ValueFormat } from "../../interfaces/ValueFormat.interface";
 import type { StrategyResult } from "../../interfaces/StrategyResult.interface";
 import type { ScriptReport } from "./ScriptReport.interface";
@@ -55,6 +56,8 @@ export interface ScriptPaneSeries {
   /** Format des valeurs du panneau (axe, badges, légende), demandé par `plot.pane(nom, { format })` ou l'option
    *  `format` d'une série — voir `ValueFormat`. Absent : automatique (k / M / B / T dès 10 000). */
   format?: ValueFormat;
+  /** Filigrane du panneau, posé par `plot.pane(nom).watermark(texte, options)`. */
+  watermark?: IndicatorWatermark;
   series: ScriptPaneSubSeries[];
 }
 

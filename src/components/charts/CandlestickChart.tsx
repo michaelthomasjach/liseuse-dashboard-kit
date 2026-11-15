@@ -125,6 +125,9 @@ import { formatPercentFromReference, computeOhlcReadout, toDayInputValue, candle
 import { supportsProjection, projectionSettingsOf } from "./candlestick/indicatorProjection";
 import { bindDepthToBars, packDepth } from "./candlestick/marketDepth";
 import { stableMemo } from "./candlestick/stableMemo";
+import { resolveIndicatorWatermark } from "./candlestick/indicatorWatermark";
+import { ChartMenuTargetHighlight } from "./candlestick/components/ChartMenuTargetHighlight";
+import type { ChartMenuTarget } from "./candlestick/components/ChartContextMenu";
 
 // Subtrees that show nothing about the cursor: memoized so a mouse move (which re-renders this
 // chart for its crosshair) no longer re-renders them too — see stableMemo.
@@ -215,6 +218,8 @@ export function CandlestickChart({
   onWatermarkChange,
   defaultSymbolInfoHidden = false,
   onSymbolInfoHiddenChange,
+  defaultVolumeLegendHidden = false,
+  onVolumeLegendHiddenChange,
   defaultDaySeparators,
   onDaySeparatorsChange,
   priceAlertLines,
@@ -559,6 +564,9 @@ export function CandlestickChart({
   // scales (to say what the commands will act on). Captured at click time rather than read from
   // hover state when a command runs — by then the pointer has moved onto the menu itself.
   const [contextMenu, setContextMenu] = useState<ChartContextMenuAnchor | null>(null);
+  // Pointeur sur la courbe d'un indicateur ou une barre de volume (tenu par useDrawingInteractions) : le double-clic
+  // y ouvre ses paramètres, et d3-zoom le laisse passer (useZoomAndScales).
+  const dblClickTargetRef = useRef(false);
   // Le petit message après une capture (« Image copiée… »), effacé de lui-même.
   // Rappel de la zone visible de l'en-tête pour un zoom (renseigné une fois useBarRangeSelection appelé).
   const rangeXZoomRef = useRef<(() => void) | null>(null);
@@ -570,6 +578,14 @@ export function CandlestickChart({
     onWatermarkChange?.(full);
   };
   const [symbolInfoHidden, setSymbolInfoHiddenState] = useState(defaultSymbolInfoHidden);
+  // Légende du panneau Volume masquée (celle d'un indicateur est un champ de l'indicateur, `legendHidden`).
+  const [volumeLegendHidden, setVolumeLegendHiddenState] = useState(defaultVolumeLegendHidden);
+  const toggleVolumeLegend = () => {
+    setVolumeLegendHiddenState(!volumeLegendHidden);
+    onVolumeLegendHiddenChange?.(!volumeLegendHidden);
+  };
+  // Cible de l'entrée survolée du menu contextuel, entourée sur le graphique (ChartMenuTargetHighlight).
+  const [menuTarget, setMenuTarget] = useState<ChartMenuTarget | null>(null);
   // Séparateurs de jours (rail de gauche) : réglages du lecteur, rendus à l'application.
   const [daySeparators, setDaySeparatorsState] = useState<DaySeparatorSettings>(() => ({ ...DEFAULT_DAY_SEPARATORS, ...defaultDaySeparators }));
   const setDaySeparators = (next: DaySeparatorSettings) => {
@@ -619,7 +635,7 @@ export function CandlestickChart({
         if (!pane) return {};
         const paneScale = zoomedOwnPaneScales[pane.id];
         const paneValue = paneScale ? paneScale.invert(plotY - priceHeight - indicatorPaneTops[at]) : undefined;
-        return { paneId: pane.id, paneLabel: indicatorLabel(pane), paneValue };
+        return { paneId: pane.id, paneLabel: indicatorLabel(pane), paneValue, paneLegendHidden: Boolean(pane.legendHidden) };
       })(),
       // Sur la ligne d'un indicateur (celle sous le pointeur, sinon la sélectionnée) : de quoi ouvrir ses paramètres.
       ...(() => {
@@ -630,7 +646,10 @@ export function CandlestickChart({
           plotY > priceHeight && volumeVisible && !volumeCollapsed && plotY >= priceHeight + volumeTop && plotY < priceHeight + volumeTop + volumeHeight;
         const paneAt = ownPaneIndicators.findIndex((_, i) => plotY >= priceHeight + indicatorPaneTops[i] && plotY < priceHeight + indicatorPaneTops[i] + indicatorPaneHeights[i]);
         const paneId = plotY > priceHeight && !inVolume && paneAt >= 0 ? ownPaneIndicators[paneAt].id : null;
-        const selected = selectedIndicatorId === null ? undefined : indicators.find((i) => i.id === selectedIndicatorId);
+        // Les indicateurs d'un script (`plot.*`) ne sont pas dans la liste `indicators` mais dans `activeScriptIndicators` :
+        // ne chercher que dans la première, c'était ne jamais proposer « Paramètres de … » pour eux.
+        const findAny = (id: string) => indicators.find((i) => i.id === id) ?? activeScriptIndicators.find((i) => i.id === id);
+        const selected = selectedIndicatorId === null ? undefined : findAny(selectedIndicatorId);
         const selectedInZone =
           selected &&
           (plotY <= priceHeight
@@ -639,8 +658,8 @@ export function CandlestickChart({
               ? selected.sourceId === VOLUME_PANE_ID
               : paneId !== null && (selected.id === paneId || selected.sourceId === paneId));
         const id = hoveredIndicatorId ?? (selectedInZone ? selectedIndicatorId : null);
-        const target = id === null ? undefined : indicators.find((i) => i.id === id);
-        return target ? { indicatorId: target.id, indicatorLabel: indicatorLabel(target) } : {};
+        const target = id === null ? undefined : findAny(id);
+        return target ? { indicatorId: target.id, indicatorLabel: indicatorLabel(target), indicatorLegendHidden: Boolean(target.legendHidden) } : {};
       })(),
     });
   }
@@ -778,6 +797,7 @@ export function CandlestickChart({
     openIndicatorSettings, closeIndicatorSettings,
     saveIndicatorSettings,
     deleteEditingIndicator, toggleIndicatorHidden,
+    patchIndicator,
     removeIndicator,
     volumeVisible, volumeCollapsed,
     startPaneResize, reorderPanesRef,
@@ -945,14 +965,15 @@ export function CandlestickChart({
       if (e.key !== "Delete" && e.key !== "Backspace") return;
       const active = document.activeElement;
       if (active instanceof HTMLElement && (active.tagName === "INPUT" || active.tagName === "TEXTAREA" || active.tagName === "SELECT" || active.isContentEditable)) return;
-      if (!indicators.some((i) => i.id === id)) return;
+      // Une sortie de script aussi (removeIndicator l'écarte du graphique sans toucher au script).
+      if (!indicators.some((i) => i.id === id) && !activeScriptIndicators.some((i) => i.id === id)) return;
       e.preventDefault();
       removeIndicator(id);
       setSelectedIndicatorId(null);
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [selectedIndicatorId, indicators, removeIndicator, setSelectedIndicatorId]);
+  }, [selectedIndicatorId, indicators, activeScriptIndicators, removeIndicator, setSelectedIndicatorId]);
 
   const combinedVisibleDrawings = useMemo(
     () => [
@@ -1238,6 +1259,7 @@ export function CandlestickChart({
     replayArmed: replayState.armed,
     placementActive,
     hoveredDrawingIdRef, measureBodyHoveredRef,
+    dblClickTargetRef,
     yAutoScalingState,
     zoomable,
     initialVisibleCandles,
@@ -1459,6 +1481,9 @@ export function CandlestickChart({
     handleOverlayPointerDown,
     handleOverlayPointerUp,
   } = useDrawingInteractions({
+    openIndicatorSettings,
+    openVolumeSettings: () => setVolumeSettingsOpen(true),
+    dblClickTargetRef,
     angleLock,
     data,
     indicatorValues,
@@ -1975,6 +2000,60 @@ export function CandlestickChart({
         initialWidth: dims.width,
       };
 
+  /** Masque / réaffiche la légende d'un indicateur, ajouté ou produit par un script (menu contextuel, poignée). */
+  function toggleIndicatorLegend(id: string) {
+    const ind = indicators.find((i) => i.id === id) ?? activeScriptIndicators.find((i) => i.id === id);
+    if (ind) patchIndicator(id, { legendHidden: !ind.legendHidden });
+  }
+
+  // Ce que vise l'entrée survolée du menu contextuel : le rectangle de son panneau et, pour une courbe, son tracé
+  // (valeurs numériques seulement ; un MACD ou un panneau à plusieurs séries garde le seul cadre).
+  const menuHighlight = (() => {
+    if (!menuTarget || contextMenu === null) return null;
+    const { pane, lineId } = menuTarget;
+    let top = 0;
+    let height = 0;
+    if (pane === "chart") height = plotBoundedHeight;
+    else if (pane === "price") height = priceHeight;
+    else if (pane === "volume") {
+      if (!volumeVisible) return null;
+      top = priceHeight + volumeTop;
+      height = volumeHeight;
+    } else {
+      const i = ownPaneIndicators.findIndex((ind) => ind.id === pane);
+      if (i === -1) return null;
+      top = priceHeight + indicatorPaneTops[i];
+      height = indicatorPaneHeights[i];
+    }
+    if (height <= 0) return null;
+    const rect = { left: dims.margin.left, top: dims.margin.top + top, width: dims.boundedWidth, height };
+    let path: string | null = null;
+    let color: string | undefined;
+    const entryIndex = lineId ? indicatorValues.findIndex(({ indicator }) => indicator.id === lineId) : -1;
+    if (entryIndex !== -1) {
+      const { indicator, values } = indicatorValues[entryIndex];
+      color = indicator.color ?? defaultIndicatorColor(entryIndex);
+      const own = indicatorCatalogEntry(indicator).pane === "own";
+      const { scale, offset } = paneScaleAndOffset(indicator.sourceId ?? (own ? indicator.id : "price"));
+      const from = Math.max(0, visibleRange.start - 1);
+      const to = Math.min(values.length - 1, visibleRange.end + 1, lastRevealedIndex);
+      const parts: string[] = [];
+      let pen = false;
+      for (let k = from; k <= to; k++) {
+        const v = values[k];
+        const n = typeof v === "number" ? v : v !== null && typeof v === "object" && "macd" in v ? v.macd : null;
+        if (n === null || !Number.isFinite(n)) {
+          pen = false;
+          continue;
+        }
+        parts.push(`${pen ? "L" : "M"}${zoomedXScale(k + 0.5).toFixed(1)},${(offset + scale(n) - top).toFixed(1)}`);
+        pen = true;
+      }
+      if (parts.length > 1) path = parts.join("");
+    }
+    return { rect, path, color };
+  })();
+
   const contextMenuItems = buildChartContextMenu({
     anchor: contextMenu,
     data,
@@ -2012,6 +2091,9 @@ export function CandlestickChart({
     symbolInfoHidden,
     toggleSymbolInfo: () => setSymbolInfoHidden(!symbolInfoHidden),
     customToolbarItems: customToolbars.menuItems,
+    toggleIndicatorLegend,
+    openVolumeSettings: () => setVolumeSettingsOpen(true),
+    ...(volumeVisible ? { volumeLegendHidden, toggleVolumeLegend } : {}),
   });
   const currentTimeframeLabel = findTimeframeLabel(timeframes, timeframe);
 
@@ -2242,6 +2324,26 @@ export function CandlestickChart({
             size={watermark.size}
           />
         )}
+        {/* Filigrane de chaque panneau d'indicateur qui en a un (paramètres de l'indicateur, ou `pane.watermark` d'un
+            script), au fond de son panneau comme celui du symbole sur les prix. */}
+        {ownPaneIndicators.map((ind, i) => {
+          const mark = ind.paneCollapsed ? null : resolveIndicatorWatermark(ind);
+          const height = indicatorPaneHeights[i] ?? 0;
+          if (!mark || height <= SUB_PANE_COLLAPSED_HEIGHT) return null;
+          return (
+            <ChartWatermark
+              key={`wm-${ind.id}`}
+              text={mark.text}
+              left={dims.margin.left}
+              top={dims.margin.top + priceHeight + indicatorPaneTops[i]}
+              width={dims.boundedWidth}
+              height={height}
+              opacity={mark.opacity}
+              size={mark.size}
+            />
+          );
+        })}
+        {menuHighlight && <ChartMenuTargetHighlight rect={menuHighlight.rect} path={menuHighlight.path} color={menuHighlight.color} />}
         {/* Fixed to the plot's own top-left corner regardless of priceHeight — without this gate
             it would still render, and overlap, once a pane's own maximize button zeroes it out. */}
         {priceHeight > 0 && (
@@ -2276,6 +2378,7 @@ export function CandlestickChart({
             priceHeight={priceHeight}
             indicatorLabel={indicatorLabel}
             toggleIndicatorHidden={toggleIndicatorHidden}
+            onToggleIndicatorLegend={toggleIndicatorLegend}
             removeIndicator={removeIndicator}
             alertedIndicatorIds={alertFlow.alertedIndicatorIds} onOpenIndicatorAlert={(ind) => alertFlow.openForIndicator(ind.id, indicatorLabel(ind))}
             symbolOverlays={symbolOverlays}
@@ -2389,6 +2492,9 @@ export function CandlestickChart({
           fullscreenPaneId={fullscreenPaneId}
           onTogglePaneFullscreen={togglePaneFullscreen}
           onEditScript={onEditScript}
+          onTogglePaneLegend={toggleIndicatorLegend}
+          volumeLegendHidden={volumeLegendHidden}
+          onToggleVolumeLegend={toggleVolumeLegend}
         />
         <ChartPlotOverlays
           indicatorValues={indicatorValues}
@@ -2625,6 +2731,7 @@ export function CandlestickChart({
           bounds={contextMenu.bounds}
           onClose={() => setContextMenu(null)}
           items={contextMenuItems}
+          onTargetChange={setMenuTarget}
         />
       )}
 

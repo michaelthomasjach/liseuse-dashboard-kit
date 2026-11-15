@@ -63,6 +63,9 @@ export interface UseZoomAndScalesArgs {
    *  handlePointerMove so it's already correct by the time a *later* pointerdown needs it to
    *  decide whether to start a whole-body drag instead of this hook's own pan. */
   measureBodyHoveredRef: RefObject<boolean>;
+  /** Le pointeur est sur la courbe d'un indicateur ou sur une barre de volume : le double-clic y ouvre ses
+   *  paramètres (useDrawingInteractions), d3-zoom ne doit donc pas le prendre pour un zoom avant. */
+  dblClickTargetRef?: RefObject<boolean>;
   /** Bars of empty room to keep on the right, past the last candle, as part of the plot itself
    *  rather than as somewhere to pan to.
    *
@@ -129,6 +132,7 @@ export function useZoomAndScales({
   placementActive,
   hoveredDrawingIdRef,
   measureBodyHoveredRef,
+  dblClickTargetRef,
   futureBars,
   yAutoScalingState,
   zoomable,
@@ -574,7 +578,13 @@ export function useZoomAndScales({
     // is exactly when it's most useful) — only a *drag* is rejected then, which is the actual
     // gesture that would shift the view out from under the hover-preview line while choosing.
     filter: (event: Event) =>
-      (!replayArmed || event.type === "wheel") && !placementActive && hoveredDrawingIdRef.current === null && !measureBodyHoveredRef.current,
+      (!replayArmed || event.type === "wheel") &&
+      !placementActive &&
+      hoveredDrawingIdRef.current === null &&
+      !measureBodyHoveredRef.current &&
+      // d3-zoom avale le double-clic (zoom ×2, propagation arrêtée) : sur un indicateur, il n'atteignait jamais
+      // handleOverlayDoubleClick, qui ouvre ses paramètres.
+      !(event.type === "dblclick" && dblClickTargetRef?.current),
     constrain: constrainXPan,
     onUserZoom: suspendReplayFollow,
   });

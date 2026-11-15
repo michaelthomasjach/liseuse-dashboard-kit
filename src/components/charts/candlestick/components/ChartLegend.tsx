@@ -1,3 +1,4 @@
+import "./IndicatorLegendHandle.css";
 import type { IndicatorInfoTarget } from "../interfaces/IndicatorInfoTarget.interface";
 import { IndicatorHelpButton } from "./IndicatorHelp";
 import { infoTargetFor, scriptIdFromIndicatorId } from "../scripting/scriptOutputToCustomIndicatorDef";
@@ -78,6 +79,8 @@ export interface ChartLegendProps {
   hoveredIndicatorId: string | null;
   indicatorLabel: (indicator: Indicator) => string;
   toggleIndicatorHidden: (id: string) => void;
+  /** Réaffiche la légende d'un indicateur masquée par le menu contextuel (`Indicator.legendHidden`). */
+  onToggleIndicatorLegend?: (id: string) => void;
   removeIndicator: (id: string) => void;
   /** Indicator ids that currently have at least one alert (see `useAlertFlow`) — drives the
    *  bell's active state so it stays visible even while the row isn't hovered, same
@@ -145,6 +148,7 @@ export function ChartLegend({
   hoveredIndicatorId,
   indicatorLabel,
   toggleIndicatorHidden,
+  onToggleIndicatorLegend,
   removeIndicator,
   alertedIndicatorIds,
   onOpenIndicatorAlert,
@@ -413,6 +417,24 @@ export function ChartLegend({
           // an indicator's legend swatch and its actual line would disagree on its color the
           // moment an own-pane indicator (filtered out of this list) sits before it.
           const i = indicators.indexOf(indicator);
+          // Légende masquée (menu contextuel) : un simple repère de sa couleur, qui la réaffiche.
+          if (indicator.legendHidden) {
+            return (
+              <button
+                key={indicator.id}
+                type="button"
+                className="lq-chart__indicator-legend-handle"
+                style={{ color: indicator.color ?? defaultIndicatorColor(i) }}
+                onClick={() => onToggleIndicatorLegend?.(indicator.id)}
+                onMouseEnter={() => setHoveredIndicatorId(indicator.id)}
+                onMouseLeave={() => setHoveredIndicatorId((id) => (id === indicator.id ? null : id))}
+                aria-label={`Afficher la légende du ${indicatorLabel(indicator)}`}
+                title={`Légende du ${indicatorLabel(indicator)} masquée — cliquer pour l'afficher`}
+              >
+                <EyeOffIcon size={11} />
+              </button>
+            );
+          }
           return (
           <div
             key={indicator.id}

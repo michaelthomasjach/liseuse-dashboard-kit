@@ -1,0 +1,24 @@
+/* Cible de l'entrée survolée du menu contextuel : le panneau entouré et légèrement voilé, la courbe repassée. */
+.lq-chart__menu-target {
+  position: absolute;
+  z-index: 7;
+  box-sizing: border-box;
+  overflow: hidden;
+  pointer-events: none;
+  border: 1.5px solid var(--lq-color-accent, var(--lq-color-text));
+  border-radius: 2px;
+  background-color: color-mix(in srgb, var(--lq-color-accent, var(--lq-color-text)) 6%, transparent);
+}
+.lq-chart__menu-target-line {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+}
+.lq-chart__menu-target-line path {
+  fill: none;
+  stroke: var(--lq-color-accent, var(--lq-color-text));
+  stroke-width: 4;
+  stroke-opacity: 0.45;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}

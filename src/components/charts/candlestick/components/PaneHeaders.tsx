@@ -1,10 +1,11 @@
+import "./IndicatorLegendHandle.css";
 import type { IndicatorInfoTarget } from "../interfaces/IndicatorInfoTarget.interface";
 import { IndicatorHelpButton } from "./IndicatorHelp";
 import { defaultIndicatorColor } from "../indicatorCatalog";
 import { scriptIdFromIndicatorId, infoTargetFor } from "../scripting/scriptOutputToCustomIndicatorDef";
 import type { Dispatch, SetStateAction } from "react";
 import type * as React from "react";
-import { ChevronDownIcon, ChevronUpIcon, SettingsIcon, TrashIcon, GripIcon, InfoIcon, MaximizeIcon, MinimizeIcon, CodeIcon } from "../../../icons";
+import { ChevronDownIcon, ChevronUpIcon, SettingsIcon, TrashIcon, GripIcon, InfoIcon, MaximizeIcon, MinimizeIcon, CodeIcon, EyeOffIcon } from "../../../icons";
 import type { Candle } from "../interfaces/Candle.interface";
 import type { Indicator } from "../interfaces/Indicator.interface";
 import type { IndicatorValue } from "../interfaces/IndicatorValue.interface";
@@ -48,6 +49,11 @@ export interface PaneHeadersProps {
    *  below) — `undefined` on a standalone chart (no editor to open), see
    *  `CandlestickChartProps.onEditScript`'s own doc. */
   onEditScript?: (scriptId: string) => void;
+  /** Masque / réaffiche la légende d'un panneau d'indicateur (`Indicator.legendHidden`). */
+  onTogglePaneLegend?: (id: string) => void;
+  /** Légende du panneau Volume masquée, et la bascule. */
+  volumeLegendHidden?: boolean;
+  onToggleVolumeLegend?: () => void;
 }
 
 /** Header strip for the volume pane, then one more per "own"-pane indicator (RSI/CHOP/MACD) —
@@ -83,7 +89,22 @@ export function PaneHeaders({
   fullscreenPaneId,
   onTogglePaneFullscreen,
   onEditScript,
+  onTogglePaneLegend,
+  volumeLegendHidden = false,
+  onToggleVolumeLegend,
 }: PaneHeadersProps) {
+  /** Légende masquée : à la place du nom, de la valeur et des actions, une poignée discrète qui la réaffiche. */
+  const legendHandle = (label: string, onShow: (() => void) | undefined) => (
+    <button
+      type="button"
+      className="lq-chart__pane-legend-handle"
+      onClick={onShow}
+      aria-label={`Afficher la légende du ${label}`}
+      title={`Légende du ${label} masquée — cliquer pour l'afficher`}
+    >
+      <EyeOffIcon size={11} />
+    </button>
+  );
   /** Moyennes posées sur un panneau (clic droit) : leur nom, leur valeur au survol ; un clic ouvre leurs réglages, la
    *  croix les retire. Pour les panneaux d'indicateur comme pour le volume. */
   const attachedLegend = (sourceId: string) =>
@@ -167,6 +188,10 @@ export function PaneHeaders({
             >
               <GripIcon size={12} />
             </button>
+            {volumeLegendHidden && !volumeCollapsed ? (
+              legendHandle("Volume", onToggleVolumeLegend)
+            ) : (
+            <>
             {/* The collapse/expand chevron sits right after the grip, before the name — a
                 "twisty" convention, and no longer pushed to the pane's far right edge via
                 space-between: that placement read as detached from the row it actually
@@ -265,6 +290,8 @@ export function PaneHeaders({
                 </button>
               </div>
             )}
+            </>
+            )}
           </div>
         </div>
       )}
@@ -316,6 +343,10 @@ export function PaneHeaders({
             >
               <GripIcon size={12} />
             </button>
+            {ind.legendHidden && !ind.paneCollapsed ? (
+              legendHandle(indicatorLabel(ind), onTogglePaneLegend && (() => onTogglePaneLegend(ind.id)))
+            ) : (
+            <>
             {/* Collapse/expand chevron, right after the grip handle — a "twisty" convention,
                 no longer pushed to the pane's far right edge via space-between. */}
             {ind.paneCollapsed ? (
@@ -452,6 +483,8 @@ export function PaneHeaders({
                   {fullscreenPaneId === ind.id ? <MinimizeIcon size={11} /> : <MaximizeIcon size={11} />}
                 </button>
               </div>
+            )}
+            </>
             )}
           </div>
         </div>

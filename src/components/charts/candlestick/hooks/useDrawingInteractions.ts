@@ -26,6 +26,13 @@ interface MutableRef<T> {
 }
 
 export interface UseDrawingInteractionsArgs {
+  /** Double-clic sur la courbe d'un indicateur : ouvre ses paramètres, comme le double-clic sur un dessin. */
+  openIndicatorSettings?: (id: string) => void;
+  /** Double-clic sur une barre de volume : ouvre les paramètres du volume. */
+  openVolumeSettings?: () => void;
+  /** Tenu à jour au survol : vrai sur la courbe d'un indicateur ou une barre de volume, pour que d3-zoom laisse le
+   *  double-clic à handleOverlayDoubleClick (voir useZoomAndScales). */
+  dblClickTargetRef?: MutableRef<boolean>;
   data: Candle[];
   dims: { boundedWidth: number };
   plotBoundedHeight: number;
@@ -135,6 +142,9 @@ export interface UseDrawingInteractionsArgs {
  *  separate from `useDrawingState`, specifically because of that extra scale dependency: state
  *  alone doesn't need it, only interpreting where a pointer event lands does. */
 export function useDrawingInteractions({
+  openIndicatorSettings,
+  openVolumeSettings,
+  dblClickTargetRef,
   data,
   dims,
   plotBoundedHeight,
@@ -216,6 +226,8 @@ export function useDrawingInteractions({
 }: UseDrawingInteractionsArgs) {
   // See the hover pass in updateHoverState for why this is a ref and not state.
   const hoveredIndicatorIdRef = useRef<string | null>(null);
+  // Pointeur sur une barre de volume (pour le double-clic, qui ouvre les paramètres du volume).
+  const overVolumeBarRef = useRef(false);
 
   /** Runs the hover pass at most once per frame, on the most recent pointer position.
    *
@@ -348,6 +360,16 @@ export function useDrawingInteractions({
     // Double-clicking a drawing edits it (existing behavior) — double-clicking empty plot space
     // resets the zoom instead, same gesture the axis strips already use for their own axis.
     if (!hoveredDrawingId) {
+      // Sur la courbe d'un indicateur : ses paramètres, comme pour un dessin.
+      const indicatorId = hoveredIndicatorIdRef.current;
+      if (indicatorId && openIndicatorSettings) {
+        openIndicatorSettings(indicatorId);
+        return;
+      }
+      if (overVolumeBarRef.current && openVolumeSettings) {
+        openVolumeSettings();
+        return;
+      }
       resetZoom();
       return;
     }
@@ -588,7 +610,19 @@ export function useDrawingInteractions({
       const bottom = zoomedPriceScale(bar.low);
       overCandle = Math.abs(mouseX - cx) <= Math.max(2.5, step * 0.4) && mouseY >= Math.min(top, bottom) - 2 && mouseY <= Math.max(top, bottom) + 2;
     }
-    overlayElRef.current?.classList.toggle("lq-chart__overlay--pointer", !activeTool && (overDrawing || overIndicator || overCandle));
+    // Une barre de volume : dans sa colonne, entre le bas du panneau et le haut de la barre.
+    let overVolumeBar = false;
+    const volumePane = paneScaleAndOffset("volume");
+    if (!activeTool && bar && volumePane.scale !== zoomedPriceScale && index <= lastRevealedIndex && typeof bar.volume === "number") {
+      const step = Math.abs(zoomedXScale(index + 1) - zoomedXScale(index));
+      const cx = zoomedXScale(index + 0.5);
+      const top = volumePane.offset + volumePane.scale(bar.volume);
+      const bottom = volumePane.offset + Math.max(...volumePane.scale.range());
+      overVolumeBar = Math.abs(mouseX - cx) <= Math.max(2.5, step * 0.4) && mouseY >= Math.min(top, bottom) - 2 && mouseY <= bottom;
+    }
+    overVolumeBarRef.current = overVolumeBar;
+    if (dblClickTargetRef) dblClickTargetRef.current = !activeTool && (overIndicator || overVolumeBar);
+    overlayElRef.current?.classList.toggle("lq-chart__overlay--pointer", !activeTool && (overDrawing || overIndicator || overCandle || overVolumeBar));
   }
 
   function handlePointerMove(e: React.PointerEvent<SVGRectElement>) {

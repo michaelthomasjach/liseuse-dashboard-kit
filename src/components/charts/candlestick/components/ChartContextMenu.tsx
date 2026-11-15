@@ -1,6 +1,15 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import "./ChartContextMenu.css";
 
+/** Ce que vise une entrée du menu, entouré sur le graphique pendant qu'elle est survolée : un panneau (« price », «
+ *  volume », l'id d'un panneau d'indicateur, ou « chart » pour le graphique entier), et si besoin la courbe d'un
+ *  indicateur ou le dessin dans ce panneau. */
+export interface ChartMenuTarget {
+  pane: string;
+  lineId?: string;
+  drawingId?: string;
+}
+
 /** One row. A separator is `{ separator: true }`; everything else is a command. */
 export type ChartContextMenuItem =
   | { separator: true }
@@ -17,6 +26,8 @@ export type ChartContextMenuItem =
       hint?: string;
       /** Sous-menu : la ligne l'ouvre (survol, clic ou flèche droite) au lieu d'appeler `onSelect`. */
       submenu?: ChartContextMenuItem[];
+      /** Sa cible, mise en évidence au survol ou au focus (voir `ChartContextMenuProps.onTargetChange`). */
+      target?: ChartMenuTarget;
     };
 
 export interface ChartContextMenuProps {
@@ -28,6 +39,8 @@ export interface ChartContextMenuProps {
   bounds: { width: number; height: number };
   items: ChartContextMenuItem[];
   onClose: () => void;
+  /** L'entrée survolée ou sélectionnée au clavier change : sa cible (`null` : aucune, ou le menu se ferme). */
+  onTargetChange?: (target: ChartMenuTarget | null) => void;
 }
 
 /** The chart's own right-click menu, replacing the browser's.
@@ -35,7 +48,11 @@ export interface ChartContextMenuProps {
  *  Flipped rather than clamped when it would overrun an edge: a menu pinned to the bottom of the
  *  chart with its first item off-screen is worse than one that opens upward, which is what every
  *  native menu does and what the hand already expects. */
-export function ChartContextMenu({ x, y, bounds, items, onClose }: ChartContextMenuProps) {
+export function ChartContextMenu({ x, y, bounds, items, onClose, onTargetChange }: ChartContextMenuProps) {
+  // Rien ne reste entouré une fois le menu fermé.
+  const onTargetChangeRef = useRef(onTargetChange);
+  onTargetChangeRef.current = onTargetChange;
+  useEffect(() => () => onTargetChangeRef.current?.(null), []);
   const ref = useRef<HTMLDivElement | null>(null);
   const [pos, setPos] = useState({ left: x, top: y });
 
@@ -77,8 +94,9 @@ export function ChartContextMenu({ x, y, bounds, items, onClose }: ChartContextM
       role="menu"
       // Right-clicking the menu itself must not summon the browser's own on top of it.
       onContextMenu={(e) => e.preventDefault()}
+      onPointerLeave={() => onTargetChange?.(null)}
     >
-      <ChartContextMenuList items={items} onClose={onClose} openLeft={pos.left + 2 * MENU_WIDTH_GUESS > bounds.width} />
+      <ChartContextMenuList items={items} onClose={onClose} openLeft={pos.left + 2 * MENU_WIDTH_GUESS > bounds.width} onTargetChange={onTargetChange} />
     </div>
   );
 }
@@ -87,7 +105,17 @@ export function ChartContextMenu({ x, y, bounds, items, onClose }: ChartContextM
 const MENU_WIDTH_GUESS = 220;
 
 /** Les lignes d'un menu ; une ligne à sous-menu ouvre le sien à côté d'elle (à gauche près du bord droit). */
-function ChartContextMenuList({ items, onClose, openLeft }: { items: ChartContextMenuItem[]; onClose: () => void; openLeft: boolean }) {
+function ChartContextMenuList({
+  items,
+  onClose,
+  openLeft,
+  onTargetChange,
+}: {
+  items: ChartContextMenuItem[];
+  onClose: () => void;
+  openLeft: boolean;
+  onTargetChange?: (target: ChartMenuTarget | null) => void;
+}) {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
   return (
     <>
@@ -120,7 +148,7 @@ function ChartContextMenuList({ items, onClose, openLeft }: { items: ChartContex
                 role="menu"
                 aria-label={item.label}
               >
-                <ChartContextMenuList items={item.submenu} onClose={onClose} openLeft={openLeft} />
+                <ChartContextMenuList items={item.submenu} onClose={onClose} openLeft={openLeft} onTargetChange={onTargetChange} />
               </div>
             )}
           </div>
@@ -131,7 +159,11 @@ function ChartContextMenuList({ items, onClose, openLeft }: { items: ChartContex
             role="menuitem"
             className="lq-chart__context-menu-item"
             disabled={item.disabled}
-            onPointerEnter={(e) => e.pointerType === "mouse" && setOpenIndex(null)}
+            onPointerEnter={(e) => {
+              if (e.pointerType === "mouse") setOpenIndex(null);
+              onTargetChange?.(item.target ?? null);
+            }}
+            onFocus={() => onTargetChange?.(item.target ?? null)}
             onClick={() => {
               item.onSelect();
               onClose();

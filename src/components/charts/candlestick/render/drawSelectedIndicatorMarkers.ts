@@ -26,7 +26,15 @@ export function drawSelectedIndicatorMarkers(ctx: CanvasRenderingContext2D, para
   let offset = 0;
   let clipTop = 0;
   let clipHeight = priceHeight;
-  if (paneId !== undefined) {
+  if (paneId === "volume") {
+    // Posé sur le volume : son échelle et sa place (le volume n'est pas dans `ownPaneIndicators`). Sans ce cas, le
+    // clic le sélectionnait sans qu'aucun point n'apparaisse.
+    if (!params.volumeVisible || params.volumeHeight <= 0) return;
+    scale = params.zoomedVolumeScale;
+    offset = priceHeight + params.volumeTop;
+    clipTop = offset;
+    clipHeight = params.volumeHeight;
+  } else if (paneId !== undefined) {
     const idx = ownPaneIndicators.findIndex((p) => p.id === paneId);
     const paneScale = zoomedOwnPaneScales[paneId];
     if (idx < 0 || !paneScale || ownPaneIndicators[idx]?.paneCollapsed) return;

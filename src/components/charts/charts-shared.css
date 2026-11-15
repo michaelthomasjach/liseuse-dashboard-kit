@@ -446,56 +446,26 @@
   padding: 5px;
 }
 
-/* Le bouton de l'assistant : un halo aux couleurs de l'IA (dégradé conique qui tourne en bordure, lueur floue
-   derrière), pour le distinguer des outils du rail. ::after repeint le fond du bouton à l'intérieur de la bordure. */
-@property --lq-ai-angle {
-  syntax: "<angle>";
-  initial-value: 0deg;
-  inherits: false;
-}
+/* Le bouton de l'assistant : une fine bordure aux couleurs de l'IA, fixe (le halo flou qui tournait a été jugé
+   bizarre par l'utilisateur), pour le distinguer des outils du rail sans attirer l'œil en permanence. ::after repeint
+   le fond du bouton à l'intérieur de la bordure. */
 .lq-chart__icon-button.lq-chart__ai-button {
   position: relative;
   isolation: isolate;
-  /* Bordure de 2 px pour un halo bien visible ; le rembourrage perd 1 px pour garder la taille du bouton. */
-  border: 2px solid transparent;
-  padding: 4px;
-  background: conic-gradient(from var(--lq-ai-angle), #4285f4, #9b72cb, #d96570, #f4b400, #34a853, #4285f4);
-  animation: lq-ai-spin 4s linear infinite;
+  border: 1px solid transparent;
+  background: linear-gradient(135deg, #4285f4, #9b72cb, #d96570, #f4b400) border-box;
 }
-.lq-chart__ai-button::before,
 .lq-chart__ai-button::after {
   content: "";
   position: absolute;
-  pointer-events: none;
-}
-.lq-chart__ai-button::before {
-  inset: -2px;
-  z-index: -2;
-  border-radius: inherit;
-  background: conic-gradient(from var(--lq-ai-angle), #4285f4, #9b72cb, #d96570, #f4b400, #34a853, #4285f4);
-  filter: blur(6px);
-  opacity: 0.7;
-  animation: lq-ai-spin 4s linear infinite;
-}
-.lq-chart__ai-button::after {
   inset: 0;
   z-index: -1;
-  border-radius: calc(var(--lq-radius-sm) - 2px);
+  pointer-events: none;
+  border-radius: calc(var(--lq-radius-sm) - 1px);
   background: var(--lq-color-panel);
 }
 .lq-chart__ai-button.lq-chart__icon-button--active::after {
   background: var(--lq-color-accent);
-}
-@keyframes lq-ai-spin {
-  to {
-    --lq-ai-angle: 360deg;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .lq-chart__icon-button.lq-chart__ai-button,
-  .lq-chart__ai-button::before {
-    animation: none;
-  }
 }
 
 /* App-defined tools in the rail (customTools): the same 26 px square as every other rail button, whatever the

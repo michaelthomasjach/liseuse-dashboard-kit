@@ -117,7 +117,7 @@ export function WorkspaceSideRail({
           aria-pressed={assistant.open}
           title="Poser une question sur le graphique, ou lui demander d'agir dessus"
         >
-          <SparkleIcon size={16} animated />
+          <SparkleIcon size={13} />
         </button>
       )}
       {/* Beside the assistant, above the layout controls, for the same reason: connecting an

@@ -205,7 +205,7 @@ function RuleRow({
           </button>
         </span>
       </div>
-      <div className="lq-chart__rule-sentence">
+      <div className="lq-chart__rule-sentence lq-chart__rule-sentence--condition">
         <span className="lq-chart__rule-word">Quand</span>
         <span className="lq-chart__rule-pick lq-chart__rule-pick--series">
           <Select

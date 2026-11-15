@@ -4412,3 +4412,49 @@ button.lq-chart__legend-item {
   align-items: center;
   gap: 6px;
 }
+
+/* Condition d'une règle de style d'indicateur : « Quand [A] est [condition] [B] » sur une seule ligne, les menus se
+   partageant la largeur (ils rétrécissent plutôt que de renvoyer la référence à la ligne). */
+.lq-chart__rule-sentence--condition {
+  flex-wrap: nowrap;
+}
+.lq-chart__rule-sentence--condition > .lq-chart__rule-pick--series,
+.lq-chart__rule-sentence--condition > .lq-chart__rule-operand,
+.lq-chart__rule-sentence--condition > .lq-chart__rule-group:not(.lq-chart__rule-pick--condition) {
+  flex: 1 1 0;
+  min-width: 0;
+}
+.lq-chart__rule-sentence--condition > .lq-chart__rule-pick--condition {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.lq-chart__rule-sentence--condition > .lq-chart__rule-pick--condition > .lq-chart__rule-pick {
+  flex: 0 1 116px;
+  width: 116px;
+  min-width: 0;
+}
+.lq-chart__rule-sentence--condition .lq-chart__rule-operand > * {
+  min-width: 0;
+}
+.lq-chart__rule-sentence--condition .lq-chart__rule-pick--value-kind {
+  flex: 1 1 0;
+  min-width: 0;
+}
+.lq-chart__rule-sentence--condition .lq-chart__rule-pick--number {
+  flex: 0 1 64px;
+  min-width: 48px;
+}
+.lq-chart__rule-sentence--condition .lq-chart__rule-operand--value .lq-chart__rule-pick--value-kind {
+  flex: 0 0 auto;
+  min-width: 92px;
+}
+.lq-chart__rule-sentence.lq-chart__rule-sentence--condition > .lq-chart__rule-operand.lq-chart__rule-operand--value {
+  flex: 0 0 auto;
+}
+.lq-chart__rule-sentence--condition .lq-chart__rule-operand--value .lq-chart__rule-pick--value-kind {
+  width: 92px;
+}
+.lq-chart__rule-sentence--condition .lq-chart__rule-operand--value .lq-chart__rule-pick--number {
+  width: 56px;
+  flex: 0 0 56px;
+}

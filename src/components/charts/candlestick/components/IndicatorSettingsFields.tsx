@@ -560,7 +560,9 @@ export function IndicatorSettingsStyle({ indicatorDraft: d, setIndicatorDraft, i
       )}
       <SettingsSection title="Affichage">{display}</SettingsSection>
       {/* Zones remplies : entre la courbe et la base 0, ou une autre courbe du panneau (un « fill between »). */}
-      {showAreaFills && d.customData?.draw !== "zones" && (
+      {/* Les couleurs conditionnelles font déjà tout (« remplir entre les deux », « remplir sous la courbe »…) : la rubrique
+          « Zones remplies » n’apparaît plus que pour retirer des zones enregistrées avant, qui restent dessinées. */}
+      {showAreaFills && (d.areaFills?.length ?? 0) > 0 && d.customData?.draw !== "zones" && (
         <IndicatorAreaFillsEditor indicator={d} indicators={indicators} onChange={(areaFills) => setIndicatorDraft({ ...d, areaFills })} />
       )}
       {/* Couleurs conditionnelles : écrites au nouveau format, l'ancien (`fills`, converti à la lecture) est retiré. */}

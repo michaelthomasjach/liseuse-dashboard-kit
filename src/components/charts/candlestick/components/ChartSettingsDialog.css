@@ -426,3 +426,8 @@
   gap: var(--lq-space-3, 12px);
   min-width: 0;
 }
+
+/* Rubrique ouverte depuis un clic droit sur un axe : son titre à la couleur d'accent. */
+.lq-chart-settings__section--flash .lq-chart-settings__section-title {
+  color: var(--lq-color-accent);
+}

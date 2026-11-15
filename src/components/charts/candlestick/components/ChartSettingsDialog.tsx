@@ -53,6 +53,8 @@ const TIME_FORMAT_OPTIONS: { value: ChartTimeFormat; label: string }[] = [
 
 const TEXT_SIZE_OPTIONS = ["10", "11", "12", "13", "14", "15", "16"].map((v) => ({ value: v, label: `${v} px` }));
 
+const AXIS_LABEL_KEYS = ["seriesLabelBg", "seriesLabelText", "crosshairPriceLabelBg", "crosshairPriceLabelText", "crosshairTimeLabelBg", "crosshairTimeLabelText"] as const;
+
 const COLOR_MODE_OPTIONS: { value: ChartColorMode | "auto"; label: string }[] = [
   { value: "light", label: "Jour" },
   { value: "dark", label: "Nuit" },
@@ -87,6 +89,8 @@ function splitAlpha(color: string): { hex: string; alpha: number } {
 
 export interface ChartSettingsDialogProps {
   onClose: () => void;
+  /** Page à l'ouverture et rubrique (`id` de section) à amener à l'écran : clic droit sur un axe, par exemple. */
+  initialTarget?: { page: ChartSettingsPage; section?: string };
   /** L'élément du graphique, pour lire les couleurs du thème affichées par une pastille sans réglage. */
   themeElement: HTMLElement | null;
   theme: { up: string; down: string; isEink: boolean };
@@ -163,9 +167,9 @@ function Row({ label, hint, children, disabled }: { label: ReactNode; hint?: Rea
   );
 }
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+function Section({ title, children, id }: { title: string; children: ReactNode; id?: string }) {
   return (
-    <section className="lq-chart-settings__section">
+    <section className="lq-chart-settings__section" id={id ? `lq-chart-settings-${id}` : undefined}>
       <h3 className="lq-chart-settings__section-title">{title}</h3>
       {children}
     </section>
@@ -236,7 +240,14 @@ export function ChartSettingsDialog(props: ChartSettingsDialogProps) {
   } = props;
   // Écran de téléphone : la liste des sections, puis la page choisie (avec un retour), au lieu des deux côte à côte.
   const mobileLayout = useNarrowScreen();
-  const [page, setPage] = useState<ChartSettingsPage | null>(mobileLayout ? null : "symbole");
+  const [page, setPage] = useState<ChartSettingsPage | null>(props.initialTarget?.page ?? (mobileLayout ? null : "symbole"));
+  const initialSection = props.initialTarget?.section;
+  useEffect(() => {
+    if (!initialSection) return;
+    const el = document.getElementById(`lq-chart-settings-${initialSection}`);
+    el?.scrollIntoView({ block: "start" });
+    el?.classList.add("lq-chart-settings__section--flash");
+  }, [initialSection]);
   const [snapshot] = useState<SettingsSnapshot>(() => ({
     up: props.upColorOverride,
     down: props.downColorOverride,
@@ -255,7 +266,7 @@ export function ChartSettingsDialog(props: ChartSettingsDialogProps) {
   }));
 
   // Couleurs que dessine le thème quand un réglage est vide : ce que montre la pastille tant qu'on n'y a pas touché.
-  const [themeColors, setThemeColors] = useState({ text: "#888888", muted: "#888888", grid: "#cccccc", bg: "#ffffff" });
+  const [themeColors, setThemeColors] = useState({ text: "#888888", muted: "#888888", grid: "#cccccc", bg: "#ffffff", accent: "#6c87c9", accentContrast: "#ffffff" });
   useEffect(() => {
     if (!themeElement) return;
     const cs = getComputedStyle(themeElement);
@@ -265,6 +276,8 @@ export function ChartSettingsDialog(props: ChartSettingsDialogProps) {
       muted: v("--lq-color-text-muted", "#888888"),
       grid: v("--lq-chart-grid-color", v("--lq-color-border-subtle", "#cccccc")),
       bg: v("--lq-color-bg", "#ffffff"),
+      accent: v("--lq-color-accent", "#6c87c9"),
+      accentContrast: v("--lq-color-accent-contrast", "#ffffff"),
     });
   }, [themeElement]);
 
@@ -488,6 +501,51 @@ export function ChartSettingsDialog(props: ChartSettingsDialogProps) {
             <Toggle checked={bool("countdown", true)} onChange={() => flip("countdown", true)} ariaLabel="Compte à rebours de la bougie" disabled={!priceShown} />
           </Row>
         </Section>
+        {advancedAppearance && (
+          <Section title="Étiquettes des axes" id="etiquettes">
+            <Row label="Valeurs des séries" hint="Dernier cours et dernière valeur des indicateurs, sur l'axe">
+              <Select<"series" | "custom">
+                size="small"
+                className="lq-chart-settings__select lq-chart-settings__select--wide"
+                options={[
+                  { value: "series", label: "Couleur de la série" },
+                  { value: "custom", label: "Personnalisée" },
+                ]}
+                value={chartStyle.seriesLabelBg ? "custom" : "series"}
+                onChange={(v) => set({ seriesLabelBg: v === "custom" ? (chartStyle.seriesLabelBg ?? themeColors.accent) : undefined })}
+                ariaLabel="Fond des étiquettes des séries"
+              />
+              <ColorPicker
+                value={chartStyle.seriesLabelBg ?? theme.up}
+                onChange={(c) => set({ seriesLabelBg: c })}
+                disabled={!chartStyle.seriesLabelBg}
+                aria-label="Couleur de fond des étiquettes des séries"
+                title="Fond"
+              />
+              <ColorPicker
+                value={chartStyle.seriesLabelText ?? themeColors.accentContrast}
+                onChange={(c) => set({ seriesLabelText: c })}
+                aria-label="Couleur du texte des étiquettes des séries"
+                title="Texte"
+              />
+            </Row>
+            <Row label="Réticule sur l'axe des prix" hint="Prix ou valeur survolé, fond et texte">
+              <ColorPicker value={chartStyle.crosshairPriceLabelBg ?? themeColors.accent} onChange={(c) => set({ crosshairPriceLabelBg: c })} aria-label="Couleur de fond de l'étiquette du réticule (prix)" title="Fond" />
+              <ColorPicker value={chartStyle.crosshairPriceLabelText ?? themeColors.accentContrast} onChange={(c) => set({ crosshairPriceLabelText: c })} aria-label="Couleur du texte de l'étiquette du réticule (prix)" title="Texte" />
+            </Row>
+            <Row label="Réticule sur l'axe du temps" hint="Date survolée, fond et texte">
+              <ColorPicker value={chartStyle.crosshairTimeLabelBg ?? themeColors.accent} onChange={(c) => set({ crosshairTimeLabelBg: c })} aria-label="Couleur de fond de l'étiquette de date du réticule" title="Fond" />
+              <ColorPicker value={chartStyle.crosshairTimeLabelText ?? themeColors.accentContrast} onChange={(c) => set({ crosshairTimeLabelText: c })} aria-label="Couleur du texte de l'étiquette de date du réticule" title="Texte" />
+            </Row>
+            {AXIS_LABEL_KEYS.some((k) => chartStyle[k] !== undefined) && (
+              <div className="lq-chart-settings__row lq-chart-settings__row--action">
+                <button type="button" className="lq-chart-settings__link" onClick={() => set(Object.fromEntries(AXIS_LABEL_KEYS.map((k) => [k, undefined])) as Partial<ChartStyleSettings>)}>
+                  Revenir aux couleurs des étiquettes du thème
+                </button>
+              </div>
+            )}
+          </Section>
+        )}
         <Section title="Échelle de temps">
           <Row label="Axe du temps">
             <Toggle checked={bool("timeAxisVisible", true)} onChange={() => flip("timeAxisVisible", true)} ariaLabel="Afficher l'axe du temps" />

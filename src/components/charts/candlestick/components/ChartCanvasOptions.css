@@ -71,3 +71,31 @@
 .lq-chart__plot .lq-chart__watermark span {
   color: var(--lq-chart-watermark-color, var(--lq-color-text));
 }
+
+/* Couleurs des étiquettes des axes (Paramètres système → Échelles et lignes → Étiquettes des axes, ou clic droit sur
+   un axe). `!important` : le fond d'une étiquette de série est posé en ligne (couleur de la série). */
+.lq-chart__plot[data-lq-axis-labels~="series-label-bg"] :is(.lq-chart__axis-value--last, .lq-chart__axis-value--indicator) {
+  background-color: var(--lq-chart-series-label-bg) !important;
+}
+.lq-chart__plot[data-lq-axis-labels~="series-label-text"] :is(.lq-chart__axis-value--last, .lq-chart__axis-value--indicator),
+.lq-chart__plot[data-lq-axis-labels~="series-label-text"] :is(.lq-chart__axis-value--last, .lq-chart__axis-value--indicator) .lq-chart__axis-value-text {
+  color: var(--lq-chart-series-label-text) !important;
+}
+.lq-chart__plot[data-lq-axis-labels~="cross-y-label-bg"]
+  .lq-chart__axis-value--y:not(.lq-chart__axis-value--last, .lq-chart__axis-value--indicator, .lq-chart__axis-value--high-low, .lq-chart__axis-value--annotation) {
+  background-color: var(--lq-chart-cross-y-label-bg) !important;
+}
+.lq-chart__plot[data-lq-axis-labels~="cross-y-label-text"]
+  .lq-chart__axis-value--y:not(.lq-chart__axis-value--last, .lq-chart__axis-value--indicator, .lq-chart__axis-value--high-low, .lq-chart__axis-value--annotation),
+.lq-chart__plot[data-lq-axis-labels~="cross-y-label-text"]
+  .lq-chart__axis-value--y:not(.lq-chart__axis-value--last, .lq-chart__axis-value--indicator, .lq-chart__axis-value--high-low, .lq-chart__axis-value--annotation)
+  :is(.lq-chart__axis-value-text, .lq-chart__axis-value-add) {
+  color: var(--lq-chart-cross-y-label-text) !important;
+}
+.lq-chart__plot[data-lq-axis-labels~="cross-x-label-bg"] .lq-chart__axis-value--x:not(.lq-chart__axis-value--annotation) {
+  background-color: var(--lq-chart-cross-x-label-bg) !important;
+}
+.lq-chart__plot[data-lq-axis-labels~="cross-x-label-text"] .lq-chart__axis-value--x:not(.lq-chart__axis-value--annotation),
+.lq-chart__plot[data-lq-axis-labels~="cross-x-label-text"] .lq-chart__axis-value--x:not(.lq-chart__axis-value--annotation) .lq-chart__axis-value-text {
+  color: var(--lq-chart-cross-x-label-text) !important;
+}

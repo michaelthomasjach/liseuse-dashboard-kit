@@ -121,7 +121,7 @@ import { CHART_DISPLAY_MODES } from "./candlestick/chartModes";
 import { findTimeframeLabel, flattenTimeframeValues } from "./candlestick/timeframes";
 import { styleOf, toolKeyOf, useDrawingStylePresets, withStyle } from "./candlestick/drawingStylePresets";
 import { dayMonthYearFormat } from "./internal/dateFormat";
-import { chartStyleCssVars, chartStyleDateFormatter, effectiveChartStyle, type ChartYAxisGutter } from "./candlestick/chartStyle";
+import { axisLabelsAttribute, chartStyleCssVars, chartStyleDateFormatter, effectiveChartStyle, type ChartYAxisGutter } from "./candlestick/chartStyle";
 import { paneValueFormatter } from "./candlestick/indicatorCatalog";
 import { formatCompactNumber } from "./candlestick/formatting";
 import { DEFAULT_MARGIN, MOBILE_LAYOUT_BREAKPOINT, NARROW_EMBED_BREAKPOINT, PRICE_AXIS_WIDTH_MOBILE, SUB_PANE_COLLAPSED_HEIGHT, TOOLS_RAIL_HEIGHT_MOBILE, TOOLS_RAIL_WIDTH } from "./candlestick/constants";
@@ -418,7 +418,7 @@ function CandlestickChartBody({
   // un onglet par indicateur tracé sur les prix. Les paramètres système, eux, restent `settingsOpen`.
   const [priceSettingsOpen, setPriceSettingsOpen] = useState(false);
   const {
-    settingsOpen, setSettingsOpen,
+    settingsOpen, setSettingsOpen, settingsPage, openSettingsAt,
     closePulseVisible, setClosePulseVisible,
     upColorOverride, setUpColorOverride,
     downColorOverride, setDownColorOverride,
@@ -726,6 +726,12 @@ function CandlestickChartBody({
         const target = id === null ? undefined : findAny(id);
         return target ? { indicatorId: target.id, indicatorLabel: indicatorLabel(target), indicatorLegendHidden: Boolean(target.legendHidden) } : {};
       })(),
+      // Sur un axe (sous le tracé : le temps ; dans la colonne de l'échelle : les valeurs) : le menu propre à l'axe.
+      ...(plotY > dims.boundedHeight && plotX >= 0 && plotX <= dims.boundedWidth
+        ? { axis: "x" as const }
+        : yGutter.width > 0 && plotX >= yGutter.x && plotX <= yGutter.x + yGutter.width && plotY >= 0 && plotY <= dims.boundedHeight
+          ? { axis: "y" as const }
+          : {}),
     });
   }
 
@@ -2226,6 +2232,8 @@ function CandlestickChartBody({
     marketStateOpen,
     toggleMarketState: () => setMarketStateOpen((open) => !open),
     openSettings: () => setSettingsOpen(true),
+    openScaleSettings: () => openSettingsAt("echelles"),
+    ...(advancedAppearance ? { openAxisLabelColors: () => openSettingsAt("echelles", "etiquettes") } : {}),
     openSymbolSettings: () => setPriceSettingsOpen(true),
     ...(symbol ? { symbolLabel: symbol } : {}),
     symbolInfoHidden,
@@ -2430,6 +2438,7 @@ function CandlestickChartBody({
         style={{ width: dims.width, height: plotHeight, ...plotStyleVars }}
         data-lq-custom-bg={appliedStyle.backgroundColor ? "" : undefined}
         data-lq-pane-buttons={appliedStyle.paneButtons}
+        data-lq-axis-labels={axisLabelsAttribute(appliedStyle)}
         // Doigt levé (ou geste annulé par le navigateur) : plus de réticule, voir `touchLifted`.
         onPointerUp={(e) => {
           if (e.pointerType === "touch") setTouchLifted(true);
@@ -3014,7 +3023,7 @@ function CandlestickChartBody({
         saveIndicatorSettings={saveIndicatorSettings}
         pickerTargetPane={indicatorPickerOpen ? pickerTargetPane : null}
         addOnPane={addIndicatorOnPane}
-        settingsOpen={settingsOpen} setSettingsOpen={setSettingsOpen}
+        settingsOpen={settingsOpen} setSettingsOpen={setSettingsOpen} settingsPage={settingsPage}
         volumeOverlay={volumeOverlay} setVolumeOverlay={setVolumeOverlay}
         priceSettingsOpen={priceSettingsOpen} setPriceSettingsOpen={setPriceSettingsOpen}
         watermark={watermark} setWatermark={setWatermark} watermarkAvailable={Boolean(symbol)}

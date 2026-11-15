@@ -6,10 +6,13 @@ import type { CandleColorRule } from "../interfaces/CandleColorRule.interface";
 import type { Indicator } from "../interfaces/Indicator.interface";
 import { ChartSettingsDialog } from "./ChartSettingsDialog";
 import type { ChartStyleSettings, ChartStyleTemplate } from "../chartStyle";
+import type { ChartSettingsTarget } from "../hooks/useChartAppearance";
 import "./IndicatorSettings.css";
 
 export interface ChartSettingsModalsProps {
   settingsOpen: boolean;
+  /** Page (et rubrique) où ouvrir les paramètres système ; absent : la première page. */
+  settingsPage?: ChartSettingsTarget | null;
   /** Whether the chart is currently laid out for touch, and how to pin that. `null` in
    *  `layoutOverride` means the width decides (MOBILE_LAYOUT_BREAKPOINT); once the toggle is used
    *  the choice stays where the user put it — a touch layout is worth being able to see on a
@@ -72,6 +75,7 @@ export interface ChartSettingsModalsProps {
  *  posés dessus) sont dans IndicatorModals, avec ceux des autres panneaux. */
 export function ChartSettingsModals({
   settingsOpen,
+  settingsPage,
   mobileLayout,
   layoutOverride,
   setLayoutOverride,
@@ -144,6 +148,7 @@ export function ChartSettingsModals({
       {settingsOpen && (
         <ChartSettingsDialog
           onClose={() => setSettingsOpen(false)}
+          {...(settingsPage ? { initialTarget: settingsPage } : {})}
           themeElement={wrapperRef.current}
           theme={theme}
           onOpenProps={() => setPropsOpen(true)}

@@ -30,6 +30,8 @@ export interface ChartContextMenuAnchor {
   /** Légende de l'indicateur du panneau cliqué (`paneId`), et de celui de la ligne (`indicatorId`), masquée ou non. */
   paneLegendHidden?: boolean;
   indicatorLegendHidden?: boolean;
+  /** Clic droit sur un axe : celui des valeurs (prix ou panneau, `y`) ou du temps (`x`). Le menu est alors celui de l'axe. */
+  axis?: "x" | "y";
 }
 
 export interface BuildChartContextMenuArgs {
@@ -93,6 +95,10 @@ export interface BuildChartContextMenuArgs {
   /** Légende du panneau Volume masquée, et la bascule. */
   volumeLegendHidden?: boolean;
   toggleVolumeLegend?: () => void;
+  /** Ouvre les paramètres système à la page des échelles (« Paramètres des échelles… » du menu d'un axe). */
+  openScaleSettings?: () => void;
+  /** Ouvre la rubrique des couleurs des étiquettes des axes ; entrée « Couleur des étiquettes… » absente sans elle. */
+  openAxisLabelColors?: () => void;
 }
 
 /** What the chart's right-click menu offers, top to bottom.
@@ -136,6 +142,8 @@ export function buildChartContextMenu({
   openVolumeSettings,
   volumeLegendHidden,
   toggleVolumeLegend,
+  openScaleSettings,
+  openAxisLabelColors,
 }: BuildChartContextMenuArgs): ChartContextMenuItem[] {
   if (anchor === null) return [];
   const candle = data[Math.max(0, Math.min(data.length - 1, anchor.index))] ?? null;
@@ -151,7 +159,7 @@ export function buildChartContextMenu({
   const onLine: ChartMenuTarget | undefined = anchor.indicatorId ? { pane: zone, lineId: anchor.indicatorId } : undefined;
   const t = (target: ChartMenuTarget | undefined, items: ChartContextMenuItem[]): ChartContextMenuItem[] =>
     items.map((item) => (item.separator || item.target ? item : { ...item, target }));
-  return [
+  const items: ChartContextMenuItem[] = [
     // Object commands first, and only when the click actually landed on one — a menu whose top
     // item changes meaning depending on where you clicked is exactly what a context menu is for.
     ...(targetDrawing === null
@@ -364,4 +372,16 @@ export function buildChartContextMenu({
       : []),
     ...(!inSubPane ? [{ label: "Paramètres système…", onSelect: openSettings, target: onChart }] : []),
   ];
+  if (!anchor.axis) return items;
+  // Clic droit sur un axe : son propre menu, comme sur une plateforme de marché — la couleur de ses étiquettes, l'échelle
+  // des prix (sur l'axe des prix), la remise à zéro du zoom (sur l'axe du temps), puis la page des échelles.
+  const axisItems: ChartContextMenuItem[] = [
+    ...(openAxisLabelColors
+      ? [{ label: anchor.axis === "x" ? "Couleur de l'étiquette de date…" : "Couleur des étiquettes…", onSelect: openAxisLabelColors, target: onChart }]
+      : []),
+    ...(anchor.axis === "y" && !inSubPane ? items.filter((item) => !item.separator && item.label === "Échelle des prix") : []),
+    ...(anchor.axis === "x" ? items.filter((item) => !item.separator && item.label === "Réinitialiser le zoom") : []),
+    ...(openScaleSettings ? [{ separator: true } as ChartContextMenuItem, { label: "Paramètres des échelles…", onSelect: openScaleSettings, target: onChart }] : []),
+  ];
+  return axisItems.length > 1 || (axisItems.length === 1 && !axisItems[0].separator) ? axisItems.filter((item, i) => !(i === 0 && item.separator)) : items;
 }

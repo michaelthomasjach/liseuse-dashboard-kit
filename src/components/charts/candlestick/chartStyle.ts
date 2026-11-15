@@ -95,6 +95,16 @@ export interface ChartStyleSettings {
   marginBottom?: number;
   /** Marge à droite de la dernière bougie, en bougies. Absent : celle de l'application (`futureBars`). */
   marginRightBars?: number;
+  /** Étiquettes de l'axe des prix qui suivent une série (dernier cours, dernière valeur des indicateurs) : fond et
+   *  texte. Absent : la couleur de la série en fond, le texte du thème. */
+  seriesLabelBg?: string;
+  seriesLabelText?: string;
+  /** Étiquette du réticule sur l'axe des prix et des panneaux. Absent : la couleur d'accent du thème. */
+  crosshairPriceLabelBg?: string;
+  crosshairPriceLabelText?: string;
+  /** Étiquette de date du réticule sur l'axe du temps. Absent : la couleur d'accent du thème. */
+  crosshairTimeLabelBg?: string;
+  crosshairTimeLabelText?: string;
   /** Filigrane (nom du symbole en fond) : toujours, quand il est activé (défaut), ou seulement pendant un replay. */
   watermarkVisibility?: "always" | "replay";
   /** Couleur du filigrane (son opacité reste celle du réglage du filigrane). Absent : la couleur du texte. */
@@ -138,6 +148,12 @@ export const MODE_COLOR_KEYS = [
   "scaleTextColor",
   "scaleLineColor",
   "watermarkColor",
+  "seriesLabelBg",
+  "seriesLabelText",
+  "crosshairPriceLabelBg",
+  "crosshairPriceLabelText",
+  "crosshairTimeLabelBg",
+  "crosshairTimeLabelText",
 ] as const;
 export type ModeColorKey = (typeof MODE_COLOR_KEYS)[number];
 const MODE_COLOR_KEY_SET = new Set<string>(MODE_COLOR_KEYS);
@@ -362,6 +378,12 @@ export const CANVAS_STYLE_KEYS: (keyof ChartStyleSettings)[] = [
   "marginRightBars",
   "navigationButtons",
   "paneButtons",
+  "seriesLabelBg",
+  "seriesLabelText",
+  "crosshairPriceLabelBg",
+  "crosshairPriceLabelText",
+  "crosshairTimeLabelBg",
+  "crosshairTimeLabelText",
   "colorMode",
   "surfaceTokens",
 ];
@@ -372,6 +394,23 @@ export function effectiveChartStyle(style: ChartStyleSettings, advanced: boolean
   const next: ChartStyleSettings = { ...style };
   for (const key of CANVAS_STYLE_KEYS) delete next[key];
   return next;
+}
+
+/** Couleurs des étiquettes des axes : réglage, variable CSS (`--lq-chart-…`) et jeton de `data-lq-axis-labels`. */
+const AXIS_LABEL_VARS: [ModeColorKey, string][] = [
+  ["seriesLabelBg", "series-label-bg"],
+  ["seriesLabelText", "series-label-text"],
+  ["crosshairPriceLabelBg", "cross-y-label-bg"],
+  ["crosshairPriceLabelText", "cross-y-label-text"],
+  ["crosshairTimeLabelBg", "cross-x-label-bg"],
+  ["crosshairTimeLabelText", "cross-x-label-text"],
+];
+
+/** Les couleurs d'étiquettes réglées, en jetons pour l'attribut `data-lq-axis-labels` de la zone du graphique (lu par
+ *  ChartCanvasOptions.css) ; `undefined` quand aucune ne l'est. */
+export function axisLabelsAttribute(style: ChartStyleSettings): string | undefined {
+  const tokens = AXIS_LABEL_VARS.filter(([key]) => style[key]).map(([, name]) => name);
+  return tokens.length > 0 ? tokens.join(" ") : undefined;
 }
 
 /** Tirets du canvas d'un style de trait ; `fallback` pour un style absent. */
@@ -391,6 +430,7 @@ export function chartStyleCssVars(style: ChartStyleSettings): CSSProperties {
   if (style.scaleLineColor) vars["--lq-chart-domain-color"] = style.scaleLineColor;
   if (style.paneSeparatorColor) vars["--lq-chart-pane-separator-color"] = style.paneSeparatorColor;
   if (style.watermarkColor) vars["--lq-chart-watermark-color"] = style.watermarkColor;
+  for (const [key, name] of AXIS_LABEL_VARS) if (style[key]) vars[`--lq-chart-${name}`] = style[key];
   // Mode imposé différent de celui du site : la zone du graphique prend les jetons de surface de ce mode, pour que la
   // légende, les en-têtes de panneaux et les axes restent lisibles sur son fond.
   const t = style.surfaceTokens;

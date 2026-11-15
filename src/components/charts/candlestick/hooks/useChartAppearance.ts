@@ -3,6 +3,13 @@ import type { CandleColorRule } from "../interfaces/CandleColorRule.interface";
 import type { ChartColorMode, ChartStyleSettings, ChartStyleTemplate } from "../chartStyle";
 import { migrateLegacyColors, resetModeColors, resolveChartStyle, storeChartStyle, storeModeCandleColor } from "../chartStyle";
 import { useHostColorScheme } from "./useHostColorScheme";
+import type { ChartSettingsPage } from "../components/ChartSettingsDialog";
+
+/** Page des paramètres système à ouvrir, et la rubrique (son `id`) à faire défiler jusqu'à l'écran. */
+export interface ChartSettingsTarget {
+  page: ChartSettingsPage;
+  section?: string;
+}
 import type { PriceScaleMode } from "../interfaces/PriceScaleMode.interface";
 
 /** Réglages d'apparence du graphique (fenêtres « Paramètres du graphique » et « Paramètres du
@@ -66,6 +73,16 @@ export function useChartAppearance({ YAutoScaling, livePrice, controlledSettings
   const [internalSettingsOpen, setInternalSettingsOpen] = useState(false);
   const settingsOpen = controlledSettings?.open ?? internalSettingsOpen;
   const setSettingsOpen: (open: boolean) => void = controlledSettings?.onChange ?? setInternalSettingsOpen;
+  // Page (et rubrique) où ouvrir les paramètres système : clic droit sur un axe → « Paramètres des échelles… ». Remise à
+  // zéro à la fermeture, pour que la prochaine ouverture ordinaire reparte de la première page.
+  const [settingsPage, setSettingsPage] = useState<ChartSettingsTarget | null>(null);
+  useEffect(() => {
+    if (!settingsOpen) setSettingsPage(null);
+  }, [settingsOpen]);
+  const openSettingsAt = (page: ChartSettingsTarget["page"], section?: string) => {
+    setSettingsPage(section ? { page, section } : { page });
+    setSettingsOpen(true);
+  };
   // Per-chart color overrides for up/down bars — `undefined` (the default) means "use the
   // theme's own --lq-color-up/--lq-color-down", same as before this modal existed.
   // Couleurs du corps des bougies : enregistrées par mode jour / nuit dans `style.modeColors` (plus bas). Celles
@@ -170,6 +187,8 @@ export function useChartAppearance({ YAutoScaling, livePrice, controlledSettings
   return {
     settingsOpen,
     setSettingsOpen,
+    settingsPage,
+    openSettingsAt,
     upColorOverride,
     setUpColorOverride,
     downColorOverride,

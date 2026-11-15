@@ -39,7 +39,8 @@ function effectiveOpacity(el: Element, root: Element): number {
 }
 
 function transparent(color: string): boolean {
-  return color === "transparent" || /rgba?\([^)]*,\s*0\)$/.test(color.replace(/\s+/g, " ")) || color === "rgba(0, 0, 0, 0)";
+  // Seul un canal alpha nul compte : « rgb(255, 152, 0) » (bleu à 0) est une couleur pleine.
+  return color === "transparent" || /^rgba\([^)]*,\s*0(?:\.0*)?\)$/.test(color.replace(/\s+/g, " ")) || color === "rgba(0, 0, 0, 0)";
 }
 
 function backgroundOf(el: Element): string {

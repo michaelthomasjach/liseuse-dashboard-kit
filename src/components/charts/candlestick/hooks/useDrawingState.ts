@@ -11,6 +11,7 @@ import { EMPTY_DRAWINGS, DEFAULT_DRAWING_COLOR } from "../constants";
 import { toolKeyOf, withStyle, type DrawingStyle } from "../drawingStylePresets";
 import { defaultIndicatorColor } from "../indicatorCatalog";
 import { offsetDrawingUp } from "../drawingGeometry";
+import { editedStyles, useLastDrawingStyles, withRememberedStyle, type DrawingStylesByTool } from "./useLastDrawingStyles";
 
 export interface UseDrawingStateArgs {
   data: Candle[];
@@ -22,6 +23,9 @@ export interface UseDrawingStateArgs {
   timeframeScoped?: boolean;
   /** Style enregistré actif d'un outil (« types de lignes ») : appliqué à chaque nouveau dessin de cet outil. */
   styleForNew?: (tool: string) => DrawingStyle | null;
+  /** Derniers styles utilisés par outil, de départ (voir `useLastDrawingStyles`) : ils passent devant `styleForNew`. */
+  defaultDrawingStyles?: DrawingStylesByTool;
+  onDrawingStylesChange?: (styles: DrawingStylesByTool) => void;
   onAddSymbolOverlay:
     | ((result: SymbolSearchResult) => OverlayDataPoint[] | Promise<OverlayDataPoint[]>)
     | undefined;
@@ -50,11 +54,15 @@ function nextDrawingIndex(list: TrendLineDrawing[]): number {
  *  hovered one) that act on them. Pointer-driven placement/dragging lives in
  *  `useDrawingInteractions` instead (it needs the zoom/pane scales this hook doesn't), which takes
  *  this hook's full return value as its own input. */
-export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAddSymbolOverlay, timeframe, timeframeScoped = false, styleForNew, onUndoStep }: UseDrawingStateArgs) {
+export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAddSymbolOverlay, timeframe, timeframeScoped = false, styleForNew, defaultDrawingStyles, onDrawingStylesChange, onUndoStep }: UseDrawingStateArgs) {
   const onUndoStepRef = useRef(onUndoStep);
   onUndoStepRef.current = onUndoStep;
   const styleForNewRef = useRef(styleForNew);
   styleForNewRef.current = styleForNew;
+  // Dernier style de chaque outil : retenu à chaque changement d'apparence d'un dessin, repris par le
+  // prochain dessin du même outil (avant le style enregistré actif).
+  const lastDrawingStyles = useLastDrawingStyles({ defaultDrawingStyles, onDrawingStylesChange });
+  const rememberLastStyle = lastDrawingStyles.remember;
   // Lu au moment du tracé (pas à la création du callback) : un changement d'unité de temps ne
   // recrée pas commitDrawings, dont l'identité stable compte pour les écouteurs clavier.
   const timeframeRef = useRef(timeframe);
@@ -67,8 +75,9 @@ export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAdd
     // style enregistré actif de son outil, puis l'unité de temps courante.
     return next.map((d) => {
       if (known.has(d.id) || d.timeframe || d.lineType === "symbolOverlay") return d;
-      const style = styleForNewRef.current?.(toolKeyOf(d)) ?? null;
-      const styled = style ? withStyle(d, style) : d;
+      const last = lastDrawingStyles.styleFor(toolKeyOf(d));
+      const style = last ? null : (styleForNewRef.current?.(toolKeyOf(d)) ?? null);
+      const styled = last ? withRememberedStyle(d, last) : style ? withStyle(d, style) : d;
       return tf ? { ...styled, timeframe: tf } : styled;
     });
   };
@@ -291,9 +300,20 @@ export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAdd
   // not just when `onDrawingsChange` itself changes.
   const commitDrawings = useCallback(
     (nextRaw: TrendLineDrawing[]) => {
-      emitDrawings(stampTimeframe(drawingsRef.current, nextRaw));
+      const prev = drawingsRef.current;
+      const next = stampTimeframe(prev, nextRaw);
+      for (const { tool, style } of editedStyles(prev, next)) rememberLastStyle(tool, style);
+      emitDrawings(next);
+      // Un dessin tout juste posé (un seul nouveau : tracé, texte validé, copie collée) est aussitôt
+      // sélectionné : ses poignées et sa barre flottante apparaissent sans recliquer dessus.
+      const known = new Set(prev.map((d) => d.id));
+      const created = next.filter((d) => !known.has(d.id) && d.lineType !== "symbolOverlay");
+      if (created.length === 1) {
+        setSelectedDrawingId(created[0].id);
+        setSelectedIndicatorId(null);
+      }
     },
-    [emitDrawings]
+    [emitDrawings, rememberLastStyle]
   );
 
   /** The list as it stands right now — what a caller building `next` from the current drawings
@@ -417,11 +437,11 @@ export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAdd
         y2: points[1].y,
         lineType: "elbowArrow",
         extraPoints: points.slice(2),
-        ...(timeframeRef.current ? { timeframe: timeframeRef.current } : {}),
       },
     ];
-    emitDrawings(next);
-  }, [activeTool, pendingPoint, pendingExtraPoints, drawings, defaultDrawingStyle, emitDrawings]);
+    // commitDrawings : l'unité de temps courante et le dernier style de l'outil, comme tout nouveau dessin.
+    commitDrawings(next);
+  }, [activeTool, pendingPoint, pendingExtraPoints, drawings, defaultDrawingStyle, commitDrawings]);
 
   function handleToolClick(tool: DrawingToolType) {
     // Picking any tool (including re-picking "text"/"comment" itself) while a previous live
@@ -760,6 +780,7 @@ export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAdd
     dragLineRef,
     isPanningYRef,
     commitDrawings,
+    lastDrawingStyles,
     currentDrawings,
     removeSymbolOverlay,
     handleAddSymbolOverlay,

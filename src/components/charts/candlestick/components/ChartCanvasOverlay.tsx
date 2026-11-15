@@ -98,6 +98,8 @@ export interface ChartCanvasOverlayProps {
   resetX: () => void;
   visibleDrawings: TrendLineDrawing[];
   hoveredDrawingId: string | null;
+  /** Dessin sélectionné : ses poignées restent visibles sans survol (un dessin tout juste posé est sélectionné). */
+  selectedDrawingId?: string | null;
   indexForDate: (date: Date) => number;
   pixelYForDrawing: (dr: TrendLineDrawing) => number;
   handleAxisHandlePointerDown: (drawingId: string) => (e: React.PointerEvent<SVGCircleElement>) => void;
@@ -256,6 +258,7 @@ export function ChartCanvasOverlay({
   resetX,
   visibleDrawings,
   hoveredDrawingId,
+  selectedDrawingId = null,
   indexForDate,
   pixelYForDrawing,
   handleAxisHandlePointerDown,
@@ -547,7 +550,7 @@ export function ChartCanvasOverlay({
               actually receive pointer events instead of the overlay swallowing them first. */}
           <g clipPath={`url(#${clipId})`}>
             {visibleDrawings.map((dr) => {
-              const isHovered = hoveredDrawingId === dr.id;
+              const isHovered = hoveredDrawingId === dr.id || selectedDrawingId === dr.id;
               if (!isHovered) return null;
               // A freehand stroke can have dozens of sampled points — individually draggable
               // handles for each would be impractical clutter, so it only moves as a whole

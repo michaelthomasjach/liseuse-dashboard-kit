@@ -464,6 +464,12 @@
   border-radius: calc(var(--lq-radius-sm) - 1px);
   background: var(--lq-color-panel);
 }
+/* Icône volontairement plus petite (13 px) que celles des autres boutons (16 px) : la case garde la même largeur que
+   ses voisines, l'icône est centrée dedans. */
+.lq-chart__icon-button.lq-chart__ai-button {
+  justify-content: center;
+  min-width: calc(16px + 2 * 5px + 2px);
+}
 .lq-chart__ai-button.lq-chart__icon-button--active::after {
   background: var(--lq-color-accent);
 }
@@ -4591,4 +4597,10 @@ button.lq-chart__legend-item {
   margin: 0;
   color: var(--lq-color-text-muted, var(--lq-color-muted));
   font-size: 0.85rem;
+}
+
+/* Outil de dessin armé : un doigt appuyé puis déplacé trace le dessin (glisser-déposer, voir
+   useDrawingInteractions) au lieu de faire défiler la page. */
+.lq-chart__overlay--drawing {
+  touch-action: none;
 }

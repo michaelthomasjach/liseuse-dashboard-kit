@@ -14,12 +14,20 @@ import { distanceToIndicator } from "../indicatorHitTest";
 import type { HitTestContext } from "../drawingHitTest";
 import type { IndicatorValue } from "../interfaces/IndicatorValue.interface";
 import { useAxisHandleDrag } from "./useAxisHandleDrag";
-import { placeDrawingOnClick } from "./placeDrawingOnClick";
+import { placeDrawingOnClick, type DrawingPlacementContext } from "./placeDrawingOnClick";
 import { DRAWING_HIT_DISTANCE, CLICK_DRAG_THRESHOLD, TABLE_DEFAULT_ROWS, TABLE_DEFAULT_COLS, TABLE_BORDER_HIT_MARGIN } from "../constants";
 
 /** Distance verticale (px) qu'un glisser dans le corps du graphique doit parcourir — en restant
  *  surtout vertical — avant de prendre la main sur un axe Y encore en automatique. */
 const Y_PAN_DEADZONE_PX = 24;
+
+/** Outils posés d'un seul clic (ou tracés à main levée, ou point par point sans fin) : pas de tracé
+ *  par glisser-déposer pour eux. Tous les autres se tracent aussi en glisser : l'appui fixe le premier
+ *  point, le relâchement le second. */
+const NO_DRAG_PLACEMENT_TOOLS = new Set<DrawingToolType>([
+  "horizontal", "vertical", "ray", "arrowUp", "arrowDown", "pin", "flagMark", "longPosition", "shortPosition",
+  "text", "comment", "signpost", "elbowArrow", "brush",
+]);
 
 /** Plain mutable ref shape (matches what `useRef` in another hook already returns) — used instead
  *  of React's own `RefObject<T>` because that type's `current` is only ever mutable when the ref
@@ -272,6 +280,12 @@ export function useDrawingInteractions({
   // never the drag. useAxisHandleDrag does the same for single-handle drawings.
   const endpointPressRef = useRef<{ id: string; startClientX: number; startClientY: number; moved: boolean } | null>(null);
   const hoverFrameRef = useRef<number | null>(null);
+  // Tracé par glisser-déposer : appui avec un outil armé et aucun point posé. Sous CLICK_DRAG_THRESHOLD,
+  // l'appui reste un clic (mode clic-clic, inchangé) ; au-delà, le premier point est posé où l'appui a
+  // commencé, l'aperçu suit le pointeur, et le relâchement pose le second point.
+  const drawPressRef = useRef<{ startClientX: number; startClientY: number; dragging: boolean; first: DataPoint | null } | null>(null);
+  // Le relâchement d'un glisser de tracé est suivi d'un `click` natif : il ne doit poser aucun point.
+  const suppressClickRef = useRef(false);
   // The plot's own element, as last seen by handlePointerMove — updateHoverState runs a frame later
   // (no event in hand) and sets the pointer cursor on it directly, without a re-render per move.
   const overlayElRef = useRef<SVGRectElement | null>(null);
@@ -318,7 +332,9 @@ export function useDrawingInteractions({
     return { x: dateForIndex(rawIndex), y: round4(magnetSnapPrice(rawIndex, rawY)) };
   }
 
-  function handleOverlayClick(e: React.MouseEvent<SVGRectElement>) {
+  /** Ce que la pose d'un point lit de l'état courant ; `overrides` pour un glisser, dont le relâchement
+   *  arrive avant que React ait rendu le premier point posé. */
+  function placeAt(e: React.MouseEvent<SVGRectElement>, overrides?: Partial<DrawingPlacementContext>) {
     placeDrawingOnClick(e, {
       data,
       dims,
@@ -353,7 +369,16 @@ export function useDrawingInteractions({
       setTextEntry,
       hoveredIndicatorIdRef,
       toDataPoint,
+      ...overrides,
     });
+  }
+
+  function handleOverlayClick(e: React.MouseEvent<SVGRectElement>) {
+    if (suppressClickRef.current) {
+      suppressClickRef.current = false;
+      return;
+    }
+    placeAt(e);
   }
 
   function handleOverlayDoubleClick(e: React.MouseEvent<SVGRectElement>) {
@@ -554,7 +579,8 @@ export function useDrawingInteractions({
       setHoverIndicatorPaneY(null);
     }
 
-    if (activeTool && pendingPoint) {
+    // Pendant un glisser de tracé, handlePointerMove tient l'aperçu lui-même (aimanté, au pixel près).
+    if (activeTool && pendingPoint && !drawPressRef.current?.dragging) {
       const anchor = placementAnchor();
       if (anchor && (shiftHeldRef.current || angleLock)) {
         const p = snapAngle({ x: zoomedXScale(indexForDate(anchor.x) + 0.5), y: zoomedPriceScale(anchor.y) }, { x: mouseX, y: mouseY });
@@ -661,6 +687,20 @@ export function useDrawingInteractions({
       brushPointsRef.current = [...brushPointsRef.current, point];
       setBrushPreview(brushPointsRef.current);
       return;
+    }
+
+    const press = drawPressRef.current;
+    // Bouton relâché hors de tout évènement reçu (fenêtre quittée…) : l'appui est oublié.
+    if (press && e.pointerType !== "touch" && e.buttons === 0) drawPressRef.current = null;
+    else if (press && activeTool) {
+      if (!press.dragging && Math.hypot(e.clientX - press.startClientX, e.clientY - press.startClientY) >= CLICK_DRAG_THRESHOLD) {
+        // Glisser : le premier point, là où l'appui a commencé (aimant compris).
+        const start = { clientX: press.startClientX, clientY: press.startClientY, shiftKey: false };
+        press.dragging = true;
+        press.first = toDataPoint(start, null);
+        placeAt(start as unknown as React.MouseEvent<SVGRectElement>, { toDataPoint: () => press.first! });
+      }
+      if (press.dragging && press.first) setPreviewPoint(toDataPoint(e, press.first));
     }
 
     if (dragMeasureBodyRef.current) {
@@ -773,6 +813,8 @@ export function useDrawingInteractions({
   function handleOverlayPointerDown(e: React.PointerEvent<SVGRectElement>) {
     // A press whose release never reached this overlay (cancelled touch) must not select later.
     lockedPressRef.current = null;
+    // Un nouvel appui : le `click` d'un glisser de tracé précédent ne viendra plus (le tactile n'en envoie pas).
+    suppressClickRef.current = false;
     // Brush is the one drawing tool that places points by dragging instead of clicking — starts
     // capturing here instead of falling through to the click-based tools' shared handleOverlayClick.
     if (activeTool === "brush") {
@@ -783,7 +825,16 @@ export function useDrawingInteractions({
       setBrushPreview(brushPointsRef.current);
       return;
     }
-    if (activeTool) return;
+    if (activeTool) {
+      drawPressRef.current = null;
+      // Premier point d'un outil à deux points ou plus : l'appui peut devenir un glisser (voir drawPressRef).
+      // d3-zoom est coupé tant qu'un outil est armé : ni défilement ni zoom pendant le geste.
+      if (!pendingPoint && !NO_DRAG_PLACEMENT_TOOLS.has(activeTool) && (e.pointerType === "touch" || e.button === 0)) {
+        e.currentTarget.setPointerCapture?.(e.pointerId);
+        drawPressRef.current = { startClientX: e.clientX, startClientY: e.clientY, dragging: false, first: null };
+      }
+      return;
+    }
     // Touch has no hover: a stationary tap isn't guaranteed to fire a pointermove before this
     // (mobile browsers vary), and even when it does, "hovering a drawing" has to already be true
     // *before* this handler runs to reach the whole-body-drag branch below — there's simply
@@ -886,6 +937,18 @@ export function useDrawingInteractions({
   }
 
   function handleOverlayPointerUp(e: React.PointerEvent<SVGRectElement>) {
+    const press = drawPressRef.current;
+    if (press) {
+      drawPressRef.current = null;
+      if (e.currentTarget.hasPointerCapture?.(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+      if (press.dragging && press.first) {
+        // Le relâchement pose le second point (un canal, une fourchette… attendent ensuite un clic pour le dernier).
+        const first = press.first;
+        suppressClickRef.current = true;
+        placeAt(e, { pendingPoint: first, toDataPoint: (ev) => toDataPoint(ev, first) });
+      }
+      return;
+    }
     if (brushDrawingRef.current) {
       brushDrawingRef.current = false;
       if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);

@@ -1623,3 +1623,30 @@ export const CanvasAndDayNightMode: Story = {
     );
   },
 };
+
+/** Mémoire des derniers styles par outil, comme TradingView : tracez une ligne de tendance (deux clics, ou appui puis
+ *  glisser), changez sa couleur ou son épaisseur dans la barre flottante, puis tracez-en une autre : elle reprend ces
+ *  réglages, sans toucher aux autres outils. Le dessin tout juste posé est sélectionné (poignées et barre flottante).
+ *  Le JSON est ce que remonte `onDrawingStylesChange` (à enregistrer, puis à rendre via `defaultDrawingStyles`) ;
+ *  le menu « Styles » de la barre flottante → « Réinitialiser le style par défaut de cet outil » l'oublie. */
+export const DrawingStyleMemory: Story = {
+  name: "Mémoire des styles de dessin",
+  render: () => {
+    const data = useMemo(() => generateCandles(260), []);
+    const [saved, setSaved] = useState<Record<string, unknown>>({ rectangle: { color: "#2962ff", strokeWidth: 2, fillColor: "rgba(41, 98, 255, 0.15)" } });
+    return (
+      <div style={{ height: 680 }}>
+        <CandlestickChart
+          data={data}
+          symbol="DEMO"
+          height={520}
+          zoomable
+          drawingTools
+          defaultDrawingStyles={{ rectangle: { color: "#2962ff", strokeWidth: 2, fillColor: "rgba(41, 98, 255, 0.15)" } }}
+          onDrawingStylesChange={setSaved}
+        />
+        <pre style={{ font: "11px monospace", maxHeight: 120, overflow: "auto" }}>{JSON.stringify(saved, null, 1)}</pre>
+      </div>
+    );
+  },
+};

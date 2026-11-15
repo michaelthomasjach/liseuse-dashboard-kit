@@ -17,6 +17,10 @@ export interface DrawingStylesMenuProps {
   onOverwrite: (id: string) => void;
   onRename: (id: string, name: string) => void;
   onDelete: (id: string) => void;
+  /** L'outil a un style mémorisé (dernier style utilisé ou style enregistré actif) : « Réinitialiser » est proposé. */
+  hasRememberedStyle?: boolean;
+  /** Oublie le dernier style de l'outil : ses prochains dessins reprennent le style par défaut. */
+  onResetToolStyle?: () => void;
 }
 
 /** Champ « nom + Enregistrer » d'un nouveau style (paramètres du dessin). */
@@ -44,7 +48,7 @@ export function SaveStyleField({ placeholder, onSave }: { placeholder: string; o
  * outil (un clic l'applique au dessin sélectionné et le garde pour les prochains tracés), avec
  * écraser / renommer / supprimer par ligne, et l'enregistrement du style du dessin sous un nom.
  */
-export function DrawingStylesMenu({ compact, presets, activeId, canSave, onSelect, onSave, onOverwrite, onRename, onDelete }: DrawingStylesMenuProps) {
+export function DrawingStylesMenu({ compact, presets, activeId, canSave, onSelect, onSave, onOverwrite, onRename, onDelete, hasRememberedStyle, onResetToolStyle }: DrawingStylesMenuProps) {
   const anchorRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
@@ -145,6 +149,20 @@ export function DrawingStylesMenu({ compact, presets, activeId, canSave, onSelec
                 Enregistrer
               </button>
             </form>
+          )}
+          {onResetToolStyle && hasRememberedStyle && (
+            <button
+              type="button"
+              role="menuitem"
+              className="lq-chart__tool-menu-option"
+              onClick={() => {
+                onResetToolStyle();
+                setOpen(false);
+              }}
+              title="Les prochains dessins de cet outil reprennent le style par défaut (le dessin sélectionné garde le sien)"
+            >
+              Réinitialiser le style par défaut de cet outil
+            </button>
           )}
         </div>
       </Popover>

@@ -221,6 +221,8 @@ function CandlestickChartBody({
   onYAutoScalingChange,
   defaultAppearance,
   onAppearanceChange,
+  defaultDrawingStyles,
+  onDrawingStylesChange,
   candleColorRules: candleColorRulesProp,
   onCandleColorRulesChange,
   showCandleColorRules = true,
@@ -383,6 +385,7 @@ function CandlestickChartBody({
     duplicateEditingDrawing,
     undoDrawings,
     redoDrawings,
+    lastDrawingStyles,
   } = useDrawingState({
     data,
     defaultDrawings,
@@ -391,6 +394,8 @@ function CandlestickChartBody({
     timeframe,
     timeframeScoped,
     styleForNew: drawingStyles.activeStyleFor,
+    defaultDrawingStyles,
+    onDrawingStylesChange,
     onUndoStep: () => {
       undoOrder.current.push("drawings");
       if (undoOrder.current.length > 200) undoOrder.current.shift();
@@ -2912,6 +2917,14 @@ function CandlestickChartBody({
                 onSelect: (id: string | null) => {
                   const style = drawingStyles.select(tool, id);
                   if (sel) commitDrawings(drawings.map((d) => (d.id === sel.id ? withStyle(d, style) : d)));
+                  // Le style choisi devient le dernier de l'outil ; « Défaut » l'oublie.
+                  if (style) lastDrawingStyles.remember(tool, style);
+                  else lastDrawingStyles.reset(tool);
+                },
+                hasRememberedStyle: lastDrawingStyles.has(tool) || drawingStyles.activeFor(tool) !== null,
+                onResetToolStyle: () => {
+                  lastDrawingStyles.reset(tool);
+                  drawingStyles.select(tool, null);
                 },
                 onSave: (name: string) => {
                   if (sel) drawingStyles.saveNew(tool, name, styleOf(sel));

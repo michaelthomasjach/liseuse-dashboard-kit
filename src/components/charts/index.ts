@@ -166,6 +166,8 @@ export { encodeCapture, MAX_CAPTURE_BYTES, CAPTURE_TOOL } from "./candlestick/ai
 export type { WorkspaceRailAction } from "./workspace/WorkspaceSideRail";
 export type { DaySeparatorSettings } from "./candlestick/daySeparators";
 export type { ChartAppearanceSettings } from "./candlestick/hooks/useChartAppearance";
+// Derniers styles des dessins par outil (props `defaultDrawingStyles` / `onDrawingStylesChange`).
+export type { DrawingStylesByTool } from "./candlestick/hooks/useLastDrawingStyles";
 // Style conditionnel des bougies (paramètres du graphique, prop `candleColorRules`) et des indicateurs (icônes).
 export type { CandleColorRule, CandleColorCondition, CandleColorMetric, CandleColorOperator, CandleIconMark } from "./candlestick/interfaces/CandleColorRule.interface";
 export type { RuleIcon, RuleIconPosition } from "./candlestick/interfaces/IndicatorStyleRule.interface";

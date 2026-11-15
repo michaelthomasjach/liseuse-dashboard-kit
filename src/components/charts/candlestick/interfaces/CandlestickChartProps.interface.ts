@@ -361,6 +361,14 @@ export interface CandlestickChartProps {
    *  enregistrer (par compte, par exemple). */
   defaultAppearance?: import("../hooks/useChartAppearance").ChartAppearanceSettings;
   onAppearanceChange?: (settings: import("../hooks/useChartAppearance").ChartAppearanceSettings) => void;
+  /** Derniers styles des dessins, par outil (clé : `lineType` du dessin, « trendline » pour une ligne libre) : quand
+   *  l'utilisateur change la couleur, l'épaisseur, le trait, le remplissage… d'un dessin, le prochain dessin du même
+   *  outil reprend ces réglages (comme TradingView). Valeur de départ, lue au montage ; sans elle, la mémoire dure le
+   *  temps du composant. */
+  defaultDrawingStyles?: import("../hooks/useLastDrawingStyles").DrawingStylesByTool;
+  /** Appelé à chaque changement de ces derniers styles, avec l'ensemble à jour : de quoi les enregistrer (par compte,
+   *  par exemple) et les rendre via `defaultDrawingStyles`. */
+  onDrawingStylesChange?: (styles: import("../hooks/useLastDrawingStyles").DrawingStylesByTool) => void;
   /** Mémoire des sélecteurs de couleur du graphique (indicateurs, dessins, bougies, scripts…) : `recentColors` (les
    *  12 dernières couleurs choisies, la plus récente d'abord), `colorSets` (jeux de couleurs nommés de l'utilisateur)
    *  et `activeColorSetId` (jeu appliqué, affiché en tête de chaque sélecteur). Relue quand elle change ; absente, le

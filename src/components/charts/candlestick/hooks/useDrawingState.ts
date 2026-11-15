@@ -25,6 +25,9 @@ export interface UseDrawingStateArgs {
   onAddSymbolOverlay:
     | ((result: SymbolSearchResult) => OverlayDataPoint[] | Promise<OverlayDataPoint[]>)
     | undefined;
+  /** Appelé à chaque nouvelle étape d'annulation des dessins : le graphique tient l'ordre des étapes de Ctrl+Z
+   *  entre les dessins et la disposition des indicateurs. */
+  onUndoStep?: () => void;
 }
 
 /** Changes closer together than this (ms) form one undo step — a drag commits on every frame. */
@@ -47,7 +50,9 @@ function nextDrawingIndex(list: TrendLineDrawing[]): number {
  *  hovered one) that act on them. Pointer-driven placement/dragging lives in
  *  `useDrawingInteractions` instead (it needs the zoom/pane scales this hook doesn't), which takes
  *  this hook's full return value as its own input. */
-export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAddSymbolOverlay, timeframe, timeframeScoped = false, styleForNew }: UseDrawingStateArgs) {
+export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAddSymbolOverlay, timeframe, timeframeScoped = false, styleForNew, onUndoStep }: UseDrawingStateArgs) {
+  const onUndoStepRef = useRef(onUndoStep);
+  onUndoStepRef.current = onUndoStep;
   const styleForNewRef = useRef(styleForNew);
   styleForNewRef.current = styleForNew;
   // Lu au moment du tracé (pas à la création du callback) : un changement d'unité de temps ne
@@ -93,6 +98,7 @@ export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAdd
       if (now - lastChangeAt.current > UNDO_COALESCE_MS) {
         undoStack.current.push(drawingsRef.current);
         if (undoStack.current.length > UNDO_LIMIT) undoStack.current.shift();
+        onUndoStepRef.current?.();
       }
       lastChangeAt.current = now;
       redoStack.current = [];

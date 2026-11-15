@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import type { ChartTemplateSnapshot } from "./candlestick/interfaces/ChartTemplate.interface";
 import { createPortal } from "react-dom";
 import type { IndicatorKind } from "./candlestick/interfaces/IndicatorKind.interface";
 import type { Indicator } from "./candlestick/interfaces/Indicator.interface";
@@ -122,6 +123,8 @@ const StableToolsRail = stableMemo(ToolsRail);
 const StableChartHeader = stableMemo(ChartHeader);
 const StableChartModals = stableMemo(ChartModals);
 const DEFAULT_VOLUME_FORMAT = d3.format(".2s");
+/** Ce qui fait une étape de Ctrl+Z dans la disposition : la liste des indicateurs et le panneau du volume fermé ou non. */
+const layoutShape = (s: ChartTemplateSnapshot): string => `${s.indicators.map((i) => i.id).join("|")}#${s.volumePaneState === "hidden"}`;
 // En-têtes des panneaux : rien n'y bouge pendant un glisser (seulement au survol), mais ils étaient
 // recalculés à chaque image avec toutes leurs icônes. `vFmt` est appelé pendant le rendu : gardé tel quel.
 const StablePaneHeaders = stableMemo(PaneHeaders, { raw: ["vFmt", "indicatorLabel"] });
@@ -241,6 +244,15 @@ export function CandlestickChart({
     setTimeframeScoped(next);
     onTimeframeScopedChange?.(next);
   };
+  // Historique de Ctrl+Z / Ctrl+Y : l'ordre des étapes entre les dessins (pile tenue par useDrawingState) et la disposition
+  // des indicateurs (piles ci-dessous, remplies plus bas, une fois la disposition connue).
+  const undoOrder = useRef<("drawings" | "layout")[]>([]);
+  const redoOrder = useRef<("drawings" | "layout")[]>([]);
+  const layoutUndo = useRef<ChartTemplateSnapshot[]>([]);
+  const layoutRedo = useRef<ChartTemplateSnapshot[]>([]);
+  const layoutPrev = useRef<ChartTemplateSnapshot | null>(null);
+  const layoutRestoring = useRef(false);
+  const historyRef = useRef<{ undo: () => boolean; redo: () => boolean }>({ undo: () => false, redo: () => false });
   const {
     drawings,
     activeTool,
@@ -319,7 +331,21 @@ export function CandlestickChart({
     duplicateEditingDrawing,
     undoDrawings,
     redoDrawings,
-  } = useDrawingState({ data, defaultDrawings, onDrawingsChange, onAddSymbolOverlay, timeframe, timeframeScoped, styleForNew: drawingStyles.activeStyleFor });
+  } = useDrawingState({
+    data,
+    defaultDrawings,
+    onDrawingsChange,
+    onAddSymbolOverlay,
+    timeframe,
+    timeframeScoped,
+    styleForNew: drawingStyles.activeStyleFor,
+    onUndoStep: () => {
+      undoOrder.current.push("drawings");
+      if (undoOrder.current.length > 200) undoOrder.current.shift();
+      redoOrder.current = [];
+      layoutRedo.current = [];
+    },
+  });
   // Masquage des dessins piloté par l'application (prop `drawingsHidden`), sinon par le bouton œil seul.
   useEffect(() => {
     if (drawingsHiddenProp !== undefined) setDrawingsHidden(drawingsHiddenProp);
@@ -838,11 +864,11 @@ export function CandlestickChart({
       if (!root) return;
       const focused = root.matches(":hover") || root.contains(active);
       if (!focused && lastUsedChart !== chartToken.current) return;
-      if (isUndo ? undoDrawings() : redoDrawings()) e.preventDefault();
+      if (isUndo ? historyRef.current.undo() : historyRef.current.redo()) e.preventDefault();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [undoDrawings, redoDrawings]);
+  }, []);
   useEffect(() => {
     if (!activeCustomToolId) return;
     const onKey = (e: KeyboardEvent) => {
@@ -905,6 +931,68 @@ export function CandlestickChart({
     ],
     [visibleDrawings, scriptingState.scriptDrawings, closedStrategyPrefixes, shownOverlayDrawings],
   );
+
+  // Ctrl+Z / Ctrl+Y sur la disposition des indicateurs : un indicateur ajouté ou supprimé, le panneau du volume fermé ou
+  // rouvert. Chaque étape garde la disposition d'avant (indicateurs avec leurs réglages, ordre et hauteur des panneaux) ;
+  // un simple réglage (période, couleur, masquage) n'en crée pas. L'ordre avec les étapes des dessins est dans undoOrder.
+  useEffect(() => {
+    const snap: ChartTemplateSnapshot = { indicators, volumePaneOrder, volumePaneState, paneHeightFractions };
+    const prev = layoutPrev.current;
+    layoutPrev.current = snap;
+    if (layoutRestoring.current) {
+      layoutRestoring.current = false;
+      return;
+    }
+    if (!prev || layoutShape(prev) === layoutShape(snap)) return;
+    layoutUndo.current.push(prev);
+    if (layoutUndo.current.length > 100) layoutUndo.current.shift();
+    layoutRedo.current = [];
+    undoOrder.current.push("layout");
+    if (undoOrder.current.length > 200) undoOrder.current.shift();
+    redoOrder.current = [];
+  }, [indicators, volumePaneOrder, volumePaneState, paneHeightFractions]);
+  // Un autre symbole : les étapes de disposition de l'ancien ne s'appliquent plus.
+  const historySymbol = useRef(symbol);
+  useEffect(() => {
+    if (historySymbol.current === symbol) return;
+    historySymbol.current = symbol;
+    layoutUndo.current = [];
+    layoutRedo.current = [];
+    undoOrder.current = undoOrder.current.filter((k) => k === "drawings");
+    redoOrder.current = redoOrder.current.filter((k) => k === "drawings");
+  }, [symbol]);
+  function restoreLayout(from: ChartTemplateSnapshot[], to: ChartTemplateSnapshot[]): boolean {
+    const snap = from.pop();
+    if (!snap) return false;
+    if (layoutPrev.current) to.push(layoutPrev.current);
+    layoutRestoring.current = layoutPrev.current ? layoutShape(layoutPrev.current) !== layoutShape(snap) : false;
+    loadIndicatorLayout(snap);
+    return true;
+  }
+  historyRef.current = {
+    undo: () => {
+      const kind = undoOrder.current.pop();
+      if (kind === "layout") {
+        if (!restoreLayout(layoutUndo.current, layoutRedo.current)) return false;
+        redoOrder.current.push("layout");
+        return true;
+      }
+      if (!undoDrawings()) return false;
+      redoOrder.current.push("drawings");
+      return true;
+    },
+    redo: () => {
+      const kind = redoOrder.current.pop();
+      if (kind === "layout") {
+        if (!restoreLayout(layoutRedo.current, layoutUndo.current)) return false;
+        undoOrder.current.push("layout");
+        return true;
+      }
+      if (!redoDrawings()) return false;
+      undoOrder.current.push("drawings");
+      return true;
+    },
+  };
 
   const {
     templates,

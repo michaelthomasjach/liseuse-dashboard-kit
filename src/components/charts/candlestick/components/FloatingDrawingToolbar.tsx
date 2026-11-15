@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import type { RefObject } from "react";
+import type { CSSProperties, RefObject } from "react";
 import { Popover } from "../../../forms/Popover";
 import { DrawingStylesMenu, type DrawingStylesMenuProps } from "./DrawingStylesMenu";
 import { GripIcon, PencilIcon, TextIcon, HorizontalLineIcon, AlarmClockIcon, TimeframeLayersIcon, TrashIcon, LockIcon, UnlockIcon } from "../../../icons";
@@ -7,7 +7,10 @@ import { GripIcon, PencilIcon, TextIcon, HorizontalLineIcon, AlarmClockIcon, Tim
 const STROKE_WIDTH_OPTIONS = [1, 2, 3, 4];
 
 export interface FloatingDrawingToolbarProps {
-  position: { x: number; y: number };
+  /** Placement dans le graphique (left/top, ou le bord qui la tient quand elle est accrochée). */
+  style: CSSProperties;
+  /** Verticale quand elle est accrochée au bord gauche ou droit du graphique. */
+  orientation?: "horizontal" | "vertical";
   toolbarRef: RefObject<HTMLDivElement>;
   startDrag: (e: React.PointerEvent) => void;
   /** false for the two tools with no persistent styled drawing of their own (measure/zoomIn) —
@@ -54,7 +57,8 @@ export interface FloatingDrawingToolbarProps {
  *  every value and every change handler is a prop, the caller decides whether it's editing the
  *  selected drawing's own fields or the *next* drawing's default style. */
 export function FloatingDrawingToolbar({
-  position,
+  style,
+  orientation = "horizontal",
   toolbarRef,
   startDrag,
   showStyleControls,
@@ -82,7 +86,12 @@ export function FloatingDrawingToolbar({
 
   return (
     // Le fond de la barre se prend aussi pour la déplacer (au doigt, la petite poignée est difficile à viser).
-    <div ref={toolbarRef} className="lq-chart__floating-toolbar" style={{ left: position.x, top: position.y }} onPointerDown={startDrag}>
+    <div
+      ref={toolbarRef}
+      className={["lq-chart__floating-toolbar", orientation === "vertical" && "lq-chart__floating-toolbar--vertical"].filter(Boolean).join(" ")}
+      style={style}
+      onPointerDown={startDrag}
+    >
       {/* 6 dots across 2 columns (GripIcon), at reduced opacity until hovered — press-and-hold
           drags the whole toolbar via useFloatingToolbarPosition.startDrag. */}
       <button type="button" className="lq-chart__floating-toolbar-grip" onPointerDown={startDrag} aria-label="Déplacer la barre d'outils" title="Glisser pour déplacer">

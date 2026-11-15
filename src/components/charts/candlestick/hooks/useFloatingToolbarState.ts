@@ -16,6 +16,9 @@ export interface UseFloatingToolbarStateArgs {
    *  carrying an explicit color of its own (see defaultDrawingStyle's own doc). */
   defaultDrawingColor: string;
   plotWidth: number;
+  /** Marges gauche et basse du tracé (voir useFloatingToolbarPosition). */
+  plotLeft?: number;
+  plotBottom?: number;
 }
 
 /** Everything `CandlestickChart` needs to render `FloatingDrawingToolbar` — split out purely to
@@ -30,6 +33,8 @@ export function useFloatingToolbarState({
   setDefaultDrawingStyle,
   defaultDrawingColor,
   plotWidth,
+  plotLeft,
+  plotBottom,
 }: UseFloatingToolbarStateArgs) {
   // Keeps defaultDrawingStyle's own color in sync with the theme's accent color until the user
   // actually picks a different one via the toolbar's own pencil swatch, at which point this stops
@@ -66,10 +71,11 @@ export function useFloatingToolbarState({
   const toolbarStrokeWidth = selectedDrawing ? (selectedDrawing.strokeWidth ?? 1.5) : defaultDrawingStyle.strokeWidth;
   const toolbarResetKey = activeTool ? `tool:${activeTool}` : selectedDrawingId ? `drawing:${selectedDrawingId}` : null;
   const {
-    position: floatingToolbarPosition,
+    style: floatingToolbarStyle,
+    orientation: floatingToolbarOrientation,
     toolbarRef: floatingToolbarRef,
     startDrag: startFloatingToolbarDrag,
-  } = useFloatingToolbarPosition({ resetKey: toolbarResetKey, plotWidth });
+  } = useFloatingToolbarPosition({ resetKey: toolbarResetKey, plotWidth, plotLeft, plotBottom });
 
   // The bell button's own target info — the selected drawing's real lineType if one exists,
   // else the bare active tool (nothing placed yet). "fibonacci"/"fibonacciExtension" are the only
@@ -91,7 +97,8 @@ export function useFloatingToolbarState({
     toolbarTextColor,
     toolbarStrokeWidth,
     updateDrawingOrDefaultStyle,
-    floatingToolbarPosition,
+    floatingToolbarStyle,
+    floatingToolbarOrientation,
     floatingToolbarRef,
     startFloatingToolbarDrag,
     alertTarget,

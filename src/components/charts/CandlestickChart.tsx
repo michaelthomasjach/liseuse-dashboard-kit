@@ -694,7 +694,7 @@ export function CandlestickChart({
   const {
     showFloatingToolbar, showToolbarStyleControls,
     toolbarColor, toolbarTextColor, toolbarStrokeWidth, updateDrawingOrDefaultStyle,
-    floatingToolbarPosition, floatingToolbarRef, startFloatingToolbarDrag, alertTarget,
+    floatingToolbarStyle, floatingToolbarOrientation, floatingToolbarRef, startFloatingToolbarDrag, alertTarget,
   } = useFloatingToolbarState({
     activeTool,
     selectedDrawingId,
@@ -704,6 +704,8 @@ export function CandlestickChart({
     setDefaultDrawingStyle,
     defaultDrawingColor,
     plotWidth: dims.boundedWidth,
+    plotLeft: dims.margin.left,
+    plotBottom: dims.margin.bottom,
   });
   const alertFlow = useAlertFlow(alerts ?? [], selectedDrawingId);
 
@@ -2337,7 +2339,8 @@ export function CandlestickChart({
         />
         {showFloatingToolbar && (
           <FloatingDrawingToolbar
-            position={floatingToolbarPosition}
+            style={floatingToolbarStyle}
+            orientation={floatingToolbarOrientation}
             toolbarRef={floatingToolbarRef}
             startDrag={startFloatingToolbarDrag}
             showStyleControls={showToolbarStyleControls}

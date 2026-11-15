@@ -4153,6 +4153,30 @@ button.lq-chart__legend-item {
 .lq-chart__floating-toolbar-grip {
   touch-action: none;
 }
+
+/* Accrochée au bord gauche ou droit du graphique (voir useFloatingToolbarPosition) : la barre passe
+   à la verticale, ses séparateurs deviennent horizontaux, et si elle est plus haute que le
+   graphique ses boutons passent sur une deuxième colonne. */
+.lq-chart__floating-toolbar--vertical {
+  flex-direction: column;
+  max-width: none;
+  max-height: calc(100% - 8px);
+}
+.lq-chart__floating-toolbar--vertical .lq-chart__floating-toolbar-divider {
+  width: auto;
+  height: 1px;
+  margin: 0 2px;
+}
+/* Boutons à libellé (« Style · Défaut », « 1 jour ») : sur deux lignes plutôt qu'une barre élargie. */
+.lq-chart__floating-toolbar--vertical .lq-chart__icon-button.lq-chart__floating-toolbar-text {
+  max-width: 52px;
+  height: auto;
+  min-height: 28px;
+  padding: 3px 4px;
+  white-space: normal;
+  line-height: 1.15;
+  text-align: center;
+}
 @media (pointer: coarse) {
   .lq-chart__floating-toolbar-grip {
     min-width: 32px;

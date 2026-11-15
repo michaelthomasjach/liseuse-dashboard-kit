@@ -159,7 +159,7 @@ export const SCRIPT_API_COMPLETIONS: ScriptApiCompletion[] = [
   {
     label: "plot.pane",
     type: "function",
-    detail: '(name, { dock?, format? }) => handle — sub-pane dédié (bottom/left/right), format des valeurs "auto" (k / M / B) | "integer" | "percent" | "raw" | { decimals, prefix, suffix } ; dessiner via .line/.area/.histogram/.band/.label/.profile',
+    detail: '(name, { dock?, format?, priceOverlay? }) => handle — sub-pane dédié (bottom/left/right, ou sur les prix avec priceOverlay: true), format des valeurs "auto" (k / M / B) | "integer" | "percent" | "raw" | { decimals, prefix, suffix } ; dessiner via .line/.area/.histogram/.band/.label/.profile',
     apply: 'plot.pane("")',
   },
   {

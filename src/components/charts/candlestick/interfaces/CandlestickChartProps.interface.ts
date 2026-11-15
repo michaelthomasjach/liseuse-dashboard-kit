@@ -383,6 +383,10 @@ export interface CandlestickChartProps {
    *  rubrique n'apparaît pas (fonctionnalité hors de l'offre du compte, par exemple) ; les zones déjà enregistrées
    *  restent dessinées. Défaut vrai. */
   showAreaFills?: boolean;
+  /** Option « Afficher sur le graphique des prix (overlay) » des paramètres d'un panneau (Volume, RSI, MACD, script…).
+   *  Faux : l'option n'apparaît pas (fonctionnalité hors de l'offre du compte, par exemple) ; une série déjà en overlay
+   *  y reste, et se renvoie dans son panneau en la retirant puis en la rajoutant. Défaut vrai. */
+  showPaneOverlay?: boolean;
   /** Personnalisation avancée de l'apparence (paramètres du graphique) : section « Toile » (fond, grilles,
    *  séparateurs, réticule, texte et lignes des échelles, marges) et menu « Modèle » (modèles d'apparence). Faux : la
    *  section et le menu n'apparaissent pas, et les réglages de la Toile enregistrés ne s'appliquent pas (rendu du

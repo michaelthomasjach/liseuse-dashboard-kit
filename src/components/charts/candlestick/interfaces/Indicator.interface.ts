@@ -271,6 +271,11 @@ export interface Indicator {
   /** A `pane: "own"` indicator's pane, collapsed to a header-only strip — same mechanism/UI as
    *  the volume pane's own collapse. Default false (expanded). */
   paneCollapsed?: boolean;
+  /** Indicateur en panneau séparé (RSI, MACD, script…) affiché sur le graphique des prix plutôt que dans son panneau
+   *  (paramètres du panneau → « Afficher sur le graphique des prix (overlay) ») : son panneau disparaît, sa série se
+   *  dessine sur la zone des prix avec sa propre échelle, cachée (ses unités ne sont pas celles du cours), et elle
+   *  rejoint la légende des indicateurs en haut à gauche. Les indicateurs posés sur lui le suivent. Défaut faux. */
+  priceOverlay?: boolean;
   /** A `plot.pane(name, { dock: "left"|"right" })` script pane only (see `customData.dock`) —
    *  whether its own price/date axes are drawn in the docked column. Default true; toggled from
    *  the Style tab. Meaningless (ignored) for a `dock: "bottom"`/undocked pane, which already

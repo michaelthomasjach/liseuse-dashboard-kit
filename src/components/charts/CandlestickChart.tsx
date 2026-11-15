@@ -222,6 +222,7 @@ function CandlestickChartBody({
   onCandleColorRulesChange,
   showCandleColorRules = true,
   showAreaFills = true,
+  showPaneOverlay = true,
   advancedAppearance = true,
   onOpenIndicatorHelp,
   timeframes,
@@ -862,6 +863,7 @@ function CandlestickChartBody({
     patchIndicator,
     removeIndicator,
     volumeVisible, volumeCollapsed,
+    volumeOverlay, setVolumeOverlay, volumeOnPrice, priceOverlayIndicators,
     startPaneResize, reorderPanesRef,
     ownPaneIndicators,
     indicatorPaneHeights, indicatorPaneTops,
@@ -1137,6 +1139,7 @@ function CandlestickChartBody({
     indicators,
     volumePaneOrder,
     volumePaneState,
+    volumeOverlay,
     paneHeightFractions,
     activeScripts: templateScripts,
     loadIndicatorLayout,
@@ -1413,6 +1416,7 @@ function CandlestickChartBody({
     visibleIndicators,
     indicatorProjections,
     zoomedOwnPaneScales,
+    priceOverlayScales,
     paneScaleAndOffset,
     pixelYForDrawing,
     valueAxisLabel,
@@ -1432,6 +1436,7 @@ function CandlestickChartBody({
     volumeTop,
     volumeHeight,
     priceHeight,
+    priceOverlayIndicators,
   });
 
 
@@ -1700,6 +1705,10 @@ function CandlestickChartBody({
     indicatorPaneHeights,
     indicatorPaneTops,
     zoomedOwnPaneScales,
+    // Volume et séries de panneau affichés sur le graphique des prix ; l'œil de la légende masque le volume (replié).
+    volumeOnPrice: volumeOnPrice && volumePaneState !== "collapsed",
+    priceOverlayIndicators,
+    priceOverlayScales,
     indicators: combinedIndicators,
     overlayProjections,
     symbolOverlays,
@@ -2231,6 +2240,8 @@ function CandlestickChartBody({
   const { candle: ohlcCandle, delta: ohlcDelta, deltaPct: ohlcDeltaPct, sign: ohlcSign } = computeOhlcReadout(data, effectiveHoverIndex);
   // Ligne d'état : valeur(s) d'un indicateur à la bougie que montre la légende (réglage « Valeurs des indicateurs »).
   const legendValueIndex = effectiveHoverIndex ?? data.length - 1;
+  // La légende des prix : les indicateurs tracés sur les prix, puis les séries de panneau affichées sur les prix.
+  const legendOverlayIndicators = priceOverlayIndicators.length > 0 ? [...overlayIndicators, ...priceOverlayIndicators] : overlayIndicators;
   const indicatorLegendValue = (indicator: Indicator): string | null => {
     const entry = indicatorValues.find((e) => e.indicator.id === indicator.id);
     if (!entry || legendValueIndex < 0) return null;
@@ -2505,8 +2516,22 @@ function CandlestickChartBody({
             mobile={isNarrowLayout}
             pFmt={pFmt}
             showIndicators={showIndicators}
-            overlayIndicators={overlayIndicators}
+            overlayIndicators={legendOverlayIndicators}
             indicators={combinedIndicators}
+            volumeOverlay={
+              volumeOnPrice
+                ? {
+                    value: typeof data[legendValueIndex]?.volume === "number" ? formatCompactNumber(data[legendValueIndex]!.volume!) : null,
+                    hidden: volumePaneState === "collapsed",
+                    toggleHidden: () => setVolumePaneState(volumePaneState === "collapsed" ? "expanded" : "collapsed"),
+                    openSettings: () => setVolumeSettingsOpen(true),
+                    remove: () => {
+                      setVolumeOverlay(false);
+                      setVolumePaneState("hidden");
+                    },
+                  }
+                : undefined
+            }
             defaultIndicatorColor={defaultIndicatorColor}
             openIndicatorSettings={openIndicatorSettings}
             setHoveredIndicatorId={setHoveredIndicatorId}
@@ -2964,6 +2989,7 @@ function CandlestickChartBody({
         pickerTargetPane={indicatorPickerOpen ? pickerTargetPane : null}
         addOnPane={addIndicatorOnPane}
         settingsOpen={settingsOpen} setSettingsOpen={setSettingsOpen}
+        volumeOverlay={volumeOverlay} setVolumeOverlay={setVolumeOverlay}
         priceSettingsOpen={priceSettingsOpen} setPriceSettingsOpen={setPriceSettingsOpen}
         watermark={watermark} setWatermark={setWatermark} watermarkAvailable={Boolean(symbol)}
         timeframeLabelOf={drawingTimeframeLabel}
@@ -2971,6 +2997,7 @@ function CandlestickChartBody({
         candleColorRules={candleColorRules} setCandleColorRules={setCandleColorRules}
         showCandleColorRules={showCandleColorRules} candleRuleIndicators={combinedIndicators}
         showAreaFills={showAreaFills}
+        showPaneOverlay={showPaneOverlay}
         chartStyle={chartStyle} setChartStyle={setChartStyle}
         styleTemplates={styleTemplates} setStyleTemplates={setStyleTemplates}
         advancedAppearance={advancedAppearance} livePrice={livePrice}

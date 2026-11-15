@@ -26,7 +26,12 @@ export interface UseIndicatorPaneScalesArgs {
   volumeTop: number;
   volumeHeight: number;
   priceHeight: number;
+  /** Séries de panneau affichées sur le graphique des prix (`Indicator.priceOverlay`) : une échelle chacune, ajustée
+   *  à ses valeurs visibles, sur toute la hauteur de la zone des prix. */
+  priceOverlayIndicators?: Indicator[];
 }
+
+const NO_TRANSFORM: Record<string, d3.ZoomTransform> = {};
 
 /** Every indicator's own computed values (full + windowed to the visible range) and, for
  *  "own"-pane ones (RSI/CHOP/MACD/fundamentals), their own Y-scale — plus the small helpers that
@@ -48,6 +53,7 @@ export function useIndicatorPaneScales({
   volumeTop,
   volumeHeight,
   priceHeight,
+  priceOverlayIndicators = [],
 }: UseIndicatorPaneScalesArgs) {
   // Expensive (O(data.length) per indicator) — recomputed only when the data or the indicator
   // list itself changes, never on pan/zoom (which would otherwise redo this every frame).
@@ -96,6 +102,14 @@ export function useIndicatorPaneScales({
   // a shared hook instead of being inlined here — a `plot.pane(..., {dock})` script pane's own
   // left/right column needs the exact same logic for its own (separate) stack of indicators.
   const { ownPaneScales, zoomedOwnPaneScales } = usePaneStackScales({ ownPaneIndicators, indicatorPaneHeights, visibleIndicators, paneYTransform });
+  // Sur les prix : la même logique d'échelle qu'un panneau (0-100 pour un RSI, ajustée sinon), sur la hauteur des prix.
+  const priceOverlayHeights = useMemo(() => priceOverlayIndicators.map(() => priceHeight), [priceOverlayIndicators, priceHeight]);
+  const { zoomedOwnPaneScales: priceOverlayScales } = usePaneStackScales({
+    ownPaneIndicators: priceOverlayIndicators,
+    indicatorPaneHeights: priceOverlayHeights,
+    visibleIndicators,
+    paneYTransform: NO_TRANSFORM,
+  });
 
   // Resolves a drawing's own `valueAxis` (undefined/"price", "volume", or an own-pane
   // indicator's id) to that pane's current zoomed scale plus its vertical offset within the
@@ -145,6 +159,7 @@ export function useIndicatorPaneScales({
     visibleIndicators,
     ownPaneScales,
     zoomedOwnPaneScales,
+    priceOverlayScales,
     paneScaleAndOffset,
     pixelYForDrawing,
     valueAxisLabel,

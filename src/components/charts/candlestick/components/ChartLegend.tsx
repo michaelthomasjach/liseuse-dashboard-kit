@@ -1,3 +1,4 @@
+import { isPriceOverlay } from "../attachedIndicators";
 import "./IndicatorLegendHandle.css";
 import type { IndicatorInfoTarget } from "../interfaces/IndicatorInfoTarget.interface";
 import { IndicatorHelpButton } from "./IndicatorHelp";
@@ -75,6 +76,8 @@ export interface ChartLegendProps {
   pFmt: (value: number) => string;
   showIndicators: boolean;
   overlayIndicators: Indicator[];
+  /** Volume affiché sur le graphique des prix : sa ligne dans la légende (nom, valeur, masquer, paramètres, retirer). */
+  volumeOverlay?: { value: string | null; hidden: boolean; toggleHidden: () => void; openSettings: () => void; remove: () => void };
   indicators: Indicator[];
   defaultIndicatorColor: (index: number) => string;
   openIndicatorSettings: (id: string) => void;
@@ -148,6 +151,7 @@ export function ChartLegend({
   pFmt,
   showIndicators,
   overlayIndicators,
+  volumeOverlay,
   indicators,
   defaultIndicatorColor,
   openIndicatorSettings,
@@ -190,7 +194,7 @@ export function ChartLegend({
   const [legendFolded, setLegendFolded] = useState(false);
   // Compared symbols first, indicators after: a symbol is a series of its own, on the same footing
   // as the main one right above, and an indicator added afterwards must not end up between them.
-  const legendNames = [...symbolOverlays.map((dr) => drawingLabel(dr)), ...overlayIndicators.map((ind) => indicatorLabel(ind))];
+  const legendNames = [...(volumeOverlay ? ["Volume"] : []), ...symbolOverlays.map((dr) => drawingLabel(dr)), ...overlayIndicators.map((ind) => indicatorLabel(ind))];
   // Each overlay's series sorted once per change of the overlays, not on every hover move.
   const sortedOverlaySeries = useMemo(
     () => new Map(symbolOverlays.map((dr) => [dr.id, [...(dr.overlayData ?? [])].sort((a, b) => a.date.getTime() - b.date.getTime())])),
@@ -310,7 +314,7 @@ export function ChartLegend({
           corner overlapping the OHLC readout above them — and made their "eye" button here a
           silent no-op, since an own-pane indicator's visibility reads `paneCollapsed`, not
           `hidden` (see `Indicator.hidden`'s own doc comment). */}
-      {((showIndicators && overlayIndicators.length > 0) || symbolOverlays.length > 0) && (
+      {((showIndicators && overlayIndicators.length > 0) || symbolOverlays.length > 0 || volumeOverlay) && (
       <>
       {/* Past a handful of indicators the list is taller than the chart it annotates. The chevron
           folds every row into one line — the names, separated by dots, nothing else — and the same
@@ -442,6 +446,30 @@ export function ChartLegend({
           </div>
           );
         })}
+        {/* Volume affiché sur le graphique des prix : une ligne comme celle d'un indicateur, toujours avec sa valeur. */}
+        {volumeOverlay && (
+          <div
+            className="lq-chart__indicator-legend-item lq-chart__indicator-legend-item--volume"
+            onDoubleClick={volumeOverlay.openSettings}
+            data-legend-volume=""
+          >
+            <span className={["lq-chart__indicator-legend-label", volumeOverlay.hidden && "lq-chart__indicator-legend-label--hidden"].filter(Boolean).join(" ")}>
+              Volume
+              {volumeOverlay.value && <span className="lq-chart__indicator-legend-value"> {volumeOverlay.value}</span>}
+            </span>
+            <div className="lq-chart__indicator-legend-actions">
+              <button type="button" className="lq-chart__indicator-legend-action" onClick={volumeOverlay.toggleHidden} aria-label={volumeOverlay.hidden ? "Afficher Volume" : "Masquer Volume"}>
+                {volumeOverlay.hidden ? <EyeOffIcon size={11} /> : <EyeIcon size={11} />}
+              </button>
+              <button type="button" className="lq-chart__indicator-legend-action" onClick={volumeOverlay.remove} aria-label="Supprimer Volume">
+                <TrashIcon size={11} />
+              </button>
+              <button type="button" className="lq-chart__indicator-legend-action" onClick={volumeOverlay.openSettings} aria-label="Paramètres Volume">
+                <SettingsIcon size={11} />
+              </button>
+            </div>
+          </div>
+        )}
         {overlayIndicators.map((indicator) => {
           // The *full* indicators array's own index, not this filtered map's — the canvas
           // draw effect cycles defaultIndicatorColor off that same full-array position (see
@@ -487,7 +515,7 @@ export function ChartLegend({
                 .join(" ")}
             >
               {showIndicatorTitles && indicatorLabel(indicator)}
-              {showIndicatorValues && (() => {
+              {(showIndicatorValues || (isPriceOverlay(indicator) && indicatorLegendValue)) && (() => {
                 const value = indicatorLegendValue!(indicator);
                 return value ? <span className="lq-chart__indicator-legend-value">{showIndicatorTitles ? " " : ""}{value}</span> : null;
               })()}

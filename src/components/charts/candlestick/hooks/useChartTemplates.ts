@@ -17,6 +17,8 @@ export interface UseChartTemplatesArgs {
   indicators: Indicator[];
   volumePaneOrder: number;
   volumePaneState: "expanded" | "collapsed" | "hidden";
+  /** Volume affiché sur le graphique des prix. */
+  volumeOverlay?: boolean;
   paneHeightFractions: Record<string, number>;
   /** Les scripts affichés sur le graphique en ce moment, avec leurs entrées. */
   activeScripts: ChartTemplateScript[];
@@ -37,7 +39,7 @@ function serializeSnapshot(s: ChartTemplateSnapshot): string {
   const scripts = [...(s.scripts ?? [])]
     .sort((a, b) => a.id.localeCompare(b.id))
     .map((sc) => ({ id: sc.id, p: sc.paramValues && Object.keys(sc.paramValues).length > 0 ? Object.fromEntries(Object.entries(sc.paramValues).sort(([a], [b]) => a.localeCompare(b))) : null }));
-  return JSON.stringify({ indicators: s.indicators, volumePaneOrder: s.volumePaneOrder, volumePaneState: s.volumePaneState, paneHeightFractions: sortedPaneHeights, scripts });
+  return JSON.stringify({ indicators: s.indicators, volumePaneOrder: s.volumePaneOrder, volumePaneState: s.volumePaneState, volumeOverlay: s.volumeOverlay === true, paneHeightFractions: sortedPaneHeights, scripts });
 }
 
 /** Named, savable/loadable snapshots of the chart's own indicator/pane layout (see the Save
@@ -62,6 +64,7 @@ export function useChartTemplates({
   indicators,
   volumePaneOrder,
   volumePaneState,
+  volumeOverlay = false,
   paneHeightFractions,
   activeScripts,
   loadIndicatorLayout,
@@ -99,7 +102,7 @@ export function useChartTemplates({
   }
 
   function currentSnapshot(): ChartTemplateSnapshot {
-    return { indicators, volumePaneOrder, volumePaneState, paneHeightFractions, scripts: activeScripts };
+    return { indicators, volumePaneOrder, volumePaneState, ...(volumeOverlay ? { volumeOverlay } : {}), paneHeightFractions, scripts: activeScripts };
   }
 
   const activeTemplate = templates.find((t) => t.id === activeTemplateId) ?? null;

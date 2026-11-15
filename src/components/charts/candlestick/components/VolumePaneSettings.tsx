@@ -1,5 +1,6 @@
 import { ColorPicker } from "../../../forms/ColorPicker";
-import { SettingsSection } from "./IndicatorSettingsLayout";
+import { Checkbox } from "../../../forms/Checkbox";
+import { SettingCheckRow, SettingsSection } from "./IndicatorSettingsLayout";
 
 export interface VolumePaneSettingsProps {
   /** Couleurs hausse / baisse que le graphique dessine vraiment quand rien n'est réglé (lues sur le thème), et la
@@ -11,6 +12,21 @@ export interface VolumePaneSettingsProps {
   setVolumeUpColorOverride: (color: string | undefined) => void;
   volumeDownColorOverride: string | undefined;
   setVolumeDownColorOverride: (color: string | undefined) => void;
+  /** Volume affiché sur le graphique des prix plutôt que dans son panneau. */
+  overlay?: boolean;
+  setOverlay?: (on: boolean) => void;
+}
+
+/** « Afficher sur le graphique des prix (overlay) » : la série principale d'un panneau quitte son panneau et se dessine
+ *  sur la zone des prix ; décochée, elle retrouve son panneau. En tête de l'onglet, avant ses rubriques. */
+export function PriceOverlayToggle({ checked, onChange, hint }: { checked: boolean; onChange: (on: boolean) => void; hint: string }) {
+  return (
+    <div className="lq-ind-settings lq-pane-settings__overlay">
+      <SettingCheckRow hint={hint}>
+        <Checkbox label="Afficher sur le graphique des prix (overlay)" checked={checked} onChange={onChange} />
+      </SettingCheckRow>
+    </div>
+  );
 }
 
 /** L'onglet « Volume » des paramètres du panneau Volume : la série elle-même n'a pas de paramètre de calcul ; son
@@ -24,9 +40,18 @@ export function VolumePaneSettings({
   setVolumeUpColorOverride,
   volumeDownColorOverride,
   setVolumeDownColorOverride,
+  overlay = false,
+  setOverlay,
 }: VolumePaneSettingsProps) {
   return (
     <>
+      {setOverlay && (
+        <PriceOverlayToggle
+          checked={overlay}
+          onChange={setOverlay}
+          hint="Des barres en bas de la zone des prix, sur leur propre échelle (environ un cinquième de la hauteur) : l'axe des prix ne change pas. Les moyennes posées sur le volume suivent."
+        />
+      )}
       <div className="lq-pane-settings__group">
         <h3 className="lq-pane-settings__group-title">Paramètres</h3>
         <div className="lq-ind-settings">

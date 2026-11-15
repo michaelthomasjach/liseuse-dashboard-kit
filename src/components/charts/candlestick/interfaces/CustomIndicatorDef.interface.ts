@@ -68,6 +68,9 @@ export interface CustomIndicatorDef {
    *  space with it (see `plot.pane`'s own `PlotPaneOptions.dock` doc — this is where that option
    *  ends up once converted). Meaningless for `type: "overlay"`. */
   dock?: "bottom" | "left" | "right";
+  /** `type: "own"`, panneau du bas : affiché d'emblée sur le graphique des prix (`plot.pane(nom, { priceOverlay: true })`).
+   *  Le réglage de l'utilisateur (`Indicator.priceOverlay`) passe devant. */
+  priceOverlay?: boolean;
   /** How to draw it: a continuous line (moving-average style), the area under that line filled
    *  down to the pane's own floor, a bar per reporting date (volume-style), a translucent band
    *  filled between two curves (Bollinger-style — see `CustomIndicatorBandDataPoint`), or several

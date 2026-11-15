@@ -31,6 +31,7 @@ export const PLOT_SECTION: ScriptReferenceSection = {
         params: [
           "name — le nom du panneau, affiché dans son en-tête. C'est aussi son identité : même nom, même panneau.",
           'options.dock — où l\'accrocher : "bottom" (défaut) l\'empile sous les prix ; "left" ou "right" le place dans une colonne verticale à côté du graphique, ce qu\'il faut pour un profil.',
+          "options.priceOverlay — true : le panneau s'affiche d'emblée sur le graphique des prix (overlay), sur sa propre échelle cachée (ses unités ne sont pas celles du cours), au lieu d'un panneau à lui ; sa série rejoint la légende des indicateurs en haut à gauche. L'utilisateur peut la renvoyer dans son panneau (paramètres du panneau, « Afficher sur le graphique des prix »). Panneaux du bas seulement (sans dock gauche / droite), lu au premier appel.",
           'options.format — comment l\'axe du panneau, ses badges de survol et la valeur dans sa légende écrivent les nombres. "auto" (défaut) : le nombre tel quel sous 10 000, puis k / M / B / T à trois chiffres au plus (100 → 100, 1000 → 1000, 10000 → 10k, 100000 → 100k, 1e9 → 1B, 10.1e9 → 10.1B). "integer" : pareil sans décimales. "percent" : la valeur est déjà un pourcentage, écrite 21.46%. "raw" : le nombre complet, sans abréviation. Ou un objet { decimals, compact, prefix, suffix } : { decimals: 4 } pour un MACD, { prefix: "$" } pour des montants, { compact: false, decimals: 0 } pour tout écrire en entier.',
         ],
         returns: "une poignée exposant line, area, histogram, dots, band, label et profile.",

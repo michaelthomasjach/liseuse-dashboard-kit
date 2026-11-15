@@ -19,6 +19,7 @@ import { snapPixel } from "../drawingGeometry";
 import { drawPillLabel } from "../drawingRender";
 import { indicatorCatalogEntry, defaultIndicatorColor } from "../indicatorCatalog";
 import { drawIndicatorStyleRules, type StyleRulePane } from "./drawIndicatorStyleRules";
+import { drawPaneSeriesOnPrice, drawVolumeOnPrice } from "./drawPriceOverlaySeries";
 import { drawPatternRecognitionMatches } from "./drawPatternRecognition";
 import { drawCandleRecognitionMatches } from "./drawCandleRecognition";
 import { drawIndicatorZones } from "./drawIndicatorZones";
@@ -110,6 +111,9 @@ export function drawPriceCandles(ctx: CanvasRenderingContext2D, params: RenderCa
 
     // Indicateurs de zones (bandes de temps fournies par l'application) : sous les bougies, comme un fond.
     drawIndicatorZones(ctx, params, style);
+
+    // Volume affiché sur le graphique des prix (paramètres du panneau Volume) : barres en bas, sous les bougies.
+    drawVolumeOnPrice(ctx, params, style);
 
     // The "0%" baseline while comparing against a symbol overlay (see compareMode/
     // overlayProjections) — every overlay projects onto the same mainReference price, so any one
@@ -932,6 +936,8 @@ export function drawPriceCandles(ctx: CanvasRenderingContext2D, params: RenderCa
       }
       ctx.restore();
     });
+    // Séries de panneau affichées sur le graphique des prix (RSI, MACD, script…), chacune sur son échelle à elle.
+    drawPaneSeriesOnPrice(ctx, params, style);
     drawIndicatorStyleRules(ctx, priceRulePane, "over");
 
     if (hovered && hoverY !== null) {

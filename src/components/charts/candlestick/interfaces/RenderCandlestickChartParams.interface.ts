@@ -38,6 +38,11 @@ export interface RenderCandlestickChartParams {
   volumeUpColorOverride: string | undefined;
   volumeDownColorOverride: string | undefined;
   volumeVisible: boolean;
+  /** Volume dessiné sur la zone des prix (barres en bas, sur leur propre échelle) au lieu de son panneau. */
+  volumeOnPrice?: boolean;
+  /** Séries de panneau dessinées sur la zone des prix (`Indicator.priceOverlay`), et leur échelle (cachée). */
+  priceOverlayIndicators?: Indicator[];
+  priceOverlayScales?: Record<string, ScaleLinear<number, number>>;
   volumeCollapsed: boolean;
   zoomedVolumeScale: ScaleLinear<number, number>;
   volumeHeight: number;

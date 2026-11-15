@@ -58,6 +58,8 @@ export interface ScriptPaneSeries {
   format?: ValueFormat;
   /** Filigrane du panneau, posé par `plot.pane(nom).watermark(texte, options)`. */
   watermark?: IndicatorWatermark;
+  /** `plot.pane(nom, { priceOverlay: true })` : affiché d'emblée sur le graphique des prix. */
+  priceOverlay?: boolean;
   /** Zones remplies posées par `plot.pane(nom).fillBetween(a, b, options)`. */
   fills?: ScriptPaneFill[];
   series: ScriptPaneSubSeries[];

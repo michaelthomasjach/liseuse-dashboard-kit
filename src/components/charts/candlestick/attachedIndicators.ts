@@ -17,6 +17,12 @@ export const ATTACHED_DEFAULT_PERIOD = 14;
 /** `sourceId` d'une moyenne posée sur le panneau Volume (clic droit sur le volume). */
 export const VOLUME_PANE_ID = "volume";
 
+/** Série de panneau affichée sur le graphique des prix : le réglage de l'utilisateur (`Indicator.priceOverlay`), sinon
+ *  celui de son script (`plot.pane(nom, { priceOverlay: true })`). */
+export function isPriceOverlay(ind: Indicator): boolean {
+  return ind.priceOverlay ?? ind.customData?.priceOverlay ?? false;
+}
+
 /** La valeur principale d'un point d'indicateur, celle sur laquelle une moyenne a un sens : le nombre lui-même, la
  *  ligne MACD, l'ADX, le milieu d'une bande, ou la première série d'un panneau à plusieurs séries. */
 export function mainValue(v: IndicatorValue | null | undefined): number | null {

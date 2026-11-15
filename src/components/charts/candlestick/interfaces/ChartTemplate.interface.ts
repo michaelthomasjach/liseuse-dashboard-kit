@@ -20,6 +20,8 @@ export interface ChartTemplateSnapshot {
    *  `volumePaneOrder` doc. */
   volumePaneOrder: number;
   volumePaneState: "expanded" | "collapsed" | "hidden";
+  /** Volume affiché sur le graphique des prix (voir `ChartPaneLayout.volumeOverlay`). Absent : inchangé au chargement. */
+  volumeOverlay?: boolean;
   /** Keyed by "volume" or an indicator's own id — see `usePaneLayout`'s own `paneHeightFractions`
    *  doc. */
   paneHeightFractions: Record<string, number>;
@@ -45,4 +47,7 @@ export interface ChartPaneLayout {
   /** Ordre des panneaux du bas laissé par le dernier glisser (ids, « volume » compris) : il place les panneaux des
    *  scripts, qui ne sont pas dans la liste des indicateurs. Absent : chaque panneau de script après les autres. */
   paneOrder?: string[];
+  /** Volume affiché sur le graphique des prix (barres en bas de la zone des prix, sur leur propre échelle) plutôt que
+   *  dans son panneau. Absent : dans son panneau. */
+  volumeOverlay?: boolean;
 }

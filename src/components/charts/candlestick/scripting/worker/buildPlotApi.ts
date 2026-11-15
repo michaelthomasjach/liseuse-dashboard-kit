@@ -235,6 +235,10 @@ export interface PlotPaneOptions {
    *  décimales ; "percent" : la valeur est déjà en %, « 21.46% » ; "raw" : le nombre complet ; ou
    *  `{ decimals, compact, prefix, suffix }`. L'utilisateur peut le remplacer dans les réglages de l'indicateur. */
   format?: ValueFormat;
+  /** true : le panneau s'affiche d'emblée sur le graphique des prix (overlay), sur sa propre échelle cachée, au lieu
+   *  d'un panneau à lui ; l'utilisateur peut le renvoyer dans son panneau (paramètres du panneau). Panneaux du bas
+   *  seulement (sans `dock` gauche / droite). Lu au premier appel, comme `dock`. */
+  priceOverlay?: boolean;
 }
 
 export interface PlotApi {
@@ -332,6 +336,8 @@ export function buildPlotApi(
     dock?: "bottom" | "left" | "right";
     format?: ValueFormat;
     watermark?: IndicatorWatermark;
+    /** `plot.pane(nom, { priceOverlay: true })` : affiché d'emblée sur le graphique des prix. */
+    priceOverlay?: boolean;
     /** Zones de `fillBetween`, par couple (a, b) : le dernier appel l'emporte. */
     fills: Map<string, ScriptPaneFill>;
     subSeriesByName: Map<string, ScriptPaneSubSeries>;
@@ -488,10 +494,10 @@ export function buildPlotApi(
     };
   }
 
-  function getOrCreatePane(name: string, pane: ScriptPaneSeries["pane"], dock?: "bottom" | "left" | "right", format?: ValueFormat): PaneSeriesHandle {
+  function getOrCreatePane(name: string, pane: ScriptPaneSeries["pane"], dock?: "bottom" | "left" | "right", format?: ValueFormat, priceOverlay?: boolean): PaneSeriesHandle {
     let entry = panesByName.get(name);
     if (!entry) {
-      entry = { name, pane, dock, fills: new Map(), subSeriesByName: new Map(), labelsByName: new Map() };
+      entry = { name, pane, dock, ...(priceOverlay === true && pane === "own" && (dock ?? "bottom") === "bottom" ? { priceOverlay: true } : {}), fills: new Map(), subSeriesByName: new Map(), labelsByName: new Map() };
       panesByName.set(name, entry);
     }
     // Contrairement à `dock`, le format suit le dernier appel qui en donne un : il ne déplace rien.
@@ -500,7 +506,7 @@ export function buildPlotApi(
   }
 
   const api: PlotApi = {
-    pane: (name, options) => getOrCreatePane(name, "own", options?.dock, options?.format),
+    pane: (name, options) => getOrCreatePane(name, "own", options?.dock, options?.format, options?.priceOverlay),
     overlay: (name) => getOrCreatePane(name, "overlay"),
     signal: (arg) => {
       const normalized: PlotSignalArg = typeof arg === "string" ? { type: arg } : arg;
@@ -563,7 +569,7 @@ export function buildPlotApi(
   return {
     api,
     getResult: () => ({
-      panes: [...panesByName.values()].map((entry) => ({ name: entry.name, pane: entry.pane, dock: entry.dock, format: entry.format, watermark: entry.watermark, ...(entry.fills.size > 0 ? { fills: [...entry.fills.values()] } : {}), series: [...entry.subSeriesByName.values()] })),
+      panes: [...panesByName.values()].map((entry) => ({ name: entry.name, pane: entry.pane, dock: entry.dock, format: entry.format, watermark: entry.watermark, ...(entry.priceOverlay ? { priceOverlay: true } : {}), ...(entry.fills.size > 0 ? { fills: [...entry.fills.values()] } : {}), series: [...entry.subSeriesByName.values()] })),
       drawings,
       table,
       xyCharts: [...xyChartsByName.values()],

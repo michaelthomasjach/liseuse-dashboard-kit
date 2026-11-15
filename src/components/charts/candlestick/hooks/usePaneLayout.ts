@@ -1,3 +1,4 @@
+import { isPriceOverlay } from "../attachedIndicators";
 import type { IndicatorInfoTarget } from "../interfaces/IndicatorInfoTarget.interface";
 import type { ChartPaneLayout } from "../interfaces/ChartTemplate.interface";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -331,20 +332,23 @@ export function usePaneLayout({
   // chacun juste après le panneau qui le précède dans cet ordre : les indicateurs ajoutés et le volume gardent leurs
   // propres sources (`indicators`, `volumePaneOrder`), que Ctrl+Z et les modèles restaurent.
   const [paneOrder, setPaneOrder] = useState<string[]>(defaultPaneLayout?.paneOrder ?? []);
+  // Volume sur le graphique des prix (paramètres du panneau Volume → « Afficher sur le graphique des prix ») : son
+  // panneau disparaît, ses barres se dessinent en bas de la zone des prix. Gardé avec la disposition des panneaux.
+  const [volumeOverlay, setVolumeOverlay] = useState<boolean>(defaultPaneLayout?.volumeOverlay === true);
   // Ordre et hauteurs des panneaux annoncés à l'hôte à chaque changement (pas au montage), pour qu'il retrouve la
   // disposition au rechargement — quel que soit le chemin qui l'a changée (glisser, modèle, Ctrl+Z).
   const onPaneLayoutChangeRef = useRef(onPaneLayoutChange);
   onPaneLayoutChangeRef.current = onPaneLayoutChange;
   const paneLayoutReportedRef = useRef<string | null>(null);
   useEffect(() => {
-    const key = JSON.stringify([volumePaneOrder, paneHeightFractions, paneOrder]);
+    const key = JSON.stringify([volumePaneOrder, paneHeightFractions, paneOrder, volumeOverlay]);
     if (paneLayoutReportedRef.current === null || paneLayoutReportedRef.current === key) {
       paneLayoutReportedRef.current = key;
       return;
     }
     paneLayoutReportedRef.current = key;
-    onPaneLayoutChangeRef.current?.({ volumePaneOrder, paneHeightFractions, ...(paneOrder.length ? { paneOrder } : {}) });
-  }, [volumePaneOrder, paneHeightFractions, paneOrder]);
+    onPaneLayoutChangeRef.current?.({ volumePaneOrder, paneHeightFractions, ...(paneOrder.length ? { paneOrder } : {}), ...(volumeOverlay ? { volumeOverlay } : {}) });
+  }, [volumePaneOrder, paneHeightFractions, paneOrder, volumeOverlay]);
   // Whether each *docked* pane is folded, keyed by pane id — deliberately its own UI state rather
   // than the `Indicator.paneCollapsed` field the bottom stack toggles through `commitIndicators`.
   // A docked pane is very often script-produced (`plot.pane(name, { dock })`), and those live in
@@ -564,8 +568,10 @@ export function usePaneLayout({
     volumePaneState: "expanded" | "collapsed" | "hidden";
     paneHeightFractions: Record<string, number>;
     paneOrder?: string[];
+    volumeOverlay?: boolean;
   }) {
     commitIndicators(snapshot.indicators);
+    if (snapshot.volumeOverlay !== undefined) setVolumeOverlay(snapshot.volumeOverlay);
     if (snapshot.paneOrder) setPaneOrder(snapshot.paneOrder);
     setVolumePaneOrder(snapshot.volumePaneOrder);
     setVolumePaneState(snapshot.volumePaneState);
@@ -756,7 +762,9 @@ export function usePaneLayout({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [hoveredIndicatorId, indicators, commitIndicators, copiedIndicatorRef, indicatorIdRef]);
 
-  const volumeVisible = showVolume && volumePaneState !== "hidden";
+  // Le panneau Volume n'existe que hors overlay ; en overlay, le volume est dessiné sur les prix (`volumeOnPrice`).
+  const volumeOnPrice = showVolume && volumePaneState !== "hidden" && volumeOverlay;
+  const volumeVisible = showVolume && volumePaneState !== "hidden" && !volumeOverlay;
   const volumeCollapsed = volumeVisible && volumePaneState === "collapsed";
 
   // Which sub-pane (volume, or an "own"-pane indicator's own id) currently owns the *entire*
@@ -876,7 +884,7 @@ export function usePaneLayout({
     let expanded = 0;
     let fixed = 0;
     for (const ind of [...indicators, ...extraIndicators]) {
-      if (indicatorCatalogEntry(ind).pane !== "own" || indicatorDock(ind) !== "bottom") continue;
+      if (indicatorCatalogEntry(ind).pane !== "own" || indicatorDock(ind) !== "bottom" || isPriceOverlay(ind)) continue;
       if (ind.paneCollapsed) fixed += SUB_PANE_COLLAPSED_HEIGHT;
       else expanded += plotBoundedHeight * (paneHeightFractions[ind.id] ?? defaultFraction);
     }
@@ -911,7 +919,8 @@ export function usePaneLayout({
   // without this they'd be a fresh array/reference every render, which would make an "only these
   // deps" dependency array pointless (always "changed").
   const { ownPaneIndicators, indicatorPaneHeights, indicatorPaneTops, volumeTop, allPanesOrder } = useMemo(() => {
-    const isBottomPane = (ind: Indicator) => indicatorCatalogEntry(ind).pane === "own" && indicatorDock(ind) === "bottom";
+    // Un indicateur affiché sur le graphique des prix (`priceOverlay`) n'a plus de panneau.
+    const isBottomPane = (ind: Indicator) => indicatorCatalogEntry(ind).pane === "own" && indicatorDock(ind) === "bottom" && !isPriceOverlay(ind);
     const crudPanes = indicators.filter(isBottomPane);
     const scriptPanes = extraIndicators.filter(isBottomPane);
     const byId = new Map([...crudPanes, ...scriptPanes].map((ind) => [ind.id, ind]));
@@ -961,6 +970,11 @@ export function usePaneLayout({
     return { ownPaneIndicators: owned, indicatorPaneHeights: heights, indicatorPaneTops: tops, volumeTop: vTop, allPanesOrder: order };
   }, [indicators, extraIndicators, paneHeightFractions, defaultFraction, plotBoundedHeight, volumeVisible, volumeHeight, volumePaneOrder, paneOrder, fullscreenPaneId, subPanesSqueeze]);
   const indicatorPanesTotalHeight = indicatorPaneHeights.reduce((sum, h) => sum + h, 0);
+  // Séries de panneau affichées sur le graphique des prix (`Indicator.priceOverlay`), dans l'ordre de la liste.
+  const priceOverlayIndicators = useMemo(
+    () => [...indicators, ...extraIndicators].filter((ind) => isPriceOverlay(ind) && indicatorCatalogEntry(ind).pane === "own" && indicatorDock(ind) === "bottom"),
+    [indicators, extraIndicators]
+  );
 
   const priceHeight = Math.max(0, plotBoundedHeight - volumeHeight - indicatorPanesTotalHeight);
 
@@ -1049,6 +1063,10 @@ export function usePaneLayout({
     removeIndicators,
     volumeVisible,
     volumeCollapsed,
+    volumeOverlay,
+    setVolumeOverlay,
+    volumeOnPrice,
+    priceOverlayIndicators,
     paneHeightFraction,
     startPaneResize,
     reorderPanes,

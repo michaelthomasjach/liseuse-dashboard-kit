@@ -27,10 +27,15 @@ import { SettingsSection, differsFromDefaults, indicatorDefaults } from "./Indic
 import { IndicatorPickerModal } from "./IndicatorPickerModal";
 import { IndicatorHelpButton, useOpenIndicatorHelp } from "./IndicatorHelp";
 import { hasIndicatorHelp } from "../indicatorHelp";
-import { VolumePaneSettings } from "./VolumePaneSettings";
+import { VolumePaneSettings, PriceOverlayToggle } from "./VolumePaneSettings";
 import { ChartSymbolSettings, type ChartSymbolSettingsProps } from "./ChartSettingsDialog";
 import { hasCandleColorOverrides, resetCandleColors } from "../candleColorOverrides";
-import { VOLUME_PANE_ID } from "../attachedIndicators";
+import { VOLUME_PANE_ID, isPriceOverlay } from "../attachedIndicators";
+
+/** Où se range un panneau d'indicateur : en bas (le cas courant) ou accroché à gauche / à droite (script). */
+function indicatorDockOf(ind: Indicator): "bottom" | "left" | "right" {
+  return ind.customData?.dock === "left" || ind.customData?.dock === "right" ? ind.customData.dock : "bottom";
+}
 
 /** Onglets des paramètres du graphique : la série principale (le symbole), puis les indicateurs tracés sur les prix. */
 const PRICE_PANE_ID = "price";
@@ -126,6 +131,9 @@ export interface IndicatorModalsProps {
   setVolumeSettingsOpen: (open: boolean) => void;
   /** Paramètres du panneau Volume ouverts (onglet « Volume », ou celui d'une moyenne posée dessus). */
   volumeSettingsOpen: boolean;
+  /** Volume affiché sur le graphique des prix plutôt que dans son panneau (onglet « Volume »). */
+  volumeOverlay: boolean;
+  setVolumeOverlay: (on: boolean) => void;
   /** Paramètres du graphique (clic droit sur les prix → « Paramètres du graphique (symbole)… ») ouverts : onglet du
    *  symbole, ou celui d'un indicateur tracé sur les prix. */
   priceSettingsOpen: boolean;
@@ -158,6 +166,8 @@ export interface IndicatorModalsProps {
   candleRuleIndicators: Indicator[];
   /** Rubrique « Zones remplies » de l'onglet Style — voir `CandlestickChartProps.showAreaFills`. Défaut vrai. */
   showAreaFills?: boolean;
+  /** Option « Afficher sur le graphique des prix » — voir `CandlestickChartProps.showPaneOverlay`. Défaut vrai. */
+  showPaneOverlay?: boolean;
   editingIndicatorId: string | null;
   indicatorDraft: Indicator | null;
   setIndicatorDraft: (d: Indicator) => void;
@@ -216,6 +226,8 @@ export function IndicatorModals({
   removeIndicator,
   setVolumeSettingsOpen,
   volumeSettingsOpen,
+  volumeOverlay,
+  setVolumeOverlay,
   priceSettingsOpen,
   setPriceSettingsOpen,
   symbol,
@@ -239,6 +251,7 @@ export function IndicatorModals({
   downColorOverride,
   candleRuleIndicators,
   showAreaFills = true,
+  showPaneOverlay = true,
   editingIndicatorId,
   indicatorDraft,
   setIndicatorDraft,
@@ -871,6 +884,14 @@ export function IndicatorModals({
         <Tabs items={tabs} value={activeTab} onChange={selectTab} className="lq-ind-settings__tabs lq-pane-settings__tabs" />
         {draft && editing ? (
           <>
+            {/* La série principale d'un panneau du bas : sur le graphique des prix ou dans son panneau. */}
+            {showPaneOverlay && !isPrice && draft.id === mainTab.id && !draft.sourceId && indicatorDockOf(draft) === "bottom" && (
+              <PriceOverlayToggle
+                checked={isPriceOverlay(draft)}
+                onChange={(on) => setIndicatorDraft({ ...draft, priceOverlay: on })}
+                hint="Sa propre échelle, cachée : ses unités ne sont pas celles du cours. Son panneau disparaît ; les indicateurs posés dessus le suivent."
+              />
+            )}
             <div className="lq-pane-settings__group">
               <h3 className="lq-pane-settings__group-title">Paramètres</h3>
               <IndicatorSettingsInputs
@@ -899,6 +920,8 @@ export function IndicatorModals({
           </>
         ) : (
           <VolumePaneSettings
+            overlay={volumeOverlay}
+            setOverlay={showPaneOverlay || volumeOverlay ? setVolumeOverlay : undefined}
             theme={volumeTheme}
             upColorOverride={upColorOverride}
             downColorOverride={downColorOverride}

@@ -1106,6 +1106,34 @@ export const PaneSettingsAreaFills: Story = {
   ),
 };
 
+/**
+ * Séries de panneau affichées sur le graphique des prix : le volume en overlay (`defaultPaneLayout.volumeOverlay`,
+ * barres en bas de la zone des prix sur leur propre échelle, avec sa SMA 20) et un RSI en overlay
+ * (`Indicator.priceOverlay`, sur son échelle 0-100 cachée). Tous deux rejoignent la légende en haut à gauche, avec leur
+ * valeur ; leurs paramètres (double-clic, roue) ont l'option « Afficher sur le graphique des prix (overlay) » pour les
+ * renvoyer dans leur panneau.
+ */
+export const PaneSeriesOnPrice: Story = {
+  name: "Volume et RSI sur le graphique des prix (overlay)",
+  render: () => (
+    <div style={{ height: 600 }}>
+      <CandlestickChart
+        data={COMPACT_PANES_DATASET}
+        symbol="DEMO"
+        height={600}
+        showVolume
+        showIndicators
+        defaultPaneLayout={{ volumePaneOrder: 0, paneHeightFractions: {}, volumeOverlay: true }}
+        defaultIndicators={[
+          { id: "vol-sma20", kind: "sma", period: 20, sourceId: "volume", color: "#ff9800" },
+          { id: "rsi-overlay", kind: "rsi", period: 14, priceOverlay: true, color: "#7e57c2" },
+          { id: "macd", kind: "macd", period: 26, fastPeriod: 12, slowPeriod: 26, signalPeriod: 9 },
+        ]}
+      />
+    </div>
+  ),
+};
+
 const LOCKED_ZONE_DATASET = generateCandles(200, 180, 21);
 const LOCKED_ZONE_PRICES = LOCKED_ZONE_DATASET.map((c) => c.close);
 

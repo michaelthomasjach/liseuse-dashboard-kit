@@ -1,5 +1,5 @@
 import { Children, cloneElement, type ReactElement, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { runChartCapture, type ChartCaptureActionKind } from "./candlestick/captureChart";
+import { captureChartCanvas, runChartCapture, type ChartCaptureActionKind } from "./candlestick/captureChart";
 import { Spinner } from "../feedback/Spinner";
 import type { WorkspaceRailAction } from "./workspace/WorkspaceSideRail";
 import type { SymbolSearchList } from "./candlestick/interfaces/SymbolSearchList.interface";
@@ -816,6 +816,11 @@ export function ChartWorkspace({
         s.setPanelSymbol(count - 1, symbol);
         alignTimeframes(s, count - 1, count);
         return count - 1;
+      },
+      // Toutes les fenêtres d'un coup, pour l'outil capturer_le_graphique (zone « espace_de_travail »).
+      capture: async () => {
+        const grid = gridRef.current;
+        return grid ? captureChartCanvas(grid) : null;
       },
     };
   }, []);

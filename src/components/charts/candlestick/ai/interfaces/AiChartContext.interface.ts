@@ -76,4 +76,17 @@ export interface AiChartContext {
   addComparison?: (symbol: string, name: string, points: OverlayDataPoint[]) => boolean;
   /** L'espace de travail qui contient ce graphique, quand il est au premier plan d'un `ChartWorkspace`. */
   workspace?: AiWorkspaceControls;
+  /** Capture de ce qui est affiché (même composition que le bouton appareil photo) : ce graphique, ou tout l'espace de
+   *  travail qui le contient. Null quand il n'est pas à l'écran. Voir l'outil `capturer_le_graphique`. */
+  capture?: (zone: AiCaptureZone) => Promise<AiChartCapture | null>;
+}
+
+/** « graphique » : la fenêtre au premier plan ; « espace_de_travail » : toutes les fenêtres de l'espace de travail. */
+export type AiCaptureZone = "graphique" | "espace_de_travail";
+
+/** Une capture : l'image composée et la période des bougies visibles à ce moment. */
+export interface AiChartCapture {
+  canvas: HTMLCanvasElement;
+  visibleFrom?: Date;
+  visibleTo?: Date;
 }

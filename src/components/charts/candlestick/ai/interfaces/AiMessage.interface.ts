@@ -6,7 +6,15 @@
 export type AiContentBlock =
   | { type: "text"; text: string }
   | { type: "tool_use"; id: string; name: string; input: Record<string, unknown> }
-  | { type: "tool_result"; toolUseId: string; content: string; isError?: boolean };
+  | { type: "tool_result"; toolUseId: string; content: string; isError?: boolean; image?: AiImage };
+
+/** Une image jointe au résultat d'un outil (capture du graphique), en base64 sans préfixe `data:`. Seule exception à
+ *  la règle « texte seulement » : c'est ce qui permet au modèle de vérifier ce qu'il vient de tracer. Un transport
+ *  qui ne sait pas la transmettre l'ignore ; le texte du résultat se suffit à lui-même. */
+export interface AiImage {
+  data: string;
+  mimeType: "image/png" | "image/jpeg" | "image/webp";
+}
 
 export interface AiMessage {
   role: "user" | "assistant";

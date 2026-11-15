@@ -1,15 +1,16 @@
-import type { AiToolDefinition } from "./interfaces/AiMessage.interface";
+import type { AiImage, AiToolDefinition } from "./interfaces/AiMessage.interface";
 import type { AiChartContext } from "./interfaces/AiChartContext.interface";
 import { indicatorCatalogEntry } from "../indicatorCatalog";
 import { analyzeScriptKind } from "../scripting/scriptKind";
 import { SCRIPTING_DOCS_TOOL } from "./scriptingDocs";
 import { findUiButton, highlightUiElement, listUiButtons } from "./uiHighlight";
 import { COMPARISON_TOOLS, comparisonToolAvailable } from "./comparisonTools";
+import { CAPTURE_TOOL, CAPTURE_TOOLS } from "./captureTool";
 
 /** What running one tool produced: text handed straight back to the model. Plain prose rather than
  *  JSON wherever a sentence is clearer — the reader is a language model, and "SMA(20) ajoutée"
  *  costs fewer tokens and is less ambiguous than an object describing the same thing. */
-export type AiToolOutcome = { content: string; isError?: boolean };
+export type AiToolOutcome = { content: string; isError?: boolean; image?: AiImage };
 
 export interface AiTool {
   definition: AiToolDefinition;
@@ -638,6 +639,8 @@ export const AI_TOOLS: AiTool[] = [
   },
   // Comparaisons entre symboles : côte à côte, performances, indice A / B (voir comparisonTools).
   ...COMPARISON_TOOLS,
+  // Capture d'écran du graphique, pour que le modèle vérifie ce qu'il vient de faire (voir captureTool).
+  ...CAPTURE_TOOLS,
 ];
 
 /** Les fenêtres de l'espace de travail en une ligne : « 1 : AAPL (1day) ; 2 : MSFT (1day) ». */
@@ -661,6 +664,7 @@ export function availableAiTools(chart: AiChartContext): AiTool[] {
     if (tool.definition.name === "lancer_le_replay" || tool.definition.name === "quitter_le_replay") return chart.startReplay !== undefined;
     if (tool.definition.name === "regler_le_filigrane") return chart.setWatermark !== undefined && chart.symbol !== undefined;
     if (tool.definition.name === "ouvrir_un_script") return chart.openScript !== undefined;
+    if (tool.definition.name === CAPTURE_TOOL) return chart.capture !== undefined;
     return true;
   }).map((tool) => (tool.definitionFor ? { ...tool, definition: tool.definitionFor(chart) } : tool));
 }

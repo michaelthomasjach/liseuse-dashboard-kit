@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { AiChartContext } from "./interfaces/AiChartContext.interface";
 import type { AiContentBlock, AiMessage, AiSend, AiServerTool } from "./interfaces/AiMessage.interface";
-import { availableAiTools, runAiTool } from "./aiTools";
+import { availableAiTools, runAiTool, type AiToolOutcome } from "./aiTools";
 import { buildAiSystemPrompt } from "./aiSystemPrompt";
 import { loadScriptingPrompt } from "../scripting/loadScriptingPrompt";
 import { answerScriptingDocs, SCRIPTING_DOCS_TOOL, scriptInAnswer } from "./scriptingDocs";
@@ -20,6 +20,9 @@ export interface UseAiAssistantArgs {
   /** Conversations gardées par l'application (voir `AiConversationStore`) ; sans elles, une seule conversation, perdue
    *  quand le graphique se démonte. */
   conversations?: AiConversationStore;
+  /** Le modèle lit les images : la capture (`capturer_le_graphique`) est jointe au résultat de l'outil. Sinon, seule sa
+   *  description texte part, avec une note qui le dit. */
+  images?: boolean;
 }
 
 /** Une conversation de l'assistant : ce qui s'affiche et ce que le modèle relit. */
@@ -74,6 +77,7 @@ const TOOL_STEPS: Record<string, string> = {
   comparer_cote_a_cote: "Comparaison côte à côte",
   mesurer_la_performance: "Mesure des performances",
   creer_un_indice_ratio: "Création de l'indice ratio",
+  capturer_le_graphique: "Capture du graphique",
 };
 export const toolStep = (name: string): string => TOOL_STEPS[name] ?? name.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
 
@@ -90,10 +94,28 @@ function titleOf(transcript: AiTranscriptEntry[]): string {
 
 const cut = (s: string) => (s.length > MAX_BLOCK_TEXT ? `${s.slice(0, MAX_BLOCK_TEXT)}…` : s);
 
+/** Un bloc sans son image : une mention la remplace. */
+function dropImage(block: AiContentBlock): AiContentBlock {
+  if (block.type !== "tool_result" || !block.image) return block;
+  const { image, ...rest } = block;
+  void image;
+  return { ...rest, content: `${block.content}\n[Image de la capture retirée de l'historique.]` };
+}
+
+/** La conversation sans ses images : une capture ne sert qu'au tour qui l'a demandée. Relue à chaque tour suivant,
+ *  elle coûterait cher pour rien, et une conversation enregistrée ne doit pas les garder. */
+export function withoutImages(history: AiMessage[]): AiMessage[] {
+  if (!history.some((m) => m.content.some((b) => b.type === "tool_result" && b.image))) return history;
+  return history.map((m) => ({ ...m, content: m.content.map(dropImage) }));
+}
+
+/** Note jointe à une capture quand le modèle ne lit pas les images. */
+export const IMAGE_NOT_READABLE_NOTE = "(Image de la capture non transmise : ce modèle ne lit pas les images. Fie-toi à la description ci-dessus.)";
+
 /** Ce qui est gardé d'une conversation : les derniers messages, textes bornés ; elle recommence toujours par une
  *  question (un résultat d'outil sans son appel serait refusé par le modèle). */
 function pruned(history: AiMessage[]): AiMessage[] {
-  let kept = history.slice(-MAX_HISTORY);
+  let kept = withoutImages(history).slice(-MAX_HISTORY);
   while (kept.length && !(kept[0].role === "user" && kept[0].content.some((b) => b.type === "text"))) kept = kept.slice(1);
   return kept.map((m) => ({
     ...m,
@@ -145,7 +167,7 @@ export interface AiAssistant {
  *  of this chart, not of the provider: a caller who routes the model through their own backend gets
  *  the same tools, executed in the same browser, against the same chart. The transport's only job
  *  is to turn a request into a stream of events. */
-export function useAiAssistant({ chart, send, serverTools, conversations: store }: UseAiAssistantArgs): AiAssistant {
+export function useAiAssistant({ chart, send, serverTools, conversations: store, images = false }: UseAiAssistantArgs): AiAssistant {
   // Conversations : celles de l'application au montage ; la conversation affichée est reprise telle quelle.
   const [conversations, setConversations] = useState<AiConversation[]>(() => store?.initial ?? []);
   const initialActive = store?.initial.find((c) => c.id === store.activeId) ?? null;
@@ -245,7 +267,7 @@ export function useAiAssistant({ chart, send, serverTools, conversations: store 
       dirtyRef.current = true;
 
       setTranscript((prev) => [...prev, { id: makeId(), role: "user", text }]);
-      historyRef.current = [...historyRef.current, { role: "user", content: [{ type: "text", text }] }];
+      historyRef.current = [...withoutImages(historyRef.current), { role: "user", content: [{ type: "text", text }] }];
 
       // The manual is only fetched once per session and only when the assistant is actually used —
       // 107KB of prose that a consumer who never opens this panel should not download.
@@ -344,19 +366,25 @@ export function useAiAssistant({ chart, send, serverTools, conversations: store 
                 : call.input;
             // La documentation est servie ici, où le manuel est chargé ; tout autre outil agit sur le graphique.
             // Attendu : certains outils demandent des bougies à l'application (comparaisons entre symboles).
-            const outcome = call.name === SCRIPTING_DOCS_TOOL ? answerScriptingDocs(manual, input) : await runAiTool(call.name, input, chartRef.current);
+            const outcome: AiToolOutcome = call.name === SCRIPTING_DOCS_TOOL ? answerScriptingDocs(manual, input) : await runAiTool(call.name, input, chartRef.current);
             if (controller.signal.aborted) return;
             if (call.name === "ecrire_un_script" && !outcome.isError) {
               scriptSaved = true;
               createdId = typeof input.id === "string" ? input.id : (/\(id ([^)\s]+)\)/.exec(outcome.content)?.[1] ?? createdId);
             }
-            results.push({ type: "tool_result", toolUseId: call.id, content: outcome.content, isError: outcome.isError });
+            // Capture : l'image part avec le résultat si le modèle la lit ; sinon sa description seule, avec une note.
+            const image = outcome.image && images ? outcome.image : undefined;
+            const content = outcome.image && !images ? `${outcome.content}\n${IMAGE_NOT_READABLE_NOTE}` : outcome.content;
+            results.push({ type: "tool_result", toolUseId: call.id, content, isError: outcome.isError, ...(image ? { image } : {}) });
             setTranscript((prev) => [
               ...prev,
               { id: makeId(), role: "tool", toolName: call.name, text: outcome.content, isError: outcome.isError },
             ]);
           }
-          historyRef.current = [...historyRef.current, { role: "user", content: results }];
+          // Une seule image dans la conversation envoyée : la plus récente (les précédentes deviennent une mention).
+          const newest = results.map((r) => r.type === "tool_result" && r.image !== undefined).lastIndexOf(true);
+          const sent = results.map((r, i) => (i === newest ? r : dropImage(r)));
+          historyRef.current = [...(newest < 0 ? historyRef.current : withoutImages(historyRef.current)), { role: "user", content: sent }];
         }
 
         setTranscript((prev) => [
@@ -376,7 +404,7 @@ export function useAiAssistant({ chart, send, serverTools, conversations: store 
         }
       }
     },
-    [send, serverTools],
+    [send, serverTools, images],
   );
 
   return {

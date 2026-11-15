@@ -37,6 +37,7 @@ export type {
   AiRequest,
   AiMessage,
   AiContentBlock,
+  AiImage,
   AiToolDefinition,
   AiServerTool,
   AiStreamEvent,
@@ -139,6 +140,8 @@ export { playAlertSound, ALERT_SOUND_OPTIONS } from "./candlestick/alertSounds";
 export { CHART_AI_TOOL_DEFINITIONS } from "./candlestick/ai/aiTools";
 // Pont des outils du graphique pour un pilote extérieur (ex. serveur MCP), et boutons d'application du rail.
 export type { ChartToolBridge } from "./candlestick/ai/chartToolBridge";
+export type { AiToolOutcome } from "./candlestick/ai/aiTools";
+export { encodeCapture, MAX_CAPTURE_BYTES, CAPTURE_TOOL } from "./candlestick/ai/captureTool";
 export type { WorkspaceRailAction } from "./workspace/WorkspaceSideRail";
 export type { DaySeparatorSettings } from "./candlestick/daySeparators";
 export type { ChartAppearanceSettings } from "./candlestick/hooks/useChartAppearance";

@@ -28,4 +28,6 @@ export interface AiWorkspaceControls {
   /** Ajoute une fenêtre (disposition par défaut du nouveau nombre) qui montre ce symbole ; rend son index, ou null
    *  quand l'espace a déjà `maxPanels` fenêtres. */
   addPanel: (symbol: string) => number | null;
+  /** Capture de tout l'espace de travail (toutes les fenêtres), null s'il n'est pas affiché. */
+  capture?: () => Promise<HTMLCanvasElement | null>;
 }

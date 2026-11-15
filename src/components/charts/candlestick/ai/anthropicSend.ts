@@ -33,6 +33,18 @@ function toApiMessages(messages: AiMessage[]) {
     content: message.content.map((block) => {
       if (block.type === "text") return { type: "text", text: block.text };
       if (block.type === "tool_use") return { type: "tool_use", id: block.id, name: block.name, input: block.input };
+      // Capture du graphique : le texte, puis l'image, dans le même résultat (l'API accepte les deux).
+      if (block.image) {
+        return {
+          type: "tool_result",
+          tool_use_id: block.toolUseId,
+          content: [
+            { type: "text", text: block.content },
+            { type: "image", source: { type: "base64", media_type: block.image.mimeType, data: block.image.data } },
+          ],
+          is_error: block.isError,
+        };
+      }
       return { type: "tool_result", tool_use_id: block.toolUseId, content: block.content, is_error: block.isError };
     }),
   }));

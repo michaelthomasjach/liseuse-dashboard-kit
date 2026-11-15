@@ -571,6 +571,11 @@ export interface CandlestickChartProps {
      *  Workspaces; it looks like `wrkspc_…`. A workspace-scoped key needs none. */
     workspaceId?: string;
     serverTools?: AiServerTool[];
+    /** Le modèle lit les images : la capture d'écran (`capturer_le_graphique`) lui est alors jointe au résultat de
+     *  l'outil (`tool_result.image`), pour qu'il vérifie ce qu'il vient de tracer. Par défaut oui avec `apiKey` (le
+     *  transport intégré les envoie à Claude), non avec un `send` personnalisé : mettre true si votre transport et votre
+     *  modèle les acceptent. Sans images, le modèle reçoit seulement la description texte de la capture. */
+    images?: boolean;
     /** Extra symbols the `/` menu offers, beyond this chart's own — a watchlist, typically. */
     symbols?: string[];
   };

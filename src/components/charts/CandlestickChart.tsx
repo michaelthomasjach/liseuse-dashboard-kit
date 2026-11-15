@@ -101,7 +101,7 @@ import { indicatorCatalogEntry, indicatorLabel, defaultIndicatorColor } from "./
 import { drawingAxisAnnotations, indicatorAxisAnnotations } from "./candlestick/axisAnnotations";
 import { ChartContextMenu } from "./candlestick/components/ChartContextMenu";
 import { buildChartContextMenu, type ChartContextMenuAnchor } from "./candlestick/buildChartContextMenu";
-import { runChartCapture } from "./candlestick/captureChart";
+import { captureChartCanvas, runChartCapture } from "./candlestick/captureChart";
 import { createChartToolBridge } from "./candlestick/ai/chartToolBridge";
 import { toolMetaForType } from "./candlestick/drawingCatalog";
 import { DEFAULT_DAY_SEPARATORS, type DaySeparatorSettings } from "./candlestick/daySeparators";
@@ -1642,6 +1642,9 @@ export function CandlestickChart({
   // Replay et filigrane pour l'assistant : lus au moment de l'appel (refs), pour garder `aiChart` stable.
   const aiExtrasRef = useRef({ replayState, data, frameReplayAt, watermark, setWatermark, replayEnabled: replay, loadSymbolCandles, onAddSymbolOverlay, ratioSymbol, aiWorkspace, timeframe });
   aiExtrasRef.current = { replayState, data, frameReplayAt, watermark, setWatermark, replayEnabled: replay, loadSymbolCandles, onAddSymbolOverlay, ratioSymbol, aiWorkspace, timeframe };
+  // Capture pour l'assistant (capturer_le_graphique) : période visible et légende, lues au moment de l'appel.
+  const aiCaptureRef = useRef({ visibleRange, symbol });
+  aiCaptureRef.current = { visibleRange, symbol };
   // Comparaisons entre symboles (voir comparisonTools) : présentes ou non selon ce que l'hôte fournit, mais lues au
   // moment de l'appel pour garder `aiChart` stable quand l'hôte recrée ses fonctions à chaque rendu.
   const canLoadCandles = loadSymbolCandles !== undefined || onAddSymbolOverlay !== undefined;
@@ -1711,6 +1714,20 @@ export function CandlestickChart({
             },
           }
         : {}),
+      // Capture de l'écran pour que le modèle vérifie ce qu'il vient de faire : la composition du bouton appareil photo
+      // (ce graphique, ou tout l'espace de travail quand il le demande), et la période des bougies visibles.
+      capture: async (zone: "graphique" | "espace_de_travail") => {
+        const x = aiExtrasRef.current;
+        const { visibleRange: range, symbol: shownSymbol } = aiCaptureRef.current;
+        const caption = [shownSymbol, x.timeframe].filter(Boolean).join(" · ") || undefined;
+        const whole = zone === "espace_de_travail" ? ((await x.aiWorkspace?.capture?.()) ?? null) : null;
+        const root = ref.current;
+        const canvas = whole ?? (root ? await captureChartCanvas(root, caption ? { caption } : {}) : null);
+        if (!canvas) return null;
+        const n = x.data.length;
+        const at = (i: number) => x.data[Math.max(0, Math.min(n - 1, i))]?.date;
+        return { canvas, ...(n > 0 ? { visibleFrom: at(Math.ceil(range.start)), visibleTo: at(Math.floor(range.end)) } : {}) };
+      },
       // La comparaison de symboles du graphique (le « + » de la recherche) : même dessin `symbolOverlay`, même
       // couleur suivante, ajouté aux dessins tels qu'ils sont à cet instant.
       addComparison: (ticker: string, name: string, points: AiOverlayPoint[]) => {
@@ -1751,7 +1768,9 @@ export function CandlestickChart({
   // The panel's own conversation, owned here rather than inside the panel: the panel is unmounted
   // and remounted as it moves between the dock, a floating window and a torn-off browser window,
   // and a transcript held down there would be discarded on every move.
-  const assistant = useAiAssistant({ chart: aiChart, send: aiSend ?? null, serverTools: ai?.serverTools ?? [], conversations: ai?.conversations });
+  // Captures lisibles par le modèle : déclaré par l'hôte, sinon oui avec la clé Anthropic (le transport intégré les envoie).
+  const aiImages = ai?.images ?? (!ai?.send && Boolean(ai?.apiKey));
+  const assistant = useAiAssistant({ chart: aiChart, send: aiSend ?? null, serverTools: ai?.serverTools ?? [], conversations: ai?.conversations, images: aiImages });
   const [aiDraft, setAiDraft] = useState("");
   /** Which of the strategy panel's written-out questions is in flight, so its own chip can say so.
    *  The answer itself lives in the assistant's transcript like any other. */

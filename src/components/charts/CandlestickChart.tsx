@@ -2081,6 +2081,7 @@ export function CandlestickChart({
     },
     addOnPane: addIndicatorOnPane,
     openIndicatorSettings,
+    removeIndicator,
     ...(onCreateAlert ? { openIndicatorAlert: (id: string, label: string, value: number | undefined) => alertFlow.openForIndicator(id, label, value) } : {}),
     ...(onAddSymbolOverlay ? { openAddSymbol: () => openSymbolSearch("add") } : {}),
     resetZoom: () => resetZoom(),

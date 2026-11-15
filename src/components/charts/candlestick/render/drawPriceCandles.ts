@@ -21,6 +21,7 @@ import { indicatorCatalogEntry, defaultIndicatorColor } from "../indicatorCatalo
 import { drawIndicatorStyleRules, type StyleRulePane } from "./drawIndicatorStyleRules";
 import { drawPatternRecognitionMatches } from "./drawPatternRecognition";
 import { drawCandleRecognitionMatches } from "./drawCandleRecognition";
+import { drawIndicatorZones } from "./drawIndicatorZones";
 
 // "gaps"/"parabolicSar"/"pivotPoints" are point-based (a rectangle, a dot, or a single flat
 // segment all render fine on their own) rather than line-shaped like every other indicator here,
@@ -103,6 +104,9 @@ export function drawPriceCandles(ctx: CanvasRenderingContext2D, params: RenderCa
       ctx.stroke();
     }
     ctx.restore();
+
+    // Indicateurs de zones (bandes de temps fournies par l'application) : sous les bougies, comme un fond.
+    drawIndicatorZones(ctx, params, style);
 
     // The "0%" baseline while comparing against a symbol overlay (see compareMode/
     // overlayProjections) — every overlay projects onto the same mainReference price, so any one

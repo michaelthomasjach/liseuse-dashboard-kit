@@ -175,3 +175,7 @@ export { captureChartBlob, captureChartCanvas, captureFileName } from "./candles
 export type { ChartCaptureOptions } from "./candlestick/captureChart";
 export type { ScriptDocumentationModalProps } from "./candlestick/scripting/components/ScriptDocumentationModal";
 export { loadScriptingPrompt } from "./candlestick/scripting/loadScriptingPrompt";
+// Indicateurs : id unique à chaque ajout, réparation des listes enregistrées où deux indicateurs partageaient un id,
+// et zones de temps d'un indicateur `draw: "zones"` fournies par l'application.
+export { newIndicatorId, dedupeIndicatorIds } from "./candlestick/indicatorIds";
+export type { CustomIndicatorZone } from "./candlestick/interfaces/CustomIndicatorDef.interface";

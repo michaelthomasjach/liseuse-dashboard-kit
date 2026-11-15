@@ -6,6 +6,7 @@ import type { Indicator } from "../interfaces/Indicator.interface";
 import type { CustomIndicatorDef } from "../interfaces/CustomIndicatorDef.interface";
 import type { IndicatorCatalogEntry } from "../indicatorCatalog";
 import { indicatorCatalogEntry } from "../indicatorCatalog";
+import { dedupeIndicatorIds, newIndicatorId } from "../indicatorIds";
 import {
   DEFAULT_PANE_HEIGHT_FRACTION,
   MIN_PANE_HEIGHT_FRACTION,
@@ -241,7 +242,9 @@ export function usePaneLayout({
     defaultPaneHeightFraction !== undefined && Number.isFinite(defaultPaneHeightFraction)
       ? Math.min(MAX_PANE_HEIGHT_FRACTION, Math.max(MIN_PANE_HEIGHT_FRACTION, defaultPaneHeightFraction))
       : DEFAULT_PANE_HEIGHT_FRACTION;
-  const [storedIndicators, setIndicators] = useState<Indicator[]>(defaultIndicators ?? []);
+  // Ids rendus uniques à la lecture : une liste enregistrée avec l'ancien compteur (`indicator-0`…, repartant de 0 à
+  // chaque montage) peut contenir deux indicateurs au même id, que toute suppression emportait ensemble.
+  const [storedIndicators, setIndicators] = useState<Indicator[]>(() => dedupeIndicatorIds(defaultIndicators ?? []));
   // Séries personnalisées en direct : données (et profil) relues dans le catalogue `customIndicators` courant ; le
   // style choisi par l'utilisateur (couleur, épaisseur…) reste celui de l'indicateur ajouté.
   const allIndicators = useMemo(() => {
@@ -250,9 +253,9 @@ export function usePaneLayout({
     let changed = false;
     const out = storedIndicators.map((ind) => {
       const live = ind.customData ? byId.get(ind.customData.id) : undefined;
-      if (!live || !ind.customData || (live.data === ind.customData.data && live.profile === ind.customData.profile)) return ind;
+      if (!live || !ind.customData || (live.data === ind.customData.data && live.profile === ind.customData.profile && live.zones === ind.customData.zones)) return ind;
       changed = true;
-      return { ...ind, customData: { ...ind.customData, data: live.data, profile: live.profile } };
+      return { ...ind, customData: { ...ind.customData, data: live.data, profile: live.profile, zones: live.zones } };
     });
     return changed ? out : storedIndicators;
   }, [storedIndicators, liveCustomIndicators]);
@@ -511,7 +514,10 @@ export function usePaneLayout({
   indicatorsRef.current = indicators;
 
   const commitIndicators = useCallback(
-    (next: Indicator[]) => {
+    (proposed: Indicator[]) => {
+      // Jamais deux indicateurs au même id (un modèle ou une étape Ctrl+Z enregistrés avant l'id unique) : chaque
+      // suppression, réglage ou masquage cible un id et ne doit toucher que cet indicateur.
+      const next = dedupeIndicatorIds(proposed);
       const { all, timeframe: tf, timeframeScoped: scoped } = scopeRef.current;
       // Nouvel indicateur : il retient l'unité de temps sur laquelle il a été ajouté.
       const known = new Set(all.map((ind) => ind.id));
@@ -572,7 +578,7 @@ export function usePaneLayout({
     commitIndicators([
       ...indicatorsRef.current,
       {
-        id: `indicator-${indicatorIdRef.current++}`,
+        id: newIndicatorId(entry.kind, entry.hasPeriod ? entry.defaultPeriod : undefined, scopeRef.current.all.map((ind) => ind.id)),
         kind: entry.kind,
         period: entry.defaultPeriod,
         stdDev: entry.hasStdDev ? 2 : undefined,
@@ -587,7 +593,17 @@ export function usePaneLayout({
   // the type (never actually read for these — computeIndicatorValues/indicatorCatalogEntry both
   // check `customData` first).
   function addCustomIndicator(def: CustomIndicatorDef) {
-    commitIndicators([...indicatorsRef.current, { id: `indicator-${indicatorIdRef.current++}`, kind: "custom", period: 0, customData: def }]);
+    commitIndicators([
+      ...indicatorsRef.current,
+      {
+        id: newIndicatorId("custom", undefined, scopeRef.current.all.map((ind) => ind.id)),
+        kind: "custom",
+        period: 0,
+        customData: def,
+        // Zones : la couleur de la définition devient celle de l'indicateur (légende et bandes d'accord, réglable).
+        ...(def.draw === "zones" && def.color ? { color: def.color } : {}),
+      },
+    ]);
   }
 
   // A lower-level primitive addIndicator/addCustomIndicator above don't need themselves (both
@@ -595,7 +611,7 @@ export function usePaneLayout({
   // what it's adding *after* an async step elsewhere (see useCorrelationSetup), this is the one
   // piece of "give it a fresh id and commit it" logic worth sharing rather than duplicating.
   function appendIndicator(partial: Omit<Indicator, "id">) {
-    commitIndicators([...indicatorsRef.current, { id: `indicator-${indicatorIdRef.current++}`, ...partial }]);
+    commitIndicators([...indicatorsRef.current, { id: newIndicatorId(partial.kind, partial.period, scopeRef.current.all.map((ind) => ind.id)), ...partial }]);
   }
 
   function openIndicatorSettings(id: string) {
@@ -730,7 +746,8 @@ export function usePaneLayout({
       }
       if (!copiedIndicatorRef.current) return;
       e.preventDefault();
-      const next = [...indicators, { ...copiedIndicatorRef.current, id: `indicator-${indicatorIdRef.current++}` }];
+      const copied = copiedIndicatorRef.current;
+      const next = [...indicators, { ...copied, id: newIndicatorId(copied.kind, copied.period, scopeRef.current.all.map((ind) => ind.id)) }];
       commitIndicators(next);
     }
     window.addEventListener("keydown", onKeyDown);

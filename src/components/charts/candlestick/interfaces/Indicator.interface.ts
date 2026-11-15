@@ -253,6 +253,16 @@ export interface Indicator {
   macdCrossColors?: boolean;
   macdLineAboveColor?: string;
   macdLineBelowColor?: string;
+  /** Indicateur de zones (`customData.draw: "zones"`) : opacité du fond des bandes, en % (défaut 12). */
+  zoneOpacity?: number;
+  /** Indicateur de zones : libellé de chaque zone écrit en haut de sa bande. Défaut true. */
+  zoneShowLabels?: boolean;
+  /** Indicateur de zones : repère vertical de chaque zone (`CustomIndicatorZone.marker`) et son libellé. Défaut true. */
+  zoneShowMarkers?: boolean;
+  /** Indicateur de zones : élargit (ou rétrécit, en négatif) chaque zone de ce nombre d'heures avant son début et
+   *  après sa fin. Défaut 0 : la fenêtre fournie par l'application. */
+  zonePadBeforeHours?: number;
+  zonePadAfterHours?: number;
   /** A `pane: "own"` indicator's pane, collapsed to a header-only strip — same mechanism/UI as
    *  the volume pane's own collapse. Default false (expanded). */
   paneCollapsed?: boolean;

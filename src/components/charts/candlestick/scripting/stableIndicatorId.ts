@@ -29,8 +29,8 @@ function slugParts(indicator: Indicator): string[] {
 }
 
 /** Derives a stable, script-facing id for every currently-active indicator — `Indicator.id`
- *  itself is an ephemeral `indicator-${n}` counter (see usePaneLayout's own `indicatorIdRef`),
- *  meaningless to a script author and not guaranteed to mean the same thing across sessions.
+ *  itself is a unique but opaque `sma-20-k3f9qa` (see `newIndicatorId` in indicatorIds.ts),
+ *  meaningless to a script author.
  *  Computed fresh from the *live* indicator list every time (memoized by the caller — see
  *  useStableIndicatorIds), not stored anywhere, so it never needs migrating when an indicator's
  *  own settings change.

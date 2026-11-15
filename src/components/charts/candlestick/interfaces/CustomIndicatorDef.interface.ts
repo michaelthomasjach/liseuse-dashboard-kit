@@ -26,6 +26,18 @@ export interface CustomIndicatorMultiDataPoint {
   values: Record<string, number | { upper: number; lower: number }>;
 }
 
+/** Une zone de temps d'un indicateur `draw: "zones"` : une bande verticale de `from` à `to` (dans le passé comme dans
+ *  l'espace vide à droite de la dernière bougie), avec son libellé, et éventuellement un repère vertical à un instant
+ *  précis (ex. l'heure d'une publication de résultats au milieu de la fenêtre où le cours peut ouvrir en gap). */
+export interface CustomIndicatorZone {
+  from: Date;
+  to: Date;
+  /** Écrit en haut de la bande (« Zone de gap possible »). */
+  label?: string;
+  /** Ligne verticale pointillée dans la zone, avec son propre libellé (« Résultats · 17 nov., 22:30 »). */
+  marker?: { date: Date; label?: string };
+}
+
 /** A caller-supplied series the library knows nothing about ahead of time — the open-ended
  *  escape hatch for whatever data an app has (a fundamentals metric beyond the built-in eight,
  *  a proprietary score, anything else that's one number per reporting date) without needing a
@@ -64,7 +76,14 @@ export interface CustomIndicatorDef {
    *  levels from one bar to the next and would read as nonsense joined up by a line). `"dots"` is
    *  alone among these in *not* being forward-filled: a gap in a scatter means "nothing here",
    *  where a gap in every other mode means "still the last value" — see `alignSeriesByDate`. */
-  draw: "line" | "area" | "histogram" | "band" | "multi" | "profile" | "dots";
+  draw: "line" | "area" | "histogram" | "band" | "multi" | "profile" | "dots" | "zones";
+  /** `draw: "zones"` seulement (`type: "overlay"`) — des bandes verticales sur le graphique des prix, fournies par
+   *  l'application (fenêtre autour d'une publication, période de maintenance, séance spéciale…) : pas de valeur par
+   *  bougie, `data` reste vide. L'utilisateur l'ajoute, la retire, la masque et la règle (couleur, opacité, libellés,
+   *  repères, marges avant/après) comme n'importe quel indicateur, avec sa ligne dans la légende en haut à gauche. Les
+   *  zones sont relues dans `customIndicators` à chaque rendu (même id de définition) : une application qui les met à
+   *  jour n'a qu'à changer cette prop. */
+  zones?: CustomIndicatorZone[];
   /** `draw: "profile"` only — a horizontal profile (market-profile shaped): each entry is one
    *  price level and how much mass sits at it, drawn as one continuous curve. Transposed against
    *  the *main chart's own price scale* rather than this pane's own auto-fit one, so a bulge lands

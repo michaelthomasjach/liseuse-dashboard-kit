@@ -25,6 +25,27 @@ export interface IndicatorSettingsFieldsProps {
 export function IndicatorSettingsInputs({ indicatorDraft, setIndicatorDraft }: IndicatorSettingsFieldsProps) {
   return (
     <>
+      {/* Indicateur de zones : fenêtre de temps élargie (ou rétrécie) autour de celle que fournit l'application. */}
+      {indicatorDraft.customData?.draw === "zones" && (
+        <div className="lq-chart__edit-drawing-row">
+          <InputNumber
+            label="Marge avant (heures)"
+            min={-168}
+            max={168}
+            step={1}
+            value={indicatorDraft.zonePadBeforeHours ?? 0}
+            onChange={(v) => setIndicatorDraft({ ...indicatorDraft, zonePadBeforeHours: v === "" || v === 0 ? undefined : v })}
+          />
+          <InputNumber
+            label="Marge après (heures)"
+            min={-168}
+            max={168}
+            step={1}
+            value={indicatorDraft.zonePadAfterHours ?? 0}
+            onChange={(v) => setIndicatorDraft({ ...indicatorDraft, zonePadAfterHours: v === "" || v === 0 ? undefined : v })}
+          />
+        </div>
+      )}
       {indicatorCatalogEntry(indicatorDraft).hasPeriod && (
         <InputNumber
           label="Période"
@@ -755,17 +776,42 @@ export function IndicatorSettingsStyle({ indicatorDraft, setIndicatorDraft, indi
           />
         </div>
       )}
+      {/* Indicateur de zones : opacité du fond, libellés, repères (la couleur est juste au-dessus). */}
+      {indicatorDraft.customData?.draw === "zones" && (
+        <>
+          <InputNumber
+            label="Opacité du fond (%)"
+            min={0}
+            max={100}
+            step={1}
+            value={indicatorDraft.zoneOpacity ?? 12}
+            onChange={(v) => setIndicatorDraft({ ...indicatorDraft, zoneOpacity: v === "" ? undefined : v })}
+          />
+          <Checkbox
+            label="Afficher le libellé des zones"
+            checked={indicatorDraft.zoneShowLabels ?? true}
+            onChange={(checked) => setIndicatorDraft({ ...indicatorDraft, zoneShowLabels: checked })}
+          />
+          <Checkbox
+            label="Afficher les repères (ligne et date)"
+            checked={indicatorDraft.zoneShowMarkers ?? true}
+            onChange={(checked) => setIndicatorDraft({ ...indicatorDraft, zoneShowMarkers: checked })}
+          />
+        </>
+      )}
       {indicatorCatalogEntry(indicatorDraft).pane !== "price" && <ValueFormatField indicatorDraft={indicatorDraft} setIndicatorDraft={setIndicatorDraft} />}
       {/* Filigrane du panneau (pas sur les prix, dont le filigrane est le symbole) ni sur une moyenne posée sur un panneau. */}
       {indicatorCatalogEntry(indicatorDraft).pane !== "price" && !indicatorDraft.sourceId && (
         <IndicatorWatermarkField indicatorDraft={indicatorDraft} setIndicatorDraft={setIndicatorDraft} />
       )}
       {/* Couleurs conditionnelles : écrites au nouveau format, l'ancien (`fills`, converti à la lecture) est retiré. */}
-      <IndicatorStyleRulesEditor
-        indicator={indicatorDraft}
-        indicators={indicators}
-        onChange={(styleRules) => setIndicatorDraft({ ...indicatorDraft, styleRules, fills: undefined })}
-      />
+      {indicatorDraft.customData?.draw !== "zones" && (
+        <IndicatorStyleRulesEditor
+          indicator={indicatorDraft}
+          indicators={indicators}
+          onChange={(styleRules) => setIndicatorDraft({ ...indicatorDraft, styleRules, fills: undefined })}
+        />
+      )}
     </>
   );
 }

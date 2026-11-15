@@ -463,6 +463,8 @@ export function ChartLegend({
                 .lq-chart__indicator-legend-action--alert-active), the same "icon next to it"
                 treatment the drawing toolbar's own bell gets. */}
             <div className="lq-chart__indicator-legend-actions">
+              {/* Pas d'alerte sur un indicateur de zones : il n'a pas de valeur à franchir. */}
+              {indicator.customData?.draw !== "zones" && (
               <button
                 type="button"
                 className={[
@@ -477,6 +479,7 @@ export function ChartLegend({
               >
                 <AlarmClockIcon size={11} />
               </button>
+              )}
               <button
                 type="button"
                 className="lq-chart__indicator-legend-action"

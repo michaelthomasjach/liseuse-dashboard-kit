@@ -50,6 +50,9 @@ export interface BuildChartContextMenuArgs {
   addOnPane?: (kind: IndicatorKind, paneId: string) => void;
   /** Ouvre les paramètres de l'indicateur du clic droit (`anchor.indicatorId`). */
   openIndicatorSettings?: (id: string) => void;
+  /** Retire du graphique l'indicateur du clic droit (panneau ou ligne sous le pointeur), par son id : cet indicateur
+   *  seul, même si un autre a le même nom (deux SMA(20)). Entrées absentes sans elle. */
+  removeIndicator?: (id: string) => void;
   /** Ouvre la création d'une alerte sur un indicateur (celui du panneau cliqué, ou la ligne sous le pointeur), au
    *  niveau du clic ; « price » comme id : une alerte sur le prix. */
   openIndicatorAlert?: (id: string, label: string, value: number | undefined) => void;
@@ -97,6 +100,7 @@ export function buildChartContextMenu({
   openIndicatorPicker,
   addOnPane,
   openIndicatorSettings,
+  removeIndicator,
   openIndicatorAlert,
   openAddSymbol,
   resetZoom,
@@ -295,6 +299,23 @@ export function buildChartContextMenu({
             onSelect: () => openIndicatorSettings(anchor.indicatorId as string),
             target: onLine,
           },
+        ] as ChartContextMenuItem[])
+      : []),
+    // Supprimer ce que vise le clic : la ligne sous le pointeur, sinon le panneau. Par son id, jamais par son nom.
+    ...(removeIndicator && (anchor.indicatorId || anchor.paneId)
+      ? ([
+          { separator: true },
+          anchor.indicatorId && anchor.indicatorId !== anchor.paneId
+            ? {
+                label: anchor.indicatorLabel ? `Supprimer le ${anchor.indicatorLabel}` : "Supprimer l'indicateur",
+                onSelect: () => removeIndicator(anchor.indicatorId as string),
+                target: onLine,
+              }
+            : {
+                label: `Supprimer le ${anchor.paneLabel ?? "panneau"}`,
+                onSelect: () => removeIndicator(anchor.paneId as string),
+                target: onZone,
+              },
         ] as ChartContextMenuItem[])
       : []),
     // Les paramètres du graphique sur la zone des prix seulement : sur un panneau, ceux du panneau (plus haut).

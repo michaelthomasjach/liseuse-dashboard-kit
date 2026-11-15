@@ -123,6 +123,8 @@ export function computeCustomIndicatorValues(data: Candle[], def: CustomIndicato
   // an empty array: every consumer indexes this by bar, so a short array would read as a series
   // that stops partway rather than one that was never per-bar to begin with.
   if (def.draw === "profile") return data.map(() => null);
+  // Des bandes de temps, pas une série : rien à calculer par bougie (voir `drawIndicatorZones`).
+  if (def.draw === "zones") return data.map(() => null);
   if (def.draw === "band") {
     const bandData = def.data as CustomIndicatorBandDataPoint[];
     const upperFilled = forwardFillSeries(data, bandData.map((p) => ({ date: p.date, value: p.upper })));

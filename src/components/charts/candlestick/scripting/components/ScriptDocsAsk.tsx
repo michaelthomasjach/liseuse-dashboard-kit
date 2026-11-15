@@ -76,7 +76,7 @@ export function ScriptDocsAsk({ onAskDocs, aiNotice, onNavigate, suggestions = D
     try {
       const raw = await onAskDocs(q, found.excerpts, { unknownNames: found.unknownNames, signal: controller.signal });
       if (controller.signal.aborted) return;
-      setAnswer(checkScriptDocsAnswer(raw, found.excerpts));
+      setAnswer(checkScriptDocsAnswer(raw, found.excerpts, found.unknownNames));
     } catch (err) {
       if (controller.signal.aborted) return;
       setError(err instanceof Error && err.message ? err.message : "erreur inconnue");

@@ -63,6 +63,12 @@ for (const q of [
   check(top.includes("market.availableTimeframes()"), `« ${q} » : market.availableTimeframes absent des deux premiers (${top.join(" | ")})`);
 }
 
+// « Flux d'ordres » / order flow : le carnet (book.*) ou le flux exécuté (tape.*), pas les positions d'une stratégie.
+for (const q of ["Peut-on lire le flux d'ordres ?", "order flow"]) {
+  const top = titles(q, 1)[0] ?? "";
+  check(/^(book|tape)\./.test(top), `« ${q} » : ni book.* ni tape.* en tête (${top})`);
+}
+
 // Un nom exact l'emporte sur tout.
 check(titles("Comment marche ta.rsi ?", 1)[0]?.startsWith("ta.rsi"), "« ta.rsi » n'est pas en tête pour sa propre question");
 
@@ -90,6 +96,19 @@ check(titles("Comment marche ta.rsi ?", 1)[0]?.startsWith("ta.rsi"), "« ta.rsi 
   check(checked.references.length === 1 && checked.references[0].id === r.excerpts[0].id, "une référence hors des extraits a été gardée");
   check(!checked.example?.includes("security"), "un exemple de code qui n'est pas dans la documentation a été gardé");
   check(checked.warnings.some((w) => w.includes("market.security")), "market.security, cité dans l'explication, n'est pas signalé");
+}
+
+// La question nomme une fonction inexistante et le modèle affirme qu'elle existe (vu avec le petit modèle local) :
+// verdict « n'existe pas » imposé, explication remplacée par le constat.
+{
+  const r = search.searchScriptDocs("Existe-t-il market.orderFlow() pour lire le flux d'ordres ?");
+  const checked = answer.checkScriptDocsAnswer(
+    { verdict: "partiel", explanation: "La documentation mentionne market.orderFlow pour lire les ordres en cours.", references: [r.excerpts[0].id], example: null },
+    r.excerpts,
+    r.unknownNames,
+  );
+  check(checked.verdict === "absent", `verdict « ${checked.verdict} » au lieu de « absent » pour une fonction inexistante`);
+  check(/Pas trouvé dans la documentation : « market\.orderFlow » n'existe pas/.test(checked.explanation), `explication mensongère gardée : ${checked.explanation}`);
 }
 
 // Réponse brute d'un modèle : JSON entouré de texte, références par numéro.

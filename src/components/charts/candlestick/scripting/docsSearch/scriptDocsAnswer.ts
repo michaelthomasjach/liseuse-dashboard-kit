@@ -51,7 +51,8 @@ export const SCRIPT_DOCS_SYSTEM_PROMPT = [
   "Tu réponds UNIQUEMENT à partir de ces extraits : n'utilise jamais ce que tu crois savoir d'autres langages (Pine Script, JavaScript, Python…).",
   "Règles :",
   "- verdict « existe » si les extraits décrivent de quoi faire ce qui est demandé ; « partiel » s'ils ne le permettent qu'en partie ou avec une limite importante (dis laquelle) ; « absent » sinon.",
-  "- Ne cite jamais une fonction, un paramètre ou une option qui n'apparaît pas mot pour mot dans les extraits.",
+  "- Ne cite jamais une fonction, un paramètre ou une option qui n'apparaît pas mot pour mot dans les extraits, et ne prête pas à une fonction un rôle que son extrait ne décrit pas.",
+  "- Si une remarque signale qu'un nom de la question n'existe pas, le verdict est « absent » (sauf si un extrait fait exactement la même chose sous un autre nom), et l'explication le dit d'abord.",
   "- Si les extraits ne répondent pas, l'explication commence par « Pas trouvé dans la documentation. », puis propose l'alternative la plus proche présente dans les extraits, en la citant.",
   "- L'explication est en français, en 2 à 4 phrases, sans titre ni liste.",
   "- « references » : les numéros des extraits sur lesquels tu t'appuies, le plus utile d'abord.",
@@ -116,7 +117,28 @@ const squash = (code: string): string => code.replace(/\s+/g, " ").trim();
 /** Vérifie une réponse contre les extraits fournis : références hors des extraits écartées, exemple
  *  gardé seulement s'il est copié de la documentation (sinon celui du premier extrait cité), et
  *  noms de fonctions cités qui n'existent pas relevés. */
-export function checkScriptDocsAnswer(answer: ScriptDocsAnswer, excerpts: ScriptDocsExcerpt[]): CheckedScriptDocsAnswer {
+/** Une explication qui dit qu'une chose n'existe pas. */
+const SAYS_MISSING = /n['’]existe pas|pas trouv|inexistant|n['’]est pas (?:dans|document)|aucune? (?:fonction|méthode)/i;
+
+/** La question nomme une fonction qui n'existe pas (`unknownNames`, relevés par la recherche) : le
+ *  verdict est « n'existe pas », quoi qu'en dise le modèle ; et une explication qui ne le dit pas
+ *  (un petit modèle peut affirmer le contraire) est remplacée par le constat, avec le plus proche. */
+export function guardUnknownNames(
+  answer: { verdict: ScriptDocsVerdict; explanation: string },
+  unknownNames: ScriptDocsUnknownName[],
+  closest: string | null,
+): { verdict: ScriptDocsVerdict; explanation: string } {
+  if (unknownNames.length === 0) return answer;
+  if (SAYS_MISSING.test(answer.explanation)) return { verdict: "absent", explanation: answer.explanation };
+  const names = unknownNames.map((u) => `« ${u.name} »`).join(", ");
+  const near = closest ?? unknownNames[0]?.suggestions[0] ?? null;
+  return {
+    verdict: "absent",
+    explanation: `Pas trouvé dans la documentation : ${names} n'existe pas.${near ? ` Le plus proche dans la documentation : ${near}.` : ""}`,
+  };
+}
+
+export function checkScriptDocsAnswer(answer: ScriptDocsAnswer, excerpts: ScriptDocsExcerpt[], unknownNames: ScriptDocsUnknownName[] = []): CheckedScriptDocsAnswer {
   const byId = new Map(excerpts.map((e) => [e.id, e]));
   const seen = new Set<string>();
   const references = answer.references.flatMap((id) => {
@@ -128,13 +150,14 @@ export function checkScriptDocsAnswer(answer: ScriptDocsAnswer, excerpts: Script
   // Le code de toute la documentation des passages fournis (l'extrait n'en montre qu'un morceau).
   const entries = new Map(scriptDocsEntries().map((e) => [e.id, e]));
   const documented = excerpts.flatMap((e) => [...(entries.get(e.id)?.code ?? []), e.code ?? ""]).filter(Boolean).map(squash);
+  const guarded = guardUnknownNames(answer, unknownNames, references.find((r) => r.signature)?.signature ?? null);
   const proposed = answer.example?.trim() ?? "";
   let example: string | null = proposed && documented.some((code) => code.includes(squash(proposed))) ? proposed : null;
-  if (!example && answer.verdict !== "absent") example = references.find((r) => r.code)?.code ?? null;
-  const warnings = unknownScriptNames(answer.explanation).map(
+  if (!example && guarded.verdict !== "absent") example = references.find((r) => r.code)?.code ?? null;
+  const warnings = unknownScriptNames(guarded.explanation).map(
     (u) => `« ${u.name} » n'est pas dans la documentation${u.suggestions.length ? ` (le plus proche : ${u.suggestions[0]})` : ""}.`,
   );
-  return { verdict: answer.verdict, explanation: answer.explanation.trim(), references, example, warnings };
+  return { verdict: guarded.verdict, explanation: guarded.explanation.trim(), references, example, warnings };
 }
 
 /** Une `AskScriptDocs` sur un transport d'assistant (`ai.send`, ou `anthropicSend` avec une clé) :

@@ -5,7 +5,7 @@ import { IndicatorHelpButton } from "./IndicatorHelp";
 import { infoTargetFor, scriptIdFromIndicatorId } from "../scripting/scriptOutputToCustomIndicatorDef";
 import type { Dispatch, SetStateAction } from "react";
 import { useMemo, useState } from "react";
-import { ActivityIcon, CodeIcon, EyeIcon, EyeOffIcon, TrashIcon, SettingsIcon, AlarmClockIcon, InfoIcon, ChevronLeftIcon, ChevronRightIcon, CursorArrowIcon } from "../../../icons";
+import { ActivityIcon, CodeIcon, EyeIcon, EyeOffIcon, TrashIcon, SettingsIcon, AlarmClockIcon, InfoIcon, ChevronUpIcon, ChevronDownIcon, CursorArrowIcon } from "../../../icons";
 import type { Candle } from "../interfaces/Candle.interface";
 import type { Indicator } from "../interfaces/Indicator.interface";
 import type { ChartStyleSettings } from "../chartStyle";
@@ -612,7 +612,8 @@ export function ChartLegend({
           title={legendFolded ? legendNames.join(" · ") : "Replier la liste des indicateurs"}
           data-legend-fold=""
         >
-          {legendFolded ? <ChevronRightIcon size={11} /> : <ChevronLeftIcon size={11} />}
+          {/* Liste verticale : « ^ » la replie vers le haut, « ⌄ N » la redéplie (les panneaux, en ligne, gardent ‹ / ›). */}
+          {legendFolded ? <ChevronDownIcon size={11} /> : <ChevronUpIcon size={11} />}
           {legendFolded && <span>{legendEntryCount}</span>}
         </button>
       )}

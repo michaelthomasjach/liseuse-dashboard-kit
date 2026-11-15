@@ -336,3 +336,25 @@
   align-items: center;
   gap: var(--lq-space-2);
 }
+
+/* Téléphone : le sommaire au-dessus du contenu, sur une hauteur bornée. Côte à côte, les 240 px du
+   sommaire ne laissaient au contenu qu'une colonne de quelques mots. */
+@media (max-width: 700px) {
+  .lq-script-docs {
+    flex-direction: column;
+    gap: var(--lq-space-2);
+  }
+
+  .lq-script-docs__nav {
+    width: auto;
+    max-height: 30%;
+    border-right: none;
+    border-bottom: 1px solid var(--lq-color-border-subtle);
+    padding-right: 0;
+    padding-bottom: var(--lq-space-2);
+  }
+
+  .lq-script-docs__content {
+    padding-right: 0;
+  }
+}

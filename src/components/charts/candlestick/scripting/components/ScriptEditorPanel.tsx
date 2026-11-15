@@ -90,6 +90,11 @@ export interface ScriptEditorPanelProps {
    *  actually run against. `undefined` before a target is chosen (no panel to draw from yet); the
    *  rest of a cell's own output still renders normally either way. */
   previewData?: Candle[];
+  /** « Demander à la documentation », dans la documentation ouverte depuis l'éditeur — voir
+   *  `ScriptDocumentationModalProps.onAskDocs`. */
+  onAskScriptDocs?: import("../docsSearch/scriptDocsAnswer").AskScriptDocs;
+  /** Pourquoi la réponse de l'IA manque, quand `onAskScriptDocs` est absent. */
+  askScriptDocsNotice?: import("react").ReactNode;
 }
 
 const DEFAULT_SCRIPT_CODE = `@indicator
@@ -135,6 +140,8 @@ export function ScriptEditorPanel({
   runOutputs,
   panelChoices,
   previewData,
+  onAskScriptDocs,
+  askScriptDocsNotice,
 }: ScriptEditorPanelProps) {
   const activeScript = scripts.find((s) => s.id === activeScriptId) ?? null;
   // Which of the two views of the same script is showing. A *view*, not a mode the script is in:
@@ -885,7 +892,13 @@ export function hello() {
       )}
       {/* The script's kind is the entry's, not that of whichever module file is open. */}
       {activeScript && <ScriptEditorStatusBar kind={analyzeScriptKind(draft).kind} output={output} />}
-      <ScriptDocumentationModal open={docsOpen && docsWindow === null} onClose={() => setDocsOpen(false)} onRequestDetach={detachDocs} />
+      <ScriptDocumentationModal
+        open={docsOpen && docsWindow === null}
+        onClose={() => setDocsOpen(false)}
+        onRequestDetach={detachDocs}
+        onAskDocs={onAskScriptDocs}
+        askDocsNotice={askScriptDocsNotice}
+      />
 
       {docsWindow !== null && (
         <DetachedWindow
@@ -896,7 +909,7 @@ export function hello() {
           themeSource={document.querySelector(".lq-root") as HTMLElement | null}
           onClose={() => setDocsWindow(null)}
         >
-          <ScriptDocumentationModal open onClose={() => setDocsWindow(null)} detached />
+          <ScriptDocumentationModal open onClose={() => setDocsWindow(null)} detached onAskDocs={onAskScriptDocs} askDocsNotice={askScriptDocsNotice} />
         </DetachedWindow>
       )}
 

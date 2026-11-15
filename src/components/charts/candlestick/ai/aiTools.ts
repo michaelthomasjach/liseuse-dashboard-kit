@@ -291,6 +291,26 @@ export const AI_TOOLS: AiTool[] = [
   },
   {
     definition: {
+      name: "chercher_dans_la_doc_des_scripts",
+      description:
+        "Cherche dans la documentation du langage de scripting si une fonctionnalité existe (ex. « plusieurs unités de temps », « mémoriser une valeur », « market.resample ») : renvoie les passages les plus pertinents (signatures, explications, exemples) et signale les noms de fonctions qui n'existent pas. À utiliser avant de répondre « oui, c'est possible » à une question sur les scripts : ne citez que les fonctions renvoyées.",
+      inputSchema: {
+        type: "object",
+        properties: { question: { type: "string", description: "La question ou les mots à chercher, en français ou en anglais." } },
+        required: ["question"],
+        additionalProperties: false,
+      },
+    },
+    run: async (input) => {
+      const question = str(input, "question")?.trim();
+      if (!question) return { content: "Aucune question fournie.", isError: true };
+      // Chargé à la demande : l'index de la documentation n'a rien à faire dans le graphique tant que personne ne le cherche.
+      const { searchScriptDocs, formatScriptDocsExcerpts } = await import("../scripting/docsSearch/scriptDocsSearch");
+      return { content: formatScriptDocsExcerpts(searchScriptDocs(question)) };
+    },
+  },
+  {
+    definition: {
       name: "coder_un_indicateur",
       description:
         "À appeler EN PREMIER dès qu'on demande de faire, créer, coder, développer, produire ou réaliser un indicateur, un système, un signal ou une stratégie — y compris un indicateur qui réunit des indicateurs existants (par exemple « un indicateur qui regroupe trois SMA 50, 100 et 200 »). Ouvre la fenêtre de développement (l'éditeur de script) sur un nouveau script vide, et renvoie son id. Ensuite : écrire le code complet avec ecrire_un_script en passant cet id, puis lire le résultat (lire_le_resultat_d_un_script) et corriger.",

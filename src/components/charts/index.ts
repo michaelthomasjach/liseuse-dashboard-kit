@@ -133,6 +133,14 @@ export type { ChartHeaderAction } from "./candlestick/interfaces/ChartHeaderActi
 // Documentation du langage de script : la page complète (rendue sans fenêtre avec `detached`) et le manuel en texte
 // (Markdown), pour une application qui veut les publier sur ses propres pages.
 export { ScriptDocumentationModal } from "./candlestick/scripting/components/ScriptDocumentationModal";
+// « Demander à la documentation » : recherche locale dans la documentation du scripting, et réponse de l'IA de
+// l'application sur les seuls passages trouvés, vérifiée contre eux.
+export { ScriptDocsAsk } from "./candlestick/scripting/components/ScriptDocsAsk";
+export type { ScriptDocsAskProps } from "./candlestick/scripting/components/ScriptDocsAsk";
+export { searchScriptDocs, scriptDocsEntries, unknownScriptNames, formatScriptDocsExcerpts } from "./candlestick/scripting/docsSearch/scriptDocsSearch";
+export type { ScriptDocsEntry, ScriptDocsExcerpt, ScriptDocsSearchResult, ScriptDocsUnknownName, ScriptDocsSearchOptions } from "./candlestick/scripting/docsSearch/scriptDocsSearch";
+export { askScriptDocsWithSend, checkScriptDocsAnswer, parseScriptDocsAnswer, scriptDocsPrompt, SCRIPT_DOCS_SYSTEM_PROMPT } from "./candlestick/scripting/docsSearch/scriptDocsAnswer";
+export type { AskScriptDocs, ScriptDocsAnswer, ScriptDocsVerdict, CheckedScriptDocsAnswer } from "./candlestick/scripting/docsSearch/scriptDocsAnswer";
 // Sons des alertes (synthétisés) et capture d'un graphique en PNG, réutilisables par l'application.
 export { playAlertSound, ALERT_SOUND_OPTIONS } from "./candlestick/alertSounds";
 // Les outils que l'assistant du graphique offre au modèle (nom, description, paramètres), pour les lister ailleurs

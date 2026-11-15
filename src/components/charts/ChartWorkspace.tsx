@@ -79,6 +79,8 @@ import { BrokerHelpModal } from "./candlestick/broker/components/BrokerHelpModal
 import { BrokerPanel } from "./candlestick/broker/components/BrokerPanel";
 import { useBrokerState } from "./candlestick/broker/useBrokerState";
 import { Modal } from "../primitives/Modal";
+import { anthropicSend } from "./candlestick/ai/anthropicSend";
+import { askScriptDocsWithSend, type AskScriptDocs } from "./candlestick/scripting/docsSearch/scriptDocsAnswer";
 
 /** A stable empty list, so a workspace given no brokers does not hand `useBrokerState` a fresh
  *  array on every render and re-run everything that depends on it. */
@@ -289,6 +291,15 @@ export interface ChartWorkspaceProps {
    *  `CandlestickChart.ai` — see that prop for what it accepts, and for why an `apiKey` in a
    *  browser is a decision to take deliberately. */
   ai?: CandlestickChartProps["ai"];
+  /** « Demander à la documentation » dans la documentation de l'éditeur de script : l'IA de
+   *  l'application, qui reçoit la question et les seuls passages trouvés par la recherche locale
+   *  (`AskScriptDocs`). Non fourni, la bibliothèque s'en sert d'elle-même seulement avec `ai.apiKey`
+   *  (Anthropic depuis le navigateur) ; `null` l'en empêche. Sans IA, la question passe par la
+   *  recherche locale seule, et les passages trouvés s'affichent. */
+  onAskScriptDocs?: AskScriptDocs | null;
+  /** Pourquoi la réponse de l'IA manque (offre, quota…), affiché sous les passages trouvés quand
+   *  aucune IA n'est branchée. */
+  askScriptDocsNotice?: ReactNode;
   /** The brokers this workspace can trade through. Passing a non-empty list is what puts the plug
    *  button on the right-hand rail — one button for the whole workspace, since a connection is to
    *  an account and not to a panel.
@@ -384,6 +395,8 @@ export function ChartWorkspace({
   onSidePanelTabChange,
   scripting = false,
   ai,
+  onAskScriptDocs,
+  askScriptDocsNotice,
   brokers,
   brokerPnlToday,
   defaultScripts,
@@ -855,6 +868,14 @@ export function ChartWorkspace({
     const symbol = resolvedSymbol(i, panelElements[i]);
     return { index: i, label: symbol ? `Panneau ${i + 1} (${symbol})` : `Panneau ${i + 1}` };
   });
+  // « Demander à la documentation » : l'IA de l'application si elle en donne une ; sinon, avec une
+  // clé Anthropic seulement, le même transport que l'assistant. Un `ai.send` quelconque ne sert pas
+  // ici : il peut être un assistant scripté, ou une route comptée pour autre chose.
+  const askScriptDocs = useMemo<AskScriptDocs | undefined>(() => {
+    if (onAskScriptDocs !== undefined) return onAskScriptDocs ?? undefined;
+    if (!ai?.apiKey) return undefined;
+    return askScriptDocsWithSend(anthropicSend({ apiKey: ai.apiKey, model: ai.model, baseUrl: ai.baseUrl, workspaceId: ai.workspaceId, maxTokens: 2048 }));
+  }, [onAskScriptDocs, ai?.apiKey, ai?.model, ai?.baseUrl, ai?.workspaceId]);
   // "Which symbol is currently being studied" for the docked panel's own company-info section —
   // see the helper for how the panel is picked and where the price comes from.
   const {
@@ -1589,6 +1610,8 @@ export function ChartWorkspace({
             stopScript={workspaceScripting.stopScript}
             runOutputs={workspaceScripting.runOutputs}
             panelChoices={scriptPanelChoices}
+            onAskScriptDocs={askScriptDocs}
+            askScriptDocsNotice={askScriptDocsNotice}
           />
           );
           // Docked in the page, or torn off into a real browser window — one or the other,

@@ -8,6 +8,9 @@ import { SCRIPT_DOCS_NAV, headingAnchorId, searchDocsNav } from "../scriptDocsNa
 import { ScriptInteractiveTutorial } from "./ScriptInteractiveTutorial";
 import { ScriptKeywordsIndex } from "./ScriptKeywordsIndex";
 import { ScriptExamplesSection } from "./ScriptExamplesSection";
+import { ScriptDocsAsk } from "./ScriptDocsAsk";
+import type { AskScriptDocs } from "../docsSearch/scriptDocsAnswer";
+import type { ReactNode } from "react";
 import "./ScriptDocumentationModal.css";
 
 export interface ScriptDocumentationModalProps {
@@ -19,6 +22,14 @@ export interface ScriptDocumentationModalProps {
   /** Renders the documentation as plain content filling its host, with no modal shell: for the
    *  detached window, which is the shell. */
   detached?: boolean;
+  /** « Demander à la documentation » : l'IA de l'application, qui reçoit la question et les seuls
+   *  passages trouvés par la recherche locale (voir `ScriptDocsAsk`). Absente, la question passe
+   *  seulement par la recherche locale. */
+  onAskDocs?: AskScriptDocs;
+  /** Pourquoi la réponse de l'IA manque, quand `onAskDocs` est absent. */
+  askDocsNotice?: ReactNode;
+  /** `false` masque l'encadré « Demander à la documentation ». Vrai par défaut. */
+  askDocs?: boolean;
 }
 
 /** The script editor's own "Documentation" button — an exhaustive, offline reference for every
@@ -27,7 +38,7 @@ export interface ScriptDocumentationModalProps {
  *  own `ScriptEditorWindow`, reading a reference doc while writing code has no reason to stay
  *  non-blocking or resizable, and a full-height scrollable page is the most readable shape for
  *  genuinely long reference content. */
-export function ScriptDocumentationModal({ open, onClose, onRequestDetach, detached = false }: ScriptDocumentationModalProps) {
+export function ScriptDocumentationModal({ open, onClose, onRequestDetach, detached = false, onAskDocs, askDocsNotice, askDocs = true }: ScriptDocumentationModalProps) {
   const contentRef = useRef<HTMLDivElement>(null);
   const [activeId, setActiveId] = useState(SCRIPT_API_REFERENCE[0]?.id);
   // The specific sub-heading (if any) currently under the reader's eye, *within* the active
@@ -120,7 +131,8 @@ export function ScriptDocumentationModal({ open, onClose, onRequestDetach, detac
       setActiveId(anchorId.replace(/^lq-script-docs-/, ""));
       setActiveHeadingId(null);
     }
-    document.getElementById(anchorId)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    // The content's own document: in the detached window it is not this module's `document`.
+    (contentRef.current?.ownerDocument ?? document).getElementById(anchorId)?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   const body = (
@@ -218,6 +230,7 @@ export function ScriptDocumentationModal({ open, onClose, onRequestDetach, detac
           })}
         </nav>
         <div className="lq-script-docs__content" ref={contentRef}>
+          {askDocs && <ScriptDocsAsk onAskDocs={onAskDocs} aiNotice={askDocsNotice} onNavigate={scrollToAnchor} />}
           {SCRIPT_API_REFERENCE.map((section) => (
             <section
               key={section.id}

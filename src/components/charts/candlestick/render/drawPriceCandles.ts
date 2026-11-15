@@ -1,6 +1,7 @@
 import type { RenderCandlestickChartParams } from "../interfaces/RenderCandlestickChartParams.interface";
 import type { Candle } from "../interfaces/Candle.interface";
 import type { CandleColorOverride } from "../interfaces/CandleColorRule.interface";
+import { candleDensity, contextPixelRatio, drawDenseCandles } from "./denseCandles";
 import { strokeCrossColoredLine } from "./strokeCrossColoredLine";
 import type { ChartCanvasStyle } from "../interfaces/ChartCanvasStyle.interface";
 import { heatmapReplacesPrice } from "./drawScriptHeatmaps";
@@ -76,6 +77,8 @@ export function drawPriceCandles(ctx: CanvasRenderingContext2D, params: RenderCa
   // la fois (voir `drawRecoloredCandles`). Sans elles (le cas courant), rien ne change au chemin rapide.
   const candleColors = params.candleColors;
 
+  // Palier de rendu au dézoom (voir denseCandles.ts) : traits seuls sous le seuil, corps sans bordure juste au-dessus.
+  const density = candleDensity(zoomedXScale, contextPixelRatio(ctx), params.denseCandleThreshold);
     // Everything in price space (gridlines, candles, drawings, the price hover line) is clipped
     // to the price section's own rectangle — without this, panning/zooming the price axis could
     // push candles/drawings visually down into the volume area below, since rescaling the scale
@@ -194,6 +197,16 @@ export function drawPriceCandles(ctx: CanvasRenderingContext2D, params: RenderCa
       // OHLC bars: a vertical high-low line with the open ticking left and the close ticking
       // right. The oldest notation there is, and still the most honest at density — a bar carries
       // the same four numbers a candle does in about a third of the ink, so a screen that turns
+    } else if ((chartDisplayMode === "bar" && density === "dense") || ((chartDisplayMode === "candle" || chartDisplayMode === "heikinAshi") && density !== "normal" && !(isEink && density === "thin"))) {
+      // Fort dézoom (bougies, Heikin Ashi, barres) : traits nets du plus bas au plus haut, ou corps sans bordure au
+      // palier intermédiaire. Les couleurs conditionnelles s'appliquent comme au rendu normal. E-ink : une seule encre,
+      // le trait prend la couleur du texte ; son palier intermédiaire garde le rendu creux/plein normal.
+      const ha = chartDisplayMode === "heikinAshi" ? heikinAshiCandles : null;
+      const hue = (d: Candle) => (isEink ? colorText : d.close >= d.open ? colorCandleUp : colorCandleDown);
+      drawDenseCandles(ctx, density as "thin" | "dense", visible, (i, d) => (ha ? ha[i] : d), zoomedXScale, zoomedPriceScale, {
+        body: (i, d) => candleColors?.get(i)?.body ?? hue(ha ? ha[i] : d),
+        wick: (i, d) => candleColors?.get(i)?.wick ?? hue(ha ? ha[i] : d),
+      });
       // into a wall of overlapping bodies stays readable as bars.
       // Half the candle's own width per side, floored at a pixel: at the zoom levels where bars
       // earn their keep the ticks are what still distinguishes one bar from the next, and a tick

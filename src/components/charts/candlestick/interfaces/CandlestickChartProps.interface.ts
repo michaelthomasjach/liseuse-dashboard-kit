@@ -397,6 +397,12 @@ export interface CandlestickChartProps {
    *  many candles' worth of average true range past the last one) — recomputed from the whole
    *  dataset, not just what's visible. Default 14. */
   renkoAtrPeriod?: number;
+  /** Fort dézoom, comme TradingView : sous cet espace par bougie (en pixels CSS, ramené à des pixels physiques
+   *  entiers selon le devicePixelRatio), chaque bougie — ou barre, ou bougie Heikin Ashi — n'est plus qu'un trait
+   *  vertical net du plus bas au plus haut, de sa couleur (couleurs conditionnelles comprises), et le volume des
+   *  colonnes jointives. Entre une et deux fois ce seuil, un palier intermédiaire dessine des corps pleins sans
+   *  bordure. 0 : toujours le rendu complet. Défaut 3. */
+  denseCandleThreshold?: number;
   /** Instrument name shown top-left of the price plot, followed by the current chart-type label
    *  (e.g. "AAPL · Bougies") — double-clicking that label opens the chart-settings modal (up/down
    *  bar colors, auto-rescale, event visibility). Omit to show just the chart-type label on its

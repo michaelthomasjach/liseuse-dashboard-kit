@@ -23,6 +23,8 @@ export interface RenderCandlestickChartParams {
   zoomedXScale: ScaleLinear<number, number>;
   zoomedPriceScale: ScaleLinear<number, number>;
   candleWidth: number;
+  /** Espace par bougie (px CSS) sous lequel les bougies deviennent de simples traits (voir render/denseCandles.ts). */
+  denseCandleThreshold?: number;
   chartDisplayMode: ChartDisplayMode;
   heikinAshiCandles: Candle[] | null;
   renkoBricks: PriceBrick[];

@@ -295,6 +295,11 @@ export interface CandlestickChartProps {
   /** Fired when price auto-scaling turns on or off. It also turns off implicitly the moment the axis is
    *  dragged by hand, which this reports too. */
   onYAutoScalingChange?: (value: boolean) => void;
+  /** Couleurs des bougies et du volume, onde du dernier cours, zones rayées : réglages de départ
+   *  (lus au montage), et chaque changement fait dans les paramètres du graphique, pour les
+   *  enregistrer (par compte, par exemple). */
+  defaultAppearance?: import("../hooks/useChartAppearance").ChartAppearanceSettings;
+  onAppearanceChange?: (settings: import("../hooks/useChartAppearance").ChartAppearanceSettings) => void;
   /** Timeframe/interval options shown as a dropdown in the header — flat, or grouped (e.g. one
    *  group per "Minutes"/"Heures"/"Jours"), matching a typical trading-platform interval menu.
    *  This only renders the picker and reports the choice via `onTimeframeChange`; resampling

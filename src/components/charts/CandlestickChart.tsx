@@ -185,6 +185,8 @@ export function CandlestickChart({
   defaultPaneHeightFraction,
   YAutoScaling = true,
   onYAutoScalingChange,
+  defaultAppearance,
+  onAppearanceChange,
   timeframes,
   timeframe,
   onTimeframeChange,
@@ -381,6 +383,8 @@ export function CandlestickChart({
   } = useChartAppearance({
     YAutoScaling,
     livePrice,
+    defaultAppearance,
+    onAppearanceChange,
     // Same shape and same condition as `useFullscreen`'s own controlled argument below: the pair
     // only takes over once a caller has supplied the callback to report changes back through.
     controlledSettings: onSettingsOpenChange ? { open: settingsOpenProp ?? false, onChange: onSettingsOpenChange } : undefined,

@@ -75,7 +75,8 @@ export function buildCustomToolbarCatalog(ctx: CustomToolbarCatalogContext): Cus
     { id: "action:indicators", label: "Ajouter un indicateur…", group: "Actions du graphique", icon: ActivityIcon },
     { id: "action:drawingsManager", label: "Dessins et indicateurs", group: "Actions du graphique", icon: LayersIcon },
     { id: "action:marketState", label: "État du marché", group: "Actions du graphique", icon: GaugeIcon },
-    { id: "action:settings", label: "Paramètres du graphique", group: "Actions du graphique", icon: SettingsIcon },
+    { id: "action:symbolSettings", label: "Paramètres du graphique (symbole)", group: "Actions du graphique", icon: SettingsIcon },
+    { id: "action:settings", label: "Paramètres système", group: "Actions du graphique", icon: SettingsIcon },
     ...(ctx.fullscreenToggle ? [{ id: "action:fullscreen", label: "Plein écran", group: "Actions du graphique", icon: MaximizeIcon }] : []),
   ];
   const timeframes: CustomToolbarToolDef[] = ctx.canChangeTimeframe

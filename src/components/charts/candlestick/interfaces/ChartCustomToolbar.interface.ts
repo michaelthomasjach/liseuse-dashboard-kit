@@ -12,7 +12,7 @@ export interface ChartCustomToolbar {
    *  `ind:<type d'indicateur>` (`ind:rsi`…), et les actions `action:magnet`, `action:hideDrawings`,
    *  `action:lockDrawings`, `action:zoomIn`, `action:resetZoom`, `action:captureCopy`,
    *  `action:captureDownload`, `action:replay`, `action:indicators`, `action:drawingsManager`,
-   *  `action:marketState`, `action:settings`, `action:fullscreen`. Un identifiant inconnu (unité de temps
+   *  `action:marketState`, `action:symbolSettings`, `action:settings`, `action:fullscreen`. Un identifiant inconnu (unité de temps
    *  qui n'est plus proposée…) est gardé mais n'est pas affiché. */
   tools: string[];
   /** Affichée (true) ou fermée par sa croix (false). */

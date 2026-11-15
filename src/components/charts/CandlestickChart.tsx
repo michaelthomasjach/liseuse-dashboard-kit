@@ -411,6 +411,9 @@ function CandlestickChartBody({
   const drawingTimeframeLabel = useCallback((tf: string) => findTimeframeLabel(timeframes, tf) ?? tf, [timeframes]);
 
   const [tfOpen, setTfOpen] = useState(false);
+  // Paramètres du graphique (clic droit sur les prix → « Paramètres du graphique (symbole)… ») : onglet du symbole, puis
+  // un onglet par indicateur tracé sur les prix. Les paramètres système, eux, restent `settingsOpen`.
+  const [priceSettingsOpen, setPriceSettingsOpen] = useState(false);
   const {
     settingsOpen, setSettingsOpen,
     closePulseVisible, setClosePulseVisible,
@@ -2017,6 +2020,7 @@ function CandlestickChartBody({
       drawingsManagerOpen: indicatorsManagerOpen, toggleDrawingsManager: () => setIndicatorsManagerOpen((v) => !v),
       marketStateOpen, toggleMarketState: () => setMarketStateOpen((v) => !v),
       openSettings: () => setSettingsOpen(true),
+      openSymbolSettings: () => setPriceSettingsOpen(true),
       isFullscreen, toggleFullscreen: () => toggleFullscreen(),
       timeframe,
       ...(onTimeframeChange ? { changeTimeframe: onTimeframeChange } : {}),
@@ -2202,6 +2206,8 @@ function CandlestickChartBody({
     marketStateOpen,
     toggleMarketState: () => setMarketStateOpen((open) => !open),
     openSettings: () => setSettingsOpen(true),
+    openSymbolSettings: () => setPriceSettingsOpen(true),
+    ...(symbol ? { symbolLabel: symbol } : {}),
     symbolInfoHidden,
     toggleSymbolInfo: () => setSymbolInfoHidden(!symbolInfoHidden),
     customToolbarItems: customToolbars.menuItems,
@@ -2958,6 +2964,7 @@ function CandlestickChartBody({
         pickerTargetPane={indicatorPickerOpen ? pickerTargetPane : null}
         addOnPane={addIndicatorOnPane}
         settingsOpen={settingsOpen} setSettingsOpen={setSettingsOpen}
+        priceSettingsOpen={priceSettingsOpen} setPriceSettingsOpen={setPriceSettingsOpen}
         watermark={watermark} setWatermark={setWatermark} watermarkAvailable={Boolean(symbol)}
         timeframeLabelOf={drawingTimeframeLabel}
         symbolInfoHidden={symbolInfoHidden} setSymbolInfoHidden={setSymbolInfoHidden}

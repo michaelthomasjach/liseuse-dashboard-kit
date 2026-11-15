@@ -74,7 +74,12 @@ export interface BuildChartContextMenuArgs {
   toggleFullscreen: () => void;
   marketStateOpen: boolean;
   toggleMarketState: () => void;
+  /** Paramètres système (fenêtre des paramètres généraux du graphique). */
   openSettings: () => void;
+  /** Paramètres du graphique : onglet du symbole (série principale), puis un onglet par indicateur tracé sur les prix. */
+  openSymbolSettings?: () => void;
+  /** Le symbole affiché, pour l'intitulé « Paramètres du graphique (symbole)… ». */
+  symbolLabel?: string;
   /** Ligne d'informations (symbole, OHLC) masquée, et la bascule. */
   symbolInfoHidden?: boolean;
   toggleSymbolInfo?: () => void;
@@ -122,6 +127,8 @@ export function buildChartContextMenu({
   isFullscreen,
   toggleFullscreen,
   openSettings,
+  openSymbolSettings,
+  symbolLabel,
   symbolInfoHidden,
   toggleSymbolInfo,
   customToolbarItems,
@@ -350,7 +357,11 @@ export function buildChartContextMenu({
               },
         ] as ChartContextMenuItem[])
       : []),
-    // Les paramètres du graphique sur la zone des prix seulement : sur un panneau, ceux du panneau (plus haut).
-    ...(!inSubPane ? [{ label: "Paramètres du graphique…", onSelect: openSettings, target: onChart }] : []),
+    // Sur la zone des prix seulement (sur un panneau, ceux du panneau, plus haut) : les paramètres du graphique — le
+    // symbole et les indicateurs tracés sur les prix, en onglets —, puis les paramètres système (tout le graphique).
+    ...(!inSubPane && openSymbolSettings
+      ? [{ label: `Paramètres du graphique (${symbolLabel?.trim() || "prix"})…`, onSelect: openSymbolSettings, target: onPrice }]
+      : []),
+    ...(!inSubPane ? [{ label: "Paramètres système…", onSelect: openSettings, target: onChart }] : []),
   ];
 }

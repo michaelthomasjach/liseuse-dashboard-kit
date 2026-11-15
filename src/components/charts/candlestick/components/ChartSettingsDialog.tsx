@@ -13,6 +13,7 @@ import type { Indicator } from "../interfaces/Indicator.interface";
 import type { ChartDateFormat, ChartLineStyle, ChartStyleSettings, ChartStyleTemplate, ChartTimeFormat } from "../chartStyle";
 import { CANVAS_STYLE_KEYS } from "../chartStyle";
 import { CandleColorRulesEditor } from "./CandleColorRulesEditor";
+import { hasCandleColorOverrides, resetCandleColors } from "../candleColorOverrides";
 import "./ChartSettingsDialog.css";
 
 /** Les pages de la fenêtre, dans l'ordre de la navigation. */
@@ -185,7 +186,7 @@ interface SettingsSnapshot {
 }
 
 /**
- * « Paramètres du graphique » : navigation verticale à gauche (sur téléphone, la liste puis la page), une ligne par
+ * « Paramètres système » (anciennement « Paramètres du graphique ») : navigation verticale à gauche (sur téléphone, la liste puis la page), une ligne par
  * réglage (libellé à gauche, contrôle à droite), sections en petites capitales. Tout s'applique en direct ;
  * « Annuler » revient à l'état d'ouverture, « Valider » garde. Le menu « Modèle » enregistre et rappelle l'apparence
  * (couleurs des bougies et réglages avancés).
@@ -291,7 +292,7 @@ export function ChartSettingsDialog(props: ChartSettingsDialogProps) {
   );
 
   return (
-    <Modal open onClose={onClose} title={mobileLayout && current ? currentLabel : "Paramètres du graphique"} size="wide" footer={footer}>
+    <Modal open onClose={onClose} title={mobileLayout && current ? currentLabel : "Paramètres système"} size="wide" footer={footer}>
       <div className={["lq-chart-settings", mobileLayout && "lq-chart-settings--mobile"].filter(Boolean).join(" ")}>
         {(!mobileLayout || current === null) && (
           <nav className="lq-chart-settings__nav" aria-label="Sections des paramètres">
@@ -331,83 +332,7 @@ export function ChartSettingsDialog(props: ChartSettingsDialogProps) {
   // ── Pages ──
 
   function SymbolPage(p: ChartSettingsDialogProps) {
-    const up = p.upColorOverride ?? theme.up;
-    const down = p.downColorOverride ?? theme.down;
-    const anyColor = p.upColorOverride || p.downColorOverride || chartStyle.wickUpColor || chartStyle.wickDownColor || chartStyle.borderUpColor || chartStyle.borderDownColor;
-    return (
-      <>
-        <Section title="Bougies">
-          <Row label="Type de bougies">
-            <Select<ChartDisplayMode>
-              size="small"
-              className="lq-chart-settings__select lq-chart-settings__select--wide"
-              options={CHART_DISPLAY_MODES.map((m) => ({ value: m.mode, label: m.label }))}
-              value={p.chartDisplayMode}
-              onChange={(mode) => {
-                p.setChartDisplayMode(mode);
-                p.onChartDisplayModeChange?.(mode);
-              }}
-              ariaLabel="Type de bougies"
-            />
-          </Row>
-          {theme.isEink && (
-            <p className="lq-chart-settings__note">
-              La palette E-ink affiche les bougies en creux ou plein plutôt qu'en couleur : les couleurs ci-dessous ne changent rien tant qu'elle est active.
-            </p>
-          )}
-          <Row label="Corps" hint="Hausse · baisse">
-            <UpDownPickers label="Corps des bougies" up={up} down={down} onUp={p.setUpColorOverride} onDown={p.setDownColorOverride} disabled={theme.isEink} />
-          </Row>
-          <Row label="Bordures" hint="Hausse · baisse">
-            <UpDownPickers
-              label="Bordures des bougies"
-              up={chartStyle.borderUpColor ?? up}
-              down={chartStyle.borderDownColor ?? down}
-              onUp={(c) => set({ borderUpColor: c })}
-              onDown={(c) => set({ borderDownColor: c })}
-              disabled={theme.isEink}
-            />
-          </Row>
-          <Row label="Mèches" hint="Hausse · baisse">
-            <UpDownPickers
-              label="Mèches des bougies"
-              up={chartStyle.wickUpColor ?? up}
-              down={chartStyle.wickDownColor ?? down}
-              onUp={(c) => set({ wickUpColor: c })}
-              onDown={(c) => set({ wickDownColor: c })}
-              disabled={theme.isEink}
-            />
-          </Row>
-          {anyColor && (
-            <div className="lq-chart-settings__row lq-chart-settings__row--action">
-              <button
-                type="button"
-                className="lq-chart-settings__link"
-                onClick={() => {
-                  p.setUpColorOverride(undefined);
-                  p.setDownColorOverride(undefined);
-                  set({ wickUpColor: undefined, wickDownColor: undefined, borderUpColor: undefined, borderDownColor: undefined });
-                }}
-              >
-                Revenir aux couleurs du thème
-              </button>
-            </div>
-          )}
-          <Row
-            label="Onde du dernier cours"
-            hint={p.chartDisplayMode === "line" ? "Une onde à chaque nouveau cours, en direct ou en replay" : "Seulement en mode Ligne"}
-            disabled={p.chartDisplayMode !== "line"}
-          >
-            <Toggle checked={p.closePulseVisible} onChange={() => p.setClosePulseVisible(!p.closePulseVisible)} ariaLabel="Onde sur le dernier point de la ligne" disabled={p.chartDisplayMode !== "line"} />
-          </Row>
-        </Section>
-        {p.showCandleColorRules && (
-          <section className="lq-chart-settings__section">
-            <CandleColorRulesEditor rules={p.candleColorRules} indicators={p.candleRuleIndicators} onChange={p.setCandleColorRules} />
-          </section>
-        )}
-      </>
-    );
+    return <ChartSymbolSettings {...p} theme={theme} />;
   }
 
   function StatusLinePage(p: ChartSettingsDialogProps) {
@@ -758,6 +683,146 @@ export function ChartSettingsDialog(props: ChartSettingsDialogProps) {
 
 /** Menu « Modèle ▾ » du pied de la fenêtre : enregistrer l'apparence sous un nom, appliquer un modèle, le supprimer,
  *  ou revenir à l'apparence par défaut. */
+/** Ce que règlent les réglages de la série principale (type de tracé, couleurs des bougies, couleurs conditionnelles). */
+export type ChartSymbolSettingsProps = Pick<
+  ChartSettingsDialogProps,
+  | "theme"
+  | "chartDisplayMode"
+  | "setChartDisplayMode"
+  | "onChartDisplayModeChange"
+  | "closePulseVisible"
+  | "setClosePulseVisible"
+  | "upColorOverride"
+  | "setUpColorOverride"
+  | "downColorOverride"
+  | "setDownColorOverride"
+  | "candleColorRules"
+  | "setCandleColorRules"
+  | "showCandleColorRules"
+  | "candleRuleIndicators"
+  | "chartStyle"
+  | "setChartStyle"
+> & {
+  /** « params » : le tracé (type de bougies, onde) ; « style » : les couleurs (bougies, couleurs conditionnelles).
+   *  Absent : tout, comme la page « Symbole » des paramètres système. */
+  part?: "params" | "style";
+};
+
+/**
+ * Les réglages de la série principale du graphique : type de bougies, onde du dernier cours, couleurs des corps,
+ * bordures et mèches, couleurs conditionnelles des bougies. Page « Symbole » des paramètres système, et onglet du
+ * symbole des paramètres du graphique (rubriques Paramètres / Style, voir `part`).
+ */
+export function ChartSymbolSettings(p: ChartSymbolSettingsProps) {
+  const { theme, chartStyle } = p;
+  const set = (patch: Partial<ChartStyleSettings>) => {
+    const next: ChartStyleSettings = { ...chartStyle, ...patch };
+    for (const key of Object.keys(next) as (keyof ChartStyleSettings)[]) if (next[key] === undefined) delete next[key];
+    p.setChartStyle(next);
+  };
+  const up = p.upColorOverride ?? theme.up;
+  const down = p.downColorOverride ?? theme.down;
+  const showParams = p.part !== "style";
+  const showStyle = p.part !== "params";
+  const type = (
+    <Row label="Type de bougies">
+      <Select<ChartDisplayMode>
+        size="small"
+        className="lq-chart-settings__select lq-chart-settings__select--wide"
+        options={CHART_DISPLAY_MODES.map((m) => ({ value: m.mode, label: m.label }))}
+        value={p.chartDisplayMode}
+        onChange={(mode) => {
+          p.setChartDisplayMode(mode);
+          p.onChartDisplayModeChange?.(mode);
+        }}
+        ariaLabel="Type de bougies"
+      />
+    </Row>
+  );
+  const pulse = (
+    <Row
+      label="Onde du dernier cours"
+      hint={p.chartDisplayMode === "line" ? "Une onde à chaque nouveau cours, en direct ou en replay" : "Seulement en mode Ligne"}
+      disabled={p.chartDisplayMode !== "line"}
+    >
+      <Toggle checked={p.closePulseVisible} onChange={() => p.setClosePulseVisible(!p.closePulseVisible)} ariaLabel="Onde sur le dernier point de la ligne" disabled={p.chartDisplayMode !== "line"} />
+    </Row>
+  );
+  const colors = (
+    <>
+      {theme.isEink && (
+        <p className="lq-chart-settings__note">
+          La palette E-ink affiche les bougies en creux ou plein plutôt qu'en couleur : les couleurs ci-dessous ne changent rien tant qu'elle est active.
+        </p>
+      )}
+      <Row label="Corps" hint="Hausse · baisse">
+        <UpDownPickers label="Corps des bougies" up={up} down={down} onUp={p.setUpColorOverride} onDown={p.setDownColorOverride} disabled={theme.isEink} />
+      </Row>
+      <Row label="Bordures" hint="Hausse · baisse">
+        <UpDownPickers
+          label="Bordures des bougies"
+          up={chartStyle.borderUpColor ?? up}
+          down={chartStyle.borderDownColor ?? down}
+          onUp={(c) => set({ borderUpColor: c })}
+          onDown={(c) => set({ borderDownColor: c })}
+          disabled={theme.isEink}
+        />
+      </Row>
+      <Row label="Mèches" hint="Hausse · baisse">
+        <UpDownPickers
+          label="Mèches des bougies"
+          up={chartStyle.wickUpColor ?? up}
+          down={chartStyle.wickDownColor ?? down}
+          onUp={(c) => set({ wickUpColor: c })}
+          onDown={(c) => set({ wickDownColor: c })}
+          disabled={theme.isEink}
+        />
+      </Row>
+      {hasCandleColorOverrides(p) && (
+        <div className="lq-chart-settings__row lq-chart-settings__row--action">
+          <button type="button" className="lq-chart-settings__link" onClick={() => resetCandleColors(p)}>
+            Revenir aux couleurs du thème
+          </button>
+        </div>
+      )}
+    </>
+  );
+  // Page « Symbole » des paramètres système : une section « Bougies », comme avant ; l'onglet du symbole sépare le
+  // tracé (Paramètres) des couleurs (Style).
+  if (p.part === undefined) {
+    return (
+      <>
+        <Section title="Bougies">
+          {type}
+          {colors}
+          {pulse}
+        </Section>
+        {p.showCandleColorRules && (
+          <section className="lq-chart-settings__section">
+            <CandleColorRulesEditor rules={p.candleColorRules} indicators={p.candleRuleIndicators} onChange={p.setCandleColorRules} />
+          </section>
+        )}
+      </>
+    );
+  }
+  return (
+    <div className="lq-chart-settings-embedded">
+      {showParams && (
+        <Section title="Tracé">
+          {type}
+          {pulse}
+        </Section>
+      )}
+      {showStyle && <Section title="Bougies">{colors}</Section>}
+      {showStyle && p.showCandleColorRules && (
+        <section className="lq-chart-settings__section">
+          <CandleColorRulesEditor rules={p.candleColorRules} indicators={p.candleRuleIndicators} onChange={p.setCandleColorRules} />
+        </section>
+      )}
+    </div>
+  );
+}
+
 function TemplateMenu(p: ChartSettingsDialogProps & { themeUp: string; themeDown: string }) {
   const [open, setOpen] = useState(false);
   const [naming, setNaming] = useState(false);

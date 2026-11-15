@@ -411,3 +411,11 @@
     width: 148px;
   }
 }
+
+/* Réglages du symbole dans l'onglet des paramètres du graphique (fenêtre étroite, sans navigation). */
+.lq-chart-settings-embedded {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lq-space-3, 12px);
+  min-width: 0;
+}

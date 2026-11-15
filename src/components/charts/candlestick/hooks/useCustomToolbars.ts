@@ -27,6 +27,8 @@ export interface CustomToolbarChartActions {
   marketStateOpen: boolean;
   toggleMarketState: () => void;
   openSettings: () => void;
+  /** Paramètres du graphique (onglets symbole et indicateurs sur les prix). */
+  openSymbolSettings: () => void;
   isFullscreen: boolean;
   toggleFullscreen: () => void;
   timeframe?: string;
@@ -138,6 +140,7 @@ export function useCustomToolbars({ enabled, defaultCustomToolbars, onCustomTool
       case "action:drawingsManager": return a.toggleDrawingsManager();
       case "action:marketState": return a.toggleMarketState();
       case "action:settings": return a.openSettings();
+      case "action:symbolSettings": return a.openSymbolSettings();
       case "action:fullscreen": return a.toggleFullscreen();
     }
   }

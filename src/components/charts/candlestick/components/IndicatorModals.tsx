@@ -28,7 +28,12 @@ import { IndicatorPickerModal } from "./IndicatorPickerModal";
 import { IndicatorHelpButton, useOpenIndicatorHelp } from "./IndicatorHelp";
 import { hasIndicatorHelp } from "../indicatorHelp";
 import { VolumePaneSettings } from "./VolumePaneSettings";
+import { ChartSymbolSettings, type ChartSymbolSettingsProps } from "./ChartSettingsDialog";
+import { hasCandleColorOverrides, resetCandleColors } from "../candleColorOverrides";
 import { VOLUME_PANE_ID } from "../attachedIndicators";
+
+/** Onglets des paramètres du graphique : la série principale (le symbole), puis les indicateurs tracés sur les prix. */
+const PRICE_PANE_ID = "price";
 
 export interface IndicatorModalsProps {
   indicatorPickerOpen: boolean;
@@ -121,6 +126,25 @@ export interface IndicatorModalsProps {
   setVolumeSettingsOpen: (open: boolean) => void;
   /** Paramètres du panneau Volume ouverts (onglet « Volume », ou celui d'une moyenne posée dessus). */
   volumeSettingsOpen: boolean;
+  /** Paramètres du graphique (clic droit sur les prix → « Paramètres du graphique (symbole)… ») ouverts : onglet du
+   *  symbole, ou celui d'un indicateur tracé sur les prix. */
+  priceSettingsOpen: boolean;
+  setPriceSettingsOpen: (open: boolean) => void;
+  /** Le symbole du graphique : nom de l'onglet de la série principale. */
+  symbol?: string;
+  /** Réglages de la série principale (onglet du symbole), les mêmes que la page « Symbole » des paramètres système. */
+  chartDisplayMode: ChartSymbolSettingsProps["chartDisplayMode"];
+  setChartDisplayMode: ChartSymbolSettingsProps["setChartDisplayMode"];
+  onChartDisplayModeChange: ChartSymbolSettingsProps["onChartDisplayModeChange"];
+  closePulseVisible: boolean;
+  setClosePulseVisible: (visible: boolean) => void;
+  setUpColorOverride: (color: string | undefined) => void;
+  setDownColorOverride: (color: string | undefined) => void;
+  candleColorRules: ChartSymbolSettingsProps["candleColorRules"];
+  setCandleColorRules: ChartSymbolSettingsProps["setCandleColorRules"];
+  showCandleColorRules: boolean;
+  chartStyle: ChartSymbolSettingsProps["chartStyle"];
+  setChartStyle: ChartSymbolSettingsProps["setChartStyle"];
   /** Couleurs des barres du volume (celles des bougies, `upColorOverride` / `downColorOverride`, tant qu'elles ne sont
    *  pas réglées). */
   volumeUpColorOverride: string | undefined;
@@ -192,6 +216,21 @@ export function IndicatorModals({
   removeIndicator,
   setVolumeSettingsOpen,
   volumeSettingsOpen,
+  priceSettingsOpen,
+  setPriceSettingsOpen,
+  symbol,
+  chartDisplayMode,
+  setChartDisplayMode,
+  onChartDisplayModeChange,
+  closePulseVisible,
+  setClosePulseVisible,
+  setUpColorOverride,
+  setDownColorOverride,
+  candleColorRules,
+  setCandleColorRules,
+  showCandleColorRules,
+  chartStyle,
+  setChartStyle,
   volumeUpColorOverride,
   setVolumeUpColorOverride,
   volumeDownColorOverride,
@@ -251,14 +290,14 @@ export function IndicatorModals({
   const [volumeTheme, setVolumeTheme] = useState<{ up: string; down: string; isEink: boolean }>({ up: "#26a69a", down: "#ef5350", isEink: false });
   useEffect(() => {
     const el = themeAnchorRef.current;
-    if (!el || !volumeSettingsOpen) return;
+    if (!el || (!volumeSettingsOpen && !priceSettingsOpen)) return;
     const computed = getComputedStyle(el);
     setVolumeTheme({
       up: computed.getPropertyValue("--lq-color-up").trim() || "#26a69a",
       down: computed.getPropertyValue("--lq-color-down").trim() || "#ef5350",
       isEink: el.closest('[data-lq-palette="eink"]') !== null,
     });
-  }, [volumeSettingsOpen]);
+  }, [volumeSettingsOpen, priceSettingsOpen]);
 
   function handleDeleteAll() {
     commitDrawings(drawings.filter((d) => !visibleDrawings.some((v) => v.id === d.id)));
@@ -619,7 +658,7 @@ export function IndicatorModals({
         // Les paramètres d'un panneau (Volume, RSI, MACD, script…) : un onglet par série, la principale d'abord puis
         // chaque indicateur posé dessus. Un indicateur tracé sur les prix garde sa fenêtre à lui (Entrées / Style).
         const draft = editingIndicatorId && indicatorDraft ? indicatorDraft : null;
-        const paneId = draft ? settingsPaneOf(draft) : volumeSettingsOpen ? VOLUME_PANE_ID : null;
+        const paneId = draft ? settingsPaneOf(draft) : volumeSettingsOpen ? VOLUME_PANE_ID : priceSettingsOpen ? PRICE_PANE_ID : null;
         if (draft && paneId === null) return renderIndicatorModal(draft);
         if (paneId === null) return null;
         return renderPaneModal(paneId, draft);
@@ -630,7 +669,9 @@ export function IndicatorModals({
   /** Le panneau où un indicateur se règle : celui sur lequel il est posé, le sien (panneau séparé), ou aucun (prix). */
   function settingsPaneOf(ind: Indicator): string | null {
     if (ind.sourceId) return ind.sourceId;
-    return indicatorCatalogEntry(ind).pane === "price" ? null : ind.id;
+    // Sur les prix : sa fenêtre à lui (Entrées / Style), sauf depuis les paramètres du graphique, où il a son onglet.
+    if (indicatorCatalogEntry(ind).pane === "price") return priceSettingsOpen ? PRICE_PANE_ID : null;
+    return ind.id;
   }
 
   /** Tous les indicateurs, scripts compris, la version en cours de réglage à la place de l'enregistrée. */
@@ -719,28 +760,57 @@ export function IndicatorModals({
   function renderPaneModal(paneId: string, draft: Indicator | null) {
     const all = everyIndicatorWith(draft);
     const isVolume = paneId === VOLUME_PANE_ID;
-    const host = isVolume ? undefined : all.find((i) => i.id === paneId);
-    const attached = all.filter((i) => i.sourceId === paneId);
-    const mainTab = isVolume ? { id: VOLUME_PANE_ID, label: "Volume" } : { id: paneId, label: host ? indicatorLabel(host) : "Panneau" };
+    // Les prix : le symbole d'abord, puis chaque indicateur tracé sur les prix (moyennes, bandes, scripts superposés).
+    const isPrice = paneId === PRICE_PANE_ID;
+    const host = isVolume || isPrice ? undefined : all.find((i) => i.id === paneId);
+    const attached = isPrice ? all.filter((i) => !i.sourceId && indicatorCatalogEntry(i).pane === "price") : all.filter((i) => i.sourceId === paneId);
+    const symbolLabel = symbol?.trim() || "Prix";
+    const mainTab = isVolume
+      ? { id: VOLUME_PANE_ID, label: "Volume" }
+      : isPrice
+        ? { id: PRICE_PANE_ID, label: symbolLabel }
+        : { id: paneId, label: host ? indicatorLabel(host) : "Panneau" };
     const tabs = [mainTab, ...attached.map((i) => ({ id: i.id, label: indicatorLabel(i) }))];
-    const activeTab = draft ? draft.id : VOLUME_PANE_ID;
+    const activeTab = draft ? draft.id : mainTab.id;
     const close = () => {
       closeIndicatorSettings();
       setVolumeSettingsOpen(false);
+      setPriceSettingsOpen(false);
+    };
+    // La fenêtre tient par son drapeau (volume, prix) d'un onglet à l'autre : le retour à l'onglet principal la retrouve.
+    const keepOpen = () => {
+      if (isVolume) setVolumeSettingsOpen(true);
+      if (isPrice) setPriceSettingsOpen(true);
     };
     const selectTab = (id: string) => {
       if (id === activeTab) return;
-      if (id === VOLUME_PANE_ID) {
-        setVolumeSettingsOpen(true);
+      keepOpen();
+      if (id === VOLUME_PANE_ID || id === PRICE_PANE_ID) {
         closeIndicatorSettings();
         return;
       }
-      // Sur le volume, la fenêtre reste ouverte d'un onglet à l'autre (le retour à l'onglet « Volume » la retrouve).
-      if (isVolume) setVolumeSettingsOpen(true);
       openIndicatorSettings(id);
     };
     const editing = draft ? indicatorEditing(draft) : null;
-    const removable = draft?.sourceId ? draft : null;
+    const removable = draft && (draft.sourceId || isPrice) ? draft : null;
+    const symbolProps: ChartSymbolSettingsProps = {
+      theme: volumeTheme,
+      chartDisplayMode,
+      setChartDisplayMode,
+      onChartDisplayModeChange,
+      closePulseVisible,
+      setClosePulseVisible,
+      upColorOverride,
+      setUpColorOverride,
+      downColorOverride,
+      setDownColorOverride,
+      candleColorRules,
+      setCandleColorRules,
+      showCandleColorRules,
+      candleRuleIndicators: all,
+      chartStyle,
+      setChartStyle,
+    };
 
     return (
       <Modal
@@ -750,10 +820,10 @@ export function IndicatorModals({
         title={
           <span className="lq-ind-settings__heading">
             <span className="lq-ind-settings__heading-name">{mainTab.label}</span>
-            <span className="lq-ind-settings__heading-kind">Paramètres du panneau</span>
+            <span className="lq-ind-settings__heading-kind">{isPrice ? "Paramètres du graphique" : "Paramètres du panneau"}</span>
           </span>
         }
-        closeLabel="Fermer les paramètres du panneau"
+        closeLabel={isPrice ? "Fermer les paramètres du graphique" : "Fermer les paramètres du panneau"}
         headerActions={editing?.helpButton}
         footer={
           <div className="lq-ind-settings__footer">
@@ -771,10 +841,14 @@ export function IndicatorModals({
                       selectTab(mainTab.id);
                     }}
                   >
-                    Retirer du panneau
+                    {isPrice ? "Retirer du graphique" : "Retirer du panneau"}
                   </button>
                 )}
               </span>
+            ) : isPrice ? (
+              <button type="button" className="lq-ind-settings__link" disabled={!hasCandleColorOverrides(symbolProps)} onClick={() => resetCandleColors(symbolProps)}>
+                Revenir aux couleurs du thème
+              </button>
             ) : (
               <button
                 type="button"
@@ -810,6 +884,17 @@ export function IndicatorModals({
             <div className="lq-pane-settings__group">
               <h3 className="lq-pane-settings__group-title">Style</h3>
               <IndicatorSettingsStyle indicatorDraft={draft} setIndicatorDraft={setIndicatorDraft} indicators={editing.everyIndicator} showAreaFills={showAreaFills} />
+            </div>
+          </>
+        ) : isPrice ? (
+          <>
+            <div className="lq-pane-settings__group">
+              <h3 className="lq-pane-settings__group-title">Paramètres</h3>
+              <ChartSymbolSettings {...symbolProps} part="params" />
+            </div>
+            <div className="lq-pane-settings__group">
+              <h3 className="lq-pane-settings__group-title">Style</h3>
+              <ChartSymbolSettings {...symbolProps} part="style" />
             </div>
           </>
         ) : (

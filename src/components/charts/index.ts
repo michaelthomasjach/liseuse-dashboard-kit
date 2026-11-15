@@ -186,3 +186,6 @@ export { loadScriptingPrompt } from "./candlestick/scripting/loadScriptingPrompt
 // et zones de temps d'un indicateur `draw: "zones"` fournies par l'application.
 export { newIndicatorId, dedupeIndicatorIds } from "./candlestick/indicatorIds";
 export type { CustomIndicatorZone } from "./candlestick/interfaces/CustomIndicatorDef.interface";
+// Alertes : la série (prix, volume, indicateur) sur laquelle porte une alerte, calculée comme le graphique la trace,
+// pour que l'application vérifie les alertes qui ne portent pas sur le prix.
+export { alertSeriesValues } from "./candlestick/alertSeries";

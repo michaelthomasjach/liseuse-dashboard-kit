@@ -121,8 +121,6 @@ export function buildChartContextMenu({
   fullscreenToggle,
   isFullscreen,
   toggleFullscreen,
-  marketStateOpen,
-  toggleMarketState,
   openSettings,
   symbolInfoHidden,
   toggleSymbolInfo,
@@ -296,9 +294,6 @@ export function buildChartContextMenu({
       ? ([{ label: isFullscreen ? "Quitter le plein écran" : "Plein écran", onSelect: toggleFullscreen, target: onChart }] as ChartContextMenuItem[])
       : []),
     { separator: true },
-    // Also reachable from the tools rail — but that rail only exists when `drawingTools` is on,
-    // and the readout has nothing to do with drawing. This is the way in that always works.
-    ...(!inSubPane ? [{ label: marketStateOpen ? "Masquer l'état du marché" : "État du marché", onSelect: toggleMarketState, target: onPrice }] : []),
     // La légende en haut à gauche : nom du symbole, type de bougies, ouverture / plus haut / plus bas / clôture.
     ...(!inSubPane && toggleSymbolInfo
       ? [{ label: symbolInfoHidden ? "Afficher la légende du symbole (OHLC)" : "Masquer la légende du symbole (OHLC)", onSelect: toggleSymbolInfo, target: onPrice }]

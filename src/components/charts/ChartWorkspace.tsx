@@ -794,6 +794,14 @@ function ChartWorkspaceBody({
   // element), it's only the initial props that are shared. Multiple children keep the older
   // "one config per panel" behavior unchanged.
   const rawChildren = Children.toArray(children) as ReactElement<CandlestickChartProps>[];
+  // Ticker → nom complet, d'après les listes de surveillance (`row.name`).
+  const watchlistNames = useMemo(() => {
+    const names = new Map<string, string>();
+    for (const list of watchlists ?? []) {
+      for (const row of [...list.rows, ...(list.sections ?? []).flatMap((section) => section.rows)]) if (row.name && !names.has(row.ticker)) names.set(row.ticker, row.name);
+    }
+    return names;
+  }, [watchlists]);
   const panelElements = rawChildren.length === 1 ? Array.from({ length: panels }, () => rawChildren[0]) : rawChildren.slice(0, panels);
   const effectiveFocusedPanelIndex = focusedPanelIndex !== null && focusedPanelIndex < panels ? focusedPanelIndex : null;
   // Outils de l'assistant au niveau de l'espace de travail (comparer_cote_a_cote, creer_un_indice_ratio), donnés au

@@ -153,17 +153,20 @@ function DrawingHandle({
   onPointerDown,
   onPointerMove,
   onPointerUp,
+  color,
 }: {
   cx: number;
   cy: number;
   onPointerDown: (e: React.PointerEvent<SVGCircleElement>) => void;
   onPointerMove: (e: React.PointerEvent<SVGCircleElement>) => void;
   onPointerUp: (e: React.PointerEvent<SVGCircleElement>) => void;
+  /** Couleur du dessin : l'anneau de la poignée la reprend (sans elle, la couleur d'accent du thème). */
+  color?: string;
 }) {
   return (
     <>
       <circle className="lq-chart__drawing-handle-hitarea" cx={cx} cy={cy} r={5} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} />
-      <circle className="lq-chart__drawing-handle" cx={cx} cy={cy} r={5} />
+      <circle className="lq-chart__drawing-handle" cx={cx} cy={cy} r={5} style={color ? { stroke: color } : undefined} />
     </>
   );
 }
@@ -569,6 +572,7 @@ export function ChartCanvasOverlay({
               if (dr.lineType === "horizontal") {
                 return (
                   <DrawingHandle
+                    color={dr.color}
                     key={dr.id}
                     cx={dims.boundedWidth * AXIS_HANDLE_FRACTION_X}
                     cy={pixelYForDrawing(dr)}
@@ -581,6 +585,7 @@ export function ChartCanvasOverlay({
               if (dr.lineType === "vertical") {
                 return (
                   <DrawingHandle
+                    color={dr.color}
                     key={dr.id}
                     cx={zoomedXScale(indexForDate(dr.x1) + 0.5)}
                     cy={plotBoundedHeight * AXIS_HANDLE_FRACTION_Y}
@@ -596,6 +601,7 @@ export function ChartCanvasOverlay({
               if (dr.lineType === "ray") {
                 return (
                   <DrawingHandle
+                    color={dr.color}
                     key={dr.id}
                     cx={zoomedXScale(indexForDate(dr.x1) + 0.5)}
                     cy={pixelYForDrawing(dr)}
@@ -615,6 +621,7 @@ export function ChartCanvasOverlay({
               if (["arrowUp", "arrowDown", "text", "comment", "pin", "flagMark", "signpost", "priceLabel"].includes(dr.lineType ?? "") && !isOffsetPriceLabel(dr)) {
                 return (
                   <DrawingHandle
+                    color={dr.color}
                     key={dr.id}
                     cx={zoomedXScale(indexForDate(dr.x1) + 0.5)}
                     cy={zoomedPriceScale(dr.y1)}
@@ -637,6 +644,7 @@ export function ChartCanvasOverlay({
                 <g key={dr.id}>
                   {points.map((p, i) => (
                     <DrawingHandle
+                    color={dr.color}
                       key={i}
                       cx={zoomedXScale(indexForDate(p.x) + 0.5)}
                       cy={zoomedPriceScale(p.y)}
@@ -647,6 +655,7 @@ export function ChartCanvasOverlay({
                   ))}
                   {dr.lineType === "channel" && (
                     <DrawingHandle
+                    color={dr.color}
                       cx={(x1 + x2) / 2}
                       cy={zoomedPriceScale((dr.y1 + dr.y2) / 2 + (dr.channelOffset ?? 0))}
                       onPointerDown={handleAxisHandlePointerDown(dr.id)}

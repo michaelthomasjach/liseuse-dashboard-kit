@@ -335,6 +335,7 @@ const STYLE_KEYS: Partial<Record<keyof ChartStyleSettings, StyleKeyDoc>> = {
   marginTop: { type: "number", description: "Toile : marge haute en % de l'amplitude." },
   marginBottom: { type: "number", description: "Toile : marge basse en %." },
   marginRightBars: { type: "number", description: "Toile : marge à droite, en bougies." },
+  resetZoomBars: { type: "number", description: "Toile : nombre de bougies affichées par la réinitialisation du zoom (Espace, double-clic). Défaut 100." },
   watermarkVisibility: { type: "string", enum: ["always", "replay"], description: "Filigrane : toujours, ou seulement pendant un replay." },
   watermarkColor: { type: "string", description: "Couleur du filigrane." },
   navigationButtons: { type: "string", enum: ["always", "hover", "hidden"], description: "Boutons de navigation en bas des prix : toujours, au survol, masqués." },

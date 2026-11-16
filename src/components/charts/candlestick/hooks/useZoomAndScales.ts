@@ -111,6 +111,8 @@ export interface UseZoomAndScalesArgs {
   priceScaleMode?: PriceScaleMode;
   zoomable: boolean;
   initialVisibleCandles: number | undefined;
+  /** Bougies affichées par la réinitialisation du zoom (Espace, double-clic). Absent ou 0 : la vue de départ. */
+  resetVisibleCandles?: number;
   /** Voir CandlestickChartProps.initialVisibleRange : la vue de départ, par dates, si l'hôte en a une. */
   initialVisibleRange?: ChartVisibleRange | null;
   /** See CandlestickChartProps.viewResetKey: a change re-applies the initial view to the new data. */
@@ -175,6 +177,7 @@ export function useZoomAndScales({
   priceScaleMode = "linear",
   zoomable,
   initialVisibleCandles,
+  resetVisibleCandles,
   initialVisibleRange,
   viewResetKey,
   replayActive,
@@ -995,7 +998,9 @@ export function useZoomAndScales({
   // start instead of a fixed candle count counted back from its end.
   function resetZoom() {
     // Recomputed here, never replayed from mount — see initialVisibleCountRef's own doc.
-    const count = initialVisibleCountRef.current;
+    // Le nombre de bougies réglé (Paramètres système → Toile → Zoom), sinon la vue de départ ; au-delà des bougies
+    // disponibles, toutes.
+    const count = resetVisibleCandles && resetVisibleCandles > 0 ? (resetVisibleCandles < data.length ? resetVisibleCandles : null) : initialVisibleCountRef.current;
     let target = (count === null ? null : transformForVisibleCount(count)) ?? d3.zoomIdentity;
     if (replayActive && replayCutoffIndex !== null && dims.boundedWidth > 0) {
       const x0 = xScale(0);

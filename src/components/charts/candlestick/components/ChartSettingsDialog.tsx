@@ -12,7 +12,7 @@ import type { ChartDisplayMode } from "../interfaces/ChartDisplayMode.interface"
 import type { CandleColorRule } from "../interfaces/CandleColorRule.interface";
 import type { Indicator } from "../interfaces/Indicator.interface";
 import type { ChartButtonsVisibility, ChartColorMode, ChartDateFormat, ChartLineStyle, ChartStyleSettings, ChartStyleTemplate, ChartTimeFormat } from "../chartStyle";
-import { CANVAS_STYLE_KEYS, MODE_COLOR_KEYS, chartStyleMeta, templateStyle } from "../chartStyle";
+import { CANVAS_STYLE_KEYS, DEFAULT_RESET_ZOOM_BARS, MODE_COLOR_KEYS, chartStyleMeta, templateStyle } from "../chartStyle";
 import { CandleColorRulesEditor } from "./CandleColorRulesEditor";
 import { hasCandleColorOverrides, resetCandleColors } from "../candleColorOverrides";
 import "./ChartSettingsDialog.css";
@@ -609,7 +609,7 @@ export function ChartSettingsDialog(props: ChartSettingsDialogProps) {
     const mode = meta?.mode ?? "light";
     const host = meta?.host ?? "light";
     const raw = meta?.raw ?? chartStyle;
-    const numberField = (key: "marginTop" | "marginBottom" | "marginRightBars", label: string, unit: string, def: number | undefined, max: number, hint?: string) => (
+    const numberField = (key: "marginTop" | "marginBottom" | "marginRightBars" | "resetZoomBars", label: string, unit: string, def: number | undefined, max: number, hint?: string) => (
       <Row label={label} hint={hint}>
         <span className="lq-chart-settings__number">
           <input
@@ -801,6 +801,9 @@ export function ChartSettingsDialog(props: ChartSettingsDialogProps) {
               {numberField("marginTop", "Haut", "%", 8, 60)}
               {numberField("marginBottom", "Bas", "%", 8, 60)}
               {numberField("marginRightBars", "Droite", "barres", undefined, 200, "Espace vide après la dernière bougie")}
+            </Section>
+            <Section title="Zoom">
+              {numberField("resetZoomBars", "Réinitialisation du zoom", "barres", DEFAULT_RESET_ZOOM_BARS, 5000, "Espace ou double-clic : nombre de bougies de l'unité de temps affichées")}
             </Section>
           </>
         )}

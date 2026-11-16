@@ -125,7 +125,7 @@ import { CHART_DISPLAY_MODES } from "./candlestick/chartModes";
 import { findTimeframeLabel, flattenTimeframeValues } from "./candlestick/timeframes";
 import { styleOf, toolKeyOf, useDrawingStylePresets, withStyle } from "./candlestick/drawingStylePresets";
 import { dayMonthYearFormat } from "./internal/dateFormat";
-import { axisLabelsAttribute, chartStyleCssVars, chartStyleDateFormatter, effectiveChartStyle, type ChartYAxisGutter } from "./candlestick/chartStyle";
+import { axisLabelsAttribute, chartStyleCssVars, chartStyleDateFormatter, DEFAULT_RESET_ZOOM_BARS, effectiveChartStyle, type ChartYAxisGutter } from "./candlestick/chartStyle";
 import { paneValueFormatter } from "./candlestick/indicatorCatalog";
 import { formatCompactNumber } from "./candlestick/formatting";
 import { DEFAULT_MARGIN, MOBILE_LAYOUT_BREAKPOINT, NARROW_EMBED_BREAKPOINT, PRICE_AXIS_WIDTH_MOBILE, SUB_PANE_COLLAPSED_HEIGHT, TOOLS_RAIL_HEIGHT_MOBILE, TOOLS_RAIL_WIDTH } from "./candlestick/constants";
@@ -1390,6 +1390,7 @@ function CandlestickChartBody({
     priceScaleMode,
     zoomable,
     initialVisibleCandles,
+    resetVisibleCandles: appliedStyle.resetZoomBars ?? DEFAULT_RESET_ZOOM_BARS,
     initialVisibleRange,
     viewResetKey,
     replayActive: replayState.active,

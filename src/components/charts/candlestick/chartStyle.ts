@@ -100,6 +100,9 @@ export interface ChartStyleSettings {
   marginBottom?: number;
   /** Marge à droite de la dernière bougie, en bougies. Absent : celle de l'application (`futureBars`). */
   marginRightBars?: number;
+  /** Réinitialisation du zoom (Espace, double-clic, loupe −) : nombre de bougies de l'unité de temps affichées. Défaut
+   *  100 (`DEFAULT_RESET_ZOOM_BARS`) ; au-delà des bougies disponibles, toutes. */
+  resetZoomBars?: number;
 
   // ── Bougies (onglet « Bougies » : couleurs de chaque type de graphique) ──
   /** Heikin Ashi : corps, bordures et mèches en hausse / baisse. Absent : les réglages des bougies. */
@@ -433,6 +436,9 @@ export interface ChartStyleTemplate {
 
 /** Les champs de la section Toile : retirés du rendu quand la personnalisation avancée n'est pas offerte
  *  (`advancedAppearance` faux). */
+/** Bougies affichées par la réinitialisation du zoom quand `resetZoomBars` n'est pas réglé. */
+export const DEFAULT_RESET_ZOOM_BARS = 100;
+
 export const CANVAS_STYLE_KEYS: (keyof ChartStyleSettings)[] = [
   "backgroundType",
   "backgroundColor",
@@ -453,6 +459,7 @@ export const CANVAS_STYLE_KEYS: (keyof ChartStyleSettings)[] = [
   "marginTop",
   "marginBottom",
   "marginRightBars",
+  "resetZoomBars",
   "navigationButtons",
   "paneButtons",
   "seriesLabelBg",

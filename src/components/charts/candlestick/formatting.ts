@@ -6,7 +6,8 @@ import type { ValueFormat, ValueFormatSpec } from "./interfaces/ValueFormat.inte
  *  candle's close (not this candle's own open), matching how a trading platform's own top-bar
  *  readout reads "change since last close" rather than "change within this bar". */
 export function computeOhlcReadout(data: Candle[], hoverIndex: number | null) {
-  const index = hoverIndex !== null ? hoverIndex : data.length - 1;
+  // Borné aux bougies présentes : un index survolé resté d'avant un rechargement plus court ne doit rien casser.
+  const index = Math.max(0, Math.min(data.length - 1, hoverIndex !== null ? hoverIndex : data.length - 1));
   const candle = data[index];
   const prevClose = index > 0 ? data[index - 1].close : candle.open;
   const delta = candle.close - prevClose;

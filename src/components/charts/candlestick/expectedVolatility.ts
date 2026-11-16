@@ -147,7 +147,7 @@ function intervalLabel(ms: number): string {
  *  chiffres significatifs (deux décimales au moins), pour qu'une série aux décimales infinies (calculée, convertie)
  *  ne s'écrive pas « 50123.12345678 ». */
 function priceDecimals(data: Candle[]): number {
-  const last = data[data.length - 1].close;
+  const last = data[data.length - 1]?.close ?? 0;
   const intDigits = Math.abs(last) >= 1 ? Math.floor(Math.log10(Math.abs(last))) + 1 : 0;
   const cap = Math.max(2, 6 - intDigits);
   let decimals = 0;

@@ -43,8 +43,15 @@ export function useHoverSync({
   // empty future/past space, but this call needs an actual `data[]` index, so it clamps the
   // synced-in fallback right back to a valid one itself (a synced date from a *different* panel
   // can easily fall outside this chart's own range entirely — different symbol, different history).
+  // L'index survolé n'est borné qu'au mouvement de la souris : quand les bougies sont relues avec moins d'éléments
+  // (rechargement serveur après des ticks en direct, autre unité de temps), il peut dépasser la dernière bougie ;
+  // on le ramène à une bougie qui existe, sinon le bandeau OHLC lit une bougie absente et la page plante.
   const effectiveHoverIndex =
-    hoverIndex !== null ? hoverIndex : syncedHoverDate ? Math.min(data.length - 1, Math.max(0, Math.round(indexForDate(syncedHoverDate)))) : null;
+    data.length === 0
+      ? null
+      : hoverIndex !== null
+        ? Math.min(data.length - 1, Math.max(0, hoverIndex))
+        : syncedHoverDate ? Math.min(data.length - 1, Math.max(0, Math.round(indexForDate(syncedHoverDate)))) : null;
   const effectiveHovered = effectiveHoverIndex !== null ? data[effectiveHoverIndex] : null;
 
   // Mirrors effectiveHoverIndex/effectiveHovered above, but for the horizontal price line: a

@@ -61,8 +61,8 @@ export interface ChartStyleSettings {
    *  d'avant) vaut pour les deux sens, sauf là où `lastPriceLineUpColor` / `lastPriceLineDownColor` sont posés. */
   lastPriceLineStyle?: ChartLineStyle;
   lastPriceLineColor?: string;
-  /** Couleur de la ligne du dernier prix (et, sans couleur d'étiquette personnalisée, de sa pastille) quand la dernière
-   *  bougie monte / baisse. Absent : la couleur de la bougie. */
+  /** Couleur de la ligne du dernier prix et de sa pastille sur l'axe (sauf valeurs des séries en « Personnalisée »)
+   *  quand le dernier prix est au-dessus / au-dessous de la clôture précédente. Absent : la couleur de la bougie. */
   lastPriceLineUpColor?: string;
   lastPriceLineDownColor?: string;
   /** Jour de la semaine sur les étiquettes de temps. Défaut faux. */
@@ -104,8 +104,8 @@ export interface ChartStyleSettings {
    *  texte. Absent : la couleur de la série en fond, le texte du thème. */
   seriesLabelBg?: string;
   seriesLabelText?: string;
-  /** Les mêmes quand la série baisse (dernier cours sous la clôture précédente, indicateur sous sa valeur précédente).
-   *  Absent : `seriesLabelBg` / `seriesLabelText`. */
+  /** @deprecated Ignorés (une seule couleur pour les valeurs des séries) ; gardés pour lire sans erreur un réglage
+   *  enregistré par le kit 0.276.0. */
   seriesLabelBgDown?: string;
   seriesLabelTextDown?: string;
   /** Étiquette du réticule sur l'axe des prix et des panneaux. Absent : la couleur d'accent du thème. */
@@ -161,8 +161,6 @@ export const MODE_COLOR_KEYS = [
   "watermarkColor",
   "seriesLabelBg",
   "seriesLabelText",
-  "seriesLabelBgDown",
-  "seriesLabelTextDown",
   "crosshairPriceLabelBg",
   "crosshairPriceLabelText",
   "crosshairTimeLabelBg",
@@ -393,8 +391,6 @@ export const CANVAS_STYLE_KEYS: (keyof ChartStyleSettings)[] = [
   "paneButtons",
   "seriesLabelBg",
   "seriesLabelText",
-  "seriesLabelBgDown",
-  "seriesLabelTextDown",
   "crosshairPriceLabelBg",
   "crosshairPriceLabelText",
   "crosshairTimeLabelBg",
@@ -412,16 +408,14 @@ export function effectiveChartStyle(style: ChartStyleSettings, advanced: boolean
 }
 
 /** Couleurs des étiquettes des axes, par jeton (`data-lq-axis-labels`, lu par ChartCanvasOptions.css) et variable CSS
- *  (`--lq-chart-<jeton>`) : pastille du dernier cours, valeurs des indicateurs, en hausse et en baisse, puis réticule.
- *  La pastille du dernier cours prend, à défaut d'une couleur d'étiquette, celle de la ligne du dernier prix. */
+ *  (`--lq-chart-<jeton>`). La pastille du dernier prix prend la couleur de la ligne du dernier prix (hausse ou baisse),
+ *  sauf si les valeurs des séries sont en « Personnalisée » (une seule couleur, pour toutes les valeurs) ; puis réticule. */
 function axisLabelColors(s: ChartStyleSettings): [string, string | undefined][] {
   return [
-    ["last-bg-up", s.seriesLabelBg ?? s.lastPriceLineUpColor],
-    ["last-bg-down", s.seriesLabelBgDown ?? s.seriesLabelBg ?? s.lastPriceLineDownColor],
-    ["series-bg-up", s.seriesLabelBg],
-    ["series-bg-down", s.seriesLabelBgDown ?? s.seriesLabelBg],
-    ["series-text-up", s.seriesLabelText],
-    ["series-text-down", s.seriesLabelTextDown ?? s.seriesLabelText],
+    ["last-bg-up", s.seriesLabelBg ?? s.lastPriceLineUpColor ?? s.lastPriceLineColor],
+    ["last-bg-down", s.seriesLabelBg ?? s.lastPriceLineDownColor ?? s.lastPriceLineColor],
+    ["series-bg", s.seriesLabelBg],
+    ["series-text", s.seriesLabelText],
     ["cross-y-label-bg", s.crosshairPriceLabelBg],
     ["cross-y-label-text", s.crosshairPriceLabelText],
     ["cross-x-label-bg", s.crosshairTimeLabelBg],

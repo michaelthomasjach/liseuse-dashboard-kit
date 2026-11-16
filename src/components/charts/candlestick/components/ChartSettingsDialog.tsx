@@ -478,7 +478,8 @@ export function ChartSettingsDialog(props: ChartSettingsDialogProps) {
           </Row>
           <Row label="Ligne du dernier prix">
             {lineStyleSelect(chartStyle.lastPriceLineStyle ?? "dashed", (v) => set({ lastPriceLineStyle: v === "dashed" ? undefined : v }), "Style de la ligne du dernier prix", !lastLine)}
-            {/* Hausse et baisse : par défaut la couleur de la bougie ; l'ancienne couleur unique vaut pour les deux sens. */}
+            {/* Hausse (dernier prix au-dessus de la clôture précédente) et baisse : par défaut la couleur de la bougie ;
+                l'ancienne couleur unique vaut pour les deux sens. La pastille du dernier prix prend la même couleur. */}
             <UpDownPickers
               up={chartStyle.lastPriceLineUpColor ?? chartStyle.lastPriceLineColor ?? p.upColorOverride ?? theme.up}
               down={chartStyle.lastPriceLineDownColor ?? chartStyle.lastPriceLineColor ?? p.downColorOverride ?? theme.down}
@@ -516,31 +517,26 @@ export function ChartSettingsDialog(props: ChartSettingsDialogProps) {
                 value={chartStyle.seriesLabelBg ? "custom" : "series"}
                 onChange={(v) =>
                   set(
+                    // Les champs « en baisse » du kit 0.276.0 sont effacés au passage : il n'y a plus qu'une couleur.
                     v === "custom"
-                      ? { seriesLabelBg: chartStyle.seriesLabelBg ?? p.upColorOverride ?? theme.up, seriesLabelBgDown: chartStyle.seriesLabelBgDown ?? p.downColorOverride ?? theme.down }
-                      : { seriesLabelBg: undefined, seriesLabelBgDown: undefined },
+                      ? { seriesLabelBg: chartStyle.seriesLabelBg ?? themeColors.accent, seriesLabelBgDown: undefined, seriesLabelTextDown: undefined }
+                      : { seriesLabelBg: undefined, seriesLabelBgDown: undefined, seriesLabelTextDown: undefined },
                   )
                 }
                 ariaLabel="Fond des étiquettes des séries"
               />
-            </Row>
-            <Row label="Fond des valeurs" hint="En hausse / en baisse (un indicateur : par rapport à sa valeur précédente)" disabled={!chartStyle.seriesLabelBg}>
-              <UpDownPickers
-                up={chartStyle.seriesLabelBg ?? p.upColorOverride ?? theme.up}
-                down={chartStyle.seriesLabelBgDown ?? chartStyle.seriesLabelBg ?? p.downColorOverride ?? theme.down}
-                onUp={(c) => set({ seriesLabelBg: c })}
-                onDown={(c) => set({ seriesLabelBgDown: c, seriesLabelBg: chartStyle.seriesLabelBg ?? p.upColorOverride ?? theme.up })}
+              <ColorPicker
+                value={chartStyle.seriesLabelBg ?? themeColors.accent}
+                onChange={(c) => set({ seriesLabelBg: c })}
                 disabled={!chartStyle.seriesLabelBg}
-                label="Fond des étiquettes des séries"
+                aria-label="Couleur de fond des étiquettes des séries"
+                title="Fond"
               />
-            </Row>
-            <Row label="Texte des valeurs" hint="En hausse / en baisse">
-              <UpDownPickers
-                up={chartStyle.seriesLabelText ?? themeColors.accentContrast}
-                down={chartStyle.seriesLabelTextDown ?? chartStyle.seriesLabelText ?? themeColors.accentContrast}
-                onUp={(c) => set({ seriesLabelText: c })}
-                onDown={(c) => set({ seriesLabelTextDown: c })}
-                label="Texte des étiquettes des séries"
+              <ColorPicker
+                value={chartStyle.seriesLabelText ?? themeColors.accentContrast}
+                onChange={(c) => set({ seriesLabelText: c })}
+                aria-label="Couleur du texte des étiquettes des séries"
+                title="Texte"
               />
             </Row>
             <Row label="Réticule sur l'axe des prix" hint="Prix ou valeur survolé, fond et texte">

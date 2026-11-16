@@ -978,7 +978,7 @@ const CHART_TYPE_TABS = CHART_DISPLAY_MODES.map((m) => ({ mode: m.mode, label: m
 const CHART_TYPE_KEYS: Record<Exclude<ChartDisplayMode, "candle">, (keyof ChartStyleSettings)[]> = {
   heikinAshi: ["haUpColor", "haDownColor", "haBorderUpColor", "haBorderDownColor", "haWickUpColor", "haWickDownColor"],
   bar: ["barUpColor", "barDownColor", "barWidth"],
-  line: ["lineColor", "lineWidth", "lineStyle", "lineFill", "lineFillColor", "lineFillGradient", "lineFillTopColor", "lineFillBottomColor"],
+  line: ["lineColor", "lineWidth", "lineStyle", "lineGradient", "lineTopColor", "lineBottomColor", "lineFill", "lineFillColor", "lineFillGradient", "lineFillTopColor", "lineFillBottomColor"],
   renko: ["renkoUpColor", "renkoDownColor", "renkoBorderUpColor", "renkoBorderDownColor", "renkoAtrPeriod"],
   lineBreak: ["lineBreakUpColor", "lineBreakDownColor", "lineBreakBorderUpColor", "lineBreakBorderDownColor", "lineBreakLines"],
 };
@@ -1064,6 +1064,7 @@ export function ChartTypeSettings(p: ChartTypeSettingsProps) {
   const lineColor = chartStyle.lineColor ?? accent;
   const fill = chartStyle.lineFill ?? true;
   const gradient = chartStyle.lineFillGradient ?? false;
+  const lineGradient = chartStyle.lineGradient ?? false;
   const panel = (() => {
     switch (current) {
       case "candle":
@@ -1142,6 +1143,25 @@ export function ChartTypeSettings(p: ChartTypeSettingsProps) {
                 onThicknessChange={(w) => set({ lineWidth: w === 1.5 ? undefined : w })}
                 aria-label="Couleur de la ligne de clôture"
               />
+            </Row>
+            <Row label="Couleur de la ligne" hint={lineGradient ? "Haut · bas" : undefined}>
+              <Select<"solid" | "gradient">
+                size="small"
+                className="lq-chart-settings__select"
+                options={[
+                  { value: "solid", label: "Unie" },
+                  { value: "gradient", label: "Dégradé" },
+                ]}
+                value={lineGradient ? "gradient" : "solid"}
+                onChange={(v) => set({ lineGradient: v === "gradient" ? true : undefined })}
+                ariaLabel="Couleur de la ligne : unie ou en dégradé"
+              />
+              {lineGradient ? (
+                <>
+                  <ColorPicker value={chartStyle.lineTopColor ?? lineColor} onChange={(c) => set({ lineTopColor: c })} aria-label="Couleur du haut de la ligne" title="Haut" />
+                  <ColorPicker value={chartStyle.lineBottomColor ?? lineColor} onChange={(c) => set({ lineBottomColor: c })} aria-label="Couleur du bas de la ligne" title="Bas" />
+                </>
+              ) : null}
             </Row>
             <Row label="Remplissage sous la courbe" hint={fill ? undefined : "Une simple ligne, sans aire"}>
               <Toggle checked={fill} onChange={() => set({ lineFill: fill ? false : undefined })} ariaLabel="Remplissage sous la ligne de clôture" />

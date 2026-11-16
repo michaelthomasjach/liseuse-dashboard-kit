@@ -52,6 +52,7 @@ export function applyChartStyle(style: ChartCanvasStyle, chartStyle: ChartStyleS
       bar: { up: s.barUpColor, down: s.barDownColor, width: s.barWidth },
       line: {
         color: s.lineColor,
+        strokeGradient: s.lineGradient ? { top: s.lineTopColor ?? s.lineColor ?? style.colorAccent, bottom: s.lineBottomColor ?? s.lineColor ?? style.colorAccent } : undefined,
         width: s.lineWidth,
         dash: s.lineStyle ? lineDash(s.lineStyle, []) : undefined,
         fill: s.lineFill,

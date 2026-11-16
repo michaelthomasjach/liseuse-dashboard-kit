@@ -149,7 +149,23 @@ export function drawPriceCandles(ctx: CanvasRenderingContext2D, params: RenderCa
         const lt = style.chartTypes?.line;
         const lineColor = lt?.color ?? colorAccent;
         ctx.save();
-        ctx.strokeStyle = lineColor;
+        if (lt?.strokeGradient) {
+          // Dégradé vertical sur le trait : du point le plus haut de la courbe visible à son point le plus bas.
+          let yTop = Infinity;
+          let yBottom = -Infinity;
+          for (const { d } of visible) {
+            const y = zoomedPriceScale(d.close);
+            if (y < yTop) yTop = y;
+            if (y > yBottom) yBottom = y;
+          }
+          if (!(yBottom > yTop)) yBottom = yTop + 1;
+          const strokeGradient = ctx.createLinearGradient(0, yTop, 0, yBottom);
+          strokeGradient.addColorStop(0, lt.strokeGradient.top);
+          strokeGradient.addColorStop(1, lt.strokeGradient.bottom);
+          ctx.strokeStyle = strokeGradient;
+        } else {
+          ctx.strokeStyle = lineColor;
+        }
         ctx.lineWidth = lt?.width ?? 1.5;
         ctx.setLineDash(lt?.dash ?? []);
         ctx.beginPath();

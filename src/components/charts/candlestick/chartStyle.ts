@@ -118,6 +118,11 @@ export interface ChartStyleSettings {
   lineColor?: string;
   lineWidth?: number;
   lineStyle?: ChartLineStyle;
+  /** Dégradé vertical sur la ligne elle-même : couleur à son point le plus haut et à son point le plus bas (absent :
+   *  la couleur de la ligne, unie). */
+  lineGradient?: boolean;
+  lineTopColor?: string;
+  lineBottomColor?: string;
   /** Remplissage sous la ligne de clôture. Défaut vrai (la couleur de la ligne à 8 %). */
   lineFill?: boolean;
   /** Couleur du remplissage uni, opacité comprise (`#rrggbbaa`). Absent : la couleur de la ligne à 8 %. */
@@ -207,6 +212,8 @@ export const MODE_COLOR_KEYS = [
   "barUpColor",
   "barDownColor",
   "lineColor",
+  "lineTopColor",
+  "lineBottomColor",
   "lineFillColor",
   "lineFillTopColor",
   "lineFillBottomColor",

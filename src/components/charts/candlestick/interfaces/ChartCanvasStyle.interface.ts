@@ -44,7 +44,7 @@ export interface ChartCanvasStyle {
   chartTypes?: {
     ha: { up?: string; down?: string; borderUp?: string; borderDown?: string; wickUp?: string; wickDown?: string };
     bar: { up?: string; down?: string; width?: number };
-    line: { color?: string; width?: number; dash?: number[]; fill?: boolean; fillColor?: string; gradient?: boolean; top?: string; bottom?: string };
+    line: { color?: string; strokeGradient?: { top: string; bottom: string }; width?: number; dash?: number[]; fill?: boolean; fillColor?: string; gradient?: boolean; top?: string; bottom?: string };
     renko: { up?: string; down?: string; borderUp?: string; borderDown?: string };
     lineBreak: { up?: string; down?: string; borderUp?: string; borderDown?: string };
   };

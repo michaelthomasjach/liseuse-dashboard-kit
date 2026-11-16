@@ -186,6 +186,8 @@ export interface ChartWorkspaceProps {
   onToolBridge?: (bridge: import("./candlestick/ai/chartToolBridge").ChartToolBridge | null) => void;
   /** Boutons de l'application dans le rail de droite, juste au-dessus de l'aide (ex. une connexion MCP). */
   railActions?: WorkspaceRailAction[];
+  /** Boutons de l'application tout en bas du rail de droite, sous l'aide (ex. une croix qui ferme le graphique). */
+  railBottomActions?: WorkspaceRailAction[];
   watchlists?: ChartWorkspaceWatchlist[];
   /** Uncontrolled initial pick among `watchlists` (by id) — defaults to the first one. */
   defaultActiveWatchlistId?: string;
@@ -384,6 +386,7 @@ function ChartWorkspaceBody({
   loadingLabel,
   onToolBridge,
   railActions,
+  railBottomActions,
   watchlists,
   defaultActiveWatchlistId,
   onActiveWatchlistChange,
@@ -1547,6 +1550,7 @@ function ChartWorkspaceBody({
           showFullscreenButton={fullscreenButton}
           onCapture={(action) => void captureFrontPanel(action)}
           actions={railActions}
+          bottomActions={railBottomActions}
           onOpenHelp={() => {
             setHelpTab("features");
             setHelpOpen(true);

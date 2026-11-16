@@ -39,6 +39,8 @@ export interface WorkspaceSideRailProps {
   onCapture?: (action: ChartCaptureActionKind) => void;
   /** Boutons de l'application, juste au-dessus de l'aide. */
   actions?: WorkspaceRailAction[];
+  /** Boutons de l'application tout en bas du rail, sous l'aide (ex. fermer le graphique). */
+  bottomActions?: WorkspaceRailAction[];
   onOpenHelp: () => void;
 }
 
@@ -64,6 +66,7 @@ export function WorkspaceSideRail({
   showFullscreenButton = true,
   onCapture,
   actions,
+  bottomActions,
   onOpenHelp,
 }: WorkspaceSideRailProps) {
   const [captureOpen, setCaptureOpen] = useState(false);
@@ -216,6 +219,18 @@ export function WorkspaceSideRail({
       >
         <HelpIcon size={16} />
       </button>
+      {bottomActions?.map((a) => (
+        <button
+          key={a.id}
+          type="button"
+          className={["lq-chart__icon-button", a.active && "lq-chart__icon-button--active"].filter(Boolean).join(" ")}
+          onClick={a.onClick}
+          aria-label={a.label}
+          title={a.label}
+        >
+          {a.icon}
+        </button>
+      ))}
     </div>
   );
 }

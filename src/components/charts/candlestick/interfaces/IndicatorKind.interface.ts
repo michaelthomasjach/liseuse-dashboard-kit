@@ -30,6 +30,10 @@ export type IndicatorKind =
   /** « Volatilité attendue du jour (ATR) » : ouverture de chaque période ± ATR et ± SMA de l'ATR, figés à
    *  l'ouverture — voir `computeExpectedVolatilityValues` (expectedVolatility.ts). */
   | "expectedVolatility"
+  /** « Détection de range (précoce) » : volumes, volatilité et CHOP combinés, zones de range en rectangles sur les
+   *  prix — voir `computeRangeDetectionValues` (rangeDetection.ts). Listé dans l'onglet « Communauté » du catalogue
+   *  quand l'application en fournit un (`CandlestickChartProps.communityIndicators`). */
+  | "rangeDetection"
   /** Time Price Opportunities / Market Profile — see `Indicator.tpoBlockMinutes` and
    *  `computeTPOSessionProfiles`'s own doc (in `chartModes.ts`) for the full mechanics. An
    *  overlay like S/R or Pivot Points, not a `chartDisplayMode` — it draws its own profile

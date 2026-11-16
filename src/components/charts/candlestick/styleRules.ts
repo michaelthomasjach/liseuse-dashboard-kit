@@ -82,6 +82,7 @@ const NOT_A_LINE = new Set<string>([
   "cupHandle",
   "chandelierExit",
   "expectedVolatility",
+  "rangeDetection",
 ]);
 
 /** Les lignes d'un indicateur qu'une règle peut citer : `field` (absent : la ligne principale) et son nom. */

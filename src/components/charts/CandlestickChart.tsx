@@ -2,6 +2,7 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react"
 import type { ChartTemplateSnapshot } from "./candlestick/interfaces/ChartTemplate.interface";
 import { createPortal } from "react-dom";
 import type { IndicatorKind } from "./candlestick/interfaces/IndicatorKind.interface";
+import type { IndicatorCodeTarget } from "./candlestick/interfaces/IndicatorInfoTarget.interface";
 import type { Indicator } from "./candlestick/interfaces/Indicator.interface";
 import { INDICATOR_SCRIPT_SOURCES } from "./candlestick/indicatorScriptSources";
 import { scriptIdFromIndicatorId } from "./candlestick/scripting/scriptOutputToCustomIndicatorDef";
@@ -105,7 +106,7 @@ export type {
 } from "./CandlestickChart.types";
 
 import { drawingLabel } from "./candlestick/drawingCatalog";
-import { indicatorCatalogEntry, indicatorLabel, defaultIndicatorColor } from "./candlestick/indicatorCatalog";
+import { indicatorCatalogEntry, indicatorLabel, defaultIndicatorColor, INDICATOR_CATALOG } from "./candlestick/indicatorCatalog";
 import { drawingAxisAnnotations, indicatorAxisAnnotations } from "./candlestick/axisAnnotations";
 import { ChartContextMenu } from "./candlestick/components/ChartContextMenu";
 import { buildChartContextMenu, type ChartContextMenuAnchor } from "./candlestick/buildChartContextMenu";
@@ -262,6 +263,7 @@ function CandlestickChartBody({
   events,
   fundamentals,
   symbolIsEquity,
+  communityIndicators,
   depth,
   tape,
   symbolSearch = false,
@@ -287,7 +289,7 @@ function CandlestickChartBody({
   fillHeight = false,
   layout = "auto",
   sidePanel, defaultSidePanelOpen, onSidePanelOpenChange,
-  scripts, onScriptsChange, onScriptAlert, quantData, ai, aiOpen: aiOpenProp, onAiOpenChange, aiPortalTarget, onEditScript, onCreateScript, onDeleteScript, onCreateStrategyFromIndicator, onScriptRunOutput, lastCandleOpen = false,
+  scripts, onScriptsChange, onScriptAlert, quantData, ai, aiOpen: aiOpenProp, onAiOpenChange, aiPortalTarget, onEditScript: onEditScriptProp, onCreateScript, onDeleteScript, onCreateStrategyFromIndicator, onScriptRunOutput, lastCandleOpen = false,
   margin,
   className,
 }: CandlestickChartProps) {
@@ -611,7 +613,7 @@ function CandlestickChartBody({
     [appliedStyle.marginTop, appliedStyle.marginBottom],
   );
 
-  const { scriptingState, scriptChartIndicators } = useChartScripting({ scripts, onScriptsChange });
+  const { scriptingState, scriptChartIndicators } = useChartScripting({ scripts, onScriptsChange, communityIndicators });
 
   /** What goes when an indicator is removed — the rule itself lives in `scriptPaneRemoval`; this
    *  is the seam `usePaneLayout` calls it through (see its own `beforeRemoveIndicator`).
@@ -761,8 +763,13 @@ function CandlestickChartBody({
 
   // Which indicator's source the code viewer is showing. Owned here rather than inside the picker
   // because two places open it: the picker's own rows, and each indicator's legend row.
-  const [codeTarget, setCodeTarget] = useState<IndicatorKind | { scriptId: string } | null>(null);
+  const [codeTarget, setCodeTarget] = useState<IndicatorCodeTarget | null>(null);
   const codeViewer = useMemo(() => ({ codeTarget, setCodeTarget }), [codeTarget]);
+  // Copie de l'indicateur d'un autre membre (onglet « Communauté ») : lecture seule, son « </> » ouvre le code en
+  // consultation au lieu de l'éditeur.
+  const onEditScript =
+    onEditScriptProp &&
+    ((scriptId: string) => (scripts?.find((s) => s.id === scriptId)?.community ? setCodeTarget({ scriptId }) : onEditScriptProp(scriptId)));
 
   /** Opens the source behind an indicator that is already on the chart.
    *
@@ -1816,7 +1823,14 @@ function CandlestickChartBody({
     onToolBridgeRef.current?.(createChartToolBridge(() => aiChartRef.current!));
     return () => onToolBridgeRef.current?.(null);
   }, [hasToolBridge]);
+  // L'assistant ne propose que ce que le catalogue montre : un indicateur « communauté » que l'application ne cite pas
+  // dans `communityIndicators` (réservé à une autre offre) lui reste inconnu.
+  const aiIndicatorCatalog = useMemo(
+    () => (communityIndicators === undefined ? INDICATOR_CATALOG : INDICATOR_CATALOG.filter((e) => !e.community || communityIndicators.some((c) => c.kind === e.kind))),
+    [communityIndicators]
+  );
   const aiChartBase = useAiChartContext({
+    indicatorCatalog: aiIndicatorCatalog,
     symbol,
     timeframe,
     availableTimeframes: flattenTimeframeValues(timeframes),
@@ -3105,6 +3119,8 @@ function CandlestickChartBody({
         setVolumePaneState={setVolumePaneState}
         addIndicator={addIndicator}
         customIndicators={customIndicators} addCustomIndicator={addCustomIndicator} symbolIsEquity={symbolIsEquity}
+        communityIndicators={communityIndicators}
+        addCommunityScript={scripts !== undefined ? scriptingState.addCommunityScript : undefined}
         scripts={scriptingState.scripts} toggleScriptEnabled={scriptingState.toggleScriptEnabled}
         scriptPlacements={scriptPlacements}
         runningScriptIds={scriptingState.runningScriptIds}

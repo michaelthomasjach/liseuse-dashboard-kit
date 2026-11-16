@@ -564,3 +564,12 @@
 .lq-script-editor-panel__statusbar-run--error {
   color: var(--lq-color-danger);
 }
+
+/* Bascule « Public / Privé » verrouillée (offre sans scripts privés) : lisible, mais en retrait. */
+.lq-script-editor-panel__toolbar-button--locked {
+  opacity: 0.75;
+}
+
+.lq-script-editor-panel__visibility-lock {
+  max-width: 280px;
+}

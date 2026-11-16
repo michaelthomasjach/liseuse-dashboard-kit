@@ -522,7 +522,7 @@ export function ChartLegend({
                 treatment the drawing toolbar's own bell gets. */}
             <div className="lq-chart__indicator-legend-actions">
               {/* Pas d'alerte sur un indicateur de zones : il n'a pas de valeur à franchir. */}
-              {indicator.customData?.draw !== "zones" && (
+              {indicator.customData?.draw !== "zones" && indicator.customData?.draw !== "boxes" && (
               <button
                 type="button"
                 className={[

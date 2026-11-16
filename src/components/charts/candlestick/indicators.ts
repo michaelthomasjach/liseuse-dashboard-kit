@@ -25,6 +25,7 @@ import { isFundamentalKind } from "./indicatorCatalog";
 import { computePatternRecognitionValues } from "./patternRecognition";
 import { computeCandleRecognitionValues } from "./candleRecognition";
 import { computeExpectedVolatilityValues, EXPECTED_VOLATILITY_DEFAULTS } from "./expectedVolatility";
+import { computeRangeDetectionValues, rangeDetectionSettingsOf } from "./rangeDetection";
 
 /** Forward-fills a sparse, date-keyed series (quarterly reports, any other "one number per
  *  period" data) onto every candle — the most recent point on or before that candle's own date, a
@@ -125,7 +126,7 @@ export function computeCustomIndicatorValues(data: Candle[], def: CustomIndicato
   // that stops partway rather than one that was never per-bar to begin with.
   if (def.draw === "profile") return data.map(() => null);
   // Des bandes de temps, pas une série : rien à calculer par bougie (voir `drawIndicatorZones`).
-  if (def.draw === "zones") return data.map(() => null);
+  if (def.draw === "zones" || def.draw === "boxes") return data.map(() => null);
   if (def.draw === "band") {
     const bandData = def.data as CustomIndicatorBandDataPoint[];
     const upperFilled = forwardFillSeries(data, bandData.map((p) => ({ date: p.date, value: p.upper })));
@@ -903,6 +904,8 @@ export function computeIndicatorValues(
         timeZone: indicator.expVolTimeZone || EXPECTED_VOLATILITY_DEFAULTS.timeZone,
         sessions: indicator.expVolSessions ?? EXPECTED_VOLATILITY_DEFAULTS.sessions,
       });
+    case "rangeDetection":
+      return computeRangeDetectionValues(data, rangeDetectionSettingsOf({ ...indicator, period }), computeCHOPValues);
     case "pivotPoints":
       return computePivotPointsValues(data, indicator.pivotType ?? "classic", indicator.pivotPeriod ?? "weekly");
     case "supportResistance":

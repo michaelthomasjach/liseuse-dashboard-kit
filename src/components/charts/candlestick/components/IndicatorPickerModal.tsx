@@ -5,13 +5,14 @@ import {
   SearchIcon, TrashIcon, InfoIcon, OverlayBadgeIcon, PaneBadgeIcon, CheckIcon, CodeIcon,
   TrendLineIcon, StarIcon, ChevronLeftIcon, ChevronRightIcon,
 } from "../../../icons";
-import { INDICATOR_CATALOG, type IndicatorCatalogEntry } from "../indicatorCatalog";
+import { INDICATOR_CATALOG, COMMUNITY_CATEGORY, type IndicatorCatalogEntry } from "../indicatorCatalog";
 import { INDICATOR_SCRIPT_SOURCES } from "../indicatorScriptSources";
 import { IndicatorHelpButton } from "./IndicatorHelp";
 import { ATTACHABLE_KINDS } from "../attachedIndicators";
 import { EQUITY_ONLY_NOTE, unavailableForSymbol } from "../equityOnly";
 import { analyzeScriptKind } from "../scripting/scriptKind";
-import type { IndicatorInfoTarget } from "../interfaces/IndicatorInfoTarget.interface";
+import type { IndicatorInfoTarget, IndicatorCodeTarget } from "../interfaces/IndicatorInfoTarget.interface";
+import type { CommunityIndicatorEntry } from "../interfaces/CommunityIndicatorEntry.interface";
 import type { Indicator } from "../interfaces/Indicator.interface";
 import type { IndicatorKind } from "../interfaces/IndicatorKind.interface";
 import type { CustomIndicatorDef } from "../interfaces/CustomIndicatorDef.interface";
@@ -60,7 +61,7 @@ export interface IndicatorPickerModalProps {
   setSearchQuery: (query: string) => void;
   setInfoKind: (target: IndicatorInfoTarget | null) => void;
   /** Opens an indicator's (or a script's) source in the shared code viewer. */
-  setCodeTarget: (target: IndicatorKind | { scriptId: string } | null) => void;
+  setCodeTarget: (target: IndicatorCodeTarget | null) => void;
   showVolume: boolean;
   setVolumePaneState: (state: "expanded" | "collapsed" | "hidden") => void;
   addIndicator: (entry: IndicatorCatalogEntry) => void;
@@ -72,6 +73,10 @@ export interface IndicatorPickerModalProps {
    *  ajoutés — masqués, on les chercherait sans comprendre pourquoi ils ont disparu. */
   symbolIsEquity?: boolean;
   addCustomIndicator: (def: CustomIndicatorDef) => void;
+  /** Onglet « Communauté » (voir `CandlestickChartProps.communityIndicators`) : absent, pas d'onglet. */
+  communityIndicators?: CommunityIndicatorEntry[];
+  /** Ajoute le script d'un autre membre (copie en lecture seule). Absent : ses lignes ne sont pas proposées. */
+  addCommunityScript?: (entry: CommunityIndicatorEntry) => void;
   scripts: ScriptDef[];
   /** Where each script's own output currently lands on the chart, by script id — see
    *  `PickerOption.placements`. Absent (or missing an entry) simply means "not known yet", which
@@ -122,6 +127,8 @@ export function IndicatorPickerModal({
   customIndicators,
   symbolIsEquity,
   addCustomIndicator,
+  communityIndicators,
+  addCommunityScript,
   scripts,
   scriptPlacements,
   runningScriptIds,
@@ -227,8 +234,12 @@ export function IndicatorPickerModal({
             {Array.from(
               new Set([
                 FAVORITES_CATEGORY,
-                ...INDICATOR_CATALOG.map((entry) => entry.category),
+                ...INDICATOR_CATALOG.filter((entry) => !entry.community).map((entry) => entry.category),
+                ...(communityIndicators === undefined ? INDICATOR_CATALOG.filter((entry) => entry.community).map((entry) => entry.fallbackCategory ?? entry.category) : []),
                 ...(customIndicators ?? []).map((def) => def.section),
+                // L'onglet des indicateurs partagés, quand l'application en fournit un (même vide : on y découvre
+                // qu'il existe). Les indicateurs « communauté » du catalogue n'ont pas d'autre catégorie alors.
+                ...(communityIndicators !== undefined ? [COMMUNITY_CATEGORY] : []),
                 // Always present, even with no scripts at all — the tab is how someone finds
                 // out scripts *exist* as a thing this chart does. Hiding it until the first
                 // one is written means it can only ever be discovered by someone who already
@@ -345,7 +356,11 @@ export function IndicatorPickerModal({
                *  `descriptionKind` already follows — for a custom indicator (a caller's own,
                *  this library never had its source) and for the built-in kinds with no faithful
                *  script version (see INDICATOR_SCRIPT_SOURCES' own doc for which, and why). */
-              codeTarget?: IndicatorKind | { scriptId: string };
+              codeTarget?: IndicatorCodeTarget;
+              /** Ligne de l'onglet « Communauté » : l'auteur, écrit après le nom. */
+              author?: string;
+              /** Infobulle de la ligne (description fournie par l'application). */
+              hint?: string;
               /** Script rows only — the script this row stands for, which its own trash button
                *  deletes. `undefined` everywhere else: a built-in or custom indicator is removed
                *  from the chart by clicking its already-present row (see `alreadyPresent`), and
@@ -358,7 +373,12 @@ export function IndicatorPickerModal({
             };
             // Depuis un panneau : seuls les moyennes et Bollinger se calculent sur ses valeurs ; « déjà affiché » ne compte que
             // celles posées sur ce panneau-là (une SMA sur les prix n'est pas la même chose qu'une SMA sur le RSI).
-            const builtinOptions: PickerOption[] = (onPane ? INDICATOR_CATALOG.filter((entry) => ATTACHABLE_KINDS.some((k) => k.kind === entry.kind)) : INDICATOR_CATALOG).filter(
+            // Indicateurs « communauté » du catalogue : seulement par l'onglet « Communauté » quand l'application en fournit
+            // un (elle décide lesquels proposer) ; sinon dans leur catégorie de repli.
+            const catalog = INDICATOR_CATALOG.filter((entry) => !entry.community || communityIndicators === undefined).map((entry) =>
+              entry.community && entry.fallbackCategory ? { ...entry, category: entry.fallbackCategory } : entry
+            );
+            const builtinOptions: PickerOption[] = (onPane ? catalog.filter((entry) => ATTACHABLE_KINDS.some((k) => k.kind === entry.kind)) : catalog).filter(
               (entry) => entry.label.toLowerCase().includes(query) || entry.shortLabel.toLowerCase().includes(query)
             ).map((entry) =>
               onPane
@@ -400,8 +420,65 @@ export function IndicatorPickerModal({
                 presentCount: indicators.filter((ind) => ind.customData?.id === def.id).length,
                 onRemoveExisting: () => commitIndicators(indicators.filter((ind) => ind.customData?.id !== def.id)),
               }));
+            // « Communauté » : indicateurs intégrés que l'application y range, scripts d'indicateur des autres membres
+            // (ajoutés en copie lecture seule, puis activés / désactivés d'un clic comme « Mes indicateurs »), et les copies
+            // dont l'indicateur n'est plus partagé (pour pouvoir les retirer).
+            const listedIds = new Set((communityIndicators ?? []).map((e) => e.id));
+            const communityOptions: PickerOption[] = onPane || communityIndicators === undefined ? [] : [
+              ...communityIndicators.flatMap((entry): PickerOption[] => {
+                const matches = (text: string) => text.toLowerCase().includes(query) || (entry.author ?? "").toLowerCase().includes(query);
+                if (entry.kind) {
+                  const catalogEntry = INDICATOR_CATALOG.find((e) => e.kind === entry.kind);
+                  if (!catalogEntry || !matches(entry.label || catalogEntry.label)) return [];
+                  return [{
+                    key: `community:${entry.id}`,
+                    label: entry.label || catalogEntry.label,
+                    author: entry.author,
+                    hint: entry.description,
+                    category: COMMUNITY_CATEGORY,
+                    pane: catalogEntry.pane === "own" ? "own" : "price",
+                    onSelect: () => addIndicator(catalogEntry),
+                    descriptionKind: catalogEntry.kind,
+                    codeTarget: INDICATOR_SCRIPT_SOURCES[catalogEntry.kind] ? catalogEntry.kind : undefined,
+                    reserved: unavailableForSymbol(catalogEntry.kind, symbolIsEquity),
+                    presentCount: indicators.filter((ind) => ind.kind === catalogEntry.kind && ind.sourceId === undefined).length,
+                    onRemoveExisting: () => commitIndicators(indicators.filter((ind) => !(ind.kind === catalogEntry.kind && ind.sourceId === undefined))),
+                  }];
+                }
+                if (!entry.script || !addCommunityScript || analyzeScriptKind(entry.script.code).kind !== "indicator" || !matches(entry.label)) return [];
+                const copy = scripts.find((s) => s.community?.entryId === entry.id);
+                return [{
+                  key: `community:${entry.id}`,
+                  label: entry.label,
+                  author: entry.author,
+                  hint: entry.description,
+                  category: COMMUNITY_CATEGORY,
+                  pane: "own",
+                  onSelect: () => (copy ? toggleScriptEnabled(copy.id) : addCommunityScript(entry)),
+                  enabled: copy ? copy.enabled !== false : undefined,
+                  codeTarget: copy ? { scriptId: copy.id } : { communityId: entry.id },
+                  placements: copy ? scriptPlacements?.[copy.id] : undefined,
+                  busy: copy ? runningScriptIds?.includes(copy.id) === true : false,
+                }];
+              }),
+              ...scripts
+                .filter((s) => s.community && !listedIds.has(s.community.entryId) && s.name.toLowerCase().includes(query))
+                .map((s): PickerOption => ({
+                  key: `community:${s.community!.entryId}`,
+                  label: s.name,
+                  author: s.community!.author,
+                  hint: "Cet indicateur n'est plus partagé par son auteur : la copie reste jusqu'à ce que vous la retiriez.",
+                  category: COMMUNITY_CATEGORY,
+                  pane: "own",
+                  onSelect: () => toggleScriptEnabled(s.id),
+                  enabled: s.enabled !== false,
+                  codeTarget: { scriptId: s.id },
+                  scriptId: s.id,
+                  placements: scriptPlacements?.[s.id],
+                })),
+            ];
             const scriptOptions: PickerOption[] = onPane ? [] : scripts
-              .filter((s) => s.name.toLowerCase().includes(query))
+              .filter((s) => !s.community && s.name.toLowerCase().includes(query))
               .map((s) => ({
                 key: s.id,
                 label: s.name,
@@ -415,7 +492,7 @@ export function IndicatorPickerModal({
                 canBecomeStrategy: analyzeScriptKind(s.code).kind !== "strategy",
                 busy: runningScriptIds?.includes(s.id) === true,
               }));
-            const allOptions = [...builtinOptions, ...customOptions, ...scriptOptions].filter((option) =>
+            const allOptions = [...builtinOptions, ...customOptions, ...communityOptions, ...scriptOptions].filter((option) =>
               categoryFilter === null
                 ? true
                 : categoryFilter === FAVORITES_CATEGORY
@@ -433,6 +510,14 @@ export function IndicatorPickerModal({
               // empty "Mes scripts" is the normal state of a chart nobody has written a script
               // for yet (nothing is wrong, and the message should say what a script *is* for),
               // whereas an empty result anywhere else really is a search that matched nothing.
+              if (categoryFilter === COMMUNITY_CATEGORY && !query) {
+                return (
+                  <p className="lq-chart__indicator-picker-empty">
+                    Aucun indicateur partagé pour l&apos;instant. Les indicateurs publics des membres apparaîtront ici : un clic
+                    l&apos;ajoute à votre graphique, en lecture seule.
+                  </p>
+                );
+              }
               if (categoryFilter === FAVORITES_CATEGORY) {
                 return (
                   <p className="lq-chart__indicator-picker-empty">
@@ -530,7 +615,9 @@ export function IndicatorPickerModal({
                               : option.onSelect()
                           }
                           title={
-                            option.busy === true
+                            option.hint !== undefined && option.busy !== true && !option.reserved
+                              ? option.hint
+                              : option.busy === true
                               ? "Chargement du script…"
                               : option.reserved
                                 ? `${EQUITY_ONLY_NOTE} : indisponible pour ce symbole`
@@ -544,7 +631,10 @@ export function IndicatorPickerModal({
                           {option.busy === true && (
                             <span className="lq-chart__indicator-picker-spinner" aria-label="Chargement du script" role="status" />
                           )}
-                          <span className="lq-chart__indicator-picker-name">{option.label}</span>
+                          <span className="lq-chart__indicator-picker-name">
+                            {option.label}
+                            {option.author && <span className="lq-chart__indicator-picker-author"> · par {option.author}</span>}
+                          </span>
                           {/* The trailing marks travel together, in one group the row's own
                               `space-between` pushes to the right edge. The "already added" mark used
                               to sit loose between the name and the badges, which put it in the

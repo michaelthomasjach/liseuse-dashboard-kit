@@ -10,6 +10,7 @@ import type { IndicatorCatalogEntry } from "../indicatorCatalog";
 import { indicatorCatalogEntry } from "../indicatorCatalog";
 import { dedupeIndicatorIds, newIndicatorId } from "../indicatorIds";
 import { EXPECTED_VOLATILITY_DEFAULTS } from "../expectedVolatility";
+import { RANGE_DETECTION_DEFAULTS } from "../rangeDetection";
 import {
   DEFAULT_PANE_HEIGHT_FRACTION,
   MIN_PANE_HEIGHT_FRACTION,
@@ -261,9 +262,9 @@ export function usePaneLayout({
     let changed = false;
     const out = storedIndicators.map((ind) => {
       const live = ind.customData ? byId.get(ind.customData.id) : undefined;
-      if (!live || !ind.customData || (live.data === ind.customData.data && live.profile === ind.customData.profile && live.zones === ind.customData.zones)) return ind;
+      if (!live || !ind.customData || (live.data === ind.customData.data && live.profile === ind.customData.profile && live.zones === ind.customData.zones && live.boxes === ind.customData.boxes)) return ind;
       changed = true;
-      return { ...ind, customData: { ...ind.customData, data: live.data, profile: live.profile, zones: live.zones } };
+      return { ...ind, customData: { ...ind.customData, data: live.data, profile: live.profile, zones: live.zones, boxes: live.boxes } };
     });
     return changed ? out : storedIndicators;
   }, [storedIndicators, liveCustomIndicators]);
@@ -640,6 +641,8 @@ export function usePaneLayout({
         ...(entry.kind === "macd" ? { fastPeriod: 12, slowPeriod: 26, signalPeriod: 9 } : {}),
         // « Vol. jour ATR » : l'ATR en orange, comme le script Pine d'origine (légende comprise).
         ...(entry.kind === "expectedVolatility" ? { color: EXPECTED_VOLATILITY_DEFAULTS.atrColor } : {}),
+        // « Range précoce » : la couleur de l'indicateur est celle des zones confirmées.
+        ...(entry.kind === "rangeDetection" ? { color: RANGE_DETECTION_DEFAULTS.confirmedColor } : {}),
       },
     ]);
   }
@@ -658,7 +661,7 @@ export function usePaneLayout({
         period: 0,
         customData: def,
         // Zones : la couleur de la définition devient celle de l'indicateur (légende et bandes d'accord, réglable).
-        ...(def.draw === "zones" && def.color ? { color: def.color } : {}),
+        ...((def.draw === "zones" || def.draw === "boxes") && def.color ? { color: def.color } : {}),
       },
     ]);
   }

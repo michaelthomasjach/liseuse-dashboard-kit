@@ -2772,6 +2772,13 @@ button.lq-chart__legend-item {
   white-space: nowrap;
 }
 
+/* Auteur d'un indicateur de l'onglet « Communauté », après son nom. */
+.lq-chart__indicator-picker-author {
+  font-weight: var(--lq-font-weight-normal, 400);
+  color: var(--lq-text-muted, currentColor);
+  opacity: 0.85;
+}
+
 .lq-chart__indicator-picker-empty {
   padding: 16px 8px;
   font-size: 0.85rem;

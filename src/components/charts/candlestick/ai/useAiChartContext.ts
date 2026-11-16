@@ -32,6 +32,9 @@ export interface UseAiChartContextArgs {
   onTimeframeChange: ((timeframe: string) => void) | undefined;
   onSymbolChange: ((symbol: string) => void) | undefined;
   onEditScript: ((id: string) => void) | undefined;
+  /** Le catalogue proposé à l'assistant, quand il diffère du catalogue complet (indicateurs « communauté » que
+   *  l'application ne propose pas — voir `CandlestickChartProps.communityIndicators`). */
+  indicatorCatalog?: IndicatorCatalogEntry[];
 }
 
 /** Gathers the assistant's whole world into one object.
@@ -57,6 +60,7 @@ export function useAiChartContext(args: UseAiChartContextArgs): AiChartContext {
     drawings,
     commitDrawings,
     nextDrawingId,
+    indicatorCatalog = INDICATOR_CATALOG,
     scripts,
     runOutputs,
     addScript,
@@ -76,7 +80,7 @@ export function useAiChartContext(args: UseAiChartContextArgs): AiChartContext {
       fundamentals,
       symbolIsEquity,
       indicators,
-      indicatorCatalog: INDICATOR_CATALOG,
+      indicatorCatalog,
       indicatorLabel,
       addIndicator,
       removeIndicator,
@@ -113,6 +117,7 @@ export function useAiChartContext(args: UseAiChartContextArgs): AiChartContext {
       drawings,
       commitDrawings,
       nextDrawingId,
+      indicatorCatalog,
       scripts,
       runOutputs,
       addScript,

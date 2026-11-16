@@ -2,6 +2,7 @@ import type { RenderCandlestickChartParams } from "../interfaces/RenderCandlesti
 import type { ChartCanvasStyle } from "../interfaces/ChartCanvasStyle.interface";
 import type { Indicator } from "../interfaces/Indicator.interface";
 import { defaultIndicatorColor } from "../indicatorCatalog";
+import { drawPriceBoxes, type PriceBox } from "./drawPriceBoxes";
 
 const HOUR_MS = 3_600_000;
 
@@ -79,4 +80,35 @@ export function drawIndicatorZones(ctx: CanvasRenderingContext2D, params: Render
       ctx.restore();
     }
   }
+}
+
+/** Indicateurs `customData.draw: "boxes"` (voir `CustomIndicatorBox`) : un rectangle par zone de prix fournie par
+ *  l'application, sous les bougies, avec le tracé générique des rectangles (`drawPriceBoxes`). Couleur, opacité du
+ *  fond et libellés se règlent comme pour les zones. Appelé dans la découpe du graphique des prix. */
+export function drawIndicatorBoxes(ctx: CanvasRenderingContext2D, params: RenderCandlestickChartParams, style: ChartCanvasStyle): void {
+  const { indicators, indexForDate } = params;
+  const boxIndicators = indicators.filter((ind) => ind.customData?.draw === "boxes" && !ind.hidden && (ind.customData.boxes?.length ?? 0) > 0);
+  if (boxIndicators.length === 0) return;
+  const boxes: PriceBox[] = [];
+  for (const indicator of boxIndicators) {
+    const color = zoneIndicatorColor(indicator, indicators.indexOf(indicator));
+    const opacity = Math.min(100, Math.max(0, indicator.zoneOpacity ?? 12)) / 100;
+    const showLabels = indicator.zoneShowLabels ?? true;
+    for (const box of indicator.customData?.boxes ?? []) {
+      const from = toTime(box.from);
+      const to = toTime(box.to);
+      if (from === null || to === null) continue;
+      boxes.push({
+        fromIndex: indexForDate(new Date(Math.min(from, to))),
+        toIndex: indexForDate(new Date(Math.max(from, to))) + 1,
+        top: box.top,
+        bottom: box.bottom,
+        color: box.color ?? color,
+        fillOpacity: opacity,
+        dashed: box.dashed,
+        ...(showLabels && box.label ? { label: box.label } : {}),
+      });
+    }
+  }
+  drawPriceBoxes(ctx, boxes, params, style);
 }

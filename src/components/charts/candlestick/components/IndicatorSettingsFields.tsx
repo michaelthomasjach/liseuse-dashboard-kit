@@ -7,6 +7,7 @@ import { IndicatorWatermarkField } from "./IndicatorWatermarkField";
 import { InputNumber } from "../../../forms/InputNumber";
 import { Input } from "../../../forms/Input";
 import { EXPECTED_VOLATILITY_DEFAULTS as EV, EXPECTED_VOLATILITY_TIMEFRAMES } from "../expectedVolatility";
+import { RANGE_DETECTION_DEFAULTS as RD } from "../rangeDetection";
 import { Select, type SelectOption } from "../../../forms/Select";
 import type { Indicator } from "../interfaces/Indicator.interface";
 import { indicatorCatalogEntry, indicatorLabel, isFundamentalKind, defaultIndicatorColor, RSI_LEVEL_COLOR, RSI_MIDDLE_COLOR } from "../indicatorCatalog";
@@ -194,6 +195,16 @@ export function IndicatorSettingsInputs({ indicatorDraft: d, setIndicatorDraft, 
       <NumberSetting key="evn" label="Nombre de séances affichées" min={1} max={60} value={d.expVolSessions} def={EV.sessions} onSet={(v) => set({ expVolSessions: v })} />
     );
   }
+  if (d.kind === "rangeDetection") {
+    calc.push(
+      <NumberSetting key="rdchop" label="Période du CHOP" suffix="bougies" min={2} max={200} value={d.period} def={RD.chopPeriod} onSet={(v) => set({ period: v })} />,
+      <NumberSetting key="rdatr" label="Période de l'ATR" suffix="bougies" min={1} max={200} value={d.rangeAtrPeriod} def={RD.atrPeriod} onSet={(v) => set({ rangeAtrPeriod: v })} />,
+      <NumberSetting key="rdlb" label="Fenêtre de comparaison de la volatilité" suffix="bougies" min={20} max={1000} value={d.rangeVolLookback} def={RD.volLookback} onSet={(v) => set({ rangeVolLookback: v })} />,
+      <NumberSetting key="rdvf" label="Moyenne courte du volume" suffix="bougies" min={1} max={200} value={d.rangeVolumeFast} def={RD.volumeFast} onSet={(v) => set({ rangeVolumeFast: v })} />,
+      <NumberSetting key="rdvs" label="Moyenne longue du volume" suffix="bougies" min={2} max={500} value={d.rangeVolumeSlow} def={RD.volumeSlow} onSet={(v) => set({ rangeVolumeSlow: v })} />,
+      <NumberSetting key="rdsl" label="Écart des pentes (précocité)" suffix="bougies" min={1} max={20} value={d.rangeSlopeBars} def={RD.slopeBars} hint="Plus court : détection plus précoce, mais plus de fausses alertes." onSet={(v) => set({ rangeSlopeBars: v })} />
+    );
+  }
   if (d.kind === "supportResistance") {
     calc.push(<NumberSetting key="sr" label="Nombre de niveaux" min={1} max={20} value={d.srMaxLevels} def={6} onSet={(v) => set({ srMaxLevels: v })} />);
   }
@@ -251,6 +262,17 @@ export function IndicatorSettingsInputs({ indicatorDraft: d, setIndicatorDraft, 
     thresholds.push(
       <NumberSetting key="cu" label="Haut (marché indécis)" min={50} max={99} step={0.1} value={d.chopUpperThreshold} def={61.8} onSet={(v) => set({ chopUpperThreshold: v })} />,
       <NumberSetting key="cl" label="Bas (directionnel)" min={1} max={50} step={0.1} value={d.chopLowerThreshold} def={38.2} onSet={(v) => set({ chopLowerThreshold: v })} />
+    );
+  }
+  if (d.kind === "rangeDetection") {
+    thresholds.push(
+      <NumberSetting key="rdce" label="CHOP : début de range (s'il monte)" min={30} max={90} step={0.1} value={d.rangeChopEarly} def={RD.chopEarly} onSet={(v) => set({ rangeChopEarly: v })} />,
+      <NumberSetting key="rdcc" label="CHOP : range établi" min={40} max={99} step={0.1} value={d.rangeChopConfirm} def={RD.chopConfirm} onSet={(v) => set({ rangeChopConfirm: v })} />,
+      <NumberSetting key="rdct" label="CHOP : tendance franche (aucun range) sous" min={1} max={50} step={0.1} value={d.rangeChopTrend} def={RD.chopTrend} onSet={(v) => set({ rangeChopTrend: v })} />,
+      <NumberSetting key="rdvp" label="Volatilité contractée sous le centile" suffix="%" min={5} max={60} value={d.rangeVolPercentile} def={RD.volPercentile} onSet={(v) => set({ rangeVolPercentile: v })} />,
+      <NumberSetting key="rdbo" label="Cassure au-delà de" suffix="× ATR" min={0} max={5} step={0.1} value={d.rangeBreakoutAtr} def={RD.breakoutAtr} onSet={(v) => set({ rangeBreakoutAtr: v })} />,
+      <NumberSetting key="rdgr" label="Bougies sans signal tolérées" min={0} max={30} value={d.rangeGraceBars} def={RD.graceBars} onSet={(v) => set({ rangeGraceBars: v })} />,
+      <NumberSetting key="rdmin" label="Durée minimale d'une zone terminée" suffix="bougies" min={1} max={100} value={d.rangeMinBars} def={RD.minBars} onSet={(v) => set({ rangeMinBars: v })} />
     );
   }
   if (d.kind === "adx") {
@@ -479,6 +501,16 @@ export function IndicatorSettingsStyle({ indicatorDraft: d, setIndicatorDraft, i
     trace.push(<TraceRow key="sar" name="Points" visible={shown} colors={pair("sarUpColor", "sarDownColor")} />);
   } else if (d.kind === "chandelierExit") {
     trace.push(<TraceRow key="ce" name="Stop" visible={shown} colors={pair("chandelierUpColor", "chandelierDownColor")} />);
+  } else if (d.kind === "rangeDetection") {
+    trace.push(
+      <TraceRow key="rdc" name="Zones de range confirmé" visible={shown} colors={[{ value: mainColor, onChange: (c) => set({ color: c }) }]} />,
+      <TraceRow
+        key="rdp"
+        name="Zones de range probable (détection précoce)"
+        visible={{ checked: d.rangeShowProbable ?? RD.showProbable, onChange: (checked) => set({ rangeShowProbable: checked }) }}
+        colors={[{ value: d.rangeProbableColor ?? RD.probableColor, onChange: (c) => set({ rangeProbableColor: c }) }]}
+      />
+    );
   } else if (d.kind === "expectedVolatility") {
     trace.push(
       <TraceRow key="evatr" name="ATR (ouverture ± ATR)" visible={shown} colors={[{ value: mainColor, onChange: (c) => set({ color: c }) }]} />,
@@ -579,14 +611,17 @@ export function IndicatorSettingsStyle({ indicatorDraft: d, setIndicatorDraft, i
       />
     );
   }
+  if (d.kind === "rangeDetection") {
+    traceSettings.push(<NumberSetting key="rdop" label="Opacité du fond" suffix="%" min={0} max={100} value={d.rangeOpacity} def={RD.opacity} onSet={(v) => set({ rangeOpacity: v })} />);
+  }
   if (d.kind === "expectedVolatility") {
     traceSettings.push(<NumberSetting key="evw" label="Épaisseur des lignes" suffix="px" min={1} max={5} value={d.lineWidth} def={EV.lineWidth} onSet={(v) => set({ lineWidth: v })} />);
   }
   if (d.kind === "tpo") {
     traceSettings.push(<NumberSetting key="tpoop" label="Opacité" suffix="%" min={10} max={100} step={5} value={d.tpoOpacity} def={100} onSet={(v) => set({ tpoOpacity: v })} />);
   }
-  // Indicateur de zones : opacité du fond (la couleur est dans le tableau).
-  if (d.customData?.draw === "zones") {
+  // Indicateur de zones ou de rectangles : opacité du fond (la couleur est dans le tableau).
+  if (d.customData?.draw === "zones" || d.customData?.draw === "boxes") {
     traceSettings.push(<NumberSetting key="zop" label="Opacité du fond" suffix="%" min={0} max={100} value={d.zoneOpacity} def={12} onSet={(v) => set({ zoneOpacity: v })} />);
   }
 
@@ -611,8 +646,13 @@ export function IndicatorSettingsStyle({ indicatorDraft: d, setIndicatorDraft, i
     check("evlow", "Afficher aussi le bas attendu (ouverture − ATR)", d.expVolShowLow ?? EV.showLow, (c) => set({ expVolShowLow: c }));
     check("evlbl", "Afficher les étiquettes de valeur", d.expVolShowLabels ?? EV.showLabels, (c) => set({ expVolShowLabels: c }));
   }
+  if (d.kind === "rangeDetection") {
+    check("rdlbl", "Libellés des zones (état, score, cassure)", d.rangeShowLabels ?? RD.showLabels, (c) => set({ rangeShowLabels: c }));
+    check("rdmid", "Ligne médiane des zones", d.rangeShowMidline ?? RD.showMidline, (c) => set({ rangeShowMidline: c }));
+  }
   if (d.kind === "pivotPoints") check("piv", "Dernier pivot seulement", d.pivotShowLastOnly ?? false, (c) => set({ pivotShowLastOnly: c }));
   if (d.kind === "tpo") check("tpos", "Séparer les blocs", d.tpoSplitByBlocks ?? true, (c) => set({ tpoSplitByBlocks: c }));
+  if (d.customData?.draw === "boxes") check("zl", "Libellé des rectangles", d.zoneShowLabels ?? true, (c) => set({ zoneShowLabels: c }));
   if (d.customData?.draw === "zones") {
     check("zl", "Libellé des zones", d.zoneShowLabels ?? true, (c) => set({ zoneShowLabels: c }));
     check("zm", "Repères (ligne et date)", d.zoneShowMarkers ?? true, (c) => set({ zoneShowMarkers: c }));
@@ -646,11 +686,11 @@ export function IndicatorSettingsStyle({ indicatorDraft: d, setIndicatorDraft, i
       {/* Zones remplies : entre la courbe et la base 0, ou une autre courbe du panneau (un « fill between »). */}
       {/* Les couleurs conditionnelles font déjà tout (« remplir entre les deux », « remplir sous la courbe »…) : la rubrique
           « Zones remplies » n’apparaît plus que pour retirer des zones enregistrées avant, qui restent dessinées. */}
-      {showAreaFills && (d.areaFills?.length ?? 0) > 0 && d.customData?.draw !== "zones" && (
+      {showAreaFills && (d.areaFills?.length ?? 0) > 0 && d.customData?.draw !== "zones" && d.customData?.draw !== "boxes" && (
         <IndicatorAreaFillsEditor indicator={d} indicators={indicators} onChange={(areaFills) => setIndicatorDraft({ ...d, areaFills })} />
       )}
       {/* Style conditionnel : écrites au nouveau format, l'ancien (`fills`, converti à la lecture) est retiré. */}
-      {d.customData?.draw !== "zones" && (
+      {d.customData?.draw !== "zones" && d.customData?.draw !== "boxes" && (
         <IndicatorStyleRulesEditor
           indicator={d}
           indicators={indicators}

@@ -8,6 +8,7 @@ import type { CandlestickChartProps } from "./candlestick/interfaces/Candlestick
 import type { SymbolSearchCategory } from "./candlestick/interfaces/SymbolSearchCategory.interface";
 import type { SymbolSearchResult } from "./candlestick/interfaces/SymbolSearchResult.interface";
 import type { ScriptDef } from "./candlestick/interfaces/ScriptDef.interface";
+import type { ScriptVisibilityOptions } from "./candlestick/interfaces/ScriptVisibilityOptions.interface";
 import type { ScriptAlertEvent } from "./candlestick/interfaces/ScriptAlertEvent.interface";
 import type { ChartVisibleRange } from "./candlestick/interfaces/ChartVisibleRange.interface";
 import { useLinkGroups } from "./workspace/useLinkGroups";
@@ -325,6 +326,15 @@ export interface ChartWorkspaceProps {
    *  `ScriptDef.targetPanelIndex`'s own doc) rather than living inside any one panel's own state.
    *  Default false. */
   scripting?: boolean;
+  /** Les scripts du compte tournent sur les fenêtres même sans l'éditeur (`scripting` à false) : c'est ce qui permet
+   *  d'afficher les indicateurs de la communauté (`CandlestickChartProps.communityIndicators`, copies en lecture
+   *  seule) à un compte qui n'a pas l'éditeur. Pas de bouton « </> » ni d'éditeur pour autant. Défaut false. */
+  runScriptsWithoutEditor?: boolean;
+  /** Bascule « Public / Privé » d'un script dans la barre de l'éditeur (`ScriptDef.visibility`). `privateAllowed` à
+   *  false : la bascule reste visible, verrouillée sur « Public », et un clic explique pourquoi avec, si fourni, un
+   *  lien vers les offres (`upgradeHref`) ou une action (`onUpgrade`). `defaultVisibility` : statut donné aux
+   *  nouveaux scripts (« public » par défaut ; « private » ignoré sans `privateAllowed`). Absent : pas de bascule. */
+  scriptVisibility?: ScriptVisibilityOptions;
   defaultScripts?: ScriptDef[];
   /** Relance de la visite guidée par l'application (un lien « Relancer la visite guidée ») : chaque nouvelle valeur
    *  l'ouvre, même déjà vue. */
@@ -414,6 +424,8 @@ function ChartWorkspaceBody({
   defaultSidePanelTab,
   onSidePanelTabChange,
   scripting = false,
+  runScriptsWithoutEditor = false,
+  scriptVisibility,
   ai,
   onAskScriptDocs,
   askScriptDocsNotice,
@@ -542,8 +554,13 @@ function ChartWorkspaceBody({
   // la liste des indicateurs tant que personne n'a cliqué « Exécuter » (exigence : « quand je crée un
   // nouvel indicateur, il ne s'ajoute pas dans la liste des indicateurs »). Les scripts déjà gardés
   // sans cible (créés avant ce changement) sont rattachés de la même façon, une fois.
+  const newScriptVisibility = scriptVisibility?.defaultVisibility === "private" && scriptVisibility.privateAllowed ? "private" : undefined;
   const addWorkspaceScript = (name?: string, code?: string) =>
-    workspaceScripting.addScript(name, code, panels === 1 ? { targetPanelIndex: 0 } : undefined);
+    workspaceScripting.addScript(name, code, {
+      ...(panels === 1 ? { targetPanelIndex: 0 } : {}),
+      ...(newScriptVisibility ? { visibility: newScriptVisibility } : {}),
+    });
+  const editorScripts = useMemo(() => workspaceScripting.scripts.filter((s) => !s.community), [workspaceScripting.scripts]);
   const untargetedScripts = panels === 1 && workspaceScripting.scripts.some((s) => s.targetPanelIndex === undefined);
   useEffect(() => {
     if (!untargetedScripts) return;
@@ -1216,7 +1233,7 @@ function ChartWorkspaceBody({
             // The workspace's own shared script list, filtered down to whichever scripts target
             // *this* panel — see panelScriptingProps for the whole set and why each one is shaped
             // the way it is.
-            ...(scripting ? panelScriptingProps(i, workspaceScripting, onScriptAlert) : {}),
+            ...(scripting || runScriptsWithoutEditor ? panelScriptingProps(i, workspaceScripting, onScriptAlert, scripting) : {}),
             // The assistant belongs to the workspace, and is rendered by whichever panel is in
             // front — the focused one, else the first. Every other panel is handed `ai: undefined`
             // so there is exactly one assistant on screen, pointed at the chart being looked at.
@@ -1701,7 +1718,9 @@ function ChartWorkspaceBody({
             onRequestDetach={detachScriptEditor}
             detached={scriptEditorWindow !== null}
             onClose={() => workspaceScripting.setEditorOpen(false)}
-            scripts={workspaceScripting.scripts}
+            // Les copies de la communauté (lecture seule) ne s'ouvrent pas dans l'éditeur.
+            scripts={editorScripts}
+            scriptVisibility={scriptVisibility}
             activeScriptId={workspaceScripting.activeScriptId}
             setActiveScriptId={workspaceScripting.setActiveScriptId}
             addScript={addWorkspaceScript}

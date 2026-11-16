@@ -26,11 +26,14 @@ import {
   ChevronDownIcon,
   CheckIcon,
   CodeIcon,
+  LockIcon,
+  UnlockIcon,
   GridIcon,
 } from "../../../../icons";
 import type { Candle } from "../../interfaces/Candle.interface";
 import { loadScriptingPrompt } from "../loadScriptingPrompt";
 import type { ScriptDef, ScriptFile } from "../../interfaces/ScriptDef.interface";
+import type { ScriptVisibilityOptions } from "../../interfaces/ScriptVisibilityOptions.interface";
 import type { ScriptDraft } from "../../hooks/useScriptingState";
 import type { ScriptRunOutput } from "../interfaces/ScriptRunOutput.interface";
 import { isCellInstrumentationLog } from "../scriptCellSentinels";
@@ -97,6 +100,8 @@ export interface ScriptEditorPanelProps {
   onAskScriptDocs?: import("../docsSearch/scriptDocsAnswer").AskScriptDocs;
   /** Pourquoi la réponse de l'IA manque, quand `onAskScriptDocs` est absent. */
   askScriptDocsNotice?: import("react").ReactNode;
+  /** Bascule « Public / Privé » du script ouvert — voir `ChartWorkspaceProps.scriptVisibility`. Absent : pas de bascule. */
+  scriptVisibility?: ScriptVisibilityOptions;
 }
 
 
@@ -139,6 +144,7 @@ export function ScriptEditorPanel({
   previewData,
   onAskScriptDocs,
   askScriptDocsNotice,
+  scriptVisibility,
 }: ScriptEditorPanelProps) {
   const activeScript = scripts.find((s) => s.id === activeScriptId) ?? null;
   // Which of the two views of the same script is showing. A *view*, not a mode the script is in:
@@ -262,6 +268,9 @@ export function hello() {
   }
   const [targetPickerOpen, setTargetPickerOpen] = useState(false);
   const runButtonRef = useRef<HTMLButtonElement>(null);
+  // « Public / Privé » : bascule du script ouvert ; verrouillée (et expliquée dans une bulle) sans l'offre qui le permet.
+  const visibilityButtonRef = useRef<HTMLButtonElement>(null);
+  const [visibilityLockOpen, setVisibilityLockOpen] = useState(false);
   const codeMirrorRef = useRef<ScriptEditorCodeMirrorHandle>(null);
   // Set only while the target picker is open because of a "Exécuter la cellule" click (Shift+Enter
   // or the toolbar button) rather than a plain "Exécuter" — `chooseTarget` below needs to know
@@ -776,6 +785,66 @@ export function hello() {
               >
                 Format
               </button>
+              {scriptVisibility &&
+                (() => {
+                  // Absent : public (voir `ScriptDef.visibility`) ; un « privé » gardé sans l'offre se lit « public ».
+                  const isPrivate = activeScript.visibility === "private" && scriptVisibility.privateAllowed;
+                  return (
+                    <>
+                      <button
+                        ref={visibilityButtonRef}
+                        type="button"
+                        className={[
+                          "lq-script-editor-panel__toolbar-button",
+                          "lq-script-editor-panel__toolbar-button--visibility",
+                          !scriptVisibility.privateAllowed && "lq-script-editor-panel__toolbar-button--locked",
+                        ]
+                          .filter(Boolean)
+                          .join(" ")}
+                        aria-pressed={isPrivate}
+                        title={
+                          isPrivate
+                            ? "Privé : visible par vous seul. Cliquer pour le rendre public."
+                            : scriptVisibility.privateAllowed
+                              ? "Public : partagé avec les autres membres. Cliquer pour le rendre privé."
+                              : "Public : partagé avec les autres membres. Les scripts privés ne sont pas compris dans votre offre."
+                        }
+                        onClick={() => {
+                          if (!scriptVisibility.privateAllowed) {
+                            setVisibilityLockOpen(true);
+                            return;
+                          }
+                          updateScript(activeScript.id, { visibility: isPrivate ? "public" : "private" });
+                        }}
+                      >
+                        {isPrivate ? <LockIcon size={13} /> : <UnlockIcon size={13} />} {isPrivate ? "Privé" : "Public"}
+                      </button>
+                      <Popover open={visibilityLockOpen} onClose={() => setVisibilityLockOpen(false)} anchorRef={visibilityButtonRef} placement="bottom">
+                        <div className="lq-script-editor-panel__target-menu lq-script-editor-panel__visibility-lock" role="dialog" aria-label="Scripts privés">
+                          <div className="lq-script-editor-panel__target-menu-title">
+                            <LockIcon size={12} /> Les scripts privés ne sont pas compris dans votre offre : vos scripts sont publics, visibles par les
+                            autres membres dans l&apos;onglet « Communauté ».
+                          </div>
+                          {(scriptVisibility.upgradeHref || scriptVisibility.onUpgrade) && (
+                            <a
+                              className="lq-script-editor-panel__target-option"
+                              href={scriptVisibility.upgradeHref ?? "#"}
+                              onClick={(e) => {
+                                if (scriptVisibility.onUpgrade) {
+                                  e.preventDefault();
+                                  scriptVisibility.onUpgrade();
+                                }
+                                setVisibilityLockOpen(false);
+                              }}
+                            >
+                              Voir les offres
+                            </a>
+                          )}
+                        </div>
+                      </Popover>
+                    </>
+                  );
+                })()}
               {output?.running && <span className="lq-script-editor-panel__status">Exécution…</span>}
             </div>
           )}

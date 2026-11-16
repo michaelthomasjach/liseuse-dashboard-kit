@@ -84,6 +84,16 @@ export interface ScriptDef {
    *  is: it belongs to this script, is saved with it through the caller's own `onScriptsChange`,
    *  routes with it to whichever panel runs it, and is gone with it when it is deleted. */
   quantRuns?: QuantSavedRun[];
+  /** Qui peut voir ce script : « public » (partagé avec les autres membres, par exemple dans l'onglet « Communauté »
+   *  de l'application) ou « private » (son auteur seul). Absent : public. La bibliothèque n'en fait rien d'autre que
+   *  l'afficher et le basculer dans l'éditeur (voir `ChartWorkspaceProps.scriptVisibility`) : c'est l'application qui
+   *  partage, ou non, ce qu'elle enregistre. */
+  visibility?: "public" | "private";
+  /** Copie, en lecture seule, de l'indicateur d'un autre membre ajoutée depuis l'onglet « Communauté » (voir
+   *  `CommunityIndicatorEntry`) : elle tourne et se règle (entrées) comme un script du compte, mais son code, son nom et
+   *  ses fichiers ne se modifient pas — l'éditeur ne l'ouvre pas, elle n'est pas listée dans « Mes indicateurs », et
+   *  son code suit celui que l'application fournit pour `entryId`. */
+  community?: { entryId: string; author?: string };
 }
 
 /** One kept run of a `@quant` analysis. */

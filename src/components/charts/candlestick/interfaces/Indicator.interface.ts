@@ -140,6 +140,31 @@ export interface Indicator {
   expVolShowMedian?: boolean;
   expVolMedianColor?: string;
   expVolSmaColor?: string;
+  /** "rangeDetection" only (« Détection de range (précoce) ») — `period` est la période du CHOP (14) et `color` la
+   *  couleur des zones confirmées. Ci-dessous : seuils du CHOP (50 : la condition commence s'il monte au-dessus,
+   *  61,8 : établie), période de l'ATR (14), fenêtre (100 bougies) et centile (25 %) de la volatilité contractée,
+   *  moyennes courte / longue du volume (10 / 30), écart des pentes (3 bougies), cassure (1 × ATR), bougies sans
+   *  signal tolérées (5), durée minimale d'une zone close (5), puis le style. Voir `RANGE_DETECTION_DEFAULTS`. */
+  rangeChopEarly?: number;
+  rangeChopConfirm?: number;
+  /** CHOP sous ce seuil (38,2) : tendance franche, aucun range annoncé. */
+  rangeChopTrend?: number;
+  rangeAtrPeriod?: number;
+  rangeVolLookback?: number;
+  rangeVolPercentile?: number;
+  rangeVolumeFast?: number;
+  rangeVolumeSlow?: number;
+  rangeSlopeBars?: number;
+  rangeBreakoutAtr?: number;
+  rangeGraceBars?: number;
+  rangeMinBars?: number;
+  /** Zones restées « probables » (jamais confirmées) tracées aussi (oui par défaut). */
+  rangeShowProbable?: boolean;
+  rangeShowLabels?: boolean;
+  rangeShowMidline?: boolean;
+  /** Opacité du fond des rectangles, en % (12 par défaut). */
+  rangeOpacity?: number;
+  rangeProbableColor?: string;
   /** "rsi" only — the two dashed reference levels drawn across its pane (see
    *  `drawVolumeAndPanes`'s own RSI/CHOP block). Defaults 70/30, the conventional overbought/
    *  oversold thresholds — some traders widen these to 80/20 for a stronger/less noisy signal, or

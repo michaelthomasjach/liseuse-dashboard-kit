@@ -78,6 +78,7 @@ export function indicatorSeries(
   // gap, which would leave ZigZag hit-testable only on its vertices and not on the long segments
   // between them, where most of it actually is.
   const zigzag: SeriesPoint[] = [];
+  const seenRangeZones = new Set<number>();
 
   // Support/resistance levels arrive as a whole array on each bar that has them. The newest array
   // in the window is the live set; taking `values[hi]` directly would find nothing whenever the
@@ -123,6 +124,14 @@ export function indicatorSeries(
       push("s1", i, v.s1);
       push("s2", i, v.s2);
       push("s3", i, v.s3);
+    } else if ("rangeState" in v) {
+      // « Range précoce » : les bords haut et bas de chaque zone visible, sur toute sa largeur.
+      const zone = v.zone;
+      if (zone && !seenRangeZones.has(zone.start)) {
+        seenRangeZones.add(zone.start);
+        extra.push([{ index: zone.start, value: zone.high }, { index: zone.end - 1, value: zone.high }]);
+        extra.push([{ index: zone.start, value: zone.low }, { index: zone.end - 1, value: zone.low }]);
+      }
     } else if ("periodEnd" in v && "atr" in v) {
       // « Vol. jour ATR » : la médiane et ses deux niveaux ATR, en paliers, sur les seules périodes tracées.
       push("evOpen", i, v.drawn ? v.open : null);

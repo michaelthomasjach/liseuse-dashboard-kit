@@ -372,6 +372,36 @@ export const INDICATOR_HELP_DETAILS: Partial<Record<IndicatorKind, IndicatorHelp
     ],
     related: ["atr", "bollinger", "pivotPoints", "supertrend"],
   },
+  rangeDetection: {
+    formula: [
+      "Volume : Vc = SMA(volume, 10), Vl = SMA(volume, 30) ; établie si Vc < 0,9 × Vl, commence si Vc baisse sur s bougies et Vc < Vl",
+      "Volatilité : A = ATR(14) / clôture, R = rang centile de A sur les 100 dernières bougies ; établie si R ≤ 25, commence si A baisse sur s bougies et (sa baisse s'accélère ou R ≤ 50)",
+      "CHOP : C = 100 × log10(Σ TR(14) / (plus haut − plus bas sur 14)) / log10(14) ; établie si C ≥ 61,8, commence si C ≥ 50 et C monte sur s bougies",
+      "Score = (Σ conditions : 1 si établie, ½ si elle commence) / conditions calculables × 100",
+      "Range probable : au moins 2 conditions lancées (qui commencent ou établies), sur 2 bougies de suite si aucune n'est encore établie ; range confirmé : toutes lancées et au moins 2 établies ; aucun range si C < 38,2 (tendance franche)",
+      "Zone : de la 1ʳᵉ bougie détectée jusqu'à la fin du range ; haut = plus haut des bougies de la zone, bas = plus bas",
+      "Fin de zone : clôture > haut + k × ATR ou < bas − k × ATR (cassure), ou plus de g bougies sans signal",
+    ],
+    formulaNotes:
+      "Un CHOP **élevé** signale un range : l'indicateur s'appuie donc sur sa **montée** au-dessus de 50 puis de 61,8 (la « baisse du CHOP » au sens courant annonce au contraire une tendance). Sans volume pour le symbole, la condition de volume ne compte pas et les deux autres doivent concorder. Une zone terminée plus courte que la durée minimale est écartée ; la zone en cours est toujours tracée.",
+    params: [
+      { label: "Période du CHOP", defaultValue: "14", range: "2 à 200", description: "Fenêtre du Choppiness Index.", tab: "Entrées" },
+      { label: "Période de l'ATR", defaultValue: "14", range: "1 à 200", description: "ATR de Wilder, rapporté au cours.", tab: "Entrées" },
+      { label: "Fenêtre de comparaison de la volatilité", defaultValue: "100", range: "20 à 1000", description: "Bougies sur lesquelles l'ATR est classé.", tab: "Entrées" },
+      { label: "Moyennes courte / longue du volume", defaultValue: "10 / 30", description: "La courte sous la longue : volumes en contraction.", tab: "Entrées" },
+      { label: "Écart des pentes (précocité)", defaultValue: "3", range: "1 à 20", description: "s : bougies sur lesquelles se lisent les pentes. Plus court, plus précoce, plus de fausses alertes.", tab: "Entrées" },
+      { label: "CHOP : début de range / range établi", defaultValue: "50 / 61,8", description: "Seuils du CHOP.", tab: "Entrées" },
+      { label: "CHOP : tendance franche (aucun range) sous", defaultValue: "38,2", range: "1 à 50", description: "Veto : un marché nettement directionnel n'annonce pas de range.", tab: "Entrées" },
+      { label: "Volatilité contractée sous le centile", defaultValue: "25 %", range: "5 à 60", description: "Rang de l'ATR dans sa fenêtre.", tab: "Entrées" },
+      { label: "Cassure au-delà de", defaultValue: "1 × ATR", range: "0 à 5", description: "k : distance de clôture hors du rectangle qui termine la zone (vérifiée une fois la zone longue de la durée minimale ; avant, elle s'élargit).", tab: "Entrées" },
+      { label: "Bougies sans signal tolérées", defaultValue: "5", range: "0 à 30", description: "g : la zone survit à ce nombre de bougies sans range.", tab: "Entrées" },
+      { label: "Durée minimale d'une zone terminée", defaultValue: "5", range: "1 à 100", description: "Plus courte, elle est écartée.", tab: "Entrées" },
+      { label: "Couleurs des zones confirmées / probables", defaultValue: "Bleu / orange", description: "Les zones probables se masquent depuis leur ligne.", tab: "Style" },
+      { label: "Opacité du fond", defaultValue: "12 %", range: "0 à 100", description: "Fond des rectangles.", tab: "Style" },
+      { label: "Libellés et ligne médiane", defaultValue: "Oui", description: "État, score et cassure au-dessus du rectangle ; pointillés au milieu de la zone.", tab: "Style" },
+    ],
+    related: ["chop", "atr", "bollinger", "supportResistance"],
+  },
   correlation: {
     formula: [
       "B(t) = clôture du symbole de comparaison, reportée sur chaque bougie (dernière valeur connue)",

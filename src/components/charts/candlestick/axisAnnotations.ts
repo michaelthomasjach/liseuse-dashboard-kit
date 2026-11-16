@@ -14,6 +14,8 @@ import type { IndicatorGapPoint } from "./interfaces/IndicatorGapPoint.interface
 import type { IndicatorPatternMatch } from "./interfaces/IndicatorPatternMatch.interface";
 import type { IndicatorCandleMatch } from "./interfaces/IndicatorCandleMatch.interface";
 import type { IndicatorExpectedVolatilityPoint } from "./interfaces/IndicatorExpectedVolatilityPoint.interface";
+import type { IndicatorRangeDetectionPoint } from "./interfaces/IndicatorRangeDetectionPoint.interface";
+import { rangeStateLabel } from "./rangeDetection";
 import { indicatorCatalogEntry } from "./indicatorCatalog";
 import { formatCompactNumber, formatPlainNumber } from "./formatting";
 import { FIBONACCI_LEVELS, FIBONACCI_EXTENSION_LEVELS } from "./drawingCatalog";
@@ -287,6 +289,9 @@ function isCandleMatch(v: IndicatorValue): v is IndicatorCandleMatch {
 function isExpectedVolatility(v: IndicatorValue): v is IndicatorExpectedVolatilityPoint {
   return typeof v === "object" && v !== null && !Array.isArray(v) && "periodEnd" in v && "atr" in v;
 }
+function isRangeDetection(v: IndicatorValue): v is IndicatorRangeDetectionPoint {
+  return typeof v === "object" && v !== null && !Array.isArray(v) && "rangeState" in v;
+}
 function isMultiSeries(v: IndicatorValue): v is { multi: Record<string, number | IndicatorBand | null> } {
   return typeof v === "object" && v !== null && !Array.isArray(v) && "multi" in v;
 }
@@ -482,6 +487,17 @@ export function indicatorAxisAnnotations(
         label("pp-s3", v.s3, AXIS_LABEL_PRIORITY_DERIVED, "S3"),
       ]),
       x: compact([label("pp-xs", v.periodStart, AXIS_LABEL_PRIORITY_DEFINING), label("pp-xe", first.index, AXIS_LABEL_PRIORITY_DEFINING)]),
+    };
+  }
+
+  if (isRangeDetection(v)) {
+    // La zone de la bougie lue (haut, bas, début et fin) ; la légende donne l'état et le score de cette bougie.
+    const zone = v.zone;
+    return {
+      ...base,
+      y: zone ? compact([label("rd-h", zone.high, AXIS_LABEL_PRIORITY_DEFINING, "Haut du range"), label("rd-l", zone.low, AXIS_LABEL_PRIORITY_DEFINING, "Bas du range")]) : [],
+      x: zone ? compact([label("rd-xs", zone.start, AXIS_LABEL_PRIORITY_DEFINING), label("rd-xe", zone.end - 1, AXIS_LABEL_PRIORITY_DERIVED)]) : [],
+      legend: `${rangeStateLabel(v.rangeState)} · ${v.rangeScore} %`,
     };
   }
 

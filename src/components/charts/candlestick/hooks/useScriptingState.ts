@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DEFAULT_SCRIPT_CODE } from "../scripting/constants";
 import { indicatorNameKey } from "../scripting/indicatorNameGuard";
 import type { ScriptDef, ScriptFile } from "../interfaces/ScriptDef.interface";
+import type { CommunityIndicatorEntry } from "../interfaces/CommunityIndicatorEntry.interface";
 
 /** One script's unsaved editor buffer — its entry code plus its extra files, exactly the two
  *  fields `updateScript` commits on save. */
@@ -145,7 +146,11 @@ export function useScriptingState({ defaultScripts, onScriptsChange, controlledE
     return id;
   }
 
-  function updateScript(id: string, patch: Partial<Omit<ScriptDef, "id">>) {
+  function updateScript(id: string, rawPatch: Partial<Omit<ScriptDef, "id">>) {
+    // Copie de l'indicateur d'un autre membre (`ScriptDef.community`) : son code, son nom et ses fichiers ne changent pas
+    // ici (l'éditeur, l'assistant) — seulement par `syncCommunityScripts`, depuis la liste de l'application.
+    const target = scriptsRef.current.find((s) => s.id === id);
+    const patch = target?.community ? withoutSourceFields(rawPatch) : rawPatch;
     // Renommé (« Enregistrer sous », premier enregistrement) : un nom déjà pris reçoit son numéro.
     const named = patch.name !== undefined ? { ...patch, name: uniqueScriptName(patch.name, scriptsRef.current, id) } : patch;
     commitScripts(
@@ -172,8 +177,61 @@ export function useScriptingState({ defaultScripts, onScriptsChange, controlledE
     updateScript(id, { quantRuns: (script.quantRuns ?? []).filter((r) => r.id !== runId) });
   }
 
-  /** Opens a script's tab (and focuses it), adding it if it was not already open. */
+  /** Ajoute au graphique l'indicateur d'un autre membre (onglet « Communauté ») : une copie en lecture seule
+   *  (`ScriptDef.community`), active d'emblée, sans ouvrir l'éditeur. Déjà copiée, elle est simplement réactivée.
+   *  `rest` : comme pour `addScript` (la fenêtre cible d'un espace de travail). Renvoie l'id de la copie. */
+  function addCommunityScript(entry: CommunityIndicatorEntry, rest?: Partial<Omit<ScriptDef, "id" | "name" | "code">>): string | null {
+    if (!entry.script) return null;
+    const existing = scriptsRef.current.find((s) => s.community?.entryId === entry.id);
+    if (existing) {
+      if (existing.enabled === false) commitScripts(scriptsRef.current.map((s) => (s.id === existing.id ? { ...s, enabled: true } : s)));
+      return existing.id;
+    }
+    const id = nextFreeId("script", scriptIdRef, scriptsRef.current);
+    commitScripts([
+      ...scriptsRef.current,
+      {
+        id,
+        name: uniqueScriptName(entry.label, scriptsRef.current),
+        code: entry.script.code,
+        ...(entry.script.files?.length ? { files: entry.script.files } : {}),
+        named: true,
+        enabled: true,
+        community: { entryId: entry.id, ...(entry.author ? { author: entry.author } : {}) },
+        ...rest,
+      },
+    ]);
+    return id;
+  }
+
+  /** Remet le code des copies de la communauté à jour (l'auteur a modifié son indicateur) : une copie active est
+   *  relancée. Les copies dont la ligne n'est plus fournie (indicateur retiré ou passé en privé) sont laissées telles
+   *  quelles : l'onglet « Communauté » les montre pour qu'on puisse les retirer. */
+  function syncCommunityScripts(entries: CommunityIndicatorEntry[]) {
+    const byId = new Map(entries.filter((e) => e.script).map((e) => [e.id, e]));
+    let changed = false;
+    const next = scriptsRef.current.map((s) => {
+      const entry = s.community ? byId.get(s.community.entryId) : undefined;
+      if (!entry?.script) return s;
+      const files = entry.script.files?.length ? entry.script.files : undefined;
+      if (entry.script.code === s.code && JSON.stringify(files ?? null) === JSON.stringify(s.files ?? null)) return s;
+      changed = true;
+      return {
+        ...s,
+        code: entry.script.code,
+        files,
+        runDraftCode: undefined,
+        runDraftFiles: undefined,
+        ...(s.enabled !== false ? { runRequestId: (s.runRequestId ?? 0) + 1 } : {}),
+      };
+    });
+    if (changed) commitScripts(next);
+  }
+
+  /** Opens a script's tab (and focuses it), adding it if it was not already open. A community copy
+   *  (`ScriptDef.community`) is read-only and never opens in the editor. */
   const openScript = useCallback((id: string) => {
+    if (scriptsRef.current.find((s) => s.id === id)?.community) return;
     setRawOpenScriptIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
     setActiveScriptId(id);
     setEditorOpen(true);
@@ -290,7 +348,12 @@ export function useScriptingState({ defaultScripts, onScriptsChange, controlledE
   function runScript(id: string, code: string, files?: ScriptFile[]) {
     commitScripts(
       scriptsRef.current.map((s) =>
-        s.id === id ? { ...s, enabled: true, runRequestId: (s.runRequestId ?? 0) + 1, runDraftCode: code, runDraftFiles: files } : s
+        s.id === id
+          ? // Copie de la communauté : relancée avec son propre code, jamais avec un brouillon.
+            s.community
+            ? { ...s, enabled: true, runRequestId: (s.runRequestId ?? 0) + 1 }
+            : { ...s, enabled: true, runRequestId: (s.runRequestId ?? 0) + 1, runDraftCode: code, runDraftFiles: files }
+          : s
       )
     );
   }
@@ -416,6 +479,8 @@ export function useScriptingState({ defaultScripts, onScriptsChange, controlledE
     setScriptDraft,
     commitScripts,
     addScript,
+    addCommunityScript,
+    syncCommunityScripts,
     updateScript,
     removeScript,
     toggleScriptEnabled,
@@ -463,6 +528,17 @@ export function uniqueScriptName(name: string, scripts: { id: string; name: stri
     const candidate = `${base} (${n})`;
     if (!taken.has(indicatorNameKey(candidate))) return candidate;
   }
+}
+
+/** Ce qu'une modification peut changer d'une copie de la communauté : tout sauf sa source (code, fichiers, nom). */
+function withoutSourceFields<T extends Partial<ScriptDef>>(patch: T): T {
+  const rest = { ...patch };
+  delete rest.code;
+  delete rest.files;
+  delete rest.name;
+  delete rest.runDraftCode;
+  delete rest.runDraftFiles;
+  return rest;
 }
 
 /** Les scripts, chacun avec un nom distinct (les doublons numérotés dans l'ordre de la liste). */

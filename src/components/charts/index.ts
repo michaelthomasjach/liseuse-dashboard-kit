@@ -192,7 +192,11 @@ export { loadScriptingPrompt } from "./candlestick/scripting/loadScriptingPrompt
 // Indicateurs : id unique à chaque ajout, réparation des listes enregistrées où deux indicateurs partageaient un id,
 // et zones de temps d'un indicateur `draw: "zones"` fournies par l'application.
 export { newIndicatorId, dedupeIndicatorIds } from "./candlestick/indicatorIds";
-export type { CustomIndicatorZone } from "./candlestick/interfaces/CustomIndicatorDef.interface";
+export type { CustomIndicatorZone, CustomIndicatorBox } from "./candlestick/interfaces/CustomIndicatorDef.interface";
+export type { CommunityIndicatorEntry } from "./candlestick/interfaces/CommunityIndicatorEntry.interface";
+export type { IndicatorRangeDetectionPoint, IndicatorRangeZone } from "./candlestick/interfaces/IndicatorRangeDetectionPoint.interface";
+export { RANGE_DETECTION_DEFAULTS } from "./candlestick/rangeDetection";
+export { COMMUNITY_CATEGORY } from "./candlestick/indicatorCatalog";
 // Alertes : la série (prix, volume, indicateur) sur laquelle porte une alerte, calculée comme le graphique la trace,
 // pour que l'application vérifie les alertes qui ne portent pas sur le prix.
 export { alertSeriesValues } from "./candlestick/alertSeries";

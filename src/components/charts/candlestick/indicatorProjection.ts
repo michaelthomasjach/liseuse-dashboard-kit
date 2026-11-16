@@ -169,7 +169,7 @@ export function supportsProjection(indicator: Indicator): boolean {
   // A script's own pane or overlay: projectable when what it plots is a number or a band, which is
   // what `multiSeries`/a plain value already means. Its first bar decides, same as everywhere else
   // this library asks "what shape is this series".
-  if (indicator.customData !== undefined) return indicator.customData.draw !== "zones";
+  if (indicator.customData !== undefined) return indicator.customData.draw !== "zones" && indicator.customData.draw !== "boxes";
   return PROJECTABLE_KINDS.has(indicator.kind);
 }
 

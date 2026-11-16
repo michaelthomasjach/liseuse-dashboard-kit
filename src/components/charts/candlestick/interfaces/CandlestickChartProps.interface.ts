@@ -7,6 +7,7 @@ import type { TrendLineDrawing, OverlayDataPoint } from "./TrendLineDrawing.inte
 import type { Indicator } from "./Indicator.interface";
 import type { IndicatorKind } from "./IndicatorKind.interface";
 import type { CustomIndicatorDef } from "./CustomIndicatorDef.interface";
+import type { CommunityIndicatorEntry } from "./CommunityIndicatorEntry.interface";
 import type { ChartCustomTool } from "./ChartCustomTool.interface";
 import type { ChartCustomToolbar } from "./ChartCustomToolbar.interface";
 import type { OverlayDrawingInteraction } from "./OverlayDrawingInteraction.interface";
@@ -242,6 +243,13 @@ export interface CandlestickChartProps {
    *  — see `CustomIndicatorDef`'s own doc for the full shape (`{ id, label, section, type: "overlay"
    *  | "own", draw: "line" | "area" | "histogram", data: [{ date, value }] }`). */
   customIndicators?: CustomIndicatorDef[];
+  /** Onglet « Communauté » de « Ajouter un indicateur » : les indicateurs partagés que l'application propose (voir
+   *  `CommunityIndicatorEntry`) — des indicateurs intégrés (`kind`, ex. « rangeDetection ») et les scripts d'indicateur
+   *  des autres membres (`script`, ajoutés en lecture seule ; il faut alors que le graphique reçoive `scripts`, ce que
+   *  fait `ChartWorkspace`). Fournie (même vide), l'onglet apparaît, et les indicateurs intégrés marqués « communauté »
+   *  (`IndicatorCatalogEntry.community`) ne sont proposés que s'ils y figurent ; absente, pas d'onglet, et ces
+   *  indicateurs sont rangés dans leur catégorie de repli. */
+  communityIndicators?: CommunityIndicatorEntry[];
   /** App-defined tools appended to the tools rail (see `ChartCustomTool`): one click arms a tool, the next click on
    *  the chart reports its price/date to that tool's `onPlace`. Requires `drawingTools`. */
   customTools?: ChartCustomTool[];

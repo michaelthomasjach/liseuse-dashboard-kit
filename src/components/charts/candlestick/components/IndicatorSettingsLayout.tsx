@@ -6,6 +6,7 @@ import type { Indicator } from "../interfaces/Indicator.interface";
 import { indicatorCatalogEntry } from "../indicatorCatalog";
 import { attachedDefaults } from "../attachedIndicators";
 import { EXPECTED_VOLATILITY_DEFAULTS } from "../expectedVolatility";
+import { RANGE_DETECTION_DEFAULTS } from "../rangeDetection";
 import "./IndicatorSettings.css";
 
 /*
@@ -208,6 +209,7 @@ export function indicatorDefaults(ind: Indicator): Indicator {
   // scriptIndicatorToChartIndicator, addCustomIndicator).
   if (ind.customData?.color) base.color = ind.customData.color;
   if (ind.kind === "expectedVolatility") base.color = EXPECTED_VOLATILITY_DEFAULTS.atrColor;
+  if (ind.kind === "rangeDetection") base.color = RANGE_DETECTION_DEFAULTS.confirmedColor;
   return base;
 }
 

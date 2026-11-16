@@ -1,4 +1,5 @@
-import type { IndicatorInfoTarget } from "../interfaces/IndicatorInfoTarget.interface";
+import type { IndicatorInfoTarget, IndicatorCodeTarget } from "../interfaces/IndicatorInfoTarget.interface";
+import type { CommunityIndicatorEntry } from "../interfaces/CommunityIndicatorEntry.interface";
 import { isScriptInfoTarget } from "../interfaces/IndicatorInfoTarget.interface";
 import { analyzeScriptDescription } from "../scripting/scriptDescription";
 import { ScriptDescriptionText } from "../scripting/components/ScriptDescriptionText";
@@ -65,6 +66,10 @@ export interface IndicatorModalsProps {
   /** Voir `CandlestickChartProps.symbolIsEquity`. */
   symbolIsEquity?: boolean;
   addCustomIndicator: (def: CustomIndicatorDef) => void;
+  /** Onglet « Communauté » — voir `CandlestickChartProps.communityIndicators`. */
+  communityIndicators?: CommunityIndicatorEntry[];
+  /** Ajoute (copie en lecture seule) le script d'un autre membre ; absent hors d'un `ChartWorkspace`. */
+  addCommunityScript?: (entry: CommunityIndicatorEntry) => void;
   /** The chart's own saved scripts (see useScriptingState) — shown in the picker under "Mes
    *  scripts" alongside the built-in catalog and any custom indicators, so a script doesn't only
    *  exist inside the script editor's own tab strip. Unlike a built-in/custom row, a script is
@@ -92,8 +97,8 @@ export interface IndicatorModalsProps {
    *  component so the chart legend can open the same viewer — see ChartLegend's own
    *  `onOpenIndicatorCode`. */
   codeViewer: {
-    codeTarget: IndicatorKind | { scriptId: string } | null;
-    setCodeTarget: (target: IndicatorKind | { scriptId: string } | null) => void;
+    codeTarget: IndicatorCodeTarget | null;
+    setCodeTarget: (target: IndicatorCodeTarget | null) => void;
   };
   /** Creates a brand-new script from a built-in indicator's own script equivalent (see
    *  INDICATOR_SCRIPT_SOURCES) and opens it in the editor — the "Ouvrir dans l'éditeur" button of
@@ -204,6 +209,8 @@ export function IndicatorModals({
   customIndicators,
   symbolIsEquity,
   addCustomIndicator,
+  communityIndicators,
+  addCommunityScript,
   scripts,
   setScriptParamValue,
   toggleScriptEnabled,
@@ -343,6 +350,8 @@ export function IndicatorModals({
         customIndicators={customIndicators}
         symbolIsEquity={symbolIsEquity}
         addCustomIndicator={addCustomIndicator}
+        communityIndicators={communityIndicators}
+        addCommunityScript={addCommunityScript}
         scripts={scripts}
         scriptPlacements={scriptPlacements}
         runningScriptIds={runningScriptIds}
@@ -459,15 +468,30 @@ export function IndicatorModals({
           // offers to fork it into a brand-new script. Only the second is a copy — a built-in
           // indicator keeps computing in TypeScript over the whole series either way, so nothing
           // here is the code the chart is actually running for it.
-          const isScript = typeof codeTarget === "object";
-          const script = isScript ? scripts.find((entry) => entry.id === codeTarget.scriptId) : undefined;
-          const label = isScript
-            ? (script?.name ?? "Script")
-            : (INDICATOR_CATALOG.find((entry) => entry.kind === codeTarget)?.label ?? codeTarget);
-          const code = isScript ? (script?.runDraftCode ?? script?.code ?? "") : (INDICATOR_SCRIPT_SOURCES[codeTarget] ?? "");
-          const openInEditor = isScript
-            ? onEditScript && (() => onEditScript(codeTarget.scriptId))
-            : onCreateScript && (() => onCreateScript(label, code));
+          // Un indicateur de la communauté (pas encore ajouté, ou sa copie en lecture seule) : son code se consulte, et
+          // se copie dans ses propres scripts quand l'éditeur est là ; il ne se modifie pas.
+          const communityEntry =
+            typeof codeTarget === "object" && "communityId" in codeTarget ? communityIndicators?.find((e) => e.id === codeTarget.communityId) : undefined;
+          const isScript = typeof codeTarget === "object" && "scriptId" in codeTarget;
+          const script = typeof codeTarget === "object" && "scriptId" in codeTarget ? scripts.find((entry) => entry.id === codeTarget.scriptId) : undefined;
+          const shared = communityEntry ? { author: communityEntry.author } : script?.community;
+          const label = communityEntry
+            ? communityEntry.label
+            : typeof codeTarget === "object"
+              ? (script?.name ?? "Script")
+              : (INDICATOR_CATALOG.find((entry) => entry.kind === codeTarget)?.label ?? codeTarget);
+          const code = communityEntry
+            ? (communityEntry.script?.code ?? "")
+            : typeof codeTarget === "object"
+              ? script?.community
+                ? script.code
+                : (script?.runDraftCode ?? script?.code ?? "")
+              : (INDICATOR_SCRIPT_SOURCES[codeTarget] ?? "");
+          const openInEditor = shared
+            ? onCreateScript && (() => onCreateScript(label, code))
+            : typeof codeTarget === "object" && "scriptId" in codeTarget
+              ? onEditScript && (() => onEditScript(codeTarget.scriptId))
+              : onCreateScript && (() => onCreateScript(label, code));
           return (
             <Modal
               open
@@ -486,14 +510,16 @@ export function IndicatorModals({
                         setIndicatorPickerOpen(false);
                       }}
                     >
-                      {isScript ? "Modifier ce script" : "Ouvrir dans l'éditeur"}
+                      {shared ? "Copier dans mes scripts" : isScript ? "Modifier ce script" : "Ouvrir dans l'éditeur"}
                     </button>
                   </div>
                 ) : undefined
               }
             >
               <p className="lq-chart__indicator-info-text">
-                {isScript
+                {shared
+                  ? `Indicateur partagé${shared.author ? ` par ${shared.author}` : ""} : lecture seule. Vous pouvez l'afficher et régler ses entrées, pas modifier son code${onCreateScript ? " — « Copier dans mes scripts » en fait une copie à vous" : ""}.`
+                  : isScript
                   ? "Le code de ce script, tel qu'il s'exécute en ce moment."
                   : "Le calcul de cet indicateur, réécrit avec l'API de scripting de cette chart — de quoi le reprendre tel quel et le modifier. Ce n'est pas le code qu'exécute l'indicateur intégré, qui reste calculé en interne sur toute la série d'un coup ; c'est la manière de l'écrire soi-même, bougie par bougie."}
               </p>

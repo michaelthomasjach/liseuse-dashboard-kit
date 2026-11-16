@@ -12,3 +12,7 @@ export type IndicatorInfoTarget = IndicatorKind | "volume" | { scriptId: string 
 export function isScriptInfoTarget(target: IndicatorInfoTarget): target is { scriptId: string } {
   return typeof target === "object";
 }
+
+/** Ce que montre la fenêtre « Voir le code » : le script équivalent d'un indicateur intégré, le code d'un script du
+ *  graphique, ou celui d'un indicateur de la communauté pas encore ajouté (`CommunityIndicatorEntry.id`). */
+export type IndicatorCodeTarget = IndicatorKind | { scriptId: string } | { communityId: string };

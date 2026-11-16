@@ -541,6 +541,34 @@ Calculés sur l'historique chargé : l'ATR d'une échelle plus large demande ass
 
 **ATR 9, SMA 14, échelle courante, 5 séances**, comme le script Pine d'origine. L'échelle fixe à la fois l'ATR et la durée des lignes ; une échelle qui n'est pas plus large que celle du graphique revient à l'échelle courante. Bas attendu, SMA, médiane, étiquettes, couleurs et épaisseur se règlent séparément.`,
 
+  rangeDetection: `**Cet indicateur repère tôt un marché qui entre en range** (sans direction, entre un plafond et un plancher) et dessine la zone en rectangle sur les prix.
+
+Il croise trois signes qui accompagnent presque toujours un range :
+
+- **les volumes baissent** — la moyenne courte du volume passe nettement sous la moyenne longue ;
+- **la volatilité se contracte** — l'ATR (en % du cours) tombe dans le bas de sa fenêtre récente ;
+- **le CHOP monte** — le Choppiness Index passe au-dessus de 50 puis de 61,8.
+
+**Pourquoi le CHOP qui monte, et pas qui baisse ?** Un CHOP **élevé** veut dire un marché haché, sans tendance : c'est le signal de range. Un CHOP qui baisse annonce au contraire une tendance qui démarre. L'indicateur lit donc « la baisse du caractère directionnel », c'est-à-dire la **montée du CHOP**.
+
+## Pourquoi il est précoce
+
+Chaque condition a deux niveaux : elle **commence** (sa pente va dans le sens d'un range : moyenne courte du volume en baisse et passée sous la longue, ATR qui baisse de plus en plus vite, CHOP qui monte au-dessus de 50) ou elle est **établie** (seuil franchi). Il suffit que **deux conditions sur trois commencent** pour annoncer un **range probable**, sans attendre la confirmation. Le **range confirmé** arrive quand les trois sont lancées et que deux sont établies.
+
+La légende donne l'état et un **score** de 0 à 100 % (une condition établie compte pour 1, une condition qui commence pour ½).
+
+## Le rectangle
+
+Il part de la première bougie détectée et va jusqu'à la bougie courante, **entre le plus haut et le plus bas** de la zone ; il se prolonge tant que le range tient. Il s'arrête sur une **cassure** (clôture au-delà du rectangle de plus d'1 ATR, libellé « cassure ↑ / ↓ ») ou après quelques bougies sans signal. Tirets et orange : range probable ; trait plein et bleu : range confirmé.
+
+## Ce qu'il ne dit pas
+
+Ni la **sortie** du range, ni sa direction. Une détection précoce se trompe plus souvent : un range « probable » peut repartir en tendance quelques bougies plus tard. Sur un symbole sans volume (indice, devise), seules la volatilité et le CHOP comptent, et les deux doivent alors concorder.
+
+## Réglages
+
+**CHOP 14, seuils 50 / 61,8 (et 38,2 : en dessous, tendance franche, aucun range), ATR 14 classé sur 100 bougies (centile 25 %), volume 10 / 30, pentes sur 3 bougies, cassure à 1 ATR, 5 bougies sans signal tolérées.** Un écart des pentes plus court rend la détection plus précoce, au prix de fausses alertes.`,
+
   correlation: `**Cet indicateur mesure à quel point deux instruments bougent ensemble**, sur une échelle de -1 à +1.
 
 - **+1** — ils montent et descendent exactement en même temps.

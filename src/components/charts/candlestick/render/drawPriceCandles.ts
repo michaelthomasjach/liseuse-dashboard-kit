@@ -23,8 +23,10 @@ import { drawIndicatorStyleRules, type StyleRulePane } from "./drawIndicatorStyl
 import { drawPaneSeriesOnPrice, drawVolumeOnPrice } from "./drawPriceOverlaySeries";
 import { drawPatternRecognitionMatches } from "./drawPatternRecognition";
 import { drawCandleRecognitionMatches } from "./drawCandleRecognition";
-import { drawIndicatorZones } from "./drawIndicatorZones";
+import { drawIndicatorBoxes, drawIndicatorZones } from "./drawIndicatorZones";
 import { drawExpectedVolatility } from "./drawExpectedVolatility";
+import { drawRangeDetection } from "./drawRangeDetection";
+import type { IndicatorRangeDetectionPoint } from "../interfaces/IndicatorRangeDetectionPoint.interface";
 import type { IndicatorExpectedVolatilityPoint } from "../interfaces/IndicatorExpectedVolatilityPoint.interface";
 
 // "gaps"/"parabolicSar"/"pivotPoints" are point-based (a rectangle, a dot, or a single flat
@@ -32,7 +34,7 @@ import type { IndicatorExpectedVolatilityPoint } from "../interfaces/IndicatorEx
 // so they're exempt from the "needs at least 2 points to draw anything" gate below.
 // "patternRecognition"/"candleRecognition" join them for the same reason — a match found (or not)
 // within their own recent window has nothing to do with how many points happen to be visible.
-const POINT_BASED_KINDS = new Set(["gaps", "parabolicSar", "pivotPoints", "supportResistance", "patternRecognition", "candleRecognition", "expectedVolatility"]);
+const POINT_BASED_KINDS = new Set(["gaps", "parabolicSar", "pivotPoints", "supportResistance", "patternRecognition", "candleRecognition", "expectedVolatility", "rangeDetection"]);
 
 // A `CustomIndicatorDef.lineStyle` (script/caller-chosen) mapped to `ctx.setLineDash` — every
 // built-in indicator with a fixed dash style (Ichimoku's chikou span, pivot levels,
@@ -114,6 +116,8 @@ export function drawPriceCandles(ctx: CanvasRenderingContext2D, params: RenderCa
 
     // Indicateurs de zones (bandes de temps fournies par l'application) : sous les bougies, comme un fond.
     drawIndicatorZones(ctx, params, style);
+    // Rectangles fournis par l'application (`CustomIndicatorDef.draw: "boxes"`) : sous les bougies aussi.
+    drawIndicatorBoxes(ctx, params, style);
 
     // Volume affiché sur le graphique des prix (paramètres du panneau Volume) : barres en bas, sous les bougies.
     drawVolumeOnPrice(ctx, params, style);
@@ -761,6 +765,8 @@ export function drawPriceCandles(ctx: CanvasRenderingContext2D, params: RenderCa
           ctx.fillText(`${level.price.toFixed(2)} ×${level.touchCount}`, x0 + 2, y - 2);
         }
         ctx.restore();
+      } else if (indicator.kind === "rangeDetection") {
+        drawRangeDetection(ctx, points as { i: number; value: IndicatorRangeDetectionPoint }[], indicator, params, style);
       } else if (indicator.kind === "expectedVolatility") {
         drawExpectedVolatility(ctx, points as { i: number; value: IndicatorExpectedVolatilityPoint }[], indicator, color, params, style);
       } else if (indicator.kind === "patternRecognition") {

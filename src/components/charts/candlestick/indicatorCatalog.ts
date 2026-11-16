@@ -77,7 +77,16 @@ export interface IndicatorCatalogEntry {
    *  (not a closed union of those) only so a custom indicator's own freeform `section` (see
    *  `CustomIndicatorDef`) can be synthesized into one of these too, in `indicatorCatalogEntry`. */
   category: string;
+  /** Indicateur de l'onglet « Communauté » (voir `COMMUNITY_CATEGORY`) : quand l'application fournit
+   *  `CandlestickChartProps.communityIndicators`, il n'apparaît dans le catalogue que si elle le cite dans cette liste
+   *  (l'application le réserve ainsi à certaines offres) ; sans cette liste, il est rangé dans `fallbackCategory`. */
+  community?: boolean;
+  /** Catégorie d'un indicateur `community` quand l'application ne fournit pas d'onglet « Communauté ». */
+  fallbackCategory?: string;
 }
+
+/** Nom de l'onglet du catalogue qui liste les indicateurs partagés par les membres (`communityIndicators`). */
+export const COMMUNITY_CATEGORY = "Communauté";
 
 export const INDICATOR_CATALOG: IndicatorCatalogEntry[] = [
   {
@@ -185,6 +194,20 @@ export const INDICATOR_CATALOG: IndicatorCatalogEntry[] = [
     hasStdDev: false,
     pane: "price",
     category: "Volatilité",
+  },
+  // « Détection de range (précoce) » : own value shape (IndicatorRangeDetectionPoint — score, state, zone) and own
+  // settings (range*); `period` is the CHOP period, shown under its own label. Listed in the « Communauté » tab.
+  {
+    kind: "rangeDetection",
+    label: "Détection de range (précoce)",
+    shortLabel: "Range précoce",
+    defaultPeriod: 14,
+    hasPeriod: false,
+    hasStdDev: false,
+    pane: "price",
+    category: "Communauté",
+    community: true,
+    fallbackCategory: "Structure",
   },
   // Its own value shape (IndicatorSupertrendPoint) and its own settings (period doubles as the
   // ATR period, supertrendMultiplier instead of stdDev) — hasStdDev false the same reasoning as
@@ -468,6 +491,7 @@ export function indicatorLabel(indicator: Indicator): string {
   if (indicator.kind === "gaps") return `${entry.shortLabel}(${indicator.gapsMinPercent ?? 0.1}%)`;
   if (indicator.kind === "correlation") return `${entry.shortLabel}(${indicator.correlationSymbol ?? "?"})`;
   if (indicator.kind === "tpo") return `${entry.shortLabel}(${indicator.tpoBlockMinutes ?? 30}min)`;
+  if (indicator.kind === "rangeDetection") return `${entry.shortLabel}(${indicator.period})`;
   if (indicator.kind === "expectedVolatility") return `${entry.shortLabel}(${indicator.period},${indicator.expVolSmaPeriod ?? 14})`;
   if (indicator.kind === "pivotPoints") {
     const typeLabel = { classic: "Classic", fibonacci: "Fibonacci", woodie: "Woodie", camarilla: "Camarilla" }[indicator.pivotType ?? "classic"];

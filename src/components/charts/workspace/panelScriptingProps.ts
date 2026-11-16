@@ -30,6 +30,9 @@ export function panelScriptingProps(
   panelIndex: number,
   scripting: WorkspaceScripting,
   onScriptAlert?: (event: ScriptAlertEvent) => void,
+  /** false : les scripts tournent (indicateurs de la communauté ajoutés depuis le catalogue) sans éditeur — aucun
+   *  rappel qui ouvre, crée ou supprime un script. */
+  editor = true,
 ): PanelScriptingProps {
   const subset = scripting.scripts.filter((s) => s.targetPanelIndex === panelIndex);
   const handedIds = new Set(subset.map((s) => s.id));
@@ -48,9 +51,26 @@ export function panelScriptingProps(
       const current = scripting.currentScripts();
       const updatedIds = new Set(updatedSubset.map((s) => s.id));
       const newer = current.filter((s) => s.targetPanelIndex === panelIndex && !handedIds.has(s.id) && !updatedIds.has(s.id));
-      scripting.commitScripts([...current.filter((s) => s.targetPanelIndex !== panelIndex), ...updatedSubset, ...newer]);
+      // Un script que la fenêtre vient d'ajouter elle-même (l'indicateur d'un membre, depuis l'onglet « Communauté ») :
+      // rattaché à elle, sinon il n'irait à aucune fenêtre et ne tournerait pas.
+      const stamped = updatedSubset.map((s) => (s.targetPanelIndex === undefined && !handedIds.has(s.id) ? { ...s, targetPanelIndex: panelIndex } : s));
+      scripting.commitScripts([...current.filter((s) => s.targetPanelIndex !== panelIndex), ...stamped, ...newer]);
     },
     onScriptAlert,
+    ...(editor ? editorCallbacks(panelIndex, scripting) : { onDeleteScript: scripting.removeScript }),
+    // Bridges each panel's own local script-run output back up into the *shared* editor's
+    // `runOutputs` — the editor itself has no `ScriptRunner` of its own (every script actually
+    // executes inside whichever panel it's routed to, not there), so without this its error/
+    // console panel and notebook cell output (see CandlestickChartProps.onScriptRunOutput's own
+    // doc) never see a single real result despite the chart rendering that script's indicators
+    // just fine.
+    onScriptRunOutput: scripting.reportRunOutput,
+  };
+}
+
+/** Ce qu'une fenêtre peut faire de l'éditeur partagé : y ouvrir un script, en créer, en supprimer. */
+function editorCallbacks(panelIndex: number, scripting: WorkspaceScripting): Pick<PanelScriptingProps, "onEditScript" | "onCreateScript" | "onDeleteScript" | "onCreateStrategyFromIndicator"> {
+  return {
     // The pane header's own "</>" shortcut (see PaneHeaders.tsx) on a script-produced indicator —
     // jumps straight to that script's own tab in the shared editor instead of leaving the user to
     // hunt for it by name in the tab strip.
@@ -82,12 +102,5 @@ export function panelScriptingProps(
       const generated = strategyFromIndicator(source.name, source.code);
       scripting.addScript(generated.name, generated.code, { files: generated.files, named: true, targetPanelIndex: panelIndex });
     },
-    // Bridges each panel's own local script-run output back up into the *shared* editor's
-    // `runOutputs` — the editor itself has no `ScriptRunner` of its own (every script actually
-    // executes inside whichever panel it's routed to, not there), so without this its error/
-    // console panel and notebook cell output (see CandlestickChartProps.onScriptRunOutput's own
-    // doc) never see a single real result despite the chart rendering that script's indicators
-    // just fine.
-    onScriptRunOutput: scripting.reportRunOutput,
   };
 }

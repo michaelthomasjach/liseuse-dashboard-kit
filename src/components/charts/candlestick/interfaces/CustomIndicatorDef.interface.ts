@@ -39,6 +39,21 @@ export interface CustomIndicatorZone {
   marker?: { date: Date; label?: string };
 }
 
+/** Un rectangle d'un indicateur `draw: "boxes"` : une zone de prix de `from` à `to` (bougies comprises), entre
+ *  `top` et `bottom` — une zone de range, d'accumulation, un gap à combler, une plage d'ouverture… */
+export interface CustomIndicatorBox {
+  from: Date;
+  to: Date;
+  top: number;
+  bottom: number;
+  /** Écrit au-dessus du rectangle. */
+  label?: string;
+  /** Couleur propre de ce rectangle ; sinon celle de l'indicateur. */
+  color?: string;
+  /** Bordure en tirets (zone encore incertaine). */
+  dashed?: boolean;
+}
+
 /** A caller-supplied series the library knows nothing about ahead of time — the open-ended
  *  escape hatch for whatever data an app has (a fundamentals metric beyond the built-in eight,
  *  a proprietary score, anything else that's one number per reporting date) without needing a
@@ -85,7 +100,11 @@ export interface CustomIndicatorDef {
    *  levels from one bar to the next and would read as nonsense joined up by a line). `"dots"` is
    *  alone among these in *not* being forward-filled: a gap in a scatter means "nothing here",
    *  where a gap in every other mode means "still the last value" — see `alignSeriesByDate`. */
-  draw: "line" | "area" | "histogram" | "band" | "multi" | "profile" | "dots" | "zones";
+  draw: "line" | "area" | "histogram" | "band" | "multi" | "profile" | "dots" | "zones" | "boxes";
+  /** `draw: "boxes"` seulement (`type: "overlay"`) — des rectangles sur le graphique des prix, fournis par
+   *  l'application (voir `CustomIndicatorBox`) : pas de valeur par bougie, `data` reste vide. Réglables comme les zones
+   *  (couleur, opacité du fond, libellés) et relus dans `customIndicators` à chaque rendu, comme `zones`. */
+  boxes?: CustomIndicatorBox[];
   /** `draw: "zones"` seulement (`type: "overlay"`) — des bandes verticales sur le graphique des prix, fournies par
    *  l'application (fenêtre autour d'une publication, période de maintenance, séance spéciale…) : pas de valeur par
    *  bougie, `data` reste vide. L'utilisateur l'ajoute, la retire, la masque et la règle (couleur, opacité, libellés,

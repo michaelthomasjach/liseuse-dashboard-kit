@@ -31,9 +31,17 @@ export function drawDrawingText(
   x2: number,
   y2: number,
   fallbackColor: string,
-  fontFamily: string
+  fontFamily: string,
+  /** Le second bord d'un outil à deux bords (canal, rectangle, zones) : « Haut » se place au-dessus du bord le plus
+   *  haut à l'écran, « Bas » sous le plus bas, « Centre » entre les deux. Sans lui, la seule ligne x1/y1–x2/y2. */
+  secondLine?: readonly [number, number, number, number]
 ) {
   if (!dr.text) return;
+  // « Gauche » / « Droite » : à l'écran, quel que soit le sens dans lequel l'outil a été tracé.
+  if (x2 < x1) {
+    [x1, y1, x2, y2] = [x2, y2, x1, y1];
+    if (secondLine) secondLine = [secondLine[2], secondLine[3], secondLine[0], secondLine[1]];
+  }
 
   // The bubble is a whole shape rather than a background behind glyphs, so it takes over the
   // drawing entirely instead of being another branch inside the text path below — no alignment,
@@ -62,8 +70,20 @@ export function drawDrawingText(
   const hAlign = dr.textHorizontalAlign ?? "center";
   const vAlign = dr.textVerticalAlign ?? "top";
   const t = hAlign === "left" ? 0 : hAlign === "right" ? 1 : 0.5;
-  const anchorX = x1 + (x2 - x1) * t;
-  const anchorY = y1 + (y2 - y1) * t;
+  let anchorX = x1 + (x2 - x1) * t;
+  let anchorY = y1 + (y2 - y1) * t;
+  if (secondLine) {
+    const [sx1, sy1, sx2, sy2] = secondLine;
+    const bx = sx1 + (sx2 - sx1) * t;
+    const by = sy1 + (sy2 - sy1) * t;
+    if (vAlign === "center") {
+      anchorX = (anchorX + bx) / 2;
+      anchorY = (anchorY + by) / 2;
+    } else if (vAlign === "top" ? by < anchorY : by > anchorY) {
+      anchorX = bx;
+      anchorY = by;
+    }
+  }
   const size = dr.textSize ?? 11;
   const weight = dr.textBold === false ? 400 : 600;
   const style = dr.textItalic ? "italic" : "normal";

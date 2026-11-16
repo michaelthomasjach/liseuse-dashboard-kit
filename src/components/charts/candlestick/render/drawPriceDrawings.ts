@@ -319,7 +319,17 @@ export function drawPriceDrawings(ctx: CanvasRenderingContext2D, params: RenderC
           ctx.restore();
         }
       } else {
-        drawDrawingText(ctx, dr, x1, y1, x2, y2, lineColor, fontFamily);
+        // Canal : le texte se place par rapport au bon bord (« Bas » sous la ligne la plus basse, « Haut » au-dessus de
+        // la plus haute), quelle que soit la ligne tracée en premier.
+        let secondLine: [number, number, number, number] | undefined;
+        if (dr.lineType === "channel") {
+          const offsetPx = zoomedPriceScale(dr.y1 + (dr.channelOffset ?? 0)) - zoomedPriceScale(dr.y1);
+          secondLine = [x1, y1 + offsetPx, x2, y2 + offsetPx];
+        } else if (dr.lineType === "disjointChannel" && dr.extraPoints?.length === 2) {
+          const [p3, p4] = dr.extraPoints;
+          secondLine = [zoomedXScale(indexForDate(p4.x) + 0.5), zoomedPriceScale(p4.y), zoomedXScale(indexForDate(p3.x) + 0.5), zoomedPriceScale(p3.y)];
+        }
+        drawDrawingText(ctx, dr, x1, y1, x2, y2, lineColor, fontFamily, secondLine);
       }
     }
 
@@ -345,7 +355,8 @@ export function drawPriceDrawings(ctx: CanvasRenderingContext2D, params: RenderC
       ctx.setLineDash(lineDashArray(dr));
       ctx.strokeRect(rectX, rectY, rectW, rectH);
       ctx.restore();
-      drawDrawingText(ctx, dr, rx1, ry1, rx2, ry2, lineColor, fontFamily);
+      // Bord haut et bord bas : « Haut » au-dessus du rectangle, « Bas » dessous, quel que soit le coin tracé en premier.
+      drawDrawingText(ctx, dr, rectX, rectY, rectX + rectW, rectY, lineColor, fontFamily, [rectX, rectY + rectH, rectX + rectW, rectY + rectH]);
     }
 
     // "zones": x1/y1 and x2/y2 as opposite corners, same as "rectangle", but instead of one
@@ -399,7 +410,7 @@ export function drawPriceDrawings(ctx: CanvasRenderingContext2D, params: RenderC
         ctx.stroke();
       }
       ctx.restore();
-      drawDrawingText(ctx, dr, rx1, ry1, rx2, ry2, lineColor, fontFamily);
+      drawDrawingText(ctx, dr, rectX, topY, rectX + rectW, topY, lineColor, fontFamily, [rectX, bottomY, rectX + rectW, bottomY]);
     }
 
     // "elbowArrow": an open-ended polyline (x1/y1, x2/y2, then however many extraPoints were

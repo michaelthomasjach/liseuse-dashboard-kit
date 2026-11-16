@@ -1,6 +1,8 @@
 import type { AiImage, AiToolDefinition } from "./interfaces/AiMessage.interface";
 import type { AiChartContext } from "./interfaces/AiChartContext.interface";
 import { indicatorCatalogEntry } from "../indicatorCatalog";
+import { ATTACHABLE_KINDS } from "../attachedIndicators";
+import { unavailableForSymbol } from "../equityOnly";
 import { analyzeScriptKind } from "../scripting/scriptKind";
 import { SCRIPTING_DOCS_TOOL } from "./scriptingDocs";
 import { findUiButton, highlightUiElement, listUiButtons } from "./uiHighlight";
@@ -223,7 +225,7 @@ export const AI_TOOLS: AiTool[] = [
       inputSchema: { type: "object", properties: {}, additionalProperties: false },
     },
     run: (_input, chart) => ({
-      content: chart.indicatorCatalog.map((entry) => `${entry.kind} — ${entry.label} (${entry.category}, panneau ${entry.pane})`).join("\n"),
+      content: chart.indicatorCatalog.map((entry) => `${entry.kind} — ${entry.label} (${entry.category}, panneau ${entry.pane})${unavailableForSymbol(entry.kind, chart.symbolIsEquity) ? " — réservé aux actions, indisponible pour ce symbole" : ""}`).join("\n"),
     }),
   },
   {
@@ -243,14 +245,14 @@ export const AI_TOOLS: AiTool[] = [
     definition: {
       name: "ajouter_un_indicateur",
       description:
-        "Affiche un indicateur EXISTANT du catalogue, tel quel (par exemple « ajoute une SMA 50 », « affiche le RSI »), et rend son id (pour regler_indicateur, regler_panneau). Utiliser le « kind » exact renvoyé par lister_les_indicateurs_disponibles. « sur_le_panneau » pose une moyenne (sma, ema, wma) sur le panneau d'un autre indicateur ou du volume ; « sur_les_prix » dessine un indicateur de panneau directement sur le graphique des prix (overlay). Pour le volume lui-même, utiliser afficher_le_volume. Ne pas l'utiliser quand on demande de faire, créer, coder, produire ou réaliser un indicateur, un système ou une stratégie (même s'il réunit des indicateurs existants) : dans ce cas, utiliser coder_un_indicateur puis ecrire_un_script — et jamais les deux pour une même demande.",
+        "Affiche un indicateur EXISTANT du catalogue, tel quel (par exemple « ajoute une SMA 50 », « affiche le RSI »), et rend son id (pour regler_indicateur, regler_panneau). Utiliser le « kind » exact renvoyé par lister_les_indicateurs_disponibles. « sur_le_panneau » pose une moyenne (sma, ema, wma) ou des bandes de Bollinger (bollinger) sur le panneau d'un autre indicateur ou du volume ; « sur_les_prix » dessine un indicateur de panneau directement sur le graphique des prix (overlay). Pour le volume lui-même, utiliser afficher_le_volume. Ne pas l'utiliser quand on demande de faire, créer, coder, produire ou réaliser un indicateur, un système ou une stratégie (même s'il réunit des indicateurs existants) : dans ce cas, utiliser coder_un_indicateur puis ecrire_un_script — et jamais les deux pour une même demande.",
       inputSchema: {
         type: "object",
         properties: {
           kind: { type: "string", description: "Identifiant technique de l'indicateur, par exemple sma, ema, rsi, macd." },
           period: { type: "number", description: "Période, quand l'indicateur en accepte une. Sinon sa valeur par défaut est utilisée." },
           couleur: { type: "string", description: "Couleur CSS de la courbe, facultative." },
-          sur_le_panneau: { type: "string", description: "Facultatif : id du panneau d'un indicateur (ou « volume ») sur lequel poser la moyenne (sma, ema, wma seulement)." },
+          sur_le_panneau: { type: "string", description: "Facultatif : id du panneau d'un indicateur (ou « volume ») sur lequel poser l'indicateur, calculé sur la série de ce panneau (sma, ema, wma, bollinger seulement)." },
           sur_les_prix: { type: "boolean", description: "Facultatif : un indicateur de panneau (RSI, MACD…) dessiné sur le graphique des prix plutôt que dans son panneau." },
         },
         required: ["kind"],
@@ -261,6 +263,8 @@ export const AI_TOOLS: AiTool[] = [
       const kind = str(input, "kind");
       const entry = chart.indicatorCatalog.find((e) => e.kind === kind);
       if (!entry) return { content: `Aucun indicateur « ${kind} ». Appelez lister_les_indicateurs_disponibles.`, isError: true };
+      if (unavailableForSymbol(entry.kind, chart.symbolIsEquity))
+        return { content: `${entry.label} est réservé aux actions : ${chart.symbol ?? "ce symbole"} n'en est pas une (indice, ETF, devise, crypto…), il n'a pas de données fondamentales. Indicateur non ajouté.`, isError: true };
       const period = num(input, "period");
       const color = str(input, "couleur");
       const pane = str(input, "sur_le_panneau");
@@ -271,7 +275,7 @@ export const AI_TOOLS: AiTool[] = [
       if (pane || color || onPrice) {
         if (!controls) return { content: "Ces options ne sont pas disponibles ici : ajoutez l'indicateur sans elles.", isError: true };
         if (pane) {
-          if (!["sma", "ema", "wma"].includes(entry.kind)) return { content: "Seules les moyennes (sma, ema, wma) se posent sur le panneau d'un autre indicateur.", isError: true };
+          if (!ATTACHABLE_KINDS.some((k) => k.kind === entry.kind)) return { content: `Seuls ${ATTACHABLE_KINDS.map((k) => k.kind).join(", ")} se posent sur le panneau d'un autre indicateur.`, isError: true };
           const target = pane === "volume" ? "volume" : controls.panes().find((p) => p.id === pane && p.kind === "indicateur")?.id;
           if (!target) return { content: `Panneau « ${pane} » introuvable. Panneaux : ${controls.panes().filter((p) => p.kind !== "prix").map((p) => p.id).join(", ") || "aucun"}.`, isError: true };
         }

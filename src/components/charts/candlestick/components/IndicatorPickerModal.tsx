@@ -9,6 +9,7 @@ import { INDICATOR_CATALOG, type IndicatorCatalogEntry } from "../indicatorCatal
 import { INDICATOR_SCRIPT_SOURCES } from "../indicatorScriptSources";
 import { IndicatorHelpButton } from "./IndicatorHelp";
 import { ATTACHABLE_KINDS } from "../attachedIndicators";
+import { EQUITY_ONLY_NOTE, unavailableForSymbol } from "../equityOnly";
 import { analyzeScriptKind } from "../scripting/scriptKind";
 import type { IndicatorInfoTarget } from "../interfaces/IndicatorInfoTarget.interface";
 import type { Indicator } from "../interfaces/Indicator.interface";
@@ -66,6 +67,10 @@ export interface IndicatorPickerModalProps {
   indicators: Indicator[];
   commitIndicators: (next: Indicator[]) => void;
   customIndicators: CustomIndicatorDef[] | undefined;
+  /** Voir `CandlestickChartProps.symbolIsEquity` : false, les indicateurs réservés aux actions (fondamentaux,
+   *  `CustomIndicatorDef.equityOnly`) restent listés, grisés avec la mention « Réservé aux actions », sans pouvoir être
+   *  ajoutés — masqués, on les chercherait sans comprendre pourquoi ils ont disparu. */
+  symbolIsEquity?: boolean;
   addCustomIndicator: (def: CustomIndicatorDef) => void;
   scripts: ScriptDef[];
   /** Where each script's own output currently lands on the chart, by script id — see
@@ -115,6 +120,7 @@ export function IndicatorPickerModal({
   indicators,
   commitIndicators,
   customIndicators,
+  symbolIsEquity,
   addCustomIndicator,
   scripts,
   scriptPlacements,
@@ -319,7 +325,7 @@ export function IndicatorPickerModal({
                *  (see `duplicatePrompt` state above).
                *
                *  A count rather than the boolean this used to be, because the tag has to say
-               *  "Added ×3" and a boolean cannot: deriving one from the other would have meant two
+               *  "Ajouté ×3" and a boolean cannot: deriving one from the other would have meant two
                *  fields that must agree, and fields that must agree eventually do not.
                *
                *  `undefined` for a script or Volume row, neither of which can be duplicated this
@@ -328,6 +334,8 @@ export function IndicatorPickerModal({
               presentCount?: number;
               /** Mid-run: the row spins and refuses clicks. */
               busy?: boolean;
+              /** Réservé aux actions sur un symbole qui n'en est pas une : grisé, « Réservé aux actions », pas de clic. */
+              reserved?: boolean;
               /** Built-in/custom rows only, paired with `presentCount` — what "add anyway"
                *  vs. "remove from chart" each mean for this specific row. */
               onRemoveExisting?: () => void;
@@ -348,7 +356,7 @@ export function IndicatorPickerModal({
                *  built-in (this library has no source for one to import). */
               canBecomeStrategy?: boolean;
             };
-            // Depuis un panneau : seules les moyennes se calculent sur ses valeurs ; « déjà affiché » ne compte que
+            // Depuis un panneau : seuls les moyennes et Bollinger se calculent sur ses valeurs ; « déjà affiché » ne compte que
             // celles posées sur ce panneau-là (une SMA sur les prix n'est pas la même chose qu'une SMA sur le RSI).
             const builtinOptions: PickerOption[] = (onPane ? INDICATOR_CATALOG.filter((entry) => ATTACHABLE_KINDS.some((k) => k.kind === entry.kind)) : INDICATOR_CATALOG).filter(
               (entry) => entry.label.toLowerCase().includes(query) || entry.shortLabel.toLowerCase().includes(query)
@@ -375,6 +383,7 @@ export function IndicatorPickerModal({
                     onSelect: () => (entry.kind === "correlation" ? openCorrelationSetup() : addIndicator(entry)),
                     descriptionKind: entry.kind,
                     codeTarget: INDICATOR_SCRIPT_SOURCES[entry.kind] ? entry.kind : undefined,
+                    reserved: unavailableForSymbol(entry.kind, symbolIsEquity),
                     presentCount: indicators.filter((ind) => ind.kind === entry.kind && ind.sourceId === undefined).length,
                     onRemoveExisting: () => commitIndicators(indicators.filter((ind) => !(ind.kind === entry.kind && ind.sourceId === undefined))),
                   }
@@ -387,6 +396,7 @@ export function IndicatorPickerModal({
                 category: def.section,
                 pane: def.type === "overlay" ? "price" : "own",
                 onSelect: () => addCustomIndicator(def),
+                reserved: unavailableForSymbol(def, symbolIsEquity),
                 presentCount: indicators.filter((ind) => ind.customData?.id === def.id).length,
                 onRemoveExisting: () => commitIndicators(indicators.filter((ind) => ind.customData?.id !== def.id)),
               }));
@@ -491,13 +501,18 @@ export function IndicatorPickerModal({
                 )}
                 {groups.map((group) => (
                   <div className="lq-chart__indicator-picker-group" key={group.category}>
-                    <div className="lq-chart__indicator-picker-group-label">{group.category}</div>
+                    <div className="lq-chart__indicator-picker-group-label">
+                      {group.category}
+                      {/* Toute la catégorie réservée aux actions (Fondamentaux sur un indice) : la mention dès son titre. */}
+                      {group.options.every((o) => o.reserved) && <span className="lq-chart__indicator-picker-group-reserved"> · {EQUITY_ONLY_NOTE}</span>}
+                    </div>
                     {group.options.map((option) => (
                       <div
                         key={option.key}
                         className={[
                           "lq-chart__indicator-picker-option",
                           (option.presentCount ?? 0) > 0 && "lq-chart__indicator-picker-option--active",
+                          option.reserved && "lq-chart__indicator-picker-option--reserved",
                         ]
                           .filter(Boolean)
                           .join(" ")}
@@ -508,7 +523,7 @@ export function IndicatorPickerModal({
                           // Disabled rather than merely ignored: a row that still looks clickable
                           // and does nothing teaches the reader to click harder, which is exactly
                           // the double-add this exists to prevent.
-                          disabled={option.busy === true}
+                          disabled={option.busy === true || option.reserved === true}
                           onClick={() =>
                             (option.presentCount ?? 0) > 0
                               ? onDuplicate({ label: option.label, onAdd: option.onSelect, onRemove: option.onRemoveExisting! })
@@ -517,7 +532,9 @@ export function IndicatorPickerModal({
                           title={
                             option.busy === true
                               ? "Chargement du script…"
-                              : option.enabled === undefined
+                              : option.reserved
+                                ? `${EQUITY_ONLY_NOTE} : indisponible pour ce symbole`
+                                : option.enabled === undefined
                                 ? undefined
                                 : option.enabled
                                   ? "Désactiver ce script"
@@ -533,11 +550,12 @@ export function IndicatorPickerModal({
                               to sit loose between the name and the badges, which put it in the
                               middle of the row with nothing either side of it. */}
                           <span className="lq-chart__indicator-picker-marks">
+                            {option.reserved && <span className="lq-chart__indicator-picker-reserved">{EQUITY_ONLY_NOTE}</span>}
                             {(option.presentCount ?? 0) > 0 &&
                               (() => {
                                 const count = option.presentCount ?? 0;
-                                /* The count is only spelled out past one: "Added ×1" says nothing
-                                   "Added" does not, and reads as though something were being
+                                /* The count is only spelled out past one: "Ajouté ×1" says nothing
+                                   "Ajouté" does not, and reads as though something were being
                                    counted for its own sake. The full sentence stays in the title,
                                    which is also where it survives the narrow layout below — the
                                    tick can carry a tooltip but not a number. */
@@ -551,7 +569,7 @@ export function IndicatorPickerModal({
                                         width — the picker is a side panel on one layout and a wide
                                         modal on another — and not about the viewport's. */}
                                     <span className="lq-chart__indicator-picker-added" title={label}>
-                                      Added{count > 1 ? ` \u00d7${count}` : ""}
+                                      Ajouté{count > 1 ? ` \u00d7${count}` : ""}
                                     </span>
                                     <span className="lq-chart__indicator-picker-check" title={label}>
                                       <CheckIcon size={13} />

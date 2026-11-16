@@ -476,6 +476,11 @@ export interface CandlestickChartProps {
    *  like RSI/CHOP/MACD once added. The library doesn't fetch or compute any of this itself
    *  (same stance as `timeframes`/`symbolSearchResults`) — it's the app's own data, just plotted. */
   fundamentals?: FundamentalDataPoint[];
+  /** Le symbole affiché est une action (une entreprise). `false` (indice, ETF, devise, crypto, symbole personnalisé…) :
+   *  les fondamentaux et les indicateurs `CustomIndicatorDef.equityOnly` sont grisés dans le catalogue (« Réservé aux
+   *  actions ») et ne peuvent pas être ajoutés, l'assistant refuse de les ajouter, et un exemplaire déjà présent (layout,
+   *  modèle) ne trace rien et dit « Indisponible pour ce symbole ». Non fourni : rien n'est bloqué. */
+  symbolIsEquity?: boolean;
   /** Makes `symbol` its own hoverable/clickable zone (background on hover, separate from the
    *  chart-type label right next to it) — clicking it opens a "Symbol search" modal (search
    *  field + category filter pills + a results list you provide). Default false — with

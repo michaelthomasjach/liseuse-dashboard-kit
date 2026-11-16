@@ -1,3 +1,4 @@
+import { UNAVAILABLE_FOR_SYMBOL, unavailableForSymbol } from "../equityOnly";
 import { isPriceOverlay } from "../attachedIndicators";
 import "./IndicatorLegendHandle.css";
 import type { IndicatorInfoTarget } from "../interfaces/IndicatorInfoTarget.interface";
@@ -47,6 +48,9 @@ export interface ChartLegendProps {
   vFmt?: (value: number) => string;
   /** Valeur(s) d'un indicateur à la bougie de la légende, pour `legendIndicatorValues`. */
   indicatorLegendValue?: (indicator: Indicator) => string | null;
+  /** Voir `CandlestickChartProps.symbolIsEquity` : false, un indicateur réservé aux actions dit « Indisponible pour ce
+   *  symbole » à la place de sa valeur. */
+  symbolIsEquity?: boolean;
   dims: { margin: { top: number; left: number } };
   /** The price plot's own height, which caps how tall the indicator list may grow (see
    *  `.lq-chart__indicator-legend`). */
@@ -163,6 +167,7 @@ export function ChartLegend({
   statusLine,
   vFmt,
   indicatorLegendValue,
+  symbolIsEquity,
   hoveredIndicatorId,
   indicatorLabel,
   toggleIndicatorHidden,
@@ -502,7 +507,9 @@ export function ChartLegend({
             >
               {showIndicatorTitles && indicatorLabel(indicator)}
               {/* « Vol. jour ATR » : ATR et SMA toujours lisibles ici, ses lignes ne les écrivent qu'en étiquettes. */}
-              {(showIndicatorValues || ((isPriceOverlay(indicator) || indicator.kind === "expectedVolatility") && indicatorLegendValue)) && (() => {
+              {unavailableForSymbol(indicator, symbolIsEquity) ? (
+                <span className="lq-chart__indicator-legend-value lq-chart__indicator-unavailable">{showIndicatorTitles ? " " : ""}{UNAVAILABLE_FOR_SYMBOL}</span>
+              ) : (showIndicatorValues || ((isPriceOverlay(indicator) || indicator.kind === "expectedVolatility") && indicatorLegendValue)) && (() => {
                 const value = indicatorLegendValue!(indicator);
                 return value ? <span className="lq-chart__indicator-legend-value">{showIndicatorTitles ? " " : ""}{value}</span> : null;
               })()}

@@ -140,6 +140,7 @@ const CUSTOM_INDICATORS: CustomIndicatorDef[] = [
     id: "grossMarginPct",
     label: "Marge brute (%)",
     section: "Fondamentaux",
+    equityOnly: true,
     type: "overlay",
     draw: "line",
     color: "#7fb37f",
@@ -150,6 +151,7 @@ const CUSTOM_INDICATORS: CustomIndicatorDef[] = [
     id: "dividendPerShare",
     label: "Dividende par action",
     section: "Fondamentaux",
+    equityOnly: true,
     type: "own",
     draw: "histogram",
     color: "#6c87c9",
@@ -160,6 +162,7 @@ const CUSTOM_INDICATORS: CustomIndicatorDef[] = [
     id: "incomeTax",
     label: "Impôt sur le revenu",
     section: "Fondamentaux",
+    equityOnly: true,
     type: "own",
     draw: "area",
     color: "#c96c8f",
@@ -1006,6 +1009,8 @@ export const AllFeatures: Story = {
             defaultPaneLayout={demoState.paneLayout ?? undefined}
             onPaneLayoutChange={(layout) => demoWrite("pane-layout", layout)}
             fundamentals={ALL_FEATURES_FUNDAMENTALS}
+            // Action ou non (indice, crypto, devise…) : sur SPX ou BTCUSD, les fondamentaux sont grisés « Réservé aux actions ».
+            symbolIsEquity={(MOCK_SYMBOL_DB.find((s) => s.ticker === currentSymbol)?.category ?? "stocks") === "stocks"}
             depth={DEMO_DEPTH.depth}
             tape={DEMO_DEPTH.tape}
             customIndicators={CUSTOM_INDICATORS}
@@ -1139,6 +1144,60 @@ export const PaneSeriesOnPrice: Story = {
           { id: "vol-sma20", kind: "sma", period: 20, sourceId: "volume", color: "#ff9800" },
           { id: "rsi-overlay", kind: "rsi", period: 14, priceOverlay: true, color: "#7e57c2" },
           { id: "macd", kind: "macd", period: 26, fastPeriod: 12, slowPeriod: 26, signalPeriod: 9 },
+        ]}
+      />
+    </div>
+  ),
+};
+
+/**
+ * Bandes de Bollinger posées sur un panneau (clic droit sur le panneau → « Ajouter un indicateur sur (RSI(14))… » →
+ * « Bandes de Bollinger ») : calculées sur la série du panneau — Bollinger(20, 2) sur le RSI, Bollinger(20, 2) sur le
+ * volume — avec les trois lignes et le fond du Bollinger des prix. Leur médiane s'affiche dans la légende du panneau
+ * (les trois valeurs au survol), leurs réglages dans un onglet des « Paramètres du panneau ».
+ */
+export const BollingerOnPane: Story = {
+  name: "Bollinger posé sur le RSI et sur le volume (sourceId)",
+  render: () => (
+    <div style={{ height: 640 }}>
+      <CandlestickChart
+        data={COMPACT_PANES_DATASET}
+        symbol="DEMO"
+        height={640}
+        showVolume
+        showIndicators
+        defaultPaneHeightFraction={0.22}
+        defaultIndicators={[
+          { id: "vol-bb", kind: "bollinger", period: 20, stdDev: 2, sourceId: "volume", color: "#ff9800" },
+          { id: "rsi", kind: "rsi", period: 14 },
+          { id: "rsi-bb", kind: "bollinger", period: 20, stdDev: 2, sourceId: "rsi", color: "#2962ff" },
+        ]}
+      />
+    </div>
+  ),
+};
+
+/**
+ * Un indice (`symbolIsEquity={false}`) : dans « Ajouter un indicateur », la catégorie Fondamentaux et les indicateurs
+ * `CustomIndicatorDef.equityOnly` (ici la marge brute de l'application) restent listés mais grisés, avec la mention
+ * « Réservé aux actions », et ne s'ajoutent pas. Le PER resté dans le layout ne trace rien et sa légende dit
+ * « Indisponible pour ce symbole ». Sans la prop, rien ne change.
+ */
+export const IndexWithoutFundamentals: Story = {
+  name: "Indice : fondamentaux réservés aux actions (symbolIsEquity)",
+  render: () => (
+    <div style={{ height: 600 }}>
+      <CandlestickChart
+        data={COMPACT_PANES_DATASET}
+        symbol="SPX"
+        height={600}
+        showIndicators
+        symbolIsEquity={false}
+        fundamentals={ALL_FEATURES_FUNDAMENTALS}
+        customIndicators={CUSTOM_INDICATORS}
+        defaultIndicators={[
+          { id: "sma20", kind: "sma", period: 20 },
+          { id: "pe", kind: "peRatio", period: 0 },
         ]}
       />
     </div>

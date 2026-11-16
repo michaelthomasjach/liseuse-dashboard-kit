@@ -141,6 +141,16 @@ export function useChartTemplates({
     createTemplate(name);
   }
 
+  /** Remplace le contenu du modèle `id` par l'état actuel du graphique (« Enregistrer » sur un modèle existant, depuis
+   *  la fenêtre du nom ou l'IA). Il garde son id, son nom, sa place dans la liste et son statut de modèle au démarrage,
+   *  et devient le modèle actif : le graphique le reflète désormais. Le nouvel état remplace tout l'ancien (un champ
+   *  absent de l'état actuel n'est pas repris de l'ancien modèle). */
+  function overwriteTemplate(id: string) {
+    if (!templatesRef.current.some((t) => t.id === id)) return;
+    commitTemplates(templatesRef.current.map((t) => (t.id === id ? { id: t.id, name: t.name, ...currentSnapshot() } : t)));
+    setActiveTemplateId(id);
+  }
+
   function loadTemplate(id: string) {
     const template = templatesRef.current.find((t) => t.id === id);
     if (!template) return;
@@ -181,6 +191,7 @@ export function useChartTemplates({
     isDirty,
     saveTemplate,
     saveTemplateAs,
+    overwriteTemplate,
     loadTemplate,
     deleteTemplate,
     toggleStartupTemplate,

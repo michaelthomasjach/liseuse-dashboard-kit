@@ -3268,6 +3268,66 @@ button.lq-chart__legend-item {
   text-align: center;
 }
 
+/* Fenêtre du nom d'un modèle : les modèles existants sous le champ, filtrés par la saisie. En choisir un remplit le nom
+   (le bouton principal devient « Enregistrer », qui l'écrase après confirmation). */
+.lq-chart__template-pick {
+  margin-top: var(--lq-space-3);
+}
+
+.lq-chart__template-pick-label {
+  margin: 0 0 var(--lq-space-1);
+  color: var(--lq-color-text-muted);
+  font-size: 0.8rem;
+}
+
+.lq-chart__template-pick-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 180px;
+  overflow-y: auto;
+  border: 1px solid var(--lq-color-border-subtle);
+  border-radius: var(--lq-radius-sm);
+}
+
+.lq-chart__template-pick-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  font-family: inherit;
+  font-size: 0.85rem;
+  text-align: left;
+  color: var(--lq-color-text);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.lq-chart__template-pick-option span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lq-chart__template-pick-option:hover {
+  background-color: var(--lq-color-hover);
+}
+
+.lq-chart__template-pick-option--selected {
+  font-weight: var(--lq-font-weight-bold, 700);
+}
+
+.lq-chart__template-pick-option svg {
+  flex-shrink: 0;
+  color: var(--lq-color-accent);
+}
+
+.lq-chart__template-pick-empty {
+  margin: 0;
+  color: var(--lq-color-text-muted);
+  font-size: 0.8rem;
+}
+
 .lq-chart__template-confirm-text {
   margin: 0;
   color: var(--lq-color-text-muted);

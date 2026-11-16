@@ -105,6 +105,8 @@ export interface AiChartControls {
   activeTemplateId: () => string | null;
   loadTemplate: (id: string) => void;
   saveTemplateAs: (name: string) => void;
+  /** Remplace le contenu d'un modèle existant par l'état du graphique, sans confirmation. */
+  overwriteTemplate: (id: string) => void;
 
   drawingsHidden: () => boolean;
   setDrawingsHidden: (hidden: boolean) => void;
@@ -209,6 +211,8 @@ export interface AiControlsState {
   activeTemplateId: string | null;
   loadTemplate: (id: string) => void;
   saveTemplateAs: (name: string) => void;
+  /** Remplace le contenu d'un modèle existant par l'état du graphique, sans confirmation. */
+  overwriteTemplate: (id: string) => void;
 
   drawingsHidden: boolean;
   setDrawingsHidden: (hidden: boolean) => void;
@@ -445,6 +449,7 @@ export function buildAiChartControls(get: () => AiControlsState): AiChartControl
     activeTemplateId: () => get().activeTemplateId,
     loadTemplate: (id) => get().loadTemplate(id),
     saveTemplateAs: (name) => get().saveTemplateAs(name),
+    overwriteTemplate: (id) => get().overwriteTemplate(id),
 
     drawingsHidden: () => get().drawingsHidden,
     setDrawingsHidden: (hidden) => get().setDrawingsHidden(hidden),

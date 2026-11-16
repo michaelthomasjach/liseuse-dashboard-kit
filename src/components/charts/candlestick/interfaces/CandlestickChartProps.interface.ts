@@ -280,7 +280,10 @@ export interface CandlestickChartProps {
    *  applying one replaces exactly that state, removing whatever it does not hold), not drawings or display/timeframe
    *  settings, as a named, reloadable `ChartTemplate`. The Save button opens a "name this
    *  template" modal only the first time (no template active yet); every save after that
-   *  overwrites the active one directly, no modal. Loading a different template while the
+   *  overwrites the active one directly, no modal. La fenêtre du nom liste les modèles existants : en choisir un (ou
+   *  retaper son nom, casse et espaces autour ignorés) fait passer le bouton de « Enregistrer sous » à « Enregistrer »,
+   *  qui demande confirmation puis écrase ce modèle (même id, même place, statut actif ou de démarrage gardé ; le
+   *  changement passe par `onTemplatesChange` comme les autres). Loading a different template while the
    *  current layout has unsaved changes (including never having saved at all) offers to save
    *  first rather than silently discarding it. Default false. */
   showTemplates?: boolean;

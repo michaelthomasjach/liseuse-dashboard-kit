@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { shortcutLabel } from "../../internal/platformShortcut";
 import { Modal } from "../../../primitives/Modal";
 import { DropdownPanel } from "../../../primitives/DropdownPanel";
@@ -16,9 +16,13 @@ export interface TemplateControlsProps {
   isDirty: boolean;
   onSave: (name?: string) => void;
   onSaveAs: (name: string) => void;
+  /** Remplace le contenu du modèle `id` par l'état du graphique, après confirmation dans la fenêtre du nom. */
+  onOverwrite: (id: string) => void;
   onLoad: (id: string) => void;
   onDelete: (id: string) => void;
 }
+
+const noop = () => {};
 
 /** Save button + "saved templates" dropdown, right edge of the chart's own header — see
  *  `CandlestickChartProps.showTemplates`'s own doc for the exact save/load/dirty-guard rules
@@ -26,7 +30,7 @@ export interface TemplateControlsProps {
  *  into `useChartTemplates` (passed in as the on* props above); this component only owns the
  *  transient UI state — which modal/dropdown is open, the name field, and a pending load id
  *  waiting on a save-or-discard decision. */
-export function TemplateControls({ templates, activeTemplateId, startupTemplateId = null, onToggleStartupTemplate, isDirty, onSave, onSaveAs, onLoad, onDelete }: TemplateControlsProps) {
+export function TemplateControls({ templates, activeTemplateId, startupTemplateId = null, onToggleStartupTemplate, isDirty, onSave, onSaveAs, onOverwrite, onLoad, onDelete }: TemplateControlsProps) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownAnchorRef = useRef<HTMLButtonElement>(null);
   // "name": the header Save button's own first-time-save prompt (submitting overwrites nothing —
@@ -39,6 +43,10 @@ export function TemplateControls({ templates, activeTemplateId, startupTemplateI
   // applied once they've decided whether to save the current one first.
   const [pendingLoadId, setPendingLoadId] = useState<string | null>(null);
   const [nameValue, setNameValue] = useState("");
+  // Le modèle existant que la fenêtre du nom s'apprête à écraser : sa confirmation s'ouvre par-dessus tant qu'il est
+  // défini (Annuler ou Échap la referment et rendent la main à la fenêtre du nom, restée ouverte dessous).
+  const [overwriteTargetId, setOverwriteTargetId] = useState<string | null>(null);
+  const pickLabelId = useId();
   // Briefly swaps the Save button's own icon to a checkmark — the only feedback an otherwise
   // silent "click Save, it just overwrites" action gets, same reasoning the symbol-search "+"
   // button (see onAddSymbolOverlay) turns into a checkmark once its own overlay is active.
@@ -52,7 +60,16 @@ export function TemplateControls({ templates, activeTemplateId, startupTemplateI
   function closeModal() {
     setModal(null);
     setPendingLoadId(null);
+    setOverwriteTargetId(null);
   }
+
+  // Le modèle existant qui porte le nom saisi, à la casse et aux espaces autour près : c'est lui qu'« Enregistrer »
+  // écrase. Sans lui, le bouton dit « Enregistrer sous » et crée un nouveau modèle.
+  const normalizedName = nameValue.trim().toLowerCase();
+  const matchingTemplate = normalizedName ? (templates.find((t) => t.name.trim().toLowerCase() === normalizedName) ?? null) : null;
+  // La liste sous le champ : tous les modèles tant que rien n'est saisi, puis ceux dont le nom contient la saisie.
+  const suggestedTemplates = normalizedName ? templates.filter((t) => t.name.toLowerCase().includes(normalizedName)) : templates;
+  const overwriteTarget = templates.find((t) => t.id === overwriteTargetId) ?? null;
 
   function handleSaveClick() {
     if (activeTemplateId) {
@@ -76,6 +93,10 @@ export function TemplateControls({ templates, activeTemplateId, startupTemplateI
   function handleNameSubmit() {
     const trimmed = nameValue.trim();
     if (!trimmed) return;
+    if (matchingTemplate) {
+      setOverwriteTargetId(matchingTemplate.id);
+      return;
+    }
     if (modal === "nameSaveAs") {
       onSaveAs(trimmed);
       setModal(null);
@@ -107,6 +128,9 @@ export function TemplateControls({ templates, activeTemplateId, startupTemplateI
   // kept in sync during render lets the listener itself mount exactly once.
   const saveShortcutRef = useRef(() => {});
   saveShortcutRef.current = () => {
+    // La confirmation de remplacement attend une réponse explicite (Entrée, Remplacer ou Annuler) : un second Ctrl+S
+    // n'écrase pas un modèle sans que la question ait été lue.
+    if (overwriteTargetId) return;
     if (modal === "name" || modal === "nameSaveAs") handleNameSubmit();
     else handleSaveClick();
   };
@@ -134,6 +158,19 @@ export function TemplateControls({ templates, activeTemplateId, startupTemplateI
     }
     setPendingLoadId(id);
     setModal("confirmDiscard");
+  }
+
+  // « Remplacer » dans la confirmation : le modèle garde son id, sa place et son statut (voir
+  // `useChartTemplates.overwriteTemplate`). Un chargement en attente (fenêtre « Modifications non enregistrées ») suit,
+  // sauf s'il visait ce même modèle, qui reflète alors déjà l'état du graphique.
+  function handleConfirmOverwrite() {
+    if (!overwriteTarget) return;
+    onOverwrite(overwriteTarget.id);
+    setOverwriteTargetId(null);
+    setModal(null);
+    if (pendingLoadId && pendingLoadId !== overwriteTarget.id) onLoad(pendingLoadId);
+    else flashSaved();
+    setPendingLoadId(null);
   }
 
   // "Enregistrer et charger" from the discard-guard modal: an active template just gets
@@ -279,7 +316,8 @@ export function TemplateControls({ templates, activeTemplateId, startupTemplateI
       {(modal === "name" || modal === "nameSaveAs") && (
         <Modal
           open
-          onClose={closeModal}
+          // Confirmation ouverte par-dessus : Échap ne ferme qu'elle (chaque Modal écoute Échap sur la fenêtre).
+          onClose={overwriteTarget ? noop : closeModal}
           title={modal === "nameSaveAs" ? "Enregistrer sous" : "Enregistrer le modèle"}
           footer={
             <div className="lq-chart__edit-drawing-footer">
@@ -287,7 +325,7 @@ export function TemplateControls({ templates, activeTemplateId, startupTemplateI
                 Annuler
               </button>
               <button type="button" className="lq-chart__confirm-button" onClick={handleNameSubmit} disabled={!nameValue.trim()}>
-                Enregistrer
+                {matchingTemplate ? "Enregistrer" : "Enregistrer sous"}
               </button>
             </div>
           }
@@ -302,6 +340,54 @@ export function TemplateControls({ templates, activeTemplateId, startupTemplateI
               if (e.key === "Enter") handleNameSubmit();
             }}
           />
+          {templates.length > 0 && (
+            <div className="lq-chart__template-pick">
+              <p className="lq-chart__template-pick-label" id={pickLabelId}>
+                Remplacer un modèle existant
+              </p>
+              {suggestedTemplates.length === 0 ? (
+                <p className="lq-chart__template-pick-empty">Aucun modèle de ce nom : un nouveau modèle sera créé.</p>
+              ) : (
+                <div className="lq-chart__template-pick-list" role="group" aria-labelledby={pickLabelId}>
+                  {suggestedTemplates.map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      className={["lq-chart__template-pick-option", t.id === matchingTemplate?.id && "lq-chart__template-pick-option--selected"].filter(Boolean).join(" ")}
+                      aria-pressed={t.id === matchingTemplate?.id}
+                      onClick={() => setNameValue(t.name)}
+                    >
+                      {t.id === matchingTemplate?.id && <CheckIcon size={12} />}
+                      <span>{t.name}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </Modal>
+      )}
+
+      {overwriteTarget && (
+        <Modal
+          open
+          onClose={() => setOverwriteTargetId(null)}
+          title="Remplacer le modèle"
+          footer={
+            <div className="lq-chart__edit-drawing-footer">
+              <button type="button" className="lq-chart__reset-button" onClick={() => setOverwriteTargetId(null)}>
+                Annuler
+              </button>
+              {/* Focus à l'ouverture : Entrée valide. */}
+              <button type="button" className="lq-chart__confirm-button" onClick={handleConfirmOverwrite} data-autofocus>
+                Remplacer
+              </button>
+            </div>
+          }
+        >
+          <p className="lq-chart__template-confirm-text">
+            Remplacer le modèle « {overwriteTarget.name} » ? Son contenu actuel sera remplacé par l'état du graphique.
+          </p>
         </Modal>
       )}
 

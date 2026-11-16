@@ -100,6 +100,8 @@ export interface ChartHeaderProps {
   templatesDirty: boolean;
   onSaveTemplate: (name?: string) => void;
   onSaveTemplateAs: (name: string) => void;
+  /** Remplace le contenu d'un modèle existant (voir `useChartTemplates.overwriteTemplate`). */
+  onOverwriteTemplate: (id: string) => void;
   onLoadTemplate: (id: string) => void;
   onDeleteTemplate: (id: string) => void;
   linkable: boolean;
@@ -185,6 +187,7 @@ export function ChartHeader({
   templatesDirty,
   onSaveTemplate,
   onSaveTemplateAs,
+  onOverwriteTemplate,
   onLoadTemplate,
   onDeleteTemplate,
   linkable,
@@ -594,6 +597,7 @@ export function ChartHeader({
               isDirty={templatesDirty}
               onSave={onSaveTemplate}
               onSaveAs={onSaveTemplateAs}
+              onOverwrite={onOverwriteTemplate}
               onLoad={onLoadTemplate}
               onDelete={onDeleteTemplate}
             />

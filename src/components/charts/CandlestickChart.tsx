@@ -1162,6 +1162,7 @@ function CandlestickChartBody({
     isDirty: templatesDirty,
     saveTemplate,
     saveTemplateAs,
+    overwriteTemplate,
     loadTemplate,
     deleteTemplate,
     toggleStartupTemplate,
@@ -1900,7 +1901,7 @@ function CandlestickChartBody({
       setChartDisplayMode(mode as typeof chartDisplayMode);
       onChartDisplayModeChange?.(mode as typeof chartDisplayMode);
     },
-    templates: templates.map((t) => ({ id: t.id, name: t.name })), activeTemplateId: activeTemplateId ?? null, loadTemplate, saveTemplateAs,
+    templates: templates.map((t) => ({ id: t.id, name: t.name })), activeTemplateId: activeTemplateId ?? null, loadTemplate, saveTemplateAs, overwriteTemplate,
     drawingsHidden, setDrawingsHidden, drawingsLocked, setDrawingsLocked, drawings: currentDrawings,
     editDrawing: (dr) => {
       setEditingId(dr.id);
@@ -2498,6 +2499,7 @@ function CandlestickChartBody({
           templatesDirty={templatesDirty}
           onSaveTemplate={saveTemplate}
           onSaveTemplateAs={saveTemplateAs}
+          onOverwriteTemplate={overwriteTemplate}
           onLoadTemplate={loadTemplate}
           onDeleteTemplate={deleteTemplate}
           linkable={linkable}

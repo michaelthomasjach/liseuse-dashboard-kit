@@ -661,13 +661,14 @@ const TEMPLATE_TOOL: AiTool = {
   definition: {
     name: "appliquer_un_modele",
     description:
-      "Les modèles de graphique (menu Modèles de l'en-tête : indicateurs, panneaux, volume, scripts actifs) : « lister » les modèles enregistrés, en « appliquer » un (par id ou par nom), ou « enregistrer » la disposition actuelle sous un nouveau nom.",
+      "Les modèles de graphique (menu Modèles de l'en-tête : indicateurs, panneaux, volume, scripts actifs) : « lister » les modèles enregistrés, en « appliquer » un (par id ou par nom), ou « enregistrer » la disposition actuelle sous un nom. Un nom déjà pris (sans tenir compte de la casse ni des espaces autour) est refusé, sauf avec remplacer: true, qui écrase ce modèle sans confirmation (il garde son id, sa place et son statut actif ou de démarrage).",
     inputSchema: {
       type: "object",
       properties: {
         action: { type: "string", enum: ["lister", "appliquer", "enregistrer"], description: "Ce qu'il faut faire." },
         modele: { type: "string", description: "appliquer : id ou nom du modèle." },
-        nom: { type: "string", description: "enregistrer : nom du nouveau modèle." },
+        nom: { type: "string", description: "enregistrer : nom du modèle (nouveau, ou existant avec remplacer)." },
+        remplacer: { type: "boolean", description: "enregistrer : true pour écraser le modèle existant de ce nom, sans confirmation." },
       },
       required: ["action"],
       additionalProperties: false,
@@ -691,6 +692,13 @@ const TEMPLATE_TOOL: AiTool = {
     if (action === "enregistrer") {
       const name = str(input, "nom")?.trim();
       if (!name) return fail("Indiquez « nom ».");
+      const existing = templates.find((x) => x.name.trim().toLowerCase() === name.toLowerCase());
+      if (existing) {
+        if (bool(input, "remplacer") !== true) return fail(`Un modèle « ${existing.name} » existe déjà. Passez remplacer: true pour l'écraser, ou choisissez un autre nom.`);
+        c.overwriteTemplate(existing.id);
+        await wait(60);
+        return ok(`Modèle « ${existing.name} » remplacé par la disposition actuelle.`);
+      }
       c.saveTemplateAs(name);
       await wait(60);
       return ok(`Disposition enregistrée comme modèle « ${name} ».`);

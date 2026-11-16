@@ -446,6 +446,13 @@ export function ChartHoverBadges({
       {visibleDrawings
         .filter((dr) => (dr.lineType === "horizontal" || dr.lineType === "ray") && (dr.valueAxis !== "volume" || volumeVisible) && dr.id !== selectedDrawingId)
         .filter((dr) => (!dr.valueAxis || dr.valueAxis === "price" ? gutter.priceVisible : gutter.panesVisible))
+        // Ligne des prix sortie de l'écran (au-dessus ou au-dessous de la zone visible) : son étiquette disparaît avec elle,
+        // au lieu de rester collée au bord de l'axe.
+        .filter((dr) => {
+          if (dr.valueAxis && dr.valueAxis !== "price") return true;
+          const raw = pixelYForDrawing(dr);
+          return raw >= 0 && raw <= priceHeight;
+        })
         .map((dr) => {
           const isPrice = !dr.valueAxis || dr.valueAxis === "price";
           const y = isPrice ? clampToPriceAxis(pixelYForDrawing(dr)) : pixelYForDrawing(dr);

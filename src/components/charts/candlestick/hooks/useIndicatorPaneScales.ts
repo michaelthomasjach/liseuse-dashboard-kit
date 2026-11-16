@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { withAttachedValues } from "../attachedIndicators";
+import { unavailableForSymbol } from "../equityOnly";
 import * as d3 from "d3";
 import type { Candle } from "../interfaces/Candle.interface";
 import type { FundamentalDataPoint } from "../interfaces/FundamentalDataPoint.interface";
@@ -14,6 +15,8 @@ import { usePaneStackScales } from "./usePaneStackScales";
 export interface UseIndicatorPaneScalesArgs {
   data: Candle[];
   fundamentals: FundamentalDataPoint[] | undefined;
+  /** Voir `CandlestickChartProps.symbolIsEquity` : false, un indicateur réservé aux actions n'a aucune valeur. */
+  symbolIsEquity?: boolean;
   indicators: Indicator[];
   ownPaneIndicators: Indicator[];
   indicatorPaneHeights: number[];
@@ -41,6 +44,7 @@ const NO_TRANSFORM: Record<string, d3.ZoomTransform> = {};
 export function useIndicatorPaneScales({
   data,
   fundamentals,
+  symbolIsEquity,
   indicators,
   ownPaneIndicators,
   indicatorPaneHeights,
@@ -58,8 +62,13 @@ export function useIndicatorPaneScales({
   // Expensive (O(data.length) per indicator) — recomputed only when the data or the indicator
   // list itself changes, never on pan/zoom (which would otherwise redo this every frame).
   const indicatorValues = useMemo(
-    () => withAttachedValues(indicators, (indicator) => computeIndicatorValues(data, indicator, fundamentals), data.map((d) => d.volume ?? null)),
-    [data, indicators, fundamentals]
+    () =>
+      withAttachedValues(
+        indicators,
+        (indicator) => (unavailableForSymbol(indicator, symbolIsEquity) ? new Array<null>(data.length).fill(null) : computeIndicatorValues(data, indicator, fundamentals)),
+        data.map((d) => d.volume ?? null),
+      ),
+    [data, indicators, fundamentals, symbolIsEquity]
   );
 
   // Cheap: slices the precomputed arrays down to the same padded visible window `visible` uses,

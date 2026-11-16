@@ -62,6 +62,8 @@ export interface IndicatorModalsProps {
   /** Caller-supplied indicators (see CandlestickChartProps.customIndicators) — merged into the
    *  picker alongside the built-in catalog, grouped by their own `section`. */
   customIndicators: CustomIndicatorDef[] | undefined;
+  /** Voir `CandlestickChartProps.symbolIsEquity`. */
+  symbolIsEquity?: boolean;
   addCustomIndicator: (def: CustomIndicatorDef) => void;
   /** The chart's own saved scripts (see useScriptingState) — shown in the picker under "Mes
    *  scripts" alongside the built-in catalog and any custom indicators, so a script doesn't only
@@ -200,6 +202,7 @@ export function IndicatorModals({
   addIndicator,
   openCorrelationSetup,
   customIndicators,
+  symbolIsEquity,
   addCustomIndicator,
   scripts,
   setScriptParamValue,
@@ -338,6 +341,7 @@ export function IndicatorModals({
         indicators={indicators}
         commitIndicators={commitIndicators}
         customIndicators={customIndicators}
+        symbolIsEquity={symbolIsEquity}
         addCustomIndicator={addCustomIndicator}
         scripts={scripts}
         scriptPlacements={scriptPlacements}

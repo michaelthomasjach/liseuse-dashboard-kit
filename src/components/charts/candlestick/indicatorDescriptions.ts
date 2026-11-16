@@ -153,7 +153,11 @@ En tendance forte, le prix peut **longer une bande pendant des dizaines de bougi
 
 ## Réglages
 
-**20 périodes et 2 écarts-types par défaut.** Élargir à 2,5 rend les contacts nettement plus rares ; les resserrer à 1,5 les multiplie. Rien ne s'affiche avant N bougies d'historique.`,
+**20 périodes et 2 écarts-types par défaut.** Élargir à 2,5 rend les contacts nettement plus rares ; les resserrer à 1,5 les multiplie. Rien ne s'affiche avant N bougies d'historique.
+
+## Sur un panneau
+
+Les bandes se posent aussi sur la série d'un panneau : clic droit sur le RSI, le volume ou un autre indicateur, puis « Ajouter un indicateur sur… ». **Bollinger(20, 2) sur le RSI** montre quand l'élan sort de sa plage habituelle ; **sur le volume**, il repère les séances anormalement actives. Mêmes réglages, mêmes trois lignes et même fond qu'en prix ; la valeur suivie par les alertes est la médiane.`,
 
   rsi: `**Le RSI compare la force des hausses à celle des baisses**, sur une échelle bornée de 0 à 100.
 

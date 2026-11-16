@@ -14,6 +14,7 @@ export interface UseAiChartContextArgs {
   availableTimeframes: string[];
   data: Candle[];
   fundamentals: FundamentalDataPoint[] | undefined;
+  symbolIsEquity?: boolean;
   indicators: Indicator[];
   indicatorLabel: (indicator: Indicator) => string;
   addIndicator: (entry: IndicatorCatalogEntry) => void;
@@ -46,6 +47,7 @@ export function useAiChartContext(args: UseAiChartContextArgs): AiChartContext {
     availableTimeframes,
     data,
     fundamentals,
+    symbolIsEquity,
     indicators,
     indicatorLabel,
     addIndicator,
@@ -72,6 +74,7 @@ export function useAiChartContext(args: UseAiChartContextArgs): AiChartContext {
       availableTimeframes,
       data,
       fundamentals,
+      symbolIsEquity,
       indicators,
       indicatorCatalog: INDICATOR_CATALOG,
       indicatorLabel,
@@ -100,6 +103,7 @@ export function useAiChartContext(args: UseAiChartContextArgs): AiChartContext {
       availableTimeframes,
       data,
       fundamentals,
+      symbolIsEquity,
       indicators,
       indicatorLabel,
       addIndicator,

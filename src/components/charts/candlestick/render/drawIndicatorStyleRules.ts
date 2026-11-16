@@ -1,7 +1,7 @@
 import type { Indicator } from "../interfaces/Indicator.interface";
 import type { IndicatorValue } from "../interfaces/IndicatorValue.interface";
 import type { IndicatorStyleRule, StyleRuleOperand } from "../interfaces/IndicatorStyleRule.interface";
-import { defaultRuleOpacity, renderedStyleRules, isCrossCondition, isRangeCondition, resolvedRuleIcon, seriesFieldValue } from "../styleRules";
+import { defaultRuleOpacity, indicatorLevelValue, renderedStyleRules, isCrossCondition, isRangeCondition, resolvedRuleIcon, seriesFieldValue } from "../styleRules";
 import { drawMarkerIcon, markerIconCenterY } from "./drawMarkerIcon";
 
 /** Un indicateur du panneau et ses points visibles. */
@@ -62,6 +62,12 @@ function operandGetter(pane: StyleRulePane, owner: StyleRuleMember, operand: Sty
   if (operand.source === "value") {
     const v = operand.value;
     return Number.isFinite(v) ? () => v : null;
+  }
+  if (operand.source === "level") {
+    const id = operand.indicatorId ?? owner.indicator.id;
+    const ind = pane.members.find((m) => m.indicator.id === id)?.indicator ?? owner.indicator;
+    const v = indicatorLevelValue(ind, operand.level);
+    return v === undefined ? null : () => v;
   }
   if (operand.source === "close") {
     const closeAt = pane.closeAt;

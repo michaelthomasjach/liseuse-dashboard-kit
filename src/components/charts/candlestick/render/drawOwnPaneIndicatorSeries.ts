@@ -5,7 +5,7 @@ import type { IndicatorValue } from "../interfaces/IndicatorValue.interface";
 import type { IndicatorMACD } from "../interfaces/IndicatorMACD.interface";
 import type { IndicatorADXPoint } from "../interfaces/IndicatorADXPoint.interface";
 import type { IndicatorBand } from "../interfaces/IndicatorBand.interface";
-import { defaultIndicatorColor, isFundamentalKind } from "../indicatorCatalog";
+import { defaultIndicatorColor, isFundamentalKind, RSI_LEVEL_COLOR, RSI_MIDDLE_COLOR } from "../indicatorCatalog";
 import { applyLineStyle } from "./drawPriceCandles";
 import { strokeCrossColoredLine } from "./strokeCrossColoredLine";
 
@@ -41,13 +41,25 @@ export function drawOwnPaneIndicatorSeries(
     // Reference levels are user-adjustable (rsiOverbought/rsiOversold, chopUpperThreshold/
     // chopLowerThreshold — see their own docs on Indicator) but default to exactly the
     // levels this block always drew before those settings existed.
-    const levels =
-      ind.kind === "rsi" ? [ind.rsiOversold ?? 30, ind.rsiOverbought ?? 70] : [ind.chopLowerThreshold ?? 38.2, ind.chopUpperThreshold ?? 61.8];
+    // RSI : couleur (opacité comprise) de chaque seuil, et ligne médiane 50 à afficher (onglet Style). En e-ink, la
+    // couleur de la grille.
+    const levelColor = (c: string | undefined, def: string) => (isEink ? colorGrid : (c ?? def));
+    const levels: { value: number; color: string }[] =
+      ind.kind === "rsi"
+        ? [
+            { value: ind.rsiOversold ?? 30, color: levelColor(ind.rsiLowerColor, RSI_LEVEL_COLOR) },
+            { value: ind.rsiOverbought ?? 70, color: levelColor(ind.rsiUpperColor, RSI_LEVEL_COLOR) },
+            ...(ind.rsiShowMiddle ? [{ value: 50, color: levelColor(ind.rsiMiddleColor, RSI_MIDDLE_COLOR) }] : []),
+          ]
+        : [
+            { value: ind.chopLowerThreshold ?? 38.2, color: colorGrid },
+            { value: ind.chopUpperThreshold ?? 61.8, color: colorGrid },
+          ];
     ctx.save();
-    ctx.strokeStyle = colorGrid;
     ctx.setLineDash([2, 3]);
     ctx.lineWidth = 1;
-    for (const level of levels) {
+    for (const { value: level, color: lc } of levels) {
+      ctx.strokeStyle = lc;
       const y = scale(level);
       ctx.beginPath();
       ctx.moveTo(0, y);

@@ -29,6 +29,8 @@ import {
   seriesRefKey,
   styleRuleTemplates,
   styleSeriesOptions,
+  styleLevelOptions,
+  type StyleLevelOption,
   supportsStyleRules,
   type StyleSeriesOption,
 } from "../styleRules";
@@ -96,6 +98,7 @@ export function IndicatorStyleRulesEditor({
   if (!supportsStyleRules(indicator) && linkedCount === 0) return null;
   const rules = indicatorStyleRules(indicator);
   const series = styleSeriesOptions(indicator, indicators);
+  const levels = styleLevelOptions(indicator);
   const templates = styleRuleTemplates(indicator, indicators);
   const update = (id: string, patch: Partial<IndicatorStyleRule>) => onChange(rules.map((r) => (r.id === id ? { ...r, ...patch } : r)));
   const move = (index: number, delta: number) => {
@@ -138,6 +141,7 @@ export function IndicatorStyleRulesEditor({
           count={rules.length}
           ownerId={indicator.id}
           series={series}
+          levels={levels}
           onPatch={(patch) => update(rule.id, patch)}
           onMove={(delta) => move(k, delta)}
           onRemove={() => onChange(rules.filter((r) => r.id !== rule.id))}
@@ -210,6 +214,7 @@ function LinkedStyleRules({
       {groups.map(({ owner, allRules, rules }) => {
         const name = indicatorLabel(owner);
         const series = styleSeriesOptions(owner, indicators);
+        const levels = styleLevelOptions(owner);
         const write = (next: IndicatorStyleRule[]) => onChangeOwnerRules(owner.id, next);
         return (
           <div key={owner.id} className="lq-chart__linked-rules" role="group" aria-label={`Règles liées, définies sur ${name}`}>
@@ -232,6 +237,7 @@ function LinkedStyleRules({
                   count={allRules.length}
                   ownerId={owner.id}
                   series={series}
+                  levels={levels}
                   linkedTo={name}
                   onPatch={(patch) => write(allRules.map((r) => (r.id === rule.id ? { ...r, ...patch } : r)))}
                   onMove={() => {}}
@@ -252,6 +258,7 @@ function RuleRow({
   count,
   ownerId,
   series,
+  levels = [],
   linkedTo,
   onPatch,
   onMove,
@@ -262,6 +269,8 @@ function RuleRow({
   count: number;
   ownerId: string;
   series: StyleSeriesOption[];
+  /** Les lignes de niveau de l'indicateur (seuils, médiane), proposées comme référence et bornes. */
+  levels?: StyleLevelOption[];
   /** Règle liée : le nom de l'indicateur qui la porte (libellés, pas de flèches d'ordre). */
   linkedTo?: string;
   onPatch: (patch: Partial<IndicatorStyleRule>) => void;
@@ -351,6 +360,7 @@ function RuleRow({
           operand={rule.b}
           ownerId={ownerId}
           series={series}
+          levels={levels}
           excludeKey={range ? undefined : aKey}
           ariaLabel={range ? `Première borne de ${ref}` : `Référence de ${ref}`}
           onChange={(b) => onPatch({ b })}
@@ -362,6 +372,7 @@ function RuleRow({
               operand={rule.c ?? { source: "value", value: 0 }}
               ownerId={ownerId}
               series={series}
+              levels={levels}
               ariaLabel={`Deuxième borne de ${ref}`}
               onChange={(c) => onPatch({ c })}
             />
@@ -440,6 +451,7 @@ function OperandPicker({
   operand,
   ownerId,
   series,
+  levels = [],
   excludeKey,
   ariaLabel,
   onChange,
@@ -447,6 +459,7 @@ function OperandPicker({
   operand: StyleRuleOperand;
   ownerId: string;
   series: StyleSeriesOption[];
+  levels?: StyleLevelOption[];
   /** La courbe A : se comparer à elle-même n'a pas de sens. */
   excludeKey?: string;
   ariaLabel: string;
@@ -456,8 +469,9 @@ function OperandPicker({
   const choices = series.filter((s) => s.key !== excludeKey);
   const options: SelectOption[] = [
     { value: VALUE_KEY, label: "Une valeur" },
+    ...levels.map((l) => ({ value: l.key, label: capitalize(l.label) })),
     ...choices.map((s) => ({ value: s.key, label: capitalize(s.label) })),
-    ...(key === VALUE_KEY || choices.some((s) => s.key === key) ? [] : [{ value: key, label: "(Courbe retirée)" }]),
+    ...(key === VALUE_KEY || choices.some((s) => s.key === key) || levels.some((l) => l.key === key) ? [] : [{ value: key, label: "(Courbe retirée)" }]),
   ];
   // Le menu et son champ de valeur restent ensemble quand la phrase passe à la ligne.
   return (
@@ -473,7 +487,7 @@ function OperandPicker({
               if (operand.source !== "value") onChange({ source: "value", value: 0 });
               return;
             }
-            const ref = series.find((s) => s.key === next)?.ref;
+            const ref = levels.find((l) => l.key === next)?.ref ?? series.find((s) => s.key === next)?.ref;
             if (ref) onChange(ref);
           }}
         />

@@ -13,7 +13,16 @@ export interface StyleRuleSeriesRef {
 }
 
 /** Ce à quoi la courbe A est comparée : une autre courbe, ou une valeur fixe (sur l'échelle du panneau). */
-export type StyleRuleOperand = StyleRuleSeriesRef | { source: "value"; value: number };
+export type StyleRuleOperand = StyleRuleSeriesRef | { source: "value"; value: number } | StyleRuleLevelRef;
+
+/** Une ligne de niveau d'un indicateur (RSI : seuil de surachat, de survente, ligne médiane 50 ; CHOP : seuils haut et
+ *  bas, médiane). Lue dans les réglages de l'indicateur à chaque dessin : la règle suit un seuil déplacé. */
+export interface StyleRuleLevelRef {
+  source: "level";
+  level: "upper" | "lower" | "middle";
+  /** L'indicateur dont on lit le niveau. Absent : celui qui porte la règle. */
+  indicatorId?: string;
+}
 
 /** « au-dessus de », « en dessous de », « ≥ », « ≤ », « croise à la hausse », « croise à la baisse », « entre », « hors
  *  de ». Les deux derniers lisent deux bornes (`b` et `c`, dans n'importe quel ordre). */

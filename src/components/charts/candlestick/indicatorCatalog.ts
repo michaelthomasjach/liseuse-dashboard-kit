@@ -486,3 +486,7 @@ export const INDICATOR_COLORS = ["#e0a95c", "#6c87c9", "#7fb37f", "#c96c8f", "#9
 export function defaultIndicatorColor(index: number): string {
   return INDICATOR_COLORS[((index % INDICATOR_COLORS.length) + INDICATOR_COLORS.length) % INDICATOR_COLORS.length];
 }
+
+/** RSI : couleur par défaut des lignes de seuil (gris à 60 %) et de la ligne médiane 50 (gris à 40 %). */
+export const RSI_LEVEL_COLOR = "#787b8699";
+export const RSI_MIDDLE_COLOR = "#787b8666";

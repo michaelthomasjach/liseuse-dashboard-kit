@@ -146,6 +146,13 @@ export interface Indicator {
    *  narrow them for a more sensitive one. */
   rsiOverbought?: number;
   rsiOversold?: number;
+  /** "rsi" only — couleur (opacité comprise, `#rrggbbaa`) des lignes de seuil haut et bas. Absent : gris à 60 %
+   *  (`RSI_LEVEL_COLOR`). */
+  rsiUpperColor?: string;
+  rsiLowerColor?: string;
+  /** "rsi" only — ligne médiane (50) affichée, et sa couleur (opacité comprise). Défaut : masquée, gris à 40 %. */
+  rsiShowMiddle?: boolean;
+  rsiMiddleColor?: string;
   /** "chop" only — same reference-level mechanism as `rsiOverbought`/`rsiOversold` above, against
    *  CHOP's own 0-100 scale. Defaults 61.8/38.2, the conventional Fibonacci-derived thresholds
    *  (above the upper one: choppy/ranging; below the lower one: trending). */

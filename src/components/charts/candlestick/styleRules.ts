@@ -8,6 +8,7 @@ import type {
   StyleRuleCondition,
   StyleRuleEffect,
   StyleRuleOperand,
+  StyleRuleLevelRef,
   StyleRuleSeriesRef,
 } from "./interfaces/IndicatorStyleRule.interface";
 import { indicatorCatalogEntry, indicatorLabel } from "./indicatorCatalog";
@@ -156,7 +157,8 @@ export interface StyleSeriesOption {
 
 /** Clé stable d'une courbe pour un menu : l'indicateur qui porte la règle est noté « self », qu'il soit cité par
  *  son id ou sans id. */
-export function seriesRefKey(ref: StyleRuleSeriesRef, ownerId: string): string {
+export function seriesRefKey(ref: StyleRuleSeriesRef | StyleRuleLevelRef, ownerId: string): string {
+  if (ref.source === "level") return levelKey(ref.level);
   if (ref.source !== "indicator") return ref.source;
   const id = !ref.indicatorId || ref.indicatorId === ownerId ? "self" : ref.indicatorId;
   return `indicator:${id}:${ref.field ?? ""}`;
@@ -289,6 +291,39 @@ export interface StyleRuleTemplate {
   rules: () => IndicatorStyleRule[];
 }
 
+/** Valeur d'un niveau d'un indicateur (voir `StyleRuleLevelRef`) : undefined s'il n'a pas de niveaux. */
+export function indicatorLevelValue(ind: Indicator, level: "upper" | "lower" | "middle"): number | undefined {
+  if (ind.kind === "rsi") return level === "upper" ? (ind.rsiOverbought ?? 70) : level === "lower" ? (ind.rsiOversold ?? 30) : 50;
+  if (ind.kind === "chop") return level === "upper" ? (ind.chopUpperThreshold ?? 61.8) : level === "lower" ? (ind.chopLowerThreshold ?? 38.2) : 50;
+  return undefined;
+}
+
+/** Un niveau proposé dans les menus de référence d'une règle (« le seuil de surachat (70) »). */
+export interface StyleLevelOption {
+  key: string;
+  label: string;
+  ref: StyleRuleOperand;
+}
+
+/** Clé de menu d'un niveau. */
+export function levelKey(level: "upper" | "lower" | "middle"): string {
+  return `level:${level}`;
+}
+
+/** Les niveaux de l'indicateur qui porte la règle, utilisables comme référence ou borne. */
+export function styleLevelOptions(owner: Indicator): StyleLevelOption[] {
+  if (owner.kind !== "rsi" && owner.kind !== "chop") return [];
+  const names =
+    owner.kind === "rsi"
+      ? { upper: "le seuil de surachat", lower: "le seuil de survente", middle: "la ligne médiane" }
+      : { upper: "le seuil haut", lower: "le seuil bas", middle: "la ligne médiane" };
+  return (["upper", "lower", "middle"] as const).map((level) => ({
+    key: levelKey(level),
+    label: `${names[level]} (${String(indicatorLevelValue(owner, level)).replace(".", ",")})`,
+    ref: { source: "level", level },
+  }));
+}
+
 export function styleRuleTemplates(owner: Indicator, indicators: Indicator[]): StyleRuleTemplate[] {
   const options = styleSeriesOptions(owner, indicators);
   if (options.length === 0) return [];
@@ -302,14 +337,13 @@ export function styleRuleTemplates(owner: Indicator, indicators: Indicator[]): S
     options.find((o) => o.key !== aKey);
   const templates: StyleRuleTemplate[] = [];
   if (owner.kind === "rsi" && !owner.sourceId) {
-    const high = owner.rsiOverbought ?? 70;
-    const low = owner.rsiOversold ?? 30;
     templates.push({
       id: "overbought",
       label: "Surachat / survente",
       rules: () => [
-        { id: newRuleId(), a, condition: "above", b: { source: "value", value: high }, effect: "fill", color: RULE_DOWN, opacity: 35 },
-        { id: newRuleId(), a, condition: "below", b: { source: "value", value: low }, effect: "fill", color: RULE_UP, opacity: 35 },
+        // Les seuils de l'indicateur, pas leur valeur du moment : la règle suit un seuil déplacé.
+        { id: newRuleId(), a, condition: "above", b: { source: "level", level: "upper" }, effect: "fill", color: RULE_DOWN, opacity: 35 },
+        { id: newRuleId(), a, condition: "below", b: { source: "level", level: "lower" }, effect: "fill", color: RULE_UP, opacity: 35 },
       ],
     });
   }

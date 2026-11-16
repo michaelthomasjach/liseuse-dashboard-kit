@@ -9,7 +9,7 @@ import { Input } from "../../../forms/Input";
 import { EXPECTED_VOLATILITY_DEFAULTS as EV, EXPECTED_VOLATILITY_TIMEFRAMES } from "../expectedVolatility";
 import { Select, type SelectOption } from "../../../forms/Select";
 import type { Indicator } from "../interfaces/Indicator.interface";
-import { indicatorCatalogEntry, indicatorLabel, isFundamentalKind, defaultIndicatorColor } from "../indicatorCatalog";
+import { indicatorCatalogEntry, indicatorLabel, isFundamentalKind, defaultIndicatorColor, RSI_LEVEL_COLOR, RSI_MIDDLE_COLOR } from "../indicatorCatalog";
 import { toDateInputValue, fromDateInputValue, normalizeValueFormat, formatWithValueFormat } from "../formatting";
 import type { ValueFormat } from "../interfaces/ValueFormat.interface";
 import { supportsProjection, DEFAULT_PROJECTION, type IndicatorProjectionMethod } from "../indicatorProjection";
@@ -526,6 +526,27 @@ export function IndicatorSettingsStyle({ indicatorDraft: d, setIndicatorDraft, i
               ]
             : []
         }
+      />
+    );
+  }
+  if (d.kind === "rsi") {
+    // Lignes de seuil et ligne médiane : couleur et opacité (curseur « Opacité » du sélecteur), médiane à afficher.
+    trace.push(
+      <TraceRow
+        key="rsi-upper"
+        name={`Seuil de surachat (${d.rsiOverbought ?? 70})`}
+        colors={[{ value: d.rsiUpperColor ?? RSI_LEVEL_COLOR, onChange: (c) => set({ rsiUpperColor: c }) }]}
+      />,
+      <TraceRow
+        key="rsi-lower"
+        name={`Seuil de survente (${d.rsiOversold ?? 30})`}
+        colors={[{ value: d.rsiLowerColor ?? RSI_LEVEL_COLOR, onChange: (c) => set({ rsiLowerColor: c }) }]}
+      />,
+      <TraceRow
+        key="rsi-middle"
+        name="Ligne médiane (50)"
+        visible={{ checked: d.rsiShowMiddle ?? false, onChange: (checked) => set({ rsiShowMiddle: checked ? true : undefined }) }}
+        colors={[{ value: d.rsiMiddleColor ?? RSI_MIDDLE_COLOR, onChange: (c) => set({ rsiMiddleColor: c }) }]}
       />
     );
   }

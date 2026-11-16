@@ -3,6 +3,7 @@ import { AAPL_FINANCIALS } from "../../test-data/symbolFinancialsSample";
 import type { ScriptDef } from "./candlestick/interfaces/ScriptDef.interface";
 import type { ChartPaneLayout, ChartTemplate } from "./candlestick/interfaces/ChartTemplate.interface";
 import type { Indicator as DemoIndicator } from "./candlestick/interfaces/Indicator.interface";
+import type { ChartLegendPrefs } from "./candlestick/legendPrefs";
 import type { CandleColorRule } from "./candlestick/interfaces/CandleColorRule.interface";
 import type { ChartCustomToolbar } from "./candlestick/interfaces/ChartCustomToolbar.interface";
 import { SCRIPT_EXAMPLES } from "./candlestick/scripting/scriptExamples";
@@ -996,6 +997,9 @@ export const AllFeatures: Story = {
             showVolume
             defaultVolumePaneState={demoRead<"expanded" | "collapsed" | "hidden">("volume", "hidden")}
             onVolumePaneStateChange={(v) => demoWrite("volume", v)}
+            // Légendes repliées / masquées : retenues comme sur un compte, pour tous les symboles (clés stables).
+            defaultLegendPrefs={demoRead<ChartLegendPrefs>("legend-prefs", {})}
+            onLegendPrefsChange={(prefs) => demoWrite("legend-prefs", prefs)}
             showIndicators
             defaultIndicators={demoState.indicators ?? undefined}
             onIndicatorsChange={(list) => demoWrite("indicators", list)}

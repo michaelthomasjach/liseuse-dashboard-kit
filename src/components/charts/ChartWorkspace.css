@@ -1148,6 +1148,18 @@
   border: 1px solid color-mix(in srgb, var(--lq-color-accent) 55%, transparent);
 }
 
+/* Recherche de symbole ouverte depuis une fenêtre de la grille : un cadre net autour de la fenêtre concernée, pour
+   voir d'un coup d'œil à quel graphique s'appliquera le symbole choisi. */
+.lq-chart-workspace__grid > .lq-chart.lq-chart--symbol-search::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2000;
+  box-sizing: border-box;
+  border: 2px solid var(--lq-color-accent);
+}
+
 /* Colonne pleine hauteur de l'assistant ancré (rempli par un portail, vide quand il est fermé). */
 .lq-chart-workspace__ai-slot {
   display: flex;

@@ -831,6 +831,13 @@ function ChartWorkspaceBody({
     return names;
   }, [watchlists]);
   const panelElements = rawChildren.length === 1 ? Array.from({ length: panels }, () => rawChildren[0]) : rawChildren.slice(0, panels);
+  // Nom de chaque fenêtre dans les fenêtres « Graphiques liés » et « Ouvrir dans » : le nom du symbole (« CAC 40 »),
+  // donné par la fenêtre (`symbolName`, s'il est celui de son symbole) ou les listes de surveillance, sinon le ticker.
+  const panelLabels = panelElements.map((child, i) => {
+    const s = resolvedSymbol(i, child);
+    if (!s) return s;
+    return (child.props.symbol === s ? child.props.symbolName : undefined) ?? watchlistNames.get(s) ?? s;
+  });
   const effectiveFocusedPanelIndex = focusedPanelIndex !== null && focusedPanelIndex < panels ? focusedPanelIndex : null;
   // Outils de l'assistant au niveau de l'espace de travail (comparer_cote_a_cote, creer_un_indice_ratio), donnés au
   // graphique au premier plan avec l'assistant et le pont des outils : les gestes du menu « Disposition des fenêtres »
@@ -1684,7 +1691,7 @@ function ChartWorkspaceBody({
         groups={effectiveGroups}
         onLink={linkPanels}
         onUnlink={unlinkGroup}
-        panelSymbols={panelElements.map((child, i) => resolvedSymbol(i, child))}
+        panelSymbols={panelLabels}
         onSelectedPanelsChange={setSelectedPanels}
       />
 
@@ -1692,7 +1699,7 @@ function ChartWorkspaceBody({
         open={pendingSymbolRow !== null}
         onClose={closeSymbolTargetModal}
         panelCount={panelElements.length}
-        panelSymbols={panelElements.map((child, i) => resolvedSymbol(i, child))}
+        panelSymbols={panelLabels}
         onConfirm={confirmSymbolTarget}
         onSelectedPanelsChange={setSelectedPanels}
         activePanel={effectiveActivePanel}

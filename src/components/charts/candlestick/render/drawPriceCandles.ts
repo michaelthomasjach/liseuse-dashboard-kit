@@ -145,9 +145,13 @@ export function drawPriceCandles(ctx: CanvasRenderingContext2D, params: RenderCa
       // band (globalAlpha 0.08) rather than a fully opaque fill, so gridlines/drawings under it
       // stay legible.
       if (visible.length > 0) {
+        // Onglet « Bougies » → Ligne de clôture : couleur, épaisseur, style, remplissage (uni ou dégradé, ou aucun).
+        const lt = style.chartTypes?.line;
+        const lineColor = lt?.color ?? colorAccent;
         ctx.save();
-        ctx.strokeStyle = colorAccent;
-        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = lineColor;
+        ctx.lineWidth = lt?.width ?? 1.5;
+        ctx.setLineDash(lt?.dash ?? []);
         ctx.beginPath();
         visible.forEach(({ d, i }, k) => {
           const x = zoomedXScale(i + 0.5);
@@ -156,12 +160,24 @@ export function drawPriceCandles(ctx: CanvasRenderingContext2D, params: RenderCa
           else ctx.lineTo(x, y);
         });
         ctx.stroke();
-        if (visible.length > 1) {
+        if (visible.length > 1 && lt?.fill !== false) {
           ctx.lineTo(zoomedXScale(visible[visible.length - 1].i + 0.5), priceHeight);
           ctx.lineTo(zoomedXScale(visible[0].i + 0.5), priceHeight);
           ctx.closePath();
-          ctx.globalAlpha = 0.08;
-          ctx.fillStyle = colorAccent;
+          if (lt?.gradient) {
+            // Du haut de la courbe (son point le plus haut à l'écran) jusqu'au bas du panneau des prix.
+            let top = priceHeight;
+            for (const { d } of visible) top = Math.min(top, zoomedPriceScale(d.close));
+            const gradient = ctx.createLinearGradient(0, Math.max(0, top), 0, priceHeight);
+            gradient.addColorStop(0, lt.top ?? colorWithAlpha(lineColor, 0.35));
+            gradient.addColorStop(1, lt.bottom ?? colorWithAlpha(lineColor, 0));
+            ctx.fillStyle = gradient;
+          } else if (lt?.fillColor) {
+            ctx.fillStyle = lt.fillColor;
+          } else {
+            ctx.globalAlpha = 0.08;
+            ctx.fillStyle = lineColor;
+          }
           ctx.fill();
         }
         ctx.restore();
@@ -179,7 +195,9 @@ export function drawPriceCandles(ctx: CanvasRenderingContext2D, params: RenderCa
         const brick = bricks[bi];
         if (brick.endIndex < rangeStart || brick.startIndex > rangeEnd) continue;
         const up = brick.direction > 0;
-        const hueColor = up ? colorCandleUp : colorCandleDown;
+        const bt = chartDisplayMode === "renko" ? style.chartTypes?.renko : style.chartTypes?.lineBreak;
+        const hueColor = (up ? bt?.up : bt?.down) ?? (up ? colorCandleUp : colorCandleDown);
+        const brickBorder = (up ? bt?.borderUp : bt?.borderDown) ?? hueColor;
         // A brick's own `startIndex` is set to the *previous* brick's `endIndex` (see
         // computeRenkoBricks/computeLineBreakBricks) — both bricks legitimately claim that same
         // candle when it's the one that confirmed the earlier brick AND kicked off this one, so
@@ -203,7 +221,7 @@ export function drawPriceCandles(ctx: CanvasRenderingContext2D, params: RenderCa
 
         ctx.lineWidth = 1;
         ctx.fillStyle = isEink ? (up ? colorBg : colorText) : hueColor;
-        ctx.strokeStyle = isEink ? colorText : hueColor;
+        ctx.strokeStyle = isEink ? colorText : brickBorder;
         ctx.fillRect(rectX, top, rectWidth, rectHeight);
         ctx.strokeRect(rectX, top, rectWidth, rectHeight);
       }
@@ -212,7 +230,9 @@ export function drawPriceCandles(ctx: CanvasRenderingContext2D, params: RenderCa
       // palier intermédiaire. Les couleurs conditionnelles s'appliquent comme au rendu normal. E-ink : une seule encre,
       // le trait prend la couleur du texte ; son palier intermédiaire garde le rendu creux/plein normal.
       const ha = chartDisplayMode === "heikinAshi" ? heikinAshiCandles : null;
-      const hue = (d: Candle) => (isEink ? colorText : d.close >= d.open ? colorCandleUp : colorCandleDown);
+      const typeColors = chartDisplayMode === "bar" ? style.chartTypes?.bar : ha ? style.chartTypes?.ha : undefined;
+      const hue = (d: Candle) =>
+        isEink ? colorText : d.close >= d.open ? (typeColors?.up ?? colorCandleUp) : (typeColors?.down ?? colorCandleDown);
       drawDenseCandles(ctx, density as "thin" | "dense", visible, (i, d) => (ha ? ha[i] : d), zoomedXScale, zoomedPriceScale, {
         body: (i, d) => candleColors?.get(i)?.body ?? hue(ha ? ha[i] : d),
         wick: (i, d) => candleColors?.get(i)?.wick ?? hue(ha ? ha[i] : d),
@@ -226,7 +246,8 @@ export function drawPriceCandles(ctx: CanvasRenderingContext2D, params: RenderCa
       // earn their keep the ticks are what still distinguishes one bar from the next, and a tick
       // rounded away to nothing turns the whole thing into a bare range line.
       const tick = Math.max(1, candleWidth / 2);
-      ctx.lineWidth = wickWidth;
+      const bars = style.chartTypes?.bar;
+      ctx.lineWidth = bars?.width ?? wickWidth;
       // One path per direction, stroked once, rather than one stroke (and one colour change) per
       // bar: the same pixels, a handful of draw calls instead of hundreds — what keeps a pan at
       // full frame rate on a phone.
@@ -248,21 +269,23 @@ export function drawPriceCandles(ctx: CanvasRenderingContext2D, params: RenderCa
         // E-ink has one ink and cannot code direction by hue — but a bar already says its
         // direction by where its two ticks sit, which is exactly why this notation survives on
         // paper. So it simply draws in the text colour there rather than inventing a fallback.
-        ctx.strokeStyle = isEink ? colorText : side ? colorCandleUp : colorCandleDown;
+        ctx.strokeStyle = isEink ? colorText : side ? (bars?.up ?? colorCandleUp) : (bars?.down ?? colorCandleDown);
         ctx.stroke();
       }
-      if (candleColors) drawRecoloredCandles(ctx, params, candleColors, "bar", null, wickWidth);
+      if (candleColors) drawRecoloredCandles(ctx, params, candleColors, "bar", null, bars?.width ?? wickWidth);
     } else {
       // "candle"/"heikinAshi" (same candle body/wick drawing, just fed transformed OHLC values
       // that stay 1:1 with `data`'s own indices).
       const useHA = chartDisplayMode === "heikinAshi" && heikinAshiCandles;
+      // Heikin Ashi : ses propres couleurs (onglet « Bougies »), à défaut celles des bougies.
+      const hat = useHA ? style.chartTypes?.ha : undefined;
       // Grouped by direction: every wick of one colour in a single path, then every body as
       // rectangles of a single path filled and outlined once. Each body still covers its own wick,
       // as when they were drawn candle by candle, but with four draw calls per direction instead of
       // three per candle (and no colour change per candle) — the candles were the largest part of
       // each repaint while panning.
       for (const side of [true, false]) {
-        const hueColor = side ? colorCandleUp : colorCandleDown;
+        const hueColor = (side ? hat?.up : hat?.down) ?? (side ? colorCandleUp : colorCandleDown);
         ctx.beginPath();
         for (const { d: rawD, i } of visible) {
           const d = useHA ? heikinAshiCandles![i] : rawD;
@@ -272,11 +295,11 @@ export function drawPriceCandles(ctx: CanvasRenderingContext2D, params: RenderCa
           ctx.lineTo(cx, zoomedPriceScale(d.low));
         }
         ctx.lineWidth = wickWidth;
-        ctx.strokeStyle = isEink ? colorText : ((side ? style.colorWickUp : style.colorWickDown) ?? hueColor);
+        ctx.strokeStyle = isEink ? colorText : ((side ? (hat?.wickUp ?? style.colorWickUp) : (hat?.wickDown ?? style.colorWickDown)) ?? hueColor);
         ctx.stroke();
       }
       for (const side of [true, false]) {
-        const hueColor = side ? colorCandleUp : colorCandleDown;
+        const hueColor = (side ? hat?.up : hat?.down) ?? (side ? colorCandleUp : colorCandleDown);
         ctx.beginPath();
         for (const { d: rawD, i } of visible) {
           const d = useHA ? heikinAshiCandles![i] : rawD;
@@ -289,7 +312,7 @@ export function drawPriceCandles(ctx: CanvasRenderingContext2D, params: RenderCa
         ctx.lineWidth = 1;
         // E-ink can't code up/down by hue, so it falls back to the standard hollow/filled OHLC convention.
         ctx.fillStyle = isEink ? (side ? colorBg : colorText) : hueColor;
-        ctx.strokeStyle = isEink ? colorText : ((side ? style.colorBorderUp : style.colorBorderDown) ?? hueColor);
+        ctx.strokeStyle = isEink ? colorText : ((side ? (hat?.borderUp ?? style.colorBorderUp) : (hat?.borderDown ?? style.colorBorderDown)) ?? hueColor);
         ctx.fill();
         ctx.stroke();
       }
@@ -1071,4 +1094,17 @@ function drawRecoloredCloseDots(ctx: CanvasRenderingContext2D, params: RenderCan
     ctx.fill();
   }
   ctx.restore();
+}
+
+/** Une couleur CSS (`#rgb`, `#rrggbb`, `rgb()`) à l'opacité `alpha`, pour les arrêts d'un dégradé ; une autre écriture
+ *  reste telle quelle. */
+function colorWithAlpha(color: string, alpha: number): string {
+  const c = color.trim();
+  let m = /^#([0-9a-f])([0-9a-f])([0-9a-f])$/i.exec(c);
+  if (m) return `rgba(${parseInt(m[1] + m[1], 16)}, ${parseInt(m[2] + m[2], 16)}, ${parseInt(m[3] + m[3], 16)}, ${alpha})`;
+  m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i.exec(c);
+  if (m) return `rgba(${parseInt(m[1], 16)}, ${parseInt(m[2], 16)}, ${parseInt(m[3], 16)}, ${alpha})`;
+  m = /^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)/i.exec(c);
+  if (m) return `rgba(${m[1]}, ${m[2]}, ${m[3]}, ${alpha})`;
+  return c;
 }

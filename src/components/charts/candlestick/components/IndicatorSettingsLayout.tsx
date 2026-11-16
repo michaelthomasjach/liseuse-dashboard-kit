@@ -4,7 +4,7 @@ import { DropdownPanel } from "../../../primitives/DropdownPanel";
 import { ChevronDownIcon, HelpIcon } from "../../../icons";
 import type { Indicator } from "../interfaces/Indicator.interface";
 import { indicatorCatalogEntry } from "../indicatorCatalog";
-import { attachedDefaults } from "../attachedIndicators";
+import { ATTACHED_DEFAULT_PERIOD } from "../attachedIndicators";
 import { EXPECTED_VOLATILITY_DEFAULTS } from "../expectedVolatility";
 import "./IndicatorSettings.css";
 
@@ -185,7 +185,7 @@ export function ActionMenu({ label, items }: { label: string; items: { id: strin
  *  valeurs du catalogue. */
 export function indicatorDefaults(ind: Indicator): Indicator {
   const entry = indicatorCatalogEntry(ind);
-  const period = ind.sourceId ? attachedDefaults(ind.kind).period : entry.defaultPeriod;
+  const period = ind.sourceId ? ATTACHED_DEFAULT_PERIOD : entry.defaultPeriod;
   const base: Indicator = {
     id: ind.id,
     kind: ind.kind,

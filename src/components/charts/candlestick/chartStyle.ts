@@ -100,6 +100,45 @@ export interface ChartStyleSettings {
   marginBottom?: number;
   /** Marge à droite de la dernière bougie, en bougies. Absent : celle de l'application (`futureBars`). */
   marginRightBars?: number;
+
+  // ── Bougies (onglet « Bougies » : couleurs de chaque type de graphique) ──
+  /** Heikin Ashi : corps, bordures et mèches en hausse / baisse. Absent : les réglages des bougies. */
+  haUpColor?: string;
+  haDownColor?: string;
+  haBorderUpColor?: string;
+  haBorderDownColor?: string;
+  haWickUpColor?: string;
+  haWickDownColor?: string;
+  /** Barres OHLC : couleurs en hausse / baisse (absent : celles des bougies) et épaisseur du trait (px, absent :
+   *  celle des mèches du thème). */
+  barUpColor?: string;
+  barDownColor?: string;
+  barWidth?: number;
+  /** Ligne de clôture : couleur (absent : l'accent du thème), épaisseur (px, défaut 1,5) et style (défaut plein). */
+  lineColor?: string;
+  lineWidth?: number;
+  lineStyle?: ChartLineStyle;
+  /** Remplissage sous la ligne de clôture. Défaut vrai (la couleur de la ligne à 8 %). */
+  lineFill?: boolean;
+  /** Couleur du remplissage uni, opacité comprise (`#rrggbbaa`). Absent : la couleur de la ligne à 8 %. */
+  lineFillColor?: string;
+  /** Dégradé vertical, du haut de la courbe au bas du panneau : couleur du haut et du bas, opacité comprise. */
+  lineFillGradient?: boolean;
+  lineFillTopColor?: string;
+  lineFillBottomColor?: string;
+  /** Renko et Line Break : briques en hausse / baisse (corps et bordure). Absent : les couleurs des bougies. */
+  renkoUpColor?: string;
+  renkoDownColor?: string;
+  renkoBorderUpColor?: string;
+  renkoBorderDownColor?: string;
+  lineBreakUpColor?: string;
+  lineBreakDownColor?: string;
+  lineBreakBorderUpColor?: string;
+  lineBreakBorderDownColor?: string;
+  /** Renko : période de l'ATR qui fixe la taille des briques (absent : la prop `renkoAtrPeriod`, 14). */
+  renkoAtrPeriod?: number;
+  /** Line Break : nombre de lignes à dépasser pour un renversement. Défaut 3. */
+  lineBreakLines?: number;
   /** Étiquettes de l'axe des prix qui suivent une série (dernier cours, dernière valeur des indicateurs) : fond et
    *  texte. Absent : la couleur de la série en fond, le texte du thème. */
   seriesLabelBg?: string;
@@ -159,6 +198,26 @@ export const MODE_COLOR_KEYS = [
   "scaleTextColor",
   "scaleLineColor",
   "watermarkColor",
+  "haUpColor",
+  "haDownColor",
+  "haBorderUpColor",
+  "haBorderDownColor",
+  "haWickUpColor",
+  "haWickDownColor",
+  "barUpColor",
+  "barDownColor",
+  "lineColor",
+  "lineFillColor",
+  "lineFillTopColor",
+  "lineFillBottomColor",
+  "renkoUpColor",
+  "renkoDownColor",
+  "renkoBorderUpColor",
+  "renkoBorderDownColor",
+  "lineBreakUpColor",
+  "lineBreakDownColor",
+  "lineBreakBorderUpColor",
+  "lineBreakBorderDownColor",
   "seriesLabelBg",
   "seriesLabelText",
   "crosshairPriceLabelBg",

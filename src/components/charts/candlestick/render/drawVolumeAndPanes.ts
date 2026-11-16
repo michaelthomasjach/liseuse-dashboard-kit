@@ -1,9 +1,9 @@
 import type { RenderCandlestickChartParams } from "../interfaces/RenderCandlestickChartParams.interface";
+import { defaultIndicatorColor } from "../indicatorCatalog";
 import type { ChartCanvasStyle } from "../interfaces/ChartCanvasStyle.interface";
 import { snapPixel } from "../drawingGeometry";
 import { lineDashArray, drawDrawingText } from "../drawingRender";
 import { drawOwnPaneIndicatorSeries } from "./drawOwnPaneIndicatorSeries";
-import { drawAttachedLines } from "./drawPriceOverlaySeries";
 import { drawIndicatorStyleRules, type StyleRulePane } from "./drawIndicatorStyleRules";
 import { VOLUME_PANE_ID } from "../attachedIndicators";
 import { candleDensity, contextPixelRatio, drawDenseVolume } from "./denseCandles";
@@ -113,7 +113,20 @@ export function drawVolumeAndPanes(ctx: CanvasRenderingContext2D, params: Render
           ringColor: style.colorBg,
         };
         drawIndicatorStyleRules(ctx, volumeRulePane, "under");
-        drawAttachedLines(ctx, volumeRulePane.members, zoomedXScale, zoomedVolumeScale, indicators);
+        for (const attached of visibleIndicators) {
+          if (attached.indicator.sourceId !== VOLUME_PANE_ID || attached.indicator.hidden || attached.points.length < 2) continue;
+          ctx.strokeStyle = attached.indicator.color ?? defaultIndicatorColor(indicators.indexOf(attached.indicator));
+          ctx.lineWidth = attached.indicator.lineWidth ?? 1.5;
+          ctx.setLineDash([]);
+          ctx.beginPath();
+          attached.points.forEach((p, k) => {
+            const x = zoomedXScale(p.i + 0.5);
+            const y = zoomedVolumeScale(p.value as number);
+            if (k === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+          });
+          ctx.stroke();
+        }
         drawIndicatorStyleRules(ctx, volumeRulePane, "over");
         if (hoverVolumeY !== null) {
           ctx.strokeStyle = colorMuted;
@@ -204,7 +217,20 @@ export function drawVolumeAndPanes(ctx: CanvasRenderingContext2D, params: Render
       drawIndicatorStyleRules(ctx, rulePane, "under");
       drawOwnPaneIndicatorSeries(ctx, ind, points, zoomedXScale, candleWidth, dims.boundedWidth, indicators, scale, style);
       // Indicateurs posés sur ce panneau (une SMA du RSI…) : sur la même échelle, par-dessus sa série.
-      drawAttachedLines(ctx, visibleIndicators.filter((v) => v.indicator.sourceId === ind.id), zoomedXScale, scale, indicators);
+      for (const attached of visibleIndicators) {
+        if (attached.indicator.sourceId !== ind.id || attached.indicator.hidden || attached.points.length < 2) continue;
+        ctx.strokeStyle = attached.indicator.color ?? defaultIndicatorColor(indicators.indexOf(attached.indicator));
+        ctx.lineWidth = attached.indicator.lineWidth ?? 1.5;
+        ctx.setLineDash([]);
+        ctx.beginPath();
+        attached.points.forEach((p, k) => {
+          const x = zoomedXScale(p.i + 0.5);
+          const y = scale(p.value as number);
+          if (k === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+      }
       drawIndicatorStyleRules(ctx, rulePane, "over");
 
       if (hoverIndicatorPaneId === ind.id && hoverIndicatorPaneY !== null) {

@@ -11,9 +11,6 @@ import type { Indicator } from "../interfaces/Indicator.interface";
 import type { IndicatorValue } from "../interfaces/IndicatorValue.interface";
 import { paneValueFormatter } from "../indicatorCatalog";
 import { formatCompactNumber } from "../formatting";
-import { mainValue } from "../attachedIndicators";
-import { UNAVAILABLE_FOR_SYMBOL, unavailableForSymbol } from "../equityOnly";
-import type { IndicatorBand } from "../interfaces/IndicatorBand.interface";
 
 export interface PaneHeadersProps {
   volumeVisible: boolean;
@@ -61,9 +58,6 @@ export interface PaneHeadersProps {
    *  panneau), et la bascule. Gardé avec la disposition des panneaux. */
   legendCollapsed?: Record<string, boolean>;
   onToggleLegendCollapsed?: (paneId: string) => void;
-  /** Voir `CandlestickChartProps.symbolIsEquity` : false, un indicateur réservé aux actions dit « Indisponible pour ce
-   *  symbole » au lieu de sa valeur. */
-  symbolIsEquity?: boolean;
 }
 
 /** Header strip for the volume pane, then one more per "own"-pane indicator (RSI/CHOP/MACD) —
@@ -104,7 +98,6 @@ export function PaneHeaders({
   onToggleVolumeLegend,
   legendCollapsed,
   onToggleLegendCollapsed,
-  symbolIsEquity,
 }: PaneHeadersProps) {
   /** Légende masquée : à la place du nom, de la valeur et des actions, une poignée discrète qui la réaffiche. */
   const legendHandle = (label: string, onShow: (() => void) | undefined) => (
@@ -145,23 +138,14 @@ export function PaneHeaders({
                   const values = indicatorValues.find((v) => v.indicator.id === attached.id)?.values;
                   const value = values?.[hoverIndex !== null ? hoverIndex : data.length - 1];
                   const color = attached.color ?? defaultIndicatorColor(indicators.indexOf(attached));
-                  const main = mainValue(value);
-                  const band = value && typeof value === "object" && "upper" in value && "lower" in value ? (value as IndicatorBand) : null;
-                  const fmt = paneValueFormatter(attached) ?? (sourceId === "volume" ? vFmt : formatCompactNumber);
                   return (
                     <span key={attached.id} className={["lq-chart__pane-attached", attached.hidden && "lq-chart__pane-attached--hidden"].filter(Boolean).join(" ")}>
                       <span className="lq-chart__pane-attached-swatch" style={{ backgroundColor: color }} aria-hidden="true" />
                       <button type="button" className="lq-chart__pane-attached-label" onClick={() => openIndicatorSettings(attached.id)} title="Réglages">
                         {indicatorLabel(attached)}
                       </button>
-                      {/* Des bandes (Bollinger posé) : la médiane, et les trois valeurs au survol. */}
-                      {typeof main === "number" && (
-                        <span
-                          className="lq-chart__pane-attached-value"
-                          title={band ? `haute ${fmt(band.upper)} · médiane ${fmt(band.middle)} · basse ${fmt(band.lower)}` : undefined}
-                        >
-                          {fmt(main)}
-                        </span>
+                      {typeof value === "number" && (
+                        <span className="lq-chart__pane-attached-value">{(paneValueFormatter(attached) ?? (sourceId === "volume" ? vFmt : formatCompactNumber))(value)}</span>
                       )}
                       <button
                         type="button"
@@ -434,8 +418,6 @@ export function PaneHeaders({
             {!ind.paneCollapsed &&
               data.length > 0 &&
               (() => {
-                // Un fondamental resté sur un indice (layout, modèle) : rien de tracé, et la raison ici.
-                if (unavailableForSymbol(ind, symbolIsEquity)) return <span className="lq-chart__symbol-info-ohlc lq-chart__indicator-unavailable">{UNAVAILABLE_FOR_SYMBOL}</span>;
                 const entry = indicatorValues.find((v) => v.indicator.id === ind.id);
                 const value = entry?.values[hoverIndex !== null ? hoverIndex : data.length - 1];
                 if (value === null || value === undefined) return null;

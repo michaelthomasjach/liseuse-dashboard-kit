@@ -119,7 +119,7 @@ import { DEFAULT_DAY_SEPARATORS, type DaySeparatorSettings } from "./candlestick
 import { DaySeparatorsModal } from "./candlestick/components/DaySeparatorsModal";
 import { playAlertSound } from "./candlestick/alertSounds";
 import type { ChartCaptureAction } from "./candlestick/components/ChartHeader";
-import { attachedDefaults, VOLUME_PANE_ID } from "./candlestick/attachedIndicators";
+import { ATTACHED_DEFAULT_PERIOD, VOLUME_PANE_ID } from "./candlestick/attachedIndicators";
 import { CHART_DISPLAY_MODES } from "./candlestick/chartModes";
 import { findTimeframeLabel, flattenTimeframeValues } from "./candlestick/timeframes";
 import { styleOf, toolKeyOf, useDrawingStylePresets, withStyle } from "./candlestick/drawingStylePresets";
@@ -260,7 +260,6 @@ function CandlestickChartBody({
   onAiContext,
   events,
   fundamentals,
-  symbolIsEquity,
   depth,
   tape,
   symbolSearch = false,
@@ -932,7 +931,7 @@ function CandlestickChartBody({
   useEffect(() => {
     if (!indicatorPickerOpen) setPickerTargetPane(null);
   }, [indicatorPickerOpen]);
-  const addIndicatorOnPane = (kind: IndicatorKind, paneId: string) => appendIndicator({ kind, ...attachedDefaults(kind), sourceId: paneId });
+  const addIndicatorOnPane = (kind: IndicatorKind, paneId: string) => appendIndicator({ kind, period: ATTACHED_DEFAULT_PERIOD, sourceId: paneId });
   // App-defined tools (see ChartCustomTool): one armed at a time, disarmed by placing, Escape or its own button.
   const [activeCustomToolId, setActiveCustomToolId] = useState<string | null>(null);
   const activeCustomTool = customTools?.find((t) => t.id === activeCustomToolId) ?? null;
@@ -1419,7 +1418,7 @@ function CandlestickChartBody({
   });
 
   const { chartDisplayMode, setChartDisplayMode, displayModeOpen, setDisplayModeOpen, displayModeAnchorRef, visible, heikinAshiCandles, renkoBricks, lineBreakBricks } =
-    useChartDisplayMode({ data, visibleRange, renkoAtrPeriod, defaultChartDisplayMode });
+    useChartDisplayMode({ data, visibleRange, renkoAtrPeriod: chartStyle.renkoAtrPeriod ?? renkoAtrPeriod, lineBreakLines: chartStyle.lineBreakLines, defaultChartDisplayMode });
   const tpoOverlays = useTpoOverlay(data, visibleRange, indicators);
 
 
@@ -1464,7 +1463,6 @@ function CandlestickChartBody({
   } = useIndicatorPaneScales({
     data,
     fundamentals,
-    symbolIsEquity,
     indicators: combinedIndicators,
     ownPaneIndicators,
     indicatorPaneHeights,
@@ -1819,7 +1817,6 @@ function CandlestickChartBody({
     availableTimeframes: flattenTimeframeValues(timeframes),
     data,
     fundamentals,
-    symbolIsEquity,
     indicators: combinedIndicators,
     indicatorLabel,
     addIndicator,
@@ -2621,7 +2618,6 @@ function CandlestickChartBody({
             statusLine={appliedStyle}
             vFmt={vFmt}
             indicatorLegendValue={indicatorLegendValue}
-            symbolIsEquity={symbolIsEquity}
             symbolInfoHidden={symbolInfoHidden}
             strategyScriptIds={strategyScriptIds}
             onOpenIndicatorCode={openIndicatorCode}
@@ -2786,7 +2782,6 @@ function CandlestickChartBody({
           volumeLegendHidden={volumeLegendHidden}
           onToggleVolumeLegend={toggleVolumeLegend}
           legendCollapsed={legendCollapsed}
-          symbolIsEquity={symbolIsEquity}
           onToggleLegendCollapsed={toggleLegendCollapsed}
         />
         <ChartPlotOverlays
@@ -3099,7 +3094,7 @@ function CandlestickChartBody({
         showVolume={showVolume}
         setVolumePaneState={setVolumePaneState}
         addIndicator={addIndicator}
-        customIndicators={customIndicators} addCustomIndicator={addCustomIndicator} symbolIsEquity={symbolIsEquity}
+        customIndicators={customIndicators} addCustomIndicator={addCustomIndicator}
         scripts={scriptingState.scripts} toggleScriptEnabled={scriptingState.toggleScriptEnabled}
         scriptPlacements={scriptPlacements}
         runningScriptIds={scriptingState.runningScriptIds}

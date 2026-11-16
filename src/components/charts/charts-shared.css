@@ -2650,7 +2650,7 @@ button.lq-chart__legend-item {
   display: flex;
   align-items: center;
   gap: 4px;
-  /* The row is the yardstick for the "Ajouté" tag below, not the viewport: this picker is a wide
+  /* The row is the yardstick for the "Added" tag below, not the viewport: this picker is a wide
      modal on a desktop and a narrow side panel on a phone, and the question the tag has to answer
      is whether *it* has room, not how big the screen is. */
   container-type: inline-size;
@@ -2691,38 +2691,6 @@ button.lq-chart__legend-item {
 .lq-chart__indicator-picker-check {
   display: none;
   color: var(--lq-color-accent);
-}
-
-/* Réservé aux actions (fondamentaux, zone de gap des résultats) sur un indice, un ETF, une devise… : la ligne reste
-   lisible, grisée, avec sa mention ; son bouton est désactivé. */
-.lq-chart__indicator-picker-option--reserved .lq-chart__indicator-picker-select {
-  cursor: not-allowed;
-}
-
-.lq-chart__indicator-picker-option--reserved .lq-chart__indicator-picker-name,
-.lq-chart__indicator-picker-option--reserved .lq-chart__indicators-manager-badge {
-  opacity: 0.45;
-}
-
-.lq-chart__indicator-picker-reserved {
-  padding: 1px 6px;
-  border: 1px solid var(--lq-color-border, currentColor);
-  border-radius: var(--lq-radius-sm);
-  font-size: 0.68rem;
-  line-height: 1.5;
-  white-space: nowrap;
-  color: var(--lq-color-text-muted, inherit);
-}
-
-.lq-chart__indicator-picker-group-reserved {
-  opacity: 0.6;
-  text-transform: none;
-}
-
-/* Légende d'un indicateur réservé aux actions resté sur un symbole qui n'en est pas une. */
-.lq-chart__indicator-unavailable {
-  font-style: italic;
-  opacity: 0.7;
 }
 
 /* 260px is where the name of a typical indicator starts being squeezed by the tag beside it —

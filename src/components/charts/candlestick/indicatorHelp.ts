@@ -110,8 +110,7 @@ export const INDICATOR_HELP_DETAILS: Partial<Record<IndicatorKind, IndicatorHelp
       "Bande haute = Médiane + k × σ",
       "Bande basse = Médiane − k × σ",
     ],
-    formulaNotes:
-      "σ est l'écart-type **de population** (division par N, pas par N − 1). Première valeur à la Nᵉ bougie. Posées sur un panneau (clic droit → « Ajouter un indicateur sur… »), les bandes se calculent de la même façon sur la série de ce panneau — la valeur principale de l'indicateur (RSI, ligne MACD…) ou le volume — au lieu des clôtures.",
+    formulaNotes: "σ est l'écart-type **de population** (division par N, pas par N − 1). Première valeur à la Nᵉ bougie.",
     params: [
       PERIOD(20, "Fenêtre de la moyenne et de l'écart-type."),
       { label: "Écart-type (bandes)", defaultValue: "2", range: "0,5 à 5", description: "Le multiplicateur k : distance des bandes à la médiane, en écarts-types.", tab: "Entrées" },

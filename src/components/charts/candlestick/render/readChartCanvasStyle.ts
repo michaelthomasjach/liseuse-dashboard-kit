@@ -47,6 +47,22 @@ export function applyChartStyle(style: ChartCanvasStyle, chartStyle: ChartStyleS
     colorBg: s.backgroundColor ?? style.colorBg,
     // Mode jour / nuit imposé, différent de celui du site : les couleurs de texte et de grille de ce mode.
     ...(s.surfaceTokens ? { colorText: s.surfaceTokens.text, colorMuted: s.surfaceTokens.muted, colorGrid: s.surfaceTokens.borderSubtle, colorAccent: s.surfaceTokens.accent } : {}),
+    chartTypes: {
+      ha: { up: s.haUpColor, down: s.haDownColor, borderUp: s.haBorderUpColor, borderDown: s.haBorderDownColor, wickUp: s.haWickUpColor, wickDown: s.haWickDownColor },
+      bar: { up: s.barUpColor, down: s.barDownColor, width: s.barWidth },
+      line: {
+        color: s.lineColor,
+        width: s.lineWidth,
+        dash: s.lineStyle ? lineDash(s.lineStyle, []) : undefined,
+        fill: s.lineFill,
+        fillColor: s.lineFillColor,
+        gradient: s.lineFillGradient,
+        top: s.lineFillTopColor,
+        bottom: s.lineFillBottomColor,
+      },
+      renko: { up: s.renkoUpColor, down: s.renkoDownColor, borderUp: s.renkoBorderUpColor, borderDown: s.renkoBorderDownColor },
+      lineBreak: { up: s.lineBreakUpColor, down: s.lineBreakDownColor, borderUp: s.lineBreakBorderUpColor, borderDown: s.lineBreakBorderDownColor },
+    },
     colorWickUp: s.wickUpColor,
     colorWickDown: s.wickDownColor,
     colorBorderUp: s.borderUpColor,

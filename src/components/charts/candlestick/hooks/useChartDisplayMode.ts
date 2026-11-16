@@ -7,13 +7,15 @@ export interface UseChartDisplayModeArgs {
   data: Candle[];
   visibleRange: { start: number; end: number };
   renkoAtrPeriod: number;
+  /** Line Break : lignes à dépasser pour un renversement (défaut 3). */
+  lineBreakLines?: number;
   defaultChartDisplayMode: ChartDisplayMode | undefined;
 }
 
 /** How the price series itself is drawn (candle/line/Heikin Ashi/Renko/Line Break) — see
  *  `CandlestickChartProps.defaultChartDisplayMode`/`onChartDisplayModeChange` — plus every
  *  display-mode-specific transform of `data` the canvas draw effect actually paints from. */
-export function useChartDisplayMode({ data, visibleRange, renkoAtrPeriod, defaultChartDisplayMode }: UseChartDisplayModeArgs) {
+export function useChartDisplayMode({ data, visibleRange, renkoAtrPeriod, lineBreakLines = 3, defaultChartDisplayMode }: UseChartDisplayModeArgs) {
   const [chartDisplayMode, setChartDisplayMode] = useState<ChartDisplayMode>(defaultChartDisplayMode ?? "candle");
   const [displayModeOpen, setDisplayModeOpen] = useState(false);
   const displayModeAnchorRef = useRef<HTMLButtonElement>(null);
@@ -40,8 +42,8 @@ export function useChartDisplayMode({ data, visibleRange, renkoAtrPeriod, defaul
     return computeRenkoBricks(data, brickSize);
   }, [data, chartDisplayMode, renkoAtrPeriod]);
   const lineBreakBricks = useMemo(
-    () => (chartDisplayMode === "lineBreak" ? computeLineBreakBricks(data, 3) : []),
-    [data, chartDisplayMode]
+    () => (chartDisplayMode === "lineBreak" ? computeLineBreakBricks(data, Math.max(2, Math.round(lineBreakLines))) : []),
+    [data, chartDisplayMode, lineBreakLines]
   );
 
   return {

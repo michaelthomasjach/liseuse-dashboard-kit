@@ -431,3 +431,35 @@
 .lq-chart-settings__section--flash .lq-chart-settings__section-title {
   color: var(--lq-color-accent);
 }
+
+/* Onglet « Bougies » : un sous-onglet par type de graphique. */
+.lq-chart-settings__subtabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: var(--lq-space-3, 12px);
+  padding-bottom: var(--lq-space-2, 8px);
+  border-bottom: 1px solid var(--lq-color-border-subtle);
+}
+
+.lq-chart-settings__subtab {
+  padding: 4px 10px;
+  color: var(--lq-color-text-muted);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--lq-radius-sm, 4px);
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.lq-chart-settings__subtab:hover {
+  color: var(--lq-color-text);
+  background: var(--lq-color-hover);
+}
+
+.lq-chart-settings__subtab--active {
+  color: var(--lq-color-text);
+  border-color: var(--lq-color-border);
+  font-weight: var(--lq-font-weight-semibold, 600);
+}

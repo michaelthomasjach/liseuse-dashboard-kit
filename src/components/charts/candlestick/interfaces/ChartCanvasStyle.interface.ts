@@ -40,5 +40,13 @@ export interface ChartCanvasStyle {
   /** Réticule ; absent : `colorMuted`, tirets « 3 3 », 1 px. */
   crosshair?: { color: string; dash: number[]; width: number };
   /** Ligne du dernier prix : forcée visible / masquée (absent : seulement en direct), tirets, couleur. */
+  /** Couleurs propres à chaque type de graphique (onglet « Bougies ») ; absentes : celles des bougies et du thème. */
+  chartTypes?: {
+    ha: { up?: string; down?: string; borderUp?: string; borderDown?: string; wickUp?: string; wickDown?: string };
+    bar: { up?: string; down?: string; width?: number };
+    line: { color?: string; width?: number; dash?: number[]; fill?: boolean; fillColor?: string; gradient?: boolean; top?: string; bottom?: string };
+    renko: { up?: string; down?: string; borderUp?: string; borderDown?: string };
+    lineBreak: { up?: string; down?: string; borderUp?: string; borderDown?: string };
+  };
   lastPriceLine?: { visible?: boolean; dash: number[]; color?: string; upColor?: string; downColor?: string };
 }

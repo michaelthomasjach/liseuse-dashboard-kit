@@ -58,11 +58,6 @@ export interface CustomIndicatorDef {
    *  dividend yield, income tax, or any other metric not already in the built-in eight, but just
    *  as well a proprietary section of your own. */
   section: string;
-  /** N'a de sens que pour une action (une entreprise qui publie des résultats : une zone de gap des résultats, un
-   *  fondamental de l'application). Sur un symbole qui n'en est pas une (`CandlestickChartProps.symbolIsEquity`
-   *  à false), il est grisé dans le catalogue avec la mention « Réservé aux actions », et un exemplaire déjà présent
-   *  ne trace rien (sa légende dit « Indisponible pour ce symbole »). */
-  equityOnly?: boolean;
   /** "overlay": drawn on the price section itself, in the top-left legend — the same slot
    *  SMA/EMA/Bollinger use. "own": its own sub-pane below price/volume, with a pane header,
    *  like RSI/CHOP/MACD/the built-in fundamentals. */

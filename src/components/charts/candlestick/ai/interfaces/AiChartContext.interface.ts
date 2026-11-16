@@ -25,8 +25,6 @@ export interface AiChartContext {
   availableTimeframes: string[];
   data: Candle[];
   fundamentals: FundamentalDataPoint[] | undefined;
-  /** Voir `CandlestickChartProps.symbolIsEquity` : false, les indicateurs réservés aux actions ne s'ajoutent pas. */
-  symbolIsEquity?: boolean;
 
   indicators: Indicator[];
   indicatorCatalog: IndicatorCatalogEntry[];

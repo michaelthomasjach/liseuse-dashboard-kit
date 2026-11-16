@@ -18,7 +18,7 @@ import { hasCandleColorOverrides, resetCandleColors } from "../candleColorOverri
 import "./ChartSettingsDialog.css";
 
 /** Les pages de la fenêtre, dans l'ordre de la navigation. */
-export type ChartSettingsPage = "symbole" | "ligne-etat" | "echelles" | "toile" | "evenements" | "integration";
+export type ChartSettingsPage = "symbole" | "bougies" | "ligne-etat" | "echelles" | "toile" | "evenements" | "integration";
 
 /** Échelle de l'axe des prix (même union que `PriceScaleMode`). */
 type PriceScale = "linear" | "log" | "percent";
@@ -315,6 +315,7 @@ export function ChartSettingsDialog(props: ChartSettingsDialogProps) {
 
   const pages: { id: ChartSettingsPage; label: string }[] = [
     { id: "symbole", label: "Symbole" },
+    { id: "bougies", label: "Bougies" },
     { id: "ligne-etat", label: "Ligne d'état" },
     { id: "echelles", label: "Échelles et lignes" },
     { id: "toile", label: "Toile" },
@@ -365,6 +366,7 @@ export function ChartSettingsDialog(props: ChartSettingsDialogProps) {
               </button>
             )}
             {current === "symbole" && SymbolPage(props)}
+            {current === "bougies" && <ChartTypeSettings {...props} theme={theme} mode={props.chartDisplayMode} />}
             {current === "ligne-etat" && StatusLinePage(props)}
             {current === "echelles" && ScalesPage(props)}
             {current === "toile" && CanvasPage({ ...props, themeColors })}
@@ -379,7 +381,7 @@ export function ChartSettingsDialog(props: ChartSettingsDialogProps) {
   // ── Pages ──
 
   function SymbolPage(p: ChartSettingsDialogProps) {
-    return <ChartSymbolSettings {...p} theme={theme} />;
+    return <ChartSymbolSettings {...p} theme={theme} onOpenCandleColors={() => setPage("bougies")} />;
   }
 
   function StatusLinePage(p: ChartSettingsDialogProps) {
@@ -888,6 +890,8 @@ export type ChartSymbolSettingsProps = Pick<
   /** « params » : le tracé (type de bougies, onde) ; « style » : les couleurs (bougies, couleurs conditionnelles).
    *  Absent : tout, comme la page « Symbole » des paramètres système. */
   part?: "params" | "style";
+  /** Page « Symbole » des paramètres système : ouvre l'onglet « Bougies », où sont les couleurs de chaque type. */
+  onOpenCandleColors?: () => void;
 };
 
 /**
@@ -896,14 +900,7 @@ export type ChartSymbolSettingsProps = Pick<
  * symbole des paramètres du graphique (rubriques Paramètres / Style, voir `part`).
  */
 export function ChartSymbolSettings(p: ChartSymbolSettingsProps) {
-  const { theme, chartStyle } = p;
-  const set = (patch: Partial<ChartStyleSettings>) => {
-    const next: ChartStyleSettings = { ...chartStyle, ...patch };
-    for (const key of Object.keys(next) as (keyof ChartStyleSettings)[]) if (next[key] === undefined) delete next[key];
-    p.setChartStyle(next);
-  };
-  const up = p.upColorOverride ?? theme.up;
-  const down = p.downColorOverride ?? theme.down;
+  const { theme } = p;
   const showParams = p.part !== "style";
   const showStyle = p.part !== "params";
   const type = (
@@ -930,54 +927,23 @@ export function ChartSymbolSettings(p: ChartSymbolSettingsProps) {
       <Toggle checked={p.closePulseVisible} onChange={() => p.setClosePulseVisible(!p.closePulseVisible)} ariaLabel="Onde sur le dernier point de la ligne" disabled={p.chartDisplayMode !== "line"} />
     </Row>
   );
-  const colors = (
-    <>
-      {theme.isEink && (
-        <p className="lq-chart-settings__note">
-          La palette E-ink affiche les bougies en creux ou plein plutôt qu'en couleur : les couleurs ci-dessous ne changent rien tant qu'elle est active.
-        </p>
-      )}
-      <Row label="Corps" hint="Hausse · baisse">
-        <UpDownPickers label="Corps des bougies" up={up} down={down} onUp={p.setUpColorOverride} onDown={p.setDownColorOverride} disabled={theme.isEink} />
-      </Row>
-      <Row label="Bordures" hint="Hausse · baisse">
-        <UpDownPickers
-          label="Bordures des bougies"
-          up={chartStyle.borderUpColor ?? up}
-          down={chartStyle.borderDownColor ?? down}
-          onUp={(c) => set({ borderUpColor: c })}
-          onDown={(c) => set({ borderDownColor: c })}
-          disabled={theme.isEink}
-        />
-      </Row>
-      <Row label="Mèches" hint="Hausse · baisse">
-        <UpDownPickers
-          label="Mèches des bougies"
-          up={chartStyle.wickUpColor ?? up}
-          down={chartStyle.wickDownColor ?? down}
-          onUp={(c) => set({ wickUpColor: c })}
-          onDown={(c) => set({ wickDownColor: c })}
-          disabled={theme.isEink}
-        />
-      </Row>
-      {hasCandleColorOverrides(p) && (
-        <div className="lq-chart-settings__row lq-chart-settings__row--action">
-          <button type="button" className="lq-chart-settings__link" onClick={() => resetCandleColors(p)}>
-            Revenir aux couleurs du thème
-          </button>
-        </div>
-      )}
-    </>
-  );
+  // Les couleurs : le composant de l'onglet « Bougies », réduit au type affiché (un seul réglage par couleur).
+  const colors = <ChartTypeSettings {...p} theme={theme} mode={p.chartDisplayMode} single />;
   // Page « Symbole » des paramètres système : une section « Bougies », comme avant ; l'onglet du symbole sépare le
   // tracé (Paramètres) des couleurs (Style).
   if (p.part === undefined) {
     return (
       <>
-        <Section title="Bougies">
+        <Section title="Type de graphique">
           {type}
-          {colors}
           {pulse}
+          {p.onOpenCandleColors && (
+            <Row label="Couleurs" hint="Celles de chaque type de graphique">
+              <button type="button" className="lq-chart-settings__link" onClick={p.onOpenCandleColors}>
+                Ouvrir l'onglet Bougies
+              </button>
+            </Row>
+          )}
         </Section>
         {p.showCandleColorRules && (
           <section className="lq-chart-settings__section">
@@ -995,12 +961,270 @@ export function ChartSymbolSettings(p: ChartSymbolSettingsProps) {
           {pulse}
         </Section>
       )}
-      {showStyle && <Section title="Bougies">{colors}</Section>}
+      {showStyle && colors}
       {showStyle && p.showCandleColorRules && (
         <section className="lq-chart-settings__section">
           <CandleColorRulesEditor rules={p.candleColorRules} indicators={p.candleRuleIndicators} onChange={p.setCandleColorRules} />
         </section>
       )}
+    </div>
+  );
+}
+
+/** Les sous-onglets de l'onglet « Bougies » : un par type de graphique du kit, dans l'ordre du sélecteur de type. */
+const CHART_TYPE_TABS = CHART_DISPLAY_MODES.map((m) => ({ mode: m.mode, label: m.label }));
+
+/** Les réglages de couleur propres à chaque type (pour « Revenir aux couleurs du thème » d'un sous-onglet). */
+const CHART_TYPE_KEYS: Record<Exclude<ChartDisplayMode, "candle">, (keyof ChartStyleSettings)[]> = {
+  heikinAshi: ["haUpColor", "haDownColor", "haBorderUpColor", "haBorderDownColor", "haWickUpColor", "haWickDownColor"],
+  bar: ["barUpColor", "barDownColor", "barWidth"],
+  line: ["lineColor", "lineWidth", "lineStyle", "lineFill", "lineFillColor", "lineFillGradient", "lineFillTopColor", "lineFillBottomColor"],
+  renko: ["renkoUpColor", "renkoDownColor", "renkoBorderUpColor", "renkoBorderDownColor", "renkoAtrPeriod"],
+  lineBreak: ["lineBreakUpColor", "lineBreakDownColor", "lineBreakBorderUpColor", "lineBreakBorderDownColor", "lineBreakLines"],
+};
+
+const BAR_WIDTH_OPTIONS = ["1", "2", "3", "4"].map((v) => ({ value: v, label: `${v} px` }));
+
+export type ChartTypeSettingsProps = Pick<
+  ChartSettingsDialogProps,
+  "theme" | "chartStyle" | "setChartStyle" | "upColorOverride" | "setUpColorOverride" | "downColorOverride" | "setDownColorOverride"
+> & {
+  /** Le type affiché à l'ouverture (celui du graphique). */
+  mode: ChartDisplayMode;
+  /** Vrai : seulement ce type, sans les sous-onglets (onglet du symbole des paramètres du graphique). */
+  single?: boolean;
+};
+
+/**
+ * Les couleurs de chaque type de graphique : bougies, barres, ligne de clôture, Heikin Ashi, Renko, Line Break. Onglet
+ * « Bougies » des paramètres système (un sous-onglet par type, celui du graphique ouvert d'abord), et rubrique Style de
+ * l'onglet du symbole (le type affiché seul) : un seul composant, donc jamais deux réglages pour une même couleur.
+ */
+export function ChartTypeSettings(p: ChartTypeSettingsProps) {
+  const { theme, chartStyle } = p;
+  const [tab, setTab] = useState<ChartDisplayMode>(p.mode);
+  const current = p.single ? p.mode : tab;
+  // L'accent du thème : la couleur de la ligne de clôture tant qu'elle n'est pas réglée.
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [accent, setAccent] = useState("#6c87c9");
+  useEffect(() => {
+    if (!rootRef.current) return;
+    const v = getComputedStyle(rootRef.current).getPropertyValue("--lq-color-accent").trim();
+    if (/^#[0-9a-f]{6}$/i.test(v)) setAccent(v);
+  }, []);
+  const set = (patch: Partial<ChartStyleSettings>) => {
+    const next: ChartStyleSettings = { ...chartStyle, ...patch };
+    for (const key of Object.keys(next) as (keyof ChartStyleSettings)[]) if (next[key] === undefined) delete next[key];
+    p.setChartStyle(next);
+  };
+  const up = p.upColorOverride ?? theme.up;
+  const down = p.downColorOverride ?? theme.down;
+  const eink = theme.isEink && current !== "line";
+  const numberRow = (key: "renkoAtrPeriod" | "lineBreakLines", label: string, hint: string, def: number, min: number, max: number) => (
+    <Row label={label} hint={hint}>
+      <span className="lq-chart-settings__number">
+        <input
+          type="number"
+          min={min}
+          max={max}
+          step={1}
+          value={chartStyle[key] ?? def}
+          onChange={(e) => {
+            const n = Math.round(Number(e.target.value));
+            if (!Number.isFinite(n)) return;
+            const v = Math.max(min, Math.min(max, n));
+            set({ [key]: v === def ? undefined : v });
+          }}
+          aria-label={label}
+        />
+      </span>
+    </Row>
+  );
+  const bricks = (prefix: "renko" | "lineBreak", noun: string) => {
+    const k = (s: string) => `${prefix}${s}` as keyof ChartStyleSettings;
+    const body = (side: "Up" | "Down") => (chartStyle[k(`${side}Color`)] as string | undefined) ?? (side === "Up" ? up : down);
+    return (
+      <>
+        <Row label="Corps" hint="Hausse · baisse">
+          <UpDownPickers label={`Corps des ${noun}`} up={body("Up")} down={body("Down")} onUp={(c) => set({ [k("UpColor")]: c })} onDown={(c) => set({ [k("DownColor")]: c })} disabled={eink} />
+        </Row>
+        <Row label="Bordures" hint="Hausse · baisse">
+          <UpDownPickers
+            label={`Bordures des ${noun}`}
+            up={(chartStyle[k("BorderUpColor")] as string | undefined) ?? body("Up")}
+            down={(chartStyle[k("BorderDownColor")] as string | undefined) ?? body("Down")}
+            onUp={(c) => set({ [k("BorderUpColor")]: c })}
+            onDown={(c) => set({ [k("BorderDownColor")]: c })}
+            disabled={eink}
+          />
+        </Row>
+      </>
+    );
+  };
+  const lineColor = chartStyle.lineColor ?? accent;
+  const fill = chartStyle.lineFill ?? true;
+  const gradient = chartStyle.lineFillGradient ?? false;
+  const panel = (() => {
+    switch (current) {
+      case "candle":
+        return (
+          <>
+            <Row label="Corps" hint="Hausse · baisse">
+              <UpDownPickers label="Corps des bougies" up={up} down={down} onUp={p.setUpColorOverride} onDown={p.setDownColorOverride} disabled={eink} />
+            </Row>
+            <Row label="Bordures" hint="Hausse · baisse">
+              <UpDownPickers label="Bordures des bougies" up={chartStyle.borderUpColor ?? up} down={chartStyle.borderDownColor ?? down} onUp={(c) => set({ borderUpColor: c })} onDown={(c) => set({ borderDownColor: c })} disabled={eink} />
+            </Row>
+            <Row label="Mèches" hint="Hausse · baisse">
+              <UpDownPickers label="Mèches des bougies" up={chartStyle.wickUpColor ?? up} down={chartStyle.wickDownColor ?? down} onUp={(c) => set({ wickUpColor: c })} onDown={(c) => set({ wickDownColor: c })} disabled={eink} />
+            </Row>
+          </>
+        );
+      case "heikinAshi": {
+        const haUp = chartStyle.haUpColor ?? up;
+        const haDown = chartStyle.haDownColor ?? down;
+        return (
+          <>
+            <Row label="Corps" hint="Hausse · baisse">
+              <UpDownPickers label="Corps Heikin Ashi" up={haUp} down={haDown} onUp={(c) => set({ haUpColor: c })} onDown={(c) => set({ haDownColor: c })} disabled={eink} />
+            </Row>
+            <Row label="Bordures" hint="Hausse · baisse">
+              <UpDownPickers
+                label="Bordures Heikin Ashi"
+                up={chartStyle.haBorderUpColor ?? chartStyle.borderUpColor ?? haUp}
+                down={chartStyle.haBorderDownColor ?? chartStyle.borderDownColor ?? haDown}
+                onUp={(c) => set({ haBorderUpColor: c })}
+                onDown={(c) => set({ haBorderDownColor: c })}
+                disabled={eink}
+              />
+            </Row>
+            <Row label="Mèches" hint="Hausse · baisse">
+              <UpDownPickers
+                label="Mèches Heikin Ashi"
+                up={chartStyle.haWickUpColor ?? chartStyle.wickUpColor ?? haUp}
+                down={chartStyle.haWickDownColor ?? chartStyle.wickDownColor ?? haDown}
+                onUp={(c) => set({ haWickUpColor: c })}
+                onDown={(c) => set({ haWickDownColor: c })}
+                disabled={eink}
+              />
+            </Row>
+          </>
+        );
+      }
+      case "bar":
+        return (
+          <>
+            <Row label="Barres" hint="Hausse · baisse">
+              <UpDownPickers label="Barres" up={chartStyle.barUpColor ?? up} down={chartStyle.barDownColor ?? down} onUp={(c) => set({ barUpColor: c })} onDown={(c) => set({ barDownColor: c })} disabled={eink} />
+            </Row>
+            <Row label="Épaisseur">
+              <Select<string>
+                size="small"
+                className="lq-chart-settings__select"
+                options={BAR_WIDTH_OPTIONS}
+                value={String(chartStyle.barWidth ?? 1)}
+                onChange={(v) => set({ barWidth: v === "1" ? undefined : Number(v) })}
+                ariaLabel="Épaisseur des barres"
+              />
+            </Row>
+          </>
+        );
+      case "line":
+        return (
+          <>
+            <Row label="Ligne" hint="Style, couleur et épaisseur">
+              {lineStyleSelect(chartStyle.lineStyle ?? "solid", (v) => set({ lineStyle: v === "solid" ? undefined : v }), "Style de la ligne de clôture")}
+              <ColorPicker
+                value={lineColor}
+                onChange={(c) => set({ lineColor: c })}
+                thickness={chartStyle.lineWidth ?? 1.5}
+                thicknessOptions={[1, 1.5, 2, 3, 4]}
+                onThicknessChange={(w) => set({ lineWidth: w === 1.5 ? undefined : w })}
+                aria-label="Couleur de la ligne de clôture"
+              />
+            </Row>
+            <Row label="Remplissage sous la courbe" hint={fill ? undefined : "Une simple ligne, sans aire"}>
+              <Toggle checked={fill} onChange={() => set({ lineFill: fill ? false : undefined })} ariaLabel="Remplissage sous la ligne de clôture" />
+            </Row>
+            <Row label="Type de remplissage" disabled={!fill}>
+              <Select<"solid" | "gradient">
+                size="small"
+                className="lq-chart-settings__select"
+                options={[
+                  { value: "solid", label: "Uni" },
+                  { value: "gradient", label: "Dégradé" },
+                ]}
+                value={gradient ? "gradient" : "solid"}
+                onChange={(v) => set({ lineFillGradient: v === "gradient" ? true : undefined })}
+                ariaLabel="Type de remplissage"
+                disabled={!fill}
+              />
+              {gradient ? (
+                <>
+                  <ColorPicker value={chartStyle.lineFillTopColor ?? withAlpha(lineColor, 0.35)} onChange={(c) => set({ lineFillTopColor: c })} disabled={!fill} aria-label="Couleur du haut du dégradé de la ligne" title="Haut" />
+                  <ColorPicker value={chartStyle.lineFillBottomColor ?? withAlpha(lineColor, 0)} onChange={(c) => set({ lineFillBottomColor: c })} disabled={!fill} aria-label="Couleur du bas du dégradé de la ligne" title="Bas" />
+                </>
+              ) : (
+                <ColorPicker value={chartStyle.lineFillColor ?? withAlpha(lineColor, 0.08)} onChange={(c) => set({ lineFillColor: c })} disabled={!fill} aria-label="Couleur du remplissage de la ligne" />
+              )}
+            </Row>
+          </>
+        );
+      case "renko":
+        return (
+          <>
+            {bricks("renko", "briques Renko")}
+            {numberRow("renkoAtrPeriod", "Période de l'ATR", "Taille des briques : l'ATR sur cette période", 14, 1, 200)}
+          </>
+        );
+      case "lineBreak":
+        return (
+          <>
+            {bricks("lineBreak", "lignes Line Break")}
+            {numberRow("lineBreakLines", "Nombre de lignes", "Lignes à dépasser pour un renversement", 3, 2, 10)}
+          </>
+        );
+    }
+  })();
+  const touched =
+    current === "candle" ? hasCandleColorOverrides(p) : CHART_TYPE_KEYS[current].some((k) => chartStyle[k] !== undefined);
+  const reset = () => {
+    if (current === "candle") return resetCandleColors(p);
+    set(Object.fromEntries(CHART_TYPE_KEYS[current].map((k) => [k, undefined])) as Partial<ChartStyleSettings>);
+  };
+  return (
+    <div ref={rootRef} className="lq-chart-settings__chart-types">
+      {!p.single && (
+        <div className="lq-chart-settings__subtabs" role="tablist" aria-label="Types de graphique">
+          {CHART_TYPE_TABS.map((t) => (
+            <button
+              key={t.mode}
+              type="button"
+              role="tab"
+              aria-selected={t.mode === current}
+              className={["lq-chart-settings__subtab", t.mode === current && "lq-chart-settings__subtab--active"].filter(Boolean).join(" ")}
+              onClick={() => setTab(t.mode)}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      )}
+      <Section title={CHART_TYPE_TABS.find((t) => t.mode === current)?.label ?? "Bougies"}>
+        {eink && (
+          <p className="lq-chart-settings__note">
+            La palette E-ink affiche ce type en creux ou plein plutôt qu'en couleur : les couleurs ci-dessous ne changent rien tant qu'elle est active.
+          </p>
+        )}
+        {panel}
+        {touched && (
+          <div className="lq-chart-settings__row lq-chart-settings__row--action">
+            <button type="button" className="lq-chart-settings__link" onClick={reset}>
+              Revenir aux couleurs du thème
+            </button>
+          </div>
+        )}
+      </Section>
     </div>
   );
 }

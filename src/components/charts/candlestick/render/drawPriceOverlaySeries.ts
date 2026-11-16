@@ -2,7 +2,6 @@ import type { RenderCandlestickChartParams } from "../interfaces/RenderCandlesti
 import type { ChartCanvasStyle } from "../interfaces/ChartCanvasStyle.interface";
 import type { Indicator } from "../interfaces/Indicator.interface";
 import type { IndicatorValue } from "../interfaces/IndicatorValue.interface";
-import type { IndicatorBand } from "../interfaces/IndicatorBand.interface";
 import { defaultIndicatorColor } from "../indicatorCatalog";
 import { VOLUME_PANE_ID } from "../attachedIndicators";
 import { drawOwnPaneIndicatorSeries } from "./drawOwnPaneIndicatorSeries";
@@ -14,20 +13,13 @@ export const VOLUME_OVERLAY_FRACTION = 0.22;
 
 type Member = { indicator: Indicator; points: { i: number; value: IndicatorValue }[] };
 
-/** Trace les indicateurs posés sur une série (une SMA du volume, des bandes de Bollinger du RSI…) sur l'échelle de cette
- *  série. Des bandes se dessinent comme le Bollinger des prix : fond translucide entre elles, bandes haute et basse fines,
- *  médiane un peu plus épaisse. */
-export function drawAttachedLines(ctx: CanvasRenderingContext2D, attached: Member[], xAt: (i: number) => number, yAt: (v: number) => number, indicators: Indicator[]): void {
+/** Trace les moyennes posées sur une série (une SMA du volume, du RSI…) sur l'échelle de cette série. */
+function drawAttachedLines(ctx: CanvasRenderingContext2D, attached: Member[], xAt: (i: number) => number, yAt: (v: number) => number, indicators: Indicator[]): void {
   for (const { indicator, points } of attached) {
     if (indicator.hidden || points.length < 2) continue;
-    const color = indicator.color ?? defaultIndicatorColor(indicators.indexOf(indicator));
-    ctx.strokeStyle = color;
+    ctx.strokeStyle = indicator.color ?? defaultIndicatorColor(indicators.indexOf(indicator));
     ctx.lineWidth = indicator.lineWidth ?? 1.5;
     ctx.setLineDash([]);
-    if (typeof points[0].value !== "number") {
-      drawAttachedBand(ctx, points as { i: number; value: IndicatorBand }[], xAt, yAt, color, indicator.lineWidth ?? 1);
-      continue;
-    }
     ctx.beginPath();
     points.forEach((p, k) => {
       const x = xAt(p.i + 0.5);
@@ -37,32 +29,6 @@ export function drawAttachedLines(ctx: CanvasRenderingContext2D, attached: Membe
     });
     ctx.stroke();
   }
-}
-
-function drawAttachedBand(ctx: CanvasRenderingContext2D, points: { i: number; value: IndicatorBand }[], xAt: (i: number) => number, yAt: (v: number) => number, color: string, lineWidth: number): void {
-  const line = (key: keyof IndicatorBand) => {
-    ctx.beginPath();
-    points.forEach((p, k) => {
-      if (k === 0) ctx.moveTo(xAt(p.i + 0.5), yAt(p.value[key]));
-      else ctx.lineTo(xAt(p.i + 0.5), yAt(p.value[key]));
-    });
-  };
-  ctx.save();
-  ctx.globalAlpha = 0.08;
-  ctx.fillStyle = color;
-  line("upper");
-  for (let k = points.length - 1; k >= 0; k--) ctx.lineTo(xAt(points[k].i + 0.5), yAt(points[k].value.lower));
-  ctx.closePath();
-  ctx.fill();
-  ctx.restore();
-  ctx.lineWidth = lineWidth;
-  line("upper");
-  ctx.stroke();
-  line("lower");
-  ctx.stroke();
-  ctx.lineWidth = lineWidth + 0.5;
-  line("middle");
-  ctx.stroke();
 }
 
 /**
@@ -78,10 +44,7 @@ export function drawVolumeOnPrice(ctx: CanvasRenderingContext2D, params: RenderC
   let max = 0;
   for (const { d } of visible) if ((d.volume ?? 0) > max) max = d.volume ?? 0;
   const attached = visibleIndicators.filter((v) => v.indicator.sourceId === VOLUME_PANE_ID);
-  for (const a of attached) for (const p of a.points) {
-    const top = typeof p.value === "number" ? p.value : (p.value as IndicatorBand).upper;
-    if (typeof top === "number" && top > max) max = top;
-  }
+  for (const a of attached) for (const p of a.points) if (typeof p.value === "number" && p.value > max) max = p.value;
   if (max <= 0) return;
   const band = priceHeight * VOLUME_OVERLAY_FRACTION;
   const yAt = (v: number) => priceHeight - (Math.max(0, v) / max) * band;

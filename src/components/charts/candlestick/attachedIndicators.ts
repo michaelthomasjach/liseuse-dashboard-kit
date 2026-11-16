@@ -1,27 +1,19 @@
 import type { Indicator } from "./interfaces/Indicator.interface";
 import type { IndicatorValue } from "./interfaces/IndicatorValue.interface";
 import type { IndicatorKind } from "./interfaces/IndicatorKind.interface";
-import type { IndicatorBand } from "./interfaces/IndicatorBand.interface";
 
 /**
  * Indicateurs posés sur le panneau d'un autre (clic droit sur un panneau : une SMA du RSI, une EMA de la MACD…) :
  * calculés sur la série de ce panneau au lieu des prix, dessinés dans ce panneau, légendés dans son en-tête. Un
- * indicateur attaché porte `sourceId` (l'id de l'indicateur du panneau) ; ces moyennes, et les bandes de Bollinger
- * (une SMA et ses écarts-types), sont les seuls à avoir un sens sur une série qui n'est pas un cours (pas de plus haut,
- * de plus bas ni de volume).
+ * indicateur attaché porte `sourceId` (l'id de l'indicateur du panneau) ; ces moyennes sont les seules à avoir un sens
+ * sur une série qui n'est pas un cours (pas de plus haut, de plus bas ni de volume).
  */
 export const ATTACHABLE_KINDS: { kind: IndicatorKind; label: string }[] = [
   { kind: "sma", label: "moyenne mobile simple (SMA)" },
   { kind: "ema", label: "moyenne mobile exponentielle (EMA)" },
   { kind: "wma", label: "moyenne mobile pondérée (WMA)" },
-  { kind: "bollinger", label: "bandes de Bollinger" },
 ];
 export const ATTACHED_DEFAULT_PERIOD = 14;
-/** Les réglages d'un indicateur posé à son ajout : période 14 pour les moyennes ; Bollinger garde ceux du catalogue
- *  (20 bougies, 2 écarts-types), comme sur les prix. */
-export function attachedDefaults(kind: IndicatorKind): { period: number; stdDev?: number } {
-  return kind === "bollinger" ? { period: 20, stdDev: 2 } : { period: ATTACHED_DEFAULT_PERIOD };
-}
 /** `sourceId` d'une moyenne posée sur le panneau Volume (clic droit sur le volume). */
 export const VOLUME_PANE_ID = "volume";
 
@@ -95,30 +87,6 @@ export function movingAverageOn(kind: IndicatorKind, period: number, series: (nu
   return out;
 }
 
-/** Bandes de Bollinger sur une série qui peut avoir des trous : la SMA de la fenêtre au centre, et à `stdDev`
- *  écarts-types (de population, comme le Bollinger des prix) de part et d'autre ; null tant que la fenêtre n'est pas
- *  pleine de valeurs. */
-export function bollingerOn(period: number, stdDev: number, series: (number | null)[]): (IndicatorBand | null)[] {
-  const n = Math.max(1, Math.round(period));
-  const middle = movingAverageOn("sma", n, series);
-  return middle.map((m, i) => {
-    if (m === null) return null;
-    let sq = 0;
-    for (let j = 0; j < n; j++) {
-      const d = (series[i - j] as number) - m;
-      sq += d * d;
-    }
-    const width = stdDev * Math.sqrt(sq / n);
-    return { upper: m + width, middle: m, lower: m - width };
-  });
-}
-
-/** Un indicateur posé, calculé sur la série de son panneau. */
-function attachedOn(indicator: Indicator, series: (number | null)[]): (IndicatorValue | null)[] {
-  if (indicator.kind === "bollinger") return bollingerOn(indicator.period, indicator.stdDev ?? 2, series);
-  return movingAverageOn(indicator.kind, indicator.period, series);
-}
-
 /** Valeurs de tous les indicateurs : ceux attachés à un panneau calculés sur la série de leur source. */
 export function withAttachedValues(
   indicators: Indicator[],
@@ -130,9 +98,9 @@ export function withAttachedValues(
   for (const ind of indicators) if (!ind.sourceId) plain.set(ind.id, compute(ind));
   return indicators.map((indicator) => {
     if (!indicator.sourceId) return { indicator, values: plain.get(indicator.id) ?? [] };
-    if (indicator.sourceId === VOLUME_PANE_ID) return { indicator, values: volumes ? attachedOn(indicator, volumes) : [] };
+    if (indicator.sourceId === VOLUME_PANE_ID) return { indicator, values: volumes ? movingAverageOn(indicator.kind, indicator.period, volumes) : [] };
     const source = plain.get(indicator.sourceId);
     if (!source) return { indicator, values: [] };
-    return { indicator, values: attachedOn(indicator, source.map(mainValue)) };
+    return { indicator, values: movingAverageOn(indicator.kind, indicator.period, source.map(mainValue)) };
   });
 }

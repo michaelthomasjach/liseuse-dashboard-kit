@@ -1,4 +1,5 @@
 import { isPriceOverlay } from "../attachedIndicators";
+import { legendZoneKey, withLegendPrefs, type ChartLegendPrefs } from "../legendPrefs";
 import type { IndicatorInfoTarget } from "../interfaces/IndicatorInfoTarget.interface";
 import type { ChartPaneLayout } from "../interfaces/ChartTemplate.interface";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -186,6 +187,9 @@ export interface UsePaneLayoutArgs {
   /** Voir `CandlestickChartProps.defaultPaneLayout` / `onPaneLayoutChange`. */
   defaultPaneLayout?: Partial<ChartPaneLayout>;
   onPaneLayoutChange?: (layout: ChartPaneLayout) => void;
+  /** Voir `CandlestickChartProps.defaultLegendPrefs` / `onLegendPrefsChange`. */
+  defaultLegendPrefs?: ChartLegendPrefs;
+  onLegendPrefsChange?: (prefs: ChartLegendPrefs) => void;
 }
 
 /** Ordre des panneaux du bas, de haut en bas (« volume » compris).
@@ -239,6 +243,8 @@ export function usePaneLayout({
   onVolumePaneStateChange,
   defaultPaneLayout,
   onPaneLayoutChange,
+  defaultLegendPrefs,
+  onLegendPrefsChange,
 }: UsePaneLayoutArgs) {
   const defaultFraction =
     defaultPaneHeightFraction !== undefined && Number.isFinite(defaultPaneHeightFraction)
@@ -266,11 +272,40 @@ export function usePaneLayout({
   // `commitIndicators`, qui les remet dans la liste à chaque enregistrement).
   const outOfScope = (list: Indicator[], tf: string | undefined, scoped: boolean) =>
     scoped && tf ? list.filter((ind) => ind.timeframe !== undefined && ind.timeframe !== tf) : [];
+  // Préférences des légendes retenues par l'hôte sur le compte (voir `ChartLegendPrefs`) : actives dès qu'il écoute
+  // leurs changements. Elles passent devant l'état replié de la disposition et le `legendHidden` des indicateurs.
+  const legendPrefsMode = onLegendPrefsChange !== undefined;
+  const [legendPrefs, setLegendPrefsState] = useState<ChartLegendPrefs>(defaultLegendPrefs ?? {});
+  const legendPrefsRef = useRef(legendPrefs);
+  legendPrefsRef.current = legendPrefs;
+  const onLegendPrefsChangeRef = useRef(onLegendPrefsChange);
+  onLegendPrefsChangeRef.current = onLegendPrefsChange;
+  // Préférences arrivées après le montage (réglages du compte chargés plus tard) ou changées ailleurs : reprises dès
+  // qu'elles diffèrent de celles du graphique — jamais écrasées par une valeur par défaut.
+  const defaultLegendPrefsKey = JSON.stringify(defaultLegendPrefs ?? {});
+  useEffect(() => {
+    if (defaultLegendPrefsKey === JSON.stringify(legendPrefsRef.current)) return;
+    const next = JSON.parse(defaultLegendPrefsKey) as ChartLegendPrefs;
+    legendPrefsRef.current = next;
+    setLegendPrefsState(next);
+  }, [defaultLegendPrefsKey]);
+  const updateLegendPrefs = useCallback((part: "collapsed" | "hidden", key: string, on: boolean) => {
+    const current = legendPrefsRef.current;
+    const map = { ...current[part] };
+    // Replié : seul « vrai » est noté. Masqué : « faux » aussi, il défait un `legendHidden` enregistré avec l'indicateur.
+    if (part === "collapsed" && !on) delete map[key];
+    else map[key] = on;
+    const next: ChartLegendPrefs = { ...current, [part]: map };
+    legendPrefsRef.current = next;
+    setLegendPrefsState(next);
+    onLegendPrefsChangeRef.current?.(next);
+  }, []);
   const indicators = useMemo(() => {
     const hidden = outOfScope(allIndicators, timeframe, timeframeScoped);
     const shown = hidden.length ? allIndicators.filter((ind) => !hidden.includes(ind)) : allIndicators;
-    return shown.some((ind) => ind.seriesColors) ? shown.map(withSeriesColors) : shown;
-  }, [allIndicators, timeframe, timeframeScoped]);
+    const colored = shown.some((ind) => ind.seriesColors) ? shown.map(withSeriesColors) : shown;
+    return legendPrefsMode ? withLegendPrefs(colored, [...allIndicators, ...rawExtraIndicators], legendPrefs.hidden) : colored;
+  }, [allIndicators, timeframe, timeframeScoped, legendPrefsMode, legendPrefs.hidden, rawExtraIndicators]);
   const scopeRef = useRef({ all: storedIndicators, timeframe, timeframeScoped });
   scopeRef.current = { all: storedIndicators, timeframe, timeframeScoped };
   const [indicatorPickerOpen, setIndicatorPickerOpen] = useState(false);
@@ -339,7 +374,7 @@ export function usePaneLayout({
   // Listes d'indicateurs repliées dans les légendes (chevron), par zone : « price » (légende en haut à gauche),
   // « volume », ou l'id de l'indicateur d'un panneau. Gardé avec la disposition des panneaux.
   const [legendCollapsed, setLegendCollapsed] = useState<Record<string, boolean>>(defaultPaneLayout?.legendCollapsed ?? {});
-  const toggleLegendCollapsed = useCallback((paneId: string) => {
+  const toggleLegendCollapsedLocal = useCallback((paneId: string) => {
     setLegendCollapsed((prev) => {
       const next = { ...prev };
       if (next[paneId]) delete next[paneId];
@@ -402,10 +437,10 @@ export function usePaneLayout({
   // What every consumer below (and the caller, which rebuilds its own combined list from this) uses
   // in place of the raw prop, so a deleted script output disappears from the pane stacks, the
   // docked columns and the legend in one move rather than each filtering separately.
-  const extraIndicators = useMemo(
-    () => rawExtraIndicators.filter((ind) => !dismissedScriptIndicators[ind.id]).map((ind) => withScriptOverride(ind, scriptIndicatorOverrides)),
-    [rawExtraIndicators, dismissedScriptIndicators, scriptIndicatorOverrides]
-  );
+  const extraIndicators = useMemo(() => {
+    const list = rawExtraIndicators.filter((ind) => !dismissedScriptIndicators[ind.id]).map((ind) => withScriptOverride(ind, scriptIndicatorOverrides));
+    return legendPrefsMode ? withLegendPrefs(list, [...allIndicators, ...rawExtraIndicators], legendPrefs.hidden) : list;
+  }, [rawExtraIndicators, dismissedScriptIndicators, scriptIndicatorOverrides, legendPrefsMode, legendPrefs.hidden, allIndicators]);
   // Every docked pane id this chart has ever laid eyes on, so the fold-on-open rule below fires
   // exactly once per pane and never re-folds one the user has since opened by hand.
   const seenDockedPaneIdsRef = useRef<Set<string>>(new Set());
@@ -996,6 +1031,28 @@ export function usePaneLayout({
     return { ownPaneIndicators: owned, indicatorPaneHeights: heights, indicatorPaneTops: tops, volumeTop: vTop, allPanesOrder: order };
   }, [indicators, extraIndicators, paneHeightFractions, defaultFraction, plotBoundedHeight, volumeVisible, volumeHeight, volumePaneOrder, paneOrder, fullscreenPaneId, subPanesSqueeze]);
   const indicatorPanesTotalHeight = indicatorPaneHeights.reduce((sum, h) => sum + h, 0);
+  // Légendes repliées vues par le graphique, par zone (« price », « volume », id d'un indicateur) : celles des
+  // préférences du compte (clés stables) quand l'hôte les tient, sinon celles de la disposition.
+  const legendCollapsedView = useMemo(() => {
+    if (!legendPrefsMode) return legendCollapsed;
+    const all = [...allIndicators, ...rawExtraIndicators];
+    const view: Record<string, boolean> = {};
+    for (const zone of ["price", "volume", ...all.map((i) => i.id)]) {
+      const key = legendZoneKey(zone, all);
+      if (key && legendPrefs.collapsed?.[key]) view[zone] = true;
+    }
+    return view;
+  }, [legendPrefsMode, legendCollapsed, legendPrefs.collapsed, allIndicators, rawExtraIndicators]);
+  function toggleLegendCollapsed(paneId: string) {
+    if (!legendPrefsMode) return toggleLegendCollapsedLocal(paneId);
+    const key = legendZoneKey(paneId, [...allIndicators, ...rawExtraIndicators]);
+    if (key) updateLegendPrefs("collapsed", key, !legendCollapsedView[paneId]);
+  }
+  /** Légende masquée ou non (« volume », ou l'id d'un indicateur), retenue dans les préférences du compte. */
+  function setLegendHiddenPref(id: string, hidden: boolean) {
+    const key = legendZoneKey(id, [...allIndicators, ...rawExtraIndicators]);
+    if (key) updateLegendPrefs("hidden", key, hidden);
+  }
   // Séries de panneau affichées sur le graphique des prix (`Indicator.priceOverlay`), dans l'ordre de la liste.
   const priceOverlayIndicators = useMemo(
     () => [...indicators, ...extraIndicators].filter((ind) => isPriceOverlay(ind) && indicatorCatalogEntry(ind).pane === "own" && indicatorDock(ind) === "bottom"),
@@ -1093,8 +1150,11 @@ export function usePaneLayout({
     volumeOverlay,
     setVolumeOverlay,
     volumeOnPrice,
-    legendCollapsed,
+    legendCollapsed: legendCollapsedView,
     toggleLegendCollapsed,
+    legendPrefsMode,
+    legendPrefs,
+    setLegendHiddenPref,
     priceOverlayIndicators,
     paneHeightFraction,
     startPaneResize,

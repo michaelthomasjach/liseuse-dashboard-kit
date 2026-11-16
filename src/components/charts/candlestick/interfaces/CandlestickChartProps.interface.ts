@@ -399,6 +399,16 @@ export interface CandlestickChartProps {
    *  Faux : l'option n'apparaît pas (fonctionnalité hors de l'offre du compte, par exemple) ; une série déjà en overlay
    *  y reste, et se renvoie dans son panneau en la retirant puis en la rajoutant. Défaut vrai. */
   showPaneOverlay?: boolean;
+  /** Préférences d'affichage des légendes, retenues par l'hôte (sur le compte) pour tous les symboles : listes
+   *  d'indicateurs repliées (légende des prix, chaque panneau) et légendes masquées (volume, chaque indicateur), par clé
+   *  stable — « price », « volume », sinon le libellé de l'indicateur (« RSI(14) », « MACD(12,26,9) », « script:Nom »),
+   *  voir `ChartLegendPrefs` / `indicatorLegendKey`. Lues au montage, et reprises quand elles changent (réglages du compte chargés après coup). Avec `onLegendPrefsChange`, elles remplacent
+   *  l'état replié de `defaultPaneLayout.legendCollapsed` et le `legendHidden` des indicateurs, et suivent les
+   *  indicateurs de module, de setup ou de script dont l'id change d'un chargement à l'autre. */
+  defaultLegendPrefs?: import("../legendPrefs").ChartLegendPrefs;
+  /** Appelé à chaque repli / dépli ou masquage d'une légende, avec les préférences à jour (à enregistrer et rendre par
+   *  `defaultLegendPrefs`). Fourni : les préférences sont actives. */
+  onLegendPrefsChange?: (prefs: import("../legendPrefs").ChartLegendPrefs) => void;
   /** Personnalisation avancée de l'apparence (paramètres du graphique) : section « Toile » (fond, grilles,
    *  séparateurs, réticule, texte et lignes des échelles, marges) et menu « Modèle » (modèles d'apparence). Faux : la
    *  section et le menu n'apparaissent pas, et les réglages de la Toile enregistrés ne s'appliquent pas (rendu du

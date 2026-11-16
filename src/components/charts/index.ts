@@ -196,3 +196,6 @@ export type { CustomIndicatorZone } from "./candlestick/interfaces/CustomIndicat
 // Alertes : la série (prix, volume, indicateur) sur laquelle porte une alerte, calculée comme le graphique la trace,
 // pour que l'application vérifie les alertes qui ne portent pas sur le prix.
 export { alertSeriesValues } from "./candlestick/alertSeries";
+// Préférences des légendes (repli, masquage) à retenir sur le compte, par clé stable.
+export { indicatorLegendKey } from "./candlestick/legendPrefs";
+export type { ChartLegendPrefs } from "./candlestick/legendPrefs";

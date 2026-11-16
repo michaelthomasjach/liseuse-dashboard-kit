@@ -230,6 +230,8 @@ function CandlestickChartBody({
   showCandleColorRules = true,
   showAreaFills = true,
   showPaneOverlay = true,
+  defaultLegendPrefs,
+  onLegendPrefsChange,
   symbolName,
   advancedAppearance = true,
   hostColorScheme,
@@ -659,10 +661,12 @@ function CandlestickChartBody({
   };
   const [symbolInfoHidden, setSymbolInfoHiddenState] = useState(defaultSymbolInfoHidden);
   // Légende du panneau Volume masquée (celle d'un indicateur est un champ de l'indicateur, `legendHidden`).
-  const [volumeLegendHidden, setVolumeLegendHiddenState] = useState(defaultVolumeLegendHidden);
+  const [volumeLegendHiddenLocal, setVolumeLegendHiddenState] = useState(defaultVolumeLegendHidden);
   const toggleVolumeLegend = () => {
     setVolumeLegendHiddenState(!volumeLegendHidden);
     onVolumeLegendHiddenChange?.(!volumeLegendHidden);
+    // Préférences du compte : retenu pour tous les symboles.
+    if (legendPrefsMode) setLegendHiddenPref("volume", !volumeLegendHidden);
   };
   // Cible de l'entrée survolée du menu contextuel, entourée sur le graphique (ChartMenuTargetHighlight).
   const [menuTarget, setMenuTarget] = useState<ChartMenuTarget | null>(null);
@@ -890,6 +894,7 @@ function CandlestickChartBody({
     volumeVisible, volumeCollapsed,
     volumeOverlay, setVolumeOverlay, volumeOnPrice, priceOverlayIndicators,
     legendCollapsed, toggleLegendCollapsed,
+    legendPrefsMode, legendPrefs, setLegendHiddenPref,
     startPaneResize, reorderPanesRef,
     ownPaneIndicators,
     indicatorPaneHeights, indicatorPaneTops,
@@ -916,7 +921,10 @@ function CandlestickChartBody({
     onVolumePaneStateChange,
     defaultPaneLayout,
     onPaneLayoutChange,
+    defaultLegendPrefs,
+    onLegendPrefsChange,
   });
+  const volumeLegendHidden = legendPrefsMode ? (legendPrefs.hidden?.volume ?? volumeLegendHiddenLocal) : volumeLegendHiddenLocal;
   // Le panneau visé par le catalogue des indicateurs quand il est ouvert depuis son clic droit ; oublié à la
   // fermeture, pour que les autres façons de l'ouvrir (en-tête, raccourci) retrouvent le catalogue complet.
   const [pickerTargetPane, setPickerTargetPane] = useState<{ id: string; label: string } | null>(null);
@@ -2212,7 +2220,10 @@ function CandlestickChartBody({
   /** Masque / réaffiche la légende d'un indicateur, ajouté ou produit par un script (menu contextuel, poignée). */
   function toggleIndicatorLegend(id: string) {
     const ind = indicators.find((i) => i.id === id) ?? activeScriptIndicators.find((i) => i.id === id);
-    if (ind) patchIndicator(id, { legendHidden: !ind.legendHidden });
+    if (!ind) return;
+    // Préférences du compte (clé stable) : retenu pour tous les symboles, même pour un indicateur de module ou de script.
+    if (legendPrefsMode) setLegendHiddenPref(id, !ind.legendHidden);
+    else patchIndicator(id, { legendHidden: !ind.legendHidden });
   }
 
   // Ce que vise l'entrée survolée du menu contextuel : le rectangle de son panneau et, pour une courbe, son tracé

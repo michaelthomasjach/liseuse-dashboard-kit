@@ -135,6 +135,7 @@ import { stableMemo } from "./candlestick/stableMemo";
 import { resolveIndicatorWatermark } from "./candlestick/indicatorWatermark";
 import { ChartMenuTargetHighlight } from "./candlestick/components/ChartMenuTargetHighlight";
 import type { ChartMenuTarget } from "./candlestick/components/ChartContextMenu";
+import { claimChartContextMenu } from "../../internal/chartContextMenu";
 import { ColorPreferencesProvider } from "../forms/ColorPreferences";
 
 // Subtrees that show nothing about the cursor: memoized so a mouse move (which re-renders this
@@ -694,6 +695,8 @@ function CandlestickChartBody({
     const main = mainRef.current;
     const plot = ref.current;
     if (!main || !plot) return;
+    // Un clic droit dans une modale ou un menu rendus en portail remonte ici par l'arbre React : ce n'est pas la zone de tracé.
+    if (!plot.contains(e.target as Node)) return;
     e.preventDefault();
     const mainRect = main.getBoundingClientRect();
     const plotRect = plot.getBoundingClientRect();
@@ -2434,6 +2437,8 @@ function CandlestickChartBody({
   return (
     <div
       className={["lq-chart", isFullscreen && "lq-chart--fullscreen", placementActive && "lq-chart--placing", className].filter(Boolean).join(" ")}
+      // Jamais le menu du navigateur sur le graphique, ses modales et ses menus compris (voir chartContextMenu).
+      onContextMenuCapture={claimChartContextMenu}
       style={{ width: isFullscreen ? undefined : width }}
     >
       {/* Boutons « ? » des indicateurs : page d'aide de l'application, sinon fenêtre intégrée. */}

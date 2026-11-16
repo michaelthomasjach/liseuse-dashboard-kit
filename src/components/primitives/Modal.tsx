@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { CloseIcon } from "../icons";
 import { LqThemeProvider, useLqTheme } from "../../theme";
 import { useFocusTrap } from "../../internal/useFocusTrap";
+import { replayContextMenuBehindBackdrop } from "../../internal/chartContextMenu";
 import "./Modal.css";
 
 export interface ModalProps {
@@ -111,7 +112,15 @@ export function Modal({ open, onClose, title, children, footer, closeLabel = "Fe
     // under whatever themed ancestor originally supplied them (they don't cross a portal boundary
     // the way React context does) — `display: contents` so it adds no layout box of its own.
     <LqThemeProvider palette={theme.palette} surface={theme.surface} font={theme.font} style={{ display: "contents" }}>
-      <div className="lq-modal__overlay" onClick={onClose}>
+      <div
+        className="lq-modal__overlay"
+        onClick={onClose}
+        // Modale d'un graphique : un clic droit sur le fond (le graphique visible derrière) la ferme et ouvre le menu du
+        // graphique à cet endroit. Ailleurs sur le site, rien ne change.
+        onContextMenu={(e) => {
+          if (e.target === e.currentTarget && replayContextMenuBehindBackdrop(e)) onClose();
+        }}
+      >
         <div
           className={["lq-modal", size === "wide" && "lq-modal--wide", size === "fullscreen" && "lq-modal--fullscreen", title && "lq-modal--titled", className].filter(Boolean).join(" ")}
           style={offset.x || offset.y ? { transform: `translate(${offset.x}px, ${offset.y}px)` } : undefined}

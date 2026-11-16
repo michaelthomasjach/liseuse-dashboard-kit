@@ -44,6 +44,7 @@ import { useFullscreen } from "./internal/useFullscreen";
 import { useChartDimensions } from "./internal/useChartDimensions";
 import { MOBILE_LAYOUT_BREAKPOINT } from "./candlestick/constants";
 import { useViewportWidth } from "./internal/useViewportWidth";
+import { claimChartContextMenu } from "../../internal/chartContextMenu";
 import type { AiWorkspaceControls } from "./candlestick/ai/interfaces/AiWorkspaceControls.interface";
 import {
   CHART_WORKSPACE_GRID_LAYOUTS,
@@ -1003,6 +1004,8 @@ function ChartWorkspaceBody({
     // height via the row's own default `align-items: stretch`, not just the grid.
     <div
       ref={workspaceRef}
+      // Jamais le menu du navigateur dans l'espace de travail, ses modales et ses menus compris (voir chartContextMenu).
+      onContextMenuCapture={claimChartContextMenu}
       className={[
         "lq-chart-workspace",
         workspaceFullscreen && "lq-chart-workspace--fullscreen",

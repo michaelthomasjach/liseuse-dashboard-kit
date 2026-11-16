@@ -680,6 +680,8 @@ export function WatchlistPanel({
   // Clic droit : le menu du panneau plutôt que celui du navigateur.
   function openContextMenu(e: React.MouseEvent) {
     const target = e.target as Element | null;
+    // Une modale ou un menu ouverts par la liste (portails) remontent ici par l'arbre React : pas le menu de la liste.
+    if (!e.currentTarget.contains(target)) return;
     // Dans un champ (recherche, renommage) : le menu du navigateur (copier, coller).
     if (target?.closest("input, textarea, [contenteditable='true']")) return;
     e.preventDefault();

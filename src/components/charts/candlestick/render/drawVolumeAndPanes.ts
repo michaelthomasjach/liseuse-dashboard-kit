@@ -202,7 +202,7 @@ export function drawVolumeAndPanes(ctx: CanvasRenderingContext2D, params: Render
         ringColor: style.colorBg,
       };
       drawIndicatorStyleRules(ctx, rulePane, "under");
-      drawOwnPaneIndicatorSeries(ctx, ind, points, zoomedXScale, candleWidth, dims.boundedWidth, indicators, scale, style);
+      drawOwnPaneIndicatorSeries(ctx, ind, points, zoomedXScale, candleWidth, dims.boundedWidth, indicators, scale, style, entry?.rsiZoneLevels);
       // Indicateurs posés sur ce panneau (une SMA du RSI…) : sur la même échelle, par-dessus sa série.
       drawAttachedLines(ctx, visibleIndicators.filter((v) => v.indicator.sourceId === ind.id), zoomedXScale, scale, indicators);
       drawIndicatorStyleRules(ctx, rulePane, "over");

@@ -8,6 +8,7 @@ import type { IndicatorBand } from "../interfaces/IndicatorBand.interface";
 import { defaultIndicatorColor, isFundamentalKind, RSI_LEVEL_COLOR, RSI_MIDDLE_COLOR } from "../indicatorCatalog";
 import { applyLineStyle } from "./drawPriceCandles";
 import { strokeCrossColoredLine } from "./strokeCrossColoredLine";
+import { isRsiKind, resolveRsiZoneLine, RSI_ZONE_LINE_KEYS, RSI_ZONE_LINE_LABELS, type RsiZoneLevels } from "../rsiZones";
 
 /** One "own"-pane indicator's own series (RSI/CHOP/MACD/ADX/correlation/a fundamental/a
  *  `plot.pane`-produced custom line/area/histogram/band/multi pane), drawn into whatever clipped
@@ -30,14 +31,16 @@ export function drawOwnPaneIndicatorSeries(
   width: number,
   indicators: Indicator[],
   scale: ScaleLinear<number, number>,
-  style: ChartCanvasStyle
+  style: ChartCanvasStyle,
+  /** Indicateur « rsiZones » : ses quatre lignes, relevées par l'appelant sur toute la série (voir rsiZones.ts). */
+  rsiZoneLevels?: RsiZoneLevels | null
 ) {
   const { colorUp, colorDown, colorText, colorGrid, isEink } = style;
   const color = ind.color ?? defaultIndicatorColor(indicators.indexOf(ind));
   // Les couleurs conditionnelles (onglet Style) sont peintes par l'appelant, qui connaît aussi les indicateurs posés sur
   // ce panneau (voir drawIndicatorStyleRules).
 
-  if (ind.kind === "rsi" || ind.kind === "chop") {
+  if (isRsiKind(ind.kind) || ind.kind === "chop") {
     // Reference levels are user-adjustable (rsiOverbought/rsiOversold, chopUpperThreshold/
     // chopLowerThreshold — see their own docs on Indicator) but default to exactly the
     // levels this block always drew before those settings existed.
@@ -45,7 +48,7 @@ export function drawOwnPaneIndicatorSeries(
     // couleur de la grille.
     const levelColor = (c: string | undefined, def: string) => (isEink ? colorGrid : (c ?? def));
     const levels: { value: number; color: string }[] =
-      ind.kind === "rsi"
+      isRsiKind(ind.kind)
         ? [
             { value: ind.rsiOversold ?? 30, color: levelColor(ind.rsiLowerColor, RSI_LEVEL_COLOR) },
             { value: ind.rsiOverbought ?? 70, color: levelColor(ind.rsiUpperColor, RSI_LEVEL_COLOR) },
@@ -67,6 +70,7 @@ export function drawOwnPaneIndicatorSeries(
       ctx.stroke();
     }
     ctx.restore();
+    if (ind.kind === "rsiZones" && rsiZoneLevels) drawRsiZoneLines(ctx, ind, rsiZoneLevels, scale, width, style);
 
     ctx.strokeStyle = color;
     ctx.lineWidth = ind.lineWidth ?? 1.5;
@@ -418,4 +422,41 @@ export function drawOwnPaneIndicatorSeries(
     });
     ctx.stroke();
   }
+}
+
+/** Les quatre lignes d'un « rsiZones » (moyenne et extrême de la survente et du surachat), chacune avec sa couleur, son
+ *  style, son opacité et son épaisseur, et son libellé avec la valeur : au-dessus de la ligne côté surachat, en dessous
+ *  côté survente, pour que les deux libellés d'une même zone ne se recouvrent pas. En e-ink, la couleur du texte. */
+function drawRsiZoneLines(
+  ctx: CanvasRenderingContext2D,
+  ind: Indicator,
+  levels: RsiZoneLevels,
+  scale: ScaleLinear<number, number>,
+  width: number,
+  style: ChartCanvasStyle
+) {
+  ctx.save();
+  ctx.font = `600 10px ${style.fontFamily}`;
+  for (const key of RSI_ZONE_LINE_KEYS) {
+    const value = levels[key];
+    if (value === null) continue;
+    const line = resolveRsiZoneLine(ind, key);
+    if (!line.show || line.opacity <= 0) continue;
+    const y = scale(value);
+    if (!Number.isFinite(y)) continue;
+    const color = style.isEink ? style.colorText : line.color;
+    ctx.globalAlpha = line.opacity / 100;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = line.width;
+    applyLineStyle(ctx, line.lineStyle);
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(width, y);
+    ctx.stroke();
+    const above = key.startsWith("overbought");
+    ctx.textBaseline = above ? "bottom" : "top";
+    ctx.fillStyle = color;
+    ctx.fillText(`${RSI_ZONE_LINE_LABELS[key].short} ${value.toFixed(1)}`, 4, above ? y - 2 : y + 2);
+  }
+  ctx.restore();
 }

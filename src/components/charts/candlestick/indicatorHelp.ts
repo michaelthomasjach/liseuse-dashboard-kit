@@ -134,6 +134,24 @@ export const INDICATOR_HELP_DETAILS: Partial<Record<IndicatorKind, IndicatorHelp
     ],
     related: ["macd", "chop", "adx"],
   },
+  rsiZones: {
+    formula: [
+      "RSI(t) : calcul identique au RSI (lissage de Wilder sur N clôtures)",
+      "Fenêtre = les P dernières bougies, jusqu'à la dernière affichée",
+      "Moyenne survente = moyenne des RSI ≤ seuil de survente dans la fenêtre ; maximum survente = le plus bas de ces RSI",
+      "Moyenne surachat = moyenne des RSI ≥ seuil de surachat dans la fenêtre ; maximum surachat = le plus haut de ces RSI",
+    ],
+    formulaNotes:
+      "Les quatre niveaux sont tracés en **lignes horizontales** sur tout le panneau, avec leur valeur. Une zone où le RSI n'est jamais entré pendant la fenêtre n'a pas de ligne. Les niveaux sont relevés sur les dernières bougies de l'historique (ou jusqu'à la coupure du replay), pas sur la partie affichée : ils ne bougent pas quand on fait défiler le graphique.",
+    params: [
+      PERIOD(14, "Longueur du lissage des gains et des pertes."),
+      { label: "Périodes analysées", defaultValue: "100", range: "5 à 5000", description: "Nombre de bougies sur lesquelles sont relevées la moyenne et le maximum de chaque zone.", tab: "Entrées" },
+      { label: "Seuil de surachat", defaultValue: "70", range: "50 à 99", description: "Au-dessus, une valeur compte dans la zone de surachat.", tab: "Entrées" },
+      { label: "Seuil de survente", defaultValue: "30", range: "1 à 50", description: "En dessous, une valeur compte dans la zone de survente.", tab: "Entrées" },
+      { label: "Lignes des zones", defaultValue: "Affichées", description: "Pour chacune des quatre lignes : affichage, couleur, épaisseur, style (continue, tirets, pointillés) et opacité.", tab: "Style" },
+    ],
+    related: ["rsi", "chop", "adx"],
+  },
   chop: {
     formula: [
       "TR(t) = max(H(t) − L(t), |H(t) − C(t−1)|, |L(t) − C(t−1)|) ; pour la première bougie, H − L",

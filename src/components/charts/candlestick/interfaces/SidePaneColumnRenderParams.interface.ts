@@ -32,7 +32,7 @@ export interface SidePaneColumnRenderParams {
    *  a `draw: "profile"` pane, which is drawn against it rather than a scale fitted to its own
    *  data — that shared scale is what lines a profile's peaks up with the candles beside it. */
   zoomedPriceScale: ScaleLinear<number, number>;
-  visibleIndicators: { indicator: Indicator; points: { i: number; value: IndicatorValue }[] }[];
+  visibleIndicators: { indicator: Indicator; points: { i: number; value: IndicatorValue }[]; rsiZoneLevels?: import("../rsiZones").RsiZoneLevels | null }[];
   /** The *full* indicator list (every dock side combined), not just this column's own — color
    *  cycling (`defaultIndicatorColor(indicators.indexOf(ind))`) stays consistent with the same
    *  indicator's own color wherever else it's referenced, same as the bottom stack's own. */

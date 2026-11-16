@@ -7,6 +7,7 @@ import type { IndicatorStyleRule } from "./IndicatorStyleRule.interface";
 import type { IndicatorAreaFill } from "./IndicatorAreaFill.interface";
 import type { ValueFormat } from "./ValueFormat.interface";
 import type { IndicatorWatermark } from "./IndicatorWatermark.interface";
+import type { RsiZoneLineKey, RsiZoneLineStyle } from "./RsiZoneLine.interface";
 
 export interface Indicator {
   id: string;
@@ -178,6 +179,12 @@ export interface Indicator {
   /** "rsi" only — ligne médiane (50) affichée, et sa couleur (opacité comprise). Défaut : masquée, gris à 40 %. */
   rsiShowMiddle?: boolean;
   rsiMiddleColor?: string;
+  /** "rsiZones" only — nombre de bougies, jusqu'à la dernière affichée, sur lesquelles sont relevées les valeurs du RSI
+   *  passées en survente (sous `rsiOversold`) et en surachat (au-dessus de `rsiOverbought`). Défaut : 100. */
+  rsiZonesLookback?: number;
+  /** "rsiZones" only — réglages de chacune des quatre lignes horizontales (moyenne et extrême de chaque zone) : affichée,
+   *  couleur, style, opacité, épaisseur. Voir `RSI_ZONE_LINE_DEFAULTS` dans rsiZones.ts. */
+  rsiZoneLines?: Partial<Record<RsiZoneLineKey, RsiZoneLineStyle>>;
   /** "chop" only — same reference-level mechanism as `rsiOverbought`/`rsiOversold` above, against
    *  CHOP's own 0-100 scale. Defaults 61.8/38.2, the conventional Fibonacci-derived thresholds
    *  (above the upper one: choppy/ranging; below the lower one: trending). */

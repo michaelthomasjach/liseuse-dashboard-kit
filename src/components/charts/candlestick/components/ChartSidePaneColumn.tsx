@@ -48,7 +48,7 @@ export interface ChartSidePaneColumnProps {
   /** The main chart's own zoomed price scale — see SidePaneColumnRenderParams' own doc. Used by a
    *  `draw: "profile"` pane, both for its canvas and for its own price axis. */
   zoomedPriceScale: ScaleLinear<number, number>;
-  visibleIndicators: { indicator: Indicator; points: { i: number; value: IndicatorValue }[] }[];
+  visibleIndicators: { indicator: Indicator; points: { i: number; value: IndicatorValue }[]; rsiZoneLevels?: import("../rsiZones").RsiZoneLevels | null }[];
   /** Every indicator, every dock side combined — read-only, only for the canvas draw's own
    *  color-cycling (`defaultIndicatorColor(indicators.indexOf(ind))`, see
    *  `drawOwnPaneIndicatorSeries`'s own doc) so a given indicator's color stays consistent with

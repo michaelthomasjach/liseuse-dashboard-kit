@@ -90,7 +90,7 @@ export function usePaneStackScales({
       // own data (see CustomIndicatorDef.profile's own doc) — that shared scale is what makes a
       // peak land at the height of the price it describes. Nothing to build here for it.
       if (ind.customData?.draw === "profile") return;
-      if (ind.kind === "rsi" || ind.kind === "chop" || ind.kind === "adx") {
+      if (ind.kind === "rsi" || ind.kind === "rsiZones" || ind.kind === "chop" || ind.kind === "adx") {
         domains[ind.id] = [0, 100];
       } else if (ind.kind === "correlation") {
         domains[ind.id] = [-1, 1];

@@ -1491,6 +1491,7 @@ function CandlestickChartBody({
     volumeHeight,
     priceHeight,
     priceOverlayIndicators,
+    lastIndex: lastRevealedIndex,
   });
 
 

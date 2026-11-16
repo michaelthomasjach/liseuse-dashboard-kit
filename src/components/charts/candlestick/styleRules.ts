@@ -204,7 +204,7 @@ export function seriesFieldValue(v: IndicatorValue | null | undefined, field: st
 
 /** Le niveau du milieu d'un oscillateur borné (50), 0 sinon : la valeur la plus parlante pour une nouvelle règle. */
 function middleLevel(indicator: Indicator): number {
-  return (["rsi", "chop", "stochastic", "mfi", "williamsR"] as string[]).includes(indicator.kind) ? 50 : 0;
+  return (["rsi", "rsiZones", "chop", "stochastic", "mfi", "williamsR"] as string[]).includes(indicator.kind) ? 50 : 0;
 }
 
 let ruleCounter = 0;
@@ -294,7 +294,7 @@ export interface StyleRuleTemplate {
 
 /** Valeur d'un niveau d'un indicateur (voir `StyleRuleLevelRef`) : undefined s'il n'a pas de niveaux. */
 export function indicatorLevelValue(ind: Indicator, level: "upper" | "lower" | "middle"): number | undefined {
-  if (ind.kind === "rsi") return level === "upper" ? (ind.rsiOverbought ?? 70) : level === "lower" ? (ind.rsiOversold ?? 30) : 50;
+  if (ind.kind === "rsi" || ind.kind === "rsiZones") return level === "upper" ? (ind.rsiOverbought ?? 70) : level === "lower" ? (ind.rsiOversold ?? 30) : 50;
   if (ind.kind === "chop") return level === "upper" ? (ind.chopUpperThreshold ?? 61.8) : level === "lower" ? (ind.chopLowerThreshold ?? 38.2) : 50;
   return undefined;
 }

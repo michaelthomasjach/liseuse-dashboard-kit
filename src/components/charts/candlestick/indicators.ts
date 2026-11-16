@@ -863,6 +863,7 @@ export function computeIndicatorValues(
     case "bollinger":
       return computeBollingerValues(data, period, indicator.stdDev ?? 2);
     case "rsi":
+    case "rsiZones":
       return computeRSIValues(data, period);
     case "chop":
       return computeCHOPValues(data, period);

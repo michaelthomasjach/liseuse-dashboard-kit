@@ -162,7 +162,7 @@ function isMulti(value: IndicatorValue): value is { multi: Record<string, number
  *  does not. Only these get the option at all — a "Projection" toggle on a pattern detector would
  *  be a promise the maths cannot keep. */
 const PROJECTABLE_KINDS = new Set([
-  "sma", "ema", "wma", "vwap", "bollinger", "rsi", "chop", "macd", "atr", "adx", "correlation",
+  "sma", "ema", "wma", "vwap", "bollinger", "rsi", "rsiZones", "chop", "macd", "atr", "adx", "correlation",
 ]);
 
 export function supportsProjection(indicator: Indicator): boolean {

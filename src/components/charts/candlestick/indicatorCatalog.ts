@@ -150,6 +150,18 @@ export const INDICATOR_CATALOG: IndicatorCatalogEntry[] = [
     category: "Momentum",
   },
   {
+    // Le RSI, plus la moyenne et l'extrême de ses passages en survente et en surachat sur les dernières bougies
+    // (rsiZones.ts), en lignes horizontales réglables.
+    kind: "rsiZones",
+    label: "RSI : zones de survente et de surachat",
+    shortLabel: "RSI zones",
+    defaultPeriod: 14,
+    hasPeriod: true,
+    hasStdDev: false,
+    pane: "own",
+    category: "Momentum",
+  },
+  {
     kind: "chop",
     label: "Choppiness Index (CHOP)",
     shortLabel: "CHOP",

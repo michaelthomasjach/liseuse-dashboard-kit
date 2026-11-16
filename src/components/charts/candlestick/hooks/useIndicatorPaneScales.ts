@@ -10,6 +10,7 @@ import type { TrendLineDrawing } from "../interfaces/TrendLineDrawing.interface"
 import { computeIndicatorValues } from "../indicators";
 import { computeIndicatorProjection, type IndicatorProjection } from "../indicatorProjection";
 import { indicatorLabel } from "../indicatorCatalog";
+import { rsiZoneLevelsFor, type RsiZoneLevels } from "../rsiZones";
 import { usePaneStackScales } from "./usePaneStackScales";
 
 export interface UseIndicatorPaneScalesArgs {
@@ -32,6 +33,8 @@ export interface UseIndicatorPaneScalesArgs {
   /** Séries de panneau affichées sur le graphique des prix (`Indicator.priceOverlay`) : une échelle chacune, ajustée
    *  à ses valeurs visibles, sur toute la hauteur de la zone des prix. */
   priceOverlayIndicators?: Indicator[];
+  /** Dernière bougie visible (sous replay, la coupure) : les lignes d'un « rsiZones » ne lisent rien au-delà. */
+  lastIndex?: number;
 }
 
 const NO_TRANSFORM: Record<string, d3.ZoomTransform> = {};
@@ -58,6 +61,7 @@ export function useIndicatorPaneScales({
   volumeHeight,
   priceHeight,
   priceOverlayIndicators = [],
+  lastIndex,
 }: UseIndicatorPaneScalesArgs) {
   // Expensive (O(data.length) per indicator) — recomputed only when the data or the indicator
   // list itself changes, never on pan/zoom (which would otherwise redo this every frame).
@@ -82,9 +86,11 @@ export function useIndicatorPaneScales({
         const v = values[i];
         if (v !== null) points.push({ i, value: v });
       }
-      return { indicator, points };
+      // Relevées sur les dernières bougies de l'historique, pas sur celles à l'écran : les lignes ne bougent pas au défilement.
+      const rsiZoneLevels: RsiZoneLevels | null = indicator.kind === "rsiZones" ? rsiZoneLevelsFor(indicator, values, lastIndex) : null;
+      return { indicator, points, rsiZoneLevels };
     });
-  }, [indicatorValues, data.length, visibleRange]);
+  }, [indicatorValues, data.length, visibleRange, lastIndex]);
 
   /** Each projecting indicator's own continuation past the last bar.
    *

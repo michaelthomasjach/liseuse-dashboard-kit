@@ -96,7 +96,8 @@ export interface RenderCandlestickChartParams {
   brushPreview: DataPoint[] | null;
   measurePoints: { p1: DataPoint; p2: DataPoint } | null;
   livePrice: boolean;
-  visibleIndicators: { indicator: Indicator; points: { i: number; value: IndicatorValue }[] }[];
+  /** `rsiZoneLevels` : les lignes d'un indicateur « rsiZones », relevées sur ses dernières bougies (voir rsiZones.ts). */
+  visibleIndicators: { indicator: Indicator; points: { i: number; value: IndicatorValue }[]; rsiZoneLevels?: import("../rsiZones").RsiZoneLevels | null }[];
   /** Each projecting indicator's own continuation past the last bar — see `drawIndicatorProjections`
    *  and `computeIndicatorProjection`. Empty when nothing has the option on, which is the default. */
   indicatorProjections: IndicatorProjection[];

@@ -5,6 +5,7 @@ export type IndicatorKind =
   | "vwap"
   | "bollinger"
   | "rsi"
+  | "rsiZones"
   | "chop"
   | "macd"
   | "zigzag"

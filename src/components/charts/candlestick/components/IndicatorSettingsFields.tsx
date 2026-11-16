@@ -1,4 +1,4 @@
-import { useId, type ReactNode } from "react";
+import { Fragment, useId, type ReactNode } from "react";
 import { ColorPicker } from "../../../forms/ColorPicker";
 import { Checkbox } from "../../../forms/Checkbox";
 import { IndicatorStyleRulesEditor } from "./IndicatorStyleRulesEditor";
@@ -8,6 +8,8 @@ import { InputNumber } from "../../../forms/InputNumber";
 import { Input } from "../../../forms/Input";
 import { EXPECTED_VOLATILITY_DEFAULTS as EV, EXPECTED_VOLATILITY_TIMEFRAMES } from "../expectedVolatility";
 import { RANGE_DETECTION_DEFAULTS as RD } from "../rangeDetection";
+import { isRsiKind, resolveRsiZoneLine, RSI_ZONE_LINE_DEFAULTS, RSI_ZONE_LINE_KEYS, RSI_ZONE_LINE_LABELS, RSI_ZONES_DEFAULT_LOOKBACK } from "../rsiZones";
+import type { RsiZoneLineKey, RsiZoneLineStyle } from "../interfaces/RsiZoneLine.interface";
 import { Select, type SelectOption } from "../../../forms/Select";
 import type { Indicator } from "../interfaces/Indicator.interface";
 import { indicatorCatalogEntry, indicatorLabel, isFundamentalKind, defaultIndicatorColor, RSI_LEVEL_COLOR, RSI_MIDDLE_COLOR } from "../indicatorCatalog";
@@ -118,6 +120,21 @@ export function IndicatorSettingsInputs({ indicatorDraft: d, setIndicatorDraft, 
   }
   if (entry.hasPeriod) {
     calc.push(<NumberSetting key="period" label="Période" suffix="bougies" min={1} max={500} value={d.period} def={defaults.period} onSet={(v) => set({ period: v })} />);
+  }
+  if (d.kind === "rsiZones") {
+    calc.push(
+      <NumberSetting
+        key="rzl"
+        label="Périodes analysées (survente et surachat)"
+        suffix="bougies"
+        min={5}
+        max={5000}
+        value={d.rsiZonesLookback}
+        def={RSI_ZONES_DEFAULT_LOOKBACK}
+        hint="Les dernières bougies sur lesquelles sont relevées la moyenne et le maximum des valeurs passées en survente et en surachat."
+        onSet={(v) => set({ rsiZonesLookback: v })}
+      />
+    );
   }
   if (entry.hasStdDev) {
     calc.push(<NumberSetting key="std" label="Écart-type" suffix="σ" min={0.5} max={5} step={0.1} value={d.stdDev} def={2} onSet={(v) => set({ stdDev: v })} />);
@@ -252,7 +269,7 @@ export function IndicatorSettingsInputs({ indicatorDraft: d, setIndicatorDraft, 
   }
 
   const thresholds: ReactNode[] = [];
-  if (d.kind === "rsi") {
+  if (isRsiKind(d.kind)) {
     thresholds.push(
       <NumberSetting key="ob" label="Surachat" min={50} max={99} value={d.rsiOverbought} def={70} onSet={(v) => set({ rsiOverbought: v })} />,
       <NumberSetting key="os" label="Survente" min={1} max={50} value={d.rsiOversold} def={30} onSet={(v) => set({ rsiOversold: v })} />
@@ -561,7 +578,7 @@ export function IndicatorSettingsStyle({ indicatorDraft: d, setIndicatorDraft, i
       />
     );
   }
-  if (d.kind === "rsi") {
+  if (isRsiKind(d.kind)) {
     // Lignes de seuil et ligne médiane : couleur et opacité (curseur « Opacité » du sélecteur), médiane à afficher.
     trace.push(
       <TraceRow
@@ -672,6 +689,7 @@ export function IndicatorSettingsStyle({ indicatorDraft: d, setIndicatorDraft, i
         </div>
         {traceSettings}
       </SettingsSection>
+      {d.kind === "rsiZones" && <RsiZoneLinesSection indicatorDraft={d} set={set} />}
       {(ownPane || d.kind === "atr") && (
         <SettingsSection title="Valeurs">
           {ownPane && <ValueFormatField indicatorDraft={d} setIndicatorDraft={setIndicatorDraft} />}
@@ -700,6 +718,39 @@ export function IndicatorSettingsStyle({ indicatorDraft: d, setIndicatorDraft, i
         />
       )}
     </div>
+  );
+}
+
+const LINE_STYLE_OPTIONS: SelectOption<"solid" | "dashed" | "dotted">[] = [
+  { value: "solid", label: "Continue" },
+  { value: "dashed", label: "Tirets" },
+  { value: "dotted", label: "Pointillés" },
+];
+
+/** « Lignes des zones » d'un « rsiZones » : pour chacune des quatre lignes (moyenne et maximum de la survente et du
+ *  surachat), affichée ou non, couleur et épaisseur, style et opacité. Enregistré avec l'indicateur. */
+function RsiZoneLinesSection({ indicatorDraft: d, set }: { indicatorDraft: Indicator; set: (patch: Partial<Indicator>) => void }) {
+  const patch = (key: RsiZoneLineKey, p: RsiZoneLineStyle) => set({ rsiZoneLines: { ...d.rsiZoneLines, [key]: { ...d.rsiZoneLines?.[key], ...p } } });
+  return (
+    <SettingsSection title="Lignes des zones">
+      {RSI_ZONE_LINE_KEYS.map((key) => {
+        const line = resolveRsiZoneLine(d, key);
+        const name = RSI_ZONE_LINE_LABELS[key].name;
+        return (
+          <Fragment key={key}>
+            <div className="lq-ind-settings__trace" role="table" aria-label={name}>
+              <TraceRow
+                name={name}
+                visible={{ checked: line.show, onChange: (checked) => patch(key, { show: checked }) }}
+                colors={[{ value: line.color, onChange: (c) => patch(key, { color: c }), thickness: line.width, onThicknessChange: (w) => patch(key, { width: w }) }]}
+              />
+            </div>
+            <SelectSetting label="Style de la ligne" value={line.lineStyle} options={LINE_STYLE_OPTIONS} onChange={(v) => patch(key, { lineStyle: v })} />
+            <NumberSetting label="Opacité de la ligne" suffix="%" min={0} max={100} value={line.opacity} def={RSI_ZONE_LINE_DEFAULTS[key].opacity} onSet={(v) => patch(key, { opacity: v })} />
+          </Fragment>
+        );
+      })}
+    </SettingsSection>
   );
 }
 

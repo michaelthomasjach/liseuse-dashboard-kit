@@ -112,6 +112,10 @@ export interface AiChartControls {
   setDrawingsHidden: (hidden: boolean) => void;
   drawingsLocked: () => boolean;
   setDrawingsLocked: (locked: boolean) => void;
+  /** Dessins sélectionnés (sélection simple ou multiple). */
+  selectedDrawings: () => string[];
+  /** Remplace la sélection de dessins ; une liste vide la vide. */
+  selectDrawings: (ids: string[]) => void;
 
   alerts: () => ChartAlert[];
   createAlert?: (draft: ChartAlertDraft) => void;
@@ -218,6 +222,8 @@ export interface AiControlsState {
   setDrawingsHidden: (hidden: boolean) => void;
   drawingsLocked: boolean;
   setDrawingsLocked: (locked: boolean) => void;
+  selectedDrawingIds: string[];
+  selectDrawings: (ids: string[]) => void;
   drawings: () => TrendLineDrawing[];
   editDrawing: (drawing: TrendLineDrawing) => void;
 
@@ -455,6 +461,8 @@ export function buildAiChartControls(get: () => AiControlsState): AiChartControl
     setDrawingsHidden: (hidden) => get().setDrawingsHidden(hidden),
     drawingsLocked: () => get().drawingsLocked,
     setDrawingsLocked: (locked) => get().setDrawingsLocked(locked),
+    selectedDrawings: () => get().selectedDrawingIds,
+    selectDrawings: (ids) => get().selectDrawings(ids),
 
     alerts: () => get().alerts,
     ...(get().onCreateAlert ? { createAlert: (draft: ChartAlertDraft) => get().onCreateAlert?.(draft) } : {}),

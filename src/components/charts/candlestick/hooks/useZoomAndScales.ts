@@ -696,6 +696,8 @@ export function useZoomAndScales({
       !measureBodyHoveredRef.current &&
       // Maj + appui : le raccourci de mesure, ni défilement ni zoom (un dessin survolé est déjà refusé plus haut).
       !(shiftMeasureEnabled && event.type !== "wheel" && (event as MouseEvent).shiftKey) &&
+      // ⌘ + appui (Mac) : le sélecteur de dessins (Ctrl + appui est déjà refusé par le filtre par défaut de d3-zoom).
+      !(shiftMeasureEnabled && event.type !== "wheel" && (event as MouseEvent).metaKey) &&
       // d3-zoom avale le double-clic (zoom ×2, propagation arrêtée) : sur un indicateur, il n'atteignait jamais
       // handleOverlayDoubleClick, qui ouvre ses paramètres.
       !(event.type === "dblclick" && dblClickTargetRef?.current),

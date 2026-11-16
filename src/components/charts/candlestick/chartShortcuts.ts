@@ -79,9 +79,9 @@ export const CHART_SHORTCUTS: ChartShortcut[] = [
   { id: "measure", group: "Dessins", keys: [["Shift", "click"], ["Shift", "drag"]], description: "Mesurer : écart de prix et en %, nombre de barres, durée. Mesure temporaire, effacée au clic suivant ou par Échap.", context: "dans le vide de la zone des prix" },
   { id: "angle-lock", group: "Dessins", keys: [["Shift"]], description: "Bloquer l'angle du segment à 0°, 45° ou 90°.", context: "pendant le tracé" },
   { id: "draw-drag", group: "Dessins", keys: [["drag"]], description: "Tracer d'un seul geste : l'appui pose le premier point, le relâchement le second.", context: "outil armé" },
-  { id: "draw-cancel", group: "Dessins", keys: [["Escape"]], description: "Annuler le tracé en cours, désélectionner le dessin ou effacer la mesure." },
+  { id: "draw-cancel", group: "Dessins", keys: [["Escape"]], description: "Annuler le tracé en cours, désélectionner le ou les dessins ou effacer la mesure." },
   { id: "elbow-finish", group: "Dessins", keys: [["Enter"], ["dblclick"]], description: "Terminer la flèche coudée.", context: "flèche coudée" },
-  { id: "draw-delete", group: "Dessins", keys: [["Delete"], ["Backspace"]], description: "Supprimer le dessin survolé ou sélectionné, ou la mesure." },
+  { id: "draw-delete", group: "Dessins", keys: [["Delete"], ["Backspace"]], description: "Supprimer le dessin survolé ou sélectionné, tous les dessins sélectionnés d'un coup (une seule annulation les rétablit), ou la mesure." },
   { id: "draw-copy", group: "Dessins", keys: [["Mod", "C"]], description: "Copier le dessin survolé." },
   { id: "draw-paste", group: "Dessins", keys: [["Mod", "V"]], description: "Coller le dernier dessin copié, légèrement décalé." },
   { id: "draw-undo", group: "Dessins", keys: [["Mod", "Z"]], description: "Annuler la dernière modification des dessins." },
@@ -89,6 +89,8 @@ export const CHART_SHORTCUTS: ChartShortcut[] = [
   { id: "draw-move", group: "Dessins", keys: [["drag"]], description: "Déplacer un dessin, ou l'un de ses points par sa poignée.", context: "sur un dessin" },
   { id: "draw-edit", group: "Dessins", keys: [["dblclick"]], description: "Ouvrir les paramètres du dessin ; dans un tableau, modifier la cellule.", context: "sur un dessin" },
   { id: "draw-select", group: "Dessins", keys: [["click"]], description: "Sélectionner le dessin et afficher sa barre d'outils.", context: "sur un dessin" },
+  { id: "draw-multi-select", group: "Dessins", keys: [["Mod", "drag"]], description: "Sélectionner plusieurs dessins : le rectangle prend en direct chaque dessin qu'il touche ou englobe (ni verrouillé ni masqué). Suppr les supprime ensuite d'un coup." },
+  { id: "draw-multi-toggle", group: "Dessins", keys: [["Mod", "click"]], description: "Ajouter le dessin à la sélection, ou l'en retirer.", context: "sur un dessin" },
 
   // — Indicateurs et panneaux (CandlestickChart, usePaneLayout, ChartLegend, PaneHeaders, ChartStrategyPanel) —
   { id: "indicator-picker", group: "Indicateurs et panneaux", keys: [["Mod", "Space"]], description: "Ouvrir la liste des indicateurs." },

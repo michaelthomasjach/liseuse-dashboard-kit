@@ -236,7 +236,28 @@ export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAdd
   // hoveredDrawingId (proximity-only, clears the moment the pointer leaves) and editingId (only
   // reachable via double-click, opens the full DrawingEditModal) — this is what
   // FloatingDrawingToolbar reads to know which drawing's own color/stroke it's currently showing.
-  const [selectedDrawingId, setSelectedDrawingId] = useState<string | null>(null);
+  const [selectedDrawingId, setSelectedDrawingIdOnly] = useState<string | null>(null);
+  // Sélection multiple (Ctrl + glisser un rectangle, Ctrl + clic sur un dessin) : au moins deux dessins, ou la
+  // sélection en cours pendant le glisser. Exclusive de selectedDrawingId (un seul dessin, avec sa barre flottante) :
+  // une sélection d'un seul dessin redevient une sélection simple (voir setDrawingSelection). Toute sélection simple
+  // (clic, Échap, dessin tout juste posé…) la vide.
+  const [selectedDrawingIds, setSelectedDrawingIds] = useState<string[]>([]);
+  const setSelectedDrawingId = useCallback((id: string | null) => {
+    setSelectedDrawingIdOnly(id);
+    setSelectedDrawingIds((prev) => (prev.length === 0 ? prev : []));
+  }, []);
+  /** Remplace toute la sélection de dessins. Un seul dessin devient la sélection simple (poignées et barre
+   *  flottante), sauf `live` (pendant le glisser du rectangle : rien n'apparaît ni ne disparaît avant le relâché). */
+  const setDrawingSelection = useCallback((ids: string[], live = false) => {
+    if (ids.length === 1 && !live) {
+      setSelectedDrawingIdOnly(ids[0]);
+      setSelectedDrawingIds([]);
+    } else {
+      setSelectedDrawingIdOnly(null);
+      setSelectedDrawingIds(ids);
+    }
+    if (ids.length > 0) setSelectedIndicatorId(null);
+  }, []);
   // The indicator counterpart of selectedDrawingId, set by a plain click on an indicator's own
   // line (see useDrawingInteractions' own handleOverlayPointerUp). Kept separate rather than
   // folded into one "selection" union because the two are read by entirely different consumers —
@@ -317,7 +338,7 @@ export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAdd
         setSelectedIndicatorId(null);
       }
     },
-    [emitDrawings, rememberLastStyle]
+    [emitDrawings, rememberLastStyle, setSelectedDrawingId]
   );
 
   /** The list as it stands right now — what a caller building `next` from the current drawings
@@ -499,7 +520,7 @@ export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAdd
     // selectedDrawingId above) so Escape can still dismiss either — every other tool only needs
     // this while still active, since none of them outlive their own deselection the way a
     // finished measurement or a selection does.
-    if (!activeTool && !measurePoints && !selectedDrawingId && !selectedIndicatorId) return;
+    if (!activeTool && !measurePoints && !selectedDrawingId && selectedDrawingIds.length === 0 && !selectedIndicatorId) return;
     function onKeyDown(e: KeyboardEvent) {
       if (e.key !== "Escape" && e.key !== "Enter") return;
       // "elbowArrow" is the one tool Escape *finalizes* instead of discarding — it has no fixed
@@ -519,22 +540,32 @@ export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAdd
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [activeTool, pendingPoint, pendingExtraPoints, drawings, onDrawingsChange, measurePoints, finalizeElbowArrow, selectedDrawingId, selectedIndicatorId]);
+  }, [activeTool, pendingPoint, pendingExtraPoints, drawings, onDrawingsChange, measurePoints, finalizeElbowArrow, selectedDrawingId, selectedDrawingIds, selectedIndicatorId, setSelectedDrawingId]);
 
   // Deletes whichever drawing is currently hovered (there's no separate "select" state — hover
   // already tracks the one line the user is pointing at, same thing a click-to-select would give
   // here) when Delete/Backspace is pressed — skipped while the edit modal is open (its own
   // "Supprimer" button is the deliberate action there) or while a text input has focus (typing a
   // label in the Texte tab shouldn't delete the drawing out from under it).
+  // Une sélection multiple passe devant le survol : Suppr retire tous ses dessins d'un coup, en une seule étape
+  // d'annulation (un seul emitDrawings).
   useEffect(() => {
+    const multiple = selectedDrawingIds;
     const targetId = hoveredDrawingId ?? selectedDrawingId;
-    if (!targetId || editingId) return;
+    if ((!targetId && multiple.length === 0) || editingId) return;
     function onKeyDown(e: KeyboardEvent) {
       if (e.key !== "Delete" && e.key !== "Backspace") return;
       const active = document.activeElement;
       const isEditableFocused = active instanceof HTMLElement && (active.tagName === "INPUT" || active.tagName === "TEXTAREA" || active.isContentEditable);
       if (isEditableFocused) return;
       e.preventDefault();
+      if (multiple.length > 0) {
+        const gone = new Set(multiple);
+        emitDrawings(drawings.filter((d) => !gone.has(d.id)));
+        if (hoveredDrawingIdRef.current && gone.has(hoveredDrawingIdRef.current)) updateHoveredDrawingId(null);
+        setSelectedDrawingId(null);
+        return;
+      }
       emitDrawings(drawings.filter((d) => d.id !== targetId));
       // Le ref aussi (pas seulement l'état) : le filtre de d3-zoom le lit, et un id resté là bloquait le
       // déplacement dans le temps.
@@ -544,7 +575,7 @@ export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAdd
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [hoveredDrawingId, selectedDrawingId, editingId, drawings, emitDrawings]);
+  }, [hoveredDrawingId, selectedDrawingId, selectedDrawingIds, editingId, drawings, emitDrawings, setSelectedDrawingId]);
 
   // Un dessin qui disparaît (Suppr, menu du clic droit, barre flottante, fenêtre de paramètres, effacement par
   // l'assistant…) ne reste ni survolé ni sélectionné : sinon sa barre flottante restait affichée, et son id
@@ -554,10 +585,14 @@ export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAdd
   const previousDrawingIdsRef = useRef<Set<string>>(new Set(drawings.map((d) => d.id)));
   useEffect(() => {
     const ids = new Set(drawings.map((d) => d.id));
-    const gone = (id: string | null) => id !== null && previousDrawingIdsRef.current.has(id) && !ids.has(id);
+    // L'ensemble précédent est capturé ici : `gone` est aussi appelé plus tard, dans la mise à jour de la sélection
+    // multiple, quand la ref contient déjà le nouvel ensemble.
+    const previousIds = previousDrawingIdsRef.current;
+    const gone = (id: string | null) => id !== null && previousIds.has(id) && !ids.has(id);
     previousDrawingIdsRef.current = ids;
     if (gone(hoveredDrawingIdRef.current)) updateHoveredDrawingId(null);
     if (gone(selectedDrawingId)) setSelectedDrawingId(null);
+    setSelectedDrawingIds((prev) => (prev.some(gone) ? prev.filter((id) => !gone(id)) : prev));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [drawings]);
 
@@ -773,6 +808,8 @@ export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAdd
     setEditModalTab,
     selectedDrawingId,
     setSelectedDrawingId,
+    selectedDrawingIds,
+    setDrawingSelection,
     selectedIndicatorId,
     setSelectedIndicatorId,
     defaultDrawingStyle,

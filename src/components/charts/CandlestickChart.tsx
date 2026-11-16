@@ -365,6 +365,8 @@ function CandlestickChartBody({
     setEditModalTab,
     selectedDrawingId,
     setSelectedDrawingId,
+    selectedDrawingIds,
+    setDrawingSelection,
     selectedIndicatorId,
     setSelectedIndicatorId,
     defaultDrawingStyle,
@@ -1623,6 +1625,7 @@ function CandlestickChartBody({
     handlePointerMove,
     handleOverlayPointerDown,
     handleOverlayPointerUp,
+    selectionBox,
   } = useDrawingInteractions({
     openIndicatorSettings,
     openVolumeSettings: () => setVolumeSettingsOpen(true),
@@ -1673,6 +1676,9 @@ function CandlestickChartBody({
     hoveredDrawingIdRef,
     updateHoveredDrawingId,
     setSelectedDrawingId,
+    selectedDrawingId,
+    selectedDrawingIds,
+    setDrawingSelection,
     setEditingId,
     setDraft,
     setEditModalTab,
@@ -1923,6 +1929,8 @@ function CandlestickChartBody({
     },
     templates: templates.map((t) => ({ id: t.id, name: t.name })), activeTemplateId: activeTemplateId ?? null, loadTemplate, saveTemplateAs, overwriteTemplate,
     drawingsHidden, setDrawingsHidden, drawingsLocked, setDrawingsLocked, drawings: currentDrawings,
+    selectedDrawingIds: selectedDrawingIds.length > 0 ? selectedDrawingIds : selectedDrawingId ? [selectedDrawingId] : [],
+    selectDrawings: setDrawingSelection,
     editDrawing: (dr) => {
       setEditingId(dr.id);
       setDraft(dr);
@@ -2907,6 +2915,8 @@ function CandlestickChartBody({
           handleEndpointPointerMove={handleEndpointPointerMove}
           handleEndpointPointerUp={handleEndpointPointerUp}
           measurePoints={measurePoints}
+          selectedDrawingIds={selectedDrawingIds}
+          selectionBox={selectionBox}
           handleMeasureHandlePointerDown={handleMeasureHandlePointerDown}
           handleMeasureHandlePointerMove={handleMeasureHandlePointerMove}
           handleMeasureHandlePointerUp={handleMeasureHandlePointerUp}

@@ -27,6 +27,9 @@ import { tableCellRect } from "../drawingGeometry";
 import { defaultYAxisGutter, type ChartYAxisGutter } from "../chartStyle";
 
 // One per TextEntryState.tool — module-scope since it depends on nothing render-specific.
+/** Valeur par défaut stable de `selectedDrawingIds`. */
+const EMPTY_IDS: string[] = [];
+
 const TEXT_ENTRY_PLACEHOLDERS: Record<TextEntryState["tool"], string> = {
   text: "Ajouter du texte",
   comment: "Ajouter un commentaire",
@@ -109,6 +112,10 @@ export interface ChartCanvasOverlayProps {
   handleEndpointPointerMove: (e: React.PointerEvent<SVGCircleElement>) => void;
   handleEndpointPointerUp: (e: React.PointerEvent<SVGCircleElement>) => void;
   measurePoints: { p1: DataPoint; p2: DataPoint } | null;
+  /** Sélection multiple (Ctrl + glisser, Ctrl + clic) : ses dessins affichent leurs poignées, comme la sélection simple. */
+  selectedDrawingIds?: string[];
+  /** Rectangle du sélecteur Ctrl + glisser en cours, en pixels du graphique. */
+  selectionBox?: { left: number; top: number; right: number; bottom: number } | null;
   handleMeasureHandlePointerDown: (point: "p1" | "p2") => (e: React.PointerEvent<SVGCircleElement>) => void;
   handleMeasureHandlePointerMove: (e: React.PointerEvent<SVGCircleElement>) => void;
   handleMeasureHandlePointerUp: (e: React.PointerEvent<SVGCircleElement>) => void;
@@ -271,6 +278,8 @@ export function ChartCanvasOverlay({
   handleEndpointPointerMove,
   handleEndpointPointerUp,
   measurePoints,
+  selectedDrawingIds = EMPTY_IDS,
+  selectionBox = null,
   handleMeasureHandlePointerDown,
   handleMeasureHandlePointerMove,
   handleMeasureHandlePointerUp,
@@ -552,8 +561,19 @@ export function ChartCanvasOverlay({
           {/* Rendered last (on top of the zoom/pan overlay and axis-drag strips) so the handles
               actually receive pointer events instead of the overlay swallowing them first. */}
           <g clipPath={`url(#${clipId})`}>
+            {/* Ctrl + glisser : le rectangle du sélecteur, discret (accent du thème, fond très léger), sans
+                intercepter le pointeur. */}
+            {selectionBox && (
+              <rect
+                className="lq-chart__selection-box"
+                x={selectionBox.left}
+                y={selectionBox.top}
+                width={selectionBox.right - selectionBox.left}
+                height={selectionBox.bottom - selectionBox.top}
+              />
+            )}
             {visibleDrawings.map((dr) => {
-              const isHovered = hoveredDrawingId === dr.id || selectedDrawingId === dr.id;
+              const isHovered = hoveredDrawingId === dr.id || selectedDrawingId === dr.id || selectedDrawingIds.includes(dr.id);
               if (!isHovered) return null;
               // A freehand stroke can have dozens of sampled points — individually draggable
               // handles for each would be impractical clutter, so it only moves as a whole

@@ -265,18 +265,18 @@ const DRAW_TOOL: AiTool = {
   },
 };
 
-const MANAGE_ACTIONS = ["lister", "modifier", "dupliquer", "supprimer", "tout_supprimer", "masquer_tout", "afficher_tout", "verrouiller_tout", "deverrouiller_tout"] as const;
+const MANAGE_ACTIONS = ["lister", "modifier", "dupliquer", "supprimer", "selectionner", "supprimer_la_selection", "tout_supprimer", "masquer_tout", "afficher_tout", "verrouiller_tout", "deverrouiller_tout"] as const;
 
 const MANAGE_TOOL: AiTool = {
   definition: {
     name: "gerer_les_dessins",
     description:
-      "Liste et modifie les dessins du graphique : « lister » (id, type, points, style), « modifier » un ou plusieurs dessins (couleur, épaisseur, style de ligne, extension, texte, remplissage, verrouillage, masquage, ou ses points), « dupliquer », « supprimer » (par ids), « tout_supprimer », et pour tous les dessins à la fois : masquer_tout / afficher_tout (bouton œil), verrouiller_tout / deverrouiller_tout (cadenas). Ex. : {action:\"modifier\", ids:[\"drawing-4\"], couleur:\"#d64545\", style_de_ligne:\"tirets\", verrouille:true}.",
+      "Liste et modifie les dessins du graphique : « lister » (id, type, points, style), « modifier » un ou plusieurs dessins (couleur, épaisseur, style de ligne, extension, texte, remplissage, verrouillage, masquage, ou ses points), « dupliquer », « supprimer » (par ids), « selectionner » (un ou plusieurs ids, comme Ctrl + glisser ; ids vide = rien de sélectionné), « supprimer_la_selection » (les dessins sélectionnés par l'utilisateur ou par « selectionner »), « tout_supprimer », et pour tous les dessins à la fois : masquer_tout / afficher_tout (bouton œil), verrouiller_tout / deverrouiller_tout (cadenas). Ex. : {action:\"modifier\", ids:[\"drawing-4\"], couleur:\"#d64545\", style_de_ligne:\"tirets\", verrouille:true}.",
     inputSchema: {
       type: "object",
       properties: {
         action: { type: "string", enum: MANAGE_ACTIONS, description: "Ce qu'il faut faire." },
-        ids: { type: "array", items: { type: "string" }, description: "Ids des dessins visés (modifier, dupliquer, supprimer)." },
+        ids: { type: "array", items: { type: "string" }, description: "Ids des dessins visés (modifier, dupliquer, supprimer, selectionner)." },
         points: { type: "array", items: POINT_SCHEMA, description: "modifier : nouveaux points (mêmes règles que dessiner)." },
         ...STYLE_PROPS,
       },
@@ -291,10 +291,20 @@ const MANAGE_TOOL: AiTool = {
     const ids = (Array.isArray(input.ids) ? input.ids : []).filter((x): x is string => typeof x === "string");
     const c = chart.controls;
     switch (action) {
-      case "lister":
+      case "lister": {
+        const selected = c?.selectedDrawings() ?? [];
         return ok(
-          `${own.length} dessin(s)${c ? ` — tous ${c.drawingsHidden() ? "masqués" : "affichés"}, ${c.drawingsLocked() ? "verrouillés" : "déverrouillés"}` : ""} :\n${own.map(describeDrawing).join("\n") || "aucun"}`,
+          `${own.length} dessin(s)${c ? ` — tous ${c.drawingsHidden() ? "masqués" : "affichés"}, ${c.drawingsLocked() ? "verrouillés" : "déverrouillés"}` : ""} :\n${own.map(describeDrawing).join("\n") || "aucun"}${selected.length > 0 ? `\nSélectionné(s) : ${selected.join(", ")}.` : ""}`,
         );
+      }
+      case "supprimer_la_selection": {
+        if (!c) return fail("Commande indisponible ici.");
+        const selected = c.selectedDrawings();
+        if (selected.length === 0) return fail("Aucun dessin sélectionné.");
+        chart.commitDrawings(drawings.filter((d) => !selected.includes(d.id)));
+        c.selectDrawings([]);
+        return ok(`Supprimé(s) : ${selected.join(", ")}.`);
+      }
       case "tout_supprimer": {
         chart.commitDrawings(drawings.filter((d) => d.lineType === "symbolOverlay"));
         return ok(`${own.length} dessin(s) supprimé(s). Les comparaisons de symboles restent (gerer_les_comparaisons).`);
@@ -310,9 +320,19 @@ const MANAGE_TOOL: AiTool = {
         c.setDrawingsLocked(action === "verrouiller_tout");
         return ok(action === "verrouiller_tout" ? "Tous les dessins sont verrouillés." : "Les dessins sont déverrouillés.");
     }
+    if (action === "selectionner" && ids.length === 0) {
+      if (!c) return fail("Commande indisponible ici.");
+      c.selectDrawings([]);
+      return ok("Plus aucun dessin sélectionné.");
+    }
     if (ids.length === 0) return fail("Indiquez « ids » (voir action « lister »).");
     const missing = ids.filter((id) => !drawings.some((d) => d.id === id));
     if (missing.length > 0) return fail(`Dessin(s) introuvable(s) : ${missing.join(", ")}. Dessins : ${own.map((d) => d.id).join(", ") || "aucun"}.`);
+    if (action === "selectionner") {
+      if (!c) return fail("Commande indisponible ici.");
+      c.selectDrawings(ids);
+      return ok(`Sélectionné(s) : ${ids.join(", ")}. Suppr les supprime d'un coup.`);
+    }
     if (action === "supprimer") {
       chart.commitDrawings(drawings.filter((d) => !ids.includes(d.id)));
       return ok(`Supprimé(s) : ${ids.join(", ")}.`);

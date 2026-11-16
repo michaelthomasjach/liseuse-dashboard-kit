@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as d3 from "d3";
 import type { ScaleLinear } from "d3";
 import type { Candle } from "../interfaces/Candle.interface";
@@ -10,6 +10,7 @@ import type { TextEntryState } from "../interfaces/TextEntryState.interface";
 import type { EditingCellState } from "../interfaces/EditingCellState.interface";
 import { allPointsOf, round4, snapAngle, tableCellIndexAt } from "../drawingGeometry";
 import { distanceToDrawing } from "../drawingHitTest";
+import { drawingTouchesRect, selectionRectBetween, type SelectionRect } from "../drawingRectSelection";
 import { distanceToIndicator } from "../indicatorHitTest";
 import type { HitTestContext } from "../drawingHitTest";
 import type { IndicatorValue } from "../interfaces/IndicatorValue.interface";
@@ -91,6 +92,10 @@ export interface UseDrawingInteractionsArgs {
   hoveredDrawingIdRef: MutableRef<string | null>;
   updateHoveredDrawingId: (id: string | null) => void;
   setSelectedDrawingId: (id: string | null) => void;
+  /** Sélection simple et multiple (voir useDrawingState) : Ctrl + glisser un rectangle, Ctrl + clic sur un dessin. */
+  selectedDrawingId: string | null;
+  selectedDrawingIds: string[];
+  setDrawingSelection: (ids: string[], live?: boolean) => void;
   setEditingId: (id: string | null) => void;
   setDraft: (d: TrendLineDrawing | null) => void;
   setEditModalTab: (t: "coords" | "text" | "style") => void;
@@ -206,6 +211,9 @@ export function useDrawingInteractions({
   hoveredDrawingIdRef,
   updateHoveredDrawingId,
   setSelectedDrawingId,
+  selectedDrawingId,
+  selectedDrawingIds,
+  setDrawingSelection,
   setEditingId,
   setDraft,
   setEditModalTab,
@@ -299,6 +307,42 @@ export function useDrawingInteractions({
   // The plot's own element, as last seen by handlePointerMove — updateHoverState runs a frame later
   // (no event in hand) and sets the pointer cursor on it directly, without a re-render per move.
   const overlayElRef = useRef<SVGRectElement | null>(null);
+  // Ctrl (⌘ sur Mac) + appui, aucun outil armé : sélecteur de dessins, calqué sur Maj + clic (mesure). Un glisser
+  // trace un rectangle et sélectionne en direct chaque dessin qu'il touche ou englobe, ajouté à la sélection
+  // d'avant l'appui (`base`) ; un simple clic sur un dessin l'ajoute à la sélection ou l'en retire.
+  const selectPressRef = useRef<{ startClientX: number; startClientY: number; startX: number; startY: number; moved: boolean; base: string[]; hitId: string | null } | null>(null);
+  // Le rectangle en cours, en pixels du graphique (dessiné par ChartCanvasOverlay).
+  const [selectionBox, setSelectionBox] = useState<SelectionRect | null>(null);
+
+  /** Un dessin que le sélecteur peut prendre : affiché (visibleDrawings), ni verrouillé ni comparaison de symbole. */
+  function isSelectable(dr: TrendLineDrawing): boolean {
+    return !drawingsLocked && !dr.locked && dr.lineType !== "symbolOverlay";
+  }
+
+  /** La sélection actuelle, simple ou multiple, réduite aux dessins encore sélectionnables. */
+  function currentSelection(): string[] {
+    const ids = selectedDrawingIds.length > 0 ? selectedDrawingIds : selectedDrawingId ? [selectedDrawingId] : [];
+    return ids.filter((id) => visibleDrawings.some((d) => d.id === id && isSelectable(d)));
+  }
+
+  /** La base de l'appui, plus chaque dessin sélectionnable que le rectangle touche ou englobe. */
+  function selectionWithin(rect: SelectionRect, base: string[]): string[] {
+    const ctx: HitTestContext = { dims, plotBoundedHeight, priceHeight, zoomedXScale, zoomedPriceScale, indexForDate, pixelYForDrawing, overlayProjections, data };
+    const hits = visibleDrawings.filter((d) => isSelectable(d) && !base.includes(d.id) && drawingTouchesRect(d, rect, ctx)).map((d) => d.id);
+    return [...base, ...hits];
+  }
+
+  /** Ctrl + clic sur un dessin (son tracé ou une poignée) : l'ajoute à la sélection, ou l'en retire. */
+  function toggleInSelection(id: string) {
+    const dr = visibleDrawings.find((d) => d.id === id);
+    if (!dr || !isSelectable(dr)) return;
+    const base = currentSelection();
+    setDrawingSelection(base.includes(id) ? base.filter((x) => x !== id) : [...base, id]);
+  }
+
+  function isSelectGesture(e: { ctrlKey: boolean; metaKey: boolean; pointerType: string; button: number }): boolean {
+    return measureShortcut && !activeTool && (e.ctrlKey || e.metaKey) && e.pointerType !== "touch" && e.button === 0;
+  }
 
   function scheduleHoverUpdate(x: number, y: number, hitDistance: number) {
     pendingHoverRef.current = { x, y, hitDistance };
@@ -458,6 +502,11 @@ export function useDrawingInteractions({
       // Still stops propagation while locked — otherwise the blocked click would bubble up to
       // the overlay underneath and start a whole-body drag instead, defeating the lock entirely.
       e.stopPropagation();
+      // Ctrl + clic sur une poignée : comme sur le tracé, le dessin entre dans la sélection ou en sort.
+      if (isSelectGesture(e)) {
+        toggleInSelection(drawingId);
+        return;
+      }
       e.currentTarget.setPointerCapture(e.pointerId);
       endpointPressRef.current = { id: drawingId, startClientX: e.clientX, startClientY: e.clientY, moved: false };
       if (drawingsLocked || drawings.find((d) => d.id === drawingId)?.locked) return;
@@ -537,7 +586,7 @@ export function useDrawingInteractions({
     if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
   }
 
-  const { handleAxisHandlePointerDown, handleAxisHandlePointerMove, handleAxisHandlePointerUp } = useAxisHandleDrag({
+  const { handleAxisHandlePointerDown: axisHandlePointerDown, handleAxisHandlePointerMove, handleAxisHandlePointerUp } = useAxisHandleDrag({
     drawings,
     commitDrawings,
     drawingsLocked,
@@ -550,6 +599,18 @@ export function useDrawingInteractions({
     setSelectedDrawingId,
     setSelectedIndicatorId,
   });
+  // Ctrl + clic sur la poignée unique d'un dessin (horizontale, verticale, demi-droite, marqueur…) : sélection, pas glisser.
+  function handleAxisHandlePointerDown(drawingId: string) {
+    const inner = axisHandlePointerDown(drawingId);
+    return (e: React.PointerEvent<SVGCircleElement>) => {
+      if (isSelectGesture(e)) {
+        e.stopPropagation();
+        toggleInSelection(drawingId);
+        return;
+      }
+      inner(e);
+    };
+  }
 
   // The crosshair/quick-add-badge/nearest-drawing computation shared between plain hover
   // (handlePointerMove, continuously fired on mouse) and a touch tap's own pointerdown
@@ -701,6 +762,26 @@ export function useDrawingInteractions({
       return;
     }
 
+    // Ctrl + glisser : le rectangle suit le pointeur et la sélection se met à jour en direct.
+    const select = selectPressRef.current;
+    if (select) {
+      if (e.buttons === 0) {
+        // Bouton relâché hors de tout évènement reçu : le geste s'arrête là, sélection comprise.
+        selectPressRef.current = null;
+        setSelectionBox(null);
+        if (select.moved) setDrawingSelection(currentSelection());
+      } else {
+        if (!select.moved && Math.hypot(e.clientX - select.startClientX, e.clientY - select.startClientY) >= CLICK_DRAG_THRESHOLD) select.moved = true;
+        if (select.moved) {
+          const box = selectionRectBetween(select.startX, select.startY, mouseX, mouseY);
+          setSelectionBox(box);
+          const next = selectionWithin(box, select.base);
+          if (next.length !== selectedDrawingIds.length || next.some((id, i) => id !== selectedDrawingIds[i])) setDrawingSelection(next, true);
+        }
+        return;
+      }
+    }
+
     const quick = quickPressRef.current;
     if (quick) {
       // Bouton relâché hors de tout évènement reçu : la mesure attend un second clic, comme après un clic.
@@ -838,6 +919,7 @@ export function useDrawingInteractions({
     // Un nouvel appui : le `click` d'un glisser de tracé précédent ne viendra plus (le tactile n'en envoie pas).
     suppressClickRef.current = false;
     quickPressRef.current = null;
+    selectPressRef.current = null;
     // Mesure faite au raccourci : temporaire, comme dans TradingView. Un appui ailleurs que sur ses
     // poignées (qui arrêtent l'évènement avant lui) l'efface ; dans son rectangle, l'appui ne fait
     // rien d'autre (d3-zoom l'a déjà refusé), ailleurs il garde son effet habituel.
@@ -850,6 +932,23 @@ export function useDrawingInteractions({
         suppressClickRef.current = true;
         return;
       }
+    }
+    // Ctrl (⌘) + appui, n'importe où sur le graphique : le sélecteur de dessins (voir selectPressRef). d3-zoom
+    // refuse déjà cet appui (Ctrl par son filtre par défaut, ⌘ par celui de useZoomAndScales) ; Ctrl + molette,
+    // qui n'est pas un appui, ne passe pas par ici.
+    if (isSelectGesture(e) && data.length > 0) {
+      e.currentTarget.setPointerCapture?.(e.pointerId);
+      const rect = e.currentTarget.getBoundingClientRect();
+      selectPressRef.current = {
+        startClientX: e.clientX,
+        startClientY: e.clientY,
+        startX: e.clientX - rect.left,
+        startY: e.clientY - rect.top,
+        moved: false,
+        base: currentSelection(),
+        hitId: hoveredDrawingIdRef.current ?? hoveredDrawingId,
+      };
+      return;
     }
     // Maj + clic (ou Maj + glisser) dans le vide de la zone des prix : mesure, sans armer l'outil depuis
     // la barre. Sur un dessin ou la courbe d'un indicateur, l'appui garde son comportement habituel.
@@ -997,6 +1096,21 @@ export function useDrawingInteractions({
   }
 
   function handleOverlayPointerUp(e: React.PointerEvent<SVGRectElement>) {
+    const select = selectPressRef.current;
+    if (select) {
+      selectPressRef.current = null;
+      if (e.currentTarget.hasPointerCapture?.(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+      // Le `click` qui suit viderait la sélection (clic dans le vide, voir placeDrawingOnClick).
+      suppressClickRef.current = true;
+      setSelectionBox(null);
+      if (select.moved) {
+        const rect = e.currentTarget.getBoundingClientRect();
+        setDrawingSelection(selectionWithin(selectionRectBetween(select.startX, select.startY, e.clientX - rect.left, e.clientY - rect.top), select.base));
+      } else if (select.hitId) {
+        toggleInSelection(select.hitId);
+      }
+      return;
+    }
     const quick = quickPressRef.current;
     if (quick) {
       quickPressRef.current = null;
@@ -1097,5 +1211,6 @@ export function useDrawingInteractions({
     handlePointerMove,
     handleOverlayPointerDown,
     handleOverlayPointerUp,
+    selectionBox,
   };
 }

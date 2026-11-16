@@ -1516,3 +1516,62 @@ export const CartIcon = (props: AnimatedIconProps) => (
     <circle cx="17" cy="19" r="1.5" />
   </IconBase>
 );
+
+/** Clavier — un rectangle arrondi, trois rangées de touches, la barre d'espace en bas. */
+export const KeyboardIcon = (props: AnimatedIconProps) => (
+  <IconBase motion="pulse" {...props}>
+    <rect x="2.5" y="6" width="19" height="12" rx="2" />
+    <path d="M6 9.5h.01M9 9.5h.01M12 9.5h.01M15 9.5h.01M18 9.5h.01M7.5 12.5h.01M10.5 12.5h.01M13.5 12.5h.01M16.5 12.5h.01M8 15.5h8" />
+  </IconBase>
+);
+
+/* Souris des raccourcis : un même corps de souris (molette au milieu), le geste porté par ce qui change — le
+   bouton gauche plein pour un clic, doublé d'un second trait pour le double-clic, le droit plein pour le clic
+   droit, la molette entre deux flèches, des flèches autour pour le glisser, un arc de minuterie pour l'appui long. */
+const MOUSE_BODY = "M12 3a6 6 0 0 1 6 6v6a6 6 0 0 1-12 0V9a6 6 0 0 1 6-6Z";
+
+export const MouseClickIcon = (props: AnimatedIconProps) => (
+  <IconBase motion="bob" {...props}>
+    <path d={MOUSE_BODY} />
+    <path d="M12 3v7H6V9a6 6 0 0 1 6-6Z" fill="currentColor" />
+  </IconBase>
+);
+
+export const MouseDoubleClickIcon = (props: AnimatedIconProps) => (
+  <IconBase motion="beat" {...props}>
+    <path d={MOUSE_BODY} />
+    <path d="M12 3v7H6V9a6 6 0 0 1 6-6Z" fill="currentColor" />
+    <path d="M3 4.5 1.8 3.3M3.6 8H2" />
+  </IconBase>
+);
+
+export const MouseRightClickIcon = (props: AnimatedIconProps) => (
+  <IconBase motion="bob" {...props}>
+    <path d={MOUSE_BODY} />
+    <path d="M12 3v7h6V9a6 6 0 0 0-6-6Z" fill="currentColor" />
+  </IconBase>
+);
+
+export const MouseWheelIcon = (props: AnimatedIconProps) => (
+  <IconBase motion="bob" {...props}>
+    <path d={MOUSE_BODY} />
+    <path d="M12 7v4" strokeWidth={2.4} />
+    <path d="M19.8 7 21.3 5.5 22.8 7M19.8 17l1.5 1.5 1.5-1.5" />
+  </IconBase>
+);
+
+export const MouseDragIcon = (props: AnimatedIconProps) => (
+  <IconBase motion="slide" {...props}>
+    <path d="M12 6a4 4 0 0 1 4 4v4a4 4 0 0 1-8 0v-4a4 4 0 0 1 4-4Z" />
+    <path d="M12 6v4.5" />
+    <path d="M3.5 12h2M2.5 12l1.5-1.5M2.5 12 4 13.5M20.5 12h-2M21.5 12 20 10.5M21.5 12 20 13.5" />
+  </IconBase>
+);
+
+export const MouseLongPressIcon = (props: AnimatedIconProps) => (
+  <IconBase motion="pulse" {...props}>
+    <path d={MOUSE_BODY} />
+    <path d="M12 3v7H6V9a6 6 0 0 1 6-6Z" fill="currentColor" />
+    <path d="M21 4.5a3 3 0 1 1-3 3" />
+  </IconBase>
+);

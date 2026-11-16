@@ -34,7 +34,7 @@ import { useScriptingState } from "./candlestick/hooks/useScriptingState";
 import { ChartSidePanel } from "./candlestick/components/ChartSidePanel";
 import { panelScriptingProps } from "./workspace/panelScriptingProps";
 import { WorkspaceSideRail } from "./workspace/WorkspaceSideRail";
-import { WorkspaceHelpModal } from "./workspace/WorkspaceHelpModal";
+import { WorkspaceHelpModal, type WorkspaceHelpTab } from "./workspace/WorkspaceHelpModal";
 import { WorkspaceTour } from "./workspace/WorkspaceTour";
 import { WORKSPACE_TOUR_STEPS } from "./workspace/workspaceTourSteps";
 import { currentSymbolProfile } from "./workspace/currentSymbolProfile";
@@ -563,6 +563,13 @@ function ChartWorkspaceBody({
   }
   const lockHold = useWorkspaceLockHold();
   const [helpOpen, setHelpOpen] = useState(false);
+  // Onglet de l'aide : « Fonctionnalités » depuis le bouton « ? », « Raccourcis » depuis le menu du clic droit
+  // d'un graphique (« Voir les raccourcis… ») ou l'action de barre d'outils du même nom.
+  const [helpTab, setHelpTab] = useState<WorkspaceHelpTab>("features");
+  const openShortcutsHelp = useCallback(() => {
+    setHelpTab("shortcuts");
+    setHelpOpen(true);
+  }, []);
   /** The guided tour, open on a first visit and never again on its own.
    *
    *  "Never again" is the whole contract: a tour that came back would be a tour nobody could get
@@ -1147,6 +1154,8 @@ function ChartWorkspaceBody({
             // for exactly this (see its own doc) that doesn't have that collision.
             height: panelHeight,
             fillHeight,
+            // « Voir les raccourcis… » d'un graphique de la grille : l'aide de l'espace de travail, onglet « Raccourcis ».
+            onOpenShortcuts: child.props.onOpenShortcuts ?? openShortcutsHelp,
             // Le nom complet du symbole de la fenêtre, pris dans les listes de surveillance (menu du clic droit).
             ...(child.props.symbolName === undefined && child.props.symbol && watchlistNames.get(child.props.symbol)
               ? { symbolName: watchlistNames.get(child.props.symbol) }
@@ -1535,7 +1544,10 @@ function ChartWorkspaceBody({
           showFullscreenButton={fullscreenButton}
           onCapture={(action) => void captureFrontPanel(action)}
           actions={railActions}
-          onOpenHelp={() => setHelpOpen(true)}
+          onOpenHelp={() => {
+            setHelpTab("features");
+            setHelpOpen(true);
+          }}
         />
       )}
       </div>
@@ -1632,6 +1644,8 @@ function ChartWorkspaceBody({
       <WorkspaceHelpModal
         open={helpOpen}
         onClose={() => setHelpOpen(false)}
+        tab={helpTab}
+        onTabChange={setHelpTab}
         onStartTour={() => {
           setHelpOpen(false);
           setTourOpen(true);

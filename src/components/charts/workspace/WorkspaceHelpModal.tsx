@@ -1,5 +1,16 @@
+import { useState } from "react";
 import { version } from "../../../../package.json";
 import { Modal } from "../../primitives/Modal";
+import { Tabs } from "../../primitives/Tabs";
+import { ShortcutsPanel } from "../candlestick/components/ShortcutsPanel";
+
+/** Les onglets de l'aide : les fonctionnalités de l'espace de travail, et tous les raccourcis du kit. */
+export type WorkspaceHelpTab = "features" | "shortcuts";
+
+const HELP_TABS = [
+  { id: "features", label: "Fonctionnalités" },
+  { id: "shortcuts", label: "Raccourcis" },
+];
 
 /** One entry per global feature the rail's own "?" button explains, in the order they read most
  *  naturally (layout, then focus, then protection) rather than the order their own buttons sit in
@@ -38,6 +49,9 @@ export interface WorkspaceHelpModalProps {
   onStartTour?: () => void;
   open: boolean;
   onClose: () => void;
+  /** Onglet affiché (contrôlé) ; sans lui, l'aide s'ouvre sur « Fonctionnalités » et garde son propre onglet. */
+  tab?: WorkspaceHelpTab;
+  onTabChange?: (tab: WorkspaceHelpTab) => void;
 }
 
 /** What every workspace-wide control does, in words — reached from the rail's own "?" button.
@@ -45,10 +59,21 @@ export interface WorkspaceHelpModalProps {
  *  A component of its own because it is almost entirely copy: nineteen lines of French prose that
  *  have to be kept true as the rail changes, and that have no business being read past on the way
  *  to the workspace's actual logic. */
-export function WorkspaceHelpModal({ open, onClose, onStartTour }: WorkspaceHelpModalProps) {
+export function WorkspaceHelpModal({ open, onClose, onStartTour, tab, onTabChange }: WorkspaceHelpModalProps) {
+  const [ownTab, setOwnTab] = useState<WorkspaceHelpTab>("features");
   if (!open) return null;
+  const current = tab ?? ownTab;
+  const changeTab = (id: string) => {
+    setOwnTab(id as WorkspaceHelpTab);
+    onTabChange?.(id as WorkspaceHelpTab);
+  };
   return (
-    <Modal open onClose={onClose} title="Fonctionnalités de l'espace de travail">
+    <Modal open onClose={onClose} title="Fonctionnalités de l'espace de travail" size={current === "shortcuts" ? "wide" : "default"}>
+      <Tabs items={HELP_TABS} value={current} onChange={changeTab} className="lq-chart-workspace__help-tabs" />
+      {current === "shortcuts" ? (
+        <ShortcutsPanel autoFocusSearch />
+      ) : (
+        <>
       {/* First, above the list, because it is the shorter road to the same answer: the tour walks
           to each thing and names it in place, which beats reading about it here and then hunting
           for it. The list stays for the reader who would rather scan than be walked. */}
@@ -65,6 +90,8 @@ export function WorkspaceHelpModal({ open, onClose, onStartTour }: WorkspaceHelp
           </div>
         ))}
       </div>
+        </>
+      )}
       {/* Which build of the kit is actually running, read straight from package.json rather than
        *  stamped in by a release step — Vite turns the JSON into named exports, so the bundle gets
        *  the one string and not the whole manifest (the same import .storybook/manager.ts already

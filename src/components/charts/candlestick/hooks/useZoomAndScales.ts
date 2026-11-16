@@ -89,6 +89,10 @@ export interface UseZoomAndScalesArgs {
    *  handlePointerMove so it's already correct by the time a *later* pointerdown needs it to
    *  decide whether to start a whole-body drag instead of this hook's own pan. */
   measureBodyHoveredRef: RefObject<boolean>;
+  /** Raccourci « Maj + clic pour mesurer » disponible (useDrawingInteractions) : un appui avec Maj
+   *  appartient alors à la mesure, et d3-zoom ne doit pas le prendre pour un défilement. La molette
+   *  avec Maj reste à d3-zoom. */
+  shiftMeasureEnabled?: boolean;
   /** Le pointeur est sur la courbe d'un indicateur ou sur une barre de volume : le double-clic y ouvre ses
    *  paramètres (useDrawingInteractions), d3-zoom ne doit donc pas le prendre pour un zoom avant. */
   dblClickTargetRef?: RefObject<boolean>;
@@ -164,6 +168,7 @@ export function useZoomAndScales({
   placementActive,
   hoveredDrawingIdRef,
   measureBodyHoveredRef,
+  shiftMeasureEnabled = false,
   dblClickTargetRef,
   futureBars,
   yAutoScalingState,
@@ -689,6 +694,8 @@ export function useZoomAndScales({
       !placementActive &&
       hoveredDrawingIdRef.current === null &&
       !measureBodyHoveredRef.current &&
+      // Maj + appui : le raccourci de mesure, ni défilement ni zoom (un dessin survolé est déjà refusé plus haut).
+      !(shiftMeasureEnabled && event.type !== "wheel" && (event as MouseEvent).shiftKey) &&
       // d3-zoom avale le double-clic (zoom ×2, propagation arrêtée) : sur un indicateur, il n'atteignait jamais
       // handleOverlayDoubleClick, qui ouvre ses paramètres.
       !(event.type === "dblclick" && dblClickTargetRef?.current),

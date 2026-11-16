@@ -711,7 +711,11 @@ La distinction entre bougies et jours calendaires a son importance : **week-ends
 
 ## Bon à savoir
 
-**La mesure n'est pas enregistrée parmi les dessins.** Elle reste affichée à l'écran, avec ses deux poignées déplaçables et son rectangle déplaçable d'un bloc, jusqu'à ce qu'**Échap** l'efface ou qu'une nouvelle mesure la remplace.`,
+**La mesure n'est pas enregistrée parmi les dessins.** Elle reste affichée à l'écran, avec ses deux poignées déplaçables et son rectangle déplaçable d'un bloc, jusqu'à ce qu'**Échap** l'efface ou qu'une nouvelle mesure la remplace.
+
+## Raccourci : Maj + clic
+
+Sans armer l'outil, **Maj + clic** dans le vide de la zone des prix pose le premier point ; l'aperçu suit la souris, et un second clic, avec ou sans Maj, fixe la mesure. **Maj + glisser** fait la même chose d'un seul geste. Cette mesure-là est **temporaire**, comme dans TradingView : le clic suivant ailleurs, ou Échap, l'efface. Maj + clic sur un dessin garde son effet habituel.`,
 };
 
 /** The first paragraph of a tool's own explanation, with the formatting markers taken out.

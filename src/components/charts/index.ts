@@ -47,6 +47,13 @@ export type {
 } from "./candlestick/ai/interfaces/AiMessage.interface";
 export { anthropicSend, DEFAULT_AI_MODEL } from "./candlestick/ai/anthropicSend";
 
+// Raccourcis du graphique et de l'espace de travail : la liste unique, sa fenêtre et son panneau avec recherche.
+export { CHART_SHORTCUTS, CHART_SHORTCUT_GROUPS, filterChartShortcuts, shortcutTokenLabel } from "./candlestick/chartShortcuts";
+export type { ChartShortcut, ChartShortcutGroup, ShortcutToken } from "./candlestick/chartShortcuts";
+export { ShortcutsPanel, ShortcutsModal } from "./candlestick/components/ShortcutsPanel";
+export type { ShortcutsPanelProps, ShortcutsModalProps } from "./candlestick/components/ShortcutsPanel";
+export type { WorkspaceHelpTab } from "./workspace/WorkspaceHelpModal";
+
 export { ChartWorkspace } from "./ChartWorkspace";
 export type {
   ChartWorkspaceProps,

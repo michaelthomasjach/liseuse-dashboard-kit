@@ -166,6 +166,13 @@ export {
   ConveyorIcon,
   ForkliftIcon,
   CartIcon,
+  KeyboardIcon,
+  MouseClickIcon,
+  MouseDoubleClickIcon,
+  MouseRightClickIcon,
+  MouseWheelIcon,
+  MouseDragIcon,
+  MouseLongPressIcon,
 } from "./icons";
 // Icônes repères des règles de style conditionnel et des marqueurs de script (option `icon`).
 export { MARKER_ICONS, MARKER_ICON_CATEGORIES, markerIconById, isMarkerIconId, searchMarkerIcons } from "./markerIcons";

@@ -1,0 +1,75 @@
+/* Une touche de clavier : capsule en relief. Le relief vient d'une bordure basse plus épaisse et d'une ombre
+   portée courte, tirées de la couleur de bordure du thème, pour rester juste en clair comme en sombre. Le coin est
+   arrondi même dans les thèmes à angles droits : une touche sans coin arrondi ne se lit plus comme une touche. */
+.lq-kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-width: 1.85em;
+  height: 1.85em;
+  padding: 0 0.5em;
+  font-family: var(--lq-font-mono, ui-monospace, monospace);
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  color: var(--lq-color-text);
+  background: linear-gradient(to bottom, var(--lq-color-panel), color-mix(in srgb, var(--lq-color-panel) 88%, var(--lq-color-text)));
+  border: 1px solid var(--lq-color-border);
+  border-bottom-width: 3px;
+  border-radius: 5px;
+  box-shadow:
+    0 1px 0 color-mix(in srgb, var(--lq-color-border) 70%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--lq-color-panel) 60%, white);
+}
+
+/* E-ink : ni dégradé ni ombre floue, qu'un écran à encre rend en gris sale ; le relief tient au seul trait bas. */
+.lq-root[data-lq-palette="eink"] .lq-kbd {
+  background: var(--lq-color-panel);
+  border-color: var(--lq-color-text);
+  box-shadow: none;
+}
+
+.lq-shortcut-keys {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35em 0.5em;
+}
+
+.lq-shortcut-keys__combo,
+.lq-shortcut-keys__step {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3em;
+}
+
+.lq-shortcut-keys__plus,
+.lq-shortcut-keys__or {
+  color: var(--lq-color-text-muted);
+  font-size: 0.75rem;
+}
+
+.lq-shortcut-keys__or {
+  margin-right: 0.2em;
+  font-style: italic;
+}
+
+/* Le geste de souris dans la même capsule qu'une touche, pour qu'une suite « Maj + clic » se lise d'un bloc. */
+.lq-shortcut-keys__mouse {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  height: 1.85em;
+  min-width: 1.85em;
+  padding: 0 0.3em;
+  color: var(--lq-color-text);
+  border: 1px dashed var(--lq-color-border);
+  border-radius: 999px;
+}
+
+.lq-root[data-lq-palette="eink"] .lq-shortcut-keys__mouse {
+  border-color: var(--lq-color-text);
+}

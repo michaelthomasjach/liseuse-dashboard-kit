@@ -565,7 +565,11 @@ export function drawPriceDrawings(ctx: CanvasRenderingContext2D, params: RenderC
     drawHeadShouldersDrawings(ctx, params, style);
     drawCupHandleDrawings(ctx, params, style);
 
-    if (activeTool && pendingPoint && previewPoint) {
+    // L'outil Mesurer (armé depuis la barre ou au raccourci Maj + clic) montre son résultat en direct,
+    // rectangle et encart chiffré compris, au lieu d'un simple trait jusqu'au pointeur.
+    if (activeTool === "measure" && pendingPoint && previewPoint) {
+      drawMeasurement(pendingPoint, previewPoint);
+    } else if (activeTool && pendingPoint && previewPoint) {
       ctx.save();
       ctx.strokeStyle = colorAccent;
       ctx.globalAlpha = 0.75;
@@ -771,8 +775,9 @@ export function drawPriceDrawings(ctx: CanvasRenderingContext2D, params: RenderC
     // if the price went up from p1 to p2, red if down, same up/down convention as candles) plus a
     // small stats panel: % change, price delta ("points"), bar count and calendar-day count
     // between them.
-    if (measurePoints) {
-      const { p1, p2 } = measurePoints;
+    if (measurePoints) drawMeasurement(measurePoints.p1, measurePoints.p2);
+
+    function drawMeasurement(p1: DataPoint, p2: DataPoint) {
       const mx1 = zoomedXScale(indexForDate(p1.x) + 0.5);
       const my1 = zoomedPriceScale(p1.y);
       const mx2 = zoomedXScale(indexForDate(p2.x) + 0.5);
@@ -798,14 +803,16 @@ export function drawPriceDrawings(ctx: CanvasRenderingContext2D, params: RenderC
       // fixes it to 3 decimals — same "fixed precision regardless of whether it happens to land
       // on a round number" convention pct/priceDelta below already use.
       const bars = Math.abs(indexForDate(p2.x) - indexForDate(p1.x));
-      const days = Math.round(Math.abs(p2.x.getTime() - p1.x.getTime()) / 86_400_000);
+      const durationMs = Math.abs(p2.x.getTime() - p1.x.getTime());
+      const days = Math.round(durationMs / 86_400_000);
       const priceDelta = p2.y - p1.y;
       const pct = p1.y !== 0 ? (priceDelta / p1.y) * 100 : 0;
       const sign = priceDelta >= 0 ? "+" : "";
       const lines = [
         `${sign}${pct.toFixed(2)}%`,
         `${bars.toFixed(3)} barre${bars > 1 ? "s" : ""}`,
-        `${days} jour${days > 1 ? "s" : ""}`,
+        // Sous une journée (unités intrajournalières), la durée en heures et minutes plutôt que « 0 jour ».
+        durationMs < 86_400_000 ? formatShortDuration(durationMs) : `${days} jour${days > 1 ? "s" : ""}`,
         `${sign}${priceDelta.toFixed(2)} points`,
       ];
       ctx.setLineDash([]);
@@ -1041,4 +1048,13 @@ function strokeMedian(ctx: CanvasRenderingContext2D, ax: number, ay: number, bx:
   ctx.lineTo(bx, by);
   ctx.stroke();
   ctx.restore();
+}
+
+/** Durée de moins d'un jour, pour l'encart de la mesure : « 45 min », « 3 h », « 3 h 20 min ». */
+function formatShortDuration(ms: number): string {
+  const totalMinutes = Math.round(ms / 60_000);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours === 0) return `${minutes} min`;
+  return minutes === 0 ? `${hours} h` : `${hours} h ${minutes} min`;
 }

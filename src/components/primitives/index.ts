@@ -34,6 +34,9 @@ export type { SegmentedControlProps, SegmentedControlOption } from "./SegmentedC
 export { Tabs } from "./Tabs";
 export type { TabsProps, TabItem } from "./Tabs";
 
+export { KeyboardKey, ShortcutKeys } from "./ShortcutKeys";
+export type { KeyboardKeyProps, ShortcutKeysProps } from "./ShortcutKeys";
+
 export { Jumbotron } from "./Jumbotron";
 export type { JumbotronProps } from "./Jumbotron";
 

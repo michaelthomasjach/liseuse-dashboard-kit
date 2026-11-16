@@ -13,6 +13,7 @@ import {
   GaugeIcon,
   SettingsIcon,
   MaximizeIcon,
+  KeyboardIcon,
 } from "../../icons";
 import { DRAWING_TOOL_CATEGORIES } from "./drawingCatalog";
 import { INDICATOR_CATALOG, isFundamentalKind } from "./indicatorCatalog";
@@ -77,6 +78,7 @@ export function buildCustomToolbarCatalog(ctx: CustomToolbarCatalogContext): Cus
     { id: "action:marketState", label: "État du marché", group: "Actions du graphique", icon: GaugeIcon },
     { id: "action:symbolSettings", label: "Paramètres du graphique (symbole)", group: "Actions du graphique", icon: SettingsIcon },
     { id: "action:settings", label: "Paramètres système", group: "Actions du graphique", icon: SettingsIcon },
+    { id: "action:shortcuts", label: "Voir les raccourcis", group: "Actions du graphique", icon: KeyboardIcon },
     ...(ctx.fullscreenToggle ? [{ id: "action:fullscreen", label: "Plein écran", group: "Actions du graphique", icon: MaximizeIcon }] : []),
   ];
   const timeframes: CustomToolbarToolDef[] = ctx.canChangeTimeframe

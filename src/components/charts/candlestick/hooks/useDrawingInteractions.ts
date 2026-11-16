@@ -76,6 +76,10 @@ export interface UseDrawingInteractionsArgs {
   setPendingExtraPoints: (v: DataPoint[] | ((prev: DataPoint[]) => DataPoint[])) => void;
   measurePoints: { p1: DataPoint; p2: DataPoint } | null;
   setMeasurePoints: (v: { p1: DataPoint; p2: DataPoint } | null | ((prev: { p1: DataPoint; p2: DataPoint } | null) => { p1: DataPoint; p2: DataPoint } | null)) => void;
+  /** Mesure faite au raccourci Maj + clic (voir useDrawingState) : temporaire, effacée au clic suivant. */
+  quickMeasureRef: MutableRef<boolean>;
+  /** Raccourci « Maj + clic pour mesurer » disponible : outils de dessin affichés, aucun outil personnalisé armé. */
+  measureShortcut: boolean;
   drawingsLocked: boolean;
   /** Verrou d'angle (bouton de la barre flottante, pour l'écran tactile) : comme Maj maintenue. */
   angleLock: boolean;
@@ -190,6 +194,8 @@ export function useDrawingInteractions({
   setPendingExtraPoints,
   measurePoints,
   setMeasurePoints,
+  quickMeasureRef,
+  measureShortcut,
   drawingsLocked,
   angleLock,
   visibleDrawings,
@@ -286,6 +292,10 @@ export function useDrawingInteractions({
   const drawPressRef = useRef<{ startClientX: number; startClientY: number; dragging: boolean; first: DataPoint | null } | null>(null);
   // Le relâchement d'un glisser de tracé est suivi d'un `click` natif : il ne doit poser aucun point.
   const suppressClickRef = useRef(false);
+  // Maj + appui dans le vide de la zone des prix, aucun outil armé : le premier point de la mesure est
+  // posé à l'appui. Relâché sans avoir bougé, la mesure attend un second clic (avec ou sans Maj) ;
+  // après un glisser, le relâchement la fixe.
+  const quickPressRef = useRef<{ startClientX: number; startClientY: number; moved: boolean; first: DataPoint } | null>(null);
   // The plot's own element, as last seen by handlePointerMove — updateHoverState runs a frame later
   // (no event in hand) and sets the pointer cursor on it directly, without a re-render per move.
   const overlayElRef = useRef<SVGRectElement | null>(null);
@@ -311,6 +321,8 @@ export function useDrawingInteractions({
    *  Aucun pour le 3ᵉ clic d'un canal : il fixe un écart, pas une direction. */
   function placementAnchor(): DataPoint | null {
     if (!activeTool) return null;
+    // Mesure au raccourci : Maj y est le raccourci lui-même, pas la contrainte d'angle.
+    if (activeTool === "measure" && quickMeasureRef.current) return null;
     if ((activeTool === "channel" || activeTool === "disjointChannel") && pendingSecondPoint) return null;
     return pendingExtraPoints[pendingExtraPoints.length - 1] ?? pendingSecondPoint ?? pendingPoint ?? null;
   }
@@ -580,7 +592,7 @@ export function useDrawingInteractions({
     }
 
     // Pendant un glisser de tracé, handlePointerMove tient l'aperçu lui-même (aimanté, au pixel près).
-    if (activeTool && pendingPoint && !drawPressRef.current?.dragging) {
+    if (activeTool && pendingPoint && !drawPressRef.current?.dragging && !quickPressRef.current?.moved) {
       const anchor = placementAnchor();
       if (anchor && (shiftHeldRef.current || angleLock)) {
         const p = snapAngle({ x: zoomedXScale(indexForDate(anchor.x) + 0.5), y: zoomedPriceScale(anchor.y) }, { x: mouseX, y: mouseY });
@@ -687,6 +699,16 @@ export function useDrawingInteractions({
       brushPointsRef.current = [...brushPointsRef.current, point];
       setBrushPreview(brushPointsRef.current);
       return;
+    }
+
+    const quick = quickPressRef.current;
+    if (quick) {
+      // Bouton relâché hors de tout évènement reçu : la mesure attend un second clic, comme après un clic.
+      if (e.buttons === 0) quickPressRef.current = null;
+      else {
+        if (!quick.moved && Math.hypot(e.clientX - quick.startClientX, e.clientY - quick.startClientY) >= CLICK_DRAG_THRESHOLD) quick.moved = true;
+        if (quick.moved) setPreviewPoint(toDataPoint(e, null));
+      }
     }
 
     const press = drawPressRef.current;
@@ -815,6 +837,44 @@ export function useDrawingInteractions({
     lockedPressRef.current = null;
     // Un nouvel appui : le `click` d'un glisser de tracé précédent ne viendra plus (le tactile n'en envoie pas).
     suppressClickRef.current = false;
+    quickPressRef.current = null;
+    // Mesure faite au raccourci : temporaire, comme dans TradingView. Un appui ailleurs que sur ses
+    // poignées (qui arrêtent l'évènement avant lui) l'efface ; dans son rectangle, l'appui ne fait
+    // rien d'autre (d3-zoom l'a déjà refusé), ailleurs il garde son effet habituel.
+    if (!activeTool && measurePoints && quickMeasureRef.current) {
+      const insideBody = measureBodyHoveredRef.current;
+      quickMeasureRef.current = false;
+      measureBodyHoveredRef.current = false;
+      setMeasurePoints(null);
+      if (insideBody && !e.shiftKey) {
+        suppressClickRef.current = true;
+        return;
+      }
+    }
+    // Maj + clic (ou Maj + glisser) dans le vide de la zone des prix : mesure, sans armer l'outil depuis
+    // la barre. Sur un dessin ou la courbe d'un indicateur, l'appui garde son comportement habituel.
+    if (
+      measureShortcut &&
+      !activeTool &&
+      e.shiftKey &&
+      e.pointerType !== "touch" &&
+      e.button === 0 &&
+      data.length > 0 &&
+      !hoveredDrawingId &&
+      !hoveredDrawingIdRef.current &&
+      !hoveredIndicatorIdRef.current &&
+      e.clientY - e.currentTarget.getBoundingClientRect().top <= priceHeight
+    ) {
+      e.currentTarget.setPointerCapture?.(e.pointerId);
+      const first = toDataPoint(e, null);
+      quickMeasureRef.current = true;
+      setMeasurePoints(null);
+      setActiveTool("measure");
+      setPendingPoint(first);
+      setPreviewPoint(first);
+      quickPressRef.current = { startClientX: e.clientX, startClientY: e.clientY, moved: false, first };
+      return;
+    }
     // Brush is the one drawing tool that places points by dragging instead of clicking — starts
     // capturing here instead of falling through to the click-based tools' shared handleOverlayClick.
     if (activeTool === "brush") {
@@ -937,6 +997,20 @@ export function useDrawingInteractions({
   }
 
   function handleOverlayPointerUp(e: React.PointerEvent<SVGRectElement>) {
+    const quick = quickPressRef.current;
+    if (quick) {
+      quickPressRef.current = null;
+      if (e.currentTarget.hasPointerCapture?.(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+      // Le `click` qui suit ne doit rien poser : le premier point l'est déjà, et après un glisser la mesure est finie.
+      suppressClickRef.current = true;
+      if (quick.moved) {
+        setMeasurePoints({ p1: quick.first, p2: toDataPoint(e, null) });
+        setPendingPoint(null);
+        setPreviewPoint(null);
+        setActiveTool(null);
+      }
+      return;
+    }
     const press = drawPressRef.current;
     if (press) {
       drawPressRef.current = null;

@@ -469,6 +469,10 @@ export interface CandlestickChartProps {
    *  `symbol` set but this left off, the label still renders, just as inert text. Ignored
    *  entirely if `symbol` itself is omitted (nothing to click). */
   symbolSearch?: boolean;
+  /** « Voir les raccourcis… » (menu du clic droit, action `action:shortcuts` des barres d'outils personnalisées).
+   *  Sans elle, le graphique ouvre sa propre fenêtre des raccourcis ; dans un `ChartWorkspace`, l'espace de travail
+   *  la fournit et ouvre son aide sur l'onglet « Raccourcis ». */
+  onOpenShortcuts?: () => void;
   /** Results currently shown in the symbol-search modal. Searching/filtering — including for
    *  the "Favoris" pill, see `defaultFavoriteSymbolIds` — is entirely the caller's job: this is
    *  only what actually renders, driven by `onSymbolSearchChange`. */

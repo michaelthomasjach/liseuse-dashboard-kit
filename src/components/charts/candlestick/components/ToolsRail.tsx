@@ -379,6 +379,7 @@ export function ToolsRail({
                 className={["lq-chart__icon-button", activeTool === "measure" && "lq-chart__icon-button--active"].filter(Boolean).join(" ")}
                 onClick={() => handleToolClick("measure")}
                 aria-label={measureTool.label}
+                title="Mesurer (Maj + clic)"
                 aria-pressed={activeTool === "measure"}
               >
                 <MeasureToolIcon size={14} />

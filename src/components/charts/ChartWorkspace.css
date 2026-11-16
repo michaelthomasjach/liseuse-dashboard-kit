@@ -1259,6 +1259,13 @@
   flex: 0 0 auto;
 }
 
+/* Onglets de l'aide (« Fonctionnalités », « Raccourcis »). */
+.lq-chart-workspace__help-tabs {
+  /* Le corps de la fenêtre est une colonne flexible : sans ça, une longue liste de raccourcis écrase les onglets. */
+  flex-shrink: 0;
+  margin-bottom: var(--lq-space-4);
+}
+
 .lq-chart-workspace__help-list {
   display: flex;
   flex-direction: column;

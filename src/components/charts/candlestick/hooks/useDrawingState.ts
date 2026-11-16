@@ -199,6 +199,10 @@ export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAdd
   // ephemeral, cleared on Escape/tool switch instead of persisted). `pendingPoint`/`previewPoint`
   // still drive its live 1st-click-to-cursor preview, same as every other 2-point tool.
   const [measurePoints, setMeasurePoints] = useState<{ p1: DataPoint; p2: DataPoint } | null>(null);
+  // Vrai quand la mesure en cours (ou affichée) vient du raccourci Maj + clic, comme dans TradingView :
+  // elle disparaît alors au clic suivant, ailleurs que sur ses poignées. La mesure faite avec l'outil
+  // armé depuis la barre garde son comportement : elle reste jusqu'à Échap ou une nouvelle mesure.
+  const quickMeasureRef = useRef(false);
   // The brush tool's current in-progress stroke, for live preview only — the committed drawing
   // (on pointer up) is built from brushPointsRef below, not from this state, so a stroke can be
   // sampled at pointermove speed without every sample racing a stale closure over React state.
@@ -410,6 +414,7 @@ export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAdd
     setPendingSecondPoint(null);
     setPendingExtraPoints([]);
     setMeasurePoints(null);
+    quickMeasureRef.current = false;
   }
 
   // Commits the in-progress "elbowArrow" polyline as a real drawing if it has enough points (≥2)
@@ -463,6 +468,7 @@ export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAdd
       setPendingSecondPoint(null);
       setPendingExtraPoints([]);
       setMeasurePoints(null);
+      quickMeasureRef.current = false;
       setSelectedDrawingId(null);
     }
   }
@@ -482,6 +488,7 @@ export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAdd
     setPendingSecondPoint(null);
     setPendingExtraPoints([]);
     setMeasurePoints(null);
+    quickMeasureRef.current = false;
     setSelectedDrawingId(null);
     setSelectedIndicatorId(null);
   }
@@ -568,6 +575,7 @@ export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAdd
       if (isEditableFocused || hoveredDrawingIdRef.current) return;
       e.preventDefault();
       setMeasurePoints(null);
+      quickMeasureRef.current = false;
       measureBodyHoveredRef.current = false;
       dragMeasureRef.current = null;
       dragMeasureBodyRef.current = null;
@@ -734,6 +742,7 @@ export function useDrawingState({ data, defaultDrawings, onDrawingsChange, onAdd
     visibleDrawings,
     measurePoints,
     setMeasurePoints,
+    quickMeasureRef,
     brushPreview,
     setBrushPreview,
     brushPointsRef,

@@ -109,6 +109,7 @@ import { indicatorCatalogEntry, indicatorLabel, defaultIndicatorColor } from "./
 import { drawingAxisAnnotations, indicatorAxisAnnotations } from "./candlestick/axisAnnotations";
 import { ChartContextMenu } from "./candlestick/components/ChartContextMenu";
 import { buildChartContextMenu, type ChartContextMenuAnchor } from "./candlestick/buildChartContextMenu";
+import { ShortcutsModal } from "./candlestick/components/ShortcutsPanel";
 import { captureChartCanvas, runChartCapture } from "./candlestick/captureChart";
 import { createChartToolBridge } from "./candlestick/ai/chartToolBridge";
 import { buildAiChartControls, type AiControlsState } from "./candlestick/ai/aiChartControls";
@@ -195,6 +196,7 @@ function CandlestickChartBody({
   syncedReplay,
   onReplaySync,
   drawingTools = false,
+  onOpenShortcuts,
   defaultDrawings,
   onDrawingsChange,
   drawingsHidden: drawingsHiddenProp,
@@ -333,6 +335,7 @@ function CandlestickChartBody({
     visibleDrawings,
     measurePoints,
     setMeasurePoints,
+    quickMeasureRef,
     brushPreview,
     setBrushPreview,
     brushPointsRef,
@@ -638,6 +641,9 @@ function CandlestickChartBody({
   // scales (to say what the commands will act on). Captured at click time rather than read from
   // hover state when a command runs — by then the pointer has moved onto the menu itself.
   const [contextMenu, setContextMenu] = useState<ChartContextMenuAnchor | null>(null);
+  // « Voir les raccourcis… » : l'aide de l'hôte (un espace de travail) s'il en fournit une, sinon la fenêtre du graphique.
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const openShortcuts = onOpenShortcuts ?? (() => setShortcutsOpen(true));
   // Pointeur sur la courbe d'un indicateur ou une barre de volume (tenu par useDrawingInteractions) : le double-clic
   // y ouvre ses paramètres, et d3-zoom le laisse passer (useZoomAndScales).
   const dblClickTargetRef = useRef(false);
@@ -921,6 +927,9 @@ function CandlestickChartBody({
   // App-defined tools (see ChartCustomTool): one armed at a time, disarmed by placing, Escape or its own button.
   const [activeCustomToolId, setActiveCustomToolId] = useState<string | null>(null);
   const activeCustomTool = customTools?.find((t) => t.id === activeCustomToolId) ?? null;
+  // Raccourci « Maj + clic pour mesurer » (voir useDrawingInteractions) : avec les outils de dessin,
+  // tant qu'aucun outil personnalisé n'attend le prochain clic.
+  const measureShortcut = drawingTools && !activeCustomTool;
   // First click of a two-click tool (`points: 2`), kept until the second one; dropped when the tool changes.
   const [customToolFirst, setCustomToolFirst] = useState<{ price: number; date: Date } | null>(null);
   useEffect(() => setCustomToolFirst(null), [activeCustomToolId]);
@@ -1353,6 +1362,7 @@ function CandlestickChartBody({
     replayArmed: replayState.armed,
     placementActive,
     hoveredDrawingIdRef, measureBodyHoveredRef,
+    shiftMeasureEnabled: measureShortcut,
     dblClickTargetRef,
     yAutoScalingState,
     priceScaleMode,
@@ -1631,6 +1641,8 @@ function CandlestickChartBody({
     pendingExtraPoints,
     setPendingExtraPoints,
     measurePoints, setMeasurePoints,
+    quickMeasureRef,
+    measureShortcut,
     drawingsLocked,
     visibleDrawings,
     setBrushPreview,
@@ -2108,6 +2120,7 @@ function CandlestickChartBody({
       marketStateOpen, toggleMarketState: () => setMarketStateOpen((v) => !v),
       openSettings: () => setSettingsOpen(true),
       openSymbolSettings: () => setPriceSettingsOpen(true),
+      openShortcuts,
       isFullscreen, toggleFullscreen: () => toggleFullscreen(),
       timeframe,
       ...(onTimeframeChange ? { changeTimeframe: onTimeframeChange } : {}),
@@ -2296,6 +2309,7 @@ function CandlestickChartBody({
     marketStateOpen,
     toggleMarketState: () => setMarketStateOpen((open) => !open),
     openSettings: () => setSettingsOpen(true),
+    openShortcuts,
     openScaleSettings: () => openSettingsAt("echelles"),
     ...(advancedAppearance ? { openAxisLabelColors: () => openSettingsAt("echelles", "etiquettes") } : {}),
     openSymbolSettings: () => setPriceSettingsOpen(true),
@@ -2997,6 +3011,7 @@ function CandlestickChartBody({
           {captureToast}
         </div>
       )}
+      <ShortcutsModal open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
       {contextMenu !== null && (
         <ChartContextMenu
           x={contextMenu.menuX}

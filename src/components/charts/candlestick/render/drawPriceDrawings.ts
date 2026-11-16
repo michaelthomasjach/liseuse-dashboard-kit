@@ -19,6 +19,7 @@ import {
   rangeForecastMaxMin,
 } from "../drawingGeometry";
 import { lineDashArray, drawDrawingText, drawArrowhead } from "../drawingRender";
+import { formatCompactNumber, formatPlainNumber } from "../formatting";
 import { FILL_ALPHA, PALE_GREEN, PALE_NEUTRAL, PALE_RED, rectangleXs } from "../drawingFills";
 import { defaultIndicatorColor } from "../indicatorCatalog";
 import { drawPitchforkDrawings } from "./drawPitchfork";
@@ -798,22 +799,25 @@ export function drawPriceDrawings(ctx: CanvasRenderingContext2D, params: RenderC
       ctx.lineTo(mx2, my2);
       ctx.stroke();
 
-      // indexForDate returns a fractional (extrapolated) index for a point dragged past the
-      // data's own edges (see its own doc) rather than always a clean integer, so this always
-      // fixes it to 3 decimals — same "fixed precision regardless of whether it happens to land
-      // on a round number" convention pct/priceDelta below already use.
-      const bars = Math.abs(indexForDate(p2.x) - indexForDate(p1.x));
+      // Un nombre entier de barres : indexForDate rend un index fractionnaire pour un point posé au-delà des
+      // données (voir sa doc), d'où l'arrondi — l'encart écrivait « 50.000 barres ».
+      const bars = Math.round(Math.abs(indexForDate(p2.x) - indexForDate(p1.x)));
       const durationMs = Math.abs(p2.x.getTime() - p1.x.getTime());
       const days = Math.round(durationMs / 86_400_000);
       const priceDelta = p2.y - p1.y;
       const pct = p1.y !== 0 ? (priceDelta / p1.y) * 100 : 0;
-      const sign = priceDelta >= 0 ? "+" : "";
+      // Format du kit : pas de zéros inutiles, k / M / B au-delà de 10 000, « + » devant une hausse, « − » devant une
+      // baisse. Le pourcentage garde deux décimales au plus (0,004 % s'écrit « 0% »).
+      const signed = (text: string, value: number) => (value > 0 && text !== "0" ? `+${text}` : text);
+      const pctText = formatCompactNumber(pct, (v) => String(Number(v.toFixed(2))));
+      const priceText = formatCompactNumber(priceDelta, formatPlainNumber);
+      const integer = (v: number) => formatCompactNumber(v, (x) => String(x));
       const lines = [
-        `${sign}${pct.toFixed(2)}%`,
-        `${bars.toFixed(3)} barre${bars > 1 ? "s" : ""}`,
+        `${signed(pctText, pct)}%`,
+        `${integer(bars)} barre${bars > 1 ? "s" : ""}`,
         // Sous une journée (unités intrajournalières), la durée en heures et minutes plutôt que « 0 jour ».
-        durationMs < 86_400_000 ? formatShortDuration(durationMs) : `${days} jour${days > 1 ? "s" : ""}`,
-        `${sign}${priceDelta.toFixed(2)} points`,
+        durationMs < 86_400_000 ? formatShortDuration(durationMs) : `${integer(days)} jour${days > 1 ? "s" : ""}`,
+        `${signed(priceText, priceDelta)} point${Math.abs(priceDelta) >= 2 ? "s" : ""}`,
       ];
       ctx.setLineDash([]);
       ctx.font = `600 11px ${fontFamily}`;

@@ -16,6 +16,9 @@ export interface ChartLegendPrefs {
   collapsed?: Record<string, boolean>;
   /** Légendes masquées (« Masquer la légende du… ») : celle du volume (« volume ») et celle de chaque indicateur. */
   hidden?: Record<string, boolean>;
+  /** Sorties de script masquées par l'œil de leur légende (« script:Nom ») : recréées à chaque exécution et à chaque
+   *  chargement, elles le restent après un rechargement. Les indicateurs ajoutés gardent leur `hidden` avec eux. */
+  indicatorHidden?: Record<string, boolean>;
 }
 
 /** La clé stable d'un indicateur pour ses préférences de légende. `all` : les indicateurs du graphique, pour nommer le
@@ -33,6 +36,19 @@ export function legendZoneKey(paneId: string, all: Indicator[]): string | null {
   if (paneId === "price" || paneId === VOLUME_PANE_ID) return paneId;
   const ind = all.find((i) => i.id === paneId);
   return ind ? indicatorLegendKey(ind, all) : null;
+}
+
+/** Les indicateurs masqués ou affichés (œil) selon les préférences, quand elles en disent quelque chose. */
+export function withHiddenPrefs(list: Indicator[], all: Indicator[], hidden: Record<string, boolean> | undefined): Indicator[] {
+  if (!hidden || Object.keys(hidden).length === 0) return list;
+  let changed = false;
+  const out = list.map((ind) => {
+    const pref = hidden[indicatorLegendKey(ind, all)];
+    if (pref === undefined || (ind.hidden === true) === pref) return ind;
+    changed = true;
+    return { ...ind, hidden: pref || undefined };
+  });
+  return changed ? out : list;
 }
 
 /** Les indicateurs avec leur légende masquée ou non selon les préférences (quand elles en disent quelque chose). */

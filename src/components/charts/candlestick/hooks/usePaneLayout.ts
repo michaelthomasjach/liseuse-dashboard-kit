@@ -1,5 +1,5 @@
 import { isPriceOverlay } from "../attachedIndicators";
-import { legendZoneKey, withLegendPrefs, type ChartLegendPrefs } from "../legendPrefs";
+import { indicatorLegendKey, legendZoneKey, withHiddenPrefs, withLegendPrefs, type ChartLegendPrefs } from "../legendPrefs";
 import type { IndicatorInfoTarget } from "../interfaces/IndicatorInfoTarget.interface";
 import type { ChartPaneLayout } from "../interfaces/ChartTemplate.interface";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -290,7 +290,7 @@ export function usePaneLayout({
     legendPrefsRef.current = next;
     setLegendPrefsState(next);
   }, [defaultLegendPrefsKey]);
-  const updateLegendPrefs = useCallback((part: "collapsed" | "hidden", key: string, on: boolean) => {
+  const updateLegendPrefs = useCallback((part: "collapsed" | "hidden" | "indicatorHidden", key: string, on: boolean) => {
     const current = legendPrefsRef.current;
     const map = { ...current[part] };
     // Replié : seul « vrai » est noté. Masqué : « faux » aussi, il défait un `legendHidden` enregistré avec l'indicateur.
@@ -440,8 +440,11 @@ export function usePaneLayout({
   // docked columns and the legend in one move rather than each filtering separately.
   const extraIndicators = useMemo(() => {
     const list = rawExtraIndicators.filter((ind) => !dismissedScriptIndicators[ind.id]).map((ind) => withScriptOverride(ind, scriptIndicatorOverrides));
-    return legendPrefsMode ? withLegendPrefs(list, [...allIndicators, ...rawExtraIndicators], legendPrefs.hidden) : list;
-  }, [rawExtraIndicators, dismissedScriptIndicators, scriptIndicatorOverrides, legendPrefsMode, legendPrefs.hidden, allIndicators]);
+    if (!legendPrefsMode) return list;
+    // Œil d'une sortie de script : retenu sur le compte par sa clé stable (« script:Nom »), il survit au rechargement.
+    const all = [...allIndicators, ...rawExtraIndicators];
+    return withLegendPrefs(withHiddenPrefs(list, all, legendPrefs.indicatorHidden), all, legendPrefs.hidden);
+  }, [rawExtraIndicators, dismissedScriptIndicators, scriptIndicatorOverrides, legendPrefsMode, legendPrefs.hidden, legendPrefs.indicatorHidden, allIndicators]);
   // Every docked pane id this chart has ever laid eyes on, so the fold-on-open rule below fires
   // exactly once per pane and never re-folds one the user has since opened by hand.
   const seenDockedPaneIdsRef = useRef<Set<string>>(new Set());
@@ -755,6 +758,12 @@ export function usePaneLayout({
     // `scriptIndicatorOverrides`' own doc).
     const current = extraIndicators.find((i) => i.id === id);
     if (!current) return;
+    // Préférences retenues par l'application (compte) : l'état masqué y est noté par la clé stable de la sortie, recréée
+    // avec un autre id à chaque chargement ; sinon il reste dans les réglages gardés à côté, le temps de la session.
+    if (legendPrefsMode) {
+      updateLegendPrefs("indicatorHidden", indicatorLegendKey(current, [...allIndicators, ...rawExtraIndicators]), !current.hidden);
+      return;
+    }
     setScriptIndicatorOverrides((prev) => ({ ...prev, [id]: { ...prev[id], hidden: !current.hidden } }));
   }
 

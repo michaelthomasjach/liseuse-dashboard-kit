@@ -457,6 +457,8 @@ export function ChartHoverBadges({
                 top: dims.margin.top + y,
                 left: axisLeft,
                 minWidth: gutter.width,
+                // Le libellé prend la couleur du dessin, sélectionné ou non.
+                backgroundColor: dr.color,
               }}
             >
               <span className="lq-chart__axis-value-text">{isPrice ? priceAxisFmt(dr.y1) : dr.valueAxis === "volume" ? vFmt(dr.y1) : formatCompactNumber(dr.y1)}</span>
@@ -473,7 +475,7 @@ export function ChartHoverBadges({
           <div
             key={dr.id}
             className="lq-chart__axis-value lq-chart__axis-value--x"
-            style={{ left: dims.margin.left + zoomedXScale(indexForDate(dr.x1) + 0.5), top: dims.margin.top + plotBoundedHeight }}
+            style={{ left: dims.margin.left + zoomedXScale(indexForDate(dr.x1) + 0.5), top: dims.margin.top + plotBoundedHeight, backgroundColor: dr.color }}
           >
             <span className="lq-chart__axis-value-text">{dFmt(dr.x1)}</span>
           </div>

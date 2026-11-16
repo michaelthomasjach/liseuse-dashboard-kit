@@ -1734,11 +1734,18 @@ function CandlestickChartBody({
       }
     : handleOverlayClick;
 
+  // Mémorisé : un nouveau tableau à chaque rendu relancerait le repeint complet du canvas.
+  const renderSelectedDrawingIds = useMemo(
+    () => (selectedDrawingIds.length > 0 ? selectedDrawingIds : selectedDrawingId ? [selectedDrawingId] : []),
+    [selectedDrawingIds, selectedDrawingId],
+  );
+
   useRenderCandlestickChart({
     canvasRef,
     crosshairCanvasRef,
     wrapperRef: ref,
     themeTick,
+    selectedDrawingIds: renderSelectedDrawingIds,
     selectedIndicatorId,
     daySeparators,
     priceAlertLines,

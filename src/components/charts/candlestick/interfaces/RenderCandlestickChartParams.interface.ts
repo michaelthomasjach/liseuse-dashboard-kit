@@ -83,6 +83,9 @@ export interface RenderCandlestickChartParams {
   hoverIndex: number | null;
   visibleDrawings: TrendLineDrawing[];
   hoveredDrawingId: string | null;
+  /** Dessins sélectionnés : leur étiquette d'unité de temps reste affichée, ramenée au bord, même quand
+   *  leur point d'ancrage sort de l'écran (celle des autres dessins disparaît alors). */
+  selectedDrawingIds?: string[];
   /** Libellé d'une unité de temps de dessin (« 1week » → « 1 semaine »), d'après la liste `timeframes`. */
   drawingTimeframeLabel: (timeframe: string) => string;
   activeTool: DrawingToolType | null;

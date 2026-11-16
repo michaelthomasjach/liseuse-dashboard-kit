@@ -61,10 +61,10 @@ export function ChartAxisAnnotations({
   const sideClass = gutter.side === "left" ? " lq-chart__axis-value--left-axis" : "";
 
   const { scale, offset } = paneScaleAndOffset(annotations.valueAxis);
-  // The pane's own vertical bounds, read straight off its scale's range rather than passed in —
-  // a label outside them belongs to a value that has been scrolled or zoomed off this pane, and
-  // is hidden rather than clamped for the same reason the last-close badge is: on an axis, a
-  // badge is read as a height first, so a clamped one keeps its number while its position lies.
+  // The pane's own vertical bounds, read straight off its scale's range rather than passed in.
+  // Ces étiquettes n'existent que pour l'indicateur ou le dessin sélectionné : une valeur sortie du
+  // panneau (défilement, zoom) reste affichée, ramenée au bord de l'axe, plutôt que de disparaître —
+  // l'utilisateur vient de demander à voir les valeurs de ce qu'il a sélectionné.
   const [rangeA, rangeB] = scale.range();
   const paneTop = Math.min(rangeA, rangeB);
   const paneBottom = Math.max(rangeA, rangeB);
@@ -80,19 +80,24 @@ export function ChartAxisAnnotations({
     return l.label ? `${l.label} ${d}` : d;
   };
 
-  const yPos = annotations.y.map((l) => scale(l.at));
-  const yInPane = yPos.map((y) => Number.isFinite(y) && y >= paneTop && y <= paneBottom);
-  // Only labels actually on the pane compete for space — an off-pane one is already hidden, and
-  // letting it win a collision would silently suppress a visible neighbour in favour of nothing.
+  const yPos = annotations.y.map((l) => {
+    const y = scale(l.at);
+    return Number.isFinite(y) ? Math.min(paneBottom, Math.max(paneTop, y)) : y;
+  });
+  const yInPane = yPos.map((y) => Number.isFinite(y));
+  // Collisions sur les positions ramenées au bord : deux valeurs sorties par le haut ne s'empilent pas.
   const yVisible = resolveAxisLabelCollisions(
     annotations.y,
     yPos.map((y, i) => (yInPane[i] ? y : NaN)),
     annotations.y.map(() => AXIS_LABEL_HEIGHT),
   );
 
-  const xPos = annotations.x.map((l) => zoomedXScale(l.at + 0.5));
+  const xPos = annotations.x.map((l) => {
+    const x = zoomedXScale(l.at + 0.5);
+    return Number.isFinite(x) ? Math.min(dims.boundedWidth, Math.max(0, x)) : x;
+  });
   const xTexts = annotations.x.map(dateText);
-  const xInPlot = xPos.map((x) => Number.isFinite(x) && x >= 0 && x <= dims.boundedWidth);
+  const xInPlot = xPos.map((x) => Number.isFinite(x));
   const xVisible = resolveAxisLabelCollisions(
     annotations.x,
     xPos.map((x, i) => (xInPlot[i] ? x : NaN)),

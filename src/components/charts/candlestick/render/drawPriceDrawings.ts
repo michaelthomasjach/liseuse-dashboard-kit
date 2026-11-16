@@ -1020,6 +1020,7 @@ function drawTimeframeLabels(
   ctx.setLineDash([]);
   ctx.font = `600 10px ${style.fontFamily}`;
   ctx.textBaseline = "middle";
+  const selected = params.selectedDrawingIds ?? [];
   for (const dr of labelled) {
     if (!dr.timeframe) continue;
     let x: number;
@@ -1037,8 +1038,10 @@ function drawTimeframeLabels(
       y = left.y;
     }
     // Point d'ancrage hors de l'écran (dessin sorti du cadre par le haut, le bas ou les côtés) : pas d'étiquette, plutôt
-    // qu'une étiquette collée au bord du panneau, loin de son dessin.
-    if (!(x >= 0 && x <= dims.boundedWidth && y >= 0 && y <= priceHeight)) continue;
+    // qu'une étiquette collée au bord du panneau, loin de son dessin. Sauf pour un dessin sélectionné : son étiquette
+    // reste affichée, ramenée au bord du panneau, pour qu'on sache toujours à quelle unité de temps il appartient.
+    const inView = x >= 0 && x <= dims.boundedWidth && y >= 0 && y <= priceHeight;
+    if (!inView && !selected.includes(dr.id)) continue;
     const text = labelOf(dr.timeframe);
     const w = ctx.measureText(text).width + 8;
     const h = 14;

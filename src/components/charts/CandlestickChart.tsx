@@ -125,6 +125,7 @@ import { attachedDefaults, VOLUME_PANE_ID } from "./candlestick/attachedIndicato
 import { CHART_DISPLAY_MODES } from "./candlestick/chartModes";
 import { findTimeframeLabel, flattenTimeframeValues } from "./candlestick/timeframes";
 import { styleOf, toolKeyOf, useDrawingStylePresets, withStyle } from "./candlestick/drawingStylePresets";
+import { useIndicatorTemplates } from "./candlestick/hooks/useIndicatorPresets";
 import { dayMonthYearFormat } from "./internal/dateFormat";
 import { axisLabelsAttribute, chartStyleCssVars, chartStyleDateFormatter, DEFAULT_RESET_ZOOM_BARS, effectiveChartStyle, type ChartYAxisGutter } from "./candlestick/chartStyle";
 import { paneValueFormatter } from "./candlestick/indicatorCatalog";
@@ -228,6 +229,11 @@ function CandlestickChartBody({
   onAppearanceChange,
   defaultDrawingStyles,
   onDrawingStylesChange,
+  defaultIndicatorSettings,
+  onIndicatorSettingsChange,
+  defaultIndicatorTemplates,
+  onIndicatorTemplatesChange,
+  indicatorPresets = true,
   candleColorRules: candleColorRulesProp,
   onCandleColorRulesChange,
   showCandleColorRules = true,
@@ -938,7 +944,12 @@ function CandlestickChartBody({
     onPaneLayoutChange,
     defaultLegendPrefs,
     onLegendPrefsChange,
+    defaultIndicatorSettings,
+    onIndicatorSettingsChange,
+    rememberIndicatorSettings: indicatorPresets,
   });
+  // Modèles de configuration d'indicateur (menu « Modèles » de ses paramètres).
+  const indicatorTemplates = useIndicatorTemplates({ defaultIndicatorTemplates, onIndicatorTemplatesChange });
   const volumeLegendHidden = legendPrefsMode ? (legendPrefs.hidden?.volume ?? volumeLegendHiddenLocal) : volumeLegendHiddenLocal;
   // Le panneau visé par le catalogue des indicateurs quand il est ouvert depuis son clic droit ; oublié à la
   // fermeture, pour que les autres façons de l'ouvrir (en-tête, raccourci) retrouvent le catalogue complet.
@@ -3175,6 +3186,9 @@ function CandlestickChartBody({
         indicatorDraft={indicatorDraft}
         setIndicatorDraft={setIndicatorDraft}
         updateIndicatorStyleRules={updateIndicatorStyleRules}
+        indicatorTemplates={indicatorTemplates.templates}
+        saveIndicatorTemplate={indicatorPresets ? indicatorTemplates.save : undefined}
+        deleteIndicatorTemplate={indicatorPresets ? indicatorTemplates.remove : undefined}
         closeIndicatorSettings={closeIndicatorSettings}
         deleteEditingIndicator={deleteEditingIndicator}
         saveIndicatorSettings={saveIndicatorSettings}

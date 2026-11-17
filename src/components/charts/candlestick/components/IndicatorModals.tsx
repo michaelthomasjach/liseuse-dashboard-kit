@@ -27,6 +27,8 @@ import { IndicatorSettingsInputs, IndicatorSettingsStyle } from "./IndicatorSett
 import { LinkedStyleRulesSection } from "./IndicatorStyleRulesEditor";
 import { SettingsSection, differsFromDefaults, indicatorDefaults } from "./IndicatorSettingsLayout";
 import { IndicatorPickerModal } from "./IndicatorPickerModal";
+import { IndicatorTemplatesMenu } from "./IndicatorTemplatesMenu";
+import { indicatorSettingsKey, withIndicatorSettings, type IndicatorTemplate } from "../indicatorPresets";
 import { IndicatorHelpButton, useOpenIndicatorHelp } from "./IndicatorHelp";
 import { hasIndicatorHelp } from "../indicatorHelp";
 import { VolumePaneSettings, PriceOverlayToggle } from "./VolumePaneSettings";
@@ -181,6 +183,10 @@ export interface IndicatorModalsProps {
   setIndicatorDraft: (d: Indicator) => void;
   /** Réécrit les règles de style conditionnel d'un autre indicateur (« Règles liées », voir usePaneLayout). */
   updateIndicatorStyleRules?: (id: string, rules: NonNullable<Indicator["styleRules"]>) => void;
+  /** Modèles de configuration d'indicateur, tous types confondus (menu « Modèles » des paramètres). */
+  indicatorTemplates?: IndicatorTemplate[];
+  saveIndicatorTemplate?: (name: string, ind: Indicator) => void;
+  deleteIndicatorTemplate?: (id: string) => void;
   closeIndicatorSettings: () => void;
   deleteEditingIndicator: () => void;
   saveIndicatorSettings: () => void;
@@ -269,6 +275,9 @@ export function IndicatorModals({
   indicatorDraft,
   setIndicatorDraft,
   updateIndicatorStyleRules,
+  indicatorTemplates = [],
+  saveIndicatorTemplate,
+  deleteIndicatorTemplate,
   closeIndicatorSettings,
   pickerTargetPane,
   addOnPane,
@@ -750,11 +759,29 @@ export function IndicatorModals({
         </SettingsSection>
       ) : undefined;
     const helpButton = draft.customData ? undefined : <IndicatorHelpButton kind={draft.kind} className="lq-modal__close-icon" />;
-    return { canReset, resetAll, kindLabel, scriptParams, everyIndicator: everyIndicatorWith(draft), helpButton };
+    // « Modèles » : ceux de ce type, à appliquer (ses réglages, sur les valeurs par défaut), enregistrer ou supprimer ;
+    // « Rétablir les valeurs par défaut » y est aussi.
+    const templateKind = indicatorSettingsKey(draft);
+    const templatesMenu = saveIndicatorTemplate ? (
+      <IndicatorTemplatesMenu
+        kindLabel={draft.customData ? draft.customData.label : kindLabel}
+        templates={indicatorTemplates.filter((t) => t.kind === templateKind)}
+        onApply={(t) => setIndicatorDraft(withIndicatorSettings(draft, indicatorDefaults(draft), t.settings))}
+        onSave={(name) => saveIndicatorTemplate(name, draft)}
+        onDelete={(id) => deleteIndicatorTemplate?.(id)}
+        canReset={canReset}
+        onReset={resetAll}
+      />
+    ) : (
+      <button type="button" className="lq-ind-settings__link" onClick={resetAll} disabled={!canReset}>
+        Réinitialiser les valeurs par défaut
+      </button>
+    );
+    return { canReset, resetAll, kindLabel, scriptParams, everyIndicator: everyIndicatorWith(draft), helpButton, templatesMenu };
   }
 
   function renderIndicatorModal(draft: Indicator) {
-    const { canReset, resetAll, kindLabel, scriptParams, everyIndicator, helpButton } = indicatorEditing(draft);
+    const { kindLabel, scriptParams, everyIndicator, helpButton, templatesMenu } = indicatorEditing(draft);
     // « MACD(12,26,9) » n'a pas besoin du sous-titre « MACD » : le nom dit déjà le type.
     const subtitle = indicatorLabel(draft).startsWith(kindLabel) ? "Paramètres de l'indicateur" : kindLabel;
     return (
@@ -773,9 +800,7 @@ export function IndicatorModals({
         // Pas de bouton « Enregistrer » : chaque réglage s'applique et s'enregistre aussitôt (voir usePaneLayout).
         footer={
           <div className="lq-ind-settings__footer">
-            <button type="button" className="lq-ind-settings__link" onClick={resetAll} disabled={!canReset}>
-              Réinitialiser les valeurs par défaut
-            </button>
+            {templatesMenu}
             <button type="button" className="lq-ind-settings__button" onClick={closeIndicatorSettings}>
               Fermer
             </button>
@@ -883,9 +908,7 @@ export function IndicatorModals({
           <div className="lq-ind-settings__footer">
             {editing ? (
               <span className="lq-pane-settings__footer-links">
-                <button type="button" className="lq-ind-settings__link" onClick={editing.resetAll} disabled={!editing.canReset}>
-                  Réinitialiser les valeurs par défaut
-                </button>
+                {editing.templatesMenu}
                 {removable && (
                   <button
                     type="button"

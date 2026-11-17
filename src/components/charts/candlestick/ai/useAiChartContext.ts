@@ -17,7 +17,8 @@ export interface UseAiChartContextArgs {
   symbolIsEquity?: boolean;
   indicators: Indicator[];
   indicatorLabel: (indicator: Indicator) => string;
-  addIndicator: (entry: IndicatorCatalogEntry) => void;
+  /** `explicit` : les valeurs demandées (période…), qui passent devant les derniers réglages retenus pour ce type. */
+  addIndicator: (entry: IndicatorCatalogEntry, explicit?: Partial<Indicator>) => void;
   removeIndicator: (id: string) => void;
   volumeVisible: boolean;
   setVolumePaneState: (state: "expanded" | "collapsed" | "hidden") => void;

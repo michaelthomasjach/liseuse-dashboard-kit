@@ -31,7 +31,8 @@ export interface AiChartContext {
   indicators: Indicator[];
   indicatorCatalog: IndicatorCatalogEntry[];
   indicatorLabel: (indicator: Indicator) => string;
-  addIndicator: (entry: IndicatorCatalogEntry) => void;
+  /** `explicit` : les valeurs demandées (période…), qui passent devant les derniers réglages retenus pour ce type. */
+  addIndicator: (entry: IndicatorCatalogEntry, explicit?: Partial<Indicator>) => void;
   removeIndicator: (id: string) => void;
   setVolumeVisible: (visible: boolean) => void;
   volumeVisible: boolean;

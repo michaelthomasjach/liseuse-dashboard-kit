@@ -447,6 +447,31 @@
 .lq-ind-settings__menu-item:focus-visible {
   background-color: var(--lq-color-hover);
 }
+.lq-ind-settings__menu-item:disabled {
+  color: var(--lq-color-text-muted);
+  background: none;
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* Menu « Modèles » du pied des paramètres : « Enregistrer comme modèle… » et « Rétablir les valeurs par défaut ». */
+.lq-ind-settings__templates-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+}
+.lq-ind-settings__templates-footer .lq-ind-settings__menu-item {
+  padding-left: var(--lq-space-2);
+  padding-right: var(--lq-space-2);
+}
+.lq-ind-settings__templates-footer form {
+  padding: 4px var(--lq-space-2);
+}
+.lq-pane-settings__footer-links .lq-ind-settings__templates-button,
+.lq-ind-settings__footer .lq-ind-settings__templates-button {
+  height: 30px;
+}
 
 .lq-ind-settings__help {
   display: inline-flex;

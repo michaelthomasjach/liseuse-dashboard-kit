@@ -279,17 +279,20 @@ export const AI_TOOLS: AiTool[] = [
           const target = pane === "volume" ? "volume" : controls.panes().find((p) => p.id === pane && p.kind === "indicateur")?.id;
           if (!target) return { content: `Panneau « ${pane} » introuvable. Panneaux : ${controls.panes().filter((p) => p.kind !== "prix").map((p) => p.id).join(", ") || "aucun"}.`, isError: true };
         }
-        controls.appendIndicator({
-          kind: entry.kind,
-          period: usedPeriod,
-          ...(entry.hasStdDev ? { stdDev: 2 } : {}),
-          ...(entry.kind === "macd" ? { fastPeriod: 12, slowPeriod: 26, signalPeriod: 9 } : {}),
-          ...(color ? { color } : {}),
-          ...(pane ? { sourceId: pane } : {}),
-          ...(onPrice && entry.pane === "own" ? { priceOverlay: true } : {}),
-        });
+        // Les derniers réglages retenus pour ce type s'appliquent ; la période et la couleur demandées passent devant.
+        controls.appendIndicator(
+          {
+            kind: entry.kind,
+            period: usedPeriod,
+            ...(entry.hasStdDev ? { stdDev: 2 } : {}),
+            ...(entry.kind === "macd" ? { fastPeriod: 12, slowPeriod: 26, signalPeriod: 9 } : {}),
+            ...(pane ? { sourceId: pane } : {}),
+            ...(onPrice && entry.pane === "own" ? { priceOverlay: true } : {}),
+          },
+          { ...(period !== undefined && entry.hasPeriod ? { period } : {}), ...(color ? { color } : {}) },
+        );
       } else {
-        chart.addIndicator(period !== undefined && entry.hasPeriod ? { ...entry, defaultPeriod: period } : entry);
+        chart.addIndicator(entry, period !== undefined && entry.hasPeriod ? { period } : undefined);
       }
       await waitFrame();
       const added = (chart.controls?.indicators() ?? []).find((i) => !before.has(i.id));

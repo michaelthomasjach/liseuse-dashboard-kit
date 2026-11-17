@@ -86,7 +86,7 @@ export interface AiChartControls {
   indicators: () => Indicator[];
   indicatorLabel: (indicator: Indicator) => string;
   patchIndicator: (id: string, patch: Partial<Indicator>) => boolean;
-  appendIndicator: (partial: Omit<Indicator, "id">) => void;
+  appendIndicator: (partial: Omit<Indicator, "id">, explicit?: Partial<Indicator>) => void;
 
   style: () => ChartStyleSettings;
   patchStyle: (patch: Partial<ChartStyleSettings>) => void;
@@ -191,7 +191,7 @@ export interface AiControlsState {
   indicators: Indicator[];
   indicatorLabel: (indicator: Indicator) => string;
   patchIndicator: (id: string, patch: Partial<Indicator>) => void;
-  appendIndicator: (partial: Omit<Indicator, "id">) => void;
+  appendIndicator: (partial: Omit<Indicator, "id">, explicit?: Partial<Indicator>) => void;
 
   chartStyle: ChartStyleSettings;
   setChartStyle: (next: ChartStyleSettings) => void;
@@ -420,7 +420,7 @@ export function buildAiChartControls(get: () => AiControlsState): AiChartControl
       s.patchIndicator(id, patch);
       return true;
     },
-    appendIndicator: (partial) => get().appendIndicator(partial),
+    appendIndicator: (partial, explicit) => get().appendIndicator(partial, explicit),
 
     style: () => get().chartStyle,
     patchStyle: (patch) => {

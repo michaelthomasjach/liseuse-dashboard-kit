@@ -6,6 +6,7 @@ import type { Indicator as DemoIndicator } from "./candlestick/interfaces/Indica
 import type { ChartLegendPrefs } from "./candlestick/legendPrefs";
 import type { CandleColorRule } from "./candlestick/interfaces/CandleColorRule.interface";
 import type { ChartCustomToolbar } from "./candlestick/interfaces/ChartCustomToolbar.interface";
+import type { IndicatorSettingsByKind, IndicatorTemplate } from "./candlestick/indicatorPresets";
 import { SCRIPT_EXAMPLES } from "./candlestick/scripting/scriptExamples";
 import type { Meta, StoryObj } from "@storybook/react";
 import {
@@ -1709,6 +1710,37 @@ export const DrawingStyleMemory: Story = {
           onDrawingStylesChange={setSaved}
         />
         <pre style={{ font: "11px monospace", maxHeight: 120, overflow: "auto" }}>{JSON.stringify(saved, null, 1)}</pre>
+      </div>
+    );
+  },
+};
+
+/** Derniers réglages des indicateurs par type et modèles de configuration : réglez le RSI (ligne médiane, opacité d'un
+ *  seuil…) dans ses paramètres, puis ajoutez un autre RSI, ici ou sur le second graphique : il part des mêmes réglages.
+ *  Menu « Modèles » au pied des paramètres : « Enregistrer comme modèle… », appliquer un modèle, le supprimer,
+ *  « Rétablir les valeurs par défaut ». Les deux graphiques partagent la même mémoire, tenue par l'hôte ; le JSON est
+ *  ce que remontent `onIndicatorSettingsChange` et `onIndicatorTemplatesChange`. */
+export const IndicatorSettingsMemory: Story = {
+  name: "Mémoire des réglages d'indicateur et modèles",
+  render: () => {
+    const data = useMemo(() => generateCandles(260), []);
+    const [settings, setSettings] = useState<IndicatorSettingsByKind>({ rsi: { period: 14, rsiShowMiddle: true } });
+    const [templates, setTemplates] = useState<IndicatorTemplate[]>([]);
+    const shared = {
+      data,
+      symbol: "DEMO",
+      height: 340,
+      zoomable: true,
+      defaultIndicatorSettings: settings,
+      onIndicatorSettingsChange: setSettings,
+      defaultIndicatorTemplates: templates,
+      onIndicatorTemplatesChange: setTemplates,
+    };
+    return (
+      <div style={{ display: "grid", gap: 12 }}>
+        <CandlestickChart {...shared} defaultIndicators={[{ id: "rsi-a", kind: "rsi", period: 14 }]} />
+        <CandlestickChart {...shared} />
+        <pre style={{ font: "11px monospace", maxHeight: 160, overflow: "auto" }}>{JSON.stringify({ settings, templates }, null, 1)}</pre>
       </div>
     );
   },

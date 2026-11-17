@@ -11,6 +11,8 @@ import { indicatorCatalogEntry } from "../indicatorCatalog";
 import { dedupeIndicatorIds, newIndicatorId } from "../indicatorIds";
 import { EXPECTED_VOLATILITY_DEFAULTS } from "../expectedVolatility";
 import { RANGE_DETECTION_DEFAULTS } from "../rangeDetection";
+import { indicatorSettingsKey, type IndicatorSettingsByKind } from "../indicatorPresets";
+import { useLastIndicatorSettings } from "./useIndicatorPresets";
 import {
   DEFAULT_PANE_HEIGHT_FRACTION,
   MIN_PANE_HEIGHT_FRACTION,
@@ -56,8 +58,9 @@ function withSideCollapsed(ind: Indicator, collapsed: Record<string, boolean>): 
 // script's own output afterwards: those describe what the indicator *is* — which series it draws,
 // which side it docks to — and belong to the code, not to the settings modal, so a stale override
 // can never pin them to what the script used to say.
-function withScriptOverride(ind: Indicator, overrides: Record<string, Partial<Indicator>>): Indicator {
-  const override = overrides[ind.id];
+function withScriptOverride(ind: Indicator, overrides: Record<string, Partial<Indicator>>, lastSettings?: IndicatorSettingsByKind): Indicator {
+  // Sans réglage propre à cette sortie : les derniers réglages retenus pour ce script (voir `useLastIndicatorSettings`).
+  const override = overrides[ind.id] ?? lastSettings?.[indicatorSettingsKey(ind)];
   if (!override) return ind;
   return withSeriesColors({ ...ind, ...override, id: ind.id, kind: ind.kind, customData: ind.customData });
 }
@@ -191,6 +194,11 @@ export interface UsePaneLayoutArgs {
   /** Voir `CandlestickChartProps.defaultLegendPrefs` / `onLegendPrefsChange`. */
   defaultLegendPrefs?: ChartLegendPrefs;
   onLegendPrefsChange?: (prefs: ChartLegendPrefs) => void;
+  /** Voir `CandlestickChartProps.defaultIndicatorSettings` / `onIndicatorSettingsChange`. */
+  defaultIndicatorSettings?: IndicatorSettingsByKind;
+  onIndicatorSettingsChange?: (settings: IndicatorSettingsByKind) => void;
+  /** Voir `CandlestickChartProps.indicatorPresets`. Défaut vrai. */
+  rememberIndicatorSettings?: boolean;
 }
 
 /** Ordre des panneaux du bas, de haut en bas (« volume » compris).
@@ -246,7 +254,12 @@ export function usePaneLayout({
   onPaneLayoutChange,
   defaultLegendPrefs,
   onLegendPrefsChange,
+  defaultIndicatorSettings,
+  onIndicatorSettingsChange,
+  rememberIndicatorSettings = true,
 }: UsePaneLayoutArgs) {
+  // Derniers réglages par type d'indicateur : retenus à chaque réglage fait dans ses paramètres, repris à chaque ajout.
+  const lastIndicatorSettings = useLastIndicatorSettings({ defaultIndicatorSettings, onIndicatorSettingsChange, enabled: rememberIndicatorSettings });
   const defaultFraction =
     defaultPaneHeightFraction !== undefined && Number.isFinite(defaultPaneHeightFraction)
       ? Math.min(MAX_PANE_HEIGHT_FRACTION, Math.max(MIN_PANE_HEIGHT_FRACTION, defaultPaneHeightFraction))
@@ -439,12 +452,14 @@ export function usePaneLayout({
   // in place of the raw prop, so a deleted script output disappears from the pane stacks, the
   // docked columns and the legend in one move rather than each filtering separately.
   const extraIndicators = useMemo(() => {
-    const list = rawExtraIndicators.filter((ind) => !dismissedScriptIndicators[ind.id]).map((ind) => withScriptOverride(ind, scriptIndicatorOverrides));
+    const list = rawExtraIndicators
+      .filter((ind) => !dismissedScriptIndicators[ind.id])
+      .map((ind) => withScriptOverride(ind, scriptIndicatorOverrides, lastIndicatorSettings.all));
     if (!legendPrefsMode) return list;
     // Œil d'une sortie de script : retenu sur le compte par sa clé stable (« script:Nom »), il survit au rechargement.
     const all = [...allIndicators, ...rawExtraIndicators];
     return withLegendPrefs(withHiddenPrefs(list, all, legendPrefs.indicatorHidden), all, legendPrefs.hidden);
-  }, [rawExtraIndicators, dismissedScriptIndicators, scriptIndicatorOverrides, legendPrefsMode, legendPrefs.hidden, legendPrefs.indicatorHidden, allIndicators]);
+  }, [rawExtraIndicators, dismissedScriptIndicators, scriptIndicatorOverrides, lastIndicatorSettings.all, legendPrefsMode, legendPrefs.hidden, legendPrefs.indicatorHidden, allIndicators]);
   // Every docked pane id this chart has ever laid eyes on, so the fold-on-open rule below fires
   // exactly once per pane and never re-folds one the user has since opened by hand.
   const seenDockedPaneIdsRef = useRef<Set<string>>(new Set());
@@ -633,10 +648,18 @@ export function usePaneLayout({
     setFullscreenPaneId(null);
   }
 
-  function addIndicator(entry: IndicatorCatalogEntry) {
+  /** Un nouvel indicateur habillé des derniers réglages retenus pour son type (voir `useLastIndicatorSettings`) ;
+   *  `explicit` (une période demandée à l'assistant…) passe devant. */
+  function withLastSettings(ind: Indicator, explicit?: Partial<Indicator>): Indicator {
+    const saved = lastIndicatorSettings.settingsFor(indicatorSettingsKey(ind));
+    if (!saved && !explicit) return ind;
+    return { ...ind, ...(saved as Partial<Indicator> | null), ...explicit, id: ind.id, kind: ind.kind };
+  }
+
+  function addIndicator(entry: IndicatorCatalogEntry, explicit?: Partial<Indicator>) {
     commitIndicators([
       ...indicatorsRef.current,
-      {
+      withLastSettings({
         id: newIndicatorId(entry.kind, entry.hasPeriod ? entry.defaultPeriod : undefined, scopeRef.current.all.map((ind) => ind.id)),
         kind: entry.kind,
         period: entry.defaultPeriod,
@@ -646,7 +669,7 @@ export function usePaneLayout({
         ...(entry.kind === "expectedVolatility" ? { color: EXPECTED_VOLATILITY_DEFAULTS.atrColor } : {}),
         // « Range précoce » : la couleur de l'indicateur est celle des zones confirmées.
         ...(entry.kind === "rangeDetection" ? { color: RANGE_DETECTION_DEFAULTS.confirmedColor } : {}),
-      },
+      }, explicit),
     ]);
   }
 
@@ -658,14 +681,14 @@ export function usePaneLayout({
   function addCustomIndicator(def: CustomIndicatorDef) {
     commitIndicators([
       ...indicatorsRef.current,
-      {
+      withLastSettings({
         id: newIndicatorId("custom", undefined, scopeRef.current.all.map((ind) => ind.id)),
         kind: "custom",
         period: 0,
         customData: def,
         // Zones : la couleur de la définition devient celle de l'indicateur (légende et bandes d'accord, réglable).
         ...((def.draw === "zones" || def.draw === "boxes") && def.color ? { color: def.color } : {}),
-      },
+      }),
     ]);
   }
 
@@ -673,8 +696,11 @@ export function usePaneLayout({
   // already know their own full shape up front) — for a kind like "correlation" that only knows
   // what it's adding *after* an async step elsewhere (see useCorrelationSetup), this is the one
   // piece of "give it a fresh id and commit it" logic worth sharing rather than duplicating.
-  function appendIndicator(partial: Omit<Indicator, "id">) {
-    commitIndicators([...indicatorsRef.current, { id: newIndicatorId(partial.kind, partial.period, scopeRef.current.all.map((ind) => ind.id)), ...partial }]);
+  // Les derniers réglages du type s'appliquent ici aussi (moyenne posée sur un panneau, corrélation, assistant) ;
+  // `explicit` passe devant.
+  function appendIndicator(partial: Omit<Indicator, "id">, explicit?: Partial<Indicator>) {
+    const ind = withLastSettings({ id: newIndicatorId(partial.kind, partial.period, scopeRef.current.all.map((i) => i.id)), ...partial }, explicit);
+    commitIndicators([...indicatorsRef.current, ind]);
   }
 
   function openIndicatorSettings(id: string) {
@@ -710,6 +736,8 @@ export function usePaneLayout({
   }
 
   function applyIndicatorDraft(editingIndicatorId: string, indicatorDraft: Indicator) {
+    // Réglé à la main dans ses paramètres : ces réglages deviennent ceux des prochains indicateurs du même type.
+    lastIndicatorSettings.remember(indicatorDraft);
     if (indicators.some((i) => i.id === editingIndicatorId)) {
       commitIndicators(indicators.map((i) => (i.id === editingIndicatorId ? indicatorDraft : i)));
     } else {
@@ -729,6 +757,8 @@ export function usePaneLayout({
    *  comme toute modification de ses paramètres ; un indicateur de script garde la sienne à côté (voir
    *  `scriptIndicatorOverrides`). */
   function updateIndicatorStyleRules(id: string, styleRules: NonNullable<Indicator["styleRules"]>) {
+    const target = indicators.find((i) => i.id === id) ?? extraIndicators.find((i) => i.id === id);
+    if (target) lastIndicatorSettings.remember({ ...target, styleRules, fills: undefined });
     if (indicators.some((i) => i.id === id)) {
       commitIndicators(indicators.map((i) => (i.id === id ? { ...i, styleRules, fills: undefined } : i)));
     } else if (extraIndicators.some((i) => i.id === id)) {

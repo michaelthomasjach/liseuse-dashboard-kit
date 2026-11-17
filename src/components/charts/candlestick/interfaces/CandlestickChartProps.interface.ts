@@ -380,6 +380,27 @@ export interface CandlestickChartProps {
   /** Appelé à chaque changement de ces derniers styles, avec l'ensemble à jour : de quoi les enregistrer (par compte,
    *  par exemple) et les rendre via `defaultDrawingStyles`. */
   onDrawingStylesChange?: (styles: import("../hooks/useLastDrawingStyles").DrawingStylesByTool) => void;
+  /** Derniers réglages des indicateurs, par type (clé : `kind` — « rsi », « macd »… —, `"<kind>@pane"` pour une
+   *  moyenne posée sur un panneau, `"script:<nom du panneau>"` pour un script, `"custom:<id>"` pour un indicateur de
+   *  `customIndicators`) : quand l'utilisateur règle un indicateur dans ses paramètres (périodes, seuils, couleurs,
+   *  opacités, épaisseurs, lignes affichées, style conditionnel…), le prochain indicateur du même type, sur n'importe
+   *  quel graphique, part de ces réglages. Jamais ce qui est propre à un exemplaire (panneau d'attache, unité de temps,
+   *  symbole corrélé, visibilité). Lue au montage, puis reprise quand elle change (un autre graphique de la page l'a
+   *  modifiée) ; sans elle, la mémoire dure le temps du composant. */
+  defaultIndicatorSettings?: import("../indicatorPresets").IndicatorSettingsByKind;
+  /** Appelé à chaque changement de ces derniers réglages, avec l'ensemble à jour : de quoi les enregistrer (par compte,
+   *  par exemple) et les rendre via `defaultIndicatorSettings`. */
+  onIndicatorSettingsChange?: (settings: import("../indicatorPresets").IndicatorSettingsByKind) => void;
+  /** Modèles de configuration d'indicateur (menu « Modèles » des paramètres d'un indicateur : « Enregistrer comme
+   *  modèle… », appliquer, supprimer) : nom, type (même clé que `defaultIndicatorSettings`) et réglages. Lue au montage,
+   *  puis reprise quand elle change ; sans elle, les modèles durent le temps du composant. */
+  defaultIndicatorTemplates?: import("../indicatorPresets").IndicatorTemplate[];
+  /** Appelé à chaque modèle enregistré, remplacé ou supprimé, avec la liste à jour. */
+  onIndicatorTemplatesChange?: (templates: import("../indicatorPresets").IndicatorTemplate[]) => void;
+  /** Mémoire des derniers réglages par type d'indicateur et menu « Modèles » de ses paramètres. Faux : rien n'est
+   *  retenu ni repris, et le pied des paramètres garde le seul lien « Réinitialiser les valeurs par défaut ». Défaut
+   *  vrai. */
+  indicatorPresets?: boolean;
   /** Mémoire des sélecteurs de couleur du graphique (indicateurs, dessins, bougies, scripts…) : `recentColors` (les
    *  12 dernières couleurs choisies, la plus récente d'abord), `colorSets` (jeux de couleurs nommés de l'utilisateur)
    *  et `activeColorSetId` (jeu appliqué, affiché en tête de chaque sélecteur). Relue quand elle change ; absente, le

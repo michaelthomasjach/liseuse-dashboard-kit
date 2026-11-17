@@ -530,6 +530,14 @@
 .lq-ind-settings .lq-chart__rule-sentence {
   font-size: var(--lq-text-sm, 0.8rem);
 }
+/* Dégradé d'une règle (remplissage, fond) : case, couleur d'arrivée et opacité d'arrivée sur une ligne. */
+.lq-ind-settings .lq-chart__rule-gradient {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--lq-space-2);
+  font-size: var(--lq-text-sm, 0.8rem);
+}
 .lq-ind-settings .lq-chart__rule-opacity {
   display: flex;
   align-items: center;

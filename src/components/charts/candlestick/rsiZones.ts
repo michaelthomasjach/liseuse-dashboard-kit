@@ -2,12 +2,13 @@ import type { Indicator } from "./interfaces/Indicator.interface";
 import type { IndicatorValue } from "./interfaces/IndicatorValue.interface";
 import type { RsiZoneLineKey, RsiZoneLineStyle } from "./interfaces/RsiZoneLine.interface";
 
-/** « RSI : zones de survente et de surachat » (`kind: "rsiZones"`) : le RSI, plus quatre lignes horizontales relevées sur
- *  les `rsiZonesLookback` dernières bougies — la moyenne et l'extrême des valeurs passées sous le seuil de survente, et
- *  la moyenne et l'extrême de celles passées au-dessus du seuil de surachat. L'extrême de la survente est la valeur la
- *  plus basse atteinte ; celui du surachat, la plus haute. */
+/** « RSI : zones de survente et de surachat » (`kind: "rsiZones"`, et le RSI classique avec `rsiZonesEnabled`) : le RSI,
+ *  plus quatre lignes horizontales relevées sur les `rsiZonesPeaks` derniers passages en zone (30 par défaut) — chaque
+ *  passage au-dessus du seuil de surachat donne son pic, chaque passage sous le seuil de survente son creux ; les lignes
+ *  sont la moyenne de ces pics et le plus haut d'entre eux, puis la moyenne des creux et le plus bas d'entre eux. */
 
-export const RSI_ZONES_DEFAULT_LOOKBACK = 100;
+/** Nombre de pics (passages en zone) retenus par défaut pour la moyenne et le plus extrême. */
+export const RSI_ZONES_DEFAULT_PEAKS = 30;
 
 /** De haut en bas, dans l'ordre où elles se lisent sur le panneau. */
 export const RSI_ZONE_LINE_KEYS: RsiZoneLineKey[] = ["overboughtExtreme", "overboughtMean", "oversoldMean", "oversoldExtreme"];
@@ -21,58 +22,79 @@ export const RSI_ZONE_LINE_DEFAULTS: Record<RsiZoneLineKey, Required<RsiZoneLine
 
 /** Nom complet (paramètres) et libellé court (sur le panneau, devant la valeur). */
 export const RSI_ZONE_LINE_LABELS: Record<RsiZoneLineKey, { name: string; short: string }> = {
-  overboughtExtreme: { name: "Surachat : maximum", short: "Max surachat" },
-  overboughtMean: { name: "Surachat : moyenne", short: "Moy. surachat" },
-  oversoldMean: { name: "Survente : moyenne", short: "Moy. survente" },
-  oversoldExtreme: { name: "Survente : maximum (plus bas atteint)", short: "Max survente" },
+  overboughtExtreme: { name: "Surachat : plus haut des pics", short: "Max surachat" },
+  overboughtMean: { name: "Surachat : moyenne des pics", short: "Moy. surachat" },
+  oversoldMean: { name: "Survente : moyenne des creux", short: "Moy. survente" },
+  oversoldExtreme: { name: "Survente : plus bas des creux", short: "Min survente" },
 };
 
 /** La hauteur de chaque ligne, ou null quand aucune bougie de la fenêtre n'est entrée dans la zone. */
 export type RsiZoneLevels = Record<RsiZoneLineKey, number | null>;
 
-/** Les quatre niveaux sur les `lookback` bougies qui finissent à `lastIndex` (incluse). Une valeur égale au seuil compte
- *  dans la zone. Les bougies sans RSI (amorçage) sont ignorées. */
-export function computeRsiZoneLevels(
+/** Les pics de chaque passage en zone : un passage au-dessus du seuil de surachat (bougies consécutives, seuil compris)
+ *  donne son plus haut ; un passage sous le seuil de survente, son plus bas. Les bougies sans RSI coupent un passage. */
+export function rsiZonePeaks(
   values: readonly (IndicatorValue | null)[],
-  opts: { lookback: number; oversold: number; overbought: number; lastIndex?: number },
-): RsiZoneLevels {
+  opts: { oversold: number; overbought: number; lastIndex?: number },
+): { overbought: number[]; oversold: number[] } {
   const end = Math.min(values.length - 1, opts.lastIndex ?? values.length - 1);
-  const start = Math.max(0, end - Math.max(1, Math.floor(opts.lookback)) + 1);
-  let osSum = 0;
-  let osCount = 0;
-  let osLow = Infinity;
-  let obSum = 0;
-  let obCount = 0;
-  let obHigh = -Infinity;
-  for (let i = start; i <= end; i++) {
+  const overbought: number[] = [];
+  const oversold: number[] = [];
+  let high: number | null = null;
+  let low: number | null = null;
+  for (let i = 0; i <= end; i++) {
     const v = values[i];
-    if (typeof v !== "number" || !Number.isFinite(v)) continue;
-    if (v <= opts.oversold) {
-      osSum += v;
-      osCount += 1;
-      if (v < osLow) osLow = v;
-    } else if (v >= opts.overbought) {
-      obSum += v;
-      obCount += 1;
-      if (v > obHigh) obHigh = v;
+    const ok = typeof v === "number" && Number.isFinite(v);
+    if (ok && v >= opts.overbought) high = high === null ? v : Math.max(high, v);
+    else if (high !== null) {
+      overbought.push(high);
+      high = null;
+    }
+    if (ok && v <= opts.oversold) low = low === null ? v : Math.min(low, v);
+    else if (low !== null) {
+      oversold.push(low);
+      low = null;
     }
   }
+  // Un passage encore en cours compte avec son pic du moment.
+  if (high !== null) overbought.push(high);
+  if (low !== null) oversold.push(low);
+  return { overbought, oversold };
+}
+
+/** Les quatre niveaux, sur les `peaks` derniers pics de chaque zone (jusqu'à `lastIndex`, la coupure d'un replay) : la
+ *  moyenne des pics et le plus extrême d'entre eux (le plus haut en surachat, le plus bas en survente). Une zone sans
+ *  aucun passage n'a pas de ligne. */
+export function computeRsiZoneLevels(
+  values: readonly (IndicatorValue | null)[],
+  opts: { peaks: number; oversold: number; overbought: number; lastIndex?: number },
+): RsiZoneLevels {
+  const n = Math.max(1, Math.floor(opts.peaks));
+  const { overbought, oversold } = rsiZonePeaks(values, opts);
+  const ob = overbought.slice(-n);
+  const os = oversold.slice(-n);
+  const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
   return {
-    overboughtExtreme: obCount > 0 ? obHigh : null,
-    overboughtMean: obCount > 0 ? obSum / obCount : null,
-    oversoldMean: osCount > 0 ? osSum / osCount : null,
-    oversoldExtreme: osCount > 0 ? osLow : null,
+    overboughtExtreme: ob.length > 0 ? Math.max(...ob) : null,
+    overboughtMean: ob.length > 0 ? mean(ob) : null,
+    oversoldMean: os.length > 0 ? mean(os) : null,
+    oversoldExtreme: os.length > 0 ? Math.min(...os) : null,
   };
 }
 
-/** Les niveaux d'un indicateur « rsiZones » d'après ses propres réglages (seuils, fenêtre). */
+/** Les niveaux d'un indicateur d'après ses propres réglages (seuils, nombre de pics). */
 export function rsiZoneLevelsFor(indicator: Indicator, values: readonly (IndicatorValue | null)[], lastIndex?: number): RsiZoneLevels {
   return computeRsiZoneLevels(values, {
-    lookback: indicator.rsiZonesLookback ?? RSI_ZONES_DEFAULT_LOOKBACK,
+    peaks: indicator.rsiZonesPeaks ?? RSI_ZONES_DEFAULT_PEAKS,
     oversold: indicator.rsiOversold ?? 30,
     overbought: indicator.rsiOverbought ?? 70,
     lastIndex,
   });
+}
+
+/** Lignes des zones tracées : toujours pour « rsiZones », sur option pour le RSI classique. */
+export function rsiZonesActive(indicator: Indicator): boolean {
+  return indicator.kind === "rsiZones" || (indicator.kind === "rsi" && indicator.rsiZonesEnabled === true);
 }
 
 /** Les réglages effectifs d'une ligne : ceux de l'indicateur, complétés par les valeurs par défaut. */

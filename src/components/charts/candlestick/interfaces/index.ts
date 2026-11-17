@@ -13,7 +13,7 @@ export type { IndicatorZigZagPoint } from "./IndicatorZigZagPoint.interface";
 export type { Indicator } from "./Indicator.interface";
 export type { CandleColorRule, CandleColorCondition, CandleColorMetric, CandleColorOperator, CandleColorOverride, CandleIconMark } from "./CandleColorRule.interface";
 export type { IndicatorAreaFill } from "./IndicatorAreaFill.interface";
-export type { IndicatorStyleRule, StyleRuleCondition, StyleRuleEffect, StyleRuleOperand, StyleRuleSeriesRef, RuleIcon, RuleIconPosition } from "./IndicatorStyleRule.interface";
+export type { IndicatorStyleRule, StyleRuleCondition, StyleRuleEffect, StyleRuleGradient, StyleRuleOperand, StyleRuleSeriesRef, RuleIcon, RuleIconPosition } from "./IndicatorStyleRule.interface";
 export type { ChartDisplayMode } from "./ChartDisplayMode.interface";
 export type { PriceScaleMode } from "./PriceScaleMode.interface";
 export type { TimeframeOption } from "./TimeframeOption.interface";

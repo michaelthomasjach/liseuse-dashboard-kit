@@ -11,7 +11,7 @@ import { RANGE_DETECTION_DEFAULTS as RD } from "../rangeDetection";
 import { SR_BOUNCE_DEFAULTS as SRB } from "../srBounce";
 import { DONCHIAN_LINE_KEYS, DONCHIAN_LINE_LABELS, DONCHIAN_LINE_DEFAULTS, DONCHIAN_BACKGROUND_DEFAULT, resolveDonchianBackground, resolveDonchianLine } from "../donchian";
 import type { DonchianLineKey, IndicatorLineStyle } from "../interfaces/IndicatorLineStyle.interface";
-import { isRsiKind, resolveRsiZoneLine, RSI_ZONE_LINE_DEFAULTS, RSI_ZONE_LINE_KEYS, RSI_ZONE_LINE_LABELS, RSI_ZONES_DEFAULT_LOOKBACK } from "../rsiZones";
+import { isRsiKind, resolveRsiZoneLine, rsiZonesActive, RSI_ZONE_LINE_DEFAULTS, RSI_ZONE_LINE_KEYS, RSI_ZONE_LINE_LABELS, RSI_ZONES_DEFAULT_PEAKS } from "../rsiZones";
 import type { RsiZoneLineKey, RsiZoneLineStyle } from "../interfaces/RsiZoneLine.interface";
 import { Select, type SelectOption } from "../../../forms/Select";
 import type { Indicator } from "../interfaces/Indicator.interface";
@@ -139,18 +139,30 @@ export function IndicatorSettingsInputs({ indicatorDraft: d, setIndicatorDraft, 
       />
     );
   }
-  if (d.kind === "rsiZones") {
+  // Lignes de zones (moyenne et extrême des derniers pics) : toujours sur « rsiZones », sur option pour le RSI.
+  if (d.kind === "rsi") {
+    calc.push(
+      <SettingCheckRow key="rzon">
+        <Checkbox
+          label="Lignes de surachat et de survente calculées (moyenne et extrême des derniers pics)"
+          checked={d.rsiZonesEnabled === true}
+          onChange={(checked) => set({ rsiZonesEnabled: checked ? true : undefined })}
+        />
+      </SettingCheckRow>
+    );
+  }
+  if (rsiZonesActive(d)) {
     calc.push(
       <NumberSetting
         key="rzl"
-        label="Périodes analysées (survente et surachat)"
-        suffix="bougies"
-        min={5}
-        max={5000}
-        value={d.rsiZonesLookback}
-        def={RSI_ZONES_DEFAULT_LOOKBACK}
-        hint="Les dernières bougies sur lesquelles sont relevées la moyenne et le maximum des valeurs passées en survente et en surachat."
-        onSet={(v) => set({ rsiZonesLookback: v })}
+        label="Nombre de pics pris en compte"
+        suffix="pics"
+        min={1}
+        max={500}
+        value={d.rsiZonesPeaks}
+        def={RSI_ZONES_DEFAULT_PEAKS}
+        hint="Les derniers passages au-dessus du seuil de surachat (leur pic) et sous le seuil de survente (leur creux) dont on prend la moyenne et l'extrême."
+        onSet={(v) => set({ rsiZonesPeaks: v })}
       />
     );
   }
@@ -756,7 +768,7 @@ export function IndicatorSettingsStyle({ indicatorDraft: d, setIndicatorDraft, i
         </div>
         {traceSettings}
       </SettingsSection>
-      {d.kind === "rsiZones" && <RsiZoneLinesSection indicatorDraft={d} set={set} />}
+      {rsiZonesActive(d) && <RsiZoneLinesSection indicatorDraft={d} set={set} />}
       {d.kind === "donchian" && <DonchianStyleSection indicatorDraft={d} set={set} />}
       {(ownPane || d.kind === "atr") && (
         <SettingsSection title="Valeurs">

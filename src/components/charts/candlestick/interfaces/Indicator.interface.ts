@@ -204,6 +204,11 @@ export interface Indicator {
   /** "rsiZones" only — nombre de bougies, jusqu'à la dernière affichée, sur lesquelles sont relevées les valeurs du RSI
    *  passées en survente (sous `rsiOversold`) et en surachat (au-dessus de `rsiOverbought`). Défaut : 100. */
   rsiZonesLookback?: number;
+  /** "rsi" / "rsiZones" — nombre de derniers passages en zone (pics au-dessus du surachat, creux sous la survente) dont
+   *  on prend la moyenne et l'extrême. Défaut : 30. Remplace `rsiZonesLookback`, qui n'est plus lu. */
+  rsiZonesPeaks?: number;
+  /** "rsi" only — trace aussi les lignes de zones de « rsiZones » (moyenne et extrême des pics) sur le RSI classique. */
+  rsiZonesEnabled?: boolean;
   /** "rsiZones" only — réglages de chacune des quatre lignes horizontales (moyenne et extrême de chaque zone) : affichée,
    *  couleur, style, opacité, épaisseur. Voir `RSI_ZONE_LINE_DEFAULTS` dans rsiZones.ts. */
   rsiZoneLines?: Partial<Record<RsiZoneLineKey, RsiZoneLineStyle>>;

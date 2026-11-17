@@ -10,7 +10,7 @@ import type { TrendLineDrawing } from "../interfaces/TrendLineDrawing.interface"
 import { computeIndicatorValues } from "../indicators";
 import { computeIndicatorProjection, type IndicatorProjection } from "../indicatorProjection";
 import { indicatorLabel } from "../indicatorCatalog";
-import { rsiZoneLevelsFor, type RsiZoneLevels } from "../rsiZones";
+import { rsiZoneLevelsFor, rsiZonesActive, type RsiZoneLevels } from "../rsiZones";
 import { usePaneStackScales } from "./usePaneStackScales";
 
 export interface UseIndicatorPaneScalesArgs {
@@ -87,7 +87,7 @@ export function useIndicatorPaneScales({
         if (v !== null) points.push({ i, value: v });
       }
       // Relevées sur les dernières bougies de l'historique, pas sur celles à l'écran : les lignes ne bougent pas au défilement.
-      const rsiZoneLevels: RsiZoneLevels | null = indicator.kind === "rsiZones" ? rsiZoneLevelsFor(indicator, values, lastIndex) : null;
+      const rsiZoneLevels: RsiZoneLevels | null = rsiZonesActive(indicator) ? rsiZoneLevelsFor(indicator, values, lastIndex) : null;
       return { indicator, points, rsiZoneLevels };
     });
   }, [indicatorValues, data.length, visibleRange, lastIndex]);

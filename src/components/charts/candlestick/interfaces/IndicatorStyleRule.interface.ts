@@ -81,4 +81,15 @@ export interface IndicatorStyleRule {
   opacity?: number;
   /** L'icône de l'effet « icon ». Absente : le point, au-dessus. */
   icon?: RuleIcon;
+  /** Dégradé des effets « fill » et « background » : la couleur part pleine (avec `opacity`) du côté de la courbe A —
+   *  du haut du panneau pour un fond — et va vers `toColor` à `toOpacity`. Absent ou null : couleur unie. */
+  gradient?: StyleRuleGradient | null;
+}
+
+/** Le dégradé d'une règle de remplissage ou de fond. */
+export interface StyleRuleGradient {
+  /** Couleur d'arrivée. Absente : la couleur de départ (la règle, ou « sinon » de l'autre côté). */
+  toColor?: string;
+  /** Opacité d'arrivée en %, de 0 à 100. Défaut 0 : la couleur s'efface. */
+  toOpacity?: number;
 }

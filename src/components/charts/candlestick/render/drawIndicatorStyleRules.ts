@@ -3,6 +3,7 @@ import type { IndicatorValue } from "../interfaces/IndicatorValue.interface";
 import type { IndicatorStyleRule, StyleRuleOperand } from "../interfaces/IndicatorStyleRule.interface";
 import { defaultRuleOpacity, indicatorLevelValue, renderedStyleRules, isCrossCondition, isRangeCondition, resolvedRuleIcon, seriesFieldValue } from "../styleRules";
 import { drawMarkerIcon, markerIconCenterY } from "./drawMarkerIcon";
+import { colorAlpha, withAlpha } from "../../../forms/colorUtils";
 
 /** Un indicateur du panneau et ses points visibles. */
 export interface StyleRuleMember {
@@ -162,6 +163,15 @@ function drawStateRule(
   const yes = new Path2D();
   const no = new Path2D();
   const hasElse = !!rule.elseColor;
+  // Étendue verticale de chaque côté (pixels), pour y caler un dégradé.
+  const yesBox = { min: Infinity, max: -Infinity };
+  const noBox = { min: Infinity, max: -Infinity };
+  const grow = (box: { min: number; max: number }, ...ys: number[]) => {
+    for (const y of ys) {
+      if (y < box.min) box.min = y;
+      if (y > box.max) box.max = y;
+    }
+  };
   const { xAt, yAt, height } = pane;
   const cond = (a: number, b: number, c: number): boolean => stateHolds(rule, a, b, c);
   // Une ligne recolorée : chaque couleur en un seul tracé, repris sans trou d'un morceau au suivant.
@@ -242,6 +252,7 @@ function drawStateRule(
         path.lineTo(x1, yAt(other1));
         path.lineTo(x0, yAt(other0));
         path.closePath();
+        grow(ok ? yesBox : noBox, yAt(edge0), yAt(edge1), yAt(other0), yAt(other1));
       }
     }
   }
@@ -259,12 +270,52 @@ function drawStateRule(
     }
     return;
   }
+  if (rule.gradient) {
+    // A au-dessus de la référence du côté « vrai » de « au-dessus » / « ≥ », en dessous pour « en dessous » / « ≤ » ;
+    // l'inverse du côté « sinon ». Entre deux bornes, et pour un fond : du haut vers le bas.
+    const aHighWhenTrue = rule.condition === "above" || rule.condition === "gte";
+    const aLowWhenTrue = rule.condition === "below" || rule.condition === "lte";
+    const fromTop = (yesSide: boolean) =>
+      rule.effect === "background" || (!aHighWhenTrue && !aLowWhenTrue) ? true : yesSide ? aHighWhenTrue : aLowWhenTrue;
+    const full = { min: 0, max: height };
+    fillGradient(ctx, rule, yes, rule.color, rule.effect === "background" ? full : yesBox, fromTop(true));
+    if (rule.elseColor) fillGradient(ctx, rule, no, rule.elseColor, rule.effect === "background" ? full : noBox, fromTop(false));
+    return;
+  }
   ctx.fillStyle = rule.color;
   ctx.fill(yes);
   if (rule.elseColor) {
     ctx.fillStyle = rule.elseColor;
     ctx.fill(no);
   }
+}
+
+/** Remplit `path` d'un dégradé vertical sur `box` : `color` à l'opacité de la règle du côté de la courbe (en haut si
+ *  `fromTop`), la couleur d'arrivée à son opacité de l'autre côté. */
+function fillGradient(
+  ctx: CanvasRenderingContext2D,
+  rule: IndicatorStyleRule,
+  path: Path2D,
+  color: string,
+  box: { min: number; max: number },
+  fromTop: boolean,
+): void {
+  if (!Number.isFinite(box.min) || !Number.isFinite(box.max)) return;
+  const g = rule.gradient!;
+  const from = Math.min(100, Math.max(0, rule.opacity ?? defaultRuleOpacity(rule.effect)));
+  const to = Math.min(100, Math.max(0, g.toOpacity ?? 0));
+  const peak = Math.max(from, to, 1);
+  const endColor = g.toColor ?? color;
+  const y0 = fromTop ? box.min : box.max;
+  const y1 = fromTop ? box.max : box.min;
+  const gradient = ctx.createLinearGradient(0, y0, 0, y1 === y0 ? y0 + 1 : y1);
+  gradient.addColorStop(0, withAlpha(color, colorAlpha(color) * (from / peak)));
+  gradient.addColorStop(1, withAlpha(endColor, colorAlpha(endColor) * (to / peak)));
+  ctx.save();
+  ctx.globalAlpha = peak / 100;
+  ctx.fillStyle = gradient;
+  ctx.fill(path);
+  ctx.restore();
 }
 
 /**

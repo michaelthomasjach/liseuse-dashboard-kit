@@ -4541,6 +4541,7 @@ button.lq-chart__legend-item {
   border-radius: var(--lq-radius-md, 6px);
 }
 .lq-chart__rule--disabled .lq-chart__rule-sentence,
+.lq-chart__rule--disabled .lq-chart__rule-gradient,
 .lq-chart__rule--disabled .lq-chart__rule-opacity {
   opacity: 0.5;
 }

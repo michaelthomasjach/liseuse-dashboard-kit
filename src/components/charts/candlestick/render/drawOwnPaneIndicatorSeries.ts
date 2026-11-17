@@ -70,7 +70,7 @@ export function drawOwnPaneIndicatorSeries(
       ctx.stroke();
     }
     ctx.restore();
-    if (ind.kind === "rsiZones" && rsiZoneLevels) drawRsiZoneLines(ctx, ind, rsiZoneLevels, scale, width, style);
+    if (rsiZoneLevels) drawRsiZoneLines(ctx, ind, rsiZoneLevels, scale, width, style);
 
     ctx.strokeStyle = color;
     ctx.lineWidth = ind.lineWidth ?? 1.5;

@@ -99,7 +99,7 @@ export const INDICATOR_SHOTS: Partial<Record<IndicatorKind, DiagramShotVariant>>
   donchian: ind("donchian", 20),
   srBounce: ind("srBounce", 200, { srbShowFactors: true }),
   rsi: ind("rsi", 14),
-  rsiZones: ind("rsiZones", 14, { rsiZonesLookback: 120 }),
+  rsiZones: ind("rsiZones", 14),
   chop: ind("chop", 14),
   macd: ind("macd", 0),
   zigzag: ind("zigzag", 0, { zigzagDeviation: 5, zigzagShowLabels: true }),

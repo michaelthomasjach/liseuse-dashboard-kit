@@ -448,7 +448,7 @@ Un extrême n'est pas une échéance : le RSI dit qu'un mouvement est inhabituel
 
 Il ne mesure ni l'ampleur du mouvement en prix, ni les volumes. Et ses seuils sont les mêmes pour tous les titres, alors que certains vivent en permanence près des extrêmes et que d'autres n'y vont presque jamais.`,
 
-  rsiZones: `**Cet indicateur est un RSI qui garde la mémoire de ses propres extrêmes.** En plus de la courbe du RSI et de ses deux seuils, il trace quatre lignes horizontales, relevées sur les X dernières bougies : la **moyenne** et le **maximum** des valeurs passées en survente, puis la moyenne et le maximum des valeurs passées en surachat.
+  rsiZones: `**Cet indicateur est un RSI qui garde la mémoire de ses propres extrêmes.** En plus de la courbe du RSI et de ses deux seuils, il trace quatre lignes horizontales, relevées sur les **30 derniers passages** en zone : la **moyenne** et le **plus haut** des pics atteints en surachat, puis la **moyenne** et le **plus bas** des creux atteints en survente. Les mêmes lignes s'ajoutent au RSI classique en cochant « Lignes de surachat et de survente calculées ».
 
 Ces lignes répondent à une question que le RSI seul laisse ouverte : *sur ce titre, et ces derniers temps, jusqu'où va habituellement un excès ?* Un RSI à 25 n'a pas le même sens sur une valeur qui descend rarement sous 30 que sur une valeur qui touche régulièrement 15.
 
@@ -458,19 +458,21 @@ Le RSI a été publié par **J. Welles Wilder** en 1978, dans *New Concepts in T
 
 ## Les bases
 
-Le calcul du RSI est inchangé (lissage de Wilder sur N clôtures). Ensuite, sur la fenêtre des X dernières bougies :
+Le calcul du RSI est inchangé (lissage de Wilder sur N clôtures). Ensuite :
 
-- chaque valeur **inférieure ou égale au seuil de survente** entre dans la zone de survente ;
-- chaque valeur **supérieure ou égale au seuil de surachat** entre dans la zone de surachat ;
-- pour chaque zone, la **moyenne** de ces valeurs et leur **maximum** — le plus bas atteint pour la survente, le plus haut pour le surachat — deviennent des lignes horizontales, avec leur valeur écrite à gauche.
+- chaque **passage au-dessus du seuil de surachat** (bougies consécutives) donne un **pic** : le plus haut du RSI pendant ce passage ;
+- chaque **passage sous le seuil de survente** donne un **creux** : le plus bas pendant ce passage ;
+- sur les 30 derniers pics, la **moyenne** et le **plus haut** deviennent deux lignes horizontales ; sur les 30 derniers creux, la **moyenne** et le **plus bas**, deux autres. Leur valeur est écrite à droite du panneau.
 
-Les lignes sont relevées sur les dernières bougies de l'historique (ou jusqu'à la coupure du replay) : elles ne bougent pas quand on fait défiler le graphique. Une zone dans laquelle le RSI n'est jamais entré pendant la fenêtre n'a pas de ligne.
+Compter des pics plutôt que des bougies évite qu'un long passage en zone pèse plus qu'un bref : chaque excès compte une fois, à sa hauteur.
+
+Les lignes sont relevées jusqu'à la dernière bougie de l'historique (ou jusqu'à la coupure du replay) : elles ne bougent pas quand on fait défiler le graphique. Une zone dans laquelle le RSI n'est jamais entré n'a pas de ligne ; un passage encore en cours compte avec son pic du moment.
 
 ## Ce qu'il faut rechercher
 
 ### Un excès « normal » ou inhabituel
 
-Un RSI qui atteint la ligne de **moyenne** de sa zone est dans un excès ordinaire pour ce titre. Un RSI qui dépasse la ligne de **maximum** sort de tout ce qu'il a fait sur la fenêtre : un excès rare, qui mérite l'attention — essoufflement possible, ou au contraire début d'un mouvement d'une autre ampleur.
+Un RSI qui atteint la ligne de **moyenne** de sa zone est dans un excès ordinaire pour ce titre. Un RSI qui dépasse la ligne de **maximum** dépasse tous ses derniers pics : un excès rare, qui mérite l'attention — essoufflement possible, ou au contraire début d'un mouvement d'une autre ampleur.
 
 [[illustration:example-rsiZones-range|Range : le RSI oscille entre ses zones, les lignes de moyenne marquent l'excès habituel du titre.]]
 
@@ -486,7 +488,7 @@ Les lignes de moyenne font de bons seuils personnalisés : un signal « RSI sous
 
 ## Résumé
 
-Le RSI à zones replace chaque excès dans l'histoire récente du titre : la moyenne dit ce qui est habituel, le maximum ce qui est exceptionnel, pour la survente comme pour le surachat. Plus la fenêtre est longue, plus ces repères sont stables ; plus elle est courte, plus ils collent au régime de marché du moment.
+Le RSI à zones replace chaque excès dans l'histoire récente du titre : la moyenne dit ce qui est habituel, le maximum ce qui est exceptionnel, pour la survente comme pour le surachat. Plus le nombre de pics est grand, plus ces repères sont stables ; plus il est petit, plus ils collent au régime de marché du moment.
 
 ## Ce qu'il ne dit pas
 

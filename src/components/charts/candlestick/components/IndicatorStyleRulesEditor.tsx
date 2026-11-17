@@ -442,6 +442,43 @@ function RuleRow({
         />
         <output className="lq-ind-settings__range-value">{opacity} %</output>
       </label>
+      {/* Dégradé : remplissages et fonds. Part de la couleur de la règle (côté courbe, ou haut du panneau) et va vers
+          une couleur et une opacité d'arrivée. */}
+      {(rule.effect === "fill" || rule.effect === "background") && !cross && (
+        <div className="lq-chart__rule-gradient">
+          <Checkbox
+            label="Dégradé"
+            checked={!!rule.gradient}
+            onChange={(checked) => onPatch({ gradient: checked ? { toOpacity: 0 } : null })}
+            ariaLabel={`Dégradé de ${ref}`}
+          />
+          {rule.gradient && (
+            <>
+              <span className="lq-chart__rule-word">vers</span>
+              <ColorPicker
+                className="lq-chart__color-input"
+                value={rule.gradient.toColor ?? rule.color}
+                onChange={(color) => onPatch({ gradient: { ...rule.gradient, toColor: color } })}
+                aria-label={`Couleur d'arrivée du dégradé de ${ref}`}
+              />
+              <label className="lq-chart__rule-opacity">
+                <span className="lq-chart__rule-word">Opacité d'arrivée</span>
+                <input
+                  type="range"
+                  className="lq-ind-settings__range"
+                  min={0}
+                  max={100}
+                  step={5}
+                  value={rule.gradient.toOpacity ?? 0}
+                  onChange={(e) => onPatch({ gradient: { ...rule.gradient, toOpacity: Number(e.target.value) } })}
+                  aria-label={`Opacité d'arrivée du dégradé de ${ref}`}
+                />
+                <output className="lq-ind-settings__range-value">{rule.gradient.toOpacity ?? 0} %</output>
+              </label>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }

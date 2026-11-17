@@ -2337,6 +2337,13 @@ button.lq-chart__legend-item {
   color: inherit;
 }
 
+/* Le nom d'un indicateur se clique (sélection, double-clic : paramètres) : curseur main, pas le curseur texte. */
+.lq-chart__indicator-legend-item,
+.lq-chart__indicator-legend-label {
+  cursor: pointer;
+  user-select: none;
+}
+
 .lq-chart__indicator-legend-label--hidden {
   opacity: 0.5;
 }
@@ -2369,7 +2376,11 @@ button.lq-chart__legend-item {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0;
+  /* Zone de clic élargie autour d'icônes de 14 px : 24 × 20 px. */
+  min-width: 24px;
+  min-height: 20px;
+  padding: 0 4px;
+  border-radius: var(--lq-radius-sm);
   color: var(--lq-color-text-muted);
   background: none;
   border: none;
@@ -2395,7 +2406,54 @@ button.lq-chart__legend-item {
 
 .lq-chart__indicator-legend-action:hover {
   color: var(--lq-color-text);
+  background-color: var(--lq-color-hover);
   opacity: 1;
+}
+
+/* Le « … » dont le menu est ouvert reste visible, même quand le pointeur est parti dans le menu. */
+.lq-chart__indicator-legend-action.lq-chart__indicator-legend-action--open {
+  opacity: 1;
+  color: var(--lq-color-text);
+  background-color: var(--lq-color-hover);
+}
+
+/* Menu « … » d'une ligne d'indicateur : alerte, copier, afficher ou masquer, supprimer, paramètres. */
+.lq-chart__indicator-legend-menu {
+  display: flex;
+  flex-direction: column;
+  min-width: 220px;
+  padding: 4px;
+}
+
+.lq-chart__indicator-legend-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 10px;
+  font-family: inherit;
+  font-size: 0.8rem;
+  text-align: left;
+  color: var(--lq-color-text);
+  background: none;
+  border: none;
+  border-radius: var(--lq-radius-sm);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.lq-chart__indicator-legend-menu-item:hover,
+.lq-chart__indicator-legend-menu-item:focus-visible {
+  background-color: var(--lq-color-hover);
+}
+
+.lq-chart__indicator-legend-menu-text {
+  flex: 1;
+}
+
+.lq-chart__indicator-legend-menu-hint {
+  color: var(--lq-color-text-muted);
+  font-size: 0.7rem;
 }
 
 /* The alert bell stays visible even while its own row isn't hovered once the indicator actually
@@ -3268,6 +3326,47 @@ button.lq-chart__legend-item {
    dans un éditeur). */
 .lq-chart__template-save {
   position: relative;
+}
+
+/* Animation de sauvegarde (Ctrl+S ou clic, s'il y avait des changements) : la bordure verte fait le tour du bouton
+   depuis le coin haut gauche, puis la coche verte s'affiche une seconde (TemplateControls). */
+.lq-chart__template-save-ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.lq-chart__template-save-ring rect {
+  fill: none;
+  stroke: var(--lq-color-positive, #1f9d55);
+  stroke-width: 2px;
+  vector-effect: non-scaling-stroke;
+  stroke-linecap: round;
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  animation-name: lq-template-save-ring;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
+@keyframes lq-template-save-ring {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.lq-chart__template-save--check {
+  color: var(--lq-color-positive, #1f9d55);
+  box-shadow: inset 0 0 0 2px var(--lq-color-positive, #1f9d55);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lq-chart__template-save-ring rect {
+    animation-duration: 1ms !important;
+  }
 }
 
 .lq-chart__template-dirty-dot {

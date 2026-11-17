@@ -107,6 +107,7 @@ export type {
 
 import { drawingLabel } from "./candlestick/drawingCatalog";
 import { indicatorCatalogEntry, indicatorLabel, defaultIndicatorColor, INDICATOR_CATALOG } from "./candlestick/indicatorCatalog";
+import { unavailableForSymbol } from "./candlestick/equityOnly";
 import { drawingAxisAnnotations, indicatorAxisAnnotations } from "./candlestick/axisAnnotations";
 import { ChartContextMenu } from "./candlestick/components/ChartContextMenu";
 import { buildChartContextMenu, type ChartContextMenuAnchor } from "./candlestick/buildChartContextMenu";
@@ -904,6 +905,7 @@ function CandlestickChartBody({
     deleteEditingIndicator, toggleIndicatorHidden,
     patchIndicator,
     removeIndicator,
+    copiedIndicatorRef,
     volumeVisible, volumeCollapsed,
     volumeOverlay, setVolumeOverlay, volumeOnPrice, priceOverlayIndicators,
     legendCollapsed, toggleLegendCollapsed,
@@ -2387,7 +2389,11 @@ function CandlestickChartBody({
   // Ligne d'état : valeur(s) d'un indicateur à la bougie que montre la légende (réglage « Valeurs des indicateurs »).
   const legendValueIndex = effectiveHoverIndex ?? data.length - 1;
   // La légende des prix : les indicateurs tracés sur les prix, puis les séries de panneau affichées sur les prix.
-  const legendOverlayIndicators = priceOverlayIndicators.length > 0 ? [...overlayIndicators, ...priceOverlayIndicators] : overlayIndicators;
+  // Un indicateur indisponible pour le symbole affiché (réservé aux actions sur un indice…) ne figure pas dans la liste :
+  // il y revient dès qu'on passe sur un symbole où il fonctionne.
+  const legendOverlayIndicators = (priceOverlayIndicators.length > 0 ? [...overlayIndicators, ...priceOverlayIndicators] : overlayIndicators).filter(
+    (ind) => !unavailableForSymbol(ind, symbolIsEquity),
+  );
   const indicatorLegendValue = (indicator: Indicator): string | null => {
     const entry = indicatorValues.find((e) => e.indicator.id === indicator.id);
     if (!entry || legendValueIndex < 0) return null;
@@ -2706,6 +2712,10 @@ function CandlestickChartBody({
             toggleIndicatorHidden={toggleIndicatorHidden}
             onToggleIndicatorLegend={toggleIndicatorLegend}
             removeIndicator={removeIndicator}
+            copyIndicator={(id) => {
+              const ind = combinedIndicators.find((i) => i.id === id);
+              if (ind) copiedIndicatorRef.current = ind;
+            }}
             alertedIndicatorIds={alertFlow.alertedIndicatorIds} onOpenIndicatorAlert={(ind) => alertFlow.openForIndicator(ind.id, indicatorLabel(ind))}
             symbolOverlays={symbolOverlays}
             drawings={drawings}

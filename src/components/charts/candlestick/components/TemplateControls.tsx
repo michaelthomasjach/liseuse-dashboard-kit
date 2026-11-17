@@ -24,6 +24,10 @@ export interface TemplateControlsProps {
 
 const noop = () => {};
 
+/** Durée du tour de bordure, puis de la coche, de l'animation de sauvegarde. */
+const SAVE_RING_MS = 700;
+const SAVE_CHECK_MS = 1000;
+
 /** Save button + "saved templates" dropdown, right edge of the chart's own header — see
  *  `CandlestickChartProps.showTemplates`'s own doc for the exact save/load/dirty-guard rules
  *  this implements. Purely orchestration: every actual mutation (save/load/delete) is a call
@@ -50,11 +54,22 @@ export function TemplateControls({ templates, activeTemplateId, startupTemplateI
   // Briefly swaps the Save button's own icon to a checkmark — the only feedback an otherwise
   // silent "click Save, it just overwrites" action gets, same reasoning the symbol-search "+"
   // button (see onAddSymbolOverlay) turns into a checkmark once its own overlay is active.
-  const [justSaved, setJustSaved] = useState(false);
+  // Sauvegarde de changements : la bordure verte fait le tour du bouton (« ring »), puis une coche verte (« check »)
+  // reste une seconde. Rien quand il n'y avait rien de nouveau à sauvegarder.
+  const [saveAnim, setSaveAnim] = useState<"idle" | "ring" | "check">("idle");
+  const saveTimers = useRef<number[]>([]);
+  useEffect(() => () => saveTimers.current.forEach((t) => window.clearTimeout(t)), []);
+  const justSaved = saveAnim === "check";
 
-  function flashSaved() {
-    setJustSaved(true);
-    window.setTimeout(() => setJustSaved(false), 1200);
+  /** `dirty` : l'état avant la sauvegarde (par défaut, celui affiché). */
+  function flashSaved(dirty: boolean = isDirty) {
+    if (!dirty) return;
+    saveTimers.current.forEach((t) => window.clearTimeout(t));
+    setSaveAnim("ring");
+    saveTimers.current = [
+      window.setTimeout(() => setSaveAnim("check"), SAVE_RING_MS),
+      window.setTimeout(() => setSaveAnim("idle"), SAVE_RING_MS + SAVE_CHECK_MS),
+    ];
   }
 
   function closeModal() {
@@ -226,14 +241,27 @@ export function TemplateControls({ templates, activeTemplateId, startupTemplateI
       <div className="lq-chart__header-templates">
         <button
           type="button"
-          className={["lq-chart__icon-button", "lq-chart__template-save", dirtyText && "lq-chart__template-save--dirty"].filter(Boolean).join(" ")}
+          className={[
+            "lq-chart__icon-button",
+            "lq-chart__template-save",
+            dirtyText && "lq-chart__template-save--dirty",
+            saveAnim !== "idle" && `lq-chart__template-save--${saveAnim}`,
+          ]
+            .filter(Boolean)
+            .join(" ")}
           onClick={handleSaveClick}
           aria-label={saveLabel}
           title={saveLabel}
           data-dirty={dirtyText ? "true" : undefined}
         >
           {justSaved ? <CheckIcon size={14} /> : <SaveIcon size={14} />}
-          {dirtyText && !justSaved && <span className="lq-chart__template-dirty-dot" aria-hidden="true" />}
+          {dirtyText && saveAnim === "idle" && <span className="lq-chart__template-dirty-dot" aria-hidden="true" />}
+          {saveAnim === "ring" && (
+            // Le contour du bouton, tracé de 0 à 360° depuis le coin haut gauche (voir charts-shared.css).
+            <svg className="lq-chart__template-save-ring" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+              <rect x="2" y="2" width="96" height="96" rx="14" pathLength="100" style={{ animationDuration: `${SAVE_RING_MS}ms` }} />
+            </svg>
+          )}
         </button>
         {/* "Enregistrer sous" — always a new template, distinct from Save itself overwriting the
             active one. Same icon size as every other header button, not a smaller one — a

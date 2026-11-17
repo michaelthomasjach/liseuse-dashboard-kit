@@ -3,10 +3,11 @@ import { isPriceOverlay } from "../attachedIndicators";
 import "./IndicatorLegendHandle.css";
 import type { IndicatorInfoTarget } from "../interfaces/IndicatorInfoTarget.interface";
 import { IndicatorHelpButton } from "./IndicatorHelp";
-import { infoTargetFor, scriptIdFromIndicatorId } from "../scripting/scriptOutputToCustomIndicatorDef";
-import type { Dispatch, SetStateAction } from "react";
-import { useMemo, useState } from "react";
-import { ActivityIcon, CodeIcon, EyeIcon, EyeOffIcon, TrashIcon, SettingsIcon, AlarmClockIcon, InfoIcon, ChevronUpIcon, ChevronDownIcon, CursorArrowIcon } from "../../../icons";
+import { scriptIdFromIndicatorId } from "../scripting/scriptOutputToCustomIndicatorDef";
+import type { Dispatch, ReactNode, SetStateAction } from "react";
+import { useMemo, useRef, useState } from "react";
+import { Popover } from "../../../forms/Popover";
+import { ActivityIcon, CodeIcon, CopyIcon, EyeIcon, EyeOffIcon, TrashIcon, SettingsIcon, AlarmClockIcon, ChevronUpIcon, ChevronDownIcon, CursorArrowIcon, MoreHorizontalIcon } from "../../../icons";
 import type { Candle } from "../interfaces/Candle.interface";
 import type { Indicator } from "../interfaces/Indicator.interface";
 import type { ChartStyleSettings } from "../chartStyle";
@@ -98,6 +99,9 @@ export interface ChartLegendProps {
   /** Réaffiche la légende d'un indicateur masquée par le menu contextuel (`Indicator.legendHidden`). */
   onToggleIndicatorLegend?: (id: string) => void;
   removeIndicator: (id: string) => void;
+  /** « Copier » du menu « … » d'un indicateur : le met de côté, Ctrl/Cmd+V en colle une copie (comme Ctrl/Cmd+C au
+   *  survol de sa ligne). Absent : pas d'entrée « Copier ». */
+  copyIndicator?: (id: string) => void;
   /** Indicator ids that currently have at least one alert (see `useAlertFlow`) — drives the
    *  bell's active state so it stays visible even while the row isn't hovered, same
    *  "icon next to it once an alert exists" treatment the drawing toolbar's own bell gets. */
@@ -173,9 +177,9 @@ export function ChartLegend({
   toggleIndicatorHidden,
   onToggleIndicatorLegend,
   removeIndicator,
+  copyIndicator,
   alertedIndicatorIds,
   onOpenIndicatorAlert,
-  onOpenIndicatorInfo,
   onOpenIndicatorCode,
   hasIndicatorCode,
   strategyScriptIds,
@@ -514,41 +518,30 @@ export function ChartLegend({
                 return value ? <span className="lq-chart__indicator-legend-value">{showIndicatorTitles ? " " : ""}{value}</span> : null;
               })()}
             </span>
-            {/* Invisible until this item is hovered (see charts-shared.css) — double-click
-                the label itself opens the settings modal too, so the gear is a discoverable
-                shortcut, not the only way in. The bell is the one exception: it stays visible
-                even unhovered once this indicator actually has an alert (see
-                .lq-chart__indicator-legend-action--alert-active), the same "icon next to it"
-                treatment the drawing toolbar's own bell gets. */}
+            {/* Invisibles tant que la ligne n'est pas survolée (voir charts-shared.css), dans l'ordre : œil, code,
+                aide, testeur de stratégie, corbeille, puis « … » qui ouvre le menu (alerte, copier, afficher,
+                supprimer, paramètres). La cloche reste visible, seule, quand l'indicateur a une alerte. */}
             <div className="lq-chart__indicator-legend-actions">
-              {/* Pas d'alerte sur un indicateur de zones : il n'a pas de valeur à franchir. */}
-              {indicator.customData?.draw !== "zones" && indicator.customData?.draw !== "boxes" && (
-              <button
-                type="button"
-                className={[
-                  "lq-chart__indicator-legend-action",
-                  alertedIndicatorIds.has(indicator.id) && "lq-chart__indicator-legend-action--alert-active",
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
-                onClick={() => onOpenIndicatorAlert(indicator)}
-                aria-pressed={alertedIndicatorIds.has(indicator.id)}
-                aria-label={alertedIndicatorIds.has(indicator.id) ? `Alertes sur ${indicatorLabel(indicator)}` : `Créer une alerte sur ${indicatorLabel(indicator)}`}
-              >
-                <AlarmClockIcon size={11} />
-              </button>
+              {alertedIndicatorIds.has(indicator.id) && (
+                <button
+                  type="button"
+                  className="lq-chart__indicator-legend-action lq-chart__indicator-legend-action--alert-active"
+                  onClick={() => onOpenIndicatorAlert(indicator)}
+                  aria-pressed
+                  aria-label={`Alertes sur ${indicatorLabel(indicator)}`}
+                >
+                  <AlarmClockIcon size={LEGEND_ICON} />
+                </button>
               )}
               <button
                 type="button"
                 className="lq-chart__indicator-legend-action"
-                onClick={() => onOpenIndicatorInfo(infoTargetFor(indicator))}
-                aria-label={`À propos de ${indicatorLabel(indicator)}`}
+                onClick={() => toggleIndicatorHidden(indicator.id)}
+                aria-label={indicator.hidden ? `Afficher ${indicatorLabel(indicator)}` : `Masquer ${indicatorLabel(indicator)}`}
+                title={indicator.hidden ? "Afficher" : "Masquer"}
               >
-                <InfoIcon size={11} />
+                {indicator.hidden ? <EyeOffIcon size={LEGEND_ICON} /> : <EyeIcon size={LEGEND_ICON} />}
               </button>
-              {!indicator.customData && <IndicatorHelpButton kind={indicator.kind} className="lq-chart__indicator-legend-action" />}
-              {/* Beside the "i", same pairing the indicator picker's own rows already use: one
-                  button explains what the indicator does, the next shows how it is computed. */}
               {hasIndicatorCode(indicator) && (
                 <button
                   type="button"
@@ -557,9 +550,10 @@ export function ChartLegend({
                   aria-label={`Voir le code de ${indicatorLabel(indicator)}`}
                   title="Voir le code"
                 >
-                  <CodeIcon size={11} />
+                  <CodeIcon size={LEGEND_ICON} />
                 </button>
               )}
+              {!indicator.customData && <IndicatorHelpButton kind={indicator.kind} className="lq-chart__indicator-legend-action" />}
               {/* Only on a row that came from a @strategy script — every other indicator has no
                   tester to show. */}
               {(() => {
@@ -574,34 +568,31 @@ export function ChartLegend({
                     aria-pressed={open}
                     aria-label={`${open ? "Fermer" : "Ouvrir"} le testeur de stratégie de ${indicatorLabel(indicator)}`}
                   >
-                    <ActivityIcon size={11} />
+                    <ActivityIcon size={LEGEND_ICON} />
                   </button>
                 );
               })()}
               <button
                 type="button"
                 className="lq-chart__indicator-legend-action"
-                onClick={() => toggleIndicatorHidden(indicator.id)}
-                aria-label={indicator.hidden ? `Afficher ${indicatorLabel(indicator)}` : `Masquer ${indicatorLabel(indicator)}`}
-              >
-                {indicator.hidden ? <EyeOffIcon size={11} /> : <EyeIcon size={11} />}
-              </button>
-              <button
-                type="button"
-                className="lq-chart__indicator-legend-action"
                 onClick={() => removeIndicator(indicator.id)}
                 aria-label={`Supprimer ${indicatorLabel(indicator)}`}
+                title="Supprimer"
               >
-                <TrashIcon size={11} />
+                <TrashIcon size={LEGEND_ICON} />
               </button>
-              <button
-                type="button"
-                className="lq-chart__indicator-legend-action"
-                onClick={() => openIndicatorSettings(indicator.id)}
-                aria-label={`Paramètres ${indicatorLabel(indicator)}`}
-              >
-                <SettingsIcon size={11} />
-              </button>
+              <IndicatorLegendMenu
+                label={indicatorLabel(indicator)}
+                // Pas d'alerte sur un indicateur de zones : il n'a pas de valeur à franchir.
+                canAlert={indicator.customData?.draw !== "zones" && indicator.customData?.draw !== "boxes"}
+                hasAlert={alertedIndicatorIds.has(indicator.id)}
+                hidden={indicator.hidden === true}
+                onAlert={() => onOpenIndicatorAlert(indicator)}
+                onCopy={copyIndicator ? () => copyIndicator(indicator.id) : undefined}
+                onToggleHidden={() => toggleIndicatorHidden(indicator.id)}
+                onRemove={() => removeIndicator(indicator.id)}
+                onSettings={() => openIndicatorSettings(indicator.id)}
+              />
             </div>
           </div>
           );
@@ -658,5 +649,70 @@ export function ChartLegend({
         </Modal>
       )}
     </div>
+  );
+}
+
+/** Taille des icônes d'action d'une ligne d'indicateur de la légende. */
+const LEGEND_ICON = 14;
+
+/** Le bouton « … » d'une ligne d'indicateur et son menu : alerte, copier, afficher ou masquer, supprimer, paramètres. */
+function IndicatorLegendMenu({
+  label,
+  canAlert,
+  hasAlert,
+  hidden,
+  onAlert,
+  onCopy,
+  onToggleHidden,
+  onRemove,
+  onSettings,
+}: {
+  label: string;
+  canAlert: boolean;
+  hasAlert: boolean;
+  hidden: boolean;
+  onAlert: () => void;
+  onCopy?: () => void;
+  onToggleHidden: () => void;
+  onRemove: () => void;
+  onSettings: () => void;
+}) {
+  const anchorRef = useRef<HTMLButtonElement>(null);
+  const [open, setOpen] = useState(false);
+  const run = (action: () => void) => () => {
+    setOpen(false);
+    action();
+  };
+  const item = (key: string, icon: ReactNode, text: string, action: () => void, hint?: string) => (
+    <button key={key} type="button" role="menuitem" className="lq-chart__indicator-legend-menu-item" onClick={run(action)}>
+      {icon}
+      <span className="lq-chart__indicator-legend-menu-text">{text}</span>
+      {hint && <span className="lq-chart__indicator-legend-menu-hint">{hint}</span>}
+    </button>
+  );
+  return (
+    <>
+      <button
+        ref={anchorRef}
+        type="button"
+        className={["lq-chart__indicator-legend-action", open && "lq-chart__indicator-legend-action--open"].filter(Boolean).join(" ")}
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={`Plus d'options pour ${label}`}
+        title="Plus d'options"
+      >
+        <MoreHorizontalIcon size={LEGEND_ICON} />
+      </button>
+      <Popover open={open} onClose={() => setOpen(false)} anchorRef={anchorRef} placement="bottom" initialFocus>
+        <div className="lq-chart__indicator-legend-menu" role="menu" aria-label={`Options de ${label}`}>
+          {canAlert && item("alert", <AlarmClockIcon size={14} />, hasAlert ? `Alertes sur ${label}` : `Ajouter une alerte sur ${label}`, onAlert)}
+          {onCopy && item("copy", <CopyIcon size={14} />, "Copier", onCopy, "Ctrl+V pour coller")}
+          {item("toggle", hidden ? <EyeIcon size={14} /> : <EyeOffIcon size={14} />, hidden ? "Afficher" : "Masquer", onToggleHidden)}
+          {item("remove", <TrashIcon size={14} />, "Supprimer", onRemove)}
+          {item("settings", <SettingsIcon size={14} />, "Paramètres", onSettings)}
+        </div>
+      </Popover>
+    </>
   );
 }

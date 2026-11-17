@@ -466,7 +466,7 @@ const BOOLEAN_FIELDS = new Set([
 const OBJECT_FIELDS = new Set(["seriesColors", "watermark", "valueFormat", "seriesCross", "rsiZoneLines", "donchianLines", "donchianBackground"]);
 const ARRAY_FIELDS = new Set(["fills", "styleRules", "areaFills"]);
 const NUMBER_FIELDS = new Set([
-  "period", "stdDev", "fastPeriod", "slowPeriod", "signalPeriod", "zigzagDeviation", "supertrendMultiplier", "sarStep", "sarMax", "gapsMinPercent",
+  "period", "stdDev", "fastPeriod", "slowPeriod", "signalPeriod", "macdSignalWidth", "zigzagDeviation", "supertrendMultiplier", "sarStep", "sarMax", "gapsMinPercent",
   "ichimokuConversionPeriod", "ichimokuBasePeriod", "ichimokuSpanPeriod", "ichimokuDisplacement", "srMaxLevels", "chandelierMultiplier",
   "tpoBlockMinutes", "tpoRowCount", "tpoValueAreaPercent", "tpoOpacity", "rsiOverbought", "rsiOversold", "rsiUpperColor", "rsiLowerColor", "rsiShowMiddle", "rsiMiddleColor", "rsiZonesLookback", "rsiZonesPeaks", "donchianOffset", "chopUpperThreshold", "chopLowerThreshold",
   "adxThreshold", "correlationStrongThreshold", "projectionBars", "projectionLookback", "projectionDamping", "lineWidth", "zoneOpacity",
@@ -521,7 +521,7 @@ const COMMON_FIELDS = ["period", "color", "lineWidth", "hidden", "legendHidden",
 
 export function settableFieldsFor(indicator: Indicator): string[] {
   const prefixes = KIND_PREFIXES[indicator.kind] ?? (/^fundamental|revenue|eps|pe|margin/i.test(indicator.kind) ? ["fundamental"] : []);
-  const all = [...NUMBER_FIELDS, ...BOOLEAN_FIELDS, ...Object.keys(ENUM_FIELDS), ...OBJECT_FIELDS, ...ARRAY_FIELDS, "recognitionDateLimit", "color", "macdHistogramUpColor", "macdHistogramDownColor", "supertrendUpColor", "supertrendDownColor", "sarUpColor", "sarDownColor", "chandelierUpColor", "chandelierDownColor", "adxPlusColor", "adxMinusColor", "macdLineAboveColor", "macdLineBelowColor", "expVolMedianColor", "expVolSmaColor", "expVolTimeZone", "rangeProbableColor"];
+  const all = [...NUMBER_FIELDS, ...BOOLEAN_FIELDS, ...Object.keys(ENUM_FIELDS), ...OBJECT_FIELDS, ...ARRAY_FIELDS, "recognitionDateLimit", "color", "macdHistogramUpColor", "macdHistogramDownColor", "supertrendUpColor", "supertrendDownColor", "sarUpColor", "sarDownColor", "chandelierUpColor", "chandelierDownColor", "adxPlusColor", "adxMinusColor", "macdLineAboveColor", "macdLineBelowColor", "macdSignalColor", "expVolMedianColor", "expVolSmaColor", "expVolTimeZone", "rangeProbableColor"];
   const own = all.filter((f) => prefixes.some((p) => f.startsWith(p)));
   return [...new Set([...COMMON_FIELDS, ...own, ...Object.keys(indicator).filter((k) => indicatorFieldType(k) !== null)])];
 }

@@ -152,7 +152,8 @@ export function PaneHeaders({
         data-pane-legend-fold={sourceId}
       >
         {collapsed ? <ChevronRightIcon size={11} /> : <ChevronLeftIcon size={11} />}
-        {collapsed && <span>{list.length}</span>}
+        {/* Replié (de lui-même dès deux indicateurs posés, ou à la main) : leur nombre, leurs noms au survol. */}
+        {collapsed && <span>{list.length === 1 ? "1 indicateur" : `${list.length} indicateurs`}</span>}
       </button>
     );
     if (collapsed && fold) return fold;

@@ -37,6 +37,9 @@ export interface IndicatorSettingsFieldsProps {
 /** Couleurs « hausse / baisse » par défaut des indicateurs qui se colorent selon la tendance. */
 const UP = "#26a69a";
 const DOWN = "#ef5350";
+/** Couleur affichée pour la ligne de signal du MACD tant qu'elle n'est pas réglée (le tracé prend alors la couleur
+ *  atténuée du thème, du même gris). */
+const MACD_SIGNAL_COLOR = "#787b86";
 
 /** Un réglage numérique : libellé à gauche, champ compact à droite (unité dans le champ), et la valeur par défaut
  *  visible dès qu'on s'en écarte, qui la rétablit d'un clic. L'unité suit le champ. Un champ vidé ne change rien : c'est un état de saisie. */
@@ -628,6 +631,19 @@ export function IndicatorSettingsStyle({ indicatorDraft: d, setIndicatorDraft, i
   }
   if (d.kind === "macd") {
     trace.push(
+      // Ligne de signal : couleur (opacité comprise) et épaisseur.
+      <TraceRow
+        key="signal"
+        name={`Signal (${d.signalPeriod ?? 9})`}
+        colors={[
+          {
+            value: d.macdSignalColor ?? MACD_SIGNAL_COLOR,
+            onChange: (c) => set({ macdSignalColor: c }),
+            thickness: d.macdSignalWidth ?? 1,
+            onThicknessChange: (w) => set({ macdSignalWidth: w }),
+          },
+        ]}
+      />,
       <TraceRow
         key="hist"
         name="Histogramme"

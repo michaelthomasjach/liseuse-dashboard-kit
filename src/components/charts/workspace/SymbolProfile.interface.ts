@@ -60,6 +60,11 @@ export interface SymbolProfileEarningsPoint {
  *  source of truth the chart itself reads, so the two can never disagree with each other. */
 export interface SymbolProfile {
   ticker: string;
+  /** Nom à afficher en tête du panneau d'information à la place de `ticker` (« Nasdaq 100 » pour « ^NDX »). */
+  label?: string;
+  /** Cours et variation, pour une fenêtre dont les bougies ne passent pas par `data` (l'hôte les charge dans son propre
+   *  composant) : sinon ils viennent des bougies de la fenêtre, comme l'en-tête du graphique. */
+  quote?: { price: number; change: number | null; changePercent: number | null };
   name?: string;
   exchange?: string;
   instrumentType?: string;

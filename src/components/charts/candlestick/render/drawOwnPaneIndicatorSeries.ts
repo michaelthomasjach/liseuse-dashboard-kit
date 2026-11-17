@@ -168,8 +168,9 @@ export function drawOwnPaneIndicatorSeries(
       ctx.stroke();
     }
 
-    ctx.strokeStyle = style.colorMuted;
-    ctx.lineWidth = 1;
+    // Ligne de signal : sa couleur et son épaisseur (onglet Style), sinon la couleur atténuée du thème (e-ink compris).
+    ctx.strokeStyle = isEink ? style.colorMuted : (ind.macdSignalColor ?? style.colorMuted);
+    ctx.lineWidth = ind.macdSignalWidth ?? 1;
     ctx.beginPath();
     let started = false;
     for (const p of macdPoints) {

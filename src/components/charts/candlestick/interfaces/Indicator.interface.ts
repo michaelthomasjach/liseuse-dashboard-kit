@@ -345,6 +345,9 @@ export interface Indicator {
   macdCrossColors?: boolean;
   macdLineAboveColor?: string;
   macdLineBelowColor?: string;
+  /** MACD : couleur (opacité comprise) et épaisseur de la ligne de signal. Absentes : la couleur atténuée du thème, 1 px. */
+  macdSignalColor?: string;
+  macdSignalWidth?: number;
   /** Indicateur de zones (`customData.draw: "zones"`) : opacité du fond des bandes, en % (défaut 12). */
   zoneOpacity?: number;
   /** Indicateur de zones : libellé de chaque zone écrit en haut de sa bande. Défaut true. */

@@ -992,15 +992,18 @@ function ChartWorkspaceBody({
     return askScriptDocsWithSend(anthropicSend({ apiKey: ai.apiKey, model: ai.model, baseUrl: ai.baseUrl, workspaceId: ai.workspaceId, maxTokens: 2048 }));
   }, [onAskScriptDocs, ai?.apiKey, ai?.model, ai?.baseUrl, ai?.workspaceId]);
   // "Which symbol is currently being studied" for the docked panel's own company-info section —
-  // see the helper for how the panel is picked and where the price comes from.
+  // see the helper for how the panel is picked and where the price comes from. À défaut d'une
+  // fenêtre en plein écran ou visée par la liste, celle sur laquelle l'utilisateur a cliqué en
+  // dernier : le panneau d'information suit la fenêtre active (et plus seulement la première).
   const {
     symbol: currentProfileSymbol,
+    title: currentProfileTitle,
     profile: currentSymbolProfileEntry,
     data: profileData,
     price: currentProfilePrice,
     change: currentProfileChange,
     changePercent: currentProfileChangePercent,
-  } = currentSymbolProfile(effectiveFocusedPanelIndex ?? activeSymbolTarget, panelElements, resolvedSymbol, symbolProfiles);
+  } = currentSymbolProfile(effectiveFocusedPanelIndex ?? activeSymbolTarget ?? effectiveActivePanel, panelElements, resolvedSymbol, symbolProfiles);
   const { columns, rows } = currentGridLayout;
   // Where each panel goes, as one custom property per panel on the grid (`--lq-workspace-area-1`
   // for the first, and so on) — read by the `:nth-child` rules in ChartWorkspace.css rather than
@@ -1500,7 +1503,7 @@ function ChartWorkspaceBody({
                   }}
                 >
                   <SymbolProfilePanel
-                    symbol={currentProfileSymbol}
+                    symbol={currentProfileTitle ?? currentProfileSymbol}
                     price={currentProfilePrice}
                     change={currentProfileChange}
                     changePercent={currentProfileChangePercent}

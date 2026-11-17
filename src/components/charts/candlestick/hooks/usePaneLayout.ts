@@ -306,9 +306,9 @@ export function usePaneLayout({
   const updateLegendPrefs = useCallback((part: "collapsed" | "hidden" | "indicatorHidden", key: string, on: boolean) => {
     const current = legendPrefsRef.current;
     const map = { ...current[part] };
-    // Replié : seul « vrai » est noté. Masqué : « faux » aussi, il défait un `legendHidden` enregistré avec l'indicateur.
-    if (part === "collapsed" && !on) delete map[key];
-    else map[key] = on;
+    // Replié : « faux » est noté aussi (liste dépliée à la main, à garder dépliée même quand elle se replierait d'elle-même,
+    // voir legendCollapsedView). Masqué : « faux » défait un `legendHidden` enregistré avec l'indicateur.
+    map[key] = on;
     const next: ChartLegendPrefs = { ...current, [part]: map };
     legendPrefsRef.current = next;
     setLegendPrefsState(next);
@@ -387,14 +387,10 @@ export function usePaneLayout({
   const [volumeOverlay, setVolumeOverlay] = useState<boolean>(defaultPaneLayout?.volumeOverlay === true);
   // Listes d'indicateurs repliées dans les légendes (chevron), par zone : « price » (légende en haut à gauche),
   // « volume », ou l'id de l'indicateur d'un panneau. Gardé avec la disposition des panneaux.
+  // `true` replié, `false` déplié par l'utilisateur ; absent : l'état par défaut (voir legendCollapsedView).
   const [legendCollapsed, setLegendCollapsed] = useState<Record<string, boolean>>(defaultPaneLayout?.legendCollapsed ?? {});
-  const toggleLegendCollapsedLocal = useCallback((paneId: string) => {
-    setLegendCollapsed((prev) => {
-      const next = { ...prev };
-      if (next[paneId]) delete next[paneId];
-      else next[paneId] = true;
-      return next;
-    });
+  const setLegendCollapsedLocal = useCallback((paneId: string, collapsed: boolean) => {
+    setLegendCollapsed((prev) => ({ ...prev, [paneId]: collapsed }));
   }, []);
   // Ordre et hauteurs des panneaux annoncés à l'hôte à chaque changement (pas au montage), pour qu'il retrouve la
   // disposition au rechargement — quel que soit le chemin qui l'a changée (glisser, modèle, Ctrl+Z).
@@ -1074,21 +1070,34 @@ export function usePaneLayout({
   }, [indicators, extraIndicators, paneHeightFractions, defaultFraction, plotBoundedHeight, volumeVisible, volumeHeight, volumePaneOrder, paneOrder, fullscreenPaneId, subPanesSqueeze]);
   const indicatorPanesTotalHeight = indicatorPaneHeights.reduce((sum, h) => sum + h, 0);
   // Légendes repliées vues par le graphique, par zone (« price », « volume », id d'un indicateur) : celles des
-  // préférences du compte (clés stables) quand l'hôte les tient, sinon celles de la disposition.
+  // préférences du compte (clés stables) quand l'hôte les tient, sinon celles de la disposition. Sans choix de
+  // l'utilisateur, la liste des indicateurs posés sur un panneau (volume ou panneau d'indicateur) se replie d'elle-même
+  // dès qu'il y en a plus d'un : l'en-tête montre alors leur nombre au lieu d'une longue ligne.
   const legendCollapsedView = useMemo(() => {
-    if (!legendPrefsMode) return legendCollapsed;
     const all = [...allIndicators, ...rawExtraIndicators];
+    const explicit: Record<string, boolean> = {};
+    if (!legendPrefsMode) Object.assign(explicit, legendCollapsed);
+    else
+      for (const zone of ["price", "volume", ...all.map((i) => i.id)]) {
+        const key = legendZoneKey(zone, all);
+        const value = key ? legendPrefs.collapsed?.[key] : undefined;
+        if (value !== undefined) explicit[zone] = value;
+      }
+    const attachedCount = new Map<string, number>();
+    for (const ind of all) if (ind.sourceId) attachedCount.set(ind.sourceId, (attachedCount.get(ind.sourceId) ?? 0) + 1);
     const view: Record<string, boolean> = {};
-    for (const zone of ["price", "volume", ...all.map((i) => i.id)]) {
-      const key = legendZoneKey(zone, all);
-      if (key && legendPrefs.collapsed?.[key]) view[zone] = true;
+    for (const [zone, count] of attachedCount) if (zone !== "price" && count > 1) view[zone] = true;
+    for (const [zone, value] of Object.entries(explicit)) {
+      if (value) view[zone] = true;
+      else delete view[zone];
     }
     return view;
   }, [legendPrefsMode, legendCollapsed, legendPrefs.collapsed, allIndicators, rawExtraIndicators]);
   function toggleLegendCollapsed(paneId: string) {
-    if (!legendPrefsMode) return toggleLegendCollapsedLocal(paneId);
+    const collapse = !legendCollapsedView[paneId];
+    if (!legendPrefsMode) return setLegendCollapsedLocal(paneId, collapse);
     const key = legendZoneKey(paneId, [...allIndicators, ...rawExtraIndicators]);
-    if (key) updateLegendPrefs("collapsed", key, !legendCollapsedView[paneId]);
+    if (key) updateLegendPrefs("collapsed", key, collapse);
   }
   /** Légende masquée ou non (« volume », ou l'id d'un indicateur), retenue dans les préférences du compte. */
   function setLegendHiddenPref(id: string, hidden: boolean) {

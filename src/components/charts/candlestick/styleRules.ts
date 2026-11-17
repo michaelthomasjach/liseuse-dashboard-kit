@@ -83,6 +83,7 @@ const NOT_A_LINE = new Set<string>([
   "chandelierExit",
   "expectedVolatility",
   "rangeDetection",
+  "srBounce",
 ]);
 
 /** Les lignes d'un indicateur qu'une règle peut citer : `field` (absent : la ligne principale) et son nom. */
@@ -112,6 +113,13 @@ export function indicatorSeriesFields(indicator: Indicator): { field?: string; l
       { field: "base", label: "Kijun" },
       { field: "spanA", label: "Span A" },
       { field: "spanB", label: "Span B" },
+    ];
+  }
+  if (indicator.kind === "donchian") {
+    return [
+      { field: "upper", label: "bande supérieure" },
+      { field: "middle", label: "base" },
+      { field: "lower", label: "bande inférieure" },
     ];
   }
   if (indicator.kind === "bollinger" || custom?.draw === "band") {

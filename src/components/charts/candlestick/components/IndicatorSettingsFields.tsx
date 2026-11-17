@@ -8,6 +8,9 @@ import { InputNumber } from "../../../forms/InputNumber";
 import { Input } from "../../../forms/Input";
 import { EXPECTED_VOLATILITY_DEFAULTS as EV, EXPECTED_VOLATILITY_TIMEFRAMES } from "../expectedVolatility";
 import { RANGE_DETECTION_DEFAULTS as RD } from "../rangeDetection";
+import { SR_BOUNCE_DEFAULTS as SRB } from "../srBounce";
+import { DONCHIAN_LINE_KEYS, DONCHIAN_LINE_LABELS, DONCHIAN_LINE_DEFAULTS, DONCHIAN_BACKGROUND_DEFAULT, resolveDonchianBackground, resolveDonchianLine } from "../donchian";
+import type { DonchianLineKey, IndicatorLineStyle } from "../interfaces/IndicatorLineStyle.interface";
 import { isRsiKind, resolveRsiZoneLine, RSI_ZONE_LINE_DEFAULTS, RSI_ZONE_LINE_KEYS, RSI_ZONE_LINE_LABELS, RSI_ZONES_DEFAULT_LOOKBACK } from "../rsiZones";
 import type { RsiZoneLineKey, RsiZoneLineStyle } from "../interfaces/RsiZoneLine.interface";
 import { Select, type SelectOption } from "../../../forms/Select";
@@ -121,6 +124,21 @@ export function IndicatorSettingsInputs({ indicatorDraft: d, setIndicatorDraft, 
   if (entry.hasPeriod) {
     calc.push(<NumberSetting key="period" label="Période" suffix="bougies" min={1} max={500} value={d.period} def={defaults.period} onSet={(v) => set({ period: v })} />);
   }
+  if (d.kind === "donchian") {
+    calc.push(
+      <NumberSetting
+        key="dco"
+        label="Décalage"
+        suffix="bougies"
+        min={-500}
+        max={500}
+        value={d.donchianOffset}
+        def={0}
+        hint="Déplace les canaux vers la droite (positif) ou vers la gauche (négatif) par rapport aux bougies."
+        onSet={(v) => set({ donchianOffset: v === 0 ? undefined : v })}
+      />
+    );
+  }
   if (d.kind === "rsiZones") {
     calc.push(
       <NumberSetting
@@ -220,6 +238,21 @@ export function IndicatorSettingsInputs({ indicatorDraft: d, setIndicatorDraft, 
       <NumberSetting key="rdvf" label="Moyenne courte du volume" suffix="bougies" min={1} max={200} value={d.rangeVolumeFast} def={RD.volumeFast} onSet={(v) => set({ rangeVolumeFast: v })} />,
       <NumberSetting key="rdvs" label="Moyenne longue du volume" suffix="bougies" min={2} max={500} value={d.rangeVolumeSlow} def={RD.volumeSlow} onSet={(v) => set({ rangeVolumeSlow: v })} />,
       <NumberSetting key="rdsl" label="Écart des pentes (précocité)" suffix="bougies" min={1} max={20} value={d.rangeSlopeBars} def={RD.slopeBars} hint="Plus court : détection plus précoce, mais plus de fausses alertes." onSet={(v) => set({ rangeSlopeBars: v })} />
+    );
+  }
+  if (d.kind === "srBounce") {
+    calc.push(
+      <NumberSetting key="srbp" label="Bougies analysées" suffix="bougies" min={30} max={2000} value={d.period} def={SRB.lookback} hint="La fenêtre dans laquelle les zones sont cherchées et leurs contacts passés comptés." onSet={(v) => set({ period: v })} />,
+      <NumberSetting key="srbz" label="Nombre de zones" min={1} max={20} value={d.srbMaxZones} def={SRB.maxZones} hint="Les zones les plus proches du prix sont gardées." onSet={(v) => set({ srbMaxZones: v })} />,
+      <NumberSetting key="srbs" label="Largeur des pivots" suffix="bougies" min={1} max={10} value={d.srbSwingSpan} def={SRB.swingSpan} hint="Un sommet (ou un creux) doit dépasser ce nombre de bougies de chaque côté." onSet={(v) => set({ srbSwingSpan: v })} />,
+      <NumberSetting key="srbh" label="Horizon d'un contact" suffix="bougies" min={2} max={60} value={d.srbHorizon} def={SRB.horizon} hint="Délai laissé au prix, après un contact passé, pour rebondir d'1 ATR ou casser la zone." onSet={(v) => set({ srbHorizon: v })} />,
+      <NumberSetting key="srba" label="Période de l'ATR" suffix="bougies" min={2} max={200} value={d.srbAtrPeriod} def={SRB.atrPeriod} onSet={(v) => set({ srbAtrPeriod: v })} />,
+      <NumberSetting key="srbx" label="Période de l'ADX" suffix="bougies" min={2} max={200} value={d.srbAdxPeriod} def={SRB.adxPeriod} onSet={(v) => set({ srbAdxPeriod: v })} />,
+      <NumberSetting key="srbe" label="Période de l'EMA" suffix="bougies" min={2} max={500} value={d.srbEmaPeriod} def={SRB.emaPeriod} onSet={(v) => set({ srbEmaPeriod: v })} />,
+      <NumberSetting key="srbm" label="Période de la SMA" suffix="bougies" min={2} max={500} value={d.srbSmaPeriod} def={SRB.smaPeriod} onSet={(v) => set({ srbSmaPeriod: v })} />,
+      <NumberSetting key="srbl" label="Période de la SMA longue" suffix="bougies" min={2} max={1000} value={d.srbSmaLongPeriod} def={SRB.smaLongPeriod} onSet={(v) => set({ srbSmaLongPeriod: v })} />,
+      <NumberSetting key="srbb" label="Période de Bollinger" suffix="bougies" min={2} max={500} value={d.srbBbPeriod} def={SRB.bbPeriod} onSet={(v) => set({ srbBbPeriod: v })} />,
+      <NumberSetting key="srbd" label="Écart-type de Bollinger" suffix="σ" min={0.5} max={5} step={0.1} value={d.srbBbStdDev} def={SRB.bbStdDev} onSet={(v) => set({ srbBbStdDev: v })} />
     );
   }
   if (d.kind === "supportResistance") {
@@ -518,6 +551,11 @@ export function IndicatorSettingsStyle({ indicatorDraft: d, setIndicatorDraft, i
     trace.push(<TraceRow key="sar" name="Points" visible={shown} colors={pair("sarUpColor", "sarDownColor")} />);
   } else if (d.kind === "chandelierExit") {
     trace.push(<TraceRow key="ce" name="Stop" visible={shown} colors={pair("chandelierUpColor", "chandelierDownColor")} />);
+  } else if (d.kind === "srBounce") {
+    trace.push(
+      <TraceRow key="srbs" name="Supports (zones sous le prix)" visible={shown} colors={[{ value: d.srbSupportColor ?? SRB.supportColor, onChange: (c) => set({ srbSupportColor: c }) }]} />,
+      <TraceRow key="srbr" name="Résistances (zones au-dessus du prix)" colors={[{ value: d.srbResistanceColor ?? SRB.resistanceColor, onChange: (c) => set({ srbResistanceColor: c }) }]} />
+    );
   } else if (d.kind === "rangeDetection") {
     trace.push(
       <TraceRow key="rdc" name="Zones de range confirmé" visible={shown} colors={[{ value: mainColor, onChange: (c) => set({ color: c }) }]} />,
@@ -542,6 +580,28 @@ export function IndicatorSettingsStyle({ indicatorDraft: d, setIndicatorDraft, i
         name="Ligne médiane (ouverture de la période)"
         visible={{ checked: d.expVolShowMedian ?? EV.showMedian, onChange: (checked) => set({ expVolShowMedian: checked }) }}
         colors={[{ value: d.expVolMedianColor ?? EV.medianColor, onChange: (c) => set({ expVolMedianColor: c }) }]}
+      />
+    );
+  } else if (d.kind === "donchian") {
+    const patchLine = (key: DonchianLineKey, p: IndicatorLineStyle) => set({ donchianLines: { ...d.donchianLines, [key]: { ...d.donchianLines?.[key], ...p } } });
+    for (const key of DONCHIAN_LINE_KEYS) {
+      const line = resolveDonchianLine(d, key);
+      trace.push(
+        <TraceRow
+          key={`dc-${key}`}
+          name={DONCHIAN_LINE_LABELS[key]}
+          visible={{ checked: line.show, onChange: (checked) => patchLine(key, { show: checked }) }}
+          colors={[{ value: line.color, onChange: (c) => patchLine(key, { color: c }), thickness: line.width, onThicknessChange: (w) => patchLine(key, { width: w }) }]}
+        />
+      );
+    }
+    const bg = resolveDonchianBackground(d);
+    trace.push(
+      <TraceRow
+        key="dc-bg"
+        name="Fond entre les bandes"
+        visible={{ checked: bg.show, onChange: (checked) => set({ donchianBackground: { ...d.donchianBackground, show: checked } }) }}
+        colors={[{ value: bg.color, onChange: (c) => set({ donchianBackground: { ...d.donchianBackground, color: c } }) }]}
       />
     );
   } else if (d.kind === "supportResistance" || d.kind === "tpo") {
@@ -628,6 +688,9 @@ export function IndicatorSettingsStyle({ indicatorDraft: d, setIndicatorDraft, i
       />
     );
   }
+  if (d.kind === "srBounce") {
+    traceSettings.push(<NumberSetting key="srbop" label="Opacité du fond" suffix="%" min={0} max={100} value={d.srbOpacity} def={SRB.opacity} hint="Modulée par la probabilité : une zone solide est plus marquée." onSet={(v) => set({ srbOpacity: v })} />);
+  }
   if (d.kind === "rangeDetection") {
     traceSettings.push(<NumberSetting key="rdop" label="Opacité du fond" suffix="%" min={0} max={100} value={d.rangeOpacity} def={RD.opacity} onSet={(v) => set({ rangeOpacity: v })} />);
   }
@@ -663,6 +726,10 @@ export function IndicatorSettingsStyle({ indicatorDraft: d, setIndicatorDraft, i
     check("evlow", "Afficher aussi le bas attendu (ouverture − ATR)", d.expVolShowLow ?? EV.showLow, (c) => set({ expVolShowLow: c }));
     check("evlbl", "Afficher les étiquettes de valeur", d.expVolShowLabels ?? EV.showLabels, (c) => set({ expVolShowLabels: c }));
   }
+  if (d.kind === "srBounce") {
+    check("srblbl", "Libellés des zones (rôle, prix, probabilité)", d.srbShowLabels ?? SRB.showLabels, (c) => set({ srbShowLabels: c }));
+    check("srbfac", "Détail du calcul (les trois facteurs qui pèsent le plus)", d.srbShowFactors ?? false, (c) => set({ srbShowFactors: c }));
+  }
   if (d.kind === "rangeDetection") {
     check("rdlbl", "Libellés des zones (état, score, cassure)", d.rangeShowLabels ?? RD.showLabels, (c) => set({ rangeShowLabels: c }));
     check("rdmid", "Ligne médiane des zones", d.rangeShowMidline ?? RD.showMidline, (c) => set({ rangeShowMidline: c }));
@@ -690,6 +757,7 @@ export function IndicatorSettingsStyle({ indicatorDraft: d, setIndicatorDraft, i
         {traceSettings}
       </SettingsSection>
       {d.kind === "rsiZones" && <RsiZoneLinesSection indicatorDraft={d} set={set} />}
+      {d.kind === "donchian" && <DonchianStyleSection indicatorDraft={d} set={set} />}
       {(ownPane || d.kind === "atr") && (
         <SettingsSection title="Valeurs">
           {ownPane && <ValueFormatField indicatorDraft={d} setIndicatorDraft={setIndicatorDraft} />}
@@ -750,6 +818,26 @@ function RsiZoneLinesSection({ indicatorDraft: d, set }: { indicatorDraft: Indic
           </Fragment>
         );
       })}
+    </SettingsSection>
+  );
+}
+
+/** Canaux de Donchian : style et opacité de chaque ligne, opacité du fond (couleurs et épaisseurs : « Tracé »). */
+function DonchianStyleSection({ indicatorDraft: d, set }: { indicatorDraft: Indicator; set: (patch: Partial<Indicator>) => void }) {
+  const patchLine = (key: DonchianLineKey, p: IndicatorLineStyle) => set({ donchianLines: { ...d.donchianLines, [key]: { ...d.donchianLines?.[key], ...p } } });
+  const bg = resolveDonchianBackground(d);
+  return (
+    <SettingsSection title="Lignes et fond">
+      {DONCHIAN_LINE_KEYS.map((key) => {
+        const line = resolveDonchianLine(d, key);
+        return (
+          <Fragment key={key}>
+            <SelectSetting label={`${DONCHIAN_LINE_LABELS[key]} : style`} value={line.lineStyle} options={LINE_STYLE_OPTIONS} onChange={(v) => patchLine(key, { lineStyle: v })} />
+            <NumberSetting label={`${DONCHIAN_LINE_LABELS[key]} : opacité`} suffix="%" min={0} max={100} value={line.opacity} def={DONCHIAN_LINE_DEFAULTS[key].opacity} onSet={(v) => patchLine(key, { opacity: v })} />
+          </Fragment>
+        );
+      })}
+      <NumberSetting label="Fond : opacité" suffix="%" min={0} max={100} value={bg.opacity} def={DONCHIAN_BACKGROUND_DEFAULT.opacity} onSet={(v) => set({ donchianBackground: { ...d.donchianBackground, opacity: v } })} />
     </SettingsSection>
   );
 }

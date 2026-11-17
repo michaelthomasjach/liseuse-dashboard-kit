@@ -140,6 +140,17 @@ export const INDICATOR_CATALOG: IndicatorCatalogEntry[] = [
     category: "Volatilité",
   },
   {
+    // Plus haut des plus hauts et plus bas des plus bas sur N bougies, et leur milieu (donchian.ts).
+    kind: "donchian",
+    label: "Canaux de Donchian (DC)",
+    shortLabel: "DC",
+    defaultPeriod: 20,
+    hasPeriod: true,
+    hasStdDev: false,
+    pane: "price",
+    category: "Volatilité",
+  },
+  {
     kind: "rsi",
     label: "Relative Strength Index (RSI)",
     shortLabel: "RSI",
@@ -214,6 +225,20 @@ export const INDICATOR_CATALOG: IndicatorCatalogEntry[] = [
     label: "Détection de range (précoce)",
     shortLabel: "Range précoce",
     defaultPeriod: 14,
+    hasPeriod: false,
+    hasStdDev: false,
+    pane: "price",
+    category: "Communauté",
+    community: true,
+    fallbackCategory: "Structure",
+  },
+  // « Probabilité de rebond » : own value shape (IndicatorBounceZone[], an extended IndicatorSRLevel[]) and own settings
+  // (srb*); `period` is the number of candles analysed. Listed in the « Communauté » tab, like rangeDetection.
+  {
+    kind: "srBounce",
+    label: "Probabilité de rebond (supports et résistances)",
+    shortLabel: "Rebond S/R",
+    defaultPeriod: 200,
     hasPeriod: false,
     hasStdDev: false,
     pane: "price",
@@ -504,6 +529,7 @@ export function indicatorLabel(indicator: Indicator): string {
   if (indicator.kind === "correlation") return `${entry.shortLabel}(${indicator.correlationSymbol ?? "?"})`;
   if (indicator.kind === "tpo") return `${entry.shortLabel}(${indicator.tpoBlockMinutes ?? 30}min)`;
   if (indicator.kind === "rangeDetection") return `${entry.shortLabel}(${indicator.period})`;
+  if (indicator.kind === "srBounce") return `${entry.shortLabel}(${indicator.period})`;
   if (indicator.kind === "expectedVolatility") return `${entry.shortLabel}(${indicator.period},${indicator.expVolSmaPeriod ?? 14})`;
   if (indicator.kind === "pivotPoints") {
     const typeLabel = { classic: "Classic", fibonacci: "Fibonacci", woodie: "Woodie", camarilla: "Camarilla" }[indicator.pivotType ?? "classic"];

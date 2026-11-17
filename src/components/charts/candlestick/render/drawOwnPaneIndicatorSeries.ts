@@ -425,8 +425,7 @@ export function drawOwnPaneIndicatorSeries(
 }
 
 /** Les quatre lignes d'un « rsiZones » (moyenne et extrême de la survente et du surachat), chacune avec sa couleur, son
- *  style, son opacité et son épaisseur, et son libellé avec la valeur : au-dessus de la ligne côté surachat, en dessous
- *  côté survente, pour que les deux libellés d'une même zone ne se recouvrent pas. En e-ink, la couleur du texte. */
+ *  style, son opacité et son épaisseur, et son libellé avec la valeur. En e-ink, la couleur du texte. */
 function drawRsiZoneLines(
   ctx: CanvasRenderingContext2D,
   ind: Indicator,
@@ -453,10 +452,16 @@ function drawRsiZoneLines(
     ctx.moveTo(0, y);
     ctx.lineTo(width, y);
     ctx.stroke();
-    const above = key.startsWith("overbought");
+    // À droite (la légende du panneau occupe la gauche), du côté extérieur de la ligne : au-dessus du maximum de surachat
+    // et de la moyenne de survente, en dessous des deux autres — les deux libellés d'une zone ne se recouvrent jamais.
+    // Pas la place au bord du panneau (ligne collée en haut ou en bas) : de l'autre côté de la ligne.
+    const [r0, r1] = scale.range();
+    const outside = key === "overboughtExtreme" || key === "oversoldMean";
+    const above = outside ? y - 14 >= Math.min(r0, r1) : y + 14 > Math.max(r0, r1);
     ctx.textBaseline = above ? "bottom" : "top";
+    ctx.textAlign = "right";
     ctx.fillStyle = color;
-    ctx.fillText(`${RSI_ZONE_LINE_LABELS[key].short} ${value.toFixed(1)}`, 4, above ? y - 2 : y + 2);
+    ctx.fillText(`${RSI_ZONE_LINE_LABELS[key].short} ${value.toFixed(1)}`, width - 6, above ? y - 2 : y + 2);
   }
   ctx.restore();
 }

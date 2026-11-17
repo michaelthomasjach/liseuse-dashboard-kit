@@ -461,18 +461,19 @@ const BOOLEAN_FIELDS = new Set([
   "macdShowHistogram", "zigzagShowLabels", "pivotShowLastOnly", "chandelierUseClose", "chandelierShowLabels", "chandelierHighlightState",
   "tpoSplitByBlocks", "atrAsPercent", "legendHidden", "projection", "hidden", "macdCrossColors", "zoneShowLabels", "zoneShowMarkers",
   "paneCollapsed", "priceOverlay", "sideAxesVisible", "expVolShowLow", "expVolShowSma", "expVolShowLabels", "expVolShowMedian",
-  "rangeShowProbable", "rangeShowLabels", "rangeShowMidline",
+  "rangeShowProbable", "rangeShowLabels", "rangeShowMidline", "srbShowLabels", "srbShowFactors",
 ]);
-const OBJECT_FIELDS = new Set(["seriesColors", "watermark", "valueFormat", "seriesCross", "rsiZoneLines"]);
+const OBJECT_FIELDS = new Set(["seriesColors", "watermark", "valueFormat", "seriesCross", "rsiZoneLines", "donchianLines", "donchianBackground"]);
 const ARRAY_FIELDS = new Set(["fills", "styleRules", "areaFills"]);
 const NUMBER_FIELDS = new Set([
   "period", "stdDev", "fastPeriod", "slowPeriod", "signalPeriod", "zigzagDeviation", "supertrendMultiplier", "sarStep", "sarMax", "gapsMinPercent",
   "ichimokuConversionPeriod", "ichimokuBasePeriod", "ichimokuSpanPeriod", "ichimokuDisplacement", "srMaxLevels", "chandelierMultiplier",
-  "tpoBlockMinutes", "tpoRowCount", "tpoValueAreaPercent", "tpoOpacity", "rsiOverbought", "rsiOversold", "rsiUpperColor", "rsiLowerColor", "rsiShowMiddle", "rsiMiddleColor", "rsiZonesLookback", "chopUpperThreshold", "chopLowerThreshold",
+  "tpoBlockMinutes", "tpoRowCount", "tpoValueAreaPercent", "tpoOpacity", "rsiOverbought", "rsiOversold", "rsiUpperColor", "rsiLowerColor", "rsiShowMiddle", "rsiMiddleColor", "rsiZonesLookback", "donchianOffset", "chopUpperThreshold", "chopLowerThreshold",
   "adxThreshold", "correlationStrongThreshold", "projectionBars", "projectionLookback", "projectionDamping", "lineWidth", "zoneOpacity",
   "zonePadBeforeHours", "zonePadAfterHours", "expVolSmaPeriod", "expVolSessions",
   "rangeChopEarly", "rangeChopConfirm", "rangeChopTrend", "rangeAtrPeriod", "rangeVolLookback", "rangeVolPercentile", "rangeVolumeFast", "rangeVolumeSlow",
   "rangeSlopeBars", "rangeBreakoutAtr", "rangeGraceBars", "rangeMinBars", "rangeOpacity",
+  "srbMaxZones", "srbSwingSpan", "srbHorizon", "srbAtrPeriod", "srbAdxPeriod", "srbEmaPeriod", "srbSmaPeriod", "srbSmaLongPeriod", "srbBbPeriod", "srbBbStdDev", "srbOpacity",
 ]);
 /** Champs que l'outil ne change pas : identité, type, données calculées ailleurs. */
 const LOCKED_FIELDS = new Set(["id", "kind", "customData", "correlationData", "correlationSymbol", "correlationSymbolName", "sourceId", "timeframe"]);
@@ -494,6 +495,7 @@ export function indicatorFieldType(field: string): FieldType | null {
 const KIND_PREFIXES: Record<string, string[]> = {
   macd: ["fastPeriod", "slowPeriod", "signalPeriod", "macd"],
   bollinger: ["stdDev"],
+  donchian: ["donchian"],
   zigzag: ["zigzag"],
   supertrend: ["supertrend"],
   parabolicSar: ["sar"],
@@ -504,6 +506,7 @@ const KIND_PREFIXES: Record<string, string[]> = {
   chandelierExit: ["chandelier"],
   expectedVolatility: ["expVol"],
   rangeDetection: ["range"],
+  srBounce: ["srb"],
   tpo: ["tpo"],
   rsi: ["rsi"],
   rsiZones: ["rsi"],

@@ -26,6 +26,9 @@ import { drawCandleRecognitionMatches } from "./drawCandleRecognition";
 import { drawIndicatorBoxes, drawIndicatorZones } from "./drawIndicatorZones";
 import { drawExpectedVolatility } from "./drawExpectedVolatility";
 import { drawRangeDetection } from "./drawRangeDetection";
+import { drawDonchianBand } from "./drawDonchian";
+import { drawSrBounce } from "./drawSrBounce";
+import type { IndicatorBounceZone } from "../interfaces/IndicatorBounceZone.interface";
 import type { IndicatorRangeDetectionPoint } from "../interfaces/IndicatorRangeDetectionPoint.interface";
 import type { IndicatorExpectedVolatilityPoint } from "../interfaces/IndicatorExpectedVolatilityPoint.interface";
 
@@ -34,7 +37,7 @@ import type { IndicatorExpectedVolatilityPoint } from "../interfaces/IndicatorEx
 // so they're exempt from the "needs at least 2 points to draw anything" gate below.
 // "patternRecognition"/"candleRecognition" join them for the same reason — a match found (or not)
 // within their own recent window has nothing to do with how many points happen to be visible.
-const POINT_BASED_KINDS = new Set(["gaps", "parabolicSar", "pivotPoints", "supportResistance", "patternRecognition", "candleRecognition", "expectedVolatility", "rangeDetection"]);
+const POINT_BASED_KINDS = new Set(["gaps", "parabolicSar", "pivotPoints", "supportResistance", "patternRecognition", "candleRecognition", "expectedVolatility", "rangeDetection", "srBounce"]);
 
 // A `CustomIndicatorDef.lineStyle` (script/caller-chosen) mapped to `ctx.setLineDash` — every
 // built-in indicator with a fixed dash style (Ichimoku's chikou span, pivot levels,
@@ -765,6 +768,8 @@ export function drawPriceCandles(ctx: CanvasRenderingContext2D, params: RenderCa
           ctx.fillText(`${level.price.toFixed(2)} ×${level.touchCount}`, x0 + 2, y - 2);
         }
         ctx.restore();
+      } else if (indicator.kind === "srBounce") {
+        drawSrBounce(ctx, points as { i: number; value: IndicatorBounceZone[] }[], indicator, params, style);
       } else if (indicator.kind === "rangeDetection") {
         drawRangeDetection(ctx, points as { i: number; value: IndicatorRangeDetectionPoint }[], indicator, params, style);
       } else if (indicator.kind === "expectedVolatility") {
@@ -938,6 +943,9 @@ export function drawPriceCandles(ctx: CanvasRenderingContext2D, params: RenderCa
             }
           }
         });
+      } else if (indicator.kind === "donchian") {
+        // Canaux de Donchian : chaque ligne et le fond ont leurs propres réglages (onglet Style).
+        drawDonchianBand(ctx, indicator, points as { i: number; value: IndicatorBand }[], zoomedXScale, zoomedPriceScale, isEink, colorText);
       } else {
         // Band indicator (Bollinger, or a script/caller's own `CustomIndicatorDef` with
         // `draw: "band"` — both reach here identically, see that field's own doc): translucent

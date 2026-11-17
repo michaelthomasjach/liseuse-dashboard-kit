@@ -4,6 +4,7 @@ export type IndicatorKind =
   | "wma"
   | "vwap"
   | "bollinger"
+  | "donchian"
   | "rsi"
   | "rsiZones"
   | "chop"
@@ -35,6 +36,10 @@ export type IndicatorKind =
    *  prix — voir `computeRangeDetectionValues` (rangeDetection.ts). Listé dans l'onglet « Communauté » du catalogue
    *  quand l'application en fournit un (`CandlestickChartProps.communityIndicators`). */
   | "rangeDetection"
+  /** « Probabilité de rebond (supports et résistances) » : zones de support et de résistance détectées automatiquement,
+   *  chacune avec la probabilité que le prix y rebondisse (ATR, moyennes mobiles, ADX, Bollinger et historique de la zone
+   *  cumulés) — voir `computeSrBounceValues` (srBounce.ts). Listé dans l'onglet « Communauté » comme « rangeDetection ». */
+  | "srBounce"
   /** Time Price Opportunities / Market Profile — see `Indicator.tpoBlockMinutes` and
    *  `computeTPOSessionProfiles`'s own doc (in `chartModes.ts`) for the full mechanics. An
    *  overlay like S/R or Pivot Points, not a `chartDisplayMode` — it draws its own profile

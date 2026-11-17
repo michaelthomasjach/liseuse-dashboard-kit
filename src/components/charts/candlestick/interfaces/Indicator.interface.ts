@@ -8,6 +8,7 @@ import type { IndicatorAreaFill } from "./IndicatorAreaFill.interface";
 import type { ValueFormat } from "./ValueFormat.interface";
 import type { IndicatorWatermark } from "./IndicatorWatermark.interface";
 import type { RsiZoneLineKey, RsiZoneLineStyle } from "./RsiZoneLine.interface";
+import type { DonchianBackground, DonchianLineKey, IndicatorLineStyle } from "./IndicatorLineStyle.interface";
 
 export interface Indicator {
   id: string;
@@ -141,6 +142,27 @@ export interface Indicator {
   expVolShowMedian?: boolean;
   expVolMedianColor?: string;
   expVolSmaColor?: string;
+  /** "srBounce" only (« Probabilité de rebond ») — `period` est le nombre de bougies analysées (200). Ci-dessous :
+   *  nombre de zones (6), largeur des pivots (3 bougies de chaque côté), horizon d'un contact (10 bougies), périodes de
+   *  l'ATR (14), de l'ADX (14), de l'EMA (20), de la SMA (50), de la SMA longue (200), de Bollinger (20, 2 écarts-types),
+   *  puis le style. Voir `SR_BOUNCE_DEFAULTS` (srBounce.ts). */
+  srbMaxZones?: number;
+  srbSwingSpan?: number;
+  srbHorizon?: number;
+  srbAtrPeriod?: number;
+  srbAdxPeriod?: number;
+  srbEmaPeriod?: number;
+  srbSmaPeriod?: number;
+  srbSmaLongPeriod?: number;
+  srbBbPeriod?: number;
+  srbBbStdDev?: number;
+  srbSupportColor?: string;
+  srbResistanceColor?: string;
+  /** Opacité du fond des zones, en % (14 par défaut), modulée par la probabilité. */
+  srbOpacity?: number;
+  srbShowLabels?: boolean;
+  /** Sous chaque libellé, les trois facteurs qui pèsent le plus sur la probabilité (non par défaut). */
+  srbShowFactors?: boolean;
   /** "rangeDetection" only (« Détection de range (précoce) ») — `period` est la période du CHOP (14) et `color` la
    *  couleur des zones confirmées. Ci-dessous : seuils du CHOP (50 : la condition commence s'il monte au-dessus,
    *  61,8 : établie), période de l'ATR (14), fenêtre (100 bougies) et centile (25 %) de la volatilité contractée,
@@ -185,6 +207,13 @@ export interface Indicator {
   /** "rsiZones" only — réglages de chacune des quatre lignes horizontales (moyenne et extrême de chaque zone) : affichée,
    *  couleur, style, opacité, épaisseur. Voir `RSI_ZONE_LINE_DEFAULTS` dans rsiZones.ts. */
   rsiZoneLines?: Partial<Record<RsiZoneLineKey, RsiZoneLineStyle>>;
+  /** "donchian" only — décalage des canaux, en bougies (positif : vers la droite). Défaut : 0. */
+  donchianOffset?: number;
+  /** "donchian" only — réglages de la base et des deux bandes : affichée, couleur, épaisseur, style, opacité
+   *  (voir `DONCHIAN_LINE_DEFAULTS` dans donchian.ts). */
+  donchianLines?: Partial<Record<DonchianLineKey, IndicatorLineStyle>>;
+  /** "donchian" only — fond entre les bandes : affiché, couleur, opacité. */
+  donchianBackground?: DonchianBackground;
   /** "chop" only — same reference-level mechanism as `rsiOverbought`/`rsiOversold` above, against
    *  CHOP's own 0-100 scale. Defaults 61.8/38.2, the conventional Fibonacci-derived thresholds
    *  (above the upper one: choppy/ranging; below the lower one: trending). */

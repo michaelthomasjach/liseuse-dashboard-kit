@@ -26,6 +26,7 @@ import { computePatternRecognitionValues } from "./patternRecognition";
 import { computeCandleRecognitionValues } from "./candleRecognition";
 import { computeExpectedVolatilityValues, EXPECTED_VOLATILITY_DEFAULTS } from "./expectedVolatility";
 import { computeRangeDetectionValues, rangeDetectionSettingsOf } from "./rangeDetection";
+import { computeSrBounceValues, srBounceSettingsOf } from "./srBounce";
 
 /** Forward-fills a sparse, date-keyed series (quarterly reports, any other "one number per
  *  period" data) onto every candle — the most recent point on or before that candle's own date, a
@@ -285,6 +286,9 @@ export function computeBollingerValues(data: Candle[], period: number, stdDev: n
   const result: (IndicatorBand | null)[] = new Array(offset).fill(null);
   return result.concat(values.map((v) => ({ upper: v.upper, middle: v.middle, lower: v.lower })));
 }
+
+export { computeDonchianValues } from "./donchian";
+import { computeDonchianValues } from "./donchian";
 
 export function computeRSIValues(data: Candle[], period: number): (number | null)[] {
   if (data.length === 0) return [];
@@ -862,6 +866,8 @@ export function computeIndicatorValues(
       return computeVWAPValues(data);
     case "bollinger":
       return computeBollingerValues(data, period, indicator.stdDev ?? 2);
+    case "donchian":
+      return computeDonchianValues(data, period, indicator.donchianOffset ?? 0);
     case "rsi":
     case "rsiZones":
       return computeRSIValues(data, period);
@@ -907,6 +913,14 @@ export function computeIndicatorValues(
       });
     case "rangeDetection":
       return computeRangeDetectionValues(data, rangeDetectionSettingsOf({ ...indicator, period }), computeCHOPValues);
+    case "srBounce":
+      return computeSrBounceValues(data, srBounceSettingsOf({ ...indicator, period }), {
+        atr: computeATRValues,
+        adx: computeADXValues,
+        ema: computeEMAValues,
+        sma: computeSMAValues,
+        bollinger: computeBollingerValues,
+      });
     case "pivotPoints":
       return computePivotPointsValues(data, indicator.pivotType ?? "classic", indicator.pivotPeriod ?? "weekly");
     case "supportResistance":

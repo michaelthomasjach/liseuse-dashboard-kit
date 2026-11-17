@@ -13,6 +13,7 @@ import {
   PATTERN_MARGIN,
   shotDate,
 } from "./diagramShotData";
+import { EXAMPLE_SHOTS } from "./exampleShots";
 
 /** What the info modals illustrate an indicator or a drawing tool with: a real render of that
  *  thing, screenshotted.
@@ -95,7 +96,10 @@ export const INDICATOR_SHOTS: Partial<Record<IndicatorKind, DiagramShotVariant>>
   wma: ind("wma", 20),
   vwap: ind("vwap", 0),
   bollinger: ind("bollinger", 20, { stdDev: 2 }),
+  donchian: ind("donchian", 20),
+  srBounce: ind("srBounce", 200, { srbShowFactors: true }),
   rsi: ind("rsi", 14),
+  rsiZones: ind("rsiZones", 14, { rsiZonesLookback: 120 }),
   chop: ind("chop", 14),
   macd: ind("macd", 0),
   zigzag: ind("zigzag", 0, { zigzagDeviation: 5, zigzagShowLabels: true }),
@@ -360,6 +364,7 @@ export const DIAGRAM_SHOT_IDS: string[] = [
   ...Object.keys(INDICATOR_SHOTS).map((kind) => `indicator-${kind}`),
   "indicator-volume",
   ...Object.keys(DRAWING_SHOTS).map((tool) => `drawing-${tool}`),
+  ...Object.keys(EXAMPLE_SHOTS).map((name) => `example-${name}`),
 ].filter((id) => !UNCAPTURABLE.has(id));
 
 /** Resolves one of those ids back to what it renders. */
@@ -367,5 +372,6 @@ export function diagramShotVariant(id: string): DiagramShotVariant | undefined {
   if (id === "indicator-volume") return VOLUME_SHOT;
   if (id.startsWith("indicator-")) return INDICATOR_SHOTS[id.slice("indicator-".length) as IndicatorKind];
   if (id.startsWith("drawing-")) return DRAWING_SHOTS[id.slice("drawing-".length) as DrawingToolType];
+  if (id.startsWith("example-")) return EXAMPLE_SHOTS[id.slice("example-".length)];
   return undefined;
 }

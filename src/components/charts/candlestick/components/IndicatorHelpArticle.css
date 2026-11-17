@@ -211,3 +211,34 @@
   font-size: 11px;
   line-height: 1;
 }
+
+/* Illustration d'un cas (« Ce qu'il faut rechercher ») : la capture, puis sa légende en petit. */
+.lq-indicator-help__figure {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--lq-space-1);
+}
+
+.lq-indicator-help__caption {
+  color: var(--lq-color-text-muted);
+  font-size: var(--lq-text-xs);
+  font-style: italic;
+}
+
+/* Entrées et Style : un réglage par bloc, son nom en titre, comme une fiche. */
+.lq-indicator-help__params {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lq-space-3);
+}
+
+.lq-indicator-help__param-meta {
+  margin: 0 0 var(--lq-space-1);
+  color: var(--lq-color-text-muted);
+  font-size: var(--lq-text-xs);
+}
+
+.lq-indicator-help__param-meta strong {
+  color: var(--lq-color-text);
+}

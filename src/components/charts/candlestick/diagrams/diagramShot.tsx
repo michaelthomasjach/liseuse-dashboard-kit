@@ -46,3 +46,21 @@ export function diagramShot(id: string, alt: string): ComponentType {
   Shot.displayName = `DiagramShot(${id})`;
   return Shot;
 }
+
+/** Une capture citée par son identifiant, rendue sur place : les illustrations des pages d'aide
+ *  (`[[illustration:example-…|Légende]]` dans une description). Rien tant que les images ne sont pas
+ *  chargées, ni pour un identifiant jamais capturé. */
+export function ShotImage({ id, alt }: { id: string; alt: string }) {
+  const [src, setSrc] = useState<string | null>(cache?.[id] ?? null);
+  useEffect(() => {
+    if (src !== null) return;
+    let cancelled = false;
+    void loadShots().then((shots) => {
+      if (!cancelled) setSrc(shots[id] ?? null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [id, src]);
+  return src === null ? null : <DiagramImage src={src} alt={alt} />;
+}

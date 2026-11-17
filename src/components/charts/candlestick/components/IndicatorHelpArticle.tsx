@@ -1,6 +1,7 @@
 import type { MouseEvent, ReactNode } from "react";
 import type { IndicatorKind } from "../interfaces/IndicatorKind.interface";
-import { INDICATOR_HELP_KINDS, indicatorHelpPage } from "../indicatorHelp";
+import { INDICATOR_HELP_KINDS, indicatorHelpPage, type IndicatorHelpParam } from "../indicatorHelp";
+import { ShotImage } from "../diagrams/diagramShot";
 import { INDICATOR_CATALOG } from "../indicatorCatalog";
 import { INDICATOR_DIAGRAMS } from "../diagrams/indicatorDiagramRegistry";
 import { CodeBlock } from "../../../primitives/CodeBlock";
@@ -33,7 +34,59 @@ function scrollToPart(e: MouseEvent<HTMLAnchorElement>) {
   target.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-const PANE_LABEL = { price: "Superposé au prix", own: "Panneau séparé", attached: "Sur un autre indicateur" } as const;
+/** `[[illustration:example-…|Légende]]`, seul sur sa ligne : une capture d'exemple (diagramShots/exampleShots.ts). */
+const ILLUSTRATION = /^\[\[illustration:([\w-]+)(?:\|([^\]]*))?\]\]$/;
+
+/** Un texte de description (dialecte d'`InfoText`) dont certaines lignes sont des illustrations. */
+function RichText({ text }: { text: string }) {
+  const blocks: ReactNode[] = [];
+  let buffer: string[] = [];
+  const flush = () => {
+    const chunk = buffer.join("\n").trim();
+    if (chunk) blocks.push(<InfoText key={`t${blocks.length}`}>{chunk}</InfoText>);
+    buffer = [];
+  };
+  for (const line of text.split("\n")) {
+    const match = ILLUSTRATION.exec(line.trim());
+    if (!match) {
+      buffer.push(line);
+      continue;
+    }
+    flush();
+    const caption = match[2]?.trim() ?? "";
+    blocks.push(
+      <figure key={`f${blocks.length}`} className="lq-indicator-help__figure">
+        <div className="lq-indicator-help__diagram">
+          <ShotImage id={match[1]} alt={caption || "Exemple sur un graphique"} />
+        </div>
+        {caption && <figcaption className="lq-indicator-help__caption">{caption}</figcaption>}
+      </figure>,
+    );
+  }
+  flush();
+  return <>{blocks}</>;
+}
+
+/** Les réglages d'un onglet, à la manière d'une fiche : le nom en titre, la valeur par défaut et les bornes, puis ce
+ *  qu'il change. */
+function ParamList({ params }: { params: IndicatorHelpParam[] }) {
+  return (
+    <div className="lq-indicator-help__params">
+      {params.map((p) => (
+        <div key={p.label} className="lq-indicator-help__param">
+          <h3 className="lq-indicator-help__h3">{p.label}</h3>
+          <p className="lq-indicator-help__param-meta">
+            Par défaut : <strong>{p.defaultValue}</strong>
+            {p.range && <span className="lq-indicator-help__range">{p.range}</span>}
+          </p>
+          <InfoText>{p.description}</InfoText>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+const PANE_LABEL ={ price: "Superposé au prix", own: "Panneau séparé", attached: "Sur un autre indicateur" } as const;
 
 function RelatedLink({ kind, hrefFor, onOpenIndicator, children }: { kind: IndicatorKind; hrefFor?: (kind: IndicatorKind) => string; onOpenIndicator?: (kind: IndicatorKind) => void; children: ReactNode }) {
   if (hrefFor) {
@@ -71,6 +124,8 @@ export function IndicatorHelpArticle({ kind, hrefFor, onOpenIndicator, showTitle
     );
   }
   const Diagram = INDICATOR_DIAGRAMS[page.kind];
+  const inputParams = page.params.filter((p) => p.tab !== "Style");
+  const styleParams = page.params.filter((p) => p.tab === "Style");
   return (
     <article className={["lq-indicator-help", className].filter(Boolean).join(" ")} aria-labelledby={showTitle ? `lq-indicator-help-${page.kind}` : undefined}>
       {showTitle && (
@@ -92,9 +147,14 @@ export function IndicatorHelpArticle({ kind, hrefFor, onOpenIndicator, showTitle
 
       <nav className="lq-indicator-help__toc" aria-label="Sommaire">
         <a href="#lq-ih-definition" onClick={scrollToPart}>Définition</a>
-        <a href="#lq-ih-formule" onClick={scrollToPart}>Formule</a>
-        <a href="#lq-ih-parametres" onClick={scrollToPart}>Paramètres</a>
+        {page.history && <a href="#lq-ih-histoire" onClick={scrollToPart}>Histoire</a>}
+        <a href="#lq-ih-formule" onClick={scrollToPart}>Calcul</a>
+        {page.basics && <a href="#lq-ih-bases" onClick={scrollToPart}>Les bases</a>}
+        {page.lookFor && <a href="#lq-ih-rechercher" onClick={scrollToPart}>Ce qu'il faut rechercher</a>}
         {page.reading.length > 0 && <a href="#lq-ih-lecture" onClick={scrollToPart}>Lecture et usages</a>}
+        {page.summary && <a href="#lq-ih-resume" onClick={scrollToPart}>Résumé</a>}
+        <a href="#lq-ih-parametres" onClick={scrollToPart}>Entrées</a>
+        {styleParams.length > 0 && <a href="#lq-ih-style" onClick={scrollToPart}>Style</a>}
         {page.limits && <a href="#lq-ih-limites" onClick={scrollToPart}>Limites</a>}
         {page.script && <a href="#lq-ih-script" onClick={scrollToPart}>Script équivalent</a>}
         {page.related.length > 0 && <a href="#lq-ih-proches" onClick={scrollToPart}>Indicateurs proches</a>}
@@ -107,11 +167,18 @@ export function IndicatorHelpArticle({ kind, hrefFor, onOpenIndicator, showTitle
             <Diagram />
           </div>
         )}
-        <InfoText>{page.definition}</InfoText>
+        <RichText text={page.definition} />
       </section>
 
+      {page.history && (
+        <section className="lq-indicator-help__section" id="lq-ih-histoire">
+          <h2 className="lq-indicator-help__h2">Histoire</h2>
+          <RichText text={page.history} />
+        </section>
+      )}
+
       <section className="lq-indicator-help__section" id="lq-ih-formule">
-        <h2 className="lq-indicator-help__h2">Formule</h2>
+        <h2 className="lq-indicator-help__h2">Calcul</h2>
         <ol className="lq-indicator-help__formula">
           {page.formula.map((line) => (
             <li key={line}>
@@ -122,40 +189,25 @@ export function IndicatorHelpArticle({ kind, hrefFor, onOpenIndicator, showTitle
         {page.formulaNotes && <InfoText>{page.formulaNotes}</InfoText>}
       </section>
 
-      <section className="lq-indicator-help__section" id="lq-ih-parametres">
-        <h2 className="lq-indicator-help__h2">Paramètres</h2>
-        {page.params.length === 0 ? (
-          <p className="lq-indicator-help__muted">Aucun paramètre de calcul : seuls la couleur et le style se règlent.</p>
-        ) : (
-          <div className="lq-indicator-help__table-wrap">
-            <table className="lq-indicator-help__table">
-              <thead>
-                <tr>
-                  <th scope="col">Réglage</th>
-                  <th scope="col">Par défaut</th>
-                  <th scope="col">Rôle</th>
-                </tr>
-              </thead>
-              <tbody>
-                {page.params.map((p) => (
-                  <tr key={p.label}>
-                    <th scope="row">
-                      {p.label}
-                      {p.tab && <span className="lq-indicator-help__tab">{p.tab}</span>}
-                    </th>
-                    <td>
-                      <strong>{p.defaultValue}</strong>
-                      {p.range && <span className="lq-indicator-help__range">{p.range}</span>}
-                    </td>
-                    <td>{p.description}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-        {page.settingsNotes && <InfoText>{page.settingsNotes}</InfoText>}
-      </section>
+      {page.basics && (
+        <section className="lq-indicator-help__section" id="lq-ih-bases">
+          <h2 className="lq-indicator-help__h2">Les bases</h2>
+          <RichText text={page.basics} />
+        </section>
+      )}
+
+      {page.lookFor && (
+        <section className="lq-indicator-help__section" id="lq-ih-rechercher">
+          <h2 className="lq-indicator-help__h2">Ce qu'il faut rechercher</h2>
+          {page.lookFor.intro && <RichText text={page.lookFor.intro} />}
+          {page.lookFor.cases.map((part) => (
+            <div key={part.title} className="lq-indicator-help__part">
+              <h3 className="lq-indicator-help__h3">{part.title}</h3>
+              <RichText text={part.body} />
+            </div>
+          ))}
+        </section>
+      )}
 
       {page.reading.length > 0 && (
         <section className="lq-indicator-help__section" id="lq-ih-lecture">
@@ -163,16 +215,45 @@ export function IndicatorHelpArticle({ kind, hrefFor, onOpenIndicator, showTitle
           {page.reading.map((part) => (
             <div key={part.title} className="lq-indicator-help__part">
               <h3 className="lq-indicator-help__h3">{part.title}</h3>
-              <InfoText>{part.body}</InfoText>
+              <RichText text={part.body} />
             </div>
           ))}
+        </section>
+      )}
+
+      {page.summary && (
+        <section className="lq-indicator-help__section" id="lq-ih-resume">
+          <h2 className="lq-indicator-help__h2">Résumé</h2>
+          <RichText text={page.summary} />
+        </section>
+      )}
+
+      <section className="lq-indicator-help__section" id="lq-ih-parametres">
+        <h2 className="lq-indicator-help__h2">Entrées</h2>
+        {inputParams.length === 0 ? (
+          <p className="lq-indicator-help__muted">Aucun paramètre de calcul : seule l'apparence se règle (voir « Style »).</p>
+        ) : (
+          <ParamList params={inputParams} />
+        )}
+      </section>
+
+      {styleParams.length > 0 && (
+        <section className="lq-indicator-help__section" id="lq-ih-style">
+          <h2 className="lq-indicator-help__h2">Style</h2>
+          <ParamList params={styleParams} />
+        </section>
+      )}
+
+      {page.settingsNotes && (
+        <section className="lq-indicator-help__section">
+          <InfoText>{page.settingsNotes}</InfoText>
         </section>
       )}
 
       {page.limits && (
         <section className="lq-indicator-help__section" id="lq-ih-limites">
           <h2 className="lq-indicator-help__h2">Limites</h2>
-          <InfoText>{page.limits}</InfoText>
+          <RichText text={page.limits} />
         </section>
       )}
 

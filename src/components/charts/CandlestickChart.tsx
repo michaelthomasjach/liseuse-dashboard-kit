@@ -154,7 +154,7 @@ const layoutShape = (s: ChartTemplateSnapshot): string =>
   `${s.indicators.map((i) => i.id).join("|")}#${s.volumePaneState === "hidden"}#${s.volumePaneOrder}#${(s.paneOrder ?? []).join("|")}`;
 // En-têtes des panneaux : rien n'y bouge pendant un glisser (seulement au survol), mais ils étaient
 // recalculés à chaque image avec toutes leurs icônes. `vFmt` est appelé pendant le rendu : gardé tel quel.
-const StablePaneHeaders = stableMemo(PaneHeaders, { raw: ["vFmt", "indicatorLabel"] });
+const StablePaneHeaders = stableMemo(PaneHeaders, { raw: ["vFmt", "indicatorLabel", "hasIndicatorCode"] });
 
 /** Stands in for the plot's own pointer-down/up handlers while replay is armed — see where it is
  *  passed below. A module-level constant rather than an inline arrow so the overlay isn't handed a
@@ -2845,6 +2845,11 @@ function CandlestickChartBody({
           legendCollapsed={legendCollapsed}
           symbolIsEquity={symbolIsEquity}
           onToggleLegendCollapsed={toggleLegendCollapsed}
+          toggleIndicatorHidden={toggleIndicatorHidden}
+          hasIndicatorCode={hasIndicatorCode}
+          onOpenIndicatorCode={openIndicatorCode}
+          alertedIndicatorIds={alertFlow.alertedIndicatorIds}
+          onOpenIndicatorAlert={(ind: Indicator) => alertFlow.openForIndicator(ind.id, indicatorLabel(ind))}
         />
         <ChartPlotOverlays
           yGutter={yGutter}

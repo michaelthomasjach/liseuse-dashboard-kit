@@ -173,22 +173,28 @@ export function ChartHoverBadges({
     // Every "own" pane — the hovered one included — badges each of its lines (MACD and signal,
     // ADX and both DIs, every series of a script pane…) at the hovered bar, value only: the pane
     // already says what it is. A histogram is the gap between two lines, not a line: skipped.
+    // Les indicateurs posés sur le panneau (une SMA du RSI…) ont aussi leur étiquette : une par courbe qui croise la
+    // ligne verticale.
     for (const ind of gutter.panesVisible ? ownPaneIndicators : []) {
-      const entry = indicatorValues.find((e) => e.indicator.id === ind.id);
-      if (!entry) continue;
+      if (ind.paneCollapsed) continue;
+      const members = indicatorValues.filter((e) => (e.indicator.id === ind.id || e.indicator.sourceId === ind.id) && !e.indicator.hidden);
+      if (members.length === 0) continue;
       const { scale, offset } = paneScaleAndOffset(ind.id);
-      const lines = indicatorAxisAnnotations(ind, entry.values, hoverIndex, undefined)
-        .y.filter((l) => !/hist/i.test(l.label ?? "") && !/hist/i.test(l.key))
-        .map((l) => ({ l, y: scale(l.at) }))
+      const lines = members
+        .flatMap((entry) =>
+          indicatorAxisAnnotations(entry.indicator, entry.values, hoverIndex, undefined).y.map((l) => ({ l, key: `${entry.indicator.id}-${l.key}` }))
+        )
+        .filter(({ l }) => !/hist/i.test(l.label ?? "") && !/hist/i.test(l.key))
+        .map(({ l, key }) => ({ l, key, y: scale(l.at) }))
         .filter(({ y }) => inRange(scale, y))
         .sort((a, b) => a.y - b.y);
       // Two lines close together would print their badges on top of each other: each is pushed
       // just below the previous one (the values stay exact, only the badge moves).
       let last = -Infinity;
-      for (const { l, y } of lines) {
+      for (const { l, key, y } of lines) {
         const top = Math.max(y, last + SYNCED_BADGE_GAP);
         last = top;
-        synced.push({ key: `${ind.id}-${l.key}`, top: offset + top, text: l.text ?? (paneValueFormatter(ind) ?? formatCompactNumber)(l.at) });
+        synced.push({ key, top: offset + top, text: l.text ?? (paneValueFormatter(ind) ?? formatCompactNumber)(l.at) });
       }
     }
   }

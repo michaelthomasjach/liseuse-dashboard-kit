@@ -2,12 +2,13 @@ import { UNAVAILABLE_FOR_SYMBOL, unavailableForSymbol } from "../equityOnly";
 import { isPriceOverlay } from "../attachedIndicators";
 import "./IndicatorLegendHandle.css";
 import type { IndicatorInfoTarget } from "../interfaces/IndicatorInfoTarget.interface";
-import { IndicatorHelpButton } from "./IndicatorHelp";
-import { scriptIdFromIndicatorId } from "../scripting/scriptOutputToCustomIndicatorDef";
+import { IndicatorHelpButton, useOpenIndicatorHelp } from "./IndicatorHelp";
+import { hasIndicatorHelp } from "../indicatorHelp";
+import { scriptIdFromIndicatorId, infoTargetFor } from "../scripting/scriptOutputToCustomIndicatorDef";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
 import { useMemo, useRef, useState } from "react";
 import { Popover } from "../../../forms/Popover";
-import { ActivityIcon, CodeIcon, CopyIcon, EyeIcon, EyeOffIcon, TrashIcon, SettingsIcon, AlarmClockIcon, ChevronUpIcon, ChevronDownIcon, CursorArrowIcon, MoreHorizontalIcon } from "../../../icons";
+import { ActivityIcon, CodeIcon, CopyIcon, EyeIcon, EyeOffIcon, TrashIcon, SettingsIcon, AlarmClockIcon, ChevronUpIcon, ChevronDownIcon, CursorArrowIcon, MoreHorizontalIcon, InfoIcon } from "../../../icons";
 import type { Candle } from "../interfaces/Candle.interface";
 import type { Indicator } from "../interfaces/Indicator.interface";
 import type { ChartStyleSettings } from "../chartStyle";
@@ -195,7 +196,9 @@ export function ChartLegend({
   setEditModalTab,
   removeSymbolOverlay,
   onReplaceOverlaySymbol,
+  onOpenIndicatorInfo,
 }: ChartLegendProps) {
+  const infoAction = useIndicatorInfoAction(onOpenIndicatorInfo);
   const lineModeEntry = CHART_DISPLAY_MODES.find((m) => m.mode === "line")!;
   // Symbole comparé dont la fenêtre « Mode d'affichage » est ouverte (clic sur son mode dans la légende).
   const [modeFor, setModeFor] = useState<string | null>(null);
@@ -592,6 +595,7 @@ export function ChartLegend({
                 onToggleHidden={() => toggleIndicatorHidden(indicator.id)}
                 onRemove={() => removeIndicator(indicator.id)}
                 onSettings={() => openIndicatorSettings(indicator.id)}
+                onInfo={infoAction(indicator, () => infoTargetFor(indicator))}
               />
             </div>
           </div>
@@ -652,11 +656,22 @@ export function ChartLegend({
   );
 }
 
-/** Taille des icônes d'action d'une ligne d'indicateur de la légende. */
-const LEGEND_ICON = 14;
+/** Taille des icônes d'action d'une ligne d'indicateur de la légende (et des en-têtes de panneaux, voir PaneHeaders). */
+export const LEGEND_ICON = 14;
 
-/** Le bouton « … » d'une ligne d'indicateur et son menu : alerte, copier, afficher ou masquer, supprimer, paramètres. */
-function IndicatorLegendMenu({
+/** Action « Informations » d'un indicateur : sa page d'aide (comme le « ? ») pour un indicateur intégré qui en a une,
+ *  sinon la fenêtre « À propos » (script, indicateur personnalisé). */
+export function useIndicatorInfoAction(onOpenIndicatorInfo: ((target: IndicatorInfoTarget) => void) | undefined) {
+  const openHelp = useOpenIndicatorHelp();
+  return (indicator: Indicator, target: () => IndicatorInfoTarget): (() => void) | undefined => {
+    if (!indicator.customData && openHelp && hasIndicatorHelp(indicator.kind)) return () => openHelp(indicator.kind);
+    return onOpenIndicatorInfo ? () => onOpenIndicatorInfo(target()) : undefined;
+  };
+}
+
+/** Le bouton « … » d'une ligne d'indicateur et son menu : alerte, copier, afficher ou masquer, supprimer, paramètres,
+ *  informations. Aussi dans l'en-tête d'un panneau d'indicateur (PaneHeaders). */
+export function IndicatorLegendMenu({
   label,
   canAlert,
   hasAlert,
@@ -666,6 +681,8 @@ function IndicatorLegendMenu({
   onToggleHidden,
   onRemove,
   onSettings,
+  onInfo,
+  className = "lq-chart__indicator-legend-action",
 }: {
   label: string;
   canAlert: boolean;
@@ -676,6 +693,10 @@ function IndicatorLegendMenu({
   onToggleHidden: () => void;
   onRemove: () => void;
   onSettings: () => void;
+  /** « Informations » : la page d'aide de l'indicateur (voir useIndicatorInfoAction). Absent : pas d'entrée. */
+  onInfo?: () => void;
+  /** Classe du bouton « … » : celle des boutons voisins. */
+  className?: string;
 }) {
   const anchorRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
@@ -695,7 +716,7 @@ function IndicatorLegendMenu({
       <button
         ref={anchorRef}
         type="button"
-        className={["lq-chart__indicator-legend-action", open && "lq-chart__indicator-legend-action--open"].filter(Boolean).join(" ")}
+        className={[className, open && "lq-chart__indicator-legend-action--open"].filter(Boolean).join(" ")}
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="menu"
         aria-expanded={open}
@@ -711,6 +732,7 @@ function IndicatorLegendMenu({
           {item("toggle", hidden ? <EyeIcon size={14} /> : <EyeOffIcon size={14} />, hidden ? "Afficher" : "Masquer", onToggleHidden)}
           {item("remove", <TrashIcon size={14} />, "Supprimer", onRemove)}
           {item("settings", <SettingsIcon size={14} />, "Paramètres", onSettings)}
+          {onInfo && item("info", <InfoIcon size={14} />, "Informations", onInfo)}
         </div>
       </Popover>
     </>

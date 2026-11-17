@@ -1,4 +1,5 @@
 import { drawPriceAlertLines } from "./drawPriceAlertLines";
+import { indicatorAxisAnnotations } from "../axisAnnotations";
 import { drawDaySeparators } from "../daySeparators";
 import type { RenderCandlestickChartParams } from "../interfaces/RenderCandlestickChartParams.interface";
 import { drawSelectedIndicatorMarkers } from "./drawSelectedIndicatorMarkers";
@@ -144,6 +145,36 @@ export function renderCrosshair(canvas: HTMLCanvasElement, params: RenderCandles
     if (ind && !ind.paneCollapsed && params.zoomedOwnPaneScales[ind.id]) {
       hline(params.priceHeight + params.indicatorPaneTops[idx], params.indicatorPaneHeights[idx], hoverIndicatorPaneY);
     }
+  }
+  // Les autres sections que celle du pointeur : une ligne à leur valeur à la bougie survolée, là où leur axe affiche
+  // déjà son étiquette (ChartHoverBadges) — le cours de clôture sur le graphique principal, le volume, chaque courbe
+  // d'un panneau (RSI, MACD et signal… ; pas l'histogramme, qui n'est pas une ligne).
+  if (hoverIndex !== null) {
+    if (hoverY === null) {
+      const y = params.zoomedPriceScale(hovered.close);
+      if (y >= 0 && y <= params.priceHeight) hline(0, params.priceHeight, y);
+    }
+    if (hoverVolumeY === null && params.volumeVisible && params.volumeHeight > 0 && !params.volumeCollapsed && typeof hovered.volume === "number") {
+      const y = params.zoomedVolumeScale(hovered.volume);
+      if (y >= 0 && y <= params.volumeHeight) hline(params.priceHeight + params.volumeTop, params.volumeHeight, y);
+    }
+    params.ownPaneIndicators.forEach((ind, idx) => {
+      if (ind.id === hoverIndicatorPaneId || ind.paneCollapsed || ind.hidden) return;
+      const scale = params.zoomedOwnPaneScales[ind.id];
+      const height = params.indicatorPaneHeights[idx];
+      if (!scale || !(height > 0)) return;
+      // Sa série et celles des indicateurs posés sur lui (une SMA du RSI…).
+      for (const member of params.visibleIndicators) {
+        if ((member.indicator.id !== ind.id && member.indicator.sourceId !== ind.id) || member.indicator.hidden) continue;
+        const point = member.points.find((p) => p.i === hoverIndex);
+        if (!point) continue;
+        for (const line of indicatorAxisAnnotations(member.indicator, [point.value], 0, undefined).y) {
+          if (/hist/i.test(line.label ?? "") || /hist/i.test(line.key)) continue;
+          const y = scale(line.at);
+          if (Number.isFinite(y) && y >= 0 && y <= height) hline(params.priceHeight + params.indicatorPaneTops[idx], height, y);
+        }
+      }
+    });
   }
   if (hoverIndex !== null) {
     const hx = params.zoomedXScale(hoverIndex + 0.5);

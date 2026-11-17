@@ -35,6 +35,8 @@ export function drawOwnPaneIndicatorSeries(
   /** Indicateur « rsiZones » : ses quatre lignes, relevées par l'appelant sur toute la série (voir rsiZones.ts). */
   rsiZoneLevels?: RsiZoneLevels | null
 ) {
+  // Masqué (œil ou menu « … » de son en-tête) : le panneau reste, vide, avec son en-tête pour le réafficher.
+  if (ind.hidden === true) return;
   const { colorUp, colorDown, colorText, colorGrid, isEink } = style;
   const color = ind.color ?? defaultIndicatorColor(indicators.indexOf(ind));
   // Les couleurs conditionnelles (onglet Style) sont peintes par l'appelant, qui connaît aussi les indicateurs posés sur

@@ -2551,6 +2551,25 @@ button.lq-chart__legend-item {
   color: var(--lq-color-text);
 }
 
+/* En-tête d'un panneau d'indicateur : boutons à la taille de ceux d'une ligne de la légende du graphique
+   (.lq-chart__indicator-legend-action, icônes de 14 px), au lieu des petites icônes de 11 px. */
+.lq-chart__pane-header-action.lq-chart__pane-header-action--legend {
+  min-width: 24px;
+  min-height: 20px;
+  padding: 0 4px;
+  border-radius: var(--lq-radius-sm);
+}
+
+.lq-chart__pane-header-action.lq-chart__pane-header-action--legend:hover,
+.lq-chart__pane-header-action.lq-chart__pane-header-action--legend.lq-chart__indicator-legend-action--open {
+  color: var(--lq-color-text);
+  background-color: var(--lq-color-hover);
+}
+
+.lq-chart__pane-header-action--legend.lq-indicator-help-button {
+  font-size: 13px;
+}
+
 /* Dedicated drag-to-reorder handle for an "own"-pane indicator header, right before its name —
    a separate small button rather than making the whole header draggable, since the header
    already carries the resize strip, double-click, and its own action buttons; giving reordering

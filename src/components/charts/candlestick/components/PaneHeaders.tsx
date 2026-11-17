@@ -1,11 +1,12 @@
 import "./IndicatorLegendHandle.css";
 import type { IndicatorInfoTarget } from "../interfaces/IndicatorInfoTarget.interface";
 import { IndicatorHelpButton } from "./IndicatorHelp";
+import { IndicatorLegendMenu, LEGEND_ICON, useIndicatorInfoAction } from "./ChartLegend";
 import { defaultIndicatorColor } from "../indicatorCatalog";
 import { scriptIdFromIndicatorId, infoTargetFor } from "../scripting/scriptOutputToCustomIndicatorDef";
 import type { Dispatch, SetStateAction } from "react";
 import type * as React from "react";
-import { ChevronDownIcon, ChevronUpIcon, ChevronLeftIcon, ChevronRightIcon, SettingsIcon, TrashIcon, GripIcon, InfoIcon, MaximizeIcon, MinimizeIcon, CodeIcon, EyeOffIcon } from "../../../icons";
+import { ChevronDownIcon, ChevronUpIcon, ChevronLeftIcon, ChevronRightIcon, SettingsIcon, TrashIcon, GripIcon, InfoIcon, MaximizeIcon, MinimizeIcon, CodeIcon, EyeOffIcon, AlarmClockIcon } from "../../../icons";
 import type { Candle } from "../interfaces/Candle.interface";
 import type { Indicator } from "../interfaces/Indicator.interface";
 import type { IndicatorValue } from "../interfaces/IndicatorValue.interface";
@@ -14,6 +15,9 @@ import { formatCompactNumber } from "../formatting";
 import { mainValue } from "../attachedIndicators";
 import { UNAVAILABLE_FOR_SYMBOL, unavailableForSymbol } from "../equityOnly";
 import type { IndicatorBand } from "../interfaces/IndicatorBand.interface";
+
+/** Bouton d'action d'un en-tête de panneau d'indicateur, à la taille de ceux de la légende du graphique. */
+const PANE_ACTION = "lq-chart__pane-header-action lq-chart__pane-header-action--legend";
 
 export interface PaneHeadersProps {
   volumeVisible: boolean;
@@ -64,6 +68,12 @@ export interface PaneHeadersProps {
   /** Voir `CandlestickChartProps.symbolIsEquity` : false, un indicateur réservé aux actions dit « Indisponible pour ce
    *  symbole » au lieu de sa valeur. */
   symbolIsEquity?: boolean;
+  /** Mêmes actions que la ligne d'un indicateur de la légende (ChartLegend) : masquer, voir le code, alertes. */
+  toggleIndicatorHidden?: (id: string) => void;
+  hasIndicatorCode?: (indicator: Indicator) => boolean;
+  onOpenIndicatorCode?: (indicator: Indicator) => void;
+  alertedIndicatorIds?: ReadonlySet<string>;
+  onOpenIndicatorAlert?: (indicator: Indicator) => void;
 }
 
 /** Header strip for the volume pane, then one more per "own"-pane indicator (RSI/CHOP/MACD) —
@@ -105,7 +115,13 @@ export function PaneHeaders({
   legendCollapsed,
   onToggleLegendCollapsed,
   symbolIsEquity,
+  toggleIndicatorHidden,
+  hasIndicatorCode,
+  onOpenIndicatorCode,
+  alertedIndicatorIds,
+  onOpenIndicatorAlert,
 }: PaneHeadersProps) {
+  const infoAction = useIndicatorInfoAction(onOpenIndicatorInfo);
   /** Légende masquée : à la place du nom, de la valeur et des actions, une poignée discrète qui la réaffiche. */
   const legendHandle = (label: string, onShow: (() => void) | undefined) => (
     <button
@@ -471,61 +487,65 @@ export function PaneHeaders({
                 réglages, la croix les retire. */}
             {!ind.paneCollapsed && attachedLegend(ind.id)}
             {!ind.paneCollapsed && (
+              // Mêmes boutons, même taille et même ordre que la ligne d'un indicateur de la légende du graphique
+              // (ChartLegend) : code, aide, corbeille, puis « … » (alerte, masquer, supprimer, paramètres,
+              // informations). Le plein écran du panneau, propre aux panneaux, ferme la marche.
               <div className="lq-chart__pane-header-actions lq-chart__pane-header-actions--visible">
-                <button
-                  type="button"
-                  className="lq-chart__pane-header-action"
-                  onClick={() => onOpenIndicatorInfo(infoTargetFor(ind))}
-                  aria-label={`À propos de ${indicatorLabel(ind)}`}
-                >
-                  <InfoIcon size={11} />
-                </button>
-                {!ind.customData && <IndicatorHelpButton kind={ind.kind} />}
-                {/* Script-produced indicator only (see scriptIdFromIndicator's own doc) — a
-                    shortcut straight to the script that produced it, just left of its own
-                    settings gear so the two "go somewhere else to configure this" actions sit
-                    next to each other. */}
-                {onEditScript &&
-                  (() => {
-                    const scriptId = scriptIdFromIndicatorId(ind.customData?.id);
-                    if (!scriptId) return null;
+                {alertedIndicatorIds?.has(ind.id) && onOpenIndicatorAlert && (
+                  <button
+                    type="button"
+                    className={`${PANE_ACTION} lq-chart__indicator-legend-action--alert-active`}
+                    onClick={() => onOpenIndicatorAlert(ind)}
+                    aria-pressed
+                    aria-label={`Alertes sur ${indicatorLabel(ind)}`}
+                  >
+                    <AlarmClockIcon size={LEGEND_ICON} />
+                  </button>
+                )}
+                {(() => {
+                  // « Voir le code » (comme la légende) ; à défaut, pour un indicateur produit par un script, le
+                  // raccourci vers ce script dans l'éditeur.
+                  if (onOpenIndicatorCode && hasIndicatorCode?.(ind)) {
                     return (
-                      <button
-                        type="button"
-                        className="lq-chart__pane-header-action"
-                        onClick={() => onEditScript(scriptId)}
-                        aria-label={`Modifier le script de ${indicatorLabel(ind)}`}
-                        title="Modifier le script"
-                      >
-                        <CodeIcon size={11} />
+                      <button type="button" className={PANE_ACTION} onClick={() => onOpenIndicatorCode(ind)} aria-label={`Voir le code de ${indicatorLabel(ind)}`} title="Voir le code">
+                        <CodeIcon size={LEGEND_ICON} />
                       </button>
                     );
-                  })()}
-                <button
-                  type="button"
-                  className="lq-chart__pane-header-action"
-                  onClick={() => openIndicatorSettings(ind.id)}
-                  aria-label={`Paramètres ${indicatorLabel(ind)}`}
-                >
-                  <SettingsIcon size={11} />
+                  }
+                  const scriptId = onEditScript ? scriptIdFromIndicatorId(ind.customData?.id) : null;
+                  if (!onEditScript || !scriptId) return null;
+                  return (
+                    <button type="button" className={PANE_ACTION} onClick={() => onEditScript(scriptId)} aria-label={`Modifier le script de ${indicatorLabel(ind)}`} title="Modifier le script">
+                      <CodeIcon size={LEGEND_ICON} />
+                    </button>
+                  );
+                })()}
+                {!ind.customData && <IndicatorHelpButton kind={ind.kind} className={PANE_ACTION} />}
+                <button type="button" className={PANE_ACTION} onClick={() => removeIndicator(ind.id)} aria-label={`Supprimer ${indicatorLabel(ind)}`} title="Supprimer">
+                  <TrashIcon size={LEGEND_ICON} />
                 </button>
+                <IndicatorLegendMenu
+                  className={PANE_ACTION}
+                  label={indicatorLabel(ind)}
+                  canAlert={Boolean(onOpenIndicatorAlert) && ind.customData?.draw !== "zones" && ind.customData?.draw !== "boxes"}
+                  hasAlert={alertedIndicatorIds?.has(ind.id) ?? false}
+                  hidden={ind.hidden === true}
+                  onAlert={() => onOpenIndicatorAlert?.(ind)}
+                  onToggleHidden={() => toggleIndicatorHidden?.(ind.id)}
+                  onRemove={() => removeIndicator(ind.id)}
+                  onSettings={() => openIndicatorSettings(ind.id)}
+                  onInfo={infoAction(ind, () => infoTargetFor(ind))}
+                />
                 <button
                   type="button"
-                  className="lq-chart__pane-header-action"
-                  onClick={() => removeIndicator(ind.id)}
-                  aria-label={`Supprimer ${indicatorLabel(ind)}`}
-                >
-                  <TrashIcon size={12} />
-                </button>
-                <button
-                  type="button"
-                  className="lq-chart__pane-header-action"
+                  className={PANE_ACTION}
                   onClick={() => onTogglePaneFullscreen(ind.id)}
                   aria-label={
                     fullscreenPaneId === ind.id ? `Quitter le plein écran de ${indicatorLabel(ind)}` : `Plein écran de ${indicatorLabel(ind)}`
                   }
+                  title={fullscreenPaneId === ind.id ? "Quitter le plein écran" : "Plein écran du panneau"}
                 >
-                  {fullscreenPaneId === ind.id ? <MinimizeIcon size={11} /> : <MaximizeIcon size={11} />}
+                  {fullscreenPaneId === ind.id ? <MinimizeIcon size={LEGEND_ICON} /> : <MaximizeIcon size={LEGEND_ICON} />}
                 </button>
               </div>
             )}

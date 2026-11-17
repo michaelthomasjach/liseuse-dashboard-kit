@@ -148,6 +148,8 @@ export function IndicatorPickerModal({
   // category. Local state (unlike `indicatorSearchQuery`, lifted to the caller): nothing outside
   // this modal ever needs to read or reset it.
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  /** Champ de recherche : vidé et refocalisé après le choix d'un indicateur. */
+  const searchInputRef = useRef<HTMLInputElement>(null);
   // Under `--stack-mobile` (see charts-shared.css) the category strip stops being a column and
   // becomes a row you drag sideways — deliberately, since the category count is open-ended. What it
   // did not do was *say so*: with a dozen categories the last of them sat 268px past the edge with
@@ -205,6 +207,7 @@ export function IndicatorPickerModal({
         <div className="lq-chart__modal-split-sidebar">
           <Input
             placeholder="Rechercher un indicateur…"
+            ref={searchInputRef}
             value={indicatorSearchQuery}
             onChange={(e) => setIndicatorSearchQuery(e.target.value)}
             leadingIcon={<SearchIcon size={14} />}
@@ -609,11 +612,14 @@ export function IndicatorPickerModal({
                           // and does nothing teaches the reader to click harder, which is exactly
                           // the double-add this exists to prevent.
                           disabled={option.busy === true || option.reserved === true}
-                          onClick={() =>
-                            (option.presentCount ?? 0) > 0
-                              ? onDuplicate({ label: option.label, onAdd: option.onSelect, onRemove: option.onRemoveExisting! })
-                              : option.onSelect()
-                          }
+                          onClick={() => {
+                            if ((option.presentCount ?? 0) > 0) onDuplicate({ label: option.label, onAdd: option.onSelect, onRemove: option.onRemoveExisting! });
+                            else option.onSelect();
+                            // Indicateur choisi : la recherche se vide et le champ reprend le focus, prêt pour le
+                            // suivant (la liste revient sur la catégorie sélectionnée).
+                            setIndicatorSearchQuery("");
+                            searchInputRef.current?.focus();
+                          }}
                           title={
                             option.hint !== undefined && option.busy !== true && !option.reserved
                               ? option.hint

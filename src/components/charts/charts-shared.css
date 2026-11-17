@@ -335,6 +335,13 @@
   pointer-events: none;
 }
 
+/* La ligne du curseur au premier plan du graphique : devant les étiquettes de scripts et les repères
+   du testeur de stratégie (jusqu'à 6), derrière la légende en haut à gauche (8) et les étiquettes
+   des axes. */
+.lq-chart__canvas--crosshair {
+  z-index: 7;
+}
+
 /* Cursor over the plot: crosshair on empty space (it lines up with the crosshair lines and the
    axis badges), pointer over something clickable — a drawing, an indicator line, a candle (set by
    useDrawingInteractions' hover pass) — and the closed hand while the button is held to drag the
@@ -1448,8 +1455,12 @@ button.lq-chart__legend-item {
    margin reserved for it). */
 .lq-chart__axis-value--y {
   /* Below the toolbar/header (1000) but above everything else the canvas can draw, so a
-     dragged/zoomed price or volume value never renders underneath either of them. */
-  z-index: 999;
+     dragged/zoomed price or volume value never renders underneath either of them.
+     Ordre sur l'axe, du dessous au dessus : étiquettes de lignes et d'indicateurs (996), compte à
+     rebours de la bougie (997), étiquettes du curseur (998, `--cursor`), bouton « + » du curseur (999).
+     Un niveau chacun : à égalité, c'était l'ordre du DOM qui décidait, et l'étiquette d'une ligne
+     passait devant l'heure et devant le curseur. */
+  z-index: 996;
   transform: translateY(-50%);
 }
 
@@ -1473,7 +1484,8 @@ button.lq-chart__legend-item {
    secondary reading, not a price. */
 .lq-chart__live-countdown {
   position: absolute;
-  z-index: 999;
+  /* Devant les étiquettes de lignes et d'indicateurs (996), derrière celles du curseur (998). */
+  z-index: 997;
   transform: translateY(-50%);
   padding: 1px 6px;
   font-size: 0.65rem;
@@ -1881,7 +1893,8 @@ button.lq-chart__legend-item {
    interactive child (the symbol label, each legend item) opts back in individually. */
 .lq-chart__plot-topleft {
   position: absolute;
-  z-index: 6;
+  /* Au-dessus de la ligne du curseur (7). */
+  z-index: 8;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -3657,6 +3670,13 @@ button.lq-chart__legend-item {
    the date axis needs saying here. */
 .lq-chart__axis-value--annotation.lq-chart__axis-value--x {
   z-index: 7;
+}
+
+/* Les étiquettes du curseur (prix, volume, valeur d'un panneau, date) passent devant tout ce qui est
+   sur les axes : étiquettes de lignes, d'indicateurs, de la sélection, dernier cours et compte à
+   rebours. En fin de fichier pour l'emporter sur `--last` et `--annotation`. */
+.lq-chart__axis-value--cursor {
+  z-index: 998;
 }
 
 /* The strategy tester filling a fullscreen modal. The modal's own body scrolls by default; the

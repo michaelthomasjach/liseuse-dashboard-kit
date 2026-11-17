@@ -288,7 +288,7 @@ export function ChartHoverBadges({
         // full height via align-items: stretch, no border-radius/height of its own) so it reads
         // as one integrated piece — never a separate element overlapping the chart.
         <div
-          className={"lq-chart__axis-value lq-chart__axis-value--y" + sideClass}
+          className={"lq-chart__axis-value lq-chart__axis-value--y lq-chart__axis-value--cursor" + sideClass}
           style={{ top: dims.margin.top + hoverY, left: axisLeft, minWidth: gutter.width }}
         >
           <button type="button" className="lq-chart__axis-value-add" onClick={addPriceLine} aria-label="Ajouter une ligne de prix horizontale">
@@ -299,7 +299,7 @@ export function ChartHoverBadges({
       )}
       {hoverVolumeY !== null && gutter.panesVisible && (
         <div
-          className={"lq-chart__axis-value lq-chart__axis-value--y" + sideClass}
+          className={"lq-chart__axis-value lq-chart__axis-value--y lq-chart__axis-value--cursor" + sideClass}
           style={{
             top: dims.margin.top + priceHeight + volumeTop + hoverVolumeY,
             left: axisLeft,
@@ -323,7 +323,7 @@ export function ChartHoverBadges({
           const { scale, offset } = paneScaleAndOffset(hoverIndicatorPaneId);
           return (
             <div
-              className={"lq-chart__axis-value lq-chart__axis-value--y" + sideClass}
+              className={"lq-chart__axis-value lq-chart__axis-value--y lq-chart__axis-value--cursor" + sideClass}
               style={{
                 top: dims.margin.top + offset + hoverIndicatorPaneY,
                 left: axisLeft,
@@ -343,7 +343,7 @@ export function ChartHoverBadges({
       {synced.map((b) => (
         <div
           key={`synced-${b.key}`}
-          className={"lq-chart__axis-value lq-chart__axis-value--y lq-chart__axis-value--synced" + sideClass}
+          className={"lq-chart__axis-value lq-chart__axis-value--y lq-chart__axis-value--synced lq-chart__axis-value--cursor" + sideClass}
           style={{ top: dims.margin.top + b.top, left: axisLeft, minWidth: gutter.width }}
         >
           <span className="lq-chart__axis-value-text">{b.text}</span>
@@ -352,7 +352,7 @@ export function ChartHoverBadges({
       {hovered && (
         <>
           {gutter.timeVisible && <div
-            className="lq-chart__axis-value lq-chart__axis-value--x"
+            className="lq-chart__axis-value lq-chart__axis-value--x lq-chart__axis-value--cursor"
             style={{ left: dims.margin.left + zoomedXScale(hoverIndex! + 0.5), top: dims.margin.top + plotBoundedHeight }}
           >
             <span className="lq-chart__axis-value-text">{dFmt(hovered.date)}</span>

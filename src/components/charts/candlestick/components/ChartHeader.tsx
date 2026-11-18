@@ -666,5 +666,81 @@ function useCompactHeader() {
     ro.observe(el);
     return () => ro.disconnect();
   }, [compact]);
+  useHeaderDragScroll(headerRef);
   return { headerRef, compact };
+}
+
+/** Distance (px) avant qu'un appui sur l'en-tête devienne un glisser : en dessous, un clic reste un clic. */
+const HEADER_DRAG_THRESHOLD = 5;
+
+/** En-tête plus large que la fenêtre (même compact) : il défile horizontalement en le glissant à la souris (n'importe
+ *  où, boutons compris : le clic qui termine un glisser est avalé), et à la molette. Le doigt le fait déjà nativement
+ *  (overflow-x: auto). Rien ne change tant que tout tient. */
+function useHeaderDragScroll(headerRef: RefObject<HTMLDivElement>) {
+  useLayoutEffect(() => {
+    const el = headerRef.current;
+    if (!el) return;
+    const overflowing = () => el.scrollWidth > el.clientWidth + 1;
+    const markScrollable = () => {
+      el.classList.toggle("lq-chart__header--scrollable", overflowing());
+      el.classList.toggle("lq-chart__header--at-end", el.scrollLeft + el.clientWidth >= el.scrollWidth - 1);
+    };
+    markScrollable();
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(markScrollable) : null;
+    ro?.observe(el);
+    let suppressClick = false;
+    const onPointerDown = (e: PointerEvent) => {
+      if (e.pointerType !== "mouse" || e.button !== 0 || !overflowing()) return;
+      const startX = e.clientX;
+      const startLeft = el.scrollLeft;
+      let dragging = false;
+      const onMove = (ev: PointerEvent) => {
+        const dx = ev.clientX - startX;
+        if (!dragging) {
+          if (Math.abs(dx) < HEADER_DRAG_THRESHOLD) return;
+          dragging = true;
+          el.classList.add("lq-chart__header--dragging");
+        }
+        ev.preventDefault();
+        el.scrollLeft = startLeft - dx;
+      };
+      const onUp = () => {
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", onUp);
+        window.removeEventListener("pointercancel", onUp);
+        if (dragging) {
+          el.classList.remove("lq-chart__header--dragging");
+          suppressClick = true;
+          window.setTimeout(() => {
+            suppressClick = false;
+          }, 0);
+        }
+      };
+      window.addEventListener("pointermove", onMove);
+      window.addEventListener("pointerup", onUp);
+      window.addEventListener("pointercancel", onUp);
+    };
+    const onClickCapture = (e: MouseEvent) => {
+      if (!suppressClick) return;
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    // Molette verticale : défilement horizontal de l'en-tête (seulement s'il déborde, sinon la page garde la molette).
+    const onWheel = (e: WheelEvent) => {
+      if (!overflowing() || Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+      e.preventDefault();
+      el.scrollLeft += e.deltaY;
+    };
+    el.addEventListener("scroll", markScrollable, { passive: true });
+    el.addEventListener("pointerdown", onPointerDown);
+    el.addEventListener("click", onClickCapture, true);
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => {
+      ro?.disconnect();
+      el.removeEventListener("scroll", markScrollable);
+      el.removeEventListener("pointerdown", onPointerDown);
+      el.removeEventListener("click", onClickCapture, true);
+      el.removeEventListener("wheel", onWheel);
+    };
+  }, [headerRef]);
 }

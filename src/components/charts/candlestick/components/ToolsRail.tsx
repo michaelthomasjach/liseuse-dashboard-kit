@@ -292,7 +292,7 @@ export function ToolsRail({
                     onPointerLeave={cancelHint}
                     aria-label={`Autres outils — ${category.label}`}
                   >
-                    <ChevronRightIcon size={10} />
+                    <ChevronRightIcon size={9} />
                   </button>
                   <Popover
                     open={menuOpen}

@@ -1007,28 +1007,36 @@ button.lq-chart__legend-item {
   cursor: pointer;
 }
 
-/* Flèche des variantes d'un outil, comme sur TradingView : un petit « › » sans cadre, centré sur le bord droit du
-   bouton, qui n'apparaît qu'au survol (son survol prolongé affiche le nom de l'outil sélectionné, voir ToolsRail). */
+/* Flèche des variantes d'un outil, comme sur TradingView : un « › » collé au bord droit du bouton, de toute sa hauteur
+   et de la largeur exacte de l'espace libre jusqu'au bord de la barre (barre de 40 px moins sa bordure, bouton de
+   26 px centré : (39 − 26) / 2), avec un fond bien visible ; elle n'apparaît qu'au survol (son survol prolongé
+   affiche le nom de l'outil sélectionné, voir ToolsRail). */
 .lq-chart__tool-chevron.lq-chart__tool-chevron--side {
-  top: 50%;
-  right: -7px;
-  bottom: auto;
-  width: 10px;
-  height: 18px;
-  transform: translateY(-50%);
-  color: var(--lq-color-text-muted);
-  background: none;
+  --lq-tool-chevron-gap: 6.5px;
+  top: 0;
+  right: calc(-1 * var(--lq-tool-chevron-gap));
+  bottom: 0;
+  width: var(--lq-tool-chevron-gap);
+  height: auto;
+  overflow: visible;
+  transform: none;
+  color: var(--lq-color-text);
+  background-color: color-mix(in srgb, var(--lq-color-text) 16%, transparent);
   border: none;
-  border-radius: var(--lq-radius-sm);
+  border-radius: 0 var(--lq-radius-sm) var(--lq-radius-sm) 0;
   transition:
     opacity 120ms ease,
-    color 120ms ease;
+    background-color 120ms ease;
+}
+
+.lq-chart__tool-chevron.lq-chart__tool-chevron--side svg {
+  flex-shrink: 0;
 }
 
 .lq-chart__tool-chevron.lq-chart__tool-chevron--side:hover,
 .lq-chart__tool-chevron.lq-chart__tool-chevron--side.lq-chart__tool-chevron--visible {
   color: var(--lq-color-text);
-  background-color: var(--lq-color-hover);
+  background-color: color-mix(in srgb, var(--lq-color-text) 30%, transparent);
 }
 
 /* Invisible tant qu'on ne survole pas : sur tout appareil qui sait survoler (souris, pavé tactile — même un écran
@@ -1557,6 +1565,29 @@ button.lq-chart__legend-item {
 
 .lq-chart__header::-webkit-scrollbar {
   display: none;
+}
+
+/* Boutons qui ne tiennent pas (même en en-tête compact) : l'en-tête se glisse sur l'axe X à la souris (ChartHeader,
+   useHeaderDragScroll). Un léger fondu au bord droit dit qu'il y a encore des boutons ; pendant le glisser, pas de
+   sélection de texte. */
+.lq-chart__header--scrollable {
+  cursor: grab;
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent);
+  mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent);
+}
+
+.lq-chart__header--scrollable.lq-chart__header--at-end {
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+
+.lq-chart__header--dragging {
+  cursor: grabbing;
+  user-select: none;
+}
+
+.lq-chart__header--dragging * {
+  cursor: grabbing !important;
 }
 
 .lq-chart__header > * {

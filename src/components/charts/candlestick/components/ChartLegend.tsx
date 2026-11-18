@@ -645,7 +645,7 @@ export function ChartLegend({
           data-legend-fold=""
         >
           {/* Liste verticale : « ^ » la replie vers le haut, « ⌄ N » la redéplie (les panneaux, en ligne, gardent ‹ / ›). */}
-          {legendFolded ? <ChevronDownIcon size={11} /> : <ChevronUpIcon size={11} />}
+          {legendFolded ? <ChevronDownIcon size={16} /> : <ChevronUpIcon size={16} />}
           {legendFolded && <span>{legendEntryCount}</span>}
         </button>
       )}

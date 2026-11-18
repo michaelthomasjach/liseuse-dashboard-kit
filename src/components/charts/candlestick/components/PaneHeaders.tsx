@@ -151,7 +151,7 @@ export function PaneHeaders({
         title={collapsed ? list.map((a) => indicatorLabel(a)).join(" · ") : "Replier la liste des indicateurs du panneau"}
         data-pane-legend-fold={sourceId}
       >
-        {collapsed ? <ChevronRightIcon size={11} /> : <ChevronLeftIcon size={11} />}
+        {collapsed ? <ChevronRightIcon size={16} /> : <ChevronLeftIcon size={16} />}
         {/* Replié (de lui-même dès deux indicateurs posés, ou à la main) : leur nombre, leurs noms au survol. */}
         {collapsed && <span>{list.length === 1 ? "1 indicateur" : `${list.length} indicateurs`}</span>}
       </button>

@@ -2247,42 +2247,51 @@ button.lq-chart__legend-item {
 
 /* The fold control. Reads as one of the legend's own rows rather than as a button bolted above it
    — same padding, same weight, same hover background. */
+/* Bouton qui replie / déplie la liste des indicateurs (légende des prix et en-têtes de panneaux) : une vraie cible,
+   bordée et lisible au repos (chevron de 16 px, couleur du texte), pas un petit chevron grisé qu'on cherche. */
 .lq-chart__indicator-legend-fold {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   max-width: 100%;
-  padding: 2px 6px;
-  border: 0;
+  min-height: 24px;
+  min-width: 26px;
+  justify-content: center;
+  padding: 2px 7px;
+  border: 1px solid var(--lq-color-border-subtle);
   border-radius: var(--lq-radius-sm);
-  background-color: transparent;
-  color: var(--lq-color-text-muted);
+  background-color: color-mix(in srgb, var(--lq-color-panel) 85%, transparent);
+  color: var(--lq-color-text);
   font: inherit;
-  font-size: 0.76rem;
+  font-size: 0.78rem;
   font-weight: var(--lq-font-weight-bold, 700);
   text-align: left;
   cursor: pointer;
   pointer-events: auto;
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease;
 }
 
-.lq-chart__indicator-legend-fold:hover {
+.lq-chart__indicator-legend-fold:hover,
+.lq-chart__indicator-legend-fold:focus-visible {
+  border-color: var(--lq-color-accent);
   background-color: var(--lq-color-panel);
+  color: var(--lq-color-accent);
 }
 
-/* Déplié : un simple chevron sous la liste, discret tant qu'on ne le survole pas. Replié : « ˅ N », un petit bouton
-   bordé qui dit combien de lignes il cache. Même chose dans l'en-tête de chaque panneau. */
+.lq-chart__indicator-legend-fold svg {
+  flex-shrink: 0;
+}
+
+/* Déplié : le chevron sous la liste. Replié : « › N », qui dit combien de lignes il cache. Même chose dans l'en-tête
+   de chaque panneau. */
 .lq-chart__indicator-legend-fold:not(.lq-chart__indicator-legend-fold--folded) {
   align-self: flex-start;
-  opacity: 0.55;
-}
-.lq-chart__indicator-legend-fold:not(.lq-chart__indicator-legend-fold--folded):hover,
-.lq-chart__indicator-legend-fold:focus-visible {
-  opacity: 1;
 }
 .lq-chart__indicator-legend-fold--folded {
   align-self: flex-start;
-  border: 1px solid var(--lq-color-border-subtle);
-  background-color: var(--lq-color-panel);
   font-variant-numeric: tabular-nums;
 }
 

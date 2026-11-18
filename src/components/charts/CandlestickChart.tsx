@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import type { ChartTemplateSnapshot } from "./candlestick/interfaces/ChartTemplate.interface";
 import { createPortal } from "react-dom";
 import type { IndicatorKind } from "./candlestick/interfaces/IndicatorKind.interface";
@@ -65,6 +65,8 @@ import { CustomToolbarsLayer } from "./candlestick/components/CustomToolbarsLaye
 import { useCustomToolbars } from "./candlestick/hooks/useCustomToolbars";
 import { ChartLegend } from "./candlestick/components/ChartLegend";
 import { PaneHeaders } from "./candlestick/components/PaneHeaders";
+import { ObjectTreeModal, type ObjectTreeItem, type ObjectTreeZone } from "./candlestick/components/ObjectTreeModal";
+import { BarChartIcon, CodeIcon, LineCloseModeIcon, OverlayBadgeIcon, PaneBadgeIcon } from "../icons";
 import { ChartPlotOverlays } from "./candlestick/components/ChartPlotOverlays";
 import { ScriptTableOverlay } from "./candlestick/components/ScriptTableOverlay";
 import { ScriptLabelOverlay } from "./candlestick/components/ScriptLabelOverlay";
@@ -105,7 +107,7 @@ export type {
   ScriptDef, ScriptAlertEvent, ChartVisibleRange,
 } from "./CandlestickChart.types";
 
-import { drawingLabel } from "./candlestick/drawingCatalog";
+import { drawingLabel, drawingToolMeta } from "./candlestick/drawingCatalog";
 import { indicatorCatalogEntry, indicatorLabel, defaultIndicatorColor, INDICATOR_CATALOG } from "./candlestick/indicatorCatalog";
 import { unavailableForSymbol } from "./candlestick/equityOnly";
 import { drawingAxisAnnotations, indicatorAxisAnnotations } from "./candlestick/axisAnnotations";
@@ -919,7 +921,7 @@ function CandlestickChartBody({
     startPaneResize, reorderPanesRef,
     ownPaneIndicators,
     indicatorPaneHeights, indicatorPaneTops,
-    volumeTop, allPanesOrder,
+    volumeTop, allPanesOrder, bottomPanesSequence,
     volumeHeight, priceHeight,
     fullscreenPaneId, togglePaneFullscreen,
     leftPaneIndicators, leftPaneHeights, leftPaneTops, leftPaneStackOrder,
@@ -971,6 +973,8 @@ function CandlestickChartBody({
   // the one whose « Supprimer » bubble is open.
   const [overlayDrag, setOverlayDrag] = useState<{ id: string; delta: number; part: OverlayDragPart } | null>(null);
   const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null);
+  // « Object tree » (menu « … » d'un indicateur) : l'arborescence des objets du graphique, ouverte ou non.
+  const [objectTreeOpen, setObjectTreeOpen] = useState(false);
   const shownOverlayDrawings = useMemo(() => {
     const list = (overlayDrawings ?? []).map((d) => {
       const drag = overlayDrag?.id === d.id ? overlayDrag : null;
@@ -2425,6 +2429,136 @@ function CandlestickChartBody({
   const legendOverlayIndicators = (priceOverlayIndicators.length > 0 ? [...overlayIndicators, ...priceOverlayIndicators] : overlayIndicators).filter(
     (ind) => !unavailableForSymbol(ind, symbolIsEquity),
   );
+  // « Object tree » : l'arborescence des objets du graphique, zone par zone (le graphique des prix, chaque panneau du bas
+  // dans son ordre, les panneaux latéraux). Construite seulement quand la fenêtre est ouverte. Les indicateurs de la liste
+  // du graphique s'y réordonnent dans leur zone (même mécanisme que la légende, `reorderLegendIndicators`), les panneaux
+  // du bas entre eux (`reorderPanes`, celui du glisser des en-têtes) ; les sorties de scripts n'y bougent pas.
+  function buildObjectTreeZones(): ObjectTreeZone[] {
+    const crudIds = new Set(indicators.map((ind) => ind.id));
+    const byId = new Map(combinedIndicators.map((ind) => [ind.id, ind]));
+    const indicatorItem = (ind: Indicator, icon: ReactNode, reorderable: boolean): ObjectTreeItem => {
+      const fromScript = !crudIds.has(ind.id);
+      return {
+        id: ind.id,
+        label: indicatorLabel(ind),
+        ...(fromScript ? { detail: "script" } : {}),
+        icon: fromScript ? <CodeIcon size={14} /> : icon,
+        color: ind.color ?? defaultIndicatorColor(combinedIndicators.indexOf(ind)),
+        hidden: ind.hidden === true,
+        selected: selectedIndicatorId === ind.id,
+        reorderable: reorderable && !fromScript,
+        onSelect: () => {
+          setDrawingSelection([]);
+          setSelectedIndicatorId(ind.id);
+        },
+        onHover: (hovered) => setHoveredIndicatorId((cur) => (hovered ? ind.id : cur === ind.id ? null : cur)),
+        onToggleHidden: () => toggleIndicatorHidden(ind.id),
+        onSettings: () => openIndicatorSettings(ind.id),
+        onRemove: () => removeIndicator(ind.id),
+      };
+    };
+    const drawingItem = (dr: (typeof visibleDrawings)[number]): ObjectTreeItem => {
+      const meta = drawingToolMeta(dr);
+      return {
+        id: dr.id,
+        label: drawingLabel(dr),
+        ...(dr.text ? { detail: meta.label } : {}),
+        icon: <meta.icon size={14} />,
+        ...(dr.color ? { color: dr.color } : {}),
+        hidden: dr.hidden === true,
+        selected: selectedDrawingId === dr.id || selectedDrawingIds.includes(dr.id),
+        onSelect: () => setDrawingSelection([dr.id]),
+        onHover: (hovered) => setHoveredDrawingId((cur) => (hovered ? dr.id : cur === dr.id ? null : cur)),
+        onToggleHidden: () => commitDrawings(drawings.map((d) => (d.id === dr.id ? { ...d, hidden: !d.hidden } : d))),
+        onSettings: () => {
+          setEditingId(dr.id);
+          setDraft(dr);
+          setEditModalTab("coords");
+        },
+        onRemove: () => commitDrawings(drawings.filter((d) => d.id !== dr.id)),
+      };
+    };
+    // Un dessin ancré à l'échelle d'un panneau (`valueAxis`) va dans ce panneau, les autres sur les prix.
+    const paneIds = new Set([...bottomPanesSequence, ...leftPaneIndicators.map((ind) => ind.id), ...rightPaneIndicators.map((ind) => ind.id)]);
+    const plainDrawings = visibleDrawings.filter((dr) => dr.lineType !== "symbolOverlay");
+    const drawingsOf = (paneId: string | null) =>
+      plainDrawings.filter((dr) => (paneId === null ? !dr.valueAxis || dr.valueAxis === "price" || !paneIds.has(dr.valueAxis) : dr.valueAxis === paneId)).map(drawingItem);
+    const attachedTo = (paneId: string) => indicators.filter((ind) => ind.sourceId === paneId).map((ind) => indicatorItem(ind, <OverlayBadgeIcon size={14} />, true));
+    const volumeItem = (onPrice: boolean): ObjectTreeItem => ({
+      id: VOLUME_PANE_ID,
+      label: "Volume",
+      ...(onPrice ? { detail: "sur les prix" } : {}),
+      icon: <BarChartIcon size={14} />,
+      hidden: volumePaneState === "collapsed",
+      onToggleHidden: () => setVolumePaneState(volumePaneState === "collapsed" ? "expanded" : "collapsed"),
+      onSettings: () => setVolumeSettingsOpen(true),
+      onRemove: () => {
+        if (onPrice) setVolumeOverlay(false);
+        setVolumePaneState("hidden");
+      },
+    });
+    const ModeIcon = currentModeEntry.icon;
+    const price: ObjectTreeZone = {
+      id: "price",
+      title: "Graphique des prix",
+      items: [
+        {
+          id: "__symbol",
+          label: symbol ?? "Série principale",
+          detail: currentModeEntry.label,
+          icon: <ModeIcon size={14} />,
+          onSettings: () => setPriceSettingsOpen(true),
+        },
+        ...symbolOverlays.map(
+          (dr): ObjectTreeItem => ({
+            id: dr.id,
+            label: drawingLabel(dr),
+            detail: "comparaison",
+            icon: <LineCloseModeIcon size={14} />,
+            color: dr.color ?? defaultIndicatorColor(symbolOverlays.indexOf(dr)),
+            hidden: dr.hidden === true,
+            onHover: (hovered) => setHoveredDrawingId((cur) => (hovered ? dr.id : cur === dr.id ? null : cur)),
+            onToggleHidden: () => commitDrawings(drawings.map((d) => (d.id === dr.id ? { ...d, hidden: !d.hidden } : d))),
+            onSettings: () => {
+              setEditingId(dr.id);
+              setDraft(dr);
+              setEditModalTab("style");
+            },
+            onRemove: () => removeSymbolOverlay(dr.overlaySymbol ?? ""),
+          }),
+        ),
+        ...(volumeOnPrice ? [volumeItem(true)] : []),
+        ...legendOverlayIndicators.map((ind) => indicatorItem(ind, <OverlayBadgeIcon size={14} />, true)),
+        ...drawingsOf(null),
+      ],
+    };
+    const bottom = bottomPanesSequence.flatMap((paneId): ObjectTreeZone[] => {
+      if (paneId === VOLUME_PANE_ID) {
+        return [{ id: paneId, title: "Volume", movable: true, items: [volumeItem(false), ...attachedTo(paneId), ...drawingsOf(paneId)] }];
+      }
+      const ind = byId.get(paneId);
+      if (!ind) return [];
+      return [
+        {
+          id: paneId,
+          title: indicatorLabel(ind),
+          movable: true,
+          items: [indicatorItem(ind, <PaneBadgeIcon size={14} />, false), ...attachedTo(paneId), ...drawingsOf(paneId)],
+        },
+      ];
+    });
+    const side = (list: Indicator[], title: string): ObjectTreeZone[] =>
+      list.length === 0
+        ? []
+        : [
+            {
+              id: `__side-${title}`,
+              title,
+              items: list.flatMap((ind) => [indicatorItem(ind, <PaneBadgeIcon size={14} />, false), ...attachedTo(ind.id), ...drawingsOf(ind.id)]),
+            },
+          ];
+    return [price, ...bottom, ...side(leftPaneIndicators, "Panneau latéral gauche"), ...side(rightPaneIndicators, "Panneau latéral droit")];
+  }
   const indicatorLegendValue = (indicator: Indicator): string | null => {
     const entry = indicatorValues.find((e) => e.indicator.id === indicator.id);
     if (!entry || legendValueIndex < 0) return null;
@@ -2719,6 +2853,7 @@ function CandlestickChartBody({
             overlayIndicators={legendOverlayIndicators}
             onReorderIndicators={reorderLegendIndicators}
             reorderableIndicatorIds={reorderableLegendIds}
+            onOpenObjectTree={() => setObjectTreeOpen(true)}
             legendCollapsed={legendCollapsed.price === true}
             onToggleLegendCollapsed={() => toggleLegendCollapsed("price")}
             indicators={combinedIndicators}
@@ -2872,6 +3007,7 @@ function CandlestickChartBody({
           onOpenIndicatorCode={openIndicatorCode}
           alertedIndicatorIds={alertFlow.alertedIndicatorIds}
           onOpenIndicatorAlert={(ind: Indicator) => alertFlow.openForIndicator(ind.id, indicatorLabel(ind))}
+          onOpenObjectTree={() => setObjectTreeOpen(true)}
         />
         <ChartPlotOverlays
           yGutter={yGutter}
@@ -3161,6 +3297,16 @@ function CandlestickChartBody({
         }}
         onAlert={onScriptAlert}
       />
+
+      {objectTreeOpen && (
+        <ObjectTreeModal
+          open
+          onClose={() => setObjectTreeOpen(false)}
+          zones={buildObjectTreeZones()}
+          onReorderItems={(_zoneId, orderedIds) => reorderLegendIndicators(orderedIds)}
+          onReorderPanes={(orderedIds) => reorderPanesRef.current(orderedIds)}
+        />
+      )}
 
       <StableChartModals
         {...correlationSetup}

@@ -939,8 +939,11 @@ export function usePaneLayout({
   function reorderOwnPaneIndicators(newOwnOrder: string[]) {
     const byId = new Map(indicators.map((ind) => [ind.id, ind]));
     const reordered = newOwnOrder.map((id) => byId.get(id)).filter((ind): ind is Indicator => ind !== undefined);
+    // Seuls les emplacements des panneaux réordonnés changent de main : un indicateur « own » absent de l'ordre (affiché
+    // sur les prix, ou dans un panneau latéral) garde le sien — sinon il était remplacé par un doublon d'un autre.
+    const moving = new Set(reordered.map((ind) => ind.id));
     let cursor = 0;
-    const next = indicators.map((ind) => (indicatorCatalogEntry(ind).pane === "own" ? (reordered[cursor++] ?? ind) : ind));
+    const next = indicators.map((ind) => (indicatorCatalogEntry(ind).pane === "own" && moving.has(ind.id) ? (reordered[cursor++] ?? ind) : ind));
     commitIndicators(next);
   }
   // The pane-drag-reorder effect (see usePaneDragReorder) works over one unified order ("volume"
@@ -1017,7 +1020,9 @@ export function usePaneLayout({
   // directly instead of their own wider, less-stable sources (indicators, paneHeightFractions) —
   // without this they'd be a fresh array/reference every render, which would make an "only these
   // deps" dependency array pointless (always "changed").
-  const { ownPaneIndicators, indicatorPaneHeights, indicatorPaneTops, volumeTop, allPanesOrder } = useMemo(() => {
+  // `bottomPanesSequence` : tous les panneaux du bas dans l'ordre affiché, même quand l'un d'eux est en plein écran
+  // (`allPanesOrder` n'a alors que lui) — pour l'arborescence des objets (ObjectTreeModal).
+  const { ownPaneIndicators, indicatorPaneHeights, indicatorPaneTops, volumeTop, allPanesOrder, bottomPanesSequence } = useMemo(() => {
     // Un indicateur affiché sur le graphique des prix (`priceOverlay`) n'a plus de panneau.
     const isBottomPane = (ind: Indicator) => indicatorCatalogEntry(ind).pane === "own" && indicatorDock(ind) === "bottom" && !isPriceOverlay(ind);
     const crudPanes = indicators.filter(isBottomPane);
@@ -1044,10 +1049,11 @@ export function usePaneLayout({
         indicatorPaneTops: target.map(() => 0),
         volumeTop: 0,
         allPanesOrder: target.map((ind) => ind.id),
+        bottomPanesSequence: sequence,
       };
     }
     if (fullscreenPaneId === "volume") {
-      return { ownPaneIndicators: [], indicatorPaneHeights: [], indicatorPaneTops: [], volumeTop: 0, allPanesOrder: ["volume"] };
+      return { ownPaneIndicators: [], indicatorPaneHeights: [], indicatorPaneTops: [], volumeTop: 0, allPanesOrder: ["volume"], bottomPanesSequence: sequence };
     }
     const heights = owned.map((ind) =>
       ind.paneCollapsed ? SUB_PANE_COLLAPSED_HEIGHT : Math.round(plotBoundedHeight * (paneHeightFractions[ind.id] ?? defaultFraction) * subPanesSqueeze)
@@ -1066,7 +1072,7 @@ export function usePaneLayout({
       cursor += heights[i++];
     }
     const order = sequence;
-    return { ownPaneIndicators: owned, indicatorPaneHeights: heights, indicatorPaneTops: tops, volumeTop: vTop, allPanesOrder: order };
+    return { ownPaneIndicators: owned, indicatorPaneHeights: heights, indicatorPaneTops: tops, volumeTop: vTop, allPanesOrder: order, bottomPanesSequence: sequence };
   }, [indicators, extraIndicators, paneHeightFractions, defaultFraction, plotBoundedHeight, volumeVisible, volumeHeight, volumePaneOrder, paneOrder, fullscreenPaneId, subPanesSqueeze]);
   const indicatorPanesTotalHeight = indicatorPaneHeights.reduce((sum, h) => sum + h, 0);
   // Légendes repliées vues par le graphique, par zone (« price », « volume », id d'un indicateur) : celles des
@@ -1217,6 +1223,7 @@ export function usePaneLayout({
     indicatorPaneTops,
     volumeTop,
     allPanesOrder,
+    bottomPanesSequence,
     volumeHeight,
     priceHeight,
     fullscreenPaneId,

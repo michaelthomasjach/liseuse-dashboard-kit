@@ -1,0 +1,259 @@
+/* « Object tree » (ObjectTreeModal) : l'arborescence des objets du graphique, zone par zone. Lignes plates comme celles
+   des listes du kit (catalogue des indicateurs, « Dessins et indicateurs »), glisser-déposer au rendu de la légende
+   (ligne soulevée, trait d'accent). */
+.lq-object-tree-modal {
+  max-width: 440px;
+}
+
+.lq-object-tree__subtitle {
+  margin: calc(-1 * var(--lq-space-3, 12px)) 0 0;
+  font-size: 0.75rem;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-object-tree {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 60vh;
+  overflow-y: auto;
+  /* Place pour la ligne soulevée et le trait d'accent aux bords. */
+  padding: 3px 2px;
+}
+
+.lq-object-tree__zone {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  border-radius: var(--lq-radius-sm);
+  background-color: var(--lq-color-panel);
+}
+
+.lq-object-tree__zone-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  font-size: var(--lq-label-size, 0.68rem);
+  font-weight: var(--lq-label-weight, 700);
+  letter-spacing: var(--lq-label-tracking, 0.04em);
+  font-family: var(--lq-label-font, inherit);
+  text-transform: uppercase;
+  color: var(--lq-color-text-muted);
+  border-radius: var(--lq-radius-sm);
+  user-select: none;
+}
+
+.lq-object-tree__zone--movable > .lq-object-tree__zone-head {
+  cursor: grab;
+  touch-action: none;
+}
+
+.lq-object-tree__zone--movable > .lq-object-tree__zone-head:hover {
+  color: var(--lq-color-text);
+  background-color: var(--lq-color-hover);
+}
+
+.lq-object-tree__zone-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lq-object-tree__zone-index {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.lq-object-tree__rows {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.lq-object-tree__row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  padding: 3px 4px 3px 6px;
+  font-size: 0.85rem;
+  color: var(--lq-color-text);
+  border: 1px solid transparent;
+  border-radius: var(--lq-radius-sm);
+  cursor: pointer;
+  user-select: none;
+}
+
+.lq-object-tree__row:hover {
+  background-color: var(--lq-color-hover);
+}
+
+/* Objet sélectionné sur le graphique : fond et liseré d'accent (le liseré reste lisible en liseuse, sans couleur). */
+.lq-object-tree__row--selected {
+  background-color: var(--lq-color-hover);
+  border-color: var(--lq-color-accent);
+}
+
+.lq-object-tree__row:focus-visible,
+.lq-object-tree__zone-head:focus-visible {
+  outline: 2px solid var(--lq-color-focus-ring, var(--lq-color-accent));
+  outline-offset: -2px;
+}
+
+.lq-object-tree__row--hidden .lq-object-tree__label,
+.lq-object-tree__row--hidden .lq-object-tree__icon {
+  opacity: 0.5;
+}
+
+.lq-object-tree__grip {
+  flex: 0 0 12px;
+  width: 12px;
+  color: var(--lq-color-text-muted);
+  opacity: 0.6;
+}
+
+.lq-object-tree__row--reorderable {
+  cursor: grab;
+  touch-action: none;
+}
+
+.lq-object-tree__row--reorderable:hover .lq-object-tree__grip {
+  opacity: 1;
+}
+
+.lq-object-tree__icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-object-tree__label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: var(--lq-font-weight-semibold, 600);
+}
+
+.lq-object-tree__detail {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.72rem;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-object-tree__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  flex: 0 0 auto;
+}
+
+.lq-object-tree__action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  min-height: 24px;
+  padding: 0 4px;
+  color: var(--lq-color-text-muted);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--lq-radius-sm);
+  cursor: pointer;
+}
+
+.lq-object-tree__action:hover {
+  color: var(--lq-color-text);
+  background-color: var(--lq-color-panel);
+  border-color: var(--lq-color-border-subtle);
+}
+
+.lq-object-tree__action:focus-visible {
+  outline: 2px solid var(--lq-color-focus-ring, var(--lq-color-accent));
+  outline-offset: -1px;
+  color: var(--lq-color-text);
+}
+
+/* Glisser-déposer : la ligne (ou le panneau) saisie se soulève et suit le pointeur, un trait d'accent marque l'endroit
+   où elle tombera — le rendu de la légende des prix (charts-shared.css, .lq-chart__indicator-legend-item--dragging). */
+/* Deux classes : l'emporte sur le fond translucide du survol (la ligne saisie est sous le pointeur). */
+.lq-object-tree__row.lq-object-tree__row--dragging,
+.lq-object-tree__zone.lq-object-tree__zone--dragging {
+  z-index: 3;
+  cursor: grabbing;
+  background-color: var(--lq-color-panel);
+  border-color: var(--lq-color-border);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.08), 0 8px 24px rgb(0 0 0 / 0.18);
+}
+
+.lq-object-tree__zone--dragging {
+  outline: 1px solid var(--lq-color-border);
+}
+
+.lq-object-tree__row--drop-before::before,
+.lq-object-tree__row--drop-after::after,
+.lq-object-tree__zone--drop-before::before,
+.lq-object-tree__zone--drop-after::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  border-radius: 1px;
+  background-color: var(--lq-color-accent);
+  pointer-events: none;
+}
+
+.lq-object-tree__row--drop-before::before {
+  top: -3px;
+}
+
+.lq-object-tree__row--drop-after::after {
+  bottom: -3px;
+}
+
+.lq-object-tree__zone--drop-before::before {
+  top: -6px;
+}
+
+.lq-object-tree__zone--drop-after::after {
+  bottom: -6px;
+}
+
+.lq-object-tree__empty {
+  margin: 0;
+  padding: 4px 8px 6px 26px;
+  font-size: 0.78rem;
+  color: var(--lq-color-text-muted);
+}
+
+.lq-object-tree__hint {
+  margin: 0;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: var(--lq-color-text-muted);
+}
+
+/* Liseuse : pas d'ombre (l'encre ne la rend pas), un cadre net à la place. */
+.lq-root[data-lq-palette="eink"] .lq-object-tree__row--dragging,
+.lq-root[data-lq-palette="eink"] .lq-object-tree__zone--dragging {
+  box-shadow: none;
+  border-color: var(--lq-color-text);
+  outline: 2px solid var(--lq-color-text);
+}
+
+.lq-root[data-lq-palette="eink"] .lq-object-tree__row--selected {
+  border-color: var(--lq-color-text);
+  border-width: 2px;
+}

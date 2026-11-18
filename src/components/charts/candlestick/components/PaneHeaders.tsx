@@ -74,6 +74,8 @@ export interface PaneHeadersProps {
   onOpenIndicatorCode?: (indicator: Indicator) => void;
   alertedIndicatorIds?: ReadonlySet<string>;
   onOpenIndicatorAlert?: (indicator: Indicator) => void;
+  /** « Object tree » du menu « … » : l'arborescence des objets du graphique (ObjectTreeModal). Absent : pas d'entrée. */
+  onOpenObjectTree?: () => void;
 }
 
 /** Header strip for the volume pane, then one more per "own"-pane indicator (RSI/CHOP/MACD) —
@@ -120,6 +122,7 @@ export function PaneHeaders({
   onOpenIndicatorCode,
   alertedIndicatorIds,
   onOpenIndicatorAlert,
+  onOpenObjectTree,
 }: PaneHeadersProps) {
   const infoAction = useIndicatorInfoAction(onOpenIndicatorInfo);
   /** Légende masquée : à la place du nom, de la valeur et des actions, une poignée discrète qui la réaffiche. */
@@ -536,6 +539,7 @@ export function PaneHeaders({
                   onRemove={() => removeIndicator(ind.id)}
                   onSettings={() => openIndicatorSettings(ind.id)}
                   onInfo={infoAction(ind, () => infoTargetFor(ind))}
+                  onObjectTree={onOpenObjectTree}
                 />
                 <button
                   type="button"

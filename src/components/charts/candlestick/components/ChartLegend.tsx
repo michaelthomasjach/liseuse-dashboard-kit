@@ -9,7 +9,7 @@ import type { Dispatch, MouseEvent as ReactMouseEvent, PointerEvent as ReactPoin
 import { useLegendIndicatorDrag } from "../hooks/useLegendIndicatorDrag";
 import { useMemo, useRef, useState } from "react";
 import { Popover } from "../../../forms/Popover";
-import { ActivityIcon, CodeIcon, CopyIcon, EyeIcon, EyeOffIcon, TrashIcon, SettingsIcon, AlarmClockIcon, ChevronUpIcon, ChevronDownIcon, CursorArrowIcon, MoreHorizontalIcon, InfoIcon } from "../../../icons";
+import { ActivityIcon, CodeIcon, CopyIcon, EyeIcon, EyeOffIcon, TrashIcon, SettingsIcon, AlarmClockIcon, ChevronUpIcon, ChevronDownIcon, CursorArrowIcon, MoreHorizontalIcon, InfoIcon, LayersIcon } from "../../../icons";
 import type { Candle } from "../interfaces/Candle.interface";
 import type { Indicator } from "../interfaces/Indicator.interface";
 import type { ChartStyleSettings } from "../chartStyle";
@@ -138,6 +138,9 @@ export interface ChartLegendProps {
   setDraft: Dispatch<SetStateAction<TrendLineDrawing | null>>;
   setEditModalTab: (tab: "coords" | "text" | "style") => void;
   removeSymbolOverlay: (ticker: string) => void;
+  /** « Object tree » du menu « … » d'un indicateur : ouvre l'arborescence des objets du graphique (ObjectTreeModal).
+   *  Absent : pas d'entrée. */
+  onOpenObjectTree?: () => void;
   /** Clic sur le nom d'un symbole comparé : recherche d'un autre symbole pour le remplacer (absent : nom
    *  non cliquable, l'application ne fournit pas de données à comparer). */
   onReplaceOverlaySymbol?: (drawingId: string) => void;
@@ -204,6 +207,7 @@ export function ChartLegend({
   onOpenIndicatorInfo,
   onReorderIndicators,
   reorderableIndicatorIds,
+  onOpenObjectTree,
 }: ChartLegendProps) {
   const infoAction = useIndicatorInfoAction(onOpenIndicatorInfo);
   // Glisser-déposer des lignes d'indicateurs, comme les symboles de la liste de surveillance : la ligne saisie suit le
@@ -626,6 +630,7 @@ export function ChartLegend({
                 onRemove={() => removeIndicator(indicator.id)}
                 onSettings={() => openIndicatorSettings(indicator.id)}
                 onInfo={infoAction(indicator, () => infoTargetFor(indicator))}
+                onObjectTree={onOpenObjectTree}
               />
             </div>
           </div>
@@ -700,7 +705,7 @@ export function useIndicatorInfoAction(onOpenIndicatorInfo: ((target: IndicatorI
 }
 
 /** Le bouton « … » d'une ligne d'indicateur et son menu : alerte, copier, afficher ou masquer, supprimer, paramètres,
- *  informations. Aussi dans l'en-tête d'un panneau d'indicateur (PaneHeaders). */
+ *  informations, « Object tree » (arborescence des objets du graphique, pour les réordonner). Aussi dans l'en-tête d'un panneau d'indicateur (PaneHeaders). */
 export function IndicatorLegendMenu({
   label,
   canAlert,
@@ -712,6 +717,7 @@ export function IndicatorLegendMenu({
   onRemove,
   onSettings,
   onInfo,
+  onObjectTree,
   className = "lq-chart__indicator-legend-action",
 }: {
   label: string;
@@ -725,6 +731,8 @@ export function IndicatorLegendMenu({
   onSettings: () => void;
   /** « Informations » : la page d'aide de l'indicateur (voir useIndicatorInfoAction). Absent : pas d'entrée. */
   onInfo?: () => void;
+  /** « Object tree » : l'arborescence des objets du graphique (ObjectTreeModal). Absent : pas d'entrée. */
+  onObjectTree?: () => void;
   /** Classe du bouton « … » : celle des boutons voisins. */
   className?: string;
 }) {
@@ -734,8 +742,8 @@ export function IndicatorLegendMenu({
     setOpen(false);
     action();
   };
-  const item = (key: string, icon: ReactNode, text: string, action: () => void, hint?: string) => (
-    <button key={key} type="button" role="menuitem" className="lq-chart__indicator-legend-menu-item" onClick={run(action)}>
+  const item = (key: string, icon: ReactNode, text: string, action: () => void, hint?: string, title?: string) => (
+    <button key={key} type="button" role="menuitem" className="lq-chart__indicator-legend-menu-item" onClick={run(action)} title={title}>
       {icon}
       <span className="lq-chart__indicator-legend-menu-text">{text}</span>
       {hint && <span className="lq-chart__indicator-legend-menu-hint">{hint}</span>}
@@ -763,6 +771,8 @@ export function IndicatorLegendMenu({
           {item("remove", <TrashIcon size={14} />, "Supprimer", onRemove)}
           {item("settings", <SettingsIcon size={14} />, "Paramètres", onSettings)}
           {onInfo && item("info", <InfoIcon size={14} />, "Informations", onInfo)}
+          {onObjectTree &&
+            item("object-tree", <LayersIcon size={14} />, "Object tree", onObjectTree, "Arborescence", "Arborescence des objets du graphique : les réordonner, les masquer, les régler")}
         </div>
       </Popover>
     </>

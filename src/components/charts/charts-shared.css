@@ -3344,11 +3344,25 @@ button.lq-chart__legend-item {
 /* Icône « Enregistrer » : un point quand l'état affiché n'est pas enregistré dans un modèle (comme un fichier modifié
    dans un éditeur). */
 .lq-chart__template-save {
+  --lq-save-color: var(--lq-color-positive, #1f9d55);
   position: relative;
+  /* Retour en douceur à l'icône « Enregistrer » après la coche. */
+  transition:
+    color 280ms cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 280ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 320ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* Animation de sauvegarde (Ctrl+S ou clic, s'il y avait des changements) : la bordure verte fait le tour du bouton
-   depuis le coin haut gauche, puis la coche verte s'affiche une seconde (TemplateControls). */
+/* Animation de sauvegarde (Ctrl+S ou clic, s'il y avait des changements), en trois temps (TemplateControls) :
+   1. « ring » : le contour vert fait le tour du bouton depuis le coin haut gauche, en accélérant puis en ralentissant
+      (ease-in-out), avec une légère lueur, sur un fond qui se teinte ;
+   2. « check » : le contour s'efface en s'élargissant, la coche apparaît avec un petit rebond (ease-out « back ») et un
+      halo vert se dissipe autour du bouton ;
+   3. retour à l'icône par transition (ci-dessus). */
+.lq-chart__template-save--ring {
+  background-color: color-mix(in srgb, var(--lq-save-color) 9%, transparent);
+}
+
 .lq-chart__template-save-ring {
   position: absolute;
   inset: 0;
@@ -3356,34 +3370,112 @@ button.lq-chart__legend-item {
   height: 100%;
   overflow: visible;
   pointer-events: none;
+  transform-origin: center;
 }
 
 .lq-chart__template-save-ring rect {
   fill: none;
-  stroke: var(--lq-color-positive, #1f9d55);
+  stroke: var(--lq-save-color);
   stroke-width: 2px;
   vector-effect: non-scaling-stroke;
   stroke-linecap: round;
   stroke-dasharray: 100;
   stroke-dashoffset: 100;
+  filter: drop-shadow(0 0 2px color-mix(in srgb, var(--lq-save-color) 55%, transparent));
   animation-name: lq-template-save-ring;
-  animation-timing-function: linear;
+  animation-timing-function: cubic-bezier(0.65, 0, 0.35, 1);
   animation-fill-mode: forwards;
 }
 
 @keyframes lq-template-save-ring {
-  to {
+  0% {
+    stroke-dashoffset: 100;
+    opacity: 0.35;
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
     stroke-dashoffset: 0;
+    opacity: 1;
+  }
+}
+
+/* Tour terminé : le contour (resté complet) s'efface en s'élargissant. */
+.lq-chart__template-save--check .lq-chart__template-save-ring {
+  animation: lq-template-save-ring-out 460ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes lq-template-save-ring-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.22);
   }
 }
 
 .lq-chart__template-save--check {
-  color: var(--lq-color-positive, #1f9d55);
-  box-shadow: inset 0 0 0 2px var(--lq-color-positive, #1f9d55);
+  color: var(--lq-save-color);
+  background-color: color-mix(in srgb, var(--lq-save-color) 12%, transparent);
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--lq-save-color) 70%, transparent);
+  animation: lq-template-save-halo 720ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* La coche : apparaît petite et tournée, dépasse légèrement sa taille puis se pose. */
+.lq-chart__template-save--check > svg:first-child {
+  animation: lq-template-save-check 420ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes lq-template-save-check {
+  from {
+    opacity: 0;
+    transform: scale(0.35) rotate(-18deg);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+/* Retour : l'icône « Enregistrer » réapparaît en fondu, depuis un peu plus petit, pendant que le vert s'estompe. */
+.lq-chart__template-save--back > svg:first-child {
+  animation: lq-template-save-back 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes lq-template-save-back {
+  from {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Halo vert qui s'étend autour du bouton et se dissipe (le contour intérieur reste). */
+@keyframes lq-template-save-halo {
+  from {
+    box-shadow:
+      inset 0 0 0 1.5px color-mix(in srgb, var(--lq-save-color) 70%, transparent),
+      0 0 0 0 color-mix(in srgb, var(--lq-save-color) 45%, transparent);
+  }
+  to {
+    box-shadow:
+      inset 0 0 0 1.5px color-mix(in srgb, var(--lq-save-color) 70%, transparent),
+      0 0 0 7px color-mix(in srgb, var(--lq-save-color) 0%, transparent);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .lq-chart__template-save-ring rect {
+  .lq-chart__template-save-ring rect,
+  .lq-chart__template-save--check .lq-chart__template-save-ring,
+  .lq-chart__template-save--check,
+  .lq-chart__template-save--check > svg:first-child,
+  .lq-chart__template-save--back > svg:first-child {
     animation-duration: 1ms !important;
   }
 }

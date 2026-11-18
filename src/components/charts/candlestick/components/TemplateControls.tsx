@@ -25,8 +25,10 @@ export interface TemplateControlsProps {
 const noop = () => {};
 
 /** Durée du tour de bordure, puis de la coche, de l'animation de sauvegarde. */
-const SAVE_RING_MS = 700;
-const SAVE_CHECK_MS = 1000;
+const SAVE_RING_MS = 650;
+const SAVE_CHECK_MS = 1100;
+/** Retour à l'icône « Enregistrer », qui réapparaît en fondu (voir charts-shared.css). */
+const SAVE_BACK_MS = 260;
 
 /** Save button + "saved templates" dropdown, right edge of the chart's own header — see
  *  `CandlestickChartProps.showTemplates`'s own doc for the exact save/load/dirty-guard rules
@@ -56,7 +58,7 @@ export function TemplateControls({ templates, activeTemplateId, startupTemplateI
   // button (see onAddSymbolOverlay) turns into a checkmark once its own overlay is active.
   // Sauvegarde de changements : la bordure verte fait le tour du bouton (« ring »), puis une coche verte (« check »)
   // reste une seconde. Rien quand il n'y avait rien de nouveau à sauvegarder.
-  const [saveAnim, setSaveAnim] = useState<"idle" | "ring" | "check">("idle");
+  const [saveAnim, setSaveAnim] = useState<"idle" | "ring" | "check" | "back">("idle");
   const saveTimers = useRef<number[]>([]);
   useEffect(() => () => saveTimers.current.forEach((t) => window.clearTimeout(t)), []);
   const justSaved = saveAnim === "check";
@@ -68,7 +70,8 @@ export function TemplateControls({ templates, activeTemplateId, startupTemplateI
     setSaveAnim("ring");
     saveTimers.current = [
       window.setTimeout(() => setSaveAnim("check"), SAVE_RING_MS),
-      window.setTimeout(() => setSaveAnim("idle"), SAVE_RING_MS + SAVE_CHECK_MS),
+      window.setTimeout(() => setSaveAnim("back"), SAVE_RING_MS + SAVE_CHECK_MS),
+      window.setTimeout(() => setSaveAnim("idle"), SAVE_RING_MS + SAVE_CHECK_MS + SAVE_BACK_MS),
     ];
   }
 
@@ -256,8 +259,9 @@ export function TemplateControls({ templates, activeTemplateId, startupTemplateI
         >
           {justSaved ? <CheckIcon size={14} /> : <SaveIcon size={14} />}
           {dirtyText && saveAnim === "idle" && <span className="lq-chart__template-dirty-dot" aria-hidden="true" />}
-          {saveAnim === "ring" && (
-            // Le contour du bouton, tracé de 0 à 360° depuis le coin haut gauche (voir charts-shared.css).
+          {(saveAnim === "ring" || saveAnim === "check") && (
+            // Le contour du bouton, tracé de 0 à 360° depuis le coin haut gauche, puis effacé en s'élargissant pendant
+            // la coche (même élément : l'animation du tour ne repart pas ; voir charts-shared.css).
             <svg className="lq-chart__template-save-ring" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
               <rect x="2" y="2" width="96" height="96" rx="14" pathLength="100" style={{ animationDuration: `${SAVE_RING_MS}ms` }} />
             </svg>

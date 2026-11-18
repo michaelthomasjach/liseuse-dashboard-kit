@@ -134,6 +134,8 @@ export interface SeasonalityViewProps {
   showHeader?: boolean;
   /** Fixed height in px for the chart area. Fills 100% of the container's width regardless. */
   height?: number;
+  /** Inertie au relâchement d'un glisser rapide du graphique (voir `LineAreaChart.panInertia`). Défaut true. */
+  panInertia?: boolean;
   className?: string;
 }
 
@@ -154,7 +156,7 @@ export interface SeasonalityViewProps {
  * `margin` reserving the same rail width on its own left edge) and to drop its own border
  * (`embedded`) since it's nested inside CandlestickChart's own bordered root.
  */
-export function SeasonalityView({ data, symbol, onBack, showHeader = true, height = 380, mobile = false, className }: SeasonalityViewProps) {
+export function SeasonalityView({ data, symbol, onBack, showHeader = true, height = 380, mobile = false, panInertia = true, className }: SeasonalityViewProps) {
   const availableYears = useMemo(() => Array.from(new Set(data.map((d) => d.date.getUTCFullYear()))).sort((a, b) => a - b), [data]);
   // Excluded, not included: unchecking a handful of years (an election year, a crash) out of a
   // long history is the common case — a whitelist would make every *other* year the odd one out.
@@ -585,6 +587,7 @@ export function SeasonalityView({ data, symbol, onBack, showHeader = true, heigh
         ) : (
           <LineAreaChart
             ref={lineChartRef}
+            panInertia={panInertia}
             series={series}
             xType="linear"
             // Straight segments between each day-bucket's own real value, not a smoothed spline

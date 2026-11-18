@@ -184,6 +184,7 @@ function CandlestickChartBody({
   width,
   height = 380,
   zoomable = true,
+  panInertia = true,
   showVolume = true,
   formatDate,
   locale,
@@ -1406,6 +1407,7 @@ function CandlestickChartBody({
     yAutoScalingState,
     priceScaleMode,
     zoomable,
+    panInertia,
     initialVisibleCandles,
     resetVisibleCandles: appliedStyle.resetZoomBars ?? DEFAULT_RESET_ZOOM_BARS,
     initialVisibleRange,
@@ -1723,6 +1725,7 @@ function CandlestickChartBody({
     // alone, and that pan is the one that kept dragging the view out from under a point being
     // placed. Denying it here means it cannot start even if the overlay routing below ever changes.
     zoomable: zoomable && !placementActive,
+    panInertia,
     paneScaleAndOffset,
     pixelYForDrawing,
     resolveValueAxisAtY,

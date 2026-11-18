@@ -15,6 +15,7 @@ import { distanceToIndicator } from "../indicatorHitTest";
 import type { HitTestContext } from "../drawingHitTest";
 import type { IndicatorValue } from "../interfaces/IndicatorValue.interface";
 import { useAxisHandleDrag } from "./useAxisHandleDrag";
+import { PanVelocityTracker, startPanInertia, type PanInertiaHandle } from "../../internal/panInertia";
 import { placeDrawingOnClick, type DrawingPlacementContext } from "./placeDrawingOnClick";
 import { DRAWING_HIT_DISTANCE, CLICK_DRAG_THRESHOLD, TABLE_DEFAULT_ROWS, TABLE_DEFAULT_COLS, TABLE_BORDER_HIT_MARGIN } from "../constants";
 
@@ -120,6 +121,8 @@ export interface UseDrawingInteractionsArgs {
   setYTransform: (t: d3.ZoomTransform) => void;
   setYManuallyAdjusted: (v: boolean) => void;
   zoomable: boolean;
+  /** Voir CandlestickChartProps.panInertia : le glisser vertical du tracé continue sur sa lancée au relâchement. */
+  panInertia?: boolean;
   paneScaleAndOffset: (valueAxis: string | undefined) => { scale: ScaleLinear<number, number>; offset: number };
   /** Every enabled indicator with its own computed series, so the hover pass can ask whether the
    *  pointer is on one of their lines. Same array the axis badges already receive. */
@@ -238,6 +241,7 @@ export function useDrawingInteractions({
   setYTransform,
   setYManuallyAdjusted,
   zoomable,
+  panInertia = true,
   paneScaleAndOffset,
   indicatorValues,
   lastRevealedIndex,
@@ -278,6 +282,9 @@ export function useDrawingInteractions({
   // Maj maintenue au dernier mouvement du pointeur : l'aperçu du tracé (calculé dans une image
   // d'animation, sans l'évènement) suit la même contrainte d'angle que le clic.
   const shiftHeldRef = useRef(false);
+  // L'inertie du dernier glisser vertical du tracé (voir handleOverlayPointerDown), arrêtée par le suivant et au démontage.
+  const yInertiaRef = useRef<PanInertiaHandle | null>(null);
+  useEffect(() => () => yInertiaRef.current?.cancel(), []);
   // Appui sur un dessin verrouillé (tous les dessins, ou celui-là) : ni glisser ni pan de l'axe Y,
   // mais un simple clic le sélectionne quand même au relâché (handleOverlayPointerUp). Sans ça, rien
   // ne le sélectionnait jamais : plus de barre flottante, donc plus de cadenas pour le déverrouiller.
@@ -1065,13 +1072,14 @@ export function useDrawingInteractions({
     // qu'une fois franchement vertical, et repart alors de ce point, sans saut.
     let yEngagedAt: number | null = isYAxisAuto(paneAtStart) ? null : startClientY;
     isPanningYRef.current = true;
-    const onMove = (ev: PointerEvent) => {
-      if (yEngagedAt === null) {
-        const rawDy = ev.clientY - startClientY;
-        if (Math.abs(rawDy) < Y_PAN_DEADZONE_PX || Math.abs(rawDy) < 2 * Math.abs(ev.clientX - startClientX)) return;
-        yEngagedAt = ev.clientY;
-      }
-      const dy = ev.clientY - yEngagedAt;
+    // Un nouvel appui arrête l'inertie verticale du geste précédent (panInertia.ts l'arrête déjà sur tout appui ; ici
+    // pour qu'elle ne reprenne pas la main sur le nouveau geste).
+    yInertiaRef.current?.cancel();
+    yInertiaRef.current = null;
+    const tracker = new PanVelocityTracker();
+    // Le déplacement vertical cumulé depuis que le geste a pris l'axe, inertie comprise.
+    let dy = 0;
+    const applyDy = () => {
       if (!onPrice) {
         panPaneY(paneAtStart, startYTransform, dy);
         return;
@@ -1081,11 +1089,30 @@ export function useDrawingInteractions({
       setYManuallyAdjusted(true);
       setYTransform(d3.zoomIdentity.scale(startYTransform.k).translate(0, startYTransform.y / startYTransform.k + dy / startYTransform.k));
     };
-    const onUp = () => {
+    const onMove = (ev: PointerEvent) => {
+      if (yEngagedAt === null) {
+        const rawDy = ev.clientY - startClientY;
+        if (Math.abs(rawDy) < Y_PAN_DEADZONE_PX || Math.abs(rawDy) < 2 * Math.abs(ev.clientX - startClientX)) return;
+        yEngagedAt = ev.clientY;
+      }
+      dy = ev.clientY - yEngagedAt;
+      tracker.push(0, dy);
+      applyDy();
+    };
+    const onUp = (ev: PointerEvent) => {
       isPanningYRef.current = false;
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onUp);
+      // Inertie verticale : seulement si le geste avait pris l'axe (un glisser horizontal sur un axe automatique n'a
+      // rien déplacé en Y), et pas pour un toucher repris par le navigateur.
+      if (!panInertia || yEngagedAt === null || ev.type !== "pointerup") return;
+      const velocity = tracker.release();
+      if (!velocity) return;
+      yInertiaRef.current = startPanInertia({ vx: 0, vy: velocity.vy }, (_dx, stepDy) => {
+        dy += stepDy;
+        applyDy();
+      });
     };
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);

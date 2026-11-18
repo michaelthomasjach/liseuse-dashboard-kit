@@ -60,6 +60,9 @@ export interface HeatmapProps {
   colorDomain?: [number, number];
   /** Fires when a *tile* (never a group — see this component's own doc for why) is clicked. */
   onTileClick?: (tile: HeatmapTile) => void;
+  /** Inertie au relâchement d'un glisser rapide : la vue continue un peu sur sa lancée puis ralentit (~0,5 s), arrêtée
+   *  par un nouvel appui, la molette ou une limite de déplacement. Jamais sous `prefers-reduced-motion`. Défaut true. */
+  panInertia?: boolean;
   className?: string;
 }
 
@@ -216,7 +219,7 @@ function useTileMixer(el: HTMLElement | null): (colorValue: number | null, domai
  *  every other zoomable chart in this library already shares — wheel-to-zoom already zooms
  *  toward the cursor by construction (d3-zoom's own default behavior), nothing extra needed here
  *  for that. */
-export function Heatmap({ groups, width: widthProp, height = 560, colorDomain = [-3, 3], onTileClick, className }: HeatmapProps) {
+export function Heatmap({ groups, width: widthProp, height = 560, colorDomain = [-3, 3], onTileClick, panInertia = true, className }: HeatmapProps) {
   const [focusedGroupId, setFocusedGroupId] = useState<string | null>(null);
   // Pointer position in viewport coordinates: the tooltip is portalled to <body> and placed `fixed`
   // (see the layout effect below), so no ancestor's overflow or transform can clip or shift it.
@@ -325,6 +328,7 @@ export function Heatmap({ groups, width: widthProp, height = 560, colorDomain = 
     height,
     scaleExtent: [1, 12],
     onZoom: setTransform,
+    panInertia,
   });
 
   function openGroup(groupId: string) {

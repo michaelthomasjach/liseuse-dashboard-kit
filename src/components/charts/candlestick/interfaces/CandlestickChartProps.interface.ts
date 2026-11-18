@@ -60,6 +60,13 @@ export interface CandlestickChartProps {
   /** Enables wheel zoom, horizontal drag-to-pan and the zoom shortcuts on the plot. Default false — a
    *  thumbnail or a demo chart usually has nothing to explore. */
   zoomable?: boolean;
+  /** Inertie au relâchement d'un glisser rapide du tracé : la plage de dates (et l'axe des prix ou d'un sous-panneau
+   *  quand le glisser vertical le déplace) continue un peu sur sa lancée puis ralentit en ~0,5 s. Les graphiques liés
+   *  et l'axe des prix automatique suivent comme pendant le glisser ; un nouvel appui, la molette, un pincement, une
+   *  touche (réinitialisation du zoom…) ou le bord de la zone de déplacement l'arrêtent net. Rien après un glisser lent
+   *  ou un pointeur immobilisé avant de lâcher, ni pour un dessin, une mesure, une sélection ou le choix du départ du
+   *  replay ; jamais sous `prefers-reduced-motion`. Défaut true ; false : la vue s'arrête au relâchement. */
+  panInertia?: boolean;
   /** Shows the volume pane under the candles. Default false. */
   showVolume?: boolean;
   /** Avec `showVolume` : l'état du panneau de volume à l'ouverture — affiché (défaut), replié, ou masqué (le volume

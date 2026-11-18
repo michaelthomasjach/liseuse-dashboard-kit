@@ -58,6 +58,9 @@ export interface MatrixChartProps {
    *  choice when it already fits, since a grid that moves under an accidental scroll is worse
    *  than one that cannot move at all. */
   zoomable?: boolean;
+  /** Inertie au relâchement d'un glisser rapide : la vue continue un peu sur sa lancée puis ralentit (~0,5 s), arrêtée
+   *  par un nouvel appui, la molette ou une limite de déplacement. Jamais sous `prefers-reduced-motion`. Défaut true. */
+  panInertia?: boolean;
   height?: number;
   /** Width of the row-label gutter, in pixels. Left out, it is measured from the longest row label
    *  once rendered (never more than 40 % of the chart) — a fixed 78 px cut "Euro Stoxx 50" down
@@ -162,6 +165,7 @@ export function MatrixChart({
   showValues = true,
   formatValue = (v) => v.toFixed(2).replace("-", "−"),
   zoomable = true,
+  panInertia = true,
   height = 360,
   rowLabelWidth,
   renderDetail,
@@ -238,6 +242,7 @@ export function MatrixChart({
     scaleExtent: [1, 8],
     enabled: zoomable,
     onZoom: setTransform,
+    panInertia,
   });
 
   const at = (rowId: string, columnId: string) => byKey.get(rowId + KEY_SEPARATOR + columnId);

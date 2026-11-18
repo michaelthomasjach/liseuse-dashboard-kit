@@ -51,6 +51,9 @@ export interface SankeyChartProps {
   formatValue?: (value: number) => string;
   /** Wheel to zoom, drag to pan, click a node to fly to its branch. Default true. */
   zoomable?: boolean;
+  /** Inertie au relâchement d'un glisser rapide : la vue continue un peu sur sa lancée puis ralentit (~0,5 s), arrêtée
+   *  par un nouvel appui, la molette ou une limite de déplacement. Jamais sous `prefers-reduced-motion`. Défaut true. */
+  panInertia?: boolean;
   /** [min, max] zoom factor. Default [1, 14] — the upper end is what makes the deepest, thinnest
    *  ribbons of a real budget separable. */
   scaleExtent?: [number, number];
@@ -115,6 +118,7 @@ export function SankeyChart({
   align = "justify",
   formatValue,
   zoomable = true,
+  panInertia = true,
   scaleExtent = [1, 14],
   fullscreenToggle = true,
   embedded = false,
@@ -144,6 +148,7 @@ export function SankeyChart({
     enabled: zoomable,
     scaleExtent,
     onZoom: setTransform,
+    panInertia,
   });
 
   const layout = useMemo(

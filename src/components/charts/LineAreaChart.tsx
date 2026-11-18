@@ -90,6 +90,9 @@ export interface LineAreaChartProps {
   curveType?: "monotone" | "linear";
   xType?: "time" | "linear";
   zoomable?: boolean;
+  /** Inertie au relâchement d'un glisser rapide : la vue continue un peu sur sa lancée puis ralentit (~0,5 s), arrêtée
+   *  par un nouvel appui, la molette ou une limite de déplacement. Jamais sous `prefers-reduced-motion`. Défaut true. */
+  panInertia?: boolean;
   formatX?: (x: Date | number) => string;
   formatY?: (y: number) => string;
   /** BCP 47 locale of the default date labels on a time axis (ticks, hover, tooltip) when neither
@@ -215,6 +218,7 @@ export const LineAreaChart = forwardRef<LineAreaChartHandle, LineAreaChartProps>
   curveType = "monotone",
   xType = "time",
   zoomable = true,
+  panInertia = true,
   formatX,
   formatY,
   locale,
@@ -387,6 +391,8 @@ export const LineAreaChart = forwardRef<LineAreaChartHandle, LineAreaChartProps>
     height: dims.boundedHeight,
     enabled: zoomable,
     onZoom: setTransform,
+    panInertia,
+    inertiaAxes: "x",
   });
 
   const xAxisDrag = useAxisDragRescale({

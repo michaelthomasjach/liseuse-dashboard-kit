@@ -10,6 +10,7 @@ import {
   wrapLongitude,
 } from "./tileMath";
 import { badgeAnchor, distanceToPath, type ScreenPoint } from "./routeGeometry";
+import { PanVelocityTracker, startPanInertia, type PanInertiaHandle } from "../charts/internal/panInertia";
 import "./TileMap.css";
 
 export interface TileMapMarker {
@@ -93,6 +94,9 @@ export interface TileMapProps {
   onRouteSelect?: (route: TileMapRoute) => void;
   /** Fires after every pan and zoom, coarsely — not on every animation frame. */
   onViewChange?: (view: { lon: number; lat: number; zoom: number }) => void;
+  /** Inertie au relâchement d'un glisser rapide : la carte continue un peu sur sa lancée puis ralentit (~0,5 s),
+   *  arrêtée par un nouvel appui, la molette ou le bord nord/sud. Jamais sous `prefers-reduced-motion`. Défaut true. */
+  panInertia?: boolean;
   className?: string;
   ariaLabel?: string;
 }
@@ -182,6 +186,7 @@ function TileMapImpl({
   selectedRouteId,
   onRouteSelect,
   onViewChange,
+  panInertia = true,
   className,
   ariaLabel = "Carte du monde navigable",
 }: TileMapProps) {
@@ -558,9 +563,34 @@ function TileMapImpl({
   );
 
   // ---------------------------------------------------------------- pointer
+  // Vitesse du glisser en cours et inertie du précédent (voir charts/internal/panInertia.ts).
+  const velocityRef = useRef(new PanVelocityTracker());
+  const inertiaRef = useRef<PanInertiaHandle | null>(null);
+  useEffect(() => () => inertiaRef.current?.cancel(), []);
+
+  /** Déplace la carte de (dx, dy) pixels écran ; rend ce qui a vraiment bougé (la latitude bute aux pôles). */
+  const panBy = (dx: number, dy: number) => {
+    const camera = cameraRef.current;
+    const scale = TILE_SIZE * 2 ** camera.zoom;
+    camera.lon = wrapLongitude(camera.lon - (dx / scale) * 360);
+    // Latitude has to go through the projection rather than a linear offset: a degree of latitude
+    // is a different number of pixels at the equator and at 60°, and treating it as constant makes
+    // the map slide under the pointer as you drag north.
+    const y0 = latToTileY(camera.lat, camera.zoom);
+    camera.lat = clampLatitude(tileYToLat(y0 - dy / TILE_SIZE, camera.zoom));
+    const appliedDy = (y0 - latToTileY(camera.lat, camera.zoom)) * TILE_SIZE;
+    requestDraw();
+    report();
+    return { dx, dy: appliedDy };
+  };
+
   const onPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (e.button !== 0) return;
+    inertiaRef.current?.cancel();
+    inertiaRef.current = null;
     dragRef.current = { active: true, x: e.clientX, y: e.clientY, moved: 0, pointerId: e.pointerId };
+    velocityRef.current.reset();
+    velocityRef.current.push(e.clientX, e.clientY);
     e.currentTarget.setPointerCapture?.(e.pointerId);
   };
 
@@ -592,17 +622,8 @@ function TileMapImpl({
     drag.x = e.clientX;
     drag.y = e.clientY;
     drag.moved += Math.abs(dx) + Math.abs(dy);
-
-    const camera = cameraRef.current;
-    const scale = TILE_SIZE * 2 ** camera.zoom;
-    camera.lon = wrapLongitude(camera.lon - (dx / scale) * 360);
-    // Latitude has to go through the projection rather than a linear offset: a degree of latitude
-    // is a different number of pixels at the equator and at 60°, and treating it as constant makes
-    // the map slide under the pointer as you drag north.
-    const y = latToTileY(camera.lat, camera.zoom) - dy / TILE_SIZE;
-    camera.lat = clampLatitude(tileYToLat(y, camera.zoom));
-    requestDraw();
-    report();
+    velocityRef.current.push(e.clientX, e.clientY);
+    panBy(dx, dy);
   };
 
   const onPointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -610,6 +631,11 @@ function TileMapImpl({
     const wasDragging = drag.active;
     if (drag.pointerId >= 0) e.currentTarget.releasePointerCapture?.(drag.pointerId);
     dragRef.current = { active: false, x: 0, y: 0, moved: 0, pointerId: -1 };
+    const velocity = velocityRef.current.release();
+    // Un vrai glisser, lâché en mouvement : la carte continue sur sa lancée (pas pour un toucher repris par le navigateur).
+    if (wasDragging && drag.moved > 4 && velocity && panInertia && e.type === "pointerup") {
+      inertiaRef.current = startPanInertia(velocity, (dx, dy) => panBy(dx, dy));
+    }
     // Four pixels of slop, like the globe: a hand on a mouse drifts while clicking, and treating
     // that as a drag swallows the click.
     if (!wasDragging || drag.moved > 4) return;

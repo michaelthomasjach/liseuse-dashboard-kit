@@ -45,6 +45,9 @@ export interface DeltaChartProps {
   /** Pan/zoom the categorical axis — same drag/wheel/axis-rescale conventions as
    *  `CandlestickChart` and `LineAreaChart`, useful once there are many steps. Default true. */
   zoomable?: boolean;
+  /** Inertie au relâchement d'un glisser rapide : la vue continue un peu sur sa lancée puis ralentit (~0,5 s), arrêtée
+   *  par un nouvel appui, la molette ou une limite de déplacement. Jamais sous `prefers-reduced-motion`. Défaut true. */
+  panInertia?: boolean;
   /** Shows a fullscreen toggle button in the toolbar. Default true. */
   fullscreenToggle?: boolean;
   /** Drops the chart's own outer border, for a chart that sits inside a container already
@@ -122,6 +125,7 @@ export function DeltaChart({
   extendXAxisLine = false,
   showLegend = true,
   zoomable = true,
+  panInertia = true,
   fullscreenToggle = true,
   margin,
   embedded = false,
@@ -170,6 +174,8 @@ export function DeltaChart({
     height: dims.boundedHeight,
     enabled: zoomable,
     onZoom: setCatTransform,
+    panInertia,
+    inertiaAxes: "x",
   });
 
   const catAxisDrag = useAxisDragRescale({

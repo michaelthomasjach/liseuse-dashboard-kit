@@ -110,6 +110,8 @@ export interface UseZoomAndScalesArgs {
    *  ne change que la lecture de l'axe (CandlestickChart). Défaut `linear`. */
   priceScaleMode?: PriceScaleMode;
   zoomable: boolean;
+  /** Voir CandlestickChartProps.panInertia. Défaut true. */
+  panInertia?: boolean;
   initialVisibleCandles: number | undefined;
   /** Bougies affichées par la réinitialisation du zoom (Espace, double-clic). Absent ou 0 : la vue de départ. */
   resetVisibleCandles?: number;
@@ -176,6 +178,7 @@ export function useZoomAndScales({
   yAutoScalingState,
   priceScaleMode = "linear",
   zoomable,
+  panInertia = true,
   initialVisibleCandles,
   resetVisibleCandles,
   initialVisibleRange,
@@ -706,6 +709,11 @@ export function useZoomAndScales({
       !(event.type === "dblclick" && dblClickTargetRef?.current),
     constrain: constrainXPan,
     onUserZoom: suspendReplayFollow,
+    // Inertie au relâchement : en X seulement (le Y de la transformation d3-zoom ne sert pas ici, le glisser vertical
+    // a la sienne dans useDrawingInteractions). Chaque image repasse par `handleZoom` : graphiques liés, axe des prix
+    // automatique et `constrainXPan` comme pendant le glisser.
+    panInertia,
+    inertiaAxes: "x",
   });
 
   // `setXTransformViaZoom` pour les changements de vue qui ne viennent pas d'un geste de

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
 import * as d3 from "d3";
+import { PanVelocityTracker, startPanInertia, type PanInertiaHandle } from "./panInertia";
 
 export interface UseD3ZoomOptions {
   width: number;
@@ -22,6 +23,12 @@ export interface UseD3ZoomOptions {
    *  transform applied through `setTransform`/`setTransformAnimated`/`reset`. Lets the caller tell
    *  "the user took the view" apart from its own programmatic moves. Read fresh, like `filter`. */
   onUserZoom?: () => void;
+  /** Inertie au relâchement d'un glisser rapide (voir panInertia.ts) : la vue continue un peu sur sa lancée, à
+   *  travers `constrain` à chaque image, et repasse par `onZoom`/`onUserZoom` comme pendant le glisser. Défaut vrai. */
+  panInertia?: boolean;
+  /** Axes que l'inertie prolonge — ceux que le graphique lit vraiment dans la transformation (un graphique qui ne se
+   *  déplace qu'en X ignore `y`). Défaut `"xy"`. */
+  inertiaAxes?: "x" | "y" | "xy";
 }
 
 export interface UseD3ZoomResult<T extends Element> {
@@ -50,6 +57,8 @@ export function useD3Zoom<T extends Element>({
   filter,
   constrain,
   onUserZoom,
+  panInertia = true,
+  inertiaAxes = "xy",
 }: UseD3ZoomOptions): UseD3ZoomResult<T> {
   const behaviorRef = useRef<d3.ZoomBehavior<T, unknown> | null>(null);
   const onZoomRef = useRef(onZoom);
@@ -69,6 +78,14 @@ export function useD3Zoom<T extends Element>({
   constrainRef.current = constrain;
   const onUserZoomRef = useRef(onUserZoom);
   onUserZoomRef.current = onUserZoom;
+  const inertiaOptionsRef = useRef({ panInertia, inertiaAxes });
+  inertiaOptionsRef.current = { panInertia, inertiaAxes };
+  // L'inertie en cours, arrêtée par tout nouveau geste et toute transformation appliquée par programme.
+  const inertiaRef = useRef<PanInertiaHandle | null>(null);
+  function stopInertia() {
+    inertiaRef.current?.cancel();
+    inertiaRef.current = null;
+  }
   const [scaleMin, scaleMax] = scaleExtent;
 
   // A plain `useRef` never tells this hook when its *element* gets swapped for a new one — e.g.
@@ -116,11 +133,57 @@ export function useD3Zoom<T extends Element>({
         const defaultOk = (!event.ctrlKey || event.type === "wheel") && !event.button;
         return defaultOk && (filterRef.current ? filterRef.current(event) : true);
       })
+      .on("start", (event: d3.D3ZoomEvent<T, unknown>) => {
+        // Les images de l'inertie passent elles-mêmes par d3-zoom (`translateBy`) : ce n'est pas un nouveau geste.
+        if (inertiaStepping) return;
+        stopInertia();
+        const source = event.sourceEvent as (Event & { touches?: TouchList }) | null;
+        // Seul un glisser à un doigt ou à la souris peut finir en inertie — ni la molette, ni un pincement, ni une
+        // transformation appliquée par programme (sans `sourceEvent`).
+        const drag = !!source && (source.type === "mousedown" || (source.type === "touchstart" && (source.touches?.length ?? 0) === 1));
+        gesture = { drag, k: event.transform.k };
+        tracker.reset();
+        if (drag) tracker.push(event.transform.x, event.transform.y);
+      })
       .on("zoom", (event: d3.D3ZoomEvent<T, unknown>) => {
         // d3-zoom only attaches a `sourceEvent` to zooms driven by real input; a `zoom.transform`
         // call (setTransform & co.) arrives with none.
         if (event.sourceEvent) onUserZoomRef.current?.();
+        const source = event.sourceEvent as (Event & { touches?: TouchList }) | null;
+        if (gesture?.drag && source && (source.type === "mousemove" || source.type === "touchmove")) {
+          // Un deuxième doigt ou un changement d'échelle : c'est un pincement, pas un glisser.
+          if (event.transform.k !== gesture.k || (source.touches?.length ?? 1) > 1) gesture.drag = false;
+          else tracker.push(event.transform.x, event.transform.y);
+        }
         emitZoom(event.transform);
+      })
+      .on("end", () => {
+        if (inertiaStepping) return;
+        const ended = gesture;
+        gesture = null;
+        const { panInertia: inertiaOn, inertiaAxes: axes } = inertiaOptionsRef.current;
+        if (!ended?.drag || !inertiaOn) return;
+        const velocity = tracker.release();
+        if (!velocity) return;
+        if (axes === "x") velocity.vy = 0;
+        if (axes === "y") velocity.vx = 0;
+        inertiaRef.current = startPanInertia(velocity, (dx, dy) => {
+          if (behaviorRef.current !== behavior) {
+            stopInertia();
+            return;
+          }
+          const before = d3.zoomTransform(el);
+          inertiaStepping = true;
+          try {
+            behavior.translateBy(selection, dx / before.k, dy / before.k);
+          } finally {
+            inertiaStepping = false;
+          }
+          // L'inertie prolonge le geste de l'utilisateur : même annonce qu'une image du glisser.
+          onUserZoomRef.current?.();
+          const after = d3.zoomTransform(el);
+          return { dx: after.x - before.x, dy: after.y - before.y };
+        });
       });
 
     // Captures d3-zoom's own default translateExtent-based constrain function before
@@ -133,6 +196,10 @@ export function useD3Zoom<T extends Element>({
 
     behaviorRef.current = behavior;
     const selection = d3.select(el);
+    // Le geste d3-zoom en cours (voir les écouteurs "start"/"zoom"/"end" plus haut) et la vitesse mesurée pendant.
+    let gesture: { drag: boolean; k: number } | null = null;
+    const tracker = new PanVelocityTracker();
+    let inertiaStepping = false;
     // d3-zoom garde le geste en cours sur l'élément (`__zooming`, avec les doigts posés). Un comportement rattaché en
     // plein toucher (la hauteur du graphique change quand la barre d'adresse d'un mobile apparaît ou disparaît) ou un
     // toucher dont la fin s'est perdue laissait ce geste orphelin : chaque nouveau doigt devenait le « deuxième » d'un
@@ -169,6 +236,7 @@ export function useD3Zoom<T extends Element>({
     selection.property("__zoom", lastTransformRef.current);
 
     return () => {
+      stopInertia();
       el.removeEventListener("touchstart", freshTouch as EventListener, { capture: true });
       selection.on(".zoom", null);
       delete (el as unknown as { __zooming?: unknown }).__zooming;
@@ -177,6 +245,7 @@ export function useD3Zoom<T extends Element>({
   }, [enabled, width, height, scaleMin, scaleMax, mountTick, ref]);
 
   function setTransformAnimated(t: d3.ZoomTransform, duration = 250) {
+    stopInertia();
     const el = ref.current;
     const behavior = behaviorRef.current;
     if (el && behavior) {
@@ -210,6 +279,7 @@ export function useD3Zoom<T extends Element>({
     ref,
     reset: () => setTransformAnimated(d3.zoomIdentity),
     setTransform: (t: d3.ZoomTransform) => {
+      stopInertia();
       const el = ref.current;
       const behavior = behaviorRef.current;
       if (el && behavior) {

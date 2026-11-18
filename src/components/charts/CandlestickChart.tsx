@@ -2399,6 +2399,26 @@ function CandlestickChartBody({
   const { candle: ohlcCandle, delta: ohlcDelta, deltaPct: ohlcDeltaPct, sign: ohlcSign } = computeOhlcReadout(data, effectiveHoverIndex);
   // Ligne d'état : valeur(s) d'un indicateur à la bougie que montre la légende (réglage « Valeurs des indicateurs »).
   const legendValueIndex = effectiveHoverIndex ?? data.length - 1;
+  // Glisser-déposer dans la légende des prix : le nouvel ordre des lignes. Seuls les indicateurs de la liste du graphique
+  // (pas les sorties de scripts, recréées à chaque exécution) changent de place, dans les emplacements qu'ils occupaient
+  // déjà (les autres indicateurs ne bougent pas). Leur couleur par défaut dépend de leur rang : elle est figée à celle
+  // qu'ils avaient, pour qu'un déplacement ne repeigne pas les courbes.
+  const reorderLegendIndicators = (orderedIds: string[]) => {
+    const movable = new Set(orderedIds.filter((id) => indicators.some((ind) => ind.id === id)));
+    if (movable.size < 2) return;
+    const queue = orderedIds
+      .filter((id) => movable.has(id))
+      .map((id) => {
+        const index = indicators.findIndex((ind) => ind.id === id);
+        const ind = indicators[index]!;
+        return ind.color ? ind : { ...ind, color: defaultIndicatorColor(index) };
+      });
+    let k = 0;
+    const next = indicators.map((ind) => (movable.has(ind.id) ? queue[k++]! : ind));
+    if (next.every((ind, i) => ind.id === indicators[i]!.id)) return;
+    commitIndicators(next);
+  };
+  const reorderableLegendIds = new Set(indicators.map((ind) => ind.id));
   // La légende des prix : les indicateurs tracés sur les prix, puis les séries de panneau affichées sur les prix.
   // Un indicateur indisponible pour le symbole affiché (réservé aux actions sur un indice…) ne figure pas dans la liste :
   // il y revient dès qu'on passe sur un symbole où il fonctionne.
@@ -2697,6 +2717,8 @@ function CandlestickChartBody({
             pFmt={pFmt}
             showIndicators={showIndicators}
             overlayIndicators={legendOverlayIndicators}
+            onReorderIndicators={reorderLegendIndicators}
+            reorderableIndicatorIds={reorderableLegendIds}
             legendCollapsed={legendCollapsed.price === true}
             onToggleLegendCollapsed={() => toggleLegendCollapsed("price")}
             indicators={combinedIndicators}

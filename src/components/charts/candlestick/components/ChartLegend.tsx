@@ -5,7 +5,8 @@ import type { IndicatorInfoTarget } from "../interfaces/IndicatorInfoTarget.inte
 import { IndicatorHelpButton, useOpenIndicatorHelp } from "./IndicatorHelp";
 import { hasIndicatorHelp } from "../indicatorHelp";
 import { scriptIdFromIndicatorId, infoTargetFor } from "../scripting/scriptOutputToCustomIndicatorDef";
-import type { Dispatch, ReactNode, SetStateAction } from "react";
+import type { Dispatch, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, ReactNode, SetStateAction } from "react";
+import { useLegendIndicatorDrag } from "../hooks/useLegendIndicatorDrag";
 import { useMemo, useRef, useState } from "react";
 import { Popover } from "../../../forms/Popover";
 import { ActivityIcon, CodeIcon, CopyIcon, EyeIcon, EyeOffIcon, TrashIcon, SettingsIcon, AlarmClockIcon, ChevronUpIcon, ChevronDownIcon, CursorArrowIcon, MoreHorizontalIcon, InfoIcon } from "../../../icons";
@@ -78,6 +79,10 @@ export interface ChartLegendProps {
   pFmt: (value: number) => string;
   showIndicators: boolean;
   overlayIndicators: Indicator[];
+  /** Glisser-déposer d'une ligne d'indicateur dans la liste : l'ordre voulu (ids des lignes, de haut en bas). Absent :
+   *  pas de glisser. Seules les lignes de `reorderableIndicatorIds` se déplacent. */
+  onReorderIndicators?: (orderedIds: string[]) => void;
+  reorderableIndicatorIds?: ReadonlySet<string>;
   /** Liste des indicateurs repliée (chevron « ‹ » sous la liste) : il ne reste qu'un bouton « › N » qui la redéplie ; le
    *  symbole et l'OHLC restent. Contrôlé par le graphique, qui le garde avec la disposition des panneaux. Absent : la
    *  légende le tient elle-même. */
@@ -197,8 +202,17 @@ export function ChartLegend({
   removeSymbolOverlay,
   onReplaceOverlaySymbol,
   onOpenIndicatorInfo,
+  onReorderIndicators,
+  reorderableIndicatorIds,
 }: ChartLegendProps) {
   const infoAction = useIndicatorInfoAction(onOpenIndicatorInfo);
+  // Glisser-déposer des lignes d'indicateurs, comme les symboles de la liste de surveillance : la ligne saisie suit le
+  // pointeur (au-delà de quelques pixels : un simple clic reste un clic), un trait montre où elle tombera, l'ordre ne
+  // change qu'au relâchement.
+  const legendDrag = useLegendIndicatorDrag(
+    overlayIndicators.filter((ind) => reorderableIndicatorIds?.has(ind.id) ?? false).map((ind) => ind.id),
+    onReorderIndicators,
+  );
   const lineModeEntry = CHART_DISPLAY_MODES.find((m) => m.mode === "line")!;
   // Symbole comparé dont la fenêtre « Mode d'affichage » est ouverte (clic sur son mode dans la légende).
   const [modeFor, setModeFor] = useState<string | null>(null);
@@ -493,16 +507,32 @@ export function ChartLegend({
               </button>
             );
           }
+          const reorderable = legendDrag.enabled && (reorderableIndicatorIds?.has(indicator.id) ?? false);
+          const dragged = legendDrag.draggingId === indicator.id;
           return (
           <div
             key={indicator.id}
             className={[
               "lq-chart__indicator-legend-item",
               hoveredIndicatorId === indicator.id && "lq-chart__indicator-legend-item--hovered",
+              reorderable && "lq-chart__indicator-legend-item--reorderable",
+              dragged && "lq-chart__indicator-legend-item--dragging",
+              legendDrag.dropBeforeId === indicator.id && "lq-chart__indicator-legend-item--drop-before",
+              legendDrag.dropAfterId === indicator.id && "lq-chart__indicator-legend-item--drop-after",
             ]
               .filter(Boolean)
               .join(" ")}
-            style={{ color: indicator.color ?? defaultIndicatorColor(i) }}
+            style={{ color: indicator.color ?? defaultIndicatorColor(i), ...(dragged ? { transform: `translateY(${legendDrag.offsetY}px)` } : {}) }}
+            {...(reorderable
+              ? {
+                  "data-legend-indicator-id": indicator.id,
+                  onPointerDown: (e: ReactPointerEvent<HTMLDivElement>) => legendDrag.start(indicator.id, e),
+                  onClickCapture: (e: ReactMouseEvent) => {
+                    if (legendDrag.suppressClickRef.current) e.stopPropagation();
+                  },
+                  title: "Glisser pour réordonner · double-clic : paramètres",
+                }
+              : {})}
             onDoubleClick={() => openIndicatorSettings(indicator.id)}
             onMouseEnter={() => setHoveredIndicatorId(indicator.id)}
             onMouseLeave={() => setHoveredIndicatorId((id) => (id === indicator.id ? null : id))}

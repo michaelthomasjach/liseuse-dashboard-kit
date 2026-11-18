@@ -2333,6 +2333,43 @@ button.lq-chart__legend-item {
   background-color: var(--lq-color-panel);
 }
 
+/* Glisser-déposer des lignes d'indicateurs (useLegendIndicatorDrag), comme les symboles de la liste de surveillance :
+   la ligne saisie se soulève et suit le pointeur, un trait d'accent marque l'endroit où elle tombera. */
+.lq-chart__indicator-legend-item--reorderable {
+  position: relative;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.lq-chart__indicator-legend-item--dragging {
+  z-index: 3;
+  cursor: grabbing;
+  background-color: var(--lq-color-panel);
+  border-color: currentColor;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.08), 0 8px 24px rgb(0 0 0 / 0.18);
+}
+
+.lq-chart__indicator-legend-item--drop-before::before,
+.lq-chart__indicator-legend-item--drop-after::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  border-radius: 1px;
+  background-color: var(--lq-color-accent);
+  pointer-events: none;
+}
+
+.lq-chart__indicator-legend-item--drop-before::before {
+  top: -3px;
+}
+
+.lq-chart__indicator-legend-item--drop-after::after {
+  bottom: -3px;
+}
+
 .lq-chart__indicator-legend-label {
   color: inherit;
 }

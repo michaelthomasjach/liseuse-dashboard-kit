@@ -889,6 +889,10 @@ export function IndicatorSettingsStyle({ indicatorDraft: d, setIndicatorDraft, i
   if (d.customData?.dock === "left" || d.customData?.dock === "right") {
     check("axes", "Axes (prix et dates)", d.sideAxesVisible ?? true, (c) => set({ sideAxesVisible: c }));
   }
+  // Survol d'un autre panneau (ou du graphique des prix) : lignes horizontales et étiquettes de valeur synchronisées
+  // dans ce panneau, à couper ici. Son propre réticule, quand on le survole lui, reste.
+  if (ownPane && !d.sourceId)
+    check("hoversync", "Lignes et étiquettes de survol venant des autres panneaux", d.hoverSync !== false, (c) => set({ hoverSync: c ? undefined : false }));
   // Filigrane du panneau (pas sur les prix, dont le filigrane est le symbole) ni sur une moyenne posée sur un panneau.
   if (ownPane && !d.sourceId) display.push(<IndicatorWatermarkField key="wm" indicatorDraft={d} setIndicatorDraft={setIndicatorDraft} />);
 

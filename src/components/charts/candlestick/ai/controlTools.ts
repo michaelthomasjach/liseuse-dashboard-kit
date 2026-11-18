@@ -458,7 +458,7 @@ const ENUM_FIELDS: Record<string, readonly string[]> = {
   expVolTimeframe: ["chart", "15m", "30m", "1h", "4h", "1d"],
 };
 const BOOLEAN_FIELDS = new Set([
-  "macdShowHistogram", "zigzagShowLabels", "pivotShowLastOnly", "chandelierUseClose", "chandelierShowLabels", "chandelierHighlightState",
+  "macdShowHistogram", "hoverSync", "zigzagShowLabels", "pivotShowLastOnly", "chandelierUseClose", "chandelierShowLabels", "chandelierHighlightState",
   "tpoSplitByBlocks", "atrAsPercent", "legendHidden", "projection", "hidden", "macdCrossColors", "zoneShowLabels", "zoneShowMarkers",
   "paneCollapsed", "priceOverlay", "sideAxesVisible", "expVolShowLow", "expVolShowSma", "expVolShowLabels", "expVolShowMedian",
   "rangeShowProbable", "rangeShowLabels", "rangeShowMidline", "srbShowLabels", "srbShowFactors", "rsiZonesEnabled",

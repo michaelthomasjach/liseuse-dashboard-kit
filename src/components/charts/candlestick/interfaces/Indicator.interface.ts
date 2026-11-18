@@ -346,6 +346,9 @@ export interface Indicator {
   macdCrossColors?: boolean;
   macdLineAboveColor?: string;
   macdLineBelowColor?: string;
+  /** Indicateur d'un panneau : `false` coupe les lignes horizontales et les étiquettes de valeur que ce panneau affiche
+   *  quand le pointeur survole un autre panneau ou le graphique des prix (survol synchronisé). Absent : affichées. */
+  hoverSync?: boolean;
   /** MACD : couleur (opacité comprise) et épaisseur de la ligne de signal. Absentes : la couleur atténuée du thème, 1 px. */
   macdSignalColor?: string;
   macdSignalWidth?: number;

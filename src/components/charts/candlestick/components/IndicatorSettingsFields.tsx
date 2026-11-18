@@ -13,6 +13,9 @@ import { DONCHIAN_LINE_KEYS, DONCHIAN_LINE_LABELS, DONCHIAN_LINE_DEFAULTS, DONCH
 import type { DonchianLineKey, IndicatorLineStyle } from "../interfaces/IndicatorLineStyle.interface";
 import { isRsiKind, resolveRsiZoneLine, rsiZonesActive, RSI_ZONE_LINE_DEFAULTS, RSI_ZONE_LINE_KEYS, RSI_ZONE_LINE_LABELS, RSI_ZONES_DEFAULT_PEAKS } from "../rsiZones";
 import type { RsiZoneLineKey, RsiZoneLineStyle } from "../interfaces/RsiZoneLine.interface";
+import { MACD_ZONE_LINE_DEFAULTS, MACD_ZONE_LINE_KEYS, MACD_ZONE_LINE_LABELS, MACD_ZONES_DEFAULT_PEAKS, macdZonesActive, resolveMacdZoneLine } from "../macdZones";
+import type { MacdZoneLineKey } from "../interfaces/MacdZoneLine.interface";
+import { DIVERGENCE_DEFAULTS as DIV, divergencesActive, supportsDivergences } from "../divergences";
 import { Select, type SelectOption } from "../../../forms/Select";
 import type { Indicator } from "../interfaces/Indicator.interface";
 import { indicatorCatalogEntry, indicatorLabel, isFundamentalKind, defaultIndicatorColor, RSI_LEVEL_COLOR, RSI_MIDDLE_COLOR } from "../indicatorCatalog";
@@ -176,8 +179,31 @@ export function IndicatorSettingsInputs({ indicatorDraft: d, setIndicatorDraft, 
     calc.push(
       <NumberSetting key="fast" label="Moyenne rapide" suffix="bougies" min={1} max={200} value={d.fastPeriod} def={12} onSet={(v) => set({ fastPeriod: v })} />,
       <NumberSetting key="slow" label="Moyenne lente" suffix="bougies" min={1} max={400} value={d.slowPeriod} def={26} onSet={(v) => set({ slowPeriod: v })} />,
-      <NumberSetting key="signal" label="Signal" suffix="bougies" min={1} max={200} value={d.signalPeriod} def={9} onSet={(v) => set({ signalPeriod: v })} />
+      <NumberSetting key="signal" label="Signal" suffix="bougies" min={1} max={200} value={d.signalPeriod} def={9} onSet={(v) => set({ signalPeriod: v })} />,
+      // Pendant des lignes de zones du RSI : moyenne et extrême des derniers pics (au-dessus de 0) et creux (en dessous).
+      <SettingCheckRow key="mzon">
+        <Checkbox
+          label="Lignes des plus hauts, des plus bas et de leur moyenne (derniers pics au-dessus de 0 et creux en dessous)"
+          checked={d.macdZonesEnabled === true}
+          onChange={(checked) => set({ macdZonesEnabled: checked ? true : undefined })}
+        />
+      </SettingCheckRow>
     );
+    if (d.macdZonesEnabled === true) {
+      calc.push(
+        <NumberSetting
+          key="mzl"
+          label="Nombre de pics pris en compte"
+          suffix="pics"
+          min={1}
+          max={500}
+          value={d.macdZonesPeaks}
+          def={MACD_ZONES_DEFAULT_PEAKS}
+          hint="Les derniers passages de la ligne MACD au-dessus de 0 (leur plus haut) et sous 0 (leur plus bas) dont on prend la moyenne et l'extrême."
+          onSet={(v) => set({ macdZonesPeaks: v })}
+        />
+      );
+    }
   }
   if (d.kind === "zigzag") {
     calc.push(<NumberSetting key="zz" label="Déviation" suffix="%" min={0.5} max={50} step={0.5} value={d.zigzagDeviation} def={5} onSet={(v) => set({ zigzagDeviation: v })} />);
@@ -349,8 +375,72 @@ export function IndicatorSettingsInputs({ indicatorDraft: d, setIndicatorDraft, 
     );
   }
 
+  // Divergences (RSI, MACD) : la détection ; couleurs et affichage dans l'onglet Style.
+  const divergence: ReactNode[] = [];
+  if (supportsDivergences(d)) {
+    divergence.push(
+      <SettingCheckRow key="div">
+        <Checkbox label="Afficher les divergences haussières et baissières" checked={d.divergences === true} onChange={(checked) => set({ divergences: checked ? true : undefined })} />
+      </SettingCheckRow>
+    );
+    if (d.divergences === true) {
+      divergence.push(
+        <SettingCheckRow key="divh">
+          <Checkbox
+            label="Divergences cachées aussi (continuation de tendance)"
+            checked={d.divergenceHidden === true}
+            onChange={(checked) => set({ divergenceHidden: checked ? true : undefined })}
+          />
+        </SettingCheckRow>,
+        <NumberSetting
+          key="divl"
+          label="Pivot : bougies à gauche"
+          suffix="bougies"
+          min={1}
+          max={50}
+          value={d.divergencePivotLeft}
+          def={DIV.pivotLeft}
+          hint="Un sommet de l'indicateur doit dépasser ce nombre de bougies avant lui (un creux, être sous elles)."
+          onSet={(v) => set({ divergencePivotLeft: v })}
+        />,
+        <NumberSetting
+          key="divr"
+          label="Pivot : bougies à droite"
+          suffix="bougies"
+          min={1}
+          max={50}
+          value={d.divergencePivotRight}
+          def={DIV.pivotRight}
+          hint="Et ce nombre de bougies après lui : une divergence n'apparaît qu'une fois ces bougies passées, puis ne bouge plus."
+          onSet={(v) => set({ divergencePivotRight: v })}
+        />,
+        <NumberSetting
+          key="divmin"
+          label="Écart minimal entre deux pivots"
+          suffix="bougies"
+          min={1}
+          max={500}
+          value={d.divergenceMinBars}
+          def={DIV.minBars}
+          onSet={(v) => set({ divergenceMinBars: v })}
+        />,
+        <NumberSetting
+          key="divmax"
+          label="Écart maximal entre deux pivots"
+          suffix="bougies"
+          min={2}
+          max={500}
+          value={d.divergenceMaxBars}
+          def={DIV.maxBars}
+          hint="Deux pivots plus éloignés ne sont pas comparés."
+          onSet={(v) => set({ divergenceMaxBars: v })}
+        />
+      );
+    }
+  }
+
   const projection = supportsProjection(d);
-  if (calc.length === 0 && thresholds.length === 0 && !projection && !leading) {
+  if (calc.length === 0 && thresholds.length === 0 && divergence.length === 0 && !projection && !leading) {
     return <p className="lq-ind-settings__empty">Cet indicateur n&apos;a pas de paramètres de calcul.</p>;
   }
 
@@ -360,6 +450,14 @@ export function IndicatorSettingsInputs({ indicatorDraft: d, setIndicatorDraft, 
       {emptyText && !leading && calc.length === 0 && thresholds.length === 0 && !projection && <p className="lq-ind-settings__empty">{emptyText}</p>}
       {calc.length > 0 && <SettingsSection title="Calcul">{calc}</SettingsSection>}
       {thresholds.length > 0 && <SettingsSection title="Seuils">{thresholds}</SettingsSection>}
+      {divergence.length > 0 && (
+        <SettingsSection
+          title="Divergences"
+          help={`Baissière : le prix fait un plus haut plus haut quand ${d.kind === "macd" ? "la ligne MACD" : "le RSI"} fait un sommet plus bas ; haussière : le prix fait un plus bas plus bas quand ${d.kind === "macd" ? "elle" : "il"} fait un creux plus haut. Comparées entre deux pivots de l'indicateur, tracées dans le panneau et sur les prix.`}
+        >
+          {divergence}
+        </SettingsSection>
+      )}
       {/* Projection. Last on purpose: it does not describe the indicator, it describes a guess about where the
           indicator is going. Only for the kinds whose values are a level that continues — see `supportsProjection`. */}
       {projection && <ProjectionSection indicatorDraft={d} set={set} />}
@@ -687,6 +785,20 @@ export function IndicatorSettingsStyle({ indicatorDraft: d, setIndicatorDraft, i
       />
     );
   }
+  if (divergencesActive(d)) {
+    // Divergences : une couleur par sens (opacité comprise), une épaisseur commune.
+    const thickness = { thickness: d.divergenceLineWidth ?? DIV.lineWidth, onThicknessChange: (w: number) => set({ divergenceLineWidth: w }) };
+    trace.push(
+      <TraceRow
+        key="div"
+        name="Divergences"
+        colors={[
+          { label: "Haussière", value: d.divergenceBullColor ?? DIV.bullColor, onChange: (c) => set({ divergenceBullColor: c }), ...thickness },
+          { label: "Baissière", value: d.divergenceBearColor ?? DIV.bearColor, onChange: (c) => set({ divergenceBearColor: c }), ...thickness },
+        ]}
+      />
+    );
+  }
   if (d.kind === "adx") {
     trace.push(
       <TraceRow
@@ -762,6 +874,10 @@ export function IndicatorSettingsStyle({ indicatorDraft: d, setIndicatorDraft, i
     check("rdlbl", "Libellés des zones (état, score, cassure)", d.rangeShowLabels ?? RD.showLabels, (c) => set({ rangeShowLabels: c }));
     check("rdmid", "Ligne médiane des zones", d.rangeShowMidline ?? RD.showMidline, (c) => set({ rangeShowMidline: c }));
   }
+  if (divergencesActive(d)) {
+    check("divp", "Divergences aussi sur le graphique des prix", d.divergenceOnPrice ?? DIV.onPrice, (c) => set({ divergenceOnPrice: c }));
+    check("divlbl", "Étiquettes des divergences (H haussière, B baissière)", d.divergenceShowLabels ?? DIV.showLabels, (c) => set({ divergenceShowLabels: c }));
+  }
   if (d.kind === "pivotPoints") check("piv", "Dernier pivot seulement", d.pivotShowLastOnly ?? false, (c) => set({ pivotShowLastOnly: c }));
   if (d.kind === "tpo") check("tpos", "Séparer les blocs", d.tpoSplitByBlocks ?? true, (c) => set({ tpoSplitByBlocks: c }));
   if (d.customData?.draw === "boxes") check("zl", "Libellé des rectangles", d.zoneShowLabels ?? true, (c) => set({ zoneShowLabels: c }));
@@ -785,6 +901,7 @@ export function IndicatorSettingsStyle({ indicatorDraft: d, setIndicatorDraft, i
         {traceSettings}
       </SettingsSection>
       {rsiZonesActive(d) && <RsiZoneLinesSection indicatorDraft={d} set={set} />}
+      {macdZonesActive(d) && <MacdZoneLinesSection indicatorDraft={d} set={set} />}
       {d.kind === "donchian" && <DonchianStyleSection indicatorDraft={d} set={set} />}
       {(ownPane || d.kind === "atr") && (
         <SettingsSection title="Valeurs">
@@ -826,12 +943,53 @@ const LINE_STYLE_OPTIONS: SelectOption<"solid" | "dashed" | "dotted">[] = [
 /** « Lignes des zones » d'un « rsiZones » : pour chacune des quatre lignes (moyenne et maximum de la survente et du
  *  surachat), affichée ou non, couleur et épaisseur, style et opacité. Enregistré avec l'indicateur. */
 function RsiZoneLinesSection({ indicatorDraft: d, set }: { indicatorDraft: Indicator; set: (patch: Partial<Indicator>) => void }) {
-  const patch = (key: RsiZoneLineKey, p: RsiZoneLineStyle) => set({ rsiZoneLines: { ...d.rsiZoneLines, [key]: { ...d.rsiZoneLines?.[key], ...p } } });
   return (
-    <SettingsSection title="Lignes des zones">
-      {RSI_ZONE_LINE_KEYS.map((key) => {
-        const line = resolveRsiZoneLine(d, key);
-        const name = RSI_ZONE_LINE_LABELS[key].name;
+    <LevelLinesSection
+      title="Lignes des zones"
+      keys={RSI_ZONE_LINE_KEYS}
+      resolve={(key) => resolveRsiZoneLine(d, key)}
+      name={(key) => RSI_ZONE_LINE_LABELS[key].name}
+      defaultOpacity={(key) => RSI_ZONE_LINE_DEFAULTS[key].opacity}
+      patch={(key: RsiZoneLineKey, p: RsiZoneLineStyle) => set({ rsiZoneLines: { ...d.rsiZoneLines, [key]: { ...d.rsiZoneLines?.[key], ...p } } })}
+    />
+  );
+}
+
+/** « Lignes des pics et des creux » d'un MACD (option `macdZonesEnabled`) : mêmes réglages que celles du RSI. */
+function MacdZoneLinesSection({ indicatorDraft: d, set }: { indicatorDraft: Indicator; set: (patch: Partial<Indicator>) => void }) {
+  return (
+    <LevelLinesSection
+      title="Lignes des pics et des creux"
+      keys={MACD_ZONE_LINE_KEYS}
+      resolve={(key) => resolveMacdZoneLine(d, key)}
+      name={(key) => MACD_ZONE_LINE_LABELS[key].name}
+      defaultOpacity={(key) => MACD_ZONE_LINE_DEFAULTS[key].opacity}
+      patch={(key: MacdZoneLineKey, p: IndicatorLineStyle) => set({ macdZoneLines: { ...d.macdZoneLines, [key]: { ...d.macdZoneLines?.[key], ...p } } })}
+    />
+  );
+}
+
+/** Une série de lignes de niveau : pour chacune, affichée ou non, couleur et épaisseur, style et opacité. */
+function LevelLinesSection<K extends string>({
+  title,
+  keys,
+  resolve,
+  name: nameOf,
+  defaultOpacity,
+  patch,
+}: {
+  title: string;
+  keys: readonly K[];
+  resolve: (key: K) => Required<IndicatorLineStyle>;
+  name: (key: K) => string;
+  defaultOpacity: (key: K) => number;
+  patch: (key: K, p: IndicatorLineStyle) => void;
+}) {
+  return (
+    <SettingsSection title={title}>
+      {keys.map((key) => {
+        const line = resolve(key);
+        const name = nameOf(key);
         return (
           <Fragment key={key}>
             <div className="lq-ind-settings__trace" role="table" aria-label={name}>
@@ -842,7 +1000,7 @@ function RsiZoneLinesSection({ indicatorDraft: d, set }: { indicatorDraft: Indic
               />
             </div>
             <SelectSetting label="Style de la ligne" value={line.lineStyle} options={LINE_STYLE_OPTIONS} onChange={(v) => patch(key, { lineStyle: v })} />
-            <NumberSetting label="Opacité de la ligne" suffix="%" min={0} max={100} value={line.opacity} def={RSI_ZONE_LINE_DEFAULTS[key].opacity} onSet={(v) => patch(key, { opacity: v })} />
+            <NumberSetting label="Opacité de la ligne" suffix="%" min={0} max={100} value={line.opacity} def={defaultOpacity(key)} onSet={(v) => patch(key, { opacity: v })} />
           </Fragment>
         );
       })}

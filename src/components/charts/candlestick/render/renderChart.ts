@@ -8,6 +8,7 @@ import { drawFutureZone, drawPastZone } from "./drawFutureZone";
 import { drawScriptHeatmaps } from "./drawScriptHeatmaps";
 import { drawPriceCandles } from "./drawPriceCandles";
 import { drawPriceDrawings } from "./drawPriceDrawings";
+import { drawPriceDivergences } from "./drawPriceDivergences";
 import { drawVolumeAndPanes } from "./drawVolumeAndPanes";
 import { drawIndicatorProjections } from "./drawIndicatorProjections";
 import { drawReplayMask } from "./drawReplayMask";
@@ -85,6 +86,8 @@ export function renderCandlestickChart(canvas: HTMLCanvasElement, wrapper: HTMLE
   // it would be a curtain across the very thing it exists to give context to.
   drawScriptHeatmaps(ctx, params);
   drawPriceCandles(ctx, params, style);
+  // Divergences d'un RSI ou d'un MACD, reportées sur les prix : par-dessus les bougies, sous les dessins.
+  drawPriceDivergences(ctx, params, style);
   // Replay : les dessins sont peints APRÈS le masque (plus bas), pour rester visibles dans le futur masqué.
   if (!params.replayActive) drawPriceDrawings(ctx, params, style);
   // Alertes de prix de l'application : au-dessus des bougies et des dessins.

@@ -127,7 +127,7 @@ export function drawPaneSeriesOnPrice(ctx: CanvasRenderingContext2D, params: Ren
     const pane: StyleRulePane = { members: [entry, ...attached], xAt: zoomedXScale, yAt: scale, candleWidth, height: priceHeight, ringColor: style.colorBg };
     drawIndicatorStyleRules(ctx, pane, "under");
     ctx.save();
-    drawOwnPaneIndicatorSeries(ctx, entry.indicator, entry.points, zoomedXScale, candleWidth, dims.boundedWidth, indicators, scale, style, entry.rsiZoneLevels);
+    drawOwnPaneIndicatorSeries(ctx, entry.indicator, entry.points, zoomedXScale, candleWidth, dims.boundedWidth, indicators, scale, style, entry);
     ctx.restore();
     ctx.save();
     drawAttachedLines(ctx, attached, zoomedXScale, scale, indicators);

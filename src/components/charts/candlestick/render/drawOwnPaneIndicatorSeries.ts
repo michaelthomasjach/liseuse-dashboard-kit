@@ -9,6 +9,11 @@ import { defaultIndicatorColor, isFundamentalKind, RSI_LEVEL_COLOR, RSI_MIDDLE_C
 import { applyLineStyle } from "./drawPriceCandles";
 import { strokeCrossColoredLine } from "./strokeCrossColoredLine";
 import { isRsiKind, resolveRsiZoneLine, RSI_ZONE_LINE_KEYS, RSI_ZONE_LINE_LABELS, type RsiZoneLevels } from "../rsiZones";
+import { MACD_ZONE_LINE_KEYS, MACD_ZONE_LINE_LABELS, resolveMacdZoneLine } from "../macdZones";
+import { drawDivergenceSegments } from "../divergences";
+import { formatCompactNumber, formatPlainNumber, valueFormatter } from "../formatting";
+import type { IndicatorPaneExtras } from "../interfaces/IndicatorPaneExtras.interface";
+import type { IndicatorLineStyle } from "../interfaces/IndicatorLineStyle.interface";
 
 /** One "own"-pane indicator's own series (RSI/CHOP/MACD/ADX/correlation/a fundamental/a
  *  `plot.pane`-produced custom line/area/histogram/band/multi pane), drawn into whatever clipped
@@ -32,11 +37,32 @@ export function drawOwnPaneIndicatorSeries(
   indicators: Indicator[],
   scale: ScaleLinear<number, number>,
   style: ChartCanvasStyle,
-  /** Indicateur « rsiZones » : ses quatre lignes, relevées par l'appelant sur toute la série (voir rsiZones.ts). */
-  rsiZoneLevels?: RsiZoneLevels | null
+  /** Relevé par l'appelant sur toute la série : les lignes de zones d'un RSI, les lignes des pics et des creux d'un
+   *  MACD, les divergences (voir IndicatorPaneExtras). */
+  extras?: IndicatorPaneExtras | null
 ) {
   // Masqué (œil ou menu « … » de son en-tête) : le panneau reste, vide, avec son en-tête pour le réafficher.
   if (ind.hidden === true) return;
+  drawOwnPaneSeries(ctx, ind, points, zoomedXScale, candleWidth, width, indicators, scale, style, extras);
+  // Les divergences par-dessus la courbe : leurs pivots sont sur elle.
+  if (extras?.divergences && extras.divergences.length > 0) {
+    drawDivergenceSegments(ctx, extras.divergences, ind, zoomedXScale, (d, which) => scale(which === 1 ? d.v1 : d.v2), width, style);
+  }
+}
+
+function drawOwnPaneSeries(
+  ctx: CanvasRenderingContext2D,
+  ind: Indicator,
+  points: { i: number; value: IndicatorValue }[],
+  zoomedXScale: (i: number) => number,
+  candleWidth: number,
+  width: number,
+  indicators: Indicator[],
+  scale: ScaleLinear<number, number>,
+  style: ChartCanvasStyle,
+  extras: IndicatorPaneExtras | null | undefined
+) {
+  const rsiZoneLevels = extras?.rsiZoneLevels;
   const { colorUp, colorDown, colorText, colorGrid, isEink } = style;
   const color = ind.color ?? defaultIndicatorColor(indicators.indexOf(ind));
   // Les couleurs conditionnelles (onglet Style) sont peintes par l'appelant, qui connaît aussi les indicateurs posés sur
@@ -141,6 +167,26 @@ export function drawOwnPaneIndicatorSeries(
         ctx.fillRect(x - candleWidth / 2, Math.min(y, zeroY), Math.max(candleWidth, 1), Math.abs(y - zeroY));
       }
       ctx.globalAlpha = 1;
+    }
+    // Lignes des pics et des creux : sous les courbes, comme celles des zones du RSI.
+    if (extras?.macdZoneLevels) {
+      const levels = extras.macdZoneLevels;
+      const fmt = valueFormatter(ind.valueFormat) ?? ((v: number) => formatCompactNumber(v, formatPlainNumber));
+      drawZoneLines(
+        ctx,
+        MACD_ZONE_LINE_KEYS.map((key) => ({
+          value: levels[key],
+          line: resolveMacdZoneLine(ind, key),
+          label: MACD_ZONE_LINE_LABELS[key].short,
+          // Les libellés des pics au-dessus de leur ligne, ceux des creux en dessous : loin de zéro, où les deux
+          // moyennes se rapprochent souvent.
+          outside: key === "peakMax" || key === "peakMean",
+        })),
+        scale,
+        width,
+        style,
+        fmt
+      );
     }
 
     ctx.strokeStyle = color;
@@ -437,12 +483,38 @@ function drawRsiZoneLines(
   width: number,
   style: ChartCanvasStyle
 ) {
+  drawZoneLines(
+    ctx,
+    RSI_ZONE_LINE_KEYS.map((key) => ({
+      value: levels[key],
+      line: resolveRsiZoneLine(ind, key),
+      label: RSI_ZONE_LINE_LABELS[key].short,
+      outside: key === "overboughtExtreme" || key === "oversoldMean",
+    })),
+    scale,
+    width,
+    style,
+    (v) => v.toFixed(1)
+  );
+}
+
+/** Des lignes horizontales de niveau (zones du RSI, pics et creux du MACD), de haut en bas, chacune avec son libellé et
+ *  sa valeur écrits à droite. `outside` : le libellé au-dessus de la ligne, sinon en dessous ; deux libellés qui se
+ *  chevaucheraient (lignes très proches) s'écrivent côte à côte. */
+function drawZoneLines(
+  ctx: CanvasRenderingContext2D,
+  lines: { value: number | null; line: Required<IndicatorLineStyle>; label: string; outside: boolean }[],
+  scale: ScaleLinear<number, number>,
+  width: number,
+  style: ChartCanvasStyle,
+  format: (value: number) => string
+) {
   ctx.save();
   ctx.font = `600 10px ${style.fontFamily}`;
-  for (const key of RSI_ZONE_LINE_KEYS) {
-    const value = levels[key];
+  // Les libellés déjà écrits : un libellé qui en chevaucherait un (deux lignes très proches) se décale à sa gauche.
+  const placed: { left: number; right: number; top: number; bottom: number }[] = [];
+  for (const { value, line, label, outside } of lines) {
     if (value === null) continue;
-    const line = resolveRsiZoneLine(ind, key);
     if (!line.show || line.opacity <= 0) continue;
     const y = scale(value);
     if (!Number.isFinite(y)) continue;
@@ -455,16 +527,26 @@ function drawRsiZoneLines(
     ctx.moveTo(0, y);
     ctx.lineTo(width, y);
     ctx.stroke();
-    // À droite (la légende du panneau occupe la gauche), du côté extérieur de la ligne : au-dessus du maximum de surachat
-    // et de la moyenne de survente, en dessous des deux autres — les deux libellés d'une zone ne se recouvrent jamais.
+    // À droite (la légende du panneau occupe la gauche), du côté demandé — pour le RSI, au-dessus du maximum de surachat
+    // et de la moyenne de survente, en dessous des deux autres : les deux libellés d'une zone ne se recouvrent pas.
     // Pas la place au bord du panneau (ligne collée en haut ou en bas) : de l'autre côté de la ligne.
     const [r0, r1] = scale.range();
-    const outside = key === "overboughtExtreme" || key === "oversoldMean";
     const above = outside ? y - 14 >= Math.min(r0, r1) : y + 14 > Math.max(r0, r1);
     ctx.textBaseline = above ? "bottom" : "top";
     ctx.textAlign = "right";
     ctx.fillStyle = color;
-    ctx.fillText(`${RSI_ZONE_LINE_LABELS[key].short} ${value.toFixed(1)}`, width - 6, above ? y - 2 : y + 2);
+    const text = `${label} ${format(value)}`;
+    const textWidth = ctx.measureText(text).width;
+    const top = above ? y - 14 : y + 2;
+    const bottom = top + 12;
+    let right = width - 6;
+    for (let guard = 0; guard < placed.length; guard++) {
+      const hit = placed.find((b) => top < b.bottom && bottom > b.top && right - textWidth < b.right && right > b.left);
+      if (!hit) break;
+      right = hit.left - 10;
+    }
+    placed.push({ left: right - textWidth, right, top, bottom });
+    ctx.fillText(text, right, above ? y - 2 : y + 2);
   }
   ctx.restore();
 }

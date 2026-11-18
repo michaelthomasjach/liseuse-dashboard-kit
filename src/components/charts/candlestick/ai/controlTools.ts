@@ -462,8 +462,9 @@ const BOOLEAN_FIELDS = new Set([
   "tpoSplitByBlocks", "atrAsPercent", "legendHidden", "projection", "hidden", "macdCrossColors", "zoneShowLabels", "zoneShowMarkers",
   "paneCollapsed", "priceOverlay", "sideAxesVisible", "expVolShowLow", "expVolShowSma", "expVolShowLabels", "expVolShowMedian",
   "rangeShowProbable", "rangeShowLabels", "rangeShowMidline", "srbShowLabels", "srbShowFactors", "rsiZonesEnabled",
+  "macdZonesEnabled", "divergences", "divergenceHidden", "divergenceOnPrice", "divergenceShowLabels",
 ]);
-const OBJECT_FIELDS = new Set(["seriesColors", "watermark", "valueFormat", "seriesCross", "rsiZoneLines", "donchianLines", "donchianBackground"]);
+const OBJECT_FIELDS = new Set(["seriesColors", "watermark", "valueFormat", "seriesCross", "rsiZoneLines", "macdZoneLines", "donchianLines", "donchianBackground"]);
 const ARRAY_FIELDS = new Set(["fills", "styleRules", "areaFills"]);
 const NUMBER_FIELDS = new Set([
   "period", "stdDev", "fastPeriod", "slowPeriod", "signalPeriod", "macdSignalWidth", "zigzagDeviation", "supertrendMultiplier", "sarStep", "sarMax", "gapsMinPercent",
@@ -474,6 +475,7 @@ const NUMBER_FIELDS = new Set([
   "rangeChopEarly", "rangeChopConfirm", "rangeChopTrend", "rangeAtrPeriod", "rangeVolLookback", "rangeVolPercentile", "rangeVolumeFast", "rangeVolumeSlow",
   "rangeSlopeBars", "rangeBreakoutAtr", "rangeGraceBars", "rangeMinBars", "rangeOpacity",
   "srbMaxZones", "srbSwingSpan", "srbHorizon", "srbAtrPeriod", "srbAdxPeriod", "srbEmaPeriod", "srbSmaPeriod", "srbSmaLongPeriod", "srbBbPeriod", "srbBbStdDev", "srbOpacity",
+  "macdZonesPeaks", "divergencePivotLeft", "divergencePivotRight", "divergenceMinBars", "divergenceMaxBars", "divergenceLineWidth",
 ]);
 /** Champs que l'outil ne change pas : identité, type, données calculées ailleurs. */
 const LOCKED_FIELDS = new Set(["id", "kind", "customData", "correlationData", "correlationSymbol", "correlationSymbolName", "sourceId", "timeframe"]);
@@ -493,7 +495,7 @@ export function indicatorFieldType(field: string): FieldType | null {
 
 /** Les champs propres à un type d'indicateur (préfixes des champs de `Indicator`). */
 const KIND_PREFIXES: Record<string, string[]> = {
-  macd: ["fastPeriod", "slowPeriod", "signalPeriod", "macd"],
+  macd: ["fastPeriod", "slowPeriod", "signalPeriod", "macd", "divergence"],
   bollinger: ["stdDev"],
   donchian: ["donchian"],
   zigzag: ["zigzag"],
@@ -508,8 +510,8 @@ const KIND_PREFIXES: Record<string, string[]> = {
   rangeDetection: ["range"],
   srBounce: ["srb"],
   tpo: ["tpo"],
-  rsi: ["rsi"],
-  rsiZones: ["rsi"],
+  rsi: ["rsi", "divergence"],
+  rsiZones: ["rsi", "divergence"],
   chop: ["chop"],
   atr: ["atr"],
   adx: ["adx"],
@@ -521,7 +523,7 @@ const COMMON_FIELDS = ["period", "color", "lineWidth", "hidden", "legendHidden",
 
 export function settableFieldsFor(indicator: Indicator): string[] {
   const prefixes = KIND_PREFIXES[indicator.kind] ?? (/^fundamental|revenue|eps|pe|margin/i.test(indicator.kind) ? ["fundamental"] : []);
-  const all = [...NUMBER_FIELDS, ...BOOLEAN_FIELDS, ...Object.keys(ENUM_FIELDS), ...OBJECT_FIELDS, ...ARRAY_FIELDS, "recognitionDateLimit", "color", "macdHistogramUpColor", "macdHistogramDownColor", "supertrendUpColor", "supertrendDownColor", "sarUpColor", "sarDownColor", "chandelierUpColor", "chandelierDownColor", "adxPlusColor", "adxMinusColor", "macdLineAboveColor", "macdLineBelowColor", "macdSignalColor", "expVolMedianColor", "expVolSmaColor", "expVolTimeZone", "rangeProbableColor"];
+  const all = [...NUMBER_FIELDS, ...BOOLEAN_FIELDS, ...Object.keys(ENUM_FIELDS), ...OBJECT_FIELDS, ...ARRAY_FIELDS, "recognitionDateLimit", "color", "macdHistogramUpColor", "macdHistogramDownColor", "supertrendUpColor", "supertrendDownColor", "sarUpColor", "sarDownColor", "chandelierUpColor", "chandelierDownColor", "adxPlusColor", "adxMinusColor", "macdLineAboveColor", "macdLineBelowColor", "macdSignalColor", "expVolMedianColor", "expVolSmaColor", "expVolTimeZone", "rangeProbableColor", "divergenceBullColor", "divergenceBearColor"];
   const own = all.filter((f) => prefixes.some((p) => f.startsWith(p)));
   return [...new Set([...COMMON_FIELDS, ...own, ...Object.keys(indicator).filter((k) => indicatorFieldType(k) !== null)])];
 }

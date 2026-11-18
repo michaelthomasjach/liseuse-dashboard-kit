@@ -164,6 +164,55 @@ const VALUE_FORMAT_HELP_PARAM: IndicatorHelpParam = { label: "Format", defaultVa
 /** Onglet Style, section « Affichage » : le filigrane d'un panneau séparé (IndicatorWatermarkField). */
 const PANE_WATERMARK_HELP_PARAM: IndicatorHelpParam = { label: "Filigrane du panneau", defaultValue: "Non", description: "Section « Affichage » : un texte en fond du panneau, comme le symbole derrière les bougies. Une fois la case cochée, se règlent le texte (le nom de l'indicateur si on le laisse vide), l'opacité (2 à 40 %, 8 % par défaut) et la taille (30 à 150 %, 100 % par défaut).", tab: "Style" };
 
+/** Option « Divergences » du RSI et du MACD (divergences.ts) : ses réglages, dans les deux onglets. `series` : la courbe
+ *  comparée au prix (« le RSI », « la ligne MACD »). */
+const DIVERGENCE_HELP_PARAMS = (series: string): IndicatorHelpParam[] => [
+  {
+    label: "Afficher les divergences haussières et baissières",
+    defaultValue: "Non",
+    description: `Section « Divergences ». Cochée, cherche les **pivots** de ${series} (un sommet dépasse les bougies qui l'entourent, un creux est sous elles) et compare chacun au pivot du même type qui le précède. **Baissière** : le prix fait un plus haut plus haut (plus haut des deux bougies) quand ${series} fait un sommet plus bas. **Haussière** : le prix fait un plus bas plus bas (plus bas des deux bougies) quand ${series} fait un creux plus haut. Chaque divergence est un segment entre les deux pivots, dans le panneau et sur le graphique des prix, terminé par une étiquette « B » (baissière, au-dessus) ou « H » (haussière, en dessous) ; sur les prix, elle porte aussi le nom de l'indicateur (« B RSI », « H MACD »).`,
+    tab: "Entrées",
+  },
+  {
+    label: "Divergences cachées aussi",
+    defaultValue: "Non",
+    description: `Ajoute les divergences de continuation, en pointillés, étiquetées « H c » et « B c » : haussière cachée quand le prix fait un creux plus haut et ${series} un creux plus bas (la tendance haussière reprend), baissière cachée quand le prix fait un sommet plus bas et ${series} un sommet plus haut.`,
+    tab: "Entrées",
+  },
+  {
+    label: "Pivot : bougies à gauche / à droite",
+    defaultValue: "5 / 5",
+    range: "1 à 50 bougies",
+    description: "Combien de bougies avant et après un pivot doivent lui être inférieures (sommet) ou supérieures (creux). Plus grand, seuls les pivots marquants comptent. Un pivot n'est connu qu'une fois passées les bougies de droite : une divergence apparaît avec ce retard, puis ne bouge plus.",
+    tab: "Entrées",
+  },
+  {
+    label: "Écart minimal / maximal entre deux pivots",
+    defaultValue: "5 / 60 bougies",
+    range: "1 à 500 bougies",
+    description: "Deux pivots trop proches (bruit) ou trop éloignés (deux épisodes sans rapport) ne sont pas comparés. 5 et 60 sont les bornes usuelles, celles du RSI de TradingView.",
+    tab: "Entrées",
+  },
+  {
+    label: "Divergences",
+    defaultValue: "Haussière verte, baissière rouge, 1,5 px",
+    description: "Section « Tracé » : un sélecteur par sens règle la couleur, l'opacité et l'épaisseur des segments et des étiquettes. En thème liseuse, elles prennent la couleur du texte (les étiquettes H et B les distinguent).",
+    tab: "Style",
+  },
+  {
+    label: "Divergences aussi sur le graphique des prix",
+    defaultValue: "Oui",
+    description: "Section « Affichage » : décochée, les divergences ne se tracent que dans le panneau de l'indicateur.",
+    tab: "Style",
+  },
+  {
+    label: "Étiquettes des divergences",
+    defaultValue: "Oui",
+    description: "Section « Affichage » : l'étiquette « H » ou « B » au bout de chaque segment.",
+    tab: "Style",
+  },
+];
+
 export const INDICATOR_HELP_DETAILS: Partial<Record<IndicatorKind, IndicatorHelpDetails>> = {
   sma: {
     formula: ["SMA(t) = (C(t) + C(t−1) + … + C(t−N+1)) / N"],
@@ -247,11 +296,13 @@ export const INDICATOR_HELP_DETAILS: Partial<Record<IndicatorKind, IndicatorHelp
       { label: "Surachat", defaultValue: "70", range: "50 à 99", description: "Section « Seuils » : niveau de la ligne horizontale haute du panneau. Il n'entre pas dans le calcul : c'est un repère de lecture. On le monte souvent à 80 sur un titre ou en tendance haussière, où le RSI passe beaucoup de temps au-dessus de 70.", tab: "Entrées" },
       { label: "Survente", defaultValue: "30", range: "1 à 50", description: "Section « Seuils » : niveau de la ligne horizontale basse du panneau, sans effet sur le calcul. On le baisse souvent à 20 en tendance baissière, pour ne garder que les excès marqués.", tab: "Entrées" },
       { label: "Lignes de surachat et de survente calculées", defaultValue: "Non", description: "Ajoute au RSI les lignes du « RSI : zones de survente et de surachat » : la moyenne et le plus haut des derniers pics au-dessus du seuil de surachat, la moyenne et le plus bas des derniers creux sous le seuil de survente. Une fois cochée, se règlent le nombre de pics (30 par défaut) et, dans l'onglet Style, l'affichage, la couleur, l'épaisseur, le style et l'opacité de chaque ligne.", tab: "Entrées" },
+      ...DIVERGENCE_HELP_PARAMS("le RSI").filter((p) => p.tab === "Entrées"),
       ...PROJECTION_HELP_PARAMS,
       { label: "RSI(14)", defaultValue: "Affichée, couleur de la palette, 1,5 px", description: "La courbe du RSI, sous le nom qu'elle porte à l'écran (il suit la période). La case l'affiche ou la masque ; le sélecteur règle sa couleur, son opacité et son épaisseur (1 à 4 px). Sans choix, la couleur vient de la palette du graphique, selon le rang de l'indicateur.", tab: "Style" },
       { label: "Seuil de surachat (70)", defaultValue: "Gris à 60 %", description: "La ligne pointillée du seuil de surachat (son niveau se règle dans l'onglet Entrées). Le sélecteur règle sa couleur et son opacité, par exemple pour la teinter de rouge ou l'estomper. En thème liseuse, elle prend la couleur de la grille.", tab: "Style" },
       { label: "Seuil de survente (30)", defaultValue: "Gris à 60 %", description: "La ligne pointillée du seuil de survente : couleur et opacité dans le sélecteur, comme pour le seuil de surachat.", tab: "Style" },
       { label: "Ligne médiane (50)", defaultValue: "Masquée, gris à 40 %", description: "La case ajoute une ligne pointillée à 50, la frontière entre biais haussier et biais baissier ; le sélecteur règle sa couleur et son opacité. Utile pour lire le RSI comme filtre de tendance.", tab: "Style" },
+      ...DIVERGENCE_HELP_PARAMS("le RSI").filter((p) => p.tab === "Style"),
       VALUE_FORMAT_HELP_PARAM,
       LEGEND_HELP_PARAM,
       PANE_WATERMARK_HELP_PARAM,
@@ -297,12 +348,14 @@ export const INDICATOR_HELP_DETAILS: Partial<Record<IndicatorKind, IndicatorHelp
       { label: "Nombre de pics pris en compte", defaultValue: "30", range: "1 à 500", description: "Les derniers passages en zone retenus : leurs pics (surachat) et leurs creux (survente) donnent la moyenne et l'extrême. Plus grand, des repères plus stables ; plus petit, des repères qui suivent le régime récent.", tab: "Entrées" },
       { label: "Seuil de surachat", defaultValue: "70", range: "50 à 99", description: "Au-dessus, une valeur compte dans la zone de surachat.", tab: "Entrées" },
       { label: "Seuil de survente", defaultValue: "30", range: "1 à 50", description: "En dessous, une valeur compte dans la zone de survente.", tab: "Entrées" },
+      ...DIVERGENCE_HELP_PARAMS("le RSI").filter((p) => p.tab === "Entrées"),
       { label: "RSI", defaultValue: "Affiché", description: "La courbe du RSI : couleur et épaisseur dans le sélecteur de la ligne « RSI ».", tab: "Style" },
       { label: "Seuils de surachat et de survente", defaultValue: "Gris à 60 %", description: "Les deux lignes pointillées des seuils : couleur et opacité de chacune. La ligne médiane (50) peut s'y ajouter.", tab: "Style" },
       { label: "Surachat : plus haut des pics", defaultValue: "Affichée, rouge, pointillés, 80 %", description: "La case affiche ou masque la ligne du plus haut des derniers pics en surachat. Couleur et épaisseur dans le sélecteur, puis style (continue, tirets, pointillés) et opacité juste en dessous.", tab: "Style" },
       { label: "Surachat : moyenne des pics", defaultValue: "Affichée, rouge, tirets, 80 %", description: "La moyenne des derniers pics en surachat. Mêmes réglages : affichage, couleur, épaisseur, style, opacité.", tab: "Style" },
       { label: "Survente : moyenne des creux", defaultValue: "Affichée, verte, tirets, 80 %", description: "La moyenne des derniers creux en survente. Mêmes réglages : affichage, couleur, épaisseur, style, opacité.", tab: "Style" },
       { label: "Survente : plus bas des creux", defaultValue: "Affichée, verte, pointillés, 80 %", description: "Le plus bas des derniers creux en survente. Mêmes réglages : affichage, couleur, épaisseur, style, opacité.", tab: "Style" },
+      ...DIVERGENCE_HELP_PARAMS("le RSI").filter((p) => p.tab === "Style"),
       VALUE_FORMAT_HELP_PARAM,
       LEGEND_HELP_PARAM,
       PANE_WATERMARK_HELP_PARAM,
@@ -338,10 +391,16 @@ export const INDICATOR_HELP_DETAILS: Partial<Record<IndicatorKind, IndicatorHelp
       { label: "Moyenne rapide", defaultValue: "12", range: "1 à 200 bougies", description: "Période de l'EMA rapide des clôtures. La raccourcir rend la ligne MACD plus réactive, et plus bruyante. Elle doit rester nettement plus courte que la moyenne lente, sans quoi l'écart entre les deux n'a plus de sens.", tab: "Entrées" },
       { label: "Moyenne lente", defaultValue: "26", range: "1 à 400 bougies", description: "Période de l'EMA lente, la référence de tendance. L'allonger (par exemple 50) donne un MACD qui ne retient que les mouvements de fond ; la ligne MACD n'apparaît qu'une fois cette moyenne amorcée.", tab: "Entrées" },
       { label: "Signal", defaultValue: "9", range: "1 à 200 bougies", description: "Période de l'EMA de la ligne MACD. Plus courte, la ligne de signal colle à la ligne MACD et les croisements se multiplient ; plus longue, ils se raréfient et arrivent plus tard. Le couple 12, 26, 9 est le réglage de référence ; raccourcir les trois périodes ensemble fait gagner en réactivité, au prix de davantage de faux signaux.", tab: "Entrées" },
+      { label: "Lignes des plus hauts, des plus bas et de leur moyenne", defaultValue: "Non", description: "Le pendant des lignes de surachat et de survente calculées du RSI. Le MACD n'a pas de seuils fixes : un **pic** est le plus haut de la ligne MACD sur un passage au-dessus de 0 (d'un croisement de zéro au suivant), un **creux** le plus bas d'un passage sous 0. Quatre lignes horizontales : le plus haut et la moyenne des derniers pics, la moyenne et le plus bas des derniers creux, avec leur valeur à droite. Relevées sur tout l'historique (jusqu'à la coupure du replay), elles ne bougent pas au défilement, et l'échelle du panneau s'élargit pour les garder visibles. Un passage encore en cours compte avec son extrême du moment.", tab: "Entrées" },
+      { label: "Nombre de pics pris en compte", defaultValue: "30", range: "1 à 500", description: "Proposé une fois l'option cochée : les derniers pics (et les derniers creux) dont on prend la moyenne et l'extrême. Plus grand, des repères plus stables ; plus petit, des repères qui suivent le régime récent. Le MACD s'exprimant en unités de prix, un historique long où le prix a beaucoup changé de niveau donne des repères moins parlants : réduisez alors ce nombre.", tab: "Entrées" },
+      ...DIVERGENCE_HELP_PARAMS("la ligne MACD").filter((p) => p.tab === "Entrées"),
       ...PROJECTION_HELP_PARAMS,
       { label: "MACD", defaultValue: "Affichée, couleur de la palette, 1,5 px", description: "La ligne MACD. La case affiche ou masque l'indicateur ; le sélecteur règle sa couleur, son opacité et son épaisseur (1 à 4 px). La ligne de signal, fine et grise, et la ligne zéro, en pointillés, ne se règlent pas.", tab: "Style" },
       { label: "Histogramme", defaultValue: "Affiché, couleurs de hausse et de baisse du graphique", description: "La case affiche ou masque les barres de l'écart MACD − signal (les lignes restent). Deux sélecteurs : « Hausse » pour les barres positives (MACD au-dessus de son signal), « Baisse » pour les négatives. En thème liseuse, les barres prennent la couleur du texte.", tab: "Style" },
       { label: "MACD selon le signal", defaultValue: "Non", description: "Cochée, la ligne MACD change de couleur à chaque croisement avec sa ligne de signal : « Au-dessus » (couleur de hausse par défaut) et « En dessous » (couleur de baisse) se règlent à droite. Pratique pour voir les croisements sans lire l'histogramme.", tab: "Style" },
+      { label: "Pics : plus haut / Pics : moyenne", defaultValue: "Affichées, rouges, pointillés / tirets, 80 %", description: "Section « Lignes des pics et des creux » (avec l'option cochée) : pour chaque ligne, la case l'affiche ou la masque, le sélecteur règle sa couleur et son épaisseur, puis son style (continue, tirets, pointillés) et son opacité juste en dessous.", tab: "Style" },
+      { label: "Creux : moyenne / Creux : plus bas", defaultValue: "Affichées, vertes, tirets / pointillés, 80 %", description: "Mêmes réglages pour les deux lignes des creux : affichage, couleur, épaisseur, style, opacité.", tab: "Style" },
+      ...DIVERGENCE_HELP_PARAMS("la ligne MACD").filter((p) => p.tab === "Style"),
       VALUE_FORMAT_HELP_PARAM,
       LEGEND_HELP_PARAM,
       PANE_WATERMARK_HELP_PARAM,

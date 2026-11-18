@@ -11,6 +11,9 @@ import { computeIndicatorValues } from "../indicators";
 import { computeIndicatorProjection, type IndicatorProjection } from "../indicatorProjection";
 import { indicatorLabel } from "../indicatorCatalog";
 import { rsiZoneLevelsFor, rsiZonesActive, type RsiZoneLevels } from "../rsiZones";
+import { macdZoneLevelsFor, macdZonesActive } from "../macdZones";
+import { divergencesActive, divergencesFor } from "../divergences";
+import type { IndicatorPaneExtras } from "../interfaces/IndicatorPaneExtras.interface";
 import { usePaneStackScales } from "./usePaneStackScales";
 
 export interface UseIndicatorPaneScalesArgs {
@@ -75,6 +78,18 @@ export function useIndicatorPaneScales({
     [data, indicators, fundamentals, symbolIsEquity]
   );
 
+  // Lignes des pics et des creux d'un MACD, divergences d'un RSI ou d'un MACD : relevées sur tout l'historique (jusqu'à
+  // la coupure du replay), une fois par changement de données ou de réglages, jamais au défilement.
+  const indicatorExtras = useMemo(() => {
+    const out = new Map<string, Omit<IndicatorPaneExtras, "rsiZoneLevels">>();
+    for (const { indicator, values } of indicatorValues) {
+      const macdZoneLevels = macdZonesActive(indicator) ? macdZoneLevelsFor(indicator, values, lastIndex) : null;
+      const divergences = divergencesActive(indicator) ? divergencesFor(indicator, values, data, lastIndex) : null;
+      if (macdZoneLevels || divergences) out.set(indicator.id, { macdZoneLevels, divergences });
+    }
+    return out;
+  }, [indicatorValues, data, lastIndex]);
+
   // Cheap: slices the precomputed arrays down to the same padded visible window `visible` uses,
   // dropping the null (warm-up period) entries.
   const visibleIndicators = useMemo(() => {
@@ -88,9 +103,9 @@ export function useIndicatorPaneScales({
       }
       // Relevées sur les dernières bougies de l'historique, pas sur celles à l'écran : les lignes ne bougent pas au défilement.
       const rsiZoneLevels: RsiZoneLevels | null = rsiZonesActive(indicator) ? rsiZoneLevelsFor(indicator, values, lastIndex) : null;
-      return { indicator, points, rsiZoneLevels };
+      return { indicator, points, rsiZoneLevels, ...indicatorExtras.get(indicator.id) };
     });
-  }, [indicatorValues, data.length, visibleRange, lastIndex]);
+  }, [indicatorValues, indicatorExtras, data.length, visibleRange, lastIndex]);
 
   /** Each projecting indicator's own continuation past the last bar.
    *

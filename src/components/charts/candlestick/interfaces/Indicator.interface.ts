@@ -8,6 +8,7 @@ import type { IndicatorAreaFill } from "./IndicatorAreaFill.interface";
 import type { ValueFormat } from "./ValueFormat.interface";
 import type { IndicatorWatermark } from "./IndicatorWatermark.interface";
 import type { RsiZoneLineKey, RsiZoneLineStyle } from "./RsiZoneLine.interface";
+import type { MacdZoneLineKey } from "./MacdZoneLine.interface";
 import type { DonchianBackground, DonchianLineKey, IndicatorLineStyle } from "./IndicatorLineStyle.interface";
 
 export interface Indicator {
@@ -348,6 +349,35 @@ export interface Indicator {
   /** MACD : couleur (opacité comprise) et épaisseur de la ligne de signal. Absentes : la couleur atténuée du thème, 1 px. */
   macdSignalColor?: string;
   macdSignalWidth?: number;
+  /** MACD : trace aussi la moyenne et l'extrême des derniers pics (passages de la ligne MACD au-dessus de 0) et des
+   *  derniers creux (passages sous 0), en lignes horizontales. Voir macdZones.ts. */
+  macdZonesEnabled?: boolean;
+  /** MACD : nombre de derniers pics et de derniers creux retenus pour ces lignes. Défaut : 30. */
+  macdZonesPeaks?: number;
+  /** MACD : réglages de chacune des quatre lignes (affichée, couleur, style, opacité, épaisseur). Voir
+   *  `MACD_ZONE_LINE_DEFAULTS` dans macdZones.ts. */
+  macdZoneLines?: Partial<Record<MacdZoneLineKey, IndicatorLineStyle>>;
+  /** RSI et MACD : divergences entre l'indicateur et le prix, tracées dans le panneau et sur les prix (voir
+   *  divergences.ts). Défaut : non. */
+  divergences?: boolean;
+  /** Divergences cachées aussi (creux plus haut du prix et plus bas de l'indicateur, et l'inverse). Défaut : non. */
+  divergenceHidden?: boolean;
+  /** Bougies à gauche et à droite d'un pivot de l'indicateur qui doivent lui être inférieures (sommet) ou supérieures
+   *  (creux). Défauts : 5 et 5. Un pivot n'est confirmé que `divergencePivotRight` bougies après lui. */
+  divergencePivotLeft?: number;
+  divergencePivotRight?: number;
+  /** Écart, en bougies, entre les deux pivots comparés : au moins `divergenceMinBars` (5), au plus `divergenceMaxBars` (60). */
+  divergenceMinBars?: number;
+  divergenceMaxBars?: number;
+  /** Couleurs (opacité comprise) des divergences haussières et baissières. Défauts : vert et rouge. */
+  divergenceBullColor?: string;
+  divergenceBearColor?: string;
+  /** Épaisseur des segments de divergence, en px. Défaut 1.5. */
+  divergenceLineWidth?: number;
+  /** Divergences tracées aussi sur le graphique des prix. Défaut : oui. */
+  divergenceOnPrice?: boolean;
+  /** Étiquette « H » / « B » au bout de chaque divergence. Défaut : oui. */
+  divergenceShowLabels?: boolean;
   /** Indicateur de zones (`customData.draw: "zones"`) : opacité du fond des bandes, en % (défaut 12). */
   zoneOpacity?: number;
   /** Indicateur de zones : libellé de chaque zone écrit en haut de sa bande. Défaut true. */

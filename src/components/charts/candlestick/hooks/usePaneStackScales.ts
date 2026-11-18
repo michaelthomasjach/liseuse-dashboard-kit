@@ -4,11 +4,13 @@ import type { Indicator } from "../interfaces/Indicator.interface";
 import type { IndicatorValue } from "../interfaces/IndicatorValue.interface";
 import type { IndicatorMACD } from "../interfaces/IndicatorMACD.interface";
 import type { IndicatorBand } from "../interfaces/IndicatorBand.interface";
+import type { IndicatorPaneExtras } from "../interfaces/IndicatorPaneExtras.interface";
+import { shownMacdZoneValues } from "../macdZones";
 
 export interface UsePaneStackScalesArgs {
   ownPaneIndicators: Indicator[];
   indicatorPaneHeights: number[];
-  visibleIndicators: { indicator: Indicator; points: { i: number; value: IndicatorValue }[] }[];
+  visibleIndicators: ({ indicator: Indicator; points: { i: number; value: IndicatorValue }[] } & IndicatorPaneExtras)[];
   paneYTransform: Record<string, d3.ZoomTransform>;
   /** Pixel space reserved at the *top* of every pane's own range, so its highest plotted value
    *  lands this far below the pane's own top edge instead of right at it — 0 (the range stays
@@ -95,9 +97,15 @@ export function usePaneStackScales({
       } else if (ind.kind === "correlation") {
         domains[ind.id] = [-1, 1];
       } else if (ind.kind === "macd") {
-        const points = (visibleIndicators.find((v) => v.indicator.id === ind.id)?.points ?? []) as { i: number; value: IndicatorMACD }[];
+        const entry = visibleIndicators.find((v) => v.indicator.id === ind.id);
+        const points = (entry?.points ?? []) as { i: number; value: IndicatorMACD }[];
         let lo = 0;
         let hi = 0;
+        // Les lignes des pics et des creux affichées restent dans le panneau : elles n'ont de sens que visibles.
+        for (const level of shownMacdZoneValues(ind, entry?.macdZoneLevels)) {
+          lo = Math.min(lo, level);
+          hi = Math.max(hi, level);
+        }
         for (const p of points) {
           lo = Math.min(lo, p.value.macd, p.value.signal ?? p.value.macd, p.value.histogram ?? 0);
           hi = Math.max(hi, p.value.macd, p.value.signal ?? p.value.macd, p.value.histogram ?? 0);

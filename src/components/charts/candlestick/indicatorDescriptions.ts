@@ -432,6 +432,8 @@ Le prix inscrit un nouveau plus haut alors que le RSI fait un sommet plus bas : 
 
 Une divergence n'est pas un signal d'entrée à elle seule : elle peut se répéter plusieurs fois avant le retournement, et se confirme par une cassure dans la structure du prix (un creux précédent enfoncé, une ligne de tendance rompue).
 
+L'option « Divergences » des paramètres les trace d'elle-même, entre deux pivots du RSI, dans le panneau et sur les prix.
+
 [[illustration:example-rsi-divergence|Retournement : le prix monte jusqu'au sommet par des plus hauts successifs, tandis que les sommets du RSI baissent ; la chute suit.]]
 
 ### Le franchissement de 50
@@ -587,7 +589,7 @@ La ligne MACD qui passe au-dessus de zéro signifie que l'EMA rapide a croisé l
 
 ### Les divergences
 
-Le prix inscrit un nouveau plus haut, mais la ligne MACD fait un sommet plus bas : l'écart entre les moyennes se réduit, l'élan s'essouffle. C'est une **divergence baissière**, à lire comme celles du *RSI* ; la divergence haussière est symétrique. Elle prévient souvent plusieurs bougies avant le croisement des lignes, et ne vaut signal qu'une fois confirmée par le prix.
+Le prix inscrit un nouveau plus haut, mais la ligne MACD fait un sommet plus bas : l'écart entre les moyennes se réduit, l'élan s'essouffle. C'est une **divergence baissière**, à lire comme celles du *RSI* ; la divergence haussière est symétrique. Elle prévient souvent plusieurs bougies avant le croisement des lignes, et ne vaut signal qu'une fois confirmée par le prix. L'option « Divergences » des paramètres les trace d'elle-même, dans le panneau et sur les prix.
 
 [[illustration:example-macd-reversal|Retournement : le MACD fait un sommet plus bas alors que le prix monte encore, passe sous son signal, puis sous zéro pendant la chute.]]
 

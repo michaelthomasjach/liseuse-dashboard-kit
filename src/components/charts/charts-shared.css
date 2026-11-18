@@ -1007,10 +1007,34 @@ button.lq-chart__legend-item {
   cursor: pointer;
 }
 
-/* Invisible-until-hovered is a mouse-only affordance — touch/coarse-pointer devices have no
-   "hover without committing" gesture to reveal it with, so it stays at the base rule's default
-   (visible) there; this only narrows visibility down for a hover-capable, fine-pointer device. */
-@media (hover: hover) and (pointer: fine) {
+/* Flèche des variantes d'un outil, comme sur TradingView : un petit « › » sans cadre, centré sur le bord droit du
+   bouton, qui n'apparaît qu'au survol (son survol prolongé affiche le nom de l'outil sélectionné, voir ToolsRail). */
+.lq-chart__tool-chevron.lq-chart__tool-chevron--side {
+  top: 50%;
+  right: -7px;
+  bottom: auto;
+  width: 10px;
+  height: 18px;
+  transform: translateY(-50%);
+  color: var(--lq-color-text-muted);
+  background: none;
+  border: none;
+  border-radius: var(--lq-radius-sm);
+  transition:
+    opacity 120ms ease,
+    color 120ms ease;
+}
+
+.lq-chart__tool-chevron.lq-chart__tool-chevron--side:hover,
+.lq-chart__tool-chevron.lq-chart__tool-chevron--side.lq-chart__tool-chevron--visible {
+  color: var(--lq-color-text);
+  background-color: var(--lq-color-hover);
+}
+
+/* Invisible tant qu'on ne survole pas : sur tout appareil qui sait survoler (souris, pavé tactile — même un écran
+   tactile avec une souris). Un appareil sans survol (téléphone, tablette) la garde visible, faute de geste pour la
+   révéler. */
+@media (any-hover: hover) {
   .lq-chart__tool-chevron {
     opacity: 0;
   }

@@ -3,7 +3,7 @@ import type { ChartCustomTool } from "../interfaces/ChartCustomTool.interface";
 import type { RefObject, Dispatch, SetStateAction } from "react";
 import { Popover } from "../../../forms/Popover";
 import { Checkbox } from "../../../forms/Checkbox";
-import { ChevronDownIcon, MagnetIcon, EyeIcon, EyeOffIcon, TimeframeLayersIcon, DaySeparatorsIcon, LockIcon, BellIcon, LayersIcon, ZoomInIcon, ZoomOutIcon, InfoIcon, GaugeIcon, MaximizeIcon, MinimizeIcon } from "../../../icons";
+import { ChevronRightIcon, MagnetIcon, EyeIcon, EyeOffIcon, TimeframeLayersIcon, DaySeparatorsIcon, LockIcon, BellIcon, LayersIcon, ZoomInIcon, ZoomOutIcon, InfoIcon, GaugeIcon, MaximizeIcon, MinimizeIcon } from "../../../icons";
 import { ToolCategorySheet } from "./ToolCategorySheet";
 import type { DrawingToolType } from "../interfaces/DrawingToolType.interface";
 import { DRAWING_TOOL_CATEGORIES } from "../drawingCatalog";
@@ -161,7 +161,6 @@ export function ToolsRail({
   function armHint(tool: DrawingToolType, label: string, event: React.PointerEvent<HTMLElement>) {
     // Touch has no hover, and a finger resting on a button is usually a press being decided.
     if (event.pointerType !== "mouse") return;
-    if (drawingToolSummary(tool) === null) return;
     const box = event.currentTarget.getBoundingClientRect();
     if (hintTimer.current !== null) window.clearTimeout(hintTimer.current);
     hintTimer.current = window.setTimeout(() => {
@@ -283,11 +282,17 @@ export function ToolsRail({
                   <button
                     ref={menuAnchorRefFor(category.id)}
                     type="button"
-                    className={["lq-chart__tool-chevron", menuOpen && "lq-chart__tool-chevron--visible"].filter(Boolean).join(" ")}
-                    onClick={() => setOpenToolMenu((o) => (o === category.id ? null : category.id))}
-                    aria-label={`Autres outils — ${category.id}`}
+                    className={["lq-chart__tool-chevron", "lq-chart__tool-chevron--side", menuOpen && "lq-chart__tool-chevron--visible"].filter(Boolean).join(" ")}
+                    onClick={() => {
+                      cancelHint();
+                      setOpenToolMenu((o) => (o === category.id ? null : category.id));
+                    }}
+                    // Survol prolongé : le nom de l'outil sélectionné, comme sur le bouton lui-même.
+                    onPointerEnter={(e) => armHint(selectedInCategory.type, selectedInCategory.label, e)}
+                    onPointerLeave={cancelHint}
+                    aria-label={`Autres outils — ${category.label}`}
                   >
-                    <ChevronDownIcon size={8} />
+                    <ChevronRightIcon size={10} />
                   </button>
                   <Popover
                     open={menuOpen}
@@ -629,7 +634,7 @@ export function ToolsRail({
           role="tooltip"
         >
           <span className="lq-chart__tool-hint-title">{hint.label}</span>
-          <span className="lq-chart__tool-hint-text">{drawingToolSummary(hint.tool)}</span>
+          {drawingToolSummary(hint.tool) !== null && <span className="lq-chart__tool-hint-text">{drawingToolSummary(hint.tool)}</span>}
         </div>
       )}
     </div>

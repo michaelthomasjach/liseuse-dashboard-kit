@@ -621,6 +621,16 @@ export const HorizontalLineIcon = (props: AnimatedIconProps) => (
   </IconBase>
 );
 
+/** Zone visible (frise) : une ligne de temps avec ses graduations, bornée de part et d'autre par la plage affichée. */
+export const VisibleRangeIcon = (props: AnimatedIconProps) => (
+  <IconBase motion="slide" {...props}>
+    <path d="M3 15h18" />
+    <path d="M7 13v4M12 13v4M17 13v4" />
+    <path d="M5 6l-2 3 2 3M19 6l2 3-2 3" />
+    <path d="M3 9h18" />
+  </IconBase>
+);
+
 export const VerticalLineIcon = (props: AnimatedIconProps) => (
   <IconBase motion="slide" {...props}>
     <path d="M12 4v16" />

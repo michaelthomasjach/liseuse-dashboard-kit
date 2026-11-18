@@ -77,6 +77,7 @@ export {
   CursorArrowIcon,
   TrendLineIcon,
   HorizontalLineIcon,
+  VisibleRangeIcon,
   VerticalLineIcon,
   HorizontalRayIcon,
   ExtendedLineIcon,

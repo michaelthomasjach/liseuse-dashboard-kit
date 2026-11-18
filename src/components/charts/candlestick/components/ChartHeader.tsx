@@ -1,5 +1,5 @@
 import type { ChartHeaderAction } from "../interfaces/ChartHeaderAction.interface";
-import { useRef, useState, type RefObject, type Dispatch, type SetStateAction } from "react";
+import { useLayoutEffect, useRef, useState, type RefObject, type Dispatch, type SetStateAction } from "react";
 import { Popover } from "../../../forms/Popover";
 import {
   ChevronDownIcon,
@@ -16,6 +16,7 @@ import {
   CloseIcon,
   SearchIcon,
   CameraIcon,
+  VisibleRangeIcon,
 } from "../../../icons";
 import type { ChartDisplayMode } from "../interfaces/ChartDisplayMode.interface";
 import type { TimeframeEntry } from "../interfaces/TimeframeEntry.interface";
@@ -201,8 +202,9 @@ export function ChartHeader({
   // Menu du bouton « Replay » : choisir le point de départ sur le graphique, ou partir d'un instant tiré au hasard.
   const [replayMenuOpen, setReplayMenuOpen] = useState(false);
   const replayMenuAnchorRef = useRef<HTMLButtonElement>(null);
+  const { headerRef, compact } = useCompactHeader();
   return (
-    <div className="lq-chart__header">
+    <div ref={headerRef} className={["lq-chart__header", compact && "lq-chart__header--compact"].filter(Boolean).join(" ")}>
       {onSymbolButtonClick && symbolButtonLabel !== undefined && (
         <button
           type="button"
@@ -219,7 +221,9 @@ export function ChartHeader({
       {timeframes && timeframes.length > 0 && (
         <>
           <button ref={tfAnchorRef} type="button" className="lq-chart__timeframe-trigger" onClick={() => setTfOpen((o) => !o)}>
-            <span className="lq-chart__timeframe-trigger-label">{currentTimeframeLabel ?? "Intervalle"}</span>
+            <span className="lq-chart__timeframe-trigger-label" title={compact ? (currentTimeframeLabel ?? undefined) : undefined}>
+              {compact && currentTimeframeLabel ? shortTimeframeLabel(currentTimeframeLabel) : (currentTimeframeLabel ?? "Intervalle")}
+            </span>
             <ChevronDownIcon size={12} />
           </button>
           <Popover open={tfOpen} onClose={() => setTfOpen(() => false)} anchorRef={tfAnchorRef} placement="bottom">
@@ -262,8 +266,15 @@ export function ChartHeader({
               )}
             </div>
           </Popover>
-          <button ref={rangeAnchorRef} type="button" className="lq-chart__timeframe-trigger" onClick={() => setRangeOpen((o) => !o)}>
-            <span className="lq-chart__timeframe-trigger-label">{`Zone visible - ${selectedRange ?? "Custom"}`}</span>
+          <button
+            ref={rangeAnchorRef}
+            type="button"
+            className="lq-chart__timeframe-trigger"
+            onClick={() => setRangeOpen((o) => !o)}
+            aria-label={`Zone visible - ${selectedRange ?? "Custom"}`}
+            title={compact ? `Zone visible - ${selectedRange ?? "Custom"}` : undefined}
+          >
+            {compact ? <VisibleRangeIcon size={15} /> : <span className="lq-chart__timeframe-trigger-label">{`Zone visible - ${selectedRange ?? "Custom"}`}</span>}
             <ChevronDownIcon size={12} />
           </button>
           <Popover open={rangeOpen} onClose={() => setRangeOpen(() => false)} anchorRef={rangeAnchorRef} placement="bottom">
@@ -437,7 +448,7 @@ export function ChartHeader({
               title={replayArmed ? "Cliquez sur la chart pour choisir le point de départ (ou ici pour annuler)" : "Rejouer l'historique bougie par bougie"}
             >
               <PrevTrackIcon size={14} />
-              <span className="lq-chart__timeframe-trigger-label">Replay</span>
+              {!compact && <span className="lq-chart__timeframe-trigger-label">Replay</span>}
               {!replayArmed && <ChevronDownIcon size={12} />}
             </button>
             <Popover open={replayMenuOpen && !replayArmed} onClose={() => setReplayMenuOpen(false)} anchorRef={replayMenuAnchorRef} placement="bottom">
@@ -606,4 +617,54 @@ export function ChartHeader({
       )}
     </div>
   );
+}
+
+/** Libellé court d'une unité de temps pour l'en-tête compact : « 5 minutes » → « 5mn », « 4 heures » → « 4H »,
+ *  « 1 jour » → « 1J », « 1 semaine » → « 1S », « 1 mois » → « 1M », « 1 an » → « 1A ». */
+export function shortTimeframeLabel(text: string): string {
+  const m = /^(\d+)\s*([a-zA-Zéû]+)/.exec(text.trim());
+  if (!m) return text;
+  const unit = m[2]!.toLowerCase();
+  const short = unit.startsWith("mi")
+    ? "mn"
+    : unit.startsWith("h")
+      ? "H"
+      : unit.startsWith("j") || unit.startsWith("d")
+        ? "J"
+        : unit.startsWith("se") || unit.startsWith("w")
+          ? "S"
+          : unit.startsWith("mo")
+            ? "M"
+            : unit.startsWith("a") || unit.startsWith("y")
+              ? "A"
+              : unit.slice(0, 2);
+  return `${m[1]}${short}`;
+}
+
+/** En-tête compact : passe en mode court (unité de temps abrégée, « Zone visible » et « Replay » en icônes) dès que
+ *  ses boutons débordent de sa largeur, et revient au mode complet quand la largeur retrouve celle qu'il lui fallait
+ *  (mesurée au moment du débordement : pas d'aller-retour à la frontière). */
+function useCompactHeader() {
+  const headerRef = useRef<HTMLDivElement>(null);
+  const [compact, setCompact] = useState(false);
+  const fullWidthRef = useRef(0);
+  useLayoutEffect(() => {
+    const el = headerRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const check = () => {
+      if (!compact) {
+        if (el.scrollWidth > el.clientWidth + 1) {
+          fullWidthRef.current = el.scrollWidth;
+          setCompact(true);
+        }
+      } else if (el.clientWidth >= fullWidthRef.current) {
+        setCompact(false);
+      }
+    };
+    check();
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [compact]);
+  return { headerRef, compact };
 }

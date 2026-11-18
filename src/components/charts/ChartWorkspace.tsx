@@ -981,6 +981,13 @@ function ChartWorkspaceBody({
     return () => clearTimeout(t);
   }, [captureToast]);
   async function captureFrontPanel(action: ChartCaptureActionKind) {
+    // Plusieurs fenêtres affichées (aucune en plein écran) : toutes, à leur place dans la grille, sur une seule image
+    // (la même capture que l'outil de l'assistant pour l'espace de travail). La légende de l'image nomme chaque symbole.
+    if (panels >= 2 && effectiveFocusedPanelIndex === null && gridRef.current) {
+      const symbols = panelLabels.filter((label): label is string => Boolean(label)).join(" · ");
+      setCaptureToast(await runChartCapture(gridRef.current, action, { symbol: symbols || undefined }));
+      return;
+    }
     const index = effectiveFocusedPanelIndex ?? 0;
     const roots = Array.from(gridRef.current?.querySelectorAll<HTMLElement>(".lq-chart__plot-column") ?? []);
     const root = roots[index] ?? roots[0];

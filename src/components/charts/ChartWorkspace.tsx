@@ -5,6 +5,7 @@ import type { WorkspaceRailAction } from "./workspace/WorkspaceSideRail";
 import type { SymbolSearchList } from "./candlestick/interfaces/SymbolSearchList.interface";
 import { DetachedWindow } from "./candlestick/components/DetachedWindow";
 import type { CandlestickChartProps } from "./candlestick/interfaces/CandlestickChartProps.interface";
+import type { Indicator } from "./candlestick/interfaces/Indicator.interface";
 import type { SymbolSearchCategory } from "./candlestick/interfaces/SymbolSearchCategory.interface";
 import type { SymbolSearchResult } from "./candlestick/interfaces/SymbolSearchResult.interface";
 import type { ScriptDef } from "./candlestick/interfaces/ScriptDef.interface";
@@ -831,6 +832,28 @@ function ChartWorkspaceBody({
     return names;
   }, [watchlists]);
   const panelElements = rawChildren.length === 1 ? Array.from({ length: panels }, () => rawChildren[0]) : rawChildren.slice(0, panels);
+  // Indicateurs de chaque fenêtre : les derniers qu'elle a annoncés (`onIndicatorsChange`), sinon ses `defaultIndicators`.
+  // Une fenêtre qui s'ouvre sans indicateurs fournis par l'hôte part de ceux de la fenêtre active (sans les séries
+  // fournies avec leurs données, `customData` : calculées sur le symbole de l'autre fenêtre, elles n'auraient pas de sens
+  // ici). Retenus aussi pour la fenêtre elle-même : remontée (changement de symbole), elle retrouve les siens.
+  const panelIndicatorsRef = useRef<Record<number, Indicator[]>>({});
+  const seededIndicatorsRef = useRef<Record<number, Indicator[]>>({});
+  const indicatorsOfPanel = (i: number): Indicator[] => panelIndicatorsRef.current[i] ?? panelElements[i]?.props.defaultIndicators ?? [];
+  const startingIndicators = (i: number): Indicator[] => {
+    const own = panelIndicatorsRef.current[i];
+    if (own) return own;
+    const seeded = seededIndicatorsRef.current[i];
+    if (seeded) return seeded;
+    const source = effectiveActivePanel !== i ? effectiveActivePanel : 0;
+    const next = source === i ? [] : indicatorsOfPanel(source).filter((ind) => !ind.customData);
+    seededIndicatorsRef.current[i] = next;
+    return next;
+  };
+  // Fenêtres fermées (moins de fenêtres) : rouvertes plus tard, elles repartiront de la fenêtre active.
+  useEffect(() => {
+    for (const store of [panelIndicatorsRef.current, seededIndicatorsRef.current])
+      for (const key of Object.keys(store)) if (Number(key) >= panels) delete store[Number(key)];
+  }, [panels]);
   // Nom de chaque fenêtre dans les fenêtres « Graphiques liés » et « Ouvrir dans » : le nom du symbole (« CAC 40 »),
   // donné par la fenêtre (`symbolName`, s'il est celui de son symbole) ou les listes de surveillance, sinon le ticker.
   const panelLabels = panelElements.map((child, i) => {
@@ -1187,6 +1210,13 @@ function ChartWorkspaceBody({
             // for exactly this (see its own doc) that doesn't have that collision.
             height: panelHeight,
             fillHeight,
+            // Indicateurs : ceux que l'hôte donne à la fenêtre, sinon ceux de la fenêtre active à son ouverture (voir
+            // startingIndicators) ; chaque changement est retenu pour la fenêtre.
+            ...(child.props.defaultIndicators === undefined ? { defaultIndicators: startingIndicators(i) } : {}),
+            onIndicatorsChange: (list: Indicator[]) => {
+              panelIndicatorsRef.current[i] = list;
+              child.props.onIndicatorsChange?.(list);
+            },
             // « Voir les raccourcis… » d'un graphique de la grille : l'aide de l'espace de travail, onglet « Raccourcis ».
             onOpenShortcuts: child.props.onOpenShortcuts ?? openShortcutsHelp,
             // Le nom complet du symbole de la fenêtre, pris dans les listes de surveillance (menu du clic droit).

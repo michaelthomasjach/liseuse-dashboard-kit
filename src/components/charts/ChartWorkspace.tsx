@@ -781,9 +781,6 @@ function ChartWorkspaceBody({
     return index >= 0 ? index : null;
   }
 
-  // Replay partagé : quand on lance, fait avancer ou quitte le replay d'une fenêtre, toutes les autres suivent la
-  // même date (la dernière bougie à cette date ou avant, selon leur unité de temps).
-  const [replaySync, setReplaySync] = useState<{ source: number; time: number | null; seq: number } | null>(null);
   /** Pressing anywhere in *another* panel ends the wait: that click is about working on that chart
    *  (zooming, drawing), and leaving the fade on over it would get in the way. Its symbol name is the
    *  exception, and needs nothing here: the click that follows makes it the new target. Presses in the
@@ -1331,11 +1328,8 @@ function ChartWorkspaceBody({
             // Le nom du symbole (légende) ouvre la recherche de symbole de cette fenêtre : le symbole choisi s'applique
             // à cette fenêtre (voir `onSymbolSelect` ci-dessus). Sans `onSymbolClick` du modèle, le graphique le fait.
             onSymbolClick: child.props.onSymbolClick,
-            syncedReplay: panels >= 2 && replaySync && replaySync.source !== i ? { time: replaySync.time, seq: replaySync.seq } : undefined,
-            onReplaySync:
-              panels >= 2
-                ? (time: number | null) => setReplaySync((prev) => ({ source: i, time, seq: (prev?.seq ?? 0) + 1 }))
-                : undefined,
+            // Replay : propre à chaque fenêtre (le lancer dans l'une ne le lance pas dans les autres). Le partage d'un
+            // replay entre fenêtres (`syncedReplay`/`onReplaySync`) n'est plus branché ici.
             symbolClickActive: activeSymbolTarget === i || !!child.props.symbolClickActive,
             // `ChartWorkspace`'s own `watchlists`/`alerts` (above) are the single source of truth
             // once a chart is composed into a workspace — a docked panel is a "whole view" concept,

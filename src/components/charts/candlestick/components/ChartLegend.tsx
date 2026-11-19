@@ -67,7 +67,8 @@ export interface ChartLegendProps {
   setSymbolSearchOpen: (open: boolean) => void;
   setSettingsOpen: (open: boolean) => void;
   currentModeEntry: ChartDisplayModeDef;
-  ohlcCandle: Candle;
+  /** Absent : graphique sans bougies (`emptyLabel`), la ligne n'affiche alors ni OHLC ni variation. */
+  ohlcCandle: Candle | undefined;
   ohlcDelta: number;
   ohlcDeltaPct: number;
   ohlcSign: string;
@@ -240,7 +241,7 @@ export function ChartLegend({
   const showDescription = statusLine?.legendDescription !== false;
   const showOhlc = statusLine?.legendOhlc !== false;
   const showChange = statusLine?.legendChange !== false;
-  const showVolume = statusLine?.legendVolume === true && typeof ohlcCandle.volume === "number";
+  const showVolume = statusLine?.legendVolume === true && typeof ohlcCandle?.volume === "number";
   const showIndicatorValues = statusLine?.legendIndicatorValues === true && indicatorLegendValue !== undefined;
   const showIndicatorTitles = statusLine?.legendIndicatorTitles !== false;
   return (
@@ -313,6 +314,7 @@ export function ChartLegend({
             actually breaks the line (a full-width flex basis, see charts-shared.css); this span
             stays a plain sibling of the symbol and the mode label rather than moving into a
             wrapper of its own, so nothing about the desktop row's own baseline alignment shifts. */}
+        {ohlcCandle && (
         <span className={["lq-chart__symbol-info-ohlc", ohlcDelta >= 0 ? "lq-chart__symbol-info-ohlc--up" : "lq-chart__symbol-info-ohlc--down"].join(" ")}>
           {mobile ? (
             <>
@@ -339,6 +341,7 @@ export function ChartLegend({
           )}
           {showVolume && <> V {(vFmt ?? String)(ohlcCandle.volume!)}</>}
         </span>
+        )}
       </div>
       {/* Price-overlay indicators (SMA/EMA/WMA/VWAP/Bollinger) only — "own"-pane ones
           (RSI/CHOP/MACD) already get their own pane header with the same
@@ -362,7 +365,7 @@ export function ChartLegend({
             Suppr/Retour arrière removes it from here too, exactly like hovering the line
             itself would. */}
         {symbolOverlays.map((dr) => {
-          const quote = overlayQuoteAt(sortedOverlaySeries.get(dr.id) ?? [], ohlcCandle.date);
+          const quote = ohlcCandle ? overlayQuoteAt(sortedOverlaySeries.get(dr.id) ?? [], ohlcCandle.date) : null;
           const overlayModeEntry = CHART_DISPLAY_MODES.find((m) => m.mode === (dr.overlayDisplayMode ?? "line")) ?? lineModeEntry;
           return (
           <div

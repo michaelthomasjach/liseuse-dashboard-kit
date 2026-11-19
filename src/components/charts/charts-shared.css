@@ -681,6 +681,43 @@
   font-size: 0.85rem;
 }
 
+/* `emptyLabel` d'un CandlestickChart sans bougies : posé au centre du tracé des prix (position et taille en ligne),
+   au-dessus du canevas vide, sans capter le pointeur — les barres et le tracé restent utilisables. */
+.lq-chart__empty--plot {
+  position: absolute;
+  z-index: 2;
+  min-height: 0;
+  padding: 0 16px;
+  pointer-events: none;
+  text-align: center;
+}
+
+.lq-chart__empty-label {
+  max-width: 420px;
+  padding: 8px 14px;
+  border: 1px solid var(--lq-color-border);
+  border-radius: var(--lq-radius-md, 6px);
+  background: var(--lq-color-panel, var(--lq-color-bg));
+  color: var(--lq-color-text);
+  line-height: 1.4;
+}
+
+/* `notice` d'un CandlestickChart : en haut au centre du tracé des prix (position en ligne), au-dessus des bougies ;
+   la bande ne capte pas le pointeur, le message qu'elle porte oui (bouton de fermeture de l'application). */
+.lq-chart__notice {
+  position: absolute;
+  z-index: 3;
+  display: flex;
+  justify-content: center;
+  padding: 0 12px;
+  pointer-events: none;
+}
+
+.lq-chart__notice > * {
+  max-width: 100%;
+  pointer-events: auto;
+}
+
 /* No padding of its own — same "the margin/axes handle spacing, not CSS" principle as
    .lq-chart__plot: the header row (.lq-chart__header) needs to span edge to edge to match the
    main chart's own header, and LineAreaChart's own `margin` prop (see SeasonalityView) already

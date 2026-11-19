@@ -578,6 +578,18 @@ export interface CandlestickChartProps {
    *  static historical data the countdown will just sit at 00:00 once it reaches it, since
    *  nothing here fetches new candles on its own. Default false. */
   livePrice?: boolean;
+  /** Message shown at the center of the price plot while `data` is empty (« Pas d'historique pour
+   *  ANT »). Given, an empty chart keeps all of its chrome — header (symbol button, timeframe
+   *  picker, indicators, templates…), the drawing-tools rail on the left, the empty plot and its
+   *  axes — so the reader can still switch symbol or timeframe instead of facing a dead box.
+   *  Omitted (default): the former behavior, a bare « Aucune donnée » box without any toolbar.
+   *  Plain text or any node; it sits above the plot without catching pointer events. */
+  emptyLabel?: ReactNode;
+  /** A short message pinned at the top center of the price plot, over the candles (« Pas d'historique
+   *  en 1 jour pour ANT : affiché en 1 heure »). The chart only places it: the app owns its content,
+   *  its styling and its dismissal (render a close button inside, then stop passing it). The plot
+   *  stays usable around it — only the message itself catches the pointer. */
+  notice?: ReactNode;
   /** An externally-driven hover date — e.g. from `ChartWorkspace` syncing the crosshair across a
    *  group of linked charts. While set, this chart draws its own crosshair (vertical line, date
    *  badge, OHLC readout) at whichever of its own candles is nearest that date, exactly as if the

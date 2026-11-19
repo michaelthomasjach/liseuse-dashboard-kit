@@ -300,6 +300,8 @@ function CandlestickChartBody({
   layout = "auto",
   sidePanel, defaultSidePanelOpen, onSidePanelOpenChange,
   scripts, onScriptsChange, onScriptAlert, quantData, ai, aiOpen: aiOpenProp, onAiOpenChange, aiPortalTarget, onEditScript: onEditScriptProp, onCreateScript, onDeleteScript, onCreateStrategyFromIndicator, onScriptRunOutput, lastCandleOpen = false,
+  emptyLabel,
+  notice,
   margin,
   className,
 }: CandlestickChartProps) {
@@ -2193,11 +2195,14 @@ function CandlestickChartBody({
       addIndicator,
     },
   });
-  if (dims.width === 0 || data.length === 0) {
+  // Sans bougies : la boîte « Aucune donnée » nue, sauf avec `emptyLabel` — le graphique garde alors toutes ses barres
+  // (en-tête, outils de gauche) et le message se pose au centre du tracé vide (voir plus bas).
+  const emptyWithChrome = data.length === 0 && emptyLabel !== undefined && emptyLabel !== null;
+  if (dims.width === 0 || (data.length === 0 && !emptyWithChrome)) {
     return (
       <div className={["lq-chart", isFullscreen && "lq-chart--fullscreen", className].filter(Boolean).join(" ")} style={{ width: isFullscreen ? undefined : width, height: isFullscreen ? undefined : height }}>
         <div ref={ref} className="lq-chart__main">
-          {data.length === 0 && <div className="lq-chart__empty">Aucune donnée</div>}
+          {data.length === 0 && <div className="lq-chart__empty">{emptyWithChrome ? emptyLabel : "Aucune donnée"}</div>}
         </div>
         {sidePanel && sidePanelState.open && (
           <ChartSidePanel panelRef={sidePanelState.panelRef} widthPx={sidePanelState.widthPx} startResize={sidePanelState.startResize}>
@@ -2782,6 +2787,22 @@ function CandlestickChartBody({
             `width: 100%` of this column instead of any measured figure — see isMobileRail above
             and `.lq-chart__tools-rail--horizontal`'s own rule.) */}
         {!isMobileRail && toolsRail}
+        {/* Aucune bougie (`emptyLabel`) : le message au centre du tracé des prix, les barres restent utilisables. */}
+        {emptyWithChrome && (
+          <div
+            className="lq-chart__empty lq-chart__empty--plot"
+            role="status"
+            style={{ left: dims.margin.left, top: dims.margin.top, width: dims.boundedWidth, height: Math.max(0, priceHeight || plotBoundedHeight) }}
+          >
+            <span className="lq-chart__empty-label">{emptyLabel}</span>
+          </div>
+        )}
+        {/* Message de l'application (`notice`) : en haut au centre du tracé des prix, seul lui capte le pointeur. */}
+        {notice !== undefined && notice !== null && notice !== false && (
+          <div className="lq-chart__notice" style={{ left: dims.margin.left, top: dims.margin.top + 8, width: dims.boundedWidth }}>
+            {notice}
+          </div>
+        )}
         {/* Filigrane : le nom du symbole au fond du panneau des prix, derrière le canevas (transparent) qui suit. */}
         {watermark.visible && symbol && priceHeight > 0 && (appliedStyle.watermarkVisibility !== "replay" || replayState.active) && (
           <ChartWatermark

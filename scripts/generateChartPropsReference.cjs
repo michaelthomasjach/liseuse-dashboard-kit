@@ -17,7 +17,7 @@ const TARGET = path.join(ROOT, "src/components/charts/candlestick/chartPropsRefe
 
 /** Which section each prop belongs to, in the order the sections should read. */
 const GROUPS = [
-  ["Données", ["data", "symbol", "events", "fundamentals", "lastCandleOpen", "livePrice"]],
+  ["Données", ["data", "symbol", "events", "fundamentals", "lastCandleOpen", "livePrice", "emptyLabel", "notice"]],
   [
     "Taille et apparence",
     ["width", "height", "fillHeight", "margin", "className", "showVolume", "initialVisibleCandles", "YAutoScaling", "onYAutoScalingChange"],

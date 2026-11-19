@@ -829,6 +829,29 @@ function ChartWorkspaceBody({
     return names;
   }, [watchlists]);
   const panelElements = rawChildren.length === 1 ? Array.from({ length: panels }, () => rawChildren[0]) : rawChildren.slice(0, panels);
+  // Unité de temps changée par l'application elle-même, pas l'écho d'un choix fait dans le sélecteur d'une fenêtre (repli
+  // vers une unité plus fine quand celle choisie n'a pas d'historique, par exemple) : les fenêtres qui affichent cet
+  // élément reprennent la valeur de l'application au lieu de garder celle choisie auparavant dans leur sélecteur
+  // (`timeframeByPanel`). Un écho (la valeur que vient d'annoncer une fenêtre) ne libère rien : les autres fenêtres
+  // gardent leur propre unité, comme avant.
+  const lastReportedTimeframeRef = useRef<string | undefined>(undefined);
+  const childTimeframesRef = useRef<Map<number, string | undefined>>(new Map());
+  useEffect(() => {
+    const seen = childTimeframesRef.current;
+    const released: number[] = [];
+    panelElements.forEach((child, i) => {
+      const tf = (child?.props as { timeframe?: string } | undefined)?.timeframe;
+      if (seen.has(i) && seen.get(i) !== tf && tf !== undefined && tf !== lastReportedTimeframeRef.current) released.push(i);
+      seen.set(i, tf);
+    });
+    if (released.length === 0) return;
+    setTimeframeByPanel((prev) => {
+      if (!released.some((i) => i in prev)) return prev;
+      const next = { ...prev };
+      for (const i of released) delete next[i];
+      return next;
+    });
+  }, [panelElements]);
   // Indicateurs de chaque fenêtre : les derniers qu'elle a annoncés (`onIndicatorsChange`), sinon ses `defaultIndicators`.
   // Une fenêtre qui s'ouvre sans indicateurs fournis par l'hôte part de ceux de la fenêtre active (sans les séries
   // fournies avec leurs données, `customData` : calculées sur le symbole de l'autre fenêtre, elles n'auraient pas de sens
@@ -946,6 +969,7 @@ function ChartWorkspaceBody({
       },
       setPanelSymbol: (i, symbol) => aiWorkspaceStateRef.current.setPanelSymbol(i, symbol),
       setPanelTimeframe: (i, timeframe) => {
+        lastReportedTimeframeRef.current = timeframe;
         setTimeframeByPanel((prev) => ({ ...prev, [i]: timeframe }));
         aiWorkspaceStateRef.current.panelElements[i]?.props.onTimeframeChange?.(timeframe);
       },
@@ -1295,6 +1319,7 @@ function ChartWorkspaceBody({
               : { ai: undefined }),
             timeframe: i in timeframeByPanel ? timeframeByPanel[i] : child.props.timeframe,
             onTimeframeChange: (value: string) => {
+              lastReportedTimeframeRef.current = value;
               setTimeframeByPanel((prev) => ({ ...prev, [i]: value }));
               child.props.onTimeframeChange?.(value);
             },

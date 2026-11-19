@@ -8,7 +8,9 @@ import type { ValueFormat, ValueFormatSpec } from "./interfaces/ValueFormat.inte
 export function computeOhlcReadout(data: Candle[], hoverIndex: number | null) {
   // Borné aux bougies présentes : un index survolé resté d'avant un rechargement plus court ne doit rien casser.
   const index = Math.max(0, Math.min(data.length - 1, hoverIndex !== null ? hoverIndex : data.length - 1));
-  const candle = data[index];
+  const candle = data[index] as Candle | undefined;
+  // Aucune bougie (graphique vide avec `emptyLabel`) : rien à lire.
+  if (!candle) return { candle, delta: 0, deltaPct: 0, sign: "+" };
   const prevClose = index > 0 ? data[index - 1].close : candle.open;
   const delta = candle.close - prevClose;
   const deltaPct = prevClose !== 0 ? (delta / prevClose) * 100 : 0;

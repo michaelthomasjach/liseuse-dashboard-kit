@@ -1,4 +1,4 @@
-import { forwardRef, useCallback, useEffect, useId, useImperativeHandle, useMemo, useState } from "react";
+import { forwardRef, useCallback, useEffect, useId, useImperativeHandle, useMemo, useState, type CSSProperties } from "react";
 import * as d3 from "d3";
 import { useAxisLabelWidth } from "./internal/useAxisLabelWidth";
 import { useChartDimensions, type ChartMargin } from "./internal/useChartDimensions";
@@ -112,7 +112,11 @@ export interface LineAreaChartProps {
    *  values at the bottom (e.g. a real yield read against gold, which tends to move the other way).
    *  Y zoom and drag rescale both axes together; `referenceLineY` and the ruler stay on the main
    *  axis. Only drawn when at least one series uses it. */
-  secondaryYAxis?: { formatY?: (y: number) => string; ticks?: number; inverted?: boolean };
+  secondaryYAxis?: { formatY?: (y: number) => string; ticks?: number; inverted?: boolean; color?: string };
+  /** Couleur des valeurs de l'axe Y principal (n'importe quelle couleur CSS, une variable comprise) : celle de sa
+   *  courbe quand deux axes se partagent le graphique, pour lire d'un coup d'œil quel axe va avec quelle courbe.
+   *  `secondaryYAxis.color` fait de même pour le second axe. Par défaut, la couleur d'axe du thème. */
+  yAxisColor?: string;
   /** Shows the Y axis (values and axis line). `false` keeps only the horizontal grid lines — pair
    *  it with a smaller `margin.left`. Default true. */
   showYAxis?: boolean;
@@ -227,6 +231,7 @@ export const LineAreaChart = forwardRef<LineAreaChartHandle, LineAreaChartProps>
   fullscreenToggle = true,
   yAxisOrientation = "left",
   secondaryYAxis,
+  yAxisColor,
   showYAxis = true,
   hideYAxisLine = false,
   showYAxisLine = true,
@@ -617,7 +622,7 @@ export const LineAreaChart = forwardRef<LineAreaChartHandle, LineAreaChartProps>
           )}
         </defs>
         <g transform={`translate(${dims.margin.left}, ${dims.margin.top})`}>
-          <g ref={yAxisRef}>
+          <g ref={yAxisRef} style={yAxisColor ? ({ "--lq-chart-axis-color": yAxisColor } as CSSProperties) : undefined}>
             <ChartAxis
               className={[showYAxis ? null : "lq-chart__axis--hidden", yAxisLineHidden ? "lq-chart__axis--no-line" : null].filter(Boolean).join(" ") || undefined}
               scale={zoomedYScale}
@@ -630,7 +635,7 @@ export const LineAreaChart = forwardRef<LineAreaChartHandle, LineAreaChartProps>
             />
           </g>
           {hasSecondary && (
-            <g ref={y2AxisRef}>
+            <g ref={y2AxisRef} style={secondaryYAxis?.color ? ({ "--lq-chart-axis-color": secondaryYAxis.color } as CSSProperties) : undefined}>
               <ChartAxis
                 className={[showYAxis ? null : "lq-chart__axis--hidden", yAxisLineHidden ? "lq-chart__axis--no-line" : null].filter(Boolean).join(" ") || undefined}
                 scale={zoomedY2Scale}

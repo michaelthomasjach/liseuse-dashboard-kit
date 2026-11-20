@@ -255,10 +255,13 @@ export function DrawingStylesMenu({ compact, presets, activeId, customLabel, too
                         }
                       }}
                     >
-                      <span className="lq-chart__styles-menu-check" aria-hidden="true">
-                        {checked && <CheckIcon size={12} />}
-                      </span>
                       <span className="lq-chart__styles-menu-label">{p.name}</span>
+                      {/* La coche suit le nom : la liste reste alignée à gauche, sans colonne vide pour les autres lignes. */}
+                      {checked && (
+                        <span className="lq-chart__styles-menu-check" aria-hidden="true">
+                          <CheckIcon size={12} />
+                        </span>
+                      )}
                     </button>
                     <span
                       className="lq-chart__styles-menu-tools"

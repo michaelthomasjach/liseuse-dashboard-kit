@@ -4393,8 +4393,8 @@ button.lq-chart__legend-item {
 }
 .lq-chart__styles-menu-check {
   display: inline-flex;
-  width: 14px;
-  margin-right: 6px;
+  flex: none;
+  margin-left: 6px;
 }
 .lq-chart__styles-menu-input {
   flex: 1 1 auto;
@@ -4460,11 +4460,26 @@ button.lq-chart__legend-item {
   outline: 2px solid var(--lq-color-accent);
   outline-offset: -2px;
 }
-.lq-chart__styles-menu-item--active > .lq-chart__tool-menu-option {
+/* Style du dessin : la couleur de sélection des menus du graphique sur toute la ligne (icônes comprises), coche à
+   droite du nom. */
+.lq-chart__styles-menu-item--active,
+.lq-chart__styles-menu-item--active:hover,
+.lq-chart__styles-menu-item--active:focus-within {
+  background-color: var(--lq-color-fill);
+}
+.lq-chart__styles-menu-item--active > .lq-chart__tool-menu-option,
+.lq-chart__styles-menu-item--active > .lq-chart__tool-menu-option:hover,
+.lq-chart__styles-menu-item--active .lq-chart__styles-menu-tool {
+  color: var(--lq-color-accent-contrast);
   font-weight: var(--lq-font-weight-bold, 700);
 }
-.lq-chart__styles-menu-item--active .lq-chart__styles-menu-check {
-  color: var(--lq-color-accent);
+.lq-chart__styles-menu-item--active > .lq-chart__tool-menu-option:focus-visible {
+  outline-color: var(--lq-color-accent-contrast);
+}
+.lq-chart__styles-menu-item--active .lq-chart__styles-menu-tool:hover,
+.lq-chart__styles-menu-item--active .lq-chart__styles-menu-tool:focus-visible {
+  color: var(--lq-color-accent-contrast);
+  background-color: color-mix(in srgb, var(--lq-color-accent-contrast) 18%, transparent);
 }
 .lq-chart__styles-menu-label {
   flex: 1 1 auto;
@@ -4512,7 +4527,7 @@ button.lq-chart__legend-item {
   }
 }
 .lq-chart__styles-menu-rename {
-  padding: 2px 4px 2px 30px;
+  padding: 2px 4px;
 }
 .lq-chart__styles-menu-confirm {
   display: flex;

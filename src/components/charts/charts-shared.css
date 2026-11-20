@@ -4428,6 +4428,104 @@ button.lq-chart__legend-item {
   padding-top: 6px;
   border-top: 1px solid var(--lq-color-border-subtle);
 }
+/* Menu « Style » de la barre flottante, comme les modèles de dessin de TradingView : deux commandes, un filet, puis
+   les styles de l'outil, une ligne chacun, sans bouton visible au repos. */
+.lq-chart__styles-menu .lq-chart__tool-menu-option:disabled {
+  opacity: 0.45;
+  cursor: default;
+  background: none;
+}
+.lq-chart__styles-menu-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.lq-chart__styles-menu-item {
+  display: flex;
+  align-items: center;
+  border-radius: var(--lq-radius-sm);
+}
+.lq-chart__styles-menu-item:hover,
+.lq-chart__styles-menu-item:focus-within {
+  background-color: var(--lq-color-hover);
+}
+.lq-chart__styles-menu-item > .lq-chart__tool-menu-option,
+.lq-chart__styles-menu-item > .lq-chart__tool-menu-option:hover {
+  min-width: 0;
+  background: none;
+}
+.lq-chart__styles-menu-item > .lq-chart__tool-menu-option:focus-visible {
+  outline: 2px solid var(--lq-color-accent);
+  outline-offset: -2px;
+}
+.lq-chart__styles-menu-item--active > .lq-chart__tool-menu-option {
+  font-weight: var(--lq-font-weight-bold, 700);
+}
+.lq-chart__styles-menu-item--active .lq-chart__styles-menu-check {
+  color: var(--lq-color-accent);
+}
+.lq-chart__styles-menu-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lq-chart__styles-menu-tools {
+  display: inline-flex;
+  flex: none;
+  gap: 2px;
+  padding-right: 4px;
+}
+.lq-chart__styles-menu-tool {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  color: var(--lq-color-text-muted);
+  background: none;
+  border: none;
+  border-radius: var(--lq-radius-sm);
+  cursor: pointer;
+}
+.lq-chart__styles-menu-tool:hover,
+.lq-chart__styles-menu-tool:focus-visible {
+  color: var(--lq-color-text);
+  background-color: var(--lq-color-panel);
+}
+.lq-chart__styles-menu-tool:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+/* Au doigt (pas de survol), les icônes restent visibles ; à la souris, elles n'apparaissent qu'au survol ou au focus. */
+@media (hover: hover) and (pointer: fine) {
+  .lq-chart__styles-menu-tools {
+    opacity: 0;
+  }
+  .lq-chart__styles-menu-item:hover .lq-chart__styles-menu-tools,
+  .lq-chart__styles-menu-item:focus-within .lq-chart__styles-menu-tools {
+    opacity: 1;
+  }
+}
+.lq-chart__styles-menu-rename {
+  padding: 2px 4px 2px 30px;
+}
+.lq-chart__styles-menu-confirm {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 4px 4px 8px;
+  font-size: 0.78rem;
+  color: var(--lq-color-text);
+}
+/* Fenêtre « Enregistrer le style de dessin » : petite, comme celle de TradingView. */
+.lq-modal.lq-chart__save-style-modal {
+  width: min(400px, calc(100vw - 32px));
+}
 
 /* Options du menu « Replay » : icône, intitulé et précision sur deux lignes. */
 .lq-chart__replay-option {

@@ -175,6 +175,9 @@ export type { DaySeparatorSettings } from "./candlestick/daySeparators";
 export type { ChartAppearanceSettings } from "./candlestick/hooks/useChartAppearance";
 // Derniers styles des dessins par outil (props `defaultDrawingStyles` / `onDrawingStylesChange`).
 export type { DrawingStylesByTool } from "./candlestick/hooks/useLastDrawingStyles";
+// Styles de dessin enregistrés, par outil (props `defaultDrawingStylePresets` / `onDrawingStylePresetsChange`).
+export type { DrawingStyle, DrawingStylePreset, DrawingStylePresetsState } from "./candlestick/drawingStylePresets";
+export { DRAWING_STYLE_PRESETS_STORAGE_KEY } from "./candlestick/drawingStylePresets";
 // Derniers réglages des indicateurs par type et modèles de configuration d'indicateur (props
 // `defaultIndicatorSettings` / `onIndicatorSettingsChange`, `defaultIndicatorTemplates` / `onIndicatorTemplatesChange`).
 export type { IndicatorSettings, IndicatorSettingsByKind, IndicatorTemplate } from "./candlestick/indicatorPresets";

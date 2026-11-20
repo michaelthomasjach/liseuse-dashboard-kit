@@ -1692,7 +1692,7 @@ export const CanvasAndDayNightMode: Story = {
  *  glisser), changez sa couleur ou son épaisseur dans la barre flottante, puis tracez-en une autre : elle reprend ces
  *  réglages, sans toucher aux autres outils. Le dessin tout juste posé est sélectionné (poignées et barre flottante).
  *  Le JSON est ce que remonte `onDrawingStylesChange` (à enregistrer, puis à rendre via `defaultDrawingStyles`) ;
- *  le menu « Styles » de la barre flottante → « Réinitialiser le style par défaut de cet outil » l'oublie. */
+ *  le menu « Style » de la barre flottante → « Appliquer le style par défaut » l'oublie. */
 export const DrawingStyleMemory: Story = {
   name: "Mémoire des styles de dessin",
   render: () => {

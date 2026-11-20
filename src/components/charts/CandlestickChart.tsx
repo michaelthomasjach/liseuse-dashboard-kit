@@ -232,6 +232,8 @@ function CandlestickChartBody({
   onAppearanceChange,
   defaultDrawingStyles,
   onDrawingStylesChange,
+  defaultDrawingStylePresets,
+  onDrawingStylePresetsChange,
   defaultIndicatorSettings,
   onIndicatorSettingsChange,
   defaultIndicatorTemplates,
@@ -309,8 +311,8 @@ function CandlestickChartBody({
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   const hovered = hoverIndex !== null ? data[hoverIndex] : null;
 
-  // Styles de dessin enregistrés (« types de lignes »), gardés dans ce navigateur : voir drawingStylePresets.
-  const drawingStyles = useDrawingStylePresets();
+  // Styles de dessin enregistrés (« types de lignes »), gardés par l'hôte, sinon dans ce navigateur : voir drawingStylePresets.
+  const drawingStyles = useDrawingStylePresets({ defaultDrawingStylePresets, onDrawingStylePresetsChange });
   // Option « dessins et indicateurs propres à l'unité de temps » (barre d'outils de gauche).
   const [timeframeScoped, setTimeframeScoped] = useState(defaultTimeframeScoped);
   const toggleTimeframeScoped = () => {
@@ -3198,6 +3200,7 @@ function CandlestickChartBody({
                 presets: drawingStyles.presetsFor(tool).map((p) => ({ id: p.id, name: p.name })),
                 activeId: sel ? (matched?.id ?? null) : drawingStyles.activeFor(tool),
                 ...(sel && !matched ? { customLabel: "Personnalisé" } : {}),
+                toolLabel: sel ? drawingToolMeta(sel).label : undefined,
                 canSave: sel !== null,
                 onSelect: (id: string | null) => {
                   const style = drawingStyles.select(tool, id);
@@ -3205,11 +3208,6 @@ function CandlestickChartBody({
                   // Le style choisi devient le dernier de l'outil ; « Défaut » l'oublie.
                   if (style) lastDrawingStyles.remember(tool, style);
                   else lastDrawingStyles.reset(tool);
-                },
-                hasRememberedStyle: lastDrawingStyles.has(tool) || drawingStyles.activeFor(tool) !== null,
-                onResetToolStyle: () => {
-                  lastDrawingStyles.reset(tool);
-                  drawingStyles.select(tool, null);
                 },
                 onSave: (name: string) => {
                   if (sel) drawingStyles.saveNew(tool, name, styleOf(sel));

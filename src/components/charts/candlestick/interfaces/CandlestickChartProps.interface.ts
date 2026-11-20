@@ -387,6 +387,17 @@ export interface CandlestickChartProps {
   /** Appelé à chaque changement de ces derniers styles, avec l'ensemble à jour : de quoi les enregistrer (par compte,
    *  par exemple) et les rendre via `defaultDrawingStyles`. */
   onDrawingStylesChange?: (styles: import("../hooks/useLastDrawingStyles").DrawingStylesByTool) => void;
+  /** Styles de dessin enregistrés (menu « Style » de la barre flottante d'un dessin, paramètres du dessin) : chaque
+   *  style a un nom et un outil (`tool` : le `lineType` du dessin, « trendline » pour une ligne libre), et `active`
+   *  donne le style actif de chaque outil (celui des prochains dessins). Repris à chaque changement de contenu (des
+   *  réglages chargés après coup, un style enregistré depuis un autre graphique). Sans `onDrawingStylePresetsChange`,
+   *  le kit garde les styles dans le `localStorage` du navigateur. */
+  defaultDrawingStylePresets?: import("../drawingStylePresets").DrawingStylePresetsState;
+  /** Appelé à chaque style enregistré, remplacé, renommé, supprimé ou choisi, avec l'ensemble à jour : de quoi le garder
+   *  (par compte, par exemple) et le rendre via `defaultDrawingStylePresets`. Avec cette prop, le `localStorage` du kit
+   *  n'est plus écrit ; tant que `defaultDrawingStylePresets` est absent (l'hôte n'a encore rien), les styles déjà
+   *  présents dans ce `localStorage` sont repris une fois et remis ici. */
+  onDrawingStylePresetsChange?: (state: import("../drawingStylePresets").DrawingStylePresetsState) => void;
   /** Derniers réglages des indicateurs, par type (clé : `kind` — « rsi », « macd »… —, `"<kind>@pane"` pour une
    *  moyenne posée sur un panneau, `"script:<nom du panneau>"` pour un script, `"custom:<id>"` pour un indicateur de
    *  `customIndicators`) : quand l'utilisateur règle un indicateur dans ses paramètres (périodes, seuils, couleurs,

@@ -10,6 +10,9 @@ export interface DrawingStylesMenuProps {
   presets: { id: string; name: string }[];
   /** Style actif (null : « Défaut »). */
   activeId: string | null;
+  /** Nom affiché quand `activeId` est null à la place de « Défaut » (dessin sélectionné dont l'apparence ne
+   *  correspond à aucun style enregistré : « Personnalisé »). */
+  customLabel?: string;
   /** Un dessin est sélectionné : son style peut être enregistré ou écraser un style existant. */
   canSave: boolean;
   onSelect: (id: string | null) => void;
@@ -48,12 +51,12 @@ export function SaveStyleField({ placeholder, onSave }: { placeholder: string; o
  * outil (un clic l'applique au dessin sélectionné et le garde pour les prochains tracés), avec
  * écraser / renommer / supprimer par ligne, et l'enregistrement du style du dessin sous un nom.
  */
-export function DrawingStylesMenu({ compact, presets, activeId, canSave, onSelect, onSave, onOverwrite, onRename, onDelete, hasRememberedStyle, onResetToolStyle }: DrawingStylesMenuProps) {
+export function DrawingStylesMenu({ compact, presets, activeId, customLabel, canSave, onSelect, onSave, onOverwrite, onRename, onDelete, hasRememberedStyle, onResetToolStyle }: DrawingStylesMenuProps) {
   const anchorRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(null);
-  const activeName = presets.find((p) => p.id === activeId)?.name ?? "Défaut";
+  const activeName = presets.find((p) => p.id === activeId)?.name ?? customLabel ?? "Défaut";
 
   return (
     <>
@@ -73,11 +76,11 @@ export function DrawingStylesMenu({ compact, presets, activeId, canSave, onSelec
           <button
             type="button"
             role="menuitemradio"
-            aria-checked={activeId === null}
-            className={["lq-chart__tool-menu-option", activeId === null && "lq-chart__tool-menu-option--selected"].filter(Boolean).join(" ")}
+            aria-checked={(activeId === null && !customLabel)}
+            className={["lq-chart__tool-menu-option", (activeId === null && !customLabel) && "lq-chart__tool-menu-option--selected"].filter(Boolean).join(" ")}
             onClick={() => onSelect(null)}
           >
-            <span className="lq-chart__styles-menu-check">{activeId === null && <CheckIcon size={12} />}</span>
+            <span className="lq-chart__styles-menu-check">{(activeId === null && !customLabel) && <CheckIcon size={12} />}</span>
             Défaut
           </button>
           {presets.map((p) =>

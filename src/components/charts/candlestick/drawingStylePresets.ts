@@ -74,6 +74,15 @@ export function withStyle(dr: TrendLineDrawing, style: DrawingStyle | null): Tre
   return { ...(next as unknown as TrendLineDrawing), ...(style ?? {}) };
 }
 
+/** Deux apparences identiques, champ d'apparence par champ (un champ absent des deux compte comme égal). Sert à
+ *  retrouver le style enregistré qu'un dessin porte, pour l'afficher dans sa barre flottante. */
+export function sameStyle(a: DrawingStyle, b: DrawingStyle): boolean {
+  for (const k of DRAWING_STYLE_KEYS) {
+    if (JSON.stringify((a as Record<string, unknown>)[k]) !== JSON.stringify((b as Record<string, unknown>)[k])) return false;
+  }
+  return true;
+}
+
 const STORAGE_KEY = "lq-chart:drawing-style-presets:v1";
 
 function load(): PresetsState {

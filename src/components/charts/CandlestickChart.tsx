@@ -126,7 +126,7 @@ import type { ChartCaptureAction } from "./candlestick/components/ChartHeader";
 import { attachedDefaults, VOLUME_PANE_ID } from "./candlestick/attachedIndicators";
 import { CHART_DISPLAY_MODES } from "./candlestick/chartModes";
 import { findTimeframeLabel, flattenTimeframeValues } from "./candlestick/timeframes";
-import { styleOf, toolKeyOf, useDrawingStylePresets, withStyle } from "./candlestick/drawingStylePresets";
+import { sameStyle, styleOf, toolKeyOf, useDrawingStylePresets, withStyle } from "./candlestick/drawingStylePresets";
 import { useIndicatorTemplates } from "./candlestick/hooks/useIndicatorPresets";
 import { dayMonthYearFormat } from "./internal/dateFormat";
 import { axisLabelsAttribute, chartStyleCssVars, chartStyleDateFormatter, DEFAULT_RESET_ZOOM_BARS, effectiveChartStyle, type ChartYAxisGutter } from "./candlestick/chartStyle";
@@ -3190,9 +3190,14 @@ function CandlestickChartBody({
               const sel = drawings.find((d) => d.id === selectedDrawingId) ?? null;
               const tool = sel ? toolKeyOf(sel) : activeTool;
               if (!tool) return undefined;
+              // Dessin sélectionné : le style enregistré qu'il porte vraiment (même apparence), pas le style actif de
+              // l'outil (celui des prochains tracés) ; aucun ne correspond : « Personnalisé ».
+              const selStyle = sel ? styleOf(sel) : null;
+              const matched = selStyle ? drawingStyles.presetsFor(tool).find((p) => sameStyle(p.style, selStyle)) : undefined;
               return {
                 presets: drawingStyles.presetsFor(tool).map((p) => ({ id: p.id, name: p.name })),
-                activeId: drawingStyles.activeFor(tool),
+                activeId: sel ? (matched?.id ?? null) : drawingStyles.activeFor(tool),
+                ...(sel && !matched ? { customLabel: "Personnalisé" } : {}),
                 canSave: sel !== null,
                 onSelect: (id: string | null) => {
                   const style = drawingStyles.select(tool, id);

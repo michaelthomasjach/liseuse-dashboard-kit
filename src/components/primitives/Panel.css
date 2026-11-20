@@ -6,6 +6,9 @@
   border-radius: var(--lq-radius-lg);
   box-shadow: var(--lq-shadow-panel);
   padding: var(--lq-space-4) var(--lq-space-5);
+  /* Verre dépoli optionnel d'un thème (--lq-surface-backdrop, « blur(24px) saturate(1.6) ») ; aucun par défaut. */
+  -webkit-backdrop-filter: var(--lq-surface-backdrop, none);
+  backdrop-filter: var(--lq-surface-backdrop, none);
 }
 
 .lq-root[data-lq-palette="eink"] .lq-panel {
@@ -18,6 +21,8 @@
   box-shadow: none;
   background: transparent;
   padding: 0;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 
 /* L'en-tête : le titre à gauche, la méta à droite tant qu'ils tiennent sur une ligne. Dans une carte

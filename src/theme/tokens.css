@@ -334,6 +334,11 @@
  *   Surfaces           --lq-color-panel-border   the 1px outline of Card / Panel / TabbedCard /
  *                      Testimonial (falls back to --lq-color-border-subtle); `transparent` lets
  *                      the panel shadow alone detach the surface.
+ *                      --lq-surface-backdrop (none) the backdrop-filter of Panel, Card, Modal,
+ *                      Popover, ContextMenu and the SidebarLayout sidebar — a frosted-glass theme
+ *                      sets e.g. `blur(24px) saturate(1.6)` with a translucent --lq-color-panel.
+ *                      Caveat: a surface with a backdrop-filter becomes the containing block of
+ *                      its `position: fixed` descendants (portaled overlays are not affected).
  *
  *   Tones              the filled surfaces — Card `tone`, LiveTile `tone`, DotMap `tone` (see
  *                      components/primitives/tone.css). Fill: --lq-tone-accent · -success · -info ·

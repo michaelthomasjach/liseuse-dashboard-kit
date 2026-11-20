@@ -9,6 +9,9 @@
   background-color: var(--lq-color-panel);
   color: var(--lq-color-text);
   box-shadow: 0 8px 24px rgb(0 0 0 / 22%);
+  /* Verre dépoli optionnel d'un thème (--lq-surface-backdrop, « blur(24px) saturate(1.6) ») ; aucun par défaut. */
+  -webkit-backdrop-filter: var(--lq-surface-backdrop, none);
+  backdrop-filter: var(--lq-surface-backdrop, none);
   font-family: var(--lq-font-family, inherit);
   font-size: var(--lq-text-sm);
   user-select: none;

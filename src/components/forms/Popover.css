@@ -11,6 +11,9 @@
   border: 1px solid var(--lq-color-border);
   border-radius: var(--lq-radius-md);
   box-shadow: var(--lq-shadow-modal);
+  /* Verre dépoli optionnel d'un thème (--lq-surface-backdrop, « blur(24px) saturate(1.6) ») ; aucun par défaut. */
+  -webkit-backdrop-filter: var(--lq-surface-backdrop, none);
+  backdrop-filter: var(--lq-surface-backdrop, none);
   /* visible, not hidden: menu items with a submenu flyout (see UserMenu)
      position their submenu outside this box via `left: 100%`. */
   overflow: visible;

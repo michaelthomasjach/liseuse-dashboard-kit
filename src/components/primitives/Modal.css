@@ -23,6 +23,9 @@
   border: 1px solid var(--lq-color-border);
   border-radius: var(--lq-radius-lg);
   box-shadow: var(--lq-shadow-modal);
+  /* Verre dépoli optionnel d'un thème (--lq-surface-backdrop, « blur(24px) saturate(1.6) ») ; aucun par défaut. */
+  -webkit-backdrop-filter: var(--lq-surface-backdrop, none);
+  backdrop-filter: var(--lq-surface-backdrop, none);
 }
 
 /* La modale ne reçoit le focus (tabIndex -1) que faute d'un contrôle à focaliser : le dialogue

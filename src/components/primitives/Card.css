@@ -4,6 +4,9 @@
   border-radius: var(--lq-radius-lg);
   box-shadow: var(--lq-shadow-panel);
   overflow: hidden;
+  /* Verre dépoli optionnel d'un thème (--lq-surface-backdrop, « blur(24px) saturate(1.6) ») ; aucun par défaut. */
+  -webkit-backdrop-filter: var(--lq-surface-backdrop, none);
+  backdrop-filter: var(--lq-surface-backdrop, none);
 }
 
 .lq-root[data-lq-palette="eink"] .lq-card {
@@ -16,6 +19,8 @@
   box-shadow: none;
   background: transparent;
   overflow: visible;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 
 /* The quiet KPI-tile look (see CardProps.highlight's own doc) — no box at all, replaced by a
